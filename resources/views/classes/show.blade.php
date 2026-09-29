@@ -15,18 +15,21 @@
             @if ($nextAction && $class->status === 'pending_schedule' && $tab !== 'schedule' && $canManage && auth()->user()->can('work_task.view'))
                 <x-ui.button icon="edit_calendar" :href="route('tasks.schedule-config', ['class_id' => $class->id])">{{ $nextAction['label'] }}</x-ui.button>
             @elseif ($nextAction && $nextAction['tab'] !== $tab)
-                <x-ui.button icon="arrow_forward" :href="route('classes.show', ['id' => $class->id, 'tab' => $nextAction['tab']])">{{ $nextAction['label'] }}</x-ui.button>
+                {{-- Tình trạng tiếp theo của lớp là nhãn (bấm để mở tab liên quan), không phải nút hành động chính. --}}
+                <a href="{{ route('classes.show', ['id' => $class->id, 'tab' => $nextAction['tab']]) }}" class="inline-flex items-center gap-xs rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container/40 max-md:min-h-11">
+                    <x-ui.badge :color="$nextAction['tone']" pill>{{ $nextAction['label'] }}</x-ui.badge>
+                    <span class="material-symbols-outlined text-[18px] text-on-surface-variant" aria-hidden="true">arrow_forward</span>
+                </a>
             @endif
             {{-- Xóa lớp là thao tác hiếm và nguy hiểm: để trong menu "⋯", có hộp xác nhận, không đặt cạnh nút chính. --}}
             @can('class.delete')
                 @if ($class->userCan(auth()->user(), 'delete'))
-                    @include('partials.data-confirm')
                     <x-ui.dropdown align="right" width="56">
                         <x-slot name="trigger">
                             <x-ui.button type="button" variant="ghost" icon="more_horiz" aria-label="Thao tác khác" aria-haspopup="menu" />
                         </x-slot>
                         <x-slot name="content">
-                            <form method="POST" action="{{ route('classes.destroy', $class->id) }}" data-confirm="Xóa lớp {{ $class->name }}? Lớp sẽ bị ẩn khỏi danh sách." role="menu">
+                            <form method="POST" action="{{ route('classes.destroy', $class->id) }}" data-confirm="Xóa lớp {{ $class->name }}? Lớp sẽ bị ẩn khỏi danh sách." data-confirm-label="Xóa" data-confirm-danger role="menu">
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit" role="menuitem" class="flex w-full items-center gap-sm px-md py-sm text-left font-body-medium text-body-medium text-error transition-colors hover:bg-error/5">
@@ -51,7 +54,7 @@
                     $stepClass = match ($step['state']) {
                         'done' => 'text-tertiary',
                         'current' => 'bg-primary-container/10 text-primary font-semibold',
-                        default => 'text-on-surface-variant/70',
+                        default => 'text-on-surface-subtle',
                     };
                 @endphp
                 <li class="min-w-[140px] flex-1 border-r border-surface-container-highest last:border-r-0">
@@ -63,7 +66,7 @@
                             {{ $step['label'] }}
                         </span>
                         @if ($step['hint'])
-                            <span class="pl-[22px] font-code text-[11px] opacity-80">{{ $step['hint'] }}</span>
+                            <span class="pl-[22px] font-code text-xs opacity-80">{{ $step['hint'] }}</span>
                         @endif
                     </a>
                 </li>

@@ -8,13 +8,6 @@
     </x-ui.page-header>
 
     <div class="space-y-6" x-data="systemBankSepayManager()">
-        {{-- Top Nav Tabs matching System Config --}}
-        <div class="flex items-center gap-2 border-b border-surface-container-highest pb-2 overflow-x-auto">
-            <x-ui.button size="sm" icon="account_balance_wallet" :href="route('system-config.bank-accounts')">Tài khoản Ngân hàng &amp; SePay</x-ui.button>
-            <x-ui.button variant="secondary" size="sm" icon="notifications_active" :href="route('system-config.debt-reminders')">Mẫu nhắc nợ</x-ui.button>
-            <x-ui.button variant="secondary" size="sm" icon="mail" :href="route('system-config.ticket-emails')">Email nhận Ticket</x-ui.button>
-            <x-ui.button variant="secondary" size="sm" icon="dns" :href="route('system-config.hosting')">Hosting &amp; Máy chủ</x-ui.button>
-        </div>
 
         {{-- Sub Nav Tabs (Banks, SePay, Logs) --}}
         <div class="flex items-center gap-2 pb-1 overflow-x-auto">
@@ -37,7 +30,7 @@
             >
                 <span class="material-symbols-outlined text-base">webhook</span>
                 <span>Cấu hình Webhook SePay Gateway</span>
-                <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold {{ $sepayConfig->is_active ? 'bg-tertiary/10 text-tertiary' : 'bg-surface-container-high text-on-surface-variant' }}">
+                <span class="px-1.5 py-0.2 rounded-full text-xs font-bold {{ $sepayConfig->is_active ? 'bg-tertiary/10 text-tertiary' : 'bg-surface-container-high text-on-surface-variant' }}">
                     {{ $sepayConfig->is_active ? 'ĐANG BẬT' : 'TẮT' }}
                 </span>
             </button>
@@ -121,7 +114,7 @@
                                         </td>
                                         <td class="whitespace-nowrap text-right">
                                             <x-ui.button size="sm" variant="ghost" icon="edit" @click="openEdit({{ Js::from($acc->only(['id', 'account_type', 'bank_code', 'bank_name', 'account_number', 'account_holder', 'branch_id', 'is_default_vietqr', 'is_active'])) }})" title="Sửa tài khoản" aria-label="Sửa tài khoản" />
-                                            <form action="{{ route('system-config.bank-accounts.destroy', $acc->id) }}" method="POST" onsubmit="return confirm('Bạn có chắc muốn xóa tài khoản ngân hàng này?')" class="inline">
+                                            <form action="{{ route('system-config.bank-accounts.destroy', $acc->id) }}" method="POST" data-confirm="Xóa tài khoản ngân hàng này?" data-confirm-label="Xóa" data-confirm-danger class="inline">
                                                 @csrf
                                                 @method('DELETE')
                                                 <x-ui.button type="submit" size="sm" variant="danger-text" icon="delete" title="Xóa" aria-label="Xóa tài khoản" />
@@ -217,7 +210,7 @@
                         <div>
                             <label class="block text-xs font-semibold text-on-surface-variant mb-1 flex items-center justify-between">
                                 <span>URL nhận webhook <span class="text-error">*</span></span>
-                                <span class="text-[11px] text-on-surface-variant/70">SePay gửi dữ liệu giao dịch đến URL này khi có tiền vào</span>
+                                <span class="text-xs text-on-surface-subtle">SePay gửi dữ liệu giao dịch đến URL này khi có tiền vào</span>
                             </label>
                             <div class="flex items-center gap-2">
                                 <input 
@@ -233,7 +226,7 @@
                                     <span x-text="copiedTag === 'webhook_url' ? 'Đã sao chép!' : 'Sao chép URL'"></span>
                                 </x-ui.button>
                             </div>
-                            <div class="flex flex-wrap items-center justify-between gap-2 mt-2 text-[11px] text-on-surface-variant">
+                            <div class="flex flex-wrap items-center justify-between gap-2 mt-2 text-xs text-on-surface-variant">
                                 <div class="flex items-center gap-2">
                                     <span>Đường dẫn endpoint chuẩn theo domain đang mở:</span>
                                     <code class="font-mono text-on-surface-variant bg-surface-container px-1.5 py-0.5 rounded select-all">{{ $currentEndpoint }}</code>
@@ -281,7 +274,7 @@
                             <div>
                                 <label class="block text-xs font-semibold text-on-surface-variant mb-1 flex items-center justify-between">
                                     <span>Secret Key HMAC-SHA256 <span class="text-error">*</span></span>
-                                    <button type="button" @click="showSecret = !showSecret" class="text-[11px] text-on-surface-variant/70 hover:text-on-surface-variant font-normal">
+                                    <button type="button" @click="showSecret = !showSecret" class="text-xs text-on-surface-subtle hover:text-on-surface-variant font-normal">
                                         <span x-text="showSecret ? 'Ẩn' : 'Hiện'"></span>
                                     </button>
                                 </label>
@@ -299,7 +292,7 @@
                                         <span class="material-symbols-outlined text-sm" x-text="copiedTag === 'secret_key' ? 'check' : 'content_copy'"></span>
                                     </x-ui.button>
                                 </div>
-                                <p class="text-[11px] text-on-surface-variant/70 mt-1">SePay ký dữ liệu bằng HMAC-SHA256 qua header <code class="font-mono text-on-surface-variant">X-SePay-Signature</code>.</p>
+                                <p class="text-xs text-on-surface-subtle mt-1">SePay ký dữ liệu bằng HMAC-SHA256 qua header <code class="font-mono text-on-surface-variant">X-SePay-Signature</code>.</p>
                             </div>
                         </div>
 
@@ -312,7 +305,7 @@
                     </div>
 
                     <div class="flex items-center justify-between pt-4 border-t border-surface-container-highest">
-                        <span class="text-[11px] text-on-surface-variant/70">Sau khi lưu, vui lòng đối soát URL và Secret Key khớp với trang SePay.vn</span>
+                        <span class="text-xs text-on-surface-subtle">Sau khi lưu, vui lòng đối soát URL và Secret Key khớp với trang SePay.vn</span>
                         <x-ui.button type="submit" icon="save">Lưu Cấu Hình SePay Webhook</x-ui.button>
                     </div>
                 </form>
@@ -327,7 +320,7 @@
                 <x-slot:header>
                     <div>
                         <h3 class="font-bold text-xs uppercase tracking-wider text-on-surface">Giao dịch SePay Webhook gần nhất</h3>
-                        <p class="text-[11px] text-on-surface-variant/70">Tự động đối soát nội dung chuyển khoản và gạch nợ học phí</p>
+                        <p class="text-xs text-on-surface-subtle">Tự động đối soát nội dung chuyển khoản và gạch nợ học phí</p>
                     </div>
                     <span class="text-xs font-bold text-on-surface-variant">Tổng cộng: {{ count($recentTransactions) }} giao dịch</span>
                 </x-slot:header>
@@ -347,7 +340,7 @@
                     <tbody>
                         @forelse ($recentTransactions as $tx)
                             <tr>
-                                <td class="text-on-surface-variant font-mono text-[11px]">
+                                <td class="text-on-surface-variant font-mono text-xs">
                                     {{ $tx->transaction_date ? $tx->transaction_date->format('d/m/Y H:i') : $tx->created_at->format('d/m/Y H:i') }}
                                 </td>
                                 <td class="font-mono font-semibold">
@@ -355,7 +348,7 @@
                                 </td>
                                 <td class="font-mono">
                                     {{ $tx->account_number }}
-                                    <div class="text-[10px] text-on-surface-variant/70">{{ $tx->gateway }}</div>
+                                    <div class="text-xs text-on-surface-subtle">{{ $tx->gateway }}</div>
                                 </td>
                                 <td class="text-right">
                                     <x-ui.money :value="(float) $tx->transfer_amount" :sign="true" tone="success" class="font-bold" />
@@ -378,7 +371,7 @@
                                         </x-ui.badge>
                                     @endif
                                 </td>
-                                <td class="text-[11px] text-on-surface-variant max-w-sm">
+                                <td class="text-xs text-on-surface-variant max-w-sm">
                                     {{ $tx->response_message ?? 'Đang chờ xử lý' }}
                                 </td>
                             </tr>

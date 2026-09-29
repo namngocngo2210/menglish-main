@@ -37,7 +37,7 @@
                     <span class="material-symbols-outlined text-primary-container text-xl">fact_check</span>
                     <h2 class="font-h3 text-h3 text-on-surface">Chấm điểm theo thang điểm khối lớp</h2>
                 </div>
-                <span class="px-2 py-0.5 rounded-md bg-warning-container border border-warning/30 text-on-warning-container text-[11px] font-bold">Tổng = Nghe + Đọc &amp; Viết + Nói → lớp đề xuất</span>
+                <span class="px-2 py-0.5 rounded-md bg-warning-container border border-warning/30 text-on-warning-container text-xs font-bold">Tổng = Nghe + Đọc &amp; Viết + Nói → lớp đề xuất</span>
                 <div class="text-xs text-on-surface-variant font-mono">
                     Nộp bài lúc: {{ $submission->created_at ? $submission->created_at->format('H:i, d/m/Y') : date('H:i, d/m/Y') }}
                 </div>
@@ -125,16 +125,16 @@
                     Tất Cả (<span x-text="questions.length"></span>)
                 </button>
                 <button type="button" @click="currentFilter = 'listening'" :class="currentFilter === 'listening' ? 'bg-secondary text-white font-bold' : 'bg-secondary/10 hover:bg-secondary/20 text-secondary font-semibold'" class="px-3 py-1.5 rounded-lg transition shrink-0 cursor-pointer">
-                    🎧 Listening
+                    <span class="material-symbols-outlined text-[16px]" aria-hidden="true">headphones</span> Listening
                 </button>
                 <button type="button" @click="currentFilter = 'reading'" :class="currentFilter === 'reading' ? 'bg-tertiary text-white font-bold' : 'bg-tertiary/10 hover:bg-tertiary/20 text-tertiary font-semibold'" class="px-3 py-1.5 rounded-lg transition shrink-0 cursor-pointer">
-                    📖 Reading &amp; Grammar
+                    <span class="material-symbols-outlined text-[16px]" aria-hidden="true">menu_book</span> Reading &amp; Grammar
                 </button>
                 <button type="button" @click="currentFilter = 'writing'" :class="currentFilter === 'writing' ? 'bg-warning text-white font-bold' : 'bg-warning-container hover:bg-warning/20 text-on-warning-container font-semibold'" class="px-3 py-1.5 rounded-lg transition shrink-0 cursor-pointer">
-                    ✍️ Writing
+                    <span class="material-symbols-outlined text-[16px]" aria-hidden="true">edit_note</span> Writing
                 </button>
                 <button type="button" @click="currentFilter = 'speaking'" :class="currentFilter === 'speaking' ? 'bg-error text-white font-bold' : 'bg-error/10 hover:bg-error/20 text-error font-semibold'" class="px-3 py-1.5 rounded-lg transition shrink-0 cursor-pointer">
-                    🗣️ Speaking
+                    <span class="material-symbols-outlined text-[16px]" aria-hidden="true">record_voice_over</span> Speaking
                 </button>
                 <button type="button" @click="currentFilter = 'correct'" :class="currentFilter === 'correct' ? 'bg-tertiary text-white font-bold' : 'bg-tertiary/10 hover:bg-tertiary/20 text-on-tertiary-container font-semibold'" class="px-3 py-1.5 rounded-lg transition shrink-0 cursor-pointer">
                     ✓ Câu Đúng
@@ -178,21 +178,19 @@
 
                                 {{-- Skill Badge --}}
                                 @if ($qSkill === 'listening')
-                                    <x-ui.badge color="secondary" pill class="uppercase font-bold">🎧 Listening</x-ui.badge>
+                                    <x-ui.badge color="secondary" pill class="uppercase font-bold"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">headphones</span> Listening</x-ui.badge>
                                 @elseif ($qSkill === 'reading')
-                                    <x-ui.badge color="success" pill class="uppercase font-bold">📖 Reading</x-ui.badge>
+                                    <x-ui.badge color="success" pill class="uppercase font-bold"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">menu_book</span> Reading</x-ui.badge>
                                 @elseif ($qSkill === 'grammar')
-                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200 uppercase">
-                                        🔤 Grammar
-                                    </span>
+                                    <x-ui.badge color="accent" pill class="uppercase font-bold"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">spellcheck</span> Grammar</x-ui.badge>
                                 @elseif ($qSkill === 'writing')
-                                    <x-ui.badge color="warning" pill class="uppercase font-bold">✍️ Writing Task</x-ui.badge>
+                                    <x-ui.badge color="warning" pill class="uppercase font-bold"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">edit_note</span> Writing Task</x-ui.badge>
                                 @elseif ($qSkill === 'speaking')
-                                    <x-ui.badge color="error" pill class="uppercase font-bold">🗣️ Speaking Prompt</x-ui.badge>
+                                    <x-ui.badge color="error" pill class="uppercase font-bold"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">record_voice_over</span> Speaking Prompt</x-ui.badge>
                                 @endif
 
                                 {{-- Type Badge --}}
-                                <span class="px-2 py-0.5 rounded-md text-[10px] font-medium bg-surface-container text-on-surface-variant border border-surface-container-highest">
+                                <span class="px-2 py-0.5 rounded-md text-xs font-medium bg-surface-container text-on-surface-variant border border-surface-container-highest">
                                     {{ $qType === 'multiple_choice' ? 'Trắc nghiệm 4 lựa chọn' : ($qType === 'fill_blank' ? 'Điền từ vào chỗ trống' : ($qType === 'essay' ? 'Tự luận Writing' : 'Phỏng vấn Speaking')) }}
                                 </span>
                             </div>
@@ -214,7 +212,7 @@
                                         Chưa có câu trả lời
                                     </span>
                                 @endif
-                                <span class="text-xs font-mono font-bold text-on-surface-variant/70">({{ $q['points'] ?? 1 }} điểm)</span>
+                                <span class="text-xs font-mono font-bold text-on-surface-subtle">({{ $q['points'] ?? 1 }} điểm)</span>
                             </div>
                         </div>
 
@@ -223,7 +221,7 @@
                             <div class="mt-3 p-3 bg-secondary/5 border border-secondary/30 rounded-xl flex items-center gap-3">
                                 <span class="material-symbols-outlined text-secondary text-xl">headphones</span>
                                 <div class="flex-1">
-                                    <span class="text-[11px] font-bold text-on-secondary-fixed block mb-1">File Nghe Audio của câu hỏi:</span>
+                                    <span class="text-xs font-bold text-on-secondary-fixed block mb-1">File Nghe Audio của câu hỏi:</span>
                                     <audio controls class="w-full h-8">
                                         <source src="{{ $q['audio_url'] }}" type="audio/mpeg">
                                         Trình duyệt không hỗ trợ audio player.
@@ -235,7 +233,7 @@
                         {{-- Passage / Context if present --}}
                         @if (!empty($q['passage']))
                             <div class="mt-3 p-3.5 bg-surface-container/80 border border-surface-container-highest rounded-xl space-y-1">
-                                <span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant block">Đoạn văn đọc hiểu / Bối cảnh:</span>
+                                <span class="text-xs font-bold uppercase tracking-wider text-on-surface-variant block">Đoạn văn đọc hiểu / Bối cảnh:</span>
                                 <p class="text-xs text-on-surface leading-relaxed font-serif italic">{{ $q['passage'] }}</p>
                             </div>
                         @endif
@@ -250,7 +248,7 @@
                         {{-- MULTIPLE CHOICE OPTIONS --}}
                         @if ($qType === 'multiple_choice' && !empty($q['options']))
                             <div class="mt-3.5 space-y-2">
-                                <span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/70 block mb-1">Các lựa chọn &amp; Đối chiếu câu trả lời:</span>
+                                <span class="text-xs font-bold uppercase tracking-wider text-on-surface-subtle block mb-1">Các lựa chọn &amp; Đối chiếu câu trả lời:</span>
                                 
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                                     @foreach ($q['options'] as $opt)
@@ -289,17 +287,17 @@
                                             {{-- Badges on the right of each option --}}
                                             <div class="shrink-0 flex flex-col items-end gap-1">
                                                 @if ($isThisCandidateChoice && $isThisCorrectAnswer)
-                                                    <span class="px-2 py-0.5 rounded-md text-[10px] font-black bg-tertiary text-white flex items-center gap-1 shadow-2xs">
+                                                    <span class="px-2 py-0.5 rounded-md text-xs font-black bg-tertiary text-white flex items-center gap-1 shadow-2xs">
                                                         <span class="material-symbols-outlined text-[12px]">done_all</span>
                                                         <span>Thí sinh chọn (Đúng)</span>
                                                     </span>
                                                 @elseif ($isThisCandidateChoice)
-                                                    <span class="px-2 py-0.5 rounded-md text-[10px] font-black bg-error text-white flex items-center gap-1 shadow-2xs">
+                                                    <span class="px-2 py-0.5 rounded-md text-xs font-black bg-error text-white flex items-center gap-1 shadow-2xs">
                                                         <span class="material-symbols-outlined text-[12px]">close</span>
                                                         <span>Thí sinh chọn (Sai)</span>
                                                     </span>
                                                 @elseif ($isThisCorrectAnswer)
-                                                    <span class="px-2 py-0.5 rounded-md text-[10px] font-black bg-tertiary/10 text-on-tertiary-container border border-tertiary/30 flex items-center gap-1">
+                                                    <span class="px-2 py-0.5 rounded-md text-xs font-black bg-tertiary/10 text-on-tertiary-container border border-tertiary/30 flex items-center gap-1">
                                                         <span class="material-symbols-outlined text-[12px]">check</span>
                                                         <span>Đáp án đúng của đề</span>
                                                     </span>
@@ -316,7 +314,7 @@
                             <div class="mt-3.5 p-3.5 bg-surface-container-lowest border border-surface-container-highest rounded-xl space-y-2 text-xs">
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <div class="p-2.5 rounded-lg border {{ $isCorrect ? 'bg-tertiary/5 border-tertiary/30 text-on-tertiary-container' : 'bg-error/5 border-error/30 text-on-error-container' }}">
-                                        <span class="text-[10px] font-bold uppercase tracking-wider block mb-1 text-on-surface-variant">Câu trả lời của thí sinh:</span>
+                                        <span class="text-xs font-bold uppercase tracking-wider block mb-1 text-on-surface-variant">Câu trả lời của thí sinh:</span>
                                         <div class="flex items-center gap-2">
                                             <span class="font-mono font-black text-sm">{{ $candidateAnswer ?: '(Bỏ trống / Chưa điền)' }}</span>
                                             @if ($isCorrect)
@@ -327,7 +325,7 @@
                                         </div>
                                     </div>
                                     <div class="p-2.5 bg-tertiary/10 border border-tertiary/30 rounded-lg text-on-tertiary-container">
-                                        <span class="text-[10px] font-bold uppercase tracking-wider block mb-1 text-on-tertiary-container">Đáp án chuẩn của đề bài:</span>
+                                        <span class="text-xs font-bold uppercase tracking-wider block mb-1 text-on-tertiary-container">Đáp án chuẩn của đề bài:</span>
                                         <span class="font-mono font-black text-sm text-tertiary">{{ $correctAnswer }}</span>
                                     </div>
                                 </div>
@@ -343,7 +341,7 @@
                                             <span class="material-symbols-outlined text-warning text-[16px]">edit_document</span>
                                             <span>Toàn văn Bài làm Writing của Thí sinh:</span>
                                         </span>
-                                        <span class="text-[11px] font-mono font-bold text-on-warning-container bg-warning/5 px-2 py-0.5 rounded-md">
+                                        <span class="text-xs font-mono font-bold text-on-warning-container bg-warning/5 px-2 py-0.5 rounded-md">
                                             {{ str_word_count($submission->writing_content ?? '') }} từ
                                         </span>
                                     </div>
@@ -353,7 +351,7 @@
                                 </div>
 
                                 @if (!empty($q['rubric_note']))
-                                    <div class="p-3 bg-surface-container-low border border-surface-container-highest rounded-xl text-[11px] text-on-surface-variant flex items-start gap-2">
+                                    <div class="p-3 bg-surface-container-low border border-surface-container-highest rounded-xl text-xs text-on-surface-variant flex items-start gap-2">
                                         <span class="material-symbols-outlined text-warning text-base shrink-0 mt-0.5">rule</span>
                                         <div>
                                             <strong class="text-on-surface">Hướng dẫn chấm Writing:</strong> {{ $q['rubric_note'] }}
@@ -368,7 +366,7 @@
                             <div class="mt-3.5 space-y-3">
                                 @if (!empty($q['cue_points']))
                                     <div class="p-3.5 bg-error/5 border border-error/30 rounded-xl space-y-1.5 text-xs">
-                                        <span class="font-bold text-on-error-container uppercase text-[10px] block">Gợi ý chủ đề phỏng vấn (Cue Points):</span>
+                                        <span class="font-bold text-on-error-container uppercase text-xs block">Gợi ý chủ đề phỏng vấn (Cue Points):</span>
                                         <div class="text-on-error-container leading-relaxed whitespace-pre-line font-medium pl-1">
                                             {{ $q['cue_points'] }}
                                         </div>

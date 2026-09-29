@@ -33,17 +33,15 @@
             </div>
 
             @if($tab === 'candidates')
-                {{-- Filter Status & Branch --}}
-                <div class="flex flex-wrap items-center gap-3 border-b border-surface-container-highest bg-surface-container-low p-4">
-                    <form method="GET" action="{{ route('recruitment.index') }}" class="flex w-full flex-wrap items-center gap-3 sm:w-auto">
-                        <input type="hidden" name="tab" value="candidates">
-                        <x-ui.select name="status" onchange="this.form.submit()" aria-label="Trạng thái" :value="$status"
-                                     :options="['all' => 'Tất cả trạng thái'] + $cvStatusOptions" />
-
-                        <x-ui.select name="branch_id" onchange="this.form.submit()" aria-label="Cơ sở" placeholder="Tất cả cơ sở" :value="$branchId"
-                                     :options="$branches->pluck('name', 'id')" />
-                    </form>
-                </div>
+                {{-- Không có ô tìm kiếm; bỏ viền / bo góc của thanh lọc vì đã nằm trong khung tab. "Xóa lọc" giữ tab Hồ sơ CV --}}
+                <x-ui.filter-bar :action="route('recruitment.index')" :search="false" :reset-url="route('recruitment.index', ['tab' => 'candidates'])"
+                                 class="!mb-0 !rounded-none !border-x-0 !border-t-0 !bg-surface-container-low !shadow-none">
+                    <input type="hidden" name="tab" value="candidates">
+                    <x-ui.select name="status" label="Trạng thái" onchange="this.form.submit()" :value="$status"
+                                 :options="['all' => 'Tất cả trạng thái'] + $cvStatusOptions" />
+                    <x-ui.select name="branch_id" label="Cơ sở" onchange="this.form.submit()" placeholder="Tất cả cơ sở" :value="$branchId"
+                                 :options="$branches->pluck('name', 'id')" />
+                </x-ui.filter-bar>
 
                 {{-- Table CVs --}}
                 <x-ui.data-table class="rounded-none border-0">
@@ -64,7 +62,7 @@
                                 <tr x-data="{ openEdit: false }">
                                     <td>
                                         <span class="block text-sm font-bold text-on-surface">{{ $can->full_name }}</span>
-                                        <div class="mt-0.5 flex items-center gap-2 text-[11px] text-on-surface-variant">
+                                        <div class="mt-0.5 flex items-center gap-2 text-xs text-on-surface-variant">
                                             <span>{{ $can->phone }}</span>
                                             <span>•</span>
                                             <span>{{ $can->email }}</span>
@@ -72,7 +70,7 @@
                                     </td>
                                     <td>
                                         <span class="block font-semibold text-primary">{{ $can->applying_position }}</span>
-                                        <span class="text-[11px] text-on-surface-variant">{{ $can->branch?->name ?? 'Mọi chi nhánh' }}</span>
+                                        <span class="text-xs text-on-surface-variant">{{ $can->branch?->name ?? 'Mọi chi nhánh' }}</span>
                                     </td>
                                     <td>
                                         @if($can->cv_file_path)
@@ -81,10 +79,10 @@
                                                 Xem file CV
                                             </a>
                                         @else
-                                            <span class="text-on-surface-variant/70">Không đính kèm file</span>
+                                            <span class="text-on-surface-subtle">Không đính kèm file</span>
                                         @endif
                                         @if($can->portfolio_url)
-                                            <a href="{{ $can->portfolio_url }}" target="_blank" class="mt-0.5 block text-[11px] font-medium text-secondary hover:underline">
+                                            <a href="{{ $can->portfolio_url }}" target="_blank" class="mt-0.5 block text-xs font-medium text-secondary hover:underline">
                                                 Link Video / Portfolio &rarr;
                                             </a>
                                         @endif
@@ -93,7 +91,7 @@
                                         <x-ui.badge :color="$cvStatusColor[$can->status] ?? 'neutral'" pill>{{ $badge['label'] }}</x-ui.badge>
                                     </td>
                                     <td class="max-w-xs">
-                                        <p class="line-clamp-2 whitespace-pre-line text-[11px] text-on-surface-variant">{{ $can->notes ?: 'Chưa có ghi chú' }}</p>
+                                        <p class="line-clamp-2 whitespace-pre-line text-xs text-on-surface-variant">{{ $can->notes ?: 'Chưa có ghi chú' }}</p>
                                     </td>
                                     <td class="text-right">
                                         <x-ui.button variant="secondary" size="sm" x-on:click="openEdit = !openEdit">Cập nhật</x-ui.button>
@@ -145,11 +143,11 @@
                                 <tr>
                                     <td class="text-sm font-bold">
                                         {{ $job->title }}
-                                        <span class="block text-[11px] font-normal text-on-surface-variant">Hạn nộp: {{ $job->deadline ? $job->deadline->format('d/m/Y') : 'Không thời hạn' }}</span>
+                                        <span class="block text-xs font-normal text-on-surface-variant">Hạn nộp: {{ $job->deadline ? $job->deadline->format('d/m/Y') : 'Không thời hạn' }}</span>
                                     </td>
                                     <td>
                                         <span class="font-semibold">{{ $job->department }}</span>
-                                        <span class="block text-[10px] text-on-surface-variant">{{ $job->employment_type }}</span>
+                                        <span class="block text-xs text-on-surface-variant">{{ $job->employment_type }}</span>
                                     </td>
                                     <td class="text-on-surface-variant">
                                         {{ $job->branch?->name ?? 'Toàn hệ thống' }}

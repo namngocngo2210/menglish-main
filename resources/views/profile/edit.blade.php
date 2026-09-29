@@ -36,16 +36,16 @@
                             </div>
                             <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-on-surface-variant">
                                 <span class="flex items-center gap-1">
-                                    <span class="material-symbols-outlined text-sm text-on-surface-variant/70">mail</span>
+                                    <span class="material-symbols-outlined text-sm text-on-surface-subtle">mail</span>
                                     <span>{{ $user->email }}</span>
                                 </span>
                                 <span class="flex items-center gap-1">
-                                    <span class="material-symbols-outlined text-sm text-on-surface-variant/70">domain</span>
+                                    <span class="material-symbols-outlined text-sm text-on-surface-subtle">domain</span>
                                     <span>{{ $user->branch?->name ?? 'Toàn hệ thống ME Education' }}</span>
                                 </span>
                                 @if ($portal !== 'student')
                                 <span class="flex items-center gap-1 font-mono">
-                                    <span class="material-symbols-outlined text-sm text-on-surface-variant/70">badge</span>
+                                    <span class="material-symbols-outlined text-sm text-on-surface-subtle">badge</span>
                                     <span>#NV-{{ str_pad($user->id, 4, '0', STR_PAD_LEFT) }}</span>
                                 </span>
                                 @endif
@@ -162,10 +162,10 @@
                                                 <x-ui.badge color="warning" :pill="true">Chờ xử lý</x-ui.badge>
                                             @endif
                                         </div>
-                                        <div class="text-[11px] text-on-surface-variant flex items-center gap-3">
+                                        <div class="text-xs text-on-surface-variant flex items-center gap-3">
                                             @if ($task->due_date)
                                                 <span class="flex items-center gap-1">
-                                                    <span class="material-symbols-outlined text-xs text-on-surface-variant/70">event</span>
+                                                    <span class="material-symbols-outlined text-xs text-on-surface-subtle">event</span>
                                                     <span>Hạn: {{ $task->due_date->format('d/m/Y') }}</span>
                                                 </span>
                                             @endif
@@ -212,7 +212,7 @@
                                         </x-ui.badge>
                                     </div>
                                     <div class="text-xs font-bold text-on-surface truncate">{{ $cls->name }}</div>
-                                    <div class="text-[11px] text-on-surface-variant space-y-0.5">
+                                    <div class="text-xs text-on-surface-variant space-y-0.5">
                                         <div>Khóa: {{ $cls->course?->name ?? 'Chưa cập nhật' }}</div>
                                         <div>Lịch: {{ $cls->schedule_text ?? 'Chưa cập nhật' }}</div>
                                     </div>
@@ -239,11 +239,11 @@
                                 <div class="p-3 rounded-xl bg-surface-container-low/60 border border-surface-container-highest flex items-center justify-between text-xs">
                                     <div>
                                         <div class="font-bold text-on-surface">{{ $ts->classModel?->code ?? 'Lớp giảng dạy' }}</div>
-                                        <div class="text-[10px] text-on-surface-variant/70">{{ \Carbon\Carbon::parse($ts->teaching_date ?? $ts->date)->format('d/m/Y') }}</div>
+                                        <div class="text-xs text-on-surface-subtle">{{ \Carbon\Carbon::parse($ts->teaching_date ?? $ts->date)->format('d/m/Y') }}</div>
                                     </div>
                                     <div class="text-right">
                                         <div class="font-extrabold text-on-surface font-mono">{{ $ts->hours }}h</div>
-                                        <div class="text-[10px] text-tertiary font-bold">{{ $ts->status_label ?? \App\Support\StatusLabel::for($ts->status) }}</div>
+                                        <div class="text-xs text-tertiary font-bold">{{ $ts->status_label ?? \App\Support\StatusLabel::for($ts->status) }}</div>
                                     </div>
                                 </div>
                             @empty
@@ -264,7 +264,7 @@
                             @forelse ($myActivities as $act)
                                 <div class="text-xs space-y-0.5 border-l-2 border-secondary/30 pl-3 py-0.5">
                                     <div class="font-medium text-on-surface">{{ $act->description }}</div>
-                                    <div class="text-[10px] text-on-surface-variant/70 font-mono">{{ $act->created_at->diffForHumans() }}</div>
+                                    <div class="text-xs text-on-surface-subtle font-mono">{{ $act->created_at->diffForHumans() }}</div>
                                 </div>
                             @empty
                                 <x-ui.empty-state icon="history" title="Chưa có nhật ký hoạt động hệ thống." />
@@ -299,7 +299,7 @@
                     {{-- Payslip Breakdown Grid --}}
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
                         <div class="space-y-3 bg-surface-container-low/70 p-5 rounded-2xl border border-surface-container-highest">
-                            <h3 class="font-bold text-on-surface uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                            <h3 class="font-bold text-on-surface uppercase tracking-wider text-xs flex items-center gap-1.5">
                                 <span class="material-symbols-outlined text-tertiary text-base">add_circle</span>
                                 1. Các khoản thu nhập
                             </h3>
@@ -313,34 +313,34 @@
                             </div>
                             <div class="flex justify-between py-1.5 border-b border-surface-container-highest">
                                 <span class="text-on-surface-variant">Thưởng KPI / Doanh số:</span>
-                                <span class="font-mono font-bold text-tertiary">+{{ number_format($latestPayroll->kpi_bonus) }}đ</span>
+                                <span class="font-mono font-bold text-tertiary">+{{ \App\Support\Money::format($latestPayroll->kpi_bonus) }}</span>
                             </div>
                             <div class="flex justify-between py-1.5 border-b border-surface-container-highest">
                                 <span class="text-on-surface-variant">Thưởng tái tục học viên:</span>
-                                <span class="font-mono font-bold text-tertiary">+{{ number_format($latestPayroll->renew_bonus) }}đ</span>
+                                <span class="font-mono font-bold text-tertiary">+{{ \App\Support\Money::format($latestPayroll->renew_bonus) }}</span>
                             </div>
                             <div class="flex justify-between pt-1">
                                 <span class="text-on-surface-variant">Phụ cấp &amp; Trợ cấp:</span>
-                                <span class="font-mono font-bold text-tertiary">+{{ number_format($latestPayroll->allowance) }}đ</span>
+                                <span class="font-mono font-bold text-tertiary">+{{ \App\Support\Money::format($latestPayroll->allowance) }}</span>
                             </div>
                         </div>
 
                         <div class="space-y-3 bg-surface-container-low/70 p-5 rounded-2xl border border-surface-container-highest">
-                            <h3 class="font-bold text-on-surface uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                            <h3 class="font-bold text-on-surface uppercase tracking-wider text-xs flex items-center gap-1.5">
                                 <span class="material-symbols-outlined text-error text-base">remove_circle</span>
                                 2. Các khoản giảm trừ
                             </h3>
                             <div class="flex justify-between py-1.5 border-b border-surface-container-highest">
                                 <span class="text-on-surface-variant">Bảo hiểm XH &amp; Y tế:</span>
-                                <span class="font-mono font-bold text-error">-{{ number_format($latestPayroll->insurance_deduction) }}đ</span>
+                                <span class="font-mono font-bold text-error">-{{ \App\Support\Money::format($latestPayroll->insurance_deduction) }}</span>
                             </div>
                             <div class="flex justify-between py-1.5 border-b border-surface-container-highest">
                                 <span class="text-on-surface-variant">Thuế TNCN tạm tính:</span>
-                                <span class="font-mono font-bold text-error">-{{ number_format($latestPayroll->tax_deduction) }}đ</span>
+                                <span class="font-mono font-bold text-error">-{{ \App\Support\Money::format($latestPayroll->tax_deduction) }}</span>
                             </div>
                             <div class="flex justify-between pt-1">
                                 <span class="text-on-surface-variant">Giảm trừ phạt / Vi phạm:</span>
-                                <span class="font-mono font-bold text-error">-{{ number_format($latestPayroll->penalty_deduction) }}đ</span>
+                                <span class="font-mono font-bold text-error">-{{ \App\Support\Money::format($latestPayroll->penalty_deduction) }}</span>
                             </div>
                         </div>
                     </div>
@@ -349,11 +349,11 @@
                     <div class="p-6 rounded-2xl bg-gradient-to-r from-inverse-surface via-inverse-surface to-secondary text-white flex flex-col sm:flex-row sm:items-center justify-between shadow-xl gap-4">
                         <div>
                             <span class="text-xs text-white/70 block uppercase tracking-wider font-bold">Tổng thực lĩnh chuyển khoản:</span>
-                            <span class="text-2xl sm:text-3xl font-black font-mono text-primary">{{ number_format($latestPayroll->net_salary) }}đ</span>
+                            <span class="text-2xl sm:text-3xl font-black font-mono text-primary">{{ \App\Support\Money::format($latestPayroll->net_salary) }}</span>
                         </div>
                         <div class="text-left sm:text-right">
                             <span class="text-xs text-white/70 block">Trạng thái phiếu lương:</span>
-                            <span class="text-sm font-bold text-tertiary-container flex items-center gap-1 sm:justify-end">
+                            <span class="text-sm font-bold text-tertiary flex items-center gap-1 sm:justify-end">
                                 <span class="material-symbols-outlined text-base">verified</span>
                                 <span>{{ $latestPayroll->status === 'paid' ? 'Đã thanh toán' : ($latestPayroll->status === 'approved' ? 'Đã duyệt chi' : 'Dự thảo') }}</span>
                             </span>
@@ -385,9 +385,9 @@
                                     <tr>
                                         <td class="font-bold text-on-surface">{{ $p->period?->title ?? 'Kỳ ' . $p->created_at->format('m/Y') }}</td>
                                         <td class="text-right"><x-ui.money :value="$p->base_salary" /></td>
-                                        <td class="text-right font-mono text-tertiary">+{{ number_format($p->teaching_salary + $p->kpi_bonus + $p->renew_bonus) }}đ</td>
-                                        <td class="text-right font-mono text-error">-{{ number_format($p->insurance_deduction + $p->tax_deduction + $p->penalty_deduction) }}đ</td>
-                                        <td class="text-right font-mono font-black text-primary">{{ number_format($p->net_salary) }}đ</td>
+                                        <td class="text-right font-mono text-tertiary">+{{ \App\Support\Money::format($p->teaching_salary + $p->kpi_bonus + $p->renew_bonus) }}</td>
+                                        <td class="text-right font-mono text-error">-{{ \App\Support\Money::format($p->insurance_deduction + $p->tax_deduction + $p->penalty_deduction) }}</td>
+                                        <td class="text-right font-mono font-black text-primary">{{ \App\Support\Money::format($p->net_salary) }}</td>
                                         <td class="text-center">
                                             <x-ui.badge :color="$p->status === 'paid' ? 'success' : 'secondary'" :pill="true">
                                                 {{ \App\Support\StatusLabel::for($p->status) }}
@@ -435,7 +435,7 @@
                                             {{ $ticket->priority_label }}
                                         </x-ui.badge>
                                     </div>
-                                    <div class="text-[11px] text-on-surface-variant flex items-center gap-3">
+                                    <div class="text-xs text-on-surface-variant flex items-center gap-3">
                                         <span>Danh mục: {{ $ticket->category_label }}</span>
                                         <span>Gửi lúc: {{ $ticket->created_at->format('d/m/Y H:i') }}</span>
                                         @if ($ticket->assignee)
@@ -448,7 +448,7 @@
                                     <x-ui.badge :color="$ticket->status === 'resolved' ? 'success' : ($ticket->status === 'in_progress' ? 'secondary' : 'warning')">
                                         {{ $ticket->status_label }}
                                     </x-ui.badge>
-                                    <span class="material-symbols-outlined text-on-surface-variant/70 group-hover:text-primary transition">chevron_right</span>
+                                    <span class="material-symbols-outlined text-on-surface-subtle group-hover:text-primary transition">chevron_right</span>
                                 </div>
                             </div>
                         </a>

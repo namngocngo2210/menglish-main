@@ -1,11 +1,11 @@
 <x-app-layout>
-    <x-ui.page-header title="Thang Điểm & Hướng Dẫn Nhận Xét Tự Động" :back="route('placement-tests.index')" description="Hệ thống quy chuẩn điểm số, nhận xét theo từng kỹ năng và gợi ý xếp lớp chuẩn Cambridge YLE (Starters - Movers)">
+    <x-ui.page-header title="Thang điểm & nhận xét tự động" :back="route('placement-tests.index')" description="Hệ thống quy chuẩn điểm số, nhận xét theo từng kỹ năng và gợi ý xếp lớp chuẩn Cambridge YLE (Starters - Movers)">
         <x-slot:actions>
             <div class="hidden sm:flex items-center gap-2 bg-inverse-surface text-white px-3.5 py-1.5 rounded-xl border border-white/10 shadow-xs">
                 <span class="material-symbols-outlined text-warning/70 text-[18px]">verified</span>
                 <div>
-                    <p class="text-[9px] text-inverse-on-surface/70 uppercase font-bold">Phiên bản quy chuẩn</p>
-                    <p class="text-[11px] font-bold text-white">Cambridge YLE Starter - Movers</p>
+                    <p class="text-xs text-inverse-on-surface/70 uppercase font-bold">Phiên bản quy chuẩn</p>
+                    <p class="text-xs font-bold text-white">Cambridge YLE Starter - Movers</p>
                 </div>
             </div>
         </x-slot:actions>
@@ -56,11 +56,11 @@
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <span class="text-xs font-bold uppercase text-on-surface-variant">Kết quả &amp; Nhận xét Sinh Tự Động:</span>
                     <div class="flex items-center gap-3">
-                        <span class="text-xs text-on-surface-variant font-medium">Tổng điểm: <strong class="text-primary text-base font-black font-mono" x-text="totalScore"></strong> <span class="text-on-surface-variant/70 font-mono" x-text="'/ ' + maxTotal"></span></span>
+                        <span class="text-xs text-on-surface-variant font-medium">Tổng điểm: <strong class="text-primary text-base font-black font-mono" x-text="totalScore"></strong> <span class="text-on-surface-subtle font-mono" x-text="'/ ' + maxTotal"></span></span>
                         <span class="text-xs font-bold bg-primary-container text-white px-3 py-1 rounded-full shadow-xs" x-text="placementCourse"></span>
                     </div>
                 </div>
-                <x-ui.textarea rows="3" readonly class="leading-relaxed font-sans" x-text="generatedComment" />
+                <x-ui.textarea rows="3" readonly aria-label="Nhận xét tự động" class="leading-relaxed font-sans" x-text="generatedComment" />
             </div>
         </div>
 
@@ -89,12 +89,12 @@
                             <span class="material-symbols-outlined text-primary text-[18px]">grade</span>
                             KHỐI 1 - 2 (Tổng điểm tối đa: 35)
                         </h3>
-                        <span class="text-[10px] bg-white/10 text-inverse-on-surface/80 font-bold px-3 py-1 rounded-full uppercase">Starters Level</span>
+                        <span class="text-xs bg-white/10 text-inverse-on-surface/80 font-bold px-3 py-1 rounded-full uppercase">Starters Level</span>
                     </div>
                     <div class="p-4 overflow-x-auto">
                         <table class="w-full border-collapse border border-surface-container-highest text-xs">
                             <thead>
-                                <tr class="bg-inverse-surface text-white text-[11px] font-bold uppercase">
+                                <tr class="bg-inverse-surface text-white text-xs font-bold uppercase">
                                     <th class="p-3 text-left w-1/4 border border-white/10">LISTENING /10</th>
                                     <th class="p-3 text-left w-1/3 border border-white/10">READING AND WRITING /15</th>
                                     <th class="p-3 text-left w-1/3 border border-white/10">SPEAKING /10</th>
@@ -153,15 +153,15 @@
                         </h4>
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div class="bg-surface-container-lowest p-3 rounded-xl border border-warning/30 text-center">
-                                <span class="text-[11px] text-on-surface-variant font-bold block">Tổng điểm &lt; 10</span>
+                                <span class="text-xs text-on-surface-variant font-bold block">Tổng điểm &lt; 10</span>
                                 <span class="font-black text-on-warning-container text-xs">PRE STARTERS (FAM 0)</span>
                             </div>
                             <div class="bg-surface-container-lowest p-3 rounded-xl border border-warning/30 text-center">
-                                <span class="text-[11px] text-on-surface-variant font-bold block">Tổng điểm 10 - 15</span>
+                                <span class="text-xs text-on-surface-variant font-bold block">Tổng điểm 10 - 15</span>
                                 <span class="font-black text-on-warning-container text-xs">STARTERS (FAM 1 _ BÀI ĐẦU)</span>
                             </div>
                             <div class="bg-surface-container-lowest p-3 rounded-xl border border-warning/30 text-center">
-                                <span class="text-[11px] text-on-surface-variant font-bold block">Tổng điểm 16 - 25</span>
+                                <span class="text-xs text-on-surface-variant font-bold block">Tổng điểm 16 - 25</span>
                                 <span class="font-black text-on-warning-container text-xs">STARTERS (FAM 1 _ BÀI 5 - 10)</span>
                             </div>
                         </div>
@@ -177,12 +177,12 @@
                             <span class="material-symbols-outlined text-primary text-[18px]">grade</span>
                             KHỐI 2 LÊN 3 (Tổng điểm tối đa: 40)
                         </h3>
-                        <span class="text-[10px] bg-white/10 text-inverse-on-surface/80 font-bold px-3 py-1 rounded-full uppercase">Starters Level</span>
+                        <span class="text-xs bg-white/10 text-inverse-on-surface/80 font-bold px-3 py-1 rounded-full uppercase">Starters Level</span>
                     </div>
                     <div class="p-4 overflow-x-auto">
                         <table class="w-full border-collapse border border-surface-container-highest text-xs">
                             <thead>
-                                <tr class="bg-inverse-surface text-white text-[11px] font-bold uppercase">
+                                <tr class="bg-inverse-surface text-white text-xs font-bold uppercase">
                                     <th class="p-3 text-left w-1/3 border border-white/10">LISTENING /15</th>
                                     <th class="p-3 text-left w-1/3 border border-white/10">READING AND WRITING /15</th>
                                     <th class="p-3 text-left w-1/3 border border-white/10">SPEAKING /10</th>
@@ -241,15 +241,15 @@
                         </h4>
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div class="bg-surface-container-lowest p-3 rounded-xl border border-warning/30 text-center">
-                                <span class="text-[11px] text-on-surface-variant font-bold block">Tổng điểm 10 - 20</span>
+                                <span class="text-xs text-on-surface-variant font-bold block">Tổng điểm 10 - 20</span>
                                 <span class="font-black text-on-warning-container text-xs">PRE STARTERS _ FAM 1 (DƯỚI U5)</span>
                             </div>
                             <div class="bg-surface-container-lowest p-3 rounded-xl border border-warning/30 text-center">
-                                <span class="text-[11px] text-on-surface-variant font-bold block">Tổng điểm 20 - 30</span>
+                                <span class="text-xs text-on-surface-variant font-bold block">Tổng điểm 20 - 30</span>
                                 <span class="font-black text-on-warning-container text-xs">STARTERS (FAM 1 _ UNIT 6 - 10)</span>
                             </div>
                             <div class="bg-surface-container-lowest p-3 rounded-xl border border-warning/30 text-center">
-                                <span class="text-[11px] text-on-surface-variant font-bold block">Tổng điểm 30 - 40</span>
+                                <span class="text-xs text-on-surface-variant font-bold block">Tổng điểm 30 - 40</span>
                                 <span class="font-black text-on-warning-container text-xs">STARTERS (FAM 1 _ UNIT 7 - 12)</span>
                             </div>
                         </div>
@@ -265,12 +265,12 @@
                             <span class="material-symbols-outlined text-primary text-[18px]">grade</span>
                             KHỐI 3 LÊN 4 (Tổng điểm tối đa: 45)
                         </h3>
-                        <span class="text-[10px] bg-white/10 text-inverse-on-surface/80 font-bold px-3 py-1 rounded-full uppercase">Movers Level</span>
+                        <span class="text-xs bg-white/10 text-inverse-on-surface/80 font-bold px-3 py-1 rounded-full uppercase">Movers Level</span>
                     </div>
                     <div class="p-4 overflow-x-auto">
                         <table class="w-full border-collapse border border-surface-container-highest text-xs">
                             <thead>
-                                <tr class="bg-inverse-surface text-white text-[11px] font-bold uppercase">
+                                <tr class="bg-inverse-surface text-white text-xs font-bold uppercase">
                                     <th class="p-3 text-left w-1/3 border border-white/10">LISTENING /15</th>
                                     <th class="p-3 text-left w-1/3 border border-white/10">READING AND WRITING /20</th>
                                     <th class="p-3 text-left w-1/3 border border-white/10">SPEAKING /10</th>
@@ -329,15 +329,15 @@
                         </h4>
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div class="bg-surface-container-lowest p-3 rounded-xl border border-warning/30 text-center">
-                                <span class="text-[11px] text-on-surface-variant font-bold block">Tổng điểm 10 - 20</span>
+                                <span class="text-xs text-on-surface-variant font-bold block">Tổng điểm 10 - 20</span>
                                 <span class="font-black text-on-warning-container text-xs">FAM 2 (NỬA ĐẦU)</span>
                             </div>
                             <div class="bg-surface-container-lowest p-3 rounded-xl border border-warning/30 text-center">
-                                <span class="text-[11px] text-on-surface-variant font-bold block">Tổng điểm 20 - 35</span>
+                                <span class="text-xs text-on-surface-variant font-bold block">Tổng điểm 20 - 35</span>
                                 <span class="font-black text-on-warning-container text-xs">FAM 2 (NỬA SAU)</span>
                             </div>
                             <div class="bg-surface-container-lowest p-3 rounded-xl border border-warning/30 text-center">
-                                <span class="text-[11px] text-on-surface-variant font-bold block">Tổng điểm 35 - 45</span>
+                                <span class="text-xs text-on-surface-variant font-bold block">Tổng điểm 35 - 45</span>
                                 <span class="font-black text-on-warning-container text-xs">LUYỆN THI MOVERS</span>
                             </div>
                         </div>
@@ -353,12 +353,12 @@
                             <span class="material-symbols-outlined text-primary text-[18px]">grade</span>
                             KHỐI 4 LÊN 5 (Tổng điểm tối đa: 40)
                         </h3>
-                        <span class="text-[10px] bg-white/10 text-inverse-on-surface/80 font-bold px-3 py-1 rounded-full uppercase">Movers Level</span>
+                        <span class="text-xs bg-white/10 text-inverse-on-surface/80 font-bold px-3 py-1 rounded-full uppercase">Movers Level</span>
                     </div>
                     <div class="p-4 overflow-x-auto">
                         <table class="w-full border-collapse border border-surface-container-highest text-xs">
                             <thead>
-                                <tr class="bg-inverse-surface text-white text-[11px] font-bold uppercase">
+                                <tr class="bg-inverse-surface text-white text-xs font-bold uppercase">
                                     <th class="p-3 text-left w-1/3 border border-white/10">LISTENING /15</th>
                                     <th class="p-3 text-left w-1/3 border border-white/10">READING AND WRITING /15</th>
                                     <th class="p-3 text-left w-1/3 border border-white/10">SPEAKING /10</th>
@@ -417,15 +417,15 @@
                         </h4>
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div class="bg-surface-container-lowest p-3 rounded-xl border border-warning/30 text-center">
-                                <span class="text-[11px] text-on-surface-variant font-bold block">Tổng điểm 10 - 20</span>
+                                <span class="text-xs text-on-surface-variant font-bold block">Tổng điểm 10 - 20</span>
                                 <span class="font-black text-on-warning-container text-xs">FAM 2 (NỬA ĐẦU)</span>
                             </div>
                             <div class="bg-surface-container-lowest p-3 rounded-xl border border-warning/30 text-center">
-                                <span class="text-[11px] text-on-surface-variant font-bold block">Tổng điểm 20 - 30</span>
+                                <span class="text-xs text-on-surface-variant font-bold block">Tổng điểm 20 - 30</span>
                                 <span class="font-black text-on-warning-container text-xs">FAM 2 (NỬA SAU)</span>
                             </div>
                             <div class="bg-surface-container-lowest p-3 rounded-xl border border-warning/30 text-center">
-                                <span class="text-[11px] text-on-surface-variant font-bold block">Tổng điểm 30 - 40</span>
+                                <span class="text-xs text-on-surface-variant font-bold block">Tổng điểm 30 - 40</span>
                                 <span class="font-black text-on-warning-container text-xs">LUYỆN THI MOVERS</span>
                             </div>
                         </div>

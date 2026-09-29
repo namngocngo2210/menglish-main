@@ -30,7 +30,7 @@
     </x-ui.modal-frame>
 @else
     <x-app-layout>
-        @include('crm.partials.header-tabs')
+        @include('crm.partials.header-tabs', ['title' => false])
 
         <div class="space-y-4">
             <x-ui.page-header title="Nhập khách hàng loạt từ Excel"

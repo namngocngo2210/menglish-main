@@ -1,6 +1,5 @@
 {{-- Mockup: ui-full-tinh-nang-menglish/epic-7/danh-sach-bang-luong-theo-ky (bảng lương của một kỳ) --}}
 <x-app-layout>
-    @include('partials.data-confirm')
     @php
         [$statusColor, $statusText] = match ($period->status) {
             'paid' => ['secondary', 'Đã trả'],
@@ -95,13 +94,13 @@
         </nav>
 
         <div class="grid grid-cols-1 gap-md sm:grid-cols-2 lg:grid-cols-4">
-            <x-ui.stat-card label="Tổng chi quỹ lương" :value="number_format((float) (\App\Support\DataScope::isAll(auth()->user(), 'payroll') ? $period->total_amount : $period->records->sum('net_salary')), 0, ',', '.').'đ'" tone="primary" icon="account_balance_wallet"
+            <x-ui.stat-card label="Tổng chi quỹ lương" :value="\App\Support\Money::format((float) (\App\Support\DataScope::isAll(auth()->user(), 'payroll') ? $period->total_amount : $period->records->sum('net_salary')))" tone="primary" icon="account_balance_wallet"
                             :hint="$period->records->count().' nhân sự nhận lương'" />
             <x-ui.stat-card label="Tổng buổi dạy (Part-time)" :value="$period->records->where('employee_type', 'parttime')->sum('teaching_sessions').' buổi'" icon="event_available"
                             :hint="$period->records->sum('actual_hours').' giờ chấm công hợp lệ'" />
-            <x-ui.stat-card label="Tổng thưởng KPI / Giữ học sinh" :value="number_format((float) $period->records->sum('kpi_bonus'), 0, ',', '.').'đ'" tone="success" icon="trending_up"
+            <x-ui.stat-card label="Tổng thưởng KPI / Giữ học sinh" :value="\App\Support\Money::format((float) $period->records->sum('kpi_bonus'))" tone="success" icon="trending_up"
                             hint="Giữ HS (PT) · KPI tự do · KPI Học vụ" />
-            <x-ui.stat-card label="Tổng khấu trừ & Phạt" :value="'-'.number_format((float) $period->records->sum('total_deductions'), 0, ',', '.').'đ'" tone="error" icon="money_off"
+            <x-ui.stat-card label="Tổng khấu trừ & Phạt" :value="'-'.\App\Support\Money::format((float) $period->records->sum('total_deductions'))" tone="error" icon="money_off"
                             hint="BHXH, Công đoàn, TNCN, phạt, thu hồi, khấu trừ tự do" />
         </div>
 
@@ -177,14 +176,14 @@
                             </td>
                             <td class="text-right font-mono">
                                 @if ($r->isPartTime())
-                                    <span class="text-tertiary">{{ number_format($r->teaching_salary, 0, ',', '.') }}đ</span>
+                                    <span class="text-tertiary">{{ \App\Support\Money::format($r->teaching_salary) }}</span>
                                     <p class="font-caption text-caption text-on-surface-variant">{{ (int) $r->teaching_sessions }} buổi</p>
                                 @else
-                                    {{ number_format((float) $r->base_salary + (float) $r->teaching_salary, 0, ',', '.') }}đ
+                                    {{ \App\Support\Money::format((float) $r->base_salary + (float) $r->teaching_salary) }}
                                 @endif
                             </td>
                             <td class="text-right font-mono">
-                                {{ number_format($r->kpi_bonus, 0, ',', '.') }}đ
+                                {{ \App\Support\Money::format($r->kpi_bonus) }}
                                 @if ($r->kpi_source === 'retention')
                                     <p class="font-caption text-caption text-on-surface-variant">{{ (int) $r->retention_students }} HS × {{ $r->retention_tier !== null ? number_format($r->retention_tier, 0, ',', '.') : 'chưa chọn bậc' }}</p>
                                 @elseif ($r->kpi_source === 'academic_kpi')
@@ -194,7 +193,7 @@
                             <td class="text-right">
                                 {{-- Nút sửa đặt ngay cạnh con số nó sửa, để cột thao tác chỉ còn "Chi tiết" --}}
                                 <div class="flex items-center justify-end gap-xs">
-                                    <span>{{ $r->isPartTime() ? number_format($r->foreign_session_pay, 0, ',', '.').'đ' : '—' }}</span>
+                                    <span>{{ $r->isPartTime() ? \App\Support\Money::format($r->foreign_session_pay) : '—' }}</span>
                                     @if (! $period->isLocked() && $r->isPartTime())
                                         @can('payroll.edit')
                                             <x-ui.button variant="ghost" size="sm" icon="edit" title="Sửa lương buổi GVNN" aria-label="Sửa lương buổi GVNN" x-on:click="$dispatch('open-modal', 'foreign-{{ $r->id }}')" />
@@ -216,19 +215,19 @@
                                 </div>
                             </td>
                             <td class="text-right font-mono text-tertiary">
-                                {{ number_format($r->commission_bonus, 0, ',', '.') }}đ
+                                {{ \App\Support\Money::format($r->commission_bonus) }}
                                 @if ((float) $r->commission_deferred > 0)
-                                    <p class="font-caption text-caption font-semibold text-warning">Hoãn {{ number_format($r->commission_deferred, 0, ',', '.') }}đ</p>
+                                    <p class="font-caption text-caption font-semibold text-warning">Hoãn {{ \App\Support\Money::format($r->commission_deferred) }}</p>
                                 @endif
                             </td>
-                            <td class="text-right font-mono">{{ number_format($r->renew_bonus, 0, ',', '.') }}đ</td>
-                            <td class="text-right font-mono">{{ number_format((float) $r->allowance + (float) $r->other_bonus, 0, ',', '.') }}đ</td>
-                            <td class="text-right font-mono text-error">-{{ number_format((float) $r->insurance_deduction + (float) $r->union_deduction, 0, ',', '.') }}đ</td>
-                            <td class="text-right font-mono text-error">-{{ number_format($r->tax_deduction, 0, ',', '.') }}đ</td>
-                            <td class="text-right font-mono text-error">-{{ number_format((float) $r->penalty_deduction + (float) $r->commission_clawback + (float) $r->other_deduction + (float) $r->foreign_teacher_deduction, 0, ',', '.') }}đ</td>
+                            <td class="text-right font-mono">{{ \App\Support\Money::format($r->renew_bonus) }}</td>
+                            <td class="text-right font-mono">{{ \App\Support\Money::format((float) $r->allowance + (float) $r->other_bonus) }}</td>
+                            <td class="text-right font-mono text-error">-{{ \App\Support\Money::format((float) $r->insurance_deduction + (float) $r->union_deduction) }}</td>
+                            <td class="text-right font-mono text-error">-{{ \App\Support\Money::format($r->tax_deduction) }}</td>
+                            <td class="text-right font-mono text-error">-{{ \App\Support\Money::format((float) $r->penalty_deduction + (float) $r->commission_clawback + (float) $r->other_deduction + (float) $r->foreign_teacher_deduction) }}</td>
                             <td class="sticky right-0 z-10 border-l border-surface-container bg-surface-container-lowest text-right">
                                 <div class="flex items-center justify-end gap-xs">
-                                    <span class="font-bold text-primary">{{ number_format($r->net_salary, 0, ',', '.') }}đ</span>
+                                    <span class="font-bold text-primary">{{ \App\Support\Money::format($r->net_salary) }}</span>
                                     <x-ui.button variant="ghost" size="sm" icon="visibility" :href="route('payroll.records.show', $r->id)">Chi tiết</x-ui.button>
                                 </div>
                             </td>

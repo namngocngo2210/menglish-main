@@ -59,7 +59,7 @@
                         <x-ui.badge color="primary">{{ $stages->count() }} chặng · {{ $units->count() }} unit · {{ $lessons->count() }} buổi</x-ui.badge>
                     </div>
                     @if ($canManage)
-                        <form method="POST" action="{{ route('syllabus.curriculums.destroy', $curriculum->id) }}" data-confirm="Xóa giáo trình {{ $curriculum->title }} cùng toàn bộ chặng, unit, buổi học và tài liệu?">
+                        <form method="POST" action="{{ route('syllabus.curriculums.destroy', $curriculum->id) }}" data-confirm="Xóa giáo trình {{ $curriculum->title }} cùng toàn bộ chặng, unit, buổi học và tài liệu?" data-confirm-label="Xóa" data-confirm-danger>
                             @csrf @method('DELETE')
                             <x-ui.button type="submit" variant="danger-text" size="sm" icon="delete">Xóa giáo trình</x-ui.button>
                         </form>
@@ -79,16 +79,16 @@
                             @php($selectedLevels = collect(old('level_ids', $curriculum->levels->pluck('id')->all()))->map(fn ($id) => (int) $id))
                             <div class="flex flex-wrap gap-2">
                                 @forelse ($levels as $level)
-                                    <label class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-outline-variant text-xs {{ $level->syllabus_curriculum_id && $level->syllabus_curriculum_id !== $curriculum->id ? 'text-on-surface-variant/70' : 'text-on-surface-variant' }}">
+                                    <label class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-outline-variant text-xs {{ $level->syllabus_curriculum_id && $level->syllabus_curriculum_id !== $curriculum->id ? 'text-on-surface-subtle' : 'text-on-surface-variant' }}">
                                         <input type="checkbox" name="level_ids[]" value="{{ $level->id }}" class="rounded border-outline-variant text-primary focus:ring-primary-container"
                                                @checked($selectedLevels->contains($level->id)) @disabled(! $canManage)>
-                                        {{ $level->name }} <span class="font-mono text-[10px] text-on-surface-variant/70">{{ $level->code }}</span>
+                                        {{ $level->name }} <span class="font-mono text-xs text-on-surface-subtle">{{ $level->code }}</span>
                                         @if ($level->syllabus_curriculum_id && $level->syllabus_curriculum_id !== $curriculum->id)
-                                            <span class="text-[10px]" title="Đang gắn giáo trình khác — chọn sẽ chuyển sang giáo trình này">(đang dùng GT khác)</span>
+                                            <span class="text-xs" title="Đang gắn giáo trình khác — chọn sẽ chuyển sang giáo trình này">(đang dùng GT khác)</span>
                                         @endif
                                     </label>
                                 @empty
-                                    <span class="text-xs text-on-surface-variant/70">Chưa có trình độ nào — tạo ở màn Cấu hình trình độ.</span>
+                                    <span class="text-xs text-on-surface-subtle">Chưa có trình độ nào — tạo ở màn Cấu hình trình độ.</span>
                                 @endforelse
                             </div>
                         </x-ui.field>
@@ -128,7 +128,7 @@
                                 <x-ui.field label="Link ảnh/tài liệu tổng quan chặng (overview_link)" name="overview_link">
                                     <div class="flex gap-md">
                                         <input type="url" name="overview_link" x-model="link" placeholder="https://example.com/image-syllabus.jpg"
-                                               class="flex-1 min-w-0 rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">
+                                               class="flex-1 min-w-0 rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/50">
                                         <x-ui.button variant="secondary" icon="visibility" @click="preview = link">Xem thử</x-ui.button>
                                     </div>
                                 </x-ui.field>
@@ -234,11 +234,11 @@
                                     <h3 class="font-h3 text-h3 text-on-surface flex flex-wrap items-center gap-sm">{{ $stage->label }}
                                         <span class="px-md py-0.5 bg-primary-fixed/50 text-primary font-label text-label rounded-full">Tổng số: {{ str_pad((string) $stageLessonCount, 2, '0', STR_PAD_LEFT) }} buổi</span>
                                     </h3>
-                                    <p class="text-[11px] text-on-surface-variant">{{ $stage->units->count() }} unit · {{ $stage->units->sum(fn ($u) => $u->lessons->count()) }} buổi
+                                    <p class="text-xs text-on-surface-variant">{{ $stage->units->count() }} unit · {{ $stage->units->sum(fn ($u) => $u->lessons->count()) }} buổi
                                         @if ($openClasses->isNotEmpty()) · Đang học: {{ $openClasses->map(fn ($a) => $a->classModel?->name)->filter()->implode(', ') }} @endif
                                     </p>
                                     @if ($stage->description)<p class="text-xs text-on-surface-variant mt-1 whitespace-pre-line">{{ $stage->description }}</p>@endif
-                                    <p class="text-[11px] mt-1.5 flex flex-wrap items-center gap-2">
+                                    <p class="text-xs mt-1.5 flex flex-wrap items-center gap-2">
                                         <span class="inline-flex items-center gap-1 text-secondary font-semibold"><span class="material-symbols-outlined text-[14px]">quiz</span>{{ $stage->big_test_title ?: 'Big Test cuối chặng (chưa đặt tên)' }}</span>
                                         @if ($stage->big_test_note)<span class="text-on-surface-variant">— {{ $stage->big_test_note }}</span>@endif
                                         @if ($stage->overview_link)
@@ -261,7 +261,7 @@
                                     @endunless
                                     <x-ui.button variant="ghost" size="sm" icon="edit" :href="$builderUrl(['edit_stage' => $stage->id]).'#editor'">Sửa</x-ui.button>
                                     <x-ui.button variant="ghost" size="sm" icon="add" :href="$builderUrl(['new_unit' => $stage->id]).'#editor'">Unit</x-ui.button>
-                                    <form method="POST" action="{{ route('syllabus.stages.destroy', $stage->id) }}" data-confirm="Xóa {{ $stage->label }}?">
+                                    <form method="POST" action="{{ route('syllabus.stages.destroy', $stage->id) }}" data-confirm="Xóa {{ $stage->label }}?" data-confirm-label="Xóa" data-confirm-danger>
                                         @csrf @method('DELETE')
                                         <x-ui.button type="submit" variant="danger-text" size="sm" icon="delete" title="Xóa chặng" />
                                     </form>
@@ -275,13 +275,13 @@
                                     <div class="px-4 py-3 flex items-center justify-between gap-3">
                                         <div class="min-w-0">
                                             <p class="text-xs font-bold text-on-surface">Unit {{ $u->unit_number }}: {{ $u->title }}</p>
-                                            @if ($u->objectives)<p class="text-[11px] text-on-surface-variant truncate">{{ $u->objectives }}</p>@endif
+                                            @if ($u->objectives)<p class="text-xs text-on-surface-variant truncate">{{ $u->objectives }}</p>@endif
                                         </div>
                                         @if ($canManage)
                                             <div class="flex items-center gap-1 shrink-0">
                                                 <x-ui.button variant="ghost" size="sm" icon="add" :href="$builderUrl(['new_lesson' => $u->id]).'#editor'">Buổi</x-ui.button>
                                                 <x-ui.button variant="ghost" size="sm" icon="edit" :href="$builderUrl(['edit_unit' => $u->id]).'#editor'">Sửa</x-ui.button>
-                                                <form method="POST" action="{{ route('syllabus.units.destroy', $u->id) }}" data-confirm="Xóa Unit {{ $u->unit_number }} cùng {{ $u->lessons->count() }} buổi học?">
+                                                <form method="POST" action="{{ route('syllabus.units.destroy', $u->id) }}" data-confirm="Xóa Unit {{ $u->unit_number }} cùng {{ $u->lessons->count() }} buổi học?" data-confirm-label="Xóa" data-confirm-danger>
                                                     @csrf @method('DELETE')
                                                     <x-ui.button type="submit" variant="danger-text" size="sm" icon="delete" title="Xóa unit" />
                                                 </form>
@@ -293,10 +293,10 @@
                                             <details class="px-4 py-2.5 text-xs group">
                                                 <summary class="flex items-center justify-between gap-2 cursor-pointer list-none">
                                                     <span class="flex items-center gap-2 min-w-0">
-                                                        <span class="w-7 h-7 shrink-0 rounded-lg bg-primary-container/10 text-primary font-bold flex items-center justify-center text-[11px]">{{ $lesson->session_no }}</span>
+                                                        <span class="w-7 h-7 shrink-0 rounded-lg bg-primary-container/10 text-primary font-bold flex items-center justify-center text-xs">{{ $lesson->session_no }}</span>
                                                         <span class="font-semibold text-on-surface truncate">Buổi {{ $lesson->session_no }}: {{ $lesson->title }}</span>
                                                     </span>
-                                                    <span class="material-symbols-outlined text-[18px] text-on-surface-variant/70 group-open:rotate-180 transition">expand_more</span>
+                                                    <span class="material-symbols-outlined text-[18px] text-on-surface-subtle group-open:rotate-180 transition">expand_more</span>
                                                 </summary>
                                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3 text-on-surface-variant">
                                                     <p class="whitespace-pre-line"><span class="font-semibold">Mục tiêu:</span> {{ $lesson->objectives ?: 'Chưa cập nhật' }}</p>
@@ -308,7 +308,7 @@
                                                 @if ($canManage)
                                                     <div class="flex justify-end gap-1 mt-2">
                                                         <x-ui.button variant="ghost" size="sm" icon="edit" :href="$builderUrl(['edit_lesson' => $lesson->id]).'#editor'">Sửa buổi</x-ui.button>
-                                                        <form method="POST" action="{{ route('syllabus.lessons.destroy', $lesson->id) }}" data-confirm="Xóa Buổi {{ $lesson->session_no }}?">
+                                                        <form method="POST" action="{{ route('syllabus.lessons.destroy', $lesson->id) }}" data-confirm="Xóa Buổi {{ $lesson->session_no }}?" data-confirm-label="Xóa" data-confirm-danger>
                                                             @csrf @method('DELETE')
                                                             <x-ui.button type="submit" variant="danger-text" size="sm" icon="delete">Xóa</x-ui.button>
                                                         </form>
@@ -316,12 +316,12 @@
                                                 @endif
                                             </details>
                                         @empty
-                                            <p class="px-4 py-3 text-[11px] text-on-surface-variant/70">Unit chưa có buổi học nào.</p>
+                                            <p class="px-4 py-3 text-xs text-on-surface-subtle">Unit chưa có buổi học nào.</p>
                                         @endforelse
                                     </div>
                                 </div>
                             @empty
-                                <p class="text-center text-xs text-on-surface-variant/70 py-6">Chặng chưa có unit nào.</p>
+                                <p class="text-center text-xs text-on-surface-subtle py-6">Chặng chưa có unit nào.</p>
                             @endforelse
                             @if ($canManage)
                                 @php($lastUnit = $stage->units->last())

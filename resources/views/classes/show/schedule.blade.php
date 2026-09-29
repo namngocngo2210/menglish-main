@@ -48,8 +48,8 @@
             <tbody>
                 @forelse ($sessions as $s)
                     @php $isToday = $s->date->isSameDay($today); @endphp
-                    <tr class="{{ $isToday ? 'bg-primary-container/5' : '' }} {{ $s->status === 'cancelled' ? 'text-on-surface-variant/60' : '' }}">
-                        <td class="font-code font-bold">{{ $s->date->format('d/m/Y') }}@if ($isToday) <span class="ml-1 text-[10px] font-semibold text-primary">Hôm nay</span>@endif</td>
+                    <tr class="{{ $isToday ? 'bg-primary-container/5' : '' }} {{ $s->status === 'cancelled' ? 'text-on-surface-subtle' : '' }}">
+                        <td class="font-code font-bold">{{ $s->date->format('d/m/Y') }}@if ($isToday) <span class="ml-1 text-xs font-semibold text-primary">Hôm nay</span>@endif</td>
                         <td class="font-code">{{ $s->start_time?->format('H:i') }}–{{ $s->end_time?->format('H:i') }}</td>
                         <td>{{ $s->room ?: ($class->room ?: '—') }}</td>
                         {{-- Lớp không có GV chính: teacher_id của buổi chính là GVNN → không lặp tên ở cột Giáo viên. --}}
@@ -58,7 +58,7 @@
                             <div class="flex items-center gap-xs">
                                 <span>{{ $s->foreignTeacher?->name ?? '—' }}</span>
                                 @if ($canAssignForeign && in_array($s->id, $foreignEditableIds, true))
-                                    <button type="button" class="text-[11px] font-semibold text-primary hover:underline"
+                                    <button type="button" class="text-xs font-semibold text-primary hover:underline"
                                             x-on:click="$dispatch('assign-foreign', { ids: [{{ $s->id }}], current: @js($s->foreign_teacher_id ? (string) $s->foreign_teacher_id : '') })"
                                             aria-label="Đổi GVNN buổi {{ $s->date->format('d/m/Y') }}">{{ $s->foreign_teacher_id ? 'Đổi' : 'Gán' }}</button>
                                 @endif
@@ -102,7 +102,7 @@
                 <div>
                     <div class="mb-xs flex items-center justify-between">
                         <span class="text-xs font-semibold text-on-surface">Buổi áp dụng <span class="font-normal text-on-surface-variant" x-text="'(' + ids.length + ' buổi)'"></span></span>
-                        <span class="flex gap-md text-[11px] font-semibold">
+                        <span class="flex gap-md text-xs font-semibold">
                             <button type="button" class="text-primary hover:underline" x-on:click="ids = @js($editableSessions->pluck('id')->all())">Chọn tất cả</button>
                             <button type="button" class="text-on-surface-variant hover:underline" x-on:click="ids = []">Bỏ chọn</button>
                         </span>

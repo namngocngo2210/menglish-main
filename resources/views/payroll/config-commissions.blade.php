@@ -1,6 +1,5 @@
 {{-- Mockup: ui-full-tinh-nang-menglish/epic-7/cau-hinh-moc-hoa-hong-thuong-tai-tuc --}}
 <x-app-layout>
-    @include('partials.data-confirm')
     @php
         $pct = fn ($v) => rtrim(rtrim(number_format((float) $v, 2, ',', ''), '0'), ',').'%';
         $renewalRows = old('renewal', collect($settings['renewal_table'])->map(fn ($row, $quits) => ['quits' => $quits, 'percent' => $row['percent'], 'pending' => $row['pending']])->values()->all());
@@ -80,7 +79,7 @@
                                                 <div class="flex justify-end gap-xs">
                                                     <x-ui.button variant="ghost" size="sm" icon="edit" aria-label="Sửa (tạo phiên bản mới)"
                                                                  x-on:click="editing = {{ Js::from($tier->only(['id', 'tier_name', 'min_students', 'max_students', 'new_sale_percent'])) }}; $dispatch('open-modal', 'edit-tier')" />
-                                                    <form action="{{ route('payroll.config.commission-tiers.destroy', $tier) }}" method="POST" data-confirm="Ngừng áp dụng mốc {{ $tier->tier_name }} từ hôm nay?">
+                                                    <form action="{{ route('payroll.config.commission-tiers.destroy', $tier) }}" method="POST" data-confirm="Ngừng áp dụng mốc {{ $tier->tier_name }} từ hôm nay?" data-confirm-label="Ngừng áp dụng" data-confirm-danger>
                                                         @csrf
                                                         @method('DELETE')
                                                         <x-ui.button type="submit" variant="danger-text" size="sm" icon="block" aria-label="Ngừng áp dụng" />

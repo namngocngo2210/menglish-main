@@ -1,7 +1,7 @@
 {{-- Link phân trang đơn giản (simplePaginate) — restyle theo mockup. --}}
 @if ($paginator->hasPages())
     @php
-        $base = 'inline-flex h-8 items-center justify-center gap-xs rounded px-sm font-body-medium text-body-medium transition-colors';
+        $base = 'inline-flex h-11 md:h-8 items-center justify-center gap-xs rounded px-sm font-body-medium text-body-medium transition-colors';
     @endphp
     <nav role="navigation" aria-label="Phân trang" class="flex items-center gap-xs">
         @if ($paginator->onFirstPage())

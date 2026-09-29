@@ -128,7 +128,11 @@ final class SidebarMenu
                     ['label' => 'Đã xóa', 'route' => 'crm.customers.deleted', 'as' => 'chip', 'chip_of' => 'crm.customers.index', 'count' => 'deleted', 'hide_empty' => true],
                 ]),
                 // Không đặt nút "Xếp lớp" ở header: Chốt & Xếp lớp mở từ thẻ Kanban / hồ sơ khách / Dashboard,
-                // khách Chờ xếp lớp xếp từ cột Hành động của bảng Chờ xếp lớp.
+                // khách Chờ xếp lớp xếp từ cột Hành động của bảng Chờ xếp lớp. Quyền theo middleware (lead.create).
+                'actions' => [
+                    ['label' => 'Nhập Excel', 'route' => 'crm.import', 'icon' => 'upload_file', 'variant' => 'secondary', 'modal' => 'lg'],
+                    ['label' => 'Thêm khách mới', 'route' => 'crm.customers.create', 'icon' => 'add', 'modal' => '2xl'],
+                ],
             ],
             [
                 'id' => 'trial',

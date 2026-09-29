@@ -34,25 +34,25 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <h3 class="text-xs font-bold text-on-surface-variant">Thưởng tái tục — % doanh thu lớp theo số HS nghỉ trong kỳ</h3>
-                            <p class="text-[11px] text-on-surface-variant">BA mới chốt: giữ đủ 100% → 1%, nghỉ 1 HS → 0,7%. Các mốc khác đánh dấu <strong>chờ BA</strong> cho tới khi có bảng đầy đủ.</p>
+                            <p class="text-xs text-on-surface-variant">BA mới chốt: giữ đủ 100% → 1%, nghỉ 1 HS → 0,7%. Các mốc khác đánh dấu <strong>chờ BA</strong> cho tới khi có bảng đầy đủ.</p>
                         </div>
                         <x-ui.button variant="secondary" size="sm" x-on:click="rows.push({quits: rows.length, percent: 0, pending: true})">+ Thêm mốc</x-ui.button>
                     </div>
                     <table class="w-full text-xs">
                         <thead>
-                            <tr class="text-left text-[11px] uppercase text-on-surface-variant">
+                            <tr class="text-left text-xs uppercase text-on-surface-variant">
                                 <th class="py-1">Số HS nghỉ</th><th class="py-1">% doanh thu lớp</th><th class="py-1">Chờ BA</th><th></th>
                             </tr>
                         </thead>
                         <tbody>
                             <template x-for="(row, i) in rows" :key="i">
                                 <tr>
-                                    <td class="py-1 pr-2"><input type="number" min="0" :name="`renewal[${i}][quits]`" x-model="row.quits" class="w-24 px-2 py-1.5 text-xs font-mono border border-surface-container-highest rounded-lg"></td>
-                                    <td class="py-1 pr-2"><input type="number" min="0" max="100" step="0.05" :name="`renewal[${i}][percent]`" x-model="row.percent" class="w-28 px-2 py-1.5 text-xs font-mono border border-surface-container-highest rounded-lg"></td>
+                                    <td class="py-1 pr-2"><input type="number" min="0" :name="`renewal[${i}][quits]`" x-model="row.quits" :aria-label="`Số HS nghỉ, dòng ${i + 1}`" class="w-24 px-2 py-1.5 text-xs font-mono border border-surface-container-highest rounded-lg"></td>
+                                    <td class="py-1 pr-2"><input type="number" min="0" max="100" step="0.05" :name="`renewal[${i}][percent]`" x-model="row.percent" :aria-label="`% doanh thu lớp, dòng ${i + 1}`" class="w-28 px-2 py-1.5 text-xs font-mono border border-surface-container-highest rounded-lg"></td>
                                     <td class="py-1 pr-2">
                                         <input type="hidden" :name="`renewal[${i}][pending]`" :value="row.pending ? 1 : 0">
-                                        <input type="checkbox" x-model="row.pending" class="rounded border-outline-variant">
-                                        <span x-show="row.pending" class="ml-1 text-[10px] font-semibold text-warning">chờ BA</span>
+                                        <input type="checkbox" x-model="row.pending" :aria-label="`Chờ BA, dòng ${i + 1}`" class="rounded border-outline-variant">
+                                        <span x-show="row.pending" class="ml-1 text-xs font-semibold text-warning">chờ BA</span>
                                     </td>
                                     <td class="py-1 text-right"><x-ui.button variant="danger-text" size="sm" x-on:click="rows.splice(i, 1)">Xoá</x-ui.button></td>
                                 </tr>
@@ -65,8 +65,8 @@
                                value="{{ old('renewal_beyond_percent', $fmt($settings['renewal_beyond_percent'])) }}" class="w-28 px-2 py-1.5 text-xs font-mono border border-surface-container-highest rounded-lg">
                         <span class="text-xs text-on-surface-variant">% (chờ BA)</span>
                     </div>
-                    @error('renewal') <p class="text-[11px] text-error mt-1">{{ $message }}</p> @enderror
-                    @error('renewal.*') <p class="text-[11px] text-error mt-1">{{ $message }}</p> @enderror
+                    @error('renewal') <p class="text-xs text-error mt-1">{{ $message }}</p> @enderror
+                    @error('renewal.*') <p class="text-xs text-error mt-1">{{ $message }}</p> @enderror
                 </div>
             </div>
 

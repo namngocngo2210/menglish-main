@@ -51,22 +51,14 @@
         </x-slot:actions>
     </x-ui.page-header>
 
-    <form method="GET" action="{{ route('tuition.history') }}" class="mb-md flex flex-wrap items-end gap-sm rounded-xl border border-outline-variant bg-surface-container-lowest p-md">
+    <x-ui.filter-bar :action="route('tuition.history')" search="search" placeholder="Mã phiếu, số HĐ, mã GD, tên / mã học viên..." class="mb-md">
         @if ($filters['student_id'])<input type="hidden" name="student_id" value="{{ $filters['student_id'] }}">@endif
-        <div class="min-w-[220px] flex-1">
-            <x-ui.input type="search" name="search" label="Tìm kiếm" :value="$filters['search']" placeholder="Mã phiếu, số HĐ, mã GD, tên / mã học viên..." />
-        </div>
-        <x-ui.select name="status" label="Trạng thái" placeholder="Tất cả" :value="$filters['status']"
+        <x-ui.select name="status" label="Trạng thái" placeholder="Tất cả trạng thái" :value="$filters['status']"
                      :options="['draft' => 'Bản nháp', 'pending' => 'Chờ duyệt', 'approved' => 'Đã duyệt', 'rejected' => 'Bị từ chối', 'cancelled' => 'Đã hủy hóa đơn']" />
-        <x-ui.select name="method" label="Hình thức" placeholder="Tất cả" :value="$filters['method']" :options="\App\Models\TuitionReceipt::METHOD_LABELS" />
-        <x-ui.date name="from" label="Từ ngày" :value="$filters['from']" />
-        <x-ui.date name="to" label="Đến ngày" :value="$filters['to']" />
+        <x-ui.select name="method" label="Hình thức" placeholder="Tất cả hình thức" :value="$filters['method']" :options="\App\Models\TuitionReceipt::METHOD_LABELS" />
+        <x-ui.date-range label="Ngày thu" :from-value="$filters['from']" :to-value="$filters['to']" />
         <x-ui.select name="kind" label="Khoản thu" :value="$filters['kind']" :options="['all' => 'Tất cả khoản thu', 'renewal' => 'Chỉ khoản thu tái tục']" />
-        <x-ui.button type="submit" variant="secondary" icon="filter_list">Lọc</x-ui.button>
-        @if (request()->hasAny(['search', 'status', 'method', 'from', 'to', 'kind', 'student_id']))
-            <x-ui.button variant="ghost" icon="restart_alt" :href="route('tuition.history')">Xóa lọc</x-ui.button>
-        @endif
-    </form>
+    </x-ui.filter-bar>
 
     @if ($filters['kind'] === 'renewal')
         <x-ui.alert type="info" class="mb-md">Danh sách chỉ hiển thị các khoản thu tái tục — khoản phí đăng ký ban đầu xem tại hồ sơ CRM của học viên.</x-ui.alert>
@@ -104,10 +96,10 @@
                             <td>
                                 {{ $rc->tuition?->fee_label ?? 'Phụ thu' }}
                                 @if ((float) $rc->surcharge_amount > 0)
-                                    <div class="font-caption text-caption text-on-surface-variant">+ Phụ thu {{ $money($rc->surcharge_amount) }}đ</div>
+                                    <div class="font-caption text-caption text-on-surface-variant">+ Phụ thu {{ $money($rc->surcharge_amount) }} đ</div>
                                 @endif
                             </td>
-                            <td><x-ui.money :value="$rc->amount" suffix="VNĐ" /></td>
+                            <td><x-ui.money :value="$rc->amount" /></td>
                             <td class="whitespace-nowrap">
                                 <span class="inline-flex items-center gap-xs"><span class="material-symbols-outlined text-[18px] text-on-surface-variant" aria-hidden="true">{{ $methodIcon[$rc->payment_method] ?? 'payments' }}</span>{{ \App\Models\TuitionReceipt::METHOD_LABELS[$rc->payment_method] ?? $rc->payment_method }}</span>
                             </td>
@@ -155,9 +147,9 @@
                             <dt class="text-on-surface-variant">Số HĐĐT</dt><dd class="font-code" x-text="detail.invoice_number || '—'"></dd>
                             <dt class="text-on-surface-variant">Học viên</dt><dd x-text="(detail.student_name || '—') + (detail.student_code ? ' (' + detail.student_code + ')' : '')"></dd>
                             <dt class="text-on-surface-variant">Khoản thu</dt><dd x-text="detail.fee_label"></dd>
-                            <dt class="text-on-surface-variant">Số tiền</dt><dd class="font-code" x-text="new Intl.NumberFormat('vi-VN').format(detail.amount) + ' VNĐ'"></dd>
+                            <dt class="text-on-surface-variant">Số tiền</dt><dd class="font-code" x-text="formatMoney(detail.amount)"></dd>
                             <template x-if="detail.surcharge > 0"><dt class="text-on-surface-variant">Phụ thu</dt></template>
-                            <template x-if="detail.surcharge > 0"><dd x-text="new Intl.NumberFormat('vi-VN').format(detail.surcharge) + ' VNĐ — ' + (detail.surcharge_reason || '')"></dd></template>
+                            <template x-if="detail.surcharge > 0"><dd x-text="formatMoney(detail.surcharge) + ' — ' + (detail.surcharge_reason || '')"></dd></template>
                             <dt class="text-on-surface-variant">Hình thức</dt><dd x-text="detail.method + (detail.transaction_code ? ' · ' + detail.transaction_code : '')"></dd>
                             <dt class="text-on-surface-variant">Ngày thu</dt><dd x-text="detail.payment_date || '—'"></dd>
                             <dt class="text-on-surface-variant">Ngày lập</dt><dd x-text="detail.created_at"></dd>
@@ -195,13 +187,13 @@
         {{-- Mẫu in phiếu thu (chỉ hiện khi in) --}}
         <div class="hidden print:block" id="printableReceipt">
             <template x-if="printing">
-                <div class="space-y-6 p-8 text-gray-900">
-                    <div class="flex items-start justify-between border-b border-gray-200 pb-4">
+                <div class="space-y-6 p-8 text-on-surface">
+                    <div class="flex items-start justify-between border-b border-surface-container-highest pb-4">
                         <div>
                             <div class="text-xs font-black uppercase tracking-wider">{{ \App\Support\CenterInfo::name() ?? 'MENGLISH' }}</div>
-                            <div class="text-[11px] text-gray-500"><span x-text="printing.branch_name || ''"></span>@if (\App\Support\CenterInfo::phone()) · Hotline: {{ \App\Support\CenterInfo::phone() }}@endif</div>
+                            <div class="text-xs text-on-surface-subtle"><span x-text="printing.branch_name || ''"></span>@if (\App\Support\CenterInfo::phone()) · Hotline: {{ \App\Support\CenterInfo::phone() }}@endif</div>
                             @if (\App\Support\CenterInfo::website() || \App\Support\CenterInfo::taxCode())
-                                <div class="text-[10px] text-gray-400">{{ collect([\App\Support\CenterInfo::website() ? 'Website: '.\App\Support\CenterInfo::website() : null, \App\Support\CenterInfo::taxCode() ? 'MST: '.\App\Support\CenterInfo::taxCode() : null])->filter()->implode(' · ') }}</div>
+                                <div class="text-xs text-on-surface-subtle">{{ collect([\App\Support\CenterInfo::website() ? 'Website: '.\App\Support\CenterInfo::website() : null, \App\Support\CenterInfo::taxCode() ? 'MST: '.\App\Support\CenterInfo::taxCode() : null])->filter()->implode(' · ') }}</div>
                             @endif
                         </div>
                         <div class="text-right font-mono text-xs">
@@ -213,7 +205,7 @@
                     <div class="text-center">
                         <h2 class="text-xl font-black uppercase">Phiếu thu học phí</h2>
                         <p class="text-xs">Số phiếu: <strong x-text="printing.receipt_number"></strong> · Ngày thu: <span x-text="printing.payment_date || printing.created_at"></span></p>
-                        <p x-show="printing.status !== 'approved'" class="mt-1 text-xs font-bold uppercase text-rose-700" x-text="'Phiếu ' + printing.status_label.toLowerCase() + ' — không có giá trị thanh toán'"></p>
+                        <p x-show="printing.status !== 'approved'" class="mt-1 text-xs font-bold uppercase text-error" x-text="'Phiếu ' + printing.status_label.toLowerCase() + ' — không có giá trị thanh toán'"></p>
                     </div>
                     <div class="space-y-2 text-xs">
                         <div class="flex justify-between"><span>Người nộp tiền:</span><strong x-text="printing.payer_name || '—'"></strong></div>
@@ -222,11 +214,11 @@
                         <div class="flex justify-between"><span>Khoản thu:</span><span x-text="printing.fee_label"></span></div>
                         <div class="flex justify-between"><span>Lớp học:</span><span x-text="printing.class_name || '—'"></span></div>
                         <div class="flex justify-between"><span>Hình thức:</span><span x-text="printing.method"></span></div>
-                        <div class="flex justify-between border-t pt-2"><strong>Số tiền thực thu:</strong><strong x-text="new Intl.NumberFormat('vi-VN').format(printing.amount) + ' VNĐ'"></strong></div>
+                        <div class="flex justify-between border-t pt-2"><strong>Số tiền thực thu:</strong><strong x-text="formatMoney(printing.amount)"></strong></div>
                         <div class="flex justify-between"><span>Nội dung:</span><span x-text="printing.notes || ''"></span></div>
                     </div>
                     <div class="grid grid-cols-3 gap-4 pt-4 text-center text-xs">
-                        <div class="space-y-12"><div class="font-bold">Người nộp tiền</div><div class="italic text-gray-400">(Ký &amp; ghi rõ họ tên)</div></div>
+                        <div class="space-y-12"><div class="font-bold">Người nộp tiền</div><div class="italic text-on-surface-subtle">(Ký &amp; ghi rõ họ tên)</div></div>
                         <div class="space-y-12"><div class="font-bold">Người lập phiếu</div><div x-text="printing.creator_name || ''"></div></div>
                         <div class="space-y-12"><div class="font-bold">Kế toán / Thủ quỹ</div><div x-text="printing.approver_name || ''"></div></div>
                     </div>

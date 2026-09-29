@@ -34,7 +34,7 @@
                 <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs" :class="step >= 1 ? 'bg-primary-container text-white' : 'bg-surface-container text-on-surface-variant'">1</div>
                 <div class="hidden sm:block text-left">
                     <div class="text-xs font-bold text-on-surface">Xác nhận Chốt</div>
-                    <div class="text-[10px] text-on-surface-variant/70">Khách &amp; khóa đăng ký</div>
+                    <div class="text-xs text-on-surface-subtle">Khách &amp; khóa đăng ký</div>
                 </div>
             </div>
             <div class="h-0.5 w-12 bg-surface-container-high"></div>
@@ -43,7 +43,7 @@
                 <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs" :class="step >= 2 ? 'bg-primary-container text-white' : 'bg-surface-container text-on-surface-variant'">2</div>
                 <div class="hidden sm:block text-left">
                     <div class="text-xs font-bold text-on-surface">Học phí &amp; Ưu đãi</div>
-                    <div class="text-[10px] text-on-surface-variant/70">Thu trước &amp; Thu khác</div>
+                    <div class="text-xs text-on-surface-subtle">Thu trước &amp; Thu khác</div>
                 </div>
             </div>
             <div class="h-0.5 w-12 bg-surface-container-high"></div>
@@ -52,7 +52,7 @@
                 <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs" :class="step >= 3 ? 'bg-primary-container text-white' : 'bg-surface-container text-on-surface-variant'">3</div>
                 <div class="hidden sm:block text-left">
                     <div class="text-xs font-bold text-on-surface">Danh sách lớp</div>
-                    <div class="text-[10px] text-on-surface-variant/70">Lớp đề xuất / Xếp lớp sau</div>
+                    <div class="text-xs text-on-surface-subtle">Lớp đề xuất / Xếp lớp sau</div>
                 </div>
             </div>
             <div class="h-0.5 w-12 bg-surface-container-high"></div>
@@ -61,7 +61,7 @@
                 <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs" :class="step >= 4 ? 'bg-tertiary text-white' : 'bg-surface-container text-on-surface-variant'">4</div>
                 <div class="hidden sm:block text-left">
                     <div class="text-xs font-bold text-on-surface">Chốt &amp; Thu phí</div>
-                    <div class="text-[10px] text-on-surface-variant/70">VietQR, Quẹt thẻ &amp; Bill</div>
+                    <div class="text-xs text-on-surface-subtle">VietQR, Quẹt thẻ &amp; Bill</div>
                 </div>
             </div>
         </div>
@@ -160,10 +160,10 @@
                         <x-ui.select id="closing_course" x-model="courseId" x-on:change="updateCourse($event)" class="font-bold !text-primary-container">
                             <option value="">— Chọn khóa học —</option>
                             @foreach ($courses as $crs)
-                                <option value="{{ $crs->id }}" data-name="{{ $crs->name }}" data-tuition="{{ (float) $crs->tuition_fee }}">{{ $crs->name }} (Học phí niêm yết: {{ number_format($crs->tuition_fee) }}đ)</option>
+                                <option value="{{ $crs->id }}" data-name="{{ $crs->name }}" data-tuition="{{ (float) $crs->tuition_fee }}">{{ $crs->name }} (Học phí niêm yết: {{ \App\Support\Money::format($crs->tuition_fee) }})</option>
                             @endforeach
                         </x-ui.select>
-                        <p class="mt-1 text-[11px] text-on-surface-variant">Khi chọn lớp ở Bước 3, khóa học lấy theo lớp. Khi "Xếp lớp sau", học phí tính theo giá niêm yết của khóa này (trừ ưu đãi).</p>
+                        <p class="mt-1 text-xs text-on-surface-variant">Khi chọn lớp ở Bước 3, khóa học lấy theo lớp. Khi "Xếp lớp sau", học phí tính theo giá niêm yết của khóa này (trừ ưu đãi).</p>
                     </x-ui.field>
                 </div>
 
@@ -200,11 +200,11 @@
                     <div>
                         <label class="block text-xs font-semibold text-on-surface-variant mb-1 flex items-center justify-between">
                             <span>Chương trình Ưu đãi / Voucher</span>
-                            <span class="text-[10px] text-on-surface-variant/70">Chọn hoặc nhập trực tiếp</span>
+                            <span class="text-xs text-on-surface-subtle">Chọn hoặc nhập trực tiếp</span>
                         </label>
                         <x-ui.select x-model="selectedPromotionId" x-on:change="applyPromotion($event)" placeholder="-- Tùy chỉnh / Không áp dụng --" class="font-semibold">
                             <template x-for="p in availablePromotions" :key="p.id">
-                                <option :value="p.id" x-text="p.name + ' (' + (p.type === 'percent' ? p.value + '%' : new Intl.NumberFormat('vi-VN').format(p.value) + 'đ') + ')'"></option>
+                                <option :value="p.id" x-text="p.name + ' (' + (p.type === 'percent' ? p.value + '%' : window.formatMoney(p.value)) + ')'"></option>
                             </template>
                         </x-ui.select>
                     </div>
@@ -218,7 +218,7 @@
                     <div>
                         <label class="block text-xs font-semibold text-on-surface-variant mb-1 flex items-center justify-between">
                             <span>Khoản thu khác (VNĐ)</span>
-                            <span class="text-[10px] text-secondary font-bold" x-text="feeItems.length + ' mục đã chọn'"></span>
+                            <span class="text-xs text-secondary font-bold" x-text="feeItems.length + ' mục đã chọn'"></span>
                         </label>
                         <x-ui.input type="number" x-model.number="otherFees" readonly placeholder="0"
                                     class="cursor-not-allowed !bg-surface-container-low font-mono font-bold !text-secondary" />
@@ -227,14 +227,14 @@
                     <div>
                         <label class="block text-xs font-semibold text-on-surface-variant mb-1 flex items-center justify-between">
                             <span>Thu trước (VNĐ)</span>
-                            <span class="text-[10px] text-on-surface-variant/70">Đã đóng trước</span>
+                            <span class="text-xs text-on-surface-subtle">Đã đóng trước</span>
                         </label>
                         @can('tuition.approve')
                             <x-ui.input type="number" x-model.number="prepaidAmount" placeholder="0" class="font-mono font-bold !text-warning" />
                         @else
                             {{-- Khoản thu trước cần người duyệt phiếu thu xác nhận (server từ chối nếu không có quyền). --}}
                             <x-ui.input type="number" value="0" disabled class="font-mono" />
-                            <p class="mt-1 text-[10px] text-on-surface-variant">Chỉ Kế toán / Quản lý nhập được khoản thu trước.</p>
+                            <p class="mt-1 text-xs text-on-surface-variant">Chỉ Kế toán / Quản lý nhập được khoản thu trước.</p>
                         @endcan
                     </div>
                 </div>
@@ -247,7 +247,7 @@
                                 <span class="material-symbols-outlined text-secondary text-base">receipt_long</span>
                                 Bóc tách chi tiết các khoản Thu khác (Hiển thị trên Hóa đơn phụ huynh)
                             </span>
-                            <p class="text-[11px] text-on-surface-variant mt-0.5">Phụ huynh muốn nhìn rõ từng khoản mục cần tính tiền trong phiếu báo học phí.</p>
+                            <p class="text-xs text-on-surface-variant mt-0.5">Phụ huynh muốn nhìn rõ từng khoản mục cần tính tiền trong phiếu báo học phí.</p>
                         </div>
                     </div>
 
@@ -269,7 +269,7 @@
                             </x-ui.select>
                         </div>
                         @can('system_category.manage')
-                        <a href="{{ route('merchandise.index') }}" target="_blank" class="text-[11px] font-bold text-secondary hover:text-secondary hover:underline flex items-center gap-0.5 shrink-0" title="Mở quản lý danh mục hàng hóa trong tab mới">
+                        <a href="{{ route('merchandise.index') }}" target="_blank" class="text-xs font-bold text-secondary hover:text-secondary hover:underline flex items-center gap-0.5 shrink-0" title="Mở quản lý danh mục hàng hóa trong tab mới">
                             <span class="material-symbols-outlined text-sm">open_in_new</span>
                             <span>Quản lý danh mục</span>
                         </a>
@@ -287,7 +287,7 @@
                                     <div class="w-36">
                                         <div class="relative">
                                             <input type="number" x-model.number="item.amount" readonly class="w-full text-xs font-mono font-bold text-right text-secondary rounded-lg border-surface-container-highest p-1.5 pr-7 bg-surface-container-low" />
-                                            <span class="absolute right-2 top-1.5 text-[10px] text-on-surface-variant/70 font-bold">đ</span>
+                                            <span class="absolute right-2 top-1.5 text-xs text-on-surface-subtle font-bold">đ</span>
                                         </div>
                                     </div>
                                     <x-ui.button variant="danger-text" size="sm" icon="delete" x-on:click="removeItem(idx)" title="Xóa mục này" aria-label="Xóa mục này" />
@@ -300,7 +300,7 @@
                         </div>
                     </template>
                     <template x-if="feeItems.length === 0">
-                        <div class="text-[11px] text-on-surface-variant/70 italic py-1">
+                        <div class="text-xs text-on-surface-subtle italic py-1">
                             Chưa chọn mục thu khác nào (hoặc nhập trực tiếp vào ô Khoản thu khác ở trên).
                         </div>
                     </template>
@@ -363,7 +363,7 @@
                         </label>
                         <label class="inline-flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer" :class="assignLater ? 'border-primary-container bg-primary-container/10 text-primary-container' : 'border-surface-container-highest text-on-surface-variant'">
                             <input type="radio" name="class_mode" value="later" :checked="assignLater" @change="setAssignLater(true)" />
-                            <span class="flex flex-col"><span class="inline-flex items-center gap-xs"><span class="material-symbols-outlined text-[16px]">event_busy</span>Xếp lớp sau</span><span class="text-[10px] font-normal">Khách sẽ xuất hiện trong mục "Chờ xếp lớp"</span></span>
+                            <span class="flex flex-col"><span class="inline-flex items-center gap-xs"><span class="material-symbols-outlined text-[16px]">event_busy</span>Xếp lớp sau</span><span class="text-xs font-normal">Khách sẽ xuất hiện trong mục "Chờ xếp lớp"</span></span>
                         </label>
                     </div>
 
@@ -409,8 +409,8 @@
                                                 <x-ui.badge color="success" :pill="true" :dot="false" class="font-bold">Đang học</x-ui.badge>
                                             @endif
                                         </div>
-                                        <div class="font-code text-[10px] text-on-surface-variant/70">{{ $cl->code }}</div>
-                                        <span x-show="levelMatches(@js($cl->level_haystack))" x-cloak class="inline-block rounded bg-tertiary/10 px-1.5 py-0.5 text-[10px] font-bold text-tertiary">Phù hợp trình độ</span>
+                                        <div class="font-code text-xs text-on-surface-subtle">{{ $cl->code }}</div>
+                                        <span x-show="levelMatches(@js($cl->level_haystack))" x-cloak class="inline-block rounded bg-tertiary/10 px-1.5 py-0.5 text-xs font-bold text-tertiary">Phù hợp trình độ</span>
                                         <div class="text-on-surface-variant">{{ $cl->course?->name ?? 'Chưa gán khóa' }} · {{ $cl->branch?->name }}</div>
                                         <div class="flex items-center gap-1 text-on-surface-variant"><span class="material-symbols-outlined text-[14px]">calendar_today</span>Lịch học: {{ $cl->schedule_text ?: 'Chưa có lịch' }}</div>
                                         <div class="flex items-center gap-1 text-on-surface-variant"><span class="material-symbols-outlined text-[14px]">account_circle</span>Giáo viên: {{ $cl->teacher?->name ?? 'Chưa phân công' }}</div>
@@ -422,7 +422,7 @@
                                         <div class="text-on-surface-variant">Số học viên hiện có: <span class="font-semibold text-on-surface">{{ $cl->active_enrollments_count }} / {{ $cl->max_capacity > 0 ? $cl->max_capacity : '∞' }}</span> (ngưỡng khai giảng {{ (int) $cl->min_students }})</div>
                                         <div class="flex flex-wrap items-center gap-2 pt-1">
                                             <span class="font-semibold text-on-surface">Sĩ số {{ $cl->active_enrollments_count }}/{{ $cl->max_capacity > 0 ? $cl->max_capacity : '∞' }}</span>
-                                            <span class="text-on-surface-variant/70">·</span>
+                                            <span class="text-on-surface-subtle">·</span>
                                             <span class="font-semibold {{ ($cl->remaining_seats ?? 99) <= 2 ? 'text-error' : 'text-tertiary' }}">Còn {{ $cl->remaining_seats ?? 'không giới hạn' }} chỗ</span>
                                         </div>
                                         @if ($cl->status === 'upcoming')
@@ -432,7 +432,7 @@
                                                 <div class="text-tertiary font-semibold">Đã đủ ngưỡng khai giảng ({{ (int) $cl->min_students }} học viên)</div>
                                             @endif
                                         @endif
-                                        <div class="pt-1 text-right font-semibold" :class="String(classId) === '{{ $cl->id }}' ? 'text-primary' : 'text-on-surface-variant/70'">
+                                        <div class="pt-1 text-right font-semibold" :class="String(classId) === '{{ $cl->id }}' ? 'text-primary' : 'text-on-surface-subtle'">
                                             <span x-text="String(classId) === '{{ $cl->id }}' ? 'Đã chọn lớp này' : 'Chọn lớp này'"></span>
                                         </div>
                                     </button>
@@ -491,7 +491,7 @@
                                 <span class="font-mono font-bold text-on-surface" x-text="formatVND(contractTotal)"></span>
                             </div>
                             <template x-if="feeItems && feeItems.length > 0">
-                                <div class="p-2 bg-secondary/10 border border-secondary/30 rounded-xl space-y-1 my-1 text-[11px]">
+                                <div class="p-2 bg-secondary/10 border border-secondary/30 rounded-xl space-y-1 my-1 text-xs">
                                     <div class="font-bold text-secondary flex justify-between">
                                         <span>Bao gồm Thu khác:</span>
                                         <span class="font-mono" x-text="formatVND(otherFees)"></span>
@@ -522,7 +522,7 @@
                             <input type="checkbox" x-model="feePaid" @change="onFeePaidChange()" class="rounded border-tertiary/30 text-tertiary" />
                             <span>Đã đóng học phí đăng ký</span>
                         </label>
-                        <p x-show="!feePaid" x-cloak class="text-[11px] text-warning">Chưa thu tiền: hệ thống tạo task "Nhắc thu học phí" cho người phụ trách khách (hạn 3 ngày).</p>
+                        <p x-show="!feePaid" x-cloak class="text-xs text-warning">Chưa thu tiền: hệ thống tạo task "Nhắc thu học phí" cho người phụ trách khách (hạn 3 ngày).</p>
 
                         {{-- Số tiền thực thu đợt 1 --}}
                         <div x-show="feePaid">
@@ -538,7 +538,7 @@
                             <label class="block text-xs font-bold text-on-surface mb-1 flex items-center justify-between">
                                 <span>Tài khoản Ngân hàng nhận tiền <span class="text-error">*</span></span>
                                 @can('bank_account.manage')
-                                    <a href="{{ route('system-config.bank-accounts') }}" target="_blank" class="text-[10px] text-primary-container hover:underline font-normal">Đổi STK trong Admin &rarr;</a>
+                                    <a href="{{ route('system-config.bank-accounts') }}" target="_blank" class="text-xs text-primary-container hover:underline font-normal">Đổi STK trong Admin &rarr;</a>
                                 @endcan
                             </label>
                             <x-ui.select x-model="selectedBankAccountId" class="font-semibold" aria-label="Tài khoản Ngân hàng nhận tiền">
@@ -568,7 +568,7 @@
                             {{-- Tiền mặt: thu theo hóa đơn giấy — ghi số hóa đơn giấy vào phiếu thu để Kế toán đối soát khi duyệt --}}
                             <div x-show="feePaid && paymentMethod === 'cash'" x-cloak class="p-3.5 rounded-xl border border-surface-container-highest bg-surface-container-low space-y-1">
                                 <x-ui.input name="paper_invoice_number" id="closing_paper_invoice_number" label="Số hóa đơn giấy thu tiền mặt (bắt buộc)" x-model="paperInvoiceNumber" placeholder="Ví dụ: HĐG-0824/PTM-042..." class="font-code font-bold" />
-                                <p class="text-[10px] text-on-surface-variant">Xuất hóa đơn giấy cho khách rồi ghi số vào đây. Phiếu thu tiền mặt được gửi Kế toán/Admin duyệt kèm số hóa đơn này.</p>
+                                <p class="text-xs text-on-surface-variant">Xuất hóa đơn giấy cho khách rồi ghi số vào đây. Phiếu thu tiền mặt được gửi Kế toán/Admin duyệt kèm số hóa đơn này.</p>
                             </div>
                         </div>
 
@@ -599,7 +599,7 @@
                         </div>
 
                         {{-- Bank & Memo Details with Copy Buttons --}}
-                        <div x-show="needsBankAccount" class="w-full bg-surface-container-low rounded-xl p-3 text-left space-y-2 text-[11px] border border-surface-container-highest">
+                        <div x-show="needsBankAccount" class="w-full bg-surface-container-low rounded-xl p-3 text-left space-y-2 text-xs border border-surface-container-highest">
                             <div class="flex justify-between items-center">
                                 <span class="text-on-surface-variant">Ngân hàng:</span>
                                 <span class="font-bold text-on-surface text-right truncate max-w-[170px]" x-text="selectedBank.bank_name"></span>
@@ -622,7 +622,7 @@
 
                             <div class="flex justify-between items-center">
                                 <span class="text-on-surface-variant">Chủ tài khoản:</span>
-                                <span class="font-bold text-on-surface text-right uppercase text-[10px] truncate max-w-[170px]" x-text="selectedBank.account_holder"></span>
+                                <span class="font-bold text-on-surface text-right uppercase text-xs truncate max-w-[170px]" x-text="selectedBank.account_holder"></span>
                             </div>
 
                             <div class="flex justify-between items-center">
@@ -645,7 +645,7 @@
                                     </button>
                                 </div>
                                 <div class="p-2 bg-primary-container/10 border border-primary-container/30 rounded-lg font-mono font-bold text-xs text-primary break-all select-all text-left" x-text="transferMemo"></div>
-                                <p class="text-[10px] text-on-surface-variant/70">Tên học sinh + mã học sinh + lớp (mã học viên được cấp sẵn, giữ nguyên khi chốt).</p>
+                                <p class="text-xs text-on-surface-subtle">Tên học sinh + mã học sinh + lớp (mã học viên được cấp sẵn, giữ nguyên khi chốt).</p>
                             </div>
                         </div>
 
@@ -982,7 +982,7 @@
                 },
 
                 formatVND(num) {
-                    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(num || 0);
+                    return window.formatMoney(num || 0);
                 },
 
                 removeVietnameseTones(str) {

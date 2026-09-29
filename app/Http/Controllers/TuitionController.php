@@ -24,6 +24,7 @@ use App\Services\NotificationService;
 use App\Services\SafeUploadService;
 use App\Services\SalesCommissionService;
 use App\Services\TuitionImportService;
+use App\Support\Money;
 use App\Support\TuitionBranchScope;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
@@ -417,7 +418,7 @@ class TuitionController extends Controller
         $this->notifyReceiptPending($receipt, $tuition?->student ?? Student::find($studentId));
 
         return $this->modalSaved(
-            "Đã gửi duyệt phiếu thu {$receipt->receipt_number} (Số tiền: ".number_format((float) $receipt->amount, 0, ',', '.').' VNĐ) lên cấp Quản lý / Kế toán!',
+            "Đã gửi duyệt phiếu thu {$receipt->receipt_number} (Số tiền: ".Money::format((float) $receipt->amount).') lên cấp Quản lý / Kế toán!',
             'tuition-receipts-changed',
             route('tuition.receipts.approve', ['selected_id' => $receipt->id]),
         );
@@ -585,10 +586,10 @@ class TuitionController extends Controller
 
         $statementAmount = (float) $tx->transfer_amount;
         if (abs($statementAmount - (float) $receipt->amount) < 0.5) {
-            return ['tone' => 'success', 'label' => 'Khớp số tiền & mã giao dịch', 'detail' => 'Sao kê SePay ghi nhận '.number_format($statementAmount, 0, ',', '.').' đ ngày '.($tx->transaction_date?->format('d/m/Y H:i') ?? '—').' vào TK '.($tx->account_number ?: '—').'.'];
+            return ['tone' => 'success', 'label' => 'Khớp số tiền & mã giao dịch', 'detail' => 'Sao kê SePay ghi nhận '.Money::format($statementAmount).' ngày '.($tx->transaction_date?->format('d/m/Y H:i') ?? '—').' vào TK '.($tx->account_number ?: '—').'.'];
         }
 
-        return ['tone' => 'error', 'label' => 'Lệch số tiền', 'detail' => 'Sao kê SePay ghi nhận '.number_format($statementAmount, 0, ',', '.').' đ, phiếu ghi '.number_format((float) $receipt->amount, 0, ',', '.').' đ.'];
+        return ['tone' => 'error', 'label' => 'Lệch số tiền', 'detail' => 'Sao kê SePay ghi nhận '.Money::format($statementAmount).', phiếu ghi '.Money::format((float) $receipt->amount).'.'];
     }
 
     /**
@@ -660,9 +661,9 @@ class TuitionController extends Controller
     {
         $remaining = (float) $tuition->debt_amount;
         if ($tuitionPortion + $discount > $remaining + 0.5) {
-            return 'Phần học phí ('.number_format($tuitionPortion, 0, ',', '.').' VNĐ) + chiết khấu ('
-                .number_format($discount, 0, ',', '.').' VNĐ) vượt quá công nợ còn lại '
-                .number_format($remaining, 0, ',', '.').' VNĐ.';
+            return 'Phần học phí ('.Money::format($tuitionPortion).') + chiết khấu ('
+                .Money::format($discount).') vượt quá công nợ còn lại '
+                .Money::format($remaining).'.';
         }
 
         return null;
@@ -678,7 +679,7 @@ class TuitionController extends Controller
     {
         $studentId = $student?->id ?? $receipt->student_id;
         $stName = $student?->name ?? 'Học viên';
-        $message = "Nhân viên vừa lập phiếu thu #{$receipt->receipt_number} (".number_format((float) $receipt->amount, 0, ',', '.')." VNĐ) cho học viên {$stName}. Vui lòng đối chiếu chứng từ và phê duyệt.";
+        $message = "Nhân viên vừa lập phiếu thu #{$receipt->receipt_number} (".Money::format((float) $receipt->amount).") cho học viên {$stName}. Vui lòng đối chiếu chứng từ và phê duyệt.";
         $data = [
             'receipt_id' => $receipt->id,
             'receipt_number' => $receipt->receipt_number,
@@ -906,7 +907,7 @@ class TuitionController extends Controller
                 'user_id' => $receipt->creator_id,
                 'type' => 'receipt_approved',
                 'title' => 'Xác nhận thu học phí thành công',
-                'message' => "Phiếu thu #{$receipt->receipt_number} (".number_format((float) $receipt->amount, 0, ',', '.')." VNĐ) của học viên {$studentName} đã được phê duyệt thành công. Hóa đơn số: {$invoiceNumber}.",
+                'message' => "Phiếu thu #{$receipt->receipt_number} (".Money::format((float) $receipt->amount).") của học viên {$studentName} đã được phê duyệt thành công. Hóa đơn số: {$invoiceNumber}.",
                 'data' => [
                     'receipt_id' => $receipt->id,
                     'receipt_number' => $receipt->receipt_number,
@@ -927,7 +928,7 @@ class TuitionController extends Controller
                 'screen_key' => '04_Cong_Phu_Huynh_Hoc_Sinh/05_danh_sach_thong_bao',
                 'module' => '04_Cong_Phu_Huynh_Hoc_Sinh',
                 'record_code' => $receipt->receipt_number,
-                'title' => "Xác nhận thu học phí: {$studentName} (".number_format((float) $receipt->amount, 0, ',', '.').' VNĐ)',
+                'title' => "Xác nhận thu học phí: {$studentName} (".Money::format((float) $receipt->amount).')',
                 'status' => 'active',
                 'is_seed' => false,
                 'data' => [
@@ -939,7 +940,7 @@ class TuitionController extends Controller
                     'student_id' => $student?->id,
                     'student_name' => $studentName,
                     'date' => now()->format('d/m/Y H:i'),
-                    'message' => 'Trung tâm MEnglish xác nhận đã nhận thanh toán học phí thành công số tiền '.number_format((float) $receipt->amount, 0, ',', '.')." VNĐ cho học viên {$studentName} (HĐĐT: {$invoiceNumber}). Cảm ơn Quý phụ huynh!",
+                    'message' => 'Trung tâm MEnglish xác nhận đã nhận thanh toán học phí thành công số tiền '.Money::format((float) $receipt->amount)." cho học viên {$studentName} (HĐĐT: {$invoiceNumber}). Cảm ơn Quý phụ huynh!",
                 ],
                 'user_id' => Auth::id(),
             ]);
@@ -979,8 +980,7 @@ class TuitionController extends Controller
 
         $similar = $this->similarSepayTransactions($receipt)->first();
         if ($similar) {
-            return 'Cảnh báo trùng giao dịch: SePay đã tự động ghi nhận '.number_format((float) $similar->transfer_amount, 0, ',', '.')
-                .' VNĐ cho học viên này ngày '.$similar->transaction_date?->format('d/m/Y H:i')
+            return 'Cảnh báo trùng giao dịch: SePay đã tự động ghi nhận '.Money::format((float) $similar->transfer_amount).' cho học viên này ngày '.$similar->transaction_date?->format('d/m/Y H:i')
                 .($similar->receipt ? ' (phiếu '.$similar->receipt->receipt_number.')' : '')
                 .'. Nếu chắc chắn đây là khoản chuyển khác, hãy tick "Xác nhận không trùng giao dịch SePay" rồi duyệt lại.';
         }
@@ -1381,7 +1381,7 @@ class TuitionController extends Controller
         }
         if (abs((float) $validated['amount'] - (float) $receipt->amount) > 0.009) {
             return redirect()->back()->withErrors([
-                'amount' => 'Số tiền hủy phải bằng đúng giá trị hóa đơn ('.number_format((float) $receipt->amount, 0, ',', '.').' VNĐ).',
+                'amount' => 'Số tiền hủy phải bằng đúng giá trị hóa đơn ('.Money::format((float) $receipt->amount).').',
             ])->withInput();
         }
         if (InvoiceCancellation::where('tuition_receipt_id', $receipt->id)->where('status', 'pending')->exists()) {
@@ -1459,8 +1459,7 @@ class TuitionController extends Controller
 
         $message = "Đã duyệt hủy hóa đơn {$result->invoice_number} và hoàn tác công nợ học viên!";
         if ($clawback = $result->getAttribute('commission_clawback')) {
-            $message .= ' Kỳ lương chứa phiếu đã duyệt: thu hồi '.number_format(abs((float) $clawback->amount), 0, ',', '.')
-                .' VNĐ hoa hồng của '.($clawback->user?->name ?? 'sale').' ở lần tính lương kế tiếp.';
+            $message .= ' Kỳ lương chứa phiếu đã duyệt: thu hồi '.Money::format(abs((float) $clawback->amount)).' hoa hồng của '.($clawback->user?->name ?? 'sale').' ở lần tính lương kế tiếp.';
         }
 
         return redirect()->back()->with('status', $message);
@@ -1724,7 +1723,7 @@ class TuitionController extends Controller
             }
             $sourceTuition->recalculateDebt();
             if ($amount > (float) $sourceTuition->paid_amount) {
-                return ['error' => 'Số tiền xử lý vượt quá số tiền học viên đã nộp ('.number_format((float) $sourceTuition->paid_amount, 0, ',', '.').' VNĐ).'];
+                return ['error' => 'Số tiền xử lý vượt quá số tiền học viên đã nộp ('.Money::format((float) $sourceTuition->paid_amount).').'];
             }
 
             if ($refund->type === 'transfer') {
@@ -1733,7 +1732,7 @@ class TuitionController extends Controller
                 }
                 $targetTuition->recalculateDebt();
                 if ($amount > (float) $targetTuition->debt_amount) {
-                    return ['error' => 'Số tiền chuyển nhượng vượt quá công nợ còn lại của học viên nhận ('.number_format((float) $targetTuition->debt_amount, 0, ',', '.').' VNĐ). Vui lòng điều chỉnh số tiền.'];
+                    return ['error' => 'Số tiền chuyển nhượng vượt quá công nợ còn lại của học viên nhận ('.Money::format((float) $targetTuition->debt_amount).'). Vui lòng điều chỉnh số tiền.'];
                 }
             }
 
@@ -1747,7 +1746,7 @@ class TuitionController extends Controller
             );
 
             $isTransfer = $refund->type === 'transfer';
-            $amountLabel = number_format($amount, 0, ',', '.').' VNĐ';
+            $amountLabel = Money::format($amount);
 
             // Bên nguồn: phiếu âm + giảm giá trị hợp đồng tương ứng để công nợ không tăng giả.
             TuitionReceipt::create([
@@ -1773,8 +1772,7 @@ class TuitionController extends Controller
             $sourceTuition->final_amount = max(0, $oldFinal - $amount);
             $sourceTuition->notes = trim(($sourceTuition->notes ? $sourceTuition->notes."\n" : '')
                 .'['.now()->format('d/m/Y H:i').'] '.($isTransfer ? 'Chuyển nhượng' : 'Hoàn phí')." #{$refund->id}: giảm giá trị hợp đồng "
-                .number_format($oldFinal, 0, ',', '.').' → '.number_format((float) $sourceTuition->final_amount, 0, ',', '.')
-                ." VNĐ (-{$amountLabel}), duyệt bởi ".(Auth::user()?->name ?? 'hệ thống').'.');
+                .number_format($oldFinal, 0, ',', '.').' → '.Money::format((float) $sourceTuition->final_amount)." (-{$amountLabel}), duyệt bởi ".(Auth::user()?->name ?? 'hệ thống').'.');
             $sourceTuition->recalculateDebt();
 
             if (! $isTransfer) {
@@ -1894,7 +1892,7 @@ class TuitionController extends Controller
         $tuition->notes = trim(($tuition->notes ? $tuition->notes."\n" : '').$stamp
             ."Bảo lưu #{$refund->id}: {$refund->defer_from->format('d/m/Y')} – {$refund->defer_to->format('d/m/Y')}, "
             .($startsNow
-                ? 'đóng băng '.($stats ? $stats['remaining'].' buổi còn lại' : 'số buổi còn lại').' và công nợ '.number_format((float) $tuition->debt_amount, 0, ',', '.').' VNĐ'
+                ? 'đóng băng '.($stats ? $stats['remaining'].' buổi còn lại' : 'số buổi còn lại').' và công nợ '.Money::format((float) $tuition->debt_amount)
                 : 'đóng băng số buổi và công nợ vào ngày bắt đầu')
             .". Duyệt bởi {$approver}.");
         $tuition->recalculateDebt();
@@ -2097,7 +2095,7 @@ class TuitionController extends Controller
 
         $message = "{$reporter->name} báo cáo học viên {$tuition->student?->name} ({$tuition->student?->code}) lớp "
             .($tuition->classModel?->name ?? 'chưa xếp lớp').' quá hạn '.max(0, (int) $days).' ngày, còn nợ '
-            .number_format((float) $tuition->debt_amount, 0, ',', '.').' VNĐ'
+            .Money::format((float) $tuition->debt_amount)
             .(! empty($validated['note']) ? '. Ghi chú: '.$validated['note'] : '.');
 
         foreach ($admins as $adminId) {

@@ -23,7 +23,7 @@
         <div class="hidden px-sm pt-xs font-h3 text-h3 text-on-surface lg:block">Cài đặt</div>
         @foreach ($sections as $section)
             <div>
-                <div class="px-sm pb-xs font-caption text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant">{{ $section['label'] }}</div>
+                <div class="px-sm pb-xs font-caption text-xs font-semibold uppercase tracking-widest text-on-surface-variant">{{ $section['label'] }}</div>
                 <ul class="space-y-0.5">
                     @foreach ($section['items'] as $item)
                         <li>

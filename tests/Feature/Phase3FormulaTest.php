@@ -422,7 +422,7 @@ class Phase3FormulaTest extends TestCase
         $this->assertEquals(2000000, $this->record($this->calculate($period), $staff)->kpi_bonus);
 
         $this->actingAs($this->admin)->get(route('payroll.periods.operations', $period->id))->assertOk()->assertSee('Học vụ Phượng')->assertSee('100% × quỹ');
-        $this->actingAs($this->admin)->get(route('kpi.criteria'))->assertOk()->assertSee('Chăm sóc học viên')->assertSee('Thu học phí')->assertSee('300.000đ');
+        $this->actingAs($this->admin)->get(route('kpi.criteria'))->assertOk()->assertSee('Chăm sóc học viên')->assertSee('Thu học phí')->assertSee('300.000 đ');
     }
 
     // ───────────── E. Hoa hồng: bậc theo số HS chốt + gate kép ─────────────
@@ -483,7 +483,7 @@ class Phase3FormulaTest extends TestCase
         $this->assertStringContainsString('2/3 mốc', CommissionItem::where('crm_customer_id', $closed[4][0]->id)->value('deferred_reason'));
 
         $this->actingAs($this->accountant)->get(route('payroll.records.show', $record->id))
-            ->assertOk()->assertSee('Trả trong kỳ')->assertSee('Hoãn 200.000đ')->assertSee('chăm sóc tháng đầu mới 2/3 mốc');
+            ->assertOk()->assertSee('Trả trong kỳ')->assertSee('Hoãn 200.000 đ')->assertSee('chăm sóc tháng đầu mới 2/3 mốc');
         $this->finalizeKpi($october);
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $october->id))->assertSessionHasNoErrors();
         $this->assertSame(4, CommissionItem::where('status', CommissionItem::STATUS_PAID)->whereNotNull('settled_at')->count());

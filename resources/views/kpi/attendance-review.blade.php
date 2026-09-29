@@ -27,11 +27,11 @@
                 <div class="p-4 flex items-center justify-between gap-3">
                     <div class="min-w-0">
                         <div class="font-semibold text-sm text-on-surface">{{ $r->student?->name }}</div>
-                        <div class="text-[11px] text-on-surface-variant/70">{{ $r->classModel?->name }} · GV: {{ $r->teacher?->name ?? '—' }} @if($r->note) · {{ $r->note }} @endif</div>
+                        <div class="text-xs text-on-surface-subtle">{{ $r->classModel?->name }} · GV: {{ $r->teacher?->name ?? '—' }} @if($r->note) · {{ $r->note }} @endif</div>
                     </div>
                     <div class="flex items-center gap-2">
                         <x-ui.badge :color="$badgeColor" :pill="true">{{ $r->status_label }}</x-ui.badge>
-                        <span class="text-[10px] text-on-surface-variant">{{ \App\Support\StatusLabel::for($r->review_status, 'Chưa rà soát') }}</span>
+                        <span class="text-xs text-on-surface-variant">{{ \App\Support\StatusLabel::for($r->review_status, 'Chưa rà soát') }}</span>
                         @if($r->review_status === 'pending_review')
                             <form method="POST" action="{{ route('kpi.attendance-review.update', $r->id) }}" class="flex gap-1">@csrf
                                 <x-ui.button type="submit" name="decision" value="approved" variant="success" size="sm">Duyệt</x-ui.button>

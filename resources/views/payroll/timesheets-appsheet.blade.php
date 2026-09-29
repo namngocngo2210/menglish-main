@@ -1,5 +1,5 @@
 <x-app-layout>
-    <x-ui.page-header title="Chấm Công AppSheet" icon="schedule">
+    <x-ui.page-header title="Chấm công AppSheet" icon="schedule">
         <x-slot:actions>
             <x-ui.button variant="secondary" icon="open_in_new" href="https://www.appsheet.com/start/00cb153e-2abe-4a50-bc50-36f9be53a422" target="_blank" rel="noopener noreferrer">Mở tab mới</x-ui.button>
             <x-ui.button icon="fullscreen" onclick="toggleAppsheetFullscreen()">Toàn màn hình</x-ui.button>
@@ -10,6 +10,7 @@
     <div class="bg-surface-container-lowest rounded-3xl border border-surface-container-highest shadow-sm overflow-hidden flex flex-col h-[calc(100vh-175px)] min-h-[650px] relative">
         <iframe 
             id="appsheet-frame"
+            title="Bảng chấm công AppSheet"
             name="preview-frame"
             allowfullscreen="true" 
             frameborder="0" 

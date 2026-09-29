@@ -62,6 +62,18 @@ class ClassSession extends Model
         $this->attributes['end_time'] = self::normalizeTime($value);
     }
 
+    /** Tên phòng để hiển thị: "Phòng P101"; tên đã có chữ "Phòng" (vd. "Phòng bổ trợ") giữ nguyên; chưa có phòng → null. */
+    public function roomLabel(): ?string
+    {
+        $room = trim((string) $this->room);
+
+        return match (true) {
+            $room === '' => null,
+            str_starts_with(mb_strtolower($room), 'phòng') => $room,
+            default => 'Phòng '.$room,
+        };
+    }
+
     public static function normalizeTime($value)
     {
         if ($value instanceof \DateTimeInterface) {

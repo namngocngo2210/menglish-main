@@ -17,7 +17,7 @@
                             1. Thông tin cơ bản &amp; Phân loại
                         </h2>
                     </div>
-                    <span class="text-xs text-on-surface-variant/70 font-medium italic">
+                    <span class="text-xs text-on-surface-subtle font-medium italic">
                         (<span class="text-error font-bold">*</span>) Trường bắt buộc nhập
                     </span>
                 </div>
@@ -85,10 +85,10 @@
                     <div class="md:col-span-12 flex items-center">
                         <div class="w-full bg-surface-container-low border border-surface-container-highest rounded-xl px-4 py-2.5 flex items-center justify-between">
                             <div class="flex items-center gap-2">
-                                <span class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Trạng thái lớp ban đầu:</span>
+                                <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Trạng thái lớp ban đầu:</span>
                                 <x-ui.badge color="warning">Chưa cấu hình lịch (Khởi tạo)</x-ui.badge>
                             </div>
-                            <span class="text-[11px] text-on-surface-variant/70 italic">Tự động kích hoạt khi xếp ca ở TKB</span>
+                            <span class="text-xs text-on-surface-subtle italic">Tự động kích hoạt khi xếp ca ở TKB</span>
                         </div>
                     </div>
                 </div>

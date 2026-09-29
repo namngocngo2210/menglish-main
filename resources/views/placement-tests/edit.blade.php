@@ -1,5 +1,5 @@
 <x-app-layout>
-    <x-ui.page-header :title="'Chỉnh Sửa Bộ Đề & Quản Lý Câu Hỏi: ' . $test->title" icon="edit_document" :back="route('placement-tests.index')">
+    <x-ui.page-header :title="'Sửa đề: ' . $test->title" icon="edit_document" :back="route('placement-tests.index')">
         <x-slot:meta>Mã đề: <strong class="font-mono text-on-surface">{{ $test->code }}</strong> · Cập nhật cấu hình, audio, bài đọc, câu hỏi và đáp án chấm</x-slot:meta>
     </x-ui.page-header>
 
@@ -35,7 +35,7 @@
                         <span class="material-symbols-outlined text-primary text-base">info</span>
                         1. Thông tin cấu hình bộ đề
                     </span>
-                    <span class="text-xs font-normal text-on-surface-variant/70">Các trường đánh dấu <span class="text-error">*</span> là bắt buộc</span>
+                    <span class="text-xs font-normal text-on-surface-subtle">Các trường đánh dấu <span class="text-error">*</span> là bắt buộc</span>
                 </h2>
                 
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
@@ -118,7 +118,7 @@
                         type="button" 
                         @click="filterSkill = 'writing'" 
                         class="px-3 py-1.5 rounded-xl font-bold transition whitespace-nowrap cursor-pointer flex items-center gap-1.5"
-                        :class="filterSkill === 'writing' ? 'bg-purple-600 text-white' : 'bg-purple-50 text-purple-700 hover:bg-purple-100'"
+                        :class="filterSkill === 'writing' ? 'bg-accent text-white' : 'bg-accent-container text-accent hover:bg-accent-container'"
                     >
                         <span class="material-symbols-outlined text-sm">edit_note</span>
                         <span>Writing (<span x-text="questions.filter(q => q.skill === 'writing').length"></span>)</span>
@@ -144,21 +144,21 @@
                                     
                                     {{-- Skill Badge --}}
                                     <span 
-                                        class="px-2 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider"
+                                        class="px-2 py-0.5 rounded-md text-xs font-bold uppercase tracking-wider"
                                         :class="{
                                             'bg-secondary/10 text-on-secondary-fixed border border-secondary/30': q.skill === 'listening',
                                             'bg-info/10 text-on-info-container border border-info/30': q.skill === 'reading',
                                             'bg-warning-container text-on-warning-container border border-warning/30': q.skill === 'grammar',
-                                            'bg-purple-100 text-purple-800 border border-purple-200': q.skill === 'writing',
+                                            'bg-accent-container text-on-accent-container border border-accent/30': q.skill === 'writing',
                                             'bg-error/10 text-on-error-container border border-error/30': q.skill === 'speaking'
                                         }"
                                         x-text="getSkillLabel(q.skill)"
                                     ></span>
 
                                     {{-- Type Badge --}}
-                                    <span class="px-2 py-0.5 rounded-md bg-surface-container-high/70 text-on-surface-variant text-[10px] font-semibold" x-text="getTypeLabel(q.type)"></span>
+                                    <span class="px-2 py-0.5 rounded-md bg-surface-container-high/70 text-on-surface-variant text-xs font-semibold" x-text="getTypeLabel(q.type)"></span>
 
-                                    <span class="text-[11px] text-on-surface-variant/70 font-medium" x-text="'(' + (q.points || 1) + ' điểm)'"></span>
+                                    <span class="text-xs text-on-surface-subtle font-medium" x-text="'(' + (q.points || 1) + ' điểm)'"></span>
                                 </div>
 
                                 {{-- Action Buttons --}}
@@ -178,13 +178,13 @@
                             <template x-if="q.audio_url">
                                 <div class="mb-2.5 p-2 rounded-xl bg-secondary/5 border border-secondary/20 flex items-center gap-2 text-xs">
                                     <span class="material-symbols-outlined text-secondary text-base">volume_up</span>
-                                    <span class="text-[11px] font-mono text-on-secondary-fixed truncate" x-text="'Audio MP3: ' + q.audio_url"></span>
+                                    <span class="text-xs font-mono text-on-secondary-fixed truncate" x-text="'Audio MP3: ' + q.audio_url"></span>
                                 </div>
                             </template>
 
                             {{-- Reading Passage preview if any --}}
                             <template x-if="q.passage">
-                                <div class="mb-2.5 p-2.5 rounded-xl bg-secondary/5 border border-secondary/20 text-[11px] text-on-surface-variant italic line-clamp-2" x-text="'Đoạn văn: ' + q.passage"></div>
+                                <div class="mb-2.5 p-2.5 rounded-xl bg-secondary/5 border border-secondary/20 text-xs text-on-surface-variant italic line-clamp-2" x-text="'Đoạn văn: ' + q.passage"></div>
                             </template>
 
                             {{-- Multiple Choice Options preview --}}
@@ -196,7 +196,7 @@
                                             :class="opt.key === q.correct_answer ? 'bg-tertiary/10 border-tertiary/30 text-on-tertiary-container font-semibold' : 'bg-surface-container-lowest border-surface-container-highest text-on-surface-variant'"
                                         >
                                             <span 
-                                                class="w-5 h-5 rounded-md flex items-center justify-center font-bold text-[10px]"
+                                                class="w-5 h-5 rounded-md flex items-center justify-center font-bold text-xs"
                                                 :class="opt.key === q.correct_answer ? 'bg-tertiary text-white' : 'bg-surface-container text-on-surface-variant'"
                                                 x-text="opt.key"
                                             ></span>
@@ -219,17 +219,17 @@
 
                             {{-- Essay preview --}}
                             <template x-if="q.type === 'essay'">
-                                <div class="p-2.5 rounded-xl bg-purple-50 border border-purple-200 text-[11px] text-purple-900 space-y-1">
+                                <div class="p-2.5 rounded-xl bg-accent-container border border-accent/30 text-xs text-on-accent-container space-y-1">
                                     <div><strong>Yêu cầu số từ:</strong> <span x-text="q.min_words || 100"></span> từ trở lên</div>
                                     <template x-if="q.rubric_note">
-                                        <div class="italic text-purple-700" x-text="'Barem chấm: ' + q.rubric_note"></div>
+                                        <div class="italic text-accent" x-text="'Barem chấm: ' + q.rubric_note"></div>
                                     </template>
                                 </div>
                             </template>
 
                             {{-- Speaking Cue Points preview --}}
                             <template x-if="q.type === 'speaking_prompt'">
-                                <div class="p-2.5 rounded-xl bg-error/10 border border-error/30 text-[11px] text-on-error-container whitespace-pre-line" x-text="q.cue_points || 'Gợi ý trả lời vấn đáp...'"></div>
+                                <div class="p-2.5 rounded-xl bg-error/10 border border-error/30 text-xs text-on-error-container whitespace-pre-line" x-text="q.cue_points || 'Gợi ý trả lời vấn đáp...'"></div>
                             </template>
                         </div>
                     </template>
@@ -256,7 +256,7 @@
                         <span class="material-symbols-outlined text-tertiary text-base" x-text="editIndex !== null ? 'edit_note' : 'add_circle'"></span>
                         <span x-text="editIndex !== null ? 'Chỉnh sửa câu hỏi #' + (editIndex + 1) : 'Thêm câu hỏi mới vào đề thi'"></span>
                     </h3>
-                    <p class="text-[11px] text-on-surface-variant">Cấu hình kỹ năng, kiểu bài thi và đáp án chấm điểm</p>
+                    <p class="text-xs text-on-surface-variant">Cấu hình kỹ năng, kiểu bài thi và đáp án chấm điểm</p>
                 </div>
                 <x-ui.button variant="ghost" icon="close" x-on:click="closeModal()" aria-label="Đóng" />
             </div>
@@ -266,11 +266,11 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <x-ui.field label="Kỹ năng (Skill)" required>
                         <x-ui.select x-model="modalForm.skill" class="font-semibold">
-                            <option value="listening">🎧 Listening (Nghe hiểu)</option>
-                            <option value="reading">📖 Reading (Đọc hiểu)</option>
-                            <option value="grammar">✍️ Grammar &amp; Vocabulary (Ngữ pháp)</option>
-                            <option value="writing">📝 Writing (Viết luận)</option>
-                            <option value="speaking">🎙️ Speaking (Vấn đáp / Nói)</option>
+                            <option value="listening">Listening (Nghe hiểu)</option>
+                            <option value="reading">Reading (Đọc hiểu)</option>
+                            <option value="grammar">Grammar &amp; Vocabulary (Ngữ pháp)</option>
+                            <option value="writing">Writing (Viết luận)</option>
+                            <option value="speaking">Speaking (Vấn đáp / Nói)</option>
                         </x-ui.select>
                     </x-ui.field>
                     <x-ui.field label="Định dạng kiểu bài (Type)" required>
@@ -331,7 +331,7 @@
                 <template x-if="modalForm.type === 'fill_blank'">
                     <div class="pt-2 border-t border-surface-container-highest">
                         <x-ui.input label="Từ / Cụm từ đáp án chính xác:" x-model="modalForm.correct_answer" placeholder="Ví dụ: had studied" class="font-mono font-bold" />
-                        <p class="mt-1 text-[11px] text-on-surface-variant italic">Nhiều cách viết được chấp nhận thì ngăn cách bằng dấu |, VD: 7 | seven.</p>
+                        <p class="mt-1 text-xs text-on-surface-variant italic">Nhiều cách viết được chấp nhận thì ngăn cách bằng dấu |, VD: 7 | seven.</p>
                     </div>
                 </template>
 
@@ -489,8 +489,8 @@
                     window.dispatchEvent(new CustomEvent('close-modal', { detail: 'placement-question' }));
                 },
 
-                deleteQuestion(index) {
-                    if (!confirm('Bạn có chắc chắn muốn xóa câu hỏi này?')) return;
+                async deleteQuestion(index) {
+                    if (!(await window.confirmDialog({ message: 'Xóa câu hỏi này?', confirmLabel: 'Xóa', danger: true }))) return;
                     const target = this.filteredQuestions[index];
                     this.questions = this.questions.filter(q => q !== target);
                 },

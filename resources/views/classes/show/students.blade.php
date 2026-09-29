@@ -32,10 +32,10 @@
         <tbody>
             @forelse ($students as $idx => $st)
                 <tr>
-                    <td class="text-center font-bold text-on-surface-variant/70">{{ $idx + 1 }}</td>
+                    <td class="text-center font-bold text-on-surface-subtle">{{ $idx + 1 }}</td>
                     <td>
                         <div class="font-bold text-on-surface">{{ $st->name }}</div>
-                        <div class="font-mono text-[10px] text-on-surface-variant/70">{{ $st->code ?? '—' }}</div>
+                        <div class="font-mono text-xs text-on-surface-subtle">{{ $st->code ?? '—' }}</div>
                     </td>
                     <td class="font-mono text-on-surface-variant">{{ $st->dob ? $st->dob->format('d/m/Y') : '—' }}</td>
                     <td class="text-on-surface-variant">{{ $st->target ?? '—' }}</td>

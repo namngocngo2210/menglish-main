@@ -5,7 +5,7 @@
     @php
         $chipClass = fn (bool $active) => 'inline-flex items-center gap-xs rounded-full border px-sm py-1 font-body-small text-body-small font-semibold transition-colors '
             .($active ? 'border-primary-container bg-primary-container text-white' : 'border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface');
-        $countClass = fn (bool $active) => 'rounded-full px-1.5 font-code text-[11px] leading-4 '.($active ? 'bg-white/25' : 'bg-surface-container-high');
+        $countClass = fn (bool $active) => 'rounded-full px-1.5 font-code text-xs leading-4 '.($active ? 'bg-white/25' : 'bg-surface-container-high');
         // Giữ các bộ lọc khác khi bấm chip; bấm lại chip đang chọn = bỏ chọn.
         $chipUrl = fn (string $key, ?string $value) => route('classes.index', array_filter(
             array_merge(request()->except(['page', $key]), [$key => request($key) === $value ? null : $value]),
@@ -112,20 +112,20 @@
                                 {{-- Tên lớp cũng là link mở lớp (trước đây chỉ có nút ở cuối dòng, bị khuất khi bảng rộng). --}}
                                 <a href="{{ $showUrl }}" class="block max-w-[220px] truncate font-semibold text-on-surface hover:text-primary hover:underline" title="{{ $c->name }}">{{ $c->name }}</a>
                                 @php $meta = collect([$c->program, $c->level, $c->branch?->name])->filter()->implode(' · '); @endphp
-                                <div class="max-w-[220px] truncate text-[11px] text-on-surface-variant/80" title="{{ $meta }}">{{ $meta }}</div>
+                                <div class="max-w-[220px] truncate text-xs text-on-surface-subtle" title="{{ $meta }}">{{ $meta }}</div>
                             </td>
                             <td class="min-w-[170px] max-w-[220px] whitespace-normal text-on-surface-variant">{{ $c->schedule_text ?: 'Chưa xếp lịch' }}</td>
                             <td>
                                 <div class="font-medium text-on-surface">{{ $c->teacher?->name ?? 'Chưa phân công' }}</div>
                                 @if ($c->foreignTeacher)
-                                    <div class="text-[11px] text-on-surface-variant">GVNN: {{ $c->foreignTeacher->name }}</div>
+                                    <div class="text-xs text-on-surface-variant">GVNN: {{ $c->foreignTeacher->name }}</div>
                                 @endif
                             </td>
                             <td class="text-center" data-seats="{{ $c->id }}">
-                                <span class="font-bold text-on-surface">{{ $seat['occupied'] }}</span><span class="text-on-surface-variant/70">/{{ $seat['capacity'] ?: '∞' }}</span>
-                                <div class="text-[10px]">
+                                <span class="font-bold text-on-surface">{{ $seat['occupied'] }}</span><span class="text-on-surface-subtle">/{{ $seat['capacity'] ?: '∞' }}</span>
+                                <div class="text-xs">
                                     @if ($seat['left'] === null)
-                                        <span class="text-on-surface-variant/70">Không giới hạn</span>
+                                        <span class="text-on-surface-subtle">Không giới hạn</span>
                                     @elseif ($seat['left'] === 0)
                                         <span class="font-bold text-error">Đã đủ</span>
                                     @else
@@ -133,25 +133,25 @@
                                     @endif
                                 </div>
                                 @if ($seat['needed'] > 0)
-                                    <div class="text-[10px] font-semibold text-warning" title="Ngưỡng khai giảng {{ $seat['min'] }} học viên">Thiếu {{ $seat['needed'] }}/{{ $seat['min'] }} để KG</div>
+                                    <div class="text-xs font-semibold text-warning" title="Ngưỡng khai giảng {{ $seat['min'] }} học viên">Thiếu {{ $seat['needed'] }}/{{ $seat['min'] }} để KG</div>
                                 @endif
                             </td>
                             <td>
                                 @if ($progress === null)
-                                    <span class="text-[11px] text-on-surface-variant/70">Chưa có buổi học</span>
+                                    <span class="text-xs text-on-surface-subtle">Chưa có buổi học</span>
                                 @else
                                     <div class="mb-1 h-1.5 w-24 overflow-hidden rounded-full bg-surface-container">
                                         <div class="h-full rounded-full bg-secondary" style="width: {{ $progress }}%"></div>
                                     </div>
-                                    <span class="block font-code text-[10px] text-on-surface-variant">{{ $done }}/{{ $total }} buổi</span>
+                                    <span class="block font-code text-xs text-on-surface-variant">{{ $done }}/{{ $total }} buổi</span>
                                 @endif
                                 @if ($classBigTests->isEmpty())
-                                    <span class="mt-[2px] block text-[11px] text-on-surface-variant/70">Big Test: chưa có</span>
+                                    <span class="mt-[2px] block text-xs text-on-surface-subtle">Big Test: chưa có</span>
                                 @else
                                     <div class="mt-[2px] flex items-center gap-1" aria-label="Big Test">
                                         @foreach ($classBigTests as $bt)
                                             @php $btDone = $bt->scheduled_at && $bt->scheduled_at->isPast(); @endphp
-                                            <span class="flex h-5 w-5 items-center justify-center rounded text-[10px] font-bold {{ $btDone ? 'bg-tertiary/10 text-on-tertiary-container' : 'bg-surface-container text-on-surface-variant' }}"
+                                            <span class="flex h-5 w-5 items-center justify-center rounded text-xs font-bold {{ $btDone ? 'bg-tertiary/10 text-on-tertiary-container' : 'bg-surface-container text-on-surface-variant' }}"
                                                   title="{{ $bt->title }}{{ $bt->scheduled_at ? ' — '.$bt->scheduled_at->format('d/m/Y') : '' }}">{{ $loop->iteration }}</span>
                                         @endforeach
                                     </div>
@@ -163,7 +163,7 @@
                                         <x-ui.badge :color="$tones[$next['tone']] ?? 'neutral'" :dot="false">{{ $next['label'] }}</x-ui.badge>
                                     </a>
                                 @else
-                                    <span class="text-[11px] text-on-surface-variant/70">—</span>
+                                    <span class="text-xs text-on-surface-subtle">—</span>
                                 @endif
                             </td>
                             <td>

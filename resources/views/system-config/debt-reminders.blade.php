@@ -1,15 +1,6 @@
 {{-- Cấu hình nhắc nợ (mockup: epic-5/cau-hinh-nhac-no). --}}
 <x-app-layout title="Cấu hình nhắc nợ">
     <div class="space-y-lg">
-        {{-- Tab cấu hình hệ thống --}}
-        <nav class="flex items-center gap-sm overflow-x-auto border-b border-surface-container-highest pb-sm" aria-label="Cấu hình hệ thống">
-            <x-ui.button variant="secondary" size="sm" icon="account_balance_wallet" :href="route('system-config.bank-accounts')">Tài khoản Ngân hàng</x-ui.button>
-            <x-ui.button size="sm" icon="notifications_active" :href="route('system-config.debt-reminders')">Cấu hình nhắc nợ</x-ui.button>
-            @can('support_ticket.update')
-            <x-ui.button variant="secondary" size="sm" icon="mail" :href="route('system-config.ticket-emails')">Email nhận Ticket</x-ui.button>
-            @endcan
-            <x-ui.button variant="secondary" size="sm" icon="dns" :href="route('system-config.hosting')">Hosting &amp; Máy chủ</x-ui.button>
-        </nav>
 
         <x-ui.page-header title="Cấu hình Nhắc nợ"
                           description="Tối ưu hóa thời gian và tần suất gửi thông báo nhắc học phí cho phụ huynh, giúp cải thiện tỷ lệ thanh toán đúng hạn và duy trì sự chuyên nghiệp trong khâu vận hành." />
@@ -76,7 +67,7 @@
                         $offset = $rule->effectiveOffset();
                         $timing = $offset === null ? '' : ($offset < 0 ? 'before' : ($offset === 0 ? 'due' : 'after'));
                         $isOld = old('milestone_key') === $rule->milestone_key;
-                        $control = 'w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20';
+                        $control = 'w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/50';
                     @endphp
                     <form method="POST" action="{{ route('system-config.debt-reminders.store') }}"
                           class="space-y-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md"
@@ -98,14 +89,14 @@
                         </div>
 
                         <div class="grid grid-cols-1 gap-md md:grid-cols-3">
-                            <x-ui.field label="Tên mốc" :name="$isOld ? 'title' : null" required>
-                                <input type="text" name="title" value="{{ $isOld ? old('title') : $rule->title }}" required class="{{ $control }}">
+                            <x-ui.field label="Tên mốc" :name="$isOld ? 'title' : null" :for="'title_'.$rule->milestone_key" required>
+                                <input type="text" id="title_{{ $rule->milestone_key }}" name="title" value="{{ $isOld ? old('title') : $rule->title }}" required class="{{ $control }}">
                             </x-ui.field>
                             <x-ui.select label="Thời điểm gửi" name="timing" id="timing_{{ $rule->milestone_key }}" x-model="timing"
                                          :options="['before' => 'Trước hạn đóng', 'due' => 'Đúng ngày đến hạn', 'after' => 'Sau hạn (quá hạn)']" />
                             <div x-show="timing !== 'due'">
-                                <x-ui.field label="Số ngày" :name="$isOld ? 'days' : null">
-                                    <input type="number" name="days" min="1" max="60" value="{{ $isOld ? old('days') : ($offset !== null && $offset !== 0 ? abs($offset) : '') }}" class="{{ $control }}">
+                                <x-ui.field label="Số ngày" :name="$isOld ? 'days' : null" :for="'days_'.$rule->milestone_key">
+                                    <input type="number" id="days_{{ $rule->milestone_key }}" name="days" min="1" max="60" value="{{ $isOld ? old('days') : ($offset !== null && $offset !== 0 ? abs($offset) : '') }}" class="{{ $control }}">
                                 </x-ui.field>
                             </div>
                         </div>
@@ -119,17 +110,17 @@
                                     </label>
                                 @endforeach
                                 <span class="flex items-center gap-xs font-body-small text-body-small text-on-surface-variant" title="Chưa tích hợp Zalo ZNS / SMS cho nhắc nợ">
-                                    <input type="checkbox" disabled class="rounded"> Zalo ZNS / SMS (chưa tích hợp)
+                                    <input type="checkbox" disabled class="rounded" aria-label="Zalo ZNS / SMS (chưa tích hợp)"> Zalo ZNS / SMS (chưa tích hợp)
                                 </span>
                             </div>
                         </x-ui.field>
 
-                        <x-ui.field label="Mẫu tin nhắn" :name="$isOld ? 'template_content' : null" required>
-                            <textarea name="template_content" rows="3" required class="{{ $control }}">{{ $isOld ? old('template_content') : $rule->template_content }}</textarea>
+                        <x-ui.field label="Mẫu tin nhắn" :name="$isOld ? 'template_content' : null" :for="'template_'.$rule->milestone_key" required>
+                            <textarea id="template_{{ $rule->milestone_key }}" name="template_content" rows="3" required class="{{ $control }}">{{ $isOld ? old('template_content') : $rule->template_content }}</textarea>
                         </x-ui.field>
 
                         <div class="flex justify-end">
-                            <x-ui.button type="submit" icon="save">Lưu mốc {{ $rule->milestone_key }}</x-ui.button>
+                            <x-ui.button type="submit" variant="secondary" icon="save">Lưu mốc {{ $rule->milestone_key }}</x-ui.button>
                         </div>
                     </form>
                 @empty

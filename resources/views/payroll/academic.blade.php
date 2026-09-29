@@ -1,5 +1,5 @@
 <x-app-layout>
-    <x-ui.page-header title="Chi Tiết Bảng Lương Khối Học Thuật (R&D / Khảo Thí)" icon="school" :back="route('payroll.periods.show', $period->id)">
+    <x-ui.page-header title="Bảng lương khối Học thuật (R&D / Khảo thí)" icon="school" :back="route('payroll.periods.show', $period->id)">
         <x-slot:badges>
             <span class="text-xs px-2.5 py-0.5 rounded-full border font-bold {{ $period->status_badge }}">
                 {{ $period->status_label }}
@@ -34,7 +34,7 @@
                         </h3>
                         <span class="text-xs font-bold text-on-surface-variant font-mono">{{ $records->count() }} nhân sự</span>
                     </x-slot:header>
-                    @include('payroll.partials.fulltime-table', ['records' => $records, 'emptyText' => 'Chưa có bản ghi lương nhân sự khối học thuật trong kỳ này.', 'avatarClass' => 'bg-purple-100 text-purple-700', 'showCommission' => false, 'showRenewal' => true])
+                    @include('payroll.partials.fulltime-table', ['records' => $records, 'emptyText' => 'Chưa có bản ghi lương nhân sự khối học thuật trong kỳ này.', 'avatarClass' => 'bg-accent-container text-accent', 'showCommission' => false, 'showRenewal' => true])
                 </x-ui.data-table>
 
                 {{-- Academic Role Guidelines Reference --}}
@@ -46,15 +46,15 @@
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div class="p-3 bg-surface-container-low rounded-xl border border-surface-container-highest space-y-1">
                             <span class="font-bold text-on-surface">1. Lương cơ bản &amp; khấu trừ</span>
-                            <p class="text-on-surface-variant text-[11px]">BHXH, Công đoàn tự động trên lương cơ bản; thuế TNCN Admin nhập tay; trừ vi phạm quá hạn nộp.</p>
+                            <p class="text-on-surface-variant text-xs">BHXH, Công đoàn tự động trên lương cơ bản; thuế TNCN Admin nhập tay; trừ vi phạm quá hạn nộp.</p>
                         </div>
                         <div class="p-3 bg-surface-container-low rounded-xl border border-surface-container-highest space-y-1">
                             <span class="font-bold text-on-surface">2. KPI (nhập tự do)</span>
-                            <p class="text-on-surface-variant text-[11px]">Học thuật: Admin / Kế toán nhập số tiền KPI trên phiếu lương.</p>
+                            <p class="text-on-surface-variant text-xs">Học thuật: Admin / Kế toán nhập số tiền KPI trên phiếu lương.</p>
                         </div>
                         <div class="p-3 bg-surface-container-low rounded-xl border border-surface-container-highest space-y-1">
                             <span class="font-bold text-on-surface">3. Phụ cấp &amp; thưởng tái tục</span>
-                            <p class="text-on-surface-variant text-[11px]">Phụ cấp / thưởng là các dòng tự do có tên. Thưởng tái tục nếu phụ trách lớp.</p>
+                            <p class="text-on-surface-variant text-xs">Phụ cấp / thưởng là các dòng tự do có tên. Thưởng tái tục nếu phụ trách lớp.</p>
                         </div>
                     </div>
                 </div>
@@ -62,25 +62,25 @@
 
             {{-- Right Column: Summary Card (Col 4) --}}
             <div class="xl:col-span-4 space-y-4">
-                <div class="bg-gradient-to-br from-indigo-900 to-purple-900 text-white rounded-2xl p-6 shadow-md space-y-4">
+                <div class="bg-gradient-to-br from-on-info-container to-on-accent-container text-white rounded-2xl p-6 shadow-md space-y-4">
                     <div class="flex items-center justify-between">
-                        <span class="text-xs font-bold uppercase tracking-wider text-purple-200">Tổng chi Khối Học Thuật</span>
-                        <span class="material-symbols-outlined text-2xl text-purple-300">school</span>
+                        <span class="text-xs font-bold uppercase tracking-wider text-accent-container">Tổng chi Khối Học Thuật</span>
+                        <span class="material-symbols-outlined text-2xl text-accent-container">school</span>
                     </div>
                     <div>
                         <div class="text-3xl font-black font-mono tracking-tight">
-                            {{ number_format($records->sum('net_salary'), 0, ',', '.') }}đ
+                            {{ \App\Support\Money::format($records->sum('net_salary')) }}
                         </div>
-                        <p class="text-xs text-purple-200 mt-1">{{ $records->count() }} chuyên viên học thuật</p>
+                        <p class="text-xs text-accent-container mt-1">{{ $records->count() }} chuyên viên học thuật</p>
                     </div>
                     <div class="pt-3 border-t border-white/20 grid grid-cols-2 gap-2 text-xs">
                         <div>
-                            <span class="text-purple-300 block text-[10px] uppercase font-bold">Lương cứng:</span>
-                            <span class="font-bold font-mono text-sm">{{ number_format($records->sum('base_salary'), 0, ',', '.') }}đ</span>
+                            <span class="text-accent-container block text-xs uppercase font-bold">Lương cứng:</span>
+                            <span class="font-bold font-mono text-sm">{{ \App\Support\Money::format($records->sum('base_salary')) }}</span>
                         </div>
                         <div>
-                            <span class="text-purple-300 block text-[10px] uppercase font-bold">KPI &amp; Phụ cấp:</span>
-                            <span class="font-bold font-mono text-sm">{{ number_format($records->sum('kpi_bonus') + $records->sum('allowance'), 0, ',', '.') }}đ</span>
+                            <span class="text-accent-container block text-xs uppercase font-bold">KPI &amp; Phụ cấp:</span>
+                            <span class="font-bold font-mono text-sm">{{ \App\Support\Money::format($records->sum('kpi_bonus') + $records->sum('allowance')) }}</span>
                         </div>
                     </div>
                 </div>

@@ -37,13 +37,19 @@
         show: @js((bool) $show),
         size: @js($maxWidth),
         dirty: false,
+        confirming: false,
         widths: @js($widths),
         get large() { return ['2xl', '3xl', '4xl', 'full'].includes(this.size) },
         matches(d) { return d === @js($name) || d === '*' || d?.name === @js($name) },
         open(size) { this.size = this.widths[size] ? size : @js($maxWidth); this.dirty = false; this.show = true },
-        close(force = false) {
-            if (!this.show) return;
-            if (!force && this.dirty && !confirm('Bỏ các thay đổi chưa lưu?')) return;
+        async close(force = false) {
+            if (!this.show || this.confirming) return;
+            if (!force && this.dirty) {
+                this.confirming = true;
+                const discard = await window.confirmDialog({ title: 'Đóng biểu mẫu?', message: 'Các thay đổi chưa lưu sẽ bị mất.', confirmLabel: 'Bỏ thay đổi', cancelLabel: 'Tiếp tục sửa', danger: true });
+                this.confirming = false;
+                if (!discard) return;
+            }
             this.show = false;
             this.dirty = false;
         },

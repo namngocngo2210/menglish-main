@@ -14,6 +14,7 @@ use App\Models\SystemSetting;
 use App\Models\TicketMessage;
 use App\Models\TuitionReceipt;
 use App\Models\User;
+use App\Support\Money;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -75,7 +76,7 @@ class NotificationService
             }
 
             $idleDays = (int) $lastActivity->diffInDays(now());
-            $title = "⚠️ Khách {$lead->code} bị bỏ quên {$idleDays} ngày ({$lead->stage_label})";
+            $title = "Khách {$lead->code} bị bỏ quên {$idleDays} ngày ({$lead->stage_label})";
             $message = "Khách hàng {$lead->name} (SĐT: {$lead->phone}) đang ở giai đoạn '{$lead->stage_label}' nhưng không có hoạt động chăm sóc nào từ "
                 .$lastActivity->format('d/m/Y H:i')." (ngưỡng {$days} ngày). Sales phụ trách: ".($lead->assignedUser?->name ?? 'Chưa phân công').'.';
             $data = [
@@ -141,7 +142,7 @@ class NotificationService
                 $this->notifyNeglect(
                     $lead,
                     'stale_lead_24h',
-                    "⚠️ Cảnh báo: Lead {$lead->code} bị sót quá {$hoursElapsed}h chưa xử lý!",
+                    "Cảnh báo: Lead {$lead->code} bị sót quá {$hoursElapsed}h chưa xử lý!",
                     "Khách hàng {$lead->name} (SĐT: {$lead->phone}) được tiếp nhận từ {$lead->created_at->format('d/m/Y H:i')} ({$hoursElapsed} giờ trước) nhưng vẫn ở trạng thái 'Mới tiếp nhận' và chưa được liên hệ chăm sóc.",
                     [
                         'customer_id' => $lead->id,
@@ -692,7 +693,7 @@ class NotificationService
         $student = $receipt->tuition?->student;
         $studentName = $student?->name ?? 'Học viên';
         $studentPhone = $student?->phone ?? '---';
-        $amountFormatted = number_format((float) $receipt->amount, 0, ',', '.').' VNĐ';
+        $amountFormatted = Money::format((float) $receipt->amount);
         $methodLabel = match ($receipt->payment_method) {
             'transfer' => 'Chuyển khoản / VietQR',
             'cash' => 'Tiền mặt',
@@ -808,7 +809,7 @@ class NotificationService
             '{ma_hoc_vien}' => $student->code ?? '—',
             '{so_dien_thoai}' => $student->phone ?? '—',
             '{lop_hoc}' => $tuition->classModel?->name ?? 'Chưa phân lớp',
-            '{so_tien}' => number_format((float) $tuition->debt_amount, 0, ',', '.').' VNĐ',
+            '{so_tien}' => Money::format((float) $tuition->debt_amount),
             '{han_dong}' => Carbon::parse($tuition->due_date)->format('d/m/Y'),
             '{moc_nhac}' => $rule->title,
         ]);
@@ -852,7 +853,7 @@ class NotificationService
         if ($record->wasRecentlyCreated && in_array('email', $channels, true)) {
             $this->sendOperationalAlertEmail(
                 'overdue_debt',
-                "[Nhắc nợ {$milestone}] {$student->name} — ".number_format((float) $tuition->debt_amount, 0, ',', '.').' VNĐ',
+                "[Nhắc nợ {$milestone}] {$student->name} — ".Money::format((float) $tuition->debt_amount),
                 $content.(in_array('portal', $channels, true) ? "\n\n(Đã đồng thời gửi thông báo vào Cổng PH/HS của học viên.)" : ''),
                 [
                     'code' => 'DEBT-'.$milestone.'-'.$tuition->id,
@@ -884,7 +885,7 @@ class NotificationService
         $student = $tuition->student;
         $studentName = $student?->name ?? 'Học viên';
         $studentPhone = $student?->phone ?? '---';
-        $debtFormatted = number_format((float) $tuition->debt_amount, 0, ',', '.').' VNĐ';
+        $debtFormatted = Money::format((float) $tuition->debt_amount);
         $dueDate = $tuition->due_date ? Carbon::parse($tuition->due_date)->format('d/m/Y') : 'Chưa định ngày';
         $className = $tuition->classModel?->name ?? 'Chưa phân lớp';
 

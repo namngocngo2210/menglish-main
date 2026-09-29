@@ -90,17 +90,18 @@
             </span>
             <span class="flex min-w-0 flex-col md:hidden desktop:flex" data-sidebar-text>
                 <span class="font-h2 text-h2 leading-none tracking-tight text-primary-container">MENGLISH</span>
-                <span class="mt-1 text-[10px] font-semibold uppercase tracking-widest text-surface-variant/60">Hệ thống quản trị</span>
+                <span class="mt-1 text-xs font-semibold uppercase tracking-widest text-surface-variant/60">{{ Auth::user()?->isPortalStudentOnly() ? 'Cổng học viên' : 'Hệ thống quản trị' }}</span>
             </span>
         </a>
-        <button type="button" class="ml-auto rounded-lg p-1 text-surface-variant/70 hover:bg-white/10 hover:text-white md:hidden" @click="sidebarOpen = false" aria-label="Đóng menu">
+        <button type="button" class="ml-auto rounded-lg p-1 text-surface-variant/70 hover:bg-white/10 hover:text-white md:hidden inline-flex items-center justify-center max-md:min-h-11 max-md:min-w-11" @click="sidebarOpen = false" aria-label="Đóng menu">
             <span class="material-symbols-outlined text-[20px]">close</span>
         </button>
     </div>
 
     {{-- Menu --}}
     <div class="relative flex min-h-0 flex-1 flex-col">
-    <nav x-ref="navContainer" @scroll.passive.debounce.100ms="saveScroll()" @scroll.passive="tip.show = false; checkMore()" class="sidebar-scrollbar flex-1 space-y-xs overflow-y-auto px-2 py-sm">
+    <nav x-ref="navContainer" @scroll.passive.debounce.100ms="saveScroll()" @scroll.passive="tip.show = false; checkMore()" class="sidebar-scrollbar flex-1 space-y-xs overflow-y-auto px-2 py-sm"
+         x-bind:class="moreBelow && '[mask-image:linear-gradient(to_bottom,#000_calc(100%-2rem),transparent)]'">
         @unless (Auth::user()?->isPortalStudentOnly())
             @include('layouts.partials.sidebar-link', ['url' => route('dashboard'), 'label' => 'Tổng quan', 'icon' => 'dashboard', 'active' => $dashboardActive, 'id' => 'dashboard'])
         @endunless
@@ -108,7 +109,7 @@
         @foreach ($menuGroups as $group)
             @if ($loop->first || $group['section'] !== $menuGroups[$loop->index - 1]['section'])
                 {{-- Tiêu đề khu (sidebar thu gọn: chỉ còn đường kẻ) --}}
-                <div class="px-md pb-1 pt-md font-caption text-[10px] font-semibold uppercase tracking-widest text-surface-variant/50 md:hidden desktop:block" data-menu-section data-sidebar-text>{{ $group['section'] }}</div>
+                <div class="px-md pb-1 pt-md font-caption text-xs font-semibold uppercase tracking-widest text-surface-variant/70 md:hidden desktop:block" data-menu-section data-sidebar-text>{{ $group['section'] }}</div>
                 <div class="mx-auto my-sm hidden h-px w-8 bg-white/10 md:block desktop:hidden" aria-hidden="true" data-sidebar-divider></div>
             @endif
             @include('layouts.partials.sidebar-link', ['url' => $group['url'], 'label' => $group['label'], 'icon' => $group['icon'], 'active' => $group['is_active'], 'id' => $group['id'], 'badge' => $group['id'] === 'approvals' ? $approvalBadge : null])
@@ -119,9 +120,9 @@
             @include('layouts.partials.sidebar-link', ['url' => $settingsUrl, 'label' => 'Cài đặt', 'icon' => 'settings', 'active' => $settingsActive, 'id' => 'settings'])
         @endif
     </nav>
-    {{-- Dấu hiệu cuộn: vùng mờ mép dưới; bấm mũi tên để cuộn xuống. --}}
-    <div x-show="moreBelow" x-cloak x-transition.opacity class="pointer-events-none absolute inset-x-0 bottom-0 flex h-12 items-end justify-center bg-gradient-to-t from-sidebar to-transparent pb-1" data-sidebar-more>
-        <button type="button" class="pointer-events-auto rounded-full p-0.5 text-surface-variant/70 hover:bg-white/10 hover:text-white" aria-label="Cuộn xuống xem thêm mục menu"
+    {{-- Dấu hiệu cuộn: mép dưới menu mờ dần (mask trên <nav>) + nút mũi tên nằm dưới menu, không đè lên nhãn. --}}
+    <div x-show="moreBelow" x-cloak class="flex shrink-0 justify-center border-t border-white/10 py-xs" data-sidebar-more>
+        <button type="button" class="inline-flex items-center justify-center rounded-full p-0.5 text-surface-variant/70 hover:bg-white/10 hover:text-white max-md:min-h-11 max-md:min-w-11" aria-label="Cuộn xuống xem thêm mục menu"
                 @click="$refs.navContainer.scrollBy({ top: $refs.navContainer.clientHeight * 0.6, behavior: 'smooth' })">
             <span class="material-symbols-outlined text-[20px]" aria-hidden="true">keyboard_arrow_down</span>
         </button>

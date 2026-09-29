@@ -4,7 +4,6 @@
     Sale / nhân sự khác dùng mẫu Full-time. Công thức theo A6 (Q3).
 --}}
 <x-app-layout>
-    @include('partials.data-confirm')
     @php
         $money = fn ($v) => number_format((float) $v, 0, ',', '.');
         $pct = fn ($v) => rtrim(rtrim(number_format((float) $v, 2, ',', '.'), '0'), ',');
@@ -108,7 +107,7 @@
             @if ($isPT)
                 {{-- ── GV Part-time: tổng thu nhập buổi dạy ── --}}
                 <section class="rounded-xl border border-outline-variant bg-surface-container-lowest p-lg">
-                    <h3 class="mb-md flex items-center gap-xs font-h3 text-h3 text-on-surface"><span class="material-symbols-outlined text-primary-container" aria-hidden="true">account_balance_wallet</span>Tổng thu nhập <span class="ml-auto font-mono text-primary">{{ $money($record->gross_income) }}đ</span></h3>
+                    <h3 class="mb-md flex items-center gap-xs font-h3 text-h3 text-on-surface"><span class="material-symbols-outlined text-primary-container" aria-hidden="true">account_balance_wallet</span>Tổng thu nhập <span class="ml-auto font-mono text-primary">{{ $money($record->gross_income) }} đ</span></h3>
                     <div class="grid grid-cols-1 gap-md sm:grid-cols-3">
                         <div class="rounded-lg bg-surface-container-low p-md"><p class="font-body-small text-body-small text-on-surface-variant">Số buổi dạy</p><p class="font-h3 text-h3">{{ (int) $record->teaching_sessions }} buổi</p></div>
                         <div class="rounded-lg bg-surface-container-low p-md">
@@ -116,7 +115,7 @@
                             <p class="font-h3 text-h3">{{ $currentRate ? $money($currentRate->hourly_rate).'đ' : '—' }}</p>
                             <p class="font-caption text-caption text-on-surface-variant">{{ $currentRate ? $currentRate->unit_label.' · hiệu lực '.$currentRate->effective_from->format('d/m/Y') : 'Chưa có đơn giá riêng' }}</p>
                         </div>
-                        <div class="rounded-lg bg-surface-container-low p-md"><p class="font-body-small text-body-small text-on-surface-variant">Thành tiền</p><p class="font-h3 text-h3 text-tertiary">{{ $money($record->teaching_salary) }}đ</p></div>
+                        <div class="rounded-lg bg-surface-container-low p-md"><p class="font-body-small text-body-small text-on-surface-variant">Thành tiền</p><p class="font-h3 text-h3 text-tertiary">{{ $money($record->teaching_salary) }} đ</p></div>
                     </div>
                 </section>
 
@@ -154,7 +153,7 @@
                                         :value="(int) $record->foreign_session_pay"
                                         :hint="(int) $record->foreign_teacher_sessions_count.' buổi có GVNN cùng lớp trong kỳ. Kế toán nhập tổng tiền.'" />
                         @else
-                            <p class="flex justify-between font-body-medium text-body-medium"><span>Lớp GVNN đan xen</span><span class="font-mono">{{ $money($record->foreign_session_pay) }}đ</span></p>
+                            <p class="flex justify-between font-body-medium text-body-medium"><span>Lớp GVNN đan xen</span><span class="font-mono">{{ $money($record->foreign_session_pay) }} đ</span></p>
                         @endif
                         @include('payroll.partials.payslip-lines', ['kind' => 'earning', 'canEdit' => $canEdit, 'addLabel' => 'Thêm phụ cấp', 'placeholder' => 'VD: Hỗ trợ thỏa thuận, Gửi xe, Thưởng khác'])
                     </section>
@@ -227,11 +226,11 @@
                                     <div>
                                         <p class="flex justify-between font-body-semibold text-body-semibold">
                                             <span>{{ $loop->iteration }}. {{ $group }} (trọng số {{ $pct($items->sum('weight')) }}%)</span>
-                                            <span class="font-mono">{{ $money($items->sum('amount')) }}đ</span>
+                                            <span class="font-mono">{{ $money($items->sum('amount')) }} đ</span>
                                         </p>
                                         <ul class="ml-md list-disc font-body-small text-body-small text-on-surface-variant">
                                             @foreach ($items as $item)
-                                                <li>{{ $item['code'] }} {{ $item['name'] }} — điểm {{ $pct($item['score']) }}% × trọng số {{ $pct($item['weight']) }}% = {{ $money($item['amount']) }}đ</li>
+                                                <li>{{ $item['code'] }} {{ $item['name'] }} — điểm {{ $pct($item['score']) }}% × trọng số {{ $pct($item['weight']) }}% = {{ $money($item['amount']) }} đ</li>
                                             @endforeach
                                         </ul>
                                     </div>
@@ -253,14 +252,14 @@
                         <div class="grid grid-cols-1 gap-md md:grid-cols-2">
                             <div class="rounded-lg bg-surface-container-low p-md">
                                 <p class="font-body-small text-body-small text-on-surface-variant">Hoa hồng tuyển sinh</p>
-                                <p class="font-h3 text-h3 font-mono">{{ $money($record->commission_bonus) }} VNĐ</p>
+                                <p class="font-h3 text-h3 font-mono">{{ $money($record->commission_bonus) }} đ</p>
                                 <p class="font-caption text-caption text-on-surface-variant">
                                     {{ (int) $record->commission_closed_count }} HS chốt trong kỳ{{ $record->commission_percent !== null ? ' · bậc '.$pct($record->commission_percent).'%' : '' }}{{ (float) $record->commission_deferred > 0 ? ' · hoãn '.$money($record->commission_deferred).'đ' : '' }}
                                 </p>
                             </div>
                             <div class="rounded-lg bg-surface-container-low p-md">
                                 <p class="font-body-small text-body-small text-on-surface-variant">Thưởng tái tục</p>
-                                <p class="font-h3 text-h3 font-mono">{{ $money($record->renew_bonus) }} VNĐ</p>
+                                <p class="font-h3 text-h3 font-mono">{{ $money($record->renew_bonus) }} đ</p>
                                 <p class="font-caption text-caption text-on-surface-variant">{{ count($renewalClasses) }} lớp phụ trách</p>
                             </div>
                         </div>
@@ -410,7 +409,7 @@
                                     <td>{{ $item->student?->name ?? '—' }} <span class="block font-caption text-caption text-warning">{{ $item->receipt?->receipt_number }} · {{ $item->deferred_reason ?? 'Hoãn sang kỳ sau' }}</span></td>
                                     <td><x-ui.money :value="$item->base_amount" suffix="đ" /></td>
                                     <td class="text-right font-code text-code">{{ $pct($item->percent) }}%</td>
-                                    <td class="text-right font-code text-code text-on-surface-variant">Hoãn {{ $money($item->amount) }}đ</td>
+                                    <td class="text-right font-code text-code text-on-surface-variant">Hoãn {{ $money($item->amount) }} đ</td>
                                 </tr>
                             @endforeach
                             @if ($paidCommission->isEmpty() && $deferredCommission->isEmpty())

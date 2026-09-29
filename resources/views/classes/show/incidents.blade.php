@@ -33,10 +33,10 @@
                         <td class="max-w-md">
                             <p class="font-semibold text-on-surface">{{ $incident->title }}</p>
                             @if ($incident->content)
-                                <p class="line-clamp-2 text-[11px] text-on-surface-variant">{{ $incident->content }}</p>
+                                <p class="line-clamp-2 text-xs text-on-surface-variant">{{ $incident->content }}</p>
                             @endif
                             @if ($incident->followups->isNotEmpty())
-                                <p class="mt-1 text-[11px] text-on-surface-variant">{{ $incident->followups->count() }} follow-up · mới nhất: {{ \Illuminate\Support\Str::limit($incident->followups->first()->content, 80) }}</p>
+                                <p class="mt-1 text-xs text-on-surface-variant">{{ $incident->followups->count() }} follow-up · mới nhất: {{ \Illuminate\Support\Str::limit($incident->followups->first()->content, 80) }}</p>
                             @endif
                         </td>
                         <td><x-ui.badge :color="$sevColors[$incident->severity] ?? 'neutral'">{{ $incident->severity_label }}</x-ui.badge></td>

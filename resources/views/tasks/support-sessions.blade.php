@@ -22,7 +22,7 @@
             <x-ui.data-table>
                 <x-slot:header>
                     <h2 class="font-bold text-sm">Danh sách cần bổ trợ (chưa xếp buổi)</h2>
-                    <div class="flex flex-wrap gap-1.5 text-[11px] font-semibold">
+                    <div class="flex flex-wrap gap-1.5 text-xs font-semibold">
                         <a href="{{ route('tasks.support-sessions') }}" class="px-2.5 py-1 rounded-full border {{ ! $source ? 'bg-primary-container text-white border-primary-container' : 'border-surface-container-highest text-on-surface-variant' }}">Tất cả</a>
                         @foreach ($sources as $key => $label)
                             <a href="{{ route('tasks.support-sessions', ['source' => $key]) }}" class="px-2.5 py-1 rounded-full border {{ $source === $key ? 'bg-primary-container text-white border-primary-container' : 'border-surface-container-highest text-on-surface-variant' }}">{{ $label }}</a>
@@ -36,9 +36,9 @@
                     <tbody>
                         @forelse ($pendingSupports as $item)
                             <tr>
-                                <td class="font-bold">{{ $item->student?->name }}<small class="block text-on-surface-variant/70 font-normal">{{ $item->classModel?->name ?? $item->classReport?->classModel?->name }}</small></td>
+                                <td class="font-bold">{{ $item->student?->name }}<small class="block text-on-surface-subtle font-normal">{{ $item->classModel?->name ?? $item->classReport?->classModel?->name }}</small></td>
                                 <td><x-ui.badge :color="$sourceColors[$item->source] ?? 'neutral'">{{ $item->source_label }}</x-ui.badge></td>
-                                <td class="text-on-surface-variant">{{ $item->reason }}@if ($item->action_plan)<small class="block text-on-surface-variant/70">KH: {{ $item->action_plan }}</small>@endif</td>
+                                <td class="text-on-surface-variant">{{ $item->reason }}@if ($item->action_plan)<small class="block text-on-surface-subtle">KH: {{ $item->action_plan }}</small>@endif</td>
                                 <td class="text-center text-on-surface-variant">{{ $item->created_at?->format('d/m/Y') }}</td>
                                 <td class="text-right">
                                     @can('work_task.assign')
@@ -64,7 +64,7 @@
                 <tbody>
                     @forelse ($sessions as $session)
                         <tr>
-                            <td class="font-bold">{{ $session->student?->name }}<small class="block text-on-surface-variant/70 font-normal">{{ $session->classModel?->name }}</small></td>
+                            <td class="font-bold">{{ $session->student?->name }}<small class="block text-on-surface-subtle font-normal">{{ $session->classModel?->name }}</small></td>
                             <td class="text-on-surface-variant">
                                 @if ($session->supportItem)
                                     <x-ui.badge :color="$sourceColors[$session->supportItem->source] ?? 'neutral'">{{ $session->supportItem->source_label }}</x-ui.badge>
@@ -131,7 +131,7 @@
                 </div>
                 <x-ui.input name="room" label="Phòng" />
                 <x-ui.textarea name="reason" label="Mục tiêu phụ đạo" rows="2" placeholder="Để trống sẽ dùng lý do trong danh sách bổ trợ" />
-                <p class="text-[11px] text-on-surface-variant">Hệ thống kiểm tra trùng lịch người dạy (kể cả vai trò trợ giảng/GVNN) và phòng, bỏ qua buổi đã hủy.</p>
+                <p class="text-xs text-on-surface-variant">Hệ thống kiểm tra trùng lịch người dạy (kể cả vai trò trợ giảng/GVNN) và phòng, bỏ qua buổi đã hủy.</p>
             </form>
             <x-slot:footer>
                 <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'new-support-session')">Hủy</x-ui.button>

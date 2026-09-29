@@ -413,7 +413,7 @@ class Phase3CommissionTest extends TestCase
             ->assertSee('Sale Thực Thu')
             ->assertSee('7.000.000')
             ->assertSee('350.000')
-            ->assertDontSee('99,000,000');
+            ->assertDontSee('99.000.000');
 
         $this->actingAs($this->admin)->get(route('crm.reports', ['preset' => 'this_month']))
             ->assertOk()

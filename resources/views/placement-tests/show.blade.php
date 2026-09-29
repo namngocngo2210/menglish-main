@@ -1,14 +1,14 @@
 <x-app-layout>
     <x-ui.page-header :title="$test->title" :back="route('placement-tests.index')">
         <x-slot:badges>
-            <span class="px-2 py-0.5 rounded-md bg-secondary/10 text-secondary font-mono font-bold text-[11px]">{{ $test->code }}</span>
+            <span class="px-2 py-0.5 rounded-md bg-secondary/10 text-secondary font-mono font-bold text-xs">{{ $test->code }}</span>
             @if ($test->is_preset)
-                <span class="px-2 py-0.5 rounded-md bg-surface-container text-on-surface-variant border border-surface-container-highest text-[10px] font-bold flex items-center gap-1">
+                <span class="px-2 py-0.5 rounded-md bg-surface-container text-on-surface-variant border border-surface-container-highest text-xs font-bold flex items-center gap-1">
                     <span class="material-symbols-outlined text-[12px]">lock</span>
                     <span>Đề mẫu hệ thống (Khóa sửa)</span>
                 </span>
             @else
-                <span class="px-2 py-0.5 rounded-md bg-tertiary/10 text-tertiary border border-tertiary/30 text-[10px] font-bold flex items-center gap-1">
+                <span class="px-2 py-0.5 rounded-md bg-tertiary/10 text-tertiary border border-tertiary/30 text-xs font-bold flex items-center gap-1">
                     <span class="material-symbols-outlined text-[12px]">edit</span>
                     <span>Đề tạo tay (Tùy biến)</span>
                 </span>
@@ -47,7 +47,7 @@
                     <span class="material-symbols-outlined text-tertiary text-base">fact_check</span>
                     <span>Danh Sách Thí Sinh Đã Thi Bộ Đề Này ({{ $test->submissions->count() }})</span>
                 </span>
-                <span class="text-[11px] text-on-surface-variant/70">Điểm số chi tiết 4 kỹ năng &amp; Khóa học xếp lớp</span>
+                <span class="text-xs text-on-surface-subtle">Điểm số chi tiết 4 kỹ năng &amp; Khóa học xếp lớp</span>
             </x-slot:header>
             <table>
                 <thead>
@@ -70,20 +70,20 @@
                                 <div class="font-bold text-on-surface flex items-center gap-1.5">
                                     <span>{{ $sub->candidate_name }}</span>
                                     @if ($sub->customer)
-                                        <a href="{{ route('crm.customers.show', $sub->customer->id) }}" class="px-1.5 py-0.2 rounded bg-secondary/10 hover:bg-secondary/20 text-secondary font-normal text-[10px] inline-flex items-center gap-0.5" title="Mở hồ sơ Lead trong CRM">
+                                        <a href="{{ route('crm.customers.show', $sub->customer->id) }}" class="px-1.5 py-0.2 rounded bg-secondary/10 hover:bg-secondary/20 text-secondary font-normal text-xs inline-flex items-center gap-0.5" title="Mở hồ sơ Lead trong CRM">
                                             <span>Lead CRM</span>
-                                            <span class="material-symbols-outlined text-[11px]">open_in_new</span>
+                                            <span class="material-symbols-outlined text-xs">open_in_new</span>
                                         </a>
                                     @endif
                                 </div>
-                                <div class="text-[10px] text-on-surface-variant/70 font-mono mt-0.5">
+                                <div class="text-xs text-on-surface-subtle font-mono mt-0.5">
                                     {{ $sub->created_at ? $sub->created_at->format('H:i d/m/Y') : 'Vừa xong' }}
                                 </div>
                             </td>
                             <td class="font-mono text-on-surface-variant">{{ $sub->candidate_phone }}</td>
                             <td class="text-center font-mono font-bold text-secondary">{{ $sub->listening_score }}</td>
                             <td class="text-center font-mono font-bold text-tertiary">{{ $sub->reading_score }}</td>
-                            <td class="text-center font-mono font-bold text-purple-600">{{ $sub->writing_score }}</td>
+                            <td class="text-center font-mono font-bold text-accent">{{ $sub->writing_score }}</td>
                             <td class="text-center font-mono font-bold text-error">{{ $sub->speaking_score }}</td>
                             <td class="text-center">
                                 <x-ui.badge color="primary" pill :dot="false" class="font-mono font-black">
@@ -117,7 +117,7 @@
                         <span class="material-symbols-outlined text-secondary text-base">format_list_numbered</span>
                         <span>Chi Tiết Toàn Bộ Câu Hỏi &amp; Đáp Án Chuẩn (Answer Keys)</span>
                     </h2>
-                    <p class="text-[11px] text-on-surface-variant">Giáo viên và Học vụ có thể xem trước nội dung, hình ảnh, audio và đáp án đối soát.</p>
+                    <p class="text-xs text-on-surface-variant">Giáo viên và Học vụ có thể xem trước nội dung, hình ảnh, audio và đáp án đối soát.</p>
                 </div>
             </div>
 
@@ -131,18 +131,18 @@
                         {{-- Question Header --}}
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-2">
-                                <span class="px-2 py-0.5 rounded-md bg-inverse-surface text-white font-mono font-bold text-[11px]">Câu {{ $idx + 1 }}</span>
-                                <span class="px-2 py-0.5 rounded-md text-[11px] font-bold {{ match($q['skill'] ?? '') {
+                                <span class="px-2 py-0.5 rounded-md bg-inverse-surface text-white font-mono font-bold text-xs">Câu {{ $idx + 1 }}</span>
+                                <span class="px-2 py-0.5 rounded-md text-xs font-bold {{ match($q['skill'] ?? '') {
                                     'listening' => 'bg-secondary/10 text-secondary border border-secondary/30',
                                     'reading' => 'bg-tertiary/10 text-tertiary border border-tertiary/30',
                                     'grammar' => 'bg-info/10 text-info border border-info/30',
-                                    'writing' => 'bg-purple-50 text-purple-700 border border-purple-200',
+                                    'writing' => 'bg-accent-container text-accent border border-accent/30',
                                     'speaking' => 'bg-error/10 text-error border border-error/30',
                                     default => 'bg-surface-container text-on-surface-variant'
                                 } }}">
                                     {{ ucfirst($q['skill'] ?? 'General') }}
                                 </span>
-                                <span class="text-[11px] text-on-surface-variant/70 font-mono">({{ $q['type'] ?? 'multiple_choice' }})</span>
+                                <span class="text-xs text-on-surface-subtle font-mono">({{ $q['type'] ?? 'multiple_choice' }})</span>
                             </div>
                             <span class="text-xs font-mono font-semibold text-on-surface-variant">{{ $q['points'] ?? 1 }} điểm</span>
                         </div>
@@ -162,12 +162,12 @@
                         {{-- Audio player if exists --}}
                         @if (!empty($q['audio_url']))
                             <div class="p-3 bg-secondary/10 border border-secondary/30 rounded-xl space-y-2 shadow-2xs">
-                                <div class="flex items-center justify-between text-[11px] font-bold text-on-secondary-fixed">
+                                <div class="flex items-center justify-between text-xs font-bold text-on-secondary-fixed">
                                     <div class="flex items-center gap-1.5">
                                         <span class="material-symbols-outlined text-base text-secondary">volume_up</span>
                                         <span>File Audio Listening: {{ basename($q['audio_url']) }}</span>
                                     </div>
-                                    <a href="{{ $q['audio_url'] }}" target="_blank" class="text-[10px] text-secondary hover:underline flex items-center gap-0.5 font-normal">
+                                    <a href="{{ $q['audio_url'] }}" target="_blank" class="text-xs text-secondary hover:underline flex items-center gap-0.5 font-normal">
                                         <span>Tải file</span>
                                         <span class="material-symbols-outlined text-[12px]">download</span>
                                     </a>
@@ -196,14 +196,14 @@
                                     <div class="p-2.5 rounded-xl border {{ $isCorrect ? 'bg-tertiary/10 border-tertiary/30 ring-2 ring-tertiary/30' : 'bg-surface-container-lowest border-surface-container-highest' }} flex flex-col justify-between">
                                         <div class="flex items-center justify-between mb-1">
                                             <div class="flex items-center gap-1.5">
-                                                <span class="w-4.5 h-4.5 rounded-full {{ $isCorrect ? 'bg-tertiary text-white' : 'bg-surface-container text-on-surface-variant' }} font-bold text-[11px] flex items-center justify-center font-mono shrink-0">
+                                                <span class="w-4.5 h-4.5 rounded-full {{ $isCorrect ? 'bg-tertiary text-white' : 'bg-surface-container text-on-surface-variant' }} font-bold text-xs flex items-center justify-center font-mono shrink-0">
                                                     {{ $opt['key'] }}
                                                 </span>
                                                 <span class="font-medium text-on-surface text-xs">{{ $opt['text'] }}</span>
                                             </div>
                                             @if ($isCorrect)
-                                                <span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-tertiary text-white flex items-center gap-0.5">
-                                                    <span class="material-symbols-outlined text-[11px]">check</span>
+                                                <span class="text-xs font-bold px-1.5 py-0.2 rounded bg-tertiary text-white flex items-center gap-0.5">
+                                                    <span class="material-symbols-outlined text-xs">check</span>
                                                     <span>Đúng</span>
                                                 </span>
                                             @endif
@@ -223,7 +223,7 @@
                                     <span class="font-bold text-on-warning-container">Đáp án chuẩn (Key):</span>
                                     <span class="font-mono font-black text-on-warning-container text-xs ml-1">{{ $q['correct_answer'] }}</span>
                                     @if (!empty($q['explanation']))
-                                        <span class="text-on-surface-variant italic ml-2 text-[11px]">({{ $q['explanation'] }})</span>
+                                        <span class="text-on-surface-variant italic ml-2 text-xs">({{ $q['explanation'] }})</span>
                                     @endif
                                 </div>
                             </div>

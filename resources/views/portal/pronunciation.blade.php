@@ -104,13 +104,13 @@
         </div>
 
         {{-- Main Content --}}
-        <main class="w-full p-4 space-y-4 flex-1 overflow-y-auto">
+        <div class="w-full p-4 space-y-4 flex-1 overflow-y-auto">
 
             {{-- Section 1: Bài nghe mẫu = file nghe giáo viên đính kèm bài tập của lớp --}}
             <section class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest p-4 space-y-3 shadow-2xs">
                 <div>
                     <h2 class="text-sm font-bold text-on-surface">Bài nghe của lớp</h2>
-                    <p class="text-[11px] text-on-surface-variant mt-0.5">File nghe giáo viên gửi kèm bài tập. Nghe, chọn bài rồi thu âm theo.</p>
+                    <p class="text-xs text-on-surface-variant mt-0.5">File nghe giáo viên gửi kèm bài tập. Nghe, chọn bài rồi thu âm theo.</p>
                 </div>
 
                 <div class="space-y-2">
@@ -120,7 +120,7 @@
                             <div class="flex items-center justify-between gap-2">
                                 <div class="min-w-0">
                                     <p class="truncate text-xs font-semibold text-on-surface">{{ $item['title'] }}</p>
-                                    <p class="text-[10px] text-on-surface-variant/70">{{ $item['class_name'] }}</p>
+                                    <p class="text-xs text-on-surface-subtle">{{ $item['class_name'] }}</p>
                                 </div>
                                 <x-ui.button variant="ghost" size="sm" class="text-primary" x-on:click="pickUnit({{ \Illuminate\Support\Js::from($item['title']) }})">Chọn</x-ui.button>
                             </div>
@@ -167,10 +167,10 @@
                             <span class="material-symbols-outlined text-3xl" style="font-variation-settings: 'FILL' 1;" x-text="isRecording ? 'stop' : 'mic'">mic</span>
                         </button>
                     </div>
-                    <p class="text-center text-[11px] text-on-surface-variant"
+                    <p class="text-center text-xs text-on-surface-variant"
                        x-text="isRecording ? 'Chạm để dừng ghi âm' : (hasRecording ? 'Nghe lại bên dưới, hoặc chạm micro để ghi lại' : 'Chạm micro để bắt đầu ghi âm')"></p>
-                    <p class="text-[11px] font-semibold text-error" x-show="error" x-text="error" x-cloak></p>
-                    @error('audio_file')<p class="text-[11px] font-semibold text-error">{{ $message }}</p>@enderror
+                    <p class="text-xs font-semibold text-error" x-show="error" x-text="error" x-cloak></p>
+                    @error('audio_file')<p class="text-xs font-semibold text-error">{{ $message }}</p>@enderror
 
                     <audio controls class="h-8 w-full" x-show="hasRecording && !isRecording" x-cloak :src="previewUrl"></audio>
 
@@ -186,7 +186,7 @@
             <section class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest p-4 space-y-3 shadow-2xs">
                 <div class="flex items-center justify-between">
                     <h2 class="text-sm font-bold text-on-surface">Lịch sử của bạn</h2>
-                    <span class="text-[10px] text-on-surface-variant/70 font-medium">Giáo viên chấm điểm</span>
+                    <span class="text-xs text-on-surface-subtle font-medium">Giáo viên chấm điểm</span>
                 </div>
 
                 <div class="space-y-2">
@@ -194,7 +194,7 @@
                         <div class="flex items-center justify-between p-3 rounded-xl bg-surface-container-low hover:bg-surface-container transition border border-surface-container-highest/80">
                             <div>
                                 <p class="text-xs font-bold text-on-surface">{{ $rec->title }}</p>
-                                <div class="flex items-center gap-2 text-[11px] text-on-surface-variant mt-1">
+                                <div class="flex items-center gap-2 text-xs text-on-surface-variant mt-1">
                                     <span class="flex items-center gap-0.5">
                                         <span class="material-symbols-outlined text-[13px]">calendar_today</span>
                                         {{ $rec->data['submitted_at'] ?? $rec->created_at->format('d/m/Y H:i') }}
@@ -210,7 +210,7 @@
                                         Giáo viên chấm: {{ $rec->data['score'] }}
                                     </x-ui.badge>
                                     @if (! empty($rec->data['feedback']))
-                                        <p class="mt-1 text-[11px] text-on-surface-variant italic">"{{ $rec->data['feedback'] }}"</p>
+                                        <p class="mt-1 text-xs text-on-surface-variant italic">"{{ $rec->data['feedback'] }}"</p>
                                     @endif
                                 @else
                                     <x-ui.badge color="warning" :pill="true" class="mt-1">
@@ -225,7 +225,7 @@
                                         <span class="material-symbols-outlined text-[18px]">play_arrow</span>
                                     </a>
                                 @endif
-                                <form action="{{ route('portal.student.pronunciation.destroy', $rec->id) }}" method="POST" onsubmit="return confirm('Bạn có chắc muốn xóa bản ghi âm này?');">
+                                <form action="{{ route('portal.student.pronunciation.destroy', $rec->id) }}" method="POST" data-confirm="Xóa bản ghi âm này?" data-confirm-label="Xóa" data-confirm-danger>
                                     @csrf
                                     @method('DELETE')
                                     <x-ui.button type="submit" variant="ghost" size="sm" icon="delete" title="Xóa bản ghi" aria-label="Xóa bản ghi" />
@@ -237,7 +237,7 @@
                     @endforelse
                 </div>
             </section>
-        </main>
+        </div>
 
         {{-- Bottom Navigation Bar Component --}}
         @include('portal.partials.bottom-nav', ['activeTab' => 'pronunciation', 'student' => $student])

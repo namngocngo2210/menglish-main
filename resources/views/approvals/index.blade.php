@@ -5,7 +5,7 @@
     Xử lý xong server phát "approvals-changed" → #approval-list tự tải lại (giữ bộ lọc), bỏ chọn.
 --}}
 <x-app-layout title="Việc cần duyệt">
-    <x-ui.page-header title="Việc cần duyệt" description="Mọi yêu cầu đang chờ bạn duyệt, gom từ Học phí, Đào tạo và Công việc. Màn duyệt cũ vẫn dùng được như trước." />
+    <x-ui.page-header title="Việc cần duyệt" description="Mọi yêu cầu đang chờ bạn duyệt, gom từ Học phí, Đào tạo và Công việc." />
 
     <div x-data="{
             selected: [],
@@ -40,7 +40,7 @@
             @php $hasAny = collect($sections)->contains(fn ($s) => $s['items']->isNotEmpty()); @endphp
             @if (! $hasAny)
                 <div class="rounded-xl border border-outline-variant bg-surface-container-lowest shadow-sm">
-                    <x-ui.empty-state icon="task_alt" title="Không còn việc chờ duyệt" description="Bạn đã xử lý hết các yêu cầu. Số chờ duyệt được cập nhật mỗi phút." />
+                    <x-ui.empty-state icon="task_alt" title="Không còn việc chờ duyệt" description="Bạn đã xử lý hết các yêu cầu đang chờ." />
                 </div>
             @endif
 
@@ -84,7 +84,7 @@
                                        hx-get="{{ route('approvals.show', [$item->source, $item->id]) }}" hx-target="#remote-modal-body" hx-swap="innerHTML" data-modal-size="xl"
                                        class="flex min-w-0 flex-1 items-center gap-md rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container/40">
                                         <span class="min-w-0 flex-1">
-                                            <span class="block truncate font-body-medium text-body-medium text-on-surface">{{ $item->title }}</span>
+                                            <span class="block truncate font-body-medium text-body-medium text-on-surface" title="{{ $item->title }}">{{ \App\Support\DisplayCode::shortenIn($item->title) }}</span>
                                             @if ($item->subtitle)
                                                 <span class="block truncate font-body-small text-body-small text-on-surface-variant">{{ $item->subtitle }}</span>
                                             @endif

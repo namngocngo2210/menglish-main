@@ -157,7 +157,7 @@
                     @endforeach
                 </x-ui.select>
                 @if ($test)
-                    <div class="flex flex-wrap items-center gap-2 text-[11px] text-on-surface-variant font-mono pt-1">
+                    <div class="flex flex-wrap items-center gap-2 text-xs text-on-surface-variant font-mono pt-1">
                         <span class="px-2 py-0.5 rounded-md bg-secondary/10 text-secondary font-bold">Lớp: {{ $test->classModel?->name }}</span>
                         <span class="px-2 py-0.5 rounded-md bg-surface-container text-on-surface-variant">Mã: {{ $test->code }}</span>
                         <span class="px-2 py-0.5 rounded-md bg-surface-container text-on-surface-variant">Phòng: {{ $test->room }}</span>
@@ -181,21 +181,21 @@
                 $highestScore = $takenCount > 0 ? $taken->max('overall_score') : 0;
             @endphp
             <x-ui.stat-card label="Điểm Trung Bình Cả Lớp" tone="secondary" icon="award_star" hint="Dựa trên {{ $takenCount }} học viên dự thi ({{ $absentCount }} vắng)">
-                {{ $avgOverall }} <span class="text-xs font-normal text-on-surface-variant/70">/ 10</span>
+                {{ $avgOverall }} <span class="text-xs font-normal text-on-surface-subtle">/ 10</span>
             </x-ui.stat-card>
 
             {{-- Stats Summary 2 --}}
             <x-ui.stat-card label="Điểm Cao Nhất (Top Score)" tone="success" icon="military_tech" hint="Tổng số thí sinh: {{ $totalCount }} học viên">
-                {{ $highestScore }} <span class="text-xs font-normal text-on-surface-variant/70">/ 10</span>
+                {{ $highestScore }} <span class="text-xs font-normal text-on-surface-subtle">/ 10</span>
             </x-ui.stat-card>
         </div>
 
         {{-- 2. Results Table --}}
-        <x-ui.data-table>
+        <x-ui.data-table sticky="both">
             <x-slot:header>
                 <div>
                     <h2 class="text-xs font-bold text-on-surface uppercase tracking-wider">Danh Sách Bảng Điểm Chi Tiết ({{ $results->count() }} Học viên)</h2>
-                    <p class="text-[11px] text-on-surface-variant">Kết quả khảo thí định kỳ được lưu trữ phục vụ xếp lớp và đánh giá năng lực</p>
+                    <p class="text-xs text-on-surface-variant">Kết quả khảo thí định kỳ được lưu trữ phục vụ xếp lớp và đánh giá năng lực</p>
                 </div>
             </x-slot:header>
 
@@ -223,7 +223,7 @@
                 <table class="text-xs min-w-[1100px]">
                     <thead>
                         <tr>
-                            <th class="sticky left-0 z-10 border-r border-surface-container bg-surface-container-low">Học viên &amp; Mã số</th>
+                            <th>Học viên &amp; Mã số</th>
                             <th>Trạng thái</th>
                             <th class="text-center !px-xs">Vắng thi</th>
                             <th class="text-center !px-xs">Listening</th>
@@ -241,26 +241,27 @@
                             @php($locked = ! $canGrade || ($res?->isLocked() ?? false))
                             @php($absent = (bool) old("results.$index.is_absent", $res?->is_absent))
                             <tr x-data="{ absent: @js($absent) }">
-                                <td class="sticky left-0 z-10 border-r border-surface-container bg-surface-container-lowest">
+                                <td>
                                     <input type="hidden" name="results[{{ $index }}][student_id]" value="{{ $student->id }}" @disabled($locked)>
                                     <div class="font-bold text-on-surface">{{ $student->name }}</div>
-                                    <div class="max-w-[200px] truncate text-[11px] text-on-surface-variant/70 font-mono mt-0.5">Mã HV: <x-ui.code :value="$student->code ?? 'HV-' . $student->id" /></div>
+                                    <div class="max-w-[200px] truncate text-xs text-on-surface-subtle font-mono mt-0.5">Mã HV: <x-ui.code :value="$student->code ?? 'HV-' . $student->id" /></div>
                                 </td>
                                 <td class="whitespace-nowrap">
                                     <x-ui.badge :color="match ($res?->status) { 'approved' => 'success', 'sent' => 'info', 'pending_review' => 'warning', default => 'neutral' }">{{ $res?->status === 'draft' ? 'Nháp (GV chưa gửi duyệt)' : ($res?->status_label ?? 'Chưa nhập') }}</x-ui.badge>
                                     @if ($res && $res->status !== 'draft')
-                                        <a href="{{ route('syllabus.big-tests.results', ['id' => $test->id, 'result' => $res->id]) }}" class="mt-1 flex items-center gap-0.5 text-[11px] font-semibold text-primary hover:underline">
+                                        <a href="{{ route('syllabus.big-tests.results', ['id' => $test->id, 'result' => $res->id]) }}" class="mt-1 flex items-center gap-0.5 text-xs font-semibold text-primary hover:underline">
                                             <span class="material-symbols-outlined text-[14px]">rate_review</span>Xem &amp; duyệt
                                         </a>
                                     @endif
                                 </td>
                                 <td class="text-center !px-xs">
                                     <input type="checkbox" name="results[{{ $index }}][is_absent]" value="1" x-model="absent" @checked($absent) @disabled($locked)
-                                           class="rounded border-outline-variant text-error focus:ring-error h-4 w-4" title="Đánh dấu học viên vắng thi">
+                                           class="rounded border-outline-variant text-error focus:ring-error h-4 w-4" title="Đánh dấu học viên vắng thi" aria-label="Vắng thi — {{ $student->name }}">
                                 </td>
-                                @foreach (['listening_score', 'reading_score', 'writing_score', 'speaking_score'] as $skill)
+                                @foreach (['listening_score' => 'Nghe', 'reading_score' => 'Đọc', 'writing_score' => 'Viết', 'speaking_score' => 'Nói'] as $skill => $skillLabel)
                                     <td class="!px-xs text-center">
                                         <input type="number" step=".1" min="0" max="10" name="results[{{ $index }}][{{ $skill }}]" value="{{ old("results.$index.$skill", $res?->$skill) }}" placeholder="—"
+                                               aria-label="Điểm {{ $skillLabel }} — {{ $student->name }}"
                                                @disabled($locked) :disabled="absent || @js($locked)" class="w-16 rounded border-surface-container-highest text-xs disabled:bg-surface-container-low">
                                     </td>
                                 @endforeach
@@ -272,29 +273,29 @@
                                     @endif
                                 </td>
                                 <td class="space-y-1 min-w-[180px]">
-                                    <textarea name="results[{{ $index }}][progress_note]" rows="2" @disabled($locked) placeholder="Nhận xét tiến độ" class="w-full rounded border-surface-container-highest text-xs disabled:bg-surface-container-low">{{ old("results.$index.progress_note", $res?->progress_note) }}</textarea>
+                                    <textarea name="results[{{ $index }}][progress_note]" rows="2" @disabled($locked) placeholder="Nhận xét tiến độ" aria-label="Nhận xét tiến độ — {{ $student->name }}" class="w-full rounded border-surface-container-highest text-xs disabled:bg-surface-container-low">{{ old("results.$index.progress_note", $res?->progress_note) }}</textarea>
                                     @if ($locked)
                                         @if ($res?->video_url)
-                                            <a href="{{ $res->video_url }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-[11px] text-primary font-semibold hover:underline">
+                                            <a href="{{ $res->video_url }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-xs text-primary font-semibold hover:underline">
                                                 <span class="material-symbols-outlined text-[14px]">video_library</span>Link video bài thi
                                             </a>
                                         @endif
                                     @else
-                                        <input type="url" name="results[{{ $index }}][video_url]" value="{{ old("results.$index.video_url", $res?->video_url) }}" placeholder="Link video bài thi (https://...)" class="w-full rounded border-surface-container-highest text-xs">
+                                        <input type="url" name="results[{{ $index }}][video_url]" value="{{ old("results.$index.video_url", $res?->video_url) }}" placeholder="Link video bài thi (https://...)" aria-label="Link video bài thi — {{ $student->name }}" class="w-full rounded border-surface-container-highest text-xs">
                                     @endif
                                 </td>
                                 <td class="whitespace-nowrap">
                                     @if ($res?->parent_notified)
-                                        <span class="inline-flex items-center gap-1 text-tertiary font-semibold text-[11px]">
+                                        <span class="inline-flex items-center gap-1 text-tertiary font-semibold text-xs">
                                             <span class="material-symbols-outlined text-[16px]">mark_email_read</span>{{ $res->notified_at?->format('d/m H:i') ?? 'Đã gửi' }}
                                         </span>
                                     @elseif ($canSend && $res?->status === 'approved' && ! $res->is_absent)
                                         <x-ui.button type="submit" form="send-ph-{{ $res->id }}" variant="info" size="sm" icon="send">Gửi PH</x-ui.button>
                                     @else
-                                        <span class="text-[11px] text-on-surface-variant/70">{{ $res?->is_absent ? 'Vắng thi' : 'Chưa gửi' }}</span>
+                                        <span class="text-xs text-on-surface-subtle">{{ $res?->is_absent ? 'Vắng thi' : 'Chưa gửi' }}</span>
                                     @endif
                                     @if ($res && in_array((int) $res->student_id, $missingParentPhone, true))
-                                        <span class="mt-1 block text-[11px] font-semibold text-error">{{ \App\Http\Controllers\SyllabusController::MISSING_PARENT_PHONE }}</span>
+                                        <span class="mt-1 block text-xs font-semibold text-error">{{ \App\Http\Controllers\SyllabusController::MISSING_PARENT_PHONE }}</span>
                                     @endif
                                 </td>
                             </tr>
@@ -310,7 +311,7 @@
             @if($canGrade)
                 @if($students->contains(fn ($s) => ! ($resultsByStudent->get($s->id)?->isLocked() ?? false)))
                     <div class="p-4 border-t border-surface-container-highest flex items-center justify-between gap-3">
-                        <span class="text-[11px] text-on-surface-variant">Học viên vắng: tích "Vắng thi" (không nhập điểm). Dòng để trống sẽ bỏ qua. "Lưu nháp" chưa gửi Học thuật (sửa tiếp được); "Gửi duyệt" cần đủ 4 kỹ năng. Điểm đã duyệt/đã gửi phụ huynh không thể sửa.</span>
+                        <span class="text-xs text-on-surface-variant">Học viên vắng: tích "Vắng thi" (không nhập điểm). Dòng để trống sẽ bỏ qua. "Lưu nháp" chưa gửi Học thuật (sửa tiếp được); "Gửi duyệt" cần đủ 4 kỹ năng. Điểm đã duyệt/đã gửi phụ huynh không thể sửa.</span>
                         <div class="flex items-center gap-2">
                             <x-ui.button type="submit" name="action" value="draft" variant="secondary" icon="draft">Lưu nháp</x-ui.button>
                             <x-ui.button type="submit" name="action" value="submit" icon="send">Gửi duyệt</x-ui.button>

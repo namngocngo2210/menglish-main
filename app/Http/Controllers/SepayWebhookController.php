@@ -13,6 +13,7 @@ use App\Models\StudentTuition;
 use App\Models\TuitionReceipt;
 use App\Models\User;
 use App\Services\NotificationService;
+use App\Support\Money;
 use Carbon\Carbon;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
@@ -170,7 +171,7 @@ class SepayWebhookController extends Controller
             ]);
 
             AdminNotification::create([
-                'title' => 'SePay: Giao dịch vào tài khoản lạ ('.number_format((float) $transferAmount, 0, ',', '.').' VNĐ)',
+                'title' => 'SePay: Giao dịch vào tài khoản lạ ('.Money::format((float) $transferAmount).')',
                 'message' => 'Nhận webhook cho tài khoản '.($accountNumber ?: '(trống)')." không có trong danh sách tài khoản ngân hàng đã cấu hình. ND: '{$content}'. Giao dịch KHÔNG được gạch nợ tự động, vui lòng kiểm tra.",
                 'type' => 'warning',
                 'is_read' => false,
@@ -317,7 +318,7 @@ class SepayWebhookController extends Controller
                 ]);
 
                 AdminNotification::create([
-                    'title' => 'SePay: Giao dịch có thể trùng phiếu thu tay ('.number_format((float) $transferAmount, 0, ',', '.').' VNĐ)',
+                    'title' => 'SePay: Giao dịch có thể trùng phiếu thu tay ('.Money::format((float) $transferAmount).')',
                     'message' => 'Học viên '.($matchedStudent?->name ?? '#'.$matchedTuition->student_id)
                         ." đã có phiếu thu tay {$manual->receipt_number} cho khoản tương ứng. Giao dịch SePay #{$sepayId} KHÔNG được gạch nợ tự động. ND: '{$content}'.",
                     'type' => 'warning',
@@ -335,12 +336,12 @@ class SepayWebhookController extends Controller
                 $tx->update([
                     'status' => 'overpaid',
                     'matched_tuition_id' => $matchedTuition->id,
-                    'response_message' => 'Hợp đồng của '.($matchedStudent?->name ?? 'học viên').' đã thanh toán đủ; khoản '.number_format((float) $transferAmount, 0, ',', '.')." VNĐ không được tự động ghi nhận. ND: '{$content}'",
+                    'response_message' => 'Hợp đồng của '.($matchedStudent?->name ?? 'học viên').' đã thanh toán đủ; khoản '.Money::format((float) $transferAmount)." không được tự động ghi nhận. ND: '{$content}'",
                 ]);
 
                 AdminNotification::create([
-                    'title' => 'SePay: Thu thêm khi đã hết nợ ('.number_format((float) $transferAmount, 0, ',', '.').' VNĐ)',
-                    'message' => 'Học viên '.($matchedStudent?->name ?? '#'.($matchedTuition->student_id ?? '')).' đã hết công nợ nhưng nhận thêm '.number_format((float) $transferAmount, 0, ',', '.')." VNĐ. ND: '{$content}'. Vui lòng đối soát thủ công (hoàn tiền hoặc thu trước kỳ sau).",
+                    'title' => 'SePay: Thu thêm khi đã hết nợ ('.Money::format((float) $transferAmount).')',
+                    'message' => 'Học viên '.($matchedStudent?->name ?? '#'.($matchedTuition->student_id ?? '')).' đã hết công nợ nhưng nhận thêm '.Money::format((float) $transferAmount).". ND: '{$content}'. Vui lòng đối soát thủ công (hoàn tiền hoặc thu trước kỳ sau).",
                     'type' => 'warning',
                     'is_read' => false,
                 ]);
@@ -361,19 +362,19 @@ class SepayWebhookController extends Controller
 
             // Update transaction record
             $overNote = $overAmount > 0
-                ? ' Khách chuyển thừa '.number_format($overAmount, 0, ',', '.').' VNĐ — cần đối soát thủ công.'
+                ? ' Khách chuyển thừa '.Money::format($overAmount).' — cần đối soát thủ công.'
                 : '';
             $tx->update([
                 'status' => 'matched',
                 'matched_student_id' => $matchedStudent?->id,
                 'matched_tuition_id' => $matchedTuition->id,
                 'matched_receipt_id' => $receipt->id,
-                'response_message' => 'Đã gạch nợ thành công '.number_format($appliedAmount, 0, ',', '.')." VNĐ cho học viên {$matchedStudent?->name} ({$matchedStudent?->code}). Xuất HĐĐT số {$invoiceNumber}.{$overNote}",
+                'response_message' => 'Đã gạch nợ thành công '.Money::format($appliedAmount)." cho học viên {$matchedStudent?->name} ({$matchedStudent?->code}). Xuất HĐĐT số {$invoiceNumber}.{$overNote}",
             ]);
 
             // Notify Admin & Accountant & Branch Academic Staff
             AdminNotification::create([
-                'title' => 'SePay: Khớp thanh toán '.number_format($appliedAmount, 0, ',', '.').' VNĐ',
+                'title' => 'SePay: Khớp thanh toán '.Money::format($appliedAmount),
                 'message' => "Học viên {$matchedStudent?->name} ({$matchedStudent?->code}) đã thanh toán thành công qua SePay. Phiếu thu: {$receipt->receipt_number}. HĐĐT: {$invoiceNumber}.",
                 'type' => 'success',
                 'is_read' => false,
@@ -381,8 +382,8 @@ class SepayWebhookController extends Controller
 
             if ($overAmount > 0) {
                 AdminNotification::create([
-                    'title' => 'SePay: Khách chuyển thừa '.number_format($overAmount, 0, ',', '.').' VNĐ',
-                    'message' => "Khoản chuyển của học viên {$matchedStudent?->name} ({$matchedStudent?->code}) vượt số tiền còn nợ ".number_format($overAmount, 0, ',', '.')." VNĐ. Phần thừa chưa ghi nhận vào phiếu thu — vui lòng đối soát thủ công. ND: '{$content}'",
+                    'title' => 'SePay: Khách chuyển thừa '.Money::format($overAmount),
+                    'message' => "Khoản chuyển của học viên {$matchedStudent?->name} ({$matchedStudent?->code}) vượt số tiền còn nợ ".Money::format($overAmount).". Phần thừa chưa ghi nhận vào phiếu thu — vui lòng đối soát thủ công. ND: '{$content}'",
                     'type' => 'warning',
                     'is_read' => false,
                 ]);
@@ -416,7 +417,7 @@ class SepayWebhookController extends Controller
                         .'<p>Cổng thanh toán tự động <strong>SePay</strong> vừa ghi nhận và khớp thành công giao dịch học phí:</p>'
                         ."<table style='width: 100%; border-collapse: collapse; margin: 15px 0;'>"
                         ."<tr><td style='padding: 8px; border-bottom: 1px solid #f1f5f9; color: #64748b;'>Học viên:</td><td style='padding: 8px; border-bottom: 1px solid #f1f5f9; font-weight: bold;'>{$matchedStudent?->name} ({$matchedStudent?->code})</td></tr>"
-                        ."<tr><td style='padding: 8px; border-bottom: 1px solid #f1f5f9; color: #64748b;'>Số tiền khớp lệnh:</td><td style='padding: 8px; border-bottom: 1px solid #f1f5f9; font-weight: bold; color: #ea580c; font-family: monospace; font-size: 16px;'>".number_format($appliedAmount, 0, ',', '.').' VNĐ</td></tr>'
+                        ."<tr><td style='padding: 8px; border-bottom: 1px solid #f1f5f9; color: #64748b;'>Số tiền khớp lệnh:</td><td style='padding: 8px; border-bottom: 1px solid #f1f5f9; font-weight: bold; color: #ea580c; font-family: monospace; font-size: 16px;'>".Money::format($appliedAmount).'</td></tr>'
                         ."<tr><td style='padding: 8px; border-bottom: 1px solid #f1f5f9; color: #64748b;'>Mã phiếu thu:</td><td style='padding: 8px; border-bottom: 1px solid #f1f5f9; font-mono font-bold;'>{$receipt->receipt_number}</td></tr>"
                         ."<tr><td style='padding: 8px; border-bottom: 1px solid #f1f5f9; color: #64748b;'>Mã hóa đơn điện tử:</td><td style='padding: 8px; border-bottom: 1px solid #f1f5f9; font-mono font-bold; color: #0284c7;'>{$invoiceNumber}</td></tr>"
                         ."<tr><td style='padding: 8px; border-bottom: 1px solid #f1f5f9; color: #64748b;'>Nội dung chuyển khoản:</td><td style='padding: 8px; border-bottom: 1px solid #f1f5f9;'>{$content}</td></tr>"
@@ -456,8 +457,8 @@ class SepayWebhookController extends Controller
         ]);
 
         AdminNotification::create([
-            'title' => 'SePay: Giao dịch cần đối soát ('.number_format((float) $transferAmount, 0, ',', '.').' VNĐ)',
-            'message' => 'Nhận '.number_format((float) $transferAmount, 0, ',', '.')." VNĐ vào tài khoản {$accountNumber} nhưng chưa tự động khớp học viên. ND: '{$content}'. Vui lòng kiểm tra đối soát thủ công.",
+            'title' => 'SePay: Giao dịch cần đối soát ('.Money::format((float) $transferAmount).')',
+            'message' => 'Nhận '.Money::format((float) $transferAmount)." vào tài khoản {$accountNumber} nhưng chưa tự động khớp học viên. ND: '{$content}'. Vui lòng kiểm tra đối soát thủ công.",
             'type' => 'warning',
             'is_read' => false,
         ]);

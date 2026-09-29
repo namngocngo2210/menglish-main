@@ -28,7 +28,7 @@
                             <td class="max-w-md">
                                 <p class="font-semibold text-on-surface">{{ $sv->title }}</p>
                                 @if ($sv->description)
-                                    <p class="line-clamp-2 text-[11px] text-on-surface-variant">{{ $sv->description }}</p>
+                                    <p class="line-clamp-2 text-xs text-on-surface-variant">{{ $sv->description }}</p>
                                 @endif
                             </td>
                             <td class="font-mono text-on-surface-variant whitespace-nowrap">
@@ -45,7 +45,7 @@
                             <td class="text-on-surface-variant">{{ $sv->creator?->name ?? '—' }}</td>
                             <td class="text-right whitespace-nowrap">
                                 <x-ui.button variant="ghost" size="sm" icon="edit" x-on:click="$dispatch('open-modal', 'edit-survey-{{ $sv->id }}')">Sửa</x-ui.button>
-                                <form action="{{ route('surveys.destroy', $sv->id) }}" method="POST" class="inline" data-confirm="Xóa khảo sát &quot;{{ $sv->title }}&quot;? Lịch sử đã nộp của học viên vẫn được giữ.">
+                                <form action="{{ route('surveys.destroy', $sv->id) }}" method="POST" class="inline" data-confirm="Xóa khảo sát &quot;{{ $sv->title }}&quot;? Lịch sử đã nộp của học viên vẫn được giữ." data-confirm-label="Xóa" data-confirm-danger>
                                     @csrf
                                     @method('DELETE')
                                     <x-ui.button type="submit" variant="danger-text" size="sm">Xóa</x-ui.button>
@@ -104,14 +104,4 @@
         </x-slot:footer>
     </x-ui.modal>
 
-    @push('scripts')
-    <script>
-        document.addEventListener('submit', function (event) {
-            const form = event.target instanceof Element ? event.target.closest('form[data-confirm]') : null;
-            if (form && !window.confirm(form.getAttribute('data-confirm'))) {
-                event.preventDefault();
-            }
-        }, true);
-    </script>
-    @endpush
 </x-app-layout>

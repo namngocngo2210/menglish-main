@@ -21,7 +21,7 @@
                         <td class="font-bold">{{ $r->student?->name ?? '—' }}</td>
                         <td>
                             <div class="font-semibold text-primary">{{ $r->bigTest?->title ?? '—' }}</div>
-                            <div class="text-[11px] text-on-surface-variant/70">{{ $r->bigTest?->classModel?->name }}</div>
+                            <div class="text-xs text-on-surface-subtle">{{ $r->bigTest?->classModel?->name }}</div>
                         </td>
                         <td class="text-center font-mono">{{ $r->listening_score ?? '—' }}</td>
                         <td class="text-center font-mono">{{ $r->reading_score ?? '—' }}</td>

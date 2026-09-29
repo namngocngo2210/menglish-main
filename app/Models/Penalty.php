@@ -212,7 +212,7 @@ class Penalty extends Model
             'explained' => 'bg-secondary/10 text-secondary border-secondary/30',
             'confirmed' => 'bg-error/10 text-error border-error/30',
             'fined' => 'bg-primary-container/10 text-primary border-primary-container/30',
-            'deducted' => 'bg-purple-50 text-purple-700 border-purple-200',
+            'deducted' => 'bg-accent-container text-accent border-accent/30',
             'paid' => 'bg-tertiary/10 text-tertiary border-tertiary/30',
             'resolved' => 'bg-info/10 text-info border-info/30',
             'cancelled' => 'bg-surface-container-low text-on-surface-variant border-surface-container-highest',

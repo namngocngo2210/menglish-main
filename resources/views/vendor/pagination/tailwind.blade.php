@@ -1,7 +1,7 @@
 {{-- Link phân trang mặc định (->links()) — restyle theo mockup khach-khong-chot-lost-deals. --}}
 @if ($paginator->hasPages())
     @php
-        $base = 'inline-flex h-8 min-w-8 items-center justify-center rounded px-xs font-body-medium text-body-medium transition-colors';
+        $base = 'inline-flex h-11 min-w-11 md:h-8 md:min-w-8 items-center justify-center rounded px-xs font-body-medium text-body-medium transition-colors';
         $idle = $base . ' text-on-surface hover:bg-surface-container-high';
         $disabled = $base . ' cursor-default text-on-surface-variant opacity-30';
     @endphp

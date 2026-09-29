@@ -19,54 +19,36 @@
         </div>
 
         {{-- Filter & Search Bar --}}
-        <div class="bg-surface-container-lowest p-4 rounded-2xl border border-surface-container-highest shadow-xs space-y-3">
-            <form action="{{ route('merchandise.index') }}" method="GET" class="flex flex-col md:flex-row gap-3 items-center justify-between">
-                <div class="flex-1 w-full flex flex-col sm:flex-row gap-2">
-                    {{-- Search Input --}}
-                    <div class="flex-1">
-                        <x-ui.input name="q" icon="search" :value="$search" placeholder="Tìm kiếm theo mã hàng, tên sách, đồng phục..." class="text-xs" />
-                    </div>
-
-                    {{-- Category Filter Dropdown --}}
-                    <div class="w-full sm:w-52 shrink-0">
-                        <x-ui.select name="category" onchange="this.form.submit()" class="text-xs" placeholder="-- Tất cả nhóm hàng --" :value="$selectedCategory"
-                                     :options="collect($categories)->map(fn ($cat) => $cat['label'])" />
-                    </div>
-
-                    {{-- Status Filter Dropdown --}}
-                    <div class="w-full sm:w-40 shrink-0">
-                        <x-ui.select name="status" onchange="this.form.submit()" class="text-xs" placeholder="-- Trạng thái --" :value="$selectedStatus"
-                                     :options="['active' => 'Đang kinh doanh', 'inactive' => 'Tạm ngừng']" />
-                    </div>
-                </div>
-
-                <div class="flex items-center gap-2 self-end sm:self-auto shrink-0">
-                    <x-ui.button type="submit" variant="secondary">Lọc</x-ui.button>
-                    @if ($search || $selectedCategory || $selectedStatus)
-                        <x-ui.button variant="ghost" :href="route('merchandise.index')">Xóa lọc</x-ui.button>
-                    @endif
-                </div>
-            </form>
-
+        <x-ui.filter-bar :action="route('merchandise.index')" search="q" placeholder="Tìm kiếm theo mã hàng, tên sách, đồng phục..." class="!mb-0">
             {{-- Quick Category Pills --}}
-            <div class="flex flex-wrap gap-1.5 pt-2 border-t border-surface-container-highest text-xs">
-                <a 
-                    href="{{ route('merchandise.index', array_filter(['q' => $search, 'status' => $selectedStatus])) }}" 
-                    class="px-3 py-1 rounded-lg font-medium transition {{ empty($selectedCategory) ? 'bg-primary-container text-white font-bold' : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high' }}"
-                >
-                    Tất cả ({{ $metrics['total'] }})
-                </a>
-                @foreach ($categories as $catKey => $cat)
-                    <a 
-                        href="{{ route('merchandise.index', array_filter(['q' => $search, 'category' => $catKey, 'status' => $selectedStatus])) }}" 
-                        class="px-3 py-1 rounded-lg font-medium transition flex items-center gap-1.5 {{ $selectedCategory === $catKey ? 'bg-primary-container text-white font-bold' : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high' }}"
+            <x-slot:quick>
+                <div class="flex flex-wrap gap-1.5 text-xs">
+                    <a
+                        href="{{ route('merchandise.index', array_filter(['q' => $search, 'status' => $selectedStatus])) }}"
+                        class="px-3 py-1 rounded-lg font-medium transition {{ empty($selectedCategory) ? 'bg-primary-container text-white font-bold' : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high' }}"
                     >
-                        <span class="material-symbols-outlined text-sm">{{ $cat['icon'] }}</span>
-                        <span>{{ $cat['label'] }}</span>
+                        Tất cả ({{ $metrics['total'] }})
                     </a>
-                @endforeach
-            </div>
-        </div>
+                    @foreach ($categories as $catKey => $cat)
+                        <a
+                            href="{{ route('merchandise.index', array_filter(['q' => $search, 'category' => $catKey, 'status' => $selectedStatus])) }}"
+                            class="px-3 py-1 rounded-lg font-medium transition flex items-center gap-1.5 {{ $selectedCategory === $catKey ? 'bg-primary-container text-white font-bold' : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high' }}"
+                        >
+                            <span class="material-symbols-outlined text-sm">{{ $cat['icon'] }}</span>
+                            <span>{{ $cat['label'] }}</span>
+                        </a>
+                    @endforeach
+                </div>
+            </x-slot:quick>
+
+            {{-- Category Filter Dropdown --}}
+            <x-ui.select name="category" label="Nhóm hàng" onchange="this.form.submit()" placeholder="Tất cả nhóm hàng" :value="$selectedCategory"
+                         :options="collect($categories)->map(fn ($cat) => $cat['label'])" />
+
+            {{-- Status Filter Dropdown --}}
+            <x-ui.select name="status" label="Trạng thái" onchange="this.form.submit()" placeholder="Tất cả trạng thái" :value="$selectedStatus"
+                         :options="['active' => 'Đang kinh doanh', 'inactive' => 'Tạm ngừng']" />
+        </x-ui.filter-bar>
 
         {{-- Merchandise Table --}}
         <x-ui.data-table id="merchandise-list" hx-get="{{ route('merchandise.index', request()->query()) }}" hx-trigger="merchandise-changed from:body" hx-select="#merchandise-list" hx-swap="outerHTML" hx-disinherit="*">
@@ -100,7 +82,7 @@
                                 <td>
                                     <div class="font-bold text-on-surface">{{ $item->name }}</div>
                                     @if ($item->description)
-                                        <div class="text-[11px] text-on-surface-variant/70 truncate max-w-sm">{{ $item->description }}</div>
+                                        <div class="text-xs text-on-surface-subtle truncate max-w-sm">{{ $item->description }}</div>
                                     @endif
                                 </td>
 
@@ -135,7 +117,7 @@
                                         @csrf
                                         <button 
                                             type="submit" 
-                                            class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold transition {{ $item->is_active ? 'bg-tertiary/10 text-on-tertiary-container hover:bg-tertiary/20' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest' }}"
+                                            class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold transition {{ $item->is_active ? 'bg-tertiary/10 text-on-tertiary-container hover:bg-tertiary/20' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest' }}"
                                             title="Bấm để bật/tắt kinh doanh"
                                         >
                                             <span class="w-1.5 h-1.5 rounded-full {{ $item->is_active ? 'bg-tertiary' : 'bg-on-surface-variant' }}"></span>

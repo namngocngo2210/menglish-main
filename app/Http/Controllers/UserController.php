@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\SafeUploadService;
 use App\Support\Audit;
 use App\Support\DataScope;
+use App\Support\Money;
 use App\Support\Rbac;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -137,7 +138,7 @@ class UserController extends Controller
                 'branch_name' => $user->branch?->name,
                 'role_name' => $user->roles->first()?->name ? AclHelper::roleLabel($user->roles->first()->name) : 'Nhân viên',
                 'base_salary' => self::canViewSensitive($request->user()) && $user->base_salary
-                    ? number_format($user->base_salary).' VND'
+                    ? Money::format($user->base_salary)
                     : null,
                 'is_locked' => $user->isLocked(),
                 'created_at' => $user->created_at->format('d/m/Y'),

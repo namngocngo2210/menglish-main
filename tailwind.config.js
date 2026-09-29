@@ -8,8 +8,11 @@ import containerQueries from '@tailwindcss/container-queries';
  * KHÔNG sửa tay giá trị token màu/typography — mọi thay đổi phải qua design review.
  *
  * Quy ước màu thương hiệu (khác bản cũ):
- *  - `primary-container` (#f5691a) = màu cam CTA (nền nút chính, item active, focus ring).
+ *  - `primary-container` (#c2410c) = màu cam CTA (nền nút chính, item active, focus ring, chữ cam).
+ *    Đậm hơn cam logo để chữ trắng trên nền và chữ cam trên nền sáng đạt WCAG AA (≥ 4.5:1).
+ *  - `brand` (#f5691a)             = cam logo, chỉ dùng cho khối trang trí (không làm nền chữ, không làm màu chữ).
  *  - `primary` (#a23f00)           = màu nhấn tối dùng cho chữ/viền (link, tab active, icon).
+ *  - `on-surface-subtle`           = chữ phụ mờ hơn `on-surface-variant` nhưng vẫn đạt 4.5:1 (thay cho `/70`).
  * Các alias tương thích ngược (primary-hover/border/tint/light, navy.*, surface.subtle,
  * secondary-hover…) được giữ để view cũ không mất style.
  */
@@ -44,8 +47,8 @@ export default {
 
                 primary: {
                     DEFAULT: '#a23f00',
-                    container: '#f5691a',
-                    dark: '#d9530b',
+                    container: '#c2410c',
+                    dark: '#b23a0a',
                     fixed: '#ffdbcd',
                     'fixed-dim': '#ffb595',
                     light: '#fff3eb',
@@ -93,7 +96,7 @@ export default {
 
                 // Cảnh báo / thông tin (thay cho amber-*, blue-* viết cứng). success = tertiary.
                 warning: {
-                    DEFAULT: '#b45309',
+                    DEFAULT: '#9a4608',
                     container: '#fef3c7',
                 },
                 'on-warning-container': '#78350f',
@@ -102,6 +105,12 @@ export default {
                     container: '#dbeafe',
                 },
                 'on-info-container': '#1e3a8a',
+                // Màu phân loại thứ 5 (tím): giai đoạn "Gửi kết quả", chương trình / nhãn phân loại.
+                accent: {
+                    DEFAULT: '#7e22ce',
+                    container: '#f3e8ff',
+                },
+                'on-accent-container': '#581c87',
                 'on-error-container': '#93000a',
 
                 surface: {
@@ -120,6 +129,7 @@ export default {
                 },
                 'on-surface': '#161c27',
                 'on-surface-variant': '#594137',
+                'on-surface-subtle': '#74635b',
                 'on-background': '#161c27',
                 'inverse-surface': '#2a303d',
                 'inverse-on-surface': '#ecf0ff',
@@ -157,15 +167,15 @@ export default {
                     new: '#1e43e7',
                     consulting: '#256d00',
                     test_scheduled: '#a23f00',
-                    tested: '#2563eb',
-                    result_sent: '#9333ea',
-                    closing: '#d97706',
-                    won: '#16a34a',
+                    tested: '#1d4ed8',
+                    result_sent: '#7e22ce',
+                    closing: '#b45309',
+                    won: '#15803d',
                     lost: '#ba1a1a',
                 },
 
                 // Trạng thái công việc
-                'status-blocked': '#ea580c',
+                'status-blocked': '#c2410c',
                 'status-canceled': '#6b7280',
                 'status-done': '#22c55e',
                 'status-new': '#9ca3af',
@@ -194,33 +204,33 @@ export default {
                 code: mono,
             },
 
-            // Cỡ chữ gọn hơn cho toàn hệ thống (giữ nguyên spacing). Ghi đè cả thang mặc định của Tailwind
-            // từ sm trở lên; xs (12px) và các cỡ tuỳ biến text-[10px]/[11px] giữ nguyên để không quá nhỏ.
+            // Thang cỡ chữ (ghi đè thang mặc định của Tailwind từ sm trở lên). Sàn tối thiểu 12px (xs / caption / label):
+            // không dùng text-[9px] / [10px] / [11px]. Ô nhập trên điện thoại được đẩy lên 16px trong app.css (tránh iOS tự zoom).
             fontSize: {
-                sm: ['13px', { lineHeight: '18px' }],
-                base: ['14px', { lineHeight: '20px' }],
-                lg: ['15px', { lineHeight: '22px' }],
-                xl: ['17px', { lineHeight: '24px' }],
+                sm: ['14px', { lineHeight: '20px' }],
+                base: ['15px', { lineHeight: '22px' }],
+                lg: ['16px', { lineHeight: '24px' }],
+                xl: ['18px', { lineHeight: '26px' }],
                 '2xl': ['20px', { lineHeight: '28px' }],
                 '3xl': ['24px', { lineHeight: '32px' }],
                 '4xl': ['28px', { lineHeight: '36px' }],
                 '5xl': ['36px', { lineHeight: '1' }],
 
-                h1: ['22px', { lineHeight: '30px', letterSpacing: '-0.02em', fontWeight: '700' }],
-                h2: ['18px', { lineHeight: '26px', letterSpacing: '-0.01em', fontWeight: '600' }],
-                'h2-desktop': ['18px', { lineHeight: '26px', fontWeight: '700' }],
+                h1: ['24px', { lineHeight: '32px', letterSpacing: '-0.02em', fontWeight: '700' }],
+                h2: ['19px', { lineHeight: '26px', letterSpacing: '-0.01em', fontWeight: '600' }],
+                'h2-desktop': ['19px', { lineHeight: '26px', fontWeight: '700' }],
                 h3: ['16px', { lineHeight: '24px', fontWeight: '600' }],
                 'h3-card': ['16px', { lineHeight: '24px', fontWeight: '600' }],
-                'body-base': ['13px', { lineHeight: '20px', fontWeight: '400' }],
-                'body-main': ['13px', { lineHeight: '20px', fontWeight: '400' }],
-                'body-medium': ['13px', { lineHeight: '20px', fontWeight: '500' }],
-                'body-semibold': ['13px', { lineHeight: '20px', fontWeight: '600' }],
-                'body-small': ['12px', { lineHeight: '18px', fontWeight: '400' }],
-                label: ['11px', { lineHeight: '16px', letterSpacing: '0.05em', fontWeight: '600' }],
-                'label-caps': ['11px', { lineHeight: '16px', letterSpacing: '0.05em', fontWeight: '700' }],
-                caption: ['11px', { lineHeight: '16px', fontWeight: '400' }],
-                'caption-badge': ['11px', { lineHeight: '14px', fontWeight: '600' }],
-                code: ['12px', { lineHeight: '18px', fontWeight: '400' }],
+                'body-base': ['14px', { lineHeight: '21px', fontWeight: '400' }],
+                'body-main': ['14px', { lineHeight: '21px', fontWeight: '400' }],
+                'body-medium': ['14px', { lineHeight: '21px', fontWeight: '500' }],
+                'body-semibold': ['14px', { lineHeight: '21px', fontWeight: '600' }],
+                'body-small': ['13px', { lineHeight: '19px', fontWeight: '400' }],
+                label: ['12px', { lineHeight: '16px', letterSpacing: '0.04em', fontWeight: '600' }],
+                'label-caps': ['12px', { lineHeight: '16px', letterSpacing: '0.04em', fontWeight: '700' }],
+                caption: ['12px', { lineHeight: '17px', fontWeight: '400' }],
+                'caption-badge': ['12px', { lineHeight: '16px', fontWeight: '600' }],
+                code: ['13px', { lineHeight: '19px', fontWeight: '400' }],
             },
 
             borderRadius: {

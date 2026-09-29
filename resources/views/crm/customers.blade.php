@@ -1,7 +1,7 @@
 {{-- Danh sách khách: Thêm mở modal 2xl; bấm tên / nút sửa → trang hồ sơ đầy đủ (sửa trực tiếp trong trang);
      lưu xong server phát "crm-customers-changed" → #customer-list tự tải lại (giữ bộ lọc, trang hiện tại). --}}
 <x-app-layout>
-    @include('crm.partials.header-tabs')
+    @include('crm.partials.header-tabs', ['title' => 'Danh sách khách hàng'])
 
     <div class="flex flex-col gap-lg">
         @if (session('import_skipped'))
@@ -11,44 +11,22 @@
         @endif
 
         {{-- Bộ lọc (mockup danh-sach-khach): Từ khóa, Nguồn, Người phụ trách, Giai đoạn, Chi nhánh, nút "Lọc" (kiểu phụ, cùng nhãn với các màn CRM khác) --}}
-        <form method="GET" action="{{ route('crm.customers.index') }}" role="search"
-              class="rounded-xl border border-surface-container-highest bg-surface-container-lowest p-md shadow-sm">
-            <x-ui.workspace-chips workspace="crm" class="mb-md border-b border-surface-container-highest pb-md" />
+        <x-ui.filter-bar :action="route('crm.customers.index')" search="search" placeholder="Tìm tên hoặc SĐT..." :reset-url="route('crm.customers.index')">
+            <x-slot:quick><x-ui.workspace-chips workspace="crm" /></x-slot:quick>
             {{-- Giữ lọc nhanh "Chưa liên hệ >24h" khi lọc thêm --}}
             @if (request()->boolean('sla'))
                 <input type="hidden" name="sla" value="1">
             @endif
-            <div class="grid grid-cols-1 items-end gap-md md:grid-cols-2 lg:grid-cols-6">
-                <x-ui.field label="Từ khóa (Tên/SĐT)" name="search" for="f_search">
-                    <div class="relative">
-                        <span class="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant" aria-hidden="true">search</span>
-                        <input id="f_search" type="search" name="search" value="{{ request('search') }}" placeholder="Nhập tên hoặc SĐT..."
-                               class="w-full rounded-lg border border-outline-variant bg-surface-container-low py-sm pl-10 pr-sm font-body-base text-body-base focus:border-secondary focus:ring-2 focus:ring-secondary/20">
-                    </div>
-                </x-ui.field>
-                <x-ui.select name="source" label="Nguồn" :options="$filterSources->mapWithKeys(fn ($s) => [$s => $s])" placeholder="Tất cả nguồn" />
-                <x-ui.select name="assigned_user_id" label="Người phụ trách" :options="\App\Services\Crm\LeadOwners::options($filterSales)" placeholder="Tất cả" />
-                <x-ui.select name="stage" label="Giai đoạn" :options="\App\Models\CrmCustomer::PIPELINE_STAGES + ['lost' => \App\Models\CrmCustomer::stageLabel('lost')]" placeholder="Tất cả giai đoạn" />
-                @if ($filterBranches->isNotEmpty())
-                    <x-ui.select name="branch_id" label="Chi nhánh" :options="$filterBranches->pluck('name', 'id')" placeholder="Tất cả chi nhánh" />
-                @else
-                    <x-ui.field label="Chi nhánh">
-                        <div class="rounded-lg border border-outline-variant bg-surface-container-low px-md py-sm font-body-base text-body-base text-on-surface-variant">
-                            {{ auth()->user()->branch?->name ?? 'Chi nhánh của tôi' }}
-                        </div>
-                    </x-ui.field>
-                @endif
-                <div class="flex gap-sm">
-                    <x-ui.button type="submit" variant="secondary" icon="filter_list" class="flex-1">Lọc</x-ui.button>
-                    @if (request()->hasAny(['search', 'branch_id', 'stage', 'source', 'assigned_user_id', 'sla']))
-                        <x-ui.button variant="ghost" icon="filter_alt_off" :href="route('crm.customers.index')" aria-label="Xóa bộ lọc" title="Xóa bộ lọc" />
-                    @endif
-                </div>
-            </div>
-        </form>
+            <x-ui.select name="source" label="Nguồn" :options="$filterSources->mapWithKeys(fn ($s) => [$s => $s])" placeholder="Tất cả nguồn" />
+            <x-ui.select name="assigned_user_id" label="Người phụ trách" :options="\App\Services\Crm\LeadOwners::options($filterSales)" placeholder="Tất cả người phụ trách" />
+            <x-ui.select name="stage" label="Giai đoạn" :options="\App\Models\CrmCustomer::PIPELINE_STAGES + ['lost' => \App\Models\CrmCustomer::stageLabel('lost')]" placeholder="Tất cả giai đoạn" />
+            @if ($filterBranches->isNotEmpty())
+                <x-ui.select name="branch_id" label="Chi nhánh" :options="$filterBranches->pluck('name', 'id')" placeholder="Tất cả chi nhánh" />
+            @endif
+        </x-ui.filter-bar>
 
         <div id="customer-list" hx-get="{{ route('crm.customers.index', request()->query()) }}" hx-trigger="crm-customers-changed from:body" hx-select="#customer-list" hx-swap="outerHTML" hx-disinherit="*">
-        <x-ui.data-table min-width="1020px">
+        <x-ui.data-table min-width="1020px" sticky="both">
             <table>
                 <thead>
                     <tr>
@@ -78,11 +56,11 @@
                             <td class="whitespace-nowrap">
                                 @if ($c->assignedUser)
                                     <div class="flex items-center gap-xs">
-                                        <x-ui.avatar :name="$c->assignedUser->name" size="sm" class="!h-6 !w-6 !text-[10px]" />
+                                        <x-ui.avatar :name="$c->assignedUser->name" size="sm" class="!h-6 !w-6 !text-xs" />
                                         <span class="text-on-surface-variant">{{ $c->assignedUser->name }}</span>
                                     </div>
                                 @else
-                                    <span class="text-on-surface-variant/70">Chưa phân công</span>
+                                    <span class="text-on-surface-subtle">Chưa phân công</span>
                                 @endif
                             </td>
                             <td class="whitespace-nowrap text-on-surface-variant">{{ $c->branch?->name ?? '—' }}</td>
@@ -113,15 +91,4 @@
         </div>
     </div>
 
-    @push('scripts')
-    <script>
-        // Confirm xoá khách qua data-confirm (thay cho inline onsubmit — tránh XSS qua tên khách)
-        document.addEventListener('submit', function (event) {
-            const form = event.target instanceof Element ? event.target.closest('form[data-confirm]') : null;
-            if (form && !window.confirm(form.getAttribute('data-confirm'))) {
-                event.preventDefault();
-            }
-        }, true);
-    </script>
-    @endpush
 </x-app-layout>

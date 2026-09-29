@@ -37,7 +37,7 @@
                 <input type="hidden" name="pasted_images" :value="JSON.stringify(pastedImages)" />
 
                 <span class="material-symbols-outlined text-base text-primary">add_photo_alternate</span>
-                <span class="text-[11px] text-on-surface-variant font-medium">Kéo thả ảnh hoặc <span class="text-primary underline">chọn ảnh</span> / Dán trực tiếp (Ctrl+V)</span>
+                <span class="text-xs text-on-surface-variant font-medium">Kéo thả ảnh hoặc <span class="text-primary underline">chọn ảnh</span> / Dán trực tiếp (Ctrl+V)</span>
             </div>
 
             {{-- Previews --}}
@@ -50,7 +50,7 @@
                                     <img :src="item.url" class="w-full h-full object-cover" />
                                 </template>
                                 <template x-if="!item.isImage">
-                                    <span class="text-[9px] uppercase font-bold text-on-surface-variant" x-text="item.ext"></span>
+                                    <span class="text-xs uppercase font-bold text-on-surface-variant" x-text="item.ext"></span>
                                 </template>
                                 <button 
                                     type="button" 
@@ -60,7 +60,7 @@
                                     <span class="material-symbols-outlined text-xs">close</span>
                                 </button>
                             </div>
-                            <div class="font-medium text-[10px] text-on-surface truncate px-0.5 mt-0.5" x-text="item.name"></div>
+                            <div class="font-medium text-xs text-on-surface truncate px-0.5 mt-0.5" x-text="item.name"></div>
                         </div>
                     </template>
                 </div>

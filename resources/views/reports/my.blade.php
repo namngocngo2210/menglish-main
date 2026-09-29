@@ -23,7 +23,7 @@
                 <div class="bg-surface-container-lowest rounded-2xl p-5 border border-surface-container-highest shadow-sm">
                     <div class="flex items-center justify-between">
                         <span class="font-bold text-sm text-on-surface">{{ $r->title }}</span>
-                        <span class="text-[11px] text-on-surface-variant/70">{{ $r->report_date->format('d/m/Y') }}</span>
+                        <span class="text-xs text-on-surface-subtle">{{ $r->report_date->format('d/m/Y') }}</span>
                     </div>
                     <p class="text-sm text-on-surface-variant mt-2 whitespace-pre-line">{{ $r->content }}</p>
                 </div>

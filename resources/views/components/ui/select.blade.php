@@ -4,19 +4,28 @@
       name, label, required, hint, inlineLabel
       options:     mảng [value => label] (tuỳ chọn; hoặc tự viết <option> trong slot)
       value:       giá trị chọn (mặc định old(name) rồi request(name))
-      placeholder: option rỗng đầu tiên (vd. "Tất cả nguồn")
+      placeholder: option rỗng đầu tiên (vd. "Tất cả nguồn"); không có label / inlineLabel / aria-label thì cũng là aria-label
     Ví dụ:
       <x-ui.select name="branch_id" label="Chi nhánh" :options="$branches->pluck('name', 'id')" placeholder="-- Chọn --" required />
 --}}
 @props(['name' => null, 'label' => null, 'options' => [], 'value' => null, 'placeholder' => null, 'required' => false, 'hint' => null, 'inlineLabel' => null, 'bag' => null])
 
 @php
-    $id = $attributes->get('id') ?? ($name ? 'f_' . preg_replace('/[^A-Za-z0-9_]/', '_', $name) : null);
+    // Có nhãn mà không có name/id (ô Alpine x-model) → sinh id để <label for> vẫn gắn đúng ô.
+    $id = $attributes->get('id') ?? ($name ? 'f_' . preg_replace('/[^A-Za-z0-9_]/', '_', $name) : ($label ? 'f_' . \Illuminate\Support\Str::random(8) : null));
     $errorKey = $name ? rtrim(str_replace(['[]', '[', ']'], ['', '.', ''], $name), '.') : null;
     $hasError = $errorKey && (($errors ?? new \Illuminate\Support\ViewErrorBag)->getBag($bag ?? 'default'))->has($errorKey);
+    $describedBy = $label && $id ? ($hasError ? $id . '-error' : ($hint ? $id . '-hint' : null)) : null;
     $selected = (string) ($name ? old($errorKey, $value ?? request($errorKey)) : $value);
     $control = 'w-full min-w-[150px] rounded-lg border bg-surface-container-lowest py-sm pl-md pr-xl font-body-base text-body-base text-on-surface transition-colors focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:bg-surface-container-low '
-        . ($hasError ? 'border-error focus:border-error focus:ring-error/20' : 'border-outline-variant focus:border-primary-container focus:ring-primary-container/20');
+        . ($hasError ? 'border-error focus:border-error focus:ring-error/20' : 'border-outline-variant focus:border-primary-container focus:ring-primary-container/50');
+@endphp
+
+@php
+    // Select không có nhãn hiển thị (vd. ô lọc chỉ có "Tất cả …") vẫn cần tên cho trình đọc màn hình.
+    if (! $label && ! $inlineLabel && $placeholder && ! $attributes->has('aria-label')) {
+        $attributes = $attributes->merge(['aria-label' => $placeholder]);
+    }
 @endphp
 
 @if ($label)

@@ -36,7 +36,7 @@
                                 <x-ui.avatar :name="$lead->name" size="sm" />
                                 <div>
                                     <a href="{{ route('crm.customers.show', $lead->id) }}" class="font-body-medium text-body-medium text-on-surface hover:text-primary">{{ $lead->name }}</a>
-                                    <div class="font-code text-caption text-on-surface-variant">{{ $lead->convertedStudent?->code }} · {{ $lead->waitingCourse?->name ?? 'Chưa chọn khóa' }}</div>
+                                    <div class="font-code text-caption text-on-surface-variant"><x-ui.code :value="$lead->convertedStudent?->code" /> · {{ $lead->waitingCourse?->name ?? 'Chưa chọn khóa' }}</div>
                                 </div>
                             </div>
                         </td>
@@ -58,7 +58,7 @@
                                                 <option value="{{ $class->id }}">{{ $class->name }}{{ $class->status === 'upcoming' ? ' (sắp khai giảng)' : '' }} · còn {{ $class->max_capacity > 0 ? max(0, $class->max_capacity - $class->active_enrollments_count) : '∞' }} chỗ{{ $class->status === 'upcoming' && $class->active_enrollments_count < (int) $class->min_students ? ' · cần thêm '.((int) $class->min_students - $class->active_enrollments_count).' HV để khai giảng' : '' }}</option>
                                             @endforeach
                                         </x-ui.select>
-                                        <x-ui.button type="submit" size="sm" icon="assignment_turned_in">Xếp lớp</x-ui.button>
+                                        <x-ui.button type="submit" size="sm" variant="secondary" icon="assignment_turned_in">Xếp lớp</x-ui.button>
                                     </form>
                                 @else
                                     {{-- Chưa có lớp đúng khóa / chi nhánh / còn chỗ: sang màn Xếp lớp (chọn sẵn học viên), ở đó chọn lớp hoặc tạo lớp mới. --}}

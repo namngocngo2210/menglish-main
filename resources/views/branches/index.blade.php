@@ -1,5 +1,5 @@
 <x-app-layout>
-    <x-ui.page-header title="Quản Lý Cơ Sở & Chi Nhánh Trung Tâm" icon="apartment">
+    <x-ui.page-header title="Cơ sở & chi nhánh" icon="apartment">
         <x-slot:breadcrumbs>
             <a href="{{ route('dashboard') }}" class="hover:text-on-surface transition flex items-center gap-1">
                 <span class="material-symbols-outlined text-[16px]">home</span>
@@ -60,7 +60,7 @@
                 <tbody>
                     @forelse ($branches as $idx => $branch)
                         <tr>
-                            <td class="text-center font-mono font-bold text-on-surface-variant/70">
+                            <td class="text-center font-mono font-bold text-on-surface-subtle">
                                 {{ $idx + 1 }}
                             </td>
                             <td class="font-mono font-bold text-secondary">
@@ -70,8 +70,8 @@
                             </td>
                             <td>
                                 <div class="font-bold text-on-surface text-sm mb-0.5">{{ $branch->name }}</div>
-                                <div class="text-[11px] text-on-surface-variant flex items-center gap-1">
-                                    <span class="material-symbols-outlined text-[13px] text-on-surface-variant/70">location_on</span>
+                                <div class="text-xs text-on-surface-variant flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[13px] text-on-surface-subtle">location_on</span>
                                     <span>{{ $branch->address }}</span>
                                 </div>
                             </td>
@@ -79,7 +79,7 @@
                                 {{ $branch->phone ?: 'Chưa cập nhật' }}
                             </td>
                             <td class="text-center">
-                                <div class="flex items-center justify-center gap-2 text-[11px] font-mono">
+                                <div class="flex items-center justify-center gap-2 text-xs font-mono">
                                     <x-ui.badge color="secondary" :dot="false" title="Số lớp học">{{ $branch->classes_count }} Lớp</x-ui.badge>
                                     <x-ui.badge color="success" :dot="false" title="Số học viên">{{ $branch->students_count }} HV</x-ui.badge>
                                     <x-ui.badge color="primary" :dot="false" title="Nhân sự phụ trách">{{ $branch->users_count }} NS</x-ui.badge>
@@ -100,7 +100,7 @@
                             <td class="text-right whitespace-nowrap">
                                 <div class="flex items-center justify-end gap-1">
                                     <x-ui.button variant="ghost" size="sm" icon="edit" x-on:click="openEdit({{ Js::from($branch) }})" title="Chỉnh sửa" aria-label="Chỉnh sửa" />
-                                    <form action="{{ route('branches.destroy', $branch->id) }}" method="POST" class="inline" data-confirm="Bạn có chắc chắn muốn xóa chi nhánh {{ $branch->name }}?">
+                                    <form action="{{ route('branches.destroy', $branch->id) }}" method="POST" class="inline" data-confirm="Bạn có chắc chắn muốn xóa chi nhánh {{ $branch->name }}?" data-confirm-label="Xóa" data-confirm-danger>
                                         @csrf
                                         @method('DELETE')
                                         <x-ui.button type="submit" variant="danger-text" size="sm" icon="delete" title="Xóa" aria-label="Xóa" />

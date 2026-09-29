@@ -25,23 +25,23 @@
         </div>
 
         {{-- Filter & Bảng Sự vụ --}}
+        <x-ui.filter-bar :action="route('academic.dashboards.incidents')" :search="false" class="!mb-0" aria-label="Lọc sự vụ">
+            <x-ui.select name="branch_id" label="Cơ sở" onchange="this.form.submit()" placeholder="Tất cả cơ sở" :value="(string) $branchId"
+                         :options="$branches->pluck('name', 'id')" />
+            <x-ui.select name="class_id" label="Lớp" onchange="this.form.submit()" placeholder="Mọi lớp" :value="(string) $classId"
+                         :options="$classes->mapWithKeys(fn ($c) => [$c->id => $c->code])" />
+            <x-ui.select name="severity" label="Mức độ" onchange="this.form.submit()" :value="$severity"
+                         :options="['all' => 'Mọi mức độ'] + $priorityLabels" />
+            <x-ui.select name="status" label="Trạng thái" onchange="this.form.submit()" :value="$status"
+                         :options="['all' => 'Mọi trạng thái', 'open' => 'Đang xử lý', 'resolved' => 'Đã giải quyết']" />
+        </x-ui.filter-bar>
+
         <x-ui.data-table>
             <x-slot:header>
                 <div>
                     <h3 class="text-sm font-bold text-on-surface">Nhật ký sự vụ các lớp và cơ sở</h3>
                     <p class="text-xs text-on-surface-variant">Theo dõi, giao quyền xử lý và ghi nhận giải pháp khắc phục</p>
                 </div>
-                <form method="GET" action="{{ route('academic.dashboards.incidents') }}" class="grid w-full grid-cols-2 gap-2 lg:w-auto lg:grid-cols-4" aria-label="Lọc sự vụ">
-                    <x-ui.select name="branch_id" aria-label="Cơ sở" onchange="this.form.submit()" placeholder="Tất cả cơ sở" :value="(string) $branchId"
-                                 :options="$branches->pluck('name', 'id')" />
-                    <x-ui.select name="class_id" aria-label="Lớp" onchange="this.form.submit()" placeholder="Mọi lớp" :value="(string) $classId"
-                                 :options="$classes->mapWithKeys(fn ($c) => [$c->id => $c->code])" />
-                    <x-ui.select name="severity" aria-label="Mức độ" onchange="this.form.submit()" :value="$severity"
-                                 :options="['all' => 'Mọi mức độ'] + $priorityLabels" />
-                    <x-ui.select name="status" aria-label="Trạng thái" onchange="this.form.submit()" :value="$status"
-                                 :options="['all' => 'Mọi trạng thái', 'open' => 'Đang xử lý', 'resolved' => 'Đã giải quyết']" />
-                    <noscript><x-ui.button type="submit" size="sm" variant="secondary">Lọc</x-ui.button></noscript>
-                </form>
             </x-slot:header>
 
             <table>
@@ -64,21 +64,21 @@
                                 @else
                                     <span class="font-code font-bold text-on-surface">{{ $ticket->code }}</span>
                                 @endif
-                                <span class="block text-[11px] text-on-surface-variant">{{ $ticket->creator?->branch?->name ?? 'Chưa cập nhật' }}</span>
+                                <span class="block text-xs text-on-surface-variant">{{ $ticket->creator?->branch?->name ?? 'Chưa cập nhật' }}</span>
                             </td>
                             <td>
                                 <x-ui.badge color="neutral" pill :dot="false">{{ $ticket->category_label }}</x-ui.badge>
                             </td>
                             <td class="max-w-sm">
                                 <p class="font-semibold">{{ $ticket->title }}</p>
-                                <p class="line-clamp-1 text-[11px] text-on-surface-variant">{{ \Illuminate\Support\Str::limit(strip_tags((string) $ticket->description), 140) }}</p>
+                                <p class="line-clamp-1 text-xs text-on-surface-variant">{{ \Illuminate\Support\Str::limit(strip_tags((string) $ticket->description), 140) }}</p>
                             </td>
                             <td>
                                 <x-ui.badge :color="$priorityColors[$ticket->priority] ?? 'neutral'" pill>{{ $priorityLabels[$ticket->priority] ?? 'Chưa cập nhật' }}</x-ui.badge>
                             </td>
                             <td>
                                 <span class="font-bold">{{ $ticket->assignee?->name ?? 'Chưa phân công' }}</span>
-                                <span class="block text-[11px] text-on-surface-variant">Người tạo: {{ $ticket->creator?->name ?? 'Chưa cập nhật' }}</span>
+                                <span class="block text-xs text-on-surface-variant">Người tạo: {{ $ticket->creator?->name ?? 'Chưa cập nhật' }}</span>
                             </td>
                             <td>
                                 <x-ui.badge :color="$ticketStatusColors[$ticket->status] ?? 'neutral'" pill>{{ $ticket->status_label }}</x-ui.badge>
@@ -90,9 +90,9 @@
                         <tr class="{{ $journal->severity === 'urgent' && $journal->status !== 'resolved' ? 'bg-error/5' : '' }}">
                             <td>
                                 <span class="font-code font-bold">Sự vụ #{{ $journal->id }}</span>
-                                <span class="block text-[11px] text-on-surface-variant">{{ $journal->classModel?->branch?->name ?? $journal->user?->branch?->name ?? 'Chưa cập nhật' }}</span>
+                                <span class="block text-xs text-on-surface-variant">{{ $journal->classModel?->branch?->name ?? $journal->user?->branch?->name ?? 'Chưa cập nhật' }}</span>
                                 @if ($journal->classModel)
-                                    <a href="{{ route('classes.show', ['id' => $journal->class_id, 'tab' => 'incidents']) }}" class="block text-[11px] font-semibold text-primary hover:underline">Lớp {{ $journal->classModel->code }}</a>
+                                    <a href="{{ route('classes.show', ['id' => $journal->class_id, 'tab' => 'incidents']) }}" class="block text-xs font-semibold text-primary hover:underline">Lớp {{ $journal->classModel->code }}</a>
                                 @endif
                             </td>
                             <td>
@@ -101,7 +101,7 @@
                             <td class="max-w-sm">
                                 <p class="font-semibold">{{ $journal->title }}</p>
                                 @if ($journal->content)
-                                    <p class="line-clamp-1 text-[11px] text-on-surface-variant">{{ $journal->content }}</p>
+                                    <p class="line-clamp-1 text-xs text-on-surface-variant">{{ $journal->content }}</p>
                                 @endif
                             </td>
                             <td>
@@ -110,7 +110,7 @@
                             <td>
                                 <span class="font-bold">{{ $journal->user?->name ?? 'Chưa cập nhật' }}</span>
                                 @if ($journal->followups->isNotEmpty())
-                                    <span class="block line-clamp-1 text-[11px] text-on-surface-variant">{{ $journal->followups->first()->content }}</span>
+                                    <span class="block line-clamp-1 text-xs text-on-surface-variant">{{ $journal->followups->first()->content }}</span>
                                 @endif
                             </td>
                             <td>
@@ -122,7 +122,7 @@
                         <tr>
                             <td>
                                 <span class="font-code font-bold">{{ $incident->record_code ?: 'Nhật ký #' . $incident->id }}</span>
-                                <span class="block text-[11px] text-on-surface-variant">{{ $incident->user?->branch?->name ?? 'Chưa cập nhật' }}</span>
+                                <span class="block text-xs text-on-surface-variant">{{ $incident->user?->branch?->name ?? 'Chưa cập nhật' }}</span>
                             </td>
                             <td>
                                 <x-ui.badge color="warning" pill :dot="false">Nhật ký học vụ</x-ui.badge>
@@ -130,10 +130,10 @@
                             <td class="max-w-sm">
                                 <p class="font-semibold">{{ $incident->title }}</p>
                                 @if (! empty($incident->data['noi_dung']))
-                                    <p class="line-clamp-1 text-[11px] text-on-surface-variant">{{ $incident->data['noi_dung'] }}</p>
+                                    <p class="line-clamp-1 text-xs text-on-surface-variant">{{ $incident->data['noi_dung'] }}</p>
                                 @endif
                             </td>
-                            <td class="text-[11px] text-on-surface-variant/70">—</td>
+                            <td class="text-xs text-on-surface-subtle">—</td>
                             <td>
                                 <span class="font-bold">{{ $incident->user?->name ?? 'Chưa cập nhật' }}</span>
                             </td>

@@ -34,39 +34,27 @@
             <x-ui.stat-card label="Nhân viên hoạt động hôm nay" :value="number_format($activeUsersToday).' người'" icon="group" tone="primary" />
         </div>
 
+        <x-ui.filter-bar :action="route('activity-logs.index')" placeholder="Tìm tên người thực hiện, mã bản ghi...">
+            <x-slot:quick>
+                <div class="flex flex-wrap items-center gap-xs">
+                    <a href="{{ route('activity-logs.index', request()->except(['module', 'page'])) }}"
+                       class="rounded-full border px-sm py-[2px] font-body-small text-body-small {{ ! $activeGroup ? 'border-primary-container bg-primary-container text-white' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container-low' }}">Tất cả</a>
+                    @foreach ($groups as $key => $group)
+                        <a href="{{ route('activity-logs.index', array_merge(request()->except('page'), ['module' => $key])) }}"
+                           class="rounded-full border px-sm py-[2px] font-body-small text-body-small {{ $activeGroup === $key ? 'border-primary-container bg-primary-container text-white' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container-low' }}">{{ $group['label'] }}</a>
+                    @endforeach
+                    @if ($activeGroup)
+                        <input type="hidden" name="module" value="{{ $activeGroup }}">
+                    @endif
+                </div>
+            </x-slot:quick>
+            <x-ui.select name="log_name" label="Phân hệ" :options="collect($allLogNames)->mapWithKeys(fn ($n) => [$n => $n])" placeholder="Mọi phân hệ" />
+            <x-ui.select name="causer_id" label="Người thực hiện" :options="$users->pluck('name', 'id')" placeholder="Mọi người thực hiện" />
+            <x-ui.select name="event" label="Loại thao tác" :options="$events->mapWithKeys(fn ($e) => [$e => \App\Support\Audit::eventLabel($e)])" placeholder="Mọi loại" />
+            <x-ui.date-range label="Thời gian" from="date_from" to="date_to" />
+        </x-ui.filter-bar>
+
         <x-ui.data-table min-width="900px">
-            <x-slot:header>
-                <form method="GET" action="{{ route('activity-logs.index') }}" class="flex w-full flex-col gap-sm">
-                    <div class="flex flex-wrap items-center gap-xs">
-                        <a href="{{ route('activity-logs.index', request()->except(['module', 'page'])) }}"
-                           class="rounded-full border px-sm py-[2px] font-body-small text-body-small {{ ! $activeGroup ? 'border-primary-container bg-primary-container text-white' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container-low' }}">Tất cả</a>
-                        @foreach ($groups as $key => $group)
-                            <a href="{{ route('activity-logs.index', array_merge(request()->except('page'), ['module' => $key])) }}"
-                               class="rounded-full border px-sm py-[2px] font-body-small text-body-small {{ $activeGroup === $key ? 'border-primary-container bg-primary-container text-white' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container-low' }}">{{ $group['label'] }}</a>
-                        @endforeach
-                        @if ($activeGroup)
-                            <input type="hidden" name="module" value="{{ $activeGroup }}">
-                        @endif
-                    </div>
-                    <div class="flex flex-wrap items-end gap-sm">
-                        <div class="min-w-[240px] flex-1"><x-ui.input name="search" icon="search" :value="request('search')" placeholder="Tìm tên người thực hiện, mã bản ghi..." aria-label="Tìm kiếm" /></div>
-                        <x-ui.select name="log_name" :options="collect($allLogNames)->mapWithKeys(fn ($n) => [$n => $n])" placeholder="Mọi phân hệ" aria-label="Phân hệ" />
-                        <x-ui.select name="causer_id" :options="$users->pluck('name', 'id')" placeholder="Mọi người thực hiện" aria-label="Người thực hiện" />
-                        <x-ui.select name="event" :options="$events->mapWithKeys(fn ($e) => [$e => \App\Support\Audit::eventLabel($e)])" placeholder="Mọi loại" aria-label="Loại thao tác" />
-                        <div class="flex items-center gap-xs font-body-small text-body-small text-on-surface-variant">
-                            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">calendar_today</span>
-                            <x-ui.date name="date_from" :value="request('date_from')" aria-label="Từ ngày" />
-                            đến
-                            <x-ui.date name="date_to" :value="request('date_to')" aria-label="Đến ngày" />
-                        </div>
-                        <x-ui.button type="submit" icon="filter_list">Lọc</x-ui.button>
-                        @if (request()->hasAny($filterKeys))
-                            <x-ui.button variant="ghost" icon="close" :href="route('activity-logs.index')">Xóa lọc</x-ui.button>
-                        @endif
-                    </div>
-                    <x-ui.errors :messages="array_merge($errors->get('date_from'), $errors->get('date_to'))" />
-                </form>
-            </x-slot:header>
             <table>
                 <thead>
                     <tr>
@@ -183,7 +171,7 @@
                     </div>
                     <footer class="flex gap-sm border-t border-surface-container bg-surface-container-low p-md">
                         @if ($undoable)
-                            <form method="POST" action="{{ route('activity-logs.undo', $log->id) }}" class="flex-1" onsubmit="return confirm('Khôi phục các giá trị trước của thao tác này?');">
+                            <form method="POST" action="{{ route('activity-logs.undo', $log->id) }}" class="flex-1" data-confirm="Khôi phục các giá trị trước của thao tác này?" data-confirm-label="Khôi phục">
                                 @csrf
                                 <x-ui.button type="submit" variant="danger" icon="undo" class="w-full">Hoàn tác</x-ui.button>
                             </form>

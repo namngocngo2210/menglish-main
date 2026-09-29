@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Money;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -41,7 +42,7 @@ class OperatingExpense extends Model
 
     public function getFormattedAmountAttribute(): string
     {
-        return number_format((float)$this->amount, 0, ',', '.') . ' đ';
+        return Money::format((float) $this->amount);
     }
 
     public function getPaymentMethodLabelAttribute(): string

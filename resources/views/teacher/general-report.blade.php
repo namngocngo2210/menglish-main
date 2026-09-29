@@ -37,7 +37,7 @@
                 <tbody>
                     @forelse ($myClasses as $cls)
                         <tr>
-                            <td class="font-bold">{{ $cls->name }} <span class="font-mono text-[10px] text-on-surface-variant/70">{{ $cls->code }}</span></td>
+                            <td class="font-bold">{{ $cls->name }} <span class="font-mono text-xs text-on-surface-subtle">{{ $cls->code }}</span></td>
                             <td>{{ $cls->course?->name ?? $cls->program ?? '—' }}</td>
                             <td>
                                 @if ($cls->teacher_id === auth()->id())

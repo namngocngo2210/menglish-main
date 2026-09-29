@@ -57,10 +57,10 @@
                     <p class="font-bold text-on-surface text-xs">
                         Kéo thả ảnh chụp lỗi vào đây, hoặc <span class="text-primary underline">chọn từ thiết bị</span>
                     </p>
-                    <p class="text-[11px] text-on-surface-variant">
+                    <p class="text-xs text-on-surface-variant">
                         Hỗ trợ: PNG, JPG, GIF, WEBP hoặc tài liệu PDF/Excel (Tối đa 15MB/file)
                     </p>
-                    <div class="inline-flex items-center gap-1 text-[10px] text-primary bg-primary-container/10 px-2.5 py-0.5 rounded-full font-semibold mt-1">
+                    <div class="inline-flex items-center gap-1 text-xs text-primary bg-primary-container/10 px-2.5 py-0.5 rounded-full font-semibold mt-1">
                         <span class="material-symbols-outlined text-[13px]">content_paste</span>
                         <span>Có thể dán trực tiếp ảnh từ Clipboard (Ctrl + V / Cmd + V)</span>
                     </div>
@@ -79,7 +79,7 @@
                                 <template x-if="!item.isImage">
                                     <div class="flex flex-col items-center gap-1 text-on-surface-variant">
                                         <span class="material-symbols-outlined text-2xl">draft</span>
-                                        <span class="text-[9px] uppercase font-bold" x-text="item.ext"></span>
+                                        <span class="text-xs uppercase font-bold" x-text="item.ext"></span>
                                     </div>
                                 </template>
                                 <button 
@@ -92,8 +92,8 @@
                                 </button>
                             </div>
                             <div class="mt-1 px-1">
-                                <div class="font-medium text-[11px] text-on-surface truncate" x-text="item.name"></div>
-                                <div class="text-[10px] text-on-surface-variant/70 font-mono" x-text="item.sizeFormatted"></div>
+                                <div class="font-medium text-xs text-on-surface truncate" x-text="item.name"></div>
+                                <div class="text-xs text-on-surface-subtle font-mono" x-text="item.sizeFormatted"></div>
                             </div>
                         </div>
                     </template>

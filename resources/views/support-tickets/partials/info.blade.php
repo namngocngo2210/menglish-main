@@ -13,11 +13,11 @@
             </div>
             <div class="flex justify-between">
                 <span class="text-on-surface-variant">Mức độ ưu tiên:</span>
-                <span class="px-2 py-0.5 rounded-full border text-[10px] {{ $ticket->priority_badge }}">{{ strtoupper($ticket->priority) }}</span>
+                <span class="px-2 py-0.5 rounded-full border text-xs {{ $ticket->priority_badge }}">{{ strtoupper($ticket->priority) }}</span>
             </div>
             <div class="flex justify-between">
                 <span class="text-on-surface-variant">Trạng thái:</span>
-                <span class="px-2 py-0.5 rounded-full border font-bold text-[10px] {{ $ticket->status_badge }}">{{ $ticket->status_label }}</span>
+                <span class="px-2 py-0.5 rounded-full border font-bold text-xs {{ $ticket->status_badge }}">{{ $ticket->status_label }}</span>
             </div>
             <div class="flex justify-between">
                 <span class="text-on-surface-variant">Người tạo:</span>

@@ -1,7 +1,7 @@
 {{-- Nhận xét buổi học cho từng học sinh (mockup 03_Cong_Giao_Vien/05): theo từng BUỔI học, cột Monsters (Nhóm) / (Thưởng),
      Thực hành ngữ pháp, Tinh thần học tập, Kết quả, Nhận xét chi tiết; học sinh vắng bị khóa; "Lưu nháp" chưa hiện cho học viên. --}}
 @php
-    $cell = 'w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-sm py-xs font-body-small text-body-small focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 disabled:cursor-not-allowed disabled:bg-surface-container-low';
+    $cell = 'w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-sm py-xs font-body-small text-body-small focus:border-primary-container focus:ring-2 focus:ring-primary-container/50 disabled:cursor-not-allowed disabled:bg-surface-container-low';
     $fields = [
         'monsters_group' => ['Monsters (Nhóm)', 'e.g. +5'],
         'monsters_bonus' => ['Monsters (Thưởng)', 'e.g. +2'],
@@ -44,7 +44,11 @@
 
             @if (! $session)
                 <div class="rounded-xl border border-outline-variant bg-surface-container-lowest">
-                    <x-ui.empty-state icon="event_busy" title="Lớp không có buổi học trong ngày này" description="Chọn một buổi ở danh sách bên dưới để nhận xét." />
+                    @if ($recentSessions->isNotEmpty())
+                        <x-ui.empty-state icon="event_busy" title="Lớp không có buổi học trong ngày này" description="Chọn buổi cần nhận xét ở ô “Nhận xét buổi khác” bên dưới." />
+                    @else
+                        <x-ui.empty-state icon="event_busy" title="Lớp chưa có buổi học nào" description="Lớp chưa được xếp thời khóa biểu. Liên hệ Học vụ để kiểm tra TKB của lớp." />
+                    @endif
                 </div>
             @elseif ($blockReason)
                 <x-ui.alert type="warning">{{ $blockReason }}</x-ui.alert>

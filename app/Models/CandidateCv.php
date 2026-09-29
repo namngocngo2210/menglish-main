@@ -52,7 +52,7 @@ class CandidateCv extends Model
         return match ($this->status) {
             'pending' => ['label' => 'Chờ xử lý', 'class' => 'bg-warning/10 text-warning border-warning/30'],
             'reviewing' => ['label' => 'Đang đánh giá', 'class' => 'bg-secondary/10 text-secondary border-secondary/30'],
-            'interviewed' => ['label' => 'Đã phỏng vấn', 'class' => 'bg-purple-50 text-purple-700 border-purple-200'],
+            'interviewed' => ['label' => 'Đã phỏng vấn', 'class' => 'bg-accent-container text-accent border-accent/30'],
             'accepted' => ['label' => 'Đã tuyển dụng', 'class' => 'bg-tertiary/10 text-tertiary border-tertiary/30'],
             'rejected' => ['label' => 'Từ chối', 'class' => 'bg-error/10 text-error border-error/30'],
             default => ['label' => $this->status, 'class' => 'bg-surface-container-low text-on-surface-variant border-surface-container-highest'],

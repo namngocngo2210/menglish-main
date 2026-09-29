@@ -43,6 +43,37 @@ class AuthenticationTest extends TestCase
         }
     }
 
+    public function test_login_screen_is_in_vietnamese(): void
+    {
+        $this->get('/login')
+            ->assertOk()
+            ->assertSee('Mật khẩu')
+            ->assertSee('Ghi nhớ đăng nhập')
+            ->assertSee('Quên mật khẩu?')
+            ->assertSee('Hiện mật khẩu')
+            ->assertDontSee('Remember me')
+            ->assertDontSee('Forgot your password?');
+    }
+
+    public function test_users_can_authenticate_with_their_account_code_case_insensitively(): void
+    {
+        $user = User::factory()->create(['employee_code' => 'HV-00103']);
+
+        $this->post('/login', ['email' => 'hv-00103', 'password' => 'password']);
+
+        $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_wrong_credentials_show_a_vietnamese_message(): void
+    {
+        User::factory()->create(['employee_code' => 'HV-00104']);
+
+        $this->post('/login', ['email' => 'HV-99999', 'password' => 'password'])
+            ->assertSessionHasErrors(['email' => 'Email hoặc mật khẩu không đúng.']);
+
+        $this->assertGuest();
+    }
+
     public function test_users_can_not_authenticate_with_invalid_password(): void
     {
         $user = User::factory()->create();

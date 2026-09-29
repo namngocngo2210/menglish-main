@@ -29,7 +29,7 @@
             <div class="w-14 h-12 shrink-0 overflow-hidden px-1 rounded-xl bg-primary-container text-white flex flex-col items-center justify-center font-black shadow-sm">
                 @if ($rubric && ! $rubric['legacy'])
                     <span class="text-sm leading-none">{{ $fmt($rubric['total']) }}</span>
-                    <span class="text-[9px] tracking-wider font-semibold opacity-90">/ {{ $rubric['max_total'] }}</span>
+                    <span class="text-xs tracking-wider font-semibold opacity-90">/ {{ $rubric['max_total'] }}</span>
                 @else
                     <span class="text-sm leading-none" title="{{ $legacyScore }}">{{ $legacyBadge }}</span>
                 @endif
@@ -38,7 +38,7 @@
                 <div class="flex items-center gap-2 flex-wrap">
                     <h4 class="font-body-semibold text-body-semibold text-on-surface">Kết quả test đầu vào</h4>
                     @if ($rubric && ! $rubric['legacy'])
-                        <span class="px-2 py-0.5 bg-surface-container-lowest border border-warning/30 text-on-warning-container rounded-md text-[10px] font-bold shadow-2xs">{{ $rubric['grade_group_label'] }}</span>
+                        <span class="px-2 py-0.5 bg-surface-container-lowest border border-warning/30 text-on-warning-container rounded-md text-xs font-bold shadow-2xs">{{ $rubric['grade_group_label'] }}</span>
                     @endif
                 </div>
                 @if (! ($rubric && ! $rubric['legacy']) && $legacyDetail !== '')
@@ -51,14 +51,14 @@
                     </p>
                 @endif
                 @if ($rubric && ($rubric['draft'] ?? false))
-                    <p class="mt-0.5 inline-flex items-center gap-1 rounded-md bg-warning-container px-2 py-0.5 text-[11px] font-semibold text-on-warning-container" data-testid="rubric-draft">
+                    <p class="mt-0.5 inline-flex items-center gap-1 rounded-md bg-warning-container px-2 py-0.5 text-xs font-semibold text-on-warning-container" data-testid="rubric-draft">
                         <span class="material-symbols-outlined text-[14px]">auto_awesome</span>Hệ thống đã tự chấm Nghe, Đọc &amp; Viết — tổng tạm tính, chờ Học vụ nhập điểm Nói và xác nhận
                     </p>
                 @endif
                 @if ($rubric && $rubric['overridden'])
-                    <p class="text-[11px] text-on-surface-variant">Lớp đề xuất theo thang điểm: <strong>{{ $rubric['suggested_class'] }}</strong> (Học vụ đã chọn lại)</p>
+                    <p class="text-xs text-on-surface-variant">Lớp đề xuất theo thang điểm: <strong>{{ $rubric['suggested_class'] }}</strong> (Học vụ đã chọn lại)</p>
                 @elseif ($rubric && ! $rubric['legacy'] && ! $rubric['has_rubric'])
-                    <p class="text-[11px] text-on-warning-container">{{ \App\Services\PlacementRubricService::noRubricNotice() }}</p>
+                    <p class="text-xs text-on-warning-container">{{ \App\Services\PlacementRubricService::noRubricNotice() }}</p>
                 @endif
             </div>
         </div>
@@ -71,7 +71,7 @@
     </div>
 
     @if ($rubric && $rubric['legacy'])
-        <div class="p-3 bg-surface-container-low border border-surface-container-highest rounded-xl text-[11px] text-on-surface-variant">
+        <div class="p-3 bg-surface-container-low border border-surface-container-highest rounded-xl text-xs text-on-surface-variant">
             Bài chấm theo cách cũ (trước khi áp dụng thang điểm khối lớp). Điểm từng kỹ năng:
             Nghe {{ $fmt($submission?->listening_score) }} · Đọc {{ $fmt($submission?->reading_score) }} · Viết {{ $fmt($submission?->writing_score) }} · Nói {{ $fmt($submission?->speaking_score) }}.
             Sửa điểm để chấm lại theo thang điểm mới.
@@ -81,11 +81,11 @@
             @foreach ($skills as $skill => $label)
                 <div class="p-2.5 rounded-xl border {{ $skillStyles[$skill] }} space-y-1">
                     <div class="flex items-baseline justify-between gap-2">
-                        <span class="font-bold text-on-surface uppercase text-[10px]">{{ $label }}</span>
-                        <span class="text-base font-black font-mono">{{ $fmt($skillScores[$skill]) }}@if ($rubric)<span class="text-[10px] text-on-surface-variant">/{{ $rubric['max'][$skill] }}</span>@endif</span>
+                        <span class="font-bold text-on-surface uppercase text-xs">{{ $label }}</span>
+                        <span class="text-base font-black font-mono">{{ $fmt($skillScores[$skill]) }}@if ($rubric)<span class="text-xs text-on-surface-variant">/{{ $rubric['max'][$skill] }}</span>@endif</span>
                     </div>
                     @if (filled($rubric['comments'][$skill] ?? null))
-                        <p class="text-[11px] text-on-surface-variant leading-relaxed">{{ $rubric['comments'][$skill] }}</p>
+                        <p class="text-xs text-on-surface-variant leading-relaxed">{{ $rubric['comments'][$skill] }}</p>
                     @endif
                 </div>
             @endforeach
@@ -94,11 +94,11 @@
 
     @if (filled($submission?->teacher_comments))
         <div class="p-3 bg-surface-container-low border border-surface-container-highest rounded-xl space-y-1">
-            <div class="flex items-center gap-1 text-[11px] font-bold text-on-surface-variant">
+            <div class="flex items-center gap-1 text-xs font-bold text-on-surface-variant">
                 <span class="material-symbols-outlined text-[14px] text-primary">rate_review</span>
                 <span>Ghi chú của người chấm{{ $submission->grader ? ' ('.$submission->grader->name.')' : '' }}:</span>
             </div>
-            <p class="text-on-surface leading-relaxed text-[11px] whitespace-pre-line">{{ $submission->teacher_comments }}</p>
+            <p class="text-on-surface leading-relaxed text-xs whitespace-pre-line">{{ $submission->teacher_comments }}</p>
         </div>
     @endif
 </div>

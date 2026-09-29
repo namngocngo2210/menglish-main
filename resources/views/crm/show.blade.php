@@ -157,7 +157,7 @@
                             <span class="text-on-surface-variant">{{ $class->course?->name ?? 'Chưa gán khóa' }}{{ $class->level ? ' · '.$class->level : '' }}</span>
                         </div>
                         @if ($row['sessions']->isEmpty())
-                            <p class="mt-1 italic text-on-surface-variant/70">Không có buổi học trong 7 ngày tới.</p>
+                            <p class="mt-1 italic text-on-surface-subtle">Không có buổi học trong 7 ngày tới.</p>
                         @else
                             <div class="mt-2 flex flex-wrap gap-1.5">
                                 @foreach ($row['sessions'] as $slot)
@@ -165,7 +165,7 @@
                                         <input type="radio" name="class_session_id" value="{{ $slot->id }}" class="peer sr-only" @checked((int) old('class_session_id') === $slot->id) required>
                                         <span class="inline-flex flex-col rounded-lg border border-outline-variant px-2.5 py-1.5 leading-tight hover:border-secondary peer-checked:border-secondary peer-checked:bg-secondary/10 peer-checked:ring-1 peer-checked:ring-secondary peer-focus-visible:ring-2 peer-focus-visible:ring-secondary">
                                             <span class="font-semibold text-on-surface">{{ $weekdays[$slot->date->dayOfWeek] }} {{ $slot->date->format('d/m') }} · {{ $slot->start_time?->format('H:i') }}–{{ $slot->end_time?->format('H:i') }}</span>
-                                            <span class="text-[11px] text-on-surface-variant">GV: {{ $slot->teacher?->name ?? $class->teacher?->name ?? 'Chưa gán' }}</span>
+                                            <span class="text-xs text-on-surface-variant">GV: {{ $slot->teacher?->name ?? $class->teacher?->name ?? 'Chưa gán' }}</span>
                                         </span>
                                     </label>
                                 @endforeach
@@ -173,7 +173,7 @@
                         @endif
                     </div>
                 @empty
-                    <div class="rounded-xl border border-surface-container-highest p-4 text-center text-on-surface-variant/80">
+                    <div class="rounded-xl border border-surface-container-highest p-4 text-center text-on-surface-subtle">
                         {{ $trialSlots['filtered'] ? 'Không có lớp đang mở nào khớp trình độ '.$trialSlots['level'].($customer->branch ? ' tại '.$customer->branch->name : '').'.' : 'Chưa có lớp đang mở'.($customer->branch ? ' tại '.$customer->branch->name : '').'.' }}
                         <span class="block mt-1">Kiểm tra "Khóa học quan tâm" của khách hoặc lịch lớp.</span>
                     </div>
@@ -234,7 +234,7 @@
                 @if ($editSub)
                     <input type="hidden" name="submission_id" value="{{ $editSub->id }}">
                 @endif
-                <x-ui.alert type="warning" class="text-[11px]">
+                <x-ui.alert type="warning" class="text-xs">
                     <strong>Học viên:</strong> {{ $customer->name }} ({{ $customer->phone }})<br>
                     <span>Chấm theo <strong>thang điểm khối lớp</strong>: Tổng = Nghe + Đọc &amp; Viết + Nói → lớp đề xuất. Lưu điểm sẽ tự chuyển khách sang "Đã test".</span>
                 </x-ui.alert>
@@ -724,7 +724,7 @@
                             'Email' => $customer->email ?? '—',
                             'Ngày sinh / Giới tính' => ($customer->dob?->format('d/m/Y') ?? '—').' ('.($customer->gender ?? 'Chưa rõ').')',
                             'Khóa quan tâm' => $customer->course_interest ?? 'Chưa chọn',
-                            'Giá trị hợp đồng' => number_format((float) $customer->deal_value, 0, ',', '.').' ₫',
+                            'Giá trị hợp đồng' => \App\Support\Money::format((float) $customer->deal_value),
                             'Địa chỉ' => $customer->address ?? 'Chưa cập nhật',
                             'Ngày tạo hồ sơ' => $customer->created_at->format('d/m/Y H:i'),
                             'Ngày chốt' => $customer->converted_at?->format('d/m/Y H:i') ?? '—',
@@ -829,15 +829,4 @@
         </div>
     </div>
 
-    @push('scripts')
-    <script>
-        // Confirm xoá khách qua data-confirm (thay cho inline onsubmit — tránh XSS qua tên khách)
-        document.addEventListener('submit', function (event) {
-            const form = event.target instanceof Element ? event.target.closest('form[data-confirm]') : null;
-            if (form && !window.confirm(form.getAttribute('data-confirm'))) {
-                event.preventDefault();
-            }
-        }, true);
-    </script>
-    @endpush
 </x-app-layout>

@@ -438,7 +438,7 @@ class PayrollP0FixesTest extends TestCase
 
         $this->actingAs($this->teacher)->get(route('portal.my-salary'))
             ->assertOk()
-            ->assertDontSee('9,999,000')
+            ->assertDontSee('9.999.000')
             ->assertDontSee('Đã xác thực dữ liệu');
 
         $approved = $this->period(8, 2026, 'approved');
@@ -459,7 +459,7 @@ class PayrollP0FixesTest extends TestCase
             ->assertSee('150.000')    // tổng trừ gồm GVNN
             ->assertSee('3.550.000')
             ->assertSee('Đã duyệt')
-            ->assertDontSee('9,999,000');
+            ->assertDontSee('9.999.000');
 
         $this->actingAs($this->teacher)->get(route('portal.my-salary', ['period_id' => $paid->id]))
             ->assertOk()

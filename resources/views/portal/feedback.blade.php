@@ -80,13 +80,13 @@
                 <h2 class="text-base font-bold text-on-surface">Đánh giá chặng học</h2>
             </div>
             <div class="text-right">
-                <span class="text-[10px] text-on-surface-variant/70 font-medium block">Học sinh</span>
+                <span class="text-xs text-on-surface-subtle font-medium block">Học sinh</span>
                 <span class="text-xs font-bold text-on-surface">{{ $student?->name ?? '—' }}</span>
             </div>
         </div>
 
         {{-- Main Body Content --}}
-        <main class="flex-1 p-4 space-y-4 overflow-y-auto">
+        <div class="flex-1 p-4 space-y-4 overflow-y-auto">
 
             {{-- ======================================================== --}}
             {{-- VIEW 1: FORM NHẬP / CHỈNH SỬA (Lần đầu & Đã gửi sửa tiếp) --}}
@@ -108,7 +108,7 @@
                 {{-- 1. Tên Chặng Đang Mở Thu Thập (Read-only, R-02) --}}
                 <div class="bg-surface-container-low border border-surface-container-highest rounded-2xl p-3.5 shadow-2xs">
                     <div class="flex items-center justify-between mb-1.5">
-                        <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Chặng học đang mở thu thập</span>
+                        <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Chặng học đang mở thu thập</span>
                         <x-ui.badge color="success" :pill="true">
                             Đang mở thu thập
                         </x-ui.badge>
@@ -120,10 +120,10 @@
                             </div>
                             <div>
                                 <h3 class="text-xs font-bold text-on-surface leading-tight">{{ $stageName }}</h3>
-                                <p class="text-[11px] text-on-surface-variant mt-0.5">Lớp: <span class="font-bold text-on-surface">{{ $className }}</span></p>
+                                <p class="text-xs text-on-surface-variant mt-0.5">Lớp: <span class="font-bold text-on-surface">{{ $className }}</span></p>
                             </div>
                         </div>
-                        <span class="material-symbols-outlined text-on-surface-variant/70 text-[18px]" title="Cố định theo chặng đang mở của lớp">lock</span>
+                        <span class="material-symbols-outlined text-on-surface-subtle text-[18px]" title="Cố định theo chặng đang mở của lớp">lock</span>
                     </div>
                 </div>
 
@@ -139,7 +139,7 @@
                         <div class="flex items-center justify-between mb-2">
                             <label class="text-xs font-bold text-on-surface flex items-center gap-1">
                                 <span>1. Mức độ hài lòng chung</span>
-                                <span class="text-[10px] font-normal text-on-surface-variant/70">(Tùy chọn)</span>
+                                <span class="text-xs font-normal text-on-surface-subtle">(Tùy chọn)</span>
                             </label>
                             <span class="text-xs font-bold text-primary" x-text="ratingLabels[rating]"></span>
                         </div>
@@ -151,12 +151,12 @@
                                         @click="setRating(star)"
                                         class="p-2 rounded-xl hover:bg-primary-container/10 focus:outline-none flex flex-col items-center gap-1 transition active:scale-95 group">
                                     <span class="material-symbols-outlined text-3xl transition-transform group-hover:scale-110"
-                                          :class="star <= rating ? 'text-warning/70' : 'text-on-surface-variant/70'"
+                                          :class="star <= rating ? 'text-warning/70' : 'text-on-surface-subtle'"
                                           :style="star <= rating ? 'font-variation-settings: \'FILL\' 1;' : ''">
                                         star
                                     </span>
-                                    <span class="text-[10px] font-mono font-bold"
-                                          :class="star <= rating ? 'text-warning' : 'text-on-surface-variant/70'"
+                                    <span class="text-xs font-mono font-bold"
+                                          :class="star <= rating ? 'text-warning' : 'text-on-surface-subtle'"
                                           x-text="star"></span>
                                 </button>
                             </template>
@@ -167,7 +167,7 @@
                     <div class="bg-surface-container-lowest border border-surface-container-highest rounded-2xl p-4 shadow-2xs">
                         <label class="text-xs font-bold text-on-surface flex items-center justify-between mb-2.5">
                             <span>2. Lĩnh vực cần góp ý</span>
-                            <span class="text-[10px] font-normal text-on-surface-variant/70">(Tùy chọn)</span>
+                            <span class="text-xs font-normal text-on-surface-subtle">(Tùy chọn)</span>
                         </label>
                         <div class="grid grid-cols-3 gap-2">
                             {{-- Checkbox 1: fb_hoc_thuat --}}
@@ -199,7 +199,7 @@
                             <label for="feedback-content" class="text-xs font-bold text-on-surface">
                                 3. Nội dung feedback chi tiết
                             </label>
-                            <span class="text-[10px] text-on-surface-variant/70">(Tùy chọn)</span>
+                            <span class="text-xs text-on-surface-subtle">(Tùy chọn)</span>
                         </div>
                         <x-ui.textarea id="feedback-content"
                                        name="noi_dung_feedback"
@@ -208,7 +208,7 @@
                                        x-on:input="showValidationError = false"
                                        placeholder="Chia sẻ cảm nhận của phụ huynh/học sinh về giáo trình, phương pháp giảng dạy hoặc điểm cần hỗ trợ thêm..."
                                        class="resize-none" />
-                        <p class="text-[10px] text-on-surface-variant/70 mt-1">Ý kiến chân thực giúp trung tâm nâng cao chất lượng dạy học.</p>
+                        <p class="text-xs text-on-surface-subtle mt-1">Ý kiến chân thực giúp trung tâm nâng cao chất lượng dạy học.</p>
                     </div>
 
                     {{-- Thông Báo Lỗi Validation: Khi cả 3 mục đều trống (R-04) --}}
@@ -221,7 +221,7 @@
                         <x-ui.button type="submit" icon="send" class="w-full">
                             <span x-text="viewState === 'form-updated' ? 'Cập nhật feedback' : 'Gửi feedback'"></span>
                         </x-ui.button>
-                        <p class="text-center text-[10px] text-on-surface-variant/70 mt-2">
+                        <p class="text-center text-xs text-on-surface-subtle mt-2">
                             Sau khi gửi, bạn vẫn có thể chỉnh sửa lại trong thời gian đợt thu thập còn mở.
                         </p>
                     </div>
@@ -229,7 +229,7 @@
 
                 @if($hasSaved)
                     <div x-show="viewState === 'form-updated'" class="pt-1">
-                        <form action="{{ route('portal.student.feedback.destroy', ['id' => $lastFeedback->id]) }}" method="POST" onsubmit="return confirm('Bạn có chắc chắn muốn xóa bản feedback này không?');">
+                        <form action="{{ route('portal.student.feedback.destroy', ['id' => $lastFeedback->id]) }}" method="POST" data-confirm="Xóa bản feedback này?" data-confirm-label="Xóa" data-confirm-danger>
                             @csrf
                             @method('DELETE')
                             <x-ui.button type="submit" variant="danger-text" icon="delete_sweep" class="w-full">
@@ -260,7 +260,7 @@
                 {{-- Tên chặng đã đóng --}}
                 <div class="bg-surface-container-low border border-surface-container-highest rounded-2xl p-4 shadow-2xs">
                     <div class="flex items-center justify-between mb-1.5">
-                        <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Chặng học đã hoàn thành</span>
+                        <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Chặng học đã hoàn thành</span>
                         <x-ui.badge color="neutral" :pill="true">
                             Đã đóng
                         </x-ui.badge>
@@ -271,7 +271,7 @@
                         </div>
                         <div>
                             <h3 class="text-xs font-bold text-on-surface leading-tight">Chặng 1: Nền tảng Ngữ pháp & Từ vựng</h3>
-                            <p class="text-[11px] text-on-surface-variant mt-0.5">Lớp: {{ $className }}</p>
+                            <p class="text-xs text-on-surface-variant mt-0.5">Lớp: {{ $className }}</p>
                         </div>
                     </div>
                 </div>
@@ -280,7 +280,7 @@
                 <div class="bg-surface-container-lowest border border-surface-container-highest rounded-2xl p-4 space-y-3.5 shadow-2xs">
                     {{-- Mức độ hài lòng --}}
                     <div class="border-b border-surface-container-highest pb-3">
-                        <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1">Mức độ hài lòng đã gửi</span>
+                        <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider block mb-1">Mức độ hài lòng đã gửi</span>
                         <div class="flex items-center gap-2">
                             <div class="flex text-warning/70">
                                 @for($star = 1; $star <= 5; $star++)
@@ -290,13 +290,13 @@
                             @if ($savedRating > 0)
                                 <span class="text-xs font-bold text-on-surface">{{ $savedRating }} / 5</span>
                             @endif
-                            <span class="text-[11px] text-on-surface-variant font-medium">({{ ['Chưa chọn', 'Rất không hài lòng', 'Không hài lòng', 'Bình thường', 'Hài lòng', 'Rất hài lòng'][$savedRating] ?? 'Chưa chọn' }})</span>
+                            <span class="text-xs text-on-surface-variant font-medium">({{ ['Chưa chọn', 'Rất không hài lòng', 'Không hài lòng', 'Bình thường', 'Hài lòng', 'Rất hài lòng'][$savedRating] ?? 'Chưa chọn' }})</span>
                         </div>
                     </div>
 
                     {{-- Lĩnh vực góp ý --}}
                     <div class="border-b border-surface-container-highest pb-3">
-                        <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1.5">Lĩnh vực đã chọn</span>
+                        <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider block mb-1.5">Lĩnh vực đã chọn</span>
                         <div class="flex flex-wrap gap-2">
                             @if($savedHocThuat)
                                 <x-ui.badge color="secondary" :dot="false">
@@ -321,14 +321,14 @@
 
                     {{-- Nội dung chi tiết --}}
                     <div>
-                        <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1">Nội dung đã gửi</span>
+                        <span class="text-xs font-bold text-on-surface-variant uppercase tracking-wider block mb-1">Nội dung đã gửi</span>
                         <p class="text-xs text-on-surface bg-surface-container-low rounded-xl p-3 border border-surface-container-highest leading-relaxed font-normal">
                             {{ filled($savedContent) ? $savedContent : 'Không có nội dung chi tiết.' }}
                         </p>
                     </div>
                 </div>
 
-                <div class="text-center py-2 text-xs text-on-surface-variant/70">
+                <div class="text-center py-2 text-xs text-on-surface-subtle">
                     Cảm ơn bạn đã đóng góp ý kiến xây dựng chất lượng đào tạo.
                 </div>
             </div>
@@ -349,13 +349,13 @@
                         <span class="material-symbols-outlined text-primary text-[16px]">info</span>
                         <span>Lưu ý từ Trung tâm</span>
                     </div>
-                    <p class="text-[11px] text-on-surface-variant leading-relaxed">
+                    <p class="text-xs text-on-surface-variant leading-relaxed">
                         Nếu phụ huynh hoặc học sinh cần phản ánh khẩn cấp về việc học tập, vui lòng liên hệ trực tiếp với Cố vấn Học tập (CM) qua mục Thông báo hoặc hotline trung tâm.
                     </p>
                 </div>
             </div>
 
-        </main>
+        </div>
 
         {{-- Bottom Navigation Bar Component --}}
         @include('portal.partials.bottom-nav', ['activeTab' => 'survey', 'student' => $student])

@@ -548,15 +548,15 @@ class Phase4PlatformTest extends TestCase
         $this->actingAs($this->admin)->get(route('dashboard'))
             ->assertOk()
             ->assertSee('Tổng quan toàn hệ thống')
-            ->assertSee('5.000.000đ')
+            ->assertSee('5.000.000 đ')
             ->assertSee('Việc trễ hạn');
 
         $manager = $this->makeUser('manager', $this->branchB);
         $this->actingAs($manager)->get(route('dashboard'))
             ->assertOk()
             ->assertSee('Tổng quan chi nhánh')
-            ->assertSee('2.000.000đ')
-            ->assertDontSee('5.000.000đ');
+            ->assertSee('2.000.000 đ')
+            ->assertDontSee('5.000.000 đ');
 
         $lead = $this->makeUser('academic_lead', $this->branchA);
         $class = ClassModel::first();

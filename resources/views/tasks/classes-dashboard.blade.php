@@ -167,9 +167,9 @@
         </x-ui.filter-bar>
 
         <div class="mb-md flex flex-wrap items-center gap-md font-caption text-caption text-on-surface-variant">
-            <span class="flex items-center gap-xs"><span class="h-3 w-3 rounded border border-blue-200 bg-blue-50"></span> Chính khóa (màu theo khóa học)</span>
-            <span class="flex items-center gap-xs"><span class="h-3 w-3 rounded border border-amber-300 bg-amber-50"></span> Học bù</span>
-            <span class="flex items-center gap-xs"><span class="h-3 w-3 rounded border border-purple-300 bg-purple-50"></span> Phụ đạo</span>
+            <span class="flex items-center gap-xs"><span class="h-3 w-3 rounded border border-info/30 bg-info-container"></span> Chính khóa (màu theo khóa học)</span>
+            <span class="flex items-center gap-xs"><span class="h-3 w-3 rounded border border-warning/30 bg-warning-container"></span> Học bù</span>
+            <span class="flex items-center gap-xs"><span class="h-3 w-3 rounded border border-accent/30 bg-accent-container"></span> Phụ đạo</span>
             <span class="flex items-center gap-xs"><span class="h-3 w-3 rounded border border-outline-variant bg-surface-container-low"></span> Đã hủy / nghỉ lễ</span>
         </div>
 
@@ -204,11 +204,11 @@
                                                    class="block rounded-lg border p-xs transition hover:shadow-md {{ \App\Services\ClassDashboardService::tone($session) }}"
                                                    title="{{ $session->classModel?->name }} · {{ $session->room }}">
                                                     <p class="truncate text-[12px] font-semibold">{{ $session->classModel?->code ?? $session->classModel?->name }}</p>
-                                                    <p class="truncate text-[11px] opacity-80">{{ $session->room ?: 'Chưa có phòng' }}</p>
+                                                    <p class="truncate text-xs opacity-80">{{ $session->room ?: 'Chưa có phòng' }}</p>
                                                     @if ($session->status === 'cancelled')
-                                                        <p class="text-[10px] font-semibold no-underline">{{ $session->holiday ? 'Nghỉ lễ' : 'Đã hủy' }}</p>
+                                                        <p class="text-xs font-semibold no-underline">{{ $session->holiday ? 'Nghỉ lễ' : 'Đã hủy' }}</p>
                                                     @elseif ($session->attendances_count > 0)
-                                                        <p class="text-[10px] font-semibold">✓ Đã điểm danh</p>
+                                                        <p class="text-xs font-semibold">✓ Đã điểm danh</p>
                                                     @endif
                                                 </a>
                                             @endforeach

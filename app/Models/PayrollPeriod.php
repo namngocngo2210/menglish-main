@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Services\PayrollFormulaService;
 use App\Services\SalesCommissionService;
+use App\Support\Money;
 use App\Support\RequestMemo;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -164,7 +165,7 @@ class PayrollPeriod extends Model
             'draft' => 'bg-warning/10 text-warning border-warning/30',
             'reviewing' => 'bg-secondary/10 text-secondary border-secondary/30',
             'approved' => 'bg-tertiary/10 text-tertiary border-tertiary/30',
-            'paid' => 'bg-purple-50 text-purple-700 border-purple-200',
+            'paid' => 'bg-accent-container text-accent border-accent/30',
             default => 'bg-surface-container-low text-on-surface-variant border-surface-container-highest',
         };
     }
@@ -415,7 +416,7 @@ class PayrollPeriod extends Model
 
     private function autoNote(PayrollRecord $record): string
     {
-        $money = fn ($v) => number_format((float) $v, 0, ',', '.').'đ';
+        $money = fn ($v) => Money::format((float) $v);
         $parts = [$record->employee_type_label.' ('.$record->salary_role_label.')'];
         if ($record->isPartTime()) {
             $parts[] = (int) $record->teaching_sessions.' buổi dạy = '.$money($record->teaching_salary);

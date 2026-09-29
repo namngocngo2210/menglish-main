@@ -56,7 +56,7 @@
                                     <tr>
                                         <td>
                                             <span class="font-bold">{{ $cr->classModel?->name ?? 'Chưa gắn lớp' }}</span>
-                                            <span class="block font-code text-[11px] text-on-surface-variant">{{ $cr->session_name }}</span>
+                                            <span class="block font-code text-xs text-on-surface-variant">{{ $cr->session_name }}</span>
                                         </td>
                                         <td>
                                             <span class="font-semibold">{{ $cr->reporter?->name ?? 'Chưa cập nhật' }}</span>
@@ -66,25 +66,25 @@
                                             @if ($att)
                                                 <x-ui.badge color="success" pill>{{ $att['present'] }} / {{ $att['total'] }} HV</x-ui.badge>
                                                 @if ($att['absent'] + $att['excused'] > 0)
-                                                    <span class="mt-0.5 block text-[10px] text-error">{{ $att['absent'] + $att['excused'] }} vắng{{ $att['excused'] ? ' (' . $att['excused'] . ' có phép)' : '' }}</span>
+                                                    <span class="mt-0.5 block text-xs text-error">{{ $att['absent'] + $att['excused'] }} vắng{{ $att['excused'] ? ' (' . $att['excused'] . ' có phép)' : '' }}</span>
                                                 @endif
                                             @else
-                                                <span class="text-[11px] text-on-surface-variant/70">Chưa có điểm danh</span>
+                                                <span class="text-xs text-on-surface-subtle">Chưa có điểm danh</span>
                                             @endif
                                         </td>
                                         <td class="max-w-xs">
                                             <p class="truncate font-medium">{{ $cr->topics_learned }}</p>
                                             @if ($cr->teaching_log)
-                                                <p class="line-clamp-1 text-[11px] text-on-surface-variant">{{ $cr->teaching_log }}</p>
+                                                <p class="line-clamp-1 text-xs text-on-surface-variant">{{ $cr->teaching_log }}</p>
                                             @endif
                                         </td>
                                         <td>
                                             <x-ui.badge color="info" :dot="false">{{ $cr->status_label }}</x-ui.badge>
                                             @if ($cr->student_supports_count > 0)
-                                                <span class="mt-0.5 block text-[10px] text-on-surface-variant">{{ $cr->student_supports_count }} HV cần bổ trợ</span>
+                                                <span class="mt-0.5 block text-xs text-on-surface-variant">{{ $cr->student_supports_count }} HV cần bổ trợ</span>
                                             @endif
                                         </td>
-                                        <td class="font-code text-[11px] text-on-surface-variant">
+                                        <td class="font-code text-xs text-on-surface-variant">
                                             {{ $cr->created_at->format('H:i d/m') }}
                                         </td>
                                     </tr>

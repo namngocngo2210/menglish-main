@@ -208,14 +208,14 @@ class Phase1StudentsTest extends TestCase
         $this->actingAs($lead)->get(route('students.scoped', $student->id))
             ->assertOk()
             ->assertSee('Học viên HV-TUI')
-            ->assertDontSee('7,300,000')->assertDontSee('6,300,000')
+            ->assertDontSee('7.300.000')->assertDontSee('6.300.000')
             ->assertDontSee('data-section="tuition"', false)
             ->assertDontSee('data-section="contact"', false)
             ->assertDontSee('currentRole', false)
             ->assertSee('data-section="academic"', false);
 
         $this->actingAs($this->user('academic_staff', $this->hn))->get(route('students.scoped', $student->id))
-            ->assertOk()->assertSee('7,300,000')->assertSee('6,300,000')->assertSee('data-section="contact"', false);
+            ->assertOk()->assertSee('7.300.000 đ')->assertSee('6.300.000 đ')->assertSee('data-section="contact"', false);
     }
 
     public function test_scoped_page_has_no_fake_tuition_fallback(): void
@@ -223,7 +223,7 @@ class Phase1StudentsTest extends TestCase
         $student = $this->student('HV-NOTUI', $this->hn, $this->classHn);
 
         $this->actingAs($this->user('academic_staff', $this->hn))->get(route('students.scoped', $student->id))
-            ->assertOk()->assertSee('Chưa có sổ học phí')->assertDontSee('12,500,000');
+            ->assertOk()->assertSee('Chưa có sổ học phí')->assertDontSee('12.500.000');
     }
 
     // ───────────── 4. Chi tiết: lộ trình + điểm danh thật, form sửa theo quyền ─────────────

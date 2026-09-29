@@ -304,7 +304,7 @@ class ApprovalInboxTest extends TestCase
 
         $this->htmx($accountant)->get(route('approvals.show', ['receipt', $receipt->id]))->assertOk()
             ->assertDontSee('data-sidebar', false)
-            ->assertSee('Phiếu thu '.$receipt->receipt_number)
+            ->assertSee('Phiếu thu '.\App\Support\DisplayCode::short($receipt->receipt_number))
             ->assertSee('id="approval-approve-form"', false)
             ->assertSee('id="approval-reject-form"', false);
 
@@ -348,7 +348,7 @@ class ApprovalInboxTest extends TestCase
 
         // Học viên nhận thông báo kết quả trong hộp thư cổng học viên.
         $this->flushHeaders()->actingAs($studentUser)->get(route('portal.student.notifications'))->assertOk()
-            ->assertSee('Kế toán đã xác nhận khoản đóng 2.500.000đ');
+            ->assertSee('Kế toán đã xác nhận khoản đóng 2.500.000 đ');
     }
 
     public function test_rejecting_a_payment_report_tells_the_student_why(): void

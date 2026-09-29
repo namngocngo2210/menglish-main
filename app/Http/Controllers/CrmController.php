@@ -36,6 +36,7 @@ use App\Services\PlacementPortalLinkService;
 use App\Services\PlacementRubricService;
 use App\Services\PlacementSubmissionLinker;
 use App\Support\DataScope;
+use App\Support\Money;
 use App\Support\Rbac;
 use App\Support\TransferMemo;
 use Carbon\Carbon;
@@ -149,7 +150,7 @@ class CrmController extends Controller
                 'next' => $stages->nextStage($key),
                 'count' => $group->count(),
                 'amount_raw' => (float) $group->sum('deal_value'),
-                'amount' => number_format($group->sum('deal_value')).'đ',
+                'amount' => Money::format($group->sum('deal_value')),
                 'color' => $style['border'],
                 'bg_badge' => $style['badge'],
                 'dot' => $style['bar'],
@@ -164,7 +165,7 @@ class CrmController extends Controller
                     'phone' => $c->phone,
                     'source' => $c->source ?? 'Trực tiếp',
                     'course' => $c->course_interest ?? 'Chưa chọn khóa',
-                    'tuition' => number_format($c->deal_value).'đ',
+                    'tuition' => Money::format($c->deal_value),
                     'agent' => $c->assignedUser?->name ?? 'Chưa phân công',
                     'days' => $c->created_at->diffForHumans(),
                     'score' => $c->test_score ?? 'Chưa test',
@@ -1130,7 +1131,7 @@ class CrmController extends Controller
         return match ($field) {
             'branch_id' => Branch::find($value)?->name ?? (string) $value,
             'assigned_user_id' => User::find($value)?->name ?? (string) $value,
-            'deal_value' => number_format((float) $value, 0, ',', '.').'đ',
+            'deal_value' => Money::format((float) $value),
             'dob' => Carbon::parse($value)->format('d/m/Y'),
             'next_follow_up_at' => Carbon::parse($value)->format('d/m/Y H:i'),
             default => trim((string) $value),
@@ -1455,6 +1456,7 @@ class CrmController extends Controller
         return back()
             ->with('status', 'Đã cấp mật khẩu tạm cho học viên '.($enrollment->student?->name ?? '').'. Gửi thông tin đăng nhập cho phụ huynh; học viên phải đổi mật khẩu ở lần đăng nhập đầu.')
             ->with('student_account_email', $account->email)
+            ->with('student_account_login', $account->loginIdentifier())
             ->with('temporary_password', $temporaryPassword);
     }
 
@@ -1821,7 +1823,7 @@ class CrmController extends Controller
                 && ! Student::withTrashed()->where('code', $proposedCode)->exists()
                 ? $proposedCode
                 : self::newStudentCode();
-            $studentEmail = $customer->email ?: Str::lower($studentCode).'@student.menglish.edu.vn';
+            $studentEmail = $customer->email ?: Str::lower($studentCode).'@'.User::STUDENT_EMAIL_DOMAIN;
             $studentUser = User::withTrashed()->whereRaw('LOWER(email) = ?', [Str::lower($studentEmail)])->first();
             $temporaryPassword = null;
 
@@ -1956,7 +1958,7 @@ class CrmController extends Controller
                 $customer,
                 $class ? 'won' : 'waiting_class',
                 $request->user(),
-                'Chốt hợp đồng qua Chốt & Xếp lớp (Tổng giá trị: '.number_format($contractTotal).'đ, '
+                'Chốt hợp đồng qua Chốt & Xếp lớp (Tổng giá trị: '.Money::format($contractTotal).', '
                     .($class ? "lớp {$class->name}" : "khóa {$course->name}, xếp lớp sau")
                     .($feePaid ? ', đã đóng học phí đăng ký' : ', chưa đóng học phí').').'
             );
@@ -1978,6 +1980,7 @@ class CrmController extends Controller
             ->with('status', $message)
             ->with('bill_url', route('crm.tuition-bill', ['id' => $tuition->id]))
             ->with('student_account_email', $student->email)
+            ->with('student_account_login', $student->user?->loginIdentifier() ?? $student->email)
             ->with('temporary_password', $temporaryPassword);
     }
 
@@ -2031,7 +2034,7 @@ class CrmController extends Controller
         return WorkTask::create([
             'title' => "Nhắc thu học phí: {$student->name} ({$student->code})",
             'description' => "Học viên {$student->name} ({$student->code}) đã chốt từ Lead {$customer->short_code} nhưng chưa đóng học phí đăng ký. "
-                .'Số tiền cần thu: '.number_format((float) $tuition->final_amount).'đ. '
+                .'Số tiền cần thu: '.Money::format((float) $tuition->final_amount).'. '
                 .'Hồ sơ Lead: '.route('crm.customers.show', $customer->id).' · Phiếu học phí: '.route('crm.tuition-bill', ['id' => $tuition->id]),
             'creator_id' => $actor->id,
             'assignee_id' => $customer->assigned_user_id ?? $actor->id,

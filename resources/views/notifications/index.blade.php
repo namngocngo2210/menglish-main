@@ -2,7 +2,7 @@
     {{-- Trang thông báo đứng riêng (mở từ chuông): không hiện thanh tab workspace "Cá nhân" (Báo cáo định kỳ, Lương...). --}}
     @php(request()->attributes->set('workspace_tabs_rendered', true))
 
-    <x-ui.page-header title="Trung Tâm Cảnh Báo & Thông Báo Quản Trị" icon="notifications_active">
+    <x-ui.page-header title="Thông báo" icon="notifications_active">
         <x-slot:actions>
             <form action="{{ route('notifications.scan') }}" method="POST" class="inline">
                 @csrf
@@ -30,7 +30,7 @@
                     Tất cả
                 </a>
                 <a href="{{ route('notifications.index', ['type' => 'stale_lead_24h']) }}" class="px-3 py-1.5 rounded-xl text-xs font-bold transition {{ request('type') === 'stale_lead_24h' ? 'bg-error text-white' : 'bg-error/10 text-error hover:bg-error/20 border border-error/30' }}">
-                    ⚠️ Lead tồn đọng >24h ({{ $stats['stale_leads'] }})
+                    <span class="inline-flex items-center gap-xs"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">warning</span>Lead tồn đọng &gt;24h ({{ $stats['stale_leads'] }})</span>
                 </a>
                 <a href="{{ route('notifications.index', ['unread' => 1]) }}" class="px-3 py-1.5 rounded-xl text-xs font-bold transition {{ request('unread') ? 'bg-warning text-white' : 'bg-warning-container text-on-warning-container hover:bg-warning/20 border border-warning/30' }}">
                     Chưa đọc ({{ $stats['unread'] }})
@@ -49,10 +49,10 @@
                             </div>
                             <div class="space-y-1.5 flex-1">
                                 <div class="flex items-center gap-2 flex-wrap">
-                                    <span class="px-2.5 py-0.5 rounded-full border text-[10px] font-bold {{ $notif->badge_color }}">
+                                    <span class="px-2.5 py-0.5 rounded-full border text-xs font-bold {{ $notif->badge_color }}">
                                         {{ $notif->type_label }}
                                     </span>
-                                    <h3 class="font-bold text-on-surface text-sm">{{ $notif->title }}</h3>
+                                    <h3 class="font-bold text-on-surface text-sm">{{ \App\Support\DisplayCode::shortenIn($notif->title) }}</h3>
                                     @if (!$notif->is_read)
                                         <span class="w-2 h-2 rounded-full bg-error inline-block animate-pulse"></span>
                                     @endif
@@ -69,7 +69,7 @@
                                     </div>
                                 @endif
 
-                                <div class="text-[10px] text-on-surface-variant/70 font-mono pt-1">
+                                <div class="text-xs text-on-surface-subtle font-mono pt-1">
                                     Ghi nhận lúc: {{ $notif->created_at->format('d/m/Y H:i') }} ({{ $notif->created_at->diffForHumans() }})
                                 </div>
                             </div>

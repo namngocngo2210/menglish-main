@@ -1,7 +1,7 @@
 {{-- Mockup: ui-full-tinh-nang-menglish/hoc-phi-va-hoa-don-ui-mockup/hoan-tien-va-khat-no + A6 (25/09/2026) "Hoàn phí" --}}
 <x-app-layout title="Xử lý khất nợ / hoàn tiền" hide-errors>
     @php
-        $money = fn ($v) => number_format((float) $v, 0, ',', '.').'đ';
+        $money = fn ($v) => \App\Support\Money::format((float) $v);
         $typeBadge = ['transfer' => 'success', 'refund' => 'secondary', 'deferral' => 'info', 'extension' => 'warning'];
         $targetList = $students->map(fn ($st) => [
             'id' => (string) $st->id,
@@ -141,7 +141,7 @@
                         <x-ui.date name="extended_due_date" label="Hạn đóng mới" :min="now()->addDay()->toDateString()" required />
                         {{-- Textarea thô: chỉ form khất nợ không điền lại old('reason') (form dưới dùng chung name "reason"). --}}
                         <x-ui.field label="Lý do khất nợ (Bắt buộc)" for="extension_reason" class="md:col-span-3">
-                            <textarea id="extension_reason" name="reason" rows="2" required placeholder="Nhập chi tiết lý do học viên xin gia hạn thời gian nộp học phí..." class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20"></textarea>
+                            <textarea id="extension_reason" name="reason" rows="2" required placeholder="Nhập chi tiết lý do học viên xin gia hạn thời gian nộp học phí..." class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base text-on-surface placeholder:text-on-surface-subtle focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/50"></textarea>
                         </x-ui.field>
                     </div>
                 </form>
@@ -218,7 +218,7 @@
                         <div class="relative">
                             <span class="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant" aria-hidden="true">search</span>
                             <input type="search" x-model="targetQuery" placeholder="Tìm tên hoặc mã học viên..." aria-label="Tìm học viên nhận chuyển nhượng"
-                                   class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-10 pr-md font-body-base text-body-base text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20" />
+                                   class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-10 pr-md font-body-base text-body-base text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/50" />
                         </div>
                         <ul class="custom-scrollbar max-h-48 divide-y divide-surface-container overflow-y-auto rounded-lg border border-outline-variant">
                             <template x-for="t in targetMatches" :key="t.id">
@@ -271,7 +271,7 @@
                         <div class="flex flex-col gap-sm border-t border-surface-container pt-sm sm:flex-row sm:items-center sm:justify-between">
                             <label for="refundAmount" class="font-body-medium text-body-medium text-on-surface" x-text="actionType === 'transfer' ? 'Số tiền chuyển nhượng' : 'Số tiền hoàn trả'"></label>
                             <div class="flex items-center gap-sm">
-                                <input id="refundAmount" type="number" name="refund_amount" x-model.number="refundAmount" min="0" :max="basis.paid" :disabled="actionType === 'deferral'" class="w-44 rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm text-right font-code text-code text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20" />
+                                <input id="refundAmount" type="number" name="refund_amount" x-model.number="refundAmount" min="0" :max="basis.paid" :disabled="actionType === 'deferral'" class="w-44 rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm text-right font-code text-code text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/50" />
                                 <span class="font-body-small text-body-small text-on-surface-variant">VND</span>
                                 <x-ui.button size="sm" variant="ghost" icon="calculate" @click="refundAmount = suggestedAmount" title="Tính lại theo chính sách">Theo chính sách</x-ui.button>
                             </div>
@@ -289,7 +289,7 @@
                     </div>
 
                     <x-ui.field label="Lý do nghỉ giữa khóa (Bắt buộc)" for="refund_reason">
-                        <textarea id="refund_reason" name="reason" rows="3" required placeholder="Nhập chi tiết nguyên nhân học viên dừng học..." class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">{{ old('type') !== 'extension' ? old('reason') : '' }}</textarea>
+                        <textarea id="refund_reason" name="reason" rows="3" required placeholder="Nhập chi tiết nguyên nhân học viên dừng học..." class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base text-on-surface placeholder:text-on-surface-subtle focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/50">{{ old('type') !== 'extension' ? old('reason') : '' }}</textarea>
                     </x-ui.field>
 
                     <p x-show="actionType !== 'deferral'" class="mt-md font-caption text-caption text-on-surface-variant">
@@ -342,7 +342,7 @@
                                         <x-ui.select name="clawback_commission" id="clawback_commission_{{ $rq->id }}" x-model="claw" aria-label="Thu hồi hoa hồng"
                                                      :value="$hint['suggest'] ? '1' : '0'" :options="['1' => 'Có thu hồi', '0' => 'Không thu hồi']" />
                                         <input type="number" name="clawback_amount" min="0" step="1000" value="{{ (int) $hint['amount'] }}" x-show="claw === '1'" aria-label="Số hoa hồng thu hồi (VNĐ)"
-                                               class="w-32 rounded-lg border border-outline-variant bg-surface-container-lowest px-sm py-xs font-code text-code text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20" />
+                                               class="w-32 rounded-lg border border-outline-variant bg-surface-container-lowest px-sm py-xs font-code text-code text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/50" />
                                     </div>
                                     <span class="block font-caption text-caption text-on-surface-variant">{{ $hint['start'] ? 'Bắt đầu học '.$hint['start']->format('d/m/Y') : 'Chưa bắt đầu học' }} · gợi ý: {{ $hint['suggest'] ? 'có' : 'không' }} thu hồi</span>
                                 </div>
@@ -378,7 +378,7 @@
 
     {{-- Tất cả yêu cầu --}}
     <div id="all-requests" class="mt-lg">
-        <x-ui.data-table>
+        <x-ui.data-table sticky="first">
             <x-slot:header>
                 <h3 class="flex items-center gap-sm font-h3 text-h3 text-on-surface">
                     <span class="material-symbols-outlined text-primary" aria-hidden="true">history_edu</span>
@@ -571,7 +571,7 @@
                 },
 
                 money(v) {
-                    return new Intl.NumberFormat('vi-VN').format(Math.round(v || 0)) + 'đ';
+                    return window.formatMoney(v || 0);
                 },
             };
         }

@@ -1,5 +1,5 @@
 <x-app-layout>
-    <x-ui.page-header title="Chi Tiết Bảng Lương Khối Học Vụ & Vận Hành (CSKH / Sales)" icon="support_agent" :back="route('payroll.periods.show', $period->id)">
+    <x-ui.page-header title="Bảng lương khối Học vụ & Vận hành (CSKH / Sales)" icon="support_agent" :back="route('payroll.periods.show', $period->id)">
         <x-slot:badges>
             <span class="text-xs px-2.5 py-0.5 rounded-full border font-bold {{ $period->status_badge }}">
                 {{ $period->status_label }}
@@ -47,17 +47,17 @@
                         {{-- Theo SalesCommissionService / cấu hình mốc hoa hồng; không ghi cứng tỷ lệ ở đây. --}}
                         <div class="p-3 bg-surface-container-low rounded-xl border border-surface-container-highest space-y-1">
                             <span class="font-bold text-on-surface">1. Hoa hồng tuyển mới</span>
-                            <p class="text-on-surface-variant text-[11px]">% theo bậc số HS chốt trong kỳ (mặc định 3% / 4% / 5%) × tiền thực thu của khách mới. Chỉ trả khi đủ 30 ngày từ ngày chốt và đủ 3/3 mốc chăm sóc; chưa đủ thì hoãn sang kỳ sau.
+                            <p class="text-on-surface-variant text-xs">% theo bậc số HS chốt trong kỳ (mặc định 3% / 4% / 5%) × tiền thực thu của khách mới. Chỉ trả khi đủ 30 ngày từ ngày chốt và đủ 3/3 mốc chăm sóc; chưa đủ thì hoãn sang kỳ sau.
                                 @can('commission_config.manage')<a href="{{ route('payroll.config.commission-tiers') }}" class="text-primary font-semibold hover:underline">Xem mốc hoa hồng</a>@endcan
                             </p>
                         </div>
                         <div class="p-3 bg-surface-container-low rounded-xl border border-surface-container-highest space-y-1">
                             <span class="font-bold text-on-surface">2. KPI Học vụ (tự động)</span>
-                            <p class="text-on-surface-variant text-[11px]">Quỹ KPI × điểm KPI 6 nhóm / 15 mục của đánh giá tháng đã chốt. Nhân viên không tự chấm. Vận hành khác: KPI nhập tay.</p>
+                            <p class="text-on-surface-variant text-xs">Quỹ KPI × điểm KPI 6 nhóm / 15 mục của đánh giá tháng đã chốt. Nhân viên không tự chấm. Vận hành khác: KPI nhập tay.</p>
                         </div>
                         <div class="p-3 bg-surface-container-low rounded-xl border border-surface-container-highest space-y-1">
                             <span class="font-bold text-on-surface">3. Thu hồi hoa hồng</span>
-                            <p class="text-on-surface-variant text-[11px]">Khi hoàn phí có chọn thu hồi, khoản thu hồi được trừ ở lần tính lương kế tiếp.</p>
+                            <p class="text-on-surface-variant text-xs">Khi hoàn phí có chọn thu hồi, khoản thu hồi được trừ ở lần tính lương kế tiếp.</p>
                         </div>
                     </div>
                 </div>
@@ -65,25 +65,25 @@
 
             {{-- Right Column: Summary Card (Col 4) --}}
             <div class="xl:col-span-4 space-y-4">
-                <div class="bg-gradient-to-br from-blue-900 to-slate-900 text-white rounded-2xl p-6 shadow-md space-y-4">
+                <div class="bg-gradient-to-br from-on-info-container to-inverse-surface text-white rounded-2xl p-6 shadow-md space-y-4">
                     <div class="flex items-center justify-between">
-                        <span class="text-xs font-bold uppercase tracking-wider text-blue-200">Tổng chi Khối Vận Hành</span>
-                        <span class="material-symbols-outlined text-2xl text-blue-300">support_agent</span>
+                        <span class="text-xs font-bold uppercase tracking-wider text-info-container">Tổng chi Khối Vận Hành</span>
+                        <span class="material-symbols-outlined text-2xl text-info-container">support_agent</span>
                     </div>
                     <div>
                         <div class="text-3xl font-black font-mono tracking-tight">
-                            {{ number_format($records->sum('net_salary'), 0, ',', '.') }}đ
+                            {{ \App\Support\Money::format($records->sum('net_salary')) }}
                         </div>
-                        <p class="text-xs text-blue-200 mt-1">{{ $records->count() }} nhân viên vận hành &amp; học vụ</p>
+                        <p class="text-xs text-info-container mt-1">{{ $records->count() }} nhân viên vận hành &amp; học vụ</p>
                     </div>
                     <div class="pt-3 border-t border-white/20 grid grid-cols-2 gap-2 text-xs">
                         <div>
-                            <span class="text-blue-300 block text-[10px] uppercase font-bold">Lương cứng:</span>
-                            <span class="font-bold font-mono text-sm">{{ number_format($records->sum('base_salary'), 0, ',', '.') }}đ</span>
+                            <span class="text-info-container block text-xs uppercase font-bold">Lương cứng:</span>
+                            <span class="font-bold font-mono text-sm">{{ \App\Support\Money::format($records->sum('base_salary')) }}</span>
                         </div>
                         <div>
-                            <span class="text-blue-300 block text-[10px] uppercase font-bold">Tổng hoa hồng:</span>
-                            <span class="font-bold font-mono text-sm">{{ number_format($records->sum('commission_bonus'), 0, ',', '.') }}đ</span>
+                            <span class="text-info-container block text-xs uppercase font-bold">Tổng hoa hồng:</span>
+                            <span class="font-bold font-mono text-sm">{{ \App\Support\Money::format($records->sum('commission_bonus')) }}</span>
                         </div>
                     </div>
                 </div>

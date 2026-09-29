@@ -1,6 +1,5 @@
 {{-- Mockup: ui-full-tinh-nang-menglish/epic-8-danh-sach-phat --}}
 <x-app-layout>
-    @include('partials.data-confirm')
     @php
         $stepColors = [
             'recorded' => 'warning', 'confirmed' => 'error', 'fined' => 'primary', 'paid' => 'success',
@@ -34,14 +33,9 @@
         <x-ui.stat-card label="Quá hạn — sẽ trừ lương" :value="$overdueCount" icon="money_off" tone="error" />
     </div>
 
-    <form method="GET" action="{{ route('penalties.index') }}" role="search" x-data="{ advanced: @js($advancedOpen) }"
-          class="mb-lg space-y-md rounded-xl border border-surface-container-highest bg-surface-container-lowest p-md shadow-sm">
-        @if ($currentStep)<input type="hidden" name="step" value="{{ $currentStep }}">@endif
-        <div class="flex flex-col gap-md lg:flex-row lg:items-end">
-            <div class="min-w-[260px] flex-1">
-                <x-ui.input type="search" name="search" label="Tìm kiếm nhân viên" icon="search" :value="request('search')" placeholder="Nhập tên hoặc mã nhân viên..." />
-            </div>
-            <div class="flex flex-col gap-xs">
+    <x-ui.filter-bar :action="route('penalties.index')" placeholder="Nhập tên hoặc mã nhân viên...">
+        <x-slot:quick>
+            <div class="flex flex-col gap-xs sm:flex-row sm:items-center sm:gap-md">
                 <span class="font-label text-label uppercase tracking-wide text-on-surface-variant">Lọc theo bước</span>
                 <div class="flex flex-wrap gap-xs">
                     @foreach (['' => 'Tất cả'] + \App\Models\Penalty::STEPS as $key => $label)
@@ -51,23 +45,14 @@
                     @endforeach
                 </div>
             </div>
-            <x-ui.button variant="secondary" icon="filter_list" x-on:click="advanced = ! advanced">Bộ lọc nâng cao</x-ui.button>
-        </div>
-        <div x-show="advanced" x-cloak class="flex flex-wrap items-end gap-md border-t border-surface-container pt-md">
-            <x-ui.select name="category" placeholder="Tất cả loại lỗi" inline-label="Loại lỗi:"
-                         :options="collect(\App\Models\Penalty::CATEGORIES)->map(fn ($c) => $c['label'])->all()" />
-            <x-ui.select name="status" placeholder="Tất cả trạng thái" inline-label="Trạng thái:"
-                         :options="['open' => 'Đang xử lý (chưa đóng)', 'overdue' => 'Quá hạn nộp'] + \App\Models\Penalty::statusLabels()" />
-            <x-ui.date name="from" inline-label="Từ ngày:" :value="request('from')" />
-            <x-ui.date name="to" inline-label="Đến ngày:" :value="request('to')" />
-        </div>
-        <div class="flex justify-end gap-sm">
-            @if (collect(request()->except(['page', 'per_page']))->filter()->isNotEmpty())
-                <x-ui.button variant="ghost" :href="route('penalties.index')">Xoá lọc</x-ui.button>
-            @endif
-            <x-ui.button type="submit" variant="secondary" icon="search">Lọc</x-ui.button>
-        </div>
-    </form>
+        </x-slot:quick>
+        @if ($currentStep)<input type="hidden" name="step" value="{{ $currentStep }}">@endif
+        <x-ui.select name="category" label="Loại lỗi" placeholder="Tất cả loại lỗi"
+                     :options="collect(\App\Models\Penalty::CATEGORIES)->map(fn ($c) => $c['label'])->all()" />
+        <x-ui.select name="status" label="Trạng thái" placeholder="Tất cả trạng thái"
+                     :options="['open' => 'Đang xử lý (chưa đóng)', 'overdue' => 'Quá hạn nộp'] + \App\Models\Penalty::statusLabels()" />
+        <x-ui.date-range label="Ngày vi phạm" from="from" to="to" />
+    </x-ui.filter-bar>
 
     <x-ui.data-table min-width="1100px">
         <table>
@@ -136,10 +121,10 @@
                                     <x-ui.button size="sm" icon="edit_note" x-on:click="$dispatch('open-modal', 'explain-{{ $pen->id }}')">Giải trình</x-ui.button>
                                 @endif
                                 @if ($canDecide && $pen->step === 'recorded')
-                                    <x-ui.button size="sm" icon="gavel" x-on:click="$dispatch('open-modal', 'decide-{{ $pen->id }}')">Chốt lỗi</x-ui.button>
+                                    <x-ui.button size="sm" variant="secondary" icon="gavel" x-on:click="$dispatch('open-modal', 'decide-{{ $pen->id }}')">Chốt lỗi</x-ui.button>
                                 @endif
                                 @if ($canDecide && $pen->status === 'confirmed')
-                                    <x-ui.button size="sm" icon="payments" x-on:click="$dispatch('open-modal', 'decide-{{ $pen->id }}')">Chốt mức phạt</x-ui.button>
+                                    <x-ui.button size="sm" variant="secondary" icon="payments" x-on:click="$dispatch('open-modal', 'decide-{{ $pen->id }}')">Chốt mức phạt</x-ui.button>
                                 @endif
                                 @can('violation.mark_paid')
                                     @if ($pen->status === 'fined')
@@ -183,7 +168,7 @@
                                     @endcan
                                     @can('violation.cancel')
                                         @if (in_array($pen->status, ['pending', 'explained', 'confirmed'], true))
-                                            <form action="{{ route('penalties.cancel', $pen->id) }}" method="POST" data-confirm="Hủy biên bản {{ $pen->code }}?">
+                                            <form action="{{ route('penalties.cancel', $pen->id) }}" method="POST" data-confirm="Hủy biên bản {{ $pen->code }}?" data-confirm-label="Hủy biên bản" data-confirm-danger>
                                                 @csrf
                                                 <x-ui.button type="submit" variant="danger-text">Hủy vi phạm</x-ui.button>
                                             </form>
@@ -274,7 +259,7 @@
                 <x-ui.field label="Lỗi vi phạm" name="violation_type" required for="f_violation_type">
                     <input list="violation-types" id="f_violation_type" name="violation_type" required value="{{ old('violation_type') }}"
                            placeholder="Chọn lỗi thường gặp hoặc nhập mô tả"
-                           class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">
+                           class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/50">
                     <datalist id="violation-types">
                         @foreach (\App\Models\Penalty::COMMON_VIOLATIONS as $types)
                             @foreach ($types as $type)

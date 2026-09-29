@@ -1,5 +1,5 @@
 <x-app-layout>
-    @include('crm.partials.header-tabs')
+    @include('crm.partials.header-tabs', ['title' => 'Xác nhận chính thức'])
 
     {{-- Mockup epic-6/khach-hang-chot-thanh-cong-xac-nhan: tiêu đề + số học viên, băng nhắc "Chờ xếp lớp" (link sang màn Chờ xếp lớp), lọc Chi nhánh / Lớp học / Tìm kiếm,
          bảng Khách đã có lớp (Trạng thái, Xác nhận chính thức / Đã là học viên) + popup xác nhận.
@@ -15,7 +15,7 @@
 
         @if (session('temporary_password'))
             <x-ui.alert type="warning" title="Mật khẩu tạm của học viên — chỉ hiển thị một lần">
-                <div>Email đăng nhập: <span class="font-code font-semibold">{{ session('student_account_email') }}</span></div>
+                <div>Tên đăng nhập: <span class="select-all font-code font-semibold">{{ session('student_account_login', session('student_account_email')) }}</span></div>
                 <div>Mật khẩu tạm: <span class="font-code font-semibold">{{ session('temporary_password') }}</span></div>
                 <div class="font-caption text-caption">Gửi cho phụ huynh; học viên phải đổi mật khẩu ở lần đăng nhập đầu tiên.</div>
             </x-ui.alert>
@@ -60,7 +60,7 @@
                                         <div>
                                             <a href="{{ route('crm.customers.show', $enrollment->customer_id) }}" class="font-body-medium text-body-medium text-on-surface hover:text-primary">{{ $enrollment->student?->name }}</a>
                                             <div class="font-code text-caption text-on-surface-variant">{{ $enrollment->student?->phone ?? $enrollment->customer?->phone }}</div>
-                                            <div class="font-code text-[10px] text-on-surface-variant/70"><x-ui.code :value="$enrollment->student?->code" /></div>
+                                            <div class="font-code text-xs text-on-surface-subtle"><x-ui.code :value="$enrollment->student?->code" /></div>
                                         </div>
                                     </div>
                                 </td>
@@ -99,7 +99,7 @@
                                         @if ($enrollment->student?->user)
                                             <form method="POST" action="{{ route('crm.enrollments.reset-account', $enrollment) }}" class="mt-xs flex flex-wrap items-center gap-xs font-caption text-caption text-on-surface-variant">
                                                 @csrf
-                                                <span class="flex min-w-0 max-w-[240px] items-center gap-xs">Tài khoản: <span class="truncate font-code" title="{{ $enrollment->student->user->email }}">{{ $enrollment->student->user->email }}</span></span>
+                                                <span class="flex min-w-0 max-w-[240px] items-center gap-xs">Tài khoản: <x-ui.code :value="$enrollment->student->user->loginIdentifier()" class="truncate font-code" /></span>
                                                 <button type="submit" class="font-semibold text-primary hover:underline">Cấp mật khẩu tạm</button>
                                             </form>
                                         @endif
@@ -109,8 +109,8 @@
                                             {{-- Thẻ <button> thường: @js không biên dịch trong thuộc tính của Blade component. --}}
                                             <button type="button"
                                                     @click="confirmForm = @js('confirm-'.$enrollment->id); confirmName = @js($enrollment->student?->name ?? ''); $dispatch('open-modal', 'confirm-official')"
-                                                    class="inline-flex items-center gap-xs whitespace-nowrap rounded-lg bg-primary-container px-sm py-xs font-body-medium text-body-small text-white shadow-sm hover:bg-primary">
-                                                <span class="material-symbols-outlined text-[16px]">verified_user</span>Xác nhận chính thức
+                                                    class="inline-flex items-center gap-xs whitespace-nowrap rounded-lg border border-outline-variant bg-surface-container-lowest px-sm py-xs font-body-medium text-body-small text-on-surface shadow-sm hover:bg-surface-container-low max-md:min-h-11">
+                                                <span class="material-symbols-outlined text-[16px]" aria-hidden="true">verified_user</span>Xác nhận chính thức
                                             </button>
                                             <x-ui.button type="submit" form="confirm-{{ $enrollment->id }}" name="action" value="save" size="sm" variant="ghost">Lưu tiến độ</x-ui.button>
                                         </div>

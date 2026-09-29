@@ -19,6 +19,7 @@ use App\Models\User;
 use App\Services\PayrollFormulaService;
 use App\Services\SalesCommissionService;
 use App\Support\DataScope;
+use App\Support\Money;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -273,7 +274,7 @@ class PayrollController extends Controller
                 'user_id' => $record->user_id,
                 'type' => 'payroll_approved',
                 'title' => "Phiếu lương {$period->title} đã được duyệt",
-                'message' => 'Thực nhận '.number_format((float) $record->net_salary, 0, ',', '.').'đ — xem chi tiết tại "Lương của tôi".',
+                'message' => 'Thực nhận '.Money::format((float) $record->net_salary).' — xem chi tiết tại "Lương của tôi".',
                 'data' => ['payroll_period_id' => $period->id, 'link' => route('portal.my-salary', ['period_id' => $period->id])],
                 'is_read' => false,
             ]);
@@ -408,7 +409,7 @@ class PayrollController extends Controller
         $validated = $request->validate([
             'retention_tier' => ['nullable', 'numeric', function ($attribute, $value, $fail) use ($tiers) {
                 if ($value !== null && $value !== '' && ! in_array((float) $value, $tiers, true)) {
-                    $fail('Bậc KPI giữ học sinh phải là một trong: '.implode(' / ', array_map(fn ($t) => number_format($t, 0, ',', '.').'đ', $tiers)).'.');
+                    $fail('Bậc KPI giữ học sinh phải là một trong: '.implode(' / ', array_map(fn ($t) => Money::format($t), $tiers)).'.');
                 }
             }],
             'kpi_manual_amount' => ['nullable', 'numeric', 'min:0'],
@@ -460,7 +461,7 @@ class PayrollController extends Controller
             ->log('Điều chỉnh phiếu lương '.$record->user?->name.' — '.$record->period->title);
 
         return redirect()->route('payroll.records.show', $record->id)
-            ->with('status', 'Đã lưu các khoản nhập tay — thực lĩnh mới '.number_format((float) $record->net_salary, 0, ',', '.').'đ.');
+            ->with('status', 'Đã lưu các khoản nhập tay — thực lĩnh mới '.Money::format((float) $record->net_salary).'.');
     }
 
     public function fulltimePeriod($id)

@@ -23,19 +23,15 @@
         xử lý <a href="{{ route('penalties.index') }}" class="font-semibold underline">biên bản vi phạm</a> trước khi bấm "Chốt bảng lương".
     </x-ui.alert>
 
-    <form method="GET" action="{{ route('payroll.periods.index') }}" role="search"
-          class="mb-lg flex flex-wrap items-end gap-md rounded-xl border border-surface-container-highest bg-surface-container-lowest p-md shadow-sm">
-        <x-ui.select label="Kỳ lương" onchange="if (this.value) window.location.href = this.value" aria-label="Mở kỳ lương" placeholder="-- Mở kỳ lương --">
+    <x-ui.filter-bar :action="route('payroll.periods.index')" placeholder="Tìm kỳ lương / giáo viên...">
+        {{-- Chọn kỳ để mở thẳng bảng lương (không thuộc tham số lọc) --}}
+        <x-ui.select label="Mở kỳ lương" onchange="if (this.value) window.location.href = this.value" placeholder="-- Mở kỳ lương --">
             @foreach ($allPeriods as $p)
                 <option value="{{ route('payroll.periods.show', $p->id) }}">{{ $p->title }} ({{ $p->code }})</option>
             @endforeach
         </x-ui.select>
-        <div class="min-w-[240px] flex-1">
-            <x-ui.input type="search" name="search" :value="$search" icon="search" placeholder="Tìm kỳ lương / giáo viên..." aria-label="Tìm kiếm" />
-        </div>
-        <x-ui.select name="status" :options="$statusTexts" placeholder="Mọi trạng thái" aria-label="Trạng thái" onchange="this.form.submit()" />
-        <x-ui.button type="submit" variant="secondary" icon="filter_list">Lọc</x-ui.button>
-    </form>
+        <x-ui.select name="status" label="Trạng thái" :options="$statusTexts" placeholder="Mọi trạng thái" onchange="this.form.submit()" />
+    </x-ui.filter-bar>
 
     <x-ui.data-table min-width="960px">
         <x-slot:header>

@@ -11,10 +11,10 @@
     <div class="max-w-[430px] md:max-w-4xl mx-auto bg-surface-container-lowest min-h-[844px] md:min-h-0 shadow-2xl md:shadow-sm rounded-3xl border border-surface-container-highest overflow-hidden flex flex-col relative pb-20 md:pb-6 my-4">
         {{-- Top App Bar --}}
         <header class="w-full top-0 sticky bg-background dark:bg-inverse-surface border-b border-surface-container-highest dark:border-inverse-surface flex items-center justify-between px-4 h-16 z-40">
-            <h1 class="font-bold text-2xl text-primary tracking-tight">MENGLISH</h1>
+            <div class="font-bold text-2xl text-primary tracking-tight">MENGLISH</div>
             <div class="flex items-center gap-2">
                 @if($students && $students->count() > 1)
-                    <x-ui.select class="!min-w-0 py-1 text-[11px] font-semibold" aria-label="Chọn học viên"
+                    <x-ui.select class="!min-w-0 py-1 text-xs font-semibold" aria-label="Chọn học viên"
                                  onchange="window.location.href = '{{ route('portal.app-shell') }}?student_id=' + this.value"
                                  :options="$students->pluck('name', 'id')" :value="$student?->id" />
                 @endif
@@ -25,12 +25,12 @@
         </header>
 
         {{-- Main Content Area: Interactive Shell Hub --}}
-        <main class="flex-1 bg-[#F7F8FA] p-4 flex flex-col gap-4 overflow-y-auto">
+        <div class="flex-1 bg-[#F7F8FA] p-4 flex flex-col gap-4 overflow-y-auto">
             {{-- Welcome Banner --}}
             <div class="bg-gradient-to-r from-primary-container to-primary-container rounded-2xl p-4 text-white shadow-md">
                 <div class="flex items-center justify-between">
                     <div>
-                        <span class="text-[11px] font-bold uppercase tracking-wider bg-surface-container-lowest/20 px-2 py-0.5 rounded-full">Cổng Học Sinh & Phụ Huynh</span>
+                        <span class="text-xs font-bold uppercase tracking-wider bg-surface-container-lowest/20 px-2 py-0.5 rounded-full">Cổng Học Sinh & Phụ Huynh</span>
                         <h2 class="text-lg font-bold mt-1">Xin chào, {{ $student?->name ?? 'Học viên' }}</h2>
                         <p class="text-xs text-white/90 mt-0.5">Lớp: {{ $student?->currentClass?->name ?? 'Chưa xếp lớp' }}</p>
                     </div>
@@ -52,15 +52,15 @@
                             </div>
                             @if($student?->tuition)
                                 <x-ui.badge color="success" :dot="false">
-                                    {{ number_format($student->tuition->total_amount) }}đ
+                                    {{ \App\Support\Money::format($student->tuition->total_amount) }}
                                 </x-ui.badge>
                             @endif
                         </div>
                         <div>
                             <h4 class="text-xs font-bold text-on-surface group-hover:text-primary transition">Trang chủ</h4>
-                            <p class="text-[11px] text-on-surface-variant mt-0.5 line-clamp-1">Thông tin học sinh & học phí</p>
+                            <p class="text-xs text-on-surface-variant mt-0.5 line-clamp-1">Thông tin học sinh & học phí</p>
                         </div>
-                        <span class="text-[10px] font-bold text-primary flex items-center gap-0.5 mt-auto">Mở xem <span class="material-symbols-outlined text-[12px]">chevron_right</span></span>
+                        <span class="text-xs font-bold text-primary flex items-center gap-0.5 mt-auto">Mở xem <span class="material-symbols-outlined text-[12px]">chevron_right</span></span>
                     </a>
 
                     {{-- Học tập & Nộp bài --}}
@@ -75,9 +75,9 @@
                         </div>
                         <div>
                             <h4 class="text-xs font-bold text-on-surface group-hover:text-secondary transition">Học tập & Nộp bài</h4>
-                            <p class="text-[11px] text-on-surface-variant mt-0.5 line-clamp-1">Video, từ vựng, workbook</p>
+                            <p class="text-xs text-on-surface-variant mt-0.5 line-clamp-1">Video, từ vựng, workbook</p>
                         </div>
-                        <span class="text-[10px] font-bold text-secondary flex items-center gap-0.5 mt-auto">Mở xem <span class="material-symbols-outlined text-[12px]">chevron_right</span></span>
+                        <span class="text-xs font-bold text-secondary flex items-center gap-0.5 mt-auto">Mở xem <span class="material-symbols-outlined text-[12px]">chevron_right</span></span>
                     </a>
 
                     {{-- Luyện phát âm AI --}}
@@ -94,9 +94,9 @@
                         </div>
                         <div>
                             <h4 class="text-xs font-bold text-on-surface group-hover:text-error transition">Luyện phát âm AI</h4>
-                            <p class="text-[11px] text-on-surface-variant mt-0.5 line-clamp-1">Thu âm & chấm giọng đọc</p>
+                            <p class="text-xs text-on-surface-variant mt-0.5 line-clamp-1">Thu âm & chấm giọng đọc</p>
                         </div>
-                        <span class="text-[10px] font-bold text-error flex items-center gap-0.5 mt-auto">Mở xem <span class="material-symbols-outlined text-[12px]">chevron_right</span></span>
+                        <span class="text-xs font-bold text-error flex items-center gap-0.5 mt-auto">Mở xem <span class="material-symbols-outlined text-[12px]">chevron_right</span></span>
                     </a>
 
                     {{-- Danh sách thông báo --}}
@@ -120,9 +120,9 @@
                         </div>
                         <div>
                             <h4 class="text-xs font-bold text-on-surface group-hover:text-warning transition">Hộp thư Thông báo</h4>
-                            <p class="text-[11px] text-on-surface-variant mt-0.5 line-clamp-1">Học phí, sinh nhật, nghỉ lễ</p>
+                            <p class="text-xs text-on-surface-variant mt-0.5 line-clamp-1">Học phí, sinh nhật, nghỉ lễ</p>
                         </div>
-                        <span class="text-[10px] font-bold text-warning flex items-center gap-0.5 mt-auto">Mở xem <span class="material-symbols-outlined text-[12px]">chevron_right</span></span>
+                        <span class="text-xs font-bold text-warning flex items-center gap-0.5 mt-auto">Mở xem <span class="material-symbols-outlined text-[12px]">chevron_right</span></span>
                     </a>
 
                     {{-- Khảo sát chất lượng --}}
@@ -139,19 +139,19 @@
                         </div>
                         <div>
                             <h4 class="text-xs font-bold text-on-surface group-hover:text-tertiary transition">Khảo sát Đánh giá</h4>
-                            <p class="text-[11px] text-on-surface-variant mt-0.5 line-clamp-1">Cơ sở vật chất & giáo trình</p>
+                            <p class="text-xs text-on-surface-variant mt-0.5 line-clamp-1">Cơ sở vật chất & giáo trình</p>
                         </div>
-                        <span class="text-[10px] font-bold text-tertiary flex items-center gap-0.5 mt-auto">Mở xem <span class="material-symbols-outlined text-[12px]">chevron_right</span></span>
+                        <span class="text-xs font-bold text-tertiary flex items-center gap-0.5 mt-auto">Mở xem <span class="material-symbols-outlined text-[12px]">chevron_right</span></span>
                     </a>
 
                     {{-- Phụ huynh gửi feedback chặng học --}}
                     <a href="{{ route('portal.student.feedback', ['studentId' => $student?->id]) }}" class="bg-surface-container-lowest p-3.5 rounded-2xl border border-surface-container-highest hover:border-primary-container hover:shadow-md transition flex flex-col gap-2 group">
                         <div class="flex items-center justify-between">
-                            <div class="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+                            <div class="w-10 h-10 rounded-xl bg-accent-container text-accent flex items-center justify-center group-hover:scale-105 transition-transform">
                                 <span class="material-symbols-outlined text-[22px]">rate_review</span>
                             </div>
                             @if($hasFeedback)
-                                <span class="text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-1.5 py-0.5 rounded-md">
+                                <span class="text-xs font-bold text-accent bg-accent-container border border-accent/30 px-1.5 py-0.5 rounded-md">
                                     Đã phản hồi
                                 </span>
                             @else
@@ -161,10 +161,10 @@
                             @endif
                         </div>
                         <div>
-                            <h4 class="text-xs font-bold text-on-surface group-hover:text-purple-600 transition">Gửi Feedback chặng</h4>
-                            <p class="text-[11px] text-on-surface-variant mt-0.5 line-clamp-1">Đánh giá chặng học 5 sao</p>
+                            <h4 class="text-xs font-bold text-on-surface group-hover:text-accent transition">Gửi Feedback chặng</h4>
+                            <p class="text-xs text-on-surface-variant mt-0.5 line-clamp-1">Đánh giá chặng học 5 sao</p>
                         </div>
-                        <span class="text-[10px] font-bold text-purple-600 flex items-center gap-0.5 mt-auto">Mở xem <span class="material-symbols-outlined text-[12px]">chevron_right</span></span>
+                        <span class="text-xs font-bold text-accent flex items-center gap-0.5 mt-auto">Mở xem <span class="material-symbols-outlined text-[12px]">chevron_right</span></span>
                     </a>
                 </div>
             </div>
@@ -182,11 +182,11 @@
                 </div>
                 <div class="grid grid-cols-2 gap-2 text-xs">
                     <div>
-                        <span class="text-[10px] text-on-surface-variant/70 uppercase font-bold block">Mã học viên</span>
+                        <span class="text-xs text-on-surface-subtle uppercase font-bold block">Mã học viên</span>
                         <span class="font-mono font-bold text-on-surface">{{ $student?->code ?? '—' }}</span>
                     </div>
                     <div>
-                        <span class="text-[10px] text-on-surface-variant/70 uppercase font-bold block">Số điện thoại</span>
+                        <span class="text-xs text-on-surface-subtle uppercase font-bold block">Số điện thoại</span>
                         <span class="font-mono text-on-surface">{{ $student?->phone ?? '—' }}</span>
                     </div>
                 </div>
@@ -196,7 +196,7 @@
                     <span class="material-symbols-outlined text-[16px]">chevron_right</span>
                 </a>
             </div>
-        </main>
+        </div>
 
         {{-- Bottom Navigation Bar Component --}}
         @include('portal.partials.bottom-nav', ['activeTab' => 'home', 'student' => $student])

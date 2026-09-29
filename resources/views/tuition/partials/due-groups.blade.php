@@ -18,7 +18,7 @@
 @if ($type !== 'upcoming')
     <section class="space-y-md">
         <div class="flex items-center gap-sm border-l-4 border-error pl-sm">
-            <h2 class="font-h2 text-h2 uppercase text-on-surface">Nhóm "Quá hạn"</h2>
+            <h2 class="font-h2 text-h2 text-on-surface">Nhóm "Quá hạn"</h2>
             <x-ui.badge color="error" pill :dot="false">{{ $overdueTuitions->count() }} trường hợp</x-ui.badge>
         </div>
 
@@ -62,7 +62,7 @@
                             <div>
                                 <p class="font-label text-label uppercase text-on-surface-variant">Khoản thu</p>
                                 <p class="font-body-medium text-body-medium">{{ $ot->fee_label }}</p>
-                                <p class="font-caption text-caption text-error">Còn nợ {{ number_format((float) $ot->debt_amount, 0, ',', '.') }}đ</p>
+                                <p class="font-caption text-caption text-error">Còn nợ {{ \App\Support\Money::format((float) $ot->debt_amount) }}</p>
                             </div>
                             <div>
                                 <p class="font-label text-label uppercase text-on-surface-variant">Hạn thanh toán</p>
@@ -84,7 +84,7 @@
                         {{-- Nút chính "Lập phiếu thu", nút phụ "Gửi nhắc nợ"; thao tác còn lại trong menu "⋯". --}}
                         <div class="flex flex-col justify-center gap-sm bg-surface-container-low p-md" x-data="{ contact: false, report: false }">
                             @can('tuition.create')
-                                <x-ui.button size="sm" icon="payments" :href="route('tuition.receipts.create', ['tuition_id' => $ot->id])" modal="4xl">Lập phiếu thu</x-ui.button>
+                                <x-ui.button size="sm" variant="secondary" icon="payments" :href="route('tuition.receipts.create', ['tuition_id' => $ot->id])" modal="4xl">Lập phiếu thu</x-ui.button>
                             @endcan
                             @php
                                 $canContact = auth()->user()?->can('tuition.mark_contacted');
@@ -151,7 +151,7 @@
 @if ($type !== 'overdue')
     <section class="space-y-md">
         <div class="flex items-center gap-sm border-l-4 border-secondary pl-sm">
-            <h2 class="font-h2 text-h2 uppercase text-on-surface">Nhóm "Sắp đến hạn"</h2>
+            <h2 class="font-h2 text-h2 text-on-surface">Nhóm "Sắp đến hạn"</h2>
             <span class="font-body-medium text-on-surface-variant">(Trong {{ $upcomingDays }} ngày tới)</span>
             <span class="ml-auto font-caption text-caption text-on-surface-variant">Hiển thị {{ $upcoming->total() }} kết quả</span>
         </div>
@@ -183,7 +183,7 @@
                             <td>{{ $ot->classModel?->code ?? $ot->classModel?->name ?? '—' }}</td>
                             <td>
                                 <div>{{ $ot->fee_label }}</div>
-                                <div class="font-caption text-caption text-on-surface-variant">Còn nợ {{ number_format((float) $ot->debt_amount, 0, ',', '.') }}đ</div>
+                                <div class="font-caption text-caption text-on-surface-variant">Còn nợ {{ \App\Support\Money::format((float) $ot->debt_amount) }}</div>
                             </td>
                             <td class="font-code text-code">{{ $ot->due_date?->format('d/m/Y') }}</td>
                             <td class="font-caption text-caption">

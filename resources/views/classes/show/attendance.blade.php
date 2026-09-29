@@ -40,22 +40,22 @@
                     <tr>
                         <td>
                             <span class="font-code font-bold">{{ $s->date->format('d/m/Y') }}</span>
-                            <span class="block font-code text-[11px] text-on-surface-variant">{{ $s->start_time?->format('H:i') }}–{{ $s->end_time?->format('H:i') }}</span>
+                            <span class="block font-code text-xs text-on-surface-variant">{{ $s->start_time?->format('H:i') }}–{{ $s->end_time?->format('H:i') }}</span>
                         </td>
                         <td>
                             <x-ui.badge :color="$state['color']">{{ $state['label'] }}</x-ui.badge>
                             @if ($s->attendances_count > 0)
-                                <span class="ml-1 text-[11px] text-on-surface-variant">{{ $s->attendances_count }} HV</span>
+                                <span class="ml-1 text-xs text-on-surface-variant">{{ $s->attendances_count }} HV</span>
                             @endif
                         </td>
                         <td>
                             @if ($report)
                                 <x-ui.badge :color="$reportColors[$report->status] ?? 'neutral'">{{ $reportLabels[$report->status] ?? \App\Support\StatusLabel::for($report->status) }}</x-ui.badge>
-                                <span class="ml-1 text-[11px] text-on-surface-variant">{{ $report->reporter?->name }}</span>
+                                <span class="ml-1 text-xs text-on-surface-variant">{{ $report->reporter?->name }}</span>
                             @elseif ($s->status !== 'cancelled')
-                                <span class="text-[11px] text-on-surface-variant/70">Chưa nộp</span>
+                                <span class="text-xs text-on-surface-subtle">Chưa nộp</span>
                             @else
-                                <span class="text-[11px] text-on-surface-variant/70">—</span>
+                                <span class="text-xs text-on-surface-subtle">—</span>
                             @endif
                         </td>
                         <td class="text-right">

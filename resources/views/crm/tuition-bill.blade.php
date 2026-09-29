@@ -368,11 +368,11 @@
         @endcan
         <div style="display: flex; gap: 8px;">
             <button onclick="window.print()" class="btn btn-primary">
-                🖨️ In Thông Báo (Print A4)
+                In thông báo (Print A4)
             </button>
             @if($vietQrUrl)
             <a href="{{ $vietQrUrl }}" download="VietQR_{{ $student?->code ?? 'HocVien' }}.png" target="_blank" class="btn btn-secondary">
-                📥 Tải Mã QR
+                Tải mã QR
             </a>
             @endif
         </div>
@@ -515,7 +515,7 @@
                     @if($amountToPay > 0)
                         {{ number_format($amountToPay) }} VNĐ <span style="font-size: 12px; font-weight: normal; color: #b45309;">(Chưa gồm khoản chờ đối soát)</span>
                     @elseif($pendingAmount > 0)
-                        0 VNĐ <span style="font-size: 12px; font-weight: bold; color: #b45309; margin-left: 6px;">⏳ Đang chờ đối soát</span>
+                        0 VNĐ <span style="font-size: 12px; font-weight: bold; color: #b45309; margin-left: 6px;">Đang chờ đối soát</span>
                     @else
                         0 VNĐ <span style="font-size: 12px; font-weight: bold; color: #16a34a; margin-left: 6px;">✓ Đã hoàn tất thanh toán</span>
                     @endif
@@ -547,10 +547,10 @@
                     </span>
                 @elseif($amountToPay > 0)
                     <span style="font-size: 12px; font-weight: 700; padding: 3px 10px; background: #fef3c7; color: #b45309; border-radius: 9999px; border: 1px solid #fde68a;">
-                        ⏳ CÒN NỢ ĐỢT TIẾP THEO: {{ number_format($amountToPay) }} VNĐ
+                        CÒN NỢ ĐỢT TIẾP THEO: {{ number_format($amountToPay) }} VNĐ
                     </span>
                 @elseif($pendingAmount > 0)
-                    <span style="font-size: 12px; font-weight: 700; padding: 3px 10px; background: #fef3c7; color: #b45309; border-radius: 9999px; border: 1px solid #fde68a;">⏳ CHỜ KẾ TOÁN/ADMIN ĐỐI SOÁT</span>
+                    <span style="font-size: 12px; font-weight: 700; padding: 3px 10px; background: #fef3c7; color: #b45309; border-radius: 9999px; border: 1px solid #fde68a;">CHỜ KẾ TOÁN/ADMIN ĐỐI SOÁT</span>
                 @endif
             </div>
 
@@ -689,12 +689,12 @@
         @else
             @if(!empty($qrWarning))
             <div class="company-note" style="border-color: #fca5a5; background: #fef2f2; color: #991b1b;">
-                <strong>⚠️ Chưa cấu hình tài khoản nhận tiền.</strong>
+                <strong>Chưa cấu hình tài khoản nhận tiền.</strong>
                 <div>{{ $qrWarning }}</div>
             </div>
             @else
             <div class="company-note" style="border-color: #86efac; background: #f0fdf4; color: #166534;">
-                <strong>{{ $pendingAmount > 0 ? '⏳ Khoản thu đang chờ đối soát.' : '✓ Học viên đã hoàn tất học phí.' }}</strong>
+                <strong>{{ $pendingAmount > 0 ? 'Khoản thu đang chờ đối soát.' : '✓ Học viên đã hoàn tất học phí.' }}</strong>
                 <div>Bill này không phát sinh mã thanh toán mới.</div>
             </div>
             @endif

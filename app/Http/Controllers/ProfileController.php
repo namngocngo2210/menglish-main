@@ -13,6 +13,7 @@ use App\Models\TeacherTimesheet;
 use App\Models\User;
 use App\Models\WorkTask;
 use App\Support\Approvals\ApprovalInboxService;
+use App\Support\Money;
 use App\Support\Navigation\SidebarMenu;
 use App\Support\StaffType;
 use Illuminate\Http\RedirectResponse;
@@ -200,7 +201,7 @@ class ProfileController extends Controller
         $cards = [
             'payroll' => $showPayroll ? [
                 'label' => 'Lương kỳ gần nhất', 'icon' => 'wallet', 'tone' => 'success',
-                'value' => $latestPayroll ? number_format($latestPayroll->net_salary).'đ' : 'Chưa chốt kỳ',
+                'value' => $latestPayroll ? Money::format($latestPayroll->net_salary) : 'Chưa chốt kỳ',
                 'hint' => $latestPayroll?->period ? ($latestPayroll->period->title ?: 'Tháng '.$latestPayroll->period->month.'/'.$latestPayroll->period->year) : 'Hiện sau khi kỳ lương được duyệt',
                 'href' => route('portal.my-salary'),
             ] : null,

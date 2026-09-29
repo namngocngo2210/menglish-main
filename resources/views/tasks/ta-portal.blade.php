@@ -121,26 +121,26 @@
                 <li>
                     <a href="#nhiem-vu" class="flex flex-col items-center gap-[2px] rounded-xl bg-primary-container px-xs py-xs text-white" aria-current="page">
                         <span class="material-symbols-outlined text-[22px]" aria-hidden="true">assignment</span>
-                        <span class="text-[11px] font-semibold">Nhiệm vụ</span>
+                        <span class="text-xs font-semibold">Nhiệm vụ</span>
                     </a>
                 </li>
                 <li>
                     <a href="#lop-hoc" class="flex flex-col items-center gap-[2px] rounded-xl px-xs py-xs text-on-surface-variant">
                         <span class="material-symbols-outlined text-[22px]" aria-hidden="true">school</span>
-                        <span class="text-[11px] font-semibold">Lớp học</span>
+                        <span class="text-xs font-semibold">Lớp học</span>
                     </a>
                 </li>
                 <li>
                     <a href="{{ route('tasks.class-reports.create') }}" hx-get="{{ route('tasks.class-reports.create') }}" hx-target="#remote-modal-body" hx-swap="innerHTML" data-modal-size="2xl"
                        class="flex flex-col items-center gap-[2px] rounded-xl px-xs py-xs text-on-surface-variant">
                         <span class="material-symbols-outlined text-[22px]" aria-hidden="true">bar_chart</span>
-                        <span class="text-[11px] font-semibold">Báo cáo</span>
+                        <span class="text-xs font-semibold">Báo cáo</span>
                     </a>
                 </li>
                 <li>
                     <a href="{{ route('profile.edit') }}" class="flex flex-col items-center gap-[2px] rounded-xl px-xs py-xs text-on-surface-variant">
                         <span class="material-symbols-outlined text-[22px]" aria-hidden="true">person</span>
-                        <span class="text-[11px] font-semibold">Cá nhân</span>
+                        <span class="text-xs font-semibold">Cá nhân</span>
                     </a>
                 </li>
             </ul>

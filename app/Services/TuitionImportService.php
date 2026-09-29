@@ -8,6 +8,7 @@ use App\Models\Student;
 use App\Models\StudentTuition;
 use App\Models\TuitionReceipt;
 use App\Models\User;
+use App\Support\Money;
 use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -174,7 +175,7 @@ class TuitionImportService
 
                 $debt = $plannedDebt[$code] ?? ($existing ? (float) $existing->debt_amount : (float) $final);
                 if ($student && $paid > $debt + 0.5) {
-                    $errors[] = 'Số tiền đã đóng ('.number_format($paid, 0, ',', '.').'đ) vượt công nợ còn lại ('.number_format($debt, 0, ',', '.').'đ).';
+                    $errors[] = 'Số tiền đã đóng ('.Money::format($paid).') vượt công nợ còn lại ('.Money::format($debt).').';
                 }
             }
 

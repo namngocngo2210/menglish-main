@@ -1,7 +1,7 @@
 {{--
     <x-ui.badge> — nhãn trạng thái dạng "soft" (nền 10% + chữ đậm cùng màu + chấm tròn).
     Props:
-      color: neutral (mặc định) | primary | secondary | success | warning | error | info
+      color: neutral (mặc định) | primary | secondary | success | warning | error | info | accent
              | stage-new | stage-consulting | stage-test_scheduled | stage-tested | stage-result_sent
              | stage-closing | stage-won | stage-lost
              | status-new | status-progress | status-pending | status-blocked | status-done | status-overdue | status-canceled
@@ -23,6 +23,7 @@
         'warning' => ['bg-warning/10 text-warning', 'bg-warning'],
         'error' => ['bg-error/10 text-error', 'bg-error'],
         'info' => ['bg-info/10 text-info', 'bg-info'],
+        'accent' => ['bg-accent/10 text-accent', 'bg-accent'],
         'stage-new' => ['bg-stage-new/10 text-stage-new', 'bg-stage-new'],
         'stage-consulting' => ['bg-stage-consulting/10 text-stage-consulting', 'bg-stage-consulting'],
         'stage-test_scheduled' => ['bg-stage-test_scheduled/10 text-stage-test_scheduled', 'bg-stage-test_scheduled'],
@@ -31,12 +32,12 @@
         'stage-closing' => ['bg-stage-closing/10 text-stage-closing', 'bg-stage-closing'],
         'stage-won' => ['bg-stage-won/10 text-stage-won', 'bg-stage-won'],
         'stage-lost' => ['bg-stage-lost/10 text-stage-lost', 'bg-stage-lost'],
-        'status-new' => ['bg-status-new/10 text-gray-600', 'bg-status-new'],
-        'status-progress' => ['bg-status-progress/15 text-yellow-700', 'bg-status-progress'],
-        'status-pending' => ['bg-status-pending/10 text-orange-700', 'bg-status-pending'],
+        'status-new' => ['bg-status-new/10 text-on-surface-variant', 'bg-status-new'],
+        'status-progress' => ['bg-status-progress/15 text-warning', 'bg-status-progress'],
+        'status-pending' => ['bg-status-pending/10 text-warning', 'bg-status-pending'],
         'status-blocked' => ['bg-status-blocked/10 text-status-blocked', 'bg-status-blocked'],
-        'status-done' => ['bg-status-done/10 text-green-700', 'bg-status-done'],
-        'status-overdue' => ['bg-status-overdue/10 text-red-600', 'bg-status-overdue'],
+        'status-done' => ['bg-status-done/10 text-tertiary', 'bg-status-done'],
+        'status-overdue' => ['bg-status-overdue/10 text-error', 'bg-status-overdue'],
         'status-canceled' => ['bg-status-canceled/10 text-status-canceled', 'bg-status-canceled'],
     ];
     [$tone, $dotTone] = $palette[$color] ?? $palette['neutral'];

@@ -30,7 +30,7 @@
                :value="on === role ? 'inherit' : (on ? 'allow' : 'deny')">
         <input type="checkbox" x-model="on" data-perm="{{ $permissionName }}" @checked($effective)
                class="h-4 w-4 rounded border-outline-variant text-primary-container focus:ring-primary-container">
-        <span class="text-[10px] font-semibold" :class="on === role ? 'invisible' : (on ? 'text-tertiary' : 'text-error')"
+        <span class="text-xs font-semibold" :class="on === role ? 'invisible' : (on ? 'text-tertiary' : 'text-error')"
               x-text="on === role ? '·' : (on ? 'Cấp thêm' : 'Thu hồi')">{{ $decision === 'allow' ? 'Cấp thêm' : ($decision === 'deny' ? 'Thu hồi' : '') }}</span>
     </span>
 </label>

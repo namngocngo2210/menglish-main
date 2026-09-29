@@ -50,7 +50,7 @@
         <div class="mb-lg grid grid-cols-1 gap-md md:grid-cols-3">
             <div class="rounded-xl border border-outline-variant bg-surface-container-lowest p-lg">
                 <div class="flex items-start justify-between"><h3 class="font-body-semibold text-body-semibold text-on-surface-variant">Tổng thu nhập</h3><span class="material-symbols-outlined text-primary-container" aria-hidden="true">payments</span></div>
-                <p class="mt-sm font-h2 text-h2 font-mono text-on-surface">{{ $n($incomeTotal) }} ₫</p>
+                <p class="mt-sm font-h2 text-h2 font-mono text-on-surface">{{ $n($incomeTotal) }} đ</p>
                 @if ($change !== null)
                     <p class="mt-xs inline-flex items-center gap-xs font-body-small text-body-small {{ $change >= 0 ? 'text-tertiary' : 'text-error' }}">
                         <span class="material-symbols-outlined text-[16px]" aria-hidden="true">{{ $change >= 0 ? 'trending_up' : 'trending_down' }}</span>{{ $change >= 0 ? '+' : '' }}{{ $change }}% so với tháng trước
@@ -61,12 +61,12 @@
             </div>
             <div class="rounded-xl border border-outline-variant bg-surface-container-lowest p-lg">
                 <div class="flex items-start justify-between"><h3 class="font-body-semibold text-body-semibold text-on-surface-variant">Tổng khoản trừ</h3><span class="material-symbols-outlined text-error" aria-hidden="true">money_off</span></div>
-                <p class="mt-sm font-h2 text-h2 font-mono text-error">{{ $n($deductionTotal) }} ₫</p>
+                <p class="mt-sm font-h2 text-h2 font-mono text-error">{{ $n($deductionTotal) }} đ</p>
                 <p class="mt-xs inline-flex items-center gap-xs font-body-small text-body-small text-on-surface-variant"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">warning</span>Bao gồm phạt và các khoản khác</p>
             </div>
             <div class="rounded-xl bg-primary-container p-lg text-white">
                 <div class="flex items-start justify-between"><h3 class="font-body-semibold text-body-semibold">Thực nhận</h3><span class="material-symbols-outlined" aria-hidden="true">account_balance_wallet</span></div>
-                <p class="mt-sm font-h2 text-h2 font-mono">{{ $n($netSalary) }} ₫</p>
+                <p class="mt-sm font-h2 text-h2 font-mono">{{ $n($netSalary) }} đ</p>
                 <p class="mt-xs font-body-small text-body-small text-white/80">{{ $record->period->status === 'paid' ? 'Đã chi trả qua tài khoản ngân hàng' : 'Đã duyệt — chờ chi trả qua tài khoản ngân hàng' }}</p>
             </div>
         </div>
@@ -75,7 +75,7 @@
             <x-ui.data-table>
                 <x-slot:header><h3 class="flex items-center gap-xs font-h3 text-h3 text-on-surface"><span class="material-symbols-outlined text-primary-container" aria-hidden="true">account_balance</span>Chi tiết thu nhập</h3></x-slot:header>
                 <table>
-                    <thead><tr><th>Hạng mục</th><th class="text-right">Số lượng</th><th class="text-right">Thành tiền (₫)</th></tr></thead>
+                    <thead><tr><th>Hạng mục</th><th class="text-right">Số lượng</th><th class="text-right">Thành tiền (đ)</th></tr></thead>
                     <tbody>
                         @foreach ($record->earningLines() as $line)
                             <tr>
@@ -92,7 +92,7 @@
             <x-ui.data-table>
                 <x-slot:header><h3 class="flex items-center gap-xs font-h3 text-h3 text-on-surface"><span class="material-symbols-outlined text-error" aria-hidden="true">money_off</span>Các khoản trừ</h3></x-slot:header>
                 <table>
-                    <thead><tr><th>Lý do</th><th>Trạng thái</th><th class="text-right">Số tiền (₫)</th></tr></thead>
+                    <thead><tr><th>Lý do</th><th>Trạng thái</th><th class="text-right">Số tiền (đ)</th></tr></thead>
                     <tbody>
                         @foreach ($penalties as $pen)
                             <tr>
@@ -136,7 +136,7 @@
                 <x-ui.empty-state icon="schedule" title="Không có buổi dạy hợp lệ trong kỳ" />
             @else
             <table>
-                <thead><tr><th>Ngày dạy</th><th>Thời gian</th><th>Lớp học</th><th class="text-right">Đơn giá (₫)</th><th class="text-right">Thành tiền (₫)</th></tr></thead>
+                <thead><tr><th>Ngày dạy</th><th>Thời gian</th><th>Lớp học</th><th class="text-right">Đơn giá (đ)</th><th class="text-right">Thành tiền (đ)</th></tr></thead>
                 <tbody>
                     @foreach ($timesheets as $i => $ts)
                         @php $pay = $ts->sessionPay($user); $code = $ts->classModel?->code ?? $ts->classModel?->name; @endphp

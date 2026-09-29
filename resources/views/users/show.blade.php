@@ -23,7 +23,6 @@
     $hasMoney = fn ($v) => $v !== null && (float) $v > 0;
 @endphp
 <x-app-layout :title="$user->name">
-    @include('partials.data-confirm')
 <div id="user-detail" hx-get="{{ route('users.show', $user) }}" hx-trigger="users-changed from:body" hx-select="#user-detail" hx-swap="outerHTML" hx-disinherit="*">
     <x-ui.page-header :title="$user->name" :back="route('users.index')">
         <x-slot:badges>

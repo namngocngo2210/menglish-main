@@ -3,9 +3,9 @@
     @php
         $rankBadge = function (int $rank) {
             return match ($rank) {
-                1 => ['bg-amber-100 text-amber-700', 'emoji_events'],
-                2 => ['bg-slate-100 text-slate-600', 'emoji_events'],
-                3 => ['bg-orange-100 text-orange-800', 'emoji_events'],
+                1 => ['bg-warning-container text-warning', 'emoji_events'],
+                2 => ['bg-surface-container text-on-surface-variant', 'emoji_events'],
+                3 => ['bg-warning-container text-on-warning-container', 'emoji_events'],
                 default => [null, null],
             };
         };
@@ -57,7 +57,7 @@
                     <tr>
                         <td class="text-center">
                             @if ($badgeClass)
-                                <span class="inline-flex h-8 w-8 items-center justify-center rounded-full {{ $badgeClass }}" aria-label="Hạng {{ $rank }}"><span class="material-symbols-outlined text-[18px]" aria-hidden="true">{{ $badgeIcon }}</span></span>
+                                <span class="inline-flex h-8 w-8 items-center justify-center rounded-full {{ $badgeClass }}" role="img" aria-label="Hạng {{ $rank }}"><span class="material-symbols-outlined text-[18px]" aria-hidden="true">{{ $badgeIcon }}</span></span>
                             @else
                                 <span class="font-mono font-semibold text-on-surface-variant">{{ $rank }}</span>
                             @endif
@@ -114,7 +114,7 @@
                     <tr>
                         <td class="text-center">
                             @if ($badgeClass)
-                                <span class="inline-flex h-8 w-8 items-center justify-center rounded-full {{ $badgeClass }}" aria-label="Hạng {{ $rank }}"><span class="material-symbols-outlined text-[18px]" aria-hidden="true">{{ $badgeIcon }}</span></span>
+                                <span class="inline-flex h-8 w-8 items-center justify-center rounded-full {{ $badgeClass }}" role="img" aria-label="Hạng {{ $rank }}"><span class="material-symbols-outlined text-[18px]" aria-hidden="true">{{ $badgeIcon }}</span></span>
                             @else
                                 <span class="font-mono font-semibold text-on-surface-variant">{{ $rank }}</span>
                             @endif

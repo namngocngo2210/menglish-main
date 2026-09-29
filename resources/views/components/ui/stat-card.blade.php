@@ -18,7 +18,7 @@
     $tones = [
         'default' => ['text-on-surface', 'bg-surface-container-low text-on-surface-variant'],
         'primary' => ['text-primary-container', 'bg-primary-fixed text-primary'],
-        'success' => ['text-tertiary-container', 'bg-tertiary-fixed/50 text-tertiary'],
+        'success' => ['text-tertiary', 'bg-tertiary-fixed/50 text-tertiary'],
         'secondary' => ['text-secondary-container', 'bg-secondary-fixed text-secondary'],
         'error' => ['text-error', 'bg-error-container text-error'],
         'warning' => ['text-warning', 'bg-warning-container text-warning'],

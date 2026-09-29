@@ -1,7 +1,7 @@
 {{-- Trang lớp · Học thuật: chương trình, chặng giáo trình, tiến độ và lịch Big Test (trước là "Chi tiết lớp học thuật"). --}}
 @php
     $card = 'rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-5 shadow-sm';
-    $label = 'mb-1 block text-[11px] font-bold uppercase tracking-wider text-on-surface-variant/70';
+    $label = 'mb-1 block text-xs font-bold uppercase tracking-wider text-on-surface-subtle';
 @endphp
 
 <div class="space-y-5">
@@ -25,7 +25,7 @@
                     @if ($currentStage)
                         <x-ui.badge color="primary" :pill="true">{{ $currentStage->stage_name }}</x-ui.badge>
                     @else
-                        <span class="font-bold text-on-surface-variant/70">Chưa giao chặng</span>
+                        <span class="font-bold text-on-surface-subtle">Chưa giao chặng</span>
                     @endif
                 </dd>
             </div>
@@ -39,7 +39,7 @@
                     @if ($sessionProgress['total'] > 0)
                         <span class="font-mono text-sm font-bold text-primary">{{ $sessionProgress['done'] }} / {{ $sessionProgress['total'] }} buổi</span>
                     @else
-                        <span class="font-bold text-on-surface-variant/70">Chưa có lịch học</span>
+                        <span class="font-bold text-on-surface-subtle">Chưa có lịch học</span>
                     @endif
                 </dd>
             </div>
@@ -64,7 +64,7 @@
                     <li class="flex flex-col justify-between gap-2 rounded-xl border border-surface-container-highest bg-surface-container-low/70 p-3 sm:flex-row sm:items-center">
                         <div>
                             <span class="block text-xs font-bold text-on-surface">{{ $bt->title }}</span>
-                            <span class="font-mono text-[11px] text-on-surface-variant">{{ $bt->scheduled_at?->format('d/m/Y H:i') ?? 'Chưa xếp lịch' }}{{ $bt->room ? ' • '.$bt->room : '' }}</span>
+                            <span class="font-mono text-xs text-on-surface-variant">{{ $bt->scheduled_at?->format('d/m/Y H:i') ?? 'Chưa xếp lịch' }}{{ $bt->room ? ' • '.$bt->room : '' }}</span>
                         </div>
                         <x-ui.badge :color="$btPast ? 'success' : 'primary'">{{ $btPast ? 'Đã diễn ra' : 'Sắp diễn ra' }}</x-ui.badge>
                     </li>

@@ -25,25 +25,12 @@
         </div>
 
         {{-- Bộ lọc (server) --}}
-        <form method="GET" action="{{ route('placement-tests.index') }}" role="search" class="rounded-xl border border-surface-container-highest bg-surface-container-lowest p-md shadow-sm">
-            <div class="grid grid-cols-1 items-end gap-md md:grid-cols-2 lg:grid-cols-12">
-                <div class="lg:col-span-3">
-                    <x-ui.select name="grade_group" label="Cấp độ" placeholder="Tất cả cấp độ" :options="$gradeGroups" />
-                </div>
-                <div class="lg:col-span-2">
-                    <x-ui.select name="status" label="Trạng thái" placeholder="Tất cả trạng thái" :options="['active' => 'Hoạt động', 'hidden' => 'Ẩn']" />
-                </div>
-                <div class="lg:col-span-5">
-                    <x-ui.input id="f_test_search" type="search" name="search" label="Tìm kiếm tên đề" icon="search" :value="request('search')" placeholder="Nhập tên đề cần tìm..." />
-                </div>
-                <div class="flex gap-sm lg:col-span-2">
-                    <x-ui.button type="submit" variant="secondary" icon="filter_list" class="flex-1">Lọc</x-ui.button>
-                    <x-ui.button variant="ghost" icon="refresh" :href="route('placement-tests.index')" title="Làm mới">Làm mới</x-ui.button>
-                </div>
-            </div>
-        </form>
+        <x-ui.filter-bar :action="route('placement-tests.index')" placeholder="Nhập tên đề cần tìm..." class="!mb-0">
+            <x-ui.select name="grade_group" label="Cấp độ" placeholder="Tất cả cấp độ" :options="$gradeGroups" />
+            <x-ui.select name="status" label="Trạng thái" placeholder="Tất cả trạng thái" :options="['active' => 'Hoạt động', 'hidden' => 'Ẩn']" />
+        </x-ui.filter-bar>
 
-        <x-ui.data-table min-width="980px">
+        <x-ui.data-table min-width="980px" sticky="both">
             <table>
                 <thead>
                     <tr>
@@ -108,7 +95,7 @@
                                     @endcan
                                     @can('placement_test.delete')
                                         @if (! $t->is_preset && $t->submissions_count === 0)
-                                            <form action="{{ route('placement-tests.destroy', $t->id) }}" method="POST" class="inline" onsubmit="return confirm('Bạn có chắc muốn xóa đề thi này?');">
+                                            <form action="{{ route('placement-tests.destroy', $t->id) }}" method="POST" class="inline" data-confirm="Xóa đề thi này?" data-confirm-label="Xóa" data-confirm-danger>
                                                 @csrf
                                                 @method('DELETE')
                                                 <x-ui.button type="submit" variant="danger-text" size="sm" icon="delete" title="Xóa đề (chưa có bài làm)" aria-label="Xóa đề" />
@@ -127,7 +114,7 @@
         </x-ui.data-table>
 
         {{-- Bài làm gần đây (theo phạm vi khách CRM) — chấm theo thang điểm khối lớp --}}
-        <x-ui.data-table min-width="1080px" id="submissions" class="scroll-mt-6">
+        <x-ui.data-table min-width="1080px" sticky="both" id="submissions" class="scroll-mt-6">
             <x-slot:header>
                 <div class="flex flex-wrap items-center gap-sm">
                     <h2 class="font-h3 text-h3 text-on-surface">Bài làm &amp; kết quả chấm</h2>

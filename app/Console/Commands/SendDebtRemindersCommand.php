@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\DebtReminderRule;
 use App\Models\StudentTuition;
 use App\Services\NotificationService;
+use App\Support\Money;
 use Illuminate\Console\Command;
 
 /**
@@ -43,7 +44,7 @@ class SendDebtRemindersCommand extends Command
                 if ($dryRun) {
                     // Dry-run: chỉ liệt kê, không ghi thông báo / không gửi email.
                     $sent++;
-                    $this->info("[dry-run][{$milestone}] {$tuition->student?->name} — ".number_format((float) $tuition->debt_amount).'đ');
+                    $this->info("[dry-run][{$milestone}] {$tuition->student?->name} — ".Money::format((float) $tuition->debt_amount));
 
                     continue;
                 }
@@ -51,7 +52,7 @@ class SendDebtRemindersCommand extends Command
                 $result = $service->notifyDebtReminderByMilestone($tuition, $milestone);
                 if ($result['sent']) {
                     $sent++;
-                    $this->info("[{$result['milestone']}] {$tuition->student?->name} — ".number_format((float) $tuition->debt_amount).'đ');
+                    $this->info("[{$result['milestone']}] {$tuition->student?->name} — ".Money::format((float) $tuition->debt_amount));
                 } else {
                     $skipped++;
                     $this->line("Bỏ qua #{$tuition->id}: {$result['reason']}");

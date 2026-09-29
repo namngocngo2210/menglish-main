@@ -1,5 +1,5 @@
 <x-app-layout>
-    @include('crm.partials.header-tabs')
+    @include('crm.partials.header-tabs', ['title' => 'Khách đã nhập học'])
 
     {{-- Mockup crm-ui-mockup/khach-hang-chot-thanh-cong: (1) băng nhắc Chờ xếp lớp (link sang màn Chờ xếp lớp), (2) bộ lọc Chi nhánh / Lớp học / Tìm kiếm,
          (3) Khách đã có lớp + Xuất Excel + phân trang. A6: không có "Hủy chốt". --}}
@@ -16,7 +16,7 @@
         @endif
         @if (session('temporary_password'))
             <x-ui.alert type="warning" title="Tài khoản học viên vừa tạo — chỉ hiển thị một lần">
-                <div>Email: <span class="font-code font-semibold">{{ session('student_account_email') }}</span></div>
+                <div>Tên đăng nhập: <span class="select-all font-code font-semibold">{{ session('student_account_login', session('student_account_email')) }}</span></div>
                 <div>Mật khẩu tạm: <span class="font-code font-semibold">{{ session('temporary_password') }}</span></div>
                 <div class="font-caption text-caption">Yêu cầu học viên đổi mật khẩu ngay lần đăng nhập đầu tiên.</div>
             </x-ui.alert>
@@ -29,12 +29,12 @@
 
         <div class="grid grid-cols-2 gap-md lg:grid-cols-4">
             <x-ui.stat-card label="Tổng khách đã chốt" :value="number_format($totalCount, 0, ',', '.').' học viên'" icon="how_to_reg" tone="primary" />
-            <x-ui.stat-card label="Tổng giá trị hợp đồng" :value="number_format($totalContractAmount, 0, ',', '.').' ₫'" icon="description" />
-            <x-ui.stat-card label="Thực thu đã duyệt" :value="number_format($totalCollectedAmount, 0, ',', '.').' ₫'" icon="payments" tone="success" />
-            <x-ui.stat-card label="Công nợ còn lại" :value="number_format($totalDebtAmount, 0, ',', '.').' ₫'" icon="account_balance_wallet" tone="warning" />
+            <x-ui.stat-card label="Tổng giá trị hợp đồng" :value="\App\Support\Money::format($totalContractAmount)" icon="description" />
+            <x-ui.stat-card label="Thực thu đã duyệt" :value="\App\Support\Money::format($totalCollectedAmount)" icon="payments" tone="success" />
+            <x-ui.stat-card label="Công nợ còn lại" :value="\App\Support\Money::format($totalDebtAmount)" icon="account_balance_wallet" tone="warning" />
         </div>
 
-        <x-ui.data-table min-width="980px">
+        <x-ui.data-table min-width="980px" sticky="both">
             <x-slot:header>
                 <div class="flex items-center gap-sm">
                     <h2 class="font-h3 text-h3 text-on-surface">Khách đã có lớp</h2>
@@ -81,9 +81,9 @@
                             </td>
                             <td class="whitespace-nowrap font-code text-code text-on-surface-variant">{{ $wc->converted_at?->format('H:i d/m/Y') ?? '—' }}</td>
                             <td class="whitespace-nowrap">
-                                <span class="inline-block rounded-full border px-sm py-0.5 text-[11px] font-bold {{ $pendingAmount > 0 ? 'bg-warning-container text-on-warning-container border-warning/30' : ($tuition?->status_badge ?? 'bg-surface-container-low text-on-surface-variant border-outline-variant') }}">
-                                    {{ $pendingAmount > 0 ? 'Chờ đối soát '.number_format($pendingAmount).'đ' : ($tuition?->status_label ?? 'Chưa có học phí') }}
-                                    @if ($tuition && $tuition->debt_amount > 0) · Còn {{ number_format(max(0, $tuition->debt_amount - $pendingAmount)) }}đ @endif
+                                <span class="inline-block rounded-full border px-sm py-0.5 text-xs font-bold {{ $pendingAmount > 0 ? 'bg-warning-container text-on-warning-container border-warning/30' : ($tuition?->status_badge ?? 'bg-surface-container-low text-on-surface-variant border-outline-variant') }}">
+                                    {{ $pendingAmount > 0 ? 'Chờ đối soát '.\App\Support\Money::format($pendingAmount) : ($tuition?->status_label ?? 'Chưa có học phí') }}
+                                    @if ($tuition && $tuition->debt_amount > 0) · Còn {{ \App\Support\Money::format(max(0, $tuition->debt_amount - $pendingAmount)) }} @endif
                                 </span>
                             </td>
                             <td class="whitespace-nowrap text-right">

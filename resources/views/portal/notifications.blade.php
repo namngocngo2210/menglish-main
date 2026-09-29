@@ -34,7 +34,7 @@
         </div>
 
         {{-- Main Notification List --}}
-        <main class="flex-1 overflow-y-auto">
+        <div class="flex-1 overflow-y-auto">
             <div class="divide-y divide-surface-container-highest">
                 @forelse($notifications as $notif)
                     @php
@@ -66,14 +66,14 @@
                                 <h3 class="text-xs font-bold text-on-surface pr-2 truncate {{ $isUnread ? 'font-bold text-on-surface' : 'font-medium text-on-surface-variant' }}">
                                     {{ $title }}
                                 </h3>
-                                <span class="text-[10px] text-primary whitespace-nowrap font-medium">{{ $time }}</span>
+                                <span class="text-xs text-primary whitespace-nowrap font-medium">{{ $time }}</span>
                             </div>
                             <p class="text-xs text-on-surface-variant line-clamp-2 leading-relaxed">
                                 {{ $content }}
                             </p>
 
                             {{-- CRUD Actions for single notification --}}
-                            <div class="flex items-center gap-3 mt-2 text-[11px]">
+                            <div class="flex items-center gap-3 mt-2 text-xs">
                                 @if($isUnread && $notifId)
                                     <form action="{{ route('portal.student.notifications.read-single', $notifId) }}" method="POST" class="inline">
                                         @csrf
@@ -83,7 +83,7 @@
                                     </form>
                                 @endif
                                 @if($notifId)
-                                    <form action="{{ route('portal.student.notifications.destroy', $notifId) }}" method="POST" class="inline" onsubmit="return confirm('Bạn có chắc muốn xóa thông báo này?');">
+                                    <form action="{{ route('portal.student.notifications.destroy', $notifId) }}" method="POST" class="inline" data-confirm="Xóa thông báo này?" data-confirm-label="Xóa" data-confirm-danger>
                                         @csrf
                                         @method('DELETE')
                                         <x-ui.button type="submit" variant="danger-text" size="sm" icon="delete">
@@ -99,11 +99,11 @@
                 @endforelse
             </div>
 
-            <div class="py-6 text-center text-xs text-on-surface-variant/70 flex items-center justify-center gap-1.5">
+            <div class="py-6 text-center text-xs text-on-surface-subtle flex items-center justify-center gap-1.5">
                 <span class="material-symbols-outlined text-[16px]">done_all</span>
                 <span>Đã tải hết thông báo gần đây</span>
             </div>
-        </main>
+        </div>
 
         {{-- Bottom Navigation Bar Component --}}
         @include('portal.partials.bottom-nav', ['activeTab' => 'notifications', 'student' => $student])

@@ -129,7 +129,7 @@
                 @if ($student->status === 'deferred')
                     {{-- Kết thúc bảo lưu: về Đang học (lớp đã khai giảng) / Chờ khai giảng, bỏ đóng băng học phí, báo Học vụ. --}}
                     <form action="{{ route('students.end-deferral', $student->id) }}" method="POST"
-                          onsubmit="return confirm('Kết thúc bảo lưu cho học viên này? Học viên sẽ về Đang học (hoặc Chờ khai giảng nếu lớp chưa khai giảng) và công nợ, nhắc nợ chạy lại.')">
+                          data-confirm="Kết thúc bảo lưu cho học viên này? Học viên sẽ về Đang học (hoặc Chờ khai giảng nếu lớp chưa khai giảng) và công nợ, nhắc nợ chạy lại." data-confirm-label="Kết thúc bảo lưu">
                         @csrf
                         <x-ui.button type="submit" variant="secondary" size="sm" icon="play_circle">
                             Kết thúc bảo lưu
@@ -147,7 +147,7 @@
                         @foreach (\App\Models\Student::STATUSES as $statusKey => $statusLabel)
                             @continue($statusKey === $student->status)
                             <form action="{{ route('students.status.update', $student->id) }}" method="POST"
-                                  @if ($statusKey === \App\Models\Student::STATUS_DROPPED) onsubmit="return confirm('Chuyển sang Thôi học sẽ đưa học viên ra khỏi danh sách lớp đang học (vẫn giữ lịch sử). Tiếp tục?')" @endif>
+                                  @if ($statusKey === \App\Models\Student::STATUS_DROPPED) data-confirm="Chuyển sang Thôi học sẽ đưa học viên ra khỏi danh sách lớp đang học (vẫn giữ lịch sử). Tiếp tục?" data-confirm-label="Chuyển sang Thôi học" data-confirm-danger @endif>
                                 @csrf @method('PUT')
                                 <input type="hidden" name="status" value="{{ $statusKey }}">
                                 <button type="submit" role="menuitem" class="flex w-full items-center gap-sm px-md py-sm text-left font-body-small text-body-small text-on-surface hover:bg-surface-container-low">
@@ -220,7 +220,7 @@
                                             <span class="block text-on-surface-variant">{{ $lesson ? 'Chưa gắn nội dung giáo trình' : '' }}</span>
                                         @endif
                                         <span class="block font-caption text-caption text-on-surface-variant">
-                                            {{ $session->classModel?->name ?? '—' }}@if ($session->room) · {{ str_starts_with(mb_strtolower($session->room), 'phòng') ? $session->room : 'Phòng '.$session->room }}@endif
+                                            {{ $session->classModel?->name ?? '—' }}@if ($session->roomLabel()) · {{ $session->roomLabel() }}@endif
                                             @if ($session->type === \App\Models\ClassSession::TYPE_MAKEUP) · <span class="font-semibold text-warning">Học bù</span>@elseif ($session->type === \App\Models\ClassSession::TYPE_SUPPORT) · <span class="font-semibold text-secondary">Phụ đạo</span>@endif
                                         </span>
                                     </td>
@@ -390,9 +390,9 @@
                 </div>
                 @if ($student->tuition)
                     <div class="grid grid-cols-3 gap-sm rounded-lg bg-surface-container-low p-sm text-center font-caption text-caption">
-                        <div><p class="text-on-surface-variant">Tổng học phí</p><p class="font-code font-semibold text-on-surface">{{ number_format($student->tuition->final_amount) }}đ</p></div>
-                        <div><p class="text-on-surface-variant">Đã thanh toán</p><p class="font-code font-semibold text-tertiary">{{ number_format($student->tuition->paid_amount) }}đ</p></div>
-                        <div><p class="text-on-surface-variant">Công nợ</p><p class="font-code font-semibold text-error">{{ number_format($student->tuition->debt_amount) }}đ</p></div>
+                        <div><p class="text-on-surface-variant">Tổng học phí</p><p class="font-code font-semibold text-on-surface">{{ \App\Support\Money::format($student->tuition->final_amount) }}</p></div>
+                        <div><p class="text-on-surface-variant">Đã thanh toán</p><p class="font-code font-semibold text-tertiary">{{ \App\Support\Money::format($student->tuition->paid_amount) }}</p></div>
+                        <div><p class="text-on-surface-variant">Công nợ</p><p class="font-code font-semibold text-error">{{ \App\Support\Money::format($student->tuition->debt_amount) }}</p></div>
                     </div>
                     <div class="max-h-[220px] flex-1 space-y-sm overflow-y-auto pr-xs">
                         @forelse ($student->tuition->receipts ?? [] as $receipt)
@@ -406,7 +406,7 @@
                                     </div>
                                 </div>
                                 <div class="text-right">
-                                    <p class="font-code text-code font-semibold">{{ number_format($receipt->amount) }}đ</p>
+                                    <p class="font-code text-code font-semibold">{{ \App\Support\Money::format($receipt->amount) }}</p>
                                     <span class="font-caption text-caption font-semibold {{ $rTone }}">{{ $rLabel }}</span>
                                 </div>
                             </div>
@@ -417,7 +417,7 @@
                     <div class="flex items-center justify-between border-t border-surface-container pt-sm">
                         <div>
                             <p class="font-label text-label uppercase text-on-surface-variant">Tổng học phí đã nộp</p>
-                            <p class="font-h3 text-h3 text-primary">{{ number_format($student->tuition->paid_amount) }}đ</p>
+                            <p class="font-h3 text-h3 text-primary">{{ \App\Support\Money::format($student->tuition->paid_amount) }}</p>
                         </div>
                         <x-ui.button variant="ghost" icon="more_horiz" :href="route('tuition.students', ['search' => $student->code])" title="Lịch sử sổ thu" aria-label="Lịch sử sổ thu" />
                     </div>

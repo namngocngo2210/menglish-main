@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Money;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -241,7 +242,7 @@ class PayrollRecord extends Model
             return $this->legacyEarningLines();
         }
 
-        $money = fn ($value) => number_format((float) $value, 0, ',', '.').'đ';
+        $money = fn ($value) => Money::format((float) $value);
         $lines = [];
 
         if ($this->isPartTime()) {
@@ -290,10 +291,10 @@ class PayrollRecord extends Model
     {
         $hint = [];
         if ((float) $this->commission_base > 0) {
-            $hint[] = 'Căn cứ thực thu '.number_format((float) $this->commission_base, 0, ',', '.').'đ';
+            $hint[] = 'Căn cứ thực thu '.Money::format((float) $this->commission_base);
         }
         if ((float) $this->commission_deferred > 0) {
-            $hint[] = 'Hoãn sang kỳ sau '.number_format((float) $this->commission_deferred, 0, ',', '.').'đ';
+            $hint[] = 'Hoãn sang kỳ sau '.Money::format((float) $this->commission_deferred);
         }
 
         return ['key' => 'commission_bonus', 'label' => 'Hoa hồng tuyển sinh (khách mới)', 'amount' => (float) $this->commission_bonus,
@@ -351,7 +352,7 @@ class PayrollRecord extends Model
             ['key' => 'kpi_bonus', 'label' => 'Thưởng KPI', 'amount' => (float) $this->kpi_bonus, 'hint' => null],
             ['key' => 'allowance', 'label' => 'Phụ cấp', 'amount' => (float) $this->allowance, 'hint' => $this->allowance_override !== null ? 'Kế toán điều chỉnh tay' : null],
             ['key' => 'commission_bonus', 'label' => 'Hoa hồng tuyển sinh (khách mới)', 'amount' => (float) $this->commission_bonus,
-                'hint' => (float) $this->commission_base > 0 ? 'Căn cứ thực thu '.number_format((float) $this->commission_base, 0, ',', '.').'đ' : null],
+                'hint' => (float) $this->commission_base > 0 ? 'Căn cứ thực thu '.Money::format((float) $this->commission_base) : null],
             (float) $this->renew_bonus != 0.0 ? ['key' => 'renew_bonus', 'label' => 'Thưởng tái tục', 'amount' => (float) $this->renew_bonus, 'hint' => null] : null,
             ['key' => 'other_bonus', 'label' => 'Thưởng / cộng khác', 'amount' => (float) $this->other_bonus, 'hint' => null],
         ]));

@@ -41,7 +41,7 @@
              class="pointer-events-auto flex items-center gap-md rounded-xl bg-inverse-surface p-md text-inverse-on-surface shadow-level-3"
              :role="toast.type === 'error' ? 'alert' : 'status'">
             <span class="material-symbols-outlined shrink-0"
-                  :class="{ 'text-tertiary-fixed': toast.type === 'success', 'text-error-container': toast.type === 'error', 'text-amber-300': toast.type === 'warning', 'text-secondary-fixed-dim': toast.type === 'info' }"
+                  :class="{ 'text-tertiary-fixed': toast.type === 'success', 'text-error-container': toast.type === 'error', 'text-warning-container': toast.type === 'warning', 'text-secondary-fixed-dim': toast.type === 'info' }"
                   x-text="icon(toast.type)"></span>
             <span class="flex-1 font-body-medium text-body-medium" x-text="toast.message"></span>
             <button type="button" class="shrink-0 rounded p-0.5 text-inverse-on-surface/70 hover:text-inverse-on-surface" @click="remove(toast.id)" aria-label="Đóng thông báo">

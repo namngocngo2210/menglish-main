@@ -5,29 +5,25 @@
             <x-ui.badge color="success" :pill="true">Tính toán thời gian thực</x-ui.badge>
         </x-slot:badges>
         <x-slot:actions>
-        {{-- Filters & Actions --}}
-        <form id="revenueFilterForm" method="GET" action="{{ route('finance.reports.revenue') }}" class="flex flex-wrap items-center gap-3">
-            {{-- Filter Kỳ tháng --}}
-            <x-ui.select id="filter-month" name="month" inline-label="KỲ THÁNG:" onchange="this.form.submit()" :value="$month" :options="$monthOptions" />
+        {{-- Nút Làm mới --}}
+        <x-ui.button variant="secondary" icon="sync" onclick="window.location.reload()" title="Làm mới số liệu thời gian thực" />
 
-            {{-- Filter Chi nhánh --}}
-            <x-ui.select id="filter-branch" name="branch_id" inline-label="CƠ SỞ:" onchange="this.form.submit()">
+        {{-- Nút Xuất báo cáo --}}
+        <x-ui.button variant="secondary" icon="download" :href="route('finance.reports.revenue.export', ['month' => $month, 'branch_id' => $branchId])">Xuất báo cáo</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
+
+    <div class="space-y-6">
+        {{-- Bộ lọc kỳ tháng / chi nhánh --}}
+        <x-ui.filter-bar :search="false" class="!mb-0">
+            <x-ui.select name="month" label="Kỳ tháng" onchange="this.form.submit()" :value="$month" :options="$monthOptions" />
+            <x-ui.select name="branch_id" label="Cơ sở" onchange="this.form.submit()">
                 @unless ($branchScoped ?? false)<option value="all" {{ $branchId === 'all' ? 'selected' : '' }}>Tất cả chi nhánh</option>@endunless
                 @foreach ($branches as $b)
                     <option value="{{ $b->id }}" {{ (string)$branchId === (string)$b->id ? 'selected' : '' }}>{{ $b->name }}</option>
                 @endforeach
             </x-ui.select>
-
-            {{-- Nút Làm mới --}}
-            <x-ui.button variant="secondary" icon="sync" onclick="window.location.reload()" title="Làm mới số liệu thời gian thực" />
-
-            {{-- Nút Xuất báo cáo --}}
-            <x-ui.button variant="secondary" icon="download" :href="route('finance.reports.revenue.export', ['month' => $month, 'branch_id' => $branchId])">Xuất báo cáo</x-ui.button>
-        </form>
-        </x-slot:actions>
-    </x-ui.page-header>
-
-    <div class="space-y-6">
+        </x-ui.filter-bar>
 
         {{-- 2. Thẻ 3 Số Liệu Cốt Lõi: THU - CHI - DOANH THU TẠM TÍNH --}}
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -60,10 +56,10 @@
 
                 <div class="mt-6 pt-4 border-t border-surface-container-highest flex items-center justify-between text-xs text-on-surface-variant">
                     <span class="flex items-center gap-1">
-                        <span class="material-symbols-outlined text-sm text-on-surface-variant/70">receipt_long</span>
+                        <span class="material-symbols-outlined text-sm text-on-surface-subtle">receipt_long</span>
                         Gồm {{ $validReceiptsCount }} phiếu thu hợp lệ
                     </span>
-                    <span class="text-on-surface-variant/70 italic">Đã gồm phụ thu</span>
+                    <span class="text-on-surface-subtle italic">Đã gồm phụ thu</span>
                 </div>
             </div>
 
@@ -88,14 +84,14 @@
                     </div>
 
                     <div class="mt-2.5 flex items-center gap-2 text-xs font-medium text-on-surface-variant">
-                        <span class="material-symbols-outlined text-sm text-on-surface-variant/70">info</span>
+                        <span class="material-symbols-outlined text-sm text-on-surface-subtle">info</span>
                         <span>Khoản tự nhập + Lương kỳ {{ \Carbon\Carbon::createFromFormat('Y-m', $month)->format('m/Y') }}</span>
                     </div>
                 </div>
 
                 <div class="mt-6 pt-4 border-t border-surface-container-highest flex items-center justify-between text-xs text-on-surface-variant">
                     <span class="text-error font-medium">Chiếm {{ $expensePercentageOfRevenue }}% tổng thu</span>
-                    <span class="text-on-surface-variant/70">{{ $totalExpenseItemsCount }} mục chi</span>
+                    <span class="text-on-surface-subtle">{{ $totalExpenseItemsCount }} mục chi</span>
                 </div>
             </div>
 
@@ -159,7 +155,7 @@
                     {{-- Item 1: Học phí chính thức --}}
                     <div class="p-3.5 rounded-xl bg-surface-container-low/80 border border-surface-container-highest flex items-center justify-between">
                         <div class="flex items-center gap-3">
-                            <div class="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
+                            <div class="w-2.5 h-2.5 rounded-full bg-tertiary"></div>
                             <div>
                                 <p class="text-sm font-semibold text-on-surface">Học phí các khóa học</p>
                                 <p class="text-xs text-on-surface-variant">Phần học phí của các phiếu thu đã duyệt trong tháng</p>
@@ -167,14 +163,14 @@
                         </div>
                         <div class="text-right">
                             <x-ui.money :value="$tuitionRevenue" class="text-sm font-bold" />
-                            <p class="text-xs text-on-surface-variant/70 font-medium">{{ $tuitionPercent }}%</p>
+                            <p class="text-xs text-on-surface-subtle font-medium">{{ $tuitionPercent }}%</p>
                         </div>
                     </div>
 
                     {{-- Item 2: Phụ thu phát sinh ngoài học phí --}}
                     <div class="p-3.5 rounded-xl bg-surface-container-low/80 border border-surface-container-highest flex items-center justify-between">
                         <div class="flex items-center gap-3">
-                            <div class="w-2.5 h-2.5 rounded-full bg-teal-500"></div>
+                            <div class="w-2.5 h-2.5 rounded-full bg-tertiary"></div>
                             <div>
                                 <p class="text-sm font-semibold text-on-surface">Phụ thu phát sinh</p>
                                 <p class="text-xs text-on-surface-variant">Giáo trình in ấn bổ sung, lệ phí thi thử, thẻ học viên</p>
@@ -182,7 +178,7 @@
                         </div>
                         <div class="text-right">
                             <x-ui.money :value="$surchargeRevenue" class="text-sm font-bold" />
-                            <p class="text-xs text-on-surface-variant/70 font-medium">{{ $surchargePercent }}%</p>
+                            <p class="text-xs text-on-surface-subtle font-medium">{{ $surchargePercent }}%</p>
                         </div>
                     </div>
 
@@ -193,8 +189,8 @@
                             <span>Tiền mặt ({{ $revenueCashPercent }}%)</span>
                         </div>
                         <div class="w-full bg-surface-container h-2 rounded-full overflow-hidden flex">
-                            <div class="bg-emerald-500 h-full rounded-full transition-all" style="width: {{ $revenueTransferPercent }}%"></div>
-                            <div class="bg-teal-400 h-full rounded-full transition-all" style="width: {{ $revenueCashPercent }}%"></div>
+                            <div class="bg-tertiary h-full rounded-full transition-all" style="width: {{ $revenueTransferPercent }}%"></div>
+                            <div class="bg-tertiary/40 h-full rounded-full transition-all" style="width: {{ $revenueCashPercent }}%"></div>
                         </div>
                     </div>
                 </div>
@@ -229,13 +225,13 @@
                             <div>
                                 <div class="flex items-center gap-2">
                                     <p class="text-sm font-bold text-on-secondary-fixed">Chi trả lương nhân sự (Kỳ {{ \Carbon\Carbon::createFromFormat('Y-m', $month)->format('m/Y') }})</p>
-                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-secondary/20 text-on-secondary-fixed uppercase tracking-tight">Tự động</span>
+                                    <span class="px-1.5 py-0.5 rounded text-xs font-bold bg-secondary/20 text-on-secondary-fixed uppercase tracking-tight">Tự động</span>
                                 </div>
                                 <p class="text-xs text-secondary/80">Tổng thực nhận của toàn bộ GV, TA, Học vụ đã chốt bảng</p>
                             </div>
                         </div>
                         <div class="text-right">
-                            <p class="text-sm font-black text-on-secondary-fixed">{{ number_format($salaryTotal, 0, ',', '.') }} đ</p>
+                            <p class="text-sm font-black text-on-secondary-fixed">{{ \App\Support\Money::format($salaryTotal) }}</p>
                             <p class="text-xs text-secondary font-semibold">{{ $salaryPercentOfExpense }}% chi phí</p>
                         </div>
                     </div>
@@ -243,7 +239,7 @@
                     {{-- Chi Mặt bằng & Tiện ích --}}
                     <div class="p-3.5 rounded-xl bg-surface-container-low/80 border border-surface-container-highest flex items-center justify-between">
                         <div class="flex items-center gap-3">
-                            <div class="w-2.5 h-2.5 rounded-full bg-rose-400"></div>
+                            <div class="w-2.5 h-2.5 rounded-full bg-error/40"></div>
                             <div>
                                 <p class="text-sm font-semibold text-on-surface">Mặt bằng &amp; Tiện ích</p>
                                 <p class="text-xs text-on-surface-variant">Tiền thuê trụ sở, điện nước, internet cáp quang</p>
@@ -251,14 +247,14 @@
                         </div>
                         <div class="text-right">
                             <x-ui.money :value="$rentUtilitiesExpense" class="text-sm font-bold" />
-                            <p class="text-xs text-on-surface-variant/70 font-medium">{{ $rentPercentOfExpense }}%</p>
+                            <p class="text-xs text-on-surface-subtle font-medium">{{ $rentPercentOfExpense }}%</p>
                         </div>
                     </div>
 
                     {{-- Chi Giáo trình & Vận hành lớp --}}
                     <div class="p-3.5 rounded-xl bg-surface-container-low/80 border border-surface-container-highest flex items-center justify-between">
                         <div class="flex items-center gap-3">
-                            <div class="w-2.5 h-2.5 rounded-full bg-amber-400"></div>
+                            <div class="w-2.5 h-2.5 rounded-full bg-warning/40"></div>
                             <div>
                                 <p class="text-sm font-semibold text-on-surface">In ấn giáo trình &amp; Vận hành lớp</p>
                                 <p class="text-xs text-on-surface-variant">Sách bổ trợ, văn phòng phẩm, nước uống, bảo dưỡng thiết bị</p>
@@ -266,14 +262,14 @@
                         </div>
                         <div class="text-right">
                             <x-ui.money :value="$curriculumOperationsExpense" class="text-sm font-bold" />
-                            <p class="text-xs text-on-surface-variant/70 font-medium">{{ $curriculumPercentOfExpense }}%</p>
+                            <p class="text-xs text-on-surface-subtle font-medium">{{ $curriculumPercentOfExpense }}%</p>
                         </div>
                     </div>
 
                     {{-- Chi khác --}}
                     <div class="p-3.5 rounded-xl bg-surface-container-low/80 border border-surface-container-highest flex items-center justify-between">
                         <div class="flex items-center gap-3">
-                            <div class="w-2.5 h-2.5 rounded-full bg-slate-400"></div>
+                            <div class="w-2.5 h-2.5 rounded-full bg-outline"></div>
                             <div>
                                 <p class="text-sm font-semibold text-on-surface">Chi khác</p>
                                 <p class="text-xs text-on-surface-variant">Các khoản chi không thuộc 2 nhóm trên</p>
@@ -281,7 +277,7 @@
                         </div>
                         <div class="text-right">
                             <x-ui.money :value="$otherExpense" class="text-sm font-bold" />
-                            <p class="text-xs text-on-surface-variant/70 font-medium">{{ $totalExpense > 0 ? round($otherExpense / $totalExpense * 100, 1) : 0 }}%</p>
+                            <p class="text-xs text-on-surface-subtle font-medium">{{ $totalExpense > 0 ? round($otherExpense / $totalExpense * 100, 1) : 0 }}%</p>
                         </div>
                     </div>
                 </div>

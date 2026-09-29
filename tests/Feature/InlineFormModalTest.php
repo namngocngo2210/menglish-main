@@ -66,7 +66,9 @@ class InlineFormModalTest extends TestCase
             ->assertSessionHasErrors('title');
 
         $html = $this->actingAs($this->admin)->get(route('reports.journal'))->assertOk()->getContent();
-        $modal = substr($html, strpos($html, 'data-modal="new-journal"') - 1500, 4000);
+        // Khối x-data của modal (đứng trước data-modal) chứa trạng thái mở.
+        $marker = strpos($html, 'data-modal="new-journal"');
+        $modal = substr($html, strrpos(substr($html, 0, $marker), 'x-data="{'), 200);
         $this->assertStringContainsString('show: true', $modal);
         $this->assertStringContainsString('Mô tả giữ lại', $html);
     }
