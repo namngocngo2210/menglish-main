@@ -32,6 +32,7 @@ use App\Services\CrmStageService;
 use App\Services\NotificationService;
 use App\Services\PlacementPortalLinkService;
 use App\Services\PlacementRubricService;
+use App\Services\PlacementSubmissionLinker;
 use App\Support\DataScope;
 use App\Support\Rbac;
 use App\Support\TransferMemo;
@@ -518,6 +519,10 @@ class CrmController extends Controller
         }
 
         $rubric = $this->rubricSummary($latestSubmission);
+        // Khách chưa có bài test: gợi ý bài nộp qua link công khai chưa gắn khách (trùng SĐT / tên) để Học vụ gắn tay.
+        $unlinkedSubmissions = ! $latestSubmission && $user->can('entrance_test.grade')
+            ? app(PlacementSubmissionLinker::class)->candidatesFor($customer)
+            : collect();
         $statusCard = $this->statusCardData($customer);
         // Phân công lại theo quyền lead.assign (Admin, Quản lý cơ sở, Học vụ — BA 26/09/2026), không theo vai trò.
         $canReassign = $user->can('lead.assign');
@@ -526,7 +531,7 @@ class CrmController extends Controller
         $editForm = $user->can('lead.update') ? $this->customerFormOptions($customer) : null;
 
         return $this->modalView('crm.show', compact('customer', 'placementTests', 'examiners', 'latestSubmission', 'courses', 'branches', 'portalTestLink', 'canBookTrial', 'trialSlots', 'trialState', 'stageControls',
-            'histories', 'logType', 'rubric', 'statusCard', 'canReassign', 'reassignUsers', 'trialRemaining', 'editForm'));
+            'histories', 'logType', 'rubric', 'statusCard', 'canReassign', 'reassignUsers', 'trialRemaining', 'editForm', 'unlinkedSubmissions'));
     }
 
     /**
@@ -647,6 +652,25 @@ class CrmController extends Controller
     protected function trialLevelKeywords(CrmCustomer $customer, ?PlacementTestSubmission $submission): array
     {
         return TrialSlotFinder::levelKeywords($customer, $submission);
+    }
+
+    /** Học vụ gắn bài test nộp qua link công khai (chưa tự khớp được khách) vào hồ sơ khách, ở mọi giai đoạn trừ Thất bại. */
+    public function linkSubmission(Request $request, $id, PlacementSubmissionLinker $linker)
+    {
+        $customer = $this->findScopedCustomer($id);
+        $validated = $request->validate(['submission_id' => 'required|integer']);
+        $submission = PlacementTestSubmission::query()->whereNull('customer_id')->with('test')->find($validated['submission_id']);
+        if (! $submission) {
+            throw ValidationException::withMessages(['submission_id' => 'Bài test không tồn tại hoặc đã được gắn với khách khác.']);
+        }
+        if ($customer->stage === CrmCustomer::STAGE_LOST) {
+            throw ValidationException::withMessages(['submission_id' => 'Khách Thất bại được lưu để đối soát, không gắn thêm bài test.']);
+        }
+
+        $linker->attach($submission, $customer, Auth::id(), 'Học vụ gắn tay từ hồ sơ khách');
+
+        return redirect()->route('crm.customers.show', $customer->id)
+            ->with('status', "Đã gắn bài test #{$submission->id} vào hồ sơ khách.");
     }
 
     /**

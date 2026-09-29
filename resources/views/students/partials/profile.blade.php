@@ -429,7 +429,7 @@
     </div>
 
     @if ($canViewAcademic && $care)
-        {{-- Chăm sóc tháng đầu: 3 mốc gate hoa hồng A6 — Buổi 1, Buổi 4–5, Đủ 30 ngày (việc tự tạo cho Học vụ + checklist CRM) --}}
+        {{-- Chăm sóc tháng đầu: 3 mốc gate hoa hồng A6 — Buổi 1, Buổi 4–5, Đủ 30 ngày (việc tự giao cho Học vụ, quá hạn → biên bản SLA + checklist CRM) --}}
         <section class="{{ $cardClass }} overflow-hidden" data-section="first-month-care">
             <div class="flex flex-col justify-between gap-sm border-b border-surface-container p-md sm:flex-row sm:items-center">
                 <div class="flex items-center gap-sm">
@@ -462,7 +462,7 @@
                                 <div class="font-semibold text-on-surface">{{ $item['label'] }}</div>
                                 <div class="font-caption text-caption text-on-surface-variant">
                                     @if ($item['due'])
-                                        Hạn: {{ $item['due']->format('d/m/Y') }}
+                                        Hạn SLA: {{ $item['due']->format('d/m/Y') }}
                                     @else
                                         {{ $item['milestone'] === \App\Services\FirstMonthCareService::MILESTONE_DAY_30 ? 'Chưa có ngày chốt' : 'Chờ học viên có mặt đủ '.($item['milestone'] === \App\Services\FirstMonthCareService::MILESTONE_SESSION_1 ? '1 buổi' : '4 buổi') }}
                                     @endif
@@ -470,12 +470,24 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="font-caption text-caption">
+                        <div class="font-caption text-caption sm:text-right">
                             @if ($item['task'])
-                                <span class="font-semibold text-on-surface">{{ $item['task']->assignee?->name }}</span>
-                                · <span class="font-semibold {{ $item['task']->status === 'completed' ? 'text-tertiary' : 'text-warning' }}">{{ $item['task']->status_label }}</span>
+                                <div class="text-on-surface-variant">
+                                    Đã giao task cho <span class="font-semibold text-on-surface" title="{{ $item['task']->assignee?->email }}">{{ \App\Services\FirstMonthCareService::assigneeLabel($item['task']->assignee) }}</span>
+                                    · <span class="font-semibold {{ $item['task']->status === 'completed' ? 'text-tertiary' : ($item['task']->status === 'overdue' ? 'text-error' : 'text-warning') }}">{{ $item['task']->status_label }}</span>
+                                </div>
+                                @if ($item['task']->slaPenalty)
+                                    <div class="font-semibold text-error">
+                                        Quá SLA ·
+                                        @can('violation.view')
+                                            <a href="{{ route('penalties.index', ['search' => $item['task']->slaPenalty->code]) }}" class="hover:underline">biên bản {{ $item['task']->slaPenalty->code }}</a>
+                                        @else
+                                            biên bản {{ $item['task']->slaPenalty->code }}
+                                        @endcan
+                                    </div>
+                                @endif
                             @else
-                                <span class="text-on-surface-variant">Chưa tạo việc</span>
+                                <span class="text-on-surface-variant">Chưa giao task</span>
                             @endif
                         </div>
                     </li>

@@ -36,12 +36,14 @@ class WorkTask extends Model
         'confirmed_by',
         'confirmed_at',
         'completed_at',
+        'sla_breached_at',
     ];
 
     protected $casts = [
         'due_date' => 'date',
         'confirmed_at' => 'datetime',
         'completed_at' => 'datetime',
+        'sla_breached_at' => 'datetime',
     ];
 
     protected static function booted(): void
@@ -87,6 +89,12 @@ class WorkTask extends Model
     public function confirmedBy()
     {
         return $this->belongsTo(User::class, 'confirmed_by');
+    }
+
+    /** Biên bản vi phạm tự lập khi việc chăm sóc tháng đầu quá SLA. */
+    public function slaPenalty()
+    {
+        return $this->hasOne(Penalty::class, 'work_task_id');
     }
 
     public function classReport()

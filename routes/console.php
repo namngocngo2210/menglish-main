@@ -9,11 +9,11 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('students:send-birthday-notifications')->dailyAt('08:00');
-// Chăm sóc học viên tháng đầu: việc cho Học vụ ở ngày 3/7/14/30 (idempotent).
-Schedule::command('students:schedule-first-month-care')->dailyAt('07:40');
+// Chăm sóc học viên tháng đầu: giao việc cho Học vụ (Buổi 1, Buổi 4–5, Đủ 30 ngày), đặt hạn khi tới mốc (idempotent).
+Schedule::command('students:schedule-first-month-care')->hourlyAt(40);
 
 Schedule::command('crm:scan-stale-leads')->hourly();
-// Công việc / nhiệm vụ trợ giảng qua hạn (ngày + giờ hạn) → "Quá hạn" (idempotent).
+// Công việc / nhiệm vụ trợ giảng qua hạn (ngày + giờ hạn) → "Quá hạn"; việc chăm sóc tháng đầu quá SLA → biên bản vi phạm (idempotent).
 Schedule::command('tasks:mark-overdue')->everyFifteenMinutes();
 
 Schedule::command('tuition:send-debt-reminders')->dailyAt('08:30');

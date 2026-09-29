@@ -5,18 +5,23 @@ namespace App\Services;
 use App\Models\AdminNotification;
 use App\Models\ClassEnrollment;
 use App\Models\CrmCustomer;
+use App\Models\Penalty;
 use App\Models\Student;
 use App\Models\StudentAttendance;
+use App\Models\User;
 use App\Models\WorkTask;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Chăm sóc học viên tháng đầu — 3 mốc khớp gate hoa hồng A6 ("tick đủ 3/3 mốc chăm sóc: buổi 1, buổi 4–5, đủ 30 ngày"):
  *  - Buổi 1: sau buổi học đầu tiên học viên có mặt (có mặt / đi muộn).
  *  - Buổi 4–5: sau buổi có mặt thứ 4 (liên hệ trong khoảng buổi 4–5).
  *  - Đủ 30 ngày: 30 ngày sau ngày chốt (CRM `converted_at`; học viên không qua CRM: ngày xếp lớp sớm nhất, rồi ngày tạo hồ sơ).
- * Mỗi mốc tạo 1 việc (WorkTask) cho Học vụ chi nhánh (idempotent theo `work_tasks.student_id + care_milestone`).
+ * Mỗi mốc 1 việc (WorkTask) giao cho Học vụ chi nhánh (idempotent theo `work_tasks.student_id + care_milestone`), giao ngay
+ * trong tháng đầu, có hạn khi tới mốc; quá hạn chưa xong → biên bản vi phạm SLA (enforceSla).
  * Mốc được tick khi việc hoàn thành HOẶC CM tick mục tương ứng ở checklist CRM (CrmCustomer::CARE_CHECKLIST_ITEMS).
  */
 class FirstMonthCareService
@@ -142,22 +147,42 @@ class FirstMonthCareService
         ];
     }
 
-    /** Hạn việc chăm sóc: mốc theo buổi → ngày hôm sau buổi đó; mốc 30 ngày → đúng ngày đủ 30 ngày. */
-    private function dueDate(int $milestone, Carbon $trigger): Carbon
+    /**
+     * Hạn (SLA) việc chăm sóc: mốc theo buổi → ngày hôm sau buổi đó; mốc 30 ngày → đúng ngày đủ 30 ngày. Mốc phát hiện
+     * muộn (điểm danh bù, lệnh bị lỡ) → hạn không sớm hơn ngày phát hiện, để người nhận luôn còn thời gian làm.
+     */
+    private function dueDate(int $milestone, Carbon $trigger, ?Carbon $detectedOn = null): Carbon
     {
-        return $milestone === self::MILESTONE_DAY_30 ? $trigger->copy() : $trigger->copy()->addDay();
+        $due = $milestone === self::MILESTONE_DAY_30 ? $trigger->copy() : $trigger->copy()->addDay();
+
+        return $detectedOn && $due->lessThan($detectedOn) ? $detectedOn->copy()->startOfDay() : $due;
+    }
+
+    /** Tên ngắn, dễ nhận biết của người được giao: tên hiển thị, không có tên thì phần trước @ của email. */
+    public static function assigneeLabel(?User $user): string
+    {
+        if (! $user) {
+            return '—';
+        }
+        $name = trim((string) $user->name);
+
+        return $name !== '' ? $name : (Str::before((string) $user->email, '@') ?: '—');
     }
 
     /**
-     * Tạo việc chăm sóc cho các mốc đã tới tính đến ngày $date. Idempotent (mỗi học viên + mốc chỉ 1 việc, kể cả
-     * việc đã xóa mềm).
+     * Giao việc chăm sóc tính đến ngày $date. Idempotent (mỗi học viên + mốc chỉ 1 việc, kể cả việc đã xóa mềm).
+     *  - Học viên trong tháng đầu (≤ 30 ngày từ ngày chốt): giao ngay đủ 3 mốc cho Học vụ chi nhánh; mốc chưa tới thì
+     *    việc chưa có hạn.
+     *  - Mốc tới (buổi có mặt thứ 1 / thứ 4, đủ 30 ngày): đặt hạn (SLA) cho việc và báo người được giao. Học viên ngoài
+     *    tháng đầu chỉ được giao khi mốc vừa tới trong CATCH_UP_DAYS ngày.
      *
-     * @return array{created: int, skipped: array<string>}
+     * @return array{created: int, scheduled: int, skipped: array<string>}
      */
     public function run(Carbon $date): array
     {
         $date = $date->copy()->startOfDay();
         $created = 0;
+        $scheduled = 0;
         $skipped = [];
 
         $students = Student::with('currentClass')
@@ -167,15 +192,31 @@ class FirstMonthCareService
         $attended = $this->attendedDates($ids, $date);
         $closings = $this->closingDates($students);
         $existing = WorkTask::withTrashed()->whereIn('student_id', $ids)->whereNotNull('care_milestone')
-            ->get(['student_id', 'care_milestone'])
-            ->map(fn ($t) => $t->student_id.'-'.(int) $t->care_milestone)->flip();
+            ->get()->keyBy(fn ($t) => $t->student_id.'-'.(int) $t->care_milestone);
 
         foreach ($students as $student) {
-            $triggers = $this->triggerDates($attended[(int) $student->id] ?? null, $closings[(int) $student->id] ?? null);
+            $closing = $closings[(int) $student->id] ?? null;
+            $triggers = $this->triggerDates($attended[(int) $student->id] ?? null, $closing);
+            $inFirstMonth = $closing && $closing->lessThanOrEqualTo($date) && $closing->diffInDays($date) <= self::DAYS_AFTER_CLOSING;
 
             foreach ($triggers as $milestone => $trigger) {
-                if (! $trigger || $trigger->greaterThan($date) || $trigger->diffInDays($date) > self::CATCH_UP_DAYS
-                    || $existing->has($student->id.'-'.$milestone)) {
+                $reached = $trigger && $trigger->lessThanOrEqualTo($date);
+                $task = $existing->get($student->id.'-'.$milestone);
+
+                if ($task) {
+                    // Việc giao trước, nay tới mốc → đặt hạn (SLA) và báo người được giao.
+                    if ($reached && ! $task->due_date && ! $task->trashed() && in_array($task->status, WorkTask::OPEN_STATUSES, true)) {
+                        $task->update(['due_date' => $this->dueDate($milestone, $trigger, $date)->toDateString()]);
+                        $this->notifyAssignee($task, $student, 'Tới mốc chăm sóc tháng đầu',
+                            $task->title.' — hạn '.$task->due_date->format('d/m/Y').'.');
+                        $scheduled++;
+                    }
+
+                    continue;
+                }
+
+                $recentlyReached = $reached && $trigger->diffInDays($date) <= self::CATCH_UP_DAYS;
+                if (! $recentlyReached && ! ($inFirstMonth && ! $reached)) {
                     continue;
                 }
 
@@ -191,6 +232,9 @@ class FirstMonthCareService
                     ?? BranchStaff::admins()->first()
                     ?? $assignee;
                 $short = self::milestoneShortLabel($milestone);
+                // Mốc 30 ngày biết trước ngày → có hạn ngay; mốc theo buổi chờ học viên có mặt mới có hạn.
+                $due = $reached ? $this->dueDate($milestone, $trigger, $date)
+                    : ($milestone === self::MILESTONE_DAY_30 && $trigger ? $this->dueDate($milestone, $trigger) : null);
 
                 $task = WorkTask::create([
                     'title' => "Chăm sóc tháng đầu ({$short}): {$student->name}",
@@ -198,8 +242,7 @@ class FirstMonthCareService
                         .($student->code ? " ({$student->code})" : '')
                         .($student->currentClass ? ', lớp '.$student->currentClass->name : '')
                         .($student->parent_phone ? ', SĐT phụ huynh '.$student->parent_phone : ($student->phone ? ', SĐT '.$student->phone : ''))
-                        .'. '.($milestone === self::MILESTONE_DAY_30 ? 'Đủ 30 ngày từ ngày chốt' : 'Buổi có mặt').' ngày '
-                        .($milestone === self::MILESTONE_DAY_30 ? $closings[(int) $student->id]->format('d/m/Y') : $trigger->format('d/m/Y')).'.',
+                        .'. '.$this->triggerNote($milestone, $trigger, $reached, $closing),
                     'creator_id' => $creator->id,
                     'assignee_id' => $assignee->id,
                     'branch_id' => $branchId,
@@ -208,24 +251,115 @@ class FirstMonthCareService
                     'care_milestone' => $milestone,
                     'time_slot_category' => 'after',
                     'task_type' => 'one_time',
-                    'due_date' => $this->dueDate($milestone, $trigger)->toDateString(),
+                    'due_date' => $due?->toDateString(),
                     'status' => 'new',
                 ]);
-                $existing->put($student->id.'-'.$milestone, true);
+                $existing->put($student->id.'-'.$milestone, $task);
 
-                AdminNotification::create([
-                    'user_id' => $assignee->id,
-                    'type' => 'work_task_assigned',
-                    'title' => 'Việc chăm sóc học viên tháng đầu',
-                    'message' => $task->title.' — '.self::milestoneLabel($milestone),
-                    'data' => ['link' => route('students.show', $student->id), 'task_id' => $task->id],
-                    'is_read' => false,
-                ]);
+                $this->notifyAssignee($task, $student, 'Việc chăm sóc học viên tháng đầu',
+                    $task->title.' — '.self::milestoneLabel($milestone).($due ? ' — hạn '.$due->format('d/m/Y').'.' : ' — hạn đặt khi tới mốc.'));
                 $created++;
             }
         }
 
-        return ['created' => $created, 'skipped' => $skipped];
+        return ['created' => $created, 'scheduled' => $scheduled, 'skipped' => $skipped];
+    }
+
+    /**
+     * SLA: việc chăm sóc quá hạn mà chưa xong (Mới / Đang làm / Quá hạn) và mốc chưa tick bên CRM → lập biên bản vi phạm
+     * "Lỗi vận hành" cho người được giao, 1 lần / việc. Biên bản đi đúng quy trình (giải trình → Học vụ / Quản lý chốt,
+     * mức phạt do người chốt quyết), không tự trừ tiền.
+     *
+     * @return int số biên bản đã lập
+     */
+    public function enforceSla(?Carbon $now = null): int
+    {
+        $now ??= now();
+        $count = 0;
+
+        $tasks = WorkTask::with(['student', 'assignee'])
+            ->whereNotNull('care_milestone')
+            ->whereNull('sla_breached_at')
+            ->whereNotNull('assignee_id')
+            ->whereIn('status', [...WorkTask::OPEN_STATUSES, 'overdue'])
+            ->whereNotNull('due_date')
+            ->whereDate('due_date', '<=', $now->toDateString())
+            ->get()
+            ->filter(fn (WorkTask $t) => $t->lateHours($now) > 0);
+
+        foreach ($tasks as $task) {
+            $item = self::MILESTONES[(int) $task->care_milestone] ?? null;
+            $crmState = $task->student ? (array) ($this->customerFor($task->student)?->care_checklist ?? []) : [];
+            if ($item && ! empty($crmState[$item])) {
+                continue; // Mốc đã tick bên CRM → coi như đã chăm sóc.
+            }
+
+            $penalty = DB::transaction(function () use ($task, $now) {
+                $penalty = Penalty::create([
+                    'code' => Penalty::generateCode(),
+                    'user_id' => $task->assignee_id,
+                    'class_id' => $task->class_id,
+                    'work_task_id' => $task->id,
+                    'violation_type' => 'Quá hạn SLA chăm sóc học viên tháng đầu ('.self::milestoneShortLabel((int) $task->care_milestone).')',
+                    'error_category' => 'operations',
+                    'violation_date' => $task->due_date->toDateString(),
+                    'amount' => 0,
+                    'reporter_id' => null,
+                    'status' => 'pending',
+                    'notes' => $task->title.' — hạn '.$task->due_date->format('d/m/Y').', chưa hoàn thành.',
+                ]);
+                $task->update(['sla_breached_at' => $now]);
+
+                return $penalty;
+            });
+
+            $link = route('penalties.index', ['search' => $penalty->code]);
+            AdminNotification::create([
+                'user_id' => $task->assignee_id,
+                'type' => 'penalty_created',
+                'title' => "Biên bản {$penalty->code}: quá hạn SLA chăm sóc tháng đầu",
+                'message' => $task->title.' — hãy hoàn thành việc và gửi giải trình.',
+                'data' => ['link' => $link, 'task_id' => $task->id],
+                'is_read' => false,
+            ]);
+            if ($task->creator_id && $task->creator_id !== $task->assignee_id) {
+                AdminNotification::create([
+                    'user_id' => $task->creator_id,
+                    'type' => 'penalty_created',
+                    'title' => "Biên bản {$penalty->code}: {$task->assignee?->name} quá hạn SLA chăm sóc",
+                    'message' => $task->title.' — chờ giải trình, sau đó chốt biên bản.',
+                    'data' => ['link' => $link, 'task_id' => $task->id],
+                    'is_read' => false,
+                ]);
+            }
+            $count++;
+        }
+
+        return $count;
+    }
+
+    private function triggerNote(int $milestone, ?Carbon $trigger, bool $reached, ?Carbon $closing): string
+    {
+        if ($milestone === self::MILESTONE_DAY_30) {
+            return 'Đủ 30 ngày từ ngày chốt '.($closing?->format('d/m/Y') ?? '—').' (ngày '.$trigger?->format('d/m/Y').').';
+        }
+        if ($reached) {
+            return 'Buổi có mặt ngày '.$trigger->format('d/m/Y').'.';
+        }
+
+        return 'Hạn đặt sau buổi có mặt thứ '.($milestone === self::MILESTONE_SESSION_1 ? '1' : '4').' của học viên.';
+    }
+
+    private function notifyAssignee(WorkTask $task, Student $student, string $title, string $message): void
+    {
+        AdminNotification::create([
+            'user_id' => $task->assignee_id,
+            'type' => 'work_task_assigned',
+            'title' => $title,
+            'message' => $message,
+            'data' => ['link' => route('students.show', $student->id), 'task_id' => $task->id],
+            'is_read' => false,
+        ]);
     }
 
     /**
@@ -240,7 +374,7 @@ class FirstMonthCareService
         $closing = $this->closingDates(collect([$student]))[(int) $student->id] ?? null;
         $customer = $this->customerFor($student);
         $crmState = (array) ($customer?->care_checklist ?? []);
-        $tasks = WorkTask::with('assignee')->where('student_id', $student->id)->whereNotNull('care_milestone')
+        $tasks = WorkTask::with(['assignee', 'slaPenalty'])->where('student_id', $student->id)->whereNotNull('care_milestone')
             ->get()->keyBy(fn ($t) => (int) $t->care_milestone);
         $triggers = $this->triggerDates($this->attendedDates([(int) $student->id])[(int) $student->id] ?? null, $closing);
 
