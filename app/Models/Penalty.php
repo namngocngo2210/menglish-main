@@ -51,6 +51,7 @@ class Penalty extends Model
             'Nghỉ dạy không phép',
             'Không check-in / điểm danh đúng giờ',
             'Vi phạm nội quy trung tâm',
+            'Quá hạn SLA chăm sóc học viên tháng đầu',
         ],
     ];
 
@@ -63,6 +64,7 @@ class Penalty extends Model
         'code',
         'user_id',
         'class_id',
+        'work_task_id',
         'violation_type',
         'error_category',
         'violation_date',
@@ -101,6 +103,12 @@ class Penalty extends Model
     public function classModel(): BelongsTo
     {
         return $this->belongsTo(ClassModel::class, 'class_id');
+    }
+
+    /** Việc (chăm sóc tháng đầu) quá SLA đã sinh ra biên bản này. */
+    public function workTask(): BelongsTo
+    {
+        return $this->belongsTo(WorkTask::class, 'work_task_id');
     }
 
     /** Bản ghi lương đã trừ biên bản này ở lần tính gần nhất. */

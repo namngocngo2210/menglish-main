@@ -370,29 +370,33 @@ class Phase2AttendanceTest extends TestCase
         $attend('2026-10-02', 'absent');
         $attend('2026-10-05');
 
-        // Sau buổi có mặt đầu tiên → mốc "Buổi 1" (hạn = hôm sau). Chạy lại không tạo trùng.
+        // Trong tháng đầu → giao ngay đủ 3 mốc cho Học vụ. Buổi 1 đã có mặt → hạn = hôm sau; Buổi 4–5 chưa tới → chưa có
+        // hạn; Đủ 30 ngày biết trước → hạn 20/10. Chạy lại không tạo trùng.
         $this->artisan('students:schedule-first-month-care', ['--date' => '2026-09-29'])->assertExitCode(0);
         $this->artisan('students:schedule-first-month-care', ['--date' => '2026-09-29'])->assertExitCode(0);
-        $task = WorkTask::sole();
-        $this->assertSame(FirstMonthCareService::MILESTONE_SESSION_1, (int) $task->care_milestone);
+        $this->assertSame([1, 4, 30], WorkTask::orderBy('care_milestone')->pluck('care_milestone')->map(fn ($d) => (int) $d)->all());
+        $task = WorkTask::where('care_milestone', FirstMonthCareService::MILESTONE_SESSION_1)->sole();
         $this->assertStringContainsString('Buổi 1', $task->title);
         $this->assertSame($this->academicStaff->id, (int) $task->assignee_id);
         $this->assertSame($this->manager->id, (int) $task->creator_id);
         $this->assertSame('2026-09-29', $task->due_date->toDateString());
-        $this->assertTrue(AdminNotification::where('user_id', $this->academicStaff->id)->exists());
+        $second = WorkTask::where('care_milestone', FirstMonthCareService::MILESTONE_SESSION_4_5)->sole();
+        $this->assertNull($second->due_date);
+        $this->assertSame('2026-10-20', WorkTask::where('care_milestone', 30)->value('due_date')->toDateString());
+        $this->assertSame(3, AdminNotification::where('user_id', $this->academicStaff->id)->count());
 
-        // Mới có 3 buổi có mặt (vắng không tính) → chưa tới mốc Buổi 4–5; chưa đủ 30 ngày từ ngày chốt.
+        // Mới có 3 buổi có mặt (vắng không tính) → Buổi 4–5 vẫn chưa có hạn.
         $this->artisan('students:schedule-first-month-care', ['--date' => '2026-10-06']);
-        $this->assertSame(1, WorkTask::count());
+        $this->assertNull($second->fresh()->due_date);
         $attend('2026-10-07');
         $this->artisan('students:schedule-first-month-care', ['--date' => '2026-10-07']);
-        $second = WorkTask::where('care_milestone', FirstMonthCareService::MILESTONE_SESSION_4_5)->sole();
+        $second->refresh();
         $this->assertSame('2026-10-08', $second->due_date->toDateString());
+        $this->assertSame(3, WorkTask::count());
+        $this->assertSame(4, AdminNotification::where('user_id', $this->academicStaff->id)->count());
 
-        // Đủ 30 ngày từ ngày chốt (20/09 → 20/10).
         $this->artisan('students:schedule-first-month-care', ['--date' => '2026-10-20']);
-        $this->assertSame([1, 4, 30], WorkTask::orderBy('care_milestone')->pluck('care_milestone')->map(fn ($d) => (int) $d)->all());
-        $this->assertSame('2026-10-20', WorkTask::where('care_milestone', 30)->value('due_date')->toDateString());
+        $this->assertSame(3, WorkTask::count());
 
         // Tick: hoàn thành việc → tự tick checklist CRM; hoặc tick thẳng ở checklist CRM.
         $care = app(FirstMonthCareService::class);
@@ -409,6 +413,51 @@ class Phase2AttendanceTest extends TestCase
         $this->actingAs($this->academicStaff)->get(route('students.show', $this->student->id))
             ->assertOk()->assertSee('Chăm sóc tháng đầu')->assertSee('3/3 mốc')->assertSee('Ngày chốt')->assertSee('20/09/2026')
             ->assertSee('Buổi 1 — Hỏi phản hồi sau buổi học đầu tiên')->assertSee('Buổi 4–5')->assertSee('Đủ 30 ngày');
+    }
+
+    public function test_first_month_care_task_past_sla_creates_one_violation_for_assignee(): void
+    {
+        CrmCustomer::create(['code' => CrmCustomer::generateCode(), 'name' => 'KH chốt', 'phone' => '0901234567',
+            'phone_normalized' => '0901234567', 'branch_id' => $this->branch->id, 'stage' => 'won', 'converted_student_id' => $this->student->id,
+            'converted_at' => '2026-09-20 09:00:00']);
+        $session = $this->makeSession('2026-10-01');
+        StudentAttendance::create(['class_id' => $this->classModel->id, 'class_session_id' => $session->id, 'student_id' => $this->student->id,
+            'session_date' => '2026-10-01', 'status' => 'present']);
+        $this->artisan('students:schedule-first-month-care', ['--date' => '2026-10-01']);
+        $task = WorkTask::where('care_milestone', FirstMonthCareService::MILESTONE_SESSION_1)->sole();
+        $this->assertSame('2026-10-02', $task->due_date->toDateString());
+
+        // Hôm nay 07/10: Buổi 1 quá hạn 02/10 chưa xong → 1 biên bản cho Học vụ; Buổi 4–5 chưa có hạn, Đủ 30 ngày chưa tới.
+        $this->artisan('tasks:mark-overdue')->assertExitCode(0);
+        $this->artisan('tasks:mark-overdue')->assertExitCode(0);
+        $penalty = \App\Models\Penalty::sole();
+        $this->assertSame($this->academicStaff->id, (int) $penalty->user_id);
+        $this->assertSame($task->id, (int) $penalty->work_task_id);
+        $this->assertSame('pending', $penalty->status);
+        $this->assertSame('operations', $penalty->error_category);
+        $this->assertNull($penalty->reporter_id);
+        $this->assertSame('2026-10-02', $penalty->violation_date->toDateString());
+        $this->assertStringContainsString('Quá hạn SLA chăm sóc', $penalty->violation_type);
+        $this->assertSame('overdue', $task->fresh()->status);
+        $this->assertNotNull($task->fresh()->sla_breached_at);
+        $this->assertTrue(AdminNotification::where('user_id', $this->manager->id)->where('type', 'penalty_created')->exists());
+
+        $this->actingAs($this->manager)->get(route('students.show', $this->student->id))
+            ->assertOk()->assertSee('Đã giao task cho')->assertSee($this->academicStaff->name)->assertSee('Quá SLA')->assertSee($penalty->code);
+    }
+
+    public function test_first_month_care_sla_skips_milestone_ticked_in_crm(): void
+    {
+        CrmCustomer::create(['code' => CrmCustomer::generateCode(), 'name' => 'KH chốt', 'phone' => '0901234567',
+            'phone_normalized' => '0901234567', 'branch_id' => $this->branch->id, 'stage' => 'won', 'converted_student_id' => $this->student->id,
+            'converted_at' => '2026-09-20 09:00:00', 'care_checklist' => ['session_1' => ['done_at' => '2026-10-01 18:00:00', 'by' => 'CM']]]);
+        $session = $this->makeSession('2026-10-01');
+        StudentAttendance::create(['class_id' => $this->classModel->id, 'class_session_id' => $session->id, 'student_id' => $this->student->id,
+            'session_date' => '2026-10-01', 'status' => 'present']);
+        $this->artisan('students:schedule-first-month-care', ['--date' => '2026-10-01']);
+
+        $this->artisan('tasks:mark-overdue');
+        $this->assertSame(0, \App\Models\Penalty::count());
     }
 
     public function test_first_month_care_migration_maps_legacy_checklist_and_task_milestones(): void
