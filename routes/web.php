@@ -167,6 +167,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/import', [CrmImportController::class, 'create'])->middleware('can:lead.create')->name('import');
         Route::get('/import/template', [CrmImportController::class, 'template'])->middleware('can:lead.create')->name('import.template');
         Route::post('/import/preview', [CrmImportController::class, 'preview'])->middleware('can:lead.create')->name('import.preview');
+        Route::get('/import/errors', [CrmImportController::class, 'errors'])->middleware('can:lead.create')->name('import.errors');
         Route::post('/import', [CrmImportController::class, 'store'])->middleware('can:lead.create')->name('import.store');
         Route::get('/reports', [CrmController::class, 'reports'])->name('reports');
     });

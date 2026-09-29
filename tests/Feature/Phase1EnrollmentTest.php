@@ -247,8 +247,15 @@ class Phase1EnrollmentTest extends TestCase
             ->assertSee('Thiếu họ tên')
             ->assertSee('SĐT đã có trong CRM')
             ->assertSee('Email sai định dạng')
-            ->assertSee('Nhập 2 khách hợp lệ');
+            // Lỗi hiện ngay khi xem trước (trước khi bấm Nhập), theo thứ tự dòng, kèm nút tải các dòng lỗi.
+            ->assertSee('5 dòng lỗi sẽ bị bỏ qua nếu nhập bây giờ')
+            ->assertSeeInOrder(['data-import-errors', 'Dòng 3', 'Dòng 4', 'Dòng 5', 'Dòng 6', 'Dòng 7'], false)
+            ->assertSee(route('crm.import.errors'), false)
+            ->assertSee('Bỏ qua 5 dòng lỗi, nhập 2 khách');
         $this->assertNotNull($preview);
+
+        $download = $this->actingAs($this->manager)->get(route('crm.import.errors'))->assertOk();
+        $this->assertStringContainsString('dong-loi-nhap-khach', $download->headers->get('content-disposition'));
 
         $this->actingAs($this->manager)->post(route('crm.import.store'))->assertRedirect(route('crm.customers.index'));
         $an = CrmCustomer::where('name', 'Nguyễn An')->firstOrFail();
