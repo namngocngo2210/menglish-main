@@ -10,6 +10,7 @@ use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
@@ -207,9 +208,32 @@ class CrmRound1FixesTest extends TestCase
         $colleague = $this->userWithRole('sales_consultant', $this->branch, 'Sale Ba');
         $lead->update(['assigned_user_id' => $colleague->id]);
 
+        $this->sales->givePermissionTo('report.view');
         $response = $this->actingAs($this->sales)->get(route('crm.reports'))->assertOk();
         $mine = collect($response->viewData('repsData'))->firstWhere('name', 'Sale Một');
         $this->assertSame(1, $mine['won']);
+    }
+
+    public function test_enrollment_report_is_admin_only_and_hidden_from_other_menus(): void
+    {
+        $accountant = $this->userWithRole('accountant', $this->branch);
+        foreach ([$this->manager, $this->sales, $accountant] as $user) {
+            $this->actingAs($user)->get(route('crm.reports'))->assertForbidden();
+            $this->actingAs($user)->get(route('dashboard'))->assertDontSee(route('crm.reports'), false);
+        }
+        $this->actingAs($this->admin)->get(route('crm.reports'))->assertOk();
+        $this->actingAs($this->admin)->get(route('dashboard'))->assertSee(route('crm.reports'), false);
+    }
+
+    public function test_migration_revokes_report_view_from_non_admin_roles(): void
+    {
+        $role = Role::findByName('manager', 'web');
+        $role->givePermissionTo('report.view');
+
+        (require database_path('migrations/2026_10_18_090000_restrict_crm_report_to_admin.php'))->up();
+
+        $this->assertFalse($role->fresh()->hasPermissionTo('report.view'));
+        $this->actingAs($this->admin)->get(route('crm.reports'))->assertOk();
     }
 
     private function lead(string $stage, array $attributes = []): CrmCustomer

@@ -55,7 +55,7 @@ return [
             'violation.mark_paid', 'violation.mark_resolved', 'violation.decide_operations',
             'work_task.*', 'support_ticket.*', 'notification.*', 'survey.manage',
             'course.view', 'recruitment.view', 'recruitment.manage',
-            'media.*', 'activity_log.view', 'report.view', 'finance.view',
+            'media.*', 'activity_log.view', 'finance.view',
             'promotion.manage',
             'staff_report.submit', 'staff_report.view_all', 'dashboard.operations', 'portal.staff',
             // Phạm vi dữ liệu (A6 Q7: Quản lý cơ sở chỉ thấy chi nhánh mình).
@@ -69,7 +69,7 @@ return [
             'invoice.request_cancel',
             'refund_transfer.request', 'refund_transfer.approve', 'refund_transfer.approve_transfer', 'refund_transfer.reject',
             'bank_account.manage', 'invoice_range.manage', 'fee_reminder_config.manage',
-            'payroll.view', 'payroll.create', 'payroll.edit', 'payroll.calculate', 'payroll.view_own', 'report.view', 'finance.view',
+            'payroll.view', 'payroll.create', 'payroll.edit', 'payroll.calculate', 'payroll.view_own', 'finance.view',
             'work_task.view', 'support_ticket.create', 'support_ticket.view',
             'portal.staff',
             // Kế toán tổng (mọi chi nhánh) do Admin cấp "Phạm vi: Toàn hệ thống" theo người (BA 26/09/2026).
@@ -124,7 +124,6 @@ return [
         'sales_consultant' => [
             'lead.view', 'lead.create', 'lead.update', 'lead.convert', 'lead.mark_lost', 'lead.be_assigned',
             'entrance_test.send',
-            'report.view',
             'work_task.view', 'support_ticket.create', 'support_ticket.view', 'notification.view',
             'portal.staff',
             'lead.scope_own', 'work_task.scope_own', 'support_ticket.scope_own',

@@ -174,7 +174,7 @@ class Phase1MockupParityTest extends TestCase
         $this->lead('new');
         $this->lead('lost', ['name' => 'Khách Ở Xa', 'lost_reason' => 'Vị trí xa nhà, không có người đưa đón', 'lost_at' => now()->subDays(2)]);
 
-        $this->actingAs($this->manager)->get(route('crm.reports'))->assertOk()
+        $this->actingAs($this->admin)->get(route('crm.reports'))->assertOk()
             ->assertSee('Khoảng thời gian')->assertSee('Chi nhánh')->assertSee('Lọc')->assertDontSee('Lọc dữ liệu')
             ->assertSee('Giai đoạn chuyển đổi')->assertSee('Hẹn test')->assertSee('Chờ xếp lớp')
             ->assertSee('Lý do khách không chốt')->assertSee('hồ sơ thất bại trong kỳ')

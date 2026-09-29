@@ -381,9 +381,9 @@ class BaPermissionsTest extends TestCase
         ])->assertSessionHasNoErrors();
         $this->assertSame(1, PlacementTestSubmission::where('customer_id', $lead->id)->count());
 
-        // Soạn / sửa đề test đầu vào; báo cáo CRM.
+        // Soạn / sửa đề test đầu vào. Báo cáo tuyển sinh chỉ Admin xem (29/09/2026).
         $this->actingAs($this->academic)->get(route('placement-tests.create'))->assertOk();
-        $this->actingAs($this->academic)->get(route('crm.reports'))->assertOk();
+        $this->actingAs($this->academic)->get(route('crm.reports'))->assertForbidden();
     }
 
     public function test_academic_staff_cannot_delete_or_move_backward_and_stays_in_branch(): void

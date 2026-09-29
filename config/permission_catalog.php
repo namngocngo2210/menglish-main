@@ -499,7 +499,7 @@ return [
             'group' => 'operations',
             'icon' => 'bar_chart',
             'actions' => [
-                'view' => ['Xem báo cáo', 'Xem báo cáo thống kê (CRM, doanh số) trong phạm vi dữ liệu của module.'],
+                'view' => ['Xem báo cáo', 'Xem Báo cáo tuyển sinh (doanh số, hoa hồng từng Sales). Mặc định chỉ Admin.'],
             ],
         ],
         'dashboard' => [
