@@ -4,12 +4,14 @@ namespace App\Console\Commands;
 
 use App\Models\AdminNotification;
 use App\Models\WorkTask;
+use App\Services\FirstMonthCareService;
 use Illuminate\Console\Command;
 
 /**
  * Chuyển công việc "Mới" / "Đang thực hiện" đã qua hạn (ngày + giờ hạn) sang "Quá hạn"
  * (mockup Danh sách công việc / Nhiệm vụ hôm nay TA có trạng thái "Quá hạn — Trễ N giờ").
  * Báo người thực hiện một lần. Việc "Bị chặn" / "Chờ xác nhận" không bị đổi.
+ * Việc chăm sóc tháng đầu quá hạn → biên bản vi phạm SLA cho người được giao (FirstMonthCareService::enforceSla).
  * Idempotent: chạy lại không đổi gì thêm.
  */
 class MarkOverdueTasksCommand extends Command
@@ -18,7 +20,7 @@ class MarkOverdueTasksCommand extends Command
 
     protected $description = 'Đánh dấu "Quá hạn" cho công việc chưa làm xong đã qua hạn';
 
-    public function handle(): int
+    public function handle(FirstMonthCareService $care): int
     {
         $now = now();
         $count = 0;
@@ -49,7 +51,9 @@ class MarkOverdueTasksCommand extends Command
                 }
             });
 
-        $this->info("Đã chuyển {$count} công việc sang Quá hạn.");
+        $penalties = $care->enforceSla($now);
+
+        $this->info("Đã chuyển {$count} công việc sang Quá hạn, lập {$penalties} biên bản quá SLA chăm sóc tháng đầu.");
 
         return self::SUCCESS;
     }
