@@ -16,9 +16,12 @@
         @endif
         <x-slot:footer>
             @if ($preview)
-                @php $validCount = collect($preview['rows'])->filter(fn ($r) => empty($r['errors']))->count(); @endphp
+                @php
+                    $validCount = collect($preview['rows'])->filter(fn ($r) => empty($r['errors']))->count();
+                    $errorCount = count($preview['rows']) - $validCount;
+                @endphp
                 <x-ui.button type="submit" form="modal-crm-import-cancel" variant="secondary" icon="undo">Hủy, chọn file khác</x-ui.button>
-                <x-ui.button type="submit" form="modal-crm-import-confirm" icon="upload" :disabled="$validCount === 0">Nhập {{ $validCount }} khách hợp lệ</x-ui.button>
+                <x-ui.button type="submit" form="modal-crm-import-confirm" icon="upload" :disabled="$validCount === 0">{{ $errorCount > 0 ? "Bỏ qua {$errorCount} dòng lỗi, nhập {$validCount} khách" : "Nhập {$validCount} khách hợp lệ" }}</x-ui.button>
             @else
                 <x-ui.button variant="secondary" icon="download" :href="route('crm.import.template')" hx-boost="false">Tải file mẫu</x-ui.button>
                 <x-ui.button type="submit" form="modal-crm-import-form" icon="fact_check">Kiểm tra dữ liệu</x-ui.button>
