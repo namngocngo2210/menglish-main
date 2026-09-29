@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 /**
  * Buổi học thử của khách (lead) trong một buổi học thật của lớp.
@@ -12,7 +14,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class CrmTrialBooking extends Model
 {
+    /** Mỗi khách học thử tối đa 2 lần; xếp từng buổi một — buổi 2 xếp lại như lần 1 sau khi buổi 1 kết thúc. */
     public const MAX_ACTIVE_PER_LEAD = 2;
+
+    /** Trạng thái tính là đã dùng một lượt học thử (vắng mặt / đã hủy trả lại lượt). */
+    public const COUNTED_STATUSES = ['scheduled', 'attended'];
 
     /** Đầu mục nhận xét giống nhận xét buổi học của học sinh chính thức (teacher/remarks). */
     public const REMARK_FIELDS = [
@@ -80,6 +86,43 @@ class CrmTrialBooking extends Model
     public function sessionHasStarted(): bool
     {
         return $this->session?->date !== null && $this->session->date->lte(today());
+    }
+
+    /** Thời điểm buổi học thử kết thúc (ngày buổi + giờ kết thúc; thiếu giờ thì hết ngày). */
+    public function sessionEndsAt(): ?Carbon
+    {
+        $date = $this->session?->date;
+        if (! $date) {
+            return null;
+        }
+
+        return $this->session->end_time ? $date->copy()->setTimeFrom($this->session->end_time) : $date->copy()->endOfDay();
+    }
+
+    /** Buổi học thử đang chờ (chưa kết thúc): khách đang "gắn" vào buổi này, chưa xếp được buổi tiếp theo. */
+    public function isPending(): bool
+    {
+        $end = $this->sessionEndsAt();
+
+        return $this->status === 'scheduled' && $end !== null && $end->isFuture();
+    }
+
+    /**
+     * Tình trạng học thử của khách: đã dùng bao nhiêu lượt, buổi đang chờ, còn xếp được không.
+     *
+     * @param  Collection<int, self>  $bookings  toàn bộ buổi học thử của khách (đã nạp session)
+     * @return array{used: int, remaining: int, pending: ?self, exhausted: bool}
+     */
+    public static function stateFor(Collection $bookings): array
+    {
+        $used = $bookings->whereIn('status', self::COUNTED_STATUSES)->count();
+
+        return [
+            'used' => $used,
+            'remaining' => max(0, self::MAX_ACTIVE_PER_LEAD - $used),
+            'pending' => $bookings->first(fn (self $booking) => $booking->isPending()),
+            'exhausted' => $used >= self::MAX_ACTIVE_PER_LEAD,
+        ];
     }
 
     /** Nhận xét dạng một dòng (dùng cho nhật ký tuyển sinh): "Thực hành ngữ pháp: Khá · Tinh thần: ...". */

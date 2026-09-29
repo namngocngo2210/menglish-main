@@ -25,6 +25,7 @@ use App\Models\SystemCategory;
 use App\Models\TuitionReceipt;
 use App\Models\User;
 use App\Models\WorkTask;
+use App\Services\Crm\TrialSlotFinder;
 use App\Services\Crm\WaitingLeadPlacement;
 use App\Services\Students\ClassStartActivation;
 use App\Services\CrmStageService;
@@ -487,9 +488,14 @@ class CrmController extends Controller
         $branches = Branch::where('is_active', true)->orderBy('name')->get();
 
         $user = $request->user();
-        $canBookTrial = $stages->canMoveForward($user) && in_array($customer->stage, CrmCustomer::TRIAL_BOOKABLE_STAGES, true);
-        $trialSessions = $canBookTrial ? $this->upcomingTrialSessions($customer, $latestSubmission) : collect();
-        $trialRemaining = max(0, CrmTrialBooking::MAX_ACTIVE_PER_LEAD - $customer->trialBookings->where('status', '!=', 'cancelled')->count());
+        $trialState = CrmTrialBooking::stateFor($customer->trialBookings);
+        $trialRemaining = $trialState['remaining'];
+        // Học vụ / QL xếp học thử khi khách đang tư vấn; đủ 2 lần học thử thì khóa (vẫn xem được lịch sử + nhận xét).
+        $canBookTrial = $stages->canMoveForward($user) && in_array($customer->stage, CrmCustomer::TRIAL_BOOKABLE_STAGES, true)
+            && ! $trialState['exhausted'];
+        $trialSlots = $canBookTrial && ! $trialState['pending']
+            ? app(TrialSlotFinder::class)->find($customer, $latestSubmission)
+            : ['level' => TrialSlotFinder::levelLabel($customer, $latestSubmission), 'filtered' => false, 'classes' => collect()];
         $stageControls = [
             'next' => $stages->manualNextStage($customer, $user),
             'backward' => $stages->backwardTargets($customer, $user),
@@ -518,7 +524,7 @@ class CrmController extends Controller
 
         $editForm = $user->can('lead.update') ? $this->customerFormOptions($customer) : null;
 
-        return $this->modalView('crm.show', compact('customer', 'placementTests', 'examiners', 'latestSubmission', 'courses', 'branches', 'portalTestLink', 'canBookTrial', 'trialSessions', 'stageControls',
+        return $this->modalView('crm.show', compact('customer', 'placementTests', 'examiners', 'latestSubmission', 'courses', 'branches', 'portalTestLink', 'canBookTrial', 'trialSlots', 'trialState', 'stageControls',
             'histories', 'logType', 'rubric', 'statusCard', 'canReassign', 'reassignUsers', 'trialRemaining', 'editForm'));
     }
 
@@ -632,34 +638,6 @@ class CrmController extends Controller
     }
 
     /**
-     * Buổi học sắp tới của lớp đang mở tại chi nhánh của lead (ứng viên cho học thử).
-     * Buổi của lớp khớp trình độ (theo lớp xếp sau test / khóa quan tâm) được đánh dấu `matches_level` và xếp lên đầu.
-     */
-    protected function upcomingTrialSessions(CrmCustomer $customer, ?PlacementTestSubmission $submission = null)
-    {
-        $keywords = $this->trialLevelKeywords($customer, $submission);
-
-        return ClassSession::query()
-            ->with(['classModel.course.level', 'teacher'])
-            ->where('status', 'scheduled')
-            ->whereDate('date', '>=', today())
-            ->when($customer->branch_id, fn (Builder $query, int $branchId) => $query->where('branch_id', $branchId))
-            ->whereHas('classModel', fn (Builder $query) => $query->whereIn('status', ['active', 'upcoming']))
-            ->orderBy('date')->orderBy('start_time')
-            ->limit(60)
-            ->get()
-            ->each(function (ClassSession $session) use ($keywords) {
-                $haystack = Str::upper(implode(' ', array_filter([
-                    $session->classModel?->name, $session->classModel?->level,
-                    $session->classModel?->course?->name, $session->classModel?->course?->level?->name,
-                ])));
-                $session->setAttribute('matches_level', $keywords !== [] && collect($keywords)->contains(fn (string $k) => str_contains($haystack, $k)));
-            })
-            ->sortByDesc('matches_level')
-            ->values();
-    }
-
-    /**
      * Từ khóa trình độ của khách để gợi ý lớp học thử cùng trình độ: lớp xếp sau test (vd "STARTERS (FAM 1 …)")
      * hoặc khóa quan tâm.
      *
@@ -667,14 +645,7 @@ class CrmController extends Controller
      */
     protected function trialLevelKeywords(CrmCustomer $customer, ?PlacementTestSubmission $submission): array
     {
-        $source = Str::upper(trim(($submission?->finalClass() ?? '').' '.($customer->course_interest ?? '')));
-        if ($source === '') {
-            return [];
-        }
-
-        return collect(['PRE STARTERS', 'STARTERS', 'MOVERS', 'FLYERS', 'FAM 0', 'FAM 1', 'FAM 2', 'KET', 'PET', 'IELTS'])
-            ->filter(fn (string $keyword) => str_contains($source, $keyword))
-            ->values()->all();
+        return TrialSlotFinder::levelKeywords($customer, $submission);
     }
 
     /**
@@ -852,64 +823,68 @@ class CrmController extends Controller
     }
 
     /**
-     * CM đặt 1–2 buổi học thử cho khách vào buổi học thật của lớp. Học thử là hoạt động
-     * trong giai đoạn tư vấn — không đổi stage của lead.
+     * Học vụ / QL xếp khách học thử vào MỘT buổi học thật của lớp khớp trình độ (luồng trước Chốt).
+     * Mỗi lần xếp một buổi; buổi 2 xếp lại như lần 1 sau khi buổi 1 kết thúc; đủ 2 lần thì khóa.
+     * Học thử không đổi stage và không tạo ghi danh — khách chỉ gắn chính thức vào lớp khi xếp lớp sau Chốt.
      */
-    public function storeTrialBooking(Request $request, CrmStageService $stages, $id)
+    public function storeTrialBooking(Request $request, CrmStageService $stages, NotificationService $notifications, $id)
     {
         $customer = $this->findScopedCustomer($id);
         abort_unless($stages->canMoveForward($request->user()), 403, 'Chỉ Học vụ / Quản lý cơ sở được đặt lịch học thử.');
 
         $validated = $request->validate([
-            'class_session_ids' => 'required|array|min:1|max:'.CrmTrialBooking::MAX_ACTIVE_PER_LEAD,
-            'class_session_ids.*' => 'integer|distinct|exists:class_sessions,id',
+            'class_session_id' => 'required|integer|exists:class_sessions,id',
             'notes' => 'nullable|string|max:1000',
+        ], [
+            'class_session_id.required' => 'Vui lòng chọn một buổi học thử.',
         ]);
 
         if (! in_array($customer->stage, CrmCustomer::TRIAL_BOOKABLE_STAGES, true)) {
-            throw ValidationException::withMessages(['class_session_ids' => 'Chỉ đặt học thử cho khách đang tư vấn (chưa chốt, chưa thất bại).']);
+            throw ValidationException::withMessages(['class_session_id' => 'Chỉ đặt học thử cho khách đang tư vấn (chưa chốt, chưa thất bại).']);
         }
 
-        $bookings = DB::transaction(function () use ($customer, $validated, $request) {
+        $booking = DB::transaction(function () use ($customer, $validated, $request) {
             CrmCustomer::whereKey($customer->id)->lockForUpdate()->first();
-            $active = $customer->trialBookings()->where('status', '!=', 'cancelled')->get();
-            if ($active->count() + count($validated['class_session_ids']) > CrmTrialBooking::MAX_ACTIVE_PER_LEAD) {
-                throw ValidationException::withMessages(['class_session_ids' => 'Mỗi khách chỉ học thử tối đa '.CrmTrialBooking::MAX_ACTIVE_PER_LEAD.' buổi.']);
+            $state = CrmTrialBooking::stateFor($customer->trialBookings()->with('session')->get());
+            if ($state['exhausted']) {
+                throw ValidationException::withMessages(['class_session_id' => 'Khách đã học thử đủ '.CrmTrialBooking::MAX_ACTIVE_PER_LEAD.' buổi — không xếp thêm học thử.']);
+            }
+            if ($state['pending']) {
+                throw ValidationException::withMessages(['class_session_id' => 'Khách đang có buổi học thử chưa diễn ra ('.$state['pending']->session->date->format('d/m/Y').'). Xếp buổi tiếp theo sau khi buổi này kết thúc.']);
             }
 
-            $sessions = ClassSession::with('classModel')->whereIn('id', $validated['class_session_ids'])->get();
-            foreach ($sessions as $session) {
-                if ($session->status !== 'scheduled' || $session->date->lt(today())
-                    || ! in_array($session->classModel?->status, ['active', 'upcoming'], true)) {
-                    throw ValidationException::withMessages(['class_session_ids' => 'Buổi học đã chọn không còn khả dụng.']);
-                }
-                if ($customer->branch_id && $session->branch_id && $session->branch_id !== $customer->branch_id) {
-                    throw ValidationException::withMessages(['class_session_ids' => 'Buổi học thử phải thuộc chi nhánh của khách.']);
-                }
-                if ($active->contains('class_session_id', $session->id)) {
-                    throw ValidationException::withMessages(['class_session_ids' => 'Khách đã được đặt học thử buổi này.']);
-                }
+            $session = ClassSession::with('classModel')->findOrFail($validated['class_session_id']);
+            $end = $session->end_time ? $session->date->copy()->setTimeFrom($session->end_time) : $session->date->copy()->endOfDay();
+            if ($session->status !== 'scheduled' || $end->isPast() || $session->date->gt(today()->addDays(TrialSlotFinder::WINDOW_DAYS))
+                || ! in_array($session->classModel?->status, ['active', 'upcoming'], true)) {
+                throw ValidationException::withMessages(['class_session_id' => 'Buổi học đã chọn không còn khả dụng.']);
+            }
+            $branchId = $session->classModel?->branch_id ?? $session->branch_id;
+            if ($customer->branch_id && $branchId && (int) $branchId !== (int) $customer->branch_id) {
+                throw ValidationException::withMessages(['class_session_id' => 'Buổi học thử phải thuộc chi nhánh của khách.']);
             }
 
-            return $sessions->map(fn (ClassSession $session) => CrmTrialBooking::create([
+            return CrmTrialBooking::create([
                 'customer_id' => $customer->id,
                 'class_id' => $session->class_id,
                 'class_session_id' => $session->id,
                 'booked_by' => $request->user()->id,
                 'status' => 'scheduled',
                 'notes' => $validated['notes'] ?? null,
-            ])->setRelation('session', $session));
+            ])->setRelation('session', $session)->setRelation('classModel', $session->classModel)->setRelation('customer', $customer);
         });
 
+        $session = $booking->session;
         CrmCustomerHistory::create([
             'customer_id' => $customer->id,
             'user_id' => $request->user()->id,
             'type' => 'trial',
-            'content' => 'Đặt lịch học thử: '.$bookings->map(fn (CrmTrialBooking $booking) => $booking->session->classModel?->name.' ('.$booking->session->date->format('d/m/Y').' '.$booking->session->start_time?->format('H:i').')')->implode(', ')
-                .(! empty($validated['notes']) ? '. Ghi chú: '.$validated['notes'] : '.'),
+            'content' => 'Đặt lịch học thử: '.$session->classModel?->name.' ('.$session->date->format('d/m/Y').' '.$session->start_time?->format('H:i').')'
+                .(! empty($validated['notes']) ? '. Ghi chú cho giáo viên: '.$validated['notes'] : '.'),
         ]);
+        $notifications->notifyTrialBooked($booking, $request->user());
 
-        return redirect()->back()->with('status', 'Đã đặt lịch học thử cho khách.');
+        return redirect()->back()->with('status', 'Đã xếp lịch học thử cho khách.');
     }
 
     public function cancelTrialBooking(Request $request, CrmStageService $stages, $id, CrmTrialBooking $booking)

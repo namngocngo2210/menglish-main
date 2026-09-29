@@ -471,13 +471,14 @@ class DemoPhase1Seeder extends Seeder
         return $customer->refresh();
     }
 
-    /** CM đặt học thử vào buổi sắp tới của lớp FAM 1 (≤ 2 buổi / khách). */
+    /** CM xếp học thử vào buổi gần nhất trong 7 ngày tới của lớp FAM 1 (mỗi lần 1 buổi, ≤ 2 lần / khách). */
     private function bookTrial(CrmCustomer $customer, string $note): CrmCustomer
     {
-        $session = $this->classes['FAM1']->sessions()->where('status', 'scheduled')->whereDate('date', '>', today())->orderBy('date')->first();
+        $session = $this->classes['FAM1']->sessions()->where('status', 'scheduled')
+            ->whereDate('date', '>', today())->whereDate('date', '<=', today()->addDays(7))->orderBy('date')->first();
         if ($session) {
             $this->asUser($this->staff['academic'], CrmController::class, 'storeTrialBooking', [
-                'class_session_ids' => [$session->id], 'notes' => $note,
+                'class_session_id' => $session->id, 'notes' => $note,
             ], ['id' => $customer->id]);
         }
 

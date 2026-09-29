@@ -208,18 +208,17 @@ class Phase1AcceptanceTest extends TestCase
         $this->actingAs($this->academic)->post(route('crm.customers.next-stage', $lead->id))->assertSessionHasNoErrors();
         $this->assertSame('result_sent', $lead->fresh()->stage);
 
-        // ── 5. Học thử: CM đặt tối đa 2 buổi của lớp thật ────────────────
+        // ── 5. Học thử: CM xếp từng buổi của lớp thật (buổi 2 xếp lại sau khi buổi 1 kết thúc) ──
         $sessions = ClassSession::where('class_id', $this->activeClass->id)->whereDate('date', '>=', today())->orderBy('date')->take(3)->get();
-        $this->actingAs($this->sales)->post(route('crm.customers.trial-bookings.store', $lead->id), ['class_session_ids' => [$sessions[0]->id]])
+        $sessions[0]->update(['end_time' => '23:59']);
+        $this->actingAs($this->sales)->post(route('crm.customers.trial-bookings.store', $lead->id), ['class_session_id' => $sessions[0]->id])
             ->assertForbidden();
-        $this->actingAs($this->academic)->post(route('crm.customers.trial-bookings.store', $lead->id), ['class_session_ids' => $sessions->pluck('id')->all()])
-            ->assertSessionHasErrors('class_session_ids');
         $this->actingAs($this->academic)->post(route('crm.customers.trial-bookings.store', $lead->id), [
-            'class_session_ids' => [$sessions[0]->id, $sessions[1]->id], 'notes' => 'PH đưa đón',
+            'class_session_id' => $sessions[0]->id, 'notes' => 'PH đưa đón',
         ])->assertSessionHasNoErrors();
-        $this->assertSame(2, CrmTrialBooking::where('customer_id', $lead->id)->count());
-        $this->actingAs($this->academic)->post(route('crm.customers.trial-bookings.store', $lead->id), ['class_session_ids' => [$sessions[2]->id]])
-            ->assertSessionHasErrors('class_session_ids');
+        $this->assertSame(1, CrmTrialBooking::where('customer_id', $lead->id)->count());
+        $this->actingAs($this->academic)->post(route('crm.customers.trial-bookings.store', $lead->id), ['class_session_id' => $sessions[1]->id])
+            ->assertSessionHasErrors('class_session_id');
         $this->assertSame('result_sent', $lead->fresh()->stage, 'Học thử không phải bước pipeline.');
 
         // ── 6. GV buổi đó nhận xét — lưu theo khách, không theo học viên ──
@@ -402,8 +401,8 @@ class Phase1AcceptanceTest extends TestCase
         }
         $this->actingAs($this->admin)->postJson(route('crm.customers.next-stage', $lead->id))->assertStatus(422);
         $this->actingAs($this->academic)->post(route('crm.customers.trial-bookings.store', $lead->id), [
-            'class_session_ids' => [ClassSession::where('class_id', $this->activeClass->id)->whereDate('date', '>=', today())->value('id')],
-        ])->assertSessionHasErrors('class_session_ids');
+            'class_session_id' => ClassSession::where('class_id', $this->activeClass->id)->whereDate('date', '>=', today())->value('id'),
+        ])->assertSessionHasErrors('class_session_id');
         $this->actingAs($this->manager)->post(route('crm.closing-wizard.store'), [
             'customer_id' => $lead->id, 'class_id' => $this->activeClass->id, 'fee_paid_at_closing' => 0,
         ])->assertSessionHasErrors('customer_id');

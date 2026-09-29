@@ -40,6 +40,8 @@
                 <x-ui.alert type="error">{{ $errors->first() }}</x-ui.alert>
             @endif
 
+            @include('teacher.partials.trial-guests')
+
             @if (! $session)
                 <div class="rounded-xl border border-outline-variant bg-surface-container-lowest">
                     <x-ui.empty-state icon="event_busy" title="Lớp không có buổi học trong ngày này" description="Chọn một buổi ở danh sách bên dưới để nhận xét." />

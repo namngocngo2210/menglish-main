@@ -128,32 +128,63 @@
     @endif
 
     @if ($canBookTrial)
-    {{-- Học thử: hoạt động trong giai đoạn tư vấn (không đổi stage) --}}
-    <x-ui.modal name="crm-schedule-trial" id="scheduleTrialModal" title="Đặt lịch học thử" max-width="lg">
-        <p class="mb-2 text-xs text-on-surface-variant">Chọn 1–2 buổi học thật của lớp cùng trình độ tại {{ $customer->branch?->name ?? 'chi nhánh của khách' }}. Giáo viên của buổi sẽ thấy khách trong trang "Nhận xét học thử" và nhận xét như học sinh chính thức.</p>
-        <p class="text-xs mb-4 {{ $trialRemaining > 0 ? 'text-secondary' : 'text-error' }} font-semibold">Còn đặt được {{ $trialRemaining }}/{{ \App\Models\CrmTrialBooking::MAX_ACTIVE_PER_LEAD }} buổi học thử.@if ($latestSubmission?->finalClass()) Trình độ theo test: {{ $latestSubmission->finalClass() }}.@endif</p>
+    {{-- Xếp học thử trước Chốt: lớp khớp trình độ đăng ký, buổi trong 7 ngày tới; mỗi lần 1 buổi, tối đa 2 lần.
+         Không tạo ghi danh — khách chỉ vào lớp chính thức khi xếp lớp sau Chốt. --}}
+    @php
+        $weekdays = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+        $pendingTrial = $trialState['pending'];
+        $trialNo = $trialState['used'] + 1;
+    @endphp
+    <x-ui.modal name="crm-schedule-trial" id="scheduleTrialModal" :show="$errors->has('class_session_id')" title="{{ $pendingTrial ? 'Xếp học thử' : 'Xếp học thử — buổi '.$trialNo.'/'.\App\Models\CrmTrialBooking::MAX_ACTIVE_PER_LEAD }}" max-width="lg">
+        <div class="mb-3 space-y-1 text-xs">
+            <p class="text-on-surface-variant">Chọn 1 buổi học thật trong 7 ngày tới của lớp cùng trình độ{{ $customer->branch ? ' tại '.$customer->branch->name : '' }}. Giáo viên buổi đó nhận ghi chú, nhận xét khách sau giờ học và Học vụ được báo để chăm sóc.</p>
+            <p><span class="text-on-surface-variant">Trình độ đăng ký:</span> <span class="font-semibold text-on-surface">{{ $trialSlots['level'] ?? 'Chưa có (hiện mọi lớp đang mở)' }}</span></p>
+        </div>
+        @if ($pendingTrial)
+            <x-ui.alert type="info">Khách đang có buổi học thử {{ $pendingTrial->classModel?->name }} ngày {{ $pendingTrial->session?->date?->format('d/m/Y') }} {{ $pendingTrial->session?->start_time?->format('H:i') }}. Buổi tiếp theo xếp lại sau khi buổi này kết thúc.</x-ui.alert>
+        @else
         <form id="schedule-trial-form" action="{{ route('crm.customers.trial-bookings.store', $customer->id) }}" method="POST" class="space-y-3 text-xs">
             @csrf
-            <div class="max-h-64 overflow-y-auto border border-surface-container-highest rounded-xl divide-y divide-surface-container-highest">
-                @forelse ($trialSessions as $session)
-                    <label class="flex items-start gap-2 p-2.5 hover:bg-secondary/5 cursor-pointer">
-                        <input type="checkbox" name="class_session_ids[]" value="{{ $session->id }}" class="mt-0.5 rounded border-outline-variant text-secondary" />
-                        <span>
-                            <span class="font-bold text-on-surface">{{ $session->classModel?->name }}</span>
-                            @if ($session->matches_level)<x-ui.badge color="success" :dot="false" class="ml-1 font-bold !text-[10px]">Khớp trình độ</x-ui.badge>@endif
-                            <span class="text-on-surface-variant">· {{ $session->classModel?->course?->name ?? 'Chưa gán khóa' }}{{ $session->classModel?->level ? ' · '.$session->classModel->level : '' }}</span>
-                            <span class="block text-on-surface-variant">{{ $session->date->format('d/m/Y') }} · {{ $session->start_time?->format('H:i') }}–{{ $session->end_time?->format('H:i') }} · GV: {{ $session->teacher?->name ?? 'Chưa gán' }}</span>
-                        </span>
-                    </label>
+            <div class="max-h-[55vh] space-y-2 overflow-y-auto">
+                @forelse ($trialSlots['classes'] as $row)
+                    @php $class = $row['class']; @endphp
+                    <div class="rounded-xl border border-surface-container-highest p-2.5" data-testid="trial-class">
+                        <div class="flex flex-wrap items-baseline justify-between gap-x-2">
+                            <span class="font-bold text-on-surface">{{ $class->name }}</span>
+                            <span class="text-on-surface-variant">{{ $class->course?->name ?? 'Chưa gán khóa' }}{{ $class->level ? ' · '.$class->level : '' }}</span>
+                        </div>
+                        @if ($row['sessions']->isEmpty())
+                            <p class="mt-1 italic text-on-surface-variant/70">Không có buổi học trong 7 ngày tới.</p>
+                        @else
+                            <div class="mt-2 flex flex-wrap gap-1.5">
+                                @foreach ($row['sessions'] as $slot)
+                                    <label class="cursor-pointer">
+                                        <input type="radio" name="class_session_id" value="{{ $slot->id }}" class="peer sr-only" @checked((int) old('class_session_id') === $slot->id) required>
+                                        <span class="inline-flex flex-col rounded-lg border border-outline-variant px-2.5 py-1.5 leading-tight hover:border-secondary peer-checked:border-secondary peer-checked:bg-secondary/10 peer-checked:ring-1 peer-checked:ring-secondary peer-focus-visible:ring-2 peer-focus-visible:ring-secondary">
+                                            <span class="font-semibold text-on-surface">{{ $weekdays[$slot->date->dayOfWeek] }} {{ $slot->date->format('d/m') }} · {{ $slot->start_time?->format('H:i') }}–{{ $slot->end_time?->format('H:i') }}</span>
+                                            <span class="text-[11px] text-on-surface-variant">GV: {{ $slot->teacher?->name ?? $class->teacher?->name ?? 'Chưa gán' }}</span>
+                                        </span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
                 @empty
-                    <div class="p-4 text-center text-on-surface-variant/70">Chưa có buổi học sắp tới phù hợp.</div>
+                    <div class="rounded-xl border border-surface-container-highest p-4 text-center text-on-surface-variant/80">
+                        {{ $trialSlots['filtered'] ? 'Không có lớp đang mở nào khớp trình độ '.$trialSlots['level'].($customer->branch ? ' tại '.$customer->branch->name : '').'.' : 'Chưa có lớp đang mở'.($customer->branch ? ' tại '.$customer->branch->name : '').'.' }}
+                        <span class="block mt-1">Kiểm tra "Khóa học quan tâm" của khách hoặc lịch lớp.</span>
+                    </div>
                 @endforelse
             </div>
-            <x-ui.textarea name="notes" rows="2" placeholder="Ghi chú cho giáo viên (trình độ, mục tiêu...)" aria-label="Ghi chú cho giáo viên" />
+            @error('class_session_id')<p class="font-semibold text-error">{{ $message }}</p>@enderror
+            <x-ui.textarea name="notes" rows="2" label="Ghi chú cho giáo viên" placeholder="Trình độ, mục tiêu, tính cách của bé..." :value="old('notes')" />
         </form>
+        @endif
         <x-slot:footer>
-            <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'crm-schedule-trial')">Hủy</x-ui.button>
-            <x-ui.button type="submit" form="schedule-trial-form">Lưu lịch học thử</x-ui.button>
+            <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'crm-schedule-trial')">{{ $pendingTrial ? 'Đóng' : 'Hủy' }}</x-ui.button>
+            @unless ($pendingTrial)
+                <x-ui.button type="submit" form="schedule-trial-form" :disabled="$trialSlots['classes']->every(fn ($row) => $row['sessions']->isEmpty())">Lưu lịch học thử</x-ui.button>
+            @endunless
         </x-slot:footer>
     </x-ui.modal>
     @endif
@@ -607,9 +638,11 @@
                             </h4>
                             @if ($canBookTrial)
                                 <div class="flex items-center gap-sm">
-                                    <span class="font-caption text-caption text-on-surface-variant">Còn {{ $trialRemaining }}/{{ \App\Models\CrmTrialBooking::MAX_ACTIVE_PER_LEAD }} buổi</span>
-                                    <x-ui.button variant="secondary" size="sm" icon="event_available" onclick="window.dispatchEvent(new CustomEvent('open-modal', { detail: 'crm-schedule-trial' }))">Đặt học thử</x-ui.button>
+                                    <span class="font-caption text-caption text-on-surface-variant">Đã học thử {{ $trialState['used'] }}/{{ \App\Models\CrmTrialBooking::MAX_ACTIVE_PER_LEAD }} buổi</span>
+                                    <x-ui.button variant="secondary" size="sm" icon="event_available" onclick="window.dispatchEvent(new CustomEvent('open-modal', { detail: 'crm-schedule-trial' }))">{{ $trialState['used'] > 0 ? 'Xếp buổi học thử '.($trialState['used'] + 1) : 'Xếp học thử' }}</x-ui.button>
                                 </div>
+                            @elseif ($trialState['exhausted'])
+                                <span class="font-caption text-caption font-semibold text-on-surface-variant">Đã học thử đủ {{ \App\Models\CrmTrialBooking::MAX_ACTIVE_PER_LEAD }} buổi · khóa xếp học thử</span>
                             @endif
                         </div>
                         @forelse ($customer->trialBookings as $booking)

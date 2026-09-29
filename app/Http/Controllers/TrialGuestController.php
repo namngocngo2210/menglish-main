@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\CrmCustomerHistory;
 use App\Models\CrmTrialBooking;
 use App\Models\User;
+use App\Services\NotificationService;
 use App\Support\DataScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -91,7 +92,10 @@ class TrialGuestController extends Controller
                 : "Khách vắng buổi học thử {$sessionLabel}.".(! empty($validated['feedback']) ? " Ghi chú: {$validated['feedback']}" : ''),
         ]);
 
-        return back()->with('status', 'Đã lưu nhận xét học thử vào hồ sơ khách.');
+        // Đồng bộ về Học vụ đã xếp + người phụ trách khách để chăm sóc sau học thử.
+        app(NotificationService::class)->notifyTrialFeedback($booking, $user);
+
+        return back()->with('status', 'Đã lưu nhận xét học thử vào hồ sơ khách — Học vụ đã được báo để chăm sóc khách.');
     }
 
     private function canGiveFeedback(CrmTrialBooking $booking, User $user): bool

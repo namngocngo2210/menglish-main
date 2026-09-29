@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AcademicRecord;
 use App\Models\AdminNotification;
 use App\Models\CrmCustomer;
+use App\Models\CrmTrialBooking;
 use App\Models\DebtReminderRule;
 use App\Models\PlacementTestSubmission;
 use App\Models\StudentTuition;
@@ -955,5 +956,52 @@ class NotificationService
                 'action_text' => 'Xem Báo cáo Điểm số',
             ]
         );
+    }
+
+    /** Xếp học thử: báo giáo viên / trợ giảng của buổi để chuẩn bị (tên khách + ghi chú của Học vụ). */
+    public function notifyTrialBooked(CrmTrialBooking $booking, User $actor): void
+    {
+        $booking->loadMissing(['session', 'classModel', 'customer']);
+        $session = $booking->session;
+        $when = $session?->date?->format('d/m/Y').' '.$session?->start_time?->format('H:i');
+        $recipients = collect([$session?->teacher_id ?? $booking->classModel?->teacher_id, $session?->assistant_id])
+            ->filter()->unique()->reject(fn ($id) => (int) $id === (int) $actor->id);
+
+        foreach ($recipients as $userId) {
+            AdminNotification::create([
+                'user_id' => $userId,
+                'type' => 'trial_booked',
+                'title' => 'Khách học thử buổi '.$when.' · '.($booking->classModel?->name ?? 'lớp'),
+                'message' => ($booking->customer?->name ?? 'Khách').' học thử buổi này.'
+                    .($booking->notes ? ' Ghi chú của Học vụ: '.Str::limit($booking->notes, 160) : '')
+                    .' Sau buổi học, vui lòng nhận xét khách.',
+                'data' => ['trial_booking_id' => $booking->id, 'link' => route('teacher.trial-guests')],
+                'is_read' => false,
+            ]);
+        }
+    }
+
+    /** Giáo viên nhận xét xong: báo Học vụ đã xếp + người phụ trách khách để chăm sóc sau học thử. */
+    public function notifyTrialFeedback(CrmTrialBooking $booking, User $actor): void
+    {
+        $booking->loadMissing(['session', 'classModel', 'customer']);
+        $customer = $booking->customer;
+        $recipients = collect([$booking->booked_by, $customer?->assigned_user_id])
+            ->filter()->unique()->reject(fn ($id) => (int) $id === (int) $actor->id);
+        $label = ($booking->classModel?->name ?? 'lớp').' ngày '.$booking->session?->date?->format('d/m/Y');
+        $message = $booking->status === 'attended'
+            ? "{$actor->name} đã nhận xét ({$booking->rating}/5): ".Str::limit((string) $booking->feedback, 160).' — chăm sóc khách sau học thử.'
+            : "{$actor->name} báo khách vắng buổi học thử — liên hệ lại khách.";
+
+        foreach ($recipients as $userId) {
+            AdminNotification::create([
+                'user_id' => $userId,
+                'type' => 'trial_feedback',
+                'title' => 'Nhận xét học thử: '.($customer?->name ?? 'Khách').' · '.$label,
+                'message' => $message,
+                'data' => ['trial_booking_id' => $booking->id, 'customer_id' => $booking->customer_id, 'link' => route('crm.customers.show', $booking->customer_id)],
+                'is_read' => false,
+            ]);
+        }
     }
 }

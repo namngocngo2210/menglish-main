@@ -8,6 +8,7 @@ use App\Models\BigTestOrder;
 use App\Models\BigTestResult;
 use App\Models\ClassModel;
 use App\Models\ClassSession;
+use App\Models\CrmTrialBooking;
 use App\Models\Homework;
 use App\Models\MiniTestScore;
 use App\Models\PayrollPeriod;
@@ -153,8 +154,10 @@ class TeacherPortalController extends Controller
             ->flip();
 
         ClassModel::loadRosterCounts($todaySessions->pluck('classModel')->filter()->unique('id'));
+        $trialCounts = CrmTrialBooking::whereIn('class_session_id', $sessionIds)->where('status', '!=', 'cancelled')->whereHas('customer')
+            ->selectRaw('class_session_id, count(*) as total')->groupBy('class_session_id')->pluck('total', 'class_session_id');
 
-        $shifts = $todaySessions->map(function (ClassSession $session) use ($checkins, $attendanceDone) {
+        $shifts = $todaySessions->map(function (ClassSession $session) use ($checkins, $attendanceDone, $trialCounts) {
             $ts = $checkins->get($session->id);
 
             return [
@@ -165,6 +168,7 @@ class TeacherPortalController extends Controller
                 'checkin_time' => $ts?->checkin_time,
                 'attendance_done' => $attendanceDone->has($session->id),
                 'student_count' => $session->type === ClassSession::TYPE_SUPPORT ? 1 : (int) $session->classModel?->roster_count,
+                'trial_count' => (int) ($trialCounts[$session->id] ?? 0),
             ];
         });
 
@@ -394,8 +398,10 @@ class TeacherPortalController extends Controller
             $recentSessions->push($session->loadCount('attendances'));
         }
 
+        $trialGuests = $this->sessionTrialGuests($session);
+
         return view('teacher.attendance', compact(
-            'class', 'session', 'students', 'existing', 'today', 'blockReason', 'onBehalf', 'recentSessions', 'window', 'rosterSize'
+            'class', 'session', 'students', 'existing', 'today', 'blockReason', 'onBehalf', 'recentSessions', 'window', 'rosterSize', 'trialGuests'
         ));
     }
 
@@ -931,7 +937,24 @@ class TeacherPortalController extends Controller
             $recentSessions->push($session);
         }
 
-        return view('teacher.remarks', compact('class', 'session', 'students', 'attendance', 'existing', 'record', 'sessionNo', 'recentSessions', 'blockReason'));
+        $trialGuests = $this->sessionTrialGuests($session);
+
+        return view('teacher.remarks', compact('class', 'session', 'students', 'attendance', 'existing', 'record', 'sessionNo', 'recentSessions', 'blockReason', 'trialGuests'));
+    }
+
+    /** Khách học thử được xếp vào đúng buổi này (không thuộc danh sách lớp, không ghi danh). */
+    private function sessionTrialGuests(?ClassSession $session): Collection
+    {
+        if (! $session) {
+            return collect();
+        }
+
+        return CrmTrialBooking::query()
+            ->with(['customer:id,name,test_score', 'session'])
+            ->where('class_session_id', $session->id)
+            ->where('status', '!=', 'cancelled')
+            ->whereHas('customer')
+            ->get();
     }
 
     public function remarksStore(Request $request, int $classId)
