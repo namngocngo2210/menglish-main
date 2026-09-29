@@ -169,7 +169,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/import/preview', [CrmImportController::class, 'preview'])->middleware('can:lead.create')->name('import.preview');
         Route::get('/import/errors', [CrmImportController::class, 'errors'])->middleware('can:lead.create')->name('import.errors');
         Route::post('/import', [CrmImportController::class, 'store'])->middleware('can:lead.create')->name('import.store');
-        Route::get('/reports', [CrmController::class, 'reports'])->name('reports');
+        Route::get('/reports', [CrmController::class, 'reports'])->middleware('can:report.view')->name('reports');
     });
     Route::get('/crm/tuition-bill/{id}', [CrmController::class, 'tuitionBill'])->name('crm.tuition-bill');
 

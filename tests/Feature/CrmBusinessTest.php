@@ -345,6 +345,8 @@ class CrmBusinessTest extends TestCase
         $responseDelete->assertMethodNotAllowed();
         $this->assertNotSoftDeleted('crm_customers', ['id' => $customer->id]);
 
+        $this->actingAs($this->salesUser)->get(route('crm.reports'))->assertForbidden();
+        $this->salesUser->givePermissionTo('report.view');
         $responseReports = $this->actingAs($this->salesUser)->get(route('crm.reports'));
         $responseReports->assertOk();
         $responseReports->assertViewHas('metricTotalLeads');
@@ -560,6 +562,7 @@ class CrmBusinessTest extends TestCase
 
     public function test_reports_with_invalid_custom_dates_render_instead_of_erroring(): void
     {
+        $this->salesUser->givePermissionTo('report.view');
         $this->actingAs($this->salesUser)->get(route('crm.reports', [
             'preset' => 'custom',
             'start_date' => 'not-a-date',

@@ -344,6 +344,7 @@ class CrmWorkflowHardeningTest extends TestCase
         $receipt = TuitionReceipt::where('student_id', $lead->fresh()->converted_student_id)->firstOrFail();
         $this->actingAs($accountant)->post(route('tuition.receipts.approve.action', $receipt))->assertRedirect();
 
+        $this->salesA->givePermissionTo('report.view');
         $response = $this->actingAs($this->salesA)->get(route('crm.reports', ['preset' => 'today']));
         $response->assertOk();
         $this->assertSame(1, $response->viewData('metricWonDeals'));

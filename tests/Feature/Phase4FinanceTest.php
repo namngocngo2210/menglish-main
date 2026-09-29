@@ -215,10 +215,10 @@ class Phase4FinanceTest extends TestCase
     // 4. Quyền báo cáo thu chi
     // ---------------------------------------------------------------------
 
-    public function test_sales_consultant_cannot_open_finance_reports_but_keeps_report_view(): void
+    public function test_sales_consultant_cannot_open_finance_or_enrollment_reports(): void
     {
         $sales = $this->makeUser('sales_consultant');
-        $this->assertTrue($sales->can('report.view'));
+        $this->assertFalse($sales->can('report.view'));
         $this->assertFalse($sales->can('finance.view'));
 
         $this->actingAs($sales)->get(route('finance.reports.revenue'))->assertForbidden();

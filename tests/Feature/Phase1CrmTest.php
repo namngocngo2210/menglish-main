@@ -448,6 +448,12 @@ class Phase1CrmTest extends TestCase
     {
         $foreignSalesSameRoleBranchA = $this->userWithRole('sales_consultant', $this->branch, 'Sale Ba');
 
+        // Mặc định chỉ Admin xem; người được Admin cấp riêng quyền vẫn chỉ thấy dữ liệu trong phạm vi của mình.
+        $this->actingAs($this->sales)->get(route('crm.reports'))->assertForbidden();
+        $this->actingAs($this->manager)->get(route('crm.reports'))->assertForbidden();
+        $this->sales->givePermissionTo('report.view');
+        $this->manager->givePermissionTo('report.view');
+
         $salesRows = collect($this->actingAs($this->sales)->get(route('crm.reports'))->assertOk()->viewData('repsData'))->pluck('name')->all();
         $this->assertSame(['Sale Một'], $salesRows);
 
