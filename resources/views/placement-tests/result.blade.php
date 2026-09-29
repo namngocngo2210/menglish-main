@@ -45,8 +45,8 @@
 
             @if ($submission->isPending() && ($submission->listening_score !== null || $submission->reading_score !== null))
                 <x-ui.alert type="info">
-                    Điểm tự chấm từ bài online (đã quy về thang của khối): Nghe {{ $submission->listening_score ?? '—' }} · Phần Đọc trắc nghiệm {{ $submission->reading_score ?? '—' }}.
-                    Học vụ kiểm tra lại, cộng phần Viết vào ô Đọc &amp; Viết và nhập điểm Nói.
+                    Hệ thống đã tự chấm theo đáp án của đề (quy về thang của khối): Nghe {{ $submission->listening_score ?? '—' }} · Đọc &amp; Viết {{ $submission->reading_writing_score ?? $submission->reading_score ?? '—' }}, kèm nhận xét gợi ý từng kỹ năng.
+                    Học vụ xem lại, sửa điểm / nhận xét nếu cần (bài viết tự luận chấm tay), nhập điểm Nói rồi bấm Xác nhận kết quả.
                 </x-ui.alert>
             @endif
 

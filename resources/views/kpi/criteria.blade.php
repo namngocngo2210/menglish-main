@@ -11,7 +11,7 @@
                       description="Quản lý và thiết lập các chỉ số KPI đánh giá hiệu suất học vụ — 6 nhóm / 15 mục, tiền KPI tháng = quỹ × điểm KPI có trọng số (tự động vào bảng lương).">
         <x-slot:actions>
             @can('kpi.manage')
-                <x-ui.button icon="add" @click="document.getElementById('kpi-add-form').scrollIntoView({ behavior: 'smooth' }); document.querySelector('#kpi-add-form [name=name]').focus()">Thêm mục mới</x-ui.button>
+                <x-ui.button icon="add" x-on:click="$dispatch('open-modal', 'new-kpi')">Thêm mục mới</x-ui.button>
             @endcan
         </x-slot:actions>
     </x-ui.page-header>
@@ -29,34 +29,11 @@
             @endunless
         </x-ui.alert>
 
-        {{-- Add form --}}
-        <form id="kpi-add-form" method="POST" action="{{ route('kpi.criteria.store') }}" class="bg-surface-container-lowest rounded-xl p-lg border border-outline-variant shadow-sm space-y-3">
-            @csrf
-            <h2 class="font-h3 text-h3 text-on-surface">Thêm mục KPI mới</h2>
-            <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                <x-ui.input name="group_name" list="kpi-groups" placeholder="Nhóm KPI (vd: Chăm sóc học viên)" />
-                <x-ui.input name="code" placeholder="Mã (vd: 1.4)" />
-                <div class="sm:col-span-2"><x-ui.input name="name" required placeholder="Tên mục *" /></div>
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                <x-ui.input type="number" name="weight" required step="0.25" min="0" max="100" placeholder="Trọng số % quỹ *" />
-                <x-ui.input name="threshold_full" placeholder="Ngưỡng đạt 100%" />
-                <x-ui.input name="threshold_half" placeholder="Ngưỡng đạt 50%" />
-                <x-ui.input name="unit" placeholder="Đơn vị (vd: %, buổi)" />
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <x-ui.input name="target" placeholder="Mục tiêu (vd: >= 95%)" />
-                <x-ui.input name="description" placeholder="Mô tả" />
-            </div>
-            <datalist id="kpi-groups">
-                @foreach ($groups as $group)
-                    <option value="{{ $group }}"></option>
-                @endforeach
-            </datalist>
-            <div class="flex justify-end">
-                <x-ui.button type="submit" icon="add">Thêm mục</x-ui.button>
-            </div>
-        </form>
+        <datalist id="kpi-groups">
+            @foreach ($groups as $group)
+                <option value="{{ $group }}"></option>
+            @endforeach
+        </datalist>
 
         {{-- List / edit, theo nhóm --}}
         <div class="space-y-4">
@@ -98,9 +75,35 @@
                 </div>
             @empty
                 <div class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm">
-                    <x-ui.empty-state icon="tune" title="Chưa có mục KPI nào. Thêm ở form trên." />
+                    <x-ui.empty-state icon="tune" title="Chưa có mục KPI nào. Bấm &quot;Thêm mục mới&quot; để tạo." />
                 </div>
             @endforelse
         </div>
     </div>
+
+    @can('kpi.manage')
+        <x-ui.modal name="new-kpi" title="Thêm mục KPI mới" max-width="xl" :show="old('_modal') === 'new-kpi'">
+            <form id="kpi-add-form" method="POST" action="{{ route('kpi.criteria.store') }}" class="space-y-md">
+                @csrf
+                <input type="hidden" name="_modal" value="new-kpi">
+                <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
+                    <x-ui.input name="group_name" label="Nhóm KPI" list="kpi-groups" placeholder="vd: Chăm sóc học viên" />
+                    <x-ui.input name="code" label="Mã" placeholder="vd: 1.4" />
+                </div>
+                <x-ui.input name="name" label="Tên mục" required />
+                <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
+                    <x-ui.input type="number" name="weight" label="Trọng số % quỹ" required step="0.25" min="0" max="100" />
+                    <x-ui.input name="unit" label="Đơn vị" placeholder="vd: %, buổi" />
+                    <x-ui.input name="threshold_full" label="Ngưỡng đạt 100%" />
+                    <x-ui.input name="threshold_half" label="Ngưỡng đạt 50%" />
+                </div>
+                <x-ui.input name="target" label="Mục tiêu" placeholder="vd: >= 95%" />
+                <x-ui.input name="description" label="Mô tả" />
+            </form>
+            <x-slot:footer>
+                <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'new-kpi')">Hủy</x-ui.button>
+                <x-ui.button type="submit" form="kpi-add-form" icon="add">Thêm mục</x-ui.button>
+            </x-slot:footer>
+        </x-ui.modal>
+    @endcan
 </x-app-layout>

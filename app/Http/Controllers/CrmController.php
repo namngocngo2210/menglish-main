@@ -525,19 +525,29 @@ class CrmController extends Controller
      */
     protected function rubricSummary(?PlacementTestSubmission $submission): ?array
     {
-        if (! $submission || ($submission->total_score === null && $submission->overall_score === null)) {
+        if (! $submission) {
             return null;
         }
         $group = $submission->grade_group;
+        // Bài nộp online chưa chấm xong: điểm Nghe / Đọc & Viết + nhận xét tự động là bản nháp, hiện ngay cho Học vụ
+        // (tổng tạm tính, chưa có lớp đề xuất cho tới khi nhập điểm Nói và Xác nhận kết quả).
+        $draft = $submission->total_score === null && $submission->overall_score === null && $group !== null
+            && ($submission->listening_score !== null || $submission->reading_writing_score !== null);
+        if (! $draft && $submission->total_score === null && $submission->overall_score === null) {
+            return null;
+        }
 
         return [
-            'legacy' => ! $submission->hasRubricGrade(),
+            'draft' => $draft,
+            'legacy' => ! $draft && ! $submission->hasRubricGrade(),
             'grade_group' => $group,
             'grade_group_label' => PlacementRubricService::groupLabel($group),
             'has_rubric' => PlacementRubricService::hasRubric($group),
             'max' => PlacementRubricService::maxScores($group),
             'max_total' => PlacementRubricService::maxTotal($group),
-            'total' => $submission->total_score !== null ? (float) $submission->total_score : (float) $submission->overall_score,
+            'total' => $draft
+                ? round((float) $submission->listening_score + (float) $submission->reading_writing_score + (float) $submission->speaking_score, 1)
+                : ($submission->total_score !== null ? (float) $submission->total_score : (float) $submission->overall_score),
             'suggested_class' => $submission->suggested_class,
             'chosen_class' => $submission->finalClass(),
             'overridden' => $submission->classWasOverridden(),

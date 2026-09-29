@@ -331,6 +331,7 @@
                 <template x-if="modalForm.type === 'fill_blank'">
                     <div class="pt-2 border-t border-surface-container-highest">
                         <x-ui.input label="Từ / Cụm từ đáp án chính xác:" x-model="modalForm.correct_answer" placeholder="Ví dụ: had studied" class="font-mono font-bold" />
+                        <p class="mt-1 text-[11px] text-on-surface-variant italic">Nhiều cách viết được chấp nhận thì ngăn cách bằng dấu |, VD: 7 | seven.</p>
                     </div>
                 </template>
 

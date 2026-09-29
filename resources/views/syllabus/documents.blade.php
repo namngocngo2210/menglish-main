@@ -3,104 +3,18 @@
         <x-slot:actions>
             <x-ui.button variant="secondary" icon="edit_document" :href="route('syllabus.builder')">Soạn syllabus</x-ui.button>
             <x-ui.button variant="secondary" icon="menu_book" :href="route('syllabus.teacher-view')">Xem như giáo viên</x-ui.button>
+            @can('syllabus.upload')
+                <x-ui.button icon="upload_file" x-on:click="$dispatch('open-modal', 'upload-document')">Tải lên tài liệu</x-ui.button>
+            @endcan
         </x-slot:actions>
     </x-ui.page-header>
 
 
     @php($canUpload = auth()->user()->can('syllabus.upload'))
 
-    {{-- Mockup 01_Web_Admin/01_quan_ly_tai_lieu_giao_trinh: form tải lên (giáo trình → chặng → đối tượng xem → file) + danh sách. --}}
+    {{-- Mockup 01_Web_Admin/01_quan_ly_tai_lieu_giao_trinh: danh sách; form tải lên (giáo trình → chặng → đối tượng xem → file) mở bằng nút "Tải lên tài liệu" (modal). --}}
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        @if ($canUpload)
-        <section class="lg:col-span-4 flex flex-col gap-4">
-            <div class="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg shadow-sm">
-                <h2 class="font-h3 text-h3 text-on-surface mb-md">Tải lên tài liệu mới</h2>
-
-                @if ($curriculums->isEmpty())
-                    <x-ui.empty-state icon="library_add" title="Chưa có giáo trình" description="Tạo giáo trình ở màn Soạn syllabus trước khi tải tài liệu.">
-                        <x-ui.button icon="add" :href="route('syllabus.builder')">Tạo giáo trình</x-ui.button>
-                    </x-ui.empty-state>
-                @else
-                @php($stageOptions = $curriculums->mapWithKeys(fn ($c) => [$c->id => $c->stages->map(fn ($s) => ['id' => $s->id, 'label' => $s->label])->values()]))
-                <form action="{{ route('syllabus.documents.store') }}" method="POST" enctype="multipart/form-data" class="space-y-md"
-                      x-data="{
-                        curriculum: @js((string) old('curriculum_id', '')),
-                        stage: @js((string) old('stage_id', '')),
-                        stages: @js($stageOptions),
-                        teachers: @js((bool) old('visible_to_teachers')),
-                        assistants: @js((bool) old('visible_to_assistants')),
-                        downloadable: @js((bool) old('downloadable')),
-                        fileName: '',
-                        dragging: false,
-                        drop(e) { this.dragging = false; if (e.dataTransfer.files.length) { this.$refs.file.files = e.dataTransfer.files; this.fileName = e.dataTransfer.files[0].name; } },
-                      }">
-                    @csrf
-                    <x-ui.select label="Chọn giáo trình" name="curriculum_id" id="upload_curriculum_id" required x-model="curriculum" x-on:change="stage = ''" placeholder="-- Chọn giáo trình --">
-                        @foreach ($curriculums as $c)
-                            <option value="{{ $c->id }}">{{ $c->title }} ({{ $c->code }} · {{ $c->version }})</option>
-                        @endforeach
-                    </x-ui.select>
-                    <x-ui.field label="Chọn chặng học" name="stage_id" required hint="Chặng lấy từ màn Soạn syllabus của giáo trình đã chọn.">
-                        <select name="stage_id" x-model="stage" :required="(stages[curriculum] || []).length > 0" class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base">
-                            <option value="">-- Chọn chặng học --</option>
-                            <template x-for="s in (stages[curriculum] || [])" :key="s.id">
-                                <option :value="String(s.id)" x-text="s.label" :selected="String(s.id) === stage"></option>
-                            </template>
-                        </select>
-                    </x-ui.field>
-                    <x-ui.input name="title" label="Tên tài liệu" required placeholder="IELTS Reading Masterclass - Student Book" />
-
-                    <x-ui.field label="Chọn đối tượng xem" required hint="Admin, Học vụ, Học thuật luôn xem được mọi tài liệu.">
-                        <div class="grid grid-cols-2 gap-sm bg-surface-container-low p-md rounded-lg border border-outline-variant font-body-small text-body-small">
-                            @foreach (['Admin', 'Học vụ', 'Học thuật'] as $role)
-                                <label class="flex items-center gap-2 text-on-surface-variant">
-                                    <input type="checkbox" checked disabled class="rounded border-outline-variant text-primary h-4 w-4 opacity-70" />
-                                    <span>{{ $role }}</span>
-                                </label>
-                            @endforeach
-                            <label class="flex items-center gap-2 cursor-pointer">
-                                <input type="checkbox" name="visible_to_teachers" value="1" x-model="teachers" class="rounded border-outline-variant text-primary focus:ring-primary-container h-4 w-4" />
-                                <span class="font-medium text-on-surface">Giáo viên</span>
-                            </label>
-                            <label class="flex items-center gap-2 cursor-pointer">
-                                <input type="checkbox" name="visible_to_assistants" value="1" x-model="assistants" class="rounded border-outline-variant text-primary focus:ring-primary-container h-4 w-4" />
-                                <span class="font-medium text-on-surface">Trợ giảng</span>
-                            </label>
-                            <label class="col-span-2 flex items-center gap-2 cursor-pointer pt-sm border-t border-outline-variant">
-                                <input type="checkbox" name="downloadable" value="1" x-model="downloadable" class="rounded border-outline-variant text-primary focus:ring-primary-container h-4 w-4" />
-                                <span class="font-medium text-on-surface">Cho phép GV/TG tải về (bỏ chọn = chỉ xem trực tuyến)</span>
-                            </label>
-                        </div>
-                    </x-ui.field>
-
-                    <x-ui.field label="Tài liệu đính kèm" name="file" required>
-                        <label class="flex flex-col items-center justify-center gap-xs rounded-xl border-2 border-dashed px-md py-lg text-center cursor-pointer transition-colors"
-                               :class="dragging ? 'border-primary-container bg-primary-fixed/30' : 'border-outline-variant bg-surface-container-low hover:border-primary/50'"
-                               @dragover.prevent="dragging = true" @dragleave.prevent="dragging = false" @drop.prevent="drop($event)">
-                            <span class="material-symbols-outlined text-[36px] text-on-surface-variant">cloud_upload</span>
-                            <p class="font-body-small text-body-small text-on-surface-variant">Kéo thả file vào đây hoặc</p>
-                            <span class="inline-flex items-center rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-xs font-body-medium text-body-small text-primary">Chọn file từ máy tính</span>
-                            <p class="font-caption text-caption text-on-surface-variant" x-show="! fileName">Hỗ trợ PDF, DOCX, PPTX, XLSX, ảnh, audio, video (Tối đa 100MB)</p>
-                            <p class="font-caption text-caption font-semibold text-on-surface" x-show="fileName" x-cloak x-text="fileName"></p>
-                            <input type="file" name="file" x-ref="file" required class="sr-only" @change="fileName = $event.target.files[0]?.name || ''"
-                                   accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp,.mp3,.wav,.m4a,.ogg,.mp4,.mov,.webm,.m4v" />
-                        </label>
-                    </x-ui.field>
-
-                    <x-ui.alert type="warning" x-show="(teachers || assistants) && ! downloadable" x-cloak>
-                        <p class="font-body-small text-body-small">Khóa tải xuống — Giáo viên chỉ được phép xem trực tuyến để bảo vệ tài liệu.</p>
-                    </x-ui.alert>
-
-                    <div class="pt-sm border-t border-outline-variant">
-                        <x-ui.button type="submit" icon="save" class="w-full">Lưu tài liệu</x-ui.button>
-                    </div>
-                </form>
-                @endif
-            </div>
-        </section>
-        @endif
-
-        <section class="{{ $canUpload ? 'lg:col-span-8' : 'lg:col-span-12' }} flex flex-col gap-4 min-w-0">
+        <section class="lg:col-span-12 flex flex-col gap-4 min-w-0">
             <x-ui.data-table min-width="760px">
                 <x-slot:header>
                     <div class="flex items-center gap-2">
@@ -177,4 +91,92 @@
             </x-ui.data-table>
         </section>
     </div>
+
+    @if ($canUpload)
+        <x-ui.modal name="upload-document" title="Tải lên tài liệu mới" max-width="xl" :show="old('_modal') === 'upload-document'">
+            @if ($curriculums->isEmpty())
+                <x-ui.empty-state icon="library_add" title="Chưa có giáo trình" description="Tạo giáo trình ở màn Soạn syllabus trước khi tải tài liệu.">
+                    <x-ui.button icon="add" :href="route('syllabus.builder')">Tạo giáo trình</x-ui.button>
+                </x-ui.empty-state>
+            @else
+            @php($stageOptions = $curriculums->mapWithKeys(fn ($c) => [$c->id => $c->stages->map(fn ($s) => ['id' => $s->id, 'label' => $s->label])->values()]))
+            <form id="upload-document-form" action="{{ route('syllabus.documents.store') }}" method="POST" enctype="multipart/form-data" class="space-y-md"
+                  x-data="{
+                    curriculum: @js((string) old('curriculum_id', '')),
+                    stage: @js((string) old('stage_id', '')),
+                    stages: @js($stageOptions),
+                    teachers: @js((bool) old('visible_to_teachers')),
+                    assistants: @js((bool) old('visible_to_assistants')),
+                    downloadable: @js((bool) old('downloadable')),
+                    fileName: '',
+                    dragging: false,
+                    drop(e) { this.dragging = false; if (e.dataTransfer.files.length) { this.$refs.file.files = e.dataTransfer.files; this.fileName = e.dataTransfer.files[0].name; } },
+                  }">
+                @csrf
+                <input type="hidden" name="_modal" value="upload-document">
+                <x-ui.select label="Chọn giáo trình" name="curriculum_id" id="upload_curriculum_id" required x-model="curriculum" x-on:change="stage = ''" placeholder="-- Chọn giáo trình --">
+                    @foreach ($curriculums as $c)
+                        <option value="{{ $c->id }}">{{ $c->title }} ({{ $c->code }} · {{ $c->version }})</option>
+                    @endforeach
+                </x-ui.select>
+                <x-ui.field label="Chọn chặng học" name="stage_id" required hint="Chặng lấy từ màn Soạn syllabus của giáo trình đã chọn.">
+                    <select name="stage_id" x-model="stage" :required="(stages[curriculum] || []).length > 0" class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base">
+                        <option value="">-- Chọn chặng học --</option>
+                        <template x-for="s in (stages[curriculum] || [])" :key="s.id">
+                            <option :value="String(s.id)" x-text="s.label" :selected="String(s.id) === stage"></option>
+                        </template>
+                    </select>
+                </x-ui.field>
+                <x-ui.input name="title" label="Tên tài liệu" required placeholder="IELTS Reading Masterclass - Student Book" />
+
+                <x-ui.field label="Chọn đối tượng xem" required hint="Admin, Học vụ, Học thuật luôn xem được mọi tài liệu.">
+                    <div class="grid grid-cols-2 gap-sm bg-surface-container-low p-md rounded-lg border border-outline-variant font-body-small text-body-small">
+                        @foreach (['Admin', 'Học vụ', 'Học thuật'] as $role)
+                            <label class="flex items-center gap-2 text-on-surface-variant">
+                                <input type="checkbox" checked disabled class="rounded border-outline-variant text-primary h-4 w-4 opacity-70" />
+                                <span>{{ $role }}</span>
+                            </label>
+                        @endforeach
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" name="visible_to_teachers" value="1" x-model="teachers" class="rounded border-outline-variant text-primary focus:ring-primary-container h-4 w-4" />
+                            <span class="font-medium text-on-surface">Giáo viên</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" name="visible_to_assistants" value="1" x-model="assistants" class="rounded border-outline-variant text-primary focus:ring-primary-container h-4 w-4" />
+                            <span class="font-medium text-on-surface">Trợ giảng</span>
+                        </label>
+                        <label class="col-span-2 flex items-center gap-2 cursor-pointer pt-sm border-t border-outline-variant">
+                            <input type="checkbox" name="downloadable" value="1" x-model="downloadable" class="rounded border-outline-variant text-primary focus:ring-primary-container h-4 w-4" />
+                            <span class="font-medium text-on-surface">Cho phép GV/TG tải về (bỏ chọn = chỉ xem trực tuyến)</span>
+                        </label>
+                    </div>
+                </x-ui.field>
+
+                <x-ui.field label="Tài liệu đính kèm" name="file" required>
+                    <label class="flex flex-col items-center justify-center gap-xs rounded-xl border-2 border-dashed px-md py-lg text-center cursor-pointer transition-colors"
+                           :class="dragging ? 'border-primary-container bg-primary-fixed/30' : 'border-outline-variant bg-surface-container-low hover:border-primary/50'"
+                           @dragover.prevent="dragging = true" @dragleave.prevent="dragging = false" @drop.prevent="drop($event)">
+                        <span class="material-symbols-outlined text-[36px] text-on-surface-variant">cloud_upload</span>
+                        <p class="font-body-small text-body-small text-on-surface-variant">Kéo thả file vào đây hoặc</p>
+                        <span class="inline-flex items-center rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-xs font-body-medium text-body-small text-primary">Chọn file từ máy tính</span>
+                        <p class="font-caption text-caption text-on-surface-variant" x-show="! fileName">Hỗ trợ PDF, DOCX, PPTX, XLSX, ảnh, audio, video (Tối đa 100MB)</p>
+                        <p class="font-caption text-caption font-semibold text-on-surface" x-show="fileName" x-cloak x-text="fileName"></p>
+                        <input type="file" name="file" x-ref="file" required class="sr-only" @change="fileName = $event.target.files[0]?.name || ''"
+                               accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp,.mp3,.wav,.m4a,.ogg,.mp4,.mov,.webm,.m4v" />
+                    </label>
+                </x-ui.field>
+
+                <x-ui.alert type="warning" x-show="(teachers || assistants) && ! downloadable" x-cloak>
+                    <p class="font-body-small text-body-small">Khóa tải xuống — Giáo viên chỉ được phép xem trực tuyến để bảo vệ tài liệu.</p>
+                </x-ui.alert>
+            </form>
+            @endif
+            @if ($curriculums->isNotEmpty())
+                <x-slot:footer>
+                    <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'upload-document')">Hủy</x-ui.button>
+                    <x-ui.button type="submit" form="upload-document-form" icon="save">Lưu tài liệu</x-ui.button>
+                </x-slot:footer>
+            @endif
+        </x-ui.modal>
+    @endif
 </x-app-layout>

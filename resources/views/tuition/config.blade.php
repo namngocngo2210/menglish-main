@@ -4,13 +4,19 @@
                       description="Quản lý và cấp phát dải số hóa đơn tài chính cho từng chi nhánh. Số đã cấp không bao giờ được cấp lại.">
         <x-slot:actions>
             <x-ui.button variant="secondary" icon="account_balance" :href="route('system-config.bank-accounts')">Tài khoản ngân hàng</x-ui.button>
-            <x-ui.button icon="add" href="#range-form">Thêm cấu hình mới</x-ui.button>
+            @can('invoice_range.manage')
+                @if ($editing)
+                    <x-ui.button icon="add" :href="route('tuition.config', ['new' => 1])">Thêm cấu hình mới</x-ui.button>
+                @else
+                    <x-ui.button icon="add" x-on:click="$dispatch('open-modal', 'range-form')">Thêm cấu hình mới</x-ui.button>
+                @endif
+            @endcan
         </x-slot:actions>
     </x-ui.page-header>
 
     <div class="grid grid-cols-1 gap-lg xl:grid-cols-3">
         {{-- Danh sách dải số --}}
-        <div class="space-y-md xl:col-span-2">
+        <div class="space-y-md xl:col-span-3">
             <x-ui.data-table min-width="760px">
                 <table>
                     <thead>
@@ -119,57 +125,54 @@
                 </ul>
             </x-ui.alert>
         </div>
-
-        {{-- Form thêm / sửa dải số --}}
-        @can('invoice_range.manage')
-            <div id="range-form" class="h-fit overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest">
-                <div class="border-b border-outline-variant bg-surface-container-low p-md">
-                    <h2 class="font-h3 text-h3 text-on-surface">{{ $editing ? 'Sửa dải số '.$editing->series_code : 'Thêm cấu hình mới' }}</h2>
-                    <p class="font-body-small text-body-small text-on-surface-variant">
-                        {{ $editing ? ($editing->branch?->name ?? 'Dải mặc định (dùng chung)') : 'Nhập thông tin để cấp dải số hóa đơn mới.' }}
-                    </p>
-                </div>
-
-                @if ($editing)
-                    <form method="POST" action="{{ route('tuition.config.update') }}" class="space-y-md p-md">
-                        @csrf
-                        <input type="hidden" name="config_id" value="{{ $editing->id }}">
-                        <div class="grid grid-cols-2 gap-sm">
-                            <x-ui.input name="template_code" label="Mẫu số" :value="$editing->template_code" required />
-                            <x-ui.input name="series_code" label="Ký hiệu" :value="$editing->series_code" required />
-                            <x-ui.input name="start_number" type="number" min="1" label="Số bắt đầu" :value="$editing->start_number" required />
-                            <x-ui.input name="end_number" type="number" min="1" label="Số kết thúc" :value="$editing->end_number" hint="Để trống = không giới hạn" />
-                        </div>
-                        <x-ui.input name="current_number" type="number" min="1" label="Số hiện tại (số kế tiếp sẽ cấp)" :value="$editing->current_number" required
-                                    :hint="($maxIssued[$editing->id] ?? null) ? 'Đã cấp tới '.$maxIssued[$editing->id].' — chỉ được đặt từ '.(($maxIssued[$editing->id]) + 1).' trở lên.' : 'Chưa cấp số nào trong dải này.'" />
-                        <div class="flex gap-sm">
-                            <x-ui.button type="submit" icon="save" class="flex-1">Lưu thay đổi</x-ui.button>
-                            <x-ui.button variant="secondary" :href="route('tuition.config')">Hủy</x-ui.button>
-                        </div>
-                    </form>
-                @else
-                    <form method="POST" action="{{ route('tuition.config.ranges.store') }}" class="space-y-md p-md">
-                        @csrf
-                        @if ($canManageDefault)
-                            <x-ui.select name="branch_id" label="Chọn chi nhánh" placeholder="Dải mặc định (dùng chung)"
-                                         :options="$branches->pluck('name', 'id')" />
-                        @else
-                            <x-ui.select name="branch_id" label="Chọn chi nhánh" :options="$branches->pluck('name', 'id')" required />
-                        @endif
-                        <div class="grid grid-cols-2 gap-sm">
-                            <x-ui.input name="template_code" label="Mẫu số" value="1/001" required />
-                            <x-ui.input name="series_code" label="Ký hiệu" value="C26MEN" required />
-                            <x-ui.input name="start_number" type="number" min="1" label="Số bắt đầu" placeholder="Ví dụ: 1" required />
-                            <x-ui.input name="end_number" type="number" min="1" label="Số kết thúc" placeholder="Ví dụ: 1000" required />
-                        </div>
-                        <x-ui.alert type="info">Dải số này phải duy nhất trên hệ thống và không được chồng lấn với các dải số đã tồn tại của chi nhánh khác.</x-ui.alert>
-                        <div class="flex gap-sm">
-                            <x-ui.button type="submit" icon="save" class="flex-1">Lưu cấu hình</x-ui.button>
-                            <x-ui.button type="reset" variant="secondary">Hủy</x-ui.button>
-                        </div>
-                    </form>
-                @endif
-            </div>
-        @endcan
     </div>
+
+    {{-- Form thêm / sửa dải số: "Thêm cấu hình mới" mở modal; nút Sửa (?edit=) mở sẵn modal sửa. --}}
+    @can('invoice_range.manage')
+        <x-ui.modal name="range-form" max-width="lg"
+                    :title="$editing ? 'Sửa dải số '.$editing->series_code.' · '.($editing->branch?->name ?? 'Dải mặc định (dùng chung)') : 'Thêm cấu hình mới'"
+                    :show="$editing !== null || old('_modal') === 'range-form' || request()->boolean('new')">
+            @if ($editing)
+                <form id="range-form" method="POST" action="{{ route('tuition.config.update') }}" class="space-y-md">
+                    @csrf
+                    <input type="hidden" name="config_id" value="{{ $editing->id }}">
+                    <div class="grid grid-cols-2 gap-sm">
+                        <x-ui.input name="template_code" label="Mẫu số" :value="$editing->template_code" required />
+                        <x-ui.input name="series_code" label="Ký hiệu" :value="$editing->series_code" required />
+                        <x-ui.input name="start_number" type="number" min="1" label="Số bắt đầu" :value="$editing->start_number" required />
+                        <x-ui.input name="end_number" type="number" min="1" label="Số kết thúc" :value="$editing->end_number" hint="Để trống = không giới hạn" />
+                    </div>
+                    <x-ui.input name="current_number" type="number" min="1" label="Số hiện tại (số kế tiếp sẽ cấp)" :value="$editing->current_number" required
+                                :hint="($maxIssued[$editing->id] ?? null) ? 'Đã cấp tới '.$maxIssued[$editing->id].' — chỉ được đặt từ '.(($maxIssued[$editing->id]) + 1).' trở lên.' : 'Chưa cấp số nào trong dải này.'" />
+                </form>
+            @else
+                <form id="range-form" method="POST" action="{{ route('tuition.config.ranges.store') }}" class="space-y-md">
+                    @csrf
+                    <input type="hidden" name="_modal" value="range-form">
+                    @if ($canManageDefault)
+                        <x-ui.select name="branch_id" label="Chọn chi nhánh" placeholder="Dải mặc định (dùng chung)"
+                                     :options="$branches->pluck('name', 'id')" />
+                    @else
+                        <x-ui.select name="branch_id" label="Chọn chi nhánh" :options="$branches->pluck('name', 'id')" required />
+                    @endif
+                    <div class="grid grid-cols-2 gap-sm">
+                        <x-ui.input name="template_code" label="Mẫu số" value="1/001" required />
+                        <x-ui.input name="series_code" label="Ký hiệu" value="C26MEN" required />
+                        <x-ui.input name="start_number" type="number" min="1" label="Số bắt đầu" placeholder="Ví dụ: 1" required />
+                        <x-ui.input name="end_number" type="number" min="1" label="Số kết thúc" placeholder="Ví dụ: 1000" required />
+                    </div>
+                    <x-ui.alert type="info">Dải số này phải duy nhất trên hệ thống và không được chồng lấn với các dải số đã tồn tại của chi nhánh khác.</x-ui.alert>
+                </form>
+            @endif
+            <x-slot:footer>
+                @if ($editing)
+                    <x-ui.button variant="secondary" :href="route('tuition.config')">Hủy</x-ui.button>
+                    <x-ui.button type="submit" form="range-form" icon="save">Lưu thay đổi</x-ui.button>
+                @else
+                    <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'range-form')">Hủy</x-ui.button>
+                    <x-ui.button type="submit" form="range-form" icon="save">Lưu cấu hình</x-ui.button>
+                @endif
+            </x-slot:footer>
+        </x-ui.modal>
+    @endcan
 </x-app-layout>

@@ -1,5 +1,11 @@
 <x-app-layout>
-    <x-ui.page-header title="Danh sách bổ trợ & xếp lịch phụ đạo" description="Học viên vắng học, điểm mini test / Big Test dưới 7 được tự đưa vào danh sách; Học vụ xếp buổi bổ trợ, buổi hoàn thành chuyển bảng công chờ duyệt." />
+    <x-ui.page-header title="Danh sách bổ trợ & xếp lịch phụ đạo" description="Học viên vắng học, điểm mini test / Big Test dưới 7 được tự đưa vào danh sách; Học vụ xếp buổi bổ trợ, buổi hoàn thành chuyển bảng công chờ duyệt.">
+        @can('work_task.assign')
+            <x-slot:actions>
+                <x-ui.button icon="event" x-on:click="$dispatch('open-modal', 'new-support-session')">Xếp buổi phụ đạo</x-ui.button>
+            </x-slot:actions>
+        @endcan
+    </x-ui.page-header>
 
     @php
         $sourceColors = ['attendance' => 'warning', 'mini_test' => 'info', 'big_test' => 'error', 'class_report' => 'neutral'];
@@ -12,53 +18,8 @@
             <x-ui.alert type="error">{{ $errors->first() }}</x-ui.alert>
         @endif
 
-        <div class="grid lg:grid-cols-3 gap-6">
-            @can('work_task.assign')
-                <form method="POST" action="{{ route('tasks.support-sessions.store') }}" class="bg-surface-container-lowest border border-surface-container-highest rounded-2xl p-5 space-y-3 shadow-sm h-fit">
-                    @csrf
-                    <h2 class="font-bold text-sm">Xếp buổi phụ đạo</h2>
-                    @if ($selectedSupport)
-                        <input type="hidden" name="class_report_student_support_id" value="{{ $selectedSupport->id }}">
-                        <div class="rounded-xl bg-primary-container/10 border border-primary-container/30 p-3 text-xs">
-                            <div class="font-bold text-on-surface">{{ $selectedSupport->student?->name }} · {{ $selectedSupport->source_label }}</div>
-                            <div class="text-on-surface-variant mt-0.5">{{ $selectedSupport->reason }}</div>
-                            <a href="{{ route('tasks.support-sessions') }}" class="mt-1 inline-block text-primary font-semibold hover:underline">Bỏ chọn</a>
-                        </div>
-                    @endif
-                    <x-ui.select name="class_id" label="Lớp" required placeholder="Chọn lớp">
-                        @foreach ($classes as $class)
-                            <option value="{{ $class->id }}" @selected((int) $selectedClassId === $class->id)>{{ $class->name }}</option>
-                        @endforeach
-                    </x-ui.select>
-                    <x-ui.select name="student_id" label="Học viên" required placeholder="Chọn học viên">
-                        @foreach ($classes as $class)
-                            @if ($classRosters[$class->id]->isNotEmpty())
-                                <optgroup label="{{ $class->name }}">
-                                    @foreach ($classRosters[$class->id] as $student)
-                                        <option value="{{ $student->id }}" @selected((int) $selectedStudentId === $student->id && (int) $selectedClassId === $class->id)>{{ $student->name }} ({{ $student->code }})</option>
-                                    @endforeach
-                                </optgroup>
-                            @endif
-                        @endforeach
-                    </x-ui.select>
-                    <x-ui.select name="teacher_id" label="Người dạy" required placeholder="Chọn giáo viên / trợ giảng / học vụ">
-                        @foreach ($teachers as $teacher)
-                            <option value="{{ $teacher->id }}" @selected((int) old('teacher_id') === $teacher->id)>{{ $teacher->name }}</option>
-                        @endforeach
-                    </x-ui.select>
-                    <div class="grid grid-cols-3 gap-2">
-                        <x-ui.date name="session_date" :value="now()->addDay()->format('Y-m-d')" required aria-label="Ngày" />
-                        <x-ui.input type="time" name="start_time" required aria-label="Giờ bắt đầu" />
-                        <x-ui.input type="time" name="end_time" required aria-label="Giờ kết thúc" />
-                    </div>
-                    <x-ui.input name="room" placeholder="Phòng" />
-                    <x-ui.textarea name="reason" rows="2" placeholder="Mục tiêu phụ đạo (để trống sẽ dùng lý do trong danh sách bổ trợ)" />
-                    <p class="text-[11px] text-on-surface-variant">Hệ thống kiểm tra trùng lịch người dạy (kể cả vai trò trợ giảng/GVNN) và phòng, bỏ qua buổi đã hủy.</p>
-                    <x-ui.button type="submit" class="w-full">Xếp lịch</x-ui.button>
-                </form>
-            @endcan
-
-            <x-ui.data-table class="{{ auth()->user()->can('work_task.assign') ? 'lg:col-span-2' : 'lg:col-span-3' }}">
+        <div>
+            <x-ui.data-table>
                 <x-slot:header>
                     <h2 class="font-bold text-sm">Danh sách cần bổ trợ (chưa xếp buổi)</h2>
                     <div class="flex flex-wrap gap-1.5 text-[11px] font-semibold">
@@ -127,4 +88,55 @@
             <x-slot:footer><x-ui.pagination :paginator="$sessions" :options="[]" unit="buổi" /></x-slot:footer>
         </x-ui.data-table>
     </div>
+
+    @can('work_task.assign')
+        {{-- Mở sẵn khi chọn "Xếp buổi" ở một dòng (?support=) hoặc khi lỗi validate / trùng lịch. --}}
+        <x-ui.modal name="new-support-session" title="Xếp buổi phụ đạo" max-width="xl" :show="old('_modal') === 'new-support-session' || $selectedSupport !== null">
+            <form id="new-support-session-form" method="POST" action="{{ route('tasks.support-sessions.store') }}" class="space-y-md">
+                @csrf
+                <input type="hidden" name="_modal" value="new-support-session">
+                @if ($selectedSupport)
+                    <input type="hidden" name="class_report_student_support_id" value="{{ $selectedSupport->id }}">
+                    <div class="rounded-xl bg-primary-container/10 border border-primary-container/30 p-3 text-xs">
+                        <div class="font-bold text-on-surface">{{ $selectedSupport->student?->name }} · {{ $selectedSupport->source_label }}</div>
+                        <div class="text-on-surface-variant mt-0.5">{{ $selectedSupport->reason }}</div>
+                        <a href="{{ route('tasks.support-sessions') }}" class="mt-1 inline-block text-primary font-semibold hover:underline">Bỏ chọn</a>
+                    </div>
+                @endif
+                <x-ui.select name="class_id" label="Lớp" required placeholder="Chọn lớp">
+                    @foreach ($classes as $class)
+                        <option value="{{ $class->id }}" @selected((int) $selectedClassId === $class->id)>{{ $class->name }}</option>
+                    @endforeach
+                </x-ui.select>
+                <x-ui.select name="student_id" label="Học viên" required placeholder="Chọn học viên">
+                    @foreach ($classes as $class)
+                        @if ($classRosters[$class->id]->isNotEmpty())
+                            <optgroup label="{{ $class->name }}">
+                                @foreach ($classRosters[$class->id] as $student)
+                                    <option value="{{ $student->id }}" @selected((int) $selectedStudentId === $student->id && (int) $selectedClassId === $class->id)>{{ $student->name }} ({{ $student->code }})</option>
+                                @endforeach
+                            </optgroup>
+                        @endif
+                    @endforeach
+                </x-ui.select>
+                <x-ui.select name="teacher_id" label="Người dạy" required placeholder="Chọn giáo viên / trợ giảng / học vụ">
+                    @foreach ($teachers as $teacher)
+                        <option value="{{ $teacher->id }}" @selected((int) old('teacher_id') === $teacher->id)>{{ $teacher->name }}</option>
+                    @endforeach
+                </x-ui.select>
+                <div class="grid grid-cols-1 gap-md sm:grid-cols-3">
+                    <x-ui.date name="session_date" label="Ngày" :value="now()->addDay()->format('Y-m-d')" required />
+                    <x-ui.input type="time" name="start_time" label="Giờ bắt đầu" required />
+                    <x-ui.input type="time" name="end_time" label="Giờ kết thúc" required />
+                </div>
+                <x-ui.input name="room" label="Phòng" />
+                <x-ui.textarea name="reason" label="Mục tiêu phụ đạo" rows="2" placeholder="Để trống sẽ dùng lý do trong danh sách bổ trợ" />
+                <p class="text-[11px] text-on-surface-variant">Hệ thống kiểm tra trùng lịch người dạy (kể cả vai trò trợ giảng/GVNN) và phòng, bỏ qua buổi đã hủy.</p>
+            </form>
+            <x-slot:footer>
+                <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'new-support-session')">Hủy</x-ui.button>
+                <x-ui.button type="submit" form="new-support-session-form" icon="event_available">Xếp lịch</x-ui.button>
+            </x-slot:footer>
+        </x-ui.modal>
+    @endcan
 </x-app-layout>

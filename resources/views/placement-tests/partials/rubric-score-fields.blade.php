@@ -24,6 +24,15 @@
             'speaking' => old('speaking_comment', $sub?->speaking_comment),
         ],
     ];
+    // Nhận xét đang lưu trùng gợi ý theo băng điểm (VD: hệ thống tự sinh khi thí sinh nộp bài) thì coi như chưa sửa tay:
+    // Học vụ đổi điểm là nhận xét đổi theo. Nhận xét đã sửa tay thì giữ nguyên.
+    $savedGroup = $sub?->grade_group;
+    foreach ($Rubric::SKILLS as $skill => $label) {
+        $comment = (string) ($initial['comments'][$skill] ?? '');
+        $savedScore = $sub?->{$skill.'_score'};
+        $autoComment = $savedGroup && $savedScore !== null ? $Rubric::skillComment($savedGroup, $skill, (float) $savedScore) : null;
+        $initial['edited'][$skill] = $comment !== '' && $comment !== $autoComment;
+    }
     $skillStyles = [
         'listening' => 'text-secondary border-secondary/20 bg-secondary/5',
         'reading_writing' => 'text-tertiary border-tertiary/20 bg-tertiary/5',
@@ -45,11 +54,7 @@
                     speaking: initial.comments.speaking || '',
                 },
                 // Nhận xét người chấm đã tự sửa thì không ghi đè bằng gợi ý nữa.
-                edited: {
-                    listening: !!initial.comments.listening,
-                    reading_writing: !!initial.comments.reading_writing,
-                    speaking: !!initial.comments.speaking,
-                },
+                edited: { ...initial.edited },
                 init() {
                     ['listening', 'reading_writing', 'speaking'].forEach((skill) => {
                         this.$watch(() => this.suggestion(skill), (text) => {
