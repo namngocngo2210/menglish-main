@@ -195,13 +195,13 @@
                                 </td>
 
                                 {{-- Doanh thu (giữ định dạng number_format mặc định — test đối chiếu "350,000") --}}
-                                <td class="text-right font-mono font-bold">
+                                <td class="text-right font-mono font-bold whitespace-nowrap">
                                     {{ number_format($rep['revenue']) }} đ
                                 </td>
 
                                 {{-- Hoa hồng --}}
                                 <td class="text-right bg-brand-surface">
-                                    <div class="font-mono font-bold text-primary-container">
+                                    <div class="font-mono font-bold text-primary-container whitespace-nowrap">
                                         {{ number_format($rep['commission_amount']) }} đ
                                     </div>
                                     <div class="text-[10px] text-on-surface-variant font-sans">

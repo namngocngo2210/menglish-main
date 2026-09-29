@@ -124,7 +124,7 @@ class ClosingWizardRulesTest extends TestCase
         $this->assertSame($this->sales->id, $task->assignee_id);
         $this->assertSame('new', $task->status);
         $this->assertTrue($task->due_date->isSameDay(today()->addDays(3)));
-        $this->assertStringContainsString($lead->code, $task->description);
+        $this->assertStringContainsString($lead->short_code, $task->description);
     }
 
     public function test_closing_with_class_but_unpaid_goes_won_and_creates_fee_reminder_task(): void

@@ -25,7 +25,7 @@
         </div>
 
         @unless ($stagePermissions['canForward'])
-            <x-ui.alert type="info">Giai đoạn khách do Học vụ / Quản lý cơ sở chuyển. Bạn vẫn cập nhật thông tin và ghi nhật ký chăm sóc trong hồ sơ khách.</x-ui.alert>
+            <x-ui.alert type="info">Giai đoạn khách do Học vụ / Quản lý cơ sở chuyển. Bạn vẫn cập nhật thông tin, ghi nhật ký chăm sóc trong hồ sơ khách{{ $stagePermissions['canMarkLost'] ? ' và đánh dấu khách Thất bại (nút "Sửa giai đoạn" trên thẻ)' : '' }}.</x-ui.alert>
         @endunless
 
         @include('crm.partials.list-filters', ['dateLabel' => 'Ngày tạo'])
@@ -76,7 +76,7 @@
                                         $lead['follow_up_state'] === 'on_time' => 'border-l-tertiary',
                                         default => 'border-l-outline-variant',
                                     };
-                                    $canEditStage = ($stagePermissions['canForward'] || $stagePermissions['canBackward']) && ! in_array($stage['id'], $stagePermissions['closed'], true);
+                                    $canEditStage = ($stagePermissions['canForward'] || $stagePermissions['canBackward'] || $stagePermissions['canMarkLost']) && ! in_array($stage['id'], $stagePermissions['closed'], true);
                                     // Chỉ vẽ phần chân thẻ khi có nội dung (tránh đường kẻ + khoảng trống thừa).
                                     $hasFooter = $stage['id'] === 'won'
                                         || $lead['follow_up_state']
@@ -214,7 +214,7 @@
             </div>
         </div>
 
-        @if ($stagePermissions['canForward'] || $stagePermissions['canBackward'])
+        @if ($stagePermissions['canForward'] || $stagePermissions['canBackward'] || $stagePermissions['canMarkLost'])
             {{-- Sửa giai đoạn (A6): CM tiến 1 bước; chỉ Admin lùi bước (bắt buộc lý do); Thất bại bắt buộc lý do --}}
             <x-ui.modal name="crm-stage-edit" :title="new \Illuminate\Support\HtmlString('Sửa giai đoạn: <span x-text=\'stageEdit.name\'></span>')" max-width="md">
                 <div class="space-y-sm font-body-small text-body-small">
@@ -227,7 +227,7 @@
                             <option :value="option.value" x-text="option.label"></option>
                         </template>
                     </x-ui.select>
-                    <x-ui.textarea x-show="stageEditNeedsReason()" x-model="stageEdit.reason" rows="3" x-bind:placeholder="stageEdit.target === 'lost' ? 'Lý do thất bại (bắt buộc)' : 'Lý do lùi giai đoạn (bắt buộc)'" />
+                    <x-ui.textarea x-show="stageEditNeedsReason()" x-model="stageEdit.reason" rows="3" x-bind:placeholder="stageEdit.target === 'lost' ? 'Lý do thất bại (bắt buộc)' : 'Lý do lùi giai đoạn (bắt buộc)'" x-bind:maxlength="stageEdit.target === 'lost' ? 255 : 1000" />
                 </div>
                 <x-slot:footer>
                     <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'crm-stage-edit')">Hủy</x-ui.button>
@@ -286,7 +286,7 @@
                         this.permissions.order.slice(0, Math.max(0, this.indexOf(from))).reverse()
                             .forEach(stage => options.push({ value: stage, label: 'Lùi về ← ' + this.permissions.labels[stage] }));
                     }
-                    if (this.permissions.canForward && !this.permissions.closed.includes(from)) {
+                    if (this.permissions.canMarkLost && !this.permissions.closed.includes(from)) {
                         options.push({ value: 'lost', label: 'Chuyển sang Thất bại' });
                     }
                     return options;

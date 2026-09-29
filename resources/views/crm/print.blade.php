@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Hồ sơ khách hàng {{ $customer->code }} — {{ $customer->name }}</title>
+    <title>Hồ sơ khách hàng {{ $customer->short_code }} — {{ $customer->name }}</title>
     {{-- Bản in độc lập (không phụ thuộc bundle CSS) — khổ A4. --}}
     <style>
         @page { size: A4; margin: 14mm; }
@@ -34,7 +34,7 @@
             <div class="muted">MEnglish · {{ $customer->branch?->name ?? 'Chưa gán cơ sở' }}</div>
         </div>
         <div style="text-align:right">
-            <strong>{{ $customer->code }}</strong><br>
+            <strong>{{ $customer->short_code }}</strong><br>
             <span class="muted">In lúc {{ now()->format('d/m/Y H:i') }}</span>
         </div>
     </header>

@@ -94,7 +94,7 @@ class CrmController extends Controller
 
         if ($duplicate) {
             throw ValidationException::withMessages([
-                'phone' => "Số điện thoại này đã tồn tại trong CRM (khách {$duplicate->code}).",
+                'phone' => "Số điện thoại này đã tồn tại trong CRM (khách {$duplicate->short_code}).",
             ]);
         }
 
@@ -182,6 +182,8 @@ class CrmController extends Controller
             'canForward' => $stages->canMoveForward($user),
             'canBackward' => $stages->canMoveBackward($user),
             'canConvert' => $user->can('lead.convert'),
+            // Sales không chuyển giai đoạn nhưng được đánh Thất bại (quyền riêng lead.mark_lost).
+            'canMarkLost' => $user->can('lead.mark_lost'),
             'order' => array_keys(CrmCustomer::PIPELINE_STAGES),
             'closed' => CrmCustomer::CLOSED_STAGES,
             'labels' => CrmCustomer::PIPELINE_STAGES,
@@ -225,7 +227,9 @@ class CrmController extends Controller
                     ->orWhere('parent_name', 'like', "%{$search}%")
                     ->when(strlen($digits) >= 3, fn (Builder $phoneQuery) => $phoneQuery
                         ->orWhere('phone_normalized', 'like', "%{$digits}%")
-                        ->orWhere('parent_phone', 'like', "%{$search}%"));
+                        ->orWhere('parent_phone', 'like', "%{$search}%")
+                        // SĐT phụ huynh không có cột chuẩn hoá: bỏ khoảng trắng / dấu chấm / gạch trước khi so.
+                        ->orWhereRaw("REPLACE(REPLACE(REPLACE(COALESCE(parent_phone, ''), ' ', ''), '.', ''), '-', '') LIKE ?", ["%{$digits}%"]));
             });
         }
         // Phạm vi "Toàn hệ thống" lọc mọi chi nhánh; phạm vi "Chi nhánh" chỉ lọc trong chi nhánh của mình (ngoài phạm vi → bỏ qua).
@@ -364,7 +368,12 @@ class CrmController extends Controller
     public function createCustomer()
     {
         $branches = $this->leadBranchOptions(Auth::user());
-        $salesUsers = Rbac::scopeUsersWithPermission(User::query()->where('is_active', true), 'lead.be_assigned')->orderBy('name')->get();
+        $salesUsers = Rbac::scopeUsersWithPermission(User::query()->where('is_active', true), 'lead.be_assigned')
+            // Phạm vi chi nhánh: chỉ người thuộc chi nhánh của mình (máy chủ cũng kiểm tra theo chi nhánh của khách).
+            ->when(! DataScope::isAll(Auth::user(), 'lead'), fn (Builder $query) => $query->where(fn (Builder $q) => $q
+                ->whereIn('branch_id', Auth::user()->branchIds())
+                ->orWhereHas('branches', fn (Builder $b) => $b->whereIn('branches.id', Auth::user()->branchIds()))))
+            ->orderBy('name')->get();
         if ($salesUsers->isEmpty()) {
             $salesUsers = User::where('is_active', true)->get();
         }
@@ -387,13 +396,13 @@ class CrmController extends Controller
             'next_follow_up_at' => 'nullable|date',
             'source' => 'required|string|max:255',
             'branch_id' => ['required', Rule::in($this->leadBranchOptions($request->user())->pluck('id')->all())],
-            'assigned_user_id' => 'nullable|exists:users,id',
+            'assigned_user_id' => ['nullable', Rule::exists('users', 'id')->whereNull('deleted_at')],
             'email' => 'nullable|email|max:255',
             'dob' => 'nullable|date',
             'gender' => 'nullable|string|max:20',
-            'address' => 'nullable|string|max:500',
+            'address' => 'nullable|string|max:255',
             'course_interest' => 'nullable|string|max:255',
-            'deal_value' => 'nullable|numeric|min:0',
+            'deal_value' => 'nullable|numeric|min:0|max:9999999999999',
             'notes' => 'nullable|string|max:1000',
         ], [
             'name.required' => 'Vui lòng nhập họ và tên khách hàng.',
@@ -408,6 +417,7 @@ class CrmController extends Controller
             if (! $assignee?->is_active || ! $assignee->can('lead.be_assigned')) {
                 throw ValidationException::withMessages(['assigned_user_id' => 'Người phụ trách phải là Sales hoặc quản lý đang hoạt động.']);
             }
+            $this->assertAssigneeInBranch($assignee, (int) $validated['branch_id']);
         }
 
         $code = CrmCustomer::generateCode();
@@ -447,7 +457,7 @@ class CrmController extends Controller
         ]);
 
         return $this->modalSaved(
-            "Đã thêm khách hàng {$customer->name} ({$customer->code}) thành công vào Cơ sở dữ liệu!",
+            "Đã thêm khách hàng {$customer->name} ({$customer->short_code}) thành công vào Cơ sở dữ liệu!",
             'crm-customers-changed',
             route('crm.customers.show', $customer->id),
         );
@@ -588,6 +598,19 @@ class CrmController extends Controller
      * Người đang hoạt động có quyền "Được nhận phụ trách khách" (lead.be_assigned — mặc định Sale, Quản lý cơ sở, Admin);
      * người phân công không ở phạm vi CRM toàn hệ thống thì chỉ thấy người cùng chi nhánh của khách.
      */
+    /**
+     * Người dùng phạm vi chi nhánh chỉ được giao khách cho người thuộc chi nhánh của khách
+     * (giống danh sách chọn trên giao diện) — nếu không, khách lọt sang chi nhánh khác.
+     */
+    protected function assertAssigneeInBranch(User $assignee, int $branchId): void
+    {
+        if (DataScope::isAll(Auth::user(), 'lead') || in_array($branchId, $assignee->branchIds(), true)) {
+            return;
+        }
+
+        throw ValidationException::withMessages(['assigned_user_id' => "{$assignee->name} không thuộc chi nhánh của khách. Chọn người phụ trách cùng chi nhánh."]);
+    }
+
     protected function assignableUsers(?int $branchId = null): Collection
     {
         return Rbac::scopeUsersWithPermission(User::query()->where('is_active', true), 'lead.be_assigned')
@@ -918,7 +941,7 @@ class CrmController extends Controller
     protected function customerFormOptions(CrmCustomer $customer): array
     {
         $leadSources = SystemCategory::where('type', 'lead_source')->orderBy('sort_order')->pluck('name');
-        $salesUsers = Rbac::scopeUsersWithPermission(User::query()->where('is_active', true), 'lead.be_assigned')->orderBy('name')->get();
+        $salesUsers = $this->assignableUsers((int) $customer->branch_id);
         // Người phụ trách hiện tại (vd Học vụ tự tạo khách, hoặc tài khoản đã khóa) luôn có trong danh sách,
         // nếu không trình duyệt sẽ gửi lựa chọn đầu tiên → âm thầm đổi người phụ trách khi chỉ sửa SĐT.
         if ($customer->assigned_user_id && ! $salesUsers->contains('id', $customer->assigned_user_id) && ($current = User::withTrashed()->find($customer->assigned_user_id))) {
@@ -974,12 +997,12 @@ class CrmController extends Controller
             'email' => 'nullable|email|max:255',
             'dob' => 'nullable|date',
             'gender' => 'nullable|string|max:20',
-            'address' => 'nullable|string|max:500',
+            'address' => 'nullable|string|max:255',
             'branch_id' => ['required', Rule::in($this->leadBranchOptions($request->user(), (int) $customer->branch_id)->pluck('id')->all())],
             'course_interest' => 'nullable|string|max:255',
             'source' => 'required|string|max:255',
-            'assigned_user_id' => 'nullable|exists:users,id',
-            'deal_value' => 'nullable|numeric|min:0',
+            'assigned_user_id' => ['nullable', Rule::exists('users', 'id')->whereNull('deleted_at')],
+            'deal_value' => 'nullable|numeric|min:0|max:9999999999999',
             'next_follow_up_at' => 'nullable|date',
             'notes' => 'nullable|string|max:1000',
         ]);
@@ -1003,9 +1026,15 @@ class CrmController extends Controller
             if (! $assignee?->is_active || ! $assignee->can('lead.be_assigned')) {
                 throw ValidationException::withMessages(['assigned_user_id' => 'Người phụ trách phải là Sales hoặc quản lý đang hoạt động.']);
             }
+            $this->assertAssigneeInBranch($assignee, (int) $validated['branch_id']);
         }
-        if (! $request->user()->can('lead.assign')) {
+        // Ô người phụ trách để trống không được xoá người phụ trách hiện tại.
+        if (! $request->user()->can('lead.assign') || empty($validated['assigned_user_id'])) {
             unset($validated['assigned_user_id']);
+        }
+        // Xoá trắng ô "Giá trị hợp đồng" = 0 (cột không nhận NULL).
+        if (array_key_exists('deal_value', $validated) && $validated['deal_value'] === null) {
+            $validated['deal_value'] = 0;
         }
 
         $changes = $this->diffCustomer($customer, $validated);
@@ -1092,7 +1121,7 @@ class CrmController extends Controller
 
         $validated = $request->validate([
             'stage' => ['required', 'string', 'in:'.implode(',', [...array_keys(CrmCustomer::PIPELINE_STAGES), CrmCustomer::STAGE_LOST])],
-            'lost_reason' => 'required_if:stage,lost|nullable|string|max:1000',
+            'lost_reason' => 'required_if:stage,lost|nullable|string|max:255',
             'reason' => 'nullable|string|max:1000',
         ]);
 
@@ -1188,7 +1217,7 @@ class CrmController extends Controller
         $phoneNormalized = $this->normalizePhone($customer->phone);
         $conflict = CrmCustomer::query()->where('phone_normalized', $phoneNormalized)->first(['id', 'code', 'name']);
         if ($conflict) {
-            return back()->withErrors(['restore' => "Không thể khôi phục {$customer->name}: SĐT đang thuộc khách {$conflict->code} ({$conflict->name}). Hãy xử lý trùng trước."]);
+            return back()->withErrors(['restore' => "Không thể khôi phục {$customer->name}: SĐT đang thuộc khách {$conflict->short_code} ({$conflict->name}). Hãy xử lý trùng trước."]);
         }
         $oldEmail = $customer->deleted_email;
         $email = $oldEmail;
@@ -1225,7 +1254,7 @@ class CrmController extends Controller
         abort_unless($request->user()->can('lead.assign'), 403, 'Bạn không có quyền phân công lại khách.');
         $customer = $this->findScopedCustomer($id);
         $validated = $request->validate([
-            'assigned_user_id' => 'required|exists:users,id',
+            'assigned_user_id' => ['required', Rule::exists('users', 'id')->whereNull('deleted_at')],
             'reason' => 'required|string|max:1000',
         ], ['reason.required' => 'Vui lòng nhập lý do phân công lại.']);
 
@@ -1236,6 +1265,7 @@ class CrmController extends Controller
         if ($assignee->id === $customer->assigned_user_id) {
             throw ValidationException::withMessages(['assigned_user_id' => 'Khách đang do người này phụ trách.']);
         }
+        $this->assertAssigneeInBranch($assignee, (int) $customer->branch_id);
 
         $changes = $this->diffCustomer($customer, ['assigned_user_id' => $assignee->id]);
         DB::transaction(function () use ($customer, $assignee, $changes, $validated, $request) {
@@ -1981,7 +2011,7 @@ class CrmController extends Controller
     {
         return WorkTask::create([
             'title' => "Nhắc thu học phí: {$student->name} ({$student->code})",
-            'description' => "Học viên {$student->name} ({$student->code}) đã chốt từ Lead {$customer->code} nhưng chưa đóng học phí đăng ký. "
+            'description' => "Học viên {$student->name} ({$student->code}) đã chốt từ Lead {$customer->short_code} nhưng chưa đóng học phí đăng ký. "
                 .'Số tiền cần thu: '.number_format((float) $tuition->final_amount).'đ. '
                 .'Hồ sơ Lead: '.route('crm.customers.show', $customer->id).' · Phiếu học phí: '.route('crm.tuition-bill', ['id' => $tuition->id]),
             'creator_id' => $actor->id,
@@ -2226,11 +2256,8 @@ class CrmController extends Controller
                 $presetLabel = 'Hôm qua';
                 break;
             case 'last_7_days':
-                $startDate = $now->copy()->subDays(7)->startOfDay();
-                $endDate = $now->copy()->endOfDay();
-                $prevStartDate = $now->copy()->subDays(14)->startOfDay();
-                $prevEndDate = $now->copy()->subDays(7)->endOfDay();
-                $presetLabel = '7 ngày trước';
+                [$startDate, $endDate, $prevStartDate, $prevEndDate] = $this->rollingDays($now, 7);
+                $presetLabel = '7 ngày';
                 break;
             case 'last_week':
                 $startDate = $now->copy()->subWeek()->startOfWeek();
@@ -2240,49 +2267,45 @@ class CrmController extends Controller
                 $presetLabel = 'Tuần trước';
                 break;
             case 'last_60_days':
-                $startDate = $now->copy()->subDays(60)->startOfDay();
-                $endDate = $now->copy()->endOfDay();
-                $prevStartDate = $now->copy()->subDays(120)->startOfDay();
-                $prevEndDate = $now->copy()->subDays(60)->endOfDay();
+                [$startDate, $endDate, $prevStartDate, $prevEndDate] = $this->rollingDays($now, 60);
                 $presetLabel = '60 ngày';
                 break;
             case 'last_90_days':
-                $startDate = $now->copy()->subDays(90)->startOfDay();
-                $endDate = $now->copy()->endOfDay();
-                $prevStartDate = $now->copy()->subDays(180)->startOfDay();
-                $prevEndDate = $now->copy()->subDays(90)->endOfDay();
+                [$startDate, $endDate, $prevStartDate, $prevEndDate] = $this->rollingDays($now, 90);
                 $presetLabel = '90 ngày';
                 break;
             case 'last_6_months':
-                $startDate = $now->copy()->subMonths(6)->startOfDay();
+                $startDate = $now->copy()->subMonths(6)->addDay()->startOfDay();
                 $endDate = $now->copy()->endOfDay();
-                $prevStartDate = $now->copy()->subMonths(12)->startOfDay();
-                $prevEndDate = $now->copy()->subMonths(6)->endOfDay();
+                $prevStartDate = $startDate->copy()->subMonths(6);
+                $prevEndDate = $startDate->copy()->subSecond();
                 $presetLabel = '6 tháng';
                 break;
             case 'last_year':
-                $startDate = $now->copy()->subYear()->startOfDay();
+                $startDate = $now->copy()->subYear()->addDay()->startOfDay();
                 $endDate = $now->copy()->endOfDay();
-                $prevStartDate = $now->copy()->subYears(2)->startOfDay();
-                $prevEndDate = $now->copy()->subYear()->endOfDay();
+                $prevStartDate = $startDate->copy()->subYear();
+                $prevEndDate = $startDate->copy()->subSecond();
                 $presetLabel = '1 năm';
                 break;
             case 'custom':
-                $startDate = ($this->parseReportDate($request->get('start_date')) ?? $now->copy()->subDays(30))->startOfDay();
+                $startDate = ($this->parseReportDate($request->get('start_date')) ?? $now->copy()->subDays(29))->startOfDay();
                 $endDate = ($this->parseReportDate($request->get('end_date')) ?? $now->copy())->endOfDay();
-                $diffDays = max(1, $startDate->diffInDays($endDate));
-                $prevStartDate = $startDate->copy()->subDays($diffDays);
-                $prevEndDate = $startDate->copy();
+                if ($startDate->gt($endDate)) {
+                    // Chọn ngược "từ" / "đến" → đảo lại thay vì trả báo cáo rỗng.
+                    [$startDate, $endDate] = [$endDate->copy()->startOfDay(), $startDate->copy()->endOfDay()];
+                }
+                // Kỳ trước: cùng số ngày, kết thúc ngay trước ngày bắt đầu (không chồng ngày).
+                $days = (int) $startDate->copy()->startOfDay()->diffInDays($endDate->copy()->startOfDay()) + 1;
+                $prevStartDate = $startDate->copy()->subDays($days);
+                $prevEndDate = $startDate->copy()->subSecond();
                 $presetLabel = 'Tùy chỉnh';
                 break;
             case 'last_30_days':
             default:
                 $preset = 'last_30_days';
-                $startDate = $now->copy()->subDays(30)->startOfDay();
-                $endDate = $now->copy()->endOfDay();
-                $prevStartDate = $now->copy()->subDays(60)->startOfDay();
-                $prevEndDate = $now->copy()->subDays(30)->endOfDay();
-                $presetLabel = '30 ngày trước';
+                [$startDate, $endDate, $prevStartDate, $prevEndDate] = $this->rollingDays($now, 30);
+                $presetLabel = '30 ngày';
                 break;
         }
 
@@ -2388,29 +2411,42 @@ class CrmController extends Controller
         // Cùng căn cứ với bảng lương (SalesCommissionService): bậc theo số HS chốt trong kỳ báo cáo,
         // hiệu lực tại cuối kỳ. Đây là hoa hồng PHÁT SINH; trả thực tế theo gate kép trên phiếu lương.
         $commissionService = app(\App\Services\SalesCommissionService::class);
-        $closedBySales = $commissionService->closedCountsBySales($startDate, $endDate, $query);
+        // Bậc hoa hồng tính trên TOÀN BỘ HS sale chốt trong kỳ (mọi chi nhánh) như bảng lương — không theo bộ lọc chi nhánh.
+        $closedBySales = $commissionService->closedCountsBySales($startDate, $endDate);
+        // Doanh số / số chốt của từng sale ghi theo người nhận hoa hồng (commission_user_id), kể cả khi khách đã
+        // được phân công lại cho người khác → không lọc theo người phụ trách hiện tại; chỉ giới hạn chi nhánh.
+        $viewerLevel = DataScope::level($reportUser, 'lead');
+        $creditQuery = CrmCustomer::query()
+            ->when($branchId, fn (Builder $q) => $q->where('branch_id', $branchId))
+            ->when($viewerLevel === DataScope::BRANCH, fn (Builder $q) => $q->whereIn('branch_id', $reportUser->branchIds()));
+        $wonCredited = (clone $creditQuery)->whereIn('stage', CrmCustomer::CLOSED_STAGES)
+            ->where(fn (Builder $q) => $q->whereBetween('converted_at', [$startDate, $endDate])
+                ->orWhere(fn (Builder $legacy) => $legacy->whereNull('converted_at')->whereBetween('created_at', [$startDate, $endDate])))
+            ->get(['id', 'commission_user_id', 'assigned_user_id']);
         $calculateCommission = fn (float $revenue, int $userId) => $commissionService->commissionFor($revenue, (int) ($closedBySales->get($userId) ?? 0), $endDate);
 
         // 4. Bảng hiệu suất theo nhân viên tư vấn tuyển sinh (100% Real from Users in Database)
-        try {
-            $salesUsers = User::role('sales_consultant')->get();
-        } catch (\Throwable $e) {
-            $salesUsers = collect();
-        }
-
-        if ($salesUsers->isEmpty()) {
-            $salesUsers = User::whereHas('crmCustomers')->get();
-        }
-        $salesUsers = $this->scopeReportReps($salesUsers, $request->user());
-
         // Doanh số = tiền thực thu của khách mới (phiếu duyệt trong kỳ, gồm giáo trình/đồ dùng) — A6.
-        $collectedBySales = $commissionService->collectedBySales($startDate, $endDate, null, $query);
+        $collectedBySales = $commissionService->collectedBySales($startDate, $endDate, null, $creditQuery);
+
+        // Mọi Sales + bất kỳ ai (Quản lý cơ sở, vai trò tự tạo...) có khách / doanh số / khách chốt trong kỳ,
+        // để tổng các dòng khớp số liệu tổng phía trên.
+        $repIds = $allCurrent->pluck('assigned_user_id')
+            ->merge($collectedBySales->keys())
+            ->merge($wonCredited->map(fn (CrmCustomer $lead) => $lead->commission_user_id ?? $lead->assigned_user_id))
+            ->filter()->unique()->values();
+        $salesUsers = User::query()
+            ->where(fn (Builder $q) => $q->whereHas('roles', fn (Builder $r) => $r->where('name', 'sales_consultant'))
+                ->orWhereIn('id', $repIds))
+            ->with(['roles', 'branches'])
+            ->get();
+        $salesUsers = $this->scopeReportReps($salesUsers, $request->user());
 
         $repsData = [];
         foreach ($salesUsers as $user) {
             $userLeads = $allCurrent->where('assigned_user_id', $user->id);
             $userLeadsCount = $userLeads->count();
-            $userWonCount = $wonCurrent->filter(fn (CrmCustomer $lead) => ($lead->commission_user_id ?? $lead->assigned_user_id) === $user->id)->count();
+            $userWonCount = $wonCredited->filter(fn (CrmCustomer $lead) => (int) ($lead->commission_user_id ?? $lead->assigned_user_id) === (int) $user->id)->count();
             $userCohortWonCount = $userLeads->whereIn('stage', CrmCustomer::CLOSED_STAGES)->count();
             $userRevenue = (float) ($collectedBySales->get($user->id) ?? 0);
             $userRate = $userLeadsCount > 0 ? round(($userCohortWonCount / $userLeadsCount) * 100, 1) : 0;
@@ -2459,6 +2495,11 @@ class CrmController extends Controller
             ];
         }
 
+        // Đang lọc 1 chi nhánh: bỏ các dòng Sales không có số liệu nào ở chi nhánh đó.
+        if ($branchId) {
+            $repsData = array_values(array_filter($repsData, fn (array $rep) => $rep['leads'] > 0 || $rep['won'] > 0 || $rep['revenue'] > 0));
+        }
+
         // Sắp xếp người có doanh số cao nhất lên đầu
         usort($repsData, fn ($a, $b) => $b['revenue'] <=> $a['revenue']);
 
@@ -2495,6 +2536,18 @@ class CrmController extends Controller
      * Bảng hiệu suất theo người phụ trách, theo phạm vi CRM: Của tôi → dòng của mình; Chi nhánh → nhân sự thuộc
      * chi nhánh mình; Toàn hệ thống → tất cả.
      */
+    /**
+     * N ngày gần nhất tính cả hôm nay, và N ngày liền trước đó (hai kỳ không chồng ngày).
+     *
+     * @return array{0: Carbon, 1: Carbon, 2: Carbon, 3: Carbon}
+     */
+    protected function rollingDays(Carbon $now, int $days): array
+    {
+        $start = $now->copy()->subDays($days - 1)->startOfDay();
+
+        return [$start, $now->copy()->endOfDay(), $start->copy()->subDays($days), $start->copy()->subSecond()];
+    }
+
     protected function scopeReportReps(Collection $users, User $viewer): Collection
     {
         $level = DataScope::level($viewer, 'lead');
@@ -2505,7 +2558,7 @@ class CrmController extends Controller
             $branchIds = $viewer->branchIds();
 
             return $users->filter(fn (User $user) => in_array((int) $user->branch_id, $branchIds, true)
-                || $user->branches()->whereIn('branches.id', $branchIds)->exists())->values();
+                || $user->branches->whereIn('id', $branchIds)->isNotEmpty())->values();
         }
 
         return $users->where('id', $viewer->id)->values();

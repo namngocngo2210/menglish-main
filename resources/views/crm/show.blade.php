@@ -78,13 +78,15 @@
     </x-ui.page-header>
 
     @if ($canReassign)
-        <x-ui.modal name="reassign-customer" title="Phân công lại Sales phụ trách" max-width="md" :show="$errors->has('reason') || $errors->has('assigned_user_id')">
+        <x-ui.modal name="reassign-customer" title="Phân công lại Sales phụ trách" max-width="md" :show="old('_form') === 'reassign' && ($errors->has('reason') || $errors->has('assigned_user_id'))">
             <form id="reassign-form" action="{{ route('crm.customers.reassign', $customer->id) }}" method="POST" class="space-y-3">
                 @csrf
+                {{-- Lỗi "reason" dùng chung với form lùi giai đoạn / huỷ học thử: chỉ mở lại modal của đúng form đã gửi. --}}
+                <input type="hidden" name="_form" value="reassign" />
                 <p class="text-body-small text-on-surface-variant">Hiện tại: <strong>{{ $customer->assignedUser?->name ?? 'Chưa phân công' }}</strong>. Thay đổi được ghi vào lịch sử khách.</p>
-                <x-ui.select name="assigned_user_id" label="Sales phụ trách mới" required placeholder="-- Chọn người phụ trách --"
+                <x-ui.select name="assigned_user_id" id="reassign_assigned_user_id" label="Sales phụ trách mới" required placeholder="-- Chọn người phụ trách --"
                     :options="$reassignUsers->reject(fn ($u) => $u->id === $customer->assigned_user_id)->mapWithKeys(fn ($u) => [$u->id => $u->name.' ('.$u->email.')'])" />
-                <x-ui.textarea name="reason" label="Lý do phân công lại" required rows="3" placeholder="VD: Sales cũ nghỉ phép, chuyển khách cho cơ sở khác..." />
+                <x-ui.textarea name="reason" id="reassign_reason" label="Lý do phân công lại" required rows="3" placeholder="VD: Sales cũ nghỉ phép, chuyển khách cho cơ sở khác..." />
             </form>
             <x-slot:footer>
                 <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'reassign-customer')">Hủy</x-ui.button>
@@ -98,7 +100,7 @@
         <form id="mark-lost-form" action="{{ route('crm.customers.stage', $customer->id) }}" method="POST" class="space-y-3 text-xs">
             @csrf
             <input type="hidden" name="stage" value="lost" />
-            <x-ui.textarea name="lost_reason" rows="4" required placeholder="Ví dụ: chưa phù hợp học phí, lịch học, không liên hệ được..." aria-label="Lý do thất bại" />
+            <x-ui.textarea name="lost_reason" rows="4" required maxlength="255" placeholder="Ví dụ: chưa phù hợp học phí, lịch học, không liên hệ được..." aria-label="Lý do thất bại" />
         </form>
         <x-slot:footer>
             <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'crm-mark-lost')">Hủy</x-ui.button>
@@ -116,7 +118,7 @@
                     <option value="{{ $target }}">{{ \App\Models\CrmCustomer::stageLabel($target) }}</option>
                 @endforeach
             </x-ui.select>
-            <x-ui.textarea name="reason" rows="3" required placeholder="Lý do lùi giai đoạn (bắt buộc)" aria-label="Lý do lùi giai đoạn" />
+            <x-ui.textarea name="reason" id="stage_backward_reason" rows="3" required placeholder="Lý do lùi giai đoạn (bắt buộc)" aria-label="Lý do lùi giai đoạn" />
         </form>
         <x-slot:footer>
             <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'crm-stage-backward')">Hủy</x-ui.button>

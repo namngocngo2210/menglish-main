@@ -150,6 +150,16 @@ class CrmCustomer extends Model
 
     protected static function booted(): void
     {
+        // SĐT chuẩn hoá phục vụ tìm kiếm / chặn trùng: luôn khớp với SĐT, kể cả khi khách được tạo ngoài form CRM (seeder, script...).
+        static::saving(function (CrmCustomer $customer): void {
+            if ($customer->trashed() || blank($customer->phone)) {
+                return;
+            }
+            if ($customer->isDirty('phone') || $customer->phone_normalized === null) {
+                $customer->phone_normalized = self::normalizePhone($customer->phone);
+            }
+        });
+
         // Khách bị xóa (soft delete) nhả SĐT / email khỏi ràng buộc UNIQUE để tạo lại được khách mới.
         static::deleting(function (CrmCustomer $customer): void {
             if ($customer->isForceDeleting()) {
@@ -355,7 +365,8 @@ class CrmCustomer extends Model
     public static function normalizePhone(?string $phone): string
     {
         $digits = preg_replace('/\D+/', '', (string) $phone) ?: '';
-        if (strlen($digits) === 11 && str_starts_with($digits, '84')) {
+        // +84 9x xxx xxxx (11 số) hoặc máy bàn +84 24 xxxx xxxx (12 số).
+        if (in_array(strlen($digits), [11, 12], true) && str_starts_with($digits, '84')) {
             $digits = '0'.substr($digits, 2);
         }
 

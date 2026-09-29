@@ -136,7 +136,7 @@ class LargeModalFlowsTest extends TestCase
 
         $response = $this->actingAs($this->admin)->post(route('crm.customers.store'), $payload, self::HX);
         $customer = CrmCustomer::firstOrFail();
-        $this->assertSaved($response, 'crm-customers-changed', "Đã thêm khách hàng Nguyễn Minh An ({$customer->code}) thành công vào Cơ sở dữ liệu!");
+        $this->assertSaved($response, 'crm-customers-changed', "Đã thêm khách hàng Nguyễn Minh An ({$customer->short_code}) thành công vào Cơ sở dữ liệu!");
 
         $response = $this->actingAs($this->admin)->put(route('crm.customers.update', $customer->id), [...$payload, 'name' => 'Nguyễn Minh Anh'], self::HX);
         $this->assertSaved($response, 'crm-customers-changed', 'Cập nhật thông tin khách hàng thành công!');
