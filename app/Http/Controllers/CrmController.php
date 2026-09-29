@@ -35,6 +35,7 @@ use App\Services\PlacementRubricService;
 use App\Services\PlacementSubmissionLinker;
 use App\Support\DataScope;
 use App\Support\Rbac;
+use App\Support\TransferMemo;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -1598,8 +1599,11 @@ class CrmController extends Controller
             ->get();
         $merchandiseItems = MerchandiseItem::active()->orderBy('category')->orderBy('name')->get();
 
+        // Mã học viên cấp sẵn khi mở màn chốt để nội dung CK / VietQR xem trước đúng với mã thật sau khi chốt.
+        $studentCodePreview = self::newStudentCode();
+
         return view('crm.closing-wizard', compact('customers', 'branches', 'courses', 'classes', 'bankAccounts', 'promotions', 'merchandiseItems',
-            'pickedCustomer', 'defaultClass', 'defaultCourseId'));
+            'pickedCustomer', 'defaultClass', 'defaultCourseId', 'studentCodePreview'));
     }
 
     public function storePromotion(Request $request)
@@ -1682,6 +1686,7 @@ class CrmController extends Controller
             // Trung tâm chỉ thu chuyển khoản hoặc tiền mặt (không quẹt thẻ POS, không thanh toán kết hợp).
             'payment_method' => 'nullable|in:cash,transfer',
             'paper_invoice_number' => 'nullable|string|max:100',
+            'student_code' => 'nullable|string|max:40',
             'transfer_memo' => 'nullable|string|max:255',
             'bank_account_id' => 'nullable|exists:bank_accounts,id,deleted_at,NULL',
             'bill_notes' => 'nullable|string|max:2000',
@@ -1788,7 +1793,12 @@ class CrmController extends Controller
                 throw ValidationException::withMessages(['paid_amount' => 'Số tiền thu vượt quá số tiền còn phải nộp.']);
             }
 
-            $studentCode = 'HV-'.Str::upper((string) Str::ulid());
+            // Dùng mã đã cấp sẵn trên màn chốt (đúng định dạng, chưa ai dùng) để khớp VietQR đã hiển thị cho khách.
+            $proposedCode = Str::upper((string) ($validated['student_code'] ?? ''));
+            $studentCode = preg_match(self::STUDENT_CODE_PATTERN, $proposedCode)
+                && ! Student::withTrashed()->where('code', $proposedCode)->exists()
+                ? $proposedCode
+                : self::newStudentCode();
             $studentEmail = $customer->email ?: Str::lower($studentCode).'@student.menglish.edu.vn';
             $studentUser = User::withTrashed()->whereRaw('LOWER(email) = ?', [Str::lower($studentEmail)])->first();
             $temporaryPassword = null;
@@ -2083,17 +2093,18 @@ class CrmController extends Controller
         ])->all();
     }
 
-    /**
-     * Nội dung chuyển khoản: tên học sinh + mã học sinh + lớp (không dấu, viết hoa).
-     * Chưa xếp lớp thì bỏ phần lớp. SePay đối soát theo nội dung đã lưu hoặc theo mã học sinh.
-     */
+    /** Mã học viên sinh khi chốt Lead: HV-<ULID>. */
+    private const STUDENT_CODE_PATTERN = '/^HV-[0-9A-HJKMNP-TV-Z]{26}$/';
+
+    private static function newStudentCode(): string
+    {
+        return 'HV-'.Str::upper((string) Str::ulid());
+    }
+
+    /** @see TransferMemo::build() — giữ lại để tương thích nơi gọi cũ. */
     public static function buildTransferMemo(string $studentCode, string $studentName, ?string $className = null): string
     {
-        $clean = fn (?string $value) => strtoupper(preg_replace('/[^a-zA-Z0-9]/', '', Str::ascii((string) $value)));
-
-        return collect([$clean($studentName), $clean($studentCode), $clean($className)])
-            ->filter()
-            ->implode(' ');
+        return TransferMemo::build($studentCode, $studentName, $className);
     }
 
     /**
@@ -2156,10 +2167,7 @@ class CrmController extends Controller
 
         // Luôn sinh theo mẫu hiện hành (tên + mã + lớp) để nội dung cũ / lớp vừa xếp được cập nhật.
         // Phụ huynh đã CK theo nội dung cũ vẫn được SePay khớp nhờ mã học sinh trong nội dung.
-        $transferMemo = self::buildTransferMemo($student->code, $student->name, ($class ?? $student->currentClass)?->name);
-        if ($tuition->transfer_memo !== $transferMemo) {
-            $tuition->forceFill(['transfer_memo' => $transferMemo])->save();
-        }
+        $transferMemo = $tuition->syncTransferMemo();
         $amountToPay = max(0, $remainingDebt - $pendingAmount);
         $qrWarning = (! $bankAccount && $amountToPay > 0)
             ? 'Chưa cấu hình tài khoản ngân hàng hoạt động để tạo mã VietQR. Vui lòng liên hệ Kế toán/Admin bổ sung trước khi thu tiền.'

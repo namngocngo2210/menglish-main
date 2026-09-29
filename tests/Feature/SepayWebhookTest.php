@@ -207,6 +207,32 @@ class SepayWebhookTest extends TestCase
         $this->assertSame('needs_review', SepayTransaction::where('sepay_id', 'SP-X2')->value('status'));
     }
 
+    public function test_new_tuition_gets_shared_transfer_memo_automatically(): void
+    {
+        // Mẫu chung: tên + mã học sinh (+ lớp nếu có), không dấu, viết hoa.
+        $this->assertSame('NGUYENVANA HVSEPAY01', $this->tuition->fresh()->transfer_memo);
+    }
+
+    public function test_matches_student_code_when_name_containing_hv_comes_first(): void
+    {
+        $code = 'HV-01J9ZQ4ABCDEFGHJKMNPQRSTVW';
+        $student = Student::create([
+            'name' => 'Trần Thanh Vân Anh', 'code' => $code, 'phone' => '0987000111',
+            'branch_id' => $this->branch->id, 'status' => 'studying',
+        ]);
+        $tuition = StudentTuition::create([
+            'student_id' => $student->id, 'branch_id' => $this->branch->id,
+            'total_amount' => 4000000, 'final_amount' => 4000000, 'paid_amount' => 0, 'debt_amount' => 4000000, 'status' => 'unpaid',
+        ]);
+        // Không dựa vào nội dung đã lưu: ép khớp theo mã học sinh.
+        StudentTuition::whereKey($tuition->id)->update(['transfer_memo' => null]);
+
+        // Ngân hàng bỏ dấu cách: tên (chứa "HV" trong THANHVAN) dính liền mã và lớp.
+        $this->postWebhook(['content' => 'TRANTHANHVANANHHV01J9ZQ4ABCDEFGHJKMNPQRSTVWIELTS1', 'transferAmount' => 1000000])->assertOk();
+
+        $this->assertSame(1000000.0, (float) TuitionReceipt::where('student_tuition_id', $tuition->id)->sum('amount'));
+    }
+
     public function test_webhook_returns_503_when_disabled_by_flag(): void
     {
         config(['services.sepay.webhook_enabled' => false]);
