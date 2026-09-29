@@ -37,7 +37,7 @@ return [
             'role.view',
             // CRM: mọi thao tác trừ lùi bước pipeline (A6 Q1: chỉ Admin).
             'lead.view', 'lead.create', 'lead.update', 'lead.delete', 'lead.assign', 'lead.convert', 'lead.mark_lost',
-            'lead.stage_forward', 'lead.trial_feedback', 'lead.be_assigned',
+            'lead.stage_forward', 'lead.trial_feedback',
             'entrance_test.*', 'entrance_test.examine', 'student.*', 'class.*', 'class.teach', 'attendance_student.*',
             'placement_test.view', 'placement_test.grade',
             // Duyệt đề xuất sửa giáo trình / giãn tiến độ / Big Test là việc của Học thuật (academic_lead) — BPMN.
@@ -85,6 +85,8 @@ return [
             // placement_test.delete). Vẫn giới hạn chi nhánh mình; lùi giai đoạn vẫn chỉ Admin (A6 Q1).
             'lead.view', 'lead.create', 'lead.update', 'lead.assign', 'lead.convert', 'lead.mark_lost',
             'lead.stage_forward', 'lead.trial_feedback',
+            // Chủ dự án 29/09/2026: người phụ trách khách = Học vụ (cùng Admin).
+            'lead.be_assigned',
             'promotion.manage',
             'student.*', 'class.*', 'class.assist', 'attendance_student.*',
             'attendance_staff.view', 'attendance_staff.manual_record',
@@ -122,7 +124,7 @@ return [
         ],
 
         'sales_consultant' => [
-            'lead.view', 'lead.create', 'lead.update', 'lead.convert', 'lead.mark_lost', 'lead.be_assigned',
+            'lead.view', 'lead.create', 'lead.update', 'lead.convert', 'lead.mark_lost',
             'entrance_test.send',
             'report.view',
             'work_task.view', 'support_ticket.create', 'support_ticket.view', 'notification.view',

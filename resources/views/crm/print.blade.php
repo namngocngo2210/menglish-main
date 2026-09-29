@@ -50,7 +50,7 @@
         <tr><td>Nguồn</td><td>{{ $customer->source ?: '—' }}</td></tr>
         <tr><td>Khóa học quan tâm</td><td>{{ $customer->course_interest ?: '—' }}</td></tr>
         <tr><td>Giai đoạn</td><td>{{ $customer->stage_label }}{{ $customer->stage === 'lost' && $customer->lost_reason ? ' — '.$customer->lost_reason : '' }}</td></tr>
-        <tr><td>Sales phụ trách</td><td>{{ $customer->assignedUser?->name ?? 'Chưa phân công' }}</td></tr>
+        <tr><td>Người phụ trách</td><td>{{ $customer->assignedUser?->name ?? 'Chưa phân công' }}</td></tr>
         <tr><td>Giá trị hợp đồng</td><td>{{ number_format((float) $customer->deal_value, 0, ',', '.') }}đ</td></tr>
         @if ($customer->convertedStudent)
             <tr><td>Hồ sơ học viên</td><td>{{ $customer->convertedStudent->code }} · Lớp: {{ $customer->convertedStudent->currentClass?->name ?? 'Chờ xếp lớp' }}</td></tr>

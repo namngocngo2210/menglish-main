@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\User;
+use App\Services\Crm\Approvals\BranchTransferApprovalSource;
 use App\Services\Crm\Approvals\EnrollmentConfirmationApprovalSource;
 use App\Services\Students\Approvals\EnrollmentApprovalSource;
 use App\Services\Syllabus\Approvals\AdjustmentApprovalSource;
@@ -38,6 +39,7 @@ class ApprovalServiceProvider extends ServiceProvider
         PaymentReportApprovalSource::class,
         EnrollmentApprovalSource::class,
         EnrollmentConfirmationApprovalSource::class,
+        BranchTransferApprovalSource::class,
         ProposalApprovalSource::class,
         AdjustmentApprovalSource::class,
         BigTestOrderApprovalSource::class,

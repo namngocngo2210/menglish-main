@@ -269,6 +269,17 @@ class CrmCustomer extends Model
         return $this->belongsTo(Branch::class, 'waiting_branch_id');
     }
 
+    public function branchTransfers(): HasMany
+    {
+        return $this->hasMany(CrmBranchTransfer::class, 'customer_id')->latest();
+    }
+
+    /** Yêu cầu chuyển cơ sở đang chờ Admin duyệt (mỗi khách tối đa 1). */
+    public function pendingBranchTransfer(): HasOne
+    {
+        return $this->hasOne(CrmBranchTransfer::class, 'customer_id')->where('status', CrmBranchTransfer::STATUS_PENDING)->latestOfMany();
+    }
+
     public function histories(): HasMany
     {
         return $this->hasMany(CrmCustomerHistory::class, 'customer_id')->latest();

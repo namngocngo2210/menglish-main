@@ -27,7 +27,7 @@
                     </div>
                 </x-ui.field>
                 <x-ui.select name="source" label="Nguồn" :options="$filterSources->mapWithKeys(fn ($s) => [$s => $s])" placeholder="Tất cả nguồn" />
-                <x-ui.select name="assigned_user_id" label="Người phụ trách" :options="$filterSales->pluck('name', 'id')" placeholder="Tất cả" />
+                <x-ui.select name="assigned_user_id" label="Người phụ trách" :options="\App\Services\Crm\LeadOwners::options($filterSales)" placeholder="Tất cả" />
                 <x-ui.select name="stage" label="Giai đoạn" :options="\App\Models\CrmCustomer::PIPELINE_STAGES + ['lost' => \App\Models\CrmCustomer::stageLabel('lost')]" placeholder="Tất cả giai đoạn" />
                 @if ($filterBranches->isNotEmpty())
                     <x-ui.select name="branch_id" label="Chi nhánh" :options="$filterBranches->pluck('name', 'id')" placeholder="Tất cả chi nhánh" />

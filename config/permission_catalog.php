@@ -64,9 +64,10 @@ return [
                 'stage_forward' => ['Chuyển bước pipeline (tiến)', 'Chuyển khách tiến từng bước một trên pipeline, đặt lịch học thử (vai trò CM — A6 Q1).'],
                 'stage_back' => ['Lùi bước pipeline', 'Lùi giai đoạn của khách chưa chốt, bắt buộc lý do (A6: chỉ Admin).'],
                 'trial_feedback' => ['Nhận xét học thử mọi buổi', 'Ghi nhận xét học thử cho khách ở buổi mình không dạy.'],
+                'approve_transfer' => ['Duyệt chuyển cơ sở', 'Duyệt / từ chối yêu cầu đổi người phụ trách sang cơ sở khác (khách và học viên chuyển sang cơ sở mới); tự đổi được ngay không cần duyệt.'],
             ],
             'audience' => [
-                'be_assigned' => ['Được nhận phụ trách khách', 'Có tên trong danh sách người phụ trách khi phân công khách (Sale / quản lý).'],
+                'be_assigned' => ['Được nhận phụ trách khách', 'Có tên trong danh sách người phụ trách khi phân công khách (mặc định Học vụ và Admin).'],
             ],
             'scope' => [
                 'levels' => ['own', 'branch', 'all'],

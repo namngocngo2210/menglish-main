@@ -21,7 +21,7 @@
                         <th>Số điện thoại</th>
                         <th>Cơ sở</th>
                         <th>Giai đoạn khi xóa</th>
-                        <th>Sales phụ trách</th>
+                        <th>Người phụ trách</th>
                         <th>Ngày xóa</th>
                         <th class="text-right">Thao tác</th>
                     </tr>

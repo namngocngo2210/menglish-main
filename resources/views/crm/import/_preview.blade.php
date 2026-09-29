@@ -20,7 +20,7 @@
         <x-slot:header>
             <div>
                 <h2 class="font-h3 text-h3 text-on-surface">Xem trước: {{ $preview['file_name'] }}</h2>
-                <p class="text-caption text-on-surface-variant">Chi nhánh: <strong>{{ $preview['branch_name'] }}</strong> · Sales phụ trách: <strong>{{ $preview['assigned_user_name'] }}</strong></p>
+                <p class="text-caption text-on-surface-variant">Chi nhánh: <strong>{{ $preview['branch_name'] }}</strong> · Người phụ trách mặc định: <strong>{{ $preview['assigned_user_name'] }}</strong></p>
             </div>
             @if ($asModal)
                 <form id="modal-crm-import-confirm" method="POST" action="{{ route('crm.import.store') }}">@csrf</form>
@@ -43,6 +43,7 @@
                     <th>Email</th>
                     <th>Nguồn</th>
                     <th>Khóa quan tâm</th>
+                    <th>Người phụ trách</th>
                     <th>Kết quả kiểm tra</th>
                 </tr>
             </thead>
@@ -56,6 +57,7 @@
                         <td>{{ $row['data']['email'] ?? '' }}</td>
                         <td>{{ $row['data']['source'] ?? '' }}</td>
                         <td>{{ $row['data']['course_interest'] ?? '' }}</td>
+                        <td>{{ ($row['data']['owner_name'] ?? null) ?: $preview['assigned_user_name'] }}</td>
                         <td>
                             @if (empty($row['errors']))
                                 <x-ui.badge color="success">Hợp lệ</x-ui.badge>

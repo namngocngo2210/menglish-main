@@ -39,8 +39,8 @@
             <x-ui.input name="course_interest" :id="$id('course_interest')" label="Khóa học quan tâm" placeholder="Ví dụ: Starters" />
             <div class="sm:col-span-2"><x-ui.input name="address" :id="$id('address')" label="Địa chỉ" /></div>
             @can('lead.assign')
-                <x-ui.select name="assigned_user_id" :id="$id('assigned_user_id')" label="Người phụ trách" placeholder="-- Chọn Sales phụ trách --"
-                             :value="old('assigned_user_id', auth()->id())" :options="$salesUsers->pluck('name', 'id')" />
+                <x-ui.select name="assigned_user_id" :id="$id('assigned_user_id')" label="Người phụ trách" placeholder="-- Chọn người phụ trách --"
+                             :value="old('assigned_user_id', auth()->id())" :options="\App\Services\Crm\LeadOwners::options($salesUsers)" />
             @endcan
             <x-ui.input name="deal_value" :id="$id('deal_value')" type="number" min="0" label="Giá trị dự kiến (VNĐ)" :value="old('deal_value', 0)" />
             <div class="sm:col-span-2">

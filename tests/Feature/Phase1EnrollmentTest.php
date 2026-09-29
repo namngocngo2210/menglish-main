@@ -238,7 +238,7 @@ class Phase1EnrollmentTest extends TestCase
 
         $this->actingAs($this->manager)->get(route('crm.import'))->assertOk()->assertSee('Nhập khách hàng loạt từ Excel');
         $this->actingAs($this->manager)->post(route('crm.import.preview'), [
-            'file' => $file, 'branch_id' => $this->branch->id, 'assigned_user_id' => $this->sales->id, 'default_source' => 'Hội thảo',
+            'file' => $file, 'branch_id' => $this->branch->id, 'assigned_user_id' => $this->academic->id, 'default_source' => 'Hội thảo',
         ])->assertRedirect(route('crm.import'))->assertSessionHasNoErrors();
 
         $preview = $this->actingAs($this->manager)->get(route('crm.import'))->assertOk()
@@ -254,7 +254,7 @@ class Phase1EnrollmentTest extends TestCase
         $an = CrmCustomer::where('name', 'Nguyễn An')->firstOrFail();
         $this->assertSame('0912345678', $an->phone_normalized);
         $this->assertSame($this->branch->id, $an->branch_id);
-        $this->assertSame($this->sales->id, $an->assigned_user_id);
+        $this->assertSame($this->academic->id, $an->assigned_user_id);
         $this->assertSame('0987654321', $an->parent_phone);
         $this->assertSame('new', $an->stage);
         $giang = CrmCustomer::where('name', 'Vũ Giang')->firstOrFail();
