@@ -44,7 +44,7 @@
             </div>
             <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">{{ $test->title }}</h1>
             <p class="text-xs md:text-sm text-white/90 leading-relaxed max-w-2xl">
-                Bài kiểm tra gồm {{ $test->questions_count }} câu hỏi đánh giá 4 kỹ năng (Nghe, Đọc - Ngữ pháp, Viết và Nói). Phần Nghe, Đọc - Ngữ pháp được chấm tự động; phần Viết và Nói do <strong>Học vụ MEnglish</strong> chấm và gửi kết quả xếp lớp cho bạn.
+                Bài kiểm tra gồm {{ $test->questions_count }} câu hỏi đánh giá 4 kỹ năng (Nghe, Đọc - Ngữ pháp, Viết và Nói). Sau khi nộp bài, <strong>Học vụ MEnglish</strong> sẽ chấm và gửi kết quả xếp lớp cho phụ huynh.
             </p>
         </div>
 
@@ -307,7 +307,7 @@
                 <div class="text-xs text-on-surface-variant">
                     Vui lòng kiểm tra lại câu trả lời trước khi gửi bài thi.
                 </div>
-                <x-ui.button type="submit" icon="check_circle" class="shadow-lg hover:shadow-xl">Nộp Bài Thi &amp; Xem Báo Cáo Điểm Tự Động</x-ui.button>
+                <x-ui.button type="submit" icon="check_circle" class="shadow-lg hover:shadow-xl">Nộp bài</x-ui.button>
             </div>
             </div>
         </form>

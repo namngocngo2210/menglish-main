@@ -2,63 +2,17 @@
     <x-ui.page-header title="Đề xuất sửa giáo trình" description="Gửi đề xuất sửa lỗi hoặc nội dung giáo trình lên Ban Học thuật." :back="route('syllabus.teacher-view')">
         <x-slot:actions>
             <x-ui.button variant="secondary" icon="checklist_rtl" :href="route('syllabus.versions')">Xem trạng thái đề xuất</x-ui.button>
-            <x-ui.button icon="speed" :href="route('syllabus.teacher-adjust')">Xin điều chỉnh tiến độ</x-ui.button>
+            <x-ui.button variant="secondary" icon="speed" :href="route('syllabus.teacher-adjust')">Xin điều chỉnh tiến độ</x-ui.button>
+            @can('syllabus.propose_adjustment')
+                <x-ui.button icon="edit_note" x-on:click="$dispatch('open-modal', 'new-proposal')">Gửi đề xuất</x-ui.button>
+            @endcan
         </x-slot:actions>
     </x-ui.page-header>
 
 
-    {{-- Mockup 03_Cong_Giao_Vien/09: form (giáo trình, buổi học tùy chọn, mô tả thay đổi) + Lịch sử đề xuất có lọc. --}}
+    {{-- Mockup 03_Cong_Giao_Vien/09: Lịch sử đề xuất có lọc; form (giáo trình, buổi học tùy chọn, mô tả thay đổi) mở bằng nút "Gửi đề xuất" (modal). --}}
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        @can('syllabus.propose_adjustment')
-        <div class="lg:col-span-5 flex flex-col gap-4 min-w-0">
-            <div class="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg shadow-sm"
-                 x-data="{ curriculum: @js((string) old('curriculum_id', '')), lessons: @js($curriculums->mapWithKeys(fn ($c) => [$c->id => $c->lessons->map(fn ($l) => ['id' => $l->id, 'label' => 'Buổi '.$l->session_no.': '.$l->title.($l->unit ? ' (Unit '.$l->unit->unit_number.')' : '')])->values()])) }">
-                <form method="POST" action="{{ route('syllabus.proposals.store') }}" enctype="multipart/form-data" class="flex flex-col gap-md">
-                    @csrf
-                    <x-ui.select label="Chọn giáo trình" name="curriculum_id" id="propose_curriculum_id" required x-model="curriculum" placeholder="Chọn giáo trình...">
-                        @foreach ($curriculums as $c)
-                            <option value="{{ $c->id }}">{{ $c->title }} ({{ $c->version }})</option>
-                        @endforeach
-                    </x-ui.select>
-
-                    <x-ui.select label="Chọn buổi học (Tùy chọn)" name="lesson_id" hint="Bỏ trống nếu đề xuất áp dụng chung cho cả giáo trình." placeholder="Chọn buổi học...">
-                        <template x-for="lesson in (lessons[curriculum] || [])" :key="lesson.id">
-                            <option :value="lesson.id" x-text="lesson.label"></option>
-                        </template>
-                    </x-ui.select>
-
-                    <x-ui.textarea name="new_content" label="Mô tả thay đổi đề xuất" rows="5" required placeholder="Nhập chi tiết nội dung cần sửa đổi..." />
-
-                    <details class="group rounded-lg border border-outline-variant bg-surface-container-low" @if ($errors->hasAny(['old_content', 'reason', 'attachment', 'proposal_type'])) open @endif>
-                        <summary class="flex cursor-pointer list-none items-center justify-between px-md py-sm font-body-medium text-body-medium text-on-surface">
-                            Thông tin bổ sung (tùy chọn)
-                            <span class="material-symbols-outlined text-[18px] text-on-surface-variant transition group-open:rotate-180">expand_more</span>
-                        </summary>
-                        <div class="flex flex-col gap-md border-t border-outline-variant p-md">
-                            <x-ui.select name="proposal_type" label="Loại đề xuất" placeholder="-- Chọn loại --" :options="[
-                                'Sửa lỗi chính tả / ngữ pháp trong bài giảng' => 'Sửa lỗi chính tả / ngữ pháp trong bài giảng',
-                                'Cập nhật file audio / video bị lỗi' => 'Cập nhật file audio / video bị lỗi',
-                                'Thay đổi độ dài / thời gian bài tập' => 'Thay đổi độ dài / thời gian bài tập',
-                                'Bổ sung hoạt động / trò chơi tương tác' => 'Bổ sung hoạt động / trò chơi tương tác',
-                                'Khác' => 'Khác',
-                            ]" />
-                            <x-ui.textarea name="old_content" label="Nội dung hiện tại trong giáo trình" rows="2" />
-                            <x-ui.textarea name="reason" label="Lý do thay đổi" rows="2" />
-                            <x-ui.field label="File đính kèm" name="attachment" hint="PDF, Word, PowerPoint, Excel, ảnh hoặc audio — tối đa 20 MB.">
-                                <input type="file" name="attachment" class="block w-full text-xs text-on-surface-variant file:mr-3 file:rounded-lg file:border-0 file:bg-primary-container/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-primary border border-dashed border-outline-variant rounded-xl p-2" />
-                            </x-ui.field>
-                        </div>
-                    </details>
-
-                    <div class="flex justify-end">
-                        <x-ui.button type="submit" icon="send">Gửi đề xuất</x-ui.button>
-                    </div>
-                </form>
-            </div>
-        </div>
-        @endcan
-
-        <div class="lg:col-span-7 flex flex-col gap-4 min-w-0">
+        <div class="lg:col-span-12 flex flex-col gap-4 min-w-0">
             <x-ui.data-table min-width="640px">
                 <x-slot:header>
                     <div class="flex items-center gap-2">
@@ -106,4 +60,51 @@
             </x-ui.data-table>
         </div>
     </div>
+
+    @can('syllabus.propose_adjustment')
+        <x-ui.modal name="new-proposal" title="Gửi đề xuất sửa giáo trình" max-width="xl" :show="old('_modal') === 'new-proposal'">
+            <form id="new-proposal-form" method="POST" action="{{ route('syllabus.proposals.store') }}" enctype="multipart/form-data" class="flex flex-col gap-md" x-data="{ curriculum: @js((string) old('curriculum_id', '')), lessons: @js($curriculums->mapWithKeys(fn ($c) => [$c->id => $c->lessons->map(fn ($l) => ['id' => $l->id, 'label' => 'Buổi '.$l->session_no.': '.$l->title.($l->unit ? ' (Unit '.$l->unit->unit_number.')' : '')])->values()])) }">
+                @csrf
+                <input type="hidden" name="_modal" value="new-proposal">
+                <x-ui.select label="Chọn giáo trình" name="curriculum_id" id="propose_curriculum_id" required x-model="curriculum" placeholder="Chọn giáo trình...">
+                    @foreach ($curriculums as $c)
+                        <option value="{{ $c->id }}">{{ $c->title }} ({{ $c->version }})</option>
+                    @endforeach
+                </x-ui.select>
+
+                <x-ui.select label="Chọn buổi học (Tùy chọn)" name="lesson_id" hint="Bỏ trống nếu đề xuất áp dụng chung cho cả giáo trình." placeholder="Chọn buổi học...">
+                    <template x-for="lesson in (lessons[curriculum] || [])" :key="lesson.id">
+                        <option :value="lesson.id" x-text="lesson.label"></option>
+                    </template>
+                </x-ui.select>
+
+                <x-ui.textarea name="new_content" label="Mô tả thay đổi đề xuất" rows="5" required placeholder="Nhập chi tiết nội dung cần sửa đổi..." />
+
+                <details class="group rounded-lg border border-outline-variant bg-surface-container-low" @if ($errors->hasAny(['old_content', 'reason', 'attachment', 'proposal_type'])) open @endif>
+                    <summary class="flex cursor-pointer list-none items-center justify-between px-md py-sm font-body-medium text-body-medium text-on-surface">
+                        Thông tin bổ sung (tùy chọn)
+                        <span class="material-symbols-outlined text-[18px] text-on-surface-variant transition group-open:rotate-180">expand_more</span>
+                    </summary>
+                    <div class="flex flex-col gap-md border-t border-outline-variant p-md">
+                        <x-ui.select name="proposal_type" label="Loại đề xuất" placeholder="-- Chọn loại --" :options="[
+                            'Sửa lỗi chính tả / ngữ pháp trong bài giảng' => 'Sửa lỗi chính tả / ngữ pháp trong bài giảng',
+                            'Cập nhật file audio / video bị lỗi' => 'Cập nhật file audio / video bị lỗi',
+                            'Thay đổi độ dài / thời gian bài tập' => 'Thay đổi độ dài / thời gian bài tập',
+                            'Bổ sung hoạt động / trò chơi tương tác' => 'Bổ sung hoạt động / trò chơi tương tác',
+                            'Khác' => 'Khác',
+                        ]" />
+                        <x-ui.textarea name="old_content" label="Nội dung hiện tại trong giáo trình" rows="2" />
+                        <x-ui.textarea name="reason" label="Lý do thay đổi" rows="2" />
+                        <x-ui.field label="File đính kèm" name="attachment" hint="PDF, Word, PowerPoint, Excel, ảnh hoặc audio — tối đa 20 MB.">
+                            <input type="file" name="attachment" class="block w-full text-xs text-on-surface-variant file:mr-3 file:rounded-lg file:border-0 file:bg-primary-container/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-primary border border-dashed border-outline-variant rounded-xl p-2" />
+                        </x-ui.field>
+                    </div>
+                </details>
+            </form>
+            <x-slot:footer>
+                <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'new-proposal')">Hủy</x-ui.button>
+                <x-ui.button type="submit" form="new-proposal-form" icon="send">Gửi đề xuất</x-ui.button>
+            </x-slot:footer>
+        </x-ui.modal>
+    @endcan
 </x-app-layout>

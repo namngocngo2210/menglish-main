@@ -17,7 +17,6 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -409,16 +408,16 @@ class PlacementTestController extends Controller
         $questions = is_array($test->questions) ? $test->questions : [];
         $submittedAnswers = $this->answersForQuestions($questions, $validated['answers'] ?? []);
 
-        // Chỉ chấm tự động Nghe / Đọc-Ngữ pháp theo đáp án lưu trong đề.
-        // Viết / Nói do Học vụ chấm (BA) nên để trống, bài ở trạng thái chờ chấm.
-        // Điểm quy về thang của khối lớp (theo mã đề): Nghe trên thang Nghe, phần Đọc trắc nghiệm trên thang Đọc & Viết.
+        // Tự chấm theo đáp án lưu trong đề: Nghe trên thang Nghe; Đọc & Viết (các câu Đọc / Ngữ pháp / Viết có đáp án)
+        // trên thang Đọc & Viết của khối lớp (theo mã đề). Bài viết tự luận và phần Nói do Học vụ chấm.
+        // Điểm + nhận xét tự động chỉ là bản nháp: bài vẫn "Chờ chấm" để Admin / Học vụ xem lại, sửa và nhập điểm Nói.
         $gradeGroup = PlacementRubricService::detectGradeGroup($test->code);
         // Khối không có thang (lớp 5–9…): tự chấm online quy về thang 10 mỗi kỹ năng để Học vụ tham khảo, không xếp lớp tự động.
         $maxScores = PlacementRubricService::hasRubric($gradeGroup)
             ? PlacementRubricService::maxScores($gradeGroup)
             : PlacementRubricService::ONLINE_MANUAL_SCALE;
         $listeningScore = $this->autoGradeSkill($questions, $submittedAnswers, ['listening'], $maxScores['listening']);
-        $readingScore = $this->autoGradeSkill($questions, $submittedAnswers, ['reading', 'grammar'], $maxScores['reading_writing']);
+        $readingWritingScore = $this->autoGradeSkill($questions, $submittedAnswers, ['reading', 'grammar', 'writing'], $maxScores['reading_writing']);
 
         [$customer, $viaSignedLink] = $this->resolveSubmissionLead($validated, $test, $links);
 
@@ -435,7 +434,11 @@ class PlacementTestController extends Controller
             'candidate_email' => $validated['candidate_email'] ?? null,
             'grade_group' => $gradeGroup,
             'listening_score' => $listeningScore,
-            'reading_score' => $readingScore,
+            // reading_score giữ cho các màn cũ; điểm dùng để chấm theo thang khối là reading_writing_score.
+            'reading_score' => $readingWritingScore,
+            'reading_writing_score' => $readingWritingScore,
+            'listening_comment' => PlacementRubricService::skillComment($gradeGroup, 'listening', $listeningScore),
+            'reading_writing_comment' => PlacementRubricService::skillComment($gradeGroup, 'reading_writing', $readingWritingScore),
             'writing_score' => null,
             'speaking_score' => null,
             'overall_score' => null,
@@ -460,9 +463,20 @@ class PlacementTestController extends Controller
             Log::warning('Lỗi gửi email thông báo học viên nộp bài: '.$e->getMessage());
         }
 
-        // Scorecard là trang public nên bắt buộc link có chữ ký — chống dò id tuần tự
-        return redirect()->to(URL::signedRoute('portal.test.scorecard', ['id' => $submission->id]))
-            ->with('status', 'Hoàn thành bài thi! Học vụ MEnglish sẽ chấm phần Viết/Nói và gửi kết quả xếp lớp cho bạn.');
+        // Thí sinh không xem điểm sau khi nộp: kết quả do Học vụ duyệt rồi mới gửi (bảng điểm là link có chữ ký cho nhân viên).
+        return redirect()->route('portal.test.done', $test->code)
+            ->with('placement_test_done', $submission->candidate_name);
+    }
+
+    /** Màn cảm ơn sau khi nộp bài — không hiển thị điểm / kết quả. */
+    public function portalDone($code)
+    {
+        $test = PlacementTest::query()->where('code', $code)->firstOrFail();
+
+        return view('placement-tests.portal-done', [
+            'test' => $test,
+            'candidateName' => session('placement_test_done'),
+        ]);
     }
 
     public function portalScorecard($id)
@@ -528,7 +542,8 @@ class PlacementTestController extends Controller
 
     /**
      * Chấm tự động các câu của kỹ năng theo đáp án chuẩn trong đề, quy về thang điểm của khối
-     * (tỉ lệ đúng × điểm tối đa, làm tròn 0,5). Đây là điểm gợi ý — Học vụ xác nhận khi chấm (phần Viết / Nói nhập tay).
+     * (điểm câu đúng / tổng điểm câu × điểm tối đa, làm tròn 0,5; câu không ghi điểm tính 1).
+     * Chỉ tính câu có đáp án (trắc nghiệm, đúng/sai, điền từ); bài viết tự luận không có đáp án nên Học vụ chấm.
      * Đề không có câu nào của kỹ năng này (hoặc không có đáp án) => null, không bịa điểm.
      *
      * @param  array<int, array<string, mixed>>  $questions
@@ -537,25 +552,45 @@ class PlacementTestController extends Controller
      */
     private function autoGradeSkill(array $questions, array $answers, array $skills, int $maxScore): ?float
     {
-        $total = 0;
-        $correct = 0;
+        $total = 0.0;
+        $correct = 0.0;
         foreach ($questions as $idx => $question) {
             $correctAnswer = trim((string) ($question['correct_answer'] ?? ''));
             if (! in_array($question['skill'] ?? '', $skills, true) || $correctAnswer === '') {
                 continue;
             }
-            $total++;
+            $points = is_numeric($question['points'] ?? null) && (float) $question['points'] > 0 ? (float) $question['points'] : 1.0;
+            $total += $points;
             $answer = $answers[$question['id'] ?? $idx] ?? '';
-            if ($answer !== '' && strcasecmp($answer, $correctAnswer) === 0) {
-                $correct++;
+            if ($answer !== '' && self::answerMatches($answer, $correctAnswer)) {
+                $correct += $points;
             }
         }
 
-        if ($total === 0) {
+        if ($total <= 0) {
             return null;
         }
 
         return round($correct / $total * $maxScore * 2) / 2;
+    }
+
+    /**
+     * So đáp án không phân biệt hoa thường, bỏ khoảng trắng thừa và dấu chấm câu cuối.
+     * Đáp án chuẩn có thể liệt kê nhiều cách viết được chấp nhận, ngăn cách bằng "|" (VD: "7 | seven").
+     */
+    public static function answerMatches(string $answer, string $correctAnswer): bool
+    {
+        $normalize = fn (string $text) => mb_strtolower(rtrim(preg_replace('/\s+/u', ' ', trim($text)), ' .!?'));
+        $given = $normalize($answer);
+
+        foreach (explode('|', $correctAnswer) as $accepted) {
+            $accepted = $normalize($accepted);
+            if ($accepted !== '' && $given === $accepted) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

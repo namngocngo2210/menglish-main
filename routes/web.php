@@ -700,6 +700,7 @@ Route::prefix('portal/placement-test')->name('portal.test.')->group(function () 
     Route::get('/{code}', [PlacementTestController::class, 'portalTakeTest'])->middleware('throttle:30,1')->name('take');
     Route::get('/{code}/submit', [PlacementTestController::class, 'portalSubmitTest'])->middleware('throttle:30,1');
     Route::post('/{code}/submit', [PlacementTestController::class, 'portalSubmitTest'])->middleware('throttle:10,1')->name('submit');
+    Route::get('/{code}/done', [PlacementTestController::class, 'portalDone'])->middleware('throttle:30,1')->name('done');
     // Scorecard chứa điểm số/PII của lead nên yêu cầu link có chữ ký, không cho dò id
     Route::get('/scorecard/{id}', [PlacementTestController::class, 'portalScorecard'])->name('scorecard')->middleware(['signed', 'throttle:30,1']);
     Route::get('/results/{id}', [PlacementTestController::class, 'portalScorecard'])->name('results')->middleware(['signed', 'throttle:30,1']);
