@@ -15,37 +15,37 @@
     }
     $initial['class_id'] = (string) ($selectedClassId ?? '');
     $canSchedule = auth()->user()->can('work_task.assign');
-    // Báo cáo phòng / nhân sự là việc khác với xếp lịch: tách sang tab riêng (mở sẵn khi đang lọc báo cáo).
+    // Báo cáo phòng / nhân sự là việc khác với xếp lịch: mở riêng qua nút trên đầu trang (không còn hàng tab
+    // "Cấu hình lịch lớp" trùng tên trang); đang lọc báo cáo thì vẫn ở màn báo cáo.
     $initialView = request('view') === 'report' || request()->hasAny(['report_branch_id', 'report_date']) ? 'report' : 'config';
 @endphp
-<x-app-layout title="Lịch & TKB lớp">
-    <x-ui.page-header title="Lịch & TKB lớp" description="Cấu hình thời khóa biểu lớp học và báo cáo phòng / nhân sự theo buổi học thực tế.">
-        <x-slot:actions>
-            <x-ui.button variant="secondary" icon="download" :href="request()->fullUrlWithQuery(['export' => 1])" title="Xuất báo cáo phòng / nhân sự 7 ngày">Xuất Excel</x-ui.button>
-            @can('class.create')
-                <x-ui.button variant="secondary" icon="add" :href="route('classes.create')">Tạo lớp mới</x-ui.button>
-            @endcan
-        </x-slot:actions>
-    </x-ui.page-header>
+<x-app-layout :title="$initialView === 'report' ? 'Báo cáo phòng / nhân sự' : 'Lịch & TKB lớp'">
+    @if ($initialView === 'report')
+        <x-ui.page-header title="Báo cáo phòng / nhân sự" description="Số ca, phòng và trợ giảng cần bố trí 7 ngày theo buổi học thực tế."
+                          :back="route('tasks.schedule-config')" back-label="Lịch & TKB lớp">
+            <x-slot:actions>
+                <x-ui.button variant="secondary" icon="download" :href="request()->fullUrlWithQuery(['export' => 1])" title="Xuất báo cáo phòng / nhân sự 7 ngày">Xuất Excel</x-ui.button>
+            </x-slot:actions>
+        </x-ui.page-header>
+    @else
+        <x-ui.page-header title="Lịch & TKB lớp" description="Cấu hình thời khóa biểu lớp học.">
+            <x-slot:actions>
+                <x-ui.button variant="secondary" icon="groups" :href="route('tasks.schedule-config', ['view' => 'report'])">Báo cáo phòng / nhân sự</x-ui.button>
+                @can('class.create')
+                    <x-ui.button variant="secondary" icon="add" :href="route('classes.create')">Tạo lớp mới</x-ui.button>
+                @endcan
+            </x-slot:actions>
+        </x-ui.page-header>
+    @endif
 
     @if (session('success'))
         <x-ui.alert type="success" class="mb-lg" dismissible>{{ session('success') }}</x-ui.alert>
     @endif
 
-    <div x-data="{ view: @js($initialView), show(v) { this.view = v; const u = new URL(location.href); v === 'report' ? u.searchParams.set('view', 'report') : u.searchParams.delete('view'); history.replaceState(null, '', u); } }">
-    <div class="mb-lg flex gap-xs border-b border-surface-container-highest" role="tablist" aria-label="Nội dung trang TKB">
-        @foreach (['config' => ['calendar_month', 'Cấu hình lịch lớp'], 'report' => ['groups', 'Báo cáo phòng / nhân sự']] as $key => [$icon, $label])
-            <button type="button" role="tab" x-on:click="show('{{ $key }}')" :aria-selected="view === '{{ $key }}'"
-                    :class="view === '{{ $key }}' ? 'border-primary-container text-primary' : 'border-transparent text-on-surface-variant hover:text-on-surface'"
-                    class="-mb-px inline-flex items-center gap-xs border-b-2 px-md py-sm font-body-medium text-body-medium font-semibold transition-colors {{ $initialView === $key ? 'border-primary-container text-primary' : 'border-transparent text-on-surface-variant' }}">
-                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">{{ $icon }}</span>{{ $label }}
-            </button>
-        @endforeach
-    </div>
-
     <div class="grid grid-cols-1 items-start gap-lg">
         {{-- ─── Cấu hình lịch lớp ─── --}}
-        <section class="w-full space-y-lg" x-show="view === 'config'" @if ($initialView !== 'config') x-cloak @endif>
+        @if ($initialView === 'config')
+        <section class="w-full space-y-lg">
             @php $conflictError = $errors->first('class_id') ?: $errors->first('slot2_start') ?: $errors->first('slot1_day') ?: $errors->first('start_date') ?: $errors->first('end_date'); @endphp
             @if ($conflictError)
                 <x-ui.alert type="error" :title="str_contains($conflictError, 'Xung đột') || str_contains($conflictError, 'trùng') ? 'Cảnh báo xung đột lịch' : 'Không lưu được lịch lớp'" data-testid="schedule-conflict">
@@ -228,14 +228,11 @@
                 </x-ui.data-table>
             </div>
         </section>
+        @else
 
         {{-- ─── Báo cáo phòng / nhân sự ─── --}}
-        <section class="w-full max-w-3xl" x-show="view === 'report'" @if ($initialView !== 'report') x-cloak @endif>
+        <section class="w-full max-w-3xl">
             <div class="space-y-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md">
-                <div class="flex items-center gap-sm border-b border-surface-container pb-sm">
-                    <span class="material-symbols-outlined text-primary-container" aria-hidden="true">groups</span>
-                    <h2 class="font-h3 text-h3 text-on-surface">Báo cáo phòng / nhân sự</h2>
-                </div>
 
                 <form method="GET" action="{{ route('tasks.schedule-config') }}" class="grid grid-cols-1 gap-sm sm:grid-cols-[1fr_1fr_auto] sm:items-end">
                     <input type="hidden" name="view" value="report">
@@ -296,7 +293,7 @@
                 </form>
             </div>
         </section>
-    </div>
+        @endif
     </div>
 
     @include('partials.data-confirm')
