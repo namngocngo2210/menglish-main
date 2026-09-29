@@ -1,5 +1,9 @@
 <x-app-layout>
-    <x-ui.page-header title="Nhật ký sự vụ Học vụ" icon="event_note" />
+    <x-ui.page-header title="Nhật ký sự vụ Học vụ" icon="event_note">
+        <x-slot:actions>
+            <x-ui.button icon="add" x-on:click="$dispatch('open-modal', 'new-journal')">Ghi sự vụ</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     <div class="space-y-6">
         
@@ -7,25 +11,6 @@
             <x-ui.alert type="error">{{ $errors->first() }}</x-ui.alert>
         @endif
 
-        {{-- Form ghi sự vụ mới --}}
-        <form method="POST" action="{{ route('reports.journal.store') }}" class="bg-surface-container-lowest rounded-2xl p-5 border border-surface-container-highest shadow-sm space-y-3">
-            @csrf
-            <h2 class="text-sm font-bold text-on-surface">Ghi nhận sự vụ mới</h2>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div class="sm:col-span-2">
-                    <x-ui.input name="title" required placeholder="Tiêu đề sự vụ *" aria-label="Tiêu đề sự vụ" />
-                </div>
-                <x-ui.select name="severity" :options="['normal' => 'Bình thường', 'important' => 'Quan trọng', 'urgent' => 'Khẩn cấp']" aria-label="Mức độ" />
-            </div>
-            <x-ui.textarea name="content" rows="2" placeholder="Mô tả chi tiết..." aria-label="Mô tả chi tiết" />
-            {{-- Gắn lớp để sự vụ hiện ở tab "Sự vụ" của Trang lớp --}}
-            <x-ui.select id="journal_class_id" name="class_id" placeholder="Không gắn lớp (sự vụ chung)" aria-label="Lớp liên quan"
-                         :options="$classes->mapWithKeys(fn ($c) => [$c->id => $c->code.' · '.$c->name])" />
-            <div class="flex items-center justify-between">
-                <x-ui.date name="report_date" :value="now()->toDateString()" aria-label="Ngày sự vụ" />
-                <x-ui.button type="submit" icon="add">Ghi sự vụ</x-ui.button>
-            </div>
-        </form>
 
         {{-- Danh sách sự vụ --}}
         <div class="space-y-3">
@@ -100,4 +85,25 @@
             <x-ui.pagination :paginator="$journals" :options="[]" />
         </div>
     </div>
+
+    {{-- Form ghi sự vụ mới (mở bằng nút "Ghi sự vụ"; lỗi validate → mở lại kèm dữ liệu đã nhập) --}}
+    <x-ui.modal name="new-journal" title="Ghi nhận sự vụ mới" :show="old('_modal') === 'new-journal'">
+        <form id="new-journal-form" method="POST" action="{{ route('reports.journal.store') }}" class="space-y-md">
+            @csrf
+            <input type="hidden" name="_modal" value="new-journal">
+            <x-ui.input name="title" label="Tiêu đề sự vụ" required />
+            <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
+                <x-ui.select name="severity" label="Mức độ" :options="['normal' => 'Bình thường', 'important' => 'Quan trọng', 'urgent' => 'Khẩn cấp']" />
+                <x-ui.date name="report_date" label="Ngày sự vụ" :value="old('report_date', now()->toDateString())" />
+            </div>
+            <x-ui.textarea name="content" label="Mô tả chi tiết" rows="3" />
+            {{-- Gắn lớp để sự vụ hiện ở tab "Sự vụ" của Trang lớp --}}
+            <x-ui.select id="journal_class_id" name="class_id" label="Lớp liên quan" placeholder="Không gắn lớp (sự vụ chung)"
+                         :options="$classes->mapWithKeys(fn ($c) => [$c->id => $c->code.' · '.$c->name])" />
+        </form>
+        <x-slot:footer>
+            <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'new-journal')">Hủy</x-ui.button>
+            <x-ui.button type="submit" form="new-journal-form" icon="add">Ghi sự vụ</x-ui.button>
+        </x-slot:footer>
+    </x-ui.modal>
 </x-app-layout>

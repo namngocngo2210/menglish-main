@@ -139,52 +139,8 @@
                     </x-ui.data-table>
                 </div>
 
-                {{-- Form Thêm / Sửa --}}
+                {{-- VietQR (form Thêm / Sửa tài khoản mở bằng modal) --}}
                 <div class="space-y-md lg:col-span-4">
-                    <section class="rounded-xl border border-outline-variant bg-surface-container-lowest p-md shadow-sm">
-                        <h3 class="mb-md flex items-center gap-sm font-h3 text-h3 text-on-surface">
-                            <span class="material-symbols-outlined text-primary" aria-hidden="true">account_balance</span>
-                            <span x-text="form.id ? 'Sửa tài khoản' : 'Thêm / Sửa tài khoản'"></span>
-                        </h3>
-                        <form method="POST" :action="form.id ? @js(url('/system-config/bank-accounts')) + '/' + form.id : @js(route('system-config.bank-accounts.store'))" class="space-y-sm">
-                            @csrf
-                            <template x-if="form.id"><input type="hidden" name="_method" value="PUT"></template>
-                            <x-ui.select label="Loại tài khoản" name="account_type" x-model="form.account_type">
-                                <option value="company">Công ty (Chủ sở hữu chính)</option>
-                                <option value="other">Khác (Cá nhân/Đại diện)</option>
-                            </x-ui.select>
-                            <x-ui.input label="Số tài khoản" name="account_number" x-model="form.account_number" required placeholder="Nhập số tài khoản ngân hàng" class="font-code text-code" />
-                            <div class="grid grid-cols-3 gap-sm">
-                                <x-ui.input label="Mã NH" name="bank_code" x-model="form.bank_code" required placeholder="VCB" title="Mã ngân hàng NAPAS dùng tạo VietQR" class="font-code text-code uppercase" />
-                                <div class="col-span-2">
-                                    <x-ui.input label="Tên ngân hàng" name="bank_name" x-model="form.bank_name" required placeholder="VD: Vietcombank, Techcombank..." />
-                                </div>
-                            </div>
-                            <x-ui.input label="Chủ tài khoản" name="account_holder" x-model="form.account_holder" required placeholder="Nhập tên đầy đủ chủ tài khoản" class="uppercase" />
-                            <x-ui.select label="Cơ sở áp dụng" name="branch_id" x-model="form.branch_id" :options="$branches->pluck('name', 'id')" placeholder="Toàn hệ thống" />
-                            <label class="flex items-center justify-between gap-sm rounded-lg border border-outline-variant p-sm">
-                                <span>
-                                    <span class="block font-body-medium text-body-medium">Đặt làm tài khoản mặc định</span>
-                                    <span class="block font-caption text-caption text-on-surface-variant">Sử dụng cho toàn bộ phiếu thu tự động</span>
-                                </span>
-                                <input type="checkbox" name="is_default_vietqr" value="1" x-model="form.is_default_vietqr" class="rounded text-primary-container focus:ring-primary-container" />
-                            </label>
-                            <template x-if="form.id">
-                                <label class="flex items-center justify-between gap-sm rounded-lg border border-outline-variant p-sm">
-                                    <span class="font-body-medium text-body-medium">Đang sử dụng</span>
-                                    <span>
-                                        <input type="hidden" name="is_active" value="0">
-                                        <input type="checkbox" name="is_active" value="1" x-model="form.is_active" class="rounded text-primary-container focus:ring-primary-container" />
-                                    </span>
-                                </label>
-                            </template>
-                            <div class="flex gap-sm pt-sm">
-                                <x-ui.button type="submit" icon="save" class="flex-1">Lưu cấu hình</x-ui.button>
-                                <x-ui.button variant="secondary" @click="resetForm()">Hủy</x-ui.button>
-                            </div>
-                        </form>
-                    </section>
-
                     <section class="flex items-start gap-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md">
                         <span class="material-symbols-outlined text-[32px] text-primary" aria-hidden="true">qr_code_2</span>
                         <div class="min-w-0 flex-1">
@@ -439,6 +395,57 @@
         </div>
         @endif
 
+
+        {{-- Form Thêm / Sửa tài khoản (dùng chung 1 modal; lỗi validate → mở lại kèm dữ liệu đã nhập) --}}
+        <x-ui.modal name="bank-account" max-width="lg" bare>
+            <div class="flex shrink-0 items-center justify-between gap-md border-b border-surface-container px-lg py-md">
+                <h3 id="modal-bank-account-title" class="font-h3 text-h3 text-on-surface" x-text="form.id ? 'Sửa tài khoản ngân hàng' : 'Thêm tài khoản ngân hàng'"></h3>
+                <button type="button" class="rounded-lg p-xs text-on-surface-variant hover:bg-surface-container-high" @click="$dispatch('close-modal', 'bank-account')" aria-label="Đóng">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <div class="min-h-0 flex-1 overflow-y-auto px-lg py-md font-body-base text-body-base text-on-surface">
+            <form id="bank-account-form" method="POST" :action="form.id ? @js(url('/system-config/bank-accounts')) + '/' + form.id : @js(route('system-config.bank-accounts.store'))" class="space-y-sm">
+                @csrf
+                <input type="hidden" name="_modal" value="bank-account">
+                <input type="hidden" name="_bank_id" :value="form.id">
+                <template x-if="form.id"><input type="hidden" name="_method" value="PUT"></template>
+                <x-ui.select label="Loại tài khoản" name="account_type" x-model="form.account_type">
+                    <option value="company">Công ty (Chủ sở hữu chính)</option>
+                    <option value="other">Khác (Cá nhân/Đại diện)</option>
+                </x-ui.select>
+                <x-ui.input label="Số tài khoản" name="account_number" x-model="form.account_number" required placeholder="Nhập số tài khoản ngân hàng" class="font-code text-code" />
+                <div class="grid grid-cols-3 gap-sm">
+                    <x-ui.input label="Mã NH" name="bank_code" x-model="form.bank_code" required placeholder="VCB" title="Mã ngân hàng NAPAS dùng tạo VietQR" class="font-code text-code uppercase" />
+                    <div class="col-span-2">
+                        <x-ui.input label="Tên ngân hàng" name="bank_name" x-model="form.bank_name" required placeholder="VD: Vietcombank, Techcombank..." />
+                    </div>
+                </div>
+                <x-ui.input label="Chủ tài khoản" name="account_holder" x-model="form.account_holder" required placeholder="Nhập tên đầy đủ chủ tài khoản" class="uppercase" />
+                <x-ui.select label="Cơ sở áp dụng" name="branch_id" x-model="form.branch_id" :options="$branches->pluck('name', 'id')" placeholder="Toàn hệ thống" />
+                <label class="flex items-center justify-between gap-sm rounded-lg border border-outline-variant p-sm">
+                    <span>
+                        <span class="block font-body-medium text-body-medium">Đặt làm tài khoản mặc định</span>
+                        <span class="block font-caption text-caption text-on-surface-variant">Sử dụng cho toàn bộ phiếu thu tự động</span>
+                    </span>
+                    <input type="checkbox" name="is_default_vietqr" value="1" x-model="form.is_default_vietqr" class="rounded text-primary-container focus:ring-primary-container" />
+                </label>
+                <template x-if="form.id">
+                    <label class="flex items-center justify-between gap-sm rounded-lg border border-outline-variant p-sm">
+                        <span class="font-body-medium text-body-medium">Đang sử dụng</span>
+                        <span>
+                            <input type="hidden" name="is_active" value="0">
+                            <input type="checkbox" name="is_active" value="1" x-model="form.is_active" class="rounded text-primary-container focus:ring-primary-container" />
+                        </span>
+                    </label>
+                </template>
+            </form>
+            </div>
+            <div class="flex shrink-0 flex-wrap justify-end gap-sm border-t border-surface-container bg-surface-container-low px-lg py-md">
+                <x-ui.button variant="secondary" @click="$dispatch('close-modal', 'bank-account')">Hủy</x-ui.button>
+                <x-ui.button type="submit" form="bank-account-form" icon="save">Lưu cấu hình</x-ui.button>
+            </div>
+        </x-ui.modal>
     </div>
 
     <script>
@@ -451,7 +458,24 @@
                 form: { ...blank },
 
                 init() {
-                    window.addEventListener('bank-form-new', () => { this.activeTab = 'banks'; this.resetForm(); });
+                    window.addEventListener('bank-form-new', () => { this.activeTab = 'banks'; this.resetForm(); this.$dispatch('open-modal', 'bank-account'); });
+                    // Lưu lỗi validate → mở lại modal với dữ liệu vừa nhập.
+                    const old = @js(old('_modal') === 'bank-account' ? \Illuminate\Support\Arr::except(old(), ['_token']) : null);
+                    if (old) {
+                        this.form = {
+                            ...blank,
+                            id: old._bank_id || '',
+                            account_type: old.account_type || 'company',
+                            bank_code: old.bank_code || '',
+                            bank_name: old.bank_name || '',
+                            account_number: old.account_number || '',
+                            account_holder: old.account_holder || '',
+                            branch_id: old.branch_id ? String(old.branch_id) : '',
+                            is_default_vietqr: Boolean(old.is_default_vietqr),
+                            is_active: old._bank_id ? old.is_active === '1' : true,
+                        };
+                        this.$nextTick(() => this.$dispatch('open-modal', 'bank-account'));
+                    }
                 },
 
                 copyVal(text, tag) {
@@ -479,6 +503,7 @@
                         is_default_vietqr: Boolean(acc.is_default_vietqr),
                         is_active: acc.is_active === undefined ? true : Boolean(acc.is_active),
                     };
+                    this.$dispatch('open-modal', 'bank-account');
                 },
             };
         }

@@ -318,7 +318,7 @@ class Phase3MockupParityTest extends TestCase
             ->assertSee('Mức lương đang áp dụng')
             ->assertSee('300.000 VNĐ / buổi')
             ->assertSee('Hiệu lực từ: 15/06/2026')
-            ->assertSee('2. Cập nhật đơn giá mới')
+            ->assertSee('Cập nhật đơn giá mới — ', false) // nút + tiêu đề modal (form không còn nằm trên trang)
             ->assertSee('Loại giáo viên')->assertSee('Giáo viên nước ngoài')->assertSee('Trợ giảng')
             ->assertSee('Ghi chú / Lý do thay đổi')
             ->assertSee('Cập nhật đơn giá mới')

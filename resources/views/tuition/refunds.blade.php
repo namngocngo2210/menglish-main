@@ -22,6 +22,10 @@
                       description="Quản lý các yêu cầu tài chính phát sinh trong quá trình học tập: khất nợ, bảo lưu, chuyển nhượng buổi dư và hoàn tiền.">
         <x-slot:actions>
             <x-ui.button variant="secondary" icon="arrow_back" :href="route('tuition.students')">Công nợ học viên</x-ui.button>
+            @can('refund_transfer.request')
+                <x-ui.button variant="secondary" icon="event_busy" x-on:click="$dispatch('open-modal', 'refund-extension')">Đánh dấu khất nợ</x-ui.button>
+                <x-ui.button icon="exit_to_app" x-on:click="$dispatch('open-modal', 'refund-request')">Tạo yêu cầu nghỉ giữa khóa</x-ui.button>
+            @endcan
         </x-slot:actions>
     </x-ui.page-header>
 
@@ -34,205 +38,8 @@
     </x-ui.alert>
 
     <div class="grid grid-cols-12 gap-lg" x-data="refundTransferManager(@js($studentFinance), @js((string) (old('student_id') ?? '')), @js((float) $adminFeePercent), @js($targetList), @js(in_array($oldType, ['transfer', 'refund', 'deferral'], true) ? $oldType : 'transfer'), @js((string) old('target_student_id', '')))">
-        {{-- Cột trái: các khối nghiệp vụ --}}
-        <div class="col-span-12 flex flex-col gap-lg lg:col-span-7">
-            @can('refund_transfer.request')
-            {{-- Đánh dấu khất nợ: dời hạn đóng, vẫn giữ lịch học; duyệt xong tạm dừng nhắc nợ tới hạn mới. --}}
-            <form action="{{ route('tuition.refunds.store') }}" method="POST" class="rounded-xl border border-outline-variant bg-surface-container-lowest p-lg shadow-sm">
-                @csrf
-                <input type="hidden" name="type" value="extension" />
-                <div class="mb-md flex items-center gap-sm">
-                    <span class="material-symbols-outlined text-primary" aria-hidden="true">event_busy</span>
-                    <h3 class="font-h3 text-h3 text-on-surface">Đánh dấu khất nợ</h3>
-                </div>
-                <div class="mb-md flex items-start gap-sm rounded-lg bg-secondary/5 p-md font-body-small text-body-small text-secondary">
-                    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">info</span>
-                    <p>Tiếp tục quy trình nhắc nợ chuẩn, không khóa lịch học của học viên. Khi được duyệt, hạn đóng được dời sang ngày mới và nhắc nợ tạm dừng tới ngày đó.</p>
-                </div>
-                <div class="grid grid-cols-1 gap-md md:grid-cols-3">
-                    <div class="md:col-span-2">
-                        @php $debtors = $students->filter(fn ($st) => (float) ($st->tuition?->debt_amount ?? 0) > 0); @endphp
-                        <x-ui.select name="student_id" id="extension_student_id" label="Học viên đang nợ" required
-                                     :placeholder="$debtors->isEmpty() ? 'Không có học viên còn nợ' : '— Chọn học viên —'">
-                            @foreach ($debtors as $st)
-                                <option value="{{ $st->id }}" @selected((string) old('type') === 'extension' && (string) old('student_id') === (string) $st->id)>{{ $studentLabel($st) }} · Còn nợ {{ $money($st->tuition->debt_amount) }} · Hạn {{ $st->tuition->due_date?->format('d/m/Y') ?? 'chưa đặt' }}</option>
-                            @endforeach
-                        </x-ui.select>
-                    </div>
-                    <x-ui.date name="extended_due_date" label="Hạn đóng mới" :min="now()->addDay()->toDateString()" required />
-                    {{-- Textarea thô: chỉ form khất nợ không điền lại old('reason') (form dưới dùng chung name "reason"). --}}
-                    <x-ui.field label="Lý do khất nợ (Bắt buộc)" for="extension_reason" class="md:col-span-3">
-                        <textarea id="extension_reason" name="reason" rows="2" required placeholder="Nhập chi tiết lý do học viên xin gia hạn thời gian nộp học phí..." class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20"></textarea>
-                    </x-ui.field>
-                </div>
-                <div class="mt-md flex justify-end">
-                    <x-ui.button type="submit" icon="event_available">Xác nhận khất nợ</x-ui.button>
-                </div>
-            </form>
-
-            {{-- Tạo yêu cầu xử lý nghỉ giữa khóa: chuyển nhượng (ưu tiên) / hoàn tiền (phương án cuối) / bảo lưu --}}
-            <form action="{{ route('tuition.refunds.store') }}" method="POST" class="rounded-xl border border-outline-variant bg-surface-container-lowest p-lg shadow-sm">
-                @csrf
-                <div class="mb-md flex items-center gap-sm">
-                    <span class="material-symbols-outlined text-primary" aria-hidden="true">exit_to_app</span>
-                    <h3 class="font-h3 text-h3 text-on-surface">Tạo yêu cầu xử lý nghỉ giữa khóa</h3>
-                </div>
-
-                <input type="hidden" name="type" :value="actionType" />
-                <input type="hidden" name="total_paid" :value="basis.paid" />
-                <input type="hidden" name="attended_lessons" :value="attendedLessons" />
-                <input type="hidden" name="admin_fee" :value="actionType === 'refund' ? adminFee : 0" />
-
-                <div class="mb-md">
-                    <x-ui.select name="student_id" id="refund_student_id" label="Học viên nguồn" x-model="selectedStudentId" x-on:change="resetFromBasis()" required
-                                 placeholder="— Chọn học viên —" hint="Chỉ liệt kê học viên đã có hồ sơ học phí.">
-                        @foreach ($sourceStudents as $st)
-                            <option value="{{ $st->id }}">{{ $studentLabel($st) }} ({{ $st->currentClass?->name ?? 'Chưa gán lớp' }})</option>
-                        @endforeach
-                    </x-ui.select>
-                </div>
-
-                {{-- Tóm tắt học viên (số liệu thật từ hợp đồng & điểm danh) --}}
-                <div class="mb-lg grid grid-cols-2 gap-md rounded-lg border border-outline-variant bg-surface-container-low p-md sm:grid-cols-4">
-                    <div>
-                        <p class="font-label text-label uppercase text-on-surface-variant">Học viên</p>
-                        <p class="font-body-medium text-body-medium text-on-surface" x-text="studentName"></p>
-                    </div>
-                    <div>
-                        <p class="font-label text-label uppercase text-on-surface-variant">Mã HV</p>
-                        <p class="font-code text-code text-on-surface" x-text="studentCode"></p>
-                    </div>
-                    <div>
-                        <p class="font-label text-label uppercase text-on-surface-variant">Buổi dư</p>
-                        <p class="font-body-medium text-body-medium text-primary" x-text="basis.total_sessions ? (remainingLessons + ' buổi') : '—'"></p>
-                        <p class="font-caption text-caption text-on-surface-variant" x-show="basis.total_sessions" x-text="'Đã học ' + attendedLessons + ' / ' + basis.total_sessions"></p>
-                    </div>
-                    <div>
-                        <p class="font-label text-label uppercase text-on-surface-variant">Đã thu</p>
-                        <p class="font-body-medium text-body-medium text-tertiary" x-text="money(basis.paid)"></p>
-                    </div>
-                    <template x-if="selectedStudentId && !basis.has_tuition">
-                        <p class="col-span-full font-body-small text-body-small text-error">Học viên chưa có hồ sơ học phí — không thể hoàn / chuyển nhượng / bảo lưu.</p>
-                    </template>
-                </div>
-
-                {{-- Hình thức xử lý: chuyển nhượng đứng đầu (ưu tiên theo A6) --}}
-                <fieldset class="mb-lg">
-                    <legend class="mb-sm font-label text-label uppercase text-on-surface-variant">Hình thức xử lý</legend>
-                    <div class="grid grid-cols-1 gap-sm sm:grid-cols-3">
-                        @foreach (['transfer' => ['swap_horiz', 'Chuyển nhượng', 'Ưu tiên'], 'refund' => ['payments', 'Hoàn tiền', 'Phương án cuối'], 'deferral' => ['pause_circle', 'Bảo lưu', null]] as $value => [$icon, $label, $hint])
-                            <label class="flex cursor-pointer items-center gap-sm rounded-lg border p-md transition-colors"
-                                   :class="actionType === '{{ $value }}' ? 'border-primary-container bg-primary-fixed/30' : 'border-outline-variant hover:bg-surface-container-low'">
-                                <input type="radio" value="{{ $value }}" x-model="actionType" class="text-primary-container focus:ring-primary-container/30" />
-                                <span class="material-symbols-outlined text-[20px] text-on-surface-variant" aria-hidden="true">{{ $icon }}</span>
-                                <span class="min-w-0">
-                                    <span class="block font-body-medium text-body-medium text-on-surface">{{ $label }}</span>
-                                    @if ($hint)<span class="block font-caption text-caption text-on-surface-variant">{{ $hint }}</span>@endif
-                                </span>
-                            </label>
-                        @endforeach
-                    </div>
-                </fieldset>
-
-                {{-- Chuyển nhượng: tìm học viên nhận --}}
-                <div x-show="actionType === 'transfer'" class="mb-lg space-y-sm">
-                    <span class="block font-label text-label uppercase text-on-surface-variant">Học viên nhận chuyển nhượng <span class="text-error">*</span></span>
-                    <input type="hidden" name="target_student_id" :value="actionType === 'transfer' ? targetId : ''" />
-                    <div class="relative">
-                        <span class="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant" aria-hidden="true">search</span>
-                        <input type="search" x-model="targetQuery" placeholder="Tìm tên hoặc mã học viên..." aria-label="Tìm học viên nhận chuyển nhượng"
-                               class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-10 pr-md font-body-base text-body-base text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20" />
-                    </div>
-                    <ul class="custom-scrollbar max-h-48 divide-y divide-surface-container overflow-y-auto rounded-lg border border-outline-variant">
-                        <template x-for="t in targetMatches" :key="t.id">
-                            <li class="flex items-center justify-between gap-sm p-sm" :class="targetId === t.id ? 'bg-tertiary/5' : ''">
-                                <span class="min-w-0">
-                                    <span class="block truncate font-body-medium text-body-medium text-on-surface" x-text="t.name"></span>
-                                    <span class="block font-code text-caption text-on-surface-variant" x-text="t.code + (t.class ? ' · ' + t.class : '') + ' · Còn nợ ' + money(t.debt)"></span>
-                                </span>
-                                <button type="button" @click="targetId = t.id" class="rounded-lg px-sm py-xs font-body-medium text-body-small"
-                                        :class="targetId === t.id ? 'bg-tertiary text-white' : 'border border-outline-variant text-on-surface hover:bg-surface-container-low'"
-                                        x-text="targetId === t.id ? 'Đã chọn' : 'Chọn'"></button>
-                            </li>
-                        </template>
-                        <li x-show="targetMatches.length === 0" class="p-sm font-body-small text-body-small text-on-surface-variant">Không tìm thấy học viên phù hợp.</li>
-                    </ul>
-                    <p x-show="targetId" class="flex items-center gap-xs font-body-small text-body-small text-tertiary">
-                        <span class="material-symbols-outlined text-[16px]" aria-hidden="true">verified</span>
-                        Toàn bộ số buổi dư sẽ được chuyển sang học viên đích kèm giá trị tiền tương ứng (cấn trừ công nợ người nhận).
-                    </p>
-                </div>
-
-                {{-- Hoàn tiền: gợi ý chuyển nhượng trước + bắt buộc lý do không chuyển nhượng --}}
-                <div x-show="actionType === 'refund'" class="mb-lg space-y-sm rounded-lg border border-warning/30 bg-warning-container p-md">
-                    <p class="flex items-start gap-sm font-body-small text-body-small text-on-warning-container">
-                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">lightbulb</span>
-                        <span>Hoàn tiền là <strong>phương án cuối</strong>. Hãy ưu tiên <strong>chuyển nhượng</strong> <span x-text="basis.total_sessions ? remainingLessons + ' buổi dư' : 'số buổi dư'"></span> cho học viên khác (không thu hồi hoa hồng, không phát sinh chi tiền).</span>
-                    </p>
-                    <x-ui.button size="sm" variant="secondary" icon="swap_horiz" @click="actionType = 'transfer'">Chuyển sang chuyển nhượng</x-ui.button>
-                    <x-ui.textarea name="no_transfer_reason" label="Lý do không chuyển nhượng (Bắt buộc)" rows="2" x-bind:required="actionType === 'refund'" x-bind:disabled="actionType !== 'refund'"
-                                   placeholder="VD: gia đình chuyển nơi ở, không có học viên nhận, phụ huynh yêu cầu hoàn tiền..." />
-                </div>
-
-                {{-- Bảng tính hoàn phí / chuyển nhượng --}}
-                <div x-show="actionType !== 'deferral'" class="mb-lg space-y-sm rounded-lg border border-outline-variant p-md">
-                    <div class="grid grid-cols-2 gap-md sm:grid-cols-4">
-                        <x-ui.input type="number" label="Số buổi đã học (điểm danh)" id="attendedLessons" x-model.number="attendedLessons" min="0" class="font-code text-code" />
-                        <div>
-                            <span class="mb-xs block font-caption text-caption text-on-surface-variant">Đơn giá / buổi</span>
-                            <span class="font-code text-code text-on-surface" x-text="money(unitPrice)"></span>
-                        </div>
-                        <div>
-                            <span class="mb-xs block font-caption text-caption text-on-surface-variant">Giá trị buổi còn lại</span>
-                            <span class="font-code text-code text-on-surface" x-text="money(remainingValue)"></span>
-                        </div>
-                        <div x-show="actionType === 'refund'">
-                            <span class="mb-xs block font-caption text-caption text-on-surface-variant" x-text="'Phí quản trị (' + feePercent + '%)'"></span>
-                            <span class="font-code text-code text-on-surface" x-text="money(adminFee)"></span>
-                        </div>
-                    </div>
-                    <div class="flex flex-col gap-sm border-t border-surface-container pt-sm sm:flex-row sm:items-center sm:justify-between">
-                        <label for="refundAmount" class="font-body-medium text-body-medium text-on-surface" x-text="actionType === 'transfer' ? 'Số tiền chuyển nhượng' : 'Số tiền hoàn trả'"></label>
-                        <div class="flex items-center gap-sm">
-                            <input id="refundAmount" type="number" name="refund_amount" x-model.number="refundAmount" min="0" :max="basis.paid" :disabled="actionType === 'deferral'" class="w-44 rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm text-right font-code text-code text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20" />
-                            <span class="font-body-small text-body-small text-on-surface-variant">VND</span>
-                            <x-ui.button size="sm" variant="ghost" icon="calculate" @click="refundAmount = suggestedAmount" title="Tính lại theo chính sách">Theo chính sách</x-ui.button>
-                        </div>
-                    </div>
-                    <p class="font-caption text-caption text-on-surface-variant">
-                        Số dư khả dụng tối đa: <strong class="font-code" x-text="money(basis.paid)"></strong> · Đề xuất theo chính sách: <strong class="font-code" x-text="money(suggestedAmount)"></strong>. Khi duyệt hệ thống chặn số tiền vượt số đã nộp.
-                    </p>
-                </div>
-
-                {{-- Bảo lưu --}}
-                <div x-show="actionType === 'deferral'" class="mb-lg grid grid-cols-1 gap-md rounded-lg border border-info/30 bg-info-container/60 p-md sm:grid-cols-2">
-                    <x-ui.date name="defer_from" label="Bảo lưu từ ngày" :value="now()->toDateString()" x-bind:disabled="actionType !== 'deferral'" />
-                    <x-ui.date name="defer_to" label="Đến ngày (học lại từ ngày kế tiếp)" x-bind:disabled="actionType !== 'deferral'" />
-                    <p class="font-body-small text-body-small text-on-info-container sm:col-span-2">Khi được duyệt: học viên chuyển trạng thái <strong>Bảo lưu</strong>, đóng băng <strong x-text="basis.total_sessions ? remainingLessons + ' buổi còn lại' : 'số buổi còn lại'"></strong> và công nợ <strong class="font-code" x-text="money(basis.debt)"></strong>; nhắc nợ tạm dừng tới hết ngày bảo lưu.</p>
-                </div>
-
-                <x-ui.field label="Lý do nghỉ giữa khóa (Bắt buộc)" for="refund_reason">
-                    <textarea id="refund_reason" name="reason" rows="3" required placeholder="Nhập chi tiết nguyên nhân học viên dừng học..." class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">{{ old('type') !== 'extension' ? old('reason') : '' }}</textarea>
-                </x-ui.field>
-
-                <div class="mt-lg flex flex-col items-end gap-xs border-t border-surface-container pt-md">
-                    <p x-show="actionType !== 'deferral'" class="font-caption text-caption text-on-surface-variant">
-                        Hạn xử lý: <strong>{{ \App\Models\TuitionRefundRequest::deadlineFor(now())->format('d/m/Y') }}</strong> (1 tuần, trong tháng {{ now()->format('m/Y') }})<span x-show="actionType === 'refund'"> · Admin duyệt</span>
-                    </p>
-                    <x-ui.button type="submit" icon="send" x-bind:disabled="!basis.has_tuition">Gửi yêu cầu phê duyệt</x-ui.button>
-                    {{-- Lý do nút bị khóa, đặt ngay dưới nút. --}}
-                    <p x-show="!basis.has_tuition" x-cloak class="font-caption text-caption text-on-surface-variant"
-                       x-text="selectedStudentId ? 'Học viên này chưa có hồ sơ học phí nên chưa gửi được yêu cầu.' : 'Chọn học viên nguồn để gửi yêu cầu.'"></p>
-                </div>
-            </form>
-            @else
-                <x-ui.alert type="info">Bạn chỉ xem được các yêu cầu. Tạo yêu cầu khất nợ / chuyển phí / hoàn phí / bảo lưu cần quyền của Kế toán hoặc Quản lý.</x-ui.alert>
-            @endcan
-        </div>
-
-        {{-- Cột phải: yêu cầu chờ phê duyệt --}}
-        {{-- Màn thuộc nhóm "Cần duyệt": khối chờ phê duyệt đứng trước form tạo yêu cầu. --}}
-        <div class="order-first col-span-12 lg:col-span-5">
+        {{-- Yêu cầu chờ phê duyệt (màn thuộc nhóm "Cần duyệt"); tạo yêu cầu bằng 2 nút trên đầu trang → modal. --}}
+        <div class="col-span-12">
             <section class="flex h-full flex-col rounded-xl border border-outline-variant bg-surface-container-lowest p-lg shadow-sm">
                 <div class="mb-lg flex items-center justify-between gap-sm">
                     <div class="flex items-center gap-sm">
@@ -311,6 +118,193 @@
                 <x-ui.button variant="ghost" href="#all-requests" class="mt-md w-full">Xem tất cả yêu cầu</x-ui.button>
             </section>
         </div>
+        @can('refund_transfer.request')
+            {{-- Đánh dấu khất nợ: dời hạn đóng, vẫn giữ lịch học; duyệt xong tạm dừng nhắc nợ tới hạn mới. --}}
+            <x-ui.modal name="refund-extension" title="Đánh dấu khất nợ" max-width="xl" :show="$oldType === 'extension'">
+                <form id="refund-extension-form" action="{{ route('tuition.refunds.store') }}" method="POST">
+                    @csrf
+                    <input type="hidden" name="type" value="extension" />
+                    <div class="mb-md flex items-start gap-sm rounded-lg bg-secondary/5 p-md font-body-small text-body-small text-secondary">
+                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">info</span>
+                        <p>Tiếp tục quy trình nhắc nợ chuẩn, không khóa lịch học của học viên. Khi được duyệt, hạn đóng được dời sang ngày mới và nhắc nợ tạm dừng tới ngày đó.</p>
+                    </div>
+                    <div class="grid grid-cols-1 gap-md md:grid-cols-3">
+                        <div class="md:col-span-2">
+                            @php $debtors = $students->filter(fn ($st) => (float) ($st->tuition?->debt_amount ?? 0) > 0); @endphp
+                            <x-ui.select name="student_id" id="extension_student_id" label="Học viên đang nợ" required
+                                         :placeholder="$debtors->isEmpty() ? 'Không có học viên còn nợ' : '— Chọn học viên —'">
+                                @foreach ($debtors as $st)
+                                    <option value="{{ $st->id }}" @selected((string) old('type') === 'extension' && (string) old('student_id') === (string) $st->id)>{{ $studentLabel($st) }} · Còn nợ {{ $money($st->tuition->debt_amount) }} · Hạn {{ $st->tuition->due_date?->format('d/m/Y') ?? 'chưa đặt' }}</option>
+                                @endforeach
+                            </x-ui.select>
+                        </div>
+                        <x-ui.date name="extended_due_date" label="Hạn đóng mới" :min="now()->addDay()->toDateString()" required />
+                        {{-- Textarea thô: chỉ form khất nợ không điền lại old('reason') (form dưới dùng chung name "reason"). --}}
+                        <x-ui.field label="Lý do khất nợ (Bắt buộc)" for="extension_reason" class="md:col-span-3">
+                            <textarea id="extension_reason" name="reason" rows="2" required placeholder="Nhập chi tiết lý do học viên xin gia hạn thời gian nộp học phí..." class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20"></textarea>
+                        </x-ui.field>
+                    </div>
+                </form>
+                <x-slot:footer>
+                    <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'refund-extension')">Hủy</x-ui.button>
+                    <x-ui.button type="submit" form="refund-extension-form" icon="event_available">Xác nhận khất nợ</x-ui.button>
+                </x-slot:footer>
+            </x-ui.modal>
+
+            {{-- Tạo yêu cầu xử lý nghỉ giữa khóa: chuyển nhượng (ưu tiên) / hoàn tiền (phương án cuối) / bảo lưu --}}
+            <x-ui.modal name="refund-request" title="Tạo yêu cầu xử lý nghỉ giữa khóa" max-width="3xl" :show="in_array($oldType, ['transfer', 'refund', 'deferral'], true)">
+                <form id="refund-request-form" action="{{ route('tuition.refunds.store') }}" method="POST">
+                    @csrf
+                    <input type="hidden" name="type" :value="actionType" />
+                    <input type="hidden" name="total_paid" :value="basis.paid" />
+                    <input type="hidden" name="attended_lessons" :value="attendedLessons" />
+                    <input type="hidden" name="admin_fee" :value="actionType === 'refund' ? adminFee : 0" />
+
+                    <div class="mb-md">
+                        <x-ui.select name="student_id" id="refund_student_id" label="Học viên nguồn" x-model="selectedStudentId" x-on:change="resetFromBasis()" required
+                                     placeholder="— Chọn học viên —" hint="Chỉ liệt kê học viên đã có hồ sơ học phí.">
+                            @foreach ($sourceStudents as $st)
+                                <option value="{{ $st->id }}">{{ $studentLabel($st) }} ({{ $st->currentClass?->name ?? 'Chưa gán lớp' }})</option>
+                            @endforeach
+                        </x-ui.select>
+                    </div>
+
+                    {{-- Tóm tắt học viên (số liệu thật từ hợp đồng & điểm danh) --}}
+                    <div class="mb-lg grid grid-cols-2 gap-md rounded-lg border border-outline-variant bg-surface-container-low p-md sm:grid-cols-4">
+                        <div>
+                            <p class="font-label text-label uppercase text-on-surface-variant">Học viên</p>
+                            <p class="font-body-medium text-body-medium text-on-surface" x-text="studentName"></p>
+                        </div>
+                        <div>
+                            <p class="font-label text-label uppercase text-on-surface-variant">Mã HV</p>
+                            <p class="font-code text-code text-on-surface" x-text="studentCode"></p>
+                        </div>
+                        <div>
+                            <p class="font-label text-label uppercase text-on-surface-variant">Buổi dư</p>
+                            <p class="font-body-medium text-body-medium text-primary" x-text="basis.total_sessions ? (remainingLessons + ' buổi') : '—'"></p>
+                            <p class="font-caption text-caption text-on-surface-variant" x-show="basis.total_sessions" x-text="'Đã học ' + attendedLessons + ' / ' + basis.total_sessions"></p>
+                        </div>
+                        <div>
+                            <p class="font-label text-label uppercase text-on-surface-variant">Đã thu</p>
+                            <p class="font-body-medium text-body-medium text-tertiary" x-text="money(basis.paid)"></p>
+                        </div>
+                        <template x-if="selectedStudentId && !basis.has_tuition">
+                            <p class="col-span-full font-body-small text-body-small text-error">Học viên chưa có hồ sơ học phí — không thể hoàn / chuyển nhượng / bảo lưu.</p>
+                        </template>
+                    </div>
+
+                    {{-- Hình thức xử lý: chuyển nhượng đứng đầu (ưu tiên theo A6) --}}
+                    <fieldset class="mb-lg">
+                        <legend class="mb-sm font-label text-label uppercase text-on-surface-variant">Hình thức xử lý</legend>
+                        <div class="grid grid-cols-1 gap-sm sm:grid-cols-3">
+                            @foreach (['transfer' => ['swap_horiz', 'Chuyển nhượng', 'Ưu tiên'], 'refund' => ['payments', 'Hoàn tiền', 'Phương án cuối'], 'deferral' => ['pause_circle', 'Bảo lưu', null]] as $value => [$icon, $label, $hint])
+                                <label class="flex cursor-pointer items-center gap-sm rounded-lg border p-md transition-colors"
+                                       :class="actionType === '{{ $value }}' ? 'border-primary-container bg-primary-fixed/30' : 'border-outline-variant hover:bg-surface-container-low'">
+                                    <input type="radio" value="{{ $value }}" x-model="actionType" class="text-primary-container focus:ring-primary-container/30" />
+                                    <span class="material-symbols-outlined text-[20px] text-on-surface-variant" aria-hidden="true">{{ $icon }}</span>
+                                    <span class="min-w-0">
+                                        <span class="block font-body-medium text-body-medium text-on-surface">{{ $label }}</span>
+                                        @if ($hint)<span class="block font-caption text-caption text-on-surface-variant">{{ $hint }}</span>@endif
+                                    </span>
+                                </label>
+                            @endforeach
+                        </div>
+                    </fieldset>
+
+                    {{-- Chuyển nhượng: tìm học viên nhận --}}
+                    <div x-show="actionType === 'transfer'" class="mb-lg space-y-sm">
+                        <span class="block font-label text-label uppercase text-on-surface-variant">Học viên nhận chuyển nhượng <span class="text-error">*</span></span>
+                        <input type="hidden" name="target_student_id" :value="actionType === 'transfer' ? targetId : ''" />
+                        <div class="relative">
+                            <span class="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant" aria-hidden="true">search</span>
+                            <input type="search" x-model="targetQuery" placeholder="Tìm tên hoặc mã học viên..." aria-label="Tìm học viên nhận chuyển nhượng"
+                                   class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-10 pr-md font-body-base text-body-base text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20" />
+                        </div>
+                        <ul class="custom-scrollbar max-h-48 divide-y divide-surface-container overflow-y-auto rounded-lg border border-outline-variant">
+                            <template x-for="t in targetMatches" :key="t.id">
+                                <li class="flex items-center justify-between gap-sm p-sm" :class="targetId === t.id ? 'bg-tertiary/5' : ''">
+                                    <span class="min-w-0">
+                                        <span class="block truncate font-body-medium text-body-medium text-on-surface" x-text="t.name"></span>
+                                        <span class="block font-code text-caption text-on-surface-variant" x-text="t.code + (t.class ? ' · ' + t.class : '') + ' · Còn nợ ' + money(t.debt)"></span>
+                                    </span>
+                                    <button type="button" @click="targetId = t.id" class="rounded-lg px-sm py-xs font-body-medium text-body-small"
+                                            :class="targetId === t.id ? 'bg-tertiary text-white' : 'border border-outline-variant text-on-surface hover:bg-surface-container-low'"
+                                            x-text="targetId === t.id ? 'Đã chọn' : 'Chọn'"></button>
+                                </li>
+                            </template>
+                            <li x-show="targetMatches.length === 0" class="p-sm font-body-small text-body-small text-on-surface-variant">Không tìm thấy học viên phù hợp.</li>
+                        </ul>
+                        <p x-show="targetId" class="flex items-center gap-xs font-body-small text-body-small text-tertiary">
+                            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">verified</span>
+                            Toàn bộ số buổi dư sẽ được chuyển sang học viên đích kèm giá trị tiền tương ứng (cấn trừ công nợ người nhận).
+                        </p>
+                    </div>
+
+                    {{-- Hoàn tiền: gợi ý chuyển nhượng trước + bắt buộc lý do không chuyển nhượng --}}
+                    <div x-show="actionType === 'refund'" class="mb-lg space-y-sm rounded-lg border border-warning/30 bg-warning-container p-md">
+                        <p class="flex items-start gap-sm font-body-small text-body-small text-on-warning-container">
+                            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">lightbulb</span>
+                            <span>Hoàn tiền là <strong>phương án cuối</strong>. Hãy ưu tiên <strong>chuyển nhượng</strong> <span x-text="basis.total_sessions ? remainingLessons + ' buổi dư' : 'số buổi dư'"></span> cho học viên khác (không thu hồi hoa hồng, không phát sinh chi tiền).</span>
+                        </p>
+                        <x-ui.button size="sm" variant="secondary" icon="swap_horiz" @click="actionType = 'transfer'">Chuyển sang chuyển nhượng</x-ui.button>
+                        <x-ui.textarea name="no_transfer_reason" label="Lý do không chuyển nhượng (Bắt buộc)" rows="2" x-bind:required="actionType === 'refund'" x-bind:disabled="actionType !== 'refund'"
+                                       placeholder="VD: gia đình chuyển nơi ở, không có học viên nhận, phụ huynh yêu cầu hoàn tiền..." />
+                    </div>
+
+                    {{-- Bảng tính hoàn phí / chuyển nhượng --}}
+                    <div x-show="actionType !== 'deferral'" class="mb-lg space-y-sm rounded-lg border border-outline-variant p-md">
+                        <div class="grid grid-cols-2 gap-md sm:grid-cols-4">
+                            <x-ui.input type="number" label="Số buổi đã học (điểm danh)" id="attendedLessons" x-model.number="attendedLessons" min="0" class="font-code text-code" />
+                            <div>
+                                <span class="mb-xs block font-caption text-caption text-on-surface-variant">Đơn giá / buổi</span>
+                                <span class="font-code text-code text-on-surface" x-text="money(unitPrice)"></span>
+                            </div>
+                            <div>
+                                <span class="mb-xs block font-caption text-caption text-on-surface-variant">Giá trị buổi còn lại</span>
+                                <span class="font-code text-code text-on-surface" x-text="money(remainingValue)"></span>
+                            </div>
+                            <div x-show="actionType === 'refund'">
+                                <span class="mb-xs block font-caption text-caption text-on-surface-variant" x-text="'Phí quản trị (' + feePercent + '%)'"></span>
+                                <span class="font-code text-code text-on-surface" x-text="money(adminFee)"></span>
+                            </div>
+                        </div>
+                        <div class="flex flex-col gap-sm border-t border-surface-container pt-sm sm:flex-row sm:items-center sm:justify-between">
+                            <label for="refundAmount" class="font-body-medium text-body-medium text-on-surface" x-text="actionType === 'transfer' ? 'Số tiền chuyển nhượng' : 'Số tiền hoàn trả'"></label>
+                            <div class="flex items-center gap-sm">
+                                <input id="refundAmount" type="number" name="refund_amount" x-model.number="refundAmount" min="0" :max="basis.paid" :disabled="actionType === 'deferral'" class="w-44 rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm text-right font-code text-code text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20" />
+                                <span class="font-body-small text-body-small text-on-surface-variant">VND</span>
+                                <x-ui.button size="sm" variant="ghost" icon="calculate" @click="refundAmount = suggestedAmount" title="Tính lại theo chính sách">Theo chính sách</x-ui.button>
+                            </div>
+                        </div>
+                        <p class="font-caption text-caption text-on-surface-variant">
+                            Số dư khả dụng tối đa: <strong class="font-code" x-text="money(basis.paid)"></strong> · Đề xuất theo chính sách: <strong class="font-code" x-text="money(suggestedAmount)"></strong>. Khi duyệt hệ thống chặn số tiền vượt số đã nộp.
+                        </p>
+                    </div>
+
+                    {{-- Bảo lưu --}}
+                    <div x-show="actionType === 'deferral'" class="mb-lg grid grid-cols-1 gap-md rounded-lg border border-info/30 bg-info-container/60 p-md sm:grid-cols-2">
+                        <x-ui.date name="defer_from" label="Bảo lưu từ ngày" :value="now()->toDateString()" x-bind:disabled="actionType !== 'deferral'" />
+                        <x-ui.date name="defer_to" label="Đến ngày (học lại từ ngày kế tiếp)" x-bind:disabled="actionType !== 'deferral'" />
+                        <p class="font-body-small text-body-small text-on-info-container sm:col-span-2">Khi được duyệt: học viên chuyển trạng thái <strong>Bảo lưu</strong>, đóng băng <strong x-text="basis.total_sessions ? remainingLessons + ' buổi còn lại' : 'số buổi còn lại'"></strong> và công nợ <strong class="font-code" x-text="money(basis.debt)"></strong>; nhắc nợ tạm dừng tới hết ngày bảo lưu.</p>
+                    </div>
+
+                    <x-ui.field label="Lý do nghỉ giữa khóa (Bắt buộc)" for="refund_reason">
+                        <textarea id="refund_reason" name="reason" rows="3" required placeholder="Nhập chi tiết nguyên nhân học viên dừng học..." class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/20">{{ old('type') !== 'extension' ? old('reason') : '' }}</textarea>
+                    </x-ui.field>
+
+                    <p x-show="actionType !== 'deferral'" class="mt-md font-caption text-caption text-on-surface-variant">
+                        Hạn xử lý: <strong>{{ \App\Models\TuitionRefundRequest::deadlineFor(now())->format('d/m/Y') }}</strong> (1 tuần, trong tháng {{ now()->format('m/Y') }})<span x-show="actionType === 'refund'"> · Admin duyệt</span>
+                    </p>
+                </form>
+                <x-slot:footer>
+                    {{-- Lý do nút bị khóa, đặt ngay cạnh nút. --}}
+                    <p x-show="!basis.has_tuition" x-cloak class="mr-auto self-center font-caption text-caption text-on-surface-variant"
+                       x-text="selectedStudentId ? 'Học viên này chưa có hồ sơ học phí nên chưa gửi được yêu cầu.' : 'Chọn học viên nguồn để gửi yêu cầu.'"></p>
+                    <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'refund-request')">Hủy</x-ui.button>
+                    <x-ui.button type="submit" form="refund-request-form" icon="send" x-bind:disabled="!basis.has_tuition">Gửi yêu cầu phê duyệt</x-ui.button>
+                </x-slot:footer>
+            </x-ui.modal>
+        @endcan
     </div>
 
     {{-- Hộp duyệt / từ chối từng hồ sơ chờ --}}
