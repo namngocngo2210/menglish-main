@@ -131,14 +131,24 @@
                     </div>
 
                     <div class="md:col-span-6">
-                        <x-ui.select id="tro_giang" name="tro_giang" label="Trợ giảng" class="text-xs cursor-pointer" placeholder="-- Chưa gán trợ giảng --" :value="$class->assistant_id"
-                                     :options="$assistants->pluck('name', 'id')" />
-                    </div>
-
-                    <div class="md:col-span-6">
-                        <x-ui.select id="giao_vien_nn" name="giao_vien_nn" label="Giáo viên nước ngoài (GVNN)" class="text-xs cursor-pointer" placeholder="-- Không áp dụng --" :value="$class->foreign_teacher_id"
+                        <x-ui.select id="giao_vien_nn" name="giao_vien_nn" label="GVNN mặc định" class="text-xs cursor-pointer" placeholder="-- Không áp dụng --" :value="$class->foreign_teacher_id"
+                                     hint="Đổi ở đây áp cho các buổi sắp tới đang theo GVNN mặc định; buổi đã gán GVNN riêng giữ nguyên. Gán theo từng buổi ở tab Lịch & buổi học."
                                      :options="$teachers->pluck('name', 'id')" />
                     </div>
+
+                    {{-- Trợ giảng không cố định theo lớp. Lớp cũ còn trợ giảng cố định thì hiện ô này để gỡ. --}}
+                    @if ($class->assistant_id)
+                        <div class="md:col-span-6">
+                            <x-ui.select id="tro_giang" name="tro_giang" label="Trợ giảng cố định (dữ liệu cũ)" class="text-xs cursor-pointer" placeholder="-- Gỡ trợ giảng cố định --" :value="$class->assistant_id"
+                                         hint="Trợ giảng nay làm theo ca và giao việc; chọn “Gỡ” để bỏ gán cố định khỏi lớp và các buổi sắp tới."
+                                         :options="$assistants->pluck('name', 'id')" />
+                        </div>
+                    @else
+                        <div class="md:col-span-6 flex items-start gap-2 rounded-lg border border-outline-variant bg-surface-container-lowest p-3 text-xs text-on-surface-variant">
+                            <span class="material-symbols-outlined text-[18px] text-primary" aria-hidden="true">support_agent</span>
+                            <span>Trợ giảng không gán cố định cho lớp: làm theo ca và nhận việc qua <strong>Công việc → Giao việc cho Trợ giảng</strong>.</span>
+                        </div>
+                    @endif
                 </div>
             </div>
 

@@ -18,11 +18,13 @@
         <dl class="grid grid-cols-1 gap-5 text-xs sm:grid-cols-2 lg:grid-cols-4">
             @foreach ([
                 'Chi nhánh' => $class->branch?->name ?? 'Chưa cập nhật',
-                'CM quản lý' => $class->assistant?->name ?? 'Chưa phân công',
                 'Chương trình' => $class->program ?? $class->course?->name ?? 'Chưa cập nhật',
                 'Cấp độ' => $class->level ?? 'Chưa cập nhật',
                 'Phòng học' => $class->room ?? 'Chưa cập nhật',
                 'Giáo viên chính' => $class->teacher?->name ?? 'Chưa phân công',
+                // GVNN & trợ giảng không cố định theo lớp: lấy theo các buổi sắp tới / việc giao 7 ngày tới.
+                'GVNN (buổi sắp tới)' => $upcomingForeignTeachers->implode(', ') ?: ($class->foreignTeacher?->name ?? 'Chưa gán'),
+                'Trợ giảng (7 ngày tới)' => $upcomingAssistants->implode(', ') ?: 'Theo ca & giao việc',
                 'Lịch học' => $class->schedule_text ?? 'Chưa cập nhật',
                 'Khai giảng → Kết thúc' => ($class->start_date?->format('d/m/Y') ?? '—').' → '.($class->end_date?->format('d/m/Y') ?? '—'),
             ] as $name => $value)

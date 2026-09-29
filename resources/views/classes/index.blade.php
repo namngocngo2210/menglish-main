@@ -117,7 +117,9 @@
                             <td class="min-w-[170px] max-w-[220px] whitespace-normal text-on-surface-variant">{{ $c->schedule_text ?: 'Chưa xếp lịch' }}</td>
                             <td>
                                 <div class="font-medium text-on-surface">{{ $c->teacher?->name ?? 'Chưa phân công' }}</div>
-                                <div class="text-[11px] text-on-surface-variant">CM: {{ $c->assistant?->name ?? 'Chưa phân công' }}</div>
+                                @if ($c->foreignTeacher)
+                                    <div class="text-[11px] text-on-surface-variant">GVNN: {{ $c->foreignTeacher->name }}</div>
+                                @endif
                             </td>
                             <td class="text-center" data-seats="{{ $c->id }}">
                                 <span class="font-bold text-on-surface">{{ $seat['occupied'] }}</span><span class="text-on-surface-variant/70">/{{ $seat['capacity'] ?: '∞' }}</span>

@@ -261,6 +261,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/', [ClassManagementController::class, 'index'])->name('index');
         Route::get('/{id}/edit', [ClassManagementController::class, 'edit'])->name('edit');
         Route::put('/{id}', [ClassManagementController::class, 'update'])->middleware('can:class.update')->name('update');
+        Route::post('/{id}/foreign-teacher', [ClassManagementController::class, 'assignForeignTeacher'])->whereNumber('id')->middleware('can:class.update')->name('foreign-teacher');
         Route::delete('/{id}', [ClassManagementController::class, 'destroy'])->middleware('can:class.delete')->name('destroy');
         // Trang lớp (tab con qua ?tab=): đặt cuối nhóm để không nuốt các đường dẫn cố định phía trên.
         Route::get('/{id}', [ClassManagementController::class, 'show'])->whereNumber('id')->name('show');
