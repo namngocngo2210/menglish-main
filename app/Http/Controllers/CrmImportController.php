@@ -10,6 +10,7 @@ use App\Models\CrmCustomer;
 use App\Models\CrmCustomerHistory;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Database\QueryException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -87,7 +88,7 @@ class CrmImportController extends Controller
         $assigneeId = $this->resolveAssignee($user, $validated['assigned_user_id'] ?? null, $options['salesUsers']);
 
         try {
-            $rawRows = RawRowsImport::firstSheet($request->file('file'));
+            $rawRows = RawRowsImport::firstSheetNumbered($request->file('file'));
         } catch (\Throwable $e) {
             throw ValidationException::withMessages(['file' => 'Không đọc được file: hãy dùng file mẫu .xlsx hoặc .csv (UTF-8). Chi tiết: '.Str::limit($e->getMessage(), 160)]);
         }
@@ -95,7 +96,10 @@ class CrmImportController extends Controller
             throw ValidationException::withMessages(['file' => 'File không có dữ liệu (dòng 1 là tiêu đề, dữ liệu từ dòng 2).']);
         }
 
-        $columns = $this->mapHeader(array_shift($rawRows));
+        // Khoá của $rawRows là số dòng thật trong file (dòng trống đã bỏ nhưng không đánh lại số).
+        $headerLine = array_key_first($rawRows);
+        $columns = $this->mapHeader($rawRows[$headerLine]);
+        unset($rawRows[$headerLine]);
         if (! in_array('name', $columns, true) || ! in_array('phone', $columns, true)) {
             throw ValidationException::withMessages(['file' => 'File phải có cột "Họ tên" và "Số điện thoại" ở dòng tiêu đề (tải file mẫu để xem định dạng).']);
         }
@@ -106,14 +110,14 @@ class CrmImportController extends Controller
         $rows = [];
         $seenPhones = [];
         $seenEmails = [];
-        foreach ($rawRows as $index => $raw) {
+        foreach ($rawRows as $line => $raw) {
             $data = $this->rowData($columns, $raw);
-            if (collect($data)->filter(fn ($v) => filled($v))->isEmpty()) {
+            if (collect($data)->except('dob_error')->filter(fn ($v) => filled($v))->isEmpty()) {
                 continue;
             }
             $data['source'] = $data['source'] ?: ($validated['default_source'] ?? null) ?: 'Nhập Excel';
-            $errors = $this->validateRow($data, $seenPhones, $seenEmails, $index + 2);
-            $rows[] = ['line' => $index + 2, 'data' => $data, 'errors' => $errors];
+            $errors = $this->validateRow($data, $seenPhones, $seenEmails, $line);
+            $rows[] = ['line' => $line, 'data' => $data, 'errors' => $errors];
         }
 
         $request->session()->put(self::SESSION_KEY, [
@@ -143,6 +147,13 @@ class CrmImportController extends Controller
         $user = $request->user();
         $options = $this->formOptions($user);
         abort_unless($options['branches']->contains('id', $preview['branch_id']), 403);
+        // Sales được chọn lúc xem trước có thể đã bị khoá / đổi vai trò trước khi bấm Nhập.
+        $assignee = User::find($preview['assigned_user_id']);
+        if (! $assignee?->is_active || ($assignee->id !== $user->id && ! $assignee->can('lead.be_assigned'))) {
+            return redirect()->route('crm.import')->withErrors(['assigned_user_id' => 'Sales phụ trách đã chọn không còn hoạt động. Vui lòng chọn lại và kiểm tra dữ liệu lần nữa.']);
+        }
+        // File lớn (tới 1.000 dòng) trên hosting có giới hạn thời gian chạy ngắn.
+        @set_time_limit(300);
 
         $created = 0;
         $skipped = [];
@@ -195,6 +206,10 @@ class CrmImportController extends Controller
                 $created++;
             } catch (UniqueConstraintViolationException) {
                 $skipped[] = "Dòng {$row['line']}: SĐT hoặc email vừa được tạo bởi phiên khác.";
+            } catch (QueryException $e) {
+                // Một dòng dữ liệu lạ không được làm hỏng cả lần nhập (các dòng khác vẫn nhập tiếp).
+                report($e);
+                $skipped[] = "Dòng {$row['line']}: dữ liệu không lưu được, vui lòng kiểm tra lại các cột của dòng này.";
             }
         }
 
@@ -260,13 +275,15 @@ class CrmImportController extends Controller
             }
             $value = $raw[$position] ?? null;
             if ($field === 'dob') {
-                $data['dob'] = $this->parseDob($value);
+                $dob = $this->parseDob($value);
+                $data['dob'] = $dob === false ? null : $dob;
+                $data['dob_error'] = $dob === false ? trim((string) $value) : null;
 
                 continue;
             }
             $value = is_float($value) && floor($value) === $value ? (string) (int) $value : trim((string) $value);
-            // Excel hay mất số 0 đầu của SĐT (lưu dạng số): bổ sung lại nếu còn 9 số.
-            if (in_array($field, ['phone', 'parent_phone'], true) && preg_match('/^[1-9]\d{8}$/', $value)) {
+            // Excel hay mất số 0 đầu của SĐT (lưu dạng số): bổ sung lại nếu còn 9 số (di động) hoặc 10 số bắt đầu bằng 2 (máy bàn 02x).
+            if (in_array($field, ['phone', 'parent_phone'], true) && preg_match('/^([1-9]\d{8}|2\d{9})$/', $value)) {
                 $value = '0'.$value;
             }
             $data[$field] = $value === '' ? null : Str::limit($value, $field === 'notes' ? 1000 : 255, '');
@@ -275,20 +292,37 @@ class CrmImportController extends Controller
         return $data;
     }
 
-    protected function parseDob(mixed $value): ?string
+    /**
+     * Ngày sinh: số seri ngày của Excel, dd/mm/yyyy (chấp nhận - và .) hoặc yyyy-mm-dd.
+     * Trả null khi ô trống, false khi không hiểu được / ngày không tồn tại (31/02...) để báo lỗi thay vì lưu sai ngày.
+     */
+    protected function parseDob(mixed $value): string|false|null
     {
-        if ($value === null || $value === '') {
+        if ($value === null || trim((string) $value) === '') {
             return null;
         }
+        $value = trim((string) $value);
         try {
+            // Số seri Excel (ô kiểu Date). Số nhỏ (vd. chỉ gõ năm "2015") không phải ngày sinh hợp lệ.
             if (is_numeric($value)) {
-                return Carbon::instance(ExcelDate::excelToDateTimeObject((float) $value))->toDateString();
+                return (float) $value >= 10000
+                    ? Carbon::instance(ExcelDate::excelToDateTimeObject((float) $value))->toDateString()
+                    : false;
             }
-            $value = trim((string) $value);
+            if (preg_match('#^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})$#', $value, $m)) {
+                [$day, $month, $year] = [(int) $m[1], (int) $m[2], (int) $m[3]];
+            } elseif (preg_match('#^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T].*)?$#', $value, $m)) {
+                [$year, $month, $day] = [(int) $m[1], (int) $m[2], (int) $m[3]];
+            } else {
+                return false;
+            }
+            if (! checkdate($month, $day, $year) || $year < 1900) {
+                return false;
+            }
 
-            return (preg_match('#^\d{1,2}/\d{1,2}/\d{4}$#', $value) ? Carbon::createFromFormat('d/m/Y', $value) : Carbon::parse($value))->toDateString();
+            return sprintf('%04d-%02d-%02d', $year, $month, $day);
         } catch (\Throwable) {
-            return null;
+            return false;
         }
     }
 
@@ -300,6 +334,8 @@ class CrmImportController extends Controller
     protected function validateRow(array $data, array &$seenPhones, array &$seenEmails, int $line = 0): array
     {
         $errors = [];
+        $normalized = null;
+        $email = null;
         if (blank($data['name'])) {
             $errors[] = 'Thiếu họ tên';
         }
@@ -311,15 +347,11 @@ class CrmImportController extends Controller
             $normalized = CrmCustomer::normalizePhone($data['phone']);
             if (isset($seenPhones[$normalized])) {
                 $errors[] = "Trùng SĐT với dòng {$seenPhones[$normalized]} trong file";
-            } else {
-                $seenPhones[$normalized] = $line;
-                $existing = CrmCustomer::where('phone_normalized', $normalized)->first(['code']);
-                if ($existing) {
-                    $errors[] = "SĐT đã có trong CRM ({$existing->code})";
-                }
+            } elseif ($existing = CrmCustomer::where('phone_normalized', $normalized)->first(['code'])) {
+                $errors[] = "SĐT đã có trong CRM ({$existing->short_code})";
             }
         }
-        if (filled($data['parent_phone']) && ! CrmCustomer::isValidVietnamesePhone($data['parent_phone'])) {
+        if (filled($data['parent_phone']) && (! CrmCustomer::isValidVietnamesePhone($data['parent_phone']) || mb_strlen($data['parent_phone']) > 20)) {
             $errors[] = 'SĐT phụ huynh sai định dạng';
         }
         if (filled($data['email'])) {
@@ -330,7 +362,21 @@ class CrmImportController extends Controller
                 $errors[] = 'Trùng email trong file';
             } elseif (CrmCustomer::whereRaw('LOWER(email) = ?', [$email])->exists()) {
                 $errors[] = 'Email đã có trong CRM';
-            } else {
+            }
+        }
+        if (filled($data['dob_error'] ?? null)) {
+            $errors[] = "Ngày sinh không hợp lệ ({$data['dob_error']}), nhập dạng ngày/tháng/năm, vd. 15/08/2015";
+        }
+        if (filled($data['gender']) && mb_strlen($data['gender']) > 20) {
+            $errors[] = 'Giới tính quá dài (tối đa 20 ký tự, vd. Nam / Nữ)';
+        }
+
+        // Chỉ dòng hợp lệ mới "giữ chỗ" SĐT / email: dòng lỗi bị bỏ qua nên không được chặn dòng hợp lệ trùng số phía sau.
+        if (! $errors) {
+            if ($normalized !== null) {
+                $seenPhones[$normalized] = $line;
+            }
+            if ($email !== null) {
                 $seenEmails[$email] = true;
             }
         }

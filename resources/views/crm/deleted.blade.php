@@ -31,7 +31,7 @@
                         <tr>
                             <td>
                                 <div class="font-semibold">{{ $dc->name }}</div>
-                                <div class="font-code text-caption text-on-surface-variant">{{ $dc->code }}</div>
+                                <div class="font-code text-caption text-on-surface-variant">{{ $dc->short_code }}</div>
                             </td>
                             <td class="font-code">{{ $dc->phone }}</td>
                             <td>{{ $dc->branch?->name ?? '—' }}</td>

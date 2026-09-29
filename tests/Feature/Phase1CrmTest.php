@@ -134,7 +134,7 @@ class Phase1CrmTest extends TestCase
         $foreign->delete();
 
         $this->actingAs($this->manager)->get(route('crm.customers.deleted'))
-            ->assertOk()->assertSee($own->code)->assertDontSee($foreign->code);
+            ->assertOk()->assertSee($own->short_code)->assertDontSee($foreign->short_code);
         $this->actingAs($this->manager)->post(route('crm.customers.restore', $foreign->id))->assertNotFound();
     }
 
@@ -348,7 +348,7 @@ class Phase1CrmTest extends TestCase
         CrmCustomerHistory::create(['customer_id' => $lead->id, 'type' => 'call', 'content' => 'Lịch sử in']);
 
         $this->actingAs($this->sales)->get(route('crm.customers.print', $lead))->assertOk()
-            ->assertSee('HỒ SƠ KHÁCH HÀNG TUYỂN SINH')->assertSee($lead->code)->assertSee('0987 000 111')->assertSee('Lịch sử in')->assertSee('window.print()', false);
+            ->assertSee('HỒ SƠ KHÁCH HÀNG TUYỂN SINH')->assertSee($lead->short_code)->assertSee('0987 000 111')->assertSee('Lịch sử in')->assertSee('window.print()', false);
         $this->actingAs($this->otherSales)->get(route('crm.customers.print', $lead))->assertNotFound();
     }
 
