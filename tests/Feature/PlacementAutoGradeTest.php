@@ -107,6 +107,89 @@ class PlacementAutoGradeTest extends TestCase
         $this->assertFalse(PlacementTestController::answerMatches('B', 'A'));
     }
 
+    public function test_result_stays_on_customer_after_closing(): void
+    {
+        [$lead, $test] = $this->leadWithTest();
+        $this->post(route('portal.test.submit', $test->code), [
+            'candidate_name' => $lead->name, 'candidate_phone' => $lead->phone, 'answers' => ['1' => 'A', '2' => 'B'],
+        ])->assertRedirect();
+        $submission = PlacementTestSubmission::latest('id')->firstOrFail();
+        $this->actingAs($this->academic)->post(route('placement-tests.results.update', $submission->id), [
+            'grade_group' => 'khoi_2_3', 'listening_score' => 14, 'reading_writing_score' => 12, 'speaking_score' => 8,
+        ])->assertSessionHasNoErrors();
+        $lead->update(['stage' => 'won']);
+
+        $this->actingAs($this->academic)->get(route('crm.customers.show', $lead->id))->assertOk()
+            ->assertSee('data-testid="rubric-result"', false)
+            ->assertSee('Đã làm bài test (34/40', false)
+            ->assertDontSee('Chưa có kết quả test đầu vào');
+    }
+
+    public function test_closed_customer_without_test_has_no_empty_tested_badge(): void
+    {
+        [$lead] = $this->leadWithTest();
+        $lead->update(['stage' => 'won']);
+
+        $this->actingAs($this->academic)->get(route('crm.customers.show', $lead->id))->assertOk()
+            ->assertDontSee('Đã làm bài test')
+            ->assertSee('Chưa có kết quả test đầu vào');
+    }
+
+    public function test_phone_typed_as_parent_phone_matches_the_lead(): void
+    {
+        [$lead, $test] = $this->leadWithTest();
+        $lead->update(['parent_phone' => '0912 345 678']);
+
+        $this->post(route('portal.test.submit', $test->code), [
+            'candidate_name' => 'Bé', 'candidate_phone' => '0912345678', 'answers' => ['1' => 'A'],
+        ])->assertRedirect();
+
+        $this->assertSame($lead->id, PlacementTestSubmission::latest('id')->value('customer_id'));
+    }
+
+    public function test_academic_staff_links_an_unmatched_submission_to_a_closed_customer(): void
+    {
+        [$lead, $test] = $this->leadWithTest();
+        $lead->update(['stage' => 'won']);
+        // Lead đã chốt: nộp qua link công khai không tự gắn (chống gõ SĐT để đè kết quả).
+        $this->post(route('portal.test.submit', $test->code), [
+            'candidate_name' => $lead->name, 'candidate_phone' => $lead->phone, 'answers' => ['1' => 'A'],
+        ])->assertRedirect();
+        $submission = PlacementTestSubmission::latest('id')->firstOrFail();
+        $this->assertNull($submission->customer_id);
+
+        $this->actingAs($this->academic)->get(route('crm.customers.show', $lead->id))->assertOk()
+            ->assertSee('data-testid="unlinked-submissions"', false)
+            ->assertSee('Gắn vào khách này');
+
+        $this->actingAs($this->academic)->post(route('crm.customers.link-submission', $lead->id), ['submission_id' => $submission->id])
+            ->assertRedirect(route('crm.customers.show', $lead->id));
+        $this->assertSame($lead->id, $submission->fresh()->customer_id);
+        $this->assertSame('won', $lead->fresh()->stage);
+
+        // Bài đã gắn không gắn lại được sang khách khác.
+        $other = CrmCustomer::create([
+            'code' => CrmCustomer::generateCode(), 'name' => 'Khách khác', 'phone' => '0987000111', 'branch_id' => $this->branch->id, 'stage' => 'consulting',
+        ]);
+        $this->actingAs($this->academic)->post(route('crm.customers.link-submission', $other->id), ['submission_id' => $submission->id])
+            ->assertSessionHasErrors('submission_id');
+        $this->assertSame($lead->id, $submission->fresh()->customer_id);
+    }
+
+    public function test_backfill_links_orphan_submission_by_phone(): void
+    {
+        [$lead, $test] = $this->leadWithTest();
+        $submission = PlacementTestSubmission::create([
+            'placement_test_id' => $test->id, 'candidate_name' => 'Bé', 'candidate_phone' => $lead->phone,
+            'grade_group' => 'khoi_2_3', 'status' => PlacementTestSubmission::STATUS_PENDING,
+        ]);
+        $lead->update(['stage' => 'won']);
+
+        (require database_path('migrations/2026_10_16_090000_link_orphan_placement_submissions_to_leads.php'))->up();
+
+        $this->assertSame($lead->id, $submission->fresh()->customer_id);
+    }
+
     /** @return array{0: CrmCustomer, 1: PlacementTest} */
     private function leadWithTest(): array
     {

@@ -594,9 +594,15 @@ class PlacementTestController extends Controller
     }
 
     /**
+     * Lead chưa chốt được tự gắn khi thí sinh nộp qua link công khai và SĐT khớp (lead chốt / thất bại thì không,
+     * tránh ai đó gõ SĐT để đè kết quả của học viên; Học vụ gắn tay từ hồ sơ khách nếu cần).
+     */
+    private const PHONE_MATCH_STAGES = ['new', 'consulting', 'test_scheduled', 'testing', 'tested', 'result_sent'];
+
+    /**
      * Không tin `customer_id` từ client. Lead chỉ được gắn khi:
      *  (a) nộp qua link có chữ ký (token được server xác minh lại), hoặc
-     *  (b) SĐT chuẩn hoá khớp lead đang ở bước tư vấn / hẹn test.
+     *  (b) SĐT chuẩn hoá khớp SĐT lead chưa chốt, hoặc khớp SĐT phụ huynh của đúng một lead chưa chốt.
      *
      * @return array{0: ?CrmCustomer, 1: bool}
      */
@@ -608,16 +614,27 @@ class PlacementTestController extends Controller
         }
 
         $phone = CrmCustomer::normalizePhone($validated['candidate_phone']);
-        if ($phone === '') {
+        if (strlen($phone) < 9) {
             return [null, false];
         }
 
         $matched = CrmCustomer::query()
             ->where('phone_normalized', $phone)
-            ->whereIn('stage', CrmCustomer::TEST_ADVANCEABLE_STAGES)
+            ->whereIn('stage', self::PHONE_MATCH_STAGES)
             ->first();
+        if ($matched) {
+            return [$matched, false];
+        }
 
-        return [$matched, false];
+        // Thí sinh nhỏ tuổi hay nhập SĐT của phụ huynh. Anh chị em dùng chung SĐT phụ huynh thì không đoán.
+        $byParent = CrmCustomer::query()
+            ->whereIn('stage', self::PHONE_MATCH_STAGES)
+            ->whereRaw("REPLACE(REPLACE(REPLACE(parent_phone, ' ', ''), '.', ''), '-', '') LIKE ?", ['%'.substr($phone, -9)])
+            ->limit(5)
+            ->get()
+            ->filter(fn (CrmCustomer $lead) => CrmCustomer::normalizePhone($lead->parent_phone) === $phone);
+
+        return [$byParent->count() === 1 ? $byParent->first() : null, false];
     }
 
     private function recordPortalSubmissionOnLead(CrmCustomer $customer, PlacementTestSubmission $submission, PlacementTest $test, bool $viaSignedLink): void
@@ -647,7 +664,8 @@ class PlacementTestController extends Controller
     private function syncGradedResultToLead(PlacementTestSubmission $submission, CrmCustomer $customer): void
     {
         $scoreText = $submission->scoreSummary();
-        if ($customer->canAdvanceToTested() || in_array($customer->stage, ['tested', 'result_sent'], true)) {
+        // Kết quả đi theo khách cả khi khách đã chốt (chấm xong sau khi chốt); khách Thất bại giữ nguyên để đối soát.
+        if ($customer->stage !== CrmCustomer::STAGE_LOST) {
             $customer->update(['test_score' => $scoreText]);
         }
         // BA: Học vụ chấm xong → lead tự chuyển "Đã test" (chỉ đi tiến, không đụng lead đã chốt / thất bại).
