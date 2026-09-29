@@ -357,7 +357,7 @@
                                     <x-ui.field label="Từ / Cụm từ đáp án chính xác" required>
                                         <x-ui.input x-model="currentQ.correct_answer" placeholder="VD: had studied, will go, beautiful..." class="font-mono font-bold text-tertiary" />
                                     </x-ui.field>
-                                    <p class="text-[11px] text-on-surface-variant italic">* Hệ thống sẽ tự động đối soát đáp án này không phân biệt hoa thường khi học viên nộp bài.</p>
+                                    <p class="text-[11px] text-on-surface-variant italic">* Hệ thống tự động đối soát đáp án này (không phân biệt hoa thường, bỏ dấu chấm cuối). Nhiều cách viết được chấp nhận thì ngăn cách bằng dấu |, VD: 7 | seven.</p>
                                 </div>
                             </template>
 

@@ -1,5 +1,11 @@
 <x-app-layout>
-    <x-ui.page-header title="Xác nhận nhập học" icon="how_to_reg" description="Tiếp nhận học viên và bàn giao lớp học." />
+    <x-ui.page-header title="Xác nhận nhập học" icon="how_to_reg" description="Tiếp nhận học viên và bàn giao lớp học.">
+        @if (auth()->user()->can('student.assign_class'))
+            <x-slot:actions>
+                <x-ui.button icon="person_add" x-on:click="$dispatch('open-modal', 'enroll-student')">Xếp lớp cho học viên</x-ui.button>
+            </x-slot:actions>
+        @endif
+    </x-ui.page-header>
 
     @php
         // Khách chốt từ CRM đang chờ lớp: xếp ở một nơi duy nhất (màn Chờ xếp lớp của CRM) — ở đây chỉ nhắc số + link.
@@ -27,42 +33,6 @@
                 <x-ui.button variant="secondary" size="sm" icon="arrow_forward" :href="route('crm.waiting-list')">{{ $canHandoff ? 'Xếp lớp' : 'Xem danh sách' }}</x-ui.button>
             </div>
         @endif
-
-        {{-- Xếp lớp cho học viên (cùng động từ "Xếp lớp" với CRM) --}}
-        <form action="{{ route('students.enrollments.store') }}" method="POST" class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest shadow-sm p-5 space-y-4">
-            @csrf
-            <h2 class="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-1.5 pb-2 border-b border-surface-container-highest">
-                <span class="material-symbols-outlined text-primary text-base">person_add</span>
-                Xếp lớp cho học viên
-            </h2>
-            @if ($preselectedLead)
-                <div class="flex flex-wrap items-center justify-between gap-sm rounded-lg border border-warning/30 bg-warning/10 px-md py-sm font-body-small text-body-small text-on-surface">
-                    <span>
-                        <strong>{{ $preselected->name }}</strong> đã chốt khóa <strong>{{ $preselectedLead->waitingCourse?->name ?? '—' }}</strong>
-                        tại <strong>{{ $preselectedLead->waitingBranch?->name ?? $preselectedLead->branch?->name ?? '—' }}</strong>.
-                        Chọn lớp đúng khóa đã chốt, hoặc tạo lớp mới nếu chưa có.
-                    </span>
-                    @can('class.create')
-                        <x-ui.button variant="secondary" size="sm" icon="add" :href="route('classes.create')">Tạo lớp mới</x-ui.button>
-                    @endcan
-                </div>
-            @endif
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <x-ui.select name="student_id" label="Chọn Học viên" required>
-                    @foreach ($students as $st)
-                        <option value="{{ $st->id }}" @selected((string) $st->id === $preselectedId)>{{ $st->name }} ({{ $st->code }})</option>
-                    @endforeach
-                </x-ui.select>
-                <x-ui.select name="class_id" label="Chọn Lớp học mục tiêu" required class="font-semibold text-primary">
-                    @foreach ($classes as $cl)
-                        <option value="{{ $cl->id }}">{{ $cl->name }} ({{ $cl->code }})</option>
-                    @endforeach
-                </x-ui.select>
-                <div class="flex items-end">
-                    <x-ui.button type="submit" icon="assignment_turned_in" class="w-full">Xếp lớp</x-ui.button>
-                </div>
-            </div>
-        </form>
 
         {{-- Lịch sử xếp lớp. Checklist bàn giao chỉ sửa ở MỘT nơi:
              - lượt xếp lớp từ CRM (có khách CRM): sửa ở màn Xác nhận chính thức — ở đây chỉ xem + link;
@@ -143,4 +113,66 @@
             <x-slot:footer><x-ui.pagination :paginator="$enrollments" /></x-slot:footer>
         </x-ui.data-table>
     </div>
+
+    {{-- Xếp lớp cho học viên (cùng động từ "Xếp lớp" với CRM). Mở sẵn khi đến từ bảng Chờ xếp lớp (?student_id=) hoặc khi lỗi validate. --}}
+    @if ($canHandoff)
+        <x-ui.modal name="enroll-student" title="Xếp lớp cho học viên" max-width="xl" :show="old('_modal') === 'enroll-student' || request()->filled('student_id')">
+            @php
+                $classOptions = $classes->map(fn ($cl) => [
+                    'id' => $cl->id, 'label' => "{$cl->name} ({$cl->code})", 'branch_id' => $cl->branch_id, 'course_id' => $cl->course_id,
+                ])->values();
+            @endphp
+            <form id="enroll-student-form" action="{{ route('students.enrollments.store') }}" method="POST" class="space-y-md"
+                  x-data="{
+                      studentId: @js($preselectedId !== '' ? $preselectedId : (string) ($students->first()?->id ?? '')),
+                      classId: @js((string) old('class_id', '')),
+                      classes: @js($classOptions),
+                      rules: @js($placementRules),
+                      get rule() { return this.rules[this.studentId] || {}; },
+                      get options() {
+                          const r = this.rule;
+                          return this.classes.filter(c => (! r.branch_id || Number(c.branch_id) === Number(r.branch_id)) && (! r.course_id || Number(c.course_id) === Number(r.course_id)));
+                      },
+                  }"
+                  x-effect="if (! options.some(c => String(c.id) === String(classId))) classId = options.length ? String(options[0].id) : ''">
+                @csrf
+                <input type="hidden" name="_modal" value="enroll-student">
+                @if ($preselectedLead)
+                    <div class="flex flex-wrap items-center justify-between gap-sm rounded-lg border border-warning/30 bg-warning/10 px-md py-sm font-body-small text-body-small text-on-surface">
+                        <span>
+                            <strong>{{ $preselected->name }}</strong> đã chốt khóa <strong>{{ $preselectedLead->waitingCourse?->name ?? '—' }}</strong>
+                            tại <strong>{{ $preselectedLead->waitingBranch?->name ?? $preselectedLead->branch?->name ?? '—' }}</strong>.
+                            Chọn lớp đúng khóa đã chốt, hoặc tạo lớp mới nếu chưa có.
+                        </span>
+                        @can('class.create')
+                            <x-ui.button variant="secondary" size="sm" icon="add" :href="route('classes.create')">Tạo lớp mới</x-ui.button>
+                        @endcan
+                    </div>
+                @endif
+                <x-ui.select name="student_id" label="Chọn Học viên" required x-model="studentId">
+                    @foreach ($students as $st)
+                        <option value="{{ $st->id }}" @selected((string) $st->id === $preselectedId)>{{ $st->name }} ({{ $st->code }})</option>
+                    @endforeach
+                </x-ui.select>
+                {{-- Chỉ hiện lớp cùng chi nhánh của học viên (chi nhánh + khóa đã chốt nếu đang Chờ xếp lớp); server kiểm tra lại. --}}
+                <div>
+                    <x-ui.select name="class_id" label="Chọn Lớp học mục tiêu" required class="font-semibold text-primary" x-model="classId">
+                        <template x-if="! options.length">
+                            <option value="">Chưa có lớp phù hợp</option>
+                        </template>
+                        <template x-for="c in options" :key="c.id">
+                            <option :value="String(c.id)" x-text="c.label" :selected="String(c.id) === String(classId)"></option>
+                        </template>
+                    </x-ui.select>
+                    <p class="mt-1 font-body-small text-body-small text-on-surface-variant" x-show="rule.branch_name" x-cloak>
+                        Lớp tại <strong x-text="rule.branch_name"></strong><span x-show="rule.course_id">, đúng khóa đã chốt</span>.
+                    </p>
+                </div>
+            </form>
+            <x-slot:footer>
+                <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'enroll-student')">Hủy</x-ui.button>
+                <x-ui.button type="submit" form="enroll-student-form" icon="assignment_turned_in">Xếp lớp</x-ui.button>
+            </x-slot:footer>
+        </x-ui.modal>
+    @endif
 </x-app-layout>

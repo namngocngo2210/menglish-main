@@ -1,4 +1,4 @@
-{{-- Trang lớp · Sự vụ: nhật ký sự vụ gắn với lớp này (staff_reports.class_id); ghi sự vụ mới ngay tại đây. --}}
+{{-- Trang lớp · Sự vụ: nhật ký sự vụ gắn với lớp này (staff_reports.class_id); ghi sự vụ mới bằng nút "Ghi sự vụ" (modal). --}}
 @php
     $sevColors = ['urgent' => 'error', 'important' => 'warning'];
     $statusColors = ['resolved' => 'success', 'following' => 'secondary'];
@@ -6,30 +6,14 @@
 @endphp
 
 <div class="space-y-4">
-    @can('staff_report.submit')
-        <form method="POST" action="{{ route('reports.journal.store') }}" class="space-y-3 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-5 shadow-sm">
-            @csrf
-            <input type="hidden" name="class_id" value="{{ $class->id }}">
-            <h2 class="text-sm font-bold text-on-surface">Ghi sự vụ cho lớp {{ $class->code }}</h2>
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div class="sm:col-span-2">
-                    <x-ui.input id="incident_title" name="title" required placeholder="Tiêu đề sự vụ *" aria-label="Tiêu đề sự vụ" />
-                </div>
-                <x-ui.select id="incident_severity" name="severity" :options="['normal' => 'Bình thường', 'important' => 'Quan trọng', 'urgent' => 'Khẩn cấp']" aria-label="Mức độ" />
-            </div>
-            <x-ui.textarea id="incident_content" name="content" rows="2" placeholder="Mô tả chi tiết..." aria-label="Mô tả chi tiết" />
-            <div class="flex items-center justify-between gap-3">
-                <x-ui.date id="incident_date" name="report_date" :value="now()->toDateString()" aria-label="Ngày sự vụ" />
-                <x-ui.button type="submit" icon="add">Ghi sự vụ</x-ui.button>
-            </div>
-        </form>
-    @endcan
-
     <x-ui.data-table>
         <x-slot:header>
             <h2 class="text-base font-bold text-on-surface">Sự vụ của lớp</h2>
             @can('staff_report.submit')
-                <a href="{{ route('reports.journal') }}" class="text-xs font-semibold text-primary hover:underline">Mở nhật ký sự vụ để theo dõi / cập nhật</a>
+                <div class="flex flex-wrap items-center gap-md">
+                    <a href="{{ route('reports.journal') }}" class="text-xs font-semibold text-primary hover:underline">Mở nhật ký sự vụ để theo dõi / cập nhật</a>
+                    <x-ui.button size="sm" icon="add" x-on:click="$dispatch('open-modal', 'new-incident')">Ghi sự vụ</x-ui.button>
+                </div>
             @endcan
         </x-slot:header>
         <table class="text-xs">
@@ -67,4 +51,24 @@
             </tbody>
         </table>
     </x-ui.data-table>
+
+    @can('staff_report.submit')
+        <x-ui.modal name="new-incident" :title="'Ghi sự vụ cho lớp '.$class->code" :show="old('_modal') === 'new-incident'">
+            <form id="new-incident-form" method="POST" action="{{ route('reports.journal.store') }}" class="space-y-md">
+                @csrf
+                <input type="hidden" name="_modal" value="new-incident">
+                <input type="hidden" name="class_id" value="{{ $class->id }}">
+                <x-ui.input id="incident_title" name="title" label="Tiêu đề sự vụ" required />
+                <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
+                    <x-ui.select id="incident_severity" name="severity" label="Mức độ" :options="['normal' => 'Bình thường', 'important' => 'Quan trọng', 'urgent' => 'Khẩn cấp']" />
+                    <x-ui.date id="incident_date" name="report_date" label="Ngày sự vụ" :value="now()->toDateString()" />
+                </div>
+                <x-ui.textarea id="incident_content" name="content" label="Mô tả chi tiết" rows="3" />
+            </form>
+            <x-slot:footer>
+                <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'new-incident')">Hủy</x-ui.button>
+                <x-ui.button type="submit" form="new-incident-form" icon="add">Ghi sự vụ</x-ui.button>
+            </x-slot:footer>
+        </x-ui.modal>
+    @endcan
 </div>

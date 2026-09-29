@@ -1,32 +1,14 @@
 <x-app-layout>
-    <x-ui.page-header title="Quản lý Đợt Khảo sát Chất lượng" icon="ballot" />
+    <x-ui.page-header title="Quản lý Đợt Khảo sát Chất lượng" icon="ballot">
+        <x-slot:actions>
+            <x-ui.button icon="add_circle" x-on:click="$dispatch('open-modal', 'new-survey')">Tạo đợt khảo sát</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     <div class="space-y-4">
-
-        {{-- Tạo khảo sát mới --}}
-        <form action="{{ route('surveys.store') }}" method="POST" class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest shadow-sm p-5 space-y-4">
-            @csrf
-            <h2 class="text-sm font-bold text-on-surface uppercase tracking-wider flex items-center gap-2">
-                <span class="material-symbols-outlined text-primary text-[18px]">add_circle</span>
-                Tạo đợt khảo sát mới
-            </h2>
-            <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
-                <div class="md:col-span-6">
-                    <x-ui.input name="title" label="Tiêu đề khảo sát" required placeholder="VD: Đánh giá chất lượng cơ sở vật chất tháng 10" />
-                </div>
-                <div class="md:col-span-3">
-                    <x-ui.date name="deadline" label="Hạn hoàn thành" min="{{ now()->toDateString() }}" />
-                </div>
-                <div class="md:col-span-3 flex items-end">
-                    <x-ui.button type="submit" class="w-full">
-                        Tạo khảo sát
-                    </x-ui.button>
-                </div>
-                <div class="md:col-span-12">
-                    <x-ui.textarea name="description" label="Mô tả / câu hỏi hướng dẫn (tùy chọn)" rows="2" placeholder="VD: Đánh giá phòng học, thiết bị, thái độ hỗ trợ của học vụ..." />
-                </div>
-            </div>
-        </form>
+        @if ($errors->any())
+            <x-ui.alert type="error">{{ $errors->first() }}</x-ui.alert>
+        @endif
 
         {{-- Danh sách --}}
         <x-ui.data-table>
@@ -43,22 +25,11 @@
                 <tbody>
                     @forelse ($surveys as $sv)
                         <tr class="align-top">
-                            <td>
-                                <form action="{{ route('surveys.update', $sv->id) }}" method="POST" class="space-y-1">
-                                    @csrf
-                                    @method('PUT')
-                                    <input type="text" name="title" value="{{ $sv->title }}" required class="w-full text-xs font-bold text-on-surface rounded-lg border border-surface-container-highest px-2 py-1.5" />
-                                    <textarea name="description" rows="1" class="w-full text-[11px] text-on-surface-variant rounded-lg border border-surface-container-highest px-2 py-1" placeholder="Mô tả...">{{ $sv->description }}</textarea>
-                                    <div class="flex items-center gap-2 flex-wrap">
-                                        <input type="date" name="deadline" value="{{ $sv->deadline?->format('Y-m-d') }}" class="text-[11px] rounded-lg border border-surface-container-highest px-2 py-1" />
-                                        <label class="flex items-center gap-1 text-[11px] font-semibold text-on-surface-variant">
-                                            <input type="hidden" name="is_active" value="0" />
-                                            <input type="checkbox" name="is_active" value="1" {{ $sv->is_active ? 'checked' : '' }} class="rounded border-outline-variant text-tertiary focus:ring-tertiary" />
-                                            Đang mở
-                                        </label>
-                                        <x-ui.button type="submit" variant="secondary" size="sm">Lưu</x-ui.button>
-                                    </div>
-                                </form>
+                            <td class="max-w-md">
+                                <p class="font-semibold text-on-surface">{{ $sv->title }}</p>
+                                @if ($sv->description)
+                                    <p class="line-clamp-2 text-[11px] text-on-surface-variant">{{ $sv->description }}</p>
+                                @endif
                             </td>
                             <td class="font-mono text-on-surface-variant whitespace-nowrap">
                                 {{ $sv->deadline?->format('d/m/Y') ?? '—' }}
@@ -72,12 +43,42 @@
                                 </x-ui.badge>
                             </td>
                             <td class="text-on-surface-variant">{{ $sv->creator?->name ?? '—' }}</td>
-                            <td class="text-right">
-                                <form action="{{ route('surveys.destroy', $sv->id) }}" method="POST" class="inline" data-confirm="Xóa khảo sát \"{{ $sv->title }}\"? Lịch sử đã nộp của học viên vẫn được giữ.">
+                            <td class="text-right whitespace-nowrap">
+                                <x-ui.button variant="ghost" size="sm" icon="edit" x-on:click="$dispatch('open-modal', 'edit-survey-{{ $sv->id }}')">Sửa</x-ui.button>
+                                <form action="{{ route('surveys.destroy', $sv->id) }}" method="POST" class="inline" data-confirm="Xóa khảo sát &quot;{{ $sv->title }}&quot;? Lịch sử đã nộp của học viên vẫn được giữ.">
                                     @csrf
                                     @method('DELETE')
                                     <x-ui.button type="submit" variant="danger-text" size="sm">Xóa</x-ui.button>
                                 </form>
+
+                                @php($editKey = 'edit-survey-'.$sv->id)
+                                @php($reopen = old('_modal') === $editKey)
+                                <x-ui.modal :name="$editKey" :title="'Sửa khảo sát'" class="text-left whitespace-normal" :show="$reopen">
+                                    <form id="{{ $editKey }}-form" action="{{ route('surveys.update', $sv->id) }}" method="POST" class="space-y-md">
+                                        @csrf
+                                        @method('PUT')
+                                        <input type="hidden" name="_modal" value="{{ $editKey }}">
+                                        {{-- Không dùng old() mặc định của component: nhiều modal sửa cùng tên trường trên 1 trang. --}}
+                                        <x-ui.field label="Tiêu đề khảo sát" :name="$reopen ? 'title' : null" required>
+                                            <input type="text" name="title" value="{{ $reopen ? old('title') : $sv->title }}" required class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base">
+                                        </x-ui.field>
+                                        <x-ui.field label="Hạn hoàn thành" :name="$reopen ? 'deadline' : null">
+                                            <input type="date" name="deadline" value="{{ $reopen ? old('deadline') : $sv->deadline?->format('Y-m-d') }}" class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base">
+                                        </x-ui.field>
+                                        <x-ui.field label="Mô tả / câu hỏi hướng dẫn" :name="$reopen ? 'description' : null">
+                                            <textarea name="description" rows="3" class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base">{{ $reopen ? old('description') : $sv->description }}</textarea>
+                                        </x-ui.field>
+                                        <label class="flex items-center gap-sm font-body-medium text-body-medium text-on-surface">
+                                            <input type="hidden" name="is_active" value="0" />
+                                            <input type="checkbox" name="is_active" value="1" @checked($reopen ? old('is_active') : $sv->is_active) class="rounded border-outline-variant text-tertiary focus:ring-tertiary" />
+                                            Đang mở
+                                        </label>
+                                    </form>
+                                    <x-slot:footer>
+                                        <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', '{{ $editKey }}')">Hủy</x-ui.button>
+                                        <x-ui.button type="submit" form="{{ $editKey }}-form" icon="save">Lưu</x-ui.button>
+                                    </x-slot:footer>
+                                </x-ui.modal>
                             </td>
                         </tr>
                     @empty
@@ -87,6 +88,21 @@
             </table>
         </x-ui.data-table>
     </div>
+
+    {{-- Tạo khảo sát mới --}}
+    <x-ui.modal name="new-survey" title="Tạo đợt khảo sát mới" :show="old('_modal') === 'new-survey'">
+        <form id="new-survey-form" action="{{ route('surveys.store') }}" method="POST" class="space-y-md">
+            @csrf
+            <input type="hidden" name="_modal" value="new-survey">
+            <x-ui.input name="title" label="Tiêu đề khảo sát" required placeholder="VD: Đánh giá chất lượng cơ sở vật chất tháng 10" />
+            <x-ui.date name="deadline" label="Hạn hoàn thành" min="{{ now()->toDateString() }}" />
+            <x-ui.textarea name="description" label="Mô tả / câu hỏi hướng dẫn (tùy chọn)" rows="3" placeholder="VD: Đánh giá phòng học, thiết bị, thái độ hỗ trợ của học vụ..." />
+        </form>
+        <x-slot:footer>
+            <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'new-survey')">Hủy</x-ui.button>
+            <x-ui.button type="submit" form="new-survey-form" icon="add">Tạo khảo sát</x-ui.button>
+        </x-slot:footer>
+    </x-ui.modal>
 
     @push('scripts')
     <script>

@@ -66,7 +66,10 @@
 
         <div class="grid grid-cols-1 gap-lg xl:grid-cols-3">
             <div class="space-y-lg xl:col-span-2">
-                <h2 class="font-h3 text-h3 text-on-surface">Các mốc nhắc chi tiết</h2>
+                <div class="flex flex-wrap items-center justify-between gap-sm">
+                    <h2 class="font-h3 text-h3 text-on-surface">Các mốc nhắc chi tiết</h2>
+                    <x-ui.button icon="add" x-on:click="$dispatch('open-modal', 'new-reminder')">Thêm mốc nhắc</x-ui.button>
+                </div>
                 {{-- Các mốc nhắc --}}
                 @forelse ($rules as $rule)
                     @php
@@ -133,38 +136,6 @@
                     <x-ui.empty-state icon="notifications_off" title="Chưa cấu hình mốc nhắc nợ"
                                       description="Khi chưa có mốc nào, hệ thống dùng mặc định: trước hạn 3 ngày, đúng hạn, quá hạn 3 ngày." />
                 @endforelse
-
-                {{-- Thêm mốc mới --}}
-                <form method="POST" action="{{ route('system-config.debt-reminders.store') }}"
-                      class="space-y-md rounded-xl border border-dashed border-outline-variant bg-surface-container-lowest p-md"
-                      x-data="{ timing: @js(old('milestone_key') ? 'before' : old('timing', 'before')) }">
-                    @csrf
-                    <input type="hidden" name="channels_submitted" value="1">
-                    <h2 class="font-h3 text-h3 text-on-surface">Thêm mốc nhắc</h2>
-                    <div class="grid grid-cols-1 gap-md md:grid-cols-3">
-                        <x-ui.input name="title" label="Tên mốc" placeholder="Ví dụ: Nhắc trước hạn 7 ngày" required />
-                        <x-ui.select label="Thời điểm gửi" name="timing" id="timing_new" x-model="timing"
-                                     :options="['before' => 'Trước hạn đóng', 'due' => 'Đúng ngày đến hạn', 'after' => 'Sau hạn (quá hạn)']" />
-                        <div x-show="timing !== 'due'">
-                            <x-ui.input name="days" type="number" min="1" max="60" label="Số ngày" placeholder="7" />
-                        </div>
-                    </div>
-                    <x-ui.field label="Kênh thông báo" name="channels">
-                        <div class="flex flex-wrap gap-md">
-                            @foreach (\App\Models\DebtReminderRule::CHANNELS as $channel => $label)
-                                <label class="flex items-center gap-xs font-body-small text-body-small">
-                                    <input type="checkbox" name="channels[]" value="{{ $channel }}" checked class="rounded text-primary focus:ring-primary-container">
-                                    {{ $label }}
-                                </label>
-                            @endforeach
-                        </div>
-                    </x-ui.field>
-                    <x-ui.textarea name="template_content" label="Mẫu tin nhắn" rows="3" required
-                                   placeholder="Chào {ten_hoc_vien}, học phí lớp {lop_hoc} ({so_tien}) sẽ đến hạn ngày {han_dong}..." />
-                    <div class="flex justify-end">
-                        <x-ui.button type="submit" icon="add">Thêm mốc nhắc</x-ui.button>
-                    </div>
-                </form>
             </div>
 
             <div class="space-y-lg">
@@ -185,4 +156,37 @@
             </div>
         </div>
     </div>
+
+    <x-ui.modal name="new-reminder" title="Thêm mốc nhắc" max-width="2xl" :show="old('_modal') === 'new-reminder'">
+        <form id="new-reminder-form" method="POST" action="{{ route('system-config.debt-reminders.store') }}" class="space-y-md"
+              x-data="{ timing: @js(old('milestone_key') ? 'before' : old('timing', 'before')) }">
+            @csrf
+            <input type="hidden" name="channels_submitted" value="1">
+            <input type="hidden" name="_modal" value="new-reminder">
+            <div class="grid grid-cols-1 gap-md md:grid-cols-3">
+                <x-ui.input name="title" label="Tên mốc" placeholder="Ví dụ: Nhắc trước hạn 7 ngày" required />
+                <x-ui.select label="Thời điểm gửi" name="timing" id="timing_new" x-model="timing"
+                             :options="['before' => 'Trước hạn đóng', 'due' => 'Đúng ngày đến hạn', 'after' => 'Sau hạn (quá hạn)']" />
+                <div x-show="timing !== 'due'">
+                    <x-ui.input name="days" type="number" min="1" max="60" label="Số ngày" placeholder="7" />
+                </div>
+            </div>
+            <x-ui.field label="Kênh thông báo" name="channels">
+                <div class="flex flex-wrap gap-md">
+                    @foreach (\App\Models\DebtReminderRule::CHANNELS as $channel => $label)
+                        <label class="flex items-center gap-xs font-body-small text-body-small">
+                            <input type="checkbox" name="channels[]" value="{{ $channel }}" checked class="rounded text-primary focus:ring-primary-container">
+                            {{ $label }}
+                        </label>
+                    @endforeach
+                </div>
+            </x-ui.field>
+            <x-ui.textarea name="template_content" label="Mẫu tin nhắn" rows="3" required
+                           placeholder="Chào {ten_hoc_vien}, học phí lớp {lop_hoc} ({so_tien}) sẽ đến hạn ngày {han_dong}..." />
+        </form>
+        <x-slot:footer>
+            <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'new-reminder')">Hủy</x-ui.button>
+            <x-ui.button type="submit" form="new-reminder-form" icon="add">Thêm mốc nhắc</x-ui.button>
+        </x-slot:footer>
+    </x-ui.modal>
 </x-app-layout>

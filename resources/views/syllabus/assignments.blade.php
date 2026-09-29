@@ -5,6 +5,9 @@
                 <x-ui.button variant="secondary" icon="history" :href="route('activity-logs.index', ['log_name' => 'Giáo trình & Syllabus'])">Xem log hệ thống</x-ui.button>
             @endcan
             <x-ui.button variant="secondary" icon="menu_book" :href="route('syllabus.teacher-view')">Màn GV xem giáo trình</x-ui.button>
+            @can('syllabus.manage')
+                <x-ui.button icon="add_task" x-on:click="$dispatch('open-modal', 'new-assignment')">Thiết lập chặng mới</x-ui.button>
+            @endcan
         </x-slot:actions>
     </x-ui.page-header>
 
@@ -18,82 +21,11 @@
         $teacherOptions = $teachers->mapWithKeys(fn ($t) => [$t->id => $t->name.($t->employee_code ? ' (ID: '.$t->employee_code.')' : '')]);
     @endphp
 
-    {{-- Mockup 01_Web_Admin/03: form "Thiết lập chặng mới" (lớp, GV, chặng, ngày bắt đầu, lưu ý R19) + "Lịch sử phân quyền chặng học". --}}
+    {{-- Mockup 01_Web_Admin/03: "Lịch sử phân quyền chặng học"; form "Thiết lập chặng mới" (lớp, GV, chặng, ngày bắt đầu, lưu ý R19) mở bằng nút trên đầu trang (modal). --}}
     <div class="grid grid-cols-1 2xl:grid-cols-12 gap-6"
          x-data="{ closeUrl: @js(old('_close_url', '')), closeLabel: @js(old('_close_label', '')), editUrl: '', edit: { label: '', user_id: '', start_date: '', deadline: '' } }">
-        <aside class="2xl:col-span-4 space-y-6">
-            @if ($canManage)
-            <section class="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg shadow-sm"
-                     x-data="{
-                        classId: @js((string) old('class_id', '')),
-                        curriculumId: @js((string) old('curriculum_id', '')),
-                        stageId: @js((string) old('stage_id', '')),
-                        replace: @js((bool) old('replace_current')),
-                        curriculums: @js($curriculumData),
-                        classCurriculum: @js($classCurriculum),
-                        classOpen: @js($classOpenStage),
-                        get stages() { return (this.curriculums.find(c => String(c.id) === this.curriculumId) || { stages: [] }).stages },
-                        pickClass() { const c = this.classCurriculum[this.classId]; if (c) this.curriculumId = String(c); this.stageId = ''; },
-                     }">
-                <div class="flex items-center gap-2 mb-lg pb-sm border-b border-outline-variant">
-                    <span class="material-symbols-outlined text-primary">add_task</span>
-                    <h2 class="font-h3 text-h3 text-on-surface">Thiết lập chặng mới</h2>
-                </div>
-
-                <form action="{{ route('syllabus.assignments.store') }}" method="POST" class="space-y-md">
-                    @csrf
-                    <x-ui.select label="Chọn lớp học" name="class_id" id="assign_class_id" required x-model="classId" x-on:change="pickClass()">
-                        <option value="" disabled>Chọn lớp học đang quản lý...</option>
-                        @foreach ($classes as $class)
-                            <option value="{{ $class->id }}">{{ $class->name }} ({{ $class->code }})</option>
-                        @endforeach
-                    </x-ui.select>
-                    <x-ui.alert type="warning" x-show="classOpen[classId]" x-cloak class="font-caption text-caption">
-                        Lớp đang học <strong x-text="classOpen[classId]"></strong>. Chặng mới chỉ mở được sau khi chặng này đóng@if ($canOverride), hoặc chọn "Chuyển chặng" bên dưới@endif.
-                    </x-ui.alert>
-
-                    <x-ui.select name="user_id" label="Chọn giáo viên" placeholder="Chọn giáo viên phụ trách... (mặc định GV chính của lớp)" :options="$teacherOptions" />
-
-                    <x-ui.select label="Giáo trình" name="curriculum_id" hint="Mặc định theo Trình độ của lớp." x-model="curriculumId" x-on:change="stageId = ''" placeholder="— Theo trình độ của lớp —">
-                        @foreach ($curriculums as $c)
-                            <option value="{{ $c->id }}">{{ $c->title }} ({{ $c->code }})</option>
-                        @endforeach
-                    </x-ui.select>
-
-                    <x-ui.select label="Chọn chặng học" name="stage_id" hint="Để trống: chặng đầu tiên lớp chưa học xong." x-model="stageId" placeholder="Chọn chặng giáo trình... (chặng kế tiếp của lớp)">
-                        <template x-for="s in stages" :key="s.id">
-                            <option :value="String(s.id)" x-text="s.label" :selected="String(s.id) === stageId"></option>
-                        </template>
-                    </x-ui.select>
-
-                    <div class="grid grid-cols-2 gap-md">
-                        <x-ui.input type="date" name="start_date" label="Ngày bắt đầu" :value="old('start_date', now()->toDateString())" />
-                        <x-ui.input type="date" name="deadline" label="Dự kiến hoàn thành" />
-                    </div>
-
-                    @if ($canOverride)
-                        <div class="border-t border-outline-variant pt-sm space-y-2">
-                            <label class="flex items-start gap-2 font-body-small text-body-small text-on-surface">
-                                <input type="checkbox" name="replace_current" value="1" x-model="replace" class="mt-0.5 rounded border-outline-variant text-primary focus:ring-primary-container">
-                                <span><strong>Chuyển chặng (Học thuật):</strong> đóng chặng đang mở của lớp rồi mở chặng đã chọn.</span>
-                            </label>
-                            <div x-show="replace" x-cloak>
-                                <x-ui.textarea name="reason" label="Lý do" rows="2" placeholder="VD: Lớp đã thi chặng 1 ở cơ sở cũ, chuyển thẳng chặng 2" />
-                            </div>
-                        </div>
-                    @endif
-
-                    <x-ui.alert type="info" class="font-body-small text-body-small">Mỗi LỚP HỌC chỉ được giao duy nhất 1 chặng học có hiệu lực tại một thời điểm. Hệ thống sẽ tự động đóng chặng hiện tại của lớp và mở chặng kế tiếp khi kết quả Big Test được duyệt gửi.</x-ui.alert>
-
-                    <x-ui.button type="submit" icon="send" class="w-full justify-center">Xác nhận giao chặng</x-ui.button>
-                </form>
-            </section>
-            @endif
-
-        </aside>
-
         {{-- Lịch sử phân quyền chặng học --}}
-        <div class="2xl:col-span-8 min-w-0">
+        <div class="2xl:col-span-12 min-w-0">
             <x-ui.data-table min-width="860px">
                 <x-slot:header>
                     <div class="flex items-center gap-2">
@@ -188,7 +120,7 @@
             </x-ui.data-table>
         </div>
 
-        {{-- Khung hỗ trợ để cuối trang, không chen giữa form giao chặng và bảng lịch sử --}}
+        {{-- Khung hỗ trợ để cuối trang --}}
         <section class="2xl:col-span-12 rounded-xl border border-outline-variant bg-surface-container-low p-lg flex items-start justify-between gap-md">
             <div>
                 <h4 class="font-body-medium text-body-medium font-semibold text-on-surface">Cần hỗ trợ?</h4>
@@ -201,6 +133,69 @@
         </section>
 
         @if ($canManage)
+            <x-ui.modal name="new-assignment" title="Thiết lập chặng mới" max-width="xl" :show="old('_modal') === 'new-assignment'">
+                <form id="new-assignment-form" action="{{ route('syllabus.assignments.store') }}" method="POST" class="space-y-md" x-data="{
+                        classId: @js((string) old('class_id', '')),
+                        curriculumId: @js((string) old('curriculum_id', '')),
+                        stageId: @js((string) old('stage_id', '')),
+                        replace: @js((bool) old('replace_current')),
+                        curriculums: @js($curriculumData),
+                        classCurriculum: @js($classCurriculum),
+                        classOpen: @js($classOpenStage),
+                        get stages() { return (this.curriculums.find(c => String(c.id) === this.curriculumId) || { stages: [] }).stages },
+                        pickClass() { const c = this.classCurriculum[this.classId]; if (c) this.curriculumId = String(c); this.stageId = ''; },
+                     }">
+                    @csrf
+                    <input type="hidden" name="_modal" value="new-assignment">
+                    <x-ui.select label="Chọn lớp học" name="class_id" id="assign_class_id" required x-model="classId" x-on:change="pickClass()">
+                        <option value="" disabled>Chọn lớp học đang quản lý...</option>
+                        @foreach ($classes as $class)
+                            <option value="{{ $class->id }}">{{ $class->name }} ({{ $class->code }})</option>
+                        @endforeach
+                    </x-ui.select>
+                    <x-ui.alert type="warning" x-show="classOpen[classId]" x-cloak class="font-caption text-caption">
+                        Lớp đang học <strong x-text="classOpen[classId]"></strong>. Chặng mới chỉ mở được sau khi chặng này đóng@if ($canOverride), hoặc chọn "Chuyển chặng" bên dưới@endif.
+                    </x-ui.alert>
+
+                    <x-ui.select name="user_id" label="Chọn giáo viên" placeholder="Chọn giáo viên phụ trách... (mặc định GV chính của lớp)" :options="$teacherOptions" />
+
+                    <x-ui.select label="Giáo trình" name="curriculum_id" hint="Mặc định theo Trình độ của lớp." x-model="curriculumId" x-on:change="stageId = ''" placeholder="— Theo trình độ của lớp —">
+                        @foreach ($curriculums as $c)
+                            <option value="{{ $c->id }}">{{ $c->title }} ({{ $c->code }})</option>
+                        @endforeach
+                    </x-ui.select>
+
+                    <x-ui.select label="Chọn chặng học" name="stage_id" hint="Để trống: chặng đầu tiên lớp chưa học xong." x-model="stageId" placeholder="Chọn chặng giáo trình... (chặng kế tiếp của lớp)">
+                        <template x-for="s in stages" :key="s.id">
+                            <option :value="String(s.id)" x-text="s.label" :selected="String(s.id) === stageId"></option>
+                        </template>
+                    </x-ui.select>
+
+                    <div class="grid grid-cols-2 gap-md">
+                        <x-ui.input type="date" name="start_date" label="Ngày bắt đầu" :value="old('start_date', now()->toDateString())" />
+                        <x-ui.input type="date" name="deadline" label="Dự kiến hoàn thành" />
+                    </div>
+
+                    @if ($canOverride)
+                        <div class="border-t border-outline-variant pt-sm space-y-2">
+                            <label class="flex items-start gap-2 font-body-small text-body-small text-on-surface">
+                                <input type="checkbox" name="replace_current" value="1" x-model="replace" class="mt-0.5 rounded border-outline-variant text-primary focus:ring-primary-container">
+                                <span><strong>Chuyển chặng (Học thuật):</strong> đóng chặng đang mở của lớp rồi mở chặng đã chọn.</span>
+                            </label>
+                            <div x-show="replace" x-cloak>
+                                <x-ui.textarea name="reason" label="Lý do" rows="2" placeholder="VD: Lớp đã thi chặng 1 ở cơ sở cũ, chuyển thẳng chặng 2" />
+                            </div>
+                        </div>
+                    @endif
+
+                    <x-ui.alert type="info" class="font-body-small text-body-small">Mỗi LỚP HỌC chỉ được giao duy nhất 1 chặng học có hiệu lực tại một thời điểm. Hệ thống sẽ tự động đóng chặng hiện tại của lớp và mở chặng kế tiếp khi kết quả Big Test được duyệt gửi.</x-ui.alert>
+                </form>
+                <x-slot:footer>
+                    <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'new-assignment')">Hủy</x-ui.button>
+                    <x-ui.button type="submit" form="new-assignment-form" icon="send">Xác nhận giao chặng</x-ui.button>
+                </x-slot:footer>
+            </x-ui.modal>
+
             <x-ui.modal name="edit-stage" title="Chỉnh sửa chặng đang hiệu lực" max-width="md">
                 <form id="edit-stage-form" method="POST" :action="editUrl" class="space-y-3 p-md">
                     @csrf @method('PUT')

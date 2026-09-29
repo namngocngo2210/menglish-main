@@ -71,7 +71,7 @@
                     <td>Nghe: {{ $fmt($latestSubmission->listening_score) }}/{{ $rubric['max']['listening'] }}</td>
                     <td>Đọc &amp; Viết: {{ $fmt($latestSubmission->reading_writing_score) }}/{{ $rubric['max']['reading_writing'] }}</td>
                     <td>Nói: {{ $fmt($latestSubmission->speaking_score) }}/{{ $rubric['max']['speaking'] }}</td>
-                    <td>Tổng: <strong>{{ $fmt($rubric['total']) }}/{{ $rubric['max_total'] }}</strong></td>
+                    <td>Tổng: <strong>{{ $fmt($rubric['total']) }}/{{ $rubric['max_total'] }}</strong>@if ($rubric['draft'] ?? false) (tạm tính, chờ chấm Nói)@endif</td>
                 </tr>
                 <tr>
                     <td colspan="3">Lớp đề xuất theo thang điểm: {{ $rubric['suggested_class'] ?? \App\Services\PlacementRubricService::noRubricNotice() }}</td>
