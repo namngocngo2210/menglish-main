@@ -304,7 +304,7 @@ class AcademicSystemTest extends TestCase
 
         $submission = PlacementTestSubmission::where('candidate_phone', '0977 888 999')->first();
         $this->assertNotNull($submission);
-        $responseSubmit->assertRedirect(URL::signedRoute('portal.test.scorecard', ['id' => $submission->id]));
+        $responseSubmit->assertRedirect(route('portal.test.done', $test->code));
 
         // 3. Nghe/Đọc chấm tự động theo đáp án của đề; Viết/Nói chờ Học vụ chấm
         $this->assertSame($lead->id, $submission->customer_id);
