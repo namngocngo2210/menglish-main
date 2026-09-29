@@ -195,7 +195,8 @@ class Phase2AcceptanceTest extends TestCase
         $this->assertSame('active', $class->status);
         $this->assertSame(13, $class->sessions()->count(), '14 buổi trừ 1 buổi rơi vào ngày nghỉ.');
         $this->assertFalse($class->sessions()->whereDate('date', $this->holiday->start_date)->exists());
-        $this->assertSame(13, $class->sessions()->where('foreign_teacher_id', $this->gvnn->id)->where('assistant_id', $this->assistant->id)->count());
+        // Trợ giảng không cố định theo lớp: tạo lớp không gán trợ giảng (kể cả khi form cũ còn gửi tro_giang).
+        $this->assertSame(13, $class->sessions()->where('foreign_teacher_id', $this->gvnn->id)->whereNull('assistant_id')->count());
 
         // Ngày nghỉ thêm sau (Admin): buổi today+9 bị hủy và xếp 1 buổi học bù sau buổi cuối.
         $lastDate = $class->sessions()->max('date');
@@ -324,7 +325,7 @@ class Phase2AcceptanceTest extends TestCase
         $this->assertTrue(AdminNotification::where('user_id', $this->teacher->id)->where('title', 'Order đề đã được duyệt')->exists());
 
         $this->artisan('bigtests:remind-upcoming')->assertSuccessful();
-        foreach ([$this->teacher, $this->gvnn, $this->assistant] as $staff) {
+        foreach ([$this->teacher, $this->gvnn] as $staff) {
             $this->assertSame(1, AdminNotification::where('user_id', $staff->id)->where('type', 'big_test_upcoming')->count());
         }
         $this->artisan('bigtests:remind-upcoming')->assertSuccessful();

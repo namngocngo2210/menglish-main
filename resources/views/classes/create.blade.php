@@ -120,16 +120,17 @@
                                      :options="$teachers->mapWithKeys(fn ($t) => [$t->id => $t->name . ' (' . $t->email . ')'])" />
                     </div>
 
-                    {{-- Trợ giảng (Tùy chọn) --}}
+                    {{-- Giáo viên nước ngoài (GVNN) (Tùy chọn) — không cố định: đổi theo từng buổi ở tab Lịch & buổi học. --}}
                     <div class="md:col-span-6">
-                        <x-ui.select id="tro_giang" name="tro_giang" label="Trợ giảng" class="text-xs cursor-pointer" placeholder="-- Chưa gán trợ giảng (để trống) --"
-                                     :options="$assistants->mapWithKeys(fn ($ta) => [$ta->id => $ta->name . ' (' . $ta->email . ')'])" />
+                        <x-ui.select id="giao_vien_nn" name="giao_vien_nn" label="GVNN mặc định" class="text-xs cursor-pointer" placeholder="-- Không áp dụng hoặc gán sau (để trống) --"
+                                     hint="GVNN không cố định: sau khi tạo lớp có thể gán / đổi GVNN cho từng buổi ở tab Lịch & buổi học."
+                                     :options="$foreignTeachers->mapWithKeys(fn ($teacher) => [$teacher->id => $teacher->name . ' (' . $teacher->email . ')'])" />
                     </div>
 
-                    {{-- Giáo viên nước ngoài (GVNN) (Tùy chọn) --}}
-                    <div class="md:col-span-6">
-                        <x-ui.select id="giao_vien_nn" name="giao_vien_nn" label="Giáo viên nước ngoài (GVNN)" class="text-xs cursor-pointer" placeholder="-- Không áp dụng hoặc gán sau (để trống) --"
-                                     :options="$foreignTeachers->mapWithKeys(fn ($teacher) => [$teacher->id => $teacher->name . ' (' . $teacher->email . ')'])" />
+                    {{-- Trợ giảng không cố định theo lớp: làm theo ca, nhận việc qua "Giao việc trợ giảng". --}}
+                    <div class="md:col-span-12 flex items-start gap-2 rounded-lg border border-outline-variant bg-surface-container-lowest p-3 text-xs text-on-surface-variant">
+                        <span class="material-symbols-outlined text-[18px] text-primary" aria-hidden="true">support_agent</span>
+                        <span>Trợ giảng không gán cố định cho lớp: trợ giảng làm theo ca và nhận việc của lớp qua <strong>Công việc → Giao việc cho Trợ giảng</strong> (chọn ngày, ca, gắn lớp/buổi).</span>
                     </div>
                 </div>
             </div>

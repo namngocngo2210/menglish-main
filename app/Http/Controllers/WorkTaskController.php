@@ -296,7 +296,13 @@ class WorkTaskController extends Controller
         ];
         $seats = $daySessions->pluck('classModel')->filter()->unique('id')
             ->mapWithKeys(fn (ClassModel $class) => [$class->id => $class->occupiedSeats()]);
-        $assistantsToday = $dashboard->assistantsOnDuty($daySessions);
+        // Trợ giảng không cố định theo lớp: ai có việc giao theo ca trong ngày là trợ giảng làm việc hôm đó.
+        $shiftTasks = WorkTask::with('assignee:id,name')
+            ->whereIn('assignee_id', Rbac::scopeUsersWithPermission(User::query(), 'portal.assistant')->where('is_active', true)->select('id'))
+            ->whereDate('due_date', $date)
+            ->when($branchId, fn ($q) => $q->where(fn ($q) => $q->where('branch_id', $branchId)->orWhereNull('branch_id')))
+            ->get(['id', 'assignee_id', 'time_slot_category', 'due_time', 'branch_id']);
+        $assistantsToday = $dashboard->assistantsOnDuty($daySessions, $shiftTasks);
 
         // Theo tuần: ma trận khung giờ sinh từ buổi học trong tuần.
         $weekSessions = $dashboard->sessionsQuery($viewer, $branchId)
@@ -548,8 +554,10 @@ class WorkTaskController extends Controller
                 ->whereDate('due_date', '<', $date->toDateString())
                 ->whereNotIn('status', ['completed', 'pending_confirmation'])
                 ->count();
+            // Trợ giảng không cố định theo lớp: buổi trong ngày = buổi được gán (dữ liệu cũ) + buổi của các lớp có việc giao hôm nay.
+            $taskClassIds = $tasks->pluck('class_id')->filter()->unique()->values()->all();
             $sessions = ClassSession::with(['classModel:id,name,code', 'branch:id,name'])
-                ->forStaff($taUser->id)
+                ->where(fn ($q) => $q->forStaff($taUser->id)->orWhereIn('class_id', $taskClassIds))
                 ->whereDate('date', $date->toDateString())
                 ->where('status', '!=', 'cancelled')
                 ->orderBy('start_time')

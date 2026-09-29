@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Support\DataScope;
 use App\Support\Rbac;
 use App\Models\AcademicRecord;
+use App\Models\AdminNotification;
 use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\ClassSession;
@@ -13,6 +14,7 @@ use App\Models\CourseLevel;
 use App\Models\CrmCustomer;
 use App\Models\CrmTrialBooking;
 use App\Models\User;
+use App\Models\WorkTask;
 use App\Services\ClassDashboardService;
 use App\Services\SessionScheduleService;
 use App\Support\ClassLifecycle;
@@ -94,7 +96,7 @@ class ClassManagementController extends Controller
             'min_students' => 'nullable|integer|min:1|max:100|lte:si_so_toi_da',
             'phong_hoc' => 'nullable|string|max:50',
             'giao_vien_chinh' => 'nullable|integer|exists:users,id',
-            'tro_giang' => 'nullable|integer|exists:users,id',
+            // Trợ giảng không cố định theo lớp: làm theo ca + phân công công việc (Giao việc trợ giảng), không gán khi tạo lớp.
             'giao_vien_nn' => 'nullable|integer|exists:users,id',
             'hoc_phi' => 'nullable|numeric|min:0',
             'ghi_chu' => 'nullable|string',
@@ -140,15 +142,14 @@ class ClassManagementController extends Controller
 
         $course = Course::where('name', $validated['chuong_trinh'])->first();
         $teacherId = ! empty($validated['giao_vien_chinh']) && is_numeric($validated['giao_vien_chinh']) ? (int) $validated['giao_vien_chinh'] : null;
-        $assistantId = ! empty($validated['tro_giang']) && is_numeric($validated['tro_giang']) ? (int) $validated['tro_giang'] : null;
         $foreignTeacherId = ! empty($validated['giao_vien_nn']) && is_numeric($validated['giao_vien_nn']) ? (int) $validated['giao_vien_nn'] : null;
         $defaultRoom = $validated['phong_hoc'] ?? null;
 
         // Chặn trùng phòng / trùng nhân sự với các buổi đã có của lớp khác
-        $this->assertNoScheduleConflicts($scheduleSessions, (int) $branchId, array_filter([$teacherId, $assistantId, $foreignTeacherId]), $defaultRoom);
+        $this->assertNoScheduleConflicts($scheduleSessions, (int) $branchId, array_filter([$teacherId, $foreignTeacherId]), $defaultRoom);
 
         // Tạo lớp học + các buổi học trong một transaction để không sót lớp rỗng khi lịch lỗi
-        $class = DB::transaction(function () use ($validated, $branchId, $code, $course, $teacherId, $assistantId, $foreignTeacherId, $defaultRoom, $scheduleSessions) {
+        $class = DB::transaction(function () use ($validated, $branchId, $code, $course, $teacherId, $foreignTeacherId, $defaultRoom, $scheduleSessions) {
             $class = ClassModel::create([
                 'code' => $code,
                 'name' => $validated['ten_lop'],
@@ -160,7 +161,6 @@ class ClassManagementController extends Controller
                 'min_students' => $validated['min_students'] ?? min(ClassModel::DEFAULT_MIN_STUDENTS, (int) $validated['si_so_toi_da']),
                 'room' => $defaultRoom,
                 'teacher_id' => $teacherId,
-                'assistant_id' => $assistantId,
                 'foreign_teacher_id' => $foreignTeacherId,
                 'tuition_fee' => $validated['hoc_phi'] ?? null,
                 'notes' => $validated['ghi_chu'] ?? null,
@@ -178,7 +178,6 @@ class ClassManagementController extends Controller
                     'room' => $session['room'] ?? ($class->room ?: null),
                     'teacher_id' => $class->teacher_id ?? $class->foreign_teacher_id,
                     'foreign_teacher_id' => $class->foreign_teacher_id,
-                    'assistant_id' => $class->assistant_id,
                     'status' => 'scheduled',
                 ]);
             }
@@ -357,12 +356,13 @@ class ClassManagementController extends Controller
         $sessions = $futureSessions->map($toArray)->all();
 
         $checks = [];
-        if ($new['teacher'] && (int) $new['teacher'] !== (int) ($class->teacher_id ?? $class->foreign_teacher_id)) {
+        if ($new['teacher'] && (int) $new['teacher'] !== (int) $class->teacher_id) {
             $checks[$new['teacher_field']] = [$sessions, [$new['teacher']]];
         }
-        // GVNN được lưu riêng trên từng buổi nên phải kiểm tra trùng cả khi lớp đã có GV chính.
+        // GVNN được lưu riêng trên từng buổi nên phải kiểm tra trùng cả khi lớp đã có GV chính
+        // (chỉ trên các buổi sẽ nhận GVNN mới — buổi đã gán GVNN riêng giữ nguyên).
         if (($new['foreign'] ?? null) && (int) $new['foreign'] !== (int) $class->foreign_teacher_id) {
-            $checks['giao_vien_nn'] = [$sessions, [$new['foreign']]];
+            $checks['giao_vien_nn'] = [($new['foreign_sessions'] ?? $futureSessions)->map($toArray)->all(), [$new['foreign']]];
         }
         if ($new['assistant'] && (int) $new['assistant'] !== (int) $class->assistant_id) {
             $checks['tro_giang'] = [$sessions, [$new['assistant']]];
@@ -421,7 +421,7 @@ class ClassManagementController extends Controller
             ->selectRaw('level as label, COUNT(*) as total')->groupBy('level')->orderByDesc('total')->pluck('total', 'label');
 
         $classes = (clone $filtered)
-            ->with(['branch', 'teacher', 'assistant'])
+            ->with(['branch', 'teacher', 'foreignTeacher'])
             ->when($programFilter, fn ($q) => $q->where('program', $programFilter))
             ->when($levelFilter, fn ($q) => $q->where('level', $levelFilter))
             // Tiến độ thật: số buổi (không tính buổi hủy) và số buổi đã diễn ra.
@@ -508,6 +508,15 @@ class ClassManagementController extends Controller
             'nextBigTest', 'nextAction', 'currentStage', 'openIncidents');
 
         // Dữ liệu riêng của từng tab chỉ nạp khi mở tab đó.
+        if ($tab === 'overview') {
+            // GVNN & trợ giảng không cố định theo lớp: hiển thị người thực tế của các buổi / ca sắp tới.
+            $data['upcomingForeignTeachers'] = (clone $activeSessions)->whereDate('date', '>=', today())
+                ->whereNotNull('foreign_teacher_id')->with('foreignTeacher:id,name')->get(['id', 'foreign_teacher_id'])
+                ->pluck('foreignTeacher.name')->filter()->unique()->values();
+            $data['upcomingAssistants'] = WorkTask::with('assignee:id,name')->where('class_id', $class->id)
+                ->whereDate('due_date', '>=', today())->whereDate('due_date', '<=', today()->addDays(7))
+                ->get(['id', 'assignee_id'])->pluck('assignee.name')->filter()->unique()->values();
+        }
         if (in_array($tab, ['overview', 'students'], true)) {
             // Danh sách lớp thật: học viên có lớp chính là lớp này + học viên liên kết lớp khác,
             // bỏ Thôi học / Hoàn thành / Bảo lưu (audit A4 #7).
@@ -527,6 +536,17 @@ class ClassManagementController extends Controller
                 ->latest('session_date')->latest('id')->get()
                 ->groupBy(fn ($report) => $report->class_session_id ?? 'none-'.$report->id)->map->first();
             $data['canRecordAttendance'] = $viewer->can('attendance_student.record') || $viewer->can('attendance_student.record_any');
+        }
+        if ($tab === 'schedule') {
+            // Trợ giảng của buổi = người được giao việc (theo ca) gắn lớp này trong ngày; dữ liệu cũ vẫn đọc assistant_id của buổi.
+            $data['assistantsByDate'] = WorkTask::with('assignee:id,name')->where('class_id', $class->id)
+                ->whereNotNull('due_date')->get(['id', 'assignee_id', 'due_date'])
+                ->groupBy(fn (WorkTask $task) => $task->due_date->toDateString())
+                ->map(fn ($tasks) => $tasks->pluck('assignee.name')->filter()->unique()->values());
+            if ($canManage) {
+                $data['foreignTeacherOptions'] = $this->teachingStaffOptions()[0];
+                $data['foreignEditableIds'] = ClassSession::where('class_id', $class->id)->staffSyncable()->pluck('id')->all();
+            }
         }
         if ($tab === 'incidents') {
             $data['incidents'] = StaffReport::with(['user:id,name', 'followups.user:id,name'])
@@ -655,16 +675,21 @@ class ClassManagementController extends Controller
         // buổi quá khứ là dữ liệu lịch sử (bảng công, điểm danh khớp theo buổi).
         // Gồm cả buổi học bù (type makeup) xếp khi thêm ngày nghỉ.
         $futureSessions = ClassSession::where('class_id', $class->id)->staffSyncable()->get();
+        // GVNN không cố định: buổi đã được gán GVNN riêng (khác GVNN mặc định cũ của lớp) giữ nguyên khi đổi GVNN của lớp.
+        $foreignSyncSessions = $futureSessions->filter(fn (ClassSession $s) => $s->foreign_teacher_id === null
+            || (int) $s->foreign_teacher_id === (int) $class->foreign_teacher_id)->values();
         $this->assertStaffChangeHasNoConflicts($class, $futureSessions, $branchId, [
-            'teacher' => $newTeacherId ?? $newForeignTeacherId,
-            'teacher_field' => $newTeacherId ? 'giao_vien_chinh' : 'giao_vien_nn',
+            'foreign_sessions' => $foreignSyncSessions,
+            // Lớp không có GV chính: người đứng lớp của buổi là GVNN của buổi, đã kiểm tra ở nhánh 'foreign'.
+            'teacher' => $newTeacherId,
+            'teacher_field' => 'giao_vien_chinh',
             'assistant' => $newAssistantId,
             'foreign' => $newForeignTeacherId,
             'room' => $newRoom,
             'previous_room' => $previousRoom,
         ]);
 
-        DB::transaction(function () use ($class, $validated, $code, $branchId, $course, $newTeacherId, $newAssistantId, $newForeignTeacherId, $newRoom, $previousRoom, $futureSessions) {
+        DB::transaction(function () use ($class, $validated, $code, $branchId, $course, $newTeacherId, $newAssistantId, $newForeignTeacherId, $newRoom, $previousRoom, $futureSessions, $foreignSyncSessions) {
             $class->update([
                 'code' => $code,
                 'name' => $validated['ten_lop'],
@@ -687,11 +712,14 @@ class ClassManagementController extends Controller
             ]);
 
             $futureQuery = fn () => ClassSession::whereKey($futureSessions->modelKeys());
+            if ($class->wasChanged('foreign_teacher_id') && $foreignSyncSessions->isNotEmpty()) {
+                ClassSession::whereKey($foreignSyncSessions->modelKeys())->update(['foreign_teacher_id' => $class->foreign_teacher_id]);
+            }
             if ($class->wasChanged('teacher_id') || $class->wasChanged('foreign_teacher_id')) {
-                $futureQuery()->update([
-                    'teacher_id' => $class->teacher_id ?? $class->foreign_teacher_id,
-                    'foreign_teacher_id' => $class->foreign_teacher_id,
-                ]);
+                // Lớp không có GV chính thì người đứng lớp của buổi là GVNN của chính buổi đó.
+                foreach (ClassSession::whereKey($futureSessions->modelKeys())->get() as $session) {
+                    $session->update(['teacher_id' => $class->teacher_id ?? $session->foreign_teacher_id]);
+                }
             }
             if ($class->wasChanged('assistant_id')) {
                 $futureQuery()->update(['assistant_id' => $class->assistant_id]);
@@ -710,6 +738,86 @@ class ClassManagementController extends Controller
 
         return redirect()->route('classes.show', ['id' => $class->id])
             ->with('success', "Đã cập nhật lớp học '{$class->name}' ({$class->code}) thành công!");
+    }
+
+    /**
+     * Gán / đổi / gỡ GVNN theo từng buổi của lớp đã tồn tại (GVNN không cố định theo lớp).
+     * Chỉ áp lên buổi chưa diễn ra, chưa điểm danh/chấm công (staffSyncable); không đụng GV chính.
+     * Lớp không có GV chính thì người đứng lớp của buổi (teacher_id) đi theo GVNN của buổi.
+     */
+    public function assignForeignTeacher(Request $request, int $id)
+    {
+        abort_if(! auth()->user()->can('class.update'), 403, 'Bạn không có quyền chỉnh sửa lớp học.');
+        $class = ClassModel::findOrFail($id);
+        abort_unless($class->userCan(auth()->user(), 'update'), 403, 'Lớp học này nằm ngoài phạm vi bạn được quản lý.');
+
+        // "none" = gỡ GVNN khỏi các buổi đã chọn (phải chọn rõ, tránh lưu nhầm ô trống thành gỡ GVNN hàng loạt).
+        $request->validate(['giao_vien_nn' => 'required'], ['giao_vien_nn.required' => 'Chọn GVNN, hoặc chọn "Không có GVNN" để gỡ.']);
+        if ($request->input('giao_vien_nn') === 'none') {
+            $request->merge(['giao_vien_nn' => null]);
+        }
+        $validated = $request->validate([
+            'giao_vien_nn' => 'nullable|integer|exists:users,id',
+            'session_ids' => 'required|array|min:1|max:300',
+            'session_ids.*' => 'integer',
+            'set_default' => 'nullable|boolean',
+        ], [
+            'session_ids.required' => 'Chọn ít nhất một buổi học để gán GVNN.',
+            'session_ids.min' => 'Chọn ít nhất một buổi học để gán GVNN.',
+        ]);
+        $this->assertValidTeachingStaff($validated);
+        $foreignId = filled($validated['giao_vien_nn'] ?? null) ? (int) $validated['giao_vien_nn'] : null;
+
+        $sessions = ClassSession::where('class_id', $class->id)->staffSyncable()
+            ->whereKey(array_map('intval', $validated['session_ids']))->get();
+        if ($sessions->count() !== count(array_unique(array_map('intval', $validated['session_ids'])))) {
+            throw ValidationException::withMessages(['session_ids' => 'Chỉ đổi GVNN được cho buổi sắp tới của lớp này, chưa điểm danh/chấm công.']);
+        }
+
+        if ($foreignId) {
+            $conflict = $this->schedule->findConflict($sessions->map(fn (ClassSession $s) => [
+                'date' => $s->date->toDateString(),
+                'start' => substr((string) $s->getRawOriginal('start_time'), 0, 5),
+                'end' => substr((string) $s->getRawOriginal('end_time'), 0, 5),
+            ])->all(), (int) $class->branch_id, [$foreignId], null, $class->id);
+            if ($conflict) {
+                [$session, $existing] = $conflict;
+                throw ValidationException::withMessages([
+                    'giao_vien_nn' => "GVNN bị trùng lịch {$session['date']} {$session['start']}-{$session['end']} với lớp {$existing->classModel?->name} ({$existing->classModel?->code}).",
+                ]);
+            }
+        }
+
+        DB::transaction(function () use ($class, $sessions, $foreignId, $validated) {
+            foreach ($sessions as $session) {
+                $session->update([
+                    'foreign_teacher_id' => $foreignId,
+                    'teacher_id' => $class->teacher_id ?? $foreignId,
+                ]);
+            }
+            if (! empty($validated['set_default'])) {
+                $class->update(['foreign_teacher_id' => $foreignId]);
+            }
+        });
+
+        if ($foreignId && $foreignId !== (int) auth()->id()) {
+            $dates = $sessions->sortBy('date')->map(fn (ClassSession $s) => $s->date->format('d/m'))->unique()->take(6)->implode(', ');
+            AdminNotification::create([
+                'user_id' => $foreignId,
+                'type' => 'class_assigned',
+                'title' => "Bạn được xếp dạy GVNN lớp {$class->code}",
+                'message' => "{$sessions->count()} buổi lớp {$class->name}: {$dates}".($sessions->count() > 6 ? '…' : '').'.',
+                'data' => ['link' => route('classes.show', ['id' => $class->id, 'tab' => 'schedule'])],
+                'is_read' => false,
+            ]);
+        }
+
+        $name = $foreignId ? User::find($foreignId)?->name : null;
+
+        return redirect()->route('classes.show', ['id' => $class->id, 'tab' => 'schedule'])
+            ->with('success', $name
+                ? "Đã gán GVNN {$name} cho {$sessions->count()} buổi."
+                : "Đã gỡ GVNN khỏi {$sessions->count()} buổi.");
     }
 
     /**

@@ -129,7 +129,7 @@
                 </x-ui.data-table>
             </div>
 
-            {{-- Trợ giảng có ca trong ngày (từ buổi học thật) --}}
+            {{-- Trợ giảng làm việc trong ngày: việc giao theo ca (nguồn chính) + buổi còn gán trợ giảng cố định (dữ liệu cũ) --}}
             <aside class="rounded-xl border border-outline-variant bg-surface-container-low p-md">
                 <div class="mb-md flex items-center gap-sm border-b border-outline-variant pb-sm">
                     <span class="material-symbols-outlined text-primary-container" aria-hidden="true">support_agent</span>
@@ -141,11 +141,15 @@
                             <x-ui.avatar :name="$duty['user']->name" size="sm" />
                             <div class="min-w-0">
                                 <p class="truncate font-body-medium text-body-medium text-on-surface">{{ $duty['user']->name }}</p>
-                                <p class="font-caption text-caption text-on-surface-variant">{{ $duty['from'] }} - {{ $duty['to'] }} · {{ $duty['sessions'] }} buổi</p>
+                                <p class="font-caption text-caption text-on-surface-variant">{{ collect([
+                                    $duty['slots'] ? implode(', ', $duty['slots']) : null,
+                                    $duty['tasks'] ? $duty['tasks'].' việc' : null,
+                                    $duty['sessions'] ? $duty['from'].' - '.$duty['to'].' · '.$duty['sessions'].' buổi' : null,
+                                ])->filter()->implode(' · ') }}</p>
                             </div>
                         </li>
                     @empty
-                        <li class="py-md text-center font-body-small text-body-small text-on-surface-variant">Không có trợ giảng nào có ca trong ngày.</li>
+                        <li class="py-md text-center font-body-small text-body-small text-on-surface-variant">Chưa giao việc cho trợ giảng nào trong ngày.</li>
                     @endforelse
                 </ul>
                 @can('work_task.assign')

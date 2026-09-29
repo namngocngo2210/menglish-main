@@ -78,6 +78,7 @@ class AdminNotification extends Model
             'class_report_pending' => 'fact_check',
             'trial_booked' => 'person_search',
             'trial_feedback' => 'rate_review',
+            'class_assigned' => 'co_present',
             default => 'notifications',
         };
     }
@@ -98,6 +99,7 @@ class AdminNotification extends Model
             'task_assigned' => 'bg-tertiary/10 text-tertiary border-tertiary/30',
             'class_report_pending' => 'bg-primary-container/10 text-primary border-primary-container/30',
             'trial_booked', 'trial_feedback' => 'bg-secondary/10 text-secondary border-secondary/30',
+            'class_assigned' => 'bg-primary-container/10 text-primary border-primary-container/30',
             default => 'bg-surface-container-low text-on-surface-variant border-surface-container-highest',
         };
     }
@@ -121,6 +123,7 @@ class AdminNotification extends Model
             'class_report_pending' => 'Báo cáo trực lớp chờ duyệt',
             'trial_booked' => 'Khách học thử',
             'trial_feedback' => 'Nhận xét học thử',
+            'class_assigned' => 'Xếp dạy lớp',
             default => 'Thông báo hệ thống',
         };
     }

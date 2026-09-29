@@ -84,13 +84,16 @@ class ClassDashboardService
     }
 
     /**
-     * Trợ giảng có buổi trong ngày cùng khung giờ làm việc (giờ bắt đầu sớm nhất → kết thúc muộn nhất).
+     * Trợ giảng làm việc trong ngày. Trợ giảng không cố định theo lớp: nguồn chính là việc được giao
+     * theo ca trong ngày ($shiftTasks — WorkTask của trợ giảng, due_date = ngày xem); buổi học còn gán
+     * trợ giảng cố định (dữ liệu cũ) vẫn được tính, kèm khung giờ buổi.
      *
-     * @return Collection<int, array{user: User, from: string, to: string, sessions: int}>
+     * @param  Collection<int, \App\Models\WorkTask>|null  $shiftTasks
+     * @return Collection<int, array{user: User, from: ?string, to: ?string, sessions: int, tasks: int, slots: list<string>}>
      */
-    public function assistantsOnDuty(Collection $sessions): Collection
+    public function assistantsOnDuty(Collection $sessions, ?Collection $shiftTasks = null): Collection
     {
-        return $sessions
+        $duty = $sessions
             ->filter(fn (ClassSession $s) => $s->assistant && $s->status !== 'cancelled')
             ->groupBy('assistant_id')
             ->map(fn (Collection $group) => [
@@ -98,9 +101,24 @@ class ClassDashboardService
                 'from' => $group->min(fn (ClassSession $s) => $s->start_time?->format('H:i')),
                 'to' => $group->max(fn (ClassSession $s) => $s->end_time?->format('H:i')),
                 'sessions' => $group->count(),
-            ])
-            ->sortBy('from')
-            ->values();
+                'tasks' => 0,
+                'slots' => [],
+            ]);
+
+        foreach (($shiftTasks ?? collect())->filter(fn ($task) => $task->assignee)->groupBy('assignee_id') as $userId => $tasks) {
+            $slots = collect(array_keys(\App\Models\WorkTask::TIME_SLOTS))
+                ->filter(fn ($slot) => $tasks->contains('time_slot_category', $slot))
+                ->map(fn ($slot) => \App\Models\WorkTask::TIME_SLOTS[$slot])->values()->all();
+            $entry = $duty->get($userId, [
+                'user' => $tasks->first()->assignee, 'from' => null, 'to' => null, 'sessions' => 0, 'tasks' => 0, 'slots' => [],
+            ]);
+            $entry['tasks'] = $tasks->count();
+            $entry['slots'] = $slots;
+            $entry['from'] ??= $tasks->min(fn ($task) => $task->due_time ? substr((string) $task->due_time, 0, 5) : null);
+            $duty->put($userId, $entry);
+        }
+
+        return $duty->sortBy(fn ($entry) => $entry['from'] ?? '99:99')->values();
     }
 
     /**
