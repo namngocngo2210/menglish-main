@@ -5,7 +5,7 @@
  * - Bỏ qua: <select multiple>, <select data-native>, select nằm trong <template>, và select do Alpine điều khiển
  *   (x-model / option sinh bằng <template x-for>) vì Tom Select chỉ đọc option một lần lúc khởi tạo.
  * - <select> gốc vẫn giữ name / value / sự kiện change (onchange="this.form.submit()" vẫn chạy).
- * - Ít lựa chọn (≤ 6) thì không hiện ô gõ tìm, chỉ có danh sách.
+ * - Như select2: danh sách xổ xuống luôn có ô gõ để tìm ở đầu (kể cả khi ít lựa chọn).
  * - Nội dung htmx đổ vào (modal, danh sách) được khởi tạo lại sau htmx:afterSettle.
  */
 import TomSelect from 'tom-select/base';
@@ -14,7 +14,6 @@ import DropdownInput from 'tom-select/plugins/dropdown_input/plugin.js';
 TomSelect.define('dropdown_input', DropdownInput);
 
 const SELECTOR = 'form[method="get" i] select:not([data-native]), form:not([method]) select[data-searchable], select[data-searchable]';
-const SEARCH_THRESHOLD = 6;
 const LAYOUT_CLASS = /^(?:[a-z]+:)*(?:w-|min-w-|max-w-|flex-|basis-|grow|shrink|col-|self-|order-|hidden$|block$)/;
 
 function accessibleName(select) {
@@ -28,7 +27,6 @@ function enhance(select) {
     if (select.tomselect || select.closest('template') || select.multiple) return;
     if ([...select.attributes].some((a) => a.name.startsWith('x-model')) || select.querySelector('template')) return;
 
-    const searchable = select.options.length > SEARCH_THRESHOLD;
     // Tom Select chép class của <select> sang khung bao; chỉ giữ class bố cục (độ rộng / flex),
     // còn viền, nền, chữ… do .ts-control trong app.css đảm nhiệm (tránh viền kép).
     const styling = [...select.classList].filter((c) => !LAYOUT_CLASS.test(c));
@@ -36,8 +34,7 @@ function enhance(select) {
     new TomSelect(select, {
         allowEmptyOption: true,
         maxOptions: null,
-        plugins: searchable ? ['dropdown_input'] : [],
-        controlInput: searchable ? undefined : null,
+        plugins: ['dropdown_input'],
         placeholder: select.querySelector('option[value=""]')?.textContent?.trim() || undefined,
         render: {
             no_results: () => '<div class="no-results">Không tìm thấy</div>',
@@ -45,7 +42,7 @@ function enhance(select) {
         onInitialize() {
             this.wrapper.classList.remove(...styling);
             // Ô gõ tìm nằm trong danh sách xổ xuống (plugin dropdown_input).
-            if (searchable) this.control_input?.setAttribute('placeholder', 'Gõ để tìm…');
+            this.control_input?.setAttribute('placeholder', 'Gõ để tìm…');
             // Tên cho trình đọc màn hình: aria-label → <label for> → chữ "Tất cả …" của option rỗng.
             // Gắn cho ô điều khiển (combobox), ô gõ tìm và cả select gốc (vẫn nằm trong cây a11y).
             const name = accessibleName(select);

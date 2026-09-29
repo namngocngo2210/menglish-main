@@ -305,74 +305,74 @@ td[class*="text-center"] {
 /* ==========================================================================
    Tom Select — dropdown lọc có tìm kiếm, cùng kích thước / màu với <x-ui.select>
    ========================================================================== */
-@layer components {
-    .ts-wrapper {
-        @apply min-w-[150px];
-    }
-    .ts-wrapper .ts-control {
-        @apply flex min-h-10 cursor-pointer flex-nowrap items-center rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-md font-body-base text-body-base text-on-surface shadow-none transition-colors;
-        padding-right: 2.25rem !important;
-    }
-    /* Mũi tên xổ xuống (vẽ trên khung bao để không mất khi ô đang mở). */
-    .ts-wrapper.single::after {
-        content: '';
-        @apply pointer-events-none absolute right-2 top-1/2 z-[2] h-5 w-5 -translate-y-1/2 transition-transform;
-        background: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23594137' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") center / contain no-repeat;
-    }
-    .ts-wrapper.single.dropdown-active::after {
-        @apply rotate-180;
-    }
-    .ts-wrapper .ts-control {
-        @apply overflow-hidden;
-    }
-    .ts-wrapper .ts-control > .item {
-        @apply min-w-0 truncate;
-    }
-    .ts-wrapper.single .ts-control input {
-        @apply cursor-pointer;
-    }
-    .ts-wrapper.focus .ts-control {
-        @apply border-primary-container ring-2 ring-primary-container/50;
-    }
-    .ts-wrapper.disabled .ts-control {
-        @apply cursor-not-allowed bg-surface-container-low opacity-100;
-    }
-    .ts-dropdown {
-        @apply z-[60] mt-xs overflow-hidden rounded-lg border border-outline-variant bg-surface-container-lowest font-body-base text-body-base text-on-surface shadow-level-3;
-    }
-    .ts-dropdown .ts-dropdown-content {
-        @apply max-h-72 py-xs;
-    }
-    .ts-dropdown .option,
-    .ts-dropdown .no-results {
-        @apply px-md py-sm;
-    }
-    .ts-dropdown .no-results {
-        @apply text-on-surface-subtle;
-    }
-    .ts-dropdown .active {
-        @apply bg-surface-container-low text-on-surface;
-    }
-    .ts-dropdown .selected {
-        @apply font-semibold text-primary;
-    }
-    .ts-dropdown .dropdown-input-wrap {
-        @apply border-b border-surface-container-highest p-xs;
-    }
+/* Ngoài @layer: class của Tom Select chỉ có trong node_modules nên Tailwind sẽ bỏ các rule trong layer (purge). */
+.ts-wrapper {
+    @apply min-w-[150px];
+}
+.ts-wrapper .ts-control {
+    @apply flex min-h-10 cursor-pointer flex-nowrap items-center rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-md font-body-base text-body-base text-on-surface shadow-none transition-colors;
+    padding-right: 2.25rem !important;
+}
+/* Mũi tên xổ xuống (vẽ trên khung bao để không mất khi ô đang mở). */
+.ts-wrapper.single::after {
+    content: '';
+    @apply pointer-events-none absolute right-2 top-1/2 z-[2] h-5 w-5 -translate-y-1/2 transition-transform;
+    background: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23594137' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") center / contain no-repeat;
+}
+.ts-wrapper.single.dropdown-active::after {
+    @apply rotate-180;
+}
+.ts-wrapper .ts-control {
+    @apply overflow-hidden;
+}
+.ts-wrapper .ts-control > .item {
+    @apply min-w-0 truncate;
+}
+.ts-wrapper.single .ts-control input {
+    @apply cursor-pointer;
+}
+.ts-wrapper.focus .ts-control {
+    @apply border-primary-container ring-2 ring-primary-container/50;
+}
+.ts-wrapper.disabled .ts-control {
+    @apply cursor-not-allowed bg-surface-container-low opacity-100;
+}
+.ts-dropdown {
+    @apply z-[60] mt-xs overflow-hidden rounded-lg border border-outline-variant bg-surface-container-lowest font-body-base text-body-base text-on-surface shadow-level-3;
+}
+.ts-dropdown .ts-dropdown-content {
+    @apply max-h-72 py-xs;
+}
+.ts-dropdown .option,
+.ts-dropdown .no-results {
+    @apply px-md py-sm;
+}
+.ts-dropdown .no-results {
+    @apply text-on-surface-subtle;
+}
+.ts-dropdown .active {
+    @apply bg-surface-container-low text-on-surface;
+}
+.ts-dropdown .selected {
+    @apply font-semibold text-primary;
+}
+.ts-dropdown .dropdown-input-wrap {
+    @apply border-b border-surface-container-highest p-xs;
+}
+/* Đặc hiệu hơn .plugin-dropdown_input .dropdown-input của tom-select.css (chỉ có viền dưới). */
+.ts-dropdown .dropdown-input-wrap .dropdown-input {
+    @apply w-full rounded-md border border-outline-variant px-sm py-xs font-body-base text-body-base focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/50;
+}
+@media (max-width: 767.98px) {
+    .ts-wrapper .ts-control,
     .ts-dropdown .dropdown-input {
-        @apply w-full rounded-md border border-outline-variant px-sm py-xs font-body-base text-body-base focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/50;
+        font-size: 16px;
     }
-    @media (max-width: 767.98px) {
-        .ts-wrapper .ts-control,
-        .ts-dropdown .dropdown-input {
-            font-size: 16px;
-        }
-        .ts-wrapper .ts-control {
-            @apply min-h-11;
-        }
-        .ts-dropdown .option {
-            @apply py-md;
-        }
+    .ts-wrapper .ts-control {
+        @apply min-h-11;
+    }
+    .ts-dropdown .option {
+        @apply py-md;
     }
 }
 
