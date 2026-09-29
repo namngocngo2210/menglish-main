@@ -1157,29 +1157,7 @@ class CrmController extends Controller
         return $this->updateStage($request, $stages, $id);
     }
 
-    public function destroyCustomer($id)
-    {
-        $customer = $this->findScopedCustomer($id);
-        if ($customer->stage === 'won' || $customer->converted_student_id) {
-            throw ValidationException::withMessages([
-                'customer' => 'Lead đã chốt phải được lưu để bảo toàn lịch sử tuyển sinh, học phí và hoa hồng.',
-            ]);
-        }
-        if ($customer->stage === CrmCustomer::STAGE_LOST) {
-            // BA Q1 (bản sửa): khách Thất bại không mở lại và được giữ nguyên để đối soát / audit.
-            throw ValidationException::withMessages([
-                'customer' => 'Khách Thất bại được giữ để đối soát, không xóa được.',
-            ]);
-        }
-        $name = $customer->name;
-        $customer->cancelPendingTrialBookings('khách bị xóa khỏi CRM');
-        $customer->delete();
-
-        return redirect()->route('crm.customers.index')
-            ->with('status', "Đã xóa khách hàng {$name} khỏi danh sách!");
-    }
-
-    /** Khách đã xóa (Admin / Quản lý cơ sở): tìm kiếm + khôi phục. */
+    /** Khách đã xóa trước khi bỏ chức năng xoá (Admin / Quản lý cơ sở): tìm kiếm + khôi phục. */
     public function deletedCustomers(Request $request)
     {
         $this->authorizeDeletedCustomers($request);

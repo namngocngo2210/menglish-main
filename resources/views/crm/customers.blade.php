@@ -94,15 +94,6 @@
                                 <div class="flex items-center justify-end gap-xs">
                                     {{-- Sửa = mở hồ sơ đầy đủ ở tab "Thông tin khách hàng" (sửa trực tiếp trong trang) --}}
                                     <x-ui.button variant="ghost" size="sm" icon="edit" :href="route('crm.customers.show', ['id' => $c->id, 'tab' => 'info'])" title="Mở hồ sơ" aria-label="Mở hồ sơ {{ $c->name }}" />
-                                    @can('lead.delete')
-                                        @if (! in_array($c->stage, ['won', \App\Models\CrmCustomer::STAGE_LOST], true) && ! $c->converted_student_id)
-                                            <form action="{{ route('crm.customers.destroy', $c->id) }}" method="POST" class="inline" data-confirm="Bạn có chắc chắn muốn xóa khách {{ $c->name }} ({{ $c->short_code }})?">
-                                                @csrf
-                                                @method('DELETE')
-                                                <x-ui.button type="submit" variant="danger-text" size="sm" icon="delete" title="Xóa khách" aria-label="Xóa khách" />
-                                            </form>
-                                        @endif
-                                    @endcan
                                 </div>
                             </td>
                         </tr>

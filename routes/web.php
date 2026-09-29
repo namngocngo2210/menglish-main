@@ -141,7 +141,7 @@ Route::middleware('auth')->group(function () {
         // Chuyển giai đoạn: lead.stage_forward (CM tiến 1 bước) / lead.stage_back (lùi bước) — CrmStageService kiểm tra theo hướng.
         Route::post('/customers/{id}/stage', [CrmController::class, 'updateStage'])->name('customers.stage');
         Route::post('/customers/{id}/next-stage', [CrmController::class, 'nextStage'])->name('customers.next-stage');
-        Route::delete('/customers/{id}', [CrmController::class, 'destroyCustomer'])->middleware('can:lead.delete')->name('customers.destroy');
+        // Không có xoá khách (chủ dự án 29/09/2026): bỏ khách = đánh "Thất bại" kèm lý do. Khách đã xoá trước đây vẫn xem / khôi phục được.
         Route::post('/customers/{id}/notes', [CrmController::class, 'addNote'])->middleware('can:lead.update')->name('customers.notes.store');
         Route::post('/customers/{id}/schedule-test', [CrmController::class, 'schedulePlacementTest'])->middleware('can:entrance_test.send')->name('customers.schedule-test');
         Route::post('/customers/{id}/test-score', [CrmController::class, 'saveTestScore'])->middleware('can:entrance_test.grade')->name('customers.save-test-score');

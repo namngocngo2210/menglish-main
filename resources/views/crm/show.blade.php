@@ -9,11 +9,10 @@
     @php
         // Một cụm thao tác ở góc phải tiêu đề: bước tiếp theo của giai đoạn hiện tại là nút cam duy nhất
         // (Sang bước kế tiếp → nếu không còn bước tay thì Chốt & Xếp lớp → khách Chờ xếp lớp thì Xếp lớp);
-        // Phân công lại là nút phụ; Thất bại / Lùi giai đoạn / In / Xóa nằm trong menu "⋯".
+        // Phân công lại là nút phụ; Thất bại / Lùi giai đoạn / In nằm trong menu (không có Xóa khách) "⋯".
         $canClose = auth()->user()->can('lead.convert')
             && in_array($customer->stage, \App\Models\CrmCustomer::CLOSABLE_STAGES, true) && ! $customer->converted_student_id;
         $canPlace = $customer->stage === 'waiting_class' && auth()->user()->can('student.assign_class');
-        $canDelete = auth()->user()->can('lead.delete') && ! in_array($customer->stage, ['won', 'lost'], true) && ! $customer->converted_student_id;
         $primaryAction = $stageControls['next'] ? 'next' : ($canClose ? 'close' : ($canPlace ? 'place' : null));
     @endphp
 
@@ -62,15 +61,6 @@
                         <button type="button" class="{{ $menuItem }} text-error" onclick="window.dispatchEvent(new CustomEvent('open-modal', { detail: 'crm-mark-lost' }))">
                             <span class="material-symbols-outlined text-[18px]" aria-hidden="true">person_off</span>Thất bại
                         </button>
-                    @endif
-                    @if ($canDelete)
-                        <form action="{{ route('crm.customers.destroy', $customer->id) }}" method="POST" data-confirm="Bạn có chắc chắn muốn xóa khách {{ $customer->name }} ({{ $customer->short_code }})?">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="{{ $menuItem }} text-error">
-                                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">delete</span>Xóa khách
-                            </button>
-                        </form>
                     @endif
                 </x-slot:content>
             </x-ui.dropdown>
