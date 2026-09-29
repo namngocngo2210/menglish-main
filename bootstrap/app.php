@@ -30,7 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
             RequireInitialPasswordChange::class,
             AuditOperationMiddleware::class,
         ]);
-        $middleware->validateCsrfTokens(except: [
+        $middleware->preventRequestForgery(except: [
             'hook/sepay-gateway/*',
             'api/sepay/*',
         ]);
