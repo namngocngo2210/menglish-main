@@ -17,16 +17,17 @@
     <x-ui.select name="branch_id" :id="$asModal ? 'modal-crm-import-branch' : null" label="Chi nhánh nhận khách" required placeholder="-- Chọn chi nhánh --"
         :options="$branches->pluck('name', 'id')" :value="$preview['branch_id'] ?? ($branches->count() === 1 ? $branches->first()->id : null)" />
     @if ($canAssign)
-        <x-ui.select name="assigned_user_id" :id="$asModal ? 'modal-crm-import-assignee' : null" label="Sales phụ trách" placeholder="-- Tôi phụ trách --"
-            :options="$salesUsers->mapWithKeys(fn ($u) => [$u->id => $u->name])" :value="$preview['assigned_user_id'] ?? null" />
+        <x-ui.select name="assigned_user_id" :id="$asModal ? 'modal-crm-import-assignee' : null" label="Người phụ trách mặc định" placeholder="-- Tôi phụ trách --"
+            :options="\App\Services\Crm\LeadOwners::options($salesUsers)" :value="$preview['assigned_user_id'] ?? null"
+            hint="Dòng có cột Người phụ trách (tên hoặc email Học vụ cùng cơ sở / Admin) dùng người đó." />
     @else
-        <x-ui.field label="Sales phụ trách">
+        <x-ui.field label="Người phụ trách">
             <div class="rounded-lg border border-outline-variant bg-surface-container-low px-md py-sm">{{ auth()->user()->name }}</div>
         </x-ui.field>
     @endif
     <x-ui.input name="default_source" :id="$asModal ? 'modal-crm-import-source' : null" label="Nguồn mặc định" placeholder="VD: Sự kiện Offline" hint="Dùng khi dòng không có cột Nguồn." />
     <div @class(['flex items-center justify-between gap-md', 'md:col-span-2 lg:col-span-4' => ! $asModal])>
-        <p class="text-caption text-on-surface-variant">Cột nhận diện: Họ tên*, Số điện thoại*, Tên phụ huynh, SĐT phụ huynh, Email, Ngày sinh, Giới tính, Địa chỉ, Nguồn, Khóa học quan tâm, Ghi chú. Tối đa 1.000 dòng.</p>
+        <p class="text-caption text-on-surface-variant">Cột nhận diện: Họ tên*, Số điện thoại*, Tên phụ huynh, SĐT phụ huynh, Email, Ngày sinh, Giới tính, Địa chỉ, Nguồn, Khóa học quan tâm, Ghi chú, Người phụ trách. Tối đa 1.000 dòng.</p>
         @unless ($asModal)
             <x-ui.button type="submit" icon="fact_check">Kiểm tra dữ liệu</x-ui.button>
         @endunless

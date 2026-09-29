@@ -10,7 +10,7 @@
     <x-slot:quick><x-ui.workspace-chips workspace="crm" /></x-slot:quick>
     {{-- Thứ tự & nhãn theo mockup pipeline-tong-quan-giai-doan: Nguồn → Người phụ trách → Chi nhánh --}}
     <x-ui.select name="source" label="Nguồn" :options="$filterSources->mapWithKeys(fn ($s) => [$s => $s])" placeholder="Tất cả nguồn" />
-    <x-ui.select name="assigned_user_id" label="Người phụ trách" :options="$filterSales->pluck('name', 'id')" placeholder="Tất cả nhân viên" />
+    <x-ui.select name="assigned_user_id" label="Người phụ trách" :options="\App\Services\Crm\LeadOwners::options($filterSales)" placeholder="Tất cả người phụ trách" />
     @if ($filterBranches->isNotEmpty())
         <x-ui.select name="branch_id" label="Chi nhánh" :options="$filterBranches->pluck('name', 'id')" placeholder="Tất cả chi nhánh" />
     @endif

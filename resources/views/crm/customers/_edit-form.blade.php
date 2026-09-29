@@ -53,7 +53,8 @@
                 <p class="font-caption text-caption text-on-surface-variant">Đổi giai đoạn tại Pipeline; "Đã chốt" chỉ tạo qua Chốt &amp; Xếp lớp.</p>
             </x-ui.field>
             @can('lead.assign')
-                <x-ui.select name="assigned_user_id" :id="$id('assigned_user_id')" label="Người phụ trách" placeholder="-- Chưa có người phụ trách --" :value="$customer->assigned_user_id" :options="$salesUsers->pluck('name', 'id')" />
+                <x-ui.select name="assigned_user_id" :id="$id('assigned_user_id')" label="Người phụ trách" placeholder="-- Chưa có người phụ trách --" :value="$customer->assigned_user_id" :options="\App\Services\Crm\LeadOwners::options($salesUsers)"
+                    hint="Chọn Học vụ cơ sở khác = chuyển cơ sở cho khách, cần Admin duyệt." />
             @endcan
             <x-ui.field label="Khóa học quan tâm" name="course_interest" :for="$id('course_interest')">
                 <input type="text" id="{{ $id('course_interest') }}" name="course_interest" @readonly($locked) value="{{ old('course_interest', $customer->course_interest) }}" placeholder="Chọn hoặc nhập khóa học" list="{{ $datalistId }}"

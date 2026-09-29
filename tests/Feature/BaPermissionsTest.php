@@ -340,20 +340,23 @@ class BaPermissionsTest extends TestCase
         ])->assertSessionHasNoErrors();
         $this->assertSame('won', $direct->fresh()->stage);
 
-        // Phân công lại Sale (bắt buộc lý do, ghi lịch sử).
+        // Phân công lại người phụ trách (Học vụ cùng cơ sở; bắt buộc lý do, ghi lịch sử).
         $other = $this->lead('consulting');
-        $newSales = $this->makeUser('sales_consultant', name: 'Sale Hai');
+        $newSales = $this->makeUser('academic_staff', name: 'Học Vụ Hai');
         $this->actingAs($this->academic)->get(route('crm.customers.show', $other))->assertOk()->assertSee('Phân công lại');
         $this->actingAs($this->academic)->post(route('crm.customers.reassign', $other), ['assigned_user_id' => $newSales->id])->assertSessionHasErrors('reason');
         $this->actingAs($this->academic)->post(route('crm.customers.reassign', $other), ['assigned_user_id' => $newSales->id, 'reason' => 'Sale Một nghỉ phép'])
             ->assertSessionHasNoErrors();
         $this->assertSame($newSales->id, $other->fresh()->assigned_user_id);
 
-        // Tạo khách và giao Sale ngay khi nhập.
+        // Tạo khách và giao người phụ trách (Học vụ cùng cơ sở) ngay khi nhập; Sale không còn là người phụ trách.
         $this->actingAs($this->academic)->post(route('crm.customers.store'), [
             'name' => 'Khách Học Vụ Nhập', 'phone' => '0912000777', 'branch_id' => $this->branch->id, 'source' => 'Walk-in', 'assigned_user_id' => $this->sales->id,
+        ])->assertSessionHasErrors('assigned_user_id');
+        $this->actingAs($this->academic)->post(route('crm.customers.store'), [
+            'name' => 'Khách Học Vụ Nhập', 'phone' => '0912000777', 'branch_id' => $this->branch->id, 'source' => 'Walk-in', 'assigned_user_id' => $newSales->id,
         ])->assertSessionHasNoErrors();
-        $this->assertSame($this->sales->id, CrmCustomer::where('phone_normalized', '0912000777')->value('assigned_user_id'));
+        $this->assertSame($newSales->id, CrmCustomer::where('phone_normalized', '0912000777')->value('assigned_user_id'));
     }
 
     public function test_academic_staff_ticks_care_checklist_imports_customers_and_grades_tests(): void
@@ -365,7 +368,7 @@ class BaPermissionsTest extends TestCase
         $csv = "Họ tên,Số điện thoại,Tên phụ huynh,SĐT phụ huynh,Email,Nguồn,Khóa học quan tâm\nNguyễn Nhập,0912 345 111,Mẹ Nhập,0987654111,,Hội thảo,Starters";
         $this->actingAs($this->academic)->get(route('crm.import'))->assertOk();
         $this->actingAs($this->academic)->post(route('crm.import.preview'), [
-            'file' => UploadedFile::fake()->createWithContent('khach.csv', "\xEF\xBB\xBF".$csv), 'branch_id' => $this->branch->id, 'assigned_user_id' => $this->sales->id,
+            'file' => UploadedFile::fake()->createWithContent('khach.csv', "\xEF\xBB\xBF".$csv), 'branch_id' => $this->branch->id, 'assigned_user_id' => $this->academic->id,
         ])->assertSessionHasNoErrors();
         $this->actingAs($this->academic)->post(route('crm.import.store'))->assertRedirect(route('crm.customers.index'));
         $this->assertSame($this->branch->id, CrmCustomer::where('phone_normalized', '0912345111')->value('branch_id'));
@@ -412,7 +415,7 @@ class BaPermissionsTest extends TestCase
     public function test_manager_and_sales_crm_rights_unchanged(): void
     {
         $lead = $this->lead('consulting');
-        $newSales = $this->makeUser('sales_consultant', name: 'Sale Ba');
+        $newSales = $this->makeUser('academic_staff', name: 'Học Vụ Ba');
         $this->actingAs($this->sales)->post(route('crm.customers.reassign', $lead), ['assigned_user_id' => $newSales->id, 'reason' => 'x'])->assertForbidden();
         $this->actingAs($this->sales)->json('POST', route('crm.customers.stage', $lead->id), ['stage' => 'test_scheduled'])->assertForbidden();
         $this->actingAs($this->sales)->delete('/crm/customers/'.$lead->id)->assertMethodNotAllowed();

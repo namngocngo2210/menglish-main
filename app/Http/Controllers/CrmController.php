@@ -25,6 +25,8 @@ use App\Models\SystemCategory;
 use App\Models\TuitionReceipt;
 use App\Models\User;
 use App\Models\WorkTask;
+use App\Services\Crm\CrmBranchTransferService;
+use App\Services\Crm\LeadOwners;
 use App\Services\Crm\TrialSlotFinder;
 use App\Services\Crm\WaitingLeadPlacement;
 use App\Services\Students\ClassStartActivation;
@@ -274,11 +276,26 @@ class CrmController extends Controller
                     => Branch::whereIn('id', $user->branchIds())->orderBy('name')->get(['id', 'name']),
                 default => collect(),
             },
-            'filterSales' => User::query()
-                ->whereIn('id', CrmCustomer::query()->whereIn('id', $scopedIds)->whereNotNull('assigned_user_id')->select('assigned_user_id'))
-                ->orderBy('name')->get(['id', 'name']),
+            // Người phụ trách (chủ dự án 29/09/2026): Admin + Học vụ trong phạm vi, kèm người đang phụ trách khách trong
+            // phạm vi (vd Sale phụ trách khách cũ) để vẫn lọc được.
+            'filterSales' => $this->ownerFilterOptions($user, $leadScope, $scopedIds),
             'filterSources' => CrmCustomer::query()->whereIn('id', $scopedIds)->whereNotNull('source')->distinct()->orderBy('source')->pluck('source'),
         ];
+    }
+
+    /** @return Collection<int, User> */
+    protected function ownerFilterOptions(?User $user, ?string $leadScope, $scopedIds): Collection
+    {
+        if (! $user) {
+            return collect();
+        }
+        $candidates = $leadScope === DataScope::OWN ? collect() : LeadOwners::candidates($leadScope === DataScope::ALL ? null : $user->branchIds());
+        $current = User::withTrashed()->with('branch:id,name')
+            ->whereIn('id', CrmCustomer::query()->whereIn('id', $scopedIds)->whereNotNull('assigned_user_id')->select('assigned_user_id'))
+            ->whereNotIn('id', $candidates->pluck('id'))
+            ->orderBy('name')->get(['id', 'name', 'email', 'branch_id', 'is_active']);
+
+        return $candidates->concat($current)->values();
     }
 
     public function customers(Request $request)
@@ -371,15 +388,8 @@ class CrmController extends Controller
     public function createCustomer()
     {
         $branches = $this->leadBranchOptions(Auth::user());
-        $salesUsers = Rbac::scopeUsersWithPermission(User::query()->where('is_active', true), 'lead.be_assigned')
-            // Phạm vi chi nhánh: chỉ người thuộc chi nhánh của mình (máy chủ cũng kiểm tra theo chi nhánh của khách).
-            ->when(! DataScope::isAll(Auth::user(), 'lead'), fn (Builder $query) => $query->where(fn (Builder $q) => $q
-                ->whereIn('branch_id', Auth::user()->branchIds())
-                ->orWhereHas('branches', fn (Builder $b) => $b->whereIn('branches.id', Auth::user()->branchIds()))))
-            ->orderBy('name')->get();
-        if ($salesUsers->isEmpty()) {
-            $salesUsers = User::where('is_active', true)->get();
-        }
+        // Người phụ trách: Admin + Học vụ; phạm vi chi nhánh chỉ thấy Học vụ cơ sở mình (máy chủ kiểm tra theo cơ sở của khách).
+        $salesUsers = LeadOwners::candidates(DataScope::isAll(Auth::user(), 'lead') ? null : Auth::user()->branchIds());
         $leadSources = SystemCategory::where('type', 'lead_source')->orderBy('sort_order')->pluck('name');
         if ($leadSources->isEmpty()) {
             $leadSources = collect(CrmCustomer::DEFAULT_SOURCES);
@@ -417,10 +427,13 @@ class CrmController extends Controller
         $canAssign = $request->user()->can('lead.assign');
         if ($canAssign && ! empty($validated['assigned_user_id'])) {
             $assignee = User::find($validated['assigned_user_id']);
-            if (! $assignee?->is_active || ! $assignee->can('lead.be_assigned')) {
-                throw ValidationException::withMessages(['assigned_user_id' => 'Người phụ trách phải là Sales hoặc quản lý đang hoạt động.']);
+            if (! LeadOwners::isCandidate($assignee)) {
+                throw ValidationException::withMessages(['assigned_user_id' => self::OWNER_INVALID]);
             }
-            $this->assertAssigneeInBranch($assignee, (int) $validated['branch_id']);
+            // Khách mới: người phụ trách phải thuộc cơ sở đã chọn (chuyển cơ sở chỉ qua đổi người phụ trách sau khi tạo).
+            if (! LeadOwners::belongsToBranch($assignee, (int) $validated['branch_id'])) {
+                throw ValidationException::withMessages(['assigned_user_id' => "{$assignee->name} không thuộc cơ sở đã chọn. Chọn Học vụ cùng cơ sở hoặc Admin."]);
+            }
         }
 
         $code = CrmCustomer::generateCode();
@@ -526,12 +539,13 @@ class CrmController extends Controller
         $statusCard = $this->statusCardData($customer);
         // Phân công lại theo quyền lead.assign (Admin, Quản lý cơ sở, Học vụ — BA 26/09/2026), không theo vai trò.
         $canReassign = $user->can('lead.assign');
-        $reassignUsers = $canReassign ? $this->assignableUsers($customer->branch_id) : collect();
+        $reassignUsers = $canReassign ? $this->assignableUsers() : collect();
+        $pendingTransfer = $customer->pendingBranchTransfer()->with(['toUser:id,name', 'toBranch:id,name', 'fromBranch:id,name', 'requester:id,name'])->first();
 
         $editForm = $user->can('lead.update') ? $this->customerFormOptions($customer) : null;
 
         return $this->modalView('crm.show', compact('customer', 'placementTests', 'examiners', 'latestSubmission', 'courses', 'branches', 'portalTestLink', 'canBookTrial', 'trialSlots', 'trialState', 'stageControls',
-            'histories', 'logType', 'rubric', 'statusCard', 'canReassign', 'reassignUsers', 'trialRemaining', 'editForm', 'unlinkedSubmissions'));
+            'histories', 'logType', 'rubric', 'statusCard', 'canReassign', 'reassignUsers', 'trialRemaining', 'editForm', 'unlinkedSubmissions', 'pendingTransfer'));
     }
 
     /**
@@ -616,31 +630,44 @@ class CrmController extends Controller
         return $diff->invert ? 'Quá hạn '.$text : 'Còn '.$text;
     }
 
-    /**
-     * Người đang hoạt động có quyền "Được nhận phụ trách khách" (lead.be_assigned — mặc định Sale, Quản lý cơ sở, Admin);
-     * người phân công không ở phạm vi CRM toàn hệ thống thì chỉ thấy người cùng chi nhánh của khách.
-     */
-    /**
-     * Người dùng phạm vi chi nhánh chỉ được giao khách cho người thuộc chi nhánh của khách
-     * (giống danh sách chọn trên giao diện) — nếu không, khách lọt sang chi nhánh khác.
-     */
-    protected function assertAssigneeInBranch(User $assignee, int $branchId): void
-    {
-        if (DataScope::isAll(Auth::user(), 'lead') || in_array($branchId, $assignee->branchIds(), true)) {
-            return;
-        }
+    private const OWNER_INVALID = 'Người phụ trách phải là Học vụ hoặc Admin đang hoạt động.';
 
-        throw ValidationException::withMessages(['assigned_user_id' => "{$assignee->name} không thuộc chi nhánh của khách. Chọn người phụ trách cùng chi nhánh."]);
+    /**
+     * Người phụ trách chọn được khi đổi người phụ trách: Admin + Học vụ mọi cơ sở. Chọn Học vụ cơ sở khác = chuyển cơ sở
+     * cho khách (chờ Admin duyệt, CrmBranchTransferService).
+     */
+    protected function assignableUsers(): Collection
+    {
+        return LeadOwners::candidates();
     }
 
-    protected function assignableUsers(?int $branchId = null): Collection
+    /**
+     * Đổi người phụ trách (form sửa / Phân công lại). Cùng cơ sở → đổi ngay. Khác cơ sở → Admin đổi ngay kèm chuyển cơ sở,
+     * người khác gửi yêu cầu chờ Admin duyệt. Trả thông báo khi đã gửi yêu cầu (null nếu đổi xong).
+     */
+    protected function changeOwner(CrmCustomer $customer, User $assignee, User $actor, ?string $reason, string $title): ?string
     {
-        return Rbac::scopeUsersWithPermission(User::query()->where('is_active', true), 'lead.be_assigned')
-            ->when($branchId && ! DataScope::isAll(Auth::user(), 'lead'), fn (Builder $query) => $query->where(fn (Builder $q) => $q
-                ->where('branch_id', $branchId)
-                ->orWhereHas('branches', fn (Builder $b) => $b->where('branches.id', $branchId))))
-            ->orderBy('name')
-            ->get(['id', 'name', 'email']);
+        if (! LeadOwners::isCandidate($assignee)) {
+            throw ValidationException::withMessages(['assigned_user_id' => self::OWNER_INVALID]);
+        }
+        $transfers = app(CrmBranchTransferService::class);
+        if ($transfers->needsTransfer($customer, $assignee)) {
+            $transfer = $transfers->requestOrApply($customer, $assignee, $actor, $reason);
+
+            return $transfer
+                ? "Đã gửi yêu cầu chuyển khách sang {$assignee->name} ({$transfer->toBranch?->name}). Chờ Admin duyệt chuyển cơ sở."
+                : null;
+        }
+
+        $changes = $this->diffCustomer($customer, ['assigned_user_id' => $assignee->id]);
+        DB::transaction(function () use ($customer, $assignee, $changes, $actor, $reason, $title) {
+            $customer->update(['assigned_user_id' => $assignee->id]);
+            if ($changes !== []) {
+                $this->logCustomerChanges($customer, $changes, $actor, 'assign', $title, $reason);
+            }
+        });
+
+        return null;
     }
 
     /**
@@ -951,7 +978,7 @@ class CrmController extends Controller
     protected function customerFormOptions(CrmCustomer $customer): array
     {
         $leadSources = SystemCategory::where('type', 'lead_source')->orderBy('sort_order')->pluck('name');
-        $salesUsers = $this->assignableUsers((int) $customer->branch_id);
+        $salesUsers = $this->assignableUsers();
         // Người phụ trách hiện tại (vd Học vụ tự tạo khách, hoặc tài khoản đã khóa) luôn có trong danh sách,
         // nếu không trình duyệt sẽ gửi lựa chọn đầu tiên → âm thầm đổi người phụ trách khi chỉ sửa SĐT.
         if ($customer->assigned_user_id && ! $salesUsers->contains('id', $customer->assigned_user_id) && ($current = User::withTrashed()->find($customer->assigned_user_id))) {
@@ -979,7 +1006,7 @@ class CrmController extends Controller
         'branch_id' => 'Cơ sở',
         'course_interest' => 'Khóa học quan tâm',
         'source' => 'Nguồn',
-        'assigned_user_id' => 'Sales phụ trách',
+        'assigned_user_id' => 'Người phụ trách',
         'deal_value' => 'Giá trị hợp đồng',
         'next_follow_up_at' => 'Hạn liên hệ tiếp theo',
         'notes' => 'Ghi chú',
@@ -1031,17 +1058,16 @@ class CrmController extends Controller
 
         $validated['phone_normalized'] = $this->assertUniqueLead($validated['phone'], $validated['email'] ?? null, $customer->id);
         $this->assertValidParentPhone($validated['parent_phone'] ?? null);
+        // Đổi người phụ trách đi riêng (có thể phải chuyển cơ sở, chờ Admin duyệt) sau khi lưu các trường khác.
+        $newOwner = null;
         if ($request->user()->can('lead.assign') && ! empty($validated['assigned_user_id']) && (int) $validated['assigned_user_id'] !== (int) $customer->assigned_user_id) {
-            $assignee = User::find($validated['assigned_user_id']);
-            if (! $assignee?->is_active || ! $assignee->can('lead.be_assigned')) {
-                throw ValidationException::withMessages(['assigned_user_id' => 'Người phụ trách phải là Sales hoặc quản lý đang hoạt động.']);
+            $newOwner = User::find($validated['assigned_user_id']);
+            if (! LeadOwners::isCandidate($newOwner)) {
+                throw ValidationException::withMessages(['assigned_user_id' => self::OWNER_INVALID]);
             }
-            $this->assertAssigneeInBranch($assignee, (int) $validated['branch_id']);
         }
         // Ô người phụ trách để trống không được xoá người phụ trách hiện tại.
-        if (! $request->user()->can('lead.assign') || empty($validated['assigned_user_id'])) {
-            unset($validated['assigned_user_id']);
-        }
+        unset($validated['assigned_user_id']);
         // Xoá trắng ô "Giá trị hợp đồng" = 0 (cột không nhận NULL).
         if (array_key_exists('deal_value', $validated) && $validated['deal_value'] === null) {
             $validated['deal_value'] = 0;
@@ -1058,8 +1084,13 @@ class CrmController extends Controller
         } catch (UniqueConstraintViolationException) {
             throw ValidationException::withMessages(['phone' => 'Số điện thoại hoặc email này vừa được phiên khác sử dụng. Vui lòng kiểm tra lại.']);
         }
+        $pendingMessage = $newOwner ? $this->changeOwner($customer->refresh(), $newOwner, $request->user(), null, 'Đổi người phụ trách') : null;
 
-        return $this->modalSaved('Cập nhật thông tin khách hàng thành công!', 'crm-customers-changed', route('crm.customers.show', ['id' => $customer->id, 'tab' => 'info']));
+        return $this->modalSaved(
+            'Cập nhật thông tin khách hàng thành công!'.($pendingMessage ? ' '.$pendingMessage : ''),
+            'crm-customers-changed',
+            route('crm.customers.show', ['id' => $customer->id, 'tab' => 'info']),
+        );
     }
 
     protected function fieldChanged(CrmCustomer $customer, string $field, mixed $new): bool
@@ -1236,7 +1267,7 @@ class CrmController extends Controller
         abort_unless($request->user()->can('lead.delete'), 403, 'Bạn không có quyền xem và khôi phục khách đã xóa.');
     }
 
-    /** Phân công lại Sales phụ trách (quyền lead.assign: Admin / Quản lý cơ sở / Học vụ), bắt buộc lý do, ghi lịch sử. */
+    /** Phân công lại người phụ trách (quyền lead.assign: Admin / Quản lý cơ sở / Học vụ), bắt buộc lý do, ghi lịch sử; khác cơ sở → chờ Admin duyệt. */
     public function reassignCustomer(Request $request, $id)
     {
         abort_unless($request->user()->can('lead.assign'), 403, 'Bạn không có quyền phân công lại khách.');
@@ -1247,21 +1278,12 @@ class CrmController extends Controller
         ], ['reason.required' => 'Vui lòng nhập lý do phân công lại.']);
 
         $assignee = User::findOrFail($validated['assigned_user_id']);
-        if (! $assignee->is_active || ! $assignee->can('lead.be_assigned')) {
-            throw ValidationException::withMessages(['assigned_user_id' => 'Người phụ trách phải là Sales hoặc quản lý đang hoạt động.']);
-        }
         if ($assignee->id === $customer->assigned_user_id) {
             throw ValidationException::withMessages(['assigned_user_id' => 'Khách đang do người này phụ trách.']);
         }
-        $this->assertAssigneeInBranch($assignee, (int) $customer->branch_id);
+        $pendingMessage = $this->changeOwner($customer, $assignee, $request->user(), $validated['reason'], 'Phân công lại người phụ trách');
 
-        $changes = $this->diffCustomer($customer, ['assigned_user_id' => $assignee->id]);
-        DB::transaction(function () use ($customer, $assignee, $changes, $validated, $request) {
-            $customer->update(['assigned_user_id' => $assignee->id]);
-            $this->logCustomerChanges($customer, $changes, $request->user(), 'assign', 'Phân công lại Sales phụ trách', $validated['reason']);
-        });
-
-        return redirect()->route('crm.customers.show', $customer->id)->with('status', "Đã phân công lại khách cho {$assignee->name}.");
+        return redirect()->route('crm.customers.show', $customer->id)->with('status', $pendingMessage ?? "Đã phân công lại khách cho {$assignee->name}.");
     }
 
     /** Checklist chăm sóc tháng đầu cho khách đã chốt. */
@@ -1518,7 +1540,7 @@ class CrmController extends Controller
             $c->converted_at?->format('d/m/Y H:i'),
         ])->all();
 
-        return $this->downloadTable('khach-chot-thanh-cong', ['Mã KH', 'Họ tên', 'SĐT', 'Phụ huynh', 'Cơ sở', 'Nguồn', 'Khóa đăng ký', 'Lớp', 'Giá trị HĐ', 'Đã thu (duyệt)', 'Còn nợ', 'Sales phụ trách', 'Ngày chốt'], $rows, $format);
+        return $this->downloadTable('khach-chot-thanh-cong', ['Mã KH', 'Họ tên', 'SĐT', 'Phụ huynh', 'Cơ sở', 'Nguồn', 'Khóa đăng ký', 'Lớp', 'Giá trị HĐ', 'Đã thu (duyệt)', 'Còn nợ', 'Người phụ trách', 'Ngày chốt'], $rows, $format);
     }
 
     /** Xuất bảng ra Excel (.xlsx) hoặc CSV (UTF-8 BOM) qua maatwebsite/excel. */
@@ -2220,7 +2242,7 @@ class CrmController extends Controller
                 $c->notes,
             ])->all();
 
-            return $this->downloadTable('khach-khong-chot', ['Mã KH', 'Họ tên', 'SĐT', 'Cơ sở', 'Nguồn', 'Khóa quan tâm', 'Giá trị dự kiến', 'Lý do thất bại', 'Sales phụ trách', 'Ngày thất bại', 'Ghi chú'], $rows, $request->input('export'));
+            return $this->downloadTable('khach-khong-chot', ['Mã KH', 'Họ tên', 'SĐT', 'Cơ sở', 'Nguồn', 'Khóa quan tâm', 'Giá trị dự kiến', 'Lý do thất bại', 'Người phụ trách', 'Ngày thất bại', 'Ghi chú'], $rows, $request->input('export'));
         }
 
         $lostTotal = $this->scopeCustomerQuery()->where('stage', 'lost')->count();

@@ -9,6 +9,7 @@ use App\Models\Branch;
 use App\Models\CrmCustomer;
 use App\Models\CrmCustomerHistory;
 use App\Models\User;
+use App\Services\Crm\LeadOwners;
 use Carbon\Carbon;
 use Illuminate\Database\QueryException;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -24,7 +25,7 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 /**
  * "Nhập khách hàng loạt từ Excel" (mockup CRM): tải file .xlsx / .csv → xem trước + lỗi từng dòng
  * (thiếu tên, SĐT sai định dạng, trùng trong file / trùng CRM, email sai) → nhập các dòng hợp lệ
- * vào chi nhánh + Sales phụ trách đã chọn. Không liên quan màn nhập học phí.
+ * vào chi nhánh + người phụ trách đã chọn (hoặc người ở cột "Người phụ trách" của từng dòng). Không liên quan màn nhập học phí.
  * Mở từ nút "Nhập Excel" → modal (htmx): redirect sau mỗi bước về crm.import được trình duyệt đi theo (giữ HX-Request)
  * nên bước kế tiếp hiện ngay trong modal; nhập xong → HX-Redirect sang danh sách khách kèm kết quả như cũ.
  */
@@ -49,9 +50,10 @@ class CrmImportController extends Controller
         'nguon' => 'source', 'nguonkhach' => 'source', 'source' => 'source',
         'khoahocquantam' => 'course_interest', 'khoaquantam' => 'course_interest', 'khoahoc' => 'course_interest', 'courseinterest' => 'course_interest',
         'ghichu' => 'notes', 'notes' => 'notes',
+        'nguoiphutrach' => 'owner', 'phutrach' => 'owner', 'hocvuphutrach' => 'owner', 'owner' => 'owner',
     ];
 
-    private const TEMPLATE_HEADINGS = ['Họ tên', 'Số điện thoại', 'Tên phụ huynh', 'SĐT phụ huynh', 'Email', 'Ngày sinh', 'Giới tính', 'Địa chỉ', 'Nguồn', 'Khóa học quan tâm', 'Ghi chú'];
+    private const TEMPLATE_HEADINGS = ['Họ tên', 'Số điện thoại', 'Tên phụ huynh', 'SĐT phụ huynh', 'Email', 'Ngày sinh', 'Giới tính', 'Địa chỉ', 'Nguồn', 'Khóa học quan tâm', 'Ghi chú', 'Người phụ trách'];
 
     public function create(Request $request)
     {
@@ -64,7 +66,7 @@ class CrmImportController extends Controller
     {
         return Excel::download(
             new ArrayExport(self::TEMPLATE_HEADINGS, [
-                ['Nguyễn Văn An', '0912345678', 'Nguyễn Văn Bình', '0987654321', 'an.nguyen@example.com', '15/08/2015', 'Nam', 'Hà Nội', 'Facebook Ads', 'Starters', 'Muốn học buổi tối'],
+                ['Nguyễn Văn An', '0912345678', 'Nguyễn Văn Bình', '0987654321', 'an.nguyen@example.com', '15/08/2015', 'Nam', 'Hà Nội', 'Facebook Ads', 'Starters', 'Muốn học buổi tối', ''],
             ]),
             'mau-nhap-khach-hang.xlsx',
             ExcelFormat::XLSX
@@ -95,6 +97,7 @@ class CrmImportController extends Controller
             $row['data']['source'] ?? null,
             $row['data']['course_interest'] ?? null,
             $row['data']['notes'] ?? null,
+            $row['data']['owner'] ?? null,
             'Dòng '.$row['line'].': '.implode('; ', $row['errors']),
         ])->values()->all();
 
@@ -120,6 +123,14 @@ class CrmImportController extends Controller
             'branch_id.in' => 'Chi nhánh không hợp lệ hoặc ngoài phạm vi của bạn.',
         ]);
         $assigneeId = $this->resolveAssignee($user, $validated['assigned_user_id'] ?? null, $options['salesUsers']);
+        $assignee = User::find($assigneeId);
+        if ($assigneeId !== $user->id && ! LeadOwners::belongsToBranch($assignee, (int) $validated['branch_id'])) {
+            throw ValidationException::withMessages(['assigned_user_id' => "{$assignee->name} không thuộc chi nhánh nhận khách. Chọn Học vụ cùng cơ sở hoặc Admin."]);
+        }
+        // Cột "Người phụ trách" từng dòng: Học vụ của chi nhánh nhận khách hoặc Admin (theo tên / email).
+        $rowOwners = $options['canAssign']
+            ? $options['salesUsers']->filter(fn (User $owner) => LeadOwners::belongsToBranch($owner, (int) $validated['branch_id']))->values()
+            : collect();
 
         try {
             $rawRows = RawRowsImport::firstSheetNumbered($request->file('file'));
@@ -150,7 +161,11 @@ class CrmImportController extends Controller
                 continue;
             }
             $data['source'] = $data['source'] ?: ($validated['default_source'] ?? null) ?: 'Nhập Excel';
+            $ownerError = $this->resolveRowOwner($data, $options['canAssign'], $rowOwners);
             $errors = $this->validateRow($data, $seenPhones, $seenEmails, $line);
+            if ($ownerError) {
+                $errors[] = $ownerError;
+            }
             $rows[] = ['line' => $line, 'data' => $data, 'errors' => $errors];
         }
 
@@ -184,7 +199,7 @@ class CrmImportController extends Controller
         // Sales được chọn lúc xem trước có thể đã bị khoá / đổi vai trò trước khi bấm Nhập.
         $assignee = User::find($preview['assigned_user_id']);
         if (! $assignee?->is_active || ($assignee->id !== $user->id && ! $assignee->can('lead.be_assigned'))) {
-            return redirect()->route('crm.import')->withErrors(['assigned_user_id' => 'Sales phụ trách đã chọn không còn hoạt động. Vui lòng chọn lại và kiểm tra dữ liệu lần nữa.']);
+            return redirect()->route('crm.import')->withErrors(['assigned_user_id' => 'Người phụ trách đã chọn không còn hoạt động. Vui lòng chọn lại và kiểm tra dữ liệu lần nữa.']);
         }
         // File lớn (tới 1.000 dòng) trên hosting có giới hạn thời gian chạy ngắn.
         @set_time_limit(300);
@@ -203,6 +218,9 @@ class CrmImportController extends Controller
             $seen = [];
             $seenEmails = [];
             $errors = $this->validateRow($data, $seen, $seenEmails);
+            if (! empty($data['owner_id']) && ! LeadOwners::isCandidate(User::find($data['owner_id']))) {
+                $errors[] = 'Người phụ trách '.($data['owner_name'] ?? '').' không còn hoạt động';
+            }
             if ($errors) {
                 $skipped[] = "Dòng {$row['line']}: ".implode('; ', $errors);
 
@@ -226,7 +244,7 @@ class CrmImportController extends Controller
                         'course_interest' => $data['course_interest'] ?: null,
                         'notes' => $data['notes'] ?: null,
                         'branch_id' => $preview['branch_id'],
-                        'assigned_user_id' => $preview['assigned_user_id'],
+                        'assigned_user_id' => ($data['owner_id'] ?? null) ?: $preview['assigned_user_id'],
                         'stage' => 'new',
                         'deal_value' => 0,
                     ]);
@@ -264,12 +282,9 @@ class CrmImportController extends Controller
             ? Branch::where('is_active', true)->orderBy('name')->get(['id', 'name'])
             : Branch::whereIn('id', $user->branchIds())->orderBy('name')->get(['id', 'name']);
         $canAssign = $user->can('lead.assign');
+        // Người phụ trách: Admin + Học vụ (phạm vi chi nhánh: Học vụ các chi nhánh của mình).
         $salesUsers = $canAssign
-            ? \App\Support\Rbac::scopeUsersWithPermission(User::query()->where('is_active', true), 'lead.be_assigned')
-                ->when(! $allBranches, fn ($q) => $q->where(fn ($inner) => $inner
-                    ->whereIn('branch_id', $branches->pluck('id'))
-                    ->orWhereHas('branches', fn ($b) => $b->whereIn('branches.id', $branches->pluck('id')))))
-                ->orderBy('name')->get(['id', 'name', 'email'])
+            ? LeadOwners::candidates($allBranches ? null : $branches->pluck('id')->map(fn ($id) => (int) $id)->all())
             : collect([$user]);
 
         return compact('branches', 'salesUsers', 'canAssign');
@@ -285,6 +300,28 @@ class CrmImportController extends Controller
         }
 
         return (int) $requested;
+    }
+
+    /** Gán owner_id / owner_name cho dòng có cột "Người phụ trách"; trả lỗi nếu không hợp lệ. */
+    protected function resolveRowOwner(array &$data, bool $canAssign, Collection $owners): ?string
+    {
+        $value = trim((string) ($data['owner'] ?? ''));
+        $data['owner_id'] = null;
+        $data['owner_name'] = null;
+        if ($value === '') {
+            return null;
+        }
+        if (! $canAssign) {
+            return 'Bạn không có quyền chọn người phụ trách (xóa cột Người phụ trách)';
+        }
+        $owner = LeadOwners::match($owners, $value);
+        if (! $owner) {
+            return "Người phụ trách \"{$value}\" không phải Học vụ của chi nhánh nhận khách hoặc Admin (ghi đúng họ tên hoặc email)";
+        }
+        $data['owner_id'] = $owner->id;
+        $data['owner_name'] = $owner->name;
+
+        return null;
     }
 
     /** @return array<int, string|null> vị trí cột => trường */

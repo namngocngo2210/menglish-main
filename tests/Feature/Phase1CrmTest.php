@@ -322,9 +322,10 @@ class Phase1CrmTest extends TestCase
     public function test_reassign_needs_lead_assign_requires_reason_and_is_logged(): void
     {
         $lead = $this->lead('consulting');
-        $newSales = $this->userWithRole('sales_consultant', $this->branch, 'Sale Mới');
+        // Người phụ trách = Học vụ / Admin (chủ dự án 29/09/2026).
+        $newSales = $this->userWithRole('academic_staff', $this->branch, 'Học Vụ Mới');
 
-        $this->actingAs($this->manager)->get(route('crm.customers.show', $lead))->assertOk()->assertSee('Phân công lại')->assertSee('Sale Mới');
+        $this->actingAs($this->manager)->get(route('crm.customers.show', $lead))->assertOk()->assertSee('Phân công lại')->assertSee('Học Vụ Mới');
         $this->actingAs($this->sales)->post(route('crm.customers.reassign', $lead), ['assigned_user_id' => $newSales->id, 'reason' => 'x'])->assertForbidden();
         // BA 26/09/2026: Học vụ có lead.assign (toàn quyền CRM trừ xóa) → qua được cổng quyền, vẫn bắt buộc lý do.
         $this->actingAs($this->academic)->post(route('crm.customers.reassign', $lead), ['assigned_user_id' => $newSales->id])->assertSessionHasErrors('reason');
@@ -336,7 +337,7 @@ class Phase1CrmTest extends TestCase
         $history = CrmCustomerHistory::where('customer_id', $lead->id)->where('type', 'assign')->firstOrFail();
         $this->assertSame('Sale cũ nghỉ phép', $history->reason);
         $this->assertSame('Sale Một', $history->changes['assigned_user_id']['old']);
-        $this->assertSame('Sale Mới', $history->changes['assigned_user_id']['new']);
+        $this->assertSame('Học Vụ Mới', $history->changes['assigned_user_id']['new']);
 
         // Manager chi nhánh khác không thấy khách.
         $foreignManager = $this->userWithRole('manager', $this->otherBranch);

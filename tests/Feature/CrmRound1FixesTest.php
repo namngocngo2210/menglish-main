@@ -81,14 +81,15 @@ class CrmRound1FixesTest extends TestCase
         $this->assertEqualsCanonicalizing(['An Hợp Lệ', 'Máy Bàn'], CrmCustomer::pluck('name')->all());
     }
 
-    public function test_import_store_rechecks_that_assigned_sales_is_still_active(): void
+    public function test_import_store_rechecks_that_assigned_owner_is_still_active(): void
     {
+        $owner = $this->userWithRole('academic_staff', $this->branch, 'Học Vụ Một');
         $csv = "Họ tên,Số điện thoại\nNguyễn Nhập,0912 345 111";
         $this->actingAs($this->manager)->post(route('crm.import.preview'), [
-            'file' => UploadedFile::fake()->createWithContent('khach.csv', $csv), 'branch_id' => $this->branch->id, 'assigned_user_id' => $this->sales->id,
+            'file' => UploadedFile::fake()->createWithContent('khach.csv', $csv), 'branch_id' => $this->branch->id, 'assigned_user_id' => $owner->id,
         ])->assertSessionHasNoErrors();
 
-        $this->sales->update(['is_active' => false]);
+        $owner->update(['is_active' => false]);
         $this->actingAs($this->manager)->post(route('crm.import.store'))->assertSessionHasErrors('assigned_user_id');
         $this->assertSame(0, CrmCustomer::count());
     }

@@ -69,16 +69,27 @@
         </x-slot:actions>
     </x-ui.page-header>
 
+    @if ($pendingTransfer)
+        <x-ui.alert type="warning" title="Chờ Admin duyệt chuyển cơ sở" class="mb-md">
+            {{ $pendingTransfer->requester?->name ?? 'Nhân viên' }} đề nghị chuyển khách sang <strong>{{ $pendingTransfer->toUser?->name }}</strong> phụ trách,
+            cơ sở {{ $pendingTransfer->fromBranch?->name ?? '(chưa có)' }} → <strong>{{ $pendingTransfer->toBranch?->name }}</strong>{{ $customer->converted_student_id ? ' (học viên chuyển theo)' : '' }}.
+            @can('lead.approve_transfer')
+                <a href="{{ route('approvals.index', ['group' => \App\Support\Approvals\ApprovalInboxService::groupSlug(\App\Support\Approvals\ApprovableSource::GROUP_ACADEMIC)]) }}" class="font-bold underline">Duyệt / từ chối</a>
+            @endcan
+        </x-ui.alert>
+    @endif
+
     @if ($canReassign)
-        <x-ui.modal name="reassign-customer" title="Phân công lại Sales phụ trách" max-width="md" :show="old('_form') === 'reassign' && ($errors->has('reason') || $errors->has('assigned_user_id'))">
+        <x-ui.modal name="reassign-customer" title="Phân công lại người phụ trách" max-width="md" :show="old('_form') === 'reassign' && ($errors->has('reason') || $errors->has('assigned_user_id'))">
             <form id="reassign-form" action="{{ route('crm.customers.reassign', $customer->id) }}" method="POST" class="space-y-3">
                 @csrf
                 {{-- Lỗi "reason" dùng chung với form lùi giai đoạn / huỷ học thử: chỉ mở lại modal của đúng form đã gửi. --}}
                 <input type="hidden" name="_form" value="reassign" />
                 <p class="text-body-small text-on-surface-variant">Hiện tại: <strong>{{ $customer->assignedUser?->name ?? 'Chưa phân công' }}</strong>. Thay đổi được ghi vào lịch sử khách.</p>
-                <x-ui.select name="assigned_user_id" id="reassign_assigned_user_id" label="Sales phụ trách mới" required placeholder="-- Chọn người phụ trách --"
-                    :options="$reassignUsers->reject(fn ($u) => $u->id === $customer->assigned_user_id)->mapWithKeys(fn ($u) => [$u->id => $u->name.' ('.$u->email.')'])" />
-                <x-ui.textarea name="reason" id="reassign_reason" label="Lý do phân công lại" required rows="3" placeholder="VD: Sales cũ nghỉ phép, chuyển khách cho cơ sở khác..." />
+                <x-ui.select name="assigned_user_id" id="reassign_assigned_user_id" label="Người phụ trách mới" required placeholder="-- Chọn người phụ trách --"
+                    :options="\App\Services\Crm\LeadOwners::options($reassignUsers->reject(fn ($u) => $u->id === $customer->assigned_user_id))"
+                    hint="Chọn Học vụ cơ sở khác ({{ $customer->branch?->name ?? 'khách chưa có cơ sở' }} là cơ sở hiện tại) = chuyển cơ sở cho khách và học viên, cần Admin duyệt." />
+                <x-ui.textarea name="reason" id="reassign_reason" label="Lý do phân công lại" required rows="3" placeholder="VD: Học vụ cũ nghỉ phép, khách chuyển sang học cơ sở khác..." />
             </form>
             <x-slot:footer>
                 <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'reassign-customer')">Hủy</x-ui.button>
