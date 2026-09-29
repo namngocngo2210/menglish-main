@@ -7,6 +7,7 @@ use App\Models\Branch;
 use App\Models\ClassEnrollment;
 use App\Models\ClassModel;
 use App\Models\ClassSession;
+use App\Models\CrmCustomer;
 use App\Models\Student;
 use App\Models\StudentAttendance;
 use App\Models\User;
@@ -152,10 +153,25 @@ class StudentProfileController extends Controller
             ->latest()
             ->paginate($request->perPage(15))
             ->withQueryString();
-        $classes = $this->visibleClasses($user)->orderBy('name')->get();
-        $students = Student::visibleTo($user)->where('status', '!=', Student::STATUS_DROPPED)->orderBy('name')->get();
+        $classes = $this->visibleClasses($user)->with('branch:id,name')->orderBy('name')->get();
+        $students = Student::visibleTo($user)->with('branch:id,name')->where('status', '!=', Student::STATUS_DROPPED)->orderBy('name')->get();
 
-        return view('students.enrollments', compact('enrollments', 'classes', 'students'));
+        // Lớp chọn được theo từng học viên: cùng chi nhánh (chi nhánh đã chốt nếu đang Chờ xếp lớp), đúng khóa đã chốt.
+        $waitingLeads = CrmCustomer::query()->with('waitingBranch:id,name')
+            ->where('stage', 'waiting_class')->whereIn('converted_student_id', $students->pluck('id'))
+            ->get()->keyBy('converted_student_id');
+        $placementRules = $students->mapWithKeys(function (Student $student) use ($waitingLeads) {
+            $lead = $waitingLeads->get($student->id);
+            $branchId = $lead?->waiting_branch_id ?? $student->branch_id;
+
+            return [$student->id => [
+                'branch_id' => $branchId,
+                'branch_name' => $lead?->waiting_branch_id ? $lead->waitingBranch?->name : $student->branch?->name,
+                'course_id' => $lead?->waiting_course_id,
+            ]];
+        });
+
+        return view('students.enrollments', compact('enrollments', 'classes', 'students', 'placementRules'));
     }
 
     public function storeEnrollment(Request $request, WaitingLeadPlacement $placement)
@@ -173,6 +189,7 @@ class StudentProfileController extends Controller
             $waitingLead = $placement->waitingLeadFor($student);
             if ($waitingLead) {
                 $placement->assertMatchesClosedCourse($waitingLead, $class);
+                $placement->assertMatchesClosedBranch($waitingLead, $class);
             }
             $this->assertClassHasSeat($class);
 
@@ -218,6 +235,7 @@ class StudentProfileController extends Controller
             $waitingLead = $placement->waitingLeadFor($student);
             if ($waitingLead) {
                 $placement->assertMatchesClosedCourse($waitingLead, $class);
+                $placement->assertMatchesClosedBranch($waitingLead, $class);
             }
             $this->assertClassHasSeat($class);
 

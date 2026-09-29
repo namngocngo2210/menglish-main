@@ -2033,6 +2033,7 @@ class CrmController extends Controller
                 throw ValidationException::withMessages(['class_id' => 'Lớp phải thuộc chi nhánh của học viên.']);
             }
             $placement->assertMatchesClosedCourse($customer, $class);
+            $placement->assertMatchesClosedBranch($customer, $class);
             $placement->assertNotInClass($student, $class);
             if (! $class->hasSeatsFor()) {
                 throw ValidationException::withMessages(['class_id' => 'Lớp đã đủ sĩ số, vui lòng chọn lớp khác.']);

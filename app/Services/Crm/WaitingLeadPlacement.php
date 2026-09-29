@@ -37,6 +37,15 @@ class WaitingLeadPlacement
         }
     }
 
+    /** Lớp phải thuộc chi nhánh đã chốt (khách chốt học ở cơ sở nào thì xếp lớp ở cơ sở đó). */
+    public function assertMatchesClosedBranch(CrmCustomer $customer, ClassModel $class): void
+    {
+        if ($customer->waiting_branch_id && (int) $class->branch_id !== (int) $customer->waiting_branch_id) {
+            $branchName = $customer->waitingBranch?->name ?? 'chi nhánh đã chọn';
+            throw ValidationException::withMessages(['class_id' => "Lớp phải thuộc chi nhánh đã chốt ({$branchName})."]);
+        }
+    }
+
     /** Học viên đã có lượt ghi danh còn hiệu lực trong lớp này. */
     public function assertNotInClass(Student $student, ClassModel $class): void
     {
