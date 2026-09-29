@@ -83,7 +83,8 @@
             <input type="hidden" name="paid_amount" :value="feePaid ? paidAmount : 0" />
             <input type="hidden" name="payment_method" :value="paymentMethod" />
             <input type="hidden" name="bank_account_id" :value="selectedBankAccountId" />
-            {{-- transfer_memo được server sinh từ mã học viên thật sau khi tạo hồ sơ, không lấy từ client --}}
+            {{-- Mã học viên cấp sẵn → nội dung CK / VietQR xem trước trùng với mã thật; transfer_memo do server sinh (App\Support\TransferMemo) --}}
+            <input type="hidden" name="student_code" value="{{ $studentCodePreview }}" />
 
             {{-- ═════════════════════════════════════════════════════════════════
                  BƯỚC 1: CHỌN KHÁCH HÀNG LEAD
@@ -644,7 +645,7 @@
                                     </button>
                                 </div>
                                 <div class="p-2 bg-primary-container/10 border border-primary-container/30 rounded-lg font-mono font-bold text-xs text-primary break-all select-all text-left" x-text="transferMemo"></div>
-                                <p class="text-[10px] text-on-surface-variant/70">Nội dung <strong>dự kiến</strong> — khi chốt, hệ thống sinh lại theo mã học viên thật (HV-...) trên phiếu thu VietQR.</p>
+                                <p class="text-[10px] text-on-surface-variant/70">Tên học sinh + mã học sinh + lớp (mã học viên được cấp sẵn, giữ nguyên khi chốt).</p>
                             </div>
                         </div>
 
@@ -874,7 +875,7 @@
                 customerLevel: @js($pickedCustomer?->level_label ?? ''),
                 customerLevelKeys: @js($pickedCustomer?->level_keys ?? []),
                 // Mã học viên do hệ thống sinh khi chốt — không đoán trước.
-                studentCodePreview: 'mã HV sinh khi chốt',
+                studentCodePreview: @js($studentCodePreview),
                 // Chỉ chọn sẵn lớp khớp trình độ của khách (controller); không có thì để trống.
                 courseName: @js($defaultClass?->course?->name ?? $courses->firstWhere('id', $defaultCourseId)?->name ?? ''),
                 classId: @js($defaultClass?->id ?? ''),
@@ -965,7 +966,7 @@
                     const clean = (v) => this.removeVietnameseTones(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
                     return [
                         clean(this.customerName || 'HOCVIEN'),
-                        clean(this.studentCodePreview || 'HS000001'),
+                        clean(this.studentCodePreview),
                         this.assignLater ? '' : clean(this.className),
                     ].filter(Boolean).join(' ');
                 },

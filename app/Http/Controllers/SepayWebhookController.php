@@ -203,12 +203,12 @@ class SepayWebhookController extends Controller
                 });
 
             // b. Check student code (HS\d, HV-00001 của DocumentCodeGenerator, HV-<ULID>; chấp nhận cả mã không gạch nối).
-            // Mã số HV-NNNNN (5 chữ số) phải được thử trước: mẫu HV-<ULID> đòi ≥ 6 ký tự nên trước đây bỏ sót mã này.
+            // Nội dung CK mẫu mới đặt TÊN trước MÃ (TransferMemo), tên viết liền có thể chứa "HV" (VD THANHVAN...):
+            // gom mọi ứng viên theo thứ tự ưu tiên rồi thử lần lượt, dừng ở mã đầu tiên có học viên thật.
             if (! $matchedTuition) {
-                if (preg_match('/\b(HV-?\d{5,})(?![A-Z0-9])/i', $content, $matches)
-                    || preg_match('/(HS\d+|HV-?[A-Z0-9]{6,})/i', $content, $matches)) {
-                    $code = strtoupper(str_replace('-', '', $matches[1]));
-                    $student = Student::where('code', strtoupper($matches[1]))
+                foreach ($this->studentCodeCandidates($content) as $candidate) {
+                    $code = strtoupper(str_replace('-', '', $candidate));
+                    $student = Student::where('code', strtoupper($candidate))
                         ->orWhereRaw("REPLACE(code, '-', '') = ?", [$code])
                         ->first();
 
@@ -219,6 +219,7 @@ class SepayWebhookController extends Controller
                             ->latest()
                             ->first()
                             ?: StudentTuition::where('student_id', $student->id)->latest()->first();
+                        break;
                     }
                 }
             }
@@ -558,5 +559,30 @@ class SepayWebhookController extends Controller
 
         // Trả về model đầy đủ — caller cần cả các trường khác (name, code...) chứ không chỉ phone
         return $match ? Student::find($match->id) : null;
+    }
+
+    /**
+     * Ứng viên mã học viên trong nội dung CK, theo thứ tự ưu tiên:
+     * HV-NNNNN (số) → HV-<ULID 26 ký tự> (kể cả khi ngân hàng bỏ dấu cách, dính liền lớp phía sau) → HS\d → HV-xxxxxx bất kỳ.
+     *
+     * @return list<string>
+     */
+    private function studentCodeCandidates(string $content): array
+    {
+        $patterns = [
+            '/\b(HV-?\d{5,})(?![A-Z0-9])/i',
+            // Lookahead để lấy cả các vị trí chồng lấn (tên dính liền mã khi ngân hàng bỏ dấu cách).
+            '/(?=(HV-?[0-9A-HJKMNP-TV-Z]{26}))/i',
+            '/(?=(HS\d+))/i',
+            '/(?=(HV-?[A-Z0-9]{6,}))/i',
+        ];
+        $candidates = [];
+        foreach ($patterns as $pattern) {
+            if (preg_match_all($pattern, $content, $matches)) {
+                array_push($candidates, ...$matches[1]);
+            }
+        }
+
+        return array_values(array_unique(array_map('strtoupper', $candidates)));
     }
 }
