@@ -32,6 +32,8 @@
         <a href="{{ route($activeTab['route']) }}" class="{{ $chipClass($allActive, null) }}" @if ($allActive) aria-current="page" @endif>Tất cả</a>
         @foreach ($tabChips as $chip)
             @php $count = isset($chip['count']) ? ($counts[$chip['count']] ?? null) : null; @endphp
+            {{-- Chip `hide_empty` (vd. "Đã xóa" — không còn chức năng xoá khách) chỉ hiện khi còn dữ liệu. --}}
+            @continue(! empty($chip['hide_empty']) && $count === 0 && ! $chip['active'])
             <a href="{{ $chip['url'] }}" class="{{ $chipClass($chip['active'], $chip['tone'] ?? null) }}" @if ($chip['active']) aria-current="page" @endif>
                 @if (($chip['tone'] ?? null) === 'danger')<span class="material-symbols-outlined text-[16px]" aria-hidden="true">warning</span>@endif
                 {{ $chip['label'] }}

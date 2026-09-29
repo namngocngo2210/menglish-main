@@ -445,7 +445,7 @@ class CrmPipelineTest extends TestCase
         [, $sessions] = $this->classWithSessions(1);
         $this->actingAs($this->admin)->post(route('crm.customers.trial-bookings.store', $lead), ['class_session_id' => $sessions[0]->id])
             ->assertSessionHasErrors('class_session_id');
-        $this->actingAs($this->admin)->delete(route('crm.customers.destroy', $lead))->assertSessionHasErrors('customer');
+        $this->actingAs($this->admin)->delete('/crm/customers/'.$lead->id)->assertMethodNotAllowed();
         $this->assertNotSoftDeleted('crm_customers', ['id' => $lead->id]);
         $this->actingAs($this->manager)->get(route('crm.lost-deals'))->assertOk()->assertSee($lead->name);
 

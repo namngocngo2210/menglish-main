@@ -389,7 +389,7 @@ class BaPermissionsTest extends TestCase
     public function test_academic_staff_cannot_delete_or_move_backward_and_stays_in_branch(): void
     {
         $lead = $this->lead('tested');
-        $this->actingAs($this->academic)->delete(route('crm.customers.destroy', $lead))->assertForbidden();
+        $this->actingAs($this->academic)->delete('/crm/customers/'.$lead->id)->assertMethodNotAllowed();
         $this->actingAs($this->academic)->get(route('crm.customers.deleted'))->assertForbidden();
         $this->assertNotSoftDeleted($lead);
         $test = PlacementTest::create(['code' => 'PQ-DEL', 'title' => 'Đề không xóa', 'is_active' => true]);
@@ -415,11 +415,12 @@ class BaPermissionsTest extends TestCase
         $newSales = $this->makeUser('sales_consultant', name: 'Sale Ba');
         $this->actingAs($this->sales)->post(route('crm.customers.reassign', $lead), ['assigned_user_id' => $newSales->id, 'reason' => 'x'])->assertForbidden();
         $this->actingAs($this->sales)->json('POST', route('crm.customers.stage', $lead->id), ['stage' => 'test_scheduled'])->assertForbidden();
-        $this->actingAs($this->sales)->delete(route('crm.customers.destroy', $lead))->assertForbidden();
+        $this->actingAs($this->sales)->delete('/crm/customers/'.$lead->id)->assertMethodNotAllowed();
         $this->actingAs($this->manager)->post(route('crm.customers.reassign', $lead), ['assigned_user_id' => $newSales->id, 'reason' => 'Chia lại khách'])
             ->assertSessionHasNoErrors();
-        $this->actingAs($this->manager)->delete(route('crm.customers.destroy', $lead))->assertRedirect();
-        $this->assertSoftDeleted($lead);
+        // Không có xoá khách; khách đã xoá trước đây vẫn xem / khôi phục được.
+        $this->actingAs($this->manager)->delete('/crm/customers/'.$lead->id)->assertMethodNotAllowed();
+        $this->assertNotSoftDeleted($lead);
         $this->actingAs($this->manager)->get(route('crm.customers.deleted'))->assertOk();
     }
 
