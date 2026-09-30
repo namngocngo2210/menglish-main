@@ -420,7 +420,7 @@ class Phase4PlatformParityTest extends TestCase
             ->assertSee('Kích hoạt lại')
             ->assertDontSee('lead_source</option>', false);
         // Thêm mới trong modal (không còn panel cạnh bảng): mã gợi ý kế tiếp + thứ tự cuối danh sách.
-        $this->actingAs($this->admin)->get(route('system-categories.create', ['type' => 'lead_source']), ['HX-Request' => 'true'])->assertOk()
+        $this->actingAs($this->admin)->get(route('system-categories.create', ['type' => 'lead_source']), ['X-Remote-Modal' => 'true'])->assertOk()
             ->assertSee('value="SRC_04"', false)
             ->assertSee('value="4"', false);
 

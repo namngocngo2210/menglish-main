@@ -566,7 +566,6 @@ class CrmController extends Controller
 
         return $this->modalSaved(
             "Đã thêm khách hàng {$customer->name} ({$customer->short_code}) thành công vào Cơ sở dữ liệu!",
-            'crm-customers-changed',
             route('crm.customers.show', $customer->id),
         );
     }
@@ -1318,7 +1317,7 @@ class CrmController extends Controller
         $customer = $this->findScopedCustomer($id);
         $url = route('crm.customers.show', ['id' => $customer->id, 'tab' => 'info']);
 
-        return $this->modalRedirect(redirect($url));
+        return redirect($url);
     }
 
     /**
@@ -1439,7 +1438,6 @@ class CrmController extends Controller
 
         return $this->modalSaved(
             'Cập nhật thông tin khách hàng thành công!'.($pendingMessage ? ' '.$pendingMessage : ''),
-            'crm-customers-changed',
             route('crm.customers.show', ['id' => $customer->id, 'tab' => 'info']),
         );
     }

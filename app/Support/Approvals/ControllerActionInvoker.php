@@ -21,7 +21,7 @@ use Throwable;
  * đúng luật nghiệp vụ của màn gốc mà không viết lại (cùng cách DemoPhase*Seeder gọi controller).
  *
  *  - Quyền: kiểm tra mọi middleware `can:` của route (kể cả group) — middleware không chạy khi gọi thẳng action.
- *  - Request con: POST tới URL của route, user hiện tại, KHÔNG có header HX-Request (action trả nhánh thường).
+ *  - Request con: POST tới URL của route, user hiện tại, KHÔNG có header X-Remote-Modal (action trả nhánh thường).
  *  - Kết quả: redirect kèm `errors` / `error` → thất bại; kèm `status` / `success` / `info` → thành công. Flash của
  *    action được lấy ra khỏi session để không hiện lại ở trang kế tiếp.
  */

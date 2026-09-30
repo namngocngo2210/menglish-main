@@ -14,7 +14,6 @@ use App\Models\User;
 use App\Models\WorkTask;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
-use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia;
 use Tests\Concerns\InteractsWithInertia;
 use Tests\TestCase;
@@ -22,8 +21,8 @@ use Tests\TestCase;
 /**
  * Sprint IX-3 — "Modal lớn" (docs/frontend-interaction-redesign.md §3): 11 form + 3 modal xem nhanh.
  * (Ticket hỗ trợ đã chuyển sang Vue/Inertia — xem SupportTicketModalTest.)
- * Cùng route: request thường → trang đầy đủ như cũ; HX-Request → fragment modal; lỗi validate / nghiệp vụ → 422 trong modal;
- * lưu xong → 204 + HX-Trigger (close-modal, toast, sự kiện làm mới). Phân quyền / phạm vi dữ liệu giữ nguyên.
+ * Cùng route: request thường → trang đầy đủ như cũ; X-Remote-Modal → trang trong modal chung (prop asModal);
+ * lỗi validate / nghiệp vụ hiện trong modal; lưu xong quay lại trang đang mở kèm thông báo. Phân quyền / phạm vi dữ liệu giữ nguyên.
  */
 class LargeModalFlowsTest extends TestCase
 {
@@ -256,17 +255,19 @@ class LargeModalFlowsTest extends TestCase
             ->assertRedirect(route('tuition.students'))->assertSessionHasErrors('surcharge_reason')->assertSessionHasInput('amount');
     }
 
-    // ── Hạ tầng: modal xem nhanh đẩy URL, Back đóng modal ───────────────────────────────────
+    // ── Hạ tầng: modal xem nhanh — nút Back đóng modal ──────────────────────────────────────
 
-    public function test_remote_modal_script_handles_push_url_and_back_button(): void
+    public function test_quick_view_modals_close_on_browser_back(): void
     {
-        $js = file_get_contents(resource_path('js/components/remote-modal.js'));
+        $js = file_get_contents(resource_path('js/lib/remoteModal.js'));
 
-        $this->assertStringContainsString("getAttribute?.('hx-push-url') === 'true'", $js);
-        $this->assertStringContainsString('history.pushState({ remoteModal:', $js);
         $this->assertStringContainsString("window.addEventListener('popstate'", $js);
-        $this->assertStringContainsString('history.back()', $js);
-        $this->assertStringContainsString('historyCacheSize = 0', $js);
+        $this->assertStringContainsString('event.stopImmediatePropagation()', $js);
+        $this->assertStringContainsString('window.history.pushState({ ...window.history.state, remoteModal: historyEntry.id }', $js);
+        $this->assertStringContainsString('window.history.back()', $js);
+
+        $this->assertStringContainsString('modal-history>Trao đổi', file_get_contents(resource_path('js/Pages/SupportTickets/Index.vue')));
+        $this->assertStringContainsString("{ size: '2xl', history: true }", file_get_contents(resource_path('js/Pages/Tasks/Index.vue')));
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────────────────────
@@ -333,19 +334,5 @@ class LargeModalFlowsTest extends TestCase
     private function course(): Course
     {
         return Course::query()->firstOrCreate(['code' => 'STA-LM'], ['name' => 'Starters', 'tuition_fee' => 9000000, 'is_active' => true]);
-    }
-
-    private function assertSaved(TestResponse $response, string $event, string $message): void
-    {
-        $response->assertNoContent();
-        $triggers = $this->triggers($response);
-        $this->assertTrue($triggers['close-modal']);
-        $this->assertTrue($triggers[$event]);
-        $this->assertSame(['message' => $message, 'type' => 'success'], $triggers['toast']);
-    }
-
-    private function triggers(TestResponse $response): array
-    {
-        return json_decode($response->headers->get('HX-Trigger'), true, flags: JSON_THROW_ON_ERROR);
     }
 }

@@ -110,7 +110,7 @@ class MerchandiseItemController extends Controller
             activity('merchandise_item')->causedBy(auth()->user())->performedOn($item)->log('Tạo mới hàng hóa: '.$item->name);
         }
 
-        return $this->modalSaved("Đã thêm thành công mặt hàng [{$item->code}] {$item->name}!", 'merchandise-changed', route('merchandise.index'));
+        return $this->modalSaved("Đã thêm thành công mặt hàng [{$item->code}] {$item->name}!", route('merchandise.index'));
     }
 
     public function edit(MerchandiseItem $merchandise): InertiaResponse
@@ -177,7 +177,7 @@ class MerchandiseItemController extends Controller
             activity('merchandise_item')->causedBy(auth()->user())->performedOn($merchandise)->log('Cập nhật hàng hóa: '.$merchandise->name);
         }
 
-        return $this->modalSaved("Đã cập nhật thông tin mặt hàng [{$merchandise->code}] {$merchandise->name}!", 'merchandise-changed', route('merchandise.index'));
+        return $this->modalSaved("Đã cập nhật thông tin mặt hàng [{$merchandise->code}] {$merchandise->name}!", route('merchandise.index'));
     }
 
     public function toggleStatus(MerchandiseItem $merchandise): RedirectResponse
@@ -195,7 +195,7 @@ class MerchandiseItemController extends Controller
         $name = $merchandise->name;
         $merchandise->delete();
 
-        return $this->modalSaved("Đã xóa mặt hàng {$name} vào thùng rác.", 'merchandise-changed', route('merchandise.index'));
+        return $this->modalSaved("Đã xóa mặt hàng {$name} vào thùng rác.", route('merchandise.index'));
     }
 
     public function apiList()

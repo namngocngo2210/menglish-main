@@ -266,7 +266,7 @@ class UserController extends Controller
         $user->syncRoles($this->rolesWithConcurrent($request, $request->validated('role'), []));
         $this->storeContractFile($request, $user);
 
-        return $this->modalSaved('Đã tạo tài khoản thành công.', 'users-changed', route('users.index'));
+        return $this->modalSaved('Đã tạo tài khoản thành công.', route('users.index'));
     }
 
     public function edit(Request $request, User $user): InertiaResponse
@@ -332,7 +332,7 @@ class UserController extends Controller
 
         $this->storeContractFile($request, $user);
 
-        return $this->modalSaved('Đã cập nhật tài khoản thành công.', 'users-changed', route('users.index'));
+        return $this->modalSaved('Đã cập nhật tài khoản thành công.', route('users.index'));
     }
 
     public function destroy(User $user): RedirectResponse
@@ -436,7 +436,7 @@ class UserController extends Controller
             ->withProperties(['old' => ['roles' => $before], 'attributes' => ['roles' => $after], 'roles' => $after])
             ->log('Cập nhật vai trò nhân viên');
 
-        return $this->modalSaved('Đã cập nhật vai trò.', 'users-changed', route('users.index'));
+        return $this->modalSaved('Đã cập nhật vai trò.', route('users.index'));
     }
 
     /**

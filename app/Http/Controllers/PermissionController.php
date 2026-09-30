@@ -48,7 +48,7 @@ class PermissionController extends Controller
 
         activity('permission')->causedBy(auth()->user())->performedOn($permission)->log('Tạo permission mới');
 
-        return $this->modalSaved('Đã tạo permission thành công.', 'permissions-changed', route('permissions.index'));
+        return $this->modalSaved('Đã tạo permission thành công.', route('permissions.index'));
     }
 
     public function edit(Permission $permission): InertiaResponse
@@ -62,7 +62,7 @@ class PermissionController extends Controller
 
         activity('permission')->causedBy(auth()->user())->performedOn($permission)->log('Cập nhật permission');
 
-        return $this->modalSaved('Đã cập nhật permission.', 'permissions-changed', route('permissions.index'));
+        return $this->modalSaved('Đã cập nhật permission.', route('permissions.index'));
     }
 
     public function destroy(Permission $permission): Response|RedirectResponse
@@ -76,6 +76,6 @@ class PermissionController extends Controller
 
         activity('permission')->causedBy(auth()->user())->withProperties(['name' => $name])->log('Xóa permission');
 
-        return $this->modalSaved('Đã xóa permission.', 'permissions-changed', route('permissions.index'));
+        return $this->modalSaved('Đã xóa permission.', route('permissions.index'));
     }
 }

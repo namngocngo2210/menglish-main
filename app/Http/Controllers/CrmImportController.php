@@ -308,9 +308,9 @@ class CrmImportController extends Controller
 
         $request->session()->forget(self::SESSION_KEY);
 
-        return $this->modalRedirect(redirect()->route('crm.customers.index')
+        return redirect()->route('crm.customers.index')
             ->with('status', "Đã nhập {$created} khách hàng mới vào {$preview['branch_name']}.".($skipped ? ' Bỏ qua '.count($skipped).' dòng lỗi.' : ''))
-            ->with('import_skipped', $skipped));
+            ->with('import_skipped', $skipped);
     }
 
     /**

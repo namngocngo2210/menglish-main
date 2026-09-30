@@ -518,22 +518,22 @@ class TuitionController extends Controller
         ]);
 
         if (empty($validated['student_tuition_id']) && empty($validated['student_id'])) {
-            return $this->modalBack(['student_id' => 'Vui lòng chọn học viên hoặc khoản học phí.'])->withInput();
+            return back()->withErrors(['student_id' => 'Vui lòng chọn học viên hoặc khoản học phí.'])->withInput();
         }
 
         if ($amountError = $this->receiptAmountError($validated)) {
-            return $this->modalBack($amountError)->withInput();
+            return back()->withErrors($amountError)->withInput();
         }
 
         if (! empty($validated['surcharge_amount']) && $validated['surcharge_amount'] > 0 && empty($validated['surcharge_reason'])) {
-            return $this->modalBack(['surcharge_reason' => 'Bắt buộc nhập lý do khi có số tiền phụ thu.'])->withInput();
+            return back()->withErrors(['surcharge_reason' => 'Bắt buộc nhập lý do khi có số tiền phụ thu.'])->withInput();
         }
 
         $isDraft = ($request->input('submit_action') === 'draft');
         $hasProof = $request->hasFile('proof_image')
             || ($request->filled('proof_image_preview') && $this->isSafeProofReference((string) $request->input('proof_image_preview')));
         if (! $isDraft && ($submitError = $this->receiptSubmitError($validated['payment_method'], $validated['transaction_code'] ?? null, $hasProof, null, $validated['paper_invoice_number'] ?? null))) {
-            return $this->modalBack($submitError)->withInput();
+            return back()->withErrors($submitError)->withInput();
         }
 
         $collectedItems = null;
@@ -547,7 +547,7 @@ class TuitionController extends Controller
 
         $tuition = ! empty($validated['student_tuition_id']) ? StudentTuition::with('student')->find($validated['student_tuition_id']) : null;
         if ($tuition && ! empty($validated['student_id']) && (int) $validated['student_id'] !== (int) $tuition->student_id) {
-            return $this->modalBack([
+            return back()->withErrors([
                 'student_id' => 'Học viên không khớp với khoản học phí đã chọn.',
             ])->withInput();
         }
@@ -564,7 +564,7 @@ class TuitionController extends Controller
         $discount = $tuition ? (float) ($validated['discount_amount'] ?? 0) : 0.0;
 
         if (! $isDraft && $tuition && ($overpayError = $this->overpaymentError($tuition, (float) $validated['amount'] - $surcharge, $discount))) {
-            return $this->modalBack(['amount' => $overpayError])->withInput();
+            return back()->withErrors(['amount' => $overpayError])->withInput();
         }
 
         $proofPath = $this->storeProof($request);
@@ -595,7 +595,7 @@ class TuitionController extends Controller
                 'notes' => $validated['notes'] ?? 'Lập phiếu thu học phí & phụ thu',
             ]);
         } catch (UniqueConstraintViolationException) {
-            return $this->modalBack([
+            return back()->withErrors([
                 'transaction_code' => 'Mã giao dịch '.$validated['transaction_code'].' vừa được ghi nhận ở một phiếu thu khác.',
             ])->withInput();
         }
@@ -603,7 +603,6 @@ class TuitionController extends Controller
         if ($isDraft) {
             return $this->modalSaved(
                 "Đã lưu nháp phiếu thu {$receipt->receipt_number} thành công! Bạn có thể tiếp tục sửa và gửi duyệt.",
-                'tuition-receipts-changed',
                 route('tuition.receipts.edit', $receipt->id),
             );
         }
@@ -612,7 +611,6 @@ class TuitionController extends Controller
 
         return $this->modalSaved(
             "Đã gửi duyệt phiếu thu {$receipt->receipt_number} (Số tiền: ".Money::format((float) $receipt->amount).') lên cấp Quản lý / Kế toán!',
-            'tuition-receipts-changed',
             route('tuition.receipts.approve', ['selected_id' => $receipt->id]),
         );
     }
@@ -645,7 +643,7 @@ class TuitionController extends Controller
         abort_unless((int) $receipt->creator_id === (int) $user->id || $user->isSuperAdmin(), 403, 'Chỉ người lập phiếu mới được sửa phiếu này.');
 
         if ($amountError = $this->receiptAmountError($validated)) {
-            return $this->modalBack($amountError)->withInput();
+            return back()->withErrors($amountError)->withInput();
         }
 
         $isDraft = ($validated['submit_action'] ?? null) === 'draft';
@@ -662,11 +660,11 @@ class TuitionController extends Controller
             ? ($validated['paper_invoice_number'] ?? null)
             : $receipt->paper_invoice_number;
         if (! $isDraft && ($submitError = $this->receiptSubmitError($validated['payment_method'], $transactionCode, $hasProof, $receipt->id, $paperInvoiceNumber))) {
-            return $this->modalBack($submitError)->withInput();
+            return back()->withErrors($submitError)->withInput();
         }
 
         if (! $isDraft && $receipt->tuition && ($overpayError = $this->overpaymentError($receipt->tuition, (float) $validated['amount'] - $surcharge, $discount))) {
-            return $this->modalBack(['amount' => $overpayError])->withInput();
+            return back()->withErrors(['amount' => $overpayError])->withInput();
         }
 
         $newProof = $this->storeProof($request);
@@ -701,22 +699,22 @@ class TuitionController extends Controller
                 return $locked;
             });
         } catch (UniqueConstraintViolationException) {
-            return $this->modalBack([
+            return back()->withErrors([
                 'transaction_code' => 'Mã giao dịch '.$transactionCode.' vừa được ghi nhận ở một phiếu thu khác.',
             ])->withInput();
         }
 
         if (! $updated) {
-            return $this->modalBack(['receipt' => 'Chỉ sửa được phiếu ở trạng thái Bản nháp hoặc Bị từ chối.']);
+            return back()->withErrors(['receipt' => 'Chỉ sửa được phiếu ở trạng thái Bản nháp hoặc Bị từ chối.']);
         }
 
         if ($isDraft) {
-            return $this->modalSaved("Đã lưu nháp phiếu thu {$updated->receipt_number}.", 'tuition-receipts-changed', url()->previous());
+            return $this->modalSaved("Đã lưu nháp phiếu thu {$updated->receipt_number}.", url()->previous());
         }
 
         $this->notifyReceiptPending($updated, $receipt->tuition?->student ?? $receipt->student);
 
-        return $this->modalSaved("Đã gửi duyệt lại phiếu thu {$updated->receipt_number}.", 'tuition-receipts-changed', route('tuition.receipts.approve', ['selected_id' => $updated->id]));
+        return $this->modalSaved("Đã gửi duyệt lại phiếu thu {$updated->receipt_number}.", route('tuition.receipts.approve', ['selected_id' => $updated->id]));
     }
 
     /**

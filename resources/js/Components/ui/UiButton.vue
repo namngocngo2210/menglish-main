@@ -5,6 +5,7 @@
  *   icon: tên Material Symbol trước nhãn (không có nhãn → nút chỉ-icon)
  *   href: link chuyển trang trong app (Inertia <Link>); native → thẻ <a> thường (tải file, tab mới, trang ngoài app)
  *   modal: (cần href) true | cỡ modal (sm|md|lg|xl|2xl|3xl|4xl|full) → mở trang đó trong modal chung
+ *   modal-history: modal xem nhanh — nút Back của trình duyệt đóng modal (thay vì rời trang)
  *   <UiButton icon="add" :href="route('classes.create')">Tạo lớp mới</UiButton>
  *   <UiButton icon="add" :href="route('holidays.create')" modal="md">Thêm ngày nghỉ</UiButton>
  *   <UiButton variant="secondary" icon="download" :href="route('crm.import.template')" native>Tải file mẫu</UiButton>
@@ -21,6 +22,7 @@ const props = defineProps({
     href: { type: String, default: null },
     type: { type: String, default: 'button' },
     modal: { type: [Boolean, String], default: null },
+    modalHistory: { type: Boolean, default: false },
     native: { type: Boolean, default: false },
     method: { type: String, default: null },
     data: { type: Object, default: null },
@@ -62,7 +64,7 @@ const isNative = computed(() => props.native || !!attrs.target || attrs.download
 function openModal(event) {
     if (event.ctrlKey || event.metaKey || event.shiftKey || event.button === 1) return;
     event.preventDefault();
-    openRemoteModal(props.href, { size: typeof props.modal === 'string' ? props.modal : 'lg' });
+    openRemoteModal(props.href, { size: typeof props.modal === 'string' ? props.modal : 'lg', history: props.modalHistory });
 }
 </script>
 

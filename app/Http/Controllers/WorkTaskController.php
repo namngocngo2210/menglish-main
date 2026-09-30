@@ -262,7 +262,7 @@ class WorkTaskController extends Controller
 
         $this->notifyAssignee($task);
 
-        return $this->modalSaved("Đã giao việc '{$task->title}' thành công cho nhân sự!", 'tasks-changed', route('tasks.index'), 'success');
+        return $this->modalSaved("Đã giao việc '{$task->title}' thành công cho nhân sự!", route('tasks.index'), 'success');
     }
 
     /**
@@ -288,12 +288,12 @@ class WorkTaskController extends Controller
                 ? 'Người thực hiện không tự xác nhận hoàn thành: hãy gửi "Chờ xác nhận" để người giao việc duyệt.'
                 : "Không thể chuyển công việc từ \"{$task->status_label}\" sang trạng thái này.";
 
-            return $this->modalBack(['status' => $message]);
+            return back()->withErrors(['status' => $message]);
         }
 
         // Mockup "Thay đổi trạng thái": Bị chặn / Hủy bắt buộc ghi lý do.
         if (in_array($status, ['blocked', 'canceled'], true) && blank($reason ?? $note)) {
-            return $this->modalBack(['reason' => $status === 'blocked'
+            return back()->withErrors(['reason' => $status === 'blocked'
                 ? 'Vui lòng nhập lý do khiến công việc bị chặn.'
                 : 'Vui lòng nhập lý do hủy công việc.']);
         }
@@ -325,7 +325,7 @@ class WorkTaskController extends Controller
         }
 
         // Từ modal xem nhanh: đóng modal + làm mới danh sách; từ trang: quay lại như cũ.
-        return $this->modalSaved('Đã cập nhật trạng thái công việc thành công!', 'tasks-changed', url()->previous(), 'success');
+        return $this->modalSaved('Đã cập nhật trạng thái công việc thành công!', url()->previous(), 'success');
     }
 
     /**
@@ -647,7 +647,6 @@ class WorkTaskController extends Controller
 
         return $this->modalSaved(
             "Đã tạo thành công {$created->count()} nhiệm vụ cho Trợ giảng!".($late ? ' (Gửi sau '.self::TA_ASSIGN_CUTOFF.' — đã báo Admin.)' : ''),
-            'tasks-changed',
             route('tasks.index'),
             'success',
         );
@@ -1047,7 +1046,7 @@ class WorkTaskController extends Controller
             : 'Đã nộp báo cáo trực lớp (không có ảnh) — chờ '.($report->confirmerRoleLabel() === 'GV chính của lớp' ? 'GV chính' : 'người giao việc')
                 .($confirmerName ? " {$confirmerName}" : '').' xác nhận.';
 
-        return $this->modalSaved($msg, 'tasks-changed', route('portal.ta-tasks'), 'success');
+        return $this->modalSaved($msg, route('portal.ta-tasks'), 'success');
     }
 
     /**

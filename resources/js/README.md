@@ -63,7 +63,7 @@ defineProps({ courses: Object, levels: Array, canManage: Boolean });
 </template>
 ```
 
-- Tương ứng Blade → Vue: `x-ui.button` → `UiButton`, `x-ui.input` → `UiInput`, `x-ui.select` → `UiSelect`, `x-ui.textarea` → `UiTextarea`,
+- Chuyển thay đổi Blade từ nhánh khác (component Blade cũ đã xoá): `x-ui.button` → `UiButton`, `x-ui.input` → `UiInput`, `x-ui.select` → `UiSelect`, `x-ui.textarea` → `UiTextarea`,
   `x-ui.date` / `date-range` → `UiDate` / `UiDateRange`, `x-ui.data-table` → `UiDataTable`, `x-ui.pagination` → `UiPagination`,
   `x-ui.filter-bar` → `UiFilterBar`, `x-ui.page-header` → `UiPageHeader`, `x-ui.modal` → `UiModal`, `x-ui.modal-frame` → `UiModalFrame`,
   `x-ui.tabs`/`tab` → `UiTabs`/`UiTab`, `x-ui.badge`, `alert`, `avatar`, `code`, `money`, `stat-card`, `empty-state`, `dropdown` → `Ui…` cùng tên,
@@ -95,7 +95,7 @@ Cùng 1 route vừa là modal vừa là trang đầy đủ khi mở thẳng URL:
 
 ```php
 public function edit(Course $course) { return $this->modalPage('Courses/Form', ['course' => [...]]); }   // trait RendersModals
-public function update(...) { …; return $this->modalSaved('Đã lưu.', 'courses-changed', route('courses.index')); }
+public function update(...) { …; return $this->modalSaved('Đã lưu.', route('courses.index')); }
 ```
 
 ```vue
@@ -111,12 +111,11 @@ public function update(...) { …; return $this->modalSaved('Đã lưu.', 'cours
   (modal đóng, trang nền có dữ liệu mới); lỗi validate hiện ngay trong modal. `modalFailed` → đóng modal + toast lỗi.
 - Giữ modal mở sau khi gửi (vd. gửi phản hồi ticket): controller `back()->with(...)`, form `<UiForm stay>`.
 - Modal dựng sẵn trong trang (xác nhận có lý do…): `<UiModal :show="open" title="…" @close="open = false">`.
-- Nhánh htmx cũ (`Htmx::isRequest()`, `hx-*`, HX-Trigger, `modalUpdated`) bỏ khi chuyển màn.
 
 ## Test
 
 - Request thường trả HTML thật (Vue render phía server bằng Node, `tests/Support/InertiaSsrServer`): `assertSee('Tên khóa học')` như cũ.
-  HTML của Vue khác Blade ở thứ tự thuộc tính, không còn `hx-*` / `x-data` → sửa assertion theo HTML mới, không bỏ ý nghĩa kiểm tra.
+  Thứ tự thuộc tính do Vue quyết định → assertion regex không phụ thuộc thứ tự (`(?=[^>]*href="…")`).
 - Props: `->assertInertia(fn (AssertableInertia $page) => $page->component('Courses/Index')->where('courses.total', 3))`
   (thay `assertViewHas`).
 - Modal: `$this->get($url, self::MODAL)` / `->from($listUrl)->put($url, $data, self::MODAL)->assertRedirect($listUrl)` — trait `Tests\Concerns\InteractsWithInertia`.

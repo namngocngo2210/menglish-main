@@ -1,7 +1,6 @@
 /**
  * Ứng dụng Inertia + Vue: mỗi route Laravel trả Inertia::render('Thu/Muc', props) → trang resources/js/Pages/Thu/Muc.vue.
  * Layout mặc định: AppLayout (trang Auth/*: GuestLayout); trang đổi layout bằng defineOptions({ layout }).
- * Trang Blade chưa chuyển (bản in, PDF…) vẫn dùng resources/js/legacy.js.
  */
 import { createSSRApp, h } from 'vue';
 import { createInertiaApp, router } from '@inertiajs/vue3';

@@ -66,7 +66,7 @@ class SystemCategoryController extends Controller
             'is_active' => $request->boolean('is_active', true),
         ]);
 
-        return $this->modalSaved("Đã thêm danh mục \"{$category->name}\".", 'system-categories-changed',
+        return $this->modalSaved("Đã thêm danh mục \"{$category->name}\".",
             route('system-categories.index', ['type' => $category->type]));
     }
 
@@ -92,7 +92,7 @@ class SystemCategoryController extends Controller
             'is_active' => $request->boolean('is_active'),
         ]);
 
-        return $this->modalSaved('Đã cập nhật danh mục.', 'system-categories-changed',
+        return $this->modalSaved('Đã cập nhật danh mục.',
             route('system-categories.index', ['type' => $systemCategory->type]));
     }
 
@@ -102,7 +102,7 @@ class SystemCategoryController extends Controller
         Audit::describe('Ngừng sử dụng danh mục hệ thống');
         $systemCategory->update(['is_active' => false]);
 
-        return $this->modalSaved("Đã ngừng sử dụng \"{$systemCategory->name}\".", 'system-categories-changed',
+        return $this->modalSaved("Đã ngừng sử dụng \"{$systemCategory->name}\".",
             route('system-categories.index', ['type' => $type]));
     }
 

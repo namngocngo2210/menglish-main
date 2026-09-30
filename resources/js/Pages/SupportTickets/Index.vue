@@ -72,7 +72,7 @@ const statusOptions = [
                             <span :class="['rounded-full border px-2.5 py-1 text-xs font-bold', ticket.status_badge]">{{ ticket.status_label }}</span>
                         </td>
                         <td class="whitespace-nowrap text-right">
-                            <UiButton variant="ghost" size="sm" icon="forum" :href="route('tickets.show', ticket.id)" modal="3xl">Trao đổi</UiButton>
+                            <UiButton variant="ghost" size="sm" icon="forum" :href="route('tickets.show', ticket.id)" modal="3xl" modal-history>Trao đổi</UiButton>
                         </td>
                     </tr>
                     <tr v-if="!tickets.data.length">

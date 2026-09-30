@@ -292,12 +292,7 @@ td[class*="text-center"] {
     animation-name: zoomIn95;
 }
 
-/* 9. Alpine.js Cloak Directive */
-[x-cloak] {
-    display: none !important;
-}
-
-/* 10. CSS Grid Safety: Prevent flex/grid items from blowing out tracks */
+/* 9. CSS Grid Safety: Prevent flex/grid items from blowing out tracks */
 [class*="grid-cols-"] > * {
     min-width: 0;
 }

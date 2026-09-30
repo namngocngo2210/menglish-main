@@ -143,7 +143,7 @@ class SupportTicketController extends Controller
         // Bắn thông báo chuông + email cho những người trong luồng ticket (sau khi đã trả phản hồi)
         defer(fn () => $this->notificationService->notifyTicketCreated($ticket));
 
-        return $this->modalSaved("Đã tạo phiếu yêu cầu hỗ trợ / báo lỗi {$ticket->code} thành công!", 'tickets-changed', route('tickets.show', $ticket->id));
+        return $this->modalSaved("Đã tạo phiếu yêu cầu hỗ trợ / báo lỗi {$ticket->code} thành công!", route('tickets.show', $ticket->id));
     }
 
     /** Chi tiết ticket: mở từ danh sách → modal (hội thoại + ô trả lời); mở thẳng URL → trang đầy đủ. */

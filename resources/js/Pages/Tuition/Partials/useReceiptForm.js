@@ -1,5 +1,5 @@
 /**
- * Trạng thái form Lập / Sửa phiếu thu học phí (chuyển từ Alpine createReceiptManager — resources/js/modules/receipt-form.js).
+ * Trạng thái form Lập / Sửa phiếu thu học phí (chuyển từ Alpine createReceiptManager).
  * Tham số: danh sách khoản học phí, học viên, id chọn sẵn, TK ngân hàng mặc định, phiếu đang sửa (props của Tuition/ReceiptForm).
  * Nội dung CK và mã VietQR giữ nguyên cách tính cũ (nội dung CK do server sinh theo App\Support\TransferMemo).
  */

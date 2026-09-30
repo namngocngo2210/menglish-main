@@ -58,11 +58,11 @@ function openStatusModal(task, next) {
     statusLabel.value = transition(task, next).label;
 }
 
-/** Bấm tiêu đề → modal xem nhanh; Ctrl/⌘-click / chuột giữa → mở trang đầy đủ ở tab mới như link thường. */
+/** Bấm tiêu đề → modal xem nhanh (Back đóng modal); Ctrl/⌘-click / chuột giữa → mở trang đầy đủ ở tab mới như link thường. */
 function openTask(event, task) {
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.button === 1) return;
     event.preventDefault();
-    openRemoteModal(route('tasks.show', task.id), { size: '2xl' });
+    openRemoteModal(route('tasks.show', task.id), { size: '2xl', history: true });
 }
 </script>
 

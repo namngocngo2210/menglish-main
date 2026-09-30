@@ -8,6 +8,8 @@
  * - Form trong modal (<UiForm>) gửi bằng Inertia; lỗi validate → hiện ngay trong modal; lưu xong → đóng modal,
  *   trang nền tải lại dữ liệu (server trả về trang hiện tại kèm thông báo).
  * - Link Inertia thường bên trong modal → chuyển trang và đóng modal; <UiButton modal> bên trong → đổi nội dung modal.
+ * - Modal xem nhanh (ticket, công việc): openRemoteModal(url, { history: true }) / <UiButton modal-history> → mở modal thêm
+ *   1 mục lịch sử (cùng URL), nút Back của trình duyệt / điện thoại đóng modal thay vì rời trang; đóng bằng nút thì gỡ mục đó.
  */
 import { reactive } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
@@ -26,12 +28,55 @@ export const remoteModal = reactive({
 let resolveComponent = null;
 let requestId = 0;
 
+// Mục lịch sử của modal xem nhanh: { id, href } khi đang mở; afterPop chạy ở popstate do chính ta gọi history.back().
+let historyEntry = null;
+let historySeq = 0;
+let afterPop = null;
+
+if (typeof window !== 'undefined') {
+    // Đăng ký trước router Inertia (module này được import trước createInertiaApp) → chặn được popstate của modal,
+    // Inertia không khôi phục lại trang nền từ lịch sử (dữ liệu cũ).
+    window.addEventListener('popstate', (event) => {
+        if (afterPop) {
+            const done = afterPop;
+            afterPop = null;
+            event.stopImmediatePropagation();
+            done();
+            return;
+        }
+        if (historyEntry && event.state?.remoteModal !== historyEntry.id) {
+            historyEntry = null;
+            event.stopImmediatePropagation();
+            closeRemoteModal();
+        }
+    });
+}
+
+function pushHistoryEntry() {
+    if (historyEntry) return;
+    historyEntry = { id: ++historySeq, href: window.location.href };
+    window.history.pushState({ ...window.history.state, remoteModal: historyEntry.id }, '');
+}
+
+/** Modal đóng bằng nút / lưu xong → gỡ mục lịch sử đã thêm (nếu trang vẫn ở đúng URL đó). */
+function popHistoryEntry() {
+    const entry = historyEntry;
+    historyEntry = null;
+    if (!entry || window.location.href !== entry.href) return; // đã chuyển sang trang khác → giữ lịch sử như trình duyệt
+    // Lưu xong, Inertia đã thay mục của modal bằng trang mới (cùng URL) → lùi về rồi đặt lại trạng thái mới đó.
+    const replaced = window.history.state?.remoteModal === entry.id ? null : window.history.state;
+    afterPop = () => {
+        if (replaced) window.history.replaceState(replaced, '');
+    };
+    window.history.back();
+}
+
 /** app.js đăng ký hàm tìm component theo tên trang (cùng bộ với createInertiaApp). */
 export function setRemoteModalResolver(resolver) {
     resolveComponent = resolver;
 }
 
-export async function openRemoteModal(url, { size = null, quiet = false } = {}) {
+export async function openRemoteModal(url, { size = null, quiet = false, history = false } = {}) {
     const id = ++requestId;
     remoteModal.open = true;
     remoteModal.loading = !quiet;
@@ -90,6 +135,7 @@ export async function openRemoteModal(url, { size = null, quiet = false } = {}) 
     remoteModal.url = page.url;
     remoteModal.loading = false;
     if (!quiet) remoteModal.key++;
+    if (history) pushHistoryEntry();
 }
 
 /** Tải lại nội dung modal đang mở (giữ nguyên khung, không hiện skeleton) — vd. sau khi gửi phản hồi ticket. */
@@ -101,6 +147,7 @@ export function closeRemoteModal() {
     requestId++;
     remoteModal.open = false;
     remoteModal.loading = false;
+    if (historyEntry) popHistoryEntry();
 }
 
 /** Sau khi modal đóng hẳn (hết hiệu ứng) mới bỏ nội dung. */

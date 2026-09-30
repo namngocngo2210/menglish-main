@@ -13,7 +13,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia;
 use Maatwebsite\Excel\Excel as ExcelFormat;
 use Maatwebsite\Excel\Facades\Excel;
@@ -22,15 +21,13 @@ use Tests\TestCase;
 
 /**
  * Sprint IX-2 — 14 luồng "Modal nhỏ" (docs/frontend-interaction-redesign.md §3):
- * cùng route trả trang đầy đủ (request thường) hoặc fragment modal (HX-Request); lỗi validate 422 ngay trong modal;
- * lưu xong 204 + HX-Trigger (close-modal, toast, sự kiện làm mới danh sách); request thường giữ redirect như cũ.
+ * cùng route trả trang đầy đủ (request thường) hoặc trang trong modal chung (X-Remote-Modal → prop asModal);
+ * lỗi validate hiện ngay trong modal; lưu xong quay lại trang đang mở kèm thông báo.
  */
 class ModalFlowsTest extends TestCase
 {
     use InteractsWithInertia;
     use RefreshDatabase;
-
-    private const HX = ['HX-Request' => 'true'];
 
     private User $admin;
 
@@ -249,24 +246,24 @@ class ModalFlowsTest extends TestCase
 
     // ── Phân quyền ──────────────────────────────────────────────────────────────────────────
 
-    public function test_htmx_requests_still_respect_permissions(): void
+    public function test_modal_requests_still_respect_permissions(): void
     {
         $teacher = $this->staff();
         $item = $this->item();
 
-        $this->actingAs($teacher)->get(route('merchandise.edit', $item), self::HX)->assertForbidden();
-        $this->actingAs($teacher)->post(route('crm.import.preview'), [], self::HX)->assertForbidden();
-        $this->actingAs($teacher)->post(route('tuition.import.store'), [], self::HX)->assertForbidden();
+        $this->actingAs($teacher)->get(route('merchandise.edit', $item), self::MODAL)->assertForbidden();
+        $this->actingAs($teacher)->post(route('crm.import.preview'), [], self::MODAL)->assertForbidden();
+        $this->actingAs($teacher)->post(route('tuition.import.store'), [], self::MODAL)->assertForbidden();
     }
 
-    public function test_validation_render_requires_submit_route_to_cover_form_route_middleware(): void
+    public function test_import_submit_requires_create_permission(): void
     {
-        // tuition.import (GET, chỉ tuition.view) ⊂ tuition.import.store (thêm tuition.create) → render form 422 được.
-        // Người chỉ có tuition.view bị chặn ngay ở route submit (403), không bao giờ tới bước render form.
+        // tuition.import (GET, chỉ tuition.view) ⊂ tuition.import.store (thêm tuition.create):
+        // người chỉ có tuition.view mở được form nhưng bị chặn ngay ở route submit (403).
         $viewer = User::factory()->create(['is_active' => true, 'branch_id' => $this->branch->id]);
         $viewer->givePermissionTo('tuition.view');
 
-        $this->actingAs($viewer)->post(route('tuition.import.store'), [], self::HX)->assertForbidden();
+        $this->actingAs($viewer)->post(route('tuition.import.store'), [], self::MODAL)->assertForbidden();
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────────────────────
@@ -285,19 +282,5 @@ class ModalFlowsTest extends TestCase
         return MerchandiseItem::query()->firstOrCreate(['code' => 'BOOK-MF-01'], [
             'name' => 'Sách Test', 'category' => MerchandiseItem::CATEGORY_BOOK, 'unit' => 'Cuốn', 'price' => 200000, 'stock_quantity' => 50, 'is_active' => true,
         ]);
-    }
-
-    private function assertSaved(TestResponse $response, string $event, string $message): void
-    {
-        $response->assertNoContent();
-        $triggers = $this->triggers($response);
-        $this->assertTrue($triggers['close-modal']);
-        $this->assertTrue($triggers[$event]);
-        $this->assertSame(['message' => $message, 'type' => 'success'], $triggers['toast']);
-    }
-
-    private function triggers(TestResponse $response): array
-    {
-        return json_decode($response->headers->get('HX-Trigger'), true, flags: JSON_THROW_ON_ERROR);
     }
 }

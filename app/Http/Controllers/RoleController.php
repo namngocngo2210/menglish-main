@@ -83,7 +83,7 @@ class RoleController extends Controller
 
         $this->log($role, 'created', 'Tạo vai trò mới', [], $this->snapshot($role->fresh()));
 
-        return $this->modalSaved('Đã tạo vai trò thành công.', 'roles-changed', route('roles.index'));
+        return $this->modalSaved('Đã tạo vai trò thành công.', route('roles.index'));
     }
 
     public function edit(Request $request, Role $role): InertiaResponse
@@ -140,7 +140,7 @@ class RoleController extends Controller
 
         $this->log($role, 'updated', 'Cập nhật vai trò', $before, $this->snapshot($role->fresh()));
 
-        return $this->modalSaved('Đã cập nhật vai trò.', 'roles-changed', route('roles.index'));
+        return $this->modalSaved('Đã cập nhật vai trò.', route('roles.index'));
     }
 
     /** Nhân bản vai trò: bản sao có cùng quyền + phạm vi dữ liệu, chưa gán cho ai. */
@@ -194,7 +194,7 @@ class RoleController extends Controller
             ->withProperties(['old' => $before, 'name' => $name])
             ->log('Xóa vai trò "'.$name.'"');
 
-        return $this->modalSaved('Đã xóa vai trò.', 'roles-changed', route('roles.index'));
+        return $this->modalSaved('Đã xóa vai trò.', route('roles.index'));
     }
 
     /**

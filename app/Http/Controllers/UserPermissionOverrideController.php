@@ -259,7 +259,7 @@ class UserPermissionOverrideController extends Controller
             ])
             ->log('Cập nhật phân quyền chi tiết cá nhân');
 
-        return $this->modalSaved('Đã cập nhật phân quyền chi tiết của '.$user->name.'.', 'users-changed', route('users.index'));
+        return $this->modalSaved('Đã cập nhật phân quyền chi tiết của '.$user->name.'.', route('users.index'));
     }
 
     /** Mọi quyền hiển thị trên ma trận (trừ quyền gán vai trò Super Admin). */

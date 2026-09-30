@@ -54,7 +54,7 @@ class HolidayController extends Controller
 
         $summary = $this->reschedule->apply($holiday->fresh('branches'));
 
-        return $this->modalSaved('Đã thêm ngày nghỉ.'.$this->summaryText($summary), 'holidays-changed', route('holidays.index'));
+        return $this->modalSaved('Đã thêm ngày nghỉ.'.$this->summaryText($summary), route('holidays.index'));
     }
 
     public function edit(Request $request, Holiday $holiday): InertiaResponse
@@ -77,7 +77,7 @@ class HolidayController extends Controller
 
         $summary = $this->reschedule->apply($holiday->fresh('branches'));
 
-        return $this->modalSaved('Đã cập nhật ngày nghỉ.'.$this->summaryText($summary), 'holidays-changed', route('holidays.index'));
+        return $this->modalSaved('Đã cập nhật ngày nghỉ.'.$this->summaryText($summary), route('holidays.index'));
     }
 
     public function destroy(Holiday $holiday): Response|RedirectResponse
@@ -89,7 +89,7 @@ class HolidayController extends Controller
 
         return $this->modalSaved('Đã xóa ngày nghỉ.'
             .($restored ? " Đã khôi phục {$restored} buổi học bị hủy do ngày nghỉ này (buổi bù tương ứng đã được gỡ)." : ''),
-            'holidays-changed', route('holidays.index'));
+            route('holidays.index'));
     }
 
     /**
