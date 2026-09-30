@@ -153,7 +153,7 @@ final class SidebarMenu
                 'label' => 'Học viên',
                 'icon' => 'school',
                 'items' => [
-                    ['label' => 'Danh sách học viên', 'route' => 'students.index', 'active' => ['students.index', 'students.show', 'students.edit', 'students.create']],
+                    ['label' => 'Danh sách học viên', 'route' => 'students.index', 'active' => ['students.index', 'students.show', 'students.edit']],
                 ],
             ],
             [

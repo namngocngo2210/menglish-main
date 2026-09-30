@@ -14,6 +14,8 @@ use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Route;
+use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 /**
@@ -155,42 +157,21 @@ class Phase1StudentsTest extends TestCase
         }
     }
 
-    // ───────────── 5. Tạo mới: trạng thái ban đầu + phạm vi ─────────────
+    // ───────────── 5. Không tạo học viên ngoài luồng Lead → Chốt ─────────────
 
-    public function test_store_student_starts_waiting_start_with_unique_codes(): void
+    public function test_students_cannot_be_created_outside_crm(): void
     {
         $staff = $this->user('academic_staff', $this->hn);
-        $existing = $this->student('HV-00002', $this->hn);
-        $existing->delete(); // mã đã xóa mềm vẫn không được cấp lại
+        $admin = $this->user('admin');
 
-        foreach (['0911000001', '0911000002'] as $phone) {
-            $this->actingAs($staff)->post(route('students.store'), ['name' => "HV {$phone}", 'phone' => $phone])
-                ->assertRedirect(route('students.index'));
+        $this->assertFalse(Route::has('students.store'));
+        $this->assertFalse(Permission::where('name', 'student.create')->exists());
+        foreach ([$staff, $admin] as $user) {
+            $this->actingAs($user)->post('/students', ['name' => 'HV ngoài luồng', 'phone' => '0911000001'])
+                ->assertStatus(405);
         }
-
-        $created = Student::whereIn('phone', ['0911000001', '0911000002'])->orderBy('id')->get();
-        $this->assertSame(['HV-00003', 'HV-00004'], $created->pluck('code')->all());
-        $this->assertSame(['waiting_start', 'waiting_start'], $created->pluck('status')->all());
-        $this->assertSame([$this->hn->id, $this->hn->id], $created->pluck('branch_id')->all());
-    }
-
-    public function test_store_student_rejects_other_branch_and_full_class(): void
-    {
-        $staff = $this->user('academic_staff', $this->hn);
-
-        $this->actingAs($staff)->post(route('students.store'), ['name' => 'X', 'phone' => '0911', 'branch_id' => $this->hcm->id])
-            ->assertSessionHasErrors('branch_id');
-
-        $this->student('HV-FULL', $this->hn, $this->classHn2);
-        ClassEnrollment::create(['student_id' => Student::first()->id, 'class_id' => $this->classHn2->id, 'status' => 'completed']);
-        $this->actingAs($staff)->post(route('students.store'), ['name' => 'Y', 'phone' => '0912', 'current_class_id' => $this->classHn2->id])
-            ->assertSessionHasErrors('current_class_id');
-
-        $this->actingAs($staff)->post(route('students.store'), ['name' => 'Z', 'phone' => '0913', 'current_class_id' => $this->classHn->id])
-            ->assertRedirect();
-        $z = Student::where('phone', '0913')->firstOrFail();
-        $this->assertSame($this->classHn->id, $z->current_class_id);
-        $this->assertDatabaseHas('class_enrollments', ['student_id' => $z->id, 'class_id' => $this->classHn->id, 'status' => 'pending']);
+        $this->assertFalse(Student::where('phone', '0911000001')->exists());
+        $this->actingAs($staff)->get(route('students.index'))->assertOk()->assertDontSee('Thêm học viên');
     }
 
     // ───────────── 2. Trang phân quyền render phía server ─────────────

@@ -20,26 +20,6 @@ class StudentClassTest extends TestCase
         Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
     }
 
-    public function test_can_create_student_profile(): void
-    {
-        $user = User::factory()->create();
-        $user->assignRole('admin');
-
-        $response = $this->actingAs($user)->post('/students', [
-            'name' => 'Đỗ Hoàng Long',
-            'phone' => '0936 999 111',
-            'email' => 'hoanglong.do@gmail.com',
-            'target' => 'IELTS 7.0',
-        ]);
-
-        $response->assertRedirect(route('students.index'));
-        $this->assertDatabaseHas('students', [
-            'name' => 'Đỗ Hoàng Long',
-            'phone' => '0936 999 111',
-            'target' => 'IELTS 7.0',
-        ]);
-    }
-
     public function test_can_enroll_student_to_class(): void
     {
         $user = User::factory()->create();

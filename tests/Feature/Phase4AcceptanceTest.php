@@ -20,6 +20,7 @@ use App\Models\TuitionReceipt;
 use App\Models\TuitionRefundRequest;
 use App\Models\User;
 use App\Models\WorkTask;
+use App\Services\DocumentCodeGenerator;
 use Carbon\Carbon;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
@@ -235,9 +236,8 @@ class Phase4AcceptanceTest extends TestCase
         $this->assertEquals(6000000, (float) $t2->fresh()->debt_amount);
 
         // Mã học viên dạng HV-00001 (bộ sinh mã dùng chung) trong nội dung CK được nhận ra.
-        $this->actingAs($this->academic)->post(route('students.store'), ['name' => 'Học viên Mã Số', 'phone' => '0977400099', 'branch_id' => $this->branchA->id])
-            ->assertSessionHasNoErrors();
-        $numbered = Student::where('phone', '0977400099')->sole();
+        $numbered = Student::create(['code' => app(DocumentCodeGenerator::class)->studentCode(), 'name' => 'Học viên Mã Số',
+            'phone' => '0977400099', 'branch_id' => $this->branchA->id, 'status' => Student::INITIAL_STATUS]);
         $this->assertMatchesRegularExpression('/^HV-\d{5}$/', $numbered->code);
         $t3 = StudentTuition::create(['student_id' => $numbered->id, 'branch_id' => $this->branchA->id, 'total_amount' => 2000000, 'final_amount' => 2000000,
             'paid_amount' => 0, 'debt_amount' => 2000000, 'due_date' => '2026-09-30', 'status' => 'unpaid']);

@@ -164,8 +164,16 @@ class User extends Authenticatable
         return $this->can('portal.student') && ! $this->can('portal.staff');
     }
 
-    /** Domain của email đăng nhập hệ thống tự sinh cho học viên chưa có email thật (mã HV + domain này). */
+    /**
+     * Domain của email đăng nhập hệ thống tự sinh cho học viên chưa có email thật: "student<id hồ sơ>@" + domain này.
+     * Học viên tạo trước đây mang email "<mã HV>@" + domain này (giữ nguyên).
+     */
     public const STUDENT_EMAIL_DOMAIN = 'student.menglish.edu.vn';
+
+    public static function generatedStudentEmail(int $studentId): string
+    {
+        return 'student'.$studentId.'@'.self::STUDENT_EMAIL_DOMAIN;
+    }
 
     public static function isGeneratedStudentEmail(?string $email): bool
     {
@@ -173,12 +181,15 @@ class User extends Authenticatable
     }
 
     /**
-     * Tên đăng nhập để hiển thị / bàn giao: email tự sinh của học viên không phải email thật và khó gõ,
-     * nên hiển thị mã học viên (màn đăng nhập nhận cả mã, xem LoginRequest). Còn lại là email.
+     * Tên đăng nhập để hiển thị / bàn giao: email tự sinh kiểu cũ ("<mã HV ULID>@...") dài, khó gõ nên hiển thị mã
+     * học viên (màn đăng nhập nhận cả mã, xem LoginRequest). Email "student<id>@..." và email thật hiển thị nguyên.
      */
     public function loginIdentifier(): string
     {
-        return self::isGeneratedStudentEmail($this->email) && $this->employee_code
+        $legacyGenerated = self::isGeneratedStudentEmail($this->email)
+            && ! preg_match('/^student\d+@/i', (string) $this->email);
+
+        return $legacyGenerated && $this->employee_code
             ? (string) $this->employee_code
             : (string) $this->email;
     }

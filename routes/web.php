@@ -232,7 +232,6 @@ Route::middleware('auth')->group(function () {
     // ─────────────────────────────────────────────
     Route::prefix('students')->name('students.')->middleware('can:student.view')->group(function () {
         Route::get('/', [StudentProfileController::class, 'index'])->name('index');
-        Route::post('/', [StudentProfileController::class, 'storeStudent'])->middleware('can:student.create')->name('store');
         Route::get('/enrollments', [StudentProfileController::class, 'enrollments'])->name('enrollments');
         Route::post('/enrollments', [StudentProfileController::class, 'storeEnrollment'])->middleware('can:student.assign_class')->name('enrollments.store');
         Route::put('/enrollments/{id}', [StudentProfileController::class, 'updateEnrollmentHandoff'])->middleware('can:student.assign_class')->name('enrollments.update');

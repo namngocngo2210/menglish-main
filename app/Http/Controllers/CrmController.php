@@ -38,6 +38,7 @@ use App\Services\PlacementSubmissionLinker;
 use App\Support\DataScope;
 use App\Support\Money;
 use App\Support\Rbac;
+use App\Support\TemporaryPassword;
 use App\Support\TransferMemo;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -1436,7 +1437,7 @@ class CrmController extends Controller
             throw ValidationException::withMessages(['enrollment' => 'Học viên chưa có tài khoản cổng học viên riêng, liên hệ Admin để cấp tài khoản.']);
         }
 
-        $temporaryPassword = Str::password(12);
+        $temporaryPassword = TemporaryPassword::generate();
         $account->forceFill([
             'password' => Hash::make($temporaryPassword),
             'must_change_password' => true,
@@ -1823,8 +1824,12 @@ class CrmController extends Controller
                 && ! Student::withTrashed()->where('code', $proposedCode)->exists()
                 ? $proposedCode
                 : self::newStudentCode();
-            $studentEmail = $customer->email ?: Str::lower($studentCode).'@'.User::STUDENT_EMAIL_DOMAIN;
-            $studentUser = User::withTrashed()->whereRaw('LOWER(email) = ?', [Str::lower($studentEmail)])->first();
+            // Lead có email: tài khoản cổng học viên dùng email đó. Chưa có: email tự sinh "student<id>@..." theo id hồ sơ,
+            // nên tài khoản được tạo sau hồ sơ học viên.
+            $studentEmail = $customer->email ?: null;
+            $studentUser = $studentEmail
+                ? User::withTrashed()->whereRaw('LOWER(email) = ?', [Str::lower($studentEmail)])->first()
+                : null;
             $temporaryPassword = null;
 
             if ($studentUser) {
@@ -1836,26 +1841,11 @@ class CrmController extends Controller
                 if ($studentUser->trashed()) {
                     $studentUser->restore();
                 }
-            } else {
-                $temporaryPassword = Str::password(20);
-                $studentUser = User::create([
-                    'employee_code' => $studentCode,
-                    'name' => $customer->name,
-                    'email' => $studentEmail,
-                    'phone' => $customer->phone,
-                    'branch_id' => $branchId,
-                    'password' => Hash::make($temporaryPassword),
-                    'must_change_password' => true,
-                    'is_active' => true,
-                    'email_verified_at' => null,
-                ]);
-                Role::findOrCreate('student', 'web');
-                $studentUser->assignRole('student');
             }
 
             $student = Student::create([
                 'code' => $studentCode,
-                'user_id' => $studentUser->id,
+                'user_id' => $studentUser?->id,
                 'name' => $customer->name,
                 'phone' => $customer->phone,
                 // Liên hệ phụ huynh chép sang hồ sơ học viên (gửi kết quả Big Test qua Zalo).
@@ -1872,6 +1862,28 @@ class CrmController extends Controller
                 'status' => Student::INITIAL_STATUS,
                 'total_lessons' => $course->total_lessons,
             ]);
+
+            if (! $studentUser) {
+                $studentEmail ??= User::generatedStudentEmail($student->id);
+                if (User::withTrashed()->whereRaw('LOWER(email) = ?', [Str::lower($studentEmail)])->exists()) {
+                    throw ValidationException::withMessages(['customer_id' => "Email {$studentEmail} đã thuộc một tài khoản khác, liên hệ Admin để xử lý trước khi chốt."]);
+                }
+                $temporaryPassword = TemporaryPassword::generate();
+                $studentUser = User::create([
+                    'employee_code' => $studentCode,
+                    'name' => $customer->name,
+                    'email' => $studentEmail,
+                    'phone' => $customer->phone,
+                    'branch_id' => $branchId,
+                    'password' => Hash::make($temporaryPassword),
+                    'must_change_password' => true,
+                    'is_active' => true,
+                    'email_verified_at' => null,
+                ]);
+                Role::findOrCreate('student', 'web');
+                $studentUser->assignRole('student');
+                $student->update(['user_id' => $studentUser->id, 'email' => $studentEmail]);
+            }
 
             if ($class) {
                 $this->enrollStudent($student, $class, $customer);

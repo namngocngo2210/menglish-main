@@ -182,9 +182,6 @@ class AuditOperationMiddleware
             $candidate = $request->input('candidate_name', 'Thí sinh');
             return "Thí sinh {$candidate} nộp bài thi trực tuyến và tự động chấm điểm";
         }
-        if ($routeName === 'students.store') {
-            return "Tạo hồ sơ học viên mới: " . ($request->input('name') ?? '');
-        }
         if ($routeName === 'students.enroll') {
             return "Xếp lớp học viên vào lớp #" . ($request->input('class_id') ?? '');
         }
