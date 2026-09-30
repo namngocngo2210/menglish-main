@@ -1,18 +1,19 @@
 {{-- Chi tiết ticket: mở từ danh sách → modal 3xl (htmx, đẩy URL /tickets/{id}) gồm hội thoại + ô trả lời + thông tin;
-     gửi phản hồi / đổi trạng thái / phân công trong modal → server trả lại nội dung modal mới + toast.
+     đổi trạng thái / phân công trong modal → server trả lại nội dung modal mới + toast. Gửi phản hồi (trang + modal) → bình
+     luận hiện ngay, lưu ở nền (ticket-reply.js); trạng thái đổi theo thì thay lại các vùng data-ticket-part.
      Mở thẳng URL → trang đầy đủ (có lightbox xem ảnh). --}}
 @if ($asModal)
     <x-ui.modal-frame :title="'#'.$ticket->code.' · '.$ticket->title" :description="'Tạo bởi '.($ticket->creator?->name ?? 'Hệ thống').' lúc '.$ticket->created_at->format('d/m/Y H:i').' · '.$ticket->category_label" cancel="Đóng">
-        <div class="space-y-md" data-testid="ticket-conversation">
+        <div class="space-y-md" data-testid="ticket-conversation" data-ticket-thread>
             <div class="flex flex-wrap items-center justify-between gap-sm">
-                @include('support-tickets.partials.status-form')
+                <div class="contents" data-ticket-part="status">@include('support-tickets.partials.status-form')</div>
                 <x-ui.button variant="ghost" size="sm" icon="open_in_new" :href="route('tickets.show', $ticket->id)" hx-boost="false">Mở trang đầy đủ</x-ui.button>
             </div>
             <div class="grid grid-cols-1 gap-md lg:grid-cols-3">
                 <div class="space-y-md lg:col-span-2">
                     @include('support-tickets.partials.messages')
                 </div>
-                @include('support-tickets.partials.info')
+                <div class="contents" data-ticket-part="info">@include('support-tickets.partials.info')</div>
             </div>
             @include('support-tickets.partials.reply-form')
         </div>
@@ -26,18 +27,18 @@
         <x-slot:meta>Tạo bởi {{ $ticket->creator?->name }} vào lúc {{ $ticket->created_at->format('d/m/Y H:i') }} · {{ $ticket->category_label }}</x-slot:meta>
         {{-- Status & Assignee Quick Actions --}}
         <x-slot:actions>
-            @include('support-tickets.partials.status-form')
+            <div class="contents" data-ticket-part="status">@include('support-tickets.partials.status-form')</div>
         </x-slot:actions>
     </x-ui.page-header>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6" x-data="{ lightboxOpen: false, lightboxImg: '' }">
         {{-- Main Conversation Stream --}}
-        <div class="lg:col-span-2 space-y-6">
+        <div class="lg:col-span-2 space-y-6" data-ticket-thread>
             @include('support-tickets.partials.messages')
             @include('support-tickets.partials.reply-form')
         </div>
 
-        @include('support-tickets.partials.info')
+        <div class="contents" data-ticket-part="info">@include('support-tickets.partials.info')</div>
 
         {{-- Lightbox Modal for Attachment Zoom --}}
         <div x-show="lightboxOpen" 

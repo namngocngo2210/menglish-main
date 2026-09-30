@@ -1,16 +1,29 @@
-{{-- Ô gửi phản hồi ticket — dùng chung trang và modal. Trong modal form được hx-boost: gửi xong server trả lại nội dung
-     modal (hội thoại mới) + toast; đính kèm dùng Alpine.data('attachmentUploader'). Biến: $ticket, $canPostInternal, $asModal. --}}
+{{-- Ô gửi phản hồi ticket — dùng chung trang và modal. Alpine.data('ticketReply') (resources/js/modules/ticket-reply.js):
+     bấm Gửi là bình luận hiện ngay cuối hội thoại ("Đang gửi…") và được lưu ở nền (fetch JSON, không tải lại trang / modal);
+     lỗi → "Chưa gửi được" + Gửi lại / Bỏ. Không có JS → form gửi thường như cũ. Đính kèm: phần attachmentUploader trong
+     ticketReply. Biến: $ticket, $canPostInternal, $asModal. --}}
 @php
     $asModal = $asModal ?? false;
+    // Khung mẫu cho bình luận đang gửi: cùng partial với bình luận đã lưu để lúc thay bằng bản server không bị giật.
+    $draft = fn (bool $internal) => (new \App\Models\TicketMessage(['message' => '', 'is_internal_note' => $internal]))
+        ->setRelation('user', auth()->user());
 @endphp
 {{-- Reply Box with Drag & Drop Uploader --}}
-<div class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest shadow-sm p-5" x-data="attachmentUploader">
+<div class="bg-surface-container-lowest rounded-2xl border border-surface-container-highest shadow-sm p-5" x-data="ticketReply">
+    <template data-pending-message="public">@include('support-tickets.partials.message', ['msg' => $draft(false), 'pending' => true])</template>
+    @if ($canPostInternal ?? false)
+        <template data-pending-message="internal">@include('support-tickets.partials.message', ['msg' => $draft(true), 'pending' => true])</template>
+    @endif
     <h3 class="text-xs font-bold text-on-surface uppercase tracking-wider mb-3 flex items-center gap-1.5">
         <span class="material-symbols-outlined text-primary text-base">reply</span>
         Gửi phản hồi / Cập nhật tiến độ
     </h3>
-    <form id="{{ $asModal ? 'modal-' : '' }}ticket-reply-form" action="{{ route('tickets.messages.store', $ticket->id) }}" method="POST" enctype="multipart/form-data" class="space-y-3">
+    <form id="{{ $asModal ? 'modal-' : '' }}ticket-reply-form" action="{{ route('tickets.messages.store', $ticket->id) }}" method="POST" enctype="multipart/form-data" class="space-y-3"
+          hx-boost="false" @submit.prevent="submit">
         @csrf
+        @if ($asModal)
+            <input type="hidden" name="as_modal" value="1">
+        @endif
         <x-ui.field name="message">
             <x-ui.textarea name="message" rows="3" required placeholder="Nhập câu trả lời hoặc tiến độ giải quyết vấn đề..." class="text-xs" />
         </x-ui.field>
