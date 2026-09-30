@@ -115,7 +115,7 @@ final class SidebarMenu
                 'section' => 'Tuyển sinh',
                 'label' => 'Khách hàng (CRM)',
                 'icon' => 'person_search',
-                // Tab: Kanban | Danh sách. Các màn còn lại hiển thị dạng lọc nhanh (`as` => chip, dưới tab `chip_of`)
+                // Tab: Kanban | Danh sách | Báo cáo. Các màn còn lại hiển thị dạng lọc nhanh (`as` => chip, dưới tab `chip_of`)
                 // để thanh tab gọn.
                 'items' => self::anchored(self::CRM, [
                     ['label' => 'Kanban', 'route' => 'crm.pipeline'],
@@ -126,6 +126,9 @@ final class SidebarMenu
                     ['label' => 'Đã nhập học', 'route' => 'crm.customers.won', 'as' => 'chip', 'chip_of' => 'crm.customers.index', 'count' => 'won'],
                     ['label' => 'Thất bại', 'route' => 'crm.lost-deals', 'as' => 'chip', 'chip_of' => 'crm.customers.index', 'count' => 'lost'],
                     ['label' => 'Đã xóa', 'route' => 'crm.customers.deleted', 'as' => 'chip', 'chip_of' => 'crm.customers.index', 'count' => 'deleted', 'hide_empty' => true],
+                    // Báo cáo tuyển sinh thuộc CRM (30/09/2026, trước ở khu "Báo cáo" riêng). Quyền theo middleware
+                    // report.view: chỉ Admin, hoặc người được Admin cấp riêng "Xem báo cáo".
+                    ['label' => 'Báo cáo', 'route' => 'crm.reports'],
                 ]),
                 // Không đặt nút "Xếp lớp" ở header: Chốt & Xếp lớp mở từ thẻ Kanban / hồ sơ khách / Dashboard,
                 // khách Chờ xếp lớp xếp từ cột Hành động của bảng Chờ xếp lớp. Quyền theo middleware (lead.create).
@@ -319,17 +322,6 @@ final class SidebarMenu
                     ['label' => 'Bảng lương theo kỳ', 'route' => 'payroll.periods.index', 'active' => ['payroll.periods.*']],
                     ['label' => 'Vi phạm & Phạt', 'route' => 'penalties.index', 'active' => ['penalties.*']],
                 ]),
-            ],
-            [
-                'id' => 'reports',
-                'section' => 'Báo cáo',
-                'label' => 'Báo cáo',
-                'icon' => 'monitoring',
-                'items' => [
-                    ...self::anchored(self::CRM, [
-                        ['label' => 'Báo cáo tuyển sinh', 'route' => 'crm.reports'],
-                    ]),
-                ],
             ],
             [
                 'id' => 'personal',
