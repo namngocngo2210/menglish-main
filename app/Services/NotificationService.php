@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AcademicRecord;
 use App\Models\AdminNotification;
 use App\Models\CrmCustomer;
+use App\Models\CrmCustomerHistory;
 use App\Models\CrmTrialBooking;
 use App\Models\DebtReminderRule;
 use App\Models\PlacementTestSubmission;
@@ -37,8 +38,8 @@ class NotificationService
     /**
      * Quét khách bị bỏ quên, trả về số khách được cảnh báo mới:
      * - Khách "Mới" quá 24h chưa được tiếp nhận (stale_lead_24h — giữ hành vi cũ, mỗi khách 1 lần).
-     * - Khách đang chăm sóc (Đang tư vấn → Gửi kết quả; không gồm Chờ xếp lớp / Đã chốt / Thất bại)
-     *   không có hoạt động nào trong N ngày (stale_lead_care). Cảnh báo lại nếu sau đó có hoạt động rồi lại bị bỏ quên.
+     * - Khách đang chăm sóc (Mới đã liên hệ, Đang tư vấn → Gửi kết quả; không gồm Chờ xếp lớp / Đã chốt / Thất bại)
+     *   không được chăm sóc (CrmCustomerHistory::CARE_TYPES) trong N ngày — mặc định 3 ngày = SLA 72h (stale_lead_care). Cảnh báo lại nếu sau đó có hoạt động rồi lại bị bỏ quên.
      * Mỗi cảnh báo gửi cho Admin / Quản lý (thông báo chung — chỉ người xem được khách theo chi nhánh mới thấy, xem
      * AdminNotification::scopeForRecipient) và thông báo cá nhân cho Sales phụ trách.
      */
@@ -51,12 +52,14 @@ class NotificationService
     {
         $days = $this->neglectThresholdDays();
         $cutoff = Carbon::now()->subDays($days);
-        $careStages = array_values(array_diff(CrmCustomer::ACTIVE_STAGES, ['new']));
-
+        // SLA "chăm sóc tiếp theo trong 72h" (PRD R13): đo từ lần chăm sóc gần nhất (CrmCustomerHistory::CARE_TYPES —
+        // sửa thông tin / phân công / ghi chú không tính). Khách "Mới" chưa liên hệ lần nào thuộc SLA 24h (scanNewStaleLeads).
         $leads = CrmCustomer::with('assignedUser')
-            ->whereIn('stage', $careStages)
+            ->whereIn('stage', CrmCustomer::ACTIVE_STAGES)
+            ->where(fn ($query) => $query->where('stage', '!=', 'new')
+                ->orWhereHas('histories', fn ($history) => $history->whereIn('type', CrmCustomerHistory::CARE_TYPES)))
             ->where('created_at', '<=', $cutoff)
-            ->withMax('histories as last_activity_at', 'created_at')
+            ->withMax(['histories as last_activity_at' => fn ($history) => $history->whereIn('type', CrmCustomerHistory::CARE_TYPES)], 'created_at')
             ->get();
 
         // Cảnh báo đã gửi của các khách này: 1 truy vấn thay vì 1 truy vấn cho mỗi khách.

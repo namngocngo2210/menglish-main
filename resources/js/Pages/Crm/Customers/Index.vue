@@ -8,6 +8,7 @@ import { Link } from '@inertiajs/vue3';
 import WorkspaceChips from '@/Components/WorkspaceChips.vue';
 import CrmHeader from '@/Components/Crm/CrmHeader.vue';
 import { currentQuery } from '@/lib/url';
+import SlaCountdown from '@/Components/Crm/SlaCountdown.vue';
 
 defineOptions({ layout: { title: 'Danh sách khách hàng', workspaceTabs: false } });
 
@@ -43,7 +44,7 @@ const sla = computed(() => ['1', 'true'].includes(currentQuery().get('sla') ?? '
         </UiFilterBar>
 
         <div id="customer-list">
-            <UiDataTable min-width="1020px" sticky="both">
+            <UiDataTable min-width="1200px" sticky="both">
                 <table>
                     <thead>
                         <tr>
@@ -51,6 +52,7 @@ const sla = computed(() => ['1', 'true'].includes(currentQuery().get('sla') ?? '
                             <th>Số điện thoại</th>
                             <th>Tên phụ huynh</th>
                             <th>Giai đoạn</th>
+                            <th>Hạn SLA liên hệ</th>
                             <th>Người phụ trách</th>
                             <th>Chi nhánh</th>
                             <th>Cập nhật gần nhất</th>
@@ -69,6 +71,10 @@ const sla = computed(() => ['1', 'true'].includes(currentQuery().get('sla') ?? '
                                 <span :class="['inline-flex items-center rounded-full border px-2 py-0.5 text-[12px] font-bold', c.stage_badge]">{{ c.stage_label }}</span>
                             </td>
                             <td class="whitespace-nowrap">
+                                <SlaCountdown v-if="c.sla" :sla="c.sla" compact />
+                                <span v-else class="text-on-surface-subtle">—</span>
+                            </td>
+                            <td class="whitespace-nowrap">
                                 <div v-if="c.assigned_user" class="flex items-center gap-xs">
                                     <UiAvatar :name="c.assigned_user" size="sm" class="!h-6 !w-6 !text-xs" />
                                     <span class="text-on-surface-variant">{{ c.assigned_user }}</span>
@@ -85,7 +91,7 @@ const sla = computed(() => ['1', 'true'].includes(currentQuery().get('sla') ?? '
                             </td>
                         </tr>
                         <tr v-if="!customers.data.length">
-                            <td colspan="8">
+                            <td colspan="9">
                                 <UiEmptyState icon="search_off" title="Không tìm thấy khách hàng" description="Thử đổi từ khóa hoặc xóa bộ lọc." />
                             </td>
                         </tr>

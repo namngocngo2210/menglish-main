@@ -251,6 +251,62 @@ class Phase1CrmTest extends TestCase
         $this->assertDatabaseHas('admin_notifications', ['type' => 'stale_lead_24h', 'user_id' => $this->sales->id]);
     }
 
+    // ── 5b. Đồng hồ SLA liên hệ 24h / chăm sóc 72h (PRD R13, FR-CRM-02) ──────
+
+    public function test_contact_sla_countdown_first_24h_then_72h_and_never_blocks(): void
+    {
+        $this->travelTo(now()->setTime(9, 0));
+        $lead = $this->lead('new');
+
+        // Khách mới: hạn liên hệ lần đầu = lúc tạo + 24h; xanh → vàng khi còn dưới 6h → đỏ khi quá hạn.
+        $sla = $lead->fresh()->contactSla();
+        $this->assertSame('first', $sla['kind']);
+        $this->assertTrue($sla['deadline']->eq($lead->created_at->copy()->addHours(24)));
+        $this->assertSame('on_time', $sla['state']);
+        $this->assertSame('due_soon', $lead->fresh()->contactSla(now()->addHours(19))['state']);
+        $this->assertSame('overdue', $lead->fresh()->contactSla(now()->addHours(25))['state']);
+
+        // Đã gọi → chăm sóc tiếp theo trong 72h kể từ lần liên hệ; sửa thông tin không đếm lại đồng hồ.
+        $this->travel(2)->hours();
+        CrmCustomerHistory::create(['customer_id' => $lead->id, 'type' => 'call', 'content' => 'Gọi lần đầu']);
+        $this->travel(1)->hours();
+        CrmCustomerHistory::create(['customer_id' => $lead->id, 'type' => 'update', 'content' => 'Sửa SĐT']);
+        $sla = $lead->fresh()->contactSla();
+        $this->assertSame('follow_up', $sla['kind']);
+        $this->assertTrue($sla['deadline']->eq(now()->subHour()->addHours(72)));
+        $this->assertSame('due_soon', $lead->fresh()->contactSla(now()->addHours(60))['state']);
+        $this->assertSame('overdue', $lead->fresh()->contactSla(now()->addHours(72))['state']);
+
+        // Hẹn liên hệ sớm hơn hạn SLA → lấy hạn hẹn.
+        $lead->update(['next_follow_up_at' => now()->addHours(5)]);
+        $this->assertSame('appointment', $lead->fresh()->contactSla()['kind']);
+
+        // Danh sách khách + Kanban gửi đồng hồ; quá hạn vẫn chuyển bước được (không chặn thao tác).
+        $this->travel(4)->days();
+        $row = collect($this->actingAs($this->admin)->get(route('crm.customers.index'))->assertOk()->inertiaProps('customers.data'))
+            ->firstWhere('id', $lead->id);
+        $this->assertSame('overdue', $row['sla']['state']);
+        $this->actingAs($this->admin)->postJson(route('crm.customers.next-stage', $lead))->assertSuccessful();
+        $this->assertSame('consulting', $lead->fresh()->stage);
+
+        // Đã chốt / thất bại: không còn đồng hồ.
+        $this->assertNull($this->lead('won')->contactSla());
+    }
+
+    public function test_contacted_new_lead_left_for_72h_is_flagged_as_neglected(): void
+    {
+        $lead = $this->lead('new');
+        $lead->forceFill(['created_at' => now()->subDays(6)])->saveQuietly();
+        CrmCustomerHistory::create(['customer_id' => $lead->id, 'type' => 'call', 'content' => 'Gọi lần đầu'])
+            ->forceFill(['created_at' => now()->subDays(5)])->saveQuietly();
+        // Sửa thông tin gần đây không tính là chăm sóc.
+        CrmCustomerHistory::create(['customer_id' => $lead->id, 'type' => 'update', 'content' => 'Sửa địa chỉ']);
+
+        $this->assertSame(1, app(NotificationService::class)->scanAndSyncStaleLeads());
+        $this->assertDatabaseHas('admin_notifications', ['type' => 'stale_lead_care', 'user_id' => null]);
+        $this->assertDatabaseMissing('admin_notifications', ['type' => 'stale_lead_24h']);
+    }
+
     // ── 11. Pipeline ──────────────────────────────────────────────────────
 
     public function test_pipeline_filters_and_contact_deadline_badges(): void

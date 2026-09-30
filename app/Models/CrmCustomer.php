@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\AuditsChanges;
+use App\Services\NotificationService;
 use App\Support\DataScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -85,8 +86,14 @@ class CrmCustomer extends Model
     /** Nguồn khách mặc định theo mockup Thêm khách mới (khi chưa cấu hình danh mục "lead_source"). */
     public const DEFAULT_SOURCES = ['Landing page', 'Marketing', 'Giới thiệu', 'Vãng lai', 'Tiktok', 'Facebook', 'Google Ads', 'Chị Liên'];
 
-    /** "Sắp hết hạn" liên hệ khi hạn còn dưới số giờ này. */
-    public const FOLLOW_UP_DUE_SOON_HOURS = 24;
+    /** SLA liên hệ khách mới (PRD R13, FR-CRM-02): lần liên hệ đầu trong 24h kể từ lúc tạo. */
+    public const FIRST_CONTACT_SLA_HOURS = 24;
+
+    /**
+     * Đồng hồ SLA chuyển vàng ("Sắp hết hạn") khi còn dưới tỉ lệ này của khung giờ: 6h với khung 24h, 18h với khung 72h.
+     * Hết hạn → đỏ ("Quá hạn"). Chỉ hiển thị, không chặn thao tác nào.
+     */
+    public const SLA_WARNING_RATIO = 0.25;
 
     protected $fillable = [
         'code',
@@ -178,7 +185,13 @@ class CrmCustomer extends Model
     {
         // Sales không đổi giai đoạn (lead vẫn "Mới" sau khi gọi) → đã có nhật ký liên hệ thì không tính là chưa liên hệ.
         return $query->where('stage', 'new')->where('created_at', '<=', now()->subHours(24))
-            ->whereDoesntHave('histories', fn (Builder $history) => $history->whereIn('type', CrmCustomerHistory::CONTACT_TYPES));
+            ->whereDoesntHave('histories', fn (Builder $history) => $history->whereIn('type', CrmCustomerHistory::CARE_TYPES));
+    }
+
+    /** Nạp sẵn thời điểm chăm sóc gần nhất (cột ảo last_care_at) cho đồng hồ SLA trên danh sách — tránh N+1. */
+    public function scopeWithLastCare(Builder $query): Builder
+    {
+        return $query->withMax(['histories as last_care_at' => fn (Builder $history) => $history->whereIn('type', CrmCustomerHistory::CARE_TYPES)], 'created_at');
     }
 
     /**
@@ -398,18 +411,103 @@ class CrmCustomer extends Model
         return (bool) preg_match('/^(0[35789]\d{8}|02\d{9})$/', self::normalizePhone($raw));
     }
 
-    /** Hạn liên hệ: overdue (Quá hạn) | due_soon (Sắp hết hạn) | null. */
-    public function followUpStatus(?Carbon $now = null): ?string
+    /** Khung SLA "chăm sóc tiếp theo" (giờ) = ngưỡng khách bị bỏ quên, mặc định 3 ngày = 72h (system_settings.crm_neglect_days). */
+    public static function followUpSlaHours(): int
     {
-        if (! $this->next_follow_up_at || ! in_array($this->stage, self::ACTIVE_STAGES, true)) {
+        return app(NotificationService::class)->neglectThresholdDays() * 24;
+    }
+
+    /** Lần chăm sóc gần nhất (CrmCustomerHistory::CARE_TYPES): cột ảo scopeWithLastCare, histories đã nạp, hoặc 1 truy vấn. */
+    public function lastCareAt(): ?Carbon
+    {
+        if (array_key_exists('last_care_at', $this->attributes)) {
+            return $this->attributes['last_care_at'] ? Carbon::parse($this->attributes['last_care_at']) : null;
+        }
+        $latest = $this->relationLoaded('histories')
+            ? $this->histories->whereIn('type', CrmCustomerHistory::CARE_TYPES)->max('created_at')
+            : $this->histories()->whereIn('type', CrmCustomerHistory::CARE_TYPES)->max('created_at');
+
+        return $latest ? Carbon::parse($latest) : null;
+    }
+
+    /**
+     * Đồng hồ SLA liên hệ (PRD R13, FR-CRM-02), chỉ cho khách đang chăm sóc (ACTIVE_STAGES):
+     * - Khách "Mới" chưa được chăm sóc lần nào: hạn = lúc tạo + 24h ("Hạn liên hệ lần đầu").
+     * - Còn lại: hạn = lần chăm sóc gần nhất (không có thì lúc tạo) + 72h ("Hạn chăm sóc tiếp theo").
+     * - Có "Hạn liên hệ tiếp theo" (người phụ trách tự hẹn) sớm hơn thì lấy hạn hẹn.
+     * state: on_time (xanh) | due_soon (vàng, còn < 25% khung) | overdue (đỏ). Chỉ hiển thị, không chặn thao tác.
+     *
+     * @return array{kind: string, label: string, deadline: Carbon, warn_seconds: int, state: string, remaining: string}|null
+     */
+    public function contactSla(?Carbon $now = null): ?array
+    {
+        if (! in_array($this->stage, self::ACTIVE_STAGES, true) || ! $this->created_at) {
             return null;
         }
         $now ??= now();
-        if ($this->next_follow_up_at->lt($now)) {
-            return 'overdue';
+        $lastCare = $this->lastCareAt();
+        if ($lastCare === null && $this->stage === 'new') {
+            [$kind, $label, $hours, $anchor] = ['first', 'Hạn liên hệ lần đầu', self::FIRST_CONTACT_SLA_HOURS, $this->created_at];
+        } else {
+            [$kind, $label, $hours, $anchor] = ['follow_up', 'Hạn chăm sóc tiếp theo', self::followUpSlaHours(), $lastCare ?? $this->created_at];
         }
+        $deadline = $anchor->copy()->addHours($hours);
+        if ($this->next_follow_up_at && $this->next_follow_up_at->lt($deadline)) {
+            [$kind, $label, $deadline] = ['appointment', $this->stage === 'new' ? 'Hạn liên hệ (đã hẹn)' : 'Hạn chăm sóc tiếp theo (đã hẹn)', $this->next_follow_up_at->copy()];
+        }
+        $warnSeconds = (int) round($hours * 3600 * self::SLA_WARNING_RATIO);
+        $state = match (true) {
+            $deadline->lt($now) => 'overdue',
+            $now->diffInSeconds($deadline) < $warnSeconds => 'due_soon',
+            default => 'on_time',
+        };
 
-        return $this->next_follow_up_at->lte($now->copy()->addHours(self::FOLLOW_UP_DUE_SOON_HOURS)) ? 'due_soon' : null;
+        return [
+            'kind' => $kind,
+            'label' => $label,
+            'deadline' => $deadline,
+            'warn_seconds' => $warnSeconds,
+            'state' => $state,
+            'remaining' => self::remainingLabel($deadline, $now),
+        ];
+    }
+
+    /** Hạn liên hệ theo đồng hồ SLA: overdue (Quá hạn) | due_soon (Sắp hết hạn) | null (còn hạn / không áp dụng). */
+    public function followUpStatus(?Carbon $now = null): ?string
+    {
+        $state = $this->contactSla($now)['state'] ?? null;
+
+        return $state === 'on_time' ? null : $state;
+    }
+
+    /** Đồng hồ đếm ngược: "Còn 2 giờ 14 phút" / "Quá hạn 1 ngày 3 giờ". */
+    public static function remainingLabel(\Carbon\CarbonInterface $at, ?\Carbon\CarbonInterface $now = null): string
+    {
+        $diff = ($now ?? now())->diff($at);
+        $parts = array_filter([
+            $diff->days ? $diff->days.' ngày' : null,
+            $diff->h ? $diff->h.' giờ' : null,
+            ! $diff->days && $diff->i ? $diff->i.' phút' : null,
+        ]);
+        $text = $parts ? implode(' ', $parts) : 'dưới 1 phút';
+
+        return $diff->invert ? 'Quá hạn '.$text : 'Còn '.$text;
+    }
+
+    /** Dữ liệu đồng hồ SLA gửi xuống Vue (<CrmSlaCountdown>), null khi không áp dụng. */
+    public function contactSlaPayload(?Carbon $now = null): ?array
+    {
+        $sla = $this->contactSla($now);
+
+        return $sla ? [
+            'kind' => $sla['kind'],
+            'label' => $sla['label'],
+            'deadline' => $sla['deadline']->toIso8601String(),
+            'deadline_label' => $sla['deadline']->format('H:i d/m/Y'),
+            'warn_seconds' => $sla['warn_seconds'],
+            'state' => $sla['state'],
+            'remaining' => $sla['remaining'],
+        ] : null;
     }
 
     public function isContractLocked(): bool

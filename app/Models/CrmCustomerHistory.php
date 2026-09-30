@@ -42,6 +42,12 @@ class CrmCustomerHistory extends Model
     /** Nhật ký cho thấy đã liên hệ khách (gọi / nhắn / gặp) — lead Mới có các nhật ký này không còn là "chưa liên hệ". */
     public const CONTACT_TYPES = ['call', 'message', 'meet'];
 
+    /**
+     * Nhật ký tính là một lần chăm sóc khách (đồng hồ SLA "chăm sóc tiếp theo trong 72h" đếm lại từ lần gần nhất):
+     * liên hệ + test / gửi kết quả / học thử / chuyển giai đoạn. Sửa thông tin, phân công, ghi chú, hệ thống không tính.
+     */
+    public const CARE_TYPES = ['call', 'message', 'meet', 'test', 'result', 'trial', 'stage_change'];
+
     protected $casts = [
         'changes' => 'array',
     ];
