@@ -3,10 +3,12 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
+use App\Models\StaffReport;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
@@ -35,7 +37,6 @@ class InlineFormModalTest extends TestCase
     public static function pages(): array
     {
         return [
-            'nhật ký sự vụ' => ['reports.journal', 'new-journal'],
             'khảo sát' => ['surveys.index', 'new-survey'],
             'giao chặng' => ['syllabus.assignments', 'new-assignment'],
             'tài liệu giáo trình' => ['syllabus.documents', 'upload-document'],
@@ -58,18 +59,26 @@ class InlineFormModalTest extends TestCase
             ->assertSee('show: false', false);
     }
 
-    public function test_validation_error_reopens_the_modal_with_entered_values(): void
+    /** Nhật ký sự vụ đã sang Vue: form tạo nằm trong UiModal đóng sẵn; lỗi validate trả về kèm lỗi, modal (giữ state) vẫn mở. */
+    public function test_journal_create_form_lives_in_a_closed_vue_modal(): void
+    {
+        $this->actingAs($this->admin)->get(route('reports.journal'))->assertOk()
+            ->assertSee('Ghi nhận sự vụ mới')
+            ->assertSee('id="new-journal-form"', false)
+            ->assertSee('form="new-journal-form"', false)
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Reports/Journal'));
+    }
+
+    public function test_validation_error_returns_with_errors_and_entered_values(): void
     {
         $this->actingAs($this->admin)->from(route('reports.journal'))
-            ->post(route('reports.journal.store'), ['_modal' => 'new-journal', 'title' => '', 'severity' => 'normal', 'content' => 'Mô tả giữ lại'])
+            ->post(route('reports.journal.store'), ['title' => '', 'severity' => 'normal', 'content' => 'Mô tả giữ lại'])
             ->assertRedirect(route('reports.journal'))
-            ->assertSessionHasErrors('title');
+            ->assertSessionHasErrors('title')
+            ->assertSessionHasInput('content', 'Mô tả giữ lại');
+        $this->assertSame(0, StaffReport::count());
 
-        $html = $this->actingAs($this->admin)->get(route('reports.journal'))->assertOk()->getContent();
-        // Khối x-data của modal (đứng trước data-modal) chứa trạng thái mở.
-        $marker = strpos($html, 'data-modal="new-journal"');
-        $modal = substr($html, strrpos(substr($html, 0, $marker), 'x-data="{'), 200);
-        $this->assertStringContainsString('show: true', $modal);
-        $this->assertStringContainsString('Mô tả giữ lại', $html);
+        $this->actingAs($this->admin)->get(route('reports.journal'))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Reports/Journal')->has('errors.title'));
     }
 }

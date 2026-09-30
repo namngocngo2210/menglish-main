@@ -6,9 +6,11 @@ use App\Models\ClassModel;
 use App\Models\CrmCustomer;
 use App\Models\Student;
 use App\Support\Navigation\SidebarMenu;
+use App\Support\StatusLabel;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
+use Inertia\Inertia;
+use Inertia\Response;
 
 /**
  * Ô tìm kiếm chung trên topbar: tìm màn hình theo tên (menu, tab, Cài đặt — chỉ màn user được mở) và
@@ -20,7 +22,7 @@ class GlobalSearchController extends Controller
 {
     private const LIMIT = 20;
 
-    public function __invoke(Request $request, SidebarMenu $menu): View
+    public function __invoke(Request $request, SidebarMenu $menu): Response
     {
         $user = $request->user();
         $term = trim((string) $request->query('q', ''));
@@ -69,11 +71,34 @@ class GlobalSearchController extends Controller
             }
         }
 
-        return view('search.index', [
+        return Inertia::render('Search/Index', [
             'term' => $term,
-            'results' => $results,
             'searched' => $searched,
-            'screens' => $screens,
+            'screens' => array_map(fn (array $screen) => ['title' => $screen['title'], 'url' => $screen['url']], $screens),
+            'customers' => $results['customers']->map(fn (CrmCustomer $customer) => [
+                'id' => $customer->id,
+                'name' => $customer->name,
+                'code' => $customer->code,
+                'phone' => $customer->phone,
+                'branch' => $customer->branch?->name,
+                'stage_label' => $customer->stage_label,
+            ])->all(),
+            'students' => $results['students']->map(fn (Student $student) => [
+                'id' => $student->id,
+                'name' => $student->name,
+                'code' => $student->code,
+                'phone' => $student->phone,
+                'class' => $student->currentClass?->name,
+                'status_label' => $student->status_label,
+            ])->all(),
+            'classes' => $results['classes']->map(fn (ClassModel $class) => [
+                'id' => $class->id,
+                'name' => $class->name,
+                'code' => $class->code,
+                'branch' => $class->branch?->name,
+                'teacher' => $class->teacher?->name,
+                'status_label' => StatusLabel::for($class->status),
+            ])->all(),
             'total' => collect($results)->sum(fn ($items) => $items->count()) + count($screens),
         ]);
     }

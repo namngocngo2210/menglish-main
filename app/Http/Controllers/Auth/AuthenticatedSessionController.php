@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Models\User;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
+use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
+use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class AuthenticatedSessionController extends Controller
 {
@@ -17,23 +19,27 @@ class AuthenticatedSessionController extends Controller
     private const ASSISTANT_ROLES = ['assistant'];
 
     /**
-     * Display the login view.
+     * Display the login view. Thông báo `status` (vd. vừa đặt lại mật khẩu) hiện trong khung đăng nhập, không lặp lại thành toast.
      */
-    public function create(): View
+    public function create(Request $request): Response
     {
-        return view('auth.login');
+        return Inertia::render('Auth/Login', [
+            'status' => $request->session()->pull('status'),
+            'canResetPassword' => Route::has('password.request'),
+        ]);
     }
 
     /**
      * Handle an incoming authentication request.
      */
-    public function store(LoginRequest $request): RedirectResponse
+    public function store(LoginRequest $request): SymfonyResponse
     {
         $request->authenticate();
 
         $request->session()->regenerate();
 
-        return redirect()->intended($this->homeUrl($request->user()));
+        // Phiên vừa đổi (token CSRF, user) → tải lại hẳn trang đích (Inertia: 409 + X-Inertia-Location); request thường: redirect như cũ.
+        return Inertia::location(redirect()->intended($this->homeUrl($request->user())));
     }
 
     /**
@@ -56,7 +62,7 @@ class AuthenticatedSessionController extends Controller
     /**
      * Destroy an authenticated session.
      */
-    public function destroy(Request $request): RedirectResponse
+    public function destroy(Request $request): SymfonyResponse
     {
         if ($user = auth()->user()) {
             activity('auth')->causedBy($user)->log('Đăng xuất');
@@ -68,6 +74,7 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerateToken();
 
-        return redirect('/');
+        // Tải lại hẳn trang (không giữ dữ liệu của phiên cũ trong ứng dụng Vue đang chạy).
+        return Inertia::location(redirect('/'));
     }
 }

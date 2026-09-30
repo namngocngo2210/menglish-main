@@ -17,7 +17,7 @@ defineProps({ flash: { type: Array, default: () => [] } });
             <slot />
         </div>
         <div class="py-6 text-center font-caption text-caption text-on-surface-variant">
-            <span>Phát triển bởi</span>
+            <span>Phát triển bởi</span>{{ ' ' }}
             <a href="https://vmst.vn" target="_blank" rel="noopener noreferrer" class="font-semibold text-primary hover:underline">VMST Media</a>
         </div>
     </div>

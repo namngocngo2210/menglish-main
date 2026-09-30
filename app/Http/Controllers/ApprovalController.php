@@ -5,11 +5,12 @@ namespace App\Http\Controllers;
 use App\Http\Concerns\RendersModals;
 use App\Support\Approvals\ApprovableSource;
 use App\Support\Approvals\ApprovalInboxService;
+use App\Support\Approvals\ApprovalItem;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\View\View;
+use Inertia\Inertia;
+use Inertia\Response;
 
 /**
  * "Việc cần duyệt" (IX-5): một hộp gom mọi yêu cầu chờ user duyệt. Chỉ đọc / uỷ quyền qua ApprovableSource,
@@ -24,7 +25,7 @@ class ApprovalController extends Controller
 
     public function __construct(private readonly ApprovalInboxService $inbox) {}
 
-    public function index(Request $request): View
+    public function index(Request $request): Response
     {
         $user = $request->user();
         abort_unless($this->inbox->canView($user), 403, 'Bạn không có quyền duyệt mục nào.');
@@ -32,9 +33,24 @@ class ApprovalController extends Controller
         $groups = $this->inbox->groups($user);
         $group = array_key_exists((string) $request->query('group'), $groups) ? (string) $request->query('group') : null;
         $sections = $this->inbox->sections($user, $group, self::PER_SOURCE);
-        $total = array_sum(array_column($groups, 'count'));
 
-        return view('approvals.index', compact('groups', 'group', 'sections', 'total'));
+        return Inertia::render('Approvals/Index', [
+            'groups' => collect($groups)->map(fn (array $g, string $slug) => ['slug' => $slug, 'label' => $g['label'], 'count' => $g['count']])->values()->all(),
+            'group' => $group,
+            'total' => array_sum(array_column($groups, 'count')),
+            'sections' => array_map(fn (array $section) => [
+                'key' => $section['source']->key(),
+                'label' => $section['source']->label(),
+                'group' => $section['source']->group(),
+                'indexUrl' => $section['source']->indexUrl(),
+                'count' => $section['count'],
+                'approve' => $section['approve'],
+                'reject' => $section['reject'],
+                'items' => $section['items']->map(fn (ApprovalItem $item) => $this->itemData($item))->values()->all(),
+            ], $sections),
+            // Kết quả lần duyệt / từ chối hàng loạt vừa xong (liệt kê mục không xử lý được).
+            'results' => session('approval_results', []),
+        ]);
     }
 
     /** Chi tiết 1 mục (modal) + Duyệt / Từ chối nếu nguồn hỗ trợ. */
@@ -46,9 +62,14 @@ class ApprovalController extends Controller
         abort_unless($found !== null, 404, 'Mục này không còn chờ duyệt hoặc ngoài phạm vi của bạn.');
         [$approvable, $item] = $found;
 
-        return $this->modalView('approvals.show', [
-            'source' => $approvable,
-            'item' => $item,
+        return $this->modalPage('Approvals/Show', [
+            'source' => ['label' => $approvable->label(), 'group' => $approvable->group()],
+            'item' => [
+                ...$this->itemData($item),
+                'url' => $item->url,
+                'modalUrl' => $item->modalUrl,
+                'meta' => collect($item->meta)->map(fn ($value, $label) => ['label' => (string) $label, 'value' => (string) $value])->values()->all(),
+            ],
             'canApprove' => $approvable->supports($user, ApprovableSource::APPROVE),
             'canReject' => $approvable->supports($user, ApprovableSource::REJECT),
         ]);
@@ -56,9 +77,10 @@ class ApprovalController extends Controller
 
     /**
      * Duyệt / từ chối hàng loạt (hoặc 1 mục từ modal chi tiết, `single=1`). Mỗi mục một transaction; trả kết quả
-     * từng dòng. htmx: fragment kết quả + HX-Trigger {close-modal, toast, approvals-changed}.
+     * từng dòng. Từ trang danh sách / modal (X-Remote-Modal): quay lại trang đang mở kèm thông báo (+ kết quả từng mục
+     * khi xử lý hàng loạt); request thường: về "Việc cần duyệt" như cũ.
      */
-    public function bulk(Request $request): Response|RedirectResponse
+    public function bulk(Request $request): RedirectResponse
     {
         $user = $request->user();
         abort_unless($this->inbox->canView($user), 403);
@@ -75,13 +97,7 @@ class ApprovalController extends Controller
         ]);
 
         if ($validator->fails()) {
-            $message = (string) $validator->errors()->first();
-            if (! $this->isModalRequest()) {
-                return back()->withErrors($validator);
-            }
-
-            return response()->view('approvals._results', ['results' => [], 'error' => $message], 422)
-                ->header('HX-Trigger', json_encode(['toast' => ['message' => $message, 'type' => 'error']]));
+            return back()->withErrors($validator);
         }
 
         $data = $validator->validated();
@@ -97,18 +113,25 @@ class ApprovalController extends Controller
             return redirect()->route('approvals.index')->with($failed ? 'warning' : 'status', $summary)->with('approval_results', $results);
         }
 
-        $trigger = [
-            'close-modal' => true,
-            'toast' => ['message' => $summary, 'type' => $failed ? ($okCount ? 'warning' : 'error') : 'success'],
-            'approvals-changed' => true,
+        $redirect = back()->with($failed ? ($okCount ? 'warning' : 'error') : 'status', $summary);
+
+        // Từ modal chi tiết: không có vùng kết quả, chỉ thông báo.
+        return $request->boolean('single') ? $redirect : $redirect->with('approval_results', $results);
+    }
+
+    /** @return array<string, mixed> */
+    private function itemData(ApprovalItem $item): array
+    {
+        return [
+            'ref' => $item->ref(),
+            'source' => $item->source,
+            'id' => $item->id,
+            'title' => $item->title,
+            'subtitle' => $item->subtitle,
+            'flag' => $item->flag,
+            'amount' => $item->amount,
+            'created_at' => $item->createdAt?->toIso8601String(),
+            'created_ago' => $item->createdAt?->diffForHumans(),
         ];
-
-        // Từ modal chi tiết: không có vùng kết quả, chỉ toast.
-        if ($request->boolean('single')) {
-            return response()->noContent()->header('HX-Trigger', json_encode($trigger));
-        }
-
-        return response()->view('approvals._results', ['results' => $results, 'error' => null])
-            ->header('HX-Trigger', json_encode($trigger));
     }
 }

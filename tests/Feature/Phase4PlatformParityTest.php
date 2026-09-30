@@ -491,12 +491,12 @@ class Phase4PlatformParityTest extends TestCase
             ->assertSee('Báo cáo trực lớp chờ xác nhận')
             ->assertSee('Phiếu thu chờ duyệt')
             ->assertSee('1 ticket chưa có người xử lý');
-        $queues = collect($admin->viewData('roleDashboard')['queues'])->pluck('value', 'label');
+        $queues = collect($admin->inertiaProps('roleDashboard.queues'))->pluck('value', 'label');
         $this->assertSame(3, $queues['Báo cáo trực lớp chờ xác nhận']);
         $this->assertSame(1, $queues['Ticket đang mở']);
 
         $managerB = $this->makeUser('manager', $this->otherBranch);
-        $managerQueues = collect($this->actingAs($managerB)->get(route('dashboard'))->assertOk()->viewData('roleDashboard')['queues'])->pluck('value', 'label');
+        $managerQueues = collect($this->actingAs($managerB)->get(route('dashboard'))->assertOk()->inertiaProps('roleDashboard.queues'))->pluck('value', 'label');
         $this->assertSame(2, $managerQueues['Báo cáo trực lớp chờ xác nhận']);
         $this->assertSame(0, $managerQueues['Ticket đang mở']);
 

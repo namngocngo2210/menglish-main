@@ -7,8 +7,11 @@ use App\Models\StaffReport;
 use App\Models\StaffReportFollowup;
 use App\Models\User;
 use App\Support\StaffType;
+use App\Support\Ui;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
+use Inertia\Response;
 
 /**
  * Báo cáo & Nhật ký (quyền staff_report.*):
@@ -35,7 +38,7 @@ class StaffReportController extends Controller
     }
 
     // ───────────────────────── NHẬT KÝ ─────────────────────────
-    public function journal(Request $request)
+    public function journal(Request $request): Response
     {
         $this->guard();
         $isPriv = $this->isPrivileged();
@@ -56,11 +59,33 @@ class StaffReportController extends Controller
             $query->where('class_id', $classId);
         }
 
-        $journals = $query->latest('report_date')->latest('id')->paginate(15)->withQueryString();
+        $journals = $query->latest('report_date')->latest('id')->paginate(15)->withQueryString()
+            ->through(fn (StaffReport $j) => [
+                'id' => $j->id,
+                'title' => $j->title,
+                'content' => $j->content,
+                'severity' => $j->severity,
+                'severity_label' => $j->severity_label,
+                'status' => $j->status,
+                'report_date' => $j->report_date->toDateString(),
+                'class' => $j->classModel ? ['id' => $j->class_id, 'code' => $j->classModel->code] : null,
+                'user' => $isPriv ? $j->user?->name : null,
+                'followups' => $j->followups->map(fn (StaffReportFollowup $f) => [
+                    'id' => $f->id,
+                    'user' => $f->user?->name,
+                    'content' => $f->content,
+                    'created_at' => $f->created_at->toIso8601String(),
+                ])->all(),
+            ]);
         // Lớp gắn được sự vụ: chỉ lớp người ghi thấy (đang mở).
         $classes = ClassModel::visibleTo(Auth::user())->where('status', '!=', 'cancelled')->orderBy('code')->get(['id', 'code', 'name']);
 
-        return view('reports.journal', compact('journals', 'isPriv', 'classes'));
+        return Inertia::render('Reports/Journal', [
+            'journals' => $journals,
+            'isPriv' => $isPriv,
+            'classes' => Ui::options($classes, fn (ClassModel $c) => $c->code.' · '.$c->name),
+            'today' => now()->toDateString(),
+        ]);
     }
 
     public function journalStore(Request $request)
@@ -128,7 +153,7 @@ class StaffReportController extends Controller
     }
 
     // ───────────────────────── BÁO CÁO ĐỊNH KỲ ─────────────────────────
-    public function myReports(Request $request)
+    public function myReports(Request $request): Response
     {
         $this->guard();
         $type = $this->primaryType(Auth::user());
@@ -136,9 +161,19 @@ class StaffReportController extends Controller
         $reports = StaffReport::where('user_id', Auth::id())
             ->where('type', $type)
             ->latest('report_date')
-            ->paginate(10);
+            ->paginate(10)
+            ->through(fn (StaffReport $r) => [
+                'id' => $r->id,
+                'title' => $r->title,
+                'content' => $r->content,
+                'report_date' => $r->report_date->toDateString(),
+            ]);
 
-        return view('reports.my', compact('reports', 'type'));
+        return Inertia::render('Reports/My', [
+            'reports' => $reports,
+            'label' => StaffReport::TYPE_LABELS[$type] ?? 'Báo cáo',
+            'today' => now()->toDateString(),
+        ]);
     }
 
     public function reportStore(Request $request)
@@ -173,7 +208,7 @@ class StaffReportController extends Controller
     }
 
     // ───────────────────────── ADMIN XEM TỔNG ─────────────────────────
-    public function allReports(Request $request)
+    public function allReports(Request $request): Response
     {
         $this->guard();
         abort_unless($this->isPrivileged(), 403, 'Chỉ Admin / Manager mới xem tổng hợp.');
@@ -186,7 +221,18 @@ class StaffReportController extends Controller
             $query->whereDate('report_date', $date);
         }
 
-        $reports = $query->latest('report_date')->latest('id')->paginate(20)->withQueryString();
+        $reports = $query->latest('report_date')->latest('id')->paginate(20)->withQueryString()
+            ->through(fn (StaffReport $r) => [
+                'id' => $r->id,
+                'type' => $r->type,
+                'type_label' => $r->type_label,
+                'severity_label' => $r->type === 'journal' ? $r->severity_label : null,
+                'title' => $r->title,
+                'content' => $r->content,
+                'report_date' => $r->report_date->toDateString(),
+                'user' => $r->user?->name,
+                'followups_count' => $r->followups->count(),
+            ]);
 
         $stats = [
             'journal' => StaffReport::where('type', 'journal')->count(),
@@ -196,6 +242,10 @@ class StaffReportController extends Controller
             'urgent_open' => StaffReport::where('type', 'journal')->where('severity', 'urgent')->where('status', '!=', 'resolved')->count(),
         ];
 
-        return view('reports.all', compact('reports', 'stats'));
+        return Inertia::render('Reports/All', [
+            'reports' => $reports,
+            'stats' => $stats,
+            'types' => Ui::options(StaffReport::TYPE_LABELS),
+        ]);
     }
 }

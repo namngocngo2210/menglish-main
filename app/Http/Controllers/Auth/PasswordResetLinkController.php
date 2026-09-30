@@ -7,16 +7,17 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\ValidationException;
-use Illuminate\View\View;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class PasswordResetLinkController extends Controller
 {
     /**
-     * Display the password reset link request view.
+     * Display the password reset link request view. `status` (đã gửi link) hiện trong khung, không lặp lại thành toast.
      */
-    public function create(): View
+    public function create(Request $request): Response
     {
-        return view('auth.forgot-password');
+        return Inertia::render('Auth/ForgotPassword', ['status' => $request->session()->pull('status')]);
     }
 
     /**

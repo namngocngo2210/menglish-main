@@ -9,8 +9,6 @@ use App\Models\Course;
 use App\Models\CrmCustomer;
 use App\Models\Student;
 use App\Models\StudentTuition;
-use App\Models\SupportTicket;
-use App\Models\TicketMessage;
 use App\Models\TuitionReceipt;
 use App\Models\User;
 use App\Models\WorkTask;
@@ -22,6 +20,7 @@ use Tests\TestCase;
 
 /**
  * Sprint IX-3 — "Modal lớn" (docs/frontend-interaction-redesign.md §3): 11 form + 3 modal xem nhanh.
+ * (Ticket hỗ trợ đã chuyển sang Vue/Inertia — xem SupportTicketModalTest.)
  * Cùng route: request thường → trang đầy đủ như cũ; HX-Request → fragment modal; lỗi validate / nghiệp vụ → 422 trong modal;
  * lưu xong → 204 + HX-Trigger (close-modal, toast, sự kiện làm mới). Phân quyền / phạm vi dữ liệu giữ nguyên.
  */
@@ -55,7 +54,6 @@ class LargeModalFlowsTest extends TestCase
             'giao việc' => [fn (self $t) => route('tasks.create'), 'modal-task-form', 'Giao việc mới'],
             'giao việc trợ giảng' => [fn (self $t) => route('tasks.ta-assign'), 'modal-ta-assign-form', 'Tạo lượt giao việc cho Trợ giảng'],
             'báo cáo trực lớp' => [fn (self $t) => route('tasks.class-reports.create', ['class_id' => $t->classModel()->id]), 'modal-class-report-form', 'Nộp báo cáo trực lớp'],
-            'ticket – tạo' => [fn (self $t) => route('tickets.create'), 'modal-ticket-form', 'Tạo yêu cầu hỗ trợ (Ticket)'],
             'nhân sự – thêm' => [fn (self $t) => route('users.create'), 'modal-user-form', 'Thêm người dùng mới'],
             'nhân sự – sửa' => [fn (self $t) => route('users.edit', $t->staff()), 'modal-user-form', 'Sửa thông tin người dùng'],
             'phân quyền cá nhân' => [fn (self $t) => route('users.permissions.edit', $t->staff()), 'modal-permission-override-form', 'Phân quyền chi tiết — Giáo viên Modal'],
@@ -94,9 +92,6 @@ class LargeModalFlowsTest extends TestCase
             ]],
             'công việc' => [fn (self $t) => route('tasks.index', ['tab' => 'assigned']), 'tasks-changed', [
                 fn (self $t) => route('tasks.create'), fn (self $t) => route('tasks.show', $t->task()->id),
-            ]],
-            'ticket' => [fn (self $t) => route('tickets.index'), 'tickets-changed', [
-                fn (self $t) => route('tickets.create'), fn (self $t) => route('tickets.show', $t->ticket()->id),
             ]],
             'nhân sự' => [fn (self $t) => route('users.index'), 'users-changed', [
                 fn (self $t) => route('users.create'), fn (self $t) => route('users.edit', $t->staff()), fn (self $t) => route('users.permissions.edit', $t->staff()),
@@ -256,59 +251,6 @@ class LargeModalFlowsTest extends TestCase
         $this->actingAs($ta)->get(route('portal.ta-tasks'))->assertOk()
             ->assertSee('hx-trigger="tasks-changed from:body"', false)
             ->assertSee('hx-get="'.route('tasks.class-reports.create').'"', false);
-    }
-
-    // ── Ticket hỗ trợ ────────────────────────────────────────────────────────────────────────
-
-    public function test_ticket_create_modal_flow(): void
-    {
-        $this->actingAs($this->admin)->post(route('tickets.store'), ['title' => 'Lỗi in hóa đơn', 'category' => 'tuition', 'priority' => 'high'], self::HX)
-            ->assertStatus(422)->assertSee('id="modal-ticket-form"', false)->assertSee('value="Lỗi in hóa đơn"', false)
-            ->assertSee('<option value="tuition" selected', false);
-
-        $response = $this->actingAs($this->admin)->post(route('tickets.store'), [
-            'title' => 'Lỗi in hóa đơn', 'category' => 'tuition', 'priority' => 'high', 'description' => 'Bấm in bị trắng trang.',
-        ], self::HX);
-        $ticket = SupportTicket::firstOrFail();
-        $this->assertSaved($response, 'tickets-changed', "Đã tạo phiếu yêu cầu hỗ trợ / báo lỗi {$ticket->code} thành công!");
-    }
-
-    public function test_ticket_show_modal_with_reply_refreshing_conversation(): void
-    {
-        $ticket = $this->ticket();
-
-        $this->actingAs($this->admin)->get(route('tickets.show', $ticket->id), self::HX)->assertOk()
-            ->assertDontSee('data-sidebar', false)
-            ->assertSee('data-testid="ticket-conversation"', false)
-            ->assertSee('id="modal-ticket-reply-form"', false)
-            ->assertSee('x-data="attachmentUploader"', false)
-            ->assertSee('Máy chiếu phòng 2 không lên hình');
-
-        // Gửi phản hồi trống → 422, hội thoại hiện lại kèm lỗi (tickets.messages.store → màn chi tiết tickets.show).
-        $this->actingAs($this->admin)->post(route('tickets.messages.store', $ticket->id), ['message' => ''], self::HX)
-            ->assertStatus(422)->assertSee('data-testid="ticket-conversation"', false)
-            ->assertSee('Vui lòng nhập Nội dung phản hồi.');
-
-        // Gửi phản hồi → 200, nội dung modal là hội thoại mới + toast + làm mới danh sách.
-        $response = $this->actingAs($this->admin)->post(route('tickets.messages.store', $ticket->id), ['message' => 'Đã thay dây HDMI.'], self::HX);
-        $response->assertOk()->assertSee('data-testid="ticket-conversation"', false)->assertSee('Đã thay dây HDMI.');
-        $triggers = $this->triggers($response);
-        $this->assertSame(['message' => 'Đã gửi phản hồi thành công!', 'type' => 'success'], $triggers['toast']);
-        $this->assertTrue($triggers['tickets-changed']);
-        $this->assertArrayNotHasKey('close-modal', $triggers);
-        $this->assertSame(2, TicketMessage::count());
-        $this->assertSame('in_progress', $ticket->fresh()->status);
-
-        // Request thường giữ redirect back.
-        $this->actingAs($this->admin)->from(route('tickets.show', $ticket->id))
-            ->post(route('tickets.messages.store', $ticket->id), ['message' => 'OK'])
-            ->assertRedirect(route('tickets.show', $ticket->id))->assertSessionHas('status', 'Đã gửi phản hồi thành công!');
-
-        // Người ngoài luồng ticket vẫn bị chặn.
-        $outsider = User::factory()->create(['is_active' => true, 'branch_id' => $this->branch->id]);
-        $outsider->syncRoles(['teacher']);
-        $this->actingAs($outsider)->get(route('tickets.show', $ticket->id), self::HX)->assertForbidden();
-        $this->actingAs($outsider)->post(route('tickets.messages.store', $ticket->id), ['message' => 'x'], self::HX)->assertForbidden();
     }
 
     // ── Nhân sự ──────────────────────────────────────────────────────────────────────────────
@@ -483,16 +425,6 @@ class LargeModalFlowsTest extends TestCase
             'creator_id' => $this->admin->id, 'assignee_id' => $this->staff()->id, 'branch_id' => $this->branch->id,
             'due_date' => '2026-10-09', 'task_type' => 'one_time', 'status' => 'new',
         ]);
-    }
-
-    public function ticket(): SupportTicket
-    {
-        return SupportTicket::query()->where('title', 'Máy chiếu hỏng')->first() ?? tap(SupportTicket::create([
-            'code' => SupportTicket::generateCode(), 'title' => 'Máy chiếu hỏng', 'category' => 'technical_issue', 'priority' => 'medium',
-            'description' => 'Máy chiếu phòng 2 không lên hình', 'creator_id' => $this->staff()->id, 'status' => 'open',
-        ]), fn (SupportTicket $t) => TicketMessage::create([
-            'support_ticket_id' => $t->id, 'user_id' => $t->creator_id, 'message' => $t->description, 'is_internal_note' => false,
-        ]));
     }
 
     public function classModel(): ClassModel
