@@ -287,8 +287,8 @@ class Phase2AcceptanceTest extends TestCase
         $this->actingAs($this->otherTeacher)->get(route('teacher.attendance', ['classId' => $class->id, 'session' => $today->id]))->assertForbidden();
 
         // ── 4. Học vụ xếp buổi bổ trợ từ danh sách bổ trợ ────────────────────────────────────
-        $this->actingAs($this->academic)->get(route('tasks.support-sessions'))->assertOk()
-            ->assertViewHas('pendingSupports', fn ($rows) => $rows->pluck('id')->contains($absence->id));
+        $supportList = $this->actingAs($this->academic)->get(route('tasks.support-sessions'))->assertOk();
+        $this->assertTrue(collect($supportList->viewData('page')['props']['pendingSupports']['data'])->pluck('id')->contains($absence->id));
         $this->actingAs($this->academic)->post(route('tasks.support-sessions.store'), [
             'class_report_student_support_id' => $absence->id, 'class_id' => $class->id, 'student_id' => $s2->id,
             'teacher_id' => $this->assistant->id, 'session_date' => today()->addDay()->toDateString(),

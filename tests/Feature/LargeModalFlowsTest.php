@@ -54,9 +54,6 @@ class LargeModalFlowsTest extends TestCase
     {
         return [
             'khách – thêm' => [fn (self $t) => route('crm.customers.create'), 'modal-customer-form', 'Thêm khách mới'],
-            'giao việc' => [fn (self $t) => route('tasks.create'), 'modal-task-form', 'Giao việc mới'],
-            'giao việc trợ giảng' => [fn (self $t) => route('tasks.ta-assign'), 'modal-ta-assign-form', 'Tạo lượt giao việc cho Trợ giảng'],
-            'báo cáo trực lớp' => [fn (self $t) => route('tasks.class-reports.create', ['class_id' => $t->classModel()->id]), 'modal-class-report-form', 'Nộp báo cáo trực lớp'],
             'nhân sự – thêm' => [fn (self $t) => route('users.create'), 'modal-user-form', 'Thêm người dùng mới'],
             'nhân sự – sửa' => [fn (self $t) => route('users.edit', $t->staff()), 'modal-user-form', 'Sửa thông tin người dùng'],
             'phân quyền cá nhân' => [fn (self $t) => route('users.permissions.edit', $t->staff()), 'modal-permission-override-form', 'Phân quyền chi tiết — Giáo viên Modal'],
@@ -91,9 +88,6 @@ class LargeModalFlowsTest extends TestCase
             ]],
             'khách – Kanban' => [fn (self $t) => route('crm.pipeline'), 'crm-customers-changed', [
                 fn (self $t) => route('crm.customers.create'),
-            ]],
-            'công việc' => [fn (self $t) => route('tasks.index', ['tab' => 'assigned']), 'tasks-changed', [
-                fn (self $t) => route('tasks.create'), fn (self $t) => route('tasks.show', $t->task()->id),
             ]],
             'nhân sự' => [fn (self $t) => route('users.index'), 'users-changed', [
                 fn (self $t) => route('users.create'), fn (self $t) => route('users.edit', $t->staff()), fn (self $t) => route('users.permissions.edit', $t->staff()),
@@ -165,32 +159,39 @@ class LargeModalFlowsTest extends TestCase
 
     // ── Công việc ─────────────────────────────────────────────────────────────────────────────
 
+    /** Công việc đã chuyển sang Vue (Inertia): modal = header X-Remote-Modal; lưu xong quay lại trang đang mở kèm thông báo. */
     public function test_task_create_modal_flow_and_ta_assign_switch(): void
     {
         $ta = $this->ta();
 
         // Có lựa chọn "Giao cho: Trợ giảng" → chuyển sang form giao việc theo ca (luật riêng, route riêng).
-        $this->actingAs($this->admin)->get(route('tasks.create'), self::HX)->assertOk()
-            ->assertSee('data-assign-mode="assistant"', false)->assertSee('href="'.route('tasks.ta-assign').'"', false);
+        $this->actingAs($this->admin)->get(route('tasks.create'))->assertOk()
+            ->assertSee('data-sidebar', false)
+            ->assertSee('data-assign-mode="assistant"', false)->assertSee('href="'.route('tasks.ta-assign', absolute: false).'"', false);
+        $this->actingAs($this->admin)->get(route('tasks.create'), self::MODAL)->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Tasks/Create')->where('asModal', true)->where('canTaAssign', true)->where('title', 'Giao việc mới'));
 
-        $this->actingAs($this->admin)->post(route('tasks.store'), ['taskTitle' => '', 'assignee' => $ta->id, 'taskType' => 'one-time'], self::HX)
-            ->assertStatus(422)->assertSee('id="modal-task-form"', false)->assertSee('role="alert"', false);
+        $this->actingAs($this->admin)->from(route('tasks.index'))->post(route('tasks.store'), ['taskTitle' => '', 'assignee' => $ta->id, 'taskType' => 'one-time'], self::MODAL)
+            ->assertRedirect(route('tasks.index'))->assertSessionHasErrors(['taskTitle', 'dueDate']);
 
         $payload = ['taskTitle' => 'Chuẩn bị phòng 101', 'assignee' => $ta->id, 'dueDate' => '2026-10-09', 'taskType' => 'one-time'];
-        $this->assertSaved($this->actingAs($this->admin)->post(route('tasks.store'), $payload, self::HX),
-            'tasks-changed', "Đã giao việc 'Chuẩn bị phòng 101' thành công cho nhân sự!");
+        $this->actingAs($this->admin)->from(route('tasks.index', ['tab' => 'assigned']))->post(route('tasks.store'), $payload, self::MODAL)
+            ->assertRedirect(route('tasks.index', ['tab' => 'assigned']))
+            ->assertSessionHas('success', "Đã giao việc 'Chuẩn bị phòng 101' thành công cho nhân sự!");
 
         $this->actingAs($this->admin)->post(route('tasks.store'), [...$payload, 'taskTitle' => 'Việc 2'])
             ->assertRedirect(route('tasks.index'))->assertSessionHas('success');
 
-        // Giao việc trợ giảng trong modal (4xl): lỗi → 422 (màn cha tasks.ta-assign), đúng → 204.
-        $this->actingAs($this->admin)->get(route('tasks.ta-assign'), self::HX)->assertOk()->assertSee("size = '4xl'", false);
-        $this->actingAs($this->admin)->post(route('tasks.ta-assign.store'), ['assign_date' => '2026-10-08', 'tasks' => [['category' => 'before', 'content' => 'Photo đề']]], self::HX)
-            ->assertStatus(422)->assertSee('id="modal-ta-assign-form"', false)->assertSee('Vui lòng chọn trợ giảng.');
-        $response = $this->actingAs($this->admin)->post(route('tasks.ta-assign.store'), [
+        // Giao việc trợ giảng trong modal (4xl): lỗi → về lại kèm lỗi, đúng → quay lại trang đang mở.
+        $this->actingAs($this->admin)->get(route('tasks.ta-assign'), self::MODAL)->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Tasks/TaAssign')->where('asModal', true)->has('assistants', 1));
+        $this->actingAs($this->admin)->get(route('tasks.ta-assign'))->assertOk()
+            ->assertSee('Tạo lượt giao việc cho Trợ giảng')->assertSee('id="ta-assign-form"', false);
+        $this->actingAs($this->admin)->from(route('tasks.index'))->post(route('tasks.ta-assign.store'), ['assign_date' => '2026-10-08', 'tasks' => [['category' => 'before', 'content' => 'Photo đề']]], self::MODAL)
+            ->assertRedirect(route('tasks.index'))->assertSessionHasErrors(['assistant_id' => 'Vui lòng chọn trợ giảng.']);
+        $this->actingAs($this->admin)->from(route('tasks.index'))->post(route('tasks.ta-assign.store'), [
             'assistant_id' => $ta->id, 'assign_date' => '2026-10-08', 'tasks' => [['category' => 'before', 'content' => 'Photo đề']],
-        ], self::HX);
-        $this->assertSaved($response, 'tasks-changed', 'Đã tạo thành công 1 nhiệm vụ cho Trợ giảng!');
+        ], self::MODAL)->assertRedirect(route('tasks.index'))->assertSessionHas('success', 'Đã tạo thành công 1 nhiệm vụ cho Trợ giảng!');
     }
 
     public function test_task_quick_view_and_status_change_in_modal(): void
@@ -198,23 +199,25 @@ class LargeModalFlowsTest extends TestCase
         $task = $this->task();
 
         $this->actingAs($this->admin)->get(route('tasks.show', $task->id))->assertOk()
-            ->assertSee('data-sidebar', false)->assertSee('Kiểm kê kho')->assertSee('data-testid="task-detail"', false);
-        $this->actingAs($this->admin)->get(route('tasks.show', $task->id), self::HX)->assertOk()
-            ->assertDontSee('data-sidebar', false)->assertSee('data-testid="task-detail"', false)
-            ->assertSee('form="modal-task-status-form"', false);
+            ->assertSee('data-sidebar', false)->assertSee('Kiểm kê kho')->assertSee('data-testid="task-detail"', false)
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Tasks/Show')->where('asModal', false)->where('task.title', 'Kiểm kê kho'));
+        $this->actingAs($this->admin)->get(route('tasks.show', $task->id), self::MODAL)->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Tasks/Show')->where('asModal', true)->where('task.id', $task->id));
 
         // Người không liên quan, phạm vi "Của tôi" → 404.
         $outsider = User::factory()->create(['is_active' => true, 'branch_id' => $this->branch->id]);
         $outsider->syncRoles(['assistant']);
-        $this->actingAs($outsider)->get(route('tasks.show', $task->id), self::HX)->assertNotFound();
+        $this->actingAs($outsider)->get(route('tasks.show', $task->id), self::MODAL)->assertNotFound();
 
-        // Người thực hiện chuyển "Bị chặn" thiếu lý do → 422 ngay trong modal; có lý do → 204 + làm mới danh sách.
+        // Người thực hiện chuyển "Bị chặn" thiếu lý do → lỗi hiện lại trong modal; có lý do → lưu, quay lại danh sách.
         $assignee = $task->assignee;
-        $this->actingAs($assignee)->post(route('tasks.status.update', $task->id), ['status' => 'blocked'], self::HX)
-            ->assertStatus(422)->assertSee('Vui lòng nhập lý do khiến công việc bị chặn.')->assertSee('data-testid="task-detail"', false);
+        $this->actingAs($assignee)->get(route('tasks.show', $task->id), self::MODAL)
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('allowed.0.value', 'in_progress'));
+        $this->actingAs($assignee)->from(route('tasks.index'))->post(route('tasks.status.update', $task->id), ['status' => 'blocked'], self::MODAL)
+            ->assertRedirect(route('tasks.index'))->assertSessionHasErrors(['reason' => 'Vui lòng nhập lý do khiến công việc bị chặn.']);
         $this->assertSame('new', $task->fresh()->status);
-        $this->assertSaved($this->actingAs($assignee)->post(route('tasks.status.update', $task->id), ['status' => 'blocked', 'reason' => 'Thiếu chìa khóa kho'], self::HX),
-            'tasks-changed', 'Đã cập nhật trạng thái công việc thành công!');
+        $this->actingAs($assignee)->from(route('tasks.index'))->post(route('tasks.status.update', $task->id), ['status' => 'blocked', 'reason' => 'Thiếu chìa khóa kho'], self::MODAL)
+            ->assertRedirect(route('tasks.index'))->assertSessionHas('success', 'Đã cập nhật trạng thái công việc thành công!');
         $this->assertSame('blocked', $task->fresh()->status);
 
         // Request thường giữ redirect back + lỗi session.
@@ -227,29 +230,27 @@ class LargeModalFlowsTest extends TestCase
         $ta = $this->ta();
         $class = $this->classModel();
 
-        $this->actingAs($ta)->get(route('tasks.class-reports.create', ['class_id' => $class->id]), self::HX)->assertOk()
-            ->assertSee('enctype="multipart/form-data"', false)
-            ->assertSee('this.form.requestSubmit()', false);
+        $this->actingAs($ta)->get(route('tasks.class-reports.create', ['class_id' => $class->id]), self::MODAL)->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Tasks/ClassReportCreate')->where('asModal', true)->where('selectedClassId', $class->id));
+        $this->actingAs($ta)->get(route('tasks.class-reports.create', ['class_id' => $class->id]))->assertOk()
+            ->assertSee('id="class-report-form"', false)->assertSee('name="board_images[]"', false);
 
-        $this->actingAs($ta)->post(route('tasks.class-reports.store'), ['class_id' => $class->id, 'session_name' => 'Buổi 5'], self::HX)
-            ->assertStatus(422)->assertSee('id="modal-class-report-form"', false)->assertSee('Vui lòng nhập &quot;Hôm nay học gì&quot;.', false);
+        $this->actingAs($ta)->from(route('portal.ta-tasks'))->post(route('tasks.class-reports.store'), ['class_id' => $class->id, 'session_name' => 'Buổi 5'], self::MODAL)
+            ->assertRedirect(route('portal.ta-tasks'))->assertSessionHasErrors(['hom_nay_hoc_gi' => 'Vui lòng nhập "Hôm nay học gì".']);
 
-        $response = $this->actingAs($ta)->post(route('tasks.class-reports.store'), [
+        $response = $this->actingAs($ta)->from(route('portal.ta-tasks'))->post(route('tasks.class-reports.store'), [
             'class_id' => $class->id, 'session_name' => 'Buổi 5', 'hom_nay_hoc_gi' => 'Listening part 2',
-        ], self::HX);
-        $response->assertNoContent();
-        $triggers = $this->triggers($response);
-        $this->assertTrue($triggers['tasks-changed']);
-        $this->assertStringStartsWith('Đã nộp báo cáo trực lớp (không có ảnh)', $triggers['toast']['message']);
+        ], self::MODAL);
+        $response->assertRedirect(route('portal.ta-tasks'));
+        $this->assertStringStartsWith('Đã nộp báo cáo trực lớp (không có ảnh)', session('success'));
         $this->assertSame(1, ClassReport::count());
 
         $this->actingAs($ta)->post(route('tasks.class-reports.store'), ['class_id' => $class->id, 'session_name' => 'Buổi 6', 'hom_nay_hoc_gi' => 'Reading'])
             ->assertRedirect(route('portal.ta-tasks'))->assertSessionHas('success');
 
-        // Cổng TA: khối nhiệm vụ tự làm mới, nút "Báo cáo" mở modal.
+        // Cổng TA: nút "Báo cáo" mở form nộp báo cáo trong modal.
         $this->actingAs($ta)->get(route('portal.ta-tasks'))->assertOk()
-            ->assertSee('hx-trigger="tasks-changed from:body"', false)
-            ->assertSee('hx-get="'.route('tasks.class-reports.create').'"', false);
+            ->assertSee('href="'.route('tasks.class-reports.create', absolute: false).'" data-modal-size="2xl"', false);
     }
 
     // ── Nhân sự ──────────────────────────────────────────────────────────────────────────────

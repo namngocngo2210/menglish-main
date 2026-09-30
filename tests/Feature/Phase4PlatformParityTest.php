@@ -268,11 +268,11 @@ class Phase4PlatformParityTest extends TestCase
         $academic = $this->makeUser('academic_staff', $this->branch);
         $teacher = $this->makeUser('teacher', $this->branch);
 
-        // IX-3: form Giao việc không nhúng sẵn trong danh sách nữa — nút mở modal (htmx) tải tasks.create.
+        // IX-3: form Giao việc không nhúng sẵn trong danh sách nữa — nút mở modal chung tải tasks.create.
         $this->actingAs($academic)->get(route('tasks.index'))->assertOk()
-            ->assertSee('hx-get="'.route('tasks.create').'"', false)
+            ->assertSee('href="'.route('tasks.create', absolute: false).'"', false)
             ->assertSeeInOrder(['Của tôi', 'Tôi giao', 'Tất cả']);
-        $this->actingAs($academic)->get(route('tasks.create'), ['HX-Request' => 'true'])->assertOk()
+        $this->actingAs($academic)->get(route('tasks.create'), ['X-Remote-Modal' => 'true'])->assertOk()
             ->assertSee('Giao việc mới')->assertSee('Lưu và Giao việc')
             ->assertSee($teacher->name.' (Giáo viên)')          // nhãn vai trò, không phải mã "teacher"
             ->assertDontSee('('.$teacher->name.' (teacher)', false);

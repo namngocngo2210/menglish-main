@@ -91,11 +91,11 @@ class PaginationRecordOptionTest extends TestCase
         // Test per_page = 10
         $response10 = $this->actingAs($this->admin)->get(route('tasks.index', ['per_page' => 10]));
         $response10->assertStatus(200);
-        $this->assertCount(10, $response10->viewData('tasks'));
+        $this->assertCount(10, $response10->viewData('page')['props']['tasks']['data']);
 
         // Test per_page = all -> returns all 30
         $responseAll = $this->actingAs($this->admin)->get(route('tasks.index', ['per_page' => 'all']));
         $responseAll->assertStatus(200);
-        $this->assertCount(30, $responseAll->viewData('tasks'));
+        $this->assertCount(30, $responseAll->viewData('page')['props']['tasks']['data']);
     }
 }

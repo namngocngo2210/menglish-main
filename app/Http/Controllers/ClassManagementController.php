@@ -2,28 +2,37 @@
 
 namespace App\Http\Controllers;
 
-use App\Support\DataScope;
-use App\Support\Rbac;
 use App\Models\AcademicRecord;
 use App\Models\AdminNotification;
+use App\Models\BigTest;
 use App\Models\Branch;
 use App\Models\ClassModel;
+use App\Models\ClassReport;
 use App\Models\ClassSession;
 use App\Models\Course;
 use App\Models\CourseLevel;
 use App\Models\CrmCustomer;
 use App\Models\CrmTrialBooking;
+use App\Models\StaffReport;
+use App\Models\SyllabusAssignment;
 use App\Models\User;
 use App\Models\WorkTask;
 use App\Services\ClassDashboardService;
 use App\Services\SessionScheduleService;
 use App\Support\ClassLifecycle;
-use App\Models\StaffReport;
+use App\Support\DataScope;
+use App\Support\Rbac;
+use App\Support\StatusLabel;
+use App\Support\Ui;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class ClassManagementController extends Controller
 {
@@ -49,9 +58,37 @@ class ClassManagementController extends Controller
                 fn ($query) => $query->whereDate('class_sessions.date', '>=', today())->orderBy('class_sessions.date')->orderBy('class_sessions.start_time'))
             ->select('crm_trial_bookings.*')
             ->paginate($request->perPage(20))
-            ->withQueryString();
+            ->withQueryString()
+            ->through(fn (CrmTrialBooking $booking) => [
+                'id' => $booking->id,
+                'status' => $booking->status,
+                'status_label' => $booking->status_label,
+                'class_name' => $booking->classModel?->name,
+                'course_name' => $booking->classModel?->course?->name,
+                'branch_name' => $booking->classModel?->branch?->name,
+                'date' => $booking->session?->date?->toDateString(),
+                'start' => $booking->session?->start_time?->format('H:i'),
+                'end' => $booking->session?->end_time?->format('H:i'),
+                'customer_id' => $booking->customer ? $booking->customer_id : null,
+                'customer_name' => $booking->customer?->name,
+                'parent_name' => $booking->customer?->parent_name,
+                'stage_label' => $booking->customer?->stage_label,
+                'test_score' => $booking->customer?->test_score,
+                'assigned_name' => $booking->customer?->assignedUser?->name,
+                'booked_by' => $booking->bookedBy?->name,
+                'feedback_at' => $booking->feedback_at?->toIso8601String(),
+                'rating' => $booking->rating,
+                'remarks' => $booking->feedback_at ? $booking->remarksSummary() : '',
+                'feedback' => $booking->feedback,
+                'feedback_by' => $booking->feedbackBy?->name,
+            ]);
 
-        return view('classes.trial-booking', compact('bookings', 'scope', 'status'));
+        return Inertia::render('Classes/TrialBooking', [
+            'bookings' => $bookings,
+            'scope' => $scope,
+            'status' => $status,
+            'statuses' => Ui::options(CrmTrialBooking::STATUSES),
+        ]);
     }
 
     /**
@@ -66,11 +103,26 @@ class ClassManagementController extends Controller
         $courses = Course::where('is_active', true)->get();
         $levels = CourseLevel::where('is_active', true)->get();
 
-        [$teachers, $assistants] = $this->teachingStaffOptions();
-        $foreignTeachers = $teachers;
+        [$teachers] = $this->teachingStaffOptions();
 
-        return view('classes.create', compact('branches', 'courses', 'levels', 'teachers', 'assistants', 'foreignTeachers'));
+        return Inertia::render('Classes/Create', [
+            'branches' => Ui::options($branches, fn (Branch $b) => "{$b->name} ({$b->code})"),
+            // Chọn chương trình → điền sẵn học phí niêm yết của khóa (fee).
+            'courses' => $courses->map(fn (Course $c) => ['value' => $c->name, 'label' => $c->name, 'fee' => $c->tuition_fee])->values()->all(),
+            'levels' => Ui::options($levels, fn (CourseLevel $l) => "{$l->name} ({$l->target})", 'code'),
+            'rooms' => Ui::options(self::ROOMS),
+            'teachers' => Ui::options($teachers, fn (User $t) => "{$t->name} ({$t->email})"),
+        ]);
     }
+
+    /** Phòng học dùng chung các chi nhánh (ô "Phòng học" ở form tạo / sửa lớp). */
+    private const ROOMS = [
+        'P101' => 'Phòng 101 (Sức chứa 20 - Tầng 1)',
+        'P202' => 'Phòng 202 (Sức chứa 16 - Tầng 2)',
+        'P302' => 'Phòng 302 (Sức chứa 18 - Tầng 3)',
+        'LAB_A' => 'Phòng Lab A (Sức chứa 24 - Tầng 4)',
+        'LAB_B' => 'Phòng Lab B (Sức chứa 24 - Tầng 4)',
+    ];
 
     /**
      * Lưu lớp học mới. Nếu form đã render thời khóa biểu (schedule_sessions_json),
@@ -230,7 +282,7 @@ class ClassManagementController extends Controller
     /**
      * Danh sách chọn GV chính / GVNN (quyền đối tượng class.teach) và trợ giảng (class.assist), đang hoạt động.
      *
-     * @return array{0: \Illuminate\Support\Collection, 1: \Illuminate\Support\Collection}
+     * @return array{0: Collection, 1: Collection}
      */
     private function teachingStaffOptions(): array
     {
@@ -436,20 +488,36 @@ class ClassManagementController extends Controller
         ClassModel::loadRosterCounts($classes->getCollection());
 
         $classIds = $classes->pluck('id');
-        $bigTests = \App\Models\BigTest::whereIn('class_id', $classIds)->orderBy('scheduled_at')
+        $bigTests = BigTest::whereIn('class_id', $classIds)->orderBy('scheduled_at')
             ->get(['id', 'class_id', 'title', 'scheduled_at', 'status'])->groupBy('class_id');
         $nextSessions = ClassSession::whereIn('class_id', $classIds)->where('status', '!=', 'cancelled')->where('type', '!=', ClassSession::TYPE_SUPPORT)
             ->whereDate('date', '>=', today())->orderBy('date')->orderBy('start_time')
             ->get(['id', 'class_id', 'date', 'start_time'])->unique('class_id')->keyBy('class_id');
 
-        $rows = $classes->getCollection()->mapWithKeys(function (ClassModel $c) use ($bigTests, $nextSessions) {
+        $classes->through(function (ClassModel $c) use ($bigTests, $nextSessions) {
             $seat = $c->seatSummary();
-            $nextBigTest = $bigTests->get($c->id, collect())->first(fn ($bt) => $bt->scheduled_at && $bt->scheduled_at->isFuture());
+            $classBigTests = $bigTests->get($c->id, collect());
+            $nextBigTest = $classBigTests->first(fn ($bt) => $bt->scheduled_at && $bt->scheduled_at->isFuture());
 
-            return [$c->id => [
+            return [
+                'id' => $c->id,
+                'code' => $c->code,
+                'name' => $c->name,
+                'status' => ClassLifecycle::status($c->status),
+                'meta' => collect([$c->program, $c->level, $c->branch?->name])->filter()->implode(' · '),
+                'schedule_text' => $c->schedule_text,
+                'teacher' => $c->teacher?->name,
+                'foreign_teacher' => $c->foreignTeacher?->name,
                 'seat' => $seat,
+                'total_sessions' => (int) $c->total_sessions_count,
+                'done_sessions' => (int) $c->done_sessions_count,
+                'big_tests' => $classBigTests->map(fn ($bt) => [
+                    'title' => $bt->title,
+                    'date' => $bt->scheduled_at?->format('d/m/Y'),
+                    'done' => $bt->scheduled_at && $bt->scheduled_at->isPast(),
+                ])->values()->all(),
                 'next' => ClassLifecycle::nextAction($c, $seat, $nextSessions->get($c->id), $nextBigTest),
-            ]];
+            ];
         });
 
         $stats = [
@@ -460,7 +528,7 @@ class ClassManagementController extends Controller
             // Cùng định nghĩa với bộ lọc "Chưa điểm danh" của màn Lịch học & điểm danh (link từ thẻ này).
             'missing_attendance' => (function () use ($viewer, $branchFilter) {
                 $dashboard = app(ClassDashboardService::class);
-                $today = \Carbon\CarbonImmutable::today();
+                $today = CarbonImmutable::today();
 
                 return $dashboard->sessionsQuery($viewer, $branchFilter ? (int) $branchFilter : null)
                     ->whereDate('date', $today->toDateString())->get()
@@ -469,10 +537,23 @@ class ClassManagementController extends Controller
             })(),
         ];
 
-        return view('classes.index', compact(
-            'classes', 'rows', 'branches', 'search', 'branchFilter', 'statusFilter', 'programFilter', 'levelFilter',
-            'statusCounts', 'programCounts', 'levelCounts', 'bigTests', 'stats'
-        ));
+        return Inertia::render('Classes/Index', [
+            'classes' => $classes,
+            'branches' => Ui::options($branches, 'name'),
+            'statuses' => collect(ClassLifecycle::STATUSES)->map(fn (array $meta, string $key) => [
+                'key' => $key, 'label' => $meta['label'], 'count' => (int) ($statusCounts[$key] ?? 0),
+            ])->values()->all(),
+            'openCount' => (int) collect($statusCounts)->except('cancelled')->sum(),
+            // Sơ đồ khối: danh sách [{label, total}] (giữ thứ tự số lớp giảm dần).
+            'programCounts' => $programCounts->map(fn ($total, $label) => ['label' => (string) $label, 'total' => (int) $total])->values()->all(),
+            'levelCounts' => $levelCounts->map(fn ($total, $label) => ['label' => (string) $label, 'total' => (int) $total])->values()->all(),
+            'filters' => [
+                'status' => $statusFilter,
+                'program' => $programFilter,
+                'level' => $levelFilter,
+            ],
+            'stats' => $stats,
+        ]);
     }
 
     /**
@@ -498,29 +579,81 @@ class ClassManagementController extends Controller
         ];
         $nextSession = (clone $activeSessions)->with(['teacher:id,name', 'foreignTeacher:id,name'])
             ->whereDate('date', '>=', today())->orderBy('date')->orderBy('start_time')->first();
-        $bigTests = \App\Models\BigTest::where('class_id', $class->id)->orderBy('scheduled_at')->get();
+        $bigTests = BigTest::where('class_id', $class->id)->orderBy('scheduled_at')->get();
         $nextBigTest = $bigTests->first(fn ($bt) => $bt->scheduled_at && $bt->scheduled_at->isFuture());
         $nextAction = ClassLifecycle::nextAction($class, $seat, $nextSession, $nextBigTest);
-        $currentStage = \App\Models\SyllabusAssignment::where('class_id', $class->id)->where('status', 'in_progress')->latest()->first();
+        $currentStage = SyllabusAssignment::where('class_id', $class->id)->where('status', 'in_progress')->latest()->first();
         $openIncidents = StaffReport::where('type', 'journal')->where('class_id', $class->id)->where('status', '!=', 'resolved')->count();
 
-        $data = compact('class', 'tab', 'seat', 'steps', 'canManage', 'sessionProgress', 'nextSession', 'bigTests',
-            'nextBigTest', 'nextAction', 'currentStage', 'openIncidents');
+        $data = [
+            'klass' => [
+                'id' => $class->id,
+                'name' => $class->name,
+                'code' => $class->code,
+                'status' => $class->status,
+                'status_meta' => ClassLifecycle::status($class->status),
+                'branch' => $class->branch?->name,
+                'program' => $class->program ?? $class->course?->name,
+                'level' => $class->level,
+                'room' => $class->room,
+                'teacher' => $class->teacher?->name,
+                'foreign_teacher' => $class->foreignTeacher?->name,
+                'schedule_text' => $class->schedule_text,
+                'start_date' => $class->start_date?->toDateString(),
+                'end_date' => $class->end_date?->toDateString(),
+                'has_schedule_config' => (bool) $class->scheduleConfig,
+            ],
+            'tab' => $tab,
+            'tabs' => collect(ClassLifecycle::TABS)->map(fn (array $meta, string $key) => ['key' => $key, ...$meta])->values()->all(),
+            'seat' => $seat,
+            'steps' => $steps,
+            'canManage' => $canManage,
+            'canDelete' => $viewer->can('class.delete') && $class->userCan($viewer, 'delete'),
+            'sessionProgress' => $sessionProgress,
+            'nextSession' => $nextSession ? [
+                'date' => $nextSession->date->toDateString(),
+                'start' => $nextSession->start_time?->format('H:i'),
+                'end' => $nextSession->end_time?->format('H:i'),
+                'room' => $nextSession->room,
+                'teacher' => $nextSession->teacher?->name,
+            ] : null,
+            'bigTests' => $bigTests->map(fn ($bt) => [
+                'id' => $bt->id,
+                'title' => $bt->title,
+                'scheduled_at' => $bt->scheduled_at?->format('d/m/Y H:i'),
+                'room' => $bt->room,
+                'past' => $bt->scheduled_at && $bt->scheduled_at->isPast(),
+            ])->values()->all(),
+            'nextBigTest' => $nextBigTest ? ['title' => $nextBigTest->title, 'date' => $nextBigTest->scheduled_at->format('d/m/Y')] : null,
+            'nextAction' => $nextAction,
+            'currentStage' => $currentStage ? ['stage_name' => $currentStage->stage_name, 'created_at' => $currentStage->created_at?->format('d/m/Y')] : null,
+            'openIncidents' => $openIncidents,
+        ];
 
         // Dữ liệu riêng của từng tab chỉ nạp khi mở tab đó.
         if ($tab === 'overview') {
             // GVNN & trợ giảng không cố định theo lớp: hiển thị người thực tế của các buổi / ca sắp tới.
             $data['upcomingForeignTeachers'] = (clone $activeSessions)->whereDate('date', '>=', today())
                 ->whereNotNull('foreign_teacher_id')->with('foreignTeacher:id,name')->get(['id', 'foreign_teacher_id'])
-                ->pluck('foreignTeacher.name')->filter()->unique()->values();
+                ->pluck('foreignTeacher.name')->filter()->unique()->values()->all();
             $data['upcomingAssistants'] = WorkTask::with('assignee:id,name')->where('class_id', $class->id)
                 ->whereDate('due_date', '>=', today())->whereDate('due_date', '<=', today()->addDays(7))
-                ->get(['id', 'assignee_id'])->pluck('assignee.name')->filter()->unique()->values();
+                ->get(['id', 'assignee_id'])->pluck('assignee.name')->filter()->unique()->values()->all();
         }
-        if (in_array($tab, ['overview', 'students'], true)) {
+        if ($tab === 'students') {
             // Danh sách lớp thật: học viên có lớp chính là lớp này + học viên liên kết lớp khác,
-            // bỏ Thôi học / Hoàn thành / Bảo lưu (audit A4 #7).
-            $data['students'] = $class->rosterStudents();
+            // bỏ Thôi học / Hoàn thành / Bảo lưu (audit A4 #7). SĐT chỉ gửi cho người quản lý lớp.
+            $data['students'] = $class->rosterStudents()->map(fn ($st) => [
+                'id' => $st->id,
+                'name' => $st->name,
+                'code' => $st->code,
+                'dob' => $st->dob?->format('d/m/Y'),
+                'target' => $st->target,
+                'address' => $st->address,
+                'parent_name' => $st->parent_name,
+                'phone' => $canManage ? $st->phone : null,
+                'notes' => $st->notes,
+            ])->values()->all();
         }
         if (in_array($tab, ['schedule', 'attendance'], true)) {
             $dashboard = app(ClassDashboardService::class);
@@ -528,33 +661,97 @@ class ClassManagementController extends Controller
                 ->with(['teacher:id,name', 'foreignTeacher:id,name', 'assistant:id,name', 'holiday:id,name'])
                 ->withCount('attendances')
                 ->orderBy('date')->orderBy('start_time')->get();
-            $today = \Carbon\CarbonImmutable::today();
-            $data['sessions'] = $sessions;
-            $data['attendanceStates'] = $sessions->mapWithKeys(fn (ClassSession $s) => [$s->id => $dashboard->attendanceState($s, $today)]);
-            $data['classReports'] = \App\Models\ClassReport::with('reporter:id,name')->where('class_id', $class->id)
-                // Báo cáo mới nhất của mỗi buổi (keyBy giữ bản cuối cùng = bản cũ nhất); báo cáo không gắn buổi giữ riêng.
-                ->latest('session_date')->latest('id')->get()
-                ->groupBy(fn ($report) => $report->class_session_id ?? 'none-'.$report->id)->map->first();
-            $data['canRecordAttendance'] = $viewer->can('attendance_student.record') || $viewer->can('attendance_student.record_any');
-        }
-        if ($tab === 'schedule') {
-            // Trợ giảng của buổi = người được giao việc (theo ca) gắn lớp này trong ngày; dữ liệu cũ vẫn đọc assistant_id của buổi.
-            $data['assistantsByDate'] = WorkTask::with('assignee:id,name')->where('class_id', $class->id)
-                ->whereNotNull('due_date')->get(['id', 'assignee_id', 'due_date'])
-                ->groupBy(fn (WorkTask $task) => $task->due_date->toDateString())
-                ->map(fn ($tasks) => $tasks->pluck('assignee.name')->filter()->unique()->values());
-            if ($canManage) {
-                $data['foreignTeacherOptions'] = $this->teachingStaffOptions()[0];
-                $data['foreignEditableIds'] = ClassSession::where('class_id', $class->id)->staffSyncable()->pluck('id')->all();
+            $today = CarbonImmutable::today();
+
+            if ($tab === 'schedule') {
+                // Trợ giảng của buổi = người được giao việc (theo ca) gắn lớp này trong ngày; dữ liệu cũ vẫn đọc assistant_id của buổi.
+                $assistantsByDate = WorkTask::with('assignee:id,name')->where('class_id', $class->id)
+                    ->whereNotNull('due_date')->get(['id', 'assignee_id', 'due_date'])
+                    ->groupBy(fn (WorkTask $task) => $task->due_date->toDateString())
+                    ->map(fn ($tasks) => $tasks->pluck('assignee.name')->filter()->unique()->values());
+                $foreignEditableIds = $canManage
+                    ? ClassSession::where('class_id', $class->id)->staffSyncable()->pluck('id')->map(fn ($id) => (int) $id)->all()
+                    : [];
+
+                $data['sessions'] = $sessions->map(fn (ClassSession $s) => [
+                    'id' => $s->id,
+                    'date' => $s->date->toDateString(),
+                    'weekday' => $s->date->dayOfWeek,
+                    'start' => $s->start_time?->format('H:i'),
+                    'end' => $s->end_time?->format('H:i'),
+                    'room' => $s->room ?: ($class->room ?: '—'),
+                    // Lớp không có GV chính: teacher_id của buổi chính là GVNN → không lặp tên ở cột Giáo viên.
+                    'teacher' => ($s->teacher_id && (int) $s->teacher_id !== (int) $s->foreign_teacher_id ? $s->teacher?->name : null) ?? '—',
+                    'foreign_teacher' => $s->foreignTeacher?->name,
+                    'foreign_teacher_id' => $s->foreign_teacher_id ? (int) $s->foreign_teacher_id : null,
+                    'assistants' => collect($assistantsByDate[$s->date->toDateString()] ?? [])->push($s->assistant?->name)->filter()->unique()->implode(', ') ?: '—',
+                    'cancelled' => $s->status === 'cancelled',
+                    'holiday' => (bool) $s->holiday,
+                    'is_today' => $s->date->isSameDay($today),
+                    'past' => $s->date->lt($today),
+                    'editable' => in_array((int) $s->id, $foreignEditableIds, true),
+                ])->values()->all();
+                $data['upcomingCount'] = $sessions->filter(fn ($s) => $s->date->gte($today) && $s->status !== 'cancelled')->count();
+                $data['foreignTeacherOptions'] = $canManage && $foreignEditableIds ? Ui::options($this->teachingStaffOptions()[0], 'name') : [];
+            } else {
+                $classReports = ClassReport::with('reporter:id,name')->where('class_id', $class->id)
+                    // Báo cáo mới nhất của mỗi buổi (keyBy giữ bản cuối cùng = bản cũ nhất); báo cáo không gắn buổi giữ riêng.
+                    ->latest('session_date')->latest('id')->get()
+                    ->groupBy(fn ($report) => $report->class_session_id ?? 'none-'.$report->id)->map->first();
+                $reportColors = ['pending_approval' => 'warning', 'approved' => 'success', 'rejected' => 'error'];
+                $reportLabels = ['pending_approval' => 'Chờ duyệt', 'approved' => 'Đã duyệt', 'rejected' => 'Bị trả về'];
+                $past = $sessions->filter(fn ($s) => $s->date->lte($today))
+                    ->sortByDesc(fn ($s) => $s->date->format('Ymd').$s->start_time?->format('Hi'))->values();
+                $states = $past->mapWithKeys(fn (ClassSession $s) => [$s->id => $dashboard->attendanceState($s, $today)]);
+
+                $data['attendanceRows'] = $past->map(function (ClassSession $s) use ($states, $classReports, $reportColors, $reportLabels) {
+                    $report = $classReports->get($s->id);
+
+                    return [
+                        'id' => $s->id,
+                        'date' => $s->date->toDateString(),
+                        'start' => $s->start_time?->format('H:i'),
+                        'end' => $s->end_time?->format('H:i'),
+                        'state' => $states[$s->id],
+                        'attendances_count' => (int) $s->attendances_count,
+                        'cancelled' => $s->status === 'cancelled',
+                        'report' => $report ? [
+                            'color' => $reportColors[$report->status] ?? 'neutral',
+                            'label' => $reportLabels[$report->status] ?? StatusLabel::for($report->status),
+                            'reporter' => $report->reporter?->name,
+                        ] : null,
+                    ];
+                })->all();
+                $data['attendanceStats'] = [
+                    'past' => $past->where('status', '!=', 'cancelled')->count(),
+                    'done' => $states->filter(fn ($state) => $state['key'] === 'done')->count(),
+                    'missing' => $states->filter(fn ($state) => $state['key'] === 'missing')->count(),
+                    'reports' => $classReports->count(),
+                ];
+                $data['canRecordAttendance'] = $viewer->can('attendance_student.record') || $viewer->can('attendance_student.record_any');
             }
         }
         if ($tab === 'incidents') {
+            $statusLabels = ['open' => 'Mới', 'following' => 'Đang theo dõi', 'resolved' => 'Đã xử lý'];
             $data['incidents'] = StaffReport::with(['user:id,name', 'followups.user:id,name'])
                 ->where('type', 'journal')->where('class_id', $class->id)
-                ->latest('report_date')->latest('id')->get();
+                ->latest('report_date')->latest('id')->get()
+                ->map(fn (StaffReport $incident) => [
+                    'id' => $incident->id,
+                    'report_date' => $incident->report_date?->toDateString(),
+                    'title' => $incident->title,
+                    'content' => $incident->content,
+                    'followups' => $incident->followups->count(),
+                    'latest_followup' => $incident->followups->isNotEmpty() ? Str::limit($incident->followups->first()->content, 80) : null,
+                    'severity' => $incident->severity,
+                    'severity_label' => $incident->severity_label,
+                    'user' => $incident->user?->name,
+                    'status' => $incident->status,
+                    'status_label' => $statusLabels[$incident->status] ?? StatusLabel::for($incident->status),
+                ])->all();
         }
 
-        return view('classes.show', $data);
+        return Inertia::render('Classes/Show', $data);
     }
 
     /** Link cũ "Hồ sơ lớp" → Trang lớp (không có id → Danh sách lớp). */
@@ -601,7 +798,43 @@ class ClassManagementController extends Controller
         $levels = CourseLevel::where('is_active', true)->get();
         [$teachers, $assistants] = $this->teachingStaffOptions();
 
-        return view('classes.edit', compact('class', 'branches', 'courses', 'levels', 'teachers', 'assistants'));
+        return Inertia::render('Classes/Edit', [
+            'klass' => [
+                'id' => $class->id,
+                'name' => $class->name,
+                'code' => $class->code,
+                'branch_id' => $class->branch_id,
+                'program' => $class->program,
+                'level' => $class->level,
+                'max_capacity' => $class->max_capacity,
+                'min_students' => $class->min_students ?? 6,
+                'status' => $class->status,
+                'start_date' => $class->start_date?->toDateString(),
+                'end_date' => $class->end_date?->toDateString(),
+                'schedule_text' => $class->schedule_text,
+                'room' => $class->room,
+                'teacher_id' => $class->teacher_id,
+                'foreign_teacher_id' => $class->foreign_teacher_id,
+                'assistant_id' => $class->assistant_id,
+                'tuition_fee' => $class->tuition_fee,
+                'notes' => $class->notes,
+                'updated_at' => $class->updated_at?->format('d/m/Y H:i'),
+            ],
+            'branches' => Ui::options($branches, fn (Branch $b) => "{$b->name} ({$b->code})"),
+            // Chương trình / cấp độ: các giá trị cũ cố định + danh mục khóa học / cấp độ đang mở.
+            'programs' => [
+                ...Ui::options(['IELTS' => 'IELTS Học thuật (Academic)', 'TOEIC' => 'TOEIC 4 kỹ năng', 'COMMUNICATION' => 'Tiếng Anh Giao tiếp phản xạ', 'JUNIOR' => 'Tiếng Anh Thiếu niên (Junior)', 'BUSINESS' => 'Tiếng Anh Doanh nghiệp']),
+                ...Ui::options($courses, 'name', 'name'),
+            ],
+            'levels' => [
+                ...Ui::options(['B1' => 'Cấp độ B1 (Mục tiêu 5.5 - 6.0)', 'FOUNDATION' => 'Foundation (Mục tiêu 4.0 - 5.0)', 'B2' => 'Cấp độ B2 (Mục tiêu 6.5 - 7.0)', 'ADVANCED' => 'Mastery (Mục tiêu 7.5+)']),
+                ...Ui::options($levels, 'name', 'code'),
+            ],
+            'rooms' => Ui::options(self::ROOMS),
+            'teachers' => Ui::options($teachers, fn (User $t) => "{$t->name} ({$t->email})"),
+            'foreignTeachers' => Ui::options($teachers, 'name'),
+            'assistants' => $class->assistant_id ? Ui::options($assistants, 'name') : [],
+        ]);
     }
 
     /**
@@ -848,20 +1081,46 @@ class ClassManagementController extends Controller
             ->with('success', "Đã xóa lớp học '{$className}' ({$classCode}) thành công.");
     }
 
-    // Stubs for remaining observation and evaluation features
+    // Chức năng chưa triển khai: trang báo "chưa triển khai" + link tới màn thật liên quan (theo quyền).
     public function qaObservation(Request $request)
     {
-        return view('classes.qa-observation');
+        return $this->featurePending('QA Observation — Dự giờ vận hành', 'Lên lịch dự giờ và theo dõi kết quả kiểm định giảng dạy.', [
+            ['label' => 'Danh sách lớp', 'icon' => 'meeting_room', 'route' => 'classes.index'],
+            ['label' => 'Dashboard lớp theo ngày', 'icon' => 'calendar_month', 'route' => 'tasks.classes-dashboard', 'can' => 'work_task.view'],
+        ]);
     }
 
     public function checklist(Request $request)
     {
-        return view('classes.checklist');
+        return $this->featurePending('Checklist Học phí & Feedback theo lớp', 'Theo dõi nhắc học phí và feedback Big Test định kỳ theo từng lớp.', [
+            ['label' => 'Thu phí quá hạn & Nhắc phí', 'icon' => 'payments', 'route' => 'tuition.overdue', 'can' => 'tuition.view'],
+            ['label' => 'Kết quả Big Test', 'icon' => 'grading', 'route' => 'syllabus.big-tests.results', 'can' => 'syllabus.view'],
+        ]);
     }
 
     public function evaluateObservation(Request $request)
     {
-        return view('classes.evaluate-observation');
+        return $this->featurePending('Đánh giá dự giờ học thuật', 'Chấm điểm và nhận xét buổi dự giờ của giáo viên.', [
+            ['label' => 'Danh sách lớp', 'icon' => 'meeting_room', 'route' => 'classes.index'],
+            ['label' => 'Tổng hợp KPI tháng', 'icon' => 'analytics', 'route' => 'kpi.monthly', 'can' => 'kpi.view'],
+        ]);
+    }
+
+    /**
+     * @param  list<array{label: string, icon: string, route: string, can?: string}>  $links
+     */
+    private function featurePending(string $title, string $description, array $links): Response
+    {
+        $user = auth()->user();
+
+        return Inertia::render('Classes/FeaturePending', [
+            'title' => $title,
+            'description' => $description,
+            'links' => collect($links)
+                ->filter(fn (array $link) => ! isset($link['can']) || $user->can($link['can']))
+                ->map(fn (array $link) => ['label' => $link['label'], 'icon' => $link['icon'], 'href' => route($link['route'], absolute: false)])
+                ->values()->all(),
+        ]);
     }
 
     public function checkAvailability(Request $request)

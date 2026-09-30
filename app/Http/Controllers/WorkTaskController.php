@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\ArrayExport;
+use App\Helpers\AclHelper;
 use App\Http\Concerns\RendersModals;
-use App\Support\DataScope;
-use App\Support\Rbac;
 use App\Models\AdminNotification;
 use App\Models\Branch;
 use App\Models\ClassModel;
@@ -14,7 +14,6 @@ use App\Models\ClassScheduleConfig;
 use App\Models\ClassSession;
 use App\Models\HrDailyDemand;
 use App\Models\PayrollPeriod;
-use App\Models\Student;
 use App\Models\SupportSession;
 use App\Models\TeacherTimesheet;
 use App\Models\User;
@@ -22,14 +21,19 @@ use App\Models\WorkTask;
 use App\Services\ClassDashboardService;
 use App\Services\KpiBoardService;
 use App\Services\SafeUploadService;
+use App\Services\SessionLessonService;
 use App\Services\SessionScheduleService;
 use App\Services\SupportListService;
+use App\Support\DataScope;
+use App\Support\Rbac;
+use App\Support\Ui;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
 
 class WorkTaskController extends Controller
 {
@@ -106,7 +110,46 @@ class WorkTaskController extends Controller
             'pending' => $visible()->where('status', 'pending_confirmation')->count(),
         ];
 
-        return view('tasks.index', compact('tasks', 'tab', 'status', 'taskType', 'search', 'counts', 'canViewAll'));
+        $viewAssistantSlot = fn (WorkTask $task) => $task->time_slot_category && $task->assignee?->can('portal.assistant');
+
+        return Inertia::render('Tasks/Index', [
+            'tasks' => $tasks->through(fn (WorkTask $task) => [
+                'id' => $task->id,
+                'title' => $task->title,
+                'description' => $task->description,
+                'status' => $task->status,
+                'status_label' => $task->status_label,
+                'task_type' => $task->task_type,
+                'type_label' => $task->task_type_label.($task->frequency ? ' ('.(self::FREQUENCIES[$task->frequency] ?? $task->frequency).')' : ''),
+                'class_label' => $task->classModel ? $task->classModel->name.($task->lesson_session ? ' · '.$task->lesson_session : '') : null,
+                'slot_label' => $viewAssistantSlot($task) ? $task->time_slot_category_label : null,
+                'blocked_reason' => $task->status === 'blocked' ? $task->blocked_reason : null,
+                'assignee' => $task->assignee?->name,
+                'creator' => $task->creator?->name,
+                'due_date' => $task->due_date?->toDateString(),
+                'due_time' => $task->due_time ? substr($task->due_time, 0, 5) : null,
+                'allowed' => self::allowedTransitions($task, $currentUser),
+            ]),
+            'tab' => $tab,
+            'status' => $status,
+            'taskType' => $taskType,
+            'counts' => $counts,
+            'canViewAll' => $canViewAll,
+        ]);
+    }
+
+    /** Nhãn tần suất việc lặp. */
+    private const FREQUENCIES = ['daily' => 'Hàng ngày', 'weekly' => 'Hàng tuần', 'monthly' => 'Hàng tháng'];
+
+    /** Nhãn nút chuyển trạng thái (việc đang chờ xác nhận mà trả về "Đang thực hiện" = "Trả về làm tiếp"). */
+    private static function transitionOptions(WorkTask $task, array $allowed): array
+    {
+        $labels = [
+            'in_progress' => $task->status === 'pending_confirmation' ? 'Trả về làm tiếp' : 'Đang thực hiện', 'blocked' => 'Bị chặn',
+            'pending_confirmation' => 'Gửi chờ xác nhận', 'completed' => 'Xác nhận hoàn thành', 'canceled' => 'Hủy công việc',
+        ];
+
+        return array_map(fn (string $next) => ['value' => $next, 'label' => $labels[$next] ?? $next], $allowed);
     }
 
     /**
@@ -122,7 +165,14 @@ class WorkTaskController extends Controller
         // Nút "Giao cho: Trợ giảng" trong form chuyển sang luồng giao việc theo ca (tasks.ta-assign — luật riêng).
         $canTaAssign = Auth::user()->can('work_task.assign');
 
-        return $this->modalView('tasks.create', compact('users', 'branches', 'classes', 'canTaAssign'));
+        return $this->modalPage('Tasks/Create', [
+            'title' => Auth::user()->can('work_task.create') ? 'Giao việc mới' : 'Đề xuất việc cho Admin / Học vụ',
+            'users' => Ui::options($users, fn (User $u) => $u->name.' ('.($u->getRoleNames()->map(fn ($r) => AclHelper::shortRoleLabel($r))->implode(', ') ?: 'Nhân viên').')'),
+            'branches' => Ui::options($branches, 'name'),
+            'classes' => Ui::options($classes, fn (ClassModel $c) => "{$c->name} ({$c->code})"),
+            'defaultDueDate' => now()->addDays(2)->format('Y-m-d'),
+            'canTaAssign' => $canTaAssign,
+        ]);
     }
 
     /**
@@ -137,7 +187,34 @@ class WorkTaskController extends Controller
             ->findOrFail($id);
         $allowed = self::allowedTransitions($task, $user);
 
-        return $this->modalView('tasks.show', compact('task', 'allowed'));
+        return $this->modalPage('Tasks/Show', ['task' => $this->taskDetail($task), 'allowed' => self::transitionOptions($task, $allowed)]);
+    }
+
+    /** Dữ liệu chi tiết công việc (modal xem nhanh / trang đầy đủ). */
+    private function taskDetail(WorkTask $task): array
+    {
+        return [
+            'id' => $task->id,
+            'title' => $task->title,
+            'description' => $task->description,
+            'status' => $task->status,
+            'status_label' => $task->status_label,
+            'slot_label' => $task->time_slot_category && $task->lesson_session ? $task->time_slot_category_label : null,
+            'rows' => array_values(array_filter([
+                ['person', 'Người nhận', $task->assignee?->name ?? 'Chưa phân công'],
+                ['assignment_ind', 'Người giao', $task->creator?->name ?? '—'],
+                ['event', 'Hạn hoàn thành', ($task->due_date?->format('d/m/Y') ?? '—').($task->due_time ? ' · '.substr($task->due_time, 0, 5) : '')],
+                ['repeat', 'Loại', $task->task_type_label.($task->frequency ? ' ('.(self::FREQUENCIES[$task->frequency] ?? $task->frequency).')' : '')],
+                ['apartment', 'Chi nhánh', $task->branch?->name ?? '—'],
+                $task->classModel ? ['school', 'Lớp', $task->classModel->name.($task->lesson_session ? ' · '.$task->lesson_session : '')] : null,
+                $task->confirmedBy ? ['verified', 'Xác nhận bởi', $task->confirmedBy->name.($task->confirmed_at ? ' · '.$task->confirmed_at->format('H:i d/m/Y') : '')] : null,
+            ])),
+            'notes' => array_values(array_filter([
+                $task->blocked_reason ? ['type' => 'error', 'title' => 'Lý do bị chặn', 'text' => $task->blocked_reason] : null,
+                $task->rejection_reason ? ['type' => 'warning', 'title' => 'Lý do hủy / trả về', 'text' => $task->rejection_reason] : null,
+                $task->completion_note ? ['type' => 'info', 'title' => 'Ghi chú / kết quả', 'text' => $task->completion_note] : null,
+            ])),
+        ];
     }
 
     public function store(Request $request)
@@ -326,7 +403,7 @@ class WorkTaskController extends Controller
                 $dashboard->attendanceState($s, $today)['label'],
             ])->values()->all();
 
-            return \App\Exports\ArrayExport::download(
+            return ArrayExport::download(
                 'lich-lop-'.($tab === 'week' ? $week : $date),
                 ['Ngày', 'Giờ', 'Mã lớp', 'Tên lớp', 'Chi nhánh', 'Phòng', 'Giáo viên', 'GVNN', 'Trợ giảng', 'Điểm danh'],
                 $rows,
@@ -334,11 +411,87 @@ class WorkTaskController extends Controller
             );
         }
 
-        return view('tasks.classes-dashboard', compact(
-            'tab', 'branches', 'branchId', 'selectedBranch', 'date', 'week', 'today',
-            'daySessions', 'dayStats', 'seats', 'assistantsToday', 'weekStart', 'matrix', 'dashboard',
-            'dayTeachers', 'attendanceFilter', 'teacherFilter'
-        ));
+        $canRecord = $viewer->can('attendance_student.record');
+        $dayRows = $daySessions->map(function (ClassSession $session) use ($dashboard, $today, $seats, $canRecord) {
+            $class = $session->classModel;
+            $state = $dashboard->attendanceState($session, $today);
+            // teacher_id cũ = GV chính ?? GVNN: không lặp tên GVNN ở cột GV chính.
+            $mainTeacher = $session->teacher_id && $session->teacher_id !== $session->foreign_teacher_id ? $session->teacher : null;
+            $window = $dashboard->attendanceWindow($session);
+            $open = $session->status !== 'cancelled' && $class && $canRecord;
+            $action = match (true) {
+                // Chưa tới giờ học → nút Điểm danh khóa kèm quy định cửa sổ 24h.
+                $open && $state['key'] !== 'done' && $window === 'before' => ['kind' => 'locked'],
+                $open && ! $session->date->gt($today) => [
+                    'kind' => 'link',
+                    'primary' => ! ($state['key'] === 'done' || $window === 'closed'),
+                    'label' => $state['key'] === 'done' ? 'Xem điểm danh' : ($window === 'closed' ? 'Điểm danh bù' : 'Điểm danh'),
+                    'title' => $window === 'closed' && $state['key'] !== 'done' ? 'Quá 24h sau giờ học — điểm danh bù, Học vụ sẽ rà soát' : null,
+                    'href' => route('teacher.attendance', ['classId' => $class->id, 'session' => $session->id, 'date' => $session->date->toDateString()]),
+                ],
+                $session->status === 'cancelled' && $session->makeupSession => ['kind' => 'makeup', 'date' => $session->makeupSession->date->format('d/m')],
+                default => ['kind' => 'none'],
+            };
+
+            return [
+                'id' => $session->id,
+                'class_name' => $class?->name ?? 'Lớp đã xóa',
+                'class_code' => $class?->code,
+                'type' => $session->type,
+                'time' => $session->start_time?->format('H:i').' - '.$session->end_time?->format('H:i'),
+                'room' => $session->room ?: '—',
+                'teacher' => $mainTeacher?->name ?? '—',
+                'foreign_teacher' => $session->foreignTeacher?->name ?? '—',
+                'assistant' => $session->assistant?->name ?? '—',
+                'seat' => ($class ? ($seats[$class->id] ?? 0) : 0).'/'.($class?->max_capacity ?: '∞'),
+                'state' => $state + ['count' => $session->attendances_count],
+                'holiday' => $session->holiday?->name,
+                'action' => $action,
+            ];
+        })->values();
+
+        return Inertia::render('Tasks/ClassesDashboard', [
+            'tab' => $tab,
+            'branches' => Ui::options($branches, 'name'),
+            'branchId' => $branchId,
+            'branchName' => $selectedBranch?->name,
+            'date' => $date,
+            'week' => $week,
+            'isToday' => CarbonImmutable::parse($date)->isToday(),
+            'noBranch' => ! $viewer->branch_id && DataScope::dependsOnBranch($viewer),
+            'filters' => ['teacher_id' => $teacherFilter, 'attendance' => $attendanceFilter],
+            'teachers' => Ui::options($dayTeachers, 'name'),
+            'dayStats' => $dayStats,
+            'dayRows' => $dayRows,
+            'dayClassCount' => $daySessions->pluck('class_id')->unique()->count(),
+            'assistantsToday' => $assistantsToday->map(fn (array $duty) => [
+                'name' => $duty['user']->name,
+                'detail' => collect([
+                    $duty['slots'] ? implode(', ', $duty['slots']) : null,
+                    $duty['tasks'] ? $duty['tasks'].' việc' : null,
+                    $duty['sessions'] ? $duty['from'].' - '.$duty['to'].' · '.$duty['sessions'].' buổi' : null,
+                ])->filter()->implode(' · '),
+            ])->values(),
+            'weekRange' => $weekStart->format('d/m').' - '.$weekStart->addDays(6)->format('d/m/Y'),
+            'weekDays' => collect($matrix['days'])->map(fn ($day, $iso) => [
+                'iso' => $iso,
+                'label' => ClassDashboardService::WEEKDAYS[$iso],
+                'date' => $day->format('d/m'),
+                'today' => $day->isToday(),
+            ])->values(),
+            'weekRows' => collect($matrix['rows'])->map(fn ($cells, $slot) => [
+                'slot' => $slot,
+                'cells' => collect($cells)->map(fn ($sessions) => collect($sessions)->map(fn (ClassSession $session) => [
+                    'id' => $session->id,
+                    'href' => route('tasks.classes-dashboard', ['tab' => 'day', 'date' => $session->date->toDateString(), 'branch_id' => $branchId]),
+                    'tone' => ClassDashboardService::tone($session),
+                    'title' => $session->classModel?->name.' · '.$session->room,
+                    'code' => $session->classModel?->code ?? $session->classModel?->name,
+                    'room' => $session->room ?: 'Chưa có phòng',
+                    'note' => $session->status === 'cancelled' ? ($session->holiday ? 'Nghỉ lễ' : 'Đã hủy') : ($session->attendances_count > 0 ? '✓ Đã điểm danh' : null),
+                ])->values())->values(),
+            ])->values(),
+        ]);
     }
 
     /**
@@ -384,16 +537,22 @@ class WorkTaskController extends Controller
             ->whereDate('date', '<=', today()->addDays(30)->toDateString())
             ->orderBy('date')->orderBy('start_time')
             ->get();
-        $lessons = $sessions->isNotEmpty() ? app(\App\Services\SessionLessonService::class)->lessonsFor($sessions) : [];
+        $lessons = $sessions->isNotEmpty() ? app(SessionLessonService::class)->lessonsFor($sessions) : [];
         $classSessions = $sessions->groupBy('class_id')->map(fn ($rows) => $rows->map(fn (ClassSession $s) => [
             'id' => $s->id,
             'date' => $s->date->toDateString(),
             'label' => self::sessionLabel($s, $lessons[$s->id] ?? null).' · '.$s->start_time?->format('H:i').'-'.$s->end_time?->format('H:i'),
         ])->values());
 
-        $cutoff = self::TA_ASSIGN_CUTOFF;
-
-        return $this->modalView('tasks.ta-assign', compact('assistants', 'branches', 'classes', 'classSessions', 'cutoff'));
+        return $this->modalPage('Tasks/TaAssign', [
+            'assistants' => Ui::options($assistants, 'name'),
+            'branches' => Ui::options($branches, 'name'),
+            'classes' => Ui::options($classes, fn (ClassModel $c) => "{$c->name} ({$c->code})".($c->schedule_text ? ' - '.$c->schedule_text : '')),
+            'classSessions' => $classSessions,
+            'slots' => Ui::options(WorkTask::TIME_SLOTS),
+            'today' => now()->toDateString(),
+            'cutoff' => self::TA_ASSIGN_CUTOFF,
+        ]);
     }
 
     public function taAssignStore(Request $request)
@@ -459,7 +618,7 @@ class WorkTaskController extends Controller
                     'branch_id' => $validated['branch_id'] ?? ($session?->branch_id),
                     'class_id' => $attach ? $item['class_id'] : null,
                     'lesson_session' => $attach
-                        ? ($session ? self::sessionLabel($session, app(\App\Services\SessionLessonService::class)->lessonsFor(collect([$session]))[$session->id] ?? null) : $item['session'])
+                        ? ($session ? self::sessionLabel($session, app(SessionLessonService::class)->lessonsFor(collect([$session]))[$session->id] ?? null) : $item['session'])
                         : null,
                     'time_slot_category' => $item['category'],
                     'task_type' => 'one_time',
@@ -479,7 +638,7 @@ class WorkTaskController extends Controller
             || ($assignDate === today()->toDateString() && now()->format('H:i') > self::TA_ASSIGN_CUTOFF);
         if ($late) {
             $assistant = User::find($validated['assistant_id']);
-            User::role(\App\Support\Rbac::SUPER_ADMIN)->where('is_active', true)->whereNull('locked_at')->pluck('id')
+            User::role(Rbac::SUPER_ADMIN)->where('is_active', true)->whereNull('locked_at')->pluck('id')
                 ->reject(fn ($id) => (int) $id === (int) Auth::id())
                 ->each(fn ($adminId) => $this->notifyUser($adminId, 'task_assigned', 'Giao việc trợ giảng sau '.self::TA_ASSIGN_CUTOFF,
                     Auth::user()->name." giao {$created->count()} nhiệm vụ ngày ".Carbon::parse($assignDate)->format('d/m/Y')." cho {$assistant?->name} lúc ".now()->format('H:i').'.',
@@ -571,10 +730,53 @@ class WorkTaskController extends Controller
         $canComplete = $taUser && ((int) $taUser->id === (int) $viewer->id || $viewer->can('work_task.approve'));
         $isToday = $date->isToday();
 
-        return view('tasks.ta-portal', compact(
-            'taUser', 'tasks', 'beforeTasks', 'duringTasks', 'afterTasks', 'sessions',
-            'date', 'isToday', 'canPickTa', 'assistants', 'overdueCount', 'canComplete'
-        ));
+        $card = fn (WorkTask $task) => [
+            'id' => $task->id,
+            'title' => $task->title,
+            'status' => $task->status,
+            'status_label' => $task->status_label,
+            'class_id' => $task->class_id,
+            'class_label' => $task->classModel ? ($task->classModel->code ?? $task->classModel->name).($task->lesson_session ? ' · '.$task->lesson_session : '') : null,
+            'blocked_reason' => $task->blocked_reason,
+            'late_hours' => $task->status === 'overdue' ? max(1, $task->lateHours()) : 0,
+            'completed_at' => $task->completed_at?->format('H:i'),
+            'due_label' => ($task->due_time ? substr($task->due_time, 0, 5) : '—').', '.($isToday ? 'Hôm nay' : $task->due_date?->format('d/m/Y')),
+            'rejection_reason' => in_array($task->status, ['in_progress', 'overdue'], true) ? $task->rejection_reason : null,
+            // Việc chờ xác nhận: đang chờ ai (báo cáo trực lớp → người xác nhận theo Q8; việc thường → người giao việc).
+            'pending_label' => $task->status === 'pending_confirmation'
+                ? ($task->classReport && $task->classReport->status === ClassReport::STATUS_PENDING
+                    ? 'Đang chờ '.mb_strtolower($task->classReport->confirmerRoleLabel()).' xác nhận báo cáo trực lớp'
+                    : 'Đang chờ người giao việc xác nhận')
+                : null,
+        ];
+        $groups = collect([
+            ['key' => 'before', 'title' => 'Trước giờ học', 'icon' => 'schedule', 'tasks' => $beforeTasks],
+            ['key' => 'during', 'title' => 'Trong giờ học', 'icon' => 'play_circle', 'tasks' => $duringTasks],
+            ['key' => 'after', 'title' => 'Sau giờ học', 'icon' => 'task_alt', 'tasks' => $afterTasks],
+        ]);
+
+        return Inertia::render('Tasks/TaPortal', [
+            'title' => $isToday ? 'Nhiệm vụ hằng ngày' : 'Nhiệm vụ ngày '.$date->format('d/m/Y'),
+            'taUser' => $taUser ? ['id' => $taUser->id, 'name' => $taUser->name] : null,
+            'date' => $date->toDateString(),
+            'isToday' => $isToday,
+            'canPickTa' => $canPickTa,
+            'assistants' => Ui::options($assistants, 'name'),
+            'overdueCount' => $overdueCount,
+            'canComplete' => (bool) $canComplete,
+            'hasTasks' => $tasks->isNotEmpty(),
+            'firstOpen' => $groups->first(fn ($g) => $g['tasks']->isNotEmpty())['key'] ?? 'before',
+            'groups' => $groups->map(fn ($g) => [...$g, 'tasks' => $g['tasks']->map($card)->values()->all()])->all(),
+            'sessions' => $sessions->map(fn (ClassSession $s) => [
+                'id' => $s->id,
+                'class_name' => $s->classModel?->name,
+                'start' => $s->start_time?->format('H:i'),
+                'end' => $s->end_time?->format('H:i'),
+                'room' => $s->room,
+                'branch' => $s->branch?->name,
+                'makeup' => $s->type === ClassSession::TYPE_MAKEUP,
+            ])->values()->all(),
+        ]);
     }
 
     /**
@@ -652,17 +854,31 @@ class WorkTaskController extends Controller
                 ->limit(20)
                 ->get()
             : collect();
-        $lessons = $sessions->isNotEmpty() ? app(\App\Services\SessionLessonService::class)->lessonsFor($sessions) : [];
+        $lessons = $sessions->isNotEmpty() ? app(SessionLessonService::class)->lessonsFor($sessions) : [];
         $sessionOptions = $sessions->mapWithKeys(fn (ClassSession $s) => [$s->id => self::sessionLabel($s, $lessons[$s->id] ?? null)]);
         $defaultSessionId = $sessions->first(fn (ClassSession $s) => $s->date->isToday())?->id;
 
         $confirmerId = ClassReport::resolveConfirmerId($selectedClass, $task, (int) $user->id);
         $confirmer = $confirmerId ? User::find($confirmerId, ['id', 'name']) : null;
-        $taskId = $task?->id;
+        $task?->loadMissing('creator:id,name');
 
-        return $this->modalView('tasks.class-report-create', compact(
-            'classes', 'selectedClass', 'students', 'taskId', 'task', 'sessionOptions', 'defaultSessionId', 'confirmer'
-        ));
+        return $this->modalPage('Tasks/ClassReportCreate', [
+            'classes' => Ui::options($classes, fn (ClassModel $c) => "{$c->name} ({$c->code})".($c->schedule_text ? ' - '.$c->schedule_text : '')),
+            'selectedClassId' => $selectedClass?->id,
+            'task' => $task ? [
+                'id' => $task->id,
+                'title' => $task->title,
+                'class_id' => $task->class_id,
+                'creator' => $task->creator?->name,
+                'lesson_session' => $task->lesson_session,
+            ] : null,
+            'students' => Ui::options($students, fn ($st) => "{$st->name} ({$st->code})"),
+            'sessionOptions' => Ui::options($sessionOptions),
+            'defaultSessionId' => $defaultSessionId,
+            // Dòng gợi ý "Không có ảnh →": chờ GV chính / chờ người giao việc / bắt buộc ảnh.
+            'confirmMode' => $selectedClass?->teacher_id && (int) $selectedClass->teacher_id !== (int) $user->id ? 'teacher' : ($confirmer ? 'creator' : 'none'),
+            'confirmer' => $confirmer?->name,
+        ]);
     }
 
     /** "Buổi N - Nội dung bài (dd/mm)" cho một buổi học. */
@@ -771,7 +987,7 @@ class WorkTaskController extends Controller
 
         $sessionName = trim((string) ($validated['session_name'] ?? ''));
         if ($sessionName === '' && $session) {
-            $sessionName = self::sessionLabel($session, app(\App\Services\SessionLessonService::class)->lessonsFor(collect([$session]))[$session->id] ?? null);
+            $sessionName = self::sessionLabel($session, app(SessionLessonService::class)->lessonsFor(collect([$session]))[$session->id] ?? null);
         }
 
         $report = DB::transaction(function () use ($validated, $class, $session, $task, $user, $paths, $hasImage, $confirmerId, $sessionName) {
@@ -882,11 +1098,68 @@ class WorkTaskController extends Controller
             : null;
 
         $assigneeOptions = $pendingTasks->pluck('assignee')->merge($pendingReports->pluck('reporter'))
-            ->filter()->unique('id')->sortBy('name')->pluck('name', 'id');
+            ->filter()->unique('id')->sortBy('name');
 
-        return view('tasks.manual-approvals', compact(
-            'pendingTasks', 'selectedTask', 'pendingReports', 'selectedReport', 'kind', 'search', 'assigneeFilter', 'assigneeOptions'
-        ));
+        // Báo cáo + việc chờ xác nhận chung một danh sách, mới cập nhật trước; bấm dòng → chi tiết (?selected_id= / ?report=).
+        $filterQuery = array_filter(['kind' => $kind, 'q' => $search ?: null, 'assignee_id' => $assigneeFilter]);
+        $items = $pendingReports->toBase()->map(fn (ClassReport $r) => ['kind' => 'report', 'model' => $r, 'sort' => $r->created_at])
+            ->merge($pendingTasks->map(fn (WorkTask $t) => ['kind' => 'task', 'model' => $t, 'sort' => $t->updated_at]))
+            ->sortByDesc('sort')->values()
+            ->map(function (array $item) use ($filterQuery, $selectedReport, $selectedTask) {
+                $m = $item['model'];
+                $isReport = $item['kind'] === 'report';
+
+                return [
+                    'key' => $item['kind'].'-'.$m->id,
+                    'kind' => $item['kind'],
+                    'title' => $isReport ? $m->session_name : $m->title,
+                    'icon' => ($isReport || $m->classModel) ? 'class' : 'work',
+                    'class_label' => $m->classModel?->name ?? ($isReport ? 'Lớp đã xóa' : 'Công việc chung'),
+                    'person' => ($isReport ? $m->reporter : $m->assignee)?->name,
+                    'date' => ($isReport ? $m->session_date : ($m->created_at ?? $m->due_date))?->format('d/m/Y'),
+                    'url' => route('tasks.manual-approvals', $filterQuery + ($isReport ? ['report' => $m->id] : ['selected_id' => $m->id])),
+                    'approve_url' => $isReport ? route('tasks.class-reports.approve', $m->id) : route('tasks.approve', $m->id),
+                    'selected' => $isReport ? $selectedReport?->id === $m->id : $selectedTask?->id === $m->id,
+                ];
+            });
+
+        return Inertia::render('Tasks/ManualApprovals', [
+            'items' => $items,
+            'selected' => ($selectedReport || $selectedTask) ? $this->approvalDetail($selectedReport, $selectedTask) : null,
+            'assigneeOptions' => Ui::options($assigneeOptions, 'name'),
+            'dismissUrl' => route('tasks.manual-approvals', $filterQuery),
+        ]);
+    }
+
+    /** Chi tiết một mục chờ xác nhận (báo cáo trực lớp hoặc việc thường) cho modal xác nhận / trả về. */
+    private function approvalDetail(?ClassReport $report, ?WorkTask $task): array
+    {
+        $isReport = (bool) $report;
+        $m = $report ?? $task;
+        $taskOfItem = $isReport ? $m->task : $m;
+        $note = $isReport ? null : $m->completion_note;
+        preg_match_all('~https?://[^\s<>"\']+~u', (string) ($isReport ? $m->topics_learned.' '.$m->teaching_log : $note), $noteLinks);
+
+        return [
+            'key' => ($isReport ? 'report' : 'task').'-'.$m->id,
+            'kind' => $isReport ? 'report' : 'task',
+            'title' => $isReport ? $m->session_name : $m->title,
+            'updated' => $m->updated_at?->diffForHumans(),
+            'class_label' => ($m->classModel?->name ?? 'Công việc chung').(! $isReport && $m->lesson_session ? ' · '.$m->lesson_session : ''),
+            'person' => ($isReport ? $m->reporter : $m->assignee)?->name,
+            'creator' => $taskOfItem?->creator?->name,
+            'assigned_date' => ($taskOfItem?->created_at ?? $m->created_at)?->format('d/m/Y'),
+            'due' => $taskOfItem?->due_date ? $taskOfItem->due_date->format('d/m/Y').' '.substr((string) ($taskOfItem->due_time ?: '23:59'), 0, 5) : null,
+            'confirmer' => $isReport ? $m->confirmerRoleLabel() : null,
+            'topics' => $isReport ? $m->topics_learned : null,
+            'teaching_log' => $isReport ? $m->teaching_log : null,
+            'supports' => $isReport ? $m->studentSupports->map(fn ($s) => ['id' => $s->id, 'name' => $s->student?->name ?? 'Học sinh', 'reason' => $s->reason])->values()->all() : [],
+            'note' => $note,
+            'links' => array_values(array_unique($noteLinks[0] ?? [])),
+            'approve_url' => $isReport ? route('tasks.class-reports.approve', $m->id) : route('tasks.approve', $m->id),
+            'reject_url' => $isReport ? route('tasks.class-reports.reject', $m->id) : route('tasks.reject', $m->id),
+            'reject_field' => $isReport ? 'reason' : 'admin_note',
+        ];
     }
 
     /**
@@ -1318,7 +1591,7 @@ class WorkTaskController extends Controller
                 $d['staff_needed'],
             ])->values()->all();
 
-            return \App\Exports\ArrayExport::download(
+            return ArrayExport::download(
                 'bao-cao-phong-nhan-su-'.$reportStart->format('Ymd'),
                 ['Ngày', 'Chi nhánh', 'Số ca', 'Số phòng', 'Số GV/GVNN', 'Số trợ giảng', 'Nhu cầu nhân sự'],
                 $rows,
@@ -1326,10 +1599,53 @@ class WorkTaskController extends Controller
             );
         }
 
-        return view('tasks.schedule-config', compact(
-            'classes', 'listClasses', 'classSearch', 'academicYears', 'branches', 'scheduleData', 'selectedClassId',
-            'reportBranchId', 'reportStart', 'reportEnd', 'report', 'classCountChange', 'holidaySessions'
-        ));
+        // Báo cáo phòng / nhân sự là việc khác với xếp lịch: mở riêng qua nút trên đầu trang; đang lọc báo cáo thì vẫn ở màn báo cáo.
+        $view = $request->query('view') === 'report' || $request->hasAny(['report_branch_id', 'report_date']) ? 'report' : 'config';
+        $defaults = [
+            'academic_year' => now()->format('Y').' - '.now()->addYear()->format('Y'),
+            'start_date' => now()->format('Y-m-d'),
+            'end_date' => now()->addMonths(3)->format('Y-m-d'),
+            'slot1_day' => 'Thứ 2', 'slot1_start' => '18:00', 'slot1_end' => '19:30',
+            'slot2_day' => '', 'slot2_start' => '18:00', 'slot2_end' => '19:30',
+        ];
+        $initial = ['class_id' => (string) ($selectedClassId ?? '')];
+        foreach ($defaults as $key => $default) {
+            $initial[$key] = ($selectedClassId ? ($scheduleData[$selectedClassId][$key] ?? null) : null) ?? $default;
+        }
+        $schedulable = $classes->reject(fn (ClassModel $c) => in_array($c->status, ['cancelled', 'completed'], true));
+
+        return Inertia::render('Tasks/ScheduleConfig', [
+            'view' => $view,
+            'canSchedule' => $viewer->can('work_task.assign'),
+            'newClasses' => Ui::options($schedulable->filter(fn (ClassModel $c) => ! $c->scheduleConfig), fn (ClassModel $c) => "{$c->name} ({$c->code})"),
+            'scheduledClasses' => Ui::options($schedulable->filter(fn (ClassModel $c) => (bool) $c->scheduleConfig), fn (ClassModel $c) => "{$c->name} ({$c->code}) · {$c->schedule_text}"),
+            'academicYears' => $academicYears->map(fn ($y) => ['value' => $y, 'label' => "Năm học {$y}"])->values(),
+            'scheduleData' => $scheduleData,
+            'initial' => $initial,
+            'holidaySessions' => $holidaySessions->map(fn (ClassSession $s) => [
+                'id' => $s->id,
+                'class_name' => $s->classModel?->name,
+                'class_code' => $s->classModel?->code,
+                'when' => $s->date->format('d/m/Y').' '.$s->start_time?->format('H:i'),
+                'holiday' => $s->holiday?->name,
+                'makeup' => $s->makeupSession ? $s->makeupSession->date->format('d/m/Y').' '.$s->makeupSession->start_time?->format('H:i') : null,
+            ])->values(),
+            'classSearch' => $classSearch,
+            'listClasses' => $listClasses->map(fn (ClassModel $c) => [
+                'id' => $c->id,
+                'name' => $c->name,
+                'code' => $c->code,
+                'schedule_text' => $c->schedule_text,
+                'teacher' => $c->teacher?->name ?? $c->foreignTeacher?->name,
+                'status' => $c->status,
+                'has_config' => (bool) $c->scheduleConfig,
+            ])->values(),
+            'branches' => Ui::options($branches, 'name'),
+            'reportBranchId' => $reportBranchId,
+            'reportStart' => $reportStart->toDateString(),
+            'report' => $report->map(fn (array $d) => [...$d, 'day' => $d['date']->format('d/m'), 'date' => $d['date']->toDateString()])->values(),
+            'classCountChange' => $classCountChange,
+        ]);
     }
 
     public function updateScheduleConfig(Request $request, SessionScheduleService $schedule)
@@ -1574,9 +1890,54 @@ class WorkTaskController extends Controller
             $selectedSupport = null;
         }
 
-        return view('tasks.support-sessions', compact(
-            'pendingSupports', 'sessions', 'classes', 'classRosters', 'teachers', 'sources', 'source', 'selectedSupport'
-        ));
+        $canApprove = $user->can('work_task.approve');
+
+        return Inertia::render('Tasks/SupportSessions', [
+            'pendingSupports' => $pendingSupports->through(fn (ClassReportStudentSupport $item) => [
+                'id' => $item->id,
+                'student' => $item->student?->name,
+                'class_name' => $item->classModel?->name ?? $item->classReport?->classModel?->name,
+                'source' => $item->source,
+                'source_label' => $item->source_label,
+                'reason' => $item->reason,
+                'action_plan' => $item->action_plan,
+                'date' => $item->created_at?->format('d/m/Y'),
+            ]),
+            'sessions' => $sessions->through(fn (SupportSession $session) => [
+                'id' => $session->id,
+                'student' => $session->student?->name,
+                'class_name' => $session->classModel?->name,
+                'source' => $session->supportItem?->source,
+                'source_label' => $session->supportItem?->source_label,
+                'reason' => $session->reason,
+                'date' => $session->session_date->format('d/m/Y'),
+                'time' => substr((string) $session->start_time, 0, 5).'-'.substr((string) $session->end_time, 0, 5),
+                'room' => $session->room,
+                'teacher' => $session->teacher?->name,
+                'status' => $session->status,
+                'status_label' => $session->status_label,
+                'can_complete' => $session->status !== 'completed' && ((int) $session->teacher_id === (int) $user->id || $canApprove),
+            ]),
+            'sources' => collect($sources)->map(fn ($label, $key) => ['key' => $key, 'label' => $label])->values(),
+            'source' => $source,
+            'classes' => Ui::options($classes, 'name'),
+            // Học viên theo lớp (nhóm theo tên lớp) cho ô "Học viên".
+            'studentGroups' => $classes->filter(fn (ClassModel $c) => $classRosters[$c->id]->isNotEmpty())->map(fn (ClassModel $c) => [
+                'label' => $c->name,
+                'class_id' => $c->id,
+                'options' => Ui::options($classRosters[$c->id], fn ($st) => "{$st->name} ({$st->code})"),
+            ])->values(),
+            'teachers' => Ui::options($teachers, 'name'),
+            'selectedSupport' => $selectedSupport ? [
+                'id' => $selectedSupport->id,
+                'student' => $selectedSupport->loadMissing('student')->student?->name,
+                'source_label' => $selectedSupport->source_label,
+                'reason' => $selectedSupport->reason,
+                'class_id' => $selectedSupport->resolvedClassId(),
+                'student_id' => $selectedSupport->student_id,
+            ] : null,
+            'defaultDate' => now()->addDay()->format('Y-m-d'),
+        ]);
     }
 
     public function storeSupportSession(Request $request)
@@ -1734,7 +2095,7 @@ class WorkTaskController extends Controller
                     ];
                 })->all();
 
-            return \App\Exports\ArrayExport::download(
+            return ArrayExport::download(
                 'kpi-'.$month.($monthTo !== $month ? '-'.$monthTo : ''),
                 ['Mã NS', 'Nhân sự', 'Số lớp', 'Chuyên cần', 'Chi tiết chuyên cần', 'Bài tập', 'Chi tiết bài tập', 'Công việc', 'Chi tiết công việc', 'Giữ chân', 'Chi tiết giữ chân'],
                 $rows,
@@ -1747,11 +2108,21 @@ class WorkTaskController extends Controller
             ->withQueryString();
 
         $metrics = $kpi->metricsForMany($staff->getCollection(), $from, $to);
-        $kpiData = $staff->getCollection()->map(fn (User $user) => [
-            'user' => $user,
-            'code' => $user->employee_code ?: 'NS-'.str_pad((string) $user->id, 3, '0', STR_PAD_LEFT),
-        ] + $metrics[$user->id]);
 
-        return view('tasks.kpi-dashboard', compact('staff', 'staffOptions', 'kpiData', 'month', 'monthTo', 'from', 'to', 'canSeeStaff'));
+        return Inertia::render('Tasks/KpiDashboard', [
+            'staff' => $staff->through(fn (User $user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'code' => $user->employee_code ?: 'NS-'.str_pad((string) $user->id, 3, '0', STR_PAD_LEFT),
+            ] + collect($metrics[$user->id])->only([
+                'classes', 'retention', 'retention_detail', 'attendance', 'attendance_detail',
+                'homework', 'homework_detail', 'tasks', 'tasks_detail',
+            ])->all()),
+            'staffOptions' => $canSeeStaff ? Ui::options($staffOptions, fn (User $u) => $u->name.($u->employee_code ? ' ('.$u->employee_code.')' : '')) : [],
+            'month' => $month,
+            'monthTo' => $monthTo,
+            'periodLabel' => 'Tháng '.$from->format('m/Y').($monthTo !== $month ? ' - Tháng '.$to->format('m/Y') : '').' ('.$from->format('d/m/Y').' - '.$to->format('d/m/Y').')',
+            'canSeeStaff' => $canSeeStaff,
+        ]);
     }
 }

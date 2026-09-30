@@ -216,7 +216,7 @@ class Phase2OperationsScreensTest extends TestCase
         $response = $this->actingAs($this->admin)->get(route('tasks.schedule-config', [
             'report_branch_id' => $this->branch->id, 'report_date' => '2026-10-07',
         ]))->assertOk();
-        $report = $response->viewData('report');
+        $report = $response->viewData('page')['props']['report'];
         $this->assertSame(2, $report[0]['shifts']);
         $this->assertSame(2, $report[0]['rooms']);
         $this->assertSame(1, $report[0]['assistants']);
@@ -352,7 +352,7 @@ class Phase2OperationsScreensTest extends TestCase
         $this->task($this->teacher, 'Việc tháng khác', '2026-09-03');
 
         $response = $this->actingAs($this->admin)->get(route('tasks.kpi-dashboard', ['month' => '2026-10']))->assertOk();
-        $row = $response->viewData('kpiData')->firstWhere('user.id', $this->teacher->id);
+        $row = collect($response->viewData('page')['props']['staff']['data'])->firstWhere('id', $this->teacher->id);
 
         $this->assertSame(80.0, $row['retention']);   // 4/5 chưa thôi học
         $this->assertSame(75.0, $row['attendance']);  // 3/4 lượt trong tháng 10
@@ -362,7 +362,7 @@ class Phase2OperationsScreensTest extends TestCase
 
         // Kỳ không có dữ liệu → "Chưa có dữ liệu", không có số giả.
         $empty = $this->actingAs($this->admin)->get(route('tasks.kpi-dashboard', ['month' => '2026-06', 'user_id' => $this->assistant->id]))->assertOk();
-        $assistantRow = $empty->viewData('kpiData')->sole();
+        $assistantRow = collect($empty->viewData('page')['props']['staff']['data'])->sole();
         $this->assertNull($assistantRow['attendance']);
         $this->assertNull($assistantRow['tasks']);
         $empty->assertSee('Chưa có dữ liệu');
@@ -373,7 +373,7 @@ class Phase2OperationsScreensTest extends TestCase
         User::factory()->create(['name' => 'Kế toán tên teacher', 'email' => 'teacher.fake@menglish.edu.vn', 'is_active' => true]);
 
         $response = $this->actingAs($this->admin)->get(route('tasks.kpi-dashboard'))->assertOk();
-        $names = $response->viewData('kpiData')->pluck('user.name');
+        $names = collect($response->viewData('page')['props']['staff']['data'])->pluck('name');
         $this->assertNotContains('Kế toán tên teacher', $names);
         $this->assertContains('Trần Thị Trợ', $names);
     }

@@ -142,7 +142,7 @@ class Phase2MockupClassesTest extends TestCase
             ->assertSee('Năm học 2026 - 2027')
             ->assertSee('Slot 1')->assertSee('Slot 2')->assertSee('Hủy thay đổi')
             ->assertSee('Danh sách lớp hiện tại')->assertSee('GV: Nguyễn Văn Giáo')
-            ->assertDontSee('role="tablist"', false)->assertSee(route('tasks.schedule-config', ['view' => 'report']), false)
+            ->assertDontSee('role="tablist"', false)->assertSee(route('tasks.schedule-config', ['view' => 'report'], false), false)
             ->assertDontSee('Lưu báo cáo nhân sự');
 
         $this->actingAs($this->admin)->get(route('tasks.schedule-config', ['view' => 'report']))->assertOk()

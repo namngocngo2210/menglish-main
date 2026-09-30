@@ -39,7 +39,6 @@ class InlineFormModalTest extends TestCase
         return [
             'giao chặng' => ['syllabus.assignments', 'new-assignment'],
             'tài liệu giáo trình' => ['syllabus.documents', 'upload-document'],
-            'phụ đạo' => ['tasks.support-sessions', 'new-support-session'],
             'nhắc nợ' => ['system-config.debt-reminders', 'new-reminder'],
         ];
     }
@@ -51,6 +50,20 @@ class InlineFormModalTest extends TestCase
             ->assertSee("\$dispatch('open-modal', '{$modal}')", false)
             ->assertSee('data-modal="'.$modal.'"', false)
             ->assertSee('show: false', false);
+    }
+
+    /** Phụ đạo (trang Vue): form nằm trong modal đóng sẵn, mở bằng nút trên đầu trang; lỗi validate trả về trang đang mở. */
+    public function test_support_session_form_lives_in_a_closed_modal(): void
+    {
+        $this->actingAs($this->admin)->get(route('tasks.support-sessions'))->assertOk()
+            ->assertSee('Xếp buổi phụ đạo')
+            ->assertSee('id="new-support-session-form"', false)
+            ->assertInertia(fn ($page) => $page->component('Tasks/SupportSessions')->where('selectedSupport', null));
+
+        $this->actingAs($this->admin)->from(route('tasks.support-sessions'))
+            ->post(route('tasks.support-sessions.store'), [])
+            ->assertRedirect(route('tasks.support-sessions'))
+            ->assertSessionHasErrors('session_date');
     }
 
     /** Trang Vue (Đợt khảo sát): form tạo nằm trong hộp thoại đóng sẵn (UiModal, v-show), mở bằng nút "Tạo đợt khảo sát". */
