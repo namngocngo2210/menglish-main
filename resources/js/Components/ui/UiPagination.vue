@@ -5,6 +5,7 @@
  * paginator: paginator của Laravel gửi xuống (->paginate()->withQueryString(), dạng JSON: current_page, last_page, total, from, to, per_page…);
  *            simplePaginate (không có total) → chỉ nút trước / sau.
  * options: lựa chọn số dòng/trang (mặc định [10, 20, 50, 100, 'all']; [] = ẩn). Link giữ nguyên bộ lọc trên URL.
+ * pageName: tên tham số trang trên URL (mặc định 'page'; vd 'kpi_page' khi một màn có nhiều bảng phân trang riêng).
  */
 import { computed } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
@@ -16,6 +17,7 @@ const props = defineProps({
     options: { type: Array, default: () => [10, 20, 50, 100, 'all'] },
     unit: { type: String, default: 'bản ghi' },
     onEachSide: { type: Number, default: 3 },
+    pageName: { type: String, default: 'page' },
 });
 
 const p = computed(() => props.paginator ?? {});
@@ -55,8 +57,8 @@ const elements = computed(() => {
     return [1, 2, '...', ...range(current.value - props.onEachSide, current.value + props.onEachSide), '...', total - 1, total];
 });
 
-const pageUrl = (page) => urlWith({ page: page > 1 ? page : null });
-const changePerPage = (event) => router.get(urlWith({ per_page: event.target.value, page: null }), {}, { preserveScroll: true });
+const pageUrl = (page) => urlWith({ [props.pageName]: page > 1 ? page : null });
+const changePerPage = (event) => router.get(urlWith({ per_page: event.target.value, [props.pageName]: null }), {}, { preserveScroll: true });
 
 const base = 'inline-flex h-11 min-w-11 md:h-8 md:min-w-8 items-center justify-center rounded px-xs font-body-medium text-body-medium transition-colors';
 const idle = `${base} text-on-surface hover:bg-surface-container-high`;

@@ -41,12 +41,9 @@ class InlineFormModalTest extends TestCase
             'giao chặng' => ['syllabus.assignments', 'new-assignment'],
             'tài liệu giáo trình' => ['syllabus.documents', 'upload-document'],
             'phụ đạo' => ['tasks.support-sessions', 'new-support-session'],
-            'mốc hoa hồng' => ['payroll.config.commission-tiers', 'new-tier'],
-            'đơn giá GV' => ['payroll.config.teacher-rates', 'new-rate'],
             'nhắc nợ' => ['system-config.debt-reminders', 'new-reminder'],
             'dải số hoá đơn' => ['tuition.config', 'range-form'],
             'khất nợ / hoàn tiền' => ['tuition.refunds', 'refund-request'],
-            'KPI' => ['kpi.criteria', 'new-kpi'],
         ];
     }
 

@@ -6,10 +6,13 @@ use App\Models\ClassModel;
 use App\Models\Penalty;
 use App\Models\User;
 use App\Support\Money;
+use App\Support\Ui;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
+use Inertia\Inertia;
+use Inertia\Response as InertiaResponse;
 
 /**
  * Kỷ luật nhân sự (BPMN 9b): ghi nhận vi phạm → giải trình → HT/CM chốt theo
@@ -17,7 +20,7 @@ use Illuminate\Validation\Rule;
  */
 class PenaltyController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request): InertiaResponse
     {
         $user = $request->user();
         // Tài khoản cổng học viên không có hồ sơ kỷ luật nhân sự.
@@ -72,7 +75,65 @@ class PenaltyController extends Controller
 
         // Ngày thuộc kỳ lương đã khóa: nút "Chốt mức phạt" bị khóa trên dòng tương ứng.
 
-        return view('penalties.index', compact('penalties', 'users', 'classes', 'canViewAll', 'counts', 'overdueCount'));
+        return Inertia::render('Penalties/Index', [
+            'penalties' => $penalties->through(function (Penalty $pen) use ($user) {
+                [$employeeState, $employeeColor] = $pen->employee_state;
+
+                return [
+                    'id' => $pen->id,
+                    'code' => $pen->code,
+                    'user_name' => $pen->user?->name,
+                    'employee_code' => $pen->user?->employee_code,
+                    'violation_date' => $pen->violation_date->format('d/m/Y'),
+                    'source_label' => $pen->source_label,
+                    'violation_type' => $pen->violation_type,
+                    'category_label' => $pen->category_label,
+                    'confirmer_label' => $pen->confirmer_label,
+                    'step' => $pen->step,
+                    'step_label' => $pen->step_label,
+                    'status' => $pen->status,
+                    'status_label' => $pen->status_label,
+                    'overdue' => $pen->isOverdue(),
+                    'amount' => (float) $pen->amount,
+                    'due_date' => $pen->due_date?->format('d/m/Y'),
+                    'paid_at' => $pen->paid_at?->format('d/m/Y'),
+                    'employee_state' => $employeeState,
+                    'employee_color' => $employeeColor,
+                    'remedied' => (bool) $pen->remedied_at,
+                    'class_name' => $pen->classModel?->name,
+                    'reporter' => $pen->reporter?->name,
+                    'notes' => $pen->notes,
+                    'explanation' => $pen->explanation,
+                    'decision_note' => $pen->decision_note,
+                    'decider' => $pen->decider?->name,
+                    'remedy' => $pen->remedied_at
+                        ? $pen->remedied_at->format('d/m/Y').' — '.$pen->remedier?->name.($pen->remedy_note ? ': '.$pen->remedy_note : '')
+                        : null,
+                    'can_decide' => $user->can('violation.confirm_fine') && $pen->canBeDecidedBy($user)
+                        && in_array($pen->status, ['pending', 'explained', 'confirmed'], true),
+                    'can_explain' => $pen->user_id === $user->id && $pen->status === 'pending',
+                ];
+            }),
+            'users' => $users->map(fn (User $u) => [
+                'value' => $u->id,
+                'label' => $u->name.($u->employee_code ? ' — '.$u->employee_code : '').' ('.$u->email.')',
+            ])->values(),
+            'classes' => Ui::options($classes, 'name'),
+            'canViewAll' => $canViewAll,
+            'counts' => [
+                'pending' => (int) ($counts['pending'] ?? 0),
+                'deciding' => (int) (($counts['explained'] ?? 0) + ($counts['confirmed'] ?? 0)),
+                'fined' => max(0, (int) ($counts['fined'] ?? 0) - $overdueCount),
+                'overdue' => $overdueCount,
+            ],
+            'steps' => Penalty::STEPS,
+            'categoryOptions' => Ui::options(collect(Penalty::CATEGORIES)->map(fn ($c) => $c['label'])),
+            'categoryConfirmerOptions' => Ui::options(collect(Penalty::CATEGORIES)->map(fn ($c) => $c['label'].' — '.$c['confirmer'])),
+            'statusOptions' => Ui::options(['open' => 'Đang xử lý (chưa đóng)', 'overdue' => 'Quá hạn nộp'] + Penalty::statusLabels()),
+            'commonViolations' => collect(Penalty::COMMON_VIOLATIONS)->flatten()->values(),
+            'lockedPenalty' => session('locked_penalty'),
+            'today' => date('Y-m-d'),
+        ]);
     }
 
     /**

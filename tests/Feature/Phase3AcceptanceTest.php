@@ -22,6 +22,7 @@ use Carbon\Carbon;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Tests\Concerns\FinalizesPayrollKpi;
 use Tests\TestCase;
 
@@ -271,7 +272,7 @@ class Phase3AcceptanceTest extends TestCase
         $this->assertSame([5, 4], [$pt->retention_base_students, $pt->retention_students]);   // 1 HS thôi học
         $this->assertEquals(100000, $pt->penalty_deduction);                                  // quá hạn 12/08
         $this->assertEquals(0, $pt->insurance_deduction);
-        $this->actingAs($this->partTime)->get(route('portal.my-salary'))->assertOk()->assertViewHas('record', null); // chưa duyệt → chưa thấy
+        $this->actingAs($this->partTime)->get(route('portal.my-salary'))->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->component('Payroll/MySalary')->where('record', null)); // chưa duyệt → chưa thấy
         $this->actingAs($this->partTime)->get(route('payroll.records.show', $pt->id))->assertForbidden();
 
         $this->at('2026-09-01 08:30');
@@ -345,8 +346,8 @@ class Phase3AcceptanceTest extends TestCase
 
         // Nhân viên xem "Lương của tôi" sau khi duyệt, cùng các dòng phiếu lương
         $this->actingAs($this->partTime)->get(route('portal.my-salary'))->assertOk()
-            ->assertViewHas('record', fn (?PayrollRecord $r) => $r?->id === $pt->id && (float) $r->net_salary === 680000.0)->assertSee('KPI giữ học sinh');
-        $this->actingAs($this->otherTeacher)->get(route('portal.my-salary'))->assertOk()->assertViewHas('record', null);
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('record.id', $pt->id)->where('record.net_salary', fn ($net) => (float) $net === 680000.0))->assertSee('KPI giữ học sinh');
+        $this->actingAs($this->otherTeacher)->get(route('portal.my-salary'))->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->where('record', null));
 
         // ── 8. Tháng 9: đơn giá mới, mốc chăm sóc, kỳ tháng 9 ────────────────────────────────────────
         $this->at('2026-09-07 17:25');
