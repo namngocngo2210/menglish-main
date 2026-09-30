@@ -40,8 +40,6 @@ class SystemCategoryController extends Controller
             'types' => SystemCategory::TYPES,
             'typeLabels' => SystemCategory::TYPE_LABELS,
             'editing' => $editing,
-            'suggestedCode' => SystemCategory::suggestCode($type),
-            'nextOrder' => (int) SystemCategory::query()->ofType($type)->max('sort_order') + 1,
             'search' => $search,
         ]);
     }
@@ -53,6 +51,7 @@ class SystemCategoryController extends Controller
         return $this->modalView('system-categories.form', [
             'category' => new SystemCategory(['type' => $type, 'code' => SystemCategory::suggestCode($type)]),
             'typeLabels' => SystemCategory::TYPE_LABELS,
+            'nextOrder' => (int) SystemCategory::query()->ofType($type)->max('sort_order') + 1,
         ]);
     }
 
@@ -78,7 +77,7 @@ class SystemCategoryController extends Controller
             ]);
         }
 
-        // Mở thẳng URL: sửa trên panel bên phải của trang danh sách (mockup).
+        // Mở thẳng URL: trang danh sách với modal sửa mở sẵn (?edit=).
         return redirect()->route('system-categories.index', ['type' => $systemCategory->type, 'edit' => $systemCategory->id]);
     }
 

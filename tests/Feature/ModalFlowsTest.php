@@ -124,6 +124,10 @@ class ModalFlowsTest extends TestCase
             ->assertSee('action="'.route('system-categories.update', $category).'"', false);
         $this->actingAs($this->admin)->get(route('system-categories.edit', $category))
             ->assertRedirect(route('system-categories.index', ['type' => 'lead_source', 'edit' => $category->id]));
+        $this->actingAs($this->admin)->get(route('system-categories.index', ['type' => 'lead_source', 'edit' => $category->id]))->assertOk()
+            ->assertSee('data-modal="edit-category"', false)->assertSee('Sửa giá trị danh mục');
+        $this->actingAs($this->admin)->get(route('system-categories.index', ['type' => 'lead_source']))->assertOk()
+            ->assertDontSee('data-modal="edit-category"', false);
 
         // Trùng mã → 422 kèm lỗi, không lưu.
         $this->actingAs($this->admin)->post(route('system-categories.store'), ['type' => 'lead_source', 'code' => 'SRC_01', 'name' => 'Trùng'], self::HX)

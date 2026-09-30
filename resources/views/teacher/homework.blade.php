@@ -110,51 +110,53 @@
             </footer>
         </form>
 
-        {{-- Bài tập đã giao --}}
-        <section class="space-y-sm">
-            <h2 class="font-label-caps text-label-caps uppercase text-on-surface-variant">Bài tập đã giao ({{ $homeworks->count() }})</h2>
-            @forelse ($homeworks as $hw)
-                @php $hwLocked = $lockedTypes[$hw->id] ?? []; @endphp
-                <div class="flex items-start justify-between gap-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md shadow-sm">
-                    <div class="min-w-0 space-y-xs">
-                        <div class="font-body-semibold text-body-semibold text-on-surface">{{ $hw->title }}</div>
-                        <div class="font-caption text-caption text-on-surface-variant">
-                            Hạn nộp: {{ $hw->due_at?->format('H:i d/m/Y') ?? $hw->due_date?->format('d/m/Y') ?? 'Không giới hạn' }}
-                            @if ($hw->classSession) · Buổi {{ $hw->classSession->date->format('d/m') }} @endif
-                            · GV: {{ $hw->teacher?->name }}
-                        </div>
-                        @if ($hw->items)
-                            <div class="flex flex-wrap gap-xs">
-                                @foreach ($hw->items as $key => $text)
-                                    <x-ui.badge :color="in_array($key, $hwLocked, true) ? 'warning' : 'secondary'" :dot="false" title="{{ $text }}">{{ $categories[$key][0] ?? $key }}{{ in_array($key, $hwLocked, true) ? ' · đã có bài nộp' : '' }}</x-ui.badge>
-                                @endforeach
+        {{-- Bài tập đã giao — ẩn khi đang sửa (?edit=): màn sửa là trang riêng, Hủy quay về danh sách. --}}
+        @unless ($editing)
+            <section class="space-y-sm">
+                <h2 class="font-label-caps text-label-caps uppercase text-on-surface-variant">Bài tập đã giao ({{ $homeworks->count() }})</h2>
+                @forelse ($homeworks as $hw)
+                    @php $hwLocked = $lockedTypes[$hw->id] ?? []; @endphp
+                    <div class="flex items-start justify-between gap-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md shadow-sm">
+                        <div class="min-w-0 space-y-xs">
+                            <div class="font-body-semibold text-body-semibold text-on-surface">{{ $hw->title }}</div>
+                            <div class="font-caption text-caption text-on-surface-variant">
+                                Hạn nộp: {{ $hw->due_at?->format('H:i d/m/Y') ?? $hw->due_date?->format('d/m/Y') ?? 'Không giới hạn' }}
+                                @if ($hw->classSession) · Buổi {{ $hw->classSession->date->format('d/m') }} @endif
+                                · GV: {{ $hw->teacher?->name }}
                             </div>
-                        @elseif ($hw->description)
-                            <p class="whitespace-pre-line font-body-small text-body-small text-on-surface-variant">{{ $hw->description }}</p>
-                        @endif
-                        @if ($hw->class_note)<p class="font-body-small text-body-small italic text-on-surface-variant">“{{ $hw->class_note }}”</p>@endif
-                        <div class="flex flex-wrap gap-sm font-caption text-caption">
-                            @if ($hw->youtube_url)<a href="{{ $hw->youtube_url }}" target="_blank" rel="noopener" class="inline-flex items-center gap-xs text-primary hover:underline"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">smart_display</span>YouTube</a>@endif
-                            @if ($hw->audio_path)<a href="{{ asset('storage/'.$hw->audio_path) }}" target="_blank" class="inline-flex items-center gap-xs text-primary hover:underline"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">audio_file</span>File nghe</a>@endif
-                            @if ($hw->quizizz_url)<a href="{{ $hw->quizizz_url }}" target="_blank" rel="noopener" class="inline-flex items-center gap-xs text-primary hover:underline"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">quiz</span>Quizizz</a>@endif
+                            @if ($hw->items)
+                                <div class="flex flex-wrap gap-xs">
+                                    @foreach ($hw->items as $key => $text)
+                                        <x-ui.badge :color="in_array($key, $hwLocked, true) ? 'warning' : 'secondary'" :dot="false" title="{{ $text }}">{{ $categories[$key][0] ?? $key }}{{ in_array($key, $hwLocked, true) ? ' · đã có bài nộp' : '' }}</x-ui.badge>
+                                    @endforeach
+                                </div>
+                            @elseif ($hw->description)
+                                <p class="whitespace-pre-line font-body-small text-body-small text-on-surface-variant">{{ $hw->description }}</p>
+                            @endif
+                            @if ($hw->class_note)<p class="font-body-small text-body-small italic text-on-surface-variant">“{{ $hw->class_note }}”</p>@endif
+                            <div class="flex flex-wrap gap-sm font-caption text-caption">
+                                @if ($hw->youtube_url)<a href="{{ $hw->youtube_url }}" target="_blank" rel="noopener" class="inline-flex items-center gap-xs text-primary hover:underline"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">smart_display</span>YouTube</a>@endif
+                                @if ($hw->audio_path)<a href="{{ asset('storage/'.$hw->audio_path) }}" target="_blank" class="inline-flex items-center gap-xs text-primary hover:underline"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">audio_file</span>File nghe</a>@endif
+                                @if ($hw->quizizz_url)<a href="{{ $hw->quizizz_url }}" target="_blank" rel="noopener" class="inline-flex items-center gap-xs text-primary hover:underline"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">quiz</span>Quizizz</a>@endif
+                            </div>
+                        </div>
+                        <div class="flex shrink-0 items-center gap-xs">
+                            <x-ui.button variant="ghost" icon="edit" :href="route('teacher.homework', ['classId' => $class->id, 'edit' => $hw->id])" title="Sửa" aria-label="Sửa {{ $hw->title }}" />
+                            @if ($hwLocked === [])
+                                <form method="POST" action="{{ route('teacher.homework.destroy', [$class->id, $hw->id]) }}" data-confirm="Xóa bài tập này?" data-confirm-label="Xóa" data-confirm-danger>
+                                    @csrf @method('DELETE')
+                                    <x-ui.button type="submit" variant="danger-text" icon="delete" title="Xoá" aria-label="Xoá {{ $hw->title }}" />
+                                </form>
+                            @endif
                         </div>
                     </div>
-                    <div class="flex shrink-0 items-center gap-xs">
-                        <x-ui.button variant="ghost" icon="edit" :href="route('teacher.homework', ['classId' => $class->id, 'edit' => $hw->id])" title="Sửa" aria-label="Sửa {{ $hw->title }}" />
-                        @if ($hwLocked === [])
-                            <form method="POST" action="{{ route('teacher.homework.destroy', [$class->id, $hw->id]) }}" data-confirm="Xóa bài tập này?" data-confirm-label="Xóa" data-confirm-danger>
-                                @csrf @method('DELETE')
-                                <x-ui.button type="submit" variant="danger-text" icon="delete" title="Xoá" aria-label="Xoá {{ $hw->title }}" />
-                            </form>
-                        @endif
+                @empty
+                    <div class="rounded-xl border border-outline-variant bg-surface-container-lowest">
+                        <x-ui.empty-state icon="assignment" title="Chưa giao bài tập nào" description="Bài tập đã giao cho lớp sẽ hiện ở đây." />
                     </div>
-                </div>
-            @empty
-                <div class="rounded-xl border border-outline-variant bg-surface-container-lowest">
-                    <x-ui.empty-state icon="assignment" title="Chưa giao bài tập nào" description="Bài tập đã giao cho lớp sẽ hiện ở đây." />
-                </div>
-            @endforelse
-        </section>
+                @endforelse
+            </section>
+        @endunless
     </div>
 
     @include('teacher.partials.bottom-nav')

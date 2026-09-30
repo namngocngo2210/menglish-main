@@ -1055,15 +1055,18 @@ class PayrollController extends Controller
         $teachers = $this->teachingStaff();
         $teacherId = $request->integer('teacher_id') ?: null;
 
+        // Lịch sử chung của mọi GV (danh sách trên trang); lịch sử riêng GV đang xem nằm trong modal chi tiết (?teacher_id=).
         $history = TeacherHourlyRate::with(['user', 'creator'])
-            ->when($teacherId, fn ($query) => $query->where('user_id', $teacherId))
             ->orderByDesc('effective_from')
             ->orderByDesc('id')
             ->paginate($request->perPage(15))
             ->withQueryString();
+        $teacherHistory = $teacherId
+            ? TeacherHourlyRate::with('creator')->where('user_id', $teacherId)->orderByDesc('effective_from')->orderByDesc('id')->get()
+            : collect();
 
         // "Đến ngày" của từng phiên bản = ngày trước phiên bản kế tiếp của cùng GV (null = hiện tại).
-        $versionsByUser = TeacherHourlyRate::whereIn('user_id', $history->getCollection()->pluck('user_id')->unique())
+        $versionsByUser = TeacherHourlyRate::whereIn('user_id', $history->getCollection()->pluck('user_id')->push($teacherId)->filter()->unique())
             ->orderBy('effective_from')->orderBy('id')->get(['id', 'user_id', 'effective_from'])->groupBy('user_id');
         $endDates = [];
         foreach ($versionsByUser as $versions) {
@@ -1085,7 +1088,7 @@ class PayrollController extends Controller
             ? ($currentRates->get($selectedTeacher->id)?->teacher_type ?? TeacherHourlyRate::defaultTeacherType($selectedTeacher))
             : null;
 
-        return view('payroll.config-rates', compact('rates', 'teachers', 'history', 'currentRates', 'selectedTeacher', 'selectedType', 'endDates'));
+        return view('payroll.config-rates', compact('rates', 'teachers', 'history', 'teacherHistory', 'currentRates', 'selectedTeacher', 'selectedType', 'endDates'));
     }
 
     /**

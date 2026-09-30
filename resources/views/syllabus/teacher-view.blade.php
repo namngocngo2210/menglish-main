@@ -20,6 +20,7 @@
 
 
     @php($user = auth()->user())
+    @php($stageUnits = $assignment?->stage?->units()->with('lessons')->get() ?? collect())
     {{-- Mockup 03_Cong_Giao_Vien/08: 3 tab Tài liệu / Tổng quan syllabus / Nội dung buổi học. --}}
     <div x-data="{ tab: @js(in_array(request('tab'), ['docs', 'overview', 'lessons'], true) ? request('tab') : ($class && ! $documents->count() ? 'lessons' : 'docs')) }" class="space-y-6">
         <nav class="no-scrollbar flex items-center gap-lg overflow-x-auto border-b border-surface-container-highest" role="tablist">
@@ -30,120 +31,61 @@
             @endforeach
         </nav>
 
-        {{-- Tab 1: Tài liệu (danh sách theo chặng + khung xem trực tuyến) --}}
-        <div x-show="tab === 'docs'" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <section class="lg:col-span-4 bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden flex flex-col min-w-0">
-                <div class="p-md border-b border-outline-variant flex justify-between items-center bg-surface-container-low">
+        {{-- Tab 1: Tài liệu — bấm dòng → xem tài liệu trong modal (?document=; đóng modal thì bỏ query). --}}
+        @php($listQuery = array_filter(['class' => $class?->id, 'q' => $search]))
+        <div x-show="tab === 'docs'">
+            <x-ui.data-table min-width="760px">
+                <x-slot:header>
                     <h2 class="font-h3 text-h3 text-on-surface">Danh sách tài liệu</h2>
-                    <x-ui.badge color="primary">{{ $documents->count() }} tài liệu</x-ui.badge>
-                </div>
-                <div class="overflow-y-auto p-md space-y-md flex-1 custom-scrollbar max-h-[720px]">
-                    @forelse ($documents->groupBy(fn ($d) => $d->curriculum?->title.($d->stage_label ? ' · '.$d->stage_label : '')) as $group => $docs)
-                        <div class="space-y-sm">
-                            <h3 class="font-label text-label text-on-surface-variant uppercase tracking-wider pl-1">{{ $group }}</h3>
-                            @foreach ($docs as $doc)
-                                <a href="{{ route('syllabus.teacher-view', array_filter(['document' => $doc->id, 'class' => $class?->id, 'q' => $search])) }}"
-                                   class="relative block p-md rounded-lg border transition-all {{ $selected?->id === $doc->id ? 'bg-primary-fixed/30 border-primary-container' : 'bg-surface-container-lowest border-outline-variant hover:bg-surface-container-low' }}">
-                                    @if ($selected?->id === $doc->id)<span class="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg bg-primary-container"></span>@endif
-                                    <div class="flex items-start gap-3">
-                                        <div class="bg-surface-container-lowest p-2 rounded-lg text-primary border border-outline-variant">
-                                            <span class="material-symbols-outlined text-[20px]">{{ $doc->icon }}</span>
-                                        </div>
-                                        <div class="flex-1 min-w-0">
-                                            <h4 class="font-body-medium text-body-medium text-on-surface truncate mb-1">{{ $doc->title }}</h4>
-                                            <div class="flex flex-wrap items-center gap-2 font-caption text-caption text-on-surface-variant">
-                                                <span class="inline-flex items-center gap-0.5 font-mono uppercase"><span class="material-symbols-outlined text-[14px]">description</span>{{ $doc->extension }} • {{ $doc->size_human }}</span>
-                                                @if ($doc->canDownload($user))
-                                                    <span class="inline-flex items-center gap-0.5 text-tertiary font-medium"><span class="material-symbols-outlined text-[14px]">download</span>Có thể tải</span>
-                                                @else
-                                                    <span class="inline-flex items-center gap-0.5 text-error font-medium"><span class="material-symbols-outlined text-[14px]">lock</span>Chỉ xem</span>
-                                                @endif
-                                                @if ($viewedIds->contains($doc->id))
-                                                    <span class="inline-flex items-center gap-0.5 text-tertiary"><span class="material-symbols-outlined text-[14px]">check_circle</span>Đã xem</span>
-                                                @endif
-                                            </div>
-                                        </div>
-                                    </div>
-                                </a>
-                            @endforeach
-                        </div>
-                    @empty
-                        <x-ui.empty-state icon="folder_off" :title="$search !== '' ? 'Không tìm thấy tài liệu phù hợp' : 'Chưa có tài liệu nào'" description="Học thuật chưa chia sẻ tài liệu nào cho vai trò của bạn." />
-                    @endforelse
-                </div>
-            </section>
-
-            <section class="lg:col-span-8 bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm flex flex-col overflow-hidden min-w-0" x-ref="viewer">
-                @if ($selected)
-                    @php($canDownloadSelected = $selected->canDownload($user))
-                    <div class="p-md border-b border-outline-variant flex flex-wrap justify-between items-center bg-surface-container-low gap-3">
-                        <div class="flex items-center gap-3 min-w-0">
-                            <div class="w-8 h-8 rounded-lg bg-primary-fixed text-primary flex items-center justify-center">
-                                <span class="material-symbols-outlined text-[20px]">{{ $selected->icon }}</span>
-                            </div>
-                            <div class="min-w-0">
-                                <h2 class="font-body-medium text-body-medium font-semibold text-on-surface truncate">{{ $selected->title }}</h2>
-                                <p class="font-caption text-caption text-on-surface-variant">{{ $selected->stage_label ?: 'Chưa gắn chặng' }} • {{ $selected->curriculum?->title }} • {{ $selected->size_human }}</p>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            @unless ($canDownloadSelected)
-                                <x-ui.badge color="warning" :dot="false" :pill="true"><span class="material-symbols-outlined text-[14px]">shield</span>Bảo mật nội dung</x-ui.badge>
-                            @endunless
-                            <x-ui.button variant="ghost" size="sm" icon="fullscreen" title="Toàn màn hình" @click="$refs.viewer.requestFullscreen && $refs.viewer.requestFullscreen()" />
-                            @if ($canDownloadSelected)
-                                <x-ui.button variant="secondary" size="sm" icon="download" :href="route('syllabus.documents.file', ['id' => $selected->id, 'download' => 1])">Tải về</x-ui.button>
-                            @endif
-                        </div>
-                    </div>
-                    @php($fileUrl = route('syllabus.documents.file', $selected->id))
-                    <div class="flex-1 bg-surface-container flex justify-center items-center p-4 relative min-h-[560px] overflow-hidden">
-                        @switch($selected->kind)
-                            @case('pdf')
-                                <iframe src="{{ $fileUrl }}#toolbar=0" class="w-full h-[680px] rounded-xl bg-surface-container-lowest border border-surface-container-highest" title="{{ $selected->title }}"></iframe>
-                                @break
-                            @case('image')
-                                <img src="{{ $fileUrl }}" alt="{{ $selected->title }}" class="max-h-[680px] rounded-xl border border-surface-container-highest bg-surface-container-lowest">
-                                @break
-                            @case('audio')
-                                <audio controls controlsList="nodownload" src="{{ $fileUrl }}" class="w-full max-w-xl"></audio>
-                                @break
-                            @case('video')
-                                <video controls controlsList="nodownload" src="{{ $fileUrl }}" class="w-full max-h-[680px] rounded-xl bg-black"></video>
-                                @break
-                            @default
-                                <x-ui.empty-state icon="{{ $selected->icon }}" title="Định dạng {{ strtoupper($selected->extension) }} không xem trực tuyến được"
-                                                  description="{{ $canDownloadSelected ? 'Bấm Tải về để mở bằng phần mềm tương ứng.' : 'Tài liệu này không cho phép tải về; liên hệ Học thuật nếu cần bản xem được.' }}" />
-                        @endswitch
-                        @unless ($canDownloadSelected)
-                            {{-- Watermark bảo mật: tên đăng nhập người xem, không chặn thao tác cuộn/xem. --}}
-                            <div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-around opacity-[0.08] select-none" aria-hidden="true">
-                                <p class="font-h1 text-h1 -rotate-12 tracking-widest">MENGLISH INTERNAL ONLY</p>
-                                <p class="font-h2 text-h2 -rotate-12 uppercase">{{ $user->email }}</p>
-                                <p class="font-h1 text-h1 -rotate-12 tracking-widest">MENGLISH INTERNAL ONLY</p>
-                            </div>
-                        @endunless
-                    </div>
-                    <div class="bg-surface-container-lowest p-md border-t border-outline-variant flex flex-wrap items-center justify-between gap-3">
-                        <p class="font-body-small text-body-small text-on-surface-variant flex items-center gap-1.5">
-                            <span class="material-symbols-outlined text-[16px] {{ $canDownloadSelected ? 'text-tertiary' : 'text-warning' }}">info</span>
-                            {{ $canDownloadSelected ? 'Tài liệu được phép tải về.' : 'Tài liệu này không hỗ trợ tải về để bảo mật nội dung theo chính sách của MENGLISH.' }}
-                        </p>
-                        @if ($viewedIds->contains($selected->id))
-                            <span class="inline-flex items-center gap-1 font-body-small text-body-small font-semibold text-tertiary"><span class="material-symbols-outlined text-[18px]">task_alt</span>Đã xem</span>
-                        @else
-                            <form method="POST" action="{{ route('syllabus.documents.viewed', $selected->id) }}">
-                                @csrf
-                                @if ($class)<input type="hidden" name="class" value="{{ $class->id }}">@endif
-                                <x-ui.button type="submit" size="sm" icon="done_all">Đánh dấu đã xem</x-ui.button>
-                            </form>
-                        @endif
-                    </div>
-                @else
-                    <x-ui.empty-state icon="menu_book" title="Chưa chọn tài liệu" description="Chọn một tài liệu ở danh sách bên trái để xem." class="flex-1" />
-                @endif
-            </section>
+                    <x-ui.badge color="primary" :dot="false" pill>{{ $documents->count() }} tài liệu</x-ui.badge>
+                </x-slot:header>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tài liệu</th>
+                            <th>Giáo trình · Chặng</th>
+                            <th>Định dạng</th>
+                            <th>Quyền</th>
+                            <th>Đã xem</th>
+                            <th class="text-right"><span class="sr-only">Thao tác</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($documents as $doc)
+                            @php($docUrl = route('syllabus.teacher-view', $listQuery + ['document' => $doc->id]))
+                            <tr data-href="{{ $docUrl }}" @class(['cursor-pointer', 'bg-primary-fixed/30' => $selected?->id === $doc->id])>
+                                <td>
+                                    <a href="{{ $docUrl }}" class="flex items-center gap-sm font-semibold text-on-surface hover:text-primary">
+                                        <span class="material-symbols-outlined text-[20px] text-primary" aria-hidden="true">{{ $doc->icon }}</span>
+                                        <span class="truncate">{{ $doc->title }}</span>
+                                    </a>
+                                </td>
+                                <td class="text-on-surface-variant">{{ collect([$doc->curriculum?->title, $doc->stage_label])->filter()->implode(' · ') ?: '—' }}</td>
+                                <td class="whitespace-nowrap font-code text-body-small uppercase">{{ $doc->extension }} · {{ $doc->size_human }}</td>
+                                <td class="whitespace-nowrap">
+                                    @if ($doc->canDownload($user))
+                                        <x-ui.badge color="success">Có thể tải</x-ui.badge>
+                                    @else
+                                        <x-ui.badge color="error">Chỉ xem</x-ui.badge>
+                                    @endif
+                                </td>
+                                <td class="whitespace-nowrap">
+                                    @if ($viewedIds->contains($doc->id))
+                                        <span class="inline-flex items-center gap-xs text-tertiary"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">check_circle</span>Đã xem</span>
+                                    @else
+                                        <span class="text-on-surface-variant">Chưa xem</span>
+                                    @endif
+                                </td>
+                                <td class="text-right"><x-ui.button variant="secondary" size="sm" icon="visibility" :href="$docUrl">Xem</x-ui.button></td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="6"><x-ui.empty-state icon="folder_off" :title="$search !== '' ? 'Không tìm thấy tài liệu phù hợp' : 'Chưa có tài liệu nào'" description="Học thuật chưa chia sẻ tài liệu nào cho vai trò của bạn." /></td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </x-ui.data-table>
         </div>
+
 
         {{-- Tab 2: Tổng quan syllabus — lộ trình các chặng của giáo trình --}}
         <section x-show="tab === 'overview'" x-cloak class="space-y-md">
@@ -230,26 +172,18 @@
                 @endif
 
                 <div class="space-y-3">
-                    @forelse ($assignment->stage?->units()->with('lessons')->get() ?? [] as $u)
+                    @forelse ($stageUnits as $u)
                         <div class="border border-outline-variant rounded-xl overflow-hidden">
                             <p class="px-4 py-2.5 font-body-medium text-body-medium font-semibold text-on-surface bg-surface-container-low">Unit {{ $u->unit_number }}: {{ $u->title }}</p>
                             <div class="divide-y divide-surface-container-highest">
                                 @forelse ($u->lessons as $lesson)
-                                    <details class="px-4 py-2.5 text-xs group {{ $current?->id === $lesson->id ? 'bg-primary-container/10' : '' }}" @if ($current?->id === $lesson->id) open @endif>
-                                        <summary class="flex items-center justify-between gap-2 font-semibold text-on-surface cursor-pointer list-none">
-                                            <span>Buổi {{ $lesson->session_no }}: {{ $lesson->title }}
-                                                @if ($current?->id === $lesson->id)<x-ui.badge color="primary">Buổi tiếp theo</x-ui.badge>@endif
-                                            </span>
-                                            <span class="material-symbols-outlined text-[18px] text-on-surface-subtle group-open:rotate-180 transition">expand_more</span>
-                                        </summary>
-                                        <div class="space-y-1.5 mt-3 text-on-surface-variant">
-                                            <p class="whitespace-pre-line"><strong>Mục tiêu:</strong> {{ $lesson->objectives ?: '—' }}</p>
-                                            <p class="whitespace-pre-line"><strong>Từ vựng:</strong> {{ $lesson->vocabulary_focus ?: '—' }}</p>
-                                            <p class="whitespace-pre-line"><strong>Ngữ pháp:</strong> {{ $lesson->grammar_focus ?: '—' }}</p>
-                                            <p class="whitespace-pre-line"><strong>Hoạt động:</strong> {{ $lesson->content ?: '—' }}</p>
-                                            <p class="whitespace-pre-line"><strong>Bài tập về nhà:</strong> {{ $lesson->homework_guide ?: '—' }}</p>
-                                        </div>
-                                    </details>
+                                    <button type="button" @click="$dispatch('open-modal', 'lesson-{{ $lesson->id }}')"
+                                            @class(['flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-xs font-semibold text-on-surface hover:bg-surface-container-low', 'bg-primary-container/10' => $current?->id === $lesson->id])>
+                                        <span>Buổi {{ $lesson->session_no }}: {{ $lesson->title }}
+                                            @if ($current?->id === $lesson->id)<x-ui.badge color="primary">Buổi tiếp theo</x-ui.badge>@endif
+                                        </span>
+                                        <span class="material-symbols-outlined text-[18px] text-on-surface-subtle" aria-hidden="true">open_in_new</span>
+                                    </button>
                                 @empty
                                     <p class="px-4 py-2.5 text-xs text-on-surface-subtle">Unit chưa có buổi học.</p>
                                 @endforelse
@@ -262,4 +196,86 @@
             @endif
         </section>
     </div>
+
+    {{-- Xem tài liệu: mở sẵn khi URL có ?document=; đóng → bỏ document khỏi thanh địa chỉ. --}}
+    @if ($selected)
+        @php($canDownloadSelected = $selected->canDownload($user))
+        @php($fileUrl = route('syllabus.documents.file', $selected->id))
+        <x-ui.modal name="document-viewer" :title="$selected->title" max-width="4xl" show
+                    :dismiss-url="route('syllabus.teacher-view', $listQuery)">
+            <div class="space-y-md">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <p class="font-caption text-caption text-on-surface-variant">{{ $selected->stage_label ?: 'Chưa gắn chặng' }} • {{ $selected->curriculum?->title }} • {{ $selected->size_human }}</p>
+                    <div class="flex items-center gap-2">
+                        @unless ($canDownloadSelected)
+                            <x-ui.badge color="warning" :dot="false" :pill="true"><span class="material-symbols-outlined text-[14px]">shield</span>Bảo mật nội dung</x-ui.badge>
+                        @endunless
+                        <x-ui.button variant="ghost" size="sm" icon="fullscreen" title="Toàn màn hình" @click="$refs.viewer.requestFullscreen && $refs.viewer.requestFullscreen()" />
+                        @if ($canDownloadSelected)
+                            <x-ui.button variant="secondary" size="sm" icon="download" :href="route('syllabus.documents.file', ['id' => $selected->id, 'download' => 1])">Tải về</x-ui.button>
+                        @endif
+                    </div>
+                </div>
+                <div x-ref="viewer" class="relative flex min-h-[420px] items-center justify-center overflow-hidden rounded-lg bg-surface-container p-4">
+                    @switch($selected->kind)
+                        @case('pdf')
+                            <iframe src="{{ $fileUrl }}#toolbar=0" class="h-[65vh] w-full rounded-lg border border-surface-container-highest bg-surface-container-lowest" title="{{ $selected->title }}"></iframe>
+                            @break
+                        @case('image')
+                            <img src="{{ $fileUrl }}" alt="{{ $selected->title }}" class="max-h-[65vh] rounded-lg border border-surface-container-highest bg-surface-container-lowest">
+                            @break
+                        @case('audio')
+                            <audio controls controlsList="nodownload" src="{{ $fileUrl }}" class="w-full max-w-xl"></audio>
+                            @break
+                        @case('video')
+                            <video controls controlsList="nodownload" src="{{ $fileUrl }}" class="max-h-[65vh] w-full rounded-lg bg-black"></video>
+                            @break
+                        @default
+                            <x-ui.empty-state icon="{{ $selected->icon }}" title="Định dạng {{ strtoupper($selected->extension) }} không xem trực tuyến được"
+                                              description="{{ $canDownloadSelected ? 'Bấm Tải về để mở bằng phần mềm tương ứng.' : 'Tài liệu này không cho phép tải về; liên hệ Học thuật nếu cần bản xem được.' }}" />
+                    @endswitch
+                    @unless ($canDownloadSelected)
+                        {{-- Watermark bảo mật: tên đăng nhập người xem, không chặn thao tác cuộn/xem. --}}
+                        <div class="pointer-events-none absolute inset-0 flex select-none flex-col items-center justify-around opacity-[0.08]" aria-hidden="true">
+                            <p class="font-h1 text-h1 -rotate-12 tracking-widest">MENGLISH INTERNAL ONLY</p>
+                            <p class="font-h2 text-h2 -rotate-12 uppercase">{{ $user->email }}</p>
+                            <p class="font-h1 text-h1 -rotate-12 tracking-widest">MENGLISH INTERNAL ONLY</p>
+                        </div>
+                    @endunless
+                </div>
+                <p class="flex items-center gap-1.5 font-body-small text-body-small text-on-surface-variant">
+                    <span class="material-symbols-outlined text-[16px] {{ $canDownloadSelected ? 'text-tertiary' : 'text-warning' }}">info</span>
+                    {{ $canDownloadSelected ? 'Tài liệu được phép tải về.' : 'Tài liệu này không hỗ trợ tải về để bảo mật nội dung theo chính sách của MENGLISH.' }}
+                </p>
+            </div>
+            <x-slot:footer>
+                @if ($viewedIds->contains($selected->id))
+                    <span class="inline-flex items-center gap-1 font-body-small text-body-small font-semibold text-tertiary"><span class="material-symbols-outlined text-[18px]">task_alt</span>Đã xem</span>
+                @else
+                    <form method="POST" action="{{ route('syllabus.documents.viewed', $selected->id) }}">
+                        @csrf
+                        @if ($class)<input type="hidden" name="class" value="{{ $class->id }}">@endif
+                        <x-ui.button type="submit" icon="done_all">Đánh dấu đã xem</x-ui.button>
+                    </form>
+                @endif
+            </x-slot:footer>
+        </x-ui.modal>
+    @endif
+
+    {{-- Nội dung từng buổi học: bấm dòng buổi → modal (không bung chi tiết ngay trong danh sách). --}}
+    @foreach ($stageUnits as $u)
+        @foreach ($u->lessons as $lesson)
+            <x-ui.modal :name="'lesson-'.$lesson->id" :title="'Buổi '.$lesson->session_no.': '.$lesson->title" max-width="2xl">
+                <p class="mb-md font-caption text-caption text-on-surface-variant">Unit {{ $u->unit_number }}: {{ $u->title }}</p>
+                <dl class="space-y-md font-body-small text-body-small">
+                    @foreach (['objectives' => 'Mục tiêu', 'vocabulary_focus' => 'Từ vựng', 'grammar_focus' => 'Ngữ pháp', 'content' => 'Hoạt động', 'homework_guide' => 'Bài tập về nhà'] as $field => $label)
+                        <div>
+                            <dt class="font-label text-label uppercase text-on-surface-variant">{{ $label }}:</dt>
+                            <dd class="mt-xs whitespace-pre-line text-on-surface">{{ $lesson->$field ?: '—' }}</dd>
+                        </div>
+                    @endforeach
+                </dl>
+            </x-ui.modal>
+        @endforeach
+    @endforeach
 </x-app-layout>

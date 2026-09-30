@@ -225,8 +225,8 @@ class Flow4StudentPortalTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('Khảo sát & Đánh giá');
         $response->assertSee('Khảo sát đang mở');
-        $response->assertSee('Đánh giá chất lượng cơ sở vật chất tháng 10');
-        $response->assertSee('Nội dung phản hồi');
+        $response->assertSee('Hiện chưa có khảo sát nào đang mở.');
+        $response->assertSee('Phản hồi khảo sát');
         $response->assertSee('Gửi phản hồi');
     }
 

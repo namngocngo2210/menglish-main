@@ -85,7 +85,7 @@ class Phase2BigTestTest extends TestCase
         $this->assertSame(now()->addDays(7)->toDateString(), $order->due_date->toDateString());
         $this->assertStringStartsWith('ORDTEST-', $order->code);
 
-        $this->actingAs($this->academic)->get(route('syllabus.big-tests.distribution'))
+        $this->actingAs($this->academic)->get(route('syllabus.big-tests.distribution', ['order' => $order->id]))
             ->assertOk()
             ->assertSee('Chặng 1: Present Simple')
             ->assertSee('Tập trung Speaking')

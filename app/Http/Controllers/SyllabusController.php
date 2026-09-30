@@ -671,12 +671,11 @@ class SyllabusController extends Controller
             ->paginate($request->perPage(15))
             ->withQueryString();
 
+        // Chi tiết mở trong modal khi URL chọn 1 đề xuất (?proposal=); không chọn → chỉ danh sách.
         $selected = null;
         if ($request->filled('proposal')) {
             $selected = SyllabusChangeProposal::with(['curriculum', 'unit', 'lesson', 'proposer.roles', 'reviewer'])->findOrFail($request->integer('proposal'));
             abort_unless($selected->isVisibleTo($user), 404);
-        } else {
-            $selected = $proposals->first()?->load(['reviewer', 'proposer.roles']);
         }
 
         $pendingCount = SyllabusChangeProposal::visibleTo($user)->where('status', 'pending')->count();
@@ -812,9 +811,8 @@ class SyllabusController extends Controller
         $search = trim((string) $request->query('q', ''));
         $visible = SyllabusDocument::with(['curriculum.course', 'stage'])->visibleTo($user)->latest()->get();
         $documents = $search === '' ? $visible : $visible->filter(fn ($d) => str_contains(mb_strtolower($d->title.' '.$d->original_name), mb_strtolower($search)))->values();
-        $selected = $request->filled('document')
-            ? $visible->firstWhere('id', $request->integer('document'))
-            : $documents->first();
+        // Chỉ mở tài liệu (modal) khi URL chọn; không tự mở tài liệu đầu danh sách.
+        $selected = $request->filled('document') ? $visible->firstWhere('id', $request->integer('document')) : null;
         abort_if($request->filled('document') && ! $selected, 404);
         $viewedIds = SyllabusDocumentView::where('user_id', $user->id)->pluck('document_id');
 
@@ -834,7 +832,7 @@ class SyllabusController extends Controller
             : collect();
 
         // Tab "Tổng quan syllabus": các chặng của giáo trình lớp đang học, hoặc của tài liệu đang xem.
-        $overviewCurriculum = $assignment?->curriculum ?? $selected?->curriculum;
+        $overviewCurriculum = $assignment?->curriculum ?? ($selected ?? $documents->first())?->curriculum;
         $overviewStages = $stages->isNotEmpty() ? $stages : ($overviewCurriculum ? $overviewCurriculum->stages()->with('units.lessons')->get() : collect());
 
         return view('syllabus.teacher-view', compact(
@@ -878,9 +876,10 @@ class SyllabusController extends Controller
             ->latest()
             ->paginate($request->perPage(15))
             ->withQueryString();
+        // Chi tiết mở trong modal khi URL chọn 1 yêu cầu (?request=); không chọn → chỉ danh sách.
         $selected = $request->filled('request')
             ? SyllabusAdjustmentRequest::with(['classModel', 'teacher', 'approver', 'assignment'])->findOrFail($request->integer('request'))
-            : $requests->first();
+            : null;
         abort_if($selected && ! $canReview && (int) $selected->user_id !== (int) $user->id, 404);
 
         return view('syllabus.adjustment-requests', compact('requests', 'selected', 'status', 'pendingCount'));
@@ -1115,9 +1114,10 @@ class SyllabusController extends Controller
             ->latest()
             ->paginate($request->perPage(10), ['*'], 'orders_page')
             ->withQueryString();
+        // Chỉ mở chi tiết (modal) khi URL chọn order; không tự chọn order đầu danh sách.
         $selectedOrder = $request->filled('order')
             ? BigTestOrder::with(['classModel.course', 'classModel.branch', 'teacher', 'reviewer', 'stage'])->visibleTo($user)->findOrFail($request->integer('order'))
-            : $orders->first()?->load(['classModel.course', 'classModel.branch']);
+            : null;
         $pendingOrders = BigTestOrder::visibleTo($user)->where('status', 'pending')->count();
 
         // "Gắn chặng" cho đợt thi: chặng của các giáo trình lớp đã/đang học (hoặc giáo trình theo trình độ).

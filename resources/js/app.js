@@ -9,6 +9,7 @@ import attachmentUploader from './modules/attachment-uploader';
 import createReceiptManager from './modules/receipt-form';
 import { confirmDialog, registerFormConfirm } from './modules/confirm-dialog';
 import { registerFormSubmitGuard } from './modules/form-submit-guard';
+import { registerRowLinks } from './modules/row-link';
 import { formatMoney } from './modules/money';
 import { registerSearchableSelects } from './modules/searchable-select';
 
@@ -26,6 +27,8 @@ window.confirmDialog = confirmDialog;
 window.formatMoney = formatMoney;
 registerFormConfirm();
 registerFormSubmitGuard();
+// Dòng bảng <tr data-href> bấm được (danh sách → modal / trang chi tiết).
+registerRowLinks();
 // Dropdown lọc có ô tìm kiếm (Tom Select, kiểu select2).
 registerSearchableSelects();
 

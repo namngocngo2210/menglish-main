@@ -1,12 +1,9 @@
 {{--
-    Quản lý Danh mục hệ thống (mockup epic-5/quan-ly-danh-muc-he-thong): tab theo nhóm, bảng + panel thêm nhanh bên phải.
-    "Thêm danh mục mới" / Sửa dòng mở modal (htmx), Ngừng sử dụng qua modal xác nhận. Panel sửa chỉ hiện khi mở thẳng URL edit (?edit=).
+    Quản lý Danh mục hệ thống (mockup epic-5/quan-ly-danh-muc-he-thong): tab theo nhóm, bảng danh mục.
+    "Thêm danh mục mới" / Sửa dòng mở modal (htmx), Ngừng sử dụng qua modal xác nhận. Mở thẳng URL edit (?edit=) → modal sửa mở sẵn.
     Lưu/ngừng xong server phát "system-categories-changed" → #category-list tự tải lại (giữ tab, tìm kiếm, trang).
 --}}
-@php
-    $canManage = auth()->user()->can('system_category.manage');
-    $formCategory = $editing ?? new \App\Models\SystemCategory(['type' => $type, 'code' => $suggestedCode]);
-@endphp
+@php($canManage = auth()->user()->can('system_category.manage'))
 <x-app-layout title="Quản lý Danh mục hệ thống">
     <x-ui.page-header title="Quản lý Danh mục hệ thống" description="Cấu hình các tham số nền tảng của hệ thống MENGLISH.">
         <x-slot:actions>
@@ -24,9 +21,9 @@
     </x-ui.tabs>
 
     <div x-data="{ del: { url: '', name: '' } }">
-    <div id="category-list" class="grid grid-cols-1 items-start gap-lg lg:grid-cols-3"
+    <div id="category-list"
          hx-get="{{ route('system-categories.index', request()->query()) }}" hx-trigger="system-categories-changed from:body" hx-select="#category-list" hx-swap="outerHTML" hx-disinherit="*">
-        <x-ui.data-table class="lg:col-span-2">
+        <x-ui.data-table>
             <x-slot:header>
                 <form method="GET" action="{{ route('system-categories.index') }}" class="flex w-full items-center gap-sm">
                     <input type="hidden" name="type" value="{{ $type }}">
@@ -75,7 +72,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="5"><x-ui.empty-state icon="category" title="Chưa có danh mục nào" description="Thêm giá trị đầu tiên ở panel bên phải." /></td></tr>
+                        <tr><td colspan="5"><x-ui.empty-state icon="category" title="Chưa có danh mục nào" description="Bấm &quot;Thêm danh mục mới&quot; để thêm giá trị đầu tiên." /></td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -83,23 +80,6 @@
                 <x-ui.pagination :paginator="$categories" unit="kết quả" />
             </x-slot:footer>
         </x-ui.data-table>
-
-        @if ($canManage)
-            <section class="space-y-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md lg:sticky lg:top-md">
-                <div class="flex items-center justify-between">
-                    <h2 class="font-h3 text-h3 text-on-surface">{{ $editing ? 'Sửa giá trị' : 'Thêm giá trị mới' }}</h2>
-                    @if ($editing)
-                        <x-ui.button variant="ghost" icon="close" size="sm" :href="route('system-categories.index', ['type' => $type])" aria-label="Đóng" />
-                    @endif
-                </div>
-                <p class="font-body-small text-body-small text-on-surface-variant">Nhóm: <span class="font-semibold text-on-surface">{{ $typeLabels[$type] }}</span></p>
-                @include('system-categories._form', ['category' => $formCategory, 'typeSelect' => false, 'nextOrder' => $editing ? null : $nextOrder])
-                <p class="flex items-start gap-xs rounded-lg bg-secondary-fixed/40 p-sm font-caption text-caption text-on-secondary-fixed">
-                    <span class="material-symbols-outlined text-[16px]" aria-hidden="true">info</span>
-                    Thứ tự hiển thị giúp sắp xếp danh mục trong các menu chọn tại màn hình quản lý Lead và Tài chính.
-                </p>
-            </section>
-        @endif
     </div>
 
     {{-- Xác nhận ngừng sử dụng (dùng chung cho mọi dòng; url/tên lấy từ nút) --}}
@@ -113,6 +93,18 @@
             <x-slot:footer>
                 <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'deactivate-category')">Hủy</x-ui.button>
                 <x-ui.button variant="danger" type="submit" form="deactivate-category-form" icon="block">Ngừng sử dụng</x-ui.button>
+            </x-slot:footer>
+        </x-ui.modal>
+    @endif
+
+    {{-- Sửa khi mở thẳng URL (?edit=, vd. từ link hoặc lưu lỗi không qua htmx): modal mở sẵn; đóng → bỏ edit khỏi thanh địa chỉ. --}}
+    @if ($canManage && $editing)
+        <x-ui.modal name="edit-category" title="Sửa giá trị danh mục" max-width="md" show
+                    :dismiss-url="route('system-categories.index', request()->except('edit'))">
+            @include('system-categories._form', ['category' => $editing, 'typeSelect' => false, 'actions' => false])
+            <x-slot:footer>
+                <x-ui.button variant="secondary" x-on:click="$dispatch('close-modal', 'edit-category')">Hủy</x-ui.button>
+                <x-ui.button type="submit" form="category-form" icon="save">Lưu thông tin</x-ui.button>
             </x-slot:footer>
         </x-ui.modal>
     @endif

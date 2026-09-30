@@ -406,7 +406,7 @@ class Phase4PlatformParityTest extends TestCase
     // Danh mục hệ thống
     // ─────────────────────────────────────────────────────────────
 
-    public function test_system_categories_tabs_side_panel_suggested_code_and_reactivate(): void
+    public function test_system_categories_tabs_create_modal_suggested_code_and_reactivate(): void
     {
         \App\Models\SystemCategory::create(['type' => 'lead_source', 'code' => 'SRC_01', 'name' => 'Facebook Ads', 'sort_order' => 1, 'is_active' => true]);
         $stopped = \App\Models\SystemCategory::create(['type' => 'lead_source', 'code' => 'SRC_03', 'name' => 'Giới thiệu', 'sort_order' => 3, 'is_active' => false]);
@@ -414,20 +414,23 @@ class Phase4PlatformParityTest extends TestCase
         $this->actingAs($this->admin)->get(route('system-categories.index', ['type' => 'bogus']))->assertOk()
             ->assertSee('Cấu hình các tham số nền tảng của hệ thống MENGLISH.')
             ->assertSeeInOrder(['Nguồn khách hàng', 'Lý do không chốt', 'Chức vụ', 'Mức phạt'])
-            ->assertSee('Thêm giá trị mới')->assertSee('Làm mới')
-            ->assertSee('value="SRC_04"', false)        // mã gợi ý kế tiếp
+            ->assertSee('Thêm danh mục mới')->assertSee('Làm mới')
             ->assertSee('Kích hoạt lại')
             ->assertDontSee('lead_source</option>', false);
+        // Thêm mới trong modal (không còn panel cạnh bảng): mã gợi ý kế tiếp + thứ tự cuối danh sách.
+        $this->actingAs($this->admin)->get(route('system-categories.create', ['type' => 'lead_source']), ['HX-Request' => 'true'])->assertOk()
+            ->assertSee('value="SRC_04"', false)
+            ->assertSee('value="4"', false);
 
         $this->actingAs($this->admin)->post(route('system-categories.store'), ['type' => 'lead_source', 'code' => 'SRC_04', 'name' => 'Google Search', 'is_active' => 1])
             ->assertRedirect(route('system-categories.index', ['type' => 'lead_source']));
         $this->assertSame(4, \App\Models\SystemCategory::where('code', 'SRC_04')->value('sort_order')); // thứ tự tự nối cuối
 
-        // Sửa mở panel trên trang danh sách.
+        // Mở thẳng URL sửa: modal sửa mở sẵn trên trang danh sách.
         $this->actingAs($this->admin)->get(route('system-categories.edit', $stopped))
             ->assertRedirect(route('system-categories.index', ['type' => 'lead_source', 'edit' => $stopped->id]));
         $this->actingAs($this->admin)->get(route('system-categories.index', ['type' => 'lead_source', 'edit' => $stopped->id]))
-            ->assertOk()->assertSee('Sửa giá trị')->assertSee('value="Giới thiệu"', false);
+            ->assertOk()->assertSee('Sửa giá trị danh mục')->assertSee('value="Giới thiệu"', false);
 
         $this->actingAs($this->admin)->post(route('system-categories.reactivate', $stopped))->assertRedirect();
         $this->assertTrue($stopped->fresh()->is_active);
