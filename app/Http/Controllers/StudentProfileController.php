@@ -13,7 +13,6 @@ use App\Models\StudentAttendance;
 use App\Models\User;
 use App\Services\Crm\WaitingLeadPlacement;
 use App\Services\Students\ClassStartActivation;
-use App\Services\DocumentCodeGenerator;
 use App\Services\FirstMonthCareService;
 use App\Services\SessionLessonService;
 use App\Services\StudentDeferralService;
@@ -72,75 +71,6 @@ class StudentProfileController extends Controller
         }
 
         return view('students.index', compact('students', 'branches', 'classes', 'statuses', 'totalStudents', 'linkableClasses'));
-    }
-
-    public function storeStudent(Request $request, DocumentCodeGenerator $codes)
-    {
-        $user = $request->user();
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'phone' => 'required|string|max:20',
-            'email' => 'nullable|email|max:255',
-            'branch_id' => 'nullable|exists:branches,id',
-            'current_class_id' => 'nullable|exists:classes,id',
-            'target' => 'nullable|string|max:100',
-        ]);
-
-        $branchId = $validated['branch_id'] ?? null;
-        // Phạm vi Học viên khác "Toàn hệ thống": chỉ tạo học viên cho chi nhánh của mình.
-        if (! DataScope::isAll($user, 'student')) {
-            $allowed = $user->branchIds();
-            $branchId ??= $user->branch_id;
-            if ($branchId && ! in_array((int) $branchId, $allowed, true)) {
-                throw ValidationException::withMessages(['branch_id' => 'Bạn chỉ được tạo học viên cho chi nhánh mình phụ trách.']);
-            }
-        }
-
-        $class = null;
-        if (! empty($validated['current_class_id'])) {
-            $class = $this->visibleClasses($user)->find($validated['current_class_id']);
-            if (! $class) {
-                throw ValidationException::withMessages(['current_class_id' => 'Lớp không thuộc phạm vi bạn quản lý.']);
-            }
-            if ($branchId && $class->branch_id && (int) $class->branch_id !== (int) $branchId) {
-                throw ValidationException::withMessages(['current_class_id' => 'Học viên và lớp phải thuộc cùng chi nhánh.']);
-            }
-            $branchId ??= $class->branch_id;
-        }
-
-        $student = DB::transaction(function () use ($validated, $codes, $branchId, $class) {
-            if ($class) {
-                $this->assertClassHasSeat($class, 'current_class_id');
-            }
-
-            $student = Student::create([
-                'code' => $codes->studentCode(),
-                'name' => $validated['name'],
-                'phone' => $validated['phone'],
-                'email' => $validated['email'] ?? null,
-                'branch_id' => $branchId,
-                'current_class_id' => $class?->id,
-                'target' => $validated['target'] ?? null,
-                // BA chốt Q5: hồ sơ mới luôn bắt đầu ở "Chờ khai giảng".
-                'status' => Student::INITIAL_STATUS,
-            ]);
-
-            if ($class) {
-                ClassEnrollment::create([
-                    'student_id' => $student->id,
-                    'class_id' => $class->id,
-                    'enrolled_at' => now(),
-                    'curriculum_delivered' => false,
-                    'zalo_group_added' => false,
-                    'status' => 'pending',
-                ]);
-            }
-
-            return $student;
-        });
-
-        return redirect()->route('students.index')
-            ->with('status', "Đã tạo mới hồ sơ học viên {$student->name} ({$student->code}) thành công!");
     }
 
     public function enrollments(Request $request)
