@@ -18,6 +18,7 @@ use Symfony\Component\HttpFoundation\Response;
  *   shell  — khung ứng dụng (sidebar, topbar, thông báo, tab workspace, menu Cài đặt), xem App\Support\Navigation\AppShell
  *   can    — quyền của user dạng { 'lead.create': true, ... } (chỉ gồm quyền được cấp) — Vue dùng can('lead.create')
  *   flash  — thông báo sau khi chuyển trang: [{ type: success|error|warning|info, message }] — layout hiện thành toast
+ *   csrf   — token cho form HTML thường (<UiNativeForm>: tải file, xuất Excel bằng POST)
  *   errors — lỗi validate (Inertia tự thêm)
  * Quyền trên đối tượng cụ thể (policy, vd. sửa đúng khách này) do controller tính và truyền vào props của trang.
  */
@@ -57,6 +58,7 @@ class HandleInertiaRequests extends Middleware
             'shell' => fn () => app(AppShell::class)->for($request->user(), $request),
             'can' => fn () => $this->abilities($request),
             'flash' => fn () => $this->flash($request),
+            'csrf' => fn () => $request->hasSession() ? $request->session()->token() : null,
         ];
     }
 
