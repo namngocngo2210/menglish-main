@@ -29,6 +29,7 @@ use App\Services\Crm\LeadOwners;
 use App\Services\Crm\TrialSlotFinder;
 use App\Services\Crm\WaitingLeadPlacement;
 use App\Services\CrmStageService;
+use App\Services\FirstMonthCareService;
 use App\Services\NotificationService;
 use App\Services\PlacementPortalLinkService;
 use App\Services\PlacementRubricService;
@@ -661,6 +662,10 @@ class CrmController extends Controller
         // Hẹn lại: giữ lịch / đề / người chấm đang có; lịch mới mặc định sáng mai 09:00.
         $prefillAt = $customer->appointment_at?->isFuture() ? $customer->appointment_at : today()->addDay()->setTime(9, 0);
         $careState = $customer->care_checklist ?? [];
+        // Hạn từng mốc + "Quá hạn chăm sóc" (FirstMonthCareService::checklist) khi khách đã có hồ sơ học viên.
+        $careMilestones = $customer->convertedStudent
+            ? collect(app(FirstMonthCareService::class)->checklist($customer->convertedStudent)['items'])->keyBy('key')
+            : collect();
         $pendingTrial = $trialState['pending'];
         $pendingTransfer = $data['pendingTransfer'];
         $editForm = $data['editForm'];
@@ -839,6 +844,8 @@ class CrmController extends Controller
                 'done' => ! empty($careState[$key]),
                 'done_at' => ! empty($careState[$key]['done_at']) ? \Illuminate\Support\Carbon::parse($careState[$key]['done_at'])->format('d/m/Y') : null,
                 'by' => $careState[$key]['by'] ?? null,
+                'due' => ($careMilestones->get($key)['due'] ?? null)?->format('d/m/Y'),
+                'overdue' => (bool) ($careMilestones->get($key)['overdue'] ?? false),
             ])->values()->all(),
             // Lịch sử hoạt động
             'histories' => $histories->map(fn (CrmCustomerHistory $history) => [

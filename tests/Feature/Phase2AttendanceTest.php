@@ -428,6 +428,9 @@ class Phase2AttendanceTest extends TestCase
         $task = WorkTask::where('care_milestone', FirstMonthCareService::MILESTONE_SESSION_1)->sole();
         $this->assertSame('2026-10-02', $task->due_date->toDateString());
 
+        $admin = User::factory()->create(['is_active' => true]);
+        $admin->assignRole('admin');
+
         // Hôm nay 07/10: Buổi 1 quá hạn 02/10 chưa xong → 1 biên bản cho Học vụ; Buổi 4–5 chưa có hạn, Đủ 30 ngày chưa tới.
         $this->artisan('tasks:mark-overdue')->assertExitCode(0);
         $this->artisan('tasks:mark-overdue')->assertExitCode(0);
@@ -442,9 +445,15 @@ class Phase2AttendanceTest extends TestCase
         $this->assertSame('overdue', $task->fresh()->status);
         $this->assertNotNull($task->fresh()->sla_breached_at);
         $this->assertTrue(AdminNotification::where('user_id', $this->manager->id)->where('type', 'penalty_created')->exists());
+        // Quá mốc → báo Admin đúng 1 lần (chạy lại lệnh không báo trùng).
+        $this->assertSame(1, AdminNotification::where('user_id', $admin->id)->where('type', 'care_overdue')->count());
 
         $this->actingAs($this->manager)->get(route('students.show', $this->student->id))
-            ->assertOk()->assertSee('Đã giao task cho')->assertSee($this->academicStaff->name)->assertSee('Quá SLA')->assertSee($penalty->code);
+            ->assertOk()->assertSee('Đã giao task cho')->assertSee($this->academicStaff->name)->assertSee('Quá SLA')->assertSee($penalty->code)
+            ->assertSee('Quá hạn chăm sóc');
+        $care = app(FirstMonthCareService::class)->checklist($this->student);
+        $this->assertSame(1, $care['overdue']);
+        $this->assertTrue($care['items']->firstWhere('key', 'session_1')['overdue']);
     }
 
     public function test_first_month_care_sla_skips_milestone_ticked_in_crm(): void

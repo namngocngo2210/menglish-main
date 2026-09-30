@@ -562,6 +562,7 @@ class StudentProfileController extends Controller
     {
         return [
             'completed' => $care['completed'],
+            'overdue' => $care['overdue'],
             'closing' => $care['closing']?->format('d/m/Y'),
             'start' => $care['start']?->format('d/m/Y'),
             'customer_id' => $care['customer']?->id,
@@ -569,6 +570,7 @@ class StudentProfileController extends Controller
                 'key' => $item['key'],
                 'label' => $item['label'],
                 'done' => (bool) $item['done'],
+                'overdue' => (bool) $item['overdue'],
                 'due' => $item['due']?->format('d/m/Y'),
                 'waiting' => $item['milestone'] === FirstMonthCareService::MILESTONE_DAY_30
                     ? 'Chưa có ngày chốt'

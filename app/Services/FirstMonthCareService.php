@@ -332,6 +332,17 @@ class FirstMonthCareService
                     'is_read' => false,
                 ]);
             }
+            // Quá mốc chăm sóc → báo Admin (mỗi Admin 1 thông báo cá nhân / việc; Admin là người giao / người làm đã nhận ở trên).
+            foreach (BranchStaff::admins()->reject(fn (User $admin) => in_array($admin->id, [$task->assignee_id, $task->creator_id], true)) as $admin) {
+                AdminNotification::create([
+                    'user_id' => $admin->id,
+                    'type' => 'care_overdue',
+                    'title' => 'Quá hạn chăm sóc: '.($task->student?->name ?? 'học viên').' ('.self::milestoneShortLabel((int) $task->care_milestone).')',
+                    'message' => $task->title.' — '.($task->assignee?->name ?? 'người được giao').' chưa hoàn thành, hạn '.$task->due_date->format('d/m/Y').". Biên bản {$penalty->code}.",
+                    'data' => ['link' => $task->student_id ? route('students.show', $task->student_id) : $link, 'task_id' => $task->id, 'student_id' => $task->student_id],
+                    'is_read' => false,
+                ]);
+            }
             $count++;
         }
 
@@ -390,8 +401,9 @@ class FirstMonthCareService
                 'trigger' => $trigger,
                 'due' => $task?->due_date ?? ($trigger ? $this->dueDate($milestone, $trigger) : null),
                 'task' => $task,
-                'done' => ($task && $task->status === 'completed') || ! empty($crmState[$item]),
+                'done' => $done = ($task && $task->status === 'completed') || ! empty($crmState[$item]),
                 'crm_done' => $crmState[$item] ?? null,
+                'overdue' => ! $done && $this->isPastDue($milestone, $task, $trigger),
             ];
         })->values();
 
@@ -401,7 +413,19 @@ class FirstMonthCareService
             'customer' => $customer,
             'items' => $items,
             'completed' => $items->where('done', true)->count(),
+            'overdue' => $items->where('overdue', true)->count(),
         ];
+    }
+
+    /** "Quá hạn chăm sóc": mốc đã tới hạn (việc quá hạn theo ngày + giờ hạn, chưa có việc thì hết ngày hạn) mà chưa xong. */
+    private function isPastDue(int $milestone, ?WorkTask $task, ?Carbon $trigger, ?Carbon $now = null): bool
+    {
+        $now ??= now();
+        if ($task?->due_date) {
+            return $task->lateHours($now) > 0;
+        }
+
+        return $trigger !== null && $this->dueDate($milestone, $trigger)->copy()->endOfDay()->lt($now);
     }
 
     /**
