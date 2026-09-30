@@ -1,0 +1,1 @@
+@media print{body.printing-receipt *{visibility:hidden}body.printing-receipt #printableReceipt,body.printing-receipt #printableReceipt *{visibility:visible}body.printing-receipt #printableReceipt{position:absolute;top:0;right:0;bottom:0;left:0}}
