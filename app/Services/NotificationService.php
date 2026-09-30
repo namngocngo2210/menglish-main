@@ -738,7 +738,7 @@ class NotificationService
      * Xác định mốc nhắc nợ hiện tại của một hợp đồng học phí theo ngày đến hạn (dùng khi bấm "Gửi nhắc" tay):
      * - Đã cấu hình mốc (DebtReminderRule): mốc đang bật gần nhất đã chạm tới (số ngày so với hạn ≤ hiện tại, vd. quá hạn
      *   12 ngày với mốc T-3/T0/T+3/T+7 → T+7); chưa chạm mốc nào → mốc sớm nhất.
-     * - Chưa cấu hình: chưa tới hạn -> T-3, đúng ngày -> T0, quá hạn -> T+3.
+     * - Chưa cấu hình: còn trên 3 ngày -> T-7, còn 1–3 ngày -> T-3, đúng ngày -> T0, quá hạn -> T+3.
      */
     public static function debtMilestoneFor(StudentTuition $tuition): ?string
     {
@@ -760,6 +760,7 @@ class NotificationService
         }
 
         return match (true) {
+            $diff < -3 => 'T-7',
             $diff < 0 => 'T-3',
             $diff === 0 => 'T0',
             default => 'T+3',
@@ -767,7 +768,7 @@ class NotificationService
     }
 
     /**
-     * Engine nhắc nợ theo cấu hình DebtReminderRule (mốc theo số ngày so với hạn đóng, mặc định T-3 / T0 / T+3):
+     * Engine nhắc nợ theo cấu hình DebtReminderRule (mốc theo số ngày so với hạn đóng, mặc định T-7 / T-3 / T0 / T+3):
      * - Rule phải tồn tại và đang bật thì mới gửi.
      * - Nội dung dùng template đã cấu hình với placeholder {ten_hoc_vien} {ma_hoc_vien}
      *   {so_dien_thoai} {lop_hoc} {so_tien} {han_dong}.
@@ -789,6 +790,7 @@ class NotificationService
         $rule ??= new DebtReminderRule([
             'milestone_key' => $milestone,
             'title' => match ($milestone) {
+                'T-7' => 'Thông báo trước hạn 1 tuần',
                 'T-3' => 'Nhắc trước hạn 3 ngày',
                 'T0' => 'Nhắc đúng ngày đến hạn',
                 default => 'Cảnh báo quá hạn',

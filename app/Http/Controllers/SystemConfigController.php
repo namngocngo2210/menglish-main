@@ -232,7 +232,8 @@ class SystemConfigController extends Controller
         // Thiết lập nhanh theo mockup: mốc nhắc trước hạn (lần 1) và mốc nhắc lại (1–3 ngày trước hạn).
         $beforeOffsets = $rules->filter(fn (DebtReminderRule $r) => $r->is_enabled && ($r->effectiveOffset() ?? 0) < 0)
             ->map(fn (DebtReminderRule $r) => abs($r->effectiveOffset()));
-        $firstDays = (int) SystemSetting::get('debt_reminder.first_days', $beforeOffsets->max() ?? 7);
+        // Mặc định theo SLA học phí: thông báo trước 1 tuần, nhắc lại 1–3 ngày trước hạn.
+        $firstDays = (int) SystemSetting::get('debt_reminder.first_days', ($beforeOffsets->max() ?? 0) > self::REPEAT_MAX_DAYS ? $beforeOffsets->max() : 7);
         $repeatDays = (int) SystemSetting::get('debt_reminder.repeat_days', $beforeOffsets->filter(fn ($d) => $d <= self::REPEAT_MAX_DAYS)->min() ?? 3);
 
         return Inertia::render('SystemConfig/DebtReminders', [

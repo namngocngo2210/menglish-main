@@ -127,6 +127,8 @@ class TuitionController extends Controller
                 'paid_amount' => (float) $t->paid_amount,
                 'debt_amount' => (float) $t->debt_amount,
                 'due_date' => $t->due_date?->format('d/m/Y'),
+                // SLA học phí: quá hạn 1–6 ngày vàng, ≥ ngưỡng (mặc định 7) đỏ + bắt buộc liên hệ trực tiếp; không khoá lịch học.
+                'days_overdue' => (float) $t->debt_amount > 0 ? max(0, (int) $t->daysOverdue()) : 0,
                 'status_color' => $t->status_color,
                 'status_label' => $t->status_label,
             ]),

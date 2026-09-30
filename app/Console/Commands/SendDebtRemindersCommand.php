@@ -18,10 +18,10 @@ class SendDebtRemindersCommand extends Command
 {
     protected $signature = 'tuition:send-debt-reminders {--dry-run}';
 
-    protected $description = 'Gửi nhắc học phí theo mốc cấu hình DebtReminderRule (mặc định T-3, T0, T+3)';
+    protected $description = 'Gửi nhắc học phí theo mốc cấu hình DebtReminderRule (mặc định T-7, T-3, T0, T+3)';
 
-    /** Mốc mặc định khi chưa cấu hình rule nào. */
-    private const DEFAULT_MILESTONES = ['T-3' => -3, 'T0' => 0, 'T+3' => 3];
+    /** Mốc mặc định khi chưa cấu hình rule nào: báo trước 1 tuần, nhắc lại 3 ngày trước hạn (SLA học phí), đúng hạn, quá hạn 3 ngày. */
+    private const DEFAULT_MILESTONES = ['T-7' => -7, 'T-3' => -3, 'T0' => 0, 'T+3' => 3];
 
     public function handle(NotificationService $service): int
     {
