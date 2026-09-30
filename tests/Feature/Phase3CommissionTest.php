@@ -22,6 +22,7 @@ use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Testing\AssertableInertia;
 use Tests\Concerns\FinalizesPayrollKpi;
 use Tests\TestCase;
 
@@ -317,7 +318,7 @@ class Phase3CommissionTest extends TestCase
             ->assertOk()
             ->assertSee('Thu hồi hoa hồng')
             ->assertSee('value="200000"', false)
-            ->assertViewHas('clawbackHints', fn ($hints) => $hints[$refund->id]['suggest'] === true);
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Tuition/Refunds')->where('clawbackHints.'.$refund->id.'.suggest', true));
 
         // Không gửi lựa chọn → áp dụng gợi ý (Phase 4: hoàn tiền bắt buộc ảnh bằng chứng)
         Storage::fake('local');
@@ -359,7 +360,7 @@ class Phase3CommissionTest extends TestCase
         $refund = $this->refundRequest($student, 1000000);
 
         $this->actingAs($this->admin)->get(route('tuition.refunds'))
-            ->assertViewHas('clawbackHints', fn ($hints) => $hints[$refund->id]['suggest'] === false);
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('clawbackHints.'.$refund->id.'.suggest', false));
 
         Storage::fake('local');
         $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $refund->id), ['clawback_commission' => '0', 'proof_image' => UploadedFile::fake()->image('unc.jpg')])

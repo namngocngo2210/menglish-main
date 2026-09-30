@@ -15,7 +15,9 @@ use App\Models\WorkTask;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Testing\TestResponse;
+use Inertia\Testing\AssertableInertia;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Concerns\InteractsWithInertia;
 use Tests\TestCase;
 
 /**
@@ -26,6 +28,7 @@ use Tests\TestCase;
  */
 class LargeModalFlowsTest extends TestCase
 {
+    use InteractsWithInertia;
     use RefreshDatabase;
 
     private const HX = ['HX-Request' => 'true'];
@@ -57,7 +60,6 @@ class LargeModalFlowsTest extends TestCase
             'nhân sự – thêm' => [fn (self $t) => route('users.create'), 'modal-user-form', 'Thêm người dùng mới'],
             'nhân sự – sửa' => [fn (self $t) => route('users.edit', $t->staff()), 'modal-user-form', 'Sửa thông tin người dùng'],
             'phân quyền cá nhân' => [fn (self $t) => route('users.permissions.edit', $t->staff()), 'modal-permission-override-form', 'Phân quyền chi tiết — Giáo viên Modal'],
-            'phiếu thu từ dòng học viên' => [fn (self $t) => route('tuition.receipts.create', ['tuition_id' => $t->tuition()->id]), 'modal-receipt-form', 'Lập phiếu thu học phí'],
         ];
     }
 
@@ -95,9 +97,6 @@ class LargeModalFlowsTest extends TestCase
             ]],
             'nhân sự' => [fn (self $t) => route('users.index'), 'users-changed', [
                 fn (self $t) => route('users.create'), fn (self $t) => route('users.edit', $t->staff()), fn (self $t) => route('users.permissions.edit', $t->staff()),
-            ]],
-            'thu phí' => [fn (self $t) => route('tuition.students'), 'tuition-receipts-changed', [
-                fn (self $t) => route('tuition.receipts.create', ['tuition_id' => $t->tuition()->id]),
             ]],
         ];
     }
@@ -339,34 +338,42 @@ class LargeModalFlowsTest extends TestCase
     {
         $tuition = $this->tuition();
 
-        // "Lập phiếu thu mới" (lập tự do) vẫn là trang riêng; dòng học viên mở modal 4xl.
+        // "Lập phiếu thu mới" (lập tự do) vẫn là trang riêng; dòng học viên mở modal 4xl (nút <UiButton modal="4xl">).
         $this->actingAs($this->admin)->get(route('tuition.students'))->assertOk()
-            ->assertDontSee('hx-get="'.route('tuition.receipts.create').'"', false)
-            ->assertSee('data-modal-size="4xl"', false);
+            ->assertSee('href="'.e(route('tuition.receipts.create', ['tuition_id' => $tuition->id], false)).'"', false)
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Tuition/Students'));
 
-        // JS form nằm trong module (Alpine.data), không còn <script> inline.
+        // Mở thẳng URL → trang đầy đủ; từ dòng học viên (X-Remote-Modal) → nội dung modal, khoản học phí + học viên chọn sẵn.
         $this->actingAs($this->admin)->get(route('tuition.receipts.create', ['tuition_id' => $tuition->id]))->assertOk()
-            ->assertSee('x-data="createReceiptManager(', false)
-            ->assertDontSee('function createReceiptManager', false);
-        $this->actingAs($this->admin)->get(route('tuition.receipts.create', ['tuition_id' => $tuition->id]), self::HX)->assertOk()
-            ->assertSee('x-data="createReceiptManager(', false)
-            ->assertSee('name="submit_action" value="draft"', false)
-            ->assertSee('enctype="multipart/form-data"', false);
+            ->assertSee('data-sidebar', false)
+            ->assertSee('Lập phiếu thu học phí')
+            ->assertSee('name="submit_action"', false)
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Tuition/ReceiptForm')->where('asModal', false));
+        $this->actingAs($this->admin)->get(route('tuition.receipts.create', ['tuition_id' => $tuition->id]), self::MODAL)->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Tuition/ReceiptForm')
+                ->where('asModal', true)
+                ->where('initialTuitionId', (string) $tuition->id)
+                ->where('initialStudentId', (string) $tuition->student_id));
 
         $payload = ['student_tuition_id' => $tuition->id, 'student_id' => $tuition->student_id, 'amount' => 4500000, 'tuition_amount' => 4500000,
             'payment_method' => 'cash', 'paper_invoice_number' => 'HDG-0001', 'submit_action' => 'submit'];
 
-        // Lỗi validate và lỗi nghiệp vụ (trước đây back()->withErrors) → 422 ngay trong modal, giữ khoản học phí đã chọn.
-        $this->actingAs($this->admin)->post(route('tuition.receipts.store'), [...$payload, 'amount' => 500], self::HX)
-            ->assertStatus(422)->assertSee('id="modal-receipt-form"', false)->assertDontSee('data-sidebar', false);
-        $this->actingAs($this->admin)->post(route('tuition.receipts.store'), [...$payload, 'amount' => 4550000, 'surcharge_amount' => 50000], self::HX)
-            ->assertStatus(422)->assertSee('Bắt buộc nhập lý do khi có số tiền phụ thu.')
-            ->assertSee('&#039;'.$tuition->id.'&#039;, &#039;'.$tuition->student_id.'&#039;', false); // khoản học phí + học viên vẫn chọn sẵn
+        // Lỗi validate và lỗi nghiệp vụ từ modal → quay lại trang đang mở kèm lỗi + dữ liệu đã nhập (modal giữ nguyên, khoản đã chọn).
+        $this->actingAs($this->admin)->from(route('tuition.students'))
+            ->post(route('tuition.receipts.store'), [...$payload, 'amount' => 500], self::MODAL)
+            ->assertRedirect(route('tuition.students'))->assertSessionHasErrors();
+        $this->actingAs($this->admin)->from(route('tuition.students'))
+            ->post(route('tuition.receipts.store'), [...$payload, 'amount' => 4550000, 'surcharge_amount' => 50000], self::MODAL)
+            ->assertRedirect(route('tuition.students'))
+            ->assertSessionHasErrors(['surcharge_reason' => 'Bắt buộc nhập lý do khi có số tiền phụ thu.'])
+            ->assertSessionHasInput('student_tuition_id');
         $this->assertSame(0, TuitionReceipt::count());
 
-        $response = $this->actingAs($this->admin)->post(route('tuition.receipts.store'), $payload, self::HX);
+        // Lưu xong từ modal → về lại trang đang mở kèm thông báo.
+        $response = $this->actingAs($this->admin)->from(route('tuition.students'))->post(route('tuition.receipts.store'), $payload, self::MODAL);
         $receipt = TuitionReceipt::firstOrFail();
-        $this->assertSaved($response, 'tuition-receipts-changed', "Đã gửi duyệt phiếu thu {$receipt->receipt_number} (Số tiền: 4.500.000 đ) lên cấp Quản lý / Kế toán!");
+        $response->assertRedirect(route('tuition.students'))
+            ->assertSessionHas('status', "Đã gửi duyệt phiếu thu {$receipt->receipt_number} (Số tiền: 4.500.000 đ) lên cấp Quản lý / Kế toán!");
         $this->assertSame(TuitionReceipt::STATUS_PENDING, $receipt->status);
 
         // Request thường: lỗi nghiệp vụ vẫn redirect back kèm lỗi + dữ liệu cũ.

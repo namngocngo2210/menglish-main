@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
+use App\Models\CrmCustomer;
 use App\Models\User;
 use App\Support\Navigation\SidebarMenu;
 use Database\Seeders\PermissionSeeder;
@@ -122,20 +123,23 @@ class WorkspaceNavigationTest extends TestCase
     {
         $html = $this->actingAs($this->makeUser('admin'))->get(route('tuition.history'))->assertOk()->getContent();
 
-        $this->assertMatchesRegularExpression('/<a href="[^"]+"\s+aria-current="page"[^>]*data-menu-item="tuition"/', $html);
-        $this->assertDoesNotMatchRegularExpression('/aria-current="page"[^>]*data-menu-item="crm"/', $html);
+        $this->assertMatchesRegularExpression('/<a(?=[^>]*data-menu-item="tuition")[^>]*aria-current="page"/', $html);
+        $this->assertDoesNotMatchRegularExpression('/<a(?=[^>]*data-menu-item="crm")[^>]*aria-current="page"/', $html);
     }
 
     public function test_workspace_tabs_render_with_aria_current_and_actions(): void
     {
-        $html = $this->actingAs($this->makeUser('admin'))->get(route('tuition.history'))->assertOk()->getContent();
+        $response = $this->actingAs($this->makeUser('admin'))->get(route('tuition.history'))->assertOk();
+        $html = $response->getContent();
 
         $this->assertStringContainsString('data-workspace-tabs="tuition"', $html);
-        $this->assertMatchesRegularExpression('#<a href="'.preg_quote(route('tuition.history'), '#').'"\s+aria-current="page"#', $html);
+        $this->assertMatchesRegularExpression('#<a(?=[^>]*href="'.preg_quote(route('tuition.history'), '#').'")[^>]*aria-current="page"#', $html);
         $this->assertStringContainsString('href="'.route('tuition.overdue').'"', $html);
-        // Nút hành động của workspace: Nhập Excel mở modal, Lập phiếu thu mở trang.
-        $this->assertMatchesRegularExpression('#href="'.preg_quote(route('tuition.import'), '#').'"[^>]*hx-get=#', $html);
+        // Nút hành động của workspace: Nhập Excel mở modal (cỡ lg), Lập phiếu thu mở trang.
+        $this->assertStringContainsString('href="'.route('tuition.import').'"', $html);
         $this->assertStringContainsString('href="'.route('tuition.receipts.create').'"', $html);
+        $response->assertInertia(fn ($page) => $page->where('shell.workspace.buttons', fn ($buttons) => $buttons->firstWhere('url', route('tuition.import'))['modal'] === 'lg'
+            && $buttons->firstWhere('url', route('tuition.receipts.create'))['modal'] === null));
     }
 
     public function test_workspace_tabs_hide_unauthorized_tabs(): void
@@ -312,8 +316,8 @@ class WorkspaceNavigationTest extends TestCase
     public function test_crm_sla_quick_filter_lists_only_stale_new_leads(): void
     {
         $admin = $this->makeUser('admin');
-        $make = fn (string $name) => \App\Models\CrmCustomer::create([
-            'code' => \App\Models\CrmCustomer::generateCode(), 'name' => $name,
+        $make = fn (string $name) => CrmCustomer::create([
+            'code' => CrmCustomer::generateCode(), 'name' => $name,
             'phone' => '09'.random_int(10000000, 99999999), 'stage' => 'new',
         ]);
         $make('Khách Quá Hạn SLA')->forceFill(['created_at' => now()->subHours(30)])->saveQuietly();

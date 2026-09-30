@@ -40,13 +40,10 @@ class RbacNoHardcodedRolesTest extends TestCase
         'app/Support/Rbac.php' => 2,                       // gán vai trò Super Admin, chống tự khóa
         'app/Http/Controllers/UserController.php' => 2,    // quản lý tài khoản Super Admin
         'app/Http/Controllers/UserPermissionOverrideController.php' => 5, // hiển thị quyền / phạm vi Super Admin; chỉ Super Admin chỉnh quyền Super Admin; chống tự phân quyền
-        'app/Http/Controllers/TuitionController.php' => 3, // người lập phiếu sửa / không tự duyệt phiếu (Super Admin miễn)
+        'app/Http/Controllers/TuitionController.php' => 6, // người lập phiếu sửa / không tự duyệt phiếu (Super Admin miễn); cờ "được sửa" cho form / lịch sử / duyệt phiếu (Vue)
         'app/Models/Penalty.php' => 1,                     // người vi phạm không tự chốt biên bản (Super Admin miễn)
         'app/Http/Controllers/WorkTaskController.php' => 1, // tab mặc định "Tất cả" (giao diện)
         'app/Services/NotificationService.php' => 1,       // không tìm được người phân công ticket → báo Super Admin
-        'resources/views/tuition/receipts/_form.blade.php' => 1, // form phiếu thu (tách từ create-receipt, dùng chung trang ↔ modal)
-        'resources/views/tuition/history.blade.php' => 1,
-        'resources/views/tuition/approve-receipt.blade.php' => 1,
         'resources/views/users/permissions.blade.php' => 1, // cảnh báo "Super Admin luôn toàn quyền"
     ];
 

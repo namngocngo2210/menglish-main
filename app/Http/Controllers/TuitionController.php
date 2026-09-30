@@ -24,10 +24,15 @@ use App\Services\NotificationService;
 use App\Services\SafeUploadService;
 use App\Services\SalesCommissionService;
 use App\Services\TuitionImportService;
+use App\Support\CenterInfo;
+use App\Support\DisplayCode;
 use App\Support\Money;
+use App\Support\Rbac;
+use App\Support\TransferMemo;
 use App\Support\TuitionBranchScope;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -35,6 +40,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 
 class TuitionController extends Controller
@@ -109,13 +115,87 @@ class TuitionController extends Controller
         // Mockup "Danh sách học viên đến hạn thu phí": nhóm quá hạn / sắp đến hạn dùng chung với màn Thu phí quá hạn.
         $groups = $this->dueGroups($request, $scope);
 
-        return view('tuition.students', $groups + compact('tuitions', 'branches', 'classes', 'stats'));
+        return Inertia::render('Tuition/Students', [
+            ...$this->dueGroupProps($groups),
+            'tuitions' => $tuitions->through(fn (StudentTuition $t) => [
+                'id' => $t->id,
+                'student' => $this->studentBrief($t->student),
+                'class_name' => $t->classModel?->name,
+                'branch_name' => $t->branch?->name,
+                'fee_label' => $t->fee_label,
+                'final_amount' => (float) $t->final_amount,
+                'paid_amount' => (float) $t->paid_amount,
+                'debt_amount' => (float) $t->debt_amount,
+                'due_date' => $t->due_date?->format('d/m/Y'),
+                'status_color' => $t->status_color,
+                'status_label' => $t->status_label,
+            ]),
+            'branches' => $branches->map(fn (Branch $b) => ['value' => $b->id, 'label' => $b->name])->values(),
+            'classes' => $classes->map(fn (ClassModel $c) => ['value' => $c->id, 'label' => $c->name.' ('.$c->code.')'])->values(),
+            'stats' => $stats,
+        ]);
+    }
+
+    /** Học viên gọn cho các bảng Học phí (tên, mã, SĐT). */
+    private function studentBrief(?Student $student): ?array
+    {
+        return $student ? ['id' => $student->id, 'name' => $student->name, 'code' => $student->code, 'phone' => $student->phone] : null;
+    }
+
+    /**
+     * Props nhóm quá hạn / sắp đến hạn (dueGroups) cho trang Vue: mỗi khoản chỉ gửi trường hiển thị.
+     *
+     * @param  array<string, mixed>  $groups
+     * @return array<string, mixed>
+     */
+    private function dueGroupProps(array $groups): array
+    {
+        $row = function (StudentTuition $t) {
+            $stats = $t->session_stats;
+
+            return [
+                'id' => $t->id,
+                'student' => $this->studentBrief($t->student),
+                'class_label' => $t->classModel?->code ?? $t->classModel?->name ?? '—',
+                'class_name' => $t->classModel?->name,
+                'branch_name' => $t->branch?->name,
+                'fee_label' => $t->fee_label,
+                'debt_amount' => (float) $t->debt_amount,
+                'due_date' => $t->due_date?->format('d/m/Y'),
+                'days_overdue' => $t->days_overdue,
+                'session_lines' => $stats ? [
+                    ['label' => 'Số buổi còn tồn', 'value' => $t->frozen_remaining_sessions ?? $stats['remaining']],
+                    ['label' => 'Số buổi đã học', 'value' => $stats['attended']],
+                    ['label' => 'Tổng số buổi', 'value' => $stats['total']],
+                ] : [],
+                'last_contact' => $t->last_contact ? [
+                    'at' => $t->last_contact->contacted_at?->format('d/m H:i'),
+                    'user_name' => $t->last_contact->user?->name,
+                    'note' => $t->last_contact->note,
+                    'note_short' => $t->last_contact->note ? Str::limit($t->last_contact->note, 40) : null,
+                ] : null,
+                'last_report_date' => $t->last_report?->contacted_at?->format('d/m/Y'),
+                'reminder_paused_until' => $t->reminder_paused_until?->format('d/m/Y'),
+                'deferred_until' => $t->deferred_until?->format('d/m/Y'),
+            ];
+        };
+
+        return [
+            'seriousOverdue' => $groups['seriousOverdue']->map($row)->values(),
+            'newOverdue' => $groups['newOverdue']->map($row)->values(),
+            'upcoming' => $groups['upcoming']->onEachSide(1)->through($row),
+            'paused' => $groups['paused']->map($row)->values(),
+            'overdueCount' => $groups['overdueTuitions']->count(),
+            'type' => $groups['type'],
+            'seriousDays' => $groups['seriousDays'],
+            'upcomingDays' => $groups['upcomingDays'],
+        ];
     }
 
     /**
      * Nhập học phí từ Excel — 3 bước: Tải file → Xem trước (lỗi từng dòng) → Kết quả.
-     * Mở từ "Nhập Excel" → modal (htmx): redirect sau mỗi bước về đây được trình duyệt đi theo (giữ HX-Request),
-     * nên bước kế tiếp hiện ngay trong modal; mở thẳng URL → trang đầy đủ.
+     * Mở từ "Nhập Excel" → modal: mỗi bước gửi kèm X-Remote-Modal và redirect về đây, nên bước kế tiếp
+     * hiện ngay trong modal (Tuition/Import); mở thẳng URL → trang đầy đủ.
      */
     public function import(Request $request)
     {
@@ -131,7 +211,35 @@ class TuitionController extends Controller
         }
         $result = $request->session()->get('tuition_import_result');
 
-        return $this->modalView('tuition.import', compact('branches', 'preview', 'result'));
+        return $this->modalPage('Tuition/Import', [
+            'branches' => $branches->map(fn (Branch $b) => ['value' => $b->id, 'label' => $b->name])->values(),
+            'preview' => $preview ? [
+                'token' => $preview['token'],
+                'file_name' => $preview['file_name'],
+                'branch_name' => $preview['branch_name'],
+                'rows' => collect($preview['rows'])->map(fn (array $row) => [
+                    'line' => $row['line'],
+                    'student_name' => $row['student_name'] ?? null,
+                    'student_code' => $row['student_code'] ?? null,
+                    'creates_tuition' => (bool) ($row['creates_tuition'] ?? false),
+                    'class_code' => $row['class_code'] ?? null,
+                    'final_amount' => $row['final_amount'] ?? null,
+                    'due_date' => ! empty($row['due_date']) ? Carbon::parse($row['due_date'])->format('d/m/Y') : null,
+                    'paid_amount' => $row['paid_amount'] ?? null,
+                    'method_label' => TuitionImportService::METHOD_LABELS[$row['payment_method'] ?? ''] ?? '—',
+                    'transaction_code' => $row['transaction_code'] ?? null,
+                    'errors' => array_values($row['errors'] ?? []),
+                ])->values(),
+            ] : null,
+            'result' => $result ? [
+                'file_name' => $result['file_name'] ?? '',
+                'tuitions' => (int) $result['tuitions'],
+                'receipts' => (int) $result['receipts'],
+                'skipped' => (int) ($result['skipped'] ?? 0),
+                'failed' => array_values($result['failed'] ?? []),
+            ] : null,
+            'templateHeadings' => implode(', ', TuitionImportService::TEMPLATE_HEADINGS),
+        ]);
     }
 
     public function importTuition(Request $request, TuitionImportService $importer)
@@ -295,11 +403,96 @@ class TuitionController extends Controller
                 ->first();
         }
 
-        // Mở từ dòng học viên / khoản học phí → modal 4xl (htmx); lập phiếu tự do / mở thẳng URL → trang riêng.
-        return $this->modalView('tuition.create-receipt', compact(
-            'students', 'tuitions', 'selectedTuition', 'selectedStudent', 'defaultBank', 'nextReceiptNumber',
-            'recentRejection', 'editingReceipt', 'tuitionMeta'
-        ));
+        if ($editingReceipt) {
+            $initialTuitionId = $editingReceipt->student_tuition_id ?? '';
+            $initialStudentId = $editingReceipt->student_id ?? $editingReceipt->tuition?->student_id ?? '';
+        } else {
+            $initialTuitionId = $selectedTuition?->id ?? ($tuitions->first()?->id ?? '');
+            $initialStudentId = $selectedStudent?->id ?? ($selectedTuition?->student_id ?? ($students->first()?->id ?? ''));
+        }
+        $user = $request->user();
+
+        // Mở từ dòng học viên / khoản học phí → modal 4xl; lập phiếu tự do / mở thẳng URL → trang riêng.
+        return $this->modalPage('Tuition/ReceiptForm', [
+            'tuitions' => $tuitions->map(fn (StudentTuition $t) => [
+                'id' => $t->id,
+                'student_id' => $t->student_id,
+                'student_name' => $t->student?->name ?? 'Học viên',
+                'student_code' => $t->student?->code ?? 'HV',
+                'student_code_short' => DisplayCode::short($t->student?->code ?? 'HV'),
+                'student_phone' => $t->student?->phone ?? '',
+                'student_parent_name' => $t->student?->parent_name ?? $t->student?->name ?? '',
+                'student_parent_phone' => $t->student?->parent_phone ?? $t->student?->phone ?? '',
+                'class_name' => $t->classModel?->name ?? 'Chưa xếp lớp',
+                'branch_name' => $t->student?->branch?->name ?? 'Trụ sở chính',
+                'total_amount' => (float) ($t->total_amount ?? 0),
+                'discount_amount' => (float) ($t->discount_amount ?? 0),
+                'other_fees' => (float) ($t->other_fees ?? 0),
+                'paid_amount' => (float) ($t->paid_amount ?? 0),
+                'debt_amount' => (float) ($t->debt_amount ?? 0),
+                'final_amount' => (float) ($t->final_amount ?? 0),
+                // Số buổi thật (khóa học / lịch lớp + điểm danh); không đủ dữ liệu -> null, trang ẩn khối số buổi.
+                'total_sessions' => $tuitionMeta[$t->id]['sessions']['total'] ?? null,
+                'attended_sessions' => $tuitionMeta[$t->id]['sessions']['attended'] ?? null,
+                'remaining_sessions' => $tuitionMeta[$t->id]['sessions']['remaining'] ?? null,
+                'is_deferred' => $t->student?->status === 'deferred',
+                'bank' => $tuitionMeta[$t->id]['bank'] ?? null,
+                'fee_items' => collect($t->fee_items ?? [])->map(fn ($i) => ['name' => (string) ($i['name'] ?? 'Khoản thu khác'), 'amount' => (float) ($i['amount'] ?? 0)])->values(),
+                // Học viên đã chuyển sang lớp khác so với lớp của khoản học phí → banner "Học viên vừa chuyển lớp mới".
+                'class_changed' => $t->class_id && $t->student?->current_class_id && (int) $t->class_id !== (int) $t->student->current_class_id,
+                'current_class_name' => $t->student?->currentClass?->name,
+                'receipt_count' => $t->receipts ? $t->receipts->count() : 0,
+                // Nội dung CK theo mẫu chung (App\Support\TransferMemo) — không tự ghép ở JS.
+                'transfer_memo' => $t->currentTransferMemo(),
+            ])->values(),
+            'students' => $students->map(fn (Student $st) => [
+                'id' => $st->id,
+                'name' => $st->name,
+                'code' => $st->code,
+                'code_short' => DisplayCode::short($st->code),
+                'phone' => $st->phone ?? '',
+                'parent_name' => $st->parent_name ?? $st->name,
+                'parent_phone' => $st->parent_phone ?? $st->phone ?? '',
+                'class_name' => $st->currentClass?->name ?? 'Chưa xếp lớp',
+                'branch_name' => $st->branch?->name ?? 'Trụ sở chính',
+                'status_label' => $st->status_label,
+                'transfer_memo' => TransferMemo::build($st->code, $st->name, $st->currentClass?->name),
+            ])->values(),
+            'initialTuitionId' => (string) $initialTuitionId,
+            'initialStudentId' => (string) $initialStudentId,
+            'defaultBank' => $defaultBank ? [
+                'bank_code' => $defaultBank->bank_code,
+                'bank_name' => $defaultBank->bank_name,
+                'account_number' => $defaultBank->account_number,
+                'account_holder' => $defaultBank->account_holder,
+                'scope' => 'Tài khoản mặc định hệ thống',
+            ] : null,
+            'editing' => $editingReceipt ? [
+                'id' => $editingReceipt->id,
+                'status' => $editingReceipt->status,
+                'status_label' => $editingReceipt->status_label,
+                'discount_amount' => (float) $editingReceipt->discount_amount,
+                'surcharge_amount' => (float) $editingReceipt->surcharge_amount,
+                'surcharge_reason' => $editingReceipt->surcharge_reason,
+                'tuition_amount' => $editingReceipt->tuitionPortion(),
+                'payment_method' => $editingReceipt->payment_method === 'vietqr' ? 'transfer' : $editingReceipt->payment_method,
+                'transaction_code' => $editingReceipt->transaction_code,
+                'paper_invoice_number' => $editingReceipt->paper_invoice_number,
+                'payer_name' => $editingReceipt->payer_name,
+                'payer_phone' => $editingReceipt->payer_phone,
+                'proof_image' => $editingReceipt->proof_image,
+                'is_vat_invoice' => (bool) $editingReceipt->is_vat_invoice,
+                'notes' => $editingReceipt->notes,
+            ] : null,
+            'nextReceiptNumber' => $nextReceiptNumber,
+            'recentRejection' => $recentRejection ? [
+                'id' => $recentRejection->id,
+                'receipt_number' => $recentRejection->receipt_number,
+                'rejection_reason' => $recentRejection->rejection_reason,
+                'can_edit' => ! $editingReceipt && in_array($recentRejection->status, TuitionReceipt::EDITABLE_STATUSES, true)
+                    && ((int) $recentRejection->creator_id === (int) $user->id || $user->isSuperAdmin()),
+            ] : null,
+        ]);
     }
 
     public function storeReceipt(Request $request)
@@ -809,18 +1002,88 @@ class TuitionController extends Controller
         $reconciliation = $selectedReceipt ? $this->receiptReconciliation($selectedReceipt) : null;
         $beneficiaryAccount = $selectedReceipt?->tuition?->resolveBankAccount();
 
-        return view('tuition.approve-receipt', compact(
-            'reconciliation',
-            'beneficiaryAccount',
-            'sepayWarnings',
-            'pendingReceipts',
-            'selectedReceipt',
-            'branches',
-            'pendingCount',
-            'pendingTotal',
-            'approvedTodayCount',
-            'rejectedTodayCount'
-        ));
+        $user = $request->user();
+        $studentOf = fn (TuitionReceipt $rc) => $rc->tuition?->student ?? $rc->student;
+        $st = $selectedReceipt ? $studentOf($selectedReceipt) : null;
+
+        return Inertia::render('Tuition/ApproveReceipt', [
+            'filters' => [
+                'status' => $statusFilter,
+                'status_param' => $request->input('status'),
+                'branch_id' => (string) $request->input('branch_id', 'all'),
+                'payment_method' => $request->input('payment_method') === 'ck' ? 'transfer' : (string) $request->input('payment_method', 'all'),
+                'q' => (string) $request->input('q', ''),
+            ],
+            'branches' => $branches->map(fn (Branch $b) => ['value' => (string) $b->id, 'label' => $b->name])->values(),
+            'pendingCount' => $pendingCount,
+            'pendingTotal' => (float) $pendingTotal,
+            'approvedTodayCount' => $approvedTodayCount,
+            'rejectedTodayCount' => $rejectedTodayCount,
+            'receipts' => $pendingReceipts->map(function (TuitionReceipt $rc) use ($studentOf) {
+                $student = $studentOf($rc);
+
+                return [
+                    'id' => $rc->id,
+                    'receipt_number' => $rc->receipt_number,
+                    'has_proof' => (bool) $rc->proof_image,
+                    'paper_invoice_number' => $rc->paper_invoice_number,
+                    'student_name' => $student?->name ?? 'Học viên',
+                    'student_code' => $student?->code,
+                    'class_name' => $rc->tuition?->classModel?->name ?? $student?->currentClass?->name ?? 'Chưa gắn lớp',
+                    'branch_name' => $student?->branch?->name ?? 'Trụ sở chính',
+                    'payment_method' => $rc->payment_method,
+                    'amount' => (float) $rc->amount,
+                    'has_surcharge' => $rc->surcharge_amount > 0,
+                    'creator_name' => $rc->creator?->name,
+                    'created_at' => $rc->created_at?->format('H:i d/m/Y'),
+                    'created_ago' => $rc->created_at?->diffForHumans(),
+                    'status_color' => $rc->status_color,
+                    'status_label' => $rc->status_label,
+                ];
+            })->values(),
+            'selected' => $selectedReceipt ? [
+                'id' => $selectedReceipt->id,
+                'receipt_number' => $selectedReceipt->receipt_number,
+                'receipt_number_short' => DisplayCode::short($selectedReceipt->receipt_number),
+                'status' => $selectedReceipt->status,
+                'status_color' => $selectedReceipt->status_color,
+                'status_label' => $selectedReceipt->status_label,
+                'invoice_number' => $selectedReceipt->invoice_number,
+                'created_at' => $selectedReceipt->created_at?->format('H:i - d/m/Y'),
+                'creator_name' => $selectedReceipt->creator?->name,
+                'approver_name' => $selectedReceipt->approver?->name,
+                'branch_name' => $st?->branch?->name ?? 'Chưa gán chi nhánh',
+                'student_name' => $st?->name,
+                'student_code' => $st?->code,
+                'class_name' => $selectedReceipt->tuition?->classModel?->name ?? $st?->currentClass?->name ?? 'Chưa gắn lớp',
+                'payer_name' => $selectedReceipt->payer_name ?: ($st?->parent_name ?: $st?->name),
+                'payer_phone' => $selectedReceipt->payer_phone ?: ($st?->parent_phone ?: $st?->phone),
+                'student_tuition_id' => $selectedReceipt->student_tuition_id,
+                'payment_method' => $selectedReceipt->payment_method,
+                'tuition_due_date' => $selectedReceipt->tuition?->due_date?->format('d/m/Y'),
+                'fee_label' => $selectedReceipt->tuition?->fee_label,
+                'discount_amount' => (float) ($selectedReceipt->discount_amount ?? 0),
+                'tuition_portion' => $selectedReceipt->tuitionPortion(),
+                'surcharge_amount' => (float) ($selectedReceipt->surcharge_amount ?? 0),
+                'surcharge_reason' => $selectedReceipt->surcharge_reason,
+                'amount' => (float) $selectedReceipt->amount,
+                'is_vat_invoice' => (bool) $selectedReceipt->is_vat_invoice,
+                'notes' => $selectedReceipt->notes,
+                'proof_image' => $selectedReceipt->proof_image,
+                'reference' => $selectedReceipt->transaction_code ?: ($selectedReceipt->paper_invoice_number ?: '—'),
+                'beneficiary' => $beneficiaryAccount ? $beneficiaryAccount->account_number.' ('.$beneficiaryAccount->bank_name.')' : null,
+                'payment_date' => $selectedReceipt->payment_date?->format('H:i - d/m/Y'),
+                'can_resubmit' => in_array($selectedReceipt->status, TuitionReceipt::EDITABLE_STATUSES, true)
+                    && ($user->id === $selectedReceipt->creator_id || $user->isSuperAdmin()),
+            ] : null,
+            'sepayWarnings' => $sepayWarnings->map(fn ($tx) => [
+                'sepay_id' => $tx->sepay_id,
+                'amount' => (float) $tx->transfer_amount,
+                'date' => $tx->transaction_date?->format('d/m/Y H:i'),
+                'receipt_number' => $tx->receipt?->receipt_number,
+            ])->values(),
+            'reconciliation' => $reconciliation,
+        ]);
     }
 
     public function approveReceiptAction(Request $request, $id)
@@ -1121,7 +1384,64 @@ class TuitionController extends Controller
         // Mẫu số / ký hiệu hóa đơn lấy theo dải số thật (tiền tố số HĐ = ký hiệu dải), không ghi cứng.
         $templates = InvoiceConfiguration::query()->pluck('template_code', 'series_code');
 
-        return view('tuition.history', compact('receipts', 'filters', 'student', 'templates'));
+        $user = $request->user();
+        $methodIcon = ['transfer' => 'account_balance', 'vietqr' => 'qr_code_2', 'cash' => 'payments', 'pos' => 'credit_card'];
+
+        return Inertia::render('Tuition/History', [
+            'receipts' => $receipts->through(function (TuitionReceipt $rc) use ($templates, $methodIcon, $user) {
+                $student = $rc->tuition?->student ?? $rc->student;
+                $series = $rc->invoice_number ? Str::beforeLast($rc->invoice_number, '-') : null;
+
+                return [
+                    'id' => $rc->id,
+                    'receipt_number' => $rc->receipt_number,
+                    'invoice_number' => $rc->invoice_number,
+                    'template_code' => $series ? ($templates[$series] ?? null) : null,
+                    'series' => $series,
+                    'student_id' => $student?->id,
+                    'student_name' => $student?->name,
+                    'student_code' => $student?->code,
+                    'student_phone' => $rc->payer_phone ?: $student?->phone,
+                    'payer_name' => $rc->payer_name ?: $student?->name,
+                    'fee_label' => $rc->tuition?->fee_label ?? 'Phụ thu (không gắn khoản học phí)',
+                    'row_fee_label' => $rc->tuition?->fee_label ?? 'Phụ thu',
+                    'class_name' => $rc->tuition?->classModel?->name ?? $student?->currentClass?->name,
+                    'branch_name' => $rc->tuition?->branch?->name ?? $student?->branch?->name,
+                    'amount' => (float) $rc->amount,
+                    'surcharge' => (float) $rc->surcharge_amount,
+                    'surcharge_reason' => $rc->surcharge_reason,
+                    'method' => TuitionReceipt::METHOD_LABELS[$rc->payment_method] ?? $rc->payment_method,
+                    'method_icon' => $methodIcon[$rc->payment_method] ?? 'payments',
+                    'transaction_code' => $rc->transaction_code,
+                    'status' => $rc->status,
+                    'status_label' => $rc->status_label,
+                    'status_color' => $rc->status_color,
+                    'payment_date' => $rc->payment_date?->format('d/m/Y'),
+                    'payment_date_short' => $rc->payment_date?->format('d/m/y'),
+                    'created_at' => $rc->created_at?->format('d/m/Y - H:i'),
+                    'creator_name' => $rc->creator?->name,
+                    'approver_name' => $rc->approver?->name,
+                    'notes' => $rc->notes,
+                    'rejection_reason' => $rc->rejection_reason,
+                    'proof' => $rc->proof_image,
+                    'proof_is_pdf' => $rc->proof_image && str_ends_with(strtolower($rc->proof_image), '.pdf'),
+                    'approve_url' => route('tuition.receipts.approve', ['selected_id' => $rc->id, 'status' => 'all']),
+                    'can_edit' => in_array($rc->status, TuitionReceipt::EDITABLE_STATUSES, true)
+                        && ((int) $rc->creator_id === (int) $user->id || $user->isSuperAdmin()),
+                ];
+            }),
+            'filters' => $filters,
+            'student' => $student ? ['id' => $student->id, 'name' => $student->name, 'code' => $student->code] : null,
+            'methodOptions' => collect(TuitionReceipt::METHOD_LABELS)->map(fn ($label, $value) => ['value' => $value, 'label' => $label])->values(),
+            'center' => [
+                'name' => CenterInfo::name() ?? 'MENGLISH',
+                'phone' => CenterInfo::phone(),
+                'extra' => collect([
+                    CenterInfo::website() ? 'Website: '.CenterInfo::website() : null,
+                    CenterInfo::taxCode() ? 'MST: '.CenterInfo::taxCode() : null,
+                ])->filter()->implode(' · '),
+            ],
+        ]);
     }
 
     /** Xuất Excel (CSV UTF-8) lịch sử thu theo đúng bộ lọc đang xem. */
@@ -1245,14 +1565,72 @@ class TuitionController extends Controller
             $selectedCancellation = null;
         }
 
-        return view('tuition.invoices-cancellations', compact(
-            'cancellations',
-            'selectedCancellation',
-            'branches',
-            'pendingCount',
-            'approvedMonthCount',
-            'rejectedCount'
-        ));
+        $studentOf = fn (InvoiceCancellation $c) => $c->student ?? $c->receipt?->tuition?->student ?? $c->receipt?->student;
+        $sel = $selectedCancellation;
+        $st = $sel ? $studentOf($sel) : null;
+        $rc = $sel?->receipt;
+
+        return Inertia::render('Tuition/InvoiceCancellations', [
+            'filters' => [
+                'status' => (string) $request->get('status', 'pending'),
+                'branch_id' => (string) $request->input('branch_id', 'all'),
+            ],
+            'branches' => $branches->map(fn (Branch $b) => ['value' => (string) $b->id, 'label' => $b->name])->values(),
+            'pendingCount' => $pendingCount,
+            'approvedMonthCount' => $approvedMonthCount,
+            'rejectedCount' => $rejectedCount,
+            'canApproveCancel' => (bool) $request->user()?->can('invoice.approve_cancel'),
+            'cancellations' => $cancellations->map(function (InvoiceCancellation $c) use ($studentOf) {
+                $student = $studentOf($c);
+
+                return [
+                    'id' => $c->id,
+                    'invoice_number' => $c->invoice_number,
+                    'receipt_number' => $c->receipt?->receipt_number,
+                    'student_name' => $student?->name,
+                    'student_code' => $student?->code,
+                    'amount' => (float) $c->amount,
+                    'reason' => $c->reason,
+                    'requester_name' => $c->requester?->name,
+                    'created_at' => $c->created_at?->format('H:i d/m/Y'),
+                    'created_ago' => $c->created_at?->diffForHumans(),
+                    'status' => $c->status,
+                ];
+            })->values(),
+            'selected' => $sel ? [
+                'id' => $sel->id,
+                'invoice_number' => $sel->invoice_number,
+                'status' => $sel->status,
+                'amount' => (float) $sel->amount,
+                'reason' => $sel->reason,
+                'rejection_reason' => $sel->rejection_reason,
+                'requester_name' => $sel->requester?->name,
+                'created_date' => $sel->created_at?->format('d/m/Y'),
+                'created_at' => $sel->created_at?->format('H:i:s - d/m/Y'),
+                'updated_at' => $sel->updated_at?->format('d/m/Y H:i'),
+                'proof_image' => $sel->proof_image,
+                'proof_name' => $sel->proof_image ? basename($sel->proof_image) : null,
+                'student_name' => $st?->name,
+                'student_code' => $st?->code,
+                'class_name' => $rc?->tuition?->classModel?->name ?? $st?->currentClass?->name ?? 'Chưa gắn lớp',
+                'branch_name' => $st?->branch?->name ?? 'Chưa gán chi nhánh',
+                'receipt' => $rc ? [
+                    'receipt_number' => $rc->receipt_number,
+                    'status_color' => $rc->status_color,
+                    'status_label' => $rc->status_label,
+                    'payer_name' => $rc->payer_name ?: ($st?->parent_name ?: $st?->name),
+                    'payer_phone' => $rc->payer_phone ?: ($st?->parent_phone ?: $st?->phone),
+                    'payment_method' => $rc->payment_method,
+                    'is_vat_invoice' => (bool) $rc->is_vat_invoice,
+                    'tuition_amount' => (float) $rc->tuition_amount,
+                    'discount_amount' => (float) ($rc->discount_amount ?? 0),
+                    'surcharge_amount' => (float) $rc->surcharge_amount,
+                    'surcharge_reason' => $rc->surcharge_reason,
+                ] : null,
+                'payer_name' => $st?->parent_name ?: $st?->name,
+                'payer_phone' => $st?->parent_phone ?: $st?->phone,
+            ] : null,
+        ]);
     }
 
     /** Danh sách yêu cầu hủy theo bộ lọc màn hình (trạng thái, chi nhánh, tìm kiếm) — dùng cho màn hình và "Xuất danh sách". */
@@ -1523,7 +1901,75 @@ class TuitionController extends Controller
         $studentFinance = $students->mapWithKeys(fn (Student $student) => [$student->id => $this->refundBasis($student)]);
         $adminFeePercent = (float) config('tuition.refund_admin_fee_percent', 10);
 
-        return view('tuition.refunds', compact('refundRequests', 'pendingRequests', 'overdueCount', 'historyRequests', 'filters', 'approvableTypes', 'students', 'clawbackHints', 'studentFinance', 'adminFeePercent'));
+        $canRejectAny = (bool) Auth::user()?->can(TuitionRefundRequest::REJECT_PERMISSION);
+        $studentLabel = fn (Student $st) => $st->name.' · '.DisplayCode::short($st->code);
+        $brief = fn (?Student $st) => $st ? ['name' => $st->name, 'code' => $st->code, 'class_name' => $st->currentClass?->name] : null;
+        $date = fn ($d) => $d?->format('d/m/Y');
+        $row = fn (TuitionRefundRequest $rq) => [
+            'id' => $rq->id,
+            'type' => $rq->type,
+            'type_label' => $rq->type_label,
+            'status' => $rq->status,
+            'student' => $brief($rq->student),
+            'target' => $brief($rq->targetStudent),
+            'refund_amount' => (float) $rq->refund_amount,
+            'defer_from' => $date($rq->defer_from),
+            'defer_to' => $date($rq->defer_to),
+            'extended_due_date' => $date($rq->extended_due_date),
+            'processing_deadline' => $date($rq->processing_deadline),
+            'overdue' => $rq->isProcessingOverdue(),
+            'reason' => $rq->reason,
+            'no_transfer_reason' => $rq->no_transfer_reason,
+            'rejection_reason' => $rq->rejection_reason,
+            'created_date' => $rq->created_at?->format('d/m/Y'),
+            'created_at' => $rq->created_at?->format('d/m/Y H:i'),
+            'requester_name' => $rq->requester?->name,
+            'approver_name' => $rq->approver?->name,
+            'clawback_commission' => $rq->clawback_commission,
+            'clawback_amount' => (float) $rq->clawback_amount,
+            'clawback_user_name' => $rq->clawbackUser?->name,
+            'has_proof' => (bool) $rq->proof_path,
+        ];
+
+        return Inertia::render('Tuition/Refunds', [
+            'pendingRequests' => $pendingRequests->map(fn (TuitionRefundRequest $rq) => [
+                ...$row($rq),
+                'overdue_days' => $rq->isProcessingOverdue() ? $rq->processingOverdueDays() : 0,
+                'approve_permission' => TuitionRefundRequest::approvePermission($rq->type),
+            ])->all(),
+            'overdueCount' => $overdueCount,
+            'historyRequests' => $historyRequests->map($row)->all(),
+            'totalCount' => $refundRequests->count(),
+            'filters' => $filters,
+            'typeOptions' => TuitionRefundRequest::TYPES,
+            'approvableTypes' => $approvableTypes,
+            'canRejectAny' => $canRejectAny,
+            'clawbackHints' => $clawbackHints->map(fn (array $hint) => [
+                'suggest' => (bool) $hint['suggest'],
+                'amount' => (int) $hint['amount'],
+                'owner' => $hint['owner'],
+                'start' => $hint['start']?->format('d/m/Y'),
+            ])->all(),
+            'studentFinance' => $studentFinance->all(),
+            'adminFeePercent' => $adminFeePercent,
+            'targets' => $students->map(fn (Student $st) => [
+                'id' => (string) $st->id,
+                'name' => $st->name,
+                'code' => DisplayCode::short($st->code),
+                'class' => $st->currentClass?->name,
+                'debt' => (float) ($st->tuition?->debt_amount ?? 0),
+                'search' => Str::lower(Str::ascii($st->name.' '.$st->code)),
+            ])->values()->all(),
+            // Chỉ học viên có hồ sơ học phí mới hoàn / chuyển nhượng / bảo lưu được.
+            'sourceOptions' => $students->filter(fn (Student $st) => $studentFinance[$st->id]['has_tuition'] ?? false)
+                ->map(fn (Student $st) => ['value' => (string) $st->id, 'label' => $studentLabel($st).' ('.($st->currentClass?->name ?? 'Chưa gán lớp').')'])->values()->all(),
+            'debtorOptions' => $students->filter(fn (Student $st) => (float) ($st->tuition?->debt_amount ?? 0) > 0)
+                ->map(fn (Student $st) => ['value' => (string) $st->id, 'label' => $studentLabel($st).' · Còn nợ '.Money::format((float) $st->tuition->debt_amount).' · Hạn '.($st->tuition->due_date?->format('d/m/Y') ?? 'chưa đặt')])->values()->all(),
+            'deadline' => TuitionRefundRequest::deadlineFor(now())->format('d/m/Y'),
+            'currentMonth' => now()->format('m/Y'),
+            'today' => now()->toDateString(),
+            'tomorrow' => now()->addDay()->toDateString(),
+        ]);
     }
 
     /**
@@ -1796,7 +2242,7 @@ class TuitionController extends Controller
 
     /**
      * Xem ảnh bằng chứng hoàn tiền (lưu riêng tư) — chỉ người xem được màn hoàn phí trong phạm vi chi nhánh.
-     * htmx (bấm từ bảng hoàn phí) → lightbox trong modal (ảnh tải lại chính URL này, không kèm HX-Request); thường → file ảnh.
+     * Mở trong modal (bấm từ bảng hoàn phí, header X-Remote-Modal) → lightbox (ảnh tải lại chính URL này, không kèm header); thường → file ảnh.
      */
     public function refundProof($id)
     {
@@ -1805,10 +2251,17 @@ class TuitionController extends Controller
         abort_unless($refund->proof_path && Storage::disk(TuitionRefundRequest::PROOF_DISK)->exists($refund->proof_path), 404);
 
         if ($this->isModalRequest()) {
-            return $this->modalView('tuition.refund-proof', ['refund' => $refund]);
+            return $this->modalPage('Tuition/RefundProof', [
+                'refund' => [
+                    'id' => $refund->id,
+                    'student_name' => $refund->student?->name,
+                    'student_code' => $refund->student?->code,
+                    'proof_url' => route('tuition.refunds.proof', $refund->id),
+                ],
+            ]);
         }
 
-        return Storage::disk(TuitionRefundRequest::PROOF_DISK)->response($refund->proof_path)->setVary('HX-Request');
+        return Storage::disk(TuitionRefundRequest::PROOF_DISK)->response($refund->proof_path)->setVary(['X-Remote-Modal', 'X-Inertia']);
     }
 
     /**
@@ -1948,7 +2401,13 @@ class TuitionController extends Controller
         $branches = TuitionBranchScope::branches($scope)->where('is_active', true)->get();
         $classes = ClassModel::when($scope !== null, fn ($q) => $q->whereIn('branch_id', $scope))->orderBy('name')->get();
 
-        return view('tuition.overdue', $groups + compact('statsByBranch', 'statsByClass', 'branches', 'classes'));
+        return Inertia::render('Tuition/Overdue', [
+            ...$this->dueGroupProps($groups),
+            'statsByBranch' => $statsByBranch->map(fn ($r) => [...$r, 'total_debt' => (float) $r['total_debt']]),
+            'statsByClass' => $statsByClass->map(fn ($r) => [...$r, 'total_debt' => (float) $r['total_debt']]),
+            'branches' => $branches->map(fn (Branch $b) => ['value' => $b->id, 'label' => $b->name])->values(),
+            'classes' => $classes->map(fn (ClassModel $c) => ['value' => $c->id, 'label' => $c->name.' ('.$c->code.')'])->values(),
+        ]);
     }
 
     /**
@@ -2020,7 +2479,7 @@ class TuitionController extends Controller
 
         $perPage = 10;
         $page = max(1, (int) $request->input('upcoming_page', 1));
-        $upcoming = new \Illuminate\Pagination\LengthAwarePaginator(
+        $upcoming = new LengthAwarePaginator(
             $upcomingAll->forPage($page, $perPage)->values(),
             $upcomingAll->count(),
             $perPage,
@@ -2071,7 +2530,7 @@ class TuitionController extends Controller
 
         $admins = User::query()
             ->where('is_active', true)
-            ->whereHas('roles', fn ($q) => $q->where('name', \App\Support\Rbac::SUPER_ADMIN))
+            ->whereHas('roles', fn ($q) => $q->where('name', Rbac::SUPER_ADMIN))
             ->pluck('id');
 
         $message = "{$reporter->name} báo cáo học viên {$tuition->student?->name} ({$tuition->student?->code}) lớp "
@@ -2170,8 +2629,43 @@ class TuitionController extends Controller
             $editing = null;
         }
         $canManageDefault = (bool) $request->user()?->can('invoice_range.manage_default');
+        $canManage = (bool) $request->user()?->can('invoice_range.manage');
+        $pad = fn ($n) => str_pad((string) $n, InvoiceConfiguration::NUMBER_PAD, '0', STR_PAD_LEFT);
 
-        return view('tuition.config', compact('ranges', 'maxIssued', 'recentInvoices', 'branches', 'editing', 'canManageDefault'));
+        return Inertia::render('Tuition/Config', [
+            'ranges' => $ranges->map(function (InvoiceConfiguration $range) use ($maxIssued, $recentInvoices, $pad, $canManage, $canManageDefault) {
+                $remaining = $range->remaining();
+                $max = $maxIssued[$range->id] ?? null;
+
+                return [
+                    'id' => $range->id,
+                    'branch_id' => $range->branch_id,
+                    'branch_name' => $range->branch?->name,
+                    'series_code' => $range->series_code,
+                    'template_code' => $range->template_code,
+                    'start_number' => $range->start_number,
+                    'end_number' => $range->end_number,
+                    'current_number' => $range->current_number,
+                    'range_label' => $pad($range->start_number ?? 1).' – '.($range->end_number ? $pad($range->end_number) : '∞'),
+                    'current_label' => $pad($range->current_number),
+                    'max_issued' => $max,
+                    'max_issued_label' => $max ? $pad($max) : null,
+                    'remaining' => $remaining,
+                    'remaining_label' => $remaining === null ? null : number_format($remaining, 0, ',', '.'),
+                    'low' => $remaining !== null && $remaining > 0 && $remaining <= InvoiceConfiguration::LOW_REMAINING_THRESHOLD,
+                    'is_active' => (bool) $range->is_active,
+                    'can_manage' => $canManage && ($range->branch_id || $canManageDefault),
+                    'recent' => ($recentInvoices[$range->id] ?? collect())->map(fn ($invoice) => [
+                        'invoice_number' => $invoice->invoice_number,
+                        'label' => $invoice->status === 'cancelled' ? 'Đã hủy HĐ' : $invoice->updated_at?->format('d/m/Y H:i'),
+                    ])->values()->all(),
+                ];
+            })->values()->all(),
+            'branches' => $branches->map(fn ($b) => ['value' => (string) $b->id, 'label' => $b->name])->values()->all(),
+            'editingId' => $editing?->id,
+            'openNew' => $request->boolean('new'),
+            'canManageDefault' => $canManageDefault,
+        ]);
     }
 
     /**

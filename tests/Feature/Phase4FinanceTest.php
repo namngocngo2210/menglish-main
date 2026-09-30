@@ -22,6 +22,7 @@ use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Tests\Concerns\GrantsPersonalPermissions;
 use Tests\TestCase;
 
@@ -30,8 +31,8 @@ use Tests\TestCase;
  */
 class Phase4FinanceTest extends TestCase
 {
-    use RefreshDatabase;
     use GrantsPersonalPermissions;
+    use RefreshDatabase;
 
     private Branch $branch;
 
@@ -303,7 +304,7 @@ class Phase4FinanceTest extends TestCase
             ->assertOk()
             ->assertSee('Sửa phiếu thu học phí')
             ->assertSee('Thiếu ủy nhiệm chi')
-            ->assertSee(route('tuition.receipts.update', $receipt->id), false)
+            ->assertSee(route('tuition.receipts.update', $receipt->id, false), false)
             ->assertSee('FT-EDIT-01');
 
         // Gửi lại mà vẫn thiếu minh chứng -> chặn.
@@ -352,12 +353,13 @@ class Phase4FinanceTest extends TestCase
         $this->assertSame('9999888877', $this->tuition->fresh()->resolveBankAccount()->account_number);
 
         $response = $this->actingAs($this->staff)->get(route('tuition.receipts.create', ['tuition_id' => $this->tuition->id]));
-        $response->assertOk();
-        $meta = $response->viewData('tuitionMeta')[$this->tuition->id];
-        $this->assertSame(24, $meta['sessions']['total']);
-        $this->assertSame(2, $meta['sessions']['attended']);
-        $this->assertSame('9999888877', $meta['bank']['account_number']);
-        $this->assertSame('9999888877', $response->viewData('defaultBank')->account_number);
+        $response->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->component('Tuition/ReceiptForm')
+            ->where('tuitions', function ($tuitions) {
+                $meta = $tuitions->firstWhere('id', $this->tuition->id);
+
+                return $meta['total_sessions'] === 24 && $meta['attended_sessions'] === 2 && $meta['bank']['account_number'] === '9999888877';
+            })
+            ->where('defaultBank.account_number', '9999888877'));
 
         // Học viên chi nhánh chưa có tài khoản riêng -> tài khoản mặc định.
         $other = Student::create(['code' => 'HV-P4-DD2', 'name' => 'HV DD', 'phone' => '0900000077', 'branch_id' => $this->branch2->id, 'status' => 'studying']);
@@ -378,7 +380,7 @@ class Phase4FinanceTest extends TestCase
 
         $this->actingAs($this->staff)->get(route('tuition.receipts.create', ['tuition_id' => $this->tuition->id]))
             ->assertOk()
-            ->assertViewHas('tuitionMeta', fn ($meta) => $meta[$this->tuition->id]['sessions'] === null);
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('tuitions', fn ($tuitions) => $tuitions->firstWhere('id', $this->tuition->id)['total_sessions'] === null));
     }
 
     // ---------------------------------------------------------------------
@@ -639,9 +641,10 @@ class Phase4FinanceTest extends TestCase
             ->assertSee('Quá hạn 12 ngày')
             ->assertSee('Quá hạn 3 ngày')
             ->assertSee('Lê Sắp Tới');
-        $this->assertSame([$serious->id], $response->viewData('seriousOverdue')->pluck('id')->all());
-        $this->assertSame(['HV-P4-NEW'], $response->viewData('newOverdue')->pluck('student.code')->all());
-        $this->assertSame(['HV-P4-SOON'], $response->viewData('upcoming')->pluck('student.code')->all());
+        $response->assertInertia(fn (AssertableInertia $page) => $page->component('Tuition/Overdue')
+            ->where('seriousOverdue', fn ($rows) => $rows->pluck('id')->all() === [$serious->id])
+            ->where('newOverdue', fn ($rows) => $rows->pluck('student.code')->all() === ['HV-P4-NEW'])
+            ->where('upcoming.data', fn ($rows) => $rows->pluck('student.code')->all() === ['HV-P4-SOON']));
 
         $this->actingAs($this->accountant)->post(route('tuition.overdue.contacted', $serious->id), [
             'note' => 'Phụ huynh hẹn chuyển khoản thứ 6',
@@ -692,7 +695,11 @@ class Phase4FinanceTest extends TestCase
             ->assertSee('Xác nhận khất nợ')
             ->assertDontSee('12500000');
 
-        $basis = $response->viewData('studentFinance')[$this->student->id];
+        $basis = null;
+        $response->assertInertia(function (AssertableInertia $page) use (&$basis) {
+            $page->component('Tuition/Refunds')->has('studentFinance.'.$this->student->id);
+            $basis = $page->toArray()['props']['studentFinance'][$this->student->id];
+        });
         // Hợp đồng 6.000.000 / 20 buổi = 300.000đ/buổi; đã nộp 3.000.000, đã học 4 buổi = 1.200.000
         $this->assertEquals(3000000, $basis['paid']);
         $this->assertSame(20, $basis['total_sessions']);

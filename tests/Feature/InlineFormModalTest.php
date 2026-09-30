@@ -41,8 +41,6 @@ class InlineFormModalTest extends TestCase
             'tài liệu giáo trình' => ['syllabus.documents', 'upload-document'],
             'phụ đạo' => ['tasks.support-sessions', 'new-support-session'],
             'nhắc nợ' => ['system-config.debt-reminders', 'new-reminder'],
-            'dải số hoá đơn' => ['tuition.config', 'range-form'],
-            'khất nợ / hoàn tiền' => ['tuition.refunds', 'refund-request'],
         ];
     }
 

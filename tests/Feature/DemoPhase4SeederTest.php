@@ -22,6 +22,7 @@ use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\DemoPhase4Seeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Inertia\Testing\AssertableInertia;
 use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
 
@@ -125,8 +126,12 @@ class DemoPhase4SeederTest extends TestCase
             $this->actingAs($accountant)->get(route($route))->assertOk();
         }
         $this->actingAs($managerBd)->get(route('tuition.overdue'))->assertOk()
-            ->assertViewHas('overdueTuitions', fn ($rows) => $rows->contains(fn ($t) => str_contains($t->student->name, 'Quách Thu Trang'))
-                && ! $rows->contains(fn ($t) => str_contains($t->student->name, 'Hồ Minh Châu')));
+            ->assertInertia(function (AssertableInertia $page) {
+                $props = $page->toArray()['props'];
+                $rows = collect($props['seriousOverdue'])->concat($props['newOverdue']);
+                $this->assertTrue($rows->contains(fn ($t) => str_contains($t['student']['name'], 'Quách Thu Trang'))
+                    && ! $rows->contains(fn ($t) => str_contains($t['student']['name'], 'Hồ Minh Châu')));
+            });
         $this->actingAs($admin)->get(route('activity-logs.index'))->assertOk();
         $this->actingAs($admin)->get(route('tasks.manual-approvals'))->assertOk();
         $this->actingAs($admin)->get(route('tickets.index'))->assertOk();

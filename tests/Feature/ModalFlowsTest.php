@@ -15,11 +15,13 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
+use Inertia\Testing\AssertableInertia;
 use Maatwebsite\Excel\Excel as ExcelFormat;
 use Maatwebsite\Excel\Facades\Excel;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Tests\Concerns\InteractsWithInertia;
 use Tests\TestCase;
 
 /**
@@ -29,6 +31,7 @@ use Tests\TestCase;
  */
 class ModalFlowsTest extends TestCase
 {
+    use InteractsWithInertia;
     use RefreshDatabase;
 
     private const HX = ['HX-Request' => 'true'];
@@ -58,10 +61,7 @@ class ModalFlowsTest extends TestCase
             'vai trò – thêm' => [fn (self $t) => route('roles.create'), 'modal-role-form', 'Thêm vai trò mới'],
             'vai trò – sửa' => [fn (self $t) => route('roles.edit', Role::findByName('teacher', 'web')), 'modal-role-form', 'Đổi tên vai trò'],
             'gán vai trò' => [fn (self $t) => route('users.roles.edit', $t->staff()), 'modal-user-roles-form', 'Gán vai trò'],
-            'vật phẩm – thêm' => [fn (self $t) => route('merchandise.create'), 'modal-merchandise-form', 'Thêm mới Hàng hóa'],
-            'vật phẩm – sửa' => [fn (self $t) => route('merchandise.edit', $t->item()), 'modal-merchandise-form', 'Cập nhật Hàng hóa'],
             'nhập khách Excel' => [fn (self $t) => route('crm.import'), 'modal-crm-import-form', 'Nhập khách hàng loạt từ Excel'],
-            'nhập học phí Excel' => [fn (self $t) => route('tuition.import'), 'modal-tuition-import-form', 'Nhập học phí hàng loạt'],
         ];
     }
 
@@ -91,7 +91,6 @@ class ModalFlowsTest extends TestCase
             'quyền' => ['permissions.index', 'permissions-changed', fn (self $t) => route('permissions.edit', Permission::findByName('aaa.export', 'web')), 'sm'],
             'vai trò' => ['roles.index', 'roles-changed', fn (self $t) => route('roles.create'), 'md'],
             'nhân sự' => ['users.index', 'users-changed', fn (self $t) => route('users.roles.edit', $t->staff()), 'md'],
-            'vật phẩm' => ['merchandise.index', 'merchandise-changed', fn (self $t) => route('merchandise.create'), 'xl'],
         ];
     }
 
@@ -233,22 +232,52 @@ class ModalFlowsTest extends TestCase
 
     // ── Vật phẩm ────────────────────────────────────────────────────────────────────────────
 
-    public function test_merchandise_modal_flow(): void
+    public function test_merchandise_list_and_form_open_in_modal(): void
     {
         $item = $this->item();
 
-        $this->actingAs($this->admin)->post(route('merchandise.store'), ['code' => 'BOOK-MF-01', 'name' => ''], self::HX)
-            ->assertStatus(422)->assertSee('id="modal-merchandise-form"', false)
-            ->assertSee('Mã hàng hóa này đã tồn tại trong hệ thống.')->assertSee('Tên hàng hóa không được để trống.');
+        // Danh sách (Vue): nút Thêm / Sửa mở trang form trong modal chung, Xóa qua hộp xác nhận (không confirm() của trình duyệt).
+        $this->actingAs($this->admin)->get(route('merchandise.index'))->assertOk()
+            ->assertSee('href="'.route('merchandise.create', absolute: false).'"', false)
+            ->assertSee('href="'.route('merchandise.edit', $item, absolute: false).'"', false)
+            ->assertDontSee('onsubmit="return confirm(', false)
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Merchandise/Index')->where('items.data.0.code', 'BOOK-MF-01'));
 
+        // Mở thẳng URL → trang đầy đủ; mở từ modal (X-Remote-Modal) → prop asModal.
+        $this->actingAs($this->admin)->get(route('merchandise.create'))->assertOk()
+            ->assertSee('data-sidebar', false)
+            ->assertSee('Thêm mới Hàng hóa')
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Merchandise/Form')->where('asModal', false)->where('isEdit', false));
+        $this->actingAs($this->admin)->get(route('merchandise.edit', $item), self::MODAL)->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Merchandise/Form')
+                ->where('asModal', true)->where('isEdit', true)->where('item.code', 'BOOK-MF-01'));
+    }
+
+    public function test_merchandise_modal_flow(): void
+    {
+        $item = $this->item();
+        $index = route('merchandise.index', ['q' => 'Sách']);
+
+        // Lỗi validate từ modal → quay lại trang đang mở kèm lỗi (modal giữ nguyên, hiện lỗi dưới trường).
+        $this->actingAs($this->admin)->from($index)->post(route('merchandise.store'), ['code' => 'BOOK-MF-01', 'name' => ''], self::MODAL)
+            ->assertRedirect($index)
+            ->assertSessionHasErrors(['code' => 'Mã hàng hóa này đã tồn tại trong hệ thống.', 'name' => 'Tên hàng hóa không được để trống.']);
+
+        // Lưu xong từ modal → về lại trang đang mở (giữ bộ lọc) kèm thông báo.
         $payload = ['code' => 'UNI-MF-XL', 'name' => 'Áo Polo XL', 'category' => 'uniform', 'unit' => 'Chiếc', 'price' => 220000, 'stock_quantity' => 30, 'is_active' => 1];
-        $this->assertSaved($this->actingAs($this->admin)->post(route('merchandise.store'), $payload, self::HX), 'merchandise-changed', 'Đã thêm thành công mặt hàng [UNI-MF-XL] Áo Polo XL!');
+        $this->actingAs($this->admin)->from($index)->post(route('merchandise.store'), $payload, self::MODAL)
+            ->assertRedirect($index)->assertSessionHas('status', 'Đã thêm thành công mặt hàng [UNI-MF-XL] Áo Polo XL!');
 
-        $response = $this->actingAs($this->admin)->put(route('merchandise.update', $item), [...$payload, 'code' => 'BOOK-MF-01', 'name' => 'Sách mới'], self::HX);
-        $this->assertSaved($response, 'merchandise-changed', 'Đã cập nhật thông tin mặt hàng [BOOK-MF-01] Sách mới!');
+        $this->actingAs($this->admin)->from($index)->put(route('merchandise.update', $item), [...$payload, 'code' => 'BOOK-MF-01', 'name' => 'Sách mới'], self::MODAL)
+            ->assertRedirect($index)->assertSessionHas('status', 'Đã cập nhật thông tin mặt hàng [BOOK-MF-01] Sách mới!');
 
-        $this->assertSaved($this->actingAs($this->admin)->delete(route('merchandise.destroy', $item), [], self::HX), 'merchandise-changed', 'Đã xóa mặt hàng Sách mới vào thùng rác.');
+        $this->actingAs($this->admin)->from($index)->delete(route('merchandise.destroy', $item), [], self::MODAL)
+            ->assertRedirect($index)->assertSessionHas('status', 'Đã xóa mặt hàng Sách mới vào thùng rác.');
         $this->assertSoftDeleted($item);
+
+        // Request thường (không từ modal) giữ redirect về danh sách như cũ.
+        $this->actingAs($this->admin)->from($index)->post(route('merchandise.store'), [...$payload, 'code' => 'UNI-MF-L', 'name' => 'Áo Polo L'])
+            ->assertRedirect(route('merchandise.index'));
     }
 
     // ── Nhập khách từ Excel (2 bước trong modal) ─────────────────────────────────────────────
@@ -306,32 +335,36 @@ class ModalFlowsTest extends TestCase
 
     public function test_tuition_import_runs_steps_inside_modal(): void
     {
-        $this->actingAs($this->admin)->post(route('tuition.import.store'), ['branch_id' => $this->branch->id], self::HX)
-            ->assertStatus(422)->assertDontSee('data-sidebar', false)
-            ->assertSee('id="modal-tuition-import-form"', false)->assertSee('Vui lòng chọn file Excel (.xlsx) hoặc CSV để nhập.');
+        // Bước 1 trong modal: thiếu file → về lại bước 1 kèm lỗi.
+        $this->actingAs($this->admin)->from(route('tuition.import'))->post(route('tuition.import.store'), ['branch_id' => $this->branch->id], self::MODAL)
+            ->assertRedirect(route('tuition.import'))
+            ->assertSessionHasErrors(['excel_file' => 'Vui lòng chọn file Excel (.xlsx) hoặc CSV để nhập.']);
+        $this->actingAs($this->admin)->get(route('tuition.import'), self::MODAL)->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Tuition/Import')->where('asModal', true)->where('preview', null));
 
+        // Bước 2: redirect sang xem trước (token) — modal tải trang đó (Tuition/Import) và hiện lỗi từng dòng.
         $file = UploadedFile::fake()->createWithContent('hoc-phi.csv', "Mã học viên,Học phí niêm yết,Hạn đóng\nHV-KHONG-CO,3000000,15/10/2026\n");
-        $response = $this->actingAs($this->admin)->post(route('tuition.import.store'), ['branch_id' => $this->branch->id, 'excel_file' => $file], self::HX);
+        $response = $this->actingAs($this->admin)->post(route('tuition.import.store'), ['branch_id' => $this->branch->id, 'excel_file' => $file], self::MODAL);
         $response->assertRedirect();
         $location = $response->headers->get('Location');
         $this->assertStringContainsString('token=', $location);
 
-        $this->actingAs($this->admin)->get($location, self::HX)->assertOk()
-            ->assertDontSee('data-sidebar', false)
+        $this->actingAs($this->admin)->get($location, self::MODAL)->assertOk()
             ->assertSee('Không tìm thấy học viên mã HV-KHONG-CO')
-            ->assertSee('form="modal-tuition-import-confirm"', false)
-            ->assertSee("size = '4xl'", false);
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Tuition/Import')
+                ->where('asModal', true)
+                ->where('preview.rows.0.errors', fn ($errors) => $errors->contains(fn ($e) => str_contains($e, 'Không tìm thấy học viên mã HV-KHONG-CO'))));
 
-        // Hết hạn phiên xem trước → redirect về bước 1 kèm lỗi (trình duyệt đi theo, lỗi hiện trong modal).
-        $this->actingAs($this->admin)->post(route('tuition.import.confirm'), ['token' => 'khong-ton-tai'], self::HX)
+        // Hết hạn phiên xem trước → redirect về bước 1 kèm lỗi (hiện trong modal).
+        $this->actingAs($this->admin)->post(route('tuition.import.confirm'), ['token' => 'khong-ton-tai'], self::MODAL)
             ->assertRedirect(route('tuition.import'));
-        $this->actingAs($this->admin)->get(route('tuition.import'), self::HX)->assertOk()
+        $this->actingAs($this->admin)->get(route('tuition.import'), self::MODAL)->assertOk()
             ->assertSee('Phiên xem trước đã hết hạn');
     }
 
     // ── Ảnh bằng chứng hoàn tiền (lightbox) ─────────────────────────────────────────────────
 
-    public function test_refund_proof_opens_as_lightbox_for_htmx_and_file_otherwise(): void
+    public function test_refund_proof_opens_as_lightbox_in_modal_and_file_otherwise(): void
     {
         Storage::fake('local');
         Storage::disk('local')->put('tuition/refund-proofs/unc.png', UploadedFile::fake()->image('unc.png')->getContent());
@@ -341,13 +374,17 @@ class ModalFlowsTest extends TestCase
             'reason' => 'Chuyển nhà', 'requester_id' => $this->admin->id, 'status' => 'approved', 'proof_path' => 'tuition/refund-proofs/unc.png',
         ]);
 
+        // Bảng hoàn phí: link ảnh bằng chứng (bấm → mở modal cỡ xl; mở tab mới vẫn là file ảnh).
         $this->actingAs($this->admin)->get(route('tuition.refunds'))->assertOk()
-            ->assertSee('hx-get="'.route('tuition.refunds.proof', $refund->id).'"', false)->assertSee('data-modal-size="xl"', false);
+            ->assertSee('href="'.route('tuition.refunds.proof', $refund->id, false).'"', false)->assertSee('Ảnh bằng chứng');
 
-        $this->actingAs($this->admin)->get(route('tuition.refunds.proof', $refund->id), self::HX)->assertOk()
-            ->assertDontSee('data-sidebar', false)
+        $this->actingAs($this->admin)->get(route('tuition.refunds.proof', $refund->id), self::MODAL)->assertOk()
             ->assertSee('Ảnh bằng chứng — Lê Hoàn')
-            ->assertSee('<img src="'.route('tuition.refunds.proof', $refund->id).'"', false);
+            ->assertSee('<img src="'.route('tuition.refunds.proof', $refund->id).'"', false)
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Tuition/RefundProof')
+                ->where('asModal', true)
+                ->where('refund.student_name', 'Lê Hoàn')
+                ->where('refund.proof_url', route('tuition.refunds.proof', $refund->id)));
 
         $file = $this->actingAs($this->admin)->get(route('tuition.refunds.proof', $refund->id))->assertOk();
         $this->assertStringStartsWith('image/', $file->headers->get('Content-Type'));
