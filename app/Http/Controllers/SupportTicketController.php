@@ -232,6 +232,34 @@ class SupportTicketController extends Controller
         return $this->ticketActionDone($ticket, "Đã cập nhật trạng thái ticket sang: {$ticket->status_label}!");
     }
 
+    /**
+     * Mở lại ticket đã giải quyết / đã đóng → "Đang xử lý". Người đổi được trạng thái (support_ticket.close) và người
+     * tạo ticket (vấn đề chưa hết) bấm được. Ghi 1 dòng vào hội thoại để biết ai mở lại lúc nào; báo người liên quan.
+     */
+    public function reopen($id)
+    {
+        $ticket = SupportTicket::where('id', $id)->orWhere('code', $id)->firstOrFail();
+        $this->authorizeTicketParticipant($ticket);
+        abort_unless($ticket->userCanReopen(Auth::user()), 403);
+
+        if (! $ticket->isFinished()) {
+            return $this->modalFailed('Ticket đang mở, không cần mở lại.', 'status');
+        }
+
+        $ticket->update(['status' => 'in_progress', 'resolved_at' => null]);
+        TicketMessage::create([
+            'support_ticket_id' => $ticket->id,
+            'user_id' => Auth::id(),
+            'message' => 'Đã mở lại ticket, chuyển sang Đang xử lý.',
+            'is_internal_note' => false,
+        ]);
+
+        $actor = Auth::user();
+        defer(fn () => $this->notificationService->notifyTicketStatusChanged($ticket, 'in_progress', $actor));
+
+        return $this->ticketActionDone($ticket, 'Đã mở lại ticket.');
+    }
+
     public function assign(Request $request, $id)
     {
         $ticket = SupportTicket::where('id', $id)->orWhere('code', $id)->firstOrFail();

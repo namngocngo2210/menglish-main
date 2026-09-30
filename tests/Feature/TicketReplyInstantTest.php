@@ -143,4 +143,54 @@ class TicketReplyInstantTest extends TestCase
         $this->assertDatabaseHas('ticket_messages', ['message' => 'Gửi không cần JS.']);
         $this->assertDatabaseHas('admin_notifications', ['user_id' => $this->staff->id, 'type' => 'ticket_message']);
     }
+
+    public function test_reopen_button_moves_finished_ticket_back_to_in_progress(): void
+    {
+        $this->ticket->update(['status' => 'resolved', 'resolved_at' => now()]);
+
+        // Người tạo (không có quyền đổi trạng thái) thấy nút Mở lại.
+        $this->actingAs($this->staff)->get(route('tickets.show', $this->ticket->id))
+            ->assertOk()->assertSee(route('tickets.reopen', $this->ticket->id), false)->assertSee('Mở lại');
+
+        $this->actingAs($this->staff)->from(route('tickets.show', $this->ticket->id))
+            ->post(route('tickets.reopen', $this->ticket->id))
+            ->assertRedirect(route('tickets.show', $this->ticket->id))
+            ->assertSessionHas('status');
+
+        $ticket = $this->ticket->fresh();
+        $this->assertSame('in_progress', $ticket->status);
+        $this->assertNull($ticket->resolved_at);
+        $this->assertDatabaseHas('ticket_messages', [
+            'support_ticket_id' => $ticket->id,
+            'user_id' => $this->staff->id,
+            'message' => 'Đã mở lại ticket, chuyển sang Đang xử lý.',
+        ]);
+
+        // Ticket đang mở: không hiện nút, gọi thẳng cũng không đổi gì.
+        $this->actingAs($this->admin)->get(route('tickets.show', $ticket->id))
+            ->assertDontSee(route('tickets.reopen', $ticket->id), false);
+        $this->actingAs($this->admin)->post(route('tickets.reopen', $ticket->id))->assertSessionHasErrors('status');
+        $this->assertSame(2, TicketMessage::count());
+    }
+
+    public function test_admin_reopens_closed_ticket_in_modal_and_creator_is_notified(): void
+    {
+        $this->ticket->update(['status' => 'closed', 'resolved_at' => now()]);
+
+        $response = $this->actingAs($this->admin)->post(route('tickets.reopen', $this->ticket->id), [], ['HX-Request' => 'true']);
+        $response->assertOk()->assertSee('data-testid="ticket-conversation"', false)->assertSee('Đã mở lại ticket');
+
+        $this->assertSame('in_progress', $this->ticket->fresh()->status);
+        $this->assertDatabaseHas('admin_notifications', ['user_id' => $this->staff->id, 'type' => 'ticket_status']);
+    }
+
+    public function test_unrelated_user_cannot_reopen(): void
+    {
+        $this->ticket->update(['status' => 'resolved']);
+        $outsider = User::factory()->create(['is_active' => true]);
+        $outsider->assignRole('sales_consultant');
+
+        $this->actingAs($outsider)->post(route('tickets.reopen', $this->ticket->id))->assertForbidden();
+        $this->assertSame('resolved', $this->ticket->fresh()->status);
+    }
 }
