@@ -7,6 +7,7 @@ import focus from '@alpinejs/focus';
 import './components/remote-modal';
 import attachmentUploader from './modules/attachment-uploader';
 import createReceiptManager from './modules/receipt-form';
+import ticketReply from './modules/ticket-reply';
 import { confirmDialog, registerFormConfirm } from './modules/confirm-dialog';
 import { registerFormSubmitGuard } from './modules/form-submit-guard';
 import { registerRowLinks } from './modules/row-link';
@@ -19,6 +20,7 @@ Alpine.plugin(focus);
 // Component dùng chung trang ↔ modal htmx (không dùng <script> inline trong view).
 Alpine.data('attachmentUploader', attachmentUploader);
 Alpine.data('createReceiptManager', createReceiptManager);
+Alpine.data('ticketReply', ticketReply);
 
 window.Alpine = Alpine;
 // Hộp xác nhận chung: form dùng data-confirm, JS / Alpine gọi await window.confirmDialog({...}).

@@ -281,7 +281,7 @@ class LargeModalFlowsTest extends TestCase
             ->assertDontSee('data-sidebar', false)
             ->assertSee('data-testid="ticket-conversation"', false)
             ->assertSee('id="modal-ticket-reply-form"', false)
-            ->assertSee('x-data="attachmentUploader"', false)
+            ->assertSee('x-data="ticketReply"', false)
             ->assertSee('Máy chiếu phòng 2 không lên hình');
 
         // Gửi phản hồi trống → 422, hội thoại hiện lại kèm lỗi (tickets.messages.store → màn chi tiết tickets.show).
