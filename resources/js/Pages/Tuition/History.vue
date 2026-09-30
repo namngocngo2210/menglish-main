@@ -115,11 +115,16 @@ onBeforeUnmount(() => {
                             <UiBadge :color="rc.status_color">{{ rc.status_label }}</UiBadge>
                             <div v-if="rc.status === 'approved' && rc.invoice_number" class="font-caption text-caption text-tertiary">Chính thức</div>
                             <div v-else-if="rc.status === 'cancelled'" class="font-caption text-caption text-error">Đã hủy HĐ</div>
+                            <div v-if="rc.deposit_state === 'pending'"><UiBadge color="warning" :dot="false" title="Tiền mặt phải nộp về TK công ty trước 19:00 cùng ngày">Chưa nộp về TK</UiBadge></div>
+                            <div v-else-if="rc.deposit_state === 'late'"><UiBadge color="error" :dot="false" :title="'Nộp lúc ' + rc.deposited_at">Nộp trễ sau 19h</UiBadge></div>
                         </td>
                         <td class="whitespace-nowrap font-code text-code">{{ rc.payment_date_short ?? '—' }}</td>
                         <td class="whitespace-nowrap text-right">
                             <UiButton size="sm" variant="ghost" icon="visibility" title="Xem chi tiết" aria-label="Xem chi tiết" @click="detail = rc" />
                             <UiButton size="sm" variant="ghost" icon="print" title="In phiếu thu" aria-label="In phiếu thu" @click="print(rc)" />
+                            <UiForm v-if="rc.can_confirm_deposit" :action="route('tuition.receipts.confirm-deposit', rc.id)" method="post" back class="inline" confirm="Xác nhận tiền mặt của phiếu này đã nộp về tài khoản công ty?" confirm-label="Xác nhận đã nộp">
+                                <UiButton type="submit" size="sm" variant="ghost" icon="savings" title="Xác nhận đã nộp về TK công ty" aria-label="Xác nhận đã nộp về TK công ty" />
+                            </UiForm>
                             <UiButton v-if="rc.can_edit" size="sm" variant="ghost" icon="edit" :href="route('tuition.receipts.edit', rc.id)" modal="4xl" title="Sửa phiếu nháp / bị trả về rồi gửi duyệt lại" aria-label="Sửa phiếu" />
                         </td>
                     </tr>

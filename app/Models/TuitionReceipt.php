@@ -51,6 +51,9 @@ class TuitionReceipt extends Model
     /** Trạng thái giữ chỗ mã giao dịch ngân hàng (transfer_reference) để không ghi nhận 2 lần. */
     public const REFERENCE_HOLDING_STATUSES = [self::STATUS_PENDING, self::STATUS_APPROVED];
 
+    /** Hạn nộp tiền thu trong ngày về tài khoản công ty (giờ hệ thống, cùng ngày thu). */
+    public const DEPOSIT_CUTOFF = '19:00';
+
     protected $table = 'tuition_receipts';
 
     protected $fillable = [
@@ -74,6 +77,8 @@ class TuitionReceipt extends Model
         'creator_id',
         'approver_id',
         'approved_at',
+        'deposited_at',
+        'deposited_by',
         'status',
         'notes',
         'rejection_reason',
@@ -89,6 +94,7 @@ class TuitionReceipt extends Model
         'is_vat_invoice' => 'boolean',
         'payment_date' => 'date',
         'approved_at' => 'datetime',
+        'deposited_at' => 'datetime',
         'split_details' => 'array',
         'collected_items' => 'array',
     ];
@@ -111,6 +117,52 @@ class TuitionReceipt extends Model
     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approver_id');
+    }
+
+    public function depositor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'deposited_by');
+    }
+
+    /**
+     * Phiếu thu tiền mặt còn hiệu lực (chờ duyệt / đã duyệt, số tiền dương) phải nộp về TK công ty trước 19:00 cùng ngày.
+     * Chuyển khoản / VietQR / POS đã vào thẳng tài khoản nên không áp dụng.
+     */
+    public function requiresDeposit(): bool
+    {
+        return $this->payment_method === 'cash'
+            && in_array($this->status, self::REFERENCE_HOLDING_STATUSES, true)
+            && (float) $this->amount > 0;
+    }
+
+    /** Thời điểm hết hạn nộp tiền: 19:00 của ngày thu. */
+    public function depositDeadline(): ?\Carbon\CarbonInterface
+    {
+        return $this->payment_date?->copy()->setTimeFromTimeString(self::DEPOSIT_CUTOFF);
+    }
+
+    /** Đã nộp nhưng sau hạn, hoặc chưa nộp mà đã qua hạn. */
+    public function isDepositLate(?\Carbon\CarbonInterface $now = null): bool
+    {
+        $deadline = $this->depositDeadline();
+        if (! $deadline) {
+            return false;
+        }
+
+        return ($this->deposited_at ?? $now ?? now())->gt($deadline);
+    }
+
+    /** Trạng thái nộp tiền để hiển thị: null (không áp dụng) | pending | on_time | late. */
+    public function depositState(): ?string
+    {
+        if (! $this->requiresDeposit()) {
+            return null;
+        }
+        if ($this->deposited_at === null) {
+            return 'pending';
+        }
+
+        return $this->isDepositLate() ? 'late' : 'on_time';
     }
 
     /**
