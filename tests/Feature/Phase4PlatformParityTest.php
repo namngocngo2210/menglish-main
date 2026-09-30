@@ -14,6 +14,7 @@ use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 /**
@@ -268,11 +269,11 @@ class Phase4PlatformParityTest extends TestCase
         $academic = $this->makeUser('academic_staff', $this->branch);
         $teacher = $this->makeUser('teacher', $this->branch);
 
-        // IX-3: form Giao việc không nhúng sẵn trong danh sách nữa — nút mở modal (htmx) tải tasks.create.
+        // IX-3: form Giao việc không nhúng sẵn trong danh sách nữa — nút mở modal chung tải tasks.create.
         $this->actingAs($academic)->get(route('tasks.index'))->assertOk()
-            ->assertSee('hx-get="'.route('tasks.create').'"', false)
+            ->assertSee('href="'.route('tasks.create', absolute: false).'"', false)
             ->assertSeeInOrder(['Của tôi', 'Tôi giao', 'Tất cả']);
-        $this->actingAs($academic)->get(route('tasks.create'), ['HX-Request' => 'true'])->assertOk()
+        $this->actingAs($academic)->get(route('tasks.create'), ['X-Remote-Modal' => 'true'])->assertOk()
             ->assertSee('Giao việc mới')->assertSee('Lưu và Giao việc')
             ->assertSee($teacher->name.' (Giáo viên)')          // nhãn vai trò, không phải mã "teacher"
             ->assertDontSee('('.$teacher->name.' (teacher)', false);
@@ -335,9 +336,10 @@ class Phase4PlatformParityTest extends TestCase
             ->assertSee('Quản lý Tài khoản &amp; Vai trò', false)
             ->assertSee('Trợ giảng (kiêm nhiệm)')
             ->assertSee('HĐ đã hết hạn')
-            ->assertSee('KN-01')                 // lớp phụ trách trong hồ sơ nhanh (drawer)
-            ->assertDontSee('Chưa có thông tin phân công kiêm nhiệm phát sinh');
-        $this->assertSame(3, $response->viewData('academicStaff')); // Học thuật + Học vụ + Giáo viên
+            ->assertDontSee('Chưa có thông tin phân công kiêm nhiệm phát sinh')
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('stats.academic', 3)); // Học thuật + Học vụ + Giáo viên
+        // Lớp phụ trách nằm trong dữ liệu hồ sơ nhanh (drawer) của trang.
+        $this->assertStringContainsString('KN-01', json_encode($response->viewData('page')['props'], JSON_UNESCAPED_UNICODE));
 
         $this->actingAs($this->admin)->get(route('users.index', ['status' => 'locked']))->assertOk()
             ->assertSee('GV Bị khóa')->assertDontSee('Học thuật Một');
@@ -388,7 +390,7 @@ class Phase4PlatformParityTest extends TestCase
             ->assertSee('Không có quyền truy cập')
             ->assertSee($roleCount.' thao tác cho phép')
             ->assertSee('scope[class][type]', false);
-        $this->assertSame($roleCount, $response->viewData('effectiveCount'));
+        $response->assertInertia(fn (AssertableInertia $page) => $page->where('stats.effective', $roleCount));
 
         // Bỏ tích 1 quyền vai trò có (thu hồi) + tích 1 quyền vai trò không có (cấp thêm) theo chi nhánh.
         $this->actingAs($this->admin)->put(route('users.permissions.update', $teacher), [
@@ -418,7 +420,7 @@ class Phase4PlatformParityTest extends TestCase
             ->assertSee('Kích hoạt lại')
             ->assertDontSee('lead_source</option>', false);
         // Thêm mới trong modal (không còn panel cạnh bảng): mã gợi ý kế tiếp + thứ tự cuối danh sách.
-        $this->actingAs($this->admin)->get(route('system-categories.create', ['type' => 'lead_source']), ['HX-Request' => 'true'])->assertOk()
+        $this->actingAs($this->admin)->get(route('system-categories.create', ['type' => 'lead_source']), ['X-Remote-Modal' => 'true'])->assertOk()
             ->assertSee('value="SRC_04"', false)
             ->assertSee('value="4"', false);
 
@@ -453,7 +455,7 @@ class Phase4PlatformParityTest extends TestCase
             ->assertSeeInOrder(['Tất cả', 'CRM', 'Giáo trình', 'Lớp &amp; Điểm danh', 'Phân quyền'], false)
             ->assertSee('Tìm tên người thực hiện, mã bản ghi...')
             ->assertSee('Chi tiết đối chiếu')->assertSee('Dữ liệu trước')->assertSee('Dữ liệu sau')
-            ->assertSee('name: "Nhân sự Gốc"', false)
+            ->assertSee('name: "Nhân sự Gốc"')
             ->assertSee('Transaction ID')->assertSee('Hoàn tác')->assertSee('Đóng chi tiết');
 
         // Chip "Phân quyền" chỉ còn nhật ký tài khoản; tìm theo mã bản ghi #id.
@@ -491,12 +493,12 @@ class Phase4PlatformParityTest extends TestCase
             ->assertSee('Báo cáo trực lớp chờ xác nhận')
             ->assertSee('Phiếu thu chờ duyệt')
             ->assertSee('1 ticket chưa có người xử lý');
-        $queues = collect($admin->viewData('roleDashboard')['queues'])->pluck('value', 'label');
+        $queues = collect($admin->inertiaProps('roleDashboard.queues'))->pluck('value', 'label');
         $this->assertSame(3, $queues['Báo cáo trực lớp chờ xác nhận']);
         $this->assertSame(1, $queues['Ticket đang mở']);
 
         $managerB = $this->makeUser('manager', $this->otherBranch);
-        $managerQueues = collect($this->actingAs($managerB)->get(route('dashboard'))->assertOk()->viewData('roleDashboard')['queues'])->pluck('value', 'label');
+        $managerQueues = collect($this->actingAs($managerB)->get(route('dashboard'))->assertOk()->inertiaProps('roleDashboard.queues'))->pluck('value', 'label');
         $this->assertSame(2, $managerQueues['Báo cáo trực lớp chờ xác nhận']);
         $this->assertSame(0, $managerQueues['Ticket đang mở']);
 

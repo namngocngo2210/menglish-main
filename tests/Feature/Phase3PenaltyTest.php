@@ -11,6 +11,7 @@ use Carbon\Carbon;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Tests\Concerns\FinalizesPayrollKpi;
 use Tests\TestCase;
 
@@ -299,7 +300,7 @@ class Phase3PenaltyTest extends TestCase
 
         $this->actingAs($this->manager)->get(route('penalties.index'))
             ->assertOk()
-            ->assertViewHas('penalties', fn ($paginator) => $paginator->total() === 18 && $paginator->count() === 15);
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('penalties.total', 18)->has('penalties.data', 15));
 
         $this->actingAs($this->manager)->get(route('penalties.index', ['search' => 'XYZ']))
             ->assertOk()
@@ -308,6 +309,6 @@ class Phase3PenaltyTest extends TestCase
 
         $this->actingAs($this->manager)->get(route('penalties.index', ['status' => 'explained']))
             ->assertOk()
-            ->assertViewHas('penalties', fn ($paginator) => $paginator->total() === 3);
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('penalties.total', 3));
     }
 }

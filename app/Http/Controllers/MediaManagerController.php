@@ -4,7 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Services\MediaManagerService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\File;
+use Inertia\Inertia;
+use Inertia\Response as InertiaResponse;
 
 class MediaManagerController extends Controller
 {
@@ -18,7 +19,7 @@ class MediaManagerController extends Controller
     /**
      * Màn hình quản lý toàn bộ tệp tin & media (hỗ trợ duyệt thư mục kiểu Google Drive)
      */
-    public function index(Request $request)
+    public function index(Request $request): InertiaResponse
     {
         $allFiles = $this->mediaService->getAllFiles();
         $stats = $this->mediaService->getStorageStats($allFiles);
@@ -63,17 +64,28 @@ class MediaManagerController extends Controller
             }
         }
 
-        return view('media.index', [
-            'files' => $paginatedFiles,
-            'stats' => $stats,
+        return Inertia::render('Media/Index', [
+            'files' => $paginatedFiles->through(fn (array $file) => [
+                ...collect($file)->only(['id', 'filename', 'extension', 'type', 'size_human', 'directory', 'url', 'created_at_human', 'is_image'])->all(),
+                'download_url' => route('media.download', $file['id']),
+            ]),
+            'stats' => collect($stats)->only(['total_files', 'total_size_human', 'images_count', 'images_size', 'docs_size'])->all(),
             'filters' => $filters,
-            'directories' => $directories,
-            'subFolders' => $subFolders,
+            'directories' => array_values($directories),
+            'subFolders' => $subFolders->map(fn (array $folder) => collect($folder)->only(['name', 'path', 'files_count', 'total_size_human'])->all())->values()->all(),
             'currentFolder' => $currentFolder,
             'breadcrumbs' => $breadcrumbs,
             'totalFilteredCount' => $filteredFiles->count(),
             'totalFilteredSize' => $this->mediaService->formatBytes($filteredFiles->sum('size')),
+            // Thư mục theo ngày (uploads/media/YYYY/MM) cho ô chọn nơi lưu / đích di chuyển.
+            'datedFolder' => now()->format('Y').'/'.now()->format('m'),
         ]);
+    }
+
+    /** Gọi AJAX / JSON (vd. tải tệp bằng XHR); request Inertia (cũng mang X-Requested-With) nhận redirect như form thường. */
+    private function wantsJson(Request $request): bool
+    {
+        return ! $request->header('X-Inertia') && ($request->expectsJson() || $request->ajax());
     }
 
     /**
@@ -88,7 +100,7 @@ class MediaManagerController extends Controller
 
         $result = $this->mediaService->createFolder($validated['folder_name'], $validated['parent_folder'] ?? '');
 
-        if ($request->expectsJson() || $request->ajax()) {
+        if ($this->wantsJson($request)) {
             return response()->json($result, $result['success'] ? 200 : 400);
         }
 
@@ -112,7 +124,7 @@ class MediaManagerController extends Controller
 
         $result = $this->mediaService->deleteFolder($validated['folder_path']);
 
-        if ($request->expectsJson() || $request->ajax()) {
+        if ($this->wantsJson($request)) {
             return response()->json($result, $result['success'] ? 200 : 400);
         }
 
@@ -138,7 +150,7 @@ class MediaManagerController extends Controller
 
         $result = $this->mediaService->moveFiles($validated['selected_files'], $validated['target_folder']);
 
-        if ($request->expectsJson() || $request->ajax()) {
+        if ($this->wantsJson($request)) {
             return response()->json($result, $result['success'] ? 200 : 400);
         }
 
@@ -265,7 +277,7 @@ class MediaManagerController extends Controller
         }
 
         if (empty($uploadedFiles)) {
-            if ($request->expectsJson() || $request->ajax()) {
+            if ($this->wantsJson($request)) {
                 return response()->json(['success' => false, 'message' => 'Không tìm thấy tệp tin nào để tải lên.'], 422);
             }
 
@@ -275,7 +287,7 @@ class MediaManagerController extends Controller
         $targetFolder = $request->input('folder', 'auto_date');
         $result = $this->mediaService->uploadFiles($uploadedFiles, $targetFolder);
 
-        if ($request->expectsJson() || $request->ajax()) {
+        if ($this->wantsJson($request)) {
             return response()->json($result, $result['success'] ? 200 : 400);
         }
 

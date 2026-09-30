@@ -2,12 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Models\Branch;
 use App\Models\CrmCustomer;
 use App\Models\CrmCustomerHistory;
 use App\Models\PlacementTest;
 use App\Models\PlacementTestSubmission;
 use App\Models\User;
 use App\Services\PlacementPortalLinkService;
+use App\Support\Navigation\SidebarMenu;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -292,7 +294,7 @@ class PlacementPortalSecurityTest extends TestCase
 
         $result = $this->actingAs($academic)->get(route('placement-tests.results.show', $submission->id));
         $result->assertOk();
-        $this->assertSame([], $result->viewData('questions'));
+        $this->assertSame([], $result->inertiaProps('questions'));
         $result->assertDontSee('Melbourne International Airport');
     }
 
@@ -375,7 +377,7 @@ class PlacementPortalSecurityTest extends TestCase
         $this->actingAs($manager)->get(route('placement-tests.index'))->assertOk();
         // IX-4: Đề test là tab của workspace "Test đầu vào & học thử" (sidebar trỏ tới tab đầu tiên).
         $this->actingAs($manager)->get(route('dashboard'))->assertSee('data-menu-item="trial"', false);
-        $menuRoutes = collect(app(\App\Support\Navigation\SidebarMenu::class)->groupsFor($manager->fresh()))
+        $menuRoutes = collect(app(SidebarMenu::class)->groupsFor($manager->fresh()))
             ->flatMap(fn (array $g) => collect($g['items'])->pluck('route'));
         $this->assertContains('placement-tests.index', $menuRoutes);
 
@@ -386,7 +388,7 @@ class PlacementPortalSecurityTest extends TestCase
     public function test_grading_result_never_moves_lead_backwards_and_logs_history(): void
     {
         // Phase 1: Học vụ chỉ chấm bài của khách thuộc chi nhánh mình (phạm vi CRM).
-        $branch = \App\Models\Branch::create(['name' => 'Cơ sở chấm', 'code' => 'CHAM', 'is_active' => true]);
+        $branch = Branch::create(['name' => 'Cơ sở chấm', 'code' => 'CHAM', 'is_active' => true]);
         $academic = $this->userWithRole('academic_staff');
         $academic->update(['branch_id' => $branch->id]);
         $test = $this->makeTest();
@@ -453,7 +455,7 @@ class PlacementPortalSecurityTest extends TestCase
     public function test_crm_save_test_score_keeps_missing_values_null_and_requires_test(): void
     {
         // Quản lý cơ sở chỉ thấy lead thuộc chi nhánh của mình.
-        $branch = \App\Models\Branch::create(['name' => 'Cơ sở test', 'code' => 'CST', 'is_active' => true]);
+        $branch = Branch::create(['name' => 'Cơ sở test', 'code' => 'CST', 'is_active' => true]);
         $manager = $this->userWithRole('manager');
         $manager->update(['branch_id' => $branch->id]);
         $this->makeTest();
@@ -486,9 +488,9 @@ class PlacementPortalSecurityTest extends TestCase
         $response = $this->actingAs($admin)->get(route('crm.customers.show', $lead->id));
         $response->assertOk();
         $html = $response->getContent();
-        // Ô điểm dùng x-model, giá trị khởi tạo trống (không bịa điểm mặc định).
-        $this->assertStringContainsString('\\u0022listening\\u0022:\\u0022\\u0022', $html);
-        $this->assertStringContainsString('\\u0022speaking\\u0022:\\u0022\\u0022', $html);
+        // Ô điểm (Vue) khởi tạo trống — không bịa điểm mặc định.
+        $this->assertSame('', $response->inertiaProps('scoreForm.rubric.initial.listening'));
+        $this->assertSame('', $response->inertiaProps('scoreForm.rubric.initial.speaking'));
         $this->assertStringNotContainsString('name="cefr_level"', $html);
         $response->assertDontSee('IELTS 6.5 Intensive');
         $response->assertDontSee('Học viên có phản xạ nói tự nhiên, vốn từ cơ bản tốt.');

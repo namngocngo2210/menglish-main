@@ -8,6 +8,7 @@ use App\Models\SyllabusCurriculum;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Inertia\Inertia;
 
 class CourseLevelController extends Controller
 {
@@ -55,7 +56,38 @@ class CourseLevelController extends Controller
 
         $canReorder = empty(array_filter($validated));
 
-        return view('course-levels.index', compact('levels', 'stats', 'groups', 'curriculums', 'studentCounts', 'canReorder'));
+        return Inertia::render('CourseLevels/Index', [
+            'levels' => $levels->through(fn (CourseLevel $lv) => [
+                'id' => $lv->id,
+                'code' => $lv->code,
+                'name' => $lv->name,
+                'description' => $lv->description,
+                'level_group' => $lv->level_group,
+                'target' => $lv->target,
+                'lessons_count' => $lv->lessons_count,
+                'syllabus_curriculum_id' => $lv->syllabus_curriculum_id,
+                'is_active' => (bool) $lv->is_active,
+                'syllabus' => $lv->syllabus ? [
+                    'label' => $lv->syllabus->code.($lv->syllabus->version ? '.'.$lv->syllabus->version : ''),
+                    'title' => $lv->syllabus->title,
+                ] : null,
+                'courses_count' => (int) $lv->courses_count,
+                'classes_count' => (int) $lv->classes_count,
+                'students_using' => (int) ($studentCounts[$lv->code] ?? 0),
+            ]),
+            'stats' => $stats,
+            'groups' => $groups->values()->all(),
+            'curriculums' => $curriculums->map(fn (SyllabusCurriculum $c) => [
+                'id' => $c->id,
+                'label' => $c->code.($c->version ? '.'.$c->version : '').' - '.$c->title,
+                'option' => $c->code.($c->version ? ' ('.$c->version.')' : '').' — '.$c->title,
+                'updated' => $c->updated_at?->format('d/m/Y'),
+            ])->values()->all(),
+            'canReorder' => $canReorder,
+            'canCreate' => $request->user()->can('level.create'),
+            'canUpdate' => $request->user()->can('level.update'),
+            'canDelete' => $request->user()->can('level.delete'),
+        ]);
     }
 
     public function storeLevel(Request $request)

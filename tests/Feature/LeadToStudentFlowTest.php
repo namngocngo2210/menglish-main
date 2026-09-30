@@ -63,7 +63,7 @@ class LeadToStudentFlowTest extends TestCase
         $this->assertSame('won', $lead->fresh()->stage);
         $this->assertSame($class->id, StudentTuition::where('student_id', $student->id)->value('class_id'));
         $this->assertDatabaseHas('class_enrollments', ['student_id' => $student->id, 'class_id' => $class->id, 'customer_id' => $lead->id]);
-        $this->assertNotContains($lead->id, $this->actingAs($this->academic)->get(route('crm.waiting-list'))->viewData('waitingLeads')->pluck('id'));
+        $this->assertNotContains($lead->id, collect($this->actingAs($this->academic)->get(route('crm.waiting-list'))->inertiaProps('waitingLeads'))->pluck('id'));
 
         // Gán lớp CRM lần nữa không tạo lượt ghi danh trùng.
         $this->actingAs($this->academic)->post(route('crm.customers.assign-class', $lead->id), ['class_id' => $class->id])
@@ -92,7 +92,7 @@ class LeadToStudentFlowTest extends TestCase
         $wrongBranch = $this->makeClass('F1B', ['branch_id' => $otherBranch->id]);
 
         $rules = $this->actingAs($this->academic)->get(route('students.enrollments', ['student_id' => $student->id]))
-            ->assertOk()->viewData('placementRules');
+            ->assertOk()->inertiaProps('placementRules');
         $this->assertSame($this->branch->id, (int) $rules[$student->id]['branch_id']);
         $this->assertSame($this->course->id, (int) $rules[$student->id]['course_id']);
 

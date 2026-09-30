@@ -75,7 +75,7 @@ class Phase3PayslipTest extends TestCase
 
         $this->actingAs($this->accountant)->get(route('payroll.periods.show', $period->id))
             ->assertOk()
-            ->assertSee(route('payroll.records.show', $record->id), false);
+            ->assertSee(route('payroll.records.show', $record->id, false), false);
 
         $this->actingAs($this->accountant)->get(route('payroll.records.show', $record->id))
             ->assertOk()

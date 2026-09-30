@@ -7,13 +7,16 @@ use App\Models\BigTest;
 use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\ClassReport;
-use App\Models\StudentAttendance;
 use App\Models\StaffReport;
+use App\Models\StudentAttendance;
 use App\Models\SupportTicket;
 use App\Models\SyllabusAdjustmentRequest;
+use App\Support\Ui;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\View\View;
+use Illuminate\Support\Str;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class AcademicDashboardController extends Controller
 {
@@ -21,7 +24,7 @@ class AcademicDashboardController extends Controller
      * Dashboard Báo cáo Admin:
      * Tổng hợp báo cáo ngày của Học vụ, tuần của Học thuật, tháng của Giáo viên.
      */
-    public function reports(Request $request): View
+    public function reports(Request $request): Response
     {
         $currentBranchId = $request->get('branch_id');
         $tab = $request->get('tab', 'daily'); // 'daily', 'weekly', 'monthly'
@@ -88,27 +91,45 @@ class AcademicDashboardController extends Controller
             'big_tests_distributed' => BigTest::where('is_distributed', true)->where('distributed_at', '>=', $weekStart)->count(),
         ];
 
-        return view('academic.dashboards.reports', compact(
-            'branches',
-            'tab',
-            'dailyReports',
-            'classReports',
-            'weeklyReports',
-            'monthlyReports',
-            'totalClasses',
-            'activeClasses',
-            'totalDailyReportsToday',
-            'attendanceRateToday',
-            'reportAttendance',
-            'weeklyStats'
-        ));
+        $recordRow = fn (AcademicRecord $record) => [
+            'id' => $record->id,
+            'title' => $record->title ?: 'Báo cáo',
+            'record_code' => $record->record_code,
+            'user' => $record->user?->name,
+            'status_label' => $record->status_label,
+            'created_at' => $record->created_at?->format('H:i d/m/Y'),
+        ];
+
+        return Inertia::render('Academic/Reports', [
+            'tab' => $tab,
+            'today' => now()->format('d/m/Y'),
+            'classReports' => $tab === 'daily' ? $classReports->map(fn (ClassReport $cr) => [
+                'id' => $cr->id,
+                'class_name' => $cr->classModel?->name,
+                'session_name' => $cr->session_name,
+                'reporter' => $cr->reporter?->name,
+                'attendance' => $reportAttendance[$cr->id] ?? null,
+                'topics_learned' => $cr->topics_learned,
+                'teaching_log' => $cr->teaching_log,
+                'status_label' => $cr->status_label,
+                'student_supports_count' => (int) $cr->student_supports_count,
+                'created_at' => $cr->created_at->format('H:i d/m'),
+            ])->values() : [],
+            'weeklyReports' => $tab === 'weekly' ? $weeklyReports->map($recordRow)->values() : [],
+            'monthlyReports' => $tab === 'monthly' ? $monthlyReports->map($recordRow)->values() : [],
+            'totalClasses' => $totalClasses,
+            'activeClasses' => $activeClasses,
+            'totalDailyReportsToday' => $totalDailyReportsToday,
+            'attendanceRateToday' => $attendanceRateToday,
+            'weeklyStats' => $weeklyStats,
+        ]);
     }
 
     /**
      * Dashboard Nhật ký sự vụ Admin:
      * Tổng hợp các sự vụ nổi cộm từ các cơ sở, phân loại mức độ và tiến độ xử lý.
      */
-    public function incidents(Request $request): View
+    public function incidents(Request $request): Response
     {
         $severity = in_array($request->get('severity'), ['urgent', 'high', 'medium', 'low'], true) ? $request->get('severity') : 'all';
         $status = in_array($request->get('status'), ['open', 'resolved'], true) ? $request->get('status') : 'all';
@@ -177,20 +198,59 @@ class AcademicDashboardController extends Controller
         $urgentCount = $urgentTickets->where('priority', 'urgent')->whereIn('status', ['open', 'in_progress'])->count()
             + $journals->where('severity', 'urgent')->where('status', '!=', 'resolved')->count();
 
-        return view('academic.dashboards.incidents', compact(
-            'branches',
-            'severity',
-            'status',
-            'incidents',
-            'urgentTickets',
-            'totalIncidents',
-            'resolvedCount',
-            'openCount',
-            'urgentCount',
-            'branchId',
-            'journals',
-            'classes',
-            'classId'
-        ));
+        $user = $request->user();
+        $canManageTickets = SupportTicket::userCanManage($user);
+        $journalSeverityMap = ['urgent' => 'urgent', 'important' => 'high', 'normal' => 'medium'];
+
+        return Inertia::render('Academic/Incidents', [
+            'severity' => $severity,
+            'status' => $status,
+            'branchId' => (string) $branchId,
+            'classId' => (string) $classId,
+            'branches' => Ui::options($branches, 'name'),
+            'classes' => Ui::options($classes, 'code'),
+            'tickets' => $urgentTickets->map(fn (SupportTicket $ticket) => [
+                'id' => $ticket->id,
+                'code' => $ticket->code,
+                'can_open' => $canManageTickets || (int) $ticket->creator_id === (int) $user->id || (int) $ticket->assignee_id === (int) $user->id,
+                'branch' => $ticket->creator?->branch?->name,
+                'category_label' => $ticket->category_label,
+                'title' => $ticket->title,
+                'excerpt' => Str::limit(strip_tags((string) $ticket->description), 140),
+                'priority' => $ticket->priority,
+                'assignee' => $ticket->assignee?->name,
+                'creator' => $ticket->creator?->name,
+                'status' => $ticket->status,
+                'status_label' => $ticket->status_label,
+            ])->values(),
+            'journals' => $journals->map(fn (StaffReport $journal) => [
+                'id' => $journal->id,
+                'branch' => $journal->classModel?->branch?->name ?? $journal->user?->branch?->name,
+                'class_id' => $journal->classModel ? $journal->class_id : null,
+                'class_code' => $journal->classModel?->code,
+                'title' => $journal->title,
+                'content' => $journal->content,
+                'severity' => $journal->severity,
+                'priority' => $journalSeverityMap[$journal->severity] ?? null,
+                'severity_label' => $journal->severity_label,
+                'user' => $journal->user?->name,
+                'followup' => $journal->followups->first()?->content,
+                'status' => $journal->status,
+            ])->values(),
+            'incidents' => $incidents->map(fn (AcademicRecord $incident) => [
+                'id' => $incident->id,
+                'code' => $incident->record_code ?: 'Nhật ký #'.$incident->id,
+                'branch' => $incident->user?->branch?->name,
+                'title' => $incident->title,
+                'content' => ($incident->data['noi_dung'] ?? null) ?: null,
+                'user' => $incident->user?->name,
+                'status_label' => $incident->status_label,
+            ])->values(),
+            'totalIncidents' => $totalIncidents,
+            'resolvedCount' => $resolvedCount,
+            'openCount' => $openCount,
+            'urgentCount' => $urgentCount,
+            'canSubmitJournal' => $user->can('staff_report.submit'),
+        ]);
     }
 }

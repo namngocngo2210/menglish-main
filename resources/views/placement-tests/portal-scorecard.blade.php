@@ -21,12 +21,12 @@
     <div class="max-w-4xl mx-auto mb-4 flex items-center justify-between no-print">
         <div class="flex items-center gap-2">
             @auth
-                <x-ui.button variant="secondary" size="sm" icon="arrow_back" :href="route('placement-tests.index')">Quay lại Admin</x-ui.button>
+                <a href="{{ route('placement-tests.index') }}" class="max-md:min-h-11 inline-flex shrink-0 items-center justify-center gap-xs whitespace-nowrap rounded-lg transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container/40 px-sm py-xs font-body-medium text-body-small border border-outline-variant bg-surface-container-lowest text-on-surface shadow-sm hover:bg-surface-container-low"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">arrow_back</span>Quay lại Admin</a>
             @endauth
         </div>
 
         <div class="flex items-center gap-2">
-            <x-ui.button variant="info" size="sm" icon="print" onclick="window.print()">In bản đánh giá</x-ui.button>
+            <button type="button" onclick="window.print()" class="max-md:min-h-11 inline-flex shrink-0 items-center justify-center gap-xs whitespace-nowrap rounded-lg transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container/40 px-sm py-xs font-body-medium text-body-small bg-secondary text-white shadow-sm hover:bg-secondary-hover"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">print</span>In bản đánh giá</button>
         </div>
     </div>
 

@@ -12,8 +12,9 @@ use App\Support\TuitionBranchScope;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class FinanceController extends Controller
@@ -59,7 +60,7 @@ class FinanceController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
                     ->orWhere('notes', 'like', "%{$search}%")
-                    ->orWhereHas('creator', fn($u) => $u->where('name', 'like', "%{$search}%"));
+                    ->orWhereHas('creator', fn ($u) => $u->where('name', 'like', "%{$search}%"));
             });
         }
 
@@ -68,8 +69,8 @@ class FinanceController extends Controller
         $manualExpensesCount = $manualExpenses->count();
 
         // 3. Tự động lấy Chi lương (Epic 7) theo tháng đã chọn
-        $periodMonth = (int)$parsedDate->format('m');
-        $periodYear = (int)$parsedDate->format('Y');
+        $periodMonth = (int) $parsedDate->format('m');
+        $periodYear = (int) $parsedDate->format('Y');
 
         $period = PayrollPeriod::where('month', $periodMonth)
             ->where('year', $periodYear)
@@ -83,23 +84,23 @@ class FinanceController extends Controller
         if ($period) {
             if ($branchId !== 'all' && is_numeric($branchId)) {
                 $branchRecords = PayrollRecord::where('payroll_period_id', $period->id)
-                    ->whereHas('user', fn($u) => $u->where('branch_id', $branchId));
-                $autoSalaryAmount = (float)$branchRecords->sum('net_salary');
+                    ->whereHas('user', fn ($u) => $u->where('branch_id', $branchId));
+                $autoSalaryAmount = (float) $branchRecords->sum('net_salary');
                 $autoSalaryStaffCount = $branchRecords->count();
             } else {
-                $autoSalaryAmount = (float)$period->total_amount ?: (float)$period->records()->sum('net_salary');
+                $autoSalaryAmount = (float) $period->total_amount ?: (float) $period->records()->sum('net_salary');
                 $autoSalaryStaffCount = $period->total_staff ?: $period->records()->count();
             }
 
             // Chỉ hiển thị dòng lương khi > 0 (theo spec: nếu không có bảng lương hợp lệ thì ẩn hoàn toàn)
             if ($autoSalaryAmount > 0) {
-                $targetBranchName = 'Toàn hệ thống (' . $branches->count() . ' CS)';
+                $targetBranchName = 'Toàn hệ thống ('.$branches->count().' CS)';
                 if ($branchId !== 'all' && is_numeric($branchId)) {
                     $b = $branches->firstWhere('id', $branchId);
                     $targetBranchName = $b ? $b->name : 'Chi nhánh được chọn';
                 }
 
-                $autoSalaryRow = (object)[
+                $autoSalaryRow = (object) [
                     'is_auto' => true,
                     'expense_date' => $period->end_date ? Carbon::parse($period->end_date)->format('d/m/Y') : $parsedDate->copy()->endOfMonth()->format('d/m/Y'),
                     'date_sub' => 'Cuối kỳ lương',
@@ -126,20 +127,20 @@ class FinanceController extends Controller
         if ($branchId !== 'all' && is_numeric($branchId)) {
             $prevManual->where('branch_id', $branchId);
         }
-        $prevManualSum = (float)$prevManual->sum('amount');
+        $prevManualSum = (float) $prevManual->sum('amount');
 
-        $prevPeriod = PayrollPeriod::where('month', (int)$prevParsed->format('m'))
-            ->where('year', (int)$prevParsed->format('Y'))
+        $prevPeriod = PayrollPeriod::where('month', (int) $prevParsed->format('m'))
+            ->where('year', (int) $prevParsed->format('Y'))
             ->whereIn('status', ['approved', 'paid'])
             ->first();
         $prevSalarySum = 0;
         if ($prevPeriod) {
             if ($branchId !== 'all' && is_numeric($branchId)) {
-                $prevSalarySum = (float)PayrollRecord::where('payroll_period_id', $prevPeriod->id)
-                    ->whereHas('user', fn($u) => $u->where('branch_id', $branchId))
+                $prevSalarySum = (float) PayrollRecord::where('payroll_period_id', $prevPeriod->id)
+                    ->whereHas('user', fn ($u) => $u->where('branch_id', $branchId))
                     ->sum('net_salary');
             } else {
-                $prevSalarySum = (float)$prevPeriod->total_amount ?: (float)$prevPeriod->records()->sum('net_salary');
+                $prevSalarySum = (float) $prevPeriod->total_amount ?: (float) $prevPeriod->records()->sum('net_salary');
             }
         }
         $prevGrandTotal = $prevManualSum + $prevSalarySum;
@@ -152,9 +153,9 @@ class FinanceController extends Controller
         }
 
         // 5. Cơ cấu hình thức chi (Chuyển khoản vs Tiền mặt)
-        $cashManual = (float)$manualExpenses->where('payment_method', 'tien_mat')->sum('amount');
-        $transferManual = (float)$manualExpenses->where('payment_method', 'chuyen_khoan')->sum('amount');
-        
+        $cashManual = (float) $manualExpenses->where('payment_method', 'tien_mat')->sum('amount');
+        $transferManual = (float) $manualExpenses->where('payment_method', 'chuyen_khoan')->sum('amount');
+
         // Chi lương mặc định là chuyển khoản ngân hàng
         $totalTransfer = $transferManual + $autoSalaryAmount;
         $totalCash = $cashManual;
@@ -170,35 +171,48 @@ class FinanceController extends Controller
         for ($i = 0; $i < 6; $i++) {
             $dt = Carbon::now()->subMonths($i);
             $val = $dt->format('Y-m');
-            $label = "Tháng {$dt->format('m/Y')}" . ($i === 0 ? ' (Hiện tại)' : '');
+            $label = "Tháng {$dt->format('m/Y')}".($i === 0 ? ' (Hiện tại)' : '');
             $monthOptions[$val] = $label;
         }
 
         $branchScoped = $this->scopedBranchIds($request->user()) !== null;
 
-        return view('finance.expenses.index', compact(
-            'branchScoped',
-            'month',
-            'branchId',
-            'search',
-            'branches',
-            'manualExpenses',
-            'autoSalaryRow',
-            'grandTotalExpense',
-            'autoSalaryAmount',
-            'autoSalaryStaffCount',
-            'totalManualExpense',
-            'manualExpensesCount',
-            'totalItemsCount',
-            'prevMonth',
-            'percentDiff',
-            'isDecreased',
-            'totalTransfer',
-            'totalCash',
-            'transferPercent',
-            'cashPercent',
-            'monthOptions'
-        ));
+        return Inertia::render('Finance/Expenses/Index', [
+            'branchScoped' => $branchScoped,
+            'month' => $month,
+            'branchId' => (string) $branchId,
+            'search' => $search,
+            'branches' => $branches->map(fn ($b) => ['id' => $b->id, 'name' => $b->name])->values(),
+            'manualExpenses' => $manualExpenses->map(fn (OperatingExpense $exp) => [
+                'id' => $exp->id,
+                'expense_date' => Carbon::parse($exp->expense_date)->toDateString(),
+                'title' => $exp->title,
+                'amount' => (float) $exp->amount,
+                'payment_method' => $exp->payment_method,
+                'branch_id' => $exp->branch_id,
+                'branch_name' => $exp->branch?->name,
+                'category' => $exp->category,
+                'notes' => $exp->notes,
+                'creator_name' => $exp->creator?->name,
+                'created_at' => $exp->created_at?->format('d/m H:i'),
+            ])->values(),
+            'autoSalaryRow' => $autoSalaryRow ? (array) $autoSalaryRow : null,
+            'grandTotalExpense' => (float) $grandTotalExpense,
+            'autoSalaryAmount' => (float) $autoSalaryAmount,
+            'autoSalaryStaffCount' => (int) $autoSalaryStaffCount,
+            'totalManualExpense' => (float) $totalManualExpense,
+            'manualExpensesCount' => $manualExpensesCount,
+            'totalItemsCount' => $totalItemsCount,
+            'prevMonthLabel' => Carbon::createFromFormat('Y-m', $prevMonth)->format('m/Y'),
+            'percentDiff' => (float) $percentDiff,
+            'isDecreased' => $isDecreased,
+            'totalTransfer' => (float) $totalTransfer,
+            'totalCash' => (float) $totalCash,
+            'transferPercent' => (float) $transferPercent,
+            'cashPercent' => (float) $cashPercent,
+            'monthOptions' => collect($monthOptions)->map(fn ($label, $value) => ['value' => $value, 'label' => $label])->values(),
+            'today' => date('Y-m-d'),
+        ]);
     }
 
     /**
@@ -227,7 +241,7 @@ class FinanceController extends Controller
 
         // Tự động phân loại danh mục nếu không chọn
         $category = $validated['category'] ?? null;
-        if (!$category) {
+        if (! $category) {
             $lowerTitle = mb_strtolower($validated['title']);
             if (preg_match('/mặt bằng|thuê|tiền điện|tiền nước|internet|wifi|cáp quang|vệ sinh/u', $lowerTitle)) {
                 $category = 'mat_bang_tien_ich';
@@ -325,10 +339,10 @@ class FinanceController extends Controller
 
         $filename = "So_Khoan_Chi_Van_Hanh_{$month}.csv";
 
-        return new StreamedResponse(function () use ($expenses, $parsedDate, $branchId) {
+        return new StreamedResponse(function () use ($expenses, $parsedDate) {
             $handle = fopen('php://output', 'w');
             // Xuất UTF-8 BOM để Excel đọc tiếng Việt không bị lỗi font
-            fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+            fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
 
             fputcsv($handle, ['SỔ KHOẢN CHI VẬN HÀNH - MENGLISH ADMIN']);
             fputcsv($handle, ["Kỳ tháng: {$parsedDate->format('m/Y')}"]);
@@ -383,19 +397,19 @@ class FinanceController extends Controller
         $receipts = $this->revenueReceiptQuery($startDate, $endDate, $branchId)
             ->with(['student.branch', 'tuition.branch'])
             ->get();
-        $totalRevenue = (float)$receipts->sum('amount');
+        $totalRevenue = (float) $receipts->sum('amount');
         $validReceiptsCount = $receipts->count();
 
         // Bóc tách nguồn thu: Học phí vs Phụ thu
-        $tuitionRevenue = (float)$receipts->sum(fn (TuitionReceipt $r) => $r->tuitionPortion());
-        $surchargeRevenue = (float)$receipts->sum('surcharge_amount');
+        $tuitionRevenue = (float) $receipts->sum(fn (TuitionReceipt $r) => $r->tuitionPortion());
+        $surchargeRevenue = (float) $receipts->sum('surcharge_amount');
 
         $tuitionPercent = $totalRevenue > 0 ? round(($tuitionRevenue / $totalRevenue) * 100, 1) : 0;
         $surchargePercent = $totalRevenue > 0 ? round(($surchargeRevenue / $totalRevenue) * 100, 1) : 0;
 
         // Hình thức thanh toán thu (Chuyển khoản vs Tiền mặt)
-        $revenueTransfer = (float)$receipts->filter(fn($r) => in_array($r->payment_method, ['transfer', 'chuyen_khoan']))->sum('amount');
-        $revenueCash = (float)$receipts->filter(fn($r) => in_array($r->payment_method, ['cash', 'tien_mat']))->sum('amount');
+        $revenueTransfer = (float) $receipts->filter(fn ($r) => in_array($r->payment_method, ['transfer', 'chuyen_khoan']))->sum('amount');
+        $revenueCash = (float) $receipts->filter(fn ($r) => in_array($r->payment_method, ['cash', 'tien_mat']))->sum('amount');
         $revenueTransferPercent = $totalRevenue > 0 ? round(($revenueTransfer / $totalRevenue) * 100) : 0;
         $revenueCashPercent = $totalRevenue > 0 ? (100 - $revenueTransferPercent) : 0;
 
@@ -404,7 +418,7 @@ class FinanceController extends Controller
         $prevStart = $prevParsed->copy()->startOfMonth()->toDateString();
         $prevEnd = $prevParsed->copy()->endOfMonth()->toDateString();
 
-        $prevRevenue = (float)$this->revenueReceiptQuery($prevStart, $prevEnd, $branchId)->sum('amount');
+        $prevRevenue = (float) $this->revenueReceiptQuery($prevStart, $prevEnd, $branchId)->sum('amount');
         $revenueDiffPercent = 0;
         $revenueDiffIsUp = true;
         if ($prevRevenue > 0) {
@@ -420,22 +434,22 @@ class FinanceController extends Controller
             $expenseQuery->where('branch_id', $branchId);
         }
         $manualExpenses = $expenseQuery->get();
-        $manualExpenseTotal = (float)$manualExpenses->sum('amount');
+        $manualExpenseTotal = (float) $manualExpenses->sum('amount');
 
         // Nguồn 2: Chi lương tự động từ Epic 7
-        $period = PayrollPeriod::where('month', (int)$parsedDate->format('m'))
-            ->where('year', (int)$parsedDate->format('Y'))
+        $period = PayrollPeriod::where('month', (int) $parsedDate->format('m'))
+            ->where('year', (int) $parsedDate->format('Y'))
             ->whereIn('status', ['approved', 'paid'])
             ->first();
 
         $salaryTotal = 0;
         if ($period) {
             if ($branchId !== 'all' && is_numeric($branchId)) {
-                $salaryTotal = (float)PayrollRecord::where('payroll_period_id', $period->id)
-                    ->whereHas('user', fn($u) => $u->where('branch_id', $branchId))
+                $salaryTotal = (float) PayrollRecord::where('payroll_period_id', $period->id)
+                    ->whereHas('user', fn ($u) => $u->where('branch_id', $branchId))
                     ->sum('net_salary');
             } else {
-                $salaryTotal = (float)$period->total_amount ?: (float)$period->records()->sum('net_salary');
+                $salaryTotal = (float) $period->total_amount ?: (float) $period->records()->sum('net_salary');
             }
         }
 
@@ -444,9 +458,9 @@ class FinanceController extends Controller
         $totalExpenseItemsCount = $manualExpenses->count() + ($salaryTotal > 0 ? 1 : 0);
 
         // Bóc tách cơ cấu chi
-        $rentUtilitiesExpense = (float)$manualExpenses->where('category', 'mat_bang_tien_ich')->sum('amount');
-        $curriculumOperationsExpense = (float)$manualExpenses->where('category', 'giao_trinh_van_hanh')->sum('amount');
-        $otherExpense = (float)$manualExpenses->where('category', 'khac')->sum('amount');
+        $rentUtilitiesExpense = (float) $manualExpenses->where('category', 'mat_bang_tien_ich')->sum('amount');
+        $curriculumOperationsExpense = (float) $manualExpenses->where('category', 'giao_trinh_van_hanh')->sum('amount');
+        $otherExpense = (float) $manualExpenses->where('category', 'khac')->sum('amount');
 
         $salaryPercentOfExpense = $totalExpense > 0 ? round(($salaryTotal / $totalExpense) * 100, 1) : 0;
         $rentPercentOfExpense = $totalExpense > 0 ? round(($rentUtilitiesExpense / $totalExpense) * 100, 1) : 0;
@@ -464,18 +478,18 @@ class FinanceController extends Controller
 
         foreach ($branches as $b) {
             // Doanh thu chi nhánh
-            $bRevenue = (float)$this->revenueReceiptQuery($startDate, $endDate, $b->id)->sum('amount');
+            $bRevenue = (float) $this->revenueReceiptQuery($startDate, $endDate, $b->id)->sum('amount');
 
             // Chi phí tự nhập chi nhánh
-            $bManualExpense = (float)OperatingExpense::whereBetween('expense_date', [$startDate, $endDate])
+            $bManualExpense = (float) OperatingExpense::whereBetween('expense_date', [$startDate, $endDate])
                 ->where('branch_id', $b->id)
                 ->sum('amount');
 
             // Chi lương nhân sự chi nhánh
             $bSalary = 0;
             if ($period) {
-                $bSalary = (float)PayrollRecord::where('payroll_period_id', $period->id)
-                    ->whereHas('user', fn($u) => $u->where('branch_id', $b->id))
+                $bSalary = (float) PayrollRecord::where('payroll_period_id', $period->id)
+                    ->whereHas('user', fn ($u) => $u->where('branch_id', $b->id))
                     ->sum('net_salary');
             }
 
@@ -508,51 +522,53 @@ class FinanceController extends Controller
         for ($i = 0; $i < 6; $i++) {
             $dt = Carbon::now()->subMonths($i);
             $val = $dt->format('Y-m');
-            $label = "Tháng {$dt->format('m/Y')}" . ($i === 0 ? ' (Hiện tại)' : '');
+            $label = "Tháng {$dt->format('m/Y')}".($i === 0 ? ' (Hiện tại)' : '');
             $monthOptions[$val] = $label;
         }
 
         $branchScoped = $this->scopedBranchIds($request->user()) !== null;
 
-        return view('finance.reports.provisional-revenue', compact(
-            'branchScoped',
-            'month',
-            'branchId',
-            'branches',
-            'totalRevenue',
-            'validReceiptsCount',
-            'tuitionRevenue',
-            'surchargeRevenue',
-            'tuitionPercent',
-            'surchargePercent',
-            'revenueTransfer',
-            'revenueCash',
-            'revenueTransferPercent',
-            'revenueCashPercent',
-            'prevMonth',
-            'revenueDiffPercent',
-            'revenueDiffIsUp',
-            'totalExpense',
-            'expensePercentageOfRevenue',
-            'totalExpenseItemsCount',
-            'salaryTotal',
-            'rentUtilitiesExpense',
-            'curriculumOperationsExpense',
-            'otherExpense',
-            'salaryPercentOfExpense',
-            'rentPercentOfExpense',
-            'curriculumPercentOfExpense',
-            'provisionalRevenue',
-            'isProfitPositive',
-            'grossProfitMargin',
-            'branchMatrix',
-            'totalMatrixRevenue',
-            'totalMatrixExpense',
-            'totalMatrixProfit',
-            'totalMatrixMargin',
-            'totalMatrixStatus',
-            'monthOptions'
-        ));
+        return Inertia::render('Finance/Reports/ProvisionalRevenue', [
+            'branchScoped' => $branchScoped,
+            'month' => $month,
+            'branchId' => (string) $branchId,
+            'branches' => $branches->map(fn ($b) => ['id' => $b->id, 'name' => $b->name])->values(),
+            'totalRevenue' => (float) $totalRevenue,
+            'validReceiptsCount' => $validReceiptsCount,
+            'tuitionRevenue' => (float) $tuitionRevenue,
+            'surchargeRevenue' => (float) $surchargeRevenue,
+            'tuitionPercent' => (float) $tuitionPercent,
+            'surchargePercent' => (float) $surchargePercent,
+            'revenueTransferPercent' => (float) $revenueTransferPercent,
+            'revenueCashPercent' => (float) $revenueCashPercent,
+            'prevMonthLabel' => Carbon::createFromFormat('Y-m', $prevMonth)->format('m/Y'),
+            'revenueDiffPercent' => (float) $revenueDiffPercent,
+            'revenueDiffIsUp' => $revenueDiffIsUp,
+            'totalExpense' => (float) $totalExpense,
+            'expensePercentageOfRevenue' => (float) $expensePercentageOfRevenue,
+            'totalExpenseItemsCount' => $totalExpenseItemsCount,
+            'salaryTotal' => (float) $salaryTotal,
+            'rentUtilitiesExpense' => (float) $rentUtilitiesExpense,
+            'curriculumOperationsExpense' => (float) $curriculumOperationsExpense,
+            'otherExpense' => (float) $otherExpense,
+            'salaryPercentOfExpense' => (float) $salaryPercentOfExpense,
+            'rentPercentOfExpense' => (float) $rentPercentOfExpense,
+            'curriculumPercentOfExpense' => (float) $curriculumPercentOfExpense,
+            'otherPercentOfExpense' => $totalExpense > 0 ? round($otherExpense / $totalExpense * 100, 1) : 0.0,
+            'provisionalRevenue' => (float) $provisionalRevenue,
+            'isProfitPositive' => $isProfitPositive,
+            'grossProfitMargin' => (float) $grossProfitMargin,
+            'branchMatrix' => collect($branchMatrix)->map(fn (array $row) => [
+                ...$row,
+                'branch' => ['id' => $row['branch']->id, 'name' => $row['branch']->name],
+            ])->values(),
+            'totalMatrixRevenue' => (float) $totalMatrixRevenue,
+            'totalMatrixExpense' => (float) $totalMatrixExpense,
+            'totalMatrixProfit' => (float) $totalMatrixProfit,
+            'totalMatrixMargin' => (float) $totalMatrixMargin,
+            'totalMatrixStatus' => $totalMatrixStatus,
+            'monthOptions' => collect($monthOptions)->map(fn ($label, $value) => ['value' => $value, 'label' => $label])->values(),
+        ]);
     }
 
     /**
@@ -575,8 +591,8 @@ class FinanceController extends Controller
         $branches = $this->visibleBranches($request)
             ->when($branchId !== 'all' && is_numeric($branchId), fn ($c) => $c->where('id', (int) $branchId)->values());
         $scoped = $this->scopedBranchIds($request->user()) !== null || ($branchId !== 'all' && is_numeric($branchId));
-        $period = PayrollPeriod::where('month', (int)$parsedDate->format('m'))
-            ->where('year', (int)$parsedDate->format('Y'))
+        $period = PayrollPeriod::where('month', (int) $parsedDate->format('m'))
+            ->where('year', (int) $parsedDate->format('Y'))
             ->whereIn('status', ['approved', 'paid'])
             ->first();
 
@@ -584,7 +600,7 @@ class FinanceController extends Controller
 
         return new StreamedResponse(function () use ($branches, $startDate, $endDate, $parsedDate, $period, $scoped) {
             $handle = fopen('php://output', 'w');
-            fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+            fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
 
             fputcsv($handle, ['BÁO CÁO DOANH THU TẠM TÍNH - MENGLISH ADMIN']);
             fputcsv($handle, ["Kỳ tháng: {$parsedDate->format('m/Y')}"]);
@@ -595,15 +611,15 @@ class FinanceController extends Controller
             $sumExp = 0;
 
             foreach ($branches as $b) {
-                $bRevenue = (float)$this->revenueReceiptQuery($startDate, $endDate, $b->id)->sum('amount');
+                $bRevenue = (float) $this->revenueReceiptQuery($startDate, $endDate, $b->id)->sum('amount');
 
-                $bManual = (float)OperatingExpense::whereBetween('expense_date', [$startDate, $endDate])
+                $bManual = (float) OperatingExpense::whereBetween('expense_date', [$startDate, $endDate])
                     ->where('branch_id', $b->id)->sum('amount');
 
                 $bSalary = 0;
                 if ($period) {
-                    $bSalary = (float)PayrollRecord::where('payroll_period_id', $period->id)
-                        ->whereHas('user', fn($u) => $u->where('branch_id', $b->id))->sum('net_salary');
+                    $bSalary = (float) PayrollRecord::where('payroll_period_id', $period->id)
+                        ->whereHas('user', fn ($u) => $u->where('branch_id', $b->id))->sum('net_salary');
                 }
 
                 $bExp = $bManual + $bSalary;
@@ -615,7 +631,7 @@ class FinanceController extends Controller
                     number_format($bRevenue, 0, ',', '.'),
                     number_format($bExp, 0, ',', '.'),
                     number_format($bProfit, 0, ',', '.'),
-                    $bMargin . '%',
+                    $bMargin.'%',
                     $this->branchMarginStatus($bMargin)['label'],
                 ]);
 
@@ -631,7 +647,7 @@ class FinanceController extends Controller
                 number_format($sumRev, 0, ',', '.'),
                 number_format($sumExp, 0, ',', '.'),
                 number_format($sumProfit, 0, ',', '.'),
-                $sumMargin . '%',
+                $sumMargin.'%',
                 $this->branchMarginStatus($sumMargin)['label'],
             ]);
 
@@ -667,9 +683,9 @@ class FinanceController extends Controller
      * người khác chỉ các chi nhánh của mình (BA 26/09/2026 — không còn suy ra "kế toán tổng" từ việc không gán chi nhánh).
      * null = không giới hạn.
      *
-     * @return \Illuminate\Support\Collection<int, int>|null
+     * @return Collection<int, int>|null
      */
-    private function scopedBranchIds(?User $user): ?\Illuminate\Support\Collection
+    private function scopedBranchIds(?User $user): ?Collection
     {
         $ids = TuitionBranchScope::branchIds($user, TuitionBranchScope::FINANCE);
         if ($ids === null) {

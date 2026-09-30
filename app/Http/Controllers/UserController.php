@@ -7,12 +7,14 @@ use App\Http\Concerns\RendersModals;
 use App\Http\Requests\AssignRoleRequest;
 use App\Http\Requests\UserRequest;
 use App\Models\Branch;
+use App\Models\ClassModel;
 use App\Models\User;
 use App\Services\SafeUploadService;
 use App\Support\Audit;
 use App\Support\DataScope;
 use App\Support\Money;
 use App\Support\Rbac;
+use App\Support\Ui;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -20,14 +22,19 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use Illuminate\View\View;
+use Inertia\Inertia;
+use Inertia\Response as InertiaResponse;
 use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
     use RendersModals;
 
-    public function index(Request $request): View
+    /**
+     * Quản lý Tài khoản & Vai trò (mockup epic-5/quan-ly-tai-khoan-vai-tro): thẻ số liệu, bộ lọc, bảng nhân sự,
+     * hồ sơ nhanh (drawer). Thêm / Sửa (modal 3xl), Phân quyền cá nhân (modal 4xl), Vai trò & kiêm nhiệm (modal md).
+     */
+    public function index(Request $request): InertiaResponse
     {
         $currentUser = auth()->user();
 
@@ -76,7 +83,7 @@ class UserController extends Controller
         // Lớp đang phụ trách của từng nhân sự trên trang (kiêm nhiệm giảng dạy trong hồ sơ nhanh) — 1 truy vấn.
         $pageIds = $users->getCollection()->modelKeys();
         $teachingByUser = [];
-        \App\Models\ClassModel::query()
+        ClassModel::query()
             ->whereIn('status', ['active', 'upcoming', 'pending_schedule'])
             ->where(fn ($q) => $q->whereIn('teacher_id', $pageIds)->orWhereIn('assistant_id', $pageIds)->orWhereIn('foreign_teacher_id', $pageIds))
             ->orderBy('code')
@@ -107,28 +114,49 @@ class UserController extends Controller
 
         $branches = $this->assignableBranches();
         $roles = Role::query()->orderBy('name')->pluck('name');
-        $assignableRoles = Rbac::assignableRoles($currentUser);
 
-        return view('users.index', compact(
-            'expiringContracts',
-            'users',
-            'teachingByUser',
-            'totalStaff',
-            'activeStaff',
-            'academicStaff',
-            'lockedStaff',
-            'branches',
-            'roles',
-            'assignableRoles'
-        ));
+        return Inertia::render('Users/Index', [
+            'users' => $users->through(function (User $user) use ($currentUser, $teachingByUser) {
+                $payload = self::profilePayload($user, $currentUser, $teachingByUser[$user->id] ?? []);
+
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => User::isGeneratedStudentEmail($user->email) ? null : $user->email,
+                    'employee_code' => $payload['employee_code'],
+                    'roles' => $user->roles->map(fn ($role) => AclHelper::shortRoleLabel($role->name))->values()->all(),
+                    'branch_name' => $user->branch?->name,
+                    'locked' => $user->isLocked(),
+                    'contract_status' => $user->contractExpiryStatus(),
+                    'contract_end_date' => $user->contract_end_date?->format('d/m/Y'),
+                    'profile' => $payload,
+                ];
+            }),
+            'stats' => [
+                'total' => $totalStaff,
+                'active' => $activeStaff,
+                'academic' => $academicStaff,
+                'locked' => $lockedStaff,
+            ],
+            'expiringContracts' => $expiringContracts,
+            'contractWarningDays' => User::CONTRACT_WARNING_DAYS,
+            'branches' => Ui::options($branches, 'name'),
+            'roles' => Ui::options($roles->mapWithKeys(fn ($r) => [$r => AclHelper::shortRoleLabel($r)])),
+            'statuses' => Ui::options(['active' => 'Đang hoạt động', 'locked' => 'Vô hiệu hóa', 'contract_expiring' => 'HĐ sắp/đã hết hạn']),
+        ]);
     }
 
+    /**
+     * Chi tiết nhân sự. Sửa thông tin / Tải lên HĐ mới (modal 3xl, mở sẵn tab Hợp đồng & Lương), Phân quyền chi tiết
+     * (modal 4xl), Gán vai trò (modal md); lưu xong trang tự có dữ liệu mới.
+     */
     public function show(User $user, Request $request)
     {
         $this->ensureCanManageTarget($user);
         $user->load(['branch', 'roles']);
 
-        if ($request->wantsJson() || $request->ajax()) {
+        // JSON cho gọi AJAX cũ; request Inertia (cũng mang X-Requested-With) nhận trang.
+        if (! $request->header('X-Inertia') && ($request->wantsJson() || $request->ajax())) {
             return response()->json([
                 'id' => $user->id,
                 'name' => $user->name,
@@ -146,7 +174,7 @@ class UserController extends Controller
         }
 
         // Lớp nhân sự đang phụ trách (GV chính / GVNN / trợ giảng) — thay cho dữ liệu kiêm nhiệm mẫu.
-        $teachingClasses = \App\Models\ClassModel::query()
+        $teachingClasses = ClassModel::query()
             ->where(fn ($q) => $q->where('teacher_id', $user->id)
                 ->orWhere('assistant_id', $user->id)
                 ->orWhere('foreign_teacher_id', $user->id))
@@ -154,17 +182,69 @@ class UserController extends Controller
             ->orderBy('code')
             ->get(['id', 'code', 'name', 'teacher_id', 'assistant_id', 'foreign_teacher_id', 'start_date', 'end_date']);
 
-        return view('users.show', compact('user', 'teachingClasses'));
+        $canViewSensitive = self::canViewSensitive($request->user());
+        $primaryRole = $user->roles->first()?->name;
+        $contractState = $user->contractExpiryStatus();
+        $sensitive = fn ($value) => $canViewSensitive ? $value : false;
+
+        return Inertia::render('Users/Show', [
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'employee_code' => $user->employee_code ?? ('NV-'.str_pad($user->id, 4, '0', STR_PAD_LEFT)),
+                'branch_name' => $user->branch?->name,
+                'locked' => $user->isLocked(),
+                'primary_role_label' => $primaryRole ? AclHelper::roleLabel($primaryRole) : null,
+                'primary_role_short' => $primaryRole ? AclHelper::shortRoleLabel($primaryRole) : null,
+                'extra_roles' => $user->roles->slice(1)->map(fn ($role) => AclHelper::shortRoleLabel($role->name))->values()->all(),
+                'base_salary' => $canViewSensitive ? $user->base_salary : null,
+                'hourly_rate' => $canViewSensitive ? $user->hourly_rate : null,
+                // [nhãn, giá trị (false = không có quyền xem), font mã]
+                'profile' => [
+                    ['Số CCCD (12 số)', $sensitive($user->id_card_number), true],
+                    ['Liên lạc khẩn cấp', $sensitive($user->emergency_contact), false],
+                    ['Quê quán', $sensitive($user->hometown), false],
+                    ['Nơi ở hiện tại', $sensitive($user->current_address), false],
+                    ['Tốt nghiệp', $user->graduation_school, false],
+                    ['Chứng chỉ', $user->certificates, false],
+                    ['Level giảng dạy / Chuyên môn', $user->teaching_level, false],
+                ],
+                'contract_type' => $user->contract_type,
+                'contract_start_date' => $user->contract_start_date?->format('d/m/Y'),
+                'contract_end_date' => $user->contract_end_date?->format('d/m/Y'),
+                // [nhãn, màu badge]; hết hạn / sắp hết hạn / còn hiệu lực — "Còn N ngày" tính theo ngày hôm nay (server).
+                'contract_status' => match (true) {
+                    ! $user->contract_type && ! $user->contract_end_date => ['Chưa cập nhật', 'neutral'],
+                    $contractState === 'expired' => ['Đã hết hạn', 'error'],
+                    $contractState === 'expiring' => ['Sắp hết hạn', 'warning'],
+                    default => ['Đang hiệu lực', 'success'],
+                },
+                'contract_remaining' => match (true) {
+                    ! $user->contract_end_date => null,
+                    $contractState === 'expired' => ['Đã hết hạn', 'text-error'],
+                    $contractState === 'expiring' => ['Còn '.(int) now()->startOfDay()->diffInDays($user->contract_end_date->copy()->startOfDay()).' ngày', 'text-warning'],
+                    default => ['Còn hiệu lực', 'text-tertiary'],
+                },
+                'has_contract_file' => (bool) $user->contract_file_path,
+            ],
+            'canViewSensitive' => $canViewSensitive,
+            'teachingClasses' => $teachingClasses->map(fn ($class) => [
+                'id' => $class->id,
+                'code' => $class->code,
+                'name' => $class->name,
+                'start_date' => $class->start_date?->format('d/m/Y') ?? '?',
+                'end_date' => $class->end_date?->format('d/m/Y') ?? '?',
+                'role' => $class->teacher_id === $user->id ? 'Giáo viên' : ($class->foreign_teacher_id === $user->id ? 'GVNN' : 'Trợ giảng'),
+            ])->values()->all(),
+        ]);
     }
 
-    /** Thêm nhân sự: mở từ danh sách → modal 3xl (htmx); mở thẳng URL → trang đầy đủ. */
-    public function create(): Response
+    /** Thêm nhân sự: mở từ danh sách → modal 3xl; mở thẳng URL → trang đầy đủ. */
+    public function create(Request $request): InertiaResponse
     {
-        return $this->modalView('users.form', [
-            'user' => new User,
-            'branches' => $this->assignableBranches(),
-            'roles' => collect(Rbac::assignableRoles(auth()->user())),
-        ]);
+        return $this->formPage($request, new User);
     }
 
     public function store(UserRequest $request): Response|RedirectResponse
@@ -186,17 +266,44 @@ class UserController extends Controller
         $user->syncRoles($this->rolesWithConcurrent($request, $request->validated('role'), []));
         $this->storeContractFile($request, $user);
 
-        return $this->modalSaved('Đã tạo tài khoản thành công.', 'users-changed', route('users.index'));
+        return $this->modalSaved('Đã tạo tài khoản thành công.', route('users.index'));
     }
 
-    public function edit(User $user): Response
+    public function edit(Request $request, User $user): InertiaResponse
     {
         $this->ensureCanManageTarget($user);
 
-        return $this->modalView('users.form', [
-            'user' => $user,
-            'branches' => $this->assignableBranches(),
-            'roles' => collect(Rbac::assignableRoles(auth()->user())),
+        return $this->formPage($request, $user);
+    }
+
+    /**
+     * Form Thêm / Sửa nhân sự (3 tab Tài khoản / Hồ sơ / Hợp đồng & Lương). ?tab= chọn sẵn tab (vd. "Tải lên HĐ mới" → salary).
+     * Vai trò chính chỉ gồm vai trò người thao tác được gán (AclHelper::primaryRoleOptions).
+     */
+    private function formPage(Request $request, User $user): InertiaResponse
+    {
+        $assignable = Rbac::assignableRoles(auth()->user());
+        $currentRole = $user->exists ? $user->getRoleNames()->first() : null;
+        $tabs = ['account', 'profile', 'salary'];
+
+        return $this->modalPage('Users/Form', [
+            'user' => $user->exists ? [
+                'id' => $user->id,
+                ...$user->only([
+                    'name', 'employee_code', 'email', 'phone', 'branch_id',
+                    'id_card_number', 'emergency_contact', 'hometown', 'current_address', 'graduation_school', 'certificates', 'teaching_level',
+                    'contract_type', 'base_salary', 'hourly_rate',
+                ]),
+                'contract_start_date' => $user->contract_start_date?->format('Y-m-d'),
+                'contract_end_date' => $user->contract_end_date?->format('Y-m-d'),
+                'has_contract_file' => (bool) $user->contract_file_path,
+            ] : null,
+            'currentRole' => $currentRole,
+            'currentConcurrent' => $user->exists ? $user->getRoleNames()->slice(1)->values()->all() : [],
+            'branches' => Ui::options($this->assignableBranches(), 'name'),
+            'roleOptions' => Ui::options(AclHelper::primaryRoleOptions($assignable, $currentRole)),
+            'concurrentOptions' => Ui::options(collect($assignable)->mapWithKeys(fn (string $role) => [$role => AclHelper::shortRoleLabel($role)])),
+            'initialTab' => in_array($request->query('tab'), $tabs, true) ? $request->query('tab') : 'account',
         ]);
     }
 
@@ -225,7 +332,7 @@ class UserController extends Controller
 
         $this->storeContractFile($request, $user);
 
-        return $this->modalSaved('Đã cập nhật tài khoản thành công.', 'users-changed', route('users.index'));
+        return $this->modalSaved('Đã cập nhật tài khoản thành công.', route('users.index'));
     }
 
     public function destroy(User $user): RedirectResponse
@@ -283,15 +390,27 @@ class UserController extends Controller
         return back()->with('status', "Đã đặt lại mật khẩu. Mật khẩu tạm thời: {$temporaryPassword}");
     }
 
-    /** Gán vai trò: mở từ danh sách nhân sự → modal (htmx); mở thẳng URL → trang đầy đủ. */
-    public function editRoles(User $user): Response
+    /** Gán vai trò: mở từ danh sách nhân sự → modal md; mở thẳng URL → trang đầy đủ. */
+    public function editRoles(User $user): InertiaResponse
     {
         $this->ensureCanManageTarget($user);
+        $user->loadMissing(['roles', 'branch']);
 
-        return $this->modalView('users.roles', [
-            'user' => $user->loadMissing('roles'),
-            'roles' => Role::query()->withCount('permissions')->orderBy('name')->get(),
-            'assignable' => Rbac::assignableRoles(auth()->user()),
+        return $this->modalPage('Users/Roles', [
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'branch_name' => $user->branch?->name,
+                'employee_code' => $user->employee_code ?? ('NV-'.str_pad($user->id, 4, '0', STR_PAD_LEFT)),
+                'roles' => $user->roles->pluck('name')->all(),
+            ],
+            'roles' => Role::query()->withCount('permissions')->orderBy('name')->get()->map(fn (Role $role) => [
+                'name' => $role->name,
+                'label' => AclHelper::roleLabel($role->name),
+                'permissions_count' => $role->permissions_count,
+            ])->all(),
         ]);
     }
 
@@ -317,7 +436,7 @@ class UserController extends Controller
             ->withProperties(['old' => ['roles' => $before], 'attributes' => ['roles' => $after], 'roles' => $after])
             ->log('Cập nhật vai trò nhân viên');
 
-        return $this->modalSaved('Đã cập nhật vai trò.', 'users-changed', route('users.index'));
+        return $this->modalSaved('Đã cập nhật vai trò.', route('users.index'));
     }
 
     /**
@@ -356,7 +475,7 @@ class UserController extends Controller
             $concurrent = array_values(array_unique((array) $request->validated('concurrent_roles', [])));
             foreach ($concurrent as $role) {
                 if (! Rbac::canAssignRole(auth()->user(), $role)) {
-                    throw ValidationException::withMessages(['concurrent_roles' => 'Bạn không được phép gán vai trò kiêm nhiệm "'.\App\Helpers\AclHelper::shortRoleLabel($role).'".']);
+                    throw ValidationException::withMessages(['concurrent_roles' => 'Bạn không được phép gán vai trò kiêm nhiệm "'.AclHelper::shortRoleLabel($role).'".']);
                 }
             }
         }
@@ -463,9 +582,9 @@ class UserController extends Controller
             'phone' => $user->phone,
             'employee_code' => $user->employee_code ?: 'NV-'.str_pad((string) $user->id, 4, '0', STR_PAD_LEFT),
             'branch' => $user->branch ? ['name' => $user->branch->name] : null,
-            'primary_role' => $roles->first() ? \App\Helpers\AclHelper::shortRoleLabel($roles->first()) : null,
+            'primary_role' => $roles->first() ? AclHelper::shortRoleLabel($roles->first()) : null,
             // Kiêm nhiệm: vai trò phụ ngoài vai trò chính + lớp đang phụ trách.
-            'concurrent_roles' => $roles->slice(1)->map(fn ($r) => \App\Helpers\AclHelper::shortRoleLabel($r))->values()->all(),
+            'concurrent_roles' => $roles->slice(1)->map(fn ($r) => AclHelper::shortRoleLabel($r))->values()->all(),
             'teaching' => array_values($teaching),
             'certificates' => $user->certificates,
             'graduation_school' => $user->graduation_school,

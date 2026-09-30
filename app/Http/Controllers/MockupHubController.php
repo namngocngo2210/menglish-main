@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class MockupHubController extends Controller
 {
-    public function index()
+    public function index(): Response
     {
         $academicScreens = AcademicSystemController::getScreens();
 
@@ -247,7 +248,22 @@ class MockupHubController extends Controller
             ],
         ];
 
-        $modules = array_merge($newModules, $oldModules);
-        return view('mockups.hub', compact('modules'));
+        // Mỗi màn: link màn Laravel thật + đường dẫn bản HTML gốc để xem trước (iframe).
+        $modules = array_map(fn (array $module) => [
+            'id' => $module['id'],
+            'name' => $module['name'],
+            'icon' => $module['icon'],
+            'badge' => $module['badge'],
+            'screens' => array_map(fn (array $screen) => [
+                'num' => $screen['num'],
+                'name' => $screen['name'],
+                'type' => $screen['type'],
+                'src' => $screen['src'],
+                'url' => isset($screen['params']) ? route($screen['route'], $screen['params']) : route($screen['route']),
+                'preview' => asset(str_starts_with($screen['src'], 'roundcuoi-kieulien') ? $screen['src'] : 'ui-full-tinh-nang-menglish/'.$screen['src']),
+            ], $module['screens']),
+        ], array_merge($newModules, $oldModules));
+
+        return Inertia::render('Mockups/Hub', ['modules' => $modules]);
     }
 }

@@ -19,7 +19,9 @@ use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Inertia\Testing\AssertableInertia;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Concerns\InteractsWithInertia;
 use Tests\TestCase;
 
 /**
@@ -28,6 +30,7 @@ use Tests\TestCase;
  */
 class ApprovalInboxTest extends TestCase
 {
+    use InteractsWithInertia;
     use RefreshDatabase;
 
     private Branch $branchA;
@@ -182,16 +185,16 @@ class ApprovalInboxTest extends TestCase
 
         $this->assertSame(3, app(ApprovalInboxService::class)->badge($accountant));
 
-        $response = $this->htmx($accountant)->post(route('approvals.bulk'), [
+        $this->modal($accountant)->post(route('approvals.bulk'), [
             'action' => 'approve',
             'items' => ["receipt:{$first->id}", "receipt:{$own->id}", "receipt:{$second->id}"],
-        ])->assertOk();
+        ])->assertRedirect(route('approvals.index'))
+            ->assertSessionHas('warning', fn (string $message) => str_contains($message, '2/3'))
+            ->assertSessionHas('approval_results');
 
-        $trigger = json_decode((string) $response->headers->get('HX-Trigger'), true);
-        $this->assertTrue($trigger['approvals-changed']);
-        $this->assertSame('warning', $trigger['toast']['type']);
-        $this->assertStringContainsString('2/3', $trigger['toast']['message']);
-        $response->assertSee('data-approval-failures', false)->assertSee('không được tự duyệt');
+        // Trang danh sách tải lại: vùng kết quả liệt kê mục lỗi.
+        $this->flushHeaders()->actingAs($accountant)->get(route('approvals.index'))->assertOk()
+            ->assertSee('data-approval-failures', false)->assertSee('không được tự duyệt');
 
         // Cùng hiệu ứng như duyệt đơn lẻ ở màn gốc: phát hành số HĐ, người duyệt, trừ công nợ.
         foreach ([$first, $second] as $receipt) {
@@ -222,14 +225,16 @@ class ApprovalInboxTest extends TestCase
             'branch_id' => $this->branchA->id, 'due_date' => today(), 'task_type' => 'one_time', 'status' => 'pending_confirmation',
         ]);
 
-        $this->htmx($lead)->post(route('approvals.bulk'), ['action' => 'approve', 'items' => ["syllabus_proposal:{$proposal->id}"]])->assertOk();
+        $this->modal($lead)->post(route('approvals.bulk'), ['action' => 'approve', 'items' => ["syllabus_proposal:{$proposal->id}"]])
+            ->assertRedirect(route('approvals.index'))->assertSessionHas('status');
         $proposal->refresh();
         $this->assertSame('approved', $proposal->status);
         $this->assertSame($lead->id, (int) $proposal->reviewer_id);
 
         // Người giao việc xác nhận hoàn thành từ inbox (luật "không tự duyệt" vẫn của module).
         $this->assertArrayHasKey('work_task', app(ApprovalInboxService::class)->counts($creator));
-        $this->htmx($creator)->post(route('approvals.bulk'), ['action' => 'approve', 'items' => ["work_task:{$task->id}"]])->assertOk();
+        $this->modal($creator)->post(route('approvals.bulk'), ['action' => 'approve', 'items' => ["work_task:{$task->id}"]])
+            ->assertRedirect(route('approvals.index'))->assertSessionHas('status');
         $task->refresh();
         $this->assertSame('completed', $task->status);
         $this->assertSame($creator->id, (int) $task->confirmed_by);
@@ -244,17 +249,18 @@ class ApprovalInboxTest extends TestCase
         $accountant = $this->makeUser('accountant');
         $receipt = $this->pendingReceipt($this->makeTuition($this->makeStudent($this->branchA)));
 
-        $this->htmx($accountant)->post(route('approvals.bulk'), ['action' => 'reject', 'items' => ["receipt:{$receipt->id}"]])
-            ->assertStatus(422)
-            ->assertSee('Vui lòng nhập lý do từ chối.');
+        $this->modal($accountant)->post(route('approvals.bulk'), ['action' => 'reject', 'items' => ["receipt:{$receipt->id}"]])
+            ->assertRedirect(route('approvals.index'))
+            ->assertSessionHasErrors(['reason' => 'Vui lòng nhập lý do từ chối.']);
         $this->flushHeaders()->actingAs($accountant)->from(route('approvals.index'))
             ->post(route('approvals.bulk'), ['action' => 'reject', 'items' => ["receipt:{$receipt->id}"], 'reason' => ''])
             ->assertSessionHasErrors('reason');
         $this->assertSame(TuitionReceipt::STATUS_PENDING, $receipt->fresh()->status);
 
-        $this->htmx($accountant)->post(route('approvals.bulk'), [
+        // Từ modal chi tiết (single): chỉ thông báo, không có vùng kết quả.
+        $this->modal($accountant)->post(route('approvals.bulk'), [
             'action' => 'reject', 'items' => ["receipt:{$receipt->id}"], 'reason' => 'Sai số tiền', 'single' => '1',
-        ])->assertNoContent();
+        ])->assertRedirect(route('approvals.index'))->assertSessionHas('status')->assertSessionMissing('approval_results');
         $receipt->refresh();
         $this->assertSame(TuitionReceipt::STATUS_REJECTED, $receipt->status);
         $this->assertSame('Sai số tiền', $receipt->rejection_reason);
@@ -266,8 +272,9 @@ class ApprovalInboxTest extends TestCase
         $refund = TuitionRefundRequest::create(['student_id' => $this->makeStudent($this->branchA)->id, 'type' => 'extension', 'reason' => 'Khất nợ', 'requester_id' => $this->staff->id, 'status' => 'pending']);
 
         // Duyệt hoàn tiền / khất nợ cần thông tin ở màn gốc → chỉ từ chối được trong inbox.
-        $this->htmx($accountant)->post(route('approvals.bulk'), ['action' => 'approve', 'items' => ["refund:{$refund->id}"]])
-            ->assertOk()->assertSee('màn gốc');
+        $this->modal($accountant)->post(route('approvals.bulk'), ['action' => 'approve', 'items' => ["refund:{$refund->id}"]])
+            ->assertRedirect(route('approvals.index'))
+            ->assertSessionHas('error', fn (string $message) => str_contains($message, 'màn gốc'));
         $this->assertSame('pending', $refund->fresh()->status);
 
         $this->flushHeaders()->actingAs($accountant)->get(route('approvals.index'))->assertOk()
@@ -289,9 +296,10 @@ class ApprovalInboxTest extends TestCase
             ->assertSee('data-approval-item="receipt:'.$inScope->id.'"', false)
             ->assertDontSee('data-approval-item="receipt:'.$outScope->id.'"', false);
 
-        $this->htmx($accountant)->get(route('approvals.show', ['receipt', $outScope->id]))->assertNotFound();
-        $this->htmx($accountant)->post(route('approvals.bulk'), ['action' => 'approve', 'items' => ["receipt:{$outScope->id}"]])
-            ->assertOk()->assertSee('ngoài phạm vi');
+        $this->modal($accountant)->get(route('approvals.show', ['receipt', $outScope->id]))->assertNotFound();
+        $this->modal($accountant)->post(route('approvals.bulk'), ['action' => 'approve', 'items' => ["receipt:{$outScope->id}"]])
+            ->assertRedirect(route('approvals.index'))
+            ->assertSessionHas('error', fn (string $message) => str_contains($message, 'ngoài phạm vi'));
         $this->assertSame(TuitionReceipt::STATUS_PENDING, $outScope->fresh()->status);
     }
 
@@ -302,17 +310,22 @@ class ApprovalInboxTest extends TestCase
         $accountant = $this->makeUser('accountant');
         $receipt = $this->pendingReceipt($this->makeTuition($this->makeStudent($this->branchA)));
 
-        $this->htmx($accountant)->get(route('approvals.show', ['receipt', $receipt->id]))->assertOk()
-            ->assertDontSee('data-sidebar', false)
+        $this->modal($accountant)->get(route('approvals.show', ['receipt', $receipt->id]))->assertOk()
             ->assertSee('Phiếu thu '.\App\Support\DisplayCode::short($receipt->receipt_number))
             ->assertSee('id="approval-approve-form"', false)
-            ->assertSee('id="approval-reject-form"', false);
+            ->assertSee('id="approval-reject-form"', false)
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Approvals/Show')
+                ->where('asModal', true)
+                ->where('item.ref', 'receipt:'.$receipt->id)
+                ->where('canApprove', true)
+                ->where('canReject', true));
 
         $this->flushHeaders()->actingAs($accountant)->get(route('approvals.show', ['receipt', $receipt->id]))->assertOk()
             ->assertSee('data-sidebar', false);
 
         // Nguồn không có quyền / không tồn tại → 404.
-        $this->htmx($accountant)->get(route('approvals.show', ['syllabus_proposal', $this->pendingProposal()->id]))->assertNotFound();
+        $this->modal($accountant)->get(route('approvals.show', ['syllabus_proposal', $this->pendingProposal()->id]))->assertNotFound();
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────
@@ -343,7 +356,8 @@ class ApprovalInboxTest extends TestCase
             ->assertSee('data-approval-item="payment_report:'.$report->id.'"', false)
             ->assertSee('CK Vietcombank 25/09');
 
-        $this->htmx($accountant)->post(route('approvals.bulk'), ['action' => 'approve', 'items' => ["payment_report:{$report->id}"]])->assertOk();
+        $this->modal($accountant)->post(route('approvals.bulk'), ['action' => 'approve', 'items' => ["payment_report:{$report->id}"]])
+            ->assertRedirect(route('approvals.index'));
         $this->assertSame(PaymentReportService::STATUS_CONFIRMED, $report->fresh()->status);
 
         // Học viên nhận thông báo kết quả trong hộp thư cổng học viên.
@@ -360,9 +374,9 @@ class ApprovalInboxTest extends TestCase
             'title' => 'Báo đóng', 'status' => 'pending', 'data' => ['student_id' => (string) $student->id, 'amount' => 500000],
         ]);
 
-        $this->htmx($accountant)->post(route('approvals.bulk'), [
+        $this->modal($accountant)->post(route('approvals.bulk'), [
             'action' => 'reject', 'items' => ["payment_report:{$report->id}"], 'reason' => 'Chưa thấy tiền về',
-        ])->assertOk();
+        ])->assertRedirect(route('approvals.index'));
 
         $this->assertSame(PaymentReportService::STATUS_REJECTED, $report->fresh()->status);
         $notification = AcademicRecord::where('record_code', 'YCHOCPHI-KQ-'.$report->id)->firstOrFail();
@@ -370,9 +384,10 @@ class ApprovalInboxTest extends TestCase
         $this->assertSame((string) $student->id, (string) $notification->data['student_id']);
     }
 
-    private function htmx(User $user): static
+    /** Request từ modal / form "Duyệt đã chọn" của trang danh sách (UiForm gửi X-Remote-Modal) → quay lại trang đang mở. */
+    private function modal(User $user): static
     {
-        return $this->actingAs($user)->withHeaders(['HX-Request' => 'true']);
+        return $this->actingAs($user)->withHeaders(self::MODAL)->from(route('approvals.index'));
     }
 
     private function makeUser(string $role): User

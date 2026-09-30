@@ -6,18 +6,28 @@ use App\Models\Branch;
 use App\Models\CandidateCv;
 use App\Models\JobPosting;
 use App\Services\SafeUploadService;
+use App\Support\Ui;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\View\View;
+use Inertia\Inertia;
+use Inertia\Response as InertiaResponse;
 
 class RecruitmentController extends Controller
 {
+    /** Trạng thái hồ sơ CV cho bộ lọc và form cập nhật (khớp validate của updateCvStatus). */
+    private const CV_STATUS_OPTIONS = [
+        'pending' => 'Chờ xử lý',
+        'reviewing' => 'Đang đánh giá',
+        'interviewed' => 'Đã phỏng vấn',
+        'accepted' => 'Đã tuyển dụng',
+        'rejected' => 'Từ chối',
+    ];
+
     /**
      * Màn hình quản lý tuyển dụng & hồ sơ ứng viên trong Web Admin
      */
-    public function index(Request $request): View
+    public function index(Request $request): InertiaResponse
     {
         $branches = Branch::where('is_active', true)->get();
         $tab = $request->get('tab', 'candidates'); // 'candidates', 'jobs'
@@ -33,11 +43,11 @@ class RecruitmentController extends Controller
         // Danh sách CV ứng tuyển
         $cvsQuery = CandidateCv::with(['jobPosting', 'branch', 'reviewer'])->latest();
 
-        if ($status !== 'all' && !empty($status)) {
+        if ($status !== 'all' && ! empty($status)) {
             $cvsQuery->where('status', $status);
         }
 
-        if (!empty($branchId)) {
+        if (! empty($branchId)) {
             $cvsQuery->where('branch_id', $branchId);
         }
 
@@ -49,18 +59,41 @@ class RecruitmentController extends Controller
         $interviewedCount = CandidateCv::where('status', 'interviewed')->count();
         $acceptedCount = CandidateCv::where('status', 'accepted')->count();
 
-        return view('recruitment.index', compact(
-            'branches',
-            'tab',
-            'status',
-            'branchId',
-            'jobs',
-            'candidates',
-            'totalJobs',
-            'totalCvs',
-            'interviewedCount',
-            'acceptedCount'
-        ));
+        return Inertia::render('Recruitment/Index', [
+            'tab' => $tab,
+            'branches' => Ui::options($branches, 'name'),
+            'cvStatusOptions' => Ui::options(self::CV_STATUS_OPTIONS),
+            'stats' => [
+                'totalJobs' => $totalJobs,
+                'totalCvs' => $totalCvs,
+                'interviewedCount' => $interviewedCount,
+                'acceptedCount' => $acceptedCount,
+            ],
+            'jobs' => $jobs->map(fn (JobPosting $job) => [
+                'id' => $job->id,
+                'title' => $job->title,
+                'deadline' => $job->deadline?->format('d/m/Y'),
+                'department' => $job->department,
+                'employment_type' => $job->employment_type,
+                'branch_name' => $job->branch?->name,
+                'salary_range' => $job->salary_range,
+                'candidate_cvs_count' => $job->candidate_cvs_count,
+                'is_active' => (bool) $job->is_active,
+            ])->all(),
+            'candidates' => $candidates->through(fn (CandidateCv $can) => [
+                'id' => $can->id,
+                'full_name' => $can->full_name,
+                'phone' => $can->phone,
+                'email' => $can->email,
+                'applying_position' => $can->applying_position,
+                'branch_name' => $can->branch?->name,
+                'cv_url' => $can->cv_file_path ? asset('storage/'.$can->cv_file_path) : null,
+                'portfolio_url' => $can->portfolio_url,
+                'status' => $can->status,
+                'status_label' => $can->statusBadge()['label'],
+                'notes' => $can->notes,
+            ]),
+        ]);
     }
 
     /**
@@ -105,9 +138,10 @@ class RecruitmentController extends Controller
     public function toggleJobStatus($id): RedirectResponse
     {
         $job = JobPosting::findOrFail($id);
-        $job->update(['is_active' => !$job->is_active]);
+        $job->update(['is_active' => ! $job->is_active]);
 
         $statusText = $job->is_active ? 'mở lại' : 'đóng tạm thời';
+
         return redirect()->back()->with('success', "Đã {$statusText} tin tuyển dụng '{$job->title}'!");
     }
 
@@ -125,7 +159,7 @@ class RecruitmentController extends Controller
 
         $cv->update([
             'status' => $validated['status'],
-            'notes' => $validated['notes'] ? ($cv->notes ? $cv->notes . "\n[" . now()->format('d/m/Y H:i') . ']: ' . $validated['notes'] : $validated['notes']) : $cv->notes,
+            'notes' => $validated['notes'] ? ($cv->notes ? $cv->notes."\n[".now()->format('d/m/Y H:i').']: '.$validated['notes'] : $validated['notes']) : $cv->notes,
             'reviewed_by' => Auth::id(),
             'reviewed_at' => now(),
         ]);
@@ -136,7 +170,7 @@ class RecruitmentController extends Controller
     /**
      * Portal Tuyển dụng Public cho Ứng viên ngoài xem và nộp hồ sơ
      */
-    public function portal(Request $request): View
+    public function portal(Request $request): InertiaResponse
     {
         $jobs = JobPosting::with('branch')
             ->where('is_active', true)
@@ -145,7 +179,21 @@ class RecruitmentController extends Controller
 
         $branches = Branch::where('is_active', true)->get();
 
-        return view('portal.recruitment', compact('jobs', 'branches'));
+        return Inertia::render('Recruitment/Portal', [
+            'jobs' => $jobs->map(fn (JobPosting $job) => [
+                'id' => $job->id,
+                'title' => $job->title,
+                'department' => $job->department,
+                'employment_type' => $job->employment_type,
+                'branch_id' => $job->branch_id,
+                'branch_name' => $job->branch?->name,
+                'salary_range' => $job->salary_range,
+                'description' => $job->description,
+                'requirements' => $job->requirements,
+                'deadline' => $job->deadline?->format('d/m/Y'),
+            ])->all(),
+            'branches' => Ui::options($branches, 'name'),
+        ]);
     }
 
     /**

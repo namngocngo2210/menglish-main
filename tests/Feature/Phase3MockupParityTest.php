@@ -13,6 +13,7 @@ use Carbon\Carbon;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Tests\Concerns\FinalizesPayrollKpi;
 use Tests\TestCase;
 
@@ -99,7 +100,7 @@ class Phase3MockupParityTest extends TestCase
             ->assertSee('Lý do điều chỉnh')
             ->assertSee('Ví dụ: Mất mạng chi nhánh, quên quẹt thẻ...')
             ->assertSee('GV-0492')
-            ->assertSee('2026-07-01') // khoảng ngày kỳ đã khóa gửi xuống để cảnh báo ngay khi chọn ngày
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('lockedRanges.0.from', '2026-07-01')) // khoảng ngày kỳ đã khóa gửi xuống để cảnh báo ngay khi chọn ngày
             ->getContent();
         $this->assertStringContainsString('value="2026-08-12"', $html);
 
@@ -204,7 +205,7 @@ class Phase3MockupParityTest extends TestCase
         $this->assertSame(TeacherTimesheet::SOURCE_SCHEDULE, $confirmed->source);
         $this->assertEquals(1.5, (float) $confirmed->hours);
         $this->actingAs($this->admin)->get(route('payroll.timesheets.teachers', ['month' => '2026-09', 'type' => 'sub']))
-            ->assertOk()->assertSee('Đã xác nhận')->assertViewHas('timesheets', fn ($p) => $p->total() === 1);
+            ->assertOk()->assertSee('Đã xác nhận')->assertInertia(fn (AssertableInertia $page) => $page->where('timesheets.total', 1));
     }
 
     /** Màn "Lịch sử đồng bộ" (epic-7/lich-su-dong-bo-cham-cong). */
@@ -272,16 +273,16 @@ class Phase3MockupParityTest extends TestCase
 
         // Tìm theo mã nhân viên + lọc theo bước.
         $this->actingAs($manager)->get(route('penalties.index', ['search' => 'GV-0492', 'step' => 'fined']))
-            ->assertOk()->assertViewHas('penalties', fn ($p) => $p->total() === 1 && $p->first()->is($fined));
+            ->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->where('penalties.total', 1)->where('penalties.data.0.id', $fined->id));
         $this->actingAs($manager)->get(route('penalties.index', ['step' => 'recorded']))
-            ->assertViewHas('penalties', fn ($p) => $p->total() === 1 && $p->first()->is($recorded));
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('penalties.total', 1)->where('penalties.data.0.id', $recorded->id));
 
         // Ghi nhận khắc phục sau khi đã nộp → bước "Đã khắc phục".
         $this->actingAs($manager)->post(route('penalties.remedy', $paid->id), ['remedy_note' => 'Đã cam kết không tái phạm'])
             ->assertSessionHasNoErrors();
         $this->assertSame('remedied', $paid->fresh()->step);
         $this->actingAs($manager)->get(route('penalties.index', ['step' => 'remedied']))
-            ->assertViewHas('penalties', fn ($p) => $p->total() === 1);
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('penalties.total', 1));
 
         // Kỳ lương đã khóa vẫn "Chốt mức phạt" được (chủ dự án chốt 27/09/2026): tiền phạt trừ vào kỳ đang mở.
         PayrollPeriod::create([
@@ -312,7 +313,7 @@ class Phase3MockupParityTest extends TestCase
         $this->actingAs($this->admin)->get(route('payroll.config.teacher-rates'))
             ->assertOk()
             ->assertSee('Đơn giá đang hiệu lực')
-            ->assertSee('data-href="'.e(route('payroll.config.teacher-rates', ['teacher_id' => $this->teacher->id])).'"', false)
+            ->assertSee('data-href="'.e(route('payroll.config.teacher-rates', ['teacher_id' => $this->teacher->id], false)).'"', false)
             ->assertDontSee('data-teacher-rate=', false);
 
         $this->actingAs($this->admin)->get(route('payroll.config.teacher-rates', ['teacher_id' => $this->teacher->id]))
@@ -420,9 +421,9 @@ class Phase3MockupParityTest extends TestCase
         $this->assertNotSame('approved', $period->fresh()->status);
 
         $this->actingAs($this->admin)->get(route('payroll.periods.show', [$period->id, 'search' => 'GV-0492']))
-            ->assertViewHas('records', fn ($p) => $p->total() === 1);
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('records.total', 1));
         $this->actingAs($this->admin)->get(route('payroll.periods.show', [$period->id, 'kpi' => 'done']))
-            ->assertViewHas('records', fn ($p) => $p->total() === 1 && $p->first()->user_id === $this->academicStaff->id);
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('records.total', 1)->where('records.data.0.user_id', $this->academicStaff->id));
 
         $this->actingAs($this->admin)->get(route('payroll.periods.index'))
             ->assertOk()->assertSee('Danh sách bảng lương theo kỳ')->assertSee('2 kỳ lương')->assertSee('Đã trả');
@@ -558,7 +559,7 @@ class Phase3MockupParityTest extends TestCase
             ->assertDontSee('9.999.000'); // không lộ thực nhận
 
         $this->actingAs($this->admin)->get(route('payroll.kpi-leaderboard', ['period' => '2026-09', 'branch_id' => $other->id]))
-            ->assertOk()->assertViewHas('retentionPage', fn ($p) => $p->total() === 1 && $p->first()->user_id === $teacherB->id);
+            ->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->where('retentionPage.total', 1)->where('retentionPage.data.0.user_id', $teacherB->id));
 
         // KPI Học vụ: bảng 6 nhóm / 15 mục, Lỗi nghiêm trọng → 0%, lưu nháp không dùng cho lương, chốt thì dùng.
         $lead = $this->userWithRole('academic_lead', ['name' => 'Học thuật Chấm']);

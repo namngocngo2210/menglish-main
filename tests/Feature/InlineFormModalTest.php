@@ -3,16 +3,17 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
+use App\Models\StaffReport;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use PHPUnit\Framework\Attributes\DataProvider;
+use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 /**
  * Màn danh sách không còn form tạo nằm cạnh: form ở modal mở bằng nút trên đầu trang.
- * Lỗi validate → trang tải lại mở sẵn đúng modal (trường ẩn _modal) kèm dữ liệu đã nhập.
+ * Lỗi validate → quay lại trang đang mở kèm lỗi; modal (UiModal, giữ state Vue) vẫn mở với dữ liệu đã nhập.
  */
 class InlineFormModalTest extends TestCase
 {
@@ -31,45 +32,56 @@ class InlineFormModalTest extends TestCase
         $this->admin->assignRole('admin');
     }
 
-    /** @return array<string, array{string, string}> */
-    public static function pages(): array
+    /** Phụ đạo (trang Vue): form nằm trong modal đóng sẵn, mở bằng nút trên đầu trang; lỗi validate trả về trang đang mở. */
+    public function test_support_session_form_lives_in_a_closed_modal(): void
     {
-        return [
-            'nhật ký sự vụ' => ['reports.journal', 'new-journal'],
-            'khảo sát' => ['surveys.index', 'new-survey'],
-            'giao chặng' => ['syllabus.assignments', 'new-assignment'],
-            'tài liệu giáo trình' => ['syllabus.documents', 'upload-document'],
-            'phụ đạo' => ['tasks.support-sessions', 'new-support-session'],
-            'mốc hoa hồng' => ['payroll.config.commission-tiers', 'new-tier'],
-            'đơn giá GV' => ['payroll.config.teacher-rates', 'new-rate'],
-            'nhắc nợ' => ['system-config.debt-reminders', 'new-reminder'],
-            'dải số hoá đơn' => ['tuition.config', 'range-form'],
-            'khất nợ / hoàn tiền' => ['tuition.refunds', 'refund-request'],
-            'KPI' => ['kpi.criteria', 'new-kpi'],
-        ];
+        $this->actingAs($this->admin)->get(route('tasks.support-sessions'))->assertOk()
+            ->assertSee('Xếp buổi phụ đạo')
+            ->assertSee('id="new-support-session-form"', false)
+            ->assertInertia(fn ($page) => $page->component('Tasks/SupportSessions')->where('selectedSupport', null));
+
+        $this->actingAs($this->admin)->from(route('tasks.support-sessions'))
+            ->post(route('tasks.support-sessions.store'), [])
+            ->assertRedirect(route('tasks.support-sessions'))
+            ->assertSessionHasErrors('session_date');
     }
 
-    #[DataProvider('pages')]
-    public function test_create_form_lives_in_a_closed_modal_opened_by_a_button(string $route, string $modal): void
+    /** Trang Vue (Đợt khảo sát): form tạo nằm trong hộp thoại đóng sẵn (UiModal, v-show), mở bằng nút "Tạo đợt khảo sát". */
+    public function test_survey_create_form_lives_in_a_closed_vue_modal(): void
     {
-        $this->actingAs($this->admin)->get(route($route))->assertOk()
-            ->assertSee("\$dispatch('open-modal', '{$modal}')", false)
-            ->assertSee('data-modal="'.$modal.'"', false)
-            ->assertSee('show: false', false);
+        $html = $this->actingAs($this->admin)->get(route('surveys.index'))->assertOk()
+            ->assertSee('Tạo đợt khảo sát')
+            ->assertSee('Tạo đợt khảo sát mới')
+            ->assertSee('id="new-survey-form"', false)
+            ->getContent();
+
+        // Khung hộp thoại chứa form đang ẩn (display: none) khi mới mở trang.
+        $form = strpos($html, 'id="new-survey-form"');
+        $dialog = strrpos(substr($html, 0, $form), 'data-modal');
+        $this->assertNotFalse($dialog);
+        $this->assertMatchesRegularExpression('/<div[^>]*style="display:\s*none;?"[^>]*data-modal|<div[^>]*data-modal[^>]*style="display:\s*none;?"/', substr($html, strrpos(substr($html, 0, $dialog), '<div'), $form));
     }
 
-    public function test_validation_error_reopens_the_modal_with_entered_values(): void
+    /** Nhật ký sự vụ đã sang Vue: form tạo nằm trong UiModal đóng sẵn; lỗi validate trả về kèm lỗi, modal (giữ state) vẫn mở. */
+    public function test_journal_create_form_lives_in_a_closed_vue_modal(): void
+    {
+        $this->actingAs($this->admin)->get(route('reports.journal'))->assertOk()
+            ->assertSee('Ghi nhận sự vụ mới')
+            ->assertSee('id="new-journal-form"', false)
+            ->assertSee('form="new-journal-form"', false)
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Reports/Journal'));
+    }
+
+    public function test_validation_error_returns_with_errors_and_entered_values(): void
     {
         $this->actingAs($this->admin)->from(route('reports.journal'))
-            ->post(route('reports.journal.store'), ['_modal' => 'new-journal', 'title' => '', 'severity' => 'normal', 'content' => 'Mô tả giữ lại'])
+            ->post(route('reports.journal.store'), ['title' => '', 'severity' => 'normal', 'content' => 'Mô tả giữ lại'])
             ->assertRedirect(route('reports.journal'))
-            ->assertSessionHasErrors('title');
+            ->assertSessionHasErrors('title')
+            ->assertSessionHasInput('content', 'Mô tả giữ lại');
+        $this->assertSame(0, StaffReport::count());
 
-        $html = $this->actingAs($this->admin)->get(route('reports.journal'))->assertOk()->getContent();
-        // Khối x-data của modal (đứng trước data-modal) chứa trạng thái mở.
-        $marker = strpos($html, 'data-modal="new-journal"');
-        $modal = substr($html, strrpos(substr($html, 0, $marker), 'x-data="{'), 200);
-        $this->assertStringContainsString('show: true', $modal);
-        $this->assertStringContainsString('Mô tả giữ lại', $html);
+        $this->actingAs($this->admin)->get(route('reports.journal'))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Reports/Journal')->has('errors.title'));
     }
 }

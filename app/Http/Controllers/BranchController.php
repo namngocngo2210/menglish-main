@@ -2,17 +2,20 @@
 
 namespace App\Http\Controllers;
 
-use App\Support\Audit;
 use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\CrmCustomer;
 use App\Models\Student;
 use App\Models\User;
+use App\Support\Audit;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response as InertiaResponse;
 
 class BranchController extends Controller
 {
-    public function index(Request $request)
+    /** Cơ sở & chi nhánh: thẻ số liệu, bộ lọc, bảng; Thêm / Sửa mở modal trong trang. */
+    public function index(Request $request): InertiaResponse
     {
         $query = Branch::query();
 
@@ -50,13 +53,21 @@ class BranchController extends Controller
         $totalStudents = Student::count();
         $totalClasses = ClassModel::where('status', 'active')->count();
 
-        return view('branches.index', compact(
-            'branches',
-            'totalBranches',
-            'activeBranches',
-            'totalStudents',
-            'totalClasses'
-        ));
+        return Inertia::render('Branches/Index', [
+            'branches' => $branches->map(fn (Branch $branch) => [
+                ...$branch->only(['id', 'code', 'name', 'address', 'phone']),
+                'is_active' => (bool) $branch->is_active,
+                'users_count' => $branch->users_count,
+                'classes_count' => $branch->classes_count,
+                'students_count' => $branch->students_count,
+            ])->values()->all(),
+            'stats' => [
+                'total' => $totalBranches,
+                'active' => $activeBranches,
+                'students' => $totalStudents,
+                'classes' => $totalClasses,
+            ],
+        ]);
     }
 
     public function store(Request $request)
@@ -69,7 +80,7 @@ class BranchController extends Controller
             'is_active' => 'nullable|boolean',
         ]);
 
-        $validated['is_active'] = $request->has('is_active') ? (bool)$request->input('is_active') : true;
+        $validated['is_active'] = $request->has('is_active') ? (bool) $request->input('is_active') : true;
 
         Audit::describe("Thêm mới cơ sở chi nhánh: {$validated['name']} ({$validated['code']})");
         $branch = Branch::create($validated);
@@ -90,7 +101,7 @@ class BranchController extends Controller
             'is_active' => 'nullable|boolean',
         ]);
 
-        $validated['is_active'] = $request->has('is_active') ? (bool)$request->input('is_active') : false;
+        $validated['is_active'] = $request->has('is_active') ? (bool) $request->input('is_active') : false;
 
         Audit::describe("Cập nhật thông tin cơ sở chi nhánh: {$validated['name']} ({$validated['code']})");
         $branch->update($validated);
@@ -122,7 +133,7 @@ class BranchController extends Controller
     public function toggleStatus($id)
     {
         $branch = Branch::findOrFail($id);
-        $branch->is_active = !$branch->is_active;
+        $branch->is_active = ! $branch->is_active;
         $branch->save();
 
         $statusText = $branch->is_active ? 'Đang hoạt động' : 'Tạm dừng';

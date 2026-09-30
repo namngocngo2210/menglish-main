@@ -65,7 +65,7 @@ class Flow1AndHomeworkScreensTest extends TestCase
             ->assertSee('Lịch học thử')
             ->assertSee('Khách Sắp Học Thử')
             ->assertSee(now()->addDay()->format('d/m/Y'))
-            ->assertSee(route('crm.customers.show', $lead->id))
+            ->assertSee(route('crm.customers.show', $lead->id, false))
             ->assertDontSee('Khách Đã Học Thử');
 
         $this->actingAs($this->admin)->get(route('classes.trial-booking', ['scope' => 'past']))

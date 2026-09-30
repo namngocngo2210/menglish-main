@@ -2,7 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Support\DataScope;
+use App\Exports\ArrayExport;
+use App\Helpers\AclHelper;
 use App\Models\Branch;
 use App\Models\ClassEnrollment;
 use App\Models\ClassModel;
@@ -12,15 +13,19 @@ use App\Models\Student;
 use App\Models\StudentAttendance;
 use App\Models\User;
 use App\Services\Crm\WaitingLeadPlacement;
-use App\Services\Students\ClassStartActivation;
 use App\Services\FirstMonthCareService;
 use App\Services\SessionLessonService;
 use App\Services\StudentDeferralService;
+use App\Services\Students\ClassStartActivation;
+use App\Support\DataScope;
+use App\Support\Ui;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
 
 class StudentProfileController extends Controller
 {
@@ -70,7 +75,35 @@ class StudentProfileController extends Controller
             ClassModel::loadRosterCounts($linkableClasses);
         }
 
-        return view('students.index', compact('students', 'branches', 'classes', 'statuses', 'totalStudents', 'linkableClasses'));
+        return Inertia::render('Students/Index', [
+            'students' => $students->through(fn (Student $st) => [
+                'id' => $st->id,
+                'code' => $st->code,
+                'name' => $st->name,
+                'dob' => $st->dob?->format('d/m/Y'),
+                'phone' => $st->phone,
+                'email' => $st->email && ! User::isGeneratedStudentEmail($st->email) ? $st->email : null,
+                'current_class' => $st->currentClass ? ['code' => $st->currentClass->code, 'name' => $st->currentClass->name] : null,
+                'status' => $st->status,
+                'status_label' => $st->status_label,
+                'status_color' => $st->status_color,
+                'branch_id' => $st->branch_id,
+                'class_ids' => array_values(array_filter([$st->current_class_id])),
+            ]),
+            'branches' => Ui::options($branches, 'name'),
+            'classes' => Ui::options($classes, 'name'),
+            'statuses' => $statuses,
+            'statusOptions' => Student::STATUSES,
+            'totalStudents' => $totalStudents,
+            'hasFilters' => collect($request->only(['search', 'branch_id', 'class_id', 'status', 'statuses']))->filter()->isNotEmpty(),
+            'linkableClasses' => $linkableClasses->map(fn (ClassModel $c) => [
+                'id' => $c->id,
+                'label' => $c->name.' ('.$c->code.')',
+                'branch_id' => $c->branch_id,
+                'seats' => ($c->roster_count ?? 0).'/'.($c->max_capacity > 0 ? $c->max_capacity : '∞'),
+                'full' => $c->max_capacity > 0 && ($c->roster_count ?? 0) >= $c->max_capacity,
+            ])->values()->all(),
+        ]);
     }
 
     public function enrollments(Request $request)
@@ -101,7 +134,48 @@ class StudentProfileController extends Controller
             ]];
         });
 
-        return view('students.enrollments', compact('enrollments', 'classes', 'students', 'placementRules'));
+        // Khách chốt từ CRM đang chờ lớp: xếp ở một nơi duy nhất (màn Chờ xếp lớp của CRM) — ở đây chỉ nhắc số + link.
+        $crmWaitingCount = $user->can('lead.view')
+            ? CrmCustomer::query()->visibleTo($user)->where('stage', 'waiting_class')->count()
+            : 0;
+        // Mở từ cột Hành động của bảng Chờ xếp lớp (?student_id=): chọn sẵn học viên, nhắc khóa / chi nhánh đã chốt.
+        $preselectedId = (string) old('student_id', $request->query('student_id', ''));
+        $preselected = $preselectedId !== '' ? $students->firstWhere('id', (int) $preselectedId) : null;
+        $preselectedLead = $preselected
+            ? CrmCustomer::query()->with(['waitingCourse', 'waitingBranch', 'branch'])
+                ->where('stage', 'waiting_class')->where('converted_student_id', $preselected->id)->first()
+            : null;
+
+        return Inertia::render('Students/Enrollments', [
+            'enrollments' => $enrollments->through(fn (ClassEnrollment $en) => [
+                'id' => $en->id,
+                'student_name' => $en->student?->name,
+                'student_code' => $en->student?->code,
+                'class_name' => $en->classModel?->name,
+                'teacher' => $en->classModel?->teacher?->name,
+                'curriculum_delivered' => (bool) $en->curriculum_delivered,
+                'zalo_group_added' => (bool) $en->zalo_group_added,
+                'enrolled_at' => $en->enrolled_at?->format('d/m/Y'),
+                'status' => $en->status,
+                'dropped' => $en->status === Student::ENROLLMENT_DROPPED,
+                'from_crm' => (bool) $en->customer_id,
+                'confirmed' => (bool) $en->confirmed_at,
+            ]),
+            'classes' => $classes->map(fn (ClassModel $cl) => [
+                'id' => $cl->id, 'label' => "{$cl->name} ({$cl->code})", 'branch_id' => $cl->branch_id, 'course_id' => $cl->course_id,
+            ])->values()->all(),
+            'students' => $students->map(fn (Student $st) => ['value' => $st->id, 'label' => "{$st->name} ({$st->code})"])->values()->all(),
+            'placementRules' => $placementRules->all(),
+            'crmWaitingCount' => $crmWaitingCount,
+            'preselectedId' => $preselectedId !== '' ? $preselectedId : (string) ($students->first()?->id ?? ''),
+            'openEnroll' => old('_modal') === 'enroll-student' || $request->filled('student_id'),
+            'oldClassId' => (string) old('class_id', ''),
+            'preselectedLead' => $preselectedLead ? [
+                'student_name' => $preselected->name,
+                'course' => $preselectedLead->waitingCourse?->name ?? '—',
+                'branch' => $preselectedLead->waitingBranch?->name ?? $preselectedLead->branch?->name ?? '—',
+            ] : null,
+        ]);
     }
 
     public function storeEnrollment(Request $request, WaitingLeadPlacement $placement)
@@ -228,15 +302,14 @@ class StudentProfileController extends Controller
             return $this->exportRoadmap($student, $data['sessions'], $data['attendanceBySession'], $data['lessons']);
         }
 
-        return view('students.show', $data + [
-            'student' => $student,
+        return Inertia::render('Students/Show', $this->profileProps($student, $user, $data, [
             'canEdit' => $user->can('student.update'),
             'canChangeStatus' => $user->can('student.change_status'),
             'canViewAcademic' => true,
             'canViewContact' => true,
             'canViewTuition' => $user->can('tuition.view'),
             'scopedView' => false,
-        ]);
+        ]));
     }
 
     /**
@@ -323,12 +396,193 @@ class StudentProfileController extends Controller
             $attendanceBySession->get($s->id)?->status_label,
         ])->values()->all();
 
-        return \App\Exports\ArrayExport::download(
+        return ArrayExport::download(
             'lo-trinh-'.$student->code,
             ['Ngày học', 'Thời gian', 'Lớp', 'Nội dung bài học', 'Giáo viên', 'Trạng thái', 'Điểm danh'],
             $rows,
             request()->query('format', 'xlsx')
         );
+    }
+
+    /**
+     * Props hồ sơ học viên cho trang Vue (Chi tiết / Theo phân quyền): chỉ gửi phần người xem có quyền
+     * (liên hệ, lớp học / điểm danh, học phí) — phần không có quyền không có trong props.
+     *
+     * @param  array<string, mixed>  $data  kết quả profileData()
+     * @param  array<string, bool>  $flags  canEdit, canChangeStatus, canViewAcademic, canViewContact, canViewTuition, scopedView
+     * @return array<string, mixed>
+     */
+    private function profileProps(Student $student, User $user, array $data, array $flags): array
+    {
+        $roleName = $user->getRoleNames()->first();
+        $weekdays = [1 => 'Thứ 2', 2 => 'Thứ 3', 3 => 'Thứ 4', 4 => 'Thứ 5', 5 => 'Thứ 6', 6 => 'Thứ 7', 7 => 'Chủ nhật'];
+        $attendanceTones = ['present' => 'text-tertiary', 'late' => 'text-warning', 'excused' => 'text-secondary', 'absent' => 'text-error'];
+        $receiptLabels = ['approved' => ['Đã thanh toán', 'text-tertiary'], 'pending' => ['Chờ xử lý', 'text-warning'], 'draft' => ['Bản nháp', 'text-on-surface-variant'], 'rejected' => ['Bị trả về', 'text-error'], 'cancelled' => ['Đã hủy', 'text-on-surface-variant']];
+        $now = now();
+        $startsAt = fn (ClassSession $s) => $s->date?->copy()->setTimeFromTimeString($s->start_time?->format('H:i') ?? '00:00');
+        $sessions = $data['sessions'];
+        $nextSessionId = $sessions->first(fn ($s) => $s->status !== 'cancelled' && $s->date && $startsAt($s)->gte($now))?->id;
+        $contact = $flags['canViewContact'];
+        $academic = $flags['canViewAcademic'];
+
+        $props = $flags + [
+            'viewerRoleLabel' => $roleName ? AclHelper::roleLabel($roleName) : 'Người dùng',
+            'statusOptions' => collect(Student::STATUSES)->map(fn (string $label, string $key) => ['value' => $key, 'label' => $label, 'color' => Student::STATUS_COLORS[$key] ?? 'neutral'])->values()->all(),
+            'canAssignClass' => $user->can('student.assign_class'),
+            'student' => [
+                'id' => $student->id,
+                'code' => $student->code,
+                'name' => $student->name,
+                'dob_label' => $student->dob ? $student->dob->format('d/m/Y').' ('.$student->dob->age.' tuổi)' : null,
+                'phone' => $contact ? $student->phone : null,
+                'email' => $contact ? $student->email : null,
+                'branch' => $student->branch?->name,
+                'address' => $contact ? $student->address : null,
+                'parent_name' => $contact ? $student->parent_name : null,
+                'parent_phone' => $contact ? $student->parent_phone : null,
+                'school' => $student->school,
+                'notes' => $student->notes,
+                'target' => $student->target,
+                'current_class' => $student->currentClass?->name,
+                'created_at' => $student->created_at?->format('d/m/Y'),
+                'updated_label' => $student->updated_at ? ($student->updated_at->isToday() ? 'Hôm nay, '.$student->updated_at->format('H:i') : $student->updated_at->format('d/m/Y H:i')) : '—',
+                'status' => $student->status,
+                'status_label' => $student->status_label,
+                'status_color' => $student->status_color,
+                'deferred_until' => $student->status === 'deferred' ? $student->tuition?->deferred_until?->format('d/m/Y') : null,
+                'dropped' => $student->status === Student::STATUS_DROPPED,
+            ],
+        ];
+
+        if ($academic) {
+            $lessons = $data['lessons'];
+            $props['sessions'] = $sessions->map(function (ClassSession $session) use ($weekdays, $attendanceTones, $data, $lessons, $now, $startsAt, $nextSessionId) {
+                $att = $data['attendanceBySession']->get($session->id);
+                $lesson = $lessons[$session->id] ?? null;
+                $isPast = $session->date && $startsAt($session)->lt($now);
+                $state = $session->status === 'cancelled' ? 'cancelled' : (($session->status === 'completed' || $isPast) ? 'done' : 'upcoming');
+                if ($lesson && ($lesson['unit'] || $lesson['title'])) {
+                    [$heading, $sub] = [$lesson['unit'] ?? 'Buổi '.$lesson['no'], $lesson['title']];
+                } else {
+                    $heading = $lesson ? 'Buổi '.$lesson['no'] : ($session->type === ClassSession::TYPE_MAKEUP ? 'Buổi học bù' : 'Buổi học');
+                    $sub = $lesson ? 'Chưa gắn nội dung giáo trình' : null;
+                }
+
+                return [
+                    'id' => $session->id,
+                    'date' => $session->date ? $weekdays[$session->date->isoWeekday()].', '.$session->date->format('d/m/Y') : '—',
+                    'time' => $session->start_time?->format('H:i').($session->end_time ? ' - '.$session->end_time->format('H:i') : ''),
+                    'heading' => $heading,
+                    'sub' => $sub,
+                    'class_name' => $session->classModel?->name ?? '—',
+                    'room' => $session->roomLabel(),
+                    'type' => $session->type,
+                    'teacher' => $session->teacher?->name ?? $session->classModel?->teacher?->name,
+                    'state' => $state,
+                    'is_next' => $session->id === $nextSessionId,
+                    'attendance' => $att ? ['label' => $att->status_label, 'tone' => $attendanceTones[$att->status] ?? ''] : null,
+                ];
+            })->values()->all();
+            $props['classes'] = $data['classes']->map(fn (ClassModel $class) => [
+                'id' => $class->id,
+                'name' => $class->name,
+                'is_main' => $class->id === $student->current_class_id,
+                'branch' => $class->branch?->name,
+                'schedule_text' => $class->schedule_text,
+                'teacher' => $class->teacher?->name,
+                'period' => ($class->start_date?->format('d/m/y') ?? '—').' - '.($class->end_date?->format('d/m/y') ?? '—'),
+                'remaining' => $this->classRemainingLabel($class),
+            ])->values()->all();
+            $props['attendanceStats'] = $data['attendanceStats'];
+            $props['attendances'] = $data['attendances']->map(fn (StudentAttendance $att) => [
+                'id' => $att->id,
+                'date' => $att->session_date?->format('d/m/Y') ?? '—',
+                'class_name' => $att->classModel?->name ?? '—',
+                'status_label' => $att->status_label,
+                'tone' => $attendanceTones[$att->status] ?? '',
+                'note' => $att->note,
+            ])->values()->all();
+            $props['linkableClasses'] = $data['linkableClasses']->map(function (ClassModel $lc) {
+                $full = $lc->max_capacity > 0 && $lc->active_enrollments_count >= $lc->max_capacity;
+
+                return [
+                    'value' => $lc->id,
+                    'label' => $lc->name.' ('.$lc->active_enrollments_count.'/'.($lc->max_capacity > 0 ? $lc->max_capacity : '∞').')'.($full ? ' — Đã đủ sĩ số' : ''),
+                    'disabled' => $full,
+                ];
+            })->values()->all();
+            $props['care'] = $data['care'] ? $this->careProps($data['care']) : null;
+        }
+
+        if ($flags['canViewTuition']) {
+            $tuition = $student->tuition;
+            $props['tuition'] = $tuition ? [
+                'final_amount' => (float) $tuition->final_amount,
+                'paid_amount' => (float) $tuition->paid_amount,
+                'debt_amount' => (float) $tuition->debt_amount,
+                'receipts' => collect($tuition->receipts ?? [])->map(function ($receipt) use ($receiptLabels) {
+                    [$label, $tone] = $receiptLabels[$receipt->status] ?? [$receipt->status_label, 'text-on-surface-variant'];
+
+                    return [
+                        'id' => $receipt->id,
+                        'number' => $receipt->receipt_number,
+                        'date' => ($receipt->payment_date ?? $receipt->created_at)?->format('d/m/Y'),
+                        'amount' => (float) $receipt->amount,
+                        'label' => $label,
+                        'tone' => $tone,
+                    ];
+                })->values()->all(),
+            ] : null;
+        }
+
+        return $props;
+    }
+
+    /** "Đã kết thúc" / "Còn N tháng" / "Còn N ngày" theo ngày kết thúc lớp. */
+    private function classRemainingLabel(ClassModel $class): ?string
+    {
+        if (! $class->end_date) {
+            return null;
+        }
+        if ($class->end_date->isPast()) {
+            return 'Đã kết thúc';
+        }
+        $months = (int) now()->diffInMonths($class->end_date);
+
+        return $months >= 1 ? "Còn {$months} tháng" : 'Còn '.(int) now()->diffInDays($class->end_date).' ngày';
+    }
+
+    /**
+     * Chăm sóc tháng đầu (3 mốc gate hoa hồng A6) dạng mảng cho trang Vue.
+     *
+     * @param  array<string, mixed>  $care  FirstMonthCareService::checklist()
+     * @return array<string, mixed>
+     */
+    private function careProps(array $care): array
+    {
+        return [
+            'completed' => $care['completed'],
+            'closing' => $care['closing']?->format('d/m/Y'),
+            'start' => $care['start']?->format('d/m/Y'),
+            'customer_id' => $care['customer']?->id,
+            'items' => collect($care['items'])->map(fn (array $item) => [
+                'key' => $item['key'],
+                'label' => $item['label'],
+                'done' => (bool) $item['done'],
+                'due' => $item['due']?->format('d/m/Y'),
+                'waiting' => $item['milestone'] === FirstMonthCareService::MILESTONE_DAY_30
+                    ? 'Chưa có ngày chốt'
+                    : 'Chờ học viên có mặt đủ '.($item['milestone'] === FirstMonthCareService::MILESTONE_SESSION_1 ? '1 buổi' : '4 buổi'),
+                'crm_done_at' => $item['crm_done'] ? Carbon::parse($item['crm_done']['done_at'] ?? now())->format('d/m/Y') : null,
+                'task' => $item['task'] ? [
+                    'assignee' => FirstMonthCareService::assigneeLabel($item['task']->assignee),
+                    'assignee_email' => $item['task']->assignee?->email,
+                    'status' => $item['task']->status,
+                    'status_label' => $item['task']->status_label,
+                    'penalty_code' => $item['task']->slaPenalty?->code,
+                ] : null,
+            ])->values()->all(),
+        ];
     }
 
     public function updateStudent(Request $request, $id)
@@ -424,15 +678,14 @@ class StudentProfileController extends Controller
         $canViewAcademic = $user->can('attendance_student.view') || $user->can('student.update');
         $canViewContact = $user->can('student.update') || $canViewTuition;
 
-        return view('students.scoped', $this->profileData($student, $user, $canViewAcademic) + [
-            'student' => $student,
+        return Inertia::render('Students/Scoped', $this->profileProps($student, $user, $this->profileData($student, $user, $canViewAcademic), [
             'canEdit' => $user->can('student.update'),
             'canChangeStatus' => $user->can('student.change_status'),
             'canViewAcademic' => $canViewAcademic,
             'canViewContact' => $canViewContact,
             'canViewTuition' => $canViewTuition,
             'scopedView' => true,
-        ]);
+        ]));
     }
 
     // ─────────────────────────────────────────────

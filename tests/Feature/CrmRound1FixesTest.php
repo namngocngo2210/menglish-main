@@ -185,7 +185,7 @@ class CrmRound1FixesTest extends TestCase
         $this->lead('consulting');
 
         $response = $this->actingAs($this->sales)->get(route('crm.pipeline'))->assertOk();
-        $this->assertTrue($response->viewData('stagePermissions')['canMarkLost']);
+        $this->assertTrue($response->inertiaProps('stagePermissions')['canMarkLost']);
         $response->assertSee('Sửa giai đoạn')->assertSee('Chuyển sang Thất bại');
     }
 
@@ -195,11 +195,11 @@ class CrmRound1FixesTest extends TestCase
     {
         Carbon::setTestNow('2026-09-29 10:00:00');
         $response = $this->actingAs($this->admin)->get(route('crm.reports', ['preset' => 'last_7_days']))->assertOk();
-        $this->assertSame('2026-09-23 00:00:00', $response->viewData('startDate')->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-09-23 00:00:00', $response->inertiaProps('startDate'));
 
         $custom = $this->actingAs($this->admin)->get(route('crm.reports', ['preset' => 'custom', 'start_date' => '2026-09-20', 'end_date' => '2026-09-10']))->assertOk();
-        $this->assertSame('2026-09-10', $custom->viewData('startDate')->toDateString());
-        $this->assertSame('2026-09-20', $custom->viewData('endDate')->toDateString());
+        $this->assertSame('2026-09-10', substr($custom->inertiaProps('startDate'), 0, 10));
+        $this->assertSame('2026-09-20', substr($custom->inertiaProps('endDate'), 0, 10));
         Carbon::setTestNow();
     }
 
@@ -211,7 +211,7 @@ class CrmRound1FixesTest extends TestCase
 
         $this->sales->givePermissionTo('report.view');
         $response = $this->actingAs($this->sales)->get(route('crm.reports'))->assertOk();
-        $mine = collect($response->viewData('repsData'))->firstWhere('name', 'Sale Một');
+        $mine = collect($response->inertiaProps('repsData'))->firstWhere('name', 'Sale Một');
         $this->assertSame(1, $mine['won']);
     }
 

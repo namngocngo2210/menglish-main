@@ -31,6 +31,7 @@ use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request as HttpRequest;
 use Illuminate\Support\Facades\Http;
+use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 /**
@@ -238,7 +239,8 @@ class Phase2AcceptanceTest extends TestCase
         // ── 3. Giáo viên: lịch dạy hôm nay, điểm danh từng buổi, nhận xét, mini test ──────────
         $today = $class->sessions()->whereDate('date', today())->firstOrFail();
         $this->actingAs($this->teacher)->get(route('teacher.home'))->assertOk()
-            ->assertViewHas('shifts', fn ($shifts) => $shifts->pluck('session.id')->contains($today->id));
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Teacher/Home')
+                ->where('shifts', fn ($shifts) => collect($shifts)->pluck('session_id')->contains($today->id)));
 
         $this->actingAs($this->teacher)->post(route('teacher.attendance.store', $class->id), [
             'class_session_id' => $today->id,
@@ -285,8 +287,8 @@ class Phase2AcceptanceTest extends TestCase
         $this->actingAs($this->otherTeacher)->get(route('teacher.attendance', ['classId' => $class->id, 'session' => $today->id]))->assertForbidden();
 
         // ── 4. Học vụ xếp buổi bổ trợ từ danh sách bổ trợ ────────────────────────────────────
-        $this->actingAs($this->academic)->get(route('tasks.support-sessions'))->assertOk()
-            ->assertViewHas('pendingSupports', fn ($rows) => $rows->pluck('id')->contains($absence->id));
+        $supportList = $this->actingAs($this->academic)->get(route('tasks.support-sessions'))->assertOk();
+        $this->assertTrue(collect($supportList->viewData('page')['props']['pendingSupports']['data'])->pluck('id')->contains($absence->id));
         $this->actingAs($this->academic)->post(route('tasks.support-sessions.store'), [
             'class_report_student_support_id' => $absence->id, 'class_id' => $class->id, 'student_id' => $s2->id,
             'teacher_id' => $this->assistant->id, 'session_date' => today()->addDay()->toDateString(),
@@ -351,7 +353,7 @@ class Phase2AcceptanceTest extends TestCase
         $this->assertTrue(ClassReportStudentSupport::where('student_id', $s3->id)->where('source', SupportListService::SOURCE_BIG_TEST)->exists());
         // Kết quả chưa duyệt không hiện ở cổng học viên.
         $this->actingAs($studentUser)->get(route('portal.student.home'))->assertOk()
-            ->assertViewHas('bigTestResults', fn ($results) => $results->isEmpty());
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('bigTestResults', fn ($results) => collect($results)->isEmpty()));
 
         $this->actingAs($this->teacher)->post(route('syllabus.big-tests.results.approve', $bigTest->id))->assertForbidden();
         $this->actingAs($this->academic)->post(route('syllabus.big-tests.results.approve', $bigTest->id))->assertForbidden();
@@ -405,14 +407,19 @@ class Phase2AcceptanceTest extends TestCase
 
         // ── 8. Cổng học viên: lịch học, điểm danh, kết quả thi của chính mình ────────────────
         $this->actingAs($studentUser)->get(route('portal.student.home'))->assertOk()
-            ->assertViewHas('student', fn ($student) => $student->id === $s1->id)
-            ->assertViewHas('upcomingSessions', fn ($sessions) => $sessions->isNotEmpty() && $sessions->every(fn ($s) => (int) $s->class_id === $class->id))
-            ->assertViewHas('attendanceHistory', fn ($rows) => $rows->count() === 2 && $rows->every(fn ($a) => (int) $a->student_id === $s1->id))
-            ->assertViewHas('bigTestResults', fn ($results) => $results->count() === 1 && $results->first()->status === 'sent');
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Portal/Home')
+                ->where('student.id', $s1->id)
+                ->where('upcomingSessions', fn ($sessions) => collect($sessions)->isNotEmpty()
+                    && collect($sessions)->every(fn ($s) => (int) ClassSession::find($s['id'])?->class_id === $class->id))
+                ->where('attendanceHistory', fn ($rows) => collect($rows)->count() === 2
+                    && collect($rows)->every(fn ($a) => (int) StudentAttendance::find($a['id'])?->student_id === $s1->id))
+                ->where('bigTestResults', fn ($results) => collect($results)->count() === 1
+                    && BigTestResult::find(collect($results)->first()['id'])?->status === 'sent'));
         $this->actingAs($studentUser)->get(route('portal.student.home', ['studentId' => $s2->id]))->assertForbidden();
         $this->actingAs($studentUser)->get(route('portal.student.homework'))->assertOk()
-            ->assertViewHas('miniTests', fn ($scores) => $scores->count() === 1)
-            ->assertViewHas('remarks', fn ($remarks) => $remarks->count() === 1 && $remarks->first()['remark']['grammar'] === 'Tốt');
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Portal/Homework')
+                ->where('miniTests', fn ($scores) => collect($scores)->count() === 1)
+                ->where('remarks', fn ($remarks) => collect($remarks)->count() === 1 && collect($remarks)->first()['remark']['grammar'] === 'Tốt'));
 
         // Chấm công tay: Quản lý cơ sở không chấm cho lớp ngoài chi nhánh mình (Học vụ hiện xem mọi lớp — chờ BA).
         $manager = $this->userWithRole('manager');

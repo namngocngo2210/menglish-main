@@ -9,6 +9,8 @@ use App\Services\NotificationService;
 use App\Support\DataScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response as InertiaResponse;
 
 /**
  * "Nhận xét học thử" — khách học thử (lead chưa chốt) trên buổi dạy của giáo viên (BA Q1 — học thử bổ sung).
@@ -17,7 +19,7 @@ use Illuminate\Http\Request;
  */
 class TrialGuestController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request): InertiaResponse
     {
         $user = $request->user();
         $scope = $request->input('scope') === 'past' ? 'past' : 'upcoming';
@@ -39,7 +41,31 @@ class TrialGuestController extends Controller
             ->paginate($request->perPage(20))
             ->withQueryString();
 
-        return view('teacher.trial-guests', compact('bookings', 'scope'));
+        return Inertia::render('TrialGuests/Index', [
+            'scope' => $scope,
+            'remarkFields' => collect(CrmTrialBooking::REMARK_FIELDS)
+                ->map(fn (string $label, string $key) => ['key' => $key, 'label' => $label])->values()->all(),
+            'bookings' => $bookings->through(fn (CrmTrialBooking $booking) => [
+                'id' => $booking->id,
+                'class_name' => $booking->classModel?->name,
+                'session_date' => $booking->session?->date?->format('d/m/Y'),
+                'session_time' => $booking->session?->start_time?->format('H:i').'–'.$booking->session?->end_time?->format('H:i'),
+                'course_name' => $booking->classModel?->course?->name,
+                'customer_name' => $booking->customer?->name,
+                'parent_name' => $booking->customer?->parent_name,
+                'test_score' => $booking->customer?->test_score,
+                'notes' => $booking->notes,
+                'status' => $booking->status,
+                'status_label' => $booking->status_label,
+                'rating' => $booking->rating,
+                'remarks' => (object) ($booking->remarks ?? []),
+                'remarks_summary' => $booking->remarksSummary(),
+                'feedback' => $booking->feedback,
+                'feedback_by' => $booking->feedbackBy?->name,
+                'feedback_at' => $booking->feedback_at?->format('d/m/Y H:i'),
+                'started' => $booking->sessionHasStarted(),
+            ]),
+        ]);
     }
 
     public function feedback(Request $request, CrmTrialBooking $booking)

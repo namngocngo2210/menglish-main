@@ -8,11 +8,14 @@ use App\Models\TicketMessage;
 use App\Models\User;
 use App\Services\MediaManagerService;
 use App\Services\NotificationService;
+use App\Support\Ui;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
+use Inertia\Response;
 
 use function Illuminate\Support\defer;
 
@@ -27,7 +30,8 @@ class SupportTicketController extends Controller
         $this->notificationService = $notificationService;
     }
 
-    public function index(Request $request)
+    /** Danh sách ticket: "Tạo Ticket Mới" mở modal 2xl, "Trao đổi" mở modal 3xl (hội thoại + trả lời). */
+    public function index(Request $request): Response
     {
         $query = SupportTicket::with(['creator', 'assignee'])->latest();
 
@@ -54,7 +58,20 @@ class SupportTicketController extends Controller
             });
         }
 
-        $tickets = $query->paginate($request->perPage(15))->withQueryString();
+        $tickets = $query->paginate($request->perPage(15))->withQueryString()
+            ->through(fn (SupportTicket $ticket) => [
+                'id' => $ticket->id,
+                'code' => $ticket->code,
+                'title' => $ticket->title,
+                'category_label' => $ticket->category_label,
+                'priority' => $ticket->priority,
+                'priority_badge' => $ticket->priority_badge,
+                'status_label' => $ticket->status_label,
+                'status_badge' => $ticket->status_badge,
+                'creator' => $ticket->creator?->name,
+                'assignee' => $ticket->assignee?->name,
+                'created_at' => $ticket->created_at->toIso8601String(),
+            ]);
 
         $statsQuery = SupportTicket::query();
         if (! $this->canManageTickets()) {
@@ -71,16 +88,17 @@ class SupportTicketController extends Controller
             'resolved' => (clone $statsQuery)->where('status', 'resolved')->count(),
         ];
 
-        return view('support-tickets.index', compact('tickets', 'stats'));
+        return Inertia::render('SupportTickets/Index', ['tickets' => $tickets, 'stats' => $stats]);
     }
 
-    public function create()
+    /** Tạo ticket: mở từ danh sách → modal; mở thẳng URL → trang riêng. */
+    public function create(): Response
     {
         $staffs = Auth::user()->can('support_ticket.assign')
             ? $this->ticketHandlers()
             : collect();
 
-        return $this->modalView('support-tickets.create', compact('staffs'));
+        return $this->modalPage('SupportTickets/Create', ['staffs' => Ui::options($staffs, 'name')]);
     }
 
     public function store(Request $request)
@@ -125,11 +143,11 @@ class SupportTicketController extends Controller
         // Bắn thông báo chuông + email cho những người trong luồng ticket (sau khi đã trả phản hồi)
         defer(fn () => $this->notificationService->notifyTicketCreated($ticket));
 
-        return $this->modalSaved("Đã tạo phiếu yêu cầu hỗ trợ / báo lỗi {$ticket->code} thành công!", 'tickets-changed', route('tickets.show', $ticket->id));
+        return $this->modalSaved("Đã tạo phiếu yêu cầu hỗ trợ / báo lỗi {$ticket->code} thành công!", route('tickets.show', $ticket->id));
     }
 
-    /** Chi tiết ticket: htmx → modal (hội thoại + ô trả lời); mở thẳng URL → trang đầy đủ. */
-    public function show($id)
+    /** Chi tiết ticket: mở từ danh sách → modal (hội thoại + ô trả lời); mở thẳng URL → trang đầy đủ. */
+    public function show($id): Response
     {
         $ticket = SupportTicket::with(['creator', 'assignee', 'messages.user'])->where('id', $id)->orWhere('code', $id)->firstOrFail();
         $this->authorizeTicketParticipant($ticket);
@@ -144,7 +162,40 @@ class SupportTicketController extends Controller
             ? $this->ticketHandlers()
             : collect();
 
-        return $this->modalView('support-tickets.show', compact('ticket', 'staffs', 'canPostInternal'));
+        return $this->modalPage('SupportTickets/Show', [
+            'ticket' => [
+                'id' => $ticket->id,
+                'code' => $ticket->code,
+                'title' => $ticket->title,
+                'category_label' => $ticket->category_label,
+                'priority' => $ticket->priority,
+                'priority_badge' => $ticket->priority_badge,
+                'status' => $ticket->status,
+                'status_label' => $ticket->status_label,
+                'status_badge' => $ticket->status_badge,
+                'is_finished' => $ticket->isFinished(),
+                'creator' => $ticket->creator?->name,
+                'assignee_id' => $ticket->assignee_id,
+                'assignee' => $ticket->assignee?->name,
+                'created_at' => $ticket->created_at->toIso8601String(),
+            ],
+            // Cũ trước, mới nhất ở cuối (quan hệ messages sắp mới → cũ).
+            'messages' => $ticket->messages->reverse()->values()->map(fn (TicketMessage $msg) => [
+                'id' => $msg->id,
+                'user' => $msg->user?->name,
+                'message' => $msg->message,
+                'is_internal_note' => (bool) $msg->is_internal_note,
+                'created_at' => $msg->created_at->toIso8601String(),
+                'attachments' => collect($msg->attachment_list)->map(fn (string $file) => [
+                    'name' => basename($file),
+                    'ext' => strtolower(pathinfo($file, PATHINFO_EXTENSION)),
+                    'url' => route('tickets.attachment', ['id' => $ticket->id, 'path' => $file]),
+                ])->values()->all(),
+            ])->all(),
+            'staffs' => Ui::options($staffs, 'name'),
+            'canPostInternal' => $canPostInternal,
+            'canReopen' => $ticket->userCanReopen(Auth::user()),
+        ]);
     }
 
     public function storeMessage(Request $request, $id)
@@ -173,8 +224,7 @@ class SupportTicketController extends Controller
         // Người xử lý (không phải người tạo) phản hồi → "Đang xử lý"; người tạo trả lời ticket đã giải quyết
         // → mở lại để người xử lý thấy.
         $byCreator = (int) Auth::id() === (int) $ticket->creator_id;
-        $reopened = ($ticket->status === 'open' && ! $byCreator) || ($ticket->status === 'resolved' && $byCreator && ! $msg->is_internal_note);
-        if ($reopened) {
+        if (($ticket->status === 'open' && ! $byCreator) || ($ticket->status === 'resolved' && $byCreator && ! $msg->is_internal_note)) {
             $ticket->update(['status' => 'in_progress']);
         }
 
@@ -182,34 +232,7 @@ class SupportTicketController extends Controller
         $sender = Auth::user();
         defer(fn () => $this->notificationService->notifyTicketMessage($ticket, $msg, $sender));
 
-        if ($request->expectsJson()) {
-            return $this->messageStored($ticket, $msg, $reopened, $request->boolean('as_modal'));
-        }
-
-        return $this->ticketActionDone($ticket, 'Đã gửi phản hồi thành công!');
-    }
-
-    /**
-     * Ô trả lời gửi ở nền (ticket-reply.js): trả bình luận vừa lưu (thay khung "Đang gửi…") và, khi trạng thái ticket
-     * đổi theo, các vùng hiển thị trạng thái (data-ticket-part) render lại.
-     */
-    private function messageStored(SupportTicket $ticket, TicketMessage $msg, bool $statusChanged, bool $asModal)
-    {
-        $msg->setRelation('user', Auth::user());
-        $parts = [];
-        if ($statusChanged) {
-            $staffs = Auth::user()->can('support_ticket.assign') ? $this->ticketHandlers() : collect();
-            $parts = [
-                'status' => view('support-tickets.partials.status-form', compact('ticket'))->render(),
-                'info' => view('support-tickets.partials.info', compact('ticket', 'staffs'))->render(),
-            ];
-        }
-
-        return response()->json([
-            'message' => 'Đã gửi phản hồi.',
-            'html' => view('support-tickets.partials.message', compact('msg', 'ticket', 'asModal'))->render(),
-            'parts' => (object) $parts,
-        ], 201);
+        return $this->ticketActionDone('Đã gửi phản hồi thành công!');
     }
 
     public function updateStatus(Request $request, $id)
@@ -229,7 +252,7 @@ class SupportTicketController extends Controller
         $actor = Auth::user();
         defer(fn () => $this->notificationService->notifyTicketStatusChanged($ticket, $validated['status'], $actor));
 
-        return $this->ticketActionDone($ticket, "Đã cập nhật trạng thái ticket sang: {$ticket->status_label}!");
+        return $this->ticketActionDone("Đã cập nhật trạng thái ticket sang: {$ticket->status_label}!");
     }
 
     /**
@@ -257,7 +280,7 @@ class SupportTicketController extends Controller
         $actor = Auth::user();
         defer(fn () => $this->notificationService->notifyTicketStatusChanged($ticket, 'in_progress', $actor));
 
-        return $this->ticketActionDone($ticket, 'Đã mở lại ticket.');
+        return $this->ticketActionDone('Đã mở lại ticket.');
     }
 
     public function assign(Request $request, $id)
@@ -278,7 +301,7 @@ class SupportTicketController extends Controller
             defer(fn () => $this->notificationService->notifyTicketAssigned($ticket, $assignee, $actor));
         }
 
-        return $this->ticketActionDone($ticket, "Đã phân công xử lý ticket cho {$ticket->assignee?->name}!");
+        return $this->ticketActionDone("Đã phân công xử lý ticket cho {$ticket->assignee?->name}!");
     }
 
     /**
@@ -320,16 +343,12 @@ class SupportTicketController extends Controller
     }
 
     /**
-     * Kết thúc thao tác trên ticket (phản hồi / đổi trạng thái / phân công): trong modal → trả lại nội dung modal mới
-     * (hội thoại cập nhật) + toast + làm mới danh sách; thường → quay lại trang trước kèm flash như cũ.
+     * Kết thúc thao tác trên ticket (phản hồi / đổi trạng thái / phân công): quay lại trang trước kèm thông báo.
+     * Trong modal (<UiForm stay>): trang nền (danh sách) cập nhật, modal giữ mở và tải lại hội thoại mới.
      */
-    private function ticketActionDone(SupportTicket $ticket, string $message)
+    private function ticketActionDone(string $message)
     {
-        if (! $this->isModalRequest()) {
-            return redirect()->back()->with('status', $message);
-        }
-
-        return $this->modalUpdated($this->show($ticket->id), $message, 'tickets-changed');
+        return redirect()->back()->with('status', $message);
     }
 
     /** Disk riêng tư lưu file đính kèm ticket (không truy cập trực tiếp qua URL công khai). */

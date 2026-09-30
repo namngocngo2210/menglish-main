@@ -2,9 +2,16 @@
 
 namespace Tests\Feature;
 
+use App\Models\BankAccount;
 use App\Models\Branch;
+use App\Models\DebtReminderRule;
+use App\Models\InvoiceCancellation;
+use App\Models\InvoiceConfiguration;
+use App\Models\OperatingExpense;
+use App\Models\SepayTransaction;
 use App\Models\Student;
 use App\Models\StudentTuition;
+use App\Models\SystemSetting;
 use App\Models\TuitionReceipt;
 use App\Models\TuitionRefundRequest;
 use App\Models\User;
@@ -14,6 +21,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Testing\AssertableInertia;
 use Tests\Concerns\GrantsPersonalPermissions;
 use Tests\TestCase;
 
@@ -23,8 +31,8 @@ use Tests\TestCase;
  */
 class Phase4FinanceParityTest extends TestCase
 {
-    use RefreshDatabase;
     use GrantsPersonalPermissions;
+    use RefreshDatabase;
 
     private Branch $branch;
 
@@ -247,11 +255,11 @@ class Phase4FinanceParityTest extends TestCase
 
         $this->actingAs($this->admin)->get(route('tuition.refunds'))
             ->assertOk()
-            ->assertViewHas('overdueCount', 1)
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Tuition/Refunds')->where('overdueCount', 1))
             ->assertSee('1 QUÁ HẠN')
             ->assertSee('Quá hạn xử lý');
         $this->actingAs($this->admin)->get(route('tuition.refunds', ['status' => 'overdue']))
-            ->assertViewHas('historyRequests', fn ($rows) => $rows->count() === 1);
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('historyRequests', fn ($rows) => $rows->count() === 1));
 
         $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $refund->id), [
             'clawback_commission' => 0,
@@ -305,22 +313,22 @@ class Phase4FinanceParityTest extends TestCase
         $this->actingAs($this->manager)->get(route('tuition.students'))
             ->assertOk()
             ->assertSee('Công nợ học viên')
-            ->assertSee('Nhóm "Quá hạn"', false)
+            ->assertSee('Nhóm "Quá hạn"')
             ->assertSee('Quá hạn nghiêm trọng')
-            ->assertSee('Nhóm "Sắp đến hạn"', false)
+            ->assertSee('Nhóm "Sắp đến hạn"')
             ->assertSee('Khoản thu')
             ->assertSee('Xác nhận đã liên hệ')
             ->assertSee('HV-PAR-SOON')
             ->assertDontSee('HV-PAR-OTHER')
             // Thẻ thống kê chỉ cộng chi nhánh của Quản lý (6tr + 2tr), không cộng 9tr của chi nhánh khác.
-            ->assertViewHas('stats', fn ($stats) => $stats['final'] === 8000000.0);
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('stats.final', fn ($final) => (float) $final === 8000000.0));
     }
 
     public function test_lich_su_thu_filters_details_and_exports(): void
     {
         $receipt = TuitionReceipt::where('student_tuition_id', $this->tuition->id)->firstOrFail();
         $receipt->update(['invoice_number' => 'C26CG-0000007', 'payment_method' => 'transfer', 'transaction_code' => 'FTPAR001']);
-        \App\Models\InvoiceConfiguration::create(['branch_id' => $this->branch->id, 'template_code' => '1/002', 'series_code' => 'C26CG', 'start_number' => 1, 'current_number' => 8, 'is_active' => true]);
+        InvoiceConfiguration::create(['branch_id' => $this->branch->id, 'template_code' => '1/002', 'series_code' => 'C26CG', 'start_number' => 1, 'current_number' => 8, 'is_active' => true]);
         $other = $this->makeStudent('HV-PAR-H2', 'Học Viên Hai', $this->branch);
         $this->makeTuition($other, 1000000, paid: 500000);
 
@@ -332,7 +340,7 @@ class Phase4FinanceParityTest extends TestCase
             ->assertSee('Chính thức')
             ->assertSee('Chi tiết Phiếu thu')
             ->assertSee('Tải lên biên lai mới')
-            ->assertViewHas('templates', fn ($t) => $t['C26CG'] === '1/002')
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('receipts.data', fn ($rows) => $rows->firstWhere('invoice_number', 'C26CG-0000007')['template_code'] === '1/002'))
             ->assertDontSee('HV-PAR-H2')
             ->assertDontSee('01GTKT0/001');
 
@@ -356,7 +364,7 @@ class Phase4FinanceParityTest extends TestCase
     {
         $receipt = TuitionReceipt::where('student_tuition_id', $this->tuition->id)->firstOrFail();
         $receipt->update(['invoice_number' => 'C26CG-0000042']);
-        $cancellation = \App\Models\InvoiceCancellation::create([
+        $cancellation = InvoiceCancellation::create([
             'invoice_number' => 'C26CG-0000042', 'tuition_receipt_id' => $receipt->id, 'student_id' => $this->student->id,
             'amount' => 3000000, 'reason' => 'Viết sai tên phụ huynh', 'requester_id' => $this->accountant->id, 'status' => 'pending',
         ]);
@@ -383,7 +391,7 @@ class Phase4FinanceParityTest extends TestCase
 
     public function test_dai_so_hoa_don_is_branch_scoped_and_notifies_branch(): void
     {
-        $other = \App\Models\InvoiceConfiguration::create(['branch_id' => $this->branch2->id, 'template_code' => '1/001', 'series_code' => 'C26DD', 'start_number' => 1, 'end_number' => 100, 'current_number' => 1, 'is_active' => true]);
+        $other = InvoiceConfiguration::create(['branch_id' => $this->branch2->id, 'template_code' => '1/001', 'series_code' => 'C26DD', 'start_number' => 1, 'end_number' => 100, 'current_number' => 1, 'is_active' => true]);
         $branchAccountant2 = $this->makeUser('accountant');
         $manager = $this->manager;
 
@@ -403,6 +411,30 @@ class Phase4FinanceParityTest extends TestCase
         $this->actingAs($this->admin)->get(route('tuition.config'))->assertOk()->assertSee('C26DD')->assertSee('C26CG');
     }
 
+    public function test_create_forms_live_in_closed_modals_opened_by_buttons(): void
+    {
+        // Dải số hóa đơn: "Thêm cấu hình mới" / nút Sửa mở hộp thoại ngay trên trang (đóng sẵn); ?new=1 / ?edit= mở sẵn.
+        $range = InvoiceConfiguration::create(['branch_id' => $this->branch->id, 'template_code' => '1/001', 'series_code' => 'C26CG', 'start_number' => 1, 'end_number' => 100, 'current_number' => 1, 'is_active' => true]);
+        $this->actingAs($this->admin)->get(route('tuition.config'))->assertOk()
+            ->assertSee('Thêm cấu hình mới')
+            ->assertSee('action="'.route('tuition.config.ranges.store', [], false).'"', false)
+            ->assertSee('style="display:none;"', false)
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Tuition/Config')->where('openNew', false)->where('editingId', null));
+        $this->actingAs($this->admin)->get(route('tuition.config', ['new' => 1]))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('openNew', true));
+        $this->actingAs($this->admin)->get(route('tuition.config', ['edit' => $range->id]))->assertOk()
+            ->assertSee('action="'.route('tuition.config.update', [], false).'"', false)
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('editingId', $range->id));
+
+        // Khất nợ / hoàn tiền: 2 form tạo yêu cầu nằm trong hộp thoại đóng sẵn, mở bằng nút trên đầu trang.
+        $this->actingAs($this->accountant)->get(route('tuition.refunds'))->assertOk()
+            ->assertSee('Đánh dấu khất nợ')
+            ->assertSee('Tạo yêu cầu nghỉ giữa khóa')
+            ->assertSee('id="refund-extension-form"', false)
+            ->assertSee('id="refund-request-form"', false)
+            ->assertSee('action="'.route('tuition.refunds.store', [], false).'"', false);
+    }
+
     public function test_tai_khoan_ngan_hang_has_type_search_and_active_flag(): void
     {
         $this->actingAs($this->accountant)->post(route('system-config.bank-accounts.store'), [
@@ -414,8 +446,8 @@ class Phase4FinanceParityTest extends TestCase
             'account_holder' => 'Nguyen Van Dai Dien', 'branch_id' => $this->branch->id,
         ])->assertSessionHasNoErrors();
 
-        $default = \App\Models\BankAccount::where('account_number', '0071001234567')->firstOrFail();
-        $other = \App\Models\BankAccount::where('account_number', '190345678910')->firstOrFail();
+        $default = BankAccount::where('account_number', '0071001234567')->firstOrFail();
+        $other = BankAccount::where('account_number', '190345678910')->firstOrFail();
         $this->assertSame('company', $default->account_type);
         $this->assertSame('other', $other->account_type);
 
@@ -428,7 +460,7 @@ class Phase4FinanceParityTest extends TestCase
             ->assertSee('Hiển thị 2 trên 2 tài khoản');
         $this->actingAs($this->accountant)->get(route('system-config.bank-accounts', ['q' => 'Techcom']))
             ->assertOk()->assertSee('190345678910')->assertSee('Hiển thị 1 trên 2 tài khoản')
-            ->assertViewHas('accounts', fn ($accounts) => $accounts->pluck('account_number')->all() === ['190345678910']);
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('accounts', fn ($accounts) => collect($accounts)->pluck('account_number')->all() === ['190345678910']));
 
         // Ngừng dùng tài khoản thường được; tài khoản mặc định thì không.
         $payload = fn ($acc) => ['account_type' => $acc->account_type, 'bank_code' => $acc->bank_code, 'bank_name' => $acc->bank_name, 'account_number' => $acc->account_number, 'account_holder' => $acc->account_holder, 'is_active' => 0];
@@ -440,7 +472,7 @@ class Phase4FinanceParityTest extends TestCase
 
     public function test_nhac_no_quick_settings_sync_reminder_rules(): void
     {
-        \App\Models\DebtReminderRule::create(['milestone_key' => 'T-3', 'offset_days' => -3, 'title' => 'Nhắc cũ 3 ngày', 'template_content' => 'Nhắc {ten_hoc_vien}', 'is_enabled' => false]);
+        DebtReminderRule::create(['milestone_key' => 'T-3', 'offset_days' => -3, 'title' => 'Nhắc cũ 3 ngày', 'template_content' => 'Nhắc {ten_hoc_vien}', 'is_enabled' => false]);
 
         $this->actingAs($this->accountant)->get(route('system-config.debt-reminders'))
             ->assertOk()
@@ -457,17 +489,17 @@ class Phase4FinanceParityTest extends TestCase
         $this->actingAs($this->accountant)->post(route('system-config.debt-reminders.settings'), ['first_days' => 7, 'repeat_days' => 3, 'must_contact_days' => 10])
             ->assertSessionHasNoErrors();
 
-        $first = \App\Models\DebtReminderRule::where('milestone_key', 'NHAC-TRUOC')->firstOrFail();
+        $first = DebtReminderRule::where('milestone_key', 'NHAC-TRUOC')->firstOrFail();
         $this->assertSame(-7, $first->offset_days);
         $this->assertTrue($first->is_enabled);
         // Đã có mốc T-3 → bật lại mốc đó, không tạo mốc trùng ngày.
-        $this->assertTrue(\App\Models\DebtReminderRule::where('milestone_key', 'T-3')->firstOrFail()->is_enabled);
-        $this->assertNull(\App\Models\DebtReminderRule::where('milestone_key', 'NHAC-LAI')->first());
-        $this->assertSame(10, (int) \App\Models\SystemSetting::get('debt_reminder.must_contact_days'));
+        $this->assertTrue(DebtReminderRule::where('milestone_key', 'T-3')->firstOrFail()->is_enabled);
+        $this->assertNull(DebtReminderRule::where('milestone_key', 'NHAC-LAI')->first());
+        $this->assertSame(10, (int) SystemSetting::get('debt_reminder.must_contact_days'));
 
         $this->actingAs($this->accountant)->post(route('system-config.debt-reminders.settings'), ['first_days' => 10, 'repeat_days' => 2, 'must_contact_days' => 10])
             ->assertSessionHasNoErrors();
-        $this->assertSame(-2, \App\Models\DebtReminderRule::where('milestone_key', 'NHAC-LAI')->firstOrFail()->offset_days);
+        $this->assertSame(-2, DebtReminderRule::where('milestone_key', 'NHAC-LAI')->firstOrFail()->offset_days);
         $this->assertSame(-10, $first->fresh()->offset_days);
     }
 
@@ -484,16 +516,19 @@ class Phase4FinanceParityTest extends TestCase
         // Kế toán chi nhánh CG: chỉ thấy CG (trước đây thấy toàn hệ thống).
         $this->actingAs($this->accountant)->get(route('finance.reports.revenue'))
             ->assertOk()
-            ->assertViewHas('totalRevenue', 3000000.0)
-            ->assertViewHas('branchMatrix', fn ($m) => count($m) === 1 && $m[0]['branch']->id === $this->branch->id)
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Finance/Reports/ProvisionalRevenue')
+                ->where('totalRevenue', fn ($total) => (float) $total === 3000000.0)
+                ->where('branchMatrix', fn ($m) => count($m) === 1 && $m[0]['branch']['id'] === $this->branch->id))
             ->assertDontSee('Gồm khóa IELTS Foundation')
-            ->assertDontSee('"Chờ duyệt", "Đã duyệt" hoặc "Tạm thu"', false);
+            ->assertDontSee('"Chờ duyệt", "Đã duyệt" hoặc "Tạm thu"');
         $this->actingAs($this->accountant)->get(route('finance.reports.revenue', ['branch_id' => $this->branch2->id]))
-            ->assertOk()->assertViewHas('branchId', $this->branch->id);
+            ->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->where('branchId', (string) $this->branch->id));
 
         // Kế toán tổng + Admin: toàn hệ thống.
-        $this->actingAs($headAccountant)->get(route('finance.reports.revenue'))->assertOk()->assertViewHas('totalRevenue', 8000000.0);
-        $this->actingAs($this->admin)->get(route('finance.reports.revenue'))->assertOk()->assertViewHas('totalRevenue', 8000000.0)->assertSee('Chi khác');
+        $this->actingAs($headAccountant)->get(route('finance.reports.revenue'))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('totalRevenue', fn ($total) => (float) $total === 8000000.0));
+        $this->actingAs($this->admin)->get(route('finance.reports.revenue'))->assertOk()->assertSee('Chi khác')
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('totalRevenue', fn ($total) => (float) $total === 8000000.0));
 
         // Học vụ (không có finance.view) không vào được.
         $this->actingAs($this->makeUser('academic_staff'))->get(route('finance.reports.revenue'))->assertForbidden();
@@ -508,9 +543,9 @@ class Phase4FinanceParityTest extends TestCase
 
     public function test_khoan_chi_scoped_for_branch_accountant_and_export_uses_search(): void
     {
-        \App\Models\OperatingExpense::create(['expense_date' => now()->toDateString(), 'title' => 'Tiền điện CG', 'amount' => 1500000, 'payment_method' => 'chuyen_khoan', 'branch_id' => $this->branch->id, 'category' => 'mat_bang_tien_ich', 'creator_id' => $this->admin->id]);
-        \App\Models\OperatingExpense::create(['expense_date' => now()->toDateString(), 'title' => 'Văn phòng phẩm CG', 'amount' => 200000, 'payment_method' => 'tien_mat', 'branch_id' => $this->branch->id, 'category' => 'khac', 'creator_id' => $this->admin->id]);
-        $dd = \App\Models\OperatingExpense::create(['expense_date' => now()->toDateString(), 'title' => 'Tiền nhà ĐĐ', 'amount' => 9000000, 'payment_method' => 'chuyen_khoan', 'branch_id' => $this->branch2->id, 'category' => 'mat_bang_tien_ich', 'creator_id' => $this->admin->id]);
+        OperatingExpense::create(['expense_date' => now()->toDateString(), 'title' => 'Tiền điện CG', 'amount' => 1500000, 'payment_method' => 'chuyen_khoan', 'branch_id' => $this->branch->id, 'category' => 'mat_bang_tien_ich', 'creator_id' => $this->admin->id]);
+        OperatingExpense::create(['expense_date' => now()->toDateString(), 'title' => 'Văn phòng phẩm CG', 'amount' => 200000, 'payment_method' => 'tien_mat', 'branch_id' => $this->branch->id, 'category' => 'khac', 'creator_id' => $this->admin->id]);
+        $dd = OperatingExpense::create(['expense_date' => now()->toDateString(), 'title' => 'Tiền nhà ĐĐ', 'amount' => 9000000, 'payment_method' => 'chuyen_khoan', 'branch_id' => $this->branch2->id, 'category' => 'mat_bang_tien_ich', 'creator_id' => $this->admin->id]);
 
         $this->actingAs($this->accountant)->get(route('finance.expenses.index'))
             ->assertOk()->assertSee('Sổ khoản chi vận hành')->assertSee('Tiền điện CG')->assertDontSee('Tiền nhà ĐĐ')->assertDontSee('Epic 7');
@@ -527,7 +562,7 @@ class Phase4FinanceParityTest extends TestCase
     public function test_tuition_import_is_limited_to_own_branch(): void
     {
         $this->actingAs($this->accountant)->get(route('tuition.import'))
-            ->assertOk()->assertViewHas('branches', fn ($b) => $b->pluck('id')->all() === [$this->branch->id]);
+            ->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->component('Tuition/Import')->where('branches', fn ($b) => $b->pluck('value')->all() === [$this->branch->id]));
 
         $file = UploadedFile::fake()->createWithContent('hoc-phi.csv', "Mã học viên,Mã lớp,Học phí niêm yết\nHV-PAR-001,,1000000");
         $this->actingAs($this->accountant)->post(route('tuition.import.store'), ['branch_id' => $this->branch2->id, 'excel_file' => $file])
@@ -551,7 +586,7 @@ class Phase4FinanceParityTest extends TestCase
             ->assertOk()->assertSee('Cần đối chiếu thủ công')->assertSee('Không có ghi chú.')->assertSee('Tự động làm mới')
             ->assertDontSee('Phụ huynh nộp thanh toán đúng số tiền');
 
-        \App\Models\SepayTransaction::create(['sepay_id' => 'FTPAR999', 'gateway' => 'VCB', 'transaction_date' => now(), 'account_number' => '0071001234567', 'transfer_type' => 'in', 'transfer_amount' => 1000000, 'content' => 'HV-PAR-001', 'status' => 'unmatched']);
+        SepayTransaction::create(['sepay_id' => 'FTPAR999', 'gateway' => 'VCB', 'transaction_date' => now(), 'account_number' => '0071001234567', 'transfer_type' => 'in', 'transfer_amount' => 1000000, 'content' => 'HV-PAR-001', 'status' => 'unmatched']);
         $this->actingAs($this->accountant)->get(route('tuition.receipts.approve', ['selected_id' => $pending->id]))
             ->assertOk()->assertSee('Khớp số tiền &amp; mã giao dịch', false);
     }

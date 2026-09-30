@@ -15,6 +15,7 @@ use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\DemoPhase3Seeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 /** Dữ liệu demo Phase 3: đủ trạng thái chấm công / phạt / hoa hồng / KPI, kỳ tháng trước đã duyệt + tháng này đang soát, chạy lại không nhân bản. */
@@ -94,7 +95,7 @@ class DemoPhase3SeederTest extends TestCase
         $this->actingAs($admin)->get(route('payroll.config.commission-tiers'))->assertOk();
         $this->actingAs($admin)->get(route('kpi.monthly'))->assertOk();
         $this->actingAs($teacher)->get(route('portal.my-salary'))->assertOk()
-            ->assertViewHas('record', fn (?PayrollRecord $r) => $r?->payroll_period_id === $last->id);
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('record.payroll_period_id', $last->id));
         $this->actingAs($teacher)->get(route('portal.my-salary', ['period_id' => $current->id]))->assertNotFound();
     }
 }

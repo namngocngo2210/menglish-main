@@ -160,14 +160,14 @@ class Phase1AcceptanceTest extends TestCase
         $this->assertSame('test_scheduled', $lead->fresh()->stage);
 
         // ── 3. Khách mở link test riêng (có chữ ký) → "Test"; nộp bài → chờ chấm ──
-        $link = $this->actingAs($this->academic)->get(route('crm.customers.show', $lead->id))->assertOk()->viewData('portalTestLink');
+        $link = $this->actingAs($this->academic)->get(route('crm.customers.show', $lead->id))->assertOk()->inertiaProps('portalTestLink');
         $this->assertNotNull($link);
         auth()->logout();
         // Link bị sửa (đổi lead) không còn chữ ký hợp lệ → không điền sẵn thông tin khách.
-        $this->assertNull($this->get(str_replace('lead='.$lead->id, 'lead=999', $link))->assertOk()->viewData('lead'));
+        $this->assertNull($this->get(str_replace('lead='.$lead->id, 'lead=999', $link))->assertOk()->inertiaProps('lead'));
         $take = $this->get($link)->assertOk();
-        $this->assertSame($lead->id, $take->viewData('lead')->id);
-        $token = $take->viewData('leadToken');
+        $this->assertSame(['name' => $lead->name, 'phone' => $lead->phone, 'email' => $lead->email], $take->inertiaProps('lead'));
+        $token = $take->inertiaProps('leadToken');
         $this->assertSame('testing', $lead->fresh()->stage);
 
         $this->post(route('portal.test.submit', $this->test->code), [
@@ -357,7 +357,7 @@ class Phase1AcceptanceTest extends TestCase
 
         // Báo cáo "Khách chốt thành công" có đủ 3 khách đã chốt.
         $won = $this->actingAs($this->manager)->get(route('crm.customers.won'))->assertOk();
-        $this->assertSame(3, $won->viewData('totalCount'));
+        $this->assertSame(3, $won->inertiaProps('totalCount'));
     }
 
     public function test_stage_rules_backward_move_and_lost_customers(): void
@@ -424,7 +424,7 @@ class Phase1AcceptanceTest extends TestCase
             'customer_id' => $lead->id, 'class_id' => $this->activeClass->id, 'fee_paid_at_closing' => 0,
         ])->assertNotFound();
         $pipeline = $this->actingAs($this->otherManager)->get(route('crm.pipeline'))->assertOk();
-        $this->assertSame(0, collect($pipeline->viewData('stages'))->sum('count'));
+        $this->assertSame(0, collect($pipeline->inertiaProps('stages'))->sum('count'));
         $this->actingAs($this->otherManager)->get(route('crm.customers.index'))->assertOk()->assertDontSee($lead->name);
 
         // Sale chỉ thấy khách được giao.
@@ -433,7 +433,7 @@ class Phase1AcceptanceTest extends TestCase
 
         // Quản lý cùng chi nhánh thấy.
         $pipeline = $this->actingAs($this->manager)->get(route('crm.pipeline'))->assertOk();
-        $this->assertSame(1, collect($pipeline->viewData('stages'))->firstWhere('id', 'result_sent')['count']);
+        $this->assertSame(1, collect($pipeline->inertiaProps('stages'))->firstWhere('id', 'result_sent')['count']);
 
         // Lớp chi nhánh khác không nhận khách của chi nhánh này.
         $otherCourseClass = ClassModel::create([
@@ -462,10 +462,10 @@ class Phase1AcceptanceTest extends TestCase
         $this->assertSame(1, $this->upcomingClass->seatsLeft());
 
         $wizard = $this->actingAs($this->manager)->get(route('crm.closing-wizard'))->assertOk();
-        $offered = $wizard->viewData('classes')->firstWhere('id', $this->upcomingClass->id);
+        $offered = collect($wizard->inertiaProps('classes'))->firstWhere('id', $this->upcomingClass->id);
         $this->assertNotNull($offered, 'Lớp còn 1 chỗ theo danh sách lớp phải được gợi ý.');
-        $this->assertSame(1, $offered->remaining_seats);
-        $this->assertSame(10, $wizard->viewData('classes')->firstWhere('id', $this->activeClass->id)->remaining_seats);
+        $this->assertSame(1, $offered['remaining_seats']);
+        $this->assertSame(10, collect($wizard->inertiaProps('classes'))->firstWhere('id', $this->activeClass->id)['remaining_seats']);
 
         $first = $this->lead('consulting', '0977000031');
         $this->actingAs($this->manager)->post(route('crm.closing-wizard.store'), [
@@ -478,7 +478,7 @@ class Phase1AcceptanceTest extends TestCase
         $this->actingAs($this->manager)->post(route('crm.closing-wizard.store'), [
             'customer_id' => $second->id, 'class_id' => $this->upcomingClass->id, 'fee_paid_at_closing' => 0,
         ])->assertSessionHasErrors('class_id');
-        $this->assertNull($this->actingAs($this->manager)->get(route('crm.closing-wizard'))->viewData('classes')->firstWhere('id', $this->upcomingClass->id));
+        $this->assertNull(collect($this->actingAs($this->manager)->get(route('crm.closing-wizard'))->inertiaProps('classes'))->firstWhere('id', $this->upcomingClass->id));
 
         // Gán lớp từ Chờ xếp lớp cũng dùng cùng sĩ số.
         $this->actingAs($this->manager)->post(route('crm.closing-wizard.store'), [
@@ -488,9 +488,10 @@ class Phase1AcceptanceTest extends TestCase
         $this->actingAs($this->academic)->post(route('crm.customers.assign-class', $second->id), ['class_id' => $this->upcomingClass->id])
             ->assertSessionHasErrors('class_id');
         $this->assertSame('waiting_class', $second->fresh()->stage);
-        $matches = $this->actingAs($this->academic)->get(route('crm.waiting-list'))->assertOk()->viewData('matchingClassesByLead');
-        $this->assertFalse($matches[$second->id]->contains('id', $this->upcomingClass->id));
-        $this->assertTrue($matches[$second->id]->contains('id', $this->activeClass->id));
+        $matches = collect($this->actingAs($this->academic)->get(route('crm.waiting-list'))->assertOk()->inertiaProps('waitingLeads'))
+            ->mapWithKeys(fn (array $row) => [$row['id'] => collect($row['matches'])->pluck('value')]);
+        $this->assertFalse($matches[$second->id]->contains($this->upcomingClass->id));
+        $this->assertTrue($matches[$second->id]->contains($this->activeClass->id));
     }
 
     /** Sĩ số nạp sẵn cho danh sách lớp khi lớp chỉ có lượt xếp lớp (không học viên nào có current_class_id) — trước đây lỗi 500. */

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\AclHelper;
 use App\Models\AcademicRecord;
 use App\Models\AdminNotification;
 use App\Models\BigTest;
@@ -26,15 +27,20 @@ use App\Services\SafeUploadService;
 use App\Services\ScheduleExtensionService;
 use App\Services\SyllabusProgressionService;
 use App\Services\ZaloZnsService;
+use App\Support\Ui;
 use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
 
 class SyllabusController extends Controller
 {
@@ -49,7 +55,6 @@ class SyllabusController extends Controller
     {
         $user = $request->user();
         $curriculums = SyllabusCurriculum::with(['course', 'stages'])->orderBy('title')->get();
-        $courses = Course::orderBy('name')->get();
         $documents = SyllabusDocument::with(['curriculum', 'uploader', 'stage'])
             ->visibleTo($user)
             ->when($request->filled('curriculum_id'), fn ($q) => $q->where('curriculum_id', $request->integer('curriculum_id')))
@@ -58,7 +63,27 @@ class SyllabusController extends Controller
             ->paginate($request->perPage(15))
             ->withQueryString();
 
-        return view('syllabus.documents', compact('curriculums', 'courses', 'documents'));
+        return Inertia::render('Syllabus/Documents', [
+            'documents' => $documents->through(fn (SyllabusDocument $doc) => [
+                'id' => $doc->id,
+                'title' => $doc->title,
+                'icon' => $doc->icon,
+                'curriculum' => $doc->curriculum?->title,
+                'extension' => $doc->extension,
+                'size_human' => $doc->size_human,
+                'stage_label' => $doc->stage_label,
+                'audience_labels' => $doc->audience_labels,
+                'downloadable' => (bool) $doc->downloadable,
+            ]),
+            'curriculums' => $curriculums->map(fn (SyllabusCurriculum $c) => [
+                'id' => $c->id,
+                'title' => $c->title,
+                'code' => $c->code,
+                'version' => $c->version,
+                'stages' => $c->stages->map(fn (SyllabusStage $st) => ['id' => $st->id, 'label' => $st->label])->values()->all(),
+            ])->values()->all(),
+            'canUpload' => $user->can('syllabus.upload'),
+        ]);
     }
 
     public function storeDocument(Request $request)
@@ -197,9 +222,99 @@ class SyllabusController extends Controller
             ? SyllabusAssignment::open()->where('curriculum_id', $curriculum->id)->with('classModel:id,name')->get()->groupBy('stage_id')
             : collect();
 
-        return view('syllabus.builder', compact(
-            'curriculums', 'curriculum', 'stages', 'units', 'lessons', 'editor', 'courses', 'levels', 'openClassesByStage'
-        ));
+        return Inertia::render('Syllabus/Builder', [
+            'curriculums' => Ui::options($curriculums, fn ($c) => $c->title.' ('.$c->code.' · '.$c->version.')'),
+            'curriculum' => $curriculum ? [
+                'id' => $curriculum->id,
+                'title' => $curriculum->title,
+                'code' => $curriculum->code,
+                'version' => $curriculum->version,
+                'course_id' => $curriculum->course_id,
+                'description' => $curriculum->description,
+                'level_ids' => $curriculum->levels->pluck('id')->all(),
+            ] : null,
+            'stages' => $stages->map(fn (SyllabusStage $stage) => [
+                'id' => $stage->id,
+                'position' => $stage->position,
+                'label' => $stage->label,
+                'description' => $stage->description,
+                'overview_link' => $stage->overview_link,
+                'big_test_title' => $stage->big_test_title,
+                'big_test_note' => $stage->big_test_note,
+                'open_classes' => $openClassesByStage->get($stage->id, collect())->map(fn ($a) => $a->classModel?->name)->filter()->implode(', '),
+                'units' => $stage->units->map(fn (SyllabusUnit $u) => [
+                    'id' => $u->id,
+                    'unit_number' => $u->unit_number,
+                    'title' => $u->title,
+                    'objectives' => $u->objectives,
+                    'lessons' => $u->lessons->map(fn (SyllabusLesson $l) => $this->lessonData($l))->values()->all(),
+                ])->values()->all(),
+            ])->values()->all(),
+            'totals' => [
+                'units' => $units->count(),
+                'lessons' => $lessons->count(),
+                'next_position' => (int) $stages->max('position') + 1,
+                'next_unit_number' => (int) ($units->max('unit_number') ?? 0) + 1,
+                'next_session_no' => (int) ($lessons->max('session_no') ?? 0) + 1,
+            ],
+            'unitOptions' => Ui::options($units, fn ($u) => 'Unit '.$u->unit_number.': '.$u->title),
+            'editor' => $editor ? $this->editorData($editor) : null,
+            'courses' => Ui::options($courses, 'name'),
+            'levels' => $levels->map(fn (CourseLevel $level) => [
+                'id' => $level->id,
+                'code' => $level->code,
+                'name' => $level->name,
+                'other' => $curriculum && $level->syllabus_curriculum_id && $level->syllabus_curriculum_id !== $curriculum->id,
+            ])->values()->all(),
+            'newCode' => 'CUR-'.strtoupper(Str::random(4)),
+            'canManage' => $request->user()->can('syllabus.manage'),
+        ]);
+    }
+
+    /** Nội dung 1 buổi học cho màn soạn / màn GV xem. */
+    private function lessonData(SyllabusLesson $lesson): array
+    {
+        return [
+            'id' => $lesson->id,
+            'session_no' => $lesson->session_no,
+            'title' => $lesson->title,
+            'unit_id' => $lesson->unit_id,
+            'objectives' => $lesson->objectives,
+            'content' => $lesson->content,
+            'homework_guide' => $lesson->homework_guide,
+            'vocabulary_focus' => $lesson->vocabulary_focus,
+            'grammar_focus' => $lesson->grammar_focus,
+        ];
+    }
+
+    /**
+     * Ô soạn thảo đang mở của màn soạn syllabus (chặng / unit / buổi; thêm hoặc sửa).
+     *
+     * @param  array{type: string, model: mixed, parent: mixed}  $editor
+     */
+    private function editorData(array $editor): array
+    {
+        $model = $editor['model'];
+
+        return match ($editor['type']) {
+            'stage' => ['type' => 'stage', 'model' => $model ? [
+                'id' => $model->id,
+                'label' => $model->label,
+                'name' => $model->name,
+                'overview_link' => $model->overview_link,
+                'description' => $model->description,
+                'big_test_title' => $model->big_test_title,
+                'big_test_note' => $model->big_test_note,
+            ] : null],
+            'unit' => ['type' => 'unit', 'model' => $model ? [
+                'id' => $model->id,
+                'unit_number' => $model->unit_number,
+                'title' => $model->title,
+                'objectives' => $model->objectives,
+            ] : null, 'parent' => ($stage = $model?->stage ?? $editor['parent']) ? ['id' => $stage->id, 'label' => $stage->label] : null],
+            default => ['type' => 'lesson', 'model' => $model ? $this->lessonData($model) : null,
+                'parent' => ($unit = $model?->unit ?? $editor['parent']) ? ['id' => $unit->id, 'unit_number' => $unit->unit_number, 'title' => $unit->title] : null],
+        };
     }
 
     public function storeCurriculum(Request $request)
@@ -532,7 +647,43 @@ class SyllabusController extends Controller
         $levelCurriculum = CourseLevel::whereNotNull('syllabus_curriculum_id')->pluck('syllabus_curriculum_id', 'code');
         $openByClass = SyllabusAssignment::open()->whereIn('class_id', $visibleClassIds)->with('stage')->get()->keyBy('class_id');
 
-        return view('syllabus.assignments', compact('assignments', 'teachers', 'curriculums', 'classes', 'levelCurriculum', 'openByClass', 'status'));
+        $user = $request->user();
+
+        return Inertia::render('Syllabus/Assignments', [
+            'assignments' => $assignments->through(fn (SyllabusAssignment $as) => [
+                'id' => $as->id,
+                'class_name' => $as->classModel?->name,
+                'class_place' => collect([$as->classModel?->branch?->name, $as->classModel?->room])->filter()->implode(' - '),
+                'curriculum' => $as->curriculum?->title,
+                'teacher' => $as->teacher?->name,
+                'teacher_code' => $as->teacher?->employee_code,
+                'user_id' => (string) $as->user_id,
+                'stage_label' => $as->stage?->label ?? $as->stage_name,
+                'assigned_chapters' => $as->assigned_chapters,
+                'extra_sessions' => (int) $as->extra_sessions,
+                'start_date' => ($as->opened_at ?? $as->created_at)?->toDateString(),
+                'closed_at' => $as->closed_at?->toDateString(),
+                'close_reason' => $as->close_reason,
+                'deadline' => $as->deadline?->toDateString(),
+                'is_open' => $as->isOpen(),
+                'curriculum_completed' => (bool) $as->curriculum_completed_at,
+                'closing_big_test' => $as->closingBigTest?->code,
+            ]),
+            'teachers' => Ui::options($teachers, fn (User $t) => $t->name.($t->employee_code ? ' (ID: '.$t->employee_code.')' : '')),
+            'curriculums' => $curriculums->map(fn (SyllabusCurriculum $c) => [
+                'id' => $c->id,
+                'title' => $c->title,
+                'code' => $c->code,
+                'stages' => $c->stages->map(fn ($s) => ['id' => $s->id, 'label' => $s->label])->values(),
+            ])->values(),
+            'classes' => $classes->map(fn (ClassModel $c) => ['id' => $c->id, 'name' => $c->name, 'code' => $c->code])->values(),
+            'classCurriculum' => $classes->mapWithKeys(fn ($c) => [$c->id => $levelCurriculum[$c->level] ?? null]),
+            'classOpenStage' => $openByClass->map(fn ($a) => $a->stage_name),
+            'canManage' => $user->can('syllabus.manage'),
+            'canOverride' => $user->can('syllabus.approve_adjustment'),
+            'canViewLog' => $user->can('activity_log.view'),
+            'hasTickets' => Route::has('tickets.create'),
+        ]);
     }
 
     /**
@@ -680,7 +831,46 @@ class SyllabusController extends Controller
 
         $pendingCount = SyllabusChangeProposal::visibleTo($user)->where('status', 'pending')->count();
 
-        return view('syllabus.versions', compact('proposals', 'selected', 'pendingCount', 'status'));
+        $listQuery = array_filter(['status' => $status, 'page' => $request->query('page')]);
+
+        return Inertia::render('Syllabus/Versions', [
+            'proposals' => $proposals->through(fn (SyllabusChangeProposal $p) => [
+                'id' => $p->id,
+                'curriculum' => $p->curriculum?->title,
+                'target_label' => $p->target_label,
+                'proposer' => $p->proposer?->name,
+                'created_at' => $p->created_at->format('d/m/Y H:i'),
+                'status_label' => $p->status_label,
+                'status_color' => $p->status_color,
+                'detail_url' => route('syllabus.versions', $listQuery + ['proposal' => $p->id]),
+            ]),
+            'selected' => $selected ? [
+                'id' => $selected->id,
+                'curriculum' => $selected->curriculum?->title,
+                'curriculum_version' => $selected->curriculum?->version,
+                'target_label' => $selected->target_label,
+                'proposer' => $selected->proposer?->name,
+                'proposer_roles' => $selected->proposer?->roles->map(fn ($r) => AclHelper::roleLabel($r->name))->implode(', '),
+                'proposal_type' => $selected->proposal_type,
+                'old_content' => $selected->old_content,
+                'new_content' => $selected->new_content,
+                'reason' => $selected->reason,
+                'attachment_name' => $selected->attachment_path ? $selected->attachment_name : null,
+                'status' => $selected->status,
+                'status_label' => $selected->status_label,
+                'status_color' => $selected->status_color,
+                'reviewer' => $selected->reviewer?->name,
+                'review_note' => $selected->review_note,
+                'created_at' => $selected->created_at->format('H:i, d/m/Y'),
+                'reviewed_at' => $selected->reviewed_at?->format('H:i, d/m/Y'),
+                'edit_lesson_url' => $selected->lesson ? route('syllabus.builder', ['curriculum' => $selected->curriculum_id, 'edit_lesson' => $selected->lesson_id]).'#editor' : null,
+            ] : null,
+            'pendingCount' => $pendingCount,
+            'statusOptions' => Ui::options(SyllabusChangeProposal::STATUS_LABELS),
+            'listUrl' => route('syllabus.versions', $listQuery),
+            'canReview' => $user->can('syllabus.approve_adjustment'),
+            'canManage' => $user->can('syllabus.manage'),
+        ]);
     }
 
     public function teacherPropose(Request $request)
@@ -694,7 +884,26 @@ class SyllabusController extends Controller
             ->paginate($request->perPage(10))
             ->withQueryString();
 
-        return view('syllabus.teacher-propose', compact('curriculums', 'proposals', 'status'));
+        return Inertia::render('Syllabus/TeacherPropose', [
+            'proposals' => $proposals->through(fn (SyllabusChangeProposal $p) => [
+                'id' => $p->id,
+                'curriculum' => $p->curriculum?->title,
+                'target' => $p->lesson ? 'Buổi '.$p->lesson->session_no : ($p->unit ? 'Unit '.$p->unit->unit_number : 'Chung'),
+                'new_content' => $p->new_content,
+                'created_at' => $p->created_at->format('d/m/Y'),
+                'status' => $p->status,
+                'status_label' => $p->status_label,
+                'status_color' => $p->status_color,
+                'review_note' => $p->review_note,
+            ]),
+            'curriculums' => $curriculums->map(fn (SyllabusCurriculum $c) => [
+                'id' => $c->id,
+                'label' => $c->title.' ('.$c->version.')',
+                'lessons' => $c->lessons->map(fn ($l) => ['value' => $l->id, 'label' => 'Buổi '.$l->session_no.': '.$l->title.($l->unit ? ' (Unit '.$l->unit->unit_number.')' : '')])->values(),
+            ])->values(),
+            'statusOptions' => Ui::options(SyllabusChangeProposal::STATUS_LABELS),
+            'canPropose' => $request->user()->can('syllabus.propose_adjustment'),
+        ]);
     }
 
     public function storeProposal(Request $request)
@@ -835,10 +1044,69 @@ class SyllabusController extends Controller
         $overviewCurriculum = $assignment?->curriculum ?? ($selected ?? $documents->first())?->curriculum;
         $overviewStages = $stages->isNotEmpty() ? $stages : ($overviewCurriculum ? $overviewCurriculum->stages()->with('units.lessons')->get() : collect());
 
-        return view('syllabus.teacher-view', compact(
-            'documents', 'selected', 'classes', 'class', 'assignment', 'position', 'stages', 'closedStageIds',
-            'search', 'viewedIds', 'overviewCurriculum', 'overviewStages'
-        ));
+        $stageUnits = $assignment?->stage?->units()->with('lessons')->get() ?? collect();
+        $stageState = fn (SyllabusStage $s) => $assignment && $s->id === $assignment->stage_id ? 'open' : ($closedStageIds->contains($s->id) ? 'done' : 'todo');
+        $listQuery = array_filter(['class' => $class?->id, 'q' => $search]);
+        $current = $position['current'] ?? null;
+
+        return Inertia::render('Syllabus/TeacherView', [
+            'documents' => $documents->map(fn (SyllabusDocument $doc) => [
+                'id' => $doc->id,
+                'title' => $doc->title,
+                'icon' => $doc->icon,
+                'place' => collect([$doc->curriculum?->title, $doc->stage_label])->filter()->implode(' · '),
+                'extension' => $doc->extension,
+                'size_human' => $doc->size_human,
+                'can_download' => $doc->canDownload($user),
+                'viewed' => $viewedIds->contains($doc->id),
+                'url' => route('syllabus.teacher-view', $listQuery + ['document' => $doc->id]),
+            ])->values(),
+            'selected' => $selected ? [
+                'id' => $selected->id,
+                'title' => $selected->title,
+                'icon' => $selected->icon,
+                'kind' => $selected->kind,
+                'extension' => $selected->extension,
+                'meta' => ($selected->stage_label ?: 'Chưa gắn chặng').' • '.$selected->curriculum?->title.' • '.$selected->size_human,
+                'can_download' => $selected->canDownload($user),
+                'viewed' => $viewedIds->contains($selected->id),
+            ] : null,
+            'listUrl' => route('syllabus.teacher-view', $listQuery),
+            'search' => $search,
+            'initialTab' => in_array($request->query('tab'), ['docs', 'overview', 'lessons'], true) ? $request->query('tab') : ($class && ! $documents->count() ? 'lessons' : 'docs'),
+            'classes' => Ui::options($classes, 'name'),
+            'classId' => $class?->id,
+            'userEmail' => $user->email,
+            'overviewCurriculum' => $overviewCurriculum?->title,
+            'overviewStages' => $overviewStages->map(fn (SyllabusStage $s) => [
+                'id' => $s->id,
+                'label' => $s->label,
+                'state' => $stageState($s),
+                'summary' => $s->description ?: $s->units->count().' unit · '.$s->units->sum(fn ($u) => $u->lessons->count()).' buổi',
+                'overview_link' => $s->overview_link,
+            ])->values(),
+            'stages' => $stages->map(fn (SyllabusStage $s) => ['id' => $s->id, 'label' => $s->label, 'state' => $stageState($s)])->values(),
+            'assignment' => $assignment ? [
+                'stage_label' => $assignment->stage?->label ?? $assignment->stage_name,
+                'curriculum' => $assignment->curriculum?->title,
+                'opened_at' => ($assignment->opened_at ?? $assignment->created_at)?->format('d/m/Y'),
+                'extra_sessions' => (int) $assignment->extra_sessions,
+                'big_test_title' => $assignment->stage?->big_test_title ?: 'Big Test cuối chặng',
+                'has_stage' => (bool) $assignment->stage,
+            ] : null,
+            'position' => $position ? [
+                'taught' => $position['taught'],
+                'lessons' => $position['lessons']->count(),
+                'over' => $position['over'],
+                'current' => $current ? ['id' => $current->id, 'session_no' => $current->session_no, 'unit_number' => $current->unit?->unit_number, 'title' => $current->title] : null,
+            ] : null,
+            'stageUnits' => $stageUnits->map(fn (SyllabusUnit $u) => [
+                'id' => $u->id,
+                'unit_number' => $u->unit_number,
+                'title' => $u->title,
+                'lessons' => $u->lessons->map(fn (SyllabusLesson $l) => $this->lessonData($l))->values(),
+            ])->values(),
+        ]);
     }
 
     // ─────────────────────────────────────────────
@@ -859,7 +1127,25 @@ class SyllabusController extends Controller
             ->paginate($request->perPage(15))
             ->withQueryString();
 
-        return view('syllabus.teacher-adjust', compact('classes', 'requests', 'openAssignments'));
+        return Inertia::render('Syllabus/TeacherAdjust', [
+            'requests' => $requests->through(fn (SyllabusAdjustmentRequest $req) => [
+                'id' => $req->id,
+                'created_at' => $req->created_at->format('d/m/Y'),
+                'class_stage_label' => $req->class_stage_label,
+                'reason' => $req->reason,
+                'applied_note' => $req->applied_note,
+                'extra_sessions' => (int) $req->extra_sessions,
+                'status' => $req->status,
+                'status_label' => $req->status_label,
+                'rejection_reason' => $req->rejection_reason,
+            ]),
+            'classes' => $classes->map(fn (ClassModel $cl) => [
+                'value' => $cl->id,
+                'label' => $cl->name.' - '.($openAssignments[$cl->id]?->stage?->label ?? $openAssignments[$cl->id]?->stage_name).' ('.$cl->code.')',
+            ])->values(),
+            'slaHours' => SyllabusAdjustmentRequest::SLA_HOURS,
+            'canReview' => $user->can('syllabus.approve_adjustment'),
+        ]);
     }
 
     public function adjustmentRequests(Request $request)
@@ -882,7 +1168,46 @@ class SyllabusController extends Controller
             : null;
         abort_if($selected && ! $canReview && (int) $selected->user_id !== (int) $user->id, 404);
 
-        return view('syllabus.adjustment-requests', compact('requests', 'selected', 'status', 'pendingCount'));
+        $listQuery = array_filter(['status' => $status, 'page' => $request->query('page')]);
+        $reviewedBy = fn (SyllabusAdjustmentRequest $r) => trim($r->approver?->name.' '.($r->reviewed_at ? 'lúc '.$r->reviewed_at->format('H:i d/m/Y') : ''));
+
+        return Inertia::render('Syllabus/AdjustmentRequests', [
+            'requests' => $requests->through(fn (SyllabusAdjustmentRequest $req) => [
+                'id' => $req->id,
+                'teacher' => $req->teacher?->name,
+                'class_stage_label' => $req->class_stage_label,
+                'extra_sessions' => (int) $req->extra_sessions,
+                'reason' => $req->reason,
+                'created_at' => $req->created_at->format('d/m/Y'),
+                'status' => $req->status,
+                'status_label' => $req->status_label,
+                'sla_overdue' => $req->isSlaOverdue(),
+                'detail_url' => route('syllabus.adjustment-requests', $listQuery + ['request' => $req->id]),
+            ]),
+            'selected' => $selected ? [
+                'id' => $selected->id,
+                'teacher' => $selected->teacher?->name,
+                'teacher_code' => $selected->teacher?->employee_code,
+                'class_stage_label' => $selected->class_stage_label,
+                'created_at' => $selected->created_at->format('d/m/Y'),
+                'extra_sessions' => $selected->extra_sessions,
+                'class_end_date' => $selected->classModel?->end_date?->format('d/m/Y'),
+                'reason' => $selected->reason,
+                'request_type' => $selected->request_type,
+                'status' => $selected->status,
+                'status_label' => $selected->status_label,
+                'sla_overdue' => $selected->isSlaOverdue(),
+                'reviewed_by' => $reviewedBy($selected),
+                'applied_note' => $selected->applied_note,
+                'rejection_reason' => $selected->rejection_reason,
+            ] : null,
+            'status' => $status,
+            'statusOptions' => Ui::options(['all' => 'Tất cả'] + SyllabusAdjustmentRequest::STATUS_LABELS),
+            'listTitle' => ['pending' => 'Danh sách chờ duyệt', 'approved' => 'Đã duyệt', 'rejected' => 'Đã từ chối'][$status] ?? 'Tất cả yêu cầu',
+            'listUrl' => route('syllabus.adjustment-requests', $listQuery),
+            'maxExtraSessions' => SyllabusAdjustmentRequest::MAX_EXTRA_SESSIONS,
+            'canReview' => $canReview,
+        ]);
     }
 
     public function storeAdjustmentRequest(Request $request)
@@ -1041,14 +1366,45 @@ class SyllabusController extends Controller
             ->values();
         $plans = $this->stageExamPlans($assignments);
 
-        return view('syllabus.teaching-stages', compact('assignments', 'plans'));
+        $isAcademic = $user->can('syllabus.approve_adjustment');
+        $canRecordAny = $user->can('attendance_student.record_any');
+
+        return Inertia::render('Syllabus/TeachingStages', [
+            'assignments' => $assignments->map(function (SyllabusAssignment $as) use ($plans, $user, $isAcademic, $canRecordAny) {
+                $class = $as->classModel;
+                $plan = $plans[$as->id];
+                $order = $plan['order'];
+                $isMainTeacher = (int) $class?->teacher_id === (int) $user->id || (int) $class?->foreign_teacher_id === (int) $user->id;
+                $isAssistant = (int) $class?->assistant_id === (int) $user->id && ! $isMainTeacher;
+
+                return [
+                    'id' => $as->id,
+                    'class_id' => $as->class_id,
+                    'stage_label' => $as->stage?->label ?? $as->stage_name,
+                    'class_label' => $class?->name.($class?->code ? ' - '.$class->code : ''),
+                    'start_date' => ($as->opened_at ?? $as->created_at)?->format('d/m/Y'),
+                    'is_assistant' => $isAssistant,
+                    'role_label' => $isAssistant ? 'Trợ giảng (Chỉ xem)' : ($isMainTeacher ? 'Giáo viên chính' : 'Học thuật / Quản lý'),
+                    'exam' => $plan['exam'],
+                    'date' => $plan['date']?->format('d/m/Y'),
+                    'big_test_code' => $plan['bigTest']?->code,
+                    'expected_date' => $as->expected_big_test_date?->toDateString(),
+                    'can_set_date' => ($isMainTeacher || $isAcademic) && ! $plan['bigTest'],
+                    'can_order' => $isMainTeacher || $canRecordAny,
+                    'order_status' => $order?->status,
+                    'order_rejection' => $order?->rejection_reason,
+                ];
+            })->values(),
+            'today' => now()->toDateString(),
+            'month' => 'Tháng '.now()->month.', '.now()->year,
+        ]);
     }
 
     /**
      * Kế hoạch Big Test cuối chặng của từng chặng đang mở: ngày thi (đợt Big Test của chặng → ngày dự kiến GV đặt →
      * ngày thi trong order), order đề mới nhất và trạng thái đề (đã duyệt / chờ duyệt / chưa order).
      *
-     * @return Collection<int, array{date: ?\Carbon\CarbonInterface, order: ?BigTestOrder, bigTest: ?BigTest, exam: string}>
+     * @return Collection<int, array{date: ?CarbonInterface, order: ?BigTestOrder, bigTest: ?BigTest, exam: string}>
      */
     private function stageExamPlans(Collection $assignments): Collection
     {
@@ -1124,7 +1480,95 @@ class SyllabusController extends Controller
         $stageOptions = $this->stageOptionsForClasses($bigTests->getCollection()->pluck('class_id')->filter()->unique())
             ->map(fn (Collection $stages) => $stages->pluck('label', 'id'));
 
-        return view('syllabus.big-tests-distribution', compact('classes', 'bigTests', 'orders', 'selectedOrder', 'orderStatus', 'orderSearch', 'pendingOrders', 'stageOptions'));
+        $canReview = $user->can('big_test.approve');
+        $listQuery = array_filter(['order_search' => $orderSearch, 'orders_page' => $request->query('orders_page')]) + ['order_status' => (string) $orderStatus];
+
+        return Inertia::render('Syllabus/BigTestDistribution', [
+            'classes' => Ui::options($classes, 'name'),
+            'defaultScheduledAt' => now()->addDays(7)->format('Y-m-d\TH:i'),
+            'orders' => $orders->through(fn (BigTestOrder $order) => [
+                'id' => $order->id,
+                'class_label' => $order->classModel?->name.($order->classModel?->code ? ' - '.$order->classModel->code : ''),
+                'ordered_ago' => $order->created_at->diffForHumans(),
+                'stage_type' => $order->stage_label.' · '.$order->type_label,
+                'teacher' => $order->teacher?->name,
+                'exam_date' => $order->exam_date?->format('d/m/Y'),
+                'due_date' => $order->due_date?->format('d/m/Y'),
+                'overdue' => $order->isOverdue(),
+                'sla_warning' => $order->isSlaWarning(),
+                'status_label' => $order->status_label,
+                'status_color' => $order->status_color,
+                'detail_url' => route('syllabus.big-tests.distribution', ['order' => $order->id] + $listQuery),
+            ]),
+            'orderStatus' => (string) $orderStatus,
+            'orderSearch' => $orderSearch,
+            'orderStatusOptions' => Ui::options(BigTestOrder::STATUS_LABELS),
+            'pendingOrders' => $pendingOrders,
+            'bigTests' => $bigTests->through(fn (BigTest $bt) => [
+                'id' => $bt->id,
+                'code' => $bt->code,
+                'title' => $bt->title,
+                'content_url' => $bt->content_url && $bt->contentLinkVisibleTo($user) ? $bt->content_url : null,
+                'speaking_url' => $bt->speakingLinkVisibleTo($user) ? $bt->speaking_url : null,
+                'class_id' => $bt->class_id,
+                'class_name' => $bt->classModel?->name,
+                'stage_label' => $bt->stage?->label,
+                'stage_id' => (string) ($bt->syllabus_stage_id ?? ''),
+                'scheduled_at' => $bt->scheduled_at?->format('d/m/Y H:i'),
+                'room' => $bt->room,
+                'proctor' => $bt->proctor?->name,
+                'passcode' => $bt->passcodeVisibleTo($user) ? $bt->passcode : '••••••',
+                'is_distributed' => (bool) $bt->is_distributed,
+                'stage_options' => Ui::options($stageOptions[$bt->class_id] ?? []),
+            ]),
+            'selectedOrder' => $selectedOrder ? $this->orderDetail($selectedOrder, $canReview) : null,
+            'listUrl' => route('syllabus.big-tests.distribution', $listQuery),
+            'leadDays' => BigTestOrder::LEAD_DAYS,
+            'canReview' => $canReview,
+            'canManage' => $user->can('syllabus.manage'),
+        ]);
+    }
+
+    /** Dữ liệu hộp thoại chi tiết order đề (màn Duyệt & phân phối đề Big Test). */
+    private function orderDetail(BigTestOrder $order, bool $canReview): array
+    {
+        $oc = $order->classModel;
+        $reviewing = $canReview && ! in_array($order->status, ['approved', 'rejected'], true);
+        $classTests = $reviewing && $order->test_type === 'big'
+            ? BigTest::where('class_id', $order->class_id)->whereNull('results_completed_at')->latest('scheduled_at')->get()
+            : collect();
+
+        return [
+            'id' => $order->id,
+            'code' => $order->code,
+            'class_code' => $oc?->code,
+            'class_label' => $oc?->name.($oc?->code ? ' - '.$oc->code : ''),
+            'summary' => (collect([$oc?->course?->name, $oc?->branch?->name])->filter()->implode(' · ') ?: '—').'. Đề '.$order->type_label.' cho '.$order->stage_label.'.',
+            'status' => $order->status,
+            'status_label' => $order->status_label,
+            'status_color' => $order->status_color,
+            'exam_date' => $order->exam_date?->format('d/m/Y'),
+            'teacher' => $order->teacher?->name,
+            'due_date' => $order->due_date?->format('d/m/Y'),
+            'overdue' => $order->isOverdue(),
+            'sla_warning' => $order->isSlaWarning(),
+            'note' => $order->note,
+            'reviewer' => $order->reviewer?->name,
+            'reviewed_at' => $order->reviewed_at?->format('H:i d/m/Y'),
+            'rejection_reason' => $order->rejection_reason,
+            'test_link' => $canReview ? $order->test_link : null,
+            'speaking_link' => $order->speaking_link,
+            'big_test' => $order->bigTest ? [
+                'code' => $order->bigTest->code,
+                'scheduled_at' => $order->bigTest->scheduled_at?->format('H:i d/m/Y'),
+                'room' => $order->bigTest->room,
+            ] : null,
+            'reviewing' => $reviewing,
+            'is_big' => $order->test_type === 'big',
+            'default_scheduled_at' => $order->exam_date?->copy()->setTime(8, 0)->format('Y-m-d\TH:i'),
+            'default_room' => $oc?->room,
+            'class_tests' => Ui::options($classTests, fn (BigTest $t) => $t->code.' · '.$t->title.($t->scheduled_at ? ' · '.$t->scheduled_at->format('d/m/Y H:i') : '')),
+        ];
     }
 
     /** Các chặng có thể gắn cho đợt thi của lớp: giáo trình của các lượt chặng của lớp + giáo trình theo trình độ lớp. */
@@ -1359,7 +1803,29 @@ class SyllabusController extends Controller
             ->sortBy('days_left')
             ->values();
 
-        return view('syllabus.big-test-schedules', compact('bigTests', 'upcoming'));
+        return Inertia::render('Syllabus/BigTestSchedules', [
+            'upcoming' => $upcoming->map(fn ($row) => [
+                'id' => $row['assignment']->id,
+                'code' => $row['assignment']->code,
+                'class_name' => $row['assignment']->classModel?->name,
+                'stage_label' => $row['assignment']->stage?->label ?? $row['assignment']->stage_name,
+                'date' => $row['date']->format('d/m/Y'),
+                'exam' => $row['exam'],
+                'days_left' => $row['days_left'],
+            ])->values(),
+            'urgent' => $upcoming->filter(fn ($row) => $row['days_left'] <= 2)->count(),
+            'bigTests' => $bigTests->through(fn (BigTest $bt) => [
+                'id' => $bt->id,
+                'code' => $bt->code,
+                'class_name' => $bt->classModel?->name,
+                'title' => $bt->title,
+                'scheduled_at' => $bt->scheduled_at?->format('d/m/Y H:i'),
+                'place' => $bt->room.' · '.($bt->classModel?->branch?->name ?? '—'),
+                'proctor' => $bt->proctor?->name,
+                'passcode' => $bt->passcodeVisibleTo($user) ? $bt->passcode : '••••••',
+            ]),
+            'canManage' => $user->can('syllabus.manage'),
+        ]);
     }
 
     /**
@@ -1443,7 +1909,87 @@ class SyllabusController extends Controller
         $missingParentPhone = $results->filter(fn ($r) => ! $r->parent_notified && ! $r->is_absent && $r->student && ! $r->student->parentContactPhone())
             ->pluck('student_id')->map(fn ($id) => (int) $id)->all();
 
-        return view('syllabus.big-tests-results', compact('test', 'allTests', 'results', 'students', 'selectedResult', 'missingParentPhone'));
+        $isApprover = $user->can('big_test.approve');
+        $canGradeRole = $user->can('syllabus.update') && ! $isApprover;
+        $taken = $results->where('is_absent', false)->whereNotNull('overall_score');
+        $resultsByStudent = $results->keyBy('student_id');
+        $daysLeft = $test?->resultsDaysLeft();
+
+        return Inertia::render('Syllabus/BigTestResults', [
+            'test' => $test ? [
+                'id' => $test->id,
+                'code' => $test->code,
+                'room' => $test->room,
+                'class_name' => $test->classModel?->name,
+                'class_teacher' => $test->classModel?->teacher?->name,
+                'is_distributed' => (bool) $test->is_distributed,
+                'results_due' => $test->resultsDueAt()?->format('d/m/Y'),
+                'results_overdue' => $test->resultsDaysLeft() < 0 && ! $test->results_completed_at,
+                'days_left' => $daysLeft,
+                'stage_badge' => $test->stage ? 'Big Test cuối '.$test->stage->label.($test->results_completed_at ? ' · đã hoàn tất' : '') : null,
+                'stage_label' => $test->stage ? 'Big Test - '.$test->stage->label : 'Big Test - '.($test->test_type === 'final' ? 'Cuối khóa' : 'Giữa kỳ'),
+            ] : null,
+            'allTests' => $allTests->map(fn (BigTest $t) => ['value' => $t->id, 'label' => '['.$t->code.'] '.$t->title.' · '.$t->classModel?->name])->values(),
+            'stats' => [
+                'total' => $results->count(),
+                'taken' => $taken->count(),
+                'absent' => $results->where('is_absent', true)->count(),
+                'avg' => $taken->count() > 0 ? round($taken->avg('overall_score'), 1) : 0,
+                'highest' => $taken->count() > 0 ? $taken->max('overall_score') : 0,
+            ],
+            'rows' => $students->values()->map(function (Student $student) use ($resultsByStudent, $missingParentPhone) {
+                $res = $resultsByStudent->get($student->id);
+
+                return [
+                    'student_id' => $student->id,
+                    'name' => $student->name,
+                    'code' => $student->code ?? 'HV-'.$student->id,
+                    'result' => $res ? [
+                        'id' => $res->id,
+                        'status' => $res->status,
+                        'status_label' => $res->status_label,
+                        'locked' => $res->isLocked(),
+                        'is_absent' => (bool) $res->is_absent,
+                        'listening_score' => $res->listening_score,
+                        'reading_score' => $res->reading_score,
+                        'writing_score' => $res->writing_score,
+                        'speaking_score' => $res->speaking_score,
+                        'overall_score' => $res->overall_score,
+                        'progress_note' => $res->progress_note,
+                        'video_url' => $res->video_url,
+                        'parent_notified' => (bool) $res->parent_notified,
+                        'notified_at' => $res->notified_at?->format('d/m H:i'),
+                        'missing_phone' => in_array((int) $res->student_id, $missingParentPhone, true),
+                    ] : null,
+                ];
+            }),
+            'selectedResult' => $test && $selectedResult ? [
+                'id' => $selectedResult->id,
+                'student' => $selectedResult->student?->name,
+                'student_code' => $selectedResult->student?->code ?? 'HV-'.$selectedResult->student_id,
+                'is_absent' => (bool) $selectedResult->is_absent,
+                'listening_score' => $selectedResult->listening_score,
+                'reading_score' => $selectedResult->reading_score,
+                'writing_score' => $selectedResult->writing_score,
+                'speaking_score' => $selectedResult->speaking_score,
+                'overall_score' => $selectedResult->overall_score,
+                'video_url' => $selectedResult->video_url,
+                'progress_note' => $selectedResult->progress_note,
+                'status' => $selectedResult->status,
+                'status_label' => $selectedResult->status_label,
+                'grader' => $selectedResult->grader?->name,
+                'approver' => $selectedResult->approver?->name,
+                'parent_notified' => (bool) $selectedResult->parent_notified,
+                'notified_at' => $selectedResult->notified_at?->format('H:i d/m/Y'),
+            ] : null,
+            'userName' => $user->name,
+            'isApprover' => $isApprover,
+            'canGradeRole' => $canGradeRole,
+            'canGrade' => $test && $test->is_distributed && $canGradeRole,
+            'backUrl' => $user->can('syllabus.manage') || $isApprover ? route('syllabus.big-tests.distribution') : null,
+            'resultDeadlineDays' => BigTest::RESULT_DEADLINE_DAYS,
+            'missingPhoneLabel' => self::MISSING_PARENT_PHONE,
+        ]);
     }
 
     /**

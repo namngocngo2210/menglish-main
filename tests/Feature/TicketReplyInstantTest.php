@@ -12,14 +12,18 @@ use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Http\Events\RequestHandled;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
+use Inertia\Testing\AssertableInertia;
+use Tests\Concerns\InteractsWithInertia;
 use Tests\TestCase;
 
 /**
- * Ô trả lời ticket gửi ở nền (ticket-reply.js): bình luận hiện ngay, server trả JSON gồm bình luận đã render;
- * thông báo + email chạy sau khi đã trả phản hồi (không làm chậm lúc gửi).
+ * Ô trả lời ticket (SupportTickets/ReplyForm.vue): bình luận hiện ngay ở khung "Đang gửi…" phía trình duyệt, lưu ở nền bằng
+ * Inertia (quay lại trang đang mở, hội thoại tải lại); lỗi validate vào error bag `ticketReply` (hiện trên khung tạm).
+ * Thông báo + email chạy sau khi đã trả phản hồi (không làm chậm lúc gửi).
  */
 class TicketReplyInstantTest extends TestCase
 {
+    use InteractsWithInertia;
     use RefreshDatabase;
 
     private User $admin;
@@ -60,60 +64,61 @@ class TicketReplyInstantTest extends TestCase
         ]);
     }
 
-    public function test_reply_form_renders_pending_templates_for_instant_display(): void
+    public function test_reply_form_and_conversation_render_with_internal_option_by_permission(): void
     {
         $this->actingAs($this->admin)->get(route('tickets.show', $this->ticket->id))
             ->assertOk()
-            ->assertSee('x-data="ticketReply"', false)
-            ->assertSee('data-pending-message="public"', false)
-            ->assertSee('data-pending-message="internal"', false)
+            ->assertSee('id="ticket-reply-form"', false)
             ->assertSee('data-ticket-messages', false)
-            ->assertSee('data-ticket-part="status"', false);
+            ->assertSee('Chỉ hiển thị nội bộ giữa các phòng ban')
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('SupportTickets/Show')->where('canPostInternal', true));
 
-        // Người không được ghi chú nội bộ chỉ có khung mẫu bình luận thường.
+        // Người không được ghi chú nội bộ không có lựa chọn đó.
         $this->actingAs($this->staff)->get(route('tickets.show', $this->ticket->id))
             ->assertOk()
-            ->assertSee('data-pending-message="public"', false)
-            ->assertDontSee('data-pending-message="internal"', false);
+            ->assertSee('id="ticket-reply-form"', false)
+            ->assertDontSee('Chỉ hiển thị nội bộ giữa các phòng ban')
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('canPostInternal', false));
     }
 
-    public function test_background_reply_returns_rendered_message_and_updated_status_parts(): void
+    public function test_reply_is_saved_and_conversation_reloads_with_updated_status(): void
     {
-        $response = $this->actingAs($this->admin)->postJson(route('tickets.messages.store', $this->ticket->id), [
+        $show = route('tickets.show', $this->ticket->id);
+        $this->actingAs($this->admin)->from($show)->post(route('tickets.messages.store', $this->ticket->id), [
             'message' => "Đã nhận, đang kiểm tra máy in.\nSẽ báo lại <sớm>.",
-            'as_modal' => 1,
-        ]);
+        ])->assertRedirect($show)->assertSessionHas('status', 'Đã gửi phản hồi thành công!');
 
         $msg = TicketMessage::where('user_id', $this->admin->id)->sole();
-        $response->assertCreated()
-            ->assertJsonPath('message', 'Đã gửi phản hồi.');
-        $html = $response->json('html');
-        $this->assertStringContainsString('data-message-id="'.$msg->id.'"', $html);
+        $html = $this->actingAs($this->admin)->get($show)->assertOk()
+            ->assertSee('data-message-id="'.$msg->id.'"', false)
+            ->assertSee('Đỗ Quản Trị')
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('ticket.status', 'in_progress'))
+            ->getContent();
         $this->assertStringContainsString("Đã nhận, đang kiểm tra máy in.\nSẽ báo lại &lt;sớm&gt;.", $html);
-        $this->assertStringContainsString('Đỗ Quản Trị', $html);
-        $this->assertStringNotContainsString('data-message-pending', $html);
 
-        // Admin phản hồi ticket "open" → "Đang xử lý": trả lại vùng trạng thái để cập nhật tại chỗ.
+        // Admin phản hồi ticket "open" → "Đang xử lý".
         $this->assertSame('in_progress', $this->ticket->fresh()->status);
-        $this->assertStringContainsString('value="in_progress" selected', $response->json('parts.status'));
-        $this->assertStringContainsString('Đang xử lý', $response->json('parts.info'));
     }
 
-    public function test_background_reply_without_status_change_returns_no_parts(): void
+    public function test_reply_from_modal_returns_to_the_page_behind(): void
     {
         $this->ticket->update(['status' => 'in_progress']);
 
-        $this->actingAs($this->staff)->postJson(route('tickets.messages.store', $this->ticket->id), ['message' => 'Em gửi thêm ảnh.'])
-            ->assertCreated()
-            ->assertJsonPath('parts', [])
-            ->assertJsonPath('html', fn (string $html) => str_contains($html, 'Em gửi thêm ảnh.'));
+        $this->actingAs($this->staff)->from(route('tickets.index'))
+            ->post(route('tickets.messages.store', $this->ticket->id), ['message' => 'Em gửi thêm ảnh.'], self::MODAL)
+            ->assertRedirect(route('tickets.index'));
+
+        $this->assertSame('in_progress', $this->ticket->fresh()->status);
+        $this->assertDatabaseHas('ticket_messages', ['message' => 'Em gửi thêm ảnh.', 'user_id' => $this->staff->id]);
     }
 
-    public function test_background_reply_validation_error_is_json(): void
+    public function test_reply_validation_error_saves_nothing(): void
     {
-        $this->actingAs($this->admin)->postJson(route('tickets.messages.store', $this->ticket->id), ['message' => '   '])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('message');
+        $show = route('tickets.show', $this->ticket->id);
+        $this->actingAs($this->admin)->from($show)
+            ->post(route('tickets.messages.store', $this->ticket->id), ['message' => '   '])
+            ->assertRedirect($show)
+            ->assertSessionHasErrors('message');
 
         $this->assertSame(1, TicketMessage::count());
     }
@@ -125,8 +130,8 @@ class TicketReplyInstantTest extends TestCase
             $notificationsWhenResponded = AdminNotification::where('type', 'ticket_message')->count();
         });
 
-        $this->actingAs($this->admin)->postJson(route('tickets.messages.store', $this->ticket->id), ['message' => 'Đã xử lý xong.'])
-            ->assertCreated();
+        $this->actingAs($this->admin)->post(route('tickets.messages.store', $this->ticket->id), ['message' => 'Đã xử lý xong.'])
+            ->assertRedirect();
 
         // Lúc trả phản hồi chưa gửi gì; sau đó (terminate) người tạo ticket vẫn nhận thông báo.
         $this->assertSame(0, $notificationsWhenResponded);
@@ -150,7 +155,7 @@ class TicketReplyInstantTest extends TestCase
 
         // Người tạo (không có quyền đổi trạng thái) thấy nút Mở lại.
         $this->actingAs($this->staff)->get(route('tickets.show', $this->ticket->id))
-            ->assertOk()->assertSee(route('tickets.reopen', $this->ticket->id), false)->assertSee('Mở lại');
+            ->assertOk()->assertSee('action="'.route('tickets.reopen', $this->ticket->id, false).'"', false)->assertSee('Mở lại');
 
         $this->actingAs($this->staff)->from(route('tickets.show', $this->ticket->id))
             ->post(route('tickets.reopen', $this->ticket->id))
@@ -168,7 +173,7 @@ class TicketReplyInstantTest extends TestCase
 
         // Ticket đang mở: không hiện nút, gọi thẳng cũng không đổi gì.
         $this->actingAs($this->admin)->get(route('tickets.show', $ticket->id))
-            ->assertDontSee(route('tickets.reopen', $ticket->id), false);
+            ->assertDontSee(route('tickets.reopen', $ticket->id, false), false);
         $this->actingAs($this->admin)->post(route('tickets.reopen', $ticket->id))->assertSessionHasErrors('status');
         $this->assertSame(2, TicketMessage::count());
     }
@@ -177,8 +182,12 @@ class TicketReplyInstantTest extends TestCase
     {
         $this->ticket->update(['status' => 'closed', 'resolved_at' => now()]);
 
-        $response = $this->actingAs($this->admin)->post(route('tickets.reopen', $this->ticket->id), [], ['HX-Request' => 'true']);
-        $response->assertOk()->assertSee('data-testid="ticket-conversation"', false)->assertSee('Đã mở lại ticket');
+        // Trong modal (X-Remote-Modal): quay lại trang nền; modal tải lại thấy dòng "Đã mở lại ticket".
+        $this->actingAs($this->admin)->from(route('tickets.index'))
+            ->post(route('tickets.reopen', $this->ticket->id), [], self::MODAL)
+            ->assertRedirect(route('tickets.index'))->assertSessionHas('status', 'Đã mở lại ticket.');
+        $this->actingAs($this->admin)->get(route('tickets.show', $this->ticket->id), self::MODAL)->assertOk()
+            ->assertSee('data-testid="ticket-conversation"', false)->assertSee('Đã mở lại ticket');
 
         $this->assertSame('in_progress', $this->ticket->fresh()->status);
         $this->assertDatabaseHas('admin_notifications', ['user_id' => $this->staff->id, 'type' => 'ticket_status']);

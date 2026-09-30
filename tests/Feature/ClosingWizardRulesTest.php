@@ -216,7 +216,8 @@ class ClosingWizardRulesTest extends TestCase
         $this->actingAs($this->academic)->get(route('crm.waiting-list'))
             ->assertOk()
             ->assertDontSee('Chưa có lớp phù hợp</span>', false)
-            ->assertSee($placementUrl, false);
+            // Vue (Ziggy) render link tương đối.
+            ->assertSee(route('students.enrollments', ['student_id' => $lead->converted_student_id], false), false);
 
         $this->actingAs($this->academic)->get($placementUrl)
             ->assertOk()
@@ -291,7 +292,7 @@ class ClosingWizardRulesTest extends TestCase
 
         $response = $this->actingAs($this->sales)->get(route('crm.closing-wizard', ['customer_id' => $lead->id]))->assertOk();
 
-        $this->assertSame($lead->id, $response->viewData('customers')->first()->id);
+        $this->assertSame($lead->id, $response->inertiaProps('customers.0.id'));
         $response->assertSee('Xếp lớp sau')->assertSee('Đã đóng học phí đăng ký');
     }
 

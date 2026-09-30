@@ -18,6 +18,7 @@ use App\Models\TuitionReceipt;
 use App\Models\TuitionRefundRequest;
 use App\Models\User;
 use App\Models\UserPermissionOverride;
+use App\Support\DataScope;
 use App\Support\Navigation\SidebarMenu;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
@@ -131,7 +132,7 @@ class BaPermissionsTest extends TestCase
             ->assertSee('Phạm vi dữ liệu')->assertSee('Học phí mọi chi nhánh (kế toán tổng)')->assertSee('Duyệt / từ chối hủy hóa đơn');
 
         $this->actingAs($this->accountant)->get(route('tuition.refunds'))->assertOk()
-            ->assertDontSee(route('tuition.refunds.approve', $refund->id), false)->assertSee(route('tuition.refunds.approve', $transfer->id), false);
+            ->assertDontSee(route('tuition.refunds.approve', $refund->id, false), false)->assertSee(route('tuition.refunds.approve', $transfer->id, false), false);
         $this->accountant = $this->accountant->fresh();
 
         $accountantRole = Role::findByName('accountant', 'web');
@@ -140,7 +141,7 @@ class BaPermissionsTest extends TestCase
             ->assertSessionHasNoErrors();
         $this->accountant = $this->accountant->fresh();
 
-        $this->actingAs($this->accountant)->get(route('tuition.refunds'))->assertOk()->assertSee(route('tuition.refunds.approve', $refund->id), false);
+        $this->actingAs($this->accountant)->get(route('tuition.refunds'))->assertOk()->assertSee(route('tuition.refunds.approve', $refund->id, false), false);
         // Qua cổng quyền → gặp luật nghiệp vụ tiếp theo (bắt buộc ảnh bằng chứng), rồi duyệt được.
         $this->actingAs($this->accountant)->post(route('tuition.refunds.approve', $refund->id), ['clawback_commission' => 0])->assertSessionHasErrors('proof_image');
         $this->actingAs($this->accountant)->post(route('tuition.refunds.approve', $refund->id), [
@@ -306,8 +307,8 @@ class BaPermissionsTest extends TestCase
         $this->assertFalse(Permission::where('name', 'finance.all_branches')->exists());
         $head = $headAccountant->fresh();
         foreach (['tuition', 'finance', 'attendance_staff'] as $module) {
-            $this->assertSame('all', \App\Support\DataScope::level($head, $module), $module);
-            $this->assertSame('branch', \App\Support\DataScope::level($this->accountant->fresh(), $module), $module);
+            $this->assertSame('all', DataScope::level($head, $module), $module);
+            $this->assertSame('branch', DataScope::level($this->accountant->fresh(), $module), $module);
         }
         $this->assertTrue($head->can('invoice_range.manage_default'));
         $this->assertTrue($role('admin')->hasPermissionTo('tuition.scope_all'));

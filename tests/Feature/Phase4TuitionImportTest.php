@@ -15,6 +15,7 @@ use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Inertia\Testing\AssertableInertia;
 use Maatwebsite\Excel\Facades\Excel;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -95,8 +96,8 @@ class Phase4TuitionImportTest extends TestCase
             ->assertSee('vượt công nợ còn lại')
             ->assertSee('đã được ghi nhận');
 
-        $rows = collect($preview->viewData('preview')['rows']);
-        $this->assertSame([2, 3], $rows->filter(fn ($r) => empty($r['errors']))->pluck('line')->values()->all());
+        $preview->assertInertia(fn (AssertableInertia $page) => $page->component('Tuition/Import')
+            ->where('preview.rows', fn ($rows) => $rows->filter(fn ($r) => empty($r['errors']))->pluck('line')->values()->all() === [2, 3]));
 
         // Chưa xác nhận thì chưa ghi gì.
         $this->assertSame(1, StudentTuition::count());

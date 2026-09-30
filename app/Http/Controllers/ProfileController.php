@@ -16,10 +16,16 @@ use App\Support\Approvals\ApprovalInboxService;
 use App\Support\Money;
 use App\Support\Navigation\SidebarMenu;
 use App\Support\StaffType;
+use App\Support\StatusLabel;
+use Carbon\Carbon;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Redirect;
-use Illuminate\View\View;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Str;
+use Inertia\Inertia;
+use Inertia\Response as InertiaResponse;
 
 class ProfileController extends Controller
 {
@@ -95,14 +101,14 @@ class ProfileController extends Controller
      * GV / TA: giờ dạy, lớp, ca dạy; Học vụ: việc, báo cáo ngày, việc cần duyệt; Học thuật: đề xuất chờ duyệt, báo cáo tuần;
      * Học viên: chỉ tài khoản & mật khẩu + lối về cổng học viên (không thấy lương / chấm công / ticket nội bộ).
      */
-    public function edit(Request $request): View
+    public function edit(Request $request): InertiaResponse
     {
         $user = $request->user();
         $portal = $this->portalFor($user);
 
         if ($portal === 'student') {
-            return view('profile.edit', [
-                'user' => $user,
+            return Inertia::render('Profile/Edit', [
+                ...$this->accountProps($request, $user, showOperations: false),
                 'portal' => $portal,
                 'roleLabels' => $this->roleLabels($user),
                 'quickLinks' => $this->quickLinks($user, $portal, $request),
@@ -238,8 +244,12 @@ class ProfileController extends Controller
         };
         $statCards = collect($order)->map(fn ($key) => $cards[$key])->filter()->take(4)->values()->all();
 
-        return view('profile.edit', [
-            'user' => $user,
+        // GV / TA xem hết việc ở "Nhiệm vụ hôm nay" (cổng GV); người giao việc dùng danh sách Công việc.
+        $tasksRoute = $user->can('work_task.create') ? 'tasks.index' : 'portal.ta-tasks';
+        $canViewTasks = $user->can('work_task.view');
+
+        return Inertia::render('Profile/Edit', [
+            ...$this->accountProps($request, $user, showOperations: true),
             'portal' => $portal,
             'teaches' => $teaches,
             'roleLabels' => $this->roleLabels($user),
@@ -248,16 +258,95 @@ class ProfileController extends Controller
             'showPayroll' => $showPayroll,
             'showTickets' => $showTickets,
             'showOperations' => true,
-            'latestPayroll' => $latestPayroll,
-            'recentPayrolls' => $recentPayrolls,
-            'recentTimesheets' => $recentTimesheets,
-            'myTasks' => $myTasks,
-            'assignedClasses' => $assignedClasses,
-            'myTickets' => $myTickets,
-            'myActivities' => $myActivities,
-            // GV / TA xem hết việc ở "Nhiệm vụ hôm nay" (cổng GV); người giao việc dùng danh sách Công việc.
-            'tasksRoute' => $user->can('work_task.create') ? 'tasks.index' : 'portal.ta-tasks',
+            'payrollPeriodLabel' => $latestPayroll?->period?->title ?? 'Tháng '.now()->format('m/Y'),
+            'latestPayroll' => $latestPayroll ? [
+                'base_salary' => $latestPayroll->base_salary,
+                'teaching_salary' => $latestPayroll->teaching_salary,
+                'kpi_bonus' => Money::format($latestPayroll->kpi_bonus),
+                'renew_bonus' => Money::format($latestPayroll->renew_bonus),
+                'allowance' => Money::format($latestPayroll->allowance),
+                'insurance_deduction' => Money::format($latestPayroll->insurance_deduction),
+                'tax_deduction' => Money::format($latestPayroll->tax_deduction),
+                'penalty_deduction' => Money::format($latestPayroll->penalty_deduction),
+                'net_salary' => Money::format($latestPayroll->net_salary),
+                'status_label' => $latestPayroll->status === 'paid' ? 'Đã thanh toán' : ($latestPayroll->status === 'approved' ? 'Đã duyệt chi' : 'Dự thảo'),
+            ] : null,
+            'recentPayrolls' => $recentPayrolls->map(fn (PayrollRecord $p) => [
+                'id' => $p->id,
+                'title' => $p->period?->title ?? 'Kỳ '.$p->created_at->format('m/Y'),
+                'base_salary' => $p->base_salary,
+                'income' => Money::format($p->teaching_salary + $p->kpi_bonus + $p->renew_bonus),
+                'deduction' => Money::format($p->insurance_deduction + $p->tax_deduction + $p->penalty_deduction),
+                'net_salary' => Money::format($p->net_salary),
+                'paid' => $p->status === 'paid',
+                'status_label' => StatusLabel::for($p->status),
+            ])->values()->all(),
+            'recentTimesheets' => $recentTimesheets->map(fn (TeacherTimesheet $ts) => [
+                'id' => $ts->id,
+                'class_code' => $ts->classModel?->code,
+                'date' => Carbon::parse($ts->teaching_date ?? $ts->date)->format('d/m/Y'),
+                'hours' => $ts->hours,
+                'status_label' => $ts->status_label ?? StatusLabel::for($ts->status),
+            ])->values()->all(),
+            'myTasks' => $myTasks->map(fn (WorkTask $task) => [
+                'id' => $task->id,
+                'title' => $task->title,
+                'status' => $task->status,
+                'due_date' => $task->due_date?->format('d/m/Y'),
+                'time_slot_category' => $task->time_slot_category,
+                'url' => $canViewTasks ? ($tasksRoute === 'tasks.index' ? route('tasks.show', $task->id) : route($tasksRoute)) : null,
+            ])->values()->all(),
+            'tasksUrl' => $canViewTasks ? route($tasksRoute) : null,
+            'assignedClasses' => $assignedClasses->map(fn (ClassModel $cls) => [
+                'id' => $cls->id,
+                'code' => $cls->code,
+                'name' => $cls->name,
+                'status_label' => StatusLabel::for($cls->status),
+                'course_name' => $cls->course?->name,
+                'schedule_text' => $cls->schedule_text,
+            ])->values()->all(),
+            'myTickets' => $myTickets->map(fn (SupportTicket $ticket) => [
+                'id' => $ticket->id,
+                'code' => $ticket->code,
+                'title' => $ticket->title,
+                'priority' => $ticket->priority,
+                'priority_label' => $ticket->priority_label,
+                'category_label' => $ticket->category_label,
+                'created_at' => $ticket->created_at->format('d/m/Y H:i'),
+                'assignee_name' => $ticket->assignee?->name,
+                'status' => $ticket->status,
+                'status_label' => $ticket->status_label,
+            ])->values()->all(),
+            'myActivities' => $myActivities->map(fn ($act) => [
+                'id' => $act->id,
+                'description' => $act->description,
+                'ago' => $act->created_at->diffForHumans(),
+            ])->values()->all(),
         ]);
+    }
+
+    /**
+     * Phần chung của trang cá nhân: thông tin tài khoản (form hồ sơ + đổi mật khẩu), tab mở đầu và trạng thái sau khi lưu.
+     * Tab mở đầu: đổi mật khẩu bắt buộc / học viên vào thẳng "Cài đặt tài khoản"; nhân sự vào tab công việc.
+     */
+    private function accountProps(Request $request, User $user, bool $showOperations): array
+    {
+        return [
+            'account' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'initial' => Str::substr($user->name ?? 'A', 0, 1),
+                'branch_name' => $user->branch?->name,
+                'staff_code' => '#NV-'.str_pad((string) $user->id, 4, '0', STR_PAD_LEFT),
+                'must_change_password' => (bool) $user->must_change_password,
+                'email_unverified' => $user instanceof MustVerifyEmail && ! $user->hasVerifiedEmail(),
+            ],
+            'canSendVerification' => Route::has('verification.send'),
+            'initialTab' => ($user->must_change_password || ! $showOperations) ? 'settings' : 'operations',
+            // Trạng thái dạng mã (profile-updated, password-updated, verification-link-sent): trang tự hiện dòng xác nhận.
+            'status' => $request->session()->get('status'),
+        ];
     }
 
     /**

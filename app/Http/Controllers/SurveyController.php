@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Survey;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 /**
  * Quản lý đợt khảo sát chất lượng đào tạo: học vụ tạo khảo sát + hạn,
@@ -16,7 +17,19 @@ class SurveyController extends Controller
     {
         $surveys = Survey::with('creator')->latest()->get();
 
-        return view('surveys.index', compact('surveys'));
+        return Inertia::render('Surveys/Index', [
+            'today' => now()->toDateString(),
+            'surveys' => $surveys->map(fn (Survey $sv) => [
+                'id' => $sv->id,
+                'title' => $sv->title,
+                'description' => $sv->description,
+                'deadline' => $sv->deadline?->format('Y-m-d'),
+                'deadline_label' => $sv->deadline?->format('d/m/Y'),
+                'deadline_today' => (bool) $sv->deadline?->isToday(),
+                'is_active' => (bool) $sv->is_active,
+                'creator_name' => $sv->creator?->name,
+            ])->values()->all(),
+        ]);
     }
 
     public function store(Request $request)

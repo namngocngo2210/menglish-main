@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\AcademicRecord;
 use App\Models\ClassModel;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class AcademicSystemController extends Controller
 {
@@ -614,40 +616,41 @@ class AcademicSystemController extends Controller
         $screens = self::getScreens();
         $selectedCat = $request->query('cat', 'all');
 
-        $categories = [
-            'all' => [
-                'id' => 'all',
-                'name' => 'Tất cả màn hình',
-                'count' => count($screens),
-                'icon' => 'dashboard_customize',
-            ],
-            '01_Web_Admin' => [
-                'id' => '01_Web_Admin',
-                'name' => 'Web Admin (Quản trị hệ thống)',
-                'count' => count(array_filter($screens, fn ($s) => $s['category_id'] === '01_Web_Admin')),
-                'icon' => 'admin_panel_settings',
-            ],
-            '02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu' => [
-                'id' => '02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu',
-                'name' => 'Học thuật & Học vụ & KPI',
-                'count' => count(array_filter($screens, fn ($s) => $s['category_id'] === '02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu')),
-                'icon' => 'monitoring',
-            ],
-            '03_Cong_Giao_Vien' => [
-                'id' => '03_Cong_Giao_Vien',
-                'name' => 'Cổng Giáo Viên (Teacher Portal)',
-                'count' => count(array_filter($screens, fn ($s) => $s['category_id'] === '03_Cong_Giao_Vien')),
-                'icon' => 'co_present',
-            ],
-            '04_Cong_Phu_Huynh_Hoc_Sinh' => [
-                'id' => '04_Cong_Phu_Huynh_Hoc_Sinh',
-                'name' => 'Cổng Phụ Huynh & Học Sinh',
-                'count' => count(array_filter($screens, fn ($s) => $s['category_id'] === '04_Cong_Phu_Huynh_Hoc_Sinh')),
-                'icon' => 'family_restroom',
-            ],
+        // Màn đã có bản thật (Native) — thẻ mở thẳng màn thật thay vì mockup.
+        $nativeMap = [
+            // Flow 1: Tuyển sinh, Khai giảng & Quản lý Lớp học (6 bước chuẩn BA)
+            '01_Web_Admin/12_dat_lich_hoc_thu_popup' => route('classes.trial-booking'),
+            '01_Web_Admin/13_tao_lop_moi' => route('classes.create'),
+            '01_Web_Admin/14_ho_so_lop_hoc' => route('classes.profile'),
+            '02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu/13_tong_quan_danh_sach_lop_hoc_thuat' => route('classes.academic-overview'),
+            '02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu/14_danh_sach_lop_chi_tiet_hoc_thuat' => route('classes.academic-list'),
+            '02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu/15_chi_tiet_lop_hoc_hoc_thuat' => route('classes.academic-detail'),
+            // Flow 2: Quản lý Giáo trình & Phân bổ Syllabus (8 bước)
+            '01_Web_Admin/01_quan_ly_tai_lieu_giao_trinh' => route('syllabus.documents'),
+            '01_Web_Admin/02_soan_syllabus_theo_chang' => route('syllabus.builder'),
+            '01_Web_Admin/03_giao_chang_cho_giao_vien' => route('syllabus.assignments'),
+            '03_Cong_Giao_Vien/08_xem_tai_lieu_giao_trinh' => route('syllabus.teacher-view'),
+            '03_Cong_Giao_Vien/09_de_xuat_sua_giao_trinh' => route('syllabus.teacher-propose'),
+            '01_Web_Admin/05_chi_tiet_de_xuat_sua_giao_trinh' => route('syllabus.versions'),
+            '03_Cong_Giao_Vien/14_xin_dieu_chinh_tien_do' => route('syllabus.teacher-adjust'),
+            '01_Web_Admin/04_duyet_yeu_cau_dieu_chinh_tien_do' => route('syllabus.adjustment-requests'),
+            // Flow 3: Giáo viên chấm bài
+            '03_Cong_Giao_Vien/04_bai_nop_cua_lop' => route('portal.teacher.submissions'),
+            // Flow 4: Trải nghiệm Học sinh & Phụ huynh (7 bước chuẩn BA)
+            '04_Cong_Phu_Huynh_Hoc_Sinh/01_app_shell_phu_huynh_hoc_sinh' => route('portal.app-shell'),
+            '04_Cong_Phu_Huynh_Hoc_Sinh/02_trang_chu_phu_huynh_hoc_sinh' => route('portal.student.home'),
+            '04_Cong_Phu_Huynh_Hoc_Sinh/03_hoc_tap_cua_toi_nop_bai_tap' => route('portal.student.homework'),
+            '04_Cong_Phu_Huynh_Hoc_Sinh/04_luyen_phat_am' => route('portal.student.pronunciation'),
+            '04_Cong_Phu_Huynh_Hoc_Sinh/05_danh_sach_thong_bao' => route('portal.student.notifications'),
+            '04_Cong_Phu_Huynh_Hoc_Sinh/06_khao_sat' => route('portal.student.survey'),
+            '04_Cong_Phu_Huynh_Hoc_Sinh/07_phu_huynh_gui_feedback' => route('portal.student.feedback'),
         ];
 
-        return view('academic-system.index', compact('screens', 'categories', 'selectedCat'));
+        return Inertia::render('AcademicSystem/Index', [
+            'screens' => $screens,
+            'selectedCat' => $selectedCat,
+            'nativeMap' => $nativeMap,
+        ]);
     }
 
     /**
@@ -741,7 +744,12 @@ class AcademicSystemController extends Controller
         if ($request->has('embed')) {
             $rawUrl = $request->fullUrlWithQuery(['embed' => null]);
 
-            return view('academic-system.screen-viewer', compact('safeCategory', 'safeScreen', 'screenKey', 'rawUrl'));
+            return Inertia::render('AcademicSystem/ScreenViewer', [
+                'title' => str_replace('_', ' ', preg_replace('/^\d+_/', '', $safeScreen)),
+                'category' => $safeCategory,
+                'screenKey' => $screenKey,
+                'rawUrl' => $rawUrl,
+            ]);
         }
 
         $path = public_path("roundcuoi-kieulien/{$safeCategory}/{$safeScreen}/code.html");
@@ -1004,7 +1012,7 @@ class AcademicSystemController extends Controller
     /**
      * Bộ màn mockup cũ chỉ dành cho Admin (quản trị danh mục hệ thống).
      */
-    public static function canViewPrototypes(?\App\Models\User $user): bool
+    public static function canViewPrototypes(?User $user): bool
     {
         return (bool) $user?->can('system_category.manage');
     }

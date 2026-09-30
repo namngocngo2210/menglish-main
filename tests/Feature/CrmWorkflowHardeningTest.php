@@ -288,7 +288,7 @@ class CrmWorkflowHardeningTest extends TestCase
 
         $response = $this->actingAs($this->salesA)->get(route('crm.closing-wizard', ['customer_id' => $other->id]));
         $response->assertOk();
-        $this->assertSame($other->id, $response->viewData('customers')->first()->id);
+        $this->assertSame($other->id, $response->inertiaProps('customers.0.id'));
     }
 
     public function test_retests_keep_attempt_history_and_consulting_lead_becomes_tested(): void
@@ -347,8 +347,8 @@ class CrmWorkflowHardeningTest extends TestCase
         $this->salesA->givePermissionTo('report.view');
         $response = $this->actingAs($this->salesA)->get(route('crm.reports', ['preset' => 'today']));
         $response->assertOk();
-        $this->assertSame(1, $response->viewData('metricWonDeals'));
-        $salesRow = collect($response->viewData('repsData'))->firstWhere('name', $this->salesA->name);
+        $this->assertSame(1, $response->inertiaProps('metricWonDeals'));
+        $salesRow = collect($response->inertiaProps('repsData'))->firstWhere('name', $this->salesA->name);
         $this->assertEquals(15000000, (float) $salesRow['revenue']);
     }
 

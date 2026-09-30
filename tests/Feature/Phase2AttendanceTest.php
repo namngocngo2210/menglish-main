@@ -24,6 +24,7 @@ use Carbon\Carbon;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 /**
@@ -121,15 +122,15 @@ class Phase2AttendanceTest extends TestCase
             'user_id' => $this->teacher->id, 'session_date' => '2026-10-06', 'status' => 'present']);
 
         $this->actingAs($this->teacher)->get(route('teacher.attendance', $this->classModel->id))->assertOk()
-            ->assertViewHas('session', fn ($s) => $s?->id === $older->id)
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Teacher/Attendance')->where('session.id', $older->id))
             ->assertDontSee('Lớp không có buổi học trong ngày này')->assertSee($this->student->name);
         $this->actingAs($this->teacher)->get(route('teacher.remarks', $this->classModel->id))->assertOk()
-            ->assertViewHas('session', fn ($s) => $s?->id === $done->id)
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Teacher/Remarks')->where('session.id', $done->id))
             ->assertDontSee('Lớp không có buổi học trong ngày này');
 
         // Chọn một ngày không có buổi: vẫn báo trống và ô chọn hiện "— Chọn buổi —".
         $this->actingAs($this->teacher)->get(route('teacher.attendance', ['classId' => $this->classModel->id, 'date' => '2026-10-04']))->assertOk()
-            ->assertViewHas('session', null)->assertSee('— Chọn buổi —');
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('session', null))->assertSee('— Chọn buổi —');
     }
 
     public function test_cancelled_future_and_foreign_sessions_are_rejected(): void
@@ -207,7 +208,7 @@ class Phase2AttendanceTest extends TestCase
             ->assertSee('Lớp Trợ Giảng')
             ->assertSee('18:00-19:30')
             ->assertSee('Điểm danh bù')
-            ->assertSee(route('teacher.attendance', ['classId' => $this->classModel->id, 'session' => $today->id]), false);
+            ->assertSee(route('teacher.attendance', ['classId' => $this->classModel->id, 'session' => $today->id], false), false);
 
         $this->actingAs($this->teacher)->post(route('teacher.checkin'), ['session_ids' => [$today->id]])->assertSessionHasNoErrors();
         $this->assertDatabaseHas('teacher_timesheets', ['user_id' => $this->teacher->id, 'class_session_id' => $today->id]);

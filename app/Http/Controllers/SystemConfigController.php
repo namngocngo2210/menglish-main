@@ -8,13 +8,17 @@ use App\Models\DebtReminderRule;
 use App\Models\SepayConfiguration;
 use App\Models\SepayTransaction;
 use App\Models\SystemSetting;
+use App\Support\StatusLabel;
+use App\Support\Ui;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Inertia\Inertia;
+use Inertia\Response as InertiaResponse;
 
 class SystemConfigController extends Controller
 {
-    public function bankAccounts(Request $request)
+    public function bankAccounts(Request $request): InertiaResponse
     {
         // Mockup cau-hinh-tai-khoan-ngan-hang: bảng tài khoản có tìm kiếm (ngân hàng / số TK / chủ TK / chi nhánh).
         $search = trim((string) $request->input('q', ''));
@@ -39,7 +43,49 @@ class SystemConfigController extends Controller
             : null;
         $recentTransactions = $sepayEnabled ? SepayTransaction::latest()->take(15)->get() : collect();
 
-        return view('system-config.bank-accounts', compact('accounts', 'totalAccounts', 'defaultAccount', 'search', 'branches', 'sepayConfig', 'recentTransactions', 'sepayEnabled'));
+        $currentEndpoint = url('/hook/sepay-gateway/v1/add-payment');
+        $savedHost = $sepayConfig ? parse_url((string) $sepayConfig->webhook_url, PHP_URL_HOST) : null;
+        $currentHost = $request->getHost();
+
+        return Inertia::render('SystemConfig/BankAccounts', [
+            'accounts' => $accounts->map(fn (BankAccount $acc) => [
+                ...$acc->only(['id', 'account_type', 'bank_code', 'bank_name', 'account_number', 'account_holder', 'branch_id', 'branch_location']),
+                'is_default_vietqr' => (bool) $acc->is_default_vietqr,
+                'is_active' => (bool) $acc->is_active,
+                'type_label' => mb_strtoupper($acc->type_label),
+                'branch_name' => $acc->branch?->name,
+            ])->values()->all(),
+            'totalAccounts' => $totalAccounts,
+            'defaultAccount' => $defaultAccount ? [
+                'bank_name' => $defaultAccount->bank_name,
+                'account_number' => $defaultAccount->account_number,
+                'vietqr_preview_url' => $defaultAccount->vietqr_preview_url,
+            ] : null,
+            'search' => $search,
+            'branches' => Ui::options($branches, 'name'),
+            'sepayEnabled' => $sepayEnabled,
+            'sepay' => $sepayConfig ? [
+                ...$sepayConfig->only(['webhook_name', 'webhook_url', 'transaction_type', 'auth_method', 'secret_key']),
+                'is_active' => (bool) $sepayConfig->is_active,
+                'auto_retry' => (bool) $sepayConfig->auto_retry,
+                'current_endpoint' => $currentEndpoint,
+                'saved_host' => $savedHost,
+                'current_host' => $currentHost,
+                'different_host' => $savedHost && $savedHost !== $currentHost && ! in_array($currentHost, ['127.0.0.1', 'localhost'], true),
+            ] : null,
+            'transactions' => $recentTransactions->map(fn (SepayTransaction $tx) => [
+                'id' => $tx->id,
+                'date' => ($tx->transaction_date ?? $tx->created_at)?->format('d/m/Y H:i'),
+                'sepay_id' => $tx->sepay_id ?? $tx->id,
+                'account_number' => $tx->account_number,
+                'gateway' => $tx->gateway,
+                'amount' => (float) $tx->transfer_amount,
+                'content' => $tx->content,
+                'status' => $tx->status,
+                'status_label' => StatusLabel::for($tx->status),
+                'response_message' => $tx->response_message,
+            ])->values()->all(),
+        ]);
     }
 
     public function storeBankAccount(Request $request)
@@ -176,7 +222,7 @@ class SystemConfigController extends Controller
             ->with('status', 'Đã lưu cấu hình kết nối SePay Gateway thành công! Bạn có thể copy thông tin này lên SePay.');
     }
 
-    public function debtReminders()
+    public function debtReminders(): InertiaResponse
     {
         $rules = DebtReminderRule::query()->get()
             ->sortBy(fn (DebtReminderRule $rule) => $rule->effectiveOffset() ?? PHP_INT_MAX)
@@ -189,7 +235,28 @@ class SystemConfigController extends Controller
         $firstDays = (int) SystemSetting::get('debt_reminder.first_days', $beforeOffsets->max() ?? 7);
         $repeatDays = (int) SystemSetting::get('debt_reminder.repeat_days', $beforeOffsets->filter(fn ($d) => $d <= self::REPEAT_MAX_DAYS)->min() ?? 3);
 
-        return view('system-config.debt-reminders', compact('rules', 'mustContactDays', 'firstDays', 'repeatDays'));
+        return Inertia::render('SystemConfig/DebtReminders', [
+            'rules' => $rules->map(function (DebtReminderRule $rule) {
+                $offset = $rule->effectiveOffset();
+
+                return [
+                    'id' => $rule->id,
+                    'milestone_key' => $rule->milestone_key,
+                    'offset_label' => $rule->offset_label,
+                    'title' => $rule->title,
+                    'template_content' => $rule->template_content,
+                    'is_enabled' => (bool) $rule->is_enabled,
+                    'timing' => $offset === null ? '' : ($offset < 0 ? 'before' : ($offset === 0 ? 'due' : 'after')),
+                    'days' => $offset !== null && $offset !== 0 ? abs($offset) : null,
+                    'channels' => $rule->activeChannels(),
+                ];
+            })->values()->all(),
+            'channels' => Ui::options(DebtReminderRule::CHANNELS),
+            'variables' => Ui::options(DebtReminderRule::VARIABLES),
+            'mustContactDays' => $mustContactDays,
+            'firstDays' => $firstDays,
+            'repeatDays' => $repeatDays,
+        ]);
     }
 
     /**
@@ -344,7 +411,7 @@ class SystemConfigController extends Controller
     /**
      * Display ticket notification email configuration
      */
-    public function ticketEmails()
+    public function ticketEmails(Request $request): InertiaResponse
     {
         $emails = SystemSetting::getTicketEmails();
         $isCreatedEnabled = SystemSetting::isTicketEventEnabled('created');
@@ -357,30 +424,34 @@ class SystemConfigController extends Controller
 
         $smtp = SystemSetting::getSmtpConfig();
 
+        // Không gửi mật khẩu SMTP xuống trình duyệt, chỉ báo đã có hay chưa.
         $mailConfig = [
             'driver' => $smtp['mailer'],
             'host' => $smtp['host'],
             'port' => $smtp['port'],
             'encryption' => $smtp['encryption'],
             'username' => $smtp['username'],
-            'password' => $smtp['password'],
             'has_password' => $smtp['has_password'],
             'from_address' => $smtp['from_address'],
             'from_name' => $smtp['from_name'],
-            'env_default_email' => config('mail.tech_support_email', env('TECH_SUPPORT_EMAIL', 'tech.vmst@gmail.com')),
         ];
 
-        return view('system-config.ticket-emails', compact(
-            'emails',
-            'isCreatedEnabled',
-            'isCommentEnabled',
-            'isStatusChangedEnabled',
-            'isStaleLeadEnabled',
-            'isTransactionEnabled',
-            'isOverdueDebtEnabled',
-            'isHomeworkEnabled',
-            'mailConfig'
-        ));
+        return Inertia::render('SystemConfig/TicketEmails', [
+            'emails' => array_values($emails),
+            'events' => [
+                'created' => $isCreatedEnabled,
+                'comment' => $isCommentEnabled,
+                'status_changed' => $isStatusChangedEnabled,
+                'stale_lead' => $isStaleLeadEnabled,
+                'transaction' => $isTransactionEnabled,
+                'overdue_debt' => $isOverdueDebtEnabled,
+                'homework' => $isHomeworkEnabled,
+            ],
+            'mailConfig' => $mailConfig,
+            'userEmail' => $request->user()?->email,
+            // Kết quả lần gửi thử vừa rồi (flash) — hiện trong khung "Gửi Thử Nghiệm".
+            'testResult' => is_array($result = $request->session()->get('test_mail_result')) ? $result : null,
+        ]);
     }
 
     /**
@@ -609,16 +680,11 @@ class SystemConfigController extends Controller
         $e = strtolower($error);
 
         return match (true) {
-            str_contains($e, '535') || str_contains($e, 'username and password not accepted') || str_contains($e, 'authenticat')
-                => 'Máy chủ từ chối đăng nhập: kiểm tra lại Tài khoản và Mật khẩu ứng dụng. Với Gmail phải bật Xác minh 2 bước rồi tạo Mật khẩu ứng dụng 16 ký tự, không dùng mật khẩu đăng nhập thường.',
-            str_contains($e, 'timed out') || str_contains($e, 'connection refused') || str_contains($e, 'unable to connect') || str_contains($e, 'network is unreachable')
-                => 'Không kết nối được tới máy chủ SMTP: hosting có thể chặn cổng này. Thử đổi sang SSL cổng 465, hoặc nhờ nhà cung cấp hosting mở cổng gửi thư ra ngoài.',
-            str_contains($e, 'getaddrinfo') || str_contains($e, 'name or service not known') || str_contains($e, 'php_network_getaddresses')
-                => 'Không tìm thấy máy chủ SMTP: kiểm tra lại tên máy chủ (SMTP Host).',
-            str_contains($e, 'ssl') || str_contains($e, 'tls') || str_contains($e, 'certificate') || str_contains($e, 'crypto')
-                => 'Lỗi mã hóa: TLS đi với cổng 587, SSL đi với cổng 465. Kiểm tra lại cặp Cổng / Mã hóa.',
-            str_contains($e, 'sender') || str_contains($e, 'from address') || str_contains($e, '553') || str_contains($e, '550')
-                => 'Máy chủ từ chối địa chỉ người gửi: đặt Email người gửi hiển thị trùng với Tài khoản đăng nhập SMTP.',
+            str_contains($e, '535') || str_contains($e, 'username and password not accepted') || str_contains($e, 'authenticat') => 'Máy chủ từ chối đăng nhập: kiểm tra lại Tài khoản và Mật khẩu ứng dụng. Với Gmail phải bật Xác minh 2 bước rồi tạo Mật khẩu ứng dụng 16 ký tự, không dùng mật khẩu đăng nhập thường.',
+            str_contains($e, 'timed out') || str_contains($e, 'connection refused') || str_contains($e, 'unable to connect') || str_contains($e, 'network is unreachable') => 'Không kết nối được tới máy chủ SMTP: hosting có thể chặn cổng này. Thử đổi sang SSL cổng 465, hoặc nhờ nhà cung cấp hosting mở cổng gửi thư ra ngoài.',
+            str_contains($e, 'getaddrinfo') || str_contains($e, 'name or service not known') || str_contains($e, 'php_network_getaddresses') => 'Không tìm thấy máy chủ SMTP: kiểm tra lại tên máy chủ (SMTP Host).',
+            str_contains($e, 'ssl') || str_contains($e, 'tls') || str_contains($e, 'certificate') || str_contains($e, 'crypto') => 'Lỗi mã hóa: TLS đi với cổng 587, SSL đi với cổng 465. Kiểm tra lại cặp Cổng / Mã hóa.',
+            str_contains($e, 'sender') || str_contains($e, 'from address') || str_contains($e, '553') || str_contains($e, '550') => 'Máy chủ từ chối địa chỉ người gửi: đặt Email người gửi hiển thị trùng với Tài khoản đăng nhập SMTP.',
             default => null,
         };
     }
@@ -645,7 +711,7 @@ class SystemConfigController extends Controller
     /**
      * Display Hosting, Server Specs, Disk Quota, PHP & Laravel Diagnostics
      */
-    public function hostingInfo()
+    public function hostingInfo(): InertiaResponse
     {
         // 1. Dung lượng lưu trữ thực tế của website theo từng thành phần
         $uploadsSize = $this->getDirectorySize(public_path('uploads'));
@@ -764,7 +830,13 @@ class SystemConfigController extends Controller
             'queue_driver' => config('queue.default'),
         ];
 
-        return view('system-config.hosting', compact('storageStats', 'serverSpecs', 'extensionStatuses', 'healthChecks', 'serverDetails'));
+        return Inertia::render('SystemConfig/Hosting', [
+            'storageStats' => $storageStats,
+            'serverSpecs' => $serverSpecs,
+            'extensionStatuses' => collect($extensionStatuses)->map(fn (array $ext, string $key) => ['key' => $key, ...$ext])->values()->all(),
+            'healthChecks' => $healthChecks,
+            'now' => now()->format('H:i:s d/m/Y'),
+        ]);
     }
 
     private function detectWebServerDetails(): array

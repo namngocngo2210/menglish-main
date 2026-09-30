@@ -208,7 +208,7 @@ class ModuleCompletionTest extends TestCase
         // Portal hiển thị đợt khảo sát từ DB
         $response = $this->actingAs($this->student->user ?? $manager)->get(route('portal.student.survey'));
         $response->assertOk();
-        $this->assertNotEmpty($response->viewData('surveys'), 'Đợt khảo sát đang mở phải hiển thị trên portal');
+        $this->assertNotEmpty($response->viewData('page')['props']['surveys'], 'Đợt khảo sát đang mở phải hiển thị trên portal');
 
         // Đóng khảo sát -> biến mất khỏi danh sách đang mở của portal
         $this->actingAs($manager)->put(route('surveys.update', $survey->id), [
@@ -218,7 +218,7 @@ class ModuleCompletionTest extends TestCase
         $this->flushSession();
         $closed = $this->actingAs($this->student->user ?? $manager)->get(route('portal.student.survey'));
         $closed->assertOk();
-        $this->assertEmpty($closed->viewData('surveys'), 'Khảo sát đã đóng không được hiển thị');
+        $this->assertEmpty($closed->viewData('page')['props']['surveys'], 'Khảo sát đã đóng không được hiển thị');
 
         // Gate quyền: teacher không có survey.manage
         $teacher = User::factory()->create(['is_active' => true]);

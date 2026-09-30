@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\AclHelper;
 use App\Models\ClassModel;
 use App\Models\KpiCriterion;
 use App\Models\KpiEvaluation;
@@ -12,8 +13,12 @@ use App\Models\StudentAttendance;
 use App\Models\User;
 use App\Support\DataScope;
 use App\Support\StaffType;
+use App\Support\StatusLabel;
+use App\Support\Ui;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
+use Inertia\Response as InertiaResponse;
 
 /**
  * KPI Học vụ: cấu hình chỉ số trọng số, đánh giá KPI theo tháng cho từng nhân
@@ -47,15 +52,41 @@ class KpiController extends Controller
     }
 
     // ───────────────────── CẤU HÌNH KPI ─────────────────────
-    public function criteria()
+    public function criteria(): InertiaResponse
     {
         $this->guard();
         $criteria = KpiCriterion::orderByDesc('is_active')->ordered()->get();
         $totalWeight = $criteria->where('is_active', true)->sum('weight');
         $fund = KpiCriterion::fund();
         $groups = $criteria->pluck('group_name')->filter()->unique()->values();
+        $fmtWeight = fn ($w) => rtrim(rtrim(number_format((float) $w, 2), '0'), '.');
 
-        return view('kpi.criteria', compact('criteria', 'totalWeight', 'fund', 'groups'));
+        return Inertia::render('Kpi/Criteria', [
+            'groups' => $groups,
+            'fund' => (float) $fund,
+            'totalWeight' => (float) $totalWeight,
+            'totalWeightLabel' => $fmtWeight($totalWeight),
+            'criteriaGroups' => $criteria->groupBy(fn ($c) => $c->group_name ?: 'Chưa phân nhóm')
+                ->map(fn ($items, $groupName) => [
+                    'name' => $groupName,
+                    'count' => $items->count(),
+                    'active_fund' => (float) $items->where('is_active', true)->sum(fn ($c) => $c->fundAmount($fund)),
+                    'items' => $items->map(fn (KpiCriterion $cr) => [
+                        'id' => $cr->id,
+                        'code' => $cr->code,
+                        'name' => $cr->name,
+                        'weight' => $fmtWeight($cr->weight),
+                        'fund_amount' => (float) $cr->fundAmount($fund),
+                        'threshold_full' => $cr->threshold_full,
+                        'threshold_half' => $cr->threshold_half,
+                        'is_active' => (bool) $cr->is_active,
+                        'group_name' => $cr->group_name,
+                        'target' => $cr->target,
+                        'unit' => $cr->unit,
+                        'description' => $cr->description,
+                    ])->values(),
+                ])->values(),
+        ]);
     }
 
     public function criteriaStore(Request $request)
@@ -105,7 +136,7 @@ class KpiController extends Controller
     }
 
     // ───────────────────── ĐÁNH GIÁ KPI THÁNG ─────────────────────
-    public function monthly(Request $request)
+    public function monthly(Request $request): InertiaResponse
     {
         $this->guard();
         [$month, $year] = $this->monthYear($request);
@@ -121,8 +152,39 @@ class KpiController extends Controller
             ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w->where('name', 'like', "%{$search}%")->orWhere('employee_code', 'like', "%{$search}%")))
             ->orderBy('name')->paginate($request->perPage(20))->withQueryString();
         $fund = KpiCriterion::fund();
+        $fmt = fn ($v) => rtrim(rtrim(number_format((float) $v, 2, ',', '.'), '0'), ',');
+        $periodValue = sprintf('%04d-%02d', $year, $month);
+        $periodOptions = collect(range(0, 11))->mapWithKeys(fn ($i) => [now()->startOfMonth()->subMonths($i)->format('Y-m') => 'Tháng '.now()->startOfMonth()->subMonths($i)->format('m/Y')])
+            ->put($periodValue, 'Tháng '.sprintf('%02d/%04d', $month, $year))->sortKeysDesc();
+        $roleOptions = collect(self::STAFF_ROLES)->mapWithKeys(fn ($r) => [$r => AclHelper::roleLabel($r)]);
 
-        return view('kpi.monthly', compact('evaluations', 'staff', 'month', 'year', 'fund', 'role'));
+        return Inertia::render('Kpi/Monthly', [
+            'staff' => $staff->through(function (User $s) use ($evaluations, $fund, $fmt, $month, $year) {
+                $eval = $evaluations->get($s->id);
+                $isHv = StaffType::usesAcademicStaffKpi($s);
+                [$grade, $gradeLabel] = $eval ? KpiEvaluation::gradeFor((float) $eval->total_score) : [null, null];
+
+                return [
+                    'id' => $s->id,
+                    'name' => $s->name,
+                    'code' => $s->employee_code ?: $s->email,
+                    'role' => AclHelper::roleLabel((string) $s->getRoleNames()->first()),
+                    'evaluated' => (bool) $eval,
+                    'score' => $eval ? (float) $eval->total_score : null,
+                    'score_label' => $eval ? $fmt($eval->total_score).'%' : '—',
+                    'grade' => $grade,
+                    'grade_label' => $gradeLabel,
+                    'kpi_amount' => $isHv && $eval ? round($fund * (float) $eval->total_score / 100) : null,
+                    'status' => $eval?->status,
+                    'evaluate_url' => route('kpi.evaluate', ['userId' => $s->id, 'month' => $month, 'year' => $year], false),
+                ];
+            }),
+            'month' => $month,
+            'year' => $year,
+            'periodValue' => $periodValue,
+            'periodOptions' => Ui::options($periodOptions),
+            'roleOptions' => Ui::options($roleOptions),
+        ]);
     }
 
     /** Tháng/năm từ ?period=YYYY-MM (ô chọn kỳ theo mockup) hoặc ?month=&year=. */
@@ -140,7 +202,7 @@ class KpiController extends Controller
      * (Quỹ, Ngưỡng 100 / 50, Thực tế, % Đạt, Tiền KPI, Lỗi nghiêm trọng), tổng hợp theo nhóm, xếp loại tháng,
      * cảnh báo hiệu suất, nhận xét của quản lý, "Chốt KPI tháng".
      */
-    public function evaluate(Request $request, int $userId)
+    public function evaluate(Request $request, int $userId): InertiaResponse
     {
         $this->guard();
         $staff = $this->scopedStaff(User::query())->findOrFail($userId);
@@ -168,10 +230,64 @@ class KpiController extends Controller
         ];
         $staffOptions = $this->scopedStaff(User::whereHas('roles', fn ($q) => $q->whereIn('name', self::STAFF_ROLES)))->orderBy('name')->get(['id', 'name']);
 
-        return view('kpi.evaluate', compact(
-            'staff', 'criteria', 'evaluation', 'scores', 'month', 'year', 'isSelf', 'fund', 'isAcademicStaff',
-            'groupSummary', 'warnings', 'staffOptions', 'weightTotal'
-        ));
+        $fmt = fn ($v) => rtrim(rtrim(number_format((float) $v, 2, ',', '.'), '0'), ',');
+        $total = (float) ($evaluation?->total_score ?? 0);
+        [$grade, $gradeLabel, $gradeRange] = KpiEvaluation::gradeFor($total);
+        $itemFund = fn ($c) => $weightTotal > 0 ? $fund * (float) $c->weight / $weightTotal : 0;
+        $periodValue = sprintf('%04d-%02d', $year, $month);
+        $periodOptions = collect(range(0, 11))->mapWithKeys(fn ($i) => [now()->startOfMonth()->subMonths($i)->format('Y-m') => 'Tháng '.now()->startOfMonth()->subMonths($i)->format('m / Y')])
+            ->put($periodValue, 'Tháng '.sprintf('%02d / %04d', $month, $year))->sortKeysDesc();
+
+        return Inertia::render('Kpi/Evaluate', [
+            'staff' => [
+                'id' => $staff->id,
+                'name' => $staff->name,
+                'role_label' => $isAcademicStaff ? 'Học vụ' : AclHelper::roleLabel((string) $staff->getRoleNames()->first()),
+            ],
+            'month' => $month,
+            'year' => $year,
+            'periodValue' => $periodValue,
+            'periodOptions' => Ui::options($periodOptions),
+            'staffOptions' => Ui::options($staffOptions, 'name'),
+            'isSelf' => $isSelf,
+            'canConfirm' => $request->user()->can('kpi.confirm') && ! $isSelf,
+            'isAcademicStaff' => $isAcademicStaff,
+            'fund' => (float) $fund,
+            'evaluation' => $evaluation ? [
+                'status' => $evaluation->status,
+                'evaluator' => $evaluation->evaluator?->name,
+                'strengths' => $evaluation->strengths,
+                'improvements' => $evaluation->improvements,
+                'next_actions' => $evaluation->next_actions,
+                'comment' => $evaluation->comment,
+            ] : null,
+            'total' => $total,
+            'totalLabel' => $fmt($total),
+            'grade' => ['letter' => $grade, 'label' => $gradeLabel, 'range' => $gradeRange],
+            'criteriaGroups' => $criteria->groupBy(fn ($c) => $c->group_name ?: 'Chưa phân nhóm')
+                ->map(fn ($items, $groupName) => [
+                    'name' => $groupName,
+                    'items' => $items->map(function (KpiCriterion $cr) use ($scores, $itemFund) {
+                        $item = $scores->get($cr->id);
+
+                        return [
+                            'id' => $cr->id,
+                            'code' => $cr->code,
+                            'name' => $cr->name,
+                            'description' => $cr->description,
+                            'fund' => round($itemFund($cr)),
+                            'fund_exact' => (float) $itemFund($cr),
+                            'threshold_full' => $cr->threshold_full ?: ($cr->target ?: '—'),
+                            'threshold_half' => $cr->threshold_half ?: '—',
+                            'actual' => $item?->actual,
+                            'score' => $item?->score !== null ? rtrim(rtrim(number_format($item->score, 2, '.', ''), '0'), '.') : '',
+                            'critical' => (bool) $item?->critical_error,
+                        ];
+                    })->values(),
+                ])->values(),
+            'groupSummary' => $groupSummary->map(fn ($row, $groupName) => $row + ['name' => $groupName, 'percent_label' => $fmt($row['percent'])])->values(),
+            'warnings' => $warnings,
+        ]);
     }
 
     public function evaluateStore(Request $request, int $userId)
@@ -264,7 +380,7 @@ class KpiController extends Controller
     }
 
     // ───────────────────── RÀ SOÁT ĐIỂM DANH (Admin học vụ) ─────────────────────
-    public function attendanceReview(Request $request)
+    public function attendanceReview(Request $request): InertiaResponse
     {
         $this->guard();
         $date = $request->input('date', now()->toDateString());
@@ -284,9 +400,25 @@ class KpiController extends Controller
             'excused' => $records->where('status', 'excused')->count(),
         ];
 
-        $classes = ClassModel::orderBy('name')->get();
+        $classes = ClassModel::orderBy('name')->get(['id', 'name']);
 
-        return view('kpi.attendance-review', compact('records', 'summary', 'classes', 'date', 'classId'));
+        return Inertia::render('Kpi/AttendanceReview', [
+            'records' => $records->map(fn (StudentAttendance $r) => [
+                'id' => $r->id,
+                'student' => $r->student?->name,
+                'class' => $r->classModel?->name,
+                'teacher' => $r->teacher?->name ?? '—',
+                'note' => $r->note,
+                'status' => $r->status,
+                'status_label' => $r->status_label,
+                'review_status' => $r->review_status,
+                'review_label' => StatusLabel::for($r->review_status, 'Chưa rà soát'),
+            ])->values(),
+            'summary' => $summary,
+            'classes' => Ui::options($classes, 'name'),
+            'date' => $date,
+            'classId' => $classId,
+        ]);
     }
 
     public function reviewAttendance(Request $request, int $id)

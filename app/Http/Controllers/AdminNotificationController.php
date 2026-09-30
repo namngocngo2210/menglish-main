@@ -5,7 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\AdminNotification;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class AdminNotificationController extends Controller
 {
@@ -16,7 +17,7 @@ class AdminNotificationController extends Controller
         $this->notificationService = $notificationService;
     }
 
-    public function index(Request $request)
+    public function index(Request $request): Response
     {
         $user = $request->user();
         $isGlobalViewer = ! $user || NotificationService::seesSystemNotifications($user);
@@ -41,7 +42,26 @@ class AdminNotificationController extends Controller
             $query->where('is_read', false);
         }
 
-        $notifications = $query->paginate($request->perPage(15))->withQueryString();
+        $notifications = $query->paginate($request->perPage(15))->withQueryString()
+            ->through(fn (AdminNotification $notif) => [
+                'id' => $notif->id,
+                'title' => $notif->title,
+                'message' => $notif->message,
+                'type_label' => $notif->type_label,
+                'icon' => $notif->icon,
+                'badge_color' => $notif->badge_color,
+                'is_read' => (bool) $notif->is_read,
+                // Lead tồn đọng: thông tin khách + nút "Xử lý Lead ngay".
+                'lead' => $notif->data && isset($notif->data['customer_id']) ? [
+                    'customer_id' => $notif->data['customer_id'],
+                    'customer_name' => $notif->data['customer_name'] ?? null,
+                    'customer_phone' => $notif->data['customer_phone'] ?? null,
+                    'assigned_user' => $notif->data['assigned_user'] ?? null,
+                    'hours_elapsed' => $notif->data['hours_elapsed'] ?? null,
+                ] : null,
+                'created_at' => $notif->created_at->toIso8601String(),
+                'created_ago' => $notif->created_at->diffForHumans(),
+            ]);
 
         $baseQuery = AdminNotification::query();
         if ($user) {
@@ -54,7 +74,11 @@ class AdminNotificationController extends Controller
             'stale_leads' => (clone $baseQuery)->where('type', 'stale_lead_24h')->where('is_read', false)->count(),
         ];
 
-        return view('notifications.index', compact('notifications', 'stats'));
+        return Inertia::render('Notifications/Index', [
+            'notifications' => $notifications,
+            'stats' => $stats,
+            'filters' => ['type' => $request->input('type'), 'unread' => (bool) $request->input('unread')],
+        ]);
     }
 
     public function dropdown(Request $request)

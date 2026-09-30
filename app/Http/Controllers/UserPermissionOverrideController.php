@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\AclHelper;
 use App\Http\Concerns\RendersModals;
 use App\Http\Requests\UserPermissionOverrideRequest;
 use App\Models\Branch;
@@ -11,11 +12,13 @@ use App\Models\UserPermissionOverride;
 use App\Support\DataScope;
 use App\Support\PermissionCatalog;
 use App\Support\Rbac;
+use App\Support\Ui;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Inertia\Response as InertiaResponse;
 use Spatie\Permission\Models\Permission;
 
 /**
@@ -35,8 +38,8 @@ class UserPermissionOverrideController extends Controller
     /** Ký tự thay dấu "." trong tên action động (user.assign_role.<vai trò>) trên form (khóa mảng không chứa "."). */
     public const ACTION_DOT = ':';
 
-    /** Mở từ danh sách nhân sự → modal 4xl (htmx); mở thẳng URL → trang đầy đủ. */
-    public function edit(User $user): Response
+    /** Mở từ danh sách nhân sự → modal 4xl; mở thẳng URL → trang đầy đủ (kèm thẻ số liệu). */
+    public function edit(User $user): InertiaResponse
     {
         $this->ensureCanOverride($user);
 
@@ -44,7 +47,8 @@ class UserPermissionOverrideController extends Controller
         $groups = PermissionCatalog::grouped($allNames);
 
         $rolePermissions = $user->getAllPermissions()->pluck('name')->all();
-        if ($user->isSuperAdmin()) {
+        $targetIsSuperAdmin = $user->isSuperAdmin();
+        if ($targetIsSuperAdmin) {
             $rolePermissions = array_values(array_unique(array_merge($rolePermissions,
                 $allNames->reject(fn (string $n) => PermissionCatalog::isAudience($n))->all())));
         }
@@ -70,7 +74,7 @@ class UserPermissionOverrideController extends Controller
         // Phạm vi dữ liệu: mức theo vai trò, mức cá nhân đang chọn (override), mức hiệu lực.
         $dataScopes = collect(PermissionCatalog::scopedModules())->map(fn (array $levels, string $module) => [
             'levels' => $levels,
-            'role' => $user->isSuperAdmin() ? DataScope::ALL : $this->roleLevel($levels, $module, $rolePermissions),
+            'role' => $targetIsSuperAdmin ? DataScope::ALL : $this->roleLevel($levels, $module, $rolePermissions),
             'personal' => $this->personalLevel($levels, $module, $allOverrides),
             'effective' => DataScope::level($user, $module),
         ]);
@@ -89,10 +93,81 @@ class UserPermissionOverrideController extends Controller
         $scopeUnitCount = $scopes->sum(fn (array $scope) => count($scope['ids']));
         $moduleCount = collect($groups)->sum(fn ($modules) => count($modules));
 
-        return $this->modalView('users.permissions', compact(
-            'user', 'groups', 'rolePermissions', 'overrides', 'scopes', 'dataScopes', 'branches', 'classes',
-            'effectiveCount', 'modulesWithAccess', 'scopeUnitCount', 'moduleCount'
-        ));
+        $user->loadMissing(['branch', 'roles']);
+        $columns = PermissionCatalog::matrixColumns();
+        $levelLabels = PermissionCatalog::scopeLevelLabels();
+
+        // Một ô ma trận: quyết định hiện tại (inherit / allow / deny) + vai trò gốc có quyền không.
+        $cell = function (string $module, string $permission, bool $withLabel) use ($overrides, $rolePermissions) {
+            $action = PermissionCatalog::keyOf($permission);
+            $override = $overrides->get($permission);
+
+            return [
+                'name' => $permission,
+                'action' => $action,
+                'formKey' => str_replace('.', self::ACTION_DOT, $action),
+                'label' => $withLabel ? PermissionCatalog::label($permission) : null,
+                'audience' => PermissionCatalog::isAudience($permission),
+                'description' => PermissionCatalog::description($permission),
+                'role' => in_array($permission, $rolePermissions, true),
+                'decision' => $override?->allow === true ? 'allow' : ($override?->allow === false ? 'deny' : 'inherit'),
+            ];
+        };
+
+        $matrix = collect($groups)->map(fn (array $modules, string $groupLabel) => [
+            'label' => $groupLabel,
+            'modules' => collect($modules)->map(function (array $buckets, string $module) use ($columns, $cell, $scopes, $dataScopes, $levelLabels, $modulesWithAccess, $groupLabel) {
+                $byKey = collect($buckets['actions'])->keyBy(fn ($p) => PermissionCatalog::keyOf($p));
+                $extra = collect($buckets['actions'])->reject(fn ($p) => array_key_exists(PermissionCatalog::keyOf($p), $columns))
+                    ->merge($buckets['dynamic'])->merge($buckets['audience'])->values();
+                $dataScope = $dataScopes->get($module);
+
+                return [
+                    'module' => $module,
+                    'label' => PermissionCatalog::moduleLabel($module),
+                    'icon' => config("permission_catalog.modules.{$module}.icon", 'apps'),
+                    'extraOpen' => $groupLabel === 'Kế toán / Học phí',
+                    'cells' => collect(array_keys($columns))->mapWithKeys(fn (string $key) => [
+                        $key => $byKey->has($key) ? $cell($module, $byKey->get($key), false) : null,
+                    ])->all(),
+                    'extra' => $extra->map(fn (string $permission) => $cell($module, $permission, true))->all(),
+                    'dataScope' => $dataScope ? [
+                        'roleLabel' => $levelLabels[$dataScope['role']] ?? $dataScope['role'],
+                        'levels' => collect($dataScope['levels'])->map(fn (string $level) => [
+                            'value' => $level,
+                            'label' => $levelLabels[$level] ?? $level,
+                            'title' => PermissionCatalog::scopeLevelDescription($module, $level),
+                        ])->all(),
+                        'personal' => $dataScope['personal'],
+                        'effective' => ($levelLabels[$dataScope['effective']] ?? $dataScope['effective']).' — '.PermissionCatalog::scopeLevelDescription($module, $dataScope['effective']),
+                    ] : null,
+                    'supportsScope' => UserPermissionOverride::supportsScope($module),
+                    'hasAccess' => in_array($module, $modulesWithAccess, true),
+                    'scope' => $scopes->get($module, ['type' => UserPermissionOverride::SCOPE_ALL, 'ids' => []]),
+                ];
+            })->values()->all(),
+        ])->values()->all();
+
+        return $this->modalPage('Users/Permissions', [
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'employee_code' => $user->employee_code ?: 'NV-'.str_pad((string) $user->id, 4, '0', STR_PAD_LEFT),
+                'branch_name' => $user->branch?->name,
+                'roles' => $user->roles->map(fn ($role) => AclHelper::shortRoleLabel($role->name))->values()->all(),
+            ],
+            'targetIsSuperAdmin' => $targetIsSuperAdmin,
+            'columns' => Ui::options($columns),
+            'matrix' => $matrix,
+            'branches' => Ui::options($branches, 'name'),
+            'classes' => Ui::options($classes, fn (ClassModel $class) => $class->name.($class->code ? " ({$class->code})" : '')),
+            'stats' => [
+                'modules' => $moduleCount,
+                'effective' => $effectiveCount,
+                'scopeUnits' => $scopeUnitCount,
+            ],
+        ]);
     }
 
     public function update(UserPermissionOverrideRequest $request, User $user): Response|RedirectResponse
@@ -184,7 +259,7 @@ class UserPermissionOverrideController extends Controller
             ])
             ->log('Cập nhật phân quyền chi tiết cá nhân');
 
-        return $this->modalSaved('Đã cập nhật phân quyền chi tiết của '.$user->name.'.', 'users-changed', route('users.index'));
+        return $this->modalSaved('Đã cập nhật phân quyền chi tiết của '.$user->name.'.', route('users.index'));
     }
 
     /** Mọi quyền hiển thị trên ma trận (trừ quyền gán vai trò Super Admin). */

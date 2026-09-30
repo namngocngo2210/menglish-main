@@ -3,14 +3,12 @@
 use App\Http\Controllers\DeployHookController;
 use App\Http\Middleware\AuditOperationMiddleware;
 use App\Http\Middleware\EnsureAccountIsActive;
+use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RequireInitialPasswordChange;
-use App\Support\Htmx;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Validation\ValidationException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -29,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
             EnsureAccountIsActive::class,
             RequireInitialPasswordChange::class,
             AuditOperationMiddleware::class,
+            HandleInertiaRequests::class,
         ]);
         $middleware->preventRequestForgery(except: [
             'hook/sepay-gateway/*',
@@ -36,6 +35,5 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        // Form trong modal (htmx) validate lỗi → 422 + form kèm lỗi; request thường vẫn redirect back như cũ.
-        $exceptions->render(fn (ValidationException $e, Request $request) => Htmx::renderValidationForm($e, $request));
+        //
     })->create();

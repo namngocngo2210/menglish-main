@@ -8,10 +8,12 @@ use App\Models\Student;
 use App\Models\StudentTuition;
 use App\Models\SupportTicket;
 use App\Models\TuitionReceipt;
+use App\Models\TuitionRefundRequest;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 /**
@@ -59,10 +61,10 @@ class ReviewRoundFinalTest extends TestCase
         $this->tuition($gone, 3000000, now()->subDays(3));
         $gone->delete();
 
-        $stats = $this->actingAs($this->accountant)->get(route('tuition.students'))->assertOk()->viewData('stats');
-
-        $this->assertSame(1, $stats['overdue']);
-        $this->assertEquals(4000000, $stats['debt']);
+        $this->actingAs($this->accountant)->get(route('tuition.students'))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Tuition/Students')
+                ->where('stats.overdue', 1)
+                ->where('stats.debt', fn ($debt) => (float) $debt === 4000000.0));
     }
 
     public function test_creator_reply_does_not_mark_ticket_in_progress_but_reopens_resolved(): void
@@ -94,7 +96,7 @@ class ReviewRoundFinalTest extends TestCase
             'student_id' => $student->id, 'type' => 'deferral', 'defer_from' => $from, 'defer_to' => now()->addMonth()->toDateString(),
             'reason' => 'Đi du lịch',
         ])->assertSessionHasNoErrors();
-        $request = \App\Models\TuitionRefundRequest::where('type', 'deferral')->firstOrFail();
+        $request = TuitionRefundRequest::where('type', 'deferral')->firstOrFail();
         $this->actingAs($this->userWithRole('admin'))->post(route('tuition.refunds.approve', $request->id))->assertSessionHasNoErrors();
 
         $this->assertSame('studying', $student->fresh()->status);

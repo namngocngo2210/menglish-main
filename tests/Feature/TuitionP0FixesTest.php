@@ -17,6 +17,8 @@ use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Testing\TestResponse;
+use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 class TuitionP0FixesTest extends TestCase
@@ -341,7 +343,7 @@ class TuitionP0FixesTest extends TestCase
 
         $response = $this->actingAs($this->accountant)->get(route('tuition.receipts.approve'));
         $response->assertOk();
-        $this->assertSame(0, $response->viewData('rejectedTodayCount'));
+        $response->assertInertia(fn (AssertableInertia $page) => $page->component('Tuition/ApproveReceipt')->where('rejectedTodayCount', 0));
     }
 
     // ---------------------------------------------------------------------
@@ -534,17 +536,18 @@ class TuitionP0FixesTest extends TestCase
 
         $response = $this->actingAs($this->admin)->get(route('finance.reports.revenue', ['month' => now()->format('Y-m')]));
         $response->assertOk();
+        $props = $this->inertiaProps($response);
 
-        $this->assertEquals(3150000, (float) $response->viewData('totalRevenue'));
-        $matrix = collect($response->viewData('branchMatrix'))->keyBy(fn ($row) => $row['branch']->id);
+        $this->assertEquals(3150000, (float) $props['totalRevenue']);
+        $matrix = collect($props['branchMatrix'])->keyBy(fn ($row) => $row['branch']['id']);
         $this->assertEquals(3000000, (float) $matrix[$this->branch->id]['revenue']);
         $this->assertEquals(150000, (float) $matrix[$branchB->id]['revenue']);
-        $this->assertEquals(3150000, (float) $response->viewData('totalMatrixRevenue'));
+        $this->assertEquals(3150000, (float) $props['totalMatrixRevenue']);
 
         $responseB = $this->actingAs($this->admin)->get(route('finance.reports.revenue', [
             'month' => now()->format('Y-m'), 'branch_id' => $branchB->id,
         ]));
-        $this->assertEquals(150000, (float) $responseB->viewData('totalRevenue'));
+        $this->assertEquals(150000, (float) $this->inertiaProps($responseB)['totalRevenue']);
     }
 
     public function test_revenue_export_uses_same_status_thresholds_as_screen(): void
@@ -660,5 +663,16 @@ class TuitionP0FixesTest extends TestCase
             // Phase 4: nhập Excel đã làm thật — thiếu file/chi nhánh thì báo lỗi validate, không báo thành công.
             ->assertSessionHasErrors(['excel_file', 'branch_id'])
             ->assertSessionMissing('status');
+    }
+
+    /** @return array<string, mixed> */
+    private function inertiaProps(TestResponse $response): array
+    {
+        $props = [];
+        $response->assertInertia(function (AssertableInertia $page) use (&$props) {
+            $props = $page->toArray()['props'];
+        });
+
+        return $props;
     }
 }

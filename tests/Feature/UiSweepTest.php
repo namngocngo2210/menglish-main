@@ -241,7 +241,7 @@ class UiSweepTest extends TestCase
 
         $this->actingAs($this->admin)->get(route('payroll.periods.show', $period->id))
             ->assertOk()
-            ->assertSee(route('payroll.periods.export', $period->id), false)
+            ->assertSee(route('payroll.periods.export', $period->id, false), false)
             ->assertDontSee('window.print();', false);
     }
 
@@ -306,12 +306,12 @@ class UiSweepTest extends TestCase
             'title' => ['Tiêu đề ticket là bắt buộc.'],
         ]));
 
+        // Form Giao việc (Vue): lỗi hiện dưới từng trường; dữ liệu đã nhập do form giữ phía trình duyệt (không qua old input).
         $this->actingAs($this->admin)
-            ->withSession(['errors' => $errors, '_old_input' => ['taskDescription' => 'Nội dung đã nhập']])
+            ->withSession(['errors' => $errors])
             ->get(route('tasks.create'))
             ->assertOk()
-            ->assertSee('Tiêu đề công việc là bắt buộc.')
-            ->assertSee('Nội dung đã nhập');
+            ->assertSee('Tiêu đề công việc là bắt buộc.');
 
         $this->actingAs($this->admin)
             ->withSession(['errors' => $errors])

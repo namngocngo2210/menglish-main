@@ -3,8 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\AcademicRecord;
-use App\Models\AdminNotification;
-use App\Models\BankAccount;
 use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\ClassReport;
@@ -28,6 +26,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
+use Inertia\Testing\AssertableInertia;
 use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
 
@@ -305,8 +304,9 @@ class Phase4AcceptanceTest extends TestCase
         $this->assertTrue(AcademicRecord::where('record_code', 'DEBTREMIND-T+3-'.$t4->id.'-2026-09-20')->exists(), 'Nhắc nợ tự động mốc T+3.');
         $this->at('2026-09-20 10:00');
         $this->actingAs($this->academic)->get(route('tuition.overdue'))->assertOk()
-            ->assertViewHas('seriousOverdue', fn ($rows) => $rows->pluck('id')->all() === [$t2->id] && $rows->first()->days_overdue === 12)
-            ->assertViewHas('newOverdue', fn ($rows) => $rows->pluck('id')->all() === [$t4->id] && $rows->first()->days_overdue === 3);
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Tuition/Overdue')
+                ->where('seriousOverdue', fn ($rows) => $rows->pluck('id')->all() === [$t2->id] && $rows->first()['days_overdue'] === 12)
+                ->where('newOverdue', fn ($rows) => $rows->pluck('id')->all() === [$t4->id] && $rows->first()['days_overdue'] === 3));
         $this->actingAs($this->academic)->post(route('tuition.overdue.contacted', $t2->id), ['note' => 'Gọi PH, hẹn cuối tuần.'])->assertSessionHasNoErrors();
         $this->actingAs($this->academic)->post(route('tuition.overdue.report-admin', $t2->id), ['note' => 'Quá hạn gần 2 tuần.'])->assertSessionHasNoErrors();
         $this->actingAs($this->academic)->post(route('tuition.overdue.remind', $t2->id))->assertSessionHasNoErrors();
@@ -328,20 +328,25 @@ class Phase4AcceptanceTest extends TestCase
         ])->assertSessionHasNoErrors();
         $this->actingAs($this->managerA)->post(route('tuition.refunds.approve', TuitionRefundRequest::where('student_id', $s4->id)->sole()->id))->assertSessionHasNoErrors();
         $this->actingAs($this->academic)->get(route('tuition.overdue'))->assertOk()
-            ->assertViewHas('newOverdue', fn ($rows) => $rows->isEmpty())
-            ->assertViewHas('paused', fn ($rows) => $rows->pluck('id')->contains($t4->id));
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('newOverdue', fn ($rows) => $rows->isEmpty())
+                ->where('paused', fn ($rows) => $rows->pluck('id')->contains($t4->id)));
 
         // ── 9. Phạm vi: Quản lý / Kế toán chi nhánh B chỉ thấy chi nhánh mình; Sale không vào báo cáo tài chính ─────
         $this->actingAs($this->managerB)->get(route('tuition.overdue'))->assertOk()
-            ->assertViewHas('overdueTuitions', fn ($rows) => $rows->pluck('id')->all() === [$tB->id]);
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('overdueCount', 1)
+                ->where('seriousOverdue', fn ($rows) => $rows->pluck('id')->all() === [$tB->id])
+                ->where('newOverdue', fn ($rows) => $rows->isEmpty()));
         $this->actingAs($this->managerB)->get(route('tuition.students'))->assertOk()
-            ->assertViewHas('tuitions', fn ($page) => collect($page->items())->pluck('branch_id')->unique()->all() === [$this->branchB->id]);
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('tuitions.data', fn ($rows) => $rows->pluck('branch_name')->unique()->values()->all() === [$this->branchB->name]));
         $this->actingAs($this->managerB)->get(route('finance.reports.revenue', ['branch_id' => $this->branchA->id]))->assertOk()
-            ->assertViewHas('branchId', $this->branchB->id);
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('branchId', (string) $this->branchB->id));
         $this->actingAs($this->accountantB)->get(route('finance.reports.revenue', ['branch_id' => 'all']))->assertOk()
-            ->assertViewHas('branches', fn ($branches) => $branches->pluck('id')->all() === [$this->branchB->id]);
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('branches', fn ($branches) => $branches->pluck('id')->all() === [$this->branchB->id]));
         $this->actingAs($this->admin)->get(route('finance.reports.revenue', ['month' => '2026-09']))->assertOk()
-            ->assertViewHas('totalRevenue', fn ($total) => (float) $total > 0);
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('totalRevenue', fn ($total) => (float) $total > 0));
         foreach (['finance.reports.revenue', 'finance.expenses.index', 'tuition.students', 'tuition.overdue'] as $route) {
             $this->actingAs($this->sale)->get(route($route))->assertForbidden();
         }

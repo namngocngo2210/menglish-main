@@ -248,6 +248,6 @@ class FlexibleForeignTeacherAndAssistantTest extends TestCase
 
         // Trợ giảng thấy buổi của lớp có việc giao hôm nay dù không được gán cố định vào lớp.
         $response = $this->actingAs($this->assistant)->get(route('portal.ta-tasks', ['date' => '2026-10-05']))->assertOk();
-        $this->assertTrue($response->viewData('sessions')->contains('id', $session->id));
+        $this->assertTrue(collect($response->viewData('page')['props']['sessions'])->contains('id', $session->id));
     }
 }

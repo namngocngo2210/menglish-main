@@ -2,18 +2,28 @@
 
 namespace Tests\Feature;
 
+use App\Models\AcademicRecord;
 use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\ClassSession;
 use App\Models\Course;
 use App\Models\CourseLevel;
+use App\Models\Holiday;
+use App\Models\Homework;
+use App\Models\MiniTestScore;
 use App\Models\Student;
+use App\Models\StudentAttendance;
 use App\Models\SyllabusCurriculum;
+use App\Models\SyllabusLesson;
+use App\Models\SyllabusUnit;
+use App\Models\TeacherHourlyRate;
+use App\Models\TeacherTimesheet;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 /**
@@ -142,7 +152,7 @@ class Phase2MockupClassesTest extends TestCase
             ->assertSee('Năm học 2026 - 2027')
             ->assertSee('Slot 1')->assertSee('Slot 2')->assertSee('Hủy thay đổi')
             ->assertSee('Danh sách lớp hiện tại')->assertSee('GV: Nguyễn Văn Giáo')
-            ->assertDontSee('role="tablist"', false)->assertSee(route('tasks.schedule-config', ['view' => 'report']), false)
+            ->assertDontSee('role="tablist"', false)->assertSee(route('tasks.schedule-config', ['view' => 'report'], false), false)
             ->assertDontSee('Lưu báo cáo nhân sự');
 
         $this->actingAs($this->admin)->get(route('tasks.schedule-config', ['view' => 'report']))->assertOk()
@@ -173,7 +183,7 @@ class Phase2MockupClassesTest extends TestCase
         $evening = $this->makeSession('2026-10-07', '18:00', '19:30');   // chưa tới giờ
         $old = $this->makeSession('2026-10-05', '07:00', '08:30');       // quá 24h
         $student = $this->student('Học sinh Dashboard');
-        \App\Models\StudentAttendance::create(['class_id' => $this->classModel->id, 'class_session_id' => $morning->id,
+        StudentAttendance::create(['class_id' => $this->classModel->id, 'class_session_id' => $morning->id,
             'student_id' => $student->id, 'user_id' => $this->teacher->id, 'session_date' => '2026-10-07', 'status' => 'present']);
 
         $this->actingAs($this->admin)->get(route('tasks.classes-dashboard', ['date' => '2026-10-07']))->assertOk()
@@ -225,10 +235,10 @@ class Phase2MockupClassesTest extends TestCase
             'name' => 'Giỗ Tổ Hùng Vương', 'start_date' => '2027-04-16', 'end_date' => '2027-04-16', 'branch_ids' => [$quan7->id],
         ])->assertSessionHasNoErrors();
 
-        $tet = \App\Models\Holiday::where('name', 'Tết Nguyên Đán 2027')->firstOrFail();
+        $tet = Holiday::where('name', 'Tết Nguyên Đán 2027')->firstOrFail();
         $this->assertSame('HOL-2027-001', $tet->code);
         $this->assertTrue($tet->is_system_wide);
-        $gioTo = \App\Models\Holiday::where('name', 'Giỗ Tổ Hùng Vương')->firstOrFail();
+        $gioTo = Holiday::where('name', 'Giỗ Tổ Hùng Vương')->firstOrFail();
         $this->assertSame('HOL-2027-002', $gioTo->code);
         $this->assertFalse($gioTo->is_system_wide);
 
@@ -254,7 +264,9 @@ class Phase2MockupClassesTest extends TestCase
             ->assertSee('Tổng số học sinh')->assertSee('Tìm học sinh hoặc SĐT...')->assertSee('role="search"', false)
             ->assertSee('Họ tên &amp; Ngày sinh', false)->assertSee('Thông tin liên hệ')->assertSee('Lớp hiện tại')
             ->assertSee('12/05/2008')->assertSee('namanh@example.com')->assertSee('MK2-01')->assertSee('Chưa có lớp')
-            ->assertSee('Chi tiết')->assertSee('Liên kết lớp khác')->assertSee('data-testid="list-link-class-form"', false)
+            ->assertSee('Chi tiết')->assertSee('Liên kết lớp khác')
+            // Form liên kết lớp nằm trong modal Vue (chỉ render khi mở) → kiểm tra dữ liệu lớp liên kết được gửi xuống trang.
+            ->assertInertia(fn (Assert $page) => $page->component('Students/Index')->has('linkableClasses'))
             ->assertDontSee('Học thử')->assertDontSee('Blacklist');
         foreach (Student::STATUSES as $key => $label) {
             $response->assertSee('name="statuses[]" value="'.$key.'"', false)->assertSee($label);
@@ -275,9 +287,9 @@ class Phase2MockupClassesTest extends TestCase
         $curriculum = SyllabusCurriculum::create(['code' => 'SYL-K1', 'title' => 'Kids Early Start']);
         CourseLevel::create(['code' => 'KID-BEG-01', 'name' => 'Kids Beginner 1', 'target' => 'Starters', 'lessons_count' => 24,
             'is_active' => true, 'syllabus_curriculum_id' => $curriculum->id]);
-        $unit = \App\Models\SyllabusUnit::create(['curriculum_id' => $curriculum->id, 'stage_id' => $curriculum->stages()->first()->id,
+        $unit = SyllabusUnit::create(['curriculum_id' => $curriculum->id, 'stage_id' => $curriculum->stages()->first()->id,
             'unit_number' => 4, 'title' => 'Future Tech & AI']);
-        \App\Models\SyllabusLesson::create(['curriculum_id' => $curriculum->id, 'unit_id' => $unit->id, 'session_no' => 1, 'title' => 'Grammar: Will vs Be going to']);
+        SyllabusLesson::create(['curriculum_id' => $curriculum->id, 'unit_id' => $unit->id, 'session_no' => 1, 'title' => 'Grammar: Will vs Be going to']);
 
         $this->makeSession('2026-10-05', '17:30', '19:00', ['status' => 'completed']);
         $this->makeSession('2026-10-08', '17:30', '19:00');
@@ -333,11 +345,11 @@ class Phase2MockupClassesTest extends TestCase
     {
         $session = $this->makeSession('2026-10-07', '10:00', '11:30');
         $student = $this->student('Học sinh Cần Chú Ý');
-        \App\Models\MiniTestScore::create(['class_id' => $this->classModel->id, 'student_id' => $student->id, 'user_id' => $this->teacher->id,
+        MiniTestScore::create(['class_id' => $this->classModel->id, 'student_id' => $student->id, 'user_id' => $this->teacher->id,
             'name' => 'Unit 3', 'score' => 4.5, 'max_score' => 10, 'test_date' => '2026-10-06']);
-        \App\Models\TeacherHourlyRate::create(['user_id' => $this->teacher->id, 'hourly_rate' => 200000, 'effective_from' => '2026-01-01']);
-        \App\Models\TeacherTimesheet::create(['user_id' => $this->teacher->id, 'class_id' => $this->classModel->id, 'teaching_date' => '2026-10-05',
-            'hours' => 1.5, 'status' => 'approved', 'source' => \App\Models\TeacherTimesheet::SOURCE_CHECKIN]);
+        TeacherHourlyRate::create(['user_id' => $this->teacher->id, 'hourly_rate' => 200000, 'effective_from' => '2026-01-01']);
+        TeacherTimesheet::create(['user_id' => $this->teacher->id, 'class_id' => $this->classModel->id, 'teaching_date' => '2026-10-05',
+            'hours' => 1.5, 'status' => 'approved', 'source' => TeacherTimesheet::SOURCE_CHECKIN]);
 
         $this->actingAs($this->teacher)->get(route('teacher.home'))->assertOk()
             ->assertSee('Tổng quan hôm nay')
@@ -347,7 +359,7 @@ class Phase2MockupClassesTest extends TestCase
             ->assertSee('Học sinh cần chú ý')->assertSee('Học sinh Cần Chú Ý')->assertSee('4.5/10')
             ->assertSee('Lương tạm tính tháng 10')->assertSee('300.000 đ')
             ->assertSee('Báo cáo chấm công')->assertSee('Vi phạm &amp; Khoản trừ', false)
-            ->assertSee(route('teacher.remarks', ['classId' => $this->classModel->id, 'session' => $session->id]), false)
+            ->assertSee(route('teacher.remarks', ['classId' => $this->classModel->id, 'session' => $session->id], false), false)
             ->assertSee('data-testid="teacher-bottom-nav"', false)->assertSee('Bảng công')->assertSee('Cá nhân')
             ->assertDontSee('12.500.000')->assertDontSee('Nguyễn Văn A');
     }
@@ -371,7 +383,7 @@ class Phase2MockupClassesTest extends TestCase
         $this->actingAs($this->teacher)->post(route('teacher.attendance.store', $this->classModel->id), [
             'class_session_id' => $session->id, 'status' => [$student->id => 'absent'],
         ])->assertSessionHasErrors(['note', 'note.'.$student->id]);
-        $this->assertSame(0, \App\Models\StudentAttendance::count());
+        $this->assertSame(0, StudentAttendance::count());
 
         $this->actingAs($this->teacher)->post(route('teacher.attendance.store', $this->classModel->id), [
             'class_session_id' => $session->id, 'status' => [$student->id => 'absent'], 'note' => [$student->id => 'Phụ huynh báo ốm'],
@@ -391,7 +403,7 @@ class Phase2MockupClassesTest extends TestCase
         $present = $this->student('Trần Thị B');
         $absent = $this->student('Lê Văn C');
         foreach ([[$present, 'present', null], [$absent, 'absent', 'Ốm']] as [$st, $status, $note]) {
-            \App\Models\StudentAttendance::create(['class_id' => $this->classModel->id, 'class_session_id' => $morning->id, 'student_id' => $st->id,
+            StudentAttendance::create(['class_id' => $this->classModel->id, 'class_session_id' => $morning->id, 'student_id' => $st->id,
                 'user_id' => $this->teacher->id, 'session_date' => '2026-10-07', 'status' => $status, 'note' => $note]);
         }
 
@@ -411,7 +423,7 @@ class Phase2MockupClassesTest extends TestCase
             'remarks' => [$present->id => ['result' => 'Đạt mục tiêu bài học']],
         ])->assertSessionHasNoErrors();
 
-        $records = \App\Models\AcademicRecord::where('module', 'teacher_remarks')->orderBy('id')->get();
+        $records = AcademicRecord::where('module', 'teacher_remarks')->orderBy('id')->get();
         $this->assertCount(2, $records);
         $this->assertSame($this->classModel->id.'-2026-10-07-s'.$morning->id, $records[0]->record_code);
         $this->assertSame('draft', $records[0]->status);
@@ -446,14 +458,14 @@ class Phase2MockupClassesTest extends TestCase
             'categories' => ['video', 'workbook'], 'items' => ['video' => 'Quay video giới thiệu bản thân', 'workbook' => 'Trang 12-13'],
             'class_note' => 'Nộp trước 12h chủ nhật', 'youtube_url' => 'https://youtube.com/watch?v=abc',
         ])->assertSessionHasNoErrors();
-        $homework = \App\Models\Homework::sole();
+        $homework = Homework::sole();
         $this->assertSame($session->id, $homework->class_session_id);
         $this->assertSame('2026-10-10 20:00', $homework->due_at->format('Y-m-d H:i'));
         $this->assertSame(['video' => 'Quay video giới thiệu bản thân', 'workbook' => 'Trang 12-13'], $homework->items);
 
         // Học sinh nộp bài "video" → hạng mục bị khóa khi sửa, không bỏ được, không xóa được bài tập.
         $this->travel(1)->hours();
-        \App\Models\AcademicRecord::create(['screen_key' => 'x', 'module' => 'student_portal', 'record_code' => 'SUB-MK2', 'title' => 'Bài nộp', 'status' => 'submitted',
+        AcademicRecord::create(['screen_key' => 'x', 'module' => 'student_portal', 'record_code' => 'SUB-MK2', 'title' => 'Bài nộp', 'status' => 'submitted',
             'data' => ['student_id' => (string) $student->id, 'homework_type' => 'video']]);
         $this->actingAs($this->teacher)->get(route('teacher.homework', ['classId' => $this->classModel->id, 'edit' => $homework->id]))
             ->assertOk()->assertSee('Sửa bài tập về nhà')->assertSee('Đã có học sinh nộp');
@@ -470,7 +482,7 @@ class Phase2MockupClassesTest extends TestCase
         $curriculum = SyllabusCurriculum::create(['code' => 'SYL-K1', 'title' => 'Kids Early Start']);
         CourseLevel::create(['code' => 'KID-BEG-01', 'name' => 'Kids Beginner 1', 'target' => 'Starters', 'lessons_count' => 24,
             'is_active' => true, 'syllabus_curriculum_id' => $curriculum->id]);
-        $unit = \App\Models\SyllabusUnit::create(['curriculum_id' => $curriculum->id, 'stage_id' => $curriculum->stages()->first()->id,
+        $unit = SyllabusUnit::create(['curriculum_id' => $curriculum->id, 'stage_id' => $curriculum->stages()->first()->id,
             'unit_number' => 2, 'title' => 'Daily Routines']);
         $student = $this->student('Nguyễn Văn Điểm');
 
@@ -489,7 +501,7 @@ class Phase2MockupClassesTest extends TestCase
             'unit_id' => $unit->id, 'student_id' => $student->id, 'skills' => ['listening' => 8, 'speaking' => 7, 'reading' => 9, 'writing' => 6],
             'note' => 'Cần luyện viết',
         ])->assertSessionHasNoErrors();
-        $score = \App\Models\MiniTestScore::sole();
+        $score = MiniTestScore::sole();
         $this->assertSame('Unit 2: Daily Routines', $score->name);
         $this->assertSame($unit->id, $score->syllabus_unit_id);
         $this->assertEquals(7.5, (float) $score->score);

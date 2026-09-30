@@ -4,8 +4,12 @@ namespace Tests;
 
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
+use Illuminate\Foundation\Http\Events\RequestHandled;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Inertia\Ssr\Gateway;
+use Inertia\Ssr\SsrState;
 use Spatie\Permission\PermissionRegistrar;
+use Tests\Support\SsrTestGateway;
 
 abstract class TestCase extends BaseTestCase
 {
@@ -28,6 +32,20 @@ abstract class TestCase extends BaseTestCase
 
         parent::setUp();
         \Illuminate\Support\Facades\Mail::fake();
+        $this->renderInertiaPagesAsHtml();
+    }
+
+    /**
+     * Trang Inertia (Vue) trong test trả HTML thật (render bằng Node — tests/Support/InertiaSsrServer) để
+     * assertSee / assertDontSee kiểm tra nội dung hiển thị như trang Blade. Không cần asset Vite trong test.
+     */
+    private function renderInertiaPagesAsHtml(): void
+    {
+        $this->withoutVite();
+        config(['inertia.ssr.enabled' => true]);
+        $this->app->instance(Gateway::class, new SsrTestGateway);
+        // SsrState giữ kết quả render theo request: nhiều request trong 1 test → mỗi request render lại.
+        $this->app['events']->listen(RequestHandled::class, fn () => $this->app->forgetInstance(SsrState::class));
     }
 
     /**

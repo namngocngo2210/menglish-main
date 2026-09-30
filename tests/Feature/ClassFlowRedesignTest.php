@@ -132,7 +132,7 @@ class ClassFlowRedesignTest extends TestCase
 
         // Lớp chờ lịch: nút chính mở thẳng màn TKB lọc sẵn lớp; tab Lịch & buổi học chỉ còn một nút Cấu hình lịch.
         $pending = $this->makeClass(['status' => 'pending_schedule']);
-        $tkbUrl = e(route('tasks.schedule-config', ['class_id' => $pending->id]));
+        $tkbUrl = e(route('tasks.schedule-config', ['class_id' => $pending->id], false));
         $overview = $this->actingAs($this->admin)->get(route('classes.show', $pending->id))->assertOk()->getContent();
         $this->assertStringContainsString($tkbUrl, $overview);
         $schedule = $this->actingAs($this->admin)->get(route('classes.show', ['id' => $pending->id, 'tab' => 'schedule']))->assertOk()->getContent();
@@ -155,7 +155,7 @@ class ClassFlowRedesignTest extends TestCase
 
         $this->actingAs($this->admin)->get(route('classes.show', ['id' => $class->id, 'tab' => 'schedule']))
             ->assertOk()->assertSee('Sắp diễn ra')->assertSee('Đã diễn ra')
-            ->assertSee(route('tasks.schedule-config', ['class_id' => $class->id]), false);
+            ->assertSee(route('tasks.schedule-config', ['class_id' => $class->id], false), false);
 
         $this->actingAs($this->admin)->get(route('classes.show', ['id' => $class->id, 'tab' => 'attendance']))
             ->assertOk()->assertSee('Chưa điểm danh')->assertSee(today()->subDay()->format('d/m/Y'));
@@ -200,13 +200,14 @@ class ClassFlowRedesignTest extends TestCase
         $this->makeClass();
 
         $create = $this->actingAs($this->admin)->get(route('classes.create'))->assertOk()
-            ->assertSee('href="'.route('classes.index').'"', false)
+            ->assertSee('href="'.route('classes.index', absolute: false).'"', false)
             ->assertDontSee('Flow 1')
-            ->assertDontSee('href="'.route('classes.trial-booking').'" class="mt-0.5', false);
+            ->assertDontSee('href="'.route('classes.trial-booking', absolute: false).'" class="mt-0.5', false);
         // Tab "Danh sách lớp" của mục Lớp học đang sáng trên trang tạo lớp.
-        $this->assertMatchesRegularExpression('/<a[^>]*href="'.preg_quote(route('classes.index'), '/').'"[^>]*aria-current="page"/', $create->getContent());
+        $href = 'href="'.preg_quote(route('classes.index'), '/').'"';
+        $this->assertMatchesRegularExpression('/<a[^>]*'.$href.'[^>]*aria-current="page"|<a[^>]*aria-current="page"[^>]*'.$href.'/', $create->getContent());
 
         $this->actingAs($this->admin)->get(route('classes.trial-booking'))->assertOk()
-            ->assertDontSee('href="'.route('classes.create').'"', false);
+            ->assertDontSee('href="'.route('classes.create', absolute: false).'"', false);
     }
 }

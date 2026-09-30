@@ -46,8 +46,8 @@ class ReviewRoundCrmTest extends TestCase
         // Học vụ tự tạo khách → là người phụ trách dù không có quyền lead.be_assigned.
         $lead = $this->lead('consulting', ['assigned_user_id' => $this->academic->id]);
 
-        $editForm = $this->actingAs($this->academic)->get(route('crm.customers.show', $lead->id))->assertOk()->viewData('editForm');
-        $this->assertTrue($editForm['salesUsers']->contains('id', $this->academic->id));
+        $editForm = $this->actingAs($this->academic)->get(route('crm.customers.show', $lead->id))->assertOk()->inertiaProps('editForm');
+        $this->assertTrue(collect($editForm['salesUsers'])->contains('value', $this->academic->id));
 
         $this->actingAs($this->academic)->put(route('crm.customers.update', $lead->id), [
             'name' => $lead->name, 'phone' => '0911222333', 'source' => 'Facebook',
@@ -61,8 +61,8 @@ class ReviewRoundCrmTest extends TestCase
 
     public function test_branch_scoped_user_cannot_create_lead_in_other_branch(): void
     {
-        $options = $this->actingAs($this->academic)->get(route('crm.customers.create'))->assertOk()->viewData('branches');
-        $this->assertSame([$this->branch->id], $options->pluck('id')->all());
+        $options = $this->actingAs($this->academic)->get(route('crm.customers.create'))->assertOk()->inertiaProps('branches');
+        $this->assertSame([$this->branch->id], collect($options)->pluck('value')->all());
 
         $this->actingAs($this->academic)->post(route('crm.customers.store'), [
             'name' => 'Khách chi nhánh khác', 'phone' => '0911000111', 'source' => 'Facebook', 'branch_id' => $this->otherBranch->id,
@@ -78,8 +78,8 @@ class ReviewRoundCrmTest extends TestCase
         $ok = $this->makeClass('UP-OK', 'upcoming', $course, now()->addDays(5));
         $stale = $this->makeClass('UP-OLD', 'upcoming', $course, now()->subDays(2));
 
-        $matches = $this->actingAs($this->academic)->get(route('crm.waiting-list'))->assertOk()
-            ->viewData('matchingClassesByLead')->get($lead->id)->pluck('id')->all();
+        $matches = collect(collect($this->actingAs($this->academic)->get(route('crm.waiting-list'))->assertOk()
+            ->inertiaProps('waitingLeads'))->firstWhere('id', $lead->id)['matches'])->pluck('value')->all();
 
         $this->assertContains($ok->id, $matches);
         $this->assertNotContains($stale->id, $matches);
@@ -93,7 +93,7 @@ class ReviewRoundCrmTest extends TestCase
 
         $this->academic->givePermissionTo('report.view');
         $response = $this->actingAs($this->academic)->get(route('crm.reports'))->assertOk();
-        $this->assertSame(2, $response->viewData('metricWonDeals'));
+        $this->assertSame(2, $response->inertiaProps('metricWonDeals'));
     }
 
     private function makeClass(string $code, string $status, Course $course, $start): ClassModel

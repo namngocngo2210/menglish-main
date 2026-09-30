@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\AclHelper;
 use App\Models\ClassModel;
 use App\Models\CommissionAdjustment;
 use App\Models\CommissionItem;
@@ -20,13 +21,18 @@ use App\Services\PayrollFormulaService;
 use App\Services\SalesCommissionService;
 use App\Support\DataScope;
 use App\Support\Money;
+use App\Support\Ui;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
+use Inertia\Response as InertiaResponse;
 
 class PayrollController extends Controller
 {
@@ -51,7 +57,24 @@ class PayrollController extends Controller
             ->withQueryString();
         $allPeriods = PayrollPeriod::latest()->get(['id', 'code', 'title']);
 
-        return view('payroll.periods', compact('periods', 'allPeriods', 'search', 'status', 'scoped'));
+        return Inertia::render('Payroll/Periods', [
+            'periods' => $periods->through(fn (PayrollPeriod $p) => [
+                'id' => $p->id,
+                'code' => $p->code,
+                'title' => $p->title,
+                'start_date' => $p->start_date?->toDateString(),
+                'end_date' => $p->end_date?->toDateString(),
+                'staff' => $p->records_count > 0 || $scoped ? (int) $p->records_count : (int) $p->total_staff,
+                // Giữ nguyên cách in số giờ của bản Blade: phạm vi hẹp in số thực, toàn hệ thống in cột decimal:2.
+                'hours' => $scoped ? (string) (float) $p->scoped_hours : (string) $p->total_hours,
+                'amount' => $scoped ? (float) $p->scoped_amount : (float) $p->total_amount,
+                'status' => $p->status,
+                'status_label' => $p->status_label,
+            ]),
+            'allPeriods' => Ui::options($allPeriods, fn (PayrollPeriod $p) => $p->title.' ('.$p->code.')'),
+            'defaultMonth' => (int) date('n'),
+            'defaultYear' => (int) date('Y'),
+        ]);
     }
 
     public function storePeriod(Request $request)
@@ -147,7 +170,40 @@ class PayrollController extends Controller
         $kpiPending = $period->records->filter(fn (PayrollRecord $r) => $r->kpi_state[0] === 'pending')->values();
         $allPeriods = PayrollPeriod::orderByDesc('year')->orderByDesc('month')->get(['id', 'code', 'title', 'month', 'year']);
 
-        return view('payroll.show', compact('period', 'records', 'kpiPending', 'allPeriods', 'search', 'type', 'kpi'));
+        // Bước tiếp theo của kỳ và ai đang giữ: chỉ Admin có quyền chốt / đánh dấu đã trả nên Kế toán, Quản lý cần biết kỳ đang chờ ai.
+        $user = $request->user();
+        [$nextStep, $nextColor] = match (true) {
+            $period->status === 'paid' => ['Hoàn tất: đã trả lương', 'neutral'],
+            $period->status === 'approved' => [$user->can('payroll.mark_paid') ? 'Bước tiếp: bạn đánh dấu đã trả' : 'Chờ Admin đánh dấu đã trả', 'info'],
+            $kpiPending->isNotEmpty() => ['Còn '.$kpiPending->count().' nhân sự chưa chốt KPI', 'error'],
+            $period->hasChangesSinceCalculation() => [$user->can('payroll.calculate') ? 'Bước tiếp: bạn bấm Đồng bộ & Tính lại (dữ liệu đã đổi)' : 'Chờ Kế toán Đồng bộ & Tính lại', 'warning'],
+            default => [$user->can('payroll.approve') ? 'Bước tiếp: bạn chốt bảng lương' : 'Chờ Admin chốt bảng lương', 'warning'],
+        };
+        $all = $period->records;
+
+        return Inertia::render('Payroll/Show', [
+            'period' => [
+                ...$this->periodData($period),
+                'next_step' => $nextStep,
+                'next_color' => $nextColor,
+            ],
+            'stats' => [
+                'total_amount' => (float) (DataScope::isAll($user, 'payroll') ? $period->total_amount : $all->sum('net_salary')),
+                'records' => $all->count(),
+                'parttime_sessions' => (int) $all->where('employee_type', 'parttime')->sum('teaching_sessions'),
+                'hours' => (string) $all->sum('actual_hours'),
+                'kpi_bonus' => (float) $all->sum('kpi_bonus'),
+                'deductions' => (float) $all->sum('total_deductions'),
+            ],
+            'kpiPending' => [
+                'count' => $kpiPending->count(),
+                'names' => $kpiPending->take(8)->map(fn ($r) => $r->user?->name)->filter()->implode(', '),
+            ],
+            'records' => $records->through(fn (PayrollRecord $r) => $this->recordRow($r)),
+            'periodOptions' => Ui::options($allPeriods, fn (PayrollPeriod $p) => 'Tháng '.str_pad($p->month, 2, '0', STR_PAD_LEFT).'/'.$p->year.' ('.$p->code.')'),
+            'typeOptions' => Ui::options(PayrollRecord::SALARY_ROLE_LABELS),
+            'filtered' => $search !== '' || $type || $kpi,
+        ]);
     }
 
     /**
@@ -343,7 +399,7 @@ class PayrollController extends Controller
      * Phiếu lương một người: toàn bộ khoản cộng / khoản trừ của một bản ghi lương theo loại nhân sự,
      * kèm căn cứ (buổi dạy, HS giữ được, KPI, hoa hồng trả / hoãn, thưởng tái tục, phạt, thu hồi).
      */
-    public function showRecord(int $id)
+    public function showRecord(Request $request, int $id): InertiaResponse
     {
         $record = $this->scopeRecords(PayrollRecord::with(['user.roles', 'period']))->findOrFail($id);
         $period = $record->period;
@@ -375,10 +431,134 @@ class PayrollController extends Controller
             ? CommissionTier::byStudents()->effectiveAt($period->end_date)->orderBy('min_students')->get()
             : collect();
 
-        return view('payroll.record-show', compact(
-            'record', 'period', 'timesheets', 'penalties', 'clawbacks', 'commissionReceipts',
-            'paidCommission', 'deferredCommission', 'lostStudents', 'settings', 'variant', 'currentRate', 'commissionTiers'
-        ));
+        $canEdit = ! $period->isLocked() && $request->user()->can('payroll.edit');
+        $lines = $record->manualLines();
+        if ($canEdit && $record->isPartTime() && empty($lines)) {
+            // Gợi ý các khoản phụ cấp của mockup GV Part-time (khoản 0đ không được lưu).
+            $lines = [
+                ['kind' => 'earning', 'label' => 'Hỗ trợ thỏa thuận', 'amount' => ''],
+                ['kind' => 'earning', 'label' => 'Phụ cấp gửi xe', 'amount' => ''],
+                ['kind' => 'earning', 'label' => 'Thưởng khác', 'amount' => ''],
+            ];
+        } elseif ($canEdit && $variant['key'] === 'academic_lead' && empty($lines)) {
+            $lines = [
+                ['kind' => 'earning', 'label' => 'Lương giảng dạy', 'amount' => ''],
+                ['kind' => 'earning', 'label' => 'Hỗ trợ', 'amount' => ''],
+            ];
+        }
+        $kpiGroups = collect(data_get($record->calculation_details, 'kpi.items', []))->groupBy('group');
+
+        return Inertia::render('Payroll/Record', [
+            'record' => [
+                ...$this->recordRow($record),
+                'uses_q3' => $record->usesQ3Formula(),
+                'is_full_time' => $record->isFullTime(),
+                'salary_role' => $record->salary_role,
+                'user_id' => $record->user_id,
+                'retention_base_students' => (int) $record->retention_base_students,
+                'retention_lost' => (int) data_get($record->calculation_details, 'retention.lost', 0),
+                'commission_closed_count' => (int) $record->commission_closed_count,
+                'commission_percent' => $record->commission_percent !== null ? (float) $record->commission_percent : null,
+                'gross_income' => (float) $record->gross_income,
+                'total_deductions' => (float) $record->total_deductions,
+                'kpi_fund' => (float) data_get($record->calculation_details, 'kpi.fund', $settings['academic_kpi_fund']),
+                'rate_insurance' => (float) data_get($record->calculation_details, 'rates.insurance', $settings['insurance_rate_percent']),
+                'rate_union' => (float) data_get($record->calculation_details, 'rates.union', $settings['union_rate_percent']),
+                'notes' => $record->notes,
+                'manual_lines' => $record->manualLines(),
+                'earning_lines' => $record->earningLines(),
+                'deduction_lines' => $record->deductionLines(),
+            ],
+            'period' => $this->periodData($period),
+            'variant' => $variant,
+            'canEdit' => $canEdit,
+            'lines' => array_values($lines),
+            'settings' => [
+                'insurance_rate_percent' => (float) $settings['insurance_rate_percent'],
+                'union_rate_percent' => (float) $settings['union_rate_percent'],
+                'retention_tiers' => array_values(array_map('floatval', $settings['retention_tiers'])),
+            ],
+            'currentRate' => $currentRate ? [
+                'rate' => (float) $currentRate->hourly_rate,
+                'unit_label' => $currentRate->unit_label,
+                'effective_from' => $currentRate->effective_from?->toDateString(),
+            ] : null,
+            'lostStudents' => $lostStudents->pluck('name')->implode(', '),
+            'timesheets' => $timesheets->map(function (TeacherTimesheet $ts) use ($record) {
+                $pay = $ts->sessionPay($record->user);
+
+                return [
+                    'id' => $ts->id,
+                    'date' => $ts->teaching_date?->toDateString(),
+                    'scheduled_time' => $ts->scheduled_time,
+                    'checkin_time' => $ts->checkin_time,
+                    'checkout_time' => $ts->checkout_time,
+                    'class_code' => $ts->classModel?->code ?? $ts->classModel?->name,
+                    'class_name' => $ts->classModel?->name,
+                    'type' => $ts->type,
+                    'type_label' => $ts->type_label,
+                    'source' => $ts->source,
+                    'hours' => (float) $ts->hours,
+                    'rate' => $pay['rate'],
+                    'unit' => $pay['unit'],
+                    'amount' => $pay['amount'],
+                ];
+            })->values(),
+            'kpiGroups' => $kpiGroups->map(fn ($items, $group) => [
+                'group' => $group,
+                'weight' => (float) $items->sum('weight'),
+                'amount' => (float) $items->sum('amount'),
+                'items' => $items->map(fn ($item) => [
+                    'code' => $item['code'] ?? null,
+                    'name' => $item['name'] ?? null,
+                    'score' => (float) ($item['score'] ?? 0),
+                    'weight' => (float) ($item['weight'] ?? 0),
+                    'amount' => (float) ($item['amount'] ?? 0),
+                ])->values(),
+            ])->values(),
+            'renewalClasses' => array_values(data_get($record->calculation_details, 'renewal.classes', [])),
+            'commissionTiers' => $commissionTiers->map(fn (CommissionTier $tier) => [
+                'id' => $tier->id,
+                'name' => $tier->tier_name,
+                'range' => $tier->student_range_label,
+                'percent' => (float) $tier->new_sale_percent,
+                'applied' => $record->commission_percent !== null && abs((float) $tier->new_sale_percent - (float) $record->commission_percent) < 0.001,
+            ])->values(),
+            'penalties' => $penalties->map(fn (Penalty $pen) => [
+                'id' => $pen->id,
+                'code' => $pen->code,
+                'violation_type' => $pen->violation_type,
+                'violation_date' => $pen->violation_date?->toDateString(),
+                'due_date' => $pen->due_date?->toDateString(),
+                'amount' => (float) $pen->amount,
+            ])->values(),
+            'clawbacks' => $clawbacks->map(fn (CommissionAdjustment $adj) => ['id' => $adj->id, 'reason' => $adj->reason, 'amount' => (float) $adj->amount])->values(),
+            'paidCommission' => $paidCommission->map(fn (CommissionItem $item) => $this->commissionItemRow($item))->values(),
+            'deferredCommission' => $deferredCommission->map(fn (CommissionItem $item) => $this->commissionItemRow($item))->values(),
+            'commissionReceipts' => $commissionReceipts->map(fn ($receipt) => [
+                'id' => $receipt->id,
+                'approved_at' => $receipt->approved_at?->toIso8601String(),
+                'student' => $receipt->student?->name,
+                'amount' => (float) $receipt->amount,
+            ])->values(),
+            // Bản in "In phiếu lương / Xuất PDF" vẫn là Blade (ẩn trên màn hình, chỉ hiện khi in).
+            'printHtml' => view('payroll.partials.payslip-print', ['record' => $record, 'period' => $period, 'variant' => $variant])->render(),
+        ]);
+    }
+
+    /** Một khoản hoa hồng (trả / hoãn) trên phiếu lương. */
+    private function commissionItemRow(CommissionItem $item): array
+    {
+        return [
+            'id' => $item->id,
+            'student' => $item->student?->name,
+            'receipt_number' => $item->receipt?->receipt_number,
+            'earned' => $item->earned_period_start?->format('m/Y'),
+            'deferred_reason' => $item->deferred_reason,
+            'base_amount' => (float) $item->base_amount,
+            'percent' => (float) $item->percent,
+            'amount' => (float) $item->amount,
+        ];
     }
 
     /** @return array{key: string, title: string, type: string} */
@@ -464,28 +644,46 @@ class PayrollController extends Controller
             ->with('status', 'Đã lưu các khoản nhập tay — thực lĩnh mới '.Money::format((float) $record->net_salary).'.');
     }
 
-    public function fulltimePeriod($id)
+    public function fulltimePeriod($id): InertiaResponse
     {
         $period = PayrollPeriod::where('id', $id)->orWhere('code', $id)->firstOrFail();
         $records = $this->scopeRecords($period->records())->with('user')->where('department', 'fulltime')->get();
 
-        return view('payroll.fulltime', compact('period', 'records'));
+        return $this->departmentPage($period, $records, 'fulltime');
     }
 
-    public function academicPeriod($id)
+    public function academicPeriod($id): InertiaResponse
     {
         $period = PayrollPeriod::where('id', $id)->orWhere('code', $id)->firstOrFail();
         $records = $this->scopeRecords($period->records())->with('user')->where('department', 'academic')->get();
 
-        return view('payroll.academic', compact('period', 'records'));
+        return $this->departmentPage($period, $records, 'academic');
     }
 
-    public function operationsPeriod($id)
+    public function operationsPeriod($id): InertiaResponse
     {
         $period = PayrollPeriod::where('id', $id)->orWhere('code', $id)->firstOrFail();
         $records = $this->scopeRecords($period->records())->with('user')->where('department', 'operations')->get();
 
-        return view('payroll.operations', compact('period', 'records'));
+        return $this->departmentPage($period, $records, 'operations');
+    }
+
+    /** Bảng lương theo khối (GV Full-time / Học thuật / Học vụ & Vận hành) — một trang Vue, nội dung theo $department. */
+    private function departmentPage(PayrollPeriod $period, Collection $records, string $department): InertiaResponse
+    {
+        return Inertia::render('Payroll/Department', [
+            'department' => $department,
+            'period' => $this->periodData($period),
+            'records' => $records->map(fn (PayrollRecord $r) => $this->recordRow($r))->values(),
+            'totals' => [
+                'net_salary' => (float) $records->sum('net_salary'),
+                'renew_bonus' => (float) $records->sum('renew_bonus'),
+                'kpi_bonus' => (float) $records->sum('kpi_bonus'),
+                'base_salary' => (float) $records->sum('base_salary'),
+                'allowance' => (float) $records->sum('allowance'),
+                'commission_bonus' => (float) $records->sum('commission_bonus'),
+            ],
+        ]);
     }
 
     /**
@@ -512,7 +710,7 @@ class PayrollController extends Controller
         };
     }
 
-    public function manualTimesheet(Request $request)
+    public function manualTimesheet(Request $request): InertiaResponse
     {
         // Chỉ liệt kê lớp đang/opening trong phạm vi người chấm và nhân sự giảng dạy — User::all() trước đây
         // đưa cả học viên vào dropdown chấm công.
@@ -530,7 +728,29 @@ class PayrollController extends Controller
                 'title' => $p->title,
             ])->values();
 
-        return view('payroll.timesheets-manual', compact('classes', 'teachers', 'branches', 'lockedRanges'));
+        $user = $request->user();
+        $defaultBranch = $request->query('branch_id') ?: ($branches->count() === 1
+            ? $branches->first()->id
+            : ($user->branch_id && $branches->contains('id', $user->branch_id) ? $user->branch_id : ''));
+
+        return Inertia::render('Payroll/Timesheets/Manual', [
+            'teachers' => $teachers->map(fn (User $tc) => [
+                'id' => $tc->id,
+                'label' => $tc->name.($tc->employee_code ? ' — '.$tc->employee_code : '').' ('.($tc->getRoleNames()->map(fn ($r) => AclHelper::roleLabel($r))->implode(', ') ?: 'GV/TA').')',
+                'search' => Str::lower(Str::ascii($tc->name.' '.$tc->employee_code.' '.$tc->email)),
+            ])->values(),
+            'classes' => $classes->map(fn (ClassModel $cl) => ['id' => $cl->id, 'label' => $cl->name.' ('.$cl->code.')', 'branch' => $cl->branch_id])->values(),
+            'branches' => Ui::options($branches, 'name'),
+            'lockedRanges' => $lockedRanges,
+            'defaults' => [
+                'user_id' => (string) $request->query('user_id', ''),
+                'branch_id' => (string) $defaultBranch,
+                'class_id' => (string) $request->query('class_id', ''),
+                'teaching_date' => (string) $request->query('teaching_date', date('Y-m-d')),
+                'time_in' => $request->query('time_in'),
+                'time_out' => $request->query('time_out'),
+            ],
+        ]);
     }
 
     /**
@@ -725,11 +945,95 @@ class PayrollController extends Controller
         $filterBranches = $canViewAll ? \App\Models\Branch::whereIn('id', $filterClasses->pluck('branch_id')->filter()->unique())->orderBy('name')->get(['id', 'name']) : collect();
         $filterTeachers = $canViewAll ? $this->teachingStaff() : collect();
 
-        return view('payroll.timesheets-teachers', compact(
-            'timesheets', 'summary', 'month', 'monthStart', 'status', 'period', 'periodLocked',
-            'teacher', 'missingSessions', 'filterClasses', 'filterBranches', 'filterTeachers', 'canViewAll',
-            'scheduleDay', 'scheduleSessions', 'subPendingCount', 'type'
-        ));
+        $canReview = $canViewAll && $user->can('attendance_staff.view');
+
+        return Inertia::render('Payroll/Timesheets/Teachers', [
+            'canViewAll' => $canViewAll,
+            'month' => $month,
+            'monthLabel' => $monthStart->format('m/Y'),
+            'period' => $period ? ['status_label' => $period->status_label] : null,
+            'periodLocked' => (bool) $periodLocked,
+            'summary' => [
+                'pending_review' => (int) ($summary['pending_review'] ?? 0),
+                'valid' => (int) ($summary['valid'] ?? 0),
+                'invalid' => (int) ($summary['invalid'] ?? 0),
+            ],
+            'timesheets' => $timesheets->through(fn (TeacherTimesheet $ts) => [
+                'id' => $ts->id,
+                'user_id' => $ts->user_id,
+                'teaching_date' => $ts->teaching_date->toDateString(),
+                'scheduled_time' => $ts->scheduled_time,
+                'type_label' => $ts->type_label,
+                'source' => $ts->source,
+                'source_label' => $ts->source_label,
+                'class_label' => $ts->classModel?->code ?? $ts->classModel?->name ?? '—',
+                'teacher_name' => $ts->teacher?->name,
+                'checkin_time' => $ts->checkin_time,
+                'checkout_time' => $ts->checkout_time,
+                'display_checkout' => $ts->display_checkout,
+                'adjusted' => $ts->adjusted_at !== null,
+                'hours' => rtrim(rtrim(number_format((float) $ts->hours, 2, '.', ''), '0'), '.'),
+                'punch_state' => $ts->punch_state,
+                'punch_state_label' => $ts->punch_state_label,
+                'adjustment_reason' => $ts->adjustment_reason,
+                'adjustment_short' => $ts->adjusted_at ? Str::limit((string) $ts->adjustment_reason, 50) : null,
+                'adjuster_name' => $ts->adjuster?->name,
+                'notes_short' => $ts->source === TeacherTimesheet::SOURCE_MANUAL && $ts->notes ? Str::limit($ts->notes, 50) : null,
+                'status' => $ts->status,
+                'status_label' => $ts->status_label,
+                'rejection_short' => $ts->status === 'invalid' && $ts->rejection_reason ? Str::limit($ts->rejection_reason, 60) : null,
+                'reviewer_name' => $ts->reviewer?->name,
+                'locked' => $periodLocked || PayrollPeriod::isLockedFor($ts->teaching_date),
+                'reject_label' => ($ts->teacher?->name ?? '').' — '.$ts->teaching_date->format('d/m/Y'),
+                'edit_label' => ($ts->teacher?->name ?? '').' — '.($ts->classModel?->code ?? '').' — '.$ts->teaching_date->format('d/m/Y'),
+            ]),
+            'teacher' => $teacher ? [
+                'id' => $teacher->id,
+                'name' => $teacher->name,
+                'employee_code' => $teacher->employee_code,
+                'branch_name' => $teacher->branch?->name,
+            ] : null,
+            'missingSessions' => $missingSessions->map(fn ($session) => [
+                'id' => $session->id,
+                'date' => $session->date->toDateString(),
+                'start_time' => $session->start_time?->format('H:i'),
+                'end_time' => $session->end_time?->format('H:i'),
+                'class_label' => $session->classModel?->code ?? $session->classModel?->name,
+                'manual_url' => route('payroll.timesheets.manual', [
+                    'user_id' => $teacher->id, 'class_id' => $session->class_id, 'branch_id' => $session->classModel?->branch_id,
+                    'teaching_date' => $session->date->toDateString(), 'time_in' => $session->start_time?->format('H:i'), 'time_out' => $session->end_time?->format('H:i'),
+                ], false),
+            ])->values(),
+            'scheduleDay' => $scheduleDay ? [
+                'date' => $scheduleDay->toDateString(),
+                'weekday' => ['Chủ nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'][$scheduleDay->dayOfWeek],
+            ] : null,
+            'scheduleSessions' => $scheduleSessions->map(function ($session) use ($canReview) {
+                $sts = $session->schedule_timesheet;
+
+                return [
+                    'id' => $session->id,
+                    'class_name' => $session->classModel?->name,
+                    'class_code' => $session->classModel?->code,
+                    'start_time' => $session->start_time?->format('H:i'),
+                    'end_time' => $session->end_time?->format('H:i'),
+                    'teacher_name' => $session->teacher?->name,
+                    'state' => match (true) {
+                        $sts && $sts->status === 'valid' => 'valid',
+                        $sts && $sts->source === 'checkin' => 'checkin',
+                        (bool) $sts => 'pending',
+                        default => 'none',
+                    },
+                    'state_note' => $sts ? ($sts->reviewer ? 'Đã duyệt bởi '.$sts->reviewer->name : $sts->source_label) : null,
+                    'source_label' => $sts?->source_label,
+                    'can_confirm' => ! ($sts && $sts->status === 'valid') && $canReview && ! $session->date->isFuture() && ! PayrollPeriod::isLockedFor($session->date),
+                ];
+            })->values(),
+            'subPendingCount' => $subPendingCount,
+            'filterBranches' => Ui::options($filterBranches, 'name'),
+            'filterClasses' => Ui::options($filterClasses, fn ($c) => $c->name.' ('.$c->code.')'),
+            'filterTeachers' => Ui::options($filterTeachers, 'name'),
+        ]);
     }
 
     /**
@@ -899,7 +1203,31 @@ class PayrollController extends Controller
             ->withQueryString();
         $hasAnyLog = TimesheetSyncLog::exists();
 
-        return view('payroll.timesheets-sync', compact('syncLogs', 'hasAnyLog'));
+        return Inertia::render('Payroll/Timesheets/Sync', [
+            'syncLogs' => $syncLogs->through(fn (TimesheetSyncLog $log) => [
+                'id' => $log->id,
+                'created_at' => $log->created_at->format('H:i d/m/Y'),
+                'device_name' => $log->device_name,
+                'branch' => $log->branch?->name ?? 'Toàn hệ thống',
+                'records_count' => (int) $log->records_count,
+                'matched_count' => (int) $log->matched_count,
+                'failed_count' => (int) $log->failed_count,
+                'skipped_count' => (int) $log->skipped_count,
+                'status' => $log->normalized_status,
+                'status_label' => $log->status_label,
+                'error_code' => $log->error_code,
+                'error_message' => $log->error_message,
+                'error_rows' => collect($log->error_rows ?? [])->map(fn ($row) => [
+                    'employee_code' => $row['employee_code'] ?? null,
+                    'employee_name' => $row['employee_name'] ?? null,
+                    'code' => $row['code'] ?? null,
+                    'message' => $row['message'] ?? '',
+                ])->values()->all(),
+                'has_errors' => $log->hasErrorDetails(),
+            ]),
+            'hasAnyLog' => $hasAnyLog,
+            'statusOptions' => Ui::options(TimesheetSyncLog::STATUS_LABELS),
+        ]);
     }
 
     /** "Xuất file Excel lỗi" của một đợt đồng bộ: các dòng lỗi (Mã NV, Tên, Mã lỗi, Nội dung). */
@@ -996,16 +1324,55 @@ class PayrollController extends Controller
             ->sortKeysDesc();
         $branches = \App\Models\Branch::orderBy('name')->get(['id', 'name']);
 
-        return view('payroll.kpi-leaderboard', compact(
-            'usersWithSales', 'salesPage', 'retentionPage', 'period', 'month', 'year', 'branchId', 'periodOptions', 'branches'
-        ));
+        return Inertia::render('Payroll/KpiLeaderboard', [
+            'retentionPage' => $retentionPage->through(fn (PayrollRecord $r) => [
+                'id' => $r->id,
+                'user_id' => $r->user_id,
+                'name' => $r->user?->name,
+                'branch' => $r->user?->branch?->name ?? 'Hệ thống MEnglish',
+                'retention_students' => (int) $r->retention_students,
+                'retention_base_students' => (int) $r->retention_base_students,
+                'retention_tier' => $r->retention_tier,
+                'kpi_bonus' => (float) $r->kpi_bonus,
+            ]),
+            'salesPage' => $salesPage->through(fn (array $item) => [
+                'id' => $item['user']->id,
+                'name' => $item['user']->name,
+                'tier_name' => $item['tier_name'],
+                'deals' => $item['deals'],
+                'branch' => $item['branch_name'],
+                'closed' => $item['closed'],
+                'percent' => (float) $item['percent'],
+                'revenue' => $item['revenue'],
+                'commission' => (float) $item['commission'],
+            ]),
+            'period' => $period ? ['locked' => $period->isLocked()] : null,
+            'month' => $month,
+            'year' => $year,
+            'selectedPeriod' => sprintf('%04d-%02d', $year, $month),
+            'branchId' => $branchId,
+            'periodOptions' => Ui::options($periodOptions),
+            'branches' => Ui::options($branches, 'name'),
+        ]);
     }
 
     public function configSettings()
     {
         $settings = PayrollPeriod::payrollSettings();
+        $fmt = fn ($v) => rtrim(rtrim(number_format((float) $v, 2, '.', ''), '0'), '.');
 
-        return view('payroll.config-settings', compact('settings'));
+        return Inertia::render('Payroll/Config/Settings', [
+            'settings' => [
+                'insurance_rate_percent' => $fmt($settings['insurance_rate_percent']),
+                'union_rate_percent' => $fmt($settings['union_rate_percent']),
+                'academic_kpi_fund' => (int) $settings['academic_kpi_fund'],
+                'renewal_beyond_percent' => $fmt($settings['renewal_beyond_percent']),
+                'retention_tiers' => collect($settings['retention_tiers'])->map(fn ($t) => number_format($t, 0, ',', '.'))->implode(' / '),
+            ],
+            'renewalRows' => collect($settings['renewal_table'])
+                ->map(fn ($row, $quits) => ['quits' => $quits, 'percent' => $row['percent'], 'pending' => (bool) $row['pending']])
+                ->values()->all(),
+        ]);
     }
 
     /**
@@ -1088,7 +1455,76 @@ class PayrollController extends Controller
             ? ($currentRates->get($selectedTeacher->id)?->teacher_type ?? TeacherHourlyRate::defaultTeacherType($selectedTeacher))
             : null;
 
-        return view('payroll.config-rates', compact('rates', 'teachers', 'history', 'teacherHistory', 'currentRates', 'selectedTeacher', 'selectedType', 'endDates'));
+        $unitSuffix = ['session' => 'VNĐ / buổi', 'hour' => 'VNĐ / giờ'];
+        $historyRow = function (TeacherHourlyRate $row) use ($endDates, $unitSuffix) {
+            $end = $endDates[$row->id] ?? null;
+            [$stateLabel, $stateColor] = $row->effective_from->isFuture()
+                ? ['Chưa hiệu lực', 'info']
+                : ($end && $end->lt(today()) ? ['Đã hết hạn', 'neutral'] : ['Đang áp dụng', 'success']);
+
+            return [
+                'id' => $row->id,
+                'user_id' => $row->user_id,
+                'user_name' => $row->relationLoaded('user') ? ($row->user?->name ?? '—') : null,
+                'teacher_type_label' => $row->teacher_type_label,
+                'hourly_rate' => (float) $row->hourly_rate,
+                'unit' => $unitSuffix[$row->rate_unit] ?? 'VNĐ / giờ',
+                'unit_label' => $row->unit_label,
+                'effective_from' => $row->effective_from->format('d/m/Y'),
+                'end' => $end?->format('d/m/Y'),
+                'state_label' => $stateLabel,
+                'state_color' => $stateColor,
+                'note' => $row->note,
+                'creator' => $row->creator?->name ?? 'Hệ thống',
+                'created_at' => $row->created_at?->format('d/m/Y H:i'),
+            ];
+        };
+        $selectedCurrent = $selectedTeacher ? $currentRates->get($selectedTeacher->id) : null;
+
+        return Inertia::render('Payroll/Config/Rates', [
+            'rates' => $rates->map(fn (TeacherRate $r) => [
+                'id' => $r->id,
+                'rank_title' => $r->rank_title,
+                'criteria' => $r->criteria,
+                'communication_rate' => (float) $r->communication_rate,
+                'ielts_rate' => (float) $r->ielts_rate,
+            ])->values(),
+            'teachers' => $teachers->map(function (User $t) use ($currentRates) {
+                $current = $currentRates->get($t->id);
+
+                return [
+                    'id' => $t->id,
+                    'name' => $t->name,
+                    'employee_code' => $t->employee_code,
+                    'is_active' => (bool) $t->is_active,
+                    'search' => Str::lower(Str::ascii($t->name.' '.$t->employee_code.' '.$t->email)),
+                    'current' => $current ? [
+                        'rate' => (float) $current->hourly_rate,
+                        'unit_label' => $current->unit_label,
+                        'effective_from' => $current->effective_from?->format('d/m/Y'),
+                    ] : null,
+                    'profile_rate' => (float) $t->hourly_rate,
+                ];
+            })->values(),
+            'history' => $history->through($historyRow),
+            'teacherHistory' => $teacherHistory->map($historyRow)->values(),
+            'selectedTeacher' => $selectedTeacher ? [
+                'id' => $selectedTeacher->id,
+                'name' => $selectedTeacher->name,
+                'employee_code' => $selectedTeacher->employee_code,
+                'type_label' => TeacherHourlyRate::TEACHER_TYPES[$selectedType] ?? '—',
+                'current' => $selectedCurrent ? [
+                    'rate' => number_format((float) $selectedCurrent->hourly_rate, 0, ',', '.').' '.($unitSuffix[$selectedCurrent->rate_unit] ?? 'VNĐ / giờ'),
+                    'effective_from' => $selectedCurrent->effective_from->format('d/m/Y'),
+                ] : null,
+                'profile_rate' => (float) $selectedTeacher->hourly_rate > 0 ? Money::format((float) $selectedTeacher->hourly_rate) : null,
+            ] : null,
+            'selectedType' => $selectedType,
+            'teacherTypes' => Ui::options(TeacherHourlyRate::TEACHER_TYPES),
+            'defaultRate' => Money::format(TeacherTimesheet::DEFAULT_HOURLY_RATE),
+            'today' => now()->format('d/m/Y'),
+            'todayDate' => now()->toDateString(),
+        ]);
     }
 
     /**
@@ -1165,8 +1601,41 @@ class PayrollController extends Controller
 
         $tab = $request->query('tab') === 'renewal' ? 'renewal' : 'commission';
         $settings = PayrollPeriod::payrollSettings();
+        $pct = fn ($v) => rtrim(rtrim(number_format((float) $v, 2, ',', ''), '0'), ',').'%';
 
-        return view('payroll.config-commissions', compact('tiers', 'history', 'asOf', 'tab', 'settings'));
+        return Inertia::render('Payroll/Config/Commissions', [
+            'tab' => $tab,
+            'asOf' => ['label' => $asOf->format('d/m/Y'), 'date' => $asOf->toDateString()],
+            'tiers' => $tiers->map(fn (CommissionTier $tier) => [
+                'id' => $tier->id,
+                'tier_name' => $tier->tier_name,
+                'min_students' => (int) $tier->min_students,
+                'max_students' => $tier->max_students !== null ? (int) $tier->max_students : null,
+                'new_sale_percent' => $tier->new_sale_percent,
+                'percent_label' => $pct($tier->new_sale_percent),
+                'effective_from' => $tier->effective_from?->format('d/m/Y') ?? 'Từ đầu',
+                'current' => $tier->effective_to === null,
+            ])->values(),
+            'history' => $history->through(fn (CommissionTier $version) => [
+                'id' => $version->id,
+                'tier_name' => $version->tier_name,
+                'replaces' => $version->replaces?->tier_name,
+                'range' => $version->student_range_label,
+                'percent_label' => $pct($version->new_sale_percent),
+                'effective_from' => $version->effective_from?->format('d/m/Y') ?? 'Từ đầu',
+                'effective_to' => $version->effective_to?->format('d/m/Y') ?? 'nay',
+                'current' => $version->effective_to === null,
+                'creator' => $version->creator?->name ?? '—',
+            ]),
+            'gateDays' => config('payroll.commission.gate_days'),
+            'gateMilestones' => config('payroll.commission.gate_milestones'),
+            'today' => now()->toDateString(),
+            'tomorrow' => now()->addDay()->toDateString(),
+            'renewalRows' => collect($settings['renewal_table'])
+                ->map(fn ($row, $quits) => ['quits' => $quits, 'percent' => $row['percent'], 'pending' => (bool) $row['pending']])
+                ->values()->all(),
+            'renewalBeyond' => rtrim(rtrim(number_format((float) $settings['renewal_beyond_percent'], 2, '.', ''), '0'), '.'),
+        ]);
     }
 
     /**
@@ -1353,7 +1822,37 @@ class PayrollController extends Controller
         }
         $variant = $record ? self::payslipVariant($record) : null;
 
-        return view('payroll.my-salary', compact('user', 'record', 'records', 'timesheets', 'penalties', 'previous', 'variant'));
+        return Inertia::render('Payroll/MySalary', [
+            'record' => $record ? $this->mySalaryRecord($record, $previous) : null,
+            'periodOptions' => $records->map(fn (PayrollRecord $option) => [
+                'value' => $option->payroll_period_id,
+                'label' => 'Tháng '.str_pad($option->period->month, 2, '0', STR_PAD_LEFT).'/'.$option->period->year,
+            ])->values(),
+            'penalties' => $penalties->map(fn (Penalty $pen) => [
+                'id' => $pen->id,
+                'code' => $pen->code,
+                'violation_type' => $pen->violation_type,
+                'violation_date' => $pen->violation_date->format('d/m'),
+                'class' => $pen->classModel ? ($pen->classModel->code ?? $pen->classModel->name) : null,
+                'amount' => (float) $pen->amount,
+            ])->values(),
+            'timesheets' => $timesheets->map(function (TeacherTimesheet $ts) use ($user) {
+                $pay = $ts->sessionPay($user);
+
+                return [
+                    'id' => $ts->id,
+                    'date' => $ts->teaching_date->format('d/m/Y'),
+                    'time' => $ts->scheduled_time ? str_replace('-', ' - ', $ts->scheduled_time) : trim(($ts->checkin_time ?? '').($ts->checkout_time ? ' - '.$ts->checkout_time : '')),
+                    'class' => $ts->classModel?->code ?? $ts->classModel?->name,
+                    'type' => $ts->type,
+                    'type_label' => $ts->type_label,
+                    'rate' => (float) $pay['rate'],
+                    'unit' => $pay['unit'],
+                    'amount' => (float) $pay['amount'],
+                ];
+            })->values(),
+            'printHtml' => $record ? view('payroll.partials.payslip-print', ['record' => $record, 'period' => $record->period, 'variant' => $variant])->render() : null,
+        ]);
     }
 
     private function rejectLockedDate(string $field, $date): RedirectResponse
@@ -1363,8 +1862,108 @@ class PayrollController extends Controller
         return redirect()->back()->withInput()->withErrors([$field => $message])->with('error', $message);
     }
 
-    public function appsheetTimesheet()
+    public function appsheetTimesheet(): InertiaResponse
     {
-        return view('payroll.timesheets-appsheet');
+        return Inertia::render('Payroll/Timesheets/AppSheet');
+    }
+
+    /** Thông tin kỳ lương dùng chung cho các trang Vue (bảng lương, khối, phiếu lương). */
+    private function periodData(PayrollPeriod $period): array
+    {
+        return [
+            'id' => $period->id,
+            'code' => $period->code,
+            'title' => $period->title,
+            'month' => (int) $period->month,
+            'year' => (int) $period->year,
+            'start_date' => $period->start_date?->toDateString(),
+            'end_date' => $period->end_date?->toDateString(),
+            'status' => $period->status,
+            'status_label' => $period->status_label,
+            'status_badge' => $period->status_badge,
+            'locked' => $period->isLocked(),
+        ];
+    }
+
+    /** Dữ liệu phiếu lương cho màn "Lương của tôi": tổng thu nhập / khoản trừ / thực nhận, so sánh kỳ trước, các dòng kèm số lượng. */
+    private function mySalaryRecord(PayrollRecord $record, ?PayrollRecord $previous): array
+    {
+        $incomeTotal = (float) $record->gross_income;
+        $change = $previous && (float) $previous->gross_income > 0
+            ? round(($incomeTotal - (float) $previous->gross_income) / (float) $previous->gross_income * 100)
+            : null;
+        $quantity = fn (array $line) => match ($line['key']) {
+            'teaching_salary' => $record->usesQ3Formula() ? (int) $record->teaching_sessions.' buổi' : rtrim(rtrim(number_format((float) $record->actual_hours, 2, '.', ''), '0'), '.').' giờ',
+            'kpi_bonus' => $record->kpi_source === 'retention'
+                ? (int) $record->retention_students.'/'.(int) $record->retention_base_students.' HS'
+                : ($record->kpi_score !== null ? rtrim(rtrim(number_format((float) $record->kpi_score, 2), '0'), '.').'%' : '-'),
+            'foreign_session_pay' => (int) $record->foreign_teacher_sessions_count.' buổi',
+            'commission_bonus' => (int) $record->commission_closed_count.' HS chốt',
+            default => '-',
+        };
+
+        return [
+            'id' => $record->id,
+            'payroll_period_id' => $record->payroll_period_id,
+            'period_status' => $record->period->status,
+            'period_status_label' => $record->period->status_label,
+            'period_title' => $record->period->title,
+            'gross_income' => $incomeTotal,
+            'total_deductions' => (float) $record->total_deductions,
+            'net_salary' => (float) $record->net_salary,
+            'change' => $change,
+            'is_full_time' => $record->isFullTime(),
+            'adjustment_notes' => $record->adjustment_notes,
+            'earning_lines' => collect($record->earningLines())->map(fn (array $line) => [
+                'key' => $line['key'],
+                'label' => $line['label'],
+                'hint' => $line['hint'] ?? null,
+                'quantity' => $quantity($line),
+                'amount' => (float) $line['amount'],
+            ])->values()->all(),
+            'deduction_lines' => collect($record->deductionLines())->map(fn (array $line) => [
+                'key' => $line['key'],
+                'label' => $line['label'],
+                'hint' => $line['hint'] ?? null,
+                'amount' => (float) $line['amount'],
+            ])->values()->all(),
+        ];
+    }
+
+    /** Một dòng bảng lương (bảng lương của kỳ, bảng theo khối): chỉ các cột hiển thị. */
+    private function recordRow(PayrollRecord $r): array
+    {
+        return [
+            'id' => $r->id,
+            'user_id' => $r->user_id,
+            'name' => $r->user?->name,
+            'email' => $r->user?->email,
+            'employee_code' => $r->user?->employee_code,
+            'is_part_time' => $r->isPartTime(),
+            'employee_type_label' => $r->employee_type_label,
+            'salary_role_label' => $r->salary_role_label,
+            'kpi_state' => $r->kpi_state,
+            'kpi_source' => $r->kpi_source,
+            'kpi_score' => $r->kpi_score !== null ? (float) $r->kpi_score : null,
+            'kpi_manual_amount' => $r->kpi_manual_amount !== null ? (float) $r->kpi_manual_amount : null,
+            'kpi_bonus' => (float) $r->kpi_bonus,
+            'retention_students' => (int) $r->retention_students,
+            'retention_tier' => $r->retention_tier !== null ? (float) $r->retention_tier : null,
+            'base_salary' => (float) $r->base_salary,
+            'teaching_salary' => (float) $r->teaching_salary,
+            'teaching_sessions' => (int) $r->teaching_sessions,
+            'foreign_session_pay' => (float) $r->foreign_session_pay,
+            'foreign_teacher_sessions_count' => (int) $r->foreign_teacher_sessions_count,
+            'adjustment_notes' => $r->adjustment_notes,
+            'commission_bonus' => (float) $r->commission_bonus,
+            'commission_deferred' => (float) $r->commission_deferred,
+            'renew_bonus' => (float) $r->renew_bonus,
+            'free_allowance' => (float) $r->allowance + (float) $r->other_bonus,
+            'insurance_deduction' => (float) $r->insurance_deduction,
+            'union_deduction' => (float) $r->union_deduction,
+            'tax_deduction' => (float) $r->tax_deduction,
+            'other_deductions' => (float) $r->penalty_deduction + (float) $r->commission_clawback + (float) $r->other_deduction + (float) $r->foreign_teacher_deduction,
+            'net_salary' => (float) $r->net_salary,
+        ];
     }
 }
