@@ -418,10 +418,10 @@ class Phase3CommissionTest extends TestCase
 
         $this->actingAs($this->admin)->get(route('crm.reports', ['preset' => 'this_month']))
             ->assertOk()
-            ->assertViewHas('repsData', function (array $reps) {
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('repsData', function ($reps) {
                 $rep = collect($reps)->firstWhere('name', 'Sale Thực Thu');
 
                 return $rep && (float) $rep['revenue'] === 7000000.0 && (float) $rep['commission_amount'] === 350000.0;
-            });
+            }));
     }
 }

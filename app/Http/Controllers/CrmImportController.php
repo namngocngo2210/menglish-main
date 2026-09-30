@@ -10,14 +10,18 @@ use App\Models\CrmCustomer;
 use App\Models\CrmCustomerHistory;
 use App\Models\User;
 use App\Services\Crm\LeadOwners;
+use App\Support\DataScope;
+use App\Support\Ui;
 use Carbon\Carbon;
 use Illuminate\Database\QueryException;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Inertia\Response as InertiaResponse;
 use Maatwebsite\Excel\Excel as ExcelFormat;
 use Maatwebsite\Excel\Facades\Excel;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
@@ -26,8 +30,9 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
  * "Nhập khách hàng loạt từ Excel" (mockup CRM): tải file .xlsx / .csv → xem trước + lỗi từng dòng
  * (thiếu tên, SĐT sai định dạng, trùng trong file / trùng CRM, email sai) → nhập các dòng hợp lệ
  * vào chi nhánh + người phụ trách đã chọn (hoặc người ở cột "Người phụ trách" của từng dòng). Không liên quan màn nhập học phí.
- * Mở từ nút "Nhập Excel" → modal (htmx): redirect sau mỗi bước về crm.import được trình duyệt đi theo (giữ HX-Request)
- * nên bước kế tiếp hiện ngay trong modal; nhập xong → HX-Redirect sang danh sách khách kèm kết quả như cũ.
+ * Mở từ nút "Nhập Excel" → modal (Inertia, trang Crm/Import): mỗi bước từ modal quay lại trang đang mở (back),
+ * form trong modal tải lại nội dung modal (bước kế tiếp hiện ngay trong modal); nhập xong → chuyển sang danh sách khách kèm kết quả.
+ * Mở thẳng URL → trang đầy đủ (form + bảng xem trước), redirect về crm.import như cũ.
  */
 class CrmImportController extends Controller
 {
@@ -55,11 +60,47 @@ class CrmImportController extends Controller
 
     private const TEMPLATE_HEADINGS = ['Họ tên', 'Số điện thoại', 'Tên phụ huynh', 'SĐT phụ huynh', 'Email', 'Ngày sinh', 'Giới tính', 'Địa chỉ', 'Nguồn', 'Khóa học quan tâm', 'Ghi chú', 'Người phụ trách'];
 
-    public function create(Request $request)
+    public function create(Request $request): InertiaResponse
     {
         $preview = $request->session()->get(self::SESSION_KEY);
+        $user = $request->user();
+        $options = $this->formOptions($user);
+        $rows = collect($preview['rows'] ?? []);
+        $validCount = $rows->filter(fn (array $row) => empty($row['errors']))->count();
 
-        return $this->modalView('crm.import', $this->formOptions($request->user()) + ['preview' => $preview]);
+        return $this->modalPage('Crm/Import', [
+            'branches' => Ui::options($options['branches'], 'name'),
+            'salesUsers' => Ui::options(LeadOwners::options($options['salesUsers'])),
+            'canAssign' => $options['canAssign'],
+            'userName' => $user->name,
+            'defaultBranchId' => $preview['branch_id'] ?? ($options['branches']->count() === 1 ? $options['branches']->first()->id : null),
+            'defaultAssigneeId' => $preview['assigned_user_id'] ?? null,
+            'preview' => $preview ? [
+                'file_name' => $preview['file_name'],
+                'branch_name' => $preview['branch_name'],
+                'assigned_user_name' => $preview['assigned_user_name'],
+                'valid_count' => $validCount,
+                'error_count' => $rows->count() - $validCount,
+                'rows' => $rows->map(fn (array $row) => [
+                    'line' => $row['line'],
+                    'name' => $row['data']['name'] ?? null,
+                    'phone' => $row['data']['phone'] ?? null,
+                    'parent_name' => $row['data']['parent_name'] ?? null,
+                    'parent_phone' => $row['data']['parent_phone'] ?? null,
+                    'email' => $row['data']['email'] ?? null,
+                    'source' => $row['data']['source'] ?? null,
+                    'course_interest' => $row['data']['course_interest'] ?? null,
+                    'owner_name' => $row['data']['owner_name'] ?? null,
+                    'errors' => array_values($row['errors']),
+                ])->values()->all(),
+            ] : null,
+        ]);
+    }
+
+    /** Sau mỗi bước: từ modal quay lại trang đang mở (modal tự tải lại bước kế tiếp); trang đầy đủ về crm.import. */
+    private function backToImport(): RedirectResponse
+    {
+        return $this->isModalRequest() ? back() : redirect()->route('crm.import');
     }
 
     public function template()
@@ -178,19 +219,19 @@ class CrmImportController extends Controller
             'rows' => $rows,
         ]);
 
-        return redirect()->route('crm.import');
+        return $this->backToImport();
     }
 
     public function store(Request $request)
     {
         $preview = $request->session()->get(self::SESSION_KEY);
         if (! $preview || empty($preview['rows'])) {
-            return redirect()->route('crm.import')->withErrors(['file' => 'Chưa có dữ liệu xem trước. Vui lòng tải file lên lại.']);
+            return $this->backToImport()->withErrors(['file' => 'Chưa có dữ liệu xem trước. Vui lòng tải file lên lại.']);
         }
         if ($request->boolean('cancel')) {
             $request->session()->forget(self::SESSION_KEY);
 
-            return redirect()->route('crm.import')->with('status', 'Đã hủy phiên nhập khách.');
+            return $this->backToImport()->with('status', 'Đã hủy phiên nhập khách.');
         }
 
         $user = $request->user();
@@ -199,7 +240,7 @@ class CrmImportController extends Controller
         // Sales được chọn lúc xem trước có thể đã bị khoá / đổi vai trò trước khi bấm Nhập.
         $assignee = User::find($preview['assigned_user_id']);
         if (! $assignee?->is_active || ($assignee->id !== $user->id && ! $assignee->can('lead.be_assigned'))) {
-            return redirect()->route('crm.import')->withErrors(['assigned_user_id' => 'Người phụ trách đã chọn không còn hoạt động. Vui lòng chọn lại và kiểm tra dữ liệu lần nữa.']);
+            return $this->backToImport()->withErrors(['assigned_user_id' => 'Người phụ trách đã chọn không còn hoạt động. Vui lòng chọn lại và kiểm tra dữ liệu lần nữa.']);
         }
         // File lớn (tới 1.000 dòng) trên hosting có giới hạn thời gian chạy ngắn.
         @set_time_limit(300);
@@ -277,7 +318,7 @@ class CrmImportController extends Controller
      */
     protected function formOptions(User $user): array
     {
-        $allBranches = \App\Support\DataScope::isAll($user, 'lead');
+        $allBranches = DataScope::isAll($user, 'lead');
         $branches = $allBranches
             ? Branch::where('is_active', true)->orderBy('name')->get(['id', 'name'])
             : Branch::whereIn('id', $user->branchIds())->orderBy('name')->get(['id', 'name']);

@@ -17,6 +17,7 @@ use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class CrmBusinessTest extends TestCase
@@ -97,7 +98,7 @@ class CrmBusinessTest extends TestCase
         $this->actingAs($lead)->get(route('crm.customers.show', $customer->id))
             ->assertOk()
             ->assertSee('Chưa có đề test đầu vào nào đang mở')
-            ->assertSee(route('placement-tests.create'), false);
+            ->assertSee(route('placement-tests.create', absolute: false), false);
 
         PlacementTest::installMissingPresets();
 
@@ -349,9 +350,8 @@ class CrmBusinessTest extends TestCase
         $this->salesUser->givePermissionTo('report.view');
         $responseReports = $this->actingAs($this->salesUser)->get(route('crm.reports'));
         $responseReports->assertOk();
-        $responseReports->assertViewHas('metricTotalLeads');
-        $responseReports->assertViewHas('repsData');
-        $responseReports->assertViewHas('funnelStages');
+        $responseReports->assertInertia(fn (Assert $page) => $page->component('Crm/Reports')
+            ->has('metricTotalLeads')->has('repsData')->has('funnelStages'));
     }
 
     // =========================================================================

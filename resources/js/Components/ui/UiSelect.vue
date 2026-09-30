@@ -93,9 +93,10 @@ async function enhance() {
         render: { no_results: () => '<div class="no-results">Không tìm thấy</div>' },
         onInitialize() {
             // Chỉ giữ class bố cục trên khung bao; viền / nền / chữ do .ts-control trong app.css.
+            // Giữ cả class trạng thái của Tom Select (has-items, full…): thiếu has-items thì placeholder hiện chồng lên lựa chọn.
             this.wrapper.className = this.wrapper.className
                 .split(' ')
-                .filter((c) => !c || /^(?:[a-z]+:)*(?:w-|min-w-|max-w-|flex-|basis-|grow|shrink|col-|self-|order-|ts-|single|plugin-|hidden$|block$)/.test(c))
+                .filter((c) => !c || /^(?:[a-z]+:)*(?:w-|min-w-|max-w-|flex-|basis-|grow|shrink|col-|self-|order-|ts-|single|plugin-|hidden$|block$)/.test(c) || /^(?:has-items|has-options|full|input-active|input-hidden|disabled|required|invalid)$/.test(c))
                 .join(' ');
             this.control_input?.setAttribute('placeholder', 'Gõ để tìm…');
             const label = accessibleName(select);

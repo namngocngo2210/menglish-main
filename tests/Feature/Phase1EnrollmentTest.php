@@ -75,7 +75,7 @@ class Phase1EnrollmentTest extends TestCase
         $lead = $this->lead('consulting');
 
         $response = $this->actingAs($this->sales)->get(route('crm.closing-wizard', ['customer_id' => $lead->id]))->assertOk();
-        $codes = $response->viewData('classes')->pluck('code')->all();
+        $codes = collect($response->inertiaProps('classes'))->pluck('code')->all();
         $this->assertContains('FAM1-UP', $codes);
         $this->assertContains('FAM1-ACT', $codes);
         $this->assertNotContains('FAM1-OLD', $codes);
@@ -101,7 +101,7 @@ class Phase1EnrollmentTest extends TestCase
         $this->enrollDummy($full, 2);
         $lead = $this->lead('consulting');
 
-        $this->assertNotContains('FAM1-FULL', $this->actingAs($this->sales)->get(route('crm.closing-wizard'))->viewData('classes')->pluck('code'));
+        $this->assertNotContains('FAM1-FULL', collect($this->actingAs($this->sales)->get(route('crm.closing-wizard'))->inertiaProps('classes'))->pluck('code'));
         $this->actingAs($this->sales)->post(route('crm.closing-wizard.store'), $this->closingPayload($lead, $full))
             ->assertSessionHasErrors('class_id');
         $this->assertSame('consulting', $lead->fresh()->stage);
@@ -250,7 +250,7 @@ class Phase1EnrollmentTest extends TestCase
             // Lỗi hiện ngay khi xem trước (trước khi bấm Nhập), theo thứ tự dòng, kèm nút tải các dòng lỗi.
             ->assertSee('5 dòng lỗi sẽ bị bỏ qua nếu nhập bây giờ')
             ->assertSeeInOrder(['data-import-errors', 'Dòng 3', 'Dòng 4', 'Dòng 5', 'Dòng 6', 'Dòng 7'], false)
-            ->assertSee(route('crm.import.errors'), false)
+            ->assertSee(route('crm.import.errors', absolute: false), false)
             ->assertSee('Bỏ qua 5 dòng lỗi, nhập 2 khách');
         $this->assertNotNull($preview);
 

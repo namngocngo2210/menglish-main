@@ -4,9 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\Branch;
 use App\Models\CrmCustomer;
-use App\Models\Student;
 use App\Models\User;
 use App\Models\WorkTask;
+use Database\Seeders\PermissionSeeder;
+use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -15,14 +16,15 @@ class PaginationRecordOptionTest extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
+
     protected Branch $branch;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->seed(\Database\Seeders\PermissionSeeder::class);
-        $this->seed(\Database\Seeders\RoleSeeder::class);
+        $this->seed(PermissionSeeder::class);
+        $this->seed(RoleSeeder::class);
 
         $this->branch = Branch::create(['name' => 'Chi nhánh Cầu Giấy', 'code' => 'CG', 'is_active' => true]);
 
@@ -41,9 +43,9 @@ class PaginationRecordOptionTest extends TestCase
         // Create 25 customers
         for ($i = 1; $i <= 25; $i++) {
             CrmCustomer::create([
-                'code' => 'KH-' . str_pad($i, 5, '0', STR_PAD_LEFT),
-                'name' => 'Khách hàng Test ' . $i,
-                'phone' => '0988000' . str_pad($i, 3, '0', STR_PAD_LEFT),
+                'code' => 'KH-'.str_pad($i, 5, '0', STR_PAD_LEFT),
+                'name' => 'Khách hàng Test '.$i,
+                'phone' => '0988000'.str_pad($i, 3, '0', STR_PAD_LEFT),
                 'stage' => 'new',
                 'branch_id' => $this->branch->id,
             ]);
@@ -62,24 +64,24 @@ class PaginationRecordOptionTest extends TestCase
         // 2. per_page = 10 -> exactly 10 records on page 1
         $response10 = $this->actingAs($this->admin)->get(route('crm.customers.index', ['per_page' => 10]));
         $response10->assertStatus(200);
-        $this->assertCount(10, $response10->viewData('customers'));
+        $this->assertCount(10, $response10->inertiaProps('customers.data'));
 
         // 3. per_page = 20 -> exactly 20 records on page 1
         $response20 = $this->actingAs($this->admin)->get(route('crm.customers.index', ['per_page' => 20]));
         $response20->assertStatus(200);
-        $this->assertCount(20, $response20->viewData('customers'));
+        $this->assertCount(20, $response20->inertiaProps('customers.data'));
 
         // 4. per_page = all -> all 25 records on page 1
         $responseAll = $this->actingAs($this->admin)->get(route('crm.customers.index', ['per_page' => 'all']));
         $responseAll->assertStatus(200);
-        $this->assertCount(25, $responseAll->viewData('customers'));
+        $this->assertCount(25, $responseAll->inertiaProps('customers.data'));
     }
 
     public function test_tasks_pagination_options_support(): void
     {
         for ($i = 1; $i <= 30; $i++) {
             WorkTask::create([
-                'title' => 'Nhiệm vụ Test ' . $i,
+                'title' => 'Nhiệm vụ Test '.$i,
                 'task_type' => 'teaching_assistant',
                 'creator_id' => $this->admin->id,
                 'assignee_id' => $this->admin->id,

@@ -1,9 +1,9 @@
 <script setup>
 /**
- * Ô nhập điểm test đầu vào theo thang điểm khối lớp (BA Q2) — dùng trong <UiForm> của màn chấm bài (PlacementTests/Result).
+ * Ô nhập điểm test đầu vào theo thang điểm khối lớp (BA Q2) — dùng trong <UiForm> của màn chấm bài (PlacementTests/Result)
+ * và modal nhập điểm trên hồ sơ khách (Crm/Customers/Show).
  * Tổng = Nghe + Đọc & Viết + Nói (điểm thô theo thang khối) → lớp đề xuất; chọn lại lớp được;
  * nhận xét từng kỹ năng gợi ý theo băng điểm (sửa được). Speaking luôn nhập tay.
- * Thay partial Blade placement-tests/partials/rubric-score-fields (partial đó vẫn dùng ở hồ sơ khách CRM).
  *   <RubricScoreFields :rubric="rubric" />   // rubric = PlacementTestController::rubricFormState($submission, $group)
  */
 import { computed, reactive, ref, watch } from 'vue';

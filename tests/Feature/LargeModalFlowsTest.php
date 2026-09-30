@@ -16,7 +16,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia;
-use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\InteractsWithInertia;
 use Tests\TestCase;
 
@@ -30,8 +29,6 @@ class LargeModalFlowsTest extends TestCase
 {
     use InteractsWithInertia;
     use RefreshDatabase;
-
-    private const HX = ['HX-Request' => 'true'];
 
     private User $admin;
 
@@ -47,81 +44,44 @@ class LargeModalFlowsTest extends TestCase
         $this->admin->assignRole('admin');
     }
 
-    // ── GET: trang đầy đủ ↔ fragment ─────────────────────────────────────────────────────────
-
-    /** @return array<string, array{0: callable(self): string, 1: string, 2: string}> [url, id form trong modal, chữ có trong modal] */
-    public static function formPages(): array
-    {
-        return [
-            'khách – thêm' => [fn (self $t) => route('crm.customers.create'), 'modal-customer-form', 'Thêm khách mới'],
-        ];
-    }
-
-    #[DataProvider('formPages')]
-    public function test_form_route_returns_full_page_normally_and_fragment_for_htmx(callable $url, string $formId, string $title): void
-    {
-        $url = $url($this);
-
-        $this->actingAs($this->admin)->get($url)->assertOk()
-            ->assertSee('data-sidebar', false)
-            ->assertDontSee('id="'.$formId.'"', false);
-
-        $this->actingAs($this->admin)->get($url, self::HX)->assertOk()
-            ->assertHeader('Vary', 'HX-Request')
-            ->assertDontSee('data-sidebar', false)
-            ->assertDontSee('<html', false)
-            ->assertDontSee('<script', false)
-            ->assertSee($title)
-            ->assertSee('id="'.$formId.'"', false)
-            ->assertSee('form="'.$formId.'"', false);
-    }
-
-    /** @return array<string, array{0: callable(self): string, 1: string, 2: array<int, callable(self): string>}> [trang danh sách, sự kiện làm mới, nút mở modal (hx-get)] */
-    public static function listPages(): array
-    {
-        return [
-            'khách – danh sách' => [fn (self $t) => route('crm.customers.index'), 'crm-customers-changed', [
-                fn (self $t) => route('crm.customers.create'),
-            ]],
-            'khách – Kanban' => [fn (self $t) => route('crm.pipeline'), 'crm-customers-changed', [
-                fn (self $t) => route('crm.customers.create'),
-            ]],
-        ];
-    }
-
-    #[DataProvider('listPages')]
-    public function test_list_page_has_refresh_region_and_modal_openers(callable $page, string $event, array $openers): void
-    {
-        $urls = array_map(fn (callable $opener) => $opener($this), $openers); // tạo dữ liệu trước khi mở trang
-
-        $response = $this->actingAs($this->admin)->get($page($this))->assertOk()
-            ->assertSee('hx-trigger="'.$event.' from:body"', false)
-            ->assertSee('hx-disinherit="*"', false)
-            ->assertSee('hx-target="#remote-modal-body"', false);
-        foreach ($urls as $url) {
-            $response->assertSee('hx-get="'.$url.'"', false);
-        }
-    }
-
     // ── Khách hàng (CRM) ─────────────────────────────────────────────────────────────────────
+
+    public function test_customer_create_opens_as_page_or_modal_and_lists_link_to_it(): void
+    {
+        // Danh sách / Kanban (trang Vue) có nút mở form "Thêm khách mới" (modal Inertia, cùng URL với trang đầy đủ).
+        $create = route('crm.customers.create', absolute: false).'"';
+        $this->actingAs($this->admin)->get(route('crm.customers.index'))->assertOk()->assertSee($create, false);
+        $this->actingAs($this->admin)->get(route('crm.pipeline'))->assertOk()->assertSee($create, false);
+
+        $this->actingAs($this->admin)->get(route('crm.customers.create'))->assertOk()
+            ->assertSee('data-sidebar', false)->assertSee('Thêm khách mới')->assertSee('id="add-lead-form"', false);
+        $this->actingAs($this->admin)->get(route('crm.customers.create'), self::MODAL)->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Crm/Customers/Create')->where('asModal', true));
+    }
 
     public function test_customer_create_and_edit_modal_flow(): void
     {
         $payload = ['name' => 'Nguyễn Minh An', 'phone' => '0912345670', 'source' => 'Facebook', 'branch_id' => $this->branch->id];
 
-        // SĐT sai → 422 trong modal, giữ dữ liệu đã nhập.
-        $this->actingAs($this->admin)->post(route('crm.customers.store'), [...$payload, 'phone' => '12345'], self::HX)
-            ->assertStatus(422)->assertDontSee('data-sidebar', false)
-            ->assertSee('id="modal-customer-form"', false)->assertSee('value="Nguyễn Minh An"', false)
-            ->assertSee('Số điện thoại không hợp lệ');
+        // SĐT sai → quay lại trang đang mở kèm lỗi (hiện ngay trong modal), không tạo khách.
+        $this->actingAs($this->admin)->from(route('crm.customers.index'))
+            ->post(route('crm.customers.store'), [...$payload, 'phone' => '12345'], self::MODAL)
+            ->assertRedirect(route('crm.customers.index'))
+            ->assertSessionHasErrors('phone');
+        $this->assertStringContainsString('Số điện thoại không hợp lệ', session('errors')->first('phone'));
         $this->assertSame(0, CrmCustomer::count());
 
-        $response = $this->actingAs($this->admin)->post(route('crm.customers.store'), $payload, self::HX);
+        // Lưu từ modal → về lại trang đang mở kèm thông báo (modal đóng, danh sách có dữ liệu mới).
+        $this->actingAs($this->admin)->from(route('crm.pipeline'))
+            ->post(route('crm.customers.store'), $payload, self::MODAL)
+            ->assertRedirect(route('crm.pipeline'));
         $customer = CrmCustomer::firstOrFail();
-        $this->assertSaved($response, 'crm-customers-changed', "Đã thêm khách hàng Nguyễn Minh An ({$customer->short_code}) thành công vào Cơ sở dữ liệu!");
+        $this->assertSame("Đã thêm khách hàng Nguyễn Minh An ({$customer->short_code}) thành công vào Cơ sở dữ liệu!", session('status'));
 
-        $response = $this->actingAs($this->admin)->put(route('crm.customers.update', $customer->id), [...$payload, 'name' => 'Nguyễn Minh Anh'], self::HX);
-        $this->assertSaved($response, 'crm-customers-changed', 'Cập nhật thông tin khách hàng thành công!');
+        // Sửa trong tab "Thông tin khách hàng" (form trên trang hồ sơ).
+        $this->actingAs($this->admin)->put(route('crm.customers.update', $customer->id), [...$payload, 'name' => 'Nguyễn Minh Anh'])
+            ->assertRedirect(route('crm.customers.show', ['id' => $customer->id, 'tab' => 'info']))
+            ->assertSessionHas('status', 'Cập nhật thông tin khách hàng thành công!');
         $this->assertSame('Nguyễn Minh Anh', $customer->fresh()->name);
 
         // Request thường giữ nguyên redirect về hồ sơ khách.
@@ -136,11 +96,10 @@ class LargeModalFlowsTest extends TestCase
         // Hồ sơ đầy đủ có form sửa trực tiếp (tab "Thông tin khách hàng"); không còn modal xem nhanh.
         $this->actingAs($this->admin)->get(route('crm.customers.show', ['id' => $lead->id, 'tab' => 'info']))->assertOk()
             ->assertSee('data-sidebar', false)->assertSee('Thông tin khách hàng')
-            ->assertSee('id="edit-lead-form"', false)->assertSee('name="_tab" value="info"', false);
+            ->assertSee('id="edit-lead-form"', false)
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Crm/Customers/Show')->where('tab', 'info'));
 
-        // Link cũ mở bằng htmx / URL sửa cũ → chuyển sang trang đầy đủ.
-        $this->actingAs($this->admin)->get(route('crm.customers.show', $lead->id), self::HX)
-            ->assertNoContent()->assertHeader('HX-Redirect', route('crm.customers.show', $lead->id));
+        // URL sửa cũ → chuyển sang trang đầy đủ.
         $this->actingAs($this->admin)->get(route('crm.customers.edit', $lead->id))
             ->assertRedirect(route('crm.customers.show', ['id' => $lead->id, 'tab' => 'info']));
 

@@ -205,7 +205,8 @@ class Phase1MockupParityTest extends TestCase
             ->assertSee('Lớp học phù hợp đề xuất')->assertSee('Xếp lớp sau')->assertSee('Khách sẽ xuất hiện trong mục')
             ->assertSee('Lịch học: Thứ 2 - Thứ 4 - Thứ 6')->assertSee('Giáo viên: Cô Tuyết Mai')
             ->assertSee('Số học viên hiện có:')->assertSee('ngưỡng khai giảng 6')->assertSee('Cần thêm 6 học viên để khai giảng')
-            ->assertSee('Chọn lớp này')
+            // Lớp duy nhất được chọn sẵn → thẻ lớp hiện "Đã chọn lớp này".
+            ->assertSee('Đã chọn lớp này')
             // A6: không có "cọc", không dữ liệu học phí giả
             ->assertDontSee('Cọc')->assertDontSee('12500000');
     }
@@ -226,7 +227,7 @@ class Phase1MockupParityTest extends TestCase
 
         $this->actingAs($this->academic)->get(route('crm.customers.won'))->assertOk()
             // Chờ xếp lớp chỉ còn băng nhắc + link sang màn Chờ xếp lớp (không lặp khối xếp lớp).
-            ->assertSee('khách đã chốt đang chờ xếp lớp')->assertSee(route('crm.waiting-list'), false)
+            ->assertSee('khách đã chốt đang chờ xếp lớp')->assertSee(route('crm.waiting-list', absolute: false), false)
             ->assertSee('Lớp học')->assertSee('Nhập tên hoặc số điện thoại...')
             ->assertSee('Khách đã có lớp')->assertSee('Xuất Excel')->assertSee('Thời điểm chốt')
             ->assertSee('Movers A')->assertDontSee('Hủy chốt');
@@ -253,7 +254,7 @@ class Phase1MockupParityTest extends TestCase
 
         $this->actingAs($this->academic)->get(route('crm.confirmations'))->assertOk()
             ->assertSee('Khách hàng đã chốt thành công')->assertSee('học viên')
-            ->assertSee('khách đã chốt đang chờ xếp lớp')->assertSee(route('crm.waiting-list'), false)
+            ->assertSee('khách đã chốt đang chờ xếp lớp')->assertSee(route('crm.waiting-list', absolute: false), false)
             ->assertSee('Chi nhánh')->assertSee('Lớp học')->assertSee('Tìm kiếm học viên...')
             ->assertSee('Khách đã có lớp')->assertSee('Lớp ID: IF-202310')->assertSee('Chốt: '.now()->format('d/m/Y'))->assertSee('Trạng thái')
             ->assertSee('Chờ khai giảng')->assertSee('Xác nhận chính thức')->assertSee('Xác nhận học viên')

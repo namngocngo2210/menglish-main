@@ -17,7 +17,6 @@ use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia;
 use Maatwebsite\Excel\Excel as ExcelFormat;
 use Maatwebsite\Excel\Facades\Excel;
-use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\InteractsWithInertia;
 use Tests\TestCase;
 
@@ -45,57 +44,6 @@ class ModalFlowsTest extends TestCase
         $this->branch = Branch::create(['name' => 'Cầu Giấy', 'code' => 'CG-MF', 'is_active' => true]);
         $this->admin = User::factory()->create(['name' => 'Quản trị viên', 'is_active' => true, 'branch_id' => $this->branch->id]);
         $this->admin->assignRole('admin');
-    }
-
-    // ── GET: trang đầy đủ ↔ fragment ─────────────────────────────────────────────────────────
-
-    /** @return array<string, array{0: callable(self): string, 1: string, 2: string}> [url, id form trong modal, chữ có trong modal] */
-    public static function formPages(): array
-    {
-        return [
-            'nhập khách Excel' => [fn (self $t) => route('crm.import'), 'modal-crm-import-form', 'Nhập khách hàng loạt từ Excel'],
-        ];
-    }
-
-    #[DataProvider('formPages')]
-    public function test_form_route_returns_full_page_normally_and_fragment_for_htmx(callable $url, string $formId, string $title): void
-    {
-        $url = $url($this);
-
-        $this->actingAs($this->admin)->get($url)->assertOk()
-            ->assertSee('data-sidebar', false)
-            ->assertDontSee('id="'.$formId.'"', false);
-
-        $this->actingAs($this->admin)->get($url, self::HX)->assertOk()
-            ->assertHeader('Vary', 'HX-Request')
-            ->assertDontSee('data-sidebar', false)
-            ->assertDontSee('<html', false)
-            ->assertSee($title)
-            ->assertSee('id="'.$formId.'"', false)
-            ->assertSee('form="'.$formId.'"', false);
-    }
-
-    /** @return array<string, array{0: string, 1: string, 2: callable(self): string, 3: string}> [route danh sách, sự kiện làm mới, URL mở modal, cỡ] */
-    public static function listPages(): array
-    {
-        return [
-        ];
-    }
-
-    #[DataProvider('listPages')]
-    public function test_list_page_has_refresh_region_modal_triggers_and_no_native_confirm_for_delete(string $index, string $event, callable $opener, string $size): void
-    {
-        $this->item();
-        $this->staff();
-
-        $this->actingAs($this->admin)->get(route($index))->assertOk()
-            ->assertSee('hx-trigger="'.$event.' from:body"', false)
-            ->assertSee('hx-target="#remote-modal-body"', false)
-            ->assertSee('data-modal-size="'.$size.'"', false)
-            ->assertSee('hx-get="'.$opener($this).'"', false)
-            ->assertDontSee('onsubmit="return confirm(\'Bạn có chắc', false)
-            ->assertDontSee('onsubmit="return confirm(\'Xóa', false)
-            ->assertDontSee('onsubmit="return confirm(\'Ngừng', false);
     }
 
     // ── Vật phẩm ────────────────────────────────────────────────────────────────────────────
@@ -148,33 +96,70 @@ class ModalFlowsTest extends TestCase
             ->assertRedirect(route('merchandise.index'));
     }
 
-    // ── Nhập khách từ Excel (2 bước trong modal) ─────────────────────────────────────────────
+    // ── Nhập khách từ Excel (2 bước trong modal Inertia — trang Crm/Import) ──────────────────
 
     public function test_crm_import_runs_both_steps_inside_modal(): void
     {
-        $this->actingAs($this->admin)->get(route('crm.import'), self::HX)->assertOk()
-            ->assertSee('href="'.route('crm.import.template').'"', false)->assertSee('hx-boost="false"', false);
+        // Mở thẳng URL → trang đầy đủ; mở từ nút "Nhập Excel" (X-Remote-Modal) → nội dung modal (asModal).
+        $this->actingAs($this->admin)->get(route('crm.import'))->assertOk()
+            ->assertSee('data-sidebar', false)
+            ->assertSee('Nhập khách hàng loạt từ Excel')
+            ->assertSee('href="'.route('crm.import.template', absolute: false).'"', false);
+        $this->actingAs($this->admin)->get(route('crm.import'), self::MODAL)->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Crm/Import')
+                ->where('asModal', true)
+                ->where('preview', null)
+                ->where('branches.0.label', 'Cầu Giấy'));
 
-        // Thiếu file / chi nhánh → 422, form bước 1 kèm lỗi (route crm.import.preview → màn cha crm.import).
-        $this->actingAs($this->admin)->post(route('crm.import.preview'), ['default_source' => 'Hội thảo'], self::HX)
-            ->assertStatus(422)->assertDontSee('data-sidebar', false)
-            ->assertSee('id="modal-crm-import-form"', false)->assertSee('Vui lòng chọn file Excel / CSV.')->assertSee('value="Hội thảo"', false);
+        // Thiếu file / chi nhánh → quay lại trang đang mở kèm lỗi (form trong modal hiện lỗi ngay dưới trường).
+        $this->actingAs($this->admin)->from(route('crm.customers.index'))
+            ->post(route('crm.import.preview'), ['default_source' => 'Hội thảo'], self::MODAL)
+            ->assertRedirect(route('crm.customers.index'))
+            ->assertSessionHasErrors(['file' => 'Vui lòng chọn file Excel / CSV.']);
 
         $file = UploadedFile::fake()->createWithContent('khach.csv', "\xEF\xBB\xBFHọ tên,Số điện thoại\nNguyễn An,0912345678\nTrần Bình,12345\n");
-        $this->actingAs($this->admin)->post(route('crm.import.preview'), ['file' => $file, 'branch_id' => $this->branch->id], self::HX)
-            ->assertRedirect(route('crm.import'));
+        $this->actingAs($this->admin)->from(route('crm.customers.index'))
+            ->post(route('crm.import.preview'), ['file' => $file, 'branch_id' => $this->branch->id], self::MODAL)
+            ->assertRedirect(route('crm.customers.index'))
+            ->assertSessionHasNoErrors();
 
-        // Trình duyệt đi theo redirect (vẫn gửi HX-Request) → bước 2 trong modal, nới rộng 4xl.
-        $this->actingAs($this->admin)->get(route('crm.import'), self::HX)->assertOk()
-            ->assertDontSee('data-sidebar', false)
-            ->assertSee('Xem trước dữ liệu nhập')->assertSee('SĐT sai định dạng')
-            ->assertSee("size = '4xl'", false)
-            ->assertSee('form="modal-crm-import-confirm"', false)->assertSee('Bỏ qua 1 dòng lỗi, nhập 1 khách');
+        // Modal tải lại nội dung → bước 2 (xem trước + lỗi từng dòng).
+        $this->actingAs($this->admin)->get(route('crm.import'), self::MODAL)->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Crm/Import')
+                ->where('asModal', true)
+                ->where('preview.valid_count', 1)
+                ->where('preview.error_count', 1)
+                ->where('preview.rows.1.errors.0', fn (string $error) => str_starts_with($error, 'SĐT sai định dạng')));
+        $this->actingAs($this->admin)->get(route('crm.import'))->assertOk()
+            ->assertSee('Xem trước: khach.csv')->assertSee('SĐT sai định dạng')->assertSee('Bỏ qua 1 dòng lỗi, nhập 1 khách');
 
-        $response = $this->actingAs($this->admin)->post(route('crm.import.store'), [], self::HX);
-        $response->assertNoContent()->assertHeader('HX-Redirect', route('crm.customers.index'));
+        // Nhập xong → sang danh sách khách kèm kết quả (modal tự đóng khi chuyển trang).
+        $this->actingAs($this->admin)->from(route('crm.customers.index'))
+            ->post(route('crm.import.store'), [], self::MODAL)
+            ->assertRedirect(route('crm.customers.index'));
         $this->assertSame(1, CrmCustomer::count());
         $this->assertStringStartsWith('Đã nhập 1 khách hàng mới', session('status'));
+    }
+
+    public function test_crm_import_cancel_from_modal_returns_to_current_page(): void
+    {
+        $file = UploadedFile::fake()->createWithContent('khach.csv', "Họ tên,Số điện thoại\nNguyễn An,0912345678\n");
+        $this->actingAs($this->admin)->from(route('crm.customers.index'))
+            ->post(route('crm.import.preview'), ['file' => $file, 'branch_id' => $this->branch->id], self::MODAL)
+            ->assertRedirect(route('crm.customers.index'));
+        $this->assertNotNull(session('crm_customer_import'));
+
+        $this->actingAs($this->admin)->from(route('crm.customers.index'))
+            ->post(route('crm.import.store'), ['cancel' => 1], self::MODAL)
+            ->assertRedirect(route('crm.customers.index'))
+            ->assertSessionHas('status', 'Đã hủy phiên nhập khách.');
+        $this->assertNull(session('crm_customer_import'));
+        $this->assertSame(0, CrmCustomer::count());
+
+        // Trang đầy đủ (không qua modal): các bước vẫn quay về crm.import như cũ.
+        $this->actingAs($this->admin)->post(route('crm.import.store'), [])
+            ->assertRedirect(route('crm.import'))
+            ->assertSessionHasErrors('file');
     }
 
     public function test_crm_import_reads_xlsx_directly_when_laravel_excel_fails(): void
@@ -184,7 +169,7 @@ class ModalFlowsTest extends TestCase
         Excel::shouldReceive('toArray')->once()->andThrow(new \ErrorException('mkdir(): Permission denied'));
 
         $file = UploadedFile::fake()->createWithContent('khach.xlsx', $xlsx);
-        $this->actingAs($this->admin)->post(route('crm.import.preview'), ['file' => $file, 'branch_id' => $this->branch->id], self::HX)
+        $this->actingAs($this->admin)->post(route('crm.import.preview'), ['file' => $file, 'branch_id' => $this->branch->id])
             ->assertRedirect(route('crm.import'))->assertSessionHasNoErrors();
         $rows = session('crm_customer_import')['rows'];
         $this->assertSame(['Nguyễn An', 'Trần Bình'], array_column(array_column($rows, 'data'), 'name'));
@@ -195,8 +180,12 @@ class ModalFlowsTest extends TestCase
     public function test_crm_import_shows_reason_when_file_is_unreadable(): void
     {
         $file = UploadedFile::fake()->createWithContent('khach.xlsx', 'không phải file excel');
-        $this->actingAs($this->admin)->post(route('crm.import.preview'), ['file' => $file, 'branch_id' => $this->branch->id], self::HX)
-            ->assertStatus(422)->assertSee('Không đọc được file')->assertSee('Chi tiết:');
+        $this->actingAs($this->admin)->from(route('crm.customers.index'))
+            ->post(route('crm.import.preview'), ['file' => $file, 'branch_id' => $this->branch->id], self::MODAL)
+            ->assertRedirect(route('crm.customers.index'))
+            ->assertSessionHasErrors('file');
+        $this->assertStringContainsString('Không đọc được file', session('errors')->first('file'));
+        $this->assertStringContainsString('Chi tiết:', session('errors')->first('file'));
     }
 
     // ── Nhập học phí từ Excel (3 bước trong modal) ───────────────────────────────────────────

@@ -12,7 +12,6 @@ use App\Models\Student;
 use App\Models\SystemSetting;
 use App\Models\User;
 use App\Services\NotificationService;
-use Carbon\Carbon;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -264,12 +263,12 @@ class Phase1CrmTest extends TestCase
 
         $response = $this->actingAs($this->admin)->get(route('crm.pipeline'))->assertOk()
             ->assertSee('Quá hạn')->assertSee('Sắp hết hạn')->assertSee('Sửa giai đoạn', false);
-        $leads = collect($response->viewData('stages'))->flatMap(fn ($stage) => $stage['leads'])->keyBy('name');
+        $leads = collect($response->inertiaProps('stages'))->flatMap(fn ($stage) => $stage['leads'])->keyBy('name');
         $this->assertSame('overdue', $leads['Khách Quá Hạn']['follow_up_status']);
         $this->assertSame('due_soon', $leads['Khách Sắp Hạn']['follow_up_status']);
         $this->assertNull($leads['Khách Còn Lâu']['follow_up_status']);
 
-        $names = fn ($query) => collect($this->actingAs($this->admin)->get(route('crm.pipeline', $query))->viewData('stages'))
+        $names = fn ($query) => collect($this->actingAs($this->admin)->get(route('crm.pipeline', $query))->inertiaProps('stages'))
             ->flatMap(fn ($stage) => $stage['leads'])->pluck('name')->sort()->values()->all();
 
         $this->assertSame(['Khách Sắp Hạn'], $names(['search' => 'Sắp']));
@@ -280,7 +279,7 @@ class Phase1CrmTest extends TestCase
         $this->assertNotContains('Khách Cơ Sở B', $names(['from' => now()->subDay()->toDateString()]));
 
         // Manager: lọc chi nhánh bị bỏ qua (chỉ Admin), vẫn giới hạn chi nhánh mình.
-        $managerNames = collect($this->actingAs($this->manager)->get(route('crm.pipeline', ['branch_id' => $this->otherBranch->id]))->viewData('stages'))
+        $managerNames = collect($this->actingAs($this->manager)->get(route('crm.pipeline', ['branch_id' => $this->otherBranch->id]))->inertiaProps('stages'))
             ->flatMap(fn ($stage) => $stage['leads'])->pluck('name');
         $this->assertNotContains('Khách Cơ Sở B', $managerNames);
         $this->assertContains('Khách Quá Hạn', $managerNames);
@@ -402,15 +401,15 @@ class Phase1CrmTest extends TestCase
         $this->lead('won', $this->otherBranch, $this->otherSales, ['name' => 'Học viên Cơ sở B', 'converted_at' => now()]);
 
         $response = $this->actingAs($this->manager)->get(route('crm.customers.won'))->assertOk()->assertSee('Lớp học')->assertSee('Chưa xếp lớp');
-        $this->assertSame(22, $response->viewData('wonCustomers')->total());
-        $this->assertCount(20, $response->viewData('wonCustomers')->items());
-        $this->assertSame(22, $response->viewData('totalCount'));
-        $this->assertEquals(22000000, $response->viewData('totalContractAmount'));
+        $this->assertSame(22, $response->inertiaProps('wonCustomers.total'));
+        $this->assertCount(20, $response->inertiaProps('wonCustomers.data'));
+        $this->assertSame(22, $response->inertiaProps('totalCount'));
+        $this->assertEquals(22000000, $response->inertiaProps('totalContractAmount'));
 
-        $filtered = $this->actingAs($this->manager)->get(route('crm.customers.won', ['search' => 'Học viên 01']))->viewData('wonCustomers');
-        $this->assertSame(['Học viên 01'], collect($filtered->items())->pluck('name')->all());
-        $this->assertSame(11, $this->actingAs($this->manager)->get(route('crm.customers.won', ['source' => 'Google Ads']))->viewData('wonCustomers')->total());
-        $this->assertSame(5, $this->actingAs($this->manager)->get(route('crm.customers.won', ['from' => now()->subDays(5)->toDateString()]))->viewData('wonCustomers')->total());
+        $filtered = $this->actingAs($this->manager)->get(route('crm.customers.won', ['search' => 'Học viên 01']))->inertiaProps('wonCustomers');
+        $this->assertSame(['Học viên 01'], collect($filtered['data'])->pluck('name')->all());
+        $this->assertSame(11, $this->actingAs($this->manager)->get(route('crm.customers.won', ['source' => 'Google Ads']))->inertiaProps('wonCustomers.total'));
+        $this->assertSame(5, $this->actingAs($this->manager)->get(route('crm.customers.won', ['from' => now()->subDays(5)->toDateString()]))->inertiaProps('wonCustomers.total'));
 
         $csv = $this->actingAs($this->manager)->get(route('crm.customers.won', ['export' => 'csv', 'source' => 'Google Ads']));
         $csv->assertOk();
@@ -431,9 +430,9 @@ class Phase1CrmTest extends TestCase
         $this->lead('lost', attributes: ['name' => 'Mất Khách Hai', 'lost_reason' => 'Xa nhà', 'lost_at' => now()->subDays(40)]);
 
         $response = $this->actingAs($this->manager)->get(route('crm.lost-deals'))->assertOk();
-        $this->assertSame(2, $response->viewData('lostCustomers')->total());
-        $this->assertSame(['Mất Khách Một'], collect($this->actingAs($this->manager)->get(route('crm.lost-deals', ['search' => 'Một']))->viewData('lostCustomers')->items())->pluck('name')->all());
-        $this->assertSame(['Mất Khách Hai'], collect($this->actingAs($this->manager)->get(route('crm.lost-deals', ['to' => now()->subDays(30)->toDateString()]))->viewData('lostCustomers')->items())->pluck('name')->all());
+        $this->assertSame(2, $response->inertiaProps('lostCustomers.total'));
+        $this->assertSame(['Mất Khách Một'], collect($this->actingAs($this->manager)->get(route('crm.lost-deals', ['search' => 'Một']))->inertiaProps('lostCustomers.data'))->pluck('name')->all());
+        $this->assertSame(['Mất Khách Hai'], collect($this->actingAs($this->manager)->get(route('crm.lost-deals', ['to' => now()->subDays(30)->toDateString()]))->inertiaProps('lostCustomers.data'))->pluck('name')->all());
 
         $csv = $this->actingAs($this->manager)->get(route('crm.lost-deals', ['export' => 'csv']));
         $csv->assertOk();
@@ -454,13 +453,13 @@ class Phase1CrmTest extends TestCase
         $this->sales->givePermissionTo('report.view');
         $this->manager->givePermissionTo('report.view');
 
-        $salesRows = collect($this->actingAs($this->sales)->get(route('crm.reports'))->assertOk()->viewData('repsData'))->pluck('name')->all();
+        $salesRows = collect($this->actingAs($this->sales)->get(route('crm.reports'))->assertOk()->inertiaProps('repsData'))->pluck('name')->all();
         $this->assertSame(['Sale Một'], $salesRows);
 
-        $managerRows = collect($this->actingAs($this->manager)->get(route('crm.reports'))->viewData('repsData'))->pluck('name')->sort()->values()->all();
+        $managerRows = collect($this->actingAs($this->manager)->get(route('crm.reports'))->inertiaProps('repsData'))->pluck('name')->sort()->values()->all();
         $this->assertSame(['Sale Ba', 'Sale Một'], $managerRows);
 
-        $adminRows = collect($this->actingAs($this->admin)->get(route('crm.reports'))->viewData('repsData'))->pluck('name');
+        $adminRows = collect($this->actingAs($this->admin)->get(route('crm.reports'))->inertiaProps('repsData'))->pluck('name');
         $this->assertContains('Sale Hai', $adminRows);
 
         $csv = $this->actingAs($this->sales)->get(route('crm.reports', ['export' => 'csv']));

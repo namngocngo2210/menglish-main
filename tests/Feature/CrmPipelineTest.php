@@ -9,13 +9,13 @@ use App\Models\Course;
 use App\Models\CrmCustomer;
 use App\Models\CrmTrialBooking;
 use App\Models\PlacementTest;
-use App\Models\PlacementTestSubmission;
 use App\Models\User;
 use App\Services\CrmStageService;
 use App\Services\PlacementPortalLinkService;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 /**
@@ -59,7 +59,7 @@ class CrmPipelineTest extends TestCase
 
         $this->assertSame(
             ['new', 'consulting', 'test_scheduled', 'testing', 'tested', 'result_sent', 'waiting_class', 'won'],
-            collect($response->viewData('stages'))->pluck('id')->all()
+            collect($response->inertiaProps('stages'))->pluck('id')->all()
         );
         $this->assertSame('Đang tư vấn', (new CrmCustomer(['stage' => 'consulting']))->stage_label);
         $this->assertSame('Thất bại', (new CrmCustomer(['stage' => 'lost']))->stage_label);
@@ -229,7 +229,7 @@ class CrmPipelineTest extends TestCase
             $this->actingAs($user)->get(route('crm.customers.show', $foreign))->assertNotFound();
             $this->actingAs($user)->postJson(route('crm.customers.stage', $foreign), ['stage' => 'consulting'])->assertNotFound();
 
-            $ids = collect($this->actingAs($user)->get(route('crm.pipeline'))->viewData('stages'))
+            $ids = collect($this->actingAs($user)->get(route('crm.pipeline'))->inertiaProps('stages'))
                 ->flatMap(fn (array $stage) => collect($stage['leads'])->pluck('id'));
             $this->assertTrue($ids->contains($own->id));
             $this->assertFalse($ids->contains($foreign->id));
@@ -273,11 +273,11 @@ class CrmPipelineTest extends TestCase
         $this->lead('new');
 
         $this->actingAs($this->sales)->get(route('crm.pipeline'))->assertOk()
-            ->assertViewHas('stagePermissions', fn (array $p) => $p['canForward'] === false && $p['canBackward'] === false);
+            ->assertInertia(fn (Assert $page) => $page->where('stagePermissions', fn ($p) => $p['canForward'] === false && $p['canBackward'] === false));
         $this->actingAs($this->academic)->get(route('crm.pipeline'))->assertOk()
-            ->assertViewHas('stagePermissions', fn (array $p) => $p['canForward'] === true && $p['canBackward'] === false);
+            ->assertInertia(fn (Assert $page) => $page->where('stagePermissions', fn ($p) => $p['canForward'] === true && $p['canBackward'] === false));
         $this->actingAs($this->admin)->get(route('crm.pipeline'))->assertOk()
-            ->assertViewHas('stagePermissions', fn (array $p) => $p['canForward'] === true && $p['canBackward'] === true)
+            ->assertInertia(fn (Assert $page) => $page->where('stagePermissions', fn ($p) => $p['canForward'] === true && $p['canBackward'] === true))
             ->assertSee('Lùi giai đoạn');
     }
 
@@ -401,9 +401,9 @@ class CrmPipelineTest extends TestCase
         $this->assertSame(0, $lead->histories()->where('type', 'stage_change')->count());
 
         $this->actingAs($this->academic)->get(route('crm.customers.show', $lead))->assertOk()
-            ->assertViewHas('stageControls', fn (array $c) => $c['backward'] === [] && $c['canLose'] === true);
+            ->assertInertia(fn (Assert $page) => $page->where('stageControls', fn ($c) => $c['backward'] === [] && $c['canLose'] === true));
         $this->actingAs($this->admin)->get(route('crm.customers.show', $lead))->assertOk()
-            ->assertViewHas('stageControls', fn (array $c) => in_array('tested', $c['backward'], true));
+            ->assertInertia(fn (Assert $page) => $page->where('stageControls', fn ($c) => in_array('tested', $c['backward'], true)));
     }
 
     public function test_only_not_yet_closed_leads_can_fail_from_any_active_stage(): void
@@ -419,7 +419,7 @@ class CrmPipelineTest extends TestCase
         foreach (['waiting_class', 'won'] as $stage) {
             $closed = $this->lead($stage);
             $this->actingAs($this->academic)->get(route('crm.customers.show', $closed))->assertOk()
-                ->assertViewHas('stageControls', fn (array $c) => $c['canLose'] === false && $c['backward'] === [])
+                ->assertInertia(fn (Assert $page) => $page->where('stageControls', fn ($c) => $c['canLose'] === false && $c['backward'] === []))
                 ->assertDontSee('Hủy chốt');
         }
     }
@@ -432,7 +432,7 @@ class CrmPipelineTest extends TestCase
 
         // Không có thao tác mở lại trên hồ sơ; mọi đường chuyển giai đoạn đều bị server từ chối.
         $this->actingAs($this->admin)->get(route('crm.customers.show', $lead))->assertOk()
-            ->assertViewHas('stageControls', fn (array $c) => $c['next'] === null && $c['backward'] === [] && $c['canLose'] === false)
+            ->assertInertia(fn (Assert $page) => $page->where('stageControls', fn ($c) => $c['next'] === null && $c['backward'] === [] && $c['canLose'] === false))
             ->assertSee('không mở lại, giữ để đối soát');
         $this->actingAs($this->admin)->postJson(route('crm.customers.next-stage', $lead))->assertUnprocessable();
         foreach (['new', 'consulting', 'tested'] as $target) {
@@ -505,12 +505,12 @@ class CrmPipelineTest extends TestCase
         $slots = $this->actingAs($this->academic)->get(route('crm.customers.show', $lead))->assertOk()
             ->assertSee('Lớp ST1')->assertSee('Lớp ST2')->assertDontSee('Lớp MV1')
             ->assertSee('Không có buổi học trong 7 ngày tới')
-            ->viewData('trialSlots');
+            ->inertiaProps('trialSlots');
 
         $this->assertTrue($slots['filtered']);
-        $this->assertSame([$startersA->id, $startersB->id], $slots['classes']->pluck('class.id')->all());
-        $this->assertSame([$a1->id, $a3->id], $slots['classes']->first()['sessions']->pluck('id')->all());
-        $this->assertTrue($slots['classes']->last()['sessions']->isEmpty());
+        $this->assertSame([$startersA->id, $startersB->id], collect($slots['classes'])->pluck('class.id')->all());
+        $this->assertSame([$a1->id, $a3->id], collect($slots['classes'][0]['sessions'])->pluck('id')->all());
+        $this->assertSame([], end($slots['classes'])['sessions']);
     }
 
     public function test_trial_guest_shows_on_the_teachers_session_screens_only_for_the_booked_session(): void
