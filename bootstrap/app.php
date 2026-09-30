@@ -3,6 +3,7 @@
 use App\Http\Controllers\DeployHookController;
 use App\Http\Middleware\AuditOperationMiddleware;
 use App\Http\Middleware\EnsureAccountIsActive;
+use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RequireInitialPasswordChange;
 use App\Support\Htmx;
 use Illuminate\Foundation\Application;
@@ -29,6 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
             EnsureAccountIsActive::class,
             RequireInitialPasswordChange::class,
             AuditOperationMiddleware::class,
+            HandleInertiaRequests::class,
         ]);
         $middleware->preventRequestForgery(except: [
             'hook/sepay-gateway/*',
