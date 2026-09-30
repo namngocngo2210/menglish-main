@@ -23,6 +23,7 @@ use Database\Seeders\DemoPhase2Seeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 /** Dữ liệu demo Phase 2: đủ trạng thái vận hành lớp, đúng quy tắc nghiệp vụ, chạy lại không nhân bản, không gửi Zalo thật. */
@@ -120,8 +121,9 @@ class DemoPhase2SeederTest extends TestCase
         $this->actingAs($lead)->get(route('syllabus.builder', ['curriculum' => $starters->id]))->assertOk();
         $this->actingAs($assistant)->get(route('portal.ta-tasks'))->assertOk();
         $this->actingAs($studentUser)->get(route('portal.student.home'))->assertOk()
-            ->assertViewHas('student', fn (Student $s) => $s->code === 'HV-DEMO-CG-01')
-            ->assertViewHas('bigTestResults', fn ($results) => $results->isNotEmpty())
-            ->assertViewHas('attendanceHistory', fn ($rows) => $rows->isNotEmpty());
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Portal/Home')
+                ->where('student.code', 'HV-DEMO-CG-01')
+                ->where('bigTestResults', fn ($results) => collect($results)->isNotEmpty())
+                ->where('attendanceHistory', fn ($rows) => collect($rows)->isNotEmpty()));
     }
 }

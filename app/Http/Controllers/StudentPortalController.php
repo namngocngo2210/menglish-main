@@ -20,8 +20,10 @@ use App\Support\Money;
 use App\Support\Portal\PortalNotifications;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use Inertia\Inertia;
 
 class StudentPortalController extends Controller
 {
@@ -111,6 +113,38 @@ class StudentPortalController extends Controller
         return [$students, $student];
     }
 
+    /**
+     * Props chung của các màn cổng học viên (Pages/Portal/*): học viên đang chọn, danh sách để đổi học viên (thanh trên)
+     * và số thông báo chưa đọc (thanh điều hướng đáy).
+     *
+     * @param  array<string, mixed>  $extra  trường học viên riêng của từng màn
+     * @return array{student: array<string, mixed>|null, students: list<array<string, mixed>>, unreadCount: int}
+     */
+    private function portalProps(Collection $students, ?Student $student, array $extra = []): array
+    {
+        return [
+            'student' => $student ? [
+                'id' => $student->id,
+                'name' => $student->name,
+                'code' => $student->code,
+                'class_name' => $student->currentClass?->name,
+                ...$extra,
+            ] : null,
+            'students' => $students->map(fn (Student $s) => [
+                'id' => $s->id,
+                'name' => $s->name,
+                'class_name' => $s->currentClass?->name,
+            ])->values()->all(),
+            'unreadCount' => PortalNotifications::unreadCount($student),
+        ];
+    }
+
+    /** Điểm dạng gọn: 8.50 → "8.5", 10.00 → "10". */
+    private static function trimScore(mixed $value): string
+    {
+        return rtrim(rtrim(number_format((float) $value, 2, '.', ''), '0'), '.');
+    }
+
     // ─────────────────────────────────────────────
     // MÀN HÌNH #1: App Shell Phụ huynh / Học sinh
     // ─────────────────────────────────────────────
@@ -153,16 +187,23 @@ class StudentPortalController extends Controller
 
         $pendingHomeworksCount = max(0, self::HOMEWORK_CATEGORY_COUNT - $submittedHomeworksCount);
 
-        return view('portal.app-shell', compact(
-            'students',
-            'student',
-            'pendingHomeworksCount',
-            'submittedHomeworksCount',
-            'unreadNotifsCount',
-            'pronunciationCount',
-            'surveyCount',
-            'hasFeedback'
-        ));
+        return Inertia::render('Portal/AppShell', [
+            ...$this->portalProps($students, $student, $student ? [
+                'phone' => $student->phone,
+                'status_label' => $student->status_label,
+                'has_tuition' => $student->tuition !== null,
+                'tuition_total' => $student->tuition?->total_amount,
+            ] : []),
+            'pendingHomeworksCount' => $pendingHomeworksCount,
+            'submittedHomeworksCount' => $submittedHomeworksCount,
+            'unreadNotifsCount' => $unreadNotifsCount,
+            'pronunciationCount' => $pronunciationCount,
+            'surveyCount' => $surveyCount,
+            'hasFeedback' => $hasFeedback,
+            'backUrl' => $request->user()?->can('system_category.manage')
+                ? route('academic-system.index', ['cat' => '04_Cong_Phu_Huynh_Hoc_Sinh'])
+                : null,
+        ]);
     }
 
     // ─────────────────────────────────────────────
@@ -236,20 +277,72 @@ class StudentPortalController extends Controller
             $receipts = TuitionReceipt::where('student_id', $student?->id)->where('status', 'approved')->latest()->get();
         }
 
-        return view('portal.home', compact(
-            'student',
-            'students',
-            'tuition',
-            'totalPaid',
-            'debtAmount',
-            'nextTermFee',
-            'receipts',
-            'learningProgress',
-            'upcomingSessions',
-            'attendanceHistory',
-            'bigTestResults',
-            'studentClasses'
-        ));
+        $weekdays = ['', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+        $className = trim('Học phí '.($student?->currentClass?->name ?? ''));
+
+        return Inertia::render('Portal/Home', [
+            ...$this->portalProps($students, $student, $student ? [
+                'status_label' => $student->status_label,
+                'dob' => $student->dob?->toDateString(),
+                'phone' => $student->phone,
+                'address' => $student->address,
+                'notes' => $student->notes,
+                'teacher_name' => $student->currentClass?->teacher?->name,
+            ] : []),
+            'totalPaid' => $totalPaid,
+            'debtAmount' => $debtAmount,
+            'nextTermFee' => $nextTermFee,
+            'receipts' => $receipts->map(function (TuitionReceipt $rc) use ($className) {
+                $code = (string) $rc->transaction_code;
+
+                return [
+                    'id' => $rc->id,
+                    'number' => $rc->receipt_number ?? ('PT-'.$rc->id),
+                    'title' => match (true) {
+                        str_starts_with($code, 'XFER-OUT-') => 'Chuyển phí sang học viên khác',
+                        str_starts_with($code, 'XFER-IN-') => 'Nhận chuyển phí',
+                        str_starts_with($code, 'REFUND-') || (float) $rc->amount < 0 => 'Hoàn học phí',
+                        default => $rc->title ?? $className,
+                    },
+                    'payment_date' => is_string($rc->payment_date) ? $rc->payment_date : ($rc->payment_date?->format('d/m/Y') ?? '—'),
+                    'method_label' => TuitionReceipt::METHOD_LABELS[$rc->payment_method] ?? ($rc->payment_method ?: '—'),
+                    'amount' => (float) $rc->amount,
+                ];
+            })->values()->all(),
+            'learningProgress' => [
+                ...$learningProgress,
+                'latest_big_test' => $learningProgress['latest_big_test']?->overall_score,
+            ],
+            'upcomingDays' => self::UPCOMING_DAYS,
+            'upcomingSessions' => $upcomingSessions->map(fn (ClassSession $s) => [
+                'id' => $s->id,
+                'label' => $weekdays[$s->date->isoWeekday()].', '.$s->date->format('d/m').' · '.$s->start_time?->format('H:i').'-'.$s->end_time?->format('H:i'),
+                'class_name' => $s->classModel?->name,
+                'room_label' => $s->roomLabel(),
+                'cancelled' => $s->status === 'cancelled',
+                'type' => $s->type,
+            ])->values()->all(),
+            'attendanceHistory' => $attendanceHistory->map(fn (StudentAttendance $a) => [
+                'id' => $a->id,
+                'date' => ($a->classSession?->date ?? $a->session_date)?->format('d/m/Y'),
+                'class_name' => $a->classModel?->name,
+                'note' => $a->note,
+                'present' => in_array($a->status, ['present', 'late'], true),
+                'status_label' => $a->status_label,
+            ])->values()->all(),
+            'bigTestResults' => $bigTestResults->map(fn (BigTestResult $r) => [
+                'id' => $r->id,
+                'title' => $r->bigTest?->title ?? 'Big Test',
+                'is_absent' => (bool) $r->is_absent,
+                'overall_score' => $r->overall_score,
+                'listening_score' => $r->listening_score,
+                'reading_score' => $r->reading_score,
+                'writing_score' => $r->writing_score,
+                'speaking_score' => $r->speaking_score,
+                'progress_note' => $r->progress_note,
+            ])->values()->all(),
+            'studentClasses' => $studentClasses->pluck('name')->values()->all(),
+        ]);
     }
 
     /**
@@ -364,17 +457,46 @@ class StudentPortalController extends Controller
                 ->latest('due_date')->latest('id')->first();
         }
 
-        return view('portal.student-homework', compact(
-            'student',
-            'students',
-            'submissions',
-            'submissionsByType',
-            'completedCount',
-            'remarks',
-            'miniTests',
-            'bigTestResults',
-            'latestHomework'
-        ));
+        return Inertia::render('Portal/Homework', [
+            ...$this->portalProps($students, $student),
+            'submissionsByType' => collect($submissionsByType)->map(fn (AcademicRecord $sub) => [
+                'id' => $sub->id,
+                'status' => $sub->status,
+                'submitted_at' => $sub->data['submitted_at'] ?? $sub->created_at->format('d/m/Y H:i'),
+                'score' => $sub->data['score'] ?? null,
+                'attachment_path' => $sub->data['attachment_path'] ?? null,
+                'attachment_name' => $sub->data['attachment_name'] ?? null,
+                'notes' => $sub->data['notes'] ?? null,
+                'feedback' => $sub->data['feedback'] ?? null,
+            ])->all(),
+            'completedCount' => $completedCount,
+            'remarks' => $remarks->map(fn (array $item) => [
+                'date' => $item['date']?->format('d/m/Y'),
+                'remark' => collect($item['remark'])->only(['monsters', 'grammar', 'attitude', 'result', 'comment'])->all(),
+            ])->values()->all(),
+            'miniTests' => $miniTests->map(fn (MiniTestScore $mt) => [
+                'id' => $mt->id,
+                'name' => $mt->name,
+                'test_date' => $mt->test_date?->format('d/m/Y'),
+                'score' => self::trimScore($mt->score),
+                'max_score' => self::trimScore($mt->max_score),
+            ])->values()->all(),
+            'bigTestResults' => $bigTestResults->map(fn (BigTestResult $bt) => [
+                'id' => $bt->id,
+                'title' => $bt->bigTest?->title ?? 'Big Test',
+                'scheduled_at' => $bt->bigTest?->scheduled_at?->format('d/m/Y') ?? '—',
+                'is_absent' => (bool) $bt->is_absent,
+                'overall_score' => $bt->overall_score,
+            ])->values()->all(),
+            'latestHomework' => $latestHomework ? [
+                'title' => $latestHomework->title,
+                'description' => $latestHomework->description,
+                'class_name' => $latestHomework->classModel?->name,
+                'due_date' => $latestHomework->due_date?->format('d/m/Y'),
+            ] : null,
+            // Chỉ tô cam mục chưa nộp đầu tiên khi bài GV giao sắp/đã tới hạn (≤ 2 ngày).
+            'homeworkUrgent' => (bool) ($latestHomework?->due_date && $latestHomework->due_date->lte(now()->addDays(2)->endOfDay())),
+        ]);
     }
 
     /** Nhận xét theo buổi lưu Monsters (Nhóm) / (Thưởng) riêng; bản cũ chỉ có "monsters". */
@@ -520,7 +642,20 @@ class StudentPortalController extends Controller
                 ])
             : collect();
 
-        return view('portal.pronunciation', compact('student', 'students', 'history', 'practiceItems'));
+        return Inertia::render('Portal/Pronunciation', [
+            ...$this->portalProps($students, $student),
+            'history' => $history->map(fn (AcademicRecord $rec) => [
+                'id' => $rec->id,
+                'title' => $rec->title,
+                'status' => $rec->status,
+                'submitted_at' => $rec->data['submitted_at'] ?? $rec->created_at->format('d/m/Y H:i'),
+                'duration' => $rec->data['duration'] ?? null,
+                'score' => $rec->data['score'] ?? null,
+                'feedback' => $rec->data['feedback'] ?? null,
+                'audio_path' => $rec->data['audio_path'] ?? null,
+            ])->values()->all(),
+            'practiceItems' => $practiceItems->values()->all(),
+        ]);
     }
 
     /**
@@ -595,7 +730,19 @@ class StudentPortalController extends Controller
             ->latest()
             ->get();
 
-        return view('portal.notifications', compact('student', 'students', 'notifications'));
+        return Inertia::render('Portal/Notifications', [
+            ...$this->portalProps($students, $student),
+            'notifications' => $notifications->map(fn (AcademicRecord $notif) => [
+                'id' => $notif->id,
+                'title' => $notif->title,
+                'content' => $notif->data['content'] ?? '',
+                'time' => $notif->data['created_at'] ?? $notif->created_at->format('d/m/Y H:i'),
+                'unread' => ! empty($notif->data['unread']),
+                'icon' => $notif->data['icon'] ?? 'notifications',
+                'bg_color' => $notif->data['bg_color'] ?? 'bg-primary-container/10',
+                'text_color' => $notif->data['text_color'] ?? 'text-primary',
+            ])->values()->all(),
+        ]);
     }
 
     /**
@@ -686,7 +833,17 @@ class StudentPortalController extends Controller
             ->latest()
             ->get();
 
-        return view('portal.survey', compact('student', 'students', 'surveys', 'pastSurveys'));
+        return Inertia::render('Portal/Survey', [
+            ...$this->portalProps($students, $student),
+            'surveys' => $surveys,
+            'pastSurveys' => $pastSurveys->map(fn (AcademicRecord $ps) => [
+                'id' => $ps->id,
+                'title' => $ps->title,
+                'rating' => $ps->data['rating'] ?? 5,
+                'feedback' => $ps->data['feedback'] ?? '',
+                'submitted_at' => $ps->data['submitted_at'] ?? $ps->created_at->format('d/m/Y H:i'),
+            ])->values()->all(),
+        ]);
     }
 
     /**
@@ -770,14 +927,23 @@ class StudentPortalController extends Controller
             ->latest()
             ->get();
 
-        return view('portal.feedback', compact(
-            'student',
-            'students',
-            'lastFeedback',
-            'historyFeedbacks',
-            'stageName',
-            'className'
-        ));
+        $saved = $lastFeedback?->data ?? [];
+
+        return Inertia::render('Portal/Feedback', [
+            ...$this->portalProps($students, $student),
+            'lastFeedback' => $lastFeedback ? [
+                'id' => $lastFeedback->id,
+                'rating' => (int) ($saved['muc_do_hai_long'] ?? 0),
+                'content' => (string) ($saved['noi_dung_feedback'] ?? ''),
+                'fb_hoc_thuat' => ! empty($saved['fb_hoc_thuat']),
+                'fb_giao_vien' => ! empty($saved['fb_giao_vien']),
+                'fb_khac' => ! empty($saved['fb_khac']),
+            ] : null,
+            'stageName' => $stageName,
+            'className' => $className,
+            'showSuccess' => session()->has('success') || session('feedback_success'),
+            'feedbackSuccess' => (bool) session('feedback_success'),
+        ]);
     }
 
     /**
@@ -888,7 +1054,24 @@ class StudentPortalController extends Controller
                 ->latest()
                 ->get();
 
-        return view('portal.teacher-submissions', compact('class', 'classes', 'activeTab', 'submissions'));
+        return Inertia::render('Portal/TeacherSubmissions', [
+            'currentClass' => $class ? ['id' => $class->id, 'name' => $class->name] : null,
+            'classes' => $classes->map(fn (ClassModel $c) => ['id' => $c->id, 'name' => $c->name, 'code' => $c->code])->values()->all(),
+            'activeTab' => $activeTab,
+            'submissions' => $submissions->map(fn (AcademicRecord $sub) => [
+                'id' => $sub->id,
+                'status' => $sub->status,
+                'student_name' => $sub->data['student_name'] ?? null,
+                'submitted_at' => $sub->data['submitted_at'] ?? $sub->created_at->format('H:i, d/m/Y'),
+                'notes' => $sub->data['notes'] ?? null,
+                'audio_path' => $sub->data['audio_path'] ?? null,
+                'unit_title' => $sub->data['unit_title'] ?? null,
+                'attachment_path' => $sub->data['attachment_path'] ?? null,
+                'attachment_name' => $sub->data['attachment_name'] ?? null,
+                'homework_label' => $sub->data['homework_label'] ?? null,
+                'score' => $sub->data['score'] ?? null,
+            ])->values()->all(),
+        ]);
     }
 
     public function markSubmission(Request $request, $id)

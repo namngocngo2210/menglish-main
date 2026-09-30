@@ -279,6 +279,7 @@ class Phase2BigTestTest extends TestCase
 
         $response = $this->actingAs($parent)->get(route('portal.student.home', ['studentId' => $student->id]));
         $response->assertOk();
-        $this->assertEquals(7.3, (float) $response->viewData('learningProgress')['latest_big_test']?->overall_score);
+        // Props trang Vue: learningProgress.latest_big_test là điểm tổng của bài Big Test gần nhất.
+        $this->assertEquals(7.3, (float) $response->viewData('page')['props']['learningProgress']['latest_big_test']);
     }
 }

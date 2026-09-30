@@ -6,6 +6,7 @@ use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 /**
@@ -101,7 +102,7 @@ class ProfilePortalByRoleTest extends TestCase
             ->assertDontSee('Phiếu Lương Cá Nhân')
             ->assertDontSee('Giờ dạy tháng này')
             ->assertDontSee('#NV-')
-            ->assertSee("activeTab: 'settings'", false);
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Profile/Edit')->where('initialTab', 'settings'));
     }
 
     public function test_forced_password_change_opens_account_settings_tab(): void
@@ -110,6 +111,6 @@ class ProfilePortalByRoleTest extends TestCase
 
         $this->actingAs($user)->get(route('profile.edit', ['force_password' => 1]))
             ->assertOk()
-            ->assertSee("activeTab: 'settings'", false);
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Profile/Edit')->where('initialTab', 'settings'));
     }
 }

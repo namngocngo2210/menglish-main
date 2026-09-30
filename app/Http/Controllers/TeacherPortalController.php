@@ -24,6 +24,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Inertia\Inertia;
 
 /**
  * Cổng Giáo viên: lịch dạy theo ngày/tuần (từ buổi học thật), check-in nhiều ca cùng lúc, và
@@ -196,10 +197,106 @@ class TeacherPortalController extends Controller
         });
 
         $widgets = $this->homeWidgets($teacher);
+        $todayDate = Carbon::parse($today);
+        $weekdayLong = [1 => 'Thứ Hai', 2 => 'Thứ Ba', 3 => 'Thứ Tư', 4 => 'Thứ Năm', 5 => 'Thứ Sáu', 6 => 'Thứ Bảy', 7 => 'Chủ Nhật'];
+        $hoursLabel = rtrim(rtrim(number_format($widgets['hours'], 1, ',', '.'), '0'), ',');
+        $latestViolation = $widgets['violations']->first();
+        $ns = $nextShift['session'] ?? null;
 
-        return view('teacher.home', compact(
-            'teacher', 'shifts', 'stats', 'today', 'weekDays', 'weekStart', 'pendingSessions', 'attendanceDone', 'nextShift', 'widgets'
-        ));
+        return Inertia::render('Teacher/Home', [
+            'teacherName' => $teacher->name,
+            'todayLabel' => $weekdayLong[$todayDate->isoWeekday()].', '.$todayDate->format('d/m'),
+            'stats' => $stats,
+            'nextShift' => $ns ? [
+                'class_id' => $ns->class_id,
+                'session_id' => $ns->id,
+                'start_time' => $ns->start_time?->format('H:i'),
+                'upcoming' => now()->lt($ns->date->copy()->setTimeFromTimeString($ns->start_time?->format('H:i') ?? '00:00')),
+            ] : null,
+            'shifts' => $shifts->map(fn (array $shift) => [
+                'session_id' => $shift['session']->id,
+                'class_id' => $shift['class']?->id,
+                'class_name' => $shift['class']?->name,
+                'class_code' => $shift['class']?->code,
+                'branch_name' => $shift['class']?->branch?->name,
+                'room_label' => $shift['session']->roomLabel(),
+                'type_label' => self::sessionTypeLabel($shift['session']->type),
+                'is_support' => $shift['session']->type === ClassSession::TYPE_SUPPORT,
+                'support_student' => $shift['session']->type === ClassSession::TYPE_SUPPORT ? $shift['session']->supportSession?->student?->name : null,
+                'scheduled_time' => $shift['scheduled_time'],
+                'checked_in' => $shift['checked_in'],
+                'checkin_time' => $shift['checkin_time'],
+                'attendance_done' => $shift['attendance_done'],
+                'student_count' => $shift['student_count'],
+                'trial_count' => $shift['trial_count'],
+            ])->values()->all(),
+            'pendingSessions' => $pendingSessions->map(fn (ClassSession $s) => [
+                'id' => $s->id,
+                'class_id' => $s->class_id,
+                'class_name' => $s->classModel?->name,
+                'date' => $s->date->format('d/m/Y'),
+                'time' => $s->start_time?->format('H:i').'-'.$s->end_time?->format('H:i'),
+                'type_label' => self::sessionTypeLabel($s->type),
+            ])->values()->all(),
+            'week' => [
+                'label' => $weekStart->format('d/m').' – '.$weekStart->copy()->addDays(6)->format('d/m/Y'),
+                'prev' => $weekStart->copy()->subWeek()->toDateString(),
+                'next' => $weekStart->copy()->addWeek()->toDateString(),
+            ],
+            'weekDays' => $weekDays->map(fn (array $day) => [
+                'label' => ['', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'][$day['date']->isoWeekday()].' · '.$day['date']->format('d/m'),
+                'is_today' => $day['date']->isToday(),
+                'sessions' => $day['sessions']->map(fn (ClassSession $s) => [
+                    'id' => $s->id,
+                    'class_id' => $s->class_id,
+                    'class_name' => $s->classModel?->name,
+                    'time' => $s->start_time?->format('H:i').'-'.$s->end_time?->format('H:i'),
+                    'room' => $s->room ? 'P. '.$s->room : '',
+                    'type_label' => self::sessionTypeLabel($s->type),
+                    'cancelled' => $s->status === 'cancelled',
+                    'done' => $attendanceDone->has($s->id),
+                    'can_take' => $s->status !== 'cancelled' && ! $s->date->isFuture(),
+                ])->values()->all(),
+            ])->values()->all(),
+            'widgets' => [
+                'attention' => $widgets['attention']->map(fn (MiniTestScore $score) => [
+                    'id' => $score->id,
+                    'student_name' => $score->student?->name,
+                    'class_name' => $score->classModel?->name,
+                    'name' => $score->name,
+                    'score' => self::trimNumber($score->score).'/'.self::trimNumber($score->max_score),
+                ])->values()->all(),
+                'estimate' => $widgets['estimate'],
+                'hours_label' => $hoursLabel,
+                'month' => now()->month,
+                'today_dm' => now()->format('d/m'),
+                'period' => now()->format('m/Y'),
+                'month_end_dm' => now()->endOfMonth()->format('d/m'),
+                'timesheets_total' => $widgets['timesheets_total'],
+                'timesheets_pending' => $widgets['timesheets_pending'],
+                'violations_count' => $widgets['violations']->count(),
+                'latest_violation' => $latestViolation ? [
+                    'violation_type' => $latestViolation->violation_type,
+                    'date' => $latestViolation->violation_date?->format('d/m'),
+                    'status_label' => $latestViolation->status_label,
+                ] : null,
+            ],
+        ]);
+    }
+
+    /** Nhãn loại buổi (buổi thường không có nhãn). */
+    private static function sessionTypeLabel(?string $type): ?string
+    {
+        return [
+            ClassSession::TYPE_MAKEUP => 'Học bù',
+            ClassSession::TYPE_SUPPORT => 'Phụ đạo',
+        ][$type] ?? null;
+    }
+
+    /** 8.50 → "8.5", 10.00 → "10". */
+    private static function trimNumber(mixed $value): string
+    {
+        return rtrim(rtrim(number_format((float) $value, 2, '.', ''), '0'), '.');
     }
 
     /**
@@ -398,11 +495,80 @@ class TeacherPortalController extends Controller
             $recentSessions->push($session->loadCount('attendances'));
         }
 
-        $trialGuests = $this->sessionTrialGuests($session);
+        return Inertia::render('Teacher/Attendance', [
+            'classroom' => ['id' => $class->id, 'name' => $class->name, 'branch_name' => $class->branch?->name],
+            'session' => $session ? [
+                'id' => $session->id,
+                'date' => $session->date->format('d/m/Y'),
+                'time' => $session->start_time?->format('H:i').' – '.$session->end_time?->format('H:i'),
+                'room_label' => $session->roomLabel(),
+                'type' => $session->type,
+                'is_past' => $session->date->isBefore(today()),
+            ] : null,
+            'students' => $students->map(function (Student $student) use ($existing, $class) {
+                $record = $existing->get($student->id);
 
-        return view('teacher.attendance', compact(
-            'class', 'session', 'students', 'existing', 'today', 'blockReason', 'onBehalf', 'recentSessions', 'window', 'rosterSize', 'trialGuests'
-        ));
+                return [
+                    'id' => $student->id,
+                    'name' => $student->name,
+                    'code' => $student->code,
+                    'linked' => (int) $student->current_class_id !== (int) $class->id,
+                    'recorder_name' => $record?->recorder && (int) $record->recorded_by !== (int) $record->user_id ? $record->recorder->name : null,
+                    'status' => $record?->status ?? 'present',
+                    'note' => $record?->note,
+                ];
+            })->values()->all(),
+            'blockReason' => $blockReason,
+            'onBehalf' => $onBehalf,
+            'onBehalfName' => $onBehalf ? ($session?->teacher?->name ?? $class->teacher?->name ?? 'giáo viên của lớp') : null,
+            'recentSessions' => $this->sessionOptions($recentSessions, withAttendance: true),
+            'attendanceWindow' => $window,
+            'rosterSize' => $rosterSize,
+            'trialGuests' => $this->trialGuestsProps($this->sessionTrialGuests($session)),
+        ]);
+    }
+
+    /**
+     * Ô chọn buổi (điểm danh / nhận xét): "dd/mm/YYYY · HH:ii-HH:ii · Học bù/Phụ đạo" (+ tình trạng điểm danh).
+     *
+     * @return list<array{id: int, label: string, disabled: bool}>
+     */
+    private function sessionOptions(Collection $sessions, bool $withAttendance = false): array
+    {
+        return $sessions->map(function (ClassSession $s) use ($withAttendance) {
+            $label = $s->date->format('d/m/Y').' · '.$s->start_time?->format('H:i').'-'.$s->end_time?->format('H:i');
+            if ($s->type === ClassSession::TYPE_MAKEUP) {
+                $label .= ' · Học bù';
+            } elseif ($s->type === ClassSession::TYPE_SUPPORT) {
+                $label .= ' · Phụ đạo';
+            }
+            if ($withAttendance) {
+                $label .= match (true) {
+                    $s->status === 'cancelled' => ' · Đã hủy',
+                    $s->attendances_count > 0 => ' · Đã điểm danh ('.$s->attendances_count.')',
+                    default => ' · Chưa điểm danh',
+                };
+            } elseif ($s->status === 'cancelled') {
+                $label .= ' · Đã hủy';
+            }
+
+            return ['id' => $s->id, 'label' => $label, 'disabled' => $s->status === 'cancelled'];
+        })->values()->all();
+    }
+
+    /** Khách học thử của buổi (khối "Khách học thử buổi này" trên trang điểm danh / nhận xét). */
+    private function trialGuestsProps(Collection $guests): array
+    {
+        return [
+            'scope' => $guests->first()?->session?->date?->isBefore(today()) ? 'past' : 'upcoming',
+            'items' => $guests->map(fn (CrmTrialBooking $guest) => [
+                'id' => $guest->id,
+                'name' => $guest->customer?->name,
+                'test_score' => $guest->customer?->test_score,
+                'status_label' => $guest->status_label,
+                'notes' => $guest->notes,
+            ])->values()->all(),
+        ];
     }
 
     /**
@@ -598,7 +764,55 @@ class TeacherPortalController extends Controller
         $selectedSessionId = old('class_session_id', $editing?->class_session_id ?? $request->query('session')
             ?? $sessions->first(fn (ClassSession $s) => $s->date->isSameDay(now()))?->id);
 
-        return view('teacher.homework', compact('class', 'homeworks', 'sessions', 'lessons', 'lockedTypes', 'editing', 'selectedSessionId'));
+        $categoryLabel = fn (string $key) => Homework::CATEGORIES[$key][0] ?? $key;
+
+        return Inertia::render('Teacher/Homework', [
+            'classroom' => ['id' => $class->id, 'name' => $class->name, 'code' => $class->code],
+            'categories' => collect(Homework::CATEGORIES)->map(fn (array $c, string $key) => [
+                'key' => $key, 'label' => $c[0], 'icon' => $c[1], 'placeholder' => $c[2],
+            ])->values()->all(),
+            'sessions' => $sessions->map(function (ClassSession $s) use ($lessons) {
+                $lesson = $lessons[$s->id] ?? null;
+                $suffix = ($lesson['title'] ?? null) ? ' — '.$lesson['title'] : (($lesson['unit'] ?? null) ? ' — '.$lesson['unit'] : '');
+
+                return [
+                    'value' => $s->id,
+                    'label' => ($lesson ? 'Buổi '.$lesson['no'].': ' : '').$s->date->format('d/m').' '.$s->start_time?->format('H:i').$suffix
+                        .($s->type === ClassSession::TYPE_MAKEUP ? ' (học bù)' : ''),
+                ];
+            })->values()->all(),
+            'selectedSessionId' => $selectedSessionId !== null ? (string) $selectedSessionId : null,
+            'dueDefault' => $editing?->due_at?->format('Y-m-d\TH:i')
+                ?? ($editing?->due_date ? $editing->due_date->format('Y-m-d').'T23:59' : now()->addDays(3)->format('Y-m-d').'T20:00'),
+            'editing' => $editing ? [
+                'id' => $editing->id,
+                'class_note' => $editing->class_note,
+                'youtube_url' => $editing->youtube_url,
+                'quizizz_url' => $editing->quizizz_url,
+                'has_audio' => filled($editing->audio_path),
+                'items' => (object) ($editing->items ?? []),
+                'locked' => array_values($lockedTypes[$editing->id] ?? []),
+            ] : null,
+            'homeworks' => $homeworks->map(fn (Homework $hw) => [
+                'id' => $hw->id,
+                'title' => $hw->title,
+                'due_label' => $hw->due_at?->format('H:i d/m/Y') ?? $hw->due_date?->format('d/m/Y') ?? 'Không giới hạn',
+                'session_date' => $hw->classSession?->date->format('d/m'),
+                'teacher_name' => $hw->teacher?->name,
+                'items' => collect($hw->items ?? [])->map(fn ($text, $key) => [
+                    'key' => $key,
+                    'label' => $categoryLabel((string) $key),
+                    'text' => $text,
+                    'locked' => in_array($key, $lockedTypes[$hw->id] ?? [], true),
+                ])->values()->all(),
+                'description' => $hw->description,
+                'class_note' => $hw->class_note,
+                'youtube_url' => $hw->youtube_url,
+                'audio_url' => $hw->audio_path ? asset('storage/'.$hw->audio_path) : null,
+                'quizizz_url' => $hw->quizizz_url,
+                'deletable' => ($lockedTypes[$hw->id] ?? []) === [],
+            ])->values()->all(),
+        ]);
     }
 
     public function homeworkStore(Request $request, int $classId)
@@ -776,7 +990,38 @@ class TeacherPortalController extends Controller
             : collect();
         $selectedStudentId = $request->integer('student_id') ?: null;
 
-        return view('teacher.scores', compact('class', 'units', 'unit', 'existing', 'testDate', 'testName', 'selectedStudentId'));
+        $fmt = fn ($v) => $v === null ? '—' : self::trimNumber($v);
+        $current = $selectedStudentId ? $existing->get($selectedStudentId) : null;
+
+        return Inertia::render('Teacher/Scores', [
+            'classroom' => ['id' => $class->id, 'name' => $class->name, 'code' => $class->code],
+            'skills' => MiniTestScore::SKILLS,
+            'units' => $units->map(fn ($u) => ['value' => $u->id, 'label' => 'Unit '.$u->unit_number.': '.$u->title])->values()->all(),
+            'unitId' => $unit?->id,
+            'testName' => $testName,
+            'testDate' => $testDate,
+            'selectedStudentId' => $selectedStudentId,
+            // Tham số giữ Unit / tên bài khi bấm "Sửa" / "Nhập" một học sinh.
+            'rowParams' => array_filter(['classId' => $class->id, 'unit_id' => $unit?->id, 'name' => $unit ? null : $testName]),
+            'current' => [
+                'max_score' => $current?->max_score ? $fmt($current->max_score) : '10',
+                'skills' => collect(MiniTestScore::SKILLS)->map(fn ($label, $key) => isset($current?->skill_scores[$key]) ? $fmt($current->skill_scores[$key]) : '')->all(),
+                'note' => $current?->note,
+            ],
+            'students' => $class->students->map(function (Student $student) use ($existing, $fmt) {
+                $sc = $existing->get($student->id);
+
+                return [
+                    'id' => $student->id,
+                    'name' => $student->name,
+                    'has_score' => (bool) $sc,
+                    'skills' => collect(MiniTestScore::SKILLS)->map(fn ($label, $key) => $fmt($sc?->skill_scores[$key] ?? null))->all(),
+                    'total' => $sc ? $fmt($sc->score).'/'.$fmt($sc->max_score) : null,
+                    'low' => $sc && (float) $sc->max_score > 0 && (float) $sc->score * 10 < (float) $sc->max_score * 7,
+                ];
+            })->values()->all(),
+            'scoredCount' => $existing->count(),
+        ]);
     }
 
     private static function unitTestName(\App\Models\SyllabusUnit $unit): string
@@ -937,9 +1182,29 @@ class TeacherPortalController extends Controller
             $recentSessions->push($session);
         }
 
-        $trialGuests = $this->sessionTrialGuests($session);
+        return Inertia::render('Teacher/Remarks', [
+            'classroom' => ['id' => $class->id, 'name' => $class->name],
+            'session' => $session ? [
+                'id' => $session->id,
+                'label' => ($sessionNo ? 'Buổi '.$sessionNo.': ' : '').$session->date->format('d/m/Y').' · '.$session->start_time?->format('H:i').'-'.$session->end_time?->format('H:i'),
+            ] : null,
+            'recordState' => $record ? ($record->status === 'draft' ? 'draft' : 'saved') : null,
+            'blockReason' => $blockReason,
+            'students' => $students->map(function (Student $student) use ($attendance, $existing) {
+                $attStatus = $attendance->get($student->id)?->status ?? 'none';
+                $remark = (array) ($existing->get($student->id) ?? $existing->get((string) $student->id) ?? []);
 
-        return view('teacher.remarks', compact('class', 'session', 'students', 'attendance', 'existing', 'record', 'sessionNo', 'recentSessions', 'blockReason', 'trialGuests'));
+                return [
+                    'id' => $student->id,
+                    'name' => $student->name,
+                    'att_status' => $attStatus,
+                    'absent' => in_array($attStatus, ['absent', 'excused'], true),
+                    'remark' => collect(self::REMARK_FIELDS)->mapWithKeys(fn ($f) => [$f => $remark[$f] ?? ''])->all(),
+                ];
+            })->values()->all(),
+            'recentSessions' => $this->sessionOptions($recentSessions),
+            'trialGuests' => $this->trialGuestsProps($this->sessionTrialGuests($session)),
+        ]);
     }
 
     /** Khách học thử được xếp vào đúng buổi này (không thuộc danh sách lớp, không ghi danh). */
@@ -1027,7 +1292,40 @@ class TeacherPortalController extends Controller
             ->take(10)
             ->get();
 
-        return view('teacher.order-test', compact('class', 'assignments', 'openAssignment', 'requests'));
+        $canApprove = Auth::user()->can('big_test.approve');
+
+        return Inertia::render('Teacher/OrderTest', [
+            'classroom' => ['id' => $class->id, 'name' => $class->name, 'program' => $class->course?->name ?? $class->program],
+            'openAssignment' => $openAssignment ? [
+                'label' => $openAssignment->stage?->label ?? $openAssignment->stage_name,
+                'started_at' => ($openAssignment->opened_at ?? $openAssignment->created_at)?->format('d/m/Y'),
+                'assigned_chapters' => $openAssignment->assigned_chapters,
+                'expected_big_test_date' => $openAssignment->expected_big_test_date?->toDateString(),
+            ] : null,
+            'closedAssignments' => $assignments->reject(fn ($a) => $a->isOpen())->map(fn ($asg) => [
+                'id' => $asg->id,
+                'label' => $asg->stage?->label ?? $asg->stage_name,
+                'closed_at' => $asg->closed_at?->format('d/m/Y'),
+            ])->values()->all(),
+            'leadDays' => BigTestOrder::LEAD_DAYS,
+            'today' => now()->toDateString(),
+            'requests' => $requests->map(fn (BigTestOrder $req) => [
+                'id' => $req->id,
+                'created_at' => $req->created_at->format('d/m/Y H:i'),
+                'type_label' => $req->type_label,
+                'stage_label' => $req->stage_label,
+                'exam_date' => $req->exam_date?->format('d/m/Y'),
+                'due_date' => $req->due_date?->format('d/m/Y'),
+                'note' => $req->note,
+                'status' => $req->status,
+                'status_label' => $req->status === 'pending' ? 'Đã order - Chờ HT duyệt' : $req->status_label,
+                'status_color' => $req->status_color,
+                // GV chỉ xem phần Speaking của đề sau khi phân phối; link đề đầy đủ chỉ Học thuật xem.
+                'test_link' => $canApprove && $req->status === 'approved' ? $req->test_link : null,
+                'speaking_link' => $req->status === 'approved' ? $req->speaking_link : null,
+                'rejection_reason' => $req->status === 'rejected' ? $req->rejection_reason : null,
+            ])->values()->all(),
+        ]);
     }
 
     public function submitOrderTest(Request $request, int $classId)
@@ -1098,7 +1396,20 @@ class TeacherPortalController extends Controller
             ->latest()
             ->paginate(20)->withQueryString();
 
-        return view('teacher.big-test-report', compact('results'));
+        return Inertia::render('Teacher/BigTestReport', [
+            'results' => $results->through(fn (BigTestResult $r) => [
+                'id' => $r->id,
+                'student_name' => $r->student?->name,
+                'test_title' => $r->bigTest?->title,
+                'class_name' => $r->bigTest?->classModel?->name,
+                'listening_score' => $r->listening_score,
+                'reading_score' => $r->reading_score,
+                'writing_score' => $r->writing_score,
+                'speaking_score' => $r->speaking_score,
+                'overall_score' => $r->overall_score,
+                'approved' => $r->status === 'approved',
+            ]),
+        ]);
     }
 
     /**
@@ -1133,8 +1444,37 @@ class TeacherPortalController extends Controller
             ->where('status', '!=', 'cancelled')
             ->get();
 
-        return view('teacher.general-report', compact(
-            'month', 'year', 'timesheets', 'attendanceMarked', 'scoresEntered', 'myClasses'
-        ));
+        $valid = $timesheets->where('status', 'valid');
+
+        return Inertia::render('Teacher/GeneralReport', [
+            'month' => $month,
+            'year' => $year,
+            'period' => sprintf('%04d-%02d', $year, $month),
+            'stats' => [
+                'hours' => number_format($timesheets->sum('hours'), 1).'h',
+                'sessions' => $timesheets->count(),
+                'valid_hours' => number_format($valid->sum('hours'), 1).'h',
+                'valid_sessions' => $valid->count(),
+                'attendance_marked' => $attendanceMarked,
+                'scores_entered' => $scoresEntered,
+            ],
+            'myClasses' => $myClasses->map(fn (ClassModel $cls) => [
+                'id' => $cls->id,
+                'name' => $cls->name,
+                'code' => $cls->code,
+                'course' => $cls->course?->name ?? $cls->program,
+                'is_main' => (int) $cls->teacher_id === (int) $teacherId,
+                'is_foreign' => (int) $cls->foreign_teacher_id === (int) $teacherId,
+                'status' => $cls->status,
+            ])->values()->all(),
+            'timesheets' => $timesheets->sortByDesc('teaching_date')->map(fn (TeacherTimesheet $ts) => [
+                'id' => $ts->id,
+                'date' => $ts->teaching_date?->format('d/m/Y'),
+                'class_name' => $ts->classModel?->name,
+                'type' => $ts->type,
+                'hours' => number_format((float) $ts->hours, 1).'h',
+                'status' => $ts->status,
+            ])->values()->all(),
+        ]);
     }
 }

@@ -37,7 +37,6 @@ class InlineFormModalTest extends TestCase
     public static function pages(): array
     {
         return [
-            'khảo sát' => ['surveys.index', 'new-survey'],
             'giao chặng' => ['syllabus.assignments', 'new-assignment'],
             'tài liệu giáo trình' => ['syllabus.documents', 'upload-document'],
             'phụ đạo' => ['tasks.support-sessions', 'new-support-session'],
@@ -54,6 +53,22 @@ class InlineFormModalTest extends TestCase
             ->assertSee("\$dispatch('open-modal', '{$modal}')", false)
             ->assertSee('data-modal="'.$modal.'"', false)
             ->assertSee('show: false', false);
+    }
+
+    /** Trang Vue (Đợt khảo sát): form tạo nằm trong hộp thoại đóng sẵn (UiModal, v-show), mở bằng nút "Tạo đợt khảo sát". */
+    public function test_survey_create_form_lives_in_a_closed_vue_modal(): void
+    {
+        $html = $this->actingAs($this->admin)->get(route('surveys.index'))->assertOk()
+            ->assertSee('Tạo đợt khảo sát')
+            ->assertSee('Tạo đợt khảo sát mới')
+            ->assertSee('id="new-survey-form"', false)
+            ->getContent();
+
+        // Khung hộp thoại chứa form đang ẩn (display: none) khi mới mở trang.
+        $form = strpos($html, 'id="new-survey-form"');
+        $dialog = strrpos(substr($html, 0, $form), 'data-modal');
+        $this->assertNotFalse($dialog);
+        $this->assertMatchesRegularExpression('/<div[^>]*style="display:\s*none;?"[^>]*data-modal|<div[^>]*data-modal[^>]*style="display:\s*none;?"/', substr($html, strrpos(substr($html, 0, $dialog), '<div'), $form));
     }
 
     /** Nhật ký sự vụ đã sang Vue: form tạo nằm trong UiModal đóng sẵn; lỗi validate trả về kèm lỗi, modal (giữ state) vẫn mở. */

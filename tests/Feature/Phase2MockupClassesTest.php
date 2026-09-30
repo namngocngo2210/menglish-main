@@ -347,7 +347,7 @@ class Phase2MockupClassesTest extends TestCase
             ->assertSee('Học sinh cần chú ý')->assertSee('Học sinh Cần Chú Ý')->assertSee('4.5/10')
             ->assertSee('Lương tạm tính tháng 10')->assertSee('300.000 đ')
             ->assertSee('Báo cáo chấm công')->assertSee('Vi phạm &amp; Khoản trừ', false)
-            ->assertSee(route('teacher.remarks', ['classId' => $this->classModel->id, 'session' => $session->id]), false)
+            ->assertSee(route('teacher.remarks', ['classId' => $this->classModel->id, 'session' => $session->id], false), false)
             ->assertSee('data-testid="teacher-bottom-nav"', false)->assertSee('Bảng công')->assertSee('Cá nhân')
             ->assertDontSee('12.500.000')->assertDontSee('Nguyễn Văn A');
     }
