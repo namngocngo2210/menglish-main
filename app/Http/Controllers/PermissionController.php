@@ -2,30 +2,39 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\AclHelper;
 use App\Http\Concerns\RendersModals;
 use App\Http\Requests\PermissionRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\View\View;
+use Inertia\Inertia;
+use Inertia\Response as InertiaResponse;
 use Spatie\Permission\Models\Permission;
 
 /**
- * Danh mục quyền: Sửa mở modal (htmx), Xóa qua modal xác nhận; mở thẳng URL edit → trang form đầy đủ.
+ * Danh mục quyền: Sửa mở modal, Xóa qua modal xác nhận; mở thẳng URL edit → trang form đầy đủ.
  */
 class PermissionController extends Controller
 {
     use RendersModals;
 
-    public function index(Request $request): View
+    public function index(Request $request): InertiaResponse
     {
         $permissions = Permission::query()
             ->withCount('roles')
             ->orderBy('name')
             ->paginate($request->perPage(20))
-            ->withQueryString();
+            ->withQueryString()
+            ->through(fn (Permission $permission) => [
+                'id' => $permission->id,
+                'name' => $permission->name,
+                'action_label' => AclHelper::actionLabel($permission->name),
+                'module_label' => AclHelper::moduleLabel(explode('.', $permission->name)[0]),
+                'roles_count' => $permission->roles_count,
+            ]);
 
-        return view('permissions.index', compact('permissions'));
+        return Inertia::render('Permissions/Index', ['permissions' => $permissions]);
     }
 
     public function create(): RedirectResponse
@@ -42,9 +51,9 @@ class PermissionController extends Controller
         return $this->modalSaved('Đã tạo permission thành công.', 'permissions-changed', route('permissions.index'));
     }
 
-    public function edit(Permission $permission): Response
+    public function edit(Permission $permission): InertiaResponse
     {
-        return $this->modalView('permissions.form', compact('permission'));
+        return $this->modalPage('Permissions/Form', ['permission' => ['id' => $permission->id, 'name' => $permission->name]]);
     }
 
     public function update(PermissionRequest $request, Permission $permission): Response|RedirectResponse

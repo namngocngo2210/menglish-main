@@ -7,13 +7,15 @@ use App\Http\Concerns\RendersModals;
 use App\Http\Requests\RoleRequest;
 use App\Support\PermissionCatalog;
 use App\Support\Rbac;
+use App\Support\Ui;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use Illuminate\View\View;
+use Inertia\Inertia;
+use Inertia\Response as InertiaResponse;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
@@ -26,7 +28,7 @@ use Spatie\Permission\Models\Role;
  *  - Không tự làm mất quyền quản trị phân quyền của chính mình khi sửa vai trò mình đang giữ.
  *  - Mọi thay đổi ghi nhật ký trước / sau (log "Người dùng & Phân quyền") và xóa cache quyền.
  *
- * Tạo / đổi tên từ danh sách mở modal (htmx) chỉ gồm tên, mã, mô tả; ma trận quyền vẫn ở trang đầy đủ roles.create/edit.
+ * Tạo / đổi tên từ danh sách mở modal chỉ gồm tên, mã, mô tả; ma trận quyền vẫn ở trang đầy đủ roles.create/edit.
  */
 class RoleController extends Controller
 {
@@ -34,19 +36,29 @@ class RoleController extends Controller
 
     public const LOG = 'Người dùng & Phân quyền';
 
-    public function index(Request $request): View
+    public function index(Request $request): InertiaResponse
     {
         $roles = Role::query()
             ->withCount(['permissions', 'users'])
             ->orderByRaw('CASE WHEN name = ? THEN 0 ELSE 1 END', [Rbac::SUPER_ADMIN])
             ->orderBy('name')
             ->paginate($request->perPage(15))
-            ->withQueryString();
+            ->withQueryString()
+            ->through(fn (Role $role) => [
+                'id' => $role->id,
+                'name' => $role->name,
+                'label' => AclHelper::roleLabel($role->name),
+                'description' => $role->description,
+                'super_admin' => $role->name === Rbac::SUPER_ADMIN,
+                'system' => AclHelper::isSystemRole($role->name),
+                'permissions_count' => $role->permissions_count,
+                'users_count' => $role->users_count,
+            ]);
 
-        return view('roles.index', compact('roles'));
+        return Inertia::render('Roles/Index', ['roles' => $roles]);
     }
 
-    public function create(Request $request): Response
+    public function create(Request $request): InertiaResponse
     {
         return $this->formView($request, new Role);
     }
@@ -74,7 +86,7 @@ class RoleController extends Controller
         return $this->modalSaved('Đã tạo vai trò thành công.', 'roles-changed', route('roles.index'));
     }
 
-    public function edit(Request $request, Role $role): Response
+    public function edit(Request $request, Role $role): InertiaResponse
     {
         return $this->formView($request, $role);
     }
@@ -275,18 +287,28 @@ class RoleController extends Controller
     }
 
     /** Modal: chỉ tên / mã / mô tả (không dựng ma trận quyền); trang đầy đủ: kèm ma trận. */
-    private function formView(Request $request, Role $role): Response
+    private function formView(Request $request, Role $role): InertiaResponse
     {
-        return $this->modalView('roles.form', $this->isModalRequest()
-            ? [
-                'role' => $role,
-                'isSuperAdmin' => $role->exists && $role->name === Rbac::SUPER_ADMIN,
-                'isSystemRole' => $role->exists && AclHelper::isSystemRole($role->name),
-            ]
-            : $this->formData($role, $request->user()));
+        $base = [
+            'role' => $role->exists ? [
+                'id' => $role->id,
+                'name' => $role->name,
+                'label' => $role->label ?? AclHelper::shortRoleLabel($role->name),
+                'short_label' => AclHelper::shortRoleLabel($role->name),
+                'description' => $role->description,
+            ] : null,
+            'isSuperAdmin' => $role->exists && $role->name === Rbac::SUPER_ADMIN,
+            'isSystemRole' => $role->exists && AclHelper::isSystemRole($role->name),
+        ];
+
+        return $this->modalPage('Roles/Form', $this->isModalRequest() ? $base : [...$base, ...$this->formData($role, $request->user())]);
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * Ma trận quyền của vai trò: nhóm → module; cột Xem / Thêm / Sửa / Xóa / Duyệt, "Thao tác khác", "Phạm vi dữ liệu".
+     *
+     * @return array<string, mixed>
+     */
     private function formData(Role $role, $actor): array
     {
         $roleNames = Role::query()->where('guard_name', 'web')->pluck('name')->all();
@@ -296,16 +318,47 @@ class RoleController extends Controller
             ->reject(fn (string $name) => $name === Rbac::assignRolePermission(Rbac::SUPER_ADMIN))
             ->values();
         $existing = Permission::query()->where('guard_name', 'web')->pluck('name')->all();
+        $isSuperAdmin = $role->exists && $role->name === Rbac::SUPER_ADMIN;
         $selected = $role->exists
-            ? ($role->name === Rbac::SUPER_ADMIN ? $allNames->reject(fn ($n) => PermissionCatalog::isAudience($n))->merge($role->permissions->pluck('name'))->unique()->all() : $role->permissions->pluck('name')->all())
+            ? ($isSuperAdmin ? $allNames->reject(fn ($n) => PermissionCatalog::isAudience($n))->merge($role->permissions->pluck('name'))->unique()->all() : $role->permissions->pluck('name')->all())
             : [];
+        $columns = PermissionCatalog::matrixColumns();
+        $levelLabels = PermissionCatalog::scopeLevelLabels();
+        $permission = fn (string $name) => [
+            'name' => $name,
+            'label' => PermissionCatalog::label($name),
+            'description' => PermissionCatalog::description($name),
+            'audience' => PermissionCatalog::isAudience($name),
+        ];
+        $groups = PermissionCatalog::grouped($allNames->filter(fn ($n) => in_array($n, $existing, true)));
 
         return [
-            'role' => $role,
-            'groups' => PermissionCatalog::grouped($allNames->filter(fn ($n) => in_array($n, $existing, true))),
-            'selected' => $selected,
-            'isSuperAdmin' => $role->exists && $role->name === Rbac::SUPER_ADMIN,
-            'isSystemRole' => $role->exists && AclHelper::isSystemRole($role->name),
+            'columns' => Ui::options($columns),
+            'matrix' => collect($groups)->map(fn (array $modules, string $groupLabel) => [
+                'label' => $groupLabel,
+                'modules' => collect($modules)->map(function (array $buckets, string $module) use ($columns, $levelLabels, $permission, $selected, $isSuperAdmin) {
+                    $byKey = collect($buckets['actions'])->keyBy(fn ($p) => PermissionCatalog::keyOf($p));
+                    $levels = PermissionCatalog::scopeLevels($module);
+                    $held = collect($levels)->filter(fn ($l) => in_array(PermissionCatalog::scopePermission($module, $l), $selected, true));
+
+                    return [
+                        'module' => $module,
+                        'label' => PermissionCatalog::moduleLabel($module),
+                        'cells' => collect(array_keys($columns))->mapWithKeys(fn (string $key) => [
+                            $key => $byKey->has($key) ? $permission($byKey->get($key)) : null,
+                        ])->all(),
+                        'others' => collect($buckets['actions'])->reject(fn ($p) => array_key_exists(PermissionCatalog::keyOf($p), $columns))
+                            ->merge($buckets['dynamic'])->merge($buckets['audience'])->values()->map($permission)->all(),
+                        'levels' => collect($levels)->map(fn (string $level) => [
+                            'value' => $level,
+                            'label' => $levelLabels[$level] ?? $level,
+                            'description' => PermissionCatalog::scopeLevelDescription($module, $level),
+                        ])->all(),
+                        'level' => $isSuperAdmin ? 'all' : ($held->last() ?? ($levels[0] ?? null)),
+                    ];
+                })->values()->all(),
+            ])->values()->all(),
+            'selected' => array_values($selected),
             'canAssignPermissions' => (bool) $actor?->can('role.assign_permission'),
         ];
     }

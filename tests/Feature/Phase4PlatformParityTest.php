@@ -14,6 +14,7 @@ use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 /**
@@ -335,9 +336,10 @@ class Phase4PlatformParityTest extends TestCase
             ->assertSee('Quản lý Tài khoản &amp; Vai trò', false)
             ->assertSee('Trợ giảng (kiêm nhiệm)')
             ->assertSee('HĐ đã hết hạn')
-            ->assertSee('KN-01')                 // lớp phụ trách trong hồ sơ nhanh (drawer)
-            ->assertDontSee('Chưa có thông tin phân công kiêm nhiệm phát sinh');
-        $this->assertSame(3, $response->viewData('academicStaff')); // Học thuật + Học vụ + Giáo viên
+            ->assertDontSee('Chưa có thông tin phân công kiêm nhiệm phát sinh')
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('stats.academic', 3)); // Học thuật + Học vụ + Giáo viên
+        // Lớp phụ trách nằm trong dữ liệu hồ sơ nhanh (drawer) của trang.
+        $this->assertStringContainsString('KN-01', json_encode($response->viewData('page')['props'], JSON_UNESCAPED_UNICODE));
 
         $this->actingAs($this->admin)->get(route('users.index', ['status' => 'locked']))->assertOk()
             ->assertSee('GV Bị khóa')->assertDontSee('Học thuật Một');
@@ -388,7 +390,7 @@ class Phase4PlatformParityTest extends TestCase
             ->assertSee('Không có quyền truy cập')
             ->assertSee($roleCount.' thao tác cho phép')
             ->assertSee('scope[class][type]', false);
-        $this->assertSame($roleCount, $response->viewData('effectiveCount'));
+        $response->assertInertia(fn (AssertableInertia $page) => $page->where('stats.effective', $roleCount));
 
         // Bỏ tích 1 quyền vai trò có (thu hồi) + tích 1 quyền vai trò không có (cấp thêm) theo chi nhánh.
         $this->actingAs($this->admin)->put(route('users.permissions.update', $teacher), [
@@ -453,7 +455,7 @@ class Phase4PlatformParityTest extends TestCase
             ->assertSeeInOrder(['Tất cả', 'CRM', 'Giáo trình', 'Lớp &amp; Điểm danh', 'Phân quyền'], false)
             ->assertSee('Tìm tên người thực hiện, mã bản ghi...')
             ->assertSee('Chi tiết đối chiếu')->assertSee('Dữ liệu trước')->assertSee('Dữ liệu sau')
-            ->assertSee('name: "Nhân sự Gốc"', false)
+            ->assertSee('name: "Nhân sự Gốc"')
             ->assertSee('Transaction ID')->assertSee('Hoàn tác')->assertSee('Đóng chi tiết');
 
         // Chip "Phân quyền" chỉ còn nhật ký tài khoản; tìm theo mã bản ghi #id.

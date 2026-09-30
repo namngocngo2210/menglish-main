@@ -460,7 +460,7 @@ class Phase4FinanceParityTest extends TestCase
             ->assertSee('Hiển thị 2 trên 2 tài khoản');
         $this->actingAs($this->accountant)->get(route('system-config.bank-accounts', ['q' => 'Techcom']))
             ->assertOk()->assertSee('190345678910')->assertSee('Hiển thị 1 trên 2 tài khoản')
-            ->assertViewHas('accounts', fn ($accounts) => $accounts->pluck('account_number')->all() === ['190345678910']);
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('accounts', fn ($accounts) => collect($accounts)->pluck('account_number')->all() === ['190345678910']));
 
         // Ngừng dùng tài khoản thường được; tài khoản mặc định thì không.
         $payload = fn ($acc) => ['account_type' => $acc->account_type, 'bank_code' => $acc->bank_code, 'bank_name' => $acc->bank_name, 'account_number' => $acc->account_number, 'account_holder' => $acc->account_holder, 'is_active' => 0];

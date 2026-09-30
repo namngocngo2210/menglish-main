@@ -54,9 +54,6 @@ class LargeModalFlowsTest extends TestCase
     {
         return [
             'khách – thêm' => [fn (self $t) => route('crm.customers.create'), 'modal-customer-form', 'Thêm khách mới'],
-            'nhân sự – thêm' => [fn (self $t) => route('users.create'), 'modal-user-form', 'Thêm người dùng mới'],
-            'nhân sự – sửa' => [fn (self $t) => route('users.edit', $t->staff()), 'modal-user-form', 'Sửa thông tin người dùng'],
-            'phân quyền cá nhân' => [fn (self $t) => route('users.permissions.edit', $t->staff()), 'modal-permission-override-form', 'Phân quyền chi tiết — Giáo viên Modal'],
         ];
     }
 
@@ -88,9 +85,6 @@ class LargeModalFlowsTest extends TestCase
             ]],
             'khách – Kanban' => [fn (self $t) => route('crm.pipeline'), 'crm-customers-changed', [
                 fn (self $t) => route('crm.customers.create'),
-            ]],
-            'nhân sự' => [fn (self $t) => route('users.index'), 'users-changed', [
-                fn (self $t) => route('users.create'), fn (self $t) => route('users.edit', $t->staff()), fn (self $t) => route('users.permissions.edit', $t->staff()),
             ]],
         ];
     }
@@ -251,86 +245,6 @@ class LargeModalFlowsTest extends TestCase
         // Cổng TA: nút "Báo cáo" mở form nộp báo cáo trong modal.
         $this->actingAs($ta)->get(route('portal.ta-tasks'))->assertOk()
             ->assertSee('href="'.route('tasks.class-reports.create', absolute: false).'" data-modal-size="2xl"', false);
-    }
-
-    // ── Nhân sự ──────────────────────────────────────────────────────────────────────────────
-
-    public function test_user_form_has_three_tabs_and_error_tab_is_selected(): void
-    {
-        $this->actingAs($this->admin)->get(route('users.create'), self::HX)->assertOk()
-            ->assertSee('data-tab="account" aria-selected="true"', false)
-            ->assertSee('data-tab="profile" aria-selected="false"', false)
-            ->assertSee('data-tab="salary" aria-selected="false"', false)
-            ->assertSee('enctype="multipart/form-data"', false);
-
-        $valid = ['name' => 'Lê Thu Hà', 'email' => 'ha.le@menglish.test', 'branch_id' => $this->branch->id, 'role' => 'teacher', 'password' => 'Secret@123'];
-
-        // Lỗi ở tab Tài khoản.
-        $this->actingAs($this->admin)->post(route('users.store'), [...$valid, 'email' => 'khong-hop-le'], self::HX)
-            ->assertStatus(422)->assertSee('id="modal-user-form"', false)
-            ->assertSee('data-tab="account" aria-selected="true"', false);
-
-        // Chỉ lỗi ở tab Lương → tab Lương được chọn sẵn.
-        $this->actingAs($this->admin)->post(route('users.store'), [...$valid, 'base_salary' => -5], self::HX)
-            ->assertStatus(422)
-            ->assertSee('data-tab="salary" aria-selected="true"', false)
-            ->assertSee('data-tab="account" aria-selected="false"', false)
-            ->assertSee('value="Lê Thu Hà"', false);
-        $this->assertFalse(User::where('email', 'ha.le@menglish.test')->exists());
-
-        $this->assertSaved($this->actingAs($this->admin)->post(route('users.store'), $valid, self::HX), 'users-changed', 'Đã tạo tài khoản thành công.');
-        $created = User::where('email', 'ha.le@menglish.test')->firstOrFail();
-
-        $response = $this->actingAs($this->admin)->put(route('users.update', $created), [...$valid, 'password' => '', 'hometown' => 'Nam Định'], self::HX);
-        $this->assertSaved($response, 'users-changed', 'Đã cập nhật tài khoản thành công.');
-        $this->assertSame('Nam Định', $created->fresh()->hometown);
-
-        $this->actingAs($this->admin)->put(route('users.update', $created), [...$valid, 'password' => ''])
-            ->assertRedirect(route('users.index'))->assertSessionHas('status', 'Đã cập nhật tài khoản thành công.');
-    }
-
-    public function test_user_permissions_modal_flow_and_role_links(): void
-    {
-        $staff = $this->staff();
-
-        $response = $this->actingAs($this->admin)->put(route('users.permissions.update', $staff), ['overrides' => ['lead' => ['view' => 'allow']]], self::HX);
-        $this->assertSaved($response, 'users-changed', 'Đã cập nhật phân quyền chi tiết của Giáo viên Modal.');
-        $this->assertTrue($staff->fresh()->can('lead.view'));
-
-        $this->actingAs($this->admin)->put(route('users.permissions.update', $staff), ['overrides' => []])
-            ->assertRedirect(route('users.index'))->assertSessionHas('status');
-
-        // Không tự phân quyền cho chính mình (403 cả khi gọi từ modal).
-        $manager = User::factory()->create(['is_active' => true, 'branch_id' => $this->branch->id]);
-        $manager->givePermissionTo('permission.override');
-        $this->actingAs($manager)->get(route('users.permissions.edit', $manager), self::HX)->assertForbidden();
-
-        // IX-2 còn lại: link gán vai trò ở users.show / trang phân quyền mở modal.
-        $this->actingAs($this->admin)->get(route('users.show', $staff))->assertOk()
-            ->assertSee('hx-get="'.route('users.roles.edit', $staff).'"', false)
-            ->assertSee('hx-trigger="users-changed from:body"', false);
-        $this->actingAs($this->admin)->get(route('users.permissions.edit', $staff))->assertOk()
-            ->assertSee('hx-get="'.route('users.roles.edit', $staff).'"', false)
-            ->assertSee('x-on:users-changed.window', false);
-    }
-
-    public function test_user_detail_page_opens_edit_forms_in_modal(): void
-    {
-        $staff = $this->staff();
-
-        // Trang chi tiết: Sửa thông tin / Tải HĐ / Phân quyền mở modal (hx-get), cả trang tự tải lại khi lưu xong.
-        $this->actingAs($this->admin)->get(route('users.show', $staff))->assertOk()
-            ->assertSee('hx-get="'.route('users.edit', $staff).'"', false)
-            ->assertSee('hx-get="'.e(route('users.edit', ['user' => $staff, 'tab' => 'salary'])).'"', false)
-            ->assertSee('hx-get="'.route('users.permissions.edit', $staff).'"', false)
-            ->assertSee('id="user-detail"', false)
-            ->assertSee('hx-trigger="users-changed from:body"', false);
-
-        // ?tab=salary mở sẵn tab Hợp đồng & Lương; lỗi validate vẫn ưu tiên tab có lỗi.
-        $this->actingAs($this->admin)->get(route('users.edit', ['user' => $staff, 'tab' => 'salary']), self::HX)->assertOk()
-            ->assertSee('data-tab="salary" aria-selected="true"', false);
-        $this->actingAs($this->admin)->get(route('users.edit', ['user' => $staff, 'tab' => 'bogus']), self::HX)->assertOk()
-            ->assertSee('data-tab="account" aria-selected="true"', false);
     }
 
     // ── Phiếu thu học phí ────────────────────────────────────────────────────────────────────

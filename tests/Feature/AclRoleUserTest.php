@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\UserPermissionOverride;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Inertia\Testing\AssertableInertia;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -16,6 +17,7 @@ class AclRoleUserTest extends TestCase
     use RefreshDatabase;
 
     private User $adminUser;
+
     private Branch $branch;
 
     protected function setUp(): void
@@ -51,7 +53,7 @@ class AclRoleUserTest extends TestCase
         $response = $this->actingAs($this->adminUser)->get(route('permissions.index'));
 
         $response->assertOk();
-        $response->assertViewIs('permissions.index');
+        $response->assertInertia(fn (AssertableInertia $page) => $page->component('Permissions/Index'));
         $response->assertSee('aaa.view');
         $response->assertSee('aab.manage');
     }
@@ -143,7 +145,7 @@ class AclRoleUserTest extends TestCase
         $response = $this->actingAs($this->adminUser)->get(route('roles.index'));
 
         $response->assertOk();
-        $response->assertViewIs('roles.index');
+        $response->assertInertia(fn (AssertableInertia $page) => $page->component('Roles/Index'));
         $response->assertSee('super_admin');
         $response->assertSee('academic_lead');
     }

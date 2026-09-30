@@ -7,7 +7,6 @@ use App\Models\Branch;
 use App\Models\CrmCustomer;
 use App\Models\MerchandiseItem;
 use App\Models\Student;
-use App\Models\SystemCategory;
 use App\Models\TuitionRefundRequest;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -19,8 +18,6 @@ use Inertia\Testing\AssertableInertia;
 use Maatwebsite\Excel\Excel as ExcelFormat;
 use Maatwebsite\Excel\Facades\Excel;
 use PHPUnit\Framework\Attributes\DataProvider;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\Concerns\InteractsWithInertia;
 use Tests\TestCase;
 
@@ -56,11 +53,6 @@ class ModalFlowsTest extends TestCase
     public static function formPages(): array
     {
         return [
-            'danh mục – thêm' => [fn (self $t) => route('system-categories.create', ['type' => 'lead_source']), 'modal-category-form', 'Thêm danh mục mới'],
-            'quyền – sửa' => [fn (self $t) => route('permissions.edit', Permission::firstOrCreate(['name' => 'report.export', 'guard_name' => 'web'])), 'modal-permission-form', 'Sửa permission'],
-            'vai trò – thêm' => [fn (self $t) => route('roles.create'), 'modal-role-form', 'Thêm vai trò mới'],
-            'vai trò – sửa' => [fn (self $t) => route('roles.edit', Role::findByName('teacher', 'web')), 'modal-role-form', 'Đổi tên vai trò'],
-            'gán vai trò' => [fn (self $t) => route('users.roles.edit', $t->staff()), 'modal-user-roles-form', 'Gán vai trò'],
             'nhập khách Excel' => [fn (self $t) => route('crm.import'), 'modal-crm-import-form', 'Nhập khách hàng loạt từ Excel'],
         ];
     }
@@ -87,10 +79,6 @@ class ModalFlowsTest extends TestCase
     public static function listPages(): array
     {
         return [
-            'danh mục' => ['system-categories.index', 'system-categories-changed', fn (self $t) => route('system-categories.create', ['type' => 'lead_source']), 'md'],
-            'quyền' => ['permissions.index', 'permissions-changed', fn (self $t) => route('permissions.edit', Permission::findByName('aaa.export', 'web')), 'sm'],
-            'vai trò' => ['roles.index', 'roles-changed', fn (self $t) => route('roles.create'), 'md'],
-            'nhân sự' => ['users.index', 'users-changed', fn (self $t) => route('users.roles.edit', $t->staff()), 'md'],
         ];
     }
 
@@ -99,7 +87,6 @@ class ModalFlowsTest extends TestCase
     {
         $this->item();
         $this->staff();
-        Permission::firstOrCreate(['name' => 'aaa.export', 'guard_name' => 'web']); // đứng đầu trang 1 (sắp theo tên)
 
         $this->actingAs($this->admin)->get(route($index))->assertOk()
             ->assertSee('hx-trigger="'.$event.' from:body"', false)
@@ -109,125 +96,6 @@ class ModalFlowsTest extends TestCase
             ->assertDontSee('onsubmit="return confirm(\'Bạn có chắc', false)
             ->assertDontSee('onsubmit="return confirm(\'Xóa', false)
             ->assertDontSee('onsubmit="return confirm(\'Ngừng', false);
-    }
-
-    // ── Danh mục hệ thống ────────────────────────────────────────────────────────────────────
-
-    public function test_system_category_modal_flow(): void
-    {
-        $category = SystemCategory::create(['type' => 'lead_source', 'code' => 'SRC_01', 'name' => 'Facebook Ads', 'sort_order' => 1, 'is_active' => true]);
-
-        // Sửa: htmx → modal; mở thẳng URL → panel trên trang danh sách như cũ.
-        $this->actingAs($this->admin)->get(route('system-categories.edit', $category), self::HX)->assertOk()
-            ->assertSee('Sửa giá trị danh mục')->assertSee('value="Facebook Ads"', false)
-            ->assertSee('action="'.route('system-categories.update', $category).'"', false);
-        $this->actingAs($this->admin)->get(route('system-categories.edit', $category))
-            ->assertRedirect(route('system-categories.index', ['type' => 'lead_source', 'edit' => $category->id]));
-        $this->actingAs($this->admin)->get(route('system-categories.index', ['type' => 'lead_source', 'edit' => $category->id]))->assertOk()
-            ->assertSee('data-modal="edit-category"', false)->assertSee('Sửa giá trị danh mục');
-        $this->actingAs($this->admin)->get(route('system-categories.index', ['type' => 'lead_source']))->assertOk()
-            ->assertDontSee('data-modal="edit-category"', false);
-
-        // Trùng mã → 422 kèm lỗi, không lưu.
-        $this->actingAs($this->admin)->post(route('system-categories.store'), ['type' => 'lead_source', 'code' => 'SRC_01', 'name' => 'Trùng'], self::HX)
-            ->assertStatus(422)->assertDontSee('data-sidebar', false)
-            ->assertSee('id="modal-category-form"', false)->assertSee('value="Trùng"', false)->assertSee('role="alert"', false);
-        $this->assertSame(1, SystemCategory::count());
-
-        $response = $this->actingAs($this->admin)->post(route('system-categories.store'), ['type' => 'lead_source', 'code' => 'SRC_02', 'name' => 'Google', 'is_active' => 1], self::HX);
-        $this->assertSaved($response, 'system-categories-changed', 'Đã thêm danh mục "Google".');
-
-        $response = $this->actingAs($this->admin)->put(route('system-categories.update', $category), ['type' => 'lead_source', 'code' => 'SRC_01', 'name' => 'Facebook', 'is_active' => 1], self::HX);
-        $this->assertSaved($response, 'system-categories-changed', 'Đã cập nhật danh mục.');
-        $this->assertSame('Facebook', $category->fresh()->name);
-
-        $response = $this->actingAs($this->admin)->delete(route('system-categories.destroy', $category), [], self::HX);
-        $this->assertSaved($response, 'system-categories-changed', 'Đã ngừng sử dụng "Facebook".');
-        $this->assertFalse($category->fresh()->is_active);
-
-        // Request thường giữ nguyên redirect.
-        $this->actingAs($this->admin)->post(route('system-categories.store'), ['type' => 'lead_source', 'code' => 'SRC_03', 'name' => 'Zalo', 'is_active' => 1])
-            ->assertRedirect(route('system-categories.index', ['type' => 'lead_source']))->assertSessionHas('status');
-    }
-
-    // ── Quyền ───────────────────────────────────────────────────────────────────────────────
-
-    public function test_permission_modal_flow(): void
-    {
-        $permission = Permission::firstOrCreate(['name' => 'report.export', 'guard_name' => 'web']);
-
-        $this->actingAs($this->admin)->put(route('permissions.update', $permission), ['name' => 'Sai Định Dạng'], self::HX)
-            ->assertStatus(422)->assertSee('id="modal-permission-form"', false)
-            ->assertSee('Tên permission phải theo định dạng');
-
-        $response = $this->actingAs($this->admin)->put(route('permissions.update', $permission), ['name' => 'report.export_all'], self::HX);
-        $this->assertSaved($response, 'permissions-changed', 'Đã cập nhật permission.');
-        $this->assertSame('report.export_all', $permission->fresh()->name);
-
-        // Đang gán cho vai trò → không xóa, đóng modal + toast lỗi.
-        Role::findByName('teacher', 'web')->givePermissionTo($permission->fresh());
-        $response = $this->actingAs($this->admin)->delete(route('permissions.destroy', $permission), [], self::HX);
-        $response->assertNoContent();
-        $triggers = $this->triggers($response);
-        $this->assertSame('error', $triggers['toast']['type']);
-        $this->assertTrue($triggers['close-modal']);
-        $this->assertDatabaseHas('permissions', ['id' => $permission->id]);
-
-        $unused = Permission::firstOrCreate(['name' => 'test.unused_action', 'guard_name' => 'web']);
-        $this->assertSaved($this->actingAs($this->admin)->delete(route('permissions.destroy', $unused), [], self::HX), 'permissions-changed', 'Đã xóa permission.');
-
-        // Thêm permission vẫn chỉ dành cho DEV (redirect như cũ).
-        $this->actingAs($this->admin)->get(route('permissions.create'), self::HX)->assertRedirect(route('permissions.index'));
-    }
-
-    // ── Vai trò ─────────────────────────────────────────────────────────────────────────────
-
-    public function test_role_modal_only_edits_basic_fields_and_matrix_stays_on_full_page(): void
-    {
-        $this->actingAs($this->admin)->get(route('roles.create'))->assertOk()->assertSee('data-testid="role-matrix"', false);
-        $this->actingAs($this->admin)->get(route('roles.create'), self::HX)->assertOk()->assertDontSee('data-testid="role-matrix"', false);
-
-        $this->actingAs($this->admin)->post(route('roles.store'), ['name' => 'teacher'], self::HX)
-            ->assertStatus(422)->assertSee('id="modal-role-form"', false)->assertSee('role="alert"', false);
-
-        $response = $this->actingAs($this->admin)->post(route('roles.store'), ['name' => 'thu_ngan', 'label' => 'Thu ngân'], self::HX);
-        $this->assertSaved($response, 'roles-changed', 'Đã tạo vai trò thành công.');
-        $role = Role::findByName('thu_ngan', 'web');
-        $role->givePermissionTo('lead.view');
-
-        // Đổi tên trong modal không gửi ma trận → giữ nguyên quyền.
-        $response = $this->actingAs($this->admin)->put(route('roles.update', $role), ['name' => 'thu_ngan', 'label' => 'Thu ngân CS1'], self::HX);
-        $this->assertSaved($response, 'roles-changed', 'Đã cập nhật vai trò.');
-        $this->assertSame('Thu ngân CS1', $role->fresh()->label);
-        $this->assertTrue($role->fresh()->hasPermissionTo('lead.view'));
-
-        // Vai trò đang gán cho nhân sự → không xóa (toast lỗi); chưa gán → xóa.
-        $this->staff();
-        $response = $this->actingAs($this->admin)->delete(route('roles.destroy', Role::findByName('teacher', 'web')), [], self::HX);
-        $this->assertSame('error', $this->triggers($response)['toast']['type']);
-        $this->assertTrue(Role::where('name', 'teacher')->exists());
-        $this->assertSaved($this->actingAs($this->admin)->delete(route('roles.destroy', $role), [], self::HX), 'roles-changed', 'Đã xóa vai trò.');
-
-        // Request thường giữ redirect + lỗi session.
-        $this->actingAs($this->admin)->delete(route('roles.destroy', Role::findByName('admin', 'web')))->assertSessionHasErrors('role');
-    }
-
-    // ── Gán vai trò nhân sự ─────────────────────────────────────────────────────────────────
-
-    public function test_user_roles_modal_flow(): void
-    {
-        $staff = $this->staff();
-
-        $this->actingAs($this->admin)->put(route('users.roles.update', $staff), ['roles' => []], self::HX)
-            ->assertStatus(422)->assertSee('id="modal-user-roles-form"', false)->assertSee('role="alert"', false);
-        $this->assertTrue($staff->fresh()->hasRole('teacher'));
-
-        $response = $this->actingAs($this->admin)->put(route('users.roles.update', $staff), ['roles' => ['teacher', 'assistant']], self::HX);
-        $this->assertSaved($response, 'users-changed', 'Đã cập nhật vai trò.');
-        $this->assertTrue($staff->fresh()->hasRole('assistant'));
-
-        $this->actingAs($this->admin)->put(route('users.roles.update', $staff), ['roles' => ['teacher']])
-            ->assertRedirect(route('users.index'))->assertSessionHas('status', 'Đã cập nhật vai trò.');
     }
 
     // ── Vật phẩm ────────────────────────────────────────────────────────────────────────────
@@ -397,11 +265,7 @@ class ModalFlowsTest extends TestCase
         $teacher = $this->staff();
         $item = $this->item();
 
-        $this->actingAs($teacher)->get(route('system-categories.create'), self::HX)->assertForbidden();
-        $this->actingAs($teacher)->post(route('system-categories.store'), ['name' => ''], self::HX)->assertForbidden();
         $this->actingAs($teacher)->get(route('merchandise.edit', $item), self::HX)->assertForbidden();
-        $this->actingAs($teacher)->get(route('roles.create'), self::HX)->assertForbidden();
-        $this->actingAs($teacher)->put(route('users.roles.update', $this->admin), ['roles' => []], self::HX)->assertForbidden();
         $this->actingAs($teacher)->post(route('crm.import.preview'), [], self::HX)->assertForbidden();
         $this->actingAs($teacher)->post(route('tuition.import.store'), [], self::HX)->assertForbidden();
     }

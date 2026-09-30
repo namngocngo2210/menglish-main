@@ -119,12 +119,19 @@ class P0SecurityFixesTest extends TestCase
             'id_card_number' => '001099012345', 'base_salary' => 12345678, 'created_by' => $staff->id,
         ]);
 
-        $html = $this->actingAs($staff)->get(route('users.index'))->assertOk()->getContent();
+        // HTML + dữ liệu trang (props Inertia) — không được chứa CCCD / lương.
+        $embedded = function (User $viewer): string {
+            $response = $this->actingAs($viewer)->get(route('users.index'))->assertOk();
+
+            return $response->getContent().json_encode($response->viewData('page'), JSON_UNESCAPED_UNICODE);
+        };
+
+        $html = $embedded($staff);
         $this->assertStringNotContainsString('001099012345', $html);
         $this->assertStringNotContainsString('12345678', $html);
 
         $admin = $this->userWithRole('admin');
-        $html = $this->actingAs($admin)->get(route('users.index'))->assertOk()->getContent();
+        $html = $embedded($admin);
         $this->assertStringContainsString('001099012345', $html);
     }
 

@@ -9,12 +9,11 @@ use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia;
-use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
  * Màn danh sách không còn form tạo nằm cạnh: form ở modal mở bằng nút trên đầu trang.
- * Lỗi validate → trang tải lại mở sẵn đúng modal (trường ẩn _modal) kèm dữ liệu đã nhập.
+ * Lỗi validate → quay lại trang đang mở kèm lỗi; modal (UiModal, giữ state Vue) vẫn mở với dữ liệu đã nhập.
  */
 class InlineFormModalTest extends TestCase
 {
@@ -31,23 +30,6 @@ class InlineFormModalTest extends TestCase
         $branch = Branch::create(['name' => 'Cầu Giấy', 'code' => 'CG-IM', 'is_active' => true]);
         $this->admin = User::factory()->create(['is_active' => true, 'branch_id' => $branch->id]);
         $this->admin->assignRole('admin');
-    }
-
-    /** @return array<string, array{string, string}> */
-    public static function pages(): array
-    {
-        return [
-            'nhắc nợ' => ['system-config.debt-reminders', 'new-reminder'],
-        ];
-    }
-
-    #[DataProvider('pages')]
-    public function test_create_form_lives_in_a_closed_modal_opened_by_a_button(string $route, string $modal): void
-    {
-        $this->actingAs($this->admin)->get(route($route))->assertOk()
-            ->assertSee("\$dispatch('open-modal', '{$modal}')", false)
-            ->assertSee('data-modal="'.$modal.'"', false)
-            ->assertSee('show: false', false);
     }
 
     /** Phụ đạo (trang Vue): form nằm trong modal đóng sẵn, mở bằng nút trên đầu trang; lỗi validate trả về trang đang mở. */

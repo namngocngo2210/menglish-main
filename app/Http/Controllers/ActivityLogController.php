@@ -2,16 +2,22 @@
 
 namespace App\Http\Controllers;
 
-use App\Support\DataScope;
+use App\Exports\ArrayExport;
+use App\Helpers\AclHelper;
 use App\Models\User;
 use App\Support\Audit;
+use App\Support\DataScope;
+use App\Support\SensitiveData;
+use App\Support\Ui;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\View\View;
+use Inertia\Inertia;
+use Inertia\Response as InertiaResponse;
 use Spatie\Activitylog\Models\Activity;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ActivityLogController extends Controller
@@ -28,7 +34,11 @@ class ActivityLogController extends Controller
         'system' => ['label' => 'Cấu hình', 'logs' => ['Cấu hình hệ thống', 'Quản lý Media']],
     ];
 
-    public function index(Request $request): View
+    /**
+     * Nhật ký vận hành (mockup epic-5/nhat-ky-van-hanh): lọc module / người / ngày, bảng + panel "Chi tiết đối chiếu"
+     * (so sánh trước / sau, chi tiết kỹ thuật, Hoàn tác cho Admin), Xuất Excel theo bộ lọc.
+     */
+    public function index(Request $request): InertiaResponse
     {
         $request->validate([
             'date_from' => ['nullable', 'date'],
@@ -71,22 +81,66 @@ class ActivityLogController extends Controller
 
         $canUndo = (bool) $request->user()?->can('activity_log.undo');
 
-        return view('activity-logs.index', compact(
-            'logs',
-            'allLogNames',
-            'events',
-            'users',
-            'totalLogsToday',
-            'totalLogsCount',
-            'activeUsersToday',
-            'canUndo'
-        ));
+        return Inertia::render('ActivityLogs/Index', [
+            'logs' => $logs->through(fn (Activity $log) => $this->logData($log, $canUndo)),
+            'groups' => collect(self::MODULE_GROUPS)->map(fn (array $group, string $key) => ['value' => $key, 'label' => $group['label']])->values()->all(),
+            'logNames' => Ui::options(collect($allLogNames)->mapWithKeys(fn ($n) => [$n => $n])),
+            'users' => Ui::options($users, 'name'),
+            'events' => Ui::options($events->mapWithKeys(fn ($e) => [$e => Audit::eventLabel($e)])),
+            'stats' => [
+                'total' => $totalLogsCount,
+                'today' => $totalLogsToday,
+                'activeUsers' => $activeUsersToday,
+            ],
+        ]);
+    }
+
+    /**
+     * Một dòng nhật ký + dữ liệu panel "Chi tiết đối chiếu" (trước / sau, chi tiết kỹ thuật, hoàn tác được không).
+     *
+     * @return array<string, mixed>
+     */
+    private function logData(Activity $log, bool $canUndo): array
+    {
+        $diff = self::diff($log);
+        $undoError = null;
+        $undoable = false;
+        if ($canUndo && $log->event === 'updated' && ! empty($diff)) {
+            [, , $undoError] = self::undoPlan($log);
+            $undoable = ! $undoError;
+        }
+        $causerRole = $log->causer?->roles?->first()?->name;
+        $properties = $log->properties;
+
+        return [
+            'id' => $log->id,
+            'causer_name' => $log->causer?->name,
+            'causer_id' => $log->causer_id,
+            'causer_role' => $causerRole ? AclHelper::shortRoleLabel($causerRole) : null,
+            'created_at' => $log->created_at?->toIso8601String(),
+            'log_name' => $log->log_name,
+            'event' => $log->event,
+            'event_label' => Audit::eventLabel($log->event),
+            'description' => $log->description,
+            'subject' => $log->subject_type ? class_basename($log->subject_type).' #'.$log->subject_id : null,
+            'diff' => collect($diff)->map(fn (array $row, string $field) => [
+                'field' => $field,
+                'old' => self::stringify($row['old']),
+                'new' => self::stringify($row['new']),
+            ])->values()->all(),
+            'ip' => $properties['ip'] ?? null,
+            'user_agent' => $properties['user_agent'] ?? null,
+            'batch_uuid' => $log->batch_uuid,
+            'url' => ! empty($properties['url'] ?? null) ? trim(($properties['method'] ?? '').' '.$properties['url']) : null,
+            'undoable' => $undoable,
+            'undo_error' => $undoError,
+        ];
     }
 
     /**
      * Xuất nhật ký theo bộ lọc hiện tại ra CSV (UTF-8 BOM, mở trực tiếp bằng Excel).
      */
-    public function export(Request $request): StreamedResponse|\Symfony\Component\HttpFoundation\BinaryFileResponse
+    public function export(Request $request): StreamedResponse|BinaryFileResponse
     {
         $request->validate([
             'date_from' => ['nullable', 'date'],
@@ -118,7 +172,7 @@ class ActivityLogController extends Controller
                 $rows[] = $row($log);
             });
 
-            return \App\Exports\ArrayExport::download('nhat-ky-van-hanh', $headings, $rows, 'xlsx');
+            return ArrayExport::download('nhat-ky-van-hanh', $headings, $rows, 'xlsx');
         }
         $filename = 'nhat-ky-van-hanh-'.now()->format('Ymd-His').'.csv';
 
@@ -212,7 +266,7 @@ class ActivityLogController extends Controller
         }
 
         foreach ($fields as $field) {
-            if ($old[$field] === \App\Support\SensitiveData::MASK) {
+            if ($old[$field] === SensitiveData::MASK) {
                 return [null, [], 'Thao tác chứa dữ liệu nhạy cảm đã che, không thể hoàn tác.'];
             }
         }

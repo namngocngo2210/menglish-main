@@ -6,21 +6,23 @@ use App\Http\Concerns\RendersModals;
 use App\Http\Requests\SystemCategoryRequest;
 use App\Models\SystemCategory;
 use App\Support\Audit;
+use App\Support\Ui;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\View\View;
+use Inertia\Inertia;
+use Inertia\Response as InertiaResponse;
 
 /**
  * Quản lý Danh mục hệ thống (mockup epic-5/quan-ly-danh-muc-he-thong): 4 tab, bảng + panel
  * "Thêm giá trị mới / Sửa" bên phải trên cùng trang, ngừng dùng / kích hoạt lại.
- * Thêm/Sửa từ danh sách mở modal (htmx); mở thẳng URL → trang thêm riêng / panel sửa như cũ.
+ * Thêm/Sửa từ danh sách mở modal; mở thẳng URL → trang thêm riêng / modal sửa mở sẵn trên danh sách (?edit=).
  */
 class SystemCategoryController extends Controller
 {
     use RendersModals;
 
-    public function index(Request $request): View
+    public function index(Request $request): InertiaResponse
     {
         $type = $this->validType($request->query('type'));
         $search = trim((string) $request->query('q', ''));
@@ -34,23 +36,23 @@ class SystemCategoryController extends Controller
             ? SystemCategory::query()->ofType($type)->find($request->integer('edit'))
             : null;
 
-        return view('system-categories.index', [
-            'categories' => $categories,
+        return Inertia::render('SystemCategories/Index', [
+            'categories' => $categories->through(fn (SystemCategory $category) => $this->categoryData($category)),
             'type' => $type,
-            'types' => SystemCategory::TYPES,
-            'typeLabels' => SystemCategory::TYPE_LABELS,
-            'editing' => $editing,
+            'types' => Ui::options(collect(SystemCategory::TYPES)->mapWithKeys(fn (string $t) => [$t => SystemCategory::TYPE_LABELS[$t] ?? $t])),
+            'editing' => $editing ? $this->categoryData($editing) : null,
             'search' => $search,
+            'canManage' => $request->user()->can('system_category.manage'),
         ]);
     }
 
-    public function create(): Response
+    public function create(): InertiaResponse
     {
         $type = $this->validType(request('type'));
 
-        return $this->modalView('system-categories.form', [
-            'category' => new SystemCategory(['type' => $type, 'code' => SystemCategory::suggestCode($type)]),
-            'typeLabels' => SystemCategory::TYPE_LABELS,
+        return $this->modalPage('SystemCategories/Form', [
+            'category' => ['type' => $type, 'code' => SystemCategory::suggestCode($type)],
+            'typeLabels' => Ui::options(SystemCategory::TYPE_LABELS),
             'nextOrder' => (int) SystemCategory::query()->ofType($type)->max('sort_order') + 1,
         ]);
     }
@@ -68,12 +70,12 @@ class SystemCategoryController extends Controller
             route('system-categories.index', ['type' => $category->type]));
     }
 
-    public function edit(SystemCategory $systemCategory): Response|RedirectResponse
+    public function edit(SystemCategory $systemCategory): InertiaResponse|RedirectResponse
     {
         if ($this->isModalRequest()) {
-            return $this->modalView('system-categories.form', [
-                'category' => $systemCategory,
-                'typeLabels' => SystemCategory::TYPE_LABELS,
+            return $this->modalPage('SystemCategories/Form', [
+                'category' => $this->categoryData($systemCategory),
+                'typeLabels' => Ui::options(SystemCategory::TYPE_LABELS),
             ]);
         }
 
@@ -118,6 +120,15 @@ class SystemCategoryController extends Controller
 
         return redirect()->route('system-categories.index', ['type' => $systemCategory->type])
             ->with('status', "Đã kích hoạt lại danh mục \"{$systemCategory->name}\".");
+    }
+
+    /** @return array<string, mixed> */
+    private function categoryData(SystemCategory $category): array
+    {
+        return [
+            ...$category->only(['id', 'type', 'code', 'name', 'sort_order']),
+            'is_active' => (bool) $category->is_active,
+        ];
     }
 
     private function validType(mixed $type): string
