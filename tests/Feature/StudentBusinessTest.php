@@ -83,49 +83,6 @@ class StudentBusinessTest extends TestCase
     // a. Student creation, updates, attendance rate, homework rate & labels
     // =========================================================================
 
-    public function test_can_create_student_profile_with_generated_code(): void
-    {
-        $payload = [
-            'name' => 'Đinh Công Thành',
-            'phone' => '0934567890',
-            'email' => 'congthanh.dinh@gmail.com',
-            'branch_id' => $this->branchHanoi->id,
-            'current_class_id' => $this->classHanoi->id,
-            'target' => 'IELTS 7.5 Overall',
-        ];
-
-        $response = $this->actingAs($this->academicOfficer)->post(route('students.store'), $payload);
-
-        $response->assertRedirect(route('students.index'));
-
-        $this->assertDatabaseHas('students', [
-            'name' => 'Đinh Công Thành',
-            'phone' => '0934567890',
-            'email' => 'congthanh.dinh@gmail.com',
-            'branch_id' => $this->branchHanoi->id,
-            'current_class_id' => $this->classHanoi->id,
-            'target' => 'IELTS 7.5 Overall',
-            // BA chốt Q5: hồ sơ mới khởi tạo ở "Chờ khai giảng" (trước đây sai: 'studying').
-            'status' => Student::INITIAL_STATUS,
-        ]);
-
-        $student = Student::where('phone', '0934567890')->first();
-        $this->assertNotNull($student);
-        $this->assertMatchesRegularExpression('/^HV-\d{5}$/', $student->code);
-    }
-
-    public function test_student_creation_validation_rules(): void
-    {
-        $response = $this->actingAs($this->academicOfficer)->post(route('students.store'), [
-            'name' => '',
-            'phone' => '',
-            'email' => 'invalid-email-address',
-            'branch_id' => 999999,
-        ]);
-
-        $response->assertSessionHasErrors(['name', 'phone', 'email', 'branch_id']);
-    }
-
     public function test_can_update_and_soft_delete_student_profile(): void
     {
         $student = Student::create([

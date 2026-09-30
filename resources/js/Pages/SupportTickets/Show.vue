@@ -10,8 +10,10 @@ import ReplyForm from './ReplyForm.vue';
 import StatusForm from './StatusForm.vue';
 import TicketInfo from './TicketInfo.vue';
 import TicketMessages from './TicketMessages.vue';
+import { providePendingReplies } from './pendingReplies';
 
-defineOptions({ layout: (props) => ({ title: props.ticket?.title }) });
+// Lỗi gửi phản hồi hiện trên khung phản hồi tạm; lỗi các form khác hiện tại trường → không cần khối lỗi chung.
+defineOptions({ layout: (props) => ({ title: props.ticket?.title, hideErrors: true }) });
 
 const props = defineProps({
     asModal: { type: Boolean, default: false },
@@ -19,10 +21,12 @@ const props = defineProps({
     messages: { type: Array, default: () => [] },
     staffs: { type: Array, default: () => [] },
     canPostInternal: { type: Boolean, default: false },
+    canReopen: { type: Boolean, default: false },
 });
 
 const created = computed(() => formatDate(props.ticket.created_at, 'd/m/Y H:i'));
 const lightbox = ref(null); // URL ảnh đang phóng to (trang đầy đủ)
+providePendingReplies(); // phản hồi đang gửi: giữ qua các lần tải lại nội dung modal
 
 function onKey(event) {
     if (event.key === 'Escape') lightbox.value = null;
@@ -35,7 +39,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
     <UiModalFrame v-if="asModal" :title="`#${ticket.code} · ${ticket.title}`" :description="`Tạo bởi ${ticket.creator ?? 'Hệ thống'} lúc ${created} · ${ticket.category_label}`" cancel="Đóng">
         <div class="space-y-md" data-testid="ticket-conversation">
             <div class="flex flex-wrap items-center justify-between gap-sm">
-                <StatusForm :ticket="ticket" />
+                <StatusForm :ticket="ticket" :can-reopen="canReopen" />
                 <UiButton variant="ghost" size="sm" icon="open_in_new" :href="route('tickets.show', ticket.id)" native>Mở trang đầy đủ</UiButton>
             </div>
             <div class="grid grid-cols-1 gap-md lg:grid-cols-3">
@@ -55,7 +59,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
             </template>
             <template #meta>Tạo bởi {{ ticket.creator }} vào lúc {{ created }} · {{ ticket.category_label }}</template>
             <template #actions>
-                <StatusForm :ticket="ticket" />
+                <StatusForm :ticket="ticket" :can-reopen="canReopen" />
             </template>
         </UiPageHeader>
 

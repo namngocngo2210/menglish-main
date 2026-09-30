@@ -207,12 +207,48 @@ class LeadToStudentFlowTest extends TestCase
             ->assertSessionHasNoErrors()
             ->assertSessionHas('student_account_email', $account->email);
         $password = $response->getSession()->get('temporary_password');
+        $this->assertMatchesRegularExpression('/^(?=.*[a-z])(?=.*[A-Z])(?=.*[^a-zA-Z0-9]).{10}$/', $password);
 
         $account->refresh();
         $this->assertTrue(Hash::check($password, $account->password));
         $this->assertTrue((bool) $account->must_change_password);
         $this->assertTrue(CrmCustomerHistory::where('customer_id', $lead->id)->where('content', 'like', 'Cấp mật khẩu tạm%')->exists());
         $this->actingAs($this->academic)->get(route('crm.confirmations'))->assertOk()->assertSee($account->email);
+    }
+
+    public function test_closing_lead_without_email_generates_student_id_email_and_ten_char_password(): void
+    {
+        $class = $this->makeClass('F1A');
+        $lead = $this->lead('consulting');
+        $response = $this->actingAs($this->sales)->post(route('crm.closing-wizard.store'), ['customer_id' => $lead->id, 'class_id' => $class->id, 'fee_paid_at_closing' => 0])
+            ->assertSessionHasNoErrors();
+
+        $student = Student::findOrFail($lead->fresh()->converted_student_id);
+        $email = "student{$student->id}@".User::STUDENT_EMAIL_DOMAIN;
+        $this->assertSame($email, $student->email);
+        $this->assertSame($email, $student->user->email);
+        $response->assertSessionHas('student_account_login', $email);
+
+        $password = $response->getSession()->get('temporary_password');
+        $this->assertMatchesRegularExpression('/^(?=.*[a-z])(?=.*[A-Z])(?=.*[^a-zA-Z0-9]).{10}$/', $password);
+        $this->assertTrue(Hash::check($password, $student->user->password));
+
+        auth()->logout();
+        $this->post(route('login'), ['email' => $email, 'password' => $password])->assertSessionHasNoErrors();
+        $this->assertAuthenticatedAs($student->user);
+    }
+
+    public function test_closing_lead_with_email_keeps_lead_email(): void
+    {
+        $class = $this->makeClass('F1A');
+        $lead = $this->lead('consulting');
+        $lead->update(['email' => 'phuhuynh.an@example.com']);
+        $this->actingAs($this->sales)->post(route('crm.closing-wizard.store'), ['customer_id' => $lead->id, 'class_id' => $class->id, 'fee_paid_at_closing' => 0])
+            ->assertSessionHasNoErrors();
+
+        $student = Student::findOrFail($lead->fresh()->converted_student_id);
+        $this->assertSame('phuhuynh.an@example.com', $student->email);
+        $this->assertSame('phuhuynh.an@example.com', $student->user->email);
     }
 
     public function test_temporary_password_is_not_issued_for_staff_accounts(): void

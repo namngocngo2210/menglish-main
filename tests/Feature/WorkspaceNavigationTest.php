@@ -307,10 +307,27 @@ class WorkspaceNavigationTest extends TestCase
         // Xác nhận chính thức chuyển sang khu Phê duyệt.
         $this->assertStringNotContainsString(route('crm.confirmations'), $bar);
         $this->assertStringNotContainsString(route('crm.closing-wizard'), $bar);
-        $this->assertStringNotContainsString(route('crm.reports'), $bar);
 
         // Trang con (chip) vẫn thuộc workspace CRM, tab Danh sách đang mở.
         $this->get(route('crm.lost-deals'))->assertOk()->assertSee('data-workspace-chips', false);
+    }
+
+    public function test_enrollment_report_is_a_crm_tab_not_a_separate_reports_section(): void
+    {
+        $html = $this->actingAs($this->makeUser('admin'))->get(route('crm.reports'))->assertOk()->getContent();
+        $bar = substr($html, strpos($html, 'data-workspace-tabs="crm"'));
+        $tabs = substr($bar, 0, strpos($bar, '</nav>'));
+
+        // Tab "Báo cáo" nằm cạnh Kanban / Danh sách và đang được chọn.
+        $this->assertMatchesRegularExpression('#<a(?=[^>]*href="'.preg_quote(route('crm.reports'), '#').'")(?=[^>]*aria-current="page")[^>]*>#', $tabs);
+        $this->assertStringContainsString(route('crm.pipeline'), $tabs);
+        // Sidebar không còn khu "Báo cáo" riêng; mục đang sáng là Khách hàng (CRM).
+        $this->assertStringNotContainsString('data-menu-section data-sidebar-text>Báo cáo<', $html);
+        $this->assertNotContains('reports', collect(app(SidebarMenu::class)->definition())->pluck('id')->all());
+
+        // Người không có quyền xem báo cáo (Học vụ) không thấy tab.
+        $academicBar = $this->actingAs($this->makeUser('academic_staff'))->get(route('crm.customers.index'))->assertOk()->getContent();
+        $this->assertStringNotContainsString(route('crm.reports'), substr($academicBar, strpos($academicBar, 'data-workspace-tabs="crm"')));
     }
 
     public function test_crm_sla_quick_filter_lists_only_stale_new_leads(): void

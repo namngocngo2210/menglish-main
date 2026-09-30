@@ -110,6 +110,18 @@ class SupportTicket extends Model
         };
     }
 
+    /** Ticket đã giải quyết / đã đóng (hiện nút "Mở lại"). */
+    public function isFinished(): bool
+    {
+        return in_array($this->status, ['resolved', 'closed'], true);
+    }
+
+    /** Mở lại ticket: người đổi được trạng thái (support_ticket.close) hoặc chính người tạo ticket. */
+    public function userCanReopen(?User $user): bool
+    {
+        return (bool) $user && ($user->can('support_ticket.close') || (int) $this->creator_id === (int) $user->id);
+    }
+
     public function getStatusBadgeAttribute(): string
     {
         return match ($this->status) {

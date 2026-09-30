@@ -232,7 +232,6 @@ Route::middleware('auth')->group(function () {
     // ─────────────────────────────────────────────
     Route::prefix('students')->name('students.')->middleware('can:student.view')->group(function () {
         Route::get('/', [StudentProfileController::class, 'index'])->name('index');
-        Route::post('/', [StudentProfileController::class, 'storeStudent'])->middleware('can:student.create')->name('store');
         Route::get('/enrollments', [StudentProfileController::class, 'enrollments'])->name('enrollments');
         Route::post('/enrollments', [StudentProfileController::class, 'storeEnrollment'])->middleware('can:student.assign_class')->name('enrollments.store');
         Route::put('/enrollments/{id}', [StudentProfileController::class, 'updateEnrollmentHandoff'])->middleware('can:student.assign_class')->name('enrollments.update');
@@ -549,6 +548,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/{id}/attachment', [SupportTicketController::class, 'attachment'])->middleware('can:support_ticket.view')->name('attachment');
         Route::post('/{id}/messages', [SupportTicketController::class, 'storeMessage'])->middleware('can:support_ticket.view')->name('messages.store');
         Route::post('/{id}/status', [SupportTicketController::class, 'updateStatus'])->middleware('can:support_ticket.close')->name('status.update');
+        Route::post('/{id}/reopen', [SupportTicketController::class, 'reopen'])->middleware('can:support_ticket.view')->name('reopen');
         Route::post('/{id}/assign', [SupportTicketController::class, 'assign'])->middleware('can:support_ticket.assign')->name('assign');
     });
 

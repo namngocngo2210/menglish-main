@@ -17,6 +17,8 @@ use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
+use function Illuminate\Support\defer;
+
 class SupportTicketController extends Controller
 {
     use RendersModals;
@@ -138,8 +140,8 @@ class SupportTicketController extends Controller
             'is_internal_note' => false,
         ]);
 
-        // Bắn thông báo chuông cho những người trong luồng ticket
-        $this->notificationService->notifyTicketCreated($ticket);
+        // Bắn thông báo chuông + email cho những người trong luồng ticket (sau khi đã trả phản hồi)
+        defer(fn () => $this->notificationService->notifyTicketCreated($ticket));
 
         return $this->modalSaved("Đã tạo phiếu yêu cầu hỗ trợ / báo lỗi {$ticket->code} thành công!", 'tickets-changed', route('tickets.show', $ticket->id));
     }
@@ -171,12 +173,13 @@ class SupportTicketController extends Controller
                 'status' => $ticket->status,
                 'status_label' => $ticket->status_label,
                 'status_badge' => $ticket->status_badge,
+                'is_finished' => $ticket->isFinished(),
                 'creator' => $ticket->creator?->name,
                 'assignee_id' => $ticket->assignee_id,
                 'assignee' => $ticket->assignee?->name,
                 'created_at' => $ticket->created_at->toIso8601String(),
             ],
-            // Mới nhất trước (như trang cũ).
+            // Cũ trước, mới nhất ở cuối (quan hệ messages sắp mới → cũ).
             'messages' => $ticket->messages->reverse()->values()->map(fn (TicketMessage $msg) => [
                 'id' => $msg->id,
                 'user' => $msg->user?->name,
@@ -191,6 +194,7 @@ class SupportTicketController extends Controller
             ])->all(),
             'staffs' => Ui::options($staffs, 'name'),
             'canPostInternal' => $canPostInternal,
+            'canReopen' => $ticket->userCanReopen(Auth::user()),
         ]);
     }
 
@@ -224,8 +228,9 @@ class SupportTicketController extends Controller
             $ticket->update(['status' => 'in_progress']);
         }
 
-        // Bắn thông báo phản hồi mới cho những người trong luồng ticket
-        $this->notificationService->notifyTicketMessage($ticket, $msg, Auth::user());
+        // Thông báo + email (SMTP, chậm) cho những người trong luồng ticket: chạy sau khi đã trả phản hồi.
+        $sender = Auth::user();
+        defer(fn () => $this->notificationService->notifyTicketMessage($ticket, $msg, $sender));
 
         return $this->ticketActionDone('Đã gửi phản hồi thành công!');
     }
@@ -243,10 +248,39 @@ class SupportTicketController extends Controller
             'resolved_at' => in_array($validated['status'], ['resolved', 'closed']) ? now() : null,
         ]);
 
-        // Bắn thông báo đổi trạng thái ticket
-        $this->notificationService->notifyTicketStatusChanged($ticket, $validated['status'], Auth::user());
+        // Bắn thông báo đổi trạng thái ticket (sau khi đã trả phản hồi)
+        $actor = Auth::user();
+        defer(fn () => $this->notificationService->notifyTicketStatusChanged($ticket, $validated['status'], $actor));
 
         return $this->ticketActionDone("Đã cập nhật trạng thái ticket sang: {$ticket->status_label}!");
+    }
+
+    /**
+     * Mở lại ticket đã giải quyết / đã đóng → "Đang xử lý". Người đổi được trạng thái (support_ticket.close) và người
+     * tạo ticket (vấn đề chưa hết) bấm được. Ghi 1 dòng vào hội thoại để biết ai mở lại lúc nào; báo người liên quan.
+     */
+    public function reopen($id)
+    {
+        $ticket = SupportTicket::where('id', $id)->orWhere('code', $id)->firstOrFail();
+        $this->authorizeTicketParticipant($ticket);
+        abort_unless($ticket->userCanReopen(Auth::user()), 403);
+
+        if (! $ticket->isFinished()) {
+            return $this->modalFailed('Ticket đang mở, không cần mở lại.', 'status');
+        }
+
+        $ticket->update(['status' => 'in_progress', 'resolved_at' => null]);
+        TicketMessage::create([
+            'support_ticket_id' => $ticket->id,
+            'user_id' => Auth::id(),
+            'message' => 'Đã mở lại ticket, chuyển sang Đang xử lý.',
+            'is_internal_note' => false,
+        ]);
+
+        $actor = Auth::user();
+        defer(fn () => $this->notificationService->notifyTicketStatusChanged($ticket, 'in_progress', $actor));
+
+        return $this->ticketActionDone('Đã mở lại ticket.');
     }
 
     public function assign(Request $request, $id)
@@ -263,7 +297,8 @@ class SupportTicketController extends Controller
         // Bắn thông báo cho người được phân công
         $assignee = User::find($validated['assignee_id']);
         if ($assignee) {
-            $this->notificationService->notifyTicketAssigned($ticket, $assignee, Auth::user());
+            $actor = Auth::user();
+            defer(fn () => $this->notificationService->notifyTicketAssigned($ticket, $assignee, $actor));
         }
 
         return $this->ticketActionDone("Đã phân công xử lý ticket cho {$ticket->assignee?->name}!");

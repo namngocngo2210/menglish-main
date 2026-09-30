@@ -119,7 +119,6 @@ return [
             'icon' => 'school',
             'actions' => [
                 'view' => ['Xem học viên', 'Xem danh sách, hồ sơ học viên (trong phạm vi dữ liệu).'],
-                'create' => ['Thêm học viên', 'Tạo hồ sơ học viên không qua CRM.'],
                 'update' => ['Sửa học viên', 'Sửa thông tin hồ sơ học viên.'],
                 'delete' => ['Xóa học viên', 'Xóa hồ sơ học viên.'],
                 'change_status' => ['Đổi trạng thái học tập', 'Đổi trạng thái (bảo lưu, nghỉ hè, thôi học…), kết thúc bảo lưu.'],
