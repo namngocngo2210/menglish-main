@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AdminNotification;
 use App\Models\BigTest;
 use App\Models\BigTestOrder;
 use App\Models\BigTestResult;
@@ -9,6 +10,7 @@ use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\CourseLevel;
 use App\Models\Student;
+use App\Models\SyllabusAdjustmentRequest;
 use App\Models\SyllabusAssignment;
 use App\Models\SyllabusChangeProposal;
 use App\Models\SyllabusCurriculum;
@@ -249,7 +251,7 @@ class Phase2MockupSyllabusTest extends TestCase
             ->assertSee('Phản hồi từ người duyệt')
             ->assertSee('Lịch sử xử lý')
             ->assertSee('Đang chờ xử lý')
-            ->assertSee(route('syllabus.proposals.reject', $proposal->id), false);
+            ->assertSee(route('syllabus.proposals.reject', $proposal->id, absolute: false), false);
 
         // Một ô phản hồi dùng chung: từ chối bắt buộc có phản hồi
         $this->actingAs($this->academic)->post(route('syllabus.proposals.reject', $proposal->id), ['review_note' => ''])->assertSessionHasErrors('review_note');
@@ -300,7 +302,7 @@ class Phase2MockupSyllabusTest extends TestCase
             'user_id' => $newTeacher->id, 'start_date' => $start, 'deadline' => now()->addMonth()->toDateString(),
         ])->assertSessionHasNoErrors();
         $this->assertSame($newTeacher->id, $assignment->fresh()->user_id);
-        $this->assertTrue(\App\Models\AdminNotification::where('user_id', $newTeacher->id)->exists());
+        $this->assertTrue(AdminNotification::where('user_id', $newTeacher->id)->exists());
 
         // Lọc trạng thái phía server
         $this->actingAs($this->academic)->get(route('syllabus.assignments', ['status' => 'completed']))->assertOk()
@@ -330,7 +332,7 @@ class Phase2MockupSyllabusTest extends TestCase
         $this->actingAs($this->teacher)->post(route('syllabus.adjustment-requests.store'), [
             'class_id' => $this->class->id, 'reason' => 'Học sinh chưa nắm vững Speaking', 'extra_sessions' => 2,
         ])->assertSessionHasNoErrors();
-        $req = \App\Models\SyllabusAdjustmentRequest::firstOrFail();
+        $req = SyllabusAdjustmentRequest::firstOrFail();
         $this->assertSame('Xin giãn tiến độ thêm 2 buổi', $req->request_type);
         $this->assertNotNull($req->syllabus_assignment_id);
 
@@ -357,7 +359,7 @@ class Phase2MockupSyllabusTest extends TestCase
             ->assertSee('Xác nhận từ chối')
             ->assertSee('GV-MK-01');
 
-        $req->forceFill(['created_at' => now()->subHours(\App\Models\SyllabusAdjustmentRequest::SLA_HOURS + 1)])->save();
+        $req->forceFill(['created_at' => now()->subHours(SyllabusAdjustmentRequest::SLA_HOURS + 1)])->save();
         $this->actingAs($this->academic)->get(route('syllabus.adjustment-requests'))->assertOk()->assertSee('Quá hạn');
 
         $this->actingAs($this->academic)->post(route('syllabus.adjustment-requests.reject', $req->id), ['rejection_reason' => 'Chưa đủ căn cứ'])->assertRedirect();

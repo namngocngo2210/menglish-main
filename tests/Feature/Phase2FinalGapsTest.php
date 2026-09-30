@@ -104,7 +104,7 @@ class Phase2FinalGapsTest extends TestCase
             $this->actingAs($user)->post(route('syllabus.big-tests.orders.approve', $order->id), ['test_link' => 'https://x.test'])->assertForbidden();
             $this->actingAs($user)->post(route('syllabus.big-tests.orders.reject', $order->id), ['rejection_reason' => 'x'])->assertForbidden();
             $this->actingAs($user)->get(route('syllabus.big-tests.distribution', ['order' => $order->id]))->assertOk()
-                ->assertDontSee(route('syllabus.big-tests.orders.approve', $order->id));
+                ->assertDontSee(route('syllabus.big-tests.orders.approve', $order->id, absolute: false));
         }
 
         $this->actingAs($this->lead)->post(route('syllabus.proposals.approve', $proposal->id), ['review_note' => 'OK'])->assertRedirect();
@@ -233,7 +233,7 @@ class Phase2FinalGapsTest extends TestCase
         $this->assertSame(0, BigTestResult::where('status', 'approved')->count());
         $draftA = BigTestResult::where('student_id', $a->id)->firstOrFail();
         $this->actingAs($this->lead)->get(route('syllabus.big-tests.results', $test->id))->assertOk()
-            ->assertSee('Nháp (GV chưa gửi duyệt)')->assertDontSee(route('syllabus.big-tests.results', ['id' => $test->id, 'result' => $draftA->id]));
+            ->assertSee('Nháp (GV chưa gửi duyệt)')->assertDontSee(route('syllabus.big-tests.results', ['id' => $test->id, 'result' => $draftA->id], absolute: false));
         $this->actingAs($this->lead)->post(route('syllabus.big-tests.results.approve-send', $draftA->id))->assertSessionHas('error');
         $this->assertSame('draft', $draftA->fresh()->status);
 

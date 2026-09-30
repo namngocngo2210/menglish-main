@@ -7,6 +7,7 @@ use App\Models\BigTestResult;
 use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\Course;
+use App\Models\CrmCustomer;
 use App\Models\Student;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
@@ -239,7 +240,7 @@ class BigTestResultsSecurityTest extends TestCase
     public function test_parent_phone_falls_back_to_crm_customer_parent_phone(): void
     {
         $this->studentA->update(['parent_phone' => null]);
-        \App\Models\CrmCustomer::create(['code' => 'KH-BTS-1', 'name' => 'HV Lớp A', 'phone' => '0901000001', 'phone_normalized' => '0901000001',
+        CrmCustomer::create(['code' => 'KH-BTS-1', 'name' => 'HV Lớp A', 'phone' => '0901000001', 'phone_normalized' => '0901000001',
             'parent_phone' => '0987654321', 'stage' => 'won', 'converted_student_id' => $this->studentA->id]);
         config(['services.zalo.mode' => 'live', 'services.zalo.access_token' => 'test-token']);
         Http::fake(['*' => Http::response(['error' => 0], 200)]);
@@ -267,7 +268,7 @@ class BigTestResultsSecurityTest extends TestCase
             $this->actingAs($user)->post(route('syllabus.big-tests.send-zalo', $this->testA->id))->assertForbidden();
             $this->actingAs($user)->post(route('syllabus.big-tests.results.approve-send', $result->id))->assertForbidden();
             $this->actingAs($user)->get(route('syllabus.big-tests.results', $this->testA->id))->assertOk()
-                ->assertDontSee(route('syllabus.big-tests.results.approve', $this->testA->id));
+                ->assertDontSee(route('syllabus.big-tests.results.approve', $this->testA->id, absolute: false));
         }
         $this->assertSame('pending_review', $result->fresh()->status);
         $this->assertTrue($this->lead->can('big_test.approve'));
@@ -344,14 +345,14 @@ class BigTestResultsSecurityTest extends TestCase
         $teacherView->assertOk()
             ->assertSee('Chờ duyệt')
             ->assertDontSee('>pending_review<', false)
-            ->assertDontSee(route('syllabus.big-tests.results.approve', $this->testA->id))
-            ->assertDontSee(route('syllabus.big-tests.send-zalo', $this->testA->id))
+            ->assertDontSee(route('syllabus.big-tests.results.approve', $this->testA->id, absolute: false))
+            ->assertDontSee(route('syllabus.big-tests.send-zalo', $this->testA->id, absolute: false))
             ->assertDontSee('/ 9.0');
 
         $this->actingAs($this->lead)->get(route('syllabus.big-tests.results', $this->testA->id))
             ->assertOk()
-            ->assertSee(route('syllabus.big-tests.results.approve', $this->testA->id))
-            ->assertSee(route('syllabus.big-tests.send-zalo', $this->testA->id));
+            ->assertSee(route('syllabus.big-tests.results.approve', $this->testA->id, absolute: false))
+            ->assertSee(route('syllabus.big-tests.send-zalo', $this->testA->id, absolute: false));
     }
 
     public function test_results_page_without_tests_has_no_grade_form(): void

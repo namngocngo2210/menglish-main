@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Course;
 use App\Models\CourseLevel;
 use App\Support\Money;
+use App\Support\Ui;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class CourseController extends Controller
 {
@@ -19,8 +21,8 @@ class CourseController extends Controller
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('code', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                    ->orWhere('code', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
             });
         }
 
@@ -46,7 +48,22 @@ class CourseController extends Controller
             'max_tuition' => Course::where('is_active', true)->max('tuition_fee') ?: 0,
         ];
 
-        return view('courses.index', compact('courses', 'levels', 'stats'));
+        return Inertia::render('Courses/Index', [
+            'courses' => $courses->through(fn (Course $c) => [
+                'id' => $c->id,
+                'code' => $c->code,
+                'name' => $c->name,
+                'description' => $c->description,
+                'course_level_id' => $c->course_level_id,
+                'tuition_fee' => (float) $c->tuition_fee,
+                'total_lessons' => $c->total_lessons,
+                'classes_count' => $c->classes_count,
+                'is_active' => (bool) $c->is_active,
+                'level' => $c->level ? ['code' => $c->level->code, 'name' => $c->level->name, 'target' => $c->level->target] : null,
+            ]),
+            'levels' => Ui::options($levels, fn ($lv) => $lv->name.' ('.$lv->code.')'),
+            'stats' => $stats,
+        ]);
     }
 
     /**
@@ -68,13 +85,13 @@ class CourseController extends Controller
             'total_lessons.required' => 'Vui lòng nhập số buổi học.',
         ]);
 
-        $validated['is_active'] = $request->has('is_active') ? (bool)$request->is_active : true;
+        $validated['is_active'] = $request->has('is_active') ? (bool) $request->is_active : true;
 
         // Mã khóa học do hệ thống tự sinh (Course::booted), không nhận từ form.
         $course = Course::create($validated);
 
         return redirect()->route('courses.index')
-            ->with('status', "Đã thêm khóa học '{$course->name}' ({$course->code}) với học phí " . Money::format($course->tuition_fee) . " thành công!");
+            ->with('status', "Đã thêm khóa học '{$course->name}' ({$course->code}) với học phí ".Money::format($course->tuition_fee).' thành công!');
     }
 
     /**
@@ -98,14 +115,14 @@ class CourseController extends Controller
             'total_lessons.required' => 'Vui lòng nhập số buổi học.',
         ]);
 
-        $validated['is_active'] = $request->has('is_active') ? (bool)$request->is_active : false;
+        $validated['is_active'] = $request->has('is_active') ? (bool) $request->is_active : false;
 
         $oldFee = $course->tuition_fee;
         $course->update($validated);
 
         $feeMsg = ($oldFee != $course->tuition_fee)
-            ? " (Đã cập nhật giá từ " . Money::format($oldFee) . " thành " . Money::format($course->tuition_fee) . ")"
-            : "";
+            ? ' (Đã cập nhật giá từ '.Money::format($oldFee).' thành '.Money::format($course->tuition_fee).')'
+            : '';
 
         return redirect()->route('courses.index')
             ->with('status', "Cập nhật khóa học '{$course->name}' thành công!{$feeMsg}");
@@ -117,7 +134,7 @@ class CourseController extends Controller
     public function toggleStatus($id)
     {
         $course = Course::findOrFail($id);
-        $course->is_active = !$course->is_active;
+        $course->is_active = ! $course->is_active;
         $course->save();
 
         $statusText = $course->is_active ? 'Kích hoạt mở bán' : 'Tạm ngưng mở bán';

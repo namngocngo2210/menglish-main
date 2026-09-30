@@ -9,9 +9,12 @@ use App\Models\BigTestResult;
 use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\Student;
+use App\Models\SyllabusCurriculum;
 use App\Models\User;
+use App\Services\SyllabusProgressionService;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -70,8 +73,8 @@ class Phase2BigTestTest extends TestCase
         $this->actingAs($this->teacherA)->post(route('teacher.order-test.submit', $this->classA->id), [
             'test_type' => 'big', 'exam_date' => $examDate,
         ])->assertSessionHasErrors('stage');
-        $curriculum = \App\Models\SyllabusCurriculum::create(['code' => 'CUR-BT2', 'title' => 'GT BT2', 'version' => 'v1', 'stage_name' => 'Present Simple']);
-        app(\App\Services\SyllabusProgressionService::class)->open($this->classA, $curriculum->stages()->firstOrFail(), $this->teacherA->id, $this->academic);
+        $curriculum = SyllabusCurriculum::create(['code' => 'CUR-BT2', 'title' => 'GT BT2', 'version' => 'v1', 'stage_name' => 'Present Simple']);
+        app(SyllabusProgressionService::class)->open($this->classA, $curriculum->stages()->firstOrFail(), $this->teacherA->id, $this->academic);
 
         $this->actingAs($this->teacherA)->post(route('teacher.order-test.submit', $this->classA->id), [
             'stage_name' => 'Tên tự do bị bỏ qua', 'test_type' => 'big', 'exam_date' => $examDate, 'note' => 'Tập trung Speaking',
@@ -90,8 +93,8 @@ class Phase2BigTestTest extends TestCase
             ->assertSee('Chặng 1: Present Simple')
             ->assertSee('Tập trung Speaking')
             ->assertSee($order->due_date->format('d/m/Y'))
-            ->assertSee(route('syllabus.big-tests.orders.approve', $order->id))
-            ->assertSee(route('syllabus.big-tests.orders.reject', $order->id));
+            ->assertSee(route('syllabus.big-tests.orders.approve', $order->id, absolute: false))
+            ->assertSee(route('syllabus.big-tests.orders.reject', $order->id, absolute: false));
 
         // Lịch sử order ở Cổng GV đọc cùng bảng (nhãn mockup "Đã order - Chờ HT duyệt")
         $this->actingAs($this->teacherA)->get(route('teacher.order-test', $this->classA->id))->assertOk()->assertSee('Đã order - Chờ HT duyệt');
@@ -185,7 +188,7 @@ class Phase2BigTestTest extends TestCase
 
     public function test_reminder_command_is_scheduled_daily(): void
     {
-        $events = collect(app(\Illuminate\Console\Scheduling\Schedule::class)->events())
+        $events = collect(app(Schedule::class)->events())
             ->filter(fn ($e) => str_contains((string) $e->command, 'bigtests:remind-upcoming'));
         $this->assertCount(1, $events);
     }
@@ -244,12 +247,12 @@ class Phase2BigTestTest extends TestCase
         $page = $this->actingAs($this->academic)->get(route('syllabus.big-tests.results', $test->id));
         $page->assertOk()
             ->assertSee('Đã gửi PH')
-            ->assertSee(route('syllabus.big-tests.send-single-zalo', $pending->id))
+            ->assertSee(route('syllabus.big-tests.send-single-zalo', $pending->id, absolute: false))
             ->assertSee('Gửi PH');
 
         // Giáo viên không có nút gửi
         $this->actingAs($this->teacherA)->get(route('syllabus.big-tests.results', $test->id))
-            ->assertOk()->assertDontSee(route('syllabus.big-tests.send-single-zalo', $pending->id));
+            ->assertOk()->assertDontSee(route('syllabus.big-tests.send-single-zalo', $pending->id, absolute: false));
 
         $this->actingAs($this->academic)->post(route('syllabus.big-tests.send-single-zalo', $pending->id))->assertRedirect()->assertSessionHas('status');
         $this->assertTrue($pending->fresh()->parent_notified);

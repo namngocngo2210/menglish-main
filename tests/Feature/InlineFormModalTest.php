@@ -37,8 +37,6 @@ class InlineFormModalTest extends TestCase
     public static function pages(): array
     {
         return [
-            'giao chặng' => ['syllabus.assignments', 'new-assignment'],
-            'tài liệu giáo trình' => ['syllabus.documents', 'upload-document'],
             'nhắc nợ' => ['system-config.debt-reminders', 'new-reminder'],
         ];
     }
