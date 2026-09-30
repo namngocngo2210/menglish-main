@@ -164,10 +164,10 @@ class Phase1AcceptanceTest extends TestCase
         $this->assertNotNull($link);
         auth()->logout();
         // Link bị sửa (đổi lead) không còn chữ ký hợp lệ → không điền sẵn thông tin khách.
-        $this->assertNull($this->get(str_replace('lead='.$lead->id, 'lead=999', $link))->assertOk()->viewData('lead'));
+        $this->assertNull($this->get(str_replace('lead='.$lead->id, 'lead=999', $link))->assertOk()->inertiaProps('lead'));
         $take = $this->get($link)->assertOk();
-        $this->assertSame($lead->id, $take->viewData('lead')->id);
-        $token = $take->viewData('leadToken');
+        $this->assertSame(['name' => $lead->name, 'phone' => $lead->phone, 'email' => $lead->email], $take->inertiaProps('lead'));
+        $token = $take->inertiaProps('leadToken');
         $this->assertSame('testing', $lead->fresh()->stage);
 
         $this->post(route('portal.test.submit', $this->test->code), [

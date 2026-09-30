@@ -12,17 +12,22 @@ use App\Services\NotificationService;
 use App\Services\PlacementPortalLinkService;
 use App\Services\PlacementRubricService;
 use App\Services\SafeUploadService;
+use App\Support\Ui;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
+use Inertia\Response as InertiaResponse;
 
 class PlacementTestController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request): InertiaResponse
     {
         $allTests = PlacementTest::withCount(['submissions' => fn ($query) => $query->where(fn ($inner) => $inner
             ->whereNull('customer_id')
@@ -65,7 +70,59 @@ class PlacementTestController extends Controller
             'pending_submissions' => $this->visibleSubmissionsQuery()->where('status', 'pending')->count(),
         ];
 
-        return view('placement-tests.index', compact('tests', 'recentSubmissions', 'selectedTest', 'stats'));
+        $gradeGroups = PlacementRubricService::gradeGroups();
+
+        return Inertia::render('PlacementTests/Index', [
+            'tests' => $tests->through(fn (PlacementTest $t) => [
+                'id' => $t->id,
+                'code' => $t->code,
+                'title' => $t->title,
+                'is_preset' => (bool) $t->is_preset,
+                'is_active' => (bool) $t->is_active,
+                'type' => str_contains(strtoupper($t->code), 'SPEAKING') ? 'speaking_test' : 'placement_test',
+                'grade_group_label' => $gradeGroups[$t->grade_group] ?? 'Chưa rõ khối',
+                'target_level' => $t->target_level,
+                'duration_minutes' => $t->duration_minutes,
+                'submissions_count' => (int) $t->submissions_count,
+            ]),
+            'submissions' => $recentSubmissions->map(fn (PlacementTestSubmission $sub) => $this->submissionRow($sub))->all(),
+            'selectedTest' => $selectedTest ? ['title' => $selectedTest->title, 'code' => $selectedTest->code] : null,
+            'stats' => $stats,
+            'gradeGroups' => Ui::options($gradeGroups),
+        ]);
+    }
+
+    /** Dòng bài làm trên danh sách "Bài làm & kết quả chấm" (điểm đã định dạng như màn cũ). */
+    private function submissionRow(PlacementTestSubmission $sub): array
+    {
+        $total = $sub->total_score !== null
+            ? self::formatScore($sub->total_score).(PlacementRubricService::hasRubric($sub->grade_group) ? ' / '.PlacementRubricService::maxTotal($sub->grade_group) : ' điểm')
+            : ($sub->scoreSummary() ?? '—');
+
+        return [
+            'id' => $sub->id,
+            'candidate_name' => $sub->candidate_name,
+            'candidate_phone' => $sub->candidate_phone,
+            'customer_id' => $sub->customer?->id,
+            'violation_count' => (int) $sub->violation_count,
+            'auto_submitted' => (bool) $sub->auto_submitted,
+            'created_at' => $sub->created_at?->toIso8601String(),
+            'test_title' => $sub->test?->title,
+            'test_code' => $sub->test?->code,
+            'listening' => self::formatScore($sub->listening_score),
+            'reading_writing' => self::formatScore($sub->reading_writing_score ?? $sub->reading_score),
+            'speaking' => self::formatScore($sub->speaking_score),
+            'is_pending' => $sub->isPending(),
+            'total' => $total,
+            'final_class' => $sub->finalClass() ?? $sub->recommended_course ?? '—',
+            'scorecard_url' => URL::signedRoute('portal.test.scorecard', ['id' => $sub->id]),
+        ];
+    }
+
+    /** Điểm dạng "7.5" / "8" (bỏ số 0 thừa); chưa có điểm → $empty. */
+    private static function formatScore(mixed $value, string $empty = '—'): string
+    {
+        return $value === null || $value === '' ? $empty : rtrim(rtrim(number_format((float) $value, 1, '.', ''), '0'), '.');
     }
 
     /** Mockup: nút Ẩn / Kích hoạt đề ngay trên danh sách (đề đã có bài làm không xóa được — ẩn để ngừng phát hành). */
@@ -77,13 +134,18 @@ class PlacementTestController extends Controller
         return back()->with('status', $test->is_active ? "Đã kích hoạt đề {$test->code}." : "Đã ẩn đề {$test->code} — link làm bài của đề này ngừng hoạt động.");
     }
 
-    public function create()
+    public function create(): InertiaResponse
     {
-        return view('placement-tests.create', [
-            'gradeGroups' => PlacementRubricService::gradeGroups(),
+        $initialLevel = 'lop_3';
+        $levelRubricGroups = collect(PlacementTest::GRADE_LEVELS)->map(fn ($label, $level) => PlacementTest::rubricGroupForLevel($level));
+        $initialGroup = $levelRubricGroups[$initialLevel] ?? 'khac';
+
+        return Inertia::render('PlacementTests/Create', [
             'gradeCodeTokens' => self::GRADE_CODE_TOKENS,
-            'gradeLevels' => PlacementTest::GRADE_LEVELS,
-            'levelRubricGroups' => collect(PlacementTest::GRADE_LEVELS)->map(fn ($label, $level) => PlacementTest::rubricGroupForLevel($level)),
+            'gradeLevels' => Ui::options(PlacementTest::GRADE_LEVELS),
+            'levelRubricGroups' => $levelRubricGroups,
+            'initialLevel' => $initialLevel,
+            'initialCode' => 'TEST-'.(self::GRADE_CODE_TOKENS[$initialGroup] ?? 'G3').'-'.date('ymd-His'),
         ]);
     }
 
@@ -167,7 +229,7 @@ class PlacementTestController extends Controller
         return response()->json(['url' => Storage::disk('public')->url($path), 'path' => $path]);
     }
 
-    public function showTest($id)
+    public function showTest($id): InertiaResponse
     {
         $test = PlacementTest::where('id', $id)->orWhere('code', $id)->firstOrFail();
         // Chỉ bài làm của khách trong phạm vi chi nhánh người xem (giống màn kết quả).
@@ -177,7 +239,34 @@ class PlacementTestController extends Controller
             ->latest()
             ->get());
 
-        return view('placement-tests.show', compact('test'));
+        return Inertia::render('PlacementTests/Show', [
+            'test' => [
+                'id' => $test->id,
+                'code' => $test->code,
+                'title' => $test->title,
+                'is_preset' => (bool) $test->is_preset,
+                'target_level' => $test->target_level,
+                'duration_minutes' => $test->duration_minutes,
+                'questions_count' => $test->questions_count,
+                'questions' => array_values(is_array($test->questions) ? $test->questions : []),
+            ],
+            'takeUrl' => route('portal.test.take', $test->code),
+            'submissions' => $test->submissions->map(fn (PlacementTestSubmission $sub) => [
+                'id' => $sub->id,
+                'candidate_name' => $sub->candidate_name,
+                'candidate_phone' => $sub->candidate_phone,
+                'customer_id' => $sub->customer?->id,
+                'created_at' => $sub->created_at?->toIso8601String(),
+                'listening_score' => $sub->listening_score,
+                'reading_score' => $sub->reading_score,
+                'writing_score' => $sub->writing_score,
+                'speaking_score' => $sub->speaking_score,
+                'is_pending' => $sub->isPending(),
+                'score_summary' => $sub->scoreSummary(),
+                'recommended_course' => $sub->recommended_course,
+                'scorecard_url' => URL::signedRoute('portal.test.scorecard', ['id' => $sub->id]),
+            ])->all(),
+        ]);
     }
 
     public function editTest($id)
@@ -189,7 +278,20 @@ class PlacementTestController extends Controller
                 ->with('error', "Đề thi mẫu hệ thống [{$test->code}] đã khóa chỉnh sửa để bảo đảm tính toàn vẹn. Vui lòng bấm 'Nhân bản đề' để tạo bản sao và tùy biến!");
         }
 
-        return view('placement-tests.edit', ['test' => $test, 'gradeLevels' => PlacementTest::GRADE_LEVELS]);
+        return Inertia::render('PlacementTests/Edit', [
+            'test' => [
+                'id' => $test->id,
+                'code' => $test->code,
+                'title' => $test->title,
+                'description' => $test->description,
+                'target_level' => $test->target_level,
+                'grade_level' => $test->grade_level,
+                'duration_minutes' => $test->duration_minutes,
+                'is_active' => (bool) $test->is_active,
+                'questions' => array_values(is_array($test->questions) ? $test->questions : []),
+            ],
+            'gradeLevels' => Ui::options(PlacementTest::GRADE_LEVELS),
+        ]);
     }
 
     public function updateTest(Request $request, $id)
@@ -312,14 +414,133 @@ class PlacementTestController extends Controller
             ->orWhereIn('customer_id', CrmCustomer::query()->visibleTo(Auth::user())->select('id')));
     }
 
-    public function showResult($id)
+    public function showResult($id): InertiaResponse
     {
         $submission = $this->visibleSubmissionsQuery()->with(['test', 'grader', 'customer', 'student'])->findOrFail($id);
 
         $test = $submission->test;
         $questions = is_array($test?->questions) ? $test->questions : [];
 
-        return view('placement-tests.result', compact('submission', 'questions'));
+        return Inertia::render('PlacementTests/Result', [
+            'submission' => [
+                'id' => $submission->id,
+                'candidate_name' => $submission->candidate_name,
+                'candidate_phone' => $submission->candidate_phone,
+                'customer_id' => $submission->customer_id,
+                'test_title' => $submission->test?->title ?? 'Đề Test Đầu Vào MEnglish',
+                'score_summary' => $submission->scoreSummary(),
+                'is_pending' => $submission->isPending(),
+                'submitted_at' => ($submission->created_at ?? now())->toIso8601String(),
+                'listening_score' => $submission->listening_score,
+                'reading_score' => $submission->reading_score,
+                'reading_writing_score' => $submission->reading_writing_score,
+                'violation_count' => (int) $submission->violation_count,
+                'auto_submitted' => (bool) $submission->auto_submitted,
+                'violations' => collect($submission->violation_log ?? [])->map(fn (array $entry) => [
+                    'at' => rescue(fn () => Carbon::parse($entry['at'] ?? '')->timezone(config('app.timezone'))->format('H:i:s d/m/Y'), $entry['at'] ?? '', false),
+                    'label' => PlacementTestSubmission::VIOLATION_TYPES[$entry['type']] ?? $entry['type'],
+                ])->all(),
+                'writing_content' => $submission->writing_content,
+                'writing_word_count' => str_word_count($submission->writing_content ?? ''),
+                'speaking_audio_url' => $submission->speaking_audio_url,
+                'scorecard_url' => URL::signedRoute('portal.test.scorecard', ['id' => $submission->id]),
+            ],
+            'questions' => $this->reviewQuestions($questions, $submission),
+            'rubric' => self::rubricFormState($submission, $submission->resolvedGradeGroup()),
+        ]);
+    }
+
+    /**
+     * Câu hỏi của đề kèm câu trả lời của thí sinh và kết quả đối chiếu (đúng / sai) — tính ở server như màn cũ.
+     *
+     * @param  array<int|string, array<string, mixed>>  $questions
+     * @return list<array<string, mixed>>
+     */
+    private function reviewQuestions(array $questions, PlacementTestSubmission $submission): array
+    {
+        $answers = $submission->answers ?? [];
+        $rows = [];
+        foreach ($questions as $idx => $q) {
+            $qId = $q['id'] ?? ($idx + 1);
+            $skill = $q['skill'] ?? 'general';
+            $type = $q['type'] ?? 'multiple_choice';
+            $correctAnswer = trim((string) ($q['correct_answer'] ?? ''));
+            $candidateAnswer = trim((string) ($answers[$qId] ?? $answers['q'.$qId] ?? ($answers[$idx] ?? '')));
+            if ($skill === 'writing' && empty($candidateAnswer)) {
+                $candidateAnswer = (string) $submission->writing_content;
+            }
+            $isObjective = in_array($type, ['multiple_choice', 'fill_blank', 'single_choice']);
+            $isCorrect = $isObjective && ! empty($candidateAnswer) && ! empty($correctAnswer) && strcasecmp($candidateAnswer, $correctAnswer) === 0;
+
+            $rows[] = [
+                'number' => $idx + 1,
+                'skill' => $skill,
+                'type' => $type,
+                'title' => $q['title'] ?? 'Câu hỏi trắc nghiệm',
+                'points' => $q['points'] ?? 1,
+                'audio_url' => $q['audio_url'] ?? null,
+                'passage' => $q['passage'] ?? null,
+                'rubric_note' => $q['rubric_note'] ?? null,
+                'cue_points' => $q['cue_points'] ?? null,
+                'explanation' => $q['explanation'] ?? null,
+                'correct_answer' => $correctAnswer,
+                'candidate_answer' => $candidateAnswer,
+                'is_objective' => $isObjective,
+                'is_correct' => $isCorrect,
+                'is_incorrect' => $isObjective && ! empty($candidateAnswer) && ! empty($correctAnswer) && ! $isCorrect,
+                'options' => collect($type === 'multiple_choice' ? ($q['options'] ?? []) : [])->map(fn ($opt) => [
+                    'key' => $opt['key'] ?? '',
+                    'text' => $opt['text'] ?? '',
+                    'is_correct' => strcasecmp((string) ($opt['key'] ?? ''), $correctAnswer) === 0,
+                    'is_chosen' => strcasecmp((string) ($opt['key'] ?? ''), $candidateAnswer) === 0,
+                ])->values()->all(),
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Dữ liệu ô chấm điểm theo thang điểm khối lớp (resources/js/Components/PlacementTests/RubricScoreFields.vue):
+     * cấu hình thang điểm + giá trị ban đầu. Nhận xét đang lưu trùng gợi ý theo băng điểm (VD: hệ thống tự sinh khi
+     * thí sinh nộp bài) thì coi như chưa sửa tay: Học vụ đổi điểm là nhận xét đổi theo. Nhận xét đã sửa tay thì giữ nguyên.
+     *
+     * @return array<string, mixed>
+     */
+    public static function rubricFormState(?PlacementTestSubmission $sub, ?string $defaultGroup = null): array
+    {
+        $config = PlacementRubricService::clientConfig();
+        $initial = [
+            'group' => $sub?->grade_group ?? $defaultGroup ?? array_key_first($config['groups']),
+            'listening' => self::formatScore($sub?->listening_score, ''),
+            // Bài nộp online: phần Đọc trắc nghiệm đã tự chấm (reading_score) làm gợi ý cho ô Đọc & Viết.
+            'reading_writing' => self::formatScore($sub?->reading_writing_score ?? $sub?->reading_score, ''),
+            'speaking' => self::formatScore($sub?->speaking_score, ''),
+            'chosen' => $sub?->chosen_class,
+            'comments' => [
+                'listening' => $sub?->listening_comment,
+                'reading_writing' => $sub?->reading_writing_comment,
+                'speaking' => $sub?->speaking_comment,
+            ],
+            'teacher_comments' => $sub?->teacher_comments,
+            'edited' => [],
+        ];
+        $savedGroup = $sub?->grade_group;
+        foreach (PlacementRubricService::SKILLS as $skill => $label) {
+            $comment = (string) ($initial['comments'][$skill] ?? '');
+            $savedScore = $sub?->{$skill.'_score'};
+            $autoComment = $savedGroup && $savedScore !== null ? PlacementRubricService::skillComment($savedGroup, $skill, (float) $savedScore) : null;
+            $initial['edited'][$skill] = $comment !== '' && $comment !== $autoComment;
+        }
+
+        return [
+            'config' => $config,
+            'initial' => $initial,
+            'gradeGroups' => Ui::options(PlacementRubricService::gradeGroups()),
+            'skills' => Ui::options(PlacementRubricService::SKILLS),
+            'classOptions' => PlacementRubricService::classOptions(),
+            'noRubricNotice' => PlacementRubricService::noRubricNotice(),
+        ];
     }
 
     /**
@@ -359,16 +580,20 @@ class PlacementTestController extends Controller
             ->with('status', 'Đã chấm và lưu kết quả bài test: '.$submission->scoreSummary().'.');
     }
 
-    public function rubricGuide()
+    public function rubricGuide(): InertiaResponse
     {
-        return view('placement-tests.rubric-guide');
+        return Inertia::render('PlacementTests/RubricGuide', [
+            'config' => PlacementRubricService::clientConfig(),
+            'groups' => Ui::options(collect(PlacementRubricService::rubrics())->map(fn (array $rubric) => mb_strtoupper($rubric['label']))),
+            'noRubricNotice' => PlacementRubricService::noRubricNotice(),
+        ]);
     }
 
     // ─────────────────────────────────────────────────────────────
     // CỔNG LÀM BÀI TRỰC TUYẾN CHO LEAD / HỌC VIÊN
     // ─────────────────────────────────────────────────────────────
 
-    public function portalTakeTest($code, Request $request, PlacementPortalLinkService $links)
+    public function portalTakeTest($code, Request $request, PlacementPortalLinkService $links): InertiaResponse
     {
         $test = $this->findActiveTestByCode($code);
 
@@ -380,7 +605,61 @@ class PlacementTestController extends Controller
             app(CrmStageService::class)->advanceTo($lead, 'testing', null, "Thí sinh mở link làm bài test [{$test->code}].");
         }
 
-        return view('placement-tests.portal-take', compact('test', 'lead', 'leadToken'));
+        return Inertia::render('PlacementTests/Portal/Take', [
+            'test' => [
+                'code' => $test->code,
+                'title' => $test->title,
+                'target_level' => $test->target_level,
+                'duration_minutes' => $test->duration_minutes,
+                'questions_count' => $test->questions_count,
+            ],
+            ...$this->portalQuestions(is_array($test->questions) ? $test->questions : []),
+            'lead' => $lead ? ['name' => $lead->name, 'phone' => $lead->phone, 'email' => $lead->email] : null,
+            'leadToken' => $leadToken,
+            'maxViolations' => PlacementTestSubmission::MAX_VIOLATIONS,
+        ]);
+    }
+
+    /**
+     * Câu hỏi cho trang làm bài công khai — chỉ phần thí sinh cần thấy (props nằm trong mã nguồn trang:
+     * không gửi đáp án, giải thích, ghi chú giáo viên). Số câu ("Câu n") và tên ô trả lời theo vị trí trong đề như cũ.
+     *
+     * @param  array<int|string, array<string, mixed>>  $questions
+     * @return array{listening: list<array<string, mixed>>, reading: list<array<string, mixed>>, writingPrompt: string, speaking: ?array{title: string, cue_points: string}}
+     */
+    private function portalQuestions(array $questions): array
+    {
+        $item = fn (array $q, int|string $idx) => [
+            'number' => (int) $idx + 1,
+            'answer_key' => (string) ($q['id'] ?? $idx),
+            'type' => $q['type'] ?? '',
+            'title' => $q['title'] ?? '',
+            'passage' => $q['passage'] ?? null,
+            'image_url' => $q['image_url'] ?? null,
+            'audio_src' => ! empty($q['audio_url'])
+                ? (str_starts_with($q['audio_url'], 'http') || str_starts_with($q['audio_url'], '/') ? $q['audio_url'] : '/'.$q['audio_url'])
+                : null,
+            'options' => collect($q['options'] ?? [])->map(fn ($opt) => [
+                'key' => $opt['key'] ?? '',
+                'text' => $opt['text'] ?? '',
+                'image_url' => $opt['image_url'] ?? null,
+            ])->values()->all(),
+        ];
+        $bySkill = fn (array $skills) => collect($questions)
+            ->filter(fn ($q) => in_array($q['skill'] ?? '', $skills, true))
+            ->map($item)->values()->all();
+
+        $writingQ = collect($questions)->first(fn ($q) => ($q['skill'] ?? '') === 'writing');
+        $speakingQ = collect($questions)->first(fn ($q) => ($q['skill'] ?? '') === 'speaking');
+
+        return [
+            'listening' => $bySkill(['listening']),
+            'reading' => $bySkill(['reading', 'grammar']),
+            'writingPrompt' => $writingQ['title'] ?? 'Hãy viết một đoạn văn ngắn giới thiệu về bản thân, sở thích hoặc một chuyến đi đáng nhớ của bạn.',
+            'speaking' => $speakingQ && ! empty($speakingQ['cue_points'])
+                ? ['title' => $speakingQ['title'] ?? '', 'cue_points' => $speakingQ['cue_points']]
+                : null,
+        ];
     }
 
     public function portalSubmitTest($code, Request $request, PlacementPortalLinkService $links)
@@ -469,12 +748,12 @@ class PlacementTestController extends Controller
     }
 
     /** Màn cảm ơn sau khi nộp bài — không hiển thị điểm / kết quả. */
-    public function portalDone($code)
+    public function portalDone($code): InertiaResponse
     {
         $test = PlacementTest::query()->where('code', $code)->firstOrFail();
 
-        return view('placement-tests.portal-done', [
-            'test' => $test,
+        return Inertia::render('PlacementTests/Portal/Done', [
+            'testTitle' => $test->title,
             'candidateName' => session('placement_test_done'),
         ]);
     }

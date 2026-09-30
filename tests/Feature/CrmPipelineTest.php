@@ -187,7 +187,7 @@ class CrmPipelineTest extends TestCase
         $test = PlacementTest::create(['code' => 'PIPE-02', 'title' => 'Đề nộp bài', 'is_active' => true, 'duration_minutes' => 30]);
         $lead = $this->lead('test_scheduled');
         $link = app(PlacementPortalLinkService::class)->signedLinkForLead($test, $lead);
-        $token = $this->get($link)->viewData('leadToken');
+        $token = $this->get($link)->inertiaProps('leadToken');
 
         $this->post(route('portal.test.submit', $test->code), [
             'candidate_name' => $lead->name,

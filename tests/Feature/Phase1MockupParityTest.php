@@ -311,7 +311,7 @@ class Phase1MockupParityTest extends TestCase
             ->assertSee('Cấp độ')->assertSeeInOrder(['Mẫu giáo', 'Lớp 1', 'Lớp 9'])->assertSee('Thời gian (phút)')
             ->assertSee('Danh sách câu hỏi')->assertSee('Thêm câu hỏi mới vào đề')->assertSee('Xóa câu')
             ->assertSee('Điền vào chỗ trống')->assertSee('Tải file nghe (.mp3)')->assertSee('Tải ảnh lên')
-            ->assertSee("Teacher's Note", false)->assertSee('Lưu nháp')->assertSee('Lưu và Tiếp theo')
+            ->assertSee('Teacher&#39;s Note', false)->assertSee('Lưu nháp')->assertSee('Lưu và Tiếp theo')
             ->assertDontSee('IELTS Master');
 
         // Mã đề phải khớp khối lớp đã chọn.

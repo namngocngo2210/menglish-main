@@ -292,7 +292,7 @@ class PlacementPortalSecurityTest extends TestCase
 
         $result = $this->actingAs($academic)->get(route('placement-tests.results.show', $submission->id));
         $result->assertOk();
-        $this->assertSame([], $result->viewData('questions'));
+        $this->assertSame([], $result->inertiaProps('questions'));
         $result->assertDontSee('Melbourne International Airport');
     }
 
