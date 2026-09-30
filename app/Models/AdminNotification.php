@@ -80,6 +80,8 @@ class AdminNotification extends Model
             'trial_feedback' => 'rate_review',
             'class_assigned' => 'co_present',
             'care_overdue' => 'volunteer_activism',
+            'cash_deposit_overdue' => 'savings',
+            'refund_deadline' => 'hourglass_bottom',
             default => 'notifications',
         };
     }
@@ -102,6 +104,7 @@ class AdminNotification extends Model
             'trial_booked', 'trial_feedback' => 'bg-secondary/10 text-secondary border-secondary/30',
             'class_assigned' => 'bg-primary-container/10 text-primary border-primary-container/30',
             'care_overdue' => 'bg-error/10 text-error border-error/30',
+            'cash_deposit_overdue', 'refund_deadline' => 'bg-error/10 text-error border-error/30',
             default => 'bg-surface-container-low text-on-surface-variant border-surface-container-highest',
         };
     }
@@ -127,6 +130,8 @@ class AdminNotification extends Model
             'trial_feedback' => 'Nhận xét học thử',
             'class_assigned' => 'Xếp dạy lớp',
             'care_overdue' => 'Quá hạn chăm sóc',
+            'cash_deposit_overdue' => 'Tiền mặt chưa nộp về TK',
+            'refund_deadline' => 'Hạn xử lý hoàn phí',
             default => 'Thông báo hệ thống',
         };
     }

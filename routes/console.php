@@ -27,3 +27,7 @@ Schedule::command('students:end-deferrals')->dailyAt('06:50');
 Schedule::command('students:start-deferrals')->dailyAt('06:45');
 // Lớp tới ngày khai giảng → học viên Chờ khai giảng đã hoàn tất nhập học sang Đang học (idempotent). Chạy trước chăm sóc tháng đầu 07:40.
 Schedule::command('students:start-studying')->dailyAt('06:55');
+// SLA học phí: tiền mặt thu trong ngày phải nộp về TK công ty trước 19:00 → 19:05 nhắc phiếu chưa nộp (idempotent, không tự phạt).
+Schedule::command('tuition:check-cash-deposits')->dailyAt('19:05');
+// Hoàn phí / chuyển nhượng phải xử lý trong 1 tuần, cùng tháng → nhắc người duyệt khi còn ≤ 1 ngày hoặc quá hạn (idempotent theo ngày).
+Schedule::command('tuition:notify-refund-deadlines')->dailyAt('08:40');

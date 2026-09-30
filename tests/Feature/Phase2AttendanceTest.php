@@ -113,6 +113,25 @@ class Phase2AttendanceTest extends TestCase
         $this->assertSame(3, StudentAttendance::count());
     }
 
+    public function test_student_with_tuition_overdue_7_days_can_still_be_marked_present(): void
+    {
+        // Nợ học phí không bao giờ khóa điểm danh: học viên quá hạn ≥ 7 ngày vẫn được ghi "có mặt".
+        \App\Models\StudentTuition::create([
+            'student_id' => $this->student->id, 'branch_id' => $this->branch->id, 'total_amount' => 5000000,
+            'final_amount' => 5000000, 'paid_amount' => 0, 'debt_amount' => 5000000,
+            'due_date' => now()->subDays(10), 'status' => 'overdue',
+        ]);
+        $session = $this->makeSession('2026-10-07', '08:00', '09:30');
+
+        $this->actingAs($this->teacher)->get(route('teacher.attendance', ['classId' => $this->classModel->id, 'session' => $session->id]))
+            ->assertOk()->assertSee($this->student->name);
+        $this->actingAs($this->teacher)->post(route('teacher.attendance.store', $this->classModel->id), [
+            'class_session_id' => $session->id, 'status' => [$this->student->id => 'present'],
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('student_attendances', ['class_session_id' => $session->id, 'student_id' => $this->student->id, 'status' => 'present']);
+    }
+
     public function test_attendance_and_remarks_open_latest_unattended_session_when_none_today(): void
     {
         // Hôm nay (07/10) lớp không có buổi: trang mở buổi mà ô chọn đang hiện, không báo "không có buổi".

@@ -188,7 +188,11 @@ onBeforeUnmount(() => clearInterval(timer));
                             <div>{{ rc.creator_name ?? '—' }}</div>
                             <div class="whitespace-nowrap text-xs text-on-surface-subtle" :title="rc.created_at">{{ rc.created_ago }}</div>
                         </td>
-                        <td class="whitespace-nowrap"><UiBadge :color="rc.status_color" :dot="false">{{ rc.status_label }}</UiBadge></td>
+                        <td class="whitespace-nowrap">
+                            <UiBadge :color="rc.status_color" :dot="false">{{ rc.status_label }}</UiBadge>
+                            <div v-if="rc.deposit_state === 'pending'"><UiBadge color="warning" :dot="false" title="Tiền mặt phải nộp về TK công ty trước 19:00 cùng ngày">Chưa nộp về TK</UiBadge></div>
+                            <div v-else-if="rc.deposit_state === 'late'"><UiBadge color="error" :dot="false" :title="'Nộp lúc ' + rc.deposited_at">Nộp trễ sau 19h</UiBadge></div>
+                        </td>
                         <td class="text-right">
                             <UiButton variant="secondary" size="sm" icon="visibility" :href="detailUrl(rc.id)" preserve-scroll preserve-state>Xem</UiButton>
                         </td>
@@ -401,6 +405,16 @@ onBeforeUnmount(() => clearInterval(timer));
             </div>
 
             <template #footer>
+                <!-- SLA: tiền mặt phải nộp về TK công ty trước 19:00 cùng ngày thu -->
+                <div v-if="selected.deposit_state" class="mr-auto flex flex-wrap items-center gap-2 self-center text-xs">
+                    <UiBadge v-if="selected.deposit_state === 'pending'" color="warning" :dot="false">Chưa nộp về TK</UiBadge>
+                    <UiBadge v-else-if="selected.deposit_state === 'late'" color="error" :dot="false">Nộp trễ sau 19h</UiBadge>
+                    <UiBadge v-else color="success" :dot="false">Đã nộp về TK</UiBadge>
+                    <span v-if="selected.deposited_at" class="text-on-surface-variant">{{ selected.deposited_at }} · {{ selected.deposited_by_name ?? '—' }}</span>
+                    <UiForm v-if="selected.can_confirm_deposit" :action="route('tuition.receipts.confirm-deposit', selected.id)" method="post" back confirm="Xác nhận tiền mặt của phiếu này đã nộp về tài khoản công ty?" confirm-label="Xác nhận đã nộp">
+                        <UiButton type="submit" size="sm" variant="secondary" icon="savings">Xác nhận đã nộp về TK công ty</UiButton>
+                    </UiForm>
+                </div>
                 <template v-if="selected.status === 'pending'">
                     <p class="mr-auto hidden items-center gap-1.5 self-center text-xs text-on-surface-variant md:flex">
                         <span class="material-symbols-outlined text-base text-on-surface-subtle" aria-hidden="true">info</span>

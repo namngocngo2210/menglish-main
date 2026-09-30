@@ -66,6 +66,8 @@ return [
 
         'accountant' => [
             'tuition.view', 'tuition.create', 'tuition.approve', 'tuition.reject', 'tuition.mark_contacted', 'tuition.report_overdue',
+            // Xác nhận tiền mặt thu trong ngày đã nộp về TK công ty trước 19:00 (Admin qua Gate::before).
+            'tuition.confirm_deposit',
             'invoice.request_cancel',
             'refund_transfer.request', 'refund_transfer.approve', 'refund_transfer.approve_transfer', 'refund_transfer.reject',
             'bank_account.manage', 'invoice_range.manage', 'fee_reminder_config.manage',

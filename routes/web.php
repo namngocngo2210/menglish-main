@@ -188,6 +188,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/receipts/{id}', [TuitionController::class, 'updateReceipt'])->middleware('can:tuition.create')->name('receipts.update');
         Route::get('/receipts/approve', [TuitionController::class, 'approveReceipt'])->name('receipts.approve');
         Route::post('/receipts/{id}/approve', [TuitionController::class, 'approveReceiptAction'])->middleware('can:tuition.approve')->name('receipts.approve.action');
+        Route::post('/receipts/{id}/confirm-deposit', [TuitionController::class, 'confirmDeposit'])->middleware('can:tuition.confirm_deposit')->whereNumber('id')->name('receipts.confirm-deposit');
         Route::post('/receipts/{id}/reject', [TuitionController::class, 'rejectReceiptAction'])->middleware('can:tuition.reject')->name('receipts.reject.action');
         Route::get('/history', [TuitionController::class, 'history'])->name('history');
         Route::get('/history/export', [TuitionController::class, 'exportHistory'])->name('history.export');

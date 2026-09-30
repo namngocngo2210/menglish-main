@@ -940,6 +940,7 @@ class TuitionController extends Controller
             'student.currentClass',
             'creator',
             'approver',
+            'depositor',
         ]);
 
         $statusFilter = $request->get('status', $pendingCount > 0 ? 'pending' : 'all');
@@ -984,6 +985,7 @@ class TuitionController extends Controller
                 'student.currentClass',
                 'creator',
                 'approver',
+                'depositor',
             ])->find($request->input('selected_id'));
             if (! TuitionBranchScope::allowsReceipt($selectedReceipt, $scope)) {
                 $selectedReceipt = null;
@@ -1039,6 +1041,7 @@ class TuitionController extends Controller
                     'created_ago' => $rc->created_at?->diffForHumans(),
                     'status_color' => $rc->status_color,
                     'status_label' => $rc->status_label,
+                    ...$this->depositPayload($rc),
                 ];
             })->values(),
             'selected' => $selectedReceipt ? [
@@ -1073,6 +1076,7 @@ class TuitionController extends Controller
                 'reference' => $selectedReceipt->transaction_code ?: ($selectedReceipt->paper_invoice_number ?: '—'),
                 'beneficiary' => $beneficiaryAccount ? $beneficiaryAccount->account_number.' ('.$beneficiaryAccount->bank_name.')' : null,
                 'payment_date' => $selectedReceipt->payment_date?->format('H:i - d/m/Y'),
+                ...$this->depositPayload($selectedReceipt),
                 'can_resubmit' => in_array($selectedReceipt->status, TuitionReceipt::EDITABLE_STATUSES, true)
                     && ($user->id === $selectedReceipt->creator_id || $user->isSuperAdmin()),
             ] : null,
@@ -1084,6 +1088,39 @@ class TuitionController extends Controller
             ])->values(),
             'reconciliation' => $reconciliation,
         ]);
+    }
+
+    /** Trạng thái nộp tiền mặt về TK công ty (SLA 19:00) gửi cho màn danh sách / duyệt phiếu. */
+    private function depositPayload(TuitionReceipt $rc): array
+    {
+        $state = $rc->depositState();
+
+        return [
+            'deposit_state' => $state,
+            'deposited_at' => $rc->deposited_at?->format('H:i d/m/Y'),
+            'deposited_by_name' => $rc->depositor?->name,
+            'can_confirm_deposit' => $state === 'pending' && (bool) auth()->user()?->can('tuition.confirm_deposit'),
+        ];
+    }
+
+    /** Kế toán xác nhận tiền mặt của phiếu đã nộp về TK công ty; nộp sau 19:00 ngày thu thì hiện cờ "Nộp trễ". */
+    public function confirmDeposit(Request $request, $id)
+    {
+        $receipt = TuitionReceipt::with(['tuition.student', 'student'])->findOrFail($id);
+        abort_unless(TuitionBranchScope::allowsReceipt($receipt, $this->branchScope()), 403, self::OUT_OF_SCOPE);
+
+        if (! $receipt->requiresDeposit()) {
+            return back()->with('error', 'Phiếu này không thuộc diện phải nộp tiền mặt về tài khoản công ty.');
+        }
+        if ($receipt->deposited_at !== null) {
+            return back()->with('warning', 'Phiếu này đã được xác nhận nộp trước đó.');
+        }
+
+        $receipt->update(['deposited_at' => now(), 'deposited_by' => $request->user()->id]);
+
+        return back()->with('success', $receipt->isDepositLate()
+            ? 'Đã xác nhận nộp về TK công ty (nộp trễ sau '.TuitionReceipt::DEPOSIT_CUTOFF.').'
+            : 'Đã xác nhận nộp về TK công ty.');
     }
 
     public function approveReceiptAction(Request $request, $id)
@@ -1373,7 +1410,7 @@ class TuitionController extends Controller
     {
         $filters = $this->historyFilters($request);
         $receipts = $this->historyQuery($filters)
-            ->with(['tuition.student', 'tuition.classModel.course', 'tuition.branch', 'student.branch', 'creator', 'approver'])
+            ->with(['tuition.student', 'tuition.classModel.course', 'tuition.branch', 'student.branch', 'creator', 'approver', 'depositor'])
             ->latest()
             ->paginate($request->perPage(15))
             ->withQueryString();
@@ -1426,6 +1463,7 @@ class TuitionController extends Controller
                     'proof' => $rc->proof_image,
                     'proof_is_pdf' => $rc->proof_image && str_ends_with(strtolower($rc->proof_image), '.pdf'),
                     'approve_url' => route('tuition.receipts.approve', ['selected_id' => $rc->id, 'status' => 'all']),
+                    ...$this->depositPayload($rc),
                     'can_edit' => in_array($rc->status, TuitionReceipt::EDITABLE_STATUSES, true)
                         && ((int) $rc->creator_id === (int) $user->id || $user->isSuperAdmin()),
                 ];
