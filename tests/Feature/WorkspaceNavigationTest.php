@@ -219,9 +219,9 @@ class WorkspaceNavigationTest extends TestCase
         $html = $this->actingAs($this->makeUser('admin'))->get(route('holidays.index'))->assertOk()->getContent();
 
         $this->assertStringContainsString('data-settings-nav', $html);
-        $this->assertMatchesRegularExpression('#<a href="'.preg_quote(route('holidays.index'), '#').'"\s+aria-current="page"#', $html);
+        $this->assertMatchesRegularExpression('#<a(?=[^>]*href="'.preg_quote(route('holidays.index'), '#').'")[^>]*aria-current="page"#', $html);
         $this->assertStringContainsString('href="'.route('roles.index').'"', $html);
-        $this->assertMatchesRegularExpression('/aria-current="page"[^>]*data-menu-item="settings"/', $html);
+        $this->assertMatchesRegularExpression('/<a(?=[^>]*data-menu-item="settings")[^>]*aria-current="page"/', $html);
 
         // Trang nghiệp vụ không có menu con Cài đặt.
         $this->actingAs($this->makeUser('admin'))->get(route('tuition.history'))->assertOk()->assertDontSee('data-settings-nav', false);

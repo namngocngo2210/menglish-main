@@ -9,18 +9,18 @@ use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
-use Illuminate\Testing\TestResponse;
+use Inertia\Testing\AssertableInertia;
+use Tests\Concerns\InteractsWithInertia;
 use Tests\TestCase;
 
 /**
- * Sprint IX-1 — hạ tầng modal (htmx) làm mẫu với Ngày nghỉ:
- * cùng route trả trang đầy đủ (request thường) hoặc fragment modal (HX-Request), lỗi validate 422, lưu xong 204 + HX-Trigger.
+ * Hạ tầng modal (Inertia) làm mẫu với Ngày nghỉ: cùng route trả trang đầy đủ (mở thẳng URL) hoặc nội dung modal
+ * (header X-Remote-Modal → prop asModal); lưu từ modal → quay lại trang đang mở kèm thông báo; lỗi validate → về lại kèm lỗi.
  */
 class HolidayModalTest extends TestCase
 {
+    use InteractsWithInertia;
     use RefreshDatabase;
-
-    private const HX = ['HX-Request' => 'true'];
 
     private User $admin;
 
@@ -39,115 +39,130 @@ class HolidayModalTest extends TestCase
         $this->admin->assignRole('admin');
     }
 
-    public function test_index_renders_list_with_modal_triggers_and_refresh_region(): void
+    public function test_index_renders_list_with_modal_triggers(): void
     {
-        $this->holiday();
+        $holiday = $this->holiday();
 
         $this->actingAs($this->admin)->get(route('holidays.index', ['search' => 'Tết']))->assertOk()
-            ->assertSee('id="holiday-list"', false)
-            ->assertSee('hx-trigger="holidays-changed from:body"', false)
-            ->assertSee('search=T', false) // vùng làm mới giữ bộ lọc hiện tại
-            ->assertSee('hx-get="'.route('holidays.create').'"', false)
-            ->assertSee('hx-target="#remote-modal-body"', false)
-            ->assertSee('data-modal-size="md"', false)
-            ->assertSee('id="remote-modal-body"', false)
-            ->assertDontSee('onsubmit="return confirm', false);
+            ->assertSee('Danh sách ngày nghỉ')
+            ->assertSee('Tết Nguyên Đán 2027')
+            ->assertSee('05/02/2027')
+            ->assertSee('Toàn hệ thống')
+            ->assertSee('href="'.route('holidays.create', absolute: false).'"', false)
+            ->assertSee('href="'.route('holidays.edit', $holiday, absolute: false).'"', false)
+            ->assertSee('Thêm ngày nghỉ')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Holidays/Index')
+                ->where('canManage', true)
+                ->where('holidays.total', 1)
+                ->where('holidays.data.0.name', 'Tết Nguyên Đán 2027')
+                ->where('holidays.data.0.start_date', '2027-02-05'));
+
+        $this->actingAs($this->admin)->get(route('holidays.index', ['search' => 'không có']))->assertOk()
+            ->assertSee('Không tìm thấy ngày nghỉ')
+            ->assertDontSee('Tết Nguyên Đán 2027');
     }
 
-    public function test_create_returns_full_page_normally_and_fragment_for_htmx(): void
+    public function test_create_returns_full_page_normally_and_modal_content_from_modal(): void
     {
         $this->actingAs($this->admin)->get(route('holidays.create'))->assertOk()
             ->assertSee('data-sidebar', false)
             ->assertSee('Thông tin ngày nghỉ')
-            ->assertSee('Danh sách ngày nghỉ');
+            ->assertSee('Danh sách ngày nghỉ')
+            ->assertSee('Cầu Giấy')
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Holidays/Form')->where('asModal', false)->has('holidays.data'));
 
-        $this->actingAs($this->admin)->get(route('holidays.create'), self::HX)->assertOk()
-            ->assertHeader('Vary', 'HX-Request')
-            ->assertDontSee('data-sidebar', false)
-            ->assertDontSee('<html', false)
-            ->assertDontSee('Danh sách ngày nghỉ')
-            ->assertSee('Thêm ngày nghỉ')
-            ->assertSee('id="modal-holiday-form"', false)
-            ->assertSee('action="'.route('holidays.store').'"', false)
-            ->assertSee('form="modal-holiday-form"', false);
+        $this->actingAs($this->admin)->get(route('holidays.create'), self::MODAL)->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Holidays/Form')
+                ->where('asModal', true)
+                ->where('holiday', null)
+                ->where('branches.0.label', 'Cầu Giấy')
+                ->missing('holidays'));
     }
 
-    public function test_edit_fragment_is_prefilled(): void
+    public function test_edit_is_prefilled(): void
     {
         $holiday = $this->holiday();
 
-        $this->actingAs($this->admin)->get(route('holidays.edit', $holiday), self::HX)->assertOk()
-            ->assertDontSee('data-sidebar', false)
+        $this->actingAs($this->admin)->get(route('holidays.edit', $holiday))->assertOk()
             ->assertSee('Sửa ngày nghỉ')
             ->assertSee('value="Tết Nguyên Đán 2027"', false)
-            ->assertSee('action="'.route('holidays.update', $holiday).'"', false);
+            ->assertSee('value="2027-02-05"', false);
+
+        $this->actingAs($this->admin)->get(route('holidays.edit', $holiday), self::MODAL)->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Holidays/Form')
+                ->where('asModal', true)
+                ->where('holiday.id', $holiday->id)
+                ->where('holiday.name', 'Tết Nguyên Đán 2027')
+                ->where('holiday.start_date', '2027-02-05'));
     }
 
-    public function test_invalid_store_via_htmx_rerenders_form_with_errors_422(): void
+    public function test_invalid_store_from_modal_returns_to_current_page_with_errors(): void
     {
         $data = ['name' => 'Nghỉ thiếu ngày', 'start_date' => '2026-12-10', 'end_date' => '2026-12-01'];
-        $message = $this->errorMessage(route('holidays.store'), 'post', $data, 'end_date');
 
-        $response = $this->actingAs($this->admin)->post(route('holidays.store'), $data, self::HX);
-
-        $response->assertStatus(422)
-            ->assertDontSee('data-sidebar', false)
-            ->assertSee('id="modal-holiday-form"', false)
-            ->assertSee('value="Nghỉ thiếu ngày"', false) // giữ dữ liệu đã nhập
-            ->assertSee('role="alert"', false)
-            ->assertSee($message);
+        $this->actingAs($this->admin)->from(route('holidays.index'))
+            ->post(route('holidays.store'), $data, self::MODAL)
+            ->assertRedirect(route('holidays.index'))
+            ->assertSessionHasErrors('end_date');
         $this->assertSame(0, Holiday::count());
-
-        // Lỗi + old input chỉ sống trong request đó.
-        $this->actingAs($this->admin)->get(route('holidays.create'), self::HX)->assertOk()
-            ->assertDontSee('Nghỉ thiếu ngày')->assertDontSee('role="alert"', false);
     }
 
-    public function test_valid_store_via_htmx_returns_204_with_triggers(): void
+    public function test_valid_store_from_modal_returns_to_current_page_with_message(): void
     {
-        $response = $this->actingAs($this->admin)->post(route('holidays.store'), $this->payload(), self::HX);
-
-        $response->assertNoContent();
-        $triggers = $this->triggers($response);
-        $this->assertTrue($triggers['close-modal']);
-        $this->assertTrue($triggers['holidays-changed']);
-        $this->assertSame('success', $triggers['toast']['type']);
-        $this->assertStringStartsWith('Đã thêm ngày nghỉ.', $triggers['toast']['message']);
+        $this->actingAs($this->admin)->from(route('holidays.index', ['page' => 2]))
+            ->post(route('holidays.store'), $this->payload(), self::MODAL)
+            ->assertRedirect(route('holidays.index', ['page' => 2]))
+            ->assertSessionHas('status', fn ($msg) => str_starts_with($msg, 'Đã thêm ngày nghỉ.'));
         $this->assertSame(1, Holiday::where('name', 'Nghỉ Giáng sinh')->count());
+
+        // Thông báo hiện thành toast trên trang vừa quay lại.
+        $this->actingAs($this->admin)->get(route('holidays.index'))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('flash.0.type', 'success'));
     }
 
-    public function test_update_via_htmx_invalid_then_valid(): void
+    public function test_store_with_branches_limits_scope(): void
+    {
+        $this->actingAs($this->admin)->from(route('holidays.index'))
+            ->post(route('holidays.store'), $this->payload(['branch_ids' => [$this->branch->id]]), self::MODAL)
+            ->assertRedirect(route('holidays.index'));
+
+        $holiday = Holiday::where('name', 'Nghỉ Giáng sinh')->firstOrFail();
+        $this->assertFalse((bool) $holiday->is_system_wide);
+        $this->assertSame([$this->branch->id], $holiday->branches->pluck('id')->all());
+    }
+
+    public function test_update_from_modal_invalid_then_valid(): void
     {
         $holiday = $this->holiday();
-        $message = $this->errorMessage(route('holidays.update', $holiday), 'put', $this->payload(['name' => '']), 'name');
 
-        $this->actingAs($this->admin)->put(route('holidays.update', $holiday), $this->payload(['name' => '']), self::HX)
-            ->assertStatus(422)
-            ->assertSee('Sửa ngày nghỉ')
-            ->assertSee('action="'.route('holidays.update', $holiday).'"', false)
-            ->assertSee($message);
+        $this->actingAs($this->admin)->from(route('holidays.index'))
+            ->put(route('holidays.update', $holiday), $this->payload(['name' => '']), self::MODAL)
+            ->assertRedirect(route('holidays.index'))
+            ->assertSessionHasErrors('name');
         $this->assertSame('Tết Nguyên Đán 2027', $holiday->fresh()->name);
 
-        $response = $this->actingAs($this->admin)->put(route('holidays.update', $holiday), $this->payload(), self::HX);
-        $response->assertNoContent();
-        $triggers = $this->triggers($response);
-        $this->assertTrue($triggers['close-modal']);
-        $this->assertStringStartsWith('Đã cập nhật ngày nghỉ.', $triggers['toast']['message']);
+        $this->actingAs($this->admin)->from(route('holidays.index'))
+            ->put(route('holidays.update', $holiday), $this->payload(), self::MODAL)
+            ->assertRedirect(route('holidays.index'))
+            ->assertSessionHas('status', fn ($msg) => str_starts_with($msg, 'Đã cập nhật ngày nghỉ.'));
         $this->assertSame('Nghỉ Giáng sinh', $holiday->fresh()->name);
     }
 
-    public function test_destroy_via_htmx_returns_204_with_triggers(): void
+    public function test_destroy_returns_with_message(): void
     {
         $holiday = $this->holiday();
 
-        $response = $this->actingAs($this->admin)->delete(route('holidays.destroy', $holiday), [], self::HX);
-
-        $response->assertNoContent();
-        $this->assertStringStartsWith('Đã xóa ngày nghỉ.', $this->triggers($response)['toast']['message']);
+        $this->actingAs($this->admin)->from(route('holidays.index', ['search' => 'Tết']))
+            ->delete(route('holidays.destroy', $holiday), [], self::MODAL)
+            ->assertRedirect(route('holidays.index', ['search' => 'Tết']))
+            ->assertSessionHas('status', fn ($msg) => str_starts_with($msg, 'Đã xóa ngày nghỉ.'));
         $this->assertSoftDeleted($holiday);
     }
 
-    public function test_non_htmx_requests_keep_redirect_behaviour(): void
+    public function test_full_page_form_redirects_to_list(): void
     {
         $this->actingAs($this->admin)->post(route('holidays.store'), $this->payload())
             ->assertRedirect(route('holidays.index'))
@@ -159,13 +174,13 @@ class HolidayModalTest extends TestCase
             ->assertSessionHasErrors(['name', 'start_date', 'end_date']);
     }
 
-    public function test_htmx_requests_still_respect_permissions(): void
+    public function test_modal_requests_still_respect_permissions(): void
     {
         $staff = User::factory()->create(['is_active' => true, 'branch_id' => $this->branch->id]);
         $staff->assignRole('teacher');
 
-        $this->actingAs($staff)->get(route('holidays.create'), self::HX)->assertForbidden();
-        $this->actingAs($staff)->post(route('holidays.store'), ['name' => ''], self::HX)->assertForbidden();
+        $this->actingAs($staff)->get(route('holidays.create'), self::MODAL)->assertForbidden();
+        $this->actingAs($staff)->post(route('holidays.store'), ['name' => ''], self::MODAL)->assertForbidden();
     }
 
     private function holiday(): Holiday
@@ -179,18 +194,5 @@ class HolidayModalTest extends TestCase
     private function payload(array $overrides = []): array
     {
         return [...['name' => 'Nghỉ Giáng sinh', 'start_date' => '2026-12-24', 'end_date' => '2026-12-25'], ...$overrides];
-    }
-
-    /** Thông báo lỗi mà request thường (redirect back) nhận được — để so với bản htmx. */
-    private function errorMessage(string $url, string $method, array $data, string $field): string
-    {
-        $this->actingAs($this->admin)->{$method}($url, $data)->assertSessionHasErrors($field);
-
-        return session('errors')->first($field);
-    }
-
-    private function triggers(TestResponse $response): array
-    {
-        return json_decode($response->headers->get('HX-Trigger'), true, flags: JSON_THROW_ON_ERROR);
     }
 }

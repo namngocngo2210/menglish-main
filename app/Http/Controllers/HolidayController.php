@@ -8,11 +8,13 @@ use App\Models\Branch;
 use App\Models\Holiday;
 use App\Services\DocumentCodeGenerator;
 use App\Services\HolidayRescheduleService;
-use Illuminate\Support\Carbon;
+use App\Support\Ui;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\View\View;
+use Illuminate\Support\Carbon;
+use Inertia\Inertia;
+use Inertia\Response as InertiaResponse;
 
 class HolidayController extends Controller
 {
@@ -21,15 +23,15 @@ class HolidayController extends Controller
     public function __construct(private readonly HolidayRescheduleService $reschedule) {}
 
     /**
-     * Mockup "Cấu hình ngày nghỉ": danh sách (tìm kiếm, phân trang). Thêm/Sửa mở modal (htmx);
+     * Mockup "Cấu hình ngày nghỉ": danh sách (tìm kiếm, phân trang). Thêm/Sửa mở modal;
      * mở thẳng URL create/edit → trang danh sách + form bên phải như cũ.
      */
-    public function index(Request $request): View
+    public function index(Request $request): InertiaResponse
     {
-        return view('holidays.index', $this->listData($request));
+        return Inertia::render('Holidays/Index', $this->listData($request));
     }
 
-    public function create(Request $request): Response
+    public function create(Request $request): InertiaResponse
     {
         return $this->formView($request, new Holiday);
     }
@@ -55,7 +57,7 @@ class HolidayController extends Controller
         return $this->modalSaved('Đã thêm ngày nghỉ.'.$this->summaryText($summary), 'holidays-changed', route('holidays.index'));
     }
 
-    public function edit(Request $request, Holiday $holiday): Response
+    public function edit(Request $request, Holiday $holiday): InertiaResponse
     {
         return $this->formView($request, $holiday->load('branches'));
     }
@@ -93,19 +95,25 @@ class HolidayController extends Controller
     /**
      * Form Thêm/Sửa: modal chỉ cần dữ liệu form; trang đầy đủ thêm danh sách bên trái.
      */
-    private function formView(Request $request, Holiday $holiday): Response
+    private function formView(Request $request, Holiday $holiday): InertiaResponse
     {
         $data = [
-            'holiday' => $holiday,
-            'branches' => Branch::query()->active()->orderBy('name')->get(),
+            'holiday' => $holiday->exists ? [
+                'id' => $holiday->id,
+                'name' => $holiday->name,
+                'code' => $holiday->code,
+                'start_date' => $holiday->start_date?->toDateString(),
+                'end_date' => $holiday->end_date?->toDateString(),
+            ] : null,
+            'branches' => Ui::options(Branch::query()->active()->orderBy('name')->get(['id', 'name']), 'name'),
             'selectedBranchIds' => $holiday->exists ? $holiday->branches->pluck('id')->all() : [],
         ];
 
-        return $this->modalView('holidays.form', $this->isModalRequest() ? $data : [...$this->listData($request), ...$data]);
+        return $this->modalPage('Holidays/Form', $this->isModalRequest() ? $data : [...$this->listData($request), ...$data]);
     }
 
     /**
-     * @return array{holidays: \Illuminate\Contracts\Pagination\LengthAwarePaginator}
+     * @return array{holidays: \Illuminate\Contracts\Pagination\LengthAwarePaginator, canManage: bool}
      */
     private function listData(Request $request): array
     {
@@ -113,11 +121,21 @@ class HolidayController extends Controller
 
         return [
             'holidays' => Holiday::query()
-                ->with('branches')
+                ->with('branches:id,name')
                 ->when($search !== '', fn ($q) => $q->where(fn ($q) => $q->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%")))
                 ->orderByDesc('start_date')
                 ->paginate($request->perPage(15))
-                ->withQueryString(),
+                ->withQueryString()
+                ->through(fn (Holiday $holiday) => [
+                    'id' => $holiday->id,
+                    'code' => $holiday->code,
+                    'name' => $holiday->name,
+                    'start_date' => $holiday->start_date->toDateString(),
+                    'end_date' => $holiday->end_date->toDateString(),
+                    'is_system_wide' => (bool) $holiday->is_system_wide,
+                    'branches' => $holiday->branches->pluck('name')->all(),
+                ]),
+            'canManage' => $request->user()->can('holiday.manage'),
         ];
     }
 
