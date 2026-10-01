@@ -274,7 +274,7 @@ class PayrollP0FixesTest extends TestCase
 
     public function test_approve_is_blocked_when_penalties_or_timesheets_changed_after_calculation(): void
     {
-        $this->travelTo(Carbon::parse('2026-09-02 09:00:00'));
+        $this->travelTo(Carbon::parse('2026-09-03 09:00:00'));
         $teacher = User::factory()->create(['is_active' => true, 'hourly_rate' => 300000]);
         $this->timesheet($teacher, '2026-08-05', 2);
 
@@ -282,7 +282,7 @@ class PayrollP0FixesTest extends TestCase
         $period->calculatePayrollForPeriod();
 
         // Biên bản phạt quyết sau khi tính lương → phải tính lại mới được duyệt
-        $this->travelTo(Carbon::parse('2026-09-02 10:00:00'));
+        $this->travelTo(Carbon::parse('2026-09-03 10:00:00'));
         $late = $this->penalty($teacher, '2026-08-20', 50000);
 
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $period->id))
@@ -290,17 +290,17 @@ class PayrollP0FixesTest extends TestCase
         $this->assertSame('reviewing', $period->fresh()->status);
         $this->assertSame('fined', $late->fresh()->status);
 
-        $this->travelTo(Carbon::parse('2026-09-02 11:00:00'));
+        $this->travelTo(Carbon::parse('2026-09-03 11:00:00'));
         $period->calculatePayrollForPeriod();
         $this->assertEquals(550000, $this->record($period, $teacher)->net_salary);
 
         // Chấm công được duyệt lại sau lần tính → cũng chặn
-        $this->travelTo(Carbon::parse('2026-09-02 12:00:00'));
+        $this->travelTo(Carbon::parse('2026-09-03 12:00:00'));
         $this->timesheet($teacher, '2026-08-06', 1);
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $period->id))
             ->assertSessionHasErrors('period');
 
-        $this->travelTo(Carbon::parse('2026-09-02 13:00:00'));
+        $this->travelTo(Carbon::parse('2026-09-03 13:00:00'));
         $period->calculatePayrollForPeriod();
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $period->id))
             ->assertSessionHasNoErrors();
