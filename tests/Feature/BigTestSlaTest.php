@@ -176,6 +176,15 @@ class BigTestSlaTest extends TestCase
         $this->assertSame(4, AdminNotification::where('user_id', $this->academic->id)->where('type', 'big_test_paper_due')->count());
     }
 
+    public function test_schedule_and_distribution_pages_warn_about_undistributed_paper(): void
+    {
+        $this->makeTest(now()->addDays(2)->setTime(9, 0), false);
+
+        foreach (['syllabus.big-tests.schedules', 'syllabus.big-tests.distribution'] as $route) {
+            $this->actingAs($this->academic)->get(route($route))->assertOk()->assertSee('Quá hạn duyệt đề (trước 3 ngày)', false);
+        }
+    }
+
     // ---- 5. Việc duyệt đề cho Học thuật ----
 
     public function test_approval_task_created_once_and_closed_when_distributed(): void

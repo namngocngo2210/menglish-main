@@ -100,7 +100,12 @@ defineProps({
                     <tr v-for="bt in bigTests.data" :key="bt.id">
                         <td class="font-mono font-semibold">{{ bt.code }}</td>
                         <td class="font-semibold text-on-surface">{{ bt.class_name }}</td>
-                        <td class="text-primary">{{ bt.title }}</td>
+                        <td class="text-primary">
+                            {{ bt.title }}
+                            <p v-if="bt.paper_warning" :class="['flex items-center gap-xs font-caption text-caption', bt.paper_warning.level === 'overdue' ? 'text-error' : 'text-warning']">
+                                <span class="material-symbols-outlined text-[16px]">{{ bt.paper_warning.level === 'overdue' ? 'error' : 'warning' }}</span>{{ bt.paper_warning.label }}
+                            </p>
+                        </td>
                         <td class="font-mono text-on-surface-variant">{{ bt.scheduled_at ?? '—' }}</td>
                         <td>{{ bt.place }}</td>
                         <td>{{ bt.proctor ?? '—' }}</td>

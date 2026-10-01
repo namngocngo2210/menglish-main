@@ -1519,6 +1519,7 @@ class SyllabusController extends Controller
                 'proctor' => $bt->proctor?->name,
                 'passcode' => $bt->passcodeVisibleTo($user) ? $bt->passcode : '••••••',
                 'is_distributed' => (bool) $bt->is_distributed,
+                'paper_warning' => $this->paperWarning($bt),
                 'stage_options' => Ui::options($stageOptions[$bt->class_id] ?? []),
             ]),
             'selectedOrder' => $selectedOrder ? $this->orderDetail($selectedOrder, $canReview) : null,
@@ -1527,6 +1528,27 @@ class SyllabusController extends Controller
             'canReview' => $canReview,
             'canManage' => $user->can('syllabus.manage'),
         ]);
+    }
+
+    /**
+     * Cảnh báo duyệt đề: đợt thi trong 7 ngày tới chưa phân phối đề ('warn'); còn dưới 3 ngày mà vẫn chưa phân phối ('overdue').
+     *
+     * @return array{level: string, label: string}|null
+     */
+    private function paperWarning(BigTest $bt): ?array
+    {
+        if ($bt->is_distributed || ! $bt->scheduled_at || ! $bt->scheduled_at->isFuture()) {
+            return null;
+        }
+        $sla = app(\App\Services\BigTestSlaService::class);
+        $days = $sla->daysUntil($bt);
+        if ($days > \App\Services\BigTestSlaService::PAPER_WARN_DAYS) {
+            return null;
+        }
+
+        return $sla->paperOverdue($bt)
+            ? ['level' => 'overdue', 'label' => 'Quá hạn duyệt đề (trước '.\App\Services\BigTestSlaService::PAPER_APPROVE_BEFORE_DAYS.' ngày) — còn '.$days.' ngày']
+            : ['level' => 'warn', 'label' => "Cần duyệt đề trước ngày thi ".\App\Services\BigTestSlaService::PAPER_APPROVE_BEFORE_DAYS." ngày — còn {$days} ngày"];
     }
 
     /** Dữ liệu hộp thoại chi tiết order đề (màn Duyệt & phân phối đề Big Test). */
@@ -1826,6 +1848,7 @@ class SyllabusController extends Controller
                 'place' => $bt->room.' · '.($bt->classModel?->branch?->name ?? '—'),
                 'proctor' => $bt->proctor?->name,
                 'passcode' => $bt->passcodeVisibleTo($user) ? $bt->passcode : '••••••',
+                'paper_warning' => $this->paperWarning($bt),
             ]),
             'canManage' => $user->can('syllabus.manage'),
         ]);

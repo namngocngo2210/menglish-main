@@ -155,6 +155,9 @@ function preview() {
                         <td class="font-mono font-bold text-on-surface">{{ bt.code }}</td>
                         <td class="font-semibold text-on-surface">
                             {{ bt.title }}
+                            <p v-if="bt.paper_warning" :class="['flex items-center gap-xs font-caption text-caption', bt.paper_warning.level === 'overdue' ? 'text-error' : 'text-warning']">
+                                <span class="material-symbols-outlined text-[16px]">{{ bt.paper_warning.level === 'overdue' ? 'error' : 'warning' }}</span>{{ bt.paper_warning.label }}
+                            </p>
                             <div class="flex flex-wrap gap-sm font-caption text-caption">
                                 <a v-if="bt.content_url" :href="bt.content_url" target="_blank" rel="noopener" class="text-primary hover:underline">Link đề</a>
                                 <a v-if="bt.speaking_url" :href="bt.speaking_url" target="_blank" rel="noopener" class="text-primary hover:underline">Phần Speaking</a>

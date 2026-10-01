@@ -177,6 +177,8 @@ class Phase2BigTestTest extends TestCase
         $this->assertSame(0, AdminNotification::where('user_id', $this->teacherB->id)->count());
         // Đề chưa duyệt → báo thêm Học thuật (thông báo chung)
         $this->assertSame(1, AdminNotification::whereNull('user_id')->where('type', 'big_test_upcoming')->count());
+        // Học thuật còn nhận nhắc cá nhân mỗi ngày (đề chưa duyệt trong 7 ngày tới).
+        $this->assertSame(1, AdminNotification::where('user_id', $this->academic->id)->where('type', 'big_test_paper_due')->count());
         $this->assertNotNull($soon->fresh()->teacher_reminded_at);
         $this->assertNull($far->fresh()->teacher_reminded_at);
         $this->assertNull($past->fresh()->teacher_reminded_at);
@@ -184,6 +186,7 @@ class Phase2BigTestTest extends TestCase
         // Chạy lại không gửi trùng
         $this->artisan('bigtests:remind-upcoming')->assertSuccessful();
         $this->assertSame(2, AdminNotification::where('type', 'big_test_upcoming')->count());
+        $this->assertSame(1, AdminNotification::where('user_id', $this->academic->id)->where('type', 'big_test_paper_due')->count(), 'Nhắc Học thuật 1 lần / ngày.');
     }
 
     public function test_reminder_command_is_scheduled_daily(): void
