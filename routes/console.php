@@ -16,6 +16,9 @@ Schedule::command('crm:scan-stale-leads')->hourly();
 // Công việc / nhiệm vụ trợ giảng qua hạn (ngày + giờ hạn) → "Quá hạn"; việc chăm sóc tháng đầu quá SLA → biên bản vi phạm (idempotent).
 Schedule::command('tasks:mark-overdue')->everyFifteenMinutes();
 
+// Order học liệu qua hạn xử lý (due_at) mà chưa xong → "Quá hạn" + báo người xử lý (idempotent).
+Schedule::command('material-orders:mark-overdue')->everyFifteenMinutes();
+
 Schedule::command('tuition:send-debt-reminders')->dailyAt('08:30');
 
 Schedule::command('bigtests:remind-upcoming')->dailyAt('07:45');

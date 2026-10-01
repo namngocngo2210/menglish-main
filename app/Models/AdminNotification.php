@@ -85,6 +85,8 @@ class AdminNotification extends Model
             'monthly_report_due' => 'edit_calendar',
             'big_test_paper_due' => 'quiz',
             'adjustment_pending', 'adjustment_sla' => 'tune',
+            'material_order_new' => 'inventory_2',
+            'material_order_overdue' => 'running_with_errors',
             default => 'notifications',
         };
     }
@@ -111,6 +113,8 @@ class AdminNotification extends Model
             'monthly_report_due' => 'bg-warning/10 text-warning border-warning/30',
             'cash_deposit_overdue', 'refund_deadline', 'big_test_paper_due', 'adjustment_sla' => 'bg-error/10 text-error border-error/30',
             'adjustment_pending' => 'bg-warning/10 text-warning border-warning/30',
+            'material_order_new' => 'bg-primary-container/10 text-primary border-primary-container/30',
+            'material_order_overdue' => 'bg-error/10 text-error border-error/30',
             default => 'bg-surface-container-low text-on-surface-variant border-surface-container-highest',
         };
     }
@@ -142,6 +146,8 @@ class AdminNotification extends Model
             'big_test_paper_due' => 'Nhắc duyệt đề Big Test',
             'adjustment_pending' => 'Yêu cầu giãn tiến độ',
             'adjustment_sla' => 'Giãn tiến độ quá hạn duyệt',
+            'material_order_new' => 'Order học liệu mới',
+            'material_order_overdue' => 'Order học liệu quá hạn',
             default => 'Thông báo hệ thống',
         };
     }

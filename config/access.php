@@ -62,6 +62,8 @@ return [
             'lead.scope_branch', 'student.scope_branch', 'class.scope_branch', 'big_test.scope_all', 'tuition.scope_branch',
             'finance.scope_branch', 'attendance_staff.scope_branch', 'payroll.scope_all', 'kpi.scope_all', 'work_task.scope_branch',
             'support_ticket.scope_all', 'user.scope_branch', 'activity_log.scope_all', 'dashboard.scope_branch',
+            // Order học liệu: xử lý đạo cụ / in ấn / GVNN theo chi nhánh.
+            'material_order.view_all', 'material_order.process_ops', 'material_order.scope_branch',
         ],
 
         'accountant' => [
@@ -106,6 +108,8 @@ return [
             'payroll.view_own', 'payroll.scope_own',
             'lead.scope_branch', 'student.scope_branch', 'class.scope_all', 'big_test.scope_all', 'tuition.scope_branch',
             'attendance_staff.scope_all', 'kpi.scope_all', 'work_task.scope_all', 'user.scope_own', 'support_ticket.scope_own',
+            // Order học liệu: CM xử lý đạo cụ / in ấn / GVNN của chi nhánh mình.
+            'material_order.view_all', 'material_order.process_ops', 'material_order.scope_branch',
         ],
 
         'academic_lead' => [
@@ -123,6 +127,8 @@ return [
             'payroll.view_own', 'payroll.scope_own',
             'lead.scope_branch', 'student.scope_branch', 'class.scope_all', 'big_test.scope_all', 'kpi.scope_all',
             'work_task.scope_all', 'user.scope_own', 'support_ticket.scope_own',
+            // Order học liệu học thuật: Trưởng Học thuật xử lý, thấy mọi chi nhánh.
+            'material_order.view_all', 'material_order.process_academic', 'material_order.scope_all',
         ],
 
         'sales_consultant' => [
@@ -141,6 +147,8 @@ return [
             'syllabus.view', 'syllabus.update', 'syllabus.propose_adjustment',
             'staff_report.submit', 'portal.teacher', 'portal.staff',
             'class.scope_own', 'student.scope_own', 'big_test.scope_own', 'payroll.scope_own', 'work_task.scope_own', 'support_ticket.scope_own',
+            // Order học liệu: giáo viên tạo order, chỉ thấy order của mình.
+            'material_order.create', 'material_order.scope_own',
         ],
 
         'teacher_fulltime' => [
@@ -151,6 +159,8 @@ return [
             'syllabus.view', 'syllabus.update', 'syllabus.propose_adjustment',
             'staff_report.submit', 'portal.teacher', 'portal.staff',
             'class.scope_own', 'student.scope_own', 'big_test.scope_own', 'payroll.scope_own', 'work_task.scope_own', 'support_ticket.scope_own',
+            // Order học liệu: giáo viên tạo order, chỉ thấy order của mình.
+            'material_order.create', 'material_order.scope_own',
         ],
 
         'teacher_parttime' => [
@@ -161,6 +171,8 @@ return [
             'syllabus.view', 'syllabus.update', 'syllabus.propose_adjustment',
             'staff_report.submit', 'portal.teacher', 'portal.staff',
             'class.scope_own', 'student.scope_own', 'big_test.scope_own', 'payroll.scope_own', 'work_task.scope_own', 'support_ticket.scope_own',
+            // Order học liệu: giáo viên tạo order, chỉ thấy order của mình.
+            'material_order.create', 'material_order.scope_own',
         ],
 
         'assistant' => [
