@@ -19,6 +19,13 @@ Schedule::command('tasks:mark-overdue')->everyFifteenMinutes();
 Schedule::command('tuition:send-debt-reminders')->dailyAt('08:30');
 
 Schedule::command('bigtests:remind-upcoming')->dailyAt('07:45');
+
+// SLA Big Test: phạt trả kết quả trễ (50.000đ/ngày), việc duyệt đề của Học thuật, biên bản GV chưa nhận đề (nhắc duyệt đề hằng ngày nằm ở bigtests:remind-upcoming).
+Schedule::command('bigtests:enforce-sla')->dailyAt('07:55');
+// Mỗi giờ: GV chưa nhận đề khi còn dưới 24h tới giờ thi → biên bản cho Học thuật (FR-SYL-08).
+Schedule::command('bigtests:enforce-sla --paper-only')->hourlyAt(55);
+// Yêu cầu giãn tiến độ giáo trình chờ duyệt quá 3 ngày → báo người duyệt 1 lần (idempotent).
+Schedule::command('syllabus:notify-adjustment-sla')->hourlyAt(20);
 // Cảnh báo hợp đồng nhân sự hết hạn trong 30 ngày (idempotent, chạy lại không tạo trùng).
 Schedule::command('hr:notify-expiring-contracts')->dailyAt('07:50');
 // Hết thời gian bảo lưu → học viên về Đang học / Chờ khai giảng, báo Học vụ (idempotent). Chạy trước nhắc nợ 08:30.

@@ -65,6 +65,8 @@ class Penalty extends Model
         'user_id',
         'class_id',
         'work_task_id',
+        'big_test_id',
+        'auto_source',
         'violation_type',
         'error_category',
         'violation_date',

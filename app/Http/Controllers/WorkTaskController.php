@@ -18,6 +18,7 @@ use App\Models\SupportSession;
 use App\Models\TeacherTimesheet;
 use App\Models\User;
 use App\Models\WorkTask;
+use App\Services\BranchStaff;
 use App\Services\ClassDashboardService;
 use App\Services\KpiBoardService;
 use App\Services\SafeUploadService;
@@ -555,6 +556,7 @@ class WorkTaskController extends Controller
             'classSessions' => $classSessions,
             'slots' => Ui::options(WorkTask::TIME_SLOTS),
             'today' => now()->toDateString(),
+            'nowTime' => now()->format('H:i'),
             'cutoff' => self::TA_ASSIGN_CUTOFF,
         ]);
     }
@@ -626,6 +628,8 @@ class WorkTaskController extends Controller
                         : null,
                     'time_slot_category' => $item['category'],
                     'task_type' => 'one_time',
+                    // Nhiệm vụ hằng ngày của TA (CV-05) cố ý KHÔNG có hạn: không quét quá hạn; due_date chỉ là ngày làm việc.
+                    'kind' => WorkTask::KIND_TA_DAILY,
                     'due_date' => $assignDate,
                     'due_time' => self::slotDueTime($item['category'], $session),
                     'status' => 'new',
@@ -642,15 +646,21 @@ class WorkTaskController extends Controller
             || ($assignDate === today()->toDateString() && now()->format('H:i') > self::TA_ASSIGN_CUTOFF);
         if ($late) {
             $assistant = User::find($validated['assistant_id']);
-            User::role(Rbac::SUPER_ADMIN)->where('is_active', true)->whereNull('locked_at')->pluck('id')
-                ->reject(fn ($id) => (int) $id === (int) Auth::id())
-                ->each(fn ($adminId) => $this->notifyUser($adminId, 'task_assigned', 'Giao việc trợ giảng sau '.self::TA_ASSIGN_CUTOFF,
-                    Auth::user()->name." giao {$created->count()} nhiệm vụ ngày ".Carbon::parse($assignDate)->format('d/m/Y')." cho {$assistant?->name} lúc ".now()->format('H:i').'.',
-                    route('portal.ta-tasks', ['ta_id' => $validated['assistant_id'], 'date' => $assignDate])));
+            $link = route('portal.ta-tasks', ['ta_id' => $validated['assistant_id'], 'date' => $assignDate]);
+            $detail = "{$created->count()} nhiệm vụ ngày ".Carbon::parse($assignDate)->format('d/m/Y')." cho {$assistant?->name} lúc ".now()->format('H:i').'.';
+            // Báo MỌI Admin (kể cả khi chính Admin giao) và người giao; mỗi người đúng 1 thông báo cá nhân.
+            $recipients = BranchStaff::admins()->pluck('id')->map(fn ($id) => (int) $id)->push((int) Auth::id())->unique();
+            foreach ($recipients as $recipientId) {
+                $this->notifyUser(
+                    $recipientId, 'task_assigned', 'Giao việc trợ giảng sau '.self::TA_ASSIGN_CUTOFF,
+                    ($recipientId === (int) Auth::id() ? 'Bạn đã giao ' : Auth::user()->name.' giao ').$detail,
+                    $link,
+                );
+            }
         }
 
         return $this->modalSaved(
-            "Đã tạo thành công {$created->count()} nhiệm vụ cho Trợ giảng!".($late ? ' (Gửi sau '.self::TA_ASSIGN_CUTOFF.' — đã báo Admin.)' : ''),
+            "Đã tạo thành công {$created->count()} nhiệm vụ cho Trợ giảng!".($late ? ' (Gửi sau '.self::TA_ASSIGN_CUTOFF.' — đã báo Admin và người giao.)' : ''),
             route('tasks.index'),
             'success',
         );
@@ -712,7 +722,8 @@ class WorkTaskController extends Controller
                 ->orderBy('due_time')
                 ->orderBy('id')
                 ->get();
-            $overdueCount = WorkTask::where('assignee_id', $taUser->id)
+            // Nhiệm vụ hằng ngày (CV-05) không có hạn nên không tính "quá hạn" / "trễ N giờ".
+            $overdueCount = WorkTask::withDeadline()->where('assignee_id', $taUser->id)
                 ->whereDate('due_date', '<', $date->toDateString())
                 ->whereNotIn('status', ['completed', 'pending_confirmation'])
                 ->count();

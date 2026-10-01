@@ -83,6 +83,8 @@ class AdminNotification extends Model
             'cash_deposit_overdue' => 'savings',
             'refund_deadline' => 'hourglass_bottom',
             'monthly_report_due' => 'edit_calendar',
+            'big_test_paper_due' => 'quiz',
+            'adjustment_pending', 'adjustment_sla' => 'tune',
             default => 'notifications',
         };
     }
@@ -107,6 +109,8 @@ class AdminNotification extends Model
             'care_overdue' => 'bg-error/10 text-error border-error/30',
             'cash_deposit_overdue', 'refund_deadline' => 'bg-error/10 text-error border-error/30',
             'monthly_report_due' => 'bg-warning/10 text-warning border-warning/30',
+            'cash_deposit_overdue', 'refund_deadline', 'big_test_paper_due', 'adjustment_sla' => 'bg-error/10 text-error border-error/30',
+            'adjustment_pending' => 'bg-warning/10 text-warning border-warning/30',
             default => 'bg-surface-container-low text-on-surface-variant border-surface-container-highest',
         };
     }
@@ -135,6 +139,9 @@ class AdminNotification extends Model
             'cash_deposit_overdue' => 'Tiền mặt chưa nộp về TK',
             'refund_deadline' => 'Hạn xử lý hoàn phí',
             'monthly_report_due' => 'Nhắc báo cáo giảng dạy tháng',
+            'big_test_paper_due' => 'Nhắc duyệt đề Big Test',
+            'adjustment_pending' => 'Yêu cầu giãn tiến độ',
+            'adjustment_sla' => 'Giãn tiến độ quá hạn duyệt',
             default => 'Thông báo hệ thống',
         };
     }

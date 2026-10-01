@@ -1,0 +1,354 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\AdminNotification;
+use App\Models\BigTest;
+use App\Models\BigTestResult;
+use App\Models\Penalty;
+use App\Models\User;
+use App\Models\WorkTask;
+use App\Support\Rbac;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+
+/**
+ * SLA của Big Test:
+ *  - Trả kết quả cho phụ huynh tối đa 7 ngày kể từ ngày thi (BigTest::RESULT_DEADLINE_DAYS); trễ → 50.000đ / ngày trễ.
+ *  - Học thuật duyệt & phân phối đề trước ngày thi ít nhất 3 ngày, hệ thống cảnh báo từ 7 ngày trước và nhắc mỗi ngày.
+ * Mọi biên bản tự lập đi đúng quy trình duyệt (pending, người báo "Tự động", người chốt quyết mức phạt) và idempotent.
+ */
+class BigTestSlaService
+{
+    public const AUTO_LATE_RESULTS = 'big_test_late_results';
+
+    public const AUTO_PAPER_MISSING = 'big_test_paper_missing';
+
+    /** Hệ thống cảnh báo / nhắc hằng ngày duyệt đề từ N ngày trước ngày thi. */
+    public const PAPER_WARN_DAYS = 7;
+
+    /** Học thuật phải duyệt & phân phối đề trước ngày thi ít nhất N ngày. */
+    public const PAPER_APPROVE_BEFORE_DAYS = 3;
+
+    /** GV chưa nhận đề khi còn dưới N giờ tới giờ thi → tự lập biên bản cho Học thuật (FR-SYL-08). */
+    public const PAPER_MISSING_HOURS = 24;
+
+    /** Quét kết quả trễ hạn chỉ trong N ngày gần nhất — không phạt hồi tố các đợt thi quá cũ. */
+    public const LATE_SCAN_DAYS = 90;
+
+    /**
+     * Người duyệt Big Test (Học thuật): người đang hoạt động có quyền big_test.approve, không tính Super Admin
+     * (Admin vẫn duyệt được nhưng không bị lập biên bản / giao việc thay Học thuật).
+     *
+     * @return \Illuminate\Support\Collection<int, User>
+     */
+    public function approvers(): \Illuminate\Support\Collection
+    {
+        return Rbac::scopeUsersWithPermission(User::query(), 'big_test.approve')
+            ->where('is_active', true)->whereNull('locked_at')
+            ->whereDoesntHave('roles', fn ($r) => $r->where('name', Rbac::SUPER_ADMIN))
+            ->orderBy('id')->get();
+    }
+
+    /** Đã nhập đủ kết quả cả lớp (không còn bản nháp, mọi học viên đang học có kết quả) — chỉ còn chờ duyệt / gửi. */
+    public function resultsEntered(BigTest $test): bool
+    {
+        $results = BigTestResult::where('big_test_id', $test->id)->get(['student_id', 'status']);
+        if ($results->isEmpty() || $results->contains(fn ($r) => $r->status === 'draft')) {
+            return false;
+        }
+        $rosterIds = $test->classModel?->roster()->pluck('students.id') ?? collect();
+
+        return $rosterIds->diff($results->pluck('student_id'))->isEmpty();
+    }
+
+    /**
+     * Người chịu trách nhiệm trả kết quả: còn thiếu / nháp → GV chính của lớp (nhập điểm);
+     * đã nhập đủ, chờ duyệt & gửi → người duyệt Big Test đầu tiên (id nhỏ nhất, không phải Admin).
+     * Chọn 1 người để biên bản là 1 / đợt thi; người chốt có thể hủy / đổi nếu quy trách nhiệm sai.
+     */
+    public function responsibleForResults(BigTest $test): ?User
+    {
+        if ($this->resultsEntered($test)) {
+            return $this->approvers()->first();
+        }
+        $teacherId = $test->classModel?->teacher_id;
+
+        return ($teacherId ? User::find($teacherId) : null) ?? $this->approvers()->first();
+    }
+
+    /**
+     * Mỗi đợt thi trả kết quả trễ hạn → 1 biên bản (pending) cho người chịu trách nhiệm, mức phạt gợi ý = 50.000đ × số ngày trễ,
+     * cập nhật mỗi ngày trong lúc còn trễ (người chốt vẫn quyết mức cuối cùng). Dừng khi đã trả đủ kết quả
+     * (results_completed_at) hoặc biên bản đã được chốt / đóng.
+     *
+     * @return int số biên bản tạo mới
+     */
+    public function enforceLateResults(?Carbon $now = null): int
+    {
+        $now ??= now();
+        $created = 0;
+
+        $tests = BigTest::with('classModel')
+            ->whereNull('results_completed_at')
+            ->whereNotNull('class_id')
+            ->whereNotNull('scheduled_at')
+            ->where('scheduled_at', '>=', $now->copy()->subDays(self::LATE_SCAN_DAYS))
+            ->where('scheduled_at', '<', $now->copy()->startOfDay()->subDays(BigTest::RESULT_DEADLINE_DAYS))
+            ->orderBy('id')
+            ->get();
+
+        foreach ($tests as $test) {
+            $days = $test->lateDays($now);
+            if ($days <= 0) {
+                continue;
+            }
+            $violation = "Trả kết quả Big Test trễ {$days} ngày (hạn ".BigTest::RESULT_DEADLINE_DAYS.' ngày)';
+            $amount = BigTest::LATE_FINE_PER_DAY * $days;
+
+            $penalty = Penalty::where('big_test_id', $test->id)->where('auto_source', self::AUTO_LATE_RESULTS)->first();
+            if ($penalty) {
+                // Biên bản đã chốt / đóng → không đụng; còn chờ giải trình → cập nhật số ngày trễ và mức gợi ý.
+                if (in_array($penalty->status, ['pending', 'explained'], true)) {
+                    $update = ['violation_type' => $violation, 'amount' => $amount];
+                    if ($penalty->status === 'pending' && ($responsible = $this->responsibleForResults($test))) {
+                        $update['user_id'] = $responsible->id;
+                    }
+                    $penalty->update($update);
+                }
+
+                continue;
+            }
+
+            $responsible = $this->responsibleForResults($test);
+            if (! $responsible) {
+                continue;
+            }
+
+            $penalty = DB::transaction(fn () => Penalty::create([
+                'code' => Penalty::generateCode(),
+                'user_id' => $responsible->id,
+                'class_id' => $test->class_id,
+                'big_test_id' => $test->id,
+                'auto_source' => self::AUTO_LATE_RESULTS,
+                'violation_type' => $violation,
+                'error_category' => 'academic',
+                'violation_date' => $test->resultsDueAt()->toDateString(),
+                'amount' => $amount,
+                'reporter_id' => null,
+                'status' => 'pending',
+                'notes' => "Big Test {$test->code} ({$test->title}) thi ngày ".$test->scheduled_at->format('d/m/Y')
+                    .', hạn trả kết quả '.$test->resultsDueAt()->format('d/m/Y').'. Mức phạt gợi ý '.number_format(BigTest::LATE_FINE_PER_DAY, 0, ',', '.')
+                    .'đ/ngày trễ, cập nhật mỗi ngày tới khi trả đủ kết quả.',
+            ]));
+            $created++;
+
+            AdminNotification::create([
+                'user_id' => $responsible->id,
+                'type' => 'penalty_created',
+                'title' => "Biên bản {$penalty->code}: trả kết quả Big Test trễ hạn",
+                'message' => "{$test->title} — trễ {$days} ngày so với hạn {$test->resultsDueAt()->format('d/m/Y')}. Hãy hoàn tất kết quả và gửi giải trình.",
+                'data' => ['link' => route('penalties.index', ['search' => $penalty->code]), 'big_test_id' => $test->id],
+                'is_read' => false,
+            ]);
+        }
+
+        return $created;
+    }
+
+    /** Số ngày (theo lịch) từ hôm nay tới ngày thi. */
+    public function daysUntil(BigTest $test, ?Carbon $now = null): int
+    {
+        return (int) ($now ?? now())->copy()->startOfDay()->diffInDays($test->scheduled_at->copy()->startOfDay(), false);
+    }
+
+    /** Đề đã quá hạn duyệt (còn dưới 3 ngày tới ngày thi mà chưa phân phối). */
+    public function paperOverdue(BigTest $test, ?Carbon $now = null): bool
+    {
+        return ! $test->is_distributed && $test->scheduled_at !== null
+            && $test->scheduled_at->isFuture() && $this->daysUntil($test, $now) < self::PAPER_APPROVE_BEFORE_DAYS;
+    }
+
+    /**
+     * Đợt thi chưa phân phối đề, thi trong vòng 7 ngày tới.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection<int, BigTest>
+     */
+    public function undistributedUpcoming(?Carbon $now = null): \Illuminate\Database\Eloquent\Collection
+    {
+        $now ??= now();
+
+        return BigTest::with('classModel')
+            ->where('is_distributed', false)
+            ->whereNotNull('class_id')
+            ->whereBetween('scheduled_at', [$now, $now->copy()->addDays(self::PAPER_WARN_DAYS)->endOfDay()])
+            ->orderBy('scheduled_at')
+            ->get();
+    }
+
+    /**
+     * Nhắc Học thuật MỖI NGÀY (thông báo cá nhân, 1 thông báo / người / đợt thi / ngày) duyệt đề các Big Test thi trong 7 ngày tới;
+     * còn dưới 3 ngày → "Quá hạn duyệt đề (trước 3 ngày)".
+     *
+     * @return int số thông báo mới
+     */
+    public function remindPaperApproval(?Carbon $now = null): int
+    {
+        $now ??= now();
+        $approvers = $this->approvers();
+        $sent = 0;
+
+        foreach ($this->undistributedUpcoming($now) as $test) {
+            $daysLeft = $this->daysUntil($test, $now);
+            $overdue = $daysLeft < self::PAPER_APPROVE_BEFORE_DAYS;
+            $className = $test->classModel?->name ?? 'lớp';
+            $when = $test->scheduled_at->format('H:i d/m/Y');
+            $title = $overdue
+                ? 'Quá hạn duyệt đề (trước '.self::PAPER_APPROVE_BEFORE_DAYS." ngày): {$test->code}"
+                : "Cần duyệt đề Big Test: {$test->code} (còn {$daysLeft} ngày)";
+            $message = "Lớp {$className} thi \"{$test->title}\" lúc {$when}"
+                .($overdue
+                    ? ' — đề phải được duyệt & phân phối trước ngày thi '.self::PAPER_APPROVE_BEFORE_DAYS.' ngày, hiện chưa duyệt.'
+                    : ' — hãy duyệt & phân phối đề trước ngày thi '.self::PAPER_APPROVE_BEFORE_DAYS.' ngày.');
+
+            foreach ($approvers as $user) {
+                $exists = AdminNotification::where('user_id', $user->id)->where('type', 'big_test_paper_due')
+                    ->where('data->big_test_id', $test->id)->whereDate('created_at', $now->toDateString())->exists();
+                if ($exists) {
+                    continue;
+                }
+                AdminNotification::create([
+                    'user_id' => $user->id,
+                    'type' => 'big_test_paper_due',
+                    'title' => $title,
+                    'message' => $message,
+                    'data' => ['big_test_id' => $test->id, 'days_left' => $daysLeft, 'link' => route('syllabus.big-tests.distribution')],
+                    'is_read' => false,
+                ]);
+                $sent++;
+            }
+        }
+
+        return $sent;
+    }
+
+    /**
+     * Còn 7 ngày tới ngày thi mà đề chưa duyệt → tự tạo việc cho Học thuật (hạn = ngày thi), 1 việc / đợt thi (work_tasks.big_test_id).
+     * Việc giao cho người duyệt đầu tiên (không phải Admin); người tạo theo mẫu chăm sóc tháng đầu: Admin đầu tiên, không có thì chính người nhận.
+     *
+     * @return int số việc tạo mới
+     */
+    public function ensureApprovalTasks(?Carbon $now = null): int
+    {
+        $assignee = $this->approvers()->first();
+        if (! $assignee) {
+            return 0;
+        }
+        $creator = BranchStaff::admins()->first() ?? $assignee;
+        $created = 0;
+
+        foreach ($this->undistributedUpcoming($now) as $test) {
+            if (WorkTask::withTrashed()->where('big_test_id', $test->id)->exists()) {
+                continue;
+            }
+            $task = WorkTask::create([
+                'title' => "Duyệt & phân phối đề Big Test {$test->code}: {$test->classModel?->name}",
+                'description' => "Big Test \"{$test->title}\" thi lúc ".$test->scheduled_at->format('H:i d/m/Y')
+                    .'. Duyệt & phân phối đề trước ngày thi '.self::PAPER_APPROVE_BEFORE_DAYS.' ngày; việc tự đóng khi đề được phân phối.',
+                'creator_id' => $creator->id,
+                'assignee_id' => $assignee->id,
+                'branch_id' => $test->classModel?->branch_id,
+                'class_id' => $test->class_id,
+                'big_test_id' => $test->id,
+                'task_type' => 'one_time',
+                'due_date' => $test->scheduled_at->toDateString(),
+                'status' => 'new',
+            ]);
+            AdminNotification::create([
+                'user_id' => $assignee->id,
+                'type' => 'task_assigned',
+                'title' => 'Việc mới: '.$task->title,
+                'message' => 'Hạn '.$test->scheduled_at->format('d/m/Y').' (ngày thi).',
+                'data' => ['task_id' => $task->id, 'big_test_id' => $test->id, 'link' => route('tasks.index', ['tab' => 'mine'])],
+                'is_read' => false,
+            ]);
+            $created++;
+        }
+
+        return $created;
+    }
+
+    /** Đề đã phân phối → đóng (hoàn thành) việc duyệt đề tự tạo của đợt thi. Gọi khi duyệt; lệnh hằng ngày quét bù. */
+    public function closeApprovalTasks(?BigTest $test = null): int
+    {
+        return WorkTask::query()
+            ->whereNotNull('big_test_id')
+            ->whereIn('status', [...WorkTask::OPEN_STATUSES, 'overdue', 'blocked', 'pending_confirmation'])
+            ->whereIn('big_test_id', BigTest::query()->where('is_distributed', true)
+                ->when($test, fn ($q) => $q->whereKey($test->id))->select('id'))
+            ->get()
+            ->each(fn (WorkTask $task) => $task->update([
+                'status' => 'completed',
+                'completed_at' => now(),
+                'completion_note' => 'Đề Big Test đã được duyệt & phân phối (hệ thống tự đóng).',
+            ]))
+            ->count();
+    }
+
+    /**
+     * GV chưa nhận đề khi còn dưới 24 giờ tới giờ thi (đề chưa phân phối) → mỗi người có quyền duyệt Big Test (Học thuật, không tính Admin)
+     * 1 biên bản (pending, mức phạt 0, người báo "Tự động", người chốt quyết mức phạt) / đợt thi. Idempotent.
+     *
+     * @return int số biên bản tạo mới
+     */
+    public function enforcePaperMissing(?Carbon $now = null): int
+    {
+        $now ??= now();
+        $approvers = $this->approvers();
+        $created = 0;
+
+        $tests = BigTest::with('classModel')
+            ->where('is_distributed', false)
+            ->whereNotNull('class_id')
+            ->where('scheduled_at', '<', $now->copy()->addHours(self::PAPER_MISSING_HOURS))
+            // Lệnh bị lỡ vài giờ vẫn bắt bù; không phạt hồi tố các đợt thi đã qua lâu.
+            ->where('scheduled_at', '>=', $now->copy()->subHours(self::PAPER_MISSING_HOURS))
+            ->get();
+
+        foreach ($tests as $test) {
+            foreach ($approvers as $user) {
+                $exists = Penalty::where('big_test_id', $test->id)->where('user_id', $user->id)
+                    ->where('auto_source', self::AUTO_PAPER_MISSING)->exists();
+                if ($exists) {
+                    continue;
+                }
+                $penalty = Penalty::create([
+                    'code' => Penalty::generateCode(),
+                    'user_id' => $user->id,
+                    'class_id' => $test->class_id,
+                    'big_test_id' => $test->id,
+                    'auto_source' => self::AUTO_PAPER_MISSING,
+                    'violation_type' => 'GV chưa nhận đề Big Test sát ngày thi (dưới '.self::PAPER_MISSING_HOURS.'h)',
+                    'error_category' => 'academic',
+                    'violation_date' => $test->scheduled_at->toDateString(),
+                    'amount' => 0,
+                    'reporter_id' => null,
+                    'status' => 'pending',
+                    'notes' => "Big Test {$test->code} ({$test->title}) lớp {$test->classModel?->name} thi lúc ".$test->scheduled_at->format('H:i d/m/Y')
+                        .' nhưng đề chưa được duyệt & phân phối cho giáo viên. Người chốt quyết mức phạt.',
+                ]);
+                AdminNotification::create([
+                    'user_id' => $user->id,
+                    'type' => 'penalty_created',
+                    'title' => "Biên bản {$penalty->code}: GV chưa nhận đề Big Test",
+                    'message' => "{$test->title} thi lúc ".$test->scheduled_at->format('H:i d/m/Y').' nhưng đề chưa được phân phối — hãy duyệt ngay và gửi giải trình.',
+                    'data' => ['link' => route('penalties.index', ['search' => $penalty->code]), 'big_test_id' => $test->id],
+                    'is_read' => false,
+                ]);
+                $created++;
+            }
+        }
+
+        return $created;
+    }
+}

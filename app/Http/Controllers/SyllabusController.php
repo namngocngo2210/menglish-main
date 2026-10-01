@@ -22,6 +22,7 @@ use App\Models\SyllabusLesson;
 use App\Models\SyllabusStage;
 use App\Models\SyllabusUnit;
 use App\Models\User;
+use App\Services\AdjustmentSlaService;
 use App\Services\DocumentCodeGenerator;
 use App\Services\SafeUploadService;
 use App\Services\ScheduleExtensionService;
@@ -1143,7 +1144,7 @@ class SyllabusController extends Controller
                 'value' => $cl->id,
                 'label' => $cl->name.' - '.($openAssignments[$cl->id]?->stage?->label ?? $openAssignments[$cl->id]?->stage_name).' ('.$cl->code.')',
             ])->values(),
-            'slaHours' => SyllabusAdjustmentRequest::SLA_HOURS,
+            'slaDays' => SyllabusAdjustmentRequest::SLA_DAYS,
             'canReview' => $user->can('syllabus.approve_adjustment'),
         ]);
     }
@@ -1231,7 +1232,7 @@ class SyllabusController extends Controller
             throw ValidationException::withMessages(['class_id' => "Lớp {$class->name} không có chặng học nào đang mở — không thể xin điều chỉnh tiến độ."]);
         }
 
-        SyllabusAdjustmentRequest::create([
+        $adjustment = SyllabusAdjustmentRequest::create([
             'class_id' => $class->id,
             // Gắn chặng đang mở để biết giãn tiến độ cho chặng nào.
             'syllabus_assignment_id' => $openAssignmentId,
@@ -1241,6 +1242,8 @@ class SyllabusController extends Controller
             'extra_sessions' => $validated['extra_sessions'] ?? null,
             'status' => 'pending',
         ]);
+        // Báo người duyệt (Học thuật / Admin) có yêu cầu mới, hạn duyệt 3 ngày.
+        app(AdjustmentSlaService::class)->notifyCreated($adjustment->load('classModel', 'teacher'));
 
         // Giáo viên quay lại màn gửi yêu cầu của mình; người duyệt về màn duyệt.
         return redirect()->route($user->can('syllabus.approve_adjustment') ? 'syllabus.adjustment-requests' : 'syllabus.teacher-adjust')
@@ -1519,6 +1522,7 @@ class SyllabusController extends Controller
                 'proctor' => $bt->proctor?->name,
                 'passcode' => $bt->passcodeVisibleTo($user) ? $bt->passcode : '••••••',
                 'is_distributed' => (bool) $bt->is_distributed,
+                'paper_warning' => $this->paperWarning($bt),
                 'stage_options' => Ui::options($stageOptions[$bt->class_id] ?? []),
             ]),
             'selectedOrder' => $selectedOrder ? $this->orderDetail($selectedOrder, $canReview) : null,
@@ -1527,6 +1531,27 @@ class SyllabusController extends Controller
             'canReview' => $canReview,
             'canManage' => $user->can('syllabus.manage'),
         ]);
+    }
+
+    /**
+     * Cảnh báo duyệt đề: đợt thi trong 7 ngày tới chưa phân phối đề ('warn'); còn dưới 3 ngày mà vẫn chưa phân phối ('overdue').
+     *
+     * @return array{level: string, label: string}|null
+     */
+    private function paperWarning(BigTest $bt): ?array
+    {
+        if ($bt->is_distributed || ! $bt->scheduled_at || ! $bt->scheduled_at->isFuture()) {
+            return null;
+        }
+        $sla = app(\App\Services\BigTestSlaService::class);
+        $days = $sla->daysUntil($bt);
+        if ($days > \App\Services\BigTestSlaService::PAPER_WARN_DAYS) {
+            return null;
+        }
+
+        return $sla->paperOverdue($bt)
+            ? ['level' => 'overdue', 'label' => 'Quá hạn duyệt đề (trước '.\App\Services\BigTestSlaService::PAPER_APPROVE_BEFORE_DAYS.' ngày) — còn '.$days.' ngày']
+            : ['level' => 'warn', 'label' => "Cần duyệt đề trước ngày thi ".\App\Services\BigTestSlaService::PAPER_APPROVE_BEFORE_DAYS." ngày — còn {$days} ngày"];
     }
 
     /** Dữ liệu hộp thoại chi tiết order đề (màn Duyệt & phân phối đề Big Test). */
@@ -1688,6 +1713,7 @@ class SyllabusController extends Controller
                     'approved_at' => now(),
                     'distributed_at' => now(),
                 ]);
+                app(\App\Services\BigTestSlaService::class)->closeApprovalTasks(BigTest::find($order->big_test_id));
             }
         });
 
@@ -1781,6 +1807,8 @@ class SyllabusController extends Controller
             'approved_at' => now(),
             'distributed_at' => now(),
         ]);
+        // Đề đã phân phối → tự đóng việc duyệt đề của Học thuật.
+        app(\App\Services\BigTestSlaService::class)->closeApprovalTasks($test);
 
         return redirect()->back()->with('status', "Đã duyệt và phân phối đề {$test->code}.");
     }
@@ -1823,6 +1851,7 @@ class SyllabusController extends Controller
                 'place' => $bt->room.' · '.($bt->classModel?->branch?->name ?? '—'),
                 'proctor' => $bt->proctor?->name,
                 'passcode' => $bt->passcodeVisibleTo($user) ? $bt->passcode : '••••••',
+                'paper_warning' => $this->paperWarning($bt),
             ]),
             'canManage' => $user->can('syllabus.manage'),
         ]);

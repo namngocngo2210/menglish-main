@@ -212,7 +212,9 @@ class DashboardController extends Controller
         $newLeads = $inBranches(CrmCustomer::query()->whereBetween('created_at', [$monthStart, $monthEnd]))->count();
         $runningClasses = $inBranches(ClassModel::query()->where('status', 'active'))->count();
 
+        // Nhiệm vụ hằng ngày của TA (CV-05) không có hạn → không tính quá hạn.
         $overdueTasks = WorkTask::query()
+            ->withDeadline()
             ->whereNotIn('status', ['completed', 'canceled'])
             ->where(fn (Builder $q) => $q->where('status', 'overdue')->orWhereDate('due_date', '<', today()))
             ->when($branchIds !== null, fn (Builder $q) => $q->where(fn (Builder $b) => $b
@@ -222,6 +224,7 @@ class DashboardController extends Controller
 
         $overdueList = WorkTask::query()
             ->with('assignee:id,name')
+            ->withDeadline()
             ->whereNotIn('status', ['completed', 'canceled'])
             ->where(fn (Builder $q) => $q->where('status', 'overdue')->orWhereDate('due_date', '<', today()))
             ->when($branchIds !== null, fn (Builder $q) => $q->where(fn (Builder $b) => $b

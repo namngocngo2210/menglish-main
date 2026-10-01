@@ -25,6 +25,8 @@ class WorkTask extends Model
         'lesson_session',
         'time_slot_category',
         'task_type',
+        'kind',
+        'big_test_id',
         'frequency',
         'due_date',
         'due_time',
@@ -109,6 +111,9 @@ class WorkTask extends Model
         'after' => 'Sau giờ học',
     ];
 
+    /** Nhiệm vụ hằng ngày của trợ giảng (CV-05, giao qua "Giao nhiệm vụ cho TA"): cố ý không có hạn — không bao giờ "Quá hạn". */
+    public const KIND_TA_DAILY = 'ta_daily';
+
     /** Trạng thái còn phải làm (sẽ thành "Quá hạn" khi qua hạn). */
     public const OPEN_STATUSES = ['new', 'in_progress'];
 
@@ -167,9 +172,23 @@ class WorkTask extends Model
         return $this->due_date->copy()->setTimeFromTimeString($time);
     }
 
-    /** Số giờ trễ hạn (làm tròn lên), 0 nếu chưa quá hạn. */
+    /** Việc có hạn thật (loại trừ nhiệm vụ hằng ngày của TA) — dùng cho quét / đếm quá hạn. */
+    public function scopeWithDeadline(Builder $query): Builder
+    {
+        return $query->where(fn (Builder $q) => $q->whereNull('kind')->orWhere('kind', '!=', self::KIND_TA_DAILY));
+    }
+
+    public function isTaDaily(): bool
+    {
+        return $this->kind === self::KIND_TA_DAILY;
+    }
+
+    /** Số giờ trễ hạn (làm tròn lên), 0 nếu chưa quá hạn (nhiệm vụ hằng ngày của TA không có hạn nên luôn 0). */
     public function lateHours(?\Carbon\CarbonInterface $now = null): int
     {
+        if ($this->isTaDaily()) {
+            return 0;
+        }
         $dueAt = $this->dueAt();
         $now ??= now();
         if (! $dueAt || $now->lessThanOrEqualTo($dueAt)) {
