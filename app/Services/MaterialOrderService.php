@@ -57,7 +57,7 @@ class MaterialOrderService
 
     /**
      * Người xử lý order: Học vụ / Quản lý có quyền process_ops và phụ trách chi nhánh của order (đạo cụ, in ấn, GVNN);
-     * người có quyền process_academic (học liệu học thuật). Super Admin không được báo (vẫn xử lý được khi cần).
+     * người có quyền process_academic (học liệu học thuật). Super Admin (mọi quyền) cũng nằm trong danh sách báo.
      *
      * @return Collection<int, User>
      */
@@ -67,7 +67,6 @@ class MaterialOrderService
         $users = Rbac::scopeUsersWithPermission(User::query()->where('is_active', true), $permission)->get();
 
         return $users
-            ->reject(fn (User $user) => $user->isSuperAdmin())
             ->filter(fn (User $user) => ! MaterialOrder::isOpsCategory($order->category)
                 || DataScope::coversBranch($user, 'material_order', $order->branch_id))
             ->values();
