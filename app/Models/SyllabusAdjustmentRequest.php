@@ -23,6 +23,7 @@ class SyllabusAdjustmentRequest extends Model
         'status',
         'rejection_reason',
         'reviewed_at',
+        'sla_notified_at',
         'applied_note',
     ];
 
@@ -41,6 +42,7 @@ class SyllabusAdjustmentRequest extends Model
     protected $casts = [
         'extra_sessions' => 'integer',
         'reviewed_at' => 'datetime',
+        'sla_notified_at' => 'datetime',
     ];
 
     public function getSlaDueAtAttribute(): ?\Illuminate\Support\Carbon

@@ -14,10 +14,13 @@ class BigTest extends Model
     use HasFactory;
 
     /**
-     * Hạn trả kết quả cho phụ huynh = ngày thi + N ngày (mockup "Hạn trả kết quả: Còn N ngày").
-     * Tạm đặt 7 ngày — chờ BA chốt con số chính thức.
+     * Hạn trả kết quả cho phụ huynh = ngày thi + 7 ngày (BA đã chốt): từ ngày thi đến khi Học thuật bấm "Duyệt & Gửi phụ huynh".
+     * Trễ → phạt 50.000đ mỗi ngày trễ (biên bản tự lập, người chốt xác nhận mức phạt).
      */
     public const RESULT_DEADLINE_DAYS = 7;
+
+    /** Mức phạt gợi ý cho mỗi ngày trả kết quả trễ (đồng). */
+    public const LATE_FINE_PER_DAY = 50000;
 
     protected $table = 'big_tests';
 
@@ -117,6 +120,17 @@ class BigTest extends Model
         $due = $this->resultsDueAt();
 
         return $due ? (int) today()->diffInDays($due, false) : null;
+    }
+
+    /** Số ngày trả kết quả trễ (0 khi chưa tới hạn hoặc đã trả đủ); tính tới `$now` (mặc định hôm nay). */
+    public function lateDays(?\Carbon\CarbonInterface $now = null): int
+    {
+        $due = $this->resultsDueAt();
+        if (! $due || $this->results_completed_at) {
+            return 0;
+        }
+
+        return max(0, (int) ($now ?? today())->copy()->startOfDay()->diffInDays($due, false) * -1);
     }
 
     public function isAccessibleBy(User $user): bool

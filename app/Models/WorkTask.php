@@ -25,6 +25,8 @@ class WorkTask extends Model
         'lesson_session',
         'time_slot_category',
         'task_type',
+        'kind',
+        'big_test_id',
         'frequency',
         'due_date',
         'due_time',
