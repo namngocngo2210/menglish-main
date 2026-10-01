@@ -31,3 +31,7 @@ Schedule::command('students:start-studying')->dailyAt('06:55');
 Schedule::command('tuition:check-cash-deposits')->dailyAt('19:05');
 // Hoàn phí / chuyển nhượng phải xử lý trong 1 tuần, cùng tháng → nhắc người duyệt khi còn ≤ 1 ngày hoặc quá hạn (idempotent theo ngày).
 Schedule::command('tuition:notify-refund-deadlines')->dailyAt('08:40');
+// Nộp phạt trong 2 ngày: hạn nộp là ngày mai / hôm nay → nhắc nhân sự vi phạm (idempotent theo ngày).
+Schedule::command('penalties:remind-due')->dailyAt('08:30');
+// Lịch chốt lương: cuối tháng nhắc chốt KPI, +1/+2 ngày nhắc chốt công / lỗi, ngày 10 nhắc trả lương 10–15 (idempotent theo ngày).
+Schedule::command('payroll:remind-calendar')->dailyAt('08:35');

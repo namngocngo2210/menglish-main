@@ -83,6 +83,33 @@ function filter(event) {
     <div class="space-y-lg">
         <UiAlert v-if="periodError" type="error">{{ periodError }}</UiAlert>
 
+        <!-- Lịch chốt lương: KPI cuối tháng, công + lỗi cuối tháng + 2 ngày, trả lương 10–15 tháng sau -->
+        <div class="grid grid-cols-1 gap-md rounded-xl border border-surface-container-highest bg-surface-container-lowest p-md shadow-sm sm:grid-cols-2 lg:grid-cols-4" data-payroll-calendar>
+            <div>
+                <p class="font-caption text-caption text-on-surface-variant">Chốt KPI</p>
+                <p class="font-semibold text-on-surface">Từ {{ period.calendar.kpi_close_on }}</p>
+                <p class="font-caption text-caption text-on-surface-variant">Ngày cuối tháng</p>
+            </div>
+            <div>
+                <p class="font-caption text-caption text-on-surface-variant">Chốt công</p>
+                <p class="font-semibold text-on-surface">Hết {{ period.calendar.attendance_close_on }}</p>
+                <p class="font-caption text-caption text-on-surface-variant">Cuối tháng + 2 ngày</p>
+            </div>
+            <div>
+                <p class="font-caption text-caption text-on-surface-variant">Chốt lỗi (trừ lỗi)</p>
+                <p class="font-semibold text-on-surface">Hết {{ period.calendar.violation_close_on }}</p>
+                <p class="font-caption text-caption text-on-surface-variant">Chốt bảng lương từ {{ period.calendar.approve_from }}</p>
+            </div>
+            <div>
+                <p class="font-caption text-caption text-on-surface-variant">Trả lương</p>
+                <p class="font-semibold text-on-surface">{{ period.calendar.pay_from }} – {{ period.calendar.pay_to }}</p>
+                <p class="font-caption text-caption text-on-surface-variant">Ngày 10–15 tháng sau</p>
+            </div>
+        </div>
+        <UiAlert v-if="!period.locked && !period.calendar.can_approve" type="warning">
+            Chưa tới hạn chốt công / chốt lỗi — chốt bảng lương từ ngày {{ period.calendar.approve_from }}.
+        </UiAlert>
+
         <UiAlert v-if="showPending" type="error" dismissible :title="`Chưa thể chốt bảng lương kỳ ${pad(period.month)}/${period.year} do: Còn ${kpiPending.count} nhân sự chưa chốt KPI`">
             {{ kpiPending.names }}{{ kpiPending.count > 8 ? '…' : '' }}.
             Chọn bậc KPI giữ HS / nhập KPI trên phiếu lương, hoặc chốt đánh giá KPI Học vụ tháng rồi bấm "Đồng bộ &amp; Tính lại".

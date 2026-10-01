@@ -252,6 +252,9 @@ class KpiController extends Controller
             'isSelf' => $isSelf,
             'canConfirm' => $request->user()->can('kpi.confirm') && ! $isSelf,
             'isAcademicStaff' => $isAcademicStaff,
+            // Chốt KPI chỉ từ ngày cuối tháng (chủ dự án chốt); trước đó chỉ lưu nháp.
+            'kpiCloseOn' => \Illuminate\Support\Carbon::create($year, $month, 1)->endOfMonth()->format('d/m/Y'),
+            'canClose' => now()->gte(\Illuminate\Support\Carbon::create($year, $month, 1)->endOfMonth()->startOfDay()),
             'fund' => (float) $fund,
             'evaluation' => $evaluation ? [
                 'status' => $evaluation->status,
@@ -316,6 +319,14 @@ class KpiController extends Controller
         $monthStart = \Illuminate\Support\Carbon::create((int) $validated['year'], (int) $validated['month'], 1);
         if (PayrollPeriod::isLockedFor($monthStart) || PayrollPeriod::isLockedFor($monthStart->copy()->endOfMonth())) {
             $message = 'Kỳ lương tháng '.$monthStart->format('m/Y').' đã duyệt — không thể sửa đánh giá KPI của tháng này.';
+
+            return back()->withInput()->withErrors(['month' => $message])->with('error', $message);
+        }
+
+        // Chủ dự án chốt: KPI chốt vào ngày cuối tháng — chưa tới ngày đó chỉ được lưu nháp, không chốt (confirm).
+        $kpiCloseOn = $monthStart->copy()->endOfMonth()->startOfDay();
+        if (($validated['action'] ?? 'confirm') !== 'draft' && now()->lt($kpiCloseOn)) {
+            $message = 'Chốt KPI từ ngày cuối tháng '.$kpiCloseOn->format('d/m').' — hiện chỉ được lưu nháp.';
 
             return back()->withInput()->withErrors(['month' => $message])->with('error', $message);
         }

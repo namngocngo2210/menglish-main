@@ -186,6 +186,7 @@ class PayrollController extends Controller
                 ...$this->periodData($period),
                 'next_step' => $nextStep,
                 'next_color' => $nextColor,
+                'calendar' => $period->calendar(),
             ],
             'stats' => [
                 'total_amount' => (float) (DataScope::isAll($user, 'payroll') ? $period->total_amount : $all->sum('net_salary')),
@@ -284,6 +285,14 @@ class PayrollController extends Controller
         $period = PayrollPeriod::where('id', $id)->orWhere('code', $id)->firstOrFail();
         abort_if($period->isLocked(), 422, 'Kỳ lương đã khóa.');
 
+        // Chủ dự án chốt: chốt công và chốt lỗi vào cuối tháng + 2 ngày → chưa tới mốc đó thì chưa được chốt bảng lương.
+        if (! $period->canApproveAt()) {
+            $message = 'Chưa thể chốt bảng lương: chốt công và chốt lỗi vào hết ngày '.$period->attendanceCloseAt()->format('d/m')
+                .' (cuối tháng + '.PayrollPeriod::CLOSE_AFTER_DAYS.' ngày) — vui lòng chốt từ ngày '.$period->attendanceCloseAt()->addDay()->format('d/m').'.';
+
+            return redirect()->back()->withErrors(['period' => $message])->with('error', $message);
+        }
+
         if ($period->hasChangesSinceCalculation()) {
             $message = 'Chấm công hoặc biên bản phạt của kỳ đã thay đổi sau lần tính gần nhất — vui lòng bấm "Đồng bộ & Tính lại" trước khi duyệt.';
 
@@ -349,7 +358,14 @@ class PayrollController extends Controller
         $period->update(['status' => 'paid']);
         $period->records()->update(['status' => 'paid']);
 
-        return redirect()->back()->with('status', "Đã ghi nhận chi trả bảng lương {$period->title}!");
+        $redirect = redirect()->back()->with('status', "Đã ghi nhận chi trả bảng lương {$period->title}!");
+        // Lịch trả lương là ngày 10–15 tháng sau: ngoài khung vẫn ghi nhận, chỉ cảnh báo (không chặn).
+        if (! $period->isInPayWindow()) {
+            [$from, $to] = $period->payWindow();
+            $redirect->with('warning', 'Lưu ý: lương thường trả từ ngày '.$from->format('d/m').' đến '.$to->format('d/m').' — hôm nay nằm ngoài khung trả lương.');
+        }
+
+        return $redirect;
     }
 
     public function calculatePeriod($id)
