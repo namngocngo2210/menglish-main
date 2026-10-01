@@ -25,6 +25,8 @@ class FullBpmnSmokeTest extends TestCase
 
     public function test_condensed_walk_through_bpmn_steps_1_to_22_as_the_right_roles(): void
     {
+        // Kỳ tháng trước chỉ duyệt được từ ngày 3 (chốt công / lỗi cuối tháng + 2 ngày): cố định "hôm nay" giữa tháng.
+        $this->travelTo(now()->startOfMonth()->addDays(14)->setTime(12, 0));
         $this->seed(DatabaseSeeder::class);
         $u = fn (string $email) => User::where('email', $email)->firstOrFail();
         $admin = $u('admin@menglish.edu.vn');
