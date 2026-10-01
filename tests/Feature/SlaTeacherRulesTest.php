@@ -73,7 +73,7 @@ class SlaTeacherRulesTest extends TestCase
         return $user;
     }
 
-    private function session(string $date, string $start = '18:00', string $end = '19:30'): ClassSession
+    private function makeSession(string $date, string $start = '18:00', string $end = '19:30'): ClassSession
     {
         return ClassSession::create([
             'class_id' => $this->class->id, 'branch_id' => $this->branch->id, 'date' => $date,
@@ -87,7 +87,7 @@ class SlaTeacherRulesTest extends TestCase
     public function test_checkin_allowed_for_yesterday_evening_session_within_24h(): void
     {
         Carbon::setTestNow('2026-10-07 10:00:00');
-        $session = $this->session('2026-10-06', '18:00', '19:30'); // hạn 07/10 18:00
+        $session = $this->makeSession('2026-10-06', '18:00', '19:30'); // hạn 07/10 18:00
 
         $this->actingAs($this->teacher)->post(route('teacher.checkin'), ['session_ids' => [$session->id]])
             ->assertSessionHasNoErrors();
@@ -100,7 +100,7 @@ class SlaTeacherRulesTest extends TestCase
 
     public function test_checkin_rejected_after_24h_from_session_start(): void
     {
-        $session = $this->session('2026-10-06', '09:00', '10:30'); // hạn 07/10 09:00 — đã quá 1 giờ
+        $session = $this->makeSession('2026-10-06', '09:00', '10:30'); // hạn 07/10 09:00 — đã quá 1 giờ
 
         $this->actingAs($this->teacher)->post(route('teacher.checkin'), ['session_ids' => [$session->id]])
             ->assertSessionHasErrors('class_ids');
@@ -111,7 +111,7 @@ class SlaTeacherRulesTest extends TestCase
 
     public function test_checkin_boundary_exactly_24h_is_allowed(): void
     {
-        $session = $this->session('2026-10-06', '10:00', '11:30'); // hạn đúng 07/10 10:00
+        $session = $this->makeSession('2026-10-06', '10:00', '11:30'); // hạn đúng 07/10 10:00
 
         $this->actingAs($this->teacher)->post(route('teacher.checkin'), ['session_ids' => [$session->id]])
             ->assertSessionHasNoErrors();
@@ -120,7 +120,7 @@ class SlaTeacherRulesTest extends TestCase
 
     public function test_checkin_early_on_same_day_is_still_allowed_and_not_late(): void
     {
-        $session = $this->session('2026-10-07', '18:00', '19:30');
+        $session = $this->makeSession('2026-10-07', '18:00', '19:30');
 
         $this->actingAs($this->teacher)->post(route('teacher.checkin'), ['session_ids' => [$session->id]])
             ->assertSessionHasNoErrors();
@@ -135,7 +135,7 @@ class SlaTeacherRulesTest extends TestCase
             'code' => 'PR-2026-09', 'title' => 'Bảng lương T9', 'month' => 9, 'year' => 2026,
             'start_date' => '2026-09-01', 'end_date' => '2026-09-30', 'status' => 'approved',
         ]);
-        $session = $this->session('2026-09-30', '18:00', '19:30');
+        $session = $this->makeSession('2026-09-30', '18:00', '19:30');
 
         $this->actingAs($this->teacher)->post(route('teacher.checkin'), ['session_ids' => [$session->id]])
             ->assertSessionHasErrors('class_ids');
@@ -144,9 +144,9 @@ class SlaTeacherRulesTest extends TestCase
 
     public function test_home_lists_open_window_sessions_with_deadline_and_warning(): void
     {
-        $evening = $this->session('2026-10-06', '10:10', '11:40'); // hạn 07/10 10:10 → còn 10 phút → cảnh báo
-        $today = $this->session('2026-10-07', '18:00', '19:30');
-        $expired = $this->session('2026-10-06', '08:00', '09:30'); // quá hạn → không nằm trong danh sách ca
+        $evening = $this->makeSession('2026-10-06', '10:10', '11:40'); // hạn 07/10 10:10 → còn 10 phút → cảnh báo
+        $today = $this->makeSession('2026-10-07', '18:00', '19:30');
+        $expired = $this->makeSession('2026-10-06', '08:00', '09:30'); // quá hạn → không nằm trong danh sách ca
 
         $this->actingAs($this->teacher)->get(route('teacher.home'))
             ->assertOk()
@@ -166,9 +166,9 @@ class SlaTeacherRulesTest extends TestCase
 
     public function test_academic_confirm_scheduled_session_has_no_24h_limit(): void
     {
-        $session = $this->session('2026-10-01', '08:00', '09:30'); // quá hạn từ lâu
+        $session = $this->makeSession('2026-10-01', '08:00', '09:30'); // quá hạn từ lâu
 
-        $this->actingAs($this->academic)->post(route('payroll.timesheets.confirm-session', $session->id))
+        $this->actingAs($this->academic)->post(route('payroll.timesheets.sessions.confirm', $session->id))
             ->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('teacher_timesheets', ['class_session_id' => $session->id, 'status' => 'valid', 'source' => 'schedule']);
@@ -178,9 +178,9 @@ class SlaTeacherRulesTest extends TestCase
 
     public function test_teacher_attendance_blocked_outside_24h_window_but_allowed_inside(): void
     {
-        $outside = $this->session('2026-10-05', '08:00', '09:30'); // start+24h đã qua
-        $inside = $this->session('2026-10-06', '18:00', '19:30');
-        $future = $this->session('2026-10-08', '09:00', '10:30'); // start−24h = 07/10 09:00 → đã mở
+        $outside = $this->makeSession('2026-10-05', '08:00', '09:30'); // start+24h đã qua
+        $inside = $this->makeSession('2026-10-06', '18:00', '19:30');
+        $future = $this->makeSession('2026-10-08', '09:00', '10:30'); // start−24h = 07/10 09:00 → đã mở
 
         $payload = fn (ClassSession $s) => ['class_session_id' => $s->id, 'status' => [$this->student->id => 'present']];
         $store = route('teacher.attendance.store', $this->class->id);
@@ -201,7 +201,7 @@ class SlaTeacherRulesTest extends TestCase
 
     public function test_academic_staff_can_record_attendance_any_time(): void
     {
-        $old = $this->session('2026-10-01', '08:00', '09:30');
+        $old = $this->makeSession('2026-10-01', '08:00', '09:30');
 
         $this->actingAs($this->academic)->post(route('teacher.attendance.store', $this->class->id), [
             'class_session_id' => $old->id, 'status' => [$this->student->id => 'present'],
@@ -257,7 +257,7 @@ class SlaTeacherRulesTest extends TestCase
     public function test_per_session_rate_is_prorated_or_deducted_too(): void
     {
         \App\Models\TeacherHourlyRate::create([
-            'user_id' => $this->teacher->id, 'hourly_rate' => 300000, 'unit' => 'session',
+            'user_id' => $this->teacher->id, 'hourly_rate' => 300000, 'rate_unit' => 'session',
             'effective_from' => '2026-01-01', 'created_by' => $this->academic->id,
         ]);
         $base = $this->timesheet(['hourly_rate' => null]);
@@ -293,7 +293,7 @@ class SlaTeacherRulesTest extends TestCase
     public function test_checkin_records_late_minutes_automatically(): void
     {
         Carbon::setTestNow('2026-10-07 08:12:00');
-        $session = $this->session('2026-10-07', '08:00', '09:30');
+        $session = $this->makeSession('2026-10-07', '08:00', '09:30');
 
         $this->actingAs($this->teacher)->post(route('teacher.checkin'), ['session_ids' => [$session->id]])
             ->assertSessionHasNoErrors();
