@@ -10,7 +10,7 @@ defineOptions({ layout: { title: 'Xin điều chỉnh tiến độ' } });
 defineProps({
     requests: { type: Object, required: true },
     classes: { type: Array, default: () => [] },
-    slaHours: { type: Number, default: 24 },
+    slaDays: { type: Number, default: 3 },
     canReview: { type: Boolean, default: false },
 });
 
@@ -105,7 +105,7 @@ function sent() {
             </UiField>
 
             <UiAlert type="warning" class="font-body-small text-body-small">
-                <p><strong>Quy định SLA:</strong> Yêu cầu được Ban Học thuật xem xét và phản hồi trong vòng {{ slaHours }} giờ.</p>
+                <p><strong>Quy định SLA:</strong> Yêu cầu được Ban Học thuật xem xét và phản hồi trong vòng {{ slaDays }} ngày.</p>
             </UiAlert>
         </UiForm>
         <template v-if="classes.length" #footer>

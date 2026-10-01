@@ -22,6 +22,7 @@ use App\Models\SyllabusLesson;
 use App\Models\SyllabusStage;
 use App\Models\SyllabusUnit;
 use App\Models\User;
+use App\Services\AdjustmentSlaService;
 use App\Services\DocumentCodeGenerator;
 use App\Services\SafeUploadService;
 use App\Services\ScheduleExtensionService;
@@ -1143,7 +1144,7 @@ class SyllabusController extends Controller
                 'value' => $cl->id,
                 'label' => $cl->name.' - '.($openAssignments[$cl->id]?->stage?->label ?? $openAssignments[$cl->id]?->stage_name).' ('.$cl->code.')',
             ])->values(),
-            'slaHours' => SyllabusAdjustmentRequest::SLA_HOURS,
+            'slaDays' => SyllabusAdjustmentRequest::SLA_DAYS,
             'canReview' => $user->can('syllabus.approve_adjustment'),
         ]);
     }
@@ -1231,7 +1232,7 @@ class SyllabusController extends Controller
             throw ValidationException::withMessages(['class_id' => "Lớp {$class->name} không có chặng học nào đang mở — không thể xin điều chỉnh tiến độ."]);
         }
 
-        SyllabusAdjustmentRequest::create([
+        $adjustment = SyllabusAdjustmentRequest::create([
             'class_id' => $class->id,
             // Gắn chặng đang mở để biết giãn tiến độ cho chặng nào.
             'syllabus_assignment_id' => $openAssignmentId,
@@ -1241,6 +1242,8 @@ class SyllabusController extends Controller
             'extra_sessions' => $validated['extra_sessions'] ?? null,
             'status' => 'pending',
         ]);
+        // Báo người duyệt (Học thuật / Admin) có yêu cầu mới, hạn duyệt 3 ngày.
+        app(AdjustmentSlaService::class)->notifyCreated($adjustment->load('classModel', 'teacher'));
 
         // Giáo viên quay lại màn gửi yêu cầu của mình; người duyệt về màn duyệt.
         return redirect()->route($user->can('syllabus.approve_adjustment') ? 'syllabus.adjustment-requests' : 'syllabus.teacher-adjust')

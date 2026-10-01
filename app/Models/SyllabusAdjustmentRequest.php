@@ -36,8 +36,10 @@ class SyllabusAdjustmentRequest extends Model
     /** Số buổi tối đa được giãn trong một yêu cầu. */
     public const MAX_EXTRA_SESSIONS = 10;
 
-    /** Hạn xử lý (SLA) của Học thuật: 24 giờ kể từ khi GV gửi (theo thông báo SLA trên màn GV). */
-    public const SLA_HOURS = 24;
+    /** Hạn duyệt yêu cầu giãn tiến độ: 3 ngày kể từ khi GV gửi (BA chốt). Học thuật hoặc Admin duyệt. */
+    public const SLA_DAYS = 3;
+
+    public const SLA_HOURS = self::SLA_DAYS * 24;
 
     protected $casts = [
         'extra_sessions' => 'integer',
