@@ -334,7 +334,7 @@ class Phase3AcceptanceTest extends TestCase
         $this->actingAs($this->academic)->post(route('payroll.timesheets.manual.store'), ['teaching_date' => '2026-08-07', 'notes' => 'Bổ sung sau khi duyệt.'] + $manual)
             ->assertSessionHasErrors('teaching_date');
         $this->actingAs($this->academic)->post(route('payroll.timesheets.review', $workshop->id), ['decision' => 'valid'])->assertSessionHasErrors('teaching_date');
-        $this->actingAs($this->academic)->post(route('penalties.store'), $this->violation($this->partTime, 'operations', 'Vi phạm nội quy trung tâm', '2026-08-20'))
+        $this->actingAs($this->academic)->post(route('penalties.store'), $this->violation($this->partTime, 'operations', 'Vi phạm nội quy trung tâm'))
             ->assertSessionHasNoErrors(); // vi phạm kỳ đã chốt vẫn ghi nhận được, phạt trừ vào kỳ đang mở (27/09/2026)
         $this->actingAs($this->manager)->post(route('kpi.evaluate.store', $this->academic->id), ['month' => 8, 'year' => 2026, 'score' => array_map(fn () => 100, $scores)])
             ->assertSessionHasErrors('month');
@@ -443,7 +443,9 @@ class Phase3AcceptanceTest extends TestCase
     {
         return [
             'user_id' => $user->id, 'error_category' => $category, 'violation_type' => $type,
-            'violation_date' => $date ?? now()->toDateString(), 'class_id' => $this->classPt->id,
+            // Luật 24h: thời điểm vi phạm = $date lúc 08:00 (nếu có) hoặc 1 giờ trước giờ hiện tại; kèm bằng chứng.
+            'violation_at' => $date ? $date.'T08:00' : now()->subHour()->format('Y-m-d\TH:i'),
+            'evidence' => \Illuminate\Http\UploadedFile::fake()->image('bang-chung.jpg'), 'class_id' => $this->classPt->id,
         ];
     }
 

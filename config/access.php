@@ -116,8 +116,8 @@ return [
             'level.*', 'syllabus.*', 'big_test.*',
             'entrance_test.*', 'entrance_test.examine', 'placement_test.*',
             'kpi.view', 'kpi.confirm',
-            // HT chốt biên bản lỗi chuyên môn / giảng dạy (Phase 3)
-            'violation.view', 'violation.create', 'violation.confirm_error', 'violation.confirm_fine', 'violation.decide_academic',
+            // HT chốt biên bản lỗi chuyên môn / giảng dạy (Phase 3). Lập biên bản chỉ CM (Học vụ) / Admin — chủ dự án chốt.
+            'violation.view', 'violation.confirm_error', 'violation.confirm_fine', 'violation.decide_academic',
             'work_task.*', 'support_ticket.create', 'support_ticket.view', 'notification.view', 'survey.manage', 'course.view',
             'staff_report.submit', 'dashboard.academic', 'portal.staff',
             'payroll.view_own', 'payroll.scope_own',

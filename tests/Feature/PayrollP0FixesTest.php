@@ -344,7 +344,8 @@ class PayrollP0FixesTest extends TestCase
         $this->travelTo('2026-09-25 09:00');
         $this->actingAs($this->admin)->post(route('penalties.store'), [
             'user_id' => $this->teacher->id, 'violation_type' => 'Đi muộn',
-            'violation_date' => '2026-08-15', 'amount' => 100000,
+            'violation_at' => '2026-09-25T08:00', 'amount' => 100000,
+            'evidence' => \Illuminate\Http\UploadedFile::fake()->image('bang-chung.jpg'),
         ])->assertSessionHasNoErrors();
 
         $penalty = $this->penalty($this->teacher, '2026-08-15', 100000, 'pending');

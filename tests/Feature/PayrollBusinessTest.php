@@ -350,7 +350,8 @@ class PayrollBusinessTest extends TestCase
             'user_id' => $this->teacherUser->id,
             'class_id' => $this->classModel->id,
             'violation_type' => 'Đi muộn ca dạy quá 15 phút không báo trước',
-            'violation_date' => '2026-08-16',
+            'violation_at' => now()->subHours(3)->format('Y-m-d\TH:i'),
+            'evidence' => \Illuminate\Http\UploadedFile::fake()->image('bang-chung.jpg'),
             'amount' => 200000,
             'notes' => 'Biên bản lập do phụ huynh lớp phản ánh',
         ];

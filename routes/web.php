@@ -361,6 +361,8 @@ Route::middleware('auth')->group(function () {
     // ─────────────────────────────────────────────
     // Người có violation.view xem tất cả; nhân sự khác chỉ xem biên bản của mình để giải trình.
     Route::get('/penalties', [PenaltyController::class, 'index'])->name('penalties.index');
+    // File bằng chứng vi phạm (disk riêng tư): người xem biên bản hoặc chính nhân sự vi phạm.
+    Route::get('/penalties/{id}/evidence', [PenaltyController::class, 'evidence'])->whereNumber('id')->name('penalties.evidence');
     Route::post('/penalties/{id}/explain', [PenaltyController::class, 'explain'])->name('penalties.explain');
     Route::post('/penalties', [PenaltyController::class, 'storePenalty'])->middleware('can:violation.create')->name('penalties.store');
     Route::post('/penalties/{id}/confirm', [PenaltyController::class, 'confirmPenalty'])->name('penalties.confirm');
