@@ -243,8 +243,11 @@ class Phase4PlatformParityTest extends TestCase
         $this->assertSame('21:30', $due['Cập nhật điểm danh']);
         $this->assertStringContainsString('(', WorkTask::where('title', 'Dọn phòng')->value('lesson_session'));
 
-        // Gửi sau 15h30 → báo Admin; TA nhận 1 thông báo gộp.
+        // Gửi sau 15h30 → báo MỌI Admin và người giao (mỗi người 1 thông báo cá nhân); TA nhận 1 thông báo gộp.
         $this->assertDatabaseHas('admin_notifications', ['user_id' => $this->admin->id, 'title' => 'Giao việc trợ giảng sau 15:30']);
+        $this->assertSame(1, AdminNotification::where('user_id', $academic->id)->where('title', 'Giao việc trợ giảng sau 15:30')->count());
+        $this->assertStringStartsWith('Bạn đã giao', AdminNotification::where('user_id', $academic->id)->where('title', 'Giao việc trợ giảng sau 15:30')->value('message'));
+        $this->assertSame(0, AdminNotification::where('user_id', $ta->id)->where('title', 'Giao việc trợ giảng sau 15:30')->count());
         $this->assertSame(1, AdminNotification::where('user_id', $ta->id)->where('type', 'task_assigned')->count());
 
         // Portal TA: 3 nhóm ca, đầu việc gắn lớp có nút "Nộp báo cáo trực lớp".
@@ -252,14 +255,13 @@ class Phase4PlatformParityTest extends TestCase
             ->assertSeeInOrder(['Trước giờ học', 'Chuẩn bị tài liệu', 'Trong giờ học', 'Hỗ trợ GVNN', 'Sau giờ học', 'Dọn phòng'])
             ->assertSee('Nộp báo cáo trực lớp');
 
-        // Qua hạn → lệnh đánh dấu Quá hạn, thẻ hiện "Trễ N giờ" + "Hoàn thành gấp".
+        // Nhiệm vụ hằng ngày của TA (CV-05) cố ý không có hạn: qua giờ "hạn" vẫn không bị đánh dấu Quá hạn / báo trễ.
+        $this->assertSame(4, WorkTask::where('assignee_id', $ta->id)->where('kind', WorkTask::KIND_TA_DAILY)->count());
         \Illuminate\Support\Carbon::setTestNow(today()->setTime(21, 45));
         $this->artisan('tasks:mark-overdue')->assertSuccessful();
-        $this->assertSame('overdue', WorkTask::where('title', 'Chuẩn bị tài liệu')->value('status'));
-        $this->assertSame('overdue', WorkTask::where('title', 'Dọn phòng')->value('status'));
-        $this->artisan('tasks:mark-overdue')->assertSuccessful(); // idempotent: không báo trùng
-        $this->assertSame(4, AdminNotification::where('user_id', $ta->id)->where('title', 'like', 'Công việc quá hạn%')->count());
-        $this->actingAs($ta)->get(route('portal.ta-tasks'))->assertOk()->assertSee('Trễ 5 giờ')->assertSee('Hoàn thành gấp');
+        $this->assertSame(0, WorkTask::where('assignee_id', $ta->id)->where('status', 'overdue')->count());
+        $this->assertSame(0, AdminNotification::where('user_id', $ta->id)->where('title', 'like', 'Công việc quá hạn%')->count());
+        $this->actingAs($ta)->get(route('portal.ta-tasks'))->assertOk()->assertDontSee('Trễ ')->assertSee('Chuẩn bị tài liệu');
 
         \Illuminate\Support\Carbon::setTestNow();
     }

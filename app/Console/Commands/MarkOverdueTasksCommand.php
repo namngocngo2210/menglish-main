@@ -10,7 +10,7 @@ use Illuminate\Console\Command;
 /**
  * Chuyển công việc "Mới" / "Đang thực hiện" đã qua hạn (ngày + giờ hạn) sang "Quá hạn"
  * (mockup Danh sách công việc / Nhiệm vụ hôm nay TA có trạng thái "Quá hạn — Trễ N giờ").
- * Báo người thực hiện một lần. Việc "Bị chặn" / "Chờ xác nhận" không bị đổi.
+ * Báo người thực hiện một lần. Việc "Bị chặn" / "Chờ xác nhận" và nhiệm vụ hằng ngày của TA (kind = ta_daily, không có hạn) không bị đổi.
  * Việc chăm sóc tháng đầu quá hạn → biên bản vi phạm SLA cho người được giao (FirstMonthCareService::enforceSla).
  * Idempotent: chạy lại không đổi gì thêm.
  */
@@ -26,6 +26,7 @@ class MarkOverdueTasksCommand extends Command
         $count = 0;
 
         WorkTask::query()
+            ->withDeadline() // Nhiệm vụ hằng ngày của TA (CV-05) không có hạn → không quét quá hạn.
             ->whereIn('status', WorkTask::OPEN_STATUSES)
             ->whereNotNull('due_date')
             ->whereDate('due_date', '<=', $now->toDateString())
