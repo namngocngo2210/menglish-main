@@ -149,4 +149,85 @@ class BigTestSlaTest extends TestCase
         $this->artisan('bigtests:enforce-sla');
         $this->assertSame($this->academic->id, Penalty::where('big_test_id', $test->id)->sole()->user_id);
     }
+
+    // ---- 4. HT nhắc duyệt đề hằng ngày ----
+
+    public function test_academic_gets_daily_personal_paper_reminders_with_escalation(): void
+    {
+        $admin = User::factory()->create(['is_active' => true]);
+        $admin->assignRole('admin');
+        $early = $this->makeTest(now()->addDays(6)->setTime(9, 0), false);
+        $late = $this->makeTest(now()->addDays(2)->setTime(9, 0), false);
+        $this->makeTest(now()->addDays(10)->setTime(9, 0), false); // ngoài 7 ngày
+        $this->makeTest(now()->addDays(2)->setTime(9, 0), true); // đã phân phối
+
+        $this->artisan('bigtests:remind-upcoming')->assertSuccessful();
+        $this->artisan('bigtests:remind-upcoming')->assertSuccessful();
+
+        $mine = AdminNotification::where('user_id', $this->academic->id)->where('type', 'big_test_paper_due')->get();
+        $this->assertCount(2, $mine, 'Idempotent trong ngày.');
+        $this->assertStringContainsString('còn 6 ngày', $mine->firstWhere('data.big_test_id', $early->id)->title);
+        $this->assertStringContainsString('Quá hạn duyệt đề (trước 3 ngày)', $mine->firstWhere('data.big_test_id', $late->id)->title);
+        $this->assertSame(0, AdminNotification::where('user_id', $admin->id)->where('type', 'big_test_paper_due')->count());
+
+        // Hôm sau nhắc lại.
+        $this->travel(1)->days();
+        $this->artisan('bigtests:remind-upcoming')->assertSuccessful();
+        $this->assertSame(4, AdminNotification::where('user_id', $this->academic->id)->where('type', 'big_test_paper_due')->count());
+    }
+
+    // ---- 5. Việc duyệt đề cho Học thuật ----
+
+    public function test_approval_task_created_once_and_closed_when_distributed(): void
+    {
+        $test = $this->makeTest(now()->addDays(7)->setTime(9, 0), false);
+        $far = $this->makeTest(now()->addDays(12), false);
+
+        $this->artisan('bigtests:enforce-sla')->assertSuccessful();
+        $this->artisan('bigtests:enforce-sla')->assertSuccessful();
+
+        $task = \App\Models\WorkTask::where('big_test_id', $test->id)->sole();
+        $this->assertSame($this->academic->id, $task->assignee_id);
+        $this->assertNotNull($task->creator_id);
+        $this->assertSame($test->scheduled_at->toDateString(), $task->due_date->toDateString());
+        $this->assertSame('new', $task->status);
+        $this->assertSame(0, \App\Models\WorkTask::where('big_test_id', $far->id)->count());
+
+        $this->actingAs($this->academic)->post(route('syllabus.big-tests.approve', $test->id))->assertRedirect();
+        $this->assertSame('completed', $task->fresh()->status);
+
+        $this->artisan('bigtests:enforce-sla')->assertSuccessful();
+        $this->assertSame(1, \App\Models\WorkTask::where('big_test_id', $test->id)->count());
+    }
+
+    // ---- 6. GV chưa nhận đề trước 24h ----
+
+    public function test_missing_paper_records_pending_penalty_per_academic_user_once(): void
+    {
+        $second = User::factory()->create(['is_active' => true]);
+        $second->assignRole('academic_lead');
+        $soon = $this->makeTest(now()->addHours(20), false);
+        $later = $this->makeTest(now()->addHours(30), false);
+        $given = $this->makeTest(now()->addHours(10), true);
+
+        $this->artisan('bigtests:enforce-sla', ['--paper-only' => true])->assertSuccessful();
+        $this->artisan('bigtests:enforce-sla', ['--paper-only' => true])->assertSuccessful();
+
+        $penalties = Penalty::where('big_test_id', $soon->id)->get();
+        $this->assertCount(2, $penalties);
+        $this->assertEqualsCanonicalizing([$this->academic->id, $second->id], $penalties->pluck('user_id')->all());
+        $penalties->each(function (Penalty $p) {
+            $this->assertSame('pending', $p->status);
+            $this->assertNull($p->reporter_id);
+            $this->assertEquals(0, $p->amount);
+            $this->assertSame('academic', $p->error_category);
+        });
+        $this->assertSame(0, Penalty::whereIn('big_test_id', [$later->id, $given->id])->count());
+
+        // Qua mốc 24h của đợt thi sau → lập thêm cho đợt đó.
+        $this->travel(7)->hours();
+        $this->artisan('bigtests:enforce-sla', ['--paper-only' => true])->assertSuccessful();
+        $this->assertSame(2, Penalty::where('big_test_id', $later->id)->count());
+        $this->assertSame(2, Penalty::where('big_test_id', $soon->id)->count());
+    }
 }

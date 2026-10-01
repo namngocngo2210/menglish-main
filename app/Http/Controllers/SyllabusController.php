@@ -1688,6 +1688,7 @@ class SyllabusController extends Controller
                     'approved_at' => now(),
                     'distributed_at' => now(),
                 ]);
+                app(\App\Services\BigTestSlaService::class)->closeApprovalTasks(BigTest::find($order->big_test_id));
             }
         });
 
@@ -1781,6 +1782,8 @@ class SyllabusController extends Controller
             'approved_at' => now(),
             'distributed_at' => now(),
         ]);
+        // Đề đã phân phối → tự đóng việc duyệt đề của Học thuật.
+        app(\App\Services\BigTestSlaService::class)->closeApprovalTasks($test);
 
         return redirect()->back()->with('status', "Đã duyệt và phân phối đề {$test->code}.");
     }

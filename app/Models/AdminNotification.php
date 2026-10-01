@@ -82,6 +82,8 @@ class AdminNotification extends Model
             'care_overdue' => 'volunteer_activism',
             'cash_deposit_overdue' => 'savings',
             'refund_deadline' => 'hourglass_bottom',
+            'big_test_paper_due' => 'quiz',
+            'adjustment_pending', 'adjustment_sla' => 'tune',
             default => 'notifications',
         };
     }
@@ -104,7 +106,8 @@ class AdminNotification extends Model
             'trial_booked', 'trial_feedback' => 'bg-secondary/10 text-secondary border-secondary/30',
             'class_assigned' => 'bg-primary-container/10 text-primary border-primary-container/30',
             'care_overdue' => 'bg-error/10 text-error border-error/30',
-            'cash_deposit_overdue', 'refund_deadline' => 'bg-error/10 text-error border-error/30',
+            'cash_deposit_overdue', 'refund_deadline', 'big_test_paper_due', 'adjustment_sla' => 'bg-error/10 text-error border-error/30',
+            'adjustment_pending' => 'bg-warning/10 text-warning border-warning/30',
             default => 'bg-surface-container-low text-on-surface-variant border-surface-container-highest',
         };
     }
@@ -132,6 +135,9 @@ class AdminNotification extends Model
             'care_overdue' => 'Quá hạn chăm sóc',
             'cash_deposit_overdue' => 'Tiền mặt chưa nộp về TK',
             'refund_deadline' => 'Hạn xử lý hoàn phí',
+            'big_test_paper_due' => 'Nhắc duyệt đề Big Test',
+            'adjustment_pending' => 'Yêu cầu giãn tiến độ',
+            'adjustment_sla' => 'Giãn tiến độ quá hạn duyệt',
             default => 'Thông báo hệ thống',
         };
     }
