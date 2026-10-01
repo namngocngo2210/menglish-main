@@ -62,6 +62,8 @@ class BpmnWorkflowIntegrationTest extends TestCase
 
     public function test_schedule_attendance_timesheet_and_payroll_are_one_approved_flow(): void
     {
+        // Check-in trước giờ bắt đầu ca 08:00 (check-in muộn từ 15 phút mà không báo trước thì không tính buổi).
+        $this->travelTo(now()->setTime(7, 30));
         $dayNames = [1 => 'Thứ 2', 2 => 'Thứ 3', 3 => 'Thứ 4', 4 => 'Thứ 5', 5 => 'Thứ 6', 6 => 'Thứ 7', 7 => 'Chủ nhật'];
         $today = now();
         $tomorrow = now()->addDay();
