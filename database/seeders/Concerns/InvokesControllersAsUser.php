@@ -20,7 +20,9 @@ trait InvokesControllersAsUser
 {
     protected function asUser(User $user, string $controller, string $method, array $input = [], array $parameters = []): mixed
     {
-        $request = Request::create('/demo-seed', 'POST', $input);
+        // File upload (vd. bằng chứng vi phạm) đi theo $files của request, không nằm trong input thường.
+        $files = array_filter($input, fn ($value) => $value instanceof \Illuminate\Http\UploadedFile);
+        $request = Request::create('/demo-seed', 'POST', array_diff_key($input, $files), [], $files);
         $request->setUserResolver(fn () => $user);
         $request->setLaravelSession(app('session.store'));
         app()->instance('request', $request);

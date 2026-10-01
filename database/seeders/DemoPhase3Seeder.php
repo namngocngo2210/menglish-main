@@ -29,6 +29,7 @@ use App\Services\CrmStageService;
 use Closure;
 use Database\Seeders\Concerns\InvokesControllersAsUser;
 use Illuminate\Database\Seeder;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -257,11 +258,16 @@ class DemoPhase3Seeder extends Seeder
         $this->event($L->copy()->endOfMonth()->setTime(17, 0), fn () => $this->evaluateAcademicKpi($L, 0));
         $this->event($this->realNow->copy()->subHours(3), fn () => $this->evaluateAcademicKpi($C, 1));
 
-        // Kỳ lương tháng trước: Kế toán tính ngày 1, nhập tay, tính lại; Admin duyệt ngày 2.
+        // Kỳ lương tháng trước: Kế toán tính ngày 1, nhập tay, tính lại; Admin duyệt ngày 3 (sau chốt công / lỗi cuối tháng + 2 ngày).
         $this->event($C->copy()->setTime(8, 0), fn () => $this->calculateLastMonth());
-        $this->event($C->copy()->addDay()->setTime(9, 0), function () {
+        // Sau chốt công / lỗi (ngày 3): tính lại lần cuối cho khớp phạt / chấm công phát sinh ngày 1–2 rồi mới duyệt.
+        $this->event($C->copy()->addDays(2)->setTime(8, 30), fn () => $this->calculateLastMonth());
+        $this->event($C->copy()->addDays(2)->setTime(9, 0), function () {
             $period = $this->periodFor($this->lastMonth);
-            $this->asUser($this->staff['admin'], PayrollController::class, 'approvePeriod', [], ['id' => $period->id]);
+            // Đang ở ngày 1–2 của tháng (chưa qua chốt công / lỗi) thì kỳ tháng trước chưa duyệt được — để mở.
+            if ($period->canApproveAt()) {
+                $this->asUser($this->staff['admin'], PayrollController::class, 'approvePeriod', [], ['id' => $period->id]);
+            }
         });
 
         // Tháng này: tick mốc chăm sóc, hoàn phí có thu hồi hoa hồng.
@@ -446,7 +452,7 @@ class DemoPhase3Seeder extends Seeder
             'decider' => 'manager_cg', 'fine' => null, 'note' => 'Xác nhận lỗi, nhắc nhở lần 1 (chưa phạt tiền).',
         ]);
         $this->penaltyFlow('P4', $C->copy()->addDays(7)->setTime(9, 0), [
-            'reporter' => 'lead', 'user' => 'teacher_cg', 'category' => 'academic', 'type' => 'Không nộp giáo án / bài tập đúng hạn',
+            'reporter' => 'academic_cg', 'user' => 'teacher_cg', 'category' => 'academic', 'type' => 'Không nộp giáo án / bài tập đúng hạn',
             'class' => 'CG-FAM0', 'explain' => 'Em nộp giáo án muộn 1 ngày do lịch dạy dày.',
             'decider' => 'lead', 'fine' => 150000, 'note' => 'Nộp trong 2 ngày, quá hạn trừ lương.',
         ]);
@@ -460,7 +466,7 @@ class DemoPhase3Seeder extends Seeder
             'class' => 'BD-FAM1', 'explain' => 'Em bị tắc đường do mưa lớn, đã báo GV chính.',
         ]);
         $this->penaltyFlow('P7', $now->copy()->subDay()->setTime(10, 0), [
-            'reporter' => 'lead', 'user' => 'teacher_ft_cg', 'category' => 'academic', 'type' => 'Dạy sai tiến độ giáo trình', 'class' => 'CG-FAM2',
+            'reporter' => 'academic_cg', 'user' => 'teacher_ft_cg', 'category' => 'academic', 'type' => 'Dạy sai tiến độ giáo trình', 'class' => 'CG-FAM2',
         ]);
         $this->penaltyFlow('P8', $C->copy()->addDays(5)->setTime(11, 0), [
             'reporter' => 'academic_cg', 'user' => 'assistant_cg', 'category' => 'operations', 'type' => 'Nghỉ dạy không phép', 'class' => 'CG-FAM0',
@@ -478,7 +484,9 @@ class DemoPhase3Seeder extends Seeder
 
         $this->event($at, fn () => $this->asUser($this->staff[$flow['reporter']], PenaltyController::class, 'storePenalty', [
             'user_id' => $this->staff[$flow['user']]->id, 'error_category' => $flow['category'], 'violation_type' => $flow['type'],
-            'violation_date' => $at->toDateString(), 'class_id' => $this->classes[$flow['class']]->id,
+            // Luật 24h: vi phạm xảy ra 1 giờ trước lúc ghi nhận, kèm bằng chứng (ảnh 1x1 mẫu).
+            'violation_at' => now()->subHour()->format('Y-m-d\TH:i'), 'evidence' => $this->demoEvidence(),
+            'class_id' => $this->classes[$flow['class']]->id,
             'notes' => trim(($flow['notes'] ?? '').' ['.$key.']'),
         ]));
         if (isset($flow['cancel_by'])) {
@@ -500,6 +508,15 @@ class DemoPhase3Seeder extends Seeder
         }
     }
 
+    /** File bằng chứng mẫu (PNG 1x1) cho biên bản demo — storePenalty bắt buộc có bằng chứng. */
+    private function demoEvidence(): UploadedFile
+    {
+        $path = tempnam(sys_get_temp_dir(), 'bc').'.png';
+        file_put_contents($path, base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='));
+
+        return new UploadedFile($path, 'bang-chung.png', 'image/png', null, true);
+    }
+
     // ── KPI Học vụ ─────────────────────────────────────────────────────────────
 
     /** Quản lý chi nhánh chấm KPI tháng cho Học vụ chi nhánh mình (15 mục, 6 nhóm). */
@@ -515,6 +532,8 @@ class DemoPhase3Seeder extends Seeder
             $this->asUser($this->staff[$managerKey], KpiController::class, 'evaluateStore', [
                 'month' => $month->month, 'year' => $month->year, 'score' => $scores,
                 'comment' => 'Đánh giá KPI tháng '.$month->format('m/Y').' (demo Phase 3).',
+                // KPI chỉ chốt từ ngày cuối tháng; tháng chưa tới ngày đó chỉ lưu nháp.
+                'action' => now()->lt($month->copy()->endOfMonth()->startOfDay()) ? 'draft' : 'confirm',
             ], ['userId' => $this->staff[$staffKey]->id]);
         }
     }

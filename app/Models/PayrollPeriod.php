@@ -82,6 +82,74 @@ class PayrollPeriod extends Model
         return $ranges->contains(fn (array $range) => $range[0] <= $day && $range[1] >= $day);
     }
 
+    /**
+     * Lịch chốt lương (chủ dự án chốt):
+     * - chốt KPI: ngày cuối tháng của kỳ;
+     * - chốt công + chốt lỗi: hết ngày cuối tháng + 2 ngày → sau mốc này mới duyệt (chốt) bảng lương;
+     * - trả lương: ngày 10–15 tháng sau.
+     * Chỉ là mốc lịch — không thay thế khóa theo trạng thái (isLockedFor) và không chặn "Đồng bộ & Tính lại".
+     */
+    public const CLOSE_AFTER_DAYS = 2;
+
+    public const PAY_DAY_FROM = 10;
+
+    public const PAY_DAY_TO = 15;
+
+    public function kpiCloseOn(): Carbon
+    {
+        return Carbon::parse($this->end_date)->startOfDay();
+    }
+
+    public function attendanceCloseAt(): Carbon
+    {
+        return Carbon::parse($this->end_date)->addDays(self::CLOSE_AFTER_DAYS)->endOfDay();
+    }
+
+    public function violationCloseAt(): Carbon
+    {
+        return $this->attendanceCloseAt();
+    }
+
+    /** Được duyệt bảng lương khi đã qua mốc chốt công / chốt lỗi. */
+    public function canApproveAt(?CarbonInterface $now = null): bool
+    {
+        $now ??= now();
+
+        return $now->gt($this->attendanceCloseAt()) && $now->gt($this->violationCloseAt());
+    }
+
+    /** @return array{0: Carbon, 1: Carbon} [đầu, cuối] khung trả lương ở tháng sau */
+    public function payWindow(): array
+    {
+        $nextMonth = Carbon::parse($this->end_date)->startOfMonth()->addMonthNoOverflow();
+
+        return [$nextMonth->copy()->day(self::PAY_DAY_FROM)->startOfDay(), $nextMonth->copy()->day(self::PAY_DAY_TO)->endOfDay()];
+    }
+
+    public function isInPayWindow(?CarbonInterface $at = null): bool
+    {
+        [$from, $to] = $this->payWindow();
+
+        return ($at ?? now())->between($from, $to);
+    }
+
+    /** Mốc lịch gửi cho màn bảng lương. */
+    public function calendar(): array
+    {
+        [$payFrom, $payTo] = $this->payWindow();
+
+        return [
+            'kpi_close_on' => $this->kpiCloseOn()->format('d/m/Y'),
+            'attendance_close_on' => $this->attendanceCloseAt()->format('d/m/Y'),
+            'violation_close_on' => $this->violationCloseAt()->format('d/m/Y'),
+            'approve_from' => $this->attendanceCloseAt()->addDay()->format('d/m/Y'),
+            'pay_from' => $payFrom->format('d/m/Y'),
+            'pay_to' => $payTo->format('d/m/Y'),
+            'can_approve' => $this->canApproveAt(),
+            'in_pay_window' => $this->isInPayWindow(),
+        ];
+    }
+
     public static function lockedMessage(CarbonInterface|string $date): string
     {
         return 'Ngày '.Carbon::parse($date)->format('d/m/Y').' thuộc kỳ lương đã duyệt/đã chi trả — không thể ghi nhận hoặc thay đổi dữ liệu lương cho ngày này.';

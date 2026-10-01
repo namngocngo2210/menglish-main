@@ -87,6 +87,9 @@ class AdminNotification extends Model
             'adjustment_pending', 'adjustment_sla' => 'tune',
             'material_order_new' => 'inventory_2',
             'material_order_overdue' => 'running_with_errors',
+            'penalty_created' => 'gavel',
+            'penalty_fined', 'penalty_due_reminder' => 'payments',
+            'payroll_calendar' => 'event_upcoming',
             default => 'notifications',
         };
     }
@@ -115,6 +118,8 @@ class AdminNotification extends Model
             'adjustment_pending' => 'bg-warning/10 text-warning border-warning/30',
             'material_order_new' => 'bg-primary-container/10 text-primary border-primary-container/30',
             'material_order_overdue' => 'bg-error/10 text-error border-error/30',
+            'penalty_created', 'penalty_fined' => 'bg-error/10 text-error border-error/30',
+            'penalty_due_reminder', 'payroll_calendar' => 'bg-warning/10 text-warning border-warning/30',
             default => 'bg-surface-container-low text-on-surface-variant border-surface-container-highest',
         };
     }
@@ -148,6 +153,10 @@ class AdminNotification extends Model
             'adjustment_sla' => 'Giãn tiến độ quá hạn duyệt',
             'material_order_new' => 'Order học liệu mới',
             'material_order_overdue' => 'Order học liệu quá hạn',
+            'penalty_created' => 'Biên bản vi phạm',
+            'penalty_fined' => 'Quyết phạt',
+            'penalty_due_reminder' => 'Nhắc hạn nộp phạt',
+            'payroll_calendar' => 'Lịch chốt lương',
             default => 'Thông báo hệ thống',
         };
     }

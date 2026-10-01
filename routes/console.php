@@ -44,3 +44,7 @@ Schedule::command('tuition:notify-refund-deadlines')->dailyAt('08:40');
 
 // Báo cáo giảng dạy tháng của GV / trợ giảng: hạn là Chủ nhật cuối tháng → nhắc ở D-3, D-1 và đúng hạn nếu chưa nộp (chỉ nhắc, không phạt; idempotent).
 Schedule::command('reports:remind-monthly')->dailyAt('08:00');
+// Nộp phạt trong 2 ngày: hạn nộp là ngày mai / hôm nay → nhắc nhân sự vi phạm (idempotent theo ngày).
+Schedule::command('penalties:remind-due')->dailyAt('08:30');
+// Lịch chốt lương: cuối tháng nhắc chốt KPI, +1/+2 ngày nhắc chốt công / lỗi, ngày 10 nhắc trả lương 10–15 (idempotent theo ngày).
+Schedule::command('payroll:remind-calendar')->dailyAt('08:35');

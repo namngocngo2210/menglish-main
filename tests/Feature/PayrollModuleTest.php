@@ -36,6 +36,8 @@ class PayrollModuleTest extends TestCase
         $this->assertNotNull($period);
         $response->assertRedirect(route('payroll.periods.show', $period->id));
 
+        // Chốt công / chốt lỗi cuối tháng + 2 ngày: chỉ duyệt được sau mốc này.
+        $this->travelTo($period->attendanceCloseAt()->addDay()->setTime(9, 0));
         $approveResponse = $this->actingAs($user)->post("/payroll/periods/{$period->id}/approve");
         $period->refresh();
         $this->assertEquals('approved', $period->status);

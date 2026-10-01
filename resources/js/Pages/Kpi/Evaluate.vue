@@ -22,6 +22,8 @@ const props = defineProps({
     isSelf: { type: Boolean, default: false },
     canConfirm: { type: Boolean, default: false },
     isAcademicStaff: { type: Boolean, default: false },
+    kpiCloseOn: { type: String, default: '' },
+    canClose: { type: Boolean, default: true },
     fund: { type: Number, default: 0 },
     evaluation: { type: Object, default: null },
     total: { type: Number, default: 0 },
@@ -213,7 +215,8 @@ function navigate(event) {
 
             <div v-if="canConfirm" class="flex flex-wrap items-center justify-end gap-sm">
                 <UiButton type="submit" variant="secondary" name="action" value="draft" icon="save">Lưu nháp</UiButton>
-                <UiButton type="submit" name="action" value="confirm" icon="lock">Chốt KPI tháng &amp; Lưu đánh giá</UiButton>
+                <span v-if="!canClose" class="font-body-small text-body-small text-on-surface-variant">Chốt KPI từ ngày cuối tháng {{ kpiCloseOn }} — hiện chỉ lưu nháp.</span>
+                <UiButton v-else type="submit" name="action" value="confirm" icon="lock">Chốt KPI tháng &amp; Lưu đánh giá</UiButton>
             </div>
         </UiForm>
     </div>
