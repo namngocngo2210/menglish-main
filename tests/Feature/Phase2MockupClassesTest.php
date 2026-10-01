@@ -190,7 +190,7 @@ class Phase2MockupClassesTest extends TestCase
             ->assertSee('Buổi học của mọi lớp theo ngày / tuần: điểm danh và chấm công giảng viên')
             ->assertSee('Xuất báo cáo')->assertSee('Tạo lớp mới')
             ->assertSee('Theo ngày')->assertSee('Theo tuần')->assertSee('Lọc thêm')
-            ->assertSee('Chỉ được điểm danh trong vòng 24h sau giờ học')
+            ->assertSee('Chưa tới giờ học — chưa điểm danh được')
             ->assertSee('Xem điểm danh')
             ->assertSee('Trợ giảng làm việc hôm nay')->assertSee('Xem tất cả trợ giảng')
             ->assertSee('Hiển thị 2 buổi học của 1 lớp học')

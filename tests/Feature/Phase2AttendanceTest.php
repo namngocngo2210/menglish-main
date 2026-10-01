@@ -82,7 +82,7 @@ class Phase2AttendanceTest extends TestCase
 
     public function test_attendance_is_keyed_by_session_and_allows_makeup_for_past_session(): void
     {
-        $past = $this->makeSession('2026-10-05');
+        $past = $this->makeSession('2026-10-06'); // trong khung ±24h (start 18:00 hôm qua + 24h = 18:00 hôm nay)
         $today = $this->makeSession('2026-10-07', '08:00', '09:30');
         $makeup = $this->makeSession('2026-10-07', '14:00', '15:30', ClassSession::TYPE_MAKEUP);
 
@@ -100,7 +100,7 @@ class Phase2AttendanceTest extends TestCase
         ])->assertSessionHasNoErrors();
 
         $this->assertSame(3, StudentAttendance::count());
-        $this->assertDatabaseHas('student_attendances', ['class_session_id' => $past->id, 'session_date' => '2026-10-05 00:00:00', 'status' => 'present']);
+        $this->assertDatabaseHas('student_attendances', ['class_session_id' => $past->id, 'session_date' => '2026-10-06 00:00:00', 'status' => 'present']);
         $this->assertDatabaseHas('student_attendances', ['class_session_id' => $today->id, 'status' => 'late']);
         $this->assertDatabaseHas('student_attendances', ['class_session_id' => $makeup->id, 'status' => 'present']);
         $this->assertSame('completed', $past->fresh()->status);

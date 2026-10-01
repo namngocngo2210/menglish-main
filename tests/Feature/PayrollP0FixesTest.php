@@ -362,6 +362,11 @@ class PayrollP0FixesTest extends TestCase
     public function test_checkin_is_rejected_when_today_is_in_locked_period(): void
     {
         $this->period(now()->month, now()->year, 'approved');
+        // Có buổi hôm nay (kỳ khóa tính theo ngày của buổi): vẫn bị từ chối.
+        \App\Models\ClassSession::create([
+            'class_id' => $this->classModel->id, 'branch_id' => $this->branch->id, 'date' => now()->toDateString(),
+            'start_time' => '18:00', 'end_time' => '20:00', 'teacher_id' => $this->teacher->id, 'status' => 'scheduled',
+        ]);
 
         $this->actingAs($this->teacher)->post(route('teacher.checkin'), ['class_ids' => [$this->classModel->id]])
             ->assertSessionHasErrors('class_ids');
