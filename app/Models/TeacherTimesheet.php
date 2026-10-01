@@ -21,6 +21,9 @@ class TeacherTimesheet extends Model
         'checkin_time',
         'checkout_time',
         'hours',
+        'late_minutes',
+        'early_leave_minutes',
+        'late_notified',
         'hourly_rate',
         'type',
         'source',
@@ -37,6 +40,9 @@ class TeacherTimesheet extends Model
     protected $casts = [
         'teaching_date' => 'date',
         'hours' => 'decimal:2',
+        'late_minutes' => 'integer',
+        'early_leave_minutes' => 'integer',
+        'late_notified' => 'boolean',
         'hourly_rate' => 'decimal:2',
         'reviewed_at' => 'datetime',
         'adjusted_at' => 'datetime',
@@ -142,15 +148,76 @@ class TeacherTimesheet extends Model
         return (float) ($user?->hourly_rate) > 0 ? (float) $user->hourly_rate : self::DEFAULT_HOURLY_RATE;
     }
 
+    /** Số phút đi muộn + về sớm của ca. */
+    public function getLateTotalMinutesAttribute(): int
+    {
+        return (int) $this->late_minutes + (int) $this->early_leave_minutes;
+    }
+
+    /** Số phút theo lịch của ca (từ scheduled_time "HH:MM-HH:MM"; không có thì suy từ số giờ). */
+    public function scheduledMinutes(): int
+    {
+        if ($this->scheduled_time && preg_match('/^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})$/', trim($this->scheduled_time), $m)) {
+            $minutes = ((int) $m[3] * 60 + (int) $m[4]) - ((int) $m[1] * 60 + (int) $m[2]);
+            if ($minutes > 0) {
+                return $minutes;
+            }
+        }
+
+        return max(1, (int) round((float) $this->hours * 60));
+    }
+
     /**
-     * Tiền công của ca dạy cho GV Part-time (Q3: mỗi ca chấm công hợp lệ = 1 buổi):
+     * Tiền công của ca dạy cho GV Part-time (Q3: mỗi ca chấm công hợp lệ = 1 buổi) kèm quy tắc đi muộn / về sớm.
+     * Cơ bản (basePay):
      * 1. Ca có đơn giá nhập tay (hourly_rate) → số giờ × đơn giá đó (điều chỉnh riêng ca, như trước).
      * 2. Đơn giá riêng hiệu lực tại ngày dạy tính theo BUỔI → 1 buổi × đơn giá buổi.
      * 3. Còn lại (đơn giá riêng theo giờ, users.hourly_rate, mặc định) → số giờ × đơn giá giờ (dữ liệu trước Q3).
      *
-     * @return array{amount: float, unit: string, rate: float}
+     * Đi muộn + về sớm (tổng phút M, ngưỡng mặc định 15 phút):
+     * - Có báo trước: trả theo số phút thực dạy (tiền × (phút lịch − M) / phút lịch).
+     * - Không báo trước, M dưới ngưỡng: trả đủ, trừ M × đơn giá phút (4.000–5.000đ/phút).
+     * - Không báo trước, M từ ngưỡng trở lên: không tính buổi (0đ, counted = false).
+     *
+     * @param  array{late_threshold_minutes?: int|float, late_deduction_per_minute?: int|float}|null  $settings  mặc định đọc PayrollPeriod::payrollSettings()
+     * @return array{amount: float, unit: string, rate: float, base_amount: float, counted: bool, late_minutes: int, late_rule: string|null, late_deduction: float}
      */
-    public function sessionPay(?User $user = null): array
+    public function payOutcome(?User $user = null, ?array $settings = null): array
+    {
+        $base = $this->basePay($user);
+        $minutes = $this->late_total_minutes;
+        $result = $base + ['base_amount' => $base['amount'], 'counted' => true, 'late_minutes' => $minutes, 'late_rule' => null, 'late_deduction' => 0.0];
+        if ($minutes <= 0) {
+            return $result;
+        }
+
+        $settings ??= PayrollPeriod::payrollSettings();
+        $threshold = (int) ($settings['late_threshold_minutes'] ?? 15);
+        $perMinute = (float) ($settings['late_deduction_per_minute'] ?? 5000);
+
+        if ($this->late_notified) {
+            $scheduled = $this->scheduledMinutes();
+            $paid = round($base['amount'] * max(0, $scheduled - $minutes) / $scheduled, 2);
+            $result['amount'] = $paid;
+            $result['late_rule'] = 'notified';
+            $result['late_deduction'] = round($base['amount'] - $paid, 2);
+        } elseif ($minutes < $threshold) {
+            $deduction = min($base['amount'], round($minutes * $perMinute, 2));
+            $result['amount'] = round($base['amount'] - $deduction, 2);
+            $result['late_rule'] = 'deduct';
+            $result['late_deduction'] = $deduction;
+        } else {
+            $result['amount'] = 0.0;
+            $result['counted'] = false;
+            $result['late_rule'] = 'void';
+            $result['late_deduction'] = $base['amount'];
+        }
+
+        return $result;
+    }
+
+    /** Tiền công cơ bản (chưa áp quy tắc đi muộn / về sớm). */
+    private function basePay(?User $user = null): array
     {
         if ((float) $this->hourly_rate <= 0) {
             $personal = TeacherHourlyRate::effectiveFor((int) $this->user_id, $this->teaching_date ?? now());
@@ -162,6 +229,18 @@ class TeacherTimesheet extends Model
         $rate = $this->effectiveHourlyRate($user);
 
         return ['amount' => round((float) $this->hours * $rate, 2), 'unit' => TeacherHourlyRate::UNIT_HOUR, 'rate' => $rate];
+    }
+
+    /**
+     * Tiền công của ca (đã áp quy tắc đi muộn / về sớm) — xem payOutcome().
+     *
+     * @return array{amount: float, unit: string, rate: float}
+     */
+    public function sessionPay(?User $user = null, ?array $settings = null): array
+    {
+        $outcome = $this->payOutcome($user, $settings);
+
+        return ['amount' => $outcome['amount'], 'unit' => $outcome['unit'], 'rate' => $outcome['rate']];
     }
 
     /**

@@ -6,6 +6,7 @@ const props = defineProps({
     reports: { type: Object, required: true },
     label: { type: String, default: 'Báo cáo' },
     today: { type: String, default: null },
+    monthlyDue: { type: Object, default: null },
 });
 
 defineOptions({ layout: (props) => ({ title: `${props.label ?? 'Báo cáo'} của tôi` }) });
@@ -23,6 +24,12 @@ const lower = computed(() => props.label.toLocaleLowerCase('vi'));
     </UiPageHeader>
 
     <div class="space-y-6">
+        <!-- Báo cáo giảng dạy tháng: hạn Chủ nhật cuối tháng; chỉ nhắc, không phạt. -->
+        <UiAlert v-if="monthlyDue" :type="monthlyDue.submitted ? 'success' : 'warning'" data-testid="monthly-due">
+            <strong>Hạn nộp: {{ monthlyDue.due_label }}</strong> (báo cáo tháng {{ monthlyDue.month_label }}) —
+            <template v-if="monthlyDue.submitted">đã nộp.</template>
+            <template v-else>chưa nộp. Hệ thống sẽ nhắc trước hạn 3 ngày, 1 ngày và đúng ngày hạn.</template>
+        </UiAlert>
         <div class="space-y-3">
             <h2 class="text-sm font-bold uppercase tracking-wider text-on-surface">Lịch sử đã nộp</h2>
             <div v-for="r in reports.data" :key="r.id" class="rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-5 shadow-sm">

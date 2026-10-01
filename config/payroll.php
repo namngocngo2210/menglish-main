@@ -35,6 +35,16 @@ return [
         'lost_statuses' => ['dropped'],
     ],
 
+    // ── GV Part-time: đi muộn / về sớm ───────────────────────────────────────────
+    // Có báo trước → trả theo số phút thực dạy. Không báo trước: dưới ngưỡng → trừ mỗi phút (Admin chỉnh
+    // 4.000–5.000đ ở màn Tham số tính lương); từ ngưỡng trở lên → không tính buổi.
+    'late' => [
+        'threshold_minutes' => 15,
+        'deduction_per_minute' => 5000,
+        'deduction_per_minute_min' => 4000,
+        'deduction_per_minute_max' => 5000,
+    ],
+
     // ── Học vụ: KPI 6 nhóm / 15 mục ─────────────────────────────────────────────
     // Tiền KPI = quỹ × tổng điểm có trọng số (%) của đánh giá KPI tháng đã chốt.
     'academic_kpi_fund' => 2000000,

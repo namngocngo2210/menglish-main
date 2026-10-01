@@ -31,3 +31,6 @@ Schedule::command('students:start-studying')->dailyAt('06:55');
 Schedule::command('tuition:check-cash-deposits')->dailyAt('19:05');
 // Hoàn phí / chuyển nhượng phải xử lý trong 1 tuần, cùng tháng → nhắc người duyệt khi còn ≤ 1 ngày hoặc quá hạn (idempotent theo ngày).
 Schedule::command('tuition:notify-refund-deadlines')->dailyAt('08:40');
+
+// Báo cáo giảng dạy tháng của GV / trợ giảng: hạn là Chủ nhật cuối tháng → nhắc ở D-3, D-1 và đúng hạn nếu chưa nộp (chỉ nhắc, không phạt; idempotent).
+Schedule::command('reports:remind-monthly')->dailyAt('08:00');

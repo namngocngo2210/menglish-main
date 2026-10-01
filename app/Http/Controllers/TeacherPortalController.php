@@ -487,6 +487,10 @@ class TeacherPortalController extends Controller
                     'scheduled_time' => $session->start_time->format('H:i').'-'.$session->end_time->format('H:i'),
                     'checkin_time' => $now->format('H:i'),
                     'hours' => $hours,
+                    // Đi muộn = số phút check-in sau giờ bắt đầu (check-in sớm = 0). Có báo trước hay không do Học vụ ghi nhận.
+                    'late_minutes' => (int) min(1440, max(0, $session->startsAt()->diffInMinutes($now, false))),
+                    'early_leave_minutes' => 0,
+                    'late_notified' => false,
                     'type' => $session->type === ClassSession::TYPE_SUPPORT ? '1on1' : 'regular',
                     'source' => TeacherTimesheet::SOURCE_CHECKIN,
                     'status' => 'pending_review',

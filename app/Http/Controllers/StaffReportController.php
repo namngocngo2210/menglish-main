@@ -6,6 +6,7 @@ use App\Models\ClassModel;
 use App\Models\StaffReport;
 use App\Models\StaffReportFollowup;
 use App\Models\User;
+use App\Support\MonthlyReportDue;
 use App\Support\StaffType;
 use App\Support\Ui;
 use Illuminate\Http\Request;
@@ -173,6 +174,13 @@ class StaffReportController extends Controller
             'reports' => $reports,
             'label' => StaffReport::TYPE_LABELS[$type] ?? 'Báo cáo',
             'today' => now()->toDateString(),
+            // Báo cáo tháng (GV / trợ giảng): hạn Chủ nhật cuối tháng — chỉ nhắc, không phạt.
+            'monthlyDue' => $type === 'monthly' ? [
+                'due_label' => 'Chủ nhật '.MonthlyReportDue::dueDate(now())->format('d/m'),
+                'month_label' => now()->format('m/Y'),
+                'submitted' => StaffReport::where('user_id', Auth::id())->where('type', 'monthly')
+                    ->whereBetween('report_date', [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()])->exists(),
+            ] : null,
         ]);
     }
 

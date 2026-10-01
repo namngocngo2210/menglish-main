@@ -517,6 +517,9 @@ class PayrollController extends Controller
                 ])->values(),
             ])->values(),
             'renewalClasses' => array_values(data_get($record->calculation_details, 'renewal.classes', [])),
+            // Khoản trừ GV đi muộn / về sớm (calculation_details.late) để Kế toán thấy vì sao tiền công ca bị giảm.
+            'lateLines' => array_values((array) data_get($record->calculation_details, 'late.lines', [])),
+            'lateInfo' => ['threshold' => (int) data_get($record->calculation_details, 'late.threshold', 15), 'per_minute' => (float) data_get($record->calculation_details, 'late.per_minute', 5000), 'total' => (float) data_get($record->calculation_details, 'late.total_deduction', 0)],
             'commissionTiers' => $commissionTiers->map(fn (CommissionTier $tier) => [
                 'id' => $tier->id,
                 'name' => $tier->tier_name,
@@ -769,6 +772,10 @@ class PayrollController extends Controller
             'time_out' => ['required', 'date_format:H:i', 'after:time_in'],
             // Bỏ trống = dùng đơn giá riêng của GV (theo ngày hiệu lực) → users.hourly_rate → mặc định
             'hourly_rate' => 'nullable|numeric|min:1000',
+            // Đi muộn / về sớm (phút) và "có báo trước" — quy tắc ngưỡng 15 phút xem TeacherTimesheet::payOutcome().
+            'late_minutes' => 'nullable|integer|min:0|max:600',
+            'early_leave_minutes' => 'nullable|integer|min:0|max:600',
+            'late_notified' => 'nullable|boolean',
             'type' => ['required', 'in:regular,sub,1on1,grading,workshop'],
             'notes' => 'required|string|min:5|max:500',
         ], [
@@ -831,6 +838,9 @@ class PayrollController extends Controller
             'checkout_time' => $validated['time_out'],
             'hours' => $hours,
             'hourly_rate' => $validated['hourly_rate'] ?? null,
+            'late_minutes' => (int) ($validated['late_minutes'] ?? 0),
+            'early_leave_minutes' => (int) ($validated['early_leave_minutes'] ?? 0),
+            'late_notified' => (bool) ($validated['late_notified'] ?? false),
             'type' => $validated['type'],
             'source' => TeacherTimesheet::SOURCE_MANUAL,
             'status' => 'pending_review',
@@ -985,6 +995,12 @@ class PayrollController extends Controller
                 'reviewer_name' => $ts->reviewer?->name,
                 'locked' => $periodLocked || PayrollPeriod::isLockedFor($ts->teaching_date),
                 'reject_label' => ($ts->teacher?->name ?? '').' — '.$ts->teaching_date->format('d/m/Y'),
+                'late_minutes' => (int) $ts->late_minutes,
+                'early_leave_minutes' => (int) $ts->early_leave_minutes,
+                'late_notified' => (bool) $ts->late_notified,
+                'late_label' => $ts->late_total_minutes > 0
+                    ? ($ts->late_minutes ? "Muộn {$ts->late_minutes}p" : '').($ts->late_minutes && $ts->early_leave_minutes ? ' · ' : '').($ts->early_leave_minutes ? "Về sớm {$ts->early_leave_minutes}p" : '').($ts->late_notified ? ' (có báo trước)' : ' (không báo trước)')
+                    : null,
                 'edit_label' => ($ts->teacher?->name ?? '').' — '.($ts->classModel?->code ?? '').' — '.$ts->teaching_date->format('d/m/Y'),
             ]),
             'teacher' => $teacher ? [
@@ -1149,6 +1165,9 @@ class PayrollController extends Controller
             'time_in' => ['required', 'date_format:H:i'],
             'time_out' => ['required', 'date_format:H:i', 'after:time_in'],
             'adjustment_reason' => ['required', 'string', 'min:5', 'max:500'],
+            'late_minutes' => 'nullable|integer|min:0|max:600',
+            'early_leave_minutes' => 'nullable|integer|min:0|max:600',
+            'late_notified' => 'nullable|boolean',
         ], [
             'time_in.required' => 'Vui lòng nhập giờ vào.',
             'time_out.required' => 'Vui lòng nhập giờ ra.',
@@ -1162,11 +1181,16 @@ class PayrollController extends Controller
             throw ValidationException::withMessages(['time_out' => 'Ca dạy phải kéo dài ít nhất 30 phút.']);
         }
 
-        $before = $timesheet->only(['checkin_time', 'checkout_time', 'hours', 'status']);
+        $before = $timesheet->only(['checkin_time', 'checkout_time', 'hours', 'late_minutes', 'early_leave_minutes', 'late_notified', 'status']);
         $timesheet->update([
             'checkin_time' => $validated['time_in'],
             'checkout_time' => $validated['time_out'],
             'hours' => $hours,
+            // Không gửi trường đi muộn / về sớm → giữ nguyên giá trị cũ (vd. phút muộn do check-in tự ghi).
+            'late_minutes' => (int) ($validated['late_minutes'] ?? $timesheet->late_minutes),
+            'early_leave_minutes' => (int) ($validated['early_leave_minutes'] ?? $timesheet->early_leave_minutes),
+            // Ô tick không gửi giá trị khi bỏ chọn: form có trường phút muộn thì coi "không tick" = chưa báo trước.
+            'late_notified' => $request->has('late_minutes') ? $request->boolean('late_notified') : (bool) $timesheet->late_notified,
             'status' => 'pending_review',
             'reviewed_by' => null,
             'reviewed_at' => null,
@@ -1367,6 +1391,8 @@ class PayrollController extends Controller
                 'union_rate_percent' => $fmt($settings['union_rate_percent']),
                 'academic_kpi_fund' => (int) $settings['academic_kpi_fund'],
                 'renewal_beyond_percent' => $fmt($settings['renewal_beyond_percent']),
+                'late_threshold_minutes' => (int) $settings['late_threshold_minutes'],
+                'late_deduction_per_minute' => (int) $settings['late_deduction_per_minute'],
                 'retention_tiers' => collect($settings['retention_tiers'])->map(fn ($t) => number_format($t, 0, ',', '.'))->implode(' / '),
             ],
             'renewalRows' => collect($settings['renewal_table'])
@@ -1390,7 +1416,12 @@ class PayrollController extends Controller
             'renewal.*.percent' => ['required', 'numeric', 'min:0', 'max:100'],
             'renewal.*.pending' => ['nullable', 'boolean'],
             'renewal_beyond_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'late_threshold_minutes' => ['nullable', 'integer', 'min:1', 'max:120'],
+            // Đơn giá trừ mỗi phút đi muộn / về sớm (không báo trước, dưới ngưỡng): BA chốt trong khoảng 4.000–5.000đ.
+            'late_deduction_per_minute' => ['nullable', 'numeric', 'min:4000', 'max:5000'],
         ], [
+            'late_deduction_per_minute.min' => 'Đơn giá trừ mỗi phút đi muộn phải từ 4.000đ đến 5.000đ.',
+            'late_deduction_per_minute.max' => 'Đơn giá trừ mỗi phút đi muộn phải từ 4.000đ đến 5.000đ.',
             '*.required' => 'Vui lòng nhập đầy đủ các tham số.',
             'insurance_rate_percent.max' => 'Tỉ lệ BHXH không được vượt quá 100%.',
             'renewal.*.quits.distinct' => 'Mỗi mức số HS nghỉ chỉ được khai báo một lần.',
@@ -1407,6 +1438,13 @@ class PayrollController extends Controller
         }
         if (array_key_exists('renewal_beyond_percent', $validated) && $validated['renewal_beyond_percent'] !== null) {
             SystemSetting::set('payroll_renewal_beyond_percent', $validated['renewal_beyond_percent'], 'Thưởng tái tục khi số HS nghỉ vượt bảng (%)');
+        }
+
+        if (filled($validated['late_threshold_minutes'] ?? null)) {
+            SystemSetting::set('payroll_late_threshold_minutes', $validated['late_threshold_minutes'], 'GV đi muộn / về sớm: từ số phút này không báo trước thì không tính buổi');
+        }
+        if (filled($validated['late_deduction_per_minute'] ?? null)) {
+            SystemSetting::set('payroll_late_deduction_per_minute', $validated['late_deduction_per_minute'], 'GV đi muộn / về sớm dưới ngưỡng không báo trước: trừ mỗi phút (đ)');
         }
 
         activity('payroll_settings')->causedBy($request->user())

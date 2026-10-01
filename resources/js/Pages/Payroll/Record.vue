@@ -26,6 +26,8 @@ const props = defineProps({
     timesheets: { type: Array, default: () => [] },
     kpiGroups: { type: Array, default: () => [] },
     renewalClasses: { type: Array, default: () => [] },
+    lateLines: { type: Array, default: () => [] },
+    lateInfo: { type: Object, default: () => ({ threshold: 15, per_minute: 5000, total: 0 }) },
     commissionTiers: { type: Array, default: () => [] },
     penalties: { type: Array, default: () => [] },
     clawbacks: { type: Array, default: () => [] },
@@ -312,6 +314,24 @@ function sessionNote(ts) {
                                 <td>{{ ts.scheduled_time ? 'Ca ' + ts.scheduled_time : '—' }}</td>
                                 <td>{{ ts.class_name ?? '—' }} <span class="font-caption text-caption text-on-surface-variant">{{ ts.type_label }}</span></td>
                                 <td class="text-right font-code text-code">{{ ts.hours }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </UiDataTable>
+
+                <UiDataTable v-if="lateLines.length" data-testid="late-lines">
+                    <template #header>
+                        <h3 class="font-h3 text-h3 text-on-surface">Đi muộn / về sớm — khoản giảm tiền công</h3>
+                        <p class="font-caption text-caption text-on-surface-variant">Có báo trước: trả theo phút thực dạy · không báo trước dưới {{ lateInfo.threshold }} phút: trừ {{ lateInfo.per_minute.toLocaleString('vi-VN') }}đ/phút · từ {{ lateInfo.threshold }} phút: không tính buổi.</p>
+                    </template>
+                    <table>
+                        <thead><tr><th>Ngày / lớp</th><th class="text-right">Số phút</th><th>Cách tính</th><th class="text-right">Giảm</th></tr></thead>
+                        <tbody>
+                            <tr v-for="row in lateLines" :key="row.timesheet_id">
+                                <td>{{ row.date }} <span class="block font-caption text-caption text-on-surface-variant">{{ row.class }}</span></td>
+                                <td class="text-right font-code text-code">{{ row.minutes }}</td>
+                                <td>{{ { notified: 'Có báo trước — trả theo phút thực dạy', deduct: 'Không báo trước — trừ theo phút', void: 'Không báo trước, quá ngưỡng — không tính buổi' }[row.rule] }}</td>
+                                <td><UiMoney :value="row.deduction" suffix="đ" /></td>
                             </tr>
                         </tbody>
                     </table>

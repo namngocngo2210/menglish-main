@@ -48,6 +48,15 @@ const renewalRowError = computed(() => {
                     </div>
 
                     <div class="space-y-2">
+                        <h3 class="text-xs font-bold text-on-surface-variant">GV đi muộn / về sớm</h3>
+                        <p class="text-xs text-on-surface-variant">Có báo trước: trả theo số phút thực dạy. Không báo trước: dưới ngưỡng thì trừ theo từng phút; từ ngưỡng trở lên thì không tính buổi.</p>
+                        <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                            <UiInput id="late_threshold_minutes" type="number" name="late_threshold_minutes" label="Ngưỡng không tính buổi (không báo trước)" suffix="phút" min="1" max="120" step="1" :value="settings.late_threshold_minutes" class="font-mono" />
+                            <UiInput id="late_deduction_per_minute" type="number" name="late_deduction_per_minute" label="Trừ mỗi phút (dưới ngưỡng, 4.000–5.000đ)" suffix="đ" min="4000" max="5000" step="100" :value="settings.late_deduction_per_minute" class="font-mono" />
+                        </div>
+                    </div>
+
+                    <div class="space-y-2">
                         <div class="flex items-center justify-between">
                             <div>
                                 <h3 class="text-xs font-bold text-on-surface-variant">Thưởng tái tục — % doanh thu lớp theo số HS nghỉ trong kỳ</h3>
@@ -86,7 +95,7 @@ const renewalRowError = computed(() => {
 
                 <div class="flex flex-col items-center justify-between gap-4 border-t border-surface-container-highest bg-surface-container-low p-6 sm:flex-row">
                     <div class="text-center text-xs text-on-surface-variant sm:text-left">
-                        Mặc định (config/payroll.php): BHXH 10,5% · Công đoàn 0,5% · quỹ KPI Học vụ 2.000.000đ.
+                        Mặc định (config/payroll.php): BHXH 10,5% · Công đoàn 0,5% · quỹ KPI Học vụ 2.000.000đ · đi muộn ngưỡng 15 phút, trừ 5.000đ/phút.
                     </div>
                     <UiButton type="submit" icon="save" class="w-full sm:w-auto">Lưu tham số</UiButton>
                 </div>

@@ -202,6 +202,9 @@ class PayrollPeriod extends Model
             'academic_kpi_fund' => (float) SystemSetting::get('payroll_academic_kpi_fund', config('payroll.academic_kpi_fund', 2000000)),
             'retention_tiers' => array_map('floatval', (array) config('payroll.retention_tiers', [15000, 20000, 25000])),
             'renewal_table' => $table,
+            // Đi muộn / về sớm của GV: ngưỡng phút, đơn giá trừ mỗi phút khi không báo trước (4.000–5.000đ).
+            'late_threshold_minutes' => (int) SystemSetting::get('payroll_late_threshold_minutes', config('payroll.late.threshold_minutes', 15)),
+            'late_deduction_per_minute' => (float) SystemSetting::get('payroll_late_deduction_per_minute', config('payroll.late.deduction_per_minute', 5000)),
             'renewal_beyond_percent' => (float) SystemSetting::get('payroll_renewal_beyond_percent', config('payroll.renewal_bonus.beyond_percent', 0)),
         ];
     }
@@ -266,10 +269,22 @@ class PayrollPeriod extends Model
                 ->where('status', 'valid')
                 ->with('classModel')
                 ->get();
-            $actualHours = (float) $timesheets->sum('hours');
-            $sessions = $timesheets->count();
-            $sessionPay = $timesheets->map(fn (TeacherTimesheet $ts) => $ts->sessionPay($user));
+            $outcomes = $timesheets->values()->map(fn (TeacherTimesheet $ts) => $ts->payOutcome($user, $settings));
+            // Ca đi muộn / về sớm từ ngưỡng mà không báo trước: không tính buổi (chỉ áp cho Part-time; Full-time lương cơ bản không đổi).
+            $voided = $isPartTime ? $outcomes->where('counted', false)->count() : 0;
+            $actualHours = (float) $timesheets->values()->filter(fn (TeacherTimesheet $ts, $i) => ! $isPartTime || $outcomes[$i]['counted'])->sum('hours');
+            $sessions = $timesheets->count() - $voided;
+            $sessionPay = $outcomes;
             $teachingSalary = $isPartTime ? round((float) $sessionPay->sum('amount'), 2) : 0.0;
+            // Chi tiết khoản trừ đi muộn / về sớm để Kế toán thấy lý do trên phiếu lương.
+            $lateLines = $isPartTime ? $timesheets->values()->map(fn (TeacherTimesheet $ts, $i) => $outcomes[$i]['late_rule'] ? [
+                'timesheet_id' => $ts->id,
+                'date' => $ts->teaching_date?->format('d/m/Y'),
+                'class' => $ts->classModel?->name,
+                'minutes' => $outcomes[$i]['late_minutes'],
+                'rule' => $outcomes[$i]['late_rule'],
+                'deduction' => $outcomes[$i]['late_deduction'],
+            ] : null)->filter()->values()->all() : [];
 
             // Buổi có GVNN cùng lớp (chỉ để Kế toán tham khảo khi nhập dòng "Buổi có GVNN" — chờ BA chốt cách tính)
             $foreignSessions = $timesheets->filter(function (TeacherTimesheet $ts) use ($user) {
@@ -305,6 +320,7 @@ class PayrollPeriod extends Model
             $details = [
                 'rates' => ['insurance' => $settings['insurance_rate_percent'], 'union' => $settings['union_rate_percent']],
                 'sessions' => ['count' => $sessions, 'per_session' => $sessionPay->where('unit', 'session')->count(), 'per_hour' => $sessionPay->where('unit', 'hour')->count()],
+                'late' => ['threshold' => $settings['late_threshold_minutes'], 'per_minute' => $settings['late_deduction_per_minute'], 'total_deduction' => round((float) collect($lateLines)->sum('deduction'), 2), 'lines' => $lateLines],
             ];
             $kpiSource = null;
             $kpiScore = null;
