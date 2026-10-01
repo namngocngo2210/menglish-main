@@ -14,6 +14,7 @@ use App\Http\Controllers\CrmImportController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\HolidayController;
+use App\Http\Controllers\MaterialOrderController;
 use App\Http\Controllers\KpiController;
 use App\Http\Controllers\MediaManagerController;
 use App\Http\Controllers\MerchandiseItemController;
@@ -593,6 +594,19 @@ Route::middleware('auth')->group(function () {
         Route::post('/{id}/read', [AdminNotificationController::class, 'markAsRead'])->middleware('can:notification.view')->name('read');
         Route::post('/read-all', [AdminNotificationController::class, 'markAllAsRead'])->middleware('can:notification.view')->name('read-all');
         Route::post('/scan', [AdminNotificationController::class, 'scan'])->middleware('can:notification.manage')->name('scan');
+    });
+
+    // ─────────────────────────────────────────────
+    // Order học liệu: GV tạo; Học vụ / Trưởng Học thuật xử lý. Quyền kiểm tra trong controller (theo loại order + chi nhánh).
+    // ─────────────────────────────────────────────
+    Route::prefix('material-orders')->name('material-orders.')->group(function () {
+        Route::get('/', [MaterialOrderController::class, 'index'])->name('index');
+        Route::get('/create', [MaterialOrderController::class, 'create'])->name('create');
+        Route::post('/', [MaterialOrderController::class, 'store'])->name('store');
+        Route::get('/{materialOrder}', [MaterialOrderController::class, 'show'])->name('show');
+        Route::post('/{materialOrder}/claim', [MaterialOrderController::class, 'claim'])->name('claim');
+        Route::post('/{materialOrder}/complete', [MaterialOrderController::class, 'complete'])->name('complete');
+        Route::post('/{materialOrder}/reject', [MaterialOrderController::class, 'reject'])->name('reject');
     });
 
     // ─────────────────────────────────────────────

@@ -428,6 +428,23 @@ return [
                 'all' => 'Mọi công việc; KPI mọi nhân sự',
             ],
         ],
+        'material_order' => [
+            'label' => 'Order học liệu',
+            'group' => 'operations',
+            'icon' => 'inventory_2',
+            'actions' => [
+                'create' => ['Tạo order học liệu', 'Giáo viên đặt đạo cụ / in ấn / học liệu GVNN / học liệu học thuật.'],
+                'view_all' => ['Xem order của người khác', 'Xem order của giáo viên khác trong phạm vi dữ liệu (người lập luôn xem order của mình).'],
+                'process_ops' => ['Xử lý order Đạo cụ / In ấn / GVNN', 'Học vụ (CM): nhận xử lý, hoàn thành, từ chối order đạo cụ, in ấn, GVNN của chi nhánh mình.'],
+                'process_academic' => ['Xử lý order học liệu học thuật', 'Trưởng Học thuật: nhận xử lý, hoàn thành, từ chối order học liệu học thuật.'],
+            ],
+            'scope' => [
+                'levels' => ['own', 'branch', 'all'],
+                'own' => 'Order tôi tạo',
+                'branch' => 'Order thuộc chi nhánh của tôi (+ order của tôi); Học vụ chỉ xử lý order chi nhánh mình',
+                'all' => 'Mọi order học liệu',
+            ],
+        ],
         'support_ticket' => [
             'label' => 'Ticket hỗ trợ',
             'group' => 'operations',
