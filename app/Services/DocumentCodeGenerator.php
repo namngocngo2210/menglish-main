@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\BigTest;
 use App\Models\Course;
 use App\Models\Holiday;
+use App\Models\MaterialOrder;
 use App\Models\Penalty;
 use App\Models\Student;
 use App\Models\SupportTicket;
@@ -167,6 +168,20 @@ class DocumentCodeGenerator
             fn (int $n) => "HOL-{$year}-".str_pad((string) $n, 3, '0', STR_PAD_LEFT),
             fn () => $this->maxNumericSuffix(Holiday::withTrashed()->where('code', 'like', "HOL-{$year}-%")->pluck('code'), '/^HOL-'.$year.'-(\d+)$/'),
             fn (string $code) => Holiday::withTrashed()->where('code', $code)->exists(),
+        );
+    }
+
+    /** Mã order học liệu OH-YYYY-0001 (dãy "material_order", reset theo năm). */
+    public function materialOrderCode(?int $year = null): string
+    {
+        $year = (string) ($year ?? now()->year);
+
+        return $this->generate(
+            'material_order',
+            $year,
+            fn (int $n) => "OH-{$year}-".str_pad((string) $n, 4, '0', STR_PAD_LEFT),
+            fn () => $this->maxNumericSuffix(MaterialOrder::withTrashed()->where('code', 'like', "OH-{$year}-%")->pluck('code'), '/^OH-'.$year.'-(\d+)$/'),
+            fn (string $code) => MaterialOrder::withTrashed()->where('code', $code)->exists(),
         );
     }
 
