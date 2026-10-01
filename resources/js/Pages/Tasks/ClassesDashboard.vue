@@ -116,10 +116,10 @@ const tabUrl = (tab) => route('tasks.classes-dashboard', tab === 'day' ? { tab, 
                                     <div v-if="s.holiday" class="mt-xs font-caption text-caption text-on-surface-variant">{{ s.holiday }}</div>
                                 </td>
                                 <td class="whitespace-nowrap text-right">
-                                    <!-- Chưa tới giờ học → nút Điểm danh khóa kèm quy định cửa sổ 24h. -->
+                                    <!-- Ngoài khung ±24h quanh giờ bắt đầu (GV) / chưa tới giờ học → nút Điểm danh khóa kèm lý do. -->
                                     <div v-if="s.action.kind === 'locked'" class="inline-flex flex-col items-end gap-xs">
                                         <UiButton size="sm" variant="secondary" icon="how_to_reg" disabled>Điểm danh</UiButton>
-                                        <span class="max-w-[180px] whitespace-normal text-right font-caption text-caption text-on-surface-variant">Chỉ được điểm danh trong vòng 24h sau giờ học</span>
+                                        <span class="max-w-[180px] whitespace-normal text-right font-caption text-caption text-on-surface-variant">{{ s.action.message || 'Ngoài khung ±24h so với giờ bắt đầu buổi học' }}</span>
                                     </div>
                                     <UiButton v-else-if="s.action.kind === 'link'" size="sm" :variant="s.action.primary ? 'primary' : 'secondary'" icon="how_to_reg" :href="s.action.href" :title="s.action.title">{{ s.action.label }}</UiButton>
                                     <span v-else-if="s.action.kind === 'makeup'" class="font-caption text-caption text-on-surface-variant">Bù ngày {{ s.action.date }}</span>

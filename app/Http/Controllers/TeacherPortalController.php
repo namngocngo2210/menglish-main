@@ -484,7 +484,8 @@ class TeacherPortalController extends Controller
             ? StudentAttendance::with('recorder')->where('class_session_id', $session->id)->get()->keyBy('student_id')
             : collect();
         $students = $session ? $this->sessionRoster($class, $session, $existing) : collect();
-        $blockReason = $session ? $this->attendanceBlockReason($session) : null;
+        $blockReason = $session ? $this->attendanceBlockReason($session, teacherWindow: true) : null;
+        $windowReason = $session ? $this->attendanceWindowReason($session, $class) : null;
         $onBehalf = ! $this->isAssignedStaff($user, $class, $session);
         $today = ($session?->date ?? now())->toDateString();
         $window = $session ? app(\App\Services\ClassDashboardService::class)->attendanceWindow($session) : null;
@@ -519,6 +520,7 @@ class TeacherPortalController extends Controller
                 ];
             })->values()->all(),
             'blockReason' => $blockReason,
+            'windowReason' => $windowReason,
             'onBehalf' => $onBehalf,
             'onBehalfName' => $onBehalf ? ($session?->teacher?->name ?? $class->teacher?->name ?? 'giáo viên của lớp') : null,
             'recentSessions' => $this->sessionOptions($recentSessions, withAttendance: true),
@@ -594,7 +596,7 @@ class TeacherPortalController extends Controller
         if (! $session) {
             return back()->withErrors(['session' => 'Lớp không có buổi học trong ngày này. Hãy chọn buổi cần điểm danh.']);
         }
-        if ($reason = $this->attendanceBlockReason($session)) {
+        if ($reason = $this->attendanceBlockReason($session, teacherWindow: true) ?? $this->attendanceWindowReason($session, $class)) {
             return back()->withErrors(['session' => $reason]);
         }
 
@@ -691,10 +693,28 @@ class TeacherPortalController extends Controller
             ?? $usable->first();
     }
 
-    private function attendanceBlockReason(ClassSession $session): ?string
+    /** Thông báo khi GV điểm danh ngoài khung ±24h quanh giờ bắt đầu buổi (Học vụ record_any không bị chặn). */
+    private const OUTSIDE_ATTENDANCE_WINDOW = 'Ngoài khung ±24h so với giờ bắt đầu buổi học — liên hệ Học vụ để điểm danh.';
+
+    /** Người này có bị giới hạn khung ±24h không (GV/TA tự điểm danh; Học vụ/Admin có record_any thì bỏ qua). */
+    private function attendanceWindowReason(ClassSession $session, ClassModel $class): ?string
+    {
+        $user = Auth::user();
+        if ($session->status === 'cancelled' || ($user && $user->can('attendance_student.record_any'))) {
+            return null;
+        }
+
+        return $session->withinTeacherAttendanceWindow() ? null : self::OUTSIDE_ATTENDANCE_WINDOW;
+    }
+
+    private function attendanceBlockReason(ClassSession $session, bool $teacherWindow = false): ?string
     {
         if ($session->status === 'cancelled') {
             return 'Buổi học này đã hủy'.($session->holiday_id ? ' (nghỉ lễ)' : '').' — không điểm danh.';
+        }
+        // Điểm danh của GV: khung ±24h thay cho chặn "chưa tới ngày" (buổi sáng mai vẫn điểm danh được từ chiều nay).
+        if ($teacherWindow && ! Auth::user()?->can('attendance_student.record_any')) {
+            return null;
         }
         if ($session->date->isAfter(today())) {
             return 'Buổi học ngày '.$session->date->format('d/m/Y').' chưa diễn ra — chưa điểm danh được.';

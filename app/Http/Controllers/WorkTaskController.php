@@ -412,7 +412,9 @@ class WorkTaskController extends Controller
         }
 
         $canRecord = $viewer->can('attendance_student.record');
-        $dayRows = $daySessions->map(function (ClassSession $session) use ($dashboard, $today, $seats, $canRecord) {
+        // GV/TA chỉ điểm danh trong ±24h quanh giờ bắt đầu; Học vụ/Admin (record_any) không bị giới hạn.
+        $windowLimited = ! $viewer->can('attendance_student.record_any');
+        $dayRows = $daySessions->map(function (ClassSession $session) use ($dashboard, $today, $seats, $canRecord, $windowLimited) {
             $class = $session->classModel;
             $state = $dashboard->attendanceState($session, $today);
             // teacher_id cũ = GV chính ?? GVNN: không lặp tên GVNN ở cột GV chính.
@@ -421,8 +423,10 @@ class WorkTaskController extends Controller
             $open = $session->status !== 'cancelled' && $class && $canRecord;
             $action = match (true) {
                 // Chưa tới giờ học → nút Điểm danh khóa kèm quy định cửa sổ 24h.
-                $open && $state['key'] !== 'done' && $window === 'before' => ['kind' => 'locked'],
-                $open && ! $session->date->gt($today) => [
+                $open && $state['key'] !== 'done' && $windowLimited && ! $session->withinTeacherAttendanceWindow()
+                    => ['kind' => 'locked', 'message' => 'Ngoài khung ±24h so với giờ bắt đầu buổi học — liên hệ Học vụ để điểm danh.'],
+                $open && $state['key'] !== 'done' && $window === 'before' && ! $windowLimited => ['kind' => 'locked', 'message' => 'Chưa tới giờ học — chưa điểm danh được.'],
+                $open && ($windowLimited ? true : ! $session->date->gt($today)) => [
                     'kind' => 'link',
                     'primary' => ! ($state['key'] === 'done' || $window === 'closed'),
                     'label' => $state['key'] === 'done' ? 'Xem điểm danh' : ($window === 'closed' ? 'Điểm danh bù' : 'Điểm danh'),
