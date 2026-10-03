@@ -23,6 +23,7 @@ use App\Http\Controllers\PenaltyController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\PlacementTestController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PromotionController;
 use App\Http\Controllers\RecruitmentController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\RoomController;
@@ -155,7 +156,15 @@ Route::middleware('auth')->group(function () {
         Route::get('/customers-won', [CrmController::class, 'wonCustomers'])->name('customers.won');
         Route::get('/closing-wizard', [CrmController::class, 'closingWizard'])->middleware('can:lead.convert')->name('closing-wizard');
         Route::post('/closing-wizard', [CrmController::class, 'processClosingWizard'])->middleware('can:lead.convert')->name('closing-wizard.store');
-        Route::post('/promotions/store', [CrmController::class, 'storePromotion'])->middleware('can:promotion.manage')->name('promotions.store');
+        Route::post('/promotions/store', [PromotionController::class, 'store'])->middleware('can:promotion.manage')->name('promotions.store');
+        // Danh mục ưu đãi học phí: dùng lại khi chốt khách / lập phiếu thu; không xóa, chỉ ngừng áp dụng.
+        Route::middleware('can:promotion.manage')->group(function () {
+            Route::get('/promotions', [PromotionController::class, 'index'])->name('promotions.index');
+            Route::get('/promotions/create', [PromotionController::class, 'create'])->name('promotions.create');
+            Route::get('/promotions/{promotion}/edit', [PromotionController::class, 'edit'])->name('promotions.edit');
+            Route::put('/promotions/{promotion}', [PromotionController::class, 'update'])->name('promotions.update');
+            Route::post('/promotions/{promotion}/toggle', [PromotionController::class, 'toggle'])->name('promotions.toggle');
+        });
         Route::get('/lost-deals', [CrmController::class, 'lostDeals'])->name('lost-deals');
         // Phase 1 CRM: khách đã xóa / khôi phục, phân công lại, in hồ sơ, chăm sóc tháng đầu, xác nhận chính thức, nhập Excel.
         Route::get('/customers-deleted', [CrmController::class, 'deletedCustomers'])->middleware('can:lead.delete')->name('customers.deleted');

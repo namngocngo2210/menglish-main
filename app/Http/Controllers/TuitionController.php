@@ -12,6 +12,7 @@ use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\InvoiceCancellation;
 use App\Models\InvoiceConfiguration;
+use App\Models\Promotion;
 use App\Models\SepayTransaction;
 use App\Models\Student;
 use App\Models\StudentTuition;
@@ -425,6 +426,9 @@ class TuitionController extends Controller
                 'student_parent_phone' => $t->student?->parent_phone ?? $t->student?->phone ?? '',
                 'class_name' => $t->classModel?->name ?? 'Chưa xếp lớp',
                 'branch_name' => $t->student?->branch?->name ?? 'Trụ sở chính',
+                // Phạm vi chọn ưu đãi (cơ sở / khóa của khoản học phí), cùng cách tính với receiptDiscount().
+                'branch_id' => $t->branch_id ?? $t->student?->branch_id,
+                'course_id' => $t->classModel?->course_id ?? $t->student?->currentClass?->course_id,
                 'total_amount' => (float) ($t->total_amount ?? 0),
                 'discount_amount' => (float) ($t->discount_amount ?? 0),
                 'other_fees' => (float) ($t->other_fees ?? 0),
@@ -458,6 +462,12 @@ class TuitionController extends Controller
                 'status_label' => $st->status_label,
                 'transfer_memo' => TransferMemo::build($st->code, $st->name, $st->currentClass?->name),
             ])->values(),
+            // Ưu đãi trong danh mục còn hiệu lực (+ ưu đãi phiếu đang sửa đã chọn, dù đã hết hạn) để chọn lại khi thu.
+            'promotions' => Promotion::query()->catalog()
+                ->where(fn ($q) => $q->whereIn('id', Promotion::query()->available()->select('id'))
+                    ->when($editingReceipt?->promotion_id, fn ($w) => $w->orWhere('id', $editingReceipt->promotion_id)))
+                ->orderByDesc('is_default')->orderBy('name')->get()
+                ->map(fn (Promotion $p) => PromotionController::props($p))->values(),
             'initialTuitionId' => (string) $initialTuitionId,
             'initialStudentId' => (string) $initialStudentId,
             'defaultBank' => $defaultBank ? [
@@ -472,6 +482,8 @@ class TuitionController extends Controller
                 'status' => $editingReceipt->status,
                 'status_label' => $editingReceipt->status_label,
                 'discount_amount' => (float) $editingReceipt->discount_amount,
+                'promotion_id' => $editingReceipt->promotion_id,
+                'discount_reason' => $editingReceipt->discount_reason,
                 'surcharge_amount' => (float) $editingReceipt->surcharge_amount,
                 'surcharge_reason' => $editingReceipt->surcharge_reason,
                 'tuition_amount' => $editingReceipt->tuitionPortion(),
@@ -502,6 +514,8 @@ class TuitionController extends Controller
             'student_tuition_id' => 'nullable|exists:student_tuitions,id',
             'tuition_amount' => 'nullable|numeric|min:0',
             'discount_amount' => 'nullable|numeric|min:0',
+            'promotion_id' => 'nullable|exists:promotions,id',
+            'discount_reason' => 'nullable|string|max:500',
             'surcharge_amount' => 'nullable|numeric|min:0',
             'surcharge_reason' => 'nullable|string|max:500',
             'amount' => 'required|numeric|min:1000',
@@ -561,7 +575,11 @@ class TuitionController extends Controller
         // Phiếu thu KHÔNG bao giờ tự duyệt khi lập: chỉ endpoint approve (tuition.approve) mới duyệt & cấp số HĐ.
         $status = $isDraft ? TuitionReceipt::STATUS_DRAFT : TuitionReceipt::STATUS_PENDING;
         $surcharge = (float) ($validated['surcharge_amount'] ?? 0);
-        $discount = $tuition ? (float) ($validated['discount_amount'] ?? 0) : 0.0;
+        $discountInfo = $this->receiptDiscount($validated, $tuition, $isDraft);
+        if (isset($discountInfo['error'])) {
+            return back()->withErrors($discountInfo['error'])->withInput();
+        }
+        $discount = $discountInfo['discount_amount'];
 
         if (! $isDraft && $tuition && ($overpayError = $this->overpaymentError($tuition, (float) $validated['amount'] - $surcharge, $discount))) {
             return back()->withErrors(['amount' => $overpayError])->withInput();
@@ -578,6 +596,8 @@ class TuitionController extends Controller
                 'amount' => $validated['amount'],
                 'tuition_amount' => (float) $validated['amount'] - $surcharge,
                 'discount_amount' => $discount,
+                'promotion_id' => $discountInfo['promotion_id'],
+                'discount_reason' => $discountInfo['discount_reason'],
                 'surcharge_amount' => $surcharge,
                 'surcharge_reason' => $validated['surcharge_reason'] ?? null,
                 'payment_method' => $validated['payment_method'],
@@ -622,6 +642,8 @@ class TuitionController extends Controller
     {
         $validated = $request->validate([
             'discount_amount' => 'nullable|numeric|min:0',
+            'promotion_id' => 'nullable|exists:promotions,id',
+            'discount_reason' => 'nullable|string|max:500',
             'surcharge_amount' => 'nullable|numeric|min:0',
             'surcharge_reason' => 'nullable|string|max:500',
             'tuition_amount' => 'nullable|numeric|min:0',
@@ -648,7 +670,11 @@ class TuitionController extends Controller
 
         $isDraft = ($validated['submit_action'] ?? null) === 'draft';
         $surcharge = (float) ($validated['surcharge_amount'] ?? 0);
-        $discount = $receipt->tuition ? (float) ($validated['discount_amount'] ?? 0) : 0.0;
+        $discountInfo = $this->receiptDiscount($validated, $receipt->tuition, $isDraft, $receipt);
+        if (isset($discountInfo['error'])) {
+            return back()->withErrors($discountInfo['error'])->withInput();
+        }
+        $discount = $discountInfo['discount_amount'];
         $transactionCode = $request->has('transaction_code')
             ? (($validated['transaction_code'] ?? null) ?: null)
             : $receipt->transaction_code;
@@ -671,7 +697,7 @@ class TuitionController extends Controller
         $proofPath = $newProof ?? ($keepsProof ? $receipt->proof_image : null);
 
         try {
-            $updated = DB::transaction(function () use ($id, $validated, $isDraft, $surcharge, $discount, $transactionCode, $proofPath, $request) {
+            $updated = DB::transaction(function () use ($id, $validated, $isDraft, $surcharge, $discount, $discountInfo, $transactionCode, $proofPath, $request) {
                 $locked = TuitionReceipt::query()->lockForUpdate()->findOrFail($id);
                 if (! in_array($locked->status, TuitionReceipt::EDITABLE_STATUSES, true)) {
                     return null;
@@ -681,6 +707,8 @@ class TuitionController extends Controller
                     'amount' => $validated['amount'],
                     'tuition_amount' => (float) $validated['amount'] - $surcharge,
                     'discount_amount' => $discount,
+                    'promotion_id' => $discountInfo['promotion_id'],
+                    'discount_reason' => $discountInfo['discount_reason'],
                     'surcharge_amount' => $surcharge,
                     'surcharge_reason' => $validated['surcharge_reason'] ?? null,
                     'payment_method' => $validated['payment_method'],
@@ -843,6 +871,54 @@ class TuitionController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * Giảm trừ của phiếu thu: ưu tiên ưu đãi có sẵn trong danh mục (server tự tính lại số tiền giảm theo ưu đãi),
+     * nhập tay số tiền giảm là ca đặc biệt → bắt buộc lý do khi gửi duyệt. Phiếu chỉ thu phụ thu không có giảm trừ.
+     *
+     * @param  array<string, mixed>  $validated
+     * @return array{promotion_id: ?int, discount_amount: float, discount_reason: ?string}|array{error: array<string, string>}
+     */
+    private function receiptDiscount(array $validated, ?StudentTuition $tuition, bool $isDraft, ?TuitionReceipt $existing = null): array
+    {
+        if (! $tuition) {
+            return ['promotion_id' => null, 'discount_amount' => 0.0, 'discount_reason' => null];
+        }
+
+        $reason = trim((string) ($validated['discount_reason'] ?? '')) ?: null;
+        if (! empty($validated['promotion_id'])) {
+            $promotion = Promotion::find($validated['promotion_id']);
+            $tuition->loadMissing(['classModel', 'student.currentClass']);
+            $courseId = $tuition->classModel?->course_id ?? $tuition->student?->currentClass?->course_id;
+            $branchId = $tuition->branch_id ?? $tuition->student?->branch_id;
+            // Sửa phiếu bị trả về: giữ được ưu đãi đã chọn trước đó dù ưu đãi đã hết hạn / hết lượt.
+            $keepsOwn = $existing && (int) $existing->promotion_id === (int) $validated['promotion_id'];
+            if (! $promotion || $promotion->is_special || (! $keepsOwn && ! $promotion->isApplicable($branchId, $courseId))) {
+                return ['error' => ['promotion_id' => 'Ưu đãi không còn hiệu lực hoặc không áp dụng cho khoản học phí này.']];
+            }
+
+            return [
+                'promotion_id' => $promotion->id,
+                'discount_amount' => $promotion->calculateDiscount(self::receiptDiscountBase($tuition)),
+                'discount_reason' => $reason,
+            ];
+        }
+
+        $discount = (float) ($validated['discount_amount'] ?? 0);
+        if ($discount > 0 && ! $reason && ! $isDraft) {
+            return ['error' => ['discount_reason' => 'Giảm trừ không theo ưu đãi có sẵn: nhập lý do giảm.']];
+        }
+
+        return ['promotion_id' => null, 'discount_amount' => $discount, 'discount_reason' => $discount > 0 ? $reason : null];
+    }
+
+    /** Số tiền tính ưu đãi trên phiếu thu = phần còn phải thu (như form lập phiếu: công nợ, chưa có thì tổng hợp đồng). */
+    private static function receiptDiscountBase(StudentTuition $tuition): float
+    {
+        return (float) $tuition->debt_amount > 0
+            ? (float) $tuition->debt_amount
+            : (float) $tuition->total_amount + (float) $tuition->other_fees;
     }
 
     /**
@@ -1061,6 +1137,11 @@ class TuitionController extends Controller
                 'tuition_due_date' => $selectedReceipt->tuition?->due_date?->format('d/m/Y'),
                 'fee_label' => $selectedReceipt->tuition?->fee_label,
                 'discount_amount' => (float) ($selectedReceipt->discount_amount ?? 0),
+                'promotion_id' => $selectedReceipt->promotion_id,
+                'promotion_name' => $selectedReceipt->promotion?->name,
+                'contract_promotion_name' => $selectedReceipt->tuition?->promotion?->name,
+                'contract_promotion_reason' => $selectedReceipt->tuition?->promotion?->reason,
+                'discount_reason' => $selectedReceipt->discount_reason,
                 'tuition_portion' => $selectedReceipt->tuitionPortion(),
                 'surcharge_amount' => (float) ($selectedReceipt->surcharge_amount ?? 0),
                 'surcharge_reason' => $selectedReceipt->surcharge_reason,
@@ -1132,6 +1213,10 @@ class TuitionController extends Controller
 
             $tuition?->recalculateDebt();
             $this->linkUnappliedSepayTransaction($receipt);
+            // Ưu đãi chọn khi lập phiếu thu tính lượt dùng lúc phiếu được duyệt (ưu đãi lúc chốt khách tính khi chốt).
+            if ($receipt->promotion_id && (float) $receipt->discount_amount > 0) {
+                Promotion::whereKey($receipt->promotion_id)->increment('used_count');
+            }
 
             return $receipt;
         });

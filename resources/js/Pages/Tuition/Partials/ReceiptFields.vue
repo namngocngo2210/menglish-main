@@ -7,6 +7,7 @@
 import { computed, ref } from 'vue';
 import { Link, useFormContext } from '@inertiajs/vue3';
 import { formatMoney } from '@/lib/format';
+import { promotionLabel } from '@/lib/promotion';
 
 const props = defineProps({
     form: { type: Object, required: true },
@@ -25,6 +26,7 @@ const tuitionOptions = computed(() =>
     props.form.tuitions.map((t) => ({ value: String(t.id), label: t.student_name + ' (' + t.student_code_short + ') - ' + t.class_name + ' · Nợ: ' + money(t.debt_amount) })),
 );
 const studentOptions = computed(() => props.form.students.map((st) => ({ value: String(st.id), label: st.name + ' (' + st.code_short + ') · ' + st.class_name + ' (' + st.branch_name + ')' })));
+const promotionOptions = computed(() => props.form.availablePromotions.map((p) => ({ value: String(p.id), label: promotionLabel(p) })));
 const methodClass = (method) => (s.value.paymentMethod === method ? 'border-primary-container bg-primary-container/10 ring-1 ring-primary-container' : 'border-surface-container-highest hover:bg-surface-container-low');
 </script>
 
@@ -176,8 +178,29 @@ const methodClass = (method) => (s.value.paymentMethod === method ? 'border-prim
 
                 <!-- Giảm trừ & tổng học phí -->
                 <div class="mt-4 flex flex-col items-start justify-between gap-4 border-t border-surface-container-highest pt-4 md:flex-row md:items-center">
-                    <div class="w-full md:w-80">
-                        <UiInput v-model.number="s.discountAmount" type="number" name="discount_amount" :id="prefix + 'discount_amount'" label="Số tiền giảm trừ (VNĐ)" hint="Không vượt tổng trước giảm." suffix="VNĐ" min="0" :max="form.tuitionSubtotal" class="font-code font-bold" placeholder="0" />
+                    <!-- Giảm trừ: ưu tiên chọn ưu đãi có sẵn; nhập tay là ca đặc biệt, phải ghi lý do. -->
+                    <div class="grid w-full gap-3 md:w-96">
+                        <input type="hidden" name="promotion_id" :value="form.selectedPromotion ? form.selectedPromotion.id : ''" />
+                        <input type="hidden" name="discount_amount" :value="form.discountValue" />
+                        <UiSelect
+                            v-model="s.promotionId"
+                            :id="prefix + 'promotion_id'"
+                            label="Ưu đãi áp dụng"
+                            :options="promotionOptions"
+                            placeholder="-- Không theo ưu đãi (nhập tay) --"
+                            :hint="form.selectedPromotion ? 'Tính trên số còn phải thu ' + money(form.tuitionSubtotal) + '.' : 'Ưu tiên chọn ưu đãi có sẵn. Ưu đãi trên hợp đồng đã trừ trong công nợ.'"
+                        />
+                        <UiInput v-if="form.selectedPromotion" :id="prefix + 'discount_amount'" label="Số tiền giảm trừ (VNĐ)" :model-value="form.discountValue" readonly suffix="VNĐ" class="font-code font-bold" />
+                        <UiInput v-else v-model.number="s.discountAmount" type="number" :id="prefix + 'discount_amount'" label="Số tiền giảm trừ (VNĐ)" hint="Không vượt tổng trước giảm." suffix="VNĐ" min="0" :max="form.tuitionSubtotal" class="font-code font-bold" placeholder="0" />
+                        <UiInput
+                            v-if="form.selectedPromotion || form.needsDiscountReason"
+                            v-model="s.discountReason"
+                            name="discount_reason"
+                            :id="prefix + 'discount_reason'"
+                            :label="form.needsDiscountReason ? 'Lý do giảm (ca đặc biệt)' : 'Ghi chú ưu đãi'"
+                            :required="form.needsDiscountReason"
+                            :placeholder="form.needsDiscountReason ? 'VD: Quản lý duyệt giảm do học viên chuyển lớp muộn' : 'Tùy chọn'"
+                        />
                     </div>
                     <div class="flex w-full flex-col items-end gap-1 text-xs md:w-auto">
                         <div class="flex items-baseline gap-4">
@@ -250,7 +273,7 @@ const methodClass = (method) => (s.value.paymentMethod === method ? 'border-prim
                     </span>
                     <span v-else class="flex items-center gap-1 text-xs font-medium text-error">
                         <span class="material-symbols-outlined text-sm text-error">warning</span>
-                        Chưa hợp lệ: Cần chọn khoản học phí hoặc nhập số tiền phụ thu > 0.
+                        {{ form.needsDiscountReason && !s.discountReason.trim() ? 'Chưa hợp lệ: Nhập lý do giảm trừ (không theo ưu đãi có sẵn).' : 'Chưa hợp lệ: Cần chọn khoản học phí hoặc nhập số tiền phụ thu > 0.' }}
                     </span>
                 </div>
             </div>

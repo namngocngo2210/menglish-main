@@ -17,6 +17,7 @@ const props = defineProps({
     asModal: { type: Boolean, default: false },
     tuitions: { type: Array, default: () => [] },
     students: { type: Array, default: () => [] },
+    promotions: { type: Array, default: () => [] },
     initialTuitionId: { type: String, default: '' },
     initialStudentId: { type: String, default: '' },
     defaultBank: { type: Object, default: null },

@@ -2103,11 +2103,8 @@ class CrmController extends Controller
             ->when($selectedCustomer?->branch_id, fn (Builder $query, int $branchId) => $query
                 ->where(fn (Builder $accountQuery) => $accountQuery->where('branch_id', $branchId)->orWhereNull('branch_id')))
             ->get();
-        $promotions = Promotion::where('is_active', true)
-            ->where(fn (Builder $query) => $query->whereNull('starts_at')->orWhere('starts_at', '<=', now()))
-            ->where(fn (Builder $query) => $query->whereNull('ends_at')->orWhere('ends_at', '>=', now()))
-            ->where(fn (Builder $query) => $query->whereNull('usage_limit')->orWhereColumn('used_count', '<', 'usage_limit'))
-            ->get();
+        // Chỉ ưu đãi dùng lại được (danh mục); ưu đãi riêng ca đặc biệt tạo ngay trong màn này.
+        $promotions = Promotion::available()->catalog()->orderByDesc('is_default')->orderBy('name')->get();
         $merchandiseItems = MerchandiseItem::active()->orderBy('category')->orderBy('name')->get();
 
         // Mã học viên cấp sẵn khi mở màn chốt để nội dung CK / VietQR xem trước đúng với mã thật sau khi chốt.
@@ -2162,7 +2159,7 @@ class CrmController extends Controller
                 'account_holder' => $bank->account_holder,
             ])->values()->all(),
             'defaultBankAccountId' => $defaultBank?->id,
-            'promotions' => $promotions->map(fn (Promotion $promotion) => $this->promotionProps($promotion))->values()->all(),
+            'promotions' => $promotions->map(fn (Promotion $promotion) => PromotionController::props($promotion))->values()->all(),
             'merchandiseItems' => $merchandiseItems->map(fn (MerchandiseItem $item) => [
                 'id' => $item->id,
                 'name' => $item->name,
@@ -2187,83 +2184,6 @@ class CrmController extends Controller
                 'to' => now()->addMonths(3)->format('d/m/Y'),
             ],
         ]);
-    }
-
-    /**
-     * Ưu đãi gửi sang màn Chốt & Xếp lớp (lọc theo cơ sở / khóa, tính giảm trừ phía trình duyệt).
-     *
-     * @return array<string, mixed>
-     */
-    private function promotionProps(Promotion $promotion): array
-    {
-        return [
-            'id' => $promotion->id,
-            'name' => $promotion->name,
-            'type' => $promotion->type,
-            'value' => (float) $promotion->value,
-            'max_discount_amount' => $promotion->max_discount_amount !== null ? (float) $promotion->max_discount_amount : null,
-            'branch_id' => $promotion->branch_id,
-            'course_id' => $promotion->course_id,
-        ];
-    }
-
-    public function storePromotion(Request $request)
-    {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'type' => 'required|in:fixed,percent',
-            'value' => 'required|numeric|min:0',
-            'max_discount_amount' => 'nullable|numeric|min:0',
-            'description' => 'nullable|string|max:1000',
-            'branch_id' => 'nullable|exists:branches,id',
-            'course_id' => 'nullable|exists:courses,id,deleted_at,NULL',
-            'starts_at' => 'nullable|date',
-            'ends_at' => 'nullable|date',
-            'usage_limit' => 'nullable|integer|min:1',
-        ]);
-        if ($validated['type'] === 'percent' && (float) $validated['value'] > 100) {
-            throw ValidationException::withMessages(['value' => 'Ưu đãi phần trăm không được vượt quá 100%.']);
-        }
-        if (! empty($validated['starts_at']) && ! empty($validated['ends_at'])
-            && Carbon::parse($validated['ends_at'])->lte(Carbon::parse($validated['starts_at']))) {
-            throw ValidationException::withMessages(['ends_at' => 'Ngày kết thúc ưu đãi phải sau ngày bắt đầu.']);
-        }
-
-        // Mã ưu đãi: prefix theo tên + hậu tố ngẫu nhiên; promotions.code là UNIQUE nên phải kiểm tra trùng.
-        $namePrefix = strtoupper(substr(preg_replace('/[^a-zA-Z0-9]/', '', Str::ascii($validated['name'])), 0, 4));
-        do {
-            $code = 'UD'.$namePrefix.strtoupper(Str::random(3));
-        } while (Promotion::where('code', $code)->exists());
-
-        try {
-            $promotion = Promotion::create([
-                'code' => $code,
-                'name' => $validated['name'],
-                'type' => $validated['type'],
-                'value' => $validated['value'],
-                'max_discount_amount' => $validated['max_discount_amount'] ?? null,
-                'description' => $validated['description'] ?? null,
-                'branch_id' => $validated['branch_id'] ?? null,
-                'course_id' => $validated['course_id'] ?? null,
-                'starts_at' => $validated['starts_at'] ?? null,
-                'ends_at' => $validated['ends_at'] ?? null,
-                'usage_limit' => $validated['usage_limit'] ?? null,
-                'is_active' => true,
-            ]);
-        } catch (UniqueConstraintViolationException) {
-            // Hai phiên tạo ưu đãi trùng mã cùng lúc: ràng buộc UNIQUE ở DB là chốt chặn cuối.
-            throw ValidationException::withMessages(['name' => 'Không tạo được ưu đãi do trùng mã, vui lòng thử lại.']);
-        }
-
-        if ($this->wantsJsonResponse($request)) {
-            return response()->json([
-                'success' => true,
-                'message' => "Đã tạo mới ưu đãi '{$promotion->name}' thành công!",
-                'promotion' => $promotion,
-            ]);
-        }
-
-        return redirect()->back()->with('status', "Đã tạo mới ưu đãi '{$promotion->name}' thành công!");
     }
 
     /**
@@ -2374,6 +2294,10 @@ class CrmController extends Controller
                 $promotion = Promotion::whereKey($validated['promotion_id'])->lockForUpdate()->first();
                 if (! $promotion?->isApplicable($branchId, $course->id)) {
                     throw ValidationException::withMessages(['promotion_id' => 'Ưu đãi không còn hiệu lực hoặc không áp dụng cho khóa / lớp đã chọn.']);
+                }
+                // Ưu đãi riêng (ca đặc biệt) chỉ người tạo dùng cho khách đang chốt, không lấy lại cho khách khác.
+                if ($promotion->is_special && (int) $promotion->created_by !== (int) Auth::id()) {
+                    throw ValidationException::withMessages(['promotion_id' => 'Ưu đãi riêng này do người khác tạo cho khách khác, hãy chọn ưu đãi trong danh mục.']);
                 }
                 $discount = $promotion->calculateDiscount($baseTuition);
             }
