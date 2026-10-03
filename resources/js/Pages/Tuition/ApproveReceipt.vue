@@ -293,7 +293,12 @@ onBeforeUnmount(() => clearInterval(timer));
                                         Học phí
                                         <span v-if="selected.tuition_due_date" class="block text-xs font-normal text-on-surface-variant">(Hạn {{ selected.tuition_due_date }})</span>
                                     </td>
-                                    <td class="text-on-surface-variant">{{ selected.fee_label ?? 'Không gắn khoản học phí (chỉ phụ thu)' }} (Đã miễn giảm {{ formatMoney(selected.discount_amount) }})</td>
+                                    <td class="text-on-surface-variant">
+                                        {{ selected.fee_label ?? 'Không gắn khoản học phí (chỉ phụ thu)' }} (Đã miễn giảm {{ formatMoney(selected.discount_amount) }})
+                                        <span v-if="selected.contract_promotion_name" class="block text-xs">Ưu đãi trên hợp đồng (lúc chốt): <strong class="text-on-surface">{{ selected.contract_promotion_name }}</strong><template v-if="selected.contract_promotion_reason"> · Lý do: {{ selected.contract_promotion_reason }}</template></span>
+                                        <span v-if="selected.promotion_name" class="block text-xs">Ưu đãi của phiếu này: <strong class="text-on-surface">{{ selected.promotion_name }}</strong></span>
+                                        <span v-if="selected.discount_reason" class="block text-xs">{{ selected.promotion_name ? 'Ghi chú' : 'Lý do giảm (ca đặc biệt)' }}: <strong class="text-on-surface">{{ selected.discount_reason }}</strong></span>
+                                    </td>
                                     <td><UiMoney :value="selected.tuition_portion" suffix="đ" class="font-bold" /></td>
                                 </tr>
                                 <tr v-if="selected.surcharge_amount > 0" class="bg-warning-container/40">
@@ -328,6 +333,23 @@ onBeforeUnmount(() => clearInterval(timer));
                             <p class="text-xs italic leading-relaxed text-on-surface-variant">{{ selected.notes ? '"' + selected.notes + '"' : 'Không có ghi chú.' }}</p>
                         </div>
                     </div>
+
+                    <!-- Sách / hàng hóa xuất kho chi nhánh khi duyệt -->
+                    <div v-if="selected.stock_out?.length" class="mt-4 space-y-2 rounded-lg border border-surface-container-highest p-3.5 text-xs" data-testid="stock-out-preview">
+                        <span class="flex items-center gap-1.5 font-bold uppercase text-on-surface-variant">
+                            <span class="material-symbols-outlined text-base text-primary" aria-hidden="true">inventory_2</span>Duyệt phiếu sẽ xuất kho {{ selected.branch_name }}
+                        </span>
+                        <div v-for="line in selected.stock_out" :key="line.item_id + line.source" class="flex flex-wrap items-center justify-between gap-2 border-b border-dashed border-surface-container-highest py-1 last:border-0">
+                            <span class="text-on-surface">
+                                {{ line.name }} <strong class="font-code">×{{ line.quantity }}</strong>
+                                <span class="text-on-surface-subtle">· {{ line.source === 'contract' ? 'sách trong hợp đồng' : 'phụ thu' }}</span>
+                            </span>
+                            <span :class="['font-code', line.stock_after < 0 ? 'font-bold text-error' : 'text-on-surface-variant']">
+                                Tồn {{ line.stock }} → {{ line.stock_after }}<template v-if="line.stock_after < 0"> (âm kho)</template>
+                            </span>
+                        </div>
+                        <p v-if="selected.stock_out.some((l) => l.stock_after < 0)" class="text-error">Kho chi nhánh không đủ hàng: vẫn duyệt được, nhắc chi nhánh nhập kho bổ sung hoặc kiểm kê lại.</p>
+                    </div>
                 </div>
 
                 <!-- 3. Minh chứng -->
@@ -348,6 +370,10 @@ onBeforeUnmount(() => clearInterval(timer));
                         </div>
                     </div>
 
+                    <UiAlert v-if="selected.issued_paper_invoice" type="info" class="mb-3" title="Đối chiếu số hóa đơn giấy">
+                        Hệ thống đã cấp số <strong class="font-code">{{ selected.issued_paper_invoice }}</strong> cho phiếu tiền mặt này. Số ghi trên ảnh hóa đơn giấy phải trùng số này;
+                        sai số thì từ chối và để người lập tạo yêu cầu hủy hóa đơn.
+                    </UiAlert>
                     <div class="flex flex-col items-center gap-5 rounded-xl border border-inverse-surface bg-inverse-surface p-5 md:flex-row">
                         <div class="group/img relative flex h-52 w-full shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/5 md:w-64" @click="zoomOpen = true">
                             <img v-if="selected.proof_image" :src="selected.proof_image" alt="Minh chứng" class="h-full w-full object-contain" />
@@ -419,6 +445,8 @@ onBeforeUnmount(() => clearInterval(timer));
                         <input type="hidden" name="amount" :value="selected.amount" />
                         <input type="hidden" name="tuition_amount" :value="selected.tuition_portion" />
                         <input type="hidden" name="discount_amount" :value="selected.discount_amount" />
+                        <input type="hidden" name="promotion_id" :value="selected.promotion_id ?? ''" />
+                        <input type="hidden" name="discount_reason" :value="selected.discount_reason ?? ''" />
                         <input type="hidden" name="surcharge_amount" :value="selected.surcharge_amount" />
                         <input type="hidden" name="surcharge_reason" :value="selected.surcharge_reason ?? ''" />
                         <input type="hidden" name="payment_method" :value="selected.payment_method" />

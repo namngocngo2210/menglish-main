@@ -131,6 +131,8 @@ final class SidebarMenu
                     // Báo cáo tuyển sinh thuộc CRM (30/09/2026, trước ở khu "Báo cáo" riêng). Quyền theo middleware
                     // report.view: chỉ Admin, hoặc người được Admin cấp riêng "Xem báo cáo".
                     ['label' => 'Báo cáo', 'route' => 'crm.reports'],
+                    // Danh mục ưu đãi học phí (dùng lại khi chốt khách / lập phiếu thu).
+                    ['label' => 'Ưu đãi', 'route' => 'crm.promotions.index', 'active' => ['crm.promotions.*']],
                 ]),
                 // Không đặt nút "Xếp lớp" ở header: Chốt & Xếp lớp mở từ thẻ Kanban / hồ sơ khách / Dashboard,
                 // khách Chờ xếp lớp xếp từ cột Hành động của bảng Chờ xếp lớp. Quyền theo middleware (lead.create).
@@ -257,7 +259,8 @@ final class SidebarMenu
                 'label' => 'Kho vật phẩm',
                 'icon' => 'inventory_2',
                 'items' => [
-                    ['label' => 'Hàng hóa & Vật phẩm', 'route' => 'merchandise.index', 'active' => ['merchandise.*']],
+                    ['label' => 'Hàng hóa & Vật phẩm', 'route' => 'merchandise.index', 'active' => ['merchandise.index', 'merchandise.create', 'merchandise.edit']],
+                    ['label' => 'Tồn kho theo chi nhánh', 'route' => 'merchandise.stock.index', 'active' => ['merchandise.stock.*']],
                 ],
             ],
             [

@@ -307,7 +307,11 @@ class Phase1MockupParityTest extends TestCase
         Storage::fake('public');
         $academicLead = $this->userWithRole('academic_lead', 'Học Thuật');
 
+        // Mặc định mở cách "Tải đề PDF"; vẫn chọn được "Soạn từng câu" như mockup.
         $this->actingAs($academicLead)->get(route('placement-tests.create'))->assertOk()
+            ->assertSee('Tải đề PDF')->assertSee('Soạn từng câu')->assertSee('Chọn file PDF đề test');
+
+        $this->actingAs($academicLead)->get(route('placement-tests.create', ['mode' => 'manual']))->assertOk()
             ->assertSee('Tạo đề thi mới')->assertSee('Lưu đề thi')->assertSee('Thông tin chung')->assertSee('Tên đề thi')
             ->assertSee('Cấp độ')->assertSeeInOrder(['Mẫu giáo', 'Lớp 1', 'Lớp 9'])->assertSee('Thời gian (phút)')
             ->assertSee('Danh sách câu hỏi')->assertSee('Thêm câu hỏi mới vào đề')->assertSee('Xóa câu')

@@ -1,8 +1,13 @@
 <script setup>
-/** Trường form Thêm/Sửa hàng hóa — dùng chung cho modal và trang đầy đủ (Form.vue). */
+/**
+ * Trường form Thêm/Sửa hàng hóa — dùng chung cho modal và trang đầy đủ (Form.vue).
+ * Tồn kho theo chi nhánh: thêm mới nhập tồn ban đầu cho một chi nhánh; sửa không đổi số tồn (dùng trang Tồn kho).
+ */
 defineProps({
     item: { type: Object, required: true },
     categories: { type: Array, default: () => [] },
+    branches: { type: Array, default: () => [] },
+    isEdit: { type: Boolean, default: false },
 });
 </script>
 
@@ -20,10 +25,13 @@ defineProps({
         <UiInput type="number" name="cost_price" label="Giá vốn nhập (VNĐ)" min="0" step="1000" :value="item.cost_price" placeholder="Tùy chọn" class="font-code" />
     </div>
 
-    <div class="grid grid-cols-1 items-end gap-md sm:grid-cols-2">
-        <UiInput type="number" name="stock_quantity" label="Số lượng tồn kho ban đầu" required min="0" :value="item.stock_quantity ?? 0" class="font-code" />
-        <UiCheckbox name="is_active" value="1" :checked="item.is_active ?? true" class="items-center pb-sm" label="Kích hoạt kinh doanh (cho phép chọn khi tạo Hóa đơn / Phiếu thu)" />
+    <div v-if="!isEdit" class="grid grid-cols-1 items-end gap-md sm:grid-cols-2">
+        <UiInput type="number" name="stock_quantity" label="Số lượng tồn ban đầu" min="0" :value="0" class="font-code" />
+        <UiSelect name="stock_branch_id" label="Nhập vào kho chi nhánh" :options="branches" placeholder="-- Chọn chi nhánh --" hint="Tồn kho tính riêng cho từng chi nhánh." />
     </div>
+    <UiAlert v-else type="info">Số tồn được quản lý theo từng chi nhánh ở trang <strong>Tồn kho theo chi nhánh</strong> (nhập kho, kiểm kê).</UiAlert>
+
+    <UiCheckbox name="is_active" value="1" :checked="item.is_active ?? true" label="Kích hoạt kinh doanh (cho phép chọn khi tạo Hóa đơn / Phiếu thu)" />
 
     <UiTextarea name="description" label="Mô tả & Ghi chú về hàng hóa" rows="3" :value="item.description" placeholder="Nhập thông tin chi tiết về sách, độ tuổi phù hợp, chất liệu đồng phục hoặc phụ kiện đi kèm..." />
 </template>

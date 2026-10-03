@@ -17,12 +17,14 @@ use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\KpiController;
 use App\Http\Controllers\MediaManagerController;
 use App\Http\Controllers\MerchandiseItemController;
+use App\Http\Controllers\MerchandiseStockController;
 use App\Http\Controllers\MockupHubController;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\PenaltyController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\PlacementTestController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PromotionController;
 use App\Http\Controllers\RecruitmentController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\RoomController;
@@ -155,7 +157,15 @@ Route::middleware('auth')->group(function () {
         Route::get('/customers-won', [CrmController::class, 'wonCustomers'])->name('customers.won');
         Route::get('/closing-wizard', [CrmController::class, 'closingWizard'])->middleware('can:lead.convert')->name('closing-wizard');
         Route::post('/closing-wizard', [CrmController::class, 'processClosingWizard'])->middleware('can:lead.convert')->name('closing-wizard.store');
-        Route::post('/promotions/store', [CrmController::class, 'storePromotion'])->middleware('can:promotion.manage')->name('promotions.store');
+        Route::post('/promotions/store', [PromotionController::class, 'store'])->middleware('can:promotion.manage')->name('promotions.store');
+        // Danh mục ưu đãi học phí: dùng lại khi chốt khách / lập phiếu thu; không xóa, chỉ ngừng áp dụng.
+        Route::middleware('can:promotion.manage')->group(function () {
+            Route::get('/promotions', [PromotionController::class, 'index'])->name('promotions.index');
+            Route::get('/promotions/create', [PromotionController::class, 'create'])->name('promotions.create');
+            Route::get('/promotions/{promotion}/edit', [PromotionController::class, 'edit'])->name('promotions.edit');
+            Route::put('/promotions/{promotion}', [PromotionController::class, 'update'])->name('promotions.update');
+            Route::post('/promotions/{promotion}/toggle', [PromotionController::class, 'toggle'])->name('promotions.toggle');
+        });
         Route::get('/lost-deals', [CrmController::class, 'lostDeals'])->name('lost-deals');
         // Phase 1 CRM: khách đã xóa / khôi phục, phân công lại, in hồ sơ, chăm sóc tháng đầu, xác nhận chính thức, nhập Excel.
         Route::get('/customers-deleted', [CrmController::class, 'deletedCustomers'])->middleware('can:lead.delete')->name('customers.deleted');
@@ -404,6 +414,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/create', [PlacementTestController::class, 'create'])->middleware('can:placement_test.create')->name('create');
         Route::post('/', [PlacementTestController::class, 'storeTest'])->middleware('can:placement_test.create')->name('store');
         Route::post('/media', [PlacementTestController::class, 'uploadMedia'])->name('media.store');
+        Route::post('/pdf', [PlacementTestController::class, 'uploadPdf'])->name('pdf.store');
+        Route::post('/pdf/answers', [PlacementTestController::class, 'parseAnswers'])->name('pdf.answers');
         Route::get('/rubric-guide', [PlacementTestController::class, 'rubricGuide'])->middleware('can:placement_test.view')->name('rubric-guide');
         Route::get('/results/{id}', [PlacementTestController::class, 'showResult'])->middleware('can:placement_test.grade')->name('results.show');
         Route::post('/results/{id}', [PlacementTestController::class, 'updateResult'])->middleware('can:placement_test.grade')->name('results.update');
@@ -593,6 +605,14 @@ Route::middleware('auth')->group(function () {
         Route::delete('/{merchandise}', [MerchandiseItemController::class, 'destroy'])->name('destroy');
         Route::post('/{merchandise}/toggle', [MerchandiseItemController::class, 'toggleStatus'])->name('toggle');
         Route::get('/api/items', [MerchandiseItemController::class, 'apiList'])->name('api');
+    });
+
+    // Tồn kho hàng hóa theo chi nhánh (Học vụ / Quản lý cơ sở / Kế toán xem & nhập kho chi nhánh mình).
+    Route::prefix('merchandise-stock')->name('merchandise.stock.')->middleware('can:merchandise_stock.view')->group(function () {
+        Route::get('/', [MerchandiseStockController::class, 'index'])->name('index');
+        Route::get('/history', [MerchandiseStockController::class, 'history'])->name('history');
+        Route::get('/create', [MerchandiseStockController::class, 'create'])->middleware('can:merchandise_stock.manage')->name('create');
+        Route::post('/', [MerchandiseStockController::class, 'store'])->middleware('can:merchandise_stock.manage')->name('store');
     });
 
     Route::resource('holidays', HolidayController::class)->except('show')->middleware('can:holiday.manage');

@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\CrmStageTransitionException;
+use App\Exceptions\InvoiceRangeExhaustedException;
+use App\Exceptions\PaperInvoiceNumberChangedException;
 use App\Exports\ArrayExport;
 use App\Http\Concerns\RendersModals;
 use App\Models\BankAccount;
@@ -14,6 +16,7 @@ use App\Models\Course;
 use App\Models\CrmCustomer;
 use App\Models\CrmCustomerHistory;
 use App\Models\CrmTrialBooking;
+use App\Models\InvoiceConfiguration;
 use App\Models\MerchandiseItem;
 use App\Models\PlacementTest;
 use App\Models\PlacementTestSubmission;
@@ -30,10 +33,12 @@ use App\Services\Crm\LeadOwners;
 use App\Services\Crm\TrialSlotFinder;
 use App\Services\Crm\WaitingLeadPlacement;
 use App\Services\CrmStageService;
+use App\Services\Merchandise\StockService;
 use App\Services\NotificationService;
 use App\Services\PlacementPortalLinkService;
 use App\Services\PlacementRubricService;
 use App\Services\PlacementSubmissionLinker;
+use App\Services\SafeUploadService;
 use App\Services\SalesCommissionService;
 use App\Services\Students\ClassStartActivation;
 use App\Support\Approvals\ApprovableSource;
@@ -2125,11 +2130,8 @@ class CrmController extends Controller
             ->when($selectedCustomer?->branch_id, fn (Builder $query, int $branchId) => $query
                 ->where(fn (Builder $accountQuery) => $accountQuery->where('branch_id', $branchId)->orWhereNull('branch_id')))
             ->get();
-        $promotions = Promotion::where('is_active', true)
-            ->where(fn (Builder $query) => $query->whereNull('starts_at')->orWhere('starts_at', '<=', now()))
-            ->where(fn (Builder $query) => $query->whereNull('ends_at')->orWhere('ends_at', '>=', now()))
-            ->where(fn (Builder $query) => $query->whereNull('usage_limit')->orWhereColumn('used_count', '<', 'usage_limit'))
-            ->get();
+        // Chỉ ưu đãi dùng lại được (danh mục); ưu đãi riêng ca đặc biệt tạo ngay trong màn này.
+        $promotions = Promotion::available()->catalog()->orderByDesc('is_default')->orderBy('name')->get();
         $merchandiseItems = MerchandiseItem::active()->orderBy('category')->orderBy('name')->get();
 
         // Mã học viên cấp sẵn khi mở màn chốt để nội dung CK / VietQR xem trước đúng với mã thật sau khi chốt.
@@ -2184,7 +2186,7 @@ class CrmController extends Controller
                 'account_holder' => $bank->account_holder,
             ])->values()->all(),
             'defaultBankAccountId' => $defaultBank?->id,
-            'promotions' => $promotions->map(fn (Promotion $promotion) => $this->promotionProps($promotion))->values()->all(),
+            'promotions' => $promotions->map(fn (Promotion $promotion) => PromotionController::props($promotion))->values()->all(),
             'merchandiseItems' => $merchandiseItems->map(fn (MerchandiseItem $item) => [
                 'id' => $item->id,
                 'name' => $item->name,
@@ -2196,6 +2198,11 @@ class CrmController extends Controller
             'defaultCourseId' => $defaultCourseId,
             'studentCodePreview' => $studentCodePreview,
             'oldPaperInvoiceNumber' => (string) old('paper_invoice_number', ''),
+            // Chi nhánh có dải hóa đơn giấy: số hóa đơn giấy kế tiếp (thu tiền mặt) + tồn kho sách theo chi nhánh.
+            'paperInvoiceNext' => (object) $branches->mapWithKeys(fn (Branch $branch) => [
+                $branch->id => InvoiceConfiguration::branchUsesPaperRange($branch->id) ? (InvoiceConfiguration::peekNextPaperNumber($branch->id) ?? '') : null,
+            ])->filter(fn ($next) => $next !== null)->all(),
+            'merchandiseStock' => (object) app(StockService::class)->quantitiesByBranch($branches->pluck('id')->map(fn ($id) => (int) $id)->all()),
             'center' => [
                 'name' => CenterInfo::name(),
                 'branches' => CenterInfo::branches()->map(fn (Branch $branch) => ['name' => $branch->name, 'address' => $branch->address])->values()->all(),
@@ -2209,83 +2216,6 @@ class CrmController extends Controller
                 'to' => now()->addMonths(3)->format('d/m/Y'),
             ],
         ]);
-    }
-
-    /**
-     * Ưu đãi gửi sang màn Chốt & Xếp lớp (lọc theo cơ sở / khóa, tính giảm trừ phía trình duyệt).
-     *
-     * @return array<string, mixed>
-     */
-    private function promotionProps(Promotion $promotion): array
-    {
-        return [
-            'id' => $promotion->id,
-            'name' => $promotion->name,
-            'type' => $promotion->type,
-            'value' => (float) $promotion->value,
-            'max_discount_amount' => $promotion->max_discount_amount !== null ? (float) $promotion->max_discount_amount : null,
-            'branch_id' => $promotion->branch_id,
-            'course_id' => $promotion->course_id,
-        ];
-    }
-
-    public function storePromotion(Request $request)
-    {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'type' => 'required|in:fixed,percent',
-            'value' => 'required|numeric|min:0',
-            'max_discount_amount' => 'nullable|numeric|min:0',
-            'description' => 'nullable|string|max:1000',
-            'branch_id' => 'nullable|exists:branches,id',
-            'course_id' => 'nullable|exists:courses,id,deleted_at,NULL',
-            'starts_at' => 'nullable|date',
-            'ends_at' => 'nullable|date',
-            'usage_limit' => 'nullable|integer|min:1',
-        ]);
-        if ($validated['type'] === 'percent' && (float) $validated['value'] > 100) {
-            throw ValidationException::withMessages(['value' => 'Ưu đãi phần trăm không được vượt quá 100%.']);
-        }
-        if (! empty($validated['starts_at']) && ! empty($validated['ends_at'])
-            && Carbon::parse($validated['ends_at'])->lte(Carbon::parse($validated['starts_at']))) {
-            throw ValidationException::withMessages(['ends_at' => 'Ngày kết thúc ưu đãi phải sau ngày bắt đầu.']);
-        }
-
-        // Mã ưu đãi: prefix theo tên + hậu tố ngẫu nhiên; promotions.code là UNIQUE nên phải kiểm tra trùng.
-        $namePrefix = strtoupper(substr(preg_replace('/[^a-zA-Z0-9]/', '', Str::ascii($validated['name'])), 0, 4));
-        do {
-            $code = 'UD'.$namePrefix.strtoupper(Str::random(3));
-        } while (Promotion::where('code', $code)->exists());
-
-        try {
-            $promotion = Promotion::create([
-                'code' => $code,
-                'name' => $validated['name'],
-                'type' => $validated['type'],
-                'value' => $validated['value'],
-                'max_discount_amount' => $validated['max_discount_amount'] ?? null,
-                'description' => $validated['description'] ?? null,
-                'branch_id' => $validated['branch_id'] ?? null,
-                'course_id' => $validated['course_id'] ?? null,
-                'starts_at' => $validated['starts_at'] ?? null,
-                'ends_at' => $validated['ends_at'] ?? null,
-                'usage_limit' => $validated['usage_limit'] ?? null,
-                'is_active' => true,
-            ]);
-        } catch (UniqueConstraintViolationException) {
-            // Hai phiên tạo ưu đãi trùng mã cùng lúc: ràng buộc UNIQUE ở DB là chốt chặn cuối.
-            throw ValidationException::withMessages(['name' => 'Không tạo được ưu đãi do trùng mã, vui lòng thử lại.']);
-        }
-
-        if ($this->wantsJsonResponse($request)) {
-            return response()->json([
-                'success' => true,
-                'message' => "Đã tạo mới ưu đãi '{$promotion->name}' thành công!",
-                'promotion' => $promotion,
-            ]);
-        }
-
-        return redirect()->back()->with('status', "Đã tạo mới ưu đãi '{$promotion->name}' thành công!");
     }
 
     /**
@@ -2309,6 +2239,8 @@ class CrmController extends Controller
             // Trung tâm chỉ thu chuyển khoản hoặc tiền mặt (không quẹt thẻ POS, không thanh toán kết hợp).
             'payment_method' => 'nullable|in:cash,transfer',
             'paper_invoice_number' => 'nullable|string|max:100',
+            'expected_paper_invoice_number' => 'nullable|string|max:100',
+            'paper_invoice_photo' => 'nullable|file|mimes:jpeg,png,jpg,pdf,webp|max:5120',
             'student_code' => 'nullable|string|max:40',
             'transfer_memo' => 'nullable|string|max:255',
             'bank_account_id' => 'nullable|exists:bank_accounts,id,deleted_at,NULL',
@@ -2333,13 +2265,24 @@ class CrmController extends Controller
             throw ValidationException::withMessages(['payment_method' => 'Vui lòng chọn phương thức thanh toán.']);
         }
         $paymentMethod = $validated['payment_method'] ?? 'cash';
-        // Tiền mặt thu theo hóa đơn giấy: phiếu thu phải mang số hóa đơn giấy để Kế toán đối soát khi duyệt.
+        // Tiền mặt thu theo hóa đơn giấy: chi nhánh có dải hóa đơn giấy → hệ thống cấp số, Học vụ ghi đúng số đó lên
+        // hóa đơn và tải ảnh; chi nhánh chưa cấu hình dải giấy → nhập tay số hóa đơn giấy như trước.
+        $wizardBranchId = ! empty($validated['class_id'])
+            ? ClassModel::whereKey($validated['class_id'])->value('branch_id')
+            : CrmCustomer::whereKey($validated['customer_id'])->value('branch_id');
+        $paperRange = $paidAmount > 0 && $paymentMethod === 'cash' && InvoiceConfiguration::branchUsesPaperRange($wizardBranchId ? (int) $wizardBranchId : null);
         $paperInvoiceNumber = trim((string) ($validated['paper_invoice_number'] ?? '')) ?: null;
-        if ($paidAmount > 0 && $paymentMethod === 'cash' && ! $paperInvoiceNumber) {
+        if ($paperRange && ! $request->hasFile('paper_invoice_photo')) {
+            throw ValidationException::withMessages(['paper_invoice_photo' => 'Thu tiền mặt cần tải ảnh chụp hóa đơn giấy đã ghi đúng số hóa đơn hệ thống cấp.']);
+        }
+        if (! $paperRange && $paidAmount > 0 && $paymentMethod === 'cash' && ! $paperInvoiceNumber) {
             throw ValidationException::withMessages(['paper_invoice_number' => 'Thu tiền mặt cần nhập số hóa đơn giấy đã xuất cho khách.']);
         }
+        $paperPhoto = $paperRange
+            ? '/uploads/tuition/receipts/'.SafeUploadService::moveTo($request->file('paper_invoice_photo'), public_path('uploads/tuition/receipts'), ['jpg', 'jpeg', 'png', 'webp', 'pdf'], 'paper_invoice_photo')
+            : null;
 
-        $result = DB::transaction(function () use ($request, $validated, $paidAmount, $prepaidAmount, $feePaid, $paymentMethod, $paperInvoiceNumber): array {
+        $result = DB::transaction(function () use ($request, $validated, $paidAmount, $prepaidAmount, $feePaid, $paymentMethod, $paperInvoiceNumber, $paperRange, $paperPhoto): array {
             $customer = $this->scopeCustomerQuery()->lockForUpdate()->findOrFail($validated['customer_id']);
 
             if ($customer->converted_student_id) {
@@ -2396,6 +2339,10 @@ class CrmController extends Controller
                 $promotion = Promotion::whereKey($validated['promotion_id'])->lockForUpdate()->first();
                 if (! $promotion?->isApplicable($branchId, $course->id)) {
                     throw ValidationException::withMessages(['promotion_id' => 'Ưu đãi không còn hiệu lực hoặc không áp dụng cho khóa / lớp đã chọn.']);
+                }
+                // Ưu đãi riêng (ca đặc biệt) chỉ người tạo dùng cho khách đang chốt, không lấy lại cho khách khác.
+                if ($promotion->is_special && (int) $promotion->created_by !== (int) Auth::id()) {
+                    throw ValidationException::withMessages(['promotion_id' => 'Ưu đãi riêng này do người khác tạo cho khách khác, hãy chọn ưu đãi trong danh mục.']);
                 }
                 $discount = $promotion->calculateDiscount($baseTuition);
             }
@@ -2528,15 +2475,24 @@ class CrmController extends Controller
             }
 
             if ($paidAmount > 0) {
+                $issuedPaperNumber = null;
+                if ($paperRange && $branchId) {
+                    try {
+                        $issuedPaperNumber = InvoiceConfiguration::consumeNextPaperNumber((int) $branchId, $validated['expected_paper_invoice_number'] ?? null);
+                    } catch (PaperInvoiceNumberChangedException|InvoiceRangeExhaustedException $e) {
+                        throw ValidationException::withMessages(['paper_invoice_photo' => $e->getMessage()]);
+                    }
+                }
                 TuitionReceipt::create([
                     'receipt_number' => TuitionReceipt::generateReceiptNumber(),
-                    'invoice_number' => null,
+                    'invoice_number' => $issuedPaperNumber,
                     'student_tuition_id' => $tuition->id,
                     'student_id' => $student->id,
                     'amount' => $paidAmount,
                     'tuition_amount' => min($paidAmount, max(0, $baseTuition - $discount)),
                     'payment_method' => $paymentMethod,
-                    'paper_invoice_number' => $paymentMethod === 'cash' ? $paperInvoiceNumber : null,
+                    'paper_invoice_number' => $paymentMethod === 'cash' ? ($issuedPaperNumber ?? $paperInvoiceNumber) : null,
+                    'proof_image' => $issuedPaperNumber ? $paperPhoto : null,
                     'collected_items' => $feeItems ?: null,
                     'transaction_code' => 'CW-'.Str::upper((string) Str::ulid()),
                     'payment_date' => now(),
@@ -2560,9 +2516,6 @@ class CrmController extends Controller
             ]);
             if ($promotion) {
                 $promotion->increment('used_count');
-            }
-            foreach ($feeItems as $feeItem) {
-                MerchandiseItem::whereKey($feeItem['id'])->decrement('stock_quantity');
             }
             app(CrmStageService::class)->advanceTo(
                 $customer,
@@ -2712,19 +2665,19 @@ class CrmController extends Controller
             throw ValidationException::withMessages(['fee_items' => 'Khoản thu khác phải chọn từ danh mục hàng hóa.']);
         }
 
-        $items = MerchandiseItem::active()->whereIn('id', $ids)->lockForUpdate()->get()->keyBy('id');
+        $items = MerchandiseItem::active()->whereIn('id', $ids)->get()->keyBy('id');
         if ($items->count() !== $ids->count()) {
             throw ValidationException::withMessages(['fee_items' => 'Có hàng hóa không tồn tại hoặc đã ngừng bán.']);
         }
-        $outOfStock = $items->first(fn (MerchandiseItem $item) => $item->stock_quantity < 1);
-        if ($outOfStock) {
-            throw ValidationException::withMessages(['fee_items' => "{$outOfStock->name} đã hết tồn kho."]);
-        }
 
+        // Kho theo chi nhánh: sách trong hợp đồng xuất kho khi phiếu thu đầu tiên của hợp đồng được duyệt
+        // (App\Services\Merchandise\StockService); hết hàng chỉ cảnh báo trên màn chốt, không chặn chốt khách.
         return $ids->map(fn ($id) => [
             'id' => (int) $id,
             'name' => $items[$id]->name,
             'amount' => (float) $items[$id]->price,
+            'quantity' => 1,
+            'stock_tracked' => true,
         ])->all();
     }
 
