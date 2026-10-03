@@ -614,7 +614,7 @@ Route::middleware('auth')->group(function () {
     // Tồn kho hàng hóa theo chi nhánh (Học vụ / Quản lý cơ sở / Kế toán xem & nhập kho chi nhánh mình).
     Route::prefix('merchandise-stock')->name('merchandise.stock.')->middleware('can:merchandise_stock.view')->group(function () {
         Route::get('/', [MerchandiseStockController::class, 'index'])->name('index');
-        Route::get('/history', [MerchandiseStockController::class, 'history'])->name('history');
+        Route::get('/{item}/history', [MerchandiseStockController::class, 'history'])->whereNumber('item')->name('history');
         Route::get('/create', [MerchandiseStockController::class, 'create'])->middleware('can:merchandise_stock.manage')->name('create');
         Route::post('/', [MerchandiseStockController::class, 'store'])->middleware('can:merchandise_stock.manage')->name('store');
     });
