@@ -660,9 +660,11 @@ class TuitionBusinessTest extends TestCase
         // 3. Xem trang Thông báo nộp học phí / Hóa đơn (/crm/tuition-bill/{id})
         $responseBill = $this->actingAs($this->accountantUser)->get(route('crm.tuition-bill', $newTuition->id));
         $responseBill->assertStatus(200);
-        $responseBill->assertSee('Bộ Giáo trình Cambridge Stage 3');
-        $responseBill->assertSee('Sách bài tập Workbook');
-        $responseBill->assertSee('Balo &amp; Đồng phục MEnglish', false);
+        // Thu khác chỉ in tổng tiền, không liệt kê từng món.
+        $responseBill->assertSee('750,000 VNĐ');
+        $responseBill->assertDontSee('Bộ Giáo trình Cambridge Stage 3');
+        $responseBill->assertDontSee('Sách bài tập Workbook');
+        $responseBill->assertDontSee('Balo &amp; Đồng phục MEnglish', false);
         $responseBill->assertSee('LỊCH SỬ THANH TOÁN CÁC ĐỢT');
         $responseBill->assertSee('Đợt 1');
         $responseBill->assertSee('Đợt 2');

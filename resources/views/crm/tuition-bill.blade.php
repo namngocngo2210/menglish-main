@@ -469,20 +469,8 @@
             <tr>
                 <td class="label">Thu khác:</td>
                 <td class="value">
+                    {{-- Chỉ in tổng tiền, không liệt kê từng khoản (sách, đồng phục...). --}}
                     <div><strong>{{ number_format($tuition->other_fees ?? 0) }} VNĐ</strong></div>
-                    @if(!empty($tuition->fee_items) && is_array($tuition->fee_items) && count($tuition->fee_items) > 0)
-                        <div style="margin-top: 6px; padding: 8px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px;">
-                            <div style="font-weight: 700; color: #475569; margin-bottom: 4px; font-size: 11px; text-transform: uppercase;">Chi tiết các khoản thu khác:</div>
-                            <table style="width: 100%; border-collapse: collapse;">
-                                @foreach($tuition->fee_items as $item)
-                                    <tr>
-                                        <td style="border: none; padding: 2px 0; color: #334155; font-size: 13px;">• {{ $item['name'] ?? 'Mục khác' }}</td>
-                                        <td style="border: none; padding: 2px 0; text-align: right; font-family: monospace; font-weight: 700; color: #0284c7; font-size: 13px;">{{ number_format($item['amount'] ?? 0) }} VNĐ</td>
-                                    </tr>
-                                @endforeach
-                            </table>
-                        </div>
-                    @endif
                 </td>
             </tr>
 
@@ -601,14 +589,6 @@
                             </td>
                             <td style="border: 1px solid #d5d5d5; padding: 8px 10px; color: #334155;">
                                 <div>{{ $receipt->notes ?: 'Thanh toán học phí đợt ' . ($installmentIndex - 1) }}</div>
-                                @if(!empty($receipt->collected_items) && is_array($receipt->collected_items))
-                                    <div style="margin-top: 3px; font-size: 11px; color: #0284c7;">
-                                        Bao gồm: 
-                                        @foreach($receipt->collected_items as $cItem)
-                                            <span style="display: inline-block; background: #e0f2fe; padding: 1px 6px; border-radius: 4px; margin: 1px;">{{ $cItem['name'] ?? '' }} ({{ number_format($cItem['amount'] ?? 0) }}đ)</span>
-                                        @endforeach
-                                    </div>
-                                @endif
                             </td>
                             <td style="border: 1px solid #d5d5d5; padding: 8px 10px; text-align: right; font-family: monospace; font-weight: 700; color: #16a34a;">
                                 {{ number_format($receipt->amount) }} VNĐ
