@@ -185,13 +185,13 @@ class CrmCustomer extends Model
     {
         // Sales không đổi giai đoạn (lead vẫn "Mới" sau khi gọi) → đã có nhật ký liên hệ thì không tính là chưa liên hệ.
         return $query->where('stage', 'new')->where('created_at', '<=', now()->subHours(24))
-            ->whereDoesntHave('histories', fn (Builder $history) => $history->whereIn('type', CrmCustomerHistory::CARE_TYPES));
+            ->whereDoesntHave('histories', fn (Builder $history) => $history->counted()->whereIn('type', CrmCustomerHistory::CARE_TYPES));
     }
 
     /** Nạp sẵn thời điểm chăm sóc gần nhất (cột ảo last_care_at) cho đồng hồ SLA trên danh sách — tránh N+1. */
     public function scopeWithLastCare(Builder $query): Builder
     {
-        return $query->withMax(['histories as last_care_at' => fn (Builder $history) => $history->whereIn('type', CrmCustomerHistory::CARE_TYPES)], 'created_at');
+        return $query->withMax(['histories as last_care_at' => fn (Builder $history) => $history->counted()->whereIn('type', CrmCustomerHistory::CARE_TYPES)], 'created_at');
     }
 
     /**
@@ -424,8 +424,8 @@ class CrmCustomer extends Model
             return $this->attributes['last_care_at'] ? Carbon::parse($this->attributes['last_care_at']) : null;
         }
         $latest = $this->relationLoaded('histories')
-            ? $this->histories->whereIn('type', CrmCustomerHistory::CARE_TYPES)->max('created_at')
-            : $this->histories()->whereIn('type', CrmCustomerHistory::CARE_TYPES)->max('created_at');
+            ? $this->histories->whereIn('type', CrmCustomerHistory::CARE_TYPES)->where('outcome', '!=', CrmCustomerHistory::OUTCOME_FAILED)->max('created_at')
+            : $this->histories()->counted()->whereIn('type', CrmCustomerHistory::CARE_TYPES)->max('created_at');
 
         return $latest ? Carbon::parse($latest) : null;
     }

@@ -435,6 +435,7 @@ final class SidebarMenu
                         ['label' => 'Nhật ký vận hành', 'route' => 'activity-logs.index', 'active' => ['activity-logs.*']],
                         ['label' => 'Tổng hợp báo cáo & nhật ký', 'route' => 'reports.all'],
                     ]),
+                    ['label' => 'Cấu hình SLA', 'route' => 'system-config.sla', 'anchor' => ['sla.configure']],
                     ['label' => 'Media & File lưu trữ', 'route' => 'media.index', 'active' => ['media.*']],
                     ...self::anchored(self::SYSTEM, [
                         ['label' => 'Hosting & Máy chủ', 'route' => 'system-config.hosting'],

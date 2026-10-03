@@ -7,6 +7,8 @@ use App\Models\Branch;
 use App\Models\DebtReminderRule;
 use App\Models\SepayConfiguration;
 use App\Models\SepayTransaction;
+use App\Models\SlaSetting;
+use App\Services\Sla\Sla;
 use App\Models\SystemSetting;
 use App\Support\StatusLabel;
 use App\Support\Ui;
@@ -958,5 +960,55 @@ class SystemConfigController extends Controller
         $bytes /= pow(1024, $pow);
 
         return round($bytes, $precision).' '.$units[$pow];
+    }
+
+    /** Cấu hình tất cả SLA tự động (ngưỡng giờ / số lần, bật tắt, tự phạt và mức phạt gợi ý). */
+    public function sla(): InertiaResponse
+    {
+        $groups = config('sla.groups');
+        $rules = collect(array_keys(Sla::defaults()))->map(fn (string $key) => Sla::rule($key))
+            ->map(fn (array $rule) => [
+                'key' => $rule['key'],
+                'group' => $groups[$rule['group']] ?? $rule['group'],
+                'label' => $rule['label'],
+                'description' => $rule['description'],
+                'unit' => $rule['unit'],
+                'value' => $rule['value'],
+                'default_value' => Sla::defaults()[$rule['key']]['value'],
+                'enabled' => $rule['enabled'],
+                'penalty' => $rule['penalty'],
+                'amount' => $rule['amount'],
+                'task' => $rule['task'],
+                'customized' => $rule['customized'],
+            ])->values()->all();
+
+        return Inertia::render('SystemConfig/Sla', ['rules' => $rules]);
+    }
+
+    public function updateSla(Request $request, string $key)
+    {
+        abort_unless(array_key_exists($key, Sla::defaults()), 404);
+        $unit = Sla::defaults()[$key]['unit'];
+        $validated = $request->validate([
+            'value' => 'required|integer|min:1|max:'.($unit === 'hours' ? 720 : 20),
+            'enabled' => 'required|boolean',
+            'penalty' => 'required|boolean',
+            'amount' => 'nullable|numeric|min:0|max:100000000',
+        ], [
+            'value.required' => 'Vui lòng nhập ngưỡng SLA.',
+            'value.min' => 'Ngưỡng SLA tối thiểu là 1.',
+            'value.max' => $unit === 'hours' ? 'Ngưỡng SLA tối đa 720 giờ (30 ngày).' : 'Số lần tối đa là 20.',
+        ]);
+
+        SlaSetting::updateOrCreate(['rule_key' => $key], [
+            'value' => $validated['value'],
+            'enabled' => $validated['enabled'],
+            'penalty' => $validated['penalty'],
+            'amount' => $validated['amount'] ?? 0,
+            'updated_by' => $request->user()->id,
+        ]);
+        Sla::forget();
+
+        return back()->with('status', 'Đã lưu cấu hình SLA "'.Sla::defaults()[$key]['label'].'". Áp dụng cho mốc phát sinh từ bây giờ.');
     }
 }

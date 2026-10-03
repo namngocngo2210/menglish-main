@@ -3,7 +3,7 @@
  * Lịch sử hoạt động trên hồ sơ khách: lọc theo loại (server, ?log_type=), form ghi chú liên hệ mới (hình thức: gọi / Zalo / gặp…),
  * dòng thời gian (khách Thất bại hiện khung lý do).
  */
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { route } from '@/lib/route';
 
@@ -23,6 +23,9 @@ const noteTypes = [
     ['note', 'Ghi chú'],
 ];
 const noteType = ref('call');
+// Kết quả liên hệ (gọi / nhắn / gặp): thất bại không tính là đã liên hệ; 3 lần thất bại liên tiếp → cảnh báo Admin.
+const outcome = ref('reached');
+const isContact = computed(() => ['call', 'message', 'meet'].includes(noteType.value));
 const dirty = ref(false);
 // Nút lưu kiểu phụ, chỉ tô cam khi form đang được sửa.
 const dirtySave = '!border-transparent !bg-primary-container !text-white hover:!bg-primary';
@@ -57,6 +60,7 @@ function iconTone(history) {
             @success="dirty = false"
         >
             <input type="hidden" name="type" :value="noteType" />
+            <input v-if="isContact" type="hidden" name="outcome" :value="outcome" />
             <div class="flex flex-col gap-md sm:flex-row sm:items-end">
                 <div class="flex-1 space-y-sm">
                     <UiTextarea id="history_note_content" name="content" :rows="2" required placeholder="Ghi chú nội dung liên hệ mới..." aria-label="Ghi chú nội dung liên hệ" />
@@ -68,6 +72,16 @@ function iconTone(history) {
                             type="button"
                             :class="['rounded-full border px-md py-xs font-body-small text-body-small transition-colors', noteType === key ? 'border-secondary bg-secondary text-white' : 'border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-high']"
                             @click="noteType = key"
+                        >{{ label }}</button>
+                    </div>
+                    <div v-if="isContact" class="flex flex-wrap items-center gap-sm">
+                        <span class="font-body-small text-body-small text-on-surface-variant">Kết quả:</span>
+                        <button
+                            v-for="[key, label] in [['reached', 'Liên hệ được'], ['failed', 'Không liên hệ được']]"
+                            :key="key"
+                            type="button"
+                            :class="['rounded-full border px-md py-xs font-body-small text-body-small transition-colors', outcome === key ? (key === 'failed' ? 'border-error bg-error text-white' : 'border-secondary bg-secondary text-white') : 'border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-high']"
+                            @click="outcome = key; dirty = true"
                         >{{ label }}</button>
                     </div>
                 </div>
@@ -91,6 +105,7 @@ function iconTone(history) {
                     </div>
                     <p v-else class="mt-xs whitespace-pre-line font-body-base text-body-base text-on-surface-variant">{{ history.content }}</p>
                     <span v-if="history.type_label" class="mt-xs inline-block rounded bg-surface-container-high px-sm py-0.5 font-caption text-caption text-on-surface-variant">{{ history.type_label }}</span>
+                    <span v-if="history.failed" class="ml-xs mt-xs inline-block rounded bg-error-container px-sm py-0.5 font-caption text-caption text-error">Không liên hệ được</span>
                 </div>
             </div>
             <UiEmptyState v-if="!histories.length" icon="history" title="Chưa có lịch sử hoạt động" />

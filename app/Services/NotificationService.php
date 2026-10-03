@@ -57,9 +57,9 @@ class NotificationService
         $leads = CrmCustomer::with('assignedUser')
             ->whereIn('stage', CrmCustomer::ACTIVE_STAGES)
             ->where(fn ($query) => $query->where('stage', '!=', 'new')
-                ->orWhereHas('histories', fn ($history) => $history->whereIn('type', CrmCustomerHistory::CARE_TYPES)))
+                ->orWhereHas('histories', fn ($history) => $history->counted()->whereIn('type', CrmCustomerHistory::CARE_TYPES)))
             ->where('created_at', '<=', $cutoff)
-            ->withMax(['histories as last_activity_at' => fn ($history) => $history->whereIn('type', CrmCustomerHistory::CARE_TYPES)], 'created_at')
+            ->withMax(['histories as last_activity_at' => fn ($history) => $history->counted()->whereIn('type', CrmCustomerHistory::CARE_TYPES)], 'created_at')
             ->get();
 
         // Cảnh báo đã gửi của các khách này: 1 truy vấn thay vì 1 truy vấn cho mỗi khách.

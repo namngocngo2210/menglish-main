@@ -16,6 +16,7 @@ class CrmCustomerHistory extends Model
         'customer_id',
         'user_id',
         'type',
+        'outcome',
         'content',
         'from_stage',
         'to_stage',
@@ -47,6 +48,17 @@ class CrmCustomerHistory extends Model
      * liên hệ + test / gửi kết quả / học thử / chuyển giai đoạn. Sửa thông tin, phân công, ghi chú, hệ thống không tính.
      */
     public const CARE_TYPES = ['call', 'message', 'meet', 'test', 'result', 'trial', 'stage_change'];
+
+    /** Kết quả một lần liên hệ: liên hệ được / thất bại (không bắt máy, không phản hồi…). Thất bại không tính là đã chăm sóc. */
+    public const OUTCOME_FAILED = 'failed';
+
+    public const OUTCOME_REACHED = 'reached';
+
+    /** Nhật ký tính là một lần chăm sóc thật: bỏ liên hệ thất bại. */
+    public function scopeCounted($query)
+    {
+        return $query->where(fn ($q) => $q->whereNull('outcome')->orWhere('outcome', '!=', self::OUTCOME_FAILED));
+    }
 
     protected $casts = [
         'changes' => 'array',

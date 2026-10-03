@@ -250,6 +250,14 @@ return [
                 'reject' => ['Từ chối yêu cầu', 'Từ chối yêu cầu hoàn / chuyển / khất nợ / bảo lưu.'],
             ],
         ],
+        'sla' => [
+            'label' => 'Cấu hình SLA',
+            'group' => 'system',
+            'icon' => 'timer',
+            'actions' => [
+                'configure' => ['Cấu hình SLA', 'Đổi ngưỡng giờ / số lần, bật tắt, tự phạt và mức phạt của các SLA tự động.'],
+            ],
+        ],
         'bank_account' => [
             'label' => 'Tài khoản ngân hàng & SePay',
             'group' => 'finance',

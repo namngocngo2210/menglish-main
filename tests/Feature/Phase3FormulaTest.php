@@ -462,7 +462,7 @@ class Phase3FormulaTest extends TestCase
         $this->assertEquals(1200000, $record->commission_deferred);  // 4% × 30.000.000
         $this->assertSame(6, CommissionItem::where('status', CommissionItem::STATUS_DEFERRED)->count());
         $this->assertStringContainsString('chưa đủ 30 ngày', CommissionItem::first()->deferred_reason);
-        $this->travelTo(Carbon::parse('2026-10-03 09:00:00')); // duyệt kỳ sau chốt công / lỗi (cuối tháng + 2 ngày)
+        $this->travelTo(Carbon::parse('2026-10-04 09:00:00')); // duyệt kỳ sau chốt công / lỗi (cuối tháng + 2 ngày)
         $this->calculate($september); // qua mốc chốt: tính lại lần cuối trước khi duyệt
         $this->finalizeKpi($september);
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $september->id))->assertSessionHasNoErrors();

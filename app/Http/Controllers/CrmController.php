@@ -851,6 +851,7 @@ class CrmController extends Controller
             'histories' => $histories->map(fn (CrmCustomerHistory $history) => [
                 'id' => $history->id,
                 'type' => $history->type,
+                'failed' => $history->outcome === CrmCustomerHistory::OUTCOME_FAILED,
                 'type_icon' => $history->type_icon,
                 'type_label' => CrmCustomerHistory::FILTER_TYPES[$history->type] ?? null,
                 'is_lost' => $history->type === 'stage_change' && $history->to_stage === CrmCustomer::STAGE_LOST,
@@ -1873,6 +1874,8 @@ class CrmController extends Controller
         $validated = $request->validate([
             'content' => 'required_unless:type,result|nullable|string|max:1000',
             'type' => 'required|string|in:call,message,meet,test,note,result',
+            // Kết quả liên hệ (gọi / nhắn / gặp): liên hệ được hay thất bại — thất bại không tính là đã liên hệ (SLA).
+            'outcome' => 'nullable|string|in:reached,failed',
             // Mockup Chi tiết khách — "Gửi kết quả & Phản hồi": ngày gửi KQ cho phụ huynh + phản hồi của phụ huynh.
             'sent_at' => 'required_if:type,result|nullable|date|before_or_equal:now',
         ], [
@@ -1887,12 +1890,17 @@ class CrmController extends Controller
                 .(filled($content) ? "\nPhản hồi của phụ huynh: ".$content : '');
         }
 
+        $isContact = in_array($validated['type'], CrmCustomerHistory::CONTACT_TYPES, true);
         CrmCustomerHistory::create([
             'customer_id' => $customer->id,
             'user_id' => Auth::id(),
             'type' => $validated['type'],
+            'outcome' => $isContact ? ($validated['outcome'] ?? CrmCustomerHistory::OUTCOME_REACHED) : null,
             'content' => $content,
         ]);
+        if ($isContact) {
+            app(\App\Services\Sla\CrmSlaService::class)->checkFailedContacts($customer);
+        }
 
         return redirect()->route('crm.customers.show', $customer->id)
             ->with('status', 'Đã lưu nhật ký chăm sóc thành công!');
