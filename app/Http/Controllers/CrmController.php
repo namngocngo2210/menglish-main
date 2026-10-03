@@ -3011,11 +3011,9 @@ class CrmController extends Controller
             ];
         })->values()->all();
 
-        // Cùng căn cứ với bảng lương (SalesCommissionService): bậc theo số HS chốt trong kỳ báo cáo,
-        // hiệu lực tại cuối kỳ. Đây là hoa hồng PHÁT SINH; trả thực tế theo gate kép trên phiếu lương.
+        // Cùng căn cứ với bảng lương (SalesCommissionService): học phí thực thu (không gồm sách / Thu khác) × % mốc
+        // theo thứ tự chốt của từng HS. Đây là hoa hồng PHÁT SINH; trả thực tế theo gate kép trên phiếu lương.
         $commissionService = app(SalesCommissionService::class);
-        // Bậc hoa hồng tính trên TOÀN BỘ HS sale chốt trong kỳ (mọi chi nhánh) như bảng lương — không theo bộ lọc chi nhánh.
-        $closedBySales = $commissionService->closedCountsBySales($startDate, $endDate);
         // Doanh số / số chốt của từng sale ghi theo người nhận hoa hồng (commission_user_id), kể cả khi khách đã
         // được phân công lại cho người khác → không lọc theo người phụ trách hiện tại; chỉ giới hạn chi nhánh.
         $viewerLevel = DataScope::level($reportUser, 'lead');
@@ -3026,11 +3024,12 @@ class CrmController extends Controller
             ->where(fn (Builder $q) => $q->whereBetween('converted_at', [$startDate, $endDate])
                 ->orWhere(fn (Builder $legacy) => $legacy->whereNull('converted_at')->whereBetween('created_at', [$startDate, $endDate])))
             ->get(['id', 'commission_user_id', 'assigned_user_id']);
-        $calculateCommission = fn (float $revenue, int $userId) => $commissionService->commissionFor($revenue, (int) ($closedBySales->get($userId) ?? 0), $endDate);
 
         // 4. Bảng hiệu suất theo nhân viên tư vấn tuyển sinh (100% Real from Users in Database)
         // Doanh số = tiền thực thu của khách mới (phiếu duyệt trong kỳ, gồm giáo trình/đồ dùng) — A6.
-        $collectedBySales = $commissionService->collectedBySales($startDate, $endDate, null, $creditQuery);
+        // Mốc hoa hồng tính trên TOÀN BỘ HS chốt trong kỳ (mọi chi nhánh) như bảng lương — không theo bộ lọc chi nhánh.
+        $commissionByOwner = $commissionService->summaryByOwner($startDate, $endDate, null, $creditQuery);
+        $collectedBySales = $commissionByOwner->map(fn (array $row) => $row['collected'])->filter(fn (float $v) => $v > 0);
 
         // Mọi Sales + bất kỳ ai (Quản lý cơ sở, vai trò tự tạo...) có khách / doanh số / khách chốt trong kỳ,
         // để tổng các dòng khớp số liệu tổng phía trên.
@@ -3060,7 +3059,7 @@ class CrmController extends Controller
             $prevUserWonCount = $allPrev->where('assigned_user_id', $user->id)->whereIn('stage', CrmCustomer::CLOSED_STAGES)->count();
             $prevUserRate = $prevUserLeadsCount > 0 ? round(($prevUserWonCount / $prevUserLeadsCount) * 100, 1) : 0;
 
-            $commissionResult = $calculateCommission($userRevenue, (int) $user->id);
+            $commissionResult = $commissionByOwner->get($user->id) ?? ['amount' => 0.0, 'base' => 0.0, 'closed' => 0, ...$commissionService->milestoneFor(0, $endDate)];
 
             $rating = 'Cần cải thiện';
             $ratingBadge = 'bg-error/10 text-error border-error/30';
@@ -3092,6 +3091,7 @@ class CrmController extends Controller
                 'rating_badge' => $ratingBadge,
                 'commission_amount' => $commissionResult['amount'],
                 'commission_percent' => $commissionResult['percent'],
+                'commission_base' => $commissionResult['base'],
                 'commission_bonus' => 0,
                 'closed_students' => $commissionResult['closed'],
                 'tier_name' => $commissionResult['tier_name'],

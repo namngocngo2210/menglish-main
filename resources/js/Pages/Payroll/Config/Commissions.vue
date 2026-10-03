@@ -82,11 +82,12 @@ const rows = reactive(props.renewalRows.map((row) => ({ ...row })));
             </UiAlert>
 
             <template v-if="tab === 'commission'">
-                <UiAlert type="warning" title="Hoa hồng theo bậc số HS chốt × tiền thực thu — gate kép, hoãn không mất">
-                    Hoa hồng = % theo bậc (bậc chọn theo <strong>số HS chốt của sale trong kỳ</strong>) × tiền thực thu của khách mới (gồm giáo trình, đồ dùng); hệ thống tự tính.
+                <UiAlert type="warning" title="Hoa hồng tăng tiến theo mốc × học phí thu được — gate kép, hoãn không mất">
+                    Mỗi học viên mang % của mốc chứa <strong>thứ tự chốt của HS đó trong tháng</strong> của người phụ trách. VD mốc 1–5: 4%, từ 6: 3% → 5 HS đầu tháng được 4%, HS thứ 6 trở đi 3%.
+                    Hoa hồng = % × <strong>học phí thu được</strong> của khách mới (không tính tiền sách / Thu khác); hệ thống tự tính, thứ tự đếm lại từ 1 mỗi tháng.
                     Từng khách chỉ được trả khi <strong>đủ {{ gateDays }} ngày từ ngày chốt</strong> và
                     <strong>đủ {{ gateMilestones }}/3 mốc chăm sóc tháng đầu</strong>; chưa đủ thì hoãn sang kỳ sau (giữ % kỳ phát sinh).
-                    Sửa một mốc tạo <strong>phiên bản mới</strong>; kỳ lương dùng mốc hiệu lực tại ngày cuối kỳ. Ngưỡng mặc định 0–5 / 6–10 / từ 11 chờ BA xác nhận.
+                    Sửa một mốc tạo <strong>phiên bản mới</strong>; kỳ lương dùng mốc hiệu lực tại ngày cuối kỳ.
                 </UiAlert>
 
                 <div class="grid grid-cols-1 items-start gap-lg lg:grid-cols-12">
@@ -102,8 +103,8 @@ const rows = reactive(props.renewalRows.map((row) => ({ ...row })));
                             <table>
                                 <thead>
                                     <tr>
-                                        <th class="text-right">Ngưỡng từ (HV)</th>
-                                        <th class="text-right">Ngưỡng đến (HV)</th>
+                                        <th class="text-right">Từ HS thứ</th>
+                                        <th class="text-right">Đến HS thứ</th>
                                         <th class="text-center">Tỷ lệ (%)</th>
                                         <th>Ngày hiệu lực từ</th>
                                         <th class="text-right">Thao tác</th>
@@ -142,7 +143,7 @@ const rows = reactive(props.renewalRows.map((row) => ({ ...row })));
                                 <thead>
                                     <tr>
                                         <th>Bậc</th>
-                                        <th class="text-right">Số HS chốt trong kỳ</th>
+                                        <th class="text-right">HS thứ (trong tháng chốt)</th>
                                         <th class="text-center">Tỷ lệ (%)</th>
                                         <th>Hiệu lực</th>
                                         <th>Người tạo</th>
@@ -175,8 +176,8 @@ const rows = reactive(props.renewalRows.map((row) => ({ ...row })));
                 <UiModal :show="newOpen" title="Thêm mốc cấu hình mới" data-modal="new-tier" @close="newOpen = false">
                     <UiForm id="new-tier-form" :action="route('payroll.config.commission-tiers.store')" method="post" preserve-state="errors" class="space-y-md">
                         <div class="grid grid-cols-2 gap-md">
-                            <UiInput type="number" name="min_students" label="Từ (số học viên)" required min="0" step="1" placeholder="VD: 11" />
-                            <UiInput type="number" name="max_students" label="Đến (số học viên)" min="0" step="1" placeholder="Để trống = Max" />
+                            <UiInput type="number" name="min_students" label="Từ HS thứ" required min="0" step="1" placeholder="VD: 6" />
+                            <UiInput type="number" name="max_students" label="Đến HS thứ" min="0" step="1" placeholder="Để trống = không giới hạn" />
                         </div>
                         <UiInput id="f_new_sale_percent" type="number" name="new_sale_percent" label="Tỷ lệ (%)" required suffix="%" min="0" max="100" step="0.1" placeholder="0.0" class="text-right font-mono" />
                         <UiDate name="effective_from" label="Hiệu lực từ ngày" required :value="today" />
@@ -193,10 +194,10 @@ const rows = reactive(props.renewalRows.map((row) => ({ ...row })));
                     <UiForm v-if="editing" id="edit-tier-form" :key="editing.id" :action="route('payroll.config.commission-tiers.update', editing.id)" method="put" preserve-state="errors" class="space-y-md">
                         <div class="space-y-md">
                             <div class="grid grid-cols-2 gap-md">
-                                <UiField label="Từ (số học viên)" required>
+                                <UiField label="Từ HS thứ" required>
                                     <input v-model="editing.min_students" type="number" name="min_students" min="0" required class="w-full rounded-lg border border-outline-variant px-md py-sm font-code text-code" />
                                 </UiField>
-                                <UiField label="Đến (số học viên)">
+                                <UiField label="Đến HS thứ">
                                     <input v-model="editing.max_students" type="number" name="max_students" min="0" placeholder="Để trống = Max" class="w-full rounded-lg border border-outline-variant px-md py-sm font-code text-code" />
                                 </UiField>
                                 <UiField label="Tỷ lệ (%)" required>

@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Helpers\AclHelper;
 use App\Http\Requests\ProfileUpdateRequest;
 use App\Models\ClassModel;
+use App\Models\CommissionItem;
+use App\Models\CrmCustomer;
 use App\Models\PayrollPeriod;
 use App\Models\PayrollRecord;
 use App\Models\StaffReport;
@@ -12,6 +14,7 @@ use App\Models\SupportTicket;
 use App\Models\TeacherTimesheet;
 use App\Models\User;
 use App\Models\WorkTask;
+use App\Services\SalesCommissionService;
 use App\Support\Approvals\ApprovalInboxService;
 use App\Support\Money;
 use App\Support\Navigation\SidebarMenu;
@@ -103,7 +106,7 @@ class ProfileController extends Controller
 
     /**
      * Trang cá nhân ("cổng" của từng người): thẻ số liệu, tab và lối tắt theo công việc thực của vai trò.
-     * GV / TA: giờ dạy, lớp, ca dạy; Học vụ: việc, báo cáo ngày, việc cần duyệt; Học thuật: đề xuất chờ duyệt, báo cáo tuần;
+     * GV / TA: giờ dạy, lớp, ca dạy; Học vụ: việc, hoa hồng tạm tính, báo cáo ngày, việc cần duyệt; Học thuật: đề xuất chờ duyệt, báo cáo tuần;
      * Học viên: chỉ tài khoản & mật khẩu + lối về cổng học viên (không thấy lương / chấm công / ticket nội bộ).
      */
     public function edit(Request $request): InertiaResponse
@@ -206,6 +209,14 @@ class ProfileController extends Controller
             ];
         }
 
+        // Hoa hồng tuyển sinh tạm tính tháng này: Học vụ (người phụ trách khách) và ai đang có khách chốt / khoản hoa hồng.
+        $commission = null;
+        if ($portal === 'academic_staff'
+            || CommissionItem::where('user_id', $user->id)->exists()
+            || CrmCustomer::whereNotNull('converted_student_id')->where('commission_user_id', $user->id)->exists()) {
+            $commission = app(SalesCommissionService::class)->statementFor($user->id, now());
+        }
+
         $inbox = app(ApprovalInboxService::class);
         $approvalCount = $inbox->badge($user);
 
@@ -231,6 +242,11 @@ class ProfileController extends Controller
                 'href' => route('approvals.index'),
             ] : null,
             'report' => $reportCard,
+            'commission' => $commission ? [
+                'label' => 'Hoa hồng tạm tính', 'icon' => 'trending_up', 'tone' => 'success',
+                'value' => Money::format($commission['amount']),
+                'hint' => 'Tháng '.$commission['month_label'].' · '.$commission['closed'].' HS chốt · mốc '.rtrim(rtrim(number_format($commission['percent'], 2, ',', ''), '0'), ',').'%',
+            ] : null,
             'tasks' => [
                 'label' => 'Việc cần làm', 'icon' => 'task_alt', 'tone' => 'warning',
                 'value' => $pendingTasksCount.' việc', 'hint' => 'Được giao, đang trong tiến độ',
@@ -243,7 +259,7 @@ class ProfileController extends Controller
         $order = match ($portal) {
             'teacher' => ['classes', 'hours', 'tasks', 'payroll', 'report'],
             'assistant' => ['tasks', 'classes', 'hours', 'payroll', 'report'],
-            'academic_staff' => ['tasks', 'report', 'approvals', 'payroll', 'tickets'],
+            'academic_staff' => ['tasks', 'commission', 'report', 'approvals', 'payroll', 'tickets'],
             'academic_lead' => ['approvals', 'report', 'tasks', 'payroll', 'tickets'],
             default => ['approvals', 'tasks', 'payroll', 'report', 'tickets'],
         };
@@ -263,6 +279,7 @@ class ProfileController extends Controller
             'showPayroll' => $showPayroll,
             'showTickets' => $showTickets,
             'showOperations' => true,
+            'commission' => $commission,
             'payrollPeriodLabel' => $latestPayroll?->period?->title ?? 'Tháng '.now()->format('m/Y'),
             'latestPayroll' => $latestPayroll ? [
                 'base_salary' => $latestPayroll->base_salary,

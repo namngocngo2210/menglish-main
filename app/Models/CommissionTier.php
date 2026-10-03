@@ -15,8 +15,8 @@ use Illuminate\Support\Carbon;
  * [effective_from, effective_to]; sửa bậc = tạo phiên bản mới để kỳ lương cũ
  * luôn tính lại được theo đúng mốc đã áp dụng. effective_from NULL = từ đầu.
  *
- * A6 (bản sửa 25/09/2026): bậc chọn theo SỐ HS CHỐT trong kỳ [min_students, max_students];
- * hoa hồng = new_sale_percent × doanh thu tuyển sinh thật. Bậc cũ theo doanh thu (min_students NULL),
+ * Mốc tăng tiến (03/10/2026): [min_students, max_students] là THỨ TỰ chốt của học viên trong tháng chốt của
+ * người phụ trách; học viên thứ n mang new_sale_percent của mốc chứa n (SalesCommissionService). Bậc cũ theo doanh thu (min_students NULL),
  * renew_percent và bonus_amount chỉ còn là dữ liệu lịch sử, không dùng trong tính lương.
  */
 class CommissionTier extends Model
@@ -87,7 +87,7 @@ class CommissionTier extends Model
     }
 
     /**
-     * Bậc áp dụng cho số HS chốt trong kỳ tại một ngày (mặc định hôm nay): min_students <= n <= max_students
+     * Mốc chứa học viên thứ n (thứ tự chốt trong tháng) tại một ngày (mặc định hôm nay): min_students <= n <= max_students
      * (max NULL = không giới hạn), ưu tiên bậc có min_students cao nhất, chỉ xét phiên bản hiệu lực.
      */
     public static function matchForStudents(int $closedStudents, CarbonInterface|string|null $asOf = null): ?self
@@ -107,9 +107,12 @@ class CommissionTier extends Model
             return 'Theo doanh thu (bậc cũ)';
         }
 
+        // Mốc theo thứ tự chốt: HS đầu tiên là HS thứ 1 (ngưỡng 0 cũ hiển thị như 1).
+        $from = max(1, (int) $this->min_students);
+
         return $this->max_students === null
-            ? 'Từ '.$this->min_students.' HS'
-            : $this->min_students.'–'.$this->max_students.' HS';
+            ? 'Từ HS thứ '.$from
+            : 'HS thứ '.$from.'–'.$this->max_students;
     }
 
     /**

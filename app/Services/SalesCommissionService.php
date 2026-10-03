@@ -23,21 +23,24 @@ use Illuminate\Support\Collection;
 /**
  * Hoa hồng tuyển sinh — nguồn tính DUY NHẤT cho bảng lương, BXH KPI và báo cáo CRM.
  *
- * Luật (A6, chốt 25/09/2026):
- * - Căn cứ = tổng tiền THỰC THU: phiếu thu đã duyệt (gồm cả tiền giáo trình, đồ dùng,
- *   phụ thu), không dùng giá trị hợp đồng (deal_value).
+ * Luật (A6, chốt 25/09/2026; sửa 03/10/2026 theo yêu cầu "hoa hồng Học vụ % tăng tiến theo mốc"):
+ * - Căn cứ = HỌC PHÍ THỰC THU: phiếu thu đã duyệt, KHÔNG gồm tiền sách / Thu khác — bỏ phụ thu của phiếu
+ *   (surcharge_amount) và phần phí khác của khoản học phí (other_fees: sách, giáo trình…) theo tỉ lệ
+ *   other_fees / final_amount. Không dùng giá trị hợp đồng (deal_value).
  * - Tính vào tháng phiếu được DUYỆT (tạm: approved_at nằm trong kỳ lương — chờ BA xác nhận
  *   "tháng thực thu").
  * - Chỉ khách mới. Diễn giải tạm (chờ BA): mọi phiếu thu thuộc KHOẢN HỌC PHÍ ĐẦU TIÊN
  *   (StudentTuition có id nhỏ nhất) của học viên được chuyển đổi từ khách CRM; phiếu của
  *   các khoản học phí sau (tái tục) không có hoa hồng. Phiếu không gắn khoản học phí chỉ
  *   tính khi được lập trước khi học viên có khoản học phí thứ hai.
- * - % hoa hồng (A6 bản sửa): theo BẬC chọn bằng SỐ HS CHỐT của sale trong kỳ (Admin cấu hình, mặc định
- *   3% / 4% / 5%), hiệu lực tại cuối kỳ; hoa hồng = % × doanh thu tuyển sinh thật. Tự tính, không sửa tay.
+ * - % hoa hồng TĂNG TIẾN THEO MỐC (Admin cấu hình ở màn Mốc hoa hồng): mỗi học viên mang % của mốc chứa
+ *   THỨ TỰ chốt của mình trong tháng chốt của người phụ trách. VD mốc 1–5: 4%, từ 6: 3% → 5 HS đầu tháng
+ *   được 4% học phí thu được, HS thứ 6 trở đi 3%. Thứ tự đếm lại từ 1 mỗi tháng; % lấy theo bảng mốc hiệu
+ *   lực tại cuối kỳ phát sinh. Tự tính, không sửa tay.
  * - Gate kép theo từng khách: đủ 30 ngày từ ngày chốt VÀ đủ 3/3 mốc chăm sóc tháng đầu
  *   (FirstMonthCareService::careMilestonesCompleted). Chưa đạt → khoản hoa hồng HOÃN sang kỳ sau (sổ
  *   commission_items), trả ở kỳ đầu tiên gate đạt, % giữ theo kỳ phát sinh.
- * - Sale nhận hoa hồng = sale phụ trách khách lúc chốt (crm_customers.commission_user_id,
+ * - Người nhận hoa hồng (Học vụ / người phụ trách) = người phụ trách khách lúc chốt (crm_customers.commission_user_id,
  *   ghi nhận assigned_user_id tại thời điểm chốt; lead cũ chưa có thì dùng assigned_user_id).
  * - Không tính phiếu âm (hoàn/chuyển nhượng đi) và phiếu nhận chuyển nhượng (XFER-IN):
  *   tiền chuyển nhượng không phải tiền thực thu mới. Thu hồi khi hoàn phí đi qua
@@ -49,8 +52,11 @@ class SalesCommissionService
     /** Hoàn phí khi học chưa tới 1 tháng thì gợi ý thu hồi hoa hồng. */
     public const CLAWBACK_SUGGEST_MONTHS = 1;
 
+    /** [owner_id => [crm_customer_id => thứ tự chốt trong tháng]] — nhớ trong một lần tính. */
+    private array $rankCache = [];
+
     /**
-     * Doanh thu thực thu tính hoa hồng theo sale trong [start, end]: [user_id => số tiền].
+     * Doanh thu thực thu tính hoa hồng theo người phụ trách trong [start, end]: [user_id => số tiền] (toàn bộ tiền phiếu).
      */
     public function collectedBySales(CarbonInterface $start, CarbonInterface $end, ?int $userId = null, ?Builder $customerScope = null): Collection
     {
@@ -60,39 +66,223 @@ class SalesCommissionService
     }
 
     /**
-     * Các phiếu thu làm căn cứ hoa hồng trong kỳ, mỗi phiếu gắn thêm commission_owner_id.
+     * Các phiếu thu làm căn cứ hoa hồng trong kỳ. Mỗi phiếu gắn thêm: commission_owner_id, commission_customer_id,
+     * commission_base (học phí, không gồm sách / Thu khác), closing_rank (HS thứ mấy trong tháng chốt của người
+     * phụ trách), commission_percent / commission_tier_name (mốc hiệu lực tại $end) và commission_amount.
      * $customerScope: truy vấn CrmCustomer đã lọc sẵn (chi nhánh / phạm vi xem của báo cáo CRM).
      */
     public function commissionableReceipts(CarbonInterface $start, CarbonInterface $end, ?int $userId = null, ?Builder $customerScope = null): Collection
     {
-        $owners = $this->studentOwners($userId, $customerScope);
-        if ($owners->isEmpty()) {
+        $this->rankCache = [];
+        $customers = $this->convertedCustomers($userId, $customerScope);
+        if ($customers->isEmpty()) {
             return (new TuitionReceipt)->newCollection();
         }
 
-        $tuitions = StudentTuition::whereIn('student_id', $owners->keys())
+        $tuitions = StudentTuition::whereIn('student_id', $customers->keys())
             ->orderBy('id')
-            ->get(['id', 'student_id', 'created_at']);
+            ->get(['id', 'student_id', 'final_amount', 'other_fees', 'created_at']);
         $tuitionsByStudent = $tuitions->groupBy('student_id');
-        $studentOfTuition = $tuitions->pluck('student_id', 'id');
+        $tuitionById = $tuitions->keyBy('id');
+        $rates = [];
 
         return TuitionReceipt::query()
             ->where('status', TuitionReceipt::STATUS_APPROVED)
             ->where('amount', '>', 0)
             ->where(fn ($q) => $q->whereNull('transaction_code')->orWhere('transaction_code', 'not like', 'XFER-IN-%'))
             ->whereBetween('approved_at', [$start->copy()->startOfDay(), $end->copy()->endOfDay()])
-            ->where(fn ($q) => $q->whereIn('student_id', $owners->keys())->orWhereIn('student_tuition_id', $studentOfTuition->keys()))
+            ->where(fn ($q) => $q->whereIn('student_id', $customers->keys())->orWhereIn('student_tuition_id', $tuitionById->keys()))
             ->get()
             // Phiếu cũ có thể chỉ gắn khoản học phí mà thiếu student_id
-            ->each(fn (TuitionReceipt $receipt) => $receipt->student_id ??= $studentOfTuition->get($receipt->student_tuition_id))
-            ->filter(fn (TuitionReceipt $receipt) => $owners->has($receipt->student_id))
+            ->each(fn (TuitionReceipt $receipt) => $receipt->student_id ??= $tuitionById->get($receipt->student_tuition_id)?->student_id)
+            ->filter(fn (TuitionReceipt $receipt) => $customers->has($receipt->student_id))
             ->filter(fn (TuitionReceipt $receipt) => $this->belongsToFirstTuition($receipt, $tuitionsByStudent->get($receipt->student_id, collect())))
-            ->each(fn (TuitionReceipt $receipt) => $receipt->setAttribute('commission_owner_id', $owners->get($receipt->student_id)))
+            ->each(function (TuitionReceipt $receipt) use ($customers, $tuitionById, $end, &$rates) {
+                $customer = $customers->get($receipt->student_id);
+                $rank = $this->closingRank($customer);
+                $rates[$rank] ??= $this->rateForRank($rank, $end);
+                $base = $this->tuitionBase($receipt, $tuitionById->get($receipt->student_tuition_id));
+
+                $receipt->setAttribute('commission_owner_id', $customer->commission_owner_id);
+                $receipt->setAttribute('commission_customer_id', $customer->id);
+                $receipt->setAttribute('commission_base', $base);
+                $receipt->setAttribute('closing_rank', $rank);
+                $receipt->setAttribute('commission_percent', $rates[$rank]['percent']);
+                $receipt->setAttribute('commission_tier_name', $rates[$rank]['tier_name']);
+                $receipt->setAttribute('commission_amount', round($base * $rates[$rank]['percent'] / 100, 0));
+            })
             ->values();
     }
 
     /**
-     * Số HS sale chốt trong [start, end] (khách CRM chuyển thành học viên, converted_at trong kỳ): [user_id => số].
+     * Phần HỌC PHÍ của phiếu (căn cứ hoa hồng): bỏ phụ thu của phiếu và phần phí khác (sách, giáo trình…) của khoản
+     * học phí theo tỉ lệ other_fees / final_amount. Phiếu chỉ thu phụ thu → 0.
+     */
+    public function tuitionBase(TuitionReceipt $receipt, ?StudentTuition $tuition): float
+    {
+        $portion = max(0.0, (float) $receipt->amount - (float) $receipt->surcharge_amount);
+        $final = (float) ($tuition?->final_amount ?? 0);
+        $otherFees = (float) ($tuition?->other_fees ?? 0);
+        if ($portion <= 0 || $otherFees <= 0 || $final <= 0) {
+            return round($portion, 0);
+        }
+
+        return round($portion * max(0.0, min(1.0, ($final - $otherFees) / $final)), 0);
+    }
+
+    /**
+     * Thứ tự chốt (1 = HS đầu tiên) của khách trong THÁNG CHỐT của người phụ trách nhận hoa hồng, đếm trên mọi chi
+     * nhánh, theo giờ chốt (converted_at; khách cũ chưa ghi thì dùng ngày tạo) rồi theo id.
+     */
+    public function closingRank(CrmCustomer $customer): int
+    {
+        $owner = (int) ($customer->commission_user_id ?? $customer->assigned_user_id);
+        if (! array_key_exists($owner, $this->rankCache)) {
+            $months = CrmCustomer::query()
+                ->whereNotNull('converted_student_id')
+                ->where(fn ($q) => $q->where('commission_user_id', $owner)
+                    ->orWhere(fn ($legacy) => $legacy->whereNull('commission_user_id')->where('assigned_user_id', $owner)))
+                ->get(['id', 'converted_at', 'created_at'])
+                ->groupBy(fn (CrmCustomer $c) => ($c->converted_at ?? $c->created_at)?->format('Y-m'));
+            $ranks = [];
+            foreach ($months as $month) {
+                $ordered = $month->sortBy(fn (CrmCustomer $c) => [($c->converted_at ?? $c->created_at)?->getTimestamp() ?? 0, $c->id])->values();
+                foreach ($ordered as $i => $c) {
+                    $ranks[$c->id] = $i + 1;
+                }
+            }
+            $this->rankCache[$owner] = $ranks;
+        }
+
+        return (int) ($this->rankCache[$owner][$customer->id] ?? 1);
+    }
+
+    /**
+     * % hoa hồng của học viên thứ $rank trong tháng chốt, theo bảng mốc hiệu lực tại $asOf.
+     *
+     * @return array{tier: ?CommissionTier, tier_name: string, percent: float}
+     */
+    public function rateForRank(int $rank, CarbonInterface|string|null $asOf = null): array
+    {
+        $tier = CommissionTier::matchForStudents(max(1, $rank), $asOf);
+
+        return [
+            'tier' => $tier,
+            'tier_name' => $tier?->tier_name ?? 'Chưa cấu hình mốc',
+            'percent' => $tier ? (float) $tier->new_sale_percent : 0.0,
+        ];
+    }
+
+    /**
+     * Mốc hiện tại của người đã chốt $closed HS trong tháng (mốc của HS gần nhất; chưa chốt ai = mốc của HS đầu tiên)
+     * và mốc kế tiếp: còn bao nhiêu HS nữa thì sang mốc có % khác.
+     *
+     * @return array{tier_name: string, percent: float, range: ?string, next_percent: ?float, next_range: ?string, to_next: ?int}
+     */
+    public function milestoneFor(int $closed, CarbonInterface|string|null $asOf = null): array
+    {
+        $current = $this->rateForRank(max(1, $closed), $asOf);
+        $next = $current['tier']?->max_students !== null
+            ? CommissionTier::byStudents()->effectiveAt($asOf)->where('min_students', '>', $current['tier']->max_students)->orderBy('min_students')->first()
+            : null;
+
+        return [
+            'tier_name' => $current['tier_name'],
+            'percent' => $current['percent'],
+            'range' => $current['tier']?->student_range_label,
+            'next_percent' => $next ? (float) $next->new_sale_percent : null,
+            'next_range' => $next?->student_range_label,
+            'to_next' => $next ? max(1, (int) $next->min_students - $closed) : null,
+        ];
+    }
+
+    /**
+     * Hoa hồng phát sinh trong [start, end] theo người phụ trách (trước gate kép — số trả thực tế theo phiếu lương):
+     * [user_id => [collected (tổng tiền phiếu), base (học phí tính HH), amount, students, closed, mốc hiện tại…]].
+     * Số HS chốt và mốc tính trên mọi chi nhánh như bảng lương; tiền chỉ trong $customerScope.
+     */
+    public function summaryByOwner(CarbonInterface $start, CarbonInterface $end, ?int $userId = null, ?Builder $customerScope = null): Collection
+    {
+        $receipts = $this->commissionableReceipts($start, $end, $userId, $customerScope)->groupBy('commission_owner_id');
+        $closed = $this->closedCountsBySales($start, $end);
+        $owners = $receipts->keys()->merge($closed->keys())->map(fn ($id) => (int) $id)->unique()
+            ->when($userId, fn (Collection $ids) => $ids->filter(fn (int $id) => $id === $userId));
+
+        return $owners->mapWithKeys(function (int $owner) use ($receipts, $closed, $end) {
+            $mine = $receipts->get($owner, collect());
+            $count = (int) ($closed->get($owner) ?? 0);
+
+            return [$owner => [
+                'collected' => (float) $mine->sum('amount'),
+                'base' => (float) $mine->sum('commission_base'),
+                'amount' => (float) $mine->sum('commission_amount'),
+                'students' => $mine->pluck('student_id')->unique()->count(),
+                'closed' => $count,
+                ...$this->milestoneFor($count, $end),
+            ]];
+        });
+    }
+
+    /**
+     * Bảng hoa hồng TẠM TÍNH trong tháng của một người phụ trách (trang cá nhân): số HS đã chốt, mốc hiện tại / kế tiếp,
+     * bảng mốc, và từng học viên (chốt trong tháng hoặc có học phí thu trong tháng) kèm HS thứ mấy, %, học phí, hoa hồng.
+     */
+    public function statementFor(int $userId, CarbonInterface $month): array
+    {
+        $start = Carbon::parse($month)->startOfMonth();
+        $end = $start->copy()->endOfMonth();
+        $receipts = $this->commissionableReceipts($start, $end, $userId)->groupBy('student_id');
+        $closedHere = CrmCustomer::query()
+            ->whereNotNull('converted_student_id')
+            ->where(fn ($q) => $q->where('commission_user_id', $userId)
+                ->orWhere(fn ($legacy) => $legacy->whereNull('commission_user_id')->where('assigned_user_id', $userId)))
+            ->whereBetween('converted_at', [$start, $end])
+            ->get(['id', 'name', 'converted_student_id', 'commission_user_id', 'assigned_user_id', 'converted_at', 'created_at'])
+            ->keyBy('converted_student_id');
+        $closed = $closedHere->count();
+        $studentNames = Student::whereIn('id', $receipts->keys()->merge($closedHere->keys())->unique())->pluck('name', 'id');
+
+        $rows = $receipts->keys()->merge($closedHere->keys())->unique()->map(function ($studentId) use ($receipts, $closedHere, $studentNames, $end) {
+            $mine = $receipts->get($studentId, collect());
+            $first = $mine->first();
+            $customer = $closedHere->get($studentId);
+            $rank = $first ? (int) $first->closing_rank : $this->closingRank($customer);
+            $percent = $first ? (float) $first->commission_percent : $this->rateForRank($rank, $end)['percent'];
+            $closedAt = $customer?->converted_at ?? CrmCustomer::whereKey($first?->commission_customer_id)->value('converted_at');
+
+            return [
+                'student' => $studentNames->get($studentId) ?? $customer?->name ?? '—',
+                'rank' => $rank,
+                'closed_at' => $closedAt ? Carbon::parse($closedAt)->format('d/m/Y') : null,
+                'closed_this_month' => $customer !== null,
+                'percent' => $percent,
+                'collected' => (float) $mine->sum('amount'),
+                'base' => (float) $mine->sum('commission_base'),
+                'amount' => (float) $mine->sum('commission_amount'),
+            ];
+        })->sortBy(fn (array $row) => [$row['closed_this_month'] ? 0 : 1, $row['rank']])->values();
+
+        $milestone = $this->milestoneFor($closed, $end);
+
+        return [
+            'month_label' => $start->format('m/Y'),
+            'closed' => $closed,
+            ...$milestone,
+            'tiers' => CommissionTier::byStudents()->effectiveAt($end)->orderBy('min_students')->get()
+                ->map(fn (CommissionTier $tier) => [
+                    'range' => $tier->student_range_label,
+                    'percent' => (float) $tier->new_sale_percent,
+                    'current' => $tier->student_range_label === $milestone['range'],
+                ])->values()->all(),
+            'collected' => (float) $rows->sum('collected'),
+            'base' => (float) $rows->sum('base'),
+            'amount' => (float) $rows->sum('amount'),
+            'rows' => $rows->all(),
+        ];
+    }
+
+    /**
+     * Số HS chốt trong [start, end] (khách CRM chuyển thành học viên, converted_at trong kỳ): [user_id => số].
      */
     public function closedCountsBySales(CarbonInterface $start, CarbonInterface $end, ?Builder $customerScope = null): Collection
     {
@@ -111,29 +301,11 @@ class SalesCommissionService
         return (int) ($this->closedCountsBySales($start, $end)->get($userId) ?? 0);
     }
 
-    /**
-     * Hoa hồng cho doanh thu thực thu với số HS chốt trong kỳ, theo bậc hiệu lực tại $asOf.
-     *
-     * @return array{tier: ?CommissionTier, tier_name: string, percent: float, closed: int, amount: float}
-     */
-    public function commissionFor(float $revenue, int $closedStudents, CarbonInterface|string|null $asOf = null): array
-    {
-        $tier = CommissionTier::matchForStudents($closedStudents, $asOf);
-        $percent = $tier ? (float) $tier->new_sale_percent : 0.0;
-
-        return [
-            'tier' => $tier,
-            'tier_name' => $tier?->tier_name ?? 'Chưa cấu hình bậc',
-            'percent' => $percent,
-            'closed' => $closedStudents,
-            'amount' => $revenue > 0 ? round($revenue * $percent / 100, 0) : 0.0,
-        ];
-    }
-
     // ───────────── Sổ hoa hồng & gate kép ─────────────
 
     /**
-     * Ghi sổ các khoản hoa hồng phát sinh trong kỳ (phiếu thu khách mới duyệt trong kỳ), % theo bậc của kỳ.
+     * Ghi sổ các khoản hoa hồng phát sinh trong kỳ (phiếu thu khách mới duyệt trong kỳ): căn cứ = học phí của phiếu,
+     * % theo mốc chứa thứ tự chốt của học viên trong tháng chốt (bảng mốc hiệu lực tại cuối kỳ).
      * Khoản chưa trả được cập nhật lại mỗi lần tính; phiếu không còn là căn cứ (bị hủy / từ chối) thì khoản
      * chưa trả bị hủy (void). Khoản đã trả không bao giờ bị sửa.
      */
@@ -141,7 +313,8 @@ class SalesCommissionService
     {
         $start = $period->start_date->copy();
         $end = $period->end_date->copy();
-        $receipts = $this->commissionableReceipts($start, $end);
+        // Phiếu chỉ thu sách / Thu khác (học phí = 0) không có khoản hoa hồng.
+        $receipts = $this->commissionableReceipts($start, $end)->filter(fn (TuitionReceipt $receipt) => $receipt->commission_base > 0)->values();
         $closedCounts = $this->closedCountsBySales($start, $end);
         $studentIds = $receipts->pluck('student_id')->unique()->values()->all();
         $customers = CrmCustomer::whereIn('converted_student_id', $studentIds)
@@ -158,18 +331,17 @@ class SalesCommissionService
             }
 
             $owner = (int) $receipt->commission_owner_id;
-            $closed = (int) ($closedCounts->get($owner) ?? 0);
-            $percent = $this->commissionFor((float) $receipt->amount, $closed, $end)['percent'];
             $customer = $customers->get($receipt->student_id);
 
             $attributes = [
                 'user_id' => $owner,
                 'student_id' => $receipt->student_id,
                 'crm_customer_id' => $customer?->id,
-                'base_amount' => (float) $receipt->amount,
-                'percent' => $percent,
-                'amount' => round((float) $receipt->amount * $percent / 100, 0),
-                'closed_count' => $closed,
+                'base_amount' => (float) $receipt->commission_base,
+                'percent' => (float) $receipt->commission_percent,
+                'amount' => (float) $receipt->commission_amount,
+                'closed_count' => (int) ($closedCounts->get($owner) ?? 0),
+                'closing_rank' => (int) $receipt->closing_rank,
                 'earned_period_start' => $start->toDateString(),
                 'earned_period_end' => $end->toDateString(),
                 'closed_at' => $customer?->converted_at ?? ($closingDates[(int) $receipt->student_id] ?? null),
@@ -420,19 +592,20 @@ class SalesCommissionService
         ]);
     }
 
-    /** student_id => sale nhận hoa hồng, chỉ học viên được chuyển đổi từ khách CRM. */
-    private function studentOwners(?int $userId, ?Builder $customerScope = null): Collection
+    /**
+     * student_id => khách CRM đã chuyển đổi (kèm commission_owner_id = người nhận hoa hồng), chỉ học viên đến từ CRM.
+     */
+    private function convertedCustomers(?int $userId, ?Builder $customerScope = null): Collection
     {
         return ($customerScope ? (clone $customerScope) : CrmCustomer::query())
             ->whereNotNull('converted_student_id')
             ->when($userId, fn ($q) => $q->where(fn ($owner) => $owner->where('commission_user_id', $userId)
                 ->orWhere(fn ($legacy) => $legacy->whereNull('commission_user_id')->where('assigned_user_id', $userId))))
             ->orderBy('id')
-            ->get(['converted_student_id', 'commission_user_id', 'assigned_user_id'])
-            ->mapWithKeys(fn (CrmCustomer $customer) => [
-                $customer->converted_student_id => $customer->commission_user_id ?? $customer->assigned_user_id,
-            ])
-            ->filter();
+            ->get(['id', 'converted_student_id', 'commission_user_id', 'assigned_user_id', 'converted_at', 'created_at'])
+            ->each(fn (CrmCustomer $customer) => $customer->setAttribute('commission_owner_id', $customer->commission_user_id ?? $customer->assigned_user_id))
+            ->filter(fn (CrmCustomer $customer) => $customer->commission_owner_id)
+            ->keyBy('converted_student_id');
     }
 
     private function belongsToFirstTuition(TuitionReceipt $receipt, Collection $tuitions): bool

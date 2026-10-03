@@ -344,7 +344,7 @@ class Phase3MockupParityTest extends TestCase
         $this->actingAs($this->admin)->post(route('payroll.config.commission-tiers.store'), [
             'min_students' => 51, 'new_sale_percent' => 6, 'effective_from' => now()->toDateString(),
         ])->assertSessionHasNoErrors();
-        $this->assertDatabaseHas('commission_tiers', ['tier_name' => 'Bậc 51+ HS', 'min_students' => 51, 'max_students' => null]);
+        $this->assertDatabaseHas('commission_tiers', ['tier_name' => 'Mốc từ HS thứ 51', 'min_students' => 51, 'max_students' => null]);
 
         $this->actingAs($this->admin)->get(route('payroll.config.commission-tiers'))
             ->assertOk()
@@ -352,10 +352,10 @@ class Phase3MockupParityTest extends TestCase
             ->assertSee('Hoa hồng tuyển sinh')->assertSee('Thưởng tái tục')
             ->assertSee('Thêm mốc mới')
             ->assertSee('Thay đổi cấu hình sẽ được áp dụng cho các kỳ tính lương tiếp theo kể từ ngày hiệu lực.')
-            ->assertSeeInOrder(['Ngưỡng từ (HV)', 'Ngưỡng đến (HV)', 'Tỷ lệ (%)', 'Ngày hiệu lực từ'])
+            ->assertSeeInOrder(['Từ HS thứ', 'Đến HS thứ', 'Tỷ lệ (%)', 'Ngày hiệu lực từ'])
             ->assertSee('Không giới hạn')
             ->assertSee('Thêm mốc cấu hình mới')
-            ->assertSee('Từ (số học viên)')->assertSee('Để trống = Max')
+            ->assertSee('Từ HS thứ')->assertSee('Để trống = không giới hạn')
             ->assertSee('Lưu cấu hình');
 
         // Tab thưởng tái tục: bảng % theo số HS nghỉ (A6), lưu riêng.

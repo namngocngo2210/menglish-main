@@ -6,6 +6,7 @@ use App\Models\Branch;
 use App\Models\ClassEnrollment;
 use App\Models\ClassModel;
 use App\Models\CommissionAdjustment;
+use App\Models\CommissionItem;
 use App\Models\CommissionTier;
 use App\Models\Course;
 use App\Models\CrmCustomer;
@@ -16,6 +17,7 @@ use App\Models\StudentTuition;
 use App\Models\TuitionReceipt;
 use App\Models\TuitionRefundRequest;
 use App\Models\User;
+use App\Services\SalesCommissionService;
 use Carbon\Carbon;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
@@ -148,10 +150,10 @@ class Phase3CommissionTest extends TestCase
         $this->assertSame('2026-08-10 10:00:00', $receipt->fresh()->approved_at->format('Y-m-d H:i:s'));
     }
 
-    public function test_commission_uses_collected_money_including_materials_not_deal_value(): void
+    public function test_commission_uses_tuition_collected_excluding_books_not_deal_value(): void
     {
         [, $tuition] = $this->convertedStudent('HV-C1', null, 50000000);
-        // 6M học phí + 400k giáo trình (phụ thu) trên cùng phiếu, 2M đợt sau
+        // 6M học phí + 400k sách (phụ thu / Thu khác) trên cùng phiếu, 2M đợt sau
         $this->approvedReceipt($tuition, 6400000, '2026-08-05 09:00:00', 400000);
         $this->approvedReceipt($tuition, 2000000, '2026-08-20 09:00:00');
 
@@ -159,9 +161,79 @@ class Phase3CommissionTest extends TestCase
         $period->calculatePayrollForPeriod();
 
         $record = $this->salesRecord($period);
-        $this->assertEquals(8400000, $record->commission_base);
-        $this->assertEquals(420000, $record->commission_bonus); // 5% × 8.4M, không phải 5% × 50M
-        $this->assertEquals(420000, $record->net_salary);
+        $this->assertEquals(8000000, $record->commission_base);   // không tính 400k tiền sách
+        $this->assertEquals(400000, $record->commission_bonus);   // 5% × 8M, không phải 5% × 50M
+        $this->assertEquals(400000, $record->net_salary);
+    }
+
+    public function test_book_fees_inside_the_tuition_contract_are_excluded_proportionally(): void
+    {
+        [$student] = $this->convertedStudent('HV-C2');
+        // Hợp đồng 12M = 10M học phí + 2M sách (other_fees); thu đủ 12M rồi thêm 1 phiếu chỉ thu sách riêng
+        $tuition = StudentTuition::where('student_id', $student->id)->firstOrFail();
+        $tuition->update(['total_amount' => 10000000, 'other_fees' => 2000000, 'final_amount' => 12000000, 'debt_amount' => 12000000]);
+        $this->approvedReceipt($tuition, 6000000, '2026-08-05 09:00:00');
+        $this->approvedReceipt($tuition, 6000000, '2026-08-15 09:00:00');
+        $this->approvedReceipt($tuition, 300000, '2026-08-16 09:00:00', 300000);
+
+        $period = $this->period(8);
+        $period->calculatePayrollForPeriod();
+
+        $record = $this->salesRecord($period);
+        $this->assertEquals(10000000, $record->commission_base);
+        $this->assertEquals(500000, $record->commission_bonus);
+        // Phiếu chỉ thu sách không có khoản hoa hồng
+        $this->assertSame(2, CommissionItem::count());
+    }
+
+    public function test_commission_percent_steps_by_closing_order_within_the_month(): void
+    {
+        // Mốc tăng tiến: 5 HS đầu tháng 4%, HS thứ 6 trở đi 3%
+        CommissionTier::query()->delete();
+        CommissionTier::create(['tier_name' => 'Mốc 1–5', 'min_revenue' => 0, 'min_students' => 1, 'max_students' => 5, 'new_sale_percent' => 4, 'bonus_amount' => 0]);
+        CommissionTier::create(['tier_name' => 'Mốc từ 6', 'min_revenue' => 0, 'min_students' => 6, 'new_sale_percent' => 3, 'bonus_amount' => 0]);
+        $staff = $this->userWithRole('academic_staff', ['name' => 'Học vụ Mốc']);
+
+        $tuitions = collect(range(1, 7))->map(function (int $i) use ($staff) {
+            [$student, $tuition] = $this->convertedStudent('HV-P'.$i, $staff);
+            CrmCustomer::where('converted_student_id', $student->id)->update(['converted_at' => sprintf('2026-08-%02d 09:00:00', $i)]);
+
+            return $tuition;
+        });
+        // Thu theo thứ tự ngược với thứ tự chốt: % vẫn theo thứ tự chốt, không theo thứ tự thu
+        $tuitions->reverse()->each(fn (StudentTuition $t, int $i) => $this->approvedReceipt($t, 10000000, '2026-08-20 09:00:00'));
+
+        $period = $this->period(8);
+        $period->calculatePayrollForPeriod();
+        $record = $this->salesRecord($period, $staff);
+
+        $this->assertSame(7, $record->commission_closed_count);
+        $this->assertEquals(3, $record->commission_percent);                 // mốc hiện tại
+        // Gồm cả phần còn hoãn (chưa đủ 30 ngày từ ngày chốt)
+        $this->assertEquals(70000000, CommissionItem::sum('base_amount'));
+        $this->assertEquals(5 * 400000 + 2 * 300000, (float) $record->commission_bonus + (float) $record->commission_deferred);
+        $this->assertEquals([1, 2, 3, 4, 5, 6, 7], CommissionItem::orderBy('closing_rank')->pluck('closing_rank')->all());
+        $this->assertEquals(4, CommissionItem::where('closing_rank', 5)->value('percent'));
+        $this->assertEquals(3, CommissionItem::where('closing_rank', 6)->value('percent'));
+
+        // Tháng sau đếm lại từ HS thứ 1
+        [$student] = $this->convertedStudent('HV-P8', $staff);
+        CrmCustomer::where('converted_student_id', $student->id)->update(['converted_at' => '2026-09-02 09:00:00']);
+        $this->approvedReceipt(StudentTuition::where('student_id', $student->id)->firstOrFail(), 10000000, '2026-09-03 09:00:00');
+        $this->travelTo(Carbon::parse('2026-09-10 10:00:00'));
+        $statement = app(SalesCommissionService::class)->statementFor($staff->id, now());
+        $this->assertSame(1, $statement['closed']);
+        $this->assertEquals(400000, $statement['amount']);
+        $this->assertSame(5, $statement['to_next']);   // HS thứ 6 sang mốc mới
+        $this->assertSame(1, $statement['rows'][0]['rank']);
+
+        // Trang cá nhân Học vụ hiện hoa hồng tạm tính tháng này
+        $this->actingAs($staff)->get(route('profile.edit'))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Profile/Edit')
+                ->where('commission.closed', 1)
+                ->where('commission.amount', fn ($v) => (float) $v === 400000.0)
+                ->where('commission.to_next', 5));
     }
 
     public function test_commission_is_counted_in_month_receipt_was_approved(): void

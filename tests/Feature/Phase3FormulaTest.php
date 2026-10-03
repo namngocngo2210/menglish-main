@@ -163,6 +163,8 @@ class Phase3FormulaTest extends TestCase
     /** Khách CRM do $sale chốt ngày $closedAt → học viên + khoản học phí đầu tiên + phiếu thu duyệt. */
     private function closedCustomer(User $sale, string $closedAt, float $paid, string $paidAt): array
     {
+        // Tạo khách tại ngày chốt: khách "sửa sau lần tính" (theo đồng hồ thật) sẽ chặn duyệt kỳ lương.
+        $this->travelTo(Carbon::parse($closedAt));
         $this->seq++;
         $student = Student::create([
             'code' => 'HV-HH-'.$this->seq, 'name' => 'Khách mới '.$this->seq, 'phone' => '08'.str_pad((string) (10000000 + $this->seq), 8, '0', STR_PAD_LEFT),
@@ -425,31 +427,33 @@ class Phase3FormulaTest extends TestCase
         $this->actingAs($this->admin)->get(route('kpi.criteria'))->assertOk()->assertSee('Chăm sóc học viên')->assertSee('Thu học phí')->assertSee('300.000 đ');
     }
 
-    // ───────────── E. Hoa hồng: bậc theo số HS chốt + gate kép ─────────────
+    // ───────────── E. Hoa hồng: mốc theo thứ tự HS chốt + gate kép ─────────────
 
-    public function test_commission_tier_is_selected_by_number_of_students_closed(): void
+    public function test_commission_tier_is_selected_by_closing_rank_of_the_student(): void
     {
         $service = app(SalesCommissionService::class);
-        // Bậc mặc định (migration): 0–5 → 3%, 6–10 → 4%, từ 11 → 5%
-        $this->assertEquals(3, $service->commissionFor(10000000, 5, '2026-09-30')['percent']);
-        $this->assertEquals(4, $service->commissionFor(10000000, 6, '2026-09-30')['percent']);
-        $this->assertEquals(400000, $service->commissionFor(10000000, 10, '2026-09-30')['amount']);
-        $this->assertEquals(5, $service->commissionFor(10000000, 11, '2026-09-30')['percent']);
+        // Mốc mặc định (migration): HS thứ 1–5 → 3%, 6–10 → 4%, từ 11 → 5%
+        $this->assertEquals(3, $service->rateForRank(5, '2026-09-30')['percent']);
+        $this->assertEquals(4, $service->rateForRank(6, '2026-09-30')['percent']);
+        $this->assertEquals(4, $service->rateForRank(10, '2026-09-30')['percent']);
+        $this->assertEquals(5, $service->rateForRank(11, '2026-09-30')['percent']);
+        $milestone = $service->milestoneFor(3, '2026-09-30');
+        $this->assertSame([3.0, 3, 4.0], [$milestone['percent'], $milestone['to_next'], $milestone['next_percent']]);
 
         // Admin cấu hình bậc theo số HS (phiên bản mới)
         $this->actingAs($this->admin)->post(route('payroll.config.commission-tiers.store'), [
             'tier_name' => 'Bậc 4 (từ 20 HS)', 'min_students' => 20, 'new_sale_percent' => 6, 'effective_from' => '2026-01-01',
         ])->assertSessionHasNoErrors();
-        $this->assertEquals(6, $service->commissionFor(10000000, 25, '2026-09-30')['percent']);
+        $this->assertEquals(6, $service->rateForRank(25, '2026-09-30')['percent']);
         $this->actingAs($this->admin)->post(route('payroll.config.commission-tiers.store'), ['tier_name' => 'Thiếu ngưỡng', 'new_sale_percent' => 2])
             ->assertSessionHasErrors('min_students');
-        $this->actingAs($this->admin)->get(route('payroll.config.commission-tiers'))->assertOk()->assertSee('Số HS chốt trong kỳ')->assertSee('Từ 20 HS');
+        $this->actingAs($this->admin)->get(route('payroll.config.commission-tiers'))->assertOk()->assertSee('HS thứ (trong tháng chốt)')->assertSee('Từ HS thứ 20');
     }
 
     public function test_commission_is_deferred_until_30_days_and_3_care_milestones_then_paid_later_with_clawback(): void
     {
         $sale = $this->userWithRole('sales_consultant', ['name' => 'Sale Hoãn']);
-        // 6 khách chốt ngày 05/09 → bậc 4%; mỗi khách đóng 5.000.000đ ngày 10/09
+        // 6 khách chốt ngày 05/09 → HS thứ 1–5: 3%, HS thứ 6: 4%; mỗi khách đóng 5.000.000đ ngày 10/09
         $closed = collect(range(1, 6))->map(fn () => $this->closedCustomer($sale, '2026-09-05 09:00:00', 5000000, '2026-09-10 10:00:00'));
 
         // Tháng 9: chưa đủ 30 ngày → hoãn toàn bộ, không mất
@@ -459,7 +463,7 @@ class Phase3FormulaTest extends TestCase
         $this->assertSame(6, $record->commission_closed_count);
         $this->assertEquals(4, $record->commission_percent);
         $this->assertEquals(0, $record->commission_bonus);
-        $this->assertEquals(1200000, $record->commission_deferred);  // 4% × 30.000.000
+        $this->assertEquals(950000, $record->commission_deferred);   // 5 × 3% × 5.000.000 + 4% × 5.000.000
         $this->assertSame(6, CommissionItem::where('status', CommissionItem::STATUS_DEFERRED)->count());
         $this->assertStringContainsString('chưa đủ 30 ngày', CommissionItem::first()->deferred_reason);
         $this->travelTo(Carbon::parse('2026-10-04 09:00:00')); // duyệt kỳ sau chốt công / lỗi (cuối tháng + 2 ngày)
@@ -478,10 +482,10 @@ class Phase3FormulaTest extends TestCase
         $october = $this->calculate($this->period(10));
         $record = $this->record($october, $sale);
         $this->assertSame(0, $record->commission_closed_count);
-        $this->assertEquals(800000, $record->commission_bonus);      // 4 × 4% × 5.000.000 (giữ % kỳ phát sinh)
+        $this->assertEquals(600000, $record->commission_bonus);      // HS thứ 1–4 × 3% × 5.000.000 (giữ % kỳ phát sinh)
         $this->assertEquals(20000000, $record->commission_base);
-        $this->assertEquals(400000, $record->commission_deferred);
-        $this->assertEquals(800000, $record->net_salary);
+        $this->assertEquals(350000, $record->commission_deferred);   // HS thứ 5 (3%) + HS thứ 6 (4%)
+        $this->assertEquals(600000, $record->net_salary);
         $this->assertStringContainsString('2/3 mốc', CommissionItem::where('crm_customer_id', $closed[4][0]->id)->value('deferred_reason'));
 
         $this->actingAs($this->accountant)->get(route('payroll.records.show', $record->id))
@@ -492,26 +496,26 @@ class Phase3FormulaTest extends TestCase
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $october->id))->assertSessionHasNoErrors();
         $this->assertSame(4, CommissionItem::where('status', CommissionItem::STATUS_PAID)->whereNotNull('settled_at')->count());
 
-        // Hủy hóa đơn phiếu ĐÃ trả hoa hồng → thu hồi đúng 200.000đ; phiếu còn hoãn → hủy khoản, không thu hồi
+        // Hủy hóa đơn phiếu ĐÃ trả hoa hồng → thu hồi đúng 150.000đ; phiếu còn hoãn → hủy khoản, không thu hồi
         $service = app(SalesCommissionService::class);
         $paidReceipt = $closed[0][2];
         $deferredReceipt = $closed[5][2];
         $adjustment = $service->recordCancellationClawback($paidReceipt, $this->admin, 'C26-0001');
         $paidReceipt->update(['status' => TuitionReceipt::STATUS_CANCELLED]);
-        $this->assertEquals(-200000, (float) $adjustment->amount);
+        $this->assertEquals(-150000, (float) $adjustment->amount);
         $this->assertNull($service->recordCancellationClawback($deferredReceipt, $this->admin, 'C26-0002'));
         $deferredReceipt->update(['status' => TuitionReceipt::STATUS_CANCELLED]);
         $this->assertSame(CommissionItem::STATUS_VOID, CommissionItem::where('tuition_receipt_id', $deferredReceipt->id)->value('status'));
 
-        // Tháng 11: khách còn lại đủ mốc → trả 200.000đ; trừ 200.000đ thu hồi
+        // Tháng 11: khách còn lại (HS thứ 5) đủ mốc → trả 150.000đ; trừ 150.000đ thu hồi
         $this->travelTo(Carbon::parse('2026-11-10 09:00:00'));
         $this->tickMilestones($closed[4][0], 3);
         $this->travelTo(Carbon::parse('2026-12-01 08:00:00'));
         $november = $this->calculate($this->period(11));
         $record = $this->record($november, $sale);
-        $this->assertEquals(200000, $record->commission_bonus);
+        $this->assertEquals(150000, $record->commission_bonus);
         $this->assertEquals(0, $record->commission_deferred);
-        $this->assertEquals(200000, $record->commission_clawback);
+        $this->assertEquals(150000, $record->commission_clawback);
         $this->assertEquals(0, $record->net_salary);
         $this->assertSame(1, CommissionAdjustment::count());
 
