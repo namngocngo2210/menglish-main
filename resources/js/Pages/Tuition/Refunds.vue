@@ -8,6 +8,7 @@ import { router, usePage } from '@inertiajs/vue3';
 import { formatMoney } from '@/lib/format';
 import { openRemoteModal } from '@/lib/remoteModal';
 import { compactQuery } from '@/lib/url';
+import { useBackLink } from '@/lib/backLink';
 import { route } from '@/lib/route';
 
 defineOptions({ layout: { title: 'Xử lý khất nợ / hoàn tiền', hideErrors: true } });
@@ -32,6 +33,7 @@ const props = defineProps({
     today: { type: String, required: true },
     tomorrow: { type: String, required: true },
 });
+const back = useBackLink(() => route('tuition.students'), 'Công nợ học viên');
 
 const page = usePage();
 const errorList = computed(() => Object.values(page.props.errors ?? {}).flat());
@@ -146,7 +148,7 @@ const inputClass =
 <template>
     <UiPageHeader title="Xử lý khất nợ / hoàn tiền" description="Quản lý các yêu cầu tài chính phát sinh trong quá trình học tập: khất nợ, bảo lưu, chuyển nhượng buổi dư và hoàn tiền.">
         <template #actions>
-            <UiButton variant="secondary" icon="arrow_back" :href="route('tuition.students')">Công nợ học viên</UiButton>
+            <UiButton variant="secondary" icon="arrow_back" :href="back.href" data-back-link>{{ back.label }}</UiButton>
             <template v-if="can('refund_transfer.request')">
                 <UiButton variant="secondary" icon="event_busy" @click="openExtension">Đánh dấu khất nợ</UiButton>
                 <UiButton icon="exit_to_app" @click="openRequest">Tạo yêu cầu nghỉ giữa khóa</UiButton>

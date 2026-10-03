@@ -7,6 +7,7 @@ import { createInertiaApp, router } from '@inertiajs/vue3';
 import ui from '@/Components/ui';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
+import { registerBackTrail } from '@/lib/backLink';
 import { closeRemoteModal, setRemoteModalResolver } from '@/lib/remoteModal';
 import { registerRowLinks } from '@/lib/rowLink';
 import { toast } from '@/lib/toast';
@@ -61,3 +62,4 @@ router.on('networkError', () => {
 });
 
 registerRowLinks();
+registerBackTrail();

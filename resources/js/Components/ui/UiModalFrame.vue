@@ -10,13 +10,14 @@
  *   title, description
  *   action + method → cả khung là một <UiForm> (nút submit ở footer thuộc form); submitLabel (mặc định "Lưu thông tin", false = ẩn)
  *   cancel: nhãn nút hủy (mặc định "Hủy bỏ", false = ẩn) — trong modal: đóng modal; trang đầy đủ: về `back`
- *   back: URL quay lại khi là trang đầy đủ
+ *   back: URL quay lại khi là trang đầy đủ (dự phòng — nút Quay lại / Hủy về trang vừa mở trước đó nếu có, xem lib/backLink.js)
  *   size: đổi cỡ modal khi nội dung cần rộng hơn nút mở (vd. bước xem trước nhập Excel → 4xl)
  *   pageWidth: độ rộng tối đa khi là trang đầy đủ (mặc định max-w-3xl)
  * Slots: mặc định (nội dung), footer (nút thêm, đặt trước nút submit), actions (nút cạnh tiêu đề ở trang đầy đủ)
  * Các prop khác của UiForm (confirm, danger, stay…) truyền thẳng qua `form-options`.
  */
 import { computed, onMounted } from 'vue';
+import { useBackLink } from '@/lib/backLink';
 import { remoteModal } from '@/lib/remoteModal';
 import UiButton from './UiButton.vue';
 import UiForm from './UiForm.vue';
@@ -40,6 +41,7 @@ const props = defineProps({
 const emit = defineEmits(['success']);
 const modal = useRemoteModal();
 const asForm = computed(() => !!props.action);
+const backLink = useBackLink(() => props.back);
 const showFooter = computed(() => !!props.cancel || (asForm.value && props.submitLabel !== false));
 
 onMounted(() => {
@@ -81,7 +83,7 @@ onMounted(() => {
         <component :is="asForm ? UiForm : 'div'" v-bind="asForm ? { action, method, ...formOptions } : {}" class="rounded-xl border border-outline-variant bg-surface-container-lowest shadow-sm" @success="emit('success', $event)">
             <div class="space-y-md p-md md:p-lg"><slot /></div>
             <div v-if="showFooter || $slots.footer" class="flex flex-wrap justify-end gap-sm border-t border-surface-container px-md py-md md:px-lg">
-                <UiButton v-if="cancel && back" variant="secondary" :href="back">{{ cancel }}</UiButton>
+                <UiButton v-if="cancel && back" variant="secondary" :href="backLink.href" data-back-link>{{ cancel }}</UiButton>
                 <slot name="footer" />
                 <UiButton v-if="asForm && submitLabel !== false" type="submit" :variant="submitVariant" :icon="submitIcon">{{ submitLabel }}</UiButton>
             </div>

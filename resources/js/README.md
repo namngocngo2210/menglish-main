@@ -15,7 +15,7 @@ Mẫu đầy đủ: **Ngày nghỉ** — `app/Http/Controllers/HolidayController
 | `Components/ui/Ui*.vue` | Bộ component chung, đăng ký toàn cục (không cần import) — xem chú thích đầu mỗi file |
 | `Components/*.vue` | Thành phần dùng ở nhiều module (vd. `WorkspaceChips`) |
 | `Layouts/AppLayout.vue`, `Layouts/Shell/*` | Khung ứng dụng; dữ liệu từ `App\Support\Navigation\AppShell` |
-| `lib/*.js` | `route`, `can`, `format` (tiền, ngày), `confirm`, `toast`, `remoteModal`, `url`, `rowLink` |
+| `lib/*.js` | `route`, `can`, `format` (tiền, ngày), `confirm`, `toast`, `remoteModal`, `url`, `rowLink`, `backLink` |
 | `ziggy.js` | Danh sách route sinh sẵn — đổi `routes/web.php` xong chạy `php artisan ziggy:generate resources/js/ziggy.js` |
 
 Dùng trực tiếp trong template (không import): `route()`, `routeIs()`, `can()`, `canAny()`, `formatMoney()`,
@@ -71,6 +71,8 @@ defineProps({ courses: Object, levels: Array, canManage: Boolean });
 - Alpine (`x-data`, `x-show`, `@click`) → state Vue (`ref`, `computed`, `v-show`, `@click`); `<script>` trong view → `<script setup>`.
 - `{{ }}` tự escape. **Không dùng `v-html`** trừ nội dung server đã làm sạch.
 - Dòng bảng bấm được: `<tr :data-href="url">` (thêm `data-modal="lg"` để mở trong modal).
+- Nút quay lại: `<UiPageHeader :back="route('…index')">` — về trang vừa mở trước đó (giữ lọc / tab / trang), URL truyền vào chỉ là dự phòng.
+  Nút quay lại tự làm: `const back = useBackLink(() => route('…'), 'Nhãn')` → `:href="back.href" data-back-link`, `{{ back.label }}` (`@/lib/backLink`).
 - Trang tự đặt tab workspace chỗ khác: `defineOptions({ layout: { workspaceTabs: false } })` + `import WorkspaceTabs from '@/Layouts/Shell/WorkspaceTabs.vue'`.
 - Trang không dùng khung ứng dụng (trang công khai, làm bài test): `import BareLayout from '@/Layouts/BareLayout.vue'` + `defineOptions({ layout: BareLayout })`; trang chưa đăng nhập (Auth/*) tự dùng `GuestLayout`.
 
