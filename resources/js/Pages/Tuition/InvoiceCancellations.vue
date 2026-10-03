@@ -20,6 +20,7 @@ const props = defineProps({
     canApproveCancel: { type: Boolean, default: false },
     cancellations: { type: Array, default: () => [] },
     selected: { type: Object, default: null },
+    prefill: { type: Object, default: null },
 });
 
 const page = usePage();
@@ -55,7 +56,7 @@ function closeDetail() {
 const confirmOpen = ref(false);
 const rejectOpen = ref(false);
 const zoomOpen = ref(false);
-const newOpen = ref(false);
+const newOpen = ref(!!props.prefill);
 const newKey = ref(0);
 function openNew() {
     newKey.value++;
@@ -416,9 +417,9 @@ const invoiceStatus = (status) => (status === 'approved' ? 'Đã duyệt hủy' 
                     <li v-for="(message, key) in errors" :key="key">{{ message }}</li>
                 </ul>
             </UiAlert>
-            <UiInput name="invoice_number" label="Số Hóa đơn / Biên lai cần hủy" placeholder="Ví dụ: C26MEN-0001001" required class="font-code font-bold" hint="Nhập đúng số HĐĐT của phiếu thu đã duyệt; hệ thống tự đối chiếu phiếu thu và hoàn tác công nợ khi được duyệt hủy." />
+            <UiInput name="invoice_number" label="Số Hóa đơn / Biên lai cần hủy" placeholder="Ví dụ: C26MEN-0001001" required class="font-code font-bold" :value="prefill?.invoice_number" hint="Số HĐĐT của phiếu đã duyệt, hoặc số hóa đơn giấy tiền mặt hệ thống đã cấp (kể cả phiếu chưa duyệt, khi ghi sai số trên giấy). Phiếu lập mới sẽ nhận số kế tiếp." />
             <UiField label="Số tiền trên hóa đơn (VNĐ)" for="cancel_amount" required>
-                <UiInput type="number" name="amount" id="cancel_amount" placeholder="13500000" required class="font-code font-bold text-error" />
+                <UiInput type="number" name="amount" id="cancel_amount" placeholder="13500000" required class="font-code font-bold text-error" :value="prefill?.amount" />
                 <p v-if="errors.amount" class="font-caption text-caption text-error">Số tiền phải khớp giá trị hóa đơn. {{ errors.amount }}</p>
             </UiField>
             <UiField label="Đính kèm ảnh hóa đơn hỏng / gạch chéo" name="proof_image" for="cancel_proof_image">

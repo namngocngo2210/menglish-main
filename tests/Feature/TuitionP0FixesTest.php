@@ -115,6 +115,8 @@ class TuitionP0FixesTest extends TestCase
             'student_tuition_id' => $this->tuition->id,
             'tuition_amount' => 4500000,
             'discount_amount' => 500000,
+            // Giảm trừ nhập tay (không theo ưu đãi có sẵn) phải có lý do.
+            'discount_reason' => 'Quản lý duyệt giảm thêm',
             'surcharge_amount' => 150000,
             'surcharge_reason' => 'Giáo trình',
             'amount' => 4650000,

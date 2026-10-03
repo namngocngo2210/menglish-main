@@ -10,12 +10,14 @@ use App\Models\ClassSession;
 use App\Models\Course;
 use App\Models\CrmCustomer;
 use App\Models\MerchandiseItem;
+use App\Models\MerchandiseStockMovement;
 use App\Models\PlacementTest;
 use App\Models\PlacementTestSubmission;
 use App\Models\Student;
 use App\Models\StudentTuition;
 use App\Models\TuitionReceipt;
 use App\Models\User;
+use App\Services\Merchandise\StockService;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -314,13 +316,15 @@ class CrmWorkflowHardeningTest extends TestCase
         $this->assertEquals([21.0, 27.0], PlacementTestSubmission::where('customer_id', $lead->id)->oldest()->pluck('total_score')->map(fn ($score) => (float) $score)->all());
     }
 
-    public function test_closing_validates_and_decrements_merchandise_stock(): void
+    public function test_closing_with_books_deducts_branch_stock_only_when_receipt_is_approved(): void
     {
         $lead = $this->leadFor($this->salesA);
         $item = MerchandiseItem::create([
             'code' => 'BOOK-CRM', 'name' => 'Giáo trình CRM', 'category' => 'book',
-            'unit' => 'Cuốn', 'price' => 200000, 'stock_quantity' => 1, 'is_active' => true,
+            'unit' => 'Cuốn', 'price' => 200000, 'stock_quantity' => 0, 'is_active' => true,
         ]);
+        $stock = app(StockService::class);
+        $stock->adjust($item->id, $this->branch->id, 1, MerchandiseStockMovement::TYPE_IMPORT);
         $payload = $this->closingPayload($lead);
         $payload['paid_amount'] = 15200000;
         $payload['fee_items'] = json_encode([['id' => $item->id, 'amount' => 1]]);
@@ -328,8 +332,15 @@ class CrmWorkflowHardeningTest extends TestCase
         $this->actingAs($this->salesA)->post(route('crm.closing-wizard.store'), $payload)
             ->assertRedirect(route('crm.customers.won'));
 
-        $this->assertSame(0, $item->fresh()->stock_quantity);
         $this->assertEquals(15200000, (float) $lead->fresh()->deal_value);
+        $this->assertSame(1, $stock->quantities([$item->id], $this->branch->id)[$item->id], 'Phiếu chưa duyệt thì chưa trừ kho');
+
+        $accountant = User::factory()->create(['branch_id' => $this->branch->id, 'is_active' => true]);
+        $accountant->assignRole('accountant');
+        $receipt = TuitionReceipt::where('student_id', $lead->fresh()->converted_student_id)->firstOrFail();
+        $this->actingAs($accountant)->post(route('tuition.receipts.approve.action', $receipt))->assertRedirect();
+
+        $this->assertSame(0, $stock->quantities([$item->id], $this->branch->id)[$item->id]);
     }
 
     public function test_reports_use_conversion_and_receipt_dates_not_lead_creation_date(): void

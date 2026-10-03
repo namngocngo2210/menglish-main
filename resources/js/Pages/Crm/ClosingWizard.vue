@@ -1,7 +1,8 @@
 <script setup>
 /**
  * Quy trình Chốt & Xếp lớp (mockup quy-trinh-chot-xep-lop), 4 bước trên một form:
- *   1. Xác nhận khách + khóa đăng ký · 2. Học phí, ưu đãi (tạo nhanh ưu đãi), thu trước, thu khác
+ *   1. Xác nhận khách + khóa đăng ký · 2. Học phí, ưu đãi (tự chọn ưu đãi mặc định, chọn lại ưu đãi có sẵn hoặc tạo
+ *      ưu đãi riêng cho ca đặc biệt kèm lý do), thu trước, thu khác
  *   3. Chọn lớp đang học / sắp khai giảng còn chỗ, hoặc "Xếp lớp sau" (Chờ xếp lớp) · 4. Thu phí: VietQR / tiền mặt, xem & in bill.
  * Đổi khách → tải lại trang theo customer_id (lớp, tài khoản nhận tiền, lớp gợi ý theo trình độ tính theo khách).
  * Mã học viên cấp sẵn (studentCodePreview) để nội dung CK / VietQR xem trước trùng với mã thật; server vẫn tự sinh transfer_memo.
@@ -11,6 +12,7 @@ import { router, usePage } from '@inertiajs/vue3';
 import ClosingBillPreview from '@/Components/Crm/ClosingBillPreview.vue';
 import { can } from '@/lib/can';
 import { formatMoney } from '@/lib/format';
+import { defaultPromotion, promotionApplies, promotionDiscount, promotionLabel } from '@/lib/promotion';
 import { route } from '@/lib/route';
 import { toast } from '@/lib/toast';
 
@@ -30,6 +32,8 @@ const props = defineProps({
     defaultCourseId: { type: Number, default: null },
     studentCodePreview: { type: String, required: true },
     oldPaperInvoiceNumber: { type: String, default: '' },
+    paperInvoiceNext: { type: Object, default: () => ({}) },
+    merchandiseStock: { type: Object, default: () => ({}) },
     center: { type: Object, required: true },
     billDates: { type: Object, required: true },
 });
@@ -65,6 +69,8 @@ const w = reactive({
     prepaidAmount: 0,
     paidAmount: defaultTuition,
     selectedPromotionId: '',
+    // Người dùng đã tự chọn / bỏ ưu đãi → không tự đổi sang ưu đãi mặc định khi đổi lớp / khóa nữa.
+    promoTouched: false,
     paymentMethod: 'transfer',
     paperInvoiceNumber: props.oldPaperInvoiceNumber,
     billNotes: '',
@@ -81,12 +87,11 @@ const amountDue = computed(() => Math.max(0, contractTotal.value - (w.prepaidAmo
 /** Số tiền chuyển khoản dùng để sinh VietQR. */
 const effectiveTransferAmount = computed(() => (w.paymentMethod === 'transfer' ? Math.max(0, parseInt(w.paidAmount || 0, 10)) : 0));
 const needsBankAccount = computed(() => w.feePaid && w.paymentMethod === 'transfer');
-const availablePromotions = computed(() =>
-    promotionsList.value.filter(
-        (p) => (!p.branch_id || String(p.branch_id) === String(w.assignLater ? w.customerBranchId : w.classBranchId)) && (!p.course_id || String(p.course_id) === String(w.courseId)),
-    ),
-);
-const promotionOptions = computed(() => availablePromotions.value.map((p) => ({ value: p.id, label: p.name + ' (' + (p.type === 'percent' ? p.value + '%' : formatMoney(p.value)) + ')' })));
+/** Cơ sở tính ưu đãi: cơ sở của lớp, hoặc cơ sở của khách khi xếp lớp sau. */
+const contextBranchId = computed(() => (w.assignLater ? w.customerBranchId : w.classBranchId));
+const availablePromotions = computed(() => promotionsList.value.filter((p) => promotionApplies(p, contextBranchId.value, w.courseId)));
+const promotionOptions = computed(() => availablePromotions.value.map((p) => ({ value: p.id, label: promotionLabel(p) })));
+const selectedPromotion = computed(() => promotionsList.value.find((p) => String(p.id) === String(w.selectedPromotionId)) ?? null);
 const selectedBank = computed(
     () => props.bankAccounts.find((b) => String(b.id) === String(w.selectedBankAccountId)) || props.bankAccounts[0] || { bank_code: '', bank_name: '', account_number: '', account_holder: '' },
 );
@@ -121,7 +126,8 @@ const canSubmit = computed(
             (w.assignLater && !w.courseId) ||
             (w.feePaid && w.paidAmount <= 0 && w.prepaidAmount <= 0) ||
             (needsBankAccount.value && !w.selectedBankAccountId) ||
-            (w.feePaid && w.paidAmount > 0 && w.paymentMethod === 'cash' && !String(w.paperInvoiceNumber).trim())
+            (w.feePaid && w.paidAmount > 0 && w.paymentMethod === 'cash' && !paperMode.value && !String(w.paperInvoiceNumber).trim()) ||
+            (paperMode.value && (!paperNumber.value || !paperPhotoName.value))
         ),
 );
 
@@ -136,7 +142,17 @@ const classOptions = computed(() =>
         label: `${cl.name} (${cl.code})${cl.status === 'upcoming' ? ' · Sắp khai giảng' : ''} · Cơ sở: ${cl.branch_name ?? ''} · Sĩ số: ${cl.active_enrollments_count}/${cl.max_capacity} · Lịch học: ${cl.schedule_text ?? ''}`,
     })),
 );
-const merchandiseOptions = computed(() => props.merchandiseItems.map((m) => ({ value: m.id, label: `[${m.category_label}] ${m.name} (${m.formatted_price})` })));
+// Kho theo chi nhánh của lớp (xếp lớp sau: chi nhánh của khách). Hết hàng chỉ cảnh báo, không chặn chốt.
+const wizardBranchId = computed(() => (!w.assignLater && w.classBranchId) || w.customerBranchId || '');
+const stockOf = (itemId) => (wizardBranchId.value ? (props.merchandiseStock[wizardBranchId.value]?.[itemId] ?? 0) : null);
+const merchandiseOptions = computed(() =>
+    props.merchandiseItems.map((m) => ({ value: m.id, label: `[${m.category_label}] ${m.name} (${m.formatted_price})` + (stockOf(m.id) !== null ? ` · Tồn chi nhánh: ${stockOf(m.id)}` : '') })),
+);
+
+// Tiền mặt ở chi nhánh có dải hóa đơn giấy: hệ thống cấp số, Học vụ ghi số đó lên hóa đơn giấy + tải ảnh.
+const paperMode = computed(() => w.feePaid && w.paidAmount > 0 && w.paymentMethod === 'cash' && !!wizardBranchId.value && wizardBranchId.value in props.paperInvoiceNext);
+const paperNumber = computed(() => (paperMode.value ? props.paperInvoiceNext[wizardBranchId.value] || '' : ''));
+const paperPhotoName = ref('');
 
 function updateCustomer(value) {
     // Lớp, tài khoản nhận tiền và lớp gợi ý theo trình độ được tính theo khách → đổi khách thì tải lại.
@@ -148,14 +164,7 @@ function updateCustomer(value) {
     w.paidAmount = w.feePaid ? amountDue.value : 0;
 }
 
-function discountFor(promo) {
-    if (promo.type === 'percent') {
-        let disc = (w.baseTuition * promo.value) / 100;
-        if (promo.max_discount_amount && disc > promo.max_discount_amount) disc = promo.max_discount_amount;
-        return Math.round(disc);
-    }
-    return Math.min(w.baseTuition, parseFloat(promo.value));
-}
+const discountFor = (promo) => promotionDiscount(promo, w.baseTuition);
 
 function applyPromotion(promoId) {
     w.selectedPromotionId = promoId ? String(promoId) : '';
@@ -171,13 +180,30 @@ function applyPromotion(promoId) {
     }
 }
 
-/** Bỏ ưu đãi đang chọn nếu không còn áp dụng được cho lớp / khóa / cơ sở mới. */
+/** Chọn ưu đãi từ danh sách (kể cả bỏ chọn): từ đây không tự áp ưu đãi mặc định nữa. */
+function pickPromotion(promoId) {
+    w.promoTouched = true;
+    applyPromotion(promoId);
+}
+
+/**
+ * Bỏ ưu đãi đang chọn nếu không còn áp dụng được cho lớp / khóa / cơ sở mới.
+ * Chưa tự chọn ưu đãi → dùng ưu đãi mặc định của cơ sở / khóa (nếu có).
+ */
 function dropUnavailablePromotion() {
     if (!availablePromotions.value.some((p) => String(p.id) === String(w.selectedPromotionId))) {
         w.selectedPromotionId = '';
         w.discount = 0;
     }
+    if (!w.promoTouched) {
+        const fallback = defaultPromotion(availablePromotions.value, contextBranchId.value, w.courseId);
+        w.selectedPromotionId = fallback ? String(fallback.id) : '';
+    }
 }
+
+// Mở màn chốt: áp sẵn ưu đãi mặc định cho lớp / khóa gợi ý.
+dropUnavailablePromotion();
+applyPromotion(w.selectedPromotionId);
 
 function applyCourseTuition() {
     const course = props.courses.find((c) => String(c.id) === String(w.courseId));
@@ -246,7 +272,8 @@ function onFeePaidChange() {
 
 // ── Tạo nhanh ưu đãi ────────────────────────────────────────────────────────────────────────
 const promoOpen = ref(false);
-const emptyPromo = () => ({ name: '', type: 'fixed', value: 0, description: '', branch_id: '', course_id: '', starts_at: '', ends_at: '', usage_limit: '' });
+// Mặc định là ưu đãi riêng cho khách đang chốt (ca đặc biệt, dùng 1 lần, bắt buộc lý do); tích "Lưu vào danh mục" để dùng lại.
+const emptyPromo = () => ({ name: '', type: 'fixed', value: 0, max_discount_amount: '', description: '', reason: '', is_special: true, branch_id: '', course_id: '', starts_at: '', ends_at: '', usage_limit: '' });
 const newPromo = reactive(emptyPromo());
 const promoErrors = ref({});
 const promoSaving = ref(false);
@@ -257,6 +284,14 @@ async function saveNewPromotion() {
         toast('Vui lòng nhập tên chương trình ưu đãi và giá trị giảm!', 'error');
         return;
     }
+    if (newPromo.is_special && !String(newPromo.reason).trim()) {
+        promoErrors.value = { reason: ['Ưu đãi riêng cho ca đặc biệt bắt buộc ghi lý do.'] };
+        return;
+    }
+    // Ưu đãi riêng gắn đúng cơ sở / khóa của khách đang chốt.
+    const payload = newPromo.is_special
+        ? { ...newPromo, branch_id: contextBranchId.value || '', course_id: w.courseId || '', starts_at: '', ends_at: '', usage_limit: '' }
+        : { ...newPromo };
     promoSaving.value = true;
     promoErrors.value = {};
     try {
@@ -264,7 +299,7 @@ async function saveNewPromotion() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': page.props.csrf ?? '', Accept: 'application/json' },
             credentials: 'same-origin',
-            body: JSON.stringify(newPromo),
+            body: JSON.stringify(payload),
         });
         const data = await response.json().catch(() => ({}));
         if (response.status === 422) {
@@ -278,6 +313,7 @@ async function saveNewPromotion() {
                 max_discount_amount: data.promotion.max_discount_amount !== null ? parseFloat(data.promotion.max_discount_amount) : null,
             };
             promotionsList.value.push(promo);
+            w.promoTouched = true;
             w.selectedPromotionId = String(promo.id);
             w.discount = discountFor(promo);
             w.paidAmount = amountDue.value;
@@ -336,7 +372,7 @@ const bill = computed(() => ({
     amountDue: amountDue.value,
     notes: w.billNotes,
     needsBankAccount: needsBankAccount.value,
-    paperInvoiceNumber: w.paperInvoiceNumber,
+    paperInvoiceNumber: paperMode.value ? paperNumber.value : w.paperInvoiceNumber,
     bank: selectedBank.value,
     transferMemo: transferMemo.value,
     vietQrUrl: vietQrUrl.value,
@@ -506,7 +542,7 @@ if (w.assignLater) setAssignLater(true);
                         Bước 2: Học phí, Ưu đãi, Thu trước &amp; Thu khác
                     </h2>
                     <UiButton v-if="can('promotion.manage')" variant="secondary" size="sm" icon="add_circle" class="!border-primary-container/30 !bg-primary-container/10 font-bold !text-primary-container hover:!bg-primary-container/20" @click="promoOpen = true">
-                        <span>Tạo mới ưu đãi</span>
+                        <span>Tạo ưu đãi riêng</span>
                     </UiButton>
                 </div>
 
@@ -515,9 +551,11 @@ if (w.assignLater) setAssignLater(true);
                     <div>
                         <label class="mb-1 block flex items-center justify-between text-xs font-semibold text-on-surface-variant">
                             <span>Chương trình Ưu đãi / Voucher</span>
-                            <span class="text-xs text-on-surface-subtle">Chọn hoặc nhập trực tiếp</span>
+                            <span class="text-xs text-on-surface-subtle">Chọn ưu đãi có sẵn</span>
                         </label>
-                        <UiSelect :options="promotionOptions" :model-value="w.selectedPromotionId" placeholder="-- Tùy chỉnh / Không áp dụng --" class="font-semibold" aria-label="Chương trình Ưu đãi / Voucher" @update:model-value="applyPromotion" />
+                        <UiSelect :options="promotionOptions" :model-value="w.selectedPromotionId" placeholder="-- Không áp dụng ưu đãi --" class="font-semibold" aria-label="Chương trình Ưu đãi / Voucher" @update:model-value="pickPromotion" />
+                        <p v-if="selectedPromotion?.is_default && !w.promoTouched" class="mt-1 text-xs text-on-surface-variant">Đã tự chọn ưu đãi mặc định của {{ selectedPromotion.course_id ? 'khóa' : selectedPromotion.branch_id ? 'cơ sở' : 'trung tâm' }}. Đổi hoặc bỏ chọn nếu khách không thuộc diện áp dụng.</p>
+                        <p v-else-if="selectedPromotion?.description" class="mt-1 text-xs text-on-surface-variant">{{ selectedPromotion.description }}</p>
                     </div>
                 </div>
 
@@ -581,6 +619,13 @@ if (w.assignLater) setAssignLater(true);
                                     <span class="absolute right-2 top-1.5 text-xs font-bold text-on-surface-subtle">đ</span>
                                 </div>
                             </div>
+                            <span
+                                v-if="stockOf(item.id) !== null"
+                                :class="['w-24 shrink-0 text-right text-[11px]', stockOf(item.id) < 1 ? 'font-bold text-error' : 'text-on-surface-variant']"
+                                :title="stockOf(item.id) < 1 ? 'Kho chi nhánh hết hàng: vẫn chốt được, kho sẽ âm khi phiếu thu được duyệt' : 'Tồn kho chi nhánh'"
+                            >
+                                {{ stockOf(item.id) < 1 ? 'Hết hàng' : 'Tồn' }}: {{ stockOf(item.id) }}
+                            </span>
                             <UiButton variant="danger-text" size="sm" icon="delete" title="Xóa mục này" aria-label="Xóa mục này" @click="removeItem(idx)" />
                         </div>
                         <div class="flex items-center justify-between px-1 text-xs text-on-surface-variant">
@@ -775,8 +820,28 @@ if (w.assignLater) setAssignLater(true);
                                 </div>
                             </div>
 
-                            <!-- Tiền mặt: ghi số hóa đơn giấy vào phiếu thu để Kế toán đối soát khi duyệt -->
-                            <div v-show="w.feePaid && w.paymentMethod === 'cash'" class="space-y-1 rounded-xl border border-surface-container-highest bg-surface-container-low p-3.5">
+                            <!-- Tiền mặt, chi nhánh có dải hóa đơn giấy: hệ thống cấp số, tải ảnh hóa đơn đã ghi số -->
+                            <div v-if="paperMode" class="space-y-2 rounded-xl border-2 border-primary-container/40 bg-primary-container/5 p-3.5" data-testid="closing-paper-invoice">
+                                <template v-if="paperNumber">
+                                    <span class="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Số hóa đơn giấy hệ thống cấp</span>
+                                    <span class="block font-code text-xl font-bold text-primary">{{ paperNumber }}</span>
+                                    <p class="text-xs text-on-surface-variant">Ghi <strong>đúng số này</strong> lên hóa đơn giấy giao khách, chụp ảnh và tải lên. Ghi sai số thì tạo yêu cầu Hủy hóa đơn số đó.</p>
+                                    <input type="hidden" name="expected_paper_invoice_number" :value="paperNumber" />
+                                    <UiField label="Ảnh chụp hóa đơn giấy (bắt buộc)" name="paper_invoice_photo" for="closing_paper_invoice_photo" required>
+                                        <input
+                                            id="closing_paper_invoice_photo"
+                                            type="file"
+                                            name="paper_invoice_photo"
+                                            accept="image/*,.pdf"
+                                            class="w-full rounded-lg border border-surface-container-highest bg-surface-container-lowest p-2 text-xs"
+                                            @change="paperPhotoName = $event.target.files[0]?.name ?? ''"
+                                        />
+                                    </UiField>
+                                </template>
+                                <UiAlert v-else type="error" title="Dải hóa đơn giấy của chi nhánh đã hết số">Nhờ Kế toán thêm dải số mới ở Cấu hình dải số hóa đơn trước khi thu tiền mặt.</UiAlert>
+                            </div>
+                            <!-- Tiền mặt (chi nhánh chưa có dải giấy): ghi số hóa đơn giấy vào phiếu thu để Kế toán đối soát khi duyệt -->
+                            <div v-else v-show="w.feePaid && w.paymentMethod === 'cash'" class="space-y-1 rounded-xl border border-surface-container-highest bg-surface-container-low p-3.5">
                                 <UiInput id="closing_paper_invoice_number" v-model="w.paperInvoiceNumber" name="paper_invoice_number" label="Số hóa đơn giấy thu tiền mặt (bắt buộc)" placeholder="Ví dụ: HĐG-0824/PTM-042..." class="font-code font-bold" />
                                 <p class="text-xs text-on-surface-variant">Xuất hóa đơn giấy cho khách rồi ghi số vào đây. Phiếu thu tiền mặt được gửi Kế toán/Admin duyệt kèm số hóa đơn này.</p>
                             </div>
@@ -854,29 +919,35 @@ if (w.assignLater) setAssignLater(true);
             </div>
         </UiForm>
 
-        <!-- Tạo mới ưu đãi tại chỗ -->
-        <UiModal :show="promoOpen" title="Tạo Mới Chương Trình Ưu Đãi / Voucher" max-width="md" @close="promoOpen = false">
+        <!-- Ca đặc biệt: tạo ưu đãi riêng tại chỗ (mặc định dùng 1 lần cho khách này, bắt buộc lý do) -->
+        <UiModal :show="promoOpen" title="Tạo ưu đãi cho ca đặc biệt" max-width="md" @close="promoOpen = false">
             <div class="space-y-3.5">
-                <UiInput id="promo_name" v-model="newPromo.name" label="Tên chương trình ưu đãi" required placeholder="Voucher khai giảng / Ưu đãi bạn mới" class="font-bold" :error="promoError('name')" />
+                <UiAlert type="info">Ưu tiên chọn ưu đãi có sẵn trong danh sách. Chỉ tạo mới khi khách có trường hợp đặc biệt chưa có ưu đãi phù hợp.</UiAlert>
+                <UiInput id="promo_name" v-model="newPromo.name" label="Tên ưu đãi" required placeholder="VD: Giảm thêm cho anh chị em ruột" class="font-bold" :error="promoError('name')" />
                 <div class="grid grid-cols-2 gap-3">
                     <UiSelect id="promo_type" v-model="newPromo.type" label="Loại giảm giá" class="font-semibold" :error="promoError('type')" :options="[{ value: 'fixed', label: 'Số tiền cố định (VNĐ)' }, { value: 'percent', label: 'Phần trăm (%)' }]" />
                     <UiInput id="promo_value" type="number" label="Giá trị" required placeholder="1000000 hoặc 10" class="font-mono font-bold" :model-value="newPromo.value" :error="promoError('value')" @update:model-value="newPromo.value = toNumber($event)" />
                 </div>
-                <UiTextarea id="promo_description" v-model="newPromo.description" label="Mô tả / Điều kiện áp dụng" rows="2" placeholder="Áp dụng cho học viên đăng ký sớm..." :error="promoError('description')" />
-                <div class="grid grid-cols-2 gap-3">
-                    <UiSelect v-model="newPromo.branch_id" :options="branches" placeholder="Mọi cơ sở" aria-label="Cơ sở áp dụng" />
-                    <UiSelect v-model="newPromo.course_id" :options="courses.map((c) => ({ value: c.id, label: c.name }))" placeholder="Mọi khóa học" aria-label="Khóa học áp dụng" />
-                </div>
-                <div class="grid grid-cols-3 gap-3">
-                    <UiInput v-model="newPromo.starts_at" type="datetime-local" title="Bắt đầu" aria-label="Bắt đầu" />
-                    <UiInput v-model="newPromo.ends_at" type="datetime-local" title="Kết thúc" aria-label="Kết thúc" />
-                    <UiInput v-model="newPromo.usage_limit" type="number" min="1" placeholder="Lượt dùng" aria-label="Lượt dùng" />
-                </div>
-                <UiErrors :messages="['starts_at', 'ends_at', 'usage_limit', 'branch_id', 'course_id', 'max_discount_amount'].map(promoError).filter(Boolean)" />
+                <UiInput v-if="newPromo.type === 'percent'" id="promo_max" type="number" label="Giảm tối đa (VNĐ)" placeholder="Không giới hạn" class="font-mono" :model-value="newPromo.max_discount_amount" :error="promoError('max_discount_amount')" @update:model-value="newPromo.max_discount_amount = $event" />
+                <UiTextarea id="promo_reason" v-model="newPromo.reason" label="Lý do ca đặc biệt" :required="newPromo.is_special" rows="2" placeholder="VD: Khách có 2 con cùng học, quản lý đồng ý giảm thêm" :error="promoError('reason')" />
+                <UiCheckbox :model-value="!newPromo.is_special" label="Lưu vào danh mục để dùng lại cho khách khác" hint="Không tích: ưu đãi chỉ dùng 1 lần cho khách đang chốt và không hiện trong danh sách chọn." @update:model-value="newPromo.is_special = !$event" />
+                <template v-if="!newPromo.is_special">
+                    <UiTextarea id="promo_description" v-model="newPromo.description" label="Điều kiện áp dụng" rows="2" placeholder="Áp dụng cho học viên đăng ký sớm..." :error="promoError('description')" />
+                    <div class="grid grid-cols-2 gap-3">
+                        <UiSelect v-model="newPromo.branch_id" :options="branches" placeholder="Mọi cơ sở" aria-label="Cơ sở áp dụng" />
+                        <UiSelect v-model="newPromo.course_id" :options="courses.map((c) => ({ value: c.id, label: c.name }))" placeholder="Mọi khóa học" aria-label="Khóa học áp dụng" />
+                    </div>
+                    <div class="grid grid-cols-3 gap-3">
+                        <UiInput v-model="newPromo.starts_at" type="datetime-local" title="Bắt đầu" aria-label="Bắt đầu" />
+                        <UiInput v-model="newPromo.ends_at" type="datetime-local" title="Kết thúc" aria-label="Kết thúc" />
+                        <UiInput v-model="newPromo.usage_limit" type="number" min="1" placeholder="Lượt dùng" aria-label="Lượt dùng" />
+                    </div>
+                </template>
+                <UiErrors :messages="['starts_at', 'ends_at', 'usage_limit', 'branch_id', 'course_id'].map(promoError).filter(Boolean)" />
             </div>
             <template #footer>
                 <UiButton variant="secondary" @click="promoOpen = false">Hủy</UiButton>
-                <UiButton :disabled="promoSaving" @click="saveNewPromotion">Lưu &amp; Áp Dụng Ngay</UiButton>
+                <UiButton :disabled="promoSaving" @click="saveNewPromotion">Lưu &amp; áp dụng</UiButton>
             </template>
         </UiModal>
 

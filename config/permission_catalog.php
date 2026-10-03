@@ -81,7 +81,7 @@ return [
             'group' => 'crm',
             'icon' => 'redeem',
             'actions' => [
-                'manage' => ['Quản lý ưu đãi', 'Tạo ưu đãi, áp dụng ưu đãi khi chốt khách.'],
+                'manage' => ['Quản lý ưu đãi', 'Quản lý danh mục ưu đãi (mặc định, ngừng áp dụng), tạo ưu đãi riêng cho ca đặc biệt khi chốt khách.'],
             ],
         ],
         'entrance_test' => [
@@ -249,8 +249,22 @@ return [
             'group' => 'finance',
             'icon' => 'receipt_long',
             'actions' => [
-                'request_cancel' => ['Yêu cầu hủy hóa đơn', 'Lập yêu cầu hủy hóa đơn.'],
+                'request_cancel' => ['Yêu cầu hủy hóa đơn', 'Lập yêu cầu hủy hóa đơn (kể cả số hóa đơn giấy tiền mặt bị ghi sai).'],
                 'approve_cancel' => ['Duyệt / từ chối hủy hóa đơn', 'Duyệt hoặc từ chối yêu cầu hủy hóa đơn.'],
+            ],
+        ],
+        'merchandise_stock' => [
+            'label' => 'Tồn kho hàng hóa theo chi nhánh',
+            'group' => 'finance',
+            'icon' => 'inventory',
+            'actions' => [
+                'view' => ['Xem tồn kho', 'Xem số tồn sách / hàng hóa của từng chi nhánh và nhật ký xuất nhập kho (trong phạm vi dữ liệu).'],
+                'manage' => ['Nhập kho / kiểm kê', 'Nhập thêm hàng về chi nhánh, kiểm kê điều chỉnh số tồn thực tế.'],
+            ],
+            'scope' => [
+                'levels' => ['branch', 'all'],
+                'branch' => 'Kho của chi nhánh của tôi (chi nhánh chính + chi nhánh được cấp thêm)',
+                'all' => 'Kho mọi chi nhánh',
             ],
         ],
         'refund_transfer' => [
