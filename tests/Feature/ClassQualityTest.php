@@ -286,7 +286,8 @@ class ClassQualityTest extends TestCase
         $this->actingAs($staff)->get(route('reports.my'))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->has('reports.data', 0));
 
-        $this->actingAs($this->makeUser('academic_lead', $this->branch))->get(route('reports.periodic.weekly-kpi'))->assertForbidden();
+        $this->actingAs($this->makeUser('academic_lead', $this->branch))->get(route('reports.periodic.weekly-kpi'))->assertRedirect(route('reports.my'));
+        $this->actingAs($this->makeUser('academic_lead', $this->branch))->post(route('reports.periodic.weekly-kpi.store'), ['week' => $week])->assertForbidden();
     }
 
     public function test_academic_monthly_and_quarterly_reports(): void
@@ -327,7 +328,7 @@ class ClassQualityTest extends TestCase
         $this->actingAs($lead)->get(route('reports.periodic.academic-quarterly', ['quarter' => $quarter]))->assertOk()->assertSee('Mở 2 lớp mới')->assertSee('Đã nộp');
 
         $staff = $this->makeUser('academic_staff', $this->branch);
-        $this->actingAs($staff)->get(route('reports.periodic.academic-monthly'))->assertForbidden();
+        $this->actingAs($staff)->get(route('reports.periodic.academic-monthly'))->assertRedirect(route('reports.my'));
         $this->actingAs($staff)->post(route('reports.periodic.academic-quarterly.store'), ['quarter' => $quarter, 'narrative' => ['next_plan' => 'x']])
             ->assertForbidden();
     }

@@ -31,9 +31,9 @@ class StaffReportController extends Controller
 {
     /** Báo cáo có cấu trúc: loại staff_reports.type + route màn nhập. */
     public const STRUCTURED = [
-        'weekly_kpi' => ['label' => 'Báo cáo tuần (KPI)', 'type' => 'weekly', 'route' => 'reports.periodic.weekly-kpi'],
-        'academic_monthly' => ['label' => 'Báo cáo tháng', 'type' => 'monthly', 'route' => 'reports.periodic.academic-monthly'],
-        'academic_quarterly' => ['label' => 'Báo cáo quý', 'type' => 'quarterly', 'route' => 'reports.periodic.academic-quarterly'],
+        'weekly_kpi' => ['label' => 'Báo cáo tuần (KPI)', 'type' => 'weekly', 'route' => 'reports.periodic.weekly-kpi', 'for' => 'Học vụ'],
+        'academic_monthly' => ['label' => 'Báo cáo tháng', 'type' => 'monthly', 'route' => 'reports.periodic.academic-monthly', 'for' => 'Học thuật'],
+        'academic_quarterly' => ['label' => 'Báo cáo quý', 'type' => 'quarterly', 'route' => 'reports.periodic.academic-quarterly', 'for' => 'Học thuật'],
     ];
 
     /** Chỉ số quy mô trong báo cáo tuần Học vụ (theo dõi, không tính KPI). */
@@ -261,9 +261,11 @@ class StaffReportController extends Controller
 
     // ───────────────────────── BÁO CÁO CÓ CẤU TRÚC ─────────────────────────
     /** Báo cáo tuần Học vụ: số lần phát sinh theo từng mục KPI đang áp dụng + chỉ số quy mô. */
-    public function weeklyKpi(Request $request): Response
+    public function weeklyKpi(Request $request): Response|RedirectResponse
     {
-        $this->guardStructured('weekly_kpi');
+        if ($redirect = $this->redirectUnlessStructured('weekly_kpi')) {
+            return $redirect;
+        }
         $week = ReportPeriod::pick($request->input('week'), ReportPeriod::WEEK_PATTERN, ReportPeriod::currentWeek());
         $report = $this->structuredReport('weekly_kpi', $week);
         $counts = collect($report?->data['counts'] ?? [])->pluck('count', 'id');
@@ -323,9 +325,11 @@ class StaffReportController extends Controller
     }
 
     /** Báo cáo tháng Học thuật: tường thuật + báo cáo tuần và họp giáo viên trong tháng. */
-    public function academicMonthly(Request $request): Response
+    public function academicMonthly(Request $request): Response|RedirectResponse
     {
-        $this->guardStructured('academic_monthly');
+        if ($redirect = $this->redirectUnlessStructured('academic_monthly')) {
+            return $redirect;
+        }
         $month = ReportPeriod::pick($request->input('month'), ReportPeriod::MONTH_PATTERN, ReportPeriod::currentMonth());
         [$from, $to] = ReportPeriod::monthRange($month);
         $report = $this->structuredReport('academic_monthly', $month);
@@ -378,9 +382,11 @@ class StaffReportController extends Controller
     }
 
     /** Báo cáo quý Học thuật: tường thuật + 3 báo cáo tháng trong quý. */
-    public function academicQuarterly(Request $request): Response
+    public function academicQuarterly(Request $request): Response|RedirectResponse
     {
-        $this->guardStructured('academic_quarterly');
+        if ($redirect = $this->redirectUnlessStructured('academic_quarterly')) {
+            return $redirect;
+        }
         $quarter = ReportPeriod::pick($request->input('quarter'), ReportPeriod::QUARTER_PATTERN, ReportPeriod::currentQuarter());
         $report = $this->structuredReport('academic_quarterly', $quarter);
         $monthly = StaffReport::where('user_id', Auth::id())->where('type', 'monthly')
@@ -415,6 +421,16 @@ class StaffReportController extends Controller
             $from->toDateString(), ['narrative' => $data['narrative']], $this->narrativeText($data['narrative'], $fields));
 
         return back()->with('success', 'Đã lưu báo cáo quý '.$data['quarter'].'.');
+    }
+
+    /** Mở màn báo cáo không thuộc vai trò mình (link cũ / mockup): quay về báo cáo định kỳ chính thay vì báo lỗi. */
+    private function redirectUnlessStructured(string $kind): ?RedirectResponse
+    {
+        $this->guard();
+
+        return in_array($kind, StaffType::structuredReports(Auth::user()), true)
+            ? null
+            : redirect()->route('reports.my')->with('info', self::STRUCTURED[$kind]['label'].' chỉ dành cho '.self::STRUCTURED[$kind]['for'].'.');
     }
 
     private function guardStructured(string $kind): void
