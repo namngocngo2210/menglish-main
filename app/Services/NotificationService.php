@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AcademicRecord;
 use App\Models\AdminNotification;
 use App\Models\CrmCustomer;
+use App\Models\CrmCustomerHistory;
 use App\Models\CrmTrialBooking;
 use App\Models\DebtReminderRule;
 use App\Models\PlacementTestSubmission;
@@ -37,8 +38,8 @@ class NotificationService
     /**
      * Quét khách bị bỏ quên, trả về số khách được cảnh báo mới:
      * - Khách "Mới" quá 24h chưa được tiếp nhận (stale_lead_24h — giữ hành vi cũ, mỗi khách 1 lần).
-     * - Khách đang chăm sóc (Đang tư vấn → Gửi kết quả; không gồm Chờ xếp lớp / Đã chốt / Thất bại)
-     *   không có hoạt động nào trong N ngày (stale_lead_care). Cảnh báo lại nếu sau đó có hoạt động rồi lại bị bỏ quên.
+     * - Khách đang chăm sóc (Mới đã liên hệ, Đang tư vấn → Gửi kết quả; không gồm Chờ xếp lớp / Đã chốt / Thất bại)
+     *   không được chăm sóc (CrmCustomerHistory::CARE_TYPES) trong N ngày — mặc định 3 ngày = SLA 72h (stale_lead_care). Cảnh báo lại nếu sau đó có hoạt động rồi lại bị bỏ quên.
      * Mỗi cảnh báo gửi cho Admin / Quản lý (thông báo chung — chỉ người xem được khách theo chi nhánh mới thấy, xem
      * AdminNotification::scopeForRecipient) và thông báo cá nhân cho Sales phụ trách.
      */
@@ -51,12 +52,14 @@ class NotificationService
     {
         $days = $this->neglectThresholdDays();
         $cutoff = Carbon::now()->subDays($days);
-        $careStages = array_values(array_diff(CrmCustomer::ACTIVE_STAGES, ['new']));
-
+        // SLA "chăm sóc tiếp theo trong 72h" (PRD R13): đo từ lần chăm sóc gần nhất (CrmCustomerHistory::CARE_TYPES —
+        // sửa thông tin / phân công / ghi chú không tính). Khách "Mới" chưa liên hệ lần nào thuộc SLA 24h (scanNewStaleLeads).
         $leads = CrmCustomer::with('assignedUser')
-            ->whereIn('stage', $careStages)
+            ->whereIn('stage', CrmCustomer::ACTIVE_STAGES)
+            ->where(fn ($query) => $query->where('stage', '!=', 'new')
+                ->orWhereHas('histories', fn ($history) => $history->counted()->whereIn('type', CrmCustomerHistory::CARE_TYPES)))
             ->where('created_at', '<=', $cutoff)
-            ->withMax('histories as last_activity_at', 'created_at')
+            ->withMax(['histories as last_activity_at' => fn ($history) => $history->counted()->whereIn('type', CrmCustomerHistory::CARE_TYPES)], 'created_at')
             ->get();
 
         // Cảnh báo đã gửi của các khách này: 1 truy vấn thay vì 1 truy vấn cho mỗi khách.
@@ -735,7 +738,7 @@ class NotificationService
      * Xác định mốc nhắc nợ hiện tại của một hợp đồng học phí theo ngày đến hạn (dùng khi bấm "Gửi nhắc" tay):
      * - Đã cấu hình mốc (DebtReminderRule): mốc đang bật gần nhất đã chạm tới (số ngày so với hạn ≤ hiện tại, vd. quá hạn
      *   12 ngày với mốc T-3/T0/T+3/T+7 → T+7); chưa chạm mốc nào → mốc sớm nhất.
-     * - Chưa cấu hình: chưa tới hạn -> T-3, đúng ngày -> T0, quá hạn -> T+3.
+     * - Chưa cấu hình: còn trên 3 ngày -> T-7, còn 1–3 ngày -> T-3, đúng ngày -> T0, quá hạn -> T+3.
      */
     public static function debtMilestoneFor(StudentTuition $tuition): ?string
     {
@@ -757,6 +760,7 @@ class NotificationService
         }
 
         return match (true) {
+            $diff < -3 => 'T-7',
             $diff < 0 => 'T-3',
             $diff === 0 => 'T0',
             default => 'T+3',
@@ -764,7 +768,7 @@ class NotificationService
     }
 
     /**
-     * Engine nhắc nợ theo cấu hình DebtReminderRule (mốc theo số ngày so với hạn đóng, mặc định T-3 / T0 / T+3):
+     * Engine nhắc nợ theo cấu hình DebtReminderRule (mốc theo số ngày so với hạn đóng, mặc định T-7 / T-3 / T0 / T+3):
      * - Rule phải tồn tại và đang bật thì mới gửi.
      * - Nội dung dùng template đã cấu hình với placeholder {ten_hoc_vien} {ma_hoc_vien}
      *   {so_dien_thoai} {lop_hoc} {so_tien} {han_dong}.
@@ -786,6 +790,7 @@ class NotificationService
         $rule ??= new DebtReminderRule([
             'milestone_key' => $milestone,
             'title' => match ($milestone) {
+                'T-7' => 'Thông báo trước hạn 1 tuần',
                 'T-3' => 'Nhắc trước hạn 3 ngày',
                 'T0' => 'Nhắc đúng ngày đến hạn',
                 default => 'Cảnh báo quá hạn',

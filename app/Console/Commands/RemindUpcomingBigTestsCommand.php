@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\AdminNotification;
 use App\Models\BigTest;
 use App\Models\SyllabusAssignment;
+use App\Services\BigTestSlaService;
 use Illuminate\Console\Command;
 
 /**
@@ -15,6 +16,9 @@ use Illuminate\Console\Command;
  * Thêm: chặng đang mở có ngày dự kiến Big Test (GV chính đặt) trong N ngày tới mà CHƯA có đợt Big Test của chặng
  * → nhắc GV chính / GVNN / trợ giảng order đề và báo Học thuật. Mỗi chặng nhắc 1 lần cho mỗi ngày dự kiến
  * (syllabus_assignments.big_test_reminded_for); GV đổi ngày dự kiến thì được nhắc lại theo ngày mới.
+ *
+ * Học thuật (người có quyền duyệt Big Test): nhắc MỖI NGÀY (thông báo cá nhân) cho từng đợt thi trong 7 ngày tới chưa phân phối đề,
+ * còn dưới 3 ngày → "Quá hạn duyệt đề (trước 3 ngày)" (BigTestSlaService::remindPaperApproval, idempotent theo ngày).
  */
 class RemindUpcomingBigTestsCommand extends Command
 {
@@ -22,7 +26,7 @@ class RemindUpcomingBigTestsCommand extends Command
 
     protected $description = 'Nhắc giáo viên các đợt Big Test sắp diễn ra (mặc định trước 7 ngày)';
 
-    public function handle(): int
+    public function handle(BigTestSlaService $sla): int
     {
         $days = max(1, (int) $this->option('days'));
         $tests = BigTest::with('classModel')
@@ -70,8 +74,9 @@ class RemindUpcomingBigTestsCommand extends Command
         }
 
         [$stages, $stageNotified] = $this->remindExpectedStageDates($days);
+        $papers = $sla->remindPaperApproval();
 
-        $this->info("Đã nhắc {$tests->count()} đợt Big Test ({$notified} thông báo giáo viên); {$stages} chặng theo ngày dự kiến chưa có đợt thi ({$stageNotified} thông báo giáo viên).");
+        $this->info("Đã nhắc {$tests->count()} đợt Big Test ({$notified} thông báo giáo viên); {$stages} chặng theo ngày dự kiến chưa có đợt thi ({$stageNotified} thông báo giáo viên); {$papers} nhắc Học thuật duyệt đề.");
 
         return self::SUCCESS;
     }

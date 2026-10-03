@@ -3,7 +3,7 @@
  * Cổng Giáo viên — Tổng quan hôm nay (mockup 03_Cong_Giao_Vien/01_app_shell): lịch dạy hôm nay + check-in nhiều ca, banner ca sắp
  * bắt đầu, thẻ học sinh cần chú ý / lương tạm tính / chấm công / vi phạm, buổi cần điểm danh bù, lịch tuần. Điện thoại: thanh điều hướng dưới.
  */
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import TeacherBottomNav from '@/Components/Teacher/TeacherBottomNav.vue';
 
@@ -23,7 +23,29 @@ const props = defineProps({
 
 const card = 'rounded-xl border border-outline-variant bg-surface-container-lowest p-md shadow-sm md:p-lg';
 const showAllPending = ref(false);
-const hasUnchecked = computed(() => props.shifts.some((s) => !s.checked_in));
+const WARNING_SECONDS = 15 * 60; // Cảnh báo khi còn dưới 15 phút để chấm công.
+
+// Đếm ngược hạn check-in (giờ bắt đầu + 24h): tính từ số giây server gửi, cập nhật mỗi 30 giây.
+const loadedAt = Date.now();
+const tick = ref(0);
+let timer = null;
+onMounted(() => { timer = setInterval(() => { tick.value = Date.now() - loadedAt; }, 30000); });
+onBeforeUnmount(() => clearInterval(timer));
+
+function checkinState(shift) {
+    if (shift.checked_in || !shift.checkin) return null;
+    const left = shift.checkin.remaining_seconds - Math.floor(tick.value / 1000);
+    if (shift.checkin.expired || left <= 0) return { expired: true, warning: false, left: 0 };
+    return { expired: false, warning: left < WARNING_SECONDS, left };
+}
+
+function countdown(left) {
+    const h = Math.floor(left / 3600);
+    const m = Math.floor((left % 3600) / 60);
+    return h > 0 ? `${h} giờ ${m} phút` : `${m} phút`;
+}
+
+const hasUnchecked = computed(() => props.shifts.some((s) => !s.checked_in && !checkinState(s)?.expired));
 </script>
 
 <template>
@@ -63,7 +85,7 @@ const hasUnchecked = computed(() => props.shifts.some((s) => !s.checked_in));
                     <div v-for="shift in shifts" :key="shift.session_id" :class="['rounded-lg border bg-surface-container-low p-md', shift.checked_in ? 'border-tertiary/40' : 'border-outline-variant']">
                         <div class="flex items-start gap-md">
                             <input
-                                v-if="!shift.checked_in"
+                                v-if="!shift.checked_in && !checkinState(shift)?.expired"
                                 type="checkbox"
                                 name="session_ids[]"
                                 :value="shift.session_id"
@@ -77,6 +99,7 @@ const hasUnchecked = computed(() => props.shifts.some((s) => !s.checked_in));
                                 <p class="flex flex-wrap items-center gap-xs font-body-medium text-body-medium font-semibold text-on-surface">
                                     {{ shift.class_name }}
                                     <UiBadge v-if="shift.type_label" color="info">{{ shift.type_label }}</UiBadge>
+                                    <UiBadge v-if="!shift.is_today" color="warning">Ca ngày {{ shift.date_label }}</UiBadge>
                                 </p>
                                 <p class="font-body-small text-body-small text-on-surface-variant">
                                     {{ shift.scheduled_time }} • {{ shift.room_label ?? 'Chưa có phòng' }}, {{ shift.branch_name ?? 'Chưa gán chi nhánh' }}
@@ -86,6 +109,14 @@ const hasUnchecked = computed(() => props.shifts.some((s) => !s.checked_in));
                                     <template v-if="shift.trial_count"> · <span class="font-semibold text-secondary">+{{ shift.trial_count }} khách học thử</span></template>
                                     <template v-if="shift.support_student"> · {{ shift.support_student }}</template>
                                     <template v-if="shift.checked_in"> · <span class="font-semibold text-tertiary">Đã check-in {{ shift.checkin_time }}</span></template>
+                                </p>
+                                <!-- Hạn check-in = giờ bắt đầu + 24h; còn dưới 15 phút → cảnh báo; quá hạn → liên hệ Học vụ. -->
+                                <p v-if="checkinState(shift)?.expired" class="mt-xs font-caption text-caption font-semibold text-error" data-testid="checkin-expired">
+                                    Quá hạn chấm công — liên hệ Học vụ
+                                </p>
+                                <p v-else-if="checkinState(shift)" :class="['mt-xs font-caption text-caption', checkinState(shift).warning ? 'font-semibold text-error' : 'text-on-surface-variant']" data-testid="checkin-deadline">
+                                    <template v-if="checkinState(shift).warning">Còn dưới 15 phút để chấm công · </template>
+                                    Hạn chấm công {{ shift.checkin.deadline }} (còn {{ countdown(checkinState(shift).left) }})
                                 </p>
                             </div>
                         </div>
@@ -157,6 +188,7 @@ const hasUnchecked = computed(() => props.shifts.some((s) => !s.checked_in));
                                 <template v-if="s.type_label"> · {{ s.type_label }}</template>
                                 <template v-if="s.cancelled"> · Đã hủy</template>
                             </div>
+                            <div v-if="s.checkin_overdue" class="font-semibold text-error">Quá hạn chấm công — liên hệ Học vụ</div>
                             <Link v-if="s.can_take" :href="route('teacher.attendance', { classId: s.class_id, session: s.id })" :class="['mt-xs inline-block font-semibold hover:underline', s.done ? 'text-tertiary' : 'text-primary']">
                                 {{ s.done ? 'Đã điểm danh' : 'Điểm danh' }}
                             </Link>

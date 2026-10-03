@@ -190,7 +190,7 @@ class Phase2MockupClassesTest extends TestCase
             ->assertSee('Buổi học của mọi lớp theo ngày / tuần: điểm danh và chấm công giảng viên')
             ->assertSee('Xuất báo cáo')->assertSee('Tạo lớp mới')
             ->assertSee('Theo ngày')->assertSee('Theo tuần')->assertSee('Lọc thêm')
-            ->assertSee('Chỉ được điểm danh trong vòng 24h sau giờ học')
+            ->assertSee('Chưa tới giờ học — chưa điểm danh được')
             ->assertSee('Xem điểm danh')
             ->assertSee('Trợ giảng làm việc hôm nay')->assertSee('Xem tất cả trợ giảng')
             ->assertSee('Hiển thị 2 buổi học của 1 lớp học')
@@ -390,10 +390,12 @@ class Phase2MockupClassesTest extends TestCase
         ])->assertSessionHasNoErrors();
         $this->assertDatabaseHas('student_attendances', ['class_session_id' => $session->id, 'status' => 'absent', 'note' => 'Phụ huynh báo ốm']);
 
-        // Buổi quá 24h → vẫn điểm danh bù được nhưng báo ngoài cửa sổ.
+        // Buổi ngoài khung ±24h quanh giờ bắt đầu → GV không điểm danh được (windowReason khóa nút Lưu); Học vụ vẫn điểm danh bù.
         $old = $this->makeSession('2026-10-05', '07:30', '08:45');
         $this->actingAs($this->teacher)->get(route('teacher.attendance', ['classId' => $this->classModel->id, 'session' => $old->id]))
-            ->assertOk()->assertSee('Ngoài cửa sổ 24h — điểm danh bù');
+            ->assertOk()->assertInertia(fn ($page) => $page->where('windowReason', 'Ngoài khung ±24h so với giờ bắt đầu buổi học — liên hệ Học vụ để điểm danh.'));
+        $this->actingAs($this->admin)->get(route('teacher.attendance', ['classId' => $this->classModel->id, 'session' => $old->id]))
+            ->assertOk()->assertInertia(fn ($page) => $page->where('windowReason', null));
     }
 
     public function test_teacher_remarks_are_saved_per_session_with_draft_and_monsters_columns(): void

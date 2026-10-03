@@ -194,12 +194,16 @@ class SyllabusProgressionService
      */
     public function syncBigTest(BigTest $test, ?User $actor = null): ?array
     {
-        if (! $test->class_id || ! $test->syllabus_stage_id || ! $this->bigTestCompleted($test)) {
+        if (! $test->class_id || ! $this->bigTestCompleted($test)) {
             return null;
         }
 
+        // Mốc "đã trả đủ kết quả" (dừng tính phạt trễ hạn) đặt cả khi đợt thi không gắn chặng.
         if (! $test->results_completed_at) {
             $test->update(['results_completed_at' => now()]);
+        }
+        if (! $test->syllabus_stage_id) {
+            return null;
         }
 
         $assignment = SyllabusAssignment::open()

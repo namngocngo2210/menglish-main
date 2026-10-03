@@ -7,6 +7,8 @@ use App\Models\Branch;
 use App\Models\DebtReminderRule;
 use App\Models\SepayConfiguration;
 use App\Models\SepayTransaction;
+use App\Models\SlaSetting;
+use App\Services\Sla\Sla;
 use App\Models\SystemSetting;
 use App\Support\StatusLabel;
 use App\Support\Ui;
@@ -232,7 +234,8 @@ class SystemConfigController extends Controller
         // Thiết lập nhanh theo mockup: mốc nhắc trước hạn (lần 1) và mốc nhắc lại (1–3 ngày trước hạn).
         $beforeOffsets = $rules->filter(fn (DebtReminderRule $r) => $r->is_enabled && ($r->effectiveOffset() ?? 0) < 0)
             ->map(fn (DebtReminderRule $r) => abs($r->effectiveOffset()));
-        $firstDays = (int) SystemSetting::get('debt_reminder.first_days', $beforeOffsets->max() ?? 7);
+        // Mặc định theo SLA học phí: thông báo trước 1 tuần, nhắc lại 1–3 ngày trước hạn.
+        $firstDays = (int) SystemSetting::get('debt_reminder.first_days', ($beforeOffsets->max() ?? 0) > self::REPEAT_MAX_DAYS ? $beforeOffsets->max() : 7);
         $repeatDays = (int) SystemSetting::get('debt_reminder.repeat_days', $beforeOffsets->filter(fn ($d) => $d <= self::REPEAT_MAX_DAYS)->min() ?? 3);
 
         return Inertia::render('SystemConfig/DebtReminders', [
@@ -957,5 +960,68 @@ class SystemConfigController extends Controller
         $bytes /= pow(1024, $pow);
 
         return round($bytes, $precision).' '.$units[$pow];
+    }
+
+    /** Cấu hình tất cả SLA tự động (ngưỡng giờ / số lần, bật tắt, tự phạt và mức phạt gợi ý). */
+    public function sla(): InertiaResponse
+    {
+        $groups = config('sla.groups');
+        $rules = collect(array_keys(Sla::defaults()))->map(fn (string $key) => Sla::rule($key))
+            ->map(fn (array $rule) => [
+                'key' => $rule['key'],
+                'group' => $groups[$rule['group']] ?? $rule['group'],
+                'label' => $rule['label'],
+                'description' => $rule['description'],
+                'unit' => $rule['unit'],
+                'value' => $rule['value'],
+                'default_value' => Sla::defaults()[$rule['key']]['value'],
+                'enabled' => $rule['enabled'],
+                'penalty' => $rule['penalty'],
+                'amount' => $rule['amount'],
+                'task' => $rule['task'],
+                'ladder' => $rule['ladder'] ? implode(', ', $rule['ladder']) : null,
+                'has_ladder' => ! empty(Sla::defaults()[$rule['key']]['ladder']),
+                'customized' => $rule['customized'],
+            ])->values()->all();
+
+        return Inertia::render('SystemConfig/Sla', ['rules' => $rules, 'resetMonths' => Sla::ladderResetMonths()]);
+    }
+
+    public function updateSla(Request $request, string $key)
+    {
+        abort_unless(array_key_exists($key, Sla::defaults()), 404);
+        $unit = Sla::defaults()[$key]['unit'];
+        $validated = $request->validate([
+            'value' => 'required|integer|min:1|max:'.($unit === 'hours' ? 720 : 20),
+            'enabled' => 'required|boolean',
+            'penalty' => 'required|boolean',
+            'amount' => 'nullable|numeric|min:0|max:100000000',
+            'ladder' => 'nullable|string|max:200|regex:/^\s*\d+(\s*,\s*\d+){0,9}\s*$/',
+        ], [
+            'ladder.regex' => 'Bậc phạt nhập các số tiền cách nhau bởi dấu phẩy, ví dụ: 0, 30000, 60000.',
+            'value.required' => 'Vui lòng nhập ngưỡng SLA.',
+            'value.min' => 'Ngưỡng SLA tối thiểu là 1.',
+            'value.max' => $unit === 'hours' ? 'Ngưỡng SLA tối đa 720 giờ (30 ngày).' : 'Số lần tối đa là 20.',
+        ]);
+
+        SlaSetting::updateOrCreate(['rule_key' => $key], [
+            'value' => $validated['value'],
+            'enabled' => $validated['enabled'],
+            'penalty' => $validated['penalty'],
+            'amount' => $validated['amount'] ?? 0,
+            'ladder' => filled($validated['ladder'] ?? null) ? array_map('intval', preg_split('/\s*,\s*/', trim($validated['ladder']))) : null,
+            'updated_by' => $request->user()->id,
+        ]);
+        Sla::forget();
+
+        return back()->with('status', 'Đã lưu cấu hình SLA "'.Sla::defaults()[$key]['label'].'". Áp dụng cho mốc phát sinh từ bây giờ.');
+    }
+
+    public function updateSlaSettings(Request $request)
+    {
+        $validated = $request->validate(['ladder_reset_months' => 'required|integer|min:1|max:60']);
+        SystemSetting::set('sla.ladder_reset_months', (int) $validated['ladder_reset_months'], 'Số tháng cộng dồn lần tái phạm cho bậc phạt SLA.');
+
+        return back()->with('status', 'Đã lưu thời gian cộng dồn lần tái phạm.');
     }
 }

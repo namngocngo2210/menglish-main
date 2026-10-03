@@ -249,6 +249,7 @@ return [
                 'reject' => ['Trả về phiếu thu', 'Trả về phiếu thu kèm lý do.'],
                 'mark_contacted' => ['Nhắc phí / đã liên hệ', 'Gửi nhắc phí, đánh dấu đã liên hệ phụ huynh.'],
                 'report_overdue' => ['Báo cáo nợ quá hạn', 'Báo cáo khoản quá hạn cho Admin.'],
+                'confirm_deposit' => ['Xác nhận nộp tiền về TK công ty', 'Xác nhận tiền mặt thu trong ngày đã nộp về tài khoản công ty (hạn 19:00 cùng ngày) và nhận nhắc khi quá hạn.'],
             ],
             'scope' => [
                 'levels' => ['branch', 'all'],
@@ -289,6 +290,14 @@ return [
                 'approve_transfer' => ['Duyệt chuyển nhượng phí', 'Duyệt chuyển nhượng buổi dư sang học viên khác.'],
                 'approve_refund' => ['Duyệt hoàn tiền (chi tiền)', 'Duyệt hoàn tiền cho phụ huynh (bắt buộc ảnh bằng chứng).'],
                 'reject' => ['Từ chối yêu cầu', 'Từ chối yêu cầu hoàn / chuyển / khất nợ / bảo lưu.'],
+            ],
+        ],
+        'sla' => [
+            'label' => 'Cấu hình SLA',
+            'group' => 'system',
+            'icon' => 'timer',
+            'actions' => [
+                'configure' => ['Cấu hình SLA', 'Đổi ngưỡng giờ / số lần, bật tắt, tự phạt và mức phạt của các SLA tự động.'],
             ],
         ],
         'bank_account' => [
@@ -482,6 +491,23 @@ return [
                 'own' => 'Việc tôi giao / được giao; KPI của tôi',
                 'branch' => 'Việc thuộc chi nhánh của tôi (+ việc của tôi); KPI nhân sự chi nhánh',
                 'all' => 'Mọi công việc; KPI mọi nhân sự',
+            ],
+        ],
+        'material_order' => [
+            'label' => 'Order học liệu',
+            'group' => 'operations',
+            'icon' => 'inventory_2',
+            'actions' => [
+                'create' => ['Tạo order học liệu', 'Giáo viên đặt đạo cụ / in ấn / học liệu GVNN / học liệu học thuật.'],
+                'view_all' => ['Xem order của người khác', 'Xem order của giáo viên khác trong phạm vi dữ liệu (người lập luôn xem order của mình).'],
+                'process_ops' => ['Xử lý order Đạo cụ / In ấn / GVNN', 'Học vụ (CM): nhận xử lý, hoàn thành, từ chối order đạo cụ, in ấn, GVNN của chi nhánh mình.'],
+                'process_academic' => ['Xử lý order học liệu học thuật', 'Trưởng Học thuật: nhận xử lý, hoàn thành, từ chối order học liệu học thuật.'],
+            ],
+            'scope' => [
+                'levels' => ['own', 'branch', 'all'],
+                'own' => 'Order tôi tạo',
+                'branch' => 'Order thuộc chi nhánh của tôi (+ order của tôi); Học vụ chỉ xử lý order chi nhánh mình',
+                'all' => 'Mọi order học liệu',
             ],
         ],
         'support_ticket' => [

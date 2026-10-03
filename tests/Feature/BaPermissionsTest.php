@@ -257,6 +257,8 @@ class BaPermissionsTest extends TestCase
 
         $period->calculatePayrollForPeriod();
         $this->grantPersonal($this->accountant, 'payroll.approve');
+        // Chốt công / chốt lỗi cuối tháng + 2 ngày: chỉ duyệt được sau mốc này.
+        $this->travelTo($period->attendanceCloseAt()->addDay()->setTime(9, 0));
         $this->actingAs($this->accountant)->post(route('payroll.periods.approve', $period->id))->assertSessionHasNoErrors();
         $this->assertSame('approved', $period->fresh()->status);
     }

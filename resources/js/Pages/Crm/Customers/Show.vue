@@ -15,6 +15,7 @@ import CustomerEditForm from './CustomerEditForm.vue';
 import Timeline from './ShowTimeline.vue';
 import CareChecklist from './ShowCareChecklist.vue';
 import RubricScoreFields from '@/Components/PlacementTests/RubricScoreFields.vue';
+import SlaCountdown from '@/Components/Crm/SlaCountdown.vue';
 
 defineOptions({ layout: (props) => ({ title: 'Chi tiết khách — ' + props.customer.name }) });
 
@@ -117,8 +118,7 @@ async function focusFollowUp() {
 if (typeof window !== 'undefined' && window.location.hash === '#next_follow_up_at') nextTick(focusFollowUp);
 
 const tabClass = (name) => ['-mb-px border-b-2 px-lg py-md font-body-medium text-body-medium transition-colors', activeTab.value === name ? 'border-primary-container font-semibold text-primary' : 'border-transparent text-on-surface-variant hover:text-primary'];
-const followUpTone = (status) => (status === 'overdue' ? 'bg-error-container/40' : status === 'due_soon' ? 'bg-warning-container' : 'bg-surface-container-low');
-const followUpText = (status) => (status === 'overdue' ? 'text-error' : status === 'due_soon' ? 'text-on-warning-container' : 'text-on-surface');
+const followUpTone = (status) => (status === 'overdue' ? 'bg-error-container/40' : status === 'due_soon' ? 'bg-warning-container' : status === 'on_time' ? 'bg-tertiary/10' : 'bg-surface-container-low');
 const contactRows = computed(() => [
     ['Số điện thoại', props.customer.phone, true],
     ['Tên phụ huynh', props.customer.parent_name || '—', false],
@@ -387,18 +387,13 @@ const trialTitle = computed(() => (props.trial.pending ? 'Xếp học thử' : `
                             <p class="font-label text-label uppercase text-on-surface-variant">Liên hệ gần nhất</p>
                             <p class="font-body-medium text-body-medium text-on-surface">{{ statusCard.last_contact ?? 'Chưa có' }}</p>
                         </div>
-                        <div :class="['rounded-lg p-md', followUpTone(statusCard.follow_up_status)]">
-                            <p class="font-label text-label uppercase text-on-surface-variant">Hạn liên hệ tiếp theo</p>
-                            <template v-if="customer.next_follow_up_at">
-                                <div :class="['flex items-center gap-xs', followUpText(statusCard.follow_up_status)]">
-                                    <span class="material-symbols-outlined text-[18px]">timer</span>
-                                    <span class="font-body-semibold text-body-semibold">{{ statusCard.follow_up_remaining }}</span>
-                                </div>
-                                <p class="font-code text-caption text-on-surface-variant">{{ customer.next_follow_up_at }}</p>
-                                <UiBadge v-if="statusCard.follow_up_status === 'overdue'" color="status-overdue">Quá hạn</UiBadge>
-                                <UiBadge v-else-if="statusCard.follow_up_status === 'due_soon'" color="warning">Sắp hết hạn</UiBadge>
+                        <div :class="['rounded-lg p-md', followUpTone(statusCard.sla?.state)]">
+                            <p class="font-label text-label uppercase text-on-surface-variant">{{ statusCard.sla?.label ?? 'Hạn liên hệ tiếp theo' }}</p>
+                            <template v-if="statusCard.sla">
+                                <SlaCountdown :sla="statusCard.sla" />
+                                <p class="font-code text-caption text-on-surface-variant">{{ statusCard.sla.deadline_label }}</p>
                             </template>
-                            <p v-else class="font-body-medium text-body-medium text-on-surface-variant">Chưa đặt</p>
+                            <p v-else class="font-body-medium text-body-medium text-on-surface-variant">Không áp dụng</p>
                         </div>
                     </div>
                     <UiAlert v-if="statusCard.neglected" type="error">Khách chưa có hoạt động chăm sóc nào trong {{ statusCard.neglect_days }} ngày gần đây.</UiAlert>

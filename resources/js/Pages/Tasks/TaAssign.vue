@@ -5,7 +5,7 @@
  * Mở từ danh sách / form Giao việc → modal 4xl; mở thẳng URL → trang riêng.
  * Ô "Buổi học": buổi thật của lớp trong ngày giao; lớp không có buổi trong ngày → nhập tên buổi.
  */
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import AssignModeSwitch from './Partials/AssignModeSwitch.vue';
 
 defineOptions({ layout: { title: 'Tạo lượt giao việc cho Trợ giảng' } });
@@ -17,6 +17,7 @@ const props = defineProps({
     classSessions: { type: [Object, Array], default: () => ({}) },
     slots: { type: Array, default: () => [] },
     today: { type: String, required: true },
+    nowTime: { type: String, default: '00:00' },
     cutoff: { type: String, required: true },
     asModal: { type: Boolean, default: false },
 });
@@ -25,6 +26,18 @@ const formId = computed(() => (props.asModal ? 'modal-ta-assign-form' : 'ta-assi
 const assignDate = ref(props.today);
 let seq = 1;
 const tasks = ref([{ id: seq++, category: 'before', content: '', attach_class: false, class_id: '', class_session_id: '', session: '' }]);
+
+// Cảnh báo trực tiếp: giờ hệ thống (múi giờ ứng dụng, lấy từ server rồi chạy tiếp theo đồng hồ trình duyệt) đã quá hạn gửi
+// cho ngày được chọn → gửi vẫn được nhưng sẽ báo tất cả Admin và người giao.
+const toMinutes = (hhmm) => { const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
+const mountedAt = Date.now();
+const elapsed = ref(0);
+let timer = null;
+onMounted(() => { timer = setInterval(() => { elapsed.value = Math.floor((Date.now() - mountedAt) / 60000); }, 15000); });
+onBeforeUnmount(() => clearInterval(timer));
+const isLate = computed(() => !!assignDate.value && (assignDate.value < props.today
+    || (assignDate.value === props.today && toMinutes(props.nowTime) + elapsed.value > toMinutes(props.cutoff))));
+const cutoffLabel = computed(() => props.cutoff.replace(':', 'h'));
 
 const sessionsFor = (item) => (props.classSessions[item.class_id] || []).filter((s) => s.date === assignDate.value);
 const addTask = () => tasks.value.push({ id: seq++, category: 'during', content: '', attach_class: false, class_id: '', class_session_id: '', session: '' });
@@ -46,6 +59,9 @@ const labelCls = 'mb-xs block font-label text-label uppercase text-on-surface-va
                 <UiInput :id="(asModal ? 'modal-' : '') + 'assign_date'" v-model="assignDate" type="date" name="assign_date" label="Ngày giao việc" required />
                 <UiSelect :id="asModal ? 'modal-ta-branch_id' : 'f_branch_id'" name="branch_id" label="Chi nhánh" placeholder="-- Chọn Chi nhánh --" :options="branches" />
             </div>
+            <UiAlert v-if="isLate" type="warning">
+                Đã quá {{ cutoffLabel }} cho ngày giao {{ assignDate.split('-').reverse().join('/') }} — vẫn gửi được, nhưng hệ thống sẽ báo tất cả Admin và bạn (người giao) về việc gửi trễ.
+            </UiAlert>
             <UiAlert v-if="!assistants.length" type="warning">Chưa có tài khoản trợ giảng nào đang hoạt động trong phạm vi bạn quản lý.</UiAlert>
 
             <div class="space-y-md border-t border-surface-container pt-md">
@@ -115,7 +131,7 @@ const labelCls = 'mb-xs block font-label text-label uppercase text-on-surface-va
 
             <div class="flex flex-col items-center gap-xs border-t border-surface-container pt-md">
                 <UiButton v-if="!asModal" type="submit" icon="send" class="w-full sm:w-auto sm:min-w-[220px]">Gửi nhiệm vụ</UiButton>
-                <p class="font-body-small text-body-small text-on-surface-variant">Khuyến nghị gửi trước {{ cutoff.replace(':', 'h') }} — gửi trễ vẫn được, hệ thống sẽ báo Admin.</p>
+                <p class="font-body-small text-body-small text-on-surface-variant">Khuyến nghị gửi trước {{ cutoff.replace(':', 'h') }} — gửi trễ vẫn được, hệ thống sẽ báo tất cả Admin và người giao.</p>
                 <p class="font-caption text-caption text-on-surface-variant">Hạn mỗi ca: gắn buổi học → Trước giờ học = giờ vào lớp, Trong giờ học = giờ tan lớp, Sau giờ học = tan lớp + 60 phút; không gắn buổi → 14:00 / 18:00 / 21:30.</p>
             </div>
         </UiForm>

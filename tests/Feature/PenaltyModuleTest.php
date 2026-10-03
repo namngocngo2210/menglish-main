@@ -26,7 +26,8 @@ class PenaltyModuleTest extends TestCase
         $response = $this->actingAs($user)->post('/penalties', [
             'user_id' => $violator->id,
             'violation_type' => 'Đến muộn > 15 phút',
-            'violation_date' => '2026-08-17',
+            'violation_at' => now()->subHours(3)->format('Y-m-d\TH:i'),
+            'evidence' => \Illuminate\Http\UploadedFile::fake()->image('bang-chung.jpg'),
             'amount' => 200000,
             'notes' => 'Vi phạm lần 1',
         ]);

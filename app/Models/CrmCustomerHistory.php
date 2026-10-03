@@ -16,6 +16,7 @@ class CrmCustomerHistory extends Model
         'customer_id',
         'user_id',
         'type',
+        'outcome',
         'content',
         'from_stage',
         'to_stage',
@@ -41,6 +42,23 @@ class CrmCustomerHistory extends Model
 
     /** Nhật ký cho thấy đã liên hệ khách (gọi / nhắn / gặp) — lead Mới có các nhật ký này không còn là "chưa liên hệ". */
     public const CONTACT_TYPES = ['call', 'message', 'meet'];
+
+    /**
+     * Nhật ký tính là một lần chăm sóc khách (đồng hồ SLA "chăm sóc tiếp theo trong 72h" đếm lại từ lần gần nhất):
+     * liên hệ + test / gửi kết quả / học thử / chuyển giai đoạn. Sửa thông tin, phân công, ghi chú, hệ thống không tính.
+     */
+    public const CARE_TYPES = ['call', 'message', 'meet', 'test', 'result', 'trial', 'stage_change'];
+
+    /** Kết quả một lần liên hệ: liên hệ được / thất bại (không bắt máy, không phản hồi…). Thất bại không tính là đã chăm sóc. */
+    public const OUTCOME_FAILED = 'failed';
+
+    public const OUTCOME_REACHED = 'reached';
+
+    /** Nhật ký tính là một lần chăm sóc thật: bỏ liên hệ thất bại. */
+    public function scopeCounted($query)
+    {
+        return $query->where(fn ($q) => $q->whereNull('outcome')->orWhere('outcome', '!=', self::OUTCOME_FAILED));
+    }
 
     protected $casts = [
         'changes' => 'array',

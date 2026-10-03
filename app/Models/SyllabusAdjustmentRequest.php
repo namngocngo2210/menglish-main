@@ -23,6 +23,7 @@ class SyllabusAdjustmentRequest extends Model
         'status',
         'rejection_reason',
         'reviewed_at',
+        'sla_notified_at',
         'applied_note',
     ];
 
@@ -35,12 +36,15 @@ class SyllabusAdjustmentRequest extends Model
     /** Số buổi tối đa được giãn trong một yêu cầu. */
     public const MAX_EXTRA_SESSIONS = 10;
 
-    /** Hạn xử lý (SLA) của Học thuật: 24 giờ kể từ khi GV gửi (theo thông báo SLA trên màn GV). */
-    public const SLA_HOURS = 24;
+    /** Hạn duyệt yêu cầu giãn tiến độ: 3 ngày kể từ khi GV gửi (BA chốt). Học thuật hoặc Admin duyệt. */
+    public const SLA_DAYS = 3;
+
+    public const SLA_HOURS = self::SLA_DAYS * 24;
 
     protected $casts = [
         'extra_sessions' => 'integer',
         'reviewed_at' => 'datetime',
+        'sla_notified_at' => 'datetime',
     ];
 
     public function getSlaDueAtAttribute(): ?\Illuminate\Support\Carbon

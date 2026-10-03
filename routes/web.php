@@ -15,6 +15,7 @@ use App\Http\Controllers\CrmImportController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\HolidayController;
+use App\Http\Controllers\MaterialOrderController;
 use App\Http\Controllers\KpiController;
 use App\Http\Controllers\MediaManagerController;
 use App\Http\Controllers\MerchandiseItemController;
@@ -221,6 +222,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/receipts/{id}', [TuitionController::class, 'updateReceipt'])->middleware('can:tuition.create')->name('receipts.update');
         Route::get('/receipts/approve', [TuitionController::class, 'approveReceipt'])->name('receipts.approve');
         Route::post('/receipts/{id}/approve', [TuitionController::class, 'approveReceiptAction'])->middleware('can:tuition.approve')->name('receipts.approve.action');
+        Route::post('/receipts/{id}/confirm-deposit', [TuitionController::class, 'confirmDeposit'])->middleware('can:tuition.confirm_deposit')->whereNumber('id')->name('receipts.confirm-deposit');
         Route::post('/receipts/{id}/reject', [TuitionController::class, 'rejectReceiptAction'])->middleware('can:tuition.reject')->name('receipts.reject.action');
         Route::get('/history', [TuitionController::class, 'history'])->name('history');
         Route::get('/history/export', [TuitionController::class, 'exportHistory'])->name('history.export');
@@ -394,6 +396,8 @@ Route::middleware('auth')->group(function () {
     // ─────────────────────────────────────────────
     // Người có violation.view xem tất cả; nhân sự khác chỉ xem biên bản của mình để giải trình.
     Route::get('/penalties', [PenaltyController::class, 'index'])->name('penalties.index');
+    // File bằng chứng vi phạm (disk riêng tư): người xem biên bản hoặc chính nhân sự vi phạm.
+    Route::get('/penalties/{id}/evidence', [PenaltyController::class, 'evidence'])->whereNumber('id')->name('penalties.evidence');
     Route::post('/penalties/{id}/explain', [PenaltyController::class, 'explain'])->name('penalties.explain');
     Route::post('/penalties', [PenaltyController::class, 'storePenalty'])->middleware('can:violation.create')->name('penalties.store');
     Route::post('/penalties/{id}/confirm', [PenaltyController::class, 'confirmPenalty'])->name('penalties.confirm');
@@ -524,6 +528,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/ticket-emails', [SystemConfigController::class, 'ticketEmails'])->middleware('can:support_ticket.update')->name('ticket-emails');
         Route::post('/ticket-emails', [SystemConfigController::class, 'updateTicketEmails'])->middleware('can:support_ticket.update')->name('ticket-emails.update');
         Route::post('/ticket-emails/test', [SystemConfigController::class, 'sendTestTicketEmail'])->middleware('can:support_ticket.update')->name('ticket-emails.test');
+        Route::get('/sla', [SystemConfigController::class, 'sla'])->middleware('can:sla.configure')->name('sla');
+        Route::post('/sla/settings', [SystemConfigController::class, 'updateSlaSettings'])->middleware('can:sla.configure')->name('sla.settings');
+        Route::put('/sla/{key}', [SystemConfigController::class, 'updateSla'])->where('key', '[a-z_.]+')->middleware('can:sla.configure')->name('sla.update');
         Route::get('/hosting', [SystemConfigController::class, 'hostingInfo'])->middleware('can:bank_account.manage')->name('hosting');
     });
 
@@ -653,6 +660,19 @@ Route::middleware('auth')->group(function () {
         Route::post('/{id}/read', [AdminNotificationController::class, 'markAsRead'])->middleware('can:notification.view')->name('read');
         Route::post('/read-all', [AdminNotificationController::class, 'markAllAsRead'])->middleware('can:notification.view')->name('read-all');
         Route::post('/scan', [AdminNotificationController::class, 'scan'])->middleware('can:notification.manage')->name('scan');
+    });
+
+    // ─────────────────────────────────────────────
+    // Order học liệu: GV tạo; Học vụ / Trưởng Học thuật xử lý. Quyền kiểm tra trong controller (theo loại order + chi nhánh).
+    // ─────────────────────────────────────────────
+    Route::prefix('material-orders')->name('material-orders.')->group(function () {
+        Route::get('/', [MaterialOrderController::class, 'index'])->name('index');
+        Route::get('/create', [MaterialOrderController::class, 'create'])->name('create');
+        Route::post('/', [MaterialOrderController::class, 'store'])->name('store');
+        Route::get('/{materialOrder}', [MaterialOrderController::class, 'show'])->name('show');
+        Route::post('/{materialOrder}/claim', [MaterialOrderController::class, 'claim'])->name('claim');
+        Route::post('/{materialOrder}/complete', [MaterialOrderController::class, 'complete'])->name('complete');
+        Route::post('/{materialOrder}/reject', [MaterialOrderController::class, 'reject'])->name('reject');
     });
 
     // ─────────────────────────────────────────────

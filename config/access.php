@@ -68,10 +68,14 @@ return [
             'finance.scope_branch', 'attendance_staff.scope_branch', 'payroll.scope_all', 'kpi.scope_all', 'work_task.scope_branch',
             'merchandise_stock.scope_branch',
             'support_ticket.scope_all', 'user.scope_branch', 'activity_log.scope_all', 'dashboard.scope_branch',
+            // Order học liệu: xử lý đạo cụ / in ấn / GVNN theo chi nhánh.
+            'material_order.view_all', 'material_order.process_ops', 'material_order.scope_branch',
         ],
 
         'accountant' => [
             'tuition.view', 'tuition.create', 'tuition.approve', 'tuition.reject', 'tuition.mark_contacted', 'tuition.report_overdue',
+            // Xác nhận tiền mặt thu trong ngày đã nộp về TK công ty trước 19:00 (Admin qua Gate::before).
+            'tuition.confirm_deposit',
             'invoice.request_cancel',
             'refund_transfer.request', 'refund_transfer.approve', 'refund_transfer.approve_transfer', 'refund_transfer.reject',
             'bank_account.manage', 'invoice_range.manage', 'fee_reminder_config.manage',
@@ -118,6 +122,8 @@ return [
             'merchandise_stock.view', 'merchandise_stock.manage', 'merchandise_stock.scope_branch', 'invoice.request_cancel',
             'lead.scope_branch', 'student.scope_branch', 'class.scope_all', 'big_test.scope_all', 'tuition.scope_branch',
             'attendance_staff.scope_all', 'kpi.scope_all', 'work_task.scope_all', 'user.scope_own', 'support_ticket.scope_own',
+            // Order học liệu: CM xử lý đạo cụ / in ấn / GVNN của chi nhánh mình.
+            'material_order.view_all', 'material_order.process_ops', 'material_order.scope_branch',
         ],
 
         'academic_lead' => [
@@ -128,8 +134,8 @@ return [
             'level.*', 'syllabus.*', 'big_test.*',
             'entrance_test.*', 'entrance_test.examine', 'placement_test.*',
             'kpi.view', 'kpi.confirm',
-            // HT chốt biên bản lỗi chuyên môn / giảng dạy (Phase 3)
-            'violation.view', 'violation.create', 'violation.confirm_error', 'violation.confirm_fine', 'violation.decide_academic',
+            // HT chốt biên bản lỗi chuyên môn / giảng dạy (Phase 3). Lập biên bản chỉ CM (Học vụ) / Admin — chủ dự án chốt.
+            'violation.view', 'violation.confirm_error', 'violation.confirm_fine', 'violation.decide_academic',
             'work_task.*', 'support_ticket.create', 'support_ticket.view', 'notification.view', 'survey.manage', 'course.view',
             'staff_report.submit', 'dashboard.academic', 'portal.staff',
             'payroll.view_own', 'payroll.scope_own',
@@ -137,6 +143,8 @@ return [
             'class_quality.view', 'class_quality.observe_academic', 'class_quality.teacher_meeting',
             'lead.scope_branch', 'student.scope_branch', 'class.scope_all', 'big_test.scope_all', 'kpi.scope_all',
             'work_task.scope_all', 'user.scope_own', 'support_ticket.scope_own',
+            // Order học liệu học thuật: Trưởng Học thuật xử lý, thấy mọi chi nhánh.
+            'material_order.view_all', 'material_order.process_academic', 'material_order.scope_all',
         ],
 
         'sales_consultant' => [
@@ -155,6 +163,8 @@ return [
             'syllabus.view', 'syllabus.update', 'syllabus.propose_adjustment',
             'staff_report.submit', 'portal.teacher', 'portal.staff',
             'class.scope_own', 'student.scope_own', 'big_test.scope_own', 'payroll.scope_own', 'work_task.scope_own', 'support_ticket.scope_own',
+            // Order học liệu: giáo viên tạo order, chỉ thấy order của mình.
+            'material_order.create', 'material_order.scope_own',
         ],
 
         'teacher_fulltime' => [
@@ -165,6 +175,8 @@ return [
             'syllabus.view', 'syllabus.update', 'syllabus.propose_adjustment',
             'staff_report.submit', 'portal.teacher', 'portal.staff',
             'class.scope_own', 'student.scope_own', 'big_test.scope_own', 'payroll.scope_own', 'work_task.scope_own', 'support_ticket.scope_own',
+            // Order học liệu: giáo viên tạo order, chỉ thấy order của mình.
+            'material_order.create', 'material_order.scope_own',
         ],
 
         'teacher_parttime' => [
@@ -175,6 +187,8 @@ return [
             'syllabus.view', 'syllabus.update', 'syllabus.propose_adjustment',
             'staff_report.submit', 'portal.teacher', 'portal.staff',
             'class.scope_own', 'student.scope_own', 'big_test.scope_own', 'payroll.scope_own', 'work_task.scope_own', 'support_ticket.scope_own',
+            // Order học liệu: giáo viên tạo order, chỉ thấy order của mình.
+            'material_order.create', 'material_order.scope_own',
         ],
 
         'assistant' => [

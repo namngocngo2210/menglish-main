@@ -98,6 +98,12 @@ function onBranchChange() {
                     <UiInput type="time" name="time_in" label="Giờ vào" required :value="defaults.time_in" />
                     <UiInput type="time" name="time_out" label="Giờ ra" required :value="defaults.time_out" />
 
+                    <UiInput type="number" name="late_minutes" label="Đi muộn (phút)" min="0" max="600" step="1" value="0" />
+                    <UiInput type="number" name="early_leave_minutes" label="Về sớm (phút)" min="0" max="600" step="1" value="0" />
+                    <div class="md:col-span-2">
+                        <UiCheckbox name="late_notified" value="1" label="Có báo trước (trả theo số phút thực dạy; không báo trước: dưới ngưỡng trừ theo phút, từ ngưỡng không tính buổi)" />
+                    </div>
+
                     <div class="md:col-span-2">
                         <UiTextarea name="notes" label="Lý do điều chỉnh" required rows="3" placeholder="Ví dụ: Mất mạng chi nhánh, quên quẹt thẻ..." />
                     </div>

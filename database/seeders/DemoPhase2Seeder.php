@@ -286,8 +286,8 @@ class DemoPhase2Seeder extends Seeder
                     $notes[$student->id] = 'Nghỉ không báo trước, đã nhắn PH';
                 }
             }
-            // Học vụ điểm danh thay GV ở 1 buổi (recorded_by = Học vụ).
-            $actor = $i === 1 ? $this->staff['academic'] : $teacher;
+            // Học vụ điểm danh thay GV ở 1 buổi (recorded_by = Học vụ) và mọi buổi ngoài khung ±24h (GV không tự điểm danh bù được).
+            $actor = $i === 1 || ! $session->withinTeacherAttendanceWindow() ? $this->staff['academic'] : $teacher;
             $this->asUser($actor, TeacherPortalController::class, 'attendanceStore', [
                 'class_session_id' => $session->id, 'status' => $statuses, 'note' => $notes,
             ], ['classId' => $class->id]);

@@ -111,7 +111,13 @@ const dueGroupProps = computed(() => ({
                             <td class="whitespace-nowrap text-right font-code text-tertiary">{{ formatMoney(t.paid_amount) }}</td>
                             <td :class="['whitespace-nowrap text-right font-code', t.debt_amount > 0 ? 'text-error' : 'text-on-surface-variant']">{{ formatMoney(t.debt_amount) }}</td>
                             <td class="whitespace-nowrap font-code text-code">{{ t.due_date ?? '—' }}</td>
-                            <td><UiBadge :color="t.status_color">{{ t.status_label }}</UiBadge></td>
+                            <td>
+                                <template v-if="t.days_overdue > 0">
+                                    <UiBadge :color="t.days_overdue >= seriousDays ? 'error' : 'warning'">Quá hạn {{ t.days_overdue }} ngày</UiBadge>
+                                    <div v-if="t.days_overdue >= seriousDays" class="mt-xs font-caption text-caption font-semibold text-error">Bắt buộc liên hệ trực tiếp</div>
+                                </template>
+                                <UiBadge v-else :color="t.status_color">{{ t.status_label }}</UiBadge>
+                            </td>
                             <td class="whitespace-nowrap text-right">
                                 <template v-if="t.debt_amount > 0">
                                     <UiButton v-if="can('tuition.create')" size="sm" variant="ghost" icon="payments" :href="route('tuition.receipts.create', { tuition_id: t.id })" modal="4xl" title="Lập phiếu thu" aria-label="Lập phiếu thu" />

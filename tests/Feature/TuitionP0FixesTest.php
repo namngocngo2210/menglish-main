@@ -580,6 +580,16 @@ class TuitionP0FixesTest extends TestCase
         $this->assertSame(1, AcademicRecord::where('record_code', 'like', 'DEBTREMIND-T-3-'.$this->tuition->id.'-%')->count());
     }
 
+    public function test_debt_reminder_command_sends_one_week_before_due(): void
+    {
+        // SLA học phí: thông báo 1 tuần trước hạn (T-7), nhắc lại T-3.
+        $this->tuition->update(['due_date' => now()->addDays(7)->toDateString()]);
+
+        $this->artisan('tuition:send-debt-reminders')->assertSuccessful();
+
+        $this->assertSame(1, AcademicRecord::where('record_code', 'like', 'DEBTREMIND-T-7-'.$this->tuition->id.'-%')->count());
+    }
+
     public function test_debt_reminder_dry_run_does_not_send(): void
     {
         $this->tuition->update(['due_date' => now()->toDateString()]);

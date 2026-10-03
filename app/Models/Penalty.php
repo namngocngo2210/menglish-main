@@ -18,8 +18,20 @@ class Penalty extends Model
 {
     use HasFactory;
 
-    /** Số ngày nhân sự phải nộp phạt kể từ khi được quyết phạt. */
+    /** Số ngày nhân sự phải nộp phạt kể từ khi được quyết phạt; quá hạn không ghi nhận nộp trực tiếp nữa (trừ lương). */
     public const PAYMENT_DUE_DAYS = 2;
+
+    /** Vi phạm phải được ghi nhận (thủ công) trong vòng N giờ kể từ lúc xảy ra — chủ dự án chốt. */
+    public const RECORD_WINDOW_HOURS = 24;
+
+    /** Bằng chứng vi phạm: ảnh / PDF, lưu disk riêng tư (xem qua route penalties.evidence, có kiểm tra quyền). */
+    public const EVIDENCE_DISK = 'local';
+
+    public const EVIDENCE_DIRECTORY = 'penalties/evidence';
+
+    public const EVIDENCE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf'];
+
+    public const EVIDENCE_MAX_KB = 10240;
 
     /**
      * Loại lỗi → quyền chốt. Lỗi chuyên môn: violation.decide_academic (mặc định Học thuật — HT); lỗi vận hành:
@@ -65,14 +77,18 @@ class Penalty extends Model
         'user_id',
         'class_id',
         'work_task_id',
+        'big_test_id',
+        'auto_source',
         'violation_type',
         'error_category',
         'violation_date',
+        'violation_at',
         'amount',
         'reporter_id',
         'status',
         'payroll_record_id',
         'notes',
+        'evidence_path',
         'explanation',
         'explained_at',
         'decided_by',
@@ -87,6 +103,7 @@ class Penalty extends Model
 
     protected $casts = [
         'violation_date' => 'date',
+        'violation_at' => 'datetime',
         'amount' => 'decimal:2',
         'explained_at' => 'datetime',
         'decided_at' => 'datetime',

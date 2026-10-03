@@ -82,7 +82,7 @@ class Phase2AttendanceTest extends TestCase
 
     public function test_attendance_is_keyed_by_session_and_allows_makeup_for_past_session(): void
     {
-        $past = $this->makeSession('2026-10-05');
+        $past = $this->makeSession('2026-10-06'); // trong khung ±24h (start 18:00 hôm qua + 24h = 18:00 hôm nay)
         $today = $this->makeSession('2026-10-07', '08:00', '09:30');
         $makeup = $this->makeSession('2026-10-07', '14:00', '15:30', ClassSession::TYPE_MAKEUP);
 
@@ -100,7 +100,7 @@ class Phase2AttendanceTest extends TestCase
         ])->assertSessionHasNoErrors();
 
         $this->assertSame(3, StudentAttendance::count());
-        $this->assertDatabaseHas('student_attendances', ['class_session_id' => $past->id, 'session_date' => '2026-10-05 00:00:00', 'status' => 'present']);
+        $this->assertDatabaseHas('student_attendances', ['class_session_id' => $past->id, 'session_date' => '2026-10-06 00:00:00', 'status' => 'present']);
         $this->assertDatabaseHas('student_attendances', ['class_session_id' => $today->id, 'status' => 'late']);
         $this->assertDatabaseHas('student_attendances', ['class_session_id' => $makeup->id, 'status' => 'present']);
         $this->assertSame('completed', $past->fresh()->status);
@@ -111,6 +111,25 @@ class Phase2AttendanceTest extends TestCase
             'class_session_id' => $past->id, 'status' => [$this->student->id => 'excused'], 'note' => [$this->student->id => 'Ốm'],
         ]);
         $this->assertSame(3, StudentAttendance::count());
+    }
+
+    public function test_student_with_tuition_overdue_7_days_can_still_be_marked_present(): void
+    {
+        // Nợ học phí không bao giờ khóa điểm danh: học viên quá hạn ≥ 7 ngày vẫn được ghi "có mặt".
+        \App\Models\StudentTuition::create([
+            'student_id' => $this->student->id, 'branch_id' => $this->branch->id, 'total_amount' => 5000000,
+            'final_amount' => 5000000, 'paid_amount' => 0, 'debt_amount' => 5000000,
+            'due_date' => now()->subDays(10), 'status' => 'overdue',
+        ]);
+        $session = $this->makeSession('2026-10-07', '08:00', '09:30');
+
+        $this->actingAs($this->teacher)->get(route('teacher.attendance', ['classId' => $this->classModel->id, 'session' => $session->id]))
+            ->assertOk()->assertSee($this->student->name);
+        $this->actingAs($this->teacher)->post(route('teacher.attendance.store', $this->classModel->id), [
+            'class_session_id' => $session->id, 'status' => [$this->student->id => 'present'],
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('student_attendances', ['class_session_id' => $session->id, 'student_id' => $this->student->id, 'status' => 'present']);
     }
 
     public function test_attendance_and_remarks_open_latest_unattended_session_when_none_today(): void
@@ -428,6 +447,9 @@ class Phase2AttendanceTest extends TestCase
         $task = WorkTask::where('care_milestone', FirstMonthCareService::MILESTONE_SESSION_1)->sole();
         $this->assertSame('2026-10-02', $task->due_date->toDateString());
 
+        $admin = User::factory()->create(['is_active' => true]);
+        $admin->assignRole('admin');
+
         // Hôm nay 07/10: Buổi 1 quá hạn 02/10 chưa xong → 1 biên bản cho Học vụ; Buổi 4–5 chưa có hạn, Đủ 30 ngày chưa tới.
         $this->artisan('tasks:mark-overdue')->assertExitCode(0);
         $this->artisan('tasks:mark-overdue')->assertExitCode(0);
@@ -442,9 +464,15 @@ class Phase2AttendanceTest extends TestCase
         $this->assertSame('overdue', $task->fresh()->status);
         $this->assertNotNull($task->fresh()->sla_breached_at);
         $this->assertTrue(AdminNotification::where('user_id', $this->manager->id)->where('type', 'penalty_created')->exists());
+        // Quá mốc → báo Admin đúng 1 lần (chạy lại lệnh không báo trùng).
+        $this->assertSame(1, AdminNotification::where('user_id', $admin->id)->where('type', 'care_overdue')->count());
 
         $this->actingAs($this->manager)->get(route('students.show', $this->student->id))
-            ->assertOk()->assertSee('Đã giao task cho')->assertSee($this->academicStaff->name)->assertSee('Quá SLA')->assertSee($penalty->code);
+            ->assertOk()->assertSee('Đã giao task cho')->assertSee($this->academicStaff->name)->assertSee('Quá SLA')->assertSee($penalty->code)
+            ->assertSee('Quá hạn chăm sóc');
+        $care = app(FirstMonthCareService::class)->checklist($this->student);
+        $this->assertSame(1, $care['overdue']);
+        $this->assertTrue($care['items']->firstWhere('key', 'session_1')['overdue']);
     }
 
     public function test_first_month_care_sla_skips_milestone_ticked_in_crm(): void

@@ -107,6 +107,8 @@ class ModuleCompletionTest extends TestCase
         // Duyệt kỳ lương: phạt bị đóng dấu "deducted" để không trừ lần nữa
         $admin = User::factory()->create(['branch_id' => $this->branch->id, 'is_active' => true]);
         $admin->assignRole('admin');
+        // Chốt công / chốt lỗi cuối tháng + 2 ngày: chỉ duyệt được sau mốc này.
+        $this->travelTo($period->attendanceCloseAt()->addDay()->setTime(9, 0));
         $this->actingAs($admin)->post(route('payroll.periods.approve', $period->id))->assertRedirect();
         $this->assertSame('deducted', $penalty->fresh()->status);
     }

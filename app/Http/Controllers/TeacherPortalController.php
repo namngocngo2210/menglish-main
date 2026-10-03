@@ -144,11 +144,26 @@ class TeacherPortalController extends Controller
             ->orderByDesc('date')->orderBy('start_time')
             ->get();
 
+        // Ca còn trong cửa sổ check-in (giờ bắt đầu + 24h) — gồm cả ca tối qua; ca quá hạn chưa check-in vẫn hiện để báo "Quá hạn".
+        $windowSessions = $this->staffSessionsQuery($teacher->id)->with($with)
+            ->whereDate('date', '>=', now()->subDay()->toDateString())
+            ->whereDate('date', '<', $today)
+            ->where('status', '!=', 'cancelled')
+            ->orderBy('date')->orderBy('start_time')
+            ->get()
+            ->filter(fn (ClassSession $s) => now()->lte($s->checkinDeadline()));
+        $todaySessions = $windowSessions->concat($todaySessions)->values();
+
         $sessionIds = $todaySessions->pluck('id');
         $checkins = TeacherTimesheet::where('user_id', $teacher->id)
             ->whereIn('class_session_id', $sessionIds)
             ->get()
             ->keyBy('class_session_id');
+        // Ca trong tuần đã quá hạn check-in mà chưa có chấm công → hiện "Quá hạn chấm công" ở lịch tuần.
+        $weekCheckedIn = TeacherTimesheet::where('user_id', $teacher->id)
+            ->whereIn('class_session_id', $weekSessions->pluck('id'))
+            ->where('status', '!=', 'invalid')
+            ->pluck('class_session_id')->flip();
         $attendanceDone = StudentAttendance::whereIn('class_session_id', $weekSessions->pluck('id')->merge($sessionIds))
             ->distinct()
             ->pluck('class_session_id')
@@ -167,6 +182,7 @@ class TeacherPortalController extends Controller
                 'scheduled_time' => $session->start_time?->format('H:i').' - '.$session->end_time?->format('H:i'),
                 'checked_in' => $ts && ! empty($ts->checkin_time),
                 'checkin_time' => $ts?->checkin_time,
+                'checkin' => $this->checkinWindowInfo($session),
                 'attendance_done' => $attendanceDone->has($session->id),
                 'student_count' => $session->type === ClassSession::TYPE_SUPPORT ? 1 : (int) $session->classModel?->roster_count,
                 'trial_count' => (int) ($trialCounts[$session->id] ?? 0),
@@ -226,6 +242,9 @@ class TeacherPortalController extends Controller
                 'scheduled_time' => $shift['scheduled_time'],
                 'checked_in' => $shift['checked_in'],
                 'checkin_time' => $shift['checkin_time'],
+                'checkin' => $shift['checkin'],
+                'is_today' => $shift['session']->date->isToday(),
+                'date_label' => $shift['session']->date->format('d/m'),
                 'attendance_done' => $shift['attendance_done'],
                 'student_count' => $shift['student_count'],
                 'trial_count' => $shift['trial_count'],
@@ -256,6 +275,7 @@ class TeacherPortalController extends Controller
                     'cancelled' => $s->status === 'cancelled',
                     'done' => $attendanceDone->has($s->id),
                     'can_take' => $s->status !== 'cancelled' && ! $s->date->isFuture(),
+                    'checkin_overdue' => $s->status !== 'cancelled' && now()->gt($s->checkinDeadline()) && ! $weekCheckedIn->has($s->id),
                 ])->values()->all(),
             ])->values()->all(),
             'widgets' => [
@@ -282,6 +302,24 @@ class TeacherPortalController extends Controller
                 ] : null,
             ],
         ]);
+    }
+
+    /**
+     * Cửa sổ check-in của buổi: hạn chót (giờ bắt đầu + 24h), số giây còn lại và cờ cảnh báo
+     * khi còn dưới CHECKIN_WARNING_MINUTES phút. Quá hạn → GV không check-in được, liên hệ Học vụ.
+     */
+    private function checkinWindowInfo(ClassSession $session): array
+    {
+        $deadline = $session->checkinDeadline();
+        $remaining = (int) now()->diffInSeconds($deadline, false);
+
+        return [
+            'deadline' => $deadline->format('H:i d/m'),
+            'deadline_iso' => $deadline->toIso8601String(),
+            'remaining_seconds' => max(0, $remaining),
+            'expired' => $remaining < 0,
+            'warning' => $remaining >= 0 && $remaining < ClassSession::CHECKIN_WARNING_MINUTES * 60,
+        ];
     }
 
     /** Nhãn loại buổi (buổi thường không có nhãn). */
@@ -366,22 +404,29 @@ class TeacherPortalController extends Controller
         ]);
 
         $now = now();
-        if (PayrollPeriod::isLockedFor($now)) {
-            $message = PayrollPeriod::lockedMessage($now);
 
-            return back()->withErrors(['class_ids' => $message])->with('error', $message);
-        }
-
-        // Chỉ tính công cho buổi học có thật trên lịch hôm nay được phân công cho người này;
-        // không có buổi thì không tạo chấm công mặc định.
+        // Chỉ tính công cho buổi học có thật trên lịch được phân công cho người này, trong cửa sổ check-in
+        // [đầu ngày học, giờ bắt đầu + 24h]; không có buổi thì không tạo chấm công mặc định.
         $targets = [];
         $skipped = [];
+        $lockedMessage = null;
         foreach ($validated['session_ids'] ?? [] as $sessionId) {
             $session = ClassSession::with('classModel')->find($sessionId);
             $class = $session?->classModel;
-            if (! $session || ! $class || ! $session->date->isSameDay($now) || $session->status === 'cancelled'
+            if (! $session || ! $class || $session->status === 'cancelled'
                 || ! $this->staffSessionsQuery($teacher->id)->whereKey($session->id)->exists()) {
-                $skipped[] = ($class?->name ?? "Buổi #{$sessionId}").': không phải buổi hôm nay được phân công cho bạn';
+                $skipped[] = ($class?->name ?? "Buổi #{$sessionId}").': không phải buổi được phân công cho bạn';
+
+                continue;
+            }
+            if ($reason = $this->checkinWindowReason($session, $now)) {
+                $skipped[] = "{$class->name}: {$reason}";
+
+                continue;
+            }
+            // Kỳ lương khóa tính theo ngày dạy của buổi (không theo ngày bấm check-in).
+            if (PayrollPeriod::isLockedFor($session->date)) {
+                $lockedMessage = PayrollPeriod::lockedMessage($session->date);
 
                 continue;
             }
@@ -404,12 +449,22 @@ class TeacherPortalController extends Controller
 
                 continue;
             }
+            if ($reason = $this->checkinWindowReason($session, $now)) {
+                $skipped[] = "{$class->name}: {$reason}";
+
+                continue;
+            }
+            if (PayrollPeriod::isLockedFor($session->date)) {
+                $lockedMessage = PayrollPeriod::lockedMessage($session->date);
+
+                continue;
+            }
             $targets[$session->id] = [$class, $session];
         }
 
         $count = 0;
         foreach ($targets as [$class, $session]) {
-            $duplicate = TeacherTimesheet::findDuplicate($teacher->id, (int) $class->id, $now->toDateString(), $session->id);
+            $duplicate = TeacherTimesheet::findDuplicate($teacher->id, (int) $class->id, $session->date->toDateString(), $session->id);
             if ($duplicate && $duplicate->source === TeacherTimesheet::SOURCE_MANUAL) {
                 $skipped[] = "{$class->name}: buổi này đã được Học vụ chấm công tay";
 
@@ -428,10 +483,14 @@ class TeacherPortalController extends Controller
                 ['user_id' => $teacher->id, 'class_session_id' => $session->id],
                 [
                     'class_id' => $class->id,
-                    'teaching_date' => $now->toDateString(),
+                    'teaching_date' => $session->date->toDateString(),
                     'scheduled_time' => $session->start_time->format('H:i').'-'.$session->end_time->format('H:i'),
                     'checkin_time' => $now->format('H:i'),
                     'hours' => $hours,
+                    // Đi muộn = số phút check-in sau giờ bắt đầu (check-in sớm = 0). Có báo trước hay không do Học vụ ghi nhận.
+                    'late_minutes' => (int) min(1440, max(0, $session->startsAt()->diffInMinutes($now, false))),
+                    'early_leave_minutes' => 0,
+                    'late_notified' => false,
                     'type' => $session->type === ClassSession::TYPE_SUPPORT ? '1on1' : 'regular',
                     'source' => TeacherTimesheet::SOURCE_CHECKIN,
                     'status' => 'pending_review',
@@ -444,7 +503,9 @@ class TeacherPortalController extends Controller
         }
 
         if ($count === 0) {
-            $message = 'Không check-in được ca nào — '.implode('; ', $skipped).'.';
+            $message = $lockedMessage && $skipped === []
+                ? $lockedMessage
+                : 'Không check-in được ca nào — '.implode('; ', array_filter([...$skipped, $lockedMessage])).'.';
 
             return back()->withErrors(['class_ids' => $message])->with('error', $message);
         }
@@ -455,6 +516,22 @@ class TeacherPortalController extends Controller
         }
 
         return back()->with('success', "Đã check-in thành công {$count} ca dạy hôm nay!");
+    }
+
+    /**
+     * Cửa sổ check-in: tối đa tới giờ bắt đầu + 24h (hạn cứng). Check-in sớm trong cùng ngày học vẫn được.
+     * Quá hạn → GV mất công buổi này, chỉ Học vụ xác nhận được ("Chấm công theo lịch").
+     */
+    private function checkinWindowReason(ClassSession $session, Carbon $now): ?string
+    {
+        if ($now->gt($session->checkinDeadline())) {
+            return 'Quá hạn chấm công (hạn '.$session->checkinDeadline()->format('H:i d/m/Y').') — liên hệ Học vụ để được xác nhận công';
+        }
+        if ($session->date->isAfter($now->copy()->endOfDay())) {
+            return 'buổi học ngày '.$session->date->format('d/m/Y').' chưa tới ngày — chưa check-in được';
+        }
+
+        return null;
     }
 
     /**
@@ -484,7 +561,8 @@ class TeacherPortalController extends Controller
             ? StudentAttendance::with('recorder')->where('class_session_id', $session->id)->get()->keyBy('student_id')
             : collect();
         $students = $session ? $this->sessionRoster($class, $session, $existing) : collect();
-        $blockReason = $session ? $this->attendanceBlockReason($session) : null;
+        $blockReason = $session ? $this->attendanceBlockReason($session, teacherWindow: true) : null;
+        $windowReason = $session ? $this->attendanceWindowReason($session, $class) : null;
         $onBehalf = ! $this->isAssignedStaff($user, $class, $session);
         $today = ($session?->date ?? now())->toDateString();
         $window = $session ? app(\App\Services\ClassDashboardService::class)->attendanceWindow($session) : null;
@@ -519,6 +597,7 @@ class TeacherPortalController extends Controller
                 ];
             })->values()->all(),
             'blockReason' => $blockReason,
+            'windowReason' => $windowReason,
             'onBehalf' => $onBehalf,
             'onBehalfName' => $onBehalf ? ($session?->teacher?->name ?? $class->teacher?->name ?? 'giáo viên của lớp') : null,
             'recentSessions' => $this->sessionOptions($recentSessions, withAttendance: true),
@@ -594,7 +673,7 @@ class TeacherPortalController extends Controller
         if (! $session) {
             return back()->withErrors(['session' => 'Lớp không có buổi học trong ngày này. Hãy chọn buổi cần điểm danh.']);
         }
-        if ($reason = $this->attendanceBlockReason($session)) {
+        if ($reason = $this->attendanceBlockReason($session, teacherWindow: true) ?? $this->attendanceWindowReason($session, $class)) {
             return back()->withErrors(['session' => $reason]);
         }
 
@@ -691,10 +770,28 @@ class TeacherPortalController extends Controller
             ?? $usable->first();
     }
 
-    private function attendanceBlockReason(ClassSession $session): ?string
+    /** Thông báo khi GV điểm danh ngoài khung ±24h quanh giờ bắt đầu buổi (Học vụ record_any không bị chặn). */
+    private const OUTSIDE_ATTENDANCE_WINDOW = 'Ngoài khung ±24h so với giờ bắt đầu buổi học — liên hệ Học vụ để điểm danh.';
+
+    /** Người này có bị giới hạn khung ±24h không (GV/TA tự điểm danh; Học vụ/Admin có record_any thì bỏ qua). */
+    private function attendanceWindowReason(ClassSession $session, ClassModel $class): ?string
+    {
+        $user = Auth::user();
+        if ($session->status === 'cancelled' || ($user && $user->can('attendance_student.record_any'))) {
+            return null;
+        }
+
+        return $session->withinTeacherAttendanceWindow() ? null : self::OUTSIDE_ATTENDANCE_WINDOW;
+    }
+
+    private function attendanceBlockReason(ClassSession $session, bool $teacherWindow = false): ?string
     {
         if ($session->status === 'cancelled') {
             return 'Buổi học này đã hủy'.($session->holiday_id ? ' (nghỉ lễ)' : '').' — không điểm danh.';
+        }
+        // Điểm danh của GV: khung ±24h thay cho chặn "chưa tới ngày" (buổi sáng mai vẫn điểm danh được từ chiều nay).
+        if ($teacherWindow && ! Auth::user()?->can('attendance_student.record_any')) {
+            return null;
         }
         if ($session->date->isAfter(today())) {
             return 'Buổi học ngày '.$session->date->format('d/m/Y').' chưa diễn ra — chưa điểm danh được.';

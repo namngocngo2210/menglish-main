@@ -16,6 +16,8 @@ const props = defineProps({
     session: { type: Object, default: null },
     students: { type: Array, default: () => [] },
     blockReason: { type: String, default: null },
+    // Ngoài khung ±24h quanh giờ bắt đầu (chỉ GV/TA; Học vụ record_any không bị giới hạn) → khóa nút lưu.
+    windowReason: { type: String, default: null },
     onBehalf: { type: Boolean, default: false },
     onBehalfName: { type: String, default: null },
     recentSessions: { type: Array, default: () => [] },
@@ -107,6 +109,7 @@ function pickSession(event) {
             <UiAlert v-if="onBehalf" type="info" title="Điểm danh thay giáo viên">
                 Bạn đang điểm danh thay {{ onBehalfName }}. Hệ thống ghi nhận bạn là người lưu điểm danh.
             </UiAlert>
+            <UiAlert v-if="windowReason" type="warning" data-testid="attendance-window-blocked">{{ windowReason }}</UiAlert>
             <!-- Gộp cửa sổ ±24h, "điểm danh bù" và quy định thành một dòng; quy định mở khi cần. -->
             <details :class="['group rounded-lg border', attendanceWindow === 'closed' ? 'border-warning/30 bg-warning-container' : 'border-tertiary/30 bg-tertiary-fixed/20']" data-testid="attendance-window">
                 <summary class="flex cursor-pointer list-none flex-wrap items-center gap-x-sm gap-y-xs px-md py-sm [&::-webkit-details-marker]:hidden">
@@ -114,7 +117,7 @@ function pickSession(event) {
                         <span v-if="attendanceWindow !== 'closed'" class="absolute inline-flex h-full w-full animate-ping rounded-full bg-tertiary-container opacity-60"></span>
                         <span :class="['relative inline-flex h-3 w-3 rounded-full', attendanceWindow === 'closed' ? 'bg-warning' : 'bg-tertiary-container']"></span>
                     </span>
-                    <span class="font-body-medium text-body-medium text-on-surface">{{ attendanceWindow === 'closed' ? 'Ngoài cửa sổ 24h — điểm danh bù' : 'Đang trong cửa sổ điểm danh' }}</span>
+                    <span class="font-body-medium text-body-medium text-on-surface">{{ windowReason ? 'Ngoài khung ±24h — không thể điểm danh' : (attendanceWindow === 'closed' ? 'Ngoài cửa sổ 24h — Học vụ điểm danh bù' : 'Đang trong cửa sổ điểm danh') }}</span>
                     <span class="font-caption text-caption text-on-surface-variant">
                         Quy định: Buổi học ±24 giờ{{ attendanceWindow === 'closed' ? ' · Học vụ sẽ rà soát' : '' }}{{ session.is_past ? ' · Điểm danh bù cho buổi đã qua ngày ' + session.date : '' }}
                     </span>
@@ -127,7 +130,7 @@ function pickSession(event) {
                     <ul class="list-disc space-y-xs pl-md">
                         <li>Người điểm danh được ghi nhận tự động theo tài khoản đang đăng nhập (GV chính/GVNN/Trợ giảng).</li>
                         <li>Khi chọn <strong>"Nghỉ có phép"</strong> hoặc <strong>"Nghỉ không phép"</strong>, ô <strong>Ghi chú là bắt buộc</strong> để lưu trữ lý do vắng học của học viên.</li>
-                        <li>Trong cửa sổ ±24h, giáo viên có thể cập nhật lại nhiều lần; ngoài cửa sổ vẫn điểm danh bù được, Học vụ sẽ rà soát.</li>
+                        <li>Giáo viên chỉ điểm danh trong khung ±24h quanh giờ bắt đầu buổi học (cập nhật lại được nhiều lần); ngoài khung này chỉ Học vụ điểm danh bù. Không điểm danh không làm mất công dạy.</li>
                     </ul>
                 </div>
             </details>
@@ -190,7 +193,7 @@ function pickSession(event) {
                 <!-- Điện thoại: thanh lưu bám ngay trên thanh điều hướng dưới, không phải cuộn hết danh sách. -->
                 <div class="sticky bottom-[72px] z-20 flex flex-col justify-between gap-sm border-t border-surface-container bg-surface-container-low p-md shadow-level-3 sm:flex-row sm:items-center md:static md:shadow-none">
                     <p class="hidden font-caption text-caption text-on-surface-variant sm:block">Phiếu điểm danh sẽ được ghi đè (upsert) cập nhật trực tiếp cho buổi học này. Học viên vắng tự vào danh sách bổ trợ.</p>
-                    <UiButton type="submit" icon="save" class="w-full sm:w-auto">Lưu điểm danh</UiButton>
+                    <UiButton type="submit" icon="save" class="w-full sm:w-auto" :disabled="!!windowReason" :title="windowReason || undefined">Lưu điểm danh</UiButton>
                 </div>
             </UiForm>
         </template>

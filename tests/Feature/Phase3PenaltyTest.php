@@ -11,6 +11,8 @@ use Carbon\Carbon;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia;
 use Tests\Concerns\FinalizesPayrollKpi;
 use Tests\TestCase;
@@ -39,6 +41,7 @@ class Phase3PenaltyTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Storage::fake(Penalty::EVIDENCE_DISK);
         $this->seed(PermissionSeeder::class);
         $this->seed(RoleSeeder::class);
 
@@ -58,13 +61,15 @@ class Phase3PenaltyTest extends TestCase
         return $user;
     }
 
-    private function record(string $category = 'academic', string $date = '2026-09-10'): Penalty
+    /** Ghi nhận vi phạm theo luật 24h: mặc định xảy ra 1 giờ trước (giờ hiện tại, dùng travelTo để cố định), kèm file bằng chứng. */
+    private function record(string $category = 'academic', ?Carbon $at = null): Penalty
     {
         $this->actingAs($this->academicStaff)->post(route('penalties.store'), [
             'user_id' => $this->teacher->id,
             'error_category' => $category,
             'violation_type' => 'Chậm nộp nhận xét buổi học (> 24h)',
-            'violation_date' => $date,
+            'violation_at' => ($at ?? now()->subHour())->format('Y-m-d\TH:i'),
+            'evidence' => UploadedFile::fake()->image('bang-chung.jpg'),
         ])->assertRedirect(route('penalties.index'))->assertSessionHasNoErrors();
 
         return Penalty::latest('id')->firstOrFail();
@@ -206,8 +211,8 @@ class Phase3PenaltyTest extends TestCase
         $this->assertNull($paid->fresh()->payroll_record_id);
         $this->assertNull($pending->fresh()->payroll_record_id);
 
-        // Hạn nộp qua đi trước khi duyệt → bắt buộc tính lại, lần tính sau trừ thêm
-        $this->travelTo(Carbon::parse('2026-09-27 10:00:00'));
+        // Hạn nộp qua đi trước khi duyệt → bắt buộc tính lại, lần tính sau trừ thêm (duyệt chỉ được sau chốt công/lỗi 02/10)
+        $this->travelTo(Carbon::parse('2026-10-03 10:00:00'));
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $period->id))->assertSessionHasErrors('period');
         $period->calculatePayrollForPeriod();
         $this->assertEquals(170000, $record->fresh()->penalty_deduction);
@@ -310,5 +315,147 @@ class Phase3PenaltyTest extends TestCase
         $this->actingAs($this->manager)->get(route('penalties.index', ['status' => 'explained']))
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->where('penalties.total', 3));
+    }
+
+    // ───────────── Luật 24h + bằng chứng khi ghi nhận ─────────────
+
+    private function storePayload(array $override = []): array
+    {
+        return $override + [
+            'user_id' => $this->teacher->id,
+            'error_category' => 'operations',
+            'violation_type' => 'Đi muộn',
+            'violation_at' => now()->subHours(2)->format('Y-m-d\TH:i'),
+            'evidence' => UploadedFile::fake()->image('bang-chung.jpg'),
+        ];
+    }
+
+    public function test_recording_stores_violation_time_and_evidence_within_24h(): void
+    {
+        $this->travelTo(Carbon::parse('2026-09-11 09:00:00'));
+        $penalty = $this->record('operations', Carbon::parse('2026-09-10 10:00:00'));
+
+        $this->assertSame('2026-09-10 10:00:00', $penalty->violation_at->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-09-10', $penalty->violation_date->toDateString());
+        Storage::disk(Penalty::EVIDENCE_DISK)->assertExists($penalty->evidence_path);
+        $this->actingAs($this->academicStaff)->get(route('penalties.evidence', $penalty->id))->assertOk();
+        $this->actingAs($this->teacher)->get(route('penalties.evidence', $penalty->id))->assertOk();
+    }
+
+    public function test_violation_older_than_24h_is_rejected(): void
+    {
+        $this->travelTo(Carbon::parse('2026-09-11 09:00:00'));
+
+        $this->actingAs($this->academicStaff)->post(route('penalties.store'), $this->storePayload([
+            'violation_at' => '2026-09-10T08:59',
+        ]))->assertSessionHasErrors(['violation_at' => 'Vi phạm đã quá 24h — không thể ghi nhận.']);
+        $this->assertSame(0, Penalty::count());
+
+        // Đúng biên 24h vẫn được; thời điểm tương lai thì không
+        $this->actingAs($this->academicStaff)->post(route('penalties.store'), $this->storePayload(['violation_at' => '2026-09-10T09:00']))
+            ->assertSessionHasNoErrors();
+        $this->actingAs($this->academicStaff)->post(route('penalties.store'), $this->storePayload(['violation_at' => '2026-09-11T10:00']))
+            ->assertSessionHasErrors('violation_at');
+        $this->assertSame(1, Penalty::count());
+    }
+
+    public function test_violation_without_evidence_is_rejected(): void
+    {
+        $payload = $this->storePayload();
+        unset($payload['evidence']);
+
+        $this->actingAs($this->academicStaff)->post(route('penalties.store'), $payload)->assertSessionHasErrors('evidence');
+        $this->actingAs($this->academicStaff)->post(route('penalties.store'), $this->storePayload([
+            'evidence' => UploadedFile::fake()->create('virus.exe', 10, 'application/octet-stream'),
+        ]))->assertSessionHasErrors('evidence');
+        $this->assertSame(0, Penalty::count());
+    }
+
+    public function test_academic_lead_can_no_longer_record_but_manager_and_admin_can(): void
+    {
+        $this->actingAs($this->academicLead)->post(route('penalties.store'), $this->storePayload())->assertForbidden();
+        $this->assertSame(0, Penalty::count());
+
+        $this->actingAs($this->manager)->post(route('penalties.store'), $this->storePayload())->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('penalties.store'), $this->storePayload())->assertSessionHasNoErrors();
+        $this->assertSame(2, Penalty::count());
+    }
+
+    public function test_violation_in_locked_period_can_still_be_recorded(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-01 09:00:00'));
+        $this->period(9, 2026, 'approved');
+
+        $this->actingAs($this->academicStaff)->post(route('penalties.store'), $this->storePayload([
+            'violation_at' => '2026-09-30T20:00',
+        ]))->assertSessionHasNoErrors();
+        $this->assertSame(1, Penalty::count());
+    }
+
+    public function test_system_auto_penalty_is_not_blocked_by_24h_rule(): void
+    {
+        // Biên bản tự lập (reporter null, không bằng chứng, không violation_at) đi thẳng qua model như FirstMonthCareService::enforceSla.
+        $penalty = Penalty::create([
+            'code' => Penalty::generateCode(), 'user_id' => $this->teacher->id, 'violation_type' => 'Quá SLA chăm sóc tháng đầu',
+            'error_category' => 'operations', 'violation_date' => '2026-08-01', 'amount' => 0, 'status' => 'pending', 'reporter_id' => null,
+        ]);
+
+        $this->assertNull($penalty->evidence_path);
+        $this->assertSame('pending', $penalty->fresh()->status);
+    }
+
+    // ───────────── Nộp phạt trong 2 ngày ─────────────
+
+    public function test_fining_notifies_the_violator_with_amount_and_due_date(): void
+    {
+        $this->travelTo(Carbon::parse('2026-09-11 09:00:00'));
+        $penalty = $this->record('operations');
+
+        $this->actingAs($this->manager)->post(route('penalties.confirm', $penalty->id), ['decision' => 'fine', 'amount' => 120000])
+            ->assertSessionHasNoErrors();
+
+        $notification = \App\Models\AdminNotification::where('user_id', $this->teacher->id)->where('type', 'penalty_fined')->firstOrFail();
+        $this->assertStringContainsString('120.000', $notification->title);
+        $this->assertStringContainsString('13/09/2026', $notification->message);
+    }
+
+    public function test_marking_paid_after_due_date_is_rejected(): void
+    {
+        $this->travelTo(Carbon::parse('2026-09-11 09:00:00'));
+        $penalty = $this->record('operations');
+        $this->actingAs($this->manager)->post(route('penalties.confirm', $penalty->id), ['decision' => 'fine', 'amount' => 80000]);
+
+        // Hạn nộp hết ngày 13/09 → 14/09 quá hạn
+        $this->travelTo(Carbon::parse('2026-09-14 09:00:00'));
+        $this->actingAs($this->manager)->post(route('penalties.mark-paid', $penalty->id))
+            ->assertSessionHasErrors(['penalty' => 'Quá hạn nộp phạt 2 ngày — khoản phạt sẽ trừ vào lương kỳ này.']);
+        $this->assertSame('fined', $penalty->fresh()->status);
+
+        // Còn hạn (đúng ngày hạn) vẫn nộp được
+        $this->travelTo(Carbon::parse('2026-09-13 18:00:00'));
+        $this->actingAs($this->manager)->post(route('penalties.mark-paid', $penalty->id))->assertSessionHasNoErrors();
+        $this->assertSame('paid', $penalty->fresh()->status);
+    }
+
+    public function test_due_reminder_command_notifies_once_per_day(): void
+    {
+        $this->travelTo(Carbon::parse('2026-09-11 09:00:00'));
+        $penalty = $this->record('operations');
+        $this->actingAs($this->manager)->post(route('penalties.confirm', $penalty->id), ['decision' => 'fine', 'amount' => 80000]);
+        $count = fn () => \App\Models\AdminNotification::where('type', 'penalty_due_reminder')->where('user_id', $this->teacher->id)->count();
+
+        $this->travelTo(Carbon::parse('2026-09-12 08:30:00'));
+        $this->artisan('penalties:remind-due')->assertSuccessful();
+        $this->artisan('penalties:remind-due')->assertSuccessful();
+        $this->assertSame(1, $count());
+
+        $this->travelTo(Carbon::parse('2026-09-13 08:30:00'));
+        $this->artisan('penalties:remind-due')->assertSuccessful();
+        $this->assertSame(2, $count());
+
+        // Quá hạn thì không nhắc nữa (đã chuyển sang trừ lương)
+        $this->travelTo(Carbon::parse('2026-09-14 08:30:00'));
+        $this->artisan('penalties:remind-due')->assertSuccessful();
+        $this->assertSame(2, $count());
     }
 }

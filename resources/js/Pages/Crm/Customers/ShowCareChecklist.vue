@@ -43,6 +43,10 @@ const dirtySave = '!border-transparent !bg-primary-container !text-white hover:!
                 <span class="min-w-0">
                     <span :class="['block font-body-medium text-body-medium', item.done ? 'text-on-surface' : 'text-on-surface-variant']">{{ item.label }}</span>
                     <span v-if="item.done_at" class="block font-caption text-caption text-on-surface-variant">Hoàn thành: {{ item.done_at }}{{ item.by ? ' · ' + item.by : '' }}</span>
+                    <span v-else-if="item.due" class="flex flex-wrap items-center gap-xs font-caption text-caption text-on-surface-variant">
+                        Hạn: {{ item.due }}
+                        <UiBadge v-if="item.overdue" color="error" :dot="false">Quá hạn chăm sóc</UiBadge>
+                    </span>
                 </span>
             </label>
         </div>

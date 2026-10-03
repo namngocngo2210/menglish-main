@@ -25,6 +25,8 @@ class DemoPhase3SeederTest extends TestCase
 
     public function test_demo_seed_builds_a_coherent_phase3_dataset_and_is_idempotent(): void
     {
+        // Kỳ tháng trước chỉ duyệt được từ ngày 3 (chốt công / lỗi cuối tháng + 2 ngày): cố định "hôm nay" giữa tháng.
+        $this->travelTo(now()->startOfMonth()->addDays(14)->setTime(12, 0));
         $this->seed(DatabaseSeeder::class);
 
         $last = PayrollPeriod::where('year', now()->subMonthNoOverflow()->year)->where('month', now()->subMonthNoOverflow()->month)->firstOrFail();
@@ -53,7 +55,9 @@ class DemoPhase3SeederTest extends TestCase
         $this->assertSame($last->id, $deducted->payrollRecord->payroll_period_id);
 
         // KPI Học vụ, hoa hồng trả / hoãn, thu hồi khi hoàn phí.
-        $this->assertSame(4, KpiEvaluation::where('status', 'confirmed')->count());
+        // KPI chỉ chốt từ ngày cuối tháng: tháng trước đã chốt (2 Học vụ), tháng này (giữa tháng) mới lưu nháp.
+        $this->assertSame(2, KpiEvaluation::where('status', 'confirmed')->count());
+        $this->assertSame(2, KpiEvaluation::where('status', 'draft')->count());
         $this->assertTrue(PayrollRecord::where('kpi_source', 'academic_kpi')->where('kpi_bonus', '>', 0)->exists());
         $this->assertTrue(CommissionItem::where('status', CommissionItem::STATUS_PAID)->whereNotNull('settled_at')->exists());
         $this->assertTrue(CommissionItem::where('status', CommissionItem::STATUS_DEFERRED)->whereNotNull('deferred_reason')->exists());

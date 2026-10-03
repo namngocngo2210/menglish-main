@@ -412,6 +412,8 @@ class Phase3CommissionTest extends TestCase
         // 5M − 525k BHXH − 25k Công đoàn − 200k thu hồi (Q3: bỏ phụ cấp cố định 500k)
         $this->assertEquals(4250000, $record->net_salary);
 
+        $this->travelTo(\Carbon\Carbon::parse('2026-10-03 09:00:00')); // duyệt kỳ sau chốt công / lỗi (cuối tháng + 2 ngày)
+        $september->calculatePayrollForPeriod(); // qua mốc chốt: tính lại lần cuối trước khi duyệt
         $this->finalizeKpi($september);
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $september->id))->assertSessionHasNoErrors();
         $this->assertNotNull(CommissionAdjustment::firstOrFail()->settled_at);

@@ -717,6 +717,14 @@ class MasterEntitySeeder extends Seeder
         );
 
         DebtReminderRule::query()->updateOrCreate(
+            ['milestone_key' => 'T-7'],
+            [
+                'title' => 'Mốc 0: Thông báo trước hạn 1 tuần (T-7)',
+                'template_content' => 'Chào {TEN_HOC_VIEN}, học phí lớp {TEN_LOP} tại MEnglish sẽ đến hạn vào ngày {HAN_NOP} (sau 1 tuần) với số tiền {SO_TIEN}. Quý phụ huynh vui lòng sắp xếp thanh toán đúng hạn.',
+                'is_enabled' => true,
+            ]
+        );
+        DebtReminderRule::query()->updateOrCreate(
             ['milestone_key' => 'T-3'],
             [
                 'title' => 'Mốc 1: Nhắc trước hạn 3 ngày (T-3)',

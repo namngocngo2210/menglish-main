@@ -400,6 +400,7 @@ const receiptUrl = computed(() => route('tuition.receipts.create', { student_id:
                     <span class="material-symbols-outlined text-primary" aria-hidden="true">volunteer_activism</span>
                     <h3 class="font-h3 text-h3 text-on-surface">Chăm sóc tháng đầu</h3>
                     <UiBadge :color="care.completed >= 3 ? 'success' : 'warning'" pill>{{ care.completed }}/3 mốc</UiBadge>
+                    <UiBadge v-if="care.overdue" color="error" pill>Quá hạn chăm sóc</UiBadge>
                 </div>
                 <div class="font-caption text-caption text-on-surface-variant">
                     <template v-if="care.closing">Ngày chốt: <strong class="text-on-surface">{{ care.closing }}</strong> · </template>
@@ -415,7 +416,10 @@ const receiptUrl = computed(() => route('tuition.receipts.create', { student_id:
                     <div class="flex items-start gap-sm">
                         <span :class="['material-symbols-outlined text-[18px]', item.done ? 'text-tertiary' : 'text-outline-variant']" aria-hidden="true">{{ item.done ? 'check_circle' : 'radio_button_unchecked' }}</span>
                         <div>
-                            <div class="font-semibold text-on-surface">{{ item.label }}</div>
+                            <div class="flex flex-wrap items-center gap-xs font-semibold text-on-surface">
+                                {{ item.label }}
+                                <UiBadge v-if="item.overdue" color="error" :dot="false">Quá hạn chăm sóc</UiBadge>
+                            </div>
                             <div class="font-caption text-caption text-on-surface-variant">
                                 {{ item.due ? 'Hạn SLA: ' + item.due : item.waiting }}
                                 <template v-if="item.crm_done_at"> · Đã đánh dấu bên CRM {{ item.crm_done_at }}</template>

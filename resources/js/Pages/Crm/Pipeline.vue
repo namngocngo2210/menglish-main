@@ -14,6 +14,7 @@ import { route } from '@/lib/route';
 import { openRemoteModal } from '@/lib/remoteModal';
 import CrmHeader from '@/Components/Crm/CrmHeader.vue';
 import ListFilters from '@/Components/Crm/ListFilters.vue';
+import SlaCountdown from '@/Components/Crm/SlaCountdown.vue';
 
 defineOptions({ layout: { title: 'Kanban tuyển sinh', workspaceTabs: false } });
 
@@ -317,19 +318,9 @@ onBeforeUnmount(() => window.removeEventListener('resize', onResize));
                                             {{ lead.confirmed ? 'Đã hoàn tất hồ sơ' : 'Đã chốt — chờ xác nhận chính thức' }}
                                         </div>
                                         <template v-else>
-                                            <div v-if="lead.follow_up_state" class="flex items-center justify-between gap-sm">
-                                                <UiBadge v-if="lead.follow_up_state === 'overdue'" color="error" pill :dot="false" class="font-bold">
-                                                    <span class="material-symbols-outlined text-[14px]">alarm_on</span>Quá hạn
-                                                </UiBadge>
-                                                <UiBadge v-else-if="lead.follow_up_state === 'due_soon'" color="warning" pill :dot="false" class="font-bold">
-                                                    <span class="material-symbols-outlined text-[14px]">priority_high</span>Sắp hết hạn
-                                                </UiBadge>
-                                                <UiBadge v-else color="success" pill :dot="false" class="font-bold">
-                                                    <span class="material-symbols-outlined text-[14px]">check_circle</span>Còn hạn
-                                                </UiBadge>
-                                                <div class="text-right font-caption text-caption font-medium text-on-surface-variant" :title="lead.follow_up_at">
-                                                    {{ stage.id === 'new' ? 'Hạn liên hệ' : 'Hạn chăm sóc tiếp theo' }}: {{ lead.follow_up_label }}
-                                                </div>
+                                            <div v-if="lead.sla" class="space-y-xs">
+                                                <SlaCountdown :sla="lead.sla" compact />
+                                                <p class="font-caption text-caption text-on-surface-variant" :title="lead.follow_up_at">{{ lead.sla.label }}: {{ lead.follow_up_label }}</p>
                                             </div>
 
                                             <template v-if="stage.id === 'waiting_class'">

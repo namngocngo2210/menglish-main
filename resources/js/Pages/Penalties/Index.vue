@@ -23,7 +23,7 @@ const props = defineProps({
     statusOptions: { type: Array, default: () => [] },
     commonViolations: { type: Array, default: () => [] },
     lockedPenalty: { type: String, default: null },
-    today: { type: String, required: true },
+    violationWindow: { type: Object, required: true },
 });
 
 const page = usePage();
@@ -39,7 +39,7 @@ const currentStep = computed(() => new URL(page.url ?? '/', 'http://localhost').
 const stepLinks = computed(() => [['', 'Tất cả'], ...Object.entries(props.steps)]);
 
 // Hộp thoại đang mở: "view-5", "explain-5", "decide-5", "remedy-5" hoặc "new-penalty".
-const errored = errors.value.user_id || errors.value.violation_type || (errors.value.violation_date && !props.lockedPenalty);
+const errored = errors.value.user_id || errors.value.violation_type || errors.value.violation_at || errors.value.evidence || (errors.value.violation_date && !props.lockedPenalty);
 const open = ref(errored && can('violation.create') ? 'new-penalty' : null);
 const decisions = reactive(Object.fromEntries(props.penalties.data.map((pen) => [pen.id, pen.status === 'confirmed' ? 'fine' : 'error'])));
 const decisionOptions = [
@@ -112,7 +112,10 @@ const showAmount = (pen) => pen.amount > 0 && !['pending', 'explained', 'confirm
                             <p class="font-semibold text-on-surface">{{ pen.user_name }}</p>
                             <p class="font-caption text-caption text-on-surface-variant">ID: {{ pen.employee_code || '—' }} · <span class="font-code">{{ pen.code }}</span></p>
                         </td>
-                        <td class="font-code text-code">{{ pen.violation_date }}</td>
+                        <td class="font-code text-code">
+                            {{ pen.violation_date }}
+                            <span v-if="pen.violation_time" class="block font-caption text-caption text-on-surface-variant">{{ pen.violation_time }}</span>
+                        </td>
                         <td>{{ pen.source_label }}</td>
                         <td class="max-w-xs">
                             <p class="font-medium text-error">{{ pen.violation_type }}</p>
@@ -141,7 +144,8 @@ const showAmount = (pen) => pen.amount > 0 && !['pending', 'explained', 'confirm
                                 <UiButton v-if="pen.can_explain" size="sm" icon="edit_note" @click="open = `explain-${pen.id}`">Giải trình</UiButton>
                                 <UiButton v-if="pen.can_decide && pen.step === 'recorded'" size="sm" variant="secondary" icon="gavel" @click="open = `decide-${pen.id}`">Chốt lỗi</UiButton>
                                 <UiButton v-if="pen.can_decide && pen.status === 'confirmed'" size="sm" variant="secondary" icon="payments" @click="open = `decide-${pen.id}`">Chốt mức phạt</UiButton>
-                                <UiForm v-if="can('violation.mark_paid') && pen.status === 'fined'" :action="route('penalties.mark-paid', pen.id)" method="post">
+                                <!-- Quá hạn 2 ngày: không nhận nộp trực tiếp nữa, bảng lương trừ -->
+                                <UiForm v-if="can('violation.mark_paid') && pen.status === 'fined' && !pen.overdue" :action="route('penalties.mark-paid', pen.id)" method="post">
                                     <UiButton type="submit" size="sm" variant="secondary" icon="payments">Đánh dấu đã nộp</UiButton>
                                 </UiForm>
                                 <UiButton v-if="can('violation.mark_resolved') && pen.step === 'paid'" size="sm" variant="secondary" icon="build" @click="open = `remedy-${pen.id}`">Ghi nhận khắc phục</UiButton>
@@ -153,6 +157,14 @@ const showAmount = (pen) => pen.amount > 0 && !['pending', 'explained', 'confirm
                                 <dl class="grid grid-cols-3 gap-sm font-body-small text-body-small">
                                     <dt class="text-on-surface-variant">Nhân viên</dt><dd class="col-span-2">{{ pen.user_name }} ({{ pen.employee_code || 'chưa có mã' }})</dd>
                                     <dt class="text-on-surface-variant">Lỗi vi phạm</dt><dd class="col-span-2">{{ pen.violation_type }} — {{ pen.category_label }}</dd>
+                                    <dt class="text-on-surface-variant">Thời điểm vi phạm</dt><dd class="col-span-2">{{ pen.violation_time ? `${pen.violation_time} ` : '' }}{{ pen.violation_date }}</dd>
+                                    <dt class="text-on-surface-variant">Bằng chứng</dt>
+                                    <dd class="col-span-2">
+                                        <a v-if="pen.evidence_url" :href="pen.evidence_url" target="_blank" rel="noopener" class="inline-flex items-center gap-xs font-semibold text-primary hover:underline">
+                                            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">attach_file</span>Xem bằng chứng
+                                        </a>
+                                        <span v-else class="text-on-surface-variant">Không có (biên bản cũ / hệ thống tự lập)</span>
+                                    </dd>
                                     <dt class="text-on-surface-variant">Lớp liên quan</dt><dd class="col-span-2">{{ pen.class_name ?? '—' }}</dd>
                                     <dt class="text-on-surface-variant">Lập bởi</dt><dd class="col-span-2">{{ pen.reporter ?? 'Hệ thống' }} ({{ pen.source_label }})</dd>
                                     <dt class="text-on-surface-variant">Mô tả</dt><dd class="col-span-2">{{ pen.notes || '—' }}</dd>
@@ -236,12 +248,23 @@ const showAmount = (pen) => pen.amount > 0 && !['pending', 'explained', 'confirm
                     </datalist>
                 </UiField>
                 <div class="grid grid-cols-2 gap-md">
-                    <UiDate name="violation_date" label="Ngày vi phạm" required :value="today" />
+                    <!-- Chỉ ghi nhận vi phạm trong 24h gần nhất (server kiểm tra lại) -->
+                    <UiInput type="datetime-local" name="violation_at" label="Thời điểm vi phạm" required :min="violationWindow.min" :max="violationWindow.max" :value="violationWindow.max" hint="Trong vòng 24h gần nhất." />
                     <UiSelect name="class_id" label="Lớp liên quan" placeholder="— Không —" :options="classes" />
                 </div>
+                <UiField label="Bằng chứng vi phạm" name="evidence" for="f_evidence" required hint="Ảnh (JPG, PNG, GIF, WEBP) hoặc PDF, tối đa 10MB.">
+                    <input
+                        id="f_evidence"
+                        type="file"
+                        name="evidence"
+                        accept="image/jpeg,image/png,image/gif,image/webp,application/pdf"
+                        required
+                        class="block w-full font-body-small text-body-small file:mr-sm file:rounded-lg file:border-0 file:bg-surface-container-high file:px-sm file:py-xs"
+                    />
+                </UiField>
                 <UiTextarea name="notes" label="Mô tả sự việc" rows="2" />
                 <p class="font-caption text-caption text-on-surface-variant">
-                    Chưa cần nhập số tiền: mức phạt do HT/CM chốt sau khi nhân sự giải trình.
+                    Vi phạm quá 24h không ghi nhận được. Chưa cần nhập số tiền: mức phạt do HT/CM chốt sau khi nhân sự giải trình.
                 </p>
             </UiForm>
             <template #footer>

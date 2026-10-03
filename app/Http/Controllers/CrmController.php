@@ -33,6 +33,7 @@ use App\Services\Crm\LeadOwners;
 use App\Services\Crm\TrialSlotFinder;
 use App\Services\Crm\WaitingLeadPlacement;
 use App\Services\CrmStageService;
+use App\Services\FirstMonthCareService;
 use App\Services\Merchandise\StockService;
 use App\Services\NotificationService;
 use App\Services\PlacementPortalLinkService;
@@ -143,6 +144,7 @@ class CrmController extends Controller
     {
         $query = $this->scopeCustomerQuery()
             ->with(['branch', 'assignedUser', 'convertedStudent.tuition'])
+            ->withLastCare()
             ->whereIn('stage', array_keys(CrmCustomer::PIPELINE_STAGES));
         $this->applyListFilters($query, $request, 'created_at');
 
@@ -187,12 +189,13 @@ class CrmController extends Controller
                     'confirmed' => $confirmedIds->has($c->id),
                     'status' => $c->converted_student_id ? ($c->convertedStudent?->tuition?->status_label ?? 'Chưa có học phí') : null,
                     'payment_status' => $c->convertedStudent?->tuition?->status,
-                    'follow_up_status' => $c->followUpStatus(),
-                    'follow_up_at' => $c->next_follow_up_at?->format('d/m/Y H:i'),
+                    // Đồng hồ SLA liên hệ 24h / chăm sóc 72h (CrmCustomer::contactSla) — xanh / vàng / đỏ, không chặn thao tác.
+                    'sla' => $sla = $c->contactSlaPayload(),
+                    'follow_up_status' => $sla && $sla['state'] !== 'on_time' ? $sla['state'] : null,
+                    'follow_up_at' => $sla ? Carbon::parse($sla['deadline'])->format('d/m/Y H:i') : null,
                     // Mockup: Quá hạn / Sắp hết hạn / Còn hạn + "10:30 Hôm nay", "09:00 Mai".
-                    'follow_up_state' => $c->followUpStatus()
-                        ?? ($c->next_follow_up_at && in_array($c->stage, CrmCustomer::ACTIVE_STAGES, true) ? 'on_time' : null),
-                    'follow_up_label' => $this->relativeDeadlineLabel($c->next_follow_up_at),
+                    'follow_up_state' => $sla['state'] ?? null,
+                    'follow_up_label' => $sla ? $this->relativeDeadlineLabel(Carbon::parse($sla['deadline'])) : null,
                 ])->values()->all(),
             ];
         }
@@ -341,7 +344,7 @@ class CrmController extends Controller
     public function customers(Request $request)
     {
         // Mockup danh-sach-khach: lọc Từ khóa (tên / SĐT / phụ huynh), Nguồn, Người phụ trách, Giai đoạn, Chi nhánh.
-        $query = $this->scopeCustomerQuery()->with(['branch', 'assignedUser'])->latest('updated_at')->latest('id');
+        $query = $this->scopeCustomerQuery()->with(['branch', 'assignedUser'])->withLastCare()->latest('updated_at')->latest('id');
         $this->applyListFilters($query, $request, 'created_at');
 
         if ($stage = $request->input('stage')) {
@@ -375,6 +378,7 @@ class CrmController extends Controller
                 'branch' => $c->branch?->name,
                 'updated_at' => $c->updated_at?->format('d/m/Y H:i'),
                 'updated_label' => $this->updatedLabel($c->updated_at ?? $c->created_at),
+                'sla' => $c->contactSlaPayload(),
                 'test_today_at' => $c->appointment_at?->isToday() && $c->stage !== CrmCustomer::STAGE_LOST ? $c->appointment_at->format('H:i') : null,
                 'test_today_type' => $c->appointment_at?->isToday() ? ($c->appointment_type === 'online' ? 'Online' : 'Tại cơ sở') : null,
                 'follow_up_label' => $c->followUpStatus() === 'overdue' || ($c->next_follow_up_at?->isToday() && in_array($c->stage, CrmCustomer::ACTIVE_STAGES, true))
@@ -683,6 +687,10 @@ class CrmController extends Controller
         // Hẹn lại: giữ lịch / đề / người chấm đang có; lịch mới mặc định sáng mai 09:00.
         $prefillAt = $customer->appointment_at?->isFuture() ? $customer->appointment_at : today()->addDay()->setTime(9, 0);
         $careState = $customer->care_checklist ?? [];
+        // Hạn từng mốc + "Quá hạn chăm sóc" (FirstMonthCareService::checklist) khi khách đã có hồ sơ học viên.
+        $careMilestones = $customer->convertedStudent
+            ? collect(app(FirstMonthCareService::class)->checklist($customer->convertedStudent)['items'])->keyBy('key')
+            : collect();
         $pendingTrial = $trialState['pending'];
         $pendingTransfer = $data['pendingTransfer'];
         $editForm = $data['editForm'];
@@ -869,11 +877,14 @@ class CrmController extends Controller
                 'done' => ! empty($careState[$key]),
                 'done_at' => ! empty($careState[$key]['done_at']) ? \Illuminate\Support\Carbon::parse($careState[$key]['done_at'])->format('d/m/Y') : null,
                 'by' => $careState[$key]['by'] ?? null,
+                'due' => ($careMilestones->get($key)['due'] ?? null)?->format('d/m/Y'),
+                'overdue' => (bool) ($careMilestones->get($key)['overdue'] ?? false),
             ])->values()->all(),
             // Lịch sử hoạt động
             'histories' => $histories->map(fn (CrmCustomerHistory $history) => [
                 'id' => $history->id,
                 'type' => $history->type,
+                'failed' => $history->outcome === CrmCustomerHistory::OUTCOME_FAILED,
                 'type_icon' => $history->type_icon,
                 'type_label' => CrmCustomerHistory::FILTER_TYPES[$history->type] ?? null,
                 'is_lost' => $history->type === 'stage_change' && $history->to_stage === CrmCustomer::STAGE_LOST,
@@ -989,7 +1000,7 @@ class CrmController extends Controller
         $stageSince = $customer->histories->firstWhere('type', 'stage_change')?->created_at ?? $customer->created_at;
         $lastContact = $customer->histories->whereIn('type', ['call', 'message', 'meet'])->first()?->created_at;
         $neglectDays = app(NotificationService::class)->neglectThresholdDays();
-        $lastActivity = $customer->histories->first()?->created_at ?? $customer->created_at;
+        $lastActivity = $customer->lastCareAt() ?? $customer->created_at;
 
         return [
             'stage_since' => $stageSince,
@@ -997,26 +1008,16 @@ class CrmController extends Controller
             'last_contact' => $lastContact,
             'follow_up_status' => $customer->followUpStatus(),
             'follow_up_remaining' => $this->remainingLabel($customer->next_follow_up_at),
+            'sla' => $customer->contactSlaPayload(),
             'neglected' => in_array($customer->stage, CrmCustomer::ACTIVE_STAGES, true) && $lastActivity->lt(now()->subDays($neglectDays)),
             'neglect_days' => $neglectDays,
         ];
     }
 
-    /** Đồng hồ "Hạn liên hệ tiếp theo" (mockup 02:14:55): "còn 2 giờ 14 phút" / "quá hạn 1 ngày 3 giờ". */
+    /** Đồng hồ "Hạn liên hệ tiếp theo" (mockup 02:14:55): "Còn 2 giờ 14 phút" / "Quá hạn 1 ngày 3 giờ". */
     protected function remainingLabel(?Carbon $at): ?string
     {
-        if (! $at) {
-            return null;
-        }
-        $diff = now()->diff($at);
-        $parts = array_filter([
-            $diff->days ? $diff->days.' ngày' : null,
-            $diff->h ? $diff->h.' giờ' : null,
-            ! $diff->days && $diff->i ? $diff->i.' phút' : null,
-        ]);
-        $text = $parts ? implode(' ', $parts) : 'dưới 1 phút';
-
-        return $diff->invert ? 'Quá hạn '.$text : 'Còn '.$text;
+        return $at ? CrmCustomer::remainingLabel($at) : null;
     }
 
     private const OWNER_INVALID = 'Người phụ trách phải là Học vụ hoặc Admin đang hoạt động.';
@@ -1942,6 +1943,8 @@ class CrmController extends Controller
         $validated = $request->validate([
             'content' => 'required_unless:type,result|nullable|string|max:1000',
             'type' => 'required|string|in:call,message,meet,test,note,result',
+            // Kết quả liên hệ (gọi / nhắn / gặp): liên hệ được hay thất bại — thất bại không tính là đã liên hệ (SLA).
+            'outcome' => 'nullable|string|in:reached,failed',
             // Mockup Chi tiết khách — "Gửi kết quả & Phản hồi": ngày gửi KQ cho phụ huynh + phản hồi của phụ huynh.
             'sent_at' => 'required_if:type,result|nullable|date|before_or_equal:now',
         ], [
@@ -1956,12 +1959,17 @@ class CrmController extends Controller
                 .(filled($content) ? "\nPhản hồi của phụ huynh: ".$content : '');
         }
 
+        $isContact = in_array($validated['type'], CrmCustomerHistory::CONTACT_TYPES, true);
         CrmCustomerHistory::create([
             'customer_id' => $customer->id,
             'user_id' => Auth::id(),
             'type' => $validated['type'],
+            'outcome' => $isContact ? ($validated['outcome'] ?? CrmCustomerHistory::OUTCOME_REACHED) : null,
             'content' => $content,
         ]);
+        if ($isContact) {
+            app(\App\Services\Sla\CrmSlaService::class)->checkFailedContacts($customer);
+        }
 
         return redirect()->route('crm.customers.show', $customer->id)
             ->with('status', 'Đã lưu nhật ký chăm sóc thành công!');

@@ -54,7 +54,7 @@ const allSelected = computed(() => pendingIds.value.length > 0 && selected.value
 const columns = computed(() => 10 + (selectable.value ? 1 : 0) - (props.teacher ? 1 : 0));
 
 const adjustOpen = ref(false);
-const edit = ref({ action: '', timeIn: '', timeOut: '', label: '' });
+const edit = ref({ action: '', timeIn: '', timeOut: '', label: '', late: 0, early: 0, notified: false });
 const rejectOpen = ref(false);
 const reject = ref({ action: '', label: '' });
 
@@ -62,7 +62,7 @@ function toggleAll(event) {
     selected.value = event.target.checked ? [...pendingIds.value] : [];
 }
 function openAdjust(ts) {
-    edit.value = { action: route('payroll.timesheets.adjust', ts.id), timeIn: ts.checkin_time ?? '', timeOut: ts.display_checkout ?? '', label: ts.edit_label };
+    edit.value = { action: route('payroll.timesheets.adjust', ts.id), timeIn: ts.checkin_time ?? '', timeOut: ts.display_checkout ?? '', label: ts.edit_label, late: ts.late_minutes ?? 0, early: ts.early_leave_minutes ?? 0, notified: !!ts.late_notified };
     adjustOpen.value = true;
 }
 function openReject(ts) {
@@ -229,6 +229,7 @@ function changeDay(event) {
                         <td class="text-center font-mono font-semibold">{{ ts.hours }}h</td>
                         <td>
                             <UiBadge :color="punchColors[ts.punch_state] ?? 'neutral'">{{ ts.punch_state_label }}</UiBadge>
+                            <span v-if="ts.late_label" class="mt-xs block font-caption text-caption text-warning" data-testid="late-label">{{ ts.late_label }}</span>
                             <span v-if="ts.adjusted" class="mt-xs block max-w-[200px] font-body-small text-body-small italic text-on-surface-variant" :title="ts.adjustment_reason">{{ ts.adjustment_short }} — {{ ts.adjuster_name }}</span>
                             <span v-else-if="ts.notes_short" class="mt-xs block max-w-[200px] font-body-small text-body-small italic text-on-surface-variant" title="Lý do chấm tay">{{ ts.notes_short }}</span>
                         </td>
@@ -290,6 +291,12 @@ function changeDay(event) {
                     <UiInput v-model="edit.timeIn" type="time" name="time_in" label="Giờ vào" required />
                     <UiInput v-model="edit.timeOut" type="time" name="time_out" label="Giờ ra" required />
                 </div>
+                <div class="grid grid-cols-2 gap-md">
+                    <UiInput v-model="edit.late" type="number" name="late_minutes" label="Đi muộn (phút)" min="0" max="600" step="1" />
+                    <UiInput v-model="edit.early" type="number" name="early_leave_minutes" label="Về sớm (phút)" min="0" max="600" step="1" />
+                </div>
+                <UiCheckbox v-model="edit.notified" name="late_notified" value="1" label="Có báo trước (trả theo số phút thực dạy)" />
+                <p class="font-caption text-caption text-on-surface-variant">Không báo trước: dưới ngưỡng trừ theo từng phút; từ ngưỡng trở lên không tính buổi (cấu hình ở Tham số lương).</p>
                 <UiTextarea name="adjustment_reason" label="Lý do điều chỉnh" required rows="3" placeholder="Nhập lý do..." />
             </UiForm>
             <template #footer>

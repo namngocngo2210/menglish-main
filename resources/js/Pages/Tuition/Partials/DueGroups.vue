@@ -18,7 +18,7 @@ const props = defineProps({
 });
 
 const groups = computed(() => [
-    { rows: props.seriousOverdue, title: `Quá hạn nghiêm trọng (≥ ${props.seriousDays} ngày)`, icon: 'report', tone: 'text-error', serious: true },
+    { rows: props.seriousOverdue, title: `Quá hạn nghiêm trọng (≥ ${props.seriousDays} ngày) — bắt buộc liên hệ trực tiếp`, icon: 'report', tone: 'text-error', serious: true },
     { rows: props.newOverdue, title: `Mới quá hạn (1–${Math.max(1, props.seriousDays - 1)} ngày)`, icon: 'info', tone: 'text-warning', serious: false },
 ]);
 
@@ -89,6 +89,10 @@ const nowLocal = () => {
                             </p>
                         </template>
                         <UiBadge :color="group.serious ? 'error' : 'warning'">Quá hạn {{ ot.days_overdue }} ngày</UiBadge>
+                        <!-- SLA học phí: quá hạn ≥ N ngày → badge đỏ + bắt buộc gọi điện trực tiếp (không khoá lịch học). -->
+                        <UiBadge v-if="group.serious && !ot.last_contact" color="error" :dot="false">
+                            <span class="material-symbols-outlined text-[14px]" aria-hidden="true">call</span>Bắt buộc liên hệ trực tiếp
+                        </UiBadge>
                     </div>
                 </div>
 

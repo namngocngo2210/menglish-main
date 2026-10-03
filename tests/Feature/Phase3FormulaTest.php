@@ -466,6 +466,8 @@ class Phase3FormulaTest extends TestCase
         $this->assertEquals(950000, $record->commission_deferred);   // 5 × 3% × 5.000.000 + 4% × 5.000.000
         $this->assertSame(6, CommissionItem::where('status', CommissionItem::STATUS_DEFERRED)->count());
         $this->assertStringContainsString('chưa đủ 30 ngày', CommissionItem::first()->deferred_reason);
+        $this->travelTo(Carbon::parse('2026-10-04 09:00:00')); // duyệt kỳ sau chốt công / lỗi (cuối tháng + 2 ngày)
+        $this->calculate($september); // qua mốc chốt: tính lại lần cuối trước khi duyệt
         $this->finalizeKpi($september);
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $september->id))->assertSessionHasNoErrors();
         $this->assertSame(0, CommissionItem::whereNotNull('settled_at')->count());
@@ -488,6 +490,8 @@ class Phase3FormulaTest extends TestCase
 
         $this->actingAs($this->accountant)->get(route('payroll.records.show', $record->id))
             ->assertOk()->assertSee('Trả trong kỳ')->assertSee('Hoãn 200.000 đ')->assertSee('chăm sóc tháng đầu mới 2/3 mốc');
+        $this->travelTo(Carbon::parse('2026-11-03 09:00:00')); // duyệt kỳ sau chốt công / lỗi (cuối tháng + 2 ngày)
+        $this->calculate($october);
         $this->finalizeKpi($october);
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $october->id))->assertSessionHasNoErrors();
         $this->assertSame(4, CommissionItem::where('status', CommissionItem::STATUS_PAID)->whereNotNull('settled_at')->count());
@@ -608,6 +612,7 @@ class Phase3FormulaTest extends TestCase
         $record = $this->record($period, $teacher);
 
         $this->actingAs($this->accountant)->post(route('payroll.periods.approve', $period->id))->assertForbidden();
+        $this->travelTo(Carbon::parse('2026-10-03 09:00:00')); // duyệt kỳ sau chốt công / lỗi (cuối tháng + 2 ngày)
         $this->finalizeKpi($period);
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $period->id))->assertSessionHasNoErrors();
         $this->assertSame('approved', $period->fresh()->status);

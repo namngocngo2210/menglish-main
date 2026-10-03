@@ -322,7 +322,7 @@ class Phase3AcceptanceTest extends TestCase
             ->assertSee('BHXH (10,5% lương cơ bản)')->assertSee('Công đoàn (0,5% lương cơ bản)')->assertSee('Thuế TNCN')->assertSee('10.150.000');
 
         // ── 7. Chỉ Admin duyệt; kỳ đã duyệt khóa toàn bộ dữ liệu ─────────────────────────────────────
-        $this->at('2026-09-02 09:00');
+        $this->at('2026-09-03 09:00');
         $this->actingAs($this->accountant)->post(route('payroll.periods.approve', $august->id))->assertForbidden();
         $this->actingAs($this->manager)->post(route('payroll.periods.approve', $august->id))->assertForbidden();
         $this->finalizeKpi($august);
@@ -334,7 +334,7 @@ class Phase3AcceptanceTest extends TestCase
         $this->actingAs($this->academic)->post(route('payroll.timesheets.manual.store'), ['teaching_date' => '2026-08-07', 'notes' => 'Bổ sung sau khi duyệt.'] + $manual)
             ->assertSessionHasErrors('teaching_date');
         $this->actingAs($this->academic)->post(route('payroll.timesheets.review', $workshop->id), ['decision' => 'valid'])->assertSessionHasErrors('teaching_date');
-        $this->actingAs($this->academic)->post(route('penalties.store'), $this->violation($this->partTime, 'operations', 'Vi phạm nội quy trung tâm', '2026-08-20'))
+        $this->actingAs($this->academic)->post(route('penalties.store'), $this->violation($this->partTime, 'operations', 'Vi phạm nội quy trung tâm'))
             ->assertSessionHasNoErrors(); // vi phạm kỳ đã chốt vẫn ghi nhận được, phạt trừ vào kỳ đang mở (27/09/2026)
         $this->actingAs($this->manager)->post(route('kpi.evaluate.store', $this->academic->id), ['month' => 8, 'year' => 2026, 'score' => array_map(fn () => 100, $scores)])
             ->assertSessionHasErrors('month');
@@ -371,18 +371,21 @@ class Phase3AcceptanceTest extends TestCase
         $this->assertEquals(6500000, $sale9->net_salary);
         $this->assertStringContainsString('2/3 mốc', CommissionItem::where('crm_customer_id', $k2->id)->value('deferred_reason'));
 
-        // GV nộp phạt trực tiếp sau lần tính → phải tính lại trước khi duyệt (không trừ 2 lần)
+        // Hạn nộp phạt 02/09 đã qua → không nhận nộp trực tiếp nữa (khoản phạt trừ lương kỳ 9);
+        // kỳ chưa tới hạn chốt công / lỗi (02/10) thì chưa duyệt được.
         $this->at('2026-10-01 10:00');
-        $this->actingAs($this->manager)->post(route('penalties.mark-paid', $lateAug->id))->assertSessionHasNoErrors();
+        $this->actingAs($this->manager)->post(route('penalties.mark-paid', $lateAug->id))->assertSessionHasErrors('penalty');
+        $this->assertSame('fined', $lateAug->fresh()->status);
         $this->at('2026-10-01 11:00');
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $september->id))->assertSessionHasErrors('period');
         $this->assertSame('reviewing', $september->fresh()->status);
+        $this->at('2026-10-03 09:00');
         $this->actingAs($this->accountant)->post(route('payroll.periods.calculate', $september->id))->assertSessionHasNoErrors();
-        $this->assertEquals(250000, $this->record($september, $this->partTime)->net_salary);
-        $this->at('2026-10-01 11:30');
+        $this->assertEquals(100000, $this->record($september, $this->partTime)->net_salary);
+        $this->at('2026-10-03 09:30');
         $this->finalizeKpi($september);
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $september->id))->assertSessionHasNoErrors();
-        $this->assertSame('paid', $lateAug->fresh()->status);
+        $this->assertSame('deducted', $lateAug->fresh()->status);
         $this->assertSame(1, CommissionItem::where('status', CommissionItem::STATUS_PAID)->whereNotNull('settled_at')->count());
 
         // ── 9. Tháng 10: khách 2 đủ mốc → hoa hồng hoãn được trả ở kỳ sau, khoản đã trả không trả lại ──
@@ -443,7 +446,9 @@ class Phase3AcceptanceTest extends TestCase
     {
         return [
             'user_id' => $user->id, 'error_category' => $category, 'violation_type' => $type,
-            'violation_date' => $date ?? now()->toDateString(), 'class_id' => $this->classPt->id,
+            // Luật 24h: thời điểm vi phạm = $date lúc 08:00 (nếu có) hoặc 1 giờ trước giờ hiện tại; kèm bằng chứng.
+            'violation_at' => $date ? $date.'T08:00' : now()->subHour()->format('Y-m-d\TH:i'),
+            'evidence' => \Illuminate\Http\UploadedFile::fake()->image('bang-chung.jpg'), 'class_id' => $this->classPt->id,
         ];
     }
 

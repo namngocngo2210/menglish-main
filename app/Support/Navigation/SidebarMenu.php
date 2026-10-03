@@ -43,6 +43,9 @@ final class SidebarMenu
 
     private const TASK_ASSIGNER = ['work_task.create']; // GV / TA dùng "Nhiệm vụ hôm nay" ở Cổng giáo viên.
 
+    /** Order học liệu: giáo viên tạo, Học vụ / Trưởng Học thuật xử lý. */
+    private const MATERIAL_ORDER = ['material_order.create', 'material_order.view_all', 'material_order.process_ops', 'material_order.process_academic'];
+
     private const STAFF = ['portal.staff'];
 
     private const PAYROLL = ['payroll.view', 'payroll.view_own'];
@@ -303,9 +306,14 @@ final class SidebarMenu
                 'section' => 'Người dùng',
                 'label' => 'Công việc',
                 'icon' => 'task_alt',
-                'items' => self::anchored(self::TASK_ASSIGNER, [
-                    ['label' => 'Danh sách công việc', 'route' => 'tasks.index', 'active' => ['tasks.index', 'tasks.show', 'tasks.create', 'tasks.edit', 'tasks.ta-assign', 'tasks.class-reports.*']],
-                ]),
+                'items' => [
+                    ...self::anchored(self::TASK_ASSIGNER, [
+                        ['label' => 'Danh sách công việc', 'route' => 'tasks.index', 'active' => ['tasks.index', 'tasks.show', 'tasks.create', 'tasks.edit', 'tasks.ta-assign', 'tasks.class-reports.*']],
+                    ]),
+                    ...self::anchored(self::MATERIAL_ORDER, [
+                        ['label' => 'Order học liệu', 'route' => 'material-orders.index', 'active' => ['material-orders.*']],
+                    ]),
+                ],
                 'actions' => self::anchored(self::TASK_ASSIGNER, [
                     ['label' => 'Giao việc cho Trợ giảng', 'route' => 'tasks.ta-assign', 'icon' => 'support_agent', 'variant' => 'secondary', 'modal' => '4xl'],
                     ['label' => 'Báo cáo trực lớp', 'route' => 'tasks.class-reports.create', 'icon' => 'rate_review', 'variant' => 'secondary', 'modal' => '2xl'],
@@ -452,6 +460,7 @@ final class SidebarMenu
                         ['label' => 'Nhật ký vận hành', 'route' => 'activity-logs.index', 'active' => ['activity-logs.*']],
                         ['label' => 'Tổng hợp báo cáo & nhật ký', 'route' => 'reports.all'],
                     ]),
+                    ['label' => 'Cấu hình SLA', 'route' => 'system-config.sla', 'anchor' => ['sla.configure']],
                     ['label' => 'Media & File lưu trữ', 'route' => 'media.index', 'active' => ['media.*']],
                     ...self::anchored(self::SYSTEM, [
                         ['label' => 'Hosting & Máy chủ', 'route' => 'system-config.hosting'],

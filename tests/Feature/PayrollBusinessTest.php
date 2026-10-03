@@ -350,7 +350,8 @@ class PayrollBusinessTest extends TestCase
             'user_id' => $this->teacherUser->id,
             'class_id' => $this->classModel->id,
             'violation_type' => 'Đi muộn ca dạy quá 15 phút không báo trước',
-            'violation_date' => '2026-08-16',
+            'violation_at' => now()->subHours(3)->format('Y-m-d\TH:i'),
+            'evidence' => \Illuminate\Http\UploadedFile::fake()->image('bang-chung.jpg'),
             'amount' => 200000,
             'notes' => 'Biên bản lập do phụ huynh lớp phản ánh',
         ];
@@ -557,6 +558,8 @@ class PayrollBusinessTest extends TestCase
             ->assertStatus(422);
         $this->assertSame('reviewing', $period->fresh()->status);
 
+        // Chốt công / chốt lỗi cuối tháng + 2 ngày: chỉ duyệt được sau mốc này.
+        $this->travelTo($period->attendanceCloseAt()->addDay()->setTime(9, 0));
         $this->actingAs($this->payrollAdmin)->post(route('payroll.periods.approve', $period->id))->assertRedirect();
         $this->actingAs($this->payrollAdmin)->post(route('payroll.periods.mark-paid', $period->id))->assertRedirect();
 
