@@ -13,7 +13,7 @@ use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 /**
- * "Lịch hẹn test hôm nay": chip lọc nhanh ở CRM + ô số trên Tổng quan (Admin / Quản lý cơ sở / Học vụ),
+ * "Lịch hẹn test hôm nay": chip lọc nhanh ở CRM + số trên Tổng quan (Admin / Quản lý cơ sở / Học vụ),
  * đếm theo phạm vi khách CRM của người xem (chi nhánh), bỏ khách Thất bại.
  */
 class TestAppointmentsTodayTest extends TestCase
@@ -79,9 +79,9 @@ class TestAppointmentsTodayTest extends TestCase
         $this->actingAs($this->userWithRole('academic_staff'))->get(route('dashboard'))
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->where('kpis.testToday.count', 2)
-                ->where('kpis.testToday.pending', 1)
-                ->where('kpis.testToday.url', $link));
+                ->where('roleDashboard.type', 'personal')
+                ->where('roleDashboard.stats', fn ($stats) => collect($stats)->contains(fn ($stat) => $stat['label'] === 'Hẹn test hôm nay'
+                    && $stat['value'] === '2' && $stat['hint'] === '1 chưa làm bài' && $stat['href'] === $link)));
 
         $this->actingAs($this->userWithRole('admin'))->get(route('dashboard'))
             ->assertOk()

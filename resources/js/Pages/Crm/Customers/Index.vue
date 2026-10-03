@@ -22,6 +22,7 @@ const props = defineProps({
 });
 const sla = computed(() => ['1', 'true'].includes(currentQuery().get('sla') ?? ''));
 const testToday = computed(() => ['1', 'true'].includes(currentQuery().get('test_today') ?? ''));
+const followUp = computed(() => ['1', 'true'].includes(currentQuery().get('follow_up') ?? ''));
 </script>
 
 <template>
@@ -35,9 +36,10 @@ const testToday = computed(() => ['1', 'true'].includes(currentQuery().get('test
         <!-- Bộ lọc (mockup danh-sach-khach): Từ khóa, Nguồn, Người phụ trách, Giai đoạn, Chi nhánh -->
         <UiFilterBar :action="route('crm.customers.index')" search="search" placeholder="Tìm tên hoặc SĐT..." :reset-url="route('crm.customers.index')">
             <template #quick><WorkspaceChips :counts="chipCounts" /></template>
-            <!-- Giữ lọc nhanh "Chưa liên hệ >24h" / "Hẹn test hôm nay" khi lọc thêm -->
+            <!-- Giữ lọc nhanh "Chưa liên hệ >24h" / "Hẹn test hôm nay" / "Cần gọi lại" khi lọc thêm -->
             <input v-if="sla" type="hidden" name="sla" value="1" />
             <input v-if="testToday" type="hidden" name="test_today" value="1" />
+            <input v-if="followUp" type="hidden" name="follow_up" value="1" />
             <UiSelect name="source" label="Nguồn" :options="filterSources" placeholder="Tất cả nguồn" />
             <UiSelect name="assigned_user_id" label="Người phụ trách" :options="filterSales" placeholder="Tất cả người phụ trách" />
             <UiSelect name="stage" label="Giai đoạn" :options="stageOptions" placeholder="Tất cả giai đoạn" />
@@ -71,6 +73,9 @@ const testToday = computed(() => ['1', 'true'].includes(currentQuery().get('test
                                 <span :class="['inline-flex items-center rounded-full border px-2 py-0.5 text-[12px] font-bold', c.stage_badge]">{{ c.stage_label }}</span>
                                 <div v-if="c.test_today_at" class="mt-0.5 flex items-center gap-1 font-caption text-caption text-info" :title="'Lịch hẹn test hôm nay · ' + c.test_today_type">
                                     <span class="material-symbols-outlined text-[14px]" aria-hidden="true">event</span>Test {{ c.test_today_at }} hôm nay
+                                </div>
+                                <div v-if="c.follow_up_label" :class="['mt-0.5 flex items-center gap-1 font-caption text-caption', c.follow_up_overdue ? 'text-error' : 'text-warning']" :title="c.follow_up_overdue ? 'Đã quá hạn gọi lại' : 'Hạn gọi lại'">
+                                    <span class="material-symbols-outlined text-[14px]" aria-hidden="true">call</span>{{ c.follow_up_label }}
                                 </div>
                             </td>
                             <td class="whitespace-nowrap">

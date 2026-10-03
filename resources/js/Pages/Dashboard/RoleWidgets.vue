@@ -2,6 +2,8 @@
 /** Dashboard theo vai trò (BPMN 22) — số liệu thật từ DashboardController: thẻ số liệu, hàng chờ, việc quá hạn / đề xuất + Big Test. */
 import { Link } from '@inertiajs/vue3';
 import { shortenCodesIn } from '@/lib/format';
+import AgendaCard from './AgendaCard.vue';
+import MyTasksCard from './MyTasksCard.vue';
 
 defineProps({ dashboard: { type: Object, required: true } });
 </script>
@@ -78,6 +80,12 @@ defineProps({ dashboard: { type: Object, required: true } });
                 </div>
                 <UiEmptyState v-if="!dashboard.upcomingBigTests.length" icon="event_available" title="Không có Big Test trong 14 ngày tới" />
             </div>
+        </div>
+
+        <!-- Học thuật: thêm lịch hẹn 7 ngày tới (Big Test) + việc của tôi trong tuần -->
+        <div v-if="dashboard.agenda" class="grid grid-cols-1 gap-md lg:grid-cols-3">
+            <AgendaCard :agenda="dashboard.agenda" class="lg:col-span-2" />
+            <MyTasksCard v-if="dashboard.myTasks" :tasks="dashboard.myTasks" />
         </div>
     </section>
 </template>
