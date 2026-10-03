@@ -141,7 +141,7 @@ class Phase2ScheduleTest extends TestCase
             'chi_nhanh' => $this->branch->id, 'chuong_trinh' => $this->course->name,
             'cap_do' => 'B1', 'si_so_toi_da' => 12,
             'giao_vien_chinh' => $this->teacher->id, 'tro_giang' => $this->assistant->id,
-            'giao_vien_nn' => $newForeign->id, 'phong_hoc' => 'P101',
+            'giao_vien_nn' => $newForeign->id, 'room_id' => $this->makeRoom($this->branch->id, 'P101')->id,
         ];
         $this->actingAs($this->admin)->put(route('classes.update', $this->classModel->id), $payload)
             ->assertSessionHasErrors('giao_vien_nn');

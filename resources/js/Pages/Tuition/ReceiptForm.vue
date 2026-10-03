@@ -17,12 +17,17 @@ const props = defineProps({
     asModal: { type: Boolean, default: false },
     tuitions: { type: Array, default: () => [] },
     students: { type: Array, default: () => [] },
+    promotions: { type: Array, default: () => [] },
     initialTuitionId: { type: String, default: '' },
     initialStudentId: { type: String, default: '' },
     defaultBank: { type: Object, default: null },
     editing: { type: Object, default: null },
     nextReceiptNumber: { type: String, required: true },
     recentRejection: { type: Object, default: null },
+    merchandiseItems: { type: Array, default: () => [] },
+    stockByBranch: { type: Object, default: () => ({}) },
+    paperInvoiceNext: { type: Object, default: () => ({}) },
+    canRequestCancel: { type: Boolean, default: false },
 });
 
 const modal = useRemoteModal();
@@ -38,7 +43,7 @@ const formId = computed(() => (modal ? 'modal-receipt-form' : 'receiptForm'));
     <UiModalFrame v-if="modal" :title="`${pageTitle} · ${nextReceiptNumber}`" description="Lập, đối soát thanh toán và gửi duyệt phiếu thu học phí / phụ thu.">
         <UiForm :id="formId" :action="action" method="post" class="space-y-6">
             <input v-if="editing" type="hidden" name="_method" value="put" />
-            <ReceiptFields :form="form" prefix="modal-" :recent-rejection="recentRejection" :has-default-bank="!!defaultBank" />
+            <ReceiptFields :form="form" prefix="modal-" :recent-rejection="recentRejection" :has-default-bank="!!defaultBank" :can-request-cancel="canRequestCancel" />
         </UiForm>
         <template #footer>
             <UiButton variant="secondary" type="submit" :form="formId" name="submit_action" value="draft" icon="drafts">Lưu nháp</UiButton>
@@ -68,7 +73,7 @@ const formId = computed(() => (modal ? 'modal-receipt-form' : 'receiptForm'));
         <div class="mx-auto max-w-5xl">
             <UiForm :id="formId" :action="action" method="post" class="space-y-6">
                 <input v-if="editing" type="hidden" name="_method" value="put" />
-                <ReceiptFields :form="form" :recent-rejection="recentRejection" :has-default-bank="!!defaultBank" />
+                <ReceiptFields :form="form" :recent-rejection="recentRejection" :has-default-bank="!!defaultBank" :can-request-cancel="canRequestCancel" />
 
                 <!-- Thanh thao tác dính đáy trong cột nội dung (sticky, không phải fixed) nên không đè lên sidebar. -->
                 <div class="sticky bottom-0 z-30 -mx-md mt-lg border-t border-surface-container-highest/80 bg-surface-container-lowest px-md py-sm shadow-[0_-4px_12px_rgba(0,0,0,0.06)] sm:mx-0 sm:rounded-t-xl">

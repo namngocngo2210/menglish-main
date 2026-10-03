@@ -3,9 +3,11 @@
  * Sửa thông tin lớp: cùng 3 khối như form tạo lớp + trạng thái, ngày khai giảng / kết thúc, lịch học mô tả ngắn.
  * Trợ giảng cố định chỉ còn ở lớp cũ (dữ liệu cũ) → hiện ô để gỡ; lớp mới nhận trợ giảng theo ca qua "Giao việc trợ giảng".
  */
+import { computed, ref } from 'vue';
+
 defineOptions({ layout: { title: 'Chỉnh sửa lớp học' } });
 
-defineProps({
+const props = defineProps({
     klass: { type: Object, required: true },
     branches: { type: Array, default: () => [] },
     programs: { type: Array, default: () => [] },
@@ -22,6 +24,18 @@ const statuses = [
     { value: 'completed', label: 'Đã kết thúc' },
     { value: 'cancelled', label: 'Đã hủy' },
 ];
+// Phòng học lọc theo chi nhánh lớp; đổi chi nhánh thì bỏ phòng của chi nhánh cũ. Sĩ số vượt sức chứa phòng → cảnh báo (vẫn lưu được).
+const branch = ref(props.klass.branch_id ? String(props.klass.branch_id) : '');
+const roomId = ref(props.klass.room_id ? String(props.klass.room_id) : '');
+const capacity = ref(props.klass.max_capacity ?? '');
+const branchRooms = computed(() => props.rooms.filter((r) => String(r.branch_id) === branch.value));
+const room = computed(() => branchRooms.value.find((r) => String(r.value) === roomId.value) ?? null);
+const overCapacity = computed(() => !!room.value?.capacity && Number(capacity.value) > room.value.capacity);
+function onBranchChange(value) {
+    branch.value = String(value ?? '');
+    if (!room.value) roomId.value = '';
+}
+
 const section = 'space-y-6 p-6 md:p-8';
 const dot = 'h-2.5 w-2.5 rounded-full';
 const heading = 'text-base font-bold uppercase tracking-wide text-on-surface';
@@ -57,7 +71,7 @@ const heading = 'text-base font-bold uppercase tracking-wide text-on-surface';
                         <UiInput id="ma_lop" name="ma_lop" label="Mã lớp (Tùy chọn)" :value="klass.code" class="font-mono text-xs uppercase" />
                     </div>
                     <div class="md:col-span-4">
-                        <UiSelect id="chi_nhanh" name="chi_nhanh" label="Chi nhánh đào tạo" required :value="klass.branch_id" :options="branches" />
+                        <UiSelect id="chi_nhanh" :model-value="branch" name="chi_nhanh" label="Chi nhánh đào tạo" required :options="branches" @update:model-value="onBranchChange" />
                     </div>
                     <div class="md:col-span-4">
                         <UiSelect id="chuong_trinh" name="chuong_trinh" label="Chương trình học" required :value="klass.program" :options="programs" />
@@ -66,7 +80,7 @@ const heading = 'text-base font-bold uppercase tracking-wide text-on-surface';
                         <UiSelect id="cap_do" name="cap_do" label="Cấp độ" required :value="klass.level" :options="levels" />
                     </div>
                     <div class="md:col-span-4">
-                        <UiInput id="si_so_toi_da" type="number" name="si_so_toi_da" label="Sĩ số tối đa" required suffix="học viên" :value="klass.max_capacity" min="1" max="100" class="text-xs" />
+                        <UiInput id="si_so_toi_da" v-model="capacity" type="number" name="si_so_toi_da" label="Sĩ số tối đa" required suffix="học viên" min="1" max="100" class="text-xs" />
                     </div>
                     <div class="md:col-span-4">
                         <UiInput id="min_students" type="number" name="min_students" label="Ngưỡng khai giảng" suffix="học viên" :value="klass.min_students" min="1" max="100" class="text-xs" hint="Số học viên tối thiểu để mở lớp; không vượt sĩ số tối đa." />
@@ -98,7 +112,11 @@ const heading = 'text-base font-bold uppercase tracking-wide text-on-surface';
 
                 <div class="grid grid-cols-1 gap-5 md:grid-cols-12">
                     <div class="md:col-span-6">
-                        <UiSelect id="phong_hoc" name="phong_hoc" label="Phòng học" placeholder="-- Chưa gán phòng --" :value="klass.room" :options="rooms" />
+                        <UiSelect id="room_id" v-model="roomId" name="room_id" label="Phòng học" :placeholder="branchRooms.length ? '-- Chưa gán phòng --' : '-- Chi nhánh chưa có phòng học --'" :options="branchRooms" hint="Phòng của chi nhánh lớp; đổi phòng áp cho các buổi sắp tới đang dùng phòng cũ." />
+                        <p v-if="overCapacity" class="mt-xs flex items-start gap-xs rounded-lg border border-warning/30 bg-warning-container p-sm font-body-small text-body-small text-on-warning-container" role="status">
+                            <span class="material-symbols-outlined text-[16px] text-warning" aria-hidden="true">warning</span>
+                            <span><strong>Cảnh báo sức chứa:</strong> Sĩ số tối đa ({{ capacity }}) vượt sức chứa phòng ({{ room.capacity }}). Vẫn được phép lưu.</span>
+                        </p>
                     </div>
                     <div class="md:col-span-6">
                         <UiSelect id="giao_vien_chinh" name="giao_vien_chinh" label="Giáo viên chính" placeholder="-- Chưa gán giáo viên --" :value="klass.teacher_id" :options="teachers" />

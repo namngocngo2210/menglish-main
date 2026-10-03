@@ -7,7 +7,9 @@ use App\Models\User;
 use App\Models\UserPermissionOverride;
 use App\Support\PermissionCatalog;
 use App\Support\SensitiveData;
+use App\Support\TrackingQueryParams;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Middleware\ValidateSignature;
 use Illuminate\Support\Collection;
 use Spatie\Activitylog\Models\Activity;
 use Illuminate\Support\Facades\Gate;
@@ -49,6 +51,9 @@ class AppServiceProvider extends ServiceProvider
         $this->registerRequestMacros();
         $this->registerDynamicMailConfig();
         $this->registerActivityLogHardening();
+
+        // Link có chữ ký mở từ Zalo / Facebook trên điện thoại bị gắn thêm tham số theo dõi: bỏ qua chúng khi kiểm tra chữ ký.
+        ValidateSignature::except(TrackingQueryParams::NAMES);
 
         // Mỗi request bắt đầu với bộ nhớ tạm trống (test gọi nhiều request trên cùng một app).
         \Illuminate\Support\Facades\Event::listen(\Illuminate\Routing\Events\Routing::class, fn () => \App\Support\RequestMemo::flush());

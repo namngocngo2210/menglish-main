@@ -14,6 +14,7 @@ use App\Models\ClassScheduleConfig;
 use App\Models\ClassSession;
 use App\Models\HrDailyDemand;
 use App\Models\PayrollPeriod;
+use App\Models\Room;
 use App\Models\SupportSession;
 use App\Models\TeacherTimesheet;
 use App\Models\User;
@@ -21,6 +22,7 @@ use App\Models\WorkTask;
 use App\Services\BranchStaff;
 use App\Services\ClassDashboardService;
 use App\Services\KpiBoardService;
+use App\Services\RoomService;
 use App\Services\SafeUploadService;
 use App\Services\SessionLessonService;
 use App\Services\SessionScheduleService;
@@ -1536,6 +1538,8 @@ class WorkTaskController extends Controller
             'slot2_start' => $class->scheduleConfig?->slot2_start ? substr($class->scheduleConfig->slot2_start, 0, 5) : null,
             'slot2_end' => $class->scheduleConfig?->slot2_end ? substr($class->scheduleConfig->slot2_end, 0, 5) : null,
             'status' => $class->status,
+            'branch_id' => $class->branch_id,
+            'room_id' => $class->room_id,
         ]]);
 
         // Báo cáo phòng / nhân sự: 7 ngày từ ngày chọn, theo chi nhánh, số liệu từ buổi học thật.
@@ -1559,7 +1563,19 @@ class WorkTaskController extends Controller
             ->get()
             ->keyBy(fn (HrDailyDemand $demand) => $demand->report_date->toDateString());
 
-        $report = collect(range(0, 6))->map(function (int $offset) use ($reportStart, $weekSessions, $savedDemands) {
+        // Phòng khả dụng = phòng của chi nhánh không có buổi học nào trong ngày (tính trên mọi lớp, không chỉ lớp người xem phụ trách).
+        $branchRoomNames = Room::where('branch_id', $reportBranchId)->pluck('name');
+        $usedRoomsByDay = ClassSession::query()
+            ->where('branch_id', $reportBranchId)
+            ->where('status', '!=', 'cancelled')
+            ->whereDate('date', '>=', $reportStart->toDateString())
+            ->whereDate('date', '<=', $reportEnd->toDateString())
+            ->whereIn('room', $branchRoomNames)
+            ->get(['date', 'room'])
+            ->groupBy(fn (ClassSession $s) => $s->date->toDateString())
+            ->map(fn ($sessions) => $sessions->pluck('room')->unique()->count());
+
+        $report = collect(range(0, 6))->map(function (int $offset) use ($reportStart, $weekSessions, $savedDemands, $branchRoomNames, $usedRoomsByDay) {
             $day = $reportStart->addDays($offset);
             $sessions = $weekSessions->filter(fn (ClassSession $s) => $s->date->isSameDay($day));
             $assistants = $sessions->pluck('assistant_id')->filter()->unique()->count();
@@ -1569,6 +1585,8 @@ class WorkTaskController extends Controller
                 'label' => ClassDashboardService::WEEKDAYS[$day->isoWeekday()],
                 'shifts' => $sessions->count(),
                 'rooms' => $sessions->pluck('room')->filter()->unique()->count(),
+                'rooms_total' => $branchRoomNames->count(),
+                'rooms_free' => $branchRoomNames->count() - $usedRoomsByDay->get($day->toDateString(), 0),
                 'teachers' => $sessions->flatMap(fn ($s) => [$s->teacher_id, $s->foreign_teacher_id])->filter()->unique()->count(),
                 'assistants' => $assistants,
                 'staff_needed' => $savedDemands->get($day->toDateString())?->staff_needed ?? $assistants,
@@ -1621,6 +1639,7 @@ class WorkTaskController extends Controller
             'end_date' => now()->addMonths(3)->format('Y-m-d'),
             'slot1_day' => 'Thứ 2', 'slot1_start' => '18:00', 'slot1_end' => '19:30',
             'slot2_day' => '', 'slot2_start' => '18:00', 'slot2_end' => '19:30',
+            'room_id' => '',
         ];
         $initial = ['class_id' => (string) ($selectedClassId ?? '')];
         foreach ($defaults as $key => $default) {
@@ -1631,6 +1650,8 @@ class WorkTaskController extends Controller
         return Inertia::render('Tasks/ScheduleConfig', [
             'view' => $view,
             'canSchedule' => $viewer->can('work_task.assign'),
+            // Ô "Chọn phòng học": phòng của chi nhánh lớp đang chọn (lọc phía Vue), kèm lớp đang dùng phòng.
+            'rooms' => RoomController::classFormOptions($schedulable->pluck('branch_id')->filter()->unique()),
             'newClasses' => Ui::options($schedulable->filter(fn (ClassModel $c) => ! $c->scheduleConfig), fn (ClassModel $c) => "{$c->name} ({$c->code})"),
             'scheduledClasses' => Ui::options($schedulable->filter(fn (ClassModel $c) => (bool) $c->scheduleConfig), fn (ClassModel $c) => "{$c->name} ({$c->code}) · {$c->schedule_text}"),
             'academicYears' => $academicYears->map(fn ($y) => ['value' => $y, 'label' => "Năm học {$y}"])->values(),
@@ -1653,6 +1674,7 @@ class WorkTaskController extends Controller
                 'teacher' => $c->teacher?->name ?? $c->foreignTeacher?->name,
                 'status' => $c->status,
                 'has_config' => (bool) $c->scheduleConfig,
+                'room' => $c->room,
             ])->values(),
             'branches' => Ui::options($branches, 'name'),
             'reportBranchId' => $reportBranchId,
@@ -1662,7 +1684,7 @@ class WorkTaskController extends Controller
         ]);
     }
 
-    public function updateScheduleConfig(Request $request, SessionScheduleService $schedule)
+    public function updateScheduleConfig(Request $request, SessionScheduleService $schedule, RoomService $rooms)
     {
         // Toggle class status or update schedule
         if ($request->has('toggle_class_id')) {
@@ -1674,10 +1696,23 @@ class WorkTaskController extends Controller
                     'toggle_class_id' => "Lớp {$cls->name} đang ở trạng thái '{$cls->status}', chỉ lớp Đang học/Đã kết thúc mới đổi trạng thái được tại đây.",
                 ]);
             }
-            $cls->status = $cls->status === 'active' ? 'completed' : 'active';
+            $completing = $cls->status === 'active';
+            $releasedRoom = $completing ? $cls->room : null;
+            $cls->status = $completing ? 'completed' : 'active';
+            // Kết thúc lớp giải phóng phòng cho lớp khác (buổi đã sinh giữ nguyên phòng như dữ liệu lịch sử).
+            if ($completing) {
+                $cls->room_id = null;
+                $cls->room = null;
+            }
             $cls->save();
 
-            return redirect()->back()->with('success', "Đã cập nhật trạng thái lớp {$cls->name}!");
+            if ($completing) {
+                return redirect()->back()->with('success', "Đã kết thúc lớp {$cls->name}.".($releasedRoom ? " {$releasedRoom} đã được giải phóng khỏi lớp này." : ''));
+            }
+
+            $reopened = redirect()->back()->with('success', "Đã mở lại lớp {$cls->name}.");
+
+            return $cls->room ? $reopened : $reopened->with('warning', 'Lớp chưa có phòng học — vui lòng gán lại phòng ở Lịch & TKB lớp hoặc Sửa lớp.');
         }
 
         $payload = $request->validate([
@@ -1692,6 +1727,8 @@ class WorkTaskController extends Controller
             'slot2_start' => ['nullable', 'date_format:H:i'],
             'slot2_end' => ['nullable', 'date_format:H:i', 'after:slot2_start'],
             'activate' => ['nullable', 'boolean'],
+            'room_id' => ['nullable', 'integer'],
+            'transfer_room' => ['nullable', 'boolean'],
         ]);
 
         $class = ClassModel::findOrFail($payload['class_id']);
@@ -1758,18 +1795,35 @@ class WorkTaskController extends Controller
             ]);
         }
 
-        $conflict = $schedule->findConflict(
-            array_map(fn (array $session) => $session + ['room' => $class->room], $sessions),
-            $class->branch_id,
-            [$class->teacher_id, $class->assistant_id, $class->foreign_teacher_id],
-            $class->room,
-            $class->id,
-        );
-        if ($conflict) {
-            [$session, $existing] = $conflict;
-            throw ValidationException::withMessages([
-                'class_id' => "Xung đột {$session['date']} {$session['start']}-{$session['end']} với lớp {$existing->classModel?->name} ({$existing->classModel?->code}).",
-            ]);
+        // Phòng học: form gửi room_id (rỗng = bỏ phòng) thì đổi phòng của lớp; không gửi thì giữ phòng hiện tại.
+        $changeRoom = $request->has('room_id');
+        $room = null;
+        if ($changeRoom && filled($payload['room_id'] ?? null)) {
+            $room = Room::whereKey($payload['room_id'])->where('branch_id', $class->branch_id)->first()
+                ?? throw ValidationException::withMessages(['room_id' => 'Phòng học không thuộc chi nhánh của lớp, vui lòng chọn lại.']);
+        }
+        [$roomId, $roomName] = $changeRoom ? [$room?->id, $room?->name] : [$class->room_id, $class->room];
+        $previousRoom = $class->room;
+
+        // Ca học tuần trùng với lớp khác đang gắn phòng: lớp đang học → chặn; lớp chưa bắt đầu học → hỏi chuyển phòng
+        // (xác nhận thì gỡ phòng khỏi các lớp đó).
+        $transfer = collect();
+        if ($room) {
+            $conflicts = $rooms->slotConflicts($room, $slots, $class->id);
+            $blocking = $conflicts->first(fn (array $c) => $c['class']->isStudying());
+            if ($blocking) {
+                throw ValidationException::withMessages([
+                    'room_id' => "{$room->name} đã có lớp {$blocking['class']->name} đang học vào {$blocking['slot']} — vui lòng chọn phòng khác.",
+                ]);
+            }
+            $transfer = $conflicts->pluck('class');
+            if ($transfer->isNotEmpty() && ! ($payload['transfer_room'] ?? false)) {
+                throw ValidationException::withMessages([
+                    'room_transfer' => collect(["{$room->name} đang được gán cho lớp {$transfer->pluck('name')->implode(', ')} (chưa bắt đầu học). Chuyển phòng sang lớp này?"])
+                        ->merge($conflicts->map(fn (array $c) => "{$c['class']->name} — dự kiến {$c['slot']}: sẽ bị hủy gán phòng"))
+                        ->implode("\n"),
+                ]);
+            }
         }
 
         // Lớp chưa xếp lịch được kích hoạt khi có TKB; lớp "sắp khai giảng" chỉ kích hoạt khi người dùng
@@ -1780,7 +1834,26 @@ class WorkTaskController extends Controller
             default => $class->status,
         };
 
-        DB::transaction(function () use ($class, $payload, $startDate, $endDate, $slots, $sessions, $replaceableIds, $status) {
+        DB::transaction(function () use ($class, $payload, $startDate, $endDate, $slots, $sessions, $replaceableIds, $status, $schedule, $rooms, $room, $transfer, $roomId, $roomName, $previousRoom) {
+            // Chuyển phòng đã xác nhận: gỡ phòng khỏi lớp chưa bắt đầu học trước khi kiểm tra trùng buổi.
+            if ($room && $transfer->isNotEmpty()) {
+                $rooms->detach($room, $transfer);
+            }
+
+            $conflict = $schedule->findConflict(
+                array_map(fn (array $session) => $session + ['room' => $roomName], $sessions),
+                $class->branch_id,
+                [$class->teacher_id, $class->assistant_id, $class->foreign_teacher_id],
+                $roomName,
+                $class->id,
+            );
+            if ($conflict) {
+                [$session, $existing] = $conflict;
+                throw ValidationException::withMessages([
+                    'class_id' => "Xung đột {$session['date']} {$session['start']}-{$session['end']} với lớp {$existing->classModel?->name} ({$existing->classModel?->code}).",
+                ]);
+            }
+
             ClassScheduleConfig::updateOrCreate(
                 ['class_id' => $class->id],
                 [
@@ -1796,6 +1869,13 @@ class WorkTaskController extends Controller
 
             ClassSession::whereKey($replaceableIds)->delete();
 
+            // Buổi sắp tới được giữ lại (học bù…) đang dùng phòng cũ của lớp cũng chuyển sang phòng mới.
+            if ($roomName !== $previousRoom) {
+                ClassSession::where('class_id', $class->id)->staffSyncable()
+                    ->where(fn ($query) => $query->whereNull('room')->orWhere('room', $previousRoom))
+                    ->update(['room' => $roomName]);
+            }
+
             foreach ($sessions as $session) {
                 ClassSession::create([
                     'class_id' => $class->id,
@@ -1805,7 +1885,7 @@ class WorkTaskController extends Controller
                     'type' => ClassSession::TYPE_REGULAR,
                     'start_time' => $session['start'],
                     'end_time' => $session['end'],
-                    'room' => $class->room,
+                    'room' => $roomName,
                     'teacher_id' => $class->teacher_id ?? $class->foreign_teacher_id,
                     'foreign_teacher_id' => $class->foreign_teacher_id,
                     'assistant_id' => $class->assistant_id,
@@ -1818,6 +1898,8 @@ class WorkTaskController extends Controller
                 'end_date' => $endDate,
                 'schedule_text' => collect($slots)->map(fn ($slot) => "{$slot['day']} {$slot['start']}-{$slot['end']}")->implode('; '),
                 'status' => $status,
+                'room_id' => $roomId,
+                'room' => $roomName,
             ]);
         });
 

@@ -82,11 +82,11 @@ class Flow1AndHomeworkScreensTest extends TestCase
         $response = $this->actingAs($this->admin)->get(route('classes.create'));
         $response->assertStatus(200);
         $response->assertSee('Tạo lớp mới');
-        $response->assertSee('Thông tin cơ bản');
+        $response->assertSee('Định danh &amp; phân loại chương trình', false);
         $response->assertSee('Phòng học');
-        $response->assertSee('Đội ngũ phụ trách');
+        $response->assertSee('Nhân sự phụ trách');
         $response->assertSee('Học phí');
-        $response->assertSee('Tên lớp học');
+        $response->assertSee('Tên lớp');
         $response->assertSee('Sĩ số tối đa');
     }
 
@@ -104,7 +104,7 @@ class Flow1AndHomeworkScreensTest extends TestCase
             'chuong_trinh' => 'IELTS',
             'cap_do' => 'B1',
             'si_so_toi_da' => 16,
-            'phong_hoc' => 'P101',
+            'room_id' => $this->makeRoom($branch->id, 'P101')->id,
             'hoc_phi' => 8500000,
             'ghi_chu' => 'Ghi chú lớp test',
         ]);

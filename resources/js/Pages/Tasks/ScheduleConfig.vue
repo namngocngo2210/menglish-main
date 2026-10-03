@@ -4,7 +4,7 @@
  * + màn riêng "Báo cáo phòng / nhân sự" 7 ngày theo buổi học thật (?view=report).
  * Chọn lớp đã có TKB → điền sẵn năm học, ngày, 2 ca học của lớp đó.
  */
-import { computed, reactive } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import { urlWith } from '@/lib/url';
 import { can } from '@/lib/can';
@@ -14,6 +14,7 @@ defineOptions({ layout: (props) => ({ title: props.view === 'report' ? 'Báo cá
 const props = defineProps({
     view: { type: String, default: 'config' },
     canSchedule: { type: Boolean, default: false },
+    rooms: { type: Array, default: () => [] },
     newClasses: { type: Array, default: () => [] },
     scheduledClasses: { type: Array, default: () => [] },
     academicYears: { type: Array, default: () => [] },
@@ -42,10 +43,11 @@ const selectedData = computed(() => props.scheduleData[form.class_id] ?? null);
 const hasSchedule = computed(() => !!(form.class_id && selectedData.value?.slot1_day));
 const status = computed(() => selectedData.value?.status ?? null);
 
-/** Chọn lớp đã có TKB → điền sẵn lịch hiện tại của lớp. */
+/** Chọn lớp đã có TKB → điền sẵn lịch hiện tại của lớp; phòng học điền theo phòng hiện tại của lớp. */
 function pick(value) {
     form.class_id = value;
     const data = props.scheduleData[value];
+    form.room_id = data?.room_id ? String(data.room_id) : '';
     if (!data || !data.slot1_day) return;
     for (const key of Object.keys(form)) {
         if (key !== 'class_id' && data[key] !== undefined) form[key] = data[key] ?? (key === 'slot2_day' ? '' : form[key]);
@@ -53,17 +55,41 @@ function pick(value) {
 }
 const reset = () => Object.assign(form, props.initial);
 
+// Phòng học: chỉ phòng thuộc chi nhánh của lớp đang chọn.
+const classRooms = computed(() => props.rooms.filter((r) => selectedData.value && String(r.branch_id) === String(selectedData.value.branch_id)));
+const selectedRoom = computed(() => classRooms.value.find((r) => String(r.value) === String(form.room_id)) ?? null);
+
+// Phòng đang gán cho lớp chưa bắt đầu học trùng ca → hỏi "Chuyển phòng"; xác nhận thì gửi lại kèm transfer_room=1.
+const scheduleForm = ref(null);
+const transferRoom = ref('');
+const transferDismissed = ref(false);
+
 // Lỗi xếp lịch (xung đột, không sinh được buổi…) hiện nổi bật trên form.
 const page = usePage();
 const conflictError = computed(() => {
     const e = page.props.errors ?? {};
-    return e.class_id || e.slot2_start || e.slot1_day || e.start_date || e.end_date || null;
+    return e.class_id || e.room_id || e.slot2_start || e.slot1_day || e.start_date || e.end_date || null;
 });
+const transferLines = computed(() => (page.props.errors?.room_transfer ?? '').split('\n').filter(Boolean));
+const showTransfer = computed(() => transferLines.value.length > 0 && !transferDismissed.value);
+watch(transferLines, () => {
+    transferDismissed.value = false;
+    transferRoom.value = '';
+});
+function confirmTransfer() {
+    transferRoom.value = '1';
+    transferDismissed.value = true;
+    // Chờ ô ẩn transfer_room nhận giá trị rồi mới gửi.
+    setTimeout(() => scheduleForm.value?.submit());
+}
 const conflictTitle = computed(() => (conflictError.value && (conflictError.value.includes('Xung đột') || conflictError.value.includes('trùng')) ? 'Cảnh báo xung đột lịch' : 'Không lưu được lịch lớp'));
 
 const canToggle = (c) => ['active', 'completed'].includes(c.status) && can('class.update');
 const editable = (c) => !['cancelled', 'completed'].includes(c.status);
-const toggleConfirm = (c) => (c.status === 'active' ? `Kết thúc lớp ${c.name}? Lớp chuyển sang "Đã kết thúc".` : `Mở lại lớp ${c.name}?`);
+const toggleConfirm = (c) =>
+    c.status === 'active'
+        ? `Kết thúc lớp ${c.name}? Lớp sẽ ngừng tự sinh buổi học mới, các buổi đã sinh không bị ảnh hưởng.${c.room ? `\n${c.room} sẽ được giải phóng khỏi lớp này để lớp khác dùng khung giờ này.` : ''}`
+        : `Mở lại lớp ${c.name}? Lớp tiếp tục theo lịch định kỳ hiện có.${c.room ? '' : '\nLớp chưa có phòng học — vui lòng gán lại phòng sau khi mở lại.'}`;
 
 /** Tìm lớp trong bảng "Danh sách lớp hiện tại" (giữ các tham số khác, cuộn về bảng). */
 function searchClasses(event) {
@@ -96,7 +122,8 @@ function searchClasses(event) {
                     <h2 class="font-h3 text-h3 text-on-surface">Cấu hình lịch lớp</h2>
                 </div>
 
-                <UiForm v-if="canSchedule" :action="route('tasks.schedule-config.update')" method="post" class="space-y-md">
+                <UiForm v-if="canSchedule" ref="scheduleForm" :action="route('tasks.schedule-config.update')" method="post" class="space-y-md">
+                    <input type="hidden" name="transfer_room" :value="transferRoom" />
                     <UiSelect
                         id="tkb_class_id"
                         label="Lớp học"
@@ -134,6 +161,28 @@ function searchClasses(event) {
                                 <UiInput :id="`tkb_slot${n}_start`" v-model="form[`slot${n}_start`]" type="time" label="Giờ bắt đầu" :name="`slot${n}_start`" class="font-code" />
                                 <UiInput :id="`tkb_slot${n}_end`" v-model="form[`slot${n}_end`]" type="time" label="Giờ kết thúc" :name="`slot${n}_end`" class="font-code" />
                             </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-sm sm:grid-cols-2">
+                        <UiSelect
+                            id="tkb_room"
+                            v-model="form.room_id"
+                            label="Chọn phòng học"
+                            name="room_id"
+                            :placeholder="!form.class_id ? '-- Chọn lớp trước --' : classRooms.length ? '-- Chưa gán phòng --' : '-- Chi nhánh chưa có phòng học --'"
+                            :options="classRooms"
+                            :disabled="!form.class_id"
+                            hint="Trùng ca với lớp đang học thì không lưu được; trùng lớp chưa bắt đầu học thì được hỏi chuyển phòng."
+                        />
+                        <div v-if="selectedRoom" class="rounded-lg border border-outline-variant bg-surface-container-low p-sm font-body-small text-body-small text-on-surface-variant sm:mt-lg">
+                            <p v-if="!selectedRoom.classes.length">Chưa có lớp nào khác dùng phòng này.</p>
+                            <template v-else>
+                                <p class="font-semibold text-on-surface">Lớp khác đang dùng phòng:</p>
+                                <p v-for="c in selectedRoom.classes.filter((x) => String(x.id) !== String(form.class_id))" :key="c.id">
+                                    {{ c.name }} · {{ c.slots.length ? c.slots.join(', ') : 'chưa có lịch' }}<template v-if="!c.studying"> (chưa bắt đầu học)</template>
+                                </p>
+                            </template>
                         </div>
                     </div>
 
@@ -288,7 +337,8 @@ function searchClasses(event) {
                                 <tr>
                                     <th>Ngày</th>
                                     <th class="text-center">Số ca</th>
-                                    <th class="text-center">Phòng</th>
+                                    <th class="text-center">Phòng dùng</th>
+                                    <th class="text-center">Phòng khả dụng</th>
                                     <th class="text-center">TA có ca</th>
                                     <th class="text-center">Nhân sự cần</th>
                                 </tr>
@@ -301,6 +351,10 @@ function searchClasses(event) {
                                     </td>
                                     <td class="text-center font-code">{{ row.shifts }}</td>
                                     <td class="text-center font-code">{{ row.rooms }}</td>
+                                    <td class="whitespace-nowrap text-center font-code">
+                                        <template v-if="row.rooms_total">{{ row.rooms_free }}/{{ row.rooms_total }} phòng</template>
+                                        <span v-else class="text-on-surface-variant" title="Chi nhánh chưa khai báo phòng học">—</span>
+                                    </td>
                                     <td class="text-center font-code">{{ row.assistants }}</td>
                                     <td class="text-center">
                                         <div class="inline-flex items-center gap-xs">
@@ -327,4 +381,21 @@ function searchClasses(event) {
             </div>
         </section>
     </div>
+    <!-- Popup "Chuyển phòng": phòng đang gán cho lớp chưa bắt đầu học trùng ca -->
+    <UiModal :show="showTransfer" title="Phòng đang được gán cho lớp khác" max-width="md" @close="transferDismissed = true">
+        <p class="text-on-surface" data-testid="room-transfer-question">{{ transferLines[0] }}</p>
+        <div v-if="transferLines.length > 1" class="mt-md rounded-lg border border-outline-variant bg-surface-container-low p-sm">
+            <p class="mb-xs font-label text-label uppercase tracking-wider text-on-surface-variant">Danh sách lớp bị ảnh hưởng</p>
+            <ul class="space-y-xs font-body-small text-body-small">
+                <li v-for="line in transferLines.slice(1)" :key="line" class="flex items-start gap-xs">
+                    <span class="material-symbols-outlined text-[16px] text-warning" aria-hidden="true">swap_horiz</span>{{ line }}
+                </li>
+            </ul>
+        </div>
+        <p class="mt-sm font-body-small text-body-small text-on-surface-variant">Sau khi xác nhận, các lớp trên chuyển về trạng thái chưa có phòng.</p>
+        <template #footer>
+            <UiButton variant="secondary" @click="transferDismissed = true">Hủy</UiButton>
+            <UiButton icon="swap_horiz" @click="confirmTransfer">Chuyển phòng</UiButton>
+        </template>
+    </UiModal>
 </template>

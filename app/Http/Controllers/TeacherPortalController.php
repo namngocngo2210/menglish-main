@@ -270,7 +270,7 @@ class TeacherPortalController extends Controller
                     'class_id' => $s->class_id,
                     'class_name' => $s->classModel?->name,
                     'time' => $s->start_time?->format('H:i').'-'.$s->end_time?->format('H:i'),
-                    'room' => $s->room ? 'P. '.$s->room : '',
+                    'room' => $s->roomLabel() ?? '',
                     'type_label' => self::sessionTypeLabel($s->type),
                     'cancelled' => $s->status === 'cancelled',
                     'done' => $attendanceDone->has($s->id),

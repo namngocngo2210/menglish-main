@@ -125,6 +125,8 @@ final class SidebarMenu
                     ['label' => 'Danh sách', 'route' => 'crm.customers.index', 'active' => ['crm.customers.index', 'crm.customers.show', 'crm.customers.edit', 'crm.customers.create', 'crm.import*']],
                     // Lọc theo query trên cùng route Danh sách (không phải màn riêng).
                     ['label' => 'Chưa liên hệ >24h', 'route' => 'crm.customers.index', 'query' => ['sla' => 1], 'as' => 'chip', 'chip_of' => 'crm.customers.index', 'count' => 'sla', 'tone' => 'danger'],
+                    ['label' => 'Hẹn test hôm nay', 'route' => 'crm.customers.index', 'query' => ['test_today' => 1], 'as' => 'chip', 'chip_of' => 'crm.customers.index', 'count' => 'test_today'],
+                    ['label' => 'Cần gọi lại', 'route' => 'crm.customers.index', 'query' => ['follow_up' => 1], 'as' => 'chip', 'chip_of' => 'crm.customers.index', 'count' => 'follow_up', 'hide_empty' => true],
                     ['label' => 'Chờ xếp lớp', 'route' => 'crm.waiting-list', 'as' => 'chip', 'chip_of' => 'crm.customers.index', 'count' => 'waiting_class'],
                     ['label' => 'Đã nhập học', 'route' => 'crm.customers.won', 'as' => 'chip', 'chip_of' => 'crm.customers.index', 'count' => 'won'],
                     ['label' => 'Thất bại', 'route' => 'crm.lost-deals', 'as' => 'chip', 'chip_of' => 'crm.customers.index', 'count' => 'lost'],
@@ -132,6 +134,8 @@ final class SidebarMenu
                     // Báo cáo tuyển sinh thuộc CRM (30/09/2026, trước ở khu "Báo cáo" riêng). Quyền theo middleware
                     // report.view: chỉ Admin, hoặc người được Admin cấp riêng "Xem báo cáo".
                     ['label' => 'Báo cáo', 'route' => 'crm.reports'],
+                    // Danh mục ưu đãi học phí (dùng lại khi chốt khách / lập phiếu thu).
+                    ['label' => 'Ưu đãi', 'route' => 'crm.promotions.index', 'active' => ['crm.promotions.*']],
                 ]),
                 // Không đặt nút "Xếp lớp" ở header: Chốt & Xếp lớp mở từ thẻ Kanban / hồ sơ khách / Dashboard,
                 // khách Chờ xếp lớp xếp từ cột Hành động của bảng Chờ xếp lớp. Quyền theo middleware (lead.create).
@@ -258,7 +262,8 @@ final class SidebarMenu
                 'label' => 'Kho vật phẩm',
                 'icon' => 'inventory_2',
                 'items' => [
-                    ['label' => 'Hàng hóa & Vật phẩm', 'route' => 'merchandise.index', 'active' => ['merchandise.*']],
+                    ['label' => 'Hàng hóa & Vật phẩm', 'route' => 'merchandise.index', 'active' => ['merchandise.index', 'merchandise.create', 'merchandise.edit']],
+                    ['label' => 'Tồn kho theo chi nhánh', 'route' => 'merchandise.stock.index', 'active' => ['merchandise.stock.*']],
                 ],
             ],
             [
@@ -398,6 +403,8 @@ final class SidebarMenu
                     ...self::anchored(self::CLASS_MANAGER, [
                         ['label' => 'Lịch & TKB lớp', 'route' => 'tasks.schedule-config'],
                     ]),
+                    // Quyền theo middleware can:room.view (Học vụ / Quản lý cơ sở / Học thuật / Admin).
+                    ['label' => 'Phòng học', 'route' => 'rooms.index', 'active' => ['rooms.*']],
                     ...self::anchored(self::HR, [
                         ['label' => 'Tiêu chí KPI học vụ', 'route' => 'kpi.criteria'],
                     ]),

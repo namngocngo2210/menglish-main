@@ -9,6 +9,8 @@
 import { computed, ref } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import UiForm from '@/Components/ui/UiForm.vue';
+import { useBackLink } from '@/lib/backLink';
+import { route } from '@/lib/route';
 import { money, trimNumber } from './format';
 import PayslipLines from './PayslipLines.vue';
 
@@ -36,6 +38,7 @@ const props = defineProps({
     commissionReceipts: { type: Array, default: () => [] },
     printHtml: { type: String, default: '' },
 });
+const back = useBackLink(() => route('payroll.periods.show', props.period.id), 'Quay lại danh sách');
 
 const page = usePage();
 const firstError = computed(() => Object.values(page.props.errors ?? {})[0] ?? null);
@@ -70,8 +73,8 @@ function sessionNote(ts) {
 
     <UiPageHeader :title="variant.title">
         <template #breadcrumbs>
-            <Link :href="route('payroll.periods.show', period.id)" class="inline-flex items-center gap-xs hover:text-primary">
-                <span class="material-symbols-outlined text-[16px]" aria-hidden="true">arrow_back</span>Quay lại danh sách
+            <Link :href="back.href" data-back-link class="inline-flex items-center gap-xs hover:text-primary">
+                <span class="material-symbols-outlined text-[16px]" aria-hidden="true">arrow_back</span>{{ back.label }}
             </Link>
             <span aria-hidden="true">/</span>
             <span>{{ period.title }}</span>

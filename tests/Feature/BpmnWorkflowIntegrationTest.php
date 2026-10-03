@@ -113,7 +113,7 @@ class BpmnWorkflowIntegrationTest extends TestCase
         $payload = [
             'ten_lop' => 'Lớp BPMN TKB', 'ma_lop' => 'BPMN-TKB-01', 'chi_nhanh' => $this->classModel->branch_id,
             'chuong_trinh' => 'IELTS BPMN', 'cap_do' => 'B1', 'si_so_toi_da' => 12,
-            'phong_hoc' => 'P202', 'giao_vien_chinh' => $this->teacher->id,
+            'room_id' => $this->makeRoom($this->classModel->branch_id, 'P202')->id, 'giao_vien_chinh' => $this->teacher->id,
             'schedule_sessions_json' => json_encode([
                 ['date' => $secondDay, 'dateFormatted' => 'ignored', 'shift' => 'Ca 3', 'start' => '14:00', 'end' => '15:30', 'room' => 'P302', 'occupiedRooms' => []],
                 ['date' => $firstDay, 'dateFormatted' => 'ignored', 'shift' => 'Ca 1', 'start' => '08:00', 'end' => '09:30', 'room' => '', 'occupiedRooms' => []],
@@ -219,7 +219,7 @@ class BpmnWorkflowIntegrationTest extends TestCase
             'giao_vien_chinh' => '',
             'tro_giang' => '',
             'giao_vien_nn' => '',
-            'phong_hoc' => '',
+            'room_id' => '',
         ])->assertRedirect()->assertSessionHasNoErrors();
 
         $fresh = $this->classModel->fresh();
@@ -250,7 +250,7 @@ class BpmnWorkflowIntegrationTest extends TestCase
             'cap_do' => 'B1',
             'si_so_toi_da' => 12,
             'giao_vien_chinh' => $this->manager->id,
-            'phong_hoc' => 'P202',
+            'room_id' => $this->makeRoom($this->classModel->branch_id, 'P202')->id,
         ])->assertRedirect()->assertSessionHasNoErrors();
 
         $session->refresh();
@@ -311,7 +311,7 @@ class BpmnWorkflowIntegrationTest extends TestCase
         $this->actingAs($this->manager)->post(route('classes.store'), [
             'ten_lop' => 'Lớp Tái Sử Dụng Phòng', 'chi_nhanh' => $this->classModel->branch_id,
             'chuong_trinh' => 'IELTS BPMN', 'cap_do' => 'B1', 'si_so_toi_da' => 10,
-            'phong_hoc' => 'P101', 'giao_vien_chinh' => $this->teacher->id,
+            'room_id' => $this->makeRoom($this->classModel->branch_id, 'P101')->id, 'giao_vien_chinh' => $this->teacher->id,
             'schedule_sessions_json' => json_encode([
                 ['date' => $day, 'shift' => 'Ca 1', 'start' => '08:00', 'end' => '09:30', 'room' => 'P101'],
             ]),

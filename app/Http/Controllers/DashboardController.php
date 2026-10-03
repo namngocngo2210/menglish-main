@@ -9,15 +9,15 @@ use App\Models\BigTestResult;
 use App\Models\ClassModel;
 use App\Models\ClassReport;
 use App\Models\CrmCustomer;
-use App\Models\PayrollPeriod;
 use App\Models\Student;
-use App\Models\StudentTuition;
 use App\Models\SupportTicket;
 use App\Models\SyllabusAdjustmentRequest;
 use App\Models\SyllabusChangeProposal;
 use App\Models\TuitionReceipt;
 use App\Models\User;
 use App\Models\WorkTask;
+use App\Support\Approvals\ApprovalInboxService;
+use App\Support\Dashboard\MyWorkBoard;
 use App\Support\DataScope;
 use App\Support\Money;
 use App\Support\Navigation\SidebarMenu;
@@ -32,12 +32,14 @@ use Inertia\Response;
  * Dashboard theo quyền (BPMN bước 22):
  *  - dashboard.operations: bảng điều hành — phạm vi "dashboard.scope_all" (Admin) số liệu toàn hệ thống, mức
  *    "Chi nhánh" (Quản lý cơ sở) giới hạn chi nhánh mình.
- *  - dashboard.academic (Học thuật): lớp đang chạy, đề xuất giáo trình/giãn tiến độ chờ duyệt, Big Test sắp tới.
- * Người khác giữ lưới lối tắt theo quyền như trước (thẻ số liệu + ô phân hệ, chỉ gồm link user mở được).
+ *  - dashboard.academic (Học thuật): lớp đang chạy, đề xuất giáo trình/giãn tiến độ chờ duyệt, Big Test sắp tới,
+ *    kèm lịch hẹn 7 ngày tới + việc của tôi (MyWorkBoard).
+ *  - Người khác: "Việc của bạn" (MyWorkBoard) — lịch hẹn 7 ngày tới, đầu việc cần xử lý, việc được giao trong tuần.
+ * Cuối trang là lưới phân hệ (chỉ gồm link user mở được).
  */
 class DashboardController extends Controller
 {
-    public function __invoke(Request $request, SidebarMenu $menu): Response|RedirectResponse
+    public function __invoke(Request $request, SidebarMenu $menu, ApprovalInboxService $approvals): Response|RedirectResponse
     {
         $user = $request->user();
 
@@ -45,20 +47,22 @@ class DashboardController extends Controller
         if ($user->isPortalStudentOnly()) {
             return redirect()->route('portal.student.home');
         }
-        $roleDashboard = null;
         $isOperations = $user->can('dashboard.operations');
 
-        if ($isOperations) {
-            $roleDashboard = DataScope::isAll($user, 'dashboard')
-                ? $this->operationsDashboard(null, 'Toàn hệ thống')
-                : $this->operationsDashboard($user->branchIds(), $user->branch?->name ?? 'Chi nhánh của bạn');
-        } elseif ($user->can('dashboard.academic')) {
-            $roleDashboard = $this->academicDashboard($user);
-        }
-
-        // Thẻ số liệu & ô phân hệ chỉ hiện link user mở được: quyền đọc từ middleware `can:` của route như menu trái
+        // Khối số liệu & ô phân hệ chỉ hiện link user mở được: quyền đọc từ middleware `can:` của route như menu trái
         // (SidebarMenu::canSee). `can` bổ sung cho route tự kiểm tra quyền trong controller.
         $canOpen = fn (string $route, array $can = []) => $menu->canSee($user, ['route' => $route, 'can' => $can], $request);
+        // Admin / Quản lý: bảng điều hành nhiều số liệu. Vai trò khác (chủ dự án 03/10/2026): lịch hẹn + đầu việc cần xử lý
+        // trong tuần / tháng của chính mình; Học thuật giữ hàng chờ duyệt chuyên môn và thêm lịch hẹn + việc của tôi.
+        $myWork = new MyWorkBoard($user, $canOpen, $approvals);
+
+        $roleDashboard = match (true) {
+            $isOperations => DataScope::isAll($user, 'dashboard')
+                ? $this->operationsDashboard($user, null, 'Toàn hệ thống')
+                : $this->operationsDashboard($user, $user->branchIds(), $user->branch?->name ?? 'Chi nhánh của bạn'),
+            $user->can('dashboard.academic') => $this->academicDashboard($user) + $myWork->agendaAndTasks(),
+            default => $myWork->build(),
+        };
 
         return Inertia::render('Dashboard', [
             'isOperations' => $isOperations,
@@ -71,55 +75,8 @@ class DashboardController extends Controller
                 'tasksUrl' => $user->can('work_task.view') ? route('portal.ta-tasks') : null,
             ],
             'roleDashboard' => $roleDashboard,
-            'kpis' => $roleDashboard === null ? $this->kpiCards($user, $canOpen) : null,
             'modules' => $this->modules($user, $canOpen),
         ]);
-    }
-
-    /**
-     * Thẻ số liệu cho vai trò không có dashboard riêng — số liệu theo phạm vi dữ liệu của user (chi nhánh / lớp mình),
-     * không phải toàn trung tâm. Thẻ nào user không mở được màn đích thì null.
-     *
-     * @param  Closure(string, array<int, string>=): bool  $canOpen
-     * @return array<string, array<string, mixed>|null>
-     */
-    private function kpiCards(User $user, Closure $canOpen): array
-    {
-        $cards = ['lead' => null, 'tuition' => null, 'student' => null, 'payroll' => null];
-
-        if ($user->can('lead.view') && $canOpen('crm.pipeline')) {
-            $cards['lead'] = [
-                'url' => route('crm.pipeline'),
-                'count' => CrmCustomer::query()->visibleTo($user)->count(),
-                'won' => CrmCustomer::query()->visibleTo($user)->where('stage', 'won')->count(),
-            ];
-        }
-        if ($user->can('tuition.view') && $canOpen('tuition.students')) {
-            $tuitionScope = fn () => StudentTuition::query()->whereHas('student', fn ($q) => $q->visibleTo($user));
-            $cards['tuition'] = [
-                'url' => route('tuition.students'),
-                'paid' => number_format($tuitionScope()->sum('paid_amount') / 1000000, 1).' tr',
-                'overdue' => $tuitionScope()->where('status', 'overdue')->count(),
-            ];
-        }
-        if ($user->can('student.view') && $canOpen('students.index')) {
-            $cards['student'] = [
-                'url' => route('students.index'),
-                'students' => Student::query()->visibleTo($user)->count(),
-                'classes' => ClassModel::query()->visibleTo($user)->where('status', 'active')->count(),
-            ];
-        }
-        $payrollRoute = $user->can('payroll.view') ? 'payroll.periods.index' : 'portal.my-salary';
-        if (($user->can('payroll.view') || $user->can('payroll.view_own')) && $canOpen($payrollRoute)) {
-            $latestPayroll = PayrollPeriod::latest()->first();
-            $cards['payroll'] = [
-                'url' => route($payrollRoute),
-                'value' => $user->can('payroll.view') ? number_format(($latestPayroll?->total_amount ?? 0) / 1000000, 1).' tr' : 'Xem phiếu',
-                'title' => $latestPayroll?->title ?? 'Chưa có kỳ lương',
-            ];
-        }
-
-        return $cards;
     }
 
     /**
@@ -192,9 +149,25 @@ class DashboardController extends Controller
     }
 
     /**
+     * Lịch hẹn test đầu vào hôm nay (CRM, theo phạm vi khách truyền vào): tổng, số chưa làm bài, link danh sách lọc sẵn.
+     *
+     * @return array{url: string, count: int, pending: int}
+     */
+    private function testTodaySummary(Builder $customers): array
+    {
+        $today = (clone $customers)->testToday();
+
+        return [
+            'url' => route('crm.customers.index', ['test_today' => 1]),
+            'count' => (clone $today)->count(),
+            'pending' => (clone $today)->where('stage', 'test_scheduled')->count(),
+        ];
+    }
+
+    /**
      * @param  int[]|null  $branchIds  null = toàn hệ thống
      */
-    private function operationsDashboard(?array $branchIds, string $scopeLabel): array
+    private function operationsDashboard(User $user, ?array $branchIds, string $scopeLabel): array
     {
         $monthStart = now()->startOfMonth();
         $monthEnd = now()->endOfMonth();
@@ -254,6 +227,9 @@ class DashboardController extends Controller
             ->when($branchIds !== null, fn (Builder $q) => $q->whereHas('creator', fn (Builder $c) => $c->whereIn('branch_id', $branchIds)))
             ->count();
 
+        // Lịch hẹn test hôm nay: cùng phạm vi khách CRM với danh sách mà link mở ra.
+        $testToday = $user->can('lead.view') ? $this->testTodaySummary(CrmCustomer::query()->visibleTo($user)) : null;
+
         return [
             'type' => $branchIds === null ? 'admin' : 'manager',
             'title' => $branchIds === null ? 'Tổng quan toàn hệ thống' : 'Tổng quan chi nhánh',
@@ -271,6 +247,7 @@ class DashboardController extends Controller
                 ['label' => 'Báo cáo trực lớp chờ xác nhận', 'value' => $pendingReports, 'icon' => 'fact_check', 'href' => route('tasks.manual-approvals', ['kind' => 'report']), 'hint' => 'GV chính / người giao việc xác nhận'],
                 ['label' => 'Phiếu thu chờ duyệt', 'value' => $pendingReceipts, 'icon' => 'receipt_long', 'href' => route('tuition.receipts.approve')],
                 ['label' => 'Ticket đang mở', 'value' => $openTickets, 'icon' => 'support_agent', 'href' => route('tickets.index'), 'hint' => $unassignedTickets > 0 ? "{$unassignedTickets} ticket chưa có người xử lý" : null],
+                ...($testToday ? [['label' => 'Lịch hẹn test hôm nay', 'value' => $testToday['count'], 'icon' => 'event', 'href' => $testToday['url'], 'hint' => $testToday['count'] > 0 ? "{$testToday['pending']} chưa làm bài" : null]] : []),
             ],
             'overdueTasks' => $overdueList->map(fn (WorkTask $task) => [
                 'id' => $task->id,

@@ -9,6 +9,7 @@ use App\Models\PlacementTest;
 use App\Models\PlacementTestSubmission;
 use App\Services\CrmStageService;
 use App\Services\NotificationService;
+use App\Services\PlacementPdfAnswerSheet;
 use App\Services\PlacementPortalLinkService;
 use App\Services\PlacementRubricService;
 use App\Services\SafeUploadService;
@@ -134,7 +135,7 @@ class PlacementTestController extends Controller
         return back()->with('status', $test->is_active ? "Đã kích hoạt đề {$test->code}." : "Đã ẩn đề {$test->code} — link làm bài của đề này ngừng hoạt động.");
     }
 
-    public function create(): InertiaResponse
+    public function create(Request $request): InertiaResponse
     {
         $initialLevel = 'lop_3';
         $levelRubricGroups = collect(PlacementTest::GRADE_LEVELS)->map(fn ($label, $level) => PlacementTest::rubricGroupForLevel($level));
@@ -146,8 +147,15 @@ class PlacementTestController extends Controller
             'levelRubricGroups' => $levelRubricGroups,
             'initialLevel' => $initialLevel,
             'initialCode' => 'TEST-'.(self::GRADE_CODE_TOKENS[$initialGroup] ?? 'G3').'-'.date('ymd-His'),
+            // Cách soạn mở sẵn: mặc định "Tải đề PDF"; ?mode=manual → "Soạn từng câu".
+            'initialMode' => $request->query('mode') === 'manual' ? 'manual' : 'pdf',
         ]);
     }
+
+    /** Thông báo lỗi khi tạo / sửa đề bằng file PDF. */
+    private const PDF_MESSAGES = [
+        'pdf_path.required_if' => 'Hãy tải file đề PDF lên (hoặc chọn cách "Soạn từng câu").',
+    ];
 
     /** Mã đề phải chứa khối lớp để hệ thống chấm theo thang điểm (PlacementRubricService::detectGradeGroup). */
     public const GRADE_CODE_TOKENS = [
@@ -170,8 +178,12 @@ class PlacementTestController extends Controller
             'duration_minutes' => 'required|integer|min:10',
             'questions_count' => 'nullable|integer|min:1',
             'questions' => 'nullable',
+            'mode' => 'nullable|in:pdf,manual',
+            'pdf_path' => 'required_if:mode,pdf|nullable|string|max:255',
+            'audio_url' => 'nullable|string|max:500',
             'save_mode' => 'nullable|in:draft,publish',
-        ]);
+        ], self::PDF_MESSAGES);
+        $pdfPath = $this->validatedPdfPath($validated['pdf_path'] ?? null);
         // Mockup Tạo đề — "Cấp độ" = khối lớp (A6 Q2); mã đề phải khớp khối để chấm đúng thang điểm.
         $gradeLevel = ($validated['grade_level'] ?? null) ?: PlacementTest::detectGradeLevel($validated['code']);
         $gradeGroup = ($validated['grade_level'] ?? null)
@@ -190,6 +202,9 @@ class PlacementTestController extends Controller
         if (is_string($questions)) {
             $questions = json_decode($questions, true);
         }
+        if ($pdfPath && (! is_array($questions) || $questions === [])) {
+            throw ValidationException::withMessages(['questions' => 'Phiếu trả lời chưa có câu nào — tạo phiếu theo số câu của đề rồi điền đáp án.']);
+        }
 
         $questionsCount = is_array($questions) && count($questions) > 0 ? count($questions) : ($validated['questions_count'] ?? 10);
 
@@ -202,6 +217,8 @@ class PlacementTestController extends Controller
             'duration_minutes' => $validated['duration_minutes'],
             'questions_count' => max(1, $questionsCount),
             'questions' => $questions,
+            'pdf_path' => $pdfPath,
+            'audio_url' => $pdfPath ? (trim((string) ($validated['audio_url'] ?? '')) ?: null) : null,
             // "Lưu nháp" = đề ẩn (chưa phát hành link làm bài).
             'is_active' => ($validated['save_mode'] ?? 'publish') !== 'draft',
         ]);
@@ -229,6 +246,61 @@ class PlacementTestController extends Controller
         return response()->json(['url' => Storage::disk('public')->url($path), 'path' => $path]);
     }
 
+    /**
+     * Tạo đề từ PDF: lưu file (disk public — thí sinh không đăng nhập vẫn xem được), đọc chữ trong file
+     * và dựng sẵn phiếu đáp án (PlacementPdfAnswerSheet) để người tạo đề kiểm tra, sửa trước khi lưu.
+     */
+    public function uploadPdf(Request $request)
+    {
+        abort_unless($request->user()->can('placement_test.create') || $request->user()->can('placement_test.update'), 403);
+        $request->validate(['file' => 'required|file|max:20480'], ['file.max' => 'File PDF tối đa 20 MB.']);
+        $path = SafeUploadService::store($request->file('file'), 'placement_tests/pdf/'.now()->format('Y/m'), ['pdf'], 'file');
+        $pages = PlacementPdfAnswerSheet::extractPages(Storage::disk('public')->path($path));
+        if ($request->boolean('answers_only')) {
+            // File đáp án riêng: chỉ đọc đáp án, không giữ file trên disk công khai.
+            Storage::disk('public')->delete($path);
+
+            return response()->json(['answers' => PlacementPdfAnswerSheet::parseKey(PlacementPdfAnswerSheet::keyText(implode("\n", $pages)))]);
+        }
+
+        return response()->json([
+            'pdf_path' => $path,
+            'pdf_url' => Storage::disk('public')->url($path),
+            // File còn trang đáp án: dùng để đọc đáp án, nhưng phải đổi sang file không có đáp án trước khi lưu đề.
+            'answer_key_page' => PlacementPdfAnswerSheet::answerKeyPage($pages),
+            ...PlacementPdfAnswerSheet::build(implode("\n", $pages)),
+        ]);
+    }
+
+    /** Dán nhanh đáp án ("1A 2B 3 apple") lên phiếu: trả về danh sách số câu → đáp án. */
+    public function parseAnswers(Request $request)
+    {
+        abort_unless($request->user()->can('placement_test.create') || $request->user()->can('placement_test.update'), 403);
+        $validated = $request->validate(['text' => 'required|string|max:20000']);
+
+        return response()->json(['answers' => PlacementPdfAnswerSheet::parseKey($validated['text'])]);
+    }
+
+    /**
+     * Chỉ nhận file PDF đã tải lên qua uploadPdf (thư mục placement_tests/pdf trên disk public).
+     * Thí sinh xem nguyên file nên file mới gắn vào đề không được còn trang đáp án ($currentPath: file đề đang dùng, không đọc lại).
+     */
+    private function validatedPdfPath(?string $path, ?string $currentPath = null): ?string
+    {
+        $path = trim((string) $path);
+        if ($path === '') {
+            return null;
+        }
+        if (! preg_match('#^placement_tests/pdf/[\w/-]+\.pdf$#', $path) || ! Storage::disk('public')->exists($path)) {
+            throw ValidationException::withMessages(['pdf_path' => 'File đề PDF không hợp lệ hoặc đã bị xoá — hãy tải lại file PDF.']);
+        }
+        if ($path !== $currentPath && ($page = PlacementPdfAnswerSheet::answerKeyPage(PlacementPdfAnswerSheet::extractPages(Storage::disk('public')->path($path))))) {
+            throw ValidationException::withMessages(['pdf_path' => "File đề PDF còn phần đáp án (trang {$page}) — thí sinh sẽ thấy đáp án. Hãy bấm \"Đổi file\" và tải file đề không có trang đáp án; phiếu và đáp án đã đọc được vẫn giữ nguyên."]);
+        }
+
+        return $path;
+    }
+
     public function showTest($id): InertiaResponse
     {
         $test = PlacementTest::where('id', $id)->orWhere('code', $id)->firstOrFail();
@@ -249,6 +321,8 @@ class PlacementTestController extends Controller
                 'duration_minutes' => $test->duration_minutes,
                 'questions_count' => $test->questions_count,
                 'questions' => array_values(is_array($test->questions) ? $test->questions : []),
+                'pdf_url' => $test->pdfUrl(),
+                'audio_url' => $test->audio_url,
             ],
             'takeUrl' => route('portal.test.take', $test->code),
             'submissions' => $test->submissions->map(fn (PlacementTestSubmission $sub) => [
@@ -289,6 +363,9 @@ class PlacementTestController extends Controller
                 'duration_minutes' => $test->duration_minutes,
                 'is_active' => (bool) $test->is_active,
                 'questions' => array_values(is_array($test->questions) ? $test->questions : []),
+                'pdf_path' => $test->pdf_path,
+                'pdf_url' => $test->pdfUrl(),
+                'audio_url' => $test->audio_url,
             ],
             'gradeLevels' => Ui::options(PlacementTest::GRADE_LEVELS),
         ]);
@@ -311,12 +388,20 @@ class PlacementTestController extends Controller
             'duration_minutes' => 'required|integer|min:10',
             'questions_count' => 'nullable|integer|min:1',
             'questions' => 'nullable',
+            'mode' => 'nullable|in:pdf,manual',
+            'pdf_path' => 'required_if:mode,pdf|nullable|string|max:255',
+            'audio_url' => 'nullable|string|max:500',
             'is_active' => 'nullable|boolean',
-        ]);
+        ], self::PDF_MESSAGES);
+        // Form cũ không gửi pdf_path → giữ nguyên file PDF; gửi rỗng → chuyển về đề soạn từng câu.
+        $pdfPath = $request->has('pdf_path') ? $this->validatedPdfPath($validated['pdf_path'] ?? null, $test->pdf_path) : $test->pdf_path;
 
         $questions = $request->input('questions');
         if (is_string($questions)) {
             $questions = json_decode($questions, true);
+        }
+        if ($pdfPath && (! is_array($questions) || $questions === [])) {
+            throw ValidationException::withMessages(['questions' => 'Phiếu trả lời chưa có câu nào — tạo phiếu theo số câu của đề rồi điền đáp án.']);
         }
 
         $questionsCount = is_array($questions) && count($questions) > 0 ? count($questions) : ($validated['questions_count'] ?? $test->questions_count);
@@ -329,6 +414,8 @@ class PlacementTestController extends Controller
             'duration_minutes' => $validated['duration_minutes'],
             'questions_count' => max(1, $questionsCount),
             'questions' => $questions ?? $test->questions,
+            'pdf_path' => $pdfPath,
+            'audio_url' => $pdfPath ? ($request->has('audio_url') ? (trim((string) ($validated['audio_url'] ?? '')) ?: null) : $test->audio_url) : null,
             'is_active' => $request->has('is_active') ? true : false,
         ]);
 
@@ -350,6 +437,8 @@ class PlacementTestController extends Controller
             'duration_minutes' => $test->duration_minutes,
             'questions_count' => $test->questions_count,
             'questions' => $test->questions,
+            'pdf_path' => $test->pdf_path,
+            'audio_url' => $test->audio_url,
             'is_active' => true,
             'is_preset' => false,
         ]);
@@ -428,6 +517,7 @@ class PlacementTestController extends Controller
                 'candidate_phone' => $submission->candidate_phone,
                 'customer_id' => $submission->customer_id,
                 'test_title' => $submission->test?->title ?? 'Đề Test Đầu Vào MEnglish',
+                'test_pdf_url' => $submission->test?->pdfUrl(),
                 'score_summary' => $submission->scoreSummary(),
                 'is_pending' => $submission->isPending(),
                 'submitted_at' => ($submission->created_at ?? now())->toIso8601String(),
@@ -470,10 +560,14 @@ class PlacementTestController extends Controller
                 $candidateAnswer = (string) $submission->writing_content;
             }
             $isObjective = in_array($type, ['multiple_choice', 'fill_blank', 'single_choice']);
-            $isCorrect = $isObjective && ! empty($candidateAnswer) && ! empty($correctAnswer) && strcasecmp($candidateAnswer, $correctAnswer) === 0;
+            // Cùng cách so với lúc tự chấm (không phân biệt hoa thường, chấp nhận nhiều cách viết "7 | seven").
+            $isCorrect = $isObjective && ! empty($candidateAnswer) && ! empty($correctAnswer) && self::answerMatches($candidateAnswer, $correctAnswer);
 
             $rows[] = [
                 'number' => $idx + 1,
+                // Đề PDF: số câu in trong file (có thể đánh lại từ 1 ở mỗi phần).
+                'pdf_number' => isset($q['number']) && $q['number'] !== '' ? (string) $q['number'] : null,
+                'section' => $q['section'] ?? null,
                 'skill' => $skill,
                 'type' => $type,
                 'title' => $q['title'] ?? 'Câu hỏi trắc nghiệm',
@@ -612,8 +706,10 @@ class PlacementTestController extends Controller
                 'target_level' => $test->target_level,
                 'duration_minutes' => $test->duration_minutes,
                 'questions_count' => $test->questions_count,
+                'pdf_url' => $test->pdfUrl(),
+                'audio_src' => self::audioSrc($test->audio_url),
             ],
-            ...$this->portalQuestions(is_array($test->questions) ? $test->questions : []),
+            ...$this->portalQuestions(is_array($test->questions) ? $test->questions : [], (bool) $test->pdf_path),
             'lead' => $lead ? ['name' => $lead->name, 'phone' => $lead->phone, 'email' => $lead->email] : null,
             'leadToken' => $leadToken,
             'maxViolations' => PlacementTestSubmission::MAX_VIOLATIONS,
@@ -623,12 +719,36 @@ class PlacementTestController extends Controller
     /**
      * Câu hỏi cho trang làm bài công khai — chỉ phần thí sinh cần thấy (props nằm trong mã nguồn trang:
      * không gửi đáp án, giải thích, ghi chú giáo viên). Số câu ("Câu n") và tên ô trả lời theo vị trí trong đề như cũ.
+     * Đề tạo từ PDF ($pdfMode): thí sinh đọc đề trong file PDF nên chỉ nhận "sheet" — phiếu trả lời theo số câu in trong PDF
+     * (mọi câu trắc nghiệm / điền từ, kể cả câu Nghe); phần Viết chỉ hiện khi đề có câu tự luận.
      *
      * @param  array<int|string, array<string, mixed>>  $questions
-     * @return array{listening: list<array<string, mixed>>, reading: list<array<string, mixed>>, writingPrompt: string, speaking: ?array{title: string, cue_points: string}}
+     * @return array{listening: list<array<string, mixed>>, reading: list<array<string, mixed>>, writingPrompt: ?string, speaking: ?array{title: string, cue_points: string}, sheet: list<array<string, mixed>>}
      */
-    private function portalQuestions(array $questions): array
+    private function portalQuestions(array $questions, bool $pdfMode = false): array
     {
+        if ($pdfMode) {
+            $essay = collect($questions)->first(fn ($q) => ($q['type'] ?? '') === 'essay');
+
+            return [
+                'listening' => [],
+                'reading' => [],
+                'sheet' => collect($questions)
+                    ->filter(fn ($q) => in_array($q['type'] ?? '', ['multiple_choice', 'fill_blank'], true))
+                    ->map(fn (array $q, int|string $idx) => [
+                        'number' => (string) ($q['number'] ?? '') !== '' ? (string) $q['number'] : (string) ((int) $idx + 1),
+                        'section' => (string) ($q['section'] ?? ''),
+                        'answer_key' => (string) ($q['id'] ?? $idx),
+                        'type' => $q['type'],
+                        'options' => collect($q['options'] ?? [])->pluck('key')->filter()->values()->all(),
+                    ])->values()->all(),
+                'writingPrompt' => $essay
+                    ? 'Làm bài viết theo '.(! empty($essay['number']) ? 'câu '.$essay['number'] : 'đề bài').' trong file đề'.(! empty($essay['title']) ? ': '.$essay['title'] : '.')
+                    : null,
+                'speaking' => null,
+            ];
+        }
+
         $item = fn (array $q, int|string $idx) => [
             'number' => (int) $idx + 1,
             'answer_key' => (string) ($q['id'] ?? $idx),
@@ -636,9 +756,7 @@ class PlacementTestController extends Controller
             'title' => $q['title'] ?? '',
             'passage' => $q['passage'] ?? null,
             'image_url' => $q['image_url'] ?? null,
-            'audio_src' => ! empty($q['audio_url'])
-                ? (str_starts_with($q['audio_url'], 'http') || str_starts_with($q['audio_url'], '/') ? $q['audio_url'] : '/'.$q['audio_url'])
-                : null,
+            'audio_src' => self::audioSrc($q['audio_url'] ?? null),
             'options' => collect($q['options'] ?? [])->map(fn ($opt) => [
                 'key' => $opt['key'] ?? '',
                 'text' => $opt['text'] ?? '',
@@ -659,7 +777,19 @@ class PlacementTestController extends Controller
             'speaking' => $speakingQ && ! empty($speakingQ['cue_points'])
                 ? ['title' => $speakingQ['title'] ?? '', 'cue_points' => $speakingQ['cue_points']]
                 : null,
+            'sheet' => [],
         ];
+    }
+
+    /** Đường dẫn file nghe cho thẻ <audio> (URL đầy đủ hoặc đường dẫn gốc web). */
+    private static function audioSrc(?string $url): ?string
+    {
+        $url = trim((string) $url);
+        if ($url === '') {
+            return null;
+        }
+
+        return str_starts_with($url, 'http') || str_starts_with($url, '/') ? $url : '/'.$url;
     }
 
     public function portalSubmitTest($code, Request $request, PlacementPortalLinkService $links)

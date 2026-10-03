@@ -2,6 +2,8 @@
 /** Dashboard theo vai trò (BPMN 22) — số liệu thật từ DashboardController: thẻ số liệu, hàng chờ, việc quá hạn / đề xuất + Big Test. */
 import { Link } from '@inertiajs/vue3';
 import { shortenCodesIn } from '@/lib/format';
+import AgendaCard from './AgendaCard.vue';
+import MyTasksCard from './MyTasksCard.vue';
 
 defineProps({ dashboard: { type: Object, required: true } });
 </script>
@@ -23,7 +25,7 @@ defineProps({ dashboard: { type: Object, required: true } });
             <div class="border-b border-surface-variant px-md py-sm">
                 <h3 class="font-h3 text-h3 text-on-surface">Hàng chờ cần xử lý</h3>
             </div>
-            <div :class="['grid grid-cols-1 divide-y divide-surface-variant/60 sm:grid-cols-2 sm:divide-y-0', dashboard.queues.length >= 4 ? 'xl:grid-cols-4' : 'xl:grid-cols-3']" data-role-queues>
+            <div :class="['grid grid-cols-1 divide-y divide-surface-variant/60 sm:grid-cols-2 sm:divide-y-0', dashboard.queues.length >= 5 ? 'xl:grid-cols-5' : dashboard.queues.length >= 4 ? 'xl:grid-cols-4' : 'xl:grid-cols-3']" data-role-queues>
                 <Link v-for="queue in dashboard.queues" :key="queue.label" :href="queue.href ?? '#'" class="flex items-center gap-sm px-md py-sm hover:bg-surface-container-low">
                     <span :class="['flex h-10 w-10 shrink-0 items-center justify-center rounded-full', queue.value > 0 ? 'bg-warning-container text-warning' : 'bg-surface-container-low text-on-surface-variant']">
                         <span class="material-symbols-outlined" aria-hidden="true">{{ queue.icon }}</span>
@@ -78,6 +80,12 @@ defineProps({ dashboard: { type: Object, required: true } });
                 </div>
                 <UiEmptyState v-if="!dashboard.upcomingBigTests.length" icon="event_available" title="Không có Big Test trong 14 ngày tới" />
             </div>
+        </div>
+
+        <!-- Học thuật: thêm lịch hẹn 7 ngày tới (Big Test) + việc của tôi trong tuần -->
+        <div v-if="dashboard.agenda" class="grid grid-cols-1 gap-md lg:grid-cols-3">
+            <AgendaCard :agenda="dashboard.agenda" class="lg:col-span-2" />
+            <MyTasksCard v-if="dashboard.myTasks" :tasks="dashboard.myTasks" />
         </div>
     </section>
 </template>

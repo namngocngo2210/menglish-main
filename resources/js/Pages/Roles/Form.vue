@@ -8,6 +8,7 @@ import { computed } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import RoleFields from './RoleFields.vue';
 import RoleMatrix from './RoleMatrix.vue';
+import { useBackLink } from '@/lib/backLink';
 import { route } from '@/lib/route';
 
 defineOptions({ layout: { title: 'Vai trò' } });
@@ -22,6 +23,7 @@ const props = defineProps({
     selected: { type: Array, default: () => [] },
     canAssignPermissions: { type: Boolean, default: false },
 });
+const back = useBackLink(() => route('roles.index'));
 const page = usePage();
 const action = computed(() => (props.role ? route('roles.update', props.role.id) : route('roles.store')));
 const method = computed(() => (props.role ? 'put' : 'post'));
@@ -46,7 +48,7 @@ const firstError = computed(() => Object.values(page.props.errors ?? {})[0] ?? n
                 <span>{{ role ? role.short_label : 'Tạo mới' }}</span>
             </template>
             <template #actions>
-                <UiButton variant="secondary" icon="arrow_back" :href="route('roles.index')">Quay lại</UiButton>
+                <UiButton variant="secondary" icon="arrow_back" :href="back.href" data-back-link>Quay lại</UiButton>
                 <UiButton type="submit" form="roleForm" icon="save">Lưu vai trò</UiButton>
             </template>
         </UiPageHeader>

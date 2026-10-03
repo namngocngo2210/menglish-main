@@ -2,6 +2,8 @@
 /**
  * Khối tiêu đề CHUNG của mọi trang (như <x-ui.page-header>): tiêu đề (cũng là tiêu đề tab trình duyệt + topbar),
  * mô tả, icon, nút quay lại; slot breadcrumbs / badges / meta / actions.
+ * `back`: URL dự phòng của nút quay lại — nút về trang người dùng vừa mở trước đó (giữ bộ lọc, tab, trang), chỉ dùng `back`
+ * khi không có trang trước (tab mới, link ngoài). Nút quay lại tự làm khác: useBackLink() trong lib/backLink.js.
  *   <UiPageHeader title="TKB — Quản lý lớp học" icon="calendar_month" description="Cấu hình thời khóa biểu.">
  *       <template #actions><UiButton icon="add" :href="route('classes.create')">Tạo lớp mới</UiButton></template>
  *   </UiPageHeader>

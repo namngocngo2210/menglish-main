@@ -2,12 +2,15 @@
 /** Chi tiết hồ sơ học sinh (mockup epic-6/chi-tiet-ho-so-hoc-sinh-desktop). Nội dung: Components/Students/StudentProfile. */
 import { Link } from '@inertiajs/vue3';
 import StudentProfile from '@/Components/Students/StudentProfile.vue';
+import { useBackLink } from '@/lib/backLink';
+import { route } from '@/lib/route';
 
 defineOptions({ layout: { title: 'Chi tiết hồ sơ học sinh' } });
 
 defineProps({
     student: { type: Object, required: true },
 });
+const back = useBackLink(() => route('students.index'), 'Danh sách học sinh');
 </script>
 
 <template>
@@ -21,7 +24,7 @@ defineProps({
         </template>
         <template #actions>
             <UiButton variant="secondary" icon="admin_panel_settings" :href="route('students.scoped', student.id)">Xem theo phân quyền</UiButton>
-            <UiButton variant="secondary" icon="arrow_back" :href="route('students.index')">Danh sách học sinh</UiButton>
+            <UiButton variant="secondary" icon="arrow_back" :href="back.href" data-back-link>{{ back.label }}</UiButton>
         </template>
     </UiPageHeader>
 
