@@ -32,6 +32,8 @@ const props = defineProps({
     defaultCourseId: { type: Number, default: null },
     studentCodePreview: { type: String, required: true },
     oldPaperInvoiceNumber: { type: String, default: '' },
+    paperInvoiceNext: { type: Object, default: () => ({}) },
+    merchandiseStock: { type: Object, default: () => ({}) },
     center: { type: Object, required: true },
     billDates: { type: Object, required: true },
 });
@@ -124,7 +126,8 @@ const canSubmit = computed(
             (w.assignLater && !w.courseId) ||
             (w.feePaid && w.paidAmount <= 0 && w.prepaidAmount <= 0) ||
             (needsBankAccount.value && !w.selectedBankAccountId) ||
-            (w.feePaid && w.paidAmount > 0 && w.paymentMethod === 'cash' && !String(w.paperInvoiceNumber).trim())
+            (w.feePaid && w.paidAmount > 0 && w.paymentMethod === 'cash' && !paperMode.value && !String(w.paperInvoiceNumber).trim()) ||
+            (paperMode.value && (!paperNumber.value || !paperPhotoName.value))
         ),
 );
 
@@ -139,7 +142,17 @@ const classOptions = computed(() =>
         label: `${cl.name} (${cl.code})${cl.status === 'upcoming' ? ' · Sắp khai giảng' : ''} · Cơ sở: ${cl.branch_name ?? ''} · Sĩ số: ${cl.active_enrollments_count}/${cl.max_capacity} · Lịch học: ${cl.schedule_text ?? ''}`,
     })),
 );
-const merchandiseOptions = computed(() => props.merchandiseItems.map((m) => ({ value: m.id, label: `[${m.category_label}] ${m.name} (${m.formatted_price})` })));
+// Kho theo chi nhánh của lớp (xếp lớp sau: chi nhánh của khách). Hết hàng chỉ cảnh báo, không chặn chốt.
+const wizardBranchId = computed(() => (!w.assignLater && w.classBranchId) || w.customerBranchId || '');
+const stockOf = (itemId) => (wizardBranchId.value ? (props.merchandiseStock[wizardBranchId.value]?.[itemId] ?? 0) : null);
+const merchandiseOptions = computed(() =>
+    props.merchandiseItems.map((m) => ({ value: m.id, label: `[${m.category_label}] ${m.name} (${m.formatted_price})` + (stockOf(m.id) !== null ? ` · Tồn chi nhánh: ${stockOf(m.id)}` : '') })),
+);
+
+// Tiền mặt ở chi nhánh có dải hóa đơn giấy: hệ thống cấp số, Học vụ ghi số đó lên hóa đơn giấy + tải ảnh.
+const paperMode = computed(() => w.feePaid && w.paidAmount > 0 && w.paymentMethod === 'cash' && !!wizardBranchId.value && wizardBranchId.value in props.paperInvoiceNext);
+const paperNumber = computed(() => (paperMode.value ? props.paperInvoiceNext[wizardBranchId.value] || '' : ''));
+const paperPhotoName = ref('');
 
 function updateCustomer(value) {
     // Lớp, tài khoản nhận tiền và lớp gợi ý theo trình độ được tính theo khách → đổi khách thì tải lại.
@@ -359,7 +372,7 @@ const bill = computed(() => ({
     amountDue: amountDue.value,
     notes: w.billNotes,
     needsBankAccount: needsBankAccount.value,
-    paperInvoiceNumber: w.paperInvoiceNumber,
+    paperInvoiceNumber: paperMode.value ? paperNumber.value : w.paperInvoiceNumber,
     bank: selectedBank.value,
     transferMemo: transferMemo.value,
     vietQrUrl: vietQrUrl.value,
@@ -606,6 +619,13 @@ if (w.assignLater) setAssignLater(true);
                                     <span class="absolute right-2 top-1.5 text-xs font-bold text-on-surface-subtle">đ</span>
                                 </div>
                             </div>
+                            <span
+                                v-if="stockOf(item.id) !== null"
+                                :class="['w-24 shrink-0 text-right text-[11px]', stockOf(item.id) < 1 ? 'font-bold text-error' : 'text-on-surface-variant']"
+                                :title="stockOf(item.id) < 1 ? 'Kho chi nhánh hết hàng: vẫn chốt được, kho sẽ âm khi phiếu thu được duyệt' : 'Tồn kho chi nhánh'"
+                            >
+                                {{ stockOf(item.id) < 1 ? 'Hết hàng' : 'Tồn' }}: {{ stockOf(item.id) }}
+                            </span>
                             <UiButton variant="danger-text" size="sm" icon="delete" title="Xóa mục này" aria-label="Xóa mục này" @click="removeItem(idx)" />
                         </div>
                         <div class="flex items-center justify-between px-1 text-xs text-on-surface-variant">
@@ -800,8 +820,28 @@ if (w.assignLater) setAssignLater(true);
                                 </div>
                             </div>
 
-                            <!-- Tiền mặt: ghi số hóa đơn giấy vào phiếu thu để Kế toán đối soát khi duyệt -->
-                            <div v-show="w.feePaid && w.paymentMethod === 'cash'" class="space-y-1 rounded-xl border border-surface-container-highest bg-surface-container-low p-3.5">
+                            <!-- Tiền mặt, chi nhánh có dải hóa đơn giấy: hệ thống cấp số, tải ảnh hóa đơn đã ghi số -->
+                            <div v-if="paperMode" class="space-y-2 rounded-xl border-2 border-primary-container/40 bg-primary-container/5 p-3.5" data-testid="closing-paper-invoice">
+                                <template v-if="paperNumber">
+                                    <span class="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Số hóa đơn giấy hệ thống cấp</span>
+                                    <span class="block font-code text-xl font-bold text-primary">{{ paperNumber }}</span>
+                                    <p class="text-xs text-on-surface-variant">Ghi <strong>đúng số này</strong> lên hóa đơn giấy giao khách, chụp ảnh và tải lên. Ghi sai số thì tạo yêu cầu Hủy hóa đơn số đó.</p>
+                                    <input type="hidden" name="expected_paper_invoice_number" :value="paperNumber" />
+                                    <UiField label="Ảnh chụp hóa đơn giấy (bắt buộc)" name="paper_invoice_photo" for="closing_paper_invoice_photo" required>
+                                        <input
+                                            id="closing_paper_invoice_photo"
+                                            type="file"
+                                            name="paper_invoice_photo"
+                                            accept="image/*,.pdf"
+                                            class="w-full rounded-lg border border-surface-container-highest bg-surface-container-lowest p-2 text-xs"
+                                            @change="paperPhotoName = $event.target.files[0]?.name ?? ''"
+                                        />
+                                    </UiField>
+                                </template>
+                                <UiAlert v-else type="error" title="Dải hóa đơn giấy của chi nhánh đã hết số">Nhờ Kế toán thêm dải số mới ở Cấu hình dải số hóa đơn trước khi thu tiền mặt.</UiAlert>
+                            </div>
+                            <!-- Tiền mặt (chi nhánh chưa có dải giấy): ghi số hóa đơn giấy vào phiếu thu để Kế toán đối soát khi duyệt -->
+                            <div v-else v-show="w.feePaid && w.paymentMethod === 'cash'" class="space-y-1 rounded-xl border border-surface-container-highest bg-surface-container-low p-3.5">
                                 <UiInput id="closing_paper_invoice_number" v-model="w.paperInvoiceNumber" name="paper_invoice_number" label="Số hóa đơn giấy thu tiền mặt (bắt buộc)" placeholder="Ví dụ: HĐG-0824/PTM-042..." class="font-code font-bold" />
                                 <p class="text-xs text-on-surface-variant">Xuất hóa đơn giấy cho khách rồi ghi số vào đây. Phiếu thu tiền mặt được gửi Kế toán/Admin duyệt kèm số hóa đơn này.</p>
                             </div>

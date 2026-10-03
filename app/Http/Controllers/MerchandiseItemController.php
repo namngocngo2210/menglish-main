@@ -3,7 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Http\Concerns\RendersModals;
+use App\Models\Branch;
 use App\Models\MerchandiseItem;
+use App\Models\MerchandiseStock;
+use App\Models\MerchandiseStockMovement;
+use App\Services\Merchandise\StockService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -13,6 +17,8 @@ use Inertia\Response as InertiaResponse;
 /**
  * Danh mục Hàng hóa & Vật phẩm (trang Vue Merchandise/*). Thêm/Sửa từ danh sách mở modal, Xóa qua modal xác nhận;
  * mở thẳng URL create/edit → trang form đầy đủ như cũ.
+ * Tồn kho quản lý theo chi nhánh (MerchandiseStockController): form thêm mới chỉ nhận tồn ban đầu của một chi nhánh,
+ * form sửa không đổi số tồn. stock_quantity của mặt hàng = tồn cũ chưa phân chi nhánh.
  */
 class MerchandiseItemController extends Controller
 {
@@ -35,11 +41,16 @@ class MerchandiseItemController extends Controller
         }
 
         $items = $query->orderBy('category')->orderBy('name')->paginate(15)->withQueryString();
+        $branchStock = MerchandiseStock::query()
+            ->whereIn('merchandise_item_id', $items->getCollection()->pluck('id'))
+            ->selectRaw('merchandise_item_id, SUM(quantity) as total')
+            ->groupBy('merchandise_item_id')
+            ->pluck('total', 'merchandise_item_id');
 
         $metrics = [
             'total' => MerchandiseItem::count(),
             'active' => MerchandiseItem::where('is_active', true)->count(),
-            'total_stock' => MerchandiseItem::sum('stock_quantity'),
+            'total_stock' => (int) MerchandiseStock::sum('quantity') + (int) MerchandiseItem::where('stock_quantity', '>', 0)->sum('stock_quantity'),
             'books' => MerchandiseItem::whereIn('category', [MerchandiseItem::CATEGORY_BOOK, MerchandiseItem::CATEGORY_WORKBOOK])->count(),
             'uniforms' => MerchandiseItem::whereIn('category', [MerchandiseItem::CATEGORY_UNIFORM, MerchandiseItem::CATEGORY_BACKPACK])->count(),
         ];
@@ -54,7 +65,8 @@ class MerchandiseItemController extends Controller
                 'category_icon' => $item->category_meta['icon'],
                 'unit' => $item->unit,
                 'price' => (float) $item->price,
-                'stock_quantity' => (int) $item->stock_quantity,
+                // Tổng tồn các chi nhánh + tồn cũ chưa phân chi nhánh.
+                'stock_quantity' => (int) ($branchStock[$item->id] ?? 0) + max(0, (int) $item->stock_quantity),
                 'is_active' => (bool) $item->is_active,
             ]),
             'metrics' => [
@@ -91,7 +103,8 @@ class MerchandiseItemController extends Controller
             'unit' => 'required|string|max:50',
             'price' => 'required|numeric|min:0',
             'cost_price' => 'nullable|numeric|min:0',
-            'stock_quantity' => 'required|integer|min:0',
+            'stock_quantity' => 'nullable|integer|min:0',
+            'stock_branch_id' => 'nullable|exists:branches,id',
             'is_active' => 'nullable|boolean',
             'description' => 'nullable|string|max:1000',
         ], [
@@ -99,12 +112,19 @@ class MerchandiseItemController extends Controller
             'code.unique' => 'Mã hàng hóa này đã tồn tại trong hệ thống.',
             'name.required' => 'Tên hàng hóa không được để trống.',
             'price.required' => 'Đơn giá niêm yết là bắt buộc.',
-            'stock_quantity.required' => 'Số lượng tồn kho là bắt buộc.',
         ]);
 
         $validated['is_active'] = $request->boolean('is_active', true);
+        $initialStock = (int) ($validated['stock_quantity'] ?? 0);
+        $stockBranchId = isset($validated['stock_branch_id']) ? (int) $validated['stock_branch_id'] : null;
+        unset($validated['stock_branch_id']);
+        // Có chọn chi nhánh → tồn ban đầu nhập vào kho chi nhánh đó; không chọn → tồn chưa phân chi nhánh.
+        $validated['stock_quantity'] = $stockBranchId ? 0 : $initialStock;
 
         $item = MerchandiseItem::create($validated);
+        if ($stockBranchId && $initialStock > 0) {
+            app(StockService::class)->adjust($item->id, $stockBranchId, $initialStock, MerchandiseStockMovement::TYPE_OPENING, ['note' => 'Tồn ban đầu khi thêm mặt hàng']);
+        }
 
         if (function_exists('activity')) {
             activity('merchandise_item')->causedBy(auth()->user())->performedOn($item)->log('Tạo mới hàng hóa: '.$item->name);
@@ -135,6 +155,7 @@ class MerchandiseItemController extends Controller
                 'description' => $item->description,
             ],
             'categories' => $this->categoryOptions(),
+            'branches' => Branch::orderBy('name')->get(['id', 'name'])->map(fn (Branch $b) => ['value' => (string) $b->id, 'label' => $b->name])->values()->all(),
             'isEdit' => $item->exists,
         ]);
     }
@@ -159,7 +180,6 @@ class MerchandiseItemController extends Controller
             'unit' => 'required|string|max:50',
             'price' => 'required|numeric|min:0',
             'cost_price' => 'nullable|numeric|min:0',
-            'stock_quantity' => 'required|integer|min:0',
             'is_active' => 'nullable|boolean',
             'description' => 'nullable|string|max:1000',
         ], [
@@ -169,6 +189,7 @@ class MerchandiseItemController extends Controller
             'price.required' => 'Đơn giá niêm yết là bắt buộc.',
         ]);
 
+        // Số tồn đổi qua trang Tồn kho theo chi nhánh (nhập kho / kiểm kê), không sửa ở đây.
         $validated['is_active'] = $request->boolean('is_active', true);
 
         $merchandise->update($validated);

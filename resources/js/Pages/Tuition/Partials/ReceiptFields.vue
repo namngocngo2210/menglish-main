@@ -14,6 +14,7 @@ const props = defineProps({
     prefix: { type: String, default: '' },
     recentRejection: { type: Object, default: null },
     hasDefaultBank: { type: Boolean, default: false },
+    canRequestCancel: { type: Boolean, default: false },
 });
 
 const ctx = useFormContext();
@@ -27,6 +28,12 @@ const tuitionOptions = computed(() =>
 );
 const studentOptions = computed(() => props.form.students.map((st) => ({ value: String(st.id), label: st.name + ' (' + st.code_short + ') · ' + st.class_name + ' (' + st.branch_name + ')' })));
 const promotionOptions = computed(() => props.form.availablePromotions.map((p) => ({ value: String(p.id), label: promotionLabel(p) })));
+const itemOptions = computed(() => props.form.merchandiseItems.map((m) => ({ value: String(m.id), label: `[${m.category_label}] ${m.name} · ${money(m.price)}` })));
+const itemPick = ref('');
+function pickItem(value) {
+    props.form.addItem(value);
+    itemPick.value = '';
+}
 const methodClass = (method) => (s.value.paymentMethod === method ? 'border-primary-container bg-primary-container/10 ring-1 ring-primary-container' : 'border-surface-container-highest hover:bg-surface-container-low');
 </script>
 
@@ -233,9 +240,52 @@ const methodClass = (method) => (s.value.paymentMethod === method ? 'border-prim
         </div>
 
         <div class="space-y-4 p-5">
+            <!-- Hàng hóa trong danh mục: xuất kho chi nhánh khi phiếu được duyệt -->
+            <div class="space-y-2">
+                <UiField label="Sách / hàng hóa giao kèm phiếu" name="collected_items" :for="prefix + 'surcharge_item_pick'" hint="Chọn từ danh mục hàng hóa: giá theo danh mục, kho chi nhánh tự trừ khi phiếu được duyệt.">
+                    <UiSelect :id="prefix + 'surcharge_item_pick'" :model-value="itemPick" :options="itemOptions" searchable :placeholder="`-- Thêm sách / hàng hóa (${form.merchandiseItems.length} mặt hàng) --`" @update:model-value="pickItem" />
+                </UiField>
+                <input type="hidden" name="collected_items" :value="form.collectedItemsJson" />
+                <div v-if="s.surchargeLines.length" class="overflow-x-auto rounded-xl border border-surface-container-highest">
+                    <table class="w-full min-w-[560px] text-xs">
+                        <thead class="bg-surface-container-low text-on-surface-variant">
+                            <tr>
+                                <th class="px-3 py-2 text-left">Mặt hàng</th>
+                                <th class="px-3 py-2 text-right">Đơn giá</th>
+                                <th class="px-3 py-2 text-center">SL</th>
+                                <th class="px-3 py-2 text-right">Tồn chi nhánh</th>
+                                <th class="px-3 py-2 text-right">Thành tiền</th>
+                                <th class="px-3 py-2"><span class="sr-only">Bỏ</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="(line, idx) in s.surchargeLines" :key="line.id" class="border-t border-surface-container-highest">
+                                <td class="px-3 py-2 font-semibold text-on-surface">{{ form.itemById(line.id)?.name }}</td>
+                                <td class="px-3 py-2 text-right font-code">{{ money(form.itemById(line.id)?.price) }}</td>
+                                <td class="px-3 py-2 text-center">
+                                    <input v-model.number="line.quantity" type="number" min="1" max="1000" class="h-8 w-16 rounded-lg border border-surface-container-highest px-2 text-center font-code" :aria-label="`Số lượng ${form.itemById(line.id)?.name}`" />
+                                </td>
+                                <td class="px-3 py-2 text-right">
+                                    <template v-if="form.stockOf(line.id) !== null">
+                                        <span :class="['font-code font-bold', form.stockOf(line.id) < line.quantity ? 'text-error' : 'text-on-surface']">{{ form.stockOf(line.id) }}</span>
+                                        <span v-if="form.stockOf(line.id) < line.quantity" class="block text-[11px] text-error">Không đủ hàng, kho sẽ âm</span>
+                                    </template>
+                                    <span v-else class="text-on-surface-subtle">—</span>
+                                </td>
+                                <td class="px-3 py-2 text-right font-code font-bold text-primary">{{ money((form.itemById(line.id)?.price || 0) * (line.quantity || 0)) }}</td>
+                                <td class="px-3 py-2 text-right">
+                                    <UiButton variant="danger-text" size="sm" icon="close" :aria-label="`Bỏ ${form.itemById(line.id)?.name}`" @click="form.removeItem(idx)" />
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <input type="hidden" name="surcharge_amount" :value="form.surchargeTotal" />
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <UiField label="Số tiền phụ thu (VNĐ)" name="surcharge_amount" :for="prefix + 'surcharge_amount'">
-                    <UiInput v-model.number="s.surchargeAmount" type="number" name="surcharge_amount" :id="prefix + 'surcharge_amount'" suffix="VNĐ" min="0" step="10000" class="font-code font-bold" placeholder="Nhập số tiền > 0..." />
+                <UiField label="Phụ thu khác ngoài danh mục (VNĐ)" name="surcharge_amount" :for="prefix + 'surcharge_amount'">
+                    <UiInput v-model.number="s.surchargeAmount" type="number" :id="prefix + 'surcharge_amount'" suffix="VNĐ" min="0" step="10000" class="font-code font-bold" placeholder="Nhập số tiền > 0..." />
                     <div class="mt-2 flex flex-wrap items-center gap-1.5">
                         <span class="text-xs text-on-surface-subtle">Gợi ý nhanh:</span>
                         <UiButton variant="secondary" size="sm" @click="form.setSurcharge(50000)">50.000đ</UiButton>
@@ -246,9 +296,9 @@ const methodClass = (method) => (s.value.paymentMethod === method ? 'border-prim
                 </UiField>
 
                 <div class="flex flex-col gap-xs">
-                    <label :for="prefix + 'surcharge_reason'" class="font-body-small text-body-small text-on-surface-variant">Lý do phụ thu <span v-show="s.surchargeAmount > 0" class="text-error">*</span></label>
+                    <label :for="prefix + 'surcharge_reason'" class="font-body-small text-body-small text-on-surface-variant">Lý do phụ thu khác <span v-show="s.surchargeAmount > 0" class="text-error">*</span></label>
                     <UiInput v-model="s.surchargeReason" name="surcharge_reason" :id="prefix + 'surcharge_reason'" placeholder="Ví dụ: Phụ thu giáo trình in ấn bổ sung, đồng phục, thẻ học viên..." />
-                    <p class="text-xs italic text-on-surface-subtle">* Bắt buộc nhập lý do khi có nhập số tiền phụ thu.</p>
+                    <p class="text-xs italic text-on-surface-subtle">* Bắt buộc nhập lý do khi có phụ thu khác. Chỉ chọn sách / hàng hóa thì không cần.</p>
                 </div>
             </div>
 
@@ -264,7 +314,7 @@ const methodClass = (method) => (s.value.paymentMethod === method ? 'border-prim
                 <div class="flex flex-wrap items-center gap-3 text-xs text-on-surface-variant">
                     <span>Học phí cần thu: <strong class="font-code text-on-surface">{{ money(form.tuitionAmountAfterDiscount) }}</strong></span>
                     <span class="text-on-surface-subtle">+</span>
-                    <span>Tiền phụ thu: <strong class="font-code text-primary">{{ '+' + money(s.surchargeAmount) }}</strong></span>
+                    <span>Tiền phụ thu: <strong class="font-code text-primary">{{ '+' + money(form.surchargeTotal) }}</strong></span>
                 </div>
                 <div>
                     <span v-if="form.isValidReceipt" class="flex items-center gap-1 text-xs font-medium text-tertiary">
@@ -366,8 +416,25 @@ const methodClass = (method) => (s.value.paymentMethod === method ? 'border-prim
 
             <!-- Tiền mặt -->
             <div v-show="s.paymentMethod === 'cash'" class="space-y-3 pt-2">
-                <div class="rounded-xl border border-surface-container-highest bg-surface-container-low p-3.5">
-                    <UiInput name="paper_invoice_number" :id="prefix + 'paper_invoice_number'" label="Số hóa đơn giấy thu tiền mặt (bắt buộc khi gửi duyệt)" hint="Tiền mặt thu theo hóa đơn giấy: xuất hóa đơn giấy cho khách rồi ghi số vào đây." :value="form.editing?.paper_invoice_number" placeholder="Ví dụ: HĐG-0824/PTM-042..." class="font-code font-bold" />
+                <!-- Chi nhánh có dải hóa đơn giấy: hệ thống cấp số theo thứ tự -->
+                <div v-if="form.paperMode" class="space-y-2 rounded-xl border-2 border-primary-container/40 bg-primary-container/5 p-3.5" data-testid="paper-invoice-number">
+                    <template v-if="form.paperNumber">
+                        <span class="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">{{ form.issuedPaperInvoice ? 'Số hóa đơn giấy đã cấp cho phiếu' : 'Số hóa đơn giấy hệ thống cấp' }}</span>
+                        <span class="block font-code text-xl font-bold text-primary">{{ form.paperNumber }}</span>
+                        <p class="text-xs text-on-surface-variant">
+                            Ghi <strong>đúng số này</strong> lên hóa đơn giấy giao khách, chụp ảnh hóa đơn và tải lên mục <strong>Minh chứng</strong> bên dưới.
+                            <template v-if="!form.issuedPaperInvoice"> Số được giữ cho phiếu khi bấm Lưu nháp hoặc Gửi duyệt.</template>
+                        </p>
+                        <p class="text-xs text-on-surface-variant">
+                            Ghi sai số trên giấy? Không sửa số: tạo yêu cầu <strong>Hủy hóa đơn</strong> số đó, phiếu lập mới nhận số kế tiếp.
+                            <Link v-if="form.issuedPaperInvoice && canRequestCancel" :href="route('tuition.invoices.cancellations', { cancel_invoice: form.issuedPaperInvoice })" class="font-bold text-error underline">Hủy số hóa đơn này</Link>
+                        </p>
+                        <input v-if="!form.issuedPaperInvoice" type="hidden" name="expected_paper_invoice_number" :value="form.paperNumber" />
+                    </template>
+                    <UiAlert v-else type="error" title="Dải hóa đơn giấy của chi nhánh đã hết số">Nhờ Kế toán thêm dải số mới ở Cấu hình dải số hóa đơn trước khi thu tiền mặt.</UiAlert>
+                </div>
+                <div v-else class="rounded-xl border border-surface-container-highest bg-surface-container-low p-3.5">
+                    <UiInput name="paper_invoice_number" :id="prefix + 'paper_invoice_number'" label="Số hóa đơn giấy thu tiền mặt (bắt buộc khi gửi duyệt)" hint="Chi nhánh chưa cấu hình dải hóa đơn giấy: xuất hóa đơn giấy cho khách rồi ghi số vào đây." :value="form.editing?.paper_invoice_number" placeholder="Ví dụ: HĐG-0824/PTM-042..." class="font-code font-bold" />
                 </div>
             </div>
         </div>
@@ -408,7 +475,7 @@ const methodClass = (method) => (s.value.paymentMethod === method ? 'border-prim
             </h3>
             <span :class="['flex items-center gap-1 text-xs font-medium', form.proofRequired ? 'text-warning' : 'text-on-surface-subtle']">
                 <span class="material-symbols-outlined text-xs">{{ form.proofRequired ? 'warning' : 'info' }}</span>
-                <span>{{ form.proofRequired ? 'Bắt buộc khi gửi duyệt: ủy nhiệm chi / ảnh chuyển khoản' : 'Tiền mặt: không cần ảnh minh chứng, chỉ cần số hóa đơn giấy' }}</span>
+                <span>{{ form.paperMode ? 'Bắt buộc khi gửi duyệt: ảnh chụp hóa đơn giấy ghi số ' + (form.paperNumber || '') : form.proofRequired ? 'Bắt buộc khi gửi duyệt: ủy nhiệm chi / ảnh chuyển khoản' : 'Tiền mặt: không cần ảnh minh chứng, chỉ cần số hóa đơn giấy' }}</span>
             </span>
         </div>
 
@@ -418,7 +485,7 @@ const methodClass = (method) => (s.value.paymentMethod === method ? 'border-prim
                 <span class="material-symbols-outlined text-2xl">cloud_upload</span>
             </div>
             <div>
-                <p class="text-xs font-bold text-on-surface">Kéo thả hoặc <span class="text-primary underline">chọn tệp</span> để tải lên ủy nhiệm chi/biên lai chuyển khoản</p>
+                <p class="text-xs font-bold text-on-surface">Kéo thả hoặc <span class="text-primary underline">chọn tệp</span> để tải lên {{ form.paperMode ? 'ảnh chụp hóa đơn giấy' : 'ủy nhiệm chi/biên lai chuyển khoản' }}</p>
                 <p class="mt-1 text-xs text-on-surface-subtle">Hỗ trợ: JPG, PNG, PDF (Tối đa 5MB) - Đảm bảo rõ ràng thông tin giao dịch &amp; mã tham chiếu</p>
             </div>
         </div>

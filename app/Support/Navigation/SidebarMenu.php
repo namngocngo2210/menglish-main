@@ -259,7 +259,8 @@ final class SidebarMenu
                 'label' => 'Kho vật phẩm',
                 'icon' => 'inventory_2',
                 'items' => [
-                    ['label' => 'Hàng hóa & Vật phẩm', 'route' => 'merchandise.index', 'active' => ['merchandise.*']],
+                    ['label' => 'Hàng hóa & Vật phẩm', 'route' => 'merchandise.index', 'active' => ['merchandise.index', 'merchandise.create', 'merchandise.edit']],
+                    ['label' => 'Tồn kho theo chi nhánh', 'route' => 'merchandise.stock.index', 'active' => ['merchandise.stock.*']],
                 ],
             ],
             [

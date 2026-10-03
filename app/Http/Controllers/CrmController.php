@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\CrmStageTransitionException;
+use App\Exceptions\InvoiceRangeExhaustedException;
+use App\Exceptions\PaperInvoiceNumberChangedException;
 use App\Exports\ArrayExport;
 use App\Http\Concerns\RendersModals;
 use App\Models\BankAccount;
@@ -14,6 +16,7 @@ use App\Models\Course;
 use App\Models\CrmCustomer;
 use App\Models\CrmCustomerHistory;
 use App\Models\CrmTrialBooking;
+use App\Models\InvoiceConfiguration;
 use App\Models\MerchandiseItem;
 use App\Models\PlacementTest;
 use App\Models\PlacementTestSubmission;
@@ -29,10 +32,12 @@ use App\Services\Crm\LeadOwners;
 use App\Services\Crm\TrialSlotFinder;
 use App\Services\Crm\WaitingLeadPlacement;
 use App\Services\CrmStageService;
+use App\Services\Merchandise\StockService;
 use App\Services\NotificationService;
 use App\Services\PlacementPortalLinkService;
 use App\Services\PlacementRubricService;
 use App\Services\PlacementSubmissionLinker;
+use App\Services\SafeUploadService;
 use App\Services\SalesCommissionService;
 use App\Services\Students\ClassStartActivation;
 use App\Support\Approvals\ApprovableSource;
@@ -2171,6 +2176,11 @@ class CrmController extends Controller
             'defaultCourseId' => $defaultCourseId,
             'studentCodePreview' => $studentCodePreview,
             'oldPaperInvoiceNumber' => (string) old('paper_invoice_number', ''),
+            // Chi nhánh có dải hóa đơn giấy: số hóa đơn giấy kế tiếp (thu tiền mặt) + tồn kho sách theo chi nhánh.
+            'paperInvoiceNext' => (object) $branches->mapWithKeys(fn (Branch $branch) => [
+                $branch->id => InvoiceConfiguration::branchUsesPaperRange($branch->id) ? (InvoiceConfiguration::peekNextPaperNumber($branch->id) ?? '') : null,
+            ])->filter(fn ($next) => $next !== null)->all(),
+            'merchandiseStock' => (object) app(StockService::class)->quantitiesByBranch($branches->pluck('id')->map(fn ($id) => (int) $id)->all()),
             'center' => [
                 'name' => CenterInfo::name(),
                 'branches' => CenterInfo::branches()->map(fn (Branch $branch) => ['name' => $branch->name, 'address' => $branch->address])->values()->all(),
@@ -2207,6 +2217,8 @@ class CrmController extends Controller
             // Trung tâm chỉ thu chuyển khoản hoặc tiền mặt (không quẹt thẻ POS, không thanh toán kết hợp).
             'payment_method' => 'nullable|in:cash,transfer',
             'paper_invoice_number' => 'nullable|string|max:100',
+            'expected_paper_invoice_number' => 'nullable|string|max:100',
+            'paper_invoice_photo' => 'nullable|file|mimes:jpeg,png,jpg,pdf,webp|max:5120',
             'student_code' => 'nullable|string|max:40',
             'transfer_memo' => 'nullable|string|max:255',
             'bank_account_id' => 'nullable|exists:bank_accounts,id,deleted_at,NULL',
@@ -2231,13 +2243,24 @@ class CrmController extends Controller
             throw ValidationException::withMessages(['payment_method' => 'Vui lòng chọn phương thức thanh toán.']);
         }
         $paymentMethod = $validated['payment_method'] ?? 'cash';
-        // Tiền mặt thu theo hóa đơn giấy: phiếu thu phải mang số hóa đơn giấy để Kế toán đối soát khi duyệt.
+        // Tiền mặt thu theo hóa đơn giấy: chi nhánh có dải hóa đơn giấy → hệ thống cấp số, Học vụ ghi đúng số đó lên
+        // hóa đơn và tải ảnh; chi nhánh chưa cấu hình dải giấy → nhập tay số hóa đơn giấy như trước.
+        $wizardBranchId = ! empty($validated['class_id'])
+            ? ClassModel::whereKey($validated['class_id'])->value('branch_id')
+            : CrmCustomer::whereKey($validated['customer_id'])->value('branch_id');
+        $paperRange = $paidAmount > 0 && $paymentMethod === 'cash' && InvoiceConfiguration::branchUsesPaperRange($wizardBranchId ? (int) $wizardBranchId : null);
         $paperInvoiceNumber = trim((string) ($validated['paper_invoice_number'] ?? '')) ?: null;
-        if ($paidAmount > 0 && $paymentMethod === 'cash' && ! $paperInvoiceNumber) {
+        if ($paperRange && ! $request->hasFile('paper_invoice_photo')) {
+            throw ValidationException::withMessages(['paper_invoice_photo' => 'Thu tiền mặt cần tải ảnh chụp hóa đơn giấy đã ghi đúng số hóa đơn hệ thống cấp.']);
+        }
+        if (! $paperRange && $paidAmount > 0 && $paymentMethod === 'cash' && ! $paperInvoiceNumber) {
             throw ValidationException::withMessages(['paper_invoice_number' => 'Thu tiền mặt cần nhập số hóa đơn giấy đã xuất cho khách.']);
         }
+        $paperPhoto = $paperRange
+            ? '/uploads/tuition/receipts/'.SafeUploadService::moveTo($request->file('paper_invoice_photo'), public_path('uploads/tuition/receipts'), ['jpg', 'jpeg', 'png', 'webp', 'pdf'], 'paper_invoice_photo')
+            : null;
 
-        $result = DB::transaction(function () use ($request, $validated, $paidAmount, $prepaidAmount, $feePaid, $paymentMethod, $paperInvoiceNumber): array {
+        $result = DB::transaction(function () use ($request, $validated, $paidAmount, $prepaidAmount, $feePaid, $paymentMethod, $paperInvoiceNumber, $paperRange, $paperPhoto): array {
             $customer = $this->scopeCustomerQuery()->lockForUpdate()->findOrFail($validated['customer_id']);
 
             if ($customer->converted_student_id) {
@@ -2430,15 +2453,24 @@ class CrmController extends Controller
             }
 
             if ($paidAmount > 0) {
+                $issuedPaperNumber = null;
+                if ($paperRange && $branchId) {
+                    try {
+                        $issuedPaperNumber = InvoiceConfiguration::consumeNextPaperNumber((int) $branchId, $validated['expected_paper_invoice_number'] ?? null);
+                    } catch (PaperInvoiceNumberChangedException|InvoiceRangeExhaustedException $e) {
+                        throw ValidationException::withMessages(['paper_invoice_photo' => $e->getMessage()]);
+                    }
+                }
                 TuitionReceipt::create([
                     'receipt_number' => TuitionReceipt::generateReceiptNumber(),
-                    'invoice_number' => null,
+                    'invoice_number' => $issuedPaperNumber,
                     'student_tuition_id' => $tuition->id,
                     'student_id' => $student->id,
                     'amount' => $paidAmount,
                     'tuition_amount' => min($paidAmount, max(0, $baseTuition - $discount)),
                     'payment_method' => $paymentMethod,
-                    'paper_invoice_number' => $paymentMethod === 'cash' ? $paperInvoiceNumber : null,
+                    'paper_invoice_number' => $paymentMethod === 'cash' ? ($issuedPaperNumber ?? $paperInvoiceNumber) : null,
+                    'proof_image' => $issuedPaperNumber ? $paperPhoto : null,
                     'collected_items' => $feeItems ?: null,
                     'transaction_code' => 'CW-'.Str::upper((string) Str::ulid()),
                     'payment_date' => now(),
@@ -2462,9 +2494,6 @@ class CrmController extends Controller
             ]);
             if ($promotion) {
                 $promotion->increment('used_count');
-            }
-            foreach ($feeItems as $feeItem) {
-                MerchandiseItem::whereKey($feeItem['id'])->decrement('stock_quantity');
             }
             app(CrmStageService::class)->advanceTo(
                 $customer,
@@ -2614,19 +2643,19 @@ class CrmController extends Controller
             throw ValidationException::withMessages(['fee_items' => 'Khoản thu khác phải chọn từ danh mục hàng hóa.']);
         }
 
-        $items = MerchandiseItem::active()->whereIn('id', $ids)->lockForUpdate()->get()->keyBy('id');
+        $items = MerchandiseItem::active()->whereIn('id', $ids)->get()->keyBy('id');
         if ($items->count() !== $ids->count()) {
             throw ValidationException::withMessages(['fee_items' => 'Có hàng hóa không tồn tại hoặc đã ngừng bán.']);
         }
-        $outOfStock = $items->first(fn (MerchandiseItem $item) => $item->stock_quantity < 1);
-        if ($outOfStock) {
-            throw ValidationException::withMessages(['fee_items' => "{$outOfStock->name} đã hết tồn kho."]);
-        }
 
+        // Kho theo chi nhánh: sách trong hợp đồng xuất kho khi phiếu thu đầu tiên của hợp đồng được duyệt
+        // (App\Services\Merchandise\StockService); hết hàng chỉ cảnh báo trên màn chốt, không chặn chốt khách.
         return $ids->map(fn ($id) => [
             'id' => (int) $id,
             'name' => $items[$id]->name,
             'amount' => (float) $items[$id]->price,
+            'quantity' => 1,
+            'stock_tracked' => true,
         ])->all();
     }
 
