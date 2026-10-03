@@ -247,6 +247,50 @@ class PlacementPortalSecurityTest extends TestCase
         }
     }
 
+    // ── Link gửi qua Zalo / Facebook trên điện thoại ────────────────
+    // Ứng dụng nhắn tin tự gắn thêm tham số theo dõi (zarsrc, utm_*, fbclid) khi mở link,
+    // làm chữ ký không khớp và trả 403. Các tham số này phải được bỏ qua, nhưng chữ ký vẫn phải đúng.
+
+    private const ZALO_PARAMS = '&zarsrc=31&utm_source=zalo&utm_medium=zalo&utm_campaign=zalo';
+
+    public function test_scorecard_link_opened_from_zalo_or_facebook_still_works(): void
+    {
+        $test = $this->makeTest();
+        $this->post(route('portal.test.submit', $test->code), $this->submitPayload())->assertRedirect();
+        $submission = PlacementTestSubmission::latest('id')->firstOrFail();
+        $url = URL::signedRoute('portal.test.scorecard', ['id' => $submission->id]);
+
+        $this->get($url.self::ZALO_PARAMS)->assertOk()->assertSee('Thí Sinh Tự Do');
+        $this->get($url.'&fbclid=IwAR0abc123')->assertOk();
+        $this->get(str_replace('?signature=', '?zarsrc=31&signature=', $url))->assertOk();
+    }
+
+    public function test_tracking_params_do_not_weaken_scorecard_signature(): void
+    {
+        $test = $this->makeTest();
+        $this->post(route('portal.test.submit', $test->code), $this->submitPayload())->assertRedirect();
+        $this->post(route('portal.test.submit', $test->code), $this->submitPayload(['candidate_name' => 'Người Khác']))->assertRedirect();
+        [$first, $second] = PlacementTestSubmission::orderBy('id')->get()->all();
+
+        $url = URL::signedRoute('portal.test.scorecard', ['id' => $first->id]);
+        $tampered = str_replace("/scorecard/{$first->id}?", "/scorecard/{$second->id}?", $url);
+
+        $this->get($tampered.self::ZALO_PARAMS)->assertForbidden();
+        $this->get(route('portal.test.scorecard', ['id' => $first->id]).'?'.ltrim(self::ZALO_PARAMS, '&'))->assertForbidden();
+        $this->get($url.'&other=1')->assertForbidden();
+    }
+
+    public function test_lead_take_link_opened_from_zalo_still_prefills_lead(): void
+    {
+        $test = $this->makeTest();
+        $lead = $this->makeLead();
+
+        $this->get($this->signedTakeUrl($test, $lead).self::ZALO_PARAMS)
+            ->assertOk()
+            ->assertSee('Lê Thanh Hằng')
+            ->assertSee('name="lead_token"', false);
+    }
+
     // ── 3 & 4. Chấm theo đáp án của đề, bài chờ chấm ────────────────
 
     public function test_submission_is_graded_against_stored_keys_and_awaits_academic_grading(): void

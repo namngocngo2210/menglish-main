@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\CrmCustomer;
 use App\Models\PlacementTest;
+use App\Support\TrackingQueryParams;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
@@ -35,7 +36,7 @@ class PlacementPortalLinkService
 
     public function leadFromSignedRequest(Request $request): ?CrmCustomer
     {
-        if (! $request->query('lead') || ! $request->hasValidSignature()) {
+        if (! $request->query('lead') || ! $request->hasValidSignatureWhileIgnoring(TrackingQueryParams::NAMES)) {
             return null;
         }
 

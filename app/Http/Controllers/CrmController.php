@@ -299,7 +299,7 @@ class CrmController extends Controller
     /**
      * Số trên chip lọc nhanh của header CRM (theo phạm vi dữ liệu của user) — trước tính trong crm/partials/header-tabs.
      *
-     * @return array{sla: int, waiting_class: int, won: int, lost: int, deleted: int}
+     * @return array{sla: int, test_today: int, follow_up: int, waiting_class: int, won: int, lost: int, deleted: int}
      */
     protected function chipCounts(): array
     {
@@ -308,6 +308,8 @@ class CrmController extends Controller
 
         return [
             'sla' => $this->scopeCustomerQuery()->staleNew()->count(),
+            'test_today' => $this->scopeCustomerQuery()->testToday()->count(),
+            'follow_up' => $this->scopeCustomerQuery()->followUpDueToday()->count(),
             'waiting_class' => (int) ($stageCounts['waiting_class'] ?? 0),
             'won' => (int) ($stageCounts['won'] ?? 0),
             'lost' => (int) ($stageCounts['lost'] ?? 0),
@@ -343,6 +345,14 @@ class CrmController extends Controller
         if ($request->boolean('sla')) {
             $query->staleNew();
         }
+        // Lọc nhanh "Cần gọi lại": hạn gọi lại tới hết hôm nay (gồm quá hạn), xếp theo hạn.
+        if ($request->boolean('follow_up')) {
+            $query->followUpDueToday()->reorder('next_follow_up_at')->orderBy('id');
+        }
+        // Lọc nhanh "Hẹn test hôm nay": xếp theo giờ hẹn.
+        if ($request->boolean('test_today')) {
+            $query->testToday()->reorder('appointment_at')->orderBy('id');
+        }
 
         $dbCustomers = $query->paginate($request->perPage(15))->withQueryString()
             ->through(fn (CrmCustomer $c) => [
@@ -359,6 +369,11 @@ class CrmController extends Controller
                 'branch' => $c->branch?->name,
                 'updated_at' => $c->updated_at?->format('d/m/Y H:i'),
                 'updated_label' => $this->updatedLabel($c->updated_at ?? $c->created_at),
+                'test_today_at' => $c->appointment_at?->isToday() && $c->stage !== CrmCustomer::STAGE_LOST ? $c->appointment_at->format('H:i') : null,
+                'test_today_type' => $c->appointment_at?->isToday() ? ($c->appointment_type === 'online' ? 'Online' : 'Tại cơ sở') : null,
+                'follow_up_label' => $c->followUpStatus() === 'overdue' || ($c->next_follow_up_at?->isToday() && in_array($c->stage, CrmCustomer::ACTIVE_STAGES, true))
+                    ? $this->relativeDeadlineLabel($c->next_follow_up_at) : null,
+                'follow_up_overdue' => $c->followUpStatus() === 'overdue',
             ]);
 
         return Inertia::render('Crm/Customers/Index', [
