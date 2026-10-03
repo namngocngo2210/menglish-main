@@ -228,7 +228,7 @@ function sessionNote(ts) {
                                 <p class="font-body-small text-body-small text-on-surface-variant">Hoa hồng tuyển sinh</p>
                                 <p class="font-h3 text-h3 font-mono">{{ money(record.commission_bonus) }} đ</p>
                                 <p class="font-caption text-caption text-on-surface-variant">
-                                    {{ record.commission_closed_count }} HS chốt trong kỳ{{ record.commission_percent !== null ? ` · bậc ${pct(record.commission_percent)}%` : '' }}{{ record.commission_deferred > 0 ? ` · hoãn ${money(record.commission_deferred)}đ` : '' }}
+                                    {{ record.commission_closed_count }} HS chốt trong kỳ{{ record.commission_percent !== null ? ` · mốc hiện tại ${pct(record.commission_percent)}%` : '' }}{{ record.commission_deferred > 0 ? ` · hoãn ${money(record.commission_deferred)}đ` : '' }}
                                 </p>
                             </div>
                             <div class="rounded-lg bg-surface-container-low p-md">
@@ -238,12 +238,12 @@ function sessionNote(ts) {
                             </div>
                         </div>
                         <template v-if="commissionTiers.length">
-                            <UiButton variant="ghost" size="sm" @click="showTiers = !showTiers">Chi tiết bậc áp dụng <span class="material-symbols-outlined text-[16px]" aria-hidden="true">{{ showTiers ? 'expand_less' : 'expand_more' }}</span></UiButton>
+                            <UiButton variant="ghost" size="sm" @click="showTiers = !showTiers">Chi tiết mốc hoa hồng <span class="material-symbols-outlined text-[16px]" aria-hidden="true">{{ showTiers ? 'expand_less' : 'expand_more' }}</span></UiButton>
                             <table v-show="showTiers" class="w-full text-left font-body-small text-body-small">
-                                <thead><tr class="text-on-surface-variant"><th class="py-xs">Bậc</th><th class="py-xs">Ngưỡng số HS chốt</th><th class="py-xs text-right">Tỷ lệ %</th></tr></thead>
+                                <thead><tr class="text-on-surface-variant"><th class="py-xs">Mốc</th><th class="py-xs">HS thứ (trong tháng chốt)</th><th class="py-xs text-right">Tỷ lệ %</th></tr></thead>
                                 <tbody>
                                     <tr v-for="tier in commissionTiers" :key="tier.id" :class="['border-t border-surface-container', tier.applied ? 'font-semibold text-tertiary' : '']">
-                                        <td class="py-xs">{{ tier.name }} <span v-if="tier.applied" class="material-symbols-outlined align-middle text-[16px]" aria-label="Bậc áp dụng">check_circle</span></td>
+                                        <td class="py-xs">{{ tier.name }} <span v-if="tier.applied" class="material-symbols-outlined align-middle text-[16px]" aria-label="Mốc hiện tại">check_circle</span></td>
                                         <td class="py-xs">{{ tier.range }}</td>
                                         <td class="py-xs text-right font-mono">{{ pct(tier.percent) }}%</td>
                                     </tr>
@@ -339,19 +339,19 @@ function sessionNote(ts) {
                 <UiDataTable v-if="record.uses_q3 && (paidCommission.length || deferredCommission.length || record.salary_role === 'sales')">
                     <template #header>
                         <h3 class="font-h3 text-h3 text-on-surface">Hoa hồng tuyển sinh — từng khoản</h3>
-                        <p class="font-caption text-caption text-on-surface-variant">Trả khi đủ 30 ngày từ ngày chốt và đủ 3/3 mốc chăm sóc; chưa đủ thì hoãn sang kỳ sau.</p>
+                        <p class="font-caption text-caption text-on-surface-variant">Học phí thu được, không tính tiền sách / Thu khác. % theo thứ tự chốt của HS trong tháng chốt. Trả khi đủ 30 ngày từ ngày chốt và đủ 3/3 mốc chăm sóc; chưa đủ thì hoãn sang kỳ sau.</p>
                     </template>
                     <table>
-                        <thead><tr><th>Học viên / phiếu</th><th class="text-right">Thực thu</th><th class="text-right">%</th><th class="text-right">Hoa hồng</th></tr></thead>
+                        <thead><tr><th>Học viên / phiếu</th><th class="text-right">Học phí tính HH</th><th class="text-right">%</th><th class="text-right">Hoa hồng</th></tr></thead>
                         <tbody>
                             <tr v-for="item in paidCommission" :key="'paid' + item.id">
-                                <td>{{ item.student ?? '—' }} <span class="block font-caption text-caption text-on-surface-variant">{{ item.receipt_number }} · phát sinh {{ item.earned }} · Trả trong kỳ</span></td>
+                                <td>{{ item.student ?? '—' }} <span class="block font-caption text-caption text-on-surface-variant">{{ item.receipt_number }}<template v-if="item.closing_rank"> · HS thứ {{ item.closing_rank }} tháng {{ item.closed_month }}</template> · phát sinh {{ item.earned }} · Trả trong kỳ</span></td>
                                 <td><UiMoney :value="item.base_amount" suffix="đ" /></td>
                                 <td class="text-right font-code text-code">{{ pct(item.percent) }}%</td>
                                 <td><UiMoney :value="item.amount" suffix="đ" /></td>
                             </tr>
                             <tr v-for="item in deferredCommission" :key="'deferred' + item.id">
-                                <td>{{ item.student ?? '—' }} <span class="block font-caption text-caption text-warning">{{ item.receipt_number }} · {{ item.deferred_reason ?? 'Hoãn sang kỳ sau' }}</span></td>
+                                <td>{{ item.student ?? '—' }} <span class="block font-caption text-caption text-warning">{{ item.receipt_number }}<template v-if="item.closing_rank"> · HS thứ {{ item.closing_rank }} tháng {{ item.closed_month }}</template> · {{ item.deferred_reason ?? 'Hoãn sang kỳ sau' }}</span></td>
                                 <td><UiMoney :value="item.base_amount" suffix="đ" /></td>
                                 <td class="text-right font-code text-code">{{ pct(item.percent) }}%</td>
                                 <td class="text-right font-code text-code text-on-surface-variant">Hoãn {{ money(item.amount) }} đ</td>

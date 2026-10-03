@@ -7,7 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Một khoản hoa hồng tuyển sinh = một phiếu thu (khách mới) × % bậc của kỳ phát sinh.
+ * Một khoản hoa hồng tuyển sinh = học phí của một phiếu thu (khách mới) × % mốc theo thứ tự chốt của học viên
+ * trong tháng chốt (closing_rank).
  * Trạng thái: deferred (chưa đạt gate kép, chờ kỳ sau) → payable (đã gắn vào phiếu lương kỳ chưa duyệt)
  * → paid (kỳ trả đã duyệt, settled_at). void = phiếu bị hủy / hoàn phí có thu hồi trước khi trả.
  */
@@ -39,6 +40,7 @@ class CommissionItem extends Model
         'percent',
         'amount',
         'closed_count',
+        'closing_rank',
         'earned_period_start',
         'earned_period_end',
         'closed_at',
@@ -53,6 +55,7 @@ class CommissionItem extends Model
         'percent' => 'decimal:2',
         'amount' => 'decimal:2',
         'closed_count' => 'integer',
+        'closing_rank' => 'integer',
         'earned_period_start' => 'date',
         'earned_period_end' => 'date',
         'closed_at' => 'datetime',

@@ -426,7 +426,7 @@ class PayrollController extends Controller
         // Mẫu phiếu theo loại nhân sự (4 mockup chi tiết lương): GV Part-time, GV Full-time, Học vụ, Học thuật; Sale / khác dùng mẫu Full-time.
         $variant = self::payslipVariant($record);
         $currentRate = TeacherHourlyRate::effectiveFor((int) $record->user_id, $period->end_date);
-        // Bậc hoa hồng hiệu lực tại ngày cuối kỳ ("Chi tiết bậc áp dụng").
+        // Mốc hoa hồng hiệu lực tại ngày cuối kỳ ("Chi tiết mốc áp dụng").
         $commissionTiers = ($record->salary_role === 'sales' || (float) $record->commission_bonus > 0 || (float) $record->commission_deferred > 0)
             ? CommissionTier::byStudents()->effectiveAt($period->end_date)->orderBy('min_students')->get()
             : collect();
@@ -522,7 +522,9 @@ class PayrollController extends Controller
                 'name' => $tier->tier_name,
                 'range' => $tier->student_range_label,
                 'percent' => (float) $tier->new_sale_percent,
-                'applied' => $record->commission_percent !== null && abs((float) $tier->new_sale_percent - (float) $record->commission_percent) < 0.001,
+                // Mốc hiện tại = mốc chứa HS chốt gần nhất trong kỳ (từng khoản bên dưới ghi rõ HS thứ mấy, % nào).
+                'applied' => $record->commission_closed_count > 0 && (int) $tier->min_students <= (int) $record->commission_closed_count
+                    && ($tier->max_students === null || (int) $tier->max_students >= (int) $record->commission_closed_count),
             ])->values(),
             'penalties' => $penalties->map(fn (Penalty $pen) => [
                 'id' => $pen->id,
@@ -554,6 +556,8 @@ class PayrollController extends Controller
             'student' => $item->student?->name,
             'receipt_number' => $item->receipt?->receipt_number,
             'earned' => $item->earned_period_start?->format('m/Y'),
+            'closing_rank' => $item->closing_rank,
+            'closed_month' => $item->closed_at?->format('m/Y'),
             'deferred_reason' => $item->deferred_reason,
             'base_amount' => (float) $item->base_amount,
             'percent' => (float) $item->percent,
@@ -1252,7 +1256,8 @@ class PayrollController extends Controller
     /**
      * BXH KPI & hoa hồng (mockup epic-7/bang-kpi-cong-khai) — dữ liệu công khai, không có lương cơ bản / khấu trừ / thực nhận:
      * 1. KPI giữ học sinh của GV: lấy từ phiếu lương của kỳ (Số HS giữ × đơn giá bậc = KPI) — cùng số với bảng lương.
-     * 2. Hoa hồng tuyển sinh của Sale: tiền thực thu khách mới trong tháng × % bậc theo số HS chốt (SalesCommissionService).
+     * 2. Hoa hồng tuyển sinh của người phụ trách: học phí thu của khách mới trong tháng (không gồm sách / Thu khác)
+     *    × % mốc theo thứ tự chốt của từng HS (SalesCommissionService).
      * Lọc kỳ lương (tháng) + chi nhánh, phân trang.
      */
     public function kpiLeaderboard(Request $request)
@@ -1280,31 +1285,33 @@ class PayrollController extends Controller
                 ->values()
             : collect();
 
-        // 2. Hoa hồng tuyển sinh (sale).
-        $salesUsers = User::role('sales_consultant')->with('branch')->get();
-        if ($salesUsers->isEmpty()) {
-            $salesUsers = User::whereHas('crmCustomers')->with('branch')->get();
-        }
-        $salesUsers = $salesUsers->when($branchId, fn ($users) => $users->where('branch_id', $branchId));
-
+        // 2. Hoa hồng tuyển sinh: người phụ trách khách (Học vụ, Admin, sale cũ) có HS chốt / học phí thu trong tháng,
+        // cùng Sales & Học vụ đang hoạt động (hiện 0đ) để thấy đủ người.
         $service = app(SalesCommissionService::class);
-        $receiptsBySales = $service->commissionableReceipts($start, $end)->groupBy('commission_owner_id');
-        $closedBySales = $service->closedCountsBySales($start, $end);
+        $summary = $service->summaryByOwner($start, $end);
+        $salesUsers = User::withTrashed()->with('branch')
+            ->where(fn ($q) => $q->whereIn('id', $summary->keys())
+                ->orWhere(fn ($active) => $active->whereNull('deleted_at')->where('is_active', true)
+                    ->whereHas('roles', fn ($r) => $r->whereIn('name', ['sales_consultant', 'academic_staff']))))
+            ->get()
+            ->when($branchId, fn ($users) => $users->where('branch_id', $branchId));
+        $emptyRow = ['collected' => 0.0, 'base' => 0.0, 'amount' => 0.0, 'students' => 0, 'closed' => 0, ...$service->milestoneFor(0, $end)];
 
-        $usersWithSales = $salesUsers->map(function (User $user) use ($receiptsBySales, $closedBySales, $service, $end) {
-            $receipts = $receiptsBySales->get($user->id, collect());
-            $revenue = (float) $receipts->sum('amount');
+        $usersWithSales = $salesUsers->map(function (User $user) use ($summary, $emptyRow) {
             // Hoa hồng phát sinh (trước gate kép) — trả thực tế theo phiếu lương.
-            $commission = $service->commissionFor($revenue, (int) ($closedBySales->get($user->id) ?? 0), $end);
+            $row = $summary->get($user->id, $emptyRow);
 
             return [
                 'user' => $user,
-                'revenue' => $revenue,
-                'deals' => $receipts->pluck('student_id')->unique()->count(),
-                'tier_name' => $commission['tier']?->tier_name ?? 'Chưa cấu hình bậc',
-                'closed' => $commission['closed'],
-                'percent' => $commission['percent'],
-                'commission' => $commission['amount'],
+                'revenue' => $row['collected'],
+                'base' => $row['base'],
+                'deals' => $row['students'],
+                'tier_name' => $row['tier_name'],
+                'closed' => $row['closed'],
+                'percent' => $row['percent'],
+                'next_percent' => $row['next_percent'],
+                'to_next' => $row['to_next'],
+                'commission' => $row['amount'],
                 'branch_name' => $user->branch?->name ?? 'Hệ thống MEnglish',
             ];
         })->sortByDesc(fn ($row) => [$row['commission'], $row['revenue']])->values();
@@ -1343,7 +1350,10 @@ class PayrollController extends Controller
                 'branch' => $item['branch_name'],
                 'closed' => $item['closed'],
                 'percent' => (float) $item['percent'],
+                'next_percent' => $item['next_percent'],
+                'to_next' => $item['to_next'],
                 'revenue' => $item['revenue'],
+                'base' => (float) $item['base'],
                 'commission' => (float) $item['commission'],
             ]),
             'period' => $period ? ['locked' => $period->isLocked()] : null,
@@ -1665,7 +1675,9 @@ class PayrollController extends Controller
         }
         $max = $validated['max_students'] ?? null;
 
-        return 'Bậc '.$validated['min_students'].($max !== null && $max !== '' ? '–'.$max : '+').' HS';
+        $from = max(1, (int) $validated['min_students']);
+
+        return $max !== null && $max !== '' ? 'Mốc HS thứ '.$from.'–'.$max : 'Mốc từ HS thứ '.$from;
     }
 
     /**

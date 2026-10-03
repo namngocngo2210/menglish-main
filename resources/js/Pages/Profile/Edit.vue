@@ -23,6 +23,7 @@ const props = defineProps({
     showPayroll: { type: Boolean, default: false },
     showTickets: { type: Boolean, default: false },
     showOperations: { type: Boolean, default: false },
+    commission: { type: Object, default: null },
     payrollPeriodLabel: { type: String, default: null },
     latestPayroll: { type: Object, default: null },
     recentPayrolls: { type: Array, default: () => [] },
@@ -54,6 +55,7 @@ watch(() => props.status, (value) => flashStatus(value));
 const onSaved = (p) => flashStatus(p?.props?.status ?? null);
 onBeforeUnmount(() => typeof window !== 'undefined' && window.clearTimeout(timer));
 
+const pct = (v) => String(Math.round(Number(v) * 100) / 100).replace('.', ',') + '%';
 const taskBadge = (status) => (status === 'completed' ? ['success', 'Hoàn thành'] : status === 'in_progress' ? ['secondary', 'Đang làm'] : ['warning', 'Chờ xử lý']);
 const priorityColor = (p) => (p === 'urgent' ? 'error' : p === 'high' ? 'primary' : 'neutral');
 const ticketColor = (s) => (s === 'resolved' ? 'success' : s === 'in_progress' ? 'secondary' : 'warning');
@@ -165,6 +167,79 @@ const ticketColor = (s) => (s === 'resolved' ? 'success' : s === 'in_progress' ?
                     </Link>
                 </div>
             </div>
+
+            <!-- Hoa hồng tuyển sinh tạm tính tháng này (người phụ trách khách) -->
+            <section v-if="commission" class="space-y-4 rounded-3xl border border-surface-container-highest bg-surface-container-lowest p-6 shadow-sm" data-commission-panel>
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div class="space-y-1">
+                        <h2 class="flex items-center gap-2 text-sm font-black uppercase tracking-wider text-on-surface">
+                            <span class="material-symbols-outlined text-[20px] text-tertiary">trending_up</span>
+                            Hoa hồng tuyển sinh tháng {{ commission.month_label }}
+                        </h2>
+                        <p class="text-xs text-on-surface-variant">Tạm tính trên học phí đã thu (không tính tiền sách / Thu khác). Trả trên phiếu lương khi khách đủ 30 ngày từ ngày chốt và đủ 3/3 mốc chăm sóc.</p>
+                    </div>
+                    <Link v-if="can('kpi.view')" :href="route('payroll.kpi-leaderboard')" class="text-xs font-bold text-primary hover:underline">Bảng xếp hạng &rarr;</Link>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
+                    <div class="rounded-2xl border border-surface-container-highest bg-surface-container-low/70 p-4">
+                        <div class="text-xs text-on-surface-variant">HS đã chốt</div>
+                        <div class="font-mono text-xl font-black text-on-surface">{{ commission.closed }}</div>
+                    </div>
+                    <div class="rounded-2xl border border-surface-container-highest bg-surface-container-low/70 p-4">
+                        <div class="text-xs text-on-surface-variant">Mốc hiện tại</div>
+                        <div class="font-mono text-xl font-black text-on-surface">{{ pct(commission.percent) }}</div>
+                        <div class="text-xs text-on-surface-variant">{{ commission.range ?? 'Chưa cấu hình mốc' }}</div>
+                    </div>
+                    <div class="rounded-2xl border border-surface-container-highest bg-surface-container-low/70 p-4">
+                        <div class="text-xs text-on-surface-variant">Học phí đã thu</div>
+                        <UiMoney :value="commission.base" align="left" class="!text-xl font-black" />
+                    </div>
+                    <div class="rounded-2xl border border-tertiary/30 bg-tertiary/10 p-4">
+                        <div class="text-xs text-on-surface-variant">Hoa hồng tạm tính</div>
+                        <UiMoney :value="commission.amount" align="left" tone="success" class="!text-xl font-black" />
+                    </div>
+                </div>
+
+                <p v-if="commission.to_next" class="text-xs font-semibold text-on-surface">
+                    Còn {{ commission.to_next }} HS nữa sang {{ commission.next_range }}: {{ pct(commission.next_percent) }} cho mỗi HS từ đó.
+                </p>
+
+                <div v-if="commission.tiers.length" class="flex flex-wrap gap-2" aria-label="Các mốc hoa hồng">
+                    <UiBadge v-for="tier in commission.tiers" :key="tier.range" :color="tier.current ? 'success' : 'neutral'" pill>
+                        {{ tier.range }}: {{ pct(tier.percent) }}
+                    </UiBadge>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-[560px] text-left text-xs">
+                        <thead>
+                            <tr class="text-on-surface-variant">
+                                <th class="py-2 font-semibold">Học viên</th>
+                                <th class="py-2 font-semibold">HS thứ</th>
+                                <th class="py-2 text-right font-semibold">%</th>
+                                <th class="py-2 text-right font-semibold">Học phí thu tháng này</th>
+                                <th class="py-2 text-right font-semibold">Hoa hồng</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="row in commission.rows" :key="row.student + row.rank" class="border-t border-surface-container-highest">
+                                <td class="py-2 font-bold text-on-surface">{{ row.student }}</td>
+                                <td class="py-2 text-on-surface-variant">
+                                    #{{ row.rank }}
+                                    <span v-if="row.closed_at">· chốt {{ row.closed_at }}</span>
+                                </td>
+                                <td class="py-2 text-right font-mono">{{ pct(row.percent) }}</td>
+                                <td class="py-2 text-right"><UiMoney :value="row.base" /></td>
+                                <td class="py-2 text-right font-bold"><UiMoney :value="row.amount" tone="success" /></td>
+                            </tr>
+                            <tr v-if="!commission.rows.length">
+                                <td colspan="5" class="py-3"><UiEmptyState icon="trending_up" title="Tháng này chưa có học viên chốt hay học phí thu của khách mới." /></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
 
             <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
                 <div class="space-y-6 lg:col-span-2">
