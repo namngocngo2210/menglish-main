@@ -29,6 +29,8 @@ interface ApprovableSource
 
     public const GROUP_WORK = 'Công việc';
 
+    public const GROUP_HR = 'Nhân sự';
+
     /** Khoá ổn định (dùng trong URL / checkbox: "<key>:<id>"). */
     public function key(): string;
 

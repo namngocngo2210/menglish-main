@@ -106,6 +106,8 @@ final class SidebarMenu
                 'icon' => 'outgoing_mail',
                 // Phía giáo viên gửi yêu cầu lên Học vụ (ai xem được giáo trình đều thấy, như trước).
                 'items' => [
+                    // Mọi nhân sự: bổ sung công, xin đi muộn / về sớm, xin nghỉ (giao diện điện thoại, mở được trên máy tính).
+                    ['label' => 'Đơn chấm công & nghỉ', 'route' => 'mobile.requests'],
                     ['label' => 'Đề xuất sửa giáo trình', 'route' => 'syllabus.teacher-propose'],
                     ['label' => 'Xin điều chỉnh tiến độ', 'route' => 'syllabus.teacher-adjust'],
                 ],
@@ -312,6 +314,7 @@ final class SidebarMenu
                 'icon' => 'schedule',
                 // Kế toán chỉ thấy tab chấm công nào Admin cấp quyền (attendance_staff.*).
                 'items' => [
+                    ['label' => 'Chấm công hằng ngày', 'route' => 'staff-attendance.index', 'active' => ['staff-attendance.*']],
                     ['label' => 'Giờ dạy giáo viên', 'route' => 'payroll.timesheets.teachers', 'can' => ['attendance_staff.view', ...self::TEACHING_PORTAL]],
                     ['label' => 'Chấm công đơn lẻ', 'route' => 'payroll.timesheets.manual'],
                     ['label' => 'AppSheet', 'route' => 'payroll.timesheets.appsheet'],
@@ -334,6 +337,8 @@ final class SidebarMenu
                 'label' => 'Của tôi',
                 'icon' => 'person',
                 'items' => [
+                    // Giao diện điện thoại: chấm công ảnh + GPS, lịch sử công, xin duyệt, cần duyệt.
+                    ['label' => 'Chấm công', 'route' => 'mobile.home', 'active' => ['mobile.home', 'mobile.history']],
                     ['label' => 'Báo cáo định kỳ của tôi', 'route' => 'reports.my'],
                     // Trung tâm thông báo (cũng mở từ chuông trên topbar).
                     ['label' => 'Thông báo', 'route' => 'notifications.index', 'active' => ['notifications.*']],

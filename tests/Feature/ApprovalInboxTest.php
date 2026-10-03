@@ -56,9 +56,9 @@ class ApprovalInboxTest extends TestCase
     public static function roleSources(): array
     {
         return [
-            'admin' => ['admin', ['receipt', 'invoice_cancellation', 'refund', 'payment_report', 'enrollment', 'crm_confirmation', 'crm_branch_transfer', 'syllabus_proposal', 'syllabus_adjustment', 'big_test_order', 'work_task', 'class_report']],
+            'admin' => ['admin', ['receipt', 'invoice_cancellation', 'refund', 'payment_report', 'enrollment', 'crm_confirmation', 'crm_branch_transfer', 'syllabus_proposal', 'syllabus_adjustment', 'big_test_order', 'work_task', 'class_report', 'staff_attendance_request']],
             'kế toán' => ['accountant', ['receipt', 'refund', 'payment_report']],
-            'quản lý cơ sở' => ['manager', ['receipt', 'refund', 'payment_report', 'enrollment', 'crm_confirmation', 'work_task', 'class_report']],
+            'quản lý cơ sở' => ['manager', ['receipt', 'refund', 'payment_report', 'enrollment', 'crm_confirmation', 'work_task', 'class_report', 'staff_attendance_request']],
             'trưởng học thuật' => ['academic_lead', ['syllabus_proposal', 'syllabus_adjustment', 'big_test_order', 'work_task', 'class_report']],
             'học vụ' => ['academic_staff', ['enrollment', 'crm_confirmation', 'work_task', 'class_report']],
             'giáo viên' => ['teacher', ['work_task', 'class_report']],

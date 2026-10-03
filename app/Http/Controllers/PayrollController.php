@@ -517,6 +517,8 @@ class PayrollController extends Controller
                 ])->values(),
             ])->values(),
             'renewalClasses' => array_values(data_get($record->calculation_details, 'renewal.classes', [])),
+            // Chấm công hằng ngày (điện thoại) trong kỳ — căn cứ đối soát, không tự trừ tiền (phạt đi muộn qua biên bản).
+            'dailyAttendance' => data_get($record->calculation_details, 'attendance'),
             'commissionTiers' => $commissionTiers->map(fn (CommissionTier $tier) => [
                 'id' => $tier->id,
                 'name' => $tier->tier_name,
