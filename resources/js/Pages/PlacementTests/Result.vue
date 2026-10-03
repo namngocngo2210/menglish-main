@@ -75,6 +75,7 @@ function optionKeyClass(opt) {
             <span class="font-mono">{{ submission.test_title }} · Thí sinh: <strong class="text-on-surface">{{ submission.candidate_name }}</strong> · SĐT: {{ submission.candidate_phone }}</span>
         </template>
         <template #actions>
+            <UiButton v-if="submission.test_pdf_url" variant="secondary" icon="picture_as_pdf" native :href="submission.test_pdf_url" target="_blank">Xem đề PDF</UiButton>
             <UiButton v-if="submission.customer_id" variant="secondary" icon="person" :href="route('crm.customers.show', submission.customer_id)">Hồ sơ khách</UiButton>
             <a :href="submission.scorecard_url" target="_blank" class="inline-flex items-center gap-1.5 rounded-xl bg-inverse-surface px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-inverse-surface/90">
                 <span class="material-symbols-outlined text-[16px] text-warning/70">military_tech</span>
@@ -166,6 +167,7 @@ function optionKeyClass(opt) {
                     <div class="flex flex-wrap items-center justify-between gap-2 border-b border-surface-container-highest pb-3">
                         <div class="flex flex-wrap items-center gap-2">
                             <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-inverse-surface font-mono text-xs font-black text-white">#{{ q.number }}</span>
+                            <span v-if="q.pdf_number" class="text-xs font-semibold text-on-surface-variant">Câu {{ q.pdf_number }} trong PDF<template v-if="q.section"> · {{ q.section }}</template></span>
                             <UiBadge v-if="skillBadges[q.skill]" :color="skillBadges[q.skill].color" pill class="font-bold uppercase"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">{{ skillBadges[q.skill].icon }}</span> {{ skillBadges[q.skill].label }}</UiBadge>
                             <span class="rounded-md border border-surface-container-highest bg-surface-container px-2 py-0.5 text-xs font-medium text-on-surface-variant">{{ typeLabel(q.type) }}</span>
                         </div>

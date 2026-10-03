@@ -1,11 +1,14 @@
 <script setup>
 /**
- * Sửa đề test đầu vào: cấu hình bộ đề + danh sách câu hỏi (lọc theo kỹ năng, lên / xuống, nhân bản, xóa);
- * thêm / sửa câu hỏi trong modal. Câu hỏi gửi lên server dạng JSON (ô ẩn `questions`).
+ * Sửa đề test đầu vào: cấu hình bộ đề + câu hỏi theo 1 trong 2 cách soạn (như Create.vue):
+ * - "Tải đề PDF": file đề + phiếu trả lời / đáp án (PdfSheetEditor);
+ * - "Soạn từng câu": danh sách câu hỏi (lọc theo kỹ năng, lên / xuống, nhân bản, xóa), thêm / sửa câu hỏi trong modal.
+ * Câu hỏi gửi lên server dạng JSON (ô ẩn `questions`); chuyển sang soạn từng câu thì đề bỏ file PDF.
  */
 import { computed, ref } from 'vue';
 import { confirmDialog } from '@/lib/confirm';
 import { toast } from '@/lib/toast';
+import PdfSheetEditor from '@/Components/PlacementTests/PdfSheetEditor.vue';
 import { emptyOptions, model } from './questionEditor';
 
 defineOptions({ layout: (props) => ({ title: 'Sửa đề: ' + props.test.title }) });
@@ -16,11 +19,22 @@ const props = defineProps({
 });
 
 // Đề chưa có câu hỏi: bắt đầu với 1 câu trống (không soạn sẵn nội dung mẫu / file nghe giả).
-const questions = ref(
-    props.test.questions.length
-        ? JSON.parse(JSON.stringify(props.test.questions))
-        : [{ id: 1, skill: 'reading', type: 'multiple_choice', title: '', audio_url: '', passage: '', options: emptyOptions(), correct_answer: 'A', points: 1, explanation: '' }],
-);
+const blankFirstQuestion = () => ({ id: 1, skill: 'reading', type: 'multiple_choice', title: '', audio_url: '', passage: '', options: emptyOptions(), correct_answer: 'A', points: 1, explanation: '' });
+const mode = ref(props.test.pdf_path ? 'pdf' : 'manual');
+const questions = ref(props.test.questions.length ? JSON.parse(JSON.stringify(props.test.questions)) : mode.value === 'manual' ? [blankFirstQuestion()] : []);
+const pdfPath = ref(props.test.pdf_path ?? '');
+const pdfUrl = ref(props.test.pdf_url ?? '');
+const audioUrl = ref(props.test.audio_url ?? '');
+const modes = [
+    { value: 'pdf', icon: 'picture_as_pdf', label: 'Tải đề PDF' },
+    { value: 'manual', icon: 'edit_note', label: 'Soạn từng câu' },
+];
+async function setMode(next) {
+    if (mode.value === next) return;
+    if (next === 'manual' && pdfPath.value && !(await confirmDialog({ message: 'Chuyển sang soạn từng câu? Khi lưu, đề không dùng file PDF nữa; các câu trên phiếu được giữ để soạn tiếp.', confirmLabel: 'Chuyển' }))) return;
+    if (next === 'manual' && !questions.value.length) questions.value = [blankFirstQuestion()];
+    mode.value = next;
+}
 const filterSkill = ref('all');
 const showModal = ref(false);
 const editIndex = ref(null);
@@ -130,6 +144,9 @@ function swap(index, other) {
             <!-- Hidden synchronized questions payload -->
             <input type="hidden" name="questions" :value="JSON.stringify(questions)" />
             <input type="hidden" name="questions_count" :value="questions.length" />
+            <input type="hidden" name="mode" :value="mode" />
+            <input type="hidden" name="pdf_path" :value="mode === 'pdf' ? pdfPath : ''" />
+            <input type="hidden" name="audio_url" :value="mode === 'pdf' ? audioUrl : ''" />
 
             <!-- 1. General Test Info -->
             <div class="space-y-4 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-6 shadow-sm">
@@ -159,13 +176,25 @@ function swap(index, other) {
                 </div>
             </div>
 
+            <!-- Cách soạn đề -->
+            <div class="flex flex-wrap items-center gap-3 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-3 shadow-sm">
+                <span class="text-xs font-bold uppercase tracking-wider text-on-surface">2. Cách soạn đề</span>
+                <div class="inline-flex rounded-xl bg-surface-container p-1 text-xs" role="group" aria-label="Cách soạn đề">
+                    <button v-for="m in modes" :key="m.value" type="button" :aria-pressed="mode === m.value" :class="['flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-bold transition', mode === m.value ? 'bg-surface-container-lowest text-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface']" @click="setMode(m.value)">
+                        <span class="material-symbols-outlined text-[16px]" aria-hidden="true">{{ m.icon }}</span>{{ m.label }}
+                    </button>
+                </div>
+            </div>
+
+            <PdfSheetEditor v-if="mode === 'pdf'" v-model:questions="questions" v-model:pdf-path="pdfPath" v-model:pdf-url="pdfUrl" v-model:audio-url="audioUrl" />
+
             <!-- 2. Question Builder (Trình soạn thảo câu hỏi đa định dạng) -->
-            <div class="space-y-5 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-6 shadow-sm">
+            <div v-else class="space-y-5 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-6 shadow-sm">
                 <div class="flex flex-col justify-between gap-3 border-b border-surface-container-highest pb-3 sm:flex-row sm:items-center">
                     <div>
                         <h2 class="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-on-surface">
                             <span class="material-symbols-outlined text-base text-tertiary">quiz</span>
-                            2. Danh sách câu hỏi &amp; Kiểu bài thi
+                            Danh sách câu hỏi &amp; Kiểu bài thi
                             <span class="rounded-full border border-tertiary/30 bg-tertiary/10 px-2 py-0.5 font-mono text-xs font-bold text-tertiary">{{ questions.length }} câu hỏi</span>
                         </h2>
                         <p class="mt-0.5 text-xs text-on-surface-variant">Tạo và cấu hình các dạng bài: Trắc nghiệm A/B/C/D, Audio Nghe, Đọc hiểu, Điền từ, Viết luận, Vấn đáp</p>

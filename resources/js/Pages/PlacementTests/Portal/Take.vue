@@ -4,11 +4,14 @@
  * Chế độ thi (PR #35): bấm "Bắt đầu làm bài" → toàn màn hình; rời bài (ẩn tab / mất focus / thoát toàn màn hình) được ghi
  * lại và gửi kèm bài làm; tới MAX_VIOLATIONS lần thì tự động nộp. Khi đang làm bài: chặn quay lại / tải lại trang,
  * chuột phải, sao chép / dán, kéo thả, bôi đen và các phím tắt phổ biến.
+ * Đề tạo từ PDF (test.pdf_url): thí sinh xem nguyên file đề và trả lời trên phiếu (`sheet`: số câu như in trong PDF,
+ * chọn A/B/C… hoặc điền từ); tên ô trả lời giống đề soạn từng câu nên chấm tự động như cũ.
  * Props không chứa đáp án (PlacementTestController::portalQuestions).
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Head, usePage } from '@inertiajs/vue3';
 import BareLayout from '@/Layouts/BareLayout.vue';
+import PdfViewer from '@/Components/PlacementTests/PdfViewer.vue';
 
 defineOptions({ layout: BareLayout });
 
@@ -16,7 +19,8 @@ const props = defineProps({
     test: { type: Object, required: true },
     listening: { type: Array, default: () => [] },
     reading: { type: Array, default: () => [] },
-    writingPrompt: { type: String, default: '' },
+    writingPrompt: { type: String, default: null },
+    sheet: { type: Array, default: () => [] },
     speaking: { type: Object, default: null },
     lead: { type: Object, default: null },
     leadToken: { type: String, default: null },
@@ -196,6 +200,9 @@ onBeforeUnmount(() => {
     exitFullscreen();
 });
 
+// Phiếu trả lời đề PDF: hiện tiêu đề phần khi đổi phần.
+const showSheetSection = (index) => !!props.sheet[index].section && (index === 0 || props.sheet[index - 1].section !== props.sheet[index].section);
+
 const selfRates = [
     { value: 'beginner', title: 'Mới bắt đầu / Mất gốc (A1)', text: 'Chưa tự tin phát âm, hay ấp úng khi giao tiếp câu cơ bản.' },
     { value: 'intermediate', title: 'Trung bình (A2 - B1)', text: 'Giao tiếp được câu hoàn chỉnh hàng ngày, phản xạ tương đối ổn.' },
@@ -233,7 +240,7 @@ const selfRates = [
             </div>
         </header>
 
-        <main class="mx-auto max-w-4xl space-y-6 px-4 py-8">
+        <main :class="['mx-auto space-y-6 px-4 py-8', test.pdf_url ? 'max-w-6xl' : 'max-w-4xl']">
             <!-- Test Intro Banner -->
             <div class="space-y-3 rounded-3xl bg-gradient-to-r from-primary-container to-warning p-6 text-white shadow-xl md:p-8">
                 <div class="flex items-center gap-2">
@@ -291,8 +298,48 @@ const selfRates = [
                     </div>
 
                     <div id="exam-body" :class="started ? 'space-y-6' : 'hidden space-y-6'">
+                        <!-- Đề PDF: xem đề + phiếu trả lời -->
+                        <div v-if="test.pdf_url" class="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+                            <div class="space-y-3 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-4 shadow-sm">
+                                <h2 class="flex items-center gap-2 border-b border-surface-container-highest pb-2 text-sm font-bold uppercase tracking-wider text-on-surface">
+                                    <span class="material-symbols-outlined text-primary" aria-hidden="true">description</span>
+                                    2. Đề bài
+                                </h2>
+                                <div v-if="test.audio_src" class="space-y-2 rounded-xl border border-secondary/30 bg-secondary/10 p-3.5">
+                                    <div class="flex items-center gap-1.5 text-xs font-bold text-on-secondary-fixed">
+                                        <span class="material-symbols-outlined text-base text-secondary" aria-hidden="true">volume_up</span>
+                                        <span>Băng nghe (Listening) — bấm ▶ để nghe</span>
+                                    </div>
+                                    <audio controls class="h-9 w-full rounded-lg" preload="metadata" :src="test.audio_src"></audio>
+                                </div>
+                                <!-- Chỉ vẽ khi đã bắt đầu: lúc chưa bắt đầu khối này đang ẩn (không đo được bề rộng) -->
+                                <PdfViewer v-if="started" :src="test.pdf_url" :allow-open="false" />
+                            </div>
+
+                            <div class="space-y-3 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-4 shadow-sm lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
+                                <h2 class="flex items-center gap-2 border-b border-surface-container-highest pb-2 text-sm font-bold uppercase tracking-wider text-on-surface">
+                                    <span class="material-symbols-outlined text-secondary" aria-hidden="true">checklist</span>
+                                    3. Phiếu trả lời ({{ sheet.length }} câu)
+                                </h2>
+                                <p class="text-xs text-on-surface-variant">Đọc câu hỏi trong đề, chọn hoặc điền câu trả lời theo đúng số câu.</p>
+                                <template v-for="(q, idx) in sheet" :key="q.answer_key">
+                                    <p v-if="showSheetSection(idx)" class="pt-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant">{{ q.section }}</p>
+                                    <div class="flex items-center gap-2 rounded-xl border border-surface-container-highest bg-surface-container-low/50 px-2.5 py-2">
+                                        <span class="w-14 shrink-0 font-mono text-xs font-bold text-on-surface">Câu {{ q.number }}</span>
+                                        <UiInput v-if="q.type === 'fill_blank'" :name="`answers[${q.answer_key}]`" placeholder="Nhập câu trả lời..." :aria-label="`Câu ${q.number}`" class="flex-1 font-bold" />
+                                        <div v-else class="flex flex-wrap gap-1.5" role="radiogroup" :aria-label="`Câu ${q.number}`">
+                                            <label v-for="key in q.options" :key="key" class="cursor-pointer">
+                                                <input type="radio" :name="`answers[${q.answer_key}]`" :value="key" class="peer sr-only" />
+                                                <span class="flex h-9 w-9 items-center justify-center rounded-full border border-outline-variant bg-surface-container-lowest font-mono text-sm font-black text-on-surface transition peer-checked:border-primary peer-checked:bg-primary-container peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-primary">{{ key }}</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
                         <!-- 2. Listening Section -->
-                        <div v-if="listening.length" class="space-y-5 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-6 shadow-sm">
+                        <div v-if="!test.pdf_url && listening.length" class="space-y-5 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-6 shadow-sm">
                             <div class="flex items-center justify-between border-b border-surface-container-highest pb-2">
                                 <h2 class="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-on-surface">
                                     <span class="material-symbols-outlined text-secondary">headphones</span>
@@ -344,7 +391,7 @@ const selfRates = [
                         </div>
 
                         <!-- 3. Reading & Grammar Section -->
-                        <div v-if="reading.length" class="space-y-5 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-6 shadow-sm">
+                        <div v-if="!test.pdf_url && reading.length" class="space-y-5 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-6 shadow-sm">
                             <div class="flex items-center justify-between border-b border-surface-container-highest pb-2">
                                 <h2 class="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-on-surface">
                                     <span class="material-symbols-outlined text-tertiary">menu_book</span>
@@ -380,8 +427,8 @@ const selfRates = [
                             </div>
                         </div>
 
-                        <!-- 4. Writing Section -->
-                        <div class="space-y-4 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-6 shadow-sm">
+                        <!-- 4. Writing Section (đề PDF: chỉ khi đề có câu tự luận) -->
+                        <div v-if="writingPrompt" class="space-y-4 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-6 shadow-sm">
                             <div class="flex items-center justify-between border-b border-surface-container-highest pb-2">
                                 <h2 class="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-on-surface">
                                     <span class="material-symbols-outlined text-accent">edit_note</span>
