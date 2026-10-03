@@ -12,6 +12,7 @@ const props = defineProps({
     asModal: { type: Boolean, default: false },
     item: { type: Object, required: true },
     categories: { type: Array, default: () => [] },
+    branches: { type: Array, default: () => [] },
     isEdit: { type: Boolean, default: false },
 });
 const modal = useRemoteModal();
@@ -23,7 +24,7 @@ const submitLabel = computed(() => (props.isEdit ? 'Lưu cập nhật' : 'Tạo 
 
 <template>
     <UiModalFrame v-if="modal" :title="title" description="Hàng hóa đang kinh doanh được chọn khi lập Hóa đơn / Phiếu thu." :action="action" :method="method" submit-icon="save" :submit-label="submitLabel">
-        <MerchandiseFields :item="item" :categories="categories" />
+        <MerchandiseFields :item="item" :categories="categories" :branches="branches" :is-edit="isEdit" />
     </UiModalFrame>
 
     <template v-else>
@@ -37,7 +38,7 @@ const submitLabel = computed(() => (props.isEdit ? 'Lưu cập nhật' : 'Tạo 
 
         <div class="max-w-3xl rounded-xl border border-outline-variant bg-surface-container-lowest p-lg">
             <UiForm id="merchandise-form" :action="action" :method="method" class="space-y-md">
-                <MerchandiseFields :item="item" :categories="categories" />
+                <MerchandiseFields :item="item" :categories="categories" :branches="branches" :is-edit="isEdit" />
                 <div class="flex justify-end gap-sm border-t border-surface-container pt-md">
                     <UiButton variant="secondary" :href="route('merchandise.index')">Hủy bỏ</UiButton>
                     <UiButton type="submit" icon="save">{{ submitLabel }}</UiButton>

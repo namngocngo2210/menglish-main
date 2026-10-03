@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\InvoiceRangeExhaustedException;
+use App\Exceptions\PaperInvoiceNumberChangedException;
 use App\Exports\TuitionImportTemplateExport;
 use App\Http\Concerns\RendersModals;
 use App\Models\AcademicRecord;
@@ -12,6 +13,7 @@ use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\InvoiceCancellation;
 use App\Models\InvoiceConfiguration;
+use App\Models\MerchandiseItem;
 use App\Models\SepayTransaction;
 use App\Models\Student;
 use App\Models\StudentTuition;
@@ -20,6 +22,7 @@ use App\Models\TuitionContactLog;
 use App\Models\TuitionReceipt;
 use App\Models\TuitionRefundRequest;
 use App\Models\User;
+use App\Services\Merchandise\StockService;
 use App\Services\NotificationService;
 use App\Services\SafeUploadService;
 use App\Services\SalesCommissionService;
@@ -40,6 +43,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -412,11 +416,20 @@ class TuitionController extends Controller
         }
         $user = $request->user();
 
+        // Hàng hóa chọn ở phần Phụ thu + tồn kho của chi nhánh; số hóa đơn giấy kế tiếp của chi nhánh có dải giấy.
+        $branchIds = TuitionBranchScope::branches($scope)->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $merchandiseItems = MerchandiseItem::active()->orderBy('category')->orderBy('name')->get();
+        $paperInvoiceNext = collect($branchIds)
+            ->mapWithKeys(fn (int $branchId) => [$branchId => InvoiceConfiguration::branchUsesPaperRange($branchId) ? (InvoiceConfiguration::peekNextPaperNumber($branchId) ?? '') : null])
+            ->filter(fn ($next) => $next !== null);
+        $branchOf = fn (?StudentTuition $t, ?Student $st) => $this->branchIdFor($t, $st);
+
         // Mở từ dòng học viên / khoản học phí → modal 4xl; lập phiếu tự do / mở thẳng URL → trang riêng.
         return $this->modalPage('Tuition/ReceiptForm', [
             'tuitions' => $tuitions->map(fn (StudentTuition $t) => [
                 'id' => $t->id,
                 'student_id' => $t->student_id,
+                'branch_id' => $branchOf($t, $t->student),
                 'student_name' => $t->student?->name ?? 'Học viên',
                 'student_code' => $t->student?->code ?? 'HV',
                 'student_code_short' => DisplayCode::short($t->student?->code ?? 'HV'),
@@ -447,6 +460,7 @@ class TuitionController extends Controller
             ])->values(),
             'students' => $students->map(fn (Student $st) => [
                 'id' => $st->id,
+                'branch_id' => $branchOf(null, $st),
                 'name' => $st->name,
                 'code' => $st->code,
                 'code_short' => DisplayCode::short($st->code),
@@ -478,6 +492,10 @@ class TuitionController extends Controller
                 'payment_method' => $editingReceipt->payment_method === 'vietqr' ? 'transfer' : $editingReceipt->payment_method,
                 'transaction_code' => $editingReceipt->transaction_code,
                 'paper_invoice_number' => $editingReceipt->paper_invoice_number,
+                // Số hóa đơn giấy hệ thống đã cấp (giữ nguyên khi sửa / gửi duyệt lại).
+                'issued_paper_invoice' => $editingReceipt->hasIssuedPaperInvoice() ? $editingReceipt->invoice_number : null,
+                'surcharge_items' => collect(StockService::surchargeItems($editingReceipt->collected_items))
+                    ->map(fn (array $line) => ['id' => $line['id'], 'quantity' => $line['quantity']])->values()->all(),
                 'payer_name' => $editingReceipt->payer_name,
                 'payer_phone' => $editingReceipt->payer_phone,
                 'proof_image' => $editingReceipt->proof_image,
@@ -485,6 +503,17 @@ class TuitionController extends Controller
                 'notes' => $editingReceipt->notes,
             ] : null,
             'nextReceiptNumber' => $nextReceiptNumber,
+            'merchandiseItems' => $merchandiseItems->map(fn (MerchandiseItem $item) => [
+                'id' => $item->id,
+                'code' => $item->code,
+                'name' => $item->name,
+                'unit' => $item->unit,
+                'price' => (float) $item->price,
+                'category_label' => $item->category_label,
+            ])->values()->all(),
+            'stockByBranch' => (object) app(StockService::class)->quantitiesByBranch($branchIds),
+            'paperInvoiceNext' => (object) $paperInvoiceNext->all(),
+            'canRequestCancel' => (bool) $user->can('invoice.request_cancel'),
             'recentRejection' => $recentRejection ? [
                 'id' => $recentRejection->id,
                 'receipt_number' => $recentRejection->receipt_number,
@@ -508,6 +537,7 @@ class TuitionController extends Controller
             'payment_method' => 'required|string|in:'.implode(',', TuitionReceipt::INPUT_METHODS),
             'transaction_code' => 'nullable|string|max:100',
             'paper_invoice_number' => 'nullable|string|max:100',
+            'expected_paper_invoice_number' => 'nullable|string|max:100',
             'payer_name' => 'nullable|string|max:255',
             'payer_phone' => 'nullable|string|max:50',
             'is_vat_invoice' => 'nullable|boolean',
@@ -525,37 +555,33 @@ class TuitionController extends Controller
             return back()->withErrors($amountError)->withInput();
         }
 
-        if (! empty($validated['surcharge_amount']) && $validated['surcharge_amount'] > 0 && empty($validated['surcharge_reason'])) {
-            return back()->withErrors(['surcharge_reason' => 'Bắt buộc nhập lý do khi có số tiền phụ thu.'])->withInput();
+        $surchargeItems = $this->surchargeItemsFrom($request->input('collected_items'));
+        if ($surchargeError = $this->surchargeError($validated, $surchargeItems)) {
+            return back()->withErrors($surchargeError)->withInput();
         }
 
-        $isDraft = ($request->input('submit_action') === 'draft');
-        $hasProof = $request->hasFile('proof_image')
-            || ($request->filled('proof_image_preview') && $this->isSafeProofReference((string) $request->input('proof_image_preview')));
-        if (! $isDraft && ($submitError = $this->receiptSubmitError($validated['payment_method'], $validated['transaction_code'] ?? null, $hasProof, null, $validated['paper_invoice_number'] ?? null))) {
-            return back()->withErrors($submitError)->withInput();
-        }
-
-        $collectedItems = null;
-        if ($request->filled('collected_items')) {
-            $raw = $request->input('collected_items');
-            $decoded = is_string($raw) ? json_decode($raw, true) : $raw;
-            if (is_array($decoded)) {
-                $collectedItems = array_values(array_filter($decoded, fn ($i) => ! empty($i['name']) && isset($i['amount'])));
-            }
-        }
-
-        $tuition = ! empty($validated['student_tuition_id']) ? StudentTuition::with('student')->find($validated['student_tuition_id']) : null;
+        $tuition = ! empty($validated['student_tuition_id']) ? StudentTuition::with('student.currentClass')->find($validated['student_tuition_id']) : null;
         if ($tuition && ! empty($validated['student_id']) && (int) $validated['student_id'] !== (int) $tuition->student_id) {
             return back()->withErrors([
                 'student_id' => 'Học viên không khớp với khoản học phí đã chọn.',
             ])->withInput();
         }
         $studentId = $validated['student_id'] ?? $tuition?->student_id;
+        $student = $tuition?->student ?? Student::with('currentClass')->find($studentId);
         $scope = $this->branchScope();
         abort_unless($tuition
             ? TuitionBranchScope::allowsTuition($tuition, $scope)
-            : TuitionBranchScope::allowsStudent(Student::with('currentClass')->find($studentId), $scope), 403, self::OUT_OF_SCOPE);
+            : TuitionBranchScope::allowsStudent($student, $scope), 403, self::OUT_OF_SCOPE);
+
+        $isDraft = ($request->input('submit_action') === 'draft');
+        $branchId = $this->branchIdFor($tuition, $student);
+        // Chi nhánh có dải hóa đơn giấy: phiếu tiền mặt được hệ thống cấp số, không nhập tay.
+        $paperRange = $validated['payment_method'] === 'cash' && InvoiceConfiguration::branchUsesPaperRange($branchId);
+        $hasProof = $request->hasFile('proof_image')
+            || ($request->filled('proof_image_preview') && $this->isSafeProofReference((string) $request->input('proof_image_preview')));
+        if (! $isDraft && ($submitError = $this->receiptSubmitError($validated['payment_method'], $validated['transaction_code'] ?? null, $hasProof, null, $validated['paper_invoice_number'] ?? null, $paperRange))) {
+            return back()->withErrors($submitError)->withInput();
+        }
 
         $receiptNumber = TuitionReceipt::generateReceiptNumber();
         // Phiếu thu KHÔNG bao giờ tự duyệt khi lập: chỉ endpoint approve (tuition.approve) mới duyệt & cấp số HĐ.
@@ -570,39 +596,52 @@ class TuitionController extends Controller
         $proofPath = $this->storeProof($request);
 
         try {
-            $receipt = TuitionReceipt::create([
-                'receipt_number' => $receiptNumber,
-                'invoice_number' => null,
-                'student_tuition_id' => $tuition?->id,
-                'student_id' => $studentId,
-                'amount' => $validated['amount'],
-                'tuition_amount' => (float) $validated['amount'] - $surcharge,
-                'discount_amount' => $discount,
-                'surcharge_amount' => $surcharge,
-                'surcharge_reason' => $validated['surcharge_reason'] ?? null,
-                'payment_method' => $validated['payment_method'],
-                'transaction_code' => $validated['transaction_code'] ?? null,
-                'paper_invoice_number' => $validated['paper_invoice_number'] ?? null,
-                'payer_name' => $validated['payer_name'] ?? $tuition?->student?->parent_name ?? $tuition?->student?->name,
-                'payer_phone' => $validated['payer_phone'] ?? $tuition?->student?->phone,
-                'is_vat_invoice' => $request->boolean('is_vat_invoice'),
-                'proof_image' => $proofPath,
-                'collected_items' => $collectedItems,
-                'payment_date' => now(),
-                'creator_id' => Auth::id(),
-                'approver_id' => null,
-                'status' => $status,
-                'notes' => $validated['notes'] ?? 'Lập phiếu thu học phí & phụ thu',
-            ]);
+            $receipt = DB::transaction(function () use ($validated, $receiptNumber, $tuition, $studentId, $surcharge, $discount, $surchargeItems, $proofPath, $status, $isDraft, $paperRange, $branchId, $request) {
+                // Số hóa đơn giấy cấp ngay khi lập (kể cả nháp) để Học vụ ghi lên hóa đơn; gửi duyệt thẳng thì số
+                // phải đúng số người lập đã thấy trên form (đã ghi lên giấy và chụp ảnh).
+                $paperNumber = $paperRange
+                    ? InvoiceConfiguration::consumeNextPaperNumber($branchId, $isDraft ? null : ($validated['expected_paper_invoice_number'] ?? null))
+                    : null;
+
+                return TuitionReceipt::create([
+                    'receipt_number' => $receiptNumber,
+                    'invoice_number' => $paperNumber,
+                    'student_tuition_id' => $tuition?->id,
+                    'student_id' => $studentId,
+                    'amount' => $validated['amount'],
+                    'tuition_amount' => (float) $validated['amount'] - $surcharge,
+                    'discount_amount' => $discount,
+                    'surcharge_amount' => $surcharge,
+                    'surcharge_reason' => $this->surchargeReason($validated['surcharge_reason'] ?? null, $surchargeItems),
+                    'payment_method' => $validated['payment_method'],
+                    'transaction_code' => $validated['transaction_code'] ?? null,
+                    'paper_invoice_number' => $paperNumber ?? ($validated['paper_invoice_number'] ?? null),
+                    'payer_name' => $validated['payer_name'] ?? $tuition?->student?->parent_name ?? $tuition?->student?->name,
+                    'payer_phone' => $validated['payer_phone'] ?? $tuition?->student?->phone,
+                    'is_vat_invoice' => $request->boolean('is_vat_invoice'),
+                    'proof_image' => $proofPath,
+                    'collected_items' => $surchargeItems ?: null,
+                    'payment_date' => now(),
+                    'creator_id' => Auth::id(),
+                    'approver_id' => null,
+                    'status' => $status,
+                    'notes' => $validated['notes'] ?? 'Lập phiếu thu học phí & phụ thu',
+                ]);
+            });
+        } catch (PaperInvoiceNumberChangedException|InvoiceRangeExhaustedException $e) {
+            return back()->withErrors(['paper_invoice_number' => $e->getMessage()])->withInput();
         } catch (UniqueConstraintViolationException) {
             return back()->withErrors([
                 'transaction_code' => 'Mã giao dịch '.$validated['transaction_code'].' vừa được ghi nhận ở một phiếu thu khác.',
             ])->withInput();
         }
 
+        $paperNote = $receipt->hasIssuedPaperInvoice() ? " Số hóa đơn giấy: {$receipt->invoice_number}." : '';
+
         if ($isDraft) {
             return $this->modalSaved(
-                "Đã lưu nháp phiếu thu {$receipt->receipt_number} thành công! Bạn có thể tiếp tục sửa và gửi duyệt.",
+                "Đã lưu nháp phiếu thu {$receipt->receipt_number} thành công!{$paperNote}"
+                    .($paperNote ? ' Ghi số này lên hóa đơn giấy, chụp ảnh tải lên phiếu rồi gửi duyệt.' : ' Bạn có thể tiếp tục sửa và gửi duyệt.'),
                 route('tuition.receipts.edit', $receipt->id),
             );
         }
@@ -610,7 +649,7 @@ class TuitionController extends Controller
         $this->notifyReceiptPending($receipt, $tuition?->student ?? Student::find($studentId));
 
         return $this->modalSaved(
-            "Đã gửi duyệt phiếu thu {$receipt->receipt_number} (Số tiền: ".Money::format((float) $receipt->amount).') lên cấp Quản lý / Kế toán!',
+            "Đã gửi duyệt phiếu thu {$receipt->receipt_number} (Số tiền: ".Money::format((float) $receipt->amount).") lên cấp Quản lý / Kế toán!{$paperNote}",
             route('tuition.receipts.approve', ['selected_id' => $receipt->id]),
         );
     }
@@ -629,21 +668,38 @@ class TuitionController extends Controller
             'payment_method' => 'required|string|in:'.implode(',', TuitionReceipt::INPUT_METHODS),
             'transaction_code' => 'nullable|string|max:100',
             'paper_invoice_number' => 'nullable|string|max:100',
+            'expected_paper_invoice_number' => 'nullable|string|max:100',
             'payer_name' => 'nullable|string|max:255',
             'payer_phone' => 'nullable|string|max:50',
             'is_vat_invoice' => 'nullable|boolean',
             'notes' => 'nullable|string|max:1000',
+            'collected_items' => 'nullable',
             'proof_image' => 'nullable|file|mimes:jpeg,png,jpg,pdf,webp|max:5120',
             'remove_proof' => 'nullable|boolean',
             'submit_action' => 'nullable|string|in:draft,submit',
         ]);
 
         $user = $request->user();
-        $receipt = TuitionReceipt::with('tuition.student')->findOrFail($id);
+        $receipt = TuitionReceipt::with(['tuition.student.currentClass', 'student.currentClass'])->findOrFail($id);
         abort_unless((int) $receipt->creator_id === (int) $user->id || $user->isSuperAdmin(), 403, 'Chỉ người lập phiếu mới được sửa phiếu này.');
 
         if ($amountError = $this->receiptAmountError($validated)) {
             return back()->withErrors($amountError)->withInput();
+        }
+
+        // Không gửi danh sách hàng hóa (form cũ) → giữ hàng hóa đã chọn của phiếu.
+        $surchargeItems = $request->has('collected_items')
+            ? $this->surchargeItemsFrom($request->input('collected_items'))
+            : array_values(array_filter((array) $receipt->collected_items, fn ($line) => is_array($line) && ($line['source'] ?? null) === 'surcharge'));
+        if ($surchargeError = $this->surchargeError($validated, $surchargeItems)) {
+            return back()->withErrors($surchargeError)->withInput();
+        }
+
+        // Số hóa đơn giấy đã cấp gắn với hóa đơn đã viết: phiếu phải giữ hình thức tiền mặt (đổi thì hủy hóa đơn).
+        if ($receipt->hasIssuedPaperInvoice() && $validated['payment_method'] !== 'cash') {
+            return back()->withErrors([
+                'payment_method' => "Phiếu đã được cấp số hóa đơn giấy {$receipt->invoice_number} nên phải giữ hình thức tiền mặt. Muốn đổi hình thức thu, hãy tạo yêu cầu hủy hóa đơn số này rồi lập phiếu mới.",
+            ])->withInput();
         }
 
         $isDraft = ($validated['submit_action'] ?? null) === 'draft';
@@ -653,13 +709,17 @@ class TuitionController extends Controller
             ? (($validated['transaction_code'] ?? null) ?: null)
             : $receipt->transaction_code;
 
+        $branchId = $receipt->resolveBranchId();
+        $paperRange = $validated['payment_method'] === 'cash'
+            && ($receipt->hasIssuedPaperInvoice() || InvoiceConfiguration::branchUsesPaperRange($branchId));
+
         $keepsProof = $receipt->proof_image && ! $request->boolean('remove_proof');
         $hasProof = $keepsProof || $request->hasFile('proof_image')
             || ($request->filled('proof_image_preview') && $this->isSafeProofReference((string) $request->input('proof_image_preview')));
         $paperInvoiceNumber = $request->has('paper_invoice_number')
             ? ($validated['paper_invoice_number'] ?? null)
             : $receipt->paper_invoice_number;
-        if (! $isDraft && ($submitError = $this->receiptSubmitError($validated['payment_method'], $transactionCode, $hasProof, $receipt->id, $paperInvoiceNumber))) {
+        if (! $isDraft && ($submitError = $this->receiptSubmitError($validated['payment_method'], $transactionCode, $hasProof, $receipt->id, $paperInvoiceNumber, $paperRange))) {
             return back()->withErrors($submitError)->withInput();
         }
 
@@ -671,10 +731,16 @@ class TuitionController extends Controller
         $proofPath = $newProof ?? ($keepsProof ? $receipt->proof_image : null);
 
         try {
-            $updated = DB::transaction(function () use ($id, $validated, $isDraft, $surcharge, $discount, $transactionCode, $proofPath, $request) {
+            $updated = DB::transaction(function () use ($id, $validated, $isDraft, $surcharge, $discount, $transactionCode, $proofPath, $surchargeItems, $paperRange, $branchId, $request) {
                 $locked = TuitionReceipt::query()->lockForUpdate()->findOrFail($id);
                 if (! in_array($locked->status, TuitionReceipt::EDITABLE_STATUSES, true)) {
                     return null;
+                }
+
+                // Phiếu tiền mặt chưa có số hóa đơn giấy (lập trước khi chi nhánh có dải giấy) → cấp số lúc này.
+                $paperNumber = $locked->hasIssuedPaperInvoice() ? $locked->invoice_number : null;
+                if ($paperRange && ! $paperNumber && $locked->invoice_number === null) {
+                    $paperNumber = InvoiceConfiguration::consumeNextPaperNumber($branchId, $isDraft ? null : ($validated['expected_paper_invoice_number'] ?? null));
                 }
 
                 $locked->update([
@@ -682,14 +748,16 @@ class TuitionController extends Controller
                     'tuition_amount' => (float) $validated['amount'] - $surcharge,
                     'discount_amount' => $discount,
                     'surcharge_amount' => $surcharge,
-                    'surcharge_reason' => $validated['surcharge_reason'] ?? null,
+                    'surcharge_reason' => $this->surchargeReason($validated['surcharge_reason'] ?? null, $surchargeItems),
                     'payment_method' => $validated['payment_method'],
                     'transaction_code' => $transactionCode,
-                    'paper_invoice_number' => $validated['paper_invoice_number'] ?? $locked->paper_invoice_number,
+                    'invoice_number' => $paperNumber ?? $locked->invoice_number,
+                    'paper_invoice_number' => $paperNumber ?? ($validated['paper_invoice_number'] ?? $locked->paper_invoice_number),
                     'payer_name' => $validated['payer_name'] ?? $locked->payer_name,
                     'payer_phone' => $validated['payer_phone'] ?? $locked->payer_phone,
                     'is_vat_invoice' => $request->has('is_vat_invoice') ? $request->boolean('is_vat_invoice') : $locked->is_vat_invoice,
                     'proof_image' => $proofPath,
+                    'collected_items' => $surchargeItems ?: null,
                     'notes' => $validated['notes'] ?? $locked->notes,
                     'status' => $isDraft ? TuitionReceipt::STATUS_DRAFT : TuitionReceipt::STATUS_PENDING,
                     'approver_id' => null,
@@ -698,6 +766,8 @@ class TuitionController extends Controller
 
                 return $locked;
             });
+        } catch (PaperInvoiceNumberChangedException|InvoiceRangeExhaustedException $e) {
+            return back()->withErrors(['paper_invoice_number' => $e->getMessage()])->withInput();
         } catch (UniqueConstraintViolationException) {
             return back()->withErrors([
                 'transaction_code' => 'Mã giao dịch '.$transactionCode.' vừa được ghi nhận ở một phiếu thu khác.',
@@ -708,27 +778,34 @@ class TuitionController extends Controller
             return back()->withErrors(['receipt' => 'Chỉ sửa được phiếu ở trạng thái Bản nháp hoặc Bị từ chối.']);
         }
 
+        $paperNote = $updated->hasIssuedPaperInvoice() ? " Số hóa đơn giấy: {$updated->invoice_number}." : '';
+
         if ($isDraft) {
-            return $this->modalSaved("Đã lưu nháp phiếu thu {$updated->receipt_number}.", url()->previous());
+            return $this->modalSaved("Đã lưu nháp phiếu thu {$updated->receipt_number}.{$paperNote}", url()->previous());
         }
 
         $this->notifyReceiptPending($updated, $receipt->tuition?->student ?? $receipt->student);
 
-        return $this->modalSaved("Đã gửi duyệt lại phiếu thu {$updated->receipt_number}.", route('tuition.receipts.approve', ['selected_id' => $updated->id]));
+        return $this->modalSaved("Đã gửi duyệt lại phiếu thu {$updated->receipt_number}.{$paperNote}", route('tuition.receipts.approve', ['selected_id' => $updated->id]));
     }
 
     /**
      * Điều kiện gửi duyệt (không áp dụng khi lưu nháp):
-     * - Chuyển khoản / VietQR bắt buộc có minh chứng (tiền mặt được miễn).
-     * - Tiền mặt thu theo hóa đơn giấy: bắt buộc số hóa đơn giấy.
+     * - Chuyển khoản / VietQR bắt buộc có minh chứng.
+     * - Tiền mặt ở chi nhánh có dải hóa đơn giấy: hệ thống cấp số, bắt buộc ảnh chụp hóa đơn giấy đã ghi đúng số đó.
+     *   Chi nhánh chưa cấu hình dải giấy: nhập tay số hóa đơn giấy như trước (không cần ảnh).
      * - Mã giao dịch chuyển khoản không được trùng phiếu khác đang chờ duyệt / đã duyệt,
      *   hay giao dịch SePay đã tự động gạch nợ.
      *
      * @return array<string, string>|null
      */
-    private function receiptSubmitError(string $method, ?string $transactionCode, bool $hasProof, ?int $ignoreReceiptId = null, ?string $paperInvoiceNumber = null): ?array
+    private function receiptSubmitError(string $method, ?string $transactionCode, bool $hasProof, ?int $ignoreReceiptId = null, ?string $paperInvoiceNumber = null, bool $paperRange = false): ?array
     {
-        if ($method === 'cash' && trim((string) $paperInvoiceNumber) === '') {
+        if ($method === 'cash' && $paperRange && ! $hasProof) {
+            return ['proof_image' => 'Thu tiền mặt cần tải ảnh chụp hóa đơn giấy đã ghi đúng số hóa đơn hệ thống cấp.'];
+        }
+
+        if ($method === 'cash' && ! $paperRange && trim((string) $paperInvoiceNumber) === '') {
             return ['paper_invoice_number' => 'Thu tiền mặt cần nhập số hóa đơn giấy đã xuất cho khách.'];
         }
 
@@ -748,6 +825,92 @@ class TuitionController extends Controller
         }
 
         return null;
+    }
+
+    /** Chi nhánh ghi nhận phiếu sắp lập (như TuitionReceipt::resolveBranchId). */
+    private function branchIdFor(?StudentTuition $tuition, ?Student $student): ?int
+    {
+        $student ??= $tuition?->student;
+        $branchId = $tuition?->branch_id ?? $student?->branch_id ?? $student?->currentClass?->branch_id;
+
+        return $branchId ? (int) $branchId : null;
+    }
+
+    /**
+     * Hàng hóa chọn ở phần Phụ thu (sách, đồng phục...): chỉ nhận mặt hàng trong danh mục, giá lấy theo danh mục.
+     * Mỗi dòng: id, code, name, unit, quantity, unit_price, amount, source = surcharge (xuất kho khi phiếu được duyệt).
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function surchargeItemsFrom(mixed $raw): array
+    {
+        $decoded = is_string($raw) ? json_decode($raw, true) : $raw;
+        if (! is_array($decoded)) {
+            return [];
+        }
+
+        $quantities = [];
+        foreach ($decoded as $line) {
+            if (! is_array($line) || empty($line['id'])) {
+                continue;
+            }
+            $quantity = (int) ($line['quantity'] ?? 1);
+            if ($quantity < 1 || $quantity > 1000) {
+                throw ValidationException::withMessages(['collected_items' => 'Số lượng hàng hóa phải từ 1 đến 1000.']);
+            }
+            $quantities[(int) $line['id']] = ($quantities[(int) $line['id']] ?? 0) + $quantity;
+        }
+        if ($quantities === []) {
+            return [];
+        }
+
+        $items = MerchandiseItem::active()->whereIn('id', array_keys($quantities))->get()->keyBy('id');
+        if ($items->count() !== count($quantities)) {
+            throw ValidationException::withMessages(['collected_items' => 'Có hàng hóa không tồn tại hoặc đã ngừng bán.']);
+        }
+
+        return collect($quantities)->map(fn (int $quantity, int $id) => [
+            'id' => $id,
+            'code' => $items[$id]->code,
+            'name' => $items[$id]->name,
+            'unit' => $items[$id]->unit,
+            'quantity' => $quantity,
+            'unit_price' => (float) $items[$id]->price,
+            'amount' => (float) $items[$id]->price * $quantity,
+            'source' => 'surcharge',
+        ])->values()->all();
+    }
+
+    /**
+     * Phụ thu = tiền hàng hóa đã chọn + phụ thu khác. Phụ thu khác (ngoài hàng hóa) bắt buộc lý do.
+     *
+     * @param  list<array<string, mixed>>  $surchargeItems
+     * @return array<string, string>|null
+     */
+    private function surchargeError(array $validated, array $surchargeItems): ?array
+    {
+        $surcharge = (float) ($validated['surcharge_amount'] ?? 0);
+        $itemsTotal = (float) array_sum(array_column($surchargeItems, 'amount'));
+        if ($itemsTotal - $surcharge > 0.009) {
+            return ['surcharge_amount' => 'Tiền phụ thu ('.Money::format($surcharge).') ít hơn tiền hàng hóa đã chọn ('.Money::format($itemsTotal).').'];
+        }
+
+        if ($surcharge - $itemsTotal > 0.009 && trim((string) ($validated['surcharge_reason'] ?? '')) === '') {
+            return ['surcharge_reason' => 'Bắt buộc nhập lý do khi có số tiền phụ thu.'];
+        }
+
+        return null;
+    }
+
+    /** Lý do phụ thu: người lập nhập, thiếu thì ghi danh sách hàng hóa đã chọn. */
+    private function surchargeReason(?string $reason, array $surchargeItems): ?string
+    {
+        $reason = trim((string) $reason);
+        if ($reason !== '' || $surchargeItems === []) {
+            return $reason !== '' ? $reason : null;
+        }
+
+        return Str::limit(collect($surchargeItems)->map(fn ($line) => $line['name'].' x'.$line['quantity'])->implode(', '), 490);
     }
 
     /**
@@ -828,10 +991,6 @@ class TuitionController extends Controller
     {
         $amount = (float) $validated['amount'];
         $surcharge = (float) ($validated['surcharge_amount'] ?? 0);
-
-        if ($surcharge > 0 && empty($validated['surcharge_reason'])) {
-            return ['surcharge_reason' => 'Bắt buộc nhập lý do khi có số tiền phụ thu.'];
-        }
 
         if ($surcharge > $amount) {
             return ['surcharge_amount' => 'Tiền phụ thu không được lớn hơn tổng tiền của phiếu.'];
@@ -1069,6 +1228,12 @@ class TuitionController extends Controller
                 'notes' => $selectedReceipt->notes,
                 'proof_image' => $selectedReceipt->proof_image,
                 'reference' => $selectedReceipt->transaction_code ?: ($selectedReceipt->paper_invoice_number ?: '—'),
+                // Số hóa đơn giấy hệ thống cấp: người duyệt đối chiếu với số trên ảnh hóa đơn giấy.
+                'issued_paper_invoice' => $selectedReceipt->hasIssuedPaperInvoice() ? $selectedReceipt->invoice_number : null,
+                // Sách / hàng hóa sẽ xuất kho chi nhánh khi duyệt (cảnh báo khi kho hết / âm).
+                'stock_out' => $selectedReceipt->status === TuitionReceipt::STATUS_PENDING
+                    ? app(StockService::class)->previewForReceipt($selectedReceipt)
+                    : [],
                 'beneficiary' => $beneficiaryAccount ? $beneficiaryAccount->account_number.' ('.$beneficiaryAccount->bank_name.')' : null,
                 'payment_date' => $selectedReceipt->payment_date?->format('H:i - d/m/Y'),
                 'can_resubmit' => in_array($selectedReceipt->status, TuitionReceipt::EDITABLE_STATUSES, true)
@@ -1107,6 +1272,10 @@ class TuitionController extends Controller
 
             if ($duplicateError = $this->sepayDuplicateError($receipt, $confirmNotDuplicate)) {
                 return $duplicateError;
+            }
+
+            if ($receipt->invoice_number && InvoiceCancellation::where('tuition_receipt_id', $receipt->id)->where('status', 'pending')->exists()) {
+                return "Hóa đơn {$receipt->invoice_number} của phiếu này đang có yêu cầu hủy chờ duyệt — xử lý yêu cầu hủy trước.";
             }
 
             if ($tuition) {
@@ -1200,7 +1369,12 @@ class TuitionController extends Controller
             Log::warning('Lỗi gửi email giao dịch khi duyệt phiếu thu: '.$e->getMessage());
         }
 
-        return redirect()->back()->with('status', "Đã phê duyệt phiếu thu {$receipt->receipt_number} và phát hành HĐĐT số {$invoiceNumber}!");
+        // Mở từ nút "Hủy số hóa đơn này" (?cancel_invoice=) → về danh sách không kèm form điền sẵn.
+        $back = str_contains(url()->previous(), 'cancel_invoice=') ? redirect()->route('tuition.invoices.cancellations') : redirect()->back();
+
+        return $back->with('status', $receipt->hasIssuedPaperInvoice()
+            ? "Đã phê duyệt phiếu thu {$receipt->receipt_number} (hóa đơn giấy số {$invoiceNumber})!"
+            : "Đã phê duyệt phiếu thu {$receipt->receipt_number} và phát hành HĐĐT số {$invoiceNumber}!");
     }
 
     /**
@@ -1578,6 +1752,8 @@ class TuitionController extends Controller
             'approvedMonthCount' => $approvedMonthCount,
             'rejectedCount' => $rejectedCount,
             'canApproveCancel' => (bool) $request->user()?->can('invoice.approve_cancel'),
+            // ?cancel_invoice=<số HĐ> (nút "Hủy số hóa đơn này" ở phiếu thu): mở sẵn form yêu cầu hủy, điền số + số tiền.
+            'prefill' => $this->cancellationPrefill($request, $scope),
             'cancellations' => $cancellations->map(function (InvoiceCancellation $c) use ($studentOf) {
                 $student = $studentOf($c);
 
@@ -1698,6 +1874,21 @@ class TuitionController extends Controller
         }, 'yeu-cau-huy-hoa-don-'.now()->format('Ymd-His').'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
+    /** @return array{invoice_number: string, amount: float}|null */
+    private function cancellationPrefill(Request $request, ?array $scope): ?array
+    {
+        if (! $request->filled('cancel_invoice') || ! $request->user()?->can('invoice.request_cancel')) {
+            return null;
+        }
+        $receipt = TuitionReceipt::with(['tuition.student.currentClass', 'student.currentClass'])
+            ->where('invoice_number', trim((string) $request->input('cancel_invoice')))
+            ->first();
+
+        return $receipt && TuitionBranchScope::allowsReceipt($receipt, $scope)
+            ? ['invoice_number' => (string) $receipt->invoice_number, 'amount' => (float) $receipt->amount]
+            : null;
+    }
+
     /** Yêu cầu hủy hóa đơn trong phạm vi chi nhánh người xem (xem TuitionBranchScope::cancellations). */
     private function scopedCancellations(?array $scope)
     {
@@ -1723,9 +1914,13 @@ class TuitionController extends Controller
 
         // Luôn xác định phiếu thu từ số hóa đơn phía server (không tin tuition_receipt_id/amount từ form).
         $receipt = TuitionReceipt::with(['tuition.student.currentClass', 'student.currentClass'])->where('invoice_number', trim($validated['invoice_number']))->first();
-        if (! $receipt || $receipt->status !== TuitionReceipt::STATUS_APPROVED) {
+        // Hóa đơn giấy tiền mặt được cấp số ngay khi lập phiếu: ghi sai số trên giấy thì hủy được cả khi phiếu
+        // còn nháp / chờ duyệt / bị trả về (phiếu mới sẽ nhận số kế tiếp).
+        $cancellable = $receipt && ($receipt->status === TuitionReceipt::STATUS_APPROVED
+            || ($receipt->hasIssuedPaperInvoice() && in_array($receipt->status, [...TuitionReceipt::EDITABLE_STATUSES, TuitionReceipt::STATUS_PENDING], true)));
+        if (! $cancellable) {
             return redirect()->back()->withErrors([
-                'invoice_number' => 'Không tìm thấy hóa đơn đã duyệt với số '.$validated['invoice_number'].'.',
+                'invoice_number' => 'Không tìm thấy hóa đơn đã duyệt (hoặc hóa đơn giấy đã cấp số) với số '.$validated['invoice_number'].'.',
             ])->withInput();
         }
         abort_unless(TuitionBranchScope::allowsReceipt($receipt, $this->branchScope()), 403, self::OUT_OF_SCOPE);
@@ -1764,7 +1959,12 @@ class TuitionController extends Controller
             'status' => 'pending',
         ]);
 
-        return redirect()->back()->with('status', 'Đã gửi yêu cầu hủy hóa đơn GTGT lên cấp quản lý phê duyệt!');
+        // Mở từ nút "Hủy số hóa đơn này" (?cancel_invoice=) → về danh sách không kèm form điền sẵn.
+        $back = str_contains(url()->previous(), 'cancel_invoice=') ? redirect()->route('tuition.invoices.cancellations') : redirect()->back();
+
+        return $back->with('status', $receipt->hasIssuedPaperInvoice()
+            ? "Đã gửi yêu cầu hủy hóa đơn giấy {$receipt->invoice_number} lên cấp quản lý phê duyệt! Phiếu lập mới sẽ nhận số hóa đơn kế tiếp."
+            : 'Đã gửi yêu cầu hủy hóa đơn GTGT lên cấp quản lý phê duyệt!');
     }
 
     public function approveInvoiceCancellation(Request $request, $id)
@@ -1785,7 +1985,10 @@ class TuitionController extends Controller
             $receipt = $cancellation->tuition_receipt_id
                 ? TuitionReceipt::query()->lockForUpdate()->find($cancellation->tuition_receipt_id)
                 : null;
-            if (! $receipt || $receipt->status !== TuitionReceipt::STATUS_APPROVED) {
+            // Hóa đơn giấy của phiếu chưa duyệt: chỉ vô hiệu phiếu + số hóa đơn (chưa ghi nhận công nợ / hoa hồng).
+            $unapprovedPaper = $receipt?->hasIssuedPaperInvoice()
+                && in_array($receipt->status, [...TuitionReceipt::EDITABLE_STATUSES, TuitionReceipt::STATUS_PENDING], true);
+            if (! $receipt || ($receipt->status !== TuitionReceipt::STATUS_APPROVED && ! $unapprovedPaper)) {
                 return 'Không xác định được phiếu thu đã duyệt gắn với hóa đơn này, không thể hoàn tác công nợ.';
             }
 
@@ -1794,6 +1997,16 @@ class TuitionController extends Controller
                 'approver_id' => Auth::id(),
                 'rejection_reason' => null,
             ]);
+
+            if ($unapprovedPaper) {
+                $receipt->update([
+                    'status' => TuitionReceipt::STATUS_CANCELLED,
+                    'rejection_reason' => 'Hủy số hóa đơn giấy: '.$cancellation->reason,
+                ]);
+                $cancellation->setAttribute('unapproved_paper', true);
+
+                return $cancellation;
+            }
 
             // Hoa hồng của phiếu đã chi trong kỳ lương đã duyệt → thu hồi ở kỳ kế tiếp (kỳ chưa duyệt tự tính lại).
             $clawback = app(SalesCommissionService::class)
@@ -1814,7 +2027,9 @@ class TuitionController extends Controller
             return redirect()->back()->withErrors(['cancellation' => $result]);
         }
 
-        $message = "Đã duyệt hủy hóa đơn {$result->invoice_number} và hoàn tác công nợ học viên!";
+        $message = $result->getAttribute('unapproved_paper')
+            ? "Đã duyệt hủy hóa đơn giấy {$result->invoice_number}. Phiếu thu lập mới sẽ nhận số hóa đơn kế tiếp của chi nhánh."
+            : "Đã duyệt hủy hóa đơn {$result->invoice_number} và hoàn tác công nợ học viên!";
         if ($clawback = $result->getAttribute('commission_clawback')) {
             $message .= ' Kỳ lương chứa phiếu đã duyệt: thu hồi '.Money::format(abs((float) $clawback->amount)).' hoa hồng của '.($clawback->user?->name ?? 'sale').' ở lần tính lương kế tiếp.';
         }
@@ -2608,6 +2823,7 @@ class TuitionController extends Controller
             ->when($scope !== null, fn ($q) => $q->where(fn ($q) => $q->whereNull('branch_id')->orWhereIn('branch_id', $scope)))
             ->orderByRaw('CASE WHEN branch_id IS NULL THEN 0 ELSE 1 END')
             ->orderBy('branch_id')
+            ->orderBy('kind')
             ->orderBy('start_number')
             ->get();
 
@@ -2639,6 +2855,8 @@ class TuitionController extends Controller
                     'id' => $range->id,
                     'branch_id' => $range->branch_id,
                     'branch_name' => $range->branch?->name,
+                    'kind' => $range->kind,
+                    'kind_label' => $range->kind_label,
                     'series_code' => $range->series_code,
                     'template_code' => $range->template_code,
                     'start_number' => $range->start_number,
@@ -2760,7 +2978,8 @@ class TuitionController extends Controller
     public function storeInvoiceRange(Request $request)
     {
         $validated = $request->validate([
-            'branch_id' => 'nullable|exists:branches,id',
+            'branch_id' => 'nullable|required_if:kind,paper|exists:branches,id',
+            'kind' => 'nullable|in:'.implode(',', array_keys(InvoiceConfiguration::KIND_LABELS)),
             'template_code' => 'required|string|max:50',
             'series_code' => ['required', 'string', 'max:30', 'regex:/^[A-Za-z0-9]+$/'],
             'start_number' => 'required|integer|min:1',
@@ -2768,6 +2987,7 @@ class TuitionController extends Controller
             'provider' => 'nullable|string|max:50',
         ], [
             'branch_id.exists' => 'Chi nhánh không tồn tại.',
+            'branch_id.required_if' => 'Dải hóa đơn giấy phải gắn với một chi nhánh (mỗi chi nhánh một cuốn hóa đơn).',
             'end_number.gte' => 'Số kết thúc phải lớn hơn hoặc bằng số bắt đầu.',
             'series_code.regex' => 'Ký hiệu hóa đơn chỉ gồm chữ và số, không dấu, không khoảng trắng.',
         ]);
@@ -2784,8 +3004,10 @@ class TuitionController extends Controller
             return redirect()->back()->withErrors($error)->withInput();
         }
 
+        $kind = $validated['kind'] ?? InvoiceConfiguration::KIND_ELECTRONIC;
         $range = InvoiceConfiguration::create([
             'branch_id' => $validated['branch_id'] ?? null,
+            'kind' => $kind,
             'template_code' => $validated['template_code'],
             'series_code' => $series,
             'start_number' => $start,
@@ -2797,10 +3019,11 @@ class TuitionController extends Controller
         ]);
 
         $branchName = $range->branch?->name ?? 'Dải mặc định (dùng chung)';
-        $this->notifyInvoiceRangeChange($range, (Auth::user()?->name ?? 'Hệ thống')." đã cấp dải số hóa đơn mới {$series} {$start} – {$end} cho {$branchName}.");
+        $kindLabel = mb_strtolower($range->kind_label);
+        $this->notifyInvoiceRangeChange($range, (Auth::user()?->name ?? 'Hệ thống')." đã cấp dải số {$kindLabel} mới {$series} {$start} – {$end} cho {$branchName}.");
 
         return redirect()->route('tuition.config')
-            ->with('status', "Đã thêm dải số {$series} ".str_pad((string) $start, InvoiceConfiguration::NUMBER_PAD, '0', STR_PAD_LEFT)
+            ->with('status', "Đã thêm dải số {$kindLabel} {$series} ".str_pad((string) $start, InvoiceConfiguration::NUMBER_PAD, '0', STR_PAD_LEFT)
                 .' – '.str_pad((string) $end, InvoiceConfiguration::NUMBER_PAD, '0', STR_PAD_LEFT)." cho {$branchName}.");
     }
 
@@ -2815,7 +3038,9 @@ class TuitionController extends Controller
 
         return redirect()->route('tuition.config')->with('status', $range->is_active
             ? "Đã kích hoạt lại dải số {$range->series_code}."
-            : "Đã ngừng dùng dải số {$range->series_code}. Hóa đơn mới sẽ lấy từ dải khác của chi nhánh hoặc dải mặc định.");
+            : ($range->kind === InvoiceConfiguration::KIND_PAPER
+                ? "Đã ngừng dùng dải hóa đơn giấy {$range->series_code}. Phiếu tiền mặt lấy số từ dải giấy khác của chi nhánh; không còn dải nào thì Học vụ nhập tay số hóa đơn giấy."
+                : "Đã ngừng dùng dải số {$range->series_code}. Hóa đơn mới sẽ lấy từ dải khác của chi nhánh hoặc dải mặc định."));
     }
 
     /**

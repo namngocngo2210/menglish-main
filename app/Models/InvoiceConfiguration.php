@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Exceptions\InvoiceRangeExhaustedException;
+use App\Exceptions\PaperInvoiceNumberChangedException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,10 +11,15 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Dải số hóa đơn điện tử. Mỗi chi nhánh có dải riêng (branch_id); dải branch_id = NULL là dải
- * mặc định dùng chung khi chi nhánh chưa có dải riêng hoặc dải riêng đã hết số.
+ * Dải số hóa đơn. Hai loại (kind):
+ * - electronic (HĐĐT): cấp số khi DUYỆT phiếu thu. Mỗi chi nhánh có dải riêng (branch_id); dải branch_id = NULL là
+ *   dải mặc định dùng chung khi chi nhánh chưa có dải riêng hoặc dải riêng đã hết số.
+ * - paper (hóa đơn giấy thu tiền mặt): chỉ theo chi nhánh, không có dải dùng chung. Hệ thống cấp số theo thứ tự
+ *   ngay khi LẬP phiếu tiền mặt; Học vụ ghi đúng số đó lên hóa đơn giấy và tải ảnh lên phiếu. Phiếu tiền mặt có
+ *   số hóa đơn giấy thì không lấy thêm số HĐĐT khi duyệt.
  * current_number là SỐ KẾ TIẾP sẽ cấp. Số đã cấp không bao giờ được cấp lại
- * (UNIQUE tuition_receipts.invoice_number + không cho lùi current_number dưới số lớn nhất đã cấp).
+ * (UNIQUE tuition_receipts.invoice_number + không cho lùi current_number dưới số lớn nhất đã cấp); ghi sai số
+ * trên hóa đơn giấy thì hủy hóa đơn số đó, phiếu mới nhận số kế tiếp.
  */
 class InvoiceConfiguration extends Model
 {
@@ -25,10 +31,20 @@ class InvoiceConfiguration extends Model
     /** Còn ít hơn ngưỡng này thì cảnh báo "Sắp hết số". */
     public const LOW_REMAINING_THRESHOLD = 50;
 
+    public const KIND_ELECTRONIC = 'electronic';
+
+    public const KIND_PAPER = 'paper';
+
+    public const KIND_LABELS = [
+        self::KIND_ELECTRONIC => 'Hóa đơn điện tử',
+        self::KIND_PAPER => 'Hóa đơn giấy (tiền mặt)',
+    ];
+
     protected $table = 'invoice_configurations';
 
     protected $fillable = [
         'branch_id',
+        'kind',
         'template_code',
         'series_code',
         'start_number',
@@ -48,6 +64,7 @@ class InvoiceConfiguration extends Model
     ];
 
     protected $attributes = [
+        'kind' => self::KIND_ELECTRONIC,
         'is_active' => true,
     ];
 
@@ -137,7 +154,7 @@ class InvoiceConfiguration extends Model
         return DB::transaction(function () use ($branchId): string {
             $candidates = static::candidatesFor($branchId);
 
-            if ($candidates->isEmpty() && ! static::query()->whereNull('branch_id')->exists()) {
+            if ($candidates->isEmpty() && ! static::query()->where('kind', self::KIND_ELECTRONIC)->whereNull('branch_id')->exists()) {
                 static::query()->create([
                     'template_code' => '1/001',
                     'series_code' => 'C26MEN',
@@ -175,18 +192,104 @@ class InvoiceConfiguration extends Model
     }
 
     /**
-     * Thứ tự dải được thử: dải đang hiệu lực của chi nhánh (số bắt đầu nhỏ trước), rồi dải mặc định.
+     * Thứ tự dải HĐĐT được thử: dải đang hiệu lực của chi nhánh (số bắt đầu nhỏ trước), rồi dải mặc định.
      *
      * @return Collection<int, int>
      */
     private static function candidatesFor(?int $branchId)
     {
-        $branchRanges = $branchId
-            ? static::query()->where('branch_id', $branchId)->where('is_active', true)->orderBy('start_number')->orderBy('id')->pluck('id')
-            : collect();
+        $electronic = fn () => static::query()->where('kind', self::KIND_ELECTRONIC)->where('is_active', true)->orderBy('start_number')->orderBy('id');
 
-        $globalRanges = static::query()->whereNull('branch_id')->where('is_active', true)->orderBy('start_number')->orderBy('id')->pluck('id');
+        $branchRanges = $branchId ? $electronic()->where('branch_id', $branchId)->pluck('id') : collect();
+        $globalRanges = $electronic()->whereNull('branch_id')->pluck('id');
 
         return $branchRanges->merge($globalRanges)->values();
+    }
+
+    /** Chi nhánh có dải hóa đơn giấy đang hiệu lực → phiếu tiền mặt được hệ thống cấp số hóa đơn giấy. */
+    public static function branchUsesPaperRange(?int $branchId): bool
+    {
+        return $branchId !== null && static::paperRangesQuery($branchId)->exists();
+    }
+
+    /**
+     * Số hóa đơn giấy kế tiếp của chi nhánh (chỉ xem trước, không tiêu thụ). null = chi nhánh không có dải giấy
+     * đang hiệu lực hoặc các dải đã hết số.
+     */
+    public static function peekNextPaperNumber(?int $branchId): ?string
+    {
+        if ($branchId === null) {
+            return null;
+        }
+
+        foreach (static::paperRangesQuery($branchId)->get() as $range) {
+            $number = max((int) $range->current_number, (int) ($range->start_number ?? 1));
+            while ($range->end_number === null || $number <= (int) $range->end_number) {
+                $formatted = static::format((string) $range->series_code, $number);
+                if (! TuitionReceipt::query()->where('invoice_number', $formatted)->exists()) {
+                    return $formatted;
+                }
+                $number++;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Cấp số hóa đơn giấy kế tiếp của chi nhánh cho phiếu tiền mặt. $expected: số người lập đã thấy (và ghi lên
+     * hóa đơn giấy) trên form — nếu số kế tiếp đã đổi (người khác vừa lập phiếu) thì không cấp, báo số mới.
+     *
+     * @throws InvoiceRangeExhaustedException khi các dải giấy của chi nhánh đều hết số / ngừng dùng
+     * @throws PaperInvoiceNumberChangedException khi số kế tiếp khác $expected
+     */
+    public static function consumeNextPaperNumber(int $branchId, ?string $expected = null): string
+    {
+        return DB::transaction(function () use ($branchId, $expected): string {
+            foreach (static::paperRangesQuery($branchId)->pluck('id') as $rangeId) {
+                $range = static::query()->lockForUpdate()->find($rangeId);
+                if (! $range || ! $range->is_active) {
+                    continue;
+                }
+
+                while (! $range->isExhausted()) {
+                    $number = max((int) $range->current_number, (int) ($range->start_number ?? 1));
+                    $formatted = static::format((string) $range->series_code, $number);
+                    if (TuitionReceipt::query()->where('invoice_number', $formatted)->exists()) {
+                        $range->current_number = $number + 1;
+                        $range->save();
+
+                        continue;
+                    }
+                    if ($expected !== null && $expected !== '' && $expected !== $formatted) {
+                        throw new PaperInvoiceNumberChangedException($expected, $formatted);
+                    }
+                    $range->current_number = $number + 1;
+                    $range->save();
+
+                    return $formatted;
+                }
+            }
+
+            throw new InvoiceRangeExhaustedException(
+                'Dải số hóa đơn giấy của chi nhánh đã hết số hoặc đang ngừng dùng. Nhờ Kế toán thêm dải mới ở Cấu hình dải số hóa đơn.'
+            );
+        });
+    }
+
+    private static function paperRangesQuery(int $branchId)
+    {
+        return static::query()
+            ->where('kind', self::KIND_PAPER)
+            ->where('branch_id', $branchId)
+            ->where('is_active', true)
+            ->where(fn ($q) => $q->whereNull('end_number')->orWhereColumn('current_number', '<=', 'end_number'))
+            ->orderBy('start_number')
+            ->orderBy('id');
+    }
+
+    public function getKindLabelAttribute(): string
+    {
+        return self::KIND_LABELS[$this->kind] ?? self::KIND_LABELS[self::KIND_ELECTRONIC];
     }
 }
