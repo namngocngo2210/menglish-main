@@ -109,6 +109,18 @@ class User extends Authenticatable
         return $this->belongsTo(Branch::class);
     }
 
+    /** Chấm công hằng ngày (điện thoại). */
+    public function staffAttendances(): HasMany
+    {
+        return $this->hasMany(StaffAttendance::class);
+    }
+
+    /** Đơn bổ sung công / xin đi muộn, về sớm / xin nghỉ. */
+    public function staffAttendanceRequests(): HasMany
+    {
+        return $this->hasMany(StaffAttendanceRequest::class);
+    }
+
     /**
      * Danh sách chi nhánh nhân viên được cấp quyền truy cập (ngoài chi nhánh chính).
      */

@@ -42,6 +42,7 @@ class ProfileController extends Controller
      */
     private const QUICK_LINKS = [
         'teacher' => [
+            ['label' => 'Chấm công & xin duyệt (điện thoại)', 'route' => 'mobile.home', 'icon' => 'fingerprint'],
             ['label' => 'Check-in & Điểm danh hôm nay', 'route' => 'teacher.home', 'icon' => 'how_to_reg', 'can' => ['attendance_student.record']],
             ['label' => 'Nhiệm vụ hôm nay', 'route' => 'portal.ta-tasks', 'icon' => 'checklist'],
             ['label' => 'Chấm bài nộp của lớp', 'route' => 'portal.teacher.submissions', 'icon' => 'grading'],
@@ -52,6 +53,7 @@ class ProfileController extends Controller
             ['label' => 'Lương của tôi', 'route' => 'portal.my-salary', 'icon' => 'payments', 'can' => ['payroll.view_own']],
         ],
         'assistant' => [
+            ['label' => 'Chấm công & xin duyệt (điện thoại)', 'route' => 'mobile.home', 'icon' => 'fingerprint'],
             ['label' => 'Nhiệm vụ hôm nay', 'route' => 'portal.ta-tasks', 'icon' => 'checklist'],
             ['label' => 'Check-in & Điểm danh hôm nay', 'route' => 'teacher.home', 'icon' => 'how_to_reg', 'can' => ['attendance_student.record']],
             ['label' => 'Chấm bài nộp của lớp', 'route' => 'portal.teacher.submissions', 'icon' => 'grading'],
@@ -59,6 +61,7 @@ class ProfileController extends Controller
             ['label' => 'Lương của tôi', 'route' => 'portal.my-salary', 'icon' => 'payments', 'can' => ['payroll.view_own']],
         ],
         'academic_staff' => [
+            ['label' => 'Chấm công & xin duyệt (điện thoại)', 'route' => 'mobile.home', 'icon' => 'fingerprint'],
             ['label' => 'Khách hàng (CRM)', 'route' => 'crm.pipeline', 'icon' => 'contacts'],
             ['label' => 'Học viên', 'route' => 'students.index', 'icon' => 'school'],
             ['label' => 'Lớp học', 'route' => 'classes.index', 'icon' => 'meeting_room'],
@@ -70,6 +73,7 @@ class ProfileController extends Controller
             ['label' => 'Lương của tôi', 'route' => 'portal.my-salary', 'icon' => 'payments', 'can' => ['payroll.view_own']],
         ],
         'academic_lead' => [
+            ['label' => 'Chấm công & xin duyệt (điện thoại)', 'route' => 'mobile.home', 'icon' => 'fingerprint'],
             ['label' => 'Tổng quan Học thuật', 'route' => 'dashboard', 'icon' => 'dashboard'],
             ['label' => 'Việc cần duyệt', 'route' => 'approvals.index', 'icon' => 'approval', 'can' => [\App\Providers\ApprovalServiceProvider::INBOX_ABILITY]],
             ['label' => 'Giáo trình', 'route' => 'syllabus.documents', 'icon' => 'menu_book'],
@@ -81,6 +85,7 @@ class ProfileController extends Controller
             ['label' => 'Lương của tôi', 'route' => 'portal.my-salary', 'icon' => 'payments', 'can' => ['payroll.view_own']],
         ],
         'staff' => [
+            ['label' => 'Chấm công & xin duyệt (điện thoại)', 'route' => 'mobile.home', 'icon' => 'fingerprint'],
             ['label' => 'Tổng quan', 'route' => 'dashboard', 'icon' => 'dashboard'],
             ['label' => 'Việc cần duyệt', 'route' => 'approvals.index', 'icon' => 'approval', 'can' => [\App\Providers\ApprovalServiceProvider::INBOX_ABILITY]],
             ['label' => 'Công việc', 'route' => 'tasks.index', 'icon' => 'task_alt', 'can' => ['work_task.create']],
