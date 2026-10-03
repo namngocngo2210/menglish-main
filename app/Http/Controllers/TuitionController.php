@@ -1169,6 +1169,7 @@ class TuitionController extends Controller
             Log::warning('Lỗi tạo thông báo duyệt phiếu thu: '.$e->getMessage());
         }
 
+        $portalMessage = 'Trung tâm MEnglish xác nhận đã nhận thanh toán học phí thành công số tiền '.Money::format((float) $receipt->amount)." cho học viên {$studentName} (HĐĐT: {$invoiceNumber}). Cảm ơn Quý phụ huynh!";
         try {
             AcademicRecord::create([
                 'screen_key' => '04_Cong_Phu_Huynh_Hoc_Sinh/05_danh_sach_thong_bao',
@@ -1183,10 +1184,14 @@ class TuitionController extends Controller
                     'receipt_number' => $receipt->receipt_number,
                     'invoice_number' => $invoiceNumber,
                     'amount' => $receipt->amount,
-                    'student_id' => $student?->id,
+                    // Cổng Học viên lọc theo student_id dạng chuỗi và hiện trường content / unread.
+                    'student_id' => $student ? (string) $student->id : null,
                     'student_name' => $studentName,
                     'date' => now()->format('d/m/Y H:i'),
-                    'message' => 'Trung tâm MEnglish xác nhận đã nhận thanh toán học phí thành công số tiền '.Money::format((float) $receipt->amount)." cho học viên {$studentName} (HĐĐT: {$invoiceNumber}). Cảm ơn Quý phụ huynh!",
+                    'content' => $portalMessage,
+                    'message' => $portalMessage,
+                    'unread' => true,
+                    'icon' => 'paid',
                 ],
                 'user_id' => Auth::id(),
             ]);

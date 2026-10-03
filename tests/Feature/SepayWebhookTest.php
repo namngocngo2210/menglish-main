@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Mail\ParentNotice;
+use App\Models\AcademicRecord;
 use App\Models\AdminNotification;
 use App\Models\BankAccount;
 use App\Models\Branch;
@@ -14,9 +16,12 @@ use App\Models\Student;
 use App\Models\StudentTuition;
 use App\Models\TuitionReceipt;
 use App\Models\User;
+use App\Services\Tuition\PaymentConfirmation;
+use App\Support\Portal\PortalNotifications;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 class SepayWebhookTest extends TestCase
@@ -231,6 +236,54 @@ class SepayWebhookTest extends TestCase
         $this->postWebhook(['content' => 'TRANTHANHVANANHHV01J9ZQ4ABCDEFGHJKMNPQRSTVWIELTS1', 'transferAmount' => 1000000])->assertOk();
 
         $this->assertSame(1000000.0, (float) TuitionReceipt::where('student_tuition_id', $tuition->id)->sum('amount'));
+    }
+
+    public function test_matched_payment_emails_parent_and_notifies_student_portal_once(): void
+    {
+        $this->student->update(['email' => 'ph.nguyen@example.com']);
+
+        $this->postWebhook(['id' => 'SP-PAY-1', 'transferAmount' => 3000000])->assertOk()->assertJson(['success' => true]);
+
+        $receipt = TuitionReceipt::sole();
+        Mail::assertSent(ParentNotice::class, fn (ParentNotice $mail) => $mail->hasTo('ph.nguyen@example.com')
+            && str_contains($mail->body, 'đã nhận 3.000.000 đ học phí của học viên Nguyễn Văn A')
+            && str_contains($mail->body, 'Học phí còn phải đóng: 2.000.000 đ')
+            && str_contains($mail->body, $receipt->receipt_number));
+
+        $portal = AcademicRecord::where('screen_key', PortalNotifications::SCREEN_KEY)->sole();
+        $this->assertSame((string) $this->student->id, $portal->data['student_id']);
+        $this->assertTrue($portal->data['unread']);
+        $this->assertStringContainsString('đã nhận 3.000.000 đ', $portal->data['content']);
+        $this->assertSame(1, PortalNotifications::unreadCount($this->student));
+        $this->assertTrue(AdminNotification::where('title', 'like', 'SePay: Khớp thanh toán%')
+            ->where('message', 'like', '%Đã gửi email xác nhận tới ph.nguyen@example.com%')->exists());
+
+        // Báo lại cùng phiếu thu (vd. xử lý lại) không gửi trùng.
+        app(PaymentConfirmation::class)->notify($receipt);
+        Mail::assertSentCount(1);
+        $this->assertSame(1, AcademicRecord::where('screen_key', PortalNotifications::SCREEN_KEY)->count());
+    }
+
+    public function test_matched_payment_without_parent_email_notifies_owner_with_zalo_text(): void
+    {
+        $owner = User::factory()->create(['branch_id' => $this->branch->id, 'is_active' => true]);
+        $this->student->update(['email' => User::generatedStudentEmail($this->student->id), 'parent_phone' => '0977111222']);
+        CrmCustomer::create([
+            'code' => CrmCustomer::generateCode(), 'name' => 'Nguyễn Văn A', 'phone' => '0912345678',
+            'branch_id' => $this->branch->id, 'assigned_user_id' => $owner->id, 'stage' => 'won',
+            'converted_student_id' => $this->student->id,
+        ]);
+
+        $this->postWebhook(['transferAmount' => 5000000])->assertOk();
+
+        Mail::assertNothingSent();
+        $this->assertSame(1, AcademicRecord::where('screen_key', PortalNotifications::SCREEN_KEY)->count(), 'Vẫn báo ở Cổng Học viên');
+        $notice = AdminNotification::where('type', PaymentConfirmation::NOTIFICATION_TYPE)->sole();
+        $this->assertSame($owner->id, $notice->user_id);
+        $this->assertStringContainsString('0977111222', $notice->message);
+        $this->assertStringContainsString('Học viên đã hoàn tất học phí', $notice->data['copy_text']);
+        $this->assertTrue(AdminNotification::where('title', 'like', 'SePay: Khớp thanh toán%')
+            ->where('message', 'like', '%Phụ huynh chưa có email%')->exists());
     }
 
     public function test_webhook_returns_503_when_disabled_by_flag(): void
