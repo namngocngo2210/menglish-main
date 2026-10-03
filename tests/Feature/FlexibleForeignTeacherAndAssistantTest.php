@@ -90,7 +90,7 @@ class FlexibleForeignTeacherAndAssistantTest extends TestCase
         return $overrides + [
             'ten_lop' => $this->classModel->name, 'ma_lop' => $this->classModel->code,
             'chi_nhanh' => $this->branch->id, 'chuong_trinh' => $this->course->name,
-            'cap_do' => 'B1', 'si_so_toi_da' => 10, 'phong_hoc' => 'P101',
+            'cap_do' => 'B1', 'si_so_toi_da' => 10,
             'giao_vien_chinh' => $this->teacher->id,
         ];
     }

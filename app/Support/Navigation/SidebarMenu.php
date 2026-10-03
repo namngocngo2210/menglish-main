@@ -390,6 +390,8 @@ final class SidebarMenu
                     ...self::anchored(self::CLASS_MANAGER, [
                         ['label' => 'Lịch & TKB lớp', 'route' => 'tasks.schedule-config'],
                     ]),
+                    // Quyền theo middleware can:room.view (Học vụ / Quản lý cơ sở / Học thuật / Admin).
+                    ['label' => 'Phòng học', 'route' => 'rooms.index', 'active' => ['rooms.*']],
                     ...self::anchored(self::HR, [
                         ['label' => 'Tiêu chí KPI học vụ', 'route' => 'kpi.criteria'],
                     ]),

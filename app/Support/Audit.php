@@ -5,6 +5,8 @@ namespace App\Support;
 use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\CrmCustomer;
+use App\Models\Room;
+use App\Models\RoomType;
 use App\Models\Student;
 use App\Models\SystemCategory;
 use App\Models\TuitionReceipt;
@@ -65,6 +67,16 @@ class Audit
             'log' => 'Cấu hình hệ thống',
             'label' => 'chi nhánh',
             'undo' => ['name', 'address', 'phone'],
+        ],
+        Room::class => [
+            'log' => 'Cấu hình hệ thống',
+            'label' => 'phòng học',
+            'undo' => ['capacity', 'description'],
+        ],
+        RoomType::class => [
+            'log' => 'Cấu hình hệ thống',
+            'label' => 'loại phòng',
+            'undo' => ['name', 'is_active'],
         ],
     ];
 
