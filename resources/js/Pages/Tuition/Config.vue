@@ -23,6 +23,7 @@ const historyRange = ref(null);
 
 function openCreate() {
     editId.value = null;
+    newKind.value = 'electronic';
     formKey.value++;
     formOpen.value = true;
 }
@@ -32,6 +33,11 @@ function openEdit(range) {
     formOpen.value = true;
 }
 const branchLabel = (range) => range.branch_name ?? 'Dải mặc định (dùng chung)';
+const kindOptions = [
+    { value: 'electronic', label: 'Hóa đơn điện tử — cấp số khi duyệt phiếu' },
+    { value: 'paper', label: 'Hóa đơn giấy (tiền mặt) — cấp số khi lập phiếu' },
+];
+const newKind = ref('electronic');
 const currentHint = computed(() =>
     editing.value?.max_issued
         ? `Đã cấp tới ${editing.value.max_issued} — chỉ được đặt từ ${editing.value.max_issued + 1} trở lên.`
@@ -40,7 +46,7 @@ const currentHint = computed(() =>
 </script>
 
 <template>
-    <UiPageHeader title="Cấu hình dải số hóa đơn" description="Quản lý và cấp phát dải số hóa đơn tài chính cho từng chi nhánh. Số đã cấp không bao giờ được cấp lại.">
+    <UiPageHeader title="Cấu hình dải số hóa đơn" description="Quản lý dải số hóa đơn điện tử và hóa đơn giấy (thu tiền mặt) cho từng chi nhánh. Số đã cấp không bao giờ được cấp lại.">
         <template #actions>
             <UiButton variant="secondary" icon="account_balance" :href="route('system-config.bank-accounts')">Tài khoản ngân hàng</UiButton>
             <UiButton v-if="can('invoice_range.manage')" icon="add" @click="openCreate">Thêm cấu hình mới</UiButton>
@@ -54,6 +60,7 @@ const currentHint = computed(() =>
                     <thead>
                         <tr>
                             <th>Chi nhánh</th>
+                            <th>Loại</th>
                             <th>Ký hiệu / Mẫu số</th>
                             <th>Dải số (đầu – cuối)</th>
                             <th>Số hiện tại</th>
@@ -67,6 +74,11 @@ const currentHint = computed(() =>
                             <td>
                                 <div class="font-body-medium text-body-medium">{{ branchLabel(range) }}</div>
                                 <div v-if="!range.branch_id" class="font-caption text-caption text-on-surface-variant">Dùng khi chi nhánh chưa có dải riêng / dải riêng đã hết</div>
+                            </td>
+                            <td>
+                                <UiBadge :color="range.kind === 'paper' ? 'warning' : 'info'" :dot="false">
+                                    <span class="material-symbols-outlined text-[14px]" aria-hidden="true">{{ range.kind === 'paper' ? 'payments' : 'receipt_long' }}</span>{{ range.kind_label }}
+                                </UiBadge>
                             </td>
                             <td>
                                 <div class="font-code text-code">{{ range.series_code }}</div>
@@ -110,7 +122,7 @@ const currentHint = computed(() =>
                             </td>
                         </tr>
                         <tr v-if="!ranges.length">
-                            <td colspan="7">
+                            <td colspan="8">
                                 <UiEmptyState icon="receipt_long" title="Chưa có dải số hóa đơn" description="Hệ thống sẽ tự tạo dải mặc định C26MEN khi duyệt phiếu đầu tiên. Nên cấu hình dải riêng cho từng chi nhánh." />
                             </td>
                         </tr>
@@ -120,7 +132,8 @@ const currentHint = computed(() =>
 
             <UiAlert type="info" title="Chính sách cấp số hóa đơn">
                 <ul class="list-disc space-y-xs pl-md">
-                    <li>Khi duyệt phiếu thu, hệ thống lấy số từ dải đang hiệu lực của <strong>chi nhánh ghi nhận học phí</strong>; chi nhánh chưa có dải riêng hoặc dải đã hết thì lấy từ <strong>dải mặc định</strong>.</li>
+                    <li><strong>Hóa đơn điện tử:</strong> khi duyệt phiếu thu, hệ thống lấy số từ dải đang hiệu lực của <strong>chi nhánh ghi nhận học phí</strong>; chi nhánh chưa có dải riêng hoặc dải đã hết thì lấy từ <strong>dải mặc định</strong>.</li>
+                    <li><strong>Hóa đơn giấy (tiền mặt):</strong> mỗi chi nhánh một dải theo cuốn hóa đơn giấy. Khi lập phiếu tiền mặt, hệ thống cấp số kế tiếp của chi nhánh; Học vụ ghi đúng số đó lên hóa đơn giấy và tải ảnh lên phiếu. Ghi sai số thì tạo yêu cầu <strong>Hủy hóa đơn</strong> số đó, phiếu mới nhận số kế tiếp. Chi nhánh chưa có dải giấy thì Học vụ nhập tay số hóa đơn giấy như trước.</li>
                     <li>Dải số không được chồng lấn dải khác cùng ký hiệu. "Số hiện tại" là số kế tiếp sẽ cấp và không được lùi về số đã cấp.</li>
                     <li>Hóa đơn bị hủy vẫn giữ số (không cấp lại cho phiếu khác).</li>
                     <li>Mọi thay đổi dải số (thêm, sửa, ngừng / dùng lại) được thông báo trong hệ thống tới Kế toán và Quản lý cơ sở của chi nhánh liên quan.</li>
@@ -158,15 +171,16 @@ const currentHint = computed(() =>
             <UiInput name="current_number" type="number" min="1" label="Số hiện tại (số kế tiếp sẽ cấp)" :value="editing.current_number" required :hint="currentHint" />
         </UiForm>
         <UiForm v-else id="range-form" :key="'new-' + formKey" :action="route('tuition.config.ranges.store')" method="post" class="space-y-md" @success="formOpen = false">
-            <UiSelect v-if="canManageDefault" name="branch_id" label="Chọn chi nhánh" placeholder="Dải mặc định (dùng chung)" :options="branches" />
-            <UiSelect v-else name="branch_id" label="Chọn chi nhánh" :options="branches" required />
+            <UiSelect v-model="newKind" name="kind" label="Loại hóa đơn" :options="kindOptions" required />
+            <UiSelect v-if="canManageDefault && newKind === 'electronic'" name="branch_id" label="Chọn chi nhánh" placeholder="Dải mặc định (dùng chung)" :options="branches" />
+            <UiSelect v-else name="branch_id" label="Chọn chi nhánh" :options="branches" required :hint="newKind === 'paper' ? 'Hóa đơn giấy luôn theo từng chi nhánh (mỗi chi nhánh một cuốn).' : null" />
             <div class="grid grid-cols-2 gap-sm">
                 <UiInput name="template_code" label="Mẫu số" value="1/001" required />
                 <UiInput name="series_code" label="Ký hiệu" value="C26MEN" required />
                 <UiInput name="start_number" type="number" min="1" label="Số bắt đầu" placeholder="Ví dụ: 1" required />
                 <UiInput name="end_number" type="number" min="1" label="Số kết thúc" placeholder="Ví dụ: 1000" required />
             </div>
-            <UiAlert type="info">Dải số này phải duy nhất trên hệ thống và không được chồng lấn với các dải số đã tồn tại của chi nhánh khác.</UiAlert>
+            <UiAlert type="info">Dải số này phải duy nhất trên hệ thống và không được chồng lấn với các dải số đã tồn tại cùng ký hiệu. Hóa đơn giấy nên dùng ký hiệu riêng (VD: C26HDG) và số đầu – cuối đúng cuốn hóa đơn đang dùng.</UiAlert>
         </UiForm>
         <template #footer>
             <UiButton variant="secondary" @click="formOpen = false">Hủy</UiButton>

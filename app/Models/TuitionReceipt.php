@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\AuditsChanges;
+use App\Services\Merchandise\StockService;
 use App\Services\NotificationService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -122,6 +123,27 @@ class TuitionReceipt extends Model
         return (float) $this->amount - (float) $this->surcharge_amount;
     }
 
+    /** Chi nhánh ghi nhận phiếu: theo hợp đồng học phí, fallback chi nhánh học viên / lớp đang học. */
+    public function resolveBranchId(): ?int
+    {
+        $tuition = $this->tuition;
+        $student = $tuition?->student ?? $this->student;
+        $branchId = $tuition?->branch_id ?? $student?->branch_id ?? $student?->currentClass?->branch_id;
+
+        return $branchId ? (int) $branchId : null;
+    }
+
+    /**
+     * Phiếu tiền mặt đã được cấp số hóa đơn giấy từ dải của chi nhánh ngay khi lập (chưa duyệt): số này là số
+     * ghi trên hóa đơn giấy, giữ nguyên khi sửa / gửi duyệt lại và khi duyệt.
+     */
+    public function hasIssuedPaperInvoice(): bool
+    {
+        return $this->invoice_number !== null
+            && $this->paper_invoice_number !== null
+            && $this->invoice_number === $this->paper_invoice_number;
+    }
+
     public function getStatusLabelAttribute(): string
     {
         return match ($this->status) {
@@ -209,6 +231,13 @@ class TuitionReceipt extends Model
             }
 
             $receipt->transfer_reference = $receipt->computeTransferReference();
+        });
+
+        // Xuất kho sách / hàng hóa khi phiếu được duyệt, hoàn kho khi hủy hóa đơn (mọi luồng: duyệt tay, SePay...).
+        static::saved(function (TuitionReceipt $receipt) {
+            if ($receipt->wasRecentlyCreated || $receipt->wasChanged('status')) {
+                app(StockService::class)->syncReceipt($receipt);
+            }
         });
 
         static::created(function (TuitionReceipt $receipt) {

@@ -59,9 +59,11 @@ return [
             'promotion.manage',
             'staff_report.submit', 'staff_report.view_all', 'dashboard.operations', 'portal.staff',
             'room.view', 'room.manage',
+            'merchandise_stock.view', 'merchandise_stock.manage',
             // Phạm vi dữ liệu (A6 Q7: Quản lý cơ sở chỉ thấy chi nhánh mình).
             'lead.scope_branch', 'student.scope_branch', 'class.scope_branch', 'room.scope_branch', 'big_test.scope_all', 'tuition.scope_branch',
             'finance.scope_branch', 'attendance_staff.scope_branch', 'payroll.scope_all', 'kpi.scope_all', 'work_task.scope_branch',
+            'merchandise_stock.scope_branch',
             'support_ticket.scope_all', 'user.scope_branch', 'activity_log.scope_all', 'dashboard.scope_branch',
         ],
 
@@ -70,6 +72,7 @@ return [
             'invoice.request_cancel',
             'refund_transfer.request', 'refund_transfer.approve', 'refund_transfer.approve_transfer', 'refund_transfer.reject',
             'bank_account.manage', 'invoice_range.manage', 'fee_reminder_config.manage',
+            'merchandise_stock.view', 'merchandise_stock.manage', 'merchandise_stock.scope_branch',
             'payroll.view', 'payroll.create', 'payroll.edit', 'payroll.calculate', 'payroll.view_own', 'finance.view',
             'work_task.view', 'support_ticket.create', 'support_ticket.view',
             'portal.staff',
@@ -105,6 +108,8 @@ return [
             'payroll.view_own', 'payroll.scope_own',
             // Phòng học: thêm / sửa phòng chi nhánh mình; xóa phòng và danh mục loại phòng chỉ Admin.
             'room.view', 'room.manage', 'room.scope_branch',
+            // Tồn kho sách chi nhánh mình; ghi sai số hóa đơn giấy tiền mặt thì lập yêu cầu hủy hóa đơn.
+            'merchandise_stock.view', 'merchandise_stock.manage', 'merchandise_stock.scope_branch', 'invoice.request_cancel',
             'lead.scope_branch', 'student.scope_branch', 'class.scope_all', 'big_test.scope_all', 'tuition.scope_branch',
             'attendance_staff.scope_all', 'kpi.scope_all', 'work_task.scope_all', 'user.scope_own', 'support_ticket.scope_own',
         ],

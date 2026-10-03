@@ -5,7 +5,22 @@
  */
 import { computed, reactive } from 'vue';
 
-export function useReceiptForm({ tuitions = [], students = [], initialTuitionId = '', initialStudentId = '', defaultBank = null, editing = null }) {
+export function useReceiptForm({
+    tuitions = [],
+    students = [],
+    initialTuitionId = '',
+    initialStudentId = '',
+    defaultBank = null,
+    editing = null,
+    merchandiseItems = [],
+    stockByBranch = {},
+    paperInvoiceNext = {},
+}) {
+    const itemById = (id) => merchandiseItems.find((m) => String(m.id) === String(id)) || null;
+    // Hàng hóa ở phần Phụ thu (sách, đồng phục...): giá theo danh mục, xuất kho chi nhánh khi phiếu được duyệt.
+    const initialLines = (editing?.surcharge_items || []).filter((line) => itemById(line.id)).map((line) => ({ id: line.id, quantity: line.quantity }));
+    const linesTotal = (lines) => lines.reduce((sum, line) => sum + (itemById(line.id)?.price || 0) * (parseInt(line.quantity) || 0), 0);
+
     const state = reactive({
         selectedTuitionId: initialTuitionId || '',
         selectedStudentId: initialStudentId || '',
@@ -15,7 +30,9 @@ export function useReceiptForm({ tuitions = [], students = [], initialTuitionId 
         skipTuition: false,
         discountAmount: editing ? editing.discount_amount : 0,
         collectAmount: editing ? String(editing.tuition_amount) : '',
-        surchargeAmount: editing ? editing.surcharge_amount : 0,
+        surchargeLines: initialLines,
+        // Phụ thu khác (ngoài hàng hóa trong danh mục) — bắt buộc lý do.
+        surchargeAmount: editing ? Math.max(0, editing.surcharge_amount - linesTotal(initialLines)) : 0,
         surchargeReason: editing ? editing.surcharge_reason || '' : '',
         paymentMethod: editing ? editing.payment_method : 'transfer',
         transactionCode: editing ? editing.transaction_code || '' : '',
@@ -30,7 +47,16 @@ export function useReceiptForm({ tuitions = [], students = [], initialTuitionId 
     });
 
     const bank = computed(() => (state.currentTuition && state.currentTuition.bank ? state.currentTuition.bank : defaultBank));
-    const proofRequired = computed(() => ['transfer', 'vietqr', 'pos'].includes(state.paymentMethod));
+
+    // Chi nhánh ghi nhận phiếu (như TuitionReceipt::resolveBranchId): theo hợp đồng, fallback học viên.
+    const branchId = computed(() => (state.selectedTuitionId && state.currentTuition?.branch_id) || state.currentStudent?.branch_id || null);
+    const stockOf = (itemId) => (branchId.value ? (stockByBranch[branchId.value]?.[itemId] ?? 0) : null);
+
+    // Tiền mặt ở chi nhánh có dải hóa đơn giấy: hệ thống cấp số, người lập ghi số đó lên hóa đơn giấy + tải ảnh.
+    const issuedPaperInvoice = editing?.issued_paper_invoice || null;
+    const paperMode = computed(() => state.paymentMethod === 'cash' && (!!issuedPaperInvoice || (branchId.value !== null && branchId.value in paperInvoiceNext)));
+    const paperNumber = computed(() => (paperMode.value ? issuedPaperInvoice || paperInvoiceNext[branchId.value] || '' : null));
+    const proofRequired = computed(() => ['transfer', 'vietqr', 'pos'].includes(state.paymentMethod) || paperMode.value);
 
     function onTuitionChange() {
         if (!state.selectedTuitionId) {
@@ -96,12 +122,24 @@ export function useReceiptForm({ tuitions = [], students = [], initialTuitionId 
         return max;
     });
 
-    const totalAmount = computed(() => tuitionAmountAfterDiscount.value + (parseFloat(state.surchargeAmount) || 0));
+    const itemsTotal = computed(() => linesTotal(state.surchargeLines));
+    const surchargeTotal = computed(() => itemsTotal.value + (parseFloat(state.surchargeAmount) || 0));
+    const totalAmount = computed(() => tuitionAmountAfterDiscount.value + surchargeTotal.value);
+    const collectedItemsJson = computed(() => JSON.stringify(state.surchargeLines.map((line) => ({ id: line.id, quantity: parseInt(line.quantity) || 1 }))));
+
+    function addItem(id) {
+        if (!id || !itemById(id)) return;
+        const existing = state.surchargeLines.find((line) => String(line.id) === String(id));
+        if (existing) existing.quantity = (parseInt(existing.quantity) || 0) + 1;
+        else state.surchargeLines.push({ id: Number(id), quantity: 1 });
+    }
+    const removeItem = (index) => state.surchargeLines.splice(index, 1);
 
     const isValidReceipt = computed(() => {
         const hasMoney = totalAmount.value > 0;
         const surchargeValid = state.surchargeAmount <= 0 || (state.surchargeReason && state.surchargeReason.trim().length > 0);
-        return !!(hasMoney && surchargeValid);
+        const linesValid = state.surchargeLines.every((line) => parseInt(line.quantity) >= 1);
+        return !!(hasMoney && surchargeValid && linesValid);
     });
 
     // Nội dung CK do server sinh theo mẫu chung (tên + mã học sinh + lớp), xem App\Support\TransferMemo.
@@ -150,6 +188,18 @@ export function useReceiptForm({ tuitions = [], students = [], initialTuitionId 
         tuitionSubtotal,
         tuitionAmountAfterDiscount,
         totalAmount,
+        merchandiseItems,
+        itemById,
+        itemsTotal,
+        surchargeTotal,
+        collectedItemsJson,
+        addItem,
+        removeItem,
+        branchId,
+        stockOf,
+        paperMode,
+        paperNumber,
+        issuedPaperInvoice,
         isValidReceipt,
         transferMemo,
         vietQrUrl,
@@ -158,7 +208,7 @@ export function useReceiptForm({ tuitions = [], students = [], initialTuitionId 
         handleFileSelected,
         clearProof,
         toggleSkipTuition: (val) => (state.skipTuition = val),
-        // Gợi ý nhanh chỉ điền số tiền; lý do phụ thu người lập phải tự nhập.
+        // Gợi ý nhanh chỉ điền số tiền phụ thu khác; lý do người lập phải tự nhập.
         setSurcharge: (val) => (state.surchargeAmount = val),
     });
 }

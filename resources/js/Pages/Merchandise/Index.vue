@@ -41,6 +41,7 @@ const hasDel = computed(() => !!del.value.url);
 <template>
     <UiPageHeader title="Danh mục Hàng hóa & Vật phẩm" icon="inventory_2">
         <template #actions>
+            <UiButton v-if="can('merchandise_stock.view')" variant="secondary" icon="warehouse" :href="route('merchandise.stock.index')">Tồn kho theo chi nhánh</UiButton>
             <UiButton icon="add_circle" :href="route('merchandise.create')" modal="xl">Thêm Hàng hóa mới</UiButton>
         </template>
     </UiPageHeader>
@@ -51,7 +52,7 @@ const hasDel = computed(() => !!del.value.url);
             <UiStatCard label="Tổng mặt hàng" :value="count(metrics.total)" icon="category" :hint="metrics.active + ' đang bán'" />
             <UiStatCard label="Sách & Giáo trình" :value="count(metrics.books)" tone="secondary" icon="menu_book" hint="Giáo trình + Bài tập" />
             <UiStatCard label="Đồng phục & Balo" :value="count(metrics.uniforms)" tone="success" icon="apparel" hint="Áo polo, balo, túi" />
-            <UiStatCard label="Tổng tồn kho" :value="count(metrics.total_stock)" tone="warning" icon="warehouse" hint="Số lượng trong kho" />
+            <UiStatCard label="Tổng tồn kho" :value="count(metrics.total_stock)" tone="warning" icon="warehouse" hint="Cộng mọi chi nhánh" />
             <UiStatCard label="Tích hợp Hoá đơn" value="Bóc tách tự động" tone="secondary" icon="receipt_long" hint="Đồng bộ Closing Wizard" class="col-span-2 sm:col-span-1" />
         </div>
 
@@ -81,7 +82,7 @@ const hasDel = computed(() => !!del.value.url);
                         <th>Nhóm phân loại</th>
                         <th class="text-center">ĐVT</th>
                         <th class="text-right">Đơn giá niêm yết</th>
-                        <th class="text-center">Tồn kho</th>
+                        <th class="text-center">Tồn (mọi chi nhánh)</th>
                         <th class="text-center">Trạng thái</th>
                         <th class="text-right">Thao tác</th>
                     </tr>
