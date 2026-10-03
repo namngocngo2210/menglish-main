@@ -17,6 +17,7 @@ use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\KpiController;
 use App\Http\Controllers\MediaManagerController;
 use App\Http\Controllers\MerchandiseItemController;
+use App\Http\Controllers\MerchandiseStockController;
 use App\Http\Controllers\MockupHubController;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\PenaltyController;
@@ -595,6 +596,14 @@ Route::middleware('auth')->group(function () {
         Route::delete('/{merchandise}', [MerchandiseItemController::class, 'destroy'])->name('destroy');
         Route::post('/{merchandise}/toggle', [MerchandiseItemController::class, 'toggleStatus'])->name('toggle');
         Route::get('/api/items', [MerchandiseItemController::class, 'apiList'])->name('api');
+    });
+
+    // Tồn kho hàng hóa theo chi nhánh (Học vụ / Quản lý cơ sở / Kế toán xem & nhập kho chi nhánh mình).
+    Route::prefix('merchandise-stock')->name('merchandise.stock.')->middleware('can:merchandise_stock.view')->group(function () {
+        Route::get('/', [MerchandiseStockController::class, 'index'])->name('index');
+        Route::get('/history', [MerchandiseStockController::class, 'history'])->name('history');
+        Route::get('/create', [MerchandiseStockController::class, 'create'])->middleware('can:merchandise_stock.manage')->name('create');
+        Route::post('/', [MerchandiseStockController::class, 'store'])->middleware('can:merchandise_stock.manage')->name('store');
     });
 
     Route::resource('holidays', HolidayController::class)->except('show')->middleware('can:holiday.manage');
