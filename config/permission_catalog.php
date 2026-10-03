@@ -81,7 +81,7 @@ return [
             'group' => 'crm',
             'icon' => 'redeem',
             'actions' => [
-                'manage' => ['Quản lý ưu đãi', 'Tạo ưu đãi, áp dụng ưu đãi khi chốt khách.'],
+                'manage' => ['Quản lý ưu đãi', 'Quản lý danh mục ưu đãi (mặc định, ngừng áp dụng), tạo ưu đãi riêng cho ca đặc biệt khi chốt khách.'],
             ],
         ],
         'entrance_test' => [

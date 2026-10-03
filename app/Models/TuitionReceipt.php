@@ -64,6 +64,8 @@ class TuitionReceipt extends Model
         'surcharge_amount',
         'surcharge_reason',
         'discount_amount',
+        'promotion_id',
+        'discount_reason',
         'payment_method',
         'transaction_code',
         'payer_name',
@@ -93,6 +95,11 @@ class TuitionReceipt extends Model
         'split_details' => 'array',
         'collected_items' => 'array',
     ];
+
+    public function promotion(): BelongsTo
+    {
+        return $this->belongsTo(Promotion::class);
+    }
 
     public function tuition(): BelongsTo
     {

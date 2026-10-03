@@ -293,7 +293,12 @@ onBeforeUnmount(() => clearInterval(timer));
                                         Học phí
                                         <span v-if="selected.tuition_due_date" class="block text-xs font-normal text-on-surface-variant">(Hạn {{ selected.tuition_due_date }})</span>
                                     </td>
-                                    <td class="text-on-surface-variant">{{ selected.fee_label ?? 'Không gắn khoản học phí (chỉ phụ thu)' }} (Đã miễn giảm {{ formatMoney(selected.discount_amount) }})</td>
+                                    <td class="text-on-surface-variant">
+                                        {{ selected.fee_label ?? 'Không gắn khoản học phí (chỉ phụ thu)' }} (Đã miễn giảm {{ formatMoney(selected.discount_amount) }})
+                                        <span v-if="selected.contract_promotion_name" class="block text-xs">Ưu đãi trên hợp đồng (lúc chốt): <strong class="text-on-surface">{{ selected.contract_promotion_name }}</strong><template v-if="selected.contract_promotion_reason"> · Lý do: {{ selected.contract_promotion_reason }}</template></span>
+                                        <span v-if="selected.promotion_name" class="block text-xs">Ưu đãi của phiếu này: <strong class="text-on-surface">{{ selected.promotion_name }}</strong></span>
+                                        <span v-if="selected.discount_reason" class="block text-xs">{{ selected.promotion_name ? 'Ghi chú' : 'Lý do giảm (ca đặc biệt)' }}: <strong class="text-on-surface">{{ selected.discount_reason }}</strong></span>
+                                    </td>
                                     <td><UiMoney :value="selected.tuition_portion" suffix="đ" class="font-bold" /></td>
                                 </tr>
                                 <tr v-if="selected.surcharge_amount > 0" class="bg-warning-container/40">
@@ -440,6 +445,8 @@ onBeforeUnmount(() => clearInterval(timer));
                         <input type="hidden" name="amount" :value="selected.amount" />
                         <input type="hidden" name="tuition_amount" :value="selected.tuition_portion" />
                         <input type="hidden" name="discount_amount" :value="selected.discount_amount" />
+                        <input type="hidden" name="promotion_id" :value="selected.promotion_id ?? ''" />
+                        <input type="hidden" name="discount_reason" :value="selected.discount_reason ?? ''" />
                         <input type="hidden" name="surcharge_amount" :value="selected.surcharge_amount" />
                         <input type="hidden" name="surcharge_reason" :value="selected.surcharge_reason ?? ''" />
                         <input type="hidden" name="payment_method" :value="selected.payment_method" />
