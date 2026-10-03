@@ -24,6 +24,7 @@ const props = defineProps({
     pendingTransfer: { type: Object, default: null },
     canReassign: { type: Boolean, default: false },
     reassignUsers: { type: Array, default: () => [] },
+    reassignBranches: { type: Array, default: () => [] },
     test: { type: Object, required: true },
     rubric: { type: Object, default: null },
     result: { type: Object, default: null },
@@ -65,8 +66,34 @@ const initials = computed(() => {
 
 // Modal dựng sẵn: mở / đóng theo tên.
 const modals = reactive({ reassign: false, lost: false, backward: false, trial: false, scheduleTest: false, score: false });
-const open = (name) => (modals[name] = true);
+const open = (name) => {
+    if (name === 'reassign') resetReassign();
+    modals[name] = true;
+};
 const close = (name) => (modals[name] = false);
+
+// Phân công lại: chọn cơ sở (mặc định cơ sở hiện tại) rồi chọn người phụ trách thuộc cơ sở đó (Học vụ cơ sở / Admin).
+// Khác cơ sở hiện tại = chuyển khách (và học viên) sang cơ sở mới: Admin áp dụng ngay, người khác chờ Admin duyệt.
+const reassign = reactive({ branchId: '', userId: '' });
+function resetReassign() {
+    reassign.branchId = props.customer.branch_id ? String(props.customer.branch_id) : '';
+    reassign.userId = '';
+}
+resetReassign();
+const reassignMovesBranch = computed(() => reassign.branchId !== '' && reassign.branchId !== String(props.customer.branch_id ?? ''));
+const reassignOwnerOptions = computed(() => {
+    if (reassign.branchId === '') return [];
+    const branchId = Number(reassign.branchId);
+    return props.reassignUsers
+        .filter((u) => u.all_branches || u.branch_ids.includes(branchId))
+        // Giữ người đang phụ trách chỉ có nghĩa khi đổi cơ sở.
+        .filter((u) => reassignMovesBranch.value || u.value !== props.customer.assigned_user_id)
+        .map((u) => ({ value: u.value, label: u.value === props.customer.assigned_user_id ? u.label + ' (đang phụ trách)' : u.label }));
+});
+function onReassignBranch() {
+    if (!reassignOwnerOptions.value.some((o) => String(o.value) === String(reassign.userId))) reassign.userId = '';
+}
+const reassignBranchName = computed(() => props.reassignBranches.find((b) => String(b.value) === reassign.branchId)?.label ?? '');
 
 // Tab thao tác: "Đặt lịch & Kết quả" | "Thông tin khách hàng".
 const activeTab = ref(props.tab);
@@ -151,16 +178,35 @@ const trialTitle = computed(() => (props.trial.pending ? 'Xếp học thử' : `
     <!-- Phân công lại người phụ trách -->
     <UiModal v-if="canReassign" :show="modals.reassign" title="Phân công lại người phụ trách" max-width="md" @close="close('reassign')">
         <UiForm id="reassign-form" :action="route('crm.customers.reassign', customer.id)" method="post" class="space-y-3" reset-on-success @success="close('reassign')">
-            <p class="text-body-small text-on-surface-variant">Hiện tại: <strong>{{ customer.assigned_user ?? 'Chưa phân công' }}</strong>. Thay đổi được ghi vào lịch sử khách.</p>
+            <p class="text-body-small text-on-surface-variant">
+                Hiện tại: <strong>{{ customer.assigned_user ?? 'Chưa phân công' }}</strong> — cơ sở <strong>{{ customer.branch ?? '(chưa có)' }}</strong>. Thay đổi được ghi vào lịch sử khách.
+            </p>
+            <UiSelect
+                id="reassign_branch_id"
+                v-model="reassign.branchId"
+                name="branch_id"
+                label="Chi nhánh"
+                required
+                searchable
+                placeholder="-- Chọn chi nhánh --"
+                :options="reassignBranches"
+                @change="onReassignBranch"
+            />
             <UiSelect
                 id="reassign_assigned_user_id"
+                v-model="reassign.userId"
                 name="assigned_user_id"
                 label="Người phụ trách mới"
                 required
+                searchable
                 placeholder="-- Chọn người phụ trách --"
-                :options="reassignUsers"
-                :hint="'Chọn Học vụ cơ sở khác (' + (customer.branch ?? 'khách chưa có cơ sở') + ' là cơ sở hiện tại) = chuyển cơ sở cho khách và học viên, cần Admin duyệt.'"
+                :options="reassignOwnerOptions"
+                hint="Học vụ của chi nhánh đã chọn hoặc Admin."
             />
+            <UiAlert v-if="reassignMovesBranch" type="info">
+                Khách{{ customer.converted_student_id ? ' và học viên' : '' }} sẽ chuyển sang cơ sở <strong>{{ reassignBranchName }}</strong>.
+                {{ can('lead.approve_transfer') ? 'Bạn là Admin nên áp dụng ngay.' : 'Cần Admin duyệt chuyển cơ sở, duyệt xong mới đổi.' }}
+            </UiAlert>
             <UiTextarea id="reassign_reason" name="reason" label="Lý do phân công lại" required :rows="3" placeholder="VD: Học vụ cũ nghỉ phép, khách chuyển sang học cơ sở khác..." />
         </UiForm>
         <template #footer>

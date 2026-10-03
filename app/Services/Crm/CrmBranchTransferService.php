@@ -17,19 +17,27 @@ use Illuminate\Validation\ValidationException;
  */
 class CrmBranchTransferService
 {
-    /** Giao $owner cho khách có phải chuyển cơ sở không. */
-    public function needsTransfer(CrmCustomer $customer, User $owner): bool
+    /**
+     * Giao $owner cho khách có phải chuyển cơ sở không. $toBranchId: cơ sở chọn kèm (Phân công lại); null = suy từ
+     * người phụ trách (khác cơ sở khách → chuyển sang cơ sở của người đó).
+     */
+    public function needsTransfer(CrmCustomer $customer, User $owner, ?int $toBranchId = null): bool
     {
-        return ! LeadOwners::belongsToBranch($owner, $customer->branch_id ? (int) $customer->branch_id : null);
+        $currentBranchId = $customer->branch_id ? (int) $customer->branch_id : null;
+        if ($toBranchId !== null) {
+            return $toBranchId !== $currentBranchId;
+        }
+
+        return ! LeadOwners::belongsToBranch($owner, $currentBranchId);
     }
 
     /**
-     * Đổi người phụ trách sang cơ sở khác: Admin → áp dụng ngay; người khác → tạo yêu cầu chờ Admin duyệt.
-     * Trả về yêu cầu vừa tạo (null nếu đã áp dụng ngay).
+     * Đổi người phụ trách / cơ sở của khách sang cơ sở khác: Admin → áp dụng ngay; người khác → tạo yêu cầu chờ Admin duyệt.
+     * $toBranchId null = cơ sở của người phụ trách mới. Trả về yêu cầu vừa tạo (null nếu đã áp dụng ngay).
      */
-    public function requestOrApply(CrmCustomer $customer, User $owner, User $actor, ?string $reason): ?CrmBranchTransfer
+    public function requestOrApply(CrmCustomer $customer, User $owner, User $actor, ?string $reason, ?int $toBranchId = null): ?CrmBranchTransfer
     {
-        $toBranchId = LeadOwners::homeBranchId($owner);
+        $toBranchId ??= LeadOwners::homeBranchId($owner);
         if (! $toBranchId) {
             throw ValidationException::withMessages(['assigned_user_id' => "{$owner->name} chưa được gán cơ sở nên không chuyển khách sang được."]);
         }
@@ -61,7 +69,7 @@ class CrmBranchTransferService
                 'user_id' => $actor->id,
                 'type' => 'assign',
                 'reason' => $reason,
-                'content' => "Gửi yêu cầu chuyển người phụ trách sang {$owner->name} và chuyển cơ sở "
+                'content' => 'Gửi yêu cầu '.$this->ownerPhrase($transfer, $owner).' và chuyển cơ sở '
                     .($transfer->fromBranch?->name ?? '(chưa có)').' → '.($transfer->toBranch?->name ?? '')
                     .'. Chờ Admin duyệt.'.($reason ? " Lý do: {$reason}" : ''),
             ]);
@@ -142,13 +150,21 @@ class CrmBranchTransferService
                 'assigned_user_id' => ['label' => 'Người phụ trách', 'old' => $transfer->fromUser?->name, 'new' => $owner->name],
                 'branch_id' => ['label' => 'Cơ sở', 'old' => $transfer->fromBranch?->name, 'new' => $transfer->toBranch?->name],
             ],
-            'content' => ((int) $transfer->requested_by === $actor->id ? 'Chuyển' : 'Admin duyệt chuyển')
-                ." người phụ trách sang {$owner->name}, chuyển cơ sở "
+            'content' => ((int) $transfer->requested_by === $actor->id ? ucfirst($this->ownerPhrase($transfer, $owner)) : 'Admin duyệt '.$this->ownerPhrase($transfer, $owner))
+                .', chuyển cơ sở '
                 .($transfer->fromBranch?->name ?? '(chưa có)').' → '.($transfer->toBranch?->name ?? '').'.'
                 .$studentNote
                 .($transfer->reason ? " Lý do: {$transfer->reason}" : '')
                 .($note ? " Ghi chú duyệt: {$note}" : ''),
         ]);
+    }
+
+    /** "chuyển người phụ trách sang X" hoặc "giữ người phụ trách X" (chỉ đổi cơ sở). */
+    protected function ownerPhrase(CrmBranchTransfer $transfer, User $owner): string
+    {
+        return (int) $transfer->from_user_id === (int) $owner->id
+            ? "giữ người phụ trách {$owner->name}"
+            : "chuyển người phụ trách sang {$owner->name}";
     }
 
     protected function assertPending(CrmBranchTransfer $transfer): void

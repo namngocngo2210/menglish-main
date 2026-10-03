@@ -641,13 +641,17 @@ class CrmController extends Controller
         // Phân công lại theo quyền lead.assign (Admin, Quản lý cơ sở, Học vụ — BA 26/09/2026), không theo vai trò.
         $canReassign = $user->can('lead.assign');
         $reassignUsers = $canReassign ? $this->assignableUsers() : collect();
+        // Phân công lại chọn được mọi cơ sở đang hoạt động (khác cơ sở hiện tại = chuyển cơ sở, chờ Admin duyệt).
+        $reassignBranches = $canReassign
+            ? Ui::options(Branch::query()->where(fn ($q) => $q->where('is_active', true)->orWhere('id', $customer->branch_id))->orderBy('name')->get(['id', 'name']), 'name')
+            : [];
         $pendingTransfer = $customer->pendingBranchTransfer()->with(['toUser:id,name', 'toBranch:id,name', 'fromBranch:id,name', 'requester:id,name'])->first();
 
         $editForm = $user->can('lead.update') ? $this->customerFormOptions($customer) : null;
 
         return Inertia::render('Crm/Customers/Show', $this->showProps($customer, $user, compact('placementTests', 'examiners', 'latestSubmission',
             'portalTestLink', 'canBookTrial', 'trialSlots', 'trialState', 'stageControls', 'histories', 'logType', 'rubric', 'statusCard',
-            'canReassign', 'reassignUsers', 'editForm', 'unlinkedSubmissions', 'pendingTransfer')));
+            'canReassign', 'reassignUsers', 'reassignBranches', 'editForm', 'unlinkedSubmissions', 'pendingTransfer')));
     }
 
     /**
@@ -746,7 +750,15 @@ class CrmController extends Controller
                 'approvals_url' => route('approvals.index', ['group' => ApprovalInboxService::groupSlug(ApprovableSource::GROUP_ACADEMIC)]),
             ] : null,
             'canReassign' => $data['canReassign'],
-            'reassignUsers' => Ui::options(LeadOwners::options($data['reassignUsers']->reject(fn ($u) => $u->id === $customer->assigned_user_id))),
+            // Người phụ trách kèm cơ sở để modal lọc theo cơ sở đang chọn (Admin: mọi cơ sở). Người đang phụ trách vẫn có
+            // trong danh sách: chọn cơ sở khác mà giữ nguyên người phụ trách = chỉ chuyển cơ sở.
+            'reassignUsers' => $data['reassignUsers']->map(fn (User $u) => [
+                'value' => $u->id,
+                'label' => LeadOwners::label($u),
+                'branch_ids' => $u->branchIds(),
+                'all_branches' => LeadOwners::coversAll($u),
+            ])->values()->all(),
+            'reassignBranches' => $data['reassignBranches'],
             // Kết quả test
             'test' => [
                 'hasTested' => $sub || filled($customer->test_score) || $customer->stage === 'tested',
@@ -1008,16 +1020,17 @@ class CrmController extends Controller
 
     /**
      * Đổi người phụ trách (form sửa / Phân công lại). Cùng cơ sở → đổi ngay. Khác cơ sở → Admin đổi ngay kèm chuyển cơ sở,
-     * người khác gửi yêu cầu chờ Admin duyệt. Trả thông báo khi đã gửi yêu cầu (null nếu đổi xong).
+     * người khác gửi yêu cầu chờ Admin duyệt. $toBranchId: cơ sở chọn kèm khi Phân công lại (null = cơ sở của người phụ trách).
+     * Trả thông báo khi đã gửi yêu cầu (null nếu đổi xong).
      */
-    protected function changeOwner(CrmCustomer $customer, User $assignee, User $actor, ?string $reason, string $title): ?string
+    protected function changeOwner(CrmCustomer $customer, User $assignee, User $actor, ?string $reason, string $title, ?int $toBranchId = null): ?string
     {
         if (! LeadOwners::isCandidate($assignee)) {
             throw ValidationException::withMessages(['assigned_user_id' => self::OWNER_INVALID]);
         }
         $transfers = app(CrmBranchTransferService::class);
-        if ($transfers->needsTransfer($customer, $assignee)) {
-            $transfer = $transfers->requestOrApply($customer, $assignee, $actor, $reason);
+        if ($transfers->needsTransfer($customer, $assignee, $toBranchId)) {
+            $transfer = $transfers->requestOrApply($customer, $assignee, $actor, $reason, $toBranchId);
 
             return $transfer
                 ? "Đã gửi yêu cầu chuyển khách sang {$assignee->name} ({$transfer->toBranch?->name}). Chờ Admin duyệt chuyển cơ sở."
@@ -1651,21 +1664,35 @@ class CrmController extends Controller
         abort_unless($request->user()->can('lead.delete'), 403, 'Bạn không có quyền xem và khôi phục khách đã xóa.');
     }
 
-    /** Phân công lại người phụ trách (quyền lead.assign: Admin / Quản lý cơ sở / Học vụ), bắt buộc lý do, ghi lịch sử; khác cơ sở → chờ Admin duyệt. */
+    /**
+     * Phân công lại người phụ trách (quyền lead.assign: Admin / Quản lý cơ sở / Học vụ), bắt buộc lý do, ghi lịch sử.
+     * Chọn kèm cơ sở (chủ dự án 03/10/2026): người phụ trách phải là Học vụ cơ sở đó hoặc Admin; khác cơ sở hiện tại của khách
+     * → chuyển khách (và học viên) sang cơ sở đó, Admin áp dụng ngay, người khác chờ Admin duyệt. Được giữ người phụ trách,
+     * chỉ đổi cơ sở (vd Admin phụ trách).
+     */
     public function reassignCustomer(Request $request, $id)
     {
         abort_unless($request->user()->can('lead.assign'), 403, 'Bạn không có quyền phân công lại khách.');
         $customer = $this->findScopedCustomer($id);
         $validated = $request->validate([
+            'branch_id' => ['nullable', 'integer', Rule::exists('branches', 'id')->whereNull('deleted_at')],
             'assigned_user_id' => ['required', Rule::exists('users', 'id')->whereNull('deleted_at')],
             'reason' => 'required|string|max:1000',
         ], ['reason.required' => 'Vui lòng nhập lý do phân công lại.']);
 
         $assignee = User::findOrFail($validated['assigned_user_id']);
-        if ($assignee->id === $customer->assigned_user_id) {
+        $branchId = isset($validated['branch_id']) ? (int) $validated['branch_id'] : null;
+        $currentBranchId = $customer->branch_id ? (int) $customer->branch_id : null;
+        if ($branchId !== null && $branchId !== $currentBranchId && ! Branch::whereKey($branchId)->where('is_active', true)->exists()) {
+            throw ValidationException::withMessages(['branch_id' => 'Cơ sở này đã ngừng hoạt động.']);
+        }
+        if ($branchId !== null && LeadOwners::isCandidate($assignee) && ! LeadOwners::belongsToBranch($assignee, $branchId)) {
+            throw ValidationException::withMessages(['assigned_user_id' => "{$assignee->name} không thuộc cơ sở đã chọn. Chọn Học vụ cùng cơ sở hoặc Admin."]);
+        }
+        if ($assignee->id === $customer->assigned_user_id && ($branchId === null || $branchId === $currentBranchId)) {
             throw ValidationException::withMessages(['assigned_user_id' => 'Khách đang do người này phụ trách.']);
         }
-        $pendingMessage = $this->changeOwner($customer, $assignee, $request->user(), $validated['reason'], 'Phân công lại người phụ trách');
+        $pendingMessage = $this->changeOwner($customer, $assignee, $request->user(), $validated['reason'], 'Phân công lại người phụ trách', $branchId);
 
         return redirect()->route('crm.customers.show', $customer->id)->with('status', $pendingMessage ?? "Đã phân công lại khách cho {$assignee->name}.");
     }
