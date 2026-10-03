@@ -107,7 +107,7 @@ class ScheduleP0FixesTest extends TestCase
 
         $this->actingAs($this->manager)->put(route('classes.update', $this->classModel->id), $this->updatePayload([
             'giao_vien_chinh' => $this->otherTeacher->id,
-            'phong_hoc' => 'P202',
+            'room_id' => $this->makeRoom($this->branch->id, 'P202')->id,
         ]))->assertRedirect()->assertSessionHasNoErrors();
 
         foreach ([$past, $today, $attended] as $locked) {
@@ -143,8 +143,8 @@ class ScheduleP0FixesTest extends TestCase
 
         // Đổi phòng sang phòng đang bị lớp khác chiếm cũng bị từ chối
         $this->actingAs($this->manager)->put(route('classes.update', $this->classModel->id), $this->updatePayload([
-            'phong_hoc' => 'P303',
-        ]))->assertSessionHasErrors('phong_hoc');
+            'room_id' => $this->makeRoom($this->branch->id, 'P303')->id,
+        ]))->assertSessionHasErrors('room_id');
         $this->assertSame('P101', $this->classModel->fresh()->room);
     }
 

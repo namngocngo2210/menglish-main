@@ -18,6 +18,8 @@ use App\Models\CrmTrialBooking;
 use App\Models\Holiday;
 use App\Models\PlacementTest;
 use App\Models\PlacementTestSubmission;
+use App\Models\Room;
+use App\Models\RoomType;
 use App\Models\Student;
 use App\Models\TuitionReceipt;
 use App\Models\User;
@@ -184,15 +186,15 @@ class DemoPhase1Seeder extends Seeder
                 ['day' => 'Thứ 2', 'start' => '17:30', 'end' => '19:00', 'shift' => 'Ca chiều'],
                 ['day' => 'Thứ 4', 'start' => '17:30', 'end' => '19:00', 'shift' => 'Ca chiều'],
                 ['day' => 'Thứ 6', 'start' => '17:30', 'end' => '19:00', 'shift' => 'Ca chiều'],
-            ], 'P101', $this->staff['teacher'], 12),
+            ], 'Phòng 101', $this->staff['teacher'], 12),
             'FAM2' => $this->seedClass("DEMO-{$code}-FAM2", '# Movers FAM 2 · K27 ('.$code.')', 'FAM2', 'upcoming', today()->addDays(9), [
                 ['day' => 'Thứ 3', 'start' => '18:00', 'end' => '19:30', 'shift' => 'Ca tối'],
                 ['day' => 'Thứ 5', 'start' => '18:00', 'end' => '19:30', 'shift' => 'Ca tối'],
-            ], 'P102', $this->staff['teacher2'], 10),
+            ], 'Phòng 102', $this->staff['teacher2'], 10),
             'FAM0' => $this->seedClass("DEMO-{$code}-FAM0", '# Pre Starters FAM 0 · K25 ('.$code.')', 'FAM0', 'active', $monday->copy()->subWeeks(2), [
                 ['day' => 'Thứ 7', 'start' => '08:00', 'end' => '09:30', 'shift' => 'Ca sáng'],
                 ['day' => 'Chủ nhật', 'start' => '08:00', 'end' => '09:30', 'shift' => 'Ca sáng'],
-            ], 'P103', $this->staff['teacher'], 6),
+            ], 'Phòng 103', $this->staff['teacher'], 6),
         ];
     }
 
@@ -200,6 +202,12 @@ class DemoPhase1Seeder extends Seeder
     private function seedClass(string $code, string $name, string $courseKey, string $status, Carbon $from, array $slots, string $room, User $teacher, int $capacity): ClassModel
     {
         $course = $this->courses[$courseKey];
+        // Phòng học của chi nhánh (màn Phòng học): lớp gắn room_id, tên phòng chép vào classes.room / buổi học.
+        $roomType = RoomType::query()->firstOrCreate(['name' => 'Phòng tiêu chuẩn'], ['is_active' => true]);
+        $roomModel = Room::query()->firstOrCreate(
+            ['branch_id' => $this->branch->id, 'name' => $room],
+            ['room_type_id' => $roomType->id, 'capacity' => 16, 'description' => 'Phòng demo Phase 1.'],
+        );
         $class = ClassModel::query()->firstOrCreate(['code' => $code], [
             'name' => $name,
             'course_id' => $course->id,
@@ -209,6 +217,7 @@ class DemoPhase1Seeder extends Seeder
             'teacher_id' => $teacher->id,
             'assistant_id' => $this->staff['assistant']->id,
             'room' => $room,
+            'room_id' => $roomModel->id,
             'max_capacity' => $capacity,
             'min_students' => min(ClassModel::DEFAULT_MIN_STUDENTS, $capacity),
             'tuition_fee' => $course->tuition_fee,

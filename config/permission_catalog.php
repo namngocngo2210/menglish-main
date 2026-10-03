@@ -152,6 +152,22 @@ return [
                 'all' => 'Mọi lớp',
             ],
         ],
+        'room' => [
+            'label' => 'Phòng học',
+            'group' => 'academic',
+            'icon' => 'meeting_room',
+            'actions' => [
+                'view' => ['Xem phòng học', 'Xem danh sách phòng, tra cứu phòng trống (trong phạm vi dữ liệu).'],
+                'manage' => ['Thêm / sửa phòng học', 'Thêm phòng, sửa tên / loại phòng / sức chứa / ghi chú của phòng.'],
+                'delete' => ['Xóa phòng học', 'Xóa phòng (bị chặn khi phòng đang có lớp học).'],
+                'manage_types' => ['Quản lý loại phòng', 'Thêm / sửa / ngừng dùng / xóa danh mục loại phòng dùng chung toàn hệ thống.'],
+            ],
+            'scope' => [
+                'levels' => ['branch', 'all'],
+                'branch' => 'Phòng thuộc chi nhánh của tôi (chi nhánh chính + chi nhánh được cấp thêm)',
+                'all' => 'Phòng mọi chi nhánh',
+            ],
+        ],
         'attendance_student' => [
             'label' => 'Điểm danh học viên',
             'group' => 'academic',

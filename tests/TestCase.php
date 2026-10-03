@@ -2,6 +2,8 @@
 
 namespace Tests;
 
+use App\Models\Room;
+use App\Models\RoomType;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Http\Events\RequestHandled;
@@ -72,5 +74,13 @@ abstract class TestCase extends BaseTestCase
         parent::seed($class);
 
         return $this;
+    }
+
+    /** Phòng học thuộc chi nhánh (loại "Phòng tiêu chuẩn") — lớp học chọn phòng theo room_id. */
+    protected function makeRoom(int $branchId, string $name = 'Phòng 101', ?int $capacity = null): Room
+    {
+        $type = RoomType::firstOrCreate(['name' => 'Phòng tiêu chuẩn'], ['is_active' => true]);
+
+        return Room::create(['branch_id' => $branchId, 'room_type_id' => $type->id, 'name' => $name, 'capacity' => $capacity]);
     }
 }

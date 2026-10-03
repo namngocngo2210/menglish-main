@@ -13,6 +13,7 @@ use App\Models\Course;
 use App\Models\CourseLevel;
 use App\Models\CrmCustomer;
 use App\Models\CrmTrialBooking;
+use App\Models\Room;
 use App\Models\StaffReport;
 use App\Models\SyllabusAssignment;
 use App\Models\User;
@@ -110,25 +111,23 @@ class ClassManagementController extends Controller
             // Chọn chương trình → điền sẵn học phí niêm yết của khóa (fee).
             'courses' => $courses->map(fn (Course $c) => ['value' => $c->name, 'label' => $c->name, 'fee' => $c->tuition_fee])->values()->all(),
             'levels' => Ui::options($levels, fn (CourseLevel $l) => "{$l->name} ({$l->target})", 'code'),
-            'rooms' => Ui::options(self::ROOMS),
+            // Phòng học theo chi nhánh (màn Phòng học); Vue lọc theo chi nhánh đang chọn.
+            'rooms' => RoomController::classFormOptions($branches->modelKeys()),
             'teachers' => Ui::options($teachers, fn (User $t) => "{$t->name} ({$t->email})"),
         ]);
     }
-
-    /** Phòng học dùng chung các chi nhánh (ô "Phòng học" ở form tạo / sửa lớp). */
-    private const ROOMS = [
-        'P101' => 'Phòng 101 (Sức chứa 20 - Tầng 1)',
-        'P202' => 'Phòng 202 (Sức chứa 16 - Tầng 2)',
-        'P302' => 'Phòng 302 (Sức chứa 18 - Tầng 3)',
-        'LAB_A' => 'Phòng Lab A (Sức chứa 24 - Tầng 4)',
-        'LAB_B' => 'Phòng Lab B (Sức chứa 24 - Tầng 4)',
-    ];
 
     /**
      * Lưu lớp học mới. Nếu form đã render thời khóa biểu (schedule_sessions_json),
      * hệ thống tạo luôn các buổi học thực tế, ghi ngày khai giảng và kích hoạt lớp.
      */
     private const CAPACITY_MESSAGES = [
+        'ten_lop.required' => 'Chưa nhập Tên lớp.',
+        'chi_nhanh.required' => 'Chưa chọn Chi nhánh.',
+        'chuong_trinh.required' => 'Chưa chọn Chương trình.',
+        'cap_do.required' => 'Chưa chọn Cấp độ.',
+        'si_so_toi_da.required' => 'Sĩ số tối đa phải lớn hơn 0.',
+        'si_so_toi_da.min' => 'Sĩ số tối đa phải lớn hơn 0.',
         'min_students.lte' => 'Ngưỡng khai giảng không được lớn hơn sĩ số tối đa.',
         'min_students.min' => 'Ngưỡng khai giảng phải từ 1 học viên.',
     ];
@@ -146,7 +145,7 @@ class ClassManagementController extends Controller
             'si_so_toi_da' => 'required|integer|min:1|max:100',
             // Ngưỡng khai giảng (số học viên tối thiểu để mở lớp) không được vượt sĩ số tối đa.
             'min_students' => 'nullable|integer|min:1|max:100|lte:si_so_toi_da',
-            'phong_hoc' => 'nullable|string|max:50',
+            'room_id' => 'nullable|integer',
             'giao_vien_chinh' => 'nullable|integer|exists:users,id',
             // Trợ giảng không cố định theo lớp: làm theo ca + phân công công việc (Giao việc trợ giảng), không gán khi tạo lớp.
             'giao_vien_nn' => 'nullable|integer|exists:users,id',
@@ -195,13 +194,14 @@ class ClassManagementController extends Controller
         $course = Course::where('name', $validated['chuong_trinh'])->first();
         $teacherId = ! empty($validated['giao_vien_chinh']) && is_numeric($validated['giao_vien_chinh']) ? (int) $validated['giao_vien_chinh'] : null;
         $foreignTeacherId = ! empty($validated['giao_vien_nn']) && is_numeric($validated['giao_vien_nn']) ? (int) $validated['giao_vien_nn'] : null;
-        $defaultRoom = $validated['phong_hoc'] ?? null;
+        $room = $this->roomForBranch($validated['room_id'] ?? null, $branchId);
+        $defaultRoom = $room?->name;
 
         // Chặn trùng phòng / trùng nhân sự với các buổi đã có của lớp khác
         $this->assertNoScheduleConflicts($scheduleSessions, (int) $branchId, array_filter([$teacherId, $foreignTeacherId]), $defaultRoom);
 
         // Tạo lớp học + các buổi học trong một transaction để không sót lớp rỗng khi lịch lỗi
-        $class = DB::transaction(function () use ($validated, $branchId, $code, $course, $teacherId, $foreignTeacherId, $defaultRoom, $scheduleSessions) {
+        $class = DB::transaction(function () use ($validated, $branchId, $code, $course, $teacherId, $foreignTeacherId, $room, $defaultRoom, $scheduleSessions) {
             $class = ClassModel::create([
                 'code' => $code,
                 'name' => $validated['ten_lop'],
@@ -212,6 +212,7 @@ class ClassManagementController extends Controller
                 'max_capacity' => $validated['si_so_toi_da'],
                 'min_students' => $validated['min_students'] ?? min(ClassModel::DEFAULT_MIN_STUDENTS, (int) $validated['si_so_toi_da']),
                 'room' => $defaultRoom,
+                'room_id' => $room?->id,
                 'teacher_id' => $teacherId,
                 'foreign_teacher_id' => $foreignTeacherId,
                 'tuition_fee' => $validated['hoc_phi'] ?? null,
@@ -290,6 +291,19 @@ class ClassManagementController extends Controller
             Rbac::scopeUsersWithPermission(User::where('is_active', true), 'class.teach')->orderBy('name')->get(),
             Rbac::scopeUsersWithPermission(User::where('is_active', true), 'class.assist')->orderBy('name')->get(),
         ];
+    }
+
+    /**
+     * Phòng chọn ở form tạo / sửa lớp phải là phòng (chưa xóa) của chi nhánh lớp. Phòng là tùy chọn.
+     */
+    private function roomForBranch(mixed $roomId, int $branchId): ?Room
+    {
+        if (! filled($roomId)) {
+            return null;
+        }
+
+        return Room::whereKey((int) $roomId)->where('branch_id', $branchId)->first()
+            ?? throw ValidationException::withMessages(['room_id' => 'Phòng học không thuộc chi nhánh đã chọn, vui lòng chọn lại.']);
     }
 
     /**
@@ -424,7 +438,7 @@ class ClassManagementController extends Controller
                 ->filter(fn (ClassSession $session) => $session->room === null || $session->room === $new['previous_room'])
                 ->map(fn (ClassSession $session) => ['room' => $new['room']] + $toArray($session))
                 ->values()->all();
-            $checks['phong_hoc'] = [$roomSessions, []];
+            $checks['room_id'] = [$roomSessions, []];
         }
 
         foreach ($checks as $field => [$candidateSessions, $resourceIds]) {
@@ -813,6 +827,7 @@ class ClassManagementController extends Controller
                 'end_date' => $class->end_date?->toDateString(),
                 'schedule_text' => $class->schedule_text,
                 'room' => $class->room,
+                'room_id' => $class->room_id,
                 'teacher_id' => $class->teacher_id,
                 'foreign_teacher_id' => $class->foreign_teacher_id,
                 'assistant_id' => $class->assistant_id,
@@ -830,7 +845,7 @@ class ClassManagementController extends Controller
                 ...Ui::options(['B1' => 'Cấp độ B1 (Mục tiêu 5.5 - 6.0)', 'FOUNDATION' => 'Foundation (Mục tiêu 4.0 - 5.0)', 'B2' => 'Cấp độ B2 (Mục tiêu 6.5 - 7.0)', 'ADVANCED' => 'Mastery (Mục tiêu 7.5+)']),
                 ...Ui::options($levels, 'name', 'code'),
             ],
-            'rooms' => Ui::options(self::ROOMS),
+            'rooms' => RoomController::classFormOptions([...$branches->modelKeys(), $class->branch_id], $class->id),
             'teachers' => Ui::options($teachers, fn (User $t) => "{$t->name} ({$t->email})"),
             'foreignTeachers' => Ui::options($teachers, 'name'),
             'assistants' => $class->assistant_id ? Ui::options($assistants, 'name') : [],
@@ -856,7 +871,7 @@ class ClassManagementController extends Controller
             'si_so_toi_da' => 'required|integer|min:1|max:100',
             // Ngưỡng khai giảng (số học viên tối thiểu để mở lớp) không được vượt sĩ số tối đa.
             'min_students' => 'nullable|integer|min:1|max:100|lte:si_so_toi_da',
-            'phong_hoc' => 'nullable|string|max:50',
+            'room_id' => 'nullable|integer',
             'giao_vien_chinh' => 'nullable|integer|exists:users,id',
             'tro_giang' => 'nullable|integer|exists:users,id',
             'giao_vien_nn' => 'nullable|integer|exists:users,id',
@@ -902,7 +917,12 @@ class ClassManagementController extends Controller
         $newTeacherId = $resolveId('giao_vien_chinh', $class->teacher_id);
         $newAssistantId = $resolveId('tro_giang', $class->assistant_id);
         $newForeignTeacherId = $resolveId('giao_vien_nn', $class->foreign_teacher_id);
-        $newRoom = array_key_exists('phong_hoc', $validated) ? $validated['phong_hoc'] : $class->room;
+        // Gửi room_id (kể cả rỗng = gỡ phòng) thì đổi phòng; đổi chi nhánh mà không gửi phòng thì gỡ phòng của chi nhánh cũ.
+        [$newRoomId, $newRoom] = match (true) {
+            array_key_exists('room_id', $validated) => (fn (?Room $room) => [$room?->id, $room?->name])($this->roomForBranch($validated['room_id'], $branchId)),
+            (int) $class->branch_id !== $branchId => [null, null],
+            default => [$class->room_id, $class->room],
+        };
 
         // Chỉ buổi chưa diễn ra, chưa điểm danh/check-in mới được đồng bộ nhân sự/phòng;
         // buổi quá khứ là dữ liệu lịch sử (bảng công, điểm danh khớp theo buổi).
@@ -922,7 +942,7 @@ class ClassManagementController extends Controller
             'previous_room' => $previousRoom,
         ]);
 
-        DB::transaction(function () use ($class, $validated, $code, $branchId, $course, $newTeacherId, $newAssistantId, $newForeignTeacherId, $newRoom, $previousRoom, $futureSessions, $foreignSyncSessions) {
+        DB::transaction(function () use ($class, $validated, $code, $branchId, $course, $newTeacherId, $newAssistantId, $newForeignTeacherId, $newRoomId, $newRoom, $previousRoom, $futureSessions, $foreignSyncSessions) {
             $class->update([
                 'code' => $code,
                 'name' => $validated['ten_lop'],
@@ -933,6 +953,7 @@ class ClassManagementController extends Controller
                 'max_capacity' => $validated['si_so_toi_da'],
                 'min_students' => $validated['min_students'] ?? min((int) ($class->min_students ?: ClassModel::DEFAULT_MIN_STUDENTS), (int) $validated['si_so_toi_da']),
                 'room' => $newRoom,
+                'room_id' => $newRoomId,
                 'teacher_id' => $newTeacherId,
                 'assistant_id' => $newAssistantId,
                 'foreign_teacher_id' => $newForeignTeacherId,
