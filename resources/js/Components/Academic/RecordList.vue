@@ -1,5 +1,5 @@
 <script setup>
-/** Danh sách báo cáo (AcademicRecord) dùng cho tab tuần / tháng của dashboard báo cáo đào tạo. */
+/** Danh sách báo cáo định kỳ (staff_reports) dùng cho tab tuần / tháng của dashboard báo cáo đào tạo. */
 defineProps({
     records: { type: Array, default: () => [] },
     empty: { type: String, required: true },
@@ -12,7 +12,7 @@ defineProps({
             <tr>
                 <th>Báo cáo</th>
                 <th>Người gửi</th>
-                <th>Trạng thái</th>
+                <th>Loại</th>
                 <th>Thời gian</th>
             </tr>
         </thead>
