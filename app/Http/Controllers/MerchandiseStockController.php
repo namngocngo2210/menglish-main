@@ -158,24 +158,24 @@ class MerchandiseStockController extends Controller
     }
 
     /** Modal nhật ký xuất nhập của một mặt hàng tại chi nhánh (bấm dòng ở trang tồn kho). */
-    public function history(Request $request): InertiaResponse
+    public function history(Request $request, int $item): InertiaResponse
     {
         $branches = $this->branches($request);
         $branch = $this->pickBranch($request, $branches);
         abort_unless($branch, 403, 'Tài khoản chưa được gán chi nhánh.');
-        $item = MerchandiseItem::withTrashed()->findOrFail($request->integer('item'));
+        $merchandise = MerchandiseItem::withTrashed()->findOrFail($item);
 
         $movements = MerchandiseStockMovement::with(['item', 'receipt', 'user'])
             ->where('branch_id', $branch->id)
-            ->where('merchandise_item_id', $item->id)
+            ->where('merchandise_item_id', $merchandise->id)
             ->latest('id')
             ->limit(100)
             ->get();
 
         return $this->modalPage('Merchandise/StockHistory', [
-            'item' => ['id' => $item->id, 'code' => $item->code, 'name' => $item->name, 'unit' => $item->unit],
+            'item' => ['id' => $merchandise->id, 'code' => $merchandise->code, 'name' => $merchandise->name, 'unit' => $merchandise->unit],
             'branch' => ['id' => $branch->id, 'name' => $branch->name],
-            'quantity' => $this->stock->quantities([$item->id], $branch->id)[$item->id],
+            'quantity' => $this->stock->quantities([$merchandise->id], $branch->id)[$merchandise->id],
             'movements' => $this->movementRows($movements),
         ]);
     }
