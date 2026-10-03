@@ -12,6 +12,7 @@ use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 /**
@@ -178,6 +179,79 @@ class CrmLeadOwnerBranchTransferTest extends TestCase
 
         $this->actingAs($this->hocVuA)->post(route('crm.customers.reassign', $lead->id), ['assigned_user_id' => $this->sales->id, 'reason' => 'x'])
             ->assertSessionHasErrors('assigned_user_id');
+    }
+
+    public function test_reassign_with_branch_moves_customer_to_the_chosen_branch(): void
+    {
+        $branchC = Branch::create(['name' => 'Cơ sở C', 'code' => 'CSC', 'is_active' => true]);
+        $hocVuBC = $this->userWithRole('academic_staff', $this->branchB, 'Học Vụ BC');
+        $hocVuBC->branches()->attach($branchC->id);
+        $lead = $this->lead(['assigned_user_id' => $this->hocVuA->id]);
+
+        // Modal có chọn chi nhánh, danh sách người phụ trách kèm cơ sở để lọc.
+        $this->actingAs($this->hocVuA)->get(route('crm.customers.show', $lead->id))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Crm/Customers/Show')
+                ->where('reassignBranches', fn ($branches) => collect($branches)->pluck('label')->contains('Cơ sở C'))
+                ->where('reassignUsers', fn ($users) => collect(collect($users)->firstWhere('value', $hocVuBC->id)['branch_ids'])->sort()->values()->all()
+                    === collect([$this->branchB->id, $branchC->id])->sort()->values()->all()));
+
+        // Người phụ trách không thuộc chi nhánh đã chọn → lỗi.
+        $this->actingAs($this->hocVuA)->post(route('crm.customers.reassign', $lead->id), [
+            'branch_id' => $branchC->id, 'assigned_user_id' => $this->hocVuB->id, 'reason' => 'Chuyển cơ sở C',
+        ])->assertSessionHasErrors('assigned_user_id');
+        $this->assertSame(0, CrmBranchTransfer::count());
+
+        // Học vụ phụ trách nhiều cơ sở: chuyển sang cơ sở được chọn (C), không phải cơ sở chính (B); chờ Admin duyệt.
+        $this->actingAs($this->hocVuA)->post(route('crm.customers.reassign', $lead->id), [
+            'branch_id' => $branchC->id, 'assigned_user_id' => $hocVuBC->id, 'reason' => 'Chuyển cơ sở C',
+        ])->assertSessionHasNoErrors();
+        $transfer = CrmBranchTransfer::sole();
+        $this->assertSame($branchC->id, $transfer->to_branch_id);
+        $this->assertSame($this->branchA->id, $lead->refresh()->branch_id);
+
+        $this->actingAs($this->admin)->post(route('approvals.bulk'), [
+            'action' => 'approve', 'items' => ['crm_branch_transfer:'.$transfer->id],
+        ])->assertSessionHasNoErrors();
+        $lead->refresh();
+        $this->assertSame($hocVuBC->id, $lead->assigned_user_id);
+        $this->assertSame($branchC->id, $lead->branch_id);
+    }
+
+    public function test_reassign_can_keep_owner_and_only_change_branch(): void
+    {
+        $lead = $this->lead(['assigned_user_id' => $this->admin->id]);
+
+        // Cùng người, cùng cơ sở → không có gì thay đổi.
+        $this->actingAs($this->admin)->post(route('crm.customers.reassign', $lead->id), [
+            'branch_id' => $this->branchA->id, 'assigned_user_id' => $this->admin->id, 'reason' => 'x',
+        ])->assertSessionHasErrors('assigned_user_id');
+
+        // Admin giữ phụ trách, chuyển khách sang cơ sở B: áp dụng ngay.
+        $this->actingAs($this->admin)->post(route('crm.customers.reassign', $lead->id), [
+            'branch_id' => $this->branchB->id, 'assigned_user_id' => $this->admin->id, 'reason' => 'Khách học ở B',
+        ])->assertSessionHasNoErrors();
+        $lead->refresh();
+        $this->assertSame($this->admin->id, $lead->assigned_user_id);
+        $this->assertSame($this->branchB->id, $lead->branch_id);
+        $this->assertSame(CrmBranchTransfer::STATUS_APPROVED, CrmBranchTransfer::sole()->status);
+        $this->assertStringContainsString('Giữ người phụ trách Quản trị', (string) $lead->histories()->latest('id')->value('content'));
+    }
+
+    public function test_reassign_same_branch_with_branch_field_needs_no_approval_and_rejects_inactive_branch(): void
+    {
+        $hocVuA2 = $this->userWithRole('academic_staff', $this->branchA, 'Học Vụ A2');
+        $closed = Branch::create(['name' => 'Cơ sở đóng', 'code' => 'CSD', 'is_active' => false]);
+        $lead = $this->lead(['assigned_user_id' => $this->hocVuA->id]);
+
+        $this->actingAs($this->hocVuA)->post(route('crm.customers.reassign', $lead->id), [
+            'branch_id' => $closed->id, 'assigned_user_id' => $this->admin->id, 'reason' => 'x',
+        ])->assertSessionHasErrors('branch_id');
+
+        $this->actingAs($this->hocVuA)->post(route('crm.customers.reassign', $lead->id), [
+            'branch_id' => $this->branchA->id, 'assigned_user_id' => $hocVuA2->id, 'reason' => 'Nghỉ phép',
+        ])->assertSessionHasNoErrors();
+        $this->assertSame($hocVuA2->id, $lead->refresh()->assigned_user_id);
+        $this->assertSame(0, CrmBranchTransfer::count());
     }
 
     public function test_import_uses_owner_column_by_name_or_email(): void
