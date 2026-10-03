@@ -132,8 +132,7 @@ class ReviewRoundFinalTest extends TestCase
 
         $student = $this->userWithRole('student');
         $this->actingAs($student)->get(route('portal.ta-tasks'))->assertForbidden();
-        $this->actingAs($student)->get(route('classes.checklist'))
-            ->assertOk()->assertDontSee(route('tuition.overdue'));
+        $this->actingAs($student)->get(route('class-quality.checklist'))->assertForbidden();
 
         $this->actingAs($this->userWithRole('assistant'))->get(route('portal.ta-tasks'))->assertOk();
     }

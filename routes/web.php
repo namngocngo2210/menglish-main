@@ -6,6 +6,7 @@ use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\AdminNotificationController;
 use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\BranchController;
+use App\Http\Controllers\ClassChecklistController;
 use App\Http\Controllers\ClassManagementController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\CourseLevelController;
@@ -18,7 +19,9 @@ use App\Http\Controllers\KpiController;
 use App\Http\Controllers\MediaManagerController;
 use App\Http\Controllers\MerchandiseItemController;
 use App\Http\Controllers\MerchandiseStockController;
+use App\Http\Controllers\MobileStaffController;
 use App\Http\Controllers\MockupHubController;
+use App\Http\Controllers\ObservationController;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\PenaltyController;
 use App\Http\Controllers\PermissionController;
@@ -33,11 +36,13 @@ use App\Http\Controllers\SepayWebhookController;
 use App\Http\Controllers\StaffReportController;
 use App\Http\Controllers\StudentPortalController;
 use App\Http\Controllers\StudentProfileController;
+use App\Http\Controllers\StaffAttendanceController;
 use App\Http\Controllers\SupportTicketController;
 use App\Http\Controllers\SurveyController;
 use App\Http\Controllers\SyllabusController;
 use App\Http\Controllers\SystemCategoryController;
 use App\Http\Controllers\SystemConfigController;
+use App\Http\Controllers\TeacherMeetingReportController;
 use App\Http\Controllers\TeacherPortalController;
 use App\Http\Controllers\TrialGuestController;
 use App\Http\Controllers\TuitionController;
@@ -120,6 +125,22 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     // Người dùng KHÔNG được tự xóa tài khoản (Phase 4): chỉ người quản lý tài khoản xóa/khóa qua màn Tài khoản.
+
+    // ─────────────────────────────────────────────
+    // Giao diện điện thoại cho nhân sự: chấm công (ảnh + GPS), lịch sử công, xin duyệt, cần duyệt
+    // ─────────────────────────────────────────────
+    Route::controller(MobileStaffController::class)->prefix('m')->name('mobile.')->middleware('can:portal.staff')->group(function () {
+        Route::get('/', 'home')->name('home');
+        Route::post('/cham-cong', 'punch')->middleware('throttle:20,1')->name('punch');
+        Route::get('/lich-su', 'history')->name('history');
+        Route::get('/xin-duyet', 'requests')->name('requests');
+        Route::post('/xin-duyet', 'storeRequest')->name('requests.store');
+        Route::post('/xin-duyet/{attendanceRequest}/rut', 'cancelRequest')->whereNumber('attendanceRequest')->name('requests.cancel');
+        Route::get('/can-duyet', 'approvals')->name('approvals');
+    });
+    Route::get('/staff-attendance', [StaffAttendanceController::class, 'index'])->middleware('can:staff_checkin.view')->name('staff-attendance.index');
+    Route::get('/staff-attendance/{attendance}', [StaffAttendanceController::class, 'show'])->whereNumber('attendance')->middleware('can:staff_checkin.view')->name('staff-attendance.show');
+    Route::get('/staff-attendance/{attendance}/photo/{kind}', [MobileStaffController::class, 'photo'])->whereNumber('attendance')->whereIn('kind', ['in', 'out'])->name('staff-attendance.photo');
 
     // ─────────────────────────────────────────────
     // Tuyển dụng & Quản lý Hồ sơ CV Ứng viên
@@ -268,9 +289,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/academic-overview', [ClassManagementController::class, 'academicOverview'])->name('academic-overview');
         Route::get('/academic-list', [ClassManagementController::class, 'academicList'])->name('academic-list');
         Route::get('/academic-detail/{id?}', [ClassManagementController::class, 'academicDetail'])->name('academic-detail');
-        Route::get('/qa-observation', [ClassManagementController::class, 'qaObservation'])->name('qa-observation');
-        Route::get('/checklist', [ClassManagementController::class, 'checklist'])->name('checklist');
-        Route::get('/evaluate-observation', [ClassManagementController::class, 'evaluateObservation'])->name('evaluate-observation');
+        // Đường dẫn cũ (mockup) → màn thật trong khu "Dự giờ & chất lượng lớp".
+        Route::redirect('/qa-observation', '/class-quality/operations')->name('qa-observation');
+        Route::redirect('/checklist', '/class-quality/checklist')->name('checklist');
+        Route::redirect('/evaluate-observation', '/class-quality/academic')->name('evaluate-observation');
         Route::get('/', [ClassManagementController::class, 'index'])->name('index');
         Route::get('/{id}/edit', [ClassManagementController::class, 'edit'])->name('edit');
         Route::put('/{id}', [ClassManagementController::class, 'update'])->middleware('can:class.update')->name('update');
@@ -572,6 +594,7 @@ Route::middleware('auth')->group(function () {
     Route::post('branches', [BranchController::class, 'store'])->middleware('can:branch.create')->name('branches.store');
     Route::put('branches/{branch}', [BranchController::class, 'update'])->middleware('can:branch.update')->name('branches.update');
     Route::delete('branches/{branch}', [BranchController::class, 'destroy'])->middleware('can:branch.delete')->name('branches.destroy');
+    Route::put('branches/{branch}/attendance', [BranchController::class, 'updateAttendance'])->middleware('can:branch.update')->name('branches.attendance');
     Route::post('branches/{id}/toggle', [BranchController::class, 'toggleStatus'])->middleware('can:branch.manage')->name('branches.toggle');
     Route::resource('system-categories', SystemCategoryController::class)->except('show')->middleware('can:system_category.manage');
     Route::post('system-categories/{system_category}/reactivate', [SystemCategoryController::class, 'reactivate'])
@@ -703,6 +726,31 @@ Route::middleware('auth')->group(function () {
         Route::get('/my', 'myReports')->name('my');
         Route::post('/my', 'reportStore')->name('my.store');
         Route::get('/all', 'allReports')->middleware('can:staff_report.view_all')->name('all');
+        // Báo cáo có cấu trúc theo vai trò (StaffType::structuredReports — controller kiểm tra).
+        Route::get('/weekly-kpi', 'weeklyKpi')->name('periodic.weekly-kpi');
+        Route::post('/weekly-kpi', 'weeklyKpiStore')->name('periodic.weekly-kpi.store');
+        Route::get('/academic-monthly', 'academicMonthly')->name('periodic.academic-monthly');
+        Route::post('/academic-monthly', 'academicMonthlyStore')->name('periodic.academic-monthly.store');
+        Route::get('/academic-quarterly', 'academicQuarterly')->name('periodic.academic-quarterly');
+        Route::post('/academic-quarterly', 'academicQuarterlyStore')->name('periodic.academic-quarterly.store');
+    });
+
+    // ──────────────────────────────────────
+    // Dự giờ & chất lượng lớp: dự giờ vận hành, đánh giá dự giờ học thuật, checklist học phí & feedback, họp giáo viên
+    // ──────────────────────────────────────
+    Route::prefix('class-quality')->name('class-quality.')->middleware('can:class_quality.view')->group(function () {
+        Route::get('/operations', [ObservationController::class, 'operations'])->name('operations');
+        Route::post('/operations', [ObservationController::class, 'storeOperations'])->middleware('can:class_quality.observe_operations')->name('operations.store');
+        Route::put('/operations/{id}', [ObservationController::class, 'updateOperations'])->whereNumber('id')->middleware('can:class_quality.observe_operations')->name('operations.update');
+        Route::delete('/operations/{id}', [ObservationController::class, 'destroyOperations'])->whereNumber('id')->middleware('can:class_quality.observe_operations')->name('operations.destroy');
+        Route::get('/academic', [ObservationController::class, 'academic'])->name('academic');
+        Route::put('/academic', [ObservationController::class, 'saveAcademic'])->middleware('can:class_quality.observe_academic')->name('academic.save');
+        Route::get('/checklist', [ClassChecklistController::class, 'index'])->name('checklist');
+        Route::put('/checklist', [ClassChecklistController::class, 'save'])->middleware('can:class_quality.checklist')->name('checklist.save');
+        Route::get('/teacher-meetings', [TeacherMeetingReportController::class, 'index'])->name('teacher-meetings');
+        Route::post('/teacher-meetings', [TeacherMeetingReportController::class, 'store'])->middleware('can:class_quality.teacher_meeting')->name('teacher-meetings.store');
+        Route::put('/teacher-meetings/{id}', [TeacherMeetingReportController::class, 'update'])->whereNumber('id')->middleware('can:class_quality.teacher_meeting')->name('teacher-meetings.update');
+        Route::delete('/teacher-meetings/{id}', [TeacherMeetingReportController::class, 'destroy'])->whereNumber('id')->middleware('can:class_quality.teacher_meeting')->name('teacher-meetings.destroy');
     });
 
     // ──────────────────────────────────────

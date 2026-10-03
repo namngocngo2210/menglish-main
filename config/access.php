@@ -50,6 +50,8 @@ return [
             // Flow §15: chỉ Admin duyệt/chi trả lương; Kế toán tính & soát; Manager chỉ xem.
             'payroll.view', 'payroll.view_own', 'kpi.*', 'teacher_rate.manage', 'commission_config.manage',
             'attendance_staff.view', 'attendance_staff.manual_record',
+            // Chấm công hằng ngày (điện thoại): xem + duyệt đơn của nhân sự chi nhánh mình.
+            'staff_checkin.view', 'staff_checkin.approve', 'staff_checkin.scope_branch',
             // Chốt biên bản lỗi vận hành (CM); lỗi chuyên môn do Học thuật chốt.
             'violation.view', 'violation.create', 'violation.confirm_error', 'violation.confirm_fine', 'violation.cancel',
             'violation.mark_paid', 'violation.mark_resolved', 'violation.decide_operations',
@@ -59,6 +61,7 @@ return [
             'promotion.manage',
             'staff_report.submit', 'staff_report.view_all', 'dashboard.operations', 'portal.staff',
             'room.view', 'room.manage',
+            'class_quality.*',
             'merchandise_stock.view', 'merchandise_stock.manage',
             // Phạm vi dữ liệu (A6 Q7: Quản lý cơ sở chỉ thấy chi nhánh mình).
             'lead.scope_branch', 'student.scope_branch', 'class.scope_branch', 'room.scope_branch', 'big_test.scope_all', 'tuition.scope_branch',
@@ -73,6 +76,7 @@ return [
             'refund_transfer.request', 'refund_transfer.approve', 'refund_transfer.approve_transfer', 'refund_transfer.reject',
             'bank_account.manage', 'invoice_range.manage', 'fee_reminder_config.manage',
             'merchandise_stock.view', 'merchandise_stock.manage', 'merchandise_stock.scope_branch',
+            'staff_checkin.view', 'staff_checkin.scope_branch',
             'payroll.view', 'payroll.create', 'payroll.edit', 'payroll.calculate', 'payroll.view_own', 'finance.view',
             'work_task.view', 'support_ticket.create', 'support_ticket.view',
             'portal.staff',
@@ -108,6 +112,8 @@ return [
             'payroll.view_own', 'payroll.scope_own',
             // Phòng học: thêm / sửa phòng chi nhánh mình; xóa phòng và danh mục loại phòng chỉ Admin.
             'room.view', 'room.manage', 'room.scope_branch',
+            // Dự giờ vận hành (QA) + checklist học phí & feedback theo lớp; đánh giá dự giờ học thuật là việc của Học thuật.
+            'class_quality.view', 'class_quality.observe_operations', 'class_quality.checklist',
             // Tồn kho sách chi nhánh mình; ghi sai số hóa đơn giấy tiền mặt thì lập yêu cầu hủy hóa đơn.
             'merchandise_stock.view', 'merchandise_stock.manage', 'merchandise_stock.scope_branch', 'invoice.request_cancel',
             'lead.scope_branch', 'student.scope_branch', 'class.scope_all', 'big_test.scope_all', 'tuition.scope_branch',
@@ -128,6 +134,7 @@ return [
             'staff_report.submit', 'dashboard.academic', 'portal.staff',
             'payroll.view_own', 'payroll.scope_own',
             'room.view', 'room.scope_all',
+            'class_quality.view', 'class_quality.observe_academic', 'class_quality.teacher_meeting',
             'lead.scope_branch', 'student.scope_branch', 'class.scope_all', 'big_test.scope_all', 'kpi.scope_all',
             'work_task.scope_all', 'user.scope_own', 'support_ticket.scope_own',
         ],

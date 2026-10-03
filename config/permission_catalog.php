@@ -152,6 +152,18 @@ return [
                 'all' => 'Mọi lớp',
             ],
         ],
+        'class_quality' => [
+            'label' => 'Dự giờ & chất lượng lớp',
+            'group' => 'academic',
+            'icon' => 'verified',
+            'actions' => [
+                'view' => ['Xem dự giờ & checklist lớp', 'Xem lượt dự giờ vận hành, đánh giá dự giờ học thuật, checklist học phí & feedback, báo cáo họp giáo viên (lớp trong phạm vi Lớp học).'],
+                'observe_operations' => ['Ghi nhận dự giờ vận hành', 'Ghi nhận / sửa / xóa lượt dự giờ QA của đội vận hành.'],
+                'observe_academic' => ['Đánh giá dự giờ học thuật', 'Ghi đánh giá dự giờ theo lớp và tháng (6 tiêu chí, % chuyên cần, % đạt yêu cầu).'],
+                'checklist' => ['Cập nhật checklist học phí & feedback', 'Đánh dấu Có / Không / N-A việc nhắc, thu học phí và feedback Big Test theo lớp, theo tháng.'],
+                'teacher_meeting' => ['Ghi báo cáo họp giáo viên', 'Ghi / sửa / xóa báo cáo họp giáo viên theo tuần.'],
+            ],
+        ],
         'room' => [
             'label' => 'Phòng học',
             'group' => 'academic',
@@ -357,6 +369,21 @@ return [
                 'own' => 'Ca của lớp trong phạm vi Lớp học của tôi',
                 'branch' => 'Ca của lớp thuộc chi nhánh của tôi + lớp của tôi',
                 'all' => 'Mọi ca, mọi lớp',
+            ],
+        ],
+        // Mọi nhân sự (portal.staff) tự chấm công trên điện thoại và gửi đơn của mình, không cần quyền riêng.
+        'staff_checkin' => [
+            'label' => 'Chấm công hằng ngày (điện thoại)',
+            'group' => 'hr',
+            'icon' => 'fingerprint',
+            'actions' => [
+                'view' => ['Xem chấm công nhân sự', 'Xem giờ vào / ra, ảnh khuôn mặt, vị trí lúc chấm công của nhân sự (trong phạm vi dữ liệu).'],
+                'approve' => ['Duyệt đơn chấm công', 'Duyệt / từ chối đơn bổ sung công, xin đi muộn / về sớm, xin nghỉ (không tự duyệt đơn của mình).'],
+            ],
+            'scope' => [
+                'levels' => ['branch', 'all'],
+                'branch' => 'Nhân sự thuộc chi nhánh của tôi (chi nhánh chính + chi nhánh được cấp thêm)',
+                'all' => 'Nhân sự mọi chi nhánh',
             ],
         ],
         'payroll' => [

@@ -33,7 +33,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
-use Inertia\Response;
 
 class ClassManagementController extends Controller
 {
@@ -1100,48 +1099,6 @@ class ClassManagementController extends Controller
 
         return redirect()->route('classes.index')
             ->with('success', "Đã xóa lớp học '{$className}' ({$classCode}) thành công.");
-    }
-
-    // Chức năng chưa triển khai: trang báo "chưa triển khai" + link tới màn thật liên quan (theo quyền).
-    public function qaObservation(Request $request)
-    {
-        return $this->featurePending('QA Observation — Dự giờ vận hành', 'Lên lịch dự giờ và theo dõi kết quả kiểm định giảng dạy.', [
-            ['label' => 'Danh sách lớp', 'icon' => 'meeting_room', 'route' => 'classes.index'],
-            ['label' => 'Dashboard lớp theo ngày', 'icon' => 'calendar_month', 'route' => 'tasks.classes-dashboard', 'can' => 'work_task.view'],
-        ]);
-    }
-
-    public function checklist(Request $request)
-    {
-        return $this->featurePending('Checklist Học phí & Feedback theo lớp', 'Theo dõi nhắc học phí và feedback Big Test định kỳ theo từng lớp.', [
-            ['label' => 'Thu phí quá hạn & Nhắc phí', 'icon' => 'payments', 'route' => 'tuition.overdue', 'can' => 'tuition.view'],
-            ['label' => 'Kết quả Big Test', 'icon' => 'grading', 'route' => 'syllabus.big-tests.results', 'can' => 'syllabus.view'],
-        ]);
-    }
-
-    public function evaluateObservation(Request $request)
-    {
-        return $this->featurePending('Đánh giá dự giờ học thuật', 'Chấm điểm và nhận xét buổi dự giờ của giáo viên.', [
-            ['label' => 'Danh sách lớp', 'icon' => 'meeting_room', 'route' => 'classes.index'],
-            ['label' => 'Tổng hợp KPI tháng', 'icon' => 'analytics', 'route' => 'kpi.monthly', 'can' => 'kpi.view'],
-        ]);
-    }
-
-    /**
-     * @param  list<array{label: string, icon: string, route: string, can?: string}>  $links
-     */
-    private function featurePending(string $title, string $description, array $links): Response
-    {
-        $user = auth()->user();
-
-        return Inertia::render('Classes/FeaturePending', [
-            'title' => $title,
-            'description' => $description,
-            'links' => collect($links)
-                ->filter(fn (array $link) => ! isset($link['can']) || $user->can($link['can']))
-                ->map(fn (array $link) => ['label' => $link['label'], 'icon' => $link['icon'], 'href' => route($link['route'], absolute: false)])
-                ->values()->all(),
-        ]);
     }
 
     public function checkAvailability(Request $request)
