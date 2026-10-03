@@ -5,6 +5,8 @@
  */
 import { computed } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
+import { useBackLink } from '@/lib/backLink';
+import { route } from '@/lib/route';
 
 const props = defineProps({
     student: { type: Object, default: null },
@@ -13,6 +15,7 @@ const props = defineProps({
     showBack: { type: Boolean, default: false },
     backUrl: { type: String, default: null },
 });
+const back = useBackLink(() => props.backUrl ?? route('portal.student.home', { studentId: props.student?.id }));
 
 const options = computed(() => props.students.map((s) => ({ value: s.id, label: s.name })));
 
@@ -25,14 +28,15 @@ function switchStudent(event) {
         .replace(/\/notifications(\/\d+)?$/, '/notifications/' + id)
         .replace(/\/survey(\/\d+)?$/, '/survey/' + id)
         .replace(/\/feedback(\/\d+)?$/, '/feedback/' + id);
-    router.visit(path);
+    // Đổi học viên = cùng màn, không thêm bước lịch sử (nút Quay lại không về màn của học viên trước).
+    router.visit(path, { replace: true });
 }
 </script>
 
 <template>
     <header class="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-surface-container-highest bg-surface-container-lowest/95 px-4 backdrop-blur-md dark:border-inverse-surface dark:bg-inverse-surface/95">
         <div class="flex items-center gap-2">
-            <Link v-if="showBack" :href="backUrl ?? route('portal.student.home', { studentId: student?.id })" class="rounded-full p-2 text-on-surface-variant transition hover:bg-surface-container dark:text-inverse-on-surface dark:hover:bg-inverse-surface">
+            <Link v-if="showBack" :href="back.href" data-back-link :aria-label="back.label" :title="back.label" class="rounded-full p-2 text-on-surface-variant transition hover:bg-surface-container dark:text-inverse-on-surface dark:hover:bg-inverse-surface">
                 <span class="material-symbols-outlined text-[20px]">arrow_back</span>
             </Link>
             <div>

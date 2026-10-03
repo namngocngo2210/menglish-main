@@ -4,6 +4,8 @@
  * không ảnh → chờ GV chính của lớp xác nhận (lớp chưa có GV chính → người giao việc).
  * Mở từ Cổng TA / menu → modal 2xl; mở thẳng URL → trang riêng (gọn cho điện thoại).
  */
+import { useBackLink } from '@/lib/backLink';
+import { route } from '@/lib/route';
 import ClassReportForm from './Partials/ClassReportForm.vue';
 
 defineOptions({ layout: { title: 'Nộp báo cáo trực lớp' } });
@@ -19,6 +21,7 @@ const props = defineProps({
     confirmer: { type: String, default: null },
     asModal: { type: Boolean, default: false },
 });
+const back = useBackLink(() => route('portal.ta-tasks'));
 </script>
 
 <template>
@@ -31,7 +34,7 @@ const props = defineProps({
 
     <div v-else class="mx-auto max-w-2xl space-y-md pb-24 md:pb-0">
         <header class="flex items-center gap-sm">
-            <UiButton variant="ghost" icon="arrow_back" :href="route('portal.ta-tasks')" aria-label="Quay lại" />
+            <UiButton variant="ghost" icon="arrow_back" :href="back.href" data-back-link aria-label="Quay lại" title="Quay lại" />
             <div class="min-w-0">
                 <h1 class="font-h2 text-h2 text-on-surface">Nộp báo cáo trực lớp</h1>
                 <p class="font-body-small text-body-small text-on-surface-variant">Nội dung bài giảng, nhật ký lớp và học sinh cần bổ trợ.</p>

@@ -5,7 +5,9 @@
  * trang đầy đủ → về "Việc cần duyệt".
  */
 import { computed, nextTick, ref } from 'vue';
+import { useBackLink } from '@/lib/backLink';
 import { shortenCodesIn } from '@/lib/format';
+import { route } from '@/lib/route';
 import ApprovalDetail from './ApprovalDetail.vue';
 
 const props = defineProps({
@@ -15,6 +17,7 @@ const props = defineProps({
     canApprove: { type: Boolean, default: false },
     canReject: { type: Boolean, default: false },
 });
+const back = useBackLink(() => route('approvals.index'), 'Việc cần duyệt');
 
 defineOptions({ layout: (props) => ({ title: shortenCodesIn(props.item?.title ?? '') }) });
 
@@ -45,7 +48,7 @@ async function startReject() {
     <template v-else>
         <UiPageHeader :title="title" :description="description">
             <template #actions>
-                <UiButton variant="secondary" icon="arrow_back" :href="route('approvals.index')">Việc cần duyệt</UiButton>
+                <UiButton variant="secondary" icon="arrow_back" :href="back.href" data-back-link>{{ back.label }}</UiButton>
                 <UiButton icon="open_in_new" :href="item.url">Mở màn gốc</UiButton>
             </template>
         </UiPageHeader>

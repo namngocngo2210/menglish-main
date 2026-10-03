@@ -5,6 +5,7 @@
  */
 import { computed, ref } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
+import { useBackLink } from '@/lib/backLink';
 import { route } from '@/lib/route';
 
 defineOptions({ layout: { title: 'Soạn syllabus theo chặng' } });
@@ -21,6 +22,7 @@ const props = defineProps({
     newCode: { type: String, default: '' },
     canManage: { type: Boolean, default: false },
 });
+const back = useBackLink(() => route('syllabus.documents'));
 
 const creating = ref(false);
 const stageOptions = computed(() => props.stages.map((s) => ({ value: s.id, label: s.label })));
@@ -321,7 +323,7 @@ const lessonFields = [
         </template>
 
         <div class="flex items-center justify-end gap-2">
-            <UiButton variant="secondary" :href="route('syllabus.documents')">Quay lại</UiButton>
+            <UiButton variant="secondary" :href="back.href" data-back-link>Quay lại</UiButton>
             <UiButton icon="arrow_forward" :href="route('syllabus.assignments')">Tiếp tục: Chặng của lớp</UiButton>
         </div>
     </div>

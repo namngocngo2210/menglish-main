@@ -5,16 +5,19 @@
  */
 import { Link } from '@inertiajs/vue3';
 import StudentProfile from '@/Components/Students/StudentProfile.vue';
+import { useBackLink } from '@/lib/backLink';
+import { route } from '@/lib/route';
 
 defineOptions({ layout: { title: 'Hồ sơ học sinh (phân quyền)' } });
 
-defineProps({
+const props = defineProps({
     student: { type: Object, required: true },
     viewerRoleLabel: { type: String, default: 'Người dùng' },
     canViewAcademic: { type: Boolean, default: false },
     canViewContact: { type: Boolean, default: false },
     canViewTuition: { type: Boolean, default: false },
 });
+const back = useBackLink(() => route('students.show', props.student.id), 'Quay lại hồ sơ');
 </script>
 
 <template>
@@ -27,7 +30,7 @@ defineProps({
             <span class="font-semibold text-primary">Chi tiết</span>
         </template>
         <template #actions>
-            <UiButton variant="secondary" icon="arrow_back" :href="route('students.show', student.id)">Quay lại hồ sơ</UiButton>
+            <UiButton variant="secondary" icon="arrow_back" :href="back.href" data-back-link>{{ back.label }}</UiButton>
         </template>
     </UiPageHeader>
 
