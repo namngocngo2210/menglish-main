@@ -15,6 +15,7 @@ use App\Models\CourseLevel;
 use App\Models\CrmCustomer;
 use App\Models\Holiday;
 use App\Models\MiniTestScore;
+use App\Models\Room;
 use App\Models\Student;
 use App\Models\StudentAttendance;
 use App\Models\SupportSession;
@@ -134,12 +135,17 @@ class Phase2AcceptanceTest extends TestCase
         ], $offsets));
     }
 
+    private function room(string $name): int
+    {
+        return Room::firstWhere(['branch_id' => $this->branch->id, 'name' => $name])?->id ?? $this->makeRoom($this->branch->id, $name)->id;
+    }
+
     private function classPayload(array $overrides = []): array
     {
         return $overrides + [
             'ten_lop' => 'Starters FAM 1 · K30 (N2)', 'ma_lop' => 'N2-K30', 'chi_nhanh' => $this->branch->id,
             'chuong_trinh' => $this->course->name, 'cap_do' => $this->level->code, 'si_so_toi_da' => 10, 'min_students' => 4,
-            'phong_hoc' => 'P202', 'giao_vien_chinh' => $this->teacher->id, 'tro_giang' => $this->assistant->id,
+            'room_id' => $this->room('P202'), 'giao_vien_chinh' => $this->teacher->id, 'tro_giang' => $this->assistant->id,
             'giao_vien_nn' => $this->gvnn->id, 'hoc_phi' => 9000000, 'schedule_sessions_json' => $this->scheduleJson(),
         ];
     }
@@ -187,7 +193,7 @@ class Phase2AcceptanceTest extends TestCase
         // ── 1. Học vụ mở lớp: trùng GVNN / trùng phòng bị chặn, ngày nghỉ bị bỏ ──────────────
         $this->actingAs($this->academic)->post(route('classes.store'), $this->classPayload(['giao_vien_nn' => $this->busyGvnn->id]))
             ->assertSessionHasErrors('schedule_sessions_json');
-        $this->actingAs($this->academic)->post(route('classes.store'), $this->classPayload(['phong_hoc' => 'P201']))
+        $this->actingAs($this->academic)->post(route('classes.store'), $this->classPayload(['room_id' => $this->room('P201')]))
             ->assertSessionHasErrors('schedule_sessions_json');
         $this->assertFalse(ClassModel::where('code', 'N2-K30')->exists());
 

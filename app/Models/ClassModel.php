@@ -33,6 +33,7 @@ class ClassModel extends Model
         'assistant_id',
         'foreign_teacher_id',
         'room',
+        'room_id',
         'schedule_text',
         'start_date',
         'end_date',
@@ -100,6 +101,9 @@ class ClassModel extends Model
 
     /** Trạng thái học viên còn giữ chỗ trong lớp (tính vào sĩ số). */
     public const SEAT_HOLDING_STUDENT_STATUSES = ['waiting_start', 'studying', 'summer_break'];
+
+    /** Lớp đã kết thúc / đã hủy: không còn giữ phòng, không tính vào lịch dùng phòng. */
+    public const CLOSED_STATUSES = ['completed', 'cancelled'];
 
     /** Ngưỡng khai giảng mặc định (cột classes.min_students, default 6). */
     public const DEFAULT_MIN_STUDENTS = 6;
@@ -333,6 +337,18 @@ class ClassModel extends Model
     public function scheduleConfig()
     {
         return $this->hasOne(ClassScheduleConfig::class, 'class_id');
+    }
+
+    /** Phòng học của lớp (bảng rooms; tên phòng còn chép ở cột `room`). Gồm cả phòng đã xóa để lớp cũ vẫn hiện tên. */
+    public function classroom(): BelongsTo
+    {
+        return $this->belongsTo(Room::class, 'room_id')->withTrashed();
+    }
+
+    /** Lớp đã khai giảng và đang học: phòng của lớp này không chuyển sang lớp khác / không xóa được. */
+    public function isStudying(): bool
+    {
+        return $this->status === 'active' && (! $this->start_date || $this->start_date->lte(today()));
     }
 
     public function sessions(): HasMany

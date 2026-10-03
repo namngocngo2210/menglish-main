@@ -25,6 +25,8 @@ use App\Http\Controllers\PlacementTestController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RecruitmentController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\RoomController;
+use App\Http\Controllers\RoomTypeController;
 use App\Http\Controllers\SepayWebhookController;
 use App\Http\Controllers\StaffReportController;
 use App\Http\Controllers\StudentPortalController;
@@ -562,6 +564,22 @@ Route::middleware('auth')->group(function () {
     Route::resource('system-categories', SystemCategoryController::class)->except('show')->middleware('can:system_category.manage');
     Route::post('system-categories/{system_category}/reactivate', [SystemCategoryController::class, 'reactivate'])
         ->middleware('can:system_category.manage')->name('system-categories.reactivate');
+
+    // Phòng học theo chi nhánh: danh sách + Thêm/Sửa (modal), Tra cứu phòng trống, Danh mục loại phòng.
+    Route::prefix('rooms')->name('rooms.')->middleware('can:room.view')->group(function () {
+        Route::get('/', [RoomController::class, 'index'])->name('index');
+        Route::get('/availability', [RoomController::class, 'availability'])->name('availability');
+        Route::get('/create', [RoomController::class, 'create'])->middleware('can:room.manage')->name('create');
+        Route::post('/', [RoomController::class, 'store'])->middleware('can:room.manage')->name('store');
+        Route::get('/{room}/edit', [RoomController::class, 'edit'])->whereNumber('room')->middleware('can:room.manage')->name('edit');
+        Route::put('/{room}', [RoomController::class, 'update'])->whereNumber('room')->middleware('can:room.manage')->name('update');
+        Route::delete('/{room}', [RoomController::class, 'destroy'])->whereNumber('room')->middleware('can:room.delete')->name('destroy');
+        Route::get('/types', [RoomTypeController::class, 'index'])->name('types.index');
+        Route::post('/types', [RoomTypeController::class, 'store'])->middleware('can:room.manage_types')->name('types.store');
+        Route::put('/types/{roomType}', [RoomTypeController::class, 'update'])->middleware('can:room.manage_types')->name('types.update');
+        Route::post('/types/{roomType}/toggle', [RoomTypeController::class, 'toggle'])->middleware('can:room.manage_types')->name('types.toggle');
+        Route::delete('/types/{roomType}', [RoomTypeController::class, 'destroy'])->middleware('can:room.manage_types')->name('types.destroy');
+    });
 
     // ─────────────────────────────────────────────
     // Quản lý Danh mục Hàng hóa, Sách & Vật phẩm

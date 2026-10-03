@@ -58,8 +58,9 @@ return [
             'media.*', 'activity_log.view', 'finance.view',
             'promotion.manage',
             'staff_report.submit', 'staff_report.view_all', 'dashboard.operations', 'portal.staff',
+            'room.view', 'room.manage',
             // Phạm vi dữ liệu (A6 Q7: Quản lý cơ sở chỉ thấy chi nhánh mình).
-            'lead.scope_branch', 'student.scope_branch', 'class.scope_branch', 'big_test.scope_all', 'tuition.scope_branch',
+            'lead.scope_branch', 'student.scope_branch', 'class.scope_branch', 'room.scope_branch', 'big_test.scope_all', 'tuition.scope_branch',
             'finance.scope_branch', 'attendance_staff.scope_branch', 'payroll.scope_all', 'kpi.scope_all', 'work_task.scope_branch',
             'support_ticket.scope_all', 'user.scope_branch', 'activity_log.scope_all', 'dashboard.scope_branch',
         ],
@@ -102,6 +103,8 @@ return [
             'staff_report.submit', 'portal.staff',
             // Nhân sự full-time có phiếu lương: xem "Lương của tôi".
             'payroll.view_own', 'payroll.scope_own',
+            // Phòng học: thêm / sửa phòng chi nhánh mình; xóa phòng và danh mục loại phòng chỉ Admin.
+            'room.view', 'room.manage', 'room.scope_branch',
             'lead.scope_branch', 'student.scope_branch', 'class.scope_all', 'big_test.scope_all', 'tuition.scope_branch',
             'attendance_staff.scope_all', 'kpi.scope_all', 'work_task.scope_all', 'user.scope_own', 'support_ticket.scope_own',
         ],
@@ -119,6 +122,7 @@ return [
             'work_task.*', 'support_ticket.create', 'support_ticket.view', 'notification.view', 'survey.manage', 'course.view',
             'staff_report.submit', 'dashboard.academic', 'portal.staff',
             'payroll.view_own', 'payroll.scope_own',
+            'room.view', 'room.scope_all',
             'lead.scope_branch', 'student.scope_branch', 'class.scope_all', 'big_test.scope_all', 'kpi.scope_all',
             'work_task.scope_all', 'user.scope_own', 'support_ticket.scope_own',
         ],

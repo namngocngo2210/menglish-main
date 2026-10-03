@@ -262,7 +262,7 @@ class Round2LeftoversTest extends TestCase
         $this->actingAs($this->admin)->put(route('classes.update', $class->id), [
             'ten_lop' => $class->name, 'ma_lop' => $class->code, 'chi_nhanh' => $this->branch->id,
             'chuong_trinh' => 'IELTS', 'cap_do' => 'B1', 'si_so_toi_da' => 10,
-            'giao_vien_chinh' => $newTeacher->id, 'tro_giang' => $assistant->id, 'phong_hoc' => 'P202',
+            'giao_vien_chinh' => $newTeacher->id, 'tro_giang' => $assistant->id, 'room_id' => $this->makeRoom($this->branch->id, 'P202')->id,
         ])->assertSessionHasNoErrors();
 
         $this->assertSame($newTeacher->id, $regular->fresh()->teacher_id);
