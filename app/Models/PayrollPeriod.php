@@ -257,7 +257,7 @@ class PayrollPeriod extends Model
             ->toBase()
             ->update(['payroll_record_id' => null, 'status' => CommissionItem::STATUS_DEFERRED]);
 
-        // Hoa hồng: ghi sổ khoản phát sinh trong kỳ (% theo bậc số HS chốt), rồi xét gate kép cho mọi khoản chưa trả.
+        // Hoa hồng: ghi sổ khoản phát sinh trong kỳ (% theo mốc thứ tự chốt của HS), rồi xét gate kép cho mọi khoản chưa trả.
         $commissionService->syncItemsForPeriod($this);
         $commissionByUser = $commissionService->resolveForPeriod($this);
 
@@ -292,8 +292,8 @@ class PayrollPeriod extends Model
             $commissionBase = (float) $commission['payable']->sum('base_amount');
             $commissionDeferred = (float) $commission['deferred']->sum('amount');
             $closedCount = $commissionService->closedCountFor($user->id, $start, $end);
-            $earnedHere = CommissionItem::where('user_id', $user->id)->whereDate('earned_period_start', $start->toDateString())
-                ->where('status', '!=', CommissionItem::STATUS_VOID)->first(['percent']);
+            // Mốc hiện tại (% của HS chốt gần nhất trong kỳ); từng khoản mang % theo thứ tự chốt của học viên.
+            $currentPercent = $closedCount > 0 ? $commissionService->milestoneFor($closedCount, $end)['percent'] : null;
 
             $adjustments = CommissionAdjustment::where('user_id', $user->id)
                 ->whereNull('settled_at')
@@ -384,7 +384,7 @@ class PayrollPeriod extends Model
                 'commission_base' => $commissionBase,
                 'commission_clawback' => $commissionClawback,
                 'commission_deferred' => $commissionDeferred,
-                'commission_percent' => $earnedHere?->percent,
+                'commission_percent' => $currentPercent,
                 'commission_closed_count' => $closedCount,
                 'penalty_deduction' => $penaltyDeduction,
                 'foreign_teacher_sessions_count' => $foreignSessions,

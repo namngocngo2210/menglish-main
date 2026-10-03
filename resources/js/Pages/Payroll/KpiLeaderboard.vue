@@ -108,13 +108,13 @@ function filter(event) {
         </UiDataTable>
 
         <!-- 2. Hoa hồng tuyển sinh (Sale) -->
-        <UiDataTable min-width="860px">
+        <UiDataTable min-width="980px">
             <template #header>
                 <div>
-                    <h3 class="font-h3 text-h3 text-on-surface">Hoa hồng tuyển sinh — tư vấn</h3>
+                    <h3 class="font-h3 text-h3 text-on-surface">Hoa hồng tuyển sinh — người phụ trách</h3>
                     <p class="font-body-small text-body-small text-on-surface-variant">
-                        Doanh số tháng {{ month }}/{{ year }} = tiền thực thu (phiếu thu đã duyệt trong tháng) của khách mới, gồm cả tiền giáo trình / đồ dùng; không tính tái tục.
-                        Hoa hồng phát sinh trước gate kép (30 ngày + 3/3 mốc chăm sóc) — số trả thực tế theo phiếu lương.
+                        Hoa hồng tháng {{ month }}/{{ year }} = học phí thu được của khách mới (phiếu thu đã duyệt trong tháng, không tính tiền sách / Thu khác, không tính tái tục)
+                        × % mốc theo thứ tự chốt của từng HS (VD mốc 1–5: 4%, từ HS thứ 6: 3%). Hoa hồng phát sinh trước gate kép (30 ngày + 3/3 mốc chăm sóc) — số trả thực tế theo phiếu lương.
                     </p>
                 </div>
             </template>
@@ -125,8 +125,9 @@ function filter(event) {
                         <th>Nhân viên</th>
                         <th>Chi nhánh</th>
                         <th class="text-right">Số HS chốt</th>
-                        <th class="text-right">Tỷ lệ (%)</th>
+                        <th class="text-right">Mốc hiện tại</th>
                         <th class="text-right">Thực thu khách mới</th>
+                        <th class="text-right">Học phí tính HH</th>
                         <th class="text-right">Tổng hoa hồng (VNĐ)</th>
                     </tr>
                 </thead>
@@ -147,12 +148,16 @@ function filter(event) {
                         </td>
                         <td>{{ item.branch }}</td>
                         <td class="text-right font-mono">{{ item.closed }}</td>
-                        <td class="text-right font-mono">{{ trimNumber(item.percent, 2, '.', ',') }}%</td>
+                        <td class="text-right">
+                            <span class="font-mono">{{ trimNumber(item.percent, 2, '.', ',') }}%</span>
+                            <span v-if="item.to_next" class="block font-caption text-caption text-on-surface-variant">còn {{ item.to_next }} HS → {{ trimNumber(item.next_percent, 2, '.', ',') }}%</span>
+                        </td>
                         <td class="text-right font-mono">{{ money(item.revenue) }}</td>
+                        <td class="text-right font-mono">{{ money(item.base) }}</td>
                         <td class="text-right font-mono font-bold text-primary">{{ money(item.commission) }}</td>
                     </tr>
                     <tr v-if="!salesPage.data.length">
-                        <td colspan="7"><UiEmptyState icon="leaderboard" title="Chưa có nhân viên tư vấn trong phạm vi lọc" /></td>
+                        <td colspan="8"><UiEmptyState icon="leaderboard" title="Chưa có người phụ trách nào trong phạm vi lọc" /></td>
                     </tr>
                 </tbody>
             </table>
