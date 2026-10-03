@@ -185,6 +185,19 @@ final class SidebarMenu
                 ],
             ],
             [
+                // Dự giờ & chất lượng lớp (mockup Học vụ / Học thuật): quyền class_quality.view đọc từ middleware route.
+                'id' => 'class_quality',
+                'section' => 'Đào tạo',
+                'label' => 'Chất lượng lớp',
+                'icon' => 'verified',
+                'items' => [
+                    ['label' => 'Dự giờ vận hành', 'route' => 'class-quality.operations'],
+                    ['label' => 'Đánh giá dự giờ', 'route' => 'class-quality.academic'],
+                    ['label' => 'Checklist học phí & feedback', 'route' => 'class-quality.checklist'],
+                    ['label' => 'Họp giáo viên', 'route' => 'class-quality.teacher-meetings'],
+                ],
+            ],
+            [
                 'id' => 'syllabus',
                 'section' => 'Đào tạo',
                 'label' => 'Giáo trình',
@@ -339,7 +352,7 @@ final class SidebarMenu
                 'items' => [
                     // Giao diện điện thoại: chấm công ảnh + GPS, lịch sử công, xin duyệt, cần duyệt.
                     ['label' => 'Chấm công', 'route' => 'mobile.home', 'active' => ['mobile.home', 'mobile.history']],
-                    ['label' => 'Báo cáo định kỳ của tôi', 'route' => 'reports.my'],
+                    ['label' => 'Báo cáo định kỳ của tôi', 'route' => 'reports.my', 'active' => ['reports.my', 'reports.periodic.*']],
                     // Trung tâm thông báo (cũng mở từ chuông trên topbar).
                     ['label' => 'Thông báo', 'route' => 'notifications.index', 'active' => ['notifications.*']],
                     ['label' => 'Lương của tôi', 'route' => 'portal.my-salary', 'can' => ['payroll.view_own']],

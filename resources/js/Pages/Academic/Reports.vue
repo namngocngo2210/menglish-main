@@ -153,8 +153,8 @@ defineProps({
             <div v-if="tab === 'monthly'" class="space-y-6 p-6">
                 <div class="flex items-center justify-between">
                     <div>
-                        <h3 class="text-sm font-bold text-on-surface">Báo cáo Tổng kết Tháng của Giáo viên</h3>
-                        <p class="text-xs text-on-surface-variant">Đánh giá chất lượng lớp học, hoàn thành chặng học, phản hồi học sinh</p>
+                        <h3 class="text-sm font-bold text-on-surface">Báo cáo tháng / quý</h3>
+                        <p class="text-xs text-on-surface-variant">Báo cáo tháng của giáo viên, báo cáo tháng và quý của Học thuật</p>
                     </div>
                 </div>
 
