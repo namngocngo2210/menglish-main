@@ -52,4 +52,21 @@ final class StaffType
             default => 'daily',
         };
     }
+
+    /**
+     * Báo cáo có cấu trúc ngoài báo cáo định kỳ chính: Học vụ nộp thêm báo cáo tuần theo mục KPI;
+     * Học thuật nộp thêm báo cáo tháng và quý (tổng hợp báo cáo tuần, họp giáo viên).
+     *
+     * @return list<string> khóa trong StaffReportController::STRUCTURED
+     */
+    public static function structuredReports(User $user): array
+    {
+        $roles = self::roles($user);
+
+        return array_values(array_filter([
+            $roles->contains('academic_staff') ? 'weekly_kpi' : null,
+            $roles->contains('academic_lead') ? 'academic_monthly' : null,
+            $roles->contains('academic_lead') ? 'academic_quarterly' : null,
+        ]));
+    }
 }

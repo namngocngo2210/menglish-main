@@ -3,14 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Models\ClassModel;
+use App\Models\KpiCriterion;
 use App\Models\StaffReport;
 use App\Models\StaffReportFollowup;
+use App\Models\TeacherMeetingReport;
 use App\Models\User;
 use App\Support\MonthlyReportDue;
+use App\Support\ReportPeriod;
 use App\Support\StaffType;
 use App\Support\Ui;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -18,10 +23,55 @@ use Inertia\Response;
  * Báo cáo & Nhật ký (quyền staff_report.*):
  *  - staff_report.submit: ghi nhật ký sự vụ, nộp báo cáo định kỳ của mình. Kỳ báo cáo theo chức danh (StaffType):
  *    Học vụ NGÀY, Học thuật TUẦN, giáo viên / trợ giảng THÁNG.
+ *  - Báo cáo có cấu trúc (StaffType::structuredReports): Học vụ thêm báo cáo TUẦN theo mục KPI; Học thuật thêm báo cáo
+ *    THÁNG / QUÝ (tường thuật + tổng hợp báo cáo tuần, họp giáo viên). Mỗi người 1 báo cáo / kỳ (staff_reports.period_key),
+ *    nộp lại trong kỳ là cập nhật. `content` lưu bản chữ để màn Tổng hợp đọc được như báo cáo thường.
  *  - staff_report.view_all: xem tổng tất cả nhật ký & báo cáo của mọi người (mặc định Admin / Quản lý cơ sở).
  */
 class StaffReportController extends Controller
 {
+    /** Báo cáo có cấu trúc: loại staff_reports.type + route màn nhập. */
+    public const STRUCTURED = [
+        'weekly_kpi' => ['label' => 'Báo cáo tuần (KPI)', 'type' => 'weekly', 'route' => 'reports.periodic.weekly-kpi', 'for' => 'Học vụ'],
+        'academic_monthly' => ['label' => 'Báo cáo tháng', 'type' => 'monthly', 'route' => 'reports.periodic.academic-monthly', 'for' => 'Học thuật'],
+        'academic_quarterly' => ['label' => 'Báo cáo quý', 'type' => 'quarterly', 'route' => 'reports.periodic.academic-quarterly', 'for' => 'Học thuật'],
+    ];
+
+    /** Chỉ số quy mô trong báo cáo tuần Học vụ (theo dõi, không tính KPI). */
+    public const WEEKLY_METRICS = [
+        'classes_running' => 'Số lớp đang chạy',
+        'students' => 'Số học sinh',
+        'teachers' => 'Số GV phụ trách',
+        'new_leads' => 'Data mới nhận',
+        'new_closed' => 'HV mới chốt',
+        'transfers' => 'HV chuyển lớp',
+        'makeups' => 'HV học bù',
+        'care_due_classes' => 'Lớp đến hạn chăm sóc',
+        'upcoming_test_classes' => 'Số lớp sắp lịch test',
+    ];
+
+    /** Phần tường thuật báo cáo tháng Học thuật. */
+    public const MONTHLY_FIELDS = [
+        'test_syllabus_review' => 'Rà soát test & syllabus',
+        'materials_transfers' => 'Chuẩn bị giáo trình & chuyển lớp',
+        'overall' => 'Đánh giá chung tháng',
+        'teacher_notes' => 'Nhận xét riêng theo từng giáo viên (tùy chọn)',
+    ];
+
+    /** Báo cáo quý Học thuật: nhóm "Nội dung báo cáo" và "Đánh giá chung". */
+    public const QUARTERLY_SECTIONS = [
+        'Nội dung báo cáo' => [
+            'academic_work' => 'Công việc học thuật',
+            'teacher_staffing' => 'Nhân sự giáo viên',
+            'next_plan' => 'Kế hoạch công việc kỳ sau',
+        ],
+        'Đánh giá chung' => [
+            'program_progress' => 'Tiến độ chương trình',
+            'implementation_quality' => 'Chất lượng triển khai',
+            'improvement_priorities' => 'Ưu tiên cải thiện',
+        ],
+    ];
+
     private function guard(): void
     {
         abort_unless(Auth::user()?->can('staff_report.submit'), 403);
@@ -161,6 +211,7 @@ class StaffReportController extends Controller
 
         $reports = StaffReport::where('user_id', Auth::id())
             ->where('type', $type)
+            ->whereNull('period_key')
             ->latest('report_date')
             ->paginate(10)
             ->through(fn (StaffReport $r) => [
@@ -181,6 +232,7 @@ class StaffReportController extends Controller
                 'submitted' => StaffReport::where('user_id', Auth::id())->where('type', 'monthly')
                     ->whereBetween('report_date', [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()])->exists(),
             ] : null,
+            'tabs' => $this->reportTabs(Auth::user(), null),
         ]);
     }
 
@@ -213,6 +265,271 @@ class StaffReportController extends Controller
         ]);
 
         return back()->with('success', 'Đã nộp ' . (StaffReport::TYPE_LABELS[$type] ?? 'báo cáo') . ' thành công!');
+    }
+
+    // ───────────────────────── BÁO CÁO CÓ CẤU TRÚC ─────────────────────────
+    /** Báo cáo tuần Học vụ: số lần phát sinh theo từng mục KPI đang áp dụng + chỉ số quy mô. */
+    public function weeklyKpi(Request $request): Response|RedirectResponse
+    {
+        if ($redirect = $this->redirectUnlessStructured('weekly_kpi')) {
+            return $redirect;
+        }
+        $week = ReportPeriod::pick($request->input('week'), ReportPeriod::WEEK_PATTERN, ReportPeriod::currentWeek());
+        $report = $this->structuredReport('weekly_kpi', $week);
+        $counts = collect($report?->data['counts'] ?? [])->pluck('count', 'id');
+
+        return Inertia::render('Reports/WeeklyKpi', [
+            'tabs' => $this->reportTabs(Auth::user(), 'weekly_kpi'),
+            'week' => $week,
+            'weeks' => ReportPeriod::weekOptions(),
+            'groups' => KpiCriterion::active()->ordered()->get()
+                ->groupBy('group_name')
+                ->map(fn ($items, $group) => [
+                    'name' => $group,
+                    'items' => $items->map(fn (KpiCriterion $c) => [
+                        'id' => $c->id,
+                        'code' => $c->code,
+                        'name' => $c->name,
+                        'count' => $counts[$c->id] ?? null,
+                    ])->values(),
+                ])->values(),
+            'metrics' => self::WEEKLY_METRICS,
+            'metricValues' => $report?->data['metrics'] ?? [],
+            'submittedAt' => $report?->updated_at?->toIso8601String(),
+            'history' => $this->structuredHistory('weekly_kpi', fn (string $key) => ReportPeriod::weekLabel($key), 'week'),
+        ]);
+    }
+
+    public function weeklyKpiStore(Request $request): RedirectResponse
+    {
+        $this->guardStructured('weekly_kpi');
+        $data = $request->validate([
+            'week' => ['required', 'regex:'.ReportPeriod::WEEK_PATTERN],
+            'counts' => ['nullable', 'array'],
+            'counts.*' => ['nullable', 'integer', 'min:0', 'max:9999'],
+            'metrics' => ['nullable', 'array'],
+            'metrics.*' => ['nullable', 'integer', 'min:0', 'max:99999'],
+        ], ['counts.*.min' => 'Số lần phát sinh không âm.', 'metrics.*.min' => 'Chỉ số không âm.']);
+
+        // Lưu kèm tên / nhóm mục KPI tại thời điểm nộp để báo cáo cũ vẫn đọc được khi Admin đổi cấu hình KPI.
+        $counts = KpiCriterion::active()->ordered()->get()->map(fn (KpiCriterion $c) => [
+            'id' => $c->id,
+            'code' => $c->code,
+            'name' => $c->name,
+            'group' => $c->group_name,
+            'count' => isset($data['counts'][$c->id]) ? (int) $data['counts'][$c->id] : 0,
+        ])->values()->all();
+        $metrics = collect(self::WEEKLY_METRICS)->keys()
+            ->mapWithKeys(fn ($k) => [$k => isset($data['metrics'][$k]) ? (int) $data['metrics'][$k] : null])->all();
+
+        $lines = collect($counts)->filter(fn ($c) => $c['count'] > 0)->map(fn ($c) => "{$c['group']} — {$c['name']}: {$c['count']} lần");
+        $lines = $lines->merge(collect($metrics)->filter(fn ($v) => $v !== null)->map(fn ($v, $k) => self::WEEKLY_METRICS[$k].": {$v}"));
+        [$start] = ReportPeriod::weekRange($data['week']);
+
+        $this->saveStructured('weekly_kpi', $data['week'], 'Báo cáo tuần '.ReportPeriod::weekLabel($data['week']), $start->toDateString(),
+            ['counts' => $counts, 'metrics' => $metrics], $lines->implode("\n") ?: 'Không có phát sinh trong tuần.');
+
+        return back()->with('success', 'Đã lưu báo cáo tuần '.$data['week'].'.');
+    }
+
+    /** Báo cáo tháng Học thuật: tường thuật + báo cáo tuần và họp giáo viên trong tháng. */
+    public function academicMonthly(Request $request): Response|RedirectResponse
+    {
+        if ($redirect = $this->redirectUnlessStructured('academic_monthly')) {
+            return $redirect;
+        }
+        $month = ReportPeriod::pick($request->input('month'), ReportPeriod::MONTH_PATTERN, ReportPeriod::currentMonth());
+        [$from, $to] = ReportPeriod::monthRange($month);
+        $report = $this->structuredReport('academic_monthly', $month);
+
+        return Inertia::render('Reports/AcademicMonthly', [
+            'tabs' => $this->reportTabs(Auth::user(), 'academic_monthly'),
+            'month' => $month,
+            'months' => ReportPeriod::monthOptions(),
+            'fields' => self::MONTHLY_FIELDS,
+            'values' => $report?->data['narrative'] ?? [],
+            'submittedAt' => $report?->updated_at?->toIso8601String(),
+            'weeklyReports' => StaffReport::with('user:id,name')
+                ->where('user_id', Auth::id())->where('type', 'weekly')->whereNull('period_key')
+                ->whereDate('report_date', '>=', $from->toDateString())->whereDate('report_date', '<=', $to->toDateString())
+                ->orderBy('report_date')->get()
+                ->map(fn (StaffReport $r) => [
+                    'id' => $r->id,
+                    'title' => $r->title,
+                    'week_start' => $r->report_date->copy()->startOfWeek()->toDateString(),
+                    'week_end' => $r->report_date->copy()->endOfWeek()->toDateString(),
+                    'user' => $r->user?->name,
+                    'content' => $r->content,
+                ])->values(),
+            'meetings' => TeacherMeetingReport::with('teacher:id,name')
+                ->where('author_id', Auth::id())
+                ->whereDate('week_start', '>=', $from->copy()->startOfWeek()->toDateString())
+                ->whereDate('week_start', '<=', $to->toDateString())
+                ->orderBy('week_start')->get()
+                ->map(fn (TeacherMeetingReport $m) => [
+                    'id' => $m->id,
+                    'week_start' => $m->week_start->toDateString(),
+                    'teacher' => $m->teacher?->name,
+                    'status_label' => TeacherMeetingReport::STATUSES[$m->status] ?? $m->status,
+                    'status_color' => TeacherMeetingReport::STATUS_COLORS[$m->status] ?? 'neutral',
+                ])->values(),
+            'history' => $this->structuredHistory('academic_monthly', fn (string $key) => ReportPeriod::monthLabel($key), 'month'),
+        ]);
+    }
+
+    public function academicMonthlyStore(Request $request): RedirectResponse
+    {
+        $this->guardStructured('academic_monthly');
+        $data = $this->validatedNarrative($request, 'month', ReportPeriod::MONTH_PATTERN, self::MONTHLY_FIELDS);
+        [$from] = ReportPeriod::monthRange($data['month']);
+
+        $this->saveStructured('academic_monthly', $data['month'], 'Báo cáo tháng Học thuật — '.ReportPeriod::monthLabel($data['month']),
+            $from->toDateString(), ['narrative' => $data['narrative']], $this->narrativeText($data['narrative'], self::MONTHLY_FIELDS));
+
+        return back()->with('success', 'Đã lưu báo cáo '.mb_strtolower(ReportPeriod::monthLabel($data['month'])).'.');
+    }
+
+    /** Báo cáo quý Học thuật: tường thuật + 3 báo cáo tháng trong quý. */
+    public function academicQuarterly(Request $request): Response|RedirectResponse
+    {
+        if ($redirect = $this->redirectUnlessStructured('academic_quarterly')) {
+            return $redirect;
+        }
+        $quarter = ReportPeriod::pick($request->input('quarter'), ReportPeriod::QUARTER_PATTERN, ReportPeriod::currentQuarter());
+        $report = $this->structuredReport('academic_quarterly', $quarter);
+        $monthly = StaffReport::where('user_id', Auth::id())->where('type', 'monthly')
+            ->whereIn('period_key', ReportPeriod::quarterMonths($quarter))->get()->keyBy('period_key');
+
+        return Inertia::render('Reports/AcademicQuarterly', [
+            'tabs' => $this->reportTabs(Auth::user(), 'academic_quarterly'),
+            'quarter' => $quarter,
+            'quarterLabel' => ReportPeriod::quarterLabel($quarter),
+            'quarters' => ReportPeriod::quarterOptions(),
+            'sections' => self::QUARTERLY_SECTIONS,
+            'values' => $report?->data['narrative'] ?? [],
+            'submittedAt' => $report?->updated_at?->toIso8601String(),
+            'monthlyReports' => collect(ReportPeriod::quarterMonths($quarter))->map(fn (string $m) => [
+                'month' => $m,
+                'label' => 'Báo cáo '.mb_strtolower(ReportPeriod::monthLabel($m)),
+                'submitted' => $monthly->has($m),
+                'updated_at' => $monthly->get($m)?->updated_at?->toIso8601String(),
+            ])->values(),
+            'history' => $this->structuredHistory('academic_quarterly', fn (string $key) => ReportPeriod::quarterLabel($key), 'quarter'),
+        ]);
+    }
+
+    public function academicQuarterlyStore(Request $request): RedirectResponse
+    {
+        $this->guardStructured('academic_quarterly');
+        $fields = array_merge(...array_values(self::QUARTERLY_SECTIONS));
+        $data = $this->validatedNarrative($request, 'quarter', ReportPeriod::QUARTER_PATTERN, $fields);
+        [$from] = ReportPeriod::quarterRange($data['quarter']);
+
+        $this->saveStructured('academic_quarterly', $data['quarter'], 'Báo cáo quý Học thuật — '.ReportPeriod::quarterLabel($data['quarter']),
+            $from->toDateString(), ['narrative' => $data['narrative']], $this->narrativeText($data['narrative'], $fields));
+
+        return back()->with('success', 'Đã lưu báo cáo quý '.$data['quarter'].'.');
+    }
+
+    /** Mở màn báo cáo không thuộc vai trò mình (link cũ / mockup): quay về báo cáo định kỳ chính thay vì báo lỗi. */
+    private function redirectUnlessStructured(string $kind): ?RedirectResponse
+    {
+        $this->guard();
+
+        return in_array($kind, StaffType::structuredReports(Auth::user()), true)
+            ? null
+            : redirect()->route('reports.my')->with('info', self::STRUCTURED[$kind]['label'].' chỉ dành cho '.self::STRUCTURED[$kind]['for'].'.');
+    }
+
+    private function guardStructured(string $kind): void
+    {
+        $this->guard();
+        abort_unless(in_array($kind, StaffType::structuredReports(Auth::user()), true), 403, 'Báo cáo này không thuộc vai trò của bạn.');
+    }
+
+    private function structuredReport(string $kind, string $period): ?StaffReport
+    {
+        return StaffReport::where('user_id', Auth::id())
+            ->where('type', self::STRUCTURED[$kind]['type'])
+            ->where('period_key', $period)
+            ->first();
+    }
+
+    /** @param array<string, mixed> $data */
+    private function saveStructured(string $kind, string $period, string $title, string $reportDate, array $data, string $content): void
+    {
+        StaffReport::updateOrCreate(
+            ['user_id' => Auth::id(), 'type' => self::STRUCTURED[$kind]['type'], 'period_key' => $period],
+            ['title' => $title, 'report_date' => $reportDate, 'data' => $data, 'content' => $content, 'status' => 'submitted'],
+        );
+    }
+
+    /**
+     * Các kỳ đã nộp (mới nhất trước) để chuyển nhanh sang xem / sửa.
+     *
+     * @return list<array{period: string, label: string, href: string, updated_at: string|null}>
+     */
+    private function structuredHistory(string $kind, \Closure $label, string $param): array
+    {
+        return StaffReport::where('user_id', Auth::id())
+            ->where('type', self::STRUCTURED[$kind]['type'])
+            ->whereNotNull('period_key')
+            ->orderByDesc('period_key')->limit(12)->get(['period_key', 'updated_at'])
+            ->map(fn (StaffReport $r) => [
+                'period' => $r->period_key,
+                'label' => $label($r->period_key),
+                'href' => route(self::STRUCTURED[$kind]['route'], [$param => $r->period_key]),
+                'updated_at' => $r->updated_at?->toIso8601String(),
+            ])->values()->all();
+    }
+
+    /**
+     * @param  array<string, string>  $fields
+     * @return array{narrative: array<string, string|null>}
+     */
+    private function validatedNarrative(Request $request, string $periodField, string $pattern, array $fields): array
+    {
+        $data = $request->validate([
+            $periodField => ['required', 'regex:'.$pattern],
+            'narrative' => ['required', 'array'],
+            ...collect($fields)->keys()->mapWithKeys(fn ($f) => ["narrative.{$f}" => ['nullable', 'string', 'max:10000']])->all(),
+        ], ['narrative.required' => 'Nhập ít nhất một mục của báo cáo.']);
+
+        $narrative = collect($fields)->keys()->mapWithKeys(fn ($f) => [$f => filled($data['narrative'][$f] ?? null) ? $data['narrative'][$f] : null])->all();
+        if (collect($narrative)->filter()->isEmpty()) {
+            throw ValidationException::withMessages(['narrative' => 'Nhập ít nhất một mục của báo cáo.']);
+        }
+
+        return [$periodField => $data[$periodField], 'narrative' => $narrative];
+    }
+
+    /** @param array<string, string> $fields */
+    private function narrativeText(array $narrative, array $fields): string
+    {
+        return collect($narrative)->filter()->map(fn ($text, $f) => $fields[$f].":\n".$text)->implode("\n\n");
+    }
+
+    /**
+     * Tab của màn "Báo cáo định kỳ của tôi": báo cáo định kỳ chính + báo cáo có cấu trúc theo vai trò.
+     * Không có báo cáo có cấu trúc → không hiện thanh tab.
+     *
+     * @return list<array{label: string, href: string, active: bool}>
+     */
+    private function reportTabs(User $user, ?string $current): array
+    {
+        $structured = StaffType::structuredReports($user);
+        if ($structured === []) {
+            return [];
+        }
+
+        return [
+            ['label' => StaffReport::TYPE_LABELS[$this->primaryType($user)] ?? 'Báo cáo', 'href' => route('reports.my'), 'active' => $current === null],
+            ...array_map(fn (string $kind) => [
+                'label' => self::STRUCTURED[$kind]['label'],
+                'href' => route(self::STRUCTURED[$kind]['route']),
+                'active' => $current === $kind,
+            ], $structured),
+        ];
     }
 
     // ───────────────────────── ADMIN XEM TỔNG ─────────────────────────

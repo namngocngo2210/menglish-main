@@ -17,13 +17,16 @@ class StaffReport extends Model
         'type',
         'title',
         'content',
+        'data',
         'severity',
         'report_date',
+        'period_key',
         'status',
     ];
 
     protected $casts = [
         'report_date' => 'date',
+        'data' => 'array',
     ];
 
     public const TYPE_LABELS = [
@@ -31,6 +34,7 @@ class StaffReport extends Model
         'daily' => 'Báo cáo ngày',
         'weekly' => 'Báo cáo tuần',
         'monthly' => 'Báo cáo tháng',
+        'quarterly' => 'Báo cáo quý',
     ];
 
     public function user(): BelongsTo

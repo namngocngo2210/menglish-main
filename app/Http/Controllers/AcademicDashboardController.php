@@ -35,19 +35,9 @@ class AcademicDashboardController extends Controller
         $classReports = ClassReport::with(['classModel', 'reporter'])->withCount('studentSupports')->latest()->take(10)->get();
         $dailyReports = $dailyReportsQuery->take(15)->get();
 
-        // 2. Báo cáo tuần Học thuật
-        $weeklyReports = AcademicRecord::whereIn('screen_key', ['07_nhap_bao_cao_tuan_hoc_vu', '18_bao_cao_tuan_hoc_thuat'])
-            ->with('user')
-            ->latest()
-            ->take(10)
-            ->get();
-
-        // 3. Báo cáo tháng Giáo viên
-        $monthlyReports = AcademicRecord::whereIn('screen_key', ['17_bao_cao_chung_cua_giao_vien', '19_bao_cao_thang_hoc_thuat'])
-            ->with('user')
-            ->latest()
-            ->take(10)
-            ->get();
+        // 2. Báo cáo tuần (Học thuật + báo cáo tuần KPI của Học vụ) và 3. báo cáo tháng / quý (giáo viên, Học thuật) — staff_reports.
+        $weeklyReports = StaffReport::with('user')->where('type', 'weekly')->latest('report_date')->latest('id')->take(10)->get();
+        $monthlyReports = StaffReport::with('user')->whereIn('type', ['monthly', 'quarterly'])->latest('report_date')->latest('id')->take(10)->get();
 
         // Thống kê tổng hợp (số liệu thật; không có dữ liệu thì view hiện "Chưa có dữ liệu")
         $totalClasses = ClassModel::count();
@@ -91,13 +81,13 @@ class AcademicDashboardController extends Controller
             'big_tests_distributed' => BigTest::where('is_distributed', true)->where('distributed_at', '>=', $weekStart)->count(),
         ];
 
-        $recordRow = fn (AcademicRecord $record) => [
-            'id' => $record->id,
-            'title' => $record->title ?: 'Báo cáo',
-            'record_code' => $record->record_code,
-            'user' => $record->user?->name,
-            'status_label' => $record->status_label,
-            'created_at' => $record->created_at?->format('H:i d/m/Y'),
+        $recordRow = fn (StaffReport $report) => [
+            'id' => $report->id,
+            'title' => $report->title ?: 'Báo cáo',
+            'record_code' => $report->period_key,
+            'user' => $report->user?->name,
+            'status_label' => $report->type_label,
+            'created_at' => $report->updated_at?->format('H:i d/m/Y'),
         ];
 
         return Inertia::render('Academic/Reports', [

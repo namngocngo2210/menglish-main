@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Mail\ParentNotice;
+use App\Models\AdminNotification;
 use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\ClassSession;
@@ -10,11 +12,14 @@ use App\Models\CrmCustomer;
 use App\Models\CrmTrialBooking;
 use App\Models\PlacementTest;
 use App\Models\User;
+use App\Services\Crm\AppointmentConfirmation;
 use App\Services\CrmStageService;
+use App\Services\ParentMessenger;
 use App\Services\PlacementPortalLinkService;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -567,6 +572,86 @@ class CrmPipelineTest extends TestCase
         $this->actingAs($this->academic)->get(route('crm.customers.show', $lead))->assertOk()
             ->assertSee('Tinh thần học tập: Hăng hái')->assertSee('Bé hòa nhập nhanh, hợp lớp Starters.');
         $this->assertDatabaseMissing('students', ['name' => $lead->name]);
+    }
+
+    public function test_confirming_test_appointment_emails_customer_with_online_link(): void
+    {
+        $test = PlacementTest::create(['code' => 'CONF-T', 'title' => 'Đề xác nhận', 'is_active' => true]);
+        $this->branch->update(['phone' => '0243 999 888']);
+        $lead = $this->lead('consulting');
+        $lead->update(['email' => 'phuhuynh@example.com']);
+        $date = now()->addDays(2);
+
+        $this->actingAs($this->academic)->post(route('crm.customers.schedule-test', $lead), [
+            'appointment_date' => $date->toDateString(),
+            'appointment_time' => '09:30',
+            'appointment_type' => 'online',
+            'assigned_test_id' => $test->id,
+        ])->assertRedirect()->assertSessionHasNoErrors()
+            ->assertSessionHas('status', fn (string $status) => str_contains($status, 'Đã gửi email xác nhận tới phuhuynh@example.com'));
+
+        Mail::assertSent(ParentNotice::class, function (ParentNotice $mail) use ($date) {
+            return $mail->hasTo('phuhuynh@example.com')
+                && str_contains($mail->body, '09:30, '.ParentMessenger::dayLabel($date))
+                && str_contains($mail->body, 'Làm bài online')
+                && str_contains($mail->body, '0243 999 888')
+                && str_contains((string) $mail->actionUrl, '/portal/placement-test/CONF-T');
+        });
+        $this->assertDatabaseHas('crm_customer_histories', ['customer_id' => $lead->id, 'content' => 'Đã gửi email xác nhận lịch hẹn tới phuhuynh@example.com.']);
+        $this->assertDatabaseMissing('admin_notifications', ['type' => AppointmentConfirmation::NOTIFICATION_TYPE]);
+    }
+
+    public function test_confirming_appointment_without_email_notifies_owner_and_shows_copy_popup(): void
+    {
+        $lead = $this->lead('consulting');
+        $lead->update(['parent_phone' => '0988000111']);
+
+        $this->actingAs($this->academic)->post(route('crm.customers.schedule-test', $lead), [
+            'appointment_date' => now()->addDay()->toDateString(),
+            'appointment_time' => '10:00',
+            'appointment_type' => 'offline',
+        ])->assertSessionHasNoErrors();
+
+        Mail::assertNothingSent();
+        $notification = AdminNotification::where('type', AppointmentConfirmation::NOTIFICATION_TYPE)->sole();
+        $this->assertSame($this->sales->id, $notification->user_id, 'Người phụ trách khách nhận thông báo gửi Zalo');
+        $this->assertStringContainsString('Khách chưa có email', $notification->message);
+        $this->assertStringContainsString('Làm bài tại cơ sở Cơ sở A', $notification->data['copy_text']);
+
+        // Trang khách (sau redirect) hiện popup nội dung để sao chép gửi Zalo.
+        $this->actingAs($this->academic)->get(route('crm.customers.show', $lead))->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('appointmentConfirmation.phone', '0988000111')
+                ->where('appointmentConfirmation.text', $notification->data['copy_text']));
+
+        // Trang Thông báo của người phụ trách có nút sao chép nội dung.
+        $this->actingAs($this->sales)->get(route('notifications.index'))->assertOk()
+            ->assertSee('Sao chép nội dung')->assertSee('MEnglish xác nhận lịch test đầu vào');
+    }
+
+    public function test_booking_trial_emails_confirmation_but_ignores_generated_student_email(): void
+    {
+        [$class, $sessions] = $this->classWithSessions(2);
+        $lead = $this->lead('consulting');
+        $lead->update(['email' => 'me.be@example.com']);
+
+        $this->actingAs($this->academic)->post(route('crm.customers.trial-bookings.store', $lead), [
+            'class_session_id' => $sessions[0]->id,
+        ])->assertSessionHasNoErrors();
+
+        Mail::assertSent(ParentNotice::class, fn (ParentNotice $mail) => $mail->hasTo('me.be@example.com')
+            && str_contains($mail->body, '18:00–19:30')
+            && str_contains($mail->body, 'Lớp: '.$class->name));
+
+        // Email đăng nhập tự sinh (student…@student.menglish.edu.vn) không phải email thật: không gửi, chuyển sang Zalo.
+        $other = $this->lead('consulting');
+        $other->update(['email' => User::generatedStudentEmail(999)]);
+        $this->actingAs($this->academic)->post(route('crm.customers.trial-bookings.store', $other), [
+            'class_session_id' => $sessions[1]->id,
+        ])->assertSessionHasNoErrors();
+
+        Mail::assertSentCount(1);
+        $this->assertDatabaseHas('admin_notifications', ['type' => AppointmentConfirmation::NOTIFICATION_TYPE, 'user_id' => $this->sales->id]);
     }
 
     private function classWithSessions(int $count): array

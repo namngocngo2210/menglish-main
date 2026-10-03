@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
 class ClassModel extends Model
 {
@@ -97,6 +98,18 @@ class ClassModel extends Model
                 $query->orWhereIn('id', array_values(array_unique($grantedClassIds)));
             }
         });
+    }
+
+    /**
+     * Lớp có học trong khoảng [from, to]: đang học (đã khai giảng trước `to`) hoặc đã kết thúc sau `from`.
+     * Dùng cho các màn theo tháng (checklist học phí & feedback, đánh giá dự giờ học thuật).
+     */
+    public function scopeRunningBetween(Builder $query, Carbon $from, Carbon $to): Builder
+    {
+        return $query
+            ->where(fn (Builder $q) => $q->where('status', 'active')
+                ->orWhere(fn (Builder $done) => $done->where('status', 'completed')->whereDate('end_date', '>=', $from->toDateString())))
+            ->where(fn (Builder $q) => $q->whereNull('start_date')->orWhereDate('start_date', '<=', $to->toDateString()));
     }
 
     /** Trạng thái học viên còn giữ chỗ trong lớp (tính vào sĩ số). */
@@ -317,6 +330,11 @@ class ClassModel extends Model
     public function foreignTeacher(): BelongsTo
     {
         return $this->belongsTo(User::class, 'foreign_teacher_id');
+    }
+
+    public function academicObservations(): HasMany
+    {
+        return $this->hasMany(AcademicObservation::class, 'class_id');
     }
 
     public function students(): HasMany

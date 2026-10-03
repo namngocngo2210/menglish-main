@@ -152,6 +152,18 @@ return [
                 'all' => 'Mọi lớp',
             ],
         ],
+        'class_quality' => [
+            'label' => 'Dự giờ & chất lượng lớp',
+            'group' => 'academic',
+            'icon' => 'verified',
+            'actions' => [
+                'view' => ['Xem dự giờ & checklist lớp', 'Xem lượt dự giờ vận hành, đánh giá dự giờ học thuật, checklist học phí & feedback, báo cáo họp giáo viên (lớp trong phạm vi Lớp học).'],
+                'observe_operations' => ['Ghi nhận dự giờ vận hành', 'Ghi nhận / sửa / xóa lượt dự giờ QA của đội vận hành.'],
+                'observe_academic' => ['Đánh giá dự giờ học thuật', 'Ghi đánh giá dự giờ theo lớp và tháng (6 tiêu chí, % chuyên cần, % đạt yêu cầu).'],
+                'checklist' => ['Cập nhật checklist học phí & feedback', 'Đánh dấu Có / Không / N-A việc nhắc, thu học phí và feedback Big Test theo lớp, theo tháng.'],
+                'teacher_meeting' => ['Ghi báo cáo họp giáo viên', 'Ghi / sửa / xóa báo cáo họp giáo viên theo tuần.'],
+            ],
+        ],
         'room' => [
             'label' => 'Phòng học',
             'group' => 'academic',

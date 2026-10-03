@@ -1,12 +1,14 @@
 <script setup>
 /** Báo cáo định kỳ của tôi: kỳ báo cáo theo chức danh (ngày / tuần / tháng — StaffReportController), lịch sử + modal nộp mới. */
 import { computed, ref } from 'vue';
+import ReportTabs from './ReportTabs.vue';
 
 const props = defineProps({
     reports: { type: Object, required: true },
     label: { type: String, default: 'Báo cáo' },
     today: { type: String, default: null },
     monthlyDue: { type: Object, default: null },
+    tabs: { type: Array, default: () => [] },
 });
 
 defineOptions({ layout: (props) => ({ title: `${props.label ?? 'Báo cáo'} của tôi` }) });
@@ -22,6 +24,8 @@ const lower = computed(() => props.label.toLocaleLowerCase('vi'));
             <UiButton icon="send" @click="creating = true">Nộp {{ lower }}</UiButton>
         </template>
     </UiPageHeader>
+
+    <ReportTabs :tabs="tabs" />
 
     <div class="space-y-6">
         <!-- Báo cáo giảng dạy tháng: hạn Chủ nhật cuối tháng; chỉ nhắc, không phạt. -->

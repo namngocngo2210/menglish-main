@@ -91,6 +91,8 @@ class AdminNotification extends Model
             'sla_breach' => 'timer_off',
             'penalty_fined', 'penalty_due_reminder' => 'payments',
             'payroll_calendar' => 'event_upcoming',
+            'appointment_confirm_manual' => 'event_available',
+            'payment_confirm_manual' => 'paid',
             default => 'notifications',
         };
     }
@@ -121,6 +123,7 @@ class AdminNotification extends Model
             'material_order_overdue' => 'bg-error/10 text-error border-error/30',
             'penalty_created', 'penalty_fined', 'sla_breach' => 'bg-error/10 text-error border-error/30',
             'penalty_due_reminder', 'payroll_calendar' => 'bg-warning/10 text-warning border-warning/30',
+            'appointment_confirm_manual', 'payment_confirm_manual' => 'bg-warning/10 text-warning border-warning/30',
             default => 'bg-surface-container-low text-on-surface-variant border-surface-container-highest',
         };
     }
@@ -159,6 +162,8 @@ class AdminNotification extends Model
             'penalty_fined' => 'Quyết phạt',
             'penalty_due_reminder' => 'Nhắc hạn nộp phạt',
             'payroll_calendar' => 'Lịch chốt lương',
+            'appointment_confirm_manual' => 'Xác nhận lịch hẹn qua Zalo',
+            'payment_confirm_manual' => 'Báo đã nhận học phí qua Zalo',
             default => 'Thông báo hệ thống',
         };
     }
