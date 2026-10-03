@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\User;
 use App\Services\Crm\Approvals\BranchTransferApprovalSource;
 use App\Services\Crm\Approvals\EnrollmentConfirmationApprovalSource;
+use App\Services\StaffAttendance\Approvals\StaffAttendanceRequestApprovalSource;
 use App\Services\Students\Approvals\EnrollmentApprovalSource;
 use App\Services\Syllabus\Approvals\AdjustmentApprovalSource;
 use App\Services\Syllabus\Approvals\BigTestOrderApprovalSource;
@@ -45,6 +46,7 @@ class ApprovalServiceProvider extends ServiceProvider
         BigTestOrderApprovalSource::class,
         WorkTaskApprovalSource::class,
         ClassReportApprovalSource::class,
+        StaffAttendanceRequestApprovalSource::class,
     ];
 
     public function register(): void

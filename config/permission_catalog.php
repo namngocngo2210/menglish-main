@@ -359,6 +359,21 @@ return [
                 'all' => 'Mọi ca, mọi lớp',
             ],
         ],
+        // Mọi nhân sự (portal.staff) tự chấm công trên điện thoại và gửi đơn của mình, không cần quyền riêng.
+        'staff_checkin' => [
+            'label' => 'Chấm công hằng ngày (điện thoại)',
+            'group' => 'hr',
+            'icon' => 'fingerprint',
+            'actions' => [
+                'view' => ['Xem chấm công nhân sự', 'Xem giờ vào / ra, ảnh khuôn mặt, vị trí lúc chấm công của nhân sự (trong phạm vi dữ liệu).'],
+                'approve' => ['Duyệt đơn chấm công', 'Duyệt / từ chối đơn bổ sung công, xin đi muộn / về sớm, xin nghỉ (không tự duyệt đơn của mình).'],
+            ],
+            'scope' => [
+                'levels' => ['branch', 'all'],
+                'branch' => 'Nhân sự thuộc chi nhánh của tôi (chi nhánh chính + chi nhánh được cấp thêm)',
+                'all' => 'Nhân sự mọi chi nhánh',
+            ],
+        ],
         'payroll' => [
             'label' => 'Bảng lương',
             'group' => 'hr',
