@@ -536,6 +536,8 @@ class PayrollController extends Controller
             // Khoản trừ GV đi muộn / về sớm (calculation_details.late) để Kế toán thấy vì sao tiền công ca bị giảm.
             'lateLines' => array_values((array) data_get($record->calculation_details, 'late.lines', [])),
             'lateInfo' => ['threshold' => (int) data_get($record->calculation_details, 'late.threshold', 15), 'per_minute' => (float) data_get($record->calculation_details, 'late.per_minute', 5000), 'total' => (float) data_get($record->calculation_details, 'late.total_deduction', 0)],
+            // Chấm công hằng ngày (điện thoại) trong kỳ — căn cứ đối soát, không tự trừ tiền (phạt đi muộn qua biên bản).
+            'dailyAttendance' => data_get($record->calculation_details, 'attendance'),
             'commissionTiers' => $commissionTiers->map(fn (CommissionTier $tier) => [
                 'id' => $tier->id,
                 'name' => $tier->tier_name,

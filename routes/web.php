@@ -19,6 +19,7 @@ use App\Http\Controllers\KpiController;
 use App\Http\Controllers\MediaManagerController;
 use App\Http\Controllers\MerchandiseItemController;
 use App\Http\Controllers\MerchandiseStockController;
+use App\Http\Controllers\MobileStaffController;
 use App\Http\Controllers\MockupHubController;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\PenaltyController;
@@ -34,6 +35,7 @@ use App\Http\Controllers\SepayWebhookController;
 use App\Http\Controllers\StaffReportController;
 use App\Http\Controllers\StudentPortalController;
 use App\Http\Controllers\StudentProfileController;
+use App\Http\Controllers\StaffAttendanceController;
 use App\Http\Controllers\SupportTicketController;
 use App\Http\Controllers\SurveyController;
 use App\Http\Controllers\SyllabusController;
@@ -121,6 +123,22 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     // Người dùng KHÔNG được tự xóa tài khoản (Phase 4): chỉ người quản lý tài khoản xóa/khóa qua màn Tài khoản.
+
+    // ─────────────────────────────────────────────
+    // Giao diện điện thoại cho nhân sự: chấm công (ảnh + GPS), lịch sử công, xin duyệt, cần duyệt
+    // ─────────────────────────────────────────────
+    Route::controller(MobileStaffController::class)->prefix('m')->name('mobile.')->middleware('can:portal.staff')->group(function () {
+        Route::get('/', 'home')->name('home');
+        Route::post('/cham-cong', 'punch')->middleware('throttle:20,1')->name('punch');
+        Route::get('/lich-su', 'history')->name('history');
+        Route::get('/xin-duyet', 'requests')->name('requests');
+        Route::post('/xin-duyet', 'storeRequest')->name('requests.store');
+        Route::post('/xin-duyet/{attendanceRequest}/rut', 'cancelRequest')->whereNumber('attendanceRequest')->name('requests.cancel');
+        Route::get('/can-duyet', 'approvals')->name('approvals');
+    });
+    Route::get('/staff-attendance', [StaffAttendanceController::class, 'index'])->middleware('can:staff_checkin.view')->name('staff-attendance.index');
+    Route::get('/staff-attendance/{attendance}', [StaffAttendanceController::class, 'show'])->whereNumber('attendance')->middleware('can:staff_checkin.view')->name('staff-attendance.show');
+    Route::get('/staff-attendance/{attendance}/photo/{kind}', [MobileStaffController::class, 'photo'])->whereNumber('attendance')->whereIn('kind', ['in', 'out'])->name('staff-attendance.photo');
 
     // ─────────────────────────────────────────────
     // Tuyển dụng & Quản lý Hồ sơ CV Ứng viên
@@ -579,6 +597,7 @@ Route::middleware('auth')->group(function () {
     Route::post('branches', [BranchController::class, 'store'])->middleware('can:branch.create')->name('branches.store');
     Route::put('branches/{branch}', [BranchController::class, 'update'])->middleware('can:branch.update')->name('branches.update');
     Route::delete('branches/{branch}', [BranchController::class, 'destroy'])->middleware('can:branch.delete')->name('branches.destroy');
+    Route::put('branches/{branch}/attendance', [BranchController::class, 'updateAttendance'])->middleware('can:branch.update')->name('branches.attendance');
     Route::post('branches/{id}/toggle', [BranchController::class, 'toggleStatus'])->middleware('can:branch.manage')->name('branches.toggle');
     Route::resource('system-categories', SystemCategoryController::class)->except('show')->middleware('can:system_category.manage');
     Route::post('system-categories/{system_category}/reactivate', [SystemCategoryController::class, 'reactivate'])
@@ -617,7 +636,7 @@ Route::middleware('auth')->group(function () {
     // Tồn kho hàng hóa theo chi nhánh (Học vụ / Quản lý cơ sở / Kế toán xem & nhập kho chi nhánh mình).
     Route::prefix('merchandise-stock')->name('merchandise.stock.')->middleware('can:merchandise_stock.view')->group(function () {
         Route::get('/', [MerchandiseStockController::class, 'index'])->name('index');
-        Route::get('/history', [MerchandiseStockController::class, 'history'])->name('history');
+        Route::get('/{item}/history', [MerchandiseStockController::class, 'history'])->whereNumber('item')->name('history');
         Route::get('/create', [MerchandiseStockController::class, 'create'])->middleware('can:merchandise_stock.manage')->name('create');
         Route::post('/', [MerchandiseStockController::class, 'store'])->middleware('can:merchandise_stock.manage')->name('store');
     });

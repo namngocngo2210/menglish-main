@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Services\PayrollFormulaService;
 use App\Services\SalesCommissionService;
+use App\Services\StaffAttendance\StaffAttendanceService;
 use App\Support\Money;
 use App\Support\RequestMemo;
 use Carbon\CarbonInterface;
@@ -194,6 +195,10 @@ class PayrollPeriod extends Model
                 ->where(fn ($q) => $q->whereHas('customer', fn ($c) => $c->where('updated_at', '>', $this->calculated_at))
                     ->orWhereIn('student_id', WorkTask::whereNotNull('care_milestone')->where('updated_at', '>', $this->calculated_at)->select('student_id')))
                 ->exists()
+            // Chấm công hằng ngày / đơn nghỉ đổi sau lần tính (ngày công, đi muộn hiện trên phiếu lương)
+            || StaffAttendance::whereBetween('work_date', $range)->where('updated_at', '>', $this->calculated_at)->exists()
+            || StaffAttendanceRequest::approved()->overlapping($this->start_date->toDateString(), $this->end_date->toDateString())
+                ->where('updated_at', '>', $this->calculated_at)->exists()
             // Đánh giá KPI tháng của kỳ được chốt / sửa sau lần tính (KPI Học vụ tự động)
             || KpiEvaluation::where('month', $this->month)->where('year', $this->year)
                 ->where('updated_at', '>', $this->calculated_at)->exists();
@@ -305,6 +310,7 @@ class PayrollPeriod extends Model
         $producedUserIds = [];
         $commissionService = app(SalesCommissionService::class);
         $formula = app(PayrollFormulaService::class);
+        $attendanceService = app(StaffAttendanceService::class);
         $existingRecords = $this->records()->get()->keyBy('user_id');
         $start = $this->start_date->copy();
         $end = $this->end_date->copy();
@@ -415,6 +421,12 @@ class PayrollPeriod extends Model
                 }
                 $renewal = $formula->renewalBonusFor($user, $start, $end);
                 $details['renewal'] = $renewal;
+            }
+            // Chấm công hằng ngày (điện thoại): ngày công, đi muộn, nghỉ có phép — để Kế toán đối soát; tiền phạt đi muộn
+            // đi qua biên bản (chờ giải trình → người chốt quyết mức phạt) như mọi biên bản khác.
+            $attendanceSummary = $attendanceService->summary($user->id, $start, $end);
+            if ($attendanceSummary['days'] > 0 || $attendanceSummary['leave_days'] > 0) {
+                $details['attendance'] = $attendanceSummary;
             }
             $details['commission'] = [
                 'closed_count' => $closedCount,

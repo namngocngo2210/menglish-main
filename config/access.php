@@ -50,6 +50,8 @@ return [
             // Flow §15: chỉ Admin duyệt/chi trả lương; Kế toán tính & soát; Manager chỉ xem.
             'payroll.view', 'payroll.view_own', 'kpi.*', 'teacher_rate.manage', 'commission_config.manage',
             'attendance_staff.view', 'attendance_staff.manual_record',
+            // Chấm công hằng ngày (điện thoại): xem + duyệt đơn của nhân sự chi nhánh mình.
+            'staff_checkin.view', 'staff_checkin.approve', 'staff_checkin.scope_branch',
             // Chốt biên bản lỗi vận hành (CM); lỗi chuyên môn do Học thuật chốt.
             'violation.view', 'violation.create', 'violation.confirm_error', 'violation.confirm_fine', 'violation.cancel',
             'violation.mark_paid', 'violation.mark_resolved', 'violation.decide_operations',
@@ -77,6 +79,7 @@ return [
             'refund_transfer.request', 'refund_transfer.approve', 'refund_transfer.approve_transfer', 'refund_transfer.reject',
             'bank_account.manage', 'invoice_range.manage', 'fee_reminder_config.manage',
             'merchandise_stock.view', 'merchandise_stock.manage', 'merchandise_stock.scope_branch',
+            'staff_checkin.view', 'staff_checkin.scope_branch',
             'payroll.view', 'payroll.create', 'payroll.edit', 'payroll.calculate', 'payroll.view_own', 'finance.view',
             'work_task.view', 'support_ticket.create', 'support_ticket.view',
             'portal.staff',

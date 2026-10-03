@@ -30,6 +30,7 @@ const props = defineProps({
     renewalClasses: { type: Array, default: () => [] },
     lateLines: { type: Array, default: () => [] },
     lateInfo: { type: Object, default: () => ({ threshold: 15, per_minute: 5000, total: 0 }) },
+    dailyAttendance: { type: Object, default: null },
     commissionTiers: { type: Array, default: () => [] },
     penalties: { type: Array, default: () => [] },
     clawbacks: { type: Array, default: () => [] },
@@ -425,6 +426,21 @@ function sessionNote(ts) {
                         <span v-if="period.locked" class="block font-caption text-caption">Kỳ lương đã {{ period.status_label.toLocaleLowerCase('vi') }} — phiếu lương đã khoá.</span>
                     </p>
                     <p class="font-caption text-caption text-on-surface-variant">Diễn giải tự động: {{ record.notes }}</p>
+                </section>
+
+                <!-- Chấm công hằng ngày (điện thoại): căn cứ đối soát, đi muộn bị phạt qua biên bản -->
+                <section v-if="dailyAttendance" class="rounded-xl border border-outline-variant bg-surface-container-lowest p-lg space-y-sm" data-daily-attendance>
+                    <h3 class="flex items-center gap-xs font-h3 text-h3 text-on-surface"><span class="material-symbols-outlined text-primary-container" aria-hidden="true">fingerprint</span>Chấm công hằng ngày</h3>
+                    <dl class="grid grid-cols-2 gap-sm font-body-small text-body-small">
+                        <div><dt class="text-on-surface-variant">Ngày có chấm công</dt><dd class="font-body-semibold text-body-semibold">{{ dailyAttendance.days }}</dd></div>
+                        <div><dt class="text-on-surface-variant">Nghỉ có phép</dt><dd class="font-body-semibold text-body-semibold">{{ dailyAttendance.leave_days }} ngày</dd></div>
+                        <div><dt class="text-on-surface-variant">Đi muộn (tính lỗi)</dt><dd class="font-body-semibold text-body-semibold" :class="dailyAttendance.late_count ? 'text-error' : ''">{{ dailyAttendance.late_count }} lần · {{ dailyAttendance.late_minutes }} phút</dd></div>
+                        <div><dt class="text-on-surface-variant">Muộn có phép</dt><dd class="font-body-semibold text-body-semibold">{{ dailyAttendance.excused_late }} lần</dd></div>
+                        <div><dt class="text-on-surface-variant">Về sớm</dt><dd class="font-body-semibold text-body-semibold">{{ dailyAttendance.early_count }} lần</dd></div>
+                        <div><dt class="text-on-surface-variant">Quên chấm ra</dt><dd class="font-body-semibold text-body-semibold">{{ dailyAttendance.missing_out }} ngày</dd></div>
+                    </dl>
+                    <p class="font-caption text-caption text-on-surface-variant">Đi muộn tự lập biên bản chờ giải trình; tiền phạt (nếu có) trừ qua mục "Trừ vi phạm".</p>
+                    <UiButton v-if="can('staff_checkin.view')" variant="ghost" size="sm" icon="open_in_new" :href="route('staff-attendance.index', { view: 'month', month: period.start_date?.slice(0, 7), user_id: record.user_id })">Xem bảng công</UiButton>
                 </section>
             </aside>
         </div>

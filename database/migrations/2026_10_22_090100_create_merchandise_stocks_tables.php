@@ -11,38 +11,53 @@ use Illuminate\Support\Facades\Schema;
  * Trước đây merchandise_items.stock_quantity là một số tồn chung cho cả hệ thống. Nếu hệ thống chỉ có 1 chi nhánh,
  * số tồn đó được chuyển hẳn về chi nhánh này. Có nhiều chi nhánh thì không biết sách đang nằm ở đâu: số cũ giữ ở
  * stock_quantity như "tồn cũ chưa phân chi nhánh", người quản lý kho phân bổ dần về từng chi nhánh khi nhập kho.
+ *
+ * Chạy lại được an toàn: lần deploy đầu trên MySQL lỗi giữa chừng (tên index tự sinh dài quá 64 ký tự) sau khi đã tạo
+ * bảng — MySQL không rollback DDL — nên bảng / index nào có rồi thì bỏ qua. Index đặt tên ngắn tường minh.
  */
 return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('merchandise_stocks', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('merchandise_item_id')->constrained('merchandise_items')->cascadeOnDelete();
-            $table->foreignId('branch_id')->constrained('branches')->cascadeOnDelete();
-            $table->integer('quantity')->default(0);
-            $table->timestamps();
-            $table->unique(['merchandise_item_id', 'branch_id']);
-        });
+        if (! Schema::hasTable('merchandise_stocks')) {
+            Schema::create('merchandise_stocks', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('merchandise_item_id')->constrained('merchandise_items')->cascadeOnDelete();
+                $table->foreignId('branch_id')->constrained('branches')->cascadeOnDelete();
+                $table->integer('quantity')->default(0);
+                $table->timestamps();
+                $table->unique(['merchandise_item_id', 'branch_id'], 'merch_stocks_item_branch_unique');
+            });
+        }
 
-        Schema::create('merchandise_stock_movements', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('merchandise_item_id')->constrained('merchandise_items')->cascadeOnDelete();
-            $table->foreignId('branch_id')->constrained('branches')->cascadeOnDelete();
-            // import | count | sale | return | opening
-            $table->string('type', 20);
-            // Xuất bán: contract (sách trong hợp đồng học phí) | surcharge (hàng chọn ở phần phụ thu của phiếu)
-            $table->string('source', 20)->nullable();
-            $table->integer('quantity_change');
-            $table->integer('balance_after');
-            $table->foreignId('tuition_receipt_id')->nullable()->constrained('tuition_receipts')->nullOnDelete();
-            $table->foreignId('student_tuition_id')->nullable()->constrained('student_tuitions')->nullOnDelete();
-            $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
-            $table->string('note', 500)->nullable();
-            $table->timestamps();
-            $table->index(['merchandise_item_id', 'branch_id', 'created_at']);
-            $table->index(['branch_id', 'created_at']);
-        });
+        if (! Schema::hasTable('merchandise_stock_movements')) {
+            Schema::create('merchandise_stock_movements', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('merchandise_item_id')->constrained('merchandise_items', indexName: 'merch_moves_item_fk')->cascadeOnDelete();
+                $table->foreignId('branch_id')->constrained('branches', indexName: 'merch_moves_branch_fk')->cascadeOnDelete();
+                // import | count | sale | return | opening
+                $table->string('type', 20);
+                // Xuất bán: contract (sách trong hợp đồng học phí) | surcharge (hàng chọn ở phần phụ thu của phiếu)
+                $table->string('source', 20)->nullable();
+                $table->integer('quantity_change');
+                $table->integer('balance_after');
+                $table->foreignId('tuition_receipt_id')->nullable()->constrained('tuition_receipts', indexName: 'merch_moves_receipt_fk')->nullOnDelete();
+                $table->foreignId('student_tuition_id')->nullable()->constrained('student_tuitions', indexName: 'merch_moves_tuition_fk')->nullOnDelete();
+                $table->foreignId('user_id')->nullable()->constrained('users', indexName: 'merch_moves_user_fk')->nullOnDelete();
+                $table->string('note', 500)->nullable();
+                $table->timestamps();
+            });
+        }
+
+        $indexes = [
+            'merch_moves_item_branch_time_idx' => ['merchandise_item_id', 'branch_id', 'created_at'],
+            'merch_moves_branch_time_idx' => ['branch_id', 'created_at'],
+        ];
+        foreach ($indexes as $name => $columns) {
+            if (! Schema::hasIndex('merchandise_stock_movements', $columns)) {
+                Schema::table('merchandise_stock_movements', fn (Blueprint $table) => $table->index($columns, $name));
+            }
+        }
 
         $branchIds = DB::table('branches')
             ->when(Schema::hasColumn('branches', 'deleted_at'), fn ($q) => $q->whereNull('deleted_at'))
@@ -54,6 +69,9 @@ return new class extends Migration
         $branchId = (int) $branchIds->first();
         $now = now();
         foreach (DB::table('merchandise_items')->where('stock_quantity', '>', 0)->get(['id', 'stock_quantity']) as $item) {
+            if (DB::table('merchandise_stocks')->where('merchandise_item_id', $item->id)->where('branch_id', $branchId)->exists()) {
+                continue;
+            }
             DB::table('merchandise_stocks')->insert([
                 'merchandise_item_id' => $item->id,
                 'branch_id' => $branchId,
