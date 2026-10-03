@@ -138,6 +138,12 @@ class StudentTuition extends Model
         return $this->belongsTo(Student::class, 'student_id');
     }
 
+    /** Ưu đãi áp dụng khi chốt khách (giảm trừ nằm ở discount_amount của hợp đồng). */
+    public function promotion(): BelongsTo
+    {
+        return $this->belongsTo(Promotion::class);
+    }
+
     public function classModel(): BelongsTo
     {
         return $this->belongsTo(ClassModel::class, 'class_id');
