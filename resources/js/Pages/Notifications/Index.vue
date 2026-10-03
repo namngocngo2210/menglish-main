@@ -5,6 +5,7 @@
  */
 import { Link } from '@inertiajs/vue3';
 import { shortenCodesIn } from '@/lib/format';
+import { copyText } from '@/lib/clipboard';
 
 defineOptions({ layout: { title: 'Thông báo', workspaceTabs: false } });
 
@@ -47,11 +48,11 @@ defineProps({
         <div class="space-y-3">
             <div v-for="notif in notifications.data" :key="notif.id" :class="['rounded-2xl border bg-surface-container-lowest p-5 transition hover:shadow-md', !notif.is_read ? 'border-error/30 bg-error/5 shadow-sm' : 'border-surface-container-highest opacity-80']">
                 <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-                    <div class="flex flex-1 items-start gap-3.5">
+                    <div class="flex min-w-0 flex-1 items-start gap-3.5">
                         <div :class="['flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl', notif.badge_color]">
                             <span class="material-symbols-outlined text-xl">{{ notif.icon }}</span>
                         </div>
-                        <div class="flex-1 space-y-1.5">
+                        <div class="min-w-0 flex-1 space-y-1.5">
                             <div class="flex flex-wrap items-center gap-2">
                                 <span :class="['rounded-full border px-2.5 py-0.5 text-xs font-bold', notif.badge_color]">{{ notif.type_label }}</span>
                                 <h3 class="text-sm font-bold text-on-surface">{{ shortenCodesIn(notif.title) }}</h3>
@@ -67,12 +68,16 @@ defineProps({
                                 <span>Thời gian trễ: <strong class="font-mono font-bold text-error">{{ notif.lead.hours_elapsed }}h</strong></span>
                             </div>
 
+                            <div v-if="notif.copy_text" class="whitespace-pre-line break-words rounded-xl border border-surface-container-highest bg-surface-container-low p-3 text-xs leading-relaxed text-on-surface">{{ notif.copy_text }}</div>
+
                             <div class="pt-1 font-mono text-xs text-on-surface-subtle">Ghi nhận lúc: {{ formatDate(notif.created_at, 'd/m/Y H:i') }} ({{ notif.created_ago }})</div>
                         </div>
                     </div>
 
-                    <div class="flex shrink-0 items-center gap-2 self-end sm:self-center">
+                    <div class="flex shrink-0 flex-wrap items-center justify-end gap-2 self-end sm:self-center">
                         <UiButton v-if="notif.lead" variant="info" size="sm" icon="call" :href="route('crm.customers.show', notif.lead.customer_id)">Xử lý Lead ngay</UiButton>
+                        <UiButton v-if="notif.copy_text" size="sm" icon="content_copy" @click="copyText(notif.copy_text, 'Đã sao chép nội dung — dán vào Zalo để gửi phụ huynh.')">Sao chép nội dung</UiButton>
+                        <UiButton v-if="notif.copy_text && notif.link && !notif.lead" variant="secondary" size="sm" icon="open_in_new" :href="notif.link">Mở hồ sơ</UiButton>
                         <UiForm v-if="!notif.is_read" :action="route('notifications.read', notif.id)" method="post" class="inline">
                             <UiButton type="submit" variant="secondary" size="sm" icon="check" title="Đánh dấu đã đọc" aria-label="Đánh dấu đã đọc" />
                         </UiForm>

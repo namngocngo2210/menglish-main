@@ -27,6 +27,7 @@ use App\Models\SystemCategory;
 use App\Models\TuitionReceipt;
 use App\Models\User;
 use App\Models\WorkTask;
+use App\Services\Crm\AppointmentConfirmation;
 use App\Services\Crm\CrmBranchTransferService;
 use App\Services\Crm\LeadOwners;
 use App\Services\Crm\TrialSlotFinder;
@@ -889,6 +890,12 @@ class CrmController extends Controller
                 ->map(fn (array $row) => ['value' => $row['key'], 'label' => "{$row['label']} ({$row['count']})"])
                 ->values()->all(),
             'tab' => request('tab') === 'info' ? 'info' : 'ops',
+            // Vừa xác nhận lịch hẹn mà chưa gửi được email: popup nội dung xác nhận để sao chép gửi Zalo.
+            'appointmentConfirmation' => (fn ($c) => is_array($c) && empty($c['emailed']) ? [
+                'text' => $c['text'],
+                'phone' => $c['phone'] ?? null,
+                'email_failed' => (bool) ($c['email_failed'] ?? false),
+            ] : null)(session('appointment_confirmation')),
             'editForm' => $editForm ? [
                 'branches' => Ui::options($editForm['branches'], 'name'),
                 'salesUsers' => Ui::options(LeadOwners::options($editForm['salesUsers'])),
@@ -1253,8 +1260,19 @@ class CrmController extends Controller
             'content' => "Đã đặt lịch hẹn test đầu vào: {$typeLabel} lúc ".date('d/m/Y H:i', strtotime($appointmentDateTime))." [{$testTitle}]. Ghi chú: ".($validated['notes'] ?? 'Không có'),
         ]);
 
+        $confirmations = app(AppointmentConfirmation::class);
+        $confirmation = $confirmations->deliver($customer->refresh(), $confirmations->forTest($customer), $request->user(), 'test');
+
         return redirect()->back()
-            ->with('status', "Đã đặt lịch hẹn test thành công cho khách hàng {$customer->name} vào lúc ".date('d/m/Y H:i', strtotime($appointmentDateTime)).'!');
+            ->with('status', "Đã đặt lịch hẹn test thành công cho khách hàng {$customer->name} vào lúc ".date('d/m/Y H:i', strtotime($appointmentDateTime)).'!'
+                .$this->confirmationNotice($confirmation))
+            ->with('appointment_confirmation', $confirmation);
+    }
+
+    /** @param  array{emailed: string|null}  $confirmation */
+    private function confirmationNotice(array $confirmation): string
+    {
+        return $confirmation['emailed'] ? " Đã gửi email xác nhận tới {$confirmation['emailed']}." : '';
     }
 
     /**
@@ -1318,8 +1336,12 @@ class CrmController extends Controller
                 .(! empty($validated['notes']) ? '. Ghi chú cho giáo viên: '.$validated['notes'] : '.'),
         ]);
         $notifications->notifyTrialBooked($booking, $request->user());
+        $confirmations = app(AppointmentConfirmation::class);
+        $confirmation = $confirmations->deliver($customer, $confirmations->forTrial($booking), $request->user(), 'trial');
 
-        return redirect()->back()->with('status', 'Đã xếp lịch học thử cho khách.');
+        return redirect()->back()
+            ->with('status', 'Đã xếp lịch học thử cho khách.'.$this->confirmationNotice($confirmation))
+            ->with('appointment_confirmation', $confirmation);
     }
 
     public function cancelTrialBooking(Request $request, CrmStageService $stages, $id, CrmTrialBooking $booking)
