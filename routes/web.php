@@ -493,6 +493,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/ticket-emails', [SystemConfigController::class, 'updateTicketEmails'])->middleware('can:support_ticket.update')->name('ticket-emails.update');
         Route::post('/ticket-emails/test', [SystemConfigController::class, 'sendTestTicketEmail'])->middleware('can:support_ticket.update')->name('ticket-emails.test');
         Route::get('/sla', [SystemConfigController::class, 'sla'])->middleware('can:sla.configure')->name('sla');
+        Route::post('/sla/settings', [SystemConfigController::class, 'updateSlaSettings'])->middleware('can:sla.configure')->name('sla.settings');
         Route::put('/sla/{key}', [SystemConfigController::class, 'updateSla'])->where('key', '[a-z_.]+')->middleware('can:sla.configure')->name('sla.update');
         Route::get('/hosting', [SystemConfigController::class, 'hostingInfo'])->middleware('can:bank_account.manage')->name('hosting');
     });

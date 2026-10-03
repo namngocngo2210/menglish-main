@@ -10,7 +10,11 @@
 return [
     'groups' => [
         'crm' => 'CRM & Tuyển sinh',
+        'teacher' => 'Giáo viên & Trợ giảng',
     ],
+
+    /** Bậc phạt theo số lần tái phạm cộng dồn trong N tháng (system_settings sla.ladder_reset_months). */
+    'ladder_reset_months' => 12,
 
     'rules' => [
         'crm.first_contact' => [
@@ -78,6 +82,19 @@ return [
             'amount' => 0,
             'task' => true,
             'violation' => 'Liên hệ khách thất bại liên tiếp',
+        ],
+
+        'gv.remarks_late' => [
+            'group' => 'teacher',
+            'label' => 'Nhận xét sau buổi học (GV)',
+            'description' => 'Sau khi buổi học kết thúc, GV phải gửi nhận xét buổi học (nội dung bài, bài tập, nhận xét học viên) trong thời hạn này. Trễ → biên bản cho GV theo bậc phạt tái phạm (Quy chế GV mục 4: lần 1 nhắc nhở, lần 2 phạt 30.000đ, từ lần 3 phạt 60.000đ).',
+            'value' => 12,
+            'unit' => 'hours',
+            'penalty' => true,
+            'amount' => 0,
+            'ladder' => [0, 30000, 60000],
+            'task' => false,
+            'violation' => 'Gửi nhận xét sau buổi học trễ',
         ],
     ],
 ];

@@ -3,6 +3,7 @@
 namespace App\Services\Sla;
 
 use App\Models\SlaSetting;
+use App\Models\SystemSetting;
 use App\Support\RequestMemo;
 
 /**
@@ -30,6 +31,7 @@ class Sla
             'value' => $override?->value ?? $default['value'],
             'penalty' => $override?->penalty ?? $default['penalty'],
             'amount' => (float) ($override?->amount ?? $default['amount']),
+            'ladder' => $override?->ladder ?: ($default['ladder'] ?? null),
             'customized' => $override !== null,
         ];
     }
@@ -43,6 +45,23 @@ class Sla
     public static function value(string $key): int
     {
         return (int) self::rule($key)['value'];
+    }
+
+    /** Số tháng cộng dồn lần tái phạm cho bậc phạt (Admin chỉnh ở trang Cấu hình SLA). */
+    public static function ladderResetMonths(): int
+    {
+        return max(1, (int) SystemSetting::get('sla.ladder_reset_months', config('sla.ladder_reset_months', 12)));
+    }
+
+    /** Mức phạt của lần vi phạm thứ $occurrence theo bậc phạt; không có bậc thì dùng mức gợi ý chung. */
+    public static function amountForOccurrence(array $rule, int $occurrence): float
+    {
+        $ladder = array_values($rule['ladder'] ?? []);
+        if ($ladder === []) {
+            return (float) $rule['amount'];
+        }
+
+        return (float) $ladder[min($occurrence, count($ladder)) - 1];
     }
 
     public static function forget(): void

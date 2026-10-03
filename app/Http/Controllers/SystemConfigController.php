@@ -979,10 +979,12 @@ class SystemConfigController extends Controller
                 'penalty' => $rule['penalty'],
                 'amount' => $rule['amount'],
                 'task' => $rule['task'],
+                'ladder' => $rule['ladder'] ? implode(', ', $rule['ladder']) : null,
+                'has_ladder' => ! empty(Sla::defaults()[$rule['key']]['ladder']),
                 'customized' => $rule['customized'],
             ])->values()->all();
 
-        return Inertia::render('SystemConfig/Sla', ['rules' => $rules]);
+        return Inertia::render('SystemConfig/Sla', ['rules' => $rules, 'resetMonths' => Sla::ladderResetMonths()]);
     }
 
     public function updateSla(Request $request, string $key)
@@ -994,7 +996,9 @@ class SystemConfigController extends Controller
             'enabled' => 'required|boolean',
             'penalty' => 'required|boolean',
             'amount' => 'nullable|numeric|min:0|max:100000000',
+            'ladder' => 'nullable|string|max:200|regex:/^\s*\d+(\s*,\s*\d+){0,9}\s*$/',
         ], [
+            'ladder.regex' => 'Bậc phạt nhập các số tiền cách nhau bởi dấu phẩy, ví dụ: 0, 30000, 60000.',
             'value.required' => 'Vui lòng nhập ngưỡng SLA.',
             'value.min' => 'Ngưỡng SLA tối thiểu là 1.',
             'value.max' => $unit === 'hours' ? 'Ngưỡng SLA tối đa 720 giờ (30 ngày).' : 'Số lần tối đa là 20.',
@@ -1005,10 +1009,19 @@ class SystemConfigController extends Controller
             'enabled' => $validated['enabled'],
             'penalty' => $validated['penalty'],
             'amount' => $validated['amount'] ?? 0,
+            'ladder' => filled($validated['ladder'] ?? null) ? array_map('intval', preg_split('/\s*,\s*/', trim($validated['ladder']))) : null,
             'updated_by' => $request->user()->id,
         ]);
         Sla::forget();
 
         return back()->with('status', 'Đã lưu cấu hình SLA "'.Sla::defaults()[$key]['label'].'". Áp dụng cho mốc phát sinh từ bây giờ.');
+    }
+
+    public function updateSlaSettings(Request $request)
+    {
+        $validated = $request->validate(['ladder_reset_months' => 'required|integer|min:1|max:60']);
+        SystemSetting::set('sla.ladder_reset_months', (int) $validated['ladder_reset_months'], 'Số tháng cộng dồn lần tái phạm cho bậc phạt SLA.');
+
+        return back()->with('status', 'Đã lưu thời gian cộng dồn lần tái phạm.');
     }
 }

@@ -7,6 +7,7 @@ defineOptions({ layout: { title: 'Cấu hình SLA' } });
 
 defineProps({
     rules: { type: Array, default: () => [] },
+    resetMonths: { type: Number, default: 12 },
 });
 </script>
 
@@ -16,6 +17,18 @@ defineProps({
     <UiAlert type="info" title="Quy ước chung">
         Mốc SLA phát sinh trước lúc bật hệ thống không bị phạt hồi tố. Mức phạt 0đ nghĩa là người xác nhận quyết mức phạt khi chốt biên bản.
     </UiAlert>
+
+    <UiForm :action="route('system-config.sla.settings')" method="post" error-bag="slaSettings" class="flex flex-wrap items-end gap-lg rounded-xl border border-outline-variant bg-surface-container-lowest p-lg shadow-sm" #default="{ errors }">
+        <div class="space-y-xs">
+            <label for="ladder_reset_months" class="block font-body-medium text-body-medium text-on-surface">Cộng dồn lần tái phạm (bậc phạt)</label>
+            <p class="font-caption text-caption text-on-surface-variant">Lần vi phạm thứ n của cùng một người, cùng một lỗi, tính trong khoảng này.</p>
+            <div class="w-40">
+                <UiInput id="ladder_reset_months" type="number" name="ladder_reset_months" min="1" max="60" :value="resetMonths" required suffix="Tháng" class="font-code text-code" />
+            </div>
+            <p v-if="errors.ladder_reset_months" class="font-caption text-caption text-error">{{ errors.ladder_reset_months }}</p>
+        </div>
+        <UiButton type="submit" variant="secondary" icon="save">Lưu</UiButton>
+    </UiForm>
 
     <div class="space-y-lg">
         <UiForm
@@ -69,6 +82,15 @@ defineProps({
                     </div>
                     <p v-if="errors.amount" class="font-caption text-caption text-error">{{ errors.amount }}</p>
                 </div>
+            </div>
+
+            <div v-if="rule.has_ladder" class="space-y-xs">
+                <label :for="`ladder_${rule.key}`" class="block font-body-medium text-body-medium text-on-surface">Bậc phạt theo lần tái phạm (đ)</label>
+                <p class="font-caption text-caption text-on-surface-variant">Các số tiền cách nhau dấu phẩy: lần 1, lần 2, lần 3 trở đi (số cuối lặp lại). 0 = nhắc nhở, không phạt tiền. Để trống để dùng mặc định.</p>
+                <div class="max-w-md">
+                    <UiInput :id="`ladder_${rule.key}`" name="ladder" :value="rule.ladder ?? ''" placeholder="0, 30000, 60000" class="font-code text-code" />
+                </div>
+                <p v-if="errors.ladder" class="font-caption text-caption text-error">{{ errors.ladder }}</p>
             </div>
 
             <div class="flex justify-end">

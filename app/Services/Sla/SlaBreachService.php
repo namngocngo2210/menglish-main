@@ -88,6 +88,13 @@ class SlaBreachService
 
         DB::transaction(function () use ($event, $rule, $owner, $now, $subjectLabel, $facts, &$penalty) {
             if ($rule['penalty'] && $owner) {
+                // Bậc phạt theo lần tái phạm cộng dồn trong N tháng (không tính biên bản đã hủy).
+                $occurrence = Penalty::where('user_id', $owner->id)->where('auto_source', $event->rule_key)->where('status', '!=', 'cancelled')
+                    ->where('created_at', '>=', $now->copy()->subMonths(Sla::ladderResetMonths()))->count() + 1;
+                $amount = Sla::amountForOccurrence($rule, $occurrence);
+                $ladderNote = ! empty($rule['ladder'])
+                    ? " Lần thứ {$occurrence} trong ".Sla::ladderResetMonths().' tháng'.($amount > 0 ? '.' : ' (mức nhắc nhở, không phạt tiền).')
+                    : '';
                 $penalty = Penalty::create([
                     'code' => Penalty::generateCode(),
                     'user_id' => $owner->id,
@@ -97,10 +104,10 @@ class SlaBreachService
                     'error_category' => 'operations',
                     'violation_date' => $event->due_at->toDateString(),
                     'violation_at' => $event->due_at,
-                    'amount' => $rule['amount'],
+                    'amount' => $amount,
                     'reporter_id' => null,
                     'status' => 'pending',
-                    'notes' => "{$rule['label']}: hạn {$event->due_at->format('H:i d/m/Y')}, quá hạn lúc phát hiện {$now->format('H:i d/m/Y')}. Xem file chi tiết đính kèm.",
+                    'notes' => "{$rule['label']}: hạn {$event->due_at->format('H:i d/m/Y')}, quá hạn lúc phát hiện {$now->format('H:i d/m/Y')}.{$ladderNote} Xem file chi tiết đính kèm.",
                 ]);
                 $penalty->update(['evidence_path' => $this->detailFile($penalty, $rule, $event, $subjectLabel, $facts, $now)]);
             }
@@ -142,7 +149,8 @@ class SlaBreachService
             'Mốc kích hoạt' => $event->triggered_at->format('H:i d/m/Y'),
             'Hạn xử lý' => $event->due_at->format('H:i d/m/Y').' ('.$rule['value'].($rule['unit'] === 'hours' ? ' giờ' : ' lần').')',
             'Phát hiện quá hạn' => $now->format('H:i d/m/Y'),
-            ...$facts];
+            ...$facts,
+            ...($penalty->amount > 0 ? ['Mức phạt gợi ý' => number_format((float) $penalty->amount, 0, ',', '.').' đ'] : ['Mức phạt gợi ý' => 'Nhắc nhở (0 đ)'])];
         $html = '<html><head><meta charset="utf-8"><style>body{font-family:DejaVu Sans,sans-serif;font-size:12px}td{padding:4px 8px;border-bottom:1px solid #ddd}td:first-child{font-weight:bold;width:35%}</style></head><body>'
             .'<h2>Chi tiết biên bản vi phạm SLA (tự động)</h2><table width="100%">';
         foreach ($rows as $label => $value) {
