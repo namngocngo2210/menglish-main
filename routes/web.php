@@ -414,6 +414,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/create', [PlacementTestController::class, 'create'])->middleware('can:placement_test.create')->name('create');
         Route::post('/', [PlacementTestController::class, 'storeTest'])->middleware('can:placement_test.create')->name('store');
         Route::post('/media', [PlacementTestController::class, 'uploadMedia'])->name('media.store');
+        Route::post('/pdf', [PlacementTestController::class, 'uploadPdf'])->name('pdf.store');
+        Route::post('/pdf/answers', [PlacementTestController::class, 'parseAnswers'])->name('pdf.answers');
         Route::get('/rubric-guide', [PlacementTestController::class, 'rubricGuide'])->middleware('can:placement_test.view')->name('rubric-guide');
         Route::get('/results/{id}', [PlacementTestController::class, 'showResult'])->middleware('can:placement_test.grade')->name('results.show');
         Route::post('/results/{id}', [PlacementTestController::class, 'updateResult'])->middleware('can:placement_test.grade')->name('results.update');
@@ -608,7 +610,7 @@ Route::middleware('auth')->group(function () {
     // Tồn kho hàng hóa theo chi nhánh (Học vụ / Quản lý cơ sở / Kế toán xem & nhập kho chi nhánh mình).
     Route::prefix('merchandise-stock')->name('merchandise.stock.')->middleware('can:merchandise_stock.view')->group(function () {
         Route::get('/', [MerchandiseStockController::class, 'index'])->name('index');
-        Route::get('/history', [MerchandiseStockController::class, 'history'])->name('history');
+        Route::get('/{item}/history', [MerchandiseStockController::class, 'history'])->whereNumber('item')->name('history');
         Route::get('/create', [MerchandiseStockController::class, 'create'])->middleware('can:merchandise_stock.manage')->name('create');
         Route::post('/', [MerchandiseStockController::class, 'store'])->middleware('can:merchandise_stock.manage')->name('store');
     });

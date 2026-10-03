@@ -2,6 +2,7 @@
 /** Chi tiết đề test: số liệu đề, danh sách thí sinh đã thi (điểm, phiếu điểm, chấm bài) và toàn bộ câu hỏi + đáp án chuẩn. */
 import { Link } from '@inertiajs/vue3';
 import { toast } from '@/lib/toast';
+import PdfViewer from '@/Components/PlacementTests/PdfViewer.vue';
 
 defineOptions({ layout: (props) => ({ title: props.test.title }) });
 
@@ -120,6 +121,19 @@ function copyLink() {
             </table>
         </UiDataTable>
 
+        <!-- Đề tạo từ PDF: file đề thí sinh xem khi làm bài -->
+        <details v-if="test.pdf_url" class="group rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-5 shadow-2xs md:p-6">
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-2 text-xs font-bold uppercase tracking-wider text-on-surface">
+                <span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-base text-error" aria-hidden="true">picture_as_pdf</span>Đề PDF (thí sinh xem khi làm bài)</span>
+                <span class="material-symbols-outlined transition group-open:rotate-180" aria-hidden="true">expand_more</span>
+            </summary>
+            <div class="mt-4 space-y-3">
+                <audio v-if="test.audio_url" controls class="h-9 w-full" :src="test.audio_url"></audio>
+                <a :href="test.pdf_url" target="_blank" rel="noopener" class="text-xs font-bold text-primary underline">Mở file PDF</a>
+                <div class="mx-auto max-w-3xl"><PdfViewer :src="test.pdf_url" /></div>
+            </div>
+        </details>
+
         <!-- Question List View -->
         <div class="space-y-5 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-5 shadow-2xs md:p-6">
             <div class="flex items-center justify-between border-b border-surface-container-highest pb-3">
@@ -137,7 +151,7 @@ function copyLink() {
                     <!-- Question Header -->
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-2">
-                            <span class="rounded-md bg-inverse-surface px-2 py-0.5 font-mono text-xs font-bold text-white">Câu {{ idx + 1 }}</span>
+                            <span class="rounded-md bg-inverse-surface px-2 py-0.5 font-mono text-xs font-bold text-white">Câu {{ q.number || idx + 1 }}</span>
                             <span :class="['rounded-md px-2 py-0.5 text-xs font-bold', skillClasses[q.skill] ?? 'bg-surface-container text-on-surface-variant']">{{ ucfirst(q.skill ?? 'General') }}</span>
                             <span class="font-mono text-xs text-on-surface-subtle">({{ q.type ?? 'multiple_choice' }})</span>
                         </div>
