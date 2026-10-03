@@ -404,6 +404,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/create', [PlacementTestController::class, 'create'])->middleware('can:placement_test.create')->name('create');
         Route::post('/', [PlacementTestController::class, 'storeTest'])->middleware('can:placement_test.create')->name('store');
         Route::post('/media', [PlacementTestController::class, 'uploadMedia'])->name('media.store');
+        Route::post('/pdf', [PlacementTestController::class, 'uploadPdf'])->name('pdf.store');
+        Route::post('/pdf/answers', [PlacementTestController::class, 'parseAnswers'])->name('pdf.answers');
         Route::get('/rubric-guide', [PlacementTestController::class, 'rubricGuide'])->middleware('can:placement_test.view')->name('rubric-guide');
         Route::get('/results/{id}', [PlacementTestController::class, 'showResult'])->middleware('can:placement_test.grade')->name('results.show');
         Route::post('/results/{id}', [PlacementTestController::class, 'updateResult'])->middleware('can:placement_test.grade')->name('results.update');

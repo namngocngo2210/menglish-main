@@ -1,13 +1,18 @@
 <script setup>
 /**
- * Tạo đề test đầu vào (mockup t_o_m_i_qu_n_l_test): cột trái thông tin chung + danh sách câu hỏi,
- * cột phải soạn chi tiết câu đang chọn. Câu hỏi gửi lên server dạng JSON (ô ẩn `questions`).
+ * Tạo đề test đầu vào, 2 cách soạn dùng chung cấu trúc câu hỏi:
+ * - "Tải đề PDF" (mặc định): tải file đề, hệ thống dựng sẵn phiếu trả lời + đáp án để kiểm tra (PdfSheetEditor);
+ *   thí sinh xem nguyên file PDF và trả lời trên phiếu.
+ * - "Soạn từng câu" (mockup t_o_m_i_qu_n_l_test): cột trái thông tin chung + danh sách câu hỏi, cột phải soạn chi tiết câu đang chọn.
+ * Chuyển từ PDF sang soạn từng câu giữ các câu đã đọc được để soạn tiếp (đề không dùng file PDF nữa).
+ * Câu hỏi gửi lên server dạng JSON (ô ẩn `questions`).
  * "Cấp độ" = khối lớp (A6 Q2); mã đề gợi ý theo khối để chấm đúng thang điểm (sửa tay thì giữ nguyên).
  */
 import { computed, ref } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import { confirmDialog } from '@/lib/confirm';
 import { toast } from '@/lib/toast';
+import PdfSheetEditor from '@/Components/PlacementTests/PdfSheetEditor.vue';
 import { emptyOptions, model, toNumber, useMediaUpload } from './questionEditor';
 
 defineOptions({ layout: { title: 'Tạo đề thi mới', hideErrors: true } });
@@ -18,29 +23,45 @@ const props = defineProps({
     levelRubricGroups: { type: Object, required: true },
     initialLevel: { type: String, default: 'lop_3' },
     initialCode: { type: String, required: true },
+    initialMode: { type: String, default: 'pdf' },
 });
 
 const page = usePage();
 const errorMessages = computed(() => Object.values(page.props.errors ?? {}).filter(Boolean));
 
-// Đề mới bắt đầu với 1 câu hỏi trống (không soạn sẵn nội dung mẫu).
-const questions = ref([
-    {
-        id: 1,
-        skill: 'reading',
-        type: 'multiple_choice',
-        section: 'READING SECTION',
-        title: '',
-        audio_url: '',
-        passage: '',
-        options: emptyOptions(),
-        correct_answer: 'A',
-        points: 1,
-        explanation: '',
-        teacher_note: '',
-    },
-]);
+// Soạn từng câu: đề mới bắt đầu với 1 câu hỏi trống (không soạn sẵn nội dung mẫu).
+const blankFirstQuestion = () => ({
+    id: 1,
+    skill: 'reading',
+    type: 'multiple_choice',
+    section: 'READING SECTION',
+    title: '',
+    audio_url: '',
+    passage: '',
+    options: emptyOptions(),
+    correct_answer: 'A',
+    points: 1,
+    explanation: '',
+    teacher_note: '',
+});
+const mode = ref(props.initialMode);
+const questions = ref(mode.value === 'manual' ? [blankFirstQuestion()] : []);
+const pdfPath = ref('');
+const pdfUrl = ref('');
+const audioUrl = ref('');
 const currentIndex = ref(0);
+
+const isUntouchedBlank = () => questions.value.length === 1 && !String(questions.value[0].title || '').trim();
+function setMode(next) {
+    if (mode.value === next) return;
+    if (next === 'manual') {
+        if (!questions.value.length) questions.value = [blankFirstQuestion()];
+    } else if (isUntouchedBlank()) {
+        questions.value = [];
+    }
+    currentIndex.value = 0;
+    mode.value = next;
+}
 const gradeLevel = ref(props.initialLevel);
 const gradeGroup = ref(props.levelRubricGroups[props.initialLevel] || 'khac');
 const code = ref(props.initialCode);
@@ -61,6 +82,10 @@ const typeButtons = [
     { type: 'fill_blank', icon: 'edit_square', label: 'Điền vào chỗ trống' },
     { type: 'essay', icon: 'edit_note', label: 'Tự luận Writing' },
     { type: 'speaking_prompt', icon: 'record_voice_over', label: 'Phỏng vấn Speaking' },
+];
+const modes = [
+    { value: 'pdf', icon: 'picture_as_pdf', label: 'Tải đề PDF', hint: 'Thí sinh xem nguyên file PDF và trả lời trên phiếu; hệ thống dựng sẵn phiếu và đáp án từ file.' },
+    { value: 'manual', icon: 'edit_note', label: 'Soạn từng câu', hint: 'Nhập từng câu hỏi, phương án, ảnh, file nghe; thí sinh làm từng câu trên màn hình.' },
 ];
 const typeBadges = { multiple_choice: 'Trắc nghiệm', fill_blank: 'Điền từ', speaking_prompt: 'Nói', essay: 'Tự luận' };
 const getTypeBadge = (type) => typeBadges[type] || 'Câu hỏi';
@@ -188,10 +213,24 @@ const typeButtonClass = (type) =>
             <!-- Hidden Synchronized Questions JSON -->
             <input type="hidden" name="questions" :value="JSON.stringify(questions)" />
             <input type="hidden" name="questions_count" :value="questions.length" />
+            <input type="hidden" name="mode" :value="mode" />
+            <input type="hidden" name="pdf_path" :value="mode === 'pdf' ? pdfPath : ''" />
+            <input type="hidden" name="audio_url" :value="mode === 'pdf' ? audioUrl : ''" />
 
-            <div class="flex min-h-[calc(100vh-180px)] flex-col gap-6 lg:flex-row">
+            <!-- Cách soạn đề -->
+            <div class="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-3 shadow-sm">
+                <span class="text-xs font-bold uppercase tracking-wider text-on-surface">Cách soạn đề</span>
+                <div class="inline-flex rounded-xl bg-surface-container p-1 text-xs" role="group" aria-label="Cách soạn đề">
+                    <button v-for="m in modes" :key="m.value" type="button" :aria-pressed="mode === m.value" :class="['flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-bold transition', mode === m.value ? 'bg-surface-container-lowest text-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface']" @click="setMode(m.value)">
+                        <span class="material-symbols-outlined text-[16px]" aria-hidden="true">{{ m.icon }}</span>{{ m.label }}
+                    </button>
+                </div>
+                <span class="text-xs text-on-surface-variant">{{ modes.find((m) => m.value === mode).hint }}</span>
+            </div>
+
+            <div :class="['flex min-h-[calc(100vh-180px)] flex-col gap-6', mode === 'manual' ? 'lg:flex-row' : '']">
                 <!-- LEFT SIDEBAR: GENERAL INFO & QUESTION LIST -->
-                <aside class="w-full shrink-0 space-y-4 lg:w-[360px] xl:w-[400px]">
+                <aside :class="['w-full shrink-0 space-y-4', mode === 'manual' ? 'lg:w-[360px] xl:w-[400px]' : '']">
                     <!-- General Info Card -->
                     <div class="space-y-3 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-4 shadow-sm">
                         <div class="flex items-center justify-between border-b border-surface-container-highest pb-2">
@@ -202,7 +241,7 @@ const typeButtonClass = (type) =>
                             <span class="text-xs font-medium text-error">* Bắt buộc</span>
                         </div>
 
-                        <div class="space-y-2.5 text-xs">
+                        <div :class="['text-xs', mode === 'manual' ? 'space-y-2.5' : 'grid grid-cols-1 gap-3 md:grid-cols-2']">
                             <UiInput name="title" label="Tên đề thi" required placeholder="VD: Đề Test Đầu Vào IELTS 6.5" class="font-bold" />
 
                             <div class="grid grid-cols-2 gap-2">
@@ -221,7 +260,7 @@ const typeButtonClass = (type) =>
                     </div>
 
                     <!-- Question List Navigation Card -->
-                    <div class="space-y-3 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-4 shadow-sm">
+                    <div v-if="mode === 'manual'" class="space-y-3 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-4 shadow-sm">
                         <div class="flex items-center justify-between border-b border-surface-container-highest pb-2">
                             <h3 class="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-on-surface">
                                 <span class="material-symbols-outlined text-[18px] text-secondary">format_list_numbered</span>
@@ -294,8 +333,17 @@ const typeButtonClass = (type) =>
                     </div>
                 </aside>
 
+                <!-- Tải đề PDF: xem đề + phiếu đáp án -->
+                <div v-if="mode === 'pdf'" class="space-y-4">
+                    <PdfSheetEditor v-model:questions="questions" v-model:pdf-path="pdfPath" v-model:pdf-url="pdfUrl" v-model:audio-url="audioUrl" />
+                    <div class="flex flex-wrap items-center justify-end gap-sm rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-4 shadow-xs">
+                        <UiButton type="submit" variant="secondary" name="save_mode" value="draft">Lưu nháp</UiButton>
+                        <UiButton type="submit" icon="save">Lưu đề thi</UiButton>
+                    </div>
+                </div>
+
                 <!-- RIGHT MAIN PANEL: QUESTION DETAIL EDITOR -->
-                <div class="flex-1 space-y-6 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-6 shadow-sm">
+                <div v-else class="flex-1 space-y-6 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-6 shadow-sm">
                     <div v-if="currentQ" class="space-y-5">
                         <!-- Editor Header -->
                         <div class="flex flex-wrap items-center justify-between gap-2 border-b border-surface-container-highest pb-3">

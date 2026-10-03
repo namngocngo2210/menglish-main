@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Storage;
 
 class PlacementTest extends Model
 {
@@ -25,6 +26,8 @@ class PlacementTest extends Model
         'duration_minutes',
         'questions_count',
         'questions',
+        'pdf_path',
+        'audio_url',
         'is_active',
         'is_preset',
     ];
@@ -58,6 +61,12 @@ class PlacementTest extends Model
         'is_active' => 'boolean',
         'is_preset' => 'boolean',
     ];
+
+    /** Đề tạo từ PDF: link công khai của file (thí sinh không đăng nhập vẫn xem được); đề soạn tay → null. */
+    public function pdfUrl(): ?string
+    {
+        return $this->pdf_path ? Storage::disk('public')->url($this->pdf_path) : null;
+    }
 
     public function submissions(): HasMany
     {
