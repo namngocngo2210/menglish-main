@@ -29,7 +29,7 @@ final class ApprovalInboxService
     private const VERSION_KEY = 'approvals:version';
 
     /** Thứ tự nhóm trên chip lọc. */
-    private const GROUP_ORDER = [ApprovableSource::GROUP_TUITION, ApprovableSource::GROUP_ACADEMIC, ApprovableSource::GROUP_WORK];
+    private const GROUP_ORDER = [ApprovableSource::GROUP_TUITION, ApprovableSource::GROUP_ACADEMIC, ApprovableSource::GROUP_WORK, ApprovableSource::GROUP_HR];
 
     /** @var array<string, ApprovableSource> */
     private array $sources = [];

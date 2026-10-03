@@ -61,7 +61,7 @@ function done() {
 </script>
 
 <template>
-    <UiPageHeader title="Việc cần duyệt" description="Mọi yêu cầu đang chờ bạn duyệt, gom từ Học phí, Đào tạo và Công việc." />
+    <UiPageHeader title="Việc cần duyệt" description="Mọi yêu cầu đang chờ bạn duyệt, gom từ Học phí, Đào tạo, Công việc và Nhân sự." />
 
     <!-- Kết quả xử lý hàng loạt -->
     <div id="approval-results" aria-live="polite">

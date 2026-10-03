@@ -57,6 +57,15 @@ class BranchController extends Controller
             'branches' => $branches->map(fn (Branch $branch) => [
                 ...$branch->only(['id', 'code', 'name', 'address', 'phone']),
                 'is_active' => (bool) $branch->is_active,
+                'checkin' => [
+                    'latitude' => $branch->latitude,
+                    'longitude' => $branch->longitude,
+                    'radius' => $branch->checkin_radius ?: Branch::DEFAULT_CHECKIN_RADIUS,
+                    'work_start' => $branch->workStart(),
+                    'work_end' => $branch->workEnd(),
+                    'grace' => (int) $branch->late_grace_minutes,
+                    'configured' => $branch->hasCheckinLocation(),
+                ],
                 'users_count' => $branch->users_count,
                 'classes_count' => $branch->classes_count,
                 'students_count' => $branch->students_count,
@@ -108,6 +117,42 @@ class BranchController extends Controller
 
         return redirect()->route('branches.index')
             ->with('status', "Đã cập nhật cơ sở chi nhánh [{$branch->name}] thành công!");
+    }
+
+    /**
+     * Cài đặt chấm công của cơ sở: toạ độ, bán kính được chấm (mét), giờ làm việc và số phút cho phép đến muộn.
+     * Nhân sự chỉ chấm công trên điện thoại được khi GPS nằm trong bán kính của cơ sở mình làm việc.
+     */
+    public function updateAttendance(Request $request, $id)
+    {
+        $branch = Branch::findOrFail($id);
+
+        $validated = $request->validate([
+            'latitude' => 'required|numeric|between:-90,90',
+            'longitude' => 'required|numeric|between:-180,180',
+            'checkin_radius' => 'required|integer|min:20|max:5000',
+            'work_start_time' => 'required|date_format:H:i',
+            'work_end_time' => 'required|date_format:H:i|after:work_start_time',
+            'late_grace_minutes' => 'required|integer|min:0|max:240',
+        ], [
+            'latitude.required' => 'Nhập vĩ độ của cơ sở (hoặc bấm "Lấy vị trí hiện tại" khi đang đứng ở cơ sở).',
+            'longitude.required' => 'Nhập kinh độ của cơ sở.',
+            'checkin_radius.min' => 'Bán kính tối thiểu 20 m (GPS điện thoại thường lệch 5–20 m).',
+            'work_end_time.after' => 'Giờ ra phải sau giờ vào.',
+        ], [
+            'latitude' => 'vĩ độ',
+            'longitude' => 'kinh độ',
+            'checkin_radius' => 'bán kính',
+            'work_start_time' => 'giờ vào',
+            'work_end_time' => 'giờ ra',
+            'late_grace_minutes' => 'số phút cho phép muộn',
+        ]);
+
+        Audit::describe("Cập nhật cài đặt chấm công cơ sở: {$branch->name}");
+        $branch->update($validated);
+
+        return redirect()->route('branches.index')
+            ->with('status', "Đã lưu cài đặt chấm công của [{$branch->name}].");
     }
 
     public function destroy($id)
