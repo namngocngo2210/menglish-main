@@ -181,6 +181,12 @@ class CrmCustomer extends Model
             ->whereDoesntHave('histories', fn (Builder $history) => $history->whereIn('type', CrmCustomerHistory::CONTACT_TYPES));
     }
 
+    /** Khách có lịch hẹn test đầu vào trong hôm nay (đã làm hay chưa đều tính), bỏ khách Thất bại. */
+    public function scopeTestToday(Builder $query): Builder
+    {
+        return $query->whereBetween('appointment_at', [today(), today()->endOfDay()])->where('stage', '!=', self::STAGE_LOST);
+    }
+
     /**
      * Phạm vi dữ liệu CRM theo quyền "lead.scope_*" (DataScope; mặc định theo BA 2026-09-25):
      * - Toàn hệ thống (Admin): mọi khách.

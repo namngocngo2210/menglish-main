@@ -50,8 +50,8 @@ class DashboardController extends Controller
 
         if ($isOperations) {
             $roleDashboard = DataScope::isAll($user, 'dashboard')
-                ? $this->operationsDashboard(null, 'Toàn hệ thống')
-                : $this->operationsDashboard($user->branchIds(), $user->branch?->name ?? 'Chi nhánh của bạn');
+                ? $this->operationsDashboard($user, null, 'Toàn hệ thống')
+                : $this->operationsDashboard($user, $user->branchIds(), $user->branch?->name ?? 'Chi nhánh của bạn');
         } elseif ($user->can('dashboard.academic')) {
             $roleDashboard = $this->academicDashboard($user);
         }
@@ -85,7 +85,7 @@ class DashboardController extends Controller
      */
     private function kpiCards(User $user, Closure $canOpen): array
     {
-        $cards = ['lead' => null, 'tuition' => null, 'student' => null, 'payroll' => null];
+        $cards = ['lead' => null, 'testToday' => null, 'tuition' => null, 'student' => null, 'payroll' => null];
 
         if ($user->can('lead.view') && $canOpen('crm.pipeline')) {
             $cards['lead'] = [
@@ -93,6 +93,9 @@ class DashboardController extends Controller
                 'count' => CrmCustomer::query()->visibleTo($user)->count(),
                 'won' => CrmCustomer::query()->visibleTo($user)->where('stage', 'won')->count(),
             ];
+        }
+        if ($user->can('lead.view') && $canOpen('crm.customers.index')) {
+            $cards['testToday'] = $this->testTodaySummary(CrmCustomer::query()->visibleTo($user));
         }
         if ($user->can('tuition.view') && $canOpen('tuition.students')) {
             $tuitionScope = fn () => StudentTuition::query()->whereHas('student', fn ($q) => $q->visibleTo($user));
@@ -192,9 +195,25 @@ class DashboardController extends Controller
     }
 
     /**
+     * Lịch hẹn test đầu vào hôm nay (CRM, theo phạm vi khách truyền vào): tổng, số chưa làm bài, link danh sách lọc sẵn.
+     *
+     * @return array{url: string, count: int, pending: int}
+     */
+    private function testTodaySummary(Builder $customers): array
+    {
+        $today = (clone $customers)->testToday();
+
+        return [
+            'url' => route('crm.customers.index', ['test_today' => 1]),
+            'count' => (clone $today)->count(),
+            'pending' => (clone $today)->where('stage', 'test_scheduled')->count(),
+        ];
+    }
+
+    /**
      * @param  int[]|null  $branchIds  null = toàn hệ thống
      */
-    private function operationsDashboard(?array $branchIds, string $scopeLabel): array
+    private function operationsDashboard(User $user, ?array $branchIds, string $scopeLabel): array
     {
         $monthStart = now()->startOfMonth();
         $monthEnd = now()->endOfMonth();
@@ -251,6 +270,9 @@ class DashboardController extends Controller
             ->when($branchIds !== null, fn (Builder $q) => $q->whereHas('creator', fn (Builder $c) => $c->whereIn('branch_id', $branchIds)))
             ->count();
 
+        // Lịch hẹn test hôm nay: cùng phạm vi khách CRM với danh sách mà link mở ra.
+        $testToday = $user->can('lead.view') ? $this->testTodaySummary(CrmCustomer::query()->visibleTo($user)) : null;
+
         return [
             'type' => $branchIds === null ? 'admin' : 'manager',
             'title' => $branchIds === null ? 'Tổng quan toàn hệ thống' : 'Tổng quan chi nhánh',
@@ -268,6 +290,7 @@ class DashboardController extends Controller
                 ['label' => 'Báo cáo trực lớp chờ xác nhận', 'value' => $pendingReports, 'icon' => 'fact_check', 'href' => route('tasks.manual-approvals', ['kind' => 'report']), 'hint' => 'GV chính / người giao việc xác nhận'],
                 ['label' => 'Phiếu thu chờ duyệt', 'value' => $pendingReceipts, 'icon' => 'receipt_long', 'href' => route('tuition.receipts.approve')],
                 ['label' => 'Ticket đang mở', 'value' => $openTickets, 'icon' => 'support_agent', 'href' => route('tickets.index'), 'hint' => $unassignedTickets > 0 ? "{$unassignedTickets} ticket chưa có người xử lý" : null],
+                ...($testToday ? [['label' => 'Lịch hẹn test hôm nay', 'value' => $testToday['count'], 'icon' => 'event', 'href' => $testToday['url'], 'hint' => $testToday['count'] > 0 ? "{$testToday['pending']} chưa làm bài" : null]] : []),
             ],
             'overdueTasks' => $overdueList->map(fn (WorkTask $task) => [
                 'id' => $task->id,

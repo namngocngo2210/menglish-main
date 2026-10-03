@@ -122,6 +122,7 @@ final class SidebarMenu
                     ['label' => 'Danh sách', 'route' => 'crm.customers.index', 'active' => ['crm.customers.index', 'crm.customers.show', 'crm.customers.edit', 'crm.customers.create', 'crm.import*']],
                     // Lọc theo query trên cùng route Danh sách (không phải màn riêng).
                     ['label' => 'Chưa liên hệ >24h', 'route' => 'crm.customers.index', 'query' => ['sla' => 1], 'as' => 'chip', 'chip_of' => 'crm.customers.index', 'count' => 'sla', 'tone' => 'danger'],
+                    ['label' => 'Hẹn test hôm nay', 'route' => 'crm.customers.index', 'query' => ['test_today' => 1], 'as' => 'chip', 'chip_of' => 'crm.customers.index', 'count' => 'test_today'],
                     ['label' => 'Chờ xếp lớp', 'route' => 'crm.waiting-list', 'as' => 'chip', 'chip_of' => 'crm.customers.index', 'count' => 'waiting_class'],
                     ['label' => 'Đã nhập học', 'route' => 'crm.customers.won', 'as' => 'chip', 'chip_of' => 'crm.customers.index', 'count' => 'won'],
                     ['label' => 'Thất bại', 'route' => 'crm.lost-deals', 'as' => 'chip', 'chip_of' => 'crm.customers.index', 'count' => 'lost'],
