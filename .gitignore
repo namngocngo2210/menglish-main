@@ -32,3 +32,6 @@ yarn-error.log
 /public/uploads/media/
 /database/testing.sqlite
 /bootstrap/ssr
+
+# Ảnh phiếu thu do test tạo ra
+/public/uploads/tuition/
