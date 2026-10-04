@@ -101,7 +101,7 @@ class Student extends Model
             if ($student->wasChanged('status') && $student->status === self::STATUS_DROPPED) {
                 $student->enrollments()
                     ->whereIn('status', self::ACTIVE_ENROLLMENT_STATUSES)
-                    ->update(['status' => self::ENROLLMENT_DROPPED]);
+                    ->update(['status' => self::ENROLLMENT_DROPPED, 'left_at' => today()->toDateString()]);
             }
         });
     }

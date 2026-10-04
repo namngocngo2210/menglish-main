@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Tuition\SessionLedger;
 use App\Support\TransferMemo;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -24,6 +25,7 @@ class StudentTuition extends Model
         'bank_account_id',
         'promotion_id',
         'total_amount',
+        'session_count',
         'discount_amount',
         'other_fees',
         'fee_items',
@@ -45,6 +47,7 @@ class StudentTuition extends Model
 
     protected $casts = [
         'total_amount' => 'decimal:2',
+        'session_count' => 'integer',
         'discount_amount' => 'decimal:2',
         'other_fees' => 'decimal:2',
         'fee_items' => 'array',
@@ -107,6 +110,10 @@ class StudentTuition extends Model
         static::saving(function (StudentTuition $tuition) {
             if (blank($tuition->transfer_memo) && $tuition->student_id) {
                 $tuition->transfer_memo = $tuition->currentTransferMemo() ?: null;
+            }
+            // Số buổi của khoản học phí (sổ buổi): mặc định theo khóa của lớp (lớp đang học), chưa có thì 24.
+            if (! $tuition->session_count) {
+                $tuition->session_count = SessionLedger::courseSessions($tuition->classModel ?? $tuition->student?->currentClass);
             }
         });
     }
@@ -208,6 +215,69 @@ class StudentTuition extends Model
         }
 
         $this->save();
+    }
+
+    /** Học phí của khoản sau ưu đãi khi chốt (không gồm "Thu khác"). */
+    public function tuitionNet(): float
+    {
+        return max(0.0, round((float) $this->total_amount - (float) $this->discount_amount, 2));
+    }
+
+    /** Đơn giá một buổi của khoản học phí = học phí sau ưu đãi / số buổi của khoản. */
+    public function sessionUnitPrice(): float
+    {
+        $sessions = (int) $this->session_count;
+
+        return $sessions > 0 ? round($this->tuitionNet() / $sessions, 2) : 0.0;
+    }
+
+    /** Tiền đã gạch nợ của khoản (đã nộp + giảm trừ trên phiếu đã duyệt) = giá trị hợp đồng − công nợ còn lại. */
+    public function coveredAmount(): float
+    {
+        return max(0.0, round((float) $this->final_amount - (float) $this->debt_amount, 2));
+    }
+
+    /** "Thu khác" lúc chốt (sách, đồng phục...) còn nợ: tiền gạch nợ được tính vào thu khác trước. */
+    public function feeRemaining(): float
+    {
+        $fees = max(0.0, (float) $this->other_fees);
+
+        return round($fees - min($fees, $this->coveredAmount()), 2);
+    }
+
+    /** Phần học phí (theo buổi) đã gạch nợ. */
+    public function tuitionCovered(): float
+    {
+        $fees = max(0.0, (float) $this->other_fees);
+
+        return min($this->tuitionNet(), max(0.0, round($this->coveredAmount() - min($fees, $this->coveredAmount()), 2)));
+    }
+
+    /** Phần học phí (theo buổi) còn nợ. */
+    public function tuitionRemaining(): float
+    {
+        return max(0.0, round($this->tuitionNet() - $this->tuitionCovered(), 2));
+    }
+
+    /** Số buổi đã đóng của khoản: phần học phí đã gạch nợ / đơn giá buổi (làm tròn xuống buổi nguyên). */
+    public function paidSessions(): int
+    {
+        $sessions = (int) $this->session_count;
+        $net = $this->tuitionNet();
+        if ($sessions <= 0) {
+            return 0;
+        }
+        if ($net <= 0) {
+            return $sessions;
+        }
+
+        return min($sessions, (int) floor(round($sessions * $this->tuitionCovered() / $net, 2)));
+    }
+
+    /** Số buổi của khoản chưa đóng. */
+    public function remainingSessions(): int
+    {
+        return max(0, (int) $this->session_count - $this->paidSessions());
     }
 
     /**

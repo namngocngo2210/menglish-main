@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AdminNotification;
 use App\Models\Student;
 use App\Models\StudentTuition;
+use App\Models\TuitionRefundRequest;
 use App\Models\User;
 use App\Support\Money;
 use Illuminate\Support\Collection;
@@ -137,6 +138,15 @@ class StudentDeferralService
      */
     public function releaseTuition(StudentTuition $tuition, ?string $stamp = null, string $by = 'hệ thống'): void
     {
+        // Kết thúc bảo lưu sớm: sổ buổi trừ buổi lại từ hôm nay (khoảng bảo lưu đã duyệt kết thúc hôm qua).
+        TuitionRefundRequest::query()
+            ->where('student_id', $tuition->student_id)
+            ->where('type', TuitionRefundRequest::TYPE_DEFERRAL)
+            ->where('status', 'approved')
+            ->whereDate('defer_from', '<=', today())
+            ->whereDate('defer_to', '>=', today())
+            ->update(['defer_to' => today()->subDay()->toDateString()]);
+
         if (! $tuition->deferred_from && ! $tuition->deferred_until && $tuition->frozen_remaining_sessions === null && $tuition->frozen_debt_amount === null) {
             return;
         }

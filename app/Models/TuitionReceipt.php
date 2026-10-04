@@ -64,6 +64,12 @@ class TuitionReceipt extends Model
         'student_id',
         'amount',
         'tuition_amount',
+        'session_count',
+        'session_unit_price',
+        'material_fee',
+        'exam_fee',
+        'other_fee',
+        'other_fee_reason',
         'surcharge_amount',
         'surcharge_reason',
         'discount_amount',
@@ -92,6 +98,11 @@ class TuitionReceipt extends Model
     protected $casts = [
         'amount' => 'decimal:2',
         'tuition_amount' => 'decimal:2',
+        'session_count' => 'integer',
+        'session_unit_price' => 'decimal:2',
+        'material_fee' => 'decimal:2',
+        'exam_fee' => 'decimal:2',
+        'other_fee' => 'decimal:2',
         'surcharge_amount' => 'decimal:2',
         'discount_amount' => 'decimal:2',
         'is_vat_invoice' => 'boolean',
@@ -180,6 +191,51 @@ class TuitionReceipt extends Model
     public function tuitionPortion(): float
     {
         return (float) $this->amount - (float) $this->surcharge_amount;
+    }
+
+    /** Phiếu lập theo sổ buổi (có số buổi thu). */
+    public function isSessionBased(): bool
+    {
+        return $this->session_count !== null;
+    }
+
+    /**
+     * Bảng kê phiếu thu theo buổi: tiền buổi, học liệu, thi, khác, tổng trước giảm, giảm, tổng phải thu, phụ thu.
+     * Phiếu cũ (thu theo số tiền) → null.
+     *
+     * @return array<string, float|int|string|null>|null
+     */
+    public function sessionBreakdown(): ?array
+    {
+        if (! $this->isSessionBased()) {
+            return null;
+        }
+
+        $material = (float) $this->material_fee;
+        $exam = (float) $this->exam_fee;
+        $other = (float) $this->other_fee;
+        $discount = (float) $this->discount_amount;
+        // Cấn nợ = tiền buổi + học liệu còn nợ lúc chốt − giảm; phần ngoài cấn nợ = hàng hóa mới + thi + khác + phụ thu.
+        $itemsTotal = (float) array_sum(array_column(array_filter((array) $this->collected_items, 'is_array'), 'amount'));
+        $extra = max(0.0, round((float) $this->surcharge_amount - $itemsTotal - $exam - $other, 2));
+        $feeDue = max(0.0, round($material - $itemsTotal, 2));
+        $sessionValue = round($this->tuitionPortion() + $discount - $feeDue, 2);
+        $subtotal = $sessionValue + $material + $exam + $other;
+
+        return [
+            'session_count' => (int) $this->session_count,
+            'session_unit_price' => (float) $this->session_unit_price,
+            'session_value' => $sessionValue,
+            'material_fee' => $material,
+            'exam_fee' => $exam,
+            'other_fee' => $other,
+            'other_fee_reason' => $this->other_fee_reason,
+            'subtotal' => $subtotal,
+            'discount' => $discount,
+            'total_due' => $subtotal - $discount,
+            'extra' => $extra,
+            'amount' => (float) $this->amount,
+        ];
     }
 
     /** Chi nhánh ghi nhận phiếu: theo hợp đồng học phí, fallback chi nhánh học viên / lớp đang học. */

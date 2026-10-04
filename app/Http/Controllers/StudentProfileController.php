@@ -19,6 +19,7 @@ use App\Services\FirstMonthCareService;
 use App\Services\SessionLessonService;
 use App\Services\StudentDeferralService;
 use App\Services\Students\ClassStartActivation;
+use App\Services\Tuition\SessionLedger;
 use App\Support\DataScope;
 use App\Support\Ui;
 use Carbon\Carbon;
@@ -227,6 +228,11 @@ class StudentProfileController extends Controller
                 'status' => 'pending',
             ]);
 
+            // Đổi lớp chính (chuyển lớp): lớp chính cũ hết tính buổi vào sổ buổi từ hôm nay, buổi tồn mang sang lớp mới.
+            if ($student->current_class_id && (int) $student->current_class_id !== (int) $class->id) {
+                ClassEnrollment::where('student_id', $student->id)->where('class_id', $student->current_class_id)
+                    ->whereNull('left_at')->update(['left_at' => today()->toDateString()]);
+            }
             // Cập nhật lớp hiện tại của học sinh
             $student->update(['current_class_id' => $class->id]);
             // Học viên chốt từ CRM đang Chờ xếp lớp: đi chung đường với nút Gán lớp (lead → Đã chốt, học phí gắn lớp).
@@ -552,6 +558,8 @@ class StudentProfileController extends Controller
                 'final_amount' => (float) $tuitions->sum('final_amount'),
                 'paid_amount' => (float) $tuitions->sum('paid_amount'),
                 'debt_amount' => (float) $tuitions->sum('debt_amount'),
+                // Sổ buổi: đã đóng / đã trừ / tồn và số buổi cần thu cho khóa đang học (SessionLedger).
+                'sessions' => app(SessionLedger::class)->quote($student->loadMissing('currentClass.course'), SessionLedger::openTuitionFor($student)),
                 'receipts' => $receipts->map(function (TuitionReceipt $receipt) use ($receiptLabels) {
                     [$label, $tone] = $receiptLabels[$receipt->status] ?? [$receipt->status_label, 'text-on-surface-variant'];
 

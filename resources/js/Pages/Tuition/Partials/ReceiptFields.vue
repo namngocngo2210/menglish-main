@@ -22,6 +22,15 @@ const errorList = computed(() => Object.values(ctx?.errors ?? {}).flat());
 const s = computed(() => props.form.state);
 const money = (value) => formatMoney(value || 0);
 const fileInput = ref(null);
+const q = computed(() => props.form.quote);
+/** Lý do chưa gửi duyệt được (hiện dưới tổng tiền). */
+const invalidReason = computed(() => {
+    const st = props.form.state;
+    if (props.form.needsDiscountReason && !st.discountReason.trim()) return 'Nhập lý do giảm trừ (không theo ưu đãi có sẵn).';
+    if (st.otherFee > 0 && !st.otherFeeReason.trim()) return 'Nhập nội dung khoản thu khác.';
+    if (st.surchargeAmount > 0 && !(st.surchargeReason || '').trim()) return 'Nhập lý do phụ thu.';
+    return 'Phiếu cần có số tiền từ 1.000 đ (thu buổi, học liệu, phí thi, khoản khác hoặc phụ thu).';
+});
 
 const tuitionOptions = computed(() =>
     props.form.tuitions.map((t) => ({ value: String(t.id), label: t.student_name + ' (' + t.student_code_short + ') - ' + t.class_name + ' · Nợ: ' + money(t.debt_amount) })),
@@ -55,14 +64,14 @@ const methodClass = (method) => (s.value.paymentMethod === method ? 'border-prim
     </UiAlert>
 
     <UiAlert v-show="s.currentTuition?.class_changed && !s.skipTuition" type="info" title="Học viên vừa chuyển lớp mới">
-        Khoản học phí này thuộc lớp <strong>{{ s.currentTuition?.class_name }}</strong>, học viên đang học lớp <strong>{{ s.currentTuition?.current_class_name }}</strong>. Hệ thống ghi nhận thay đổi lộ trình — chỉ cần thu phần còn thiếu của khoản học phí (công nợ hiện tại).
+        Khoản học phí này thuộc lớp <strong>{{ s.currentTuition?.class_name }}</strong>, học viên đang học lớp <strong>{{ s.currentTuition?.current_class_name }}</strong>. Sổ buổi tính theo học viên nên buổi tồn được mang sang lớp mới; số buổi cần thu tính theo lớp đang học.
     </UiAlert>
 
     <!-- Khối 1: Chọn Học viên & Hồ sơ Học phí -->
     <div class="overflow-hidden rounded-2xl border border-surface-container-highest bg-surface-container-lowest shadow-sm">
         <div class="border-b border-surface-container-highest bg-surface-container-low/50 p-4 md:p-5">
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <UiField label="1. Chọn Hồ sơ Học phí đến hạn" name="student_tuition_id" :for="prefix + 'receipt_student_tuition_id'" required>
+                <UiField label="1. Khoản học phí đang nợ (tùy chọn)" name="student_tuition_id" :for="prefix + 'receipt_student_tuition_id'" required>
                     <UiSelect
                         v-model="s.selectedTuitionId"
                         name="student_tuition_id"
@@ -70,7 +79,7 @@ const methodClass = (method) => (s.value.paymentMethod === method ? 'border-prim
                         :options="tuitionOptions"
                         :disabled="!!form.editing"
                         class="font-bold"
-                        placeholder="-- Thu riêng phụ thu (Không gắn hồ sơ học phí) --"
+                        placeholder="-- Không chọn khoản (thu theo sổ buổi của học viên) --"
                         @change="form.onTuitionChange()"
                     />
                 </UiField>
@@ -106,48 +115,46 @@ const methodClass = (method) => (s.value.paymentMethod === method ? 'border-prim
             </div>
         </div>
 
-        <!-- Thanh tùy chọn: Khoản học phí đến hạn -->
+        <!-- Thanh tùy chọn: thu học phí theo sổ buổi hay chỉ thu phụ thu -->
         <div class="flex flex-col items-start justify-between gap-3 border-b border-surface-container-highest/80 bg-surface-container-low/70 p-4 px-5 md:flex-row md:items-center">
             <div class="flex flex-wrap items-center gap-3">
                 <div class="flex items-center gap-1.5 text-xs font-bold text-on-surface">
                     <span class="material-symbols-outlined text-base text-primary">event_available</span>
-                    <span>Khoản học phí đến hạn:</span>
-                    <span class="rounded bg-primary-container/10 px-2 py-0.5 text-xs font-bold text-primary">Tùy chọn</span>
+                    <span>Học phí theo sổ buổi:</span>
                 </div>
-                <div v-if="!s.skipTuition && s.currentTuition" class="flex items-center gap-1.5 rounded-lg border border-primary-container/60 bg-surface-container-lowest px-3 py-1 text-xs text-on-surface shadow-2xs">
+                <div v-if="!s.skipTuition && q && q.mode === 'contract'" class="flex items-center gap-1.5 rounded-lg border border-primary-container/60 bg-surface-container-lowest px-3 py-1 text-xs text-on-surface shadow-2xs">
                     <span class="material-symbols-outlined text-sm text-tertiary">check_circle</span>
-                    <span>Đã chọn: <strong>{{ 'Học phí đợt ' + (s.currentTuition.receipt_count + 1) + ' - ' + s.currentTuition.class_name }}</strong></span>
+                    <span>Thu tiếp khoản học phí đang nợ{{ s.currentTuition ? ' - ' + s.currentTuition.class_name : '' }}</span>
+                </div>
+                <div v-else-if="!s.skipTuition && q && q.mode === 'new'" class="flex items-center gap-1.5 rounded-lg border border-primary-container/60 bg-surface-container-lowest px-3 py-1 text-xs text-on-surface shadow-2xs">
+                    <span class="material-symbols-outlined text-sm text-tertiary">add_circle</span>
+                    <span>Khóa kế tiếp - lớp <strong>{{ q.class_name }}</strong> (tạo khoản học phí khi phiếu được duyệt)</span>
                 </div>
                 <div v-else class="flex items-center gap-1.5 rounded-lg border border-warning/30 bg-warning-container px-3 py-1 text-xs text-on-warning-container">
                     <span class="material-symbols-outlined text-sm text-warning">info</span>
-                    <span>Đang bỏ qua khoản học phí (Lập phiếu chỉ thu riêng Phụ thu)</span>
+                    <span>{{ s.skipTuition ? 'Đang bỏ qua học phí (lập phiếu chỉ thu học liệu / phụ thu)' : 'Học viên chưa xếp lớp và chưa có khoản học phí: chưa thu theo buổi được' }}</span>
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                <UiButton v-if="!s.skipTuition && s.currentTuition" variant="secondary" size="sm" icon="close" @click="form.toggleSkipTuition(true)">Bỏ qua khoản học phí (để chỉ thu phụ thu)</UiButton>
-                <UiButton v-if="s.skipTuition && s.currentTuition" variant="secondary" size="sm" icon="add" class="border-primary-container text-primary" @click="form.toggleSkipTuition(false)">Bật lại khoản học phí</UiButton>
+                <UiButton v-if="!s.skipTuition && form.canCollectSessions" variant="secondary" size="sm" icon="close" @click="form.toggleSkipTuition(true)">Bỏ qua học phí (chỉ thu phụ thu)</UiButton>
+                <UiButton v-if="s.skipTuition" variant="secondary" size="sm" icon="add" class="border-primary-container text-primary" @click="form.toggleSkipTuition(false)">Bật lại học phí</UiButton>
             </div>
         </div>
 
-        <div class="flex items-center gap-1.5 border-b border-surface-container-highest bg-surface-container-lowest px-5 py-2 text-xs italic text-on-surface-variant">
-            <span class="material-symbols-outlined text-sm text-primary">lightbulb</span>
-            <span>Có thể bỏ qua khoản học phí để lập phiếu chỉ thu riêng phụ thu. Khi bỏ qua, khối thông tin số buổi và bảng kê học phí bên dưới sẽ tự động ẩn.</span>
-        </div>
-
-        <!-- Khối số buổi & bảng kê học phí (chỉ khi KHÔNG bỏ qua) -->
-        <div v-show="!s.skipTuition && s.currentTuition" class="space-y-0">
-            <div v-show="s.currentTuition?.total_sessions" class="grid grid-cols-2 divide-x divide-surface-container-highest border-b border-surface-container-highest text-center text-xs md:grid-cols-4">
+        <!-- Sổ buổi & số buổi cần thu (chỉ khi KHÔNG bỏ qua) -->
+        <div v-if="!s.skipTuition && q" class="space-y-0" data-testid="session-ledger">
+            <div class="grid grid-cols-2 divide-x divide-surface-container-highest border-b border-surface-container-highest text-center text-xs md:grid-cols-4">
                 <div class="p-4">
-                    <span class="mb-1 block text-xs font-semibold uppercase text-on-surface-subtle">Tổng số buổi</span>
-                    <span class="text-lg font-bold text-on-surface">{{ s.currentTuition?.total_sessions ?? '—' }}</span>
+                    <span class="mb-1 block text-xs font-semibold uppercase text-on-surface-subtle">Buổi đã đóng</span>
+                    <span class="text-lg font-bold text-on-surface">{{ q.paid }}</span>
                 </div>
                 <div class="p-4">
-                    <span class="mb-1 block text-xs font-semibold uppercase text-on-surface-subtle">Đã học</span>
-                    <span class="text-lg font-bold text-tertiary">{{ s.currentTuition?.attended_sessions ?? '—' }}</span>
+                    <span class="mb-1 block text-xs font-semibold uppercase text-on-surface-subtle" title="Mỗi buổi lớp diễn ra trừ 1, vắng vẫn trừ">Buổi đã trừ</span>
+                    <span class="text-lg font-bold text-tertiary">{{ q.used }}</span>
                 </div>
                 <div class="p-4">
-                    <span class="mb-1 block text-xs font-semibold uppercase text-on-surface-subtle">Số buổi còn tồn</span>
-                    <span class="text-lg font-bold text-primary">{{ s.currentTuition?.remaining_sessions ?? '—' }}</span>
+                    <span class="mb-1 block text-xs font-semibold uppercase text-on-surface-subtle">Buổi tồn</span>
+                    <span :class="['text-lg font-bold', q.balance < 0 ? 'text-error' : 'text-primary']">{{ q.balance }}</span>
                 </div>
                 <div class="p-4">
                     <span class="mb-1 block text-xs font-semibold uppercase text-on-surface-subtle">Trạng thái học</span>
@@ -155,94 +162,77 @@ const methodClass = (method) => (s.value.paymentMethod === method ? 'border-prim
                 </div>
             </div>
 
-            <div class="bg-surface-container-low/50 p-5">
-                <h4 class="mb-3 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-on-surface">
-                    <span class="material-symbols-outlined text-base text-primary">receipt_long</span>
-                    Bảng kê chi tiết khoản thu học phí
-                </h4>
-                <div class="space-y-2 text-xs">
-                    <div class="flex justify-between border-b border-dashed border-surface-container-highest py-1.5">
-                        <span class="text-on-surface-variant">{{ 'Học phí khóa / lớp ' + (s.currentTuition?.class_name || '—') }}</span>
-                        <span class="font-code font-bold text-on-surface">{{ money(s.currentTuition?.total_amount) }}</span>
+            <div class="space-y-4 bg-surface-container-low/50 p-5">
+                <div class="space-y-1.5 rounded-xl border border-surface-container-highest bg-surface-container-lowest p-3.5 text-xs">
+                    <div class="flex justify-between gap-3">
+                        <span class="text-on-surface-variant">Khóa hiện tại {{ q.class_name ? '(lớp ' + q.class_name + ')' : '(chưa xếp lớp)' }}</span>
+                        <span class="font-code text-on-surface">{{ q.course_sessions }} buổi · đã diễn ra {{ q.held }}</span>
                     </div>
-                    <div v-for="(item, idx) in s.currentTuition?.fee_items || []" :key="idx" class="flex justify-between border-b border-dashed border-surface-container-highest py-1.5">
-                        <span class="text-on-surface-variant">{{ item.name }}</span>
-                        <span class="font-code font-bold text-on-surface">{{ money(item.amount) }}</span>
+                    <div class="flex justify-between gap-3">
+                        <span class="text-on-surface-variant">Buổi còn lại của khóa</span>
+                        <span class="font-code font-bold text-on-surface">{{ q.course_sessions }} − {{ q.held }} = {{ q.remaining }}</span>
                     </div>
-                    <div v-show="s.currentTuition?.other_fees > 0 && !(s.currentTuition?.fee_items || []).length" class="flex justify-between border-b border-dashed border-surface-container-highest py-1.5">
-                        <span class="text-on-surface-variant">Phí học liệu &amp; khoản thu khác</span>
-                        <span class="font-code font-bold text-on-surface">{{ money(s.currentTuition?.other_fees) }}</span>
+                    <div class="flex justify-between gap-3 border-t border-dashed border-surface-container-highest pt-1.5">
+                        <span class="font-bold text-on-surface">Buổi cần thu = MAX(còn lại − tồn, 0)</span>
+                        <span class="font-code font-bold text-primary">MAX({{ q.remaining }} − {{ q.balance }}, 0) = {{ q.needed }}</span>
                     </div>
-                    <div v-show="s.currentTuition?.discount_amount > 0" class="flex justify-between border-b border-dashed border-surface-container-highest py-1.5">
-                        <span class="text-on-surface-variant">Ưu đãi trên hợp đồng</span>
-                        <span class="font-code font-bold text-tertiary">{{ '-' + money(s.currentTuition?.discount_amount) }}</span>
-                    </div>
-                    <div class="flex justify-between border-b border-dashed border-surface-container-highest py-1.5">
-                        <span class="text-on-surface-variant">Đã nộp / Còn nợ</span>
-                        <span class="font-code font-bold text-on-surface">{{ money(s.currentTuition?.paid_amount) + ' / ' + money(s.currentTuition?.debt_amount) }}</span>
-                    </div>
+                    <p v-if="q.carry_over > 0" class="text-tertiary">Buổi tồn nhiều hơn số buổi còn lại: thu 0 buổi, dư {{ q.carry_over }} buổi tự trừ vào khóa kế tiếp.</p>
                 </div>
 
-                <!-- Giảm trừ & tổng học phí -->
-                <div class="mt-4 flex flex-col items-start justify-between gap-4 border-t border-surface-container-highest pt-4 md:flex-row md:items-center">
-                    <!-- Giảm trừ: ưu tiên chọn ưu đãi có sẵn; nhập tay là ca đặc biệt, phải ghi lý do. -->
-                    <div class="grid w-full gap-3 md:w-96">
-                        <input type="hidden" name="promotion_id" :value="form.selectedPromotion ? form.selectedPromotion.id : ''" />
-                        <input type="hidden" name="discount_amount" :value="form.discountValue" />
-                        <UiSelect
-                            v-model="s.promotionId"
-                            :id="prefix + 'promotion_id'"
-                            label="Ưu đãi áp dụng"
-                            :options="promotionOptions"
-                            placeholder="-- Không theo ưu đãi (nhập tay) --"
-                            :hint="form.selectedPromotion ? 'Tính trên số còn phải thu ' + money(form.tuitionSubtotal) + '.' : 'Ưu tiên chọn ưu đãi có sẵn. Ưu đãi trên hợp đồng đã trừ trong công nợ.'"
-                        />
-                        <UiInput v-if="form.selectedPromotion" :id="prefix + 'discount_amount'" label="Số tiền giảm trừ (VNĐ)" :model-value="form.discountValue" readonly suffix="VNĐ" class="font-code font-bold" />
-                        <UiInput v-else v-model.number="s.discountAmount" type="number" :id="prefix + 'discount_amount'" label="Số tiền giảm trừ (VNĐ)" hint="Không vượt tổng trước giảm." suffix="VNĐ" min="0" :max="form.tuitionSubtotal" class="font-code font-bold" placeholder="0" />
-                        <UiInput
-                            v-if="form.selectedPromotion || form.needsDiscountReason"
-                            v-model="s.discountReason"
-                            name="discount_reason"
-                            :id="prefix + 'discount_reason'"
-                            :label="form.needsDiscountReason ? 'Lý do giảm (ca đặc biệt)' : 'Ghi chú ưu đãi'"
-                            :required="form.needsDiscountReason"
-                            :placeholder="form.needsDiscountReason ? 'VD: Quản lý duyệt giảm do học viên chuyển lớp muộn' : 'Tùy chọn'"
-                        />
-                    </div>
-                    <div class="flex w-full flex-col items-end gap-1 text-xs md:w-auto">
-                        <div class="flex items-baseline gap-4">
-                            <span class="font-medium text-on-surface-variant">Tổng trước giảm:</span>
-                            <span class="font-code font-bold text-on-surface">{{ money(form.tuitionSubtotal) }}</span>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <label :for="prefix + 'collectAmount'" class="font-medium text-on-surface-variant">Thu đợt này (để trống = thu hết):</label>
-                            <input :id="prefix + 'collectAmount'" v-model="s.collectAmount" type="number" min="0" :max="form.tuitionSubtotal" class="h-9 w-36 rounded-xl border border-surface-container-highest px-2 text-right font-code text-xs font-bold" placeholder="Toàn bộ" />
-                        </div>
-                        <div class="flex items-baseline gap-4">
-                            <span class="font-bold uppercase tracking-wider text-primary">TỔNG PHẢI THU (HỌC PHÍ):</span>
-                            <span class="font-code text-base font-bold text-primary">{{ money(form.tuitionAmountAfterDiscount) }}</span>
-                        </div>
-                    </div>
+                <div v-if="form.canCollectSessions" class="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <UiField label="Số buổi thu đợt này" :for="prefix + 'session_count'" name="session_count" :hint="q.mode === 'contract' ? `Tối đa ${q.max_sessions} buổi chưa đóng của khoản học phí. Thu ít hơn để đóng từng phần.` : `Tối đa ${q.max_sessions} buổi (Buổi cần thu). Thu ít hơn để đóng từng phần.`">
+                        <UiInput v-model.number="s.sessionCount" type="number" :id="prefix + 'session_count'" min="0" :max="form.maxSessions" suffix="buổi" class="font-code font-bold" />
+                    </UiField>
+                    <UiInput :id="prefix + 'session_unit_price'" label="Đơn giá / buổi" :model-value="money(q.unit_price)" readonly :hint="q.mode === 'contract' ? 'Học phí sau ưu đãi khi chốt / số buổi của khoản.' : 'Học phí niêm yết của lớp / số buổi của khóa.'" class="font-code" />
+                    <UiInput :id="prefix + 'session_value'" label="Tiền học phí theo buổi" :model-value="money(form.calc.sessionValue)" readonly class="font-code font-bold" />
+                </div>
+
+                <!-- Giảm trừ (chỉ tính trên tiền buổi): ưu tiên chọn ưu đãi có sẵn; nhập tay là ca đặc biệt, phải ghi lý do. -->
+                <div v-if="form.sessions > 0" class="grid w-full gap-3 md:w-96">
+                    <UiSelect
+                        v-model="s.promotionId"
+                        :id="prefix + 'promotion_id'"
+                        label="Ưu đãi áp dụng"
+                        :options="promotionOptions"
+                        placeholder="-- Không theo ưu đãi (nhập tay) --"
+                        :hint="'Tính trên tiền học phí theo buổi ' + money(form.tuitionSubtotal) + '.'"
+                    />
+                    <UiInput v-if="form.selectedPromotion" :id="prefix + 'discount_amount'" label="Số tiền giảm trừ (VNĐ)" :model-value="form.discountValue" readonly suffix="VNĐ" class="font-code font-bold" />
+                    <UiInput v-else v-model.number="s.discountAmount" type="number" :id="prefix + 'discount_amount'" label="Số tiền giảm trừ (VNĐ)" hint="Không vượt tiền học phí theo buổi." suffix="VNĐ" min="0" :max="form.tuitionSubtotal" class="font-code font-bold" placeholder="0" />
+                    <UiInput
+                        v-if="form.selectedPromotion || form.needsDiscountReason"
+                        v-model="s.discountReason"
+                        name="discount_reason"
+                        :id="prefix + 'discount_reason'"
+                        :label="form.needsDiscountReason ? 'Lý do giảm (ca đặc biệt)' : 'Ghi chú ưu đãi'"
+                        :required="form.needsDiscountReason"
+                        :placeholder="form.needsDiscountReason ? 'VD: Quản lý duyệt giảm do học viên chuyển lớp muộn' : 'Tùy chọn'"
+                    />
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Khối 2: Phụ thu -->
+    <input type="hidden" name="session_count" :value="form.sessions" />
+    <input type="hidden" name="promotion_id" :value="form.selectedPromotion ? form.selectedPromotion.id : ''" />
+    <input type="hidden" name="discount_amount" :value="form.discountValue" />
+
+    <!-- Khối 2: Học liệu, phí thi, khoản khác & phụ thu -->
     <div class="overflow-hidden rounded-2xl border border-surface-container-highest bg-surface-container-lowest shadow-sm">
-        <div class="flex items-center justify-between border-b border-surface-container-highest/80 bg-surface-container-low/70 p-4 px-5">
-            <div class="flex items-center gap-2">
-                <span class="material-symbols-outlined text-xl text-primary">add_shopping_cart</span>
-                <h3 class="text-sm font-bold text-on-surface">Phụ thu (Phí phát sinh ngoài học phí)</h3>
-                <span class="inline-flex items-center rounded border border-primary-container/30 bg-primary-container/10 px-2 py-0.5 text-xs font-bold text-primary">Tùy chọn độc lập - Chuẩn 11/09/2026</span>
-            </div>
-            <span class="text-xs italic text-on-surface-subtle">Mới cập nhật</span>
+        <div class="flex items-center gap-2 border-b border-surface-container-highest/80 bg-surface-container-low/70 p-4 px-5">
+            <span class="material-symbols-outlined text-xl text-primary">add_shopping_cart</span>
+            <h3 class="text-sm font-bold text-on-surface">Học liệu, phí thi, khoản khác &amp; phụ thu</h3>
         </div>
 
         <div class="space-y-4 p-5">
+            <div v-if="form.calc.feeDue > 0" class="flex justify-between rounded-xl border border-warning/30 bg-warning-container px-3.5 py-2.5 text-xs text-on-warning-container">
+                <span>Học liệu còn nợ lúc chốt (thu kèm khi thu buổi của khoản này)</span>
+                <span class="font-code font-bold">{{ money(form.calc.feeDue) }}</span>
+            </div>
+
             <!-- Hàng hóa trong danh mục: xuất kho chi nhánh khi phiếu được duyệt -->
             <div class="space-y-2">
-                <UiField label="Sách / hàng hóa giao kèm phiếu" name="collected_items" :for="prefix + 'surcharge_item_pick'" hint="Chọn từ danh mục hàng hóa: giá theo danh mục, kho chi nhánh tự trừ khi phiếu được duyệt.">
+                <UiField label="Học liệu: sách / hàng hóa giao kèm phiếu" name="collected_items" :for="prefix + 'surcharge_item_pick'" hint="Chọn từ danh mục hàng hóa: giá theo danh mục, kho chi nhánh tự trừ khi phiếu được duyệt.">
                     <UiSelect :id="prefix + 'surcharge_item_pick'" :model-value="itemPick" :options="itemOptions" searchable :placeholder="`-- Thêm sách / hàng hóa (${form.merchandiseItems.length} mặt hàng) --`" @update:model-value="pickItem" />
                 </UiField>
                 <input type="hidden" name="collected_items" :value="form.collectedItemsJson" />
@@ -282,51 +272,75 @@ const methodClass = (method) => (s.value.paymentMethod === method ? 'border-prim
                 </div>
             </div>
 
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <UiInput v-model.number="s.examFee" type="number" name="exam_fee" :id="prefix + 'exam_fee'" label="Phí thi (VNĐ)" suffix="VNĐ" min="0" step="10000" class="font-code font-bold" placeholder="0" />
+                <UiInput v-model.number="s.otherFee" type="number" name="other_fee" :id="prefix + 'other_fee'" label="Khoản thu khác (VNĐ)" suffix="VNĐ" min="0" step="10000" class="font-code font-bold" placeholder="0" />
+                <UiInput v-model="s.otherFeeReason" name="other_fee_reason" :id="prefix + 'other_fee_reason'" label="Nội dung khoản khác" :required="s.otherFee > 0" placeholder="VD: Đồng phục, thẻ học viên..." />
+            </div>
+
             <input type="hidden" name="surcharge_amount" :value="form.surchargeTotal" />
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <UiField label="Phụ thu khác ngoài danh mục (VNĐ)" name="surcharge_amount" :for="prefix + 'surcharge_amount'">
-                    <UiInput v-model.number="s.surchargeAmount" type="number" :id="prefix + 'surcharge_amount'" suffix="VNĐ" min="0" step="10000" class="font-code font-bold" placeholder="Nhập số tiền > 0..." />
+                <UiField label="Phụ thu (VNĐ)" name="surcharge_amount" :for="prefix + 'surcharge_amount'" hint="Cộng sau giảm trừ, ngoài tổng phải thu.">
+                    <UiInput v-model.number="s.surchargeAmount" type="number" :id="prefix + 'surcharge_amount'" suffix="VNĐ" min="0" step="10000" class="font-code font-bold" placeholder="0" />
                     <div class="mt-2 flex flex-wrap items-center gap-1.5">
                         <span class="text-xs text-on-surface-subtle">Gợi ý nhanh:</span>
                         <UiButton variant="secondary" size="sm" @click="form.setSurcharge(50000)">50.000đ</UiButton>
                         <UiButton variant="secondary" size="sm" @click="form.setSurcharge(100000)">100.000đ</UiButton>
-                        <UiButton variant="secondary" size="sm" @click="form.setSurcharge(150000)">150.000đ</UiButton>
                         <UiButton variant="secondary" size="sm" @click="form.setSurcharge(200000)">200.000đ</UiButton>
                     </div>
                 </UiField>
-
-                <div class="flex flex-col gap-xs">
-                    <label :for="prefix + 'surcharge_reason'" class="font-body-small text-body-small text-on-surface-variant">Lý do phụ thu khác <span v-show="s.surchargeAmount > 0" class="text-error">*</span></label>
-                    <UiInput v-model="s.surchargeReason" name="surcharge_reason" :id="prefix + 'surcharge_reason'" placeholder="Ví dụ: Phụ thu giáo trình in ấn bổ sung, đồng phục, thẻ học viên..." />
-                    <p class="text-xs italic text-on-surface-subtle">* Bắt buộc nhập lý do khi có phụ thu khác. Chỉ chọn sách / hàng hóa thì không cần.</p>
-                </div>
+                <UiInput v-model="s.surchargeReason" name="surcharge_reason" :id="prefix + 'surcharge_reason'" label="Lý do phụ thu" :required="s.surchargeAmount > 0" placeholder="VD: Phí in tài liệu bổ sung..." />
             </div>
-
-            <UiAlert type="info">Khoản phụ thu luôn hoạt động độc lập và không loại trừ lẫn nhau với học phí. Hệ thống cho phép: <strong>Học phí + Phụ thu</strong>, hoặc chỉ thu riêng <strong>Học phí</strong>, hoặc chỉ thu riêng <strong>Phụ thu</strong>.</UiAlert>
         </div>
     </div>
 
     <!-- Khối 3: Tổng thực thu -->
     <div class="rounded-2xl border-2 border-primary-container/50 bg-surface-container-lowest p-5 shadow-sm">
-        <div class="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
-            <div class="space-y-1">
-                <span class="text-xs font-bold uppercase tracking-wider text-primary">TỔNG THỰC THU CỦA PHIẾU NÀY</span>
-                <div class="flex flex-wrap items-center gap-3 text-xs text-on-surface-variant">
-                    <span>Học phí cần thu: <strong class="font-code text-on-surface">{{ money(form.tuitionAmountAfterDiscount) }}</strong></span>
-                    <span class="text-on-surface-subtle">+</span>
-                    <span>Tiền phụ thu: <strong class="font-code text-primary">{{ '+' + money(form.surchargeTotal) }}</strong></span>
+        <div class="flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
+            <dl class="w-full space-y-1 text-xs md:max-w-md" data-testid="receipt-totals">
+                <div class="flex justify-between gap-4">
+                    <dt class="text-on-surface-variant">Học phí {{ form.calc.sessionCount }} buổi × {{ money(q?.unit_price || 0) }}</dt>
+                    <dd class="font-code text-on-surface">{{ money(form.calc.sessionValue) }}</dd>
                 </div>
-                <div>
-                    <span v-if="form.isValidReceipt" class="flex items-center gap-1 text-xs font-medium text-tertiary">
+                <div class="flex justify-between gap-4">
+                    <dt class="text-on-surface-variant">+ Học liệu</dt>
+                    <dd class="font-code text-on-surface">{{ money(form.calc.materialFee) }}</dd>
+                </div>
+                <div class="flex justify-between gap-4">
+                    <dt class="text-on-surface-variant">+ Phí thi</dt>
+                    <dd class="font-code text-on-surface">{{ money(form.calc.examFee) }}</dd>
+                </div>
+                <div class="flex justify-between gap-4">
+                    <dt class="text-on-surface-variant">+ Khoản khác</dt>
+                    <dd class="font-code text-on-surface">{{ money(form.calc.otherFee) }}</dd>
+                </div>
+                <div class="flex justify-between gap-4 border-t border-dashed border-surface-container-highest pt-1">
+                    <dt class="font-bold text-on-surface">Tổng trước giảm</dt>
+                    <dd class="font-code font-bold text-on-surface">{{ money(form.calc.subtotal) }}</dd>
+                </div>
+                <div class="flex justify-between gap-4">
+                    <dt class="text-on-surface-variant">− Giảm trừ</dt>
+                    <dd class="font-code text-tertiary">{{ money(form.calc.discount) }}</dd>
+                </div>
+                <div class="flex justify-between gap-4 border-t border-dashed border-surface-container-highest pt-1">
+                    <dt class="font-bold text-on-surface">Tổng phải thu</dt>
+                    <dd class="font-code font-bold text-on-surface">{{ money(form.calc.totalDue) }}</dd>
+                </div>
+                <div class="flex justify-between gap-4">
+                    <dt class="text-on-surface-variant">+ Phụ thu</dt>
+                    <dd class="font-code text-primary">{{ money(form.calc.extra) }}</dd>
+                </div>
+                <div class="pt-1">
+                    <span v-if="form.isValidReceipt" class="flex items-center gap-1 font-medium text-tertiary">
                         <span class="material-symbols-outlined text-sm text-tertiary">check_circle</span>
-                        Hợp lệ: Đã có ít nhất 1 nguồn tiền (Chọn học phí HOẶC nhập phụ thu > 0) để Gửi duyệt.
+                        Hợp lệ để gửi duyệt.
                     </span>
-                    <span v-else class="flex items-center gap-1 text-xs font-medium text-error">
+                    <span v-else class="flex items-center gap-1 font-medium text-error">
                         <span class="material-symbols-outlined text-sm text-error">warning</span>
-                        {{ form.needsDiscountReason && !s.discountReason.trim() ? 'Chưa hợp lệ: Nhập lý do giảm trừ (không theo ưu đãi có sẵn).' : 'Chưa hợp lệ: Cần chọn khoản học phí hoặc nhập số tiền phụ thu > 0.' }}
+                        {{ invalidReason }}
                     </span>
                 </div>
-            </div>
+            </dl>
             <div class="flex w-full items-baseline justify-end gap-3 border-t border-surface-container-highest pt-3 md:w-auto md:border-t-0 md:pt-0">
                 <span class="text-xs font-bold uppercase text-on-surface-variant">TỔNG THỰC THU:</span>
                 <span class="font-code text-2xl font-bold text-primary md:text-3xl">{{ money(form.totalAmount) }}</span>

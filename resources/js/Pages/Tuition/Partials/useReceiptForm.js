@@ -3,9 +3,12 @@
  * Tham số: danh sách khoản học phí, học viên, id chọn sẵn, TK ngân hàng mặc định, phiếu đang sửa (props của Tuition/ReceiptForm).
  * Nội dung CK và mã VietQR giữ nguyên cách tính cũ (nội dung CK do server sinh theo App\Support\TransferMemo).
  * Giảm trừ: chọn ưu đãi có sẵn (số tiền giảm tự tính, server tính lại) hoặc nhập tay kèm lý do (ca đặc biệt).
+ * Tiền phiếu tính theo sổ buổi (quote của khoản học phí / học viên, xem App\Services\Tuition\SessionLedger):
+ * số buổi thu × đơn giá + học liệu + thi + khác − giảm + phụ thu — công thức ở @/lib/sessionReceipt.
  */
-import { computed, reactive } from 'vue';
+import { computed, reactive, watch } from 'vue';
 import { promotionApplies, promotionDiscount } from '@/lib/promotion';
+import { calculateSessionReceipt, sessionValue } from '@/lib/sessionReceipt';
 
 export function useReceiptForm({
     tuitions = [],
@@ -23,6 +26,8 @@ export function useReceiptForm({
     // Hàng hóa ở phần Phụ thu (sách, đồng phục...): giá theo danh mục, xuất kho chi nhánh khi phiếu được duyệt.
     const initialLines = (editing?.surcharge_items || []).filter((line) => itemById(line.id)).map((line) => ({ id: line.id, quantity: line.quantity }));
     const linesTotal = (lines) => lines.reduce((sum, line) => sum + (itemById(line.id)?.price || 0) * (parseInt(line.quantity) || 0), 0);
+    // Phiếu lập theo sổ buổi đang sửa: số buổi, thi, khác, phụ thu đã nhập. Phiếu cũ (theo số tiền): phụ thu khác = phụ thu − hàng hóa.
+    const editingSession = editing?.session || null;
 
     const state = reactive({
         selectedTuitionId: initialTuitionId || '',
@@ -34,10 +39,14 @@ export function useReceiptForm({
         discountAmount: editing && !editing.promotion_id ? editing.discount_amount : 0,
         promotionId: editing?.promotion_id ? String(editing.promotion_id) : '',
         discountReason: editing?.discount_reason || '',
-        collectAmount: editing ? String(editing.tuition_amount) : '',
+        // Số buổi thu đợt này: mặc định = Buổi cần thu của sổ buổi (được thu ít hơn để đóng từng phần).
+        sessionCount: editingSession ? editingSession.session_count : null,
+        examFee: editingSession ? editingSession.exam_fee : 0,
+        otherFee: editingSession ? editingSession.other_fee : 0,
+        otherFeeReason: editingSession?.other_fee_reason || '',
         surchargeLines: initialLines,
-        // Phụ thu khác (ngoài hàng hóa trong danh mục) — bắt buộc lý do.
-        surchargeAmount: editing ? Math.max(0, editing.surcharge_amount - linesTotal(initialLines)) : 0,
+        // Phụ thu (ngoài học phí, học liệu, thi, khác) — bắt buộc lý do.
+        surchargeAmount: editingSession ? editingSession.extra : editing ? Math.max(0, editing.surcharge_amount - linesTotal(initialLines)) : 0,
         surchargeReason: editing ? editing.surcharge_reason || '' : '',
         paymentMethod: editing ? editing.payment_method : 'transfer',
         transactionCode: editing ? editing.transaction_code || '' : '',
@@ -68,8 +77,8 @@ export function useReceiptForm({
 
     function onTuitionChange() {
         if (!state.selectedTuitionId) {
+            // Không chọn khoản học phí: thu theo sổ buổi của học viên (khoản đang nợ hoặc khóa kế tiếp).
             state.currentTuition = null;
-            state.skipTuition = true;
             return;
         }
         const t = tuitions.find((item) => String(item.id) === String(state.selectedTuitionId));
@@ -92,17 +101,15 @@ export function useReceiptForm({
             state.payerName = s.parent_name || s.name;
             state.payerPhone = s.parent_phone || s.phone;
             const matching = tuitions.find((t) => String(t.student_id) === String(s.id));
-            if (matching) {
-                state.selectedTuitionId = matching.id;
-                state.currentTuition = matching;
-            }
+            state.selectedTuitionId = matching ? matching.id : '';
+            state.currentTuition = matching || null;
         }
     }
 
     // Khởi tạo như init() cũ.
     if (editing && !state.selectedTuitionId) {
-        // Phiếu chỉ thu phụ thu: giữ nguyên, không tự gắn hồ sơ học phí.
-        state.skipTuition = true;
+        // Phiếu chỉ thu phụ thu: giữ nguyên, không tự gắn hồ sơ học phí. Phiếu thu buổi khóa kế tiếp: vẫn tính theo sổ buổi.
+        state.skipTuition = !(editingSession && editingSession.session_count > 0);
         state.currentStudent = students.find((s) => String(s.id) === String(state.selectedStudentId)) || null;
         state.payerName = editing.payer_name || '';
         state.payerPhone = editing.payer_phone || '';
@@ -115,50 +122,80 @@ export function useReceiptForm({
         onTuitionChange();
     }
 
-    const tuitionSubtotal = computed(() => {
-        if (state.skipTuition || !state.currentTuition) return 0;
-        const t = state.currentTuition;
-        return parseFloat(t.debt_amount) > 0 ? parseFloat(t.debt_amount) : parseFloat(t.total_amount) + parseFloat(t.other_fees);
+    /** Sổ buổi + gợi ý thu của khoản học phí đang chọn (không chọn khoản → của học viên). Bỏ qua học phí → null. */
+    const quote = computed(() => (state.skipTuition ? null : (state.selectedTuitionId && state.currentTuition?.quote) || state.currentStudent?.quote || null));
+    const canCollectSessions = computed(() => !!quote.value && quote.value.mode !== 'none');
+    const maxSessions = computed(() => (canCollectSessions.value ? quote.value.max_sessions : 0));
+    /** Số buổi thu (đã chặn trong khoảng 0 … tối đa). */
+    const sessions = computed(() => {
+        if (!canCollectSessions.value) return 0;
+        const n = parseInt(state.sessionCount);
+        return Math.min(maxSessions.value, Math.max(0, isNaN(n) ? 0 : n));
     });
+    // Đổi khoản học phí / học viên → số buổi về mặc định "Buổi cần thu" (phiếu đang sửa giữ số buổi đã lưu lần đầu).
+    let keepEditingSessions = !!editingSession;
+    watch(
+        quote,
+        (q) => {
+            if (keepEditingSessions) {
+                keepEditingSessions = false;
+                return;
+            }
+            state.sessionCount = q && q.mode !== 'none' ? q.suggested : 0;
+        },
+        { immediate: true },
+    );
 
-    const availablePromotions = computed(() => (state.skipTuition ? [] : promotions.filter((p) => promotionFits(p, state.currentTuition))));
+    /** Tiền học phí theo buổi (gốc tính ưu đãi). */
+    const tuitionSubtotal = computed(() => sessionValue(quote.value, sessions.value));
+
+    // Phạm vi ưu đãi khi chưa có khoản học phí: cơ sở / khóa của lớp đang học.
+    const quoteScope = computed(() => (state.currentStudent ? { branch_id: state.currentStudent.branch_id, course_id: state.currentStudent.course_id } : null));
+    const availablePromotions = computed(() => (state.skipTuition || sessions.value <= 0 ? [] : promotions.filter((p) => promotionFits(p, (state.selectedTuitionId && state.currentTuition) || quoteScope.value))));
     const selectedPromotion = computed(() => availablePromotions.value.find((p) => String(p.id) === String(state.promotionId)) ?? null);
-    /** Số tiền giảm của phiếu: theo ưu đãi đã chọn, không chọn ưu đãi thì lấy số nhập tay. */
+    /** Số tiền giảm của phiếu (chỉ trên tiền buổi): theo ưu đãi đã chọn, không chọn ưu đãi thì lấy số nhập tay. */
     const discountValue = computed(() => {
-        if (state.skipTuition || !state.currentTuition) return 0;
-        return selectedPromotion.value ? promotionDiscount(selectedPromotion.value, tuitionSubtotal.value) : Math.max(0, parseFloat(state.discountAmount) || 0);
+        if (sessions.value <= 0) return 0;
+        const disc = selectedPromotion.value ? promotionDiscount(selectedPromotion.value, tuitionSubtotal.value) : Math.max(0, parseFloat(state.discountAmount) || 0);
+        return Math.min(disc, tuitionSubtotal.value);
     });
     /** Nhập tay số tiền giảm (không theo ưu đãi có sẵn) → bắt buộc lý do. */
     const needsDiscountReason = computed(() => !selectedPromotion.value && discountValue.value > 0);
 
-    const tuitionAmountAfterDiscount = computed(() => {
-        if (state.skipTuition || !state.currentTuition) return 0;
-        const disc = discountValue.value;
-        const max = Math.max(0, tuitionSubtotal.value - disc);
-        // Thu một phần công nợ: nhập số tiền thu đợt này (không vượt phần còn phải thu).
-        if (state.collectAmount !== '' && state.collectAmount !== null && !isNaN(parseFloat(state.collectAmount))) {
-            return Math.min(max, Math.max(0, parseFloat(state.collectAmount)));
-        }
-        return max;
-    });
-
     const itemsTotal = computed(() => linesTotal(state.surchargeLines));
-    const surchargeTotal = computed(() => itemsTotal.value + (parseFloat(state.surchargeAmount) || 0));
-    const totalAmount = computed(() => tuitionAmountAfterDiscount.value + surchargeTotal.value);
+    const calc = computed(() =>
+        calculateSessionReceipt(quote.value, {
+            sessions: sessions.value,
+            itemsTotal: itemsTotal.value,
+            examFee: parseFloat(state.examFee) || 0,
+            otherFee: parseFloat(state.otherFee) || 0,
+            extra: parseFloat(state.surchargeAmount) || 0,
+            discount: discountValue.value,
+        }),
+    );
+    /** Tổng phải thu (tong_phai_thu) = tổng trước giảm − giảm. */
+    const tuitionAmountAfterDiscount = computed(() => calc.value.totalDue);
+    const surchargeTotal = computed(() => calc.value.extra);
+    const totalAmount = computed(() => calc.value.amount);
 
     // Nội dung thu Học vụ ghi lên hóa đơn giấy (khớp từng dòng với phiếu): học phí, hàng hóa phụ thu, phụ thu khác.
     const paperInvoiceContent = computed(() => {
         const lines = [];
-        if (tuitionAmountAfterDiscount.value > 0) {
-            const t = state.currentTuition;
-            lines.push({ label: `Học phí ${t?.student_name || ''}${t?.class_name && t.class_name !== 'Chưa xếp lớp' ? ' - lớp ' + t.class_name : ''}`.trim(), amount: tuitionAmountAfterDiscount.value });
+        const c = calc.value;
+        const tuitionPart = c.sessionValue - c.discount;
+        if (tuitionPart > 0) {
+            const name = state.currentStudent?.name || state.currentTuition?.student_name || '';
+            const className = quote.value?.class_name;
+            lines.push({ label: `Học phí ${c.sessionCount} buổi ${name}${className ? ' - lớp ' + className : ''}`.replace(/\s+/g, ' ').trim(), amount: tuitionPart });
         }
+        if (c.feeDue > 0) lines.push({ label: 'Học liệu còn nợ lúc chốt', amount: c.feeDue });
         for (const line of state.surchargeLines) {
             const item = itemById(line.id);
             if (item) lines.push({ label: `${item.name} x${parseInt(line.quantity) || 0}`, amount: item.price * (parseInt(line.quantity) || 0) });
         }
-        const other = parseFloat(state.surchargeAmount) || 0;
-        if (other > 0) lines.push({ label: state.surchargeReason?.trim() || 'Phụ thu khác', amount: other });
+        if (c.examFee > 0) lines.push({ label: 'Phí thi', amount: c.examFee });
+        if (c.otherFee > 0) lines.push({ label: state.otherFeeReason?.trim() || 'Khoản thu khác', amount: c.otherFee });
+        if (c.extra > 0) lines.push({ label: state.surchargeReason?.trim() || 'Phụ thu', amount: c.extra });
         return lines;
     });
     const collectedItemsJson = computed(() => JSON.stringify(state.surchargeLines.map((line) => ({ id: line.id, quantity: parseInt(line.quantity) || 1 }))));
@@ -172,11 +209,12 @@ export function useReceiptForm({
     const removeItem = (index) => state.surchargeLines.splice(index, 1);
 
     const isValidReceipt = computed(() => {
-        const hasMoney = totalAmount.value > 0;
+        const hasMoney = totalAmount.value >= 1000;
         const surchargeValid = state.surchargeAmount <= 0 || (state.surchargeReason && state.surchargeReason.trim().length > 0);
+        const otherValid = !(parseFloat(state.otherFee) > 0) || state.otherFeeReason.trim().length > 0;
         const discountValid = !needsDiscountReason.value || state.discountReason.trim().length > 0;
         const linesValid = state.surchargeLines.every((line) => parseInt(line.quantity) >= 1);
-        return !!(hasMoney && surchargeValid && discountValid && linesValid);
+        return !!(hasMoney && surchargeValid && otherValid && discountValid && linesValid);
     });
 
     // Nội dung CK do server sinh theo mẫu chung (tên + mã học sinh + lớp), xem App\Support\TransferMemo.
@@ -222,6 +260,11 @@ export function useReceiptForm({
         editing,
         bank,
         proofRequired,
+        quote,
+        canCollectSessions,
+        maxSessions,
+        sessions,
+        calc,
         tuitionSubtotal,
         availablePromotions,
         selectedPromotion,

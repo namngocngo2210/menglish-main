@@ -291,7 +291,52 @@ onBeforeUnmount(() => clearInterval(timer));
                                     <th class="text-right">Số tiền</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody v-if="selected.session" data-testid="receipt-session-breakdown">
+                                <tr>
+                                    <td class="font-semibold">Học phí theo buổi</td>
+                                    <td class="text-on-surface-variant">
+                                        {{ selected.session.session_count }} buổi × {{ formatMoney(selected.session.session_unit_price) }}{{ selected.fee_label ? ' · ' + selected.fee_label : ' · khóa kế tiếp (tạo khoản học phí khi duyệt)' }}
+                                    </td>
+                                    <td class="text-right font-code">{{ formatMoney(selected.session.session_value) }}</td>
+                                </tr>
+                                <tr v-if="selected.session.material_fee > 0">
+                                    <td class="font-semibold">Học liệu</td>
+                                    <td class="text-on-surface-variant">Sách / học liệu</td>
+                                    <td class="text-right font-code">{{ formatMoney(selected.session.material_fee) }}</td>
+                                </tr>
+                                <tr v-if="selected.session.exam_fee > 0">
+                                    <td class="font-semibold">Phí thi</td>
+                                    <td class="text-on-surface-variant">—</td>
+                                    <td class="text-right font-code">{{ formatMoney(selected.session.exam_fee) }}</td>
+                                </tr>
+                                <tr v-if="selected.session.other_fee > 0">
+                                    <td class="font-semibold">Khoản khác</td>
+                                    <td class="text-on-surface-variant">{{ selected.session.other_fee_reason || '—' }}</td>
+                                    <td class="text-right font-code">{{ formatMoney(selected.session.other_fee) }}</td>
+                                </tr>
+                                <tr class="bg-surface-container-low">
+                                    <td class="font-semibold" colspan="2">Tổng trước giảm</td>
+                                    <td class="text-right font-code font-bold">{{ formatMoney(selected.session.subtotal) }}</td>
+                                </tr>
+                                <tr v-if="selected.session.discount > 0">
+                                    <td class="font-semibold">Giảm trừ</td>
+                                    <td class="text-on-surface-variant">
+                                        <span v-if="selected.promotion_name">Ưu đãi: <strong class="text-on-surface">{{ selected.promotion_name }}</strong></span>
+                                        <span v-if="selected.discount_reason" class="block text-xs">{{ selected.promotion_name ? 'Ghi chú' : 'Lý do giảm (ca đặc biệt)' }}: <strong class="text-on-surface">{{ selected.discount_reason }}</strong></span>
+                                    </td>
+                                    <td class="text-right font-code text-tertiary">− {{ formatMoney(selected.session.discount) }}</td>
+                                </tr>
+                                <tr class="bg-surface-container-low">
+                                    <td class="font-semibold" colspan="2">Tổng phải thu</td>
+                                    <td class="text-right font-code font-bold">{{ formatMoney(selected.session.total_due) }}</td>
+                                </tr>
+                                <tr v-if="selected.session.extra > 0" class="bg-warning-container/40">
+                                    <td class="font-semibold text-on-warning-container">Phụ thu</td>
+                                    <td class="text-on-warning-container">{{ selected.surcharge_reason || '—' }}</td>
+                                    <td class="text-right font-code font-bold text-on-warning-container">+ {{ formatMoney(selected.session.extra) }}</td>
+                                </tr>
+                            </tbody>
+                            <tbody v-else>
                                 <tr>
                                     <td class="font-semibold">
                                         Học phí
@@ -461,7 +506,15 @@ onBeforeUnmount(() => clearInterval(timer));
                         <input type="hidden" name="discount_amount" :value="selected.discount_amount" />
                         <input type="hidden" name="promotion_id" :value="selected.promotion_id ?? ''" />
                         <input type="hidden" name="discount_reason" :value="selected.discount_reason ?? ''" />
-                        <input type="hidden" name="surcharge_amount" :value="selected.surcharge_amount" />
+                        <template v-if="selected.session">
+                            <!-- Phiếu theo sổ buổi: gửi lại số buổi / thi / khác / phụ thu, server tính lại tiền theo sổ buổi hiện tại. -->
+                            <input type="hidden" name="session_count" :value="selected.session.session_count" />
+                            <input type="hidden" name="exam_fee" :value="selected.session.exam_fee" />
+                            <input type="hidden" name="other_fee" :value="selected.session.other_fee" />
+                            <input type="hidden" name="other_fee_reason" :value="selected.session.other_fee_reason ?? ''" />
+                            <input type="hidden" name="surcharge_amount" :value="selected.session.extra" />
+                        </template>
+                        <input v-else type="hidden" name="surcharge_amount" :value="selected.surcharge_amount" />
                         <input type="hidden" name="surcharge_reason" :value="selected.surcharge_reason ?? ''" />
                         <input type="hidden" name="payment_method" :value="selected.payment_method" />
                         <input type="hidden" name="submit_action" value="submit" />

@@ -80,6 +80,11 @@ const w = reactive({
 const promotionsList = ref([...props.promotions]);
 
 // ── Số liệu tính toán ───────────────────────────────────────────────────────────────────────
+/** Lớp đã chọn đã học được vài buổi → học phí chỉ tính số buổi còn lại của khóa (server tính sẵn ở classes[].tuition). */
+const joinedMidCourse = computed(() => {
+    const cl = w.classId ? props.classes.find((c) => String(c.id) === String(w.classId)) : null;
+    return cl && cl.sessions_left < cl.course_sessions ? cl : null;
+});
 /** Tổng thành tiền hợp đồng = Học phí - Giảm trừ + Thu khác. */
 const contractTotal = computed(() => Math.max(0, (w.baseTuition || 0) - (w.discount || 0) + (w.otherFees || 0)));
 /** Số tiền cần thanh toán sau khi trừ thu trước. */
@@ -547,7 +552,16 @@ if (w.assignLater) setAssignLater(true);
                 </div>
 
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <UiInput id="closing_base_tuition" type="number" label="Học phí niêm yết (VNĐ)" required readonly :model-value="w.baseTuition" class="cursor-not-allowed !bg-surface-container-low font-mono font-bold" />
+                    <UiInput
+                        id="closing_base_tuition"
+                        type="number"
+                        :label="joinedMidCourse ? 'Học phí số buổi còn lại (VNĐ)' : 'Học phí niêm yết (VNĐ)'"
+                        required
+                        readonly
+                        :model-value="w.baseTuition"
+                        :hint="joinedMidCourse ? `Lớp đã học ${joinedMidCourse.course_sessions - joinedMidCourse.sessions_left} buổi: tính ${joinedMidCourse.sessions_left}/${joinedMidCourse.course_sessions} buổi còn lại của khóa.` : ''"
+                        class="cursor-not-allowed !bg-surface-container-low font-mono font-bold"
+                    />
                     <div>
                         <label class="mb-1 block flex items-center justify-between text-xs font-semibold text-on-surface-variant">
                             <span>Chương trình Ưu đãi / Voucher</span>
