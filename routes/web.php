@@ -115,13 +115,13 @@ Route::prefix('api/academic-system')->name('api.academic-system.')->middleware([
 });
 
 // SePay Webhook Endpoints (Public Callback từ SePay)
-Route::post('/hook/sepay-gateway/v1/add-payment', [SepayWebhookController::class, 'handleWebhook'])->name('sepay.webhook.gateway');
-Route::post('/api/sepay/webhook', [SepayWebhookController::class, 'handleWebhook'])->name('sepay.webhook.api');
+Route::post('/hook/sepay-gateway/v1/add-payment', [SepayWebhookController::class, 'handleWebhook'])->middleware('throttle:120,1')->name('sepay.webhook.gateway');
+Route::post('/api/sepay/webhook', [SepayWebhookController::class, 'handleWebhook'])->middleware('throttle:120,1')->name('sepay.webhook.api');
 Route::get('/api/sepay/transactions', [SepayWebhookController::class, 'getRecentTransactions'])->middleware(['auth', 'can:tuition.view'])->name('sepay.transactions.recent');
 
 // Cổng Tuyển dụng Public (Ứng viên xem và nộp hồ sơ không cần đăng nhập)
 Route::get('/portal/recruitment', [RecruitmentController::class, 'portal'])->name('portal.recruitment');
-Route::post('/portal/recruitment', [RecruitmentController::class, 'portalSubmit'])->name('portal.recruitment.submit');
+Route::post('/portal/recruitment', [RecruitmentController::class, 'portalSubmit'])->middleware('throttle:6,1')->name('portal.recruitment.submit');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

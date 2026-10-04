@@ -9,6 +9,7 @@ use App\Models\PayrollRecord;
 use App\Models\TuitionReceipt;
 use App\Models\User;
 use App\Support\ReportPeriod;
+use App\Support\SpreadsheetCell;
 use App\Support\TuitionBranchScope;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -344,7 +345,7 @@ class FinanceController extends Controller
 
             $stt = 1;
             foreach ($expenses as $exp) {
-                fputcsv($handle, [
+                fputcsv($handle, SpreadsheetCell::safeRow([
                     $stt++,
                     Carbon::parse($exp->expense_date)->format('d/m/Y'),
                     $exp->title,
@@ -353,7 +354,7 @@ class FinanceController extends Controller
                     $exp->branch?->name ?? 'Toàn hệ thống',
                     $exp->creator?->name ?? 'Admin',
                     $exp->notes ?? '',
-                ]);
+                ]));
             }
 
             fclose($handle);

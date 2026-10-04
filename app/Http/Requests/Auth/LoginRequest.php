@@ -13,6 +13,11 @@ use Illuminate\Validation\ValidationException;
 
 class LoginRequest extends FormRequest
 {
+    /** Số lần đăng nhập sai tối đa từ một IP (mọi tài khoản) trong IP_DECAY_SECONDS. */
+    private const IP_MAX_ATTEMPTS = 30;
+
+    private const IP_DECAY_SECONDS = 600;
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -48,6 +53,7 @@ class LoginRequest extends FormRequest
 
         if (! Auth::attempt($credentials, $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey());
+            RateLimiter::hit($this->ipThrottleKey(), self::IP_DECAY_SECONDS);
 
             activity('auth')
                 ->withProperties(['email' => $this->string('email')->toString()])
@@ -101,13 +107,20 @@ class LoginRequest extends FormRequest
      */
     public function ensureIsNotRateLimited(): void
     {
-        if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
+        // Giới hạn theo (email + IP) chặn đoán mật khẩu một tài khoản; giới hạn theo IP chặn thử mật khẩu phổ biến trên
+        // nhiều tài khoản (credential stuffing) mà mỗi tài khoản chỉ bị thử vài lần.
+        $key = match (true) {
+            RateLimiter::tooManyAttempts($this->throttleKey(), 5) => $this->throttleKey(),
+            RateLimiter::tooManyAttempts($this->ipThrottleKey(), self::IP_MAX_ATTEMPTS) => $this->ipThrottleKey(),
+            default => null,
+        };
+        if ($key === null) {
             return;
         }
 
         event(new Lockout($this));
 
-        $seconds = RateLimiter::availableIn($this->throttleKey());
+        $seconds = RateLimiter::availableIn($key);
 
         throw ValidationException::withMessages([
             'email' => trans('auth.throttle', [
@@ -123,5 +136,10 @@ class LoginRequest extends FormRequest
     public function throttleKey(): string
     {
         return Str::transliterate(Str::lower($this->string('email')).'|'.$this->ip());
+    }
+
+    private function ipThrottleKey(): string
+    {
+        return 'login-ip|'.$this->ip();
     }
 }

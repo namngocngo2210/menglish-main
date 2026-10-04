@@ -584,9 +584,11 @@ class NotificationService
     /**
      * Đánh dấu đã đọc
      */
-    public function markAsRead(int $id): bool
+    public function markAsRead(int $id, ?User $user = null): bool
     {
-        $notif = AdminNotification::find($id);
+        $user ??= auth()->user();
+        // Chỉ đánh dấu thông báo của chính người dùng (hoặc thông báo chung họ được xem), không theo id tùy ý.
+        $notif = $user ? AdminNotification::query()->forRecipient($user)->find($id) : null;
         if ($notif) {
             return $notif->update([
                 'is_read' => true,

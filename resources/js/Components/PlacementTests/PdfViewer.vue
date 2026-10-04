@@ -33,7 +33,8 @@ async function render() {
         const [pdfjs, worker] = await Promise.all([import('pdfjs-dist/legacy/build/pdf.mjs'), import('pdfjs-dist/legacy/build/pdf.worker.min.mjs?worker')]);
         // Worker do Vite đóng gói thành file .js (hosting không phải lúc nào cũng trả đúng kiểu cho file .mjs).
         if (!pdfjs.GlobalWorkerOptions.workerPort) pdfjs.GlobalWorkerOptions.workerPort = new worker.default();
-        task = pdfjs.getDocument({ url: props.src });
+        // isEvalSupported:false: không cho pdf.js dựng hàm bằng eval từ nội dung PDF (file đề do người dùng tải lên).
+        task = pdfjs.getDocument({ url: props.src, isEvalSupported: false });
         const doc = await task.promise;
         if (token !== renderToken) return;
         pageCount.value = doc.numPages;

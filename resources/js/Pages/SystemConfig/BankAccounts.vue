@@ -309,7 +309,6 @@ function onSearch(event) {
                                     :options="[
                                         { value: 'hmac_sha256', label: 'HMAC-SHA256 (Khuyến nghị)' },
                                         { value: 'api_key', label: 'API Key' },
-                                        { value: 'none', label: 'Không xác thực' },
                                     ]"
                                 />
                                 <div>

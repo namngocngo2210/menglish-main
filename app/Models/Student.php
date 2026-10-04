@@ -129,6 +129,27 @@ class Student extends Model
     }
 
     /**
+     * Học viên mà tài khoản này được xem như chủ hồ sơ (cổng học viên / phụ huynh): gắn trực tiếp qua user_id, hoặc tài khoản
+     * cổng (portal.student) có cùng email với hồ sơ — phụ huynh nhiều con dùng chung một email. Email chỉ được tin khi tài
+     * khoản có quyền cổng học viên; nhân sự khác tự đổi email trùng email học viên không được vào hồ sơ đó.
+     */
+    public function scopeLinkedTo(Builder $query, User $user): Builder
+    {
+        return $query->where(function (Builder $q) use ($user) {
+            $q->where('user_id', $user->id);
+            if ($user->can('portal.student')) {
+                $q->orWhere('email', $user->email);
+            }
+        });
+    }
+
+    public function isLinkedTo(User $user): bool
+    {
+        return (int) $this->user_id === (int) $user->id
+            || ($this->email && $user->can('portal.student') && strcasecmp($this->email, $user->email) === 0);
+    }
+
+    /**
      * Học viên thuộc (một trong) các lớp: lớp đang học hoặc lượt xếp lớp còn hiệu lực.
      *
      * @param  array<int>|int  $classIds

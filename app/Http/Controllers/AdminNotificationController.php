@@ -99,7 +99,7 @@ class AdminNotificationController extends Controller
 
     public function markAsRead(Request $request, $id)
     {
-        $this->notificationService->markAsRead($id);
+        $this->notificationService->markAsRead((int) $id, $request->user());
 
         if ($request->wantsJson()) {
             return response()->json(['success' => true]);

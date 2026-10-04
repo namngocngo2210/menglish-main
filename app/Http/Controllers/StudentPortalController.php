@@ -48,13 +48,17 @@ class StudentPortalController extends Controller
         return (bool) ($user && $user->can('student.view'));
     }
 
+    /**
+     * Quyền GHI trên hồ sơ cổng học viên (cập nhật liên hệ, nộp / xóa bài, đánh dấu đã đọc, khảo sát…): chủ hồ sơ (tài khoản
+     * học viên / phụ huynh), hoặc nhân sự có quyền student.update với học viên nằm trong phạm vi dữ liệu của mình.
+     * Chỉ có student.view (xem) thì không được sửa; xem dữ liệu đi qua getActiveStudent().
+     */
     protected function authorizeStudent(Student $student): void
     {
         $user = Auth::user();
         abort_unless($user && (
-            $this->canManageStudents()
-            || (int) $student->user_id === (int) $user->id
-            || ($student->email && strcasecmp($student->email, $user->email) === 0)
+            $student->isLinkedTo($user)
+            || ($user->can('student.update') && Student::query()->visibleTo($user)->whereKey($student->id)->exists())
         ), 403, 'Bạn không được phép truy cập hồ sơ học viên này.');
     }
 
@@ -90,12 +94,11 @@ class StudentPortalController extends Controller
     protected function getActiveStudent($studentId = null)
     {
         $students = Student::with(['currentClass.teacher', 'tuition.receipts'])
-            ->when(! $this->canManageStudents(), function ($query) {
-                $user = Auth::user();
-                $query->where(function ($students) use ($user) {
-                    $students->where('user_id', $user->id)->orWhere('email', $user->email);
-                });
-            })
+            ->when(
+                $this->canManageStudents(),
+                fn ($query) => $query->visibleTo(Auth::user()),
+                fn ($query) => $query->linkedTo(Auth::user()),
+            )
             // Học viên vừa chốt (Chờ khai giảng) / nghỉ hè vẫn dùng cổng học viên.
             ->whereIn('status', ['active', 'waiting_start', 'studying', 'summer_break'])
             ->get();

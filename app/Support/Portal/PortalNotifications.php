@@ -25,7 +25,7 @@ final class PortalNotifications
     public static function unreadCountForUser(User $user): int
     {
         $studentIds = Student::query()
-            ->where(fn ($q) => $q->where('user_id', $user->id)->orWhere('email', $user->email))
+            ->linkedTo($user)
             ->pluck('id');
 
         return self::unreadCountFor($studentIds);

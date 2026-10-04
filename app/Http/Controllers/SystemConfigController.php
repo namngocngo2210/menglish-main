@@ -201,7 +201,7 @@ class SystemConfigController extends Controller
             'webhook_url' => 'required|url|max:500',
             'transaction_type' => 'required|in:in,out,all',
             'data_format' => 'required|string',
-            'auth_method' => 'required|in:hmac_sha256,api_key,none',
+            'auth_method' => 'required|in:hmac_sha256,api_key',
             'secret_key' => 'required|string|max:255',
             'api_key' => 'nullable|string|max:255',
             'is_active' => 'nullable|boolean',

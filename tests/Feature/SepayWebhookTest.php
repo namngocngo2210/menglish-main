@@ -46,9 +46,12 @@ class SepayWebhookTest extends TestCase
 
         SepayConfiguration::create([
             'webhook_name' => 'Webhook test',
-            'auth_method' => 'none',
+            'auth_method' => 'api_key',
+            'api_key' => 'test-api-key',
+            'secret_key' => 'test-secret',
             'is_active' => true,
         ]);
+        $this->withHeaders(['X-API-Key' => 'test-api-key']);
 
         $this->branch = Branch::create(['name' => 'CN SePay', 'code' => 'SP', 'is_active' => true]);
 
@@ -92,6 +95,23 @@ class SepayWebhookTest extends TestCase
             'content' => 'HV-SEPAY01 NGUYEN VAN A thanh toan hoc phi',
             'transactionDate' => now()->toIso8601String(),
         ], $overrides));
+    }
+
+    public function test_unsupported_auth_method_fails_closed(): void
+    {
+        // Cấu hình cũ "none" (đã bỏ khỏi form) không được mở webhook cho mọi người gọi.
+        SepayConfiguration::query()->update(['auth_method' => 'none']);
+
+        $this->postWebhook(['transferAmount' => 3000000])->assertStatus(503);
+
+        $this->assertSame(0, TuitionReceipt::count());
+    }
+
+    public function test_wrong_api_key_is_rejected(): void
+    {
+        $this->withHeaders(['X-API-Key' => 'sai-khoa'])->postWebhook()->assertStatus(401);
+
+        $this->assertSame(0, TuitionReceipt::count());
     }
 
     public function test_caps_receipt_at_remaining_debt_and_flags_overpayment(): void
