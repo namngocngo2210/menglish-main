@@ -43,6 +43,7 @@ use App\Services\PlacementSubmissionLinker;
 use App\Services\SafeUploadService;
 use App\Services\SalesCommissionService;
 use App\Services\Students\ClassStartActivation;
+use App\Services\Tuition\SessionLedger;
 use App\Support\Approvals\ApprovableSource;
 use App\Support\Approvals\ApprovalInboxService;
 use App\Support\CenterInfo;
@@ -2159,6 +2160,8 @@ class CrmController extends Controller
 
         $defaultBank = $bankAccounts->firstWhere('is_default_vietqr', true) ?? $bankAccounts->first();
 
+        $heldByClass = app(SessionLedger::class)->heldCounts($classes->pluck('id')->all());
+
         return Inertia::render('Crm/ClosingWizard', [
             'customers' => $customers->map(fn (CrmCustomer $c) => [
                 'id' => $c->id,
@@ -2182,6 +2185,9 @@ class CrmController extends Controller
                 'id' => $cl->id,
                 'name' => $cl->name,
                 'code' => $cl->code,
+                // Lớp đã học được vài buổi: học phí chỉ tính số buổi còn lại của khóa (sổ buổi).
+                'course_sessions' => ($join = SessionLedger::joinTuition($cl, (int) ($heldByClass[$cl->id] ?? 0)))['course_sessions'],
+                'sessions_left' => $join['sessions'],
                 'status' => $cl->status,
                 'start_label' => $cl->start_date?->format('d/m'),
                 'branch_code' => $cl->branch?->code ?? 'BD',
@@ -2191,7 +2197,7 @@ class CrmController extends Controller
                 'course_name' => $cl->course?->name,
                 'schedule_text' => $cl->schedule_text,
                 'teacher' => $cl->teacher?->name,
-                'tuition' => (float) ($cl->tuition_fee > 0 ? $cl->tuition_fee : ($cl->course?->tuition_fee ?? 0)),
+                'tuition' => (float) $join['fee'],
                 'active_enrollments_count' => (int) $cl->active_enrollments_count,
                 'max_capacity' => (int) $cl->max_capacity,
                 'min_students' => (int) $cl->min_students,
@@ -2330,7 +2336,10 @@ class CrmController extends Controller
                     throw ValidationException::withMessages(['class_id' => 'Lớp đã đủ sĩ số, vui lòng chọn lớp khác.']);
                 }
                 $course = $class->course;
-                $baseTuition = (float) ($class->tuition_fee > 0 ? $class->tuition_fee : $course->tuition_fee);
+                // Vào lớp giữa khóa: học phí = số buổi còn lại của khóa × đơn giá (Buổi cần thu khi sổ buổi chưa có buổi tồn).
+                $join = SessionLedger::joinTuition($class, app(SessionLedger::class)->heldSessions($class));
+                $baseTuition = (float) $join['fee'];
+                $contractSessions = $join['sessions'];
             } else {
                 $course = Course::whereKey($validated['course_id'])->where('is_active', true)->first();
                 if (! $course) {
@@ -2338,6 +2347,10 @@ class CrmController extends Controller
                 }
                 // Chưa có lớp: học phí theo giá niêm yết của khóa (trừ ưu đãi), không phụ thuộc lớp.
                 $baseTuition = (float) $course->tuition_fee;
+                $contractSessions = SessionLedger::courseSessions(null, $course);
+            }
+            if ($class && $contractSessions <= 0) {
+                throw ValidationException::withMessages(['class_id' => 'Lớp đã học hết số buổi của khóa, vui lòng chọn lớp khác.']);
             }
             if ($baseTuition <= 0) {
                 throw ValidationException::withMessages([$class ? 'class_id' : 'course_id' => 'Lớp / khóa học chưa được cấu hình học phí.']);
@@ -2467,6 +2480,7 @@ class CrmController extends Controller
                 'bank_account_id' => $bankAccount?->id,
                 'promotion_id' => $promotion?->id,
                 'total_amount' => $baseTuition,
+                'session_count' => max(1, $contractSessions),
                 'discount_amount' => $discount,
                 'other_fees' => $otherFees,
                 'fee_items' => $feeItems ?: null,

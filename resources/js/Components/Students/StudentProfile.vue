@@ -391,6 +391,12 @@ const openPayments = () => openRemoteModal(paymentsUrl.value, { size: '2xl' });
                         <div><p class="text-on-surface-variant">Đã thanh toán</p><p class="font-code font-semibold text-tertiary">{{ formatMoney(tuition.paid_amount) }}</p></div>
                         <div><p class="text-on-surface-variant">Công nợ</p><p class="font-code font-semibold text-error">{{ formatMoney(tuition.debt_amount) }}</p></div>
                     </button>
+                    <div v-if="tuition.sessions" class="grid grid-cols-4 gap-sm rounded-lg border border-outline-variant p-sm text-center font-caption text-caption" data-testid="session-ledger-card">
+                        <div><p class="text-on-surface-variant">Buổi đã đóng</p><p class="font-code font-semibold text-on-surface">{{ tuition.sessions.paid }}</p></div>
+                        <div><p class="text-on-surface-variant" title="Mỗi buổi lớp diễn ra trừ 1, vắng vẫn trừ">Đã trừ</p><p class="font-code font-semibold text-on-surface">{{ tuition.sessions.used }}</p></div>
+                        <div><p class="text-on-surface-variant">Buổi tồn</p><p :class="['font-code font-semibold', tuition.sessions.balance < 0 ? 'text-error' : 'text-primary']">{{ tuition.sessions.balance }}</p></div>
+                        <div><p class="text-on-surface-variant">Cần thu</p><p class="font-code font-semibold text-on-surface">{{ tuition.sessions.needed }} buổi</p></div>
+                    </div>
                     <div class="max-h-[220px] flex-1 space-y-sm overflow-y-auto pr-xs">
                         <button
                             v-for="receipt in tuition.receipts"

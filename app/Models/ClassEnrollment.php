@@ -17,6 +17,7 @@ class ClassEnrollment extends Model
         'class_id',
         'customer_id',
         'enrolled_at',
+        'left_at',
         'curriculum_delivered',
         'zalo_group_added',
         'account_sent',
@@ -34,6 +35,8 @@ class ClassEnrollment extends Model
 
     protected $casts = [
         'enrolled_at' => 'date',
+        // Ngày rời lớp (chuyển lớp / thôi học): từ ngày này không trừ buổi của lớp vào sổ buổi.
+        'left_at' => 'date',
         'curriculum_delivered' => 'boolean',
         'zalo_group_added' => 'boolean',
         'account_sent' => 'boolean',

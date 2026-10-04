@@ -27,6 +27,7 @@ use App\Services\Merchandise\StockService;
 use App\Services\NotificationService;
 use App\Services\SafeUploadService;
 use App\Services\SalesCommissionService;
+use App\Services\Tuition\SessionLedger;
 use App\Services\TuitionImportService;
 use App\Support\CenterInfo;
 use App\Support\DisplayCode;
@@ -364,7 +365,7 @@ class TuitionController extends Controller
     private function receiptForm(Request $request, ?TuitionReceipt $editingReceipt)
     {
         $scope = $this->branchScope();
-        $students = TuitionBranchScope::students(Student::with(['currentClass', 'tuition', 'branch']), $scope)->where('status', '!=', 'dropped')->get();
+        $students = TuitionBranchScope::students(Student::with(['currentClass.course', 'tuition', 'branch']), $scope)->where('status', '!=', 'dropped')->get();
         $tuitions = TuitionBranchScope::tuitions(StudentTuition::query(), $scope)
             ->with(['student.branch', 'student.currentClass.course', 'classModel.course', 'receipts', 'bankAccount'])
             ->where(function ($q) use ($editingReceipt) {
@@ -414,6 +415,19 @@ class TuitionController extends Controller
                 ] : null,
             ]];
         });
+
+        // Sổ buổi + gợi ý số buổi cần thu cho từng khoản học phí / học viên (SessionLedger, gộp truy vấn).
+        $openByStudent = SessionLedger::openTuitionsFor($students->pluck('id')->merge($tuitions->pluck('student_id')));
+        $quotePairs = [];
+        foreach ($tuitions as $t) {
+            if ($t->student) {
+                $quotePairs['t'.$t->id] = [$t->student, (float) $t->debt_amount > 0 ? $t : ($openByStudent[$t->student_id] ?? null)];
+            }
+        }
+        foreach ($students as $st) {
+            $quotePairs['s'.$st->id] = [$st, $openByStudent[$st->id] ?? null];
+        }
+        $quotes = app(SessionLedger::class)->quoteMany($quotePairs);
 
         // Chỉ dùng tài khoản đang hoạt động; không có thì view cảnh báo và ẩn QR (không fallback số TK giả).
         $defaultBank = $selectedTuition?->resolveBankAccount() ?? BankAccount::defaultAccount();
@@ -483,6 +497,8 @@ class TuitionController extends Controller
                 'receipt_count' => $t->receipts ? $t->receipts->count() : 0,
                 // Nội dung CK theo mẫu chung (App\Support\TransferMemo) — không tự ghép ở JS.
                 'transfer_memo' => $t->currentTransferMemo(),
+                // Sổ buổi + buổi cần thu (SessionLedger::quote).
+                'quote' => $quotes['t'.$t->id] ?? null,
             ])->values(),
             'students' => $students->map(fn (Student $st) => [
                 'id' => $st->id,
@@ -497,6 +513,8 @@ class TuitionController extends Controller
                 'branch_name' => $st->branch?->name ?? 'Trụ sở chính',
                 'status_label' => $st->status_label,
                 'transfer_memo' => TransferMemo::build($st->code, $st->name, $st->currentClass?->name),
+                'course_id' => $st->currentClass?->course_id,
+                'quote' => $quotes['s'.$st->id] ?? null,
             ])->values(),
             // Ưu đãi trong danh mục còn hiệu lực (+ ưu đãi phiếu đang sửa đã chọn, dù đã hết hạn) để chọn lại khi thu.
             'promotions' => Promotion::query()->catalog()
@@ -522,6 +540,8 @@ class TuitionController extends Controller
                 'discount_reason' => $editingReceipt->discount_reason,
                 'surcharge_amount' => (float) $editingReceipt->surcharge_amount,
                 'surcharge_reason' => $editingReceipt->surcharge_reason,
+                // Phiếu lập theo sổ buổi: số buổi, học liệu / thi / khác / phụ thu đã nhập (phiếu cũ → null).
+                'session' => $editingReceipt->sessionBreakdown(),
                 'tuition_amount' => $editingReceipt->tuitionPortion(),
                 'payment_method' => $editingReceipt->payment_method === 'vietqr' ? 'transfer' : $editingReceipt->payment_method,
                 'transaction_code' => $editingReceipt->transaction_code,
@@ -564,6 +584,10 @@ class TuitionController extends Controller
             'student_id' => 'nullable|exists:students,id',
             'student_tuition_id' => 'nullable|exists:student_tuitions,id',
             'tuition_amount' => 'nullable|numeric|min:0',
+            'session_count' => 'nullable|integer|min:0|max:500',
+            'exam_fee' => 'nullable|numeric|min:0',
+            'other_fee' => 'nullable|numeric|min:0',
+            'other_fee_reason' => 'nullable|string|max:255',
             'discount_amount' => 'nullable|numeric|min:0',
             'promotion_id' => 'nullable|exists:promotions,id',
             'discount_reason' => 'nullable|string|max:500',
@@ -587,12 +611,14 @@ class TuitionController extends Controller
             return back()->withErrors(['student_id' => 'Vui lòng chọn học viên hoặc khoản học phí.'])->withInput();
         }
 
-        if ($amountError = $this->receiptAmountError($validated)) {
+        // Phiếu lập theo sổ buổi (form mới gửi session_count): server tự tính tiền; không gửi → phiếu thu theo số tiền như cũ.
+        $sessionMode = $request->has('session_count');
+        if (! $sessionMode && ($amountError = $this->receiptAmountError($validated))) {
             return back()->withErrors($amountError)->withInput();
         }
 
         $surchargeItems = $this->surchargeItemsFrom($request->input('collected_items'));
-        if ($surchargeError = $this->surchargeError($validated, $surchargeItems)) {
+        if (! $sessionMode && ($surchargeError = $this->surchargeError($validated, $surchargeItems))) {
             return back()->withErrors($surchargeError)->withInput();
         }
 
@@ -622,10 +648,24 @@ class TuitionController extends Controller
         $receiptNumber = TuitionReceipt::generateReceiptNumber();
         // Phiếu thu KHÔNG bao giờ tự duyệt khi lập: chỉ endpoint approve (tuition.approve) mới duyệt & cấp số HĐ.
         $status = $isDraft ? TuitionReceipt::STATUS_DRAFT : TuitionReceipt::STATUS_PENDING;
-        $surcharge = (float) ($validated['surcharge_amount'] ?? 0);
-        $discountInfo = $this->receiptDiscount($validated, $tuition, $isDraft);
-        if (isset($discountInfo['error'])) {
-            return back()->withErrors($discountInfo['error'])->withInput();
+        $sessionFields = [];
+        if ($sessionMode) {
+            $calc = $this->sessionReceipt($request, $validated, $tuition, $student, $isDraft, $surchargeItems);
+            if (isset($calc['error'])) {
+                return back()->withErrors($calc['error'])->withInput();
+            }
+            $tuition = $calc['tuition'];
+            $validated['amount'] = $calc['amount'];
+            $validated['surcharge_reason'] = $calc['surcharge_reason'];
+            $surcharge = $calc['surcharge'];
+            $discountInfo = $calc['discount'];
+            $sessionFields = $calc['fields'];
+        } else {
+            $surcharge = (float) ($validated['surcharge_amount'] ?? 0);
+            $discountInfo = $this->receiptDiscount($validated, $tuition, $isDraft);
+            if (isset($discountInfo['error'])) {
+                return back()->withErrors($discountInfo['error'])->withInput();
+            }
         }
         $discount = $discountInfo['discount_amount'];
 
@@ -636,7 +676,7 @@ class TuitionController extends Controller
         $proofPath = $this->storeProof($request);
 
         try {
-            $receipt = DB::transaction(function () use ($validated, $receiptNumber, $tuition, $studentId, $surcharge, $discount, $discountInfo, $surchargeItems, $proofPath, $status, $isDraft, $paperRange, $branchId, $request) {
+            $receipt = DB::transaction(function () use ($validated, $receiptNumber, $tuition, $studentId, $surcharge, $discount, $discountInfo, $surchargeItems, $proofPath, $status, $isDraft, $paperRange, $branchId, $request, $sessionFields) {
                 // Số hóa đơn giấy cấp ngay khi lập (kể cả nháp) để Học vụ ghi lên hóa đơn; gửi duyệt thẳng thì số
                 // phải đúng số người lập đã thấy trên form (đã ghi lên giấy và chụp ảnh).
                 $paperNumber = $paperRange
@@ -668,7 +708,7 @@ class TuitionController extends Controller
                     'approver_id' => null,
                     'status' => $status,
                     'notes' => $validated['notes'] ?? 'Lập phiếu thu học phí & phụ thu',
-                ]);
+                ] + $sessionFields);
             });
         } catch (PaperInvoiceNumberChangedException|InvoiceRangeExhaustedException $e) {
             return back()->withErrors(['paper_invoice_number' => $e->getMessage()])->withInput();
@@ -708,6 +748,10 @@ class TuitionController extends Controller
             'surcharge_amount' => 'nullable|numeric|min:0',
             'surcharge_reason' => 'nullable|string|max:500',
             'tuition_amount' => 'nullable|numeric|min:0',
+            'session_count' => 'nullable|integer|min:0|max:500',
+            'exam_fee' => 'nullable|numeric|min:0',
+            'other_fee' => 'nullable|numeric|min:0',
+            'other_fee_reason' => 'nullable|string|max:255',
             'amount' => 'required|numeric|min:1000',
             'payment_method' => 'required|string|in:'.implode(',', TuitionReceipt::INPUT_METHODS),
             'transaction_code' => 'nullable|string|max:100',
@@ -727,7 +771,8 @@ class TuitionController extends Controller
         $receipt = TuitionReceipt::with(['tuition.student.currentClass', 'student.currentClass'])->findOrFail($id);
         abort_unless((int) $receipt->creator_id === (int) $user->id || $user->isSuperAdmin(), 403, 'Chỉ người lập phiếu mới được sửa phiếu này.');
 
-        if ($amountError = $this->receiptAmountError($validated)) {
+        $sessionMode = $request->has('session_count');
+        if (! $sessionMode && ($amountError = $this->receiptAmountError($validated))) {
             return back()->withErrors($amountError)->withInput();
         }
 
@@ -735,7 +780,7 @@ class TuitionController extends Controller
         $surchargeItems = $request->has('collected_items')
             ? $this->surchargeItemsFrom($request->input('collected_items'))
             : array_values(array_filter((array) $receipt->collected_items, fn ($line) => is_array($line) && ($line['source'] ?? null) === 'surcharge'));
-        if ($surchargeError = $this->surchargeError($validated, $surchargeItems)) {
+        if (! $sessionMode && ($surchargeError = $this->surchargeError($validated, $surchargeItems))) {
             return back()->withErrors($surchargeError)->withInput();
         }
 
@@ -747,10 +792,26 @@ class TuitionController extends Controller
         }
 
         $isDraft = ($validated['submit_action'] ?? null) === 'draft';
-        $surcharge = (float) ($validated['surcharge_amount'] ?? 0);
-        $discountInfo = $this->receiptDiscount($validated, $receipt->tuition, $isDraft, $receipt);
-        if (isset($discountInfo['error'])) {
-            return back()->withErrors($discountInfo['error'])->withInput();
+        $tuition = $receipt->tuition;
+        $sessionFields = [];
+        if ($sessionMode) {
+            $student = $receipt->tuition?->student ?? $receipt->student;
+            $calc = $this->sessionReceipt($request, $validated, $tuition, $student, $isDraft, $surchargeItems, $receipt);
+            if (isset($calc['error'])) {
+                return back()->withErrors($calc['error'])->withInput();
+            }
+            $tuition = $calc['tuition'];
+            $validated['amount'] = $calc['amount'];
+            $validated['surcharge_reason'] = $calc['surcharge_reason'];
+            $surcharge = $calc['surcharge'];
+            $discountInfo = $calc['discount'];
+            $sessionFields = $calc['fields'] + ['student_tuition_id' => $tuition?->id];
+        } else {
+            $surcharge = (float) ($validated['surcharge_amount'] ?? 0);
+            $discountInfo = $this->receiptDiscount($validated, $tuition, $isDraft, $receipt);
+            if (isset($discountInfo['error'])) {
+                return back()->withErrors($discountInfo['error'])->withInput();
+            }
         }
         $discount = $discountInfo['discount_amount'];
         $transactionCode = $request->has('transaction_code')
@@ -771,7 +832,7 @@ class TuitionController extends Controller
             return back()->withErrors($submitError)->withInput();
         }
 
-        if (! $isDraft && $receipt->tuition && ($overpayError = $this->overpaymentError($receipt->tuition, (float) $validated['amount'] - $surcharge, $discount))) {
+        if (! $isDraft && $tuition && ($overpayError = $this->overpaymentError($tuition, (float) $validated['amount'] - $surcharge, $discount))) {
             return back()->withErrors(['amount' => $overpayError])->withInput();
         }
 
@@ -779,7 +840,7 @@ class TuitionController extends Controller
         $proofPath = $newProof ?? ($keepsProof ? $receipt->proof_image : null);
 
         try {
-            $updated = DB::transaction(function () use ($id, $validated, $isDraft, $surcharge, $discount, $discountInfo, $transactionCode, $proofPath, $surchargeItems, $paperRange, $branchId, $request) {
+            $updated = DB::transaction(function () use ($id, $validated, $isDraft, $surcharge, $discount, $discountInfo, $transactionCode, $proofPath, $surchargeItems, $paperRange, $branchId, $request, $sessionFields) {
                 $locked = TuitionReceipt::query()->lockForUpdate()->findOrFail($id);
                 if (! in_array($locked->status, TuitionReceipt::EDITABLE_STATUSES, true)) {
                     return null;
@@ -812,7 +873,7 @@ class TuitionController extends Controller
                     'status' => $isDraft ? TuitionReceipt::STATUS_DRAFT : TuitionReceipt::STATUS_PENDING,
                     'approver_id' => null,
                     'rejection_reason' => $isDraft ? $locked->rejection_reason : null,
-                ]);
+                ] + $sessionFields);
 
                 return $locked;
             });
@@ -837,6 +898,101 @@ class TuitionController extends Controller
         $this->notifyReceiptPending($updated, $receipt->tuition?->student ?? $receipt->student);
 
         return $this->modalSaved("Đã gửi duyệt lại phiếu thu {$updated->receipt_number}.{$paperNote}", route('tuition.receipts.approve', ['selected_id' => $updated->id]));
+    }
+
+    /**
+     * Phiếu thu theo sổ buổi: server tự tính số tiền theo SessionLedger::calculate (không tin số tiền của form).
+     * - Học viên có khoản học phí còn nợ → thu tiếp khoản đó (đơn giá theo khoản, tối đa số buổi còn nợ của khoản).
+     * - Không có → khoản học phí khóa kế tiếp của lớp đang học (đơn giá niêm yết, tối đa "Buổi cần thu"),
+     *   khoản học phí được tạo khi phiếu được duyệt.
+     *
+     * @param  list<array<string, mixed>>  $surchargeItems
+     * @return array{error: array<string, string>}|array{tuition: ?StudentTuition, amount: float, surcharge: float, surcharge_reason: ?string, discount: array{promotion_id: ?int, discount_amount: float, discount_reason: ?string}, fields: array<string, mixed>}
+     */
+    private function sessionReceipt(Request $request, array $validated, ?StudentTuition $tuition, ?Student $student, bool $isDraft, array $surchargeItems, ?TuitionReceipt $existing = null): array
+    {
+        if (! $student) {
+            return ['error' => ['student_id' => 'Vui lòng chọn học viên.']];
+        }
+        $student->loadMissing('currentClass.course');
+        if ($tuition && (int) $tuition->student_id !== (int) $student->id) {
+            return ['error' => ['student_tuition_id' => 'Khoản học phí không thuộc học viên đã chọn.']];
+        }
+
+        $openTuition = $tuition && (float) $tuition->debt_amount > 0 ? $tuition : SessionLedger::openTuitionFor($student);
+        $openTuition?->loadMissing('classModel.course');
+        $quote = app(SessionLedger::class)->quote($student, $openTuition);
+
+        $sessions = (int) ($validated['session_count'] ?? 0);
+        if ($sessions > 0 && $quote['mode'] === 'none') {
+            return ['error' => ['session_count' => 'Học viên chưa xếp lớp và chưa có khoản học phí nên chưa thu theo buổi được.']];
+        }
+        if ($sessions > $quote['max_sessions']) {
+            return ['error' => ['session_count' => $quote['mode'] === 'contract'
+                ? "Khoản học phí đang thu chỉ còn {$quote['max_sessions']} buổi chưa đóng. Thu hết khoản này rồi lập phiếu mới cho khóa kế tiếp."
+                : "Theo sổ buổi chỉ cần thu tối đa {$quote['needed']} buổi (còn {$quote['remaining']} buổi của khóa, tồn {$quote['balance']} buổi)."]];
+        }
+
+        $examFee = (float) ($validated['exam_fee'] ?? 0);
+        $otherFee = (float) ($validated['other_fee'] ?? 0);
+        $otherReason = trim((string) ($validated['other_fee_reason'] ?? '')) ?: null;
+        $extra = (float) ($validated['surcharge_amount'] ?? 0);
+        $itemsTotal = (float) array_sum(array_column($surchargeItems, 'amount'));
+        if (! $isDraft && $otherFee > 0 && ! $otherReason) {
+            return ['error' => ['other_fee_reason' => 'Nhập nội dung khoản thu khác.']];
+        }
+        if (! $isDraft && $extra > 0 && trim((string) ($validated['surcharge_reason'] ?? '')) === '') {
+            return ['error' => ['surcharge_reason' => 'Bắt buộc nhập lý do khi có số tiền phụ thu.']];
+        }
+
+        // Giảm trừ chỉ tính trên tiền buổi: ưu đãi trong danh mục (server tính lại) hoặc nhập tay kèm lý do.
+        $sessionValue = SessionLedger::calculate($quote, $sessions, 0, 0, 0, 0, 0)['session_value'];
+        $reason = trim((string) ($validated['discount_reason'] ?? '')) ?: null;
+        $promotionId = null;
+        if (! empty($validated['promotion_id'])) {
+            $promotion = Promotion::find($validated['promotion_id']);
+            $keepsOwn = $existing && (int) $existing->promotion_id === (int) $validated['promotion_id'];
+            $class = $student->currentClass ?? $openTuition?->classModel;
+            if (! $promotion || $promotion->is_special || (! $keepsOwn && ! $promotion->isApplicable($class?->branch_id ?? $student->branch_id, $class?->course_id))) {
+                return ['error' => ['promotion_id' => 'Ưu đãi không còn hiệu lực hoặc không áp dụng cho khóa học này.']];
+            }
+            $promotionId = $promotion->id;
+            $discount = $promotion->calculateDiscount($sessionValue);
+        } else {
+            $discount = (float) ($validated['discount_amount'] ?? 0);
+            if ($discount > $sessionValue + 0.5) {
+                return ['error' => ['discount_amount' => 'Giảm trừ không vượt tiền học phí theo buổi ('.Money::format($sessionValue).').']];
+            }
+            if ($discount > 0 && ! $reason && ! $isDraft) {
+                return ['error' => ['discount_reason' => 'Giảm trừ không theo ưu đãi có sẵn: nhập lý do giảm.']];
+            }
+        }
+
+        $calc = SessionLedger::calculate($quote, $sessions, $itemsTotal, $examFee, $otherFee, $extra, $discount);
+        if (abs($calc['amount'] - (float) $validated['amount']) > 1) {
+            return ['error' => ['amount' => 'Số tiền của phiếu ('.Money::format((float) $validated['amount']).') không khớp cách tính theo sổ buổi ('
+                .Money::format($calc['amount']).'). Sổ buổi vừa thay đổi, vui lòng mở lại form lập phiếu.']];
+        }
+
+        return [
+            'tuition' => $quote['mode'] === 'contract' ? $openTuition : null,
+            'amount' => $calc['amount'],
+            'surcharge' => $calc['surcharge_amount'],
+            'surcharge_reason' => $extra > 0 ? ($validated['surcharge_reason'] ?? null) : null,
+            'discount' => [
+                'promotion_id' => $calc['discount'] > 0 ? $promotionId : null,
+                'discount_amount' => $calc['discount'],
+                'discount_reason' => $calc['discount'] > 0 ? $reason : null,
+            ],
+            'fields' => [
+                'session_count' => $sessions,
+                'session_unit_price' => $quote['unit_price'],
+                'material_fee' => $calc['material_fee'],
+                'exam_fee' => $calc['exam_fee'],
+                'other_fee' => $calc['other_fee'],
+                'other_fee_reason' => $calc['other_fee'] > 0 ? $otherReason : null,
+            ],
+        ];
     }
 
     /**
@@ -1327,6 +1483,8 @@ class TuitionController extends Controller
                 'contract_promotion_reason' => $selectedReceipt->tuition?->promotion?->reason,
                 'discount_reason' => $selectedReceipt->discount_reason,
                 'tuition_portion' => $selectedReceipt->tuitionPortion(),
+                // Phiếu lập theo sổ buổi: bảng kê số buổi × đơn giá, học liệu, thi, khác, giảm, phụ thu (phiếu cũ → null).
+                'session' => $selectedReceipt->sessionBreakdown(),
                 'surcharge_amount' => (float) ($selectedReceipt->surcharge_amount ?? 0),
                 'surcharge_reason' => $selectedReceipt->surcharge_reason,
                 'amount' => (float) $selectedReceipt->amount,
@@ -1416,6 +1574,11 @@ class TuitionController extends Controller
 
             if ($receipt->invoice_number && InvoiceCancellation::where('tuition_receipt_id', $receipt->id)->where('status', 'pending')->exists()) {
                 return "Hóa đơn {$receipt->invoice_number} của phiếu này đang có yêu cầu hủy chờ duyệt — xử lý yêu cầu hủy trước.";
+            }
+
+            // Phiếu thu theo buổi cho khóa kế tiếp (chưa có khoản học phí): duyệt thì tạo khoản học phí đúng số buổi của phiếu.
+            if (! $tuition && (int) $receipt->session_count > 0) {
+                $tuition = SessionLedger::createCourseTuition($receipt);
             }
 
             if ($tuition) {

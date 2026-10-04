@@ -19,6 +19,7 @@ use App\Models\TuitionReceipt;
 use App\Models\User;
 use App\Models\WorkTask;
 use App\Services\SessionScheduleService;
+use App\Services\Tuition\SessionLedger;
 use Carbon\Carbon;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
@@ -238,12 +239,16 @@ class Phase1AcceptanceTest extends TestCase
         $this->actingAs($this->academic)->get(route('crm.customers.show', $lead->id))->assertOk()->assertSee('Con phát âm rõ');
 
         // ── 7a. Chốt vào lớp còn chỗ, đã đóng học phí đăng ký ─────────────
+        // Lớp đã học vài buổi → học phí = số buổi còn lại của khóa (36) × đơn giá.
+        $join = SessionLedger::joinTuition($this->activeClass, app(SessionLedger::class)->heldSessions($this->activeClass));
+        $this->assertGreaterThan(0, $join['sessions']);
+        $this->assertLessThan(36, $join['sessions']);
         $this->actingAs($this->manager)->get(route('crm.closing-wizard', ['customer_id' => $lead->id]))->assertOk();
         $this->actingAs($this->manager)->post(route('crm.closing-wizard.store'), [
             'customer_id' => $lead->id,
             'class_id' => $this->activeClass->id,
             'fee_paid_at_closing' => 1,
-            'paid_amount' => 9000000,
+            'paid_amount' => $join['fee'],
             'payment_method' => 'cash',
             'paper_invoice_number' => 'HDG-0001',
         ])->assertRedirect(route('crm.customers.won'))->assertSessionHasNoErrors();
@@ -257,7 +262,8 @@ class Phase1AcceptanceTest extends TestCase
         $this->assertTrue($student->user->hasRole('student'));
         $this->assertTrue((bool) $student->user->must_change_password);
         $tuition = StudentTuition::where('student_id', $student->id)->firstOrFail();
-        $this->assertEquals(9000000, (float) $tuition->final_amount);
+        $this->assertEquals(round(9000000 * $join['sessions'] / 36), (float) $tuition->final_amount);
+        $this->assertSame($join['sessions'], $tuition->session_count);
         $this->assertSame($this->activeClass->id, $tuition->class_id);
         $this->assertSame(1, TuitionReceipt::where('student_tuition_id', $tuition->id)->where('status', 'pending')->count());
         $enrollment = ClassEnrollment::where('customer_id', $lead->id)->firstOrFail();

@@ -26,6 +26,7 @@ use App\Models\TuitionReceipt;
 use App\Models\TuitionRefundRequest;
 use App\Models\User;
 use App\Services\CrmStageService;
+use App\Services\Tuition\SessionLedger;
 use Closure;
 use Database\Seeders\Concerns\InvokesControllersAsUser;
 use Illuminate\Database\Seeder;
@@ -565,7 +566,7 @@ class DemoPhase3Seeder extends Seeder
         $this->asUser($this->staff['manager_cg'], CrmController::class, 'processClosingWizard', array_filter([
             'customer_id' => $customer->id, 'class_id' => $class->id,
             'fee_paid_at_closing' => $paid ? 1 : 0,
-            'paid_amount' => $paid ? (float) $class->course->tuition_fee : null,
+            'paid_amount' => $paid ? (float) SessionLedger::joinTuition($class, app(SessionLedger::class)->heldSessions($class))['fee'] : null,
             'payment_method' => $paid ? 'cash' : null,
             'paper_invoice_number' => $paid ? 'HDG-DEMO-'.$customer->id : null,
             'bill_notes' => 'Chốt demo Phase 3.',

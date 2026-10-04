@@ -26,6 +26,7 @@ use App\Models\User;
 use App\Services\CrmStageService;
 use App\Services\PlacementRubricService;
 use App\Services\SessionScheduleService;
+use App\Services\Tuition\SessionLedger;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Http\Request;
@@ -532,12 +533,16 @@ class DemoPhase1Seeder extends Seeder
     private function close(CrmCustomer $customer, ?string $classKey, ?string $courseKey, bool $paid): CrmCustomer
     {
         $course = $classKey ? $this->classes[$classKey]->course : $this->courses[$courseKey];
+        // Lớp đã học → chỉ thu số buổi còn lại của khóa (cùng cách tính với màn chốt).
+        $fee = $classKey
+            ? SessionLedger::joinTuition($this->classes[$classKey], app(SessionLedger::class)->heldSessions($this->classes[$classKey]))['fee']
+            : (float) $course->tuition_fee;
         $this->asUser($this->staff['manager'], CrmController::class, 'processClosingWizard', array_filter([
             'customer_id' => $customer->id,
             'class_id' => $classKey ? $this->classes[$classKey]->id : null,
             'course_id' => $classKey ? null : $course->id,
             'fee_paid_at_closing' => $paid ? 1 : 0,
-            'paid_amount' => $paid ? (float) $course->tuition_fee : null,
+            'paid_amount' => $paid ? $fee : null,
             'payment_method' => $paid ? 'cash' : null,
             'paper_invoice_number' => $paid ? 'HDG-DEMO-'.$customer->id : null,
             'bill_notes' => 'Chốt demo Phase 1.',

@@ -454,6 +454,6 @@ class MerchandiseStockAndPaperInvoiceTest extends TestCase
             ->assertSee('data-testid="paper-invoice-content"', false)
             ->assertSee('ghi <strong>đúng nội dung thu</strong>', false)
             ->assertSee('C26HDG-0000001')
-            ->assertSee('Học phí Lê Văn Kho');
+            ->assertSee('Học phí 24 buổi Lê Văn Kho');
     }
 }
