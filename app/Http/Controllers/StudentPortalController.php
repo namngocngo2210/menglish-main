@@ -288,6 +288,8 @@ class StudentPortalController extends Controller
                 'address' => $student->address,
                 'notes' => $student->notes,
                 'teacher_name' => $student->currentClass?->teacher?->name,
+                'study_started_on' => $student->study_started_on?->format('d/m/Y'),
+                'tenure_label' => $student->studyTenureLabel(),
             ] : []),
             'totalPaid' => $totalPaid,
             'debtAmount' => $debtAmount,

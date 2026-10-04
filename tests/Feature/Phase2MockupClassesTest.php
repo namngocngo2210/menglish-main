@@ -299,7 +299,7 @@ class Phase2MockupClassesTest extends TestCase
 
         $this->actingAs($staff)->get(route('students.show', $student->id))->assertOk()
             ->assertSee('Chi tiết hồ sơ học sinh')->assertSee('15/08/2012 (14 tuổi)')
-            ->assertSee('Mã học sinh')->assertSee('Ngày nhập học')
+            ->assertSee('Mã học sinh')->assertSee('Ngày bắt đầu học')
             ->assertSee('Chỉnh sửa thông tin')->assertSee('Trường học')->assertSee('Ghi chú đặc biệt')
             ->assertSee('Trạng thái hiện tại')->assertSee('Đổi trạng thái')->assertSee('Thời gian cập nhật')
             ->assertSee('Lộ trình học tập &amp; Danh sách buổi học', false)

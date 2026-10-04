@@ -1,7 +1,7 @@
 <script setup>
 /**
  * Hồ sơ học sinh — danh sách (mockup epic-6/ho-so-hoc-sinh-danh-sach-lien-ket-lop): lọc chi nhánh / lớp / chip 6 trạng thái (A6 Q5),
- * cột Họ tên & Ngày sinh, Thông tin liên hệ, Lớp hiện tại, Trạng thái, thao tác Chi tiết + Liên kết lớp khác (popup, học song song).
+ * cột Họ tên & Ngày sinh, Thông tin liên hệ, Lớp hiện tại, Ngày bắt đầu học (thâm niên), Trạng thái, thao tác Chi tiết + Liên kết lớp khác (popup, học song song).
  */
 import { computed, ref } from 'vue';
 import { Link } from '@inertiajs/vue3';
@@ -14,6 +14,8 @@ const props = defineProps({
     classes: { type: Array, default: () => [] },
     statuses: { type: Array, default: () => [] },
     statusOptions: { type: Object, default: () => ({}) },
+    tenureOptions: { type: Array, default: () => [] },
+    sortOptions: { type: Array, default: () => [] },
     totalStudents: { type: Number, default: 0 },
     hasFilters: { type: Boolean, default: false },
     linkableClasses: { type: Array, default: () => [] },
@@ -63,15 +65,18 @@ const submitFilters = (event) => event.target.form?.requestSubmit();
         </template>
         <UiSelect name="branch_id" label="Chi nhánh" :options="branches" placeholder="Tất cả chi nhánh" />
         <UiSelect name="class_id" label="Lớp học" :options="classes" placeholder="Tất cả các lớp" />
+        <UiSelect name="tenure" label="Thâm niên" :options="tenureOptions" placeholder="Mọi thâm niên" />
+        <UiSelect name="sort" label="Sắp xếp" :options="sortOptions" placeholder="Hồ sơ mới nhất" />
     </UiFilterBar>
 
-    <UiDataTable min-width="900px">
+    <UiDataTable min-width="1020px">
         <table>
             <thead>
                 <tr>
                     <th>Họ tên &amp; Ngày sinh</th>
                     <th>Thông tin liên hệ</th>
                     <th>Lớp hiện tại</th>
+                    <th>Ngày bắt đầu học</th>
                     <th>Trạng thái</th>
                     <th class="text-right">Thao tác</th>
                 </tr>
@@ -98,6 +103,15 @@ const submitFilters = (event) => event.target.form?.requestSubmit();
                         </template>
                         <span v-else class="inline-flex rounded bg-surface-container-high px-sm py-[2px] font-caption text-caption text-on-surface-variant">Chưa có lớp</span>
                     </td>
+                    <td data-col="study-started">
+                        <template v-if="st.study_started_on">
+                            <p class="font-code text-code text-on-surface">{{ st.study_started_on }}</p>
+                            <p v-if="st.tenure_label" :class="['flex items-center gap-xs whitespace-nowrap font-caption text-caption', st.long_term ? 'font-semibold text-primary' : 'text-on-surface-variant']" :title="st.long_term ? 'Học viên lâu năm' : null">
+                                <span v-if="st.long_term" class="material-symbols-outlined text-[16px]" aria-hidden="true">workspace_premium</span>{{ st.tenure_label }}
+                            </p>
+                        </template>
+                        <span v-else class="font-caption text-caption text-on-surface-variant">Chưa vào học</span>
+                    </td>
                     <td><UiBadge :color="st.status_color" pill>{{ st.status_label }}</UiBadge></td>
                     <td class="whitespace-nowrap text-right">
                         <div class="inline-flex items-center gap-sm">
@@ -107,7 +121,7 @@ const submitFilters = (event) => event.target.form?.requestSubmit();
                     </td>
                 </tr>
                 <tr v-if="!students.data.length">
-                    <td colspan="5">
+                    <td colspan="6">
                         <UiEmptyState v-if="hasFilters" icon="search_off" title="Không tìm thấy học viên" description="Thử đổi từ khóa hoặc bỏ bớt bộ lọc.">
                             <UiButton variant="secondary" size="sm" :href="route('students.index')">Xóa bộ lọc</UiButton>
                         </UiEmptyState>
