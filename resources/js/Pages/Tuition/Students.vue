@@ -1,11 +1,13 @@
 <script setup>
 /**
  * Công nợ học viên (sổ toàn bộ khoản học phí) + nhóm quá hạn / sắp đến hạn thu gọn.
+ * Bấm dòng → modal lịch sử thu học phí của học viên (mọi đợt nộp, còn nợ sau từng đợt).
  * "Lập phiếu thu" ở từng dòng → modal 4xl (học viên + khoản nợ chọn sẵn); lưu phiếu xong trang tự có dữ liệu mới.
  * Nút "Nhập Excel" / "Lập phiếu thu" nằm ở thanh tab workspace Học phí.
  */
 import { computed } from 'vue';
 import { router } from '@inertiajs/vue3';
+import { openRemoteModal } from '@/lib/remoteModal';
 import { currentQuery } from '@/lib/url';
 import { route } from '@/lib/route';
 import DueGroups from './Partials/DueGroups.vue';
@@ -97,9 +99,9 @@ const dueGroupProps = computed(() => ({
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="t in tuitions.data" :key="t.id">
+                        <tr v-for="t in tuitions.data" :key="t.id" :data-href="t.student ? route('tuition.students.payments', t.student.id) : null" data-modal="2xl" class="cursor-pointer" title="Xem lịch sử thu học phí">
                             <td class="whitespace-nowrap">
-                                <div class="font-body-medium">{{ t.student?.name }}</div>
+                                <a v-if="t.student" :href="route('tuition.students.payments', t.student.id)" class="font-body-medium hover:text-primary" @click.prevent="openRemoteModal(route('tuition.students.payments', t.student.id), { size: '2xl' })">{{ t.student.name }}</a>
                                 <div class="font-code text-caption text-on-surface-variant"><UiCode :value="t.student?.code" /> · {{ t.student?.phone }}</div>
                             </td>
                             <td>

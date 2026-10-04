@@ -11,6 +11,8 @@ use App\Models\ClassSession;
 use App\Models\CrmCustomer;
 use App\Models\Student;
 use App\Models\StudentAttendance;
+use App\Models\StudentTuition;
+use App\Models\TuitionReceipt;
 use App\Models\User;
 use App\Services\Crm\WaitingLeadPlacement;
 use App\Services\FirstMonthCareService;
@@ -320,7 +322,7 @@ class StudentProfileController extends Controller
     {
         $student->load(['branch', 'currentClass.course', 'currentClass.teacher', 'currentClass.branch', 'enrollments.classModel']);
         if ($user->can('tuition.view')) {
-            $student->load('tuition.receipts');
+            $student->load('tuition');
         }
 
         $empty = collect();
@@ -515,12 +517,18 @@ class StudentProfileController extends Controller
         }
 
         if ($flags['canViewTuition']) {
-            $tuition = $student->tuition;
-            $props['tuition'] = $tuition ? [
-                'final_amount' => (float) $tuition->final_amount,
-                'paid_amount' => (float) $tuition->paid_amount,
-                'debt_amount' => (float) $tuition->debt_amount,
-                'receipts' => collect($tuition->receipts ?? [])->map(function ($receipt) use ($receiptLabels) {
+            // Cộng mọi khoản học phí (mọi khóa) của học viên; danh sách phiếu gồm phiếu của tất cả các khóa.
+            $tuitions = StudentTuition::where('student_id', $student->id)->get();
+            $receipts = TuitionReceipt::query()
+                ->where(fn ($q) => $q->where('student_id', $student->id)
+                    ->when($tuitions->isNotEmpty(), fn ($q) => $q->orWhereIn('student_tuition_id', $tuitions->modelKeys())))
+                ->latest('payment_date')->latest('id')
+                ->get();
+            $props['tuition'] = $tuitions->isNotEmpty() ? [
+                'final_amount' => (float) $tuitions->sum('final_amount'),
+                'paid_amount' => (float) $tuitions->sum('paid_amount'),
+                'debt_amount' => (float) $tuitions->sum('debt_amount'),
+                'receipts' => $receipts->map(function (TuitionReceipt $receipt) use ($receiptLabels) {
                     [$label, $tone] = $receiptLabels[$receipt->status] ?? [$receipt->status_label, 'text-on-surface-variant'];
 
                     return [
