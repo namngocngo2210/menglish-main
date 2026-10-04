@@ -13,11 +13,11 @@ use App\Models\Student;
 use App\Models\StudentAttendance;
 use App\Models\Survey;
 use App\Models\SyllabusAssignment;
-use App\Models\TuitionReceipt;
 use App\Services\SafeUploadService;
 use App\Services\Tuition\PaymentReportService;
 use App\Support\Money;
 use App\Support\Portal\PortalNotifications;
+use App\Support\TuitionPaymentHistory;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -213,9 +213,10 @@ class StudentPortalController extends Controller
     {
         [$students, $student] = $this->getActiveStudent($studentId);
 
-        $tuition = $student?->tuition;
-        $totalPaid = $tuition ? (float) $tuition->paid_amount : 0;
-        $debtAmount = $tuition ? (float) $tuition->debt_amount : 0;
+        // Lịch sử thu học phí: mọi đợt nộp đã duyệt của mọi khoản học phí, "Thu khác" chỉ hiện tổng.
+        $paymentHistory = $student ? TuitionPaymentHistory::forStudent($student) : null;
+        $totalPaid = (float) ($paymentHistory['summary']['paid_amount'] ?? 0);
+        $debtAmount = (float) ($paymentHistory['summary']['debt_amount'] ?? 0);
         $nextTermFee = (float) ($student?->currentClass?->course?->tuition_fee ?? 0);
         $learningProgress = [
             'attendance_present' => 0,
@@ -271,14 +272,7 @@ class StudentPortalController extends Controller
             $learningProgress['latest_big_test'] = $bigTestResults->first();
         }
 
-        // Lịch sử biên lai đóng học phí thực tế từ DB
-        $receipts = $tuition?->receipts()->where('status', 'approved')->latest()->get();
-        if (! $receipts || $receipts->isEmpty()) {
-            $receipts = TuitionReceipt::where('student_id', $student?->id)->where('status', 'approved')->latest()->get();
-        }
-
         $weekdays = ['', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
-        $className = trim('Học phí '.($student?->currentClass?->name ?? ''));
 
         return Inertia::render('Portal/Home', [
             ...$this->portalProps($students, $student, $student ? [
@@ -294,23 +288,7 @@ class StudentPortalController extends Controller
             'totalPaid' => $totalPaid,
             'debtAmount' => $debtAmount,
             'nextTermFee' => $nextTermFee,
-            'receipts' => $receipts->map(function (TuitionReceipt $rc) use ($className) {
-                $code = (string) $rc->transaction_code;
-
-                return [
-                    'id' => $rc->id,
-                    'number' => $rc->receipt_number ?? ('PT-'.$rc->id),
-                    'title' => match (true) {
-                        str_starts_with($code, 'XFER-OUT-') => 'Chuyển phí sang học viên khác',
-                        str_starts_with($code, 'XFER-IN-') => 'Nhận chuyển phí',
-                        str_starts_with($code, 'REFUND-') || (float) $rc->amount < 0 => 'Hoàn học phí',
-                        default => $rc->title ?? $className,
-                    },
-                    'payment_date' => is_string($rc->payment_date) ? $rc->payment_date : ($rc->payment_date?->format('d/m/Y') ?? '—'),
-                    'method_label' => TuitionReceipt::METHOD_LABELS[$rc->payment_method] ?? ($rc->payment_method ?: '—'),
-                    'amount' => (float) $rc->amount,
-                ];
-            })->values()->all(),
+            'paymentHistory' => $paymentHistory,
             'learningProgress' => [
                 ...$learningProgress,
                 'latest_big_test' => $learningProgress['latest_big_test']?->overall_score,

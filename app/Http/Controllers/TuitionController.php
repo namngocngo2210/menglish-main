@@ -34,6 +34,7 @@ use App\Support\Money;
 use App\Support\Rbac;
 use App\Support\TransferMemo;
 use App\Support\TuitionBranchScope;
+use App\Support\TuitionPaymentHistory;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -147,6 +148,25 @@ class TuitionController extends Controller
     private function studentBrief(?Student $student): ?array
     {
         return $student ? ['id' => $student->id, 'name' => $student->name, 'code' => $student->code, 'phone' => $student->phone] : null;
+    }
+
+    /**
+     * Toàn bộ lịch sử thu học phí của một học viên (modal khi bấm dòng ở Công nợ học viên / thẻ Học phí trong hồ sơ;
+     * mở thẳng URL → trang đầy đủ). Chỉ học viên thuộc phạm vi chi nhánh được xem học phí.
+     */
+    public function studentPayments(int $student)
+    {
+        $scope = $this->branchScope();
+        $model = TuitionBranchScope::students(Student::query(), $scope)->find($student)
+            ?? Student::query()->whereKey($student)
+                ->whereHas('tuition', fn ($t) => TuitionBranchScope::tuitions($t, $scope))
+                ->first();
+        abort_unless($model, 404);
+
+        return $this->modalPage('Tuition/StudentPayments', [
+            'student' => $this->studentBrief($model),
+            ...TuitionPaymentHistory::forStudent($model, forStaff: true),
+        ]);
     }
 
     /**

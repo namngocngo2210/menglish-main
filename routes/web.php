@@ -212,6 +212,7 @@ Route::middleware('auth')->group(function () {
     // ─────────────────────────────────────────────
     Route::prefix('tuition')->name('tuition.')->middleware('can:tuition.view')->group(function () {
         Route::get('/students', [TuitionController::class, 'students'])->name('students');
+        Route::get('/students/{student}/payments', [TuitionController::class, 'studentPayments'])->whereNumber('student')->name('students.payments');
         Route::get('/import', [TuitionController::class, 'import'])->name('import');
         Route::post('/import', [TuitionController::class, 'importTuition'])->middleware('can:tuition.create')->name('import.store');
         Route::post('/import/confirm', [TuitionController::class, 'confirmImport'])->middleware('can:tuition.create')->name('import.confirm');

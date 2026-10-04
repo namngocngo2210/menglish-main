@@ -3,13 +3,15 @@
  * Trang chủ cổng học viên (MH #2): không có nút quay lại; tiêu đề trang là lời chào (h1) trong nội dung.
  * Trên điện thoại: thanh điều hướng đáy là điều hướng chính, ẩn dải tab.
  * Thứ tự khối: Lịch học → Bài tập (truy cập nhanh) → Tiến độ → Điểm danh / Big Test → Học phí → Thông tin học sinh.
- * Hộp thoại: Lịch sử thu học phí, Báo đóng học phí, Sửa thông tin học viên.
+ * Hộp thoại: Lịch sử thu học phí (bấm vào thẻ Học phí hoặc nút "Lịch sử": mọi đợt đã nộp, còn nợ sau từng đợt),
+ * Báo đóng học phí, Sửa thông tin học viên.
  */
 import { computed, ref } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import WorkspaceTabs from '@/Layouts/Shell/WorkspaceTabs.vue';
 import PortalBottomNav from './PortalBottomNav.vue';
 import PortalTopHeader from './PortalTopHeader.vue';
+import PaymentHistory from '@/Components/Tuition/PaymentHistory.vue';
 
 defineOptions({ layout: { title: 'Trang chủ', workspaceTabs: false } });
 
@@ -20,7 +22,7 @@ const props = defineProps({
     totalPaid: { type: Number, default: 0 },
     debtAmount: { type: Number, default: 0 },
     nextTermFee: { type: Number, default: 0 },
-    receipts: { type: Array, default: () => [] },
+    paymentHistory: { type: Object, default: null },
     learningProgress: { type: Object, required: true },
     upcomingDays: { type: Number, default: 14 },
     upcomingSessions: { type: Array, default: () => [] },
@@ -167,7 +169,13 @@ function sessionBadge(s) {
                     </div>
                 </div>
 
-                <div class="relative z-10 grid grid-cols-2 gap-3 rounded-xl border border-white/10 bg-black/15 p-3 backdrop-blur-xs">
+                <button
+                    type="button"
+                    class="relative z-10 grid grid-cols-2 gap-3 rounded-xl border border-white/10 bg-black/15 p-3 text-left backdrop-blur-xs transition-colors hover:bg-black/25 focus-visible:outline-2 focus-visible:outline-white active:scale-[0.99]"
+                    title="Xem lịch sử thu học phí"
+                    data-open-payment-history
+                    @click="historyOpen = true"
+                >
                     <div class="flex flex-col gap-0.5">
                         <span class="text-xs font-semibold uppercase tracking-wider text-white/80">Tổng đã đóng</span>
                         <span class="font-mono text-xl font-bold">{{ formatMoney(totalPaid) }}</span>
@@ -176,7 +184,11 @@ function sessionBadge(s) {
                         <span class="text-xs font-semibold uppercase tracking-wider text-white/80">Còn nợ</span>
                         <span class="font-mono text-lg font-bold text-error-container">{{ formatMoney(debtAmount) }}</span>
                     </div>
-                </div>
+                    <span class="col-span-2 -mb-1 flex items-center justify-end gap-0.5 text-xs font-semibold text-white/90">
+                        Xem lịch sử {{ paymentHistory?.summary.installments ? paymentHistory.summary.installments + ' lần đóng' : 'thu học phí' }}
+                        <span class="material-symbols-outlined text-[14px]" aria-hidden="true">chevron_right</span>
+                    </span>
+                </button>
 
                 <div class="relative z-10 flex items-center justify-between rounded-xl bg-surface-container-lowest/10 px-3 py-2 text-xs">
                     <span class="font-medium text-white/90">Dự kiến khóa tới:</span>
@@ -236,29 +248,9 @@ function sessionBadge(s) {
         </div>
 
         <!-- Lịch sử thu học phí -->
-        <UiModal :show="historyOpen" title="Lịch sử thu học phí" max-width="md" @close="historyOpen = false">
-            <div class="flex flex-col gap-3">
-                <div class="mb-1 flex items-center gap-1 text-xs font-semibold text-on-surface-variant">
-                    <span class="material-symbols-outlined text-[14px]">filter_list</span> Chỉ hiển thị phiếu "Đã duyệt"
-                </div>
-
-                <div v-for="rc in receipts" :key="rc.id" class="flex flex-col gap-2 rounded-xl border border-surface-container-highest/80 bg-surface-container-low p-3 shadow-2xs">
-                    <div class="flex items-start justify-between">
-                        <div class="flex flex-col">
-                            <span class="font-mono text-xs font-bold text-primary">{{ rc.number }}</span>
-                            <span class="text-xs font-semibold text-on-surface">{{ rc.title }}</span>
-                        </div>
-                        <UiBadge color="success" pill :dot="false"><span class="material-symbols-outlined text-[12px]">check_circle</span> Đã duyệt</UiBadge>
-                    </div>
-                    <div class="mt-1 flex items-end justify-between border-t border-surface-container-highest pt-2 text-xs">
-                        <div class="flex flex-col gap-0.5 text-xs text-on-surface-variant">
-                            <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">calendar_today</span> {{ rc.payment_date }}</span>
-                            <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">payments</span> {{ rc.method_label }}</span>
-                        </div>
-                        <UiMoney :value="rc.amount" class="font-bold" />
-                    </div>
-                </div>
-            </div>
+        <UiModal :show="historyOpen" title="Lịch sử thu học phí" max-width="lg" @close="historyOpen = false">
+            <PaymentHistory v-if="paymentHistory" v-bind="paymentHistory" />
+            <UiEmptyState v-else icon="receipt_long" title="Chưa có học phí" description="Học viên chưa có khoản học phí nào." />
         </UiModal>
 
         <!-- Cập nhật thông tin học viên -->
@@ -287,6 +279,7 @@ function sessionBadge(s) {
             </template>
         </UiModal>
 
-        <PortalBottomNav active-tab="home" :student="student" :unread-count="unreadCount" />
+        <!-- Ẩn khi mở hộp thoại: thanh đáy (z-50, nằm sau trong DOM) che mất phần cuối hộp thoại trên điện thoại. -->
+        <PortalBottomNav v-show="!historyOpen && !requestOpen && !profileOpen" active-tab="home" :student="student" :unread-count="unreadCount" />
     </div>
 </template>
