@@ -14,6 +14,7 @@ use App\Models\StudentAttendance;
 use App\Models\StudentTuition;
 use App\Models\TuitionReceipt;
 use App\Models\User;
+use App\Services\Crm\PlacementLevelMatcher;
 use App\Services\Crm\WaitingLeadPlacement;
 use App\Services\FirstMonthCareService;
 use App\Services\SessionLessonService;
@@ -138,14 +139,16 @@ class StudentProfileController extends Controller
             ->latest()
             ->paginate($request->perPage(15))
             ->withQueryString();
-        $classes = $this->visibleClasses($user)->with('branch:id,name')->orderBy('name')->get();
+        $classes = $this->visibleClasses($user)->with(['branch:id,name', 'course:id,course_level_id'])->orderBy('name')->get();
         $students = Student::visibleTo($user)->with('branch:id,name')->where('status', '!=', Student::STATUS_DROPPED)->orderBy('name')->get();
 
-        // Lớp chọn được theo từng học viên: cùng chi nhánh (chi nhánh đã chốt nếu đang Chờ xếp lớp), đúng khóa đã chốt.
-        $waitingLeads = CrmCustomer::query()->with('waitingBranch:id,name')
+        // Lớp chọn được theo từng học viên: cùng chi nhánh (chi nhánh đã chốt nếu đang Chờ xếp lớp), đúng khóa đã chốt
+        // hoặc cùng cấp độ (PlacementLevelMatcher::matchesClosed — cùng luật với WaitingLeadPlacement).
+        $levels = app(PlacementLevelMatcher::class);
+        $waitingLeads = CrmCustomer::query()->with(['waitingBranch:id,name', 'waitingCourse', 'assignedTest', 'latestSubmission.test'])
             ->where('stage', 'waiting_class')->whereIn('converted_student_id', $students->pluck('id'))
             ->get()->keyBy('converted_student_id');
-        $placementRules = $students->mapWithKeys(function (Student $student) use ($waitingLeads) {
+        $placementRules = $students->mapWithKeys(function (Student $student) use ($waitingLeads, $classes, $levels) {
             $lead = $waitingLeads->get($student->id);
             $branchId = $lead?->waiting_branch_id ?? $student->branch_id;
 
@@ -153,6 +156,9 @@ class StudentProfileController extends Controller
                 'branch_id' => $branchId,
                 'branch_name' => $lead?->waiting_branch_id ? $lead->waitingBranch?->name : $student->branch?->name,
                 'course_id' => $lead?->waiting_course_id,
+                // null = không giới hạn theo khóa / cấp độ.
+                'class_ids' => $lead ? $classes->filter(fn (ClassModel $class) => $levels->matchesClosed($lead, $class))->pluck('id')->values()->all() : null,
+                'levels' => $lead ? $levels->targetLevelNames($lead) : [],
             ]];
         });
 

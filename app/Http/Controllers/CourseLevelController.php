@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\CourseLevel;
+use App\Models\PlacementTest;
 use App\Models\Student;
 use App\Models\SyllabusCurriculum;
 use Illuminate\Http\Request;
@@ -63,6 +64,8 @@ class CourseLevelController extends Controller
                 'name' => $lv->name,
                 'description' => $lv->description,
                 'level_group' => $lv->level_group,
+                'grade_levels' => array_values((array) $lv->grade_levels),
+                'grade_labels' => collect((array) $lv->grade_levels)->map(fn (string $grade) => PlacementTest::gradeLevelLabel($grade))->filter()->values()->all(),
                 'target' => $lv->target,
                 'lessons_count' => $lv->lessons_count,
                 'syllabus_curriculum_id' => $lv->syllabus_curriculum_id,
@@ -77,6 +80,7 @@ class CourseLevelController extends Controller
             ]),
             'stats' => $stats,
             'groups' => $groups->values()->all(),
+            'gradeLevels' => collect(PlacementTest::GRADE_LEVELS)->map(fn (string $label, string $value) => ['value' => $value, 'label' => $label])->values()->all(),
             'curriculums' => $curriculums->map(fn (SyllabusCurriculum $c) => [
                 'id' => $c->id,
                 'label' => $c->code.($c->version ? '.'.$c->version : '').' - '.$c->title,
@@ -101,8 +105,10 @@ class CourseLevelController extends Controller
             'lessons_count' => 'required|integer|min:1',
             'syllabus_curriculum_id' => 'nullable|integer|exists:syllabus_curriculums,id,deleted_at,NULL',
             'is_active' => 'nullable|boolean',
+            ...self::gradeLevelRules(),
         ]);
         $validated['level_group'] = isset($validated['level_group']) ? mb_strtoupper(trim($validated['level_group'])) : null;
+        $validated['grade_levels'] = self::gradeLevels($validated);
         // Mặc định "Hoạt động"; form có công tắc "Trạng thái hoạt động" để tạo sẵn ở trạng thái ngừng.
         $validated['is_active'] = $request->has('is_active') ? $request->boolean('is_active') : true;
         $validated['sort_order'] = (int) CourseLevel::max('sort_order') + 1;
@@ -133,8 +139,10 @@ class CourseLevelController extends Controller
             'lessons_count' => 'required|integer|min:1',
             'syllabus_curriculum_id' => ['nullable', 'integer', Rule::exists('syllabus_curriculums', 'id')->whereNull('deleted_at')],
             'is_active' => 'nullable|boolean',
+            ...self::gradeLevelRules(),
         ]);
         $validated['level_group'] = isset($validated['level_group']) ? mb_strtoupper(trim($validated['level_group'])) : null;
+        $validated['grade_levels'] = self::gradeLevels($validated);
         $validated['syllabus_curriculum_id'] ??= null;
         $validated['is_active'] = $request->has('is_active') ? $request->boolean('is_active') : $level->is_active;
 
@@ -142,6 +150,23 @@ class CourseLevelController extends Controller
 
         return redirect()->route('course-levels.index')
             ->with('status', "Cập nhật khung trình độ {$level->name} thành công!");
+    }
+
+    /** "Cấp độ test đầu vào" ứng với trình độ: xếp lớp lọc lớp theo cấp độ test của học viên (PlacementLevelMatcher). */
+    private static function gradeLevelRules(): array
+    {
+        return [
+            'grade_levels' => 'nullable|array',
+            'grade_levels.*' => ['string', Rule::in(array_keys(PlacementTest::GRADE_LEVELS))],
+        ];
+    }
+
+    /** @return list<string>|null theo thứ tự danh sách cấp độ */
+    private static function gradeLevels(array $validated): ?array
+    {
+        $picked = array_values(array_intersect(array_keys(PlacementTest::GRADE_LEVELS), (array) ($validated['grade_levels'] ?? [])));
+
+        return $picked === [] ? null : $picked;
     }
 
     /**
