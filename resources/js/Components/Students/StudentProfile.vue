@@ -53,6 +53,9 @@ const dashOffset = computed(() => circle - (circle * (props.attendanceStats?.rat
 const pad2 = (n) => String(n).padStart(2, '0');
 const taskTone = (status) => (status === 'completed' ? 'text-tertiary' : status === 'overdue' ? 'text-error' : 'text-warning');
 const receiptUrl = computed(() => route('tuition.receipts.create', { student_id: props.student.id }));
+// Lịch sử thu học phí đầy đủ (mọi đợt nộp, còn nợ sau từng đợt) — modal Tuition/StudentPayments.
+const paymentsUrl = computed(() => route('tuition.students.payments', props.student.id));
+const openPayments = () => openRemoteModal(paymentsUrl.value, { size: '2xl' });
 </script>
 
 <template>
@@ -378,13 +381,25 @@ const receiptUrl = computed(() => route('tuition.receipts.create', { student_id:
                     </a>
                 </div>
                 <template v-if="tuition">
-                    <div class="grid grid-cols-3 gap-sm rounded-lg bg-surface-container-low p-sm text-center font-caption text-caption">
+                    <button
+                        type="button"
+                        class="grid grid-cols-3 gap-sm rounded-lg bg-surface-container-low p-sm text-center font-caption text-caption transition-colors hover:bg-surface-container focus-visible:outline-2 focus-visible:outline-primary"
+                        title="Xem toàn bộ lịch sử thu học phí"
+                        @click="openPayments"
+                    >
                         <div><p class="text-on-surface-variant">Tổng học phí</p><p class="font-code font-semibold text-on-surface">{{ formatMoney(tuition.final_amount) }}</p></div>
                         <div><p class="text-on-surface-variant">Đã thanh toán</p><p class="font-code font-semibold text-tertiary">{{ formatMoney(tuition.paid_amount) }}</p></div>
                         <div><p class="text-on-surface-variant">Công nợ</p><p class="font-code font-semibold text-error">{{ formatMoney(tuition.debt_amount) }}</p></div>
-                    </div>
+                    </button>
                     <div class="max-h-[220px] flex-1 space-y-sm overflow-y-auto pr-xs">
-                        <div v-for="receipt in tuition.receipts" :key="receipt.id" class="flex items-center justify-between rounded-lg border border-outline-variant p-sm">
+                        <button
+                            v-for="receipt in tuition.receipts"
+                            :key="receipt.id"
+                            type="button"
+                            class="flex w-full items-center justify-between rounded-lg border border-outline-variant p-sm text-left transition-colors hover:border-primary hover:bg-surface-container-low focus-visible:outline-2 focus-visible:outline-primary"
+                            title="Xem toàn bộ lịch sử thu học phí"
+                            @click="openPayments"
+                        >
                             <div class="flex items-center gap-sm">
                                 <span class="flex h-8 w-8 items-center justify-center rounded-full bg-primary-fixed text-primary"><span class="material-symbols-outlined text-[18px]" aria-hidden="true">receipt_long</span></span>
                                 <div>
@@ -396,7 +411,7 @@ const receiptUrl = computed(() => route('tuition.receipts.create', { student_id:
                                 <p class="font-code text-code font-semibold">{{ formatMoney(receipt.amount) }}</p>
                                 <span :class="['font-caption text-caption font-semibold', receipt.tone]">{{ receipt.label }}</span>
                             </div>
-                        </div>
+                        </button>
                         <p v-if="!tuition.receipts.length" class="rounded-lg border border-dashed border-outline-variant p-md text-center font-body-small text-body-small text-on-surface-variant">Chưa có phiếu thu nào được ghi nhận cho học viên.</p>
                     </div>
                     <div class="flex items-center justify-between border-t border-surface-container pt-sm">
@@ -404,7 +419,7 @@ const receiptUrl = computed(() => route('tuition.receipts.create', { student_id:
                             <p class="font-label text-label uppercase text-on-surface-variant">Tổng học phí đã nộp</p>
                             <p class="font-h3 text-h3 text-primary">{{ formatMoney(tuition.paid_amount) }}</p>
                         </div>
-                        <UiButton variant="ghost" icon="more_horiz" :href="route('tuition.students', { search: student.code })" title="Lịch sử sổ thu" aria-label="Lịch sử sổ thu" />
+                        <UiButton variant="secondary" size="sm" icon="history" :href="paymentsUrl" modal="2xl">Xem toàn bộ lịch sử</UiButton>
                     </div>
                 </template>
                 <UiEmptyState v-else icon="receipt_long" title="Chưa có sổ học phí" description="Học viên chưa được lập sổ học phí." />
