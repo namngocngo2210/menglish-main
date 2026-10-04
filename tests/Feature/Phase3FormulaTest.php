@@ -27,6 +27,7 @@ use Carbon\Carbon;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Tests\Concerns\FinalizesPayrollKpi;
 use Tests\TestCase;
 
@@ -425,6 +426,57 @@ class Phase3FormulaTest extends TestCase
 
         $this->actingAs($this->admin)->get(route('payroll.periods.operations', $period->id))->assertOk()->assertSee('Học vụ Phượng')->assertSee('100% × quỹ');
         $this->actingAs($this->admin)->get(route('kpi.criteria'))->assertOk()->assertSee('Chăm sóc học viên')->assertSee('Thu học phí')->assertSee('300.000 đ');
+    }
+
+    public function test_academic_staff_profile_shows_provisional_kpi_money_per_item_as_milestones(): void
+    {
+        $this->travelTo(Carbon::parse('2026-09-15 10:00:00'));
+        $staff = $this->userWithRole('academic_staff', ['name' => 'Học vụ KPI']);
+        $teacher = $this->userWithRole('teacher');
+
+        // Chưa chấm: mỗi mục hiện quỹ tối đa và mốc kế tiếp (Ngưỡng 50 = nửa quỹ mục)
+        $empty = app(PayrollFormulaService::class)->academicKpiStatement($staff, 9, 2026);
+        $this->assertNull($empty['status']);
+        $this->assertEquals(0, $empty['amount']);
+        $this->assertSame(15, $empty['counts']['pending']);
+        $collect = collect($empty['groups'])->flatMap(fn ($g) => $g['items'])->keyBy('code');
+        $this->assertEquals(300000, $collect['1.2']['max']);             // Thu học phí 15% × 2.000.000
+        $this->assertSame('Ngưỡng 50: 70%', $collect['1.2']['next_label']);
+        $this->assertEquals(150000, $collect['1.2']['next_gain']);
+
+        // Đang chấm (nháp): vẫn hiện tạm tính, cùng công thức với bảng lương
+        $evaluation = KpiEvaluation::create(['user_id' => $staff->id, 'evaluator_id' => $this->admin->id, 'month' => 9, 'year' => 2026, 'total_score' => 0, 'status' => 'draft']);
+        foreach (KpiCriterion::active()->where('code', '!=', '1.1')->get() as $criterion) {   // 1.1 chưa chấm
+            $evaluation->items()->create(['kpi_criterion_id' => $criterion->id, 'score' => match ($criterion->code) {
+                '1.2' => 50,
+                '2.4' => 0,
+                default => 100,
+            }]);
+        }
+        $statement = app(PayrollFormulaService::class)->academicKpiStatement($staff, 9, 2026);
+        $items = collect($statement['groups'])->flatMap(fn ($g) => $g['items'])->keyBy('code');
+        $this->assertSame('draft', $statement['status']);
+        $this->assertEquals(72.5, $statement['score']);                   // 100 − 10 (chưa chấm) − 7,5 − 10
+        $this->assertEquals(1450000, $statement['amount']);
+        $this->assertSame(['full' => 12, 'half' => 1, 'below' => 1, 'pending' => 1], $statement['counts']);
+        $this->assertSame('half', $items['1.2']['level']);
+        $this->assertEquals(150000, $items['1.2']['amount']);
+        $this->assertSame('Ngưỡng 100: 95%', $items['1.2']['next_label']);
+        $this->assertEquals(150000, $items['1.2']['next_gain']);
+        $this->assertSame('zero', $items['2.4']['level']);
+        $this->assertSame('full', $items['3.1']['level']);
+        $this->assertNull($items['3.1']['next_gain']);
+
+        $this->actingAs($staff)->get(route('profile.edit'))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Profile/Edit')
+                ->where('kpi.amount', fn ($v) => (float) $v === 1450000.0)
+                ->where('kpi.status', 'draft')
+                ->has('kpi.groups', 6)
+                ->where('statCards.1.label', 'KPI tạm tính'));
+        $this->actingAs($teacher)->get(route('profile.edit'))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('kpi', null));
     }
 
     // ───────────── E. Hoa hồng: mốc theo thứ tự HS chốt + gate kép ─────────────

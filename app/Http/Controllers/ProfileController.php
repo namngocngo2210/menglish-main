@@ -14,6 +14,7 @@ use App\Models\SupportTicket;
 use App\Models\TeacherTimesheet;
 use App\Models\User;
 use App\Models\WorkTask;
+use App\Services\PayrollFormulaService;
 use App\Services\SalesCommissionService;
 use App\Support\Approvals\ApprovalInboxService;
 use App\Support\Money;
@@ -216,6 +217,13 @@ class ProfileController extends Controller
             || CrmCustomer::whereNotNull('converted_student_id')->where('commission_user_id', $user->id)->exists()) {
             $commission = app(SalesCommissionService::class)->statementFor($user->id, now());
         }
+        // KPI Học vụ tạm tính tháng này theo từng đầu mục (KPI thực vào phiếu lương khi đánh giá tháng được chốt).
+        $kpi = StaffType::usesAcademicStaffKpi($user)
+            ? app(PayrollFormulaService::class)->academicKpiStatement($user, (int) now()->month, (int) now()->year)
+            : null;
+        if ($kpi && $user->can('kpi.view')) {
+            $kpi['url'] = route('kpi.evaluate', $user->id);
+        }
 
         $inbox = app(ApprovalInboxService::class);
         $approvalCount = $inbox->badge($user);
@@ -244,8 +252,17 @@ class ProfileController extends Controller
             'report' => $reportCard,
             'commission' => $commission ? [
                 'label' => 'Hoa hồng tạm tính', 'icon' => 'trending_up', 'tone' => 'success',
-                'value' => Money::format($commission['amount']),
-                'hint' => 'Tháng '.$commission['month_label'].' · '.$commission['closed'].' HS chốt · mốc '.rtrim(rtrim(number_format($commission['percent'], 2, ',', ''), '0'), ',').'%',
+                'value' => Money::format($commission['expected']),
+                'hint' => 'Khi thu đủ · '.$commission['closed'].' HS chốt tháng '.$commission['month_label'].' · mốc '.rtrim(rtrim(number_format($commission['percent'], 2, ',', ''), '0'), ',').'%',
+            ] : null,
+            'kpi' => $kpi ? [
+                'label' => 'KPI tạm tính', 'icon' => 'insights', 'tone' => 'primary',
+                'value' => Money::format($kpi['amount']),
+                'hint' => 'Tháng '.$kpi['month_label'].' · quỹ '.Money::format($kpi['fund']).' · '.match ($kpi['status']) {
+                    'confirmed' => 'đã chốt',
+                    'draft' => 'đang chấm',
+                    default => 'chưa chấm',
+                },
             ] : null,
             'tasks' => [
                 'label' => 'Việc cần làm', 'icon' => 'task_alt', 'tone' => 'warning',
@@ -259,7 +276,7 @@ class ProfileController extends Controller
         $order = match ($portal) {
             'teacher' => ['classes', 'hours', 'tasks', 'payroll', 'report'],
             'assistant' => ['tasks', 'classes', 'hours', 'payroll', 'report'],
-            'academic_staff' => ['tasks', 'commission', 'report', 'approvals', 'payroll', 'tickets'],
+            'academic_staff' => ['commission', 'kpi', 'tasks', 'approvals', 'report', 'payroll', 'tickets'],
             'academic_lead' => ['approvals', 'report', 'tasks', 'payroll', 'tickets'],
             default => ['approvals', 'tasks', 'payroll', 'report', 'tickets'],
         };
@@ -280,6 +297,7 @@ class ProfileController extends Controller
             'showTickets' => $showTickets,
             'showOperations' => true,
             'commission' => $commission,
+            'kpi' => $kpi,
             'payrollPeriodLabel' => $latestPayroll?->period?->title ?? 'Tháng '.now()->format('m/Y'),
             'latestPayroll' => $latestPayroll ? [
                 'base_salary' => $latestPayroll->base_salary,
