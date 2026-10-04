@@ -20,6 +20,7 @@ class CourseLevel extends Model
         'name',
         'description',
         'level_group',
+        'grade_levels',
         'target',
         'duration',
         'lessons_count',
@@ -30,6 +31,7 @@ class CourseLevel extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
+        'grade_levels' => 'array',
         'lessons_count' => 'integer',
         'sort_order' => 'integer',
     ];
