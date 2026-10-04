@@ -251,7 +251,9 @@ final class TeachingQuality
      */
     public function teachersTable(User $viewer): array
     {
-        $teacherIds = User::role(StaffType::TEACHER_ROLES)->pluck('id');
+        // Lọc theo tên vai trò thay vì User::role(): vai trò giáo viên đã bị xóa trên hệ thống (vd. "Giáo viên giảng dạy")
+        // thì User::role() ném RoleDoesNotExist → Tổng quan lỗi 500.
+        $teacherIds = User::whereHas('roles', fn ($q) => $q->whereIn('name', StaffType::TEACHER_ROLES))->pluck('id');
         $classes = ClassModel::query()->visibleTo($viewer)->where('status', 'active')->whereIn('teacher_id', $teacherIds)
             ->orderBy('name')->get(['id', 'code', 'name', 'branch_id', 'teacher_id', 'status']);
         $metrics = collect($this->classMetrics($classes));
