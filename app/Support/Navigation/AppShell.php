@@ -76,6 +76,8 @@ final class AppShell
             'icon' => $group['icon'],
             'url' => $group['url'],
             'active' => $group['is_active'],
+            // Mục mở modal thay vì chuyển trang (vd. "Tạo đầu việc"); mở thẳng URL vẫn ra trang đầy đủ.
+            'modal' => $group['modal'] ?? null,
             'badge' => $group['id'] === 'approvals' ? $approvalBadge : null,
         ], $this->menu->groupsFor($user, $request));
     }
