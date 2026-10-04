@@ -23,6 +23,8 @@ use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Inertia\Testing\AssertableInertia;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 /**
@@ -190,6 +192,16 @@ class TeachingQualityDashboardTest extends TestCase
         // Trống hết → báo lỗi.
         $this->actingAs($this->teacher)->post(route('reports.periodic.teacher-monthly.store'), ['month' => '2026-10', 'general' => ['progress' => '']])
             ->assertSessionHasErrors('general');
+    }
+
+    public function test_dashboard_still_opens_when_a_teacher_role_was_deleted(): void
+    {
+        // Vai trò giáo viên đã xóa ở Cài đặt → Vai trò (vd. "Giáo viên Part-time"): Tổng quan từng lỗi 500 (RoleDoesNotExist).
+        Role::whereIn('name', ['teacher_fulltime', 'teacher_parttime'])->delete();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $this->actingAs($this->userWithRole('admin', 'Admin'))->get(route('dashboard'))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('teaching.team.rows.0.name', 'Cô Lan'));
     }
 
     private function submission(Student $student, string $at): void
