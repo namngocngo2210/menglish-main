@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\ClassModel;
 use App\Models\KpiCriterion;
+use App\Models\MaterialOrder;
 use App\Models\StaffReport;
 use App\Models\StaffReportFollowup;
 use App\Models\TeacherMeetingReport;
 use App\Models\User;
+use App\Support\Dashboard\TeachingQuality;
 use App\Support\MonthlyReportDue;
 use App\Support\ReportPeriod;
 use App\Support\StaffType;
@@ -24,7 +26,7 @@ use Inertia\Response;
  *  - staff_report.submit: ghi nhật ký sự vụ, nộp báo cáo định kỳ của mình. Kỳ báo cáo theo chức danh (StaffType):
  *    Học vụ NGÀY, Học thuật TUẦN, giáo viên / trợ giảng THÁNG.
  *  - Báo cáo có cấu trúc (StaffType::structuredReports): Học vụ thêm báo cáo TUẦN theo mục KPI; Học thuật thêm báo cáo
- *    THÁNG / QUÝ (tường thuật + tổng hợp báo cáo tuần, họp giáo viên). Mỗi người 1 báo cáo / kỳ (staff_reports.period_key),
+ *    THÁNG / QUÝ (tường thuật + tổng hợp báo cáo tuần, họp giáo viên); giáo viên thêm báo cáo THÁNG theo lớp. Mỗi người 1 báo cáo / kỳ (staff_reports.period_key),
  *    nộp lại trong kỳ là cập nhật. `content` lưu bản chữ để màn Tổng hợp đọc được như báo cáo thường.
  *  - staff_report.view_all: xem tổng tất cả nhật ký & báo cáo của mọi người (mặc định Admin / Quản lý cơ sở).
  */
@@ -35,6 +37,21 @@ class StaffReportController extends Controller
         'weekly_kpi' => ['label' => 'Báo cáo tuần (KPI)', 'type' => 'weekly', 'route' => 'reports.periodic.weekly-kpi', 'for' => 'Học vụ'],
         'academic_monthly' => ['label' => 'Báo cáo tháng', 'type' => 'monthly', 'route' => 'reports.periodic.academic-monthly', 'for' => 'Học thuật'],
         'academic_quarterly' => ['label' => 'Báo cáo quý', 'type' => 'quarterly', 'route' => 'reports.periodic.academic-quarterly', 'for' => 'Học thuật'],
+        'teacher_monthly' => ['label' => 'Báo cáo tháng theo lớp', 'type' => 'monthly', 'route' => 'reports.periodic.teacher-monthly', 'for' => 'giáo viên'],
+    ];
+
+    /** Báo cáo tháng của giáo viên — phần chung (chủ dự án 04/10/2026). */
+    public const TEACHER_GENERAL_FIELDS = [
+        'progress' => 'Tiến độ giảng dạy',
+        'difficulties' => 'Khó khăn',
+        'proposals' => 'Đề xuất',
+    ];
+
+    /** Báo cáo tháng của giáo viên — tình hình từng lớp (ngoài ô "Cần hỗ trợ"). */
+    public const TEACHER_CLASS_FIELDS = [
+        'situation' => 'Tình hình lớp',
+        'attention' => 'Học sinh cần chú ý',
+        'solution' => 'Giải pháp',
     ];
 
     /** Chỉ số quy mô trong báo cáo tuần Học vụ (theo dõi, không tính KPI). */
@@ -387,6 +404,105 @@ class StaffReportController extends Controller
             $from->toDateString(), ['narrative' => $data['narrative']], $this->narrativeText($data['narrative'], self::MONTHLY_FIELDS));
 
         return back()->with('success', 'Đã lưu báo cáo '.mb_strtolower(ReportPeriod::monthLabel($data['month'])).'.');
+    }
+
+    /**
+     * Báo cáo tháng của giáo viên: phần chung (tiến độ, khó khăn, đề xuất) + tình hình từng lớp đang dạy (học sinh cần chú ý,
+     * giải pháp, cần hỗ trợ không). Kèm số liệu lớp trong tháng và order học thuật đã gửi để giáo viên tham chiếu.
+     */
+    public function teacherMonthly(Request $request): Response|RedirectResponse
+    {
+        if ($redirect = $this->redirectUnlessStructured('teacher_monthly')) {
+            return $redirect;
+        }
+        $month = ReportPeriod::pick($request->input('month'), ReportPeriod::MONTH_PATTERN, ReportPeriod::currentMonth());
+        $report = $this->structuredReport('teacher_monthly', $month);
+        $quality = new TeachingQuality($month);
+
+        return Inertia::render('Reports/TeacherMonthly', [
+            'tabs' => $this->reportTabs(Auth::user(), 'teacher_monthly'),
+            'month' => $month,
+            'months' => ReportPeriod::monthOptions(),
+            'generalFields' => self::TEACHER_GENERAL_FIELDS,
+            'classFields' => self::TEACHER_CLASS_FIELDS,
+            'general' => $report?->data['general'] ?? [],
+            'classValues' => (object) ($report?->data['classes'] ?? []),
+            'classes' => $quality->classMetrics($quality->classesOf(Auth::user())),
+            'orders' => $this->academicOrders([Auth::id()], $quality),
+            'submittedAt' => $report?->updated_at?->toIso8601String(),
+            'history' => $this->structuredHistory('teacher_monthly', fn (string $key) => ReportPeriod::monthLabel($key), 'month'),
+        ]);
+    }
+
+    public function teacherMonthlyStore(Request $request): RedirectResponse
+    {
+        $this->guardStructured('teacher_monthly');
+        $data = $request->validate([
+            'month' => ['required', 'regex:'.ReportPeriod::MONTH_PATTERN],
+            'general' => ['nullable', 'array'],
+            ...collect(self::TEACHER_GENERAL_FIELDS)->keys()->mapWithKeys(fn ($f) => ["general.{$f}" => ['nullable', 'string', 'max:10000']])->all(),
+            'classes' => ['nullable', 'array'],
+            ...collect(self::TEACHER_CLASS_FIELDS)->keys()->mapWithKeys(fn ($f) => ["classes.*.{$f}" => ['nullable', 'string', 'max:5000']])->all(),
+            'classes.*.need_support' => ['nullable', 'boolean'],
+            'classes.*.support_note' => ['nullable', 'string', 'max:5000'],
+        ]);
+
+        // Chỉ nhận lớp giáo viên đang giữ trong tháng báo cáo.
+        $quality = new TeachingQuality($data['month']);
+        $classes = $quality->classesOf(Auth::user())->keyBy('id');
+        $general = collect(self::TEACHER_GENERAL_FIELDS)->keys()
+            ->mapWithKeys(fn ($f) => [$f => filled($data['general'][$f] ?? null) ? $data['general'][$f] : null])->all();
+        $classData = collect($data['classes'] ?? [])
+            ->filter(fn ($row, $id) => $classes->has((int) $id))
+            ->map(fn (array $row) => [
+                ...collect(self::TEACHER_CLASS_FIELDS)->keys()->mapWithKeys(fn ($f) => [$f => filled($row[$f] ?? null) ? $row[$f] : null])->all(),
+                'need_support' => (bool) ($row['need_support'] ?? false),
+                'support_note' => filled($row['support_note'] ?? null) ? $row['support_note'] : null,
+            ])
+            ->filter(fn (array $row) => $row['need_support'] || collect($row)->except('need_support')->filter()->isNotEmpty())
+            ->all();
+        if (collect($general)->filter()->isEmpty() && $classData === []) {
+            throw ValidationException::withMessages(['general' => 'Nhập ít nhất một mục của báo cáo.']);
+        }
+
+        $lines = [$this->narrativeText($general, self::TEACHER_GENERAL_FIELDS)];
+        foreach ($classData as $id => $row) {
+            $lines[] = 'Lớp '.$classes->get((int) $id)->name.":\n".collect(self::TEACHER_CLASS_FIELDS)
+                ->filter(fn ($label, $f) => filled($row[$f]))->map(fn ($label, $f) => '- '.$label.': '.$row[$f])
+                ->push('- Cần hỗ trợ: '.($row['need_support'] ? 'Có'.($row['support_note'] ? ' — '.$row['support_note'] : '') : 'Không'))
+                ->implode("\n");
+        }
+        [$from] = ReportPeriod::monthRange($data['month']);
+        $this->saveStructured('teacher_monthly', $data['month'], 'Báo cáo tháng giáo viên — '.ReportPeriod::monthLabel($data['month']),
+            $from->toDateString(), ['general' => $general, 'classes' => $classData], trim(implode("\n\n", array_filter($lines))));
+
+        return back()->with('success', 'Đã lưu báo cáo '.mb_strtolower(ReportPeriod::monthLabel($data['month'])).'.');
+    }
+
+    /**
+     * Order học thuật của giáo viên trong tháng (tạo trong tháng hoặc dùng trong tháng).
+     *
+     * @param  list<int>  $userIds
+     * @return list<array<string, mixed>>
+     */
+    public static function academicOrders(array $userIds, TeachingQuality $quality, int $limit = 20): array
+    {
+        return MaterialOrder::with(['requester:id,name', 'classRoom:id,name'])
+            ->whereIn('requester_id', $userIds)
+            ->where('category', MaterialOrder::CATEGORY_ACADEMIC)
+            ->where(fn ($q) => $q->whereBetween('created_at', [$quality->from, $quality->to])
+                ->orWhereBetween('use_date', [$quality->from->toDateString(), $quality->to->toDateString()]))
+            ->latest()->limit($limit)->get()
+            ->map(fn (MaterialOrder $o) => [
+                'id' => $o->id,
+                'code' => $o->code,
+                'title' => $o->title,
+                'teacher' => $o->requester?->name,
+                'class' => $o->classRoom?->name,
+                'use_date' => $o->use_date?->toDateString(),
+                'status_label' => MaterialOrder::STATUSES[$o->status] ?? $o->status,
+                'open' => in_array($o->status, MaterialOrder::OPEN_STATUSES, true),
+            ])->values()->all();
     }
 
     /** Báo cáo quý Học thuật: tường thuật + 3 báo cáo tháng trong quý. */

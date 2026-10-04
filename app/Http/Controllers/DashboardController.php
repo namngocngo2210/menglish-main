@@ -9,6 +9,7 @@ use App\Models\BigTestResult;
 use App\Models\ClassModel;
 use App\Models\ClassReport;
 use App\Models\CrmCustomer;
+use App\Models\StaffReport;
 use App\Models\Student;
 use App\Models\SupportTicket;
 use App\Models\SyllabusAdjustmentRequest;
@@ -18,9 +19,12 @@ use App\Models\User;
 use App\Models\WorkTask;
 use App\Support\Approvals\ApprovalInboxService;
 use App\Support\Dashboard\MyWorkBoard;
+use App\Support\Dashboard\TeachingQuality;
 use App\Support\DataScope;
 use App\Support\Money;
 use App\Support\Navigation\SidebarMenu;
+use App\Support\ReportPeriod;
+use App\Support\StaffType;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -35,7 +39,8 @@ use Inertia\Response;
  *  - dashboard.academic (Học thuật): lớp đang chạy, đề xuất giáo trình/giãn tiến độ chờ duyệt, Big Test sắp tới,
  *    kèm lịch hẹn 7 ngày tới + việc của tôi (MyWorkBoard).
  *  - Người khác: "Việc của bạn" (MyWorkBoard) — lịch hẹn 7 ngày tới, đầu việc cần xử lý, việc được giao trong tuần.
- * Cuối trang là lưới phân hệ (chỉ gồm link user mở được).
+ *  - Chất lượng giảng dạy theo tháng (teaching()): giáo viên xem của mình, người theo dõi giáo viên xem theo giáo viên.
+ * Lưới phân hệ (phím tắt) cuối trang đã bỏ (04/10/2026): menu trái đã có đủ.
  */
 class DashboardController extends Controller
 {
@@ -75,77 +80,83 @@ class DashboardController extends Controller
                 'tasksUrl' => $user->can('work_task.view') ? route('portal.ta-tasks') : null,
             ],
             'roleDashboard' => $roleDashboard,
-            'modules' => $this->modules($user, $canOpen),
+            'teaching' => $this->teaching($user, $request->input('month'), $canOpen),
         ]);
     }
 
     /**
-     * Ô "Các phân hệ chức năng của bạn": chỉ link user mở được; ô không còn link nào thì ẩn.
+     * Chất lượng giảng dạy theo tháng (chủ dự án 04/10/2026), chia theo vai trò:
+     *  - Giáo viên / trợ giảng: số liệu của chính mình (ngày công, đi muộn, phép, vi phạm) + từng lớp đang giữ.
+     *  - Người theo dõi giáo viên (kpi.view, bảng điều hành, Học thuật): bảng theo giáo viên trong phạm vi lớp mình thấy.
+     *  - Học thuật / Admin / Quản lý: thêm báo cáo tháng của giáo viên (tiến độ, khó khăn, đề xuất, lớp cần hỗ trợ) và
+     *    order học thuật trong tháng.
      *
      * @param  Closure(string, array<int, string>=): bool  $canOpen
+     * @return array<string, mixed>|null
+     */
+    private function teaching(User $user, ?string $month, Closure $canOpen): ?array
+    {
+        $isTeaching = $user->hasAnyRole([...StaffType::TEACHER_ROLES, 'assistant']);
+        $watchesTeachers = $user->can('kpi.view') || $user->can('dashboard.operations') || $user->can('dashboard.academic');
+        if (! $isTeaching && ! $watchesTeachers) {
+            return null;
+        }
+
+        $month = $month && preg_match(ReportPeriod::MONTH_PATTERN, $month) ? $month : ReportPeriod::currentMonth();
+        $quality = new TeachingQuality($month);
+        $team = $watchesTeachers ? $quality->teachersTable($user) : null;
+        $readsReports = $team !== null && ($user->can('dashboard.academic') || $user->can('dashboard.operations'));
+
+        return [
+            'month' => $quality->monthKey(),
+            'monthLabel' => $quality->monthLabel(),
+            'months' => ReportPeriod::monthOptions(),
+            'mine' => $isTeaching ? $quality->forStaff($user) : null,
+            'reportUrl' => $isTeaching && in_array('teacher_monthly', StaffType::structuredReports($user), true)
+                ? route('reports.periodic.teacher-monthly', ['month' => $quality->monthKey()]) : null,
+            'team' => $team,
+            'teacherReports' => $readsReports ? $this->teacherReports(collect($team['rows'])->pluck('name', 'id')->all(), $quality) : null,
+            'academicOrders' => $readsReports
+                ? StaffReportController::academicOrders(collect($team['rows'])->pluck('id')->all(), $quality, 10) : null,
+            'ordersUrl' => $canOpen('material-orders.index') ? route('material-orders.index') : null,
+        ];
+    }
+
+    /**
+     * Báo cáo tháng của từng giáo viên (StaffReportController::teacherMonthly): phần chung + lớp cần hỗ trợ; chưa nộp vẫn liệt kê.
+     *
+     * @param  array<int, string>  $teachers  id => tên
      * @return list<array<string, mixed>>
      */
-    private function modules(User $user, Closure $canOpen): array
+    private function teacherReports(array $teachers, TeachingQuality $quality): array
     {
-        $linkTo = fn (string $label, string $route, array $params = [], array $can = []) => $canOpen($route, $can)
-            ? ['label' => $label, 'url' => route($route, $params)]
-            : null;
+        $reports = StaffReport::query()->whereIn('user_id', array_keys($teachers))->where('type', 'monthly')
+            ->where('period_key', $quality->monthKey())->get()->keyBy('user_id');
+        $classNames = ClassModel::query()
+            ->whereIn('id', $reports->flatMap(fn (StaffReport $r) => array_keys($r->data['classes'] ?? []))->unique()->all())
+            ->pluck('name', 'id');
 
-        // [bật?, tiêu đề, mô tả, icon, lớp icon, lớp viền hover, lớp link hover, links]
-        return collect([
-            [$user->can('lead.view'), 'CRM & Tuyển sinh', 'Quản lý khách hàng tiềm năng', 'pie_chart', 'bg-primary-container/10 text-primary', 'hover:border-primary-container/50', 'hover:bg-primary-container/10 hover:text-primary', fn () => [
-                $linkTo('Pipeline Kanban', 'crm.pipeline'),
-                $linkTo('DS Khách hàng', 'crm.customers.index'),
-                $linkTo('Chốt & Xếp lớp', 'crm.closing-wizard', [], ['class.update']),
-                $linkTo('Báo cáo Doanh số', 'crm.reports'),
-            ]],
-            [$user->can('tuition.view'), 'Học phí & Hóa đơn', 'Thu phí và quản lý công nợ', 'receipt_long', 'bg-warning-container text-warning', 'hover:border-warning/50', 'hover:bg-warning-container hover:text-on-warning-container', fn () => [
-                $linkTo('DS Thu phí', 'tuition.students'),
-                $linkTo('Lập Phiếu thu', 'tuition.receipts.create'),
-                $linkTo('Duyệt Phiếu thu', 'tuition.receipts.approve'),
-                $linkTo('Thu quá hạn', 'tuition.overdue'),
-            ]],
-            [$user->can('student.view'), 'Hồ sơ Học sinh', 'Quản lý thông tin học viên', 'school', 'bg-tertiary/10 text-tertiary', 'hover:border-tertiary/50', 'hover:bg-tertiary/10 hover:text-tertiary', fn () => [
-                $linkTo('DS & Liên kết lớp', 'students.index'),
-                $linkTo('Chờ khai giảng', 'students.index', ['status' => 'waiting_start']),
-                $linkTo('Đang học', 'students.index', ['status' => 'studying']),
-                $linkTo('Xác nhận nhập học', 'students.enrollments'),
-            ]],
-            [$user->can('class.view'), 'Lớp học & Lịch dạy', 'Lịch học, điểm danh & TKB', 'meeting_room', 'bg-secondary/10 text-secondary', 'hover:border-secondary/50', 'hover:bg-secondary/10 hover:text-secondary', fn () => [
-                $linkTo('Lịch học các lớp', 'tasks.classes-dashboard'),
-                $linkTo('Lịch & TKB lớp', 'tasks.schedule-config'),
-                $linkTo('Lịch dạy GV', 'payroll.timesheets.teachers', [], ['attendance_staff.view', 'payroll.view_own']),
-            ]],
-            [$user->can('work_task.view'), 'Phân công & Trợ giảng', 'Công việc ca trực & báo cáo', 'task_alt', 'bg-primary-container/10 text-primary', 'hover:border-primary-container/50', 'hover:bg-primary-container/10 hover:text-primary', fn () => [
-                $linkTo('Danh sách việc', 'tasks.index'),
-                $linkTo('Nhiệm vụ hôm nay', 'portal.ta-tasks'),
-                $linkTo('Báo cáo trực lớp', 'tasks.class-reports.create'),
-            ]],
-            [$user->can('syllabus.manage'), 'Syllabus & Giáo trình', 'Soạn giáo trình & Big Test', 'auto_stories', 'bg-accent-container text-accent', 'hover:border-accent/50', 'hover:bg-accent-container hover:text-accent', fn () => [
-                $linkTo('Giáo trình tài liệu', 'syllabus.documents'),
-                $linkTo('Soạn Syllabus', 'syllabus.builder'),
-                $linkTo('Phân phối Big Test', 'syllabus.big-tests.distribution'),
-            ]],
-            [$user->can('user.view'), 'Quản trị Hệ thống', 'Tài khoản & Phân quyền', 'settings', 'bg-info-container text-info', 'hover:border-info/50', 'hover:bg-info-container hover:text-info', fn () => [
-                $linkTo('Tài khoản', 'users.index'),
-                $linkTo('Vai trò (Roles)', 'roles.index'),
-                $linkTo('Permissions', 'permissions.index'),
-                $linkTo('Nhật ký vận hành', 'activity-logs.index'),
-            ]],
-        ])
-            ->filter(fn (array $module) => $module[0])
-            ->map(fn (array $module) => [
-                'title' => $module[1],
-                'subtitle' => $module[2],
-                'icon' => $module[3],
-                'iconClass' => $module[4],
-                'borderClass' => $module[5],
-                'linkClass' => $module[6],
-                'links' => array_values(array_filter(($module[7])())),
-            ])
-            ->filter(fn (array $module) => $module['links'] !== [])
-            ->values()
-            ->all();
+        return collect($teachers)->map(function (string $name, int $id) use ($reports, $classNames) {
+            $report = $reports->get($id);
+            $general = $report?->data['general'] ?? [];
+
+            return [
+                'id' => $id,
+                'teacher' => $name,
+                'submitted' => $report !== null,
+                'updated_at' => $report?->updated_at?->toIso8601String(),
+                'progress' => $general['progress'] ?? null,
+                'difficulties' => $general['difficulties'] ?? null,
+                'proposals' => $general['proposals'] ?? null,
+                'classes' => collect($report?->data['classes'] ?? [])->map(fn (array $row, $classId) => [
+                    'class' => $classNames[(int) $classId] ?? 'Lớp',
+                    'attention' => $row['attention'] ?? null,
+                    'solution' => $row['solution'] ?? null,
+                    'need_support' => (bool) ($row['need_support'] ?? false),
+                    'support_note' => $row['support_note'] ?? null,
+                ])->values()->all(),
+            ];
+        })->sortBy([['submitted', 'desc'], ['teacher', 'asc']])->values()->all();
     }
 
     /**

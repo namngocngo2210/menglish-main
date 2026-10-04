@@ -208,25 +208,11 @@ final class SidebarMenu
                     ['label' => 'Danh sách lớp', 'route' => 'classes.index', 'active' => ['classes.index', 'classes.show', 'classes.create', 'classes.edit', 'classes.profile', 'classes.academic-*']],
                     // Tên tab = tiêu đề trang; tránh trùng với tab "Lịch & buổi học" / "Điểm danh" bên trong Trang lớp.
                     ['label' => 'Lịch học các lớp', 'route' => 'tasks.classes-dashboard'],
-                    ['label' => 'Báo cáo & sự vụ', 'route' => 'academic.dashboards.reports', 'active' => ['academic.dashboards.*']],
                 ]),
                 // Nút chung mọi tab Lớp học (trước nằm ở menu "Tạo mới" trên topbar); quyền theo middleware can:class.create.
                 'actions' => [
                     // Ẩn trên trang một lớp cụ thể: ở đó nút chính là bước tiếp theo của lớp (`hide_on` = routeIs).
                     ['label' => 'Tạo lớp mới', 'route' => 'classes.create', 'icon' => 'add', 'hide_on' => ['classes.show', 'classes.edit']],
-                ],
-            ],
-            [
-                // Dự giờ & chất lượng lớp (mockup Học vụ / Học thuật): quyền class_quality.view đọc từ middleware route.
-                'id' => 'class_quality',
-                'section' => 'Đào tạo',
-                'label' => 'Chất lượng lớp',
-                'icon' => 'verified',
-                'items' => [
-                    ['label' => 'Dự giờ vận hành', 'route' => 'class-quality.operations'],
-                    ['label' => 'Đánh giá dự giờ', 'route' => 'class-quality.academic'],
-                    ['label' => 'Checklist học phí & feedback', 'route' => 'class-quality.checklist'],
-                    ['label' => 'Họp giáo viên', 'route' => 'class-quality.teacher-meetings'],
                 ],
             ],
             [
@@ -296,7 +282,6 @@ final class SidebarMenu
                 'label' => 'Thu - Chi',
                 'icon' => 'query_stats',
                 'items' => [
-                    ['label' => 'Doanh thu tạm tính', 'route' => 'finance.reports.revenue', 'active' => ['finance.reports.*']],
                     ['label' => 'Khoản chi vận hành', 'route' => 'finance.expenses.index', 'active' => ['finance.expenses.*']],
                 ],
             ],
@@ -315,20 +300,9 @@ final class SidebarMenu
                 'section' => 'Người dùng',
                 'label' => 'Người dùng',
                 'icon' => 'badge',
-                'items' => [
-                    ...self::anchored(self::HR, [
-                        ['label' => 'Người dùng & Tài khoản', 'route' => 'users.index', 'active' => ['users.*']],
-                        ['label' => 'KPI tháng', 'route' => 'kpi.monthly', 'active' => ['kpi.monthly', 'kpi.evaluate']],
-                        ['label' => 'Rà soát điểm danh', 'route' => 'kpi.attendance-review'],
-                        ['label' => 'Nhật ký sự vụ học vụ', 'route' => 'reports.journal'],
-                    ]),
-                    ...self::anchored(self::TASK_ASSIGNER, [
-                        ['label' => 'KPI tự động', 'route' => 'tasks.kpi-dashboard'],
-                    ]),
-                    ...self::anchored(self::PAYROLL, [
-                        ['label' => 'Xếp hạng KPI & Thưởng', 'route' => 'payroll.kpi-leaderboard'],
-                    ]),
-                ],
+                'items' => self::anchored(self::HR, [
+                    ['label' => 'Người dùng & Tài khoản', 'route' => 'users.index', 'active' => ['users.*']],
+                ]),
             ],
             [
                 'id' => 'tickets',
@@ -363,6 +337,67 @@ final class SidebarMenu
                     ['label' => 'Vi phạm & Phạt', 'route' => 'penalties.index', 'active' => ['penalties.*']],
                 ]),
             ],
+            // Khu "Báo cáo" (04/10/2026): mọi màn báo cáo gom về đây, trừ báo cáo tuyển sinh vẫn là tab của CRM.
+            // URL và quyền của từng tab giữ như ở workspace cũ (quyền neo của khu nghiệp vụ gốc).
+            [
+                'id' => 'report_finance',
+                'section' => 'Báo cáo',
+                'label' => 'Doanh thu',
+                'icon' => 'query_stats',
+                'items' => [
+                    ['label' => 'Doanh thu tạm tính', 'route' => 'finance.reports.revenue', 'active' => ['finance.reports.*']],
+                ],
+            ],
+            [
+                'id' => 'report_training',
+                'section' => 'Báo cáo',
+                'label' => 'Đào tạo & Chất lượng lớp',
+                'icon' => 'monitoring',
+                'items' => [
+                    ...self::anchored(self::CLASS_MANAGER, [
+                        ['label' => 'Báo cáo & sự vụ lớp', 'route' => 'academic.dashboards.reports', 'active' => ['academic.dashboards.*']],
+                    ]),
+                    // Dự giờ & chất lượng lớp (mockup Học vụ / Học thuật): quyền class_quality.view đọc từ middleware route.
+                    ['label' => 'Dự giờ vận hành', 'route' => 'class-quality.operations'],
+                    ['label' => 'Đánh giá dự giờ', 'route' => 'class-quality.academic'],
+                    ['label' => 'Checklist học phí & feedback', 'route' => 'class-quality.checklist'],
+                    ['label' => 'Họp giáo viên', 'route' => 'class-quality.teacher-meetings'],
+                ],
+            ],
+            [
+                'id' => 'report_staff',
+                'section' => 'Báo cáo',
+                'label' => 'Nhân sự & KPI',
+                'icon' => 'leaderboard',
+                'items' => [
+                    // Báo cáo & nhật ký mọi nhân sự đã nộp (trước nằm trong Cài đặt → Hệ thống); route cần staff_report.view_all.
+                    ['label' => 'Tổng hợp báo cáo & nhật ký', 'route' => 'reports.all'],
+                    ...self::anchored(self::HR, [
+                        ['label' => 'Nhật ký sự vụ học vụ', 'route' => 'reports.journal'],
+                        ['label' => 'KPI tháng', 'route' => 'kpi.monthly', 'active' => ['kpi.monthly', 'kpi.evaluate']],
+                        ['label' => 'Rà soát điểm danh', 'route' => 'kpi.attendance-review'],
+                    ]),
+                    ...self::anchored(self::TASK_ASSIGNER, [
+                        ['label' => 'KPI tự động', 'route' => 'tasks.kpi-dashboard'],
+                    ]),
+                    ...self::anchored(self::PAYROLL, [
+                        ['label' => 'Xếp hạng KPI & Thưởng', 'route' => 'payroll.kpi-leaderboard'],
+                    ]),
+                ],
+            ],
+            [
+                'id' => 'report_mine',
+                'section' => 'Báo cáo',
+                'label' => 'Báo cáo của tôi',
+                'icon' => 'summarize',
+                'items' => [
+                    ['label' => 'Báo cáo định kỳ', 'route' => 'reports.my', 'active' => ['reports.my', 'reports.periodic.*']],
+                    // Bảng công / báo cáo giảng dạy tháng của giáo viên (cũng mở từ thanh dưới Cổng giáo viên).
+                    ...self::anchored(self::TEACHING_PORTAL, [
+                        ['label' => 'Báo cáo giảng dạy', 'route' => 'teacher.general-report', 'can' => ['attendance_student.record']],
+                    ]),
+                ],
+            ],
             [
                 'id' => 'personal',
                 'section' => 'Cá nhân',
@@ -371,7 +406,6 @@ final class SidebarMenu
                 'items' => [
                     // Giao diện điện thoại: chấm công ảnh + GPS, lịch sử công, xin duyệt, cần duyệt.
                     ['label' => 'Chấm công', 'route' => 'mobile.home', 'active' => ['mobile.home', 'mobile.history']],
-                    ['label' => 'Báo cáo định kỳ của tôi', 'route' => 'reports.my', 'active' => ['reports.my', 'reports.periodic.*']],
                     // Trung tâm thông báo (cũng mở từ chuông trên topbar).
                     ['label' => 'Thông báo', 'route' => 'notifications.index', 'active' => ['notifications.*']],
                     ['label' => 'Lương của tôi', 'route' => 'portal.my-salary', 'can' => ['payroll.view_own']],
@@ -469,7 +503,6 @@ final class SidebarMenu
                         ['label' => 'Vai trò', 'route' => 'roles.index', 'active' => ['roles.*']],
                         ['label' => 'Quyền', 'route' => 'permissions.index', 'active' => ['permissions.*']],
                         ['label' => 'Nhật ký vận hành', 'route' => 'activity-logs.index', 'active' => ['activity-logs.*']],
-                        ['label' => 'Tổng hợp báo cáo & nhật ký', 'route' => 'reports.all'],
                     ]),
                     ['label' => 'Cấu hình SLA', 'route' => 'system-config.sla', 'anchor' => ['sla.configure']],
                     ['label' => 'Media & File lưu trữ', 'route' => 'media.index', 'active' => ['media.*']],

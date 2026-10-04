@@ -1,12 +1,12 @@
 <script setup>
 /**
  * Tổng quan: bảng điều hành Admin / Quản lý / Học thuật (RoleWidgets.vue); vai trò khác: lời chào + "Việc của bạn"
- * (MyWork.vue — lịch hẹn 7 ngày tới, việc cần xử lý, việc của tôi). Cuối trang là lưới phân hệ chức năng (chỉ gồm link
- * user mở được, do DashboardController tính).
+ * (MyWork.vue — lịch hẹn 7 ngày tới, việc cần xử lý, việc của tôi); chất lượng giảng dạy theo tháng (TeachingQuality.vue).
+ * Lưới phân hệ (phím tắt) cuối trang đã bỏ (04/10/2026).
  */
-import { Link } from '@inertiajs/vue3';
 import MyWork from './Dashboard/MyWork.vue';
 import RoleWidgets from './Dashboard/RoleWidgets.vue';
+import TeachingQuality from './Dashboard/TeachingQuality.vue';
 
 defineOptions({ layout: { title: 'Tổng quan' } });
 
@@ -14,9 +14,8 @@ defineProps({
     isOperations: { type: Boolean, default: false },
     welcome: { type: Object, default: null },
     roleDashboard: { type: Object, default: null },
-    modules: { type: Array, default: () => [] },
+    teaching: { type: Object, default: null },
 });
-
 </script>
 
 <template>
@@ -36,34 +35,10 @@ defineProps({
             </div>
         </div>
 
+        <!-- Giáo viên / trợ giảng: chất lượng giảng dạy lên đầu; vai trò khác: sau bảng điều hành / việc của bạn. -->
+        <TeachingQuality v-if="teaching?.mine" :teaching="teaching" />
         <MyWork v-if="roleDashboard?.type === 'personal'" :dashboard="roleDashboard" />
         <RoleWidgets v-else-if="roleDashboard" :dashboard="roleDashboard" />
-
-        <!-- Lưới phân hệ chức năng -->
-        <div v-if="modules.length" class="space-y-3">
-            <h2 class="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-on-surface">
-                <span class="material-symbols-outlined text-base text-primary">grid_view</span>
-                Các Phân Hệ Chức Năng Của Bạn
-            </h2>
-
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <div v-for="module in modules" :key="module.title" :class="['space-y-3 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-5 shadow-sm transition', module.borderClass]">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-2.5">
-                            <div :class="['flex h-9 w-9 items-center justify-center rounded-xl', module.iconClass]">
-                                <span class="material-symbols-outlined text-lg">{{ module.icon }}</span>
-                            </div>
-                            <div>
-                                <h3 class="text-sm font-bold text-on-surface">{{ module.title }}</h3>
-                                <span class="text-xs text-on-surface-subtle">{{ module.subtitle }}</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-1.5 text-xs">
-                        <Link v-for="link in module.links" :key="link.url + link.label" :href="link.url" :class="['rounded-lg bg-surface-container-low p-2 font-medium transition', module.linkClass]">{{ link.label }}</Link>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <TeachingQuality v-if="teaching && !teaching.mine" :teaching="teaching" />
     </div>
 </template>

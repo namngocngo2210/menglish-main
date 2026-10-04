@@ -55,7 +55,8 @@ final class StaffType
 
     /**
      * Báo cáo có cấu trúc ngoài báo cáo định kỳ chính: Học vụ nộp thêm báo cáo tuần theo mục KPI;
-     * Học thuật nộp thêm báo cáo tháng và quý (tổng hợp báo cáo tuần, họp giáo viên).
+     * Học thuật nộp thêm báo cáo tháng và quý (tổng hợp báo cáo tuần, họp giáo viên); giáo viên nộp thêm báo cáo tháng
+     * theo lớp (tiến độ, khó khăn, đề xuất + tình hình từng lớp).
      *
      * @return list<string> khóa trong StaffReportController::STRUCTURED
      */
@@ -67,6 +68,7 @@ final class StaffType
             $roles->contains('academic_staff') ? 'weekly_kpi' : null,
             $roles->contains('academic_lead') ? 'academic_monthly' : null,
             $roles->contains('academic_lead') ? 'academic_quarterly' : null,
+            $roles->intersect(self::TEACHER_ROLES)->isNotEmpty() ? 'teacher_monthly' : null,
         ]));
     }
 }
