@@ -62,6 +62,7 @@ return [
             'staff_report.submit', 'staff_report.view_all', 'dashboard.operations', 'portal.staff',
             'room.view', 'room.manage',
             'class_quality.*',
+            'academic_project.view', 'academic_project.view_all',
             'merchandise_stock.view', 'merchandise_stock.manage',
             // Phạm vi dữ liệu (A6 Q7: Quản lý cơ sở chỉ thấy chi nhánh mình).
             'lead.scope_branch', 'student.scope_branch', 'class.scope_branch', 'room.scope_branch', 'big_test.scope_all', 'tuition.scope_branch',
@@ -118,6 +119,7 @@ return [
             'room.view', 'room.manage', 'room.scope_branch',
             // Dự giờ vận hành (QA) + checklist học phí & feedback theo lớp; đánh giá dự giờ học thuật là việc của Học thuật.
             'class_quality.view', 'class_quality.observe_operations', 'class_quality.checklist',
+            'academic_project.view',
             // Tồn kho sách chi nhánh mình; ghi sai số hóa đơn giấy tiền mặt thì lập yêu cầu hủy hóa đơn.
             'merchandise_stock.view', 'merchandise_stock.manage', 'merchandise_stock.scope_branch', 'invoice.request_cancel',
             'lead.scope_branch', 'student.scope_branch', 'class.scope_all', 'big_test.scope_all', 'tuition.scope_branch',
@@ -141,6 +143,7 @@ return [
             'payroll.view_own', 'payroll.scope_own',
             'room.view', 'room.scope_all',
             'class_quality.view', 'class_quality.observe_academic', 'class_quality.teacher_meeting',
+            'academic_project.*',
             'lead.scope_branch', 'student.scope_branch', 'class.scope_all', 'big_test.scope_all', 'kpi.scope_all',
             'work_task.scope_all', 'user.scope_own', 'support_ticket.scope_own',
             // Order học liệu học thuật: Trưởng Học thuật xử lý, thấy mọi chi nhánh.
@@ -161,7 +164,7 @@ return [
             'attendance_student.view', 'attendance_student.record', 'homework.grade', 'entrance_test.examine',
             'work_task.view', 'work_task.request', 'support_ticket.create', 'support_ticket.view', 'notification.view',
             'syllabus.view', 'syllabus.update', 'syllabus.propose_adjustment',
-            'staff_report.submit', 'portal.teacher', 'portal.staff',
+            'staff_report.submit', 'portal.teacher', 'portal.staff', 'academic_project.view',
             'class.scope_own', 'student.scope_own', 'big_test.scope_own', 'payroll.scope_own', 'work_task.scope_own', 'support_ticket.scope_own',
             // Order học liệu: giáo viên tạo order, chỉ thấy order của mình.
             'material_order.create', 'material_order.scope_own',
@@ -173,7 +176,7 @@ return [
             'attendance_student.view', 'attendance_student.record', 'homework.grade', 'entrance_test.examine',
             'work_task.view', 'work_task.request', 'support_ticket.create', 'support_ticket.view', 'notification.view',
             'syllabus.view', 'syllabus.update', 'syllabus.propose_adjustment',
-            'staff_report.submit', 'portal.teacher', 'portal.staff',
+            'staff_report.submit', 'portal.teacher', 'portal.staff', 'academic_project.view',
             'class.scope_own', 'student.scope_own', 'big_test.scope_own', 'payroll.scope_own', 'work_task.scope_own', 'support_ticket.scope_own',
             // Order học liệu: giáo viên tạo order, chỉ thấy order của mình.
             'material_order.create', 'material_order.scope_own',
@@ -185,7 +188,7 @@ return [
             'attendance_student.view', 'attendance_student.record', 'homework.grade', 'entrance_test.examine',
             'work_task.view', 'work_task.request', 'support_ticket.create', 'support_ticket.view', 'notification.view',
             'syllabus.view', 'syllabus.update', 'syllabus.propose_adjustment',
-            'staff_report.submit', 'portal.teacher', 'portal.staff',
+            'staff_report.submit', 'portal.teacher', 'portal.staff', 'academic_project.view',
             'class.scope_own', 'student.scope_own', 'big_test.scope_own', 'payroll.scope_own', 'work_task.scope_own', 'support_ticket.scope_own',
             // Order học liệu: giáo viên tạo order, chỉ thấy order của mình.
             'material_order.create', 'material_order.scope_own',
@@ -197,7 +200,7 @@ return [
             'attendance_student.view', 'attendance_student.record', 'homework.grade',
             'work_task.view', 'work_task.request', 'support_ticket.create', 'support_ticket.view', 'notification.view',
             'syllabus.view', 'syllabus.propose_adjustment',
-            'staff_report.submit', 'portal.assistant', 'portal.staff',
+            'staff_report.submit', 'portal.assistant', 'portal.staff', 'academic_project.view',
             'class.scope_own', 'student.scope_own', 'big_test.scope_own', 'payroll.scope_own', 'work_task.scope_own', 'support_ticket.scope_own',
         ],
 

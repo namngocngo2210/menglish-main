@@ -2,6 +2,7 @@
 
 namespace App\Support\Dashboard;
 
+use App\Models\AcademicProjectMilestone;
 use App\Models\BigTest;
 use App\Models\CrmCustomer;
 use App\Models\CrmTrialBooking;
@@ -21,7 +22,8 @@ use Illuminate\Support\Collection;
  * Tổng quan cá nhân cho mọi vai trò trừ Admin / Quản lý cơ sở (chủ dự án 03/10/2026: Admin xem nhiều số liệu, các vai trò
  * khác chủ yếu thấy lịch hẹn và đầu việc cần xử lý trong tuần / tháng). Mỗi khối chỉ có khi user có quyền tương ứng và
  * mở được màn đích; số liệu theo phạm vi dữ liệu của user (chi nhánh / khách mình phụ trách / việc giao cho mình).
- *  - Lịch hẹn 7 ngày tới: hẹn test đầu vào, học thử, hẹn gọi lại khách (CRM); Big Test (Học thuật).
+ *  - Lịch hẹn 7 ngày tới: hẹn test đầu vào, học thử, hẹn gọi lại khách (CRM); Big Test (Học thuật); deadline mốc dự án
+ *    học thuật (mốc mình nhận; người quản lý dự án thấy mọi mốc).
  *  - Việc cần xử lý: số đếm + link (khách quá hạn gọi lại, chưa liên hệ >24h, chờ xếp lớp, mục chờ duyệt theo nguồn,
  *    học phí quá hạn, kỳ lương chưa chốt).
  *  - Việc của tôi: việc được giao chưa xong, hạn trong tuần này hoặc đã quá hạn.
@@ -68,7 +70,15 @@ final class MyWorkBoard
     /** Vai trò không có nguồn lịch hẹn nào (vd Kế toán) thì không hiện khối lịch. */
     private function hasAgenda(): bool
     {
-        return $this->seesLeads() || $this->seesBigTests();
+        return $this->seesLeads() || $this->seesBigTests() || $this->seesProjects();
+    }
+
+    /** Có mốc dự án học thuật đang mở để theo dõi: người quản lý dự án, hoặc người đang nhận mốc chưa xong. */
+    private function seesProjects(): bool
+    {
+        return ($this->canOpen)('academic-projects.index') && ($this->user->can('academic_project.manage')
+            || AcademicProjectMilestone::query()->where('assignee_id', $this->user->id)->where('status', '!=', 'done')
+                ->whereHas('project', fn (Builder $p) => $p->whereIn('status', ['planning', 'active']))->exists());
     }
 
     private function seesBigTests(): bool
@@ -219,6 +229,23 @@ final class MyWorkBoard
                     'title' => $test->classModel?->name ?? ($test->title ?? $test->code),
                     'subtitle' => $test->title ?? $test->code,
                     'href' => route('syllabus.big-tests.schedules'),
+                ]));
+        }
+
+        if ($this->seesProjects()) {
+            AcademicProjectMilestone::query()->with('project:id,name,status')
+                ->whereHas('project', fn (Builder $p) => $p->whereIn('status', ['planning', 'active'])->visibleTo($this->user))
+                ->when(! $this->user->can('academic_project.manage'), fn (Builder $q) => $q->where('assignee_id', $this->user->id))
+                ->where('status', '!=', 'done')
+                ->whereDate('due_date', '>=', today()->toDateString())->whereDate('due_date', '<=', $end->toDateString())
+                ->get()
+                ->each(fn (AcademicProjectMilestone $m) => $items->push([
+                    'at' => $m->due_date->copy()->startOfDay(),
+                    'kind' => 'project',
+                    'kindLabel' => 'Hạn mốc dự án',
+                    'title' => $m->title,
+                    'subtitle' => $m->project?->name,
+                    'href' => route('academic-projects.show', $m->academic_project_id),
                 ]));
         }
 
