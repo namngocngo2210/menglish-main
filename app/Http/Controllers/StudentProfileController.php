@@ -37,7 +37,7 @@ class StudentProfileController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        $query = Student::visibleTo($user)->with(['branch', 'currentClass.course'])->latest();
+        $query = Student::visibleTo($user)->with(['branch', 'currentClass.course']);
 
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
@@ -65,6 +65,20 @@ class StudentProfileController extends Controller
             $query->whereIn('status', $statuses);
         }
 
+        // Thâm niên: học từ 1 / 3 / 5 năm trở lên (tri ân học viên lâu năm).
+        $tenure = (int) $request->input('tenure');
+        if (in_array($tenure, Student::TENURE_FILTERS, true)) {
+            $query->studiedAtLeastYears($tenure);
+        }
+
+        // Sắp xếp: mặc định hồ sơ mới nhất; "Học lâu nhất trước" theo ngày bắt đầu học (chưa vào học xếp cuối).
+        $sort = $request->input('sort') === 'tenure' ? 'tenure' : null;
+        if ($sort === 'tenure') {
+            $query->orderByRaw('study_started_on IS NULL')->orderBy('study_started_on')->orderBy('id');
+        } else {
+            $query->latest();
+        }
+
         $students = $query->paginate($request->perPage(20))->withQueryString();
         $branches = $this->visibleBranches($user);
         $classes = $this->visibleClasses($user)->orderBy('name')->get(['id', 'name', 'code', 'branch_id', 'status', 'max_capacity']);
@@ -89,6 +103,9 @@ class StudentProfileController extends Controller
                 'status' => $st->status,
                 'status_label' => $st->status_label,
                 'status_color' => $st->status_color,
+                'study_started_on' => $st->study_started_on?->format('d/m/Y'),
+                'tenure_label' => $st->studyTenureLabel(),
+                'long_term' => $st->isLongTermStudent(),
                 'branch_id' => $st->branch_id,
                 'class_ids' => array_values(array_filter([$st->current_class_id])),
             ]),
@@ -96,8 +113,10 @@ class StudentProfileController extends Controller
             'classes' => Ui::options($classes, 'name'),
             'statuses' => $statuses,
             'statusOptions' => Student::STATUSES,
+            'tenureOptions' => collect(Student::TENURE_FILTERS)->map(fn (int $y) => ['value' => $y, 'label' => "Từ {$y} năm trở lên"])->all(),
+            'sortOptions' => [['value' => 'tenure', 'label' => 'Học lâu nhất']],
             'totalStudents' => $totalStudents,
-            'hasFilters' => collect($request->only(['search', 'branch_id', 'class_id', 'status', 'statuses']))->filter()->isNotEmpty(),
+            'hasFilters' => collect($request->only(['search', 'branch_id', 'class_id', 'status', 'statuses', 'tenure']))->filter()->isNotEmpty(),
             'linkableClasses' => $linkableClasses->map(fn (ClassModel $c) => [
                 'id' => $c->id,
                 'label' => $c->name.' ('.$c->code.')',
@@ -447,6 +466,11 @@ class StudentProfileController extends Controller
                 'target' => $student->target,
                 'current_class' => $student->currentClass?->name,
                 'created_at' => $student->created_at?->format('d/m/Y'),
+                'study_started_on' => $student->study_started_on?->format('d/m/Y'),
+                'study_started_on_value' => $student->study_started_on?->toDateString(),
+                'tenure_label' => $student->studyTenureLabel(),
+                'long_term' => $student->isLongTermStudent(),
+                'today' => today()->toDateString(),
                 'updated_label' => $student->updated_at ? ($student->updated_at->isToday() ? 'Hôm nay, '.$student->updated_at->format('H:i') : $student->updated_at->format('d/m/Y H:i')) : '—',
                 'status' => $student->status,
                 'status_label' => $student->status_label,
@@ -607,9 +631,13 @@ class StudentProfileController extends Controller
             'target' => 'nullable|string|max:100',
             'address' => 'nullable|string|max:255',
             'school' => 'nullable|string|max:255',
+            'study_started_on' => 'nullable|date|before_or_equal:today|after:1990-01-01',
             'status' => ['nullable', Rule::in(array_keys(Student::STATUSES))],
             'notes' => 'nullable|string|max:500',
-        ], ['parent_phone.regex' => 'Số điện thoại phụ huynh không hợp lệ.']);
+        ], [
+            'parent_phone.regex' => 'Số điện thoại phụ huynh không hợp lệ.',
+            'study_started_on.before_or_equal' => 'Ngày bắt đầu học không được sau hôm nay.',
+        ], ['study_started_on' => 'ngày bắt đầu học']);
 
         // Form sửa hồ sơ không gửi trạng thái; đổi trạng thái cần quyền riêng (student.change_status).
         if (! $request->user()->can('student.change_status') || empty($validated['status'])) {
@@ -617,6 +645,14 @@ class StudentProfileController extends Controller
         }
 
         $student->update($validated);
+
+        // Xóa ngày bắt đầu học → lấy lại theo buổi có mặt / đi muộn đầu tiên.
+        if (array_key_exists('study_started_on', $validated) && $validated['study_started_on'] === null) {
+            $firstAttended = StudentAttendance::where('student_id', $student->id)->whereIn('status', ['present', 'late'])->min('session_date');
+            if ($firstAttended) {
+                Student::recordStudyStart($student->id, $firstAttended);
+            }
+        }
 
         return redirect()->route('students.show', $student->id)
             ->with('status', "Cập nhật hồ sơ học viên {$student->name} thành công!");
