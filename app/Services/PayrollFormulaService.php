@@ -260,6 +260,92 @@ class PayrollFormulaService
         ];
     }
 
+    /**
+     * Bảng KPI TẠM TÍNH trong tháng của Học vụ (trang cá nhân): từng đầu mục KPI kèm quỹ tối đa, mốc đạt
+     * (Ngưỡng 50 = 50% quỹ mục, Ngưỡng 100 = đủ quỹ mục), điểm đang chấm (nháp hoặc đã chốt) và số tiền.
+     * Cùng công thức với bảng lương (trọng số chuẩn hóa theo tổng trọng số các mục đang áp dụng); KPI thực
+     * chỉ vào phiếu lương khi đánh giá tháng đã chốt.
+     *
+     * @return array<string, mixed>
+     */
+    public function academicKpiStatement(User $user, int $month, int $year): array
+    {
+        $fund = (float) PayrollPeriod::payrollSettings()['academic_kpi_fund'];
+        $evaluation = KpiEvaluation::with(['items', 'evaluator'])
+            ->where('user_id', $user->id)->where('month', $month)->where('year', $year)
+            ->first();
+        $scores = $evaluation ? $evaluation->items->keyBy('kpi_criterion_id') : collect();
+        $criteria = KpiCriterion::active()->ordered()->get();
+        $weightTotal = (float) $criteria->sum('weight');
+
+        $items = $criteria->map(function (KpiCriterion $criterion) use ($scores, $fund, $weightTotal) {
+            $item = $scores->get($criterion->id);
+            $max = $weightTotal > 0 ? round($fund * (float) $criterion->weight / $weightTotal, 0) : 0.0;
+            $score = $item?->score !== null ? (float) $item->score : null;
+            $amount = $score !== null ? round($max * $score / 100, 0) : 0.0;
+            $level = match (true) {
+                $score === null => 'pending',
+                $score >= 100 => 'full',
+                $score >= 50 => 'half',
+                $score > 0 => 'low',
+                default => 'zero',
+            };
+            // Mốc kế tiếp: chưa tới Ngưỡng 50 → lên 50% quỹ mục; chưa tới Ngưỡng 100 → lên đủ quỹ mục.
+            $next = match ($level) {
+                'pending', 'zero', 'low' => $criterion->threshold_half
+                    ? ['label' => 'Ngưỡng 50: '.$criterion->threshold_half, 'amount' => round($max / 2, 0)]
+                    : ['label' => 'Ngưỡng 100: '.($criterion->threshold_full ?: $criterion->target ?: '—'), 'amount' => $max],
+                'half' => ['label' => 'Ngưỡng 100: '.($criterion->threshold_full ?: $criterion->target ?: '—'), 'amount' => $max],
+                default => null,
+            };
+
+            return [
+                'id' => $criterion->id,
+                'group' => $criterion->group_name ?: 'Chưa phân nhóm',
+                'code' => $criterion->code,
+                'name' => $criterion->name,
+                'max' => $max,
+                'threshold_full' => $criterion->threshold_full ?: ($criterion->target ?: null),
+                'threshold_half' => $criterion->threshold_half,
+                'actual' => $item?->actual,
+                'score' => $score,
+                'critical' => (bool) $item?->critical_error,
+                'amount' => $amount,
+                'level' => $level,
+                'next_label' => $next['label'] ?? null,
+                'next_gain' => $next ? max(0.0, $next['amount'] - $amount) : null,
+            ];
+        })->values();
+
+        // Tổng như bảng lương: quỹ × điểm có trọng số (mục chưa chấm = 0), không cộng số đã làm tròn từng mục.
+        $score = $evaluation && $weightTotal > 0
+            ? round($criteria->sum(fn (KpiCriterion $c) => (float) ($scores->get($c->id)?->score ?? 0) * (float) $c->weight) / $weightTotal, 2)
+            : null;
+        $amount = $score !== null ? round($fund * $score / 100, 0) : 0.0;
+
+        return [
+            'month_label' => sprintf('%02d/%04d', $month, $year),
+            'fund' => $fund,
+            'amount' => $amount,
+            'score' => $score,
+            'grade' => $score !== null ? KpiEvaluation::gradeFor($score)[1] : null,
+            'status' => $evaluation?->status,
+            'evaluator' => $evaluation?->evaluator?->name,
+            'counts' => [
+                'full' => $items->where('level', 'full')->count(),
+                'half' => $items->where('level', 'half')->count(),
+                'below' => $items->whereIn('level', ['low', 'zero'])->count(),
+                'pending' => $items->where('level', 'pending')->count(),
+            ],
+            'groups' => $items->groupBy('group')->map(fn (Collection $rows, string $group) => [
+                'name' => $group,
+                'max' => (float) $rows->sum('max'),
+                'amount' => (float) $rows->sum('amount'),
+                'items' => $rows->values()->all(),
+            ])->values()->all(),
+        ];
+    }
+
     /** Học viên theo id (hiển thị căn cứ KPI giữ HS). */
     public function studentNames(array $ids): Collection
     {

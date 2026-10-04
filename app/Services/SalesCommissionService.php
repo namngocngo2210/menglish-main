@@ -225,13 +225,17 @@ class SalesCommissionService
 
     /**
      * Bảng hoa hồng TẠM TÍNH trong tháng của một người phụ trách (trang cá nhân): số HS đã chốt, mốc hiện tại / kế tiếp,
-     * bảng mốc, và từng học viên (chốt trong tháng hoặc có học phí thu trong tháng) kèm HS thứ mấy, %, học phí, hoa hồng.
+     * bảng mốc, và từng học viên (chốt trong tháng hoặc có học phí thu trong tháng) kèm HS thứ mấy, %, học phí khóa
+     * (không sách), đã thu đến nay, hoa hồng khi thu đủ và hoa hồng đã ghi nhận theo tiền về.
+     * Hoa hồng chỉ ghi nhận khi phiếu thu được duyệt (hệ thống ghi nhận tiền về); số thực trả nằm ở bảng lương.
      */
     public function statementFor(int $userId, CarbonInterface $month): array
     {
         $start = Carbon::parse($month)->startOfMonth();
         $end = $start->copy()->endOfMonth();
-        $receipts = $this->commissionableReceipts($start, $end, $userId)->groupBy('student_id');
+        // Mọi phiếu đã duyệt tới cuối tháng (để biết đã thu bao nhiêu / đủ chưa); phiếu trong tháng = vào lương tháng này.
+        $allReceipts = $this->commissionableReceipts(Carbon::create(2000, 1, 1), $end, $userId)->groupBy('student_id');
+        $inMonth = fn (TuitionReceipt $receipt) => $receipt->approved_at !== null && $receipt->approved_at->between($start, $end);
         $closedHere = CrmCustomer::query()
             ->whereNotNull('converted_student_id')
             ->where(fn ($q) => $q->where('commission_user_id', $userId)
@@ -240,15 +244,25 @@ class SalesCommissionService
             ->get(['id', 'name', 'converted_student_id', 'commission_user_id', 'assigned_user_id', 'converted_at', 'created_at'])
             ->keyBy('converted_student_id');
         $closed = $closedHere->count();
-        $studentNames = Student::whereIn('id', $receipts->keys()->merge($closedHere->keys())->unique())->pluck('name', 'id');
+        $studentIds = $allReceipts->filter(fn (Collection $receipts) => $receipts->contains($inMonth))->keys()
+            ->merge($closedHere->keys())->unique()->values();
+        $studentNames = Student::whereIn('id', $studentIds)->pluck('name', 'id');
+        // Khoản học phí đầu tiên (khoản tính hoa hồng khách mới): học phí khóa không gồm sách / Thu khác.
+        $firstTuitions = StudentTuition::whereIn('student_id', $studentIds)->orderBy('id')
+            ->get(['id', 'student_id', 'final_amount', 'other_fees'])
+            ->groupBy('student_id')->map(fn (Collection $tuitions) => $tuitions->first());
 
-        $rows = $receipts->keys()->merge($closedHere->keys())->unique()->map(function ($studentId) use ($receipts, $closedHere, $studentNames, $end) {
-            $mine = $receipts->get($studentId, collect());
-            $first = $mine->first();
+        $rows = $studentIds->map(function ($studentId) use ($allReceipts, $inMonth, $closedHere, $studentNames, $firstTuitions, $end) {
+            $all = $allReceipts->get($studentId, collect());
+            $mine = $all->filter($inMonth);
+            $first = $all->first();
             $customer = $closedHere->get($studentId);
             $rank = $first ? (int) $first->closing_rank : $this->closingRank($customer);
             $percent = $first ? (float) $first->commission_percent : $this->rateForRank($rank, $end)['percent'];
             $closedAt = $customer?->converted_at ?? CrmCustomer::whereKey($first?->commission_customer_id)->value('converted_at');
+            $tuition = $firstTuitions->get($studentId);
+            $tuitionBase = $tuition ? max(0.0, (float) $tuition->final_amount - (float) $tuition->other_fees) : null;
+            $paidTotal = (float) $all->sum('commission_base');
 
             return [
                 'student' => $studentNames->get($studentId) ?? $customer?->name ?? '—',
@@ -259,10 +273,17 @@ class SalesCommissionService
                 'collected' => (float) $mine->sum('amount'),
                 'base' => (float) $mine->sum('commission_base'),
                 'amount' => (float) $mine->sum('commission_amount'),
+                'tuition' => $tuitionBase,
+                'paid_total' => $paidTotal,
+                'remaining' => $tuitionBase !== null ? max(0.0, $tuitionBase - $paidTotal) : null,
+                'fully_paid' => $tuitionBase !== null && $tuitionBase > 0 && $paidTotal >= $tuitionBase,
+                'expected' => $tuitionBase !== null ? round($tuitionBase * $percent / 100, 0) : null,
+                'earned_total' => (float) $all->sum('commission_amount'),
             ];
         })->sortBy(fn (array $row) => [$row['closed_this_month'] ? 0 : 1, $row['rank']])->values();
 
         $milestone = $this->milestoneFor($closed, $end);
+        $closedRows = $rows->where('closed_this_month', true);
 
         return [
             'month_label' => $start->format('m/Y'),
@@ -277,6 +298,10 @@ class SalesCommissionService
             'collected' => (float) $rows->sum('collected'),
             'base' => (float) $rows->sum('base'),
             'amount' => (float) $rows->sum('amount'),
+            // Tạm tính khi thu đủ học phí của các HS chốt trong tháng; đã ghi nhận = theo tiền đã về của các HS đó.
+            'expected' => (float) $closedRows->sum('expected'),
+            'earned_closed' => (float) $closedRows->sum('earned_total'),
+            'fully_paid' => $closedRows->where('fully_paid', true)->count(),
             'rows' => $rows->all(),
         ];
     }

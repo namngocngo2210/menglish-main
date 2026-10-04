@@ -6,6 +6,7 @@
  */
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
+import { formatMoney } from '@/lib/format';
 
 // Lỗi đổi mật khẩu (bag updatePassword) hiện ngay dưới từng ô như bản Blade — không lặp lại ở khung lỗi chung.
 defineOptions({ layout: { title: 'Hồ sơ cá nhân', hideErrors: true } });
@@ -24,6 +25,7 @@ const props = defineProps({
     showTickets: { type: Boolean, default: false },
     showOperations: { type: Boolean, default: false },
     commission: { type: Object, default: null },
+    kpi: { type: Object, default: null },
     payrollPeriodLabel: { type: String, default: null },
     latestPayroll: { type: Object, default: null },
     recentPayrolls: { type: Array, default: () => [] },
@@ -56,6 +58,17 @@ const onSaved = (p) => flashStatus(p?.props?.status ?? null);
 onBeforeUnmount(() => typeof window !== 'undefined' && window.clearTimeout(timer));
 
 const pct = (v) => String(Math.round(Number(v) * 100) / 100).replace('.', ',') + '%';
+const currentTierIndex = computed(() => props.commission?.tiers?.findIndex((t) => t.current) ?? -1);
+const barWidth = (value, max) => `${max > 0 ? Math.min(100, Math.max(0, (Number(value) / Number(max)) * 100)) : 0}%`;
+const kpiStatus = computed(() => (props.kpi?.status === 'confirmed' ? ['success', 'Đã chốt'] : props.kpi?.status === 'draft' ? ['secondary', 'Đang chấm'] : ['neutral', 'Chưa chấm']));
+const kpiTotal = computed(() => (props.kpi ? Object.values(props.kpi.counts).reduce((a, b) => a + b, 0) : 0));
+const kpiLevel = {
+    full: ['success', 'Đạt Ngưỡng 100'],
+    half: ['primary', 'Đạt Ngưỡng 50'],
+    low: ['warning', 'Dưới Ngưỡng 50'],
+    zero: ['error', 'Không đạt'],
+    pending: ['neutral', 'Chưa chấm'],
+};
 const taskBadge = (status) => (status === 'completed' ? ['success', 'Hoàn thành'] : status === 'in_progress' ? ['secondary', 'Đang làm'] : ['warning', 'Chờ xử lý']);
 const priorityColor = (p) => (p === 'urgent' ? 'error' : p === 'high' ? 'primary' : 'neutral');
 const ticketColor = (s) => (s === 'resolved' ? 'success' : s === 'in_progress' ? 'secondary' : 'warning');
@@ -168,15 +181,19 @@ const ticketColor = (s) => (s === 'resolved' ? 'success' : s === 'in_progress' ?
                 </div>
             </div>
 
-            <!-- Hoa hồng tuyển sinh tạm tính tháng này (người phụ trách khách) -->
+            <!-- Hoa hồng tuyển sinh TẠM TÍNH tháng này (người phụ trách khách); hoa hồng thực ở bảng lương -->
             <section v-if="commission" class="space-y-4 rounded-3xl border border-surface-container-highest bg-surface-container-lowest p-6 shadow-sm" data-commission-panel>
                 <div class="flex flex-wrap items-start justify-between gap-3">
                     <div class="space-y-1">
-                        <h2 class="flex items-center gap-2 text-sm font-black uppercase tracking-wider text-on-surface">
+                        <h2 class="flex flex-wrap items-center gap-2 text-sm font-black uppercase tracking-wider text-on-surface">
                             <span class="material-symbols-outlined text-[20px] text-tertiary">trending_up</span>
                             Hoa hồng tuyển sinh tháng {{ commission.month_label }}
+                            <UiBadge color="warning" pill>Tạm tính</UiBadge>
                         </h2>
-                        <p class="text-xs text-on-surface-variant">Tạm tính trên học phí đã thu (không tính tiền sách / Thu khác). Trả trên phiếu lương khi khách đủ 30 ngày từ ngày chốt và đủ 3/3 mốc chăm sóc.</p>
+                        <p class="text-xs text-on-surface-variant">
+                            Mỗi HS mang % của mốc ứng với thứ tự chốt trong tháng (theo lúc chốt, không theo lúc đóng tiền). Hoa hồng chỉ ghi nhận khi hệ thống nhận tiền về (phiếu thu được duyệt), tính trên học phí không gồm sách / Thu khác.
+                            Hoa hồng thực xem ở bảng lương.
+                        </p>
                     </div>
                     <Link v-if="can('kpi.view')" :href="route('payroll.kpi-leaderboard')" class="text-xs font-bold text-primary hover:underline">Bảng xếp hạng &rarr;</Link>
                 </div>
@@ -185,59 +202,164 @@ const ticketColor = (s) => (s === 'resolved' ? 'success' : s === 'in_progress' ?
                     <div class="rounded-2xl border border-surface-container-highest bg-surface-container-low/70 p-4">
                         <div class="text-xs text-on-surface-variant">HS đã chốt</div>
                         <div class="font-mono text-xl font-black text-on-surface">{{ commission.closed }}</div>
+                        <div class="text-xs text-on-surface-variant">{{ commission.fully_paid }}/{{ commission.closed }} đã thu đủ</div>
                     </div>
                     <div class="rounded-2xl border border-surface-container-highest bg-surface-container-low/70 p-4">
                         <div class="text-xs text-on-surface-variant">Mốc hiện tại</div>
                         <div class="font-mono text-xl font-black text-on-surface">{{ pct(commission.percent) }}</div>
                         <div class="text-xs text-on-surface-variant">{{ commission.range ?? 'Chưa cấu hình mốc' }}</div>
                     </div>
-                    <div class="rounded-2xl border border-surface-container-highest bg-surface-container-low/70 p-4">
-                        <div class="text-xs text-on-surface-variant">Học phí đã thu</div>
-                        <UiMoney :value="commission.base" align="left" class="!text-xl font-black" />
-                    </div>
                     <div class="rounded-2xl border border-tertiary/30 bg-tertiary/10 p-4">
-                        <div class="text-xs text-on-surface-variant">Hoa hồng tạm tính</div>
-                        <UiMoney :value="commission.amount" align="left" tone="success" class="!text-xl font-black" />
+                        <div class="text-xs text-on-surface-variant">Tạm tính khi thu đủ</div>
+                        <UiMoney :value="commission.expected" align="left" tone="success" class="!text-xl font-black" />
+                        <div class="text-xs text-on-surface-variant">HS chốt trong tháng</div>
+                    </div>
+                    <div class="rounded-2xl border border-surface-container-highest bg-surface-container-low/70 p-4">
+                        <div class="text-xs text-on-surface-variant">Đã ghi nhận (tiền đã về)</div>
+                        <UiMoney :value="commission.earned_closed" align="left" class="!text-xl font-black" />
+                        <div class="text-xs text-on-surface-variant">Của các HS trên</div>
                     </div>
                 </div>
 
+                <!-- Mốc tiến độ: mốc đã qua / đang ở / chưa tới -->
+                <ol v-if="commission.tiers.length" class="flex flex-wrap gap-2" aria-label="Các mốc hoa hồng" data-commission-steps>
+                    <li
+                        v-for="(tier, i) in commission.tiers"
+                        :key="tier.range"
+                        class="min-w-[8rem] flex-1 rounded-xl border p-3"
+                        :class="tier.current ? 'border-tertiary bg-tertiary/10' : i < currentTierIndex ? 'border-tertiary/30 bg-surface-container-low/70' : 'border-surface-container-highest'"
+                    >
+                        <div class="flex items-center gap-1 text-xs font-bold" :class="tier.current || i < currentTierIndex ? 'text-tertiary' : 'text-on-surface-variant'">
+                            <span class="material-symbols-outlined text-[16px]">{{ i < currentTierIndex ? 'check_circle' : tier.current ? 'radio_button_checked' : 'radio_button_unchecked' }}</span>
+                            {{ tier.range }}
+                        </div>
+                        <div class="font-mono text-lg font-black text-on-surface">{{ pct(tier.percent) }}</div>
+                        <div v-if="tier.current" class="text-xs font-semibold text-tertiary">Đang ở mốc này</div>
+                    </li>
+                </ol>
                 <p v-if="commission.to_next" class="text-xs font-semibold text-on-surface">
                     Còn {{ commission.to_next }} HS nữa sang {{ commission.next_range }}: {{ pct(commission.next_percent) }} cho mỗi HS từ đó.
                 </p>
 
-                <div v-if="commission.tiers.length" class="flex flex-wrap gap-2" aria-label="Các mốc hoa hồng">
-                    <UiBadge v-for="tier in commission.tiers" :key="tier.range" :color="tier.current ? 'success' : 'neutral'" pill>
-                        {{ tier.range }}: {{ pct(tier.percent) }}
-                    </UiBadge>
-                </div>
-
                 <div class="overflow-x-auto">
-                    <table class="w-full min-w-[560px] text-left text-xs">
+                    <table class="w-full min-w-[760px] text-left text-xs">
                         <thead>
                             <tr class="text-on-surface-variant">
                                 <th class="py-2 font-semibold">Học viên</th>
                                 <th class="py-2 font-semibold">HS thứ</th>
                                 <th class="py-2 text-right font-semibold">%</th>
-                                <th class="py-2 text-right font-semibold">Học phí thu tháng này</th>
-                                <th class="py-2 text-right font-semibold">Hoa hồng</th>
+                                <th class="py-2 text-right font-semibold">Học phí (không sách)</th>
+                                <th class="py-2 text-right font-semibold">Đã thu</th>
+                                <th class="py-2 text-right font-semibold">HH khi thu đủ</th>
+                                <th class="py-2 text-right font-semibold">HH đã ghi nhận</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr v-for="row in commission.rows" :key="row.student + row.rank" class="border-t border-surface-container-highest">
-                                <td class="py-2 font-bold text-on-surface">{{ row.student }}</td>
+                                <td class="py-2 font-bold text-on-surface">
+                                    {{ row.student }}
+                                    <div v-if="!row.closed_this_month" class="font-normal text-on-surface-variant">Chốt tháng trước, có tiền về tháng này</div>
+                                </td>
                                 <td class="py-2 text-on-surface-variant">
                                     #{{ row.rank }}
                                     <span v-if="row.closed_at">· chốt {{ row.closed_at }}</span>
                                 </td>
                                 <td class="py-2 text-right font-mono">{{ pct(row.percent) }}</td>
-                                <td class="py-2 text-right"><UiMoney :value="row.base" /></td>
-                                <td class="py-2 text-right font-bold"><UiMoney :value="row.amount" tone="success" /></td>
+                                <td class="py-2 text-right">
+                                    <UiMoney v-if="row.tuition !== null" :value="row.tuition" />
+                                    <span v-else class="text-on-surface-variant">Chưa có học phí</span>
+                                </td>
+                                <td class="py-2 text-right">
+                                    <UiMoney :value="row.paid_total" />
+                                    <div v-if="row.fully_paid"><UiBadge color="success">Đã thu đủ</UiBadge></div>
+                                    <div v-else-if="row.remaining" class="text-on-surface-variant">còn {{ formatMoney(row.remaining) }}</div>
+                                </td>
+                                <td class="py-2 text-right"><UiMoney v-if="row.expected !== null" :value="row.expected" /><span v-else class="text-on-surface-variant">—</span></td>
+                                <td class="py-2 text-right font-bold"><UiMoney :value="row.earned_total" tone="success" /></td>
                             </tr>
                             <tr v-if="!commission.rows.length">
-                                <td colspan="5" class="py-3"><UiEmptyState icon="trending_up" title="Tháng này chưa có học viên chốt hay học phí thu của khách mới." /></td>
+                                <td colspan="7" class="py-3"><UiEmptyState icon="trending_up" title="Tháng này chưa có học viên chốt hay học phí thu của khách mới." /></td>
                             </tr>
                         </tbody>
                     </table>
+                </div>
+                <p class="text-xs text-on-surface-variant">
+                    Tiền về trong tháng {{ commission.month_label }}: học phí <span class="font-mono">{{ formatMoney(commission.base) }}</span> → hoa hồng
+                    <span class="font-mono">{{ formatMoney(commission.amount) }}</span>, ghi vào sổ hoa hồng kỳ lương tháng này; chi trả khi khách đủ 30 ngày từ ngày chốt và đủ 3/3 mốc chăm sóc.
+                </p>
+            </section>
+
+            <!-- KPI Học vụ TẠM TÍNH tháng này theo từng đầu mục (KPI thực vào bảng lương khi đánh giá tháng được chốt) -->
+            <section v-if="kpi" class="space-y-4 rounded-3xl border border-surface-container-highest bg-surface-container-lowest p-6 shadow-sm" data-kpi-panel>
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div class="space-y-1">
+                        <h2 class="flex flex-wrap items-center gap-2 text-sm font-black uppercase tracking-wider text-on-surface">
+                            <span class="material-symbols-outlined text-[20px] text-primary">insights</span>
+                            KPI tháng {{ kpi.month_label }}
+                            <UiBadge color="warning" pill>Tạm tính</UiBadge>
+                            <UiBadge :color="kpiStatus[0]">{{ kpiStatus[1] }}</UiBadge>
+                        </h2>
+                        <p class="text-xs text-on-surface-variant">
+                            Mỗi đầu mục: đạt Ngưỡng 50 nhận 50% quỹ mục, đạt Ngưỡng 100 nhận đủ quỹ mục. Số tiền theo điểm đang chấm<span v-if="kpi.evaluator"> ({{ kpi.evaluator }})</span>; KPI thực vào bảng lương khi đánh giá tháng được chốt.
+                        </p>
+                    </div>
+                    <Link v-if="kpi.url" :href="kpi.url" class="text-xs font-bold text-primary hover:underline">Xem phiếu đánh giá &rarr;</Link>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
+                    <div class="rounded-2xl border border-surface-container-highest bg-surface-container-low/70 p-4">
+                        <div class="text-xs text-on-surface-variant">Quỹ KPI tháng</div>
+                        <UiMoney :value="kpi.fund" align="left" class="!text-xl font-black" />
+                    </div>
+                    <div class="rounded-2xl border border-primary-container/30 bg-primary-container/10 p-4">
+                        <div class="text-xs text-on-surface-variant">KPI tạm tính</div>
+                        <UiMoney :value="kpi.amount" align="left" tone="success" class="!text-xl font-black" />
+                        <div class="text-xs text-on-surface-variant">{{ kpi.score !== null ? pct(kpi.score) + ' · ' + kpi.grade : 'Chưa chấm' }}</div>
+                    </div>
+                    <div class="rounded-2xl border border-surface-container-highest bg-surface-container-low/70 p-4">
+                        <div class="text-xs text-on-surface-variant">Mục đạt Ngưỡng 100</div>
+                        <div class="font-mono text-xl font-black text-on-surface">{{ kpi.counts.full }}/{{ kpiTotal }}</div>
+                        <div class="text-xs text-on-surface-variant">{{ kpi.counts.half }} mục đạt Ngưỡng 50</div>
+                    </div>
+                    <div class="rounded-2xl border border-surface-container-highest bg-surface-container-low/70 p-4">
+                        <div class="text-xs text-on-surface-variant">Chưa đạt / chưa chấm</div>
+                        <div class="font-mono text-xl font-black text-on-surface">{{ kpi.counts.below }} / {{ kpi.counts.pending }}</div>
+                    </div>
+                </div>
+
+                <div aria-label="Tiến độ quỹ KPI">
+                    <div class="h-2 w-full overflow-hidden rounded-full bg-surface-container">
+                        <div class="h-2 rounded-full bg-tertiary" :style="{ width: barWidth(kpi.amount, kpi.fund) }"></div>
+                    </div>
+                </div>
+
+                <div v-for="group in kpi.groups" :key="group.name" class="space-y-2">
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="font-black uppercase tracking-wider text-on-surface-variant">{{ group.name }}</span>
+                        <span class="font-mono text-on-surface-variant"><span class="font-mono">{{ formatMoney(group.amount) }}</span> / <span class="font-mono">{{ formatMoney(group.max) }}</span></span>
+                    </div>
+                    <div v-for="item in group.items" :key="item.id" class="rounded-2xl border border-surface-container-highest p-3" data-kpi-item>
+                        <div class="flex flex-wrap items-baseline justify-between gap-2">
+                            <div class="text-xs font-bold text-on-surface">
+                                <span v-if="item.code" class="text-on-surface-variant">{{ item.code }}</span> {{ item.name }}
+                                <UiBadge :color="kpiLevel[item.level][0]" class="ml-1">{{ kpiLevel[item.level][1] }}</UiBadge>
+                            </div>
+                            <div class="text-xs"><span class="font-mono font-bold text-tertiary">{{ formatMoney(item.amount) }}</span> / <span class="font-mono">{{ formatMoney(item.max) }}</span></div>
+                        </div>
+                        <!-- Thanh mốc: vạch 50% (Ngưỡng 50) và 100% (Ngưỡng 100) -->
+                        <div class="relative mt-2 h-2 w-full rounded-full bg-surface-container">
+                            <div class="h-2 rounded-full" :class="item.level === 'full' ? 'bg-tertiary' : item.level === 'half' ? 'bg-primary-container' : 'bg-warning'" :style="{ width: barWidth(item.score ?? 0, 100) }"></div>
+                            <span class="absolute top-[-2px] h-3 w-0.5 bg-on-surface-variant/50" style="left: 50%" aria-hidden="true"></span>
+                        </div>
+                        <div class="mt-1 flex flex-wrap justify-between gap-2 text-xs text-on-surface-variant">
+                            <span>
+                                Ngưỡng 50: {{ item.threshold_half ?? '—' }} · Ngưỡng 100: {{ item.threshold_full ?? '—' }}
+                                <span v-if="item.actual"> · Thực tế: {{ item.actual }}</span>
+                                <span v-if="item.score !== null"> · Đạt {{ pct(item.score) }}</span>
+                            </span>
+                            <span v-if="item.next_gain" class="font-semibold text-on-surface">Đạt {{ item.next_label }} để nhận thêm <span class="font-mono">{{ formatMoney(item.next_gain) }}</span></span>
+                        </div>
+                    </div>
                 </div>
             </section>
 
