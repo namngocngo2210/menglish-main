@@ -9,6 +9,7 @@ use App\Support\Audit;
 use App\Support\DataScope;
 use App\Support\SensitiveData;
 use App\Support\Ui;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
@@ -75,9 +76,10 @@ class ActivityLogController extends Controller
 
         // Quick Stats
         $scoped = fn () => self::scoped(Activity::query(), $request->user());
-        $totalLogsToday = $scoped()->whereDate('created_at', today())->count();
+        $todayRange = [today()->startOfDay(), today()->endOfDay()];
+        $totalLogsToday = $scoped()->whereBetween('created_at', $todayRange)->count();
         $totalLogsCount = $scoped()->count();
-        $activeUsersToday = $scoped()->whereDate('created_at', today())->distinct('causer_id')->count('causer_id');
+        $activeUsersToday = $scoped()->whereBetween('created_at', $todayRange)->distinct('causer_id')->count('causer_id');
 
         $canUndo = (bool) $request->user()?->can('activity_log.undo');
 
@@ -352,10 +354,10 @@ class ActivityLogController extends Controller
         }
 
         if ($request->filled('date_from')) {
-            $query->whereDate('created_at', '>=', $request->input('date_from'));
+            $query->where('created_at', '>=', Carbon::parse($request->input('date_from'))->startOfDay());
         }
         if ($request->filled('date_to')) {
-            $query->whereDate('created_at', '<=', $request->input('date_to'));
+            $query->where('created_at', '<=', Carbon::parse($request->input('date_to'))->endOfDay());
         }
 
         if ($request->filled('search')) {

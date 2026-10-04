@@ -20,13 +20,8 @@ class AdminNotificationController extends Controller
     public function index(Request $request): Response
     {
         $user = $request->user();
-        $isGlobalViewer = ! $user || NotificationService::seesSystemNotifications($user);
 
-        // Tự động quét để có dữ liệu mới nhất (nếu là admin/manager)
-        if ($isGlobalViewer) {
-            $this->notificationService->scanAndSyncStaleLeads();
-        }
-
+        // Quét lead tồn đọng chạy theo lịch (crm:scan-stale-leads, hằng giờ) và nút "Quét" thủ công, không quét khi mở trang.
         $query = AdminNotification::latest();
 
         // Phân quyền hiển thị thông báo theo luồng
@@ -71,10 +66,14 @@ class AdminNotificationController extends Controller
             $baseQuery->forRecipient($user);
         }
 
+        $counts = $baseQuery->toBase()->selectRaw(
+            "COUNT(*) as total, SUM(CASE WHEN is_read = 0 THEN 1 ELSE 0 END) as unread, SUM(CASE WHEN is_read = 0 AND type = 'stale_lead_24h' THEN 1 ELSE 0 END) as stale_leads"
+        )->first();
+
         $stats = [
-            'total' => (clone $baseQuery)->count(),
-            'unread' => (clone $baseQuery)->where('is_read', false)->count(),
-            'stale_leads' => (clone $baseQuery)->where('type', 'stale_lead_24h')->where('is_read', false)->count(),
+            'total' => (int) $counts->total,
+            'unread' => (int) $counts->unread,
+            'stale_leads' => (int) $counts->stale_leads,
         ];
 
         return Inertia::render('Notifications/Index', [

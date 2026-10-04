@@ -150,7 +150,7 @@ class KpiController extends Controller
         $role = in_array($request->query('role'), self::STAFF_ROLES, true) ? $request->query('role') : null;
         $staff = $this->scopedStaff(User::whereHas('roles', fn ($q) => $q->whereIn('name', $role ? [$role] : self::STAFF_ROLES)))
             ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w->where('name', 'like', "%{$search}%")->orWhere('employee_code', 'like', "%{$search}%")))
-            ->orderBy('name')->paginate($request->perPage(20))->withQueryString();
+            ->with('roles')->orderBy('name')->paginate($request->perPage(20))->withQueryString();
         $fund = KpiCriterion::fund();
         $fmt = fn ($v) => rtrim(rtrim(number_format((float) $v, 2, ',', '.'), '0'), ',');
         $periodValue = sprintf('%04d-%02d', $year, $month);
