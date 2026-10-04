@@ -312,7 +312,7 @@ class WorkspaceNavigationTest extends TestCase
         $this->get(route('crm.lost-deals'))->assertOk()->assertSee('data-workspace-chips', false);
     }
 
-    public function test_enrollment_report_is_a_crm_tab_not_a_separate_reports_section(): void
+    public function test_enrollment_report_stays_a_crm_tab_outside_the_reports_section(): void
     {
         $html = $this->actingAs($this->makeUser('admin'))->get(route('crm.reports'))->assertOk()->getContent();
         $bar = substr($html, strpos($html, 'data-workspace-tabs="crm"'));
@@ -321,13 +321,40 @@ class WorkspaceNavigationTest extends TestCase
         // Tab "Báo cáo" nằm cạnh Kanban / Danh sách và đang được chọn.
         $this->assertMatchesRegularExpression('#<a(?=[^>]*href="'.preg_quote(route('crm.reports'), '#').'")(?=[^>]*aria-current="page")[^>]*>#', $tabs);
         $this->assertStringContainsString(route('crm.pipeline'), $tabs);
-        // Sidebar không còn khu "Báo cáo" riêng; mục đang sáng là Khách hàng (CRM).
-        $this->assertStringNotContainsString('data-menu-section data-sidebar-text>Báo cáo<', $html);
-        $this->assertNotContains('reports', collect(app(SidebarMenu::class)->definition())->pluck('id')->all());
+        // Báo cáo tuyển sinh không nằm trong khu "Báo cáo" (04/10/2026: chỉ báo cáo tuyển sinh ở lại CRM).
+        $reportRoutes = collect(app(SidebarMenu::class)->definition())->where('section', 'Báo cáo')
+            ->flatMap(fn (array $group) => $group['items'])->pluck('route');
+        $this->assertNotContains('crm.reports', $reportRoutes);
 
         // Người không có quyền xem báo cáo (Học vụ) không thấy tab.
         $academicBar = $this->actingAs($this->makeUser('academic_staff'))->get(route('crm.customers.index'))->assertOk()->getContent();
         $this->assertStringNotContainsString(route('crm.reports'), substr($academicBar, strpos($academicBar, 'data-workspace-tabs="crm"')));
+    }
+
+    public function test_every_other_report_lives_in_the_reports_section(): void
+    {
+        $definition = collect(app(SidebarMenu::class)->definition());
+        $reportRoutes = $definition->where('section', 'Báo cáo')->flatMap(fn (array $group) => $group['items'])->pluck('route')->all();
+        foreach ([
+            'finance.reports.revenue', 'academic.dashboards.reports', 'class-quality.operations', 'class-quality.academic',
+            'class-quality.checklist', 'class-quality.teacher-meetings', 'reports.all', 'reports.journal', 'kpi.monthly',
+            'kpi.attendance-review', 'tasks.kpi-dashboard', 'payroll.kpi-leaderboard', 'reports.my', 'teacher.general-report',
+        ] as $route) {
+            $this->assertContains($route, $reportRoutes, $route.' phải nằm trong khu Báo cáo.');
+        }
+        // Tổng hợp báo cáo không còn trong Cài đặt.
+        $this->assertNotContains('reports.all', collect(app(SidebarMenu::class)->settingsDefinition())->flatMap(fn (array $s) => $s['items'])->pluck('route'));
+
+        // Admin thấy tiêu đề khu "Báo cáo"; mở Doanh thu tạm tính thì mục "Doanh thu" sáng.
+        $html = $this->actingAs($this->makeUser('admin'))->get(route('finance.reports.revenue'))->assertOk()->getContent();
+        $this->assertStringContainsString('data-menu-section data-sidebar-text>Báo cáo<', $html);
+        $this->assertMatchesRegularExpression('#<a(?=[^>]*data-menu-item="report_finance")(?=[^>]*aria-current="page")[^>]*>#', $html);
+
+        // Giáo viên chỉ thấy "Báo cáo của tôi" (báo cáo tháng + báo cáo giảng dạy).
+        $teacher = $this->makeUser('teacher');
+        $groups = collect(app(SidebarMenu::class)->groupsFor($teacher))->where('section', 'Báo cáo');
+        $this->assertSame(['report_mine'], $groups->pluck('id')->values()->all());
+        $this->assertSame(['reports.my', 'teacher.general-report'], collect($groups->first()['items'])->pluck('route')->all());
     }
 
     public function test_crm_sla_quick_filter_lists_only_stale_new_leads(): void
