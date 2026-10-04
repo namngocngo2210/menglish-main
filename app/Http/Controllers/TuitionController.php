@@ -852,7 +852,7 @@ class TuitionController extends Controller
     private function receiptSubmitError(string $method, ?string $transactionCode, bool $hasProof, ?int $ignoreReceiptId = null, ?string $paperInvoiceNumber = null, bool $paperRange = false): ?array
     {
         if ($method === 'cash' && $paperRange && ! $hasProof) {
-            return ['proof_image' => 'Thu tiền mặt cần tải ảnh chụp hóa đơn giấy đã ghi đúng số hóa đơn hệ thống cấp.'];
+            return ['proof_image' => 'Thu tiền mặt cần tải ảnh chụp hóa đơn giấy mang đúng số hệ thống cấp, đã ghi đúng nội dung thu.'];
         }
 
         if ($method === 'cash' && ! $paperRange && trim((string) $paperInvoiceNumber) === '') {

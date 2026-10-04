@@ -268,7 +268,7 @@ const methodClass = (method) => (s.value.paymentMethod === method ? 'border-prim
                                 <td class="px-3 py-2 text-right">
                                     <template v-if="form.stockOf(line.id) !== null">
                                         <span :class="['font-code font-bold', form.stockOf(line.id) < line.quantity ? 'text-error' : 'text-on-surface']">{{ form.stockOf(line.id) }}</span>
-                                        <span v-if="form.stockOf(line.id) < line.quantity" class="block text-[11px] text-error">Không đủ hàng, kho sẽ âm</span>
+                                        <span v-if="form.stockOf(line.id) < line.quantity" class="block text-[11px] text-error">Không đủ hàng: vẫn thu được, hệ thống giao Admin nhập bù</span>
                                     </template>
                                     <span v-else class="text-on-surface-subtle">—</span>
                                 </td>
@@ -422,9 +422,29 @@ const methodClass = (method) => (s.value.paymentMethod === method ? 'border-prim
                         <span class="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">{{ form.issuedPaperInvoice ? 'Số hóa đơn giấy đã cấp cho phiếu' : 'Số hóa đơn giấy hệ thống cấp' }}</span>
                         <span class="block font-code text-xl font-bold text-primary">{{ form.paperNumber }}</span>
                         <p class="text-xs text-on-surface-variant">
-                            Ghi <strong>đúng số này</strong> lên hóa đơn giấy giao khách, chụp ảnh hóa đơn và tải lên mục <strong>Minh chứng</strong> bên dưới.
+                            Dùng tờ hóa đơn giấy mang <strong>đúng số này</strong>, ghi <strong>đúng nội dung thu</strong> dưới đây lên hóa đơn, chụp ảnh và tải lên mục
+                            <strong>Minh chứng</strong> (bắt buộc).
                             <template v-if="!form.issuedPaperInvoice"> Số được giữ cho phiếu khi bấm Lưu nháp hoặc Gửi duyệt.</template>
                         </p>
+                        <dl class="space-y-1 rounded-lg border border-surface-container-highest bg-surface-container-lowest p-2.5 text-xs" data-testid="paper-invoice-content">
+                            <div class="flex gap-2">
+                                <dt class="w-24 shrink-0 text-on-surface-variant">Người nộp</dt>
+                                <dd class="font-semibold text-on-surface">{{ s.payerName || '—' }}</dd>
+                            </div>
+                            <div class="flex gap-2">
+                                <dt class="w-24 shrink-0 text-on-surface-variant">Nội dung thu</dt>
+                                <dd class="space-y-0.5 text-on-surface">
+                                    <div v-for="(line, i) in form.paperInvoiceContent" :key="i" class="flex justify-between gap-3">
+                                        <span>{{ line.label }}</span><span class="font-code">{{ formatMoney(line.amount) }}</span>
+                                    </div>
+                                    <span v-if="!form.paperInvoiceContent.length">—</span>
+                                </dd>
+                            </div>
+                            <div class="flex gap-2 border-t border-surface-container pt-1">
+                                <dt class="w-24 shrink-0 text-on-surface-variant">Tổng tiền</dt>
+                                <dd class="font-code font-bold text-on-surface">{{ formatMoney(form.totalAmount || 0) }}</dd>
+                            </div>
+                        </dl>
                         <p class="text-xs text-on-surface-variant">
                             Ghi sai số trên giấy? Không sửa số: tạo yêu cầu <strong>Hủy hóa đơn</strong> số đó, phiếu lập mới nhận số kế tiếp.
                             <Link v-if="form.issuedPaperInvoice && canRequestCancel" :href="route('tuition.invoices.cancellations', { cancel_invoice: form.issuedPaperInvoice })" class="font-bold text-error underline">Hủy số hóa đơn này</Link>
@@ -475,7 +495,7 @@ const methodClass = (method) => (s.value.paymentMethod === method ? 'border-prim
             </h3>
             <span :class="['flex items-center gap-1 text-xs font-medium', form.proofRequired ? 'text-warning' : 'text-on-surface-subtle']">
                 <span class="material-symbols-outlined text-xs">{{ form.proofRequired ? 'warning' : 'info' }}</span>
-                <span>{{ form.paperMode ? 'Bắt buộc khi gửi duyệt: ảnh chụp hóa đơn giấy ghi số ' + (form.paperNumber || '') : form.proofRequired ? 'Bắt buộc khi gửi duyệt: ủy nhiệm chi / ảnh chuyển khoản' : 'Tiền mặt: không cần ảnh minh chứng, chỉ cần số hóa đơn giấy' }}</span>
+                <span>{{ form.paperMode ? 'Bắt buộc khi gửi duyệt: ảnh chụp hóa đơn giấy số ' + (form.paperNumber || '') + ' đã ghi đúng nội dung thu' : form.proofRequired ? 'Bắt buộc khi gửi duyệt: ủy nhiệm chi / ảnh chuyển khoản' : 'Tiền mặt: không cần ảnh minh chứng, chỉ cần số hóa đơn giấy' }}</span>
             </span>
         </div>
 

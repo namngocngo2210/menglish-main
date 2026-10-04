@@ -622,7 +622,7 @@ if (w.assignLater) setAssignLater(true);
                             <span
                                 v-if="stockOf(item.id) !== null"
                                 :class="['w-24 shrink-0 text-right text-[11px]', stockOf(item.id) < 1 ? 'font-bold text-error' : 'text-on-surface-variant']"
-                                :title="stockOf(item.id) < 1 ? 'Kho chi nhánh hết hàng: vẫn chốt được, kho sẽ âm khi phiếu thu được duyệt' : 'Tồn kho chi nhánh'"
+                                :title="stockOf(item.id) < 1 ? 'Kho chi nhánh hết hàng: vẫn chốt được; khi phiếu thu được duyệt, hệ thống giao Admin việc nhập sách bù' : 'Tồn kho chi nhánh'"
                             >
                                 {{ stockOf(item.id) < 1 ? 'Hết hàng' : 'Tồn' }}: {{ stockOf(item.id) }}
                             </span>
@@ -825,7 +825,7 @@ if (w.assignLater) setAssignLater(true);
                                 <template v-if="paperNumber">
                                     <span class="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Số hóa đơn giấy hệ thống cấp</span>
                                     <span class="block font-code text-xl font-bold text-primary">{{ paperNumber }}</span>
-                                    <p class="text-xs text-on-surface-variant">Ghi <strong>đúng số này</strong> lên hóa đơn giấy giao khách, chụp ảnh và tải lên. Ghi sai số thì tạo yêu cầu Hủy hóa đơn số đó.</p>
+                                    <p class="text-xs text-on-surface-variant">Dùng tờ hóa đơn giấy mang <strong>đúng số này</strong>, ghi <strong>đúng nội dung thu</strong> như trên Bill (nút “Xem &amp; In Bill”: người nộp, từng khoản thu, tổng tiền), chụp ảnh và tải lên (bắt buộc). Ghi sai thì tạo yêu cầu Hủy hóa đơn số đó.</p>
                                     <input type="hidden" name="expected_paper_invoice_number" :value="paperNumber" />
                                     <UiField label="Ảnh chụp hóa đơn giấy (bắt buộc)" name="paper_invoice_photo" for="closing_paper_invoice_photo" required>
                                         <input

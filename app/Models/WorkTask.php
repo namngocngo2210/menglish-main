@@ -27,6 +27,7 @@ class WorkTask extends Model
         'task_type',
         'kind',
         'big_test_id',
+        'merchandise_item_id',
         'frequency',
         'due_date',
         'due_time',
@@ -94,6 +95,11 @@ class WorkTask extends Model
     }
 
     /** Biên bản vi phạm tự lập khi việc chăm sóc tháng đầu quá SLA. */
+    public function merchandiseItem()
+    {
+        return $this->belongsTo(MerchandiseItem::class)->withTrashed();
+    }
+
     public function slaPenalty()
     {
         return $this->hasOne(Penalty::class, 'work_task_id');
@@ -113,6 +119,9 @@ class WorkTask extends Model
 
     /** Nhiệm vụ hằng ngày của trợ giảng (CV-05, giao qua "Giao nhiệm vụ cho TA"): cố ý không có hạn — không bao giờ "Quá hạn". */
     public const KIND_TA_DAILY = 'ta_daily';
+
+    /** Việc "Nhập bù sách" hệ thống tự giao Admin khi tồn kho một mặt hàng ở chi nhánh về 0 / âm (App\Services\Merchandise\RestockTaskService). */
+    public const KIND_MERCHANDISE_RESTOCK = 'merchandise_restock';
 
     /** Trạng thái còn phải làm (sẽ thành "Quá hạn" khi qua hạn). */
     public const OPEN_STATUSES = ['new', 'in_progress'];

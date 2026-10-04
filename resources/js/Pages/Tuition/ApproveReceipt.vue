@@ -352,7 +352,7 @@ onBeforeUnmount(() => clearInterval(timer));
                                 Tồn {{ line.stock }} → {{ line.stock_after }}<template v-if="line.stock_after < 0"> (âm kho)</template>
                             </span>
                         </div>
-                        <p v-if="selected.stock_out.some((l) => l.stock_after < 0)" class="text-error">Kho chi nhánh không đủ hàng: vẫn duyệt được, nhắc chi nhánh nhập kho bổ sung hoặc kiểm kê lại.</p>
+                        <p v-if="selected.stock_out.some((l) => l.stock_after < 0)" class="text-error">Kho chi nhánh không đủ hàng: vẫn duyệt được. Duyệt xong hệ thống tự giao Admin việc nhập sách bù cho chi nhánh.</p>
                     </div>
                 </div>
 
@@ -375,8 +375,8 @@ onBeforeUnmount(() => clearInterval(timer));
                     </div>
 
                     <UiAlert v-if="selected.issued_paper_invoice" type="info" class="mb-3" title="Đối chiếu số hóa đơn giấy">
-                        Hệ thống đã cấp số <strong class="font-code">{{ selected.issued_paper_invoice }}</strong> cho phiếu tiền mặt này. Số ghi trên ảnh hóa đơn giấy phải trùng số này;
-                        sai số thì từ chối và để người lập tạo yêu cầu hủy hóa đơn.
+                        Hệ thống đã cấp số <strong class="font-code">{{ selected.issued_paper_invoice }}</strong> cho phiếu tiền mặt này. Ảnh hóa đơn giấy phải mang đúng số này và ghi đúng nội dung thu của phiếu (người nộp, từng khoản thu, tổng tiền);
+                        sai số hoặc sai nội dung thì từ chối và để người lập tạo yêu cầu hủy hóa đơn.
                     </UiAlert>
                     <div class="flex flex-col items-center gap-5 rounded-xl border border-inverse-surface bg-inverse-surface p-5 md:flex-row">
                         <div class="group/img relative flex h-52 w-full shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/5 md:w-64" @click="zoomOpen = true">

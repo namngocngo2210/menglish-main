@@ -2281,7 +2281,7 @@ class CrmController extends Controller
         $paperRange = $paidAmount > 0 && $paymentMethod === 'cash' && InvoiceConfiguration::branchUsesPaperRange($wizardBranchId ? (int) $wizardBranchId : null);
         $paperInvoiceNumber = trim((string) ($validated['paper_invoice_number'] ?? '')) ?: null;
         if ($paperRange && ! $request->hasFile('paper_invoice_photo')) {
-            throw ValidationException::withMessages(['paper_invoice_photo' => 'Thu tiền mặt cần tải ảnh chụp hóa đơn giấy đã ghi đúng số hóa đơn hệ thống cấp.']);
+            throw ValidationException::withMessages(['paper_invoice_photo' => 'Thu tiền mặt cần tải ảnh chụp hóa đơn giấy mang đúng số hệ thống cấp, đã ghi đúng nội dung thu.']);
         }
         if (! $paperRange && $paidAmount > 0 && $paymentMethod === 'cash' && ! $paperInvoiceNumber) {
             throw ValidationException::withMessages(['paper_invoice_number' => 'Thu tiền mặt cần nhập số hóa đơn giấy đã xuất cho khách.']);
