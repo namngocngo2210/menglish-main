@@ -4,6 +4,8 @@ namespace App\Models;
 
 use App\Models\Concerns\AuditsChanges;
 use App\Support\DataScope;
+use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -67,15 +69,23 @@ class Student extends Model
         'total_lessons',
         'homework_rate',
         'status',
+        'study_started_on',
         'notes',
     ];
 
     protected $casts = [
         'dob' => 'date',
+        'study_started_on' => 'date',
         'attended_lessons' => 'integer',
         'total_lessons' => 'integer',
         'homework_rate' => 'decimal:2',
     ];
+
+    /** Mốc thâm niên (năm) để lọc học viên học lâu năm (tri ân 3–5 năm). */
+    public const TENURE_FILTERS = [1, 3, 5];
+
+    /** Từ số năm này trở lên thì đánh dấu "Học viên lâu năm" trên danh sách / hồ sơ. */
+    public const TENURE_HIGHLIGHT_YEARS = 3;
 
     protected static function booted(): void
     {
@@ -132,6 +142,68 @@ class Student extends Model
                 ->orWhereHas('enrollments', fn (Builder $e) => $e->whereIn('class_id', $classIds)
                     ->whereIn('status', self::ACTIVE_ENROLLMENT_STATUSES));
         });
+    }
+
+    /**
+     * Ghi nhận ngày vào học khi học viên có buổi có mặt / đi muộn: chỉ điền khi chưa có hoặc ngày này sớm hơn
+     * ngày đang lưu (ngày Học vụ nhập tay cho học viên học từ trước khi dùng hệ thống thường sớm hơn nên được giữ).
+     */
+    public static function recordStudyStart(int $studentId, CarbonInterface|string $date): void
+    {
+        $day = Carbon::parse($date)->toDateString();
+
+        static::withTrashed()->whereKey($studentId)
+            ->where(fn (Builder $q) => $q->whereNull('study_started_on')->orWhereDate('study_started_on', '>', $day))
+            ->toBase()
+            ->update(['study_started_on' => $day]);
+    }
+
+    /** Học viên đã học ít nhất $years năm tính tới hôm nay (không tính học viên đã thôi học). */
+    public function scopeStudiedAtLeastYears(Builder $query, int $years): Builder
+    {
+        return $query->whereNotNull('study_started_on')
+            ->whereDate('study_started_on', '<=', today()->subYears($years)->toDateString())
+            ->where('status', '!=', self::STATUS_DROPPED);
+    }
+
+    /**
+     * Số năm / tháng đã học tại trung tâm tính tới hôm nay; null khi chưa vào học hoặc đã thôi học.
+     *
+     * @return array{years: int, months: int}|null
+     */
+    public function studyTenure(?CarbonInterface $at = null): ?array
+    {
+        if (! $this->study_started_on || $this->status === self::STATUS_DROPPED) {
+            return null;
+        }
+        $at = Carbon::parse($at ?? today())->startOfDay();
+        if ($this->study_started_on->greaterThan($at)) {
+            return null;
+        }
+        $months = (int) floor($this->study_started_on->copy()->startOfDay()->diffInMonths($at));
+
+        return ['years' => intdiv($months, 12), 'months' => $months % 12];
+    }
+
+    /** "3 năm 2 tháng", "5 tháng", "Dưới 1 tháng"; null khi chưa vào học hoặc đã thôi học. */
+    public function studyTenureLabel(?CarbonInterface $at = null): ?string
+    {
+        $tenure = $this->studyTenure($at);
+        if ($tenure === null) {
+            return null;
+        }
+        $parts = array_filter([
+            $tenure['years'] > 0 ? $tenure['years'].' năm' : null,
+            $tenure['months'] > 0 ? $tenure['months'].' tháng' : null,
+        ]);
+
+        return $parts ? implode(' ', $parts) : 'Dưới 1 tháng';
+    }
+
+    /** Học viên lâu năm (≥ TENURE_HIGHLIGHT_YEARS năm, còn theo học). */
+    public function isLongTermStudent(): bool
+    {
+        return ($this->studyTenure()['years'] ?? 0) >= self::TENURE_HIGHLIGHT_YEARS;
     }
 
     /**

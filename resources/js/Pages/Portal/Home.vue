@@ -216,6 +216,13 @@ function sessionBadge(s) {
                         <span class="text-xs font-bold uppercase tracking-wider text-on-surface-subtle">Số điện thoại</span>
                         <span class="font-mono font-medium text-on-surface">{{ student?.phone ?? '—' }}</span>
                     </div>
+                    <div class="col-span-2 flex flex-col gap-0.5 border-t border-surface-container-highest pt-2" data-field="study-started">
+                        <span class="text-xs font-bold uppercase tracking-wider text-on-surface-subtle">Ngày bắt đầu học</span>
+                        <span class="font-medium text-on-surface">
+                            {{ student?.study_started_on ?? 'Chưa có buổi học đầu tiên' }}
+                            <span v-if="student?.tenure_label" class="font-normal text-on-surface-variant"> · đã học {{ student.tenure_label }}</span>
+                        </span>
+                    </div>
                     <div class="col-span-2 flex flex-col gap-0.5 border-t border-surface-container-highest pt-2">
                         <span class="text-xs font-bold uppercase tracking-wider text-on-surface-subtle">Địa chỉ</span>
                         <span class="text-[12px] text-on-surface-variant">{{ student?.address ?? '—' }}</span>
