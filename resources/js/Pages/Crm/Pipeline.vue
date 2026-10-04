@@ -7,8 +7,9 @@
  * Bấm thẻ → hồ sơ khách đầy đủ; "Thêm khách mới" (cột Mới) mở modal.
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
-import { router, usePage } from '@inertiajs/vue3';
+import { router } from '@inertiajs/vue3';
 import { toast } from '@/lib/toast';
+import { postJson } from '@/lib/http';
 import { can } from '@/lib/can';
 import { route } from '@/lib/route';
 import { openRemoteModal } from '@/lib/remoteModal';
@@ -25,7 +26,6 @@ const props = defineProps({
     filterSales: { type: Array, default: () => [] },
     filterSources: { type: Array, default: () => [] },
 });
-const page = usePage();
 const perm = computed(() => props.stagePermissions);
 const closed = (stage) => perm.value.closed.includes(stage);
 const indexOf = (stage) => perm.value.order.indexOf(stage);
@@ -70,15 +70,9 @@ function transitionType(sourceStage, targetStage) {
     return null;
 }
 
-async function postJson(url, payload = null) {
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': page.props.csrf ?? '', Accept: 'application/json' },
-        credentials: 'same-origin',
-        body: payload ? JSON.stringify(payload) : null,
-    });
-    const data = await response.json().catch(() => ({}));
-    return { ok: response.ok && data.success, data };
+async function postStageRequest(url, payload = null) {
+    const { ok, data } = await postJson(url, payload);
+    return { ok: ok && data.success, data };
 }
 
 function refresh() {
@@ -87,7 +81,7 @@ function refresh() {
 
 async function postStage(customerId, payload) {
     try {
-        const { ok, data } = await postJson(route('crm.customers.stage', customerId), payload);
+        const { ok, data } = await postStageRequest(route('crm.customers.stage', customerId), payload);
         if (ok) {
             toast(data.message || 'Đã chuyển giai đoạn thành công!');
             refresh();
@@ -102,7 +96,7 @@ async function postStage(customerId, payload) {
 
 async function moveToNextStage(lead) {
     try {
-        const { ok, data } = await postJson(route('crm.customers.next-stage', lead.id));
+        const { ok, data } = await postStageRequest(route('crm.customers.next-stage', lead.id));
         if (ok) {
             toast(`Đã chuyển ${lead.name} sang giai đoạn: ${data.stage_label}!`);
             refresh();

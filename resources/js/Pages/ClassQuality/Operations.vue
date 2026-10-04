@@ -79,7 +79,7 @@ const filledNotes = (o) => Object.entries(props.noteFields).filter(([key]) => o.
                 </tr>
             </thead>
             <tbody>
-                <tr v-for="o in observations.data" :key="o.id" class="cursor-pointer" @click="viewing = o">
+                <tr v-for="o in observations.data" :key="o.id" class="cursor-pointer" tabindex="0" @click="viewing = o" @keydown.enter.self="viewing = o">
                     <td class="whitespace-nowrap">
                         <span class="inline-flex items-center gap-xs font-code">
                             <span class="material-symbols-outlined text-[16px] text-on-surface-variant" aria-hidden="true">calendar_today</span>

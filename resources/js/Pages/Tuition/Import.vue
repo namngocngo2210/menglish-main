@@ -8,6 +8,7 @@ import { computed, ref } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import { useRemoteModal } from '@/Components/ui/modalContext';
 import { closeRemoteModal, remoteModal } from '@/lib/remoteModal';
+import { csrfToken } from '@/lib/http';
 import { toast } from '@/lib/toast';
 import { route } from '@/lib/route';
 
@@ -68,7 +69,7 @@ async function submit(event) {
                 'X-Inertia': 'true',
                 'X-Inertia-Version': page.version ?? '',
                 'X-Remote-Modal': 'true',
-                'X-CSRF-TOKEN': page.props.csrf ?? '',
+                'X-CSRF-TOKEN': csrfToken(),
             },
         });
         if (response.status === 409 || !response.headers.get('X-Inertia')) {

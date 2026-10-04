@@ -7,7 +7,7 @@
 import { computed, ref } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import BarList from '@/Components/Dashboard/BarList.vue';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatPercent, formatScore } from '@/lib/format';
 
 const props = defineProps({ teaching: { type: Object, required: true } });
 
@@ -19,8 +19,6 @@ function pickMonth(event) {
     router.get(route('dashboard'), { month: event.target.value }, { preserveScroll: true, preserveState: true, only: ['teaching'] });
 }
 
-const pct = (v) => (v === null || v === undefined ? '—' : `${Number(v).toLocaleString('vi-VN', { maximumFractionDigits: 1 })}%`);
-const score = (v) => (v === null || v === undefined ? '—' : Number(v).toLocaleString('vi-VN', { maximumFractionDigits: 1 }));
 const studentsHint = (row) => `${row.students} học sinh`;
 
 const mineStats = computed(() => {
@@ -34,7 +32,7 @@ const mineStats = computed(() => {
         { label: 'Lớp đang giữ', value: totals.classes, icon: 'co_present', tone: 'default' },
         { label: 'Học sinh đang dạy', value: totals.students, icon: 'groups', tone: 'default' },
         { label: 'HS mới / nghỉ trong tháng', value: `${totals.new} / ${totals.dropped}`, icon: 'swap_vert', tone: 'default' },
-        { label: 'Điểm TB tháng', value: score(totals.score), icon: 'grade', tone: 'secondary', hint: 'Mini test, thang 10' },
+        { label: 'Điểm TB tháng', value: formatScore(totals.score), icon: 'grade', tone: 'secondary', hint: 'Mini test, thang 10' },
     ];
 });
 
@@ -105,9 +103,9 @@ const supportCount = (report) => report.classes.filter((c) => c.need_support).le
                                 <td class="text-right tabular-nums">{{ row.classes }}</td>
                                 <td class="text-right tabular-nums">{{ row.students }}</td>
                                 <td class="text-right tabular-nums">{{ row.new }} / {{ row.dropped }}</td>
-                                <td class="text-right tabular-nums">{{ pct(row.attendance) }}</td>
-                                <td class="text-right tabular-nums">{{ pct(row.homework) }}</td>
-                                <td class="text-right tabular-nums">{{ score(row.score) }}</td>
+                                <td class="text-right tabular-nums">{{ formatPercent(row.attendance) }}</td>
+                                <td class="text-right tabular-nums">{{ formatPercent(row.homework) }}</td>
+                                <td class="text-right tabular-nums">{{ formatScore(row.score) }}</td>
                                 <td class="text-right tabular-nums">{{ row.work_days }}</td>
                                 <td :class="['text-right tabular-nums', row.late > 0 ? 'text-warning' : '']">{{ row.late }}</td>
                                 <td class="text-right tabular-nums">{{ row.leave_days }}</td>

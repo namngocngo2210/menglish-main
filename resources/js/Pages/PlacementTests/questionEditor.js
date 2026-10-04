@@ -2,7 +2,7 @@
  * Tiện ích soạn câu hỏi đề test đầu vào — dùng chung cho Create.vue và Edit.vue.
  */
 import { ref } from 'vue';
-import { usePage } from '@inertiajs/vue3';
+import { firstError, postForm } from '@/lib/http';
 import { route } from '@/lib/route';
 import { toast } from '@/lib/toast';
 
@@ -36,7 +36,6 @@ export function model(target, key, cast = (value) => value) {
  * (thí sinh không đăng nhập vẫn nghe / xem được).
  */
 export function useMediaUpload() {
-    const page = usePage();
     const uploading = ref(null);
 
     async function uploadMedia(event, kind, apply) {
@@ -47,13 +46,8 @@ export function useMediaUpload() {
         data.append('kind', kind);
         uploading.value = kind;
         try {
-            const response = await fetch(route('placement-tests.media.store'), {
-                method: 'POST',
-                headers: { 'X-CSRF-TOKEN': page.props.csrf ?? '', Accept: 'application/json' },
-                body: data,
-            });
-            const json = await response.json();
-            if (!response.ok) throw new Error((json.errors && Object.values(json.errors)[0][0]) || json.message || 'Tải file thất bại');
+            const { ok, data: json } = await postForm(route('placement-tests.media.store'), data);
+            if (!ok) throw new Error(firstError(json, 'Tải file thất bại'));
             apply(json.url);
             toast('Đã tải file lên.');
         } catch (error) {

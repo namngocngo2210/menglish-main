@@ -4,7 +4,7 @@
  * (học sinh cần chú ý, giải pháp, có cần hỗ trợ không). Bên cạnh mỗi lớp là số liệu tháng (chuyên cần, bài về nhà, điểm TB)
  * để giáo viên tham chiếu; cuối form là order học thuật đã gửi trong tháng. Mỗi tháng 1 báo cáo, lưu lại là cập nhật.
  */
-import { formatDate } from '@/lib/format';
+import { formatDate, formatPercent, formatScore } from '@/lib/format';
 import ReportTabs from './ReportTabs.vue';
 import ReportHistory from './ReportHistory.vue';
 
@@ -25,8 +25,6 @@ const props = defineProps({
 });
 
 const monthLabel = props.months.find((m) => m.value === props.month)?.label ?? props.month;
-const pct = (v) => (v === null || v === undefined ? '—' : `${Number(v).toLocaleString('vi-VN', { maximumFractionDigits: 1 })}%`);
-const score = (v) => (v === null || v === undefined ? '—' : Number(v).toLocaleString('vi-VN', { maximumFractionDigits: 1 }));
 const value = (classId, field) => props.classValues?.[classId]?.[field] ?? null;
 </script>
 
@@ -61,7 +59,7 @@ const value = (classId, field) => props.classValues?.[classId]?.[field] ?? null;
                     <div class="flex flex-wrap items-baseline justify-between gap-sm">
                         <h3 class="font-h3 text-h3 text-on-surface">{{ c.name }}</h3>
                         <p class="font-body-small text-body-small text-on-surface-variant">
-                            {{ c.students }} HS · Chuyên cần {{ pct(c.attendance) }} · BTVN {{ pct(c.homework) }} · Điểm TB {{ score(c.score) }}
+                            {{ c.students }} HS · Chuyên cần {{ formatPercent(c.attendance) }} · BTVN {{ formatPercent(c.homework) }} · Điểm TB {{ formatScore(c.score) }}
                         </p>
                     </div>
                     <div class="grid grid-cols-1 gap-sm md:grid-cols-3">

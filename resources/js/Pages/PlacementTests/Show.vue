@@ -1,7 +1,7 @@
 <script setup>
 /** Chi tiết đề test: số liệu đề, danh sách thí sinh đã thi (điểm, phiếu điểm, chấm bài) và toàn bộ câu hỏi + đáp án chuẩn. */
 import { Link } from '@inertiajs/vue3';
-import { toast } from '@/lib/toast';
+import { copyText } from '@/lib/clipboard';
 import PdfViewer from '@/Components/PlacementTests/PdfViewer.vue';
 
 defineOptions({ layout: (props) => ({ title: props.test.title }) });
@@ -23,8 +23,7 @@ const ucfirst = (text) => (text ? text.charAt(0).toUpperCase() + text.slice(1) :
 const basename = (url) => String(url).split(/[\\/]/).pop();
 
 function copyLink() {
-    navigator.clipboard.writeText(props.takeUrl);
-    toast('Đã sao chép link làm bài thi.');
+    return copyText(props.takeUrl, 'Đã sao chép link làm bài thi.');
 }
 </script>
 

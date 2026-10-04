@@ -73,7 +73,7 @@ function openModal(event) {
         <span v-if="icon" :class="['material-symbols-outlined', iconSize]" aria-hidden="true">{{ icon }}</span>
         <slot />
     </a>
-    <a v-else-if="href && isNative" :href="href" :class="classes">
+    <a v-else-if="href && isNative" :href="href" :class="classes" :rel="attrs.target === '_blank' ? 'noopener noreferrer' : undefined">
         <span v-if="icon" :class="['material-symbols-outlined', iconSize]" aria-hidden="true">{{ icon }}</span>
         <slot />
     </a>

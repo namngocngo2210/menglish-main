@@ -137,7 +137,7 @@ const invoiceStatus = (status) => (status === 'approved' ? 'Đã duyệt hủy' 
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="item in cancellations" :key="item.id" :class="['cursor-pointer', selected?.id === item.id ? 'bg-primary-container/5' : '']" @click="openDetail(item, $event)">
+                    <tr v-for="item in cancellations" :key="item.id" :class="['cursor-pointer', selected?.id === item.id ? 'bg-primary-container/5' : '']" tabindex="0" @click="openDetail(item, $event)" @keydown.enter.self="openDetail(item, $event)">
                         <td class="whitespace-nowrap">
                             <Link :href="detailUrl(item.id)" preserve-scroll preserve-state class="font-code font-semibold text-on-surface hover:text-primary">{{ item.invoice_number }}</Link>
                         </td>

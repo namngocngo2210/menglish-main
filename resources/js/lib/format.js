@@ -25,6 +25,16 @@ export function formatNumber(value, decimals = 0, decPoint = ',', thousandsSep =
     return sign + grouped + (decimals > 0 ? decPoint + frac : '');
 }
 
+/** Điểm trung bình: tối đa 1 số lẻ theo kiểu Việt ("85,5"), null → "—". */
+export function formatScore(value) {
+    return value === null || value === undefined ? '—' : Number(value).toLocaleString('vi-VN', { maximumFractionDigits: 1 });
+}
+
+/** Tỷ lệ phần trăm: như formatScore kèm "%" ("92,5%"), null → "—". */
+export function formatPercent(value) {
+    return value === null || value === undefined ? '—' : formatScore(value) + '%';
+}
+
 /** null / không phải số → "—". sign = true thêm "+" cho số dương. unit = '' để bỏ đơn vị. */
 export function formatMoney(value, unit = 'đ', sign = false) {
     const number = Number(value);
@@ -57,7 +67,7 @@ function toDate(value) {
 }
 
 /** Tách ngày giờ theo múi giờ ứng dụng. */
-export function dateParts(value) {
+function dateParts(value) {
     if (value === null || value === undefined || value === '') return null;
     const date = toDate(value);
     if (Number.isNaN(date.getTime())) return null;

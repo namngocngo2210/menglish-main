@@ -6,8 +6,8 @@
  *   <PdfSheetEditor v-model:questions="questions" v-model:pdf-path="pdfPath" v-model:pdf-url="pdfUrl" v-model:audio-url="audioUrl" />
  */
 import { computed, ref } from 'vue';
-import { usePage } from '@inertiajs/vue3';
 import { confirmDialog } from '@/lib/confirm';
+import { firstError, postForm, postJson } from '@/lib/http';
 import { route } from '@/lib/route';
 import { toast } from '@/lib/toast';
 import { useMediaUpload } from '@/Pages/PlacementTests/questionEditor';
@@ -18,7 +18,6 @@ const pdfPath = defineModel('pdfPath', { type: String, default: '' });
 const pdfUrl = defineModel('pdfUrl', { type: String, default: '' });
 const audioUrl = defineModel('audioUrl', { type: String, default: '' });
 
-const page = usePage();
 const { uploading: audioUploading, uploadMedia } = useMediaUpload();
 const uploading = ref(false);
 const warnings = ref([]);
@@ -96,15 +95,11 @@ async function makeBlankSheet() {
     questions.value = Array.from({ length: count }, (_, i) => sheetQuestion(i + 1, i + 1));
 }
 
-async function postJson(url, body) {
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'X-CSRF-TOKEN': page.props.csrf ?? '', Accept: 'application/json', ...(body instanceof FormData ? {} : { 'Content-Type': 'application/json' }) },
-        body: body instanceof FormData ? body : JSON.stringify(body),
-    });
-    const json = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error((json.errors && Object.values(json.errors)[0][0]) || json.message || 'Có lỗi, vui lòng thử lại.');
-    return json;
+/** Gửi JSON hoặc FormData; lỗi HTTP ném Error mang thông báo đầu tiên của server. */
+async function post(url, body) {
+    const { ok, data } = await (body instanceof FormData ? postForm(url, body) : postJson(url, body));
+    if (!ok) throw new Error(firstError(data));
+    return data;
 }
 
 async function uploadPdf(event) {
@@ -115,7 +110,7 @@ async function uploadPdf(event) {
     data.append('file', file);
     uploading.value = true;
     try {
-        const json = await postJson(route('placement-tests.pdf.store'), data);
+        const json = await post(route('placement-tests.pdf.store'), data);
         const hadAnswers = answeredCount.value > 0;
         pdfPath.value = json.pdf_path;
         pdfUrl.value = json.pdf_url;
@@ -154,7 +149,7 @@ async function applyAnswers() {
     if (!pasteText.value.trim()) return;
     applying.value = true;
     try {
-        const { answers } = await postJson(route('placement-tests.pdf.answers'), { text: pasteText.value });
+        const { answers } = await post(route('placement-tests.pdf.answers'), { text: pasteText.value });
         if (fillAnswers(answers)) pasteText.value = '';
     } catch (error) {
         toast(error.message, 'error');
@@ -173,7 +168,7 @@ async function readKeyFile(event) {
     data.append('answers_only', '1');
     readingKey.value = true;
     try {
-        const { answers } = await postJson(route('placement-tests.pdf.store'), data);
+        const { answers } = await post(route('placement-tests.pdf.store'), data);
         fillAnswers(answers);
     } catch (error) {
         toast(error.message, 'error');
