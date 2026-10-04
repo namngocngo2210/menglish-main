@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AcademicProject;
 use App\Models\BigTest;
 use App\Models\Course;
 use App\Models\Holiday;
@@ -32,6 +33,7 @@ use Illuminate\Support\Facades\DB;
  *  - Ticket:     TK-2026-0001    (dãy "support_ticket", reset theo năm)
  *  - Biên bản:   BB-2026-001     (dãy "penalty", reset theo năm; giữ 3 chữ số như mã cũ)
  *  - Khóa học:   CS0001          (dãy "course", không reset; khóa học cũ nhập tay giữ nguyên mã)
+ *  - Dự án HT:   DA-2026-001     (dãy "academic_project", reset theo năm)
  *
  * Số hóa đơn phiếu thu dùng dải số riêng (InvoiceConfiguration), không qua lớp này.
  */
@@ -182,6 +184,20 @@ class DocumentCodeGenerator
             fn (int $n) => "OH-{$year}-".str_pad((string) $n, 4, '0', STR_PAD_LEFT),
             fn () => $this->maxNumericSuffix(MaterialOrder::withTrashed()->where('code', 'like', "OH-{$year}-%")->pluck('code'), '/^OH-'.$year.'-(\d+)$/'),
             fn (string $code) => MaterialOrder::withTrashed()->where('code', $code)->exists(),
+        );
+    }
+
+    /** Mã dự án học thuật DA-YYYY-001. */
+    public function academicProjectCode(?int $year = null): string
+    {
+        $year = (string) ($year ?? now()->year);
+
+        return $this->generate(
+            'academic_project',
+            $year,
+            fn (int $n) => "DA-{$year}-".str_pad((string) $n, 3, '0', STR_PAD_LEFT),
+            fn () => $this->maxNumericSuffix(AcademicProject::withTrashed()->where('code', 'like', "DA-{$year}-%")->pluck('code'), '/^DA-'.$year.'-(\d+)$/'),
+            fn (string $code) => AcademicProject::withTrashed()->where('code', $code)->exists(),
         );
     }
 

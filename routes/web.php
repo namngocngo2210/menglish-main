@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AcademicDashboardController;
+use App\Http\Controllers\AcademicProjectController;
 use App\Http\Controllers\AcademicSystemController;
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\AdminNotificationController;
@@ -775,6 +776,28 @@ Route::middleware('auth')->group(function () {
         Route::put('/teacher-meetings/{id}', [TeacherMeetingReportController::class, 'update'])->whereNumber('id')->middleware('can:class_quality.teacher_meeting')->name('teacher-meetings.update');
         Route::delete('/teacher-meetings/{id}', [TeacherMeetingReportController::class, 'destroy'])->whereNumber('id')->middleware('can:class_quality.teacher_meeting')->name('teacher-meetings.destroy');
     });
+
+    // ──────────────────────────────────────
+    // Dự án học thuật (soạn sách, chương trình): mốc + deadline, cập nhật tiến độ, phản hồi, báo cáo
+    // ──────────────────────────────────────
+    Route::controller(AcademicProjectController::class)->prefix('academic-projects')->name('academic-projects.')
+        ->middleware('can:academic_project.view')->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::get('/report', 'report')->middleware('can:academic_project.view_all')->name('report');
+            Route::get('/create', 'create')->middleware('can:academic_project.manage')->name('create');
+            Route::post('/', 'store')->middleware('can:academic_project.manage')->name('store');
+            Route::get('/{id}', 'show')->whereNumber('id')->name('show');
+            Route::get('/{id}/edit', 'edit')->whereNumber('id')->middleware('can:academic_project.manage')->name('edit');
+            Route::put('/{id}', 'update')->whereNumber('id')->middleware('can:academic_project.manage')->name('update');
+            Route::delete('/{id}', 'destroy')->whereNumber('id')->middleware('can:academic_project.manage')->name('destroy');
+            Route::post('/{id}/lock', 'lock')->whereNumber('id')->middleware('can:academic_project.manage')->name('lock');
+            Route::post('/{id}/status', 'changeStatus')->whereNumber('id')->middleware('can:academic_project.manage')->name('status');
+            Route::post('/{id}/milestones', 'storeMilestone')->whereNumber('id')->middleware('can:academic_project.manage')->name('milestones.store');
+            Route::put('/milestones/{milestoneId}', 'updateMilestone')->whereNumber('milestoneId')->middleware('can:academic_project.manage')->name('milestones.update');
+            Route::delete('/milestones/{milestoneId}', 'destroyMilestone')->whereNumber('milestoneId')->middleware('can:academic_project.manage')->name('milestones.destroy');
+            Route::post('/{id}/updates', 'storeUpdate')->whereNumber('id')->name('updates.store');
+            Route::post('/updates/{updateId}/respond', 'respond')->whereNumber('updateId')->name('updates.respond');
+        });
 
     // ──────────────────────────────────────
     // KPI Học vụ: cấu hình chỉ số, đánh giá tháng, rà soát điểm danh

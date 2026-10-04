@@ -6,11 +6,13 @@
  *  - penalty: hết hạn có tự lập biên bản phạt không (biên bản pending → giải trình → CM/HT/Admin xác nhận → vào lương).
  *  - amount: mức phạt gợi ý (đ) ghi vào biên bản; 0 = người chốt quyết mức phạt.
  *  - task: có tự giao việc cho người phụ trách khi mốc được kích hoạt.
+ *  - category (tuỳ chọn): loại lỗi của biên bản (Penalty::CATEGORIES) — quyết định ai chốt; mặc định 'operations'.
  */
 return [
     'groups' => [
         'crm' => 'CRM & Tuyển sinh',
         'teacher' => 'Giáo viên & Trợ giảng',
+        'academic' => 'Học thuật & Dự án',
     ],
 
     /** Bậc phạt theo số lần tái phạm cộng dồn trong N tháng (system_settings sla.ladder_reset_months). */
@@ -95,6 +97,19 @@ return [
             'ladder' => [0, 30000, 60000],
             'task' => false,
             'violation' => 'Gửi nhận xét sau buổi học trễ',
+        ],
+
+        'academic.milestone_late' => [
+            'group' => 'academic',
+            'label' => 'Trễ mốc dự án học thuật',
+            'description' => 'Dự án soạn sách / chương trình đã chốt tiến độ: mốc chưa hoàn thành khi qua 23:59 ngày hạn cộng số giờ ân hạn này → biên bản cho người nhận mốc (chưa có người nhận thì người phụ trách dự án), Học thuật / Admin xác nhận mới tính vào lương. Trước hạn 24 giờ hệ thống nhắc người nhận mốc.',
+            'value' => 1,
+            'unit' => 'hours',
+            'penalty' => true,
+            'amount' => 0,
+            'task' => false,
+            'category' => 'academic',
+            'violation' => 'Trễ deadline mốc dự án học thuật',
         ],
     ],
 ];
