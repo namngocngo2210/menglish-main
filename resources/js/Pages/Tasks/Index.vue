@@ -1,31 +1,32 @@
 <script setup>
 /**
- * Danh sách công việc — giao việc 2 chiều, đổi trạng thái theo luật (allowedTransitions tính ở server).
+ * Danh sách đầu việc — giao việc 2 chiều, đổi trạng thái theo luật (allowedTransitions tính ở server).
+ * Bộ lọc một hàng: tìm kiếm, hạn hoàn thành (từ – đến), nhân viên nhận việc (ô chọn có tìm kiếm), trạng thái.
  * "Giao việc" mở modal 2xl (có lựa chọn "Giao cho: Trợ giảng"); bấm tiêu đề → modal xem nhanh chi tiết.
  * Lưu xong trong modal: server trả lại trang này → danh sách tự làm mới (giữ tab, bộ lọc, trang hiện tại).
  */
 import { computed, ref } from 'vue';
-import { Link } from '@inertiajs/vue3';
 import { openRemoteModal } from '@/lib/remoteModal';
 import { urlWith } from '@/lib/url';
 import { can } from '@/lib/can';
 import { route } from '@/lib/route';
 
-defineOptions({ layout: { title: 'Danh sách công việc' } });
+defineOptions({ layout: { title: 'Danh sách đầu việc' } });
 
 const props = defineProps({
     tasks: { type: Object, required: true },
     tab: { type: String, default: 'mine' },
     status: { type: String, default: 'all' },
-    taskType: { type: String, default: 'all' },
+    assignees: { type: Array, default: () => [] },
     counts: { type: Object, required: true },
     canViewAll: { type: Boolean, default: false },
 });
 
-const statuses = {
-    all: 'Tất cả', overdue: 'Quá hạn', blocked: 'Bị chặn', pending_confirmation: 'Chờ xác nhận',
-    in_progress: 'Đang thực hiện', new: 'Mới', completed: 'Hoàn thành', canceled: 'Đã hủy',
-};
+const statuses = [
+    { value: 'overdue', label: 'Quá hạn' }, { value: 'blocked', label: 'Bị chặn' }, { value: 'pending_confirmation', label: 'Chờ xác nhận' },
+    { value: 'in_progress', label: 'Đang thực hiện' }, { value: 'new', label: 'Mới' }, { value: 'completed', label: 'Hoàn thành' },
+    { value: 'canceled', label: 'Đã hủy' },
+];
 const statusColors = {
     new: 'status-new', in_progress: 'status-progress', pending_confirmation: 'status-pending',
     blocked: 'status-blocked', completed: 'status-done', overdue: 'status-overdue', canceled: 'status-canceled',
@@ -35,10 +36,6 @@ const transitionLabels = {
     pending_confirmation: ['Gửi chờ xác nhận', 'outgoing_mail'], completed: ['Xác nhận hoàn thành', 'check_circle'],
     canceled: ['Hủy công việc', 'cancel'],
 };
-const taskTypes = [
-    { value: 'one_time', label: 'Phát sinh' },
-    { value: 'recurring', label: 'Lặp đi lặp lại' },
-];
 const canCreate = computed(() => can('work_task.create') || can('work_task.request'));
 
 /** Nhãn + icon của một bước chuyển (việc chờ xác nhận trả về "Đang thực hiện" = "Trả về làm tiếp"). */
@@ -67,14 +64,14 @@ function openTask(event, task) {
 </script>
 
 <template>
-    <UiPageHeader title="Danh sách công việc" description="Quản lý, phân công và theo dõi tiến độ công việc — giao việc hai chiều.">
+    <UiPageHeader title="Danh sách đầu việc" description="Quản lý, phân công và theo dõi tiến độ công việc — giao việc hai chiều.">
         <template #actions>
             <UiButton v-if="can('work_task.approve')" variant="secondary" icon="fact_check" :href="route('tasks.manual-approvals')">
                 Chờ xác nhận
                 <span v-if="counts.pending > 0" class="rounded-full bg-error px-1.5 font-code text-caption text-white">{{ counts.pending }}</span>
             </UiButton>
             <UiButton v-if="canCreate" icon="add" :href="route('tasks.create')" modal="2xl">
-                {{ can('work_task.create') ? 'Giao việc' : 'Đề xuất việc cho Admin / Học vụ' }}
+                {{ can('work_task.create') ? 'Tạo đầu việc' : 'Đề xuất việc cho Admin / Học vụ' }}
             </UiButton>
         </template>
     </UiPageHeader>
@@ -87,37 +84,21 @@ function openTask(event, task) {
             <UiStatCard label="Quá hạn" :value="counts.overdue" icon="warning" tone="error" />
         </div>
 
-        <!-- Giữ tab + trạng thái đang chọn khi lọc; "Xóa lọc" quay về tab hiện tại -->
+        <!-- Giữ tab đang chọn khi lọc; "Xóa lọc" quay về tab hiện tại -->
         <UiFilterBar :action="route('tasks.index')" search="q" placeholder="Tìm công việc, nhân sự..." :reset-url="route('tasks.index', { tab })">
             <input type="hidden" name="tab" :value="tab" />
-            <input type="hidden" name="status" :value="status" />
-            <UiSelect name="task_type" label="Loại công việc" :options="taskTypes" :value="taskType === 'all' ? null : taskType" placeholder="Mọi loại" @change="$event.target.form?.requestSubmit()" />
+            <UiDateRange label="Hạn" from="date_from" to="date_to" />
+            <UiSelect name="assignee_id" label="Nhân viên" :options="assignees" placeholder="Mọi nhân viên" />
+            <UiSelect name="status" label="Trạng thái" :options="statuses" :value="status === 'all' ? null : status" placeholder="Mọi trạng thái" />
         </UiFilterBar>
 
         <UiDataTable min-width="880px">
             <template #header>
-                <div class="flex w-full flex-col gap-sm">
-                    <div class="flex flex-col gap-sm md:flex-row md:items-center md:justify-between">
-                        <UiTabs class="border-0">
-                            <UiTab :href="urlWith({ page: null, tab: 'mine' })" :active="tab === 'mine'" :count="counts.mine">Của tôi</UiTab>
-                            <UiTab :href="urlWith({ page: null, tab: 'assigned' })" :active="tab === 'assigned'" :count="counts.assigned">Tôi giao</UiTab>
-                            <UiTab v-if="canViewAll" :href="urlWith({ page: null, tab: 'all' })" :active="tab === 'all'" :count="counts.all">Tất cả</UiTab>
-                        </UiTabs>
-                    </div>
-                    <div class="flex flex-wrap items-center gap-xs">
-                        <span class="mr-xs font-body-small text-body-small text-on-surface-variant">Trạng thái:</span>
-                        <Link
-                            v-for="(stLabel, stKey) in statuses"
-                            :key="stKey"
-                            :href="urlWith({ page: null, status: stKey })"
-                            :class="[
-                                'rounded-full border px-sm py-[2px] font-body-small text-body-small transition-colors',
-                                status === stKey ? 'border-primary-container bg-primary-container text-white' : 'border-outline-variant text-on-surface-variant hover:bg-surface-container-low',
-                            ]"
-                            >{{ stLabel }}</Link
-                        >
-                    </div>
-                </div>
+                <UiTabs class="border-0">
+                    <UiTab :href="urlWith({ page: null, tab: 'mine' })" :active="tab === 'mine'" :count="counts.mine">Của tôi</UiTab>
+                    <UiTab :href="urlWith({ page: null, tab: 'assigned' })" :active="tab === 'assigned'" :count="counts.assigned">Tôi giao</UiTab>
+                    <UiTab v-if="canViewAll" :href="urlWith({ page: null, tab: 'all' })" :active="tab === 'all'" :count="counts.all">Tất cả</UiTab>
+                </UiTabs>
             </template>
             <table>
                 <thead>

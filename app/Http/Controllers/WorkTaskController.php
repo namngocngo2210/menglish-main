@@ -61,6 +61,12 @@ class WorkTaskController extends Controller
         $status = $request->get('status', 'all');
         $taskType = $request->get('task_type', 'all');
         $search = $request->get('q', '');
+        // Lọc theo hạn hoàn thành (từ – đến) và theo nhân viên nhận việc.
+        $filters = $request->validate([
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+            'assignee_id' => ['nullable', 'integer'],
+        ]);
 
         $query = WorkTask::with(['creator', 'assignee.roles', 'branch', 'classModel']);
         $this->scopeVisibleTasks($query, $currentUser);
@@ -77,6 +83,16 @@ class WorkTaskController extends Controller
 
         if ($taskType !== 'all' && ! empty($taskType)) {
             $query->where('task_type', $taskType);
+        }
+
+        if (! empty($filters['date_from'])) {
+            $query->whereDate('due_date', '>=', $filters['date_from']);
+        }
+        if (! empty($filters['date_to'])) {
+            $query->whereDate('due_date', '<=', $filters['date_to']);
+        }
+        if (! empty($filters['assignee_id'])) {
+            $query->where('assignee_id', $filters['assignee_id']);
         }
 
         if (! empty($search)) {
@@ -113,6 +129,11 @@ class WorkTaskController extends Controller
             'pending' => $visible()->where('status', 'pending_confirmation')->count(),
         ];
 
+        // Ô "Nhân viên": người nhận của các việc trong phạm vi được xem.
+        $assignees = User::query()
+            ->whereIn('id', $visible()->whereNotNull('assignee_id')->select('assignee_id'))
+            ->with('roles')->orderBy('name')->get();
+
         $viewAssistantSlot = fn (WorkTask $task) => $task->time_slot_category && $task->assignee?->can('portal.assistant');
 
         return Inertia::render('Tasks/Index', [
@@ -135,10 +156,16 @@ class WorkTaskController extends Controller
             ]),
             'tab' => $tab,
             'status' => $status,
-            'taskType' => $taskType,
+            'assignees' => Ui::options($assignees, self::userLabel(...)),
             'counts' => $counts,
             'canViewAll' => $canViewAll,
         ]);
+    }
+
+    /** Nhãn nhân sự trong ô chọn: "Tên (Vai trò)". */
+    private static function userLabel(User $user): string
+    {
+        return $user->name.' ('.($user->getRoleNames()->map(fn ($r) => AclHelper::shortRoleLabel($r))->implode(', ') ?: 'Nhân viên').')';
     }
 
     /** Nhãn tần suất việc lặp. */
@@ -170,7 +197,7 @@ class WorkTaskController extends Controller
 
         return $this->modalPage('Tasks/Create', [
             'title' => Auth::user()->can('work_task.create') ? 'Giao việc mới' : 'Đề xuất việc cho Admin / Học vụ',
-            'users' => Ui::options($users, fn (User $u) => $u->name.' ('.($u->getRoleNames()->map(fn ($r) => AclHelper::shortRoleLabel($r))->implode(', ') ?: 'Nhân viên').')'),
+            'users' => Ui::options($users, self::userLabel(...)),
             'branches' => Ui::options($branches, 'name'),
             'classes' => Ui::options($classes, fn (ClassModel $c) => "{$c->name} ({$c->code})"),
             'defaultDueDate' => now()->addDays(2)->format('Y-m-d'),
