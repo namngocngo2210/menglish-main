@@ -6,6 +6,7 @@ use App\Models\AdminNotification;
 use App\Models\TuitionReceipt;
 use App\Models\TuitionRefundRequest;
 use App\Models\User;
+use App\Support\Money;
 use App\Support\TuitionBranchScope;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
@@ -69,7 +70,7 @@ class TuitionSlaService
                         'user_id' => $userId,
                         'type' => self::TYPE_CASH_DEPOSIT,
                         'title' => 'Tiền mặt chưa nộp về TK công ty',
-                        'message' => 'Phiếu '.$receipt->receipt_number.' ('.number_format((float) $receipt->amount, 0, ',', '.').' đ, '
+                        'message' => 'Phiếu '.$receipt->receipt_number.' ('.Money::format($receipt->amount).', '
                             .($student?->name ?? 'học viên').') thu ngày '.$receipt->payment_date->format('d/m/Y')
                             .' chưa được xác nhận nộp về tài khoản công ty trước '.TuitionReceipt::DEPOSIT_CUTOFF.'.',
                         'data' => [

@@ -31,7 +31,7 @@ class SepayConfiguration extends Model
 
     public static function getActiveConfig(): self
     {
-        $secret = env('SEPAY_WEBHOOK_SECRET');
+        $secret = config('services.sepay.webhook_secret');
 
         // Không bao giờ insert secret_key = NULL (cột NOT NULL trên một số môi trường gây 500):
         // thiếu biến môi trường thì sinh secret tạm và giữ cấu hình ở trạng thái tắt.

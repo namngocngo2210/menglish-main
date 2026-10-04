@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\AcademicProject;
-use App\Models\AcademicProjectMilestone;
 use App\Models\AcademicProjectUpdate;
 use App\Models\AdminNotification;
 use App\Models\Branch;

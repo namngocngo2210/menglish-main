@@ -45,6 +45,20 @@ final class ReportPeriod
         return [$start, $start->copy()->endOfWeek(Carbon::SUNDAY)->endOfDay()];
     }
 
+    /**
+     * Đầu tháng của khóa "2026-10". Sai định dạng / không có → tháng hiện tại.
+     * Phải dùng `!` để ngày giờ về đầu tháng: nếu không PHP lấy ngày hôm nay, ngày 29–31 sẽ tràn sang tháng sau
+     * khi tháng được chọn ngắn hơn (vd. chọn 2026-11 vào ngày 31 → ra tháng 12).
+     */
+    public static function parseMonth(?string $key): Carbon
+    {
+        if ($key !== null && preg_match(self::MONTH_PATTERN, $key) === 1) {
+            return Carbon::createFromFormat('!Y-m', $key);
+        }
+
+        return Carbon::now()->startOfMonth();
+    }
+
     /** @return array{0: Carbon, 1: Carbon} */
     public static function monthRange(string $key): array
     {

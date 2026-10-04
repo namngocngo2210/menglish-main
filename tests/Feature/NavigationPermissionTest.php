@@ -6,8 +6,6 @@ use App\Models\Branch;
 use App\Models\User;
 use App\Models\UserPermissionOverride;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class NavigationPermissionTest extends TestCase

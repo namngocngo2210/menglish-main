@@ -7,7 +7,6 @@ use App\Models\ClassEnrollment;
 use App\Models\ClassModel;
 use App\Models\CommissionAdjustment;
 use App\Models\CommissionItem;
-use App\Models\CommissionTier;
 use App\Models\Course;
 use App\Models\CrmCustomer;
 use App\Models\KpiCriterion;

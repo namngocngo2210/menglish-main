@@ -1450,18 +1450,7 @@ class WorkTaskController extends Controller
 
     private function notifyUser(?int $userId, string $type, string $title, string $message, string $link, array $data = []): void
     {
-        if (! $userId) {
-            return;
-        }
-
-        AdminNotification::create([
-            'user_id' => $userId,
-            'type' => $type,
-            'title' => $title,
-            'message' => $message,
-            'data' => array_merge($data, ['link' => $link]),
-            'is_read' => false,
-        ]);
+        AdminNotification::notifyUser($userId, $type, $title, $message, $link, $data);
     }
 
     public function approveTask(Request $request, $id)

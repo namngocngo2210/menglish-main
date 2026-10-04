@@ -8,7 +8,6 @@ use App\Models\ClassModel;
 use App\Models\ClassSession;
 use App\Models\CommissionAdjustment;
 use App\Models\CommissionTier;
-use App\Models\Course;
 use App\Models\CrmCustomer;
 use App\Models\InvoiceCancellation;
 use App\Models\InvoiceConfiguration;

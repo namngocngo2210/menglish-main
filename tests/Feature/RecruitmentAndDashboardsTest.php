@@ -2,8 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\Branch;
-use App\Models\CandidateCv;
 use App\Models\JobPosting;
 use App\Models\PayrollPeriod;
 use App\Models\PayrollRecord;

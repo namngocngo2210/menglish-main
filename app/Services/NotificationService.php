@@ -251,14 +251,6 @@ class NotificationService
     }
 
     /**
-     * Lấy danh sách thông báo gần nhất (dùng cho tương thích cũ)
-     */
-    public function getRecentNotifications($limit = 10)
-    {
-        return $this->getUserNotifications(auth()->user(), $limit);
-    }
-
-    /**
      * Thông báo khi có Ticket báo lỗi mới được tạo
      */
     public function notifyTicketCreated(SupportTicket $ticket): void
@@ -876,49 +868,6 @@ class NotificationService
         }
 
         return ['sent' => true, 'milestone' => $milestone, 'reason' => 'Đã gửi theo mốc '.$rule->title.'.'];
-    }
-
-    /**
-     * Bắn email cảnh báo khi có phiếu thu / học viên trễ hạn đóng học phí
-     */
-    public function notifyOverdueDebtReminder(StudentTuition $tuition): void
-    {
-        if (! SystemSetting::isTicketEventEnabled('overdue_debt')) {
-            return;
-        }
-
-        $student = $tuition->student;
-        $studentName = $student?->name ?? 'Học viên';
-        $studentPhone = $student?->phone ?? '---';
-        $debtFormatted = Money::format((float) $tuition->debt_amount);
-        $dueDate = $tuition->due_date ? Carbon::parse($tuition->due_date)->format('d/m/Y') : 'Chưa định ngày';
-        $className = $tuition->classModel?->name ?? 'Chưa phân lớp';
-
-        $subject = "[Nhắc nợ] Cảnh báo trễ hạn: Học viên {$studentName} ({$debtFormatted})";
-        $content = "Hệ thống cảnh báo khoản học phí quá hạn cần đôn đốc thanh toán:\n\n"
-            ."• Học viên: {$studentName} (SĐT: {$studentPhone})\n"
-            ."• Lớp học: {$className}\n"
-            ."• Số tiền nợ: {$debtFormatted}\n"
-            ."• Hạn đóng: {$dueDate}\n"
-            .'• Trạng thái: Đã gửi lệnh thông báo nhắc nợ tự động tới học viên.';
-
-        $this->sendOperationalAlertEmail(
-            'overdue_debt',
-            $subject,
-            $content,
-            [
-                'code' => 'DEBT-'.$tuition->id,
-                'title' => "[Nhắc nợ] Trễ hẹn học phí: {$studentName}",
-                'status' => 'overdue',
-                'status_label' => 'Quá hạn',
-                'priority' => 'high',
-                'priority_label' => 'Nhắc nợ',
-                'category_label' => 'Tài chính & Công nợ',
-                'sender_name' => 'Bộ phận Thu hồi Công nợ',
-                'action_url' => route('tuition.overdue'),
-                'action_text' => 'Xem Danh sách Quá hạn',
-            ]
-        );
     }
 
     /**

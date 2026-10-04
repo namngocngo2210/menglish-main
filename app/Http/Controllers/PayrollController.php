@@ -10,7 +10,6 @@ use App\Models\CommissionTier;
 use App\Models\PayrollPeriod;
 use App\Models\PayrollRecord;
 use App\Models\Penalty;
-use App\Models\Student;
 use App\Models\TeacherHourlyRate;
 use App\Models\TeacherRate;
 use App\Models\TeacherTimesheet;
@@ -223,7 +222,7 @@ class PayrollController extends Controller
 
         $kpiSources = [PayrollRecord::KPI_RETENTION => 'Giữ học sinh', PayrollRecord::KPI_ACADEMIC => 'KPI Học vụ (tự động)', PayrollRecord::KPI_MANUAL => 'Nhập tự do'];
         $lineText = fn (PayrollRecord $r, string $kind) => collect($r->manualLines($kind))
-            ->map(fn ($l) => $l['label'].': '.number_format($l['amount'], 0, ',', '.'))->implode('; ');
+            ->map(fn ($l) => $l['label'].': '.Money::format($l['amount'], ''))->implode('; ');
 
         // Đủ mọi dòng của phiếu lương Q3 (cùng căn cứ với màn phiếu lương) để Kế toán đối chiếu Excel đang dùng.
         $rows = $records->map(fn (PayrollRecord $r) => [
@@ -1421,7 +1420,7 @@ class PayrollController extends Controller
                 'renewal_beyond_percent' => $fmt($settings['renewal_beyond_percent']),
                 'late_threshold_minutes' => (int) $settings['late_threshold_minutes'],
                 'late_deduction_per_minute' => (int) $settings['late_deduction_per_minute'],
-                'retention_tiers' => collect($settings['retention_tiers'])->map(fn ($t) => number_format($t, 0, ',', '.'))->implode(' / '),
+                'retention_tiers' => collect($settings['retention_tiers'])->map(fn ($t) => Money::format($t, ''))->implode(' / '),
             ],
             'renewalRows' => collect($settings['renewal_table'])
                 ->map(fn ($row, $quits) => ['quits' => $quits, 'percent' => $row['percent'], 'pending' => (bool) $row['pending']])
@@ -1580,7 +1579,7 @@ class PayrollController extends Controller
                 'employee_code' => $selectedTeacher->employee_code,
                 'type_label' => TeacherHourlyRate::TEACHER_TYPES[$selectedType] ?? '—',
                 'current' => $selectedCurrent ? [
-                    'rate' => number_format((float) $selectedCurrent->hourly_rate, 0, ',', '.').' '.($unitSuffix[$selectedCurrent->rate_unit] ?? 'VNĐ / giờ'),
+                    'rate' => Money::format($selectedCurrent->hourly_rate, '').' '.($unitSuffix[$selectedCurrent->rate_unit] ?? 'VNĐ / giờ'),
                     'effective_from' => $selectedCurrent->effective_from->format('d/m/Y'),
                 ] : null,
                 'profile_rate' => (float) $selectedTeacher->hourly_rate > 0 ? Money::format((float) $selectedTeacher->hourly_rate) : null,
@@ -1630,7 +1629,7 @@ class PayrollController extends Controller
             ->log('Thêm đơn giá riêng ('.$rate->unit_label.') cho GV #'.$validated['user_id']);
 
         return redirect()->route('payroll.config.teacher-rates', ['teacher_id' => $validated['user_id']])
-            ->with('status', 'Đã thêm đơn giá '.number_format((float) $validated['hourly_rate'], 0, ',', '.').' '.$rate->unit_label.' hiệu lực từ '
+            ->with('status', 'Đã thêm đơn giá '.Money::format($validated['hourly_rate'], '').' '.$rate->unit_label.' hiệu lực từ '
                 .Carbon::parse($validated['effective_from'])->format('d/m/Y').'.');
     }
 

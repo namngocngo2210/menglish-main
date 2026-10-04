@@ -2,8 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\BankAccount;
-use App\Models\DebtReminderRule;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;

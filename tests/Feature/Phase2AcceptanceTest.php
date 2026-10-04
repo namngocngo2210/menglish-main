@@ -22,7 +22,6 @@ use App\Models\SupportSession;
 use App\Models\SyllabusAssignment;
 use App\Models\SyllabusCurriculum;
 use App\Models\SyllabusLesson;
-use App\Models\SyllabusStage;
 use App\Models\SyllabusUnit;
 use App\Models\TeacherTimesheet;
 use App\Models\User;

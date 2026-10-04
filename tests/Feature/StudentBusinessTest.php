@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
-use App\Models\ClassEnrollment;
 use App\Models\ClassModel;
 use App\Models\Course;
 use App\Models\Student;

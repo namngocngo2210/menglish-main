@@ -4,7 +4,7 @@ namespace App\Support;
 
 /**
  * Định dạng số tiền hiển thị thống nhất toàn hệ thống: "9.500.000 đ" (dấu chấm hàng nghìn, không lẻ, đơn vị "đ").
- * Trong view dùng <x-ui.money> cho ô / con số tiền; dùng Money::format() khi tiền nằm giữa câu chữ, thông báo, hint.
+ * Trong Vue dùng <UiMoney> / formatMoney() cho ô / con số tiền; dùng Money::format() khi tiền nằm giữa câu chữ, thông báo, hint.
  * Không dùng cho file xuất Excel (giữ số thô) hay chứng từ in (tuition-bill) có mẫu riêng.
  */
 final class Money

@@ -279,7 +279,7 @@ class Student extends Model
         return self::STATUSES[$this->status] ?? (string) $this->status;
     }
 
-    /** Màu <x-ui.badge> theo trạng thái (dùng cho chip trạng thái và bảng danh sách). */
+    /** Màu <UiBadge> theo trạng thái (dùng cho chip trạng thái và bảng danh sách). */
     public const STATUS_COLORS = [
         'waiting_start' => 'info',
         'studying' => 'success',

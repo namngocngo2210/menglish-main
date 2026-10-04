@@ -7,7 +7,6 @@ use App\Models\KpiCriterion;
 use App\Models\PayrollPeriod;
 use App\Models\PayrollRecord;
 use App\Models\User;
-use Carbon\Carbon;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
