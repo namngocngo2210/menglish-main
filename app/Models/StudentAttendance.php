@@ -37,6 +37,12 @@ class StudentAttendance extends Model
     {
         // Vắng học → tự vào danh sách bổ trợ; sửa lại thành có mặt thì gỡ (nếu chưa xếp buổi).
         static::saved(fn (StudentAttendance $attendance) => app(SupportListService::class)->syncAttendance($attendance));
+        // Buổi có mặt / đi muộn đầu tiên = ngày bắt đầu vào học của học viên (hồ sơ, thâm niên).
+        static::saved(function (StudentAttendance $attendance) {
+            if ($attendance->student_id && $attendance->session_date && in_array($attendance->status, ['present', 'late'], true)) {
+                Student::recordStudyStart((int) $attendance->student_id, $attendance->session_date);
+            }
+        });
         static::deleted(fn (StudentAttendance $attendance) => app(SupportListService::class)->forget(SupportListService::SOURCE_ATTENDANCE, $attendance->id));
     }
 
