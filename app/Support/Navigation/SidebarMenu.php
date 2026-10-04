@@ -229,6 +229,8 @@ final class SidebarMenu
                     // Phía giáo viên (mockup 03_Cong_Giao_Vien/07–11, 14): ai xem được giáo trình đều thấy.
                     ['label' => 'Chặng đang dạy & Order Test', 'route' => 'syllabus.teaching-stages', 'active' => ['syllabus.teaching-stages', 'teacher.order-test*']],
                     ['label' => 'Xem bài giảng', 'route' => 'syllabus.teacher-view'],
+                    // Dự án soạn sách / xây chương trình của Học thuật (04/10/2026); quyền academic_project.* đọc từ middleware route.
+                    ['label' => 'Dự án soạn sách & chương trình', 'route' => 'academic-projects.index', 'active' => ['academic-projects.index', 'academic-projects.show', 'academic-projects.create', 'academic-projects.edit']],
                 ],
             ],
             [
@@ -362,6 +364,7 @@ final class SidebarMenu
                     ['label' => 'Đánh giá dự giờ', 'route' => 'class-quality.academic'],
                     ['label' => 'Checklist học phí & feedback', 'route' => 'class-quality.checklist'],
                     ['label' => 'Họp giáo viên', 'route' => 'class-quality.teacher-meetings'],
+                    ['label' => 'Dự án học thuật', 'route' => 'academic-projects.report'],
                 ],
             ],
             [

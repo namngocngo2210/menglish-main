@@ -101,7 +101,7 @@ class SlaBreachService
                     'work_task_id' => $event->work_task_id,
                     'auto_source' => $event->rule_key,
                     'violation_type' => $rule['violation'].": {$subjectLabel}",
-                    'error_category' => 'operations',
+                    'error_category' => $rule['category'] ?? 'operations',
                     'violation_date' => $event->due_at->toDateString(),
                     'violation_at' => $event->due_at,
                     'amount' => $amount,

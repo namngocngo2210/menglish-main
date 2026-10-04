@@ -164,6 +164,16 @@ return [
                 'teacher_meeting' => ['Ghi báo cáo họp giáo viên', 'Ghi / sửa / xóa báo cáo họp giáo viên theo tuần.'],
             ],
         ],
+        'academic_project' => [
+            'label' => 'Dự án học thuật (soạn sách, chương trình)',
+            'group' => 'academic',
+            'icon' => 'auto_stories',
+            'actions' => [
+                'view' => ['Xem dự án mình tham gia', 'Xem dự án mình phụ trách / là thành viên / được giao mốc; cập nhật tiến độ phần việc của mình.'],
+                'view_all' => ['Xem mọi dự án & báo cáo dự án', 'Xem mọi dự án học thuật và trang Báo cáo → Dự án học thuật.'],
+                'manage' => ['Tạo & quản lý dự án', 'Tạo / sửa / xóa dự án, chốt tiến độ, thêm mốc và người nhận, phản hồi khó khăn, đóng dự án.'],
+            ],
+        ],
         'room' => [
             'label' => 'Phòng học',
             'group' => 'academic',
