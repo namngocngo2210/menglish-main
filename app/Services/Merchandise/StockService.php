@@ -36,7 +36,7 @@ class StockService
             $stock->quantity = (int) $stock->quantity + $change;
             $stock->save();
 
-            return MerchandiseStockMovement::create([
+            $movement = MerchandiseStockMovement::create([
                 'merchandise_item_id' => $itemId,
                 'branch_id' => $branchId,
                 'type' => $type,
@@ -45,6 +45,11 @@ class StockService
                 'user_id' => array_key_exists('user_id', $attributes) ? $attributes['user_id'] : Auth::id(),
                 ...array_intersect_key($attributes, array_flip(['source', 'tuition_receipt_id', 'student_tuition_id', 'note'])),
             ]);
+
+            // Hết / âm kho → giao Admin việc nhập bù; nhập đủ → việc tự hoàn thành.
+            app(RestockTaskService::class)->sync($movement);
+
+            return $movement;
         });
     }
 

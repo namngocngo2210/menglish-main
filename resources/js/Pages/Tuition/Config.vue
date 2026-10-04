@@ -133,7 +133,7 @@ const currentHint = computed(() =>
             <UiAlert type="info" title="Chính sách cấp số hóa đơn">
                 <ul class="list-disc space-y-xs pl-md">
                     <li><strong>Hóa đơn điện tử:</strong> khi duyệt phiếu thu, hệ thống lấy số từ dải đang hiệu lực của <strong>chi nhánh ghi nhận học phí</strong>; chi nhánh chưa có dải riêng hoặc dải đã hết thì lấy từ <strong>dải mặc định</strong>.</li>
-                    <li><strong>Hóa đơn giấy (tiền mặt):</strong> mỗi chi nhánh một dải theo cuốn hóa đơn giấy. Khi lập phiếu tiền mặt, hệ thống cấp số kế tiếp của chi nhánh; Học vụ ghi đúng số đó lên hóa đơn giấy và tải ảnh lên phiếu. Ghi sai số thì tạo yêu cầu <strong>Hủy hóa đơn</strong> số đó, phiếu mới nhận số kế tiếp. Chi nhánh chưa có dải giấy thì Học vụ nhập tay số hóa đơn giấy như trước.</li>
+                    <li><strong>Hóa đơn giấy (tiền mặt):</strong> mỗi chi nhánh một dải theo cuốn hóa đơn giấy. Khi lập phiếu tiền mặt, hệ thống cấp số kế tiếp của chi nhánh; Học vụ ghi đúng nội dung thu của phiếu lên tờ hóa đơn giấy mang số đó và tải ảnh lên phiếu (bắt buộc). Ghi sai thì tạo yêu cầu <strong>Hủy hóa đơn</strong> số đó, phiếu mới nhận số kế tiếp. Chi nhánh chưa có dải giấy thì Học vụ nhập tay số hóa đơn giấy như trước.</li>
                     <li>Dải số không được chồng lấn dải khác cùng ký hiệu. "Số hiện tại" là số kế tiếp sẽ cấp và không được lùi về số đã cấp.</li>
                     <li>Hóa đơn bị hủy vẫn giữ số (không cấp lại cho phiếu khác).</li>
                     <li>Mọi thay đổi dải số (thêm, sửa, ngừng / dùng lại) được thông báo trong hệ thống tới Kế toán và Quản lý cơ sở của chi nhánh liên quan.</li>
