@@ -324,9 +324,10 @@ class MaterialOrderTest extends TestCase
         $teacher = $this->user('teacher');
         $accountant = $this->user('accountant');
 
+        // "Order học liệu" là tab của khu Giao việc → Danh sách đầu việc (cả GV lẫn Kế toán đều xem được danh sách).
         $url = route('material-orders.index');
-        $this->assertStringContainsString('href="'.$url.'"', $this->actingAs($teacher)->followingRedirects()->get(route('dashboard'))->assertOk()->getContent());
-        $this->assertStringNotContainsString('href="'.$url.'"', $this->actingAs($accountant)->followingRedirects()->get(route('dashboard'))->assertOk()->getContent());
+        $this->assertStringContainsString('href="'.$url.'"', $this->actingAs($teacher)->get(route('tasks.index'))->assertOk()->getContent());
+        $this->assertStringNotContainsString('href="'.$url.'"', $this->actingAs($accountant)->get(route('tasks.index'))->assertOk()->getContent());
     }
 
     public function test_deadline_state_badges(): void

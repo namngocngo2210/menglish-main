@@ -1,9 +1,11 @@
 <script setup>
 /**
  * Trang Thông báo (mở từ chuông): thống kê, lọc nhanh (Tất cả / Lead tồn đọng >24h / Chưa đọc), danh sách + đánh dấu đã đọc.
- * Trang đứng riêng nên không hiện thanh tab workspace "Cá nhân".
+ * Trang đứng riêng nên không hiện thanh tab workspace "Cá nhân". Phần Lead tồn đọng chỉ cho người xem khách (lead.view),
+ * nút "Quét lại hệ thống" chỉ cho notification.manage (GV / TA / Kế toán chỉ thấy thông báo của mình).
  */
 import { Link } from '@inertiajs/vue3';
+import { can } from '@/lib/can';
 import { shortenCodesIn } from '@/lib/format';
 import { copyText } from '@/lib/clipboard';
 
@@ -19,7 +21,7 @@ defineProps({
 <template>
     <UiPageHeader title="Thông báo" icon="notifications_active">
         <template #actions>
-            <UiForm :action="route('notifications.scan')" method="post" class="inline">
+            <UiForm v-if="can('notification.manage')" :action="route('notifications.scan')" method="post" class="inline">
                 <UiButton type="submit" variant="secondary" size="sm" icon="sync">Quét lại hệ thống</UiButton>
             </UiForm>
             <UiForm :action="route('notifications.read-all')" method="post" class="inline">
@@ -29,16 +31,16 @@ defineProps({
     </UiPageHeader>
 
     <div class="space-y-6">
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div :class="['grid grid-cols-1 gap-4', can('lead.view') ? 'sm:grid-cols-3' : 'sm:grid-cols-2']">
             <UiStatCard label="Tổng thông báo" :value="stats.total" icon="notifications" />
-            <UiStatCard label="Lead bị sót >24h (Chưa xử lý)" :value="stats.stale_leads" tone="error" icon="person_alert" />
+            <UiStatCard v-if="can('lead.view')" label="Lead bị sót >24h (Chưa xử lý)" :value="stats.stale_leads" tone="error" icon="person_alert" />
             <UiStatCard label="Thông báo chưa đọc" :value="stats.unread" tone="warning" icon="mark_email_unread" />
         </div>
 
         <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-4 shadow-sm">
             <div class="flex flex-wrap items-center gap-2">
                 <Link :href="route('notifications.index')" :class="['rounded-xl px-3 py-1.5 text-xs font-bold transition', !filters.type && !filters.unread ? 'bg-primary-container text-white' : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high']">Tất cả</Link>
-                <Link :href="route('notifications.index', { type: 'stale_lead_24h' })" :class="['rounded-xl px-3 py-1.5 text-xs font-bold transition', filters.type === 'stale_lead_24h' ? 'bg-error text-white' : 'border border-error/30 bg-error/10 text-error hover:bg-error/20']">
+                <Link v-if="can('lead.view')" :href="route('notifications.index', { type: 'stale_lead_24h' })" :class="['rounded-xl px-3 py-1.5 text-xs font-bold transition', filters.type === 'stale_lead_24h' ? 'bg-error text-white' : 'border border-error/30 bg-error/10 text-error hover:bg-error/20']">
                     <span class="inline-flex items-center gap-xs"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">warning</span>Lead tồn đọng &gt;24h ({{ stats.stale_leads }})</span>
                 </Link>
                 <Link :href="route('notifications.index', { unread: 1 })" :class="['rounded-xl px-3 py-1.5 text-xs font-bold transition', filters.unread ? 'bg-warning text-white' : 'border border-warning/30 bg-warning-container text-on-warning-container hover:bg-warning/20']">Chưa đọc ({{ stats.unread }})</Link>

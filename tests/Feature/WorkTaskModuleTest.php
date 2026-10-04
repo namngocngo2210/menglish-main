@@ -76,7 +76,7 @@ class WorkTaskModuleTest extends TestCase
     {
         $response = $this->actingAs($this->admin)->get(route('tasks.index'));
         $response->assertStatus(200);
-        $response->assertSee('Danh sách công việc');
+        $response->assertSee('Danh sách đầu việc');
     }
 
     public function test_can_create_task(): void

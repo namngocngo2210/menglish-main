@@ -116,6 +116,35 @@ final class SidebarMenu
                 ],
             ],
             [
+                // Khu "Giao việc" (yêu cầu 04/10/2026): nút Tạo đầu việc (mở modal) + Danh sách đầu việc ngay trên sidebar.
+                // Người có work_task.create giao cho mọi người; GV / TA (work_task.request) đề xuất việc cho Admin / Học vụ.
+                'id' => 'task_create',
+                'section' => 'Giao việc',
+                'label' => 'Tạo đầu việc',
+                'icon' => 'add_task',
+                'modal' => '2xl',
+                'items' => [
+                    ['label' => 'Tạo đầu việc', 'route' => 'tasks.create', 'can' => ['work_task.create', 'work_task.request']],
+                ],
+            ],
+            [
+                // Mọi người có work_task.view thấy danh sách (phạm vi theo work_task.scope_*); GV / TA vẫn có "Nhiệm vụ hôm nay".
+                'id' => 'tasks',
+                'section' => 'Giao việc',
+                'label' => 'Danh sách đầu việc',
+                'icon' => 'task_alt',
+                'items' => [
+                    ['label' => 'Danh sách đầu việc', 'route' => 'tasks.index', 'active' => ['tasks.index', 'tasks.show', 'tasks.edit', 'tasks.ta-assign', 'tasks.class-reports.*']],
+                    ...self::anchored(self::MATERIAL_ORDER, [
+                        ['label' => 'Order học liệu', 'route' => 'material-orders.index', 'active' => ['material-orders.*']],
+                    ]),
+                ],
+                'actions' => self::anchored(self::TASK_ASSIGNER, [
+                    ['label' => 'Giao việc cho Trợ giảng', 'route' => 'tasks.ta-assign', 'icon' => 'support_agent', 'variant' => 'secondary', 'modal' => '4xl'],
+                    ['label' => 'Báo cáo trực lớp', 'route' => 'tasks.class-reports.create', 'icon' => 'rate_review', 'variant' => 'secondary', 'modal' => '2xl'],
+                ]),
+            ],
+            [
                 'id' => 'crm',
                 'section' => 'Tuyển sinh',
                 'label' => 'Khách hàng (CRM)',
@@ -302,24 +331,6 @@ final class SidebarMenu
                 ],
             ],
             [
-                'id' => 'tasks',
-                'section' => 'Người dùng',
-                'label' => 'Công việc',
-                'icon' => 'task_alt',
-                'items' => [
-                    ...self::anchored(self::TASK_ASSIGNER, [
-                        ['label' => 'Danh sách công việc', 'route' => 'tasks.index', 'active' => ['tasks.index', 'tasks.show', 'tasks.create', 'tasks.edit', 'tasks.ta-assign', 'tasks.class-reports.*']],
-                    ]),
-                    ...self::anchored(self::MATERIAL_ORDER, [
-                        ['label' => 'Order học liệu', 'route' => 'material-orders.index', 'active' => ['material-orders.*']],
-                    ]),
-                ],
-                'actions' => self::anchored(self::TASK_ASSIGNER, [
-                    ['label' => 'Giao việc cho Trợ giảng', 'route' => 'tasks.ta-assign', 'icon' => 'support_agent', 'variant' => 'secondary', 'modal' => '4xl'],
-                    ['label' => 'Báo cáo trực lớp', 'route' => 'tasks.class-reports.create', 'icon' => 'rate_review', 'variant' => 'secondary', 'modal' => '2xl'],
-                ]),
-            ],
-            [
                 'id' => 'tickets',
                 'section' => 'Người dùng',
                 'label' => 'Ticket hỗ trợ',
@@ -481,7 +492,7 @@ final class SidebarMenu
             ['label' => 'Thêm khách mới', 'icon' => 'person_add', 'route' => 'crm.customers.create', 'can' => ['lead.create']],
             ['label' => 'Tạo lớp', 'icon' => 'add_home', 'route' => 'classes.create', 'can' => ['class.create']],
             ['label' => 'Lập phiếu thu', 'icon' => 'receipt_long', 'route' => 'tuition.receipts.create', 'can' => ['tuition.create']],
-            ['label' => 'Giao việc', 'icon' => 'assignment_add', 'route' => 'tasks.create', 'can' => ['work_task.create']],
+            ['label' => 'Tạo đầu việc', 'icon' => 'assignment_add', 'route' => 'tasks.create', 'can' => ['work_task.create']],
             ['label' => 'Tạo ticket hỗ trợ', 'icon' => 'confirmation_number', 'route' => 'tickets.create', 'can' => ['portal.staff']],
         ];
     }
