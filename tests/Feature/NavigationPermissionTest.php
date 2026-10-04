@@ -64,9 +64,9 @@ class NavigationPermissionTest extends TestCase
         $response = $this->actingAs($this->teacher)->get(route('dashboard'));
 
         $response->assertStatus(200);
-        // Teacher MUST see permitted items
-        $response->assertSee('Lớp học');
-        $response->assertSee('Lịch dạy');
+        // Teacher MUST see permitted items (lưới phím tắt cuối Tổng quan đã bỏ 04/10/2026 — kiểm tra trên menu trái).
+        $response->assertSee('data-menu-item="teacher_portal"', false);
+        $response->assertSee('Chất lượng giảng dạy');
         $response->assertSee('Lương');
         $response->assertSee('Ticket');
 
@@ -83,21 +83,23 @@ class NavigationPermissionTest extends TestCase
         $response = $this->actingAs($this->teacher)->get(route('dashboard'));
         $response->assertDontSee('Khách hàng (CRM)');
 
-        // Cấp quyền override cá nhân: cho phép lead.view
-        UserPermissionOverride::create([
-            'user_id' => $this->teacher->id,
-            'module' => 'lead',
-            'action' => 'view',
-            'scope_type' => UserPermissionOverride::SCOPE_ALL,
-            'allow' => true,
-            'created_by' => $this->admin->id,
-        ]);
+        // Cấp quyền override cá nhân: xem + tạo khách (lead.create là quyền "neo" của khu CRM trên menu trái)
+        foreach (['view', 'create'] as $action) {
+            UserPermissionOverride::create([
+                'user_id' => $this->teacher->id,
+                'module' => 'lead',
+                'action' => $action,
+                'scope_type' => UserPermissionOverride::SCOPE_ALL,
+                'allow' => true,
+                'created_by' => $this->admin->id,
+            ]);
+        }
 
         // Refresh user instance
         $this->teacher->refresh();
 
         // Bây giờ teacher đăng nhập lại => Thấy ngay CRM!
         $responseAfter = $this->actingAs($this->teacher)->get(route('dashboard'));
-        $responseAfter->assertSee('CRM');
+        $responseAfter->assertSee('Khách hàng (CRM)');
     }
 }
