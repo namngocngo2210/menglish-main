@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AdminNotification;
 use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\Course;
@@ -15,6 +16,7 @@ use App\Models\Student;
 use App\Models\StudentTuition;
 use App\Models\TuitionReceipt;
 use App\Models\User;
+use App\Models\WorkTask;
 use App\Services\Merchandise\StockService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -384,5 +386,74 @@ class MerchandiseStockAndPaperInvoiceTest extends TestCase
         $item = MerchandiseItem::where('code', 'UNI-S')->firstOrFail();
         $this->assertSame(0, (int) $item->stock_quantity);
         $this->assertSame(15, (int) MerchandiseStock::where('merchandise_item_id', $item->id)->where('branch_id', $this->otherBranch->id)->value('quantity'));
+    }
+
+    public function test_out_of_stock_sale_assigns_one_restock_task_to_admin_and_closes_it_after_import(): void
+    {
+        app(StockService::class)->adjust($this->book->id, $this->branch->id, 1, MerchandiseStockMovement::TYPE_IMPORT);
+        $approveSurcharge = function (int $quantity) {
+            $this->actingAs($this->staff)->post(route('tuition.receipts.store'), [
+                'student_id' => $this->student->id, 'amount' => 150000 * $quantity, 'tuition_amount' => 0,
+                'surcharge_amount' => 150000 * $quantity, 'collected_items' => json_encode([['id' => $this->book->id, 'quantity' => $quantity]]),
+                'payment_method' => 'transfer', 'transaction_code' => 'FT-BU-'.$quantity,
+                'proof_image' => UploadedFile::fake()->image('unc.jpg'), 'submit_action' => 'submit',
+            ])->assertSessionHasNoErrors();
+            $this->actingAs($this->accountant)->post(route('tuition.receipts.approve.action', TuitionReceipt::latest('id')->firstOrFail()->id))
+                ->assertSessionHasNoErrors();
+        };
+
+        $approveSurcharge(3);
+        $this->assertSame(-2, $this->stockAt($this->book, $this->branch), 'Hết sách vẫn thu và duyệt được, kho âm');
+        $task = WorkTask::where('kind', WorkTask::KIND_MERCHANDISE_RESTOCK)->sole();
+        $this->assertSame($this->admin->id, $task->assignee_id);
+        $this->assertSame($this->branch->id, $task->branch_id);
+        $this->assertSame($this->book->id, $task->merchandise_item_id);
+        $this->assertSame('new', $task->status);
+        $this->assertStringContainsString('âm 2', $task->description);
+        $this->assertTrue(AdminNotification::where('user_id', $this->admin->id)->where('data->task_id', $task->id)->exists());
+
+        // Xuất tiếp cùng chi nhánh + sách: không tạo việc trùng, chỉ cập nhật số cần nhập bù.
+        $approveSurcharge(1);
+        $this->assertSame(1, WorkTask::where('kind', WorkTask::KIND_MERCHANDISE_RESTOCK)->count());
+        $this->assertStringContainsString('âm 3', $task->fresh()->description);
+
+        // Nhập chưa đủ (tồn vẫn ≤ 0) → việc còn mở; nhập đủ → việc tự hoàn thành.
+        $this->actingAs($this->staff)->post(route('merchandise.stock.store'), [
+            'type' => 'import', 'merchandise_item_id' => $this->book->id, 'branch_id' => $this->branch->id, 'quantity' => 3,
+        ])->assertSessionHasNoErrors();
+        $this->assertSame('new', $task->fresh()->status);
+        $this->actingAs($this->staff)->post(route('merchandise.stock.store'), [
+            'type' => 'import', 'merchandise_item_id' => $this->book->id, 'branch_id' => $this->branch->id, 'quantity' => 10,
+        ])->assertSessionHasNoErrors();
+        $this->assertSame('completed', $task->fresh()->status);
+
+        // Hết lần sau → việc mới.
+        $this->actingAs($this->staff)->post(route('merchandise.stock.store'), [
+            'type' => 'count', 'merchandise_item_id' => $this->book->id, 'branch_id' => $this->branch->id, 'quantity' => 0,
+        ])->assertSessionHasNoErrors();
+        $this->assertSame(2, WorkTask::where('kind', WorkTask::KIND_MERCHANDISE_RESTOCK)->count());
+        $this->assertSame(1, WorkTask::where('kind', WorkTask::KIND_MERCHANDISE_RESTOCK)->whereIn('status', WorkTask::OPEN_STATUSES)->count());
+    }
+
+    public function test_stock_left_after_sale_does_not_create_restock_task(): void
+    {
+        app(StockService::class)->adjust($this->book->id, $this->branch->id, 5, MerchandiseStockMovement::TYPE_IMPORT);
+        app(StockService::class)->adjust($this->book->id, $this->branch->id, -2, MerchandiseStockMovement::TYPE_SALE);
+
+        $this->assertSame(0, WorkTask::where('kind', WorkTask::KIND_MERCHANDISE_RESTOCK)->count());
+    }
+
+    public function test_cash_receipt_form_in_paper_branch_shows_content_to_write_on_paper_invoice(): void
+    {
+        $this->paperRange();
+        $this->actingAs($this->staff)->post(route('tuition.receipts.store'), $this->cashPayload(['submit_action' => 'draft']))->assertSessionHasNoErrors();
+        $draft = TuitionReceipt::latest('id')->firstOrFail();
+
+        $this->actingAs($this->staff)->get(route('tuition.receipts.edit', $draft->id))
+            ->assertOk()
+            ->assertSee('data-testid="paper-invoice-content"', false)
+            ->assertSee('ghi <strong>đúng nội dung thu</strong>', false)
+            ->assertSee('C26HDG-0000001')
+            ->assertSee('Học phí Lê Văn Kho');
     }
 }

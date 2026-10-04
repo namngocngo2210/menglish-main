@@ -14,6 +14,7 @@ const props = defineProps({
     levels: { type: Object, required: true },
     stats: { type: Object, required: true },
     groups: { type: Array, default: () => [] },
+    gradeLevels: { type: Array, default: () => [] },
     curriculums: { type: Array, default: () => [] },
     canReorder: { type: Boolean, default: false },
     canCreate: { type: Boolean, default: false },
@@ -22,7 +23,7 @@ const props = defineProps({
 });
 
 const page = usePage();
-const blank = () => ({ id: null, code: '', name: '', description: '', level_group: '', target: '', lessons_count: 24, syllabus_curriculum_id: '', is_active: true });
+const blank = () => ({ id: null, code: '', name: '', description: '', level_group: '', grade_levels: [], target: '', lessons_count: 24, syllabus_curriculum_id: '', is_active: true });
 const open = ref(false);
 const level = reactive(blank());
 const pickSyllabus = ref(false);
@@ -45,6 +46,7 @@ function edit(lv) {
         name: lv.name,
         description: lv.description ?? '',
         level_group: lv.level_group ?? '',
+        grade_levels: [...(lv.grade_levels ?? [])],
         target: lv.target,
         lessons_count: lv.lessons_count,
         syllabus_curriculum_id: lv.syllabus_curriculum_id ?? '',
@@ -168,6 +170,7 @@ function drop() {
                         <td>
                             <span v-if="lv.level_group" class="rounded bg-secondary-fixed px-sm py-[2px] font-caption text-caption font-semibold text-on-secondary-fixed">{{ lv.level_group }}</span>
                             <span v-else class="font-caption text-caption italic text-on-surface-variant">—</span>
+                            <div v-if="lv.grade_labels?.length" class="mt-xs font-caption text-caption text-on-surface-variant">Test: {{ lv.grade_labels.join(', ') }}</div>
                         </td>
                         <td>
                             <UiBadge v-if="lv.syllabus" color="secondary" :dot="false" pill class="font-code font-semibold" :title="lv.syllabus.title">{{ lv.syllabus.label }}</UiBadge>
@@ -262,6 +265,21 @@ function drop() {
                                 <input v-model="level.is_active" type="checkbox" name="is_active" value="1" class="peer sr-only" />
                                 <span class="relative h-6 w-11 shrink-0 rounded-full bg-surface-container-highest transition after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-surface-container-lowest after:shadow after:transition peer-checked:bg-primary-container peer-checked:after:translate-x-5 peer-focus-visible:ring-2 peer-focus-visible:ring-primary-container/40" aria-hidden="true"></span>
                             </label>
+                        </section>
+
+                        <section class="space-y-sm border-t border-surface-container pt-lg">
+                            <h3 class="font-label-caps text-label-caps uppercase text-on-surface-variant">Cấp độ test đầu vào</h3>
+                            <p class="font-caption text-caption text-on-surface-variant">Học viên làm test ở cấp độ được chọn sẽ được gợi ý và xếp vào lớp có trình độ này.</p>
+                            <div class="flex flex-wrap gap-xs" role="group" aria-label="Cấp độ test đầu vào">
+                                <label
+                                    v-for="grade in gradeLevels"
+                                    :key="grade.value"
+                                    :class="['inline-flex cursor-pointer items-center gap-xs rounded-full border px-md py-xs font-body-small text-body-small has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary-container/40', level.grade_levels.includes(grade.value) ? 'border-primary-container bg-primary-container/10 font-semibold text-primary' : 'border-outline-variant text-on-surface-variant hover:border-primary-container/60']"
+                                >
+                                    <input v-model="level.grade_levels" type="checkbox" name="grade_levels[]" :value="grade.value" class="sr-only" />
+                                    {{ grade.label }}
+                                </label>
+                            </div>
                         </section>
 
                         <section class="space-y-md border-t border-surface-container pt-lg">

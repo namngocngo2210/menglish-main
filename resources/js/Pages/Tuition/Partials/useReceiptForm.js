@@ -60,7 +60,7 @@ export function useReceiptForm({
     const branchId = computed(() => (state.selectedTuitionId && state.currentTuition?.branch_id) || state.currentStudent?.branch_id || null);
     const stockOf = (itemId) => (branchId.value ? (stockByBranch[branchId.value]?.[itemId] ?? 0) : null);
 
-    // Tiền mặt ở chi nhánh có dải hóa đơn giấy: hệ thống cấp số, người lập ghi số đó lên hóa đơn giấy + tải ảnh.
+    // Tiền mặt ở chi nhánh có dải hóa đơn giấy: hệ thống cấp số, người lập ghi đúng nội dung thu lên tờ hóa đơn mang số đó + tải ảnh.
     const issuedPaperInvoice = editing?.issued_paper_invoice || null;
     const paperMode = computed(() => state.paymentMethod === 'cash' && (!!issuedPaperInvoice || (branchId.value !== null && branchId.value in paperInvoiceNext)));
     const paperNumber = computed(() => (paperMode.value ? issuedPaperInvoice || paperInvoiceNext[branchId.value] || '' : null));
@@ -145,6 +145,22 @@ export function useReceiptForm({
     const itemsTotal = computed(() => linesTotal(state.surchargeLines));
     const surchargeTotal = computed(() => itemsTotal.value + (parseFloat(state.surchargeAmount) || 0));
     const totalAmount = computed(() => tuitionAmountAfterDiscount.value + surchargeTotal.value);
+
+    // Nội dung thu Học vụ ghi lên hóa đơn giấy (khớp từng dòng với phiếu): học phí, hàng hóa phụ thu, phụ thu khác.
+    const paperInvoiceContent = computed(() => {
+        const lines = [];
+        if (tuitionAmountAfterDiscount.value > 0) {
+            const t = state.currentTuition;
+            lines.push({ label: `Học phí ${t?.student_name || ''}${t?.class_name && t.class_name !== 'Chưa xếp lớp' ? ' - lớp ' + t.class_name : ''}`.trim(), amount: tuitionAmountAfterDiscount.value });
+        }
+        for (const line of state.surchargeLines) {
+            const item = itemById(line.id);
+            if (item) lines.push({ label: `${item.name} x${parseInt(line.quantity) || 0}`, amount: item.price * (parseInt(line.quantity) || 0) });
+        }
+        const other = parseFloat(state.surchargeAmount) || 0;
+        if (other > 0) lines.push({ label: state.surchargeReason?.trim() || 'Phụ thu khác', amount: other });
+        return lines;
+    });
     const collectedItemsJson = computed(() => JSON.stringify(state.surchargeLines.map((line) => ({ id: line.id, quantity: parseInt(line.quantity) || 1 }))));
 
     function addItem(id) {
@@ -213,6 +229,7 @@ export function useReceiptForm({
         needsDiscountReason,
         tuitionAmountAfterDiscount,
         totalAmount,
+        paperInvoiceContent,
         merchandiseItems,
         itemById,
         itemsTotal,

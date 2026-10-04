@@ -54,7 +54,7 @@ const w = reactive({
     customerBranchId: String(picked?.branch_id ?? ''),
     customerStage: picked?.stage_label ?? '',
     customerLevel: picked?.level_label ?? '',
-    customerLevelKeys: picked?.level_keys ?? [],
+    customerGrade: picked?.grade_label ?? '',
     courseName: defaultClass?.course_name ?? defaultCourse?.name ?? '',
     classId: defaultClass ? String(defaultClass.id) : '',
     assignLater: props.classes.length === 0,
@@ -160,7 +160,7 @@ function updateCustomer(value) {
         router.get(route('crm.closing-wizard'), { customer_id: value });
         return;
     }
-    Object.assign(w, { customerId: '', customerName: '', customerPhone: '', customerBranchId: '', customerStage: '', customerLevel: '', customerLevelKeys: [] });
+    Object.assign(w, { customerId: '', customerName: '', customerPhone: '', customerBranchId: '', customerStage: '', customerLevel: '', customerGrade: '' });
     w.paidAmount = w.feePaid ? amountDue.value : 0;
 }
 
@@ -241,10 +241,6 @@ function setAssignLater(value) {
     } else {
         updateClass(w.classId);
     }
-}
-
-function levelMatches(haystack) {
-    return w.customerLevelKeys.length > 0 && w.customerLevelKeys.some((key) => String(haystack || '').includes(key));
 }
 
 // ── Thu khác ────────────────────────────────────────────────────────────────────────────────
@@ -622,7 +618,7 @@ if (w.assignLater) setAssignLater(true);
                             <span
                                 v-if="stockOf(item.id) !== null"
                                 :class="['w-24 shrink-0 text-right text-[11px]', stockOf(item.id) < 1 ? 'font-bold text-error' : 'text-on-surface-variant']"
-                                :title="stockOf(item.id) < 1 ? 'Kho chi nhánh hết hàng: vẫn chốt được, kho sẽ âm khi phiếu thu được duyệt' : 'Tồn kho chi nhánh'"
+                                :title="stockOf(item.id) < 1 ? 'Kho chi nhánh hết hàng: vẫn chốt được; khi phiếu thu được duyệt, hệ thống giao Admin việc nhập sách bù' : 'Tồn kho chi nhánh'"
                             >
                                 {{ stockOf(item.id) < 1 ? 'Hết hàng' : 'Tồn' }}: {{ stockOf(item.id) }}
                             </span>
@@ -665,7 +661,9 @@ if (w.assignLater) setAssignLater(true);
                     <span class="material-symbols-outlined text-base text-primary-container">meeting_room</span>
                     Bước 3: Lớp học phù hợp đề xuất
                 </h2>
-                <p v-show="w.customerLevel" class="-mt-md font-body-small text-body-small text-on-surface-variant">Dựa trên trình độ <strong>{{ w.customerLevel }}</strong> của học viên</p>
+                <p v-show="w.customerGrade || w.customerLevel" class="-mt-md font-body-small text-body-small text-on-surface-variant">
+                    Dựa trên<template v-if="w.customerGrade"> cấp độ test <strong>{{ w.customerGrade }}</strong></template><template v-if="w.customerGrade && w.customerLevel">,</template><template v-if="w.customerLevel"> trình độ <strong>{{ w.customerLevel }}</strong></template> của học viên
+                </p>
 
                 <div class="space-y-4">
                     <div class="flex flex-wrap gap-3 text-xs font-semibold">
@@ -713,8 +711,8 @@ if (w.assignLater) setAssignLater(true);
                                     <UiBadge v-else color="success" pill :dot="false" class="font-bold">Đang học</UiBadge>
                                 </div>
                                 <div class="font-code text-xs text-on-surface-subtle">{{ cl.code }}</div>
-                                <span v-show="levelMatches(cl.level_haystack)" class="inline-block rounded bg-tertiary/10 px-1.5 py-0.5 text-xs font-bold text-tertiary">Phù hợp trình độ</span>
-                                <div class="text-on-surface-variant">{{ cl.course_name ?? 'Chưa gán khóa' }} · {{ cl.branch_name }}</div>
+                                <span v-show="w.customerId && cl.level_match" class="inline-block rounded bg-tertiary/10 px-1.5 py-0.5 text-xs font-bold text-tertiary">Đúng cấp độ</span>
+                                <div class="text-on-surface-variant">{{ cl.course_name ?? 'Chưa gán khóa' }}<template v-if="cl.level_name"> · Cấp độ {{ cl.level_name }}</template> · {{ cl.branch_name }}</div>
                                 <div class="flex items-center gap-1 text-on-surface-variant"><span class="material-symbols-outlined text-[14px]">calendar_today</span>Lịch học: {{ cl.schedule_text || 'Chưa có lịch' }}</div>
                                 <div class="flex items-center gap-1 text-on-surface-variant"><span class="material-symbols-outlined text-[14px]">account_circle</span>Giáo viên: {{ cl.teacher ?? 'Chưa phân công' }}</div>
                                 <div class="h-1.5 w-full overflow-hidden rounded-full bg-surface-container-high">
@@ -825,7 +823,7 @@ if (w.assignLater) setAssignLater(true);
                                 <template v-if="paperNumber">
                                     <span class="block text-xs font-bold uppercase tracking-wider text-on-surface-variant">Số hóa đơn giấy hệ thống cấp</span>
                                     <span class="block font-code text-xl font-bold text-primary">{{ paperNumber }}</span>
-                                    <p class="text-xs text-on-surface-variant">Ghi <strong>đúng số này</strong> lên hóa đơn giấy giao khách, chụp ảnh và tải lên. Ghi sai số thì tạo yêu cầu Hủy hóa đơn số đó.</p>
+                                    <p class="text-xs text-on-surface-variant">Dùng tờ hóa đơn giấy mang <strong>đúng số này</strong>, ghi <strong>đúng nội dung thu</strong> như trên Bill (nút “Xem &amp; In Bill”: người nộp, từng khoản thu, tổng tiền), chụp ảnh và tải lên (bắt buộc). Ghi sai thì tạo yêu cầu Hủy hóa đơn số đó.</p>
                                     <input type="hidden" name="expected_paper_invoice_number" :value="paperNumber" />
                                     <UiField label="Ảnh chụp hóa đơn giấy (bắt buộc)" name="paper_invoice_photo" for="closing_paper_invoice_photo" required>
                                         <input

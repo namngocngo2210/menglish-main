@@ -20,6 +20,8 @@ class TrialSlotFinder
 {
     public const WINDOW_DAYS = 7;
 
+    public function __construct(private PlacementLevelMatcher $levels) {}
+
     public const LEVEL_KEYWORDS = ['PRE STARTERS', 'STARTERS', 'MOVERS', 'FLYERS', 'FAM 0', 'FAM 1', 'FAM 2', 'KET', 'PET', 'IELTS'];
 
     /**
@@ -29,7 +31,9 @@ class TrialSlotFinder
     {
         $keywords = self::levelKeywords($customer, $submission);
         $courseId = $this->registeredCourseId($customer);
-        $filtered = $keywords !== [] || $courseId !== null;
+        // Lớp đúng cấp độ test của khách (trình độ ghép với cấp độ ở Cấu hình Trình độ).
+        $gradeLevelIds = $this->levels->levelIdsForGrade($this->levels->gradeLevelOf($customer));
+        $filtered = $keywords !== [] || $courseId !== null || $gradeLevelIds !== [];
 
         $classes = ClassModel::query()
             ->with(['course', 'teacher', 'branch'])
@@ -38,7 +42,8 @@ class TrialSlotFinder
             ->orderBy('name')
             ->get()
             ->when($filtered, fn (Collection $all) => $all->filter(fn (ClassModel $class) => ($courseId && (int) $class->course_id === $courseId)
-                || self::matchesKeywords($class, $keywords)))
+                || self::matchesKeywords($class, $keywords)
+                || in_array($this->levels->classLevelId($class), $gradeLevelIds, true)))
             ->values();
 
         $now = now();

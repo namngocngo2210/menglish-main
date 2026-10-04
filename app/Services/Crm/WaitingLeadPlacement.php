@@ -17,7 +17,7 @@ use Illuminate\Validation\ValidationException;
  */
 class WaitingLeadPlacement
 {
-    public function __construct(private CrmStageService $stages) {}
+    public function __construct(private CrmStageService $stages, private PlacementLevelMatcher $levels) {}
 
     /** Lead Chờ xếp lớp của học viên (khóa dòng; gọi trong transaction). */
     public function waitingLeadFor(Student $student): ?CrmCustomer
@@ -29,11 +29,17 @@ class WaitingLeadPlacement
             ->first();
     }
 
-    /** Lớp phải thuộc khóa học đã chốt (học phí tính theo khóa đó). */
+    /**
+     * Lớp phải đúng khóa học đã chốt, hoặc cùng cấp độ (trình độ của khóa đã chốt / cấp độ test đầu vào) —
+     * PlacementLevelMatcher::matchesClosed. Học phí giữ theo khóa đã chốt.
+     */
     public function assertMatchesClosedCourse(CrmCustomer $customer, ClassModel $class): void
     {
-        if ($customer->waiting_course_id && $class->course_id !== $customer->waiting_course_id) {
-            throw ValidationException::withMessages(['class_id' => 'Lớp phải thuộc khóa học đã chốt ('.($customer->waitingCourse?->name ?? 'khóa đã chọn').').']);
+        $class->loadMissing('course');
+        if (! $this->levels->matchesClosed($customer, $class)) {
+            $levels = $this->levels->targetLevelNames($customer);
+            throw ValidationException::withMessages(['class_id' => 'Lớp phải thuộc khóa học đã chốt ('.($customer->waitingCourse?->name ?? 'khóa đã chọn').')'
+                .($levels ? ' hoặc cùng cấp độ ('.implode(', ', $levels).')' : '').'.']);
         }
     }
 

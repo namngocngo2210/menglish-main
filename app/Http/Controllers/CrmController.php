@@ -30,6 +30,7 @@ use App\Models\WorkTask;
 use App\Services\Crm\AppointmentConfirmation;
 use App\Services\Crm\CrmBranchTransferService;
 use App\Services\Crm\LeadOwners;
+use App\Services\Crm\PlacementLevelMatcher;
 use App\Services\Crm\TrialSlotFinder;
 use App\Services\Crm\WaitingLeadPlacement;
 use App\Services\CrmStageService;
@@ -421,9 +422,11 @@ class CrmController extends Controller
                 'branch' => $lead->waitingBranch?->name ?? $lead->branch?->name,
                 'converted_at' => $lead->converted_at?->format('H:i d/m/Y'),
                 'wait_days' => $lead->converted_at ? (int) $lead->converted_at->diffInDays(now()) : null,
+                'levels' => $data['levels']->targetLevelNames($lead),
                 'matches' => $data['matchingClassesByLead']->get($lead->id, collect())->map(fn (ClassModel $class) => [
                     'value' => $class->id,
                     'label' => $class->name.($class->status === 'upcoming' ? ' (sắp khai giảng)' : '')
+                        .(($levelName = $data['levels']->classLevelName($class)) ? ' · '.$levelName : '')
                         .' · còn '.($class->max_capacity > 0 ? max(0, $class->max_capacity - $class->active_enrollments_count) : '∞').' chỗ'
                         .($class->status === 'upcoming' && $class->active_enrollments_count < (int) $class->min_students
                             ? ' · cần thêm '.((int) $class->min_students - $class->active_enrollments_count).' HV để khai giảng' : ''),
@@ -434,14 +437,16 @@ class CrmController extends Controller
     }
 
     /**
-     * Lead ở Chờ xếp lớp (đã có hồ sơ học viên) + lớp gợi ý: đúng khóa, đúng chi nhánh, còn chỗ.
+     * Lead ở Chờ xếp lớp (đã có hồ sơ học viên) + lớp gợi ý: đúng chi nhánh, còn chỗ, đúng khóa đã chốt hoặc
+     * cùng cấp độ (trình độ của khóa đã chốt / cấp độ test đầu vào — PlacementLevelMatcher); lớp đúng khóa lên đầu.
      *
-     * @return array{waitingLeads: Collection, matchingClassesByLead: Collection}
+     * @return array{waitingLeads: Collection, matchingClassesByLead: Collection, levels: PlacementLevelMatcher}
      */
     protected function waitingClassData(): array
     {
+        $levels = app(PlacementLevelMatcher::class);
         $waitingLeads = $this->scopeCustomerQuery()
-            ->with(['assignedUser', 'branch', 'waitingBranch', 'waitingCourse', 'convertedStudent'])
+            ->with(['assignedUser', 'branch', 'waitingBranch', 'waitingCourse', 'convertedStudent', 'assignedTest', 'latestSubmission.test'])
             ->where('stage', 'waiting_class')
             ->orderBy('converted_at')
             ->get();
@@ -452,17 +457,19 @@ class CrmController extends Controller
             ->whereIn('branch_id', $waitingLeads->map(fn (CrmCustomer $lead) => $lead->convertedStudent?->branch_id ?? $lead->branch_id)->filter()->unique())
             ->get());
 
-        $matchingClassesByLead = $waitingLeads->mapWithKeys(function (CrmCustomer $lead) use ($classes) {
+        $matchingClassesByLead = $waitingLeads->mapWithKeys(function (CrmCustomer $lead) use ($classes, $levels) {
             $branchId = $lead->convertedStudent?->branch_id ?? $lead->branch_id;
             $matches = $classes->filter(fn (ClassModel $class) => $class->branch_id === $branchId
-                && (! $lead->waiting_course_id || $class->course_id === $lead->waiting_course_id)
+                && $levels->matchesClosed($lead, $class)
                 && ($class->max_capacity <= 0 || $class->active_enrollments_count < $class->max_capacity)
-            )->values();
+            )
+                ->sortBy(fn (ClassModel $class) => $lead->waiting_course_id && $class->course_id === $lead->waiting_course_id ? 0 : 1)
+                ->values();
 
             return [$lead->id => $matches];
         });
 
-        return compact('waitingLeads', 'matchingClassesByLead');
+        return compact('waitingLeads', 'matchingClassesByLead', 'levels');
     }
 
     /**
@@ -2090,14 +2097,16 @@ class CrmController extends Controller
                     ->withErrors(['stage' => 'Lead chưa sẵn sàng để chốt.']);
             }
         }
+        $levels = app(PlacementLevelMatcher::class);
         $customers = $this->scopeCustomerQuery()
-            ->with(['branch', 'latestSubmission'])
+            ->with(['branch', 'latestSubmission.test', 'assignedTest'])
             ->whereIn('stage', CrmCustomer::CLOSABLE_STAGES)
             ->when($selectedCustomerId, fn (Builder $query, int $customerId) => $query->orderByRaw('id = ? desc', [$customerId]))
             ->latest()
             ->get()
             // Mockup quy-trinh-chot-xep-lop: "Trình độ" của khách (lớp xếp sau test) + từ khóa để gợi ý lớp phù hợp.
-            ->each(function (CrmCustomer $customer) {
+            ->each(function (CrmCustomer $customer) use ($levels) {
+                $customer->setAttribute('grade_label', PlacementTest::gradeLevelLabel($levels->gradeLevelOf($customer)));
                 $customer->setAttribute('level_label', $customer->latestSubmission?->finalClass() ?? $customer->course_interest);
                 $customer->setAttribute('level_keys', $this->trialLevelKeywords($customer, $customer->latestSubmission));
             });
@@ -2118,15 +2127,18 @@ class CrmController extends Controller
             ->orderBy('start_date')
             ->get())
             ->filter(fn (ClassModel $class) => $class->max_capacity <= 0 || $class->active_enrollments_count < $class->max_capacity)
-            ->each(function (ClassModel $class) {
+            ->each(function (ClassModel $class) use ($levels) {
+                $class->setAttribute('level_name', $levels->classLevelName($class));
                 $class->setAttribute('remaining_seats', $class->max_capacity > 0 ? max(0, $class->max_capacity - $class->active_enrollments_count) : null);
                 $class->setAttribute('needed_to_open', $class->status === 'upcoming' ? max(0, (int) $class->min_students - $class->active_enrollments_count) : 0);
                 $class->setAttribute('level_haystack', Str::upper(implode(' ', array_filter([
                     $class->name, $class->level, $class->course?->name, $class->course?->level?->name,
                 ]))));
             })
-            // Lớp khớp trình độ của khách lên đầu (sortBy giữ nguyên thứ tự khai giảng trong cùng nhóm).
-            ->each(fn (ClassModel $class) => $class->setAttribute('level_match', collect($levelKeys)->contains(fn (string $key) => str_contains($class->level_haystack, $key))))
+            // Lớp khớp của khách lên đầu (sortBy giữ nguyên thứ tự khai giảng trong cùng nhóm): đúng cấp độ test
+            // (trình độ ghép với cấp độ ở Cấu hình Trình độ), hoặc tên lớp / khóa / trình độ chứa trình độ xếp sau test.
+            ->each(fn (ClassModel $class) => $class->setAttribute('level_match', ($pickedCustomer && $levels->matchesGrade($pickedCustomer, $class))
+                || collect($levelKeys)->contains(fn (string $key) => str_contains($class->level_haystack, $key))))
             ->sortBy(fn (ClassModel $class) => $class->level_match ? 0 : 1)
             ->values();
         // Chỉ chọn sẵn lớp khi khớp trình độ; không có thì để trống cho người dùng tự chọn.
@@ -2157,6 +2169,7 @@ class CrmController extends Controller
                 'branch_id' => $c->branch_id,
                 'stage_label' => $c->stage_label,
                 'level_label' => $c->level_label,
+                'grade_label' => $c->grade_label,
                 'level_keys' => $c->level_keys,
                 'course_interest' => $c->course_interest,
             ])->values()->all(),
@@ -2185,6 +2198,8 @@ class CrmController extends Controller
                 'remaining_seats' => $cl->remaining_seats,
                 'needed_to_open' => $cl->needed_to_open,
                 'level_haystack' => $cl->level_haystack,
+                'level_name' => $cl->level_name,
+                'level_match' => (bool) $cl->level_match,
             ])->values()->all(),
             'bankAccounts' => $bankAccounts->map(fn (BankAccount $bank) => [
                 'id' => $bank->id,
@@ -2281,7 +2296,7 @@ class CrmController extends Controller
         $paperRange = $paidAmount > 0 && $paymentMethod === 'cash' && InvoiceConfiguration::branchUsesPaperRange($wizardBranchId ? (int) $wizardBranchId : null);
         $paperInvoiceNumber = trim((string) ($validated['paper_invoice_number'] ?? '')) ?: null;
         if ($paperRange && ! $request->hasFile('paper_invoice_photo')) {
-            throw ValidationException::withMessages(['paper_invoice_photo' => 'Thu tiền mặt cần tải ảnh chụp hóa đơn giấy đã ghi đúng số hóa đơn hệ thống cấp.']);
+            throw ValidationException::withMessages(['paper_invoice_photo' => 'Thu tiền mặt cần tải ảnh chụp hóa đơn giấy mang đúng số hệ thống cấp, đã ghi đúng nội dung thu.']);
         }
         if (! $paperRange && $paidAmount > 0 && $paymentMethod === 'cash' && ! $paperInvoiceNumber) {
             throw ValidationException::withMessages(['paper_invoice_number' => 'Thu tiền mặt cần nhập số hóa đơn giấy đã xuất cho khách.']);

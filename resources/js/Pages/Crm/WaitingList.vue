@@ -1,7 +1,7 @@
 <script setup>
 /**
  * Khách chờ xếp lớp (mockup khach-hang-chot-thanh-cong, khu vực 1): học viên đã chốt nhưng chưa có lớp —
- * nơi duy nhất Học vụ xếp lớp cho khách đã chốt. Gợi ý lớp đúng khóa, đúng chi nhánh, còn chỗ (CrmController::waitingClassData).
+ * nơi duy nhất Học vụ xếp lớp cho khách đã chốt. Gợi ý lớp đúng chi nhánh, còn chỗ, đúng khóa đã chốt hoặc cùng cấp độ (CrmController::waitingClassData).
  */
 import { Link } from '@inertiajs/vue3';
 import WorkspaceChips from '@/Components/WorkspaceChips.vue';
@@ -31,7 +31,7 @@ const pad = (n) => String(n).padStart(2, '0');
                     <span class="material-symbols-outlined text-error" style="font-variation-settings: 'FILL' 1">error</span>
                     <div>
                         <h2 class="font-h3 text-h3 text-on-surface">Chờ xếp lớp (Cần xử lý gấp)</h2>
-                        <p class="font-body-small text-body-small text-on-surface-variant">Hiện có <span class="font-bold text-error">{{ pad(waitingLeads.length) }}</span> học viên đang đợi phân bổ vào lớp mới. Gợi ý lớp đúng khóa, đúng chi nhánh, còn chỗ.</p>
+                        <p class="font-body-small text-body-small text-on-surface-variant">Hiện có <span class="font-bold text-error">{{ pad(waitingLeads.length) }}</span> học viên đang đợi phân bổ vào lớp mới. Gợi ý lớp đúng chi nhánh, còn chỗ, đúng khóa đã chốt hoặc cùng cấp độ.</p>
                     </div>
                 </div>
                 <span class="inline-flex items-center gap-xs rounded-full bg-error/10 px-md py-xs font-caption text-caption font-bold text-error">
@@ -57,6 +57,7 @@ const pad = (n) => String(n).padStart(2, '0');
                                     <div>
                                         <Link :href="route('crm.customers.show', lead.id)" class="font-body-medium text-body-medium text-on-surface hover:text-primary">{{ lead.name }}</Link>
                                         <div class="font-code text-caption text-on-surface-variant"><UiCode :value="lead.student_code" /> · {{ lead.course ?? 'Chưa chọn khóa' }}</div>
+                                        <div v-if="lead.levels.length" class="font-caption text-caption text-on-surface-variant">Cấp độ: {{ lead.levels.join(', ') }}</div>
                                     </div>
                                 </div>
                             </td>
@@ -72,7 +73,7 @@ const pad = (n) => String(n).padStart(2, '0');
                                         <UiSelect name="class_id" value="" :options="lead.matches" placeholder="— Chọn lớp —" required :aria-label="'Lớp xếp cho ' + lead.name" class="max-w-[320px] font-body-small text-body-small" />
                                         <UiButton type="submit" size="sm" variant="secondary" icon="assignment_turned_in">Xếp lớp</UiButton>
                                     </UiForm>
-                                    <!-- Chưa có lớp đúng khóa / chi nhánh / còn chỗ: sang màn Xếp lớp (chọn sẵn học viên), ở đó chọn lớp hoặc tạo lớp mới. -->
+                                    <!-- Chưa có lớp đúng khóa hoặc cấp độ / chi nhánh / còn chỗ: sang màn Xếp lớp (chọn sẵn học viên), ở đó chọn lớp hoặc tạo lớp mới. -->
                                     <Link
                                         v-else
                                         :href="route('students.enrollments', lead.student_id ? { student_id: lead.student_id } : {})"
