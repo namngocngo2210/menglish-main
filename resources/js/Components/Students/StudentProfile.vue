@@ -86,9 +86,17 @@ const receiptUrl = computed(() => route('tuition.receipts.create', { student_id:
                         <p class="font-label text-label uppercase text-on-surface-variant">Mã học sinh</p>
                         <p class="font-code text-code font-semibold text-primary">{{ student.code }}</p>
                     </div>
-                    <div class="rounded-lg bg-surface-container-low p-sm">
-                        <p class="font-label text-label uppercase text-on-surface-variant">Ngày nhập học</p>
-                        <p class="font-code text-code font-semibold text-on-surface">{{ student.created_at ?? '—' }}</p>
+                    <div class="rounded-lg bg-surface-container-low p-sm" data-field="study-started">
+                        <p class="font-label text-label uppercase text-on-surface-variant">Ngày bắt đầu học</p>
+                        <p class="font-code text-code font-semibold text-on-surface">{{ student.study_started_on ?? 'Chưa vào học' }}</p>
+                    </div>
+                    <div class="col-span-2 space-y-xs font-caption text-caption text-on-surface-variant">
+                        <p class="flex flex-wrap items-center justify-center gap-xs">
+                            <UiBadge v-if="student.long_term" color="primary" pill>Học viên lâu năm</UiBadge>
+                            <span v-if="student.tenure_label">Đã học {{ student.tenure_label }}</span>
+                            <span v-else-if="!student.study_started_on">Tự ghi nhận khi điểm danh buổi có mặt đầu tiên</span>
+                        </p>
+                        <p>Tạo hồ sơ {{ student.created_at ?? '—' }}</p>
                     </div>
                 </div>
             </div>
@@ -107,7 +115,17 @@ const receiptUrl = computed(() => route('tuition.receipts.create', { student_id:
                         <UiInput name="parent_name" label="Họ tên phụ huynh" :value="student.parent_name" placeholder="VD: Nguyễn Thị Hoa" />
                         <UiInput name="parent_phone" type="tel" label="SĐT phụ huynh (nhận kết quả Zalo)" :value="student.parent_phone" placeholder="VD: 0987 654 321" />
                     </div>
-                    <UiInput name="school" label="Trường học" :value="student.school" placeholder="VD: Trường THCS Đoàn Thị Điểm" />
+                    <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
+                        <UiInput name="school" label="Trường học" :value="student.school" placeholder="VD: Trường THCS Đoàn Thị Điểm" />
+                        <UiInput
+                            name="study_started_on"
+                            type="date"
+                            label="Ngày bắt đầu học"
+                            :value="student.study_started_on_value"
+                            :max="student.today"
+                            hint="Tự điền theo buổi có mặt đầu tiên; sửa tay nếu học viên học từ trước khi dùng hệ thống."
+                        />
+                    </div>
                     <UiTextarea name="address" label="Địa chỉ liên hệ" rows="2" :value="student.address" placeholder="Nhập địa chỉ của học viên..." />
                     <UiTextarea name="notes" label="Ghi chú đặc biệt" rows="3" :value="student.notes" placeholder="Nhập ghi chú về học sinh (ví dụ: dị ứng, sở thích, mục tiêu học tập...)" />
                     <div class="flex justify-end gap-sm border-t border-surface-container pt-md">
