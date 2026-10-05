@@ -9,7 +9,7 @@ use App\Support\Rbac;
 use Illuminate\Support\Carbon;
 
 /**
- * Yêu cầu giãn tiến độ giáo trình phải được duyệt trong 3 ngày (SyllabusAdjustmentRequest::SLA_DAYS).
+ * Yêu cầu giãn tiến độ giáo trình phải được duyệt trong N ngày (SLA syllabus.adjustment_approval, mặc định 3).
  * Người duyệt = người có quyền syllabus.approve_adjustment (Học thuật, và Admin qua quyền mặc định); thông báo cá nhân:
  *  - khi GV gửi yêu cầu;
  *  - đúng 1 lần khi yêu cầu vẫn chờ duyệt mà quá hạn SLA (sla_notified_at).
@@ -33,7 +33,7 @@ class AdjustmentSlaService
                 'type' => 'adjustment_pending',
                 'title' => "Yêu cầu giãn tiến độ mới: {$className}",
                 'message' => ($req->teacher?->name ?? 'Giáo viên')." gửi \"{$req->request_type}\" — hạn duyệt ".$req->sla_due_at?->format('H:i d/m/Y')
-                    .' ('.SyllabusAdjustmentRequest::SLA_DAYS.' ngày).',
+                    .' ('.SyllabusAdjustmentRequest::slaDays().' ngày).',
                 'data' => ['request_id' => $req->id, 'link' => route('syllabus.adjustment-requests', ['request' => $req->id])],
                 'is_read' => false,
             ]);
@@ -50,11 +50,14 @@ class AdjustmentSlaService
      */
     public function notifyBreaches(?Carbon $now = null): int
     {
+        if (! \App\Services\Sla\Sla::enabled('syllabus.adjustment_approval')) {
+            return 0;
+        }
         $now ??= now();
         $requests = SyllabusAdjustmentRequest::with(['classModel', 'teacher'])
             ->where('status', 'pending')
             ->whereNull('sla_notified_at')
-            ->where('created_at', '<=', $now->copy()->subHours(SyllabusAdjustmentRequest::SLA_HOURS))
+            ->where('created_at', '<=', $now->copy()->subHours(SyllabusAdjustmentRequest::slaHours()))
             ->whereHas('classModel') // bỏ lớp đã xóa
             ->orderBy('id')
             ->get();
@@ -70,7 +73,7 @@ class AdjustmentSlaService
                     'type' => 'adjustment_sla',
                     'title' => "Quá hạn duyệt giãn tiến độ: {$req->classModel->name}",
                     'message' => ($req->teacher?->name ?? 'Giáo viên').' gửi "'.$req->request_type.'" ngày '.$req->created_at->format('d/m/Y')
-                        .' — đã quá '.SyllabusAdjustmentRequest::SLA_DAYS.' ngày chưa được duyệt.',
+                        .' — đã quá '.SyllabusAdjustmentRequest::slaDays().' ngày chưa được duyệt.',
                     'data' => ['request_id' => $req->id, 'link' => route('syllabus.adjustment-requests', ['request' => $req->id])],
                     'is_read' => false,
                 ]);

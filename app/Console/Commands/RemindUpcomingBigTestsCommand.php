@@ -6,10 +6,11 @@ use App\Models\AdminNotification;
 use App\Models\BigTest;
 use App\Models\SyllabusAssignment;
 use App\Services\BigTestSlaService;
+use App\Services\Sla\Sla;
 use Illuminate\Console\Command;
 
 /**
- * Nhắc lịch Big Test trước 7 ngày: báo cho giáo viên (GV chính, GVNN, trợ giảng) của lớp
+ * Nhắc lịch Big Test trước N ngày (SLA big_test.paper_reminder, mặc định 7): báo cho giáo viên (GV chính, GVNN, trợ giảng) của lớp
  * có đợt thi trong 7 ngày tới; đợt thi chưa duyệt đề thì báo thêm cho Học thuật.
  * Idempotent: mỗi đợt thi chỉ nhắc một lần (đánh dấu big_tests.teacher_reminded_at).
  *
@@ -22,13 +23,18 @@ use Illuminate\Console\Command;
  */
 class RemindUpcomingBigTestsCommand extends Command
 {
-    protected $signature = 'bigtests:remind-upcoming {--days=7 : Nhắc các đợt thi diễn ra trong số ngày tới}';
+    protected $signature = 'bigtests:remind-upcoming {--days= : Nhắc các đợt thi diễn ra trong số ngày tới (mặc định theo SLA big_test.paper_reminder)}';
 
-    protected $description = 'Nhắc giáo viên các đợt Big Test sắp diễn ra (mặc định trước 7 ngày)';
+    protected $description = 'Nhắc giáo viên các đợt Big Test sắp diễn ra (mặc định trước 7 ngày, chỉnh ở Cấu hình SLA)';
 
     public function handle(BigTestSlaService $sla): int
     {
-        $days = max(1, (int) $this->option('days'));
+        if (! Sla::enabled(BigTestSlaService::RULE_PAPER_REMINDER)) {
+            $this->info('SLA nhắc lịch thi & duyệt đề Big Test đang tắt.');
+
+            return self::SUCCESS;
+        }
+        $days = max(1, (int) ($this->option('days') ?: $sla->warnDays()));
         $tests = BigTest::with('classModel')
             ->whereNull('teacher_reminded_at')
             ->whereNotNull('class_id')

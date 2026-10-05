@@ -434,7 +434,7 @@ class DemoPhase2Seeder extends Seeder
             $order = BigTestOrder::create([
                 'code' => 'ORDTEST-'.strtoupper(substr(md5($class->code.$examAt), 0, 6)),
                 'class_id' => $class->id, 'teacher_id' => $teacher->id, 'stage_name' => $open->stage_name, 'test_type' => 'big',
-                'exam_date' => $examAt->toDateString(), 'due_date' => $examAt->copy()->subDays(BigTestOrder::LEAD_DAYS)->toDateString(),
+                'exam_date' => $examAt->toDateString(), 'due_date' => $examAt->copy()->subDays(BigTestOrder::leadDays())->toDateString(),
                 'note' => 'Đề Big Test cuối chặng.', 'status' => 'pending',
             ]);
             $order->forceFill(['created_at' => $examAt->copy()->subDays(10), 'updated_at' => $examAt->copy()->subDays(10)])->saveQuietly();

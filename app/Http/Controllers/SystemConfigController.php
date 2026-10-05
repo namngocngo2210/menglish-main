@@ -962,27 +962,39 @@ class SystemConfigController extends Controller
         return round($bytes, $precision).' '.$units[$pow];
     }
 
-    /** Cấu hình tất cả SLA tự động (ngưỡng giờ / số lần, bật tắt, tự phạt và mức phạt gợi ý). */
+    /** Cấu hình tất cả SLA tự động (ngưỡng thời gian / số lần, bật tắt, tự phạt và mức phạt gợi ý). */
     public function sla(): InertiaResponse
     {
         $groups = config('sla.groups');
         $rules = collect(array_keys(Sla::defaults()))->map(fn (string $key) => Sla::rule($key))
-            ->map(fn (array $rule) => [
-                'key' => $rule['key'],
-                'group' => $groups[$rule['group']] ?? $rule['group'],
-                'label' => $rule['label'],
-                'description' => $rule['description'],
-                'unit' => $rule['unit'],
-                'value' => $rule['value'],
-                'default_value' => Sla::defaults()[$rule['key']]['value'],
-                'enabled' => $rule['enabled'],
-                'penalty' => $rule['penalty'],
-                'amount' => $rule['amount'],
-                'task' => $rule['task'],
-                'ladder' => $rule['ladder'] ? implode(', ', $rule['ladder']) : null,
-                'has_ladder' => ! empty(Sla::defaults()[$rule['key']]['ladder']),
-                'customized' => $rule['customized'],
-            ])->values()->all();
+            ->map(function (array $rule) use ($groups) {
+                $default = Sla::defaults()[$rule['key']];
+                [$min, $max] = Sla::bounds($rule['unit']);
+
+                return [
+                    'key' => $rule['key'],
+                    'group' => $groups[$rule['group']] ?? $rule['group'],
+                    'label' => $rule['label'],
+                    'description' => $rule['description'],
+                    'unit' => $rule['unit'],
+                    // Giờ trong ngày gửi dạng HH:MM cho ô chọn giờ.
+                    'value' => $rule['unit'] === 'time' ? Sla::minutesToTime((int) $rule['value']) : $rule['value'],
+                    'min' => $min,
+                    'max' => $max,
+                    'default_label' => Sla::formatValue((int) $default['value'], $rule['unit']),
+                    'switchable' => $rule['switchable'],
+                    'enabled' => $rule['enabled'],
+                    'has_penalty' => $rule['penalty'] !== null,
+                    'penalty' => (bool) $rule['penalty'],
+                    'amount' => $rule['amount'],
+                    'amount_label' => $default['amount_label'] ?? 'Mức phạt gợi ý',
+                    'amount_per' => $default['amount_per'] ?? null,
+                    'task' => $rule['task'],
+                    'ladder' => $rule['ladder'] ? implode(', ', $rule['ladder']) : null,
+                    'has_ladder' => ! empty($default['ladder']),
+                    'customized' => $rule['customized'],
+                ];
+            })->values()->all();
 
         return Inertia::render('SystemConfig/Sla', ['rules' => $rules, 'resetMonths' => Sla::ladderResetMonths()]);
     }
@@ -990,31 +1002,42 @@ class SystemConfigController extends Controller
     public function updateSla(Request $request, string $key)
     {
         abort_unless(array_key_exists($key, Sla::defaults()), 404);
-        $unit = Sla::defaults()[$key]['unit'];
+        $default = Sla::defaults()[$key];
+        $unit = $default['unit'];
+        [$min, $max] = Sla::bounds($unit);
+        $hasPenalty = $default['penalty'] !== null;
         $validated = $request->validate([
-            'value' => 'required|integer|min:1|max:'.($unit === 'hours' ? 720 : 20),
-            'enabled' => 'required|boolean',
-            'penalty' => 'required|boolean',
+            'value' => $unit === 'time'
+                ? ['required', 'date_format:H:i']
+                : ['required', 'integer', "min:{$min}", "max:{$max}"],
+            'enabled' => 'nullable|boolean',
+            'penalty' => 'nullable|boolean',
             'amount' => 'nullable|numeric|min:0|max:100000000',
             'ladder' => 'nullable|string|max:200|regex:/^\s*\d+(\s*,\s*\d+){0,9}\s*$/',
         ], [
             'ladder.regex' => 'Bậc phạt nhập các số tiền cách nhau bởi dấu phẩy, ví dụ: 0, 30000, 60000.',
             'value.required' => 'Vui lòng nhập ngưỡng SLA.',
-            'value.min' => 'Ngưỡng SLA tối thiểu là 1.',
-            'value.max' => $unit === 'hours' ? 'Ngưỡng SLA tối đa 720 giờ (30 ngày).' : 'Số lần tối đa là 20.',
+            'value.date_format' => 'Giờ không hợp lệ (định dạng HH:MM).',
+            'value.min' => 'Ngưỡng SLA tối thiểu là '.Sla::formatValue($min, $unit).'.',
+            'value.max' => 'Ngưỡng SLA tối đa là '.Sla::formatValue($max, $unit).'.',
         ]);
 
+        $value = $unit === 'time'
+            ? ((int) substr($validated['value'], 0, 2)) * 60 + (int) substr($validated['value'], 3, 2)
+            : (int) $validated['value'];
+
         SlaSetting::updateOrCreate(['rule_key' => $key], [
-            'value' => $validated['value'],
-            'enabled' => $validated['enabled'],
-            'penalty' => $validated['penalty'],
-            'amount' => $validated['amount'] ?? 0,
+            'value' => $value,
+            // SLA luôn áp dụng (switchable = false) / không có biên bản: không lưu bật tắt tương ứng.
+            'enabled' => ($default['switchable'] ?? true) ? (bool) ($validated['enabled'] ?? false) : null,
+            'penalty' => $hasPenalty ? (bool) ($validated['penalty'] ?? false) : null,
+            'amount' => $hasPenalty ? ($validated['amount'] ?? 0) : null,
             'ladder' => filled($validated['ladder'] ?? null) ? array_map('intval', preg_split('/\s*,\s*/', trim($validated['ladder']))) : null,
             'updated_by' => $request->user()->id,
         ]);
         Sla::forget();
 
-        return back()->with('status', 'Đã lưu cấu hình SLA "'.Sla::defaults()[$key]['label'].'". Áp dụng cho mốc phát sinh từ bây giờ.');
+        return back()->with('status', 'Đã lưu cấu hình SLA "'.$default['label'].'". Áp dụng cho mốc phát sinh từ bây giờ.');
     }
 
     public function updateSlaSettings(Request $request)

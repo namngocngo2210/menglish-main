@@ -575,6 +575,7 @@ class TeacherPortalController extends Controller
 
         return Inertia::render('Teacher/Attendance', [
             'classroom' => ['id' => $class->id, 'name' => $class->name, 'branch_name' => $class->branch?->name],
+            'windowHours' => ClassSession::attendanceWindowHours(),
             'session' => $session ? [
                 'id' => $session->id,
                 'date' => $session->date->format('d/m/Y'),
@@ -771,7 +772,10 @@ class TeacherPortalController extends Controller
     }
 
     /** Thông báo khi GV điểm danh ngoài khung ±24h quanh giờ bắt đầu buổi (Học vụ record_any không bị chặn). */
-    private const OUTSIDE_ATTENDANCE_WINDOW = 'Ngoài khung ±24h so với giờ bắt đầu buổi học — liên hệ Học vụ để điểm danh.';
+    public static function outsideAttendanceWindowMessage(): string
+    {
+        return 'Ngoài khung ±'.ClassSession::attendanceWindowHours().'h so với giờ bắt đầu buổi học — liên hệ Học vụ để điểm danh.';
+    }
 
     /** Người này có bị giới hạn khung ±24h không (GV/TA tự điểm danh; Học vụ/Admin có record_any thì bỏ qua). */
     private function attendanceWindowReason(ClassSession $session, ClassModel $class): ?string
@@ -781,7 +785,7 @@ class TeacherPortalController extends Controller
             return null;
         }
 
-        return $session->withinTeacherAttendanceWindow() ? null : self::OUTSIDE_ATTENDANCE_WINDOW;
+        return $session->withinTeacherAttendanceWindow() ? null : self::outsideAttendanceWindowMessage();
     }
 
     private function attendanceBlockReason(ClassSession $session, bool $teacherWindow = false): ?string
@@ -1404,7 +1408,7 @@ class TeacherPortalController extends Controller
                 'label' => $asg->stage?->label ?? $asg->stage_name,
                 'closed_at' => $asg->closed_at?->format('d/m/Y'),
             ])->values()->all(),
-            'leadDays' => BigTestOrder::LEAD_DAYS,
+            'leadDays' => BigTestOrder::leadDays(),
             'today' => now()->toDateString(),
             'requests' => $requests->map(fn (BigTestOrder $req) => [
                 'id' => $req->id,
@@ -1461,8 +1465,8 @@ class TeacherPortalController extends Controller
             'exam_date' => $examDate,
             // Hạn xử lý: đề phải phân phối trước ngày thi N ngày; không có ngày thi thì trong 3 ngày làm việc.
             'due_date' => $examDate
-                ? $examDate->copy()->subDays(BigTestOrder::LEAD_DAYS)->max(today())
-                : today()->addDays(BigTestOrder::LEAD_DAYS),
+                ? $examDate->copy()->subDays(BigTestOrder::leadDays())->max(today())
+                : today()->addDays(BigTestOrder::leadDays()),
             'note' => $validated['note'] ?? null,
             'status' => 'pending',
         ]);

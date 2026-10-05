@@ -86,11 +86,14 @@ class PayrollPeriod extends Model
     /**
      * Lịch chốt lương (chủ dự án chốt):
      * - chốt KPI: ngày cuối tháng của kỳ;
-     * - chốt công + chốt lỗi: hết ngày cuối tháng + 2 ngày → sau mốc này mới duyệt (chốt) bảng lương;
+     * - chốt công + chốt lỗi: hết ngày cuối tháng + N ngày (SLA payroll.close_after, mặc định 2) → sau mốc này mới duyệt (chốt) bảng lương;
      * - trả lương: ngày 10–15 tháng sau.
      * Chỉ là mốc lịch — không thay thế khóa theo trạng thái (isLockedFor) và không chặn "Đồng bộ & Tính lại".
      */
-    public const CLOSE_AFTER_DAYS = 2;
+    public static function closeAfterDays(): int
+    {
+        return \App\Services\Sla\Sla::value('payroll.close_after');
+    }
 
     public const PAY_DAY_FROM = 10;
 
@@ -103,7 +106,7 @@ class PayrollPeriod extends Model
 
     public function attendanceCloseAt(): Carbon
     {
-        return Carbon::parse($this->end_date)->addDays(self::CLOSE_AFTER_DAYS)->endOfDay();
+        return Carbon::parse($this->end_date)->addDays(self::closeAfterDays())->endOfDay();
     }
 
     public function violationCloseAt(): Carbon
@@ -144,6 +147,7 @@ class PayrollPeriod extends Model
             'attendance_close_on' => $this->attendanceCloseAt()->format('d/m/Y'),
             'violation_close_on' => $this->violationCloseAt()->format('d/m/Y'),
             'approve_from' => $this->attendanceCloseAt()->addDay()->format('d/m/Y'),
+            'close_after_days' => self::closeAfterDays(),
             'pay_from' => $payFrom->format('d/m/Y'),
             'pay_to' => $payTo->format('d/m/Y'),
             'can_approve' => $this->canApproveAt(),

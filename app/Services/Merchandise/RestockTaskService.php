@@ -17,8 +17,11 @@ use App\Services\BranchStaff;
  */
 class RestockTaskService
 {
-    /** Số ngày Admin có để nhập bù kể từ khi kho hết. */
-    public const DUE_DAYS = 2;
+    /** Số ngày Admin có để nhập bù kể từ khi kho hết (SLA stock.restock_task). */
+    public static function dueDays(): int
+    {
+        return \App\Services\Sla\Sla::value('stock.restock_task');
+    }
 
     public function sync(MerchandiseStockMovement $movement): void
     {
@@ -64,7 +67,7 @@ class RestockTaskService
             return;
         }
 
-        $due = now()->addDays(self::DUE_DAYS);
+        $due = now()->addDays(self::dueDays());
         $title = "Nhập bù sách: {$item->name} — {$branch->name}";
         $task = WorkTask::create([
             'title' => $title,

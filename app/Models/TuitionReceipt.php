@@ -52,8 +52,11 @@ class TuitionReceipt extends Model
     /** Trạng thái giữ chỗ mã giao dịch ngân hàng (transfer_reference) để không ghi nhận 2 lần. */
     public const REFERENCE_HOLDING_STATUSES = [self::STATUS_PENDING, self::STATUS_APPROVED];
 
-    /** Hạn nộp tiền thu trong ngày về tài khoản công ty (giờ hệ thống, cùng ngày thu). */
-    public const DEPOSIT_CUTOFF = '19:00';
+    /** Hạn nộp tiền thu trong ngày về tài khoản công ty (giờ hệ thống, cùng ngày thu) — SLA tuition.cash_deposit, mặc định 19:00. */
+    public static function depositCutoff(): string
+    {
+        return \App\Services\Sla\Sla::time('tuition.cash_deposit');
+    }
 
     protected $table = 'tuition_receipts';
 
@@ -157,7 +160,7 @@ class TuitionReceipt extends Model
     /** Thời điểm hết hạn nộp tiền: 19:00 của ngày thu. */
     public function depositDeadline(): ?\Carbon\CarbonInterface
     {
-        return $this->payment_date?->copy()->setTimeFromTimeString(self::DEPOSIT_CUTOFF);
+        return $this->payment_date?->copy()->setTimeFromTimeString(self::depositCutoff());
     }
 
     /** Đã nộp nhưng sau hạn, hoặc chưa nộp mà đã qua hạn. */

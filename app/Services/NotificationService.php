@@ -15,6 +15,7 @@ use App\Models\SystemSetting;
 use App\Models\TicketMessage;
 use App\Models\TuitionReceipt;
 use App\Models\User;
+use App\Services\Sla\Sla;
 use App\Support\Money;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -23,16 +24,10 @@ use Illuminate\Support\Str;
 
 class NotificationService
 {
-    /** Số ngày không có hoạt động chăm sóc thì coi là khách bị bỏ quên (mặc định; cấu hình qua system_settings). */
-    public const DEFAULT_NEGLECT_DAYS = 3;
-
-    public const NEGLECT_SETTING_KEY = 'crm_neglect_days';
-
+    /** Số ngày không có hoạt động chăm sóc thì coi là khách bị bỏ quên (SLA crm.follow_up, trang Cấu hình SLA). */
     public function neglectThresholdDays(): int
     {
-        $days = (int) SystemSetting::get(self::NEGLECT_SETTING_KEY, self::DEFAULT_NEGLECT_DAYS);
-
-        return $days > 0 ? $days : self::DEFAULT_NEGLECT_DAYS;
+        return Sla::value('crm.follow_up');
     }
 
     /**
@@ -45,7 +40,7 @@ class NotificationService
      */
     public function scanAndSyncStaleLeads(): int
     {
-        return $this->scanNewStaleLeads() + $this->scanNeglectedActiveLeads();
+        return $this->scanNewStaleLeads() + (Sla::enabled('crm.follow_up') ? $this->scanNeglectedActiveLeads() : 0);
     }
 
     protected function scanNeglectedActiveLeads(): int

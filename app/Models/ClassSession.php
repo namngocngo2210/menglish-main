@@ -62,14 +62,20 @@ class ClassSession extends Model
         $this->attributes['end_time'] = self::normalizeTime($value);
     }
 
-    /** Chấm công dạy (check-in) phải làm trong vòng 24h kể từ GIỜ BẮT ĐẦU buổi; quá hạn GV mất công trừ khi Học vụ xác nhận. */
-    public const CHECKIN_WINDOW_HOURS = 24;
+    /** Chấm công dạy (check-in) phải làm trong vòng N giờ (SLA gv.checkin_window, mặc định 24h) kể từ GIỜ BẮT ĐẦU buổi; quá hạn GV mất công trừ khi Học vụ xác nhận. */
+    public static function checkinWindowHours(): int
+    {
+        return \App\Services\Sla\Sla::value('gv.checkin_window');
+    }
 
     /** Cảnh báo GV khi cửa sổ check-in còn dưới số phút này. */
     public const CHECKIN_WARNING_MINUTES = 15;
 
-    /** Điểm danh học sinh của GV chỉ mở trong ±24h quanh giờ bắt đầu buổi (Học vụ có attendance_student.record_any thì không giới hạn). */
-    public const ATTENDANCE_WINDOW_HOURS = 24;
+    /** Điểm danh học sinh của GV chỉ mở trong ±N giờ (SLA gv.attendance_window, mặc định 24h) quanh giờ bắt đầu buổi (Học vụ có attendance_student.record_any thì không giới hạn). */
+    public static function attendanceWindowHours(): int
+    {
+        return \App\Services\Sla\Sla::value('gv.attendance_window');
+    }
 
     /** Thời điểm bắt đầu buổi (ngày buổi + giờ bắt đầu). */
     public function startsAt(): \Illuminate\Support\Carbon
@@ -77,19 +83,20 @@ class ClassSession extends Model
         return \Illuminate\Support\Carbon::parse($this->date->format('Y-m-d').' '.($this->start_time?->format('H:i') ?? '00:00'));
     }
 
-    /** Hạn chót check-in = giờ bắt đầu + 24h. */
+    /** Hạn chót check-in = giờ bắt đầu + checkinWindowHours(). */
     public function checkinDeadline(): \Illuminate\Support\Carbon
     {
-        return $this->startsAt()->addHours(self::CHECKIN_WINDOW_HOURS);
+        return $this->startsAt()->addHours(self::checkinWindowHours());
     }
 
-    /** Cửa sổ điểm danh của GV: [bắt đầu − 24h, bắt đầu + 24h]. */
+    /** Cửa sổ điểm danh của GV: [bắt đầu − N giờ, bắt đầu + N giờ] (N = attendanceWindowHours()). */
     public function withinTeacherAttendanceWindow(?\Carbon\CarbonInterface $now = null): bool
     {
         $now ??= now();
         $start = $this->startsAt();
+        $hours = self::attendanceWindowHours();
 
-        return $now->gte($start->copy()->subHours(self::ATTENDANCE_WINDOW_HOURS)) && $now->lte($start->copy()->addHours(self::ATTENDANCE_WINDOW_HOURS));
+        return $now->gte($start->copy()->subHours($hours)) && $now->lte($start->copy()->addHours($hours));
     }
 
     /** Tên phòng để hiển thị: "Phòng P101"; tên đã có chữ "Phòng" (vd. "Phòng bổ trợ") giữ nguyên; chưa có phòng → null. */

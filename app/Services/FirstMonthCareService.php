@@ -10,6 +10,7 @@ use App\Models\Student;
 use App\Models\StudentAttendance;
 use App\Models\User;
 use App\Models\WorkTask;
+use App\Services\Sla\Sla;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -148,12 +149,12 @@ class FirstMonthCareService
     }
 
     /**
-     * Hạn (SLA) việc chăm sóc: mốc theo buổi → ngày hôm sau buổi đó; mốc 30 ngày → đúng ngày đủ 30 ngày. Mốc phát hiện
+     * Hạn (SLA care.first_month) việc chăm sóc: mốc theo buổi → N ngày sau buổi đó (mặc định 1 = hôm sau); mốc 30 ngày → đúng ngày đủ 30 ngày. Mốc phát hiện
      * muộn (điểm danh bù, lệnh bị lỡ) → hạn không sớm hơn ngày phát hiện, để người nhận luôn còn thời gian làm.
      */
     private function dueDate(int $milestone, Carbon $trigger, ?Carbon $detectedOn = null): Carbon
     {
-        $due = $milestone === self::MILESTONE_DAY_30 ? $trigger->copy() : $trigger->copy()->addDay();
+        $due = $milestone === self::MILESTONE_DAY_30 ? $trigger->copy() : $trigger->copy()->addDays(Sla::value('care.first_month'));
 
         return $detectedOn && $due->lessThan($detectedOn) ? $detectedOn->copy()->startOfDay() : $due;
     }
@@ -274,8 +275,13 @@ class FirstMonthCareService
      */
     public function enforceSla(?Carbon $now = null): int
     {
+        if (! Sla::enabled('care.first_month')) {
+            return 0;
+        }
         $now ??= now();
         $count = 0;
+        $penalize = Sla::penalizes('care.first_month');
+        $amount = (float) Sla::rule('care.first_month')['amount'];
 
         $tasks = WorkTask::with(['student', 'assignee'])
             ->whereNotNull('care_milestone')
@@ -294,7 +300,25 @@ class FirstMonthCareService
                 continue; // Mốc đã tick bên CRM → coi như đã chăm sóc.
             }
 
-            $penalty = DB::transaction(function () use ($task, $now) {
+            if (! $penalize) {
+                // Tắt tự lập biên bản: chỉ báo người được giao + Admin, đánh dấu để không báo lại.
+                $task->update(['sla_breached_at' => $now]);
+                foreach (collect([$task->assignee_id])->merge(BranchStaff::admins()->pluck('id'))->filter()->unique() as $userId) {
+                    AdminNotification::create([
+                        'user_id' => $userId,
+                        'type' => 'care_overdue',
+                        'title' => 'Quá hạn chăm sóc: '.($task->student?->name ?? 'học viên').' ('.self::milestoneShortLabel((int) $task->care_milestone).')',
+                        'message' => $task->title.' — hạn '.$task->due_date->format('d/m/Y').', chưa hoàn thành.',
+                        'data' => ['link' => $task->student_id ? route('students.show', $task->student_id) : route('tasks.index'), 'task_id' => $task->id, 'student_id' => $task->student_id],
+                        'is_read' => false,
+                    ]);
+                }
+                $count++;
+
+                continue;
+            }
+
+            $penalty = DB::transaction(function () use ($task, $now, $amount) {
                 $penalty = Penalty::create([
                     'code' => Penalty::generateCode(),
                     'user_id' => $task->assignee_id,
@@ -303,7 +327,7 @@ class FirstMonthCareService
                     'violation_type' => 'Quá hạn SLA chăm sóc học viên tháng đầu ('.self::milestoneShortLabel((int) $task->care_milestone).')',
                     'error_category' => 'operations',
                     'violation_date' => $task->due_date->toDateString(),
-                    'amount' => 0,
+                    'amount' => $amount,
                     'reporter_id' => null,
                     'status' => 'pending',
                     'notes' => $task->title.' — hạn '.$task->due_date->format('d/m/Y').', chưa hoàn thành.',

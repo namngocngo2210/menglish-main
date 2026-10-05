@@ -73,7 +73,7 @@ class UserController extends Controller
                 'active' => $query->where('is_active', true)->whereNull('locked_at'),
                 'locked' => $query->where(fn ($q) => $q->where('is_active', false)->orWhereNotNull('locked_at')),
                 'contract_expiring' => $query->whereNotNull('contract_end_date')
-                    ->whereDate('contract_end_date', '<=', now()->addDays(User::CONTRACT_WARNING_DAYS)->toDateString()),
+                    ->whereDate('contract_end_date', '<=', now()->addDays(User::contractWarningDays())->toDateString()),
                 default => null,
             };
         }
@@ -107,7 +107,7 @@ class UserController extends Controller
 
         $expiringContracts = $scope(User::query())
             ->whereNotNull('contract_end_date')
-            ->whereDate('contract_end_date', '<=', now()->addDays(User::CONTRACT_WARNING_DAYS)->toDateString())
+            ->whereDate('contract_end_date', '<=', now()->addDays(User::contractWarningDays())->toDateString())
             ->where('is_active', true)
             ->whereNull('locked_at')
             ->count();
@@ -139,7 +139,7 @@ class UserController extends Controller
                 'locked' => $lockedStaff,
             ],
             'expiringContracts' => $expiringContracts,
-            'contractWarningDays' => User::CONTRACT_WARNING_DAYS,
+            'contractWarningDays' => User::contractWarningDays(),
             'branches' => Ui::options($branches, 'name'),
             'roles' => Ui::options($roles->mapWithKeys(fn ($r) => [$r => AclHelper::shortRoleLabel($r)])),
             'statuses' => Ui::options(['active' => 'Đang hoạt động', 'locked' => 'Vô hiệu hóa', 'contract_expiring' => 'HĐ sắp/đã hết hạn']),

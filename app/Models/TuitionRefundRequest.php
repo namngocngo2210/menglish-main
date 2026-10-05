@@ -89,8 +89,11 @@ class TuitionRefundRequest extends Model
     /** Ổ lưu ảnh bằng chứng hoàn tiền (riêng tư, xem qua route kiểm tra quyền). */
     public const PROOF_DISK = 'local';
 
-    /** Số ngày xử lý tối đa (A6 "Hoàn phí": trong 1 tuần và trong cùng tháng phát sinh). */
-    public const PROCESSING_DAYS = 7;
+    /** Số ngày xử lý tối đa (A6 "Hoàn phí": trong 1 tuần và trong cùng tháng phát sinh) — SLA tuition.refund_processing. */
+    public static function processingDays(): int
+    {
+        return \App\Services\Sla\Sla::value('tuition.refund_processing');
+    }
 
     public function getTypeLabelAttribute(): string
     {
@@ -104,12 +107,12 @@ class TuitionRefundRequest extends Model
     }
 
     /**
-     * Hạn xử lý = min(ngày lập + 7 ngày, ngày cuối tháng lập) — để khớp sổ sách trong tháng.
+     * Hạn xử lý = min(ngày lập + processingDays() ngày, ngày cuối tháng lập) — để khớp sổ sách trong tháng.
      * Trả về cuối ngày hạn; null nếu loại hồ sơ không có hạn.
      */
     public static function deadlineFor(CarbonInterface $createdAt): CarbonInterface
     {
-        $week = $createdAt->copy()->addDays(self::PROCESSING_DAYS)->endOfDay();
+        $week = $createdAt->copy()->addDays(self::processingDays())->endOfDay();
         $monthEnd = $createdAt->copy()->endOfMonth();
 
         return $week->lt($monthEnd) ? $week : $monthEnd;

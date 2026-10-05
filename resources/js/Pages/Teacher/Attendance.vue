@@ -24,6 +24,8 @@ const props = defineProps({
     attendanceWindow: { type: String, default: null },
     rosterSize: { type: Number, default: 0 },
     trialGuests: { type: Object, default: () => ({ scope: 'upcoming', items: [] }) },
+    // Khung điểm danh của GV (giờ, SLA gv.attendance_window trên trang Cấu hình SLA).
+    windowHours: { type: Number, default: 24 },
 });
 
 const OPTIONS = {
@@ -117,9 +119,9 @@ function pickSession(event) {
                         <span v-if="attendanceWindow !== 'closed'" class="absolute inline-flex h-full w-full animate-ping rounded-full bg-tertiary-container opacity-60"></span>
                         <span :class="['relative inline-flex h-3 w-3 rounded-full', attendanceWindow === 'closed' ? 'bg-warning' : 'bg-tertiary-container']"></span>
                     </span>
-                    <span class="font-body-medium text-body-medium text-on-surface">{{ windowReason ? 'Ngoài khung ±24h — không thể điểm danh' : (attendanceWindow === 'closed' ? 'Ngoài cửa sổ 24h — Học vụ điểm danh bù' : 'Đang trong cửa sổ điểm danh') }}</span>
+                    <span class="font-body-medium text-body-medium text-on-surface">{{ windowReason ? `Ngoài khung ±${windowHours}h — không thể điểm danh` : (attendanceWindow === 'closed' ? `Ngoài cửa sổ ${windowHours}h — Học vụ điểm danh bù` : 'Đang trong cửa sổ điểm danh') }}</span>
                     <span class="font-caption text-caption text-on-surface-variant">
-                        Quy định: Buổi học ±24 giờ{{ attendanceWindow === 'closed' ? ' · Học vụ sẽ rà soát' : '' }}{{ session.is_past ? ' · Điểm danh bù cho buổi đã qua ngày ' + session.date : '' }}
+                        Quy định: Buổi học ±{{ windowHours }} giờ{{ attendanceWindow === 'closed' ? ' · Học vụ sẽ rà soát' : '' }}{{ session.is_past ? ' · Điểm danh bù cho buổi đã qua ngày ' + session.date : '' }}
                     </span>
                     <span class="ml-auto inline-flex items-center gap-xs font-caption text-caption font-semibold text-primary">
                         Xem quy định<span class="material-symbols-outlined text-[16px] transition-transform group-open:rotate-180" aria-hidden="true">expand_more</span>
@@ -130,7 +132,7 @@ function pickSession(event) {
                     <ul class="list-disc space-y-xs pl-md">
                         <li>Người điểm danh được ghi nhận tự động theo tài khoản đang đăng nhập (GV chính/GVNN/Trợ giảng).</li>
                         <li>Khi chọn <strong>"Nghỉ có phép"</strong> hoặc <strong>"Nghỉ không phép"</strong>, ô <strong>Ghi chú là bắt buộc</strong> để lưu trữ lý do vắng học của học viên.</li>
-                        <li>Giáo viên chỉ điểm danh trong khung ±24h quanh giờ bắt đầu buổi học (cập nhật lại được nhiều lần); ngoài khung này chỉ Học vụ điểm danh bù. Không điểm danh không làm mất công dạy.</li>
+                        <li>Giáo viên chỉ điểm danh trong khung ±{{ windowHours }}h quanh giờ bắt đầu buổi học (cập nhật lại được nhiều lần); ngoài khung này chỉ Học vụ điểm danh bù. Không điểm danh không làm mất công dạy.</li>
                     </ul>
                 </div>
             </details>

@@ -211,12 +211,15 @@ class User extends Authenticatable
         return ! $this->is_active || $this->locked_at !== null;
     }
 
-    /** Số ngày trước khi hết hạn hợp đồng bắt đầu cảnh báo. */
-    public const CONTRACT_WARNING_DAYS = 30;
+    /** Số ngày trước khi hết hạn hợp đồng bắt đầu cảnh báo (SLA hr.contract_warning). */
+    public static function contractWarningDays(): int
+    {
+        return \App\Services\Sla\Sla::value('hr.contract_warning');
+    }
 
     /**
      * Trạng thái hợp đồng để cảnh báo: 'expired' (đã hết hạn), 'expiring'
-     * (hết hạn trong CONTRACT_WARNING_DAYS ngày tới) hoặc null.
+     * (hết hạn trong contractWarningDays() ngày tới) hoặc null.
      */
     public function contractExpiryStatus(): ?string
     {
@@ -231,7 +234,7 @@ class User extends Authenticatable
             return 'expired';
         }
 
-        return $end->lte($today->copy()->addDays(self::CONTRACT_WARNING_DAYS)) ? 'expiring' : null;
+        return $end->lte($today->copy()->addDays(self::contractWarningDays())) ? 'expiring' : null;
     }
 
     /**

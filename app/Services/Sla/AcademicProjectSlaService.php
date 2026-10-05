@@ -20,7 +20,6 @@ class AcademicProjectSlaService
 {
     private const SINCE_KEY = 'sla_academic_project_live_since';
 
-    private const REMIND_HOURS = 24;
 
     public function __construct(private SlaBreachService $breaches) {}
 
@@ -101,17 +100,21 @@ class AcademicProjectSlaService
         return $count;
     }
 
-    /** Nhắc người nhận mốc trước hạn 24 giờ (một lần; đổi hạn thì nhắc lại). */
+    /** Nhắc người nhận mốc trước hạn N giờ (SLA academic.milestone_remind, mặc định 24h; một lần; đổi hạn thì nhắc lại). */
     private function remind(Carbon $now): int
     {
+        if (! Sla::enabled('academic.milestone_remind')) {
+            return 0;
+        }
         $count = 0;
+        $hours = Sla::value('academic.milestone_remind');
 
         $this->activeMilestones()->with('project')
             ->where('status', '!=', 'done')->whereNull('reminded_at')->whereNotNull('assignee_id')
             ->whereDate('due_date', '>=', $now->toDateString())
-            ->whereDate('due_date', '<=', $now->copy()->addHours(self::REMIND_HOURS)->toDateString())
-            ->each(function (AcademicProjectMilestone $milestone) use ($now, &$count) {
-                if ($milestone->dueAt()->copy()->subHours(self::REMIND_HOURS)->gt($now) || $milestone->dueAt()->lt($now)) {
+            ->whereDate('due_date', '<=', $now->copy()->addHours($hours)->toDateString())
+            ->each(function (AcademicProjectMilestone $milestone) use ($now, $hours, &$count) {
+                if ($milestone->dueAt()->copy()->subHours($hours)->gt($now) || $milestone->dueAt()->lt($now)) {
                     return;
                 }
                 AdminNotification::create([

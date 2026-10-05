@@ -13,6 +13,7 @@ const props = defineProps({
     defaultBranchId: { type: Number, default: null },
     classes: { type: Array, default: () => [] },
     startOfMonthDay: { type: Number, default: 5 },
+    dayBeforeCutoff: { type: String, default: '15:00' },
     asModal: { type: Boolean, default: false },
 });
 
@@ -26,13 +27,16 @@ const classOptions = computed(() => props.classes.filter((c) => !branchId.value 
 const dueAt = computed(() => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(useDate.value)) return null;
     const [y, m, d] = useDate.value.split('-').map(Number);
-    if (['props', 'printing'].includes(category.value)) return new Date(y, m - 1, d - 1, 15, 0);
+    if (['props', 'printing'].includes(category.value)) {
+        const [hh, mm] = props.dayBeforeCutoff.split(':').map(Number);
+        return new Date(y, m - 1, d - 1, hh, mm);
+    }
     return new Date(y, m - 1, Math.min(props.startOfMonthDay, new Date(y, m, 0).getDate()), 23, 59);
 });
 const isLate = computed(() => dueAt.value !== null && dueAt.value < new Date());
 const rule = computed(() =>
     ['props', 'printing'].includes(category.value)
-        ? 'Học vụ xử lý trước 15:00 ngày hôm trước ngày sử dụng.'
+        ? `Học vụ xử lý trước ${props.dayBeforeCutoff} ngày hôm trước ngày sử dụng.`
         : category.value === 'academic'
           ? `Trưởng Học thuật xử lý đầu tháng — hạn 23:59 ngày ${props.startOfMonthDay} của tháng sử dụng.`
           : `Học vụ xử lý đầu tháng — hạn 23:59 ngày ${props.startOfMonthDay} của tháng sử dụng.`,
