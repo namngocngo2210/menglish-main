@@ -1373,7 +1373,7 @@ class WorkTaskController extends Controller
      */
     private function assignableUsers(User $user)
     {
-        $query = User::where('is_active', true)->whereNull('locked_at')->orderBy('name');
+        $query = User::with('roles')->staffAccounts()->where('is_active', true)->whereNull('locked_at')->orderBy('name');
 
         if (! $user->can('work_task.create')) {
             // Đề xuất ngược (GV / TA): chỉ giao cho người có quyền duyệt công việc.

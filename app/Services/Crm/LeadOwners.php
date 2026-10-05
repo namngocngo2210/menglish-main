@@ -24,7 +24,7 @@ class LeadOwners
     public static function candidates(?array $branchIds = null): Collection
     {
         return Rbac::scopeUsersWithPermission(User::query()->where('is_active', true), 'lead.be_assigned')
-            ->with(['branch:id,name', 'branches:id,name'])
+            ->with(['branch:id,name', 'branches:id,name', 'roles.permissions', 'permissions', 'permissionOverrides'])
             ->orderBy('name')
             ->get(['id', 'name', 'email', 'branch_id', 'is_active'])
             ->filter(fn (User $user) => $branchIds === null || self::coversAll($user) || array_intersect($branchIds, $user->branchIds()) !== [])
