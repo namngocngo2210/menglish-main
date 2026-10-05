@@ -70,8 +70,8 @@ class DeployHookTest extends TestCase
     {
         $token = str_repeat('e', 64);
         config(['app.deploy_hook_token' => $token]);
-        putenv('INITIAL_ADMIN_EMAIL=owner@meducation.vn');
-        putenv('INITIAL_ADMIN_PASSWORD=Very-Strong-Pass-123');
+        // Deploy hook chạy khi config đã cache: giá trị khởi tạo đọc qua config, không qua env().
+        config(['app.initial_admin.email' => 'owner@meducation.vn', 'app.initial_admin.password' => 'Very-Strong-Pass-123']);
         $this->app['env'] = 'production';
 
         $this->post('/_deploy/hook', ['seed' => 'bootstrap'], ['X-Deploy-Token' => $token])->assertOk();
@@ -102,8 +102,5 @@ class DeployHookTest extends TestCase
         $again = $this->post('/_deploy/hook', ['seed' => 'bootstrap'], ['X-Deploy-Token' => $token]);
         $this->assertStringContainsString('đã có người dùng', collect($again->json('steps'))->firstWhere('command', 'db:seed')['output']);
         $this->assertSame(1, \App\Models\User::count());
-
-        putenv('INITIAL_ADMIN_EMAIL');
-        putenv('INITIAL_ADMIN_PASSWORD');
     }
 }

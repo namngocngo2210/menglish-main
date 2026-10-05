@@ -21,8 +21,8 @@ class ProductionBootstrapSeeder extends Seeder
 {
     public function run(): void
     {
-        $email = trim((string) env('INITIAL_ADMIN_EMAIL', ''));
-        $password = (string) env('INITIAL_ADMIN_PASSWORD', '');
+        $email = trim((string) config('app.initial_admin.email'));
+        $password = (string) config('app.initial_admin.password');
         if ($email === '' || strlen($password) < 10) {
             throw new RuntimeException('Cần INITIAL_ADMIN_EMAIL và INITIAL_ADMIN_PASSWORD (tối thiểu 10 ký tự) trong .env.');
         }
@@ -34,7 +34,7 @@ class ProductionBootstrapSeeder extends Seeder
         ]);
 
         $admin = User::firstOrCreate(['email' => $email], [
-            'name' => (string) env('INITIAL_ADMIN_NAME', 'Quản trị hệ thống'),
+            'name' => (string) (config('app.initial_admin.name') ?: 'Quản trị hệ thống'),
             'password' => Hash::make($password),
             'is_active' => true,
         ]);

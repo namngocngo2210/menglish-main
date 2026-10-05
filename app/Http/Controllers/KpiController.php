@@ -227,11 +227,15 @@ class KpiController extends Controller
         $staff = $this->scopedStaff(User::query())->findOrFail($userId);
         [$month, $year] = $this->monthYear($request);
 
-        $criteria = KpiCriterion::active()->ordered()->get();
         $fund = KpiCriterion::fund();
         $isAcademicStaff = StaffType::usesAcademicStaffKpi($staff);
         $evaluation = KpiEvaluation::with(['items', 'evaluator'])
             ->where('user_id', $userId)->where('month', $month)->where('year', $year)->first();
+        // Phiếu tháng cũ chấm theo bộ tiêu chí trước đây: hiện đúng các tiêu chí đã chấm.
+        $criteria = KpiCriterion::active()->ordered()->get();
+        if ($evaluation) {
+            $criteria = $evaluation->scoredCriteria($criteria)['criteria'];
+        }
         $scores = $evaluation ? $evaluation->items->keyBy('kpi_criterion_id') : collect();
         $isSelf = $userId === (int) $request->user()->id;
 
@@ -423,6 +427,7 @@ class KpiController extends Controller
     public function attendanceReview(Request $request): InertiaResponse
     {
         $this->guard();
+        $request->validate(['date' => ['nullable', 'date']]);
         $date = $request->input('date', now()->toDateString());
         $classId = $request->input('class_id');
 

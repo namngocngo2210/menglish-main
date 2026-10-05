@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 
 class KpiEvaluation extends Model
 {
@@ -41,6 +42,24 @@ class KpiEvaluation extends Model
     public function items(): HasMany
     {
         return $this->hasMany(KpiEvaluationItem::class);
+    }
+
+    /**
+     * Bộ tiêu chí phiếu này đã được chấm theo. Thường là bộ đang áp dụng ($active); phiếu chấm theo bộ cũ (tiêu chí đã
+     * xóa mềm / ngừng dùng, vd sau khi đổi sang 15 tiêu chí mới) → các tiêu chí của chính phiếu, để phiếu đã chốt
+     * không bị tính lại thành 0.
+     *
+     * @param  Collection<int, KpiCriterion>  $active
+     * @return array{criteria: Collection<int, KpiCriterion>, legacy: bool}
+     */
+    public function scoredCriteria(Collection $active): array
+    {
+        $itemCriterionIds = $this->items->pluck('kpi_criterion_id')->map(fn ($id) => (int) $id);
+        if ($itemCriterionIds->isEmpty() || $itemCriterionIds->diff($active->modelKeys())->isEmpty()) {
+            return ['criteria' => $active, 'legacy' => false];
+        }
+
+        return ['criteria' => KpiCriterion::withTrashed()->whereIn('id', $itemCriterionIds)->ordered()->get(), 'legacy' => true];
     }
 
     /**

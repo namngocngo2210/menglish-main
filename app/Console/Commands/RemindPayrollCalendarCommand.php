@@ -40,7 +40,7 @@ class RemindPayrollCalendarCommand extends Command
             }
 
             $afterEnd = (int) $end->diffInDays($today, false);
-            if (in_array($afterEnd, [1, 2], true) && ! $period->isLocked()) {
+            if ($afterEnd >= 1 && $afterEnd <= PayrollPeriod::closeAfterDays() && ! $period->isLocked()) {
                 $closeOn = $period->attendanceCloseAt()->format('d/m');
                 $created += $this->notify($period, 'close_d'.$afterEnd,
                     ['attendance_staff.view', 'violation.confirm_fine', 'payroll.approve'],

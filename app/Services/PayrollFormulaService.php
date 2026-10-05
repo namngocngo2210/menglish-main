@@ -236,21 +236,24 @@ class PayrollFormulaService
             return ['amount' => 0.0, 'score' => null, 'fund' => $fund, 'evaluation_id' => null, 'items' => []];
         }
 
-        $criteria = KpiCriterion::active()->ordered()->get();
-        $weightTotal = (float) $criteria->sum('weight');
+        ['criteria' => $criteria, 'legacy' => $legacy] = $evaluation->scoredCriteria(KpiCriterion::active()->ordered()->get());
         $scores = $evaluation->items->keyBy('kpi_criterion_id');
-        $weighted = 0.0;
-        $items = [];
-        foreach ($criteria as $criterion) {
-            $score = (float) ($scores->get($criterion->id)?->score ?? 0);
-            $weighted += $score * (float) $criterion->weight;
-            $items[] = [
-                'code' => $criterion->code, 'group' => $criterion->group_name, 'name' => $criterion->name,
-                'weight' => (float) $criterion->weight, 'score' => $score,
-                'amount' => $weightTotal > 0 ? round($fund * (float) $criterion->weight / $weightTotal * $score / 100, 0) : 0,
-            ];
+        $points = $criteria->mapWithKeys(fn (KpiCriterion $c) => [$c->id => (float) ($scores->get($c->id)?->score ?? 0) * (float) $c->weight]);
+        if ($legacy) {
+            // Phiếu chấm theo bộ tiêu chí cũ: giữ đúng tổng điểm đã chốt, chia tiền từng mục theo tỉ lệ điểm × trọng số.
+            $score = round((float) $evaluation->total_score, 2);
+            $pointTotal = (float) $points->sum();
+            $amountOf = fn (KpiCriterion $c) => $pointTotal > 0 ? round($fund * $score / 100 * $points[$c->id] / $pointTotal, 0) : 0;
+        } else {
+            $weightTotal = (float) $criteria->sum('weight');
+            $score = $weightTotal > 0 ? round($points->sum() / $weightTotal, 2) : 0.0;
+            $amountOf = fn (KpiCriterion $c) => $weightTotal > 0 ? round($fund * $points[$c->id] / $weightTotal / 100, 0) : 0;
         }
-        $score = $weightTotal > 0 ? round($weighted / $weightTotal, 2) : 0.0;
+        $items = $criteria->map(fn (KpiCriterion $criterion) => [
+            'code' => $criterion->code, 'group' => $criterion->group_name, 'name' => $criterion->name,
+            'weight' => (float) $criterion->weight, 'score' => (float) ($scores->get($criterion->id)?->score ?? 0),
+            'amount' => $amountOf($criterion),
+        ])->values()->all();
 
         return [
             'amount' => round($fund * $score / 100, 0),

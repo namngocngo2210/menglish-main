@@ -14,7 +14,7 @@ use Spatie\Permission\PermissionRegistrar;
  *  - Vai trò đã bỏ ("Kế toán & Thu ngân", "Giáo viên giảng dạy") còn trên hệ thống → chuyển người đang giữ sang vai trò
  *    thay thế (Roles::RETIRED) rồi xóa vai trò. Hệ thống đã xóa tay hai vai trò này thì không làm gì.
  *  - Vai trò cố định bị thiếu (trên hệ thống đang chạy) → tạo lại với quyền mặc định ở config/access.php, để code dùng
- *    User::role(Roles::X) không gặp RoleDoesNotExist. Cài mới (chưa có quyền nào) thì để RoleSeeder lo.
+ *    User::role(Roles::X) không gặp RoleDoesNotExist. Cài mới (chưa có vai trò nào) thì để RoleSeeder lo.
  */
 return new class extends Migration
 {
@@ -37,7 +37,10 @@ return new class extends Migration
             $role->delete();
         }
 
-        if (Permission::query()->where('guard_name', 'web')->exists()) {
+        // Chỉ hệ thống đang chạy (đã có vai trò). Cài mới / database test: các migration trước đã tạo lẻ vài quyền
+        // (vd sla.configure) nên không dựa vào "đã có quyền" — tạo vai trò lúc này sẽ chỉ nhận vài quyền đó, rồi RoleSeeder
+        // (chỉ thêm vai trò còn thiếu) bỏ qua → vai trò mặc định thiếu gần hết quyền.
+        if (Role::query()->where('guard_name', 'web')->exists()) {
             $all = Permission::query()->where('guard_name', 'web')->pluck('name');
             foreach (Roles::ALL as $name) {
                 if (Role::query()->where('name', $name)->where('guard_name', 'web')->exists()) {

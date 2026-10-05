@@ -21,6 +21,7 @@ use App\Services\PayrollFormulaService;
 use App\Services\SalesCommissionService;
 use App\Support\DataScope;
 use App\Support\Money;
+use App\Support\ReportPeriod;
 use App\Support\Roles;
 use App\Support\Ui;
 use Illuminate\Contracts\Cache\LockTimeoutException;
@@ -904,8 +905,8 @@ class PayrollController extends Controller
         $canViewAll = $user->can('attendance_staff.view');
         abort_unless($canViewAll || $user->can('payroll.view_own'), 403);
 
-        $month = preg_match('/^\d{4}-\d{2}$/', (string) $request->query('month')) ? $request->query('month') : now()->format('Y-m');
-        $monthStart = Carbon::createFromFormat('Y-m-d', $month.'-01')->startOfDay();
+        $monthStart = ReportPeriod::parseMonth($request->query('month'))->startOfDay();
+        $month = $monthStart->format('Y-m');
         $monthEnd = $monthStart->copy()->endOfMonth();
         $status = in_array($request->query('status'), ['pending_review', 'valid', 'invalid'], true) ? $request->query('status') : null;
         // Loại ca (VD "sub" = danh sách buổi dạy thay chờ xác nhận — mockup 01_Web_Admin/11).
@@ -1244,6 +1245,7 @@ class PayrollController extends Controller
      */
     public function syncHistory(Request $request)
     {
+        $request->validate(['from' => ['nullable', 'date'], 'to' => ['nullable', 'date']]);
         $from = $request->filled('from') ? Carbon::parse($request->query('from'))->startOfDay() : null;
         $to = $request->filled('to') ? Carbon::parse($request->query('to'))->endOfDay() : null;
         $status = array_key_exists((string) $request->query('status'), TimesheetSyncLog::STATUS_LABELS) ? $request->query('status') : null;

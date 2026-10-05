@@ -167,7 +167,7 @@ class FinanceController extends Controller
         // Danh sách các tháng có thể chọn (6 tháng gần đây)
         $monthOptions = [];
         for ($i = 0; $i < 6; $i++) {
-            $dt = Carbon::now()->subMonths($i);
+            $dt = Carbon::now()->startOfMonth()->subMonths($i);
             $val = $dt->format('Y-m');
             $label = "Tháng {$dt->format('m/Y')}".($i === 0 ? ' (Hiện tại)' : '');
             $monthOptions[$val] = $label;
@@ -510,7 +510,7 @@ class FinanceController extends Controller
         // Month selector options
         $monthOptions = [];
         for ($i = 0; $i < 6; $i++) {
-            $dt = Carbon::now()->subMonths($i);
+            $dt = Carbon::now()->startOfMonth()->subMonths($i);
             $val = $dt->format('Y-m');
             $label = "Tháng {$dt->format('m/Y')}".($i === 0 ? ' (Hiện tại)' : '');
             $monthOptions[$val] = $label;
@@ -612,14 +612,14 @@ class FinanceController extends Controller
                 $bProfit = $bRevenue - $bExp;
                 $bMargin = $bRevenue > 0 ? round(($bProfit / $bRevenue) * 100, 1) : 0;
 
-                fputcsv($handle, [
+                fputcsv($handle, SpreadsheetCell::safeRow([
                     $b->name,
                     number_format($bRevenue, 0, ',', '.'),
                     number_format($bExp, 0, ',', '.'),
                     number_format($bProfit, 0, ',', '.'),
                     $bMargin.'%',
                     $this->branchMarginStatus($bMargin)['label'],
-                ]);
+                ]));
 
                 $sumRev += $bRevenue;
                 $sumExp += $bExp;

@@ -139,4 +139,23 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | Khởi tạo hệ thống (ProductionBootstrapSeeder / DatabaseSeeder)
+    |--------------------------------------------------------------------------
+    |
+    | Seeder chạy trong deploy hook khi config đã cache: lúc đó env() không đọc
+    | .env nữa, nên các giá trị khởi tạo phải đi qua config.
+    |
+    */
+
+    'initial_admin' => [
+        'email' => env('INITIAL_ADMIN_EMAIL', ''),
+        'password' => env('INITIAL_ADMIN_PASSWORD', ''),
+        'name' => env('INITIAL_ADMIN_NAME', 'Quản trị hệ thống'),
+    ],
+
+    'seed_demo' => (bool) env('SEED_DEMO', false),
+
 ];
