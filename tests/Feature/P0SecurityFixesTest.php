@@ -88,7 +88,8 @@ class P0SecurityFixesTest extends TestCase
     {
         $staff = $this->userWithRole('academic_staff');
         $manager = $this->userWithRole('manager');
-        $teacher = $this->userWithRole('teacher_parttime');
+        // Phạm vi "Của tôi" của Học vụ: chỉ sửa tài khoản do mình tạo.
+        $teacher = $this->userWithRole('teacher_parttime', ['created_by' => $staff->id]);
 
         $this->actingAs($staff)->put(route('users.update', $manager), [
             'name' => $manager->name, 'email' => $manager->email, 'branch_id' => $this->branch->id, 'role' => 'teacher_parttime',

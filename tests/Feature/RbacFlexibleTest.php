@@ -284,6 +284,7 @@ class RbacFlexibleTest extends TestCase
         $this->assertContains('admin', Rbac::assignableRoles($this->admin));
 
         $target = $this->makeUser('teacher_parttime');
+        $target->forceFill(['created_by' => $staff->id])->saveQuietly(); // Phạm vi "Của tôi": tài khoản do Học vụ tạo.
         $this->actingAs($staff)->put(route('users.roles.update', $target), ['roles' => ['manager']])->assertSessionHasErrors('role');
 
         // Admin cấp cho vai trò Học vụ quyền gán "Quản lý cơ sở" trên màn Vai trò → làm được, không cần sửa code.
@@ -297,6 +298,7 @@ class RbacFlexibleTest extends TestCase
         \App\Models\UserPermissionOverride::create(['user_id' => $staff->id, 'module' => 'user', 'action' => 'assign_role.admin', 'allow' => true, 'scope_type' => 'all']);
         $this->assertFalse(Rbac::canAssignRole($staff->fresh(), 'admin'));
         $other = $this->makeUser('teacher_parttime');
+        $other->forceFill(['created_by' => $staff->id])->saveQuietly();
         $this->actingAs($staff->fresh())->put(route('users.roles.update', $other), ['roles' => ['admin']])->assertSessionHasErrors('role');
         $this->actingAs($staff->fresh())->get(route('users.edit', $this->admin))->assertForbidden();
     }
