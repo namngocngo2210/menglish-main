@@ -317,9 +317,9 @@ class PenaltyController extends Controller
         if ($response = $this->rejectIfPayrollLocked($penalty)) {
             return $response;
         }
-        // Chủ dự án chốt: nộp phạt trong 2 ngày; quá hạn thì không nhận nộp trực tiếp — bảng lương sẽ trừ.
+        // Chủ dự án chốt: nộp phạt trong N ngày (SLA penalty.payment_due); quá hạn thì không nhận nộp trực tiếp — bảng lương sẽ trừ.
         if ($penalty->isOverdue()) {
-            $message = 'Quá hạn nộp phạt 2 ngày — khoản phạt sẽ trừ vào lương kỳ này.';
+            $message = 'Quá hạn nộp phạt '.Penalty::paymentDueDays().' ngày — khoản phạt sẽ trừ vào lương kỳ này.';
 
             return redirect()->back()->withErrors(['penalty' => $message])->with('error', $message);
         }
