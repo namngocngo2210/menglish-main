@@ -258,7 +258,7 @@ class Penalty extends Model
             'pending' => 'Chờ giải trình',
             'explained' => 'Đã giải trình — chờ chốt',
             'confirmed' => 'Đã xác nhận lỗi',
-            'fined' => 'Đã quyết phạt (chờ nộp trong 2 ngày)',
+            'fined' => 'Đã quyết phạt (chờ nộp trong '.self::paymentDueDays().' ngày)',
             'deducted' => 'Đã trừ vào bảng lương',
             'paid' => 'Đã nộp phạt trực tiếp',
             'resolved' => 'Đã xử lý (không phạt tiền)',
