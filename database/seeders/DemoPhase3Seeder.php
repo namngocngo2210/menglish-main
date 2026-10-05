@@ -27,6 +27,7 @@ use App\Models\TuitionRefundRequest;
 use App\Models\User;
 use App\Services\CrmStageService;
 use App\Services\Tuition\SessionLedger;
+use App\Support\Roles;
 use Closure;
 use Database\Seeders\Concerns\InvokesControllersAsUser;
 use Illuminate\Database\Seeder;
@@ -522,7 +523,7 @@ class DemoPhase3Seeder extends Seeder
     /** Quản lý chi nhánh chấm KPI tháng cho Học vụ chi nhánh mình (15 mục, 6 nhóm). */
     private function evaluateAcademicKpi(Carbon $month, int $variant): void
     {
-        $criteria = KpiCriterion::active()->ordered()->get();
+        $criteria = KpiCriterion::forRole(Roles::ACADEMIC_STAFF)->active()->ordered()->get();
         foreach ([['manager_cg', 'academic_cg'], ['manager_bd', 'academic_bd']] as $i => [$managerKey, $staffKey]) {
             $scores = $criteria->values()->mapWithKeys(fn (KpiCriterion $c, int $j) => [$c->id => match (($j + $i * 3 + $variant * 5) % 7) {
                 0 => 50,

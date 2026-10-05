@@ -29,7 +29,7 @@ use Inertia\Response as InertiaResponse;
 class KpiController extends Controller
 {
     /** Chức danh thuộc diện đánh giá KPI tháng (phân loại nhân sự, không phải phân quyền). */
-    private const STAFF_ROLES = Roles::KPI_STAFF;
+    private const STAFF_ROLES = Roles::KPI_ROLES;
 
     private function guard(string $permission = 'kpi.view'): void
     {
@@ -53,41 +53,52 @@ class KpiController extends Controller
         );
     }
 
-    // ───────────────────── CẤU HÌNH KPI ─────────────────────
-    public function criteria(): InertiaResponse
+    // ───────────────────── TIÊU CHÍ KPI THEO VAI TRÒ ─────────────────────
+    /** Vai trò đang xem trên màn Tiêu chí KPI (?role=), mặc định Học vụ. */
+    private function criteriaRole(Request $request): string
+    {
+        $role = (string) $request->input('role');
+
+        return in_array($role, KpiCriterion::ROLES, true) ? $role : Roles::ACADEMIC_STAFF;
+    }
+
+    public function criteria(Request $request): InertiaResponse
     {
         $this->guard();
-        $criteria = KpiCriterion::orderByDesc('is_active')->ordered()->get();
-        $totalWeight = $criteria->where('is_active', true)->sum('weight');
-        $fund = KpiCriterion::fund();
-        $groups = $criteria->pluck('group_name')->filter()->unique()->values();
+        $role = $this->criteriaRole($request);
+        $criteria = KpiCriterion::forRole($role)->orderByDesc('is_active')->ordered()->get();
+        $totalWeight = (float) $criteria->where('is_active', true)->sum('weight');
+        // Quỹ KPI (đ) chỉ có ở Học vụ (Cấu hình tham số lương); vai trò khác chấm theo % đạt.
+        $fund = $role === Roles::ACADEMIC_STAFF ? KpiCriterion::fund() : null;
         $fmtWeight = fn ($w) => rtrim(rtrim(number_format((float) $w, 2), '0'), '.');
 
         return Inertia::render('Kpi/Criteria', [
-            'groups' => $groups,
-            'fund' => (float) $fund,
-            'totalWeight' => (float) $totalWeight,
+            'role' => $role,
+            'roleOptions' => Ui::options(collect(KpiCriterion::ROLES)->mapWithKeys(fn ($r) => [$r => AclHelper::roleLabel($r)])),
+            'unitOptions' => Ui::options(collect(KpiCriterion::UNITS)->map(fn ($label) => \Illuminate\Support\Str::ucfirst($label))),
+            'groups' => $criteria->pluck('group_name')->filter()->unique()->values(),
+            'fund' => $fund,
+            'totalWeight' => $totalWeight,
             'totalWeightLabel' => $fmtWeight($totalWeight),
             'criteriaGroups' => $criteria->groupBy(fn ($c) => $c->group_name ?: 'Chưa phân nhóm')
                 ->map(fn ($items, $groupName) => [
                     'name' => $groupName,
                     'count' => $items->count(),
-                    'active_fund' => (float) $items->where('is_active', true)->sum(fn ($c) => $c->fundAmount($fund)),
+                    'active_weight' => $fmtWeight($items->where('is_active', true)->sum('weight')),
+                    'active_fund' => $fund !== null ? (float) $items->where('is_active', true)->sum(fn ($c) => $c->fundAmount($fund)) : null,
                     'items' => $items->map(fn (KpiCriterion $cr) => [
                         'id' => $cr->id,
-                        'code' => $cr->code,
                         'name' => $cr->name,
+                        'group_name' => $cr->group_name,
                         'weight' => $fmtWeight($cr->weight),
+                        'fund_amount' => $fund !== null ? (float) $cr->fundAmount($fund) : null,
+                        'unit' => $cr->unit,
                         'max_full' => $cr->max_full,
                         'max_half' => $cr->max_half,
-                        'fund_amount' => (float) $cr->fundAmount($fund),
                         'threshold_full' => $cr->threshold_full,
                         'threshold_half' => $cr->threshold_half,
-                        'is_active' => (bool) $cr->is_active,
-                        'group_name' => $cr->group_name,
-                        'target' => $cr->target,
-                        'unit' => $cr->unit,
                         'description' => $cr->description,
+                        'is_active' => (bool) $cr->is_active,
                     ])->values(),
                 ])->values(),
         ]);
@@ -96,13 +107,13 @@ class KpiController extends Controller
     public function criteriaStore(Request $request)
     {
         $this->guard('kpi.manage');
-        $validated = $request->validate($this->criterionRules());
-        $validated = $this->withThresholdLabels($validated);
+        $validated = $request->validate($this->criterionRules() + ['role' => ['required', \Illuminate\Validation\Rule::in(KpiCriterion::ROLES)]]);
+        $validated = $this->normalizeCriterion($validated);
         $validated['is_active'] = true;
-        $validated['sort_order'] = (int) KpiCriterion::max('sort_order') + 1;
+        $validated['sort_order'] = (int) KpiCriterion::forRole($validated['role'])->max('sort_order') + 1;
         KpiCriterion::create($validated);
 
-        return back()->with('success', 'Đã thêm chỉ số KPI!');
+        return redirect()->route('kpi.criteria', ['role' => $validated['role']])->with('success', 'Đã thêm tiêu chí KPI.');
     }
 
     public function criteriaUpdate(Request $request, int $id)
@@ -111,38 +122,39 @@ class KpiController extends Controller
         $criterion = KpiCriterion::findOrFail($id);
         $validated = $request->validate($this->criterionRules() + ['is_active' => 'nullable|boolean']);
         $validated['is_active'] = $request->boolean('is_active');
-        $criterion->update($this->withThresholdLabels($validated));
+        $criterion->update($this->normalizeCriterion($validated));
 
-        return back()->with('success', 'Đã cập nhật chỉ số KPI!');
+        return redirect()->route('kpi.criteria', ['role' => $criterion->role])->with('success', 'Đã cập nhật tiêu chí KPI.');
     }
 
-    /** Tiêu chí KPI: nhóm, mã (1.1…), trọng số % quỹ, số lần tối đa để đạt 100% / 50% (đếm lỗi, càng ít càng tốt). */
+    /**
+     * Tiêu chí KPI (dữ liệu chuẩn hóa để tính KPI): nhóm, tên, trọng số % quỹ, đơn vị đếm chọn từ danh sách, số lần tối đa
+     * để đạt 100% / 50% (đếm lỗi, càng ít càng tốt; vượt ngưỡng 50% = 0%).
+     */
     private function criterionRules(): array
     {
         return [
-            'max_full' => 'nullable|integer|min:0|max:9999|required_with:max_half',
-            'max_half' => 'nullable|integer|min:0|max:9999|required_with:max_full|gte:max_full',
             'group_name' => 'nullable|string|max:255',
-            'code' => 'nullable|string|max:10',
+            'new_group' => 'nullable|string|max:255',
             'name' => 'required|string|max:255',
             'weight' => 'required|numeric|min:0|max:100',
-            'target' => 'nullable|string|max:255',
-            'threshold_full' => 'nullable|string|max:255',
-            'threshold_half' => 'nullable|string|max:255',
-            'unit' => 'nullable|string|max:50',
-            'description' => 'nullable|string',
+            'unit' => ['required', \Illuminate\Validation\Rule::in(array_keys(KpiCriterion::UNITS))],
+            'max_full' => 'required|integer|min:0|max:9999',
+            'max_half' => 'required|integer|min:0|max:9999|gte:max_full',
+            'description' => 'nullable|string|max:2000',
         ];
     }
 
-    /** Có ngưỡng số thì nhãn "Ngưỡng 100 / 50" tự lấy từ số + đơn vị (không nhập tay hai lần). */
-    private function withThresholdLabels(array $validated): array
+    /** Nhóm mới (nếu gõ) thay nhóm chọn; nhãn "Ngưỡng 100 / 50" tự sinh từ số + đơn vị (không nhập tay hai lần). */
+    private function normalizeCriterion(array $validated): array
     {
-        if (isset($validated['max_full'])) {
-            $validated['threshold_full'] = KpiCriterion::thresholdLabel((int) $validated['max_full'], $validated['unit'] ?? null);
+        $newGroup = trim((string) ($validated['new_group'] ?? ''));
+        if ($newGroup !== '') {
+            $validated['group_name'] = $newGroup;
         }
-        if (isset($validated['max_half'])) {
-            $validated['threshold_half'] = KpiCriterion::thresholdLabel((int) $validated['max_half'], $validated['unit'] ?? null);
-        }
+        unset($validated['new_group']);
+        $validated['threshold_full'] = KpiCriterion::thresholdLabel((int) $validated['max_full'], $validated['unit']);
+        $validated['threshold_half'] = KpiCriterion::thresholdLabel((int) $validated['max_half'], $validated['unit']);
 
         return $validated;
     }
@@ -150,9 +162,10 @@ class KpiController extends Controller
     public function criteriaDestroy(int $id)
     {
         $this->guard('kpi.manage');
-        KpiCriterion::findOrFail($id)->delete();
+        $criterion = KpiCriterion::findOrFail($id);
+        $criterion->delete();
 
-        return back()->with('success', 'Đã xoá chỉ số KPI!');
+        return redirect()->route('kpi.criteria', ['role' => $criterion->role])->with('success', 'Đã xoá tiêu chí KPI.');
     }
 
     // ───────────────────── ĐÁNH GIÁ KPI THÁNG ─────────────────────
@@ -228,12 +241,14 @@ class KpiController extends Controller
         $staff = $this->scopedStaff(User::query())->findOrFail($userId);
         [$month, $year] = $this->monthYear($request);
 
-        $fund = KpiCriterion::fund();
+        // Bộ tiêu chí theo vai trò của nhân sự (màn Tiêu chí KPI); quỹ tiền KPI hiện chỉ có ở Học vụ.
+        $kpiRole = KpiCriterion::roleFor($staff);
+        $criteria = $kpiRole ? KpiCriterion::forRole($kpiRole)->active()->ordered()->get() : collect();
         $isAcademicStaff = StaffType::usesAcademicStaffKpi($staff);
+        $fund = $isAcademicStaff ? KpiCriterion::fund() : 0.0;
         $evaluation = KpiEvaluation::with(['items', 'evaluator'])
             ->where('user_id', $userId)->where('month', $month)->where('year', $year)->first();
         // Phiếu tháng cũ chấm theo bộ tiêu chí trước đây: hiện đúng các tiêu chí đã chấm.
-        $criteria = KpiCriterion::active()->ordered()->get();
         if ($evaluation) {
             $criteria = $evaluation->scoredCriteria($criteria)['criteria'];
         }
@@ -323,7 +338,7 @@ class KpiController extends Controller
     public function evaluateStore(Request $request, int $userId)
     {
         $this->guard('kpi.confirm');
-        $this->scopedStaff(User::query())->findOrFail($userId);
+        $staff = $this->scopedStaff(User::query())->findOrFail($userId);
         // Nhân viên không tự chấm KPI của chính mình (A3 / Phase 3)
         abort_if($userId === (int) $request->user()->id, 403, 'Bạn không được tự chấm KPI của chính mình.');
         $validated = $request->validate([
@@ -359,7 +374,8 @@ class KpiController extends Controller
         }
 
         $critical = collect($validated['critical'] ?? [])->filter()->keys()->map(fn ($id) => (int) $id)->all();
-        $criteria = KpiCriterion::active()->get()->keyBy('id');
+        $kpiRole = KpiCriterion::roleFor($staff);
+        $criteria = $kpiRole ? KpiCriterion::forRole($kpiRole)->active()->get()->keyBy('id') : collect();
 
         // Tiêu chí đếm lỗi: nhập SỐ LẦN thực tế, hệ thống tự ra mức 100 / 50 / 0% (không tự chọn %). Chưa nhập số → giữ % gửi lên.
         foreach ($criteria as $criterionId => $criterion) {

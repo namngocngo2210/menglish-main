@@ -236,7 +236,7 @@ class PayrollFormulaService
             return ['amount' => 0.0, 'score' => null, 'fund' => $fund, 'evaluation_id' => null, 'items' => []];
         }
 
-        ['criteria' => $criteria, 'legacy' => $legacy] = $evaluation->scoredCriteria(KpiCriterion::active()->ordered()->get());
+        ['criteria' => $criteria, 'legacy' => $legacy] = $evaluation->scoredCriteria(KpiCriterion::forRole(Roles::ACADEMIC_STAFF)->active()->ordered()->get());
         $scores = $evaluation->items->keyBy('kpi_criterion_id');
         $points = $criteria->mapWithKeys(fn (KpiCriterion $c) => [$c->id => (float) ($scores->get($c->id)?->score ?? 0) * (float) $c->weight]);
         if ($legacy) {
@@ -279,7 +279,7 @@ class PayrollFormulaService
             ->where('user_id', $user->id)->where('month', $month)->where('year', $year)
             ->first();
         $scores = $evaluation ? $evaluation->items->keyBy('kpi_criterion_id') : collect();
-        $criteria = KpiCriterion::active()->ordered()->get();
+        $criteria = KpiCriterion::forRole(Roles::ACADEMIC_STAFF)->active()->ordered()->get();
         $weightTotal = (float) $criteria->sum('weight');
 
         $items = $criteria->map(function (KpiCriterion $criterion) use ($scores, $fund, $weightTotal) {

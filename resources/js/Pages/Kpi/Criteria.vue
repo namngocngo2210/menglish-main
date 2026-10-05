@@ -1,18 +1,23 @@
 <script setup>
 /**
- * Tiêu chí KPI (bộ Học vụ theo file Excel KPI): 6 nhóm / 15 tiêu chí, trọng số % quỹ, số lần lỗi tối đa để đạt 100% / 50%
- * (đếm lỗi, càng ít càng tốt; vượt ngưỡng 50% = 0%); sửa từng mục ngay trên dòng (Lưu / Xoá), thêm mục mới trong modal new-kpi.
- * Tiền KPI tháng = quỹ × điểm KPI có trọng số (tự động vào bảng lương).
+ * Tiêu chí KPI theo vai trò cố định: chọn vai trò ở dropdown → hiện các nhóm tiêu chí của vai trò đó.
+ * Mỗi tiêu chí đếm số lần trong tháng, đơn vị chọn từ danh sách (chuẩn hóa), 3 mức: ≤ ngưỡng 100% → đủ quỹ, ≤ ngưỡng 50% → một nửa, vượt → 0.
+ * Thêm / sửa trong modal (bấm dòng để sửa). Học vụ có quỹ tiền KPI (vào bảng lương); vai trò khác chấm theo % đạt.
  */
-import { computed, ref } from 'vue';
-import { usePage } from '@inertiajs/vue3';
+import { computed, reactive, ref, watch } from 'vue';
+import { router, usePage } from '@inertiajs/vue3';
+import { can } from '@/lib/can';
+import { route } from '@/lib/route';
 import { money } from '../Payroll/format';
 
 defineOptions({ layout: { title: 'Tiêu chí KPI' } });
 
 const props = defineProps({
+    role: { type: String, required: true },
+    roleOptions: { type: Array, default: () => [] },
+    unitOptions: { type: Array, default: () => [] },
     groups: { type: Array, default: () => [] },
-    fund: { type: Number, default: 0 },
+    fund: { type: Number, default: null },
     totalWeight: { type: Number, default: 0 },
     totalWeightLabel: { type: String, default: '0' },
     criteriaGroups: { type: Array, default: () => [] },
@@ -20,95 +25,165 @@ const props = defineProps({
 
 const page = usePage();
 const firstError = computed(() => Object.values(page.props.errors ?? {})[0] ?? null);
+const hasFund = computed(() => props.fund !== null);
 const matched = computed(() => Math.abs(props.totalWeight - 100) < 0.001);
-const fundTitle = computed(
-    () => `Trạng thái quỹ KPI: Tổng trọng số hiện tại: ${money((props.fund * props.totalWeight) / 100)}đ / Quỹ KPI: ${money(props.fund)}đ (${matched.value ? 'Khớp' : 'Chưa khớp'})`,
-);
-const newOpen = ref(false);
-const input = 'rounded-lg border-outline-variant focus:border-primary-container focus:ring-primary-container';
+const roleLabel = computed(() => props.roleOptions.find((o) => o.value === props.role)?.label ?? '');
+const groupOptions = computed(() => props.groups.map((g) => ({ value: g, label: g })));
+const canManage = computed(() => can('kpi.manage'));
+
+const selectedRole = ref(props.role);
+watch(selectedRole, (value) => {
+    if (value && value !== props.role) router.get(route('kpi.criteria'), { role: value });
+});
+
+// Modal thêm / sửa: một form, đổi nội dung theo tiêu chí đang sửa (null = thêm mới).
+const modal = reactive({ open: false, item: null, weight: '' });
+function openCreate() {
+    modal.item = null;
+    modal.weight = '';
+    modal.open = true;
+}
+function openEdit(item) {
+    if (!canManage.value) return;
+    modal.item = item;
+    modal.weight = item.weight;
+    modal.open = true;
+}
+const weightMoney = computed(() => (hasFund.value ? Math.round((props.fund * (parseFloat(modal.weight) || 0)) / 100) : null));
+const formKey = computed(() => (modal.item ? `edit-${modal.item.id}` : 'new'));
 </script>
 
 <template>
     <div>
-        <UiPageHeader title="Tiêu chí KPI" description="Bộ tiêu chí KPI Học vụ — 6 nhóm / 15 tiêu chí. Mỗi tiêu chí đếm số lần lỗi trong tháng và chỉ có 3 mức: ≤ ngưỡng 100% thì nhận đủ quỹ tiêu chí, ≤ ngưỡng 50% thì nhận một nửa, vượt thì 0. Tiền KPI tháng = quỹ × điểm KPI có trọng số (tự động vào bảng lương).">
-            <template v-if="can('kpi.manage')" #actions>
-                <UiButton icon="add" @click="newOpen = true">Thêm mục mới</UiButton>
+        <UiPageHeader title="Tiêu chí KPI" description="Mỗi vai trò một bộ tiêu chí. Tiêu chí đếm số lần trong tháng: không vượt ngưỡng 100% thì đạt đủ, không vượt ngưỡng 50% thì đạt một nửa, vượt thì 0.">
+            <template v-if="canManage" #actions>
+                <UiButton icon="add" @click="openCreate">Thêm tiêu chí</UiButton>
             </template>
         </UiPageHeader>
 
         <div class="space-y-lg">
             <UiAlert v-if="firstError" type="error">{{ firstError }}</UiAlert>
 
-            <UiAlert :type="matched ? 'success' : 'warning'" :title="fundTitle">
-                Tổng trọng số đang áp dụng: {{ totalWeightLabel }}%.
-                <template v-if="!matched">
-                    Tổng trọng số của các mục đang áp dụng chưa khớp với Quỹ KPI hiện tại. Vui lòng kiểm tra lại để đảm bảo tính chính xác khi tính lương.
-                </template>
+            <div class="flex flex-col gap-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md shadow-sm sm:flex-row sm:items-end sm:justify-between">
+                <div class="w-full sm:max-w-xs">
+                    <UiSelect v-model="selectedRole" name="role" label="Vai trò" :options="roleOptions" :searchable="false" />
+                </div>
+                <p class="font-body-small text-body-small text-on-surface-variant">
+                    Tổng trọng số đang áp dụng:
+                    <strong :class="matched ? 'text-tertiary' : 'text-warning'">{{ totalWeightLabel }}%</strong>
+                    <template v-if="hasFund"> · Quỹ KPI tháng <strong class="text-on-surface">{{ money(fund) }} đ</strong></template>
+                    <template v-else> · Vai trò này chưa có quỹ tiền KPI trong bảng lương, KPI tính theo % đạt</template>
+                </p>
+            </div>
+
+            <UiAlert v-if="criteriaGroups.length && !matched" type="warning">
+                Tổng trọng số các tiêu chí đang áp dụng của {{ roleLabel }} là {{ totalWeightLabel }}%, chưa bằng 100%. KPI vẫn tính theo tỉ lệ trọng số.
             </UiAlert>
 
-            <datalist id="kpi-groups">
-                <option v-for="group in groups" :key="group" :value="group"></option>
-            </datalist>
+            <UiDataTable v-if="criteriaGroups.length" min-width="900px">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tiêu chí</th>
+                            <th class="text-right">Trọng số</th>
+                            <th v-if="hasFund" class="text-right">Quỹ</th>
+                            <th>Đạt 100% khi</th>
+                            <th>Đạt 50% khi</th>
+                            <th>Trạng thái</th>
+                            <th v-if="canManage" class="text-right"><span class="sr-only">Thao tác</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template v-for="group in criteriaGroups" :key="group.name">
+                            <tr class="bg-surface-container-low">
+                                <td :colspan="hasFund ? 7 : 6" class="font-body-semibold text-body-semibold text-on-surface">
+                                    {{ group.name }}
+                                    <span class="ml-sm font-caption text-caption font-normal text-on-surface-variant">
+                                        {{ group.count }} tiêu chí · {{ group.active_weight }}%<template v-if="hasFund"> · {{ money(group.active_fund) }} đ</template>
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr
+                                v-for="cr in group.items"
+                                :key="cr.id"
+                                :class="[canManage ? 'cursor-pointer hover:bg-surface-container-low' : '', cr.is_active ? '' : 'opacity-60']"
+                                :tabindex="canManage ? 0 : undefined"
+                                @click="openEdit(cr)"
+                                @keydown.enter="openEdit(cr)"
+                            >
+                                <td class="min-w-[260px] max-w-md">
+                                    <p class="font-medium text-on-surface">{{ cr.name }}</p>
+                                    <p v-if="cr.description" class="line-clamp-2 font-caption text-caption text-on-surface-variant">{{ cr.description }}</p>
+                                </td>
+                                <td class="whitespace-nowrap text-right font-mono">{{ cr.weight }}%</td>
+                                <td v-if="hasFund" class="whitespace-nowrap text-right font-mono font-semibold text-primary">{{ money(cr.fund_amount) }} đ</td>
+                                <td class="whitespace-nowrap">{{ cr.threshold_full || '—' }}</td>
+                                <td class="whitespace-nowrap">{{ cr.threshold_half || '—' }}</td>
+                                <td>
+                                    <UiBadge :color="cr.is_active ? 'success' : 'neutral'">{{ cr.is_active ? 'Áp dụng' : 'Tạm tắt' }}</UiBadge>
+                                </td>
+                                <td v-if="canManage" class="whitespace-nowrap" @click.stop>
+                                    <div class="flex items-center justify-end gap-xs">
+                                        <UiButton variant="ghost" size="sm" icon="edit" title="Sửa tiêu chí" :aria-label="`Sửa ${cr.name}`" @click="openEdit(cr)" />
+                                        <UiButton type="submit" :form="`del-${cr.id}`" variant="danger-text" size="sm" icon="delete" title="Xóa tiêu chí" :aria-label="`Xóa ${cr.name}`" />
+                                    </div>
+                                    <UiForm :id="`del-${cr.id}`" :action="route('kpi.criteria.destroy', cr.id)" method="delete" :confirm="`Xoá tiêu chí ${cr.name}?`" confirm-label="Xóa" danger class="hidden" />
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </UiDataTable>
 
-            <!-- Danh sách / sửa, theo nhóm -->
-            <div class="space-y-4">
-                <div v-for="group in criteriaGroups" :key="group.name" class="space-y-2">
-                    <div class="flex items-center justify-between px-1">
-                        <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">{{ group.name }}</h3>
-                        <span class="text-xs font-semibold text-on-surface-variant">{{ group.count }} mục · {{ money(group.active_fund) }} đ</span>
-                    </div>
-                    <template v-for="cr in group.items" :key="cr.id">
-                        <UiForm :action="route('kpi.criteria.update', cr.id)" method="put" :class="['rounded-xl border bg-surface-container-lowest p-4 shadow-sm', cr.is_active ? 'border-outline-variant' : 'border-outline-variant opacity-60']">
-                            <div class="grid grid-cols-1 items-center gap-2 sm:grid-cols-12">
-                                <input type="text" name="code" :value="cr.code" placeholder="Mã" aria-label="Mã mục" :class="['text-sm sm:col-span-1', input]" title="Mã mục" />
-                                <input type="text" name="name" :value="cr.name" aria-label="Tên mục" :class="['text-sm sm:col-span-3', input]" />
-                                <input type="number" name="weight" step="0.25" min="0" max="100" :value="cr.weight" aria-label="Trọng số % quỹ" :class="['text-sm sm:col-span-1', input]" title="Trọng số % quỹ" />
-                                <span class="font-mono text-xs font-bold text-primary sm:col-span-2" title="Tiền KPI tối đa của mục">{{ money(cr.fund_amount) }} đ</span>
-                                <input type="number" name="max_full" min="0" max="9999" :value="cr.max_full" placeholder="≤ 100%" aria-label="Số lần tối đa để đạt 100%" :class="['text-sm sm:col-span-1', input]" title="Số lần tối đa để đạt 100% quỹ tiêu chí" />
-                                <input type="number" name="max_half" min="0" max="9999" :value="cr.max_half" placeholder="≤ 50%" aria-label="Số lần tối đa để đạt 50%" :class="['text-sm sm:col-span-1', input]" title="Số lần tối đa để đạt 50% quỹ tiêu chí (vượt = 0%)" />
-                                <input type="text" name="unit" :value="cr.unit" placeholder="Đơn vị" aria-label="Đơn vị" :class="['text-sm sm:col-span-1', input]" title="Đơn vị đếm: lần, case, lớp…" />
-                                <label class="flex items-center gap-1 text-xs text-on-surface-variant sm:col-span-1">
-                                    <input type="checkbox" name="is_active" value="1" :checked="cr.is_active" class="rounded border-outline-variant text-primary focus:ring-primary-container" /> Bật
-                                </label>
-                                <div class="flex items-center justify-end gap-1 sm:col-span-1">
-                                    <UiButton type="submit" variant="ghost" size="sm" icon="save" title="Lưu" aria-label="Lưu" class="!text-tertiary" />
-                                </div>
-                            </div>
-                            <div class="mt-2 grid grid-cols-1 items-center gap-2 sm:grid-cols-12">
-                                <input type="text" name="group_name" :value="cr.group_name" list="kpi-groups" placeholder="Nhóm" aria-label="Nhóm" :class="['text-xs sm:col-span-3', input]" />
-                                <input type="text" name="description" :value="cr.description" placeholder="Cách đo" aria-label="Cách đo" :class="['text-xs sm:col-span-8', input]" />
-                                <div class="flex justify-end sm:col-span-1">
-                                    <UiButton type="submit" :form="`del-${cr.id}`" variant="danger-text" size="sm">Xoá</UiButton>
-                                </div>
-                            </div>
-                        </UiForm>
-                        <UiForm :id="`del-${cr.id}`" :action="route('kpi.criteria.destroy', cr.id)" method="delete" confirm="Xoá mục KPI này?" confirm-label="Xóa" danger class="hidden" />
-                    </template>
-                </div>
-                <div v-if="!criteriaGroups.length" class="rounded-xl border border-outline-variant bg-surface-container-lowest shadow-sm">
-                    <UiEmptyState icon="tune" title='Chưa có mục KPI nào. Bấm "Thêm mục mới" để tạo.' />
-                </div>
+            <div v-else class="rounded-xl border border-outline-variant bg-surface-container-lowest shadow-sm">
+                <UiEmptyState icon="tune" :title="`${roleLabel} chưa có tiêu chí KPI`" description="Thêm tiêu chí để chấm KPI tháng cho vai trò này.">
+                    <UiButton v-if="canManage" icon="add" @click="openCreate">Thêm tiêu chí</UiButton>
+                </UiEmptyState>
             </div>
         </div>
 
-        <UiModal v-if="can('kpi.manage')" :show="newOpen" title="Thêm mục KPI mới" max-width="xl" data-modal="new-kpi" @close="newOpen = false">
-            <UiForm id="kpi-add-form" :action="route('kpi.criteria.store')" method="post" preserve-state="errors" class="space-y-md">
+        <UiModal v-if="canManage" :show="modal.open" :title="modal.item ? 'Sửa tiêu chí KPI' : `Thêm tiêu chí KPI · ${roleLabel}`" max-width="xl" data-modal="kpi-criterion" @close="modal.open = false">
+            <UiForm
+                id="kpi-criterion-form"
+                :key="formKey"
+                :action="modal.item ? route('kpi.criteria.update', modal.item.id) : route('kpi.criteria.store')"
+                :method="modal.item ? 'put' : 'post'"
+                preserve-state="errors"
+                class="space-y-md"
+                @success="modal.open = false"
+            >
+                <input v-if="!modal.item" type="hidden" name="role" :value="role" />
                 <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
-                    <UiInput name="group_name" label="Nhóm KPI" list="kpi-groups" placeholder="vd: Chăm sóc học viên" />
-                    <UiInput name="code" label="Mã" placeholder="vd: 1.4" />
+                    <UiSelect name="group_name" label="Nhóm" :options="groupOptions" :value="modal.item?.group_name ?? null" placeholder="-- Chọn nhóm --" />
+                    <UiInput name="new_group" label="Hoặc tạo nhóm mới" placeholder="vd: Học phí & dữ liệu" />
                 </div>
-                <UiInput name="name" label="Tên mục" required />
+                <UiInput name="name" label="Tên tiêu chí" required :value="modal.item?.name ?? ''" />
                 <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
-                    <UiInput type="number" name="weight" label="Trọng số % quỹ" required step="0.25" min="0" max="100" />
-                    <UiInput name="unit" label="Đơn vị đếm" placeholder="vd: lần, case, lớp" />
-                    <UiInput type="number" name="max_full" label="Tối đa để đạt 100%" min="0" max="9999" placeholder="vd: 0" />
-                    <UiInput type="number" name="max_half" label="Tối đa để đạt 50%" min="0" max="9999" placeholder="vd: 2" />
+                    <UiInput
+                        v-model="modal.weight"
+                        type="number"
+                        name="weight"
+                        label="Trọng số"
+                        suffix="% quỹ"
+                        required
+                        step="0.25"
+                        min="0"
+                        max="100"
+                        :hint="weightMoney !== null ? `= ${money(weightMoney)} đ / tháng` : null"
+                    />
+                    <UiSelect name="unit" label="Đơn vị đếm" :options="unitOptions" :value="modal.item?.unit ?? null" placeholder="-- Chọn đơn vị --" required :searchable="false" />
+                    <UiInput type="number" name="max_full" label="Đạt 100% khi không quá" required min="0" max="9999" :value="modal.item?.max_full ?? ''" hint="Số lần tối đa trong tháng" />
+                    <UiInput type="number" name="max_half" label="Đạt 50% khi không quá" required min="0" max="9999" :value="modal.item?.max_half ?? ''" hint="Vượt số này thì 0%" />
                 </div>
-                <UiInput name="description" label="Cách đo" placeholder="Đếm cái gì, tính vào tháng nào" />
+                <UiTextarea name="description" label="Cách đếm" :rows="3" :value="modal.item?.description ?? ''" placeholder="Đếm cái gì, lấy số liệu ở đâu" />
+                <template v-if="modal.item">
+                    <input type="hidden" name="is_active" value="0" />
+                    <UiCheckbox name="is_active" value="1" :checked="modal.item.is_active" label="Đang áp dụng" />
+                </template>
             </UiForm>
             <template #footer>
-                <UiButton variant="secondary" @click="newOpen = false">Hủy</UiButton>
-                <UiButton type="submit" form="kpi-add-form" icon="add">Thêm mục</UiButton>
+                <UiButton variant="secondary" @click="modal.open = false">Hủy</UiButton>
+                <UiButton type="submit" form="kpi-criterion-form" :icon="modal.item ? 'save' : 'add'">{{ modal.item ? 'Lưu' : 'Thêm tiêu chí' }}</UiButton>
             </template>
         </UiModal>
     </div>
