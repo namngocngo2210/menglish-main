@@ -7,8 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
- * Mục KPI Học vụ. weight = % của quỹ KPI (tổng các mục đang áp dụng = 100%);
- * số tiền tối đa của mục = quỹ × weight%. Nhóm / mã / ngưỡng theo mockup "KPI tháng".
+ * Tiêu chí KPI Học vụ. weight = % của quỹ KPI (tổng các mục đang áp dụng = 100%);
+ * số tiền tối đa của mục = quỹ × weight%. Nhóm / mã / ngưỡng theo file KPI Học vụ (Excel).
  */
 class KpiCriterion extends Model
 {
@@ -17,27 +17,59 @@ class KpiCriterion extends Model
     protected $table = 'kpi_criteria';
 
     /**
-     * 6 nhóm / 15 mục theo mockup 02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu/04_kpi_thang. Mockup ghi quỹ từng mục theo
-     * một quỹ lớn hơn (tổng 13 triệu) → quy đổi theo quỹ 2.000.000đ/tháng (A6), giữ thứ tự ưu tiên giữa các mục.
-     * Trọng số là % của quỹ (VD 15% = 300.000đ). Admin sửa được ở màn Cấu hình KPI.
+     * Bộ tiêu chí KPI Học vụ theo file "KPI Học vụ / Điều phối vận hành MEducation": 6 nhóm / 15 tiêu chí, quỹ 2.000.000đ/tháng.
+     * Mỗi tiêu chí đo bằng SỐ LẦN lỗi / case trễ trong tháng (càng ít càng tốt) và chỉ có 3 mức: ≤ max_full → 100%,
+     * ≤ max_half → 50%, vượt → 0%. weight = % của quỹ (quỹ tiêu chí ÷ 2.000.000đ). Admin sửa được ở màn Tiêu chí KPI.
      */
     public const DEFAULT_ACADEMIC_ITEMS = [
-        ['group_name' => 'Chăm sóc học viên', 'code' => '1.1', 'name' => 'Nhắc học phí', 'weight' => 10, 'threshold_full' => '100%', 'threshold_half' => '80%', 'target' => '100% HV đến hạn được nhắc', 'description' => null],
-        ['group_name' => 'Chăm sóc học viên', 'code' => '1.2', 'name' => 'Thu học phí', 'weight' => 15, 'threshold_full' => '95%', 'threshold_half' => '70%', 'target' => '≥ 95% học phí đến hạn được thu', 'description' => null],
-        ['group_name' => 'Chăm sóc học viên', 'code' => '1.3', 'name' => 'Hỗ trợ học viên yếu', 'weight' => 5, 'threshold_full' => '10 HV', 'threshold_half' => '5 HV', 'target' => null, 'description' => null],
-        ['group_name' => 'Chất lượng giảng dạy', 'code' => '2.1', 'name' => 'Tỉ lệ hoàn thành bài tập', 'weight' => 7.5, 'threshold_full' => '90%', 'threshold_half' => '75%', 'target' => null, 'description' => null],
-        ['group_name' => 'Chất lượng giảng dạy', 'code' => '2.2', 'name' => 'Điểm danh đầy đủ', 'weight' => 5, 'threshold_full' => '95%', 'threshold_half' => '80%', 'target' => null, 'description' => null],
-        ['group_name' => 'Chất lượng giảng dạy', 'code' => '2.3', 'name' => 'Đánh giá từ học viên', 'weight' => 7.5, 'threshold_full' => '4.5', 'threshold_half' => '4.0', 'target' => null, 'description' => null],
-        ['group_name' => 'Chất lượng giảng dạy', 'code' => '2.4', 'name' => 'Feedback Big Test', 'weight' => 10, 'threshold_full' => '100%', 'threshold_half' => '80%', 'target' => null, 'description' => null],
-        ['group_name' => 'Vận hành lớp', 'code' => '3.1', 'name' => 'Lên lịch học đúng hạn', 'weight' => 5, 'threshold_full' => '100%', 'threshold_half' => '90%', 'target' => null, 'description' => null],
-        ['group_name' => 'Vận hành lớp', 'code' => '3.2', 'name' => 'Xử lý sự cố kỹ thuật', 'weight' => 5, 'threshold_full' => '< 2h', 'threshold_half' => '< 4h', 'target' => null, 'description' => null],
-        ['group_name' => 'Quản lý Giáo viên', 'code' => '4.1', 'name' => 'Họp chuyên môn', 'weight' => 5, 'threshold_full' => '4 lần', 'threshold_half' => '2 lần', 'target' => null, 'description' => null],
-        ['group_name' => 'Quản lý Giáo viên', 'code' => '4.2', 'name' => 'Tỷ lệ giữ chân GV', 'weight' => 7.5, 'threshold_full' => '100%', 'threshold_half' => '80%', 'target' => null, 'description' => null],
-        ['group_name' => 'Phát triển Trung tâm', 'code' => '5.1', 'name' => 'Giới thiệu học viên mới', 'weight' => 7.5, 'threshold_full' => '5 HV', 'threshold_half' => '2 HV', 'target' => null, 'description' => null],
-        ['group_name' => 'Phát triển Trung tâm', 'code' => '5.2', 'name' => 'Tham gia sự kiện', 'weight' => 2.5, 'threshold_full' => '2 sự kiện', 'threshold_half' => '1 sự kiện', 'target' => null, 'description' => null],
-        ['group_name' => 'Chuyên môn khác', 'code' => '6.1', 'name' => 'Viết bài chuyên môn', 'weight' => 3.75, 'threshold_full' => '2 bài', 'threshold_half' => '1 bài', 'target' => null, 'description' => null],
-        ['group_name' => 'Chuyên môn khác', 'code' => '6.2', 'name' => 'Đào tạo nội bộ', 'weight' => 3.75, 'threshold_full' => '1 buổi', 'threshold_half' => null, 'target' => null, 'description' => null],
+        ['group_name' => 'Học phí & dữ liệu', 'code' => '1.1', 'name' => 'Quy trình nhắc & follow học phí đúng hạn', 'weight' => 12.5, 'unit' => 'hồ sơ', 'max_full' => 0, 'max_half' => 2, 'description' => 'Số hồ sơ KHÔNG thực hiện đúng quy trình nhắc học phí (không nhắc, nhắc 1 lần rồi bỏ, không follow, không báo cáo founder khi phụ huynh không hợp tác). Không đo việc phụ huynh có đóng tiền hay không.'],
+        ['group_name' => 'Học phí & dữ liệu', 'code' => '1.2', 'name' => 'Thu đúng học phí', 'weight' => 7.5, 'unit' => 'lần', 'max_full' => 0, 'max_half' => 1, 'description' => 'Số lần thu sai/thiếu học phí trong tháng (sai số tiền, bỏ sót giảm trừ, thu nhầm gói học).'],
+        ['group_name' => 'Học phí & dữ liệu', 'code' => '1.3', 'name' => 'Dữ liệu học sinh/học phí trên hệ thống', 'weight' => 5, 'unit' => 'sai sót', 'max_full' => 0, 'max_half' => 2, 'description' => 'Số sai sót dữ liệu trên webapp/hệ thống trong tháng (nhập sai, thiếu, cập nhật trễ).'],
+        ['group_name' => 'Học viên & phụ huynh', 'code' => '2.1', 'name' => 'SLA phản hồi phụ huynh', 'weight' => 7.5, 'unit' => 'case', 'max_full' => 4, 'max_half' => 10, 'description' => 'Số case phản hồi trễ SLA trong tháng qua Zalo Saleswork (SLA: trong ngày làm việc).'],
+        ['group_name' => 'Học viên & phụ huynh', 'code' => '2.2', 'name' => 'Case học sinh bỏ sót', 'weight' => 2.5, 'unit' => 'case', 'max_full' => 0, 'max_half' => 1, 'description' => 'Số case học sinh đang học bị bỏ sót (nghỉ không được follow/nhắc học bù, vấn đề không được ghi nhận). Chỉ tính nếu chưa bị tính ở 2.3.'],
+        ['group_name' => 'Học viên & phụ huynh', 'code' => '2.3', 'name' => 'Founder phải can thiệp trực tiếp', 'weight' => 5, 'unit' => 'lần', 'max_full' => 4, 'max_half' => 10, 'description' => 'Số lần founder phải trực tiếp xử lý thay/can thiệp trong tháng do học vụ xử lý chưa tới nơi tới chốn.'],
+        ['group_name' => 'Học viên & phụ huynh', 'code' => '2.4', 'name' => 'Feedback phụ huynh theo từng lớp (mốc Big Test)', 'weight' => 5, 'unit' => 'lớp', 'max_full' => 0, 'max_half' => 1, 'description' => 'Số lớp đến mốc Big Test trong tháng (~16–18 buổi/lần) nhưng CHƯA đạt tối thiểu 40% học sinh của lớp phản hồi feedback, CỘNG số feedback tiêu cực chưa được xử lý/báo cáo.'],
+        ['group_name' => 'Tuyển sinh & Truyền thông', 'code' => '3.1', 'name' => 'Xử lý data/test tuyển sinh', 'weight' => 10, 'unit' => 'case', 'max_full' => 0, 'max_half' => 2, 'description' => 'Số data/case tuyển sinh bị bỏ sót hoặc xử lý trễ trong tháng (không liên hệ, không sắp lịch test, không follow sau test).'],
+        ['group_name' => 'Tuyển sinh & Truyền thông', 'code' => '3.2', 'name' => 'Truyền thông — đăng bài đúng hạn', 'weight' => 10, 'unit' => 'lần', 'max_full' => 0, 'max_half' => 2, 'description' => 'Số lần không đăng bài truyền thông đúng hạn/kế hoạch được phân công trong tháng. Chỉ chấm đúng hạn, không chấm chất lượng nội dung.'],
+        ['group_name' => 'Báo cáo & tuân thủ quy trình', 'code' => '4.1', 'name' => 'Nộp báo cáo đúng hạn', 'weight' => 7.5, 'unit' => 'lần', 'max_full' => 4, 'max_half' => 10, 'description' => 'Số lần nộp báo cáo vận hành ngày trễ hạn (trước 9h sáng hôm sau) trong tháng.'],
+        ['group_name' => 'Báo cáo & tuân thủ quy trình', 'code' => '4.2', 'name' => 'Nội dung báo cáo đầy đủ, đúng form', 'weight' => 3.75, 'unit' => 'lần', 'max_full' => 4, 'max_half' => 10, 'description' => 'Số lần báo cáo thiếu mục / sai nội dung / ghi chung chung trong tháng.'],
+        ['group_name' => 'Báo cáo & tuân thủ quy trình', 'code' => '4.3', 'name' => 'Tuân thủ quy trình chuyên môn đã đào tạo', 'weight' => 3.75, 'unit' => 'lần', 'max_full' => 4, 'max_half' => 10, 'description' => 'Số lần làm sai quy trình đã được đào tạo trong tháng (bàn giao ca, xử lý học phí, test/tuyển sinh…).'],
+        ['group_name' => 'Vận hành lớp học', 'code' => '5.1', 'name' => 'Sự cố vận hành lớp do lỗi học vụ', 'weight' => 10, 'unit' => 'sự cố', 'max_full' => 4, 'max_half' => 10, 'description' => 'Số sự cố vận hành lớp trong tháng do lỗi học vụ (thiếu GV/TG không có phương án thay thế, lớp bị bỏ trống, sai lịch).'],
+        ['group_name' => 'Vận hành lớp học', 'code' => '5.2', 'name' => 'Cơ sở vật chất & xuất nhập sách', 'weight' => 5, 'unit' => 'sai sót', 'max_full' => 4, 'max_half' => 10, 'description' => 'Số sai sót trong tháng về cơ sở vật chất, xuất nhập sách, kiểm kê, chuẩn bị phòng học.'],
+        ['group_name' => 'Giáo viên & phối hợp', 'code' => '6.1', 'name' => 'Phối hợp thông tin với giáo viên', 'weight' => 5, 'unit' => 'lần', 'max_full' => 4, 'max_half' => 10, 'description' => 'Số lần phối hợp sai/chậm với giáo viên gây ảnh hưởng buổi dạy trong tháng.'],
     ];
+
+    /** Nhãn ngưỡng hiển thị từ số lần tối đa: "0 hồ sơ", "≤ 4 case". */
+    public static function thresholdLabel(?int $max, ?string $unit): ?string
+    {
+        if ($max === null) {
+            return null;
+        }
+
+        return trim(($max === 0 ? '0' : '≤ '.$max).' '.($unit ?? ''));
+    }
+
+    /** Tiêu chí đo bằng số lần (có ngưỡng tối đa cho mức 100% / 50%). */
+    public function isCountBased(): bool
+    {
+        return $this->max_full !== null && $this->max_half !== null;
+    }
+
+    /**
+     * Mức đạt từ số lần thực tế: ≤ ngưỡng 100% → 100, ≤ ngưỡng 50% → 50, vượt → 0 (không nội suy). Null nếu tiêu chí không đo bằng số lần.
+     */
+    public function levelForCount(int|float $count): ?int
+    {
+        if (! $this->isCountBased()) {
+            return null;
+        }
+
+        return match (true) {
+            $count <= $this->max_full => 100,
+            $count <= $this->max_half => 50,
+            default => 0,
+        };
+    }
 
     protected $fillable = [
         'group_name',
@@ -47,6 +79,8 @@ class KpiCriterion extends Model
         'target',
         'threshold_full',
         'threshold_half',
+        'max_full',
+        'max_half',
         'unit',
         'description',
         'is_active',
@@ -55,6 +89,8 @@ class KpiCriterion extends Model
 
     protected $casts = [
         'weight' => 'decimal:2',
+        'max_full' => 'integer',
+        'max_half' => 'integer',
         'is_active' => 'boolean',
         'sort_order' => 'integer',
     ];

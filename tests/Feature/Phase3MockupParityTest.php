@@ -572,7 +572,7 @@ class Phase3MockupParityTest extends TestCase
             ->assertOk()
             ->assertSee('KPI tháng — Học vụ P3')
             ->assertSeeInOrder(['Mã', 'Tiêu chí', 'Quỹ (VNĐ)', 'Ngưỡng 100', 'Ngưỡng 50', 'Thực tế', '% Đạt', 'Tiền KPI'])
-            ->assertSee('1. Chăm sóc học viên')
+            ->assertSee('1. Học phí & dữ liệu')
             ->assertSee('Lỗi nghiêm trọng')
             ->assertSee('Tổng tiền KPI dự tính:')
             ->assertSee('Chi tiết điểm KPI theo nhóm')->assertSee('Xếp loại tháng')->assertSee('Cảnh báo hiệu suất')

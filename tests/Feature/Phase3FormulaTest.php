@@ -392,8 +392,8 @@ class Phase3FormulaTest extends TestCase
         $lead = $this->userWithRole('manager');
         $criteria = KpiCriterion::active()->ordered()->get();
         $scores = $criteria->mapWithKeys(fn (KpiCriterion $c) => [$c->id => match ($c->code) {
-            '1.2' => 50,   // Thu học phí (15%) đạt ngưỡng 50%
-            '2.4' => 0,    // Feedback Big Test (10%) không đạt
+            '1.2' => 50,   // Thu đúng học phí (7,5%) đạt ngưỡng 50%
+            '2.4' => 0,    // Feedback Big Test (5%) không đạt
             default => 100,
         }])->all();
 
@@ -402,20 +402,20 @@ class Phase3FormulaTest extends TestCase
 
         $this->actingAs($lead)->post(route('kpi.evaluate.store', $staff->id), ['month' => 9, 'year' => 2026, 'score' => $scores])
             ->assertSessionHasNoErrors();
-        $this->assertEquals(82.5, (float) KpiEvaluation::where('user_id', $staff->id)->value('total_score')); // 100 − 7,5 − 10
+        $this->assertEquals(91.25, (float) KpiEvaluation::where('user_id', $staff->id)->value('total_score')); // 100 − 3,75 − 5
 
         $period = $this->calculate($this->period(9));
         $record = $this->record($period, $staff);
         $this->assertSame('academic_kpi', $record->kpi_source);
         $this->assertSame('operations', $record->department);
-        $this->assertEquals(82.5, $record->kpi_score);
-        $this->assertEquals(1650000, $record->kpi_bonus);            // 2.000.000 × 82,5%
-        // 8.000.000 + 1.650.000 − 840.000 BHXH − 40.000 Công đoàn
-        $this->assertEquals(8770000, $record->net_salary);
+        $this->assertEquals(91.25, $record->kpi_score);
+        $this->assertEquals(1825000, $record->kpi_bonus);            // 2.000.000 × 91,25%
+        // 8.000.000 + 1.825.000 − 840.000 BHXH − 40.000 Công đoàn
+        $this->assertEquals(8945000, $record->net_salary);
 
         // KPI Học vụ không nhập tay được
         $this->actingAs($this->admin)->post(route('payroll.records.adjust', $record->id), ['kpi_manual_amount' => 5000000])->assertSessionHasNoErrors();
-        $this->assertEquals(1650000, $record->fresh()->kpi_bonus);
+        $this->assertEquals(1825000, $record->fresh()->kpi_bonus);
 
         // Sửa đánh giá sau khi tính → phải tính lại trước khi duyệt
         $this->travel(1)->minutes();
@@ -424,7 +424,7 @@ class Phase3FormulaTest extends TestCase
         $this->assertEquals(2000000, $this->record($this->calculate($period), $staff)->kpi_bonus);
 
         $this->actingAs($this->admin)->get(route('payroll.periods.operations', $period->id))->assertOk()->assertSee('Học vụ Phượng')->assertSee('100% × quỹ');
-        $this->actingAs($this->admin)->get(route('kpi.criteria'))->assertOk()->assertSee('Chăm sóc học viên')->assertSee('Thu học phí')->assertSee('300.000 đ');
+        $this->actingAs($this->admin)->get(route('kpi.criteria'))->assertOk()->assertSee('Học phí &amp; dữ liệu', false)->assertSee('Thu đúng học phí')->assertSee('250.000 đ');
     }
 
     public function test_academic_staff_profile_shows_provisional_kpi_money_per_item_as_milestones(): void
@@ -439,9 +439,9 @@ class Phase3FormulaTest extends TestCase
         $this->assertEquals(0, $empty['amount']);
         $this->assertSame(15, $empty['counts']['pending']);
         $collect = collect($empty['groups'])->flatMap(fn ($g) => $g['items'])->keyBy('code');
-        $this->assertEquals(300000, $collect['1.2']['max']);             // Thu học phí 15% × 2.000.000
-        $this->assertSame('Ngưỡng 50: 70%', $collect['1.2']['next_label']);
-        $this->assertEquals(150000, $collect['1.2']['next_gain']);
+        $this->assertEquals(150000, $collect['1.2']['max']);             // Thu đúng học phí 7,5% × 2.000.000
+        $this->assertSame('Ngưỡng 50: ≤ 1 lần', $collect['1.2']['next_label']);
+        $this->assertEquals(75000, $collect['1.2']['next_gain']);
 
         // Đang chấm (nháp): vẫn hiện tạm tính, cùng công thức với bảng lương
         $evaluation = KpiEvaluation::create(['user_id' => $staff->id, 'evaluator_id' => $this->admin->id, 'month' => 9, 'year' => 2026, 'total_score' => 0, 'status' => 'draft']);
@@ -455,13 +455,13 @@ class Phase3FormulaTest extends TestCase
         $statement = app(PayrollFormulaService::class)->academicKpiStatement($staff, 9, 2026);
         $items = collect($statement['groups'])->flatMap(fn ($g) => $g['items'])->keyBy('code');
         $this->assertSame('draft', $statement['status']);
-        $this->assertEquals(72.5, $statement['score']);                   // 100 − 10 (chưa chấm) − 7,5 − 10
-        $this->assertEquals(1450000, $statement['amount']);
+        $this->assertEquals(78.75, $statement['score']);                  // 100 − 12,5 (chưa chấm) − 3,75 − 5
+        $this->assertEquals(1575000, $statement['amount']);
         $this->assertSame(['full' => 12, 'half' => 1, 'below' => 1, 'pending' => 1], $statement['counts']);
         $this->assertSame('half', $items['1.2']['level']);
-        $this->assertEquals(150000, $items['1.2']['amount']);
-        $this->assertSame('Ngưỡng 100: 95%', $items['1.2']['next_label']);
-        $this->assertEquals(150000, $items['1.2']['next_gain']);
+        $this->assertEquals(75000, $items['1.2']['amount']);
+        $this->assertSame('Ngưỡng 100: 0 lần', $items['1.2']['next_label']);
+        $this->assertEquals(75000, $items['1.2']['next_gain']);
         $this->assertSame('zero', $items['2.4']['level']);
         $this->assertSame('full', $items['3.1']['level']);
         $this->assertNull($items['3.1']['next_gain']);
@@ -469,7 +469,7 @@ class Phase3FormulaTest extends TestCase
         $this->actingAs($staff)->get(route('profile.edit'))
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->component('Profile/Edit')
-                ->where('kpi.amount', fn ($v) => (float) $v === 1450000.0)
+                ->where('kpi.amount', fn ($v) => (float) $v === 1575000.0)
                 ->where('kpi.status', 'draft')
                 ->has('kpi.groups', 6)
                 ->where('statCards.1.label', 'KPI tạm tính'));

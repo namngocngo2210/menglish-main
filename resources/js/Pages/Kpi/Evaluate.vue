@@ -38,9 +38,32 @@ const page = usePage();
 const firstError = computed(() => Object.values(page.props.errors ?? {})[0] ?? null);
 
 const items = reactive(
-    Object.fromEntries(props.criteriaGroups.flatMap((g) => g.items).map((c) => [c.id, { fund: c.fund, score: c.score, critical: c.critical }])),
+    Object.fromEntries(
+        props.criteriaGroups.flatMap((g) => g.items).map((c) => [c.id, { fund: c.fund, score: c.score, critical: c.critical, actual: c.actual ?? '', maxFull: c.max_full, maxHalf: c.max_half }]),
+    ),
 );
-const pct = (it) => (it.critical ? 0 : Math.max(0, Math.min(100, parseFloat(it.score) || 0)));
+// Tiêu chí đếm lỗi (có ngưỡng số): nhập số lần thực tế → mức 100 / 50 / 0% tự ra, không nhập % tay.
+const isCount = (it) => it.maxFull !== null && it.maxFull !== undefined && it.maxHalf !== null && it.maxHalf !== undefined;
+const countValue = (it) => (it.actual !== '' && it.actual !== null && /^\d+(\.\d+)?$/.test(String(it.actual).trim()) ? Number(it.actual) : null);
+const levelOf = (it) => {
+    const n = countValue(it);
+    if (n === null) return null;
+    return n <= it.maxFull ? 100 : n <= it.maxHalf ? 50 : 0;
+};
+const pct = (it) => {
+    if (it.critical) return 0;
+    if (isCount(it)) {
+        const level = levelOf(it);
+        if (level !== null) return level;
+    }
+    return Math.max(0, Math.min(100, parseFloat(it.score) || 0));
+};
+const scoreInput = (it) => (it.critical ? 0 : isCount(it) && levelOf(it) !== null ? levelOf(it) : it.score);
+const fillZeros = () => {
+    Object.values(items).forEach((it) => {
+        if (isCount(it) && countValue(it) === null) it.actual = '0';
+    });
+};
 const itemMoney = (it) => Math.round((it.fund * pct(it)) / 100);
 const totalMoney = computed(() => Object.values(items).reduce((sum, it) => sum + itemMoney(it), 0));
 const hasCriteria = computed(() => props.criteriaGroups.length > 0);
@@ -86,7 +109,7 @@ function navigate(event) {
 
             <UiAlert type="info">
                 <template v-if="isAcademicStaff">
-                    KPI Học vụ tính lương tự động: <strong>quỹ {{ money(fund) }} đ × điểm KPI tổng</strong> (mục chưa chấm tính 0%). Chỉ phiếu <strong>đã chốt</strong> được dùng khi tính lương.
+                    KPI Học vụ tính lương tự động: <strong>quỹ {{ money(fund) }} đ × điểm KPI tổng</strong> (mục chưa chấm tính 0%). Tiêu chí đếm lỗi: chỉ nhập số lần thực tế trong tháng, hệ thống tự ra mức 100 / 50 / 0%; lỗi nghiêm trọng đã được quản lý xác nhận thì tiêu chí về 0%. Chỉ phiếu <strong>đã chốt</strong> được dùng khi tính lương.
                 </template>
                 <template v-else>Điểm KPI tổng = Σ(% đạt × trọng số) / Σ trọng số các mục đang áp dụng.</template>
                 Bật "Lỗi nghiêm trọng" tại một mục sẽ tự động đưa % đạt của mục đó về 0%.
@@ -125,10 +148,18 @@ function navigate(event) {
                                 <td class="font-body-small text-body-small">{{ cr.threshold_full }}</td>
                                 <td class="font-body-small text-body-small">{{ cr.threshold_half }}</td>
                                 <td>
-                                    <input type="text" :name="`actual[${cr.id}]`" :value="cr.actual" placeholder="VD: 95%" :aria-label="`Thực tế ${cr.code ?? ''}`" :disabled="!canConfirm" class="w-28 rounded-lg border border-outline-variant bg-surface-container-lowest px-sm py-xs font-body-small text-body-small" />
+                                    <span v-if="isCount(items[cr.id])" class="inline-flex items-center gap-xs">
+                                        <input v-model="items[cr.id].actual" type="number" min="0" step="1" :name="`actual[${cr.id}]`" placeholder="0" :aria-label="`Số lần thực tế ${cr.code ?? ''}`" :disabled="!canConfirm" class="w-20 rounded-lg border border-outline-variant bg-surface-container-lowest px-sm py-xs text-center font-mono font-body-small text-body-small" />
+                                        <span class="font-caption text-caption text-on-surface-variant">{{ cr.unit }}</span>
+                                    </span>
+                                    <input v-else type="text" :name="`actual[${cr.id}]`" :value="cr.actual" placeholder="VD: 95%" :aria-label="`Thực tế ${cr.code ?? ''}`" :disabled="!canConfirm" class="w-28 rounded-lg border border-outline-variant bg-surface-container-lowest px-sm py-xs font-body-small text-body-small" />
                                 </td>
                                 <td class="text-center">
-                                    <span class="inline-flex items-center gap-xs">
+                                    <span v-if="isCount(items[cr.id])" class="inline-flex items-center gap-xs">
+                                        <input type="hidden" :name="`score[${cr.id}]`" :value="scoreInput(items[cr.id])" />
+                                        <span :class="['font-mono font-semibold', levelOf(items[cr.id]) === null && !items[cr.id].critical ? 'text-on-surface-variant' : '']" :aria-label="`% đạt ${cr.code ?? ''}`">{{ levelOf(items[cr.id]) === null && !items[cr.id].critical ? '—' : pct(items[cr.id]) + '%' }}</span>
+                                    </span>
+                                    <span v-else class="inline-flex items-center gap-xs">
                                         <input v-model="items[cr.id].score" type="number" :name="`score[${cr.id}]`" :disabled="items[cr.id].critical || !canConfirm" min="0" max="100" step="1" placeholder="0-100" :aria-label="`% đạt ${cr.code ?? ''}`" class="w-20 rounded-lg border border-outline-variant bg-surface-container-lowest px-sm py-xs text-center font-mono font-semibold" />%
                                     </span>
                                 </td>
@@ -136,7 +167,10 @@ function navigate(event) {
                             </tr>
                         </template>
                         <tr class="bg-primary-fixed/30">
-                            <td colspan="7" class="text-right font-body-semibold text-body-semibold">Tổng tiền KPI dự tính:</td>
+                            <td colspan="7" class="text-right font-body-semibold text-body-semibold">
+                                <UiButton v-if="canConfirm" type="button" variant="secondary" size="sm" class="mr-md" @click="fillZeros">Không có lỗi: điền 0 vào mục chưa nhập</UiButton>
+                                Tổng tiền KPI dự tính:
+                            </td>
                             <td class="text-right font-mono font-bold text-primary"><span>{{ money(totalMoney) }}</span> đ</td>
                         </tr>
                     </tbody>

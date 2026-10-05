@@ -1,14 +1,14 @@
 <script setup>
 /**
- * Cấu hình KPI Học vụ (roundcuoi 02/01_cau_hinh_kpi_hoc_vu_1, 02_cau_hinh_kpi_hoc_vu_2): 6 nhóm / 15 mục, trọng số % quỹ,
- * ngưỡng đạt 100% / 50%; sửa từng mục ngay trên dòng (Lưu / Xoá), thêm mục mới trong modal new-kpi.
+ * Tiêu chí KPI (bộ Học vụ theo file Excel KPI): 6 nhóm / 15 tiêu chí, trọng số % quỹ, số lần lỗi tối đa để đạt 100% / 50%
+ * (đếm lỗi, càng ít càng tốt; vượt ngưỡng 50% = 0%); sửa từng mục ngay trên dòng (Lưu / Xoá), thêm mục mới trong modal new-kpi.
  * Tiền KPI tháng = quỹ × điểm KPI có trọng số (tự động vào bảng lương).
  */
 import { computed, ref } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import { money } from '../Payroll/format';
 
-defineOptions({ layout: { title: 'Cấu hình KPI Học vụ' } });
+defineOptions({ layout: { title: 'Tiêu chí KPI' } });
 
 const props = defineProps({
     groups: { type: Array, default: () => [] },
@@ -30,7 +30,7 @@ const input = 'rounded-lg border-outline-variant focus:border-primary-container 
 
 <template>
     <div>
-        <UiPageHeader title="Cấu hình KPI Học vụ" description="Quản lý và thiết lập các chỉ số KPI đánh giá hiệu suất học vụ — 6 nhóm / 15 mục, tiền KPI tháng = quỹ × điểm KPI có trọng số (tự động vào bảng lương).">
+        <UiPageHeader title="Tiêu chí KPI" description="Bộ tiêu chí KPI Học vụ — 6 nhóm / 15 tiêu chí. Mỗi tiêu chí đếm số lần lỗi trong tháng và chỉ có 3 mức: ≤ ngưỡng 100% thì nhận đủ quỹ tiêu chí, ≤ ngưỡng 50% thì nhận một nửa, vượt thì 0. Tiền KPI tháng = quỹ × điểm KPI có trọng số (tự động vào bảng lương).">
             <template v-if="can('kpi.manage')" #actions>
                 <UiButton icon="add" @click="newOpen = true">Thêm mục mới</UiButton>
             </template>
@@ -63,9 +63,10 @@ const input = 'rounded-lg border-outline-variant focus:border-primary-container 
                                 <input type="text" name="code" :value="cr.code" placeholder="Mã" aria-label="Mã mục" :class="['text-sm sm:col-span-1', input]" title="Mã mục" />
                                 <input type="text" name="name" :value="cr.name" aria-label="Tên mục" :class="['text-sm sm:col-span-3', input]" />
                                 <input type="number" name="weight" step="0.25" min="0" max="100" :value="cr.weight" aria-label="Trọng số % quỹ" :class="['text-sm sm:col-span-1', input]" title="Trọng số % quỹ" />
-                                <span class="font-mono text-xs font-bold text-primary sm:col-span-1" title="Tiền KPI tối đa của mục">{{ money(cr.fund_amount) }} đ</span>
-                                <input type="text" name="threshold_full" :value="cr.threshold_full" placeholder="Ngưỡng 100%" aria-label="Ngưỡng 100%" :class="['text-sm sm:col-span-2', input]" />
-                                <input type="text" name="threshold_half" :value="cr.threshold_half" placeholder="Ngưỡng 50%" aria-label="Ngưỡng 50%" :class="['text-sm sm:col-span-2', input]" />
+                                <span class="font-mono text-xs font-bold text-primary sm:col-span-2" title="Tiền KPI tối đa của mục">{{ money(cr.fund_amount) }} đ</span>
+                                <input type="number" name="max_full" min="0" max="9999" :value="cr.max_full" placeholder="≤ 100%" aria-label="Số lần tối đa để đạt 100%" :class="['text-sm sm:col-span-1', input]" title="Số lần tối đa để đạt 100% quỹ tiêu chí" />
+                                <input type="number" name="max_half" min="0" max="9999" :value="cr.max_half" placeholder="≤ 50%" aria-label="Số lần tối đa để đạt 50%" :class="['text-sm sm:col-span-1', input]" title="Số lần tối đa để đạt 50% quỹ tiêu chí (vượt = 0%)" />
+                                <input type="text" name="unit" :value="cr.unit" placeholder="Đơn vị" aria-label="Đơn vị" :class="['text-sm sm:col-span-1', input]" title="Đơn vị đếm: lần, case, lớp…" />
                                 <label class="flex items-center gap-1 text-xs text-on-surface-variant sm:col-span-1">
                                     <input type="checkbox" name="is_active" value="1" :checked="cr.is_active" class="rounded border-outline-variant text-primary focus:ring-primary-container" /> Bật
                                 </label>
@@ -75,9 +76,7 @@ const input = 'rounded-lg border-outline-variant focus:border-primary-container 
                             </div>
                             <div class="mt-2 grid grid-cols-1 items-center gap-2 sm:grid-cols-12">
                                 <input type="text" name="group_name" :value="cr.group_name" list="kpi-groups" placeholder="Nhóm" aria-label="Nhóm" :class="['text-xs sm:col-span-3', input]" />
-                                <input type="text" name="target" :value="cr.target" placeholder="Mục tiêu" aria-label="Mục tiêu" :class="['text-xs sm:col-span-3', input]" />
-                                <input type="text" name="unit" :value="cr.unit" placeholder="Đơn vị" aria-label="Đơn vị" :class="['text-xs sm:col-span-1', input]" />
-                                <input type="text" name="description" :value="cr.description" placeholder="Mô tả" aria-label="Mô tả" :class="['text-xs sm:col-span-4', input]" />
+                                <input type="text" name="description" :value="cr.description" placeholder="Cách đo" aria-label="Cách đo" :class="['text-xs sm:col-span-8', input]" />
                                 <div class="flex justify-end sm:col-span-1">
                                     <UiButton type="submit" :form="`del-${cr.id}`" variant="danger-text" size="sm">Xoá</UiButton>
                                 </div>
@@ -101,12 +100,11 @@ const input = 'rounded-lg border-outline-variant focus:border-primary-container 
                 <UiInput name="name" label="Tên mục" required />
                 <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
                     <UiInput type="number" name="weight" label="Trọng số % quỹ" required step="0.25" min="0" max="100" />
-                    <UiInput name="unit" label="Đơn vị" placeholder="vd: %, buổi" />
-                    <UiInput name="threshold_full" label="Ngưỡng đạt 100%" />
-                    <UiInput name="threshold_half" label="Ngưỡng đạt 50%" />
+                    <UiInput name="unit" label="Đơn vị đếm" placeholder="vd: lần, case, lớp" />
+                    <UiInput type="number" name="max_full" label="Tối đa để đạt 100%" min="0" max="9999" placeholder="vd: 0" />
+                    <UiInput type="number" name="max_half" label="Tối đa để đạt 50%" min="0" max="9999" placeholder="vd: 2" />
                 </div>
-                <UiInput name="target" label="Mục tiêu" placeholder="vd: >= 95%" />
-                <UiInput name="description" label="Mô tả" />
+                <UiInput name="description" label="Cách đo" placeholder="Đếm cái gì, tính vào tháng nào" />
             </UiForm>
             <template #footer>
                 <UiButton variant="secondary" @click="newOpen = false">Hủy</UiButton>

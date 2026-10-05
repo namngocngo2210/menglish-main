@@ -61,7 +61,7 @@ defineProps({
                                 </tr>
                             </template>
                             <tr v-if="!groups.length">
-                                <td colspan="2"><UiEmptyState icon="tune" title="Chưa có mục KPI nào đang áp dụng" description="Admin cấu hình mục KPI ở màn Tiêu chí KPI học vụ." /></td>
+                                <td colspan="2"><UiEmptyState icon="tune" title="Chưa có mục KPI nào đang áp dụng" description="Admin cấu hình mục KPI ở màn Tiêu chí KPI." /></td>
                             </tr>
                         </tbody>
                     </table>

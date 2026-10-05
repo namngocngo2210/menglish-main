@@ -12,6 +12,7 @@ use App\Models\Student;
 use App\Models\StudentAttendance;
 use App\Models\User;
 use App\Support\DataScope;
+use App\Support\Roles;
 use App\Support\StaffType;
 use App\Support\StatusLabel;
 use App\Support\Ui;
@@ -27,7 +28,7 @@ use Inertia\Response as InertiaResponse;
 class KpiController extends Controller
 {
     /** Chức danh thuộc diện đánh giá KPI tháng (phân loại nhân sự, không phải phân quyền). */
-    private const STAFF_ROLES = ['academic_staff', 'academic_lead', 'teacher', 'teacher_fulltime', 'teacher_parttime', 'assistant'];
+    private const STAFF_ROLES = Roles::KPI_STAFF;
 
     private function guard(string $permission = 'kpi.view'): void
     {
@@ -76,6 +77,8 @@ class KpiController extends Controller
                         'code' => $cr->code,
                         'name' => $cr->name,
                         'weight' => $fmtWeight($cr->weight),
+                        'max_full' => $cr->max_full,
+                        'max_half' => $cr->max_half,
                         'fund_amount' => (float) $cr->fundAmount($fund),
                         'threshold_full' => $cr->threshold_full,
                         'threshold_half' => $cr->threshold_half,
@@ -93,6 +96,7 @@ class KpiController extends Controller
     {
         $this->guard('kpi.manage');
         $validated = $request->validate($this->criterionRules());
+        $validated = $this->withThresholdLabels($validated);
         $validated['is_active'] = true;
         $validated['sort_order'] = (int) KpiCriterion::max('sort_order') + 1;
         KpiCriterion::create($validated);
@@ -106,15 +110,17 @@ class KpiController extends Controller
         $criterion = KpiCriterion::findOrFail($id);
         $validated = $request->validate($this->criterionRules() + ['is_active' => 'nullable|boolean']);
         $validated['is_active'] = $request->boolean('is_active');
-        $criterion->update($validated);
+        $criterion->update($this->withThresholdLabels($validated));
 
         return back()->with('success', 'Đã cập nhật chỉ số KPI!');
     }
 
-    /** Mục KPI Học vụ: nhóm (1 trong 6 nhóm), mã (1.1…), trọng số % quỹ, ngưỡng đạt 100% / 50%. */
+    /** Tiêu chí KPI: nhóm, mã (1.1…), trọng số % quỹ, số lần tối đa để đạt 100% / 50% (đếm lỗi, càng ít càng tốt). */
     private function criterionRules(): array
     {
         return [
+            'max_full' => 'nullable|integer|min:0|max:9999|required_with:max_half',
+            'max_half' => 'nullable|integer|min:0|max:9999|required_with:max_full|gte:max_full',
             'group_name' => 'nullable|string|max:255',
             'code' => 'nullable|string|max:10',
             'name' => 'required|string|max:255',
@@ -125,6 +131,19 @@ class KpiController extends Controller
             'unit' => 'nullable|string|max:50',
             'description' => 'nullable|string',
         ];
+    }
+
+    /** Có ngưỡng số thì nhãn "Ngưỡng 100 / 50" tự lấy từ số + đơn vị (không nhập tay hai lần). */
+    private function withThresholdLabels(array $validated): array
+    {
+        if (isset($validated['max_full'])) {
+            $validated['threshold_full'] = KpiCriterion::thresholdLabel((int) $validated['max_full'], $validated['unit'] ?? null);
+        }
+        if (isset($validated['max_half'])) {
+            $validated['threshold_half'] = KpiCriterion::thresholdLabel((int) $validated['max_half'], $validated['unit'] ?? null);
+        }
+
+        return $validated;
     }
 
     public function criteriaDestroy(int $id)
@@ -282,6 +301,9 @@ class KpiController extends Controller
                             'fund_exact' => (float) $itemFund($cr),
                             'threshold_full' => $cr->threshold_full ?: ($cr->target ?: '—'),
                             'threshold_half' => $cr->threshold_half ?: '—',
+                            'max_full' => $cr->max_full,
+                            'max_half' => $cr->max_half,
+                            'unit' => $cr->unit,
                             'actual' => $item?->actual,
                             'score' => $item?->score !== null ? rtrim(rtrim(number_format($item->score, 2, '.', ''), '0'), '.') : '',
                             'critical' => (bool) $item?->critical_error,
@@ -332,12 +354,19 @@ class KpiController extends Controller
         }
 
         $critical = collect($validated['critical'] ?? [])->filter()->keys()->map(fn ($id) => (int) $id)->all();
+        $criteria = KpiCriterion::active()->get()->keyBy('id');
+
+        // Tiêu chí đếm lỗi: nhập SỐ LẦN thực tế, hệ thống tự ra mức 100 / 50 / 0% (không tự chọn %). Chưa nhập số → giữ % gửi lên.
+        foreach ($criteria as $criterionId => $criterion) {
+            $actual = $validated['actual'][$criterionId] ?? null;
+            if ($criterion->isCountBased() && is_numeric($actual) && (float) $actual >= 0) {
+                $validated['score'][$criterionId] = $criterion->levelForCount((float) $actual);
+            }
+        }
         // "Lỗi nghiêm trọng" đưa % đạt của mục về 0.
         foreach ($critical as $criterionId) {
             $validated['score'][$criterionId] = 0;
         }
-
-        $criteria = KpiCriterion::active()->get()->keyBy('id');
 
         // Điểm tổng theo trọng số: Σ(điểm × trọng số) / Σ trọng số CÁC MỤC ĐANG ÁP DỤNG (mục chưa chấm = 0) —
         // cùng cách tính với KPI Học vụ trên bảng lương (quỹ × điểm tổng %).
