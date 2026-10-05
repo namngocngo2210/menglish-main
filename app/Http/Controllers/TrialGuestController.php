@@ -126,7 +126,8 @@ class TrialGuestController extends Controller
 
     private function canGiveFeedback(CrmTrialBooking $booking, User $user): bool
     {
-        if ($user->can('lead.trial_feedback')) {
+        // Quyền nhận xét học thử theo lead: chỉ lead trong phạm vi dữ liệu CRM của người dùng (chi nhánh / của tôi).
+        if ($user->can('lead.trial_feedback') && $booking->customer()->visibleTo($user)->exists()) {
             return true;
         }
 

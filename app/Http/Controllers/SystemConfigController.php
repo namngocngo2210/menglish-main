@@ -67,7 +67,9 @@ class SystemConfigController extends Controller
             'branches' => Ui::options($branches, 'name'),
             'sepayEnabled' => $sepayEnabled,
             'sepay' => $sepayConfig ? [
-                ...$sepayConfig->only(['webhook_name', 'webhook_url', 'transaction_type', 'auth_method', 'secret_key']),
+                // Khóa bí mật không gửi xuống trình duyệt (ai mở được trang là giả được webhook thanh toán): chỉ báo đã đặt.
+                ...$sepayConfig->only(['webhook_name', 'webhook_url', 'transaction_type', 'auth_method']),
+                'has_secret' => filled($sepayConfig->secret_key),
                 'is_active' => (bool) $sepayConfig->is_active,
                 'auto_retry' => (bool) $sepayConfig->auto_retry,
                 'current_endpoint' => $currentEndpoint,
@@ -202,7 +204,8 @@ class SystemConfigController extends Controller
             'transaction_type' => 'required|in:in,out,all',
             'data_format' => 'required|string',
             'auth_method' => 'required|in:hmac_sha256,api_key',
-            'secret_key' => 'required|string|max:255',
+            // Đã có khóa: để trống = giữ khóa cũ (trang không hiện lại khóa đã lưu).
+            'secret_key' => [filled($config->secret_key) ? 'nullable' : 'required', 'string', 'max:255'],
             'api_key' => 'nullable|string|max:255',
             'is_active' => 'nullable|boolean',
             'auto_retry' => 'nullable|boolean',
@@ -214,14 +217,14 @@ class SystemConfigController extends Controller
             'transaction_type' => $validated['transaction_type'],
             'data_format' => $validated['data_format'],
             'auth_method' => $validated['auth_method'],
-            'secret_key' => $validated['secret_key'],
+            'secret_key' => filled($validated['secret_key'] ?? null) ? $validated['secret_key'] : $config->secret_key,
             'api_key' => $validated['api_key'] ?? null,
             'is_active' => $request->boolean('is_active', true),
             'auto_retry' => $request->boolean('auto_retry', true),
         ]);
 
         return redirect()->route('system-config.bank-accounts')
-            ->with('status', 'Đã lưu cấu hình kết nối SePay Gateway thành công! Bạn có thể copy thông tin này lên SePay.');
+            ->with('status', 'Đã lưu cấu hình kết nối SePay Gateway thành công!');
     }
 
     public function debtReminders(): InertiaResponse
@@ -451,6 +454,7 @@ class SystemConfigController extends Controller
                 'homework' => $isHomeworkEnabled,
             ],
             'mailConfig' => $mailConfig,
+            'canManageMail' => (bool) $request->user()?->can('mail_config.manage'),
             'userEmail' => $request->user()?->email,
             // Kết quả lần gửi thử vừa rồi (flash) — hiện trong khung "Gửi Thử Nghiệm".
             'testResult' => is_array($result = $request->session()->get('test_mail_result')) ? $result : null,
@@ -531,7 +535,20 @@ class SystemConfigController extends Controller
             'Thông báo khi có học viên nộp bài / trễ nộp bài tập hoặc kiểm tra'
         );
 
-        // 2. Outgoing SMTP Mail Settings stored directly in Database (no .env required)
+        // 2. Hòm thư gửi SMTP: mọi email của hệ thống (kể cả email đặt lại mật khẩu) đi qua đây, nên chỉ người có
+        //    mail_config.manage (mặc định Admin) được đổi; người chỉ quản lý danh sách nhận ticket thì bỏ qua phần này.
+        //    Đổi máy chủ / tài khoản phải nhập lại mật khẩu SMTP, không cho dùng mật khẩu đã lưu với máy chủ khác.
+        if (! $request->user()?->can('mail_config.manage')) {
+            return redirect()->route('system-config.ticket-emails')
+                ->with('status', 'Đã lưu danh sách email nhận và các sự kiện gửi thông báo.');
+        }
+        $smtp = SystemSetting::getSmtpConfig();
+        $hostChanged = $request->filled('mail_host') && trim((string) $request->input('mail_host')) !== (string) $smtp['host'];
+        $userChanged = $request->has('mail_username') && trim((string) $request->input('mail_username')) !== (string) $smtp['username'];
+        if (($hostChanged || $userChanged) && $smtp['has_password'] && ! $request->filled('mail_password')) {
+            return back()->withInput()->withErrors(['mail_password' => 'Đổi máy chủ hoặc tài khoản SMTP thì nhập lại mật khẩu ứng dụng.']);
+        }
+
         if ($request->has('mail_host')) {
             $host = trim((string) $request->input('mail_host'));
             if (! empty($host)) {

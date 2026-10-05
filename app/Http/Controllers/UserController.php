@@ -286,15 +286,18 @@ class UserController extends Controller
         $assignable = Rbac::assignableRoles(auth()->user());
         $currentRole = $user->exists ? $user->getRoleNames()->first() : null;
         $tabs = ['account', 'profile', 'salary'];
+        // CCCD, lương cơ bản, thù lao giờ: chỉ người xem được lương (payroll.view) đọc / sửa trên tài khoản đã có.
+        $canEditSensitive = ! $user->exists || self::canViewSensitive(auth()->user());
 
         return $this->modalPage('Users/Form', [
             'user' => $user->exists ? [
                 'id' => $user->id,
                 ...$user->only([
                     'name', 'employee_code', 'email', 'phone', 'branch_id',
-                    'id_card_number', 'emergency_contact', 'hometown', 'current_address', 'graduation_school', 'certificates', 'teaching_level',
-                    'contract_type', 'base_salary', 'hourly_rate',
+                    'emergency_contact', 'hometown', 'current_address', 'graduation_school', 'certificates', 'teaching_level',
+                    'contract_type',
                 ]),
+                ...($canEditSensitive ? $user->only(self::SENSITIVE_FIELDS) : []),
                 'contract_start_date' => $user->contract_start_date?->format('Y-m-d'),
                 'contract_end_date' => $user->contract_end_date?->format('Y-m-d'),
                 'has_contract_file' => (bool) $user->contract_file_path,
@@ -305,8 +308,12 @@ class UserController extends Controller
             'roleOptions' => Ui::options(AclHelper::primaryRoleOptions($assignable, $currentRole)),
             'concurrentOptions' => Ui::options(collect($assignable)->mapWithKeys(fn (string $role) => [$role => AclHelper::shortRoleLabel($role)])),
             'initialTab' => in_array($request->query('tab'), $tabs, true) ? $request->query('tab') : 'account',
+            'canEditSensitive' => $canEditSensitive,
         ]);
     }
+
+    /** Trường nhạy cảm trên form nhân sự: chỉ người có payroll.view đọc / sửa (canViewSensitive). */
+    private const SENSITIVE_FIELDS = ['id_card_number', 'base_salary', 'hourly_rate'];
 
     public function update(UserRequest $request, User $user): Response|RedirectResponse
     {
@@ -316,7 +323,10 @@ class UserController extends Controller
 
         Audit::describe('Cập nhật tài khoản nhân viên');
 
-        $user->fill($request->safe()->except(['role', 'password', 'contract_file', 'concurrent_roles', 'concurrent_roles_present']));
+        $user->fill($request->safe()->except([
+            'role', 'password', 'contract_file', 'concurrent_roles', 'concurrent_roles_present',
+            ...(self::canViewSensitive(auth()->user()) ? [] : self::SENSITIVE_FIELDS),
+        ]));
 
         if ($request->filled('password')) {
             $user->password = Hash::make($request->validated('password'));
@@ -559,6 +569,12 @@ class UserController extends Controller
             $managed !== null && ! in_array((int) $target->branch_id, $managed, true),
             403,
             'Nhân sự này không thuộc chi nhánh bạn quản lý.'
+        );
+        // Phạm vi "Của tôi" (Học vụ, Học thuật): chỉ tài khoản do chính mình tạo — đúng như danh sách đang hiện.
+        abort_if(
+            DataScope::level($actor, 'user') === DataScope::OWN && (int) $target->created_by !== (int) $actor?->id,
+            403,
+            'Bạn chỉ thao tác được trên tài khoản do mình tạo.'
         );
     }
 

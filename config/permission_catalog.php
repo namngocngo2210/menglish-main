@@ -302,6 +302,14 @@ return [
                 'reject' => ['Từ chối yêu cầu', 'Từ chối yêu cầu hoàn / chuyển / khất nợ / bảo lưu.'],
             ],
         ],
+        'mail_config' => [
+            'label' => 'Hòm thư gửi (SMTP)',
+            'group' => 'system',
+            'icon' => 'outbox',
+            'actions' => [
+                'manage' => ['Cấu hình hòm thư gửi', 'Đổi máy chủ / tài khoản SMTP dùng gửi mọi email của hệ thống (kể cả email đặt lại mật khẩu).'],
+            ],
+        ],
         'sla' => [
             'label' => 'Cấu hình SLA',
             'group' => 'system',

@@ -16,6 +16,7 @@ const props = defineProps({
     concurrentOptions: { type: Array, default: () => [] },
     initialTab: { type: String, default: 'account' },
     idPrefix: { type: String, default: '' },
+    canEditSensitive: { type: Boolean, default: true },
 });
 
 const form = useFormContext();
@@ -115,7 +116,7 @@ onMounted(() => {
         <div v-show="tab === 'profile'" role="tabpanel" :id="fid('panel-profile')" :aria-labelledby="fid('tab-profile')" data-tab-panel="profile" class="space-y-md">
             <p class="font-caption text-caption text-on-surface-variant">Có thể để trống khi tạo mới và bổ sung khi chỉnh sửa.</p>
             <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
-                <UiInput name="id_card_number" :id="fid('id_card_number')" label="Số CCCD (12 số)" :value="user?.id_card_number" placeholder="VD: 001201004567" class="font-code" />
+                <UiInput v-if="canEditSensitive" name="id_card_number" :id="fid('id_card_number')" label="Số CCCD (12 số)" :value="user?.id_card_number" placeholder="VD: 001201004567" class="font-code" />
                 <UiInput name="emergency_contact" :id="fid('emergency_contact')" label="Liên lạc khẩn cấp (Tên & SĐT)" :value="user?.emergency_contact" placeholder="Tên người thân - SĐT" />
                 <UiInput name="hometown" :id="fid('hometown')" label="Quê quán" :value="user?.hometown" placeholder="VD: Hà Nội" />
                 <UiInput name="current_address" :id="fid('current_address')" label="Nơi ở hiện tại" :value="user?.current_address" placeholder="Quận/huyện, tỉnh/thành" />
@@ -131,8 +132,8 @@ onMounted(() => {
         <div v-show="tab === 'salary'" role="tabpanel" :id="fid('panel-salary')" :aria-labelledby="fid('tab-salary')" data-tab-panel="salary" class="space-y-md">
             <div class="grid grid-cols-1 gap-md sm:grid-cols-3">
                 <UiSelect name="contract_type" :id="fid('contract_type')" label="Loại hợp đồng" placeholder="-- Chọn loại HĐ --" :value="user?.contract_type" :options="contractTypes" />
-                <UiInput name="base_salary" :id="fid('base_salary')" type="number" min="0" step="1000" label="Lương cơ bản (VNĐ)" :value="user?.base_salary" placeholder="VD: 15000000" class="font-code" />
-                <UiInput name="hourly_rate" :id="fid('hourly_rate')" type="number" min="0" step="1000" label="Thù lao giờ dạy (VNĐ)" :value="user?.hourly_rate" placeholder="VD: 250000" class="font-code" />
+                <UiInput v-if="canEditSensitive" name="base_salary" :id="fid('base_salary')" type="number" min="0" step="1000" label="Lương cơ bản (VNĐ)" :value="user?.base_salary" placeholder="VD: 15000000" class="font-code" />
+                <UiInput v-if="canEditSensitive" name="hourly_rate" :id="fid('hourly_rate')" type="number" min="0" step="1000" label="Thù lao giờ dạy (VNĐ)" :value="user?.hourly_rate" placeholder="VD: 250000" class="font-code" />
             </div>
             <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
                 <UiDate name="contract_start_date" :id="fid('contract_start_date')" label="Ngày bắt đầu hợp đồng" :value="user?.contract_start_date" />
