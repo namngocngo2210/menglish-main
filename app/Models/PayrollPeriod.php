@@ -297,7 +297,13 @@ class PayrollPeriod extends Model
         // Khoá theo kỳ để 2 lần bấm "Tính lại" song song không ghi đè lẫn nhau;
         // transaction đảm bảo bản ghi lương, liên kết phạt và tổng kỳ nhất quán.
         Cache::lock("payroll:period:{$this->id}", 120)->block(10, function () {
-            DB::transaction(fn () => $this->runCalculation());
+            DB::transaction(function () {
+                // Khóa dòng kỳ lương và kiểm lại trong transaction: tính lại không được chạy chồng lên Duyệt / Chi trả
+                // (Duyệt cũng khóa dòng này) — nếu không, khoản phạt / hoa hồng bị gắn lại vào kỳ vừa duyệt.
+                $locked = static::query()->whereKey($this->id)->lockForUpdate()->first();
+                abort_if(! $locked || $locked->isLocked(), 422, 'Không thể tính lại kỳ lương đã duyệt hoặc đã chi trả.');
+                $this->runCalculation();
+            });
         });
     }
 
