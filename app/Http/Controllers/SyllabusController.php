@@ -28,6 +28,7 @@ use App\Services\SafeUploadService;
 use App\Services\ScheduleExtensionService;
 use App\Services\SyllabusProgressionService;
 use App\Services\ZaloZnsService;
+use App\Support\Roles;
 use App\Support\Ui;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
@@ -642,7 +643,7 @@ class SyllabusController extends Controller
             ->latest('id')
             ->paginate($request->perPage(20))
             ->withQueryString();
-        $teachers = User::whereHas('roles', fn ($query) => $query->whereIn('name', ['teacher', 'teacher_fulltime', 'teacher_parttime', 'academic_lead']))->orderBy('name')->get();
+        $teachers = User::whereHas('roles', fn ($query) => $query->whereIn('name', [...Roles::TEACHERS, Roles::ACADEMIC_LEAD]))->orderBy('name')->get();
         $curriculums = SyllabusCurriculum::with('stages')->orderBy('title')->get();
         $classes = ClassModel::visibleTo($request->user())->where('status', '!=', 'cancelled')->orderBy('name')->get();
         $levelCurriculum = CourseLevel::whereNotNull('syllabus_curriculum_id')->pluck('syllabus_curriculum_id', 'code');

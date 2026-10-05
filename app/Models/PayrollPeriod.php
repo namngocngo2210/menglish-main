@@ -7,6 +7,7 @@ use App\Services\SalesCommissionService;
 use App\Services\StaffAttendance\StaffAttendanceService;
 use App\Support\Money;
 use App\Support\RequestMemo;
+use App\Support\Roles;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -415,7 +416,7 @@ class PayrollPeriod extends Model
                 $retention = ['base' => $retentionData['base'], 'retained' => $retentionData['retained']];
                 $details['retention'] = ['base' => $retentionData['base'], 'lost' => $retentionData['lost'], 'retained' => $retentionData['retained'], 'lost_ids' => $retentionData['lost_ids']];
             } else {
-                if ($profile['salary_role'] === 'academic_staff') {
+                if ($profile['salary_role'] === Roles::ACADEMIC_STAFF) {
                     $kpiSource = PayrollRecord::KPI_ACADEMIC;
                     $academic = $formula->academicKpiFor($user, (int) $this->month, (int) $this->year);
                     $kpiAuto = $academic['amount'];

@@ -19,6 +19,7 @@ use App\Services\SalesCommissionService;
 use App\Support\Approvals\ApprovalInboxService;
 use App\Support\Money;
 use App\Support\Navigation\SidebarMenu;
+use App\Support\Roles;
 use App\Support\StaffType;
 use App\Support\StatusLabel;
 use Carbon\Carbon;
@@ -401,11 +402,11 @@ class ProfileController extends Controller
         $roles = $user->getRoleNames();
 
         return match (true) {
-            $roles->contains('academic_lead') || $roles->contains('academic') => 'academic_lead',
-            $roles->contains('academic_staff') => 'academic_staff',
-            $roles->intersect(['admin', 'manager', 'accountant', 'sales_consultant'])->isNotEmpty() => 'staff',
+            $roles->contains(Roles::ACADEMIC_LEAD) => 'academic_lead',
+            $roles->contains(Roles::ACADEMIC_STAFF) => 'academic_staff',
+            $roles->intersect([Roles::ADMIN, Roles::MANAGER, Roles::SALES_CONSULTANT])->isNotEmpty() => 'staff',
             $roles->intersect(StaffType::TEACHER_ROLES)->isNotEmpty() || $user->can('portal.teacher') => 'teacher',
-            $roles->contains('assistant') || $user->can('portal.assistant') => 'assistant',
+            $roles->contains(Roles::ASSISTANT) || $user->can('portal.assistant') => 'assistant',
             default => 'staff',
         };
     }

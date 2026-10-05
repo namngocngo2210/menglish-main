@@ -50,14 +50,14 @@ class UserSeeder extends Seeder
                 'role' => 'manager',
             ],
 
-            // ============ KẾ TOÁN ============
+            // ============ QUẢN LÝ CƠ SỞ (đối soát, duyệt phiếu thu) ============
             [
                 'employee_code' => 'ME-0003',
                 'name' => 'Trần Thị B',
                 'email' => 'ttb@menglish.edu.vn',
                 'phone' => '0900000003',
                 'branch' => 'BD',
-                'role' => 'accountant',
+                'role' => 'manager',
             ],
             [
                 'employee_code' => 'ME-0009',
@@ -65,7 +65,7 @@ class UserSeeder extends Seeder
                 'email' => 'ketoan2@menglish.edu.vn',
                 'phone' => '0900000010',
                 'branch' => 'CG',
-                'role' => 'accountant',
+                'role' => 'manager',
             ],
 
             // ============ HỌC THUẬT & HỌC VỤ ============
@@ -127,7 +127,7 @@ class UserSeeder extends Seeder
                 'email' => 'nguyenvanan@menglish.edu.vn',
                 'phone' => '0900000006',
                 'branch' => 'CG',
-                'role' => 'teacher',
+                'role' => 'teacher_fulltime',
             ],
             [
                 'employee_code' => 'GV-0501',

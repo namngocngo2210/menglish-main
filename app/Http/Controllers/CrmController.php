@@ -50,6 +50,7 @@ use App\Support\CenterInfo;
 use App\Support\DataScope;
 use App\Support\Money;
 use App\Support\Rbac;
+use App\Support\Roles;
 use App\Support\TemporaryPassword;
 use App\Support\TransferMemo;
 use App\Support\TuitionBranchScope;
@@ -1917,7 +1918,7 @@ class CrmController extends Controller
     {
         abort_unless($enrollment->customer_id && $this->scopeCustomerQuery()->whereKey($enrollment->customer_id)->exists(), 404);
         $account = $enrollment->student?->user;
-        if (! $account || $account->getRoleNames()->all() !== ['student']) {
+        if (! $account || $account->getRoleNames()->all() !== [Roles::STUDENT]) {
             throw ValidationException::withMessages(['enrollment' => 'Học viên chưa có tài khoản cổng học viên riêng, liên hệ Admin để cấp tài khoản.']);
         }
 
@@ -2462,8 +2463,8 @@ class CrmController extends Controller
                     'is_active' => true,
                     'email_verified_at' => null,
                 ]);
-                Role::findOrCreate('student', 'web');
-                $studentUser->assignRole('student');
+                Role::findOrCreate(Roles::STUDENT, 'web');
+                $studentUser->assignRole(Roles::STUDENT);
                 $student->update(['user_id' => $studentUser->id, 'email' => $studentEmail]);
             }
 
@@ -3070,7 +3071,7 @@ class CrmController extends Controller
             ->merge($wonCredited->map(fn (CrmCustomer $lead) => $lead->commission_user_id ?? $lead->assigned_user_id))
             ->filter()->unique()->values();
         $salesUsers = User::query()
-            ->where(fn (Builder $q) => $q->whereHas('roles', fn (Builder $r) => $r->where('name', 'sales_consultant'))
+            ->where(fn (Builder $q) => $q->whereHas('roles', fn (Builder $r) => $r->where('name', Roles::SALES_CONSULTANT))
                 ->orWhereIn('id', $repIds))
             ->with(['roles', 'branches'])
             ->get();
@@ -3112,7 +3113,7 @@ class CrmController extends Controller
 
             $repsData[] = [
                 'name' => $user->name,
-                'role' => $user->roles->first()?->name === 'sales_consultant' ? 'Chuyên viên Tư vấn Tuyển sinh' : ($user->roles->first()?->name ?? 'Tư vấn viên'),
+                'role' => $user->roles->first()?->name === Roles::SALES_CONSULTANT ? 'Chuyên viên Tư vấn Tuyển sinh' : ($user->roles->first()?->name ?? 'Tư vấn viên'),
                 'avatar_letter' => $avatarLetter,
                 'leads' => $userLeadsCount,
                 'won' => $userWonCount,

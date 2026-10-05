@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Services\NotificationService;
 use App\Services\Tuition\PaymentConfirmation;
 use App\Support\Money;
+use App\Support\Roles;
 use Carbon\Carbon;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
@@ -417,7 +418,7 @@ class SepayWebhookController extends Controller
 
                 if ($matchedTuition->branch_id) {
                     $branchStaffEmails = User::where('branch_id', $matchedTuition->branch_id)
-                        ->whereHas('roles', fn ($q) => $q->whereIn('name', ['academic_staff', 'manager', 'accountant']))
+                        ->whereHas('roles', fn ($q) => $q->whereIn('name', Roles::BRANCH_OPERATORS))
                         ->pluck('email')
                         ->filter();
                     $recipients = $recipients->merge($branchStaffEmails);

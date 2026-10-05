@@ -11,6 +11,7 @@ use App\Models\StudentAttendance;
 use App\Models\User;
 use App\Models\WorkTask;
 use App\Services\Sla\Sla;
+use App\Support\Roles;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -223,13 +224,13 @@ class FirstMonthCareService
 
                 $branchId = $student->branch_id ?: $student->currentClass?->branch_id;
                 $assignee = BranchStaff::academicStaff($branchId)->first()
-                    ?? BranchStaff::withRoles('manager', $branchId)->first();
+                    ?? BranchStaff::withRoles(Roles::MANAGER, $branchId)->first();
                 if (! $assignee) {
                     $skipped[] = "{$student->name}: chi nhánh chưa có Học vụ";
 
                     continue;
                 }
-                $creator = BranchStaff::withRoles('manager', $branchId)->first()
+                $creator = BranchStaff::withRoles(Roles::MANAGER, $branchId)->first()
                     ?? BranchStaff::admins()->first()
                     ?? $assignee;
                 $short = self::milestoneShortLabel($milestone);

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Models\User;
+use App\Support\Roles;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -14,9 +15,9 @@ use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 class AuthenticatedSessionController extends Controller
 {
     /** Vai trò vào thẳng màn làm việc hằng ngày sau đăng nhập (xem homeUrl()). */
-    private const TEACHER_ROLES = ['teacher', 'teacher_fulltime', 'teacher_parttime'];
+    private const TEACHER_ROLES = Roles::TEACHERS;
 
-    private const ASSISTANT_ROLES = ['assistant'];
+    private const ASSISTANT_ROLES = [Roles::ASSISTANT];
 
     /**
      * Display the login view. Thông báo `status` (vd. vừa đặt lại mật khẩu) hiện trong khung đăng nhập, không lặp lại thành toast.

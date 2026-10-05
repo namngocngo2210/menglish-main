@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\User;
+use App\Support\Roles;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Spatie\Permission\Models\Role;
@@ -47,6 +48,6 @@ class BranchStaff
     /** Học vụ (academic_staff) của chi nhánh. */
     public static function academicStaff(?int $branchId): Collection
     {
-        return static::withRoles('academic_staff', $branchId);
+        return static::withRoles(Roles::ACADEMIC_STAFF, $branchId);
     }
 }
