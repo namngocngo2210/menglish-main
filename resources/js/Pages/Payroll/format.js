@@ -30,10 +30,3 @@ export function searchKey(text) {
         .replace(/đ/g, 'd');
 }
 
-/** Màu nhãn trạng thái kỳ lương (danh sách kỳ, bảng lương, phiếu lương). */
-export const PERIOD_STATUS = {
-    draft: ['info', 'Đang tính'],
-    reviewing: ['warning', 'Đang soát'],
-    approved: ['success', 'Đã chốt'],
-    paid: ['secondary', 'Đã trả'],
-};

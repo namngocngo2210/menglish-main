@@ -270,6 +270,10 @@ onBeforeUnmount(() => window.removeEventListener('resize', onResize));
                                     @dragstart="onDragStart($event, lead, stage)"
                                     @dragend="onDragEnd"
                                     @click="openCard($event, lead)"
+                                    role="button"
+                                    tabindex="0"
+                                    @keydown.enter.self.prevent="openCard($event, lead)"
+                                    @keydown.space.self.prevent="openCard($event, lead)"
                                 >
                                     <button
                                         v-if="canEditStage(stage)"

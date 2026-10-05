@@ -4,7 +4,9 @@ namespace App\Models;
 
 use App\Models\Concerns\AuditsChanges;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Support\Roles;
 use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -253,6 +255,14 @@ class User extends Authenticatable
      *
      * @return list<int>
      */
+    /** Tài khoản nhân sự: bỏ tài khoản chỉ mang vai trò Học viên (vẫn giữ người không có vai trò nào). */
+    public function scopeStaffAccounts(Builder $query): Builder
+    {
+        return $query->where(fn (Builder $staff) => $staff
+            ->whereDoesntHave('roles', fn (Builder $role) => $role->where('name', Roles::STUDENT))
+            ->orWhereHas('roles', fn (Builder $role) => $role->where('name', '!=', Roles::STUDENT)));
+    }
+
     public function branchIds(): array
     {
         // Nạp 1 lần rồi giữ trên model: DataScope gọi hàm này nhiều lần trong một request (mỗi truy vấn có lọc phạm vi).

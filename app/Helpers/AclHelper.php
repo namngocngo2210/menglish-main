@@ -4,7 +4,6 @@ namespace App\Helpers;
 
 use App\Support\PermissionCatalog;
 use App\Support\Roles;
-use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Role;
 
 /**
@@ -62,9 +61,7 @@ class AclHelper
         if (! app()->bound('rbac.role_labels')) {
             $labels = [];
             try {
-                if (Schema::hasColumn('roles', 'label')) {
-                    $labels = Role::query()->whereNotNull('label')->where('label', '!=', '')->pluck('label', 'name')->all();
-                }
+                $labels = Role::query()->whereNotNull('label')->where('label', '!=', '')->pluck('label', 'name')->all();
             } catch (\Throwable) {
                 $labels = [];
             }

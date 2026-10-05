@@ -117,13 +117,17 @@ class DemoPhase4SeederTest extends TestCase
         $this->assertSame($before->all(), collect($tables)->mapWithKeys(fn (string $table) => [$table => DB::table($table)->count()])->all());
 
         // Màn hình Phase 4 mở được bằng tài khoản demo.
-        $accountant = User::where('email', 'ketoan2@menglish.edu.vn')->firstOrFail();
+        // ketoan2 nay là Quản lý cơ sở (bỏ vai trò Kế toán): mở các màn học phí / tài chính; cấu hình tài khoản ngân hàng và
+        // nhắc phí là quyền mặc định của Admin.
+        $branchManager = User::where('email', 'ketoan2@menglish.edu.vn')->firstOrFail();
         $admin = User::where('email', 'admin@menglish.edu.vn')->firstOrFail();
         $managerBd = User::where('email', 'manager.bd@menglish.edu.vn')->firstOrFail();
         foreach (['tuition.students', 'tuition.receipts.approve', 'tuition.history', 'tuition.invoices.cancellations', 'tuition.refunds',
-            'tuition.overdue', 'tuition.config', 'finance.reports.revenue', 'finance.expenses.index', 'system-config.bank-accounts',
-            'system-config.debt-reminders'] as $route) {
-            $this->actingAs($accountant)->get(route($route))->assertOk();
+            'tuition.overdue', 'tuition.config', 'finance.reports.revenue', 'finance.expenses.index'] as $route) {
+            $this->actingAs($branchManager)->get(route($route))->assertOk();
+        }
+        foreach (['system-config.bank-accounts', 'system-config.debt-reminders'] as $route) {
+            $this->actingAs($admin)->get(route($route))->assertOk();
         }
         $this->actingAs($managerBd)->get(route('tuition.overdue'))->assertOk()
             ->assertInertia(function (AssertableInertia $page) {

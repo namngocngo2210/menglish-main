@@ -399,39 +399,44 @@ class KpiController extends Controller
         }
         $total = $weightTotal > 0 ? round($weightedSum / $weightTotal, 2) : 0;
 
-        $evaluation = KpiEvaluation::updateOrCreate(
-            ['user_id' => $userId, 'month' => $validated['month'], 'year' => $validated['year']],
-            [
-                'evaluator_id' => Auth::id(),
-                'total_score' => $total,
-                'comment' => $validated['comment'] ?? null,
-                'strengths' => $validated['strengths'] ?? null,
-                'improvements' => $validated['improvements'] ?? null,
-                'next_actions' => $validated['next_actions'] ?? null,
-                'status' => $action === 'draft' ? KpiEvaluation::STATUS_PENDING : KpiEvaluation::STATUS_APPROVED,
-                'decided_at' => $action === 'draft' ? null : now(),
-            ]
-        );
-
-        foreach ($validated['score'] as $criterionId => $score) {
-            if (! isset($criteria[$criterionId])) {
-                continue;
-            }
-            if ($score === null || $score === '') {
-                // Ô để trống: tổng điểm tính mục này = 0 → đưa điểm cũ (nếu có) về 0 cho khớp, không để điểm cũ còn hiện.
-                KpiEvaluationItem::where('kpi_evaluation_id', $evaluation->id)->where('kpi_criterion_id', $criterionId)->update(['score' => 0]);
-
-                continue;
-            }
-            KpiEvaluationItem::updateOrCreate(
-                ['kpi_evaluation_id' => $evaluation->id, 'kpi_criterion_id' => $criterionId],
+        // Phiếu + từng mục ghi cùng lúc: lỗi giữa chừng không để lại phiếu đã chốt thiếu mục.
+        $evaluation = DB::transaction(function () use ($userId, $validated, $total, $criteria, $critical, $action) {
+            $evaluation = KpiEvaluation::updateOrCreate(
+                ['user_id' => $userId, 'month' => $validated['month'], 'year' => $validated['year']],
                 [
-                    'score' => $score, 'note' => $validated['note'][$criterionId] ?? null,
-                    'actual' => $validated['actual'][$criterionId] ?? null,
-                    'critical_error' => in_array((int) $criterionId, $critical, true),
+                    'evaluator_id' => Auth::id(),
+                    'total_score' => $total,
+                    'comment' => $validated['comment'] ?? null,
+                    'strengths' => $validated['strengths'] ?? null,
+                    'improvements' => $validated['improvements'] ?? null,
+                    'next_actions' => $validated['next_actions'] ?? null,
+                    'status' => $action === 'draft' ? KpiEvaluation::STATUS_PENDING : KpiEvaluation::STATUS_APPROVED,
+                    'decided_at' => $action === 'draft' ? null : now(),
                 ]
             );
-        }
+
+            foreach ($validated['score'] as $criterionId => $score) {
+                if (! isset($criteria[$criterionId])) {
+                    continue;
+                }
+                if ($score === null || $score === '') {
+                    // Ô để trống: tổng điểm tính mục này = 0 → đưa điểm cũ (nếu có) về 0 cho khớp, không để điểm cũ còn hiện.
+                    KpiEvaluationItem::where('kpi_evaluation_id', $evaluation->id)->where('kpi_criterion_id', $criterionId)->update(['score' => 0]);
+
+                    continue;
+                }
+                KpiEvaluationItem::updateOrCreate(
+                    ['kpi_evaluation_id' => $evaluation->id, 'kpi_criterion_id' => $criterionId],
+                    [
+                        'score' => $score, 'note' => $validated['note'][$criterionId] ?? null,
+                        'actual' => $validated['actual'][$criterionId] ?? null,
+                        'critical_error' => in_array((int) $criterionId, $critical, true),
+                    ]
+                );
+            }
+
+            return $evaluation;
+        });
 
         $label = $evaluation->status === KpiEvaluation::STATUS_PENDING ? 'Đã lưu nháp đánh giá KPI' : 'Đã chốt KPI tháng';
 

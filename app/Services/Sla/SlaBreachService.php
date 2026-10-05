@@ -91,7 +91,7 @@ class SlaBreachService
             if ($rule['penalty'] && $owner) {
                 // Bậc phạt theo lần tái phạm cộng dồn trong N tháng (không tính biên bản đã hủy).
                 $occurrence = Penalty::where('user_id', $owner->id)->where('auto_source', $event->rule_key)->where('status', '!=', 'cancelled')
-                    ->where('created_at', '>=', $now->copy()->subMonths(Sla::ladderResetMonths()))->count() + 1;
+                    ->where('created_at', '>=', $now->copy()->subMonthsNoOverflow(Sla::ladderResetMonths()))->count() + 1;
                 $amount = Sla::amountForOccurrence($rule, $occurrence);
                 $ladderNote = ! empty($rule['ladder'])
                     ? " Lần thứ {$occurrence} trong ".Sla::ladderResetMonths().' tháng'.($amount > 0 ? '.' : ' (mức nhắc nhở, không phạt tiền).')

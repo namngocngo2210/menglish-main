@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
@@ -48,7 +49,8 @@ class ActivityLogController extends Controller
 
         $logs = $this->filteredQuery($request)
             ->with(['causer.roles'])
-            ->paginate($request->perPage(10))
+            // "Tất cả" tối đa 200 dòng: mỗi dòng còn dựng panel đối chiếu / kiểm tra hoàn tác.
+            ->paginate(min($request->perPage(10), 200))
             ->withQueryString();
 
         // Module choices & Users for filter dropdowns
@@ -67,19 +69,27 @@ class ActivityLogController extends Controller
             'Tài khoản & Hồ sơ',
         ];
 
-        // Merge any extra log names from DB
-        $dbLogNames = Activity::query()->whereNotNull('log_name')->distinct()->pluck('log_name')->toArray();
-        $allLogNames = array_values(array_unique(array_merge($logNames, $dbLogNames)));
-
-        $events = Activity::query()->whereNotNull('event')->distinct()->pluck('event');
-        $users = User::select('id', 'name', 'email')->orderBy('name')->get();
-
-        // Quick Stats
+        // Danh sách lọc + thống kê nhanh quét cả bảng nhật ký: lưu đệm 5 phút theo người xem.
         $scoped = fn () => self::scoped(Activity::query(), $request->user());
-        $todayRange = [today()->startOfDay(), today()->endOfDay()];
-        $totalLogsToday = $scoped()->whereBetween('created_at', $todayRange)->count();
-        $totalLogsCount = $scoped()->count();
-        $activeUsersToday = $scoped()->whereBetween('created_at', $todayRange)->distinct('causer_id')->count('causer_id');
+        $cached = Cache::remember('activity_log:index:'.$request->user()->id, now()->addMinutes(5), function () use ($scoped) {
+            $todayRange = [today()->startOfDay(), today()->endOfDay()];
+
+            return [
+                'logNames' => Activity::query()->whereNotNull('log_name')->distinct()->pluck('log_name')->all(),
+                'events' => Activity::query()->whereNotNull('event')->distinct()->pluck('event')->all(),
+                // Chỉ người đã có thao tác trong nhật ký (không liệt kê hàng nghìn tài khoản học viên chưa thao tác gì).
+                'causerIds' => $scoped()->where('causer_type', (new User)->getMorphClass())->whereNotNull('causer_id')
+                    ->distinct()->pluck('causer_id')->all(),
+                'stats' => [
+                    'total' => $scoped()->count(),
+                    'today' => $scoped()->whereBetween('created_at', $todayRange)->count(),
+                    'activeUsers' => $scoped()->whereBetween('created_at', $todayRange)->distinct('causer_id')->count('causer_id'),
+                ],
+            ];
+        });
+        $allLogNames = array_values(array_unique(array_merge($logNames, $cached['logNames'])));
+        $events = collect($cached['events']);
+        $users = User::withTrashed()->whereIn('id', $cached['causerIds'])->orderBy('name')->get(['id', 'name', 'email']);
 
         $canUndo = (bool) $request->user()?->can('activity_log.undo');
 
@@ -89,11 +99,7 @@ class ActivityLogController extends Controller
             'logNames' => Ui::options(collect($allLogNames)->mapWithKeys(fn ($n) => [$n => $n])),
             'users' => Ui::options($users, 'name'),
             'events' => Ui::options($events->mapWithKeys(fn ($e) => [$e => Audit::eventLabel($e)])),
-            'stats' => [
-                'total' => $totalLogsCount,
-                'today' => $totalLogsToday,
-                'activeUsers' => $activeUsersToday,
-            ],
+            'stats' => $cached['stats'],
         ]);
     }
 

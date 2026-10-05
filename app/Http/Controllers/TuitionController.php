@@ -3213,7 +3213,8 @@ class TuitionController extends Controller
 
     /**
      * Mockup "Chính sách đồng bộ số hóa đơn": mọi thay đổi dải số được thông báo tới chi nhánh liên quan —
-     * Quản lý cơ sở của chi nhánh (dải mặc định: Admin), không gửi cho chính người thao tác.
+     * Quản lý cơ sở + người được cấp quyền quản lý dải số (invoice_range.manage, vd. vai trò kế toán Admin tạo) của chi nhánh
+     * (dải mặc định: Admin), không gửi cho chính người thao tác.
      */
     private function notifyInvoiceRangeChange(InvoiceConfiguration $range, string $message): void
     {
@@ -3221,7 +3222,9 @@ class TuitionController extends Controller
             ->where('is_active', true)
             ->whereKeyNot(Auth::id())
             ->when($range->branch_id,
-                fn ($q) => $q->whereHas('roles', fn ($r) => $r->where('name', Roles::MANAGER))
+                fn ($q) => $q->where(fn ($who) => $who->whereHas('roles', fn ($r) => $r->where('name', Roles::MANAGER))
+                    ->orWhere(fn ($holder) => Rbac::scopeUsersWithPermission($holder, 'invoice_range.manage')
+                        ->whereDoesntHave('roles', fn ($r) => $r->where('name', Roles::ADMIN))))
                     ->where(fn ($q) => $q->where('branch_id', $range->branch_id)->orWhereHas('branches', fn ($b) => $b->where('branches.id', $range->branch_id))),
                 fn ($q) => $q->whereHas('roles', fn ($r) => $r->where('name', Roles::ADMIN)))
             ->pluck('id');

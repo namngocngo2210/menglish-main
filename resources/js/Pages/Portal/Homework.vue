@@ -164,7 +164,7 @@ function switchStudent(event) {
                                     </div>
 
                                     <div v-if="sub.attachment_path" class="pt-1">
-                                        <a :href="sub.attachment_path" target="_blank" class="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline">
+                                        <a :href="sub.attachment_path" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline">
                                             <span class="material-symbols-outlined text-[14px]">attachment</span>
                                             <span>{{ sub.attachment_name ?? 'Xem tệp đính kèm' }}</span>
                                         </a>
@@ -187,7 +187,7 @@ function switchStudent(event) {
                             </template>
                             <div v-else class="flex flex-col gap-1.5 pt-1">
                                 <UiButton :variant="urgent ? 'primary' : 'secondary'" icon="upload" class="w-full" @click="openUpload(key, cat.title)">{{ cat.btnText }}</UiButton>
-                                <a v-if="cat.isQuiz" href="https://quizizz.com" target="_blank" class="mt-0.5 inline-flex items-center justify-center gap-1 text-xs font-bold text-secondary hover:underline">
+                                <a v-if="cat.isQuiz" href="https://quizizz.com" target="_blank" rel="noopener noreferrer" class="mt-0.5 inline-flex items-center justify-center gap-1 text-xs font-bold text-secondary hover:underline">
                                     <span>Mở link Quiz trực tuyến</span>
                                     <span class="material-symbols-outlined text-[14px]">open_in_new</span>
                                 </a>

@@ -316,7 +316,7 @@ const invoiceStatus = (status) => (status === 'approved' ? 'Đã duyệt hủy' 
                             <span class="font-code text-xs text-on-surface-subtle">{{ selected.proof_name ?? 'Không có tệp' }}</span>
                         </div>
                         <div class="relative flex min-h-[160px] items-center justify-center overflow-hidden rounded-xl border border-inverse-surface bg-inverse-surface p-4 text-inverse-on-surface">
-                            <img v-if="selected.proof_image" :src="selected.proof_image" alt="Minh chứng hủy" class="max-h-56 cursor-pointer rounded-lg object-contain" @click="zoomOpen = true" />
+                            <img v-if="selected.proof_image" :src="selected.proof_image" alt="Minh chứng hủy" class="max-h-56 cursor-pointer rounded-lg object-contain" @click="zoomOpen = true" role="button" tabindex="0" @keydown.enter.self.prevent="zoomOpen = true" @keydown.space.self.prevent="zoomOpen = true" />
                             <div v-else class="space-y-2 text-center">
                                 <div class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-inverse-on-surface/70">
                                     <span class="material-symbols-outlined text-2xl">image_not_supported</span>

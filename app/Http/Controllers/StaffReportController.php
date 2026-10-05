@@ -191,7 +191,7 @@ class StaffReportController extends Controller
     public function journalFollowup(Request $request, int $id)
     {
         $this->guard();
-        $report = StaffReport::findOrFail($id);
+        $report = $this->journalEntry($id);
         $validated = $request->validate([
             'content' => 'required|string',
         ], ['content.required' => 'Vui lòng nhập nội dung tác vụ / follow-up.']);
@@ -212,13 +212,21 @@ class StaffReportController extends Controller
     public function journalStatus(Request $request, int $id)
     {
         $this->guard();
-        $report = StaffReport::findOrFail($id);
+        $report = $this->journalEntry($id);
         $validated = $request->validate([
             'status' => 'required|in:open,following,resolved',
         ]);
         $report->update(['status' => $validated['status']]);
 
         return back()->with('success', 'Đã cập nhật trạng thái sự vụ!');
+    }
+
+    /** Sự vụ trong nhật ký mà người dùng được xử lý: của chính mình, hoặc người xem mọi báo cáo (staff_report.view_all). */
+    private function journalEntry(int $id): StaffReport
+    {
+        return StaffReport::query()->where('type', 'journal')
+            ->when(! $this->isPrivileged(), fn ($q) => $q->where('user_id', Auth::id()))
+            ->findOrFail($id);
     }
 
     // ───────────────────────── BÁO CÁO ĐỊNH KỲ ─────────────────────────

@@ -79,7 +79,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
                     </button>
                     <img :src="lightbox" class="max-h-[85vh] max-w-full rounded-xl object-contain shadow-lg" alt="" />
                     <div class="mt-2 text-center">
-                        <a :href="lightbox" target="_blank" download class="inline-flex items-center gap-1.5 rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/30">
+                        <a :href="lightbox" target="_blank" rel="noopener noreferrer" download class="inline-flex items-center gap-1.5 rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/30">
                             <span class="material-symbols-outlined text-sm">download</span>
                             <span>Mở ảnh gốc trong tab mới</span>
                         </a>

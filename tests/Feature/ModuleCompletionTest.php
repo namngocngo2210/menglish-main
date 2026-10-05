@@ -66,7 +66,7 @@ class ModuleCompletionTest extends TestCase
     {
         $manager = $this->manager();
         $teacher = User::factory()->create(['branch_id' => $this->branch->id, 'is_active' => true]);
-        $teacher->assignRole('teacher');
+        $teacher->assignRole('teacher_parttime');
 
         $penalty = Penalty::create([
             'code' => 'BB-2026-001',

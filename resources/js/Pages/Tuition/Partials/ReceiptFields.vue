@@ -513,7 +513,7 @@ const methodClass = (method) => (s.value.paymentMethod === method ? 'border-prim
             </span>
         </div>
 
-        <div class="relative flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-outline-variant p-6 text-center transition hover:bg-surface-container-low/50" @click="fileInput?.click()">
+        <div class="relative flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-outline-variant p-6 text-center transition hover:bg-surface-container-low/50" @click="fileInput?.click()" role="button" tabindex="0" @keydown.enter.self.prevent="fileInput?.click()" @keydown.space.self.prevent="fileInput?.click()">
             <input ref="fileInput" type="file" name="proof_image" accept="image/*,.pdf" class="hidden" @change="form.handleFileSelected($event)" />
             <div class="mb-2.5 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-container/10 text-primary">
                 <span class="material-symbols-outlined text-2xl">cloud_upload</span>

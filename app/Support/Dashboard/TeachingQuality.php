@@ -15,6 +15,7 @@ use App\Models\Student;
 use App\Models\StudentAttendance;
 use App\Models\TeacherTimesheet;
 use App\Models\User;
+use App\Support\ReportPeriod;
 use App\Support\StaffType;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -47,7 +48,7 @@ final class TeachingQuality
 
     public function __construct(?string $month = null)
     {
-        $start = $month && preg_match('/^\d{4}-\d{2}$/', $month) ? Carbon::createFromFormat('Y-m-d', $month.'-01') : now();
+        $start = ReportPeriod::parseMonth($month);
         $this->from = $start->copy()->startOfMonth()->startOfDay();
         $this->to = $start->copy()->endOfMonth()->endOfDay();
     }

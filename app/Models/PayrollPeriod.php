@@ -297,7 +297,13 @@ class PayrollPeriod extends Model
         // Khoá theo kỳ để 2 lần bấm "Tính lại" song song không ghi đè lẫn nhau;
         // transaction đảm bảo bản ghi lương, liên kết phạt và tổng kỳ nhất quán.
         Cache::lock("payroll:period:{$this->id}", 120)->block(10, function () {
-            DB::transaction(fn () => $this->runCalculation());
+            DB::transaction(function () {
+                // Khóa dòng kỳ lương và kiểm lại trong transaction: tính lại không được chạy chồng lên Duyệt / Chi trả
+                // (Duyệt cũng khóa dòng này) — nếu không, khoản phạt / hoa hồng bị gắn lại vào kỳ vừa duyệt.
+                $locked = static::query()->whereKey($this->id)->lockForUpdate()->first();
+                abort_if(! $locked || $locked->isLocked(), 422, 'Không thể tính lại kỳ lương đã duyệt hoặc đã chi trả.');
+                $this->runCalculation();
+            });
         });
     }
 
@@ -308,10 +314,15 @@ class PayrollPeriod extends Model
         // để tính lại không làm mất lương những buổi họ đã dạy.
         $departedIds = TeacherTimesheet::whereBetween('teaching_date', [$this->start_date, $this->end_date])
             ->where('status', 'valid')->distinct()->pluck('user_id');
+        // Bỏ tài khoản chỉ là Học viên (không bao giờ có phiếu lương) để không chạy truy vấn lương cho từng học viên.
         $users = User::withTrashed()->with('roles')
-            ->where(fn ($query) => $query->where(fn ($active) => $active->where('is_active', true)->whereNull('deleted_at'))
+            ->where(fn ($query) => $query->where(fn ($active) => $active->where('is_active', true)->whereNull('deleted_at')->staffAccounts())
                 ->orWhereIn('id', $departedIds))
             ->get();
+        // Ca dạy hợp lệ trong kỳ theo lớp + ngày + người: tra "buổi có GVNN" không phải truy vấn từng ca.
+        $validSessionKeys = TeacherTimesheet::whereBetween('teaching_date', [$this->start_date, $this->end_date])
+            ->where('status', 'valid')->get(['class_id', 'teaching_date', 'user_id'])
+            ->mapWithKeys(fn (TeacherTimesheet $ts) => [$ts->class_id.'|'.$ts->teaching_date?->toDateString().'|'.$ts->user_id => true]);
         $producedUserIds = [];
         $commissionService = app(SalesCommissionService::class);
         $formula = app(PayrollFormulaService::class);
@@ -367,12 +378,11 @@ class PayrollPeriod extends Model
             ] : null)->filter()->values()->all() : [];
 
             // Buổi có GVNN cùng lớp (chỉ để Kế toán tham khảo khi nhập dòng "Buổi có GVNN" — chờ BA chốt cách tính)
-            $foreignSessions = $timesheets->filter(function (TeacherTimesheet $ts) use ($user) {
+            $foreignSessions = $timesheets->filter(function (TeacherTimesheet $ts) use ($user, $validSessionKeys) {
                 $foreignTeacherId = $ts->classModel?->foreign_teacher_id;
 
                 return $foreignTeacherId && (int) $foreignTeacherId !== (int) $user->id
-                    && TeacherTimesheet::where('class_id', $ts->class_id)->whereDate('teaching_date', $ts->teaching_date)
-                        ->where('user_id', $foreignTeacherId)->where('status', 'valid')->exists();
+                    && $validSessionKeys->has($ts->class_id.'|'.$ts->teaching_date?->toDateString().'|'.$foreignTeacherId);
             })->count();
 
             // 2. Hoa hồng: khoản đạt gate kép trong kỳ (kể cả khoản hoãn từ kỳ trước); còn lại hoãn.

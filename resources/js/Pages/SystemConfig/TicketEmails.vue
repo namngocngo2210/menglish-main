@@ -12,6 +12,7 @@ const props = defineProps({
     emails: { type: Array, default: () => [] },
     events: { type: Object, default: () => ({}) },
     mailConfig: { type: Object, required: true },
+    canManageMail: { type: Boolean, default: false },
     userEmail: { type: String, default: null },
     testResult: { type: Object, default: null },
 });
@@ -187,8 +188,8 @@ function applyDomainPreset() {
                         </div>
                     </div>
 
-                    <!-- Thẻ 2: tài khoản gửi thư SMTP -->
-                    <div class="space-y-5 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-6 shadow-xs">
+                    <!-- Thẻ 2: tài khoản gửi thư SMTP (chỉ người có quyền cấu hình hòm thư gửi — mặc định Admin) -->
+                    <div v-if="canManageMail" class="space-y-5 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-6 shadow-xs">
                         <div class="flex items-center justify-between border-b border-surface-container-highest pb-4">
                             <div>
                                 <h2 class="flex items-center gap-2 text-sm font-bold text-on-surface">

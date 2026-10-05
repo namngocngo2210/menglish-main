@@ -269,7 +269,7 @@ class Phase4PlatformParityTest extends TestCase
     public function test_task_list_modal_reason_rules_labels_and_recurring_next_occurrence(): void
     {
         $academic = $this->makeUser('academic_staff', $this->branch);
-        $teacher = $this->makeUser('teacher', $this->branch);
+        $teacher = $this->makeUser('teacher_fulltime', $this->branch);
 
         // IX-3: form Giao việc không nhúng sẵn trong danh sách nữa — nút mở modal chung tải tasks.create.
         $this->actingAs($academic)->get(route('tasks.index'))->assertOk()
@@ -277,8 +277,8 @@ class Phase4PlatformParityTest extends TestCase
             ->assertSeeInOrder(['Của tôi', 'Tôi giao', 'Tất cả']);
         $this->actingAs($academic)->get(route('tasks.create'), ['X-Remote-Modal' => 'true'])->assertOk()
             ->assertSee('Giao việc mới')->assertSee('Lưu và Giao việc')
-            ->assertSee($teacher->name.' (Giáo viên)')          // nhãn vai trò, không phải mã "teacher"
-            ->assertDontSee('('.$teacher->name.' (teacher)', false);
+            ->assertSee($teacher->name.' (Giáo viên Full-time)')          // nhãn vai trò, không phải mã "teacher_fulltime"
+            ->assertDontSee($teacher->name.' (teacher_fulltime)', false);
 
         // Lỗi validate mở lại modal Giao việc với lỗi từng trường.
         $this->actingAs($academic)->post(route('tasks.store'), ['taskTitle' => '', 'assignee' => $teacher->id, 'taskType' => 'one_time'])
@@ -305,9 +305,9 @@ class Phase4PlatformParityTest extends TestCase
 
     public function test_kpi_board_period_range_and_staff_scope(): void
     {
-        $teacher = $this->makeUser('teacher', $this->branch, ['name' => 'Giáo viên KPI Một']);
-        $this->makeUser('teacher', $this->branch, ['name' => 'Giáo viên KPI Hai']);
-        $this->makeUser('teacher', $this->otherBranch, ['name' => 'Giáo viên KPI Ba']);
+        $teacher = $this->makeUser('teacher_fulltime', $this->branch, ['name' => 'Giáo viên KPI Một']);
+        $this->makeUser('teacher_fulltime', $this->branch, ['name' => 'Giáo viên KPI Hai']);
+        $this->makeUser('teacher_fulltime', $this->otherBranch, ['name' => 'Giáo viên KPI Ba']);
         $manager = $this->makeUser('manager', $this->branch);
 
         $this->actingAs($this->admin)->get(route('tasks.kpi-dashboard', ['month' => '2026-08', 'month_to' => '2026-09']))->assertOk()
@@ -332,7 +332,7 @@ class Phase4PlatformParityTest extends TestCase
         $staff = $this->makeUser('academic_staff', $this->branch, ['name' => 'Học vụ Kiêm TA', 'contract_type' => 'Toàn thời gian', 'contract_end_date' => now()->subDay()]);
         $staff->assignRole('assistant');
         $this->makeClass(['assistant_id' => $staff->id, 'code' => 'KN-01', 'name' => 'Lớp kiêm nhiệm']);
-        $locked = $this->makeUser('teacher', $this->branch, ['name' => 'GV Bị khóa', 'locked_at' => now()]);
+        $locked = $this->makeUser('teacher_fulltime', $this->branch, ['name' => 'GV Bị khóa', 'locked_at' => now()]);
 
         $response = $this->actingAs($this->admin)->get(route('users.index'))->assertOk()
             ->assertSee('Quản lý Tài khoản &amp; Vai trò', false)
@@ -354,19 +354,20 @@ class Phase4PlatformParityTest extends TestCase
 
     public function test_account_form_sets_concurrent_roles_within_hierarchy(): void
     {
-        $staff = $this->makeUser('teacher', $this->branch);
         $academic = $this->makeUser('academic_staff', $this->branch);
+        // Phạm vi "Của tôi" của Học vụ: chỉ sửa tài khoản do mình tạo.
+        $staff = $this->makeUser('teacher_fulltime', $this->branch, ['created_by' => $academic->id]);
 
         $this->actingAs($this->admin)->get(route('users.edit', $staff))->assertOk()->assertSee('Vai trò kiêm nhiệm');
 
-        $payload = ['name' => $staff->name, 'email' => $staff->email, 'branch_id' => $this->branch->id, 'role' => 'teacher', 'concurrent_roles_present' => 1];
+        $payload = ['name' => $staff->name, 'email' => $staff->email, 'branch_id' => $this->branch->id, 'role' => 'teacher_fulltime', 'concurrent_roles_present' => 1];
         $this->actingAs($this->admin)->put(route('users.update', $staff), $payload + ['concurrent_roles' => ['assistant', 'academic_staff']])
             ->assertSessionHasNoErrors();
-        $this->assertEqualsCanonicalizing(['teacher', 'assistant', 'academic_staff'], $staff->fresh()->getRoleNames()->all());
+        $this->assertEqualsCanonicalizing(['teacher_fulltime', 'assistant', 'academic_staff'], $staff->fresh()->getRoleNames()->all());
 
         // Bỏ chọn hết → chỉ còn vai trò chính.
         $this->actingAs($this->admin)->put(route('users.update', $staff), $payload)->assertSessionHasNoErrors();
-        $this->assertSame(['teacher'], $staff->fresh()->getRoleNames()->all());
+        $this->assertSame(['teacher_fulltime'], $staff->fresh()->getRoleNames()->all());
 
         // Học vụ chỉ gán được vai trò trong phân cấp của mình (không gán Admin làm kiêm nhiệm).
         $this->actingAs($academic)->put(route('users.update', $staff), $payload + ['concurrent_roles' => ['admin']])

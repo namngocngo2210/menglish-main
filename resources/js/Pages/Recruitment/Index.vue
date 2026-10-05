@@ -94,12 +94,12 @@ const submitFilters = (event) => event.target.form?.requestSubmit();
                                     <span class="text-xs text-on-surface-variant">{{ can.branch_name ?? 'Mọi chi nhánh' }}</span>
                                 </td>
                                 <td>
-                                    <a v-if="can.cv_url" :href="can.cv_url" target="_blank" class="inline-flex items-center gap-1 font-bold text-secondary hover:underline">
+                                    <a v-if="can.cv_url" :href="can.cv_url" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 font-bold text-secondary hover:underline">
                                         <span class="material-symbols-outlined text-[16px]">attach_file</span>
                                         Xem file CV
                                     </a>
                                     <span v-else class="text-on-surface-subtle">Không đính kèm file</span>
-                                    <a v-if="can.portfolio_url" :href="can.portfolio_url" target="_blank" class="mt-0.5 block text-xs font-medium text-secondary hover:underline">Link Video / Portfolio &rarr;</a>
+                                    <a v-if="can.portfolio_url" :href="can.portfolio_url" target="_blank" rel="noopener noreferrer" class="mt-0.5 block text-xs font-medium text-secondary hover:underline">Link Video / Portfolio &rarr;</a>
                                 </td>
                                 <td>
                                     <UiBadge :color="cvStatusColor[can.status] ?? 'neutral'" pill>{{ can.status_label }}</UiBadge>

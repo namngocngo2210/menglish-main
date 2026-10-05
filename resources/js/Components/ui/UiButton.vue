@@ -45,6 +45,8 @@ const variants = {
     info: 'bg-secondary text-white shadow-sm hover:bg-secondary-hover',
 };
 const iconOnly = computed(() => !slots.default && !!props.icon);
+// Nút chỉ có biểu tượng: trình đọc màn hình đọc theo title khi không truyền aria-label.
+const ariaLabel = computed(() => (iconOnly.value && !attrs['aria-label'] && attrs.title ? attrs.title : undefined));
 const classes = computed(() => {
     const sizes = iconOnly.value
         ? { md: 'p-sm', sm: 'p-xs' }
@@ -69,19 +71,19 @@ function openModal(event) {
 </script>
 
 <template>
-    <a v-if="href && modal" :href="href" :class="classes" @click="openModal">
+    <a v-if="href && modal" :href="href" :class="classes" :aria-label="ariaLabel" @click="openModal">
         <span v-if="icon" :class="['material-symbols-outlined', iconSize]" aria-hidden="true">{{ icon }}</span>
         <slot />
     </a>
-    <a v-else-if="href && isNative" :href="href" :class="classes" :rel="attrs.target === '_blank' ? 'noopener noreferrer' : undefined">
+    <a v-else-if="href && isNative" :href="href" :class="classes" :aria-label="ariaLabel" :rel="attrs.target === '_blank' ? 'noopener noreferrer' : undefined">
         <span v-if="icon" :class="['material-symbols-outlined', iconSize]" aria-hidden="true">{{ icon }}</span>
         <slot />
     </a>
-    <Link v-else-if="href" :href="href" :method="method ?? 'get'" :data="data ?? {}" :as="method && method !== 'get' ? 'button' : 'a'" :preserve-scroll="preserveScroll" :preserve-state="preserveState" :class="classes">
+    <Link v-else-if="href" :href="href" :method="method ?? 'get'" :data="data ?? {}" :as="method && method !== 'get' ? 'button' : 'a'" :preserve-scroll="preserveScroll" :preserve-state="preserveState" :class="classes" :aria-label="ariaLabel">
         <span v-if="icon" :class="['material-symbols-outlined', iconSize]" aria-hidden="true">{{ icon }}</span>
         <slot />
     </Link>
-    <button v-else :type="type" :class="classes" :disabled="busy || undefined" :aria-busy="busy ? 'true' : undefined">
+    <button v-else :type="type" :class="classes" :aria-label="ariaLabel" :disabled="busy || undefined" :aria-busy="busy ? 'true' : undefined">
         <span v-if="icon" :class="['material-symbols-outlined', iconSize]" aria-hidden="true">{{ icon }}</span>
         <slot />
     </button>

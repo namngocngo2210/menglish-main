@@ -37,7 +37,7 @@ class DatabaseSeeder extends Seeder
         // hoặc bật rõ bằng SEED_DEMO=true. Phase 2 dựng trên lớp / học viên của Phase 1; Phase 3 (chấm công, phạt, KPI,
         // hoa hồng, kỳ lương tháng trước đã duyệt + tháng này đang soát) dựng trên buổi học / khách của Phase 1–2. Phase 4 (học phí,
         // SePay, hoàn / chuyển nhượng / bảo lưu / khất nợ, quá hạn, thu chi, giao việc, trực lớp, ticket, tài khoản & phân quyền).
-        if (app()->environment(['local', 'testing', 'staging']) || filter_var(env('SEED_DEMO', false), FILTER_VALIDATE_BOOL)) {
+        if (app()->environment(['local', 'testing', 'staging']) || config('app.seed_demo')) {
             $this->call(DemoPhase1Seeder::class);
             $this->call(DemoPhase2Seeder::class);
             $this->call(DemoPhase3Seeder::class);

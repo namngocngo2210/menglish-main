@@ -277,12 +277,14 @@ class RbacFlexibleTest extends TestCase
     public function test_role_assignment_hierarchy_is_permission_based_and_super_admin_is_protected(): void
     {
         $staff = $this->makeUser('academic_staff');
-        $this->assertEqualsCanonicalizing(['assistant', 'student', 'teacher', 'teacher_fulltime', 'teacher_parttime'], Rbac::assignableRoles($staff));
-        $this->assertEqualsCanonicalizing(['teacher', 'teacher_fulltime', 'teacher_parttime'], Rbac::assignableRoles($this->makeUser('academic_lead')));
+        // Vai trò tùy chỉnh (vd. "teacher" chỉ có trong test) không tự lan vào danh sách gán của Học vụ / Học thuật.
+        $this->assertEqualsCanonicalizing(['assistant', 'student', 'teacher_fulltime', 'teacher_parttime'], Rbac::assignableRoles($staff));
+        $this->assertEqualsCanonicalizing(['teacher_fulltime', 'teacher_parttime'], Rbac::assignableRoles($this->makeUser('academic_lead')));
         $this->assertNotContains('admin', Rbac::assignableRoles($this->makeUser('manager')));
         $this->assertContains('admin', Rbac::assignableRoles($this->admin));
 
-        $target = $this->makeUser('teacher');
+        $target = $this->makeUser('teacher_parttime');
+        $target->forceFill(['created_by' => $staff->id])->saveQuietly(); // Phạm vi "Của tôi": tài khoản do Học vụ tạo.
         $this->actingAs($staff)->put(route('users.roles.update', $target), ['roles' => ['manager']])->assertSessionHasErrors('role');
 
         // Admin cấp cho vai trò Học vụ quyền gán "Quản lý cơ sở" trên màn Vai trò → làm được, không cần sửa code.
@@ -295,7 +297,8 @@ class RbacFlexibleTest extends TestCase
         // Super Admin chỉ Super Admin gán được — kể cả khi ai đó được cấp quyền (không tồn tại) user.assign_role.admin.
         \App\Models\UserPermissionOverride::create(['user_id' => $staff->id, 'module' => 'user', 'action' => 'assign_role.admin', 'allow' => true, 'scope_type' => 'all']);
         $this->assertFalse(Rbac::canAssignRole($staff->fresh(), 'admin'));
-        $other = $this->makeUser('teacher');
+        $other = $this->makeUser('teacher_parttime');
+        $other->forceFill(['created_by' => $staff->id])->saveQuietly();
         $this->actingAs($staff->fresh())->put(route('users.roles.update', $other), ['roles' => ['admin']])->assertSessionHasErrors('role');
         $this->actingAs($staff->fresh())->get(route('users.edit', $this->admin))->assertForbidden();
     }

@@ -24,10 +24,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('kpi_criteria', function (Blueprint $table) {
-            $table->unsignedInteger('max_full')->nullable()->after('threshold_half');
-            $table->unsignedInteger('max_half')->nullable()->after('max_full');
-        });
+        // MySQL không rollback DDL: lần chạy trước lỗi sau khi đã thêm cột thì chạy lại không vấp "duplicate column".
+        if (! Schema::hasColumn('kpi_criteria', 'max_full')) {
+            Schema::table('kpi_criteria', function (Blueprint $table) {
+                $table->unsignedInteger('max_full')->nullable()->after('threshold_half');
+                $table->unsignedInteger('max_half')->nullable()->after('max_full');
+            });
+        }
 
         foreach (self::LEGACY as $code => $name) {
             DB::table('kpi_criteria')->whereNull('deleted_at')->where('code', $code)->where('name', $name)

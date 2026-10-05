@@ -30,6 +30,13 @@ const copiedTag = ref('');
 const formOpen = ref(false);
 const form = reactive({ ...blank });
 const secretInput = ref(null);
+
+/** Khóa đã lưu không gửi xuống trình duyệt: tạo khóa mới ngay trên trang, sao chép lên SePay rồi mới lưu. */
+function generateSecret() {
+    const bytes = crypto.getRandomValues(new Uint8Array(32));
+    secretInput.value.value = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+    showSecret.value = true;
+}
 const webhookUrl = ref(props.sepay ? props.sepay.webhook_url || props.sepay.current_endpoint : '');
 const isActiveError = computed(() => page.props.errors?.is_active ?? null);
 
@@ -313,19 +320,22 @@ function onSearch(event) {
                                 />
                                 <div>
                                     <label for="sepaySecretKeyInput" class="mb-1 block flex items-center justify-between text-xs font-semibold text-on-surface-variant">
-                                        <span>Secret Key HMAC-SHA256 <span class="text-error">*</span></span>
+                                        <span>Secret Key HMAC-SHA256 <span v-if="!sepay.has_secret" class="text-error">*</span></span>
                                         <button type="button" class="text-xs font-normal text-on-surface-subtle hover:text-on-surface-variant" @click="showSecret = !showSecret">
                                             <span>{{ showSecret ? 'Ẩn' : 'Hiện' }}</span>
                                         </button>
                                     </label>
                                     <div class="flex items-center gap-2">
-                                        <input id="sepaySecretKeyInput" ref="secretInput" :type="showSecret ? 'text' : 'password'" name="secret_key" :value="sepay.secret_key" required class="flex-1 rounded-xl border border-surface-container-highest bg-surface-container-lowest p-2.5 font-mono text-xs font-bold text-on-surface focus:border-primary-container focus:ring-primary-container" placeholder="whsec_..." />
-                                        <UiButton variant="secondary" title="Sao chép Secret Key" @click="copyVal(secretInput?.value ?? '', 'secret_key')">
+                                        <input id="sepaySecretKeyInput" ref="secretInput" :type="showSecret ? 'text' : 'password'" name="secret_key" :required="!sepay.has_secret" class="flex-1 rounded-xl border border-surface-container-highest bg-surface-container-lowest p-2.5 font-mono text-xs font-bold text-on-surface focus:border-primary-container focus:ring-primary-container" :placeholder="sepay.has_secret ? '•••••••• Đã đặt — để trống để giữ khóa cũ' : 'whsec_...'" />
+                                        <UiButton variant="secondary" title="Tạo khóa ngẫu nhiên" aria-label="Tạo khóa ngẫu nhiên" @click="generateSecret()">
+                                            <span class="material-symbols-outlined text-sm">key</span>
+                                        </UiButton>
+                                        <UiButton variant="secondary" title="Sao chép Secret Key" aria-label="Sao chép Secret Key" @click="copyVal(secretInput?.value ?? '', 'secret_key')">
                                             <span class="material-symbols-outlined text-sm">{{ copiedTag === 'secret_key' ? 'check' : 'content_copy' }}</span>
                                         </UiButton>
                                     </div>
                                     <UiErrors :messages="page.props.errors?.secret_key" class="mt-1" />
-                                    <p class="mt-1 text-xs text-on-surface-subtle">SePay ký dữ liệu bằng HMAC-SHA256 qua header <code class="font-mono text-on-surface-variant">X-SePay-Signature</code>.</p>
+                                    <p class="mt-1 text-xs text-on-surface-subtle">Khóa đã lưu không hiện lại: sao chép lên SePay trước khi lưu. SePay ký dữ liệu bằng HMAC-SHA256 qua header <code class="font-mono text-on-surface-variant">X-SePay-Signature</code>.</p>
                                 </div>
                             </div>
 

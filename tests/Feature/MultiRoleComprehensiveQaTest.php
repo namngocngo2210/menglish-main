@@ -120,7 +120,7 @@ class MultiRoleComprehensiveQaTest extends TestCase
             'branch_id' => $this->branch->id,
             'is_active' => true,
         ]);
-        $this->teacher->assignRole('teacher');
+        $this->teacher->assignRole('teacher_fulltime');
 
         // Role 6: Học sinh (hocvien@menglish.edu.vn)
         $this->studentUser = User::factory()->create([
@@ -388,8 +388,8 @@ class MultiRoleComprehensiveQaTest extends TestCase
 
     public function test_academic_lead_can_only_create_teachers(): void
     {
-        // 1. Cho phép: teacher, teacher_fulltime, teacher_parttime
-        $allowed = ['teacher', 'teacher_fulltime', 'teacher_parttime'];
+        // 1. Cho phép: teacher_fulltime, teacher_parttime
+        $allowed = ['teacher_fulltime', 'teacher_parttime'];
         foreach ($allowed as $idx => $role) {
             $email = "lead_created_{$role}_{$idx}@menglish.edu.vn";
             $res = $this->actingAs($this->academicLead)->post(route('users.store'), [
@@ -403,8 +403,8 @@ class MultiRoleComprehensiveQaTest extends TestCase
             $this->assertDatabaseHas('users', ['email' => $email]);
         }
 
-        // 2. Từ chối: academic_staff, assistant, student, admin, manager, accountant
-        $forbidden = ['academic_staff', 'assistant', 'student', 'admin', 'manager', 'accountant'];
+        // 2. Từ chối: academic_staff, assistant, student, admin, manager + vai trò tùy chỉnh (accountant, teacher) chưa được Admin cấp quyền gán
+        $forbidden = ['academic_staff', 'assistant', 'student', 'admin', 'manager', 'accountant', 'teacher'];
         foreach ($forbidden as $idx => $role) {
             $email = "lead_illegal_{$role}_{$idx}@menglish.edu.vn";
             $res = $this->actingAs($this->academicLead)->post(route('users.store'), [
@@ -421,8 +421,8 @@ class MultiRoleComprehensiveQaTest extends TestCase
 
     public function test_academic_staff_can_only_create_underlings_assistant_teachers_student(): void
     {
-        // 1. Cho phép: assistant, teacher_fulltime, teacher_parttime, teacher, student
-        $allowed = ['assistant', 'teacher_fulltime', 'teacher_parttime', 'teacher', 'student'];
+        // 1. Cho phép: assistant, teacher_fulltime, teacher_parttime, student
+        $allowed = ['assistant', 'teacher_fulltime', 'teacher_parttime', 'student'];
         foreach ($allowed as $idx => $role) {
             $email = "staff_created_{$role}_{$idx}@menglish.edu.vn";
             $res = $this->actingAs($this->academicStaff)->post(route('users.store'), [
@@ -436,8 +436,8 @@ class MultiRoleComprehensiveQaTest extends TestCase
             $this->assertDatabaseHas('users', ['email' => $email]);
         }
 
-        // 2. Từ chối: admin, academic_lead, manager, accountant
-        $forbidden = ['admin', 'academic_lead', 'manager', 'accountant'];
+        // 2. Từ chối: admin, academic_lead, manager + vai trò tùy chỉnh (accountant, teacher) chưa được Admin cấp quyền gán
+        $forbidden = ['admin', 'academic_lead', 'manager', 'accountant', 'teacher'];
         foreach ($forbidden as $idx => $role) {
             $email = "staff_illegal_{$role}_{$idx}@menglish.edu.vn";
             $res = $this->actingAs($this->academicStaff)->post(route('users.store'), [

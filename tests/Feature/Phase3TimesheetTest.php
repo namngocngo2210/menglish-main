@@ -44,7 +44,7 @@ class Phase3TimesheetTest extends TestCase
         $this->branch = Branch::create(['name' => 'Cơ sở P3', 'code' => 'P3', 'is_active' => true]);
         $this->academicStaff = $this->userWithRole('academic_staff');
         $this->manager = $this->userWithRole('manager');
-        $this->teacher = $this->userWithRole('teacher', ['name' => 'GV Phase 3']);
+        $this->teacher = $this->userWithRole('teacher_parttime', ['name' => 'GV Phase 3']);
 
         $course = Course::create(['code' => 'P3-C', 'name' => 'IELTS P3', 'tuition_fee' => 1000000, 'is_active' => true]);
         $this->classModel = ClassModel::create([

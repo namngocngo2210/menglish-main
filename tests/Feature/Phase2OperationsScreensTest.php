@@ -57,7 +57,7 @@ class Phase2OperationsScreensTest extends TestCase
         $this->branch = Branch::create(['name' => 'Cầu Giấy', 'code' => 'CG-OPS', 'is_active' => true]);
         $this->otherBranch = Branch::create(['name' => 'Đống Đa', 'code' => 'DD-OPS', 'is_active' => true]);
         $this->admin = $this->user('admin', 'Quản trị viên');
-        $this->teacher = $this->user('teacher', 'Nguyễn Văn Giáo');
+        $this->teacher = $this->user('teacher_fulltime', 'Nguyễn Văn Giáo');
         $this->foreignTeacher = $this->user('teacher', 'John Smith GVNN');
         $this->assistant = $this->user('assistant', 'Trần Thị Trợ');
 

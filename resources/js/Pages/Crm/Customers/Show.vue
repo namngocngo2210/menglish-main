@@ -161,7 +161,7 @@ const trialTitle = computed(() => (props.trial.pending ? 'Xếp học thử' : `
                     <UiButton variant="secondary" icon="more_horiz" title="Thao tác khác" aria-label="Thao tác khác" />
                 </template>
                 <template #content>
-                    <a :href="route('crm.customers.print', customer.id)" target="_blank" :class="[menuItem, 'text-on-surface']">
+                    <a :href="route('crm.customers.print', customer.id)" target="_blank" rel="noopener noreferrer" :class="[menuItem, 'text-on-surface']">
                         <span class="material-symbols-outlined text-[18px]" aria-hidden="true">print</span>In hồ sơ
                     </a>
                     <button v-if="stageControls.backward.length" type="button" :class="[menuItem, 'text-on-surface']" @click="open('backward')">

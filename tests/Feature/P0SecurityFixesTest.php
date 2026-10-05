@@ -88,15 +88,16 @@ class P0SecurityFixesTest extends TestCase
     {
         $staff = $this->userWithRole('academic_staff');
         $manager = $this->userWithRole('manager');
-        $teacher = $this->userWithRole('teacher');
+        // Phạm vi "Của tôi" của Học vụ: chỉ sửa tài khoản do mình tạo.
+        $teacher = $this->userWithRole('teacher_parttime', ['created_by' => $staff->id]);
 
         $this->actingAs($staff)->put(route('users.update', $manager), [
-            'name' => $manager->name, 'email' => $manager->email, 'branch_id' => $this->branch->id, 'role' => 'teacher',
+            'name' => $manager->name, 'email' => $manager->email, 'branch_id' => $this->branch->id, 'role' => 'teacher_parttime',
         ])->assertForbidden();
         $this->assertTrue($manager->fresh()->hasRole('manager'));
 
         $this->actingAs($staff)->put(route('users.update', $teacher), [
-            'name' => 'Giáo viên đổi tên', 'email' => $teacher->email, 'branch_id' => $this->branch->id, 'role' => 'teacher',
+            'name' => 'Giáo viên đổi tên', 'email' => $teacher->email, 'branch_id' => $this->branch->id, 'role' => 'teacher_parttime',
         ])->assertRedirect(route('users.index'));
         $this->assertSame('Giáo viên đổi tên', $teacher->fresh()->name);
     }

@@ -8,6 +8,7 @@ use App\Services\NotificationService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -365,11 +366,15 @@ class TuitionReceipt extends Model
             }
 
             if ($receipt->amount > 0 && $receipt->status === 'approved') {
-                try {
-                    app(NotificationService::class)->notifyTransactionReceipt($receipt);
-                } catch (\Throwable $e) {
-                    Log::warning('Lỗi gửi email thông báo giao dịch mới: '.$e->getMessage());
-                }
+                // Gửi SMTP sau khi transaction (duyệt phiếu / SePay) commit: không giữ khóa dòng học phí suốt lúc gửi mail,
+                // và không gửi mail cho phiếu bị rollback.
+                DB::afterCommit(function () use ($receipt) {
+                    try {
+                        app(NotificationService::class)->notifyTransactionReceipt($receipt);
+                    } catch (\Throwable $e) {
+                        Log::warning('Lỗi gửi email thông báo giao dịch mới: '.$e->getMessage());
+                    }
+                });
             }
         });
     }

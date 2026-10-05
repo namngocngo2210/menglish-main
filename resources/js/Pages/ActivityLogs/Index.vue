@@ -93,7 +93,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
                 </tr>
             </thead>
             <tbody>
-                <tr v-for="log in logs.data" :key="log.id" :class="['cursor-pointer', openId === log.id ? 'bg-primary-fixed/40' : '']" @click="openId = log.id">
+                <tr v-for="log in logs.data" :key="log.id" :class="['cursor-pointer', openId === log.id ? 'bg-primary-fixed/40' : '']" @click="openId = log.id" tabindex="0" @keydown.enter.self.prevent="openId = log.id" @keydown.space.self.prevent="openId = log.id">
                     <td>
                         <div class="flex items-center gap-sm">
                             <UiAvatar :name="log.causer_name ?? 'Hệ thống'" size="sm" />

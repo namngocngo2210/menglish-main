@@ -601,7 +601,7 @@ const inputClass =
                                 v-if="rq.has_proof"
                                 :href="route('tuition.refunds.proof', rq.id)"
                                 target="_blank"
-                                rel="noopener"
+                                rel="noopener noreferrer"
                                 class="inline-flex items-center gap-xs font-caption text-caption text-primary hover:underline"
                                 @click.prevent="openProof(rq)"
                             >

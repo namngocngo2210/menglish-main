@@ -127,7 +127,7 @@ class UserSeeder extends Seeder
                 'email' => 'nguyenvanan@menglish.edu.vn',
                 'phone' => '0900000006',
                 'branch' => 'CG',
-                'role' => 'teacher_fulltime',
+                'role' => 'teacher_parttime',   // không lương cơ bản: lương theo buổi (vai trò "Giáo viên giảng dạy" cũ)
             ],
             [
                 'employee_code' => 'GV-0501',

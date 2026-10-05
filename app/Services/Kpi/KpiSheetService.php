@@ -58,6 +58,10 @@ class KpiSheetService
     {
         $role = KpiCriterion::roleFor($staff);
         $criteria = $role ? KpiCriterion::forRole($role)->active()->ordered()->get() : collect();
+        // Phiếu đã duyệt theo bộ tiêu chí trước đây: hiện đúng các tiêu chí đã chấm (phiếu chờ duyệt dùng bộ hiện hành).
+        if ($evaluation?->status === KpiEvaluation::STATUS_APPROVED) {
+            $criteria = $evaluation->scoredCriteria($criteria)['criteria'];
+        }
         $fund = $role === Roles::ACADEMIC_STAFF ? KpiCriterion::fund() : null;
         $items = $evaluation ? $evaluation->loadMissing('items')->items->keyBy('kpi_criterion_id') : collect();
         $frozen = $evaluation?->status === KpiEvaluation::STATUS_APPROVED;

@@ -172,7 +172,7 @@ function copyLink() {
                                 <span class="material-symbols-outlined text-base text-secondary">volume_up</span>
                                 <span>File Audio Listening: {{ basename(q.audio_url) }}</span>
                             </div>
-                            <a :href="q.audio_url" target="_blank" class="flex items-center gap-0.5 text-xs font-normal text-secondary hover:underline">
+                            <a :href="q.audio_url" target="_blank" rel="noopener noreferrer" class="flex items-center gap-0.5 text-xs font-normal text-secondary hover:underline">
                                 <span>Tải file</span>
                                 <span class="material-symbols-outlined text-[12px]">download</span>
                             </a>

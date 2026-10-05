@@ -14,7 +14,6 @@ use Illuminate\Routing\Middleware\ValidateSignature;
 use Illuminate\Support\Collection;
 use Spatie\Activitylog\Models\Activity;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -97,10 +96,9 @@ class AppServiceProvider extends ServiceProvider
      */
     protected function registerDynamicMailConfig(): void
     {
+        // Không kiểm tra bảng mỗi request: bảng chưa có (lúc cài / migrate) thì truy vấn lỗi và bị bỏ qua.
         try {
-            if (Schema::hasTable('system_settings')) {
-                SystemSetting::applyDynamicMailConfig();
-            }
+            SystemSetting::applyDynamicMailConfig();
         } catch (\Throwable $e) {
             // Ignore during early bootstrap or migrations
         }

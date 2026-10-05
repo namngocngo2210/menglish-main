@@ -227,7 +227,7 @@ function onMoved() {
                     @dragleave.prevent.stop="isDragging = false"
                     @drop.prevent.stop="handleFilesDrop"
                 >
-                    <div :class="['flex h-14 w-14 transform cursor-pointer items-center justify-center rounded-2xl bg-primary-container/10 text-primary-container shadow-xs transition', isDragging ? 'scale-110' : '']" @click="fileInput?.click()">
+                    <div :class="['flex h-14 w-14 transform cursor-pointer items-center justify-center rounded-2xl bg-primary-container/10 text-primary-container shadow-xs transition', isDragging ? 'scale-110' : '']" @click="fileInput?.click()" role="button" aria-label="Chọn tệp tải lên" tabindex="0" @keydown.enter.self.prevent="fileInput?.click()" @keydown.space.self.prevent="fileInput?.click()">
                         <span class="material-symbols-outlined text-3xl">upload_file</span>
                     </div>
                     <div class="space-y-1">
@@ -367,8 +367,8 @@ function onMoved() {
                     </div>
 
                     <div class="relative flex min-h-[110px] items-center justify-center overflow-hidden bg-surface-container/40 p-3">
-                        <img v-if="file.is_image" :src="file.url" :alt="file.filename" class="shadow-2xs max-h-24 w-auto cursor-pointer rounded-lg object-contain transition duration-200 group-hover:scale-105" loading="lazy" @click="openPreview(file, 'image')" />
-                        <div v-else-if="file.type === 'audio'" class="shadow-2xs flex h-14 w-14 cursor-pointer flex-col items-center justify-center rounded-2xl bg-warning-container text-warning transition hover:bg-warning-container group-hover:scale-105" title="Bấm để nghe tệp âm thanh" @click="openPreview(file, 'audio')">
+                        <img v-if="file.is_image" :src="file.url" :alt="file.filename" class="shadow-2xs max-h-24 w-auto cursor-pointer rounded-lg object-contain transition duration-200 group-hover:scale-105" loading="lazy" @click="openPreview(file, 'image')" role="button" tabindex="0" @keydown.enter.self.prevent="openPreview(file, 'image')" @keydown.space.self.prevent="openPreview(file, 'image')" />
+                        <div v-else-if="file.type === 'audio'" class="shadow-2xs flex h-14 w-14 cursor-pointer flex-col items-center justify-center rounded-2xl bg-warning-container text-warning transition hover:bg-warning-container group-hover:scale-105" title="Bấm để nghe tệp âm thanh" @click="openPreview(file, 'audio')" role="button" tabindex="0" @keydown.enter.self.prevent="openPreview(file, 'audio')" @keydown.space.self.prevent="openPreview(file, 'audio')">
                             <span class="material-symbols-outlined text-2xl">headphones</span>
                             <span class="mt-0.5 text-xs font-bold uppercase tracking-wider">MP3</span>
                         </div>
@@ -416,8 +416,8 @@ function onMoved() {
                             </td>
                             <td class="font-medium">
                                 <div class="flex items-center gap-2.5">
-                                    <img v-if="file.is_image" :src="file.url" class="h-7 w-7 shrink-0 cursor-pointer rounded-lg border object-cover" :alt="file.filename" @click="openPreview(file, 'image')" />
-                                    <span v-else-if="file.type === 'audio'" class="material-symbols-outlined cursor-pointer text-lg text-warning transition hover:scale-110" title="Nghe audio" @click="openPreview(file, 'audio')">headphones</span>
+                                    <img v-if="file.is_image" :src="file.url" class="h-7 w-7 shrink-0 cursor-pointer rounded-lg border object-cover" :alt="file.filename" @click="openPreview(file, 'image')" role="button" tabindex="0" @keydown.enter.self.prevent="openPreview(file, 'image')" @keydown.space.self.prevent="openPreview(file, 'image')" />
+                                    <span v-else-if="file.type === 'audio'" class="material-symbols-outlined cursor-pointer text-lg text-warning transition hover:scale-110" title="Nghe audio" aria-label="Nghe audio" @click="openPreview(file, 'audio')" role="button" tabindex="0" @keydown.enter.self.prevent="openPreview(file, 'audio')" @keydown.space.self.prevent="openPreview(file, 'audio')">headphones</span>
                                     <span v-else class="material-symbols-outlined text-base text-on-surface-subtle">draft</span>
                                     <span class="max-w-xs truncate font-bold text-on-surface" :title="file.filename">{{ file.filename }}</span>
                                 </div>
