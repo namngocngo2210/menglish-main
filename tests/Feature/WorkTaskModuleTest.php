@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\Branch;
 use App\Models\ClassModel;
-use App\Models\ClassReport;
 use App\Models\Course;
 use App\Models\Student;
 use App\Models\User;
@@ -12,7 +11,6 @@ use App\Models\WorkTask;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class WorkTaskModuleTest extends TestCase

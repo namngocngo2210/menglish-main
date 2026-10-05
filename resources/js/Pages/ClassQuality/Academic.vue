@@ -62,7 +62,7 @@ const rate = (value) => {
                 </tr>
             </thead>
             <tbody>
-                <tr v-for="c in classes.data" :key="c.id" class="cursor-pointer" @click="open(c)">
+                <tr v-for="c in classes.data" :key="c.id" class="cursor-pointer" tabindex="0" @click="open(c)" @keydown.enter.self="open(c)">
                     <td>
                         <span class="font-semibold text-on-surface">{{ c.code }}</span>
                         <span class="block font-body-small text-body-small text-on-surface-variant">{{ c.name }}<template v-if="c.course"> · {{ c.course }}</template></span>

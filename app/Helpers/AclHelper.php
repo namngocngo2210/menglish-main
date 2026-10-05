@@ -22,11 +22,6 @@ class AclHelper
         return PermissionCatalog::label($permissionName);
     }
 
-    public static function permissionDescription(string $permissionName): string
-    {
-        return PermissionCatalog::description($permissionName);
-    }
-
     /** Nhãn đầy đủ mặc định của các vai trò hệ thống. */
     private const ROLE_LABELS = [
         'admin' => 'Quản trị viên Cấp cao (Admin)',

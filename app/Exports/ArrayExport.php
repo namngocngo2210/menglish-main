@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use App\Support\SpreadsheetCell;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithCustomCsvSettings;
@@ -39,7 +40,7 @@ class ArrayExport implements FromArray, ShouldAutoSize, WithCustomCsvSettings, W
 
     public function array(): array
     {
-        return $this->rows;
+        return SpreadsheetCell::safeRows($this->rows);
     }
 
     public function headings(): array

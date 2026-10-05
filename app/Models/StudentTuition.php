@@ -450,7 +450,7 @@ class StudentTuition extends Model
         return $items > 0 ? $label." + {$items} khoản phụ" : $label;
     }
 
-    /** Màu <x-ui.badge> theo trạng thái công nợ. */
+    /** Màu <UiBadge> theo trạng thái công nợ. */
     public function getStatusColorAttribute(): string
     {
         return match ($this->status) {

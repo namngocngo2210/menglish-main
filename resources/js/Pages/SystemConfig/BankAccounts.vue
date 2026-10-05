@@ -6,6 +6,7 @@
  */
 import { computed, reactive, ref } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
+import { copyText } from '@/lib/clipboard';
 import { route } from '@/lib/route';
 
 defineOptions({ layout: { title: 'Tài khoản ngân hàng thu tiền' } });
@@ -37,13 +38,12 @@ const tabClass = (tab) => [
     activeTab.value === tab ? 'bg-primary-container font-bold text-white shadow-xs' : 'bg-surface-container-lowest font-semibold text-on-surface-variant hover:bg-surface-container',
 ];
 
-function copyVal(text, tag) {
-    navigator.clipboard.writeText(text).then(() => {
-        copiedTag.value = tag;
-        setTimeout(() => {
-            if (copiedTag.value === tag) copiedTag.value = '';
-        }, 2000);
-    });
+async function copyVal(text, tag) {
+    if (!(await copyText(text, null))) return;
+    copiedTag.value = tag;
+    setTimeout(() => {
+        if (copiedTag.value === tag) copiedTag.value = '';
+    }, 2000);
 }
 
 function openNew() {
@@ -309,7 +309,6 @@ function onSearch(event) {
                                     :options="[
                                         { value: 'hmac_sha256', label: 'HMAC-SHA256 (Khuyến nghị)' },
                                         { value: 'api_key', label: 'API Key' },
-                                        { value: 'none', label: 'Không xác thực' },
                                     ]"
                                 />
                                 <div>

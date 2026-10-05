@@ -110,14 +110,6 @@ class StaffAttendance extends Model
         };
     }
 
-    /** Số phút làm việc thực tế (vào → ra); null khi thiếu giờ ra. */
-    public function workedMinutes(): ?int
-    {
-        return $this->check_in_at && $this->check_out_at
-            ? max(0, (int) $this->check_in_at->diffInMinutes($this->check_out_at))
-            : null;
-    }
-
     public static function forDay(int $userId, CarbonInterface|string $date): ?self
     {
         return static::query()->where('user_id', $userId)

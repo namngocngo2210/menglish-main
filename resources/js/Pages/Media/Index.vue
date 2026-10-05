@@ -4,9 +4,11 @@
  * lọc tệp, xem lưới / bảng, chọn nhiều để xóa hoặc di chuyển, dọn theo bộ lọc, xem trước ảnh / âm thanh.
  */
 import { computed, reactive, ref } from 'vue';
-import { Link, router, usePage } from '@inertiajs/vue3';
+import { Link, router } from '@inertiajs/vue3';
 import { confirmDialog } from '@/lib/confirm';
 import { toast as appToast } from '@/lib/toast';
+import { copyText } from '@/lib/clipboard';
+import { csrfToken } from '@/lib/http';
 import { currentQuery } from '@/lib/url';
 import { route } from '@/lib/route';
 
@@ -25,7 +27,6 @@ const props = defineProps({
     datedFolder: { type: String, default: '' },
 });
 
-const page = usePage();
 const viewMode = ref('grid');
 const selectedFiles = ref([]);
 const uploadCardOpen = ref(true);
@@ -38,7 +39,6 @@ const fileInput = ref(null);
 const folderOpen = ref(false);
 const moveOpen = ref(false);
 const preview = reactive({ open: false, url: '', name: '', size: '', type: 'image' });
-const toast = reactive({ show: false, message: '' });
 
 const pageFileIds = computed(() => props.files.data.map((f) => f.id));
 const isAllSelected = computed(() => pageFileIds.value.length > 0 && pageFileIds.value.every((id) => selectedFiles.value.includes(id)));
@@ -100,7 +100,7 @@ function uploadFileList(fileList) {
 
     const xhr = new XMLHttpRequest();
     xhr.open('POST', route('media.upload'), true);
-    xhr.setRequestHeader('X-CSRF-TOKEN', page.props.csrf ?? document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '');
+    xhr.setRequestHeader('X-CSRF-TOKEN', csrfToken());
     xhr.setRequestHeader('Accept', 'application/json');
     xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) {
@@ -117,7 +117,7 @@ function uploadFileList(fileList) {
             } catch {
                 // giữ thông báo mặc định
             }
-            showToast(message);
+            appToast(message);
             router.reload({ preserveScroll: true });
         } else {
             let message = 'Lỗi tải lên tệp tin. Vui lòng thử lại!';
@@ -142,13 +142,7 @@ function openPreview(file, type = 'image') {
 }
 
 function copyUrl(url) {
-    navigator.clipboard.writeText(url).then(() => showToast('Đã sao chép đường dẫn tệp!'));
-}
-
-function showToast(message) {
-    toast.message = message;
-    toast.show = true;
-    setTimeout(() => (toast.show = false), 2500);
+    return copyText(url, 'Đã sao chép đường dẫn tệp!');
 }
 
 const visitOptions = { preserveScroll: true, onSuccess: () => (selectedFiles.value = []) };
@@ -507,13 +501,5 @@ function onMoved() {
                 </div>
             </div>
         </div>
-
-        <!-- 10. Thông báo nhanh -->
-        <Transition enter-active-class="transition" enter-from-class="opacity-0" leave-active-class="transition" leave-to-class="opacity-0">
-            <div v-show="toast.show" class="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-2xl bg-on-surface px-4 py-2.5 text-xs font-semibold text-white shadow-xl">
-                <span class="material-symbols-outlined text-base text-tertiary">check_circle</span>
-                <span>{{ toast.message }}</span>
-            </div>
-        </Transition>
     </div>
 </template>

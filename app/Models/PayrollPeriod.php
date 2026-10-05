@@ -312,6 +312,7 @@ class PayrollPeriod extends Model
         $formula = app(PayrollFormulaService::class);
         $attendanceService = app(StaffAttendanceService::class);
         $existingRecords = $this->records()->get()->keyBy('user_id');
+        $closedCounts = $commissionService->closedCountsBySales($this->start_date, $this->end_date);
         $start = $this->start_date->copy();
         $end = $this->end_date->copy();
 
@@ -374,7 +375,7 @@ class PayrollPeriod extends Model
             $commissionBonus = (float) $commission['payable']->sum('amount');
             $commissionBase = (float) $commission['payable']->sum('base_amount');
             $commissionDeferred = (float) $commission['deferred']->sum('amount');
-            $closedCount = $commissionService->closedCountFor($user->id, $start, $end);
+            $closedCount = (int) ($closedCounts->get($user->id) ?? 0);
             // Mốc hiện tại (% của HS chốt gần nhất trong kỳ); từng khoản mang % theo thứ tự chốt của học viên.
             $currentPercent = $closedCount > 0 ? $commissionService->milestoneFor($closedCount, $end)['percent'] : null;
 

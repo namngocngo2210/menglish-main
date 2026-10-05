@@ -80,7 +80,7 @@ class SystemSetting extends Model
 
         // If never saved in DB, fallback to config/env
         if ($setting === null) {
-            $fallback = config('mail.tech_support_email', env('TECH_SUPPORT_EMAIL', 'tech.vmst@gmail.com'));
+            $fallback = config('mail.tech_support_email');
             $emails = preg_split('/[,\n;]+/', (string) $fallback);
         } elseif (is_array($setting)) {
             $emails = $setting;

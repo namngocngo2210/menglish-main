@@ -12,6 +12,8 @@ import { router, usePage } from '@inertiajs/vue3';
 import ClosingBillPreview from '@/Components/Crm/ClosingBillPreview.vue';
 import { can } from '@/lib/can';
 import { formatMoney } from '@/lib/format';
+import { copyText } from '@/lib/clipboard';
+import { postJson } from '@/lib/http';
 import { defaultPromotion, promotionApplies, promotionDiscount, promotionLabel } from '@/lib/promotion';
 import { route } from '@/lib/route';
 import { toast } from '@/lib/toast';
@@ -296,14 +298,8 @@ async function saveNewPromotion() {
     promoSaving.value = true;
     promoErrors.value = {};
     try {
-        const response = await fetch(route('crm.promotions.store'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': page.props.csrf ?? '', Accept: 'application/json' },
-            credentials: 'same-origin',
-            body: JSON.stringify(payload),
-        });
-        const data = await response.json().catch(() => ({}));
-        if (response.status === 422) {
+        const { status, data } = await postJson(route('crm.promotions.store'), payload);
+        if (status === 422) {
             promoErrors.value = data.errors ?? {};
             return;
         }
@@ -332,13 +328,12 @@ async function saveNewPromotion() {
 }
 
 // ── VietQR & Bill ───────────────────────────────────────────────────────────────────────────
-function copyText(text, fieldName) {
-    navigator.clipboard?.writeText(text).then(() => {
-        w.copiedField = fieldName;
-        setTimeout(() => {
-            if (w.copiedField === fieldName) w.copiedField = '';
-        }, 2000);
-    });
+async function copyField(text, fieldName) {
+    if (!(await copyText(text, null))) return;
+    w.copiedField = fieldName;
+    setTimeout(() => {
+        if (w.copiedField === fieldName) w.copiedField = '';
+    }, 2000);
 }
 
 function downloadVietQr() {
@@ -886,7 +881,7 @@ if (w.assignLater) setAssignLater(true);
                                 <span class="text-on-surface-variant">Số tài khoản:</span>
                                 <div class="flex items-center gap-1">
                                     <span class="font-mono font-black text-on-surface">{{ selectedBank.account_number }}</span>
-                                    <button type="button" class="rounded p-0.5 text-on-surface-variant transition hover:bg-surface-container-high hover:text-on-surface" title="Sao chép STK" aria-label="Sao chép STK" @click="copyText(cleanAccountNumber, 'acc')">
+                                    <button type="button" class="rounded p-0.5 text-on-surface-variant transition hover:bg-surface-container-high hover:text-on-surface" title="Sao chép STK" aria-label="Sao chép STK" @click="copyField(cleanAccountNumber, 'acc')">
                                         <span class="material-symbols-outlined text-sm">{{ w.copiedField === 'acc' ? 'check' : 'content_copy' }}</span>
                                     </button>
                                 </div>
@@ -904,7 +899,7 @@ if (w.assignLater) setAssignLater(true);
                             <div class="space-y-1 border-t border-surface-container-highest pt-1.5">
                                 <div class="flex items-center justify-between">
                                     <span class="font-bold text-on-surface-variant">Nội dung CK (Cấu trúc chuẩn):</span>
-                                    <button type="button" class="inline-flex items-center gap-0.5 text-xs font-bold text-primary-container hover:text-primary" title="Sao chép nội dung CK" @click="copyText(transferMemo, 'memo')">
+                                    <button type="button" class="inline-flex items-center gap-0.5 text-xs font-bold text-primary-container hover:text-primary" title="Sao chép nội dung CK" @click="copyField(transferMemo, 'memo')">
                                         <span class="material-symbols-outlined text-sm">{{ w.copiedField === 'memo' ? 'check' : 'content_copy' }}</span>
                                         <span>{{ w.copiedField === 'memo' ? 'Đã chép' : 'Chép' }}</span>
                                     </button>

@@ -662,6 +662,10 @@ const ticketColor = (s) => (s === 'resolved' ? 'success' : s === 'in_progress' ?
                                 </div>
                             </div>
 
+                            <div>
+                                <UiInput id="profile_current_password" name="current_password" type="password" label="Mật khẩu hiện tại (chỉ cần khi đổi email)" autocomplete="current-password" />
+                            </div>
+
                             <div class="flex items-center gap-3 pt-2">
                                 <UiButton type="submit">Lưu thay đổi</UiButton>
                                 <Transition enter-from-class="opacity-0" leave-to-class="opacity-0" enter-active-class="transition" leave-active-class="transition">

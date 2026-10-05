@@ -52,6 +52,7 @@ use App\Support\Money;
 use App\Support\Rbac;
 use App\Support\TemporaryPassword;
 use App\Support\TransferMemo;
+use App\Support\TuitionBranchScope;
 use App\Support\Ui;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -2757,6 +2758,8 @@ class CrmController extends Controller
         $student = $tuition->student;
         $class = $tuition->classModel;
         if ($request->user()->can('tuition.view')) {
+            // Phạm vi chi nhánh của học phí: Học vụ / Kế toán cơ sở A không xem bill của cơ sở B.
+            abort_unless(TuitionBranchScope::allowsTuition($tuition, TuitionBranchScope::branchIds($request->user())), 404);
             $customer = CrmCustomer::where('converted_student_id', $student?->id)->first();
         } else {
             $customer = $this->scopeCustomerQuery()->where('converted_student_id', $student?->id)->first();

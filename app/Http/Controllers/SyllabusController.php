@@ -1336,18 +1336,7 @@ class SyllabusController extends Controller
 
     private function notifyUser(?int $userId, string $title, string $message, ?string $link = null): void
     {
-        if (! $userId) {
-            return;
-        }
-
-        AdminNotification::create([
-            'user_id' => $userId,
-            'type' => 'syllabus_review',
-            'title' => $title,
-            'message' => $message,
-            'data' => $link ? ['link' => $link] : null,
-            'is_read' => false,
-        ]);
+        AdminNotification::notifyUser($userId, 'syllabus_review', $title, $message, $link);
     }
 
     // ─────────────────────────────────────────────

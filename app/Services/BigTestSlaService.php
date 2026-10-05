@@ -8,6 +8,7 @@ use App\Models\BigTestResult;
 use App\Models\Penalty;
 use App\Models\User;
 use App\Models\WorkTask;
+use App\Support\Money;
 use App\Support\Rbac;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -138,7 +139,7 @@ class BigTestSlaService
                 'reporter_id' => null,
                 'status' => 'pending',
                 'notes' => "Big Test {$test->code} ({$test->title}) thi ngày ".$test->scheduled_at->format('d/m/Y')
-                    .', hạn trả kết quả '.$test->resultsDueAt()->format('d/m/Y').'. Mức phạt gợi ý '.number_format(BigTest::LATE_FINE_PER_DAY, 0, ',', '.')
+                    .', hạn trả kết quả '.$test->resultsDueAt()->format('d/m/Y').'. Mức phạt gợi ý '.Money::format(BigTest::LATE_FINE_PER_DAY, '')
                     .'đ/ngày trễ, cập nhật mỗi ngày tới khi trả đủ kết quả.',
             ]));
             $created++;

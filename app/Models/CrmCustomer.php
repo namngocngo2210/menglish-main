@@ -228,12 +228,6 @@ class CrmCustomer extends Model
         );
     }
 
-    /** @return list<int> */
-    public static function branchIdsOf(User $user): array
-    {
-        return $user->branchIds();
-    }
-
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);
@@ -382,12 +376,6 @@ class CrmCustomer extends Model
     public function getStageBadgeAttribute(): string
     {
         return self::stageBadge($this->stage);
-    }
-
-    /** Lead còn nhận kết quả test (chưa qua bước Đã test, chưa chốt / thất bại). */
-    public function canAdvanceToTested(): bool
-    {
-        return in_array($this->stage, self::TEST_ADVANCEABLE_STAGES, true);
     }
 
     public function isClosed(): bool

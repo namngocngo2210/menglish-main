@@ -2725,7 +2725,7 @@ class TuitionController extends Controller
             $sourceTuition->final_amount = max(0, $oldFinal - $amount);
             $sourceTuition->notes = trim(($sourceTuition->notes ? $sourceTuition->notes."\n" : '')
                 .'['.now()->format('d/m/Y H:i').'] '.($isTransfer ? 'Chuyển nhượng' : 'Hoàn phí')." #{$refund->id}: giảm giá trị hợp đồng "
-                .number_format($oldFinal, 0, ',', '.').' → '.Money::format((float) $sourceTuition->final_amount)." (-{$amountLabel}), duyệt bởi ".(Auth::user()?->name ?? 'hệ thống').'.');
+                .Money::format($oldFinal, '').' → '.Money::format((float) $sourceTuition->final_amount)." (-{$amountLabel}), duyệt bởi ".(Auth::user()?->name ?? 'hệ thống').'.');
             $sourceTuition->recalculateDebt();
 
             if (! $isTransfer) {

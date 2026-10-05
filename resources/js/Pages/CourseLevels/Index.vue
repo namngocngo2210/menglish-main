@@ -4,7 +4,7 @@
  * nhóm trình độ, mô tả, gắn giáo trình — form thêm/sửa là panel trượt bên phải như mockup.
  */
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
-import { usePage } from '@inertiajs/vue3';
+import { postJson } from '@/lib/http';
 import { toast } from '@/lib/toast';
 import { route } from '@/lib/route';
 
@@ -22,7 +22,6 @@ const props = defineProps({
     canDelete: { type: Boolean, default: false },
 });
 
-const page = usePage();
 const blank = () => ({ id: null, code: '', name: '', description: '', level_group: '', grade_levels: [], target: '', lessons_count: 24, syllabus_curriculum_id: '', is_active: true });
 const open = ref(false);
 const level = reactive(blank());
@@ -96,14 +95,8 @@ function over(event) {
 }
 function drop() {
     const ids = rows.value.map((r) => String(r.id));
-    fetch(route('course-levels.reorder'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': page.props.csrf },
-        credentials: 'same-origin',
-        body: JSON.stringify({ ids }),
-    })
-        .then((r) => (r.ok ? r.json() : Promise.reject()))
-        .then((d) => toast(d.message, 'success'))
+    postJson(route('course-levels.reorder'), { ids })
+        .then(({ ok, data }) => (ok ? toast(data.message, 'success') : Promise.reject()))
         .catch(() => toast('Không lưu được thứ tự, vui lòng tải lại trang.', 'error'));
 }
 </script>

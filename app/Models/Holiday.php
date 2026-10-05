@@ -35,17 +35,4 @@ class Holiday extends Model
     {
         return $this->belongsToMany(Branch::class, 'holiday_branches');
     }
-
-    public function appliesToBranch(?int $branchId): bool
-    {
-        if ($this->is_system_wide) {
-            return true;
-        }
-
-        if ($branchId === null) {
-            return false;
-        }
-
-        return $this->branches()->where('branches.id', $branchId)->exists();
-    }
 }

@@ -15,7 +15,7 @@ export function distanceMeters(lat1, lng1, lat2, lng2) {
     return EARTH_RADIUS_METERS * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-export function secureContextMessage() {
+function secureContextMessage() {
     if (typeof window === 'undefined' || window.isSecureContext) return null;
     return 'Trình duyệt chỉ cho dùng định vị và camera khi mở trang bằng https://. Hãy mở hệ thống bằng địa chỉ https.';
 }

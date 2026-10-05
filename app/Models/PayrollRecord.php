@@ -312,7 +312,7 @@ class PayrollRecord extends Model
             return $this->legacyDeductionLines();
         }
 
-        $base = number_format((float) $this->base_salary, 0, ',', '.');
+        $base = Money::format($this->base_salary, '');
         $lines = [];
         if ($this->isFullTime()) {
             $lines[] = ['key' => 'insurance_deduction', 'label' => 'BHXH ('.$this->rateLabel('insurance').'% lương cơ bản)', 'amount' => (float) $this->insurance_deduction, 'hint' => 'Trên lương cơ bản '.$base.'đ'];

@@ -89,7 +89,7 @@ const openHistory = (row) => openRemoteModal(route('merchandise.stock.history', 
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="row in rows" :key="row.id" class="cursor-pointer hover:bg-surface-container-low" title="Xem nhật ký xuất nhập" @click="openHistory(row)">
+                    <tr v-for="row in rows" :key="row.id" class="cursor-pointer hover:bg-surface-container-low" title="Xem nhật ký xuất nhập" tabindex="0" @click="openHistory(row)" @keydown.enter.self="openHistory(row)">
                         <td>
                             <div class="font-semibold text-on-surface">{{ row.name }}</div>
                             <div class="font-code text-xs text-on-surface-variant">

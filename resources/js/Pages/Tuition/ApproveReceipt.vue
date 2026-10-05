@@ -162,7 +162,7 @@ onBeforeUnmount(() => clearInterval(timer));
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="rc in receipts" :key="rc.id" :class="['cursor-pointer', selected?.id === rc.id ? 'bg-primary-container/5' : '']" @click="openDetail(rc, $event)">
+                    <tr v-for="rc in receipts" :key="rc.id" :class="['cursor-pointer', selected?.id === rc.id ? 'bg-primary-container/5' : '']" tabindex="0" @click="openDetail(rc, $event)" @keydown.enter.self="openDetail(rc, $event)">
                         <td class="whitespace-nowrap">
                             <Link :href="detailUrl(rc.id)" preserve-scroll preserve-state class="font-code font-semibold text-on-surface hover:text-primary"><UiCode :value="rc.receipt_number" /></Link>
                             <span v-if="rc.has_proof" class="material-symbols-outlined align-middle text-sm text-on-surface-variant" title="Có minh chứng" aria-label="Có minh chứng">attach_file</span>

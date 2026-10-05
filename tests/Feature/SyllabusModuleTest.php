@@ -6,7 +6,6 @@ use App\Models\BigTest;
 use App\Models\ClassModel;
 use App\Models\Course;
 use App\Models\SyllabusCurriculum;
-use App\Models\SyllabusUnit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;

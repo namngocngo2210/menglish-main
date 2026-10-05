@@ -55,6 +55,27 @@ class AdminNotification extends Model
         });
     }
 
+    /**
+     * Thông báo cá nhân cho một người dùng (null → bỏ qua). Có $link thì gắn vào data.link cùng $data.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public static function notifyUser(?int $userId, string $type, string $title, string $message, ?string $link = null, array $data = []): ?self
+    {
+        if (! $userId) {
+            return null;
+        }
+
+        return static::create([
+            'user_id' => $userId,
+            'type' => $type,
+            'title' => $title,
+            'message' => $message,
+            'data' => $link ? array_merge($data, ['link' => $link]) : ($data ?: null),
+            'is_read' => false,
+        ]);
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

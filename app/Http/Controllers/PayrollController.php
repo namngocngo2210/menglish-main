@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\AclHelper;
+use App\Models\AdminNotification;
 use App\Models\ClassModel;
 use App\Models\CommissionAdjustment;
 use App\Models\CommissionItem;
@@ -10,7 +11,6 @@ use App\Models\CommissionTier;
 use App\Models\PayrollPeriod;
 use App\Models\PayrollRecord;
 use App\Models\Penalty;
-use App\Models\Student;
 use App\Models\TeacherHourlyRate;
 use App\Models\TeacherRate;
 use App\Models\TeacherTimesheet;
@@ -223,7 +223,7 @@ class PayrollController extends Controller
 
         $kpiSources = [PayrollRecord::KPI_RETENTION => 'Giữ học sinh', PayrollRecord::KPI_ACADEMIC => 'KPI Học vụ (tự động)', PayrollRecord::KPI_MANUAL => 'Nhập tự do'];
         $lineText = fn (PayrollRecord $r, string $kind) => collect($r->manualLines($kind))
-            ->map(fn ($l) => $l['label'].': '.number_format($l['amount'], 0, ',', '.'))->implode('; ');
+            ->map(fn ($l) => $l['label'].': '.Money::format($l['amount'], ''))->implode('; ');
 
         // Đủ mọi dòng của phiếu lương Q3 (cùng căn cứ với màn phiếu lương) để Kế toán đối chiếu Excel đang dùng.
         $rows = $records->map(fn (PayrollRecord $r) => [
@@ -310,40 +310,45 @@ class PayrollController extends Controller
             return redirect()->back()->withErrors(['period' => $message])->with('error', $message);
         }
 
+        // Khóa dòng kỳ lương và kiểm tra lại trạng thái TRONG transaction: bấm đúp / 2 Admin cùng duyệt thì chỉ một lần
+        // chạy, lần sau nhận 422 thay vì đóng dấu lại và gửi trùng thông báo. Thông báo ghi cùng transaction (1 câu INSERT).
         DB::transaction(function () use ($period) {
-            $period->update(['status' => 'approved']);
-            $period->records()->update(['status' => 'confirmed']);
+            $locked = PayrollPeriod::whereKey($period->id)->lockForUpdate()->firstOrFail();
+            abort_if($locked->isLocked(), 422, 'Kỳ lương đã khóa.');
+
+            $locked->update(['status' => 'approved']);
+            $locked->records()->update(['status' => 'confirmed']);
 
             // Chỉ đóng dấu "deducted" các biên bản thực sự đã trừ vào bản ghi lương của kỳ này
-            Penalty::whereIn('payroll_record_id', $period->records()->select('id'))
+            Penalty::whereIn('payroll_record_id', $locked->records()->select('id'))
                 ->whereIn('status', Penalty::payableStatuses())
                 ->update(['status' => 'deducted']);
 
             // Thu hồi hoa hồng đã trừ trong kỳ → tất toán, không trừ lại ở kỳ sau
-            CommissionAdjustment::whereIn('payroll_record_id', $period->records()->select('id'))
+            CommissionAdjustment::whereIn('payroll_record_id', $locked->records()->select('id'))
                 ->whereNull('settled_at')
                 ->update(['settled_at' => now()]);
 
             // Khoản hoa hồng đạt gate kép được trả trong kỳ → đã trả (khoản còn hoãn chờ kỳ sau)
-            CommissionItem::whereIn('payroll_record_id', $period->records()->select('id'))
+            CommissionItem::whereIn('payroll_record_id', $locked->records()->select('id'))
                 ->whereNull('settled_at')
                 ->update(['settled_at' => now(), 'status' => CommissionItem::STATUS_PAID]);
-        });
 
-        // "Chốt bảng lương để khóa dữ liệu và gửi thông báo cho giáo viên" (mockup phiếu lương): báo trong app cho từng người.
-        foreach ($period->records()->with('user')->get() as $record) {
-            if (! $record->user) {
-                continue;
-            }
-            \App\Models\AdminNotification::create([
-                'user_id' => $record->user_id,
-                'type' => 'payroll_approved',
-                'title' => "Phiếu lương {$period->title} đã được duyệt",
-                'message' => 'Thực nhận '.Money::format((float) $record->net_salary).' — xem chi tiết tại "Lương của tôi".',
-                'data' => ['payroll_period_id' => $period->id, 'link' => route('portal.my-salary', ['period_id' => $period->id])],
-                'is_read' => false,
-            ]);
-        }
+            // "Chốt bảng lương để khóa dữ liệu và gửi thông báo cho giáo viên" (mockup phiếu lương): báo trong app cho từng người.
+            $now = now();
+            $notifications = $locked->records()->whereHas('user')->get(['user_id', 'net_salary'])
+                ->map(fn (PayrollRecord $record) => [
+                    'user_id' => $record->user_id,
+                    'type' => 'payroll_approved',
+                    'title' => "Phiếu lương {$locked->title} đã được duyệt",
+                    'message' => 'Thực nhận '.Money::format((float) $record->net_salary).' — xem chi tiết tại "Lương của tôi".',
+                    'data' => json_encode(['payroll_period_id' => $locked->id, 'link' => route('portal.my-salary', ['period_id' => $locked->id])], JSON_UNESCAPED_UNICODE),
+                    'is_read' => false,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ])->all();
+            AdminNotification::insert($notifications);
+        });
 
         return redirect()->back()->with('status', "Đã phê duyệt bảng lương {$period->title}!");
     }
@@ -354,9 +359,12 @@ class PayrollController extends Controller
     public function markPaid($id)
     {
         $period = PayrollPeriod::where('id', $id)->orWhere('code', $id)->firstOrFail();
-        abort_if($period->status !== 'approved', 422, 'Chỉ kỳ lương đã duyệt mới được đánh dấu đã chi trả.');
-        $period->update(['status' => 'paid']);
-        $period->records()->update(['status' => 'paid']);
+        DB::transaction(function () use ($period) {
+            $locked = PayrollPeriod::whereKey($period->id)->lockForUpdate()->firstOrFail();
+            abort_if($locked->status !== 'approved', 422, 'Chỉ kỳ lương đã duyệt mới được đánh dấu đã chi trả.');
+            $locked->update(['status' => 'paid']);
+            $locked->records()->update(['status' => 'paid']);
+        });
 
         $redirect = redirect()->back()->with('status', "Đã ghi nhận chi trả bảng lương {$period->title}!");
         // Lịch trả lương là ngày 10–15 tháng sau: ngoài khung vẫn ghi nhận, chỉ cảnh báo (không chặn).
@@ -1421,7 +1429,7 @@ class PayrollController extends Controller
                 'renewal_beyond_percent' => $fmt($settings['renewal_beyond_percent']),
                 'late_threshold_minutes' => (int) $settings['late_threshold_minutes'],
                 'late_deduction_per_minute' => (int) $settings['late_deduction_per_minute'],
-                'retention_tiers' => collect($settings['retention_tiers'])->map(fn ($t) => number_format($t, 0, ',', '.'))->implode(' / '),
+                'retention_tiers' => collect($settings['retention_tiers'])->map(fn ($t) => Money::format($t, ''))->implode(' / '),
             ],
             'renewalRows' => collect($settings['renewal_table'])
                 ->map(fn ($row, $quits) => ['quits' => $quits, 'percent' => $row['percent'], 'pending' => (bool) $row['pending']])
@@ -1580,7 +1588,7 @@ class PayrollController extends Controller
                 'employee_code' => $selectedTeacher->employee_code,
                 'type_label' => TeacherHourlyRate::TEACHER_TYPES[$selectedType] ?? '—',
                 'current' => $selectedCurrent ? [
-                    'rate' => number_format((float) $selectedCurrent->hourly_rate, 0, ',', '.').' '.($unitSuffix[$selectedCurrent->rate_unit] ?? 'VNĐ / giờ'),
+                    'rate' => Money::format($selectedCurrent->hourly_rate, '').' '.($unitSuffix[$selectedCurrent->rate_unit] ?? 'VNĐ / giờ'),
                     'effective_from' => $selectedCurrent->effective_from->format('d/m/Y'),
                 ] : null,
                 'profile_rate' => (float) $selectedTeacher->hourly_rate > 0 ? Money::format((float) $selectedTeacher->hourly_rate) : null,
@@ -1630,7 +1638,7 @@ class PayrollController extends Controller
             ->log('Thêm đơn giá riêng ('.$rate->unit_label.') cho GV #'.$validated['user_id']);
 
         return redirect()->route('payroll.config.teacher-rates', ['teacher_id' => $validated['user_id']])
-            ->with('status', 'Đã thêm đơn giá '.number_format((float) $validated['hourly_rate'], 0, ',', '.').' '.$rate->unit_label.' hiệu lực từ '
+            ->with('status', 'Đã thêm đơn giá '.Money::format($validated['hourly_rate'], '').' '.$rate->unit_label.' hiệu lực từ '
                 .Carbon::parse($validated['effective_from'])->format('d/m/Y').'.');
     }
 

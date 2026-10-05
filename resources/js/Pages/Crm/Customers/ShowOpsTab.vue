@@ -5,7 +5,7 @@
  */
 import { computed, ref } from 'vue';
 import { Link } from '@inertiajs/vue3';
-import { toast } from '@/lib/toast';
+import { copyText } from '@/lib/clipboard';
 import RubricResult from '@/Components/Crm/RubricResult.vue';
 
 defineOptions({ inheritAttrs: false });
@@ -52,13 +52,8 @@ const canScheduleHere = computed(() => ['consulting', 'test_scheduled', 'testing
 const trialNote = computed(() => (props.trial.bookable ? 'Chưa có buổi học thử' : props.customer.stage === 'new' ? 'Mở khi khách sang Đang tư vấn' : 'Không đặt học thử ở giai đoạn ' + props.customer.stage_label));
 const bookingTone = (status) => (status === 'attended' ? 'success' : status === 'scheduled' ? 'info' : 'error');
 
-async function copyLink(message) {
-    try {
-        await navigator.clipboard.writeText(props.portalTestLink);
-    } catch {
-        // Trình duyệt chặn clipboard: vẫn báo để người dùng mở link thủ công.
-    }
-    toast(message);
+function copyLink(message) {
+    return copyText(props.portalTestLink, message);
 }
 </script>
 

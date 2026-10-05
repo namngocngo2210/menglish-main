@@ -11,7 +11,6 @@ use App\Models\PayrollRecord;
 use App\Models\Student;
 use App\Models\StudentTuition;
 use App\Models\TuitionReceipt;
-use Carbon\Carbon;
 
 class OperatingExpenseSeeder extends Seeder
 {

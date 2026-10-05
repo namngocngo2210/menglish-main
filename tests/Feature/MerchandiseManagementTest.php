@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\Branch;
 use App\Models\MerchandiseItem;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;

@@ -270,7 +270,7 @@ class TuitionReceipt extends Model
         };
     }
 
-    /** Màu <x-ui.badge> theo trạng thái phiếu. */
+    /** Màu <UiBadge> theo trạng thái phiếu. */
     public function getStatusColorAttribute(): string
     {
         return match ($this->status) {

@@ -1,5 +1,4 @@
 import forms from '@tailwindcss/forms';
-import containerQueries from '@tailwindcss/container-queries';
 
 /**
  * MEnglish ERP — Tailwind CSS 3.4 theme.
@@ -266,5 +265,5 @@ export default {
         },
     },
 
-    plugins: [forms, containerQueries],
+    plugins: [forms],
 };

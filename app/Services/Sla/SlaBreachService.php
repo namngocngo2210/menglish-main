@@ -8,6 +8,7 @@ use App\Models\SlaEvent;
 use App\Models\User;
 use App\Models\WorkTask;
 use App\Services\BranchStaff;
+use App\Support\Money;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -150,7 +151,7 @@ class SlaBreachService
             'Hạn xử lý' => $event->due_at->format('H:i d/m/Y').' ('.$rule['value'].($rule['unit'] === 'hours' ? ' giờ' : ' lần').')',
             'Phát hiện quá hạn' => $now->format('H:i d/m/Y'),
             ...$facts,
-            ...($penalty->amount > 0 ? ['Mức phạt gợi ý' => number_format((float) $penalty->amount, 0, ',', '.').' đ'] : ['Mức phạt gợi ý' => 'Nhắc nhở (0 đ)'])];
+            ...($penalty->amount > 0 ? ['Mức phạt gợi ý' => Money::format($penalty->amount)] : ['Mức phạt gợi ý' => 'Nhắc nhở (0 đ)'])];
         $html = '<html><head><meta charset="utf-8"><style>body{font-family:DejaVu Sans,sans-serif;font-size:12px}td{padding:4px 8px;border-bottom:1px solid #ddd}td:first-child{font-weight:bold;width:35%}</style></head><body>'
             .'<h2>Chi tiết biên bản vi phạm SLA (tự động)</h2><table width="100%">';
         foreach ($rows as $label => $value) {

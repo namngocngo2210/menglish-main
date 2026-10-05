@@ -72,14 +72,6 @@ class CommissionTier extends Model
             ->where(fn ($q) => $q->whereNull('effective_to')->orWhereDate('effective_to', '>=', $day));
     }
 
-    public function isEffectiveAt(CarbonInterface|string|null $date = null): bool
-    {
-        $day = Carbon::parse($date ?? today())->startOfDay();
-
-        return ($this->effective_from === null || $this->effective_from->lte($day))
-            && ($this->effective_to === null || $this->effective_to->gte($day));
-    }
-
     /** Bậc theo số HS chốt (A6 bản sửa) — bậc cũ theo doanh thu có min_students NULL. */
     public function scopeByStudents(Builder $query): Builder
     {
@@ -115,20 +107,4 @@ class CommissionTier extends Model
             : 'HS thứ '.$from.'–'.$this->max_students;
     }
 
-    /**
-     * (Bậc cũ) Bậc hoa hồng áp dụng cho một mức doanh thu tại một thời điểm (mặc định hôm nay):
-     * min_revenue <= revenue <= max_revenue, ưu tiên bậc có min_revenue cao nhất, chỉ xét
-     * phiên bản hiệu lực tại ngày đó. Dùng chung cho tính lương, BXH KPI và báo cáo CRM.
-     */
-    public static function matchForRevenue(float $revenue, CarbonInterface|string|null $asOf = null): ?self
-    {
-        return static::query()
-            ->effectiveAt($asOf)
-            ->where('min_revenue', '<=', $revenue)
-            ->where(function ($query) use ($revenue) {
-                $query->whereNull('max_revenue')->orWhere('max_revenue', '>=', $revenue);
-            })
-            ->orderByDesc('min_revenue')
-            ->first();
-    }
 }

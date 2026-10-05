@@ -10,6 +10,7 @@ use App\Models\PlacementTestSubmission;
 use App\Models\SlaEvent;
 use App\Models\SystemSetting;
 use App\Services\BranchStaff;
+use App\Support\Money;
 use Illuminate\Support\Carbon;
 
 /**
@@ -170,7 +171,7 @@ class CrmSlaService
                 $this->settle($event, $paid ? $now : null, $now, "{$customer->code} {$customer->name}", [
                     'Khách hàng' => "{$customer->code} — {$customer->name}",
                     'Chốt lúc' => $customer->converted_at->format('H:i d/m/Y'),
-                    'Còn nợ học phí' => $tuition ? number_format((float) $tuition->debt_amount, 0, ',', '.').' đ' : 'Chưa có hồ sơ học phí',
+                    'Còn nợ học phí' => $tuition ? Money::format($tuition->debt_amount) : 'Chưa có hồ sơ học phí',
                 ], route('crm.customers.show', $customer->id));
             });
 

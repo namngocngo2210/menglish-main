@@ -33,20 +33,11 @@ class KpiBoardService
     }
 
     /**
-     * @return array{classes: int, retention: ?float, retention_detail: string, attendance: ?float, attendance_detail: string,
-     *               homework: ?float, homework_detail: string, tasks: ?float, tasks_detail: string}
-     */
-    public function metricsFor(User $user, CarbonInterface $from, CarbonInterface $to): array
-    {
-        return $this->metricsForMany(collect([$user]), $from, $to)[$user->id];
-    }
-
-    /**
      * Chỉ số KPI của nhiều nhân sự cùng lúc: lớp, học viên, điểm danh, công việc gộp thành vài truy vấn cho cả trang
      * (trước đây ~9 truy vấn cho mỗi nhân sự).
      *
      * @param  iterable<User>  $users
-     * @return array<int, array> theo id nhân sự, cùng cấu trúc với metricsFor()
+     * @return array<int, array> theo id nhân sự, gồm: classes, retention, attendance, homework, tasks (mỗi chỉ số kèm *_detail)
      */
     public function metricsForMany(iterable $users, CarbonInterface $from, CarbonInterface $to): array
     {

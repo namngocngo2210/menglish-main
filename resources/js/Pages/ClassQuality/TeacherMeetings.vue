@@ -81,7 +81,7 @@ const NOTES = [
                 </tr>
             </thead>
             <tbody>
-                <tr v-for="r in reports.data" :key="r.id" class="cursor-pointer" @click="viewing = r">
+                <tr v-for="r in reports.data" :key="r.id" class="cursor-pointer" tabindex="0" @click="viewing = r" @keydown.enter.self="viewing = r">
                     <td class="whitespace-nowrap font-code">{{ week(r) }}</td>
                     <td class="font-semibold text-on-surface">{{ r.teacher }}</td>
                     <td>

@@ -107,14 +107,6 @@ class ClassReport extends Model
     }
 
     /**
-     * URL hiển thị của một ảnh (file trên disk public hoặc URL ngoài).
-     */
-    public static function imageUrl(string $path): string
-    {
-        return preg_match('~^https?://~i', $path) ? $path : \Illuminate\Support\Facades\Storage::disk('public')->url($path);
-    }
-
-    /**
      * Người phải xác nhận báo cáo không có ảnh theo A6 Q8:
      * GV chính của lớp; lớp chưa có GV chính (hoặc GV chính chính là người nộp)
      * → người giao đầu việc "Trực lớp". Không ai tự xác nhận báo cáo của mình.

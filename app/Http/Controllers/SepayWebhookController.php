@@ -49,8 +49,7 @@ class SepayWebhookController extends Controller
             ], 403);
         }
 
-        // 1. Authentication is mandatory unless the administrator explicitly
-        // selects "none". Missing credentials must never fall through.
+        // 1. Authentication is mandatory. Missing credentials or an unknown method must never fall through.
         if ($config->auth_method === 'hmac_sha256') {
             if (empty($config->secret_key)) {
                 Log::error('[SePay Webhook] HMAC is enabled without a secret key.');
@@ -85,6 +84,11 @@ class SepayWebhookController extends Controller
             if ($expectedApiKey === '' || $receivedApiKey === '' || ! hash_equals($expectedApiKey, $receivedApiKey)) {
                 return response()->json(['success' => false, 'message' => 'API key không hợp lệ.'], 401);
             }
+        } else {
+            // Phương thức lạ / "none" cũ: không bao giờ bỏ qua xác thực (webhook tạo phiếu thu và xóa nợ).
+            Log::error('[SePay Webhook] Phương thức xác thực không được hỗ trợ: '.$config->auth_method);
+
+            return response()->json(['success' => false, 'message' => 'Webhook authentication is not configured.'], 503);
         }
 
         // 2. Parse payload
@@ -429,11 +433,11 @@ class SepayWebhookController extends Controller
                         .'<p>Kính gửi Quản trị viên & Bộ phận Học vụ / Kế toán cơ sở,</p>'
                         .'<p>Cổng thanh toán tự động <strong>SePay</strong> vừa ghi nhận và khớp thành công giao dịch học phí:</p>'
                         ."<table style='width: 100%; border-collapse: collapse; margin: 15px 0;'>"
-                        ."<tr><td style='padding: 8px; border-bottom: 1px solid #f1f5f9; color: #64748b;'>Học viên:</td><td style='padding: 8px; border-bottom: 1px solid #f1f5f9; font-weight: bold;'>{$matchedStudent?->name} ({$matchedStudent?->code})</td></tr>"
+                        ."<tr><td style='padding: 8px; border-bottom: 1px solid #f1f5f9; color: #64748b;'>Học viên:</td><td style='padding: 8px; border-bottom: 1px solid #f1f5f9; font-weight: bold;'>".e($matchedStudent?->name).' ('.e($matchedStudent?->code).")</td></tr>"
                         ."<tr><td style='padding: 8px; border-bottom: 1px solid #f1f5f9; color: #64748b;'>Số tiền khớp lệnh:</td><td style='padding: 8px; border-bottom: 1px solid #f1f5f9; font-weight: bold; color: #ea580c; font-family: monospace; font-size: 16px;'>".Money::format($appliedAmount).'</td></tr>'
-                        ."<tr><td style='padding: 8px; border-bottom: 1px solid #f1f5f9; color: #64748b;'>Mã phiếu thu:</td><td style='padding: 8px; border-bottom: 1px solid #f1f5f9; font-mono font-bold;'>{$receipt->receipt_number}</td></tr>"
-                        ."<tr><td style='padding: 8px; border-bottom: 1px solid #f1f5f9; color: #64748b;'>Mã hóa đơn điện tử:</td><td style='padding: 8px; border-bottom: 1px solid #f1f5f9; font-mono font-bold; color: #0284c7;'>{$invoiceNumber}</td></tr>"
-                        ."<tr><td style='padding: 8px; border-bottom: 1px solid #f1f5f9; color: #64748b;'>Nội dung chuyển khoản:</td><td style='padding: 8px; border-bottom: 1px solid #f1f5f9;'>{$content}</td></tr>"
+                        ."<tr><td style='padding: 8px; border-bottom: 1px solid #f1f5f9; color: #64748b;'>Mã phiếu thu:</td><td style='padding: 8px; border-bottom: 1px solid #f1f5f9; font-mono font-bold;'>".e($receipt->receipt_number).'</td></tr>'
+                        ."<tr><td style='padding: 8px; border-bottom: 1px solid #f1f5f9; color: #64748b;'>Mã hóa đơn điện tử:</td><td style='padding: 8px; border-bottom: 1px solid #f1f5f9; font-mono font-bold; color: #0284c7;'>".e($invoiceNumber).'</td></tr>'
+                        ."<tr><td style='padding: 8px; border-bottom: 1px solid #f1f5f9; color: #64748b;'>Nội dung chuyển khoản:</td><td style='padding: 8px; border-bottom: 1px solid #f1f5f9;'>".e($content).'</td></tr>'
                         .'</table>'
                         ."<p style='margin-top: 15px;'>Đề nghị Học vụ phụ trách và Kế toán tiến hành kiểm tra xuất hóa đơn và bàn giao học liệu cho học viên.</p>"
                         ."<div style='margin-top: 25px; text-align: center;'><a href='".route('tuition.history')."' style='background: #ea580c; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold;'>Xem Phiếu Thu & Hóa Đơn</a></div>"

@@ -43,12 +43,6 @@ class PlacementPdfAnswerSheet
         }
     }
 
-    /** Đọc chữ của cả file PDF (các trang nối bằng xuống dòng). */
-    public static function extractText(string $absolutePath): string
-    {
-        return implode("\n", self::extractPages($absolutePath));
-    }
-
     /** Phần đáp án của file (sau tiêu đề "Answer key" / "Đáp án"); file chỉ có đáp án, không tiêu đề → cả file. */
     public static function keyText(string $text): string
     {

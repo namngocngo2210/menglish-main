@@ -68,6 +68,20 @@ abstract class TestCase extends BaseTestCase
         return parent::seed(count($remaining) === 1 ? $remaining[0] : $remaining);
     }
 
+    /**
+     * Một test hay đổi người dùng giữa chừng (giáo viên tạo → admin trả lời). authenticateSessions lưu hash mật khẩu của
+     * người đăng nhập trước trong phiên, nên đổi người mà giữ phiên sẽ bị đăng xuất: xóa phiên khi đổi sang người khác.
+     */
+    public function actingAs(\Illuminate\Contracts\Auth\Authenticatable $user, $guard = null)
+    {
+        $current = $this->app['auth']->guard($guard)->user();
+        if ($current && $current->getAuthIdentifier() !== $user->getAuthIdentifier()) {
+            $this->flushSession();
+        }
+
+        return parent::actingAs($user, $guard);
+    }
+
     /** Chạy seeder thật (kể cả PermissionSeeder / RoleSeeder) — dùng cho test kiểm tra chính việc nạp lại seeder. */
     protected function runSeederForReal(string $class): static
     {

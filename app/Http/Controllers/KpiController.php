@@ -150,7 +150,7 @@ class KpiController extends Controller
         $role = in_array($request->query('role'), self::STAFF_ROLES, true) ? $request->query('role') : null;
         $staff = $this->scopedStaff(User::whereHas('roles', fn ($q) => $q->whereIn('name', $role ? [$role] : self::STAFF_ROLES)))
             ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w->where('name', 'like', "%{$search}%")->orWhere('employee_code', 'like', "%{$search}%")))
-            ->orderBy('name')->paginate($request->perPage(20))->withQueryString();
+            ->with('roles')->orderBy('name')->paginate($request->perPage(20))->withQueryString();
         $fund = KpiCriterion::fund();
         $fmt = fn ($v) => rtrim(rtrim(number_format((float) $v, 2, ',', '.'), '0'), ',');
         $periodValue = sprintf('%04d-%02d', $year, $month);
@@ -397,7 +397,10 @@ class KpiController extends Controller
         $date = $request->input('date', now()->toDateString());
         $classId = $request->input('class_id');
 
+        // Chỉ điểm danh của lớp trong phạm vi dữ liệu Lớp học của người xem (Chi nhánh / Của tôi / Toàn hệ thống).
+        $visibleClassIds = ClassModel::query()->visibleTo($request->user())->select('id');
         $query = StudentAttendance::with(['student', 'classModel', 'teacher'])
+            ->whereIn('class_id', $visibleClassIds)
             ->whereDate('session_date', $date);
         if ($classId) {
             $query->where('class_id', $classId);
@@ -411,7 +414,7 @@ class KpiController extends Controller
             'excused' => $records->where('status', 'excused')->count(),
         ];
 
-        $classes = ClassModel::orderBy('name')->get(['id', 'name']);
+        $classes = ClassModel::query()->visibleTo($request->user())->orderBy('name')->get(['id', 'name']);
 
         return Inertia::render('Kpi/AttendanceReview', [
             'records' => $records->map(fn (StudentAttendance $r) => [
@@ -439,7 +442,9 @@ class KpiController extends Controller
             'decision' => ['required', 'in:approved,rejected'],
             'review_note' => ['nullable', 'string', 'max:1000'],
         ]);
-        $attendance = StudentAttendance::findOrFail($id);
+        $attendance = StudentAttendance::query()
+            ->whereIn('class_id', ClassModel::query()->visibleTo($request->user())->select('id'))
+            ->findOrFail($id);
         $attendance->update([
             'review_status' => $validated['decision'],
             'reviewed_by' => Auth::id(),

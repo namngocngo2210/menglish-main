@@ -38,6 +38,8 @@ return [
     'sepay' => [
         // Cờ bật/tật webhook SePay. Tắt tạm thời: endpoint trả 503 sạch thay vì xử lý.
         'webhook_enabled' => env('SEPAY_WEBHOOK_ENABLED', false),
+        // Khóa HMAC mặc định khi chưa có cấu hình trong DB (chỉ dùng lúc tạo bản ghi đầu tiên).
+        'webhook_secret' => env('SEPAY_WEBHOOK_SECRET'),
     ],
 
     'zalo' => [

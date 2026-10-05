@@ -5,6 +5,7 @@ use App\Http\Middleware\AuditOperationMiddleware;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RequireInitialPasswordChange;
+use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -23,6 +24,9 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Đổi / đặt lại mật khẩu thì các phiên đăng nhập cũ (thiết bị khác, phiên bị lộ) tự đăng xuất ở request kế tiếp.
+        $middleware->authenticateSessions();
+        $middleware->append(SecurityHeaders::class);
         $middleware->appendToGroup('web', [
             EnsureAccountIsActive::class,
             RequireInitialPasswordChange::class,

@@ -8,6 +8,8 @@ use App\Models\PayrollPeriod;
 use App\Models\PayrollRecord;
 use App\Models\TuitionReceipt;
 use App\Models\User;
+use App\Support\ReportPeriod;
+use App\Support\SpreadsheetCell;
 use App\Support\TuitionBranchScope;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -34,12 +36,8 @@ class FinanceController extends Controller
         $branchId = $this->resolveBranchFilter($request, $request->input('branch_id', 'all'));
         $search = trim($request->input('search', ''));
 
-        try {
-            $parsedDate = Carbon::createFromFormat('Y-m', $month);
-        } catch (\Throwable $e) {
-            $month = Carbon::now()->format('Y-m');
-            $parsedDate = Carbon::createFromFormat('Y-m', $month);
-        }
+        $parsedDate = ReportPeriod::parseMonth($month);
+        $month = $parsedDate->format('Y-m');
 
         $startDate = $parsedDate->copy()->startOfMonth()->toDateString();
         $endDate = $parsedDate->copy()->endOfMonth()->toDateString();
@@ -119,7 +117,7 @@ class FinanceController extends Controller
         $grandTotalExpense = $totalManualExpense + $autoSalaryAmount;
 
         // Tính tổng chi tháng trước để so sánh
-        $prevParsed = Carbon::createFromFormat('Y-m', $prevMonth);
+        $prevParsed = ReportPeriod::parseMonth($prevMonth);
         $prevStart = $prevParsed->copy()->startOfMonth()->toDateString();
         $prevEnd = $prevParsed->copy()->endOfMonth()->toDateString();
 
@@ -203,7 +201,7 @@ class FinanceController extends Controller
             'totalManualExpense' => (float) $totalManualExpense,
             'manualExpensesCount' => $manualExpensesCount,
             'totalItemsCount' => $totalItemsCount,
-            'prevMonthLabel' => Carbon::createFromFormat('Y-m', $prevMonth)->format('m/Y'),
+            'prevMonthLabel' => ReportPeriod::parseMonth($prevMonth)->format('m/Y'),
             'percentDiff' => (float) $percentDiff,
             'isDecreased' => $isDecreased,
             'totalTransfer' => (float) $totalTransfer,
@@ -312,12 +310,8 @@ class FinanceController extends Controller
         $month = $request->input('month', Carbon::now()->format('Y-m'));
         $branchId = $this->resolveBranchFilter($request, $request->input('branch_id', 'all'));
 
-        try {
-            $parsedDate = Carbon::createFromFormat('Y-m', $month);
-        } catch (\Throwable $e) {
-            $month = Carbon::now()->format('Y-m');
-            $parsedDate = Carbon::createFromFormat('Y-m', $month);
-        }
+        $parsedDate = ReportPeriod::parseMonth($month);
+        $month = $parsedDate->format('Y-m');
         $startDate = $parsedDate->copy()->startOfMonth()->toDateString();
         $endDate = $parsedDate->copy()->endOfMonth()->toDateString();
 
@@ -351,7 +345,7 @@ class FinanceController extends Controller
 
             $stt = 1;
             foreach ($expenses as $exp) {
-                fputcsv($handle, [
+                fputcsv($handle, SpreadsheetCell::safeRow([
                     $stt++,
                     Carbon::parse($exp->expense_date)->format('d/m/Y'),
                     $exp->title,
@@ -360,7 +354,7 @@ class FinanceController extends Controller
                     $exp->branch?->name ?? 'Toàn hệ thống',
                     $exp->creator?->name ?? 'Admin',
                     $exp->notes ?? '',
-                ]);
+                ]));
             }
 
             fclose($handle);
@@ -379,12 +373,8 @@ class FinanceController extends Controller
         $month = $request->input('month', Carbon::now()->format('Y-m'));
         $branchId = $this->resolveBranchFilter($request, $request->input('branch_id', 'all'));
 
-        try {
-            $parsedDate = Carbon::createFromFormat('Y-m', $month);
-        } catch (\Throwable $e) {
-            $month = Carbon::now()->format('Y-m');
-            $parsedDate = Carbon::createFromFormat('Y-m', $month);
-        }
+        $parsedDate = ReportPeriod::parseMonth($month);
+        $month = $parsedDate->format('Y-m');
 
         $startDate = $parsedDate->copy()->startOfMonth()->toDateString();
         $endDate = $parsedDate->copy()->endOfMonth()->toDateString();
@@ -414,7 +404,7 @@ class FinanceController extends Controller
         $revenueCashPercent = $totalRevenue > 0 ? (100 - $revenueTransferPercent) : 0;
 
         // So sánh doanh thu với tháng trước
-        $prevParsed = Carbon::createFromFormat('Y-m', $prevMonth);
+        $prevParsed = ReportPeriod::parseMonth($prevMonth);
         $prevStart = $prevParsed->copy()->startOfMonth()->toDateString();
         $prevEnd = $prevParsed->copy()->endOfMonth()->toDateString();
 
@@ -541,7 +531,7 @@ class FinanceController extends Controller
             'surchargePercent' => (float) $surchargePercent,
             'revenueTransferPercent' => (float) $revenueTransferPercent,
             'revenueCashPercent' => (float) $revenueCashPercent,
-            'prevMonthLabel' => Carbon::createFromFormat('Y-m', $prevMonth)->format('m/Y'),
+            'prevMonthLabel' => ReportPeriod::parseMonth($prevMonth)->format('m/Y'),
             'revenueDiffPercent' => (float) $revenueDiffPercent,
             'revenueDiffIsUp' => $revenueDiffIsUp,
             'totalExpense' => (float) $totalExpense,
@@ -577,12 +567,8 @@ class FinanceController extends Controller
     public function exportRevenueReport(Request $request)
     {
         $month = $request->input('month', Carbon::now()->format('Y-m'));
-        try {
-            $parsedDate = Carbon::createFromFormat('Y-m', $month);
-        } catch (\Throwable $e) {
-            $month = Carbon::now()->format('Y-m');
-            $parsedDate = Carbon::createFromFormat('Y-m', $month);
-        }
+        $parsedDate = ReportPeriod::parseMonth($month);
+        $month = $parsedDate->format('Y-m');
         $startDate = $parsedDate->copy()->startOfMonth()->toDateString();
         $endDate = $parsedDate->copy()->endOfMonth()->toDateString();
 
