@@ -119,15 +119,15 @@ const filled = (v) => v !== null && v !== undefined && String(v).trim() !== '';
                             {{ filled(sub.score) ? 'Đã chấm: ' + sub.score : 'Đã xem' }}
                         </UiBadge>
                         <UiForm v-else-if="activeTab === 'pronunciation'" :action="route('portal.teacher.submissions.mark', { id: sub.id })" method="post" class="flex items-center gap-2">
-                            <input type="text" name="score" required maxlength="20" placeholder="Điểm /100" :class="['w-24', inputClass]" />
-                            <input type="text" name="feedback" maxlength="1000" placeholder="Nhận xét" :class="['w-40', inputClass]" />
+                            <input type="text" name="score" required maxlength="20" placeholder="Điểm /100" aria-label="Điểm phát âm" :class="['w-24', inputClass]" />
+                            <input type="text" name="feedback" maxlength="1000" placeholder="Nhận xét" aria-label="Nhận xét" :class="['w-40', inputClass]" />
                             <UiButton type="submit" size="sm">Chấm</UiButton>
                         </UiForm>
                         <template v-else>
                             <UiBadge color="secondary" pill>Đã nộp</UiBadge>
                             <UiForm :action="route('portal.teacher.submissions.mark', { id: sub.id })" method="post" class="flex items-center gap-2">
-                                <input type="text" name="score" maxlength="20" placeholder="Điểm (tùy chọn)" :class="['w-24', inputClass]" />
-                                <input type="text" name="feedback" maxlength="1000" placeholder="Nhận xét" :class="['w-36', inputClass]" />
+                                <input type="text" name="score" maxlength="20" placeholder="Điểm (tùy chọn)" aria-label="Điểm" :class="['w-24', inputClass]" />
+                                <input type="text" name="feedback" maxlength="1000" placeholder="Nhận xét" aria-label="Nhận xét" :class="['w-36', inputClass]" />
                                 <UiButton type="submit" variant="secondary" size="sm" icon="visibility">
                                     <span>Đánh dấu đã xem</span>
                                 </UiButton>

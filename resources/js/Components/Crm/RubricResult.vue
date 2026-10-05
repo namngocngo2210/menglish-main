@@ -63,7 +63,7 @@ const suggestedClass = computed(() => props.rubric?.chosen_class ?? props.result
                     <p v-else-if="graded && !rubric.has_rubric" class="text-xs text-on-warning-container">{{ noRubricNotice }}</p>
                 </div>
             </div>
-            <a v-if="scorecardUrl" :href="scorecardUrl" target="_blank" class="shadow-xs flex shrink-0 items-center gap-1.5 rounded-xl bg-inverse-surface px-3.5 py-2 text-xs font-bold text-white transition hover:bg-inverse-surface/90">
+            <a v-if="scorecardUrl" :href="scorecardUrl" target="_blank" rel="noopener noreferrer" class="shadow-xs flex shrink-0 items-center gap-1.5 rounded-xl bg-inverse-surface px-3.5 py-2 text-xs font-bold text-white transition hover:bg-inverse-surface/90">
                 <span class="material-symbols-outlined text-[15px] text-warning/70">military_tech</span>
                 <span>Xem Scorecard</span>
             </a>

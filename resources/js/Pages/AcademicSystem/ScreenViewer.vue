@@ -22,7 +22,7 @@ defineProps({
             <span>{{ category }}</span>
         </template>
         <template #actions>
-            <a :href="rawUrl" target="_blank" class="inline-flex items-center gap-1.5 rounded-xl border border-surface-container-highest bg-white px-3 py-1.5 text-xs font-semibold text-on-surface-variant shadow-2xs transition hover:bg-surface-container-low" title="Mở trang gốc không có menu">
+            <a :href="rawUrl" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 rounded-xl border border-surface-container-highest bg-white px-3 py-1.5 text-xs font-semibold text-on-surface-variant shadow-2xs transition hover:bg-surface-container-low" title="Mở trang gốc không có menu">
                 <span class="material-symbols-outlined text-[16px]">open_in_new</span>
                 <span>Toàn màn hình (Không Menu)</span>
             </a>

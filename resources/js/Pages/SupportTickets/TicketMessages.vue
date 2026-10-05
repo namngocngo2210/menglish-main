@@ -62,7 +62,7 @@ function zoom(event, url) {
                                 <span class="material-symbols-outlined text-xs text-on-surface-subtle group-hover:text-primary">zoom_in</span>
                             </div>
                         </a>
-                        <a v-else :href="file.url" target="_blank" class="group flex items-center gap-2 rounded-xl border border-surface-container-highest bg-surface-container-lowest p-2.5 shadow-sm transition hover:bg-surface-container-low">
+                        <a v-else :href="file.url" target="_blank" rel="noopener noreferrer" class="group flex items-center gap-2 rounded-xl border border-surface-container-highest bg-surface-container-lowest p-2.5 shadow-sm transition hover:bg-surface-container-low">
                             <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary-container/10 text-xs font-bold text-primary">{{ file.ext.toUpperCase() }}</div>
                             <div class="min-w-0 flex-1">
                                 <div class="truncate text-xs font-bold text-on-surface group-hover:text-primary">{{ file.name }}</div>

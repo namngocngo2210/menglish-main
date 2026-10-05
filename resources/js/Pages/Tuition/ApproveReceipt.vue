@@ -424,7 +424,7 @@ onBeforeUnmount(() => clearInterval(timer));
                         sai số hoặc sai nội dung thì từ chối và để người lập tạo yêu cầu hủy hóa đơn.
                     </UiAlert>
                     <div class="flex flex-col items-center gap-5 rounded-xl border border-inverse-surface bg-inverse-surface p-5 md:flex-row">
-                        <div class="group/img relative flex h-52 w-full shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/5 md:w-64" @click="zoomOpen = true">
+                        <div class="group/img relative flex h-52 w-full shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/5 md:w-64" @click="zoomOpen = true" role="button" tabindex="0" @keydown.enter.self.prevent="zoomOpen = true" @keydown.space.self.prevent="zoomOpen = true">
                             <img v-if="selected.proof_image" :src="selected.proof_image" alt="Minh chứng" class="h-full w-full object-contain" />
                             <div v-else class="flex h-full w-full flex-col items-center justify-center gap-2 text-xs text-inverse-on-surface/70">
                                 <span class="material-symbols-outlined text-3xl text-inverse-on-surface/60">image_not_supported</span>

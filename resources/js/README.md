@@ -39,7 +39,7 @@ return Inertia::render('Courses/Index', [
 - Validate, redirect, `with('status', …)` giữ nguyên. Flash `success` / `status` / `error` / `warning` / `info` tự hiện toast.
   Flash khác (kết quả nhập Excel, mật khẩu tạm…) → controller đọc `session(...)` rồi gửi thành prop.
 - Tải file / xuất Excel / bản in: route vẫn trả file hoặc view Blade in; ở Vue dùng `<UiButton native :href>` hoặc `<a :href>`
-  (link Inertia tới trang không phải Inertia tự mở hẳn trang đó). POST ra file → `<UiNativeForm>`.
+  (link Inertia tới trang không phải Inertia tự mở hẳn trang đó). Xuất file dùng route GET.
 
 ## Trang
 

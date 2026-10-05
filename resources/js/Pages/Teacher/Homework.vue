@@ -156,7 +156,7 @@ function onSaved() {
                     <p v-if="hw.class_note" class="font-body-small text-body-small italic text-on-surface-variant">“{{ hw.class_note }}”</p>
                     <div class="flex flex-wrap gap-sm font-caption text-caption">
                         <a v-if="hw.youtube_url" :href="hw.youtube_url" target="_blank" rel="noopener" class="inline-flex items-center gap-xs text-primary hover:underline"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">smart_display</span>YouTube</a>
-                        <a v-if="hw.audio_url" :href="hw.audio_url" target="_blank" class="inline-flex items-center gap-xs text-primary hover:underline"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">audio_file</span>File nghe</a>
+                        <a v-if="hw.audio_url" :href="hw.audio_url" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-xs text-primary hover:underline"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">audio_file</span>File nghe</a>
                         <a v-if="hw.quizizz_url" :href="hw.quizizz_url" target="_blank" rel="noopener" class="inline-flex items-center gap-xs text-primary hover:underline"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">quiz</span>Quizizz</a>
                     </div>
                 </div>

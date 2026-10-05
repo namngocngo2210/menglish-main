@@ -299,6 +299,10 @@ const typeButtonClass = (type) =>
                                     currentIndex === idx ? 'border-primary bg-primary-container text-white shadow-md ring-2 ring-primary-container/30' : 'border-surface-container-highest bg-surface-container-lowest text-on-surface hover:border-primary-container/30 hover:bg-surface-container-low',
                                 ]"
                                 @click="currentIndex = idx"
+                                role="button"
+                                tabindex="0"
+                                @keydown.enter.self.prevent="currentIndex = idx"
+                                @keydown.space.self.prevent="currentIndex = idx"
                             >
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-center gap-1.5">

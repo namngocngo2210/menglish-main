@@ -124,7 +124,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
 
             <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                 <div v-for="s in filteredScreens" :key="s.folder_name" class="group flex flex-col overflow-hidden rounded-xl border border-surface-container-highest/80 bg-white shadow-sm transition-all hover:border-warning/30 hover:shadow-md">
-                    <div class="relative flex h-44 cursor-pointer items-center justify-center overflow-hidden border-b border-surface-container-highest bg-surface-container" @click="openModal(s)">
+                    <div class="relative flex h-44 cursor-pointer items-center justify-center overflow-hidden border-b border-surface-container-highest bg-surface-container" @click="openModal(s)" role="button" tabindex="0" @keydown.enter.self.prevent="openModal(s)" @keydown.space.self.prevent="openModal(s)">
                         <img v-if="s.has_png" :src="`/roundcuoi-kieulien/${s.category_id}/${s.folder_name}/screen.png`" :alt="s.title_vn" loading="lazy" class="h-full w-full object-cover object-top transition-transform duration-300 group-hover:scale-105" />
                         <div v-else class="p-4 text-center">
                             <span class="material-symbols-outlined text-4xl text-on-surface-subtle">web</span>
@@ -154,10 +154,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
                         </div>
 
                         <div class="flex items-center justify-between gap-2 border-t border-surface-container-highest pt-2">
-                            <a v-if="native(s)" :href="native(s)" target="_blank" class="inline-flex flex-1 items-center justify-center gap-1 rounded-lg bg-tertiary px-3 py-1.5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-tertiary">
+                            <a v-if="native(s)" :href="native(s)" target="_blank" rel="noopener noreferrer" class="inline-flex flex-1 items-center justify-center gap-1 rounded-lg bg-tertiary px-3 py-1.5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-tertiary">
                                 <span class="material-symbols-outlined text-sm">rocket_launch</span> Mở Native
                             </a>
-                            <a v-else :href="screenUrl(s)" target="_blank" class="inline-flex flex-1 items-center justify-center gap-1 rounded-lg bg-warning-container px-3 py-1.5 text-xs font-semibold text-warning shadow-sm transition-colors hover:bg-warning hover:text-white">
+                            <a v-else :href="screenUrl(s)" target="_blank" rel="noopener noreferrer" class="inline-flex flex-1 items-center justify-center gap-1 rounded-lg bg-warning-container px-3 py-1.5 text-xs font-semibold text-warning shadow-sm transition-colors hover:bg-warning hover:text-white">
                                 <span class="material-symbols-outlined text-sm">open_in_new</span> Mở màn hình
                             </a>
                             <button type="button" title="Xem preview" class="rounded-lg border border-surface-container-highest p-1.5 text-on-surface-subtle transition-colors hover:bg-warning-container hover:text-warning" @click="openModal(s)">
@@ -190,7 +190,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
-                        <a :href="screenUrl(activeScreen)" target="_blank" class="inline-flex items-center gap-1.5 rounded-lg bg-warning px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-warning">
+                        <a :href="screenUrl(activeScreen)" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 rounded-lg bg-warning px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-warning">
                             <span class="material-symbols-outlined text-sm">open_in_new</span>
                             <span>Mở toàn màn hình</span>
                         </a>

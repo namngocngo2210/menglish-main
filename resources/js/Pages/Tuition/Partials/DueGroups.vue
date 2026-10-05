@@ -127,7 +127,7 @@ const nowLocal = () => {
                         Đã báo cáo Admin — {{ ot.last_report_date }}
                     </p>
                     <UiForm v-else-if="can('tuition.report_overdue') && panel[ot.id] === 'report'" :action="route('tuition.overdue.report-admin', ot.id)" method="post" class="space-y-xs" @success="panel[ot.id] = null">
-                        <textarea name="note" rows="2" placeholder="Tình hình liên hệ, đề xuất xử lý..." class="w-full rounded-lg border border-outline-variant px-sm py-xs font-body-small text-body-small"></textarea>
+                        <textarea name="note" rows="2" aria-label="Báo cáo tình hình nhắc phí" placeholder="Tình hình liên hệ, đề xuất xử lý..." class="w-full rounded-lg border border-outline-variant px-sm py-xs font-body-small text-body-small"></textarea>
                         <UiButton type="submit" size="sm" variant="secondary" icon="send" class="w-full">Gửi báo cáo</UiButton>
                     </UiForm>
                 </div>

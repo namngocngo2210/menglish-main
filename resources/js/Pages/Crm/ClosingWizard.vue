@@ -352,7 +352,7 @@ function downloadVietQr() {
             document.body.removeChild(a);
             window.URL.revokeObjectURL(blobUrl);
         })
-        .catch(() => window.open(url, '_blank'));
+        .catch(() => window.open(url, '_blank', 'noopener'));
 }
 
 const billOpen = ref(false);
@@ -425,7 +425,7 @@ if (w.assignLater) setAssignLater(true);
         <div class="flex items-center justify-between rounded-xl border border-surface-container-highest bg-surface-container-lowest p-md shadow-sm">
             <template v-for="(s, i) in steps" :key="s.n">
                 <div v-if="i > 0" class="h-0.5 w-12 bg-surface-container-high"></div>
-                <div class="flex cursor-pointer items-center gap-3" @click="step = s.n">
+                <div class="flex cursor-pointer items-center gap-3" @click="step = s.n" role="button" tabindex="0" @keydown.enter.self.prevent="step = s.n" @keydown.space.self.prevent="step = s.n">
                     <div :class="['flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold', step >= s.n ? (s.n === 4 ? 'bg-tertiary text-white' : 'bg-primary-container text-white') : 'bg-surface-container text-on-surface-variant']">{{ s.n }}</div>
                     <div class="hidden text-left sm:block">
                         <div class="text-xs font-bold text-on-surface">{{ s.title }}</div>
@@ -607,7 +607,7 @@ if (w.assignLater) setAssignLater(true);
                                 @update:model-value="addPresetItem"
                             />
                         </div>
-                        <a v-if="can('system_category.manage')" :href="route('merchandise.index')" target="_blank" class="flex shrink-0 items-center gap-0.5 text-xs font-bold text-secondary hover:text-secondary hover:underline" title="Mở quản lý danh mục hàng hóa trong tab mới">
+                        <a v-if="can('system_category.manage')" :href="route('merchandise.index')" target="_blank" rel="noopener noreferrer" class="flex shrink-0 items-center gap-0.5 text-xs font-bold text-secondary hover:text-secondary hover:underline" title="Mở quản lý danh mục hàng hóa trong tab mới">
                             <span class="material-symbols-outlined text-sm">open_in_new</span>
                             <span>Quản lý danh mục</span>
                         </a>
@@ -806,7 +806,7 @@ if (w.assignLater) setAssignLater(true);
                         <div v-show="needsBankAccount">
                             <label class="mb-1 block flex items-center justify-between text-xs font-bold text-on-surface">
                                 <span>Tài khoản Ngân hàng nhận tiền <span class="text-error">*</span></span>
-                                <a v-if="can('bank_account.manage')" :href="route('system-config.bank-accounts')" target="_blank" class="text-xs font-normal text-primary-container hover:underline">Đổi STK trong Admin &rarr;</a>
+                                <a v-if="can('bank_account.manage')" :href="route('system-config.bank-accounts')" target="_blank" rel="noopener noreferrer" class="text-xs font-normal text-primary-container hover:underline">Đổi STK trong Admin &rarr;</a>
                             </label>
                             <UiSelect v-model="w.selectedBankAccountId" :options="bankOptions" class="font-semibold" aria-label="Tài khoản Ngân hàng nhận tiền" />
                         </div>

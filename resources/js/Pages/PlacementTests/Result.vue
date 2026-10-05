@@ -77,7 +77,7 @@ function optionKeyClass(opt) {
         <template #actions>
             <UiButton v-if="submission.test_pdf_url" variant="secondary" icon="picture_as_pdf" native :href="submission.test_pdf_url" target="_blank">Xem đề PDF</UiButton>
             <UiButton v-if="submission.customer_id" variant="secondary" icon="person" :href="route('crm.customers.show', submission.customer_id)">Hồ sơ khách</UiButton>
-            <a :href="submission.scorecard_url" target="_blank" class="inline-flex items-center gap-1.5 rounded-xl bg-inverse-surface px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-inverse-surface/90">
+            <a :href="submission.scorecard_url" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 rounded-xl bg-inverse-surface px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-inverse-surface/90">
                 <span class="material-symbols-outlined text-[16px] text-warning/70">military_tech</span>
                 <span>Bảng điểm (Scorecard)</span>
             </a>
