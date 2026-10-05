@@ -236,7 +236,7 @@ class PayrollFormulaService
             return ['amount' => 0.0, 'score' => null, 'fund' => $fund, 'evaluation_id' => null, 'items' => []];
         }
 
-        $criteria = KpiCriterion::active()->ordered()->get();
+        $criteria = KpiCriterion::forRole(Roles::ACADEMIC_STAFF)->active()->ordered()->get();
         $weightTotal = (float) $criteria->sum('weight');
         $scores = $evaluation->items->keyBy('kpi_criterion_id');
         $weighted = 0.0;
@@ -276,7 +276,7 @@ class PayrollFormulaService
             ->where('user_id', $user->id)->where('month', $month)->where('year', $year)
             ->first();
         $scores = $evaluation ? $evaluation->items->keyBy('kpi_criterion_id') : collect();
-        $criteria = KpiCriterion::active()->ordered()->get();
+        $criteria = KpiCriterion::forRole(Roles::ACADEMIC_STAFF)->active()->ordered()->get();
         $weightTotal = (float) $criteria->sum('weight');
 
         $items = $criteria->map(function (KpiCriterion $criterion) use ($scores, $fund, $weightTotal) {

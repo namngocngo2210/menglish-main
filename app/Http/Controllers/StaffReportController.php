@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Support\Dashboard\TeachingQuality;
 use App\Support\MonthlyReportDue;
 use App\Support\ReportPeriod;
+use App\Support\Roles;
 use App\Support\StaffType;
 use App\Support\Ui;
 use Illuminate\Http\RedirectResponse;
@@ -299,7 +300,7 @@ class StaffReportController extends Controller
             'tabs' => $this->reportTabs(Auth::user(), 'weekly_kpi'),
             'week' => $week,
             'weeks' => ReportPeriod::weekOptions(),
-            'groups' => KpiCriterion::active()->ordered()->get()
+            'groups' => KpiCriterion::forRole(Roles::ACADEMIC_STAFF)->active()->ordered()->get()
                 ->groupBy('group_name')
                 ->map(fn ($items, $group) => [
                     'name' => $group,
@@ -329,7 +330,7 @@ class StaffReportController extends Controller
         ], ['counts.*.min' => 'Số lần phát sinh không âm.', 'metrics.*.min' => 'Chỉ số không âm.']);
 
         // Lưu kèm tên / nhóm mục KPI tại thời điểm nộp để báo cáo cũ vẫn đọc được khi Admin đổi cấu hình KPI.
-        $counts = KpiCriterion::active()->ordered()->get()->map(fn (KpiCriterion $c) => [
+        $counts = KpiCriterion::forRole(Roles::ACADEMIC_STAFF)->active()->ordered()->get()->map(fn (KpiCriterion $c) => [
             'id' => $c->id,
             'code' => $c->code,
             'name' => $c->name,
