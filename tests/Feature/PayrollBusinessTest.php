@@ -61,7 +61,7 @@ class PayrollBusinessTest extends TestCase
             'name' => 'Giáo viên IELTS Senior',
             'is_active' => true,
         ]);
-        $this->teacherUser->assignRole('teacher');
+        $this->teacherUser->assignRole('teacher_parttime');
 
         $course = Course::create([
             'code' => 'IELTS-INT',
@@ -613,7 +613,7 @@ class PayrollBusinessTest extends TestCase
         $foreignTeacher = User::factory()->create([
             'branch_id' => $this->branch->id, 'name' => 'GVNN David', 'is_active' => true,
         ]);
-        $foreignTeacher->assignRole('teacher');
+        $foreignTeacher->assignRole('teacher_parttime');
         $this->classModel->update(['foreign_teacher_id' => $foreignTeacher->id]);
 
         foreach (['2026-10-05', '2026-10-12'] as $date) {

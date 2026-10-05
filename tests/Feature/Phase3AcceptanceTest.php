@@ -252,7 +252,7 @@ class Phase3AcceptanceTest extends TestCase
         $this->assertCount(15, $scores);
         $this->actingAs($this->academic)->post(route('kpi.evaluate.store', $this->academic->id), ['month' => 8, 'year' => 2026, 'score' => $scores])->assertForbidden();
         $this->actingAs($this->manager)->post(route('kpi.evaluate.store', $this->academic->id), ['month' => 8, 'year' => 2026, 'score' => $scores])->assertSessionHasNoErrors();
-        $this->assertEquals(92.5, (float) KpiEvaluation::where('user_id', $this->academic->id)->value('total_score'));
+        $this->assertEquals(96.25, (float) KpiEvaluation::where('user_id', $this->academic->id)->value('total_score')); // 100 − 3,75 (1.2 Thu đúng học phí 7,5% đạt 50%)
 
         // ── 6. Kỳ tháng 8: Kế toán tính, nhập tay, tính lại ─────────────────────────────────────────
         $this->at('2026-09-01 08:00');
@@ -302,11 +302,11 @@ class Phase3AcceptanceTest extends TestCase
         $this->assertEquals(250000, $ft->tax_deduction);
         $this->assertEquals(0, $ft->penalty_deduction);
         $this->assertEquals(10150000, $ft->net_salary);
-        // Học vụ: 8.000.000 + quỹ 2.000.000 × 92,5% − 840.000 − 40.000
+        // Học vụ: 8.000.000 + quỹ 2.000.000 × 96,25% − 840.000 − 40.000
         $hv = $this->record($august, $this->academic);
         $this->assertSame('academic_kpi', $hv->kpi_source);
-        $this->assertEquals(1850000, $hv->kpi_bonus);
-        $this->assertEquals(8970000, $hv->net_salary);
+        $this->assertEquals(1925000, $hv->kpi_bonus);
+        $this->assertEquals(9045000, $hv->net_salary);
         // Sale: 2 khách chốt 03/08 → bậc 3%; chưa đủ 30 ngày → hoãn 2 × 270.000đ
         $sale = $this->record($august, $this->sale);
         $this->assertSame(2, $sale->commission_closed_count);
@@ -314,7 +314,7 @@ class Phase3AcceptanceTest extends TestCase
         $this->assertEquals(0, $sale->commission_bonus);
         $this->assertEquals(540000, $sale->commission_deferred);
         $this->assertEquals(6230000, $sale->net_salary);
-        $this->assertEquals(680000 + 10150000 + 8970000 + 6230000, (float) $august->fresh()->total_amount);
+        $this->assertEquals(680000 + 10150000 + 9045000 + 6230000, (float) $august->fresh()->total_amount);
 
         $this->actingAs($this->accountant)->get(route('payroll.records.show', $pt->id))->assertOk()
             ->assertSee('Lương buổi dạy (3 buổi)')->assertSee('4/5 HS giữ được')->assertSee('Gửi xe')->assertSee('680.000');
@@ -338,7 +338,7 @@ class Phase3AcceptanceTest extends TestCase
             ->assertSessionHasNoErrors(); // vi phạm kỳ đã chốt vẫn ghi nhận được, phạt trừ vào kỳ đang mở (27/09/2026)
         $this->actingAs($this->manager)->post(route('kpi.evaluate.store', $this->academic->id), ['month' => 8, 'year' => 2026, 'score' => array_map(fn () => 100, $scores)])
             ->assertSessionHasErrors('month');
-        $this->assertEquals(92.5, (float) KpiEvaluation::where('user_id', $this->academic->id)->value('total_score'));
+        $this->assertEquals(96.25, (float) KpiEvaluation::where('user_id', $this->academic->id)->value('total_score')); // 100 − 3,75 (1.2 Thu đúng học phí 7,5% đạt 50%)
         $this->actingAs($this->accountant)->post(route('payroll.records.adjust', $pt->id), ['retention_tier' => 25000])->assertStatus(422);
         $this->actingAs($this->accountant)->post(route('payroll.periods.calculate', $august->id))->assertStatus(422);
         $this->actingAs($this->manager)->post(route('penalties.mark-paid', $late->id))->assertStatus(422);

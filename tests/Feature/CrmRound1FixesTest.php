@@ -222,8 +222,12 @@ class CrmRound1FixesTest extends TestCase
             $this->actingAs($user)->get(route('crm.reports'))->assertForbidden();
             $this->actingAs($user)->get(route('dashboard'))->assertDontSee(route('crm.reports'), false);
         }
+        // Tổng quan đã bỏ lưới phím tắt: tab "Báo cáo" chỉ hiện trong khu CRM (thanh tab của nhóm Khách hàng).
+        foreach ([$this->manager, $this->sales] as $user) {
+            $this->actingAs($user)->get(route('crm.pipeline'))->assertOk()->assertDontSee(route('crm.reports'), false);
+        }
         $this->actingAs($this->admin)->get(route('crm.reports'))->assertOk();
-        $this->actingAs($this->admin)->get(route('dashboard'))->assertSee(route('crm.reports'), false);
+        $this->actingAs($this->admin)->get(route('crm.pipeline'))->assertOk()->assertSee(route('crm.reports'), false);
     }
 
     public function test_migration_revokes_report_view_from_non_admin_roles(): void

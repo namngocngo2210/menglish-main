@@ -255,7 +255,7 @@ class UiSweepTest extends TestCase
 
     public function test_dashboard_kpi_and_schedule_reports_export_real_rows(): void
     {
-        $teacher = $this->makeUser('teacher', $this->branch, ['name' => 'GV Xuất Lịch']);
+        $teacher = $this->makeUser('teacher_fulltime', $this->branch, ['name' => 'GV Xuất Lịch']);
         $class = $this->makeClass($this->branch, ['teacher_id' => $teacher->id, 'name' => 'Lớp Xuất Lịch']);
         \App\Models\ClassSession::create([
             'class_id' => $class->id, 'branch_id' => $this->branch->id, 'date' => today()->toDateString(),

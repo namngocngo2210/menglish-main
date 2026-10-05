@@ -207,6 +207,8 @@ class CrmSlaTest extends TestCase
 
     public function test_trial_feedback_task_starts_at_session_end_and_breaches_after_24h_without_contact(): void
     {
+        // Cố định giờ trong ngày: chạy sau 22:30 thì "+2 giờ" đã quá hạn 24h tính từ 00:30 (test lệ thuộc giờ chạy).
+        $this->travelTo(now()->setTime(9, 0));
         $teacher = $this->user('teacher');
         $course = Course::create(['code' => 'C1', 'name' => 'Starters', 'tuition_fee' => 5000000, 'is_active' => true]);
         $class = ClassModel::create(['code' => 'L1', 'name' => 'Lớp 1', 'course_id' => $course->id, 'branch_id' => $this->branch->id, 'teacher_id' => $teacher->id, 'max_capacity' => 10, 'status' => 'active']);

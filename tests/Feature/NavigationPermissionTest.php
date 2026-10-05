@@ -41,7 +41,7 @@ class NavigationPermissionTest extends TestCase
             'branch_id' => $this->branch->id,
             'is_active' => true,
         ]);
-        $this->teacher->syncRoles(['teacher']);
+        $this->teacher->syncRoles(['teacher_fulltime']);
     }
 
     public function test_admin_can_see_all_navigation_modules(): void

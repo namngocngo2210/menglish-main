@@ -63,7 +63,7 @@ class Phase2MockupSyllabusTest extends TestCase
         $this->academic = User::factory()->create(['name' => 'Học Thuật Mockup', 'is_active' => true, 'branch_id' => $this->branch->id]);
         $this->academic->assignRole('academic_lead');
         $this->teacher = User::factory()->create(['name' => 'GV Mockup', 'employee_code' => 'GV-MK-01', 'is_active' => true, 'branch_id' => $this->branch->id]);
-        $this->teacher->assignRole('teacher');
+        $this->teacher->assignRole('teacher_fulltime');
         $this->assistant = User::factory()->create(['name' => 'TG Mockup', 'is_active' => true, 'branch_id' => $this->branch->id]);
         $this->assistant->assignRole('assistant');
 
@@ -245,7 +245,7 @@ class Phase2MockupSyllabusTest extends TestCase
             ->assertSee('Buổi học/Unit cần sửa')
             ->assertSee('Buổi 3: Buổi mẫu 3 (Unit 2)')
             ->assertSee('Người đề xuất')
-            ->assertSee('Giáo viên Giảng dạy (Teacher)')
+            ->assertSee('Giáo viên Fulltime')
             ->assertSee('Nội dung thay đổi chi tiết')
             ->assertSee('Chưa phân công')
             ->assertSee('Phản hồi từ người duyệt')

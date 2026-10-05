@@ -49,7 +49,7 @@ class PayrollP0FixesTest extends TestCase
         $this->admin = $this->userWithRole('admin');
         $this->accountant = $this->userWithRole('accountant');
         $this->manager = $this->userWithRole('manager');
-        $this->teacher = $this->userWithRole('teacher', ['name' => 'GV Lương P0']);
+        $this->teacher = $this->userWithRole('teacher_parttime', ['name' => 'GV Lương P0']);
 
         $course = Course::create(['code' => 'P0-C', 'name' => 'IELTS P0', 'tuition_fee' => 1000000, 'is_active' => true]);
         $this->classModel = ClassModel::create([

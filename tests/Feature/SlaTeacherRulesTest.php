@@ -46,7 +46,7 @@ class SlaTeacherRulesTest extends TestCase
         $this->seed(RoleSeeder::class);
 
         $this->branch = Branch::create(['name' => 'Cơ sở SLA', 'code' => 'SLA', 'is_active' => true]);
-        $this->teacher = $this->user('teacher');
+        $this->teacher = $this->user('teacher_parttime');
         $this->academic = $this->user('academic_staff');
         $course = Course::create(['code' => 'SLA-C', 'name' => 'IELTS SLA', 'tuition_fee' => 1000000, 'is_active' => true]);
         $this->class = ClassModel::create([
@@ -351,7 +351,7 @@ class SlaTeacherRulesTest extends TestCase
 
     public function test_remind_command_notifies_unsubmitted_monthly_staff_once_per_kind(): void
     {
-        $submitted = $this->user('teacher');
+        $submitted = $this->user('teacher_parttime');
         StaffReport::create(['user_id' => $submitted->id, 'type' => 'monthly', 'title' => 'BC T10', 'content' => 'x', 'report_date' => '2026-10-10', 'status' => 'submitted']);
 
         Carbon::setTestNow('2026-10-22 08:00:00');

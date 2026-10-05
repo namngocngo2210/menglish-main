@@ -52,7 +52,7 @@ class TeachingQualityDashboardTest extends TestCase
         $this->seed(RoleSeeder::class);
 
         $this->branch = Branch::create(['name' => 'Cơ sở A', 'code' => 'CSA', 'is_active' => true]);
-        $this->teacher = $this->userWithRole('teacher', 'Cô Lan');
+        $this->teacher = $this->userWithRole('teacher_fulltime', 'Cô Lan');
         $course = Course::create(['code' => 'STA', 'name' => 'Starters', 'tuition_fee' => 1, 'is_active' => true]);
         $this->class = ClassModel::create(['code' => 'ST1', 'name' => 'Lớp ST1', 'course_id' => $course->id, 'branch_id' => $this->branch->id, 'teacher_id' => $this->teacher->id, 'max_capacity' => 10, 'status' => 'active']);
 
@@ -148,8 +148,8 @@ class TeachingQualityDashboardTest extends TestCase
         $this->actingAs($this->userWithRole('academic_staff', 'Học vụ'))->get(route('dashboard'))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->where('teaching.team.rows.0.name', 'Cô Lan')->where('teaching.teacherReports', null));
 
-        // Kế toán / Sales: không có khối giảng dạy.
-        $this->actingAs($this->userWithRole('accountant', 'Kế toán'))->get(route('dashboard'))->assertOk()
+        // Sales: không có khối giảng dạy.
+        $this->actingAs($this->userWithRole('sales_consultant', 'Sales'))->get(route('dashboard'))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->where('teaching', null));
 
         // Tháng khác qua ?month=.
@@ -197,7 +197,8 @@ class TeachingQualityDashboardTest extends TestCase
     public function test_dashboard_still_opens_when_a_teacher_role_was_deleted(): void
     {
         // Vai trò giáo viên đã xóa ở Cài đặt → Vai trò (vd. "Giáo viên Part-time"): Tổng quan từng lỗi 500 (RoleDoesNotExist).
-        Role::whereIn('name', ['teacher_fulltime', 'teacher_parttime'])->delete();
+        // Cô Lan giữ vai trò Giáo viên Fulltime nên vẫn có trong bảng.
+        Role::whereIn('name', ['teacher_parttime'])->delete();
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $this->actingAs($this->userWithRole('admin', 'Admin'))->get(route('dashboard'))->assertOk()

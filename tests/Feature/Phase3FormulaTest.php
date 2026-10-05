@@ -200,11 +200,11 @@ class Phase3FormulaTest extends TestCase
         $this->assertSame(['fulltime', 'teacher_fulltime', 'fulltime'], array_values($formula->profile($this->userWithRole('teacher_fulltime'))));
         $this->assertSame(['fulltime', 'academic_staff', 'operations'], array_values($formula->profile($this->userWithRole('academic_staff'))));
         $this->assertSame(['fulltime', 'academic_lead', 'academic'], array_values($formula->profile($this->userWithRole('academic_lead'))));
-        // GV "teacher": theo loại hợp đồng; chưa rõ thì có lương cơ bản → Full-time
-        $this->assertSame('parttime', $formula->profile($this->userWithRole('teacher', ['contract_type' => 'Bán thời gian', 'base_salary' => 5000000]))['employee_type']);
-        $this->assertSame('fulltime', $formula->profile($this->userWithRole('teacher', ['contract_type' => 'Toàn thời gian']))['employee_type']);
-        $this->assertSame('fulltime', $formula->profile($this->userWithRole('teacher', ['base_salary' => 8000000]))['employee_type']);
-        $this->assertSame('parttime', $formula->profile($this->userWithRole('teacher'))['employee_type']);
+        // Trợ giảng (và nhân sự chưa gán vai trò): theo loại hợp đồng; chưa rõ thì có lương cơ bản → Full-time
+        $this->assertSame('parttime', $formula->profile($this->userWithRole('assistant', ['contract_type' => 'Bán thời gian', 'base_salary' => 5000000]))['employee_type']);
+        $this->assertSame('fulltime', $formula->profile($this->userWithRole('assistant', ['contract_type' => 'Toàn thời gian']))['employee_type']);
+        $this->assertSame('fulltime', $formula->profile($this->userWithRole('assistant', ['base_salary' => 8000000]))['employee_type']);
+        $this->assertSame('parttime', $formula->profile($this->userWithRole('assistant'))['employee_type']);
         $this->assertSame(['fulltime', 'sales'], array_slice(array_values($formula->profile($this->userWithRole('sales_consultant'))), 0, 2));
     }
 

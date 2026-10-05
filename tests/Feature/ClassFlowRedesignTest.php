@@ -65,12 +65,16 @@ class ClassFlowRedesignTest extends TestCase
     {
         $response = $this->actingAs($this->admin)->get(route('classes.index'))->assertOk();
 
-        foreach (['Danh sách lớp', 'Lịch học các lớp', 'Báo cáo &amp; sự vụ'] as $label) {
+        foreach (['Danh sách lớp', 'Lịch học các lớp'] as $label) {
             $response->assertSee($label, false);
         }
         foreach (['Sơ đồ khối', 'Danh sách lớp chi tiết', 'Nhật ký sự vụ lớp'] as $old) {
             $response->assertDontSee($old);
         }
+
+        // "Báo cáo & sự vụ lớp" đã chuyển về khu "Báo cáo" trên sidebar (nhóm Đào tạo & Chất lượng lớp).
+        $this->actingAs($this->admin)->get(route('academic.dashboards.reports'))->assertOk()
+            ->assertSee('Báo cáo &amp; sự vụ lớp', false);
     }
 
     public function test_old_class_screens_redirect_to_new_flow(): void
