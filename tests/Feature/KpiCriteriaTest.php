@@ -92,7 +92,7 @@ class KpiCriteriaTest extends TestCase
         $this->assertStringNotContainsString('Tiêu chí KPI học vụ', $menu);
 
         $this->actingAs($this->admin)->get(route('kpi.evaluate', ['userId' => $this->staff->id, 'period' => '2026-09']))
-            ->assertOk()->assertSee('Không có lỗi: điền 0 vào mục chưa nhập')->assertSee('Quy trình nhắc &amp; follow học phí đúng hạn', false);
+            ->assertOk()->assertSee('Quy trình nhắc &amp; follow học phí đúng hạn', false)->assertSee('Không duyệt')->assertDontSee('1.1');
 
         $criterion = KpiCriterion::where('code', '5.2')->firstOrFail();
         $this->assertSame(['sai_sot', Roles::ACADEMIC_STAFF], [$criterion->unit, $criterion->role]);

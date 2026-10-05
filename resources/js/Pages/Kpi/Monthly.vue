@@ -1,85 +1,61 @@
 <script setup>
 /**
- * Tổng hợp KPI & đánh giá tháng (roundcuoi 02/03_tong_hop_kpi_danh_gia_thang): danh sách nhân sự của kỳ với tổng KPI đạt,
- * xếp loại, tiền KPI dự tính (Học vụ), trạng thái (chưa đánh giá / bản nháp / đã chốt) → mở phiếu đánh giá.
+ * Phiếu KPI tháng: mỗi nhân sự một dòng (vai trò có tiêu chí KPI), lọc theo kỳ lương / vai trò / cơ sở.
+ * Bấm dòng → mở phiếu trong modal (Kpi/Evaluate): số liệu từng tiêu chí, điền tay phần còn trống, Duyệt / Không duyệt.
+ * Phiếu tự tạo đầu tháng cho mọi nhân sự có tiêu chí KPI (lệnh kpi:create-sheets).
  */
-defineOptions({ layout: { title: 'Tổng hợp KPI & Đánh giá tháng' } });
+defineOptions({ layout: { title: 'Phiếu KPI tháng' } });
 
-const props = defineProps({
+defineProps({
     staff: { type: Object, required: true },
-    month: { type: Number, required: true },
-    year: { type: Number, required: true },
-    periodValue: { type: String, required: true },
+    filters: { type: Object, required: true },
+    currentPeriod: { type: String, required: true },
     periodOptions: { type: Array, default: () => [] },
     roleOptions: { type: Array, default: () => [] },
+    branchOptions: { type: Array, default: () => [] },
 });
-
-const title = `Tổng hợp KPI & Đánh giá tháng ${String(props.month).padStart(2, '0')}/${String(props.year).padStart(4, '0')}`;
-const scoreClass = (s) => (s.score === null ? 'text-on-surface-variant' : s.score >= 85 ? 'text-tertiary' : s.score >= 70 ? 'text-warning' : 'text-error');
 </script>
 
 <template>
     <div>
-        <UiPageHeader :title="title" description="Đánh giá hiệu suất nhân sự theo bộ chỉ số KPI (Học vụ: 6 nhóm / 15 mục, quỹ KPI tính lương tự động).">
-            <template #actions>
-                <UiButton variant="secondary" icon="tune" :href="route('kpi.criteria')">Cấu hình chỉ số</UiButton>
-            </template>
-        </UiPageHeader>
+        <UiPageHeader title="Phiếu KPI tháng" description="Mỗi nhân sự một phiếu, tự tạo đầu tháng theo tiêu chí KPI của vai trò. Bấm vào một dòng để mở phiếu, điền số liệu còn trống rồi Duyệt hoặc Không duyệt." />
 
-        <UiFilterBar placeholder="Tìm nhân sự (tên, mã NV)..." submit-label="Xem">
-            <UiSelect name="period" :options="periodOptions" :value="periodValue" label="Kỳ đánh giá" />
-            <UiSelect name="role" :options="roleOptions" placeholder="Mọi vai trò" label="Vai trò" />
+        <UiFilterBar :search="false" submit-label="Xem">
+            <UiSelect name="period" :options="periodOptions" :value="filters.period" label="Kỳ lương" :searchable="false" />
+            <UiSelect name="role" :options="roleOptions" :value="filters.role" placeholder="Tất cả vai trò" label="Vai trò" />
+            <UiSelect name="branch_id" :options="branchOptions" :value="filters.branch_id" placeholder="Tất cả cơ sở" label="Cơ sở" />
         </UiFilterBar>
 
-        <UiDataTable min-width="860px">
+        <UiDataTable min-width="720px">
             <table>
                 <thead>
                     <tr>
                         <th>Nhân sự</th>
                         <th>Vai trò</th>
-                        <th class="text-right">Tổng KPI đạt</th>
-                        <th class="text-center">Xếp loại</th>
-                        <th class="text-right">Tiền KPI dự tính</th>
+                        <th class="text-right">Tỉ lệ đạt</th>
+                        <th class="text-right">Thưởng KPI</th>
                         <th>Trạng thái</th>
-                        <th class="text-right">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="s in staff.data" :key="s.id">
+                    <tr v-for="s in staff.data" :key="s.id" :data-href="s.url" data-modal="4xl" class="cursor-pointer">
                         <td>
-                            <div class="flex items-center gap-sm">
-                                <UiAvatar :name="s.name" size="sm" />
-                                <div>
-                                    <p class="font-semibold text-on-surface">{{ s.name }}</p>
-                                    <p class="font-caption text-caption text-on-surface-variant">{{ s.code }}</p>
-                                </div>
-                            </div>
+                            <p class="font-semibold text-on-surface">{{ s.name }}</p>
+                            <p v-if="s.branch" class="font-caption text-caption text-on-surface-variant">{{ s.branch }}</p>
                         </td>
-                        <td>{{ s.role }}</td>
-                        <td :class="['text-right font-mono font-semibold', scoreClass(s)]">{{ s.score_label }}</td>
-                        <td class="text-center">
-                            <span v-if="s.grade" class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary-fixed font-semibold text-primary" :title="s.grade_label">{{ s.grade }}</span>
-                            <template v-else>—</template>
-                        </td>
-                        <td class="text-right">
-                            <UiMoney v-if="s.kpi_amount !== null" :value="s.kpi_amount" />
-                            <span v-else class="font-mono">—</span>
-                        </td>
-                        <td>
-                            <UiBadge v-if="!s.evaluated" color="neutral">Chưa đánh giá</UiBadge>
-                            <UiBadge v-else-if="s.status === 'confirmed'" color="success">Đã chốt</UiBadge>
-                            <UiBadge v-else color="warning">Bản nháp</UiBadge>
-                        </td>
-                        <td class="text-right">
-                            <UiButton :variant="s.evaluated ? 'ghost' : 'secondary'" size="sm" :icon="s.evaluated ? 'visibility' : 'rate_review'" :href="s.evaluate_url">{{ s.evaluated ? 'Xem / Sửa' : 'Đánh giá' }}</UiButton>
-                        </td>
+                        <td class="whitespace-nowrap">{{ s.role }}</td>
+                        <td class="whitespace-nowrap text-right font-mono">{{ s.rate_label }}</td>
+                        <td class="whitespace-nowrap text-right font-mono">{{ s.amount_label }}</td>
+                        <td><UiBadge :color="s.status_color">{{ s.status_label }}</UiBadge></td>
                     </tr>
                     <tr v-if="!staff.data.length">
-                        <td colspan="7"><UiEmptyState icon="group_off" title="Chưa có nhân sự nào để đánh giá" /></td>
+                        <td colspan="5">
+                            <UiEmptyState icon="group_off" title="Không có phiếu KPI nào" description="Chỉ nhân sự có vai trò đã có tiêu chí KPI (Cài đặt → Tiêu chí KPI) mới có phiếu." />
+                        </td>
                     </tr>
                 </tbody>
             </table>
-            <template #footer><UiPagination :paginator="staff" unit="nhân sự" /></template>
+            <template #footer><UiPagination :paginator="staff" unit="phiếu" /></template>
         </UiDataTable>
     </div>
 </template>

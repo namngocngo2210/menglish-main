@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\AclHelper;
+use App\Http\Concerns\RendersModals;
+use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\KpiCriterion;
 use App\Models\KpiEvaluation;
@@ -11,13 +13,16 @@ use App\Models\PayrollPeriod;
 use App\Models\Student;
 use App\Models\StudentAttendance;
 use App\Models\User;
+use App\Services\Kpi\KpiSheetService;
 use App\Support\DataScope;
+use App\Support\Money;
 use App\Support\Roles;
-use App\Support\StaffType;
 use App\Support\StatusLabel;
 use App\Support\Ui;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 
@@ -27,6 +32,8 @@ use Inertia\Response as InertiaResponse;
  */
 class KpiController extends Controller
 {
+    use RendersModals;
+
     /** Chức danh thuộc diện đánh giá KPI tháng (phân loại nhân sự, không phải phân quyền). */
     private const STAFF_ROLES = Roles::KPI_ROLES;
 
@@ -75,6 +82,7 @@ class KpiController extends Controller
             'role' => $role,
             'roleOptions' => Ui::options(collect(KpiCriterion::ROLES)->mapWithKeys(fn ($r) => [$r => AclHelper::roleLabel($r)])),
             'unitOptions' => Ui::options(collect(KpiCriterion::UNITS)->map(fn ($label) => \Illuminate\Support\Str::ucfirst($label))),
+            'sourceOptions' => Ui::options(collect(['' => 'Người chấm điền tay'])->merge(collect(KpiCriterion::AUTO_SOURCES)->mapWithKeys(fn ($l, $k) => [$k => 'Tự động: '.$l]))),
             'groups' => $criteria->pluck('group_name')->filter()->unique()->values(),
             'fund' => $fund,
             'totalWeight' => $totalWeight,
@@ -92,6 +100,7 @@ class KpiController extends Controller
                         'weight' => $fmtWeight($cr->weight),
                         'fund_amount' => $fund !== null ? (float) $cr->fundAmount($fund) : null,
                         'unit' => $cr->unit,
+                        'auto_source' => $cr->isAuto() ? $cr->auto_source : null,
                         'max_full' => $cr->max_full,
                         'max_half' => $cr->max_half,
                         'threshold_full' => $cr->threshold_full,
@@ -141,6 +150,7 @@ class KpiController extends Controller
             'max_full' => 'required|integer|min:0|max:9999',
             'max_half' => 'required|integer|min:0|max:9999|gte:max_full',
             'description' => 'nullable|string|max:2000',
+            'auto_source' => ['nullable', \Illuminate\Validation\Rule::in(array_keys(KpiCriterion::AUTO_SOURCES))],
         ];
     }
 
@@ -152,6 +162,7 @@ class KpiController extends Controller
             $validated['group_name'] = $newGroup;
         }
         unset($validated['new_group']);
+        $validated['auto_source'] = ($validated['auto_source'] ?? null) ?: null;
         $validated['threshold_full'] = KpiCriterion::thresholdLabel((int) $validated['max_full'], $validated['unit']);
         $validated['threshold_half'] = KpiCriterion::thresholdLabel((int) $validated['max_half'], $validated['unit']);
 
@@ -167,56 +178,67 @@ class KpiController extends Controller
         return redirect()->route('kpi.criteria', ['role' => $criterion->role])->with('success', 'Đã xoá tiêu chí KPI.');
     }
 
-    // ───────────────────── ĐÁNH GIÁ KPI THÁNG ─────────────────────
-    public function monthly(Request $request): InertiaResponse
+    // ───────────────────── PHIẾU KPI THÁNG ─────────────────────
+    /**
+     * Phiếu KPI tháng: mỗi nhân sự (vai trò có tiêu chí KPI) một dòng, lọc theo kỳ lương / vai trò / cơ sở. Bấm dòng mở phiếu
+     * (modal) để điền số tiêu chí điền tay rồi Duyệt / Không duyệt. Phiếu tự tạo đầu tháng (kpi:create-sheets).
+     */
+    public function monthly(Request $request, KpiSheetService $sheets): InertiaResponse
     {
         $this->guard();
         [$month, $year] = $this->monthYear($request);
-
-        $evaluations = KpiEvaluation::with(['user', 'evaluator'])
-            ->where('month', $month)->where('year', $year)
-            ->get()
-            ->keyBy('user_id');
-
-        $search = trim((string) $request->query('search', ''));
         $role = in_array($request->query('role'), self::STAFF_ROLES, true) ? $request->query('role') : null;
-        $staff = $this->scopedStaff(User::whereHas('roles', fn ($q) => $q->whereIn('name', $role ? [$role] : self::STAFF_ROLES)))
-            ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w->where('name', 'like', "%{$search}%")->orWhere('employee_code', 'like', "%{$search}%")))
-            ->with('roles')->orderBy('name')->paginate($request->perPage(20))->withQueryString();
-        $fund = KpiCriterion::fund();
-        $fmt = fn ($v) => rtrim(rtrim(number_format((float) $v, 2, ',', '.'), '0'), ',');
+        $scopeBranchIds = DataScope::branchIds($request->user(), 'kpi');
+        $branches = Branch::query()->when($scopeBranchIds !== null, fn ($q) => $q->whereIn('id', $scopeBranchIds))->orderBy('name')->get(['id', 'name']);
+        $branchId = $branches->contains('id', (int) $request->query('branch_id')) ? (int) $request->query('branch_id') : null;
+
+        $evaluations = KpiEvaluation::with('items')->where('month', $month)->where('year', $year)->get()->keyBy('user_id');
+        $staff = $this->scopedStaff($sheets->staffQuery($role))
+            ->when($branchId, fn ($q) => $q->where(fn ($w) => $w->where('branch_id', $branchId)
+                ->orWhereHas('branches', fn ($b) => $b->where('branches.id', $branchId))))
+            ->with(['roles', 'branch'])->orderBy('name')->paginate($request->perPage(20))->withQueryString();
         $periodValue = sprintf('%04d-%02d', $year, $month);
-        $periodOptions = collect(range(0, 11))->mapWithKeys(fn ($i) => [now()->startOfMonth()->subMonths($i)->format('Y-m') => 'Tháng '.now()->startOfMonth()->subMonths($i)->format('m/Y')])
-            ->put($periodValue, 'Tháng '.sprintf('%02d/%04d', $month, $year))->sortKeysDesc();
-        $roleOptions = collect(self::STAFF_ROLES)->mapWithKeys(fn ($r) => [$r => AclHelper::roleLabel($r)]);
+        $currentPeriod = now()->format('Y-m');
 
         return Inertia::render('Kpi/Monthly', [
-            'staff' => $staff->through(function (User $s) use ($evaluations, $fund, $fmt, $month, $year) {
-                $eval = $evaluations->get($s->id);
-                $isHv = StaffType::usesAcademicStaffKpi($s);
-                [$grade, $gradeLabel] = $eval ? KpiEvaluation::gradeFor((float) $eval->total_score) : [null, null];
+            'staff' => $staff->through(function (User $s) use ($sheets, $evaluations, $month, $year, $periodValue) {
+                $evaluation = $evaluations->get($s->id);
+                $sheet = $sheets->sheet($s, $month, $year, $evaluation);
+                $status = $evaluation?->status ?? KpiEvaluation::STATUS_PENDING;
 
                 return [
                     'id' => $s->id,
                     'name' => $s->name,
-                    'code' => $s->employee_code ?: $s->email,
-                    'role' => AclHelper::roleLabel((string) $s->getRoleNames()->first()),
-                    'evaluated' => (bool) $eval,
-                    'score' => $eval ? (float) $eval->total_score : null,
-                    'score_label' => $eval ? $fmt($eval->total_score).'%' : '—',
-                    'grade' => $grade,
-                    'grade_label' => $gradeLabel,
-                    'kpi_amount' => $isHv && $eval ? round($fund * (float) $eval->total_score / 100) : null,
-                    'status' => $eval?->status,
-                    'evaluate_url' => route('kpi.evaluate', ['userId' => $s->id, 'month' => $month, 'year' => $year], false),
+                    'branch' => $s->branch?->name,
+                    'role' => AclHelper::roleLabel((string) $sheet['role']),
+                    'rate_label' => $this->percent($sheet['total']).'%',
+                    'amount_label' => $sheet['amount'] !== null ? Money::format($sheet['amount']) : '—',
+                    'status' => $status,
+                    'status_label' => KpiEvaluation::STATUS_LABELS[$status] ?? $status,
+                    'status_color' => KpiEvaluation::STATUS_COLORS[$status] ?? 'neutral',
+                    'url' => route('kpi.evaluate', ['userId' => $s->id, 'period' => $periodValue], false),
                 ];
             }),
-            'month' => $month,
-            'year' => $year,
-            'periodValue' => $periodValue,
-            'periodOptions' => Ui::options($periodOptions),
-            'roleOptions' => Ui::options($roleOptions),
+            'filters' => ['period' => $periodValue, 'role' => $role, 'branch_id' => $branchId],
+            'currentPeriod' => $currentPeriod,
+            'periodOptions' => Ui::options($this->periodOptions($periodValue)),
+            'roleOptions' => Ui::options(collect(self::STAFF_ROLES)->mapWithKeys(fn ($r) => [$r => AclHelper::roleLabel($r)])),
+            'branchOptions' => Ui::options($branches, 'name'),
         ]);
+    }
+
+    /** 12 kỳ lương gần nhất (+ kỳ đang xem): "Kỳ lương tháng MM/YYYY". */
+    private function periodOptions(string $periodValue): \Illuminate\Support\Collection
+    {
+        $label = fn (string $ym) => 'Kỳ lương tháng '.substr($ym, 5, 2).'/'.substr($ym, 0, 4);
+
+        return collect(range(0, 11))->map(fn ($i) => now()->startOfMonth()->subMonths($i)->format('Y-m'))
+            ->push($periodValue)->unique()->sortDesc()->mapWithKeys(fn ($ym) => [$ym => $label($ym)]);
+    }
+
+    private function percent(float $value): string
+    {
+        return rtrim(rtrim(number_format($value, 2, ',', '.'), '0'), ',');
     }
 
     /** Tháng/năm từ ?period=YYYY-MM (ô chọn kỳ theo mockup) hoặc ?month=&year=. */
@@ -229,108 +251,81 @@ class KpiController extends Controller
         return [min(12, max(1, (int) $request->input('month', now()->month))), (int) $request->input('year', now()->year)];
     }
 
+    /** Kỳ lương của tháng đã duyệt / đã chi trả thì khóa toàn bộ dữ liệu lương, gồm phiếu KPI tháng đó. */
+    private function periodLocked(int $month, int $year): bool
+    {
+        $monthStart = Carbon::create($year, $month, 1);
+
+        return PayrollPeriod::isLockedFor($monthStart) || PayrollPeriod::isLockedFor($monthStart->copy()->endOfMonth());
+    }
+
     /**
-     * Phiếu KPI tháng của một nhân sự (mockup 04_kpi_thang + 03_tong_hop_kpi_danh_gia_thang): bảng 6 nhóm / 15 mục
-     * (Quỹ, Ngưỡng 100 / 50, Thực tế, % Đạt, Tiền KPI, Lỗi nghiêm trọng), tổng hợp theo nhóm, xếp loại tháng,
-     * cảnh báo hiệu suất, nhận xét của quản lý, "Chốt KPI tháng".
+     * Phiếu KPI tháng của một nhân sự (mở trong modal từ danh sách): tiêu chí theo vai trò, số liệu hệ thống ghi nhận
+     * hoặc ô điền tay, mức đạt 100 / 50 / 0%, tiền KPI (Học vụ), nút Duyệt / Không duyệt (có lý do).
      */
-    public function evaluate(Request $request, int $userId): InertiaResponse
+    public function evaluate(Request $request, int $userId, KpiSheetService $sheets): InertiaResponse
     {
         $this->guard();
-        $staff = $this->scopedStaff(User::query())->findOrFail($userId);
+        $staff = $this->scopedStaff(User::query())->with('branch')->findOrFail($userId);
         [$month, $year] = $this->monthYear($request);
-
-        // Bộ tiêu chí theo vai trò của nhân sự (màn Tiêu chí KPI); quỹ tiền KPI hiện chỉ có ở Học vụ.
-        $kpiRole = KpiCriterion::roleFor($staff);
-        $criteria = $kpiRole ? KpiCriterion::forRole($kpiRole)->active()->ordered()->get() : collect();
-        $isAcademicStaff = StaffType::usesAcademicStaffKpi($staff);
-        $fund = $isAcademicStaff ? KpiCriterion::fund() : 0.0;
-        $evaluation = KpiEvaluation::with(['items', 'evaluator'])
-            ->where('user_id', $userId)->where('month', $month)->where('year', $year)->first();
-        $scores = $evaluation ? $evaluation->items->keyBy('kpi_criterion_id') : collect();
+        $evaluation = KpiEvaluation::with(['items', 'evaluator'])->where('user_id', $userId)->where('month', $month)->where('year', $year)->first();
+        $sheet = $sheets->sheet($staff, $month, $year, $evaluation);
+        $status = $evaluation?->status ?? KpiEvaluation::STATUS_PENDING;
         $isSelf = $userId === (int) $request->user()->id;
+        $locked = $this->periodLocked($month, $year);
+        $closeOn = Carbon::create($year, $month, 1)->endOfMonth()->startOfDay();
+        $weightTotal = (float) $sheet['lines']->sum(fn ($l) => (float) $l['criterion']->weight);
 
-        // Tổng hợp theo nhóm: quỹ nhóm, tiền đạt (theo trọng số chuẩn hóa như bảng lương), % đạt.
-        $weightTotal = (float) $criteria->sum('weight');
-        $groupSummary = $criteria->groupBy(fn ($c) => $c->group_name ?: 'Chưa phân nhóm')->map(function ($items) use ($scores, $fund, $weightTotal) {
-            $groupFund = $weightTotal > 0 ? $items->sum(fn ($c) => $fund * (float) $c->weight / $weightTotal) : 0;
-            $earned = $weightTotal > 0 ? $items->sum(fn ($c) => $fund * (float) $c->weight / $weightTotal * (float) ($scores->get($c->id)?->score ?? 0) / 100) : 0;
-
-            return ['count' => $items->count(), 'fund' => round($groupFund), 'earned' => round($earned), 'percent' => $groupFund > 0 ? round($earned / $groupFund * 100, 1) : 0];
-        });
-        $warnings = [
-            'low' => $criteria->filter(fn ($c) => ($s = $scores->get($c->id)) && (float) $s->score > 0 && (float) $s->score <= 50)->count(),
-            'zero' => $criteria->filter(fn ($c) => ($s = $scores->get($c->id)) && (float) $s->score <= 0)->count(),
-        ];
-        $staffOptions = $this->scopedStaff(User::whereHas('roles', fn ($q) => $q->whereIn('name', self::STAFF_ROLES)))->orderBy('name')->get(['id', 'name']);
-
-        $fmt = fn ($v) => rtrim(rtrim(number_format((float) $v, 2, ',', '.'), '0'), ',');
-        $total = (float) ($evaluation?->total_score ?? 0);
-        [$grade, $gradeLabel, $gradeRange] = KpiEvaluation::gradeFor($total);
-        $itemFund = fn ($c) => $weightTotal > 0 ? $fund * (float) $c->weight / $weightTotal : 0;
-        $periodValue = sprintf('%04d-%02d', $year, $month);
-        $periodOptions = collect(range(0, 11))->mapWithKeys(fn ($i) => [now()->startOfMonth()->subMonths($i)->format('Y-m') => 'Tháng '.now()->startOfMonth()->subMonths($i)->format('m / Y')])
-            ->put($periodValue, 'Tháng '.sprintf('%02d / %04d', $month, $year))->sortKeysDesc();
-
-        return Inertia::render('Kpi/Evaluate', [
+        return $this->modalPage('Kpi/Evaluate', [
             'staff' => [
                 'id' => $staff->id,
                 'name' => $staff->name,
-                'role_label' => $isAcademicStaff ? 'Học vụ' : AclHelper::roleLabel((string) $staff->getRoleNames()->first()),
+                'role_label' => AclHelper::roleLabel((string) $sheet['role']),
+                'branch' => $staff->branch?->name,
             ],
             'month' => $month,
             'year' => $year,
-            'periodValue' => $periodValue,
-            'periodOptions' => Ui::options($periodOptions),
-            'staffOptions' => Ui::options($staffOptions, 'name'),
+            'periodLabel' => 'Kỳ lương tháng '.sprintf('%02d/%04d', $month, $year),
+            'status' => $status,
+            'statusLabel' => KpiEvaluation::STATUS_LABELS[$status] ?? $status,
+            'statusColor' => KpiEvaluation::STATUS_COLORS[$status] ?? 'neutral',
+            'rejectReason' => $status === KpiEvaluation::STATUS_REJECTED ? $evaluation?->reject_reason : null,
+            'decidedBy' => $evaluation?->evaluator?->name,
+            'decidedAt' => $evaluation?->decided_at?->format('H:i d/m/Y'),
+            'fund' => $sheet['fund'],
+            'weightTotal' => $weightTotal,
             'isSelf' => $isSelf,
-            'canConfirm' => $request->user()->can('kpi.confirm') && ! $isSelf,
-            'isAcademicStaff' => $isAcademicStaff,
-            // Chốt KPI chỉ từ ngày cuối tháng (chủ dự án chốt); trước đó chỉ lưu nháp.
-            'kpiCloseOn' => \Illuminate\Support\Carbon::create($year, $month, 1)->endOfMonth()->format('d/m/Y'),
-            'canClose' => now()->gte(\Illuminate\Support\Carbon::create($year, $month, 1)->endOfMonth()->startOfDay()),
-            'fund' => (float) $fund,
-            'evaluation' => $evaluation ? [
-                'status' => $evaluation->status,
-                'evaluator' => $evaluation->evaluator?->name,
-                'strengths' => $evaluation->strengths,
-                'improvements' => $evaluation->improvements,
-                'next_actions' => $evaluation->next_actions,
-                'comment' => $evaluation->comment,
-            ] : null,
-            'total' => $total,
-            'totalLabel' => $fmt($total),
-            'grade' => ['letter' => $grade, 'label' => $gradeLabel, 'range' => $gradeRange],
-            'criteriaGroups' => $criteria->groupBy(fn ($c) => $c->group_name ?: 'Chưa phân nhóm')
-                ->map(fn ($items, $groupName) => [
-                    'name' => $groupName,
-                    'items' => $items->map(function (KpiCriterion $cr) use ($scores, $itemFund) {
-                        $item = $scores->get($cr->id);
-
-                        return [
-                            'id' => $cr->id,
-                            'code' => $cr->code,
-                            'name' => $cr->name,
-                            'description' => $cr->description,
-                            'fund' => round($itemFund($cr)),
-                            'fund_exact' => (float) $itemFund($cr),
-                            'threshold_full' => $cr->threshold_full ?: ($cr->target ?: '—'),
-                            'threshold_half' => $cr->threshold_half ?: '—',
-                            'max_full' => $cr->max_full,
-                            'max_half' => $cr->max_half,
-                            'unit' => $cr->unit,
-                            'actual' => $item?->actual,
-                            'score' => $item?->score !== null ? rtrim(rtrim(number_format($item->score, 2, '.', ''), '0'), '.') : '',
-                            'critical' => (bool) $item?->critical_error,
-                        ];
-                    })->values(),
+            'locked' => $locked,
+            // Chủ dự án chốt: KPI duyệt từ ngày cuối tháng; trước đó chỉ xem / điền dần.
+            'canClose' => now()->gte($closeOn),
+            'closeOn' => $closeOn->format('d/m/Y'),
+            'canDecide' => $request->user()->can('kpi.confirm') && ! $isSelf && ! $locked && $status !== KpiEvaluation::STATUS_APPROVED,
+            'groups' => $sheet['lines']->groupBy(fn ($l) => $l['criterion']->group_name ?: 'Chưa phân nhóm')
+                ->map(fn ($lines, $name) => [
+                    'name' => $name,
+                    'items' => $lines->map(fn ($l) => [
+                        'id' => $l['criterion']->id,
+                        'name' => $l['criterion']->name,
+                        'description' => $l['criterion']->description,
+                        'weight' => (float) $l['criterion']->weight,
+                        'weight_label' => $this->percent((float) $l['criterion']->weight),
+                        'max_amount' => $l['max_amount'] !== null ? round($l['max_amount']) : null,
+                        'threshold_full' => $l['criterion']->threshold_full ?: '—',
+                        'threshold_half' => $l['criterion']->threshold_half ?: '—',
+                        'max_full' => $l['criterion']->max_full,
+                        'max_half' => $l['criterion']->max_half,
+                        'count_based' => $l['criterion']->isCountBased(),
+                        'auto' => $l['auto'],
+                        'value' => $l['value'],
+                        'level' => $l['level'],
+                        'evidence' => $l['evidence'],
+                    ])->values(),
                 ])->values(),
-            'groupSummary' => $groupSummary->map(fn ($row, $groupName) => $row + ['name' => $groupName, 'percent_label' => $fmt($row['percent'])])->values(),
-            'warnings' => $warnings,
+            'backUrl' => route('kpi.monthly', ['period' => sprintf('%04d-%02d', $year, $month)]),
         ]);
     }
 
-    public function evaluateStore(Request $request, int $userId)
+    public function evaluateStore(Request $request, int $userId, KpiSheetService $sheets)
     {
         $this->guard('kpi.confirm');
         $staff = $this->scopedStaff(User::query())->findOrFail($userId);
@@ -340,7 +335,7 @@ class KpiController extends Controller
             'month' => 'required|integer|min:1|max:12',
             'year' => 'required|integer|min:2020|max:2100',
             'comment' => 'nullable|string',
-            'score' => 'required|array',
+            'score' => 'required_unless:action,approve,reject|array',
             'score.*' => 'nullable|numeric|min:0|max:100',
             'note' => 'nullable|array',
             'actual' => 'nullable|array',
@@ -349,23 +344,31 @@ class KpiController extends Controller
             'strengths' => 'nullable|string|max:2000',
             'improvements' => 'nullable|string|max:2000',
             'next_actions' => 'nullable|string|max:2000',
-            // "Lưu nháp" không dùng cho bảng lương; mặc định (và "Chốt KPI tháng") = đã chốt.
-            'action' => 'nullable|in:draft,confirm',
-        ]);
-        // Kỳ lương của tháng đã duyệt / đã chi trả thì khóa toàn bộ dữ liệu lương, gồm đánh giá KPI tháng đó.
-        $monthStart = \Illuminate\Support\Carbon::create((int) $validated['year'], (int) $validated['month'], 1);
-        if (PayrollPeriod::isLockedFor($monthStart) || PayrollPeriod::isLockedFor($monthStart->copy()->endOfMonth())) {
+            // Phiếu KPI tháng: approve = Duyệt (vào bảng lương), reject = Không duyệt (bắt buộc lý do).
+            // draft / confirm: cách gửi điểm % cũ (lưu nháp / chốt), giữ cho tương thích.
+            'action' => 'nullable|in:draft,confirm,approve,reject',
+            'reject_reason' => 'required_if:action,reject|nullable|string|max:1000',
+        ], ['reject_reason.required_if' => 'Cần ghi lý do không duyệt.']);
+        $monthStart = Carbon::create((int) $validated['year'], (int) $validated['month'], 1);
+        if ($this->periodLocked((int) $validated['month'], (int) $validated['year'])) {
             $message = 'Kỳ lương tháng '.$monthStart->format('m/Y').' đã duyệt — không thể sửa đánh giá KPI của tháng này.';
 
             return back()->withInput()->withErrors(['month' => $message])->with('error', $message);
         }
 
-        // Chủ dự án chốt: KPI chốt vào ngày cuối tháng — chưa tới ngày đó chỉ được lưu nháp, không chốt (confirm).
+        $action = $validated['action'] ?? 'confirm';
+        // Chủ dự án chốt: KPI chốt vào ngày cuối tháng — chưa tới ngày đó không duyệt / chốt được.
         $kpiCloseOn = $monthStart->copy()->endOfMonth()->startOfDay();
-        if (($validated['action'] ?? 'confirm') !== 'draft' && now()->lt($kpiCloseOn)) {
-            $message = 'Chốt KPI từ ngày cuối tháng '.$kpiCloseOn->format('d/m').' — hiện chỉ được lưu nháp.';
+        if (in_array($action, ['confirm', 'approve'], true) && now()->lt($kpiCloseOn)) {
+            $message = $action === 'approve'
+                ? 'Duyệt KPI từ ngày cuối tháng '.$kpiCloseOn->format('d/m').'.'
+                : 'Chốt KPI từ ngày cuối tháng '.$kpiCloseOn->format('d/m').' — hiện chỉ được lưu nháp.';
 
             return back()->withInput()->withErrors(['month' => $message])->with('error', $message);
+        }
+
+        if (in_array($action, ['approve', 'reject'], true)) {
+            return $this->decideSheet($staff, $validated, $action, $sheets);
         }
 
         $critical = collect($validated['critical'] ?? [])->filter()->keys()->map(fn ($id) => (int) $id)->all();
@@ -405,7 +408,8 @@ class KpiController extends Controller
                 'strengths' => $validated['strengths'] ?? null,
                 'improvements' => $validated['improvements'] ?? null,
                 'next_actions' => $validated['next_actions'] ?? null,
-                'status' => ($validated['action'] ?? 'confirm') === 'draft' ? 'draft' : 'confirmed',
+                'status' => $action === 'draft' ? KpiEvaluation::STATUS_PENDING : KpiEvaluation::STATUS_APPROVED,
+                'decided_at' => $action === 'draft' ? null : now(),
             ]
         );
 
@@ -429,10 +433,141 @@ class KpiController extends Controller
             );
         }
 
-        $label = $evaluation->status === 'draft' ? 'Đã lưu nháp đánh giá KPI' : 'Đã chốt KPI tháng';
+        $label = $evaluation->status === KpiEvaluation::STATUS_PENDING ? 'Đã lưu nháp đánh giá KPI' : 'Đã chốt KPI tháng';
 
         return redirect()->route('kpi.monthly', ['month' => $validated['month'], 'year' => $validated['year']])
             ->with('success', "{$label} (Tổng điểm: {$total}%).");
+    }
+
+    /**
+     * Duyệt / Không duyệt phiếu KPI tháng. Lưu số các tiêu chí điền tay; tiêu chí tự động lấy số hệ thống đếm (kèm danh
+     * sách bản ghi để đối chiếu về sau). Duyệt cần đủ số mọi tiêu chí; Không duyệt cần lý do, phiếu không vào bảng lương.
+     */
+    private function decideSheet(User $staff, array $validated, string $action, KpiSheetService $sheets)
+    {
+        [$month, $year] = [(int) $validated['month'], (int) $validated['year']];
+        $kpiRole = KpiCriterion::roleFor($staff);
+        $criteria = $kpiRole ? KpiCriterion::forRole($kpiRole)->active()->get() : collect();
+        $manual = $criteria->reject(fn (KpiCriterion $c) => $c->isAuto())->filter(fn (KpiCriterion $c) => $c->isCountBased());
+
+        $errors = [];
+        $values = [];
+        foreach ($manual as $criterion) {
+            $raw = trim((string) ($validated['actual'][$criterion->id] ?? ''));
+            if ($raw === '') {
+                continue;
+            }
+            if (! ctype_digit($raw) || (int) $raw > 9999) {
+                $errors["actual.{$criterion->id}"] = "Số liệu \"{$criterion->name}\" phải là số nguyên từ 0.";
+
+                continue;
+            }
+            $values[$criterion->id] = (int) $raw;
+        }
+        if ($errors) {
+            return back()->withErrors($errors);
+        }
+
+        $evaluation = DB::transaction(function () use ($staff, $month, $year, $values, $action, $validated, $sheets, &$errors) {
+            $evaluation = KpiEvaluation::firstOrCreate(
+                ['user_id' => $staff->id, 'month' => $month, 'year' => $year],
+                ['total_score' => 0, 'status' => KpiEvaluation::STATUS_PENDING]
+            );
+            if ($evaluation->status === KpiEvaluation::STATUS_APPROVED) {
+                $errors['month'] = 'Phiếu KPI này đã duyệt.';
+
+                return null;
+            }
+            foreach ($values as $criterionId => $value) {
+                KpiEvaluationItem::updateOrCreate(
+                    ['kpi_evaluation_id' => $evaluation->id, 'kpi_criterion_id' => $criterionId],
+                    ['actual' => (string) $value]
+                );
+            }
+
+            $sheet = $sheets->sheet($staff, $month, $year, $evaluation->fresh('items'));
+            if ($action === 'approve' && $sheet['missing'] > 0) {
+                $errors['actual'] = "Còn {$sheet['missing']} tiêu chí chưa có số liệu.";
+
+                return null;
+            }
+            foreach ($sheet['lines'] as $line) {
+                if ($line['value'] === null && ! $line['criterion']->isCountBased()) {
+                    continue;   // tiêu chí % cũ chưa chấm: giữ nguyên
+                }
+                KpiEvaluationItem::updateOrCreate(
+                    ['kpi_evaluation_id' => $evaluation->id, 'kpi_criterion_id' => $line['criterion']->id],
+                    [
+                        'actual' => $line['value'] === null ? null : (string) $line['value'],
+                        'score' => $line['level'] ?? 0,
+                        'evidence' => $line['auto'] ? $line['evidence'] : null,
+                    ]
+                );
+            }
+            $evaluation->update([
+                'evaluator_id' => Auth::id(),
+                'total_score' => $sheet['total'],
+                'status' => $action === 'approve' ? KpiEvaluation::STATUS_APPROVED : KpiEvaluation::STATUS_REJECTED,
+                'reject_reason' => $action === 'reject' ? trim((string) $validated['reject_reason']) : null,
+                'decided_at' => now(),
+            ]);
+
+            return $evaluation;
+        });
+
+        if (! $evaluation) {
+            return back()->withErrors($errors);
+        }
+
+        $message = $action === 'approve'
+            ? "Đã duyệt KPI tháng {$month}/{$year} của {$staff->name} ({$this->percent((float) $evaluation->total_score)}%)."
+            : "Đã không duyệt phiếu KPI của {$staff->name}.";
+
+        return $this->modalSaved($message, route('kpi.monthly', ['period' => sprintf('%04d-%02d', $year, $month)]), 'success');
+    }
+
+    /** KPI của tôi: phiếu KPI tháng của chính người đang đăng nhập (số liệu từng tiêu chí, mức đạt, tiền KPI, trạng thái). */
+    public function mine(Request $request, KpiSheetService $sheets): InertiaResponse
+    {
+        $user = $request->user();
+        [$month, $year] = $this->monthYear($request);
+        $evaluation = KpiEvaluation::with(['items', 'evaluator'])->where('user_id', $user->id)->where('month', $month)->where('year', $year)->first();
+        $sheet = $sheets->sheet($user, $month, $year, $evaluation);
+        $status = $evaluation?->status ?? KpiEvaluation::STATUS_PENDING;
+        $periodValue = sprintf('%04d-%02d', $year, $month);
+
+        return Inertia::render('Kpi/Mine', [
+            'hasKpi' => $sheet['role'] !== null,
+            'name' => $user->name,
+            'roleLabel' => AclHelper::roleLabel((string) $sheet['role']),
+            'period' => $periodValue,
+            'periodOptions' => Ui::options($this->periodOptions($periodValue)),
+            'status' => $status,
+            'statusLabel' => KpiEvaluation::STATUS_LABELS[$status] ?? $status,
+            'statusColor' => KpiEvaluation::STATUS_COLORS[$status] ?? 'neutral',
+            'rejectReason' => $status === KpiEvaluation::STATUS_REJECTED ? $evaluation?->reject_reason : null,
+            'decidedBy' => $evaluation?->evaluator?->name,
+            'decidedAt' => $evaluation?->decided_at?->format('d/m/Y'),
+            'fund' => $sheet['fund'],
+            'amount' => $sheet['amount'],
+            'rateLabel' => $this->percent($sheet['total']).'%',
+            'groups' => $sheet['lines']->groupBy(fn ($l) => $l['criterion']->group_name ?: 'Chưa phân nhóm')
+                ->map(fn ($lines, $name) => [
+                    'name' => $name,
+                    'items' => $lines->map(fn ($l) => [
+                        'id' => $l['criterion']->id,
+                        'name' => $l['criterion']->name,
+                        'unit' => KpiCriterion::unitLabel($l['criterion']->unit),
+                        'threshold_full' => $l['criterion']->threshold_full ?: '—',
+                        'threshold_half' => $l['criterion']->threshold_half ?: '—',
+                        'max_half' => $l['criterion']->max_half,
+                        'value' => $l['value'],
+                        'level' => $l['level'],
+                        'amount' => $l['amount'] !== null ? round($l['amount']) : null,
+                        'evidence' => $l['evidence'],
+                    ])->values(),
+                ])->values(),
+        ]);
     }
 
     // ───────────────────── RÀ SOÁT ĐIỂM DANH (Admin học vụ) ─────────────────────
