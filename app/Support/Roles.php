@@ -57,8 +57,8 @@ final class Roles
     /** Khối đào tạo: giáo viên, trợ giảng, Học vụ, Học thuật. */
     public const ACADEMIC = [self::TEACHER_FULLTIME, self::TEACHER_PARTTIME, self::ASSISTANT, self::ACADEMIC_STAFF, self::ACADEMIC_LEAD];
 
-    /** Nhân sự thuộc diện đánh giá KPI tháng (không gồm Quản lý cơ sở / Sales / Admin). */
-    public const KPI_STAFF = [self::ACADEMIC_STAFF, self::ACADEMIC_LEAD, self::TEACHER_FULLTIME, self::TEACHER_PARTTIME, self::ASSISTANT];
+    /** Vai trò có bộ tiêu chí KPI riêng (màn Tiêu chí KPI) và được chấm KPI tháng: mọi nhân sự, trừ Admin và Học viên. */
+    public const KPI_ROLES = [self::ACADEMIC_STAFF, self::ACADEMIC_LEAD, self::MANAGER, self::SALES_CONSULTANT, self::TEACHER_FULLTIME, self::TEACHER_PARTTIME, self::ASSISTANT];
 
     /** Vai trò mặc định nhận việc / thông báo vận hành của cơ sở. */
     public const BRANCH_OPERATORS = [self::ACADEMIC_STAFF, self::MANAGER];

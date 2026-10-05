@@ -37,7 +37,7 @@ class PayrollInlineModalTest extends TestCase
         return [
             'mốc hoa hồng' => ['payroll.config.commission-tiers', 'new-tier', 'Thêm mốc mới'],
             'đơn giá GV' => ['payroll.config.teacher-rates', 'new-rate', 'Cập nhật đơn giá'],
-            'KPI' => ['kpi.criteria', 'new-kpi', 'Thêm mục mới'],
+            'KPI' => ['kpi.criteria', 'kpi-criterion', 'Thêm tiêu chí'],
         ];
     }
 

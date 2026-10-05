@@ -85,7 +85,8 @@ class KpiCriteriaTest extends TestCase
     public function test_criteria_screen_is_named_tieu_chi_kpi_and_saves_numeric_thresholds(): void
     {
         $this->actingAs($this->admin)->get(route('kpi.criteria'))
-            ->assertOk()->assertSee('Tiêu chí KPI')->assertSee('Quy trình nhắc &amp; follow học phí đúng hạn', false);
+            ->assertOk()->assertSee('Tiêu chí KPI')->assertSee('Quy trình nhắc &amp; follow học phí đúng hạn', false)
+            ->assertDontSee('1.1');
         $menu = json_encode(app(\App\Support\Navigation\SidebarMenu::class)->settingsFor($this->admin), JSON_UNESCAPED_UNICODE);
         $this->assertStringContainsString('"Tiêu chí KPI"', $menu);
         $this->assertStringNotContainsString('Tiêu chí KPI học vụ', $menu);
@@ -94,18 +95,55 @@ class KpiCriteriaTest extends TestCase
             ->assertOk()->assertSee('Không có lỗi: điền 0 vào mục chưa nhập')->assertSee('Quy trình nhắc &amp; follow học phí đúng hạn', false);
 
         $criterion = KpiCriterion::where('code', '5.2')->firstOrFail();
+        $this->assertSame(['sai_sot', Roles::ACADEMIC_STAFF], [$criterion->unit, $criterion->role]);
         $this->actingAs($this->admin)->put(route('kpi.criteria.update', $criterion->id), [
-            'name' => $criterion->name, 'weight' => 5, 'unit' => 'sai sót', 'max_full' => 1, 'max_half' => 6, 'is_active' => 1,
-        ])->assertSessionHasNoErrors();
+            'group_name' => $criterion->group_name, 'name' => $criterion->name, 'weight' => 5, 'unit' => 'su_co', 'max_full' => 1, 'max_half' => 6, 'is_active' => 1,
+        ])->assertRedirect(route('kpi.criteria', ['role' => Roles::ACADEMIC_STAFF]))->assertSessionHasNoErrors();
         $criterion->refresh();
-        $this->assertSame([1, 6, '≤ 1 sai sót', '≤ 6 sai sót'], [$criterion->max_full, $criterion->max_half, $criterion->threshold_full, $criterion->threshold_half]);
+        $this->assertSame([1, 6, 'su_co', '≤ 1 sự cố', '≤ 6 sự cố'], [$criterion->max_full, $criterion->max_half, $criterion->unit, $criterion->threshold_full, $criterion->threshold_half]);
 
-        // Ngưỡng 50% không được nhỏ hơn ngưỡng 100%, và phải nhập đủ cả hai.
-        $this->actingAs($this->admin)->put(route('kpi.criteria.update', $criterion->id), [
-            'name' => $criterion->name, 'weight' => 5, 'max_full' => 5, 'max_half' => 2,
-        ])->assertSessionHasErrors('max_half');
-        $this->actingAs($this->admin)->put(route('kpi.criteria.update', $criterion->id), [
-            'name' => $criterion->name, 'weight' => 5, 'max_full' => 5,
-        ])->assertSessionHasErrors('max_half');
+        // Đơn vị phải chọn từ danh sách; ngưỡng 50% không nhỏ hơn ngưỡng 100%; phải nhập đủ ngưỡng.
+        $base = ['name' => $criterion->name, 'weight' => 5, 'unit' => 'lan', 'max_full' => 1, 'max_half' => 2];
+        $this->actingAs($this->admin)->put(route('kpi.criteria.update', $criterion->id), ['unit' => 'sai sót'] + $base)->assertSessionHasErrors('unit');
+        $this->actingAs($this->admin)->put(route('kpi.criteria.update', $criterion->id), ['max_full' => 5] + $base)->assertSessionHasErrors('max_half');
+        $this->actingAs($this->admin)->put(route('kpi.criteria.update', $criterion->id), array_diff_key($base, ['max_half' => 1]))->assertSessionHasErrors('max_half');
+    }
+
+    public function test_each_fixed_role_has_its_own_criteria_and_evaluation_uses_the_staff_role(): void
+    {
+        $this->assertSame(15, KpiCriterion::forRole(Roles::ACADEMIC_STAFF)->count());
+        $this->assertSame(0, KpiCriterion::forRole(Roles::TEACHER_FULLTIME)->count());
+
+        // Dropdown vai trò: chỉ vai trò nhân sự cố định (không Admin / Học viên); vai trò chưa có tiêu chí → trống.
+        $this->actingAs($this->admin)->get(route('kpi.criteria', ['role' => Roles::TEACHER_FULLTIME]))->assertOk()
+            ->assertSee('chưa có tiêu chí KPI')->assertDontSee('Quy trình nhắc &amp; follow học phí đúng hạn', false)
+            ->assertInertia(fn ($page) => $page->where('role', Roles::TEACHER_FULLTIME)->where('fund', null)
+                ->where('roleOptions', fn ($options) => collect($options)->pluck('value')->sort()->values()->all() === collect(Roles::KPI_ROLES)->sort()->values()->all()));
+        $this->actingAs($this->admin)->get(route('kpi.criteria', ['role' => Roles::ADMIN]))->assertOk()
+            ->assertInertia(fn ($page) => $page->where('role', Roles::ACADEMIC_STAFF));
+
+        $this->actingAs($this->admin)->post(route('kpi.criteria.store'), [
+            'role' => Roles::TEACHER_FULLTIME, 'new_group' => 'Vận hành buổi học', 'name' => 'Nhận xét học viên trễ hạn', 'weight' => 100,
+            'unit' => 'buoi', 'max_full' => 1, 'max_half' => 3, 'description' => 'Buổi có nhận xét sau 12 giờ.',
+        ])->assertRedirect(route('kpi.criteria', ['role' => Roles::TEACHER_FULLTIME]))->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('kpi.criteria.store'), [
+            'role' => Roles::STUDENT, 'name' => 'X', 'weight' => 1, 'unit' => 'lan', 'max_full' => 0, 'max_half' => 1,
+        ])->assertSessionHasErrors('role');
+
+        $teacherCriterion = KpiCriterion::forRole(Roles::TEACHER_FULLTIME)->firstOrFail();
+        $this->assertSame(['Vận hành buổi học', '≤ 1 buổi', '≤ 3 buổi'], [$teacherCriterion->group_name, $teacherCriterion->threshold_full, $teacherCriterion->threshold_half]);
+
+        $teacher = User::factory()->create(['branch_id' => $this->staff->branch_id, 'is_active' => true]);
+        $teacher->assignRole(Roles::TEACHER_FULLTIME);
+        $this->actingAs($this->admin)->get(route('kpi.evaluate', ['userId' => $teacher->id, 'period' => '2026-09']))->assertOk()
+            ->assertSee('Nhận xét học viên trễ hạn')->assertDontSee('Quy trình nhắc &amp; follow học phí đúng hạn', false);
+        $this->actingAs($this->admin)->post(route('kpi.evaluate.store', $teacher->id), [
+            'month' => 9, 'year' => 2026, 'score' => [$teacherCriterion->id => ''], 'actual' => [$teacherCriterion->id => '2'],
+        ])->assertSessionHasNoErrors();
+        $this->assertEquals(50, (float) KpiEvaluation::where('user_id', $teacher->id)->value('total_score'));
+
+        // Tiêu chí của vai trò khác không lẫn vào KPI Học vụ (bảng lương, báo cáo tuần).
+        $statement = app(\App\Services\PayrollFormulaService::class)->academicKpiStatement($this->staff, 9, 2026);
+        $this->assertSame(15, collect($statement['groups'])->sum(fn ($g) => count($g['items'])));
     }
 }
