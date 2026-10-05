@@ -417,4 +417,21 @@ class StaffMobileAttendanceTest extends TestCase
         $student = $this->user('student', $this->branch);
         $this->actingAs($student)->get(route('mobile.home'))->assertForbidden();
     }
+
+    /** "Của tôi" trên sidebar: điện thoại mở Chấm công /m, máy tính mở Thông báo (không chuyển sang /m); tab Chấm công ẩn trên máy tính. */
+    public function test_personal_menu_opens_check_in_only_on_phone(): void
+    {
+        $this->actingAs($this->staff)->get(route('notifications.index'))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('shell.sidebar.groups', fn ($groups) => ($personal = collect($groups)->firstWhere('id', 'personal'))
+                    && $personal['url'] === route('mobile.home')
+                    && $personal['desktop_url'] === route('notifications.index'))
+                ->where('shell.workspace.tabs', fn ($tabs) => collect($tabs)->firstWhere('route', 'mobile.home')['mobile_only'] === true
+                    && collect($tabs)->firstWhere('route', 'notifications.index')['mobile_only'] === false));
+
+        // Khu không có mục chỉ dành cho điện thoại: không có link riêng cho máy tính.
+        $this->actingAs($this->staff)->get(route('notifications.index'))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('shell.sidebar.groups', fn ($groups) => collect($groups)
+                ->reject(fn ($group) => $group['id'] === 'personal')->every(fn ($group) => $group['desktop_url'] === null)));
+    }
 }

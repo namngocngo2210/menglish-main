@@ -125,7 +125,12 @@ onBeforeUnmount(() => {
                         <div class="px-md pb-1 pt-md font-caption text-xs font-semibold uppercase tracking-widest text-surface-variant/70 md:hidden desktop:block" data-menu-section data-sidebar-text>{{ group.section }}</div>
                         <div class="mx-auto my-sm hidden h-px w-8 bg-white/10 md:block desktop:hidden" aria-hidden="true" data-sidebar-divider></div>
                     </template>
-                    <SidebarLink :url="group.url" :label="group.label" :icon="group.icon" :active="group.active" :id="group.id" :badge="group.badge" :modal="group.modal" @modal="emit('close')" />
+                    <!-- desktop_url: khu có mục chỉ dành cho điện thoại (vd. Chấm công /m trong "Của tôi") → máy tính mở link khác. -->
+                    <template v-if="group.desktop_url">
+                        <SidebarLink class="md:hidden" :url="group.url" :label="group.label" :icon="group.icon" :active="group.active" :id="group.id" :badge="group.badge" :modal="group.modal" @modal="emit('close')" />
+                        <SidebarLink class="max-md:hidden" :url="group.desktop_url" :label="group.label" :icon="group.icon" :active="group.active" :id="group.id" :badge="group.badge" :modal="group.modal" @modal="emit('close')" />
+                    </template>
+                    <SidebarLink v-else :url="group.url" :label="group.label" :icon="group.icon" :active="group.active" :id="group.id" :badge="group.badge" :modal="group.modal" @modal="emit('close')" />
                 </template>
 
                 <template v-if="shell.sidebar.settings">

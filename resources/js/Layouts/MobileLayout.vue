@@ -49,8 +49,11 @@ const tabs = computed(() =>
             </div>
         </header>
 
-        <main id="main-content" class="mx-auto max-w-md px-md pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-md">
-            <slot />
+        <!-- Khung hẹp nằm trong <main> vì app.css ép main { max-width: 100% } (mở /m trên máy tính vẫn gọn giữa màn hình). -->
+        <main id="main-content" class="pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-md">
+            <div class="mx-auto max-w-md px-md">
+                <slot />
+            </div>
         </main>
 
         <nav class="fixed inset-x-0 bottom-0 z-30 border-t border-outline-variant bg-surface-container-lowest pb-[env(safe-area-inset-bottom)]" aria-label="Điều hướng nhân sự">
