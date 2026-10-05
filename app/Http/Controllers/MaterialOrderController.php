@@ -77,7 +77,8 @@ class MaterialOrderController extends Controller
             'classes' => ClassModel::query()->visibleTo($user)->orderBy('name')->get(['id', 'name', 'branch_id'])
                 ->map(fn (ClassModel $c) => ['value' => $c->id, 'label' => $c->name, 'branch_id' => $c->branch_id])->values(),
             // Cho form báo hạn ngay khi chọn loại + ngày sử dụng.
-            'startOfMonthDay' => (int) config('material_orders.start_of_month_day', 5),
+            'startOfMonthDay' => \App\Services\Sla\Sla::value('material.monthly_deadline'),
+            'dayBeforeCutoff' => \App\Services\Sla\Sla::time('material.day_before_cutoff'),
         ]);
     }
 

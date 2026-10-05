@@ -9,7 +9,6 @@ use App\Models\CrmCustomerHistory;
 use App\Models\PlacementTest;
 use App\Models\PlacementTestSubmission;
 use App\Models\Student;
-use App\Models\SystemSetting;
 use App\Models\User;
 use App\Services\NotificationService;
 use Database\Seeders\PermissionSeeder;
@@ -237,12 +236,14 @@ class Phase1CrmTest extends TestCase
 
     public function test_neglect_threshold_is_configurable_and_new_leads_notify_sale(): void
     {
-        SystemSetting::set(NotificationService::NEGLECT_SETTING_KEY, 7);
+        \App\Models\SlaSetting::updateOrCreate(['rule_key' => 'crm.follow_up'], ['value' => 7]);
+        \App\Services\Sla\Sla::forget();
         $lead = $this->lead('consulting');
         $lead->forceFill(['created_at' => now()->subDays(5)])->saveQuietly();
         $this->assertSame(0, app(NotificationService::class)->scanAndSyncStaleLeads());
 
-        SystemSetting::set(NotificationService::NEGLECT_SETTING_KEY, 4);
+        \App\Models\SlaSetting::updateOrCreate(['rule_key' => 'crm.follow_up'], ['value' => 4]);
+        \App\Services\Sla\Sla::forget();
         $this->assertSame(1, app(NotificationService::class)->scanAndSyncStaleLeads());
 
         $new = $this->lead('new');

@@ -359,7 +359,7 @@ class Phase2MockupSyllabusTest extends TestCase
             ->assertSee('Xác nhận từ chối')
             ->assertSee('GV-MK-01');
 
-        $req->forceFill(['created_at' => now()->subHours(SyllabusAdjustmentRequest::SLA_HOURS + 1)])->save();
+        $req->forceFill(['created_at' => now()->subHours(SyllabusAdjustmentRequest::slaHours() + 1)])->save();
         $this->actingAs($this->academic)->get(route('syllabus.adjustment-requests'))->assertOk()->assertSee('Quá hạn');
 
         $this->actingAs($this->academic)->post(route('syllabus.adjustment-requests.reject', $req->id), ['rejection_reason' => 'Chưa đủ căn cứ'])->assertRedirect();

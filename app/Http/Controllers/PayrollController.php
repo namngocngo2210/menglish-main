@@ -288,7 +288,7 @@ class PayrollController extends Controller
         // Chủ dự án chốt: chốt công và chốt lỗi vào cuối tháng + 2 ngày → chưa tới mốc đó thì chưa được chốt bảng lương.
         if (! $period->canApproveAt()) {
             $message = 'Chưa thể chốt bảng lương: chốt công và chốt lỗi vào hết ngày '.$period->attendanceCloseAt()->format('d/m')
-                .' (cuối tháng + '.PayrollPeriod::CLOSE_AFTER_DAYS.' ngày) — vui lòng chốt từ ngày '.$period->attendanceCloseAt()->addDay()->format('d/m').'.';
+                .' (cuối tháng + '.PayrollPeriod::closeAfterDays().' ngày) — vui lòng chốt từ ngày '.$period->attendanceCloseAt()->addDay()->format('d/m').'.';
 
             return redirect()->back()->withErrors(['period' => $message])->with('error', $message);
         }

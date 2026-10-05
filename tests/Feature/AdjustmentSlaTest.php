@@ -56,8 +56,8 @@ class AdjustmentSlaTest extends TestCase
 
     public function test_sla_is_three_days(): void
     {
-        $this->assertSame(3, SyllabusAdjustmentRequest::SLA_DAYS);
-        $this->assertSame(72, SyllabusAdjustmentRequest::SLA_HOURS);
+        $this->assertSame(3, SyllabusAdjustmentRequest::slaDays());
+        $this->assertSame(72, SyllabusAdjustmentRequest::slaHours());
 
         $req = $this->submit();
         $this->assertTrue($req->sla_due_at->equalTo($req->created_at->copy()->addDays(3)));

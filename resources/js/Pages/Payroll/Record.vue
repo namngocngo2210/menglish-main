@@ -283,7 +283,7 @@ function sessionNote(ts) {
                             <tr v-if="!penalties.length && !clawbacks.length"><td colspan="3" class="py-sm text-on-surface-variant">Không có biên bản phạt quá hạn hay thu hồi hoa hồng trong kỳ.</td></tr>
                         </tbody>
                     </table>
-                    <p class="font-caption text-caption text-on-surface-variant">Phạt từ biên bản vi phạm đã chốt, quá hạn nộp 2 ngày chưa nộp → trừ lương (xử lý ở màn Danh sách vi phạm). Khoản trừ khác (tạm ứng…) nhập bên dưới.</p>
+                    <p class="font-caption text-caption text-on-surface-variant">Phạt từ biên bản vi phạm đã chốt, quá hạn nộp phạt chưa nộp → trừ lương (xử lý ở màn Danh sách vi phạm). Khoản trừ khác (tạm ứng…) nhập bên dưới.</p>
                     <PayslipLines kind="deduction" :lines="editLines" :saved="record.manual_lines" :can-edit="canEdit" add-label="Thêm khoản trừ" placeholder="VD: Tạm ứng, Vi phạm nội quy" />
                 </section>
 

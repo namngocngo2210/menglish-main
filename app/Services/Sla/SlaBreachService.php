@@ -148,7 +148,7 @@ class SlaBreachService
         $rows = ['Biên bản' => $penalty->code, 'Quy định SLA' => $rule['label'], 'Đối tượng' => $subjectLabel,
             'Người phụ trách' => $penalty->user?->name ?? '—',
             'Mốc kích hoạt' => $event->triggered_at->format('H:i d/m/Y'),
-            'Hạn xử lý' => $event->due_at->format('H:i d/m/Y').' ('.$rule['value'].($rule['unit'] === 'hours' ? ' giờ' : ' lần').')',
+            'Hạn xử lý' => $event->due_at->format('H:i d/m/Y').' ('.Sla::formatValue((int) $rule['value'], $rule['unit']).')',
             'Phát hiện quá hạn' => $now->format('H:i d/m/Y'),
             ...$facts,
             ...($penalty->amount > 0 ? ['Mức phạt gợi ý' => Money::format($penalty->amount)] : ['Mức phạt gợi ý' => 'Nhắc nhở (0 đ)'])];

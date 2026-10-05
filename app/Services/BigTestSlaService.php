@@ -8,16 +8,20 @@ use App\Models\BigTestResult;
 use App\Models\Penalty;
 use App\Models\User;
 use App\Models\WorkTask;
+use App\Services\Sla\Sla;
 use App\Support\Money;
 use App\Support\Rbac;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
- * SLA của Big Test:
- *  - Trả kết quả cho phụ huynh tối đa 7 ngày kể từ ngày thi (BigTest::RESULT_DEADLINE_DAYS); trễ → 50.000đ / ngày trễ.
- *  - Học thuật duyệt & phân phối đề trước ngày thi ít nhất 3 ngày, hệ thống cảnh báo từ 7 ngày trước và nhắc mỗi ngày.
+ * SLA của Big Test (ngưỡng / bật tắt / mức phạt ở trang Cấu hình SLA, nhóm "Big Test"):
+ *  - big_test.results_late: trả kết quả cho phụ huynh tối đa N ngày kể từ ngày thi (mặc định 7); trễ → mức gợi ý (mặc định 50.000đ) × số ngày trễ.
+ *  - big_test.paper_approval: Học thuật duyệt & phân phối đề trước ngày thi ít nhất N ngày (mặc định 3);
+ *    big_test.paper_reminder: hệ thống cảnh báo từ N ngày trước (mặc định 7) và nhắc mỗi ngày.
+ *  - big_test.paper_missing: còn dưới N giờ (mặc định 24) mà đề chưa phân phối → biên bản cho Học thuật.
  * Mọi biên bản tự lập đi đúng quy trình duyệt (pending, người báo "Tự động", người chốt quyết mức phạt) và idempotent.
+ * Tắt "Tự lập biên bản" của một SLA thì chỉ gửi thông báo (1 lần / người / đợt thi).
  */
 class BigTestSlaService
 {
@@ -25,17 +29,34 @@ class BigTestSlaService
 
     public const AUTO_PAPER_MISSING = 'big_test_paper_missing';
 
-    /** Hệ thống cảnh báo / nhắc hằng ngày duyệt đề từ N ngày trước ngày thi. */
-    public const PAPER_WARN_DAYS = 7;
+    public const RULE_LATE_RESULTS = 'big_test.results_late';
 
-    /** Học thuật phải duyệt & phân phối đề trước ngày thi ít nhất N ngày. */
-    public const PAPER_APPROVE_BEFORE_DAYS = 3;
+    public const RULE_PAPER_REMINDER = 'big_test.paper_reminder';
 
-    /** GV chưa nhận đề khi còn dưới N giờ tới giờ thi → tự lập biên bản cho Học thuật (FR-SYL-08). */
-    public const PAPER_MISSING_HOURS = 24;
+    public const RULE_PAPER_APPROVAL = 'big_test.paper_approval';
+
+    public const RULE_PAPER_MISSING = 'big_test.paper_missing';
 
     /** Quét kết quả trễ hạn chỉ trong N ngày gần nhất — không phạt hồi tố các đợt thi quá cũ. */
     public const LATE_SCAN_DAYS = 90;
+
+    /** Hệ thống cảnh báo / nhắc hằng ngày duyệt đề từ N ngày trước ngày thi. */
+    public function warnDays(): int
+    {
+        return Sla::value(self::RULE_PAPER_REMINDER);
+    }
+
+    /** Học thuật phải duyệt & phân phối đề trước ngày thi ít nhất N ngày. */
+    public function approveBeforeDays(): int
+    {
+        return Sla::value(self::RULE_PAPER_APPROVAL);
+    }
+
+    /** GV chưa nhận đề khi còn dưới N giờ tới giờ thi → tự lập biên bản cho Học thuật (FR-SYL-08). */
+    public function paperMissingHours(): int
+    {
+        return Sla::value(self::RULE_PAPER_MISSING);
+    }
 
     /**
      * Người duyệt Big Test (Học thuật): người đang hoạt động có quyền big_test.approve, không tính Super Admin
@@ -87,15 +108,20 @@ class BigTestSlaService
      */
     public function enforceLateResults(?Carbon $now = null): int
     {
+        if (! Sla::enabled(self::RULE_LATE_RESULTS)) {
+            return 0;
+        }
         $now ??= now();
         $created = 0;
+        $deadlineDays = BigTest::resultDeadlineDays();
+        $finePerDay = (float) Sla::rule(self::RULE_LATE_RESULTS)['amount'];
 
         $tests = BigTest::with('classModel')
             ->whereNull('results_completed_at')
             ->whereNotNull('class_id')
             ->whereNotNull('scheduled_at')
             ->where('scheduled_at', '>=', $now->copy()->subDays(self::LATE_SCAN_DAYS))
-            ->where('scheduled_at', '<', $now->copy()->startOfDay()->subDays(BigTest::RESULT_DEADLINE_DAYS))
+            ->where('scheduled_at', '<', $now->copy()->startOfDay()->subDays($deadlineDays))
             ->orderBy('id')
             ->get();
 
@@ -104,8 +130,8 @@ class BigTestSlaService
             if ($days <= 0) {
                 continue;
             }
-            $violation = "Trả kết quả Big Test trễ {$days} ngày (hạn ".BigTest::RESULT_DEADLINE_DAYS.' ngày)';
-            $amount = BigTest::LATE_FINE_PER_DAY * $days;
+            $violation = "Trả kết quả Big Test trễ {$days} ngày (hạn {$deadlineDays} ngày)";
+            $amount = $finePerDay * $days;
 
             $penalty = Penalty::where('big_test_id', $test->id)->where('auto_source', self::AUTO_LATE_RESULTS)->first();
             if ($penalty) {
@@ -125,6 +151,13 @@ class BigTestSlaService
             if (! $responsible) {
                 continue;
             }
+            if (! Sla::penalizes(self::RULE_LATE_RESULTS)) {
+                $this->notifyOnce($responsible, $test, self::RULE_LATE_RESULTS, 'Quá hạn trả kết quả Big Test',
+                    "{$test->title} — trễ {$days} ngày so với hạn {$test->resultsDueAt()->format('d/m/Y')}. Hãy hoàn tất và gửi kết quả cho phụ huynh.",
+                    route('syllabus.big-tests.results', $test->id));
+
+                continue;
+            }
 
             $penalty = DB::transaction(fn () => Penalty::create([
                 'code' => Penalty::generateCode(),
@@ -139,7 +172,7 @@ class BigTestSlaService
                 'reporter_id' => null,
                 'status' => 'pending',
                 'notes' => "Big Test {$test->code} ({$test->title}) thi ngày ".$test->scheduled_at->format('d/m/Y')
-                    .', hạn trả kết quả '.$test->resultsDueAt()->format('d/m/Y').'. Mức phạt gợi ý '.Money::format(BigTest::LATE_FINE_PER_DAY, '')
+                    .', hạn trả kết quả '.$test->resultsDueAt()->format('d/m/Y').'. Mức phạt gợi ý '.Money::format($finePerDay, '')
                     .'đ/ngày trễ, cập nhật mỗi ngày tới khi trả đủ kết quả.',
             ]));
             $created++;
@@ -167,7 +200,7 @@ class BigTestSlaService
     public function paperOverdue(BigTest $test, ?Carbon $now = null): bool
     {
         return ! $test->is_distributed && $test->scheduled_at !== null
-            && $test->scheduled_at->isFuture() && $this->daysUntil($test, $now) < self::PAPER_APPROVE_BEFORE_DAYS;
+            && $test->scheduled_at->isFuture() && $this->daysUntil($test, $now) < $this->approveBeforeDays();
     }
 
     /**
@@ -182,7 +215,7 @@ class BigTestSlaService
         return BigTest::with('classModel')
             ->where('is_distributed', false)
             ->whereNotNull('class_id')
-            ->whereBetween('scheduled_at', [$now, $now->copy()->addDays(self::PAPER_WARN_DAYS)->endOfDay()])
+            ->whereBetween('scheduled_at', [$now, $now->copy()->addDays($this->warnDays())->endOfDay()])
             ->orderBy('scheduled_at')
             ->get();
     }
@@ -195,22 +228,25 @@ class BigTestSlaService
      */
     public function remindPaperApproval(?Carbon $now = null): int
     {
+        if (! Sla::enabled(self::RULE_PAPER_REMINDER)) {
+            return 0;
+        }
         $now ??= now();
         $approvers = $this->approvers();
         $sent = 0;
 
         foreach ($this->undistributedUpcoming($now) as $test) {
             $daysLeft = $this->daysUntil($test, $now);
-            $overdue = $daysLeft < self::PAPER_APPROVE_BEFORE_DAYS;
+            $overdue = $daysLeft < $this->approveBeforeDays();
             $className = $test->classModel?->name ?? 'lớp';
             $when = $test->scheduled_at->format('H:i d/m/Y');
             $title = $overdue
-                ? 'Quá hạn duyệt đề (trước '.self::PAPER_APPROVE_BEFORE_DAYS." ngày): {$test->code}"
+                ? 'Quá hạn duyệt đề (trước '.$this->approveBeforeDays()." ngày): {$test->code}"
                 : "Cần duyệt đề Big Test: {$test->code} (còn {$daysLeft} ngày)";
             $message = "Lớp {$className} thi \"{$test->title}\" lúc {$when}"
                 .($overdue
-                    ? ' — đề phải được duyệt & phân phối trước ngày thi '.self::PAPER_APPROVE_BEFORE_DAYS.' ngày, hiện chưa duyệt.'
-                    : ' — hãy duyệt & phân phối đề trước ngày thi '.self::PAPER_APPROVE_BEFORE_DAYS.' ngày.');
+                    ? ' — đề phải được duyệt & phân phối trước ngày thi '.$this->approveBeforeDays().' ngày, hiện chưa duyệt.'
+                    : ' — hãy duyệt & phân phối đề trước ngày thi '.$this->approveBeforeDays().' ngày.');
 
             foreach ($approvers as $user) {
                 $exists = AdminNotification::where('user_id', $user->id)->where('type', 'big_test_paper_due')
@@ -241,6 +277,9 @@ class BigTestSlaService
      */
     public function ensureApprovalTasks(?Carbon $now = null): int
     {
+        if (! Sla::enabled(self::RULE_PAPER_REMINDER)) {
+            return 0;
+        }
         $assignee = $this->approvers()->first();
         if (! $assignee) {
             return 0;
@@ -255,7 +294,7 @@ class BigTestSlaService
             $task = WorkTask::create([
                 'title' => "Duyệt & phân phối đề Big Test {$test->code}: {$test->classModel?->name}",
                 'description' => "Big Test \"{$test->title}\" thi lúc ".$test->scheduled_at->format('H:i d/m/Y')
-                    .'. Duyệt & phân phối đề trước ngày thi '.self::PAPER_APPROVE_BEFORE_DAYS.' ngày; việc tự đóng khi đề được phân phối.',
+                    .'. Duyệt & phân phối đề trước ngày thi '.$this->approveBeforeDays().' ngày; việc tự đóng khi đề được phân phối.',
                 'creator_id' => $creator->id,
                 'assignee_id' => $assignee->id,
                 'branch_id' => $test->classModel?->branch_id,
@@ -304,20 +343,33 @@ class BigTestSlaService
      */
     public function enforcePaperMissing(?Carbon $now = null): int
     {
+        if (! Sla::enabled(self::RULE_PAPER_MISSING)) {
+            return 0;
+        }
         $now ??= now();
         $approvers = $this->approvers();
         $created = 0;
+        $hours = $this->paperMissingHours();
+        $penalize = Sla::penalizes(self::RULE_PAPER_MISSING);
+        $amount = (float) Sla::rule(self::RULE_PAPER_MISSING)['amount'];
 
         $tests = BigTest::with('classModel')
             ->where('is_distributed', false)
             ->whereNotNull('class_id')
-            ->where('scheduled_at', '<', $now->copy()->addHours(self::PAPER_MISSING_HOURS))
+            ->where('scheduled_at', '<', $now->copy()->addHours($hours))
             // Lệnh bị lỡ vài giờ vẫn bắt bù; không phạt hồi tố các đợt thi đã qua lâu.
-            ->where('scheduled_at', '>=', $now->copy()->subHours(self::PAPER_MISSING_HOURS))
+            ->where('scheduled_at', '>=', $now->copy()->subHours($hours))
             ->get();
 
         foreach ($tests as $test) {
             foreach ($approvers as $user) {
+                if (! $penalize) {
+                    $this->notifyOnce($user, $test, self::RULE_PAPER_MISSING, 'GV chưa nhận đề Big Test',
+                        "{$test->title} thi lúc ".$test->scheduled_at->format('H:i d/m/Y').' nhưng đề chưa được phân phối — hãy duyệt ngay.',
+                        route('syllabus.big-tests.distribution'));
+
+                    continue;
+                }
                 $exists = Penalty::where('big_test_id', $test->id)->where('user_id', $user->id)
                     ->where('auto_source', self::AUTO_PAPER_MISSING)->exists();
                 if ($exists) {
@@ -329,10 +381,10 @@ class BigTestSlaService
                     'class_id' => $test->class_id,
                     'big_test_id' => $test->id,
                     'auto_source' => self::AUTO_PAPER_MISSING,
-                    'violation_type' => 'GV chưa nhận đề Big Test sát ngày thi (dưới '.self::PAPER_MISSING_HOURS.'h)',
+                    'violation_type' => 'GV chưa nhận đề Big Test sát ngày thi (dưới '.$hours.'h)',
                     'error_category' => 'academic',
                     'violation_date' => $test->scheduled_at->toDateString(),
-                    'amount' => 0,
+                    'amount' => $amount,
                     'reporter_id' => null,
                     'status' => 'pending',
                     'notes' => "Big Test {$test->code} ({$test->title}) lớp {$test->classModel?->name} thi lúc ".$test->scheduled_at->format('H:i d/m/Y')
@@ -351,5 +403,23 @@ class BigTestSlaService
         }
 
         return $created;
+    }
+
+    /** SLA tắt tự lập biên bản: chỉ báo người chịu trách nhiệm, 1 thông báo / người / SLA / đợt thi. */
+    private function notifyOnce(User $user, BigTest $test, string $rule, string $title, string $message, string $link): void
+    {
+        $exists = AdminNotification::where('user_id', $user->id)->where('type', 'sla_breach')
+            ->where('data->sla_rule', $rule)->where('data->big_test_id', $test->id)->exists();
+        if ($exists) {
+            return;
+        }
+        AdminNotification::create([
+            'user_id' => $user->id,
+            'type' => 'sla_breach',
+            'title' => "Quá hạn SLA: {$title} ({$test->code})",
+            'message' => $message,
+            'data' => ['sla_rule' => $rule, 'big_test_id' => $test->id, 'link' => $link],
+            'is_read' => false,
+        ]);
     }
 }

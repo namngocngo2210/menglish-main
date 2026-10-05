@@ -310,7 +310,7 @@ class Phase2AcceptanceTest extends TestCase
         ])->assertSessionHasNoErrors();
         $order = BigTestOrder::where('class_id', $class->id)->firstOrFail();
         $this->assertSame('pending', $order->status);
-        $this->assertSame($examAt->copy()->subDays(BigTestOrder::LEAD_DAYS)->toDateString(), $order->due_date->toDateString());
+        $this->assertSame($examAt->copy()->subDays(BigTestOrder::leadDays())->toDateString(), $order->due_date->toDateString());
         $this->actingAs($this->teacher)->post(route('syllabus.big-tests.orders.approve', $order->id), ['test_link' => 'https://drive.test/de'])->assertForbidden();
         // BPMN: Học thuật duyệt order đề — Học vụ không có quyền duyệt (big_test.approve).
         $this->actingAs($this->academic)->post(route('syllabus.big-tests.orders.approve', $order->id), ['test_link' => 'https://drive.test/de'])->assertForbidden();

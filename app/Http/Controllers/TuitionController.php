@@ -1543,7 +1543,7 @@ class TuitionController extends Controller
         $receipt->update(['deposited_at' => now(), 'deposited_by' => $request->user()->id]);
 
         return back()->with('success', $receipt->isDepositLate()
-            ? 'Đã xác nhận nộp về TK công ty (nộp trễ sau '.TuitionReceipt::DEPOSIT_CUTOFF.').'
+            ? 'Đã xác nhận nộp về TK công ty (nộp trễ sau '.TuitionReceipt::depositCutoff().').'
             : 'Đã xác nhận nộp về TK công ty.');
     }
 

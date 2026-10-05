@@ -74,14 +74,16 @@ class MaterialOrderTest extends TestCase
         $this->assertSame('2026-10-11 15:00', MaterialOrder::computeDueAt('printing', '2026-10-12')->format('Y-m-d H:i'));
         // Ngày sử dụng mùng 1 → hạn là chiều 30/09 (ngày hôm trước, sang tháng trước).
         $this->assertSame('2026-09-30 15:00', MaterialOrder::computeDueAt('props', '2026-10-01')->format('Y-m-d H:i'));
-        // GVNN / học thuật: 23:59 ngày N (cấu hình, mặc định 5) của THÁNG chứa ngày sử dụng.
+        // GVNN / học thuật: 23:59 ngày N (Cấu hình SLA, mặc định 5) của THÁNG chứa ngày sử dụng.
         $this->assertSame('2026-10-05 23:59', MaterialOrder::computeDueAt('foreign_teacher', '2026-10-20')->format('Y-m-d H:i'));
         $this->assertSame('2026-11-05 23:59', MaterialOrder::computeDueAt('academic', '2026-11-30')->format('Y-m-d H:i'));
 
-        config(['material_orders.start_of_month_day' => 10]);
+        \App\Models\SlaSetting::updateOrCreate(['rule_key' => 'material.monthly_deadline'], ['value' => 10]);
+        \App\Services\Sla\Sla::forget();
         $this->assertSame('2026-10-10 23:59', MaterialOrder::computeDueAt('foreign_teacher', '2026-10-20')->format('Y-m-d H:i'));
         // N lớn hơn số ngày của tháng → ngày cuối tháng.
-        config(['material_orders.start_of_month_day' => 31]);
+        \App\Models\SlaSetting::updateOrCreate(['rule_key' => 'material.monthly_deadline'], ['value' => 31]);
+        \App\Services\Sla\Sla::forget();
         $this->assertSame('2026-02-28 23:59', MaterialOrder::computeDueAt('academic', '2026-02-10')->format('Y-m-d H:i'));
     }
 

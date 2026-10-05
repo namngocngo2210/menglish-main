@@ -24,12 +24,17 @@ class Sla
         $default = self::defaults()[$key] ?? throw new \InvalidArgumentException("SLA không tồn tại: {$key}");
         $override = RequestMemo::remember('sla_settings', fn () => SlaSetting::query()->get()->keyBy('rule_key'))->get($key);
 
+        $switchable = $default['switchable'] ?? true;
+        // penalty null = SLA không có biên bản (chỉ nhắc / chặn thao tác): giữ null dù có dòng ghi đè.
+        $penalty = $default['penalty'] === null ? null : (bool) ($override?->penalty ?? $default['penalty']);
+
         return [
             ...$default,
             'key' => $key,
-            'enabled' => $override?->enabled ?? true,
+            'switchable' => $switchable,
+            'enabled' => $switchable ? ($override?->enabled ?? true) : true,
             'value' => $override?->value ?? $default['value'],
-            'penalty' => $override?->penalty ?? $default['penalty'],
+            'penalty' => $penalty,
             'amount' => (float) ($override?->amount ?? $default['amount']),
             'ladder' => $override?->ladder ?: ($default['ladder'] ?? null),
             'customized' => $override !== null,
@@ -41,10 +46,53 @@ class Sla
         return self::rule($key)['enabled'];
     }
 
-    /** Ngưỡng (giờ hoặc số lần tuỳ SLA). */
+    /** Ngưỡng (giờ, ngày, số lần, phút trong ngày hoặc ngày trong tháng tuỳ đơn vị của SLA). */
     public static function value(string $key): int
     {
         return (int) self::rule($key)['value'];
+    }
+
+    /** SLA đơn vị "time": giờ trong ngày dạng H:i (giá trị lưu là số phút từ 00:00). */
+    public static function time(string $key): string
+    {
+        return self::minutesToTime(self::value($key));
+    }
+
+    /** Có tự lập biên bản khi quá hạn không (SLA không có biên bản → false). */
+    public static function penalizes(string $key): bool
+    {
+        return (bool) self::rule($key)['penalty'];
+    }
+
+    public static function minutesToTime(int $minutes): string
+    {
+        $minutes = max(0, min(1439, $minutes));
+
+        return sprintf('%02d:%02d', intdiv($minutes, 60), $minutes % 60);
+    }
+
+    /** Hiển thị giá trị kèm đơn vị: "24 giờ", "3 ngày", "3 lần", "19:00", "ngày 5". */
+    public static function formatValue(int $value, string $unit): string
+    {
+        return match ($unit) {
+            'hours' => "{$value} giờ",
+            'days' => "{$value} ngày",
+            'time' => self::minutesToTime($value),
+            'day_of_month' => "ngày {$value}",
+            default => "{$value} lần",
+        };
+    }
+
+    /** Giới hạn hợp lệ [min, max] của giá trị theo đơn vị (trang Cấu hình SLA). */
+    public static function bounds(string $unit): array
+    {
+        return match ($unit) {
+            'hours' => [1, 720],
+            'days' => [1, 90],
+            'time' => [0, 1439],
+            'day_of_month' => [1, 28],
+            default => [1, 20],
+        };
     }
 
     /** Số tháng cộng dồn lần tái phạm cho bậc phạt (Admin chỉnh ở trang Cấu hình SLA). */

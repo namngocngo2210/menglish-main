@@ -10,7 +10,7 @@ use Illuminate\Console\Command;
  * Cảnh báo hợp đồng nhân sự sắp hết hạn (A3 "Nền tảng", Phase 4).
  *
  * Chạy hằng ngày: với mỗi nhân sự đang hoạt động có hợp đồng kết thúc trong
- * User::CONTRACT_WARNING_DAYS ngày tới, gửi thông báo cá nhân cho Admin và
+ * User::contractWarningDays() ngày tới, gửi thông báo cá nhân cho Admin và
  * Quản lý cơ sở của chi nhánh nhân sự đó. Idempotent: mỗi người nhận chỉ nhận
  * 1 thông báo cho mỗi (nhân sự, ngày kết thúc hợp đồng); gia hạn hợp đồng
  * (đổi ngày kết thúc) sẽ cảnh báo lại cho kỳ mới.
@@ -19,12 +19,17 @@ class NotifyExpiringContractsCommand extends Command
 {
     protected $signature = 'hr:notify-expiring-contracts';
 
-    protected $description = 'Thông báo cho Admin/Quản lý cơ sở các hợp đồng nhân sự hết hạn trong 30 ngày tới';
+    protected $description = 'Thông báo cho Admin/Quản lý cơ sở các hợp đồng nhân sự hết hạn trong N ngày tới (Cấu hình SLA, mặc định 30)';
 
     public function handle(): int
     {
+        if (! \App\Services\Sla\Sla::enabled('hr.contract_warning')) {
+            $this->info('SLA cảnh báo hợp đồng sắp hết hạn đang tắt.');
+
+            return self::SUCCESS;
+        }
         $today = now()->startOfDay();
-        $until = $today->copy()->addDays(User::CONTRACT_WARNING_DAYS);
+        $until = $today->copy()->addDays(User::contractWarningDays());
 
         $staff = User::query()
             ->with('branches:id')

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\AuditsChanges;
 use App\Services\NotificationService;
+use App\Services\Sla\Sla;
 use App\Support\DataScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -85,9 +86,6 @@ class CrmCustomer extends Model
 
     /** Nguồn khách mặc định theo mockup Thêm khách mới (khi chưa cấu hình danh mục "lead_source"). */
     public const DEFAULT_SOURCES = ['Landing page', 'Marketing', 'Giới thiệu', 'Vãng lai', 'Tiktok', 'Facebook', 'Google Ads', 'Chị Liên'];
-
-    /** SLA liên hệ khách mới (PRD R13, FR-CRM-02): lần liên hệ đầu trong 24h kể từ lúc tạo. */
-    public const FIRST_CONTACT_SLA_HOURS = 24;
 
     /**
      * Đồng hồ SLA chuyển vàng ("Sắp hết hạn") khi còn dưới tỉ lệ này của khung giờ: 6h với khung 24h, 18h với khung 72h.
@@ -180,11 +178,11 @@ class CrmCustomer extends Model
         });
     }
 
-    /** Khách "Mới" quá 24h chưa được tiếp nhận (SLA liên hệ 24h, cùng tiêu chí cảnh báo stale_lead_24h). */
+    /** Khách "Mới" quá hạn SLA liên hệ lần đầu (crm.first_contact, mặc định 24h) chưa được tiếp nhận (cùng tiêu chí cảnh báo stale_lead_24h). */
     public function scopeStaleNew(Builder $query): Builder
     {
         // Sales không đổi giai đoạn (lead vẫn "Mới" sau khi gọi) → đã có nhật ký liên hệ thì không tính là chưa liên hệ.
-        return $query->where('stage', 'new')->where('created_at', '<=', now()->subHours(24))
+        return $query->where('stage', 'new')->where('created_at', '<=', now()->subHours(self::firstContactSlaHours()))
             ->whereDoesntHave('histories', fn (Builder $history) => $history->counted()->whereIn('type', CrmCustomerHistory::CARE_TYPES));
     }
 
@@ -411,10 +409,16 @@ class CrmCustomer extends Model
         return (bool) preg_match('/^(0[35789]\d{8}|02\d{9})$/', self::normalizePhone($raw));
     }
 
-    /** Khung SLA "chăm sóc tiếp theo" (giờ) = ngưỡng khách bị bỏ quên, mặc định 3 ngày = 72h (system_settings.crm_neglect_days). */
+    /** Khung SLA "chăm sóc tiếp theo" (giờ) = ngưỡng khách bị bỏ quên, mặc định 3 ngày = 72h (SLA crm.follow_up). */
     public static function followUpSlaHours(): int
     {
         return app(NotificationService::class)->neglectThresholdDays() * 24;
+    }
+
+    /** Khung SLA liên hệ lần đầu (giờ) — crm.first_contact trên trang Cấu hình SLA, mặc định 24h. */
+    public static function firstContactSlaHours(): int
+    {
+        return Sla::value('crm.first_contact');
     }
 
     /** Lần chăm sóc gần nhất (CrmCustomerHistory::CARE_TYPES): cột ảo scopeWithLastCare, histories đã nạp, hoặc 1 truy vấn. */
@@ -432,8 +436,8 @@ class CrmCustomer extends Model
 
     /**
      * Đồng hồ SLA liên hệ (PRD R13, FR-CRM-02), chỉ cho khách đang chăm sóc (ACTIVE_STAGES):
-     * - Khách "Mới" chưa được chăm sóc lần nào: hạn = lúc tạo + 24h ("Hạn liên hệ lần đầu").
-     * - Còn lại: hạn = lần chăm sóc gần nhất (không có thì lúc tạo) + 72h ("Hạn chăm sóc tiếp theo").
+     * - Khách "Mới" chưa được chăm sóc lần nào: hạn = lúc tạo + SLA crm.first_contact (mặc định 24h) ("Hạn liên hệ lần đầu").
+     * - Còn lại: hạn = lần chăm sóc gần nhất (không có thì lúc tạo) + SLA crm.follow_up (mặc định 72h) ("Hạn chăm sóc tiếp theo").
      * - Có "Hạn liên hệ tiếp theo" (người phụ trách tự hẹn) sớm hơn thì lấy hạn hẹn.
      * state: on_time (xanh) | due_soon (vàng, còn < 25% khung) | overdue (đỏ). Chỉ hiển thị, không chặn thao tác.
      *
@@ -447,7 +451,7 @@ class CrmCustomer extends Model
         $now ??= now();
         $lastCare = $this->lastCareAt();
         if ($lastCare === null && $this->stage === 'new') {
-            [$kind, $label, $hours, $anchor] = ['first', 'Hạn liên hệ lần đầu', self::FIRST_CONTACT_SLA_HOURS, $this->created_at];
+            [$kind, $label, $hours, $anchor] = ['first', 'Hạn liên hệ lần đầu', self::firstContactSlaHours(), $this->created_at];
         } else {
             [$kind, $label, $hours, $anchor] = ['follow_up', 'Hạn chăm sóc tiếp theo', self::followUpSlaHours(), $lastCare ?? $this->created_at];
         }

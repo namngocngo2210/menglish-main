@@ -1144,7 +1144,7 @@ class SyllabusController extends Controller
                 'value' => $cl->id,
                 'label' => $cl->name.' - '.($openAssignments[$cl->id]?->stage?->label ?? $openAssignments[$cl->id]?->stage_name).' ('.$cl->code.')',
             ])->values(),
-            'slaDays' => SyllabusAdjustmentRequest::SLA_DAYS,
+            'slaDays' => SyllabusAdjustmentRequest::slaDays(),
             'canReview' => $user->can('syllabus.approve_adjustment'),
         ]);
     }
@@ -1516,14 +1516,15 @@ class SyllabusController extends Controller
             ]),
             'selectedOrder' => $selectedOrder ? $this->orderDetail($selectedOrder, $canReview) : null,
             'listUrl' => route('syllabus.big-tests.distribution', $listQuery),
-            'leadDays' => BigTestOrder::LEAD_DAYS,
+            'leadDays' => BigTestOrder::leadDays(),
             'canReview' => $canReview,
             'canManage' => $user->can('syllabus.manage'),
         ]);
     }
 
     /**
-     * Cảnh báo duyệt đề: đợt thi trong 7 ngày tới chưa phân phối đề ('warn'); còn dưới 3 ngày mà vẫn chưa phân phối ('overdue').
+     * Cảnh báo duyệt đề: đợt thi trong N ngày tới (big_test.paper_reminder) chưa phân phối đề ('warn'); còn dưới hạn duyệt đề
+     * (big_test.paper_approval) mà vẫn chưa phân phối ('overdue').
      *
      * @return array{level: string, label: string}|null
      */
@@ -1534,13 +1535,13 @@ class SyllabusController extends Controller
         }
         $sla = app(\App\Services\BigTestSlaService::class);
         $days = $sla->daysUntil($bt);
-        if ($days > \App\Services\BigTestSlaService::PAPER_WARN_DAYS) {
+        if ($days > $sla->warnDays()) {
             return null;
         }
 
         return $sla->paperOverdue($bt)
-            ? ['level' => 'overdue', 'label' => 'Quá hạn duyệt đề (trước '.\App\Services\BigTestSlaService::PAPER_APPROVE_BEFORE_DAYS.' ngày) — còn '.$days.' ngày']
-            : ['level' => 'warn', 'label' => "Cần duyệt đề trước ngày thi ".\App\Services\BigTestSlaService::PAPER_APPROVE_BEFORE_DAYS." ngày — còn {$days} ngày"];
+            ? ['level' => 'overdue', 'label' => 'Quá hạn duyệt đề (trước '.$sla->approveBeforeDays().' ngày) — còn '.$days.' ngày']
+            : ['level' => 'warn', 'label' => 'Cần duyệt đề trước ngày thi '.$sla->approveBeforeDays()." ngày — còn {$days} ngày"];
     }
 
     /** Dữ liệu hộp thoại chi tiết order đề (màn Duyệt & phân phối đề Big Test). */
@@ -1807,7 +1808,7 @@ class SyllabusController extends Controller
         $user = $request->user();
         $bigTests = BigTest::with(['classModel.branch', 'proctor'])->visibleTo($user)->latest()->paginate($request->perPage(20))->withQueryString();
 
-        // Mockup "Nhắc lịch Big Test": chặng đang mở sắp đến hạn thi Big Test (trong 7 ngày) mà đề chưa được duyệt.
+        // Mockup "Nhắc lịch Big Test": chặng đang mở sắp đến hạn thi Big Test (trong N ngày, SLA big_test.paper_reminder) mà đề chưa được duyệt.
         $openAssignments = SyllabusAssignment::open()->with(['stage', 'classModel'])
             ->whereIn('class_id', ClassModel::visibleTo($user)->select('id'))
             ->get();
@@ -1815,7 +1816,7 @@ class SyllabusController extends Controller
         $upcoming = $openAssignments
             ->map(fn ($as) => ['assignment' => $as] + $plans[$as->id])
             ->filter(fn ($row) => $row['date'] && $row['exam'] !== 'approved'
-                && $row['date']->copy()->startOfDay()->betweenIncluded(today(), today()->addDays(7)))
+                && $row['date']->copy()->startOfDay()->betweenIncluded(today(), today()->addDays(app(\App\Services\BigTestSlaService::class)->warnDays())))
             ->map(fn ($row) => $row + ['days_left' => (int) today()->diffInDays($row['date']->copy()->startOfDay())])
             ->sortBy('days_left')
             ->values();
@@ -2005,7 +2006,7 @@ class SyllabusController extends Controller
             'canGradeRole' => $canGradeRole,
             'canGrade' => $test && $test->is_distributed && $canGradeRole,
             'backUrl' => $user->can('syllabus.manage') || $isApprover ? route('syllabus.big-tests.distribution') : null,
-            'resultDeadlineDays' => BigTest::RESULT_DEADLINE_DAYS,
+            'resultDeadlineDays' => BigTest::resultDeadlineDays(),
             'missingPhoneLabel' => self::MISSING_PARENT_PHONE,
         ]);
     }

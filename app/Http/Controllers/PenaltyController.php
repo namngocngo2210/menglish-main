@@ -140,9 +140,11 @@ class PenaltyController extends Controller
             'statusOptions' => Ui::options(['open' => 'Đang xử lý (chưa đóng)', 'overdue' => 'Quá hạn nộp'] + Penalty::statusLabels()),
             'commonViolations' => collect(Penalty::COMMON_VIOLATIONS)->flatten()->values(),
             'lockedPenalty' => session('locked_penalty'),
-            // Ô "Thời điểm vi phạm" chỉ cho chọn trong 24h gần nhất (server kiểm tra lại khi lưu).
+            'paymentDueDays' => Penalty::paymentDueDays(),
+            // Ô "Thời điểm vi phạm" chỉ cho chọn trong N giờ gần nhất (SLA penalty.record_window; server kiểm tra lại khi lưu).
             'violationWindow' => [
-                'min' => now()->subHours(Penalty::RECORD_WINDOW_HOURS)->format('Y-m-d\\TH:i'),
+                'hours' => Penalty::recordWindowHours(),
+                'min' => now()->subHours(Penalty::recordWindowHours())->format('Y-m-d\\TH:i'),
                 'max' => now()->format('Y-m-d\\TH:i'),
             ],
         ]);
@@ -172,13 +174,13 @@ class PenaltyController extends Controller
             'evidence.mimes' => 'Bằng chứng phải là ảnh (JPG, PNG, GIF, WEBP) hoặc PDF.',
         ]);
 
-        // Cửa sổ ghi nhận: [now − 24h, now]. Không nhận thời điểm ở tương lai.
+        // Cửa sổ ghi nhận: [now − N giờ, now] (SLA penalty.record_window). Không nhận thời điểm ở tương lai.
         $violationAt = Carbon::parse($validated['violation_at']);
         if ($violationAt->gt(now())) {
             throw ValidationException::withMessages(['violation_at' => 'Thời điểm vi phạm không được ở tương lai.']);
         }
-        if ($violationAt->lt(now()->subHours(Penalty::RECORD_WINDOW_HOURS))) {
-            throw ValidationException::withMessages(['violation_at' => 'Vi phạm đã quá 24h — không thể ghi nhận.']);
+        if ($violationAt->lt(now()->subHours(Penalty::recordWindowHours()))) {
+            throw ValidationException::withMessages(['violation_at' => 'Vi phạm đã quá '.Penalty::recordWindowHours().'h — không thể ghi nhận.']);
         }
 
         // Vi phạm thuộc kỳ lương đã chốt vẫn ghi nhận được: tiền phạt trừ theo hạn nộp vào kỳ lương đang mở
@@ -276,7 +278,7 @@ class PenaltyController extends Controller
             $attributes += [
                 'status' => 'fined',
                 'amount' => $validated['amount'],
-                'due_date' => today()->addDays(Penalty::PAYMENT_DUE_DAYS)->toDateString(),
+                'due_date' => today()->addDays(Penalty::paymentDueDays())->toDateString(),
             ];
         } else {
             $attributes['status'] = 'confirmed';
@@ -290,7 +292,7 @@ class PenaltyController extends Controller
                 'user_id' => $penalty->user_id,
                 'type' => 'penalty_fined',
                 'title' => "Biên bản {$penalty->code}: phạt ".Money::format((float) $penalty->amount),
-                'message' => 'Nộp phạt trước hết ngày '.$penalty->due_date->format('d/m/Y').' ('.Penalty::PAYMENT_DUE_DAYS
+                'message' => 'Nộp phạt trước hết ngày '.$penalty->due_date->format('d/m/Y').' ('.Penalty::paymentDueDays()
                     .' ngày) — quá hạn chưa nộp sẽ trừ vào lương kỳ này.',
                 'data' => ['penalty_id' => $penalty->id, 'link' => route('penalties.index', ['search' => $penalty->code])],
                 'is_read' => false,

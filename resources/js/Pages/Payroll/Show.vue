@@ -83,7 +83,7 @@ function filter(event) {
     <div class="space-y-lg">
         <UiAlert v-if="periodError" type="error">{{ periodError }}</UiAlert>
 
-        <!-- Lịch chốt lương: KPI cuối tháng, công + lỗi cuối tháng + 2 ngày, trả lương 10–15 tháng sau -->
+        <!-- Lịch chốt lương: KPI cuối tháng, công + lỗi cuối tháng + N ngày (Cấu hình SLA), trả lương 10–15 tháng sau -->
         <div class="grid grid-cols-1 gap-md rounded-xl border border-surface-container-highest bg-surface-container-lowest p-md shadow-sm sm:grid-cols-2 lg:grid-cols-4" data-payroll-calendar>
             <div>
                 <p class="font-caption text-caption text-on-surface-variant">Chốt KPI</p>
@@ -93,7 +93,7 @@ function filter(event) {
             <div>
                 <p class="font-caption text-caption text-on-surface-variant">Chốt công</p>
                 <p class="font-semibold text-on-surface">Hết {{ period.calendar.attendance_close_on }}</p>
-                <p class="font-caption text-caption text-on-surface-variant">Cuối tháng + 2 ngày</p>
+                <p class="font-caption text-caption text-on-surface-variant">Cuối tháng + {{ period.calendar.close_after_days ?? 2 }} ngày</p>
             </div>
             <div>
                 <p class="font-caption text-caption text-on-surface-variant">Chốt lỗi (trừ lỗi)</p>

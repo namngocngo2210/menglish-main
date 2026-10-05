@@ -83,13 +83,13 @@ class MaterialOrder extends Model
         $use = Carbon::parse($useDate)->startOfDay();
 
         if (in_array($category, [self::CATEGORY_PROPS, self::CATEGORY_PRINTING], true)) {
-            [$hour, $minute] = array_map('intval', explode(':', (string) config('material_orders.day_before_cutoff_time', '15:00')));
+            [$hour, $minute] = array_map('intval', explode(':', \App\Services\Sla\Sla::time('material.day_before_cutoff')));
 
             return $use->copy()->subDay()->setTime($hour, $minute);
         }
 
-        // GVNN / học thuật: 23:59 ngày N của tháng chứa ngày sử dụng (N không vượt số ngày của tháng).
-        $day = min(max(1, (int) config('material_orders.start_of_month_day', 5)), $use->daysInMonth);
+        // GVNN / học thuật: 23:59 ngày N (SLA material.monthly_deadline) của tháng chứa ngày sử dụng (N không vượt số ngày của tháng).
+        $day = min(max(1, \App\Services\Sla\Sla::value('material.monthly_deadline')), $use->daysInMonth);
 
         return $use->copy()->day($day)->setTime(23, 59);
     }

@@ -36,10 +36,16 @@ class SyllabusAdjustmentRequest extends Model
     /** Số buổi tối đa được giãn trong một yêu cầu. */
     public const MAX_EXTRA_SESSIONS = 10;
 
-    /** Hạn duyệt yêu cầu giãn tiến độ: 3 ngày kể từ khi GV gửi (BA chốt). Học thuật hoặc Admin duyệt. */
-    public const SLA_DAYS = 3;
+    /** Hạn duyệt yêu cầu giãn tiến độ: N ngày kể từ khi GV gửi (SLA syllabus.adjustment_approval, mặc định 3 — BA chốt). Học thuật hoặc Admin duyệt. */
+    public static function slaDays(): int
+    {
+        return \App\Services\Sla\Sla::value('syllabus.adjustment_approval');
+    }
 
-    public const SLA_HOURS = self::SLA_DAYS * 24;
+    public static function slaHours(): int
+    {
+        return self::slaDays() * 24;
+    }
 
     protected $casts = [
         'extra_sessions' => 'integer',
@@ -49,7 +55,7 @@ class SyllabusAdjustmentRequest extends Model
 
     public function getSlaDueAtAttribute(): ?\Illuminate\Support\Carbon
     {
-        return $this->created_at?->copy()->addHours(self::SLA_HOURS);
+        return $this->created_at?->copy()->addHours(self::slaHours());
     }
 
     /** Còn chờ duyệt và đã quá hạn SLA. */

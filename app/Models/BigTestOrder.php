@@ -24,8 +24,11 @@ class BigTestOrder extends Model
         'big' => 'Big Test',
     ];
 
-    /** Đề phải phân phối trước ngày thi tối thiểu N ngày (SLA theo mockup). */
-    public const LEAD_DAYS = 3;
+    /** Đề phải phân phối trước ngày thi tối thiểu N ngày (SLA big_test.paper_approval, trang Cấu hình SLA). */
+    public static function leadDays(): int
+    {
+        return \App\Services\Sla\Sla::value('big_test.paper_approval');
+    }
 
     protected $fillable = [
         'code',

@@ -13,15 +13,6 @@ class BigTest extends Model
 {
     use HasFactory;
 
-    /**
-     * Hạn trả kết quả cho phụ huynh = ngày thi + 7 ngày (BA đã chốt): từ ngày thi đến khi Học thuật bấm "Duyệt & Gửi phụ huynh".
-     * Trễ → phạt 50.000đ mỗi ngày trễ (biên bản tự lập, người chốt xác nhận mức phạt).
-     */
-    public const RESULT_DEADLINE_DAYS = 7;
-
-    /** Mức phạt gợi ý cho mỗi ngày trả kết quả trễ (đồng). */
-    public const LATE_FINE_PER_DAY = 50000;
-
     protected $table = 'big_tests';
 
     protected $fillable = [
@@ -108,10 +99,19 @@ class BigTest extends Model
             ->orWhere('assistant_id', $user->id));
     }
 
-    /** Hạn trả kết quả cho phụ huynh (ngày thi + RESULT_DEADLINE_DAYS). */
+    /**
+     * Số ngày trả kết quả cho phụ huynh kể từ ngày thi (SLA big_test.results_late, mặc định 7 ngày — BA đã chốt): từ ngày thi
+     * đến khi Học thuật bấm "Duyệt & Gửi phụ huynh". Trễ → biên bản, mức gợi ý × số ngày trễ (người chốt xác nhận mức phạt).
+     */
+    public static function resultDeadlineDays(): int
+    {
+        return \App\Services\Sla\Sla::value('big_test.results_late');
+    }
+
+    /** Hạn trả kết quả cho phụ huynh (ngày thi + resultDeadlineDays()). */
     public function resultsDueAt(): ?\Illuminate\Support\Carbon
     {
-        return $this->scheduled_at?->copy()->startOfDay()->addDays(self::RESULT_DEADLINE_DAYS);
+        return $this->scheduled_at?->copy()->startOfDay()->addDays(self::resultDeadlineDays());
     }
 
     /** Số ngày còn lại tới hạn trả kết quả (âm = quá hạn); NULL khi chưa có ngày thi. */

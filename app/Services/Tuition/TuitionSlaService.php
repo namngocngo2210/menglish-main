@@ -6,14 +6,15 @@ use App\Models\AdminNotification;
 use App\Models\TuitionReceipt;
 use App\Models\TuitionRefundRequest;
 use App\Models\User;
+use App\Services\Sla\Sla;
 use App\Support\Money;
 use App\Support\TuitionBranchScope;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 
 /**
- * SLA học phí: (1) tiền mặt thu trong ngày phải nộp về TK công ty trước 19:00 cùng ngày;
- * (2) hoàn tiền / chuyển nhượng xử lý trong 1 tuần và trong tháng (TuitionRefundRequest::deadlineFor).
+ * SLA học phí (Cấu hình SLA): (1) tuition.cash_deposit — tiền mặt thu trong ngày phải nộp về TK công ty trước giờ chốt (mặc định 19:00) cùng ngày;
+ * (2) tuition.refund_processing — hoàn tiền / chuyển nhượng xử lý trong N ngày (mặc định 7) và trong tháng (TuitionRefundRequest::deadlineFor).
  * Chỉ nhắc (AdminNotification) — không tự phạt. Idempotent: chạy lại không tạo thông báo trùng.
  */
 class TuitionSlaService
@@ -33,6 +34,9 @@ class TuitionSlaService
     /** Phiếu tiền mặt thu trong ngày $now mà quá 19:00 vẫn chưa xác nhận nộp → báo người thu + người có quyền xác nhận. */
     public function notifyUndepositedCash(CarbonInterface $now): int
     {
+        if (! Sla::enabled('tuition.cash_deposit')) {
+            return 0;
+        }
         $sent = 0;
 
         TuitionReceipt::query()
@@ -72,7 +76,7 @@ class TuitionSlaService
                         'title' => 'Tiền mặt chưa nộp về TK công ty',
                         'message' => 'Phiếu '.$receipt->receipt_number.' ('.Money::format($receipt->amount).', '
                             .($student?->name ?? 'học viên').') thu ngày '.$receipt->payment_date->format('d/m/Y')
-                            .' chưa được xác nhận nộp về tài khoản công ty trước '.TuitionReceipt::DEPOSIT_CUTOFF.'.',
+                            .' chưa được xác nhận nộp về tài khoản công ty trước '.TuitionReceipt::depositCutoff().'.',
                         'data' => [
                             'receipt_id' => $receipt->id,
                             'link' => route('tuition.receipts.approve', ['selected_id' => $receipt->id, 'status' => 'all']),
@@ -89,6 +93,9 @@ class TuitionSlaService
     /** Hồ sơ hoàn phí / chuyển nhượng còn chờ duyệt, còn ≤ 1 ngày tới hạn hoặc đã quá hạn → nhắc người có quyền duyệt (mỗi hồ sơ / loại nhắc / ngày một lần). */
     public function notifyRefundDeadlines(CarbonInterface $now): int
     {
+        if (! Sla::enabled('tuition.refund_processing')) {
+            return 0;
+        }
         $sent = 0;
         $today = $now->copy()->startOfDay();
 
@@ -129,7 +136,7 @@ class TuitionSlaService
                         'user_id' => $user->id,
                         'type' => self::TYPE_REFUND_DEADLINE,
                         'title' => $overdue ? "Hồ sơ {$label} quá hạn xử lý" : "Hồ sơ {$label} sắp hết hạn xử lý",
-                        'message' => "{$label} của ".($request->student?->name ?? 'học viên').' phải xử lý trong 1 tuần (cùng tháng), hạn '
+                        'message' => "{$label} của ".($request->student?->name ?? 'học viên').' phải xử lý trong '.TuitionRefundRequest::processingDays().' ngày (cùng tháng), hạn '
                             .$deadline->format('d/m/Y').($overdue ? ' — đã quá hạn.' : ' — còn chưa tới 1 ngày.'),
                         'data' => [
                             'request_id' => $request->id,

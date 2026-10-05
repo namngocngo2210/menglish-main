@@ -1,7 +1,7 @@
 <script setup>
 /**
  * Danh sách vi phạm (mockup epic-8-danh-sach-phat) — luồng BPMN 9b: ghi nhận → nhân sự giải trình → HT/CM chốt lỗi,
- * chốt mức phạt → nộp trong 2 ngày (quá hạn trừ lương) → khắc phục. Mỗi dòng chỉ giữ nút của bước tiếp theo;
+ * chốt mức phạt → nộp trong N ngày (SLA penalty.payment_due, quá hạn trừ lương) → khắc phục. Mỗi dòng chỉ giữ nút của bước tiếp theo;
  * "Đóng - không phạt" / "Hủy vi phạm" nằm trong hộp thoại chi tiết (nút ⋯). Lọc nhanh theo bước + bộ lọc nâng cao.
  */
 import { computed, reactive, ref } from 'vue';
@@ -24,6 +24,8 @@ const props = defineProps({
     commonViolations: { type: Array, default: () => [] },
     lockedPenalty: { type: String, default: null },
     violationWindow: { type: Object, required: true },
+    // Số ngày phải nộp phạt sau khi chốt mức phạt (SLA penalty.payment_due).
+    paymentDueDays: { type: Number, default: 2 },
 });
 
 const page = usePage();
@@ -44,7 +46,7 @@ const open = ref(errored && can('violation.create') ? 'new-penalty' : null);
 const decisions = reactive(Object.fromEntries(props.penalties.data.map((pen) => [pen.id, pen.status === 'confirmed' ? 'fine' : 'error'])));
 const decisionOptions = [
     { value: 'error', label: 'Chốt lỗi (xác nhận có lỗi, chốt mức phạt sau)' },
-    { value: 'fine', label: 'Chốt mức phạt (nộp trong 2 ngày, quá hạn trừ lương)' },
+    { value: 'fine', label: `Chốt mức phạt (nộp trong ${props.paymentDueDays} ngày, quá hạn trừ lương)` },
 ];
 const category = ref('operations');
 const decidable = (pen) => ['pending', 'explained', 'confirmed'].includes(pen.status);
@@ -53,7 +55,7 @@ const showAmount = (pen) => pen.amount > 0 && !['pending', 'explained', 'confirm
 
 <template>
     <div>
-        <UiPageHeader title="Danh sách vi phạm" description="Quản lý và theo dõi các bước xử lý vi phạm nhân sự tại MEnglish: ghi nhận → nhân sự giải trình → HT/CM chốt lỗi, chốt mức phạt → nộp trong 2 ngày (quá hạn trừ lương) → khắc phục.">
+        <UiPageHeader title="Danh sách vi phạm" :description="`Quản lý và theo dõi các bước xử lý vi phạm nhân sự tại MEnglish: ghi nhận → nhân sự giải trình → HT/CM chốt lỗi, chốt mức phạt → nộp trong ${paymentDueDays} ngày (quá hạn trừ lương) → khắc phục.`">
             <template v-if="can('violation.create')" #actions>
                 <UiButton icon="add_circle" @click="open = 'new-penalty'">Ghi nhận vi phạm mới</UiButton>
             </template>
@@ -144,7 +146,7 @@ const showAmount = (pen) => pen.amount > 0 && !['pending', 'explained', 'confirm
                                 <UiButton v-if="pen.can_explain" size="sm" icon="edit_note" @click="open = `explain-${pen.id}`">Giải trình</UiButton>
                                 <UiButton v-if="pen.can_decide && pen.step === 'recorded'" size="sm" variant="secondary" icon="gavel" @click="open = `decide-${pen.id}`">Chốt lỗi</UiButton>
                                 <UiButton v-if="pen.can_decide && pen.status === 'confirmed'" size="sm" variant="secondary" icon="payments" @click="open = `decide-${pen.id}`">Chốt mức phạt</UiButton>
-                                <!-- Quá hạn 2 ngày: không nhận nộp trực tiếp nữa, bảng lương trừ -->
+                                <!-- Quá hạn nộp phạt: không nhận nộp trực tiếp nữa, bảng lương trừ -->
                                 <UiForm v-if="can('violation.mark_paid') && pen.status === 'fined' && !pen.overdue" :action="route('penalties.mark-paid', pen.id)" method="post">
                                     <UiButton type="submit" size="sm" variant="secondary" icon="payments">Đánh dấu đã nộp</UiButton>
                                 </UiForm>
@@ -248,8 +250,8 @@ const showAmount = (pen) => pen.amount > 0 && !['pending', 'explained', 'confirm
                     </datalist>
                 </UiField>
                 <div class="grid grid-cols-2 gap-md">
-                    <!-- Chỉ ghi nhận vi phạm trong 24h gần nhất (server kiểm tra lại) -->
-                    <UiInput type="datetime-local" name="violation_at" label="Thời điểm vi phạm" required :min="violationWindow.min" :max="violationWindow.max" :value="violationWindow.max" hint="Trong vòng 24h gần nhất." />
+                    <!-- Chỉ ghi nhận vi phạm trong N giờ gần nhất (Cấu hình SLA; server kiểm tra lại) -->
+                    <UiInput type="datetime-local" name="violation_at" label="Thời điểm vi phạm" required :min="violationWindow.min" :max="violationWindow.max" :value="violationWindow.max" :hint="`Trong vòng ${violationWindow.hours ?? 24}h gần nhất.`" />
                     <UiSelect name="class_id" label="Lớp liên quan" placeholder="— Không —" :options="classes" />
                 </div>
                 <UiField label="Bằng chứng vi phạm" name="evidence" for="f_evidence" required hint="Ảnh (JPG, PNG, GIF, WEBP) hoặc PDF, tối đa 10MB.">
@@ -264,7 +266,7 @@ const showAmount = (pen) => pen.amount > 0 && !['pending', 'explained', 'confirm
                 </UiField>
                 <UiTextarea name="notes" label="Mô tả sự việc" rows="2" />
                 <p class="font-caption text-caption text-on-surface-variant">
-                    Vi phạm quá 24h không ghi nhận được. Chưa cần nhập số tiền: mức phạt do HT/CM chốt sau khi nhân sự giải trình.
+                    Vi phạm quá {{ violationWindow.hours ?? 24 }}h không ghi nhận được. Chưa cần nhập số tiền: mức phạt do HT/CM chốt sau khi nhân sự giải trình.
                 </p>
             </UiForm>
             <template #footer>

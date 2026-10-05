@@ -18,11 +18,17 @@ class Penalty extends Model
 {
     use HasFactory;
 
-    /** Số ngày nhân sự phải nộp phạt kể từ khi được quyết phạt; quá hạn không ghi nhận nộp trực tiếp nữa (trừ lương). */
-    public const PAYMENT_DUE_DAYS = 2;
+    /** Số ngày nhân sự phải nộp phạt kể từ khi được quyết phạt (SLA penalty.payment_due); quá hạn không ghi nhận nộp trực tiếp nữa (trừ lương). */
+    public static function paymentDueDays(): int
+    {
+        return \App\Services\Sla\Sla::value('penalty.payment_due');
+    }
 
-    /** Vi phạm phải được ghi nhận (thủ công) trong vòng N giờ kể từ lúc xảy ra — chủ dự án chốt. */
-    public const RECORD_WINDOW_HOURS = 24;
+    /** Vi phạm phải được ghi nhận (thủ công) trong vòng N giờ kể từ lúc xảy ra — chủ dự án chốt (SLA penalty.record_window). */
+    public static function recordWindowHours(): int
+    {
+        return \App\Services\Sla\Sla::value('penalty.record_window');
+    }
 
     /** Bằng chứng vi phạm: ảnh / PDF, lưu disk riêng tư (xem qua route penalties.evidence, có kiểm tra quyền). */
     public const EVIDENCE_DISK = 'local';
