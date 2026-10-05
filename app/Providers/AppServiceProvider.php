@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\KpiCriterion;
 use App\Models\SystemSetting;
 use App\Models\User;
 use App\Models\UserPermissionOverride;
@@ -54,6 +55,13 @@ class AppServiceProvider extends ServiceProvider
 
         // Link có chữ ký mở từ Zalo / Facebook trên điện thoại bị gắn thêm tham số theo dõi: bỏ qua chúng khi kiểm tra chữ ký.
         ValidateSignature::except(TrackingQueryParams::NAMES);
+
+        // "KPI của tôi": nhân sự có vai trò đang có tiêu chí KPI (không phải một quyền gán tay).
+        Gate::define(KpiCriterion::OWN_ABILITY, function (User $user) {
+            $role = KpiCriterion::roleFor($user);
+
+            return $role !== null && KpiCriterion::forRole($role)->active()->exists();
+        });
 
         // Mỗi request bắt đầu với bộ nhớ tạm trống (test gọi nhiều request trên cùng một app).
         \Illuminate\Support\Facades\Event::listen(\Illuminate\Routing\Events\Routing::class, fn () => \App\Support\RequestMemo::flush());

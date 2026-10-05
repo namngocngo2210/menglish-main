@@ -48,6 +48,8 @@ Schedule::command('reports:remind-monthly')->dailyAt('08:00');
 Schedule::command('penalties:remind-due')->dailyAt('08:30');
 // Lịch chốt lương: cuối tháng nhắc chốt KPI, +1/+2 ngày nhắc chốt công / lỗi, ngày 10 nhắc trả lương 10–15 (idempotent theo ngày).
 Schedule::command('payroll:remind-calendar')->dailyAt('08:35');
+// Phiếu KPI tháng: sang tháng mới tự tạo phiếu (Chờ duyệt) cho mọi nhân sự có tiêu chí KPI theo vai trò (idempotent, nhân sự mới cũng có phiếu).
+Schedule::command('kpi:create-sheets')->dailyAt('00:20');
 
 // SLA CRM tự động (liên hệ 24h, chuyển trạng thái 36h, trả KQ test, phản hồi học thử, học phí tuần đầu): giao việc + biên bản phạt khi quá hạn (idempotent).
 Schedule::command('sla:enforce')->everyFifteenMinutes();

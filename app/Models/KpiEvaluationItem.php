@@ -17,11 +17,13 @@ class KpiEvaluationItem extends Model
         'actual',
         'critical_error',
         'note',
+        'evidence',
     ];
 
     protected $casts = [
         'score' => 'decimal:2',
         'critical_error' => 'boolean',
+        'evidence' => 'array',
     ];
 
     public function evaluation(): BelongsTo

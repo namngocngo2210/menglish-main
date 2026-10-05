@@ -377,7 +377,7 @@ final class SidebarMenu
                     ['label' => 'Tổng hợp báo cáo & nhật ký', 'route' => 'reports.all'],
                     ...self::anchored(self::HR, [
                         ['label' => 'Nhật ký sự vụ học vụ', 'route' => 'reports.journal'],
-                        ['label' => 'KPI tháng', 'route' => 'kpi.monthly', 'active' => ['kpi.monthly', 'kpi.evaluate']],
+                        ['label' => 'Phiếu KPI tháng', 'route' => 'kpi.monthly', 'active' => ['kpi.monthly', 'kpi.evaluate']],
                         ['label' => 'Rà soát điểm danh', 'route' => 'kpi.attendance-review'],
                     ]),
                     ...self::anchored(self::TASK_ASSIGNER, [
@@ -412,6 +412,8 @@ final class SidebarMenu
                     // Trung tâm thông báo (cũng mở từ chuông trên topbar).
                     ['label' => 'Thông báo', 'route' => 'notifications.index', 'active' => ['notifications.*']],
                     ['label' => 'Lương của tôi', 'route' => 'portal.my-salary', 'can' => ['payroll.view_own']],
+                    // Phiếu KPI tháng của chính mình (mọi nhân sự có tiêu chí KPI theo vai trò).
+                    ['label' => 'KPI của tôi', 'route' => 'kpi.mine', 'can' => [\App\Models\KpiCriterion::OWN_ABILITY]],
                 ],
             ],
             [

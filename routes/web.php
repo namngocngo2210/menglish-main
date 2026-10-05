@@ -808,6 +808,8 @@ Route::middleware('auth')->group(function () {
         Route::put('/criteria/{id}', 'criteriaUpdate')->middleware('can:kpi.manage')->name('criteria.update');
         Route::delete('/criteria/{id}', 'criteriaDestroy')->middleware('can:kpi.manage')->name('criteria.destroy');
         Route::get('/monthly', 'monthly')->middleware('can:kpi.view')->name('monthly');
+        // KPI của tôi: phiếu KPI tháng của chính mình (mọi nhân sự có tiêu chí KPI theo vai trò).
+        Route::get('/mine', 'mine')->middleware('can:'.\App\Models\KpiCriterion::OWN_ABILITY)->name('mine');
         Route::get('/evaluate/{userId}', 'evaluate')->middleware('can:kpi.view')->name('evaluate');
         Route::post('/evaluate/{userId}', 'evaluateStore')->middleware('can:kpi.confirm')->name('evaluate.store');
         Route::get('/attendance-review', 'attendanceReview')->middleware('can:kpi.view')->name('attendance-review');
