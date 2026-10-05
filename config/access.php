@@ -73,26 +73,9 @@ return [
             'material_order.view_all', 'material_order.process_ops', 'material_order.scope_branch',
         ],
 
-        'accountant' => [
-            'tuition.view', 'tuition.create', 'tuition.approve', 'tuition.reject', 'tuition.mark_contacted', 'tuition.report_overdue',
-            // Xác nhận tiền mặt thu trong ngày đã nộp về TK công ty trước 19:00 (Admin qua Gate::before).
-            'tuition.confirm_deposit',
-            'invoice.request_cancel',
-            'refund_transfer.request', 'refund_transfer.approve', 'refund_transfer.approve_transfer', 'refund_transfer.reject',
-            'bank_account.manage', 'invoice_range.manage', 'fee_reminder_config.manage',
-            'merchandise_stock.view', 'merchandise_stock.manage', 'merchandise_stock.scope_branch',
-            'staff_checkin.view', 'staff_checkin.scope_branch',
-            'payroll.view', 'payroll.create', 'payroll.edit', 'payroll.calculate', 'payroll.view_own', 'finance.view',
-            'work_task.view', 'support_ticket.create', 'support_ticket.view', 'notification.view',
-            'portal.staff',
-            // Kế toán tổng (mọi chi nhánh) do Admin cấp "Phạm vi: Toàn hệ thống" theo người (BA 26/09/2026).
-            'student.scope_branch', 'tuition.scope_branch', 'finance.scope_branch', 'attendance_staff.scope_branch',
-            'payroll.scope_all', 'work_task.scope_own', 'support_ticket.scope_own',
-        ],
-
         'academic_staff' => [
             'user.view', 'user.create', 'user.update', 'user.assign_role',
-            'user.assign_role.assistant', 'user.assign_role.teacher', 'user.assign_role.teacher_fulltime',
+            'user.assign_role.assistant', 'user.assign_role.teacher_fulltime',
             'user.assign_role.teacher_parttime', 'user.assign_role.student',
             // BA 26/09/2026: Học vụ là actor chính bên CRM → toàn quyền CRM / test đầu vào TRỪ xóa (lead.delete,
             // placement_test.delete). Vẫn giới hạn chi nhánh mình; lùi giai đoạn vẫn chỉ Admin (A6 Q1).
@@ -130,7 +113,7 @@ return [
 
         'academic_lead' => [
             'user.view', 'user.create', 'user.update', 'user.assign_role',
-            'user.assign_role.teacher', 'user.assign_role.teacher_fulltime', 'user.assign_role.teacher_parttime',
+            'user.assign_role.teacher_fulltime', 'user.assign_role.teacher_parttime',
             'lead.view',
             'student.view', 'class.*', 'class.teach', 'attendance_student.*',
             'level.*', 'syllabus.*', 'big_test.*',
@@ -156,18 +139,6 @@ return [
             'work_task.view', 'support_ticket.create', 'support_ticket.view', 'notification.view',
             'portal.staff',
             'lead.scope_own', 'work_task.scope_own', 'support_ticket.scope_own',
-        ],
-
-        'teacher' => [
-            'payroll.view_own',
-            'class.view', 'class.teach',
-            'attendance_student.view', 'attendance_student.record', 'homework.grade', 'entrance_test.examine',
-            'work_task.view', 'work_task.request', 'support_ticket.create', 'support_ticket.view', 'notification.view',
-            'syllabus.view', 'syllabus.update', 'syllabus.propose_adjustment',
-            'staff_report.submit', 'portal.teacher', 'portal.staff', 'academic_project.view',
-            'class.scope_own', 'student.scope_own', 'big_test.scope_own', 'payroll.scope_own', 'work_task.scope_own', 'support_ticket.scope_own',
-            // Order học liệu: giáo viên tạo order, chỉ thấy order của mình.
-            'material_order.create', 'material_order.scope_own',
         ],
 
         'teacher_fulltime' => [

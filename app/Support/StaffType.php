@@ -12,7 +12,7 @@ use Illuminate\Support\Collection;
  */
 final class StaffType
 {
-    public const TEACHER_ROLES = ['teacher', 'teacher_fulltime', 'teacher_parttime'];
+    public const TEACHER_ROLES = Roles::TEACHERS;
 
     /** @return Collection<int, string> */
     private static function roles(User $user): Collection
@@ -31,13 +31,13 @@ final class StaffType
     {
         $roles = self::roles($user);
 
-        return $roles->contains('assistant') && $roles->intersect(self::TEACHER_ROLES)->isEmpty();
+        return $roles->contains(Roles::ASSISTANT) && $roles->intersect(self::TEACHER_ROLES)->isEmpty();
     }
 
     /** Học vụ: KPI tự động 6 nhóm / 15 mục, quỹ 2 triệu (A6 Q3). */
     public static function usesAcademicStaffKpi(User $user): bool
     {
-        return self::roles($user)->contains('academic_staff');
+        return self::roles($user)->contains(Roles::ACADEMIC_STAFF);
     }
 
     /** Kỳ báo cáo định kỳ chính: Học vụ ngày, Học thuật tuần, giáo viên / trợ giảng tháng. */
@@ -46,9 +46,9 @@ final class StaffType
         $roles = self::roles($user);
 
         return match (true) {
-            $roles->contains('academic_staff') => 'daily',
-            $roles->contains('academic_lead') => 'weekly',
-            $roles->intersect([...self::TEACHER_ROLES, 'assistant'])->isNotEmpty() => 'monthly',
+            $roles->contains(Roles::ACADEMIC_STAFF) => 'daily',
+            $roles->contains(Roles::ACADEMIC_LEAD) => 'weekly',
+            $roles->intersect(Roles::TEACHING)->isNotEmpty() => 'monthly',
             default => 'daily',
         };
     }
@@ -65,9 +65,9 @@ final class StaffType
         $roles = self::roles($user);
 
         return array_values(array_filter([
-            $roles->contains('academic_staff') ? 'weekly_kpi' : null,
-            $roles->contains('academic_lead') ? 'academic_monthly' : null,
-            $roles->contains('academic_lead') ? 'academic_quarterly' : null,
+            $roles->contains(Roles::ACADEMIC_STAFF) ? 'weekly_kpi' : null,
+            $roles->contains(Roles::ACADEMIC_LEAD) ? 'academic_monthly' : null,
+            $roles->contains(Roles::ACADEMIC_LEAD) ? 'academic_quarterly' : null,
             $roles->intersect(self::TEACHER_ROLES)->isNotEmpty() ? 'teacher_monthly' : null,
         ]));
     }

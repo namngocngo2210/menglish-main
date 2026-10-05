@@ -21,6 +21,7 @@ use App\Services\PayrollFormulaService;
 use App\Services\SalesCommissionService;
 use App\Support\DataScope;
 use App\Support\Money;
+use App\Support\Roles;
 use App\Support\Ui;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\RedirectResponse;
@@ -600,9 +601,9 @@ class PayrollController extends Controller
         return match (true) {
             ! $record->usesQ3Formula() => ['key' => 'legacy', 'title' => 'Chi tiết bảng lương', 'type' => 'Phiếu trước Q3'],
             $record->isPartTime() => ['key' => 'parttime', 'title' => 'Chi tiết bảng lương GV Part-time', 'type' => 'Giáo viên (Part-time)'],
-            $record->salary_role === 'academic_staff' => ['key' => 'academic_staff', 'title' => 'Chi tiết bảng lương Học vụ', 'type' => 'Học vụ (Full-time)'],
-            $record->salary_role === 'academic_lead' => ['key' => 'academic_lead', 'title' => 'Chi tiết bảng lương Học thuật', 'type' => 'Học thuật (Full-time)'],
-            $record->salary_role === 'teacher_fulltime' => ['key' => 'fulltime', 'title' => 'Chi tiết bảng lương GV Full-time', 'type' => 'Giáo viên (Full-time)'],
+            $record->salary_role === Roles::ACADEMIC_STAFF => ['key' => 'academic_staff', 'title' => 'Chi tiết bảng lương Học vụ', 'type' => 'Học vụ (Full-time)'],
+            $record->salary_role === Roles::ACADEMIC_LEAD => ['key' => 'academic_lead', 'title' => 'Chi tiết bảng lương Học thuật', 'type' => 'Học thuật (Full-time)'],
+            $record->salary_role === Roles::TEACHER_FULLTIME => ['key' => 'fulltime', 'title' => 'Chi tiết bảng lương GV Full-time', 'type' => 'Giáo viên (Full-time)'],
             default => ['key' => 'fulltime', 'title' => 'Chi tiết bảng lương '.$record->salary_role_label, 'type' => $record->salary_role_label.' (Full-time)'],
         };
     }
@@ -1342,7 +1343,7 @@ class PayrollController extends Controller
         $salesUsers = User::withTrashed()->with('branch')
             ->where(fn ($q) => $q->whereIn('id', $summary->keys())
                 ->orWhere(fn ($active) => $active->whereNull('deleted_at')->where('is_active', true)
-                    ->whereHas('roles', fn ($r) => $r->whereIn('name', ['sales_consultant', 'academic_staff']))))
+                    ->whereHas('roles', fn ($r) => $r->whereIn('name', [Roles::SALES_CONSULTANT, Roles::ACADEMIC_STAFF]))))
             ->get()
             ->when($branchId, fn ($users) => $users->where('branch_id', $branchId));
         $emptyRow = ['collected' => 0.0, 'base' => 0.0, 'amount' => 0.0, 'students' => 0, 'closed' => 0, ...$service->milestoneFor(0, $end)];
@@ -1646,7 +1647,7 @@ class PayrollController extends Controller
     private function teachingStaff()
     {
         return User::where('is_active', true)
-            ->whereHas('roles', fn ($query) => $query->whereIn('name', ['teacher', 'teacher_fulltime', 'teacher_parttime', 'assistant', 'academic_lead', 'manager']))
+            ->whereHas('roles', fn ($query) => $query->whereIn('name', [...Roles::TEACHING, Roles::ACADEMIC_LEAD, Roles::MANAGER]))
             ->orderBy('name')->get();
     }
 

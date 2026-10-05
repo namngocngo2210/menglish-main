@@ -472,7 +472,7 @@ final class SidebarMenu
                     // Quyền theo middleware can:room.view (Học vụ / Quản lý cơ sở / Học thuật / Admin).
                     ['label' => 'Phòng học', 'route' => 'rooms.index', 'active' => ['rooms.*']],
                     ...self::anchored(self::HR, [
-                        ['label' => 'Tiêu chí KPI học vụ', 'route' => 'kpi.criteria'],
+                        ['label' => 'Tiêu chí KPI', 'route' => 'kpi.criteria'],
                     ]),
                 ],
             ],

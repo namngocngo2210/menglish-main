@@ -33,6 +33,7 @@ use App\Support\CenterInfo;
 use App\Support\DisplayCode;
 use App\Support\Money;
 use App\Support\Rbac;
+use App\Support\Roles;
 use App\Support\TransferMemo;
 use App\Support\TuitionBranchScope;
 use App\Support\TuitionPaymentHistory;
@@ -1276,8 +1277,8 @@ class TuitionController extends Controller
     /**
      * Phiếu thu mới / gửi lại chờ duyệt:
      * - Thông báo chung (user_id = NULL) cho Admin / Quản lý như trước.
-     * - Thông báo cá nhân cho từng Kế toán của chi nhánh ghi nhận học phí (kế toán không gán chi nhánh = kế toán
-     *   toàn hệ thống cũng nhận). Người lập phiếu không tự nhận thông báo duyệt phiếu của mình.
+     * - Thông báo cá nhân cho từng người có quyền duyệt phiếu thu trong phạm vi chi nhánh ghi nhận học phí. Người lập phiếu
+     *   không tự nhận thông báo duyệt phiếu của mình.
      */
     private function notifyReceiptPending(TuitionReceipt $receipt, ?Student $student): void
     {
@@ -1302,20 +1303,20 @@ class TuitionController extends Controller
                 'is_read' => false,
             ]);
 
-            // Kế toán có phạm vi học phí chứa chi nhánh của phiếu: kế toán chi nhánh đó + người được cấp
-            // phạm vi Học phí "Toàn hệ thống" (tuition.scope_all — kế toán tổng) — BA 26/09/2026, không còn suy ra từ "không gán chi nhánh".
+            // Người có quyền duyệt phiếu thu (Quản lý cơ sở, hoặc người được Admin cấp quyền) và phạm vi học phí chứa chi nhánh
+            // của phiếu (kể cả phạm vi Học phí "Toàn hệ thống", tuition.scope_all) — BA 26/09/2026. Admin đã nhận thông báo chung.
             $branchId = $this->receiptBranchId($receipt);
-            $accountants = User::query()
+            $approvers = Rbac::scopeUsersWithPermission(User::query(), 'tuition.approve')
                 ->where('is_active', true)
                 ->whereKeyNot((int) $receipt->creator_id)
-                ->whereHas('roles', fn ($q) => $q->where('name', 'accountant'))
+                ->whereDoesntHave('roles', fn ($q) => $q->where('name', Roles::ADMIN))
                 ->get()
-                ->filter(fn (User $accountant) => TuitionBranchScope::coversBranch($accountant, $branchId ? (int) $branchId : null))
+                ->filter(fn (User $approver) => TuitionBranchScope::coversBranch($approver, $branchId ? (int) $branchId : null))
                 ->pluck('id');
 
-            foreach ($accountants as $accountantId) {
+            foreach ($approvers as $approverId) {
                 AdminNotification::create([
-                    'user_id' => $accountantId,
+                    'user_id' => $approverId,
                     'type' => 'receipt_pending',
                     'title' => 'Phiếu thu mới chờ bạn phê duyệt',
                     'message' => $message,
@@ -3212,7 +3213,7 @@ class TuitionController extends Controller
 
     /**
      * Mockup "Chính sách đồng bộ số hóa đơn": mọi thay đổi dải số được thông báo tới chi nhánh liên quan —
-     * Kế toán + Quản lý cơ sở của chi nhánh (dải mặc định: mọi Kế toán), không gửi cho chính người thao tác.
+     * Quản lý cơ sở của chi nhánh (dải mặc định: Admin), không gửi cho chính người thao tác.
      */
     private function notifyInvoiceRangeChange(InvoiceConfiguration $range, string $message): void
     {
@@ -3220,9 +3221,9 @@ class TuitionController extends Controller
             ->where('is_active', true)
             ->whereKeyNot(Auth::id())
             ->when($range->branch_id,
-                fn ($q) => $q->whereHas('roles', fn ($r) => $r->whereIn('name', ['accountant', 'manager']))
+                fn ($q) => $q->whereHas('roles', fn ($r) => $r->where('name', Roles::MANAGER))
                     ->where(fn ($q) => $q->where('branch_id', $range->branch_id)->orWhereHas('branches', fn ($b) => $b->where('branches.id', $range->branch_id))),
-                fn ($q) => $q->whereHas('roles', fn ($r) => $r->where('name', 'accountant')))
+                fn ($q) => $q->whereHas('roles', fn ($r) => $r->where('name', Roles::ADMIN)))
             ->pluck('id');
 
         foreach ($recipients as $userId) {

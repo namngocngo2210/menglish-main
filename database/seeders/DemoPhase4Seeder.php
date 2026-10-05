@@ -592,8 +592,8 @@ class DemoPhase4Seeder extends Seeder
 
         // Tài khoản mới → bắt đổi mật khẩu ở lần đăng nhập đầu.
         $this->asUser($admin, UserController::class, 'store', [
-            'name' => 'Kế toán Thử Việc', 'email' => 'ketoan.moi@menglish.edu.vn', 'phone' => '0911000444',
-            'branch_id' => $this->branches['BD'], 'role' => 'accountant', 'password' => (string) config('access.seed_password', 'Password123!'),
+            'name' => 'Quản lý Thử Việc', 'email' => 'ketoan.moi@menglish.edu.vn', 'phone' => '0911000444',
+            'branch_id' => $this->branches['BD'], 'role' => 'manager', 'password' => (string) config('access.seed_password', 'Password123!'),
             'contract_type' => 'Thử việc', 'contract_start_date' => $this->realNow->toDateString(),
             'contract_end_date' => $this->realNow->copy()->addMonths(2)->toDateString(),
         ]);

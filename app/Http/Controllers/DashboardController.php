@@ -24,6 +24,7 @@ use App\Support\DataScope;
 use App\Support\Money;
 use App\Support\Navigation\SidebarMenu;
 use App\Support\ReportPeriod;
+use App\Support\Roles;
 use App\Support\StaffType;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
@@ -96,7 +97,7 @@ class DashboardController extends Controller
      */
     private function teaching(User $user, ?string $month, Closure $canOpen): ?array
     {
-        $isTeaching = $user->hasAnyRole([...StaffType::TEACHER_ROLES, 'assistant']);
+        $isTeaching = $user->hasAnyRole(Roles::TEACHING);
         $watchesTeachers = $user->can('kpi.view') || $user->can('dashboard.operations') || $user->can('dashboard.academic');
         if (! $isTeaching && ! $watchesTeachers) {
             return null;

@@ -11,6 +11,7 @@ use App\Models\PayrollRecord;
 use App\Models\Student;
 use App\Models\TuitionReceipt;
 use App\Models\User;
+use App\Support\Roles;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 
@@ -43,29 +44,29 @@ class PayrollFormulaService
         $has = fn (string $role) => $roles->contains($role);
         $fallbackDepartment = in_array($user->department, self::DEPARTMENTS, true) ? $user->department : 'operations';
 
-        if ($has('academic_lead')) {
-            return ['employee_type' => PayrollRecord::TYPE_FULLTIME, 'salary_role' => 'academic_lead', 'department' => 'academic'];
+        if ($has(Roles::ACADEMIC_LEAD)) {
+            return ['employee_type' => PayrollRecord::TYPE_FULLTIME, 'salary_role' => Roles::ACADEMIC_LEAD, 'department' => 'academic'];
         }
-        if ($has('academic_staff')) {
-            return ['employee_type' => PayrollRecord::TYPE_FULLTIME, 'salary_role' => 'academic_staff', 'department' => 'operations'];
+        if ($has(Roles::ACADEMIC_STAFF)) {
+            return ['employee_type' => PayrollRecord::TYPE_FULLTIME, 'salary_role' => Roles::ACADEMIC_STAFF, 'department' => 'operations'];
         }
-        if ($has('teacher_parttime')) {
-            return ['employee_type' => PayrollRecord::TYPE_PARTTIME, 'salary_role' => 'teacher_parttime', 'department' => 'teacher'];
+        if ($has(Roles::TEACHER_PARTTIME)) {
+            return ['employee_type' => PayrollRecord::TYPE_PARTTIME, 'salary_role' => Roles::TEACHER_PARTTIME, 'department' => 'teacher'];
         }
-        if ($has('teacher_fulltime')) {
-            return ['employee_type' => PayrollRecord::TYPE_FULLTIME, 'salary_role' => 'teacher_fulltime', 'department' => 'fulltime'];
+        if ($has(Roles::TEACHER_FULLTIME)) {
+            return ['employee_type' => PayrollRecord::TYPE_FULLTIME, 'salary_role' => Roles::TEACHER_FULLTIME, 'department' => 'fulltime'];
         }
         // Nhân sự chưa gán vai trò (dữ liệu cũ) xét như giáo viên: theo hợp đồng / lương cơ bản.
-        if ($has('teacher') || $has('assistant') || $roles->isEmpty()) {
+        if ($has(Roles::ASSISTANT) || $roles->isEmpty()) {
             $contract = mb_strtolower(trim((string) $user->contract_type));
             $partTime = in_array($contract, self::PARTTIME_CONTRACTS, true)
                 || (! in_array($contract, self::FULLTIME_CONTRACTS, true) && (float) $user->base_salary <= 0);
 
             return $partTime
-                ? ['employee_type' => PayrollRecord::TYPE_PARTTIME, 'salary_role' => 'teacher_parttime', 'department' => 'teacher']
-                : ['employee_type' => PayrollRecord::TYPE_FULLTIME, 'salary_role' => 'teacher_fulltime', 'department' => 'fulltime'];
+                ? ['employee_type' => PayrollRecord::TYPE_PARTTIME, 'salary_role' => Roles::TEACHER_PARTTIME, 'department' => 'teacher']
+                : ['employee_type' => PayrollRecord::TYPE_FULLTIME, 'salary_role' => Roles::TEACHER_FULLTIME, 'department' => 'fulltime'];
         }
-        if ($has('sales_consultant')) {
+        if ($has(Roles::SALES_CONSULTANT)) {
             return ['employee_type' => PayrollRecord::TYPE_FULLTIME, 'salary_role' => 'sales', 'department' => $fallbackDepartment];
         }
 

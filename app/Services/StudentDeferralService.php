@@ -8,6 +8,7 @@ use App\Models\StudentTuition;
 use App\Models\TuitionRefundRequest;
 use App\Models\User;
 use App\Support\Money;
+use App\Support\Roles;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -188,9 +189,9 @@ class StudentDeferralService
 
         $inBranch = fn (User $user) => $branchId && in_array((int) $branchId, Student::branchIdsFor($user), true);
 
-        $recipients = User::role('academic_staff')->with('branches:id')->where($active)->get()->filter($inBranch);
+        $recipients = User::role(Roles::ACADEMIC_STAFF)->with('branches:id')->where($active)->get()->filter($inBranch);
         if ($recipients->isEmpty()) {
-            $recipients = User::role('manager')->with('branches:id')->where($active)->get()->filter($inBranch);
+            $recipients = User::role(Roles::MANAGER)->with('branches:id')->where($active)->get()->filter($inBranch);
         }
         if ($recipients->isEmpty()) {
             $recipients = User::role(\App\Support\Rbac::SUPER_ADMIN)->where($active)->get();

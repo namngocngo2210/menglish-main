@@ -20,8 +20,14 @@ Tệp chính:
 
 ## 1. Nguyên tắc
 
-1. **Mọi thao tác → một permission**, kiểm tra bằng `can()` / `@can` / middleware `can:` / `Gate`. Code nghiệp vụ
-   **không** kiểm tra tên vai trò (`hasRole`, `hasAnyRole`, `@role`… bị chặn bởi `tests/Feature/RbacNoHardcodedRolesTest.php`).
+0. **Bộ 9 vai trò cố định** (`App\Support\Roles`): Admin, Quản lý cơ sở, Học thuật, Học vụ, Sales, GV Full-time, GV Part-time,
+   Trợ giảng, Học viên. Logic nghiệp vụ theo chức danh (loại lương, KPI, kỳ báo cáo, người nhận thông báo…) dùng hằng
+   `Roles::ADMIN`, `Roles::MANAGER`, `Roles::ACADEMIC_LEAD`… và nhóm `Roles::TEACHERS` / `TEACHING` / `ACADEMIC` / `KPI_STAFF`,
+   **không gõ tên vai trò bằng chuỗi** (test chốt chặn kiểm tra). "Kế toán & Thu ngân" và "Giáo viên giảng dạy" đã bỏ;
+   việc tài chính do Admin / Quản lý cơ sở làm (Admin vẫn cấp / thu hồi quyền theo vai trò hoặc theo người như dưới đây).
+1. **Mọi thao tác "được làm gì / thấy gì" → một permission**, kiểm tra bằng `can()` / `@can` / middleware `can:` / `Gate`.
+   Kiểm tra vai trò (`hasRole`, `hasAnyRole`…) chỉ được truyền hằng `Roles::*`; `@role`… bị chặn bởi
+   `tests/Feature/RbacNoHardcodedRolesTest.php`.
 2. **Ngoại lệ được phép** (liệt kê cố định trong test chốt chặn):
    - **Super Admin** (vai trò `admin`, hằng `Rbac::SUPER_ADMIN`): luôn có mọi quyền thao tác — `Gate::before`
      (`AppServiceProvider`). Định nghĩa duy nhất: `User::isSuperAdmin()`; nơi được gọi `isSuperAdmin()` bị giới hạn số lần
@@ -48,7 +54,7 @@ Tệp chính:
 | Đối tượng | `portal.student`, `portal.teacher`, `portal.assistant`, `portal.staff`, `class.teach`, `class.assist`, `lead.be_assigned`, `entrance_test.examine` | Người dùng **là ai** (cổng nào, có được xếp dạy lớp / nhận phụ trách khách / làm người chấm test). Super Admin **không** tự có (nếu không Admin lọt vào cổng học viên, danh sách giáo viên…). |
 | Động | `user.assign_role.<vai trò>` | Được tạo tài khoản / gán vai trò đó. Tạo / đổi mã / xóa cùng vai trò (`App\Support\Rbac`). Không có `user.assign_role.admin`: chỉ Super Admin gán Super Admin. |
 
-**Quy mô** (cài mới, 11 vai trò mặc định): 42 module · 144 quyền thao tác · 8 quyền đối tượng · 39 quyền phạm vi
+**Quy mô** (cài mới, 9 vai trò cố định): 42 module · 144 quyền thao tác · 8 quyền đối tượng · 39 quyền phạm vi
 (14 module có phạm vi) · 10 quyền gán vai trò = **201 permission**.
 
 | Nhóm hiển thị | Module (mã) |
@@ -128,11 +134,10 @@ Quy tắc chung:
 |---|---|---|
 | Super Admin `admin` | Mọi quyền (bất biến) + đối tượng `lead.be_assigned`, `entrance_test.examine`, `portal.staff` | Toàn hệ thống mọi module |
 | Quản lý cơ sở `manager` | Nhân sự (xem / khóa / reset MK / gán mọi vai trò trừ Admin); CRM mọi thao tác **trừ lùi bước**; học viên, lớp, điểm danh, giáo trình (không duyệt đề xuất); học phí (tạo / duyệt / từ chối), yêu cầu hủy HĐ, hoàn phí (khất nợ / bảo lưu, duyệt chuyển nhượng, từ chối — **không** duyệt hoàn tiền); lương **chỉ xem**; KPI; chấm công tay; biên bản lỗi vận hành; việc, ticket, thông báo, báo cáo | Chi nhánh: CRM, học viên, lớp, học phí, thu chi, chấm công, việc, nhân sự, dashboard · Toàn hệ thống: Big Test, lương, KPI, ticket, nhật ký |
-| Kế toán `accountant` | Học phí (tạo / duyệt / từ chối), yêu cầu hủy HĐ, hoàn phí như Quản lý, tài khoản ngân hàng, dải số chi nhánh, cấu hình nhắc nợ; lương (tạo / sửa / tính — **không** duyệt); báo cáo, thu chi | Chi nhánh: học viên, học phí, thu chi, chấm công · Toàn hệ thống: lương · Của tôi: việc, ticket. **Kế toán tổng** = Admin cấp "Toàn hệ thống" cho Học phí / Thu chi (+ Chấm công) theo người |
 | Học vụ `academic_staff` | **BA 26/09: toàn quyền CRM / test đầu vào / đề test trừ xóa**, chuyển bước tiến (không lùi); học viên, lớp; giáo trình (không duyệt); KPI xem / xác nhận; biên bản lỗi vận hành; học phí (tạo phiếu, liên hệ, báo quá hạn); việc; gán TA / GV (3 loại) / học viên | Chi nhánh: CRM, học viên, học phí · Toàn hệ thống: lớp, Big Test, chấm công, KPI, việc · Của tôi: nhân sự (tài khoản mình tạo), ticket |
 | Học thuật `academic_lead` | CRM xem; lớp, giáo trình **gồm duyệt đề xuất**, **Big Test gồm duyệt**; test / đề test; KPI; biên bản lỗi chuyên môn; dashboard học thuật; gán GV (3 loại) | Chi nhánh: CRM (xem), học viên · Toàn hệ thống: lớp, Big Test, KPI, việc · Của tôi: nhân sự, ticket |
 | Sale `sales_consultant` | CRM xem / thêm / sửa / chốt / thất bại, gửi test, báo cáo | Của tôi |
-| Giáo viên (3 loại), Trợ giảng | Lớp mình, điểm danh, chấm bài nộp, giáo trình (xem / sửa / đề xuất), lương của mình; `portal.teacher` / `portal.assistant` | Của tôi |
+| Giáo viên (Full-time / Part-time), Trợ giảng | Lớp mình, điểm danh, chấm bài nộp, giáo trình (xem / sửa / đề xuất), lương của mình; `portal.teacher` / `portal.assistant` | Của tôi |
 | Học viên `student` | Cổng học viên, ticket | Của tôi (`portal.student`) |
 
 Quyết định BA / A6 phản ánh trong mặc định: quyền kế toán cấu hình được (duyệt hoàn tiền, duyệt hủy HĐ, dải số mặc định,

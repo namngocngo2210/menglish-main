@@ -6,21 +6,21 @@ use Symfony\Component\Finder\Finder;
 use Tests\TestCase;
 
 /**
- * Chốt chặn RBAC (docs/rbac.md): code nghiệp vụ không kiểm tra cứng tên vai trò. Mọi quyết định "được làm gì / thấy
- * gì" dùng permission (`can()`, `@can`, middleware `can:`), phạm vi dữ liệu (App\Support\DataScope) hoặc quan hệ
- * (người lập phiếu, GV của lớp, người được giao…).
+ * Chốt chặn RBAC (docs/rbac.md): quyết định "được làm gì / thấy gì" dùng permission (`can()`, `@can`, middleware `can:`),
+ * phạm vi dữ liệu (App\Support\DataScope) hoặc quan hệ (người lập phiếu, GV của lớp, người được giao…).
  *
- * Ngoại lệ duy nhất cho hasRole(): User::isSuperAdmin() (Super Admin luôn toàn quyền — Gate::before). Các chỗ dùng
- * isSuperAdmin() cũng bị giới hạn trong danh sách dưới đây: thêm chỗ mới phải cân nhắc (và cập nhật docs/rbac.md).
+ * Bộ 9 vai trò là CỐ ĐỊNH (App\Support\Roles). Logic nghiệp vụ theo chức danh (loại lương, KPI, kỳ báo cáo, người nhận
+ * thông báo…) được phép kiểm tra vai trò, nhưng CHỈ qua hằng số `Roles::*` — không gõ tên vai trò bằng chuỗi.
+ * Super Admin: User::isSuperAdmin() (Gate::before). Các chỗ dùng isSuperAdmin() bị giới hạn trong danh sách dưới đây.
  */
 class RbacNoHardcodedRolesTest extends TestCase
 {
-    /** Mẫu kiểm tra vai trò bị cấm trong app/ và resources/views. */
+    /**
+     * Mẫu kiểm tra vai trò bị cấm trong app/ và resources/views: gọi hasRole()… với chuỗi / biến tự do (chỉ nhận hằng
+     * Roles::* hoặc Rbac::SUPER_ADMIN), directive Blade @role…, managedBranchIds().
+     */
     private const FORBIDDEN = [
-        '/->hasRole\s*\(/',
-        '/->hasAnyRole\s*\(/',
-        '/->hasAllRoles\s*\(/',
-        '/->hasExactRoles\s*\(/',
+        '/->(hasRole|hasAnyRole|hasAllRoles|hasExactRoles)\s*\(\s*(?!\[?\s*(\.\.\.\s*)?\\\\?(App\\\\Support\\\\)?(Roles|Rbac)::)/',
         '/@(role|hasrole|hasanyrole|hasallroles|unlessrole)\b/i',
         '/->managedBranchIds\s*\(/',
     ];
@@ -63,7 +63,31 @@ class RbacNoHardcodedRolesTest extends TestCase
             }
         }
 
-        $this->assertSame([], $violations, "Kiểm tra cứng vai trò — dùng permission / DataScope / quan hệ thay thế (docs/rbac.md):\n".implode("\n", $violations));
+        $this->assertSame([], $violations, "Kiểm tra cứng vai trò — dùng permission / DataScope / quan hệ, hoặc hằng Roles::* (docs/rbac.md):\n".implode("\n", $violations));
+    }
+
+    public function test_role_names_are_not_typed_as_string_literals(): void
+    {
+        $names = implode('|', array_map('preg_quote', \App\Support\Roles::ALL));
+        // Hàm lấy / gán / kiểm tra vai trò với tên vai trò gõ tay (trừ định nghĩa hằng ở Roles.php và Rbac::SUPER_ADMIN).
+        $pattern = "/(hasRole|hasAnyRole|User::role|->role|withRoles|assignRole|removeRole|syncRoles|findOrCreate|roles->contains|getRoleNames\(\)->contains)\s*\(\s*\[?\s*'(?:{$names})'/";
+        $violations = [];
+        foreach ($this->files() as $path => $contents) {
+            if (preg_match_all($pattern, $contents, $matches, PREG_OFFSET_CAPTURE)) {
+                foreach ($matches[0] as [$match, $offset]) {
+                    $violations[] = sprintf('%s:%d  %s', $path, substr_count(substr($contents, 0, $offset), "\n") + 1, $match);
+                }
+            }
+        }
+
+        $this->assertSame([], $violations, "Tên vai trò gõ bằng chuỗi — dùng hằng App\\Support\\Roles::*:\n".implode("\n", $violations));
+    }
+
+    public function test_fixed_roles_match_the_default_role_config(): void
+    {
+        $this->assertEqualsCanonicalizing(\App\Support\Roles::ALL, array_keys(config('access.roles')), 'config/access.php phải có đúng bộ vai trò cố định (App\\Support\\Roles::ALL).');
+        $this->assertEqualsCanonicalizing(\App\Support\Roles::ALL, array_keys(\App\Support\Roles::LABELS));
+        $this->assertEqualsCanonicalizing(\App\Support\Roles::ALL, array_keys(\App\Support\Roles::SHORT_LABELS));
     }
 
     public function test_super_admin_exception_is_confined_to_the_allowlist(): void

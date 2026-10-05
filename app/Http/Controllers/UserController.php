@@ -14,6 +14,7 @@ use App\Support\Audit;
 use App\Support\DataScope;
 use App\Support\Money;
 use App\Support\Rbac;
+use App\Support\Roles;
 use App\Support\Ui;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -566,7 +567,7 @@ class UserController extends Controller
      * thị; CCCD, lương, đơn giá, địa chỉ, liên hệ khẩn chỉ gửi cho người được xem.
      */
     /** Vai trò thuộc "Khối học thuật" (thẻ thống kê Tài khoản & vai trò). */
-    public const ACADEMIC_ROLES = ['teacher', 'teacher_fulltime', 'teacher_parttime', 'assistant', 'academic_staff', 'academic_lead'];
+    public const ACADEMIC_ROLES = Roles::ACADEMIC;
 
     /**
      * @param  array<int, array{code: string, name: string, role: string}>  $teaching  lớp đang phụ trách

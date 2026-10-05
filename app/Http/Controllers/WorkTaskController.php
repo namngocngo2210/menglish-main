@@ -29,6 +29,7 @@ use App\Services\SessionScheduleService;
 use App\Services\SupportListService;
 use App\Support\DataScope;
 use App\Support\Rbac;
+use App\Support\Roles;
 use App\Support\Ui;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
@@ -1991,7 +1992,7 @@ class WorkTaskController extends Controller
         // Theo flow BA, buổi bổ trợ do CM/Học vụ hoặc TA đảm nhận (không nhất thiết GV chính),
         // nên picker bao gồm cả trợ giảng và học vụ bên cạnh các vai trò giáo viên.
         $teachers = User::where('is_active', true)
-            ->whereHas('roles', fn ($query) => $query->whereIn('name', ['teacher', 'teacher_fulltime', 'teacher_parttime', 'academic_lead', 'academic_staff', 'assistant']))
+            ->whereHas('roles', fn ($query) => $query->whereIn('name', Roles::ACADEMIC))
             ->orderBy('name')
             ->get();
 

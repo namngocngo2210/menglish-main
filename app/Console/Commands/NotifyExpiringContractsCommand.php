@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\AdminNotification;
 use App\Models\User;
+use App\Support\Roles;
 use Illuminate\Console\Command;
 
 /**
@@ -47,7 +48,7 @@ class NotifyExpiringContractsCommand extends Command
         }
 
         $admins = User::role(\App\Support\Rbac::SUPER_ADMIN)->where('is_active', true)->whereNull('locked_at')->get();
-        $managers = User::role('manager')->with('branches:id')->where('is_active', true)->whereNull('locked_at')->get();
+        $managers = User::role(Roles::MANAGER)->with('branches:id')->where('is_active', true)->whereNull('locked_at')->get();
 
         $created = 0;
         foreach ($staff as $member) {

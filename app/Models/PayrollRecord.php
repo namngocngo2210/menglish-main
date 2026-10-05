@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Support\Money;
+use App\Support\Roles;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -34,10 +35,10 @@ class PayrollRecord extends Model
     ];
 
     public const SALARY_ROLE_LABELS = [
-        'teacher_parttime' => 'GV Part-time',
-        'teacher_fulltime' => 'GV Full-time',
-        'academic_staff' => 'Học vụ',
-        'academic_lead' => 'Học thuật',
+        Roles::TEACHER_PARTTIME => 'GV Part-time',
+        Roles::TEACHER_FULLTIME => 'GV Full-time',
+        Roles::ACADEMIC_STAFF => 'Học vụ',
+        Roles::ACADEMIC_LEAD => 'Học thuật',
         'sales' => 'Tư vấn tuyển sinh',
         'staff' => 'Nhân sự khác',
     ];

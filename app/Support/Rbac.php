@@ -19,7 +19,7 @@ use Spatie\Permission\PermissionRegistrar;
 final class Rbac
 {
     /** Vai trò Super Admin (bất biến, luôn toàn quyền). */
-    public const SUPER_ADMIN = 'admin';
+    public const SUPER_ADMIN = Roles::ADMIN;
 
     public const ASSIGN_ROLE_PREFIX = 'user.assign_role.';
 
