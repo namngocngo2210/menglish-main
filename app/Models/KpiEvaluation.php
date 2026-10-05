@@ -23,10 +23,32 @@ class KpiEvaluation extends Model
         'improvements',
         'next_actions',
         'status',
+        'reject_reason',
+        'decided_at',
+    ];
+
+    /** Trạng thái phiếu: draft = chờ duyệt (phiếu tự tạo đầu tháng), confirmed = đã duyệt (vào bảng lương), rejected = không duyệt. */
+    public const STATUS_PENDING = 'draft';
+
+    public const STATUS_APPROVED = 'confirmed';
+
+    public const STATUS_REJECTED = 'rejected';
+
+    public const STATUS_LABELS = [
+        self::STATUS_PENDING => 'Chờ duyệt',
+        self::STATUS_APPROVED => 'Đã duyệt',
+        self::STATUS_REJECTED => 'Không duyệt',
+    ];
+
+    public const STATUS_COLORS = [
+        self::STATUS_PENDING => 'warning',
+        self::STATUS_APPROVED => 'success',
+        self::STATUS_REJECTED => 'error',
     ];
 
     protected $casts = [
         'total_score' => 'decimal:2',
+        'decided_at' => 'datetime',
     ];
 
     public function user(): BelongsTo

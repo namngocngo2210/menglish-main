@@ -16,6 +16,7 @@ const props = defineProps({
     role: { type: String, required: true },
     roleOptions: { type: Array, default: () => [] },
     unitOptions: { type: Array, default: () => [] },
+    sourceOptions: { type: Array, default: () => [] },
     groups: { type: Array, default: () => [] },
     fund: { type: Number, default: null },
     totalWeight: { type: Number, default: 0 },
@@ -175,6 +176,7 @@ const formKey = computed(() => (modal.item ? `edit-${modal.item.id}` : 'new'));
                     <UiInput type="number" name="max_full" label="Đạt 100% khi không quá" required min="0" max="9999" :value="modal.item?.max_full ?? ''" hint="Số lần tối đa trong tháng" />
                     <UiInput type="number" name="max_half" label="Đạt 50% khi không quá" required min="0" max="9999" :value="modal.item?.max_half ?? ''" hint="Vượt số này thì 0%" />
                 </div>
+                <UiSelect name="auto_source" label="Số liệu" :options="sourceOptions" :value="modal.item?.auto_source ?? ''" :searchable="false" hint="Tự động: hệ thống tự đếm, người chấm không điền. Điền tay: người chấm điền số trên phiếu KPI tháng." />
                 <UiTextarea name="description" label="Cách đếm" :rows="3" :value="modal.item?.description ?? ''" placeholder="Đếm cái gì, lấy số liệu ở đâu" />
                 <template v-if="modal.item">
                     <input type="hidden" name="is_active" value="0" />

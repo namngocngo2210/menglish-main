@@ -1,257 +1,199 @@
 <script setup>
 /**
- * Phiếu KPI tháng của một nhân sự (roundcuoi 02/04_kpi_thang + 03_tong_hop_kpi_danh_gia_thang): bảng 6 nhóm / 15 mục
- * (Quỹ, Ngưỡng 100 / 50, Thực tế, % Đạt, Tiền KPI — tính ngay khi nhập, "Lỗi nghiêm trọng" đưa % đạt về 0),
- * tổng hợp theo nhóm, xếp loại tháng, cảnh báo hiệu suất, nhận xét của quản lý, "Lưu nháp" / "Chốt KPI tháng".
- * Đổi nhân sự / kỳ đánh giá → mở phiếu tương ứng. Không tự chấm KPI của chính mình.
+ * Phiếu KPI tháng của một nhân sự (mở trong modal từ Phiếu KPI tháng): tiêu chí theo vai trò, cột Số liệu là số hệ thống
+ * ghi nhận hoặc ô trống để người chấm điền; mức đạt 100 / 50 / 0% và tiền thưởng tính ngay khi điền.
+ * Duyệt (cần đủ số liệu, từ ngày cuối tháng) → vào bảng lương; Không duyệt → bắt buộc ghi lý do. Không tự chấm phiếu của mình.
  */
-import { computed, reactive } from 'vue';
-import { Link, router, usePage } from '@inertiajs/vue3';
+import { computed, nextTick, reactive, ref } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 import { route } from '@/lib/route';
 import { money } from '../Payroll/format';
 
-defineOptions({ layout: { title: 'KPI tháng' } });
+defineOptions({ layout: { title: 'Phiếu KPI tháng' } });
 
 const props = defineProps({
     staff: { type: Object, required: true },
     month: { type: Number, required: true },
     year: { type: Number, required: true },
-    periodValue: { type: String, required: true },
-    periodOptions: { type: Array, default: () => [] },
-    staffOptions: { type: Array, default: () => [] },
+    periodLabel: { type: String, required: true },
+    status: { type: String, required: true },
+    statusLabel: { type: String, required: true },
+    statusColor: { type: String, default: 'neutral' },
+    rejectReason: { type: String, default: null },
+    decidedBy: { type: String, default: null },
+    decidedAt: { type: String, default: null },
+    fund: { type: Number, default: null },
+    weightTotal: { type: Number, default: 0 },
     isSelf: { type: Boolean, default: false },
-    canConfirm: { type: Boolean, default: false },
-    isAcademicStaff: { type: Boolean, default: false },
-    kpiCloseOn: { type: String, default: '' },
+    locked: { type: Boolean, default: false },
     canClose: { type: Boolean, default: true },
-    fund: { type: Number, default: 0 },
-    evaluation: { type: Object, default: null },
-    total: { type: Number, default: 0 },
-    totalLabel: { type: String, default: '0' },
-    grade: { type: Object, required: true },
-    criteriaGroups: { type: Array, default: () => [] },
-    groupSummary: { type: Array, default: () => [] },
-    warnings: { type: Object, required: true },
+    closeOn: { type: String, default: '' },
+    canDecide: { type: Boolean, default: false },
+    groups: { type: Array, default: () => [] },
+    backUrl: { type: String, default: null },
+    asModal: { type: Boolean, default: false },
 });
 
 const page = usePage();
-const firstError = computed(() => Object.values(page.props.errors ?? {})[0] ?? null);
+const serverError = computed(() => Object.values(page.props.errors ?? {})[0] ?? null);
+const hasFund = computed(() => props.fund !== null);
+const allItems = computed(() => props.groups.flatMap((g) => g.items));
 
-const items = reactive(
-    Object.fromEntries(
-        props.criteriaGroups.flatMap((g) => g.items).map((c) => [c.id, { fund: c.fund, score: c.score, critical: c.critical, actual: c.actual ?? '', maxFull: c.max_full, maxHalf: c.max_half }]),
-    ),
-);
-// Tiêu chí đếm lỗi (có ngưỡng số): nhập số lần thực tế → mức 100 / 50 / 0% tự ra, không nhập % tay.
-const isCount = (it) => it.maxFull !== null && it.maxFull !== undefined && it.maxHalf !== null && it.maxHalf !== undefined;
-const countValue = (it) => (it.actual !== '' && it.actual !== null && /^\d+(\.\d+)?$/.test(String(it.actual).trim()) ? Number(it.actual) : null);
-const levelOf = (it) => {
-    const n = countValue(it);
+// Số điền tay theo tiêu chí (chuỗi trong ô); tiêu chí tự động lấy số hệ thống.
+const values = reactive(Object.fromEntries(allItems.value.filter((c) => !c.auto).map((c) => [c.id, c.value === null ? '' : String(c.value)])));
+const valueOf = (c) => {
+    if (c.auto) return c.value;
+    const raw = String(values[c.id] ?? '').trim();
+    return /^\d+$/.test(raw) ? Number(raw) : null;
+};
+const levelOf = (c) => {
+    if (!c.count_based) return c.level;
+    const n = valueOf(c);
     if (n === null) return null;
-    return n <= it.maxFull ? 100 : n <= it.maxHalf ? 50 : 0;
+    return n <= c.max_full ? 100 : n <= c.max_half ? 50 : 0;
 };
-const pct = (it) => {
-    if (it.critical) return 0;
-    if (isCount(it)) {
-        const level = levelOf(it);
-        if (level !== null) return level;
-    }
-    return Math.max(0, Math.min(100, parseFloat(it.score) || 0));
-};
-const scoreInput = (it) => (it.critical ? 0 : isCount(it) && levelOf(it) !== null ? levelOf(it) : it.score);
-const fillZeros = () => {
-    Object.values(items).forEach((it) => {
-        if (isCount(it) && countValue(it) === null) it.actual = '0';
-    });
-};
-const itemMoney = (it) => Math.round((it.fund * pct(it)) / 100);
-const totalMoney = computed(() => Object.values(items).reduce((sum, it) => sum + itemMoney(it), 0));
-const hasCriteria = computed(() => props.criteriaGroups.length > 0);
-const sum = (key) => props.groupSummary.reduce((s, row) => s + Number(row[key] ?? 0), 0);
+const amountOf = (c) => (c.max_amount === null || levelOf(c) === null ? null : Math.round((c.max_amount * levelOf(c)) / 100));
+const missing = computed(() => allItems.value.filter((c) => levelOf(c) === null).length);
+const total = computed(() => (props.weightTotal > 0 ? allItems.value.reduce((s, c) => s + (levelOf(c) ?? 0) * c.weight, 0) / props.weightTotal : 0));
+const totalLabel = computed(() => String(Math.round(total.value * 100) / 100).replace('.', ','));
+const totalMoney = computed(() => (hasFund.value ? Math.round((props.fund * total.value) / 100) : null));
+const levelColor = (l) => (l === 100 ? 'success' : l === 50 ? 'warning' : 'error');
 
-const selectedStaff = String(props.staff.id);
-function navigate(event) {
-    const form = event.target.form;
-    if (!form) return;
-    const staffId = form.querySelector('[name=staff]').value || selectedStaff;
-    const period = form.querySelector('[name=period]').value;
-    router.visit(route('kpi.evaluate', { userId: staffId, period }));
+const openEvidence = reactive({});
+const decision = ref('approve');
+const rejecting = ref(false);
+const localError = ref(null);
+const reasonBox = ref(null);
+const transform = (data) => ({ ...data, action: decision.value });
+
+function onApprove(event) {
+    decision.value = 'approve';
+    rejecting.value = false;
+    localError.value = null;
+    if (missing.value > 0) {
+        event.preventDefault();
+        localError.value = `Còn ${missing.value} tiêu chí chưa có số liệu.`;
+    }
 }
+async function onReject(event) {
+    if (!rejecting.value) {
+        event.preventDefault();
+        rejecting.value = true;
+        await nextTick();
+        reasonBox.value?.querySelector('textarea')?.focus();
+        return;
+    }
+    decision.value = 'reject';
+}
+const notice = computed(() => {
+    if (props.isSelf) return 'Không tự chấm KPI của chính mình.';
+    if (props.locked) return 'Kỳ lương tháng này đã duyệt, phiếu đã khóa.';
+    if (props.canDecide && !props.canClose) return `Duyệt từ ngày cuối tháng ${props.closeOn}. Trước đó có thể điền số liệu và Không duyệt.`;
+    return null;
+});
 </script>
 
 <template>
-    <div>
-        <UiPageHeader :title="`KPI tháng — ${staff.name}`" :description="`${staff.role_label} — Xem và cập nhật hiệu suất công việc hàng tháng.`">
-            <template #breadcrumbs>
-                <Link :href="route('kpi.monthly', { month, year })" class="hover:text-primary">Tổng hợp KPI & Đánh giá tháng</Link>
-                <span aria-hidden="true">/</span><span>{{ staff.name }}</span>
-            </template>
-        </UiPageHeader>
+    <UiModalFrame
+        :title="staff.name"
+        :description="[staff.role_label, staff.branch, periodLabel].filter(Boolean).join(' · ')"
+        :action="canDecide ? route('kpi.evaluate.store', staff.id) : null"
+        method="post"
+        :submit-label="false"
+        cancel="Đóng"
+        :back="backUrl"
+        size="4xl"
+        page-width="max-w-5xl"
+        :form-options="{ transform }"
+    >
+        <input type="hidden" name="month" :value="month" />
+        <input type="hidden" name="year" :value="year" />
 
-        <form method="GET" class="mb-lg flex flex-wrap items-end gap-md rounded-xl border border-surface-container-highest bg-surface-container-lowest p-md shadow-sm" @submit.prevent>
-            <UiSelect name="staff" label="Nhân sự" :options="staffOptions" :value="staff.id" @change="navigate" />
-            <UiSelect name="period" label="Kỳ đánh giá" :options="periodOptions" :value="periodValue" @change="navigate" />
-            <UiBadge v-if="evaluation" :color="evaluation.status === 'confirmed' ? 'success' : 'warning'">
-                {{ evaluation.status === 'confirmed' ? 'Đã chốt KPI tháng' : 'Bản nháp — chưa chốt' }}
-            </UiBadge>
-            <UiBadge v-else color="neutral">Chưa đánh giá</UiBadge>
-        </form>
+        <div class="flex flex-wrap items-center gap-sm">
+            <UiBadge :color="statusColor">{{ statusLabel }}</UiBadge>
+            <span v-if="status === 'confirmed' && decidedBy" class="font-body-small text-body-small text-on-surface-variant">Duyệt bởi {{ decidedBy }}<template v-if="decidedAt"> lúc {{ decidedAt }}</template>. Số tiền đã vào bảng lương kỳ này.</span>
+        </div>
+        <UiAlert v-if="rejectReason" type="error">Không duyệt<template v-if="decidedBy"> ({{ decidedBy }})</template>: {{ rejectReason }}</UiAlert>
+        <UiAlert v-if="notice" type="info">{{ notice }}</UiAlert>
+        <UiAlert v-if="localError || serverError" type="error">{{ localError || serverError }}</UiAlert>
 
-        <UiAlert v-if="firstError" type="error" class="mb-md">{{ firstError }}</UiAlert>
-        <UiAlert v-if="isSelf" type="warning" title="Không tự chấm KPI" class="mb-md">Bạn đang xem phiếu KPI của chính mình — việc chấm điểm do cấp quản lý thực hiện.</UiAlert>
+        <UiEmptyState v-if="!groups.length" icon="tune" title="Vai trò này chưa có tiêu chí KPI" description="Thêm tiêu chí ở Cài đặt → Tiêu chí KPI." />
 
-        <UiEmptyState v-if="!hasCriteria" icon="tune" title="Chưa có chỉ số KPI" description="Vui lòng cấu hình chỉ số KPI (6 nhóm / 15 mục) trước.">
-            <UiButton :href="route('kpi.criteria')" icon="tune">Cấu hình chỉ số</UiButton>
-        </UiEmptyState>
-        <UiForm v-else :action="route('kpi.evaluate.store', staff.id)" method="post" class="space-y-lg">
-            <input type="hidden" name="month" :value="month" />
-            <input type="hidden" name="year" :value="year" />
-
-            <UiAlert type="info">
-                <template v-if="isAcademicStaff">
-                    KPI Học vụ tính lương tự động: <strong>quỹ {{ money(fund) }} đ × điểm KPI tổng</strong> (mục chưa chấm tính 0%). Tiêu chí đếm lỗi: chỉ nhập số lần thực tế trong tháng, hệ thống tự ra mức 100 / 50 / 0%; lỗi nghiêm trọng đã được quản lý xác nhận thì tiêu chí về 0%. Chỉ phiếu <strong>đã chốt</strong> được dùng khi tính lương.
-                </template>
-                <template v-else>Điểm KPI tổng = Σ(% đạt × trọng số) / Σ trọng số các mục đang áp dụng.</template>
-                Bật "Lỗi nghiêm trọng" tại một mục sẽ tự động đưa % đạt của mục đó về 0%.
-            </UiAlert>
-
-            <UiDataTable min-width="1000px">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Mã</th>
-                            <th>Tiêu chí</th>
-                            <th class="text-right">Quỹ (VNĐ)</th>
-                            <th>Ngưỡng 100</th>
-                            <th>Ngưỡng 50</th>
-                            <th>Thực tế</th>
-                            <th class="text-center">% Đạt</th>
-                            <th class="text-right">Tiền KPI</th>
+        <div v-else class="overflow-x-auto rounded-lg border border-outline-variant">
+            <table class="w-full min-w-[720px] border-collapse font-body-small text-body-small">
+                <thead>
+                    <tr class="bg-surface-container-low text-left font-label-caps text-label-caps uppercase text-on-surface-variant">
+                        <th class="px-md py-sm">Tiêu chí</th>
+                        <th class="whitespace-nowrap px-sm py-sm">Đạt 100% khi</th>
+                        <th class="whitespace-nowrap px-sm py-sm">Đạt 50% khi</th>
+                        <th class="px-sm py-sm text-right">Số liệu</th>
+                        <th class="whitespace-nowrap px-sm py-sm">Mức đạt</th>
+                        <th v-if="hasFund" class="px-md py-sm text-right">Thưởng</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template v-for="g in groups" :key="g.name">
+                        <tr class="border-t border-surface-container bg-surface-container-lowest first:border-t-0">
+                            <td :colspan="hasFund ? 6 : 5" class="px-md pb-xs pt-md font-body-semibold text-body-semibold text-on-surface">{{ g.name }}</td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        <template v-for="(group, gi) in criteriaGroups" :key="group.name">
-                            <tr class="bg-surface-container-low">
-                                <td colspan="8" class="font-body-semibold text-body-semibold text-on-surface">{{ gi + 1 }}. {{ group.name }}</td>
-                            </tr>
-                            <tr v-for="cr in group.items" :key="cr.id">
-                                <td class="font-code text-code">{{ cr.code || '—' }}</td>
-                                <td>
-                                    <p class="font-medium text-on-surface">{{ cr.name }}</p>
-                                    <label class="mt-xs inline-flex items-center gap-xs font-caption text-caption text-error">
-                                        <input v-model="items[cr.id].critical" type="checkbox" :name="`critical[${cr.id}]`" value="1" :disabled="!canConfirm" class="rounded border-outline-variant text-error focus:ring-error/30" />
-                                        Lỗi nghiêm trọng
-                                    </label>
-                                    <p v-if="cr.description" class="font-caption text-caption text-on-surface-variant">{{ cr.description }}</p>
-                                </td>
-                                <td class="text-right"><UiMoney :value="cr.fund_exact" suffix="" /></td>
-                                <td class="font-body-small text-body-small">{{ cr.threshold_full }}</td>
-                                <td class="font-body-small text-body-small">{{ cr.threshold_half }}</td>
-                                <td>
-                                    <span v-if="isCount(items[cr.id])" class="inline-flex items-center gap-xs">
-                                        <input v-model="items[cr.id].actual" type="number" min="0" step="1" :name="`actual[${cr.id}]`" placeholder="0" :aria-label="`Số lần thực tế ${cr.code ?? ''}`" :disabled="!canConfirm" class="w-20 rounded-lg border border-outline-variant bg-surface-container-lowest px-sm py-xs text-center font-mono font-body-small text-body-small" />
-                                        <span class="font-caption text-caption text-on-surface-variant">{{ cr.unit }}</span>
-                                    </span>
-                                    <input v-else type="text" :name="`actual[${cr.id}]`" :value="cr.actual" placeholder="VD: 95%" :aria-label="`Thực tế ${cr.code ?? ''}`" :disabled="!canConfirm" class="w-28 rounded-lg border border-outline-variant bg-surface-container-lowest px-sm py-xs font-body-small text-body-small" />
-                                </td>
-                                <td class="text-center">
-                                    <span v-if="isCount(items[cr.id])" class="inline-flex items-center gap-xs">
-                                        <input type="hidden" :name="`score[${cr.id}]`" :value="scoreInput(items[cr.id])" />
-                                        <span :class="['font-mono font-semibold', levelOf(items[cr.id]) === null && !items[cr.id].critical ? 'text-on-surface-variant' : '']" :aria-label="`% đạt ${cr.code ?? ''}`">{{ levelOf(items[cr.id]) === null && !items[cr.id].critical ? '—' : pct(items[cr.id]) + '%' }}</span>
-                                    </span>
-                                    <span v-else class="inline-flex items-center gap-xs">
-                                        <input v-model="items[cr.id].score" type="number" :name="`score[${cr.id}]`" :disabled="items[cr.id].critical || !canConfirm" min="0" max="100" step="1" placeholder="0-100" :aria-label="`% đạt ${cr.code ?? ''}`" class="w-20 rounded-lg border border-outline-variant bg-surface-container-lowest px-sm py-xs text-center font-mono font-semibold" />%
-                                    </span>
-                                </td>
-                                <td class="text-right font-mono font-semibold">{{ money(itemMoney(items[cr.id])) }}</td>
-                            </tr>
-                        </template>
-                        <tr class="bg-primary-fixed/30">
-                            <td colspan="7" class="text-right font-body-semibold text-body-semibold">
-                                <UiButton v-if="canConfirm" type="button" variant="secondary" size="sm" class="mr-md" @click="fillZeros">Không có lỗi: điền 0 vào mục chưa nhập</UiButton>
-                                Tổng tiền KPI dự tính:
+                        <tr v-for="c in g.items" :key="c.id" class="border-t border-surface-container align-top" :data-criterion="c.id">
+                            <td class="px-md py-sm">
+                                <p class="font-medium text-on-surface">{{ c.name }}</p>
+                                <p class="font-caption text-caption text-on-surface-variant">{{ c.weight_label }}%<template v-if="c.max_amount !== null"> · tối đa {{ money(c.max_amount) }} đ</template></p>
+                                <template v-if="c.auto && c.evidence.length">
+                                    <button type="button" class="mt-xs font-caption text-caption font-medium text-primary hover:underline" @click="openEvidence[c.id] = !openEvidence[c.id]">
+                                        {{ openEvidence[c.id] ? 'Ẩn' : 'Xem' }} {{ c.evidence.length }} bản ghi
+                                    </button>
+                                    <ul v-if="openEvidence[c.id]" class="mt-xs space-y-0.5 rounded-lg bg-surface-container-low px-sm py-xs font-caption text-caption text-on-surface-variant">
+                                        <li v-for="(e, i) in c.evidence" :key="i" :class="e.counted ? '' : 'line-through opacity-70'">{{ e.date }} · {{ e.text }}<template v-if="e.note"> ({{ e.note }})</template></li>
+                                    </ul>
+                                </template>
                             </td>
-                            <td class="text-right font-mono font-bold text-primary"><span>{{ money(totalMoney) }}</span> đ</td>
+                            <td class="whitespace-nowrap px-sm py-sm">{{ c.threshold_full }}</td>
+                            <td class="whitespace-nowrap px-sm py-sm">{{ c.threshold_half }}</td>
+                            <td class="px-sm py-sm text-right">
+                                <span v-if="c.auto || !c.count_based" class="inline-block w-20 pr-sm font-semibold tabular-nums text-on-surface">{{ c.value ?? '—' }}</span>
+                                <input
+                                    v-else
+                                    v-model="values[c.id]"
+                                    type="number"
+                                    min="0"
+                                    max="9999"
+                                    step="1"
+                                    inputmode="numeric"
+                                    :name="`actual[${c.id}]`"
+                                    :disabled="!canDecide"
+                                    :aria-label="`Số liệu: ${c.name}`"
+                                    :class="[
+                                        'w-20 rounded-lg border bg-surface-container-lowest px-sm py-xs text-right tabular-nums [appearance:textfield] focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/50 disabled:bg-surface-container-low [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
+                                        valueOf(c) === null && canDecide ? 'border-dashed border-primary-container bg-primary-fixed/30' : 'border-outline-variant',
+                                    ]"
+                                />
+                            </td>
+                            <td class="px-sm py-sm">
+                                <UiBadge v-if="levelOf(c) !== null" :color="levelColor(levelOf(c))" :dot="false">{{ levelOf(c) }}%</UiBadge>
+                                <span v-else class="text-on-surface-variant">—</span>
+                            </td>
+                            <td v-if="hasFund" class="whitespace-nowrap px-md py-sm text-right tabular-nums">{{ amountOf(c) === null ? '—' : money(amountOf(c)) + ' đ' }}</td>
                         </tr>
-                    </tbody>
-                </table>
-            </UiDataTable>
+                    </template>
+                </tbody>
+            </table>
+        </div>
 
-            <div class="grid grid-cols-1 gap-lg lg:grid-cols-3">
-                <!-- Chi tiết điểm KPI theo nhóm (mockup 03) -->
-                <UiDataTable class="lg:col-span-2">
-                    <template #header><h3 class="font-h3 text-h3 text-on-surface">Chi tiết điểm KPI theo nhóm</h3></template>
-                    <table>
-                        <thead><tr><th>Nhóm KPI</th><th class="text-center">Số tiêu chí</th><th class="text-right">Quỹ KPI (VNĐ)</th><th class="text-right">Tiền đạt (VNĐ)</th><th class="text-right">% Đạt</th></tr></thead>
-                        <tbody>
-                            <tr v-for="row in groupSummary" :key="row.name">
-                                <td>{{ row.name }}</td>
-                                <td class="text-center font-mono">{{ row.count }}</td>
-                                <td class="text-right"><UiMoney :value="row.fund" suffix="" /></td>
-                                <td class="text-right"><UiMoney :value="row.earned" suffix="" /></td>
-                                <td class="text-right font-mono">{{ row.percent_label }}%</td>
-                            </tr>
-                            <tr class="font-semibold">
-                                <td>Tổng cộng</td>
-                                <td class="text-center font-mono">{{ sum('count') }}</td>
-                                <td class="text-right"><UiMoney :value="sum('fund')" suffix="" /></td>
-                                <td class="text-right"><UiMoney :value="sum('earned')" suffix="" /></td>
-                                <td class="text-right font-mono">{{ totalLabel }}%</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    <template #footer><p class="p-sm font-caption text-caption text-on-surface-variant">Số liệu theo phiếu đã lưu{{ evaluation?.evaluator ? ` — người đánh giá: ${evaluation.evaluator}` : '' }}.</p></template>
-                </UiDataTable>
+        <div v-if="rejecting" ref="reasonBox" class="rounded-xl border border-error/30 bg-error-container/40 p-md">
+            <UiTextarea name="reject_reason" label="Lý do không duyệt (bắt buộc)" :rows="3" placeholder="vd: Thiếu số liệu feedback Big Test lớp FLY-2409, điền lại giúp" hint="Người được chấm thấy lý do này ở trang KPI của tôi." />
+        </div>
 
-                <div class="space-y-md">
-                    <section class="rounded-xl border border-outline-variant bg-surface-container-lowest p-md">
-                        <h3 class="font-h3 text-h3 text-on-surface">Xếp loại tháng</h3>
-                        <template v-if="evaluation">
-                            <div class="mt-sm flex items-center gap-md">
-                                <span class="flex h-14 w-14 items-center justify-center rounded-full bg-primary-container font-h1 text-h1 text-white">{{ grade.letter }}</span>
-                                <div>
-                                    <p class="font-body-semibold text-body-semibold">{{ grade.label }}</p>
-                                    <p class="font-body-small text-body-small text-on-surface-variant">Tổng KPI đạt: {{ totalLabel }}%</p>
-                                </div>
-                            </div>
-                            <div class="mt-sm h-2 w-full overflow-hidden rounded-full bg-surface-container"><div class="h-2 rounded-full bg-primary-container" :style="{ width: `${Math.min(100, Math.max(0, total))}%` }"></div></div>
-                            <p class="mt-xs flex justify-between font-caption text-caption text-on-surface-variant"><span>0%</span><span>Tiêu chuẩn {{ grade.label }}: {{ grade.range }}</span><span>100%</span></p>
-                        </template>
-                        <p v-else class="mt-sm font-body-small text-body-small text-on-surface-variant">Chưa đánh giá tháng này.</p>
-                    </section>
-                    <section class="rounded-xl border border-outline-variant bg-surface-container-lowest p-md">
-                        <h3 class="flex items-center gap-xs font-h3 text-h3 text-on-surface"><span class="material-symbols-outlined text-warning" aria-hidden="true">warning</span>Cảnh báo hiệu suất</h3>
-                        <div class="mt-sm grid grid-cols-2 gap-sm">
-                            <div class="rounded-lg bg-warning/10 p-sm">
-                                <p class="flex items-center gap-xs font-caption text-caption text-on-warning-container"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">trending_down</span>Mức cảnh báo (≤50%)</p>
-                                <p class="font-h2 text-h2 text-warning">{{ warnings.low }}</p>
-                                <p class="font-caption text-caption text-on-warning-container">Tiêu chí cần chú ý</p>
-                            </div>
-                            <div class="rounded-lg bg-error-container p-sm">
-                                <p class="flex items-center gap-xs font-caption text-caption text-on-error-container"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">cancel</span>Không đạt (0%)</p>
-                                <p class="font-h2 text-h2 text-error">{{ warnings.zero }}</p>
-                                <p class="font-caption text-caption text-on-error-container">Tiêu chí bỏ lỡ</p>
-                            </div>
-                        </div>
-                    </section>
-                </div>
+        <template #footer>
+            <div class="mr-auto flex flex-col justify-center">
+                <span class="font-caption text-caption text-on-surface-variant">Tổng thưởng KPI · {{ totalLabel }}%<template v-if="missing"> · còn {{ missing }} tiêu chí chưa có số liệu</template></span>
+                <span class="tabular-nums text-body-semibold font-semibold text-on-surface">{{ totalMoney !== null ? money(totalMoney) + ' đ' : totalLabel + '%' }}</span>
             </div>
-
-            <section class="space-y-md rounded-xl border border-outline-variant bg-surface-container-lowest p-lg">
-                <h3 class="font-h3 text-h3 text-on-surface">Đánh giá &amp; Nhận xét từ Quản lý</h3>
-                <div class="grid grid-cols-1 gap-md md:grid-cols-3">
-                    <UiTextarea name="strengths" label="Điểm tốt" rows="3" :value="evaluation?.strengths" placeholder="Nhập các điểm tích cực..." :disabled="!canConfirm" />
-                    <UiTextarea name="improvements" label="Điểm cần cải thiện" rows="3" :value="evaluation?.improvements" placeholder="Nhập các điểm cần khắc phục..." :disabled="!canConfirm" />
-                    <UiTextarea name="next_actions" label="Hành động tháng sau" rows="3" :value="evaluation?.next_actions" placeholder="Mục tiêu hoặc kế hoạch cụ thể cho tháng tới..." :disabled="!canConfirm" />
-                </div>
-                <UiTextarea name="comment" label="Nhận xét tổng quan" rows="2" :value="evaluation?.comment" :disabled="!canConfirm" />
-            </section>
-
-            <div v-if="canConfirm" class="flex flex-wrap items-center justify-end gap-sm">
-                <UiButton type="submit" variant="secondary" name="action" value="draft" icon="save">Lưu nháp</UiButton>
-                <span v-if="!canClose" class="font-body-small text-body-small text-on-surface-variant">Chốt KPI từ ngày cuối tháng {{ kpiCloseOn }} — hiện chỉ lưu nháp.</span>
-                <UiButton v-else type="submit" name="action" value="confirm" icon="lock">Chốt KPI tháng &amp; Lưu đánh giá</UiButton>
-            </div>
-        </UiForm>
-    </div>
+            <template v-if="canDecide">
+                <UiButton type="submit" variant="danger" icon="close" @click="onReject">{{ rejecting ? 'Xác nhận không duyệt' : 'Không duyệt' }}</UiButton>
+                <UiButton type="submit" icon="check" :disabled="!canClose" @click="onApprove">Duyệt</UiButton>
+            </template>
+        </template>
+    </UiModalFrame>
 </template>

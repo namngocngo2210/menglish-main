@@ -55,6 +55,22 @@ class KpiCriterion extends Model
         'ngay' => 'ngày',
     ];
 
+    /**
+     * Nguồn số liệu tự động (khóa lưu ở auto_source => nhãn): hệ thống tự đếm từ dữ liệu sẵn có, người chấm không điền.
+     * Tiêu chí không có nguồn → người chấm điền tay trên phiếu KPI tháng. Cách đếm: App\Services\Kpi\KpiAutoCounter.
+     */
+    public const AUTO_SOURCES = [
+        'tuition_no_reminder' => 'Học phí quá hạn chưa có lần nhắc',
+        'receipt_rejected' => 'Phiếu thu bị từ chối duyệt',
+        'care_overdue' => 'Mốc chăm sóc tháng đầu quá hạn',
+        'crm_sla_late' => 'Hạn SLA CRM bị trễ (liên hệ, follow, kết quả test, phản hồi học thử)',
+        'daily_report_late' => 'Báo cáo ngày nộp sau 9h sáng hôm sau',
+        'material_stock' => 'Học liệu xử lý trễ hạn, kiểm kê sách lệch',
+    ];
+
+    /** Ability xem "KPI của tôi" (Gate định nghĩa ở AppServiceProvider: người có vai trò đang có tiêu chí KPI). */
+    public const OWN_ABILITY = 'view-own-kpi';
+
     /** Vai trò có bộ tiêu chí KPI (mọi vai trò nhân sự; Admin và Học viên không chấm KPI). */
     public const ROLES = Roles::KPI_ROLES;
 
@@ -71,6 +87,12 @@ class KpiCriterion extends Model
         }
 
         return trim(($max === 0 ? '0' : '≤ '.$max).' '.self::unitLabel($unit));
+    }
+
+    /** Số liệu do hệ thống tự đếm (không điền tay). */
+    public function isAuto(): bool
+    {
+        return $this->auto_source !== null && isset(self::AUTO_SOURCES[$this->auto_source]);
     }
 
     /** Tiêu chí đo bằng số lần (có ngưỡng tối đa cho mức 100% / 50%). */
@@ -107,6 +129,7 @@ class KpiCriterion extends Model
         'max_full',
         'max_half',
         'unit',
+        'auto_source',
         'description',
         'is_active',
         'sort_order',
