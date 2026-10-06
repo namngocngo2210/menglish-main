@@ -225,21 +225,23 @@ class ApprovalInboxTest extends TestCase
         $admin = $this->makeUser(Roles::ADMIN);
         $tuition = $this->makeTuition($this->makeStudent($this->branchA), 5000000);
         $first = $this->pendingReceipt($tuition, 1000000);
-        $own = $this->pendingReceipt($tuition, 500000, $admin); // người lập không được tự duyệt
+        $gone = $this->pendingReceipt($tuition, 500000);
         $second = $this->pendingReceipt($tuition, 2000000);
 
         $this->assertSame(3, app(ApprovalInboxService::class)->badge($admin));
+        // Phiếu đã bị xử lý ở nơi khác trước khi bấm duyệt hàng loạt → mục đó lỗi, các mục khác vẫn duyệt.
+        $gone->update(['status' => TuitionReceipt::STATUS_REJECTED]);
 
         $this->modal($admin)->post(route('approvals.bulk'), [
             'action' => 'approve',
-            'items' => ["receipt:{$first->id}", "receipt:{$own->id}", "receipt:{$second->id}"],
+            'items' => ["receipt:{$first->id}", "receipt:{$gone->id}", "receipt:{$second->id}"],
         ])->assertRedirect(route('approvals.index'))
             ->assertSessionHas('warning', fn (string $message) => str_contains($message, '2/3'))
             ->assertSessionHas('approval_results');
 
         // Trang danh sách tải lại: vùng kết quả liệt kê mục lỗi.
         $this->flushHeaders()->actingAs($admin)->get(route('approvals.index'))->assertOk()
-            ->assertSee('data-approval-failures', false)->assertSee('không được tự duyệt');
+            ->assertSee('data-approval-failures', false)->assertSee('không còn chờ duyệt');
 
         // Cùng hiệu ứng như duyệt đơn lẻ ở màn gốc: phát hành số HĐ, người duyệt, trừ công nợ.
         foreach ([$first, $second] as $receipt) {
@@ -249,13 +251,13 @@ class ApprovalInboxTest extends TestCase
             $this->assertSame($admin->id, (int) $receipt->approver_id);
         }
         $this->assertNotSame($first->invoice_number, $second->invoice_number);
-        $this->assertSame(TuitionReceipt::STATUS_PENDING, $own->fresh()->status);
-        $this->assertNull($own->fresh()->invoice_number);
+        $this->assertSame(TuitionReceipt::STATUS_REJECTED, $gone->fresh()->status);
+        $this->assertNull($gone->fresh()->invoice_number);
         $this->assertEquals(3000000, (float) $tuition->fresh()->paid_amount);
 
         // Cache số đếm đã xoá sau khi duyệt qua inbox.
         $this->app->instance('request', Request::create('/'));
-        $this->assertSame(1, app(ApprovalInboxService::class)->badge($admin));
+        $this->assertSame(0, app(ApprovalInboxService::class)->badge($admin));
     }
 
     public function test_bulk_approve_other_sources_goes_through_their_controllers(): void
@@ -274,6 +276,7 @@ class ApprovalInboxTest extends TestCase
         $this->modal($lead)->post(route('approvals.bulk'), ['action' => 'approve', 'items' => ["syllabus_proposal:{$proposal->id}"]])
             ->assertForbidden();
         $this->assertSame('pending', $proposal->fresh()->status);
+        $this->actingAs($lead);
         $this->assertTrue(app(ApprovalInboxService::class)->process($lead, 'approve', ["syllabus_proposal:{$proposal->id}"])[0]['ok']);
         $proposal->refresh();
         $this->assertSame('approved', $proposal->status);
@@ -281,6 +284,7 @@ class ApprovalInboxTest extends TestCase
 
         // Người giao việc xác nhận hoàn thành từ inbox (luật "không tự duyệt" vẫn của module).
         $this->assertArrayHasKey('work_task', app(ApprovalInboxService::class)->counts($creator));
+        $this->actingAs($creator);
         $this->assertTrue(app(ApprovalInboxService::class)->process($creator, 'approve', ["work_task:{$task->id}"])[0]['ok']);
         $task->refresh();
         $this->assertSame('completed', $task->status);
