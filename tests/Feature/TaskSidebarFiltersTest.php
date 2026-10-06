@@ -89,6 +89,31 @@ class TaskSidebarFiltersTest extends TestCase
             ->assertSessionHasErrors('date_to');
     }
 
+    /** Quản lý cơ sở được giao việc: menu "Thao tác" có bước chuyển và làm được như người nhận việc ở vai trò khác. */
+    public function test_branch_manager_assignee_can_work_the_task(): void
+    {
+        $admin = $this->makeUser('admin');
+        $manager = $this->makeUser('manager');
+        $task = WorkTask::create([
+            'title' => 'Task 1', 'description' => 'test', 'creator_id' => $admin->id, 'assignee_id' => $manager->id,
+            'branch_id' => $this->branch->id, 'task_type' => 'recurring', 'frequency' => 'daily',
+            'due_date' => now()->addDays(2)->toDateString(), 'due_time' => '18:00', 'status' => 'new',
+        ]);
+
+        $page = $this->actingAs($manager)->get(route('tasks.index'))->assertOk()->viewData('page');
+        $row = collect($page['props']['tasks']['data'])->firstWhere('id', $task->id);
+        $this->assertSame(['in_progress', 'blocked', 'pending_confirmation'], $row['allowed']);
+
+        $this->actingAs($manager)->post(route('tasks.status.update', $task->id), ['status' => 'in_progress'])->assertSessionHasNoErrors();
+        $this->assertSame('in_progress', $task->fresh()->status);
+
+        $this->actingAs($manager)->post(route('tasks.status.update', $task->id), ['status' => 'pending_confirmation', 'reason' => 'Đã xong'])->assertSessionHasNoErrors();
+        $this->assertSame('pending_confirmation', $task->fresh()->status);
+
+        $this->actingAs($admin)->post(route('tasks.status.update', $task->id), ['status' => 'completed'])->assertSessionHasNoErrors();
+        $this->assertSame('completed', $task->fresh()->status);
+    }
+
     public function test_teacher_assistant_and_accountant_can_open_their_notifications(): void
     {
         foreach (['teacher', 'teacher_fulltime', 'teacher_parttime', 'assistant', 'accountant'] as $role) {
