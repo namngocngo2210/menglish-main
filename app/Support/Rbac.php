@@ -78,6 +78,39 @@ final class Rbac
             ->values()->all();
     }
 
+    /**
+     * Cây vai trò "chỉ thấy cấp dưới": người dùng là cấp dưới của $actor khi có ít nhất một vai trò và MỌI vai trò của họ
+     * đều nằm trong các vai trò $actor được gán (user.assign_role.<vai trò>). Super Admin thấy mọi người; người khác không
+     * bao giờ thấy Super Admin, người ngang cấp (Quản lý cơ sở khác) hay chính mình trên màn quản lý tài khoản.
+     * Phạm vi chi nhánh / "của tôi" (DataScope module user) lọc thêm ở nơi gọi.
+     */
+    public static function scopeSubordinates(Builder $query, ?User $actor): Builder
+    {
+        if ($actor?->isSuperAdmin()) {
+            return $query;
+        }
+
+        $roles = self::assignableRoles($actor);
+        if ($roles === []) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->whereHas('roles')
+            ->whereDoesntHave('roles', fn (Builder $r) => $r->whereNotIn('name', $roles));
+    }
+
+    /** $target có phải cấp dưới của $actor trong cây vai trò không (cùng quy tắc với scopeSubordinates). */
+    public static function isSubordinate(?User $actor, User $target): bool
+    {
+        if ($actor?->isSuperAdmin()) {
+            return true;
+        }
+
+        $roles = $target->getRoleNames();
+
+        return $actor !== null && $roles->isNotEmpty() && $roles->every(fn (string $role) => self::canAssignRole($actor, $role));
+    }
+
     public static function canAssignRole(?User $actor, string $role): bool
     {
         if (! $actor) {
@@ -92,7 +125,8 @@ final class Rbac
 
     /**
      * Vai trò mới: tạo quyền "user.assign_role.<vai trò>" và cấp cho các vai trò đang gán được MỌI vai trò khác
-     * (trừ Super Admin) — giữ đúng phân cấp cũ "Quản lý cơ sở gán được mọi vai trò trừ Admin".
+     * (trừ Super Admin và chính vai trò đó) — giữ đúng phân cấp "Quản lý cơ sở gán được mọi vai trò trừ Admin và
+     * Quản lý cơ sở".
      */
     public static function registerRole(Role $role): void
     {
@@ -111,7 +145,8 @@ final class Rbac
         if ($others !== []) {
             Role::query()->where('guard_name', 'web')->where('name', '!=', self::SUPER_ADMIN)->with('permissions')->get()
                 ->filter(fn (Role $candidate) => $candidate->id !== $role->id
-                    && collect($others)->every(fn (string $name) => $candidate->permissions->contains('name', $name)))
+                    && collect($others)->reject(fn (string $name) => $name === self::assignRolePermission($candidate->name))
+                        ->every(fn (string $name) => $candidate->permissions->contains('name', $name)))
                 ->each(fn (Role $candidate) => $candidate->givePermissionTo($permission));
         }
 

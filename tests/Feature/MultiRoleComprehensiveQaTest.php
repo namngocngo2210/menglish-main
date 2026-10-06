@@ -422,7 +422,7 @@ class MultiRoleComprehensiveQaTest extends TestCase
     public function test_academic_staff_can_only_create_underlings_assistant_teachers_student(): void
     {
         // 1. Cho phép: assistant, teacher_fulltime, teacher_parttime, student
-        $allowed = ['assistant', 'teacher_fulltime', 'teacher_parttime', 'student'];
+        $allowed = ['assistant', 'teacher_fulltime', 'teacher_parttime', 'student', 'academic_lead'];
         foreach ($allowed as $idx => $role) {
             $email = "staff_created_{$role}_{$idx}@menglish.edu.vn";
             $res = $this->actingAs($this->academicStaff)->post(route('users.store'), [
@@ -436,8 +436,8 @@ class MultiRoleComprehensiveQaTest extends TestCase
             $this->assertDatabaseHas('users', ['email' => $email]);
         }
 
-        // 2. Từ chối: admin, academic_lead, manager + vai trò tùy chỉnh (accountant, teacher) chưa được Admin cấp quyền gán
-        $forbidden = ['admin', 'academic_lead', 'manager', 'accountant', 'teacher'];
+        // 2. Từ chối: admin, manager, Học vụ khác + vai trò tùy chỉnh (accountant, teacher) chưa được Admin cấp quyền gán
+        $forbidden = ['admin', 'academic_staff', 'manager', 'accountant', 'teacher'];
         foreach ($forbidden as $idx => $role) {
             $email = "staff_illegal_{$role}_{$idx}@menglish.edu.vn";
             $res = $this->actingAs($this->academicStaff)->post(route('users.store'), [

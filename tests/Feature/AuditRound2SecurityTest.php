@@ -87,11 +87,13 @@ class AuditRound2SecurityTest extends TestCase
         $this->assertSame('whsec_saved_secret', $config->fresh()->secret_key);
     }
 
-    public function test_own_scope_staff_only_manage_accounts_they_created_and_cannot_touch_salary(): void
+    public function test_branch_scope_staff_only_manage_accounts_in_their_branch_and_cannot_touch_salary(): void
     {
         $academic = $this->userWithRole(Roles::ACADEMIC_STAFF);
-        $foreign = $this->userWithRole(Roles::TEACHER_PARTTIME, ['hourly_rate' => 250000, 'id_card_number' => '001201004567']);
-        $mine = $this->userWithRole(Roles::TEACHER_PARTTIME, ['created_by' => $academic->id, 'hourly_rate' => 250000]);
+        $otherBranch = Branch::create(['name' => 'Đống Đa', 'code' => 'DD-AU2', 'is_active' => true]);
+        $foreign = $this->userWithRole(Roles::TEACHER_PARTTIME, ['branch_id' => $otherBranch->id, 'hourly_rate' => 250000, 'id_card_number' => '001201004567']);
+        // Giáo viên chi nhánh mình do Admin tạo: Học vụ vẫn quản lý được (phạm vi "Chi nhánh của tôi").
+        $mine = $this->userWithRole(Roles::TEACHER_PARTTIME, ['created_by' => $this->admin->id, 'hourly_rate' => 250000]);
         $payload = fn (User $u) => ['name' => $u->name, 'email' => $u->email, 'branch_id' => $this->branch->id, 'role' => Roles::TEACHER_PARTTIME];
 
         $this->actingAs($academic)->put(route('users.update', $foreign->id), $payload($foreign) + ['password' => 'Taken-over-123'])->assertForbidden();

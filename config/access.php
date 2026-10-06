@@ -11,7 +11,7 @@
  * Cú pháp:
  *  - "module.action"          quyền cụ thể (action / phạm vi "module.scope_<level>" / đối tượng).
  *  - "module.*"               mọi quyền THAO TÁC của module (không gồm quyền đối tượng và phạm vi dữ liệu).
- *  - "user.assign_role.*"     được gán mọi vai trò (trừ Super Admin).
+ *  - "user.assign_role.*"     được gán mọi vai trò (trừ Super Admin và chính vai trò này — không quản lý người ngang cấp).
  *  - "*"                      (chỉ vai trò admin — Super Admin) mọi quyền thao tác + phạm vi; quyền đối tượng liệt kê riêng.
  */
 return [
@@ -33,6 +33,7 @@ return [
         ],
 
         'manager' => [
+            // Cây vai trò: Quản lý cơ sở quản lý mọi vai trò trừ Admin và Quản lý cơ sở khác (chỉ thấy cấp dưới).
             'user.view', 'user.lock', 'user.reset_password', 'user.assign_role', 'user.assign_role.*',
             'role.view',
             // CRM: mọi thao tác trừ lùi bước pipeline (A6 Q1: chỉ Admin).
@@ -74,9 +75,10 @@ return [
         ],
 
         'academic_staff' => [
+            // Cây vai trò (chủ dự án 06/10/2026): Học vụ CRU khách (học viên), giáo viên, trợ giảng, Học thuật.
             'user.view', 'user.create', 'user.update', 'user.assign_role',
             'user.assign_role.assistant', 'user.assign_role.teacher_fulltime',
-            'user.assign_role.teacher_parttime', 'user.assign_role.student',
+            'user.assign_role.teacher_parttime', 'user.assign_role.student', 'user.assign_role.academic_lead',
             // BA 26/09/2026: Học vụ là actor chính bên CRM → toàn quyền CRM / test đầu vào TRỪ xóa (lead.delete,
             // placement_test.delete). Vẫn giới hạn chi nhánh mình; lùi giai đoạn vẫn chỉ Admin (A6 Q1).
             'lead.view', 'lead.create', 'lead.update', 'lead.assign', 'lead.convert', 'lead.mark_lost',
@@ -106,12 +108,13 @@ return [
             // Tồn kho sách chi nhánh mình; ghi sai số hóa đơn giấy tiền mặt thì lập yêu cầu hủy hóa đơn.
             'merchandise_stock.view', 'merchandise_stock.manage', 'merchandise_stock.scope_branch', 'invoice.request_cancel',
             'lead.scope_branch', 'student.scope_branch', 'class.scope_all', 'big_test.scope_all', 'tuition.scope_branch',
-            'attendance_staff.scope_all', 'kpi.scope_all', 'work_task.scope_all', 'user.scope_own', 'support_ticket.scope_own',
+            'attendance_staff.scope_all', 'kpi.scope_all', 'work_task.scope_all', 'user.scope_branch', 'support_ticket.scope_own',
             // Order học liệu: CM xử lý đạo cụ / in ấn / GVNN của chi nhánh mình.
             'material_order.view_all', 'material_order.process_ops', 'material_order.scope_branch',
         ],
 
         'academic_lead' => [
+            // Cây vai trò (chủ dự án 06/10/2026): Học thuật CRU giáo viên, mọi chi nhánh.
             'user.view', 'user.create', 'user.update', 'user.assign_role',
             'user.assign_role.teacher_fulltime', 'user.assign_role.teacher_parttime',
             'lead.view',
@@ -128,7 +131,7 @@ return [
             'class_quality.view', 'class_quality.observe_academic', 'class_quality.teacher_meeting',
             'academic_project.*',
             'lead.scope_branch', 'student.scope_branch', 'class.scope_all', 'big_test.scope_all', 'kpi.scope_all',
-            'work_task.scope_all', 'user.scope_own', 'support_ticket.scope_own',
+            'work_task.scope_all', 'user.scope_all', 'support_ticket.scope_own',
             // Order học liệu học thuật: Trưởng Học thuật xử lý, thấy mọi chi nhánh.
             'material_order.view_all', 'material_order.process_academic', 'material_order.scope_all',
         ],
