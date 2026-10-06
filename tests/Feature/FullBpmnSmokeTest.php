@@ -106,7 +106,9 @@ class FullBpmnSmokeTest extends TestCase
         $this->actingAs($accountant)->get(route('tuition.invoices.cancellations', ['status' => 'all']))->assertOk();
 
         // BPMN 16–17 — Bảng lương, hoa hồng, "Lương của tôi".
-        $this->actingAs($accountant)->get(route('payroll.periods.index'))->assertOk();
+        // Kế toán cũ nay là Quản lý cơ sở: chỉ xem phiếu lương của mình (06/10/2026); bảng lương mọi người là của Admin.
+        $this->actingAs($accountant)->get(route('payroll.periods.index'))->assertForbidden();
+        $this->actingAs($admin)->get(route('payroll.periods.index'))->assertOk();
         $period = PayrollPeriod::where('status', 'approved')->firstOrFail();
         $this->actingAs($admin)->get(route('payroll.periods.show', $period->id))->assertOk();
         $this->actingAs($teacher)->get(route('portal.my-salary'))->assertOk();

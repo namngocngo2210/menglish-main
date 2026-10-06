@@ -632,7 +632,8 @@ class UserController extends Controller
      */
     public static function canViewSensitive(?User $actor): bool
     {
-        return (bool) $actor && $actor->can('payroll.view');
+        // Lương cơ bản / thù lao của người khác là thông tin lương: cần xem được mọi phiếu lương (Admin), không chỉ payroll.view.
+        return (bool) $actor && $actor->can('payroll.view') && DataScope::isAll($actor, 'payroll');
     }
 
     /**

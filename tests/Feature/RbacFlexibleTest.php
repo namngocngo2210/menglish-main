@@ -50,7 +50,7 @@ class RbacFlexibleTest extends TestCase
     {
         $expected = [
             'manager' => ['lead' => 'branch', 'student' => 'branch', 'class' => 'branch', 'big_test' => 'all', 'tuition' => 'branch', 'finance' => 'branch',
-                'attendance_staff' => 'branch', 'payroll' => 'all', 'kpi' => 'all', 'work_task' => 'branch', 'support_ticket' => 'all', 'user' => 'branch',
+                'attendance_staff' => 'branch', 'payroll' => 'own', 'kpi' => 'all', 'work_task' => 'branch', 'support_ticket' => 'all', 'user' => 'branch',
                 'activity_log' => 'all', 'dashboard' => 'branch'],
             'academic_staff' => ['lead' => 'branch', 'student' => 'branch', 'class' => 'all', 'big_test' => 'all', 'tuition' => 'branch',
                 'attendance_staff' => 'all', 'kpi' => 'all', 'work_task' => 'all', 'support_ticket' => 'own', 'user' => 'own'],

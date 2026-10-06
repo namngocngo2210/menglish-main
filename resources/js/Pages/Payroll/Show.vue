@@ -20,6 +20,8 @@ const props = defineProps({
     periodOptions: { type: Array, default: () => [] },
     typeOptions: { type: Array, default: () => [] },
     filtered: { type: Boolean, default: false },
+    // Chỉ người xem mọi phiếu lương (Admin): nhân sự đang làm việc mà kỳ chưa có phiếu lương và lý do.
+    missingStaff: { type: Object, default: null },
 });
 
 const page = usePage();
@@ -114,6 +116,18 @@ function filter(event) {
             {{ kpiPending.names }}{{ kpiPending.count > 8 ? '…' : '' }}.
             Chọn bậc KPI giữ HS / nhập KPI trên phiếu lương, hoặc chốt đánh giá KPI Học vụ tháng rồi bấm "Đồng bộ &amp; Tính lại".
             <Link :href="pendingUrl" class="font-semibold underline">Xem danh sách</Link>
+        </UiAlert>
+
+        <UiAlert v-if="missingStaff?.count" type="info" dismissible :title="`${missingStaff.count} nhân sự chưa có phiếu lương kỳ này`" data-missing-staff>
+            Kỳ lương chỉ tạo phiếu cho người có khoản phát sinh (lương cơ bản, buổi dạy hợp lệ, hoa hồng). Nhập lương cơ bản ở hồ sơ nhân sự rồi bấm "Đồng bộ &amp; Tính lại".
+            <ul class="mt-xs space-y-xs">
+                <li v-for="staff in missingStaff.items" :key="staff.id">
+                    <Link v-if="can('user.update')" :href="route('users.edit', { user: staff.id, tab: 'salary' })" class="font-semibold underline">{{ staff.name }}</Link>
+                    <span v-else class="font-semibold">{{ staff.name }}</span>
+                    — {{ staff.reason }}
+                </li>
+            </ul>
+            <p v-if="missingStaff.count > missingStaff.items.length" class="mt-xs">… và {{ missingStaff.count - missingStaff.items.length }} người khác.</p>
         </UiAlert>
 
         <!-- Khối / loại nhân sự -->
