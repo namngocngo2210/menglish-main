@@ -481,12 +481,12 @@ class PlacementTestController extends Controller
 
         $takeUrl = route('portal.test.take', ['code' => $test->code]);
 
-        AdminNotification::create([
-            'title' => 'Phát hành đề test đầu vào: '.$test->title,
-            'message' => "Đề [{$test->code}] {$test->title} đã được phát hành. Link làm bài: {$takeUrl}",
-            'type' => 'info',
-            'is_read' => false,
-        ]);
+        AdminNotification::notifyUser(
+            Auth::id(),
+            'info',
+            'Phát hành đề test đầu vào: '.$test->title,
+            "Đề [{$test->code}] {$test->title} đã được phát hành. Link làm bài: {$takeUrl}",
+        );
 
         return redirect()->back()
             ->with('status', "Đã phát hành đề [{$test->code}] {$test->title}. Link làm bài: {$takeUrl}");

@@ -17,6 +17,7 @@ use App\Models\TuitionReceipt;
 use App\Models\User;
 use App\Services\Sla\Sla;
 use App\Support\Money;
+use App\Support\Rbac;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -209,6 +210,31 @@ class NotificationService
     public static function seesSystemNotifications(User $user): bool
     {
         return $user->can('notification.view_system') || $user->roles->isEmpty();
+    }
+
+    /**
+     * Admin đang hoạt động — người nhận mặc định của thông báo vận hành không gắn với ai cụ thể.
+     *
+     * @return \Illuminate\Support\Collection<int, int>
+     */
+    public static function superAdminIds()
+    {
+        return User::query()->whereHas('roles', fn ($r) => $r->where('name', Rbac::SUPER_ADMIN))
+            ->where('is_active', true)->whereNull('locked_at')
+            ->orderBy('id')->pluck('id')->map(fn ($id) => (int) $id);
+    }
+
+    /**
+     * Người đang hoạt động có quyền $permission (tính cả phân quyền cá nhân, Super Admin với quyền thao tác) — người
+     * xử lý một loại việc. Thông báo gửi riêng từng người thay vì phát thông báo chung cho mọi người xem được hệ thống.
+     *
+     * @return \Illuminate\Support\Collection<int, int>
+     */
+    public static function userIdsWithPermission(string $permission)
+    {
+        return Rbac::scopeUsersWithPermission(User::query(), $permission)
+            ->where('is_active', true)->whereNull('locked_at')
+            ->orderBy('id')->pluck('id')->map(fn ($id) => (int) $id);
     }
 
     public function getUnreadCount(?User $user = null): int
@@ -427,12 +453,20 @@ class NotificationService
      * quyền support_ticket.assign cùng chi nhánh với người tạo ticket (chi nhánh
      * chính hoặc chi nhánh được cấp thêm). Người tạo không có chi nhánh -> mọi
      * người có quyền phân công. Không tìm được ai -> Admin.
+     * Người tạo tự có quyền phân công ticket (vd. Quản lý cơ sở) -> chỉ báo Admin, không báo ngang sang những người
+     * phân công khác (ticket đó không liên quan tới họ); Admin tự tạo -> không báo ai, chính Admin điều phối.
      *
      * @return \Illuminate\Support\Collection<int, int>
      */
     public function ticketDispatcherIds(SupportTicket $ticket, ?int $excludeUserId = null)
     {
         $creator = $ticket->creator;
+        if ($creator?->can('support_ticket.assign')) {
+            return $creator->isSuperAdmin() ? collect() : static::superAdminIds()
+                ->reject(fn ($id) => $excludeUserId !== null && $id === (int) $excludeUserId)
+                ->values();
+        }
+
         $branchIds = $creator
             ? $creator->branches()->pluck('branches.id')->push($creator->branch_id)->filter()->map(fn ($id) => (int) $id)->unique()->values()
             : collect();

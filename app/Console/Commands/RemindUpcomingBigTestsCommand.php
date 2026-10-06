@@ -67,13 +67,14 @@ class RemindUpcomingBigTestsCommand extends Command
             }
 
             if (! $test->is_distributed) {
-                AdminNotification::create([
-                    'type' => 'big_test_upcoming',
-                    'title' => "Big Test chưa duyệt đề: {$test->code}",
-                    'message' => "Lớp {$class->name} thi \"{$test->title}\" lúc {$when} (còn {$daysLeft} ngày) nhưng đề chưa được duyệt & phân phối.",
-                    'data' => ['big_test_id' => $test->id, 'link' => route('syllabus.big-tests.distribution')],
-                    'is_read' => false,
-                ]);
+                AdminNotification::notifyUsers(
+                    $sla->approverIdsOrAdmins(),
+                    'big_test_upcoming',
+                    "Big Test chưa duyệt đề: {$test->code}",
+                    "Lớp {$class->name} thi \"{$test->title}\" lúc {$when} (còn {$daysLeft} ngày) nhưng đề chưa được duyệt & phân phối.",
+                    route('syllabus.big-tests.distribution'),
+                    ['big_test_id' => $test->id],
+                );
             }
 
             $test->forceFill(['teacher_reminded_at' => now()])->save();
@@ -129,13 +130,14 @@ class RemindUpcomingBigTestsCommand extends Command
                 ]);
                 $notified++;
             }
-            AdminNotification::create([
-                'type' => 'big_test_upcoming',
-                'title' => "Chặng sắp thi chưa có đợt Big Test: {$class->name}",
-                'message' => $message,
-                'data' => ['syllabus_assignment_id' => $assignment->id, 'link' => route('syllabus.big-tests.schedules')],
-                'is_read' => false,
-            ]);
+            AdminNotification::notifyUsers(
+                app(BigTestSlaService::class)->approverIdsOrAdmins(),
+                'big_test_upcoming',
+                "Chặng sắp thi chưa có đợt Big Test: {$class->name}",
+                $message,
+                route('syllabus.big-tests.schedules'),
+                ['syllabus_assignment_id' => $assignment->id],
+            );
 
             $assignment->forceFill(['big_test_reminded_for' => $expected->toDateString()])->save();
             $stages++;

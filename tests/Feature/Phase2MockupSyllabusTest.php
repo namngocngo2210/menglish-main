@@ -231,6 +231,8 @@ class Phase2MockupSyllabusTest extends TestCase
         ])->assertSessionHasNoErrors();
         $proposal = SyllabusChangeProposal::firstOrFail();
         $this->assertSame($lesson->id, $proposal->lesson_id);
+        $this->assertDatabaseHas('admin_notifications', ['user_id' => $this->academic->id, 'type' => 'syllabus_proposal']);
+        $this->assertDatabaseMissing('admin_notifications', ['user_id' => null, 'type' => 'syllabus_proposal']);
         $this->assertSame($lesson->unit_id, $proposal->unit_id);
 
         $this->actingAs($this->teacher)->get(route('syllabus.teacher-propose'))->assertOk()

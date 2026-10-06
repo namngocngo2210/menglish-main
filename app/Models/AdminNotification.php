@@ -32,9 +32,16 @@ class AdminNotification extends Model
     ];
 
     /**
-     * Thông báo user được xem: thông báo cá nhân + thông báo chung (user_id NULL) nếu có quyền xem thông báo hệ thống.
-     * Thông báo chung gắn với một khách CRM (data.customer_id, vd. lead tồn đọng) chỉ hiện khi khách nằm trong phạm vi
-     * dữ liệu CRM của user — tránh link "Xử lý ngay" dẫn tới trang 404 của khách chi nhánh khác.
+     * Thông báo chung (user_id NULL) còn được phát cho người xem thông báo hệ thống ngoài Admin: lead tồn đọng — Quản lý
+     * cơ sở chịu trách nhiệm khách của chi nhánh mình. Mọi thông báo khác đều gửi riêng cho người nhận (user_id).
+     */
+    public const BRANCH_BROADCAST_TYPES = ['stale_lead_24h', 'stale_lead_care'];
+
+    /**
+     * Thông báo user được xem: thông báo cá nhân (user_id = mình) + thông báo chung (user_id NULL):
+     *  - Admin: mọi thông báo chung (kể cả dữ liệu cũ phát chung trước khi chuyển sang gửi riêng từng người).
+     *  - Người có quyền notification.view_system (Quản lý cơ sở): chỉ lead tồn đọng (BRANCH_BROADCAST_TYPES) của khách
+     *    trong phạm vi CRM của mình — không thấy thông báo dành cho Admin hay cho người khác.
      */
     public function scopeForRecipient(Builder $query, User $user): Builder
     {
@@ -46,6 +53,10 @@ class AdminNotification extends Model
             $q->where('user_id', $user->id)
                 ->orWhere(function (Builder $system) use ($user) {
                     $system->whereNull('user_id');
+                    if ($user->isSuperAdmin()) {
+                        return;
+                    }
+                    $system->whereIn('type', self::BRANCH_BROADCAST_TYPES);
                     if (! DataScope::isAll($user, 'lead')) {
                         $system->where(fn (Builder $c) => $c
                             ->whereNull('data->customer_id')
@@ -74,6 +85,20 @@ class AdminNotification extends Model
             'data' => $link ? array_merge($data, ['link' => $link]) : ($data ?: null),
             'is_read' => false,
         ]);
+    }
+
+    /**
+     * Thông báo cá nhân cho nhiều người (bỏ trùng / null, trừ $exceptUserId). Trả về số thông báo đã tạo.
+     *
+     * @param  iterable<int|null>  $userIds
+     * @param  array<string, mixed>  $data
+     */
+    public static function notifyUsers(iterable $userIds, string $type, string $title, string $message, ?string $link = null, array $data = [], ?int $exceptUserId = null): int
+    {
+        return collect($userIds)->filter()->map(fn ($id) => (int) $id)->unique()
+            ->reject(fn (int $id) => $exceptUserId !== null && $id === $exceptUserId)
+            ->each(fn (int $id) => static::notifyUser($id, $type, $title, $message, $link, $data))
+            ->count();
     }
 
     public function user(): BelongsTo
