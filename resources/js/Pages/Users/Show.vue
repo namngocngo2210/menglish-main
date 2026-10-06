@@ -1,6 +1,6 @@
 <script setup>
 /**
- * Chi tiết nhân sự. Sửa thông tin / Tải lên HĐ mới (modal 3xl, mở sẵn tab Hợp đồng & Lương), Phân quyền chi tiết (modal 4xl),
+ * Chi tiết nhân sự. Sửa thông tin / Tải lên HĐ mới (modal 3xl, mở sẵn tab Hợp đồng & Lương), Phân quyền chi tiết (modal 7xl),
  * Gán vai trò (modal md) đều mở trong modal; lưu xong trang tự cập nhật tại chỗ.
  */
 import { computed } from 'vue';
@@ -36,7 +36,7 @@ const money = computed(() => [
             <template #meta><span class="break-all font-code">{{ user.employee_code }} · {{ user.email }} · {{ user.branch_name ?? 'Chưa gán chi nhánh' }}</span></template>
             <template v-if="canAny('user.update', 'permission.override')" #actions>
                 <UiButton v-if="can('user.update')" variant="secondary" icon="edit" :href="route('users.edit', user.id)" modal="3xl">Sửa thông tin</UiButton>
-                <UiButton v-if="can('permission.override')" icon="admin_panel_settings" :href="route('users.permissions.edit', user.id)" modal="4xl">Phân quyền chi tiết</UiButton>
+                <UiButton v-if="can('permission.override')" icon="admin_panel_settings" :href="route('users.permissions.edit', user.id)" modal="7xl">Phân quyền chi tiết</UiButton>
             </template>
         </UiPageHeader>
 
@@ -174,7 +174,7 @@ const money = computed(() => [
                         <div class="flex flex-col gap-sm p-lg">
                             <UiButton v-if="can('user.update')" variant="secondary" icon="edit" :href="route('users.edit', user.id)" modal="3xl" class="w-full">Sửa thông tin</UiButton>
                             <UiButton v-if="can('user.assign_role')" variant="secondary" icon="badge" :href="route('users.roles.edit', user.id)" modal="md" class="w-full">Gán vai trò chức vụ</UiButton>
-                            <UiButton v-if="can('permission.override')" variant="secondary" icon="admin_panel_settings" :href="route('users.permissions.edit', user.id)" modal="4xl" class="w-full">Phân quyền chi tiết</UiButton>
+                            <UiButton v-if="can('permission.override')" variant="secondary" icon="admin_panel_settings" :href="route('users.permissions.edit', user.id)" modal="7xl" class="w-full">Phân quyền chi tiết</UiButton>
                             <UiForm v-if="can('user.reset_password')" :action="route('users.reset-password', user.id)" method="post" :confirm="`Đặt lại mật khẩu cho ${user.name}?`">
                                 <UiButton type="submit" variant="secondary" icon="key" class="w-full">Đặt lại mật khẩu</UiButton>
                             </UiForm>
