@@ -17,6 +17,7 @@ use App\Models\StudentAttendance;
 use App\Models\SupportSession;
 use App\Models\TeacherTimesheet;
 use App\Models\User;
+use App\Services\BigTestSlaService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -1471,13 +1472,16 @@ class TeacherPortalController extends Controller
             'status' => 'pending',
         ]);
 
-        AdminNotification::create([
-            'type' => 'big_test_order',
-            'title' => 'GV yêu cầu đề test: '.Auth::user()->name,
-            'message' => 'Giáo viên '.Auth::user()->name.' yêu cầu đề '.$order->type_label." cho chặng \"{$stageLabel}\" của lớp {$class->name}".(filled($validated['note'] ?? null) ? " — Ghi chú: {$validated['note']}" : ''),
-            'data' => ['link' => route('syllabus.big-tests.distribution', ['order' => $order->id])],
-            'is_read' => false,
-        ]);
+        // Báo riêng Ban Học thuật (người duyệt Big Test), không phát thông báo chung cho mọi người xem hệ thống.
+        AdminNotification::notifyUsers(
+            app(BigTestSlaService::class)->approverIdsOrAdmins(),
+            'big_test_order',
+            'GV yêu cầu đề test: '.Auth::user()->name,
+            'Giáo viên '.Auth::user()->name.' yêu cầu đề '.$order->type_label." cho chặng \"{$stageLabel}\" của lớp {$class->name}".(filled($validated['note'] ?? null) ? " — Ghi chú: {$validated['note']}" : ''),
+            route('syllabus.big-tests.distribution', ['order' => $order->id]),
+            ['big_test_order_id' => $order->id],
+            Auth::id(),
+        );
 
         return redirect()->back()->with('success', 'Đã gửi yêu cầu đề test tới Ban Học thuật.');
     }

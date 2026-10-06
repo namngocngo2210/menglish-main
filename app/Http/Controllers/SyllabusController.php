@@ -24,6 +24,7 @@ use App\Models\SyllabusUnit;
 use App\Models\User;
 use App\Services\AdjustmentSlaService;
 use App\Services\DocumentCodeGenerator;
+use App\Services\NotificationService;
 use App\Services\SafeUploadService;
 use App\Services\ScheduleExtensionService;
 use App\Services\SyllabusProgressionService;
@@ -950,13 +951,16 @@ class SyllabusController extends Controller
             'status' => 'pending',
         ]);
 
-        AdminNotification::create([
-            'type' => 'syllabus_proposal',
-            'title' => 'Đề xuất sửa giáo trình mới',
-            'message' => Auth::user()->name.' đề xuất sửa giáo trình '.$proposal->curriculum?->title.' — '.$proposal->target_label.'.',
-            'data' => ['link' => route('syllabus.versions', ['proposal' => $proposal->id])],
-            'is_read' => false,
-        ]);
+        // Báo riêng người duyệt đề xuất (Học thuật, Admin), không phát thông báo chung.
+        AdminNotification::notifyUsers(
+            NotificationService::userIdsWithPermission('syllabus.approve_adjustment'),
+            'syllabus_proposal',
+            'Đề xuất sửa giáo trình mới',
+            Auth::user()->name.' đề xuất sửa giáo trình '.$proposal->curriculum?->title.' — '.$proposal->target_label.'.',
+            route('syllabus.versions', ['proposal' => $proposal->id]),
+            ['proposal_id' => $proposal->id],
+            Auth::id(),
+        );
 
         return redirect()->route('syllabus.teacher-propose')
             ->with('status', 'Đã gửi đề xuất sửa giáo trình tới Ban Học thuật.');
@@ -1891,12 +1895,12 @@ class SyllabusController extends Controller
             $sent++;
         }
 
-        AdminNotification::create([
-            'title' => 'Đã gửi nhắc lịch Big Test: '.$test->title,
-            'message' => "Đợt thi [{$test->code}] {$test->title} lúc {$when} — đã gửi nhắc tới {$sent} học viên của lớp {$test->classModel->name}.",
-            'type' => 'info',
-            'is_read' => false,
-        ]);
+        AdminNotification::notifyUser(
+            Auth::id(),
+            'info',
+            'Đã gửi nhắc lịch Big Test: '.$test->title,
+            "Đợt thi [{$test->code}] {$test->title} lúc {$when} — đã gửi nhắc tới {$sent} học viên của lớp {$test->classModel->name}.",
+        );
 
         return redirect()->back()
             ->with('status', "Đã gửi nhắc lịch {$test->title} tới {$sent} học viên của lớp {$test->classModel->name}.");

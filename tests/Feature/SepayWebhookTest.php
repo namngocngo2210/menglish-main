@@ -34,6 +34,8 @@ class SepayWebhookTest extends TestCase
 
     private StudentTuition $tuition;
 
+    private User $admin;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -54,6 +56,9 @@ class SepayWebhookTest extends TestCase
         $this->withHeaders(['X-API-Key' => 'test-api-key']);
 
         $this->branch = Branch::create(['name' => 'CN SePay', 'code' => 'SP', 'is_active' => true]);
+        // Người nhận thông báo đối soát SePay (gửi riêng, không phát thông báo chung).
+        $this->admin = User::factory()->create(['is_active' => true]);
+        $this->admin->assignRole('admin');
 
         // Phase 4: webhook chỉ gạch nợ khi tiền vào đúng tài khoản đã cấu hình.
         BankAccount::create([
@@ -147,7 +152,8 @@ class SepayWebhookTest extends TestCase
 
         $tx = SepayTransaction::where('status', 'overpaid')->firstOrFail();
         $this->assertStringContainsString('đã thanh toán đủ', $tx->response_message);
-        $this->assertTrue(AdminNotification::where('type', 'warning')->exists());
+        $this->assertTrue(AdminNotification::where('type', 'warning')->where('user_id', $this->admin->id)->exists());
+        $this->assertSame(0, AdminNotification::whereNull('user_id')->count(), 'Không phát thông báo chung.');
     }
 
     public function test_duplicate_sepay_id_is_processed_only_once(): void
