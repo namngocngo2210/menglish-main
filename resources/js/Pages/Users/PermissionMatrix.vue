@@ -1,6 +1,6 @@
 <script setup>
 /**
- * Ma trận phân quyền cá nhân — dùng chung trang đầy đủ và modal 4xl (Permissions.vue).
+ * Ma trận phân quyền cá nhân — dùng chung trang đầy đủ và modal 7xl (Permissions.vue): trong modal bảng lấp phần còn lại, tự cuộn, tiêu đề cột cố định.
  * Ô tích = có quyền (sau khi áp phân quyền cá nhân). Gửi overrides[module][action] = inherit (trùng vai trò gốc) | allow (cấp thêm) | deny (thu hồi);
  * action có dấu "." gửi bằng ":" (formKey). Mỗi module: phạm vi dữ liệu (data_scope[module]) và phạm vi áp dụng (scope[module][type|ids]).
  * Chọn tất cả / Bỏ chọn / nhấn đúp tiêu đề cột → áp dụng nhanh; reset() (nút "Đặt lại mặc định") → về đúng quyền vai trò.
@@ -42,7 +42,7 @@ defineExpose({ reset });
 </script>
 
 <template>
-    <UiDataTable min-width="1100px">
+    <UiDataTable min-width="1100px" sticky="first" :fill="asModal">
         <template #header>
             <div class="flex w-full flex-wrap items-center justify-between gap-sm">
                 <h2 class="flex items-center gap-xs font-h3 text-h3 text-on-surface">
@@ -60,23 +60,23 @@ defineExpose({ reset });
                 <tr>
                     <th>Danh mục Module</th>
                     <th v-for="column in columns" :key="column.value" class="cursor-pointer select-none text-center" title="Nhấn đúp để áp dụng nhanh cho toàn bộ cột" @dblclick="toggleColumn(column.value)">{{ column.label }}</th>
-                    <th class="min-w-[180px]">Phạm vi dữ liệu</th>
-                    <th>Phạm vi áp dụng</th>
+                    <th class="min-w-[16rem]">Phạm vi dữ liệu</th>
+                    <th class="min-w-[15rem]">Phạm vi áp dụng</th>
                 </tr>
             </thead>
             <tbody>
                 <template v-for="group in matrix" :key="group.label">
                     <tr class="bg-surface-container-low" :data-permission-group="group.label">
-                        <td :colspan="3 + columns.length" class="font-label text-label uppercase text-on-surface-variant">{{ group.label }}</td>
+                        <td :colspan="3 + columns.length" class="!bg-surface-container-low font-label text-label uppercase text-on-surface-variant">{{ group.label }}</td>
                     </tr>
                     <tr v-for="module in group.modules" :key="module.module" class="align-top" :data-module="module.module">
                         <td>
                             <div class="flex items-start gap-sm">
-                                <span class="material-symbols-outlined text-[20px] text-primary-container" aria-hidden="true">{{ module.icon }}</span>
+                                <span class="material-symbols-outlined w-5 shrink-0 text-[20px] text-primary-container" aria-hidden="true">{{ module.icon }}</span>
                                 <div>
                                     <div class="font-semibold text-on-surface">{{ module.label }}</div>
                                     <details v-if="module.extra.length" class="mt-xs" :open="module.extraOpen">
-                                        <summary class="cursor-pointer font-caption text-caption font-semibold text-secondary">Thao tác khác ({{ module.extra.length }})</summary>
+                                        <summary class="cursor-pointer whitespace-nowrap font-caption text-caption font-semibold text-secondary">Thao tác khác ({{ module.extra.length }})</summary>
                                         <div class="mt-xs space-y-xs">
                                             <label v-for="cell in module.extra" :key="cell.name" class="flex cursor-pointer items-start justify-between gap-sm" :title="cellTitle(cell)">
                                                 <span class="font-body-small text-body-small text-on-surface">
@@ -114,7 +114,7 @@ defineExpose({ reset });
                             </template>
                             <span v-else class="font-body-small text-body-small text-on-surface-variant">—</span>
                         </td>
-                        <td class="min-w-[230px]">
+                        <td>
                             <template v-if="module.supportsScope">
                                 <UiSelect v-model="scopeType[module.module]" :name="`scope[${module.module}][type]`" aria-label="Phạm vi áp dụng">
                                     <option value="all" :selected="scopeType[module.module] === 'all'">Toàn hệ thống (Mặc định)</option>

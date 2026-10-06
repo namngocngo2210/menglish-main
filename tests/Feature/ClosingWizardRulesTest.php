@@ -6,6 +6,7 @@ use App\Models\BankAccount;
 use App\Models\Branch;
 use App\Models\ClassEnrollment;
 use App\Models\ClassModel;
+use App\Models\ClassSession;
 use App\Models\Course;
 use App\Models\CrmCustomer;
 use App\Models\Promotion;
@@ -294,6 +295,60 @@ class ClosingWizardRulesTest extends TestCase
 
         $this->assertSame($lead->id, $response->inertiaProps('customers.0.id'));
         $response->assertSee('Xếp lớp sau')->assertSee('Đã đóng học phí đăng ký');
+    }
+
+    public function test_closing_wizard_sends_listed_course_and_class_tuition_for_autofill(): void
+    {
+        $lead = $this->lead('consulting');
+        $unpriced = Course::create(['code' => 'NOPRICE', 'name' => 'Khóa chưa có giá', 'tuition_fee' => 0, 'is_active' => true]);
+
+        $response = $this->actingAs($this->sales)->get(route('crm.closing-wizard', ['customer_id' => $lead->id]))->assertOk();
+
+        // Màn chốt tự điền "Học phí niêm yết" từ các giá này khi chọn khóa (Bước 1) hoặc lớp (Bước 3).
+        $courses = collect($response->inertiaProps('courses'))->keyBy('id');
+        $this->assertEquals(10000000, $courses[$this->course->id]['tuition']);
+        $this->assertEquals(0, $courses[$unpriced->id]['tuition']);
+        $class = collect($response->inertiaProps('classes'))->firstWhere('id', $this->classModel->id);
+        $this->assertEquals(12000000, $class['tuition']);
+        $this->assertSame(48, $class['sessions_left']);
+    }
+
+    public function test_class_that_ran_all_course_sessions_is_flagged_and_not_preselected(): void
+    {
+        $lead = $this->lead('consulting');
+        $lead->update(['course_interest' => 'Movers']);
+        $short = Course::create(['code' => 'MOV-S', 'name' => 'Movers ngắn', 'tuition_fee' => 2400000, 'total_lessons' => 2, 'is_active' => true]);
+        $done = ClassModel::create([
+            'code' => 'MOV-DONE', 'name' => 'Movers đã học hết', 'course_id' => $short->id,
+            'branch_id' => $this->branch->id, 'max_capacity' => 10, 'status' => 'active',
+        ]);
+        foreach ([now()->subDays(7), now()->subDays(3)] as $date) {
+            ClassSession::create(['class_id' => $done->id, 'branch_id' => $this->branch->id, 'date' => $date->toDateString(), 'start_time' => '08:00', 'end_time' => '09:30', 'status' => 'completed']);
+        }
+
+        $response = $this->actingAs($this->sales)->get(route('crm.closing-wizard', ['customer_id' => $lead->id]))->assertOk();
+
+        $flagged = collect($response->inertiaProps('classes'))->firstWhere('id', $done->id);
+        $this->assertSame(0, $flagged['sessions_left']);
+        // Lớp khớp trình độ duy nhất nhưng đã học hết khóa → không chọn sẵn.
+        $this->assertTrue($flagged['level_match']);
+        $this->assertNull($response->inertiaProps('defaultClassId'));
+
+        // Server cũng từ chối xếp vào lớp này (không còn buổi để tính học phí).
+        $this->actingAs($this->sales)->post(route('crm.closing-wizard.store'), $this->payload($lead, ['class_id' => $done->id]))
+            ->assertSessionHasErrors('class_id');
+    }
+
+    public function test_closing_into_course_without_price_is_rejected_with_clear_message(): void
+    {
+        $lead = $this->lead('consulting');
+        $unpriced = Course::create(['code' => 'NOPRICE', 'name' => 'Khóa chưa có giá', 'tuition_fee' => 0, 'is_active' => true]);
+
+        $this->actingAs($this->sales)->post(route('crm.closing-wizard.store'), $this->payload($lead, [
+            'class_id' => null, 'course_id' => $unpriced->id, 'fee_paid_at_closing' => 0, 'paid_amount' => 0,
+        ]))->assertSessionHasErrors(['course_id' => 'Lớp / khóa học chưa được cấu hình học phí.']);
+
+        $this->assertSame(0, Student::count());
     }
 
     private function closeWithoutClass(): CrmCustomer

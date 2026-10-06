@@ -2144,8 +2144,11 @@ class CrmController extends Controller
                 || collect($levelKeys)->contains(fn (string $key) => str_contains($class->level_haystack, $key))))
             ->sortBy(fn (ClassModel $class) => $class->level_match ? 0 : 1)
             ->values();
-        // Chỉ chọn sẵn lớp khi khớp trình độ; không có thì để trống cho người dùng tự chọn.
-        $defaultClass = $classes->first(fn (ClassModel $class) => $class->level_match);
+        $heldByClass = app(SessionLedger::class)->heldCounts($classes->pluck('id')->all());
+        // Chỉ chọn sẵn lớp khi khớp trình độ và lớp còn buổi của khóa (lớp đã học hết khóa không xếp thêm được);
+        // không có thì để trống cho người dùng tự chọn.
+        $defaultClass = $classes->first(fn (ClassModel $class) => $class->level_match
+            && SessionLedger::joinTuition($class, (int) ($heldByClass[$class->id] ?? 0))['sessions'] > 0);
         $defaultCourseId = $defaultClass?->course_id
             ?? ($levelKeys ? Course::where('is_active', true)->get()->first(fn (Course $course) => collect($levelKeys)
                 ->contains(fn (string $key) => str_contains(Str::upper($course->name.' '.$course->code), $key)))?->id : null);
@@ -2161,8 +2164,6 @@ class CrmController extends Controller
         $studentCodePreview = self::newStudentCode();
 
         $defaultBank = $bankAccounts->firstWhere('is_default_vietqr', true) ?? $bankAccounts->first();
-
-        $heldByClass = app(SessionLedger::class)->heldCounts($classes->pluck('id')->all());
 
         return Inertia::render('Crm/ClosingWizard', [
             'customers' => $customers->map(fn (CrmCustomer $c) => [

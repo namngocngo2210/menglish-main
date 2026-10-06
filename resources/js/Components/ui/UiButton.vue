@@ -4,7 +4,7 @@
  *   variant: primary | secondary | ghost | danger | danger-text | success | info      size: md | sm
  *   icon: tên Material Symbol trước nhãn (không có nhãn → nút chỉ-icon)
  *   href: link chuyển trang trong app (Inertia <Link>); native → thẻ <a> thường (tải file, tab mới, trang ngoài app)
- *   modal: (cần href) true | cỡ modal (sm|md|lg|xl|2xl|3xl|4xl|full) → mở trang đó trong modal chung
+ *   modal: (cần href) true | cỡ modal (sm|md|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|full) → mở trang đó trong modal chung
  *   modal-history: modal xem nhanh — nút Back của trình duyệt đóng modal (thay vì rời trang)
  *   <UiButton icon="add" :href="route('classes.create')">Tạo lớp mới</UiButton>
  *   <UiButton icon="add" :href="route('holidays.create')" modal="md">Thêm ngày nghỉ</UiButton>

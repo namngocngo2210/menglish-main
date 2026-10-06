@@ -93,7 +93,7 @@ function openModal(url, size) {
                         <UiButton variant="secondary" icon="edit" class="flex-1" :disabled="!user" @click="openModal(route('users.edit', user.id), '3xl')">Sửa thông tin</UiButton>
                     </div>
                     <div v-if="can('permission.override')" class="flex flex-1">
-                        <UiButton icon="admin_panel_settings" class="flex-1" :disabled="!user" @click="openModal(route('users.permissions.edit', user.id), '4xl')">Phân quyền</UiButton>
+                        <UiButton icon="admin_panel_settings" class="flex-1" :disabled="!user" @click="openModal(route('users.permissions.edit', user.id), '7xl')">Phân quyền</UiButton>
                     </div>
                 </footer>
             </aside>

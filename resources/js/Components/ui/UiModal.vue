@@ -8,7 +8,7 @@
  *           <UiButton variant="danger" type="submit" form="delete-form">Xóa</UiButton>
  *       </template>
  *   </UiModal>
- * Props: show, title, maxWidth (sm|md|lg|xl|2xl|3xl|4xl|full — từ 2xl: toàn màn trên điện thoại), bare (slot tự dựng khung),
+ * Props: show, title, maxWidth (sm|md|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|full — từ 2xl: toàn màn trên điện thoại; 7xl cho bảng nhiều cột), bare (slot tự dựng khung),
  *        dismissUrl (URL đặt lại lên thanh địa chỉ khi đóng, không tải trang — modal chi tiết mở sẵn theo ?selected_id=…)
  * Hành vi: giữ focus trong modal, đóng thì trả focus về chỗ cũ, khoá cuộn trang nền; mở chồng modal: Esc chỉ đóng modal trên cùng.
  *   Form bên trong đã sửa mà bấm nền / Esc / X → hỏi "Bỏ các thay đổi chưa lưu?" (đóng bằng code / sau khi lưu thì không hỏi).
@@ -31,7 +31,7 @@ const emit = defineEmits(['close', 'closed']);
 
 const widths = {
     sm: 'sm:max-w-sm', md: 'sm:max-w-md', lg: 'sm:max-w-lg', xl: 'sm:max-w-xl',
-    '2xl': 'sm:max-w-2xl', '3xl': 'sm:max-w-3xl', '4xl': 'sm:max-w-4xl', full: 'sm:max-w-none',
+    '2xl': 'sm:max-w-2xl', '3xl': 'sm:max-w-3xl', '4xl': 'sm:max-w-4xl', '5xl': 'sm:max-w-5xl', '6xl': 'sm:max-w-6xl', '7xl': 'sm:max-w-7xl', full: 'sm:max-w-none',
 };
 const uid = useId();
 const titleId = `modal-${uid.replace(/[^A-Za-z0-9_-]/g, '')}-title`;
@@ -41,7 +41,7 @@ let confirming = false;
 let previousFocus = null;
 
 const size = computed(() => (widths[props.maxWidth] ? props.maxWidth : 'lg'));
-const large = computed(() => ['2xl', '3xl', '4xl', 'full'].includes(size.value));
+const large = computed(() => !['sm', 'md', 'lg', 'xl'].includes(size.value));
 
 async function requestClose(force = false) {
     if (!props.show || confirming || !props.closeable) return;

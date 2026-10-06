@@ -49,15 +49,16 @@ class ProfilePortalByRoleTest extends TestCase
             ->assertSee('Lương của tôi');
     }
 
-    public function test_academic_lead_sees_approvals_and_weekly_report(): void
+    public function test_academic_lead_sees_weekly_report_but_not_approval_inbox(): void
     {
         $user = $this->userWithRole('academic_lead');
 
+        // Module "Cần duyệt" chỉ dành cho Admin (06/10/2026): Học thuật không còn thẻ / lối tắt "Việc cần duyệt".
         $this->actingAs($user)->get(route('profile.edit'))
             ->assertOk()
             ->assertSee('Học thuật')
             ->assertDontSee('Giờ dạy tháng này')
-            ->assertSee('Việc cần duyệt')
+            ->assertDontSee('Việc cần duyệt')
             ->assertSee('Báo cáo tuần')
             ->assertSee(route('syllabus.documents'), false);
     }

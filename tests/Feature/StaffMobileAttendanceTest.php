@@ -12,6 +12,7 @@ use App\Models\Penalty;
 use App\Models\StaffAttendance;
 use App\Models\StaffAttendanceRequest;
 use App\Models\User;
+use App\Support\Approvals\ApprovalInboxService;
 use Carbon\Carbon;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
@@ -196,7 +197,7 @@ class StaffMobileAttendanceTest extends TestCase
         ])->assertRedirect(route('mobile.requests'))->assertSessionHasNoErrors();
         $request = StaffAttendanceRequest::sole();
 
-        $this->actingAs($this->manager)->post(route('approvals.bulk'), [
+        $this->actingAs($this->admin)->post(route('approvals.bulk'), [
             'action' => 'approve', 'items' => ['staff_attendance_request:'.$request->id],
         ])->assertRedirect();
 
@@ -258,23 +259,30 @@ class StaffMobileAttendanceTest extends TestCase
             'type' => StaffAttendanceRequest::TYPE_CORRECTION, 'date_from' => '2026-10-04', 'check_in_time' => '09:00', 'check_out_time' => '08:00', 'reason' => 'x',
         ])->assertSessionHasErrors('check_out_time');
 
-        // Quản lý cơ sở khác không thấy, quản lý cùng cơ sở thấy trong hộp Việc cần duyệt.
+        // Phạm vi nguồn vẫn theo cơ sở (quản lý cơ sở khác không có đơn), nhưng module "Cần duyệt" chỉ Admin mở:
+        // quản lý cơ sở không có tab Cần duyệt trên điện thoại và bị 403 khi duyệt.
         $otherManager = $this->user('manager', $this->otherBranch);
-        $this->actingAs($otherManager)->get(route('mobile.approvals'))->assertOk()
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('sections', []));
-        $this->actingAs($otherManager)->post(route('approvals.bulk'), [
-            'action' => 'approve', 'items' => ['staff_attendance_request:'.$request->id],
-        ]);
+        $inbox = app(ApprovalInboxService::class);
+        $this->assertSame(0, $inbox->counts($otherManager)['staff_attendance_request']);
+        $this->assertSame(1, $inbox->counts($this->manager)['staff_attendance_request']);
+        foreach ([$otherManager, $this->manager] as $manager) {
+            $this->actingAs($manager)->get(route('mobile.history'))->assertOk()
+                ->assertInertia(fn (AssertableInertia $page) => $page->where('mobileNav.approvals', null));
+            $this->actingAs($manager)->get(route('mobile.approvals'))->assertForbidden();
+            $this->actingAs($manager)->post(route('approvals.bulk'), [
+                'action' => 'approve', 'items' => ['staff_attendance_request:'.$request->id],
+            ])->assertForbidden();
+        }
         $this->assertSame(StaffAttendanceRequest::STATUS_PENDING, $request->fresh()->status);
 
-        $this->actingAs($this->manager)->get(route('mobile.approvals'))->assertOk()
+        $this->actingAs($this->admin)->get(route('mobile.approvals'))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->component('Mobile/Approvals')
                 ->where('sections.0.key', 'staff_attendance_request')
                 ->where('mobileNav.approvals', 1));
-        $this->actingAs($this->manager)->get(route('approvals.show', ['staff_attendance_request', $request->id]))->assertOk()
+        $this->actingAs($this->admin)->get(route('approvals.show', ['staff_attendance_request', $request->id]))->assertOk()
             ->assertSee('Điện thoại hết pin');
 
-        $this->actingAs($this->manager)->post(route('approvals.bulk'), [
+        $this->actingAs($this->admin)->post(route('approvals.bulk'), [
             'action' => 'approve', 'items' => ['staff_attendance_request:'.$request->id],
         ])->assertRedirect();
 
@@ -293,7 +301,8 @@ class StaffMobileAttendanceTest extends TestCase
         ])->assertSessionHasNoErrors();
         $own = StaffAttendanceRequest::sole();
 
-        $this->actingAs($this->manager)->post(route('approvals.bulk'), ['action' => 'approve', 'items' => ['staff_attendance_request:'.$own->id]]);
+        // Luật của nguồn: người duyệt không tự duyệt đơn của mình (tầng service, dùng chung với hộp Cần duyệt).
+        $this->assertFalse(app(ApprovalInboxService::class)->process($this->manager, 'approve', ['staff_attendance_request:'.$own->id])[0]['ok']);
         $this->assertSame(StaffAttendanceRequest::STATUS_PENDING, $own->fresh()->status);
 
         // Trùng đơn đang chờ cùng ngày → chặn.
@@ -314,7 +323,7 @@ class StaffMobileAttendanceTest extends TestCase
         ]);
         $request = StaffAttendanceRequest::sole();
 
-        $this->actingAs($this->manager)->post(route('approvals.bulk'), [
+        $this->actingAs($this->admin)->post(route('approvals.bulk'), [
             'action' => 'reject', 'items' => ['staff_attendance_request:'.$request->id], 'reason' => 'Thiếu giấy khám',
         ])->assertRedirect();
 
