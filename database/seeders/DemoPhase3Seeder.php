@@ -654,7 +654,8 @@ class DemoPhase3Seeder extends Seeder
     /** Kế toán tạo (hoặc tính lại) kỳ, nhập các khoản tay trên phiếu, rồi "Đồng bộ & Tính lại". */
     private function calculatePeriod(Carbon $month): PayrollPeriod
     {
-        $accountant = $this->staff['accountant_cg'];
+        // Tính / nhập tay lương là việc của Admin: Kế toán cũ nay là Quản lý cơ sở, chỉ xem phiếu lương của mình.
+        $accountant = $this->staff['admin'];
         $period = $this->periodFor($month);
         if ($period) {
             $this->asUser($accountant, PayrollController::class, 'calculatePeriod', [], ['id' => $period->id]);

@@ -206,7 +206,37 @@ class PayrollController extends Controller
             'periodOptions' => Ui::options($allPeriods, fn (PayrollPeriod $p) => 'Tháng '.str_pad($p->month, 2, '0', STR_PAD_LEFT).'/'.$p->year.' ('.$p->code.')'),
             'typeOptions' => Ui::options(PayrollRecord::SALARY_ROLE_LABELS),
             'filtered' => $search !== '' || $type || $kpi,
+            'missingStaff' => DataScope::isAll($user, 'payroll') && ! $period->isLocked() ? $this->staffWithoutPayslip($period) : null,
         ]);
+    }
+
+    /**
+     * Nhân sự đang làm việc mà kỳ chưa có phiếu lương: lần tính bỏ qua người không có khoản nào phát sinh (lương cơ bản 0,
+     * không buổi dạy hợp lệ, không hoa hồng) — Admin cần thấy ai đang thiếu và vì sao, thay vì tưởng bảng lương thiếu người.
+     *
+     * @return array{count: int, items: list<array{id: int, name: string, email: ?string, reason: string}>}
+     */
+    private function staffWithoutPayslip(PayrollPeriod $period): array
+    {
+        $formula = app(PayrollFormulaService::class);
+        $missing = User::with('roles')->where('is_active', true)->staffAccounts()
+            ->whereDoesntHave('roles', fn ($r) => $r->where('name', Roles::ADMIN))
+            ->whereNotIn('id', $period->records()->select('user_id'))
+            ->where('created_at', '<=', $period->end_date->copy()->endOfDay())
+            ->orderBy('name')
+            ->get()
+            ->map(fn (User $staff) => [
+                'id' => $staff->id,
+                'name' => $staff->name,
+                'email' => $staff->email,
+                'reason' => match (true) {
+                    $formula->profile($staff)['employee_type'] === PayrollRecord::TYPE_PARTTIME => 'Part-time: chưa có buổi dạy hợp lệ trong kỳ',
+                    (float) $staff->base_salary <= 0 => 'Chưa nhập lương cơ bản',
+                    default => 'Đã có lương cơ bản: bấm Đồng bộ & Tính lại',
+                },
+            ]);
+
+        return ['count' => $missing->count(), 'items' => $missing->take(50)->values()->all()];
     }
 
     /**

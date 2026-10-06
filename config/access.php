@@ -48,8 +48,8 @@ return [
             'tuition.view', 'tuition.create', 'tuition.approve', 'tuition.reject', 'tuition.mark_contacted', 'tuition.report_overdue',
             'invoice.request_cancel',
             'refund_transfer.request', 'refund_transfer.approve', 'refund_transfer.approve_transfer', 'refund_transfer.reject',
-            // Flow §15: chỉ Admin duyệt/chi trả lương; Kế toán tính & soát; Manager chỉ xem.
-            'payroll.view', 'payroll.view_own', 'kpi.*', 'teacher_rate.manage', 'commission_config.manage',
+            // Bảng lương (06/10/2026): Quản lý cơ sở chỉ xem phiếu lương của chính mình ("Lương của tôi"); Admin xem mọi phiếu.
+            'payroll.view_own', 'kpi.*', 'teacher_rate.manage', 'commission_config.manage',
             'attendance_staff.view', 'attendance_staff.manual_record',
             // Chấm công hằng ngày (điện thoại): xem + duyệt đơn của nhân sự chi nhánh mình.
             'staff_checkin.view', 'staff_checkin.approve', 'staff_checkin.scope_branch',
@@ -67,7 +67,7 @@ return [
             'merchandise_stock.view', 'merchandise_stock.manage',
             // Phạm vi dữ liệu (A6 Q7: Quản lý cơ sở chỉ thấy chi nhánh mình).
             'lead.scope_branch', 'student.scope_branch', 'class.scope_branch', 'room.scope_branch', 'big_test.scope_all', 'tuition.scope_branch',
-            'finance.scope_branch', 'attendance_staff.scope_branch', 'payroll.scope_all', 'kpi.scope_all', 'work_task.scope_branch',
+            'finance.scope_branch', 'attendance_staff.scope_branch', 'payroll.scope_own', 'kpi.scope_all', 'work_task.scope_branch',
             'merchandise_stock.scope_branch',
             'support_ticket.scope_all', 'user.scope_branch', 'activity_log.scope_all', 'dashboard.scope_branch',
             // Order học liệu: xử lý đạo cụ / in ấn / GVNN theo chi nhánh.

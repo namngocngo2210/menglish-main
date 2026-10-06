@@ -89,9 +89,11 @@ class DemoPhase3SeederTest extends TestCase
         // Màn hình Phase 3 mở được bằng tài khoản demo; nhân viên chỉ thấy kỳ đã duyệt.
         $accountant = User::where('email', 'ketoan2@menglish.edu.vn')->firstOrFail();
         $admin = User::where('email', 'admin@menglish.edu.vn')->firstOrFail();
-        $this->actingAs($accountant)->get(route('payroll.periods.index'))->assertOk();
-        $this->actingAs($accountant)->get(route('payroll.periods.show', $current->id))->assertOk();
-        $this->actingAs($accountant)->get(route('payroll.records.show', $pt->id))->assertOk();
+        // Kế toán cũ nay là Quản lý cơ sở: chỉ xem phiếu lương của mình (06/10/2026).
+        $this->actingAs($accountant)->get(route('payroll.periods.index'))->assertForbidden();
+        $this->actingAs($accountant)->get(route('payroll.records.show', $pt->id))->assertForbidden();
+        $this->actingAs($admin)->get(route('payroll.periods.show', $current->id))->assertOk();
+        $this->actingAs($admin)->get(route('payroll.records.show', $pt->id))->assertOk();
         $this->actingAs($admin)->get(route('payroll.periods.show', $last->id))->assertOk();
         $this->actingAs($admin)->get(route('penalties.index'))->assertOk();
         $this->actingAs($admin)->get(route('payroll.timesheets.teachers'))->assertOk();

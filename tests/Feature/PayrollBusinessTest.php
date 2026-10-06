@@ -270,15 +270,18 @@ class PayrollBusinessTest extends TestCase
             'status' => 'approved',
         ]);
 
-        $responseAcademic = $this->actingAs($this->hrManager)->get(route('payroll.periods.academic', $period->id));
+        $responseAcademic = $this->actingAs($this->payrollAdmin)->get(route('payroll.periods.academic', $period->id));
         $responseAcademic->assertOk();
         $responseAcademic->assertSee($this->teacherUser->name);
 
-        $responseFulltime = $this->actingAs($this->hrManager)->get(route('payroll.periods.fulltime', $period->id));
+        $responseFulltime = $this->actingAs($this->payrollAdmin)->get(route('payroll.periods.fulltime', $period->id));
         $responseFulltime->assertOk();
 
-        $responseOperations = $this->actingAs($this->hrManager)->get(route('payroll.periods.operations', $period->id));
+        $responseOperations = $this->actingAs($this->payrollAdmin)->get(route('payroll.periods.operations', $period->id));
         $responseOperations->assertOk();
+
+        // Quản lý cơ sở chỉ xem phiếu lương của mình (06/10/2026): màn bảng lương theo khối bị chặn.
+        $this->actingAs($this->hrManager)->get(route('payroll.periods.academic', $period->id))->assertForbidden();
 
         // Personal salary view
         $responseMySalary = $this->actingAs($this->teacherUser)->get(route('portal.my-salary'));

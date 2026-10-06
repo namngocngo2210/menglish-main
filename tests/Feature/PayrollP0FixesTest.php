@@ -427,7 +427,8 @@ class PayrollP0FixesTest extends TestCase
         $this->actingAs($this->accountant)->post(route('payroll.periods.approve', $period->id))->assertForbidden();
         $this->actingAs($this->manager)->post(route('payroll.periods.approve', $period->id))->assertForbidden();
         $this->actingAs($this->manager)->post(route('payroll.periods.calculate', $period->id))->assertForbidden();
-        $this->actingAs($this->manager)->get(route('payroll.periods.show', $period->id))->assertOk();
+        // Quản lý cơ sở chỉ xem phiếu lương của mình qua "Lương của tôi" (06/10/2026).
+        $this->actingAs($this->manager)->get(route('payroll.periods.show', $period->id))->assertForbidden();
 
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $period->id))->assertSessionHasNoErrors();
         $this->actingAs($this->accountant)->post(route('payroll.periods.mark-paid', $period->id))->assertForbidden();
