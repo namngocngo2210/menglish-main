@@ -99,7 +99,7 @@ function openProfile(profile) {
                         </td>
                         <td class="text-right">
                             <div class="flex items-center justify-end gap-xs">
-                                <UiButton v-if="can('permission.override')" variant="ghost" size="sm" icon="admin_panel_settings" :href="route('users.permissions.edit', user.id)" modal="4xl" title="Phân quyền cá nhân" aria-label="Phân quyền cá nhân" />
+                                <UiButton v-if="can('permission.override')" variant="ghost" size="sm" icon="admin_panel_settings" :href="route('users.permissions.edit', user.id)" modal="7xl" title="Phân quyền cá nhân" aria-label="Phân quyền cá nhân" />
                                 <UiForm
                                     v-if="can('user.lock')"
                                     :action="user.locked ? route('users.unlock', user.id) : route('users.lock', user.id)"

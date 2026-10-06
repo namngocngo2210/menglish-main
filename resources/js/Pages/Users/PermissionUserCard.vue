@@ -9,7 +9,7 @@ defineProps({
 <template>
     <div class="mb-md flex flex-wrap items-center gap-sm rounded-xl border border-outline-variant bg-surface-container-lowest p-md">
         <UiAvatar :name="user.name" />
-        <div class="min-w-0 flex-1">
+        <div class="min-w-[12rem] flex-1">
             <p class="font-body-medium text-body-medium font-semibold text-on-surface">{{ user.name }} <span class="font-code text-caption text-on-surface-variant">· {{ user.employee_code }}</span></p>
             <p class="font-body-small text-body-small text-on-surface-variant">{{ user.branch_name ?? 'Chưa gán chi nhánh' }} · {{ user.email }}</p>
         </div>
