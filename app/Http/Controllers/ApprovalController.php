@@ -14,7 +14,7 @@ use Inertia\Response;
 
 /**
  * "Việc cần duyệt" (IX-5): một hộp gom mọi yêu cầu chờ user duyệt. Chỉ đọc / uỷ quyền qua ApprovableSource,
- * nghiệp vụ duyệt vẫn nằm ở module gốc. Vào được khi duyệt được ít nhất 1 nguồn (403 nếu không).
+ * nghiệp vụ duyệt vẫn nằm ở module gốc. Chỉ Admin vào được (ApprovalInboxService::allowsModule, 403 nếu không).
  */
 class ApprovalController extends Controller
 {

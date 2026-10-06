@@ -80,6 +80,9 @@ final class SidebarMenu
                 'section' => 'Phê duyệt',
                 'label' => 'Cần duyệt',
                 'icon' => 'fact_check',
+                // Cả mục "Cần duyệt" chỉ Admin thấy (yêu cầu 06/10/2026). Màn gốc của các tab vẫn mở được từ màn nghiệp vụ
+                // (Học viên → Tiếp nhận & Xếp lớp, CRM → Xác nhận chính thức, thông báo…) theo quyền như trước.
+                'can' => [ApprovalServiceProvider::MODULE_ABILITY],
                 'items' => [
                     // Hộp chung: chỉ hiện khi duyệt được ít nhất 1 nguồn (Gate ApprovalServiceProvider::INBOX_ABILITY).
                     ['label' => 'Việc cần duyệt', 'route' => 'approvals.index', 'active' => ['approvals.*'], 'can' => [ApprovalServiceProvider::INBOX_ABILITY]],
