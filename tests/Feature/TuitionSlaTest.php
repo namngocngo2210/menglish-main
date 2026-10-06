@@ -173,18 +173,18 @@ class TuitionSlaTest extends TestCase
         $this->artisan('tuition:notify-refund-deadlines')->assertSuccessful();
         $this->artisan('tuition:notify-refund-deadlines')->assertSuccessful();
         $soon = AdminNotification::where('type', 'refund_deadline')->where('data->kind', 'due_soon')->get();
-        // Hoàn phí: chỉ Admin; chuyển nhượng: Admin + Kế toán.
+        // Chỉ Admin duyệt (06/10/2026): cả hoàn phí lẫn chuyển nhượng chỉ nhắc Admin, Kế toán không còn nhận.
         $this->assertSame(1, $soon->where('data.request_id', $refund->id)->count());
         $this->assertEquals($this->admin->id, $soon->firstWhere('data.request_id', $refund->id)->user_id);
-        $this->assertEqualsCanonicalizing([$this->admin->id, $this->accountant->id], $soon->where('data.request_id', $transfer->id)->pluck('user_id')->all());
+        $this->assertSame([$this->admin->id], $soon->where('data.request_id', $transfer->id)->pluck('user_id')->values()->all());
 
         // Qua hạn (22/10): thông báo "quá hạn" mới; ngày kế tiếp lại nhắc một lần nữa.
         Carbon::setTestNow('2026-10-22 08:40:00');
         $this->artisan('tuition:notify-refund-deadlines')->assertSuccessful();
-        $this->assertSame(3, AdminNotification::where('type', 'refund_deadline')->where('data->kind', 'overdue')->count());
+        $this->assertSame(2, AdminNotification::where('type', 'refund_deadline')->where('data->kind', 'overdue')->count());
         Carbon::setTestNow('2026-10-23 08:40:00');
         $this->artisan('tuition:notify-refund-deadlines')->assertSuccessful();
-        $this->assertSame(6, AdminNotification::where('type', 'refund_deadline')->where('data->kind', 'overdue')->count());
+        $this->assertSame(4, AdminNotification::where('type', 'refund_deadline')->where('data->kind', 'overdue')->count());
     }
 
     public function test_permission_is_granted_to_accountant_not_staff(): void

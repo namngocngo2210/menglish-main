@@ -12,6 +12,7 @@ use App\Models\Student;
 use App\Models\StudentTuition;
 use App\Models\TuitionReceipt;
 use App\Models\User;
+use App\Support\Roles;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -29,7 +30,8 @@ class PromotionReuseTest extends TestCase
 
     private User $academic;
 
-    private User $accountant;
+    /** Người duyệt phiếu thu: chỉ Admin (06/10/2026). */
+    private User $admin;
 
     private Course $course;
 
@@ -43,7 +45,7 @@ class PromotionReuseTest extends TestCase
 
         $this->branch = Branch::create(['name' => 'Cơ sở ưu đãi', 'code' => 'UD', 'is_active' => true]);
         $this->academic = $this->makeUser('academic_staff');
-        $this->accountant = $this->makeUser('accountant');
+        $this->admin = $this->makeUser(Roles::ADMIN);
         $this->course = Course::create(['code' => 'MOV1', 'name' => 'Movers 1', 'tuition_fee' => 10000000, 'total_lessons' => 48, 'is_active' => true]);
         $this->classModel = ClassModel::create([
             'code' => 'MOV1-A', 'name' => 'Movers 1 A', 'course_id' => $this->course->id,
@@ -184,7 +186,7 @@ class PromotionReuseTest extends TestCase
         $this->assertEquals(300000, (float) $receipt->discount_amount);
         $this->assertSame(0, $promotion->fresh()->used_count);
 
-        $this->actingAs($this->accountant)->post(route('tuition.receipts.approve.action', $receipt->id))->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('tuition.receipts.approve.action', $receipt->id))->assertSessionHasNoErrors();
 
         $this->assertSame(1, $promotion->fresh()->used_count);
         $this->assertEquals(0, (float) $tuition->fresh()->debt_amount);

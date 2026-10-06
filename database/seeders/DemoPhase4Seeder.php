@@ -207,12 +207,13 @@ class DemoPhase4Seeder extends Seeder
             $this->event($this->at($daysAgo, 9, 30), fn () => $this->closeCustomer($key));
         }
 
-        // A: đợt 1 — Học vụ lập nháp → gửi duyệt (CK kèm minh chứng) → Kế toán trả về → sửa mã GD, gửi lại → Kế toán duyệt.
+        // A: đợt 1 — Học vụ lập nháp → gửi duyệt (CK kèm minh chứng) → Admin trả về → sửa mã GD, gửi lại → Admin duyệt
+        // (chỉ Admin duyệt / từ chối — 06/10/2026).
         $this->event($this->at(19, 10), fn () => $this->receipt('A', 'academic_cg', 4000000, 'transfer', null, draft: true, note: 'PH hẹn chuyển khoản đợt 1.'));
         $this->event($this->at(19, 11), fn () => $this->updateLastReceipt('A', 'academic_cg', ['submit_action' => 'submit', 'transaction_code' => 'FT26DEMO0001A']));
-        $this->event($this->at(19, 15), fn () => $this->rejectLast('A', 'accountant_cg', 'Mã giao dịch không khớp sao kê (FT26DEMO0001A). Vui lòng kiểm tra lại ủy nhiệm chi.'));
+        $this->event($this->at(19, 15), fn () => $this->rejectLast('A', 'admin', 'Mã giao dịch không khớp sao kê (FT26DEMO0001A). Vui lòng kiểm tra lại ủy nhiệm chi.'));
         $this->event($this->at(18, 9), fn () => $this->updateLastReceipt('A', 'academic_cg', ['submit_action' => 'submit', 'transaction_code' => 'FT26DEMO0001', 'notes' => 'Đã sửa mã giao dịch theo sao kê.']));
-        $this->event($this->at(18, 14), fn () => $this->approveLast('A', 'accountant_cg'));
+        $this->event($this->at(18, 14), fn () => $this->approveLast('A', 'admin'));
         // A: đợt 2 — PH chuyển khoản đúng nội dung QR → SePay tự gạch nợ phần còn lại, xuất HĐ; webhook gửi lại bị bỏ qua.
         $this->event($this->at(3, 20, 15), fn () => $this->sepay('SEPAY-DEMO-P4-0001', 'CG', $this->debtOf('A'), $this->tuitionOf('A')->transfer_memo.' CK hoc phi dot 2'));
         $this->event($this->at(3, 20, 17), fn () => $this->sepay('SEPAY-DEMO-P4-0001', 'CG', $this->debtOf('A'), $this->tuitionOf('A')->transfer_memo.' CK hoc phi dot 2', expectDuplicate: true));
@@ -224,22 +225,22 @@ class DemoPhase4Seeder extends Seeder
         $this->event($this->at(2, 10), fn () => $this->overdueAction('B', 'manager_cg', 'reportOverdueToAdmin', ['note' => 'Quá hạn trên 2 tuần, đề nghị Admin gọi trực tiếp.']));
         $this->event($this->at(0, 8), fn () => $this->receipt('B', 'academic_cg', 9500000, 'transfer', 'FT26DEMO0002', note: 'PH gửi ảnh chuyển khoản qua Zalo sáng nay.'));
 
-        // C: đóng 1 phần tiền mặt (Học vụ lập, Kế toán duyệt) → quá hạn 1–6 ngày với phần còn lại; đợt CK tay + SePay cùng mã.
+        // C: đóng 1 phần tiền mặt (Học vụ lập, Admin duyệt) → quá hạn 1–6 ngày với phần còn lại; đợt CK tay + SePay cùng mã.
         $this->event($this->at(11, 10), fn () => $this->receipt('C', 'academic_bd', 3000000, 'cash', null, note: 'Đóng đợt 1 tại quầy.'));
-        $this->event($this->at(11, 16), fn () => $this->approveLast('C', 'accountant_bd'));
+        $this->event($this->at(11, 16), fn () => $this->approveLast('C', 'admin'));
         $this->event($this->at(2, 10), fn () => $this->receipt('C', 'academic_bd', 2000000, 'transfer', 'FT26DEMO0003', note: 'PH chuyển khoản đợt 2.'));
-        // Webhook cùng mã giao dịch đến sau phiếu tay chờ duyệt → không tạo phiếu lần 2 (duplicate_manual); Kế toán vẫn duyệt được phiếu tay.
+        // Webhook cùng mã giao dịch đến sau phiếu tay chờ duyệt → không tạo phiếu lần 2 (duplicate_manual); Admin vẫn duyệt được phiếu tay.
         $this->event($this->at(2, 10, 5), fn () => $this->sepay('FT26DEMO0003', 'BD', 2000000, $this->tuitionOf('C')->transfer_memo.' CK dot 2', expectStatus: 'duplicate_manual'));
-        $this->event($this->at(2, 15), fn () => $this->approveLast('C', 'accountant_bd'));
+        $this->event($this->at(2, 15), fn () => $this->approveLast('C', 'admin'));
         $this->event($this->at(1, 9), fn () => $this->overdueAction('C', 'academic_bd', 'markContacted', ['note' => 'PH hẹn đóng nốt trong tuần.']));
         $this->event($this->at(0, 7), fn () => $this->invoiceCancellation('C', 'accountant_bd', 'Xuất sai tên người nộp trên hóa đơn đợt 1, cần xuất lại.', approveBy: null));
 
-        // D: khất nợ — Kế toán lập, Quản lý duyệt: hạn mới +10 ngày, tạm dừng nhắc nợ.
+        // D: khất nợ — Kế toán lập, Admin duyệt: hạn mới +10 ngày, tạm dừng nhắc nợ.
         $this->event($this->at(6, 9), fn () => $this->refundRequest('D', 'accountant_bd', ['type' => 'extension', 'extended_due_date' => $this->realNow->copy()->addDays(10)->toDateString(),
-            'reason' => 'Gia đình xin khất đến kỳ lương tháng sau.'], approveBy: 'manager_bd'));
+            'reason' => 'Gia đình xin khất đến kỳ lương tháng sau.'], approveBy: 'admin'));
 
-        // E: đóng đủ khi chốt (Kế toán duyệt) → chuyển nhượng 3.000.000 sang em F (Admin duyệt) → hồ sơ hoàn phí chờ duyệt quá 1 tuần.
-        $this->event($this->at(40, 15), fn () => $this->approveLast('E', 'accountant_cg'));
+        // E: đóng đủ khi chốt (Admin duyệt) → chuyển nhượng 3.000.000 sang em F (Admin duyệt) → hồ sơ hoàn phí chờ duyệt quá 1 tuần.
+        $this->event($this->at(40, 15), fn () => $this->approveLast('E', 'admin'));
         $this->event($this->at(20, 9), fn () => $this->refundRequest('E', 'accountant_cg', ['type' => 'transfer', 'refund_amount' => 3000000,
             'target_student_id' => $this->customers['F']->converted_student_id, 'reason' => 'Chuyển số buổi dư của chị sang em (cùng phụ huynh).'], approveBy: 'admin'));
         $this->event($this->at(10, 9), fn () => $this->refundRequest('E', 'accountant_cg', ['type' => 'refund', 'refund_amount' => 2000000,
@@ -249,18 +250,18 @@ class DemoPhase4Seeder extends Seeder
 
         // G: đóng 1 phần → bảo lưu 30 ngày (học viên sang "Bảo lưu", đóng băng công nợ).
         $this->event($this->at(28, 10), fn () => $this->receipt('G', 'academic_bd', 4750000, 'cash', null, note: 'Đóng 50% học phí.'));
-        $this->event($this->at(28, 15), fn () => $this->approveLast('G', 'accountant_bd'));
+        $this->event($this->at(28, 15), fn () => $this->approveLast('G', 'admin'));
         $this->event($this->at(3, 9), fn () => $this->refundRequest('G', 'accountant_bd', ['type' => 'deferral', 'defer_from' => $this->realNow->copy()->subDays(3)->toDateString(),
-            'defer_to' => $this->realNow->copy()->addDays(30)->toDateString(), 'reason' => 'Học viên đi du học hè 1 tháng.'], approveBy: 'manager_bd'));
+            'defer_to' => $this->realNow->copy()->addDays(30)->toDateString(), 'reason' => 'Học viên đi du học hè 1 tháng.'], approveBy: 'admin'));
 
         // H: sắp đến hạn — 1 phiếu nháp, 1 phiếu CK bị trả về (chưa sửa).
         $this->event($this->at(1, 10), fn () => $this->receipt('H', 'academic_cg', 2000000, 'cash', null, draft: true, note: 'Nháp: PH hẹn đóng tiền mặt.'));
         $this->event($this->at(1, 11), fn () => $this->receipt('H', 'academic_cg', 3000000, 'transfer', 'FT26DEMO0004', note: 'PH chuyển khoản đặt chỗ.'));
-        $this->event($this->at(1, 15), fn () => $this->rejectLast('H', 'accountant_cg', 'Ảnh minh chứng mờ, không đọc được số tiền.'));
+        $this->event($this->at(1, 15), fn () => $this->rejectLast('H', 'admin', 'Ảnh minh chứng mờ, không đọc được số tiền.'));
 
-        // J: đóng đủ → hủy hóa đơn (Kế toán yêu cầu, Admin duyệt — mặc định chỉ Admin có invoice.approve_cancel) → công nợ khôi phục.
+        // J: đóng đủ → hủy hóa đơn (Kế toán yêu cầu, Admin duyệt — chỉ Admin có invoice.approve_cancel) → công nợ khôi phục.
         $this->event($this->at(13, 10), fn () => $this->receipt('J', 'academic_bd', 9500000, 'cash', null, note: 'Đóng đủ khóa.'));
-        $this->event($this->at(13, 15), fn () => $this->approveLast('J', 'accountant_bd'));
+        $this->event($this->at(13, 15), fn () => $this->approveLast('J', 'admin'));
         $this->event($this->at(9, 10), fn () => $this->invoiceCancellation('J', 'accountant_bd', 'Phụ huynh đổi ý chưa đóng, tiền mặt trả lại tại quầy — hủy hóa đơn.', approveBy: 'admin'));
 
         // SePay: tiền vào tài khoản lạ (không gạch nợ) + giao dịch không nhận ra học viên (chờ đối soát tay).
@@ -504,7 +505,7 @@ class DemoPhase4Seeder extends Seeder
             'assignee' => $this->staff['teacher_cg']->id, 'dueDate' => $due, 'taskType' => 'one_time', 'branch_id' => $this->branches['CG'],
             'class_id' => $this->classes['CG-FAM1']->id,
         ]);
-        // Chiều ngược: GV → Học vụ (work_task.request), Học vụ làm xong gửi chờ xác nhận, GV (người giao) duyệt.
+        // Chiều ngược: GV → Học vụ (work_task.request), Học vụ làm xong gửi chờ xác nhận, Admin xác nhận (chỉ Admin duyệt).
         $this->asUser($this->staff['teacher_cg'], WorkTaskController::class, 'store', [
             'taskTitle' => 'Đề nghị in thêm 5 bộ giáo trình FAM 1 '.self::MARKER, 'taskDescription' => 'Lớp có 2 học viên mới chưa có sách.',
             'assignee' => $this->staff['academic_cg']->id, 'dueDate' => $due, 'taskType' => 'one_time', 'branch_id' => $this->branches['CG'],
@@ -515,7 +516,7 @@ class DemoPhase4Seeder extends Seeder
         Carbon::setTestNow(now()->addHours(2));
         $this->asUser($this->staff['academic_cg'], WorkTaskController::class, 'updateStatus', ['status' => 'pending_confirmation', 'note' => 'Đã in và để ở quầy lễ tân.'], ['id' => $request->id]);
         Carbon::setTestNow(now()->addHours(1));
-        $this->asUser($this->staff['teacher_cg'], WorkTaskController::class, 'approveTask', [], ['id' => $request->id]);
+        $this->asUser($this->staff['admin'], WorkTaskController::class, 'approveTask', [], ['id' => $request->id]);
         // TA → Quản lý (chiều ngược, còn mở).
         $this->asUser($this->staff['assistant_bd'], WorkTaskController::class, 'store', [
             'taskTitle' => 'Báo hỏng loa phòng 2, nhờ thay trước buổi tới '.self::MARKER,
@@ -544,7 +545,7 @@ class DemoPhase4Seeder extends Seeder
         $this->asUser($this->staff['assistant_bd'], WorkTaskController::class, 'completeTask', ['note' => 'Đã mở phòng 17:15.', 'proof_image_url' => 'https://menglish.edu.vn/demo/phong-hoc.jpg'], ['id' => $shifts['before']->id]);
         $this->asUser($this->staff['assistant_bd'], WorkTaskController::class, 'completeTask', ['note' => 'Kèm 3 bạn đọc chậm.'], ['id' => $shifts['during']->id]);
 
-        // Báo cáo trực lớp: có ảnh bảng → tự hoàn thành; không ảnh → chờ GV chính của lớp xác nhận.
+        // Báo cáo trực lớp: có ảnh bảng → tự hoàn thành; không ảnh → chờ Admin xác nhận.
         $this->asUser($this->staff['assistant_cg'], WorkTaskController::class, 'storeClassReport', [
             'class_id' => $this->classes['CG-FAM1']->id, 'session_name' => 'Buổi trực '.$this->realNow->format('d/m').' '.self::MARKER,
             'hom_nay_hoc_gi' => 'Unit 5: Animals — từ vựng + mẫu câu "It has…"', 'nhat_ky_day' => 'Lớp đi đủ, 2 bạn cần luyện phát âm.',

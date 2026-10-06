@@ -382,13 +382,18 @@ class Phase4PlatformTest extends TestCase
         // Chuyển trạng thái không hợp lệ bị chặn.
         $this->actingAs($academic)->post(route('tasks.status.update', $mine->id), ['status' => 'blocked'])->assertSessionHasErrors('status');
 
-        // Không tự duyệt việc của chính mình.
+        // Không tự duyệt việc của chính mình (kể cả Admin).
         $selfTask = WorkTask::create(['title' => 'Tự làm tự duyệt', 'creator_id' => $academic->id, 'assignee_id' => $academic->id, 'due_date' => now()->addDay(), 'task_type' => 'one_time', 'status' => 'pending_confirmation']);
         $this->actingAs($academic)->post(route('tasks.approve', $selfTask->id))->assertForbidden();
+        $adminTask = WorkTask::create(['title' => 'Admin tự làm tự duyệt', 'creator_id' => $academic->id, 'assignee_id' => $this->admin->id, 'due_date' => now()->addDay(), 'task_type' => 'one_time', 'status' => 'pending_confirmation']);
+        $this->actingAs($this->admin)->post(route('tasks.approve', $adminTask->id))->assertForbidden();
+        $this->assertSame('pending_confirmation', $adminTask->fresh()->status);
 
-        $this->actingAs($academic)->post(route('tasks.approve', $mine->id))->assertRedirect(route('tasks.manual-approvals'));
+        // Chỉ Admin xác nhận hoàn thành (06/10/2026): người giao việc không còn duyệt.
+        $this->actingAs($academic)->post(route('tasks.approve', $mine->id))->assertForbidden();
+        $this->actingAs($this->admin)->post(route('tasks.approve', $mine->id))->assertRedirect(route('tasks.manual-approvals'));
         $this->assertSame('completed', $mine->fresh()->status);
-        $this->assertSame($academic->id, $mine->fresh()->confirmed_by);
+        $this->assertSame($this->admin->id, $mine->fresh()->confirmed_by);
     }
 
     public function test_two_way_assignment_and_assignment_notification(): void
@@ -409,13 +414,15 @@ class Phase4PlatformTest extends TestCase
         $this->assertSame($teacher->id, $task->creator_id);
         $this->assertDatabaseHas('admin_notifications', ['user_id' => $academic->id, 'type' => 'task_assigned']);
 
-        // Người giao (GV) duyệt khi Học vụ gửi chờ xác nhận.
+        // Học vụ gửi chờ xác nhận → người giao (GV) không duyệt được, chỉ Admin duyệt (06/10/2026).
         $this->actingAs($academic)->post(route('tasks.status.update', $task->id), ['status' => 'pending_confirmation']);
-        $this->actingAs($teacher)->post(route('tasks.approve', $task->id))->assertRedirect();
+        $this->actingAs($teacher)->post(route('tasks.approve', $task->id))->assertForbidden();
+        $this->assertSame('pending_confirmation', $task->fresh()->status);
+        $this->actingAs($this->admin)->post(route('tasks.approve', $task->id))->assertRedirect();
         $this->assertSame('completed', $task->fresh()->status);
     }
 
-    public function test_class_report_without_image_waits_for_main_teacher_approval(): void
+    public function test_class_report_without_image_waits_for_admin_approval(): void
     {
         $mainTeacher = $this->makeUser('teacher', $this->branchA);
         $ta = $this->makeUser('assistant', $this->branchA);
@@ -427,17 +434,22 @@ class Phase4PlatformTest extends TestCase
 
         $report = ClassReport::firstOrFail();
         $this->assertSame('pending_approval', $report->status);
-        $this->assertDatabaseHas('admin_notifications', ['user_id' => $mainTeacher->id, 'type' => 'class_report_pending']);
+        // Chỉ Admin xác nhận / trả về (06/10/2026): báo Admin, GV chính không còn được báo / duyệt.
+        $this->assertDatabaseHas('admin_notifications', ['user_id' => $this->admin->id, 'type' => 'class_report_pending']);
+        $this->assertDatabaseMissing('admin_notifications', ['user_id' => $mainTeacher->id, 'type' => 'class_report_pending']);
 
         $this->actingAs($ta)->post(route('tasks.class-reports.approve', $report->id))->assertForbidden();
-        $this->actingAs($mainTeacher)->get(route('tasks.manual-approvals'))->assertOk()->assertSee('Buổi 5');
-        $this->actingAs($mainTeacher)->post(route('tasks.class-reports.reject', $report->id), ['reason' => 'Thiếu nhật ký'])->assertSessionHasNoErrors();
+        $this->actingAs($mainTeacher)->post(route('tasks.class-reports.approve', $report->id))->assertForbidden();
+        $this->actingAs($mainTeacher)->post(route('tasks.class-reports.reject', $report->id), ['reason' => 'Thiếu nhật ký'])->assertForbidden();
+        $this->assertSame('pending_approval', $report->fresh()->status);
+        $this->actingAs($this->admin)->get(route('tasks.manual-approvals'))->assertOk()->assertSee('Buổi 5');
+        $this->actingAs($this->admin)->post(route('tasks.class-reports.reject', $report->id), ['reason' => 'Thiếu nhật ký'])->assertSessionHasNoErrors();
         $this->assertSame('rejected', $report->fresh()->status);
 
         $report->fresh()->update(['status' => 'pending_approval']);
-        $this->actingAs($mainTeacher)->post(route('tasks.class-reports.approve', $report->id))->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('tasks.class-reports.approve', $report->id))->assertSessionHasNoErrors();
         $this->assertSame('approved', $report->fresh()->status);
-        $this->assertSame($mainTeacher->id, $report->fresh()->approved_by);
+        $this->assertSame($this->admin->id, $report->fresh()->approved_by);
     }
 
     // ─────────────────────────────────────────────────────────────

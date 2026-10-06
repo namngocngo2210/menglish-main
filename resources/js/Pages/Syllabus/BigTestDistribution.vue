@@ -22,6 +22,8 @@ const props = defineProps({
     listUrl: { type: String, required: true },
     leadDays: { type: Number, default: 0 },
     canReview: { type: Boolean, default: false },
+    // Duyệt / phân phối đề: chỉ Admin (canReview vẫn cho Học thuật xem link đề, gắn chặng).
+    canApprove: { type: Boolean, default: false },
     canManage: { type: Boolean, default: false },
 });
 
@@ -177,7 +179,7 @@ function preview() {
                             <div class="flex items-center justify-end gap-2">
                                 <UiButton v-if="canReview && bt.class_id" variant="ghost" size="sm" icon="flag" title="Gắn chặng cho đợt thi" @click="openStage(bt)">Gắn chặng</UiButton>
                                 <template v-if="!bt.is_distributed">
-                                    <UiForm v-if="canReview" :action="route('syllabus.big-tests.approve', bt.id)" method="post">
+                                    <UiForm v-if="canApprove" :action="route('syllabus.big-tests.approve', bt.id)" method="post">
                                         <UiButton type="submit" variant="secondary" size="sm" icon="task_alt">Duyệt &amp; phân phối</UiButton>
                                     </UiForm>
                                     <UiBadge v-else color="warning">Chờ duyệt đề</UiBadge>

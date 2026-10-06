@@ -3,7 +3,6 @@
 namespace App\Support\Approvals;
 
 use App\Models\User;
-use App\Support\Roles;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -14,7 +13,7 @@ use WeakMap;
 /**
  * Hộp "Việc cần duyệt": gom các ApprovableSource user được duyệt (đăng ký ở ApprovalServiceProvider).
  * Chỉ Admin dùng hộp này (yêu cầu 06/10/2026, xem allowsModule()): vai trò khác không có nguồn nào → không thấy menu,
- * badge, thẻ "Chờ bạn duyệt" và bị 403 ở /approvals, /m/can-duyet. Quyền duyệt ở màn nghiệp vụ gốc không đổi.
+ * badge, thẻ "Chờ bạn duyệt" và bị 403 ở /approvals, /m/can-duyet. Duyệt ở màn nghiệp vụ gốc cũng chỉ Admin (AdminOnlyApprovals).
  *
  * Số đếm (badge sidebar + chip lọc):
  *  - Cache 60s theo user, kèm "phiên bản" chung; đọc bằng 1 lệnh Cache::many (1 truy vấn với cache database).
@@ -63,19 +62,23 @@ final class ApprovalInboxService
     /** Module "Cần duyệt" (hộp Việc cần duyệt + mục "Cần duyệt" ở sidebar) chỉ dành cho Admin. */
     public static function allowsModule(?User $user): bool
     {
-        return $user !== null && $user->hasRole(Roles::ADMIN);
+        return AdminOnlyApprovals::allows($user);
     }
 
-    /** @return array<string, ApprovableSource> nguồn user được duyệt (chỉ hỏi Gate) */
+    /** @return array<string, ApprovableSource> nguồn user được duyệt (chỉ hỏi Gate); người không phải Admin: không có nguồn nào */
     public function visibleSources(User $user): array
     {
+        if (! self::allowsModule($user)) {
+            return [];
+        }
+
         return $this->remember($user, 'sources', fn () => array_filter($this->sources, fn (ApprovableSource $s) => $s->canView($user)));
     }
 
     /** Vào được hộp (menu, badge, /approvals, /m/can-duyet, thẻ "Chờ bạn duyệt"): Admin và duyệt được ít nhất 1 nguồn. */
     public function canView(?User $user): bool
     {
-        return self::allowsModule($user) && $this->visibleSources($user) !== [];
+        return $user !== null && $this->visibleSources($user) !== [];
     }
 
     /** @return array<string, int> số mục chờ theo nguồn (đã cache) */

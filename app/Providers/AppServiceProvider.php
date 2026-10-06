@@ -6,6 +6,7 @@ use App\Models\KpiCriterion;
 use App\Models\SystemSetting;
 use App\Models\User;
 use App\Models\UserPermissionOverride;
+use App\Support\Approvals\AdminOnlyApprovals;
 use App\Support\PermissionCatalog;
 use App\Support\SensitiveData;
 use App\Support\TrackingQueryParams;
@@ -148,6 +149,11 @@ class AppServiceProvider extends ServiceProvider
             // lớp…): các quyền này mô tả người dùng là ai, Admin chỉ có khi được cấp rõ (PermissionCatalog::isAudience).
             if ($user->isSuperAdmin() && ! PermissionCatalog::isAudience($ability)) {
                 return true;
+            }
+
+            // Chỉ Admin duyệt / từ chối (06/10/2026): thu hồi quyền duyệt của mọi vai trò khác, kể cả override cá nhân.
+            if (AdminOnlyApprovals::covers($ability)) {
+                return false;
             }
 
             // Chỉ can thiệp với ability dạng "module.action".

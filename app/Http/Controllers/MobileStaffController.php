@@ -187,7 +187,7 @@ class MobileStaffController extends Controller
 
         $created = $this->attendance->submit($request->user(), $validated);
 
-        return redirect()->route('mobile.requests')->with('success', 'Đã gửi đơn '.$created->typeLabel().', chờ quản lý duyệt.');
+        return redirect()->route('mobile.requests')->with('success', 'Đã gửi đơn '.$created->typeLabel().', chờ Admin duyệt.');
     }
 
     public function cancelRequest(Request $request, StaffAttendanceRequest $attendanceRequest): RedirectResponse

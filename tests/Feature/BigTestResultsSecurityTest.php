@@ -10,6 +10,7 @@ use App\Models\Course;
 use App\Models\CrmCustomer;
 use App\Models\Student;
 use App\Models\User;
+use App\Support\Roles;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -22,7 +23,7 @@ class BigTestResultsSecurityTest extends TestCase
 
     private User $manager;
 
-    /** Học thuật: người duyệt kết quả / gửi phụ huynh (big_test.approve). */
+    /** Học thuật: xem / gửi phụ huynh kết quả đã duyệt (big_test.approve); duyệt kết quả chỉ Admin (06/10/2026). */
     private User $lead;
 
     private User $teacherA;
@@ -255,7 +256,7 @@ class BigTestResultsSecurityTest extends TestCase
         $this->assertSame('0911222333', $this->studentA->fresh()->parentContactPhone());
     }
 
-    public function test_only_academic_lead_and_admin_approve_or_send_results(): void
+    public function test_only_admin_approves_results_and_academic_lead_only_sends(): void
     {
         $result = $this->makeResult($this->testA, $this->studentA, 'pending_review');
         $staff = User::factory()->create(['is_active' => true]);
@@ -273,6 +274,18 @@ class BigTestResultsSecurityTest extends TestCase
         $this->assertSame('pending_review', $result->fresh()->status);
         $this->assertTrue($this->lead->can('big_test.approve'));
         $this->assertTrue($this->lead->can('syllabus.approve_adjustment'));
+
+        // Chỉ Admin duyệt (06/10/2026): Học thuật còn quyền big_test.approve nhưng không duyệt kết quả được.
+        $this->actingAs($this->lead)->post(route('syllabus.big-tests.results.approve', $this->testA->id))->assertForbidden();
+        $this->actingAs($this->lead)->post(route('syllabus.big-tests.results.approve-send', $result->id))->assertForbidden();
+        $this->assertSame('pending_review', $result->fresh()->status);
+
+        $admin = User::factory()->create(['is_active' => true]);
+        $admin->assignRole(Roles::ADMIN);
+        $this->actingAs($admin)->post(route('syllabus.big-tests.results.approve', $this->testA->id))->assertRedirect();
+        $result->refresh();
+        $this->assertSame('approved', $result->status);
+        $this->assertSame($admin->id, $result->approved_by);
     }
 
     // ---- 4. Regrading locked results / blank rows ----
@@ -349,7 +362,15 @@ class BigTestResultsSecurityTest extends TestCase
             ->assertDontSee(route('syllabus.big-tests.send-zalo', $this->testA->id, absolute: false))
             ->assertDontSee('/ 9.0');
 
+        // Học thuật: còn nút gửi phụ huynh, không còn nút duyệt (chỉ Admin duyệt, 06/10/2026).
         $this->actingAs($this->lead)->get(route('syllabus.big-tests.results', $this->testA->id))
+            ->assertOk()
+            ->assertDontSee(route('syllabus.big-tests.results.approve', $this->testA->id, absolute: false))
+            ->assertSee(route('syllabus.big-tests.send-zalo', $this->testA->id, absolute: false));
+
+        $admin = User::factory()->create(['is_active' => true]);
+        $admin->assignRole(Roles::ADMIN);
+        $this->actingAs($admin)->get(route('syllabus.big-tests.results', $this->testA->id))
             ->assertOk()
             ->assertSee(route('syllabus.big-tests.results.approve', $this->testA->id, absolute: false))
             ->assertSee(route('syllabus.big-tests.send-zalo', $this->testA->id, absolute: false));

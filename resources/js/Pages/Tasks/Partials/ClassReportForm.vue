@@ -167,8 +167,7 @@ const labelCls = 'mb-xs block font-label text-label uppercase text-on-surface-va
                 <p class="font-body-small text-body-small text-on-surface-variant">
                     <span class="font-semibold text-tertiary">Có ảnh đính kèm</span> → hoàn thành ngay.
                     <span class="font-semibold text-error">Không có ảnh</span> →
-                    <template v-if="confirmMode === 'teacher'">chờ GV chính xác nhận{{ confirmer ? ` (${confirmer})` : '' }}.</template>
-                    <template v-else-if="confirmMode === 'creator'">lớp chưa có GV chính — chờ người giao việc ({{ confirmer }}) xác nhận.</template>
+                    <template v-if="confirmMode === 'teacher' || confirmMode === 'creator'">chờ Admin xác nhận.</template>
                     <template v-else>lớp chưa có GV chính và chưa gắn đầu việc được giao — cần đính kèm ít nhất 1 ảnh.</template>
                 </p>
             </div>

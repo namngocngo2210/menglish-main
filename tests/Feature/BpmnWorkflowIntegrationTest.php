@@ -15,6 +15,7 @@ use App\Models\StudentAttendance;
 use App\Models\SupportSession;
 use App\Models\TeacherTimesheet;
 use App\Models\User;
+use App\Support\Roles;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -449,11 +450,14 @@ class BpmnWorkflowIntegrationTest extends TestCase
             'test_type' => 'midterm', 'scheduled_at' => now()->addDays(2), 'room' => 'Lab',
             'is_distributed' => false, 'status' => 'draft',
         ]);
-        // BPMN: Học thuật duyệt đề / kết quả Big Test (Quản lý cơ sở không duyệt).
+        // Chỉ Admin duyệt đề / kết quả Big Test (06/10/2026); Quản lý cơ sở, Học thuật không duyệt.
         $lead = User::factory()->create(['is_active' => true]);
-        $lead->assignRole('academic_lead');
+        $lead->assignRole(Roles::ACADEMIC_LEAD);
+        $admin = User::factory()->create(['is_active' => true]);
+        $admin->assignRole(Roles::ADMIN);
         $this->actingAs($this->manager)->post(route('syllabus.big-tests.approve', $test->id))->assertForbidden();
-        $this->actingAs($lead)->post(route('syllabus.big-tests.approve', $test->id))->assertRedirect();
+        $this->actingAs($lead)->post(route('syllabus.big-tests.approve', $test->id))->assertForbidden();
+        $this->actingAs($admin)->post(route('syllabus.big-tests.approve', $test->id))->assertRedirect();
         $this->actingAs($this->teacher)->post(route('syllabus.big-tests.results.store', $test->id), [
             'results' => [[
                 'student_id' => $this->student->id, 'listening_score' => 7, 'reading_score' => 7,
@@ -463,7 +467,9 @@ class BpmnWorkflowIntegrationTest extends TestCase
         $result = BigTestResult::firstOrFail();
         $this->assertSame('pending_review', $result->status);
 
-        $this->actingAs($lead)->post(route('syllabus.big-tests.results.approve', $test->id))->assertRedirect();
+        $this->actingAs($lead)->post(route('syllabus.big-tests.results.approve', $test->id))->assertForbidden();
+        $this->assertSame('pending_review', $result->fresh()->status);
+        $this->actingAs($admin)->post(route('syllabus.big-tests.results.approve', $test->id))->assertRedirect();
         $this->assertSame('approved', $result->fresh()->status);
     }
 }

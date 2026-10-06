@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\User;
 use App\Models\UserPermissionOverride;
+use App\Support\Approvals\AdminOnlyApprovals;
 use Illuminate\Database\Eloquent\Builder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -40,9 +41,14 @@ final class Rbac
     /**
      * Lọc người dùng đang có quyền $permission (qua vai trò, quyền trực tiếp hoặc phân quyền cá nhân "Toàn hệ thống";
      * override "chặn" thắng quyền theo vai trò). Super Admin được tính với quyền thao tác, không tính với quyền đối tượng.
+     * Quyền duyệt chỉ dành cho Admin (AdminOnlyApprovals): chỉ trả Super Admin, như Gate::before.
      */
     public static function scopeUsersWithPermission(Builder $query, string $permission): Builder
     {
+        if (AdminOnlyApprovals::covers($permission)) {
+            return $query->whereHas('roles', fn (Builder $r) => $r->where('name', self::SUPER_ADMIN));
+        }
+
         [$module, $action] = array_pad(explode('.', $permission, 2), 2, '');
         $override = fn (bool $allow) => fn (Builder $o) => $o->where('module', $module)->where('action', $action)
             ->where('scope_type', UserPermissionOverride::SCOPE_ALL)->where('allow', $allow);

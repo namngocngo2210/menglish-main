@@ -38,7 +38,8 @@ use Tests\TestCase;
  *
  * Kèm luật hoàn phí A6 (ưu tiên chuyển nhượng + lý do không chuyển nhượng, chỉ Admin duyệt hoàn tiền kèm ảnh bằng chứng,
  * hạn 1 tuần / cùng tháng → cờ "Quá hạn xử lý" không chặn duyệt), hủy hóa đơn chỉ Admin duyệt, và luật Q8 báo cáo trực lớp
- * (có ảnh → hoàn thành; không ảnh → GV chính xác nhận; lớp chưa có GV chính → người giao việc xác nhận).
+ * (có ảnh → hoàn thành; không ảnh → Admin xác nhận).
+ * Từ 06/10/2026 mọi thao tác Duyệt / Từ chối (phiếu thu, hoàn / chuyển / khất nợ, báo cáo trực lớp) chỉ Admin làm.
  */
 class Phase4AcceptanceTest extends TestCase
 {
@@ -147,7 +148,11 @@ class Phase4AcceptanceTest extends TestCase
         ])->assertSessionHasNoErrors();
         $this->assertSame(TuitionReceipt::STATUS_PENDING, $r1->fresh()->status);
         $this->assertNotNull($r1->fresh()->proof_image);
+        // Chỉ Admin trả về phiếu thu (06/10/2026).
         $this->actingAs($this->accountant)->post(route('tuition.receipts.reject.action', $r1->id), ['rejection_reason' => 'Mã GD không khớp sao kê.'])
+            ->assertForbidden();
+        $this->assertSame(TuitionReceipt::STATUS_PENDING, $r1->fresh()->status);
+        $this->actingAs($this->admin)->post(route('tuition.receipts.reject.action', $r1->id), ['rejection_reason' => 'Mã GD không khớp sao kê.'])
             ->assertSessionHasNoErrors();
         $this->assertSame(TuitionReceipt::STATUS_REJECTED, $r1->fresh()->status);
         $this->assertDatabaseHas('admin_notifications', ['user_id' => $this->academic->id, 'type' => 'receipt_rejected']);
@@ -158,11 +163,13 @@ class Phase4AcceptanceTest extends TestCase
 
         $this->actingAs($this->sale)->post(route('tuition.receipts.approve.action', $r1->id))->assertForbidden();
         $this->actingAs($this->academic)->post(route('tuition.receipts.approve.action', $r1->id))->assertForbidden();
-        $this->actingAs($this->managerB)->post(route('tuition.receipts.approve.action', $r1->id))->assertForbidden(); // ngoài chi nhánh
+        $this->actingAs($this->managerB)->post(route('tuition.receipts.approve.action', $r1->id))->assertForbidden();
+        $this->actingAs($this->managerA)->post(route('tuition.receipts.approve.action', $r1->id))->assertForbidden(); // chỉ Admin duyệt
+        $this->actingAs($this->accountant)->post(route('tuition.receipts.approve.action', $r1->id))->assertForbidden();
         $this->at('2026-09-02 15:00');
-        $this->actingAs($this->accountant)->post(route('tuition.receipts.approve.action', $r1->id))->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('tuition.receipts.approve.action', $r1->id))->assertSessionHasNoErrors();
         $r1->refresh();
-        $this->assertSame([TuitionReceipt::STATUS_APPROVED, 'N4A-0000001', $this->accountant->id], [$r1->status, $r1->invoice_number, $r1->approver_id]);
+        $this->assertSame([TuitionReceipt::STATUS_APPROVED, 'N4A-0000001', $this->admin->id], [$r1->status, $r1->invoice_number, $r1->approver_id]);
         $t1->refresh();
         $this->assertSame([5000000.0, 4000000.0, 'partial'], [(float) $t1->debt_amount, (float) $t1->paid_amount, $t1->status]);
 
@@ -170,16 +177,17 @@ class Phase4AcceptanceTest extends TestCase
         $log = Activity::where('subject_type', TuitionReceipt::class)->where('subject_id', $r1->id)->where('event', 'updated')->latest('id')->firstOrFail();
         $this->assertSame('pending', $log->properties['old']['status']);
         $this->assertSame('approved', $log->properties['attributes']['status']);
-        $this->assertSame($this->accountant->id, $log->causer_id);
+        $this->assertSame($this->admin->id, $log->causer_id);
         $this->actingAs($this->admin)->get(route('activity-logs.index'))->assertOk()->assertSee('So sánh trước / sau');
 
-        // ── 3. Đợt 2: Kế toán lập phiếu tiền mặt, không tự duyệt; Quản lý duyệt → HĐ kế tiếp của dải, công nợ về 0 ──
+        // ── 3. Đợt 2: Kế toán lập phiếu tiền mặt, không duyệt được; Admin duyệt → HĐ kế tiếp của dải, công nợ về 0 ──
         $this->at('2026-09-05 09:00');
         $this->actingAs($this->accountant)->post(route('tuition.receipts.store'), $this->receiptInput($t1, 6000000, 'cash'))->assertSessionHasErrors('amount'); // vượt nợ
         $this->actingAs($this->accountant)->post(route('tuition.receipts.store'), $this->receiptInput($t1, 5000000, 'cash'))->assertSessionHasNoErrors();
         $r2 = TuitionReceipt::where('student_tuition_id', $t1->id)->where('status', 'pending')->sole();
-        $this->actingAs($this->accountant)->post(route('tuition.receipts.approve.action', $r2->id))->assertSessionHasErrors('receipt');
-        $this->actingAs($this->managerA)->post(route('tuition.receipts.approve.action', $r2->id))->assertSessionHasNoErrors();
+        $this->actingAs($this->accountant)->post(route('tuition.receipts.approve.action', $r2->id))->assertForbidden();
+        $this->actingAs($this->managerA)->post(route('tuition.receipts.approve.action', $r2->id))->assertForbidden();
+        $this->actingAs($this->admin)->post(route('tuition.receipts.approve.action', $r2->id))->assertSessionHasNoErrors();
         $this->assertSame('N4A-0000002', $r2->fresh()->invoice_number);
         $t1->refresh();
         $this->assertSame([0.0, 9000000.0, 'paid'], [(float) $t1->debt_amount, (float) $t1->paid_amount, $t1->status]);
@@ -220,7 +228,7 @@ class Phase4AcceptanceTest extends TestCase
         $this->actingAs($this->academic)->post(route('tuition.receipts.store'), $this->receiptInput($this->tuition($s2), 5000000, 'transfer', 'SP-N4-0001', 'submit', true))
             ->assertSessionHasErrors('transaction_code');
 
-        // ── 6. Phiếu tay CK chờ duyệt, sau đó SePay cùng mã → không ghi 2 lần, Kế toán vẫn duyệt được phiếu tay ──────
+        // ── 6. Phiếu tay CK chờ duyệt, sau đó SePay cùng mã → không ghi 2 lần, Admin vẫn duyệt được phiếu tay ──────
         $t2 = $this->tuition($s2);
         $this->at('2026-09-07 10:00');
         $this->actingAs($this->academic)->post(route('tuition.receipts.store'), $this->receiptInput($t2, 3000000, 'transfer', 'FT26N40009', 'submit', true))
@@ -230,7 +238,7 @@ class Phase4AcceptanceTest extends TestCase
         $tx = SepayTransaction::where('sepay_id', 'FT26N40009')->sole();
         $this->assertSame(['duplicate_manual', $manual->id], [$tx->status, $tx->matched_receipt_id]);
         $this->assertSame(1, TuitionReceipt::where('student_tuition_id', $t2->id)->count());
-        $this->actingAs($this->accountant)->post(route('tuition.receipts.approve.action', $manual->id))->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('tuition.receipts.approve.action', $manual->id))->assertSessionHasNoErrors();
         $this->assertSame('approved', $manual->fresh()->status);
         $this->assertEquals(6000000, (float) $t2->fresh()->debt_amount);
 
@@ -246,7 +254,7 @@ class Phase4AcceptanceTest extends TestCase
 
         // ── 7. Chuyển nhượng (S1 → S2) và hoàn phí (S1): phiếu âm / dương có số HĐ theo dải chi nhánh ──────────────
         // Luật A6 "Hoàn phí": ưu tiên chuyển nhượng; hoàn tiền là phương án cuối (bắt buộc lý do không chuyển nhượng),
-        // chỉ Admin duyệt hoàn tiền và phải kèm ảnh bằng chứng; chuyển nhượng do Quản lý / Kế toán duyệt.
+        // chỉ Admin duyệt hoàn tiền và phải kèm ảnh bằng chứng; chuyển nhượng cũng chỉ Admin duyệt (06/10/2026).
         Storage::fake(TuitionRefundRequest::PROOF_DISK);
         $this->at('2026-09-08 09:00');
         $this->actingAs($this->sale)->post(route('tuition.refunds.store'), ['student_id' => $s1->id, 'type' => 'refund', 'refund_amount' => 1, 'reason' => 'x'])->assertForbidden();
@@ -264,7 +272,8 @@ class Phase4AcceptanceTest extends TestCase
         $refund = TuitionRefundRequest::where('student_id', $s1->id)->where('type', 'refund')->sole();
         $this->assertTrue($refund->processing_deadline->isSameDay('2026-09-15'), 'Hạn xử lý = ngày lập + 7 ngày (trong tháng).');
 
-        $this->actingAs($this->managerA)->post(route('tuition.refunds.approve', $transfer->id))->assertSessionHasNoErrors();
+        $this->actingAs($this->managerA)->post(route('tuition.refunds.approve', $transfer->id))->assertForbidden();
+        $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $transfer->id))->assertSessionHasNoErrors();
         $this->assertSame('approved', $transfer->fresh()->status);
         foreach ([$this->managerA, $this->accountant] as $notAdmin) {
             $this->actingAs($notAdmin)->post(route('tuition.refunds.approve', $refund->id), ['clawback_commission' => 0])->assertForbidden();
@@ -326,7 +335,9 @@ class Phase4AcceptanceTest extends TestCase
         $this->actingAs($this->accountant)->post(route('tuition.refunds.store'), [
             'student_id' => $s4->id, 'type' => 'extension', 'extended_due_date' => '2026-10-05', 'reason' => 'Khất đến kỳ lương.',
         ])->assertSessionHasNoErrors();
-        $this->actingAs($this->managerA)->post(route('tuition.refunds.approve', TuitionRefundRequest::where('student_id', $s4->id)->sole()->id))->assertSessionHasNoErrors();
+        $extension = TuitionRefundRequest::where('student_id', $s4->id)->sole();
+        $this->actingAs($this->managerA)->post(route('tuition.refunds.approve', $extension->id))->assertForbidden();
+        $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $extension->id))->assertSessionHasNoErrors();
         $this->actingAs($this->academic)->get(route('tuition.overdue'))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('newOverdue', fn ($rows) => $rows->isEmpty())
@@ -392,7 +403,7 @@ class Phase4AcceptanceTest extends TestCase
         $this->get(route('tuition.students'))->assertOk();
     }
 
-    public function test_class_duty_report_photo_completes_task_otherwise_main_teacher_confirms(): void
+    public function test_class_duty_report_photo_completes_task_otherwise_admin_confirms(): void
     {
         // "Gắn lớp" bắt buộc chọn buổi học (buổi thật trong ngày hoặc nhập tên buổi).
         $this->actingAs($this->academic)->post(route('tasks.ta-assign.store'), [
@@ -420,20 +431,23 @@ class Phase4AcceptanceTest extends TestCase
         $this->assertSame('approved', $withPhoto->status);
         $this->assertSame('completed', $shifts['after']->fresh()->status);
 
-        // Không ảnh → chờ GV chính của lớp xác nhận; TA không tự duyệt.
+        // Không ảnh → chờ Admin xác nhận (chỉ Admin, 06/10/2026); TA không tự duyệt, GV chính không còn được báo / xác nhận.
         $this->actingAs($this->assistant)->post(route('tasks.class-reports.store'), [
             'class_id' => $this->class->id, 'session_name' => 'Buổi 7', 'hom_nay_hoc_gi' => 'Unit 4', 'task_id' => $shifts['during']->id,
         ])->assertSessionHasNoErrors();
         $noPhoto = ClassReport::where('session_name', 'Buổi 7')->sole();
         $this->assertSame('pending_approval', $noPhoto->status);
         $this->assertSame('pending_confirmation', $shifts['during']->fresh()->status);
-        $this->assertDatabaseHas('admin_notifications', ['user_id' => $this->teacher->id, 'type' => 'class_report_pending']);
+        $this->assertDatabaseHas('admin_notifications', ['user_id' => $this->admin->id, 'type' => 'class_report_pending']);
+        $this->assertDatabaseMissing('admin_notifications', ['user_id' => $this->teacher->id, 'type' => 'class_report_pending']);
         $this->actingAs($this->assistant)->post(route('tasks.class-reports.approve', $noPhoto->id))->assertForbidden();
-        $this->actingAs($this->teacher)->post(route('tasks.class-reports.approve', $noPhoto->id))->assertSessionHasNoErrors();
-        $this->assertSame(['approved', $this->teacher->id], [$noPhoto->fresh()->status, $noPhoto->fresh()->approved_by]);
+        $this->actingAs($this->teacher)->post(route('tasks.class-reports.approve', $noPhoto->id))->assertForbidden();
+        $this->actingAs($this->admin)->post(route('tasks.class-reports.approve', $noPhoto->id))->assertSessionHasNoErrors();
+        $this->assertSame(['approved', $this->admin->id], [$noPhoto->fresh()->status, $noPhoto->fresh()->approved_by]);
         $this->assertSame('completed', $shifts['during']->fresh()->status);
 
-        // Q8: lớp chưa có GV chính → người giao việc "Trực lớp" xác nhận; không ảnh + không ai xác nhận → không cho nộp.
+        // Q8: lớp chưa có GV chính, không ảnh + không gắn việc "Trực lớp" → không cho nộp; gắn việc thì vẫn chỉ Admin xác nhận
+        // (người giao việc không còn xác nhận, 06/10/2026).
         $noTeacherClass = ClassModel::create([
             'code' => 'N4A-FAM2', 'name' => 'Lớp N4A FAM 2', 'course_id' => $this->class->course_id, 'branch_id' => $this->branchA->id,
             'assistant_id' => $this->assistant->id, 'max_capacity' => 12, 'tuition_fee' => 9000000,
@@ -453,7 +467,8 @@ class Phase4AcceptanceTest extends TestCase
         $assignerConfirms = ClassReport::where('class_id', $noTeacherClass->id)->sole();
         $this->assertSame(['pending_approval', $this->academic->id], [$assignerConfirms->status, $assignerConfirms->confirmer_id]);
         $this->actingAs($this->teacher)->post(route('tasks.class-reports.approve', $assignerConfirms->id))->assertForbidden();
-        $this->actingAs($this->academic)->post(route('tasks.class-reports.approve', $assignerConfirms->id))->assertSessionHasNoErrors();
+        $this->actingAs($this->academic)->post(route('tasks.class-reports.approve', $assignerConfirms->id))->assertForbidden();
+        $this->actingAs($this->admin)->post(route('tasks.class-reports.approve', $assignerConfirms->id))->assertSessionHasNoErrors();
         $this->assertSame('approved', $assignerConfirms->fresh()->status);
         $this->assertSame('completed', $duty->fresh()->status);
     }

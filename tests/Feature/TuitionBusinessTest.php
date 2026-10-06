@@ -15,6 +15,7 @@ use App\Models\StudentTuition;
 use App\Models\TuitionReceipt;
 use App\Models\TuitionRefundRequest;
 use App\Models\User;
+use App\Support\Roles;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -62,13 +63,13 @@ class TuitionBusinessTest extends TestCase
         ]);
         $this->accountantUser->assignRole('accountant');
 
-        // Người duyệt phải khác người lập phiếu (trừ admin)
+        // Người duyệt: chỉ Admin duyệt / từ chối (06/10/2026), Kế toán chỉ lập phiếu / yêu cầu.
         $this->approverUser = User::factory()->create([
             'branch_id' => $this->branch->id,
-            'name' => 'Kế toán duyệt',
+            'name' => 'Admin duyệt',
             'is_active' => true,
         ]);
-        $this->approverUser->assignRole('accountant');
+        $this->approverUser->assignRole(Roles::ADMIN);
 
         $course = Course::create([
             'code' => 'IELTS-BASIC',
@@ -220,7 +221,7 @@ class TuitionBusinessTest extends TestCase
             'payment_method' => 'transfer',
             'transaction_code' => 'TR-PENDING',
             'payment_date' => now(),
-            'creator_id' => $this->approverUser->id,
+            'creator_id' => $this->accountantUser->id,
             'status' => 'pending',
         ]);
 
@@ -228,14 +229,17 @@ class TuitionBusinessTest extends TestCase
         $this->tuition->recalculateDebt();
         $this->assertEquals(0, $this->tuition->paid_amount);
 
-        // 1. Approve receipt
-        $responseApprove = $this->actingAs($this->accountantUser)
+        // 1. Approve receipt — Kế toán bị chặn, chỉ Admin duyệt (06/10/2026)
+        $this->actingAs($this->accountantUser)
+            ->post(route('tuition.receipts.approve.action', $pendingReceipt->id))
+            ->assertForbidden();
+        $responseApprove = $this->actingAs($this->approverUser)
             ->post(route('tuition.receipts.approve.action', $pendingReceipt->id));
         $responseApprove->assertRedirect();
 
         $pendingReceipt->refresh();
         $this->assertEquals('approved', $pendingReceipt->status);
-        $this->assertEquals($this->accountantUser->id, $pendingReceipt->approver_id);
+        $this->assertEquals($this->approverUser->id, $pendingReceipt->approver_id);
 
         $this->tuition->refresh();
         $this->assertEquals(3000000, $this->tuition->paid_amount);
@@ -254,7 +258,10 @@ class TuitionBusinessTest extends TestCase
             'status' => 'pending',
         ]);
 
-        $responseReject = $this->actingAs($this->accountantUser)
+        $this->actingAs($this->accountantUser)
+            ->post(route('tuition.receipts.reject.action', $anotherPendingReceipt->id))
+            ->assertForbidden();
+        $responseReject = $this->actingAs($this->approverUser)
             ->post(route('tuition.receipts.reject.action', $anotherPendingReceipt->id));
         $responseReject->assertRedirect();
 
@@ -402,7 +409,11 @@ class TuitionBusinessTest extends TestCase
             'status' => 'pending',
         ]);
 
-        $responseReject = $this->actingAs($this->accountantUser)
+        // Chỉ Admin từ chối (06/10/2026).
+        $this->actingAs($this->accountantUser)
+            ->post(route('tuition.refunds.reject', $extension->id))
+            ->assertForbidden();
+        $responseReject = $this->actingAs($admin)
             ->post(route('tuition.refunds.reject', $extension->id));
         $responseReject->assertRedirect();
 
@@ -533,8 +544,8 @@ class TuitionBusinessTest extends TestCase
         $transferReq = TuitionRefundRequest::where('target_student_id', $targetStudent->id)->first();
         $this->assertNotNull($transferReq);
 
-        // 2. Approve transfer
-        $responseApprove = $this->actingAs($this->accountantUser)
+        // 2. Approve transfer — chỉ Admin duyệt (06/10/2026)
+        $responseApprove = $this->actingAs($this->approverUser)
             ->post(route('tuition.refunds.approve', $transferReq->id));
 
         $responseApprove->assertRedirect();
@@ -621,7 +632,7 @@ class TuitionBusinessTest extends TestCase
         $this->assertEquals(9750000, (float) $newTuition->final_amount); // 10tr - 1tr + 750k
         $firstReceipt = TuitionReceipt::where('student_tuition_id', $newTuition->id)->firstOrFail();
         $this->assertEquals('pending', $firstReceipt->status);
-        $this->actingAs($this->accountantUser)
+        $this->actingAs($this->approverUser)
             ->post(route('tuition.receipts.approve.action', $firstReceipt->id))
             ->assertRedirect();
         $newTuition->refresh();

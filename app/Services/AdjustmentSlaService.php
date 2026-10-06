@@ -5,12 +5,11 @@ namespace App\Services;
 use App\Models\AdminNotification;
 use App\Models\SyllabusAdjustmentRequest;
 use App\Models\User;
-use App\Support\Rbac;
 use Illuminate\Support\Carbon;
 
 /**
  * Yêu cầu giãn tiến độ giáo trình phải được duyệt trong N ngày (SLA syllabus.adjustment_approval, mặc định 3).
- * Người duyệt = người có quyền syllabus.approve_adjustment (Học thuật, và Admin qua quyền mặc định); thông báo cá nhân:
+ * Người duyệt = Admin (chỉ Admin duyệt từ 06/10/2026); thông báo cá nhân:
  *  - khi GV gửi yêu cầu;
  *  - đúng 1 lần khi yêu cầu vẫn chờ duyệt mà quá hạn SLA (sla_notified_at).
  */
@@ -19,8 +18,7 @@ class AdjustmentSlaService
     /** @return \Illuminate\Support\Collection<int, User> */
     public function approvers(): \Illuminate\Support\Collection
     {
-        return Rbac::scopeUsersWithPermission(User::query(), 'syllabus.approve_adjustment')
-            ->where('is_active', true)->whereNull('locked_at')->orderBy('id')->get();
+        return BranchStaff::admins(); // chỉ Admin duyệt (06/10/2026, AdminOnlyApprovals)
     }
 
     public function notifyCreated(SyllabusAdjustmentRequest $req): int

@@ -151,7 +151,9 @@ class SlaConfigTest extends TestCase
         app(BigTestSlaService::class)->enforcePaperMissing();
 
         $this->assertSame(0, Penalty::where('big_test_id', $test->id)->count());
-        $this->assertSame(1, AdminNotification::where('user_id', $academic->id)->where('type', 'sla_breach')->where('data->big_test_id', $test->id)->count());
+        // Chỉ Admin duyệt & phân phối đề (06/10/2026): nhắc Admin, Học thuật không còn nhận.
+        $this->assertSame(1, AdminNotification::where('user_id', $this->admin->id)->where('type', 'sla_breach')->where('data->big_test_id', $test->id)->count());
+        $this->assertSame(0, AdminNotification::where('user_id', $academic->id)->where('type', 'sla_breach')->where('data->big_test_id', $test->id)->count());
 
         $this->saveSla('big_test.paper_missing', ['value' => 48, 'enabled' => 0, 'penalty' => 1])->assertSessionHasNoErrors();
         $this->assertSame(0, app(BigTestSlaService::class)->enforcePaperMissing(), 'SLA tắt → không quét');

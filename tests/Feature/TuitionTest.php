@@ -7,6 +7,7 @@ use App\Models\Student;
 use App\Models\StudentTuition;
 use App\Models\TuitionReceipt;
 use App\Models\User;
+use App\Support\Roles;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -32,6 +33,15 @@ class TuitionTest extends TestCase
         $user->assignRole('accountant');
 
         return $this->grantHeadOffice($user);
+    }
+
+    /** Chỉ Admin duyệt / từ chối phiếu thu (06/10/2026). */
+    private function admin(): User
+    {
+        $user = User::factory()->create();
+        $user->assignRole(Roles::ADMIN);
+
+        return $user;
     }
 
     public function test_can_view_tuition_students_list(): void
@@ -90,8 +100,12 @@ class TuitionTest extends TestCase
         $this->assertEquals('pending', $receipt->status);
         $this->assertEquals(0, (float) $tuition->fresh()->paid_amount);
 
-        // Kế toán khác duyệt -> mới ghi nhận công nợ
+        // Kế toán không còn quyền duyệt (06/10/2026): chỉ Admin duyệt -> mới ghi nhận công nợ
         $this->actingAs($this->accountant())
+            ->post(route('tuition.receipts.approve.action', $receipt->id))
+            ->assertForbidden();
+        $this->assertEquals('pending', $receipt->fresh()->status);
+        $this->actingAs($this->admin())
             ->post(route('tuition.receipts.approve.action', $receipt->id))
             ->assertSessionHasNoErrors();
         $this->assertEquals('approved', $receipt->fresh()->status);
@@ -198,8 +212,7 @@ class TuitionTest extends TestCase
 
         // Phase 4 (mockup duyet-huy-hoa-don): chỉ Admin phê duyệt hủy hóa đơn.
         $this->actingAs($user)->post(route('tuition.invoices.cancellations.approve', $cancellation->id))->assertForbidden();
-        $admin = User::factory()->create();
-        $admin->assignRole('admin');
+        $admin = $this->admin();
         $responseApprove = $this->actingAs($admin)->post(route('tuition.invoices.cancellations.approve', $cancellation->id));
         $responseApprove->assertRedirect();
 
@@ -252,7 +265,8 @@ class TuitionTest extends TestCase
 
     public function test_can_approve_receipt_action_and_recalculate_debt(): void
     {
-        $user = $this->accountant();
+        // Chỉ Admin duyệt phiếu thu (06/10/2026).
+        $user = $this->admin();
         $student = Student::create([
             'code' => 'HV-TEST-APP2',
             'name' => 'Trần Thị Duyệt',
@@ -294,7 +308,8 @@ class TuitionTest extends TestCase
 
     public function test_can_reject_receipt_action(): void
     {
-        $user = $this->accountant();
+        // Chỉ Admin trả về phiếu thu (06/10/2026).
+        $user = $this->admin();
         $student = Student::create([
             'code' => 'HV-TEST-REJ',
             'name' => 'Lê Văn Từ Chối',

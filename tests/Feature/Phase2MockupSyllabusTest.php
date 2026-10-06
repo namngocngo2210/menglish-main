@@ -19,6 +19,7 @@ use App\Models\SyllabusLesson;
 use App\Models\SyllabusStage;
 use App\Models\SyllabusUnit;
 use App\Models\User;
+use App\Support\Roles;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -37,6 +38,9 @@ class Phase2MockupSyllabusTest extends TestCase
     private Branch $branch;
 
     private User $academic;
+
+    /** Người duyệt / từ chối (chỉ Admin duyệt từ 06/10/2026). */
+    private User $admin;
 
     private User $teacher;
 
@@ -61,7 +65,9 @@ class Phase2MockupSyllabusTest extends TestCase
 
         $this->branch = Branch::create(['name' => 'Cơ sở Mockup', 'code' => 'MK', 'is_active' => true]);
         $this->academic = User::factory()->create(['name' => 'Học Thuật Mockup', 'is_active' => true, 'branch_id' => $this->branch->id]);
-        $this->academic->assignRole('academic_lead');
+        $this->academic->assignRole(Roles::ACADEMIC_LEAD);
+        $this->admin = User::factory()->create(['name' => 'Admin Mockup', 'is_active' => true]);
+        $this->admin->assignRole(Roles::ADMIN);
         $this->teacher = User::factory()->create(['name' => 'GV Mockup', 'employee_code' => 'GV-MK-01', 'is_active' => true, 'branch_id' => $this->branch->id]);
         $this->teacher->assignRole('teacher_fulltime');
         $this->assistant = User::factory()->create(['name' => 'TG Mockup', 'is_active' => true, 'branch_id' => $this->branch->id]);
@@ -241,7 +247,12 @@ class Phase2MockupSyllabusTest extends TestCase
             ->assertDontSee('Viết tối thiểu 250 từ');
 
         $detail = route('syllabus.versions', ['proposal' => $proposal->id]);
+        // Học thuật xem chi tiết nhưng không còn phần duyệt / từ chối (chỉ Admin duyệt, 06/10/2026).
         $this->actingAs($this->academic)->get($detail)->assertOk()
+            ->assertSee('Chi tiết đề xuất')
+            ->assertSee('Buổi 3: Buổi mẫu 3 (Unit 2)')
+            ->assertDontSee(route('syllabus.proposals.reject', $proposal->id, absolute: false), false);
+        $this->actingAs($this->admin)->get($detail)->assertOk()
             ->assertSee('Chi tiết đề xuất')
             ->assertSee('Thông tin chung')
             ->assertSee('Buổi học/Unit cần sửa')
@@ -256,12 +267,13 @@ class Phase2MockupSyllabusTest extends TestCase
             ->assertSee(route('syllabus.proposals.reject', $proposal->id, absolute: false), false);
 
         // Một ô phản hồi dùng chung: từ chối bắt buộc có phản hồi
-        $this->actingAs($this->academic)->post(route('syllabus.proposals.reject', $proposal->id), ['review_note' => ''])->assertSessionHasErrors('review_note');
-        $this->actingAs($this->academic)->post(route('syllabus.proposals.approve', $proposal->id), ['review_note' => 'Đồng ý'])->assertSessionHasNoErrors();
+        $this->actingAs($this->academic)->post(route('syllabus.proposals.approve', $proposal->id), ['review_note' => 'Đồng ý'])->assertForbidden();
+        $this->actingAs($this->admin)->post(route('syllabus.proposals.reject', $proposal->id), ['review_note' => ''])->assertSessionHasErrors('review_note');
+        $this->actingAs($this->admin)->post(route('syllabus.proposals.approve', $proposal->id), ['review_note' => 'Đồng ý'])->assertSessionHasNoErrors();
 
-        // Chưa tự áp nội dung (chưa có quyết định BA): nhắc Học thuật mở buổi để cập nhật tay
+        // Chưa tự áp nội dung (chưa có quyết định BA): nhắc Học thuật mở buổi để cập nhật tay; người duyệt là Admin
         $this->actingAs($this->academic)->get($detail)->assertOk()
-            ->assertSee('Học Thuật Mockup')
+            ->assertSee('Admin Mockup')
             ->assertSee('Mở buổi để cập nhật')
             ->assertSee('edit_lesson='.$lesson->id, false);
         $this->assertNotSame('Viết tối thiểu 250 từ', $lesson->fresh()->content);
@@ -354,7 +366,12 @@ class Phase2MockupSyllabusTest extends TestCase
             ->assertSee('Xin thêm')
             ->assertSee(route('syllabus.adjustment-requests', ['status' => 'pending', 'request' => $req->id]))
             ->assertDontSee('Lý do xin giãn tiến độ');
+        // Học thuật xem chi tiết, không còn luồng từ chối; chỉ Admin duyệt / từ chối (06/10/2026).
         $this->actingAs($this->academic)->get(route('syllabus.adjustment-requests', ['request' => $req->id]))->assertOk()
+            ->assertSee('Chi tiết yêu cầu')
+            ->assertSee('Lý do xin giãn tiến độ')
+            ->assertDontSee('Lý do từ chối (Bắt buộc)');
+        $this->actingAs($this->admin)->get(route('syllabus.adjustment-requests', ['request' => $req->id]))->assertOk()
             ->assertSee('Chi tiết yêu cầu')
             ->assertSee('Lý do xin giãn tiến độ')
             ->assertSee('Lý do từ chối (Bắt buộc)')
@@ -364,7 +381,8 @@ class Phase2MockupSyllabusTest extends TestCase
         $req->forceFill(['created_at' => now()->subHours(SyllabusAdjustmentRequest::slaHours() + 1)])->save();
         $this->actingAs($this->academic)->get(route('syllabus.adjustment-requests'))->assertOk()->assertSee('Quá hạn');
 
-        $this->actingAs($this->academic)->post(route('syllabus.adjustment-requests.reject', $req->id), ['rejection_reason' => 'Chưa đủ căn cứ'])->assertRedirect();
+        $this->actingAs($this->academic)->post(route('syllabus.adjustment-requests.reject', $req->id), ['rejection_reason' => 'Chưa đủ căn cứ'])->assertForbidden();
+        $this->actingAs($this->admin)->post(route('syllabus.adjustment-requests.reject', $req->id), ['rejection_reason' => 'Chưa đủ căn cứ'])->assertRedirect();
         // Mặc định lọc "chờ duyệt"; "Tất cả" vẫn thấy yêu cầu đã xử lý
         $this->actingAs($this->academic)->get(route('syllabus.adjustment-requests'))->assertOk()->assertSee('0 yêu cầu');
         $this->actingAs($this->academic)->get(route('syllabus.adjustment-requests', ['status' => 'all', 'request' => $req->id]))->assertOk()->assertSee('Chưa đủ căn cứ');
@@ -410,7 +428,14 @@ class Phase2MockupSyllabusTest extends TestCase
             ->assertSee('Cảnh báo SLA')
             ->assertSee(e(route('syllabus.big-tests.distribution', ['order' => $order->id, 'order_status' => 'pending'])), false)
             ->assertDontSee('CLASS ID: MK-01');
+        // Học thuật xem order đề; form duyệt / từ chối chỉ hiện cho Admin (06/10/2026).
         $this->actingAs($this->academic)->get(route('syllabus.big-tests.distribution', ['order' => $order->id]))->assertOk()
+            ->assertSee('CLASS ID: MK-01')
+            ->assertSee('Yêu cầu từ Giáo viên')
+            ->assertSee('Nhờ chuẩn bị đề tập trung Speaking')
+            ->assertDontSee('Link đề Big Test (Folder lớp)')
+            ->assertDontSee('Phê duyệt &amp; Phân phối', false);
+        $this->actingAs($this->admin)->get(route('syllabus.big-tests.distribution', ['order' => $order->id]))->assertOk()
             ->assertSee('CLASS ID: MK-01')
             ->assertSee('Yêu cầu từ Giáo viên')
             ->assertSee('Nhờ chuẩn bị đề tập trung Speaking')
@@ -436,8 +461,8 @@ class Phase2MockupSyllabusTest extends TestCase
             ->assertSessionHasNoErrors();
         $this->assertSame($this->stages[0]->id, $test->fresh()->syllabus_stage_id);
 
-        // Duyệt order gắn vào đợt thi
-        $this->actingAs($this->academic)->post(route('syllabus.big-tests.orders.approve', $order->id), ['test_link' => 'https://drive.example.com/de', 'big_test_id' => $test->id])
+        // Duyệt order gắn vào đợt thi (Admin)
+        $this->actingAs($this->admin)->post(route('syllabus.big-tests.orders.approve', $order->id), ['test_link' => 'https://drive.example.com/de', 'big_test_id' => $test->id])
             ->assertSessionHasNoErrors();
         $this->actingAs($this->teacher)->get(route('syllabus.teaching-stages'))->assertOk()->assertSee('Đã có đề');
     }
@@ -520,18 +545,22 @@ class Phase2MockupSyllabusTest extends TestCase
             ->assertSee('Trạng thái dữ liệu')
             ->assertSee('Người gửi kết quả')
             ->assertSee('Người duyệt (Hiện tại)')
-            ->assertSee('Duyệt &amp; Gửi phụ huynh', false)
+            ->assertDontSee('Duyệt &amp; Gửi phụ huynh', false) // chỉ Admin duyệt (06/10/2026)
             ->assertSee('Hợp lệ');
+        $this->actingAs($this->admin)->get($page)->assertOk()
+            ->assertSee('Mã HV: HV-MK-1')
+            ->assertSee('Duyệt &amp; Gửi phụ huynh', false);
         $this->actingAs($this->academic)->get(route('syllabus.big-tests.results', $test->id))->assertOk()->assertSee('Xem &amp; duyệt', false)
             ->assertDontSee('Người gửi kết quả'); // chi tiết chỉ mở trong modal khi chọn ?result=
 
-        // Giáo viên không duyệt / gửi được
+        // Giáo viên / Học thuật không duyệt được (chỉ Admin, 06/10/2026)
         $this->actingAs($this->teacher)->post(route('syllabus.big-tests.results.approve-send', $scored->id))->assertForbidden();
+        $this->actingAs($this->academic)->post(route('syllabus.big-tests.results.approve-send', $scored->id))->assertForbidden();
 
         // Học viên vắng thi: chỉ duyệt; học viên có điểm: duyệt + gửi PH → Big Test hoàn tất, chặng đóng và chặng 2 tự mở
-        $this->actingAs($this->academic)->post(route('syllabus.big-tests.results.approve-send', $away->id))->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('syllabus.big-tests.results.approve-send', $away->id))->assertSessionHasNoErrors();
         $this->assertSame('approved', $away->fresh()->status);
-        $this->actingAs($this->academic)->post(route('syllabus.big-tests.results.approve-send', $scored->id))->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('syllabus.big-tests.results.approve-send', $scored->id))->assertSessionHasNoErrors();
         $this->assertSame('sent', $scored->fresh()->status);
         $this->assertTrue($scored->fresh()->parent_notified);
         $this->assertSame(SyllabusAssignment::STATUS_CLOSED, $assignment->fresh()->status);

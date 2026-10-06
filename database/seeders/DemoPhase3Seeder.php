@@ -242,11 +242,11 @@ class DemoPhase3Seeder extends Seeder
         });
         $this->event($L->copy()->addDays(2)->setTime(16, 0), function () {
             foreach (['K1', 'K2', 'K3'] as $key) {
-                $this->approvePendingReceipts($this->customers[$key], $this->staff['accountant_cg']);
+                $this->approvePendingReceipts($this->customers[$key], $this->staff['admin']);
             }
         });
         $this->event($L->copy()->addDays(4)->setTime(10, 0), fn () => $this->collectFee('K4'));
-        $this->event($L->copy()->addDays(4)->setTime(15, 0), fn () => $this->approvePendingReceipts($this->customers['K4'], $this->staff['manager_cg']));
+        $this->event($L->copy()->addDays(4)->setTime(15, 0), fn () => $this->approvePendingReceipts($this->customers['K4'], $this->staff['admin']));
         $this->event($L->copy()->addDays(20)->setTime(11, 0), fn () => $this->tickCare('K4', 3));
 
         // Chấm công từ buổi học thật + duyệt hằng ngày.
@@ -587,6 +587,7 @@ class DemoPhase3Seeder extends Seeder
         ]);
     }
 
+    /** Duyệt phiếu thu chờ duyệt của khách — chỉ Admin duyệt (06/10/2026). */
     private function approvePendingReceipts(CrmCustomer $customer, User $approver): void
     {
         $ids = TuitionReceipt::where('student_id', $customer->converted_student_id)->where('status', TuitionReceipt::STATUS_PENDING)->pluck('id');

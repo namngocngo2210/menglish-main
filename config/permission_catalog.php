@@ -64,7 +64,7 @@ return [
                 'stage_forward' => ['Chuyển bước pipeline (tiến)', 'Chuyển khách tiến từng bước một trên pipeline, đặt lịch học thử (vai trò CM — A6 Q1).'],
                 'stage_back' => ['Lùi bước pipeline', 'Lùi giai đoạn của khách chưa chốt, bắt buộc lý do (A6: chỉ Admin).'],
                 'trial_feedback' => ['Nhận xét học thử mọi buổi', 'Ghi nhận xét học thử cho khách ở buổi mình không dạy.'],
-                'approve_transfer' => ['Duyệt chuyển cơ sở', 'Duyệt / từ chối yêu cầu đổi người phụ trách sang cơ sở khác (khách và học viên chuyển sang cơ sở mới); tự đổi được ngay không cần duyệt.'],
+                'approve_transfer' => ['Duyệt chuyển cơ sở', 'Duyệt / từ chối yêu cầu đổi người phụ trách sang cơ sở khác (khách và học viên chuyển sang cơ sở mới); tự đổi được ngay không cần duyệt. Chỉ Admin dùng được (06/10/2026), cấp cho vai trò khác không có tác dụng.'],
             ],
             'audience' => [
                 'be_assigned' => ['Được nhận phụ trách khách', 'Có tên trong danh sách người phụ trách khi phân công khách (mặc định Học vụ và Admin).'],
@@ -229,7 +229,7 @@ return [
                 'manage' => ['Quản lý giáo trình', 'Soạn giáo trình / chặng / unit / buổi, giao chặng, tạo đợt Big Test, nhắc lịch.'],
                 'upload' => ['Tải tài liệu', 'Tải lên / xóa tài liệu giáo trình.'],
                 'propose_adjustment' => ['Đề xuất sửa / giãn tiến độ', 'Gửi đề xuất sửa giáo trình, xin điều chỉnh tiến độ.'],
-                'approve_adjustment' => ['Duyệt đề xuất & tiến độ', 'Duyệt / từ chối đề xuất sửa giáo trình, điều chỉnh tiến độ; đóng chặng.'],
+                'approve_adjustment' => ['Duyệt đề xuất & tiến độ', 'Duyệt / từ chối đề xuất sửa giáo trình, điều chỉnh tiến độ; đóng chặng. Nút duyệt / từ chối chỉ Admin (06/10/2026).'],
             ],
         ],
         'big_test' => [
@@ -237,7 +237,7 @@ return [
             'group' => 'academic',
             'icon' => 'fact_check',
             'actions' => [
-                'approve' => ['Duyệt Big Test', 'Duyệt order đề, phân phối đề, duyệt kết quả và gửi phụ huynh.'],
+                'approve' => ['Duyệt Big Test', 'Duyệt order đề, phân phối đề, duyệt kết quả và gửi phụ huynh. Nút duyệt / từ chối chỉ Admin (06/10/2026).'],
             ],
             'scope' => [
                 'levels' => ['own', 'branch', 'all'],
@@ -255,8 +255,8 @@ return [
             'actions' => [
                 'view' => ['Xem học phí', 'Xem học viên & công nợ, lịch sử thu, hoàn phí, quá hạn, cấu hình dải số.'],
                 'create' => ['Lập phiếu thu', 'Lập / sửa phiếu thu của mình, nhập học phí từ Excel, ghi khoản chi.'],
-                'approve' => ['Duyệt phiếu thu', 'Duyệt phiếu thu (không tự duyệt phiếu mình lập), xác nhận khoản thu trước khi chốt.'],
-                'reject' => ['Trả về phiếu thu', 'Trả về phiếu thu kèm lý do.'],
+                'approve' => ['Duyệt phiếu thu', 'Duyệt phiếu thu (không tự duyệt phiếu mình lập), xác nhận khoản thu trước khi chốt. Chỉ Admin dùng được (06/10/2026), cấp cho vai trò khác không có tác dụng.'],
+                'reject' => ['Trả về phiếu thu', 'Trả về phiếu thu kèm lý do. Chỉ Admin dùng được (06/10/2026), cấp cho vai trò khác không có tác dụng.'],
                 'mark_contacted' => ['Nhắc phí / đã liên hệ', 'Gửi nhắc phí, đánh dấu đã liên hệ phụ huynh.'],
                 'report_overdue' => ['Báo cáo nợ quá hạn', 'Báo cáo khoản quá hạn cho Admin.'],
                 'confirm_deposit' => ['Xác nhận nộp tiền về TK công ty', 'Xác nhận tiền mặt thu trong ngày đã nộp về tài khoản công ty (hạn 19:00 cùng ngày) và nhận nhắc khi quá hạn.'],
@@ -273,7 +273,7 @@ return [
             'icon' => 'receipt_long',
             'actions' => [
                 'request_cancel' => ['Yêu cầu hủy hóa đơn', 'Lập yêu cầu hủy hóa đơn (kể cả số hóa đơn giấy tiền mặt bị ghi sai).'],
-                'approve_cancel' => ['Duyệt / từ chối hủy hóa đơn', 'Duyệt hoặc từ chối yêu cầu hủy hóa đơn.'],
+                'approve_cancel' => ['Duyệt / từ chối hủy hóa đơn', 'Duyệt hoặc từ chối yêu cầu hủy hóa đơn. Chỉ Admin dùng được (06/10/2026), cấp cho vai trò khác không có tác dụng.'],
             ],
         ],
         'merchandise_stock' => [
@@ -296,10 +296,10 @@ return [
             'icon' => 'currency_exchange',
             'actions' => [
                 'request' => ['Lập yêu cầu', 'Lập yêu cầu hoàn / chuyển / khất nợ / bảo lưu.'],
-                'approve' => ['Duyệt khất nợ / bảo lưu', 'Duyệt yêu cầu khất nợ, bảo lưu.'],
-                'approve_transfer' => ['Duyệt chuyển nhượng phí', 'Duyệt chuyển nhượng buổi dư sang học viên khác.'],
-                'approve_refund' => ['Duyệt hoàn tiền (chi tiền)', 'Duyệt hoàn tiền cho phụ huynh (bắt buộc ảnh bằng chứng).'],
-                'reject' => ['Từ chối yêu cầu', 'Từ chối yêu cầu hoàn / chuyển / khất nợ / bảo lưu.'],
+                'approve' => ['Duyệt khất nợ / bảo lưu', 'Duyệt yêu cầu khất nợ, bảo lưu. Chỉ Admin dùng được (06/10/2026), cấp cho vai trò khác không có tác dụng.'],
+                'approve_transfer' => ['Duyệt chuyển nhượng phí', 'Duyệt chuyển nhượng buổi dư sang học viên khác. Chỉ Admin dùng được (06/10/2026), cấp cho vai trò khác không có tác dụng.'],
+                'approve_refund' => ['Duyệt hoàn tiền (chi tiền)', 'Duyệt hoàn tiền cho phụ huynh (bắt buộc ảnh bằng chứng). Chỉ Admin dùng được (06/10/2026), cấp cho vai trò khác không có tác dụng.'],
+                'reject' => ['Từ chối yêu cầu', 'Từ chối yêu cầu hoàn / chuyển / khất nợ / bảo lưu. Chỉ Admin dùng được (06/10/2026), cấp cho vai trò khác không có tác dụng.'],
             ],
         ],
         'mail_config' => [
@@ -405,7 +405,7 @@ return [
             'icon' => 'fingerprint',
             'actions' => [
                 'view' => ['Xem chấm công nhân sự', 'Xem giờ vào / ra, ảnh khuôn mặt, vị trí lúc chấm công của nhân sự (trong phạm vi dữ liệu).'],
-                'approve' => ['Duyệt đơn chấm công', 'Duyệt / từ chối đơn bổ sung công, xin đi muộn / về sớm, xin nghỉ (không tự duyệt đơn của mình).'],
+                'approve' => ['Duyệt đơn chấm công', 'Duyệt / từ chối đơn bổ sung công, xin đi muộn / về sớm, xin nghỉ (không tự duyệt đơn của mình). Chỉ Admin dùng được (06/10/2026), cấp cho vai trò khác không có tác dụng.'],
             ],
             'scope' => [
                 'levels' => ['branch', 'all'],
@@ -500,7 +500,7 @@ return [
                 'view' => ['Xem công việc', 'Xem việc mình được giao / mình giao (và việc trong phạm vi dữ liệu).'],
                 'create' => ['Giao việc', 'Giao việc cho nhân sự trong phạm vi.'],
                 'update' => ['Sửa công việc', 'Sửa công việc.'],
-                'approve' => ['Duyệt hoàn thành', 'Xác nhận / trả lại việc, báo cáo trực lớp; xem tab "Tất cả".'],
+                'approve' => ['Duyệt hoàn thành', 'Xác nhận / trả lại việc, báo cáo trực lớp; xem tab "Tất cả". Nút duyệt / từ chối chỉ Admin (06/10/2026).'],
                 'assign' => ['Giao việc trợ giảng', 'Giao nhiệm vụ ca cho trợ giảng, cấu hình lịch, buổi bổ trợ.'],
                 'request' => ['Đề xuất việc ngược', 'Giáo viên / trợ giảng giao ngược việc cho người duyệt.'],
             ],

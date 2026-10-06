@@ -312,8 +312,9 @@ class Phase2AcceptanceTest extends TestCase
         $this->assertSame('pending', $order->status);
         $this->assertSame($examAt->copy()->subDays(BigTestOrder::leadDays())->toDateString(), $order->due_date->toDateString());
         $this->actingAs($this->teacher)->post(route('syllabus.big-tests.orders.approve', $order->id), ['test_link' => 'https://drive.test/de'])->assertForbidden();
-        // BPMN: Học thuật duyệt order đề — Học vụ không có quyền duyệt (big_test.approve).
+        // Chỉ Admin duyệt order đề (06/10/2026): Học vụ (không có big_test.approve) và Học thuật đều bị chặn.
         $this->actingAs($this->academic)->post(route('syllabus.big-tests.orders.approve', $order->id), ['test_link' => 'https://drive.test/de'])->assertForbidden();
+        $this->actingAs($this->lead)->post(route('syllabus.big-tests.orders.approve', $order->id), ['test_link' => 'https://drive.test/de'])->assertForbidden();
 
         $this->actingAs($this->lead)->post(route('syllabus.big-tests.store'), [
             'title' => 'Big Test chặng 1', 'class_id' => $class->id, 'test_type' => 'stage_end', 'scheduled_at' => $examAt->format('Y-m-d H:i'), 'room' => 'P202',
@@ -322,7 +323,7 @@ class Phase2AcceptanceTest extends TestCase
         $this->assertSame($stage1->id, (int) $bigTest->syllabus_stage_id, 'Big Test tự gắn chặng đang mở.');
         $this->assertFalse($bigTest->is_distributed);
 
-        $this->actingAs($this->lead)->post(route('syllabus.big-tests.orders.approve', $order->id), [
+        $this->actingAs($this->admin)->post(route('syllabus.big-tests.orders.approve', $order->id), [
             'test_link' => 'https://drive.test/de-chang-1', 'big_test_id' => $bigTest->id,
         ])->assertSessionHasNoErrors();
         $this->assertSame('approved', $order->fresh()->status);
@@ -338,7 +339,7 @@ class Phase2AcceptanceTest extends TestCase
         $this->artisan('bigtests:remind-upcoming')->assertSuccessful();
         $this->assertSame(1, AdminNotification::where('user_id', $this->teacher->id)->where('type', 'big_test_upcoming')->count(), 'Mỗi đợt thi nhắc 1 lần.');
 
-        // ── 6. GV nhập kết quả (vắng thi để trống điểm) → Học thuật duyệt → khóa sửa ────────────
+        // ── 6. GV nhập kết quả (vắng thi để trống điểm) → Admin duyệt (chỉ Admin, 06/10/2026) → khóa sửa ────────────
         $this->actingAs($this->teacher)->get(route('syllabus.big-tests.results', $bigTest->id))->assertOk();
         $this->actingAs($this->otherTeacher)->get(route('syllabus.big-tests.results', $bigTest->id))->assertNotFound();
         $this->actingAs($this->otherTeacher)->post(route('syllabus.big-tests.results.store', $bigTest->id), [
@@ -362,7 +363,8 @@ class Phase2AcceptanceTest extends TestCase
 
         $this->actingAs($this->teacher)->post(route('syllabus.big-tests.results.approve', $bigTest->id))->assertForbidden();
         $this->actingAs($this->academic)->post(route('syllabus.big-tests.results.approve', $bigTest->id))->assertForbidden();
-        $this->actingAs($this->lead)->post(route('syllabus.big-tests.results.approve', $bigTest->id))->assertSessionHasNoErrors();
+        $this->actingAs($this->lead)->post(route('syllabus.big-tests.results.approve', $bigTest->id))->assertForbidden();
+        $this->actingAs($this->admin)->post(route('syllabus.big-tests.results.approve', $bigTest->id))->assertSessionHasNoErrors();
         $this->assertSame(4, BigTestResult::where('big_test_id', $bigTest->id)->where('status', 'approved')->count());
         $this->assertTrue(SyllabusAssignment::open()->where('class_id', $class->id)->where('stage_id', $stage1->id)->exists(), 'Chưa gửi PH thì chặng chưa đóng.');
 

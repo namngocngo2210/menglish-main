@@ -18,6 +18,7 @@ use App\Models\StudentTuition;
 use App\Models\TuitionReceipt;
 use App\Models\User;
 use App\Services\Merchandise\StockService;
+use App\Support\Roles;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -335,10 +336,11 @@ class CrmWorkflowHardeningTest extends TestCase
         $this->assertEquals(15200000, (float) $lead->fresh()->deal_value);
         $this->assertSame(1, $stock->quantities([$item->id], $this->branch->id)[$item->id], 'Phiếu chưa duyệt thì chưa trừ kho');
 
-        $accountant = User::factory()->create(['branch_id' => $this->branch->id, 'is_active' => true]);
-        $accountant->assignRole('accountant');
+        // Chỉ Admin duyệt phiếu thu (06/10/2026).
+        $admin = User::factory()->create(['branch_id' => $this->branch->id, 'is_active' => true]);
+        $admin->assignRole(Roles::ADMIN);
         $receipt = TuitionReceipt::where('student_id', $lead->fresh()->converted_student_id)->firstOrFail();
-        $this->actingAs($accountant)->post(route('tuition.receipts.approve.action', $receipt))->assertRedirect();
+        $this->actingAs($admin)->post(route('tuition.receipts.approve.action', $receipt))->assertRedirect();
 
         $this->assertSame(0, $stock->quantities([$item->id], $this->branch->id)[$item->id]);
     }
@@ -350,10 +352,11 @@ class CrmWorkflowHardeningTest extends TestCase
 
         $this->actingAs($this->salesA)->post(route('crm.closing-wizard.store'), $this->closingPayload($lead));
 
-        $accountant = User::factory()->create(['branch_id' => $this->branch->id, 'is_active' => true]);
-        $accountant->assignRole('accountant');
+        // Chỉ Admin duyệt phiếu thu (06/10/2026).
+        $admin = User::factory()->create(['branch_id' => $this->branch->id, 'is_active' => true]);
+        $admin->assignRole(Roles::ADMIN);
         $receipt = TuitionReceipt::where('student_id', $lead->fresh()->converted_student_id)->firstOrFail();
-        $this->actingAs($accountant)->post(route('tuition.receipts.approve.action', $receipt))->assertRedirect();
+        $this->actingAs($admin)->post(route('tuition.receipts.approve.action', $receipt))->assertRedirect();
 
         $this->salesA->givePermissionTo('report.view');
         $response = $this->actingAs($this->salesA)->get(route('crm.reports', ['preset' => 'today']));
@@ -392,7 +395,7 @@ class CrmWorkflowHardeningTest extends TestCase
         $this->assertSame('Luyện MOVERS', $submission->fresh()->suggested_class);
     }
 
-    public function test_sales_receipt_requires_accounting_approval_before_invoice_and_collection(): void
+    public function test_sales_receipt_requires_admin_approval_before_invoice_and_collection(): void
     {
         $lead = $this->leadFor($this->salesA);
         $this->actingAs($this->salesA)->post(route('crm.closing-wizard.store'), $this->closingPayload($lead));
@@ -403,9 +406,14 @@ class CrmWorkflowHardeningTest extends TestCase
         $this->assertNull($receipt->invoice_number);
         $this->assertEquals(0, (float) $tuition->paid_amount);
 
+        // Chỉ Admin duyệt phiếu thu (06/10/2026): Kế toán không còn duyệt được.
         $accountant = User::factory()->create(['branch_id' => $this->branch->id, 'is_active' => true]);
         $accountant->assignRole('accountant');
-        $this->actingAs($accountant)->post(route('tuition.receipts.approve.action', $receipt))->assertRedirect();
+        $this->actingAs($accountant)->post(route('tuition.receipts.approve.action', $receipt))->assertForbidden();
+        $this->assertSame('pending', $receipt->fresh()->status);
+        $admin = User::factory()->create(['branch_id' => $this->branch->id, 'is_active' => true]);
+        $admin->assignRole(Roles::ADMIN);
+        $this->actingAs($admin)->post(route('tuition.receipts.approve.action', $receipt))->assertRedirect();
 
         $this->assertSame('approved', $receipt->fresh()->status);
         $this->assertNotNull($receipt->fresh()->invoice_number);

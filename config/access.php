@@ -43,16 +43,16 @@ return [
             'placement_test.view', 'placement_test.grade',
             // Duyệt đề xuất sửa giáo trình / giãn tiến độ / Big Test là việc của Học thuật (academic_lead) — BPMN.
             'level.*', 'syllabus.view', 'syllabus.update', 'syllabus.manage', 'syllabus.upload', 'syllabus.propose_adjustment',
-            // Kế toán / Học phí: liệt kê từng quyền để các quyền chỉ Admin mặc định (duyệt hoàn tiền, duyệt hủy HĐ,
-            // dải số mặc định, phạm vi mọi chi nhánh) không tự lan sang vai trò này.
-            'tuition.view', 'tuition.create', 'tuition.approve', 'tuition.reject', 'tuition.mark_contacted', 'tuition.report_overdue',
+            // Kế toán / Học phí: liệt kê từng quyền để các quyền chỉ Admin (mọi quyền duyệt / trả về: phiếu thu, hoàn tiền,
+            // khất nợ, hủy HĐ — AdminOnlyApprovals, 06/10/2026; dải số mặc định, phạm vi mọi chi nhánh) không lan sang vai trò này.
+            'tuition.view', 'tuition.create', 'tuition.mark_contacted', 'tuition.report_overdue',
             'invoice.request_cancel',
-            'refund_transfer.request', 'refund_transfer.approve', 'refund_transfer.approve_transfer', 'refund_transfer.reject',
+            'refund_transfer.request',
             // Bảng lương (06/10/2026): Quản lý cơ sở chỉ xem phiếu lương của chính mình ("Lương của tôi"); Admin xem mọi phiếu.
             'payroll.view_own', 'kpi.*', 'teacher_rate.manage', 'commission_config.manage',
             'attendance_staff.view', 'attendance_staff.manual_record',
-            // Chấm công hằng ngày (điện thoại): xem + duyệt đơn của nhân sự chi nhánh mình.
-            'staff_checkin.view', 'staff_checkin.approve', 'staff_checkin.scope_branch',
+            // Chấm công hằng ngày (điện thoại): xem công nhân sự chi nhánh mình; duyệt đơn chỉ Admin (06/10/2026).
+            'staff_checkin.view', 'staff_checkin.scope_branch',
             // Chốt biên bản lỗi vận hành (CM); lỗi chuyên môn do Học thuật chốt.
             'violation.view', 'violation.create', 'violation.confirm_error', 'violation.confirm_fine', 'violation.cancel',
             'violation.mark_paid', 'violation.mark_resolved', 'violation.decide_operations',

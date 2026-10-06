@@ -16,6 +16,9 @@ use App\Models\Student;
 use App\Models\SyllabusAdjustmentRequest;
 use App\Models\SyllabusCurriculum;
 use App\Models\User;
+use App\Services\PlacementPortalLinkService;
+use App\Services\SyllabusProgressionService;
+use App\Support\Roles;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -27,6 +30,9 @@ class AcademicSystemTest extends TestCase
     use RefreshDatabase;
 
     private User $academicHead;
+
+    /** Người duyệt / từ chối (chỉ Admin duyệt từ 06/10/2026). */
+    private User $admin;
 
     private User $teacher;
 
@@ -56,7 +62,14 @@ class AcademicSystemTest extends TestCase
             'name' => 'Trưởng phòng Học thuật',
             'is_active' => true,
         ]);
-        $this->academicHead->assignRole('academic_lead');
+        $this->academicHead->assignRole(Roles::ACADEMIC_LEAD);
+
+        $this->admin = User::factory()->create([
+            'branch_id' => $this->branch->id,
+            'name' => 'Quản trị hệ thống',
+            'is_active' => true,
+        ]);
+        $this->admin->assignRole(Roles::ADMIN);
 
         $this->teacher = User::factory()->create([
             'branch_id' => $this->branch->id,
@@ -284,7 +297,7 @@ class AcademicSystemTest extends TestCase
         ]);
 
         // 1. Lead mở link test riêng (có chữ ký, do CRM sinh)
-        $signedUrl = app(\App\Services\PlacementPortalLinkService::class)->signedLinkForLead($test, $lead);
+        $signedUrl = app(PlacementPortalLinkService::class)->signedLinkForLead($test, $lead);
         $responseTake = $this->get($signedUrl);
         $responseTake->assertOk();
         $responseTake->assertSee('Lê Thanh Hằng');
@@ -422,7 +435,7 @@ class AcademicSystemTest extends TestCase
         ])->assertSessionHasErrors('class_id');
         $this->assertSame(0, SyllabusAdjustmentRequest::count());
         $curriculum = SyllabusCurriculum::create(['code' => 'CUR-ADJ', 'title' => 'GT giãn tiến độ', 'version' => 'v1', 'stage_name' => 'Writing']);
-        app(\App\Services\SyllabusProgressionService::class)->open($this->classModel, $curriculum->stages()->firstOrFail(), $this->teacher->id, $this->academicHead);
+        app(SyllabusProgressionService::class)->open($this->classModel, $curriculum->stages()->firstOrFail(), $this->teacher->id, $this->academicHead);
 
         // 1. Submit adjustment request
         $responseReq = $this->actingAs($this->teacher)->post(route('syllabus.adjustment-requests.store'), [
@@ -444,13 +457,16 @@ class AcademicSystemTest extends TestCase
         $adjReq = SyllabusAdjustmentRequest::where('class_id', $this->classModel->id)->first();
         $this->assertNotNull($adjReq);
 
-        // 2. Approve request
-        $responseApprove = $this->actingAs($this->academicHead)->post(route('syllabus.adjustment-requests.approve', $adjReq->id));
+        // 2. Approve request — chỉ Admin duyệt (06/10/2026), Học thuật bị chặn
+        $this->actingAs($this->academicHead)->post(route('syllabus.adjustment-requests.approve', $adjReq->id))->assertForbidden();
+        $this->assertEquals('pending', $adjReq->fresh()->status);
+
+        $responseApprove = $this->actingAs($this->admin)->post(route('syllabus.adjustment-requests.approve', $adjReq->id));
         $responseApprove->assertRedirect();
 
         $adjReq->refresh();
         $this->assertEquals('approved', $adjReq->status);
-        $this->assertEquals($this->academicHead->id, $adjReq->approver_id);
+        $this->assertEquals($this->admin->id, $adjReq->approver_id);
 
         // 3. Reject another adjustment request
         $adjReq2 = SyllabusAdjustmentRequest::create([
@@ -462,11 +478,11 @@ class AcademicSystemTest extends TestCase
         ]);
 
         // Từ chối bắt buộc có lý do và lý do được lưu lại.
-        $this->actingAs($this->academicHead)->post(route('syllabus.adjustment-requests.reject', $adjReq2->id))
+        $this->actingAs($this->admin)->post(route('syllabus.adjustment-requests.reject', $adjReq2->id))
             ->assertSessionHasErrors('rejection_reason');
         $this->assertEquals('pending', $adjReq2->fresh()->status);
 
-        $responseReject = $this->actingAs($this->academicHead)->post(route('syllabus.adjustment-requests.reject', $adjReq2->id), [
+        $responseReject = $this->actingAs($this->admin)->post(route('syllabus.adjustment-requests.reject', $adjReq2->id), [
             'rejection_reason' => 'Không phù hợp với lộ trình',
         ]);
         $responseReject->assertRedirect();
@@ -507,7 +523,9 @@ class AcademicSystemTest extends TestCase
         $this->assertNotNull($bigTest);
         $this->assertStringStartsWith('BT-', $bigTest->code);
         $this->assertNotEmpty($bigTest->passcode);
-        $this->actingAs($this->academicHead)->post(route('syllabus.big-tests.approve', $bigTest->id))->assertRedirect();
+        // Duyệt & phân phối đề: chỉ Admin (06/10/2026)
+        $this->actingAs($this->academicHead)->post(route('syllabus.big-tests.approve', $bigTest->id))->assertForbidden();
+        $this->actingAs($this->admin)->post(route('syllabus.big-tests.approve', $bigTest->id))->assertRedirect();
         $bigTest->refresh();
         $this->assertTrue($bigTest->is_distributed);
 

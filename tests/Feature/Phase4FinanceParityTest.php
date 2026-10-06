@@ -192,7 +192,7 @@ class Phase4FinanceParityTest extends TestCase
     {
         $refund = $this->refundRequest();
 
-        // Kế toán / Quản lý có refund_transfer.approve nhưng không duyệt được HOÀN TIỀN.
+        // Kế toán / Quản lý không duyệt được HOÀN TIỀN (chỉ Admin duyệt mọi yêu cầu, 06/10/2026).
         $this->actingAs($this->accountant)->post(route('tuition.refunds.approve', $refund->id), [
             'proof_image' => UploadedFile::fake()->image('unc.jpg'),
         ])->assertForbidden();
@@ -230,13 +230,18 @@ class Phase4FinanceParityTest extends TestCase
         $this->actingAs($otherManager)->get(route('tuition.refunds.proof', $refund->id))->assertForbidden();
     }
 
-    public function test_transfer_approval_stays_with_finance_staff_and_needs_no_proof(): void
+    public function test_transfer_approval_is_admin_only_and_needs_no_proof(): void
     {
         $target = $this->makeStudent('HV-PAR-003', 'Lê Nhận', $this->branch);
         $targetTuition = $this->makeTuition($target, 5000000);
         $transfer = $this->refundRequest(['type' => 'transfer', 'target_student_id' => $target->id, 'refund_amount' => 800000, 'no_transfer_reason' => null]);
 
-        $this->actingAs($this->accountant)->post(route('tuition.refunds.approve', $transfer->id))->assertSessionHasNoErrors();
+        // Chỉ Admin duyệt (06/10/2026): Kế toán không còn duyệt chuyển nhượng.
+        $this->actingAs($this->accountant)->post(route('tuition.refunds.approve', $transfer->id))->assertForbidden();
+        $this->assertSame('pending', $transfer->fresh()->status);
+
+        // Admin duyệt chuyển nhượng không cần ảnh bằng chứng.
+        $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $transfer->id))->assertSessionHasNoErrors();
         $this->assertSame('approved', $transfer->fresh()->status);
         $this->assertFalse((bool) $transfer->fresh()->clawback_commission);
         $this->assertSame(4200000.0, (float) $targetTuition->fresh()->debt_amount);
@@ -291,7 +296,11 @@ class Phase4FinanceParityTest extends TestCase
     public function test_reject_stores_reason(): void
     {
         $refund = $this->refundRequest();
+        // Chỉ Admin từ chối (06/10/2026).
         $this->actingAs($this->accountant)->post(route('tuition.refunds.reject', $refund->id), ['rejection_reason' => 'Đề nghị chuyển nhượng'])
+            ->assertForbidden();
+        $this->assertSame('pending', $refund->fresh()->status);
+        $this->actingAs($this->admin)->post(route('tuition.refunds.reject', $refund->id), ['rejection_reason' => 'Đề nghị chuyển nhượng'])
             ->assertSessionHasNoErrors();
         $this->assertSame('rejected', $refund->fresh()->status);
         $this->assertSame('Đề nghị chuyển nhượng', $refund->fresh()->rejection_reason);

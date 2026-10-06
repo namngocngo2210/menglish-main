@@ -14,7 +14,9 @@ use App\Models\User;
 use App\Models\WorkTask;
 use App\Providers\ApprovalServiceProvider;
 use App\Services\Tuition\PaymentReportService;
+use App\Support\Approvals\AdminOnlyApprovals;
 use App\Support\Approvals\ApprovalInboxService;
+use App\Support\DisplayCode;
 use App\Support\Navigation\SidebarMenu;
 use App\Support\Roles;
 use Database\Seeders\PermissionSeeder;
@@ -24,13 +26,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Spatie\Permission\Models\Role;
 use Tests\Concerns\InteractsWithInertia;
 use Tests\TestCase;
 
 /**
- * IX-5 "Việc cần duyệt": phân quyền theo nguồn, phạm vi chi nhánh, badge + cache, duyệt / từ chối hàng loạt
- * đi đúng đường nghiệp vụ của màn gốc. Module chỉ Admin mở được (yêu cầu 06/10/2026): vai trò khác vẫn có nguồn
- * theo quyền ở tầng service (màn nghiệp vụ gốc dùng), nhưng không có menu / badge và bị 403 ở hộp duyệt.
+ * IX-5 "Việc cần duyệt": badge + cache, duyệt / từ chối hàng loạt đi đúng đường nghiệp vụ của màn gốc. Yêu cầu
+ * 06/10/2026: chỉ Admin duyệt / từ chối → module chỉ Admin mở được, vai trò khác không có nguồn nào (không menu,
+ * badge, 403), kể cả khi vai trò / override cá nhân vẫn cấp quyền duyệt.
  */
 class ApprovalInboxTest extends TestCase
 {
@@ -61,11 +64,11 @@ class ApprovalInboxTest extends TestCase
     {
         return [
             'admin' => ['admin', ['receipt', 'invoice_cancellation', 'refund', 'payment_report', 'enrollment', 'crm_confirmation', 'crm_branch_transfer', 'syllabus_proposal', 'syllabus_adjustment', 'big_test_order', 'work_task', 'class_report', 'staff_attendance_request']],
-            'kế toán' => ['accountant', ['receipt', 'refund', 'payment_report']],
-            'quản lý cơ sở' => ['manager', ['receipt', 'refund', 'payment_report', 'enrollment', 'crm_confirmation', 'work_task', 'class_report', 'staff_attendance_request']],
-            'trưởng học thuật' => ['academic_lead', ['syllabus_proposal', 'syllabus_adjustment', 'big_test_order', 'work_task', 'class_report']],
-            'học vụ' => ['academic_staff', ['enrollment', 'crm_confirmation', 'work_task', 'class_report']],
-            'giáo viên' => ['teacher', ['work_task', 'class_report']],
+            'kế toán' => ['accountant', []],
+            'quản lý cơ sở' => ['manager', []],
+            'trưởng học thuật' => ['academic_lead', []],
+            'học vụ' => ['academic_staff', []],
+            'giáo viên' => ['teacher', []],
         ];
     }
 
@@ -121,19 +124,19 @@ class ApprovalInboxTest extends TestCase
         $this->actingAs($user)->get(route('dashboard'))->assertDontSee('data-menu-item="approvals"', false);
     }
 
-    public function test_module_is_admin_only_but_original_screens_still_open_by_permission(): void
+    public function test_module_and_approve_buttons_are_admin_only(): void
     {
         $menu = app(SidebarMenu::class);
         $admin = $this->makeUser(Roles::ADMIN);
-        $this->assertTrue($admin->can(ApprovalServiceProvider::MODULE_ABILITY));
+        $this->assertTrue($admin->can(AdminOnlyApprovals::ABILITY));
         $this->assertContains('approvals', collect($menu->groupsFor($admin))->pluck('id')->all());
         $this->actingAs($admin)->get(route('approvals.index'))->assertOk();
 
-        // QLCS (ảnh người dùng gửi), Học thuật, Học vụ: có nguồn duyệt theo quyền nhưng không vào được module.
+        // QLCS (ảnh người dùng gửi), Học thuật, Học vụ: không có nguồn duyệt nào, không vào được module.
         foreach ([Roles::MANAGER, Roles::ACADEMIC_LEAD, Roles::ACADEMIC_STAFF] as $role) {
             $user = $this->makeUser($role);
-            $this->assertNotSame([], app(ApprovalInboxService::class)->visibleSources($user), $role);
-            $this->assertFalse($user->can(ApprovalServiceProvider::MODULE_ABILITY), $role);
+            $this->assertSame([], app(ApprovalInboxService::class)->visibleSources($user), $role);
+            $this->assertFalse($user->can(AdminOnlyApprovals::ABILITY), $role);
             $this->assertFalse($user->can(ApprovalServiceProvider::INBOX_ABILITY), $role);
             $this->assertNotContains('approvals', collect($menu->groupsFor($user))->pluck('id')->all(), $role);
             $this->actingAs($user)->get(route('dashboard'))->assertOk()
@@ -142,22 +145,35 @@ class ApprovalInboxTest extends TestCase
             $this->actingAs($user)->get(route('approvals.index'))->assertForbidden();
         }
 
-        // Màn gốc vẫn mở theo quyền như trước (mở từ màn nghiệp vụ / thông báo), chỉ không còn trong menu Cần duyệt.
-        $this->actingAs($this->makeUser(Roles::MANAGER))->get(route('tuition.receipts.approve'))->assertOk()
+        // Màn gốc vẫn xem được theo quyền xem, nhưng QLCS không duyệt / từ chối phiếu thu được nữa.
+        $manager = $this->makeUser(Roles::MANAGER);
+        $receipt = $this->pendingReceipt($this->makeTuition($this->makeStudent($this->branchA)));
+        $this->actingAs($manager)->get(route('tuition.receipts.approve'))->assertOk()
             ->assertDontSee('data-workspace-tabs="approvals"', false);
+        $this->assertFalse($manager->can('tuition.approve'));
+        $this->actingAs($manager)->post(route('tuition.receipts.approve.action', $receipt->id))->assertForbidden();
+        $this->actingAs($manager)->post(route('tuition.receipts.reject.action', $receipt->id), ['reason' => 'Sai'])->assertForbidden();
+        $this->assertSame(TuitionReceipt::STATUS_PENDING, $receipt->fresh()->status);
         $this->actingAs($this->makeUser(Roles::ACADEMIC_STAFF))->get(route('students.enrollments'))->assertOk();
         $this->actingAs($this->makeUser(Roles::ACADEMIC_LEAD))->get(route('syllabus.adjustment-requests'))->assertOk();
     }
 
-    public function test_source_follows_permission_not_role_name(): void
+    public function test_granting_an_approval_permission_to_another_role_has_no_effect(): void
     {
         $accountant = $this->makeUser('accountant');
-        $this->assertArrayNotHasKey('invoice_cancellation', app(ApprovalInboxService::class)->visibleSources($accountant));
 
-        // Admin cấp thêm quyền duyệt hủy HĐ cho người → nguồn xuất hiện ngay (không đọc tên vai trò).
+        // Admin cấp quyền duyệt (gán trực tiếp hoặc qua vai trò) → Gate vẫn chặn, không có nguồn duyệt nào.
         $accountant->givePermissionTo('invoice.approve_cancel');
+        Role::findByName(Roles::MANAGER)->givePermissionTo('tuition.approve');
+        $manager = $this->makeUser(Roles::MANAGER);
         $this->app->instance('request', Request::create('/'));
-        $this->assertArrayHasKey('invoice_cancellation', app(ApprovalInboxService::class)->visibleSources($accountant->fresh()));
+
+        foreach ([[$accountant->fresh(), 'invoice.approve_cancel'], [$manager, 'tuition.approve']] as [$user, $permission]) {
+            $this->assertTrue($user->hasPermissionTo($permission), $permission);
+            $this->assertFalse($user->can($permission), $permission);
+            $this->assertSame([], app(ApprovalInboxService::class)->visibleSources($user), $permission);
+        }
+        $this->assertTrue($this->makeUser(Roles::ADMIN)->can('invoice.approve_cancel'));
     }
 
     // ── Badge + cache ───────────────────────────────────────────────────
@@ -175,8 +191,8 @@ class ApprovalInboxTest extends TestCase
         $this->pendingProposal(); // nguồn Đào tạo, kế toán không thấy
 
         $inbox = app(ApprovalInboxService::class);
-        // Số đếm theo phạm vi vẫn tính cho kế toán, nhưng không phải Admin nên không có badge.
-        $this->assertSame(['receipt' => 2, 'refund' => 1, 'payment_report' => 0], $inbox->counts($accountant));
+        // Không phải Admin → không có nguồn, không badge.
+        $this->assertSame([], $inbox->counts($accountant));
         $this->assertNull($inbox->badge($accountant));
         $this->assertDoesNotMatchRegularExpression('/data-approval-badge>/', $this->actingAs($accountant)->get(route('dashboard'))->assertOk()->getContent());
 
@@ -191,31 +207,31 @@ class ApprovalInboxTest extends TestCase
 
     public function test_counts_are_cached_per_user_and_invalidated_after_an_approval(): void
     {
-        $accountant = $this->makeUser('accountant');
+        $admin = $this->makeUser(Roles::ADMIN);
         $tuition = $this->makeTuition($this->makeStudent($this->branchA));
         $receipt = $this->pendingReceipt($tuition);
         $inbox = app(ApprovalInboxService::class);
 
-        $this->assertSame(1, array_sum($inbox->counts($accountant)));
+        $this->assertSame(1, array_sum($inbox->counts($admin)));
 
         // Request sau: chỉ 1 lần đọc cache, không truy vấn bảng nghiệp vụ.
         $this->app->instance('request', Request::create('/'));
         DB::flushQueryLog();
         DB::enableQueryLog();
-        $this->assertSame(1, array_sum($inbox->counts($accountant)));
+        $this->assertSame(1, array_sum($inbox->counts($admin)));
         $queries = collect(DB::getQueryLog())->pluck('query');
         DB::disableQueryLog();
         $this->assertCount(1, $queries, $queries->implode("\n"));
         $this->assertStringContainsString('cache', $queries->first());
 
         // Duyệt ở màn cũ (không qua inbox) → observer đổi phiên bản cache → số đếm tính lại.
-        $this->actingAs($this->makeUser('accountant'))
+        $this->actingAs($this->makeUser(Roles::ADMIN))
             ->post(route('tuition.receipts.approve.action', $receipt->id))
             ->assertSessionHasNoErrors();
         $this->assertSame(TuitionReceipt::STATUS_APPROVED, $receipt->fresh()->status);
 
         $this->app->instance('request', Request::create('/'));
-        $this->assertSame(0, array_sum($inbox->counts($accountant)));
+        $this->assertSame(0, array_sum($inbox->counts($admin)));
     }
 
     // ── Duyệt / từ chối hàng loạt ───────────────────────────────────────
@@ -262,6 +278,7 @@ class ApprovalInboxTest extends TestCase
 
     public function test_bulk_approve_other_sources_goes_through_their_controllers(): void
     {
+        $admin = $this->makeUser(Roles::ADMIN);
         $lead = $this->makeUser('academic_lead');
         $proposal = $this->pendingProposal();
 
@@ -272,27 +289,24 @@ class ApprovalInboxTest extends TestCase
             'branch_id' => $this->branchA->id, 'due_date' => today(), 'task_type' => 'one_time', 'status' => 'pending_confirmation',
         ]);
 
-        // Không phải Admin → không vào hộp duyệt; đường duyệt của nguồn (dùng chung với màn gốc) vẫn chạy ở tầng service.
+        // Học thuật / người giao việc không còn duyệt: 403 ở hộp duyệt, service cũng không cho xử lý.
         $this->modal($lead)->post(route('approvals.bulk'), ['action' => 'approve', 'items' => ["syllabus_proposal:{$proposal->id}"]])
             ->assertForbidden();
+        $this->actingAs($creator);
+        $this->assertFalse(app(ApprovalInboxService::class)->process($creator, 'approve', ["work_task:{$task->id}"])[0]['ok']);
         $this->assertSame('pending', $proposal->fresh()->status);
-        $this->actingAs($lead);
-        $this->assertTrue(app(ApprovalInboxService::class)->process($lead, 'approve', ["syllabus_proposal:{$proposal->id}"])[0]['ok']);
+        $this->assertSame('pending_confirmation', $task->fresh()->status);
+
+        // Admin duyệt cả hai qua hộp duyệt, đi đúng đường nghiệp vụ của màn gốc.
+        $this->flushHeaders()->modal($admin)->post(route('approvals.bulk'), [
+            'action' => 'approve', 'items' => ["syllabus_proposal:{$proposal->id}", "work_task:{$task->id}"],
+        ])->assertRedirect(route('approvals.index'));
         $proposal->refresh();
         $this->assertSame('approved', $proposal->status);
-        $this->assertSame($lead->id, (int) $proposal->reviewer_id);
-
-        // Người giao việc xác nhận hoàn thành từ inbox (luật "không tự duyệt" vẫn của module).
-        $this->assertArrayHasKey('work_task', app(ApprovalInboxService::class)->counts($creator));
-        $this->actingAs($creator);
-        $this->assertTrue(app(ApprovalInboxService::class)->process($creator, 'approve', ["work_task:{$task->id}"])[0]['ok']);
+        $this->assertSame($admin->id, (int) $proposal->reviewer_id);
         $task->refresh();
         $this->assertSame('completed', $task->status);
-        $this->assertSame($creator->id, (int) $task->confirmed_by);
-
-        // Người làm không thấy / không duyệt được việc của mình.
-        $this->app->instance('request', Request::create('/'));
-        $this->assertSame(0, app(ApprovalInboxService::class)->counts($assignee)['work_task']);
+        $this->assertSame($admin->id, (int) $task->confirmed_by);
     }
 
     public function test_reject_requires_reason(): void
@@ -334,25 +348,19 @@ class ApprovalInboxTest extends TestCase
             ->assertSee(route('tuition.refunds', ['status' => 'pending']), false);
     }
 
-    // ── Phạm vi chi nhánh ───────────────────────────────────────────────
+    // ── Vai trò khác không xử lý được ở tầng service ──────────────────
 
-    public function test_items_outside_branch_scope_are_not_listed_counted_or_processed(): void
+    public function test_non_admin_cannot_process_items_even_at_service_level(): void
     {
-        $accountant = $this->makeUser('accountant'); // phạm vi Học phí: chi nhánh A
-        $inScope = $this->pendingReceipt($this->makeTuition($this->makeStudent($this->branchA)));
-        $outScope = $this->pendingReceipt($this->makeTuition($this->makeStudent($this->branchB), 1000000, $this->branchB));
-
-        // Hộp duyệt chỉ Admin mở (Admin không giới hạn chi nhánh) → phạm vi kiểm tra ở tầng service mà màn gốc dùng chung.
+        $manager = $this->makeUser(Roles::MANAGER);
+        $receipt = $this->pendingReceipt($this->makeTuition($this->makeStudent($this->branchA)));
         $inbox = app(ApprovalInboxService::class);
-        $this->assertSame(1, $inbox->counts($accountant)['receipt']);
-        $receipts = collect($inbox->sections($accountant, null, 15))->firstWhere('source', $inbox->sources()['receipt'])['items'];
-        $this->assertSame(['receipt:'.$inScope->id], $receipts->map->ref()->values()->all());
 
-        $this->assertNull($inbox->find($accountant, 'receipt', $outScope->id));
-        $result = $inbox->process($accountant, 'approve', ["receipt:{$outScope->id}"])[0];
+        $this->assertNull($inbox->find($manager, 'receipt', $receipt->id));
+        $result = $inbox->process($manager, 'approve', ["receipt:{$receipt->id}"])[0];
         $this->assertFalse($result['ok']);
         $this->assertStringContainsString('ngoài phạm vi', $result['message']);
-        $this->assertSame(TuitionReceipt::STATUS_PENDING, $outScope->fresh()->status);
+        $this->assertSame(TuitionReceipt::STATUS_PENDING, $receipt->fresh()->status);
     }
 
     // ── Modal chi tiết ──────────────────────────────────────────────────
@@ -363,7 +371,7 @@ class ApprovalInboxTest extends TestCase
         $receipt = $this->pendingReceipt($this->makeTuition($this->makeStudent($this->branchA)));
 
         $this->modal($admin)->get(route('approvals.show', ['receipt', $receipt->id]))->assertOk()
-            ->assertSee('Phiếu thu '.\App\Support\DisplayCode::short($receipt->receipt_number))
+            ->assertSee('Phiếu thu '.DisplayCode::short($receipt->receipt_number))
             ->assertSee('id="approval-approve-form"', false)
             ->assertSee('id="approval-reject-form"', false)
             ->assertInertia(fn (AssertableInertia $page) => $page
@@ -385,9 +393,8 @@ class ApprovalInboxTest extends TestCase
 
     // ── Học viên báo đã đóng học phí (cổng học viên) ──────────────────
 
-    public function test_student_payment_report_reaches_accountant_and_student_gets_the_result(): void
+    public function test_student_payment_report_reaches_admin_and_student_gets_the_result(): void
     {
-        $accountant = $this->makeUser('accountant');
         $student = $this->makeStudent($this->branchA);
         $studentUser = $this->makeUser('student');
         $student->update(['user_id' => $studentUser->id]);
@@ -403,8 +410,7 @@ class ApprovalInboxTest extends TestCase
         ]);
         $report = AcademicRecord::where('screen_key', PaymentReportService::SCREEN_KEY)->where('data->student_id', (string) $student->id)->firstOrFail();
 
-        // Kế toán chi nhánh A: đúng 1 mục trong phạm vi (mục của chi nhánh B ngoài phạm vi); Admin duyệt ở hộp Cần duyệt.
-        $this->assertSame(1, app(ApprovalInboxService::class)->counts($accountant)['payment_report']);
+        // Admin duyệt ở hộp Cần duyệt.
         $admin = $this->makeUser(Roles::ADMIN);
         $this->actingAs($admin)->get(route('approvals.index'))->assertOk()
             ->assertSee('data-approval-item="payment_report:'.$report->id.'"', false)

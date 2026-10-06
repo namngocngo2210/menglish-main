@@ -10,16 +10,15 @@ use App\Models\User;
 use App\Models\WorkTask;
 use App\Services\Sla\Sla;
 use App\Support\Money;
-use App\Support\Rbac;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
  * SLA của Big Test (ngưỡng / bật tắt / mức phạt ở trang Cấu hình SLA, nhóm "Big Test"):
  *  - big_test.results_late: trả kết quả cho phụ huynh tối đa N ngày kể từ ngày thi (mặc định 7); trễ → mức gợi ý (mặc định 50.000đ) × số ngày trễ.
- *  - big_test.paper_approval: Học thuật duyệt & phân phối đề trước ngày thi ít nhất N ngày (mặc định 3);
+ *  - big_test.paper_approval: Admin duyệt & phân phối đề trước ngày thi ít nhất N ngày (mặc định 3; chỉ Admin duyệt từ 06/10/2026);
  *    big_test.paper_reminder: hệ thống cảnh báo từ N ngày trước (mặc định 7) và nhắc mỗi ngày.
- *  - big_test.paper_missing: còn dưới N giờ (mặc định 24) mà đề chưa phân phối → biên bản cho Học thuật.
+ *  - big_test.paper_missing: còn dưới N giờ (mặc định 24) mà đề chưa phân phối → nhắc Admin (không lập biên bản cho Admin).
  * Mọi biên bản tự lập đi đúng quy trình duyệt (pending, người báo "Tự động", người chốt quyết mức phạt) và idempotent.
  * Tắt "Tự lập biên bản" của một SLA thì chỉ gửi thông báo (1 lần / người / đợt thi).
  */
@@ -59,17 +58,14 @@ class BigTestSlaService
     }
 
     /**
-     * Người duyệt Big Test (Học thuật): người đang hoạt động có quyền big_test.approve, không tính Super Admin
-     * (Admin vẫn duyệt được nhưng không bị lập biên bản / giao việc thay Học thuật).
+     * Người duyệt Big Test: chỉ Admin (06/10/2026, AdminOnlyApprovals) — nhận nhắc duyệt đề, việc "Duyệt & phân phối đề".
+     * Admin không bị lập biên bản: các SLA dưới đây chỉ nhắc Admin, không phạt.
      *
      * @return \Illuminate\Support\Collection<int, User>
      */
     public function approvers(): \Illuminate\Support\Collection
     {
-        return Rbac::scopeUsersWithPermission(User::query(), 'big_test.approve')
-            ->where('is_active', true)->whereNull('locked_at')
-            ->whereDoesntHave('roles', fn ($r) => $r->where('name', Rbac::SUPER_ADMIN))
-            ->orderBy('id')->get();
+        return BranchStaff::admins();
     }
 
     /**
@@ -98,17 +94,17 @@ class BigTestSlaService
 
     /**
      * Người chịu trách nhiệm trả kết quả: còn thiếu / nháp → GV chính của lớp (nhập điểm);
-     * đã nhập đủ, chờ duyệt & gửi → người duyệt Big Test đầu tiên (id nhỏ nhất, không phải Admin).
+     * đã nhập đủ, chờ Admin duyệt & gửi → không ai (Admin không bị lập biên bản).
      * Chọn 1 người để biên bản là 1 / đợt thi; người chốt có thể hủy / đổi nếu quy trách nhiệm sai.
      */
     public function responsibleForResults(BigTest $test): ?User
     {
         if ($this->resultsEntered($test)) {
-            return $this->approvers()->first();
+            return null;
         }
         $teacherId = $test->classModel?->teacher_id;
 
-        return ($teacherId ? User::find($teacherId) : null) ?? $this->approvers()->first();
+        return $teacherId ? User::find($teacherId) : null;
     }
 
     /**
@@ -148,7 +144,8 @@ class BigTestSlaService
             $penalty = Penalty::where('big_test_id', $test->id)->where('auto_source', self::AUTO_LATE_RESULTS)->first();
             if ($penalty) {
                 // Biên bản đã chốt / đóng → không đụng; còn chờ giải trình → cập nhật số ngày trễ và mức gợi ý.
-                if (in_array($penalty->status, ['pending', 'explained'], true)) {
+                // GV đã nhập đủ, chỉ còn chờ Admin duyệt → dừng tăng (Admin không bị phạt, GV không chịu phần chờ duyệt).
+                if (in_array($penalty->status, ['pending', 'explained'], true) && ! $this->resultsEntered($test)) {
                     $update = ['violation_type' => $violation, 'amount' => $amount];
                     if ($penalty->status === 'pending' && ($responsible = $this->responsibleForResults($test))) {
                         $update['user_id'] = $responsible->id;
@@ -362,7 +359,7 @@ class BigTestSlaService
         $approvers = $this->approvers();
         $created = 0;
         $hours = $this->paperMissingHours();
-        $penalize = Sla::penalizes(self::RULE_PAPER_MISSING);
+        $penalize = false; // người duyệt đề là Admin (06/10/2026): chỉ nhắc, không lập biên bản
         $amount = (float) Sla::rule(self::RULE_PAPER_MISSING)['amount'];
 
         $tests = BigTest::with('classModel')

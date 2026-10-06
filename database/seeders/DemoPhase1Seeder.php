@@ -45,7 +45,7 @@ use RuntimeException;
  * - Đi qua service / controller thật để giữ đúng quy tắc nghiệp vụ: CrmStageService (chuyển bước + lịch sử),
  *   SessionScheduleService (sinh buổi học, bỏ ngày nghỉ), CrmController (thêm khách, hẹn test, đặt học thử,
  *   Chốt & Xếp lớp, gán lớp, xác nhận chính thức), PlacementTestController (chấm theo thang khối lớp),
- *   TrialGuestController (GV nhận xét học thử), TuitionController (Kế toán duyệt phiếu thu).
+ *   TrialGuestController (GV nhận xét học thử), TuitionController (Admin duyệt phiếu thu — chỉ Admin duyệt, 06/10/2026).
  */
 class DemoPhase1Seeder extends Seeder
 {
@@ -89,6 +89,9 @@ class DemoPhase1Seeder extends Seeder
     /** @var array<string, User> */
     private array $staff = [];
 
+    /** Người duyệt phiếu thu: chỉ Admin duyệt / từ chối (06/10/2026). */
+    private User $admin;
+
     /** @var array<string, ClassModel> */
     private array $classes = [];
 
@@ -110,6 +113,7 @@ class DemoPhase1Seeder extends Seeder
 
             return;
         }
+        $this->admin = User::where('email', 'admin@menglish.edu.vn')->firstOrFail();
 
         // Đề test theo khối lớp (preset thật, idempotent).
         $this->call([GradeTestsSeeder::class, SpeakingTestsSeeder::class], true);
@@ -528,7 +532,7 @@ class DemoPhase1Seeder extends Seeder
 
     /**
      * Chốt & Xếp lớp (Quản lý cơ sở): có lớp → Đã chốt; không lớp ($courseKey) → Chờ xếp lớp.
-     * Đã đóng phí → phiếu thu chờ Kế toán duyệt; chưa đóng → task "Nhắc thu học phí".
+     * Đã đóng phí → phiếu thu chờ Admin duyệt; chưa đóng → task "Nhắc thu học phí".
      */
     private function close(CrmCustomer $customer, ?string $classKey, ?string $courseKey, bool $paid): CrmCustomer
     {
@@ -551,12 +555,12 @@ class DemoPhase1Seeder extends Seeder
         return $customer->refresh();
     }
 
-    /** Kế toán chi nhánh duyệt phiếu thu lúc chốt → học phí đã đóng. */
+    /** Admin duyệt phiếu thu lúc chốt → học phí đã đóng. */
     private function approveReceipts(CrmCustomer $customer): CrmCustomer
     {
         $receiptIds = TuitionReceipt::where('student_id', $customer->converted_student_id)->where('status', TuitionReceipt::STATUS_PENDING)->pluck('id');
         foreach ($receiptIds as $id) {
-            $this->asUser($this->staff['accountant'], TuitionController::class, 'approveReceiptAction', [], ['id' => $id]);
+            $this->asUser($this->admin, TuitionController::class, 'approveReceiptAction', [], ['id' => $id]);
         }
 
         return $customer;

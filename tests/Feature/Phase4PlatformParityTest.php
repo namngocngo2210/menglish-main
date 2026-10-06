@@ -114,7 +114,7 @@ class Phase4PlatformParityTest extends TestCase
         $this->assertSame(0, AdminNotification::where('type', 'class_report_pending')->count());
     }
 
-    public function test_q8_report_without_photo_waits_only_for_main_teacher(): void
+    public function test_q8_report_without_photo_waits_only_for_admin(): void
     {
         $teacher = $this->makeUser('teacher', $this->branch);
         $ta = $this->makeUser('assistant', $this->branch);
@@ -133,27 +133,28 @@ class Phase4PlatformParityTest extends TestCase
         $this->assertSame($teacher->id, $report->confirmer_id);
         $this->assertSame('pending_confirmation', $task->fresh()->status);
 
-        // Thông báo đúng 1 người: GV chính (không báo Học vụ / Quản lý / Admin).
-        $this->assertSame([$teacher->id], AdminNotification::where('type', 'class_report_pending')->pluck('user_id')->all());
+        // Chỉ Admin xác nhận (06/10/2026): chỉ báo Admin (không báo GV chính / Học vụ / Quản lý).
+        $this->assertSame([$this->admin->id], AdminNotification::where('type', 'class_report_pending')->pluck('user_id')->all());
 
-        // Học vụ (người giao việc), Quản lý cơ sở, Admin, TA đều không xác nhận được khi lớp có GV chính.
-        foreach ([$academic, $manager, $this->admin, $ta] as $other) {
+        // GV chính, Học vụ (người giao việc), Quản lý cơ sở, TA đều không xác nhận được.
+        foreach ([$teacher, $academic, $manager, $ta] as $other) {
             $this->actingAs($other)->post(route('tasks.class-reports.approve', $report->id))->assertForbidden();
             $this->actingAs($other)->post(route('tasks.approve', $task->id))->assertForbidden();
         }
         $this->actingAs($academic)->get(route('tasks.manual-approvals'))->assertOk()->assertDontSee('Buổi 5 - Listening');
+        $this->actingAs($teacher)->get(route('tasks.manual-approvals'))->assertOk()->assertDontSee('Buổi 5 - Listening');
 
-        $this->actingAs($teacher)->get(route('tasks.manual-approvals'))->assertOk()
-            ->assertSee('Buổi 5 - Listening')->assertSee('GV chính của lớp');
-        $this->actingAs($teacher)->post(route('tasks.approve', $task->id), ['admin_note' => 'OK'])->assertRedirect(route('tasks.manual-approvals'));
+        $this->actingAs($this->admin)->get(route('tasks.manual-approvals'))->assertOk()
+            ->assertSee('Buổi 5 - Listening');
+        $this->actingAs($this->admin)->post(route('tasks.approve', $task->id), ['admin_note' => 'OK'])->assertRedirect(route('tasks.manual-approvals'));
 
         $this->assertSame(ClassReport::STATUS_APPROVED, $report->fresh()->status);
-        $this->assertSame($teacher->id, $report->fresh()->approved_by);
+        $this->assertSame($this->admin->id, $report->fresh()->approved_by);
         $this->assertSame('completed', $task->fresh()->status);
-        $this->assertSame($teacher->id, $task->fresh()->confirmed_by);
+        $this->assertSame($this->admin->id, $task->fresh()->confirmed_by);
     }
 
-    public function test_q8_class_without_main_teacher_is_confirmed_by_task_assigner(): void
+    public function test_q8_class_without_main_teacher_is_confirmed_by_admin_not_task_assigner(): void
     {
         $ta = $this->makeUser('assistant', $this->branch);
         $academic = $this->makeUser('academic_staff', $this->branch);
@@ -165,22 +166,26 @@ class Phase4PlatformParityTest extends TestCase
             ->assertSessionHasNoErrors();
         $report = ClassReport::firstOrFail();
         $this->assertSame($academic->id, $report->confirmer_id);
-        $this->assertSame([$academic->id], AdminNotification::where('type', 'class_report_pending')->pluck('user_id')->all());
+        // Chỉ Admin xác nhận / trả về (06/10/2026): người giao việc không còn được báo / xác nhận.
+        $this->assertSame([$this->admin->id], AdminNotification::where('type', 'class_report_pending')->pluck('user_id')->all());
 
         $this->actingAs($manager)->post(route('tasks.class-reports.approve', $report->id))->assertForbidden();
+        $this->actingAs($academic)->post(route('tasks.class-reports.approve', $report->id))->assertForbidden();
+        $this->actingAs($academic)->post(route('tasks.class-reports.reject', $report->id), ['reason' => 'Thiếu nhật ký'])->assertForbidden();
 
         // Trả về → đầu việc quay lại "Đang thực hiện", báo người nộp.
-        $this->actingAs($academic)->post(route('tasks.class-reports.reject', $report->id), ['reason' => 'Thiếu nhật ký'])->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('tasks.class-reports.reject', $report->id), ['reason' => 'Thiếu nhật ký'])->assertSessionHasNoErrors();
         $this->assertSame(ClassReport::STATUS_REJECTED, $report->fresh()->status);
         $this->assertSame('Thiếu nhật ký', $report->fresh()->rejection_reason);
         $this->assertSame('in_progress', $task->fresh()->status);
 
-        // Nộp lại (không ảnh) → người giao việc xác nhận.
+        // Nộp lại (không ảnh) → Admin xác nhận.
         $this->actingAs($ta)->post(route('tasks.class-reports.store'), $this->reportPayload($class, ['task_id' => $task->id]))->assertSessionHasNoErrors();
         $second = ClassReport::latest('id')->firstOrFail();
-        $this->actingAs($academic)->post(route('tasks.class-reports.approve', $second->id))->assertSessionHasNoErrors();
+        $this->actingAs($academic)->post(route('tasks.class-reports.approve', $second->id))->assertForbidden();
+        $this->actingAs($this->admin)->post(route('tasks.class-reports.approve', $second->id))->assertSessionHasNoErrors();
         $this->assertSame('completed', $task->fresh()->status);
-        $this->assertSame($academic->id, $task->fresh()->confirmed_by);
+        $this->assertSame($this->admin->id, $task->fresh()->confirmed_by);
     }
 
     public function test_q8_without_photo_and_without_any_confirmer_is_rejected(): void
@@ -294,10 +299,12 @@ class Phase4PlatformParityTest extends TestCase
         $this->assertSame('Thiếu đề bài từ GV', $task->fresh()->blocked_reason);
         $this->actingAs($teacher)->post(route('tasks.status.update', $task->id), ['status' => 'in_progress']);
 
-        // Gửi chờ xác nhận → báo người giao việc; xác nhận → việc lặp sinh lượt tháng sau.
+        // Gửi chờ xác nhận → báo Admin (chỉ Admin xác nhận, 06/10/2026); xác nhận → việc lặp sinh lượt tháng sau.
         $this->actingAs($teacher)->post(route('tasks.status.update', $task->id), ['status' => 'pending_confirmation', 'reason' => 'Đã kiểm kê']);
-        $this->assertDatabaseHas('admin_notifications', ['user_id' => $academic->id, 'title' => 'Việc chờ xác nhận: Kiểm kê kho tháng']);
-        $this->actingAs($academic)->post(route('tasks.approve', $task->id))->assertRedirect(route('tasks.manual-approvals'));
+        $this->assertDatabaseHas('admin_notifications', ['user_id' => $this->admin->id, 'title' => 'Việc chờ xác nhận: Kiểm kê kho tháng']);
+        $this->assertDatabaseMissing('admin_notifications', ['user_id' => $academic->id, 'title' => 'Việc chờ xác nhận: Kiểm kê kho tháng']);
+        $this->actingAs($academic)->post(route('tasks.approve', $task->id))->assertForbidden();
+        $this->actingAs($this->admin)->post(route('tasks.approve', $task->id))->assertRedirect(route('tasks.manual-approvals'));
         $next = WorkTask::where('title', 'Kiểm kê kho tháng')->where('status', 'new')->firstOrFail();
         $this->assertSame(today()->addMonthNoOverflow()->toDateString(), $next->due_date->toDateString());
         $this->assertSame($teacher->id, $next->assignee_id);
@@ -523,8 +530,7 @@ class Phase4PlatformParityTest extends TestCase
             ->assertOk()
             ->assertSee('Lớp của TA')
             ->assertDontSee('Lớp người khác')
-            ->assertSee('chờ GV chính xác nhận')
-            ->assertSee($teacher->name)
+            ->assertSee('chờ Admin xác nhận')
             ->assertSee('board_images[]', false);
 
         // Người khác không nộp được báo cáo cho lớp không phụ trách.

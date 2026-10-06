@@ -5,8 +5,10 @@ namespace App\Console\Commands;
 use App\Models\AdminNotification;
 use App\Models\BigTest;
 use App\Models\SyllabusAssignment;
+use App\Models\User;
 use App\Services\BigTestSlaService;
 use App\Services\Sla\Sla;
+use App\Support\Rbac;
 use Illuminate\Console\Command;
 
 /**
@@ -83,7 +85,7 @@ class RemindUpcomingBigTestsCommand extends Command
         [$stages, $stageNotified] = $this->remindExpectedStageDates($days);
         $papers = $sla->remindPaperApproval();
 
-        $this->info("Đã nhắc {$tests->count()} đợt Big Test ({$notified} thông báo giáo viên); {$stages} chặng theo ngày dự kiến chưa có đợt thi ({$stageNotified} thông báo giáo viên); {$papers} nhắc Học thuật duyệt đề.");
+        $this->info("Đã nhắc {$tests->count()} đợt Big Test ({$notified} thông báo giáo viên); {$stages} chặng theo ngày dự kiến chưa có đợt thi ({$stageNotified} thông báo giáo viên); {$papers} nhắc Admin duyệt đề.");
 
         return self::SUCCESS;
     }
@@ -117,7 +119,7 @@ class RemindUpcomingBigTestsCommand extends Command
             $stageLabel = $assignment->stage?->label ?? $assignment->stage_name;
             $daysLeft = (int) today()->diffInDays($expected->copy()->startOfDay());
             $message = "Lớp {$class->name} dự kiến thi Big Test {$stageLabel} ngày ".$expected->format('d/m/Y')
-                ." (còn {$daysLeft} ngày) nhưng chưa có đợt thi — GV chính order đề, Học thuật duyệt & tạo đợt thi.";
+                ." (còn {$daysLeft} ngày) nhưng chưa có đợt thi — GV chính order đề, Admin duyệt, Học thuật tạo đợt thi.";
 
             foreach (collect([$class->teacher_id, $class->foreign_teacher_id, $class->assistant_id])->filter()->unique() as $teacherId) {
                 AdminNotification::create([
@@ -130,8 +132,10 @@ class RemindUpcomingBigTestsCommand extends Command
                 ]);
                 $notified++;
             }
+            // Học thuật (tạo đợt thi, syllabus.manage) và Admin (duyệt đề) cùng được nhắc.
             AdminNotification::notifyUsers(
-                app(BigTestSlaService::class)->approverIdsOrAdmins(),
+                Rbac::scopeUsersWithPermission(User::query(), 'syllabus.manage')->where('is_active', true)->pluck('id')
+                    ->merge(app(BigTestSlaService::class)->approverIdsOrAdmins()),
                 'big_test_upcoming',
                 "Chặng sắp thi chưa có đợt Big Test: {$class->name}",
                 $message,

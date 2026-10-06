@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Approvals\AdminOnlyApprovals;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -136,19 +137,16 @@ class ClassReport extends Model
             ?? ($this->confirmer_id ? (int) $this->confirmer_id : null);
     }
 
+    /** Người xác nhận báo cáo: chỉ Admin (06/10/2026). */
     public function confirmerRoleLabel(): string
     {
-        $confirmerId = $this->currentConfirmerId();
-        if ($confirmerId && $this->classModel && (int) $this->classModel->teacher_id === $confirmerId) {
-            return 'GV chính của lớp';
-        }
-
-        return 'Người giao việc';
+        return 'Admin';
     }
 
-    /** A6 Q8: đúng người xác nhận hiện tại mới được xác nhận / trả về; người nộp không tự xác nhận. */
+    /** Chỉ Admin xác nhận / trả về (06/10/2026); người nộp không tự xác nhận. */
     public function isConfirmableBy(User $user): bool
     {
-        return (int) $this->reporter_id !== (int) $user->id && $this->currentConfirmerId() === (int) $user->id;
+        // Chỉ Admin xác nhận / trả lại (06/10/2026); GV chính / người giao việc chỉ còn được báo.
+        return (int) $this->reporter_id !== (int) $user->id && AdminOnlyApprovals::allows($user);
     }
 }

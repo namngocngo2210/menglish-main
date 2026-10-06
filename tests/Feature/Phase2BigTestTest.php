@@ -12,6 +12,7 @@ use App\Models\Student;
 use App\Models\SyllabusCurriculum;
 use App\Models\User;
 use App\Services\SyllabusProgressionService;
+use App\Support\Roles;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Console\Scheduling\Schedule;
@@ -27,6 +28,9 @@ class Phase2BigTestTest extends TestCase
     use RefreshDatabase;
 
     private User $academic;
+
+    /** Người duyệt order đề / đề Big Test (chỉ Admin duyệt từ 06/10/2026). */
+    private User $admin;
 
     private User $teacherA;
 
@@ -45,7 +49,9 @@ class Phase2BigTestTest extends TestCase
 
         $branch = Branch::create(['name' => 'Cơ sở BT', 'code' => 'BT2', 'is_active' => true]);
         $this->academic = User::factory()->create(['is_active' => true]);
-        $this->academic->assignRole('academic_lead');
+        $this->academic->assignRole(Roles::ACADEMIC_LEAD);
+        $this->admin = User::factory()->create(['is_active' => true]);
+        $this->admin->assignRole(Roles::ADMIN);
         $this->teacherA = User::factory()->create(['is_active' => true]);
         $this->teacherA->assignRole('teacher');
         $this->teacherB = User::factory()->create(['is_active' => true]);
@@ -87,15 +93,22 @@ class Phase2BigTestTest extends TestCase
         $this->assertSame($this->teacherA->id, $order->teacher_id);
         $this->assertSame(now()->addDays(7)->toDateString(), $order->due_date->toDateString());
         $this->assertStringStartsWith('ORDTEST-', $order->code);
-        // Báo riêng Học thuật (người duyệt), không phát thông báo chung cho mọi người xem hệ thống.
-        $this->assertDatabaseHas('admin_notifications', ['user_id' => $this->academic->id, 'type' => 'big_test_order']);
+        // Báo riêng người duyệt (chỉ Admin, 06/10/2026), không phát thông báo chung cho mọi người xem hệ thống.
+        $this->assertDatabaseHas('admin_notifications', ['user_id' => $this->admin->id, 'type' => 'big_test_order']);
+        $this->assertDatabaseMissing('admin_notifications', ['user_id' => $this->academic->id, 'type' => 'big_test_order']);
         $this->assertSame(0, AdminNotification::whereNull('user_id')->count());
 
+        // Học thuật vẫn xem order đề nhưng không còn nút duyệt / từ chối (chỉ Admin duyệt, 06/10/2026).
         $this->actingAs($this->academic)->get(route('syllabus.big-tests.distribution', ['order' => $order->id]))
             ->assertOk()
             ->assertSee('Chặng 1: Present Simple')
             ->assertSee('Tập trung Speaking')
             ->assertSee($order->due_date->format('d/m/Y'))
+            ->assertDontSee(route('syllabus.big-tests.orders.approve', $order->id, absolute: false))
+            ->assertDontSee(route('syllabus.big-tests.orders.reject', $order->id, absolute: false));
+        $this->actingAs($this->admin)->get(route('syllabus.big-tests.distribution', ['order' => $order->id]))
+            ->assertOk()
+            ->assertSee('Chặng 1: Present Simple')
             ->assertSee(route('syllabus.big-tests.orders.approve', $order->id, absolute: false))
             ->assertSee(route('syllabus.big-tests.orders.reject', $order->id, absolute: false));
 
@@ -115,18 +128,23 @@ class Phase2BigTestTest extends TestCase
         ]);
 
         $this->actingAs($this->teacherA)->post(route('syllabus.big-tests.orders.approve', $order->id), ['test_link' => 'https://x.test'])->assertForbidden();
-        $this->actingAs($this->academic)->post(route('syllabus.big-tests.orders.approve', $order->id))->assertSessionHasErrors('test_link');
+        // Chỉ Admin duyệt / từ chối order đề (06/10/2026): Học thuật bị chặn.
+        $this->actingAs($this->academic)->post(route('syllabus.big-tests.orders.approve', $order->id), ['test_link' => 'https://x.test'])->assertForbidden();
+        $this->actingAs($this->academic)->post(route('syllabus.big-tests.orders.reject', $other->id), ['rejection_reason' => 'Lý do'])->assertForbidden();
+        $this->assertSame('pending', $order->fresh()->status);
+        $this->assertSame('pending', $other->fresh()->status);
+        $this->actingAs($this->admin)->post(route('syllabus.big-tests.orders.approve', $order->id))->assertSessionHasErrors('test_link');
 
         // Order Big Test không gắn đợt thi có sẵn → phải nhập ngày giờ thi + phòng để hệ thống tạo đợt thi.
-        $this->actingAs($this->academic)->post(route('syllabus.big-tests.orders.approve', $order->id), [
+        $this->actingAs($this->admin)->post(route('syllabus.big-tests.orders.approve', $order->id), [
             'test_link' => 'https://drive.example.com/de-big-test',
         ])->assertSessionHasErrors(['scheduled_at', 'room']);
-        $this->actingAs($this->academic)->post(route('syllabus.big-tests.orders.approve', $order->id), [
+        $this->actingAs($this->admin)->post(route('syllabus.big-tests.orders.approve', $order->id), [
             'test_link' => 'https://drive.example.com/de-big-test', 'speaking_link' => 'https://drive.example.com/speaking',
             'scheduled_at' => now()->addDays(4)->format('Y-m-d').' 08:00', 'room' => 'P301',
         ])->assertRedirect()->assertSessionHasNoErrors();
         $this->assertDatabaseHas('big_test_orders', [
-            'id' => $order->id, 'status' => 'approved', 'test_link' => 'https://drive.example.com/de-big-test', 'reviewed_by' => $this->academic->id,
+            'id' => $order->id, 'status' => 'approved', 'test_link' => 'https://drive.example.com/de-big-test', 'reviewed_by' => $this->admin->id,
         ]);
         $created = BigTest::findOrFail($order->fresh()->big_test_id);
         $this->assertTrue($created->is_distributed);
@@ -134,8 +152,8 @@ class Phase2BigTestTest extends TestCase
         $this->assertSame('https://drive.example.com/de-big-test', $created->content_url);
         $this->assertSame('https://drive.example.com/speaking', $created->speaking_url);
 
-        $this->actingAs($this->academic)->post(route('syllabus.big-tests.orders.reject', $other->id))->assertSessionHasErrors('rejection_reason');
-        $this->actingAs($this->academic)->post(route('syllabus.big-tests.orders.reject', $other->id), ['rejection_reason' => 'Đã có đề chung'])->assertRedirect();
+        $this->actingAs($this->admin)->post(route('syllabus.big-tests.orders.reject', $other->id))->assertSessionHasErrors('rejection_reason');
+        $this->actingAs($this->admin)->post(route('syllabus.big-tests.orders.reject', $other->id), ['rejection_reason' => 'Đã có đề chung'])->assertRedirect();
         $this->assertDatabaseHas('big_test_orders', ['id' => $other->id, 'status' => 'rejected', 'rejection_reason' => 'Đã có đề chung']);
 
         // Giáo viên được thông báo và thấy link đề / lý do ở Cổng GV
@@ -178,11 +196,13 @@ class Phase2BigTestTest extends TestCase
 
         $this->assertSame(1, AdminNotification::where('user_id', $this->teacherA->id)->where('type', 'big_test_upcoming')->count());
         $this->assertSame(0, AdminNotification::where('user_id', $this->teacherB->id)->count());
-        // Đề chưa duyệt → báo thêm riêng Học thuật (không phát thông báo chung)
-        $this->assertSame(1, AdminNotification::where('user_id', $this->academic->id)->where('type', 'big_test_upcoming')->count());
+        // Đề chưa duyệt → báo thêm riêng người duyệt đề (chỉ Admin, 06/10/2026), không phát thông báo chung; Học thuật không còn nhận.
+        $this->assertSame(1, AdminNotification::where('user_id', $this->admin->id)->where('type', 'big_test_upcoming')->count());
+        $this->assertSame(0, AdminNotification::where('user_id', $this->academic->id)->where('type', 'big_test_upcoming')->count());
         $this->assertSame(0, AdminNotification::whereNull('user_id')->count());
-        // Học thuật còn nhận nhắc cá nhân mỗi ngày (đề chưa duyệt trong 7 ngày tới).
-        $this->assertSame(1, AdminNotification::where('user_id', $this->academic->id)->where('type', 'big_test_paper_due')->count());
+        // Admin nhận nhắc cá nhân mỗi ngày (đề chưa duyệt trong 7 ngày tới).
+        $this->assertSame(1, AdminNotification::where('user_id', $this->admin->id)->where('type', 'big_test_paper_due')->count());
+        $this->assertSame(0, AdminNotification::where('user_id', $this->academic->id)->where('type', 'big_test_paper_due')->count());
         $this->assertNotNull($soon->fresh()->teacher_reminded_at);
         $this->assertNull($far->fresh()->teacher_reminded_at);
         $this->assertNull($past->fresh()->teacher_reminded_at);
@@ -190,7 +210,7 @@ class Phase2BigTestTest extends TestCase
         // Chạy lại không gửi trùng
         $this->artisan('bigtests:remind-upcoming')->assertSuccessful();
         $this->assertSame(2, AdminNotification::where('type', 'big_test_upcoming')->count());
-        $this->assertSame(1, AdminNotification::where('user_id', $this->academic->id)->where('type', 'big_test_paper_due')->count(), 'Nhắc Học thuật 1 lần / ngày.');
+        $this->assertSame(1, AdminNotification::where('user_id', $this->admin->id)->where('type', 'big_test_paper_due')->count(), 'Nhắc Admin 1 lần / ngày.');
     }
 
     public function test_reminder_command_is_scheduled_daily(): void

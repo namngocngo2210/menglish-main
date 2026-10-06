@@ -398,7 +398,10 @@ class Round2LeftoversTest extends TestCase
         $this->actingAs($manager)->post(route('tuition.receipts.approve.action', $otherReceipt->id))->assertForbidden();
         $this->assertSame('pending', $otherReceipt->fresh()->status);
         $this->actingAs($manager)->post(route('tuition.overdue.contacted', $otherTuition->id))->assertForbidden();
-        $this->actingAs($manager)->post(route('tuition.receipts.approve.action', $ownReceipt->id))->assertSessionHasNoErrors();
+        // Chỉ Admin duyệt phiếu thu (06/10/2026): Quản lý cơ sở không duyệt được cả phiếu chi nhánh mình.
+        $this->actingAs($manager)->post(route('tuition.receipts.approve.action', $ownReceipt->id))->assertForbidden();
+        $this->assertSame('pending', $ownReceipt->fresh()->status);
+        $this->actingAs($this->admin)->post(route('tuition.receipts.approve.action', $ownReceipt->id))->assertSessionHasNoErrors();
         $this->assertSame('approved', $ownReceipt->fresh()->status);
 
         // Kế toán tổng (Admin cấp phạm vi tuition.scope_all — BA 26/09/2026) thấy tất cả; kế toán chi nhánh chỉ chi nhánh mình;

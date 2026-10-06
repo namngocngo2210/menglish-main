@@ -1472,7 +1472,7 @@ class TeacherPortalController extends Controller
             'status' => 'pending',
         ]);
 
-        // Báo riêng Ban Học thuật (người duyệt Big Test), không phát thông báo chung cho mọi người xem hệ thống.
+        // Báo riêng người duyệt Big Test (chỉ Admin, 06/10/2026), không phát thông báo chung cho mọi người xem hệ thống.
         AdminNotification::notifyUsers(
             app(BigTestSlaService::class)->approverIdsOrAdmins(),
             'big_test_order',
