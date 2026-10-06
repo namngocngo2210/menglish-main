@@ -251,9 +251,13 @@ class Phase4PlatformTest extends TestCase
         WorkTask::create(['title' => 'Việc chi nhánh A', 'creator_id' => $this->admin->id, 'assignee_id' => $staffA->id, 'branch_id' => $this->branchA->id, 'due_date' => now()->addDay(), 'task_type' => 'one_time', 'status' => 'new']);
         WorkTask::create(['title' => 'Việc chi nhánh B', 'creator_id' => $this->admin->id, 'assignee_id' => $staffB->id, 'branch_id' => $this->branchB->id, 'due_date' => now()->addDay(), 'task_type' => 'one_time', 'status' => 'new']);
 
+        WorkTask::create(['title' => 'Việc quản lý giao', 'creator_id' => $manager->id, 'assignee_id' => $staffA->id, 'branch_id' => $this->branchA->id, 'due_date' => now()->addDay(), 'task_type' => 'one_time', 'status' => 'new']);
+
+        // Chủ dự án 06/10/2026: Quản lý cơ sở chỉ thấy việc mình nhận / mình giao, kể cả trong chi nhánh mình.
         $this->actingAs($manager)->get(route('tasks.index', ['tab' => 'all']))
             ->assertOk()
-            ->assertSee('Việc chi nhánh A')
+            ->assertSee('Việc quản lý giao')
+            ->assertDontSee('Việc chi nhánh A')
             ->assertDontSee('Việc chi nhánh B');
     }
 

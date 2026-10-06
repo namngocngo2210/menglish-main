@@ -256,17 +256,16 @@ class WorkTask extends Model
     }
 
     /**
-     * Phạm vi Công việc (DataScope `work_task`): "Của mình" = việc mình giao / mình làm; "Chi nhánh" = việc của chi
-     * nhánh mình hoặc người làm thuộc chi nhánh mình (kèm việc của mình).
+     * Việc $user được xem (danh sách đầu việc, chi tiết, số đếm, việc chờ mình xác nhận) theo phạm vi Công việc
+     * (DataScope `work_task`): "Toàn hệ thống" = mọi việc; "Chi nhánh" (Quản lý cơ sở) và "Của mình" = chỉ việc mình
+     * giao / mình làm — chủ dự án 06/10/2026: Quản lý cơ sở không thấy việc giao cho nhân sự khác. Phạm vi "Chi nhánh"
+     * vẫn giới hạn người được giao việc và KPI nhân sự trong chi nhánh mình (WorkTaskController::branchLimit).
      */
     public function scopeVisibleTo(Builder $query, User $user): Builder
     {
         return DataScope::apply(
             $query, $user, 'work_task',
             fn ($q) => $q->where('creator_id', $user->id)->orWhere('assignee_id', $user->id),
-            fn ($q, array $branchIds) => $q->whereIn('branch_id', $branchIds)
-                ->orWhereHas('assignee', fn ($a) => $a->whereIn('branch_id', $branchIds)),
-            branchIncludesOwn: true,
         );
     }
 

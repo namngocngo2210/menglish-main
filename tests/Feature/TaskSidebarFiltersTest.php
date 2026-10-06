@@ -114,6 +114,39 @@ class TaskSidebarFiltersTest extends TestCase
         $this->assertSame('completed', $task->fresh()->status);
     }
 
+    /** Quản lý cơ sở chỉ thấy việc mình nhận / mình giao, không thấy việc người khác giao cho nhân sự cùng chi nhánh. */
+    public function test_branch_manager_only_sees_own_tasks(): void
+    {
+        $admin = $this->makeUser('admin');
+        $manager = $this->makeUser('manager');
+        $staff = $this->makeUser('academic_staff');
+        $ta = $this->makeUser('assistant');
+
+        $make = fn (string $title, User $creator, User $assignee, string $status = 'new') => WorkTask::create([
+            'title' => $title, 'creator_id' => $creator->id, 'assignee_id' => $assignee->id, 'branch_id' => $this->branch->id,
+            'task_type' => 'one_time', 'due_date' => now()->addDay()->toDateString(), 'status' => $status,
+        ]);
+        $mine = $make('Việc QLCS nhận', $admin, $manager);
+        $given = $make('Việc QLCS giao', $manager, $ta, 'pending_confirmation');
+        $other = $make('Việc Admin giao Học vụ', $admin, $staff, 'pending_confirmation');
+
+        $page = $this->actingAs($manager)->get(route('tasks.index', ['tab' => 'all']))->assertOk()->viewData('page');
+        $this->assertEqualsCanonicalizing([$mine->id, $given->id], collect($page['props']['tasks']['data'])->pluck('id')->all());
+        $this->assertSame(2, $page['props']['counts']['all']);
+        $this->assertSame(1, $page['props']['counts']['pending']);
+        $this->assertEqualsCanonicalizing([$manager->id, $ta->id], collect($page['props']['assignees'])->pluck('value')->all());
+
+        $this->actingAs($manager)->get(route('tasks.show', $other->id))->assertNotFound();
+        $this->actingAs($manager)->post(route('tasks.status.update', $other->id), ['status' => 'completed'])->assertForbidden();
+        $this->assertSame([$given->id], WorkTask::query()->awaitingConfirmationBy($manager)->pluck('id')->all());
+
+        // Việc mình giao vẫn duyệt được; Admin vẫn thấy mọi việc.
+        $this->actingAs($manager)->post(route('tasks.status.update', $given->id), ['status' => 'completed'])->assertSessionHasNoErrors();
+        $this->assertSame('completed', $given->fresh()->status);
+        $page = $this->actingAs($admin)->get(route('tasks.index', ['tab' => 'all']))->viewData('page');
+        $this->assertSame(3, $page['props']['counts']['all']);
+    }
+
     public function test_teacher_assistant_and_accountant_can_open_their_notifications(): void
     {
         foreach (['teacher', 'teacher_fulltime', 'teacher_parttime', 'assistant', 'accountant'] as $role) {
