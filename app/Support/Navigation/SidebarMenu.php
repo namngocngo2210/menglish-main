@@ -109,8 +109,9 @@ final class SidebarMenu
                 'icon' => 'outgoing_mail',
                 // Phía giáo viên gửi yêu cầu lên Học vụ (ai xem được giáo trình đều thấy, như trước).
                 'items' => [
-                    // Mọi nhân sự: bổ sung công, xin đi muộn / về sớm, xin nghỉ (giao diện điện thoại, mở được trên máy tính).
-                    ['label' => 'Đơn chấm công & nghỉ', 'route' => 'mobile.requests'],
+                    // Mọi nhân sự: bổ sung công, xin đi muộn / về sớm, xin nghỉ (giao diện điện thoại /m, chỉ hiện trên điện thoại,
+                    // yêu cầu 06/10/2026). Ai chỉ có mục này thì khu "Xin duyệt" ẩn trên máy tính.
+                    ['label' => 'Đơn chấm công & nghỉ', 'route' => 'mobile.requests', 'mobile_only' => true],
                     ['label' => 'Đề xuất sửa giáo trình', 'route' => 'syllabus.teacher-propose'],
                     ['label' => 'Xin điều chỉnh tiến độ', 'route' => 'syllabus.teacher-adjust'],
                 ],
@@ -407,8 +408,9 @@ final class SidebarMenu
                 'label' => 'Của tôi',
                 'icon' => 'person',
                 'items' => [
-                    // Giao diện điện thoại: chấm công ảnh + GPS, lịch sử công, xin duyệt, cần duyệt.
-                    ['label' => 'Chấm công', 'route' => 'mobile.home', 'active' => ['mobile.home', 'mobile.history']],
+                    // Giao diện điện thoại: chấm công ảnh + GPS, lịch sử công, xin duyệt, cần duyệt. Chỉ hiện trên điện thoại
+                    // (mobile_only): trên máy tính "Của tôi" mở mục kế tiếp, không chuyển sang /m (yêu cầu 05/10/2026).
+                    ['label' => 'Chấm công', 'route' => 'mobile.home', 'active' => ['mobile.home', 'mobile.history'], 'mobile_only' => true],
                     // Trung tâm thông báo (cũng mở từ chuông trên topbar).
                     ['label' => 'Thông báo', 'route' => 'notifications.index', 'active' => ['notifications.*']],
                     ['label' => 'Lương của tôi', 'route' => 'portal.my-salary', 'can' => ['payroll.view_own']],
@@ -563,6 +565,9 @@ final class SidebarMenu
             $group['items'] = $items;
             $group['actions'] = $this->visibleItems($user, $group['actions'] ?? [], $request);
             $group['url'] = $items[0]['url'];
+            // Màn hình máy tính bỏ qua mục chỉ dành cho điện thoại (mobile_only), vd. Chấm công /m trong "Của tôi";
+            // khu chỉ toàn mục điện thoại thì ẩn trên máy tính (desktop_url = null).
+            $group['desktop_url'] = collect($items)->first(fn (array $item) => empty($item['mobile_only']))['url'] ?? null;
             $groups[] = $group;
         }
 
