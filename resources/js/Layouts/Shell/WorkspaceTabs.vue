@@ -16,7 +16,7 @@ const visible = computed(() => ws.value && (ws.value.tabs.length > 1 || ws.value
     <div v-if="visible" class="mb-lg border-b border-surface-container-highest" :data-workspace-tabs="ws.id">
         <div class="flex flex-col gap-sm md:flex-row md:items-end md:justify-between">
             <UiTabs v-if="ws.tabs.length > 1" class="-mb-px min-w-0 border-b-0" :aria-label="ws.label">
-                <UiTab v-for="tab in ws.tabs" :key="tab.route" :href="tab.url" :active="tab.active">{{ tab.label }}</UiTab>
+                <UiTab v-for="tab in ws.tabs" :key="tab.route" :href="tab.url" :active="tab.active" :class="tab.mobile_only ? 'md:hidden' : null">{{ tab.label }}</UiTab>
             </UiTabs>
             <span v-else></span>
 
