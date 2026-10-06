@@ -349,11 +349,9 @@ class WorkTaskController extends Controller
             $updateData['rejection_reason'] = $reason ?? $note;
         }
 
+        $previousStatus = $task->status;
         $task->update($updateData);
-
-        if ($status === 'pending_confirmation') {
-            $this->notifyTaskConfirmer($task->loadMissing('assignee'));
-        }
+        $this->notifyStatusChange($task->loadMissing('assignee'), $previousStatus, $user, $note);
 
         // Từ modal xem nhanh: đóng modal + làm mới danh sách; từ trang: quay lại như cũ.
         return $this->modalSaved('Đã cập nhật trạng thái công việc thành công!', url()->previous(), 'success');
@@ -1449,6 +1447,57 @@ class WorkTaskController extends Controller
             route('tasks.manual-approvals', ['selected_id' => $task->id]), ['task_id' => $task->id]);
     }
 
+    /**
+     * Đổi trạng thái công việc → báo đúng người (không báo chính người vừa thao tác):
+     *  - Bị chặn (SOS): người giao việc + mọi Admin, loại "task_blocked" (nổi bật màu đỏ), kèm lý do.
+     *  - Gỡ chặn (Bị chặn → Đang thực hiện): người giao việc.
+     *  - Chờ xác nhận: người giao việc. Hoàn thành / Trả về làm tiếp: người thực hiện.
+     *  - Hủy: người thực hiện và người giao việc.
+     */
+    private function notifyStatusChange(WorkTask $task, string $previousStatus, User $actor, ?string $note): void
+    {
+        $actorName = $actor->name;
+        $data = ['task_id' => $task->id];
+        $detail = route('tasks.show', $task->id);
+        $mine = route('tasks.index', ['tab' => 'mine']);
+
+        switch ($task->status) {
+            case 'blocked':
+                $recipients = collect([$task->creator_id])->merge(BranchStaff::admins()->pluck('id'));
+                $this->notifyEach($recipients, $actor, 'task_blocked', "SOS – Việc bị chặn: {$task->title}",
+                    "{$actorName} báo bị chặn, cần hỗ trợ. Lý do: {$task->blocked_reason}", $detail, $data);
+                break;
+            case 'in_progress':
+                if ($previousStatus === 'blocked') {
+                    $this->notifyEach([$task->creator_id], $actor, 'task_assigned', "Việc đã gỡ chặn: {$task->title}",
+                        "{$actorName} đã tiếp tục thực hiện công việc.", $detail, $data);
+                } elseif ($previousStatus === 'pending_confirmation') {
+                    $this->notifyEach([$task->assignee_id], $actor, 'task_assigned', "Công việc bị trả về: {$task->title}",
+                        $note ? "{$actorName} trả về làm tiếp: {$note}" : "{$actorName} trả về làm tiếp.", $mine, $data);
+                }
+                break;
+            case 'pending_confirmation':
+                $this->notifyTaskConfirmer($task);
+                break;
+            case 'completed':
+                $this->notifyEach([$task->assignee_id], $actor, 'task_assigned', "Việc đã được xác nhận hoàn thành: {$task->title}",
+                    "{$actorName} đã xác nhận hoàn thành.".($note ? " Ghi chú: {$note}" : ''), $detail, $data);
+                break;
+            case 'canceled':
+                $this->notifyEach([$task->assignee_id, $task->creator_id], $actor, 'task_assigned', "Công việc đã bị hủy: {$task->title}",
+                    "{$actorName} đã hủy công việc. Lý do: {$task->rejection_reason}", $detail, $data);
+                break;
+        }
+    }
+
+    /** Một thông báo cho mỗi người nhận (bỏ trùng, bỏ người đang thao tác). */
+    private function notifyEach(iterable $userIds, User $actor, string $type, string $title, string $message, string $link, array $data): void
+    {
+        collect($userIds)->filter()->map(fn ($id) => (int) $id)->unique()
+            ->reject(fn (int $id) => $id === (int) $actor->id)
+            ->each(fn (int $id) => $this->notifyUser($id, $type, $title, $message, $link, $data));
+    }
+
     private function notifyUser(?int $userId, string $type, string $title, string $message, string $link, array $data = []): void
     {
         AdminNotification::notifyUser($userId, $type, $title, $message, $link, $data);
@@ -1481,6 +1530,8 @@ class WorkTaskController extends Controller
             $task->completion_note = ($task->completion_note ? $task->completion_note."\n[Ghi chú duyệt]: " : '[Ghi chú duyệt]: ').$adminNote;
             $task->save();
         }
+
+        $this->notifyStatusChange($task, 'pending_confirmation', $request->user(), $adminNote);
 
         return redirect()->route('tasks.manual-approvals')->with('success', "Đã xác nhận hoàn thành công việc '{$task->title}'!");
     }
