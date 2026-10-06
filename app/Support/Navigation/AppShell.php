@@ -77,6 +77,8 @@ final class AppShell
             'url' => $group['url'],
             // Link trên máy tính (≥ md) khi khác link điện thoại: bỏ qua mục chỉ dành cho điện thoại.
             'desktop_url' => $group['desktop_url'] !== $group['url'] ? $group['desktop_url'] : null,
+            // Khu chỉ có mục dành cho điện thoại (vd. "Xin duyệt" của người chỉ gửi được đơn chấm công): ẩn trên máy tính.
+            'desktop_hidden' => $group['desktop_url'] === null,
             'active' => $group['is_active'],
             // Mục mở modal thay vì chuyển trang (vd. "Tạo đầu việc"); mở thẳng URL vẫn ra trang đầy đủ.
             'modal' => $group['modal'] ?? null,

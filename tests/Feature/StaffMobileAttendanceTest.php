@@ -432,6 +432,26 @@ class StaffMobileAttendanceTest extends TestCase
         // Khu không có mục chỉ dành cho điện thoại: không có link riêng cho máy tính.
         $this->actingAs($this->staff)->get(route('notifications.index'))
             ->assertInertia(fn (AssertableInertia $page) => $page->where('shell.sidebar.groups', fn ($groups) => collect($groups)
-                ->reject(fn ($group) => $group['id'] === 'personal')->every(fn ($group) => $group['desktop_url'] === null)));
+                ->reject(fn ($group) => in_array($group['id'], ['personal', 'approval_requests'], true))
+                ->every(fn ($group) => $group['desktop_url'] === null && $group['desktop_hidden'] === false)));
+    }
+
+    /** "Xin duyệt": Đơn chấm công & nghỉ (/m) chỉ trên điện thoại; ai chỉ có mục đó thì cả khu ẩn trên máy tính. */
+    public function test_approval_requests_menu_skips_check_in_requests_on_desktop(): void
+    {
+        // Tư vấn: chỉ có Đơn chấm công & nghỉ → khu ẩn trên máy tính.
+        $this->actingAs($this->staff)->get(route('notifications.index'))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('shell.sidebar.groups', fn ($groups) => ($requests = collect($groups)->firstWhere('id', 'approval_requests'))
+                && $requests['url'] === route('mobile.requests') && $requests['desktop_url'] === null && $requests['desktop_hidden'] === true));
+
+        // Giáo viên: máy tính mở Đề xuất sửa giáo trình, tab Đơn chấm công & nghỉ ẩn.
+        $teacher = $this->user('teacher', $this->branch);
+        $this->actingAs($teacher)->get(route('syllabus.teacher-propose'))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('shell.sidebar.groups', fn ($groups) => ($requests = collect($groups)->firstWhere('id', 'approval_requests'))
+                    && $requests['url'] === route('mobile.requests')
+                    && $requests['desktop_url'] === route('syllabus.teacher-propose')
+                    && $requests['desktop_hidden'] === false)
+                ->where('shell.workspace.tabs', fn ($tabs) => collect($tabs)->firstWhere('route', 'mobile.requests')['mobile_only'] === true));
     }
 }

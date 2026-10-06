@@ -21,6 +21,11 @@ const moreBelow = ref(false);
 const tip = reactive({ show: false, text: '', top: 0, left: 0 });
 
 const isNewSection = (index) => index === 0 || props.shell.sidebar.groups[index].section !== props.shell.sidebar.groups[index - 1].section;
+// Tiêu đề khu ẩn trên máy tính khi mọi mục của khu chỉ dành cho điện thoại (desktop_hidden).
+const sectionDesktopHidden = (index) => {
+    const section = props.shell.sidebar.groups[index].section;
+    return props.shell.sidebar.groups.every((group) => group.section !== section || group.desktop_hidden);
+};
 
 function checkMore() {
     const el = nav.value;
@@ -122,11 +127,13 @@ onBeforeUnmount(() => {
 
                 <template v-for="(group, index) in shell.sidebar.groups" :key="group.id">
                     <template v-if="isNewSection(index)">
-                        <div class="px-md pb-1 pt-md font-caption text-xs font-semibold uppercase tracking-widest text-surface-variant/70 md:hidden desktop:block" data-menu-section data-sidebar-text>{{ group.section }}</div>
-                        <div class="mx-auto my-sm hidden h-px w-8 bg-white/10 md:block desktop:hidden" aria-hidden="true" data-sidebar-divider></div>
+                        <div :class="['px-md pb-1 pt-md font-caption text-xs font-semibold uppercase tracking-widest text-surface-variant/70 md:hidden', sectionDesktopHidden(index) ? '' : 'desktop:block']" data-menu-section data-sidebar-text>{{ group.section }}</div>
+                        <div v-if="!sectionDesktopHidden(index)" class="mx-auto my-sm hidden h-px w-8 bg-white/10 md:block desktop:hidden" aria-hidden="true" data-sidebar-divider></div>
                     </template>
-                    <!-- desktop_url: khu có mục chỉ dành cho điện thoại (vd. Chấm công /m trong "Của tôi") → máy tính mở link khác. -->
-                    <template v-if="group.desktop_url">
+                    <!-- desktop_url: khu có mục chỉ dành cho điện thoại (vd. Chấm công /m trong "Của tôi") → máy tính mở link khác;
+                         desktop_hidden: khu chỉ có mục điện thoại (vd. "Xin duyệt" chỉ có Đơn chấm công & nghỉ) → ẩn trên máy tính. -->
+                    <SidebarLink v-if="group.desktop_hidden" class="md:hidden" :url="group.url" :label="group.label" :icon="group.icon" :active="group.active" :id="group.id" :badge="group.badge" :modal="group.modal" @modal="emit('close')" />
+                    <template v-else-if="group.desktop_url">
                         <SidebarLink class="md:hidden" :url="group.url" :label="group.label" :icon="group.icon" :active="group.active" :id="group.id" :badge="group.badge" :modal="group.modal" @modal="emit('close')" />
                         <SidebarLink class="max-md:hidden" :url="group.desktop_url" :label="group.label" :icon="group.icon" :active="group.active" :id="group.id" :badge="group.badge" :modal="group.modal" @modal="emit('close')" />
                     </template>
