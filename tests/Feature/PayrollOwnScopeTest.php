@@ -153,7 +153,7 @@ class PayrollOwnScopeTest extends TestCase
         Rbac::flushCache();
         $this->assertTrue($this->manager->fresh()->can('payroll.scope_all'));
 
-        (require database_path('migrations/2026_11_01_090000_payroll_only_own_for_non_admin.php'))->up();
+        (require database_path('migrations/2026_11_01_090100_payroll_only_own_for_non_admin.php'))->up();
 
         $manager->refresh();
         $this->assertFalse($manager->hasPermissionTo('payroll.view'));

@@ -87,6 +87,9 @@ class Phase2BigTestTest extends TestCase
         $this->assertSame($this->teacherA->id, $order->teacher_id);
         $this->assertSame(now()->addDays(7)->toDateString(), $order->due_date->toDateString());
         $this->assertStringStartsWith('ORDTEST-', $order->code);
+        // Báo riêng Học thuật (người duyệt), không phát thông báo chung cho mọi người xem hệ thống.
+        $this->assertDatabaseHas('admin_notifications', ['user_id' => $this->academic->id, 'type' => 'big_test_order']);
+        $this->assertSame(0, AdminNotification::whereNull('user_id')->count());
 
         $this->actingAs($this->academic)->get(route('syllabus.big-tests.distribution', ['order' => $order->id]))
             ->assertOk()
@@ -175,8 +178,9 @@ class Phase2BigTestTest extends TestCase
 
         $this->assertSame(1, AdminNotification::where('user_id', $this->teacherA->id)->where('type', 'big_test_upcoming')->count());
         $this->assertSame(0, AdminNotification::where('user_id', $this->teacherB->id)->count());
-        // Đề chưa duyệt → báo thêm Học thuật (thông báo chung)
-        $this->assertSame(1, AdminNotification::whereNull('user_id')->where('type', 'big_test_upcoming')->count());
+        // Đề chưa duyệt → báo thêm riêng Học thuật (không phát thông báo chung)
+        $this->assertSame(1, AdminNotification::where('user_id', $this->academic->id)->where('type', 'big_test_upcoming')->count());
+        $this->assertSame(0, AdminNotification::whereNull('user_id')->count());
         // Học thuật còn nhận nhắc cá nhân mỗi ngày (đề chưa duyệt trong 7 ngày tới).
         $this->assertSame(1, AdminNotification::where('user_id', $this->academic->id)->where('type', 'big_test_paper_due')->count());
         $this->assertNotNull($soon->fresh()->teacher_reminded_at);

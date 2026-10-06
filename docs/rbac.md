@@ -87,7 +87,7 @@ Danh sách đầy đủ kèm mô tả: màn **Vai trò → Cấu hình quyền**
 | `dashboard.operations` / `dashboard.academic` | dashboard theo vai trò | Admin, Quản lý / Học thuật |
 | `activity_log.undo` | "chỉ Admin hoàn tác" | Admin |
 | `portal.*` *(đối tượng)* | menu / cổng theo vai trò | học viên / GV / TA / mọi nhân sự |
-| `user.assign_role.<vai trò>` | `UserController::creatableRoles()` | Quản lý: mọi vai trò trừ Admin; Học vụ: TA, GV (3 loại), học viên; Học thuật: GV (3 loại) |
+| `user.assign_role.<vai trò>` | `UserController::creatableRoles()` | Quản lý: mọi vai trò trừ Admin và Quản lý; Học vụ: TA, GV, học viên, Học thuật; Học thuật: GV |
 | `tuition.scope_all`, `finance.scope_all` | `tuition.all_branches`, `finance.all_branches` (đã xóa, migration chuyển gán) | Admin (+ kế toán tổng được cấp riêng) |
 
 ## 3. Phạm vi dữ liệu theo module (`App\Support\DataScope`)
@@ -157,6 +157,12 @@ trong `PayrollController`, áp dụng cả Admin).
   "Cấp thêm" / "Thu hồi" (override thắng vai trò), mỗi module "Phạm vi dữ liệu": Theo vai trò (hiện mức của vai trò) /
   Của tôi / Chi nhánh / Toàn hệ thống; Lớp học giữ "Phạm vi áp dụng" theo chi nhánh / lớp cụ thể.
 - **Gán vai trò** (`/users/{id}/roles`, kiêm nhiệm): chỉ thêm / bớt được vai trò có `user.assign_role.<vai trò>`.
+- **Chỉ thấy cấp dưới** (`Rbac::scopeSubordinates` / `Rbac::isSubordinate`): màn Người dùng (danh sách, tìm kiếm, bộ lọc,
+  thẻ số liệu, xem / sửa / khóa / đặt lại mật khẩu / gán vai trò / phân quyền cá nhân) chỉ gồm người có MỌI vai trò nằm trong
+  các vai trò mình được gán (`user.assign_role.<vai trò>`), rồi lọc tiếp theo phạm vi `user.scope_*`. Không ai (trừ Super
+  Admin) thấy Super Admin, người ngang cấp hay chính mình. Mặc định: Quản lý cơ sở → mọi nhân sự + học viên chi nhánh trừ Admin
+  và Quản lý; Học vụ → học viên, GV, TA, Học thuật chi nhánh mình; Học thuật → GV mọi chi nhánh. Admin đổi cây ở màn Vai trò
+  (nhóm "Nhân sự & tài khoản" → "Gán vai trò: …").
 - **Menu** (`App\Support\Navigation\SidebarMenu`): mục hiện khi có quyền của route (`can:`); nhóm có "quyền neo" (vd. nhóm
   Học phí: người xử lý nghiệp vụ kế toán; nhóm Cổng giáo viên: `portal.teacher` / `portal.assistant`; nhóm Ticket:
   `portal.staff`) — Admin đổi quyền là menu đổi theo.

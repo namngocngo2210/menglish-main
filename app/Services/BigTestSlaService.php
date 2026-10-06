@@ -72,6 +72,18 @@ class BigTestSlaService
             ->orderBy('id')->get();
     }
 
+    /**
+     * Người nhận việc Big Test của Học thuật (order đề, đề chưa duyệt…): người duyệt Big Test; chưa có ai → Admin.
+     *
+     * @return \Illuminate\Support\Collection<int, int>
+     */
+    public function approverIdsOrAdmins(): \Illuminate\Support\Collection
+    {
+        $ids = $this->approvers()->pluck('id')->map(fn ($id) => (int) $id);
+
+        return $ids->isNotEmpty() ? $ids : NotificationService::superAdminIds();
+    }
+
     /** Đã nhập đủ kết quả cả lớp (không còn bản nháp, mọi học viên đang học có kết quả) — chỉ còn chờ duyệt / gửi. */
     public function resultsEntered(BigTest $test): bool
     {

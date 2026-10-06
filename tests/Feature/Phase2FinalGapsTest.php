@@ -292,7 +292,8 @@ class Phase2FinalGapsTest extends TestCase
         foreach ([$this->teacher, $this->assistant] as $user) {
             $this->assertSame(1, AdminNotification::where('user_id', $user->id)->where('type', 'big_test_upcoming')->count());
         }
-        $this->assertSame(1, AdminNotification::whereNull('user_id')->where('type', 'big_test_upcoming')->count(), 'Báo Học thuật 1 lần.');
+        $this->assertSame(1, AdminNotification::where('user_id', $this->lead->id)->where('type', 'big_test_upcoming')->count(), 'Báo riêng Học thuật 1 lần.');
+        $this->assertSame(0, AdminNotification::whereNull('user_id')->count(), 'Không phát thông báo chung.');
         $this->assertSame(today()->addDays(6)->toDateString(), $assignment->fresh()->big_test_reminded_for->toDateString());
 
         // GV đổi ngày dự kiến → nhắc lại theo ngày mới.

@@ -53,8 +53,8 @@ class RbacFlexibleTest extends TestCase
                 'attendance_staff' => 'branch', 'payroll' => 'own', 'kpi' => 'all', 'work_task' => 'branch', 'support_ticket' => 'all', 'user' => 'branch',
                 'activity_log' => 'all', 'dashboard' => 'branch'],
             'academic_staff' => ['lead' => 'branch', 'student' => 'branch', 'class' => 'all', 'big_test' => 'all', 'tuition' => 'branch',
-                'attendance_staff' => 'all', 'kpi' => 'all', 'work_task' => 'all', 'support_ticket' => 'own', 'user' => 'own'],
-            'academic_lead' => ['lead' => 'branch', 'student' => 'branch', 'class' => 'all', 'big_test' => 'all', 'kpi' => 'all', 'work_task' => 'all', 'user' => 'own'],
+                'attendance_staff' => 'all', 'kpi' => 'all', 'work_task' => 'all', 'support_ticket' => 'own', 'user' => 'branch'],
+            'academic_lead' => ['lead' => 'branch', 'student' => 'branch', 'class' => 'all', 'big_test' => 'all', 'kpi' => 'all', 'work_task' => 'all', 'user' => 'all'],
             'accountant' => ['student' => 'branch', 'tuition' => 'branch', 'finance' => 'branch', 'attendance_staff' => 'branch', 'payroll' => 'all', 'work_task' => 'own'],
             'sales_consultant' => ['lead' => 'own', 'student' => 'own', 'work_task' => 'own', 'support_ticket' => 'own'],
             'teacher' => ['class' => 'own', 'student' => 'own', 'big_test' => 'own', 'payroll' => 'own', 'work_task' => 'own'],
@@ -278,9 +278,11 @@ class RbacFlexibleTest extends TestCase
     {
         $staff = $this->makeUser('academic_staff');
         // Vai trò tùy chỉnh (vd. "teacher" chỉ có trong test) không tự lan vào danh sách gán của Học vụ / Học thuật.
-        $this->assertEqualsCanonicalizing(['assistant', 'student', 'teacher_fulltime', 'teacher_parttime'], Rbac::assignableRoles($staff));
+        $this->assertEqualsCanonicalizing(['academic_lead', 'assistant', 'student', 'teacher_fulltime', 'teacher_parttime'], Rbac::assignableRoles($staff));
         $this->assertEqualsCanonicalizing(['teacher_fulltime', 'teacher_parttime'], Rbac::assignableRoles($this->makeUser('academic_lead')));
         $this->assertNotContains('admin', Rbac::assignableRoles($this->makeUser('manager')));
+        // Không quản lý người ngang cấp: Quản lý cơ sở không gán được vai trò Quản lý cơ sở.
+        $this->assertNotContains('manager', Rbac::assignableRoles($this->makeUser('manager')));
         $this->assertContains('admin', Rbac::assignableRoles($this->admin));
 
         $target = $this->makeUser('teacher_parttime');

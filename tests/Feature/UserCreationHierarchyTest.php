@@ -117,7 +117,7 @@ class UserCreationHierarchyTest extends TestCase
         $this->assertDatabaseMissing('users', ['email' => 'hv.forbidden@menglish.edu.vn']);
     }
 
-    public function test_academic_staff_can_only_create_assistant_teachers_and_students(): void
+    public function test_academic_staff_can_only_create_assistant_teachers_students_and_academic_lead(): void
     {
         // Allowed: assistant
         $res1 = $this->actingAs($this->academicStaff)->post(route('users.store'), [
@@ -152,16 +152,28 @@ class UserCreationHierarchyTest extends TestCase
         $res3->assertRedirect(route('users.index'));
         $this->assertDatabaseHas('users', ['email' => 'hv.allowed@menglish.edu.vn']);
 
-        // Forbidden: cannot create manager or admin or academic_lead
-        $resForbidden = $this->actingAs($this->academicStaff)->post(route('users.store'), [
-            'name' => 'Lead trái phép',
-            'email' => 'lead.forbidden@menglish.edu.vn',
+        // Allowed: academic_lead (cây vai trò 06/10/2026: Học vụ CRU Học thuật)
+        $res4 = $this->actingAs($this->academicStaff)->post(route('users.store'), [
+            'name' => 'Học thuật B',
+            'email' => 'ht.allowed@menglish.edu.vn',
             'branch_id' => $this->branch->id,
-            'role' => 'academic_lead',
+            'role' => Roles::ACADEMIC_LEAD,
             'password' => 'Password123!',
         ]);
-        $resForbidden->assertSessionHasErrors(['role']);
-        $this->assertDatabaseMissing('users', ['email' => 'lead.forbidden@menglish.edu.vn']);
+        $res4->assertRedirect(route('users.index'));
+        $this->assertDatabaseHas('users', ['email' => 'ht.allowed@menglish.edu.vn']);
+
+        // Forbidden: cannot create manager, admin or another academic_staff
+        foreach ([Roles::MANAGER, Roles::ADMIN, Roles::ACADEMIC_STAFF] as $i => $role) {
+            $this->actingAs($this->academicStaff)->post(route('users.store'), [
+                'name' => 'Trái phép '.$i,
+                'email' => "forbidden{$i}@menglish.edu.vn",
+                'branch_id' => $this->branch->id,
+                'role' => $role,
+                'password' => 'Password123!',
+            ])->assertSessionHasErrors(['role']);
+            $this->assertDatabaseMissing('users', ['email' => "forbidden{$i}@menglish.edu.vn"]);
+        }
     }
 
     private function roleOptionValues(string $html): array
