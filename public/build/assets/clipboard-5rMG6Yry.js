@@ -1,0 +1,1 @@
+import{V as n}from"./app-DpCIBsxN.js";async function c(r,t="Đã sao chép."){try{return await navigator.clipboard.writeText(r),t&&n(t),!0}catch{return n("Trình duyệt không cho sao chép tự động — bôi đen nội dung rồi sao chép thủ công.","warning"),!1}}export{c};

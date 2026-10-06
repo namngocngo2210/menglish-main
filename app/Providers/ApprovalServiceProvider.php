@@ -29,8 +29,11 @@ class ApprovalServiceProvider extends ServiceProvider
 {
     public const TAG = 'approval.sources';
 
-    /** Ability "xem hộp Việc cần duyệt" (= duyệt được ít nhất 1 nguồn), dùng cho tab đầu khu Phê duyệt ở sidebar. */
+    /** Ability "xem hộp Việc cần duyệt" (= Admin và duyệt được ít nhất 1 nguồn), dùng cho tab đầu khu Phê duyệt ở sidebar. */
     public const INBOX_ABILITY = 'view-approval-inbox';
+
+    /** Ability "vào module Cần duyệt" (mục sidebar + mọi tab của nó): chỉ Admin (ApprovalInboxService::allowsModule). */
+    public const MODULE_ABILITY = 'access-approval-module';
 
     /** @var list<class-string<ApprovableSource>> */
     public const SOURCES = [
@@ -58,6 +61,7 @@ class ApprovalServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::define(self::INBOX_ABILITY, fn (User $user) => $this->app->make(ApprovalInboxService::class)->canView($user));
+        Gate::define(self::MODULE_ABILITY, fn (User $user) => ApprovalInboxService::allowsModule($user));
 
         $models = collect($this->app->make(ApprovalInboxService::class)->sources())
             ->flatMap(fn ($source) => $source->watchedModels())
