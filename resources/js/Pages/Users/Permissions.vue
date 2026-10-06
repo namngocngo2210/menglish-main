@@ -1,7 +1,7 @@
 <script setup>
 /**
  * Phân quyền cá nhân (mockup epic-5/phan-quyen-chi-tiet-ca-nhan; RBAC — docs/rbac.md): cùng ma trận với màn Vai trò.
- * Mở từ danh sách / chi tiết nhân sự → modal 4xl; mở thẳng URL → trang đầy đủ (kèm thẻ số liệu).
+ * Mở từ danh sách / chi tiết nhân sự → modal 7xl (bảng tự cuộn, tiêu đề cột cố định); mở thẳng URL → trang đầy đủ (kèm thẻ số liệu).
  * Mỗi quyền: theo vai trò / cấp thêm / thu hồi; mỗi module: phạm vi dữ liệu theo vai trò hoặc riêng người này;
  * Lớp học còn "Phạm vi áp dụng" theo chi nhánh / lớp cụ thể. Đổi vai trò xong ma trận tính lại theo vai trò mới.
  */
@@ -40,6 +40,8 @@ const pad = (n) => String(n).padStart(2, '0');
         submit-label="Lưu phân quyền"
         submit-icon="save"
         :form-options="{ id: 'modal-permission-override-form' }"
+        size="7xl"
+        fill
     >
         <UiAlert v-if="targetIsSuperAdmin" type="warning" class="mb-md">Tài khoản Super Admin luôn có toàn quyền thao tác (phân quyền cá nhân không thu hẹp được) — chỉ các quyền "đối tượng" có tác dụng.</UiAlert>
         <UiAlert v-if="firstError" type="error" class="mb-md">{{ firstError }}</UiAlert>

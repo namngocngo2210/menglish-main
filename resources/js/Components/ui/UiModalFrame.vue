@@ -12,6 +12,7 @@
  *   cancel: nhãn nút hủy (mặc định "Hủy bỏ", false = ẩn) — trong modal: đóng modal; trang đầy đủ: về `back`
  *   back: URL quay lại khi là trang đầy đủ (dự phòng — nút Quay lại / Hủy về trang vừa mở trước đó nếu có, xem lib/backLink.js)
  *   size: đổi cỡ modal khi nội dung cần rộng hơn nút mở (vd. bước xem trước nhập Excel → 4xl)
+ *   fill: trong modal (từ sm) thân không cuộn — phần tử lấp chỗ còn lại tự cuộn (vd. <UiDataTable fill> giữ tiêu đề cột cố định)
  *   pageWidth: độ rộng tối đa khi là trang đầy đủ (mặc định max-w-3xl)
  * Slots: mặc định (nội dung), footer (nút thêm, đặt trước nút submit), actions (nút cạnh tiêu đề ở trang đầy đủ)
  * Các prop khác của UiForm (confirm, danger, stay…) truyền thẳng qua `form-options`.
@@ -36,6 +37,7 @@ const props = defineProps({
     back: { type: String, default: null },
     size: { type: String, default: null },
     pageWidth: { type: String, default: 'max-w-3xl' },
+    fill: { type: Boolean, default: false },
     formOptions: { type: Object, default: () => ({}) },
 });
 const emit = defineEmits(['success']);
@@ -67,7 +69,7 @@ onMounted(() => {
                 <span class="material-symbols-outlined" aria-hidden="true">close</span>
             </button>
         </div>
-        <div class="min-h-0 flex-1 space-y-md overflow-y-auto px-lg py-md font-body-base text-body-base text-on-surface"><slot /></div>
+        <div :class="['min-h-0 flex-1 space-y-md overflow-y-auto px-lg py-md font-body-base text-body-base text-on-surface', fill && 'sm:flex sm:flex-col sm:overflow-hidden']"><slot /></div>
         <div v-if="showFooter || $slots.footer" class="flex shrink-0 flex-wrap justify-end gap-sm border-t border-surface-container bg-surface-container-low px-lg py-md">
             <UiButton v-if="cancel" variant="secondary" @click="modal.close()">{{ cancel }}</UiButton>
             <slot name="footer" />
