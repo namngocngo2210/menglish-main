@@ -37,7 +37,7 @@ class RbacNoHardcodedRolesTest extends TestCase
     private const SUPER_ADMIN_ALLOWLIST = [
         'app/Providers/AppServiceProvider.php' => 1,      // Gate::before: Super Admin toàn quyền thao tác
         'app/Models/User.php' => 1,                        // hasModuleAction (Super Admin toàn quyền cả theo phạm vi)
-        'app/Support/Rbac.php' => 2,                       // gán vai trò Super Admin, chống tự khóa
+        'app/Support/Rbac.php' => 4,                       // gán vai trò Super Admin, chống tự khóa, Super Admin thấy mọi người (cây cấp dưới)
         'app/Http/Controllers/UserController.php' => 2,    // quản lý tài khoản Super Admin
         'app/Http/Controllers/UserPermissionOverrideController.php' => 5, // hiển thị quyền / phạm vi Super Admin; chỉ Super Admin chỉnh quyền Super Admin; chống tự phân quyền
         'app/Http/Controllers/TuitionController.php' => 6, // người lập phiếu sửa / không tự duyệt phiếu (Super Admin miễn); cờ "được sửa" cho form / lịch sử / duyệt phiếu (Vue)

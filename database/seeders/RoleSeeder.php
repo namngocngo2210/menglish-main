@@ -30,7 +30,7 @@ class RoleSeeder extends Seeder
             }
 
             $role = $existing ?? Role::create(['name' => $roleName, 'guard_name' => 'web']);
-            $resolved = self::resolvePatterns($patterns, $allPermissionNames);
+            $resolved = self::resolvePatterns($patterns, $allPermissionNames, $roleName);
 
             if ($existing) {
                 $missing = $resolved->diff($role->permissions()->pluck('name'));
@@ -48,21 +48,24 @@ class RoleSeeder extends Seeder
     /**
      * @param  list<string>  $patterns
      * @param  Collection<int, string>  $all
+     * @param  string|null  $roleName  vai trò nhận quyền: "user.assign_role.*" không gồm quyền gán chính vai trò này
      * @return Collection<int, string>
      */
-    public static function resolvePatterns(array $patterns, Collection $all): Collection
+    public static function resolvePatterns(array $patterns, Collection $all, ?string $roleName = null): Collection
     {
         $actions = $all->filter(fn (string $name) => in_array(PermissionCatalog::kind($name), [PermissionCatalog::KIND_ACTION, null], true));
 
-        return collect($patterns)->flatMap(function (string $pattern) use ($all, $actions) {
+        return collect($patterns)->flatMap(function (string $pattern) use ($all, $actions, $roleName) {
             if ($pattern === '*') {
                 // Super Admin: mọi quyền thao tác + phạm vi + gán vai trò (không gồm quyền đối tượng).
                 return $all->reject(fn (string $name) => PermissionCatalog::isAudience($name));
             }
 
             if ($pattern === Rbac::ASSIGN_ROLE_PREFIX.'*') {
+                // Cây vai trò "chỉ thấy cấp dưới": không gán / quản lý được người cùng vai trò với mình.
                 return $all->filter(fn (string $name) => str_starts_with($name, Rbac::ASSIGN_ROLE_PREFIX)
-                    && $name !== Rbac::assignRolePermission(Rbac::SUPER_ADMIN));
+                    && $name !== Rbac::assignRolePermission(Rbac::SUPER_ADMIN)
+                    && ($roleName === null || $name !== Rbac::assignRolePermission($roleName)));
             }
 
             if (str_ends_with($pattern, '.*')) {

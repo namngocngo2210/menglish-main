@@ -355,7 +355,6 @@ class Phase4PlatformParityTest extends TestCase
     public function test_account_form_sets_concurrent_roles_within_hierarchy(): void
     {
         $academic = $this->makeUser('academic_staff', $this->branch);
-        // Phạm vi "Của tôi" của Học vụ: chỉ sửa tài khoản do mình tạo.
         $staff = $this->makeUser('teacher_fulltime', $this->branch, ['created_by' => $academic->id]);
 
         $this->actingAs($this->admin)->get(route('users.edit', $staff))->assertOk()->assertSee('Vai trò kiêm nhiệm');

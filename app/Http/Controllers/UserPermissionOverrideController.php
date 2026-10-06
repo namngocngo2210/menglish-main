@@ -344,5 +344,7 @@ class UserPermissionOverrideController extends Controller
         $actor = auth()->user();
         abort_if($actor && (int) $actor->id === (int) $target->id && ! $actor->isSuperAdmin(), 403, 'Không thể tự phân quyền cho chính mình.');
         abort_if($target->isSuperAdmin() && ! $actor?->isSuperAdmin(), 403, 'Chỉ Admin được chỉnh quyền của Admin.');
+        // Chỉ phân quyền cho cấp dưới trong cây vai trò (cùng quy tắc danh sách Người dùng).
+        abort_unless((int) $actor?->id === (int) $target->id || Rbac::isSubordinate($actor, $target), 403, 'Bạn chỉ phân quyền được cho cấp dưới của mình.');
     }
 }

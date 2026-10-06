@@ -39,10 +39,12 @@ class UserController extends Controller
     {
         $currentUser = auth()->user();
 
-        // Phạm vi "user.scope_*" (DataScope): Toàn hệ thống (Admin) xem toàn bộ; Chi nhánh (Quản lý cơ sở) chỉ nhân
-        // sự thuộc chi nhánh mình (branch_id chính); Của tôi (Học vụ, Học thuật) chỉ tài khoản do chính mình tạo.
+        // Chỉ thấy cấp dưới trong cây vai trò (Rbac::scopeSubordinates: mọi vai trò của người đó đều nằm trong vai trò
+        // mình được gán), rồi lọc theo phạm vi "user.scope_*" (DataScope): Toàn hệ thống (Admin, Học thuật) không giới
+        // hạn chi nhánh; Chi nhánh (Quản lý cơ sở, Học vụ) chỉ nhân sự thuộc chi nhánh mình; Của tôi chỉ tài khoản do
+        // chính mình tạo.
         $scope = fn ($q) => DataScope::apply(
-            $q, $currentUser, 'user',
+            Rbac::scopeSubordinates($q, $currentUser), $currentUser, 'user',
             fn ($own) => $own->where('created_by', $currentUser->id),
             fn ($branch, array $branchIds) => $branch->whereIn('branch_id', $branchIds),
         );
@@ -114,7 +116,10 @@ class UserController extends Controller
             ->count();
 
         $branches = $this->assignableBranches();
-        $roles = Role::query()->orderBy('name')->pluck('name');
+        // Bộ lọc vai trò chỉ gồm vai trò cấp dưới (Admin thấy mọi vai trò).
+        $roles = $currentUser->isSuperAdmin()
+            ? Role::query()->orderBy('name')->pluck('name')
+            : collect(Rbac::assignableRoles($currentUser));
 
         return Inertia::render('Users/Index', [
             'users' => $users->through(function (User $user) use ($currentUser, $teachingByUser) {
@@ -549,9 +554,9 @@ class UserController extends Controller
 
     /**
      * Chặn thao tác lên tài khoản vượt phân cấp của người thực hiện (ví dụ Học vụ/Quản lý đổi mật khẩu, hạ quyền hoặc
-     * khóa tài khoản Admin). Super Admin quản lý được mọi tài khoản; người khác chỉ quản lý được tài khoản mà MỌI vai
-     * trò hiện có đều nằm trong các vai trò mình được gán (user.assign_role.<vai trò>) — tài khoản Super Admin chỉ
-     * Super Admin thao tác. Phạm vi "Chi nhánh" chỉ thao tác trên nhân sự thuộc chi nhánh mình.
+     * khóa tài khoản Admin). Super Admin quản lý được mọi tài khoản; người khác chỉ quản lý được cấp dưới của mình
+     * (Rbac::isSubordinate: MỌI vai trò hiện có đều nằm trong các vai trò mình được gán, user.assign_role.<vai trò>) —
+     * tài khoản Super Admin chỉ Super Admin thao tác. Phạm vi "Chi nhánh" chỉ thao tác trên nhân sự thuộc chi nhánh mình.
      */
     private function ensureCanManageTarget(User $target): void
     {
@@ -560,9 +565,7 @@ class UserController extends Controller
             return;
         }
 
-        $outOfScope = $target->getRoleNames()->reject(fn (string $role) => Rbac::canAssignRole($actor, $role));
-
-        abort_if($target->isSuperAdmin() || $outOfScope->isNotEmpty(), 403, 'Bạn không có quyền thao tác trên tài khoản này.');
+        abort_unless(Rbac::isSubordinate($actor, $target), 403, 'Bạn không có quyền thao tác trên tài khoản này.');
 
         $managed = self::branchLimit($actor);
         abort_if(
@@ -570,7 +573,7 @@ class UserController extends Controller
             403,
             'Nhân sự này không thuộc chi nhánh bạn quản lý.'
         );
-        // Phạm vi "Của tôi" (Học vụ, Học thuật): chỉ tài khoản do chính mình tạo — đúng như danh sách đang hiện.
+        // Phạm vi "Của tôi" (nếu Admin cấu hình): chỉ tài khoản do chính mình tạo — đúng như danh sách đang hiện.
         abort_if(
             DataScope::level($actor, 'user') === DataScope::OWN && (int) $target->created_by !== (int) $actor?->id,
             403,
