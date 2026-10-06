@@ -94,8 +94,8 @@ const amountDue = computed(() => Math.max(0, contractTotal.value - (w.prepaidAmo
 /** Số tiền chuyển khoản dùng để sinh VietQR. */
 const effectiveTransferAmount = computed(() => (w.paymentMethod === 'transfer' ? Math.max(0, parseInt(w.paidAmount || 0, 10)) : 0));
 const needsBankAccount = computed(() => w.feePaid && w.paymentMethod === 'transfer');
-/** Cơ sở tính ưu đãi: cơ sở của lớp, hoặc cơ sở của khách khi xếp lớp sau. */
-const contextBranchId = computed(() => (w.assignLater ? w.customerBranchId : w.classBranchId));
+/** Cơ sở tính ưu đãi: cơ sở của lớp, hoặc cơ sở của khách khi xếp lớp sau / chưa chọn lớp (giống server). */
+const contextBranchId = computed(() => (!w.assignLater && w.classBranchId) || w.customerBranchId || '');
 const availablePromotions = computed(() => promotionsList.value.filter((p) => promotionApplies(p, contextBranchId.value, w.courseId)));
 const promotionOptions = computed(() => availablePromotions.value.map((p) => ({ value: p.id, label: promotionLabel(p) })));
 const selectedPromotion = computed(() => promotionsList.value.find((p) => String(p.id) === String(w.selectedPromotionId)) ?? null);
@@ -131,6 +131,7 @@ const canSubmit = computed(
             !w.customerId ||
             (!w.assignLater && !w.classId) ||
             (w.assignLater && !w.courseId) ||
+            w.baseTuition <= 0 ||
             (w.feePaid && w.paidAmount <= 0 && w.prepaidAmount <= 0) ||
             (needsBankAccount.value && !w.selectedBankAccountId) ||
             (w.feePaid && w.paidAmount > 0 && w.paymentMethod === 'cash' && !paperMode.value && !String(w.paperInvoiceNumber).trim()) ||
@@ -142,13 +143,30 @@ const canSubmit = computed(
 const customerOptions = computed(() =>
     props.customers.map((c) => ({ value: c.id, label: `${c.name} (${c.short_code} - ${c.phone}) · ${c.course_interest ?? 'Chưa chọn khóa'} · ${c.stage_label}` })),
 );
-const courseOptions = computed(() => props.courses.map((c) => ({ value: c.id, label: `${c.name} (Học phí niêm yết: ${formatMoney(c.tuition)})` })));
+const courseOptions = computed(() =>
+    props.courses.map((c) => ({ value: c.id, label: `${c.name} (${c.tuition > 0 ? 'Học phí niêm yết: ' + formatMoney(c.tuition) : 'Chưa cấu hình học phí'})` })),
+);
+/** Lớp đã học hết số buổi của khóa: server không cho xếp thêm (không còn buổi để tính học phí). */
+const classDone = (cl) => cl.sessions_left <= 0;
 const classOptions = computed(() =>
     props.classes.map((cl) => ({
         value: cl.id,
-        label: `${cl.name} (${cl.code})${cl.status === 'upcoming' ? ' · Sắp khai giảng' : ''} · Cơ sở: ${cl.branch_name ?? ''} · Sĩ số: ${cl.active_enrollments_count}/${cl.max_capacity} · Lịch học: ${cl.schedule_text ?? ''}`,
+        disabled: classDone(cl),
+        label:
+            `${cl.name} (${cl.code})${cl.status === 'upcoming' ? ' · Sắp khai giảng' : ''} · Cơ sở: ${cl.branch_name ?? ''} · Sĩ số: ${cl.active_enrollments_count}/${cl.max_capacity} · Lịch học: ${cl.schedule_text ?? ''}` +
+            (classDone(cl) ? ` · Đã học hết ${cl.course_sessions} buổi của khóa` : ''),
     })),
 );
+/**
+ * Vì sao chưa có học phí niêm yết: chưa chọn khóa / lớp, hoặc khóa / lớp chưa cấu hình giá (server từ chối chốt khi học phí 0).
+ * Rỗng = đã có học phí.
+ */
+const tuitionProblem = computed(() => {
+    if (w.baseTuition > 0) return '';
+    if (!w.assignLater && w.classId) return `Lớp ${w.className} và khóa ${w.courseName || 'của lớp'} chưa cấu hình học phí niêm yết.`;
+    if (!w.courseId) return 'Chưa chọn khóa học đăng ký ở Bước 1 nên chưa có học phí niêm yết.';
+    return `Khóa ${w.courseName} chưa cấu hình học phí niêm yết.`;
+});
 // Kho theo chi nhánh của lớp (xếp lớp sau: chi nhánh của khách). Hết hàng chỉ cảnh báo, không chặn chốt.
 const wizardBranchId = computed(() => (!w.assignLater && w.classBranchId) || w.customerBranchId || '');
 const stockOf = (itemId) => (wizardBranchId.value ? (props.merchandiseStock[wizardBranchId.value]?.[itemId] ?? 0) : null);
@@ -212,32 +230,45 @@ function dropUnavailablePromotion() {
 dropUnavailablePromotion();
 applyPromotion(w.selectedPromotionId);
 
+/** Học phí niêm yết theo khóa đăng ký (xếp lớp sau, hoặc chưa chọn lớp ở Bước 3); ưu đãi % tính lại theo giá mới. */
 function applyCourseTuition() {
     const course = props.courses.find((c) => String(c.id) === String(w.courseId));
-    if (!course) return;
-    w.courseName = course.name;
-    w.baseTuition = course.tuition;
+    w.courseName = course?.name ?? '';
+    w.baseTuition = course?.tuition ?? 0;
     dropUnavailablePromotion();
     applyPromotion(w.selectedPromotionId);
     w.paidAmount = w.feePaid ? amountDue.value : 0;
 }
 
+function clearClass() {
+    Object.assign(w, { classId: '', className: '', classBranchId: '' });
+}
+
 function updateCourse(value) {
-    w.courseId = value;
-    if (w.assignLater) applyCourseTuition();
+    w.courseId = value ? String(value) : '';
+    const cl = w.classId ? props.classes.find((c) => String(c.id) === String(w.classId)) : null;
+    // Lớp đang chọn thuộc khóa khác → bỏ chọn lớp (chọn lại ở Bước 3); học phí theo khóa vừa chọn.
+    if (cl && String(cl.course_id) !== w.courseId) clearClass();
+    if (w.assignLater || !w.classId) applyCourseTuition();
 }
 
 function updateClass(value) {
     const cl = props.classes.find((c) => String(c.id) === String(value));
-    w.classId = value ? String(value) : '';
-    w.className = cl?.name ?? '— Chọn lớp —';
-    w.classBranchId = String(cl?.branch_id ?? '');
-    w.courseId = String(cl?.course_id ?? '');
-    w.courseName = cl?.course_name ?? '';
+    // Bỏ chọn lớp (hoặc lớp đã học hết khóa) → giữ khóa đã chọn ở Bước 1, học phí theo khóa.
+    if (!cl || classDone(cl)) {
+        clearClass();
+        applyCourseTuition();
+        return;
+    }
+    w.classId = String(cl.id);
+    w.className = cl.name;
+    w.classBranchId = String(cl.branch_id ?? '');
+    w.courseId = String(cl.course_id ?? '');
+    w.courseName = cl.course_name ?? '';
     dropUnavailablePromotion();
-    w.baseTuition = cl?.tuition ?? 0;
+    w.baseTuition = cl.tuition ?? 0;
     applyPromotion(w.selectedPromotionId);
-    w.paidAmount = amountDue.value;
+    w.paidAmount = w.feePaid ? amountDue.value : 0;
 }
 
 function setAssignLater(value) {
@@ -517,7 +548,7 @@ if (w.assignLater) setAssignLater(true);
                         :options="courseOptions"
                         :model-value="w.courseId"
                         placeholder="— Chọn khóa học —"
-                        hint="Khi chọn lớp ở Bước 3, khóa học lấy theo lớp. Khi &quot;Xếp lớp sau&quot;, học phí tính theo giá niêm yết của khóa này (trừ ưu đãi)."
+                        hint="Học phí niêm yết tự điền theo khóa này. Chọn lớp ở Bước 3 thì khóa và học phí lấy theo lớp."
                         @update:model-value="updateCourse"
                     />
                 </div>
@@ -563,6 +594,15 @@ if (w.assignLater) setAssignLater(true);
                         <p v-else-if="selectedPromotion?.description" class="mt-1 text-xs text-on-surface-variant">{{ selectedPromotion.description }}</p>
                     </div>
                 </div>
+                <UiAlert v-if="tuitionProblem" type="warning" class="text-xs" data-tuition-problem>
+                    {{ tuitionProblem }}
+                    <template v-if="w.courseId || w.classId">
+                        Chưa có học phí thì chưa chốt được: nhờ người quản lý khóa học nhập giá
+                        <a v-if="can('course.view')" :href="route('courses.index')" target="_blank" rel="noopener noreferrer" class="font-bold underline">ở trang Khóa học</a>
+                        rồi tải lại trang này, hoặc chọn khóa / lớp khác.
+                    </template>
+                    <template v-else>Chọn khóa ở Bước 1 hoặc chọn lớp ở Bước 3.</template>
+                </UiAlert>
 
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
                     <UiInput id="closing_discount" type="number" label="Tiền Ưu đãi giảm trừ (VNĐ)" readonly placeholder="0" :model-value="w.discount" class="cursor-not-allowed !bg-surface-container-low font-mono font-bold !text-error" />
@@ -711,7 +751,15 @@ if (w.assignLater) setAssignLater(true);
                                 v-for="cl in classes"
                                 :key="cl.id"
                                 type="button"
-                                :class="['space-y-1 rounded-xl border p-3 text-left text-xs transition', String(w.classId) === String(cl.id) ? 'border-primary-container bg-primary-container/10 ring-1 ring-primary-container' : 'border-surface-container-highest bg-surface-container-lowest hover:border-primary-container/60']"
+                                :disabled="classDone(cl)"
+                                :class="[
+                                    'space-y-1 rounded-xl border p-3 text-left text-xs transition',
+                                    classDone(cl)
+                                        ? 'cursor-not-allowed border-surface-container-highest bg-surface-container-low opacity-60'
+                                        : String(w.classId) === String(cl.id)
+                                          ? 'border-primary-container bg-primary-container/10 ring-1 ring-primary-container'
+                                          : 'border-surface-container-highest bg-surface-container-lowest hover:border-primary-container/60',
+                                ]"
                                 @click="updateClass(cl.id)"
                             >
                                 <div class="flex items-center justify-between gap-2">
@@ -739,7 +787,8 @@ if (w.assignLater) setAssignLater(true);
                                     <div v-if="cl.needed_to_open > 0" class="font-semibold text-warning">Cần thêm {{ cl.needed_to_open }} học viên để khai giảng (ngưỡng {{ cl.min_students }})</div>
                                     <div v-else class="font-semibold text-tertiary">Đã đủ ngưỡng khai giảng ({{ cl.min_students }} học viên)</div>
                                 </template>
-                                <div :class="['pt-1 text-right font-semibold', String(w.classId) === String(cl.id) ? 'text-primary' : 'text-on-surface-subtle']">
+                                <div v-if="classDone(cl)" class="pt-1 text-right font-semibold text-on-surface-variant">Lớp đã học hết {{ cl.course_sessions }} buổi của khóa, không xếp thêm học viên</div>
+                                <div v-else :class="['pt-1 text-right font-semibold', String(w.classId) === String(cl.id) ? 'text-primary' : 'text-on-surface-subtle']">
                                     <span>{{ String(w.classId) === String(cl.id) ? 'Đã chọn lớp này' : 'Chọn lớp này' }}</span>
                                 </div>
                             </button>
@@ -916,6 +965,16 @@ if (w.assignLater) setAssignLater(true);
                         </div>
                     </div>
                 </div>
+
+                <UiAlert v-if="tuitionProblem" type="warning" class="text-xs" >
+                    {{ tuitionProblem }}
+                    <template v-if="w.courseId || w.classId">
+                        Chưa có học phí thì chưa chốt được: nhờ người quản lý khóa học nhập giá
+                        <a v-if="can('course.view')" :href="route('courses.index')" target="_blank" rel="noopener noreferrer" class="font-bold underline">ở trang Khóa học</a>
+                        rồi tải lại trang này, hoặc chọn khóa / lớp khác.
+                    </template>
+                    <template v-else>Chọn khóa ở Bước 1 hoặc chọn lớp ở Bước 3.</template>
+                </UiAlert>
 
                 <div class="flex items-center justify-between border-t border-surface-container-highest pt-4">
                     <UiButton variant="secondary" @click="step = 3">Quay lại</UiButton>
