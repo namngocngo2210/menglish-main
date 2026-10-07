@@ -213,7 +213,7 @@ function changeDay(event) {
                         </td>
                         <td class="whitespace-nowrap font-mono">{{ formatDate(ts.teaching_date) }}</td>
                         <td>
-                            <span class="block">{{ ts.scheduled_time ? 'Ca ' + ts.scheduled_time : 'Ngoài lịch' }}</span>
+                            <span class="block">{{ ts.scheduled_time ? (ts.shift_name ? ts.shift_name + ' · ' : 'Ca ') + ts.scheduled_time : 'Ngoài lịch' }}</span>
                             <span class="block font-body-small text-body-small text-on-surface-variant">{{ ts.type_label }} · {{ ts.source_label }}</span>
                         </td>
                         <td class="font-semibold text-primary">{{ ts.class_label }}</td>

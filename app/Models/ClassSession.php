@@ -99,6 +99,14 @@ class ClassSession extends Model
         return $now->gte($start->copy()->subHours($hours)) && $now->lte($start->copy()->addHours($hours));
     }
 
+    /** Tên ca theo khung giờ ca dạy (Ca 1, Ca 2, Ca chiều…); tên tạm cũ "Slot n" không hiển thị. */
+    public function shiftLabel(): ?string
+    {
+        $name = trim((string) $this->shift_name);
+
+        return $name === '' || str_starts_with($name, 'Slot') ? null : $name;
+    }
+
     /** Tên phòng để hiển thị: "Phòng P101"; tên đã có chữ "Phòng" (vd. "Phòng bổ trợ") giữ nguyên; chưa có phòng → null. */
     public function roomLabel(): ?string
     {

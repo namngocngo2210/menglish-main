@@ -63,8 +63,8 @@ class BpmnWorkflowIntegrationTest extends TestCase
 
     public function test_schedule_attendance_timesheet_and_payroll_are_one_approved_flow(): void
     {
-        // Check-in trước giờ bắt đầu ca 08:00 (check-in muộn từ 15 phút mà không báo trước thì không tính buổi).
-        $this->travelTo(now()->setTime(7, 30));
+        // Check-in trước giờ bắt đầu Ca 1 18:00 (check-in muộn từ 15 phút mà không báo trước thì không tính buổi).
+        $this->travelTo(now()->setTime(17, 30));
         $dayNames = [1 => 'Thứ 2', 2 => 'Thứ 3', 3 => 'Thứ 4', 4 => 'Thứ 5', 5 => 'Thứ 6', 6 => 'Thứ 7', 7 => 'Chủ nhật'];
         $today = now();
         $tomorrow = now()->addDay();
@@ -73,8 +73,8 @@ class BpmnWorkflowIntegrationTest extends TestCase
             'class_id' => $this->classModel->id,
             'start_date' => $today->toDateString(),
             'end_date' => $tomorrow->toDateString(),
-            'slot1_day' => $dayNames[$today->isoWeekday()], 'slot1_start' => '08:00', 'slot1_end' => '10:00',
-            'slot2_day' => $dayNames[$tomorrow->isoWeekday()], 'slot2_start' => '08:00', 'slot2_end' => '10:00',
+            'slot1_day' => $dayNames[$today->isoWeekday()], 'slot1_start' => '18:00', 'slot1_end' => '19:30',
+            'slot2_day' => $dayNames[$tomorrow->isoWeekday()], 'slot2_start' => '18:00', 'slot2_end' => '19:30',
         ])->assertRedirect();
 
         $this->assertDatabaseCount('class_sessions', 2);
@@ -103,7 +103,7 @@ class BpmnWorkflowIntegrationTest extends TestCase
 
         $this->actingAs($this->manager)->post(route('payroll.timesheets.review', $timesheet->id), ['decision' => 'valid'])->assertRedirect();
         $period->calculatePayrollForPeriod();
-        $this->assertDatabaseHas('payroll_records', ['payroll_period_id' => $period->id, 'user_id' => $this->teacher->id, 'actual_hours' => 2]);
+        $this->assertDatabaseHas('payroll_records', ['payroll_period_id' => $period->id, 'user_id' => $this->teacher->id, 'actual_hours' => 1.5]);
     }
 
     public function test_class_creation_with_rendered_timetable_creates_sessions_and_activates_class(): void
@@ -331,7 +331,7 @@ class BpmnWorkflowIntegrationTest extends TestCase
         ClassSession::create([
             'class_id' => $otherClass->id, 'branch_id' => $otherClass->branch_id,
             'date' => now()->addDays(5)->toDateString(), 'shift_name' => 'Ca 1',
-            'start_time' => '08:00', 'end_time' => '09:30', 'room' => 'P101',
+            'start_time' => '18:00', 'end_time' => '19:30', 'room' => 'P101',
             'teacher_id' => $this->teacher->id, 'status' => 'cancelled',
         ]);
 
@@ -340,7 +340,7 @@ class BpmnWorkflowIntegrationTest extends TestCase
             'start_date' => now()->addDays(5)->toDateString(),
             'end_date' => now()->addDays(5)->toDateString(),
             'slot1_day' => $this->weekdayName(now()->addDays(5)),
-            'slot1_start' => '08:00', 'slot1_end' => '09:30',
+            'slot1_start' => '18:00', 'slot1_end' => '19:30',
         ])->assertRedirect()->assertSessionHasNoErrors();
 
         $this->assertSame(1, ClassSession::where('class_id', $this->classModel->id)
@@ -406,8 +406,8 @@ class BpmnWorkflowIntegrationTest extends TestCase
             'class_id' => $this->classModel->id,
             'start_date' => $today->copy()->toDateString(),
             'end_date' => $today->copy()->addWeek()->toDateString(),
-            'slot1_day' => $todayName, 'slot1_start' => '08:00', 'slot1_end' => '10:00',
-            'slot2_day' => $todayName, 'slot2_start' => '09:00', 'slot2_end' => '11:00',
+            'slot1_day' => $todayName, 'slot1_start' => '18:00', 'slot1_end' => '19:30',
+            'slot2_day' => $todayName, 'slot2_start' => '18:10', 'slot2_end' => '19:40',
         ])->assertSessionHasErrors('slot2_start');
         $this->assertSame(0, ClassSession::count());
 
@@ -417,8 +417,8 @@ class BpmnWorkflowIntegrationTest extends TestCase
             'class_id' => $this->classModel->id,
             'start_date' => $today->copy()->addDay()->toDateString(),
             'end_date' => $today->copy()->addDays(2)->toDateString(),
-            'slot1_day' => $todayName, 'slot1_start' => '08:00', 'slot1_end' => '10:00',
-            'slot2_day' => $todayName, 'slot2_start' => '14:00', 'slot2_end' => '16:00',
+            'slot1_day' => $todayName, 'slot1_start' => '18:00', 'slot1_end' => '19:30',
+            'slot2_day' => $todayName, 'slot2_start' => '19:30', 'slot2_end' => '21:00',
         ])->assertSessionHasErrors('start_date');
 
         // Cấu hình hợp lệ vẫn tạo được buổi học
@@ -426,8 +426,8 @@ class BpmnWorkflowIntegrationTest extends TestCase
             'class_id' => $this->classModel->id,
             'start_date' => $today->copy()->toDateString(),
             'end_date' => $today->copy()->addDays(6)->toDateString(),
-            'slot1_day' => $todayName, 'slot1_start' => '08:00', 'slot1_end' => '10:00',
-            'slot2_day' => $tomorrowName, 'slot2_start' => '14:00', 'slot2_end' => '16:00',
+            'slot1_day' => $todayName, 'slot1_start' => '18:00', 'slot1_end' => '19:30',
+            'slot2_day' => $tomorrowName, 'slot2_start' => '19:30', 'slot2_end' => '21:00',
         ])->assertRedirect();
         $this->assertGreaterThan(0, ClassSession::count());
     }

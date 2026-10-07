@@ -25,7 +25,8 @@ use Illuminate\Validation\ValidationException;
  * Quy tắc:
  *  - Giờ vào / ra = giờ máy chủ lúc bấm (không nhận giờ từ điện thoại).
  *  - Chỉ chấm tại cơ sở làm việc chính của nhân sự (users.branch_id), GPS phải nằm trong bán kính cơ sở đã cài.
- *  - Giờ phải có mặt: GV / TA / GVNN theo buổi dạy đầu tiên trong ngày (không có buổi → không tính muộn);
+ *  - Giờ phải có mặt: GV / TA / GVNN theo giờ lớp được phân công trong ngày — buổi đầu tiên (Ca 1 18:00 hay lớp lệch
+ *    18:10…, khung giờ ca dạy), không theo một giờ chung cố định; không có buổi → không tính muộn;
  *    nhân sự khác theo giờ làm việc của cơ sở. Muộn quá số phút cho phép của cơ sở → tự lập biên bản "chờ giải trình",
  *    0đ (người chốt quyết mức phạt, giống biên bản SLA); đơn xin đi muộn được duyệt → không tính lỗi, biên bản tự hủy.
  *  - Ngày thuộc kỳ lương đã chốt thì không chấm / không sửa được nữa.
@@ -123,27 +124,36 @@ class StaffAttendanceService
      * Giờ phải có mặt / được về của nhân sự trong ngày ("HH:MM", null = không tính muộn / về sớm). Giáo viên / trợ giảng
      * (quyền Cổng giáo viên / trợ giảng) tính theo buổi dạy trong ngày, nhân sự khác theo giờ làm việc của cơ sở.
      *
-     * @return array{start: ?string, end: ?string, basis: string}
+     * Kèm danh sách ca dạy trong ngày (tên ca + giờ + lớp) để nhân sự thấy giờ đối chiếu.
+     *
+     * @return array{start: ?string, end: ?string, basis: string, sessions: list<array{shift: ?string, time: string, class: ?string}>}
      */
     public function expectedTimes(User $user, ?Branch $branch, CarbonInterface $date): array
     {
         if ($user->can('portal.teacher') || $user->can('portal.assistant')) {
             $sessions = ClassSession::query()->forStaff($user->id)
+                ->with('classModel:id,name,code')
                 ->whereDate('date', $date->toDateString())
                 ->where('status', '!=', 'cancelled')
-                ->get(['start_time', 'end_time']);
+                ->orderBy('start_time')
+                ->get(['id', 'class_id', 'shift_name', 'start_time', 'end_time']);
             if ($sessions->isEmpty()) {
-                return ['start' => null, 'end' => null, 'basis' => 'Không có buổi dạy'];
+                return ['start' => null, 'end' => null, 'basis' => 'Không có buổi dạy', 'sessions' => []];
             }
 
             return [
                 'start' => $sessions->min(fn (ClassSession $s) => $s->start_time?->format('H:i')),
                 'end' => $sessions->max(fn (ClassSession $s) => $s->end_time?->format('H:i')),
-                'basis' => 'Theo buổi dạy',
+                'basis' => 'Theo giờ lớp được phân công',
+                'sessions' => $sessions->map(fn (ClassSession $s) => [
+                    'shift' => $s->shiftLabel(),
+                    'time' => $s->start_time?->format('H:i').'–'.$s->end_time?->format('H:i'),
+                    'class' => $s->classModel?->code ?? $s->classModel?->name,
+                ])->values()->all(),
             ];
         }
 
-        return ['start' => $branch?->workStart(), 'end' => $branch?->workEnd(), 'basis' => 'Theo giờ làm việc cơ sở'];
+        return ['start' => $branch?->workStart(), 'end' => $branch?->workEnd(), 'basis' => 'Theo giờ làm việc cơ sở', 'sessions' => []];
     }
 
     /** Tính lại giờ phải có mặt, số phút muộn / về sớm và "muộn có phép" của dòng chấm công (chưa lưu). */

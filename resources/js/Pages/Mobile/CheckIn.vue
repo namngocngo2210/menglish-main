@@ -186,6 +186,11 @@ const radiusText = computed(() => (props.branch ? `${formatNumber(props.branch.r
                         <template v-if="expected.start">Giờ vào {{ expected.start }}<template v-if="expected.end"> · giờ ra {{ expected.end }}</template> ({{ expected.basis.toLocaleLowerCase('vi') }})</template>
                         <template v-else>{{ expected.basis }} hôm nay, không tính đi muộn</template>
                     </p>
+                    <ul v-if="expected.sessions?.length" class="mt-xs space-y-0.5 font-caption text-caption text-white/85" data-testid="today-shifts">
+                        <li v-for="(s, i) in expected.sessions" :key="i" class="font-mono">
+                            {{ s.shift ? s.shift + ' · ' : '' }}{{ s.time }}<template v-if="s.class"> · {{ s.class }}</template>
+                        </li>
+                    </ul>
                 </div>
             </div>
         </section>

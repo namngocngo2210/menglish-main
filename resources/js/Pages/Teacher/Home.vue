@@ -102,7 +102,7 @@ const hasUnchecked = computed(() => props.shifts.some((s) => !s.checked_in && !c
                                     <UiBadge v-if="!shift.is_today" color="warning">Ca ngày {{ shift.date_label }}</UiBadge>
                                 </p>
                                 <p class="font-body-small text-body-small text-on-surface-variant">
-                                    {{ shift.scheduled_time }} • {{ shift.room_label ?? 'Chưa có phòng' }}, {{ shift.branch_name ?? 'Chưa gán chi nhánh' }}
+                                    <template v-if="shift.shift_name">{{ shift.shift_name }} · </template>{{ shift.scheduled_time }} • {{ shift.room_label ?? 'Chưa có phòng' }}, {{ shift.branch_name ?? 'Chưa gán chi nhánh' }}
                                 </p>
                                 <p class="font-caption text-caption text-on-surface-variant">
                                     {{ shift.class_code }} · {{ shift.student_count }} HV

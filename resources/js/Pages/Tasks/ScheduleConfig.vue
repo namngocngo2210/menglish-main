@@ -28,6 +28,10 @@ const props = defineProps({
     reportStart: { type: String, default: null },
     report: { type: Array, default: () => [] },
     classCountChange: { type: Object, default: () => ({}) },
+    shiftOptions: { type: Object, default: () => ({}) },
+    weekdayRule: { type: String, default: '' },
+    shiftDuration: { type: Number, default: 90 },
+    offScheduleClasses: { type: Array, default: () => [] },
 });
 
 const days = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'].map((d) => ({ value: d, label: d }));
@@ -43,6 +47,63 @@ const selectedData = computed(() => props.scheduleData[form.class_id] ?? null);
 const hasSchedule = computed(() => !!(form.class_id && selectedData.value?.slot1_day));
 const status = computed(() => selectedData.value?.status ?? null);
 
+// ─── Khung giờ ca dạy: Thứ 2–6 chọn Ca 1 / Ca 2 (giờ chuẩn hoặc giờ lệch); cuối tuần chọn khung hoặc "Giờ khác theo lớp"; mỗi ca 90 phút.
+const dayTypeOf = (day) => (day === 'Thứ 7' ? 'saturday' : day === 'Chủ nhật' ? 'sunday' : 'weekday');
+const plus = (time, minutes) => {
+    if (!/^\d{2}:\d{2}$/.test(time ?? '')) return '';
+    const [h, m] = time.split(':').map(Number);
+    const total = Math.min(23 * 60 + 59, h * 60 + m + minutes);
+    return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+};
+/** Giờ khác (không theo khung) chỉ cho cuối tuần, hoặc loại ngày chưa có khung nào. */
+function shiftChoices(n) {
+    const day = form[`slot${n}_day`];
+    if (!day) return [];
+    const type = dayTypeOf(day);
+    const choices = (props.shiftOptions[type] ?? []).map((o) => ({ value: o.value, label: o.label }));
+    if (type !== 'weekday' || !choices.length) choices.push({ value: 'custom', label: type === 'weekday' ? 'Giờ khác' : 'Giờ khác theo lớp' });
+    return choices;
+}
+const slotRange = (n) => `${form[`slot${n}_start`]}-${form[`slot${n}_end`]}`;
+const matchesFrame = (n) => shiftChoices(n).some((c) => c.value === slotRange(n));
+const allowsCustom = (n) => shiftChoices(n).some((c) => c.value === 'custom');
+const custom = reactive({ 1: false, 2: false });
+const syncCustom = () => [1, 2].forEach((n) => (custom[n] = !!form[`slot${n}_day`] && allowsCustom(n) && !matchesFrame(n)));
+syncCustom();
+const shiftValue = (n) => (custom[n] ? 'custom' : matchesFrame(n) ? slotRange(n) : '');
+/** Ngày thường đang mang giờ cũ lệch khung (TKB xếp trước khi có khung giờ) → nhắc chọn lại ca. */
+const offFrame = (n) => !!form[`slot${n}_day`] && !custom[n] && !matchesFrame(n);
+function pickShift(n, value) {
+    if (value === 'custom') {
+        custom[n] = true;
+        form[`slot${n}_end`] = plus(form[`slot${n}_start`], props.shiftDuration);
+        return;
+    }
+    custom[n] = false;
+    if (!value) return;
+    const [start, end] = value.split('-');
+    form[`slot${n}_start`] = start;
+    form[`slot${n}_end`] = end;
+}
+function setCustomStart(n, value) {
+    form[`slot${n}_start`] = value;
+    form[`slot${n}_end`] = plus(value, props.shiftDuration);
+}
+/** Đổi ngày: giờ đang chọn không còn hợp lệ với loại ngày mới → ngày thường về khung đầu tiên, cuối tuần giữ giờ (Giờ khác). */
+function pickDay(n, day) {
+    form[`slot${n}_day`] = day;
+    if (!day || matchesFrame(n)) {
+        custom[n] = false;
+        return;
+    }
+    if (allowsCustom(n)) {
+        custom[n] = true;
+        form[`slot${n}_end`] = plus(form[`slot${n}_start`], props.shiftDuration);
+        return;
+    }
+    pickShift(n, shiftChoices(n)[0]?.value ?? '');
+}
+
 /** Chọn lớp đã có TKB → điền sẵn lịch hiện tại của lớp; phòng học điền theo phòng hiện tại của lớp. */
 function pick(value) {
     form.class_id = value;
@@ -52,8 +113,12 @@ function pick(value) {
     for (const key of Object.keys(form)) {
         if (key !== 'class_id' && data[key] !== undefined) form[key] = data[key] ?? (key === 'slot2_day' ? '' : form[key]);
     }
+    syncCustom();
 }
-const reset = () => Object.assign(form, props.initial);
+const reset = () => {
+    Object.assign(form, props.initial);
+    syncCustom();
+};
 
 // Phòng học: chỉ phòng thuộc chi nhánh của lớp đang chọn.
 const classRooms = computed(() => props.rooms.filter((r) => selectedData.value && String(r.branch_id) === String(selectedData.value.branch_id)));
@@ -68,7 +133,7 @@ const transferDismissed = ref(false);
 const page = usePage();
 const conflictError = computed(() => {
     const e = page.props.errors ?? {};
-    return e.class_id || e.room_id || e.slot2_start || e.slot1_day || e.start_date || e.end_date || null;
+    return e.class_id || e.room_id || e.slot1_start || e.slot2_start || e.slot1_day || e.start_date || e.end_date || null;
 });
 const transferLines = computed(() => (page.props.errors?.room_transfer ?? '').split('\n').filter(Boolean));
 const showTransfer = computed(() => transferLines.value.length > 0 && !transferDismissed.value);
@@ -106,6 +171,7 @@ function searchClasses(event) {
     </UiPageHeader>
     <UiPageHeader v-else title="Lịch & TKB lớp" description="Cấu hình thời khóa biểu lớp học.">
         <template #actions>
+            <UiButton variant="secondary" icon="schedule" :href="route('teaching-shifts.index')">Khung giờ ca dạy</UiButton>
             <UiButton variant="secondary" icon="groups" :href="route('tasks.schedule-config', { view: 'report' })">Báo cáo phòng / nhân sự</UiButton>
             <UiButton v-if="can('class.create')" variant="secondary" icon="add" :href="route('classes.create')">Tạo lớp mới</UiButton>
         </template>
@@ -156,11 +222,45 @@ function searchClasses(event) {
                                 <span class="material-symbols-outlined text-[18px] text-tertiary" aria-hidden="true">{{ n === 1 ? 'looks_one' : 'looks_two' }}</span>
                                 Slot {{ n }}
                             </h3>
-                            <UiSelect :id="`tkb_slot${n}_day`" v-model="form[`slot${n}_day`]" label="Ngày trong tuần" :name="`slot${n}_day`" :placeholder="n === 2 ? '-- Không học ca 2 --' : null" :options="days" />
-                            <div class="grid grid-cols-2 gap-sm">
-                                <UiInput :id="`tkb_slot${n}_start`" v-model="form[`slot${n}_start`]" type="time" label="Giờ bắt đầu" :name="`slot${n}_start`" class="font-code" />
-                                <UiInput :id="`tkb_slot${n}_end`" v-model="form[`slot${n}_end`]" type="time" label="Giờ kết thúc" :name="`slot${n}_end`" class="font-code" />
-                            </div>
+                            <UiSelect
+                                :id="`tkb_slot${n}_day`"
+                                :model-value="form[`slot${n}_day`]"
+                                label="Ngày trong tuần"
+                                :name="`slot${n}_day`"
+                                :placeholder="n === 2 ? '-- Không học ca 2 --' : null"
+                                :options="days"
+                                @update:model-value="(v) => pickDay(n, v)"
+                            />
+                            <template v-if="form[`slot${n}_day`]">
+                                <UiSelect
+                                    :id="`tkb_slot${n}_shift`"
+                                    :model-value="shiftValue(n)"
+                                    label="Ca dạy"
+                                    placeholder="-- Chọn ca --"
+                                    :options="shiftChoices(n)"
+                                    :hint="dayTypeOf(form[`slot${n}_day`]) === 'weekday' ? `Thứ 2 – Thứ 6 chỉ có ${weekdayRule}.` : 'Cuối tuần lấy giờ thực tế của lớp: chọn khung thường dùng hoặc Giờ khác theo lớp.'"
+                                    @update:model-value="(v) => pickShift(n, v)"
+                                />
+                                <UiInput
+                                    v-if="custom[n]"
+                                    :id="`tkb_slot${n}_start`"
+                                    :model-value="form[`slot${n}_start`]"
+                                    type="time"
+                                    label="Giờ bắt đầu"
+                                    class="font-code"
+                                    :hint="`Kết thúc ${form[`slot${n}_end`] || '—'} (ca ${shiftDuration} phút)`"
+                                    @update:model-value="(v) => setCustomStart(n, v)"
+                                />
+                                <p v-else-if="matchesFrame(n)" class="flex items-center gap-xs font-body-small text-body-small text-on-surface-variant" :data-testid="`slot${n}-time`">
+                                    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">schedule</span>
+                                    Giờ học <span class="font-code text-on-surface">{{ form[`slot${n}_start`] }} – {{ form[`slot${n}_end`] }}</span> ({{ shiftDuration }} phút)
+                                </p>
+                                <p v-if="offFrame(n)" class="font-body-small text-body-small text-error" :data-testid="`slot${n}-off-frame`">
+                                    Lịch hiện tại {{ form[`slot${n}_start`] }} – {{ form[`slot${n}_end`] }} lệch khung giờ ca dạy, hãy chọn lại ca.
+                                </p>
+                            </template>
+                            <input type="hidden" :name="`slot${n}_start`" :value="form[`slot${n}_start`]" />
+                            <input type="hidden" :name="`slot${n}_end`" :value="form[`slot${n}_end`]" />
                         </div>
                     </div>
 
@@ -197,6 +297,17 @@ function searchClasses(event) {
                 </UiForm>
                 <p v-else class="font-body-small text-body-small text-on-surface-variant">Bạn chỉ có quyền xem thời khóa biểu. Liên hệ Học vụ để thay đổi lịch lớp.</p>
             </div>
+
+            <!-- Lớp có buổi sắp tới lệch khung giờ ca dạy (TKB xếp trước khi có khung) -->
+            <UiAlert v-if="offScheduleClasses.length" type="warning" title="Lớp có buổi sắp tới lệch khung giờ ca dạy" data-testid="off-schedule">
+                <ul class="space-y-xs">
+                    <li v-for="c in offScheduleClasses" :key="c.class_id" class="flex flex-wrap items-center gap-x-sm gap-y-xs">
+                        <span class="font-semibold">{{ c.class_name }}</span>
+                        <span class="font-code text-caption">{{ c.class_code }} · {{ c.slots.join(', ') }} ({{ c.sessions }} buổi)</span>
+                        <UiButton v-if="canSchedule" size="sm" variant="ghost" icon="edit_calendar" :href="route('tasks.schedule-config', { class_id: c.class_id })">Sửa lịch</UiButton>
+                    </li>
+                </ul>
+            </UiAlert>
 
             <!-- Buổi bị hủy do nghỉ lễ thêm sau -->
             <UiDataTable v-if="holidaySessions.length">
