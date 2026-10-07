@@ -90,13 +90,14 @@ class FullBpmnSmokeTest extends TestCase
         // BPMN 14 — Cổng học viên.
         $this->actingAs($studentUser)->get(route('portal.student.home2'))->assertOk();
 
-        // BPMN 15 — Phiếu thu: CM lập, Kế toán duyệt → HĐ dải chi nhánh, công nợ giảm.
+        // BPMN 15 — Phiếu thu: CM lập, Admin duyệt (chỉ Admin duyệt / từ chối — 06/10/2026) → HĐ dải chi nhánh, công nợ giảm.
         $this->actingAs($academic)->post(route('tuition.receipts.store'), [
             'student_tuition_id' => $tuition->id, 'amount' => 2000000, 'tuition_amount' => 2000000, 'payment_method' => 'cash', 'paper_invoice_number' => 'HDG-0001', 'submit_action' => 'submit',
         ])->assertSessionHasNoErrors()->assertRedirect();
         $receipt = TuitionReceipt::where('student_tuition_id', $tuition->id)->firstOrFail();
         $this->actingAs($accountant)->get(route('tuition.receipts.approve', ['selected_id' => $receipt->id]))->assertOk();
-        $this->actingAs($accountant)->post(route('tuition.receipts.approve.action', $receipt->id))->assertSessionHasNoErrors();
+        $this->actingAs($accountant)->post(route('tuition.receipts.approve.action', $receipt->id))->assertForbidden();
+        $this->actingAs($admin)->post(route('tuition.receipts.approve.action', $receipt->id))->assertSessionHasNoErrors();
         $this->assertStringStartsWith('C26MCG-', (string) $receipt->fresh()->invoice_number);
         $this->assertEquals((float) $tuition->final_amount - 2000000, (float) $tuition->fresh()->debt_amount);
 

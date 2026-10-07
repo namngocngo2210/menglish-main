@@ -18,13 +18,14 @@ use App\Models\SyllabusCurriculum;
 use App\Models\User;
 use App\Services\SupportListService;
 use App\Services\SyllabusProgressionService;
+use App\Support\Roles;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Phase 2 — hoàn thiện: quyền duyệt chỉ cho Học thuật, SĐT phụ huynh trên hồ sơ HV, duyệt order tự tạo đợt Big Test,
+ * Phase 2 — hoàn thiện: quyền duyệt chỉ cho Admin (06/10/2026; trước đây Học thuật), SĐT phụ huynh trên hồ sơ HV, duyệt order tự tạo đợt Big Test,
  * lưu nháp kết quả, giãn tiến độ cần chặng mở, nhắc lịch theo ngày dự kiến, GV chỉ xem phần Speaking.
  */
 class Phase2FinalGapsTest extends TestCase
@@ -34,6 +35,9 @@ class Phase2FinalGapsTest extends TestCase
     private Branch $branch;
 
     private User $lead;
+
+    /** Người duyệt / từ chối (chỉ Admin duyệt từ 06/10/2026). */
+    private User $admin;
 
     private User $staff;
 
@@ -51,7 +55,8 @@ class Phase2FinalGapsTest extends TestCase
         config(['services.zalo.mode' => 'sandbox']);
 
         $this->branch = Branch::create(['name' => 'Cơ sở Hoàn thiện', 'code' => 'P2F', 'is_active' => true]);
-        $this->lead = $this->user('academic_lead');
+        $this->lead = $this->user(Roles::ACADEMIC_LEAD);
+        $this->admin = $this->user(Roles::ADMIN);
         $this->staff = $this->user('academic_staff');
         $this->teacher = $this->user('teacher');
         $this->assistant = $this->user('assistant');
@@ -84,7 +89,7 @@ class Phase2FinalGapsTest extends TestCase
 
     // ── 1. Quyền duyệt ──────────────────────────────────────────────────────
 
-    public function test_only_academic_lead_approves_proposals_adjustments_and_big_test_orders(): void
+    public function test_only_admin_approves_proposals_adjustments_and_big_test_orders(): void
     {
         $assignment = $this->openStage();
         $this->assertFalse($this->staff->can('syllabus.approve_adjustment'));
@@ -98,7 +103,10 @@ class Phase2FinalGapsTest extends TestCase
         $order = BigTestOrder::create(['code' => 'ORDTEST-P2F', 'class_id' => $this->class->id, 'teacher_id' => $this->teacher->id,
             'stage_name' => 'Chặng 1', 'test_type' => 'big', 'status' => 'pending']);
 
-        foreach ([$this->staff, $this->user('manager')] as $user) {
+        // Học thuật cũng không còn duyệt (chỉ Admin, 06/10/2026), dù vẫn giữ quyền gốc.
+        $this->assertTrue($this->lead->can('syllabus.approve_adjustment'));
+        $this->assertTrue($this->lead->can('big_test.approve'));
+        foreach ([$this->staff, $this->user(Roles::MANAGER), $this->lead] as $user) {
             $this->actingAs($user)->post(route('syllabus.proposals.approve', $proposal->id), ['review_note' => 'OK'])->assertForbidden();
             $this->actingAs($user)->post(route('syllabus.adjustment-requests.approve', $request->id))->assertForbidden();
             $this->actingAs($user)->post(route('syllabus.big-tests.orders.approve', $order->id), ['test_link' => 'https://x.test'])->assertForbidden();
@@ -107,9 +115,15 @@ class Phase2FinalGapsTest extends TestCase
                 ->assertDontSee(route('syllabus.big-tests.orders.approve', $order->id, absolute: false));
         }
 
-        $this->actingAs($this->lead)->post(route('syllabus.proposals.approve', $proposal->id), ['review_note' => 'OK'])->assertRedirect();
+        $this->assertSame('pending', $proposal->fresh()->status);
+        $this->assertSame('pending', $request->fresh()->status);
+        $this->assertSame('pending', $order->fresh()->status);
+
+        $this->actingAs($this->admin)->get(route('syllabus.big-tests.distribution', ['order' => $order->id]))->assertOk()
+            ->assertSee(route('syllabus.big-tests.orders.approve', $order->id, absolute: false));
+        $this->actingAs($this->admin)->post(route('syllabus.proposals.approve', $proposal->id), ['review_note' => 'OK'])->assertRedirect();
         $this->assertSame('approved', $proposal->fresh()->status);
-        $this->actingAs($this->lead)->post(route('syllabus.adjustment-requests.approve', $request->id))->assertRedirect();
+        $this->actingAs($this->admin)->post(route('syllabus.adjustment-requests.approve', $request->id))->assertRedirect();
         $this->assertSame('approved', $request->fresh()->status);
     }
 
@@ -151,9 +165,11 @@ class Phase2FinalGapsTest extends TestCase
         $order = BigTestOrder::firstOrFail();
 
         $this->actingAs($this->lead)->get(route('syllabus.big-tests.distribution', ['order' => $order->id]))->assertOk()
+            ->assertSee('Đề cuối chặng')->assertDontSee('Tạo đợt thi mới'); // form duyệt chỉ cho Admin
+        $this->actingAs($this->admin)->get(route('syllabus.big-tests.distribution', ['order' => $order->id]))->assertOk()
             ->assertSee('Tạo đợt thi mới')->assertSee('Link phần Speaking')->assertSee($examDate->format('Y-m-d').'T08:00');
 
-        $this->actingAs($this->lead)->post(route('syllabus.big-tests.orders.approve', $order->id), [
+        $this->actingAs($this->admin)->post(route('syllabus.big-tests.orders.approve', $order->id), [
             'test_link' => 'https://drive.test/full-exam', 'speaking_link' => 'https://drive.test/speaking-only',
             'scheduled_at' => $examDate->format('Y-m-d').' 17:30', 'room' => 'P402',
         ])->assertSessionHasNoErrors();
@@ -195,13 +211,13 @@ class Phase2FinalGapsTest extends TestCase
         $mini = BigTestOrder::create(['code' => 'ORDTEST-MINI', 'class_id' => $this->class->id, 'teacher_id' => $this->teacher->id,
             'stage_name' => 'Chặng 1', 'test_type' => 'mini', 'status' => 'pending']);
 
-        $this->actingAs($this->lead)->post(route('syllabus.big-tests.orders.approve', $big->id), [
+        $this->actingAs($this->admin)->post(route('syllabus.big-tests.orders.approve', $big->id), [
             'test_link' => 'https://drive.test/ex', 'big_test_id' => $existing->id,
         ])->assertSessionHasNoErrors();
         $this->assertSame(1, BigTest::count(), 'Gắn đợt thi có sẵn thì không tạo đợt mới.');
         $this->assertTrue($existing->fresh()->is_distributed);
 
-        $this->actingAs($this->lead)->post(route('syllabus.big-tests.orders.approve', $mini->id), ['test_link' => 'https://drive.test/mini'])
+        $this->actingAs($this->admin)->post(route('syllabus.big-tests.orders.approve', $mini->id), ['test_link' => 'https://drive.test/mini'])
             ->assertSessionHasNoErrors();
         $this->assertSame('approved', $mini->fresh()->status);
         $this->assertSame(1, BigTest::count());
@@ -228,13 +244,15 @@ class Phase2FinalGapsTest extends TestCase
         $this->assertNull(BigTestResult::where('student_id', $c->id)->value('overall_score'));
         $this->assertFalse(ClassReportStudentSupport::where('source', SupportListService::SOURCE_BIG_TEST)->exists());
 
-        // Học thuật: bấm duyệt không duyệt bản nháp, không có link "Xem & duyệt", duyệt & gửi 1 HV bị từ chối.
-        $this->actingAs($this->lead)->post(route('syllabus.big-tests.results.approve', $test->id))->assertRedirect();
+        // Người duyệt (chỉ Admin, 06/10/2026): bấm duyệt không duyệt bản nháp, không có link "Xem & duyệt", duyệt & gửi 1 HV bị từ chối.
+        $this->actingAs($this->admin)->post(route('syllabus.big-tests.results.approve', $test->id))->assertRedirect();
         $this->assertSame(0, BigTestResult::where('status', 'approved')->count());
         $draftA = BigTestResult::where('student_id', $a->id)->firstOrFail();
-        $this->actingAs($this->lead)->get(route('syllabus.big-tests.results', $test->id))->assertOk()
-            ->assertSee('Nháp (GV chưa gửi duyệt)')->assertDontSee(route('syllabus.big-tests.results', ['id' => $test->id, 'result' => $draftA->id], absolute: false));
-        $this->actingAs($this->lead)->post(route('syllabus.big-tests.results.approve-send', $draftA->id))->assertSessionHas('error');
+        foreach ([$this->lead, $this->admin] as $viewer) {
+            $this->actingAs($viewer)->get(route('syllabus.big-tests.results', $test->id))->assertOk()
+                ->assertSee('Nháp (GV chưa gửi duyệt)')->assertDontSee(route('syllabus.big-tests.results', ['id' => $test->id, 'result' => $draftA->id], absolute: false));
+        }
+        $this->actingAs($this->admin)->post(route('syllabus.big-tests.results.approve-send', $draftA->id))->assertSessionHas('error');
         $this->assertSame('draft', $draftA->fresh()->status);
 
         // Bản nháp sửa tiếp được; GV thấy nút Lưu nháp / Gửi duyệt.
@@ -257,7 +275,7 @@ class Phase2FinalGapsTest extends TestCase
         $this->assertSame('draft', BigTestResult::where('student_id', $c->id)->value('status'));
         $this->assertTrue(ClassReportStudentSupport::where('source', SupportListService::SOURCE_BIG_TEST)->where('student_id', $a->id)->exists());
 
-        $this->actingAs($this->lead)->post(route('syllabus.big-tests.results.approve', $test->id))->assertRedirect();
+        $this->actingAs($this->admin)->post(route('syllabus.big-tests.results.approve', $test->id))->assertRedirect();
         $this->assertSame(2, BigTestResult::where('status', 'approved')->count());
     }
 

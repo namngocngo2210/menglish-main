@@ -4,6 +4,7 @@ namespace App\Support\Navigation;
 
 use App\Models\User;
 use App\Providers\ApprovalServiceProvider;
+use App\Support\Approvals\AdminOnlyApprovals;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Str;
@@ -82,7 +83,7 @@ final class SidebarMenu
                 'icon' => 'fact_check',
                 // Cả mục "Cần duyệt" chỉ Admin thấy (yêu cầu 06/10/2026). Màn gốc của các tab vẫn mở được từ màn nghiệp vụ
                 // (Học viên → Tiếp nhận & Xếp lớp, CRM → Xác nhận chính thức, thông báo…) theo quyền như trước.
-                'can' => [ApprovalServiceProvider::MODULE_ABILITY],
+                'can' => [AdminOnlyApprovals::ABILITY],
                 'items' => [
                     // Hộp chung: chỉ hiện khi duyệt được ít nhất 1 nguồn (Gate ApprovalServiceProvider::INBOX_ABILITY).
                     ['label' => 'Việc cần duyệt', 'route' => 'approvals.index', 'active' => ['approvals.*'], 'can' => [ApprovalServiceProvider::INBOX_ABILITY]],

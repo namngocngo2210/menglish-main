@@ -13,9 +13,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 
 /**
- * Báo cáo trực lớp (không ảnh) chờ xác nhận (màn tasks.manual-approvals, mục báo cáo): chỉ đúng người xác nhận
- * theo A6 Q8 (ClassReport::isConfirmableBy — GV chính, lớp chưa có GV chính thì người giao việc).
- * SQL lọc thô theo các vai có thể xác nhận, rồi lọc đúng luật trong PHP (người xác nhận tính lại theo GV chính hiện tại).
+ * Báo cáo trực lớp (không ảnh) chờ xác nhận (màn tasks.manual-approvals, mục báo cáo): chỉ Admin xác nhận
+ * (ClassReport::isConfirmableBy, 06/10/2026); người nộp không tự xác nhận.
  */
 class ClassReportApprovalSource extends QueryApprovalSource
 {
@@ -50,10 +49,7 @@ class ClassReportApprovalSource extends QueryApprovalSource
     {
         return ClassReport::query()
             ->where('status', ClassReport::STATUS_PENDING)
-            ->where('reporter_id', '!=', $user->id)
-            ->where(fn (Builder $q) => $q->where('confirmer_id', $user->id)
-                ->orWhereHas('classModel', fn (Builder $c) => $c->where('teacher_id', $user->id))
-                ->orWhereHas('task', fn (Builder $t) => $t->where('creator_id', $user->id)));
+            ->where('reporter_id', '!=', $user->id); // chỉ Admin xác nhận (ClassReport::isConfirmableBy)
     }
 
     protected function with(): array

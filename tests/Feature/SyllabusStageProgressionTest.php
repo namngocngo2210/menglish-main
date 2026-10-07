@@ -19,6 +19,7 @@ use App\Models\SyllabusStage;
 use App\Models\SyllabusUnit;
 use App\Models\User;
 use App\Services\SyllabusProgressionService;
+use App\Support\Roles;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Database\QueryException;
@@ -34,6 +35,9 @@ class SyllabusStageProgressionTest extends TestCase
     use RefreshDatabase;
 
     private User $academic;
+
+    /** Người duyệt kết quả Big Test / giãn tiến độ (chỉ Admin duyệt từ 06/10/2026). */
+    private User $admin;
 
     private User $teacher;
 
@@ -53,7 +57,9 @@ class SyllabusStageProgressionTest extends TestCase
 
         $branch = Branch::create(['name' => 'Cơ sở GT', 'code' => 'GT', 'is_active' => true]);
         $this->academic = User::factory()->create(['is_active' => true, 'branch_id' => $branch->id]);
-        $this->academic->assignRole('academic_lead');
+        $this->academic->assignRole(Roles::ACADEMIC_LEAD);
+        $this->admin = User::factory()->create(['is_active' => true, 'branch_id' => $branch->id]);
+        $this->admin->assignRole(Roles::ADMIN);
         $this->teacher = User::factory()->create(['is_active' => true, 'branch_id' => $branch->id]);
         $this->teacher->assignRole('teacher');
 
@@ -171,8 +177,9 @@ class SyllabusStageProgressionTest extends TestCase
         $this->makeResult($test, $b, 'pending_review');
         $this->makeResult($test, $absent, 'pending_review', true);
 
-        // Duyệt chưa đủ: chưa gửi PH.
-        $this->actingAs($this->academic)->post(route('syllabus.big-tests.results.approve', $test->id))->assertRedirect();
+        // Duyệt chưa đủ: chưa gửi PH. Chỉ Admin duyệt kết quả (06/10/2026); Học thuật gửi PH.
+        $this->actingAs($this->academic)->post(route('syllabus.big-tests.results.approve', $test->id))->assertForbidden();
+        $this->actingAs($this->admin)->post(route('syllabus.big-tests.results.approve', $test->id))->assertRedirect();
         $this->assertTrue($first->fresh()->isOpen());
 
         // Gửi PH 1 học viên: vẫn còn 1 kết quả chưa gửi.
@@ -314,7 +321,7 @@ class SyllabusStageProgressionTest extends TestCase
         $req = SyllabusAdjustmentRequest::firstOrFail();
         $this->assertSame($assignment->id, $req->syllabus_assignment_id);
 
-        $this->actingAs($this->academic)->post(route('syllabus.adjustment-requests.approve', $req->id))->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('syllabus.adjustment-requests.approve', $req->id))->assertRedirect()->assertSessionHasNoErrors();
         $this->assertSame(2, $assignment->fresh()->extra_sessions);
         $this->assertStringContainsString('+2 buổi giãn tiến độ', $req->fresh()->applied_note);
     }

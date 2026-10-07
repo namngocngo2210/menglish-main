@@ -13,6 +13,7 @@ use App\Models\TuitionReceipt;
 use App\Models\TuitionRefundRequest;
 use App\Models\User;
 use App\Services\Tuition\SessionLedger;
+use App\Support\Roles;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -35,6 +36,9 @@ class SessionLedgerTest extends TestCase
 
     private User $accountant;
 
+    /** Người duyệt phiếu thu: chỉ Admin (06/10/2026). */
+    private User $admin;
+
     private Course $course;
 
     private ClassModel $classA;
@@ -51,6 +55,7 @@ class SessionLedgerTest extends TestCase
         $this->branch = Branch::create(['name' => 'Cơ sở sổ buổi', 'code' => 'SB', 'is_active' => true]);
         $this->academic = $this->makeUser('academic_staff');
         $this->accountant = $this->makeUser('accountant');
+        $this->admin = $this->makeUser(Roles::ADMIN);
         // 24 buổi, 4.800.000 đ → 200.000 đ / buổi.
         $this->course = Course::create(['code' => 'SB24', 'name' => 'Starters', 'tuition_fee' => 4800000, 'total_lessons' => 24, 'is_active' => true]);
         $this->classA = $this->makeClass('SB-A');
@@ -169,7 +174,7 @@ class SessionLedgerTest extends TestCase
         $this->assertEquals(2850000, $breakdown['total_due']);
         $this->assertEquals(20000, $breakdown['extra']);
 
-        $this->actingAs($this->accountant)->post(route('tuition.receipts.approve.action', $receipt->id))->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('tuition.receipts.approve.action', $receipt->id))->assertSessionHasNoErrors();
 
         $this->assertEquals(0, (float) $tuition->fresh()->debt_amount);
         $this->assertSame(['paid' => 24, 'used' => 8, 'balance' => 16], app(SessionLedger::class)->forStudent($student));
@@ -212,7 +217,7 @@ class SessionLedgerTest extends TestCase
         $this->assertNull($receipt->student_tuition_id);
         $this->assertSame(0, StudentTuition::count());
 
-        $this->actingAs($this->accountant)->post(route('tuition.receipts.approve.action', $receipt->id))->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('tuition.receipts.approve.action', $receipt->id))->assertSessionHasNoErrors();
 
         $tuition = StudentTuition::firstOrFail();
         $this->assertSame($tuition->id, $receipt->fresh()->student_tuition_id);

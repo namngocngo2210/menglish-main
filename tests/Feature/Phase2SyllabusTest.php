@@ -17,6 +17,8 @@ use App\Models\SyllabusLesson;
 use App\Models\SyllabusStage;
 use App\Models\SyllabusUnit;
 use App\Models\User;
+use App\Services\SyllabusProgressionService;
+use App\Support\Roles;
 use Carbon\Carbon;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
@@ -37,6 +39,9 @@ class Phase2SyllabusTest extends TestCase
 
     private User $academic;
 
+    /** Người duyệt / từ chối đề xuất & giãn tiến độ (chỉ Admin duyệt từ 06/10/2026). */
+    private User $admin;
+
     private User $teacher;
 
     private User $otherTeacher;
@@ -54,7 +59,8 @@ class Phase2SyllabusTest extends TestCase
         $this->seed(RoleSeeder::class);
 
         $this->branch = Branch::create(['name' => 'Cơ sở P2', 'code' => 'P2', 'is_active' => true]);
-        $this->academic = $this->makeUser('academic_lead');
+        $this->academic = $this->makeUser(Roles::ACADEMIC_LEAD);
+        $this->admin = $this->makeUser(Roles::ADMIN);
         $this->teacher = $this->makeUser('teacher');
         $this->otherTeacher = $this->makeUser('teacher');
         $this->assistant = $this->makeUser('assistant');
@@ -298,19 +304,24 @@ class Phase2SyllabusTest extends TestCase
         $this->actingAs($this->otherTeacher)->get(route('syllabus.proposals.attachment', $proposal->id))->assertNotFound();
         $this->actingAs($this->teacher)->post(route('syllabus.proposals.approve', $proposal->id))->assertForbidden();
 
-        // Học thuật xem chi tiết và từ chối bắt buộc lý do
+        // Học thuật xem chi tiết nhưng không duyệt / từ chối được (chỉ Admin duyệt, 06/10/2026)
         $this->actingAs($this->academic)->get(route('syllabus.versions', ['proposal' => $proposal->id]))
             ->assertOk()->assertSee('250 từ / 40 phút')->assertSee('150 từ / 20 phút')->assertSee('Writing Task 1');
-        $this->actingAs($this->academic)->post(route('syllabus.proposals.reject', $proposal->id))->assertSessionHasErrors('review_note');
-        $this->actingAs($this->academic)->post(route('syllabus.proposals.approve', $proposal->id), ['review_note' => 'OK áp dụng từ khóa sau'])->assertRedirect();
+        $this->actingAs($this->academic)->post(route('syllabus.proposals.approve', $proposal->id), ['review_note' => 'OK'])->assertForbidden();
+        $this->actingAs($this->academic)->post(route('syllabus.proposals.reject', $proposal->id), ['review_note' => 'x'])->assertForbidden();
+        $this->assertSame('pending', $proposal->fresh()->status);
+
+        // Admin từ chối bắt buộc lý do, duyệt được
+        $this->actingAs($this->admin)->post(route('syllabus.proposals.reject', $proposal->id))->assertSessionHasErrors('review_note');
+        $this->actingAs($this->admin)->post(route('syllabus.proposals.approve', $proposal->id), ['review_note' => 'OK áp dụng từ khóa sau'])->assertRedirect();
 
         $proposal->refresh();
         $this->assertSame('approved', $proposal->status);
-        $this->assertSame($this->academic->id, $proposal->reviewer_id);
+        $this->assertSame($this->admin->id, $proposal->reviewer_id);
         $this->assertNotNull($proposal->reviewed_at);
 
         // Đã xử lý thì không xử lý lại
-        $this->actingAs($this->academic)->post(route('syllabus.proposals.reject', $proposal->id), ['review_note' => 'x'])
+        $this->actingAs($this->admin)->post(route('syllabus.proposals.reject', $proposal->id), ['review_note' => 'x'])
             ->assertSessionHasErrors('status');
 
         // Giáo viên thấy trạng thái trong lịch sử của mình
@@ -324,7 +335,7 @@ class Phase2SyllabusTest extends TestCase
             'curriculum_id' => $cur->id, 'user_id' => $this->teacher->id, 'new_content' => 'Đổi audio', 'status' => 'pending',
         ]);
 
-        $this->actingAs($this->academic)->post(route('syllabus.proposals.reject', $proposal->id), ['review_note' => 'Audio cũ vẫn dùng được'])->assertRedirect();
+        $this->actingAs($this->admin)->post(route('syllabus.proposals.reject', $proposal->id), ['review_note' => 'Audio cũ vẫn dùng được'])->assertRedirect();
 
         $this->assertDatabaseHas('syllabus_change_proposals', ['id' => $proposal->id, 'status' => 'rejected', 'review_note' => 'Audio cũ vẫn dùng được']);
         $this->actingAs($this->teacher)->get(route('syllabus.teacher-propose'))->assertSee('Audio cũ vẫn dùng được');
@@ -361,7 +372,7 @@ class Phase2SyllabusTest extends TestCase
             'end_date' => $nextMonday->toDateString(), 'is_system_wide' => true,
         ]);
         // Giãn tiến độ gắn chặng đang mở (lớp chưa mở chặng thì server từ chối).
-        app(\App\Services\SyllabusProgressionService::class)->open($this->class, $this->curriculum()->stages()->firstOrFail(), $this->teacher->id, $this->academic);
+        app(SyllabusProgressionService::class)->open($this->class, $this->curriculum()->stages()->firstOrFail(), $this->teacher->id, $this->academic);
 
         $this->actingAs($this->teacher)->post(route('syllabus.adjustment-requests.store'), [
             'class_id' => $this->class->id, 'request_type' => 'Giãn tiến độ 2 buổi', 'reason' => 'Lớp tiếp thu chậm', 'extra_sessions' => 2,
@@ -369,7 +380,8 @@ class Phase2SyllabusTest extends TestCase
         $req = SyllabusAdjustmentRequest::firstOrFail();
         $this->assertSame(2, $req->extra_sessions);
 
-        $this->actingAs($this->academic)->post(route('syllabus.adjustment-requests.approve', $req->id))->assertRedirect()->assertSessionHasNoErrors();
+        $this->actingAs($this->academic)->post(route('syllabus.adjustment-requests.approve', $req->id))->assertForbidden(); // chỉ Admin duyệt
+        $this->actingAs($this->admin)->post(route('syllabus.adjustment-requests.approve', $req->id))->assertRedirect()->assertSessionHasNoErrors();
 
         $req->refresh();
         $this->assertSame('approved', $req->status);
@@ -392,7 +404,7 @@ class Phase2SyllabusTest extends TestCase
             'reason' => 'x', 'extra_sessions' => 1, 'status' => 'pending',
         ]);
 
-        $this->actingAs($this->academic)->post(route('syllabus.adjustment-requests.approve', $req->id))->assertSessionHasErrors('extra_sessions');
+        $this->actingAs($this->admin)->post(route('syllabus.adjustment-requests.approve', $req->id))->assertSessionHasErrors('extra_sessions');
         $this->assertSame('pending', $req->fresh()->status);
         $this->assertSame(0, ClassSession::where('class_id', $this->class->id)->count());
     }
@@ -404,9 +416,9 @@ class Phase2SyllabusTest extends TestCase
             'reason' => 'x', 'extra_sessions' => 1, 'status' => 'pending',
         ]);
 
-        $this->actingAs($this->academic)->post(route('syllabus.adjustment-requests.reject', $req->id), ['rejection_reason' => ''])
+        $this->actingAs($this->admin)->post(route('syllabus.adjustment-requests.reject', $req->id), ['rejection_reason' => ''])
             ->assertSessionHasErrors('rejection_reason');
-        $this->actingAs($this->academic)->post(route('syllabus.adjustment-requests.reject', $req->id), ['rejection_reason' => 'Chưa đủ căn cứ'])
+        $this->actingAs($this->admin)->post(route('syllabus.adjustment-requests.reject', $req->id), ['rejection_reason' => 'Chưa đủ căn cứ'])
             ->assertRedirect();
 
         $this->assertDatabaseHas('syllabus_adjustment_requests', ['id' => $req->id, 'status' => 'rejected', 'rejection_reason' => 'Chưa đủ căn cứ']);
@@ -424,7 +436,7 @@ class Phase2SyllabusTest extends TestCase
 
     public function test_media_manager_cannot_touch_other_modules_files(): void
     {
-        $admin = $this->makeUser('admin');
+        $admin = $this->admin;
         $cv = storage_path('app/public/candidate_cvs/p2-cv-test.pdf');
         $receipt = public_path('uploads/tuition/receipts/p2-receipt-test.png');
         $ticket = public_path('uploads/2026/09/25/p2-ticket-test.png');

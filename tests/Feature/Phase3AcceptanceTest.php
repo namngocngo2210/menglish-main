@@ -128,7 +128,7 @@ class Phase3AcceptanceTest extends TestCase
         $this->actingAs($this->manager)->post(route('payroll.config.teacher-rates.personal.store'), $this->rate(200000, '2026-07-01'))->assertSessionHasNoErrors();
         $this->actingAs($this->manager)->post(route('payroll.config.teacher-rates.personal.store'), $this->rate(250000, '2026-09-01'))->assertSessionHasNoErrors();
 
-        // ── 1. Sale chốt 2 khách mới (đã đóng học phí) ngày 03/08; Kế toán duyệt phiếu thu ───────────────
+        // ── 1. Sale chốt 2 khách mới (đã đóng học phí) ngày 03/08; Admin duyệt phiếu thu (chỉ Admin, 06/10/2026) ──
         $this->at('2026-08-03 10:00');
         $k1 = $this->closeCustomer('0977300001', 'Khách Một');
         $k2 = $this->closeCustomer('0977300002', 'Khách Hai');
@@ -136,7 +136,8 @@ class Phase3AcceptanceTest extends TestCase
         foreach ([$k1, $k2] as $customer) {
             $receipt = TuitionReceipt::where('student_id', $customer->converted_student_id)->where('status', 'pending')->firstOrFail();
             $this->actingAs($this->sale)->post(route('tuition.receipts.approve.action', $receipt->id))->assertForbidden();
-            $this->actingAs($this->accountant)->post(route('tuition.receipts.approve.action', $receipt->id))->assertSessionHasNoErrors();
+            $this->actingAs($this->accountant)->post(route('tuition.receipts.approve.action', $receipt->id))->assertForbidden();
+            $this->actingAs($this->admin)->post(route('tuition.receipts.approve.action', $receipt->id))->assertSessionHasNoErrors();
             $this->assertSame('approved', $receipt->fresh()->status);
         }
 

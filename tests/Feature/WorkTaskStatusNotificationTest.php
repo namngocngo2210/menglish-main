@@ -13,7 +13,8 @@ use Tests\TestCase;
 
 /**
  * Đổi trạng thái công việc phải báo đúng người: Bị chặn (SOS) → người giao + mọi Admin;
- * gỡ chặn / chờ xác nhận → người giao; hoàn thành / trả về → người làm; hủy → người làm + người giao.
+ * gỡ chặn → người giao; chờ xác nhận → Admin (chỉ Admin xác nhận, 06/10/2026); hoàn thành / trả về → người làm;
+ * hủy → người làm + người giao.
  */
 class WorkTaskStatusNotificationTest extends TestCase
 {
@@ -124,21 +125,30 @@ class WorkTaskStatusNotificationTest extends TestCase
         $this->assertSame([$this->creator->id => 'Việc đã gỡ chặn: Task 1'], $this->notificationsFor($task, 'task_assigned'));
     }
 
-    public function test_pending_confirmation_still_notifies_creator(): void
+    public function test_pending_confirmation_notifies_admins_not_creator(): void
     {
         $task = $this->task('in_progress');
 
         $this->actingAs($this->assignee)
             ->post(route('tasks.status.update', $task->id), ['status' => 'pending_confirmation', 'reason' => 'Đã xong']);
 
-        $this->assertSame([$this->creator->id => 'Việc chờ xác nhận: Task 1'], $this->notificationsFor($task, 'task_assigned'));
+        $this->assertEqualsCanonicalizing([
+            $this->admin->id => 'Việc chờ xác nhận: Task 1',
+            $this->otherAdmin->id => 'Việc chờ xác nhận: Task 1',
+        ], $this->notificationsFor($task, 'task_assigned'));
     }
 
     public function test_completed_from_status_modal_notifies_assignee(): void
     {
         $task = $this->task('pending_confirmation');
 
+        // Người giao việc không còn xác nhận (chỉ Admin, 06/10/2026).
         $this->actingAs($this->creator)
+            ->post(route('tasks.status.update', $task->id), ['status' => 'completed'])
+            ->assertSessionHasErrors();
+        $this->assertSame('pending_confirmation', $task->fresh()->status);
+
+        $this->actingAs($this->admin)
             ->post(route('tasks.status.update', $task->id), ['status' => 'completed'])
             ->assertSessionHasNoErrors();
 
@@ -149,7 +159,8 @@ class WorkTaskStatusNotificationTest extends TestCase
     {
         $task = $this->task('pending_confirmation');
 
-        $this->actingAs($this->creator)->post(route('tasks.approve', $task->id))->assertRedirect();
+        $this->actingAs($this->creator)->post(route('tasks.approve', $task->id))->assertForbidden();
+        $this->actingAs($this->admin)->post(route('tasks.approve', $task->id))->assertRedirect();
 
         $this->assertSame('completed', $task->fresh()->status);
         $this->assertSame([$this->assignee->id => 'Việc đã được xác nhận hoàn thành: Task 1'], $this->notificationsFor($task, 'task_assigned'));
@@ -159,7 +170,7 @@ class WorkTaskStatusNotificationTest extends TestCase
     {
         $task = $this->task('pending_confirmation');
 
-        $this->actingAs($this->creator)
+        $this->actingAs($this->admin)
             ->post(route('tasks.status.update', $task->id), ['status' => 'in_progress', 'reason' => 'Thiếu ảnh']);
 
         $notif = AdminNotification::where('data->task_id', $task->id)->sole();

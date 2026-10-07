@@ -100,10 +100,16 @@ class BaPermissionsTest extends TestCase
                 $this->assertFalse($role($other)->hasPermissionTo($adminOnly), "{$other} không có {$adminOnly} theo mặc định");
             }
         }
-        foreach (['refund_transfer.approve', 'refund_transfer.approve_transfer', 'refund_transfer.reject', 'tuition.approve', 'invoice.request_cancel'] as $shared) {
-            $this->assertTrue($role('manager')->hasPermissionTo($shared), "manager {$shared}");
-            $this->assertTrue($role('accountant')->hasPermissionTo($shared), "accountant {$shared}");
+        // Chỉ Admin duyệt / từ chối (06/10/2026): Quản lý cơ sở không còn quyền duyệt mặc định; vai trò Kế toán mẫu (chỉ có
+        // trong test) còn giữ quyền cũ nhưng Gate::before chặn — không có hiệu lực.
+        foreach (['refund_transfer.approve', 'refund_transfer.approve_transfer', 'refund_transfer.reject', 'tuition.approve', 'tuition.reject'] as $approval) {
+            $this->assertTrue($this->admin->can($approval), "admin {$approval}");
+            $this->assertFalse($role('manager')->hasPermissionTo($approval), "manager không có {$approval} theo mặc định");
+            $this->assertFalse($this->manager->can($approval), "manager {$approval}");
+            $this->assertFalse($this->accountant->can($approval), "accountant {$approval}");
         }
+        $this->assertTrue($role('manager')->hasPermissionTo('invoice.request_cancel'));
+        $this->assertTrue($role('accountant')->hasPermissionTo('invoice.request_cancel'));
         $this->assertTrue($role('accountant')->hasPermissionTo('invoice_range.manage'));
         $this->assertFalse($role('accountant')->hasPermissionTo('attendance_staff.manual_record'));
 
@@ -122,7 +128,7 @@ class BaPermissionsTest extends TestCase
         $this->assertNotNull($foreign);
     }
 
-    public function test_admin_grants_refund_approval_to_accountant_role_on_roles_screen(): void
+    public function test_refund_approval_granted_to_accountant_role_has_no_effect_only_admin_approves(): void
     {
         $refund = $this->refundRequest('refund');
         $transfer = $this->refundRequest('transfer');
@@ -131,42 +137,51 @@ class BaPermissionsTest extends TestCase
             ->assertSee('Kế toán / Học phí')->assertSee('Duyệt hoàn tiền (chi tiền)')->assertSee('refund_transfer.approve_refund')
             ->assertSee('Phạm vi dữ liệu')->assertSee('Học phí mọi chi nhánh (kế toán tổng)')->assertSee('Duyệt / từ chối hủy hóa đơn');
 
+        // Chỉ Admin duyệt (06/10/2026): Kế toán không thấy nút duyệt hồ sơ nào, kể cả chuyển nhượng.
         $this->actingAs($this->accountant)->get(route('tuition.refunds'))->assertOk()
-            ->assertDontSee(route('tuition.refunds.approve', $refund->id, false), false)->assertSee(route('tuition.refunds.approve', $transfer->id, false), false);
+            ->assertDontSee(route('tuition.refunds.approve', $refund->id, false), false)->assertDontSee(route('tuition.refunds.approve', $transfer->id, false), false);
         $this->accountant = $this->accountant->fresh();
 
+        // Admin vẫn cấp được quyền ở màn Vai trò nhưng quyền duyệt không có hiệu lực với vai trò khác Admin.
         $accountantRole = Role::findByName('accountant', 'web');
         $permissions = $accountantRole->permissions->pluck('name')->push('refund_transfer.approve_refund')->all();
         $this->actingAs($this->admin)->put(route('roles.update', $accountantRole), ['name' => 'accountant', 'permissions' => $permissions])
             ->assertSessionHasNoErrors();
         $this->accountant = $this->accountant->fresh();
 
-        $this->actingAs($this->accountant)->get(route('tuition.refunds'))->assertOk()->assertSee(route('tuition.refunds.approve', $refund->id, false), false);
-        // Qua cổng quyền → gặp luật nghiệp vụ tiếp theo (bắt buộc ảnh bằng chứng), rồi duyệt được.
-        $this->actingAs($this->accountant)->post(route('tuition.refunds.approve', $refund->id), ['clawback_commission' => 0])->assertSessionHasErrors('proof_image');
+        $this->actingAs($this->accountant)->get(route('tuition.refunds'))->assertOk()->assertDontSee(route('tuition.refunds.approve', $refund->id, false), false);
         $this->actingAs($this->accountant)->post(route('tuition.refunds.approve', $refund->id), [
             'clawback_commission' => 0, 'proof_image' => UploadedFile::fake()->image('unc.png', 20, 20),
-        ])->assertSessionHasNoErrors();
-        $this->assertSame(['approved', $this->accountant->id], [$refund->fresh()->status, $refund->fresh()->approver_id]);
+        ])->assertForbidden();
+        $this->assertSame('pending', $refund->fresh()->status);
 
-        // Thu hồi quyền duyệt chuyển nhượng của riêng Quản lý cơ sở (Phân quyền cá nhân) → 403; Kế toán vẫn duyệt được.
+        // Admin duyệt: qua cổng quyền → gặp luật nghiệp vụ tiếp theo (bắt buộc ảnh bằng chứng), rồi duyệt được.
+        $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $refund->id), ['clawback_commission' => 0])->assertSessionHasErrors('proof_image');
+        $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $refund->id), [
+            'clawback_commission' => 0, 'proof_image' => UploadedFile::fake()->image('unc.png', 20, 20),
+        ])->assertSessionHasNoErrors();
+        $this->assertSame(['approved', $this->admin->id], [$refund->fresh()->status, $refund->fresh()->approver_id]);
+
+        // Cấp riêng quyền duyệt chuyển nhượng cho Quản lý cơ sở (Phân quyền cá nhân) cũng không có tác dụng → 403; Admin duyệt.
         $this->actingAs($this->admin)->put(route('users.permissions.update', $this->manager), [
-            'overrides' => ['refund_transfer' => ['approve_transfer' => 'deny']],
+            'overrides' => ['refund_transfer' => ['approve_transfer' => 'allow']],
         ])->assertSessionHasNoErrors();
         $this->manager = $this->manager->fresh();
         $this->actingAs($this->manager)->post(route('tuition.refunds.approve', $transfer->id))->assertForbidden();
-        $this->actingAs($this->accountant)->post(route('tuition.refunds.approve', $transfer->id))->assertSessionHasNoErrors();
+        $this->actingAs($this->accountant)->post(route('tuition.refunds.approve', $transfer->id))->assertForbidden();
+        $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $transfer->id))->assertSessionHasNoErrors();
         $this->assertSame('approved', $transfer->fresh()->status);
 
-        // Từ chối theo quyền riêng refund_transfer.reject.
+        // Từ chối (refund_transfer.reject): chỉ Admin.
         $deferral = $this->refundRequest('extension');
         $this->grantPersonal($this->sales, 'tuition.view');
         $this->actingAs($this->sales)->post(route('tuition.refunds.reject', $deferral->id))->assertForbidden();
-        $this->actingAs($this->manager)->post(route('tuition.refunds.reject', $deferral->id), ['rejection_reason' => 'Không đủ căn cứ'])->assertSessionHasNoErrors();
+        $this->actingAs($this->manager)->post(route('tuition.refunds.reject', $deferral->id), ['rejection_reason' => 'Không đủ căn cứ'])->assertForbidden();
+        $this->actingAs($this->admin)->post(route('tuition.refunds.reject', $deferral->id), ['rejection_reason' => 'Không đủ căn cứ'])->assertSessionHasNoErrors();
         $this->assertSame('rejected', $deferral->fresh()->status);
     }
 
-    public function test_admin_grants_invoice_cancellation_approval_to_one_accountant_personally(): void
+    public function test_invoice_cancellation_approval_granted_personally_has_no_effect_only_admin_approves(): void
     {
         $cancellation = $this->cancellation();
         $otherAccountant = $this->makeUser('accountant', name: 'Kế toán Khác');
@@ -177,12 +192,17 @@ class BaPermissionsTest extends TestCase
             'overrides' => ['invoice' => ['approve_cancel' => 'allow']],
         ])->assertSessionHasNoErrors();
 
+        // Chỉ Admin duyệt / từ chối hủy hóa đơn (06/10/2026): override cá nhân "cho phép" không có tác dụng.
         $this->actingAs($otherAccountant)->post(route('tuition.invoices.cancellations.reject', $cancellation->id))->assertForbidden();
         $this->actingAs($this->accountant)->get(route('tuition.invoices.cancellations', ['selected_id' => $cancellation->id]))->assertOk()
-            ->assertDontSee('Yêu cầu đang chờ Admin (hoặc người được cấp quyền duyệt hủy hóa đơn) phê duyệt.');
+            ->assertSee('Yêu cầu đang chờ Admin (hoặc người được cấp quyền duyệt hủy hóa đơn) phê duyệt.');
         $this->actingAs($this->accountant)->post(route('tuition.invoices.cancellations.reject', $cancellation->id), ['rejection_reason' => 'Hóa đơn đúng'])
+            ->assertForbidden();
+        $this->assertSame('pending', $cancellation->fresh()->status);
+
+        $this->actingAs($this->admin)->post(route('tuition.invoices.cancellations.reject', $cancellation->id), ['rejection_reason' => 'Hóa đơn đúng'])
             ->assertSessionHasNoErrors();
-        $this->assertSame(['rejected', $this->accountant->id], [$cancellation->fresh()->status, $cancellation->fresh()->approver_id]);
+        $this->assertSame(['rejected', $this->admin->id], [$cancellation->fresh()->status, $cancellation->fresh()->approver_id]);
     }
 
     public function test_head_office_scope_and_default_invoice_range_are_permissions_not_missing_branch(): void
@@ -272,6 +292,8 @@ class BaPermissionsTest extends TestCase
         foreach (['manager', 'accountant'] as $name) {
             Role::findByName($name, 'web')->givePermissionTo('invoice.approve_cancel');
         }
+        // Trước 06/10/2026 Quản lý cơ sở còn duyệt khất nợ / bảo lưu (cấu hình mặc định nay đã bỏ — chỉ Admin duyệt).
+        Role::findByName('manager', 'web')->givePermissionTo('refund_transfer.approve');
         $academicRole = Role::findByName('academic_staff', 'web');
         $academicRole->syncPermissions($academicRole->permissions->pluck('name')->reject(fn ($p) => str_starts_with($p, 'lead.') && $p !== 'lead.view')
             ->reject(fn ($p) => in_array($p, ['promotion.manage', 'placement_test.create', 'placement_test.update', 'placement_test.send', 'placement_test.distribute'], true))->all());
@@ -315,6 +337,16 @@ class BaPermissionsTest extends TestCase
         $this->assertTrue($head->can('invoice_range.manage_default'));
         $this->assertTrue($role('admin')->hasPermissionTo('tuition.scope_all'));
         $this->assertSame(0, UserPermissionOverride::where('user_id', $this->accountant->id)->count());
+
+        // Chỉ Admin duyệt (2026_11_01_100000): gỡ mọi quyền duyệt khỏi vai trò khác Admin; Admin giữ nguyên.
+        $revoke = require database_path('migrations/2026_11_01_100000_revoke_approval_permissions_from_non_admin.php');
+        $revoke->up();
+        $revoke->up(); // chạy lại an toàn
+        foreach (['refund_transfer.approve', 'refund_transfer.approve_transfer', 'refund_transfer.reject', 'tuition.approve', 'tuition.reject'] as $approval) {
+            $this->assertFalse($role('manager')->hasPermissionTo($approval), "manager {$approval}");
+            $this->assertFalse($role('accountant')->hasPermissionTo($approval), "accountant {$approval}");
+            $this->assertTrue($role('admin')->hasPermissionTo($approval), "admin {$approval}");
+        }
     }
 
     // ── Quyết định 2: Học vụ toàn quyền CRM trừ xóa ────────────────────────────────────────────

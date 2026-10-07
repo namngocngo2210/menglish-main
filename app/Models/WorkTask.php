@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Services\FirstMonthCareService;
+use App\Support\Approvals\AdminOnlyApprovals;
 use App\Support\DataScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -281,6 +282,7 @@ class WorkTask extends Model
             ->whereDoesntHave('classReport', fn ($q) => $q->where('status', ClassReport::STATUS_PENDING))
             ->where(fn ($q) => $q->whereNull('assignee_id')->orWhere('assignee_id', '!=', $user->id));
 
-        return $user->can('work_task.approve') ? $query->visibleTo($user) : $query->where('creator_id', $user->id);
+        // Chỉ Admin xác nhận hoàn thành (06/10/2026); người giao việc / work_task.approve không còn duyệt.
+        return AdminOnlyApprovals::allows($user) ? $query->visibleTo($user) : $query->whereRaw('1 = 0');
     }
 }

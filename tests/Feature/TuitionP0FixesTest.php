@@ -129,7 +129,8 @@ class TuitionP0FixesTest extends TestCase
         $this->assertSame('pending', $receipt->status);
         $this->assertEquals(4500000, (float) $receipt->tuition_amount);
 
-        $this->actingAs($this->accountant)
+        // Chỉ Admin duyệt phiếu thu (06/10/2026).
+        $this->actingAs($this->admin)
             ->post(route('tuition.receipts.approve.action', $receipt->id))
             ->assertSessionHasNoErrors();
 
@@ -155,7 +156,7 @@ class TuitionP0FixesTest extends TestCase
             'status' => 'pending',
         ]);
 
-        $this->actingAs($this->accountant)
+        $this->actingAs($this->admin)
             ->post(route('tuition.receipts.approve.action', $receipt->id))
             ->assertSessionHasNoErrors();
 
@@ -237,9 +238,10 @@ class TuitionP0FixesTest extends TestCase
             'status' => 'pending',
         ]);
 
+        // Chỉ Admin duyệt (06/10/2026): Kế toán lập phiếu không duyệt được phiếu của mình (cũng không duyệt được phiếu nào).
         $this->actingAs($this->accountant)
             ->post(route('tuition.receipts.approve.action', $own->id))
-            ->assertSessionHasErrors('receipt');
+            ->assertForbidden();
         $this->assertSame('pending', $own->fresh()->status);
         $this->assertNull($own->fresh()->invoice_number);
 
@@ -478,7 +480,11 @@ class TuitionP0FixesTest extends TestCase
             'refund_amount' => 3000000, 'reason' => 'Chuyển em', 'requester_id' => $this->accountant->id, 'status' => 'pending',
         ]);
 
+        // Chỉ Admin duyệt chuyển nhượng (06/10/2026); Kế toán khác bị chặn.
         $this->actingAs($this->accountant2)
+            ->post(route('tuition.refunds.approve', $transfer->id))
+            ->assertForbidden();
+        $this->actingAs($this->admin)
             ->post(route('tuition.refunds.approve', $transfer->id))
             ->assertSessionHasNoErrors();
 
@@ -503,7 +509,7 @@ class TuitionP0FixesTest extends TestCase
             'refund_amount' => 3000000, 'reason' => 'x', 'requester_id' => $this->accountant->id, 'status' => 'pending',
         ]);
 
-        $this->actingAs($this->accountant2)
+        $this->actingAs($this->admin)
             ->post(route('tuition.refunds.approve', $transfer->id))
             ->assertSessionHasErrors('refund');
 
@@ -630,7 +636,7 @@ class TuitionP0FixesTest extends TestCase
             'amount' => 1500000, 'payment_method' => 'cash', 'paper_invoice_number' => 'HDG-0001', 'creator_id' => $this->staff->id, 'status' => 'pending',
         ]);
 
-        $this->actingAs($this->accountant)
+        $this->actingAs($this->admin)
             ->post(route('tuition.receipts.approve.action', $receipt->id))
             ->assertSessionHasErrors('receipt');
 

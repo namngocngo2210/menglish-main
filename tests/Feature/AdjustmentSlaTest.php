@@ -14,7 +14,7 @@ use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-/** Xin giãn tiến độ giáo trình: duyệt trong 3 ngày (SLA), báo người duyệt khi gửi và 1 lần khi quá hạn; Admin cũng duyệt được. */
+/** Xin giãn tiến độ giáo trình: duyệt trong 3 ngày (SLA), báo người duyệt (chỉ Admin, 06/10/2026) khi gửi và 1 lần khi quá hạn. */
 class AdjustmentSlaTest extends TestCase
 {
     use RefreshDatabase;
@@ -79,11 +79,12 @@ class AdjustmentSlaTest extends TestCase
     {
         $req = $this->submit();
 
-        foreach ([$this->academic, $this->admin] as $approver) {
-            $notice = AdminNotification::where('user_id', $approver->id)->where('type', 'adjustment_pending')->sole();
-            $this->assertSame($req->id, $notice->data['request_id']);
+        // Chỉ Admin duyệt (06/10/2026) → chỉ Admin nhận thông báo chờ duyệt; Học thuật không còn nhận.
+        $notice = AdminNotification::where('user_id', $this->admin->id)->where('type', 'adjustment_pending')->sole();
+        $this->assertSame($req->id, $notice->data['request_id']);
+        foreach ([$this->academic, $this->teacher] as $other) {
+            $this->assertSame(0, AdminNotification::where('user_id', $other->id)->where('type', 'adjustment_pending')->count());
         }
-        $this->assertSame(0, AdminNotification::where('user_id', $this->teacher->id)->where('type', 'adjustment_pending')->count());
     }
 
     public function test_breach_notification_is_sent_once_after_three_days(): void
@@ -97,9 +98,9 @@ class AdjustmentSlaTest extends TestCase
         $this->travel(2)->days();
         $this->artisan('syllabus:notify-adjustment-sla')->assertSuccessful();
         $this->artisan('syllabus:notify-adjustment-sla')->assertSuccessful();
-        foreach ([$this->academic, $this->admin] as $approver) {
-            $this->assertSame(1, AdminNotification::where('user_id', $approver->id)->where('type', 'adjustment_sla')->count());
-        }
+        // Quá hạn → báo đúng 1 lần cho Admin (người duyệt duy nhất); Học thuật không nhận.
+        $this->assertSame(1, AdminNotification::where('user_id', $this->admin->id)->where('type', 'adjustment_sla')->count());
+        $this->assertSame(0, AdminNotification::where('user_id', $this->academic->id)->where('type', 'adjustment_sla')->count());
         $this->assertNotNull($req->fresh()->sla_notified_at);
     }
 
@@ -117,6 +118,11 @@ class AdjustmentSlaTest extends TestCase
     public function test_admin_can_approve_adjustment_request(): void
     {
         $req = $this->submit();
+
+        // Học thuật không còn duyệt được (chỉ Admin, 06/10/2026).
+        $this->actingAs($this->academic)->post(route('syllabus.adjustment-requests.approve', $req->id), ['extra_sessions' => 0])
+            ->assertForbidden();
+        $this->assertSame('pending', $req->fresh()->status);
 
         $this->actingAs($this->admin)->post(route('syllabus.adjustment-requests.approve', $req->id), ['extra_sessions' => 0])
             ->assertSessionHasNoErrors();

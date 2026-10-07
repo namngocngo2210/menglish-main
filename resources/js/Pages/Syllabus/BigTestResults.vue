@@ -18,6 +18,8 @@ const props = defineProps({
     selectedResult: { type: Object, default: null },
     userName: { type: String, default: '' },
     isApprover: { type: Boolean, default: false },
+    // Duyệt kết quả: chỉ Admin (Học thuật vẫn xem bảng điểm, gửi phụ huynh kết quả đã duyệt).
+    canApprove: { type: Boolean, default: false },
     canGradeRole: { type: Boolean, default: false },
     canGrade: { type: Boolean, default: false },
     backUrl: { type: String, default: null },
@@ -65,7 +67,7 @@ watch(() => props.selectedResult?.id, (id) => (detailOpen.value = !!id));
         <template #actions>
             <template v-if="test && isApprover">
                 <!-- Việc chính của người duyệt là duyệt; gửi phụ huynh là bước sau nên để nút phụ -->
-                <UiForm :action="route('syllabus.big-tests.results.approve', test.id)" method="post">
+                <UiForm v-if="canApprove" :action="route('syllabus.big-tests.results.approve', test.id)" method="post">
                     <UiButton type="submit" icon="task_alt">Duyệt kết quả</UiButton>
                 </UiForm>
                 <UiForm :action="route('syllabus.big-tests.send-zalo', test.id)" method="post">
@@ -304,7 +306,7 @@ watch(() => props.selectedResult?.id, (id) => (detailOpen.value = !!id));
             </div>
         </div>
 
-        <template v-if="isApprover && ['pending_review', 'approved'].includes(selectedResult.status) && !selectedResult.parent_notified" #footer>
+        <template v-if="canApprove && ['pending_review', 'approved'].includes(selectedResult.status) && !selectedResult.parent_notified" #footer>
             <UiForm :action="route('syllabus.big-tests.results.approve-send', selectedResult.id)" method="post">
                 <UiButton type="submit" icon="send">{{ selectedResult.is_absent ? 'Duyệt (vắng thi)' : 'Duyệt & Gửi phụ huynh' }}</UiButton>
             </UiForm>

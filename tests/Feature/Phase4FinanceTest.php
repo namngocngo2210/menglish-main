@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\AcademicRecord;
+use App\Models\AdminNotification;
 use App\Models\BankAccount;
 use App\Models\Branch;
 use App\Models\ClassModel;
@@ -142,7 +143,8 @@ class Phase4FinanceTest extends TestCase
         $this->pendingReceipt($this->tuition, 1000000, ['invoice_number' => 'C26CG-0000010', 'status' => 'cancelled']);
 
         $receipt = $this->pendingReceipt($this->tuition, 2000000);
-        $this->actingAs($this->accountant)
+        // Chỉ Admin duyệt phiếu thu (06/10/2026).
+        $this->actingAs($this->admin)
             ->post(route('tuition.receipts.approve.action', $receipt->id))
             ->assertSessionHasNoErrors();
 
@@ -384,13 +386,14 @@ class Phase4FinanceTest extends TestCase
     }
 
     // ---------------------------------------------------------------------
-    // 6. Thông báo kế toán chi nhánh
+    // 6. Thông báo phiếu thu chờ duyệt
     // ---------------------------------------------------------------------
 
-    public function test_new_receipt_notifies_branch_accountants_personally(): void
+    public function test_new_receipt_notifies_admin_only_not_accountants(): void
     {
         $otherBranchAccountant = $this->makeUser('accountant', $this->branch2);
-        // Kế toán tổng: Admin cấp phạm vi tuition.scope_all (BA 26/09/2026). Kế toán không gán chi nhánh mà chưa được cấp → không nhận.
+        // Chỉ Admin duyệt phiếu thu (06/10/2026): Kế toán chi nhánh / Kế toán tổng (kể cả được cấp tuition.scope_all) không còn
+        // nhận thông báo cá nhân "chờ bạn duyệt"; Admin nhận thông báo chung.
         $hqAccountant = User::factory()->create(['branch_id' => null, 'is_active' => true]);
         $hqAccountant->assignRole('accountant');
         $this->grantHeadOffice($hqAccountant);
@@ -402,12 +405,14 @@ class Phase4FinanceTest extends TestCase
         ])->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('admin_notifications', ['user_id' => null, 'type' => 'receipt_pending']);
-        $this->assertDatabaseHas('admin_notifications', ['user_id' => $this->accountant->id, 'type' => 'receipt_pending']);
-        $this->assertDatabaseHas('admin_notifications', ['user_id' => $hqAccountant->id, 'type' => 'receipt_pending']);
+        $this->assertSame(1, AdminNotification::where('type', 'receipt_pending')->count());
+        $this->assertDatabaseMissing('admin_notifications', ['user_id' => $this->accountant->id]);
+        $this->assertDatabaseMissing('admin_notifications', ['user_id' => $hqAccountant->id]);
         $this->assertDatabaseMissing('admin_notifications', ['user_id' => $otherBranchAccountant->id]);
         $this->assertDatabaseMissing('admin_notifications', ['user_id' => $unscopedAccountant->id]);
 
-        $this->assertSame(1, app(NotificationService::class)->getUnreadCount($this->accountant));
+        $this->assertSame(1, app(NotificationService::class)->getUnreadCount($this->admin));
+        $this->assertSame(0, app(NotificationService::class)->getUnreadCount($this->accountant));
         $this->assertSame(0, app(NotificationService::class)->getUnreadCount($otherBranchAccountant));
     }
 
@@ -452,7 +457,7 @@ class Phase4FinanceTest extends TestCase
         $manual = $this->pendingReceipt($this->tuition, 2000000, ['payment_method' => 'transfer']);
         $manual->forceFill(['transaction_code' => 'FT-BANK-777'])->saveQuietly();
 
-        $this->actingAs($this->accountant)->post(route('tuition.receipts.approve.action', $manual->id))
+        $this->actingAs($this->admin)->post(route('tuition.receipts.approve.action', $manual->id))
             ->assertSessionHasErrors('receipt');
         $this->assertSame('pending', $manual->fresh()->status);
     }
@@ -476,17 +481,17 @@ class Phase4FinanceTest extends TestCase
             ->assertSee('Có thể trùng giao dịch SePay')
             ->assertSee('confirm_not_duplicate', false);
 
-        $this->actingAs($this->accountant)->post(route('tuition.receipts.approve.action', $manual->id))
+        $this->actingAs($this->admin)->post(route('tuition.receipts.approve.action', $manual->id))
             ->assertSessionHasErrors('receipt');
         $this->assertSame('pending', $manual->fresh()->status);
 
-        $this->actingAs($this->accountant)->post(route('tuition.receipts.approve.action', $manual->id), ['confirm_not_duplicate' => 1])
+        $this->actingAs($this->admin)->post(route('tuition.receipts.approve.action', $manual->id), ['confirm_not_duplicate' => 1])
             ->assertSessionHasNoErrors();
         $this->assertSame('approved', $manual->fresh()->status);
 
         // Tiền mặt không bị đối chiếu với SePay.
         $cash = $this->pendingReceipt($this->tuition, 2000000);
-        $this->actingAs($this->accountant)->post(route('tuition.receipts.approve.action', $cash->id))->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('tuition.receipts.approve.action', $cash->id))->assertSessionHasNoErrors();
     }
 
     // ---------------------------------------------------------------------

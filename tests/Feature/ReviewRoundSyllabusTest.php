@@ -12,6 +12,7 @@ use App\Models\SyllabusAdjustmentRequest;
 use App\Models\SyllabusCurriculum;
 use App\Models\User;
 use App\Services\SyllabusProgressionService;
+use App\Support\Roles;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -89,12 +90,15 @@ class ReviewRoundSyllabusTest extends TestCase
             'request_type' => 'Giãn', 'reason' => 'Chậm', 'extra_sessions' => 2, 'status' => 'pending',
         ]);
         $progression->close($first, $this->lead, 'Đóng thử', null, false);
+        // Chỉ Admin duyệt giãn tiến độ (06/10/2026).
+        $admin = User::factory()->create(['is_active' => true]);
+        $admin->assignRole(Roles::ADMIN);
 
-        $this->actingAs($this->lead)->post(route('syllabus.adjustment-requests.approve', $req->id), ['extra_sessions' => 2])
+        $this->actingAs($admin)->post(route('syllabus.adjustment-requests.approve', $req->id), ['extra_sessions' => 2])
             ->assertSessionHasErrors('extra_sessions');
         $this->assertSame('pending', $req->fresh()->status);
 
-        $this->actingAs($this->lead)->post(route('syllabus.adjustment-requests.approve', $req->id), ['extra_sessions' => 0])
+        $this->actingAs($admin)->post(route('syllabus.adjustment-requests.approve', $req->id), ['extra_sessions' => 0])
             ->assertSessionHasNoErrors();
         $this->assertSame(0, (int) $req->fresh()->extra_sessions);
     }

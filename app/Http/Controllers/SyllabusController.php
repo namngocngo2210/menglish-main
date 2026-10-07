@@ -29,6 +29,7 @@ use App\Services\SafeUploadService;
 use App\Services\ScheduleExtensionService;
 use App\Services\SyllabusProgressionService;
 use App\Services\ZaloZnsService;
+use App\Support\Approvals\AdminOnlyApprovals;
 use App\Support\Roles;
 use App\Support\Ui;
 use Carbon\Carbon;
@@ -871,7 +872,7 @@ class SyllabusController extends Controller
             'pendingCount' => $pendingCount,
             'statusOptions' => Ui::options(SyllabusChangeProposal::STATUS_LABELS),
             'listUrl' => route('syllabus.versions', $listQuery),
-            'canReview' => $user->can('syllabus.approve_adjustment'),
+            'canReview' => $user->can(AdminOnlyApprovals::ABILITY), // chỉ Admin duyệt (06/10/2026)
             'canManage' => $user->can('syllabus.manage'),
         ]);
     }
@@ -1150,7 +1151,7 @@ class SyllabusController extends Controller
                 'label' => $cl->name.' - '.($openAssignments[$cl->id]?->stage?->label ?? $openAssignments[$cl->id]?->stage_name).' ('.$cl->code.')',
             ])->values(),
             'slaDays' => SyllabusAdjustmentRequest::slaDays(),
-            'canReview' => $user->can('syllabus.approve_adjustment'),
+            'canReview' => $user->can(AdminOnlyApprovals::ABILITY), // chỉ Admin duyệt (06/10/2026)
         ]);
     }
 
@@ -1212,7 +1213,7 @@ class SyllabusController extends Controller
             'listTitle' => ['pending' => 'Danh sách chờ duyệt', 'approved' => 'Đã duyệt', 'rejected' => 'Đã từ chối'][$status] ?? 'Tất cả yêu cầu',
             'listUrl' => route('syllabus.adjustment-requests', $listQuery),
             'maxExtraSessions' => SyllabusAdjustmentRequest::MAX_EXTRA_SESSIONS,
-            'canReview' => $canReview,
+            'canReview' => $user->can(AdminOnlyApprovals::ABILITY), // xem theo quyền ở trên; nút duyệt chỉ Admin
         ]);
     }
 
@@ -1478,6 +1479,7 @@ class SyllabusController extends Controller
             ->map(fn (Collection $stages) => $stages->pluck('label', 'id'));
 
         $canReview = $user->can('big_test.approve');
+        $canApprove = $user->can(AdminOnlyApprovals::ABILITY); // duyệt / phân phối đề, duyệt order: chỉ Admin (06/10/2026)
         $listQuery = array_filter(['order_search' => $orderSearch, 'orders_page' => $request->query('orders_page')]) + ['order_status' => (string) $orderStatus];
 
         return Inertia::render('Syllabus/BigTestDistribution', [
@@ -1519,10 +1521,11 @@ class SyllabusController extends Controller
                 'paper_warning' => $this->paperWarning($bt),
                 'stage_options' => Ui::options($stageOptions[$bt->class_id] ?? []),
             ]),
-            'selectedOrder' => $selectedOrder ? $this->orderDetail($selectedOrder, $canReview) : null,
+            'selectedOrder' => $selectedOrder ? $this->orderDetail($selectedOrder, $canReview, $canApprove) : null,
             'listUrl' => route('syllabus.big-tests.distribution', $listQuery),
             'leadDays' => BigTestOrder::leadDays(),
             'canReview' => $canReview,
+            'canApprove' => $canApprove,
             'canManage' => $user->can('syllabus.manage'),
         ]);
     }
@@ -1550,10 +1553,10 @@ class SyllabusController extends Controller
     }
 
     /** Dữ liệu hộp thoại chi tiết order đề (màn Duyệt & phân phối đề Big Test). */
-    private function orderDetail(BigTestOrder $order, bool $canReview): array
+    private function orderDetail(BigTestOrder $order, bool $canReview, bool $canApprove): array
     {
         $oc = $order->classModel;
-        $reviewing = $canReview && ! in_array($order->status, ['approved', 'rejected'], true);
+        $reviewing = $canApprove && ! in_array($order->status, ['approved', 'rejected'], true);
         $classTests = $reviewing && $order->test_type === 'big'
             ? BigTest::where('class_id', $order->class_id)->whereNull('results_completed_at')->latest('scheduled_at')->get()
             : collect();
@@ -2008,6 +2011,7 @@ class SyllabusController extends Controller
             ] : null,
             'userName' => $user->name,
             'isApprover' => $isApprover,
+            'canApprove' => $isApprover && $user->can(AdminOnlyApprovals::ABILITY), // duyệt kết quả: chỉ Admin (06/10/2026)
             'canGradeRole' => $canGradeRole,
             'canGrade' => $test && $test->is_distributed && $canGradeRole,
             'backUrl' => $user->can('syllabus.manage') || $isApprover ? route('syllabus.big-tests.distribution') : null,

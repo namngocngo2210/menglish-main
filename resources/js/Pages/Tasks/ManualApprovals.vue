@@ -1,7 +1,7 @@
 <script setup>
 /**
- * Xác nhận hoàn thành thủ công: việc "Chờ xác nhận" không ảnh minh chứng (người giao việc xác nhận) và báo cáo trực lớp
- * không ảnh (A6 Q8: GV chính của lớp; lớp chưa có GV chính → người giao việc).
+ * Xác nhận hoàn thành thủ công: việc "Chờ xác nhận" không ảnh minh chứng và báo cáo trực lớp không ảnh — chỉ Admin
+ * xác nhận / trả lại (06/10/2026).
  * Bấm dòng → chi tiết mở trong modal (?selected_id= / ?report=); đóng modal thì bỏ tham số khỏi thanh địa chỉ.
  */
 import { nextTick, ref, watch } from 'vue';
@@ -38,7 +38,7 @@ function showReject() {
 <template>
     <UiPageHeader
         title="Xác nhận hoàn thành thủ công"
-        description="Danh sách các đầu việc chờ xác nhận từ Trợ giảng: báo cáo không đính kèm ảnh minh chứng cần người giao việc (báo cáo trực lớp: GV chính của lớp) xác nhận."
+        description="Danh sách các đầu việc chờ xác nhận từ Trợ giảng: báo cáo không đính kèm ảnh minh chứng cần Admin xác nhận."
     />
 
     <UiFilterBar :action="route('tasks.manual-approvals')" search="q" placeholder="Đầu việc, lớp, trợ giảng...">

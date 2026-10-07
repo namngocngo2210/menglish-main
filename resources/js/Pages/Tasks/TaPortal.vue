@@ -2,7 +2,7 @@
 /**
  * Portal trợ giảng — "Nhiệm vụ hằng ngày" dạng điện thoại, có thanh điều hướng dưới.
  * Nhiệm vụ chia 3 ca (Trước / Trong / Sau giờ học); Admin / quản lý / học vụ chọn xem trợ giảng bất kỳ trong phạm vi.
- * Hoàn thành: có ảnh → hoàn thành ngay; không ảnh → chờ người giao việc xác nhận (quyết định ở server).
+ * Hoàn thành: có ảnh → hoàn thành ngay; không ảnh → chờ Admin xác nhận (quyết định ở server).
  */
 import { reactive, ref } from 'vue';
 import { router } from '@inertiajs/vue3';
@@ -219,7 +219,7 @@ function openReport(event) {
                     <input id="ta_proof" type="file" name="proof_image" accept="image/*" class="sr-only" @change="proofName = $event.target.files[0]?.name || ''" />
                     <UiErrors :messages="[errors.proof_image, errors.proof_image_url]" />
                 </div>
-                <UiAlert type="info"><strong>Lưu ý:</strong> Có ảnh đính kèm, nhiệm vụ sẽ được <strong>hoàn thành ngay</strong>. Nếu không có ảnh, trạng thái sẽ chuyển sang <strong>chờ người giao việc xác nhận</strong>.</UiAlert>
+                <UiAlert type="info"><strong>Lưu ý:</strong> Có ảnh đính kèm, nhiệm vụ sẽ được <strong>hoàn thành ngay</strong>. Nếu không có ảnh, trạng thái sẽ chuyển sang <strong>chờ Admin xác nhận</strong>.</UiAlert>
                 <UiTextarea id="ta_note" name="note" label="Ghi chú (tùy chọn)" :rows="3" placeholder="Kết quả hoặc vấn đề phát sinh..." />
             </UiForm>
             <template #footer>

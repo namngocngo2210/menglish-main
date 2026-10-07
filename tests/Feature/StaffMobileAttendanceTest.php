@@ -241,7 +241,7 @@ class StaffMobileAttendanceTest extends TestCase
         $this->assertSame(12, $row->late_minutes);
     }
 
-    public function test_correction_request_goes_to_branch_manager_and_creates_attendance_when_approved(): void
+    public function test_correction_request_goes_to_admin_and_creates_attendance_when_approved(): void
     {
         $this->travelTo(Carbon::parse('2026-10-06 09:00:00'));
         $this->actingAs($this->staff)->post(route('mobile.requests.store'), [
@@ -259,12 +259,13 @@ class StaffMobileAttendanceTest extends TestCase
             'type' => StaffAttendanceRequest::TYPE_CORRECTION, 'date_from' => '2026-10-04', 'check_in_time' => '09:00', 'check_out_time' => '08:00', 'reason' => 'x',
         ])->assertSessionHasErrors('check_out_time');
 
-        // Phạm vi nguồn vẫn theo cơ sở (quản lý cơ sở khác không có đơn), nhưng module "Cần duyệt" chỉ Admin mở:
-        // quản lý cơ sở không có tab Cần duyệt trên điện thoại và bị 403 khi duyệt.
+        // Chỉ Admin duyệt (06/10/2026): quản lý cơ sở không có nguồn đơn chấm công, không có tab Cần duyệt trên
+        // điện thoại và bị 403 khi duyệt.
         $otherManager = $this->user('manager', $this->otherBranch);
         $inbox = app(ApprovalInboxService::class);
-        $this->assertSame(0, $inbox->counts($otherManager)['staff_attendance_request']);
-        $this->assertSame(1, $inbox->counts($this->manager)['staff_attendance_request']);
+        $this->assertSame([], $inbox->counts($otherManager));
+        $this->assertSame([], $inbox->counts($this->manager));
+        $this->assertFalse($this->manager->can('staff_checkin.approve'));
         foreach ([$otherManager, $this->manager] as $manager) {
             $this->actingAs($manager)->get(route('mobile.history'))->assertOk()
                 ->assertInertia(fn (AssertableInertia $page) => $page->where('mobileNav.approvals', null));

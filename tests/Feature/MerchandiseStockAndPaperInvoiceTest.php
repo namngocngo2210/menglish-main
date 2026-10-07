@@ -54,6 +54,7 @@ class MerchandiseStockAndPaperInvoiceTest extends TestCase
         $this->otherBranch = Branch::create(['name' => 'CN Hà Đông', 'code' => 'HD', 'is_active' => true]);
         $this->staff = $this->makeUser('academic_staff');
         $this->accountant = $this->makeUser('accountant');
+        // Chỉ Admin duyệt phiếu thu / hủy hóa đơn (06/10/2026); Kế toán chỉ lập yêu cầu.
         $this->admin = $this->makeUser('admin');
 
         $this->student = Student::create([
@@ -121,7 +122,7 @@ class MerchandiseStockAndPaperInvoiceTest extends TestCase
         $this->assertSame('C26HDG-0000001', $receipt->paper_invoice_number);
         $this->assertTrue($receipt->hasIssuedPaperInvoice());
 
-        $this->actingAs($this->accountant)->post(route('tuition.receipts.approve.action', $receipt->id))->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('tuition.receipts.approve.action', $receipt->id))->assertSessionHasNoErrors();
         $receipt->refresh();
         $this->assertSame('approved', $receipt->status);
         // Không lấy thêm số HĐĐT khi duyệt: số hóa đơn vẫn là số giấy đã cấp.
@@ -199,7 +200,7 @@ class MerchandiseStockAndPaperInvoiceTest extends TestCase
         $cancellation = InvoiceCancellation::firstOrFail();
 
         // Phiếu đang có yêu cầu hủy thì không duyệt được.
-        $this->actingAs($this->accountant)->post(route('tuition.receipts.approve.action', $receipt->id))->assertSessionHasErrors('receipt');
+        $this->actingAs($this->admin)->post(route('tuition.receipts.approve.action', $receipt->id))->assertSessionHasErrors('receipt');
 
         $this->actingAs($this->admin)->post(route('tuition.invoices.cancellations.approve', $cancellation->id))->assertSessionHasNoErrors();
         $this->assertSame('cancelled', $receipt->fresh()->status);
@@ -252,7 +253,7 @@ class MerchandiseStockAndPaperInvoiceTest extends TestCase
         // Chốt khách không còn trừ kho ngay: chờ phiếu thu được duyệt.
         $this->assertSame(0, $this->stockAt($this->book, $this->branch));
 
-        $this->actingAs($this->accountant)->post(route('tuition.receipts.approve.action', $receipt->id))->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('tuition.receipts.approve.action', $receipt->id))->assertSessionHasNoErrors();
         $this->assertSame(-1, $this->stockAt($this->book, $this->branch), 'Hết hàng vẫn duyệt được, kho âm để chi nhánh nhập bù');
 
         // Phiếu thu thứ 2 của cùng hợp đồng không trừ sách hợp đồng lần nữa.
@@ -297,7 +298,7 @@ class MerchandiseStockAndPaperInvoiceTest extends TestCase
         $this->assertSame('Sách Kids Box 1 x2', $receipt->surcharge_reason);
         $this->assertSame(10, $this->stockAt($this->book, $this->branch), 'Chưa duyệt thì chưa trừ kho');
 
-        $this->actingAs($this->accountant)->post(route('tuition.receipts.approve.action', $receipt->id))->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('tuition.receipts.approve.action', $receipt->id))->assertSessionHasNoErrors();
         $this->assertSame(8, $this->stockAt($this->book, $this->branch));
         $this->assertSame(0, $this->stockAt($this->book, $this->otherBranch));
         $this->assertDatabaseHas('merchandise_stock_movements', [
@@ -398,7 +399,7 @@ class MerchandiseStockAndPaperInvoiceTest extends TestCase
                 'payment_method' => 'transfer', 'transaction_code' => 'FT-BU-'.$quantity,
                 'proof_image' => UploadedFile::fake()->image('unc.jpg'), 'submit_action' => 'submit',
             ])->assertSessionHasNoErrors();
-            $this->actingAs($this->accountant)->post(route('tuition.receipts.approve.action', TuitionReceipt::latest('id')->firstOrFail()->id))
+            $this->actingAs($this->admin)->post(route('tuition.receipts.approve.action', TuitionReceipt::latest('id')->firstOrFail()->id))
                 ->assertSessionHasNoErrors();
         };
 
