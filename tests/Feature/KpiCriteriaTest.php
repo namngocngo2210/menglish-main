@@ -32,7 +32,7 @@ class KpiCriteriaTest extends TestCase
 
     public function test_default_set_matches_the_excel_fund_and_groups(): void
     {
-        $criteria = KpiCriterion::active()->ordered()->get();
+        $criteria = KpiCriterion::forRole(Roles::ACADEMIC_STAFF)->active()->ordered()->get();
         $this->assertCount(15, $criteria);
         $this->assertSame(6, $criteria->pluck('group_name')->unique()->count());
         $this->assertEquals(100, (float) $criteria->sum('weight'));
