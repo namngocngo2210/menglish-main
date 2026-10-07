@@ -241,6 +241,7 @@ class TeacherPortalController extends Controller
                 'is_support' => $shift['session']->type === ClassSession::TYPE_SUPPORT,
                 'support_student' => $shift['session']->type === ClassSession::TYPE_SUPPORT ? $shift['session']->supportSession?->student?->name : null,
                 'scheduled_time' => $shift['scheduled_time'],
+                'shift_name' => $shift['session']->shiftLabel(),
                 'checked_in' => $shift['checked_in'],
                 'checkin_time' => $shift['checkin_time'],
                 'checkin' => $shift['checkin'],

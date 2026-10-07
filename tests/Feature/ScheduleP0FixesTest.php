@@ -66,7 +66,7 @@ class ScheduleP0FixesTest extends TestCase
         return ClassSession::create($overrides + [
             'class_id' => $this->classModel->id, 'branch_id' => $this->branch->id,
             'date' => $date->toDateString(), 'shift_name' => 'Slot 1',
-            'start_time' => '08:00', 'end_time' => '09:30', 'room' => 'P101',
+            'start_time' => '18:00', 'end_time' => '19:30', 'room' => 'P101',
             'teacher_id' => $this->teacher->id, 'status' => 'scheduled',
         ]);
     }
@@ -131,7 +131,7 @@ class ScheduleP0FixesTest extends TestCase
         ]);
         ClassSession::create([
             'class_id' => $otherClass->id, 'branch_id' => $this->branch->id, 'date' => $date->toDateString(),
-            'shift_name' => 'Ca 1', 'start_time' => '09:00', 'end_time' => '10:00', 'room' => 'P303',
+            'shift_name' => 'Ca 1', 'start_time' => '18:30', 'end_time' => '19:30', 'room' => 'P303',
             'teacher_id' => $this->otherTeacher->id, 'status' => 'scheduled',
         ]);
 
@@ -168,7 +168,7 @@ class ScheduleP0FixesTest extends TestCase
         $this->actingAs($this->manager)->post(route('tasks.schedule-config.update'), [
             'class_id' => $this->classModel->id,
             'start_date' => $start->toDateString(), 'end_date' => $end->toDateString(),
-            'slot1_day' => $day, 'slot1_start' => '08:00', 'slot1_end' => '09:30',
+            'slot1_day' => $day, 'slot1_start' => '18:00', 'slot1_end' => '19:30',
             'slot2_day' => '',
         ])->assertRedirect()->assertSessionHasNoErrors();
 
@@ -187,7 +187,7 @@ class ScheduleP0FixesTest extends TestCase
         $this->actingAs($this->manager)->post(route('tasks.schedule-config.update'), [
             'class_id' => $this->classModel->id,
             'start_date' => now()->toDateString(), 'end_date' => now()->addDays(6)->toDateString(),
-            'slot1_day' => $this->weekdayName(now()), 'slot1_start' => '08:00', 'slot1_end' => '09:30',
+            'slot1_day' => $this->weekdayName(now()), 'slot1_start' => '18:00', 'slot1_end' => '19:30',
             'slot2_day' => '',
         ])->assertRedirect()->assertSessionHasNoErrors();
 
@@ -203,13 +203,13 @@ class ScheduleP0FixesTest extends TestCase
         $this->actingAs($this->manager)->post(route('tasks.schedule-config.update'), [
             'class_id' => $this->classModel->id,
             'start_date' => now()->toDateString(), 'end_date' => now()->toDateString(),
-            'slot1_day' => $this->weekdayName(now()), 'slot1_start' => '08:00', 'slot1_end' => '09:30',
+            'slot1_day' => $this->weekdayName(now()), 'slot1_start' => '18:00', 'slot1_end' => '19:30',
             'slot2_day' => '',
         ])->assertRedirect()->assertSessionHasNoErrors();
 
         $this->assertNull(ClassSession::find($today->id));
         $session = ClassSession::whereDate('date', now()->toDateString())->sole();
-        $this->assertSame('08:00', $session->start_time->format('H:i'));
+        $this->assertSame('18:00', $session->start_time->format('H:i'));
     }
 
     public function test_schedule_resave_keeps_future_support_sessions(): void
@@ -225,7 +225,7 @@ class ScheduleP0FixesTest extends TestCase
         $this->actingAs($this->manager)->post(route('tasks.schedule-config.update'), [
             'class_id' => $this->classModel->id,
             'start_date' => now()->toDateString(), 'end_date' => now()->addDays(6)->toDateString(),
-            'slot1_day' => $this->weekdayName($date), 'slot1_start' => '08:00', 'slot1_end' => '09:30',
+            'slot1_day' => $this->weekdayName($date), 'slot1_start' => '18:00', 'slot1_end' => '19:30',
             'slot2_day' => '',
         ])->assertRedirect()->assertSessionHasNoErrors();
 
@@ -239,12 +239,13 @@ class ScheduleP0FixesTest extends TestCase
         $this->actingAs($this->manager)->post(route('tasks.schedule-config.update'), [
             'class_id' => $this->classModel->id,
             'start_date' => now()->addDay()->toDateString(), 'end_date' => now()->addDays(14)->toDateString(),
-            'slot1_day' => $this->weekdayName(now()->addDay()), 'slot1_start' => '08:00', 'slot1_end' => '09:30',
+            'slot1_day' => $this->weekdayName(now()->addDay()), 'slot1_start' => '18:00', 'slot1_end' => '19:30',
             'slot2_day' => '', 'slot2_start' => '', 'slot2_end' => '',
         ])->assertRedirect()->assertSessionHasNoErrors();
 
-        $this->assertSame(0, ClassSession::where('shift_name', 'Slot 2')->count());
-        $this->assertSame(2, ClassSession::where('shift_name', 'Slot 1')->count());
+        // Chỉ một ca lặp tuần (tên ca theo khung giờ ca dạy) → 2 buổi trong 2 tuần.
+        $this->assertSame(2, ClassSession::where('class_id', $this->classModel->id)->count());
+        $this->assertSame(1, ClassSession::where('class_id', $this->classModel->id)->distinct()->count('shift_name'));
         $this->assertNull($this->classModel->scheduleConfig()->first()->slot2_day);
         $this->assertStringNotContainsString('Thứ 7 18:00', $this->classModel->fresh()->schedule_text);
     }
@@ -267,7 +268,7 @@ class ScheduleP0FixesTest extends TestCase
         $this->actingAs($this->manager)->post(route('tasks.schedule-config.update'), [
             'class_id' => $this->classModel->id,
             'start_date' => $d1->toDateString(), 'end_date' => $d15->toDateString(),
-            'slot1_day' => $this->weekdayName($d1), 'slot1_start' => '08:00', 'slot1_end' => '09:30',
+            'slot1_day' => $this->weekdayName($d1), 'slot1_start' => '18:00', 'slot1_end' => '19:30',
             'slot2_day' => '',
         ])->assertRedirect()->assertSessionHasNoErrors();
 
@@ -285,8 +286,8 @@ class ScheduleP0FixesTest extends TestCase
             'ten_lop' => 'Lớp Nghỉ Lễ', 'ma_lop' => 'SCH-HOL', 'chi_nhanh' => $this->branch->id,
             'chuong_trinh' => 'IELTS SCH', 'cap_do' => 'B1', 'si_so_toi_da' => 12,
             'schedule_sessions_json' => json_encode([
-                ['date' => $d7, 'shift' => 'Ca 1', 'start' => '08:00', 'end' => '09:30', 'room' => ''],
-                ['date' => $d9, 'shift' => 'Ca 1', 'start' => '08:00', 'end' => '09:30', 'room' => ''],
+                ['date' => $d7, 'shift' => 'Ca 1', 'start' => '18:00', 'end' => '19:30', 'room' => ''],
+                ['date' => $d9, 'shift' => 'Ca 1', 'start' => '18:00', 'end' => '19:30', 'room' => ''],
             ]),
         ])->assertRedirect()->assertSessionHasNoErrors();
 
@@ -327,7 +328,7 @@ class ScheduleP0FixesTest extends TestCase
             $this->actingAs($this->manager)->post(route('tasks.schedule-config.update'), [
                 'class_id' => $this->classModel->id,
                 'start_date' => now()->addDay()->toDateString(), 'end_date' => now()->addDays(7)->toDateString(),
-                'slot1_day' => $this->weekdayName(now()->addDay()), 'slot1_start' => '08:00', 'slot1_end' => '09:30',
+                'slot1_day' => $this->weekdayName(now()->addDay()), 'slot1_start' => '18:00', 'slot1_end' => '19:30',
                 'slot2_day' => '',
             ]);
             $this->assertSame($status, $this->classModel->fresh()->status);
@@ -340,7 +341,7 @@ class ScheduleP0FixesTest extends TestCase
         $payload = [
             'class_id' => $this->classModel->id,
             'start_date' => now()->addDay()->toDateString(), 'end_date' => now()->addDays(7)->toDateString(),
-            'slot1_day' => $this->weekdayName(now()->addDay()), 'slot1_start' => '08:00', 'slot1_end' => '09:30',
+            'slot1_day' => $this->weekdayName(now()->addDay()), 'slot1_start' => '18:00', 'slot1_end' => '19:30',
             'slot2_day' => '',
         ];
 

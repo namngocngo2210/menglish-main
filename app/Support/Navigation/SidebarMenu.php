@@ -476,6 +476,7 @@ final class SidebarMenu
                     ]),
                     ...self::anchored(self::CLASS_MANAGER, [
                         ['label' => 'Lịch & TKB lớp', 'route' => 'tasks.schedule-config'],
+                        ['label' => 'Khung giờ ca dạy', 'route' => 'teaching-shifts.index', 'active' => ['teaching-shifts.*']],
                     ]),
                     // Quyền theo middleware can:room.view (Học vụ / Quản lý cơ sở / Học thuật / Admin).
                     ['label' => 'Phòng học', 'route' => 'rooms.index', 'active' => ['rooms.*']],

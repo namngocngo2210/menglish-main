@@ -121,7 +121,7 @@ class Phase2ScheduleTest extends TestCase
         $this->actingAs($this->admin)->post(route('tasks.schedule-config.update'), [
             'class_id' => $this->classModel->id,
             'start_date' => '2026-10-05', 'end_date' => '2026-10-18',
-            'slot1_day' => 'Thứ 2', 'slot1_start' => '19:00', 'slot1_end' => '20:30',
+            'slot1_day' => 'Thứ 2', 'slot1_start' => '18:10', 'slot1_end' => '19:40',
         ])->assertSessionHasErrors('class_id');
 
         $this->assertSame(0, ClassSession::where('class_id', $this->classModel->id)->count());

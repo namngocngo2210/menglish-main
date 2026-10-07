@@ -17,6 +17,7 @@ use App\Models\PayrollPeriod;
 use App\Models\Room;
 use App\Models\SupportSession;
 use App\Models\TeacherTimesheet;
+use App\Models\TeachingShift;
 use App\Models\User;
 use App\Models\WorkTask;
 use App\Services\BranchStaff;
@@ -27,6 +28,7 @@ use App\Services\SafeUploadService;
 use App\Services\SessionLessonService;
 use App\Services\SessionScheduleService;
 use App\Services\SupportListService;
+use App\Services\TeachingShifts\TeachingShiftRules;
 use App\Support\Approvals\AdminOnlyApprovals;
 use App\Support\DataScope;
 use App\Support\Rbac;
@@ -1552,7 +1554,7 @@ class WorkTaskController extends Controller
     /**
      * 8. TKB & Cấu hình lịch lặp báo cáo phòng nhân sự
      */
-    public function scheduleConfig(Request $request)
+    public function scheduleConfig(Request $request, TeachingShiftRules $shiftRules)
     {
         $validated = $request->validate([
             'report_branch_id' => ['nullable', 'integer', 'exists:branches,id'],
@@ -1737,10 +1739,15 @@ class WorkTaskController extends Controller
             'reportStart' => $reportStart->toDateString(),
             'report' => $report->map(fn (array $d) => [...$d, 'day' => $d['date']->format('d/m'), 'date' => $d['date']->toDateString()])->values(),
             'classCountChange' => $classCountChange,
+            // Khung giờ ca dạy: lựa chọn ca theo loại ngày + lớp có buổi sắp tới lệch khung (cần xếp lại TKB).
+            'shiftOptions' => $shiftRules->options(),
+            'weekdayRule' => $shiftRules->weekdayFramesText(),
+            'shiftDuration' => TeachingShift::DURATION_MINUTES,
+            'offScheduleClasses' => $view === 'config' ? $shiftRules->offScheduleClasses(collect($visibleClassIds)) : [],
         ]);
     }
 
-    public function updateScheduleConfig(Request $request, SessionScheduleService $schedule, RoomService $rooms)
+    public function updateScheduleConfig(Request $request, SessionScheduleService $schedule, RoomService $rooms, TeachingShiftRules $shiftRules)
     {
         // Toggle class status or update schedule
         if ($request->has('toggle_class_id')) {
@@ -1807,6 +1814,9 @@ class WorkTaskController extends Controller
         if (empty($slots)) {
             throw ValidationException::withMessages(['slot1_day' => 'Cần chọn ít nhất một ca học (ngày trong tuần).']);
         }
+        // Khung giờ ca dạy: Thứ 2–6 chỉ Ca 1 / Ca 2 (giờ chuẩn hoặc giờ lệch), cuối tuần theo giờ lớp; mỗi ca 90 phút.
+        // Tên ca (Ca 1, Ca 2, Ca chiều…) đặt theo khung để chấm công GV hiển thị đúng ca được phân công.
+        $slots = $shiftRules->apply($slots);
 
         // Hai ca trùng ngày và chồng giờ là cấu hình vô nghĩa — chặn trước khi tạo buổi học
         if (count($slots) === 2
@@ -1952,7 +1962,7 @@ class WorkTaskController extends Controller
             $class->update([
                 'start_date' => $startDate,
                 'end_date' => $endDate,
-                'schedule_text' => collect($slots)->map(fn ($slot) => "{$slot['day']} {$slot['start']}-{$slot['end']}")->implode('; '),
+                'schedule_text' => collect($slots)->map(fn ($slot) => "{$slot['day']} {$slot['name']} {$slot['start']}-{$slot['end']}")->implode('; '),
                 'status' => $status,
                 'room_id' => $roomId,
                 'room' => $roomName,

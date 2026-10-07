@@ -190,6 +190,14 @@ return [
                 'all' => 'Phòng mọi chi nhánh',
             ],
         ],
+        'teaching_shift' => [
+            'label' => 'Khung giờ ca dạy',
+            'group' => 'academic',
+            'icon' => 'schedule',
+            'actions' => [
+                'manage' => ['Sửa khung giờ ca dạy', 'Thêm / sửa / ngừng dùng / xóa khung giờ ca dạy (Ca 1, Ca 2, ca cuối tuần) dùng khi xếp TKB lớp.'],
+            ],
+        ],
         'attendance_student' => [
             'label' => 'Điểm danh học viên',
             'group' => 'academic',
