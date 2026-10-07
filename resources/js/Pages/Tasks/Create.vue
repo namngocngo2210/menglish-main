@@ -2,7 +2,7 @@
 /**
  * Giao việc mới: mở từ Danh sách công việc → modal 2xl; mở thẳng URL → trang riêng.
  * "Giao cho: Trợ giảng" chuyển sang form giao việc theo ca (tasks.ta-assign).
- * Người chỉ có quyền đề xuất (GV / TA) giao ngược cho Admin, Quản lý, Học vụ, Học thuật.
+ * Mọi nhân sự giao được việc cho Admin; người chỉ có quyền đề xuất (GV / TA / Sales) giao cho Admin và người duyệt công việc.
  */
 import { ref } from 'vue';
 import AssignModeSwitch from './Partials/AssignModeSwitch.vue';
@@ -30,7 +30,7 @@ const frequencies = [
 <template>
     <UiModalFrame
         :title="title"
-        description="Tạo và phân công nhiệm vụ cho nhân sự; giáo viên / trợ giảng đề xuất việc cho Admin, Quản lý, Học vụ, Học thuật."
+        description="Giao một việc cho đồng nghiệp. Ai cũng có thể giao việc cho Admin."
         :action="route('tasks.store')"
         method="post"
         submit-label="Lưu và Giao việc"
@@ -65,7 +65,7 @@ const frequencies = [
                     </label>
                 </div>
                 <div v-show="isRecurring" class="border-t border-outline-variant pt-sm">
-                    <UiSelect id="modal-task-frequency" name="frequency" label="Tần suất" :options="frequencies" value="weekly" hint="Khi việc lặp được xác nhận hoàn thành, hệ thống tự tạo lượt kế tiếp theo tần suất." />
+                    <UiSelect id="modal-task-frequency" name="frequency" label="Tần suất" :options="frequencies" value="weekly" hint="Mỗi lần việc này được xác nhận xong, hệ thống tự tạo lại việc cho lần sau." />
                 </div>
             </fieldset>
         </div>

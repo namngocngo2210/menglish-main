@@ -587,6 +587,7 @@ class WorkTaskController extends Controller
             'today' => now()->toDateString(),
             'nowTime' => now()->format('H:i'),
             'cutoff' => self::TA_ASSIGN_CUTOFF,
+            'slotDue' => self::SLOT_DEFAULT_DUE,
         ]);
     }
 
