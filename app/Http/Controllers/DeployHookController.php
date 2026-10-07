@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
+use Database\Seeders\DemoPayrollSeeder;
+use Database\Seeders\ProductionBootstrapSeeder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -51,16 +54,19 @@ class DeployHookController extends Controller
         // Seed:
         //  - "bootstrap": vai trò, quyền, danh mục + 1 Admin từ .env — chỉ khi database CHƯA có người dùng (cài mới, kể cả production).
         //  - "demo": toàn bộ DatabaseSeeder (tài khoản & dữ liệu demo) — bị chặn trên production.
+        //  - "demo-luong": dữ liệu mẫu phần lương (php artisan demo:luong), chạy sau "demo" — bị chặn trên production.
         $seed = (string) $request->input('seed', '');
-        if ($migrateCode === 0 && in_array($seed, ['bootstrap', 'demo', '1'], true)) {
+        if ($migrateCode === 0 && in_array($seed, ['bootstrap', 'demo', 'demo-luong', '1'], true)) {
             if ($seed === 'bootstrap') {
-                if (\App\Models\User::query()->exists()) {
+                if (User::query()->exists()) {
                     $steps[] = ['command' => 'db:seed', 'exit' => 1, 'output' => 'Bỏ qua: database đã có người dùng, không khởi tạo lại.'];
                 } else {
-                    $run('db:seed', ['--class' => \Database\Seeders\ProductionBootstrapSeeder::class, '--force' => true]);
+                    $run('db:seed', ['--class' => ProductionBootstrapSeeder::class, '--force' => true]);
                 }
             } elseif (app()->environment('production')) {
                 $steps[] = ['command' => 'db:seed', 'exit' => 1, 'output' => 'Bị chặn: không chạy seed demo trên production.'];
+            } elseif ($seed === 'demo-luong') {
+                $run('db:seed', ['--class' => DemoPayrollSeeder::class, '--force' => true]);
             } else {
                 $run('db:seed', ['--force' => true]);
             }

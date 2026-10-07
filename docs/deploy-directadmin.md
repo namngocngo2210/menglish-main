@@ -52,6 +52,7 @@ Chạy workflow với tham số **`seed`**:
 |---|---|---|
 | `bootstrap` | **Production** cài lần đầu (cũng dùng được cho staging) | Vai trò mặc định (`config/access.php`), toàn bộ quyền của danh mục (`config/permission_catalog.php`), danh mục hệ thống và **1 tài khoản Admin** lấy từ `.env` (`INITIAL_ADMIN_NAME`, `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_PASSWORD` ≥ 10 ký tự), bị bắt đổi mật khẩu lần đầu. Không tạo chi nhánh / nhân sự / dữ liệu demo. **Chỉ chạy khi database chưa có người dùng**; chạy lại sẽ tự bỏ qua. |
 | `demo` | Staging để thử nghiệm | Toàn bộ dữ liệu demo + tài khoản demo (README "Kiểm tra nhanh toàn hệ thống"), mật khẩu = `SEED_DEFAULT_PASSWORD`. **Bị chặn trên production.** |
+| `demo-luong` | Staging, sau khi đã seed `demo` | Dữ liệu mẫu phần lương (`php artisan demo:luong`): chấm công điện thoại tháng trước + tháng này, đơn xin duyệt, biên bản đi muộn, giờ dạy 5 lớp K28, bộ tiêu chí KPI mẫu, phiếu KPI và bảng lương tháng này đang soát. Chạy lại không nhân bản. **Bị chặn trên production.** |
 | `none` | Các lần deploy sau | Không seed |
 
 Sau khi `bootstrap` production: đăng nhập Admin → đổi mật khẩu → tạo **chi nhánh**, **tài khoản nhân sự** (gán vai trò + chi nhánh), **ngày nghỉ**, **khóa học / trình độ**, **tài khoản ngân hàng**, **dải số hóa đơn**, rồi mới nhập khách / học viên. Nên xóa `INITIAL_ADMIN_PASSWORD` khỏi `.env` sau khi đăng nhập được.
