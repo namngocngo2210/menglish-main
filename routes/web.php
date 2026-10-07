@@ -806,6 +806,7 @@ Route::middleware('auth')->group(function () {
     Route::controller(KpiController::class)->prefix('kpi')->name('kpi.')->group(function () {
         Route::get('/criteria', 'criteria')->middleware('can:kpi.view')->name('criteria');
         Route::post('/criteria', 'criteriaStore')->middleware('can:kpi.manage')->name('criteria.store');
+        Route::post('/criteria/cycle', 'criteriaCycle')->middleware('can:kpi.manage')->name('criteria.cycle');
         Route::put('/criteria/{id}', 'criteriaUpdate')->middleware('can:kpi.manage')->name('criteria.update');
         Route::delete('/criteria/{id}', 'criteriaDestroy')->middleware('can:kpi.manage')->name('criteria.destroy');
         Route::get('/monthly', 'monthly')->middleware('can:kpi.view')->name('monthly');
