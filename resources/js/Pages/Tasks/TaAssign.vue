@@ -19,6 +19,7 @@ const props = defineProps({
     today: { type: String, required: true },
     nowTime: { type: String, default: '00:00' },
     cutoff: { type: String, required: true },
+    slotDue: { type: Object, default: () => ({}) },
     asModal: { type: Boolean, default: false },
 });
 
@@ -38,6 +39,18 @@ onBeforeUnmount(() => clearInterval(timer));
 const isLate = computed(() => !!assignDate.value && (assignDate.value < props.today
     || (assignDate.value === props.today && toMinutes(props.nowTime) + elapsed.value > toMinutes(props.cutoff))));
 const cutoffLabel = computed(() => props.cutoff.replace(':', 'h'));
+
+// Hạn của từng ca, viết cho người dùng đọc hiểu ngay (cùng luật với WorkTaskController::slotDueTime).
+const dueText = {
+    before: 'khi lớp bắt đầu',
+    during: 'khi lớp tan',
+    after: '1 tiếng sau khi lớp tan',
+};
+const dueRules = computed(() => props.slots.map((slot) => ({
+    key: slot.value,
+    label: slot.label,
+    text: `${dueText[slot.value]}. Không chọn buổi học thì hạn là ${props.slotDue[slot.value]}.`,
+})));
 
 const sessionsFor = (item) => (props.classSessions[item.class_id] || []).filter((s) => s.date === assignDate.value);
 const addTask = () => tasks.value.push({ id: seq++, category: 'during', content: '', attach_class: false, class_id: '', class_session_id: '', session: '' });
@@ -60,7 +73,7 @@ const labelCls = 'mb-xs block font-label text-label uppercase text-on-surface-va
                 <UiSelect :id="asModal ? 'modal-ta-branch_id' : 'f_branch_id'" name="branch_id" label="Chi nhánh" placeholder="-- Chọn Chi nhánh --" :options="branches" />
             </div>
             <UiAlert v-if="isLate" type="warning">
-                Đã quá {{ cutoffLabel }} cho ngày giao {{ assignDate.split('-').reverse().join('/') }} — vẫn gửi được, nhưng hệ thống sẽ báo tất cả Admin và bạn (người giao) về việc gửi trễ.
+                Đã quá {{ cutoffLabel }} của ngày {{ assignDate.split('-').reverse().join('/') }}. Bạn vẫn gửi được, nhưng hệ thống sẽ báo cho Admin và cho bạn là gửi muộn.
             </UiAlert>
             <UiAlert v-if="!assistants.length" type="warning">Chưa có tài khoản trợ giảng nào đang hoạt động trong phạm vi bạn quản lý.</UiAlert>
 
@@ -119,7 +132,7 @@ const labelCls = 'mb-xs block font-label text-label uppercase text-on-surface-va
                                 v-model="item.session"
                                 type="text"
                                 :name="`tasks[${index}][session]`"
-                                placeholder="Lớp không có buổi học trong ngày — nhập tên buổi"
+                                placeholder="Lớp không có buổi học hôm đó, hãy gõ tên buổi"
                                 class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-sm py-xs font-body-small text-body-small"
                             />
                         </label>
@@ -131,8 +144,13 @@ const labelCls = 'mb-xs block font-label text-label uppercase text-on-surface-va
 
             <div class="flex flex-col items-center gap-xs border-t border-surface-container pt-md">
                 <UiButton v-if="!asModal" type="submit" icon="send" class="w-full sm:w-auto sm:min-w-[220px]">Gửi nhiệm vụ</UiButton>
-                <p class="font-body-small text-body-small text-on-surface-variant">Khuyến nghị gửi trước {{ cutoff.replace(':', 'h') }} — gửi trễ vẫn được, hệ thống sẽ báo tất cả Admin và người giao.</p>
-                <p class="font-caption text-caption text-on-surface-variant">Hạn mỗi ca: gắn buổi học → Trước giờ học = giờ vào lớp, Trong giờ học = giờ tan lớp, Sau giờ học = tan lớp + 60 phút; không gắn buổi → 14:00 / 18:00 / 21:30.</p>
+                <div class="w-full space-y-xs rounded-lg bg-surface-container-low p-sm font-caption text-caption text-on-surface-variant">
+                    <p class="font-body-small text-body-small">Nên gửi trước {{ cutoffLabel }}. Gửi muộn hơn vẫn được, nhưng hệ thống sẽ báo cho Admin và cho bạn.</p>
+                    <p>Hạn làm xong của từng ca:</p>
+                    <ul class="list-disc space-y-[2px] pl-lg">
+                        <li v-for="d in dueRules" :key="d.key"><span class="font-medium text-on-surface">{{ d.label }}</span>: {{ d.text }}</li>
+                    </ul>
+                </div>
             </div>
         </UiForm>
 

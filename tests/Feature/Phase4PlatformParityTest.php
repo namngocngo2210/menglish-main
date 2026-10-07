@@ -223,7 +223,8 @@ class Phase4PlatformParityTest extends TestCase
         ]);
 
         $this->actingAs($academic)->get(route('tasks.ta-assign'))->assertOk()
-            ->assertSee('Khuyến nghị gửi trước 15h30')
+            ->assertSee('Nên gửi trước 15h30')
+            ->assertSee('1 tiếng sau khi lớp tan. Không chọn buổi học thì hạn là 21:30.')
             ->assertSee($ta->name)
             ->assertDontSee($teacher->email); // chỉ trợ giảng trong ô "Chọn Trợ giảng"
 
