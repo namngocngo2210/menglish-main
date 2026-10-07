@@ -46,6 +46,7 @@ use App\Http\Controllers\SystemCategoryController;
 use App\Http\Controllers\SystemConfigController;
 use App\Http\Controllers\TeacherMeetingReportController;
 use App\Http\Controllers\TeacherPortalController;
+use App\Http\Controllers\TeachingShiftController;
 use App\Http\Controllers\TrialGuestController;
 use App\Http\Controllers\TuitionController;
 use App\Http\Controllers\UserController;
@@ -624,6 +625,15 @@ Route::middleware('auth')->group(function () {
         Route::put('/types/{roomType}', [RoomTypeController::class, 'update'])->middleware('can:room.manage_types')->name('types.update');
         Route::post('/types/{roomType}/toggle', [RoomTypeController::class, 'toggle'])->middleware('can:room.manage_types')->name('types.toggle');
         Route::delete('/types/{roomType}', [RoomTypeController::class, 'destroy'])->middleware('can:room.manage_types')->name('types.destroy');
+    });
+
+    // Khung giờ ca dạy (Thứ 2–6: Ca 1 / Ca 2; cuối tuần theo giờ lớp; 90 phút): ai xếp lịch lớp được xem, chỉ Admin sửa.
+    Route::prefix('teaching-shifts')->name('teaching-shifts.')->middleware('can:class.update')->group(function () {
+        Route::get('/', [TeachingShiftController::class, 'index'])->name('index');
+        Route::post('/', [TeachingShiftController::class, 'store'])->middleware('can:teaching_shift.manage')->name('store');
+        Route::put('/{teachingShift}', [TeachingShiftController::class, 'update'])->whereNumber('teachingShift')->middleware('can:teaching_shift.manage')->name('update');
+        Route::post('/{teachingShift}/toggle', [TeachingShiftController::class, 'toggle'])->whereNumber('teachingShift')->middleware('can:teaching_shift.manage')->name('toggle');
+        Route::delete('/{teachingShift}', [TeachingShiftController::class, 'destroy'])->whereNumber('teachingShift')->middleware('can:teaching_shift.manage')->name('destroy');
     });
 
     // ─────────────────────────────────────────────

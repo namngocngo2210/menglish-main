@@ -1035,6 +1035,7 @@ class PayrollController extends Controller
                 'user_id' => $ts->user_id,
                 'teaching_date' => $ts->teaching_date->toDateString(),
                 'scheduled_time' => $ts->scheduled_time,
+                'shift_name' => $ts->classSession?->shiftLabel(),
                 'type_label' => $ts->type_label,
                 'source' => $ts->source,
                 'source_label' => $ts->source_label,
