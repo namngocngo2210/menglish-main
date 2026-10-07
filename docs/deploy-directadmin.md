@@ -51,9 +51,11 @@ Chạy workflow với tham số **`seed`**:
 | Giá trị | Dùng khi | Tạo gì |
 |---|---|---|
 | `bootstrap` | **Production** cài lần đầu (cũng dùng được cho staging) | Vai trò mặc định (`config/access.php`), toàn bộ quyền của danh mục (`config/permission_catalog.php`), danh mục hệ thống và **1 tài khoản Admin** lấy từ `.env` (`INITIAL_ADMIN_NAME`, `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_PASSWORD` ≥ 10 ký tự), bị bắt đổi mật khẩu lần đầu. Không tạo chi nhánh / nhân sự / dữ liệu demo. **Chỉ chạy khi database chưa có người dùng**; chạy lại sẽ tự bỏ qua. |
-| `demo` | Staging để thử nghiệm | Toàn bộ dữ liệu demo + tài khoản demo (README "Kiểm tra nhanh toàn hệ thống"), mật khẩu = `SEED_DEFAULT_PASSWORD`. **Bị chặn trên production.** |
-| `demo-luong` | Staging, sau khi đã seed `demo` | Dữ liệu mẫu phần lương (`php artisan demo:luong`): chấm công điện thoại tháng trước + tháng này, đơn xin duyệt, biên bản đi muộn, giờ dạy 5 lớp K28, bộ tiêu chí KPI mẫu, phiếu KPI và bảng lương tháng này đang soát. Chạy lại không nhân bản. **Bị chặn trên production.** |
+| `demo` | Staging để thử nghiệm | Toàn bộ dữ liệu demo + tài khoản demo (README "Kiểm tra nhanh toàn hệ thống"), mật khẩu = `SEED_DEFAULT_PASSWORD`. **Bị chặn trên production** (xem dưới). |
+| `demo-luong` | Staging, sau khi đã seed `demo` | Dữ liệu mẫu phần lương (`php artisan demo:luong`): chấm công điện thoại tháng trước + tháng này, đơn xin duyệt, biên bản đi muộn, giờ dạy 5 lớp K28, bộ tiêu chí KPI mẫu, phiếu KPI và bảng lương tháng này đang soát. Chạy lại không nhân bản. **Bị chặn trên production** (xem dưới). |
 | `none` | Các lần deploy sau | Không seed |
+
+**Seed demo trên production khi chưa dùng thật** (giai đoạn chạy thử, chưa có staging): thêm `SEED_DEFAULT_PASSWORD=<mật khẩu riêng ≥ 10 ký tự>` vào `.env` của production (mọi tài khoản demo, kể cả Admin, dùng mật khẩu này), rồi deploy `production` với seed = `demo` và tích **demo_on_production**; sau đó deploy thêm lần nữa với seed = `demo-luong` và tích ô đó. Thiếu ô tích hoặc mật khẩu còn mặc định thì hook chặn. Trước khi đưa vào sử dụng thật: xoá toàn bộ bảng trong CSDL (phpMyAdmin), deploy lại với seed = `bootstrap`, xoá `SEED_DEFAULT_PASSWORD` khỏi `.env`.
 
 Sau khi `bootstrap` production: đăng nhập Admin → đổi mật khẩu → tạo **chi nhánh**, **tài khoản nhân sự** (gán vai trò + chi nhánh), **ngày nghỉ**, **khóa học / trình độ**, **tài khoản ngân hàng**, **dải số hóa đơn**, rồi mới nhập khách / học viên. Nên xóa `INITIAL_ADMIN_PASSWORD` khỏi `.env` sau khi đăng nhập được.
 
@@ -71,7 +73,7 @@ Thời gian mỗi lần deploy ~3–5 phút (test ~2–3 phút), không phụ th
 
 - **Sao lưu database** (DirectAdmin → *MySQL Management* → *Backup*) — đợt này có nhiều migration chuyển dữ liệu (CRM, giáo trình theo chặng, mốc chăm sóc, lương, phân quyền).
 - Deploy **staging** trước, kiểm tra các luồng chính (xem README "Kiểm tra nhanh toàn hệ thống").
-- **Không** chạy `db:seed` trên production (dữ liệu demo chỉ cho local/staging).
+- **Không** chạy `db:seed` trên production đang dùng thật (dữ liệu demo chỉ cho local/staging, hoặc production còn chạy thử như trên).
 - Sau deploy: nhập tài khoản ngân hàng từng chi nhánh trước khi bật SePay; kiểm tra quyền ở **Vai trò** / **Phân quyền cá nhân** (kế toán tổng có "Phạm vi dữ liệu: Toàn hệ thống" cho Học phí / Thu chi / Chấm công, Quản lý / Học vụ đã gán chi nhánh) — xem `docs/rbac.md` §7; tài khoản Zalo OA / ZNS khi có.
 
 ## Xử lý sự cố

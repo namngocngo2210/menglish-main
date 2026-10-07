@@ -72,7 +72,7 @@ class DeployHookTest extends TestCase
         $this->assertStringContainsString('production', $step['output']);
     }
 
-    public function test_payroll_demo_seed_runs_only_outside_production(): void
+    public function test_payroll_demo_seed_needs_opt_in_on_production(): void
     {
         $token = str_repeat('f', 64);
         config(['app.deploy_hook_token' => $token]);
@@ -86,6 +86,16 @@ class DeployHookTest extends TestCase
         $blocked = $seedStep($this->post('/_deploy/hook', ['seed' => 'demo-luong'], ['X-Deploy-Token' => $token]));
         $this->assertSame(1, $blocked['exit']);
         $this->assertStringContainsString('production', $blocked['output']);
+
+        // Tích cho phép nhưng còn mật khẩu seed mặc định: vẫn chặn (tài khoản demo có cả Admin).
+        $optIn = ['seed' => 'demo-luong', 'allow_production_demo' => 'true'];
+        config(['access.seed_password' => 'Password123!']);
+        $weak = $seedStep($this->post('/_deploy/hook', $optIn, ['X-Deploy-Token' => $token]));
+        $this->assertSame(1, $weak['exit']);
+        $this->assertStringContainsString('SEED_DEFAULT_PASSWORD', $weak['output']);
+
+        config(['access.seed_password' => 'Demo-Only-Pass-2026']);
+        $this->assertSame(0, $seedStep($this->post('/_deploy/hook', $optIn, ['X-Deploy-Token' => $token]))['exit']);
     }
 
     public function test_bootstrap_seed_creates_single_admin_only_on_empty_database(): void

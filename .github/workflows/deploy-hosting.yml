@@ -34,6 +34,10 @@ on:
         type: choice
         options: [none, bootstrap, demo, demo-luong]
         default: none
+      demo_on_production:
+        description: "Cho phép seed demo / demo-luong trên production (chỉ khi production chưa dùng thật; .env phải có SEED_DEFAULT_PASSWORD riêng)"
+        type: boolean
+        default: false
 
 concurrency:
   group: deploy-${{ inputs.environment }}
@@ -139,6 +143,7 @@ jobs:
           status=$(curl -s -o hook.json -w '%{http_code}' --max-time 300 -X POST \
             -H "X-Deploy-Token: ${{ secrets.DEPLOY_HOOK_TOKEN }}" \
             -d "seed=${{ inputs.seed }}" \
+            -d "allow_production_demo=${{ inputs.demo_on_production }}" \
             "${{ secrets.APP_URL }}/index.php/_deploy/hook")
           echo "HTTP $status"
           head -c 5000 hook.json || true
