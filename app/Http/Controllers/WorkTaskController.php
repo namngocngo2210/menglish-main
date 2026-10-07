@@ -1365,12 +1365,14 @@ class WorkTaskController extends Controller
     private function assignableUsers(User $user)
     {
         $query = User::with('roles')->staffAccounts()->where('is_active', true)->whereNull('locked_at')->orderBy('name');
+        // Mọi nhân sự đều giao được việc cho Admin (07/10/2026), kể cả khi chỉ được đề xuất hoặc bị giới hạn chi nhánh.
+        $admins = fn ($q) => $q->whereHas('roles', fn ($r) => $r->where('name', Roles::ADMIN));
 
         if (! $user->can('work_task.create')) {
-            // Đề xuất ngược (GV / TA): chỉ giao cho người có quyền duyệt công việc.
-            Rbac::scopeUsersWithPermission($query, 'work_task.approve');
+            // Đề xuất ngược (GV / TA / Sales): chỉ giao cho Admin và người có quyền duyệt công việc.
+            $query->where(fn ($q) => Rbac::scopeUsersWithPermission($q, 'work_task.approve')->orWhere($admins));
         } elseif (($managed = self::branchLimit($user)) !== null) {
-            $query->where(fn ($q) => $q->whereIn('branch_id', $managed)->orWhere('id', $user->id));
+            $query->where(fn ($q) => $q->whereIn('branch_id', $managed)->orWhere('id', $user->id)->orWhere($admins));
         }
 
         return $query->get();

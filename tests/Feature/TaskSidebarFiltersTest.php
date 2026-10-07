@@ -45,10 +45,10 @@ class TaskSidebarFiltersTest extends TestCase
             $this->assertSame(route('tasks.index'), $groups['tasks']['url'], $role);
         }
 
-        // Sales / Kế toán xem được việc của mình nhưng không giao việc.
+        // Sales đề xuất được việc (cho Admin / người duyệt công việc) như GV / TA — mọi nhân sự giao được việc cho Admin.
         $groups = collect($menu->groupsFor($this->makeUser('sales_consultant')))->keyBy('id');
         $this->assertArrayHasKey('tasks', $groups->all());
-        $this->assertArrayNotHasKey('task_create', $groups->all());
+        $this->assertSame(route('tasks.create'), $groups['task_create']['url']);
 
         $html = $this->actingAs($this->makeUser('academic_staff'))->get(route('tasks.index'))->assertOk()->getContent();
         $this->assertStringContainsString('data-menu-section data-sidebar-text>Giao việc</div>', $html);
@@ -112,6 +112,37 @@ class TaskSidebarFiltersTest extends TestCase
 
         $this->actingAs($admin)->post(route('tasks.status.update', $task->id), ['status' => 'completed'])->assertSessionHasNoErrors();
         $this->assertSame('completed', $task->fresh()->status);
+    }
+
+    /** Mọi nhân sự giao được việc cho Admin, kể cả Quản lý cơ sở (chỉ giao trong chi nhánh) và Sales / GV / TA (chỉ đề xuất). */
+    public function test_every_staff_role_can_assign_a_task_to_admin(): void
+    {
+        $otherBranch = Branch::create(['name' => 'Chi nhánh Hà Đông', 'code' => 'HD', 'is_active' => true]);
+        $admin = User::create(['name' => 'Admin Hà Đông', 'email' => 'admin.hd@menglish.test', 'password' => bcrypt('password'), 'branch_id' => $otherBranch->id, 'is_active' => true]);
+        $admin->syncRoles(['admin']);
+        $teacherB = User::create(['name' => 'GV Hà Đông', 'email' => 'gv.hd@menglish.test', 'password' => bcrypt('password'), 'branch_id' => $otherBranch->id, 'is_active' => true]);
+        $teacherB->syncRoles(['teacher_fulltime']);
+
+        foreach (['manager', 'academic_lead', 'academic_staff', 'sales_consultant', 'teacher_fulltime', 'teacher_parttime', 'assistant'] as $role) {
+            $staff = $this->makeUser($role);
+            $page = $this->actingAs($staff)->get(route('tasks.create'))->assertOk()->viewData('page');
+            $this->assertContains($admin->id, collect($page['props']['users'])->pluck('value')->all(), $role);
+
+            $this->actingAs($staff)->post(route('tasks.store'), [
+                'taskTitle' => 'Việc cho Admin từ '.$role, 'assignee' => $admin->id,
+                'dueDate' => now()->addDay()->toDateString(), 'taskType' => 'one-time',
+            ])->assertSessionHasNoErrors();
+            $this->assertDatabaseHas('work_tasks', ['title' => 'Việc cho Admin từ '.$role, 'creator_id' => $staff->id, 'assignee_id' => $admin->id]);
+        }
+
+        // Giới hạn cũ vẫn giữ: Quản lý cơ sở không giao cho nhân sự chi nhánh khác, Sales không giao cho giáo viên.
+        foreach (['manager', 'sales_consultant'] as $role) {
+            $this->actingAs($this->makeUser($role))->post(route('tasks.store'), [
+                'taskTitle' => 'Việc ngoài phạm vi', 'assignee' => $teacherB->id,
+                'dueDate' => now()->addDay()->toDateString(), 'taskType' => 'one-time',
+            ])->assertSessionHasErrors('assignee');
+        }
+        $this->assertDatabaseMissing('work_tasks', ['title' => 'Việc ngoài phạm vi']);
     }
 
     public function test_teacher_assistant_and_accountant_can_open_their_notifications(): void

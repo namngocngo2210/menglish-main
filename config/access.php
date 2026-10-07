@@ -139,7 +139,8 @@ return [
         'sales_consultant' => [
             'lead.view', 'lead.create', 'lead.update', 'lead.convert', 'lead.mark_lost',
             'entrance_test.send',
-            'work_task.view', 'support_ticket.create', 'support_ticket.view', 'notification.view',
+            // Mọi nhân sự giao được việc cho Admin (07/10/2026): Sales đề xuất việc như GV / TA.
+            'work_task.view', 'work_task.request', 'support_ticket.create', 'support_ticket.view', 'notification.view',
             'portal.staff',
             'lead.scope_own', 'work_task.scope_own', 'support_ticket.scope_own',
         ],
