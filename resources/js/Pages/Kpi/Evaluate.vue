@@ -1,8 +1,9 @@
 <script setup>
 /**
- * Phiếu KPI tháng của một nhân sự (mở trong modal từ Phiếu KPI tháng): tiêu chí theo vai trò, cột Số liệu là số hệ thống
- * ghi nhận hoặc ô trống để người chấm điền; mức đạt 100 / 50 / 0% và tiền thưởng tính ngay khi điền.
- * Duyệt (cần đủ số liệu, từ ngày cuối tháng) → vào bảng lương; Không duyệt → bắt buộc ghi lý do. Không tự chấm phiếu của mình.
+ * Phiếu KPI của một nhân sự (mở trong modal từ Phiếu KPI tháng; phiếu quý với vai trò chấm theo quý): tiêu chí theo vai trò,
+ * cột Số liệu là số hệ thống ghi nhận hoặc ô trống để người chấm điền; mức đạt (theo bậc / tỉ lệ), tiền thưởng (Học vụ) và
+ * xếp loại A–E (phiếu quý) tính ngay khi điền. Có điều kiện loại trừ (nghỉ dạy không phép) → tổng 0.
+ * Duyệt (cần đủ số liệu, từ ngày cuối kỳ) → chốt phiếu; Không duyệt → bắt buộc ghi lý do. Không tự chấm phiếu của mình.
  */
 import { computed, nextTick, reactive, ref } from 'vue';
 import { usePage } from '@inertiajs/vue3';
@@ -15,6 +16,7 @@ const props = defineProps({
     staff: { type: Object, required: true },
     month: { type: Number, required: true },
     year: { type: Number, required: true },
+    periodMonths: { type: Number, default: 1 },
     periodLabel: { type: String, required: true },
     status: { type: String, required: true },
     statusLabel: { type: String, required: true },
@@ -24,6 +26,8 @@ const props = defineProps({
     decidedAt: { type: String, default: null },
     fund: { type: Number, default: null },
     weightTotal: { type: Number, default: 0 },
+    grades: { type: Array, default: () => [] },
+    simpleRules: { type: Boolean, default: true },
     isSelf: { type: Boolean, default: false },
     locked: { type: Boolean, default: false },
     canClose: { type: Boolean, default: true },
@@ -40,24 +44,39 @@ const hasFund = computed(() => props.fund !== null);
 const allItems = computed(() => props.groups.flatMap((g) => g.items));
 
 // Số điền tay theo tiêu chí (chuỗi trong ô); tiêu chí tự động lấy số hệ thống.
-const values = reactive(Object.fromEntries(allItems.value.filter((c) => !c.auto).map((c) => [c.id, c.value === null ? '' : String(c.value)])));
+const values = reactive(Object.fromEntries(allItems.value.filter((c) => !c.auto).map((c) => [c.id, c.value === null ? '' : String(c.value).replace('.', ',')])));
 const valueOf = (c) => {
     if (c.auto) return c.value;
     const raw = String(values[c.id] ?? '').trim();
+    if (c.measure === 'rate') return /^\d+([.,]\d+)?$/.test(raw) ? Number(raw.replace(',', '.')) : null;
     return /^\d+$/.test(raw) ? Number(raw) : null;
 };
+// Cùng cách tính với KpiCriterion::levelFor: đếm số lần → bậc đầu tiên có số ≤ ngưỡng; tỉ lệ → bậc đầu tiên có tỉ lệ ≥ ngưỡng,
+// hoặc thẳng theo tỉ lệ; vượt bậc cuối = 0%.
+const ruleLevel = (rule, n) => {
+    if (rule.measure === 'rate' && rule.linear) return Math.round(Math.max(0, Math.min(100, (n / rule.full_at) * 100)) * 100) / 100;
+    for (const [at, pct] of rule.tiers) if (rule.measure === 'rate' ? n >= at : n <= at) return pct;
+    return 0;
+};
 const levelOf = (c) => {
-    if (!c.count_based) return c.level;
+    // Số hệ thống (gồm phiếu quý tính từng tháng rồi lấy trung bình) và phiếu đã duyệt: dùng mức đạt máy chủ đã tính.
+    if (!c.count_based || c.auto || props.status === 'confirmed') return c.level;
     const n = valueOf(c);
-    if (n === null) return null;
-    return n <= c.max_full ? 100 : n <= c.max_half ? 50 : 0;
+    return n === null ? null : ruleLevel(c.rule, n);
 };
 const amountOf = (c) => (c.max_amount === null || levelOf(c) === null ? null : Math.round((c.max_amount * levelOf(c)) / 100));
 const missing = computed(() => allItems.value.filter((c) => levelOf(c) === null).length);
-const total = computed(() => (props.weightTotal > 0 ? allItems.value.reduce((s, c) => s + (levelOf(c) ?? 0) * c.weight, 0) / props.weightTotal : 0));
-const totalLabel = computed(() => String(Math.round(total.value * 100) / 100).replace('.', ','));
+const knockoutItem = computed(() => allItems.value.find((c) => c.knockout && (valueOf(c) ?? 0) > 0) ?? null);
+const total = computed(() => {
+    if (knockoutItem.value || props.weightTotal <= 0) return 0;
+    return allItems.value.reduce((s, c) => s + (levelOf(c) ?? 0) * c.weight, 0) / props.weightTotal;
+});
+const fmt = (n) => String(Math.round(n * 100) / 100).replace('.', ',');
+const totalLabel = computed(() => fmt(total.value));
 const totalMoney = computed(() => (hasFund.value ? Math.round((props.fund * total.value) / 100) : null));
-const levelColor = (l) => (l === 100 ? 'success' : l === 50 ? 'warning' : 'error');
+const grade = computed(() => props.grades.find((g) => total.value >= g.from) ?? null);
+const valueLabel = (c) => (c.value === null ? '—' : c.measure === 'rate' ? `${fmt(c.value)}%` : String(c.value));
+const levelColor = (l) => (l >= 100 ? 'success' : l > 0 ? 'warning' : 'error');
 
 const openEvidence = reactive({});
 const decision = ref('approve');
@@ -88,7 +107,7 @@ async function onReject(event) {
 const notice = computed(() => {
     if (props.isSelf) return 'Không tự chấm KPI của chính mình.';
     if (props.locked) return 'Kỳ lương tháng này đã duyệt, phiếu đã khóa.';
-    if (props.canDecide && !props.canClose) return `Duyệt từ ngày cuối tháng ${props.closeOn}. Trước đó có thể điền số liệu và Không duyệt.`;
+    if (props.canDecide && !props.canClose) return `Duyệt từ ngày cuối ${props.periodMonths > 1 ? 'quý' : 'tháng'} ${props.closeOn}. Trước đó có thể điền số liệu và Không duyệt.`;
     return null;
 });
 </script>
@@ -116,6 +135,7 @@ const notice = computed(() => {
         <UiAlert v-if="rejectReason" type="error">Không duyệt<template v-if="decidedBy"> ({{ decidedBy }})</template>: {{ rejectReason }}</UiAlert>
         <UiAlert v-if="notice" type="info">{{ notice }}</UiAlert>
         <UiAlert v-if="localError || serverError" type="error">{{ localError || serverError }}</UiAlert>
+        <UiAlert v-if="knockoutItem" type="warning">Có {{ knockoutItem.name.toLowerCase() }} trong kỳ: mất toàn bộ KPI kỳ này (tổng 0%).</UiAlert>
 
         <UiEmptyState v-if="!groups.length" icon="tune" title="Vai trò này chưa có tiêu chí KPI" description="Thêm tiêu chí ở Cài đặt → Tiêu chí KPI." />
 
@@ -124,8 +144,11 @@ const notice = computed(() => {
                 <thead>
                     <tr class="bg-surface-container-low text-left font-label-caps text-label-caps uppercase text-on-surface-variant">
                         <th class="px-md py-sm">Tiêu chí</th>
-                        <th class="whitespace-nowrap px-sm py-sm">Đạt 100% khi</th>
-                        <th class="whitespace-nowrap px-sm py-sm">Đạt 50% khi</th>
+                        <template v-if="simpleRules">
+                            <th class="whitespace-nowrap px-sm py-sm">Đạt 100% khi</th>
+                            <th class="whitespace-nowrap px-sm py-sm">Đạt 50% khi</th>
+                        </template>
+                        <th v-else class="px-sm py-sm">Cách tính</th>
                         <th class="px-sm py-sm text-right">Số liệu</th>
                         <th class="whitespace-nowrap px-sm py-sm">Mức đạt</th>
                         <th v-if="hasFund" class="px-md py-sm text-right">Thưởng</th>
@@ -134,12 +157,16 @@ const notice = computed(() => {
                 <tbody>
                     <template v-for="g in groups" :key="g.name">
                         <tr class="border-t border-surface-container bg-surface-container-lowest first:border-t-0">
-                            <td :colspan="hasFund ? 6 : 5" class="px-md pb-xs pt-md font-body-semibold text-body-semibold text-on-surface">{{ g.name }}</td>
+                            <td :colspan="(hasFund ? 6 : 5) - (simpleRules ? 0 : 1)" class="px-md pb-xs pt-md font-body-semibold text-body-semibold text-on-surface">{{ g.name }}</td>
                         </tr>
                         <tr v-for="c in g.items" :key="c.id" class="border-t border-surface-container align-top" :data-criterion="c.id">
                             <td class="px-md py-sm">
                                 <p class="font-medium text-on-surface">{{ c.name }}</p>
-                                <p class="font-caption text-caption text-on-surface-variant">{{ c.weight_label }}%<template v-if="c.max_amount !== null"> · tối đa {{ money(c.max_amount) }} đ</template></p>
+                                <p class="font-caption text-caption text-on-surface-variant">
+                                    <template v-if="c.knockout">Điều kiện loại trừ</template>
+                                    <template v-else>{{ c.weight_label }}{{ hasFund ? '%' : ' điểm' }}<template v-if="c.max_amount !== null"> · tối đa {{ money(c.max_amount) }} đ</template></template>
+                                    <template v-if="c.per_month && periodMonths > 1"> · tính từng tháng, lấy trung bình quý</template>
+                                </p>
                                 <template v-if="c.auto && c.evidence.length">
                                     <button type="button" class="mt-xs font-caption text-caption font-medium text-primary hover:underline" @click="openEvidence[c.id] = !openEvidence[c.id]">
                                         {{ openEvidence[c.id] ? 'Ẩn' : 'Xem' }} {{ c.evidence.length }} bản ghi
@@ -149,18 +176,22 @@ const notice = computed(() => {
                                     </ul>
                                 </template>
                             </td>
-                            <td class="whitespace-nowrap px-sm py-sm">{{ c.threshold_full }}</td>
-                            <td class="whitespace-nowrap px-sm py-sm">{{ c.threshold_half }}</td>
+                            <template v-if="simpleRules">
+                                <td class="whitespace-nowrap px-sm py-sm">{{ c.threshold_full }}</td>
+                                <td class="whitespace-nowrap px-sm py-sm">{{ c.threshold_half }}</td>
+                            </template>
+                            <td v-else class="min-w-[180px] max-w-[240px] px-sm py-sm font-caption text-caption text-on-surface-variant">{{ c.rule_label }}</td>
                             <td class="px-sm py-sm text-right">
-                                <span v-if="c.auto || !c.count_based" class="inline-block w-20 pr-sm font-semibold tabular-nums text-on-surface">{{ c.value ?? '—' }}</span>
+                                <span v-if="c.auto || !c.count_based" class="inline-block w-20 pr-sm font-semibold tabular-nums text-on-surface">{{ valueLabel(c) }}</span>
                                 <input
                                     v-else
                                     v-model="values[c.id]"
-                                    type="number"
+                                    :type="c.measure === 'rate' ? 'text' : 'number'"
                                     min="0"
                                     max="9999"
                                     step="1"
-                                    inputmode="numeric"
+                                    :inputmode="c.measure === 'rate' ? 'decimal' : 'numeric'"
+                                    :placeholder="c.measure === 'rate' ? '%' : null"
                                     :name="`actual[${c.id}]`"
                                     :disabled="!canDecide"
                                     :aria-label="`Số liệu: ${c.name}`"
@@ -171,7 +202,7 @@ const notice = computed(() => {
                                 />
                             </td>
                             <td class="px-sm py-sm">
-                                <UiBadge v-if="levelOf(c) !== null" :color="levelColor(levelOf(c))" :dot="false">{{ levelOf(c) }}%</UiBadge>
+                                <UiBadge v-if="levelOf(c) !== null" :color="levelColor(levelOf(c))" :dot="false">{{ fmt(levelOf(c)) }}%</UiBadge>
                                 <span v-else class="text-on-surface-variant">—</span>
                             </td>
                             <td v-if="hasFund" class="whitespace-nowrap px-md py-sm text-right tabular-nums">{{ amountOf(c) === null ? '—' : money(amountOf(c)) + ' đ' }}</td>
@@ -187,8 +218,11 @@ const notice = computed(() => {
 
         <template #footer>
             <div class="mr-auto flex flex-col justify-center">
-                <span class="font-caption text-caption text-on-surface-variant">Tổng thưởng KPI · {{ totalLabel }}%<template v-if="missing"> · còn {{ missing }} tiêu chí chưa có số liệu</template></span>
-                <span class="tabular-nums text-body-semibold font-semibold text-on-surface">{{ totalMoney !== null ? money(totalMoney) + ' đ' : totalLabel + '%' }}</span>
+                <span class="font-caption text-caption text-on-surface-variant">{{ hasFund ? `Tổng thưởng KPI · ${totalLabel}%` : 'Tổng KPI' }}<template v-if="missing"> · còn {{ missing }} tiêu chí chưa có số liệu</template></span>
+                <span class="tabular-nums text-body-semibold font-semibold text-on-surface">
+                    {{ totalMoney !== null ? money(totalMoney) + ' đ' : totalLabel + '%' }}
+                    <template v-if="grade"> · Loại {{ grade.grade }} ({{ grade.label }}, hệ số lương KPI {{ grade.pay }}%)</template>
+                </span>
             </div>
             <template v-if="canDecide">
                 <UiButton type="submit" variant="danger" icon="close" @click="onReject">{{ rejecting ? 'Xác nhận không duyệt' : 'Không duyệt' }}</UiButton>

@@ -25,6 +25,7 @@ class KpiEvaluation extends Model
         'status',
         'reject_reason',
         'decided_at',
+        'period_months',
     ];
 
     /** Trạng thái phiếu: draft = chờ duyệt (phiếu tự tạo đầu tháng), confirmed = đã duyệt (vào bảng lương), rejected = không duyệt. */
@@ -49,6 +50,7 @@ class KpiEvaluation extends Model
     protected $casts = [
         'total_score' => 'decimal:2',
         'decided_at' => 'datetime',
+        'period_months' => 'integer',
     ];
 
     public function user(): BelongsTo

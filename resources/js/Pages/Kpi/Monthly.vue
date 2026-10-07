@@ -2,7 +2,8 @@
 /**
  * Phiếu KPI tháng: mỗi nhân sự một dòng (vai trò có tiêu chí KPI), lọc theo kỳ lương / vai trò / cơ sở.
  * Bấm dòng → mở phiếu trong modal (Kpi/Evaluate): số liệu từng tiêu chí, điền tay phần còn trống, Duyệt / Không duyệt.
- * Phiếu tự tạo đầu tháng cho mọi nhân sự có tiêu chí KPI (lệnh kpi:create-sheets).
+ * Phiếu tự tạo đầu tháng cho mọi nhân sự có tiêu chí KPI (lệnh kpi:create-sheets). Vai trò chấm theo quý (GV part-time)
+ * có một phiếu cho cả quý, hiện ở cả 3 tháng của quý, cột Thưởng KPI ghi xếp loại A–E và hệ số lương KPI.
  */
 defineOptions({ layout: { title: 'Phiếu KPI tháng' } });
 
@@ -43,7 +44,10 @@ defineProps({
                             <p class="font-semibold text-on-surface">{{ s.name }}</p>
                             <p v-if="s.branch" class="font-caption text-caption text-on-surface-variant">{{ s.branch }}</p>
                         </td>
-                        <td class="whitespace-nowrap">{{ s.role }}</td>
+                        <td class="whitespace-nowrap">
+                            {{ s.role }}
+                            <p v-if="s.period_label" class="font-caption text-caption text-on-surface-variant">{{ s.period_label }}</p>
+                        </td>
                         <td class="whitespace-nowrap text-right font-mono">{{ s.rate_label }}</td>
                         <td class="whitespace-nowrap text-right font-mono">{{ s.amount_label }}</td>
                         <td><UiBadge :color="s.status_color">{{ s.status_label }}</UiBadge></td>

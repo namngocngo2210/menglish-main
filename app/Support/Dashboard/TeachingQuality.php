@@ -46,11 +46,12 @@ final class TeachingQuality
 
     public readonly Carbon $to;
 
-    public function __construct(?string $month = null)
+    /** Mặc định một tháng (?month=YYYY-MM); KPI theo quý truyền khoảng ngày riêng (from / to). */
+    public function __construct(?string $month = null, ?\Carbon\CarbonInterface $from = null, ?\Carbon\CarbonInterface $to = null)
     {
         $start = ReportPeriod::parseMonth($month);
-        $this->from = $start->copy()->startOfMonth()->startOfDay();
-        $this->to = $start->copy()->endOfMonth()->endOfDay();
+        $this->from = $from ? Carbon::instance($from)->startOfDay() : $start->copy()->startOfMonth()->startOfDay();
+        $this->to = $to ? Carbon::instance($to)->endOfDay() : $start->copy()->endOfMonth()->endOfDay();
     }
 
     public function monthKey(): string
