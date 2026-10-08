@@ -96,9 +96,43 @@ class DemoPayrollSeederTest extends TestCase
         $this->assertSame('reviewing', $period->status);
         $newTeacher = User::where('email', 'gv.minhduc@menglish.edu.vn')->firstOrFail();
         $this->assertTrue($period->records()->where('user_id', $newTeacher->id)->where('teaching_sessions', '>', 0)->exists());
+        // Kỳ tháng trước: đã duyệt, từ ngày 10 (lịch trả lương) đã chi trả; có phiếu cho mọi vai trò nhân sự (lớp K27 cho GV / TA
+        // chưa có lịch dạy), không có phiếu của người vào làm từ tháng này.
         $lastPeriod = PayrollPeriod::where('year', $last->year)->where('month', $last->month)->firstOrFail();
-        $this->assertSame('approved', $lastPeriod->status);
+        $this->assertSame('paid', $lastPeriod->status);
         $this->assertFalse($lastPeriod->records()->where('user_id', $newTeacher->id)->exists());
+        $staffRoles = [Roles::MANAGER, Roles::ACADEMIC_LEAD, Roles::ACADEMIC_STAFF, Roles::SALES_CONSULTANT, Roles::TEACHER_FULLTIME, Roles::TEACHER_PARTTIME, Roles::ASSISTANT];
+        foreach ([$lastPeriod, $period] as $p) {
+            foreach ($staffRoles as $role) {
+                $this->assertTrue($p->records()->whereHas('user.roles', fn ($q) => $q->where('name', $role))->exists(), "Kỳ {$p->code} thiếu phiếu {$role}.");
+            }
+        }
+        foreach (['manager@menglish.edu.vn', 'gv.native1@menglish.edu.vn', 'ta.linh@menglish.edu.vn'] as $email) {
+            $this->assertTrue($lastPeriod->records()->whereHas('user', fn ($q) => $q->where('email', $email))->where('net_salary', '>', 0)->exists(), "Thiếu phiếu tháng trước của {$email}.");
+        }
+        $this->assertSame(0, $lastPeriod->records()->whereNot('status', 'paid')->count());
+
+        // Biên bản lập tay (có bằng chứng) cho mọi vai trò, đủ các bước; biên bản quá hạn nộp tháng trước đã trừ lương rồi khắc phục.
+        $manual = Penalty::whereNotNull('evidence_path');
+        foreach ($staffRoles as $role) {
+            $this->assertTrue((clone $manual)->whereHas('user.roles', fn ($q) => $q->where('name', $role))->exists(), "Thiếu biên bản {$role}.");
+        }
+        foreach (['pending', 'explained', 'confirmed', 'fined', 'paid', 'deducted', 'resolved', 'cancelled'] as $status) {
+            $this->assertTrue((clone $manual)->where('status', $status)->exists(), "Thiếu biên bản lập tay {$status}.");
+        }
+        $this->assertTrue((clone $manual)->where('status', 'deducted')->whereNotNull('remedied_at')
+            ->whereIn('payroll_record_id', $lastPeriod->records()->select('id'))->exists());
+
+        // KPI mọi vai trò (có bộ mẫu Quản lý cơ sở), mỗi vai trò có người tốt / người kém.
+        foreach ($staffRoles as $role) {
+            $this->assertTrue(KpiEvaluation::where('year', $last->year)->where('month', $last->month)->where('status', KpiEvaluation::STATUS_APPROVED)
+                ->whereHas('user.roles', fn ($q) => $q->where('name', $role))->exists(), "Thiếu phiếu KPI tháng trước {$role}.");
+        }
+        $score = fn (string $email) => (float) KpiEvaluation::where('year', $last->year)->where('month', $last->month)
+            ->whereHas('user', fn ($q) => $q->where('email', $email))->value('total_score');
+        $this->assertGreaterThan($score('ttb@menglish.edu.vn') + 30, $score('manager@menglish.edu.vn'));
+        $this->assertGreaterThan($score('gv.cohuu1@menglish.edu.vn') + 20, $score('gv.cohuu2@menglish.edu.vn'));
+        $this->assertTrue(TeacherTimesheet::whereHas('classModel', fn ($q) => $q->where('code', 'DEMO-CG-SPK27'))->where('status', 'valid')->exists());
 
         // Chạy lại không nhân bản.
         $counts = fn () => [StaffAttendance::count(), StaffAttendanceRequest::count(), TeacherTimesheet::count(), KpiEvaluation::count(), User::count(),
