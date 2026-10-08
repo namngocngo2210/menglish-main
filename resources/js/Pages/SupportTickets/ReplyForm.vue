@@ -8,6 +8,7 @@
 import { ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { reloadRemoteModal } from '@/lib/remoteModal';
+import { useRemoteModal } from '@/Components/ui/modalContext';
 import { route } from '@/lib/route';
 import AttachmentUploader from './AttachmentUploader.vue';
 import { usePendingReplies } from './pendingReplies';
@@ -27,6 +28,7 @@ const STATUS_ERRORS = {
 };
 
 const pending = usePendingReplies();
+const modal = useRemoteModal();
 const formEl = ref(null);
 const uploader = ref(null);
 let seq = 0;
@@ -62,6 +64,7 @@ function submit() {
 
     formEl.value.reset();
     uploader.value?.reset();
+    modal?.markClean(); // nội dung đã chuyển sang khung "Đang gửi…", ô nhập trống → đóng modal không hỏi "chưa lưu"
     send(item);
 }
 
