@@ -5,9 +5,12 @@ namespace Database\Seeders;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\PenaltyController;
 use App\Http\Controllers\TeacherPortalController;
+use App\Models\AdminNotification;
 use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\ClassSession;
+use App\Models\CommissionAdjustment;
+use App\Models\CommissionItem;
 use App\Models\Course;
 use App\Models\Holiday;
 use App\Models\KpiCriterion;
@@ -29,6 +32,7 @@ use Database\Seeders\Concerns\InvokesControllersAsUser;
 use Illuminate\Database\Seeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -53,9 +57,13 @@ use Illuminate\Support\Str;
  * - Bộ tiêu chí KPI mẫu cho GV full-time, Trợ giảng, Sale (vai trò chưa có bộ). Phiếu KPI tháng trước đã duyệt (1 phiếu
  *   không duyệt), phiếu tháng này chờ duyệt, phần lớn đã điền số liệu.
  * - Kỳ lương tháng này: Admin "Đồng bộ & Tính lại", nhập KPI / phụ cấp cho phiếu mới, tính lại (để Đang soát).
+ * - KPI Học thuật (Trưởng Học thuật): DemoAcademicKpiSeeder (dự án học thuật, việc giao, order học liệu, phiếu tháng trước / này).
+ * - Kỳ lương tháng trước đủ mọi vai trò (completeLastMonth): lớp K27 cho GV / TA chưa có lịch tháng trước (có buổi đi muộn, quên
+ *   check-in, vắng, ca bị từ chối), biên bản vi phạm lập tay cho mọi vai trò ở đủ các bước, KPI bộ mẫu Quản lý cơ sở và mỗi vai trò
+ *   1 người tốt / 1 người kém; mở lại kỳ demo, tính lại, duyệt, từ ngày 10 ghi nhận đã chi trả.
  *
  * Không nằm trong DatabaseSeeder: chạy tay bằng `php artisan demo:luong` sau `db:seed` (CSDL demo). Idempotent: lớp DEMO-CG-IF1
- * đã có thì bỏ qua (chỉ in số liệu). Chạy trong 1 transaction.
+ * đã có thì bỏ qua phần chính, lớp DEMO-CG-SPK27 đã có thì bỏ qua phần tháng trước. Mỗi phần chạy trong 1 transaction.
  */
 class DemoPayrollSeeder extends Seeder
 {
@@ -160,6 +168,13 @@ class DemoPayrollSeeder extends Seeder
             ['Hỗ trợ lớp học', 'Nhắc & thu bài tập về nhà', 20, 'rate', 'phan_tram', [[95, 100], [90, 80], [85, 60]], false, null, false, 'homework_rate', '≥ 95% đủ điểm, ≥ 90% được 80%, ≥ 85% được 60%.'],
             ['Phối hợp', 'Phản ánh của GV chính / phụ huynh', 20, 'count', 'lan', [[0, 100], [1, 50]], false, null, false, null, 'Số phản ánh đã xác minh trong tháng.'],
         ],
+        Roles::MANAGER => [
+            ['Kinh doanh', 'Doanh thu học phí so với kế hoạch tháng', 30, 'rate', 'phan_tram', [[100, 100], [90, 70], [80, 40]], false, null, false, null, '≥ 100% kế hoạch đủ điểm, 90–99% được 70%, 80–89% được 40%.'],
+            ['Kinh doanh', 'Tỷ lệ học viên tái tục', 20, 'rate', 'phan_tram', [[85, 100], [75, 60]], false, null, false, null, '≥ 85% đủ điểm, 75–84% được 60%.'],
+            ['Vận hành', 'Hồ sơ công nợ quá hạn trên 7 ngày', 20, 'count', 'ho_so', [[2, 100], [5, 50]], false, null, false, null, '≤ 2 hồ sơ đủ điểm, 3–5 hồ sơ một nửa, từ 6 hồ sơ là 0.'],
+            ['Vận hành', 'Duyệt đơn / chốt biên bản trong 24h', 15, 'rate', 'phan_tram', null, true, 100, false, null, 'Số đơn / biên bản xử lý trong 24h ÷ tổng số (%).'],
+            ['Nhân sự', 'Phản ánh của phụ huynh về cơ sở', 15, 'count', 'lan', [[0, 100], [1, 50]], false, null, false, null, 'Số phản ánh đã xác minh về cơ sở vật chất, thái độ nhân sự.'],
+        ],
         Roles::SALES_CONSULTANT => [
             ['Chăm sóc khách hàng', 'Lead trễ hạn SLA (liên hệ, follow, kết quả test)', 30, 'count', 'case', [[2, 100], [5, 50]], false, null, false, 'crm_sla_late', '≤ 2 case đủ điểm, 3–5 case một nửa, từ 6 case là 0.'],
             ['Chăm sóc khách hàng', 'Báo cáo ngày nộp muộn', 15, 'count', 'lan', [[1, 100], [3, 50]], false, null, false, 'daily_report_late', 'Báo cáo ngày nộp sau 9h sáng hôm sau.'],
@@ -168,8 +183,83 @@ class DemoPayrollSeeder extends Seeder
         ],
     ];
 
+    /**
+     * Lớp K27 đã kết thúc tháng trước cho GV / TA chưa có lịch dạy tháng trước (GV full-time chưa có lớp, GV part-time, GVNN,
+     * trợ giảng): [tên, cơ sở, khóa học, GV, trợ giảng (luân phiên), phòng, lịch [thứ, từ, đến, ca]].
+     */
+    private const LAST_MONTH_CLASSES = [
+        'DEMO-CG-SPK27' => ['# Speaking Club Starters · K27 (CG)', 'CG', 'Movers', 'gv.native1@menglish.edu.vn',
+            ['ta.thu@menglish.edu.vn', 'ta.hai@menglish.edu.vn', 'ta.linh@menglish.edu.vn'], 'Phòng 202',
+            [[1, '19:30', '21:00', 'Ca 2'], [3, '19:30', '21:00', 'Ca 2'], [7, '16:00', '17:30', 'Ca chiều']]],
+        'DEMO-CG-IE27' => ['# IELTS Pre · K27 (CG)', 'CG', 'IELTS 6.5', 'gv.cohuu1@menglish.edu.vn', ['ta.tram@menglish.edu.vn'], 'Phòng 201',
+            [[2, '19:30', '21:00', 'Ca 2'], [4, '19:30', '21:00', 'Ca 2'], [6, '15:00', '16:30', 'Ca chiều']]],
+        'DEMO-DD-GT27' => ['# Giao tiếp Teens A2 · K27 (ĐĐ)', 'DD', 'Giao tiếp Pro B1', 'gv.banthoigian1@menglish.edu.vn', [], 'Phòng 101',
+            [[1, '18:00', '19:30', 'Ca 1'], [3, '18:00', '19:30', 'Ca 1'], [5, '18:00', '19:30', 'Ca 1']]],
+    ];
+
+    /** Mức KPI điền tay theo người (mỗi vai trò 1 người tốt, 1 người kém); người khác điền ngẫu nhiên phần lớn đạt. */
+    private const KPI_PROFILES = [
+        'manager@menglish.edu.vn' => 'good', 'ttb@menglish.edu.vn' => 'bad',
+        'nva@menglish.edu.vn' => 'good', 'giaovu2@menglish.edu.vn' => 'bad',
+        'levanvu@menglish.edu.vn' => 'good', 'hoangthinh@menglish.edu.vn' => 'bad',
+        'gv.cohuu2@menglish.edu.vn' => 'good', 'gv.cohuu1@menglish.edu.vn' => 'bad',
+        'gv.banthoigian1@menglish.edu.vn' => 'good', 'nguyenvanan@menglish.edu.vn' => 'bad',
+        'ta.hai@menglish.edu.vn' => 'good', 'ta.linh@menglish.edu.vn' => 'bad',
+    ];
+
+    /** Sự cố buổi dạy lớp K27 (tháng trước): email => [buổi thứ n của người đó => [late | forgot | absent, số phút muộn]]. */
+    private const LAST_MONTH_TEACHING_ISSUES = [
+        'gv.banthoigian1@menglish.edu.vn' => [3 => ['late', 8], 7 => ['late', 12], 10 => ['forgot', null]],
+        'gv.native1@menglish.edu.vn' => [5 => ['late', 22], 11 => ['late', 5]],
+        'gv.cohuu1@menglish.edu.vn' => [4 => ['late', 18]],
+        'ta.tram@menglish.edu.vn' => [6 => ['late', 6]],
+        'ta.hai@menglish.edu.vn' => [2 => ['absent', null]],
+    ];
+
+    /**
+     * Biên bản vi phạm lập tay cho mọi vai trò (ngoài biên bản đi muộn tự động): [email, loại lỗi, lỗi, ghi chú, thời điểm
+     * (['L', ngày] = tháng trước, ['ago', n] = n ngày trước), diễn biến, tiền phạt, giải trình]. Diễn biến: pending (chờ giải
+     * trình), explained (chờ chốt), confirmed (chốt lỗi, chưa phạt), fined (đã phạt, còn hạn nộp), paid (nộp trực tiếp),
+     * remedied (nộp rồi khắc phục), deducted (quá hạn nộp → trừ lương kỳ đó; tháng trước thì đã khắc phục), resolved (miễn phạt),
+     * cancelled (lập nhầm, hủy).
+     */
+    private const VIOLATIONS = [
+        ['gv.cohuu2@menglish.edu.vn', 'academic', 'Chậm nộp nhận xét buổi học (> 24h)', 'Nhận xét 2 buổi FAM 1 BD nộp sau 48h, PH hỏi trên nhóm lớp.', ['L', 5], 'deducted', 100000,
+            'Tuần đó em ốm, đã nhờ TA nhắn PH nhưng chưa kịp nhập nhận xét lên hệ thống.'],
+        ['ta.tuan@menglish.edu.vn', 'operations', 'Không check-in / điểm danh đúng giờ', 'Buổi tối thứ 3 không điểm danh, Học vụ phải gọi PH xác nhận.', ['L', 9], 'remedied', 50000,
+            'Máy tính bảng của lớp hết pin, em ghi giấy rồi quên nhập lại.'],
+        ['tranmaia@menglish.edu.vn', 'operations', 'Vi phạm nội quy trung tâm', 'Báo sai mức học phí khóa Starters cho PH (thiếu phí giáo trình).', ['L', 12], 'deducted', 200000,
+            'Em dùng bảng giá cũ, chưa cập nhật bảng giá tháng này.'],
+        ['manager.bd@menglish.edu.vn', 'operations', 'Không chốt sổ quỹ cuối ngày đúng hạn', 'Sổ quỹ BD ngày 15 chốt trễ sang sáng hôm sau.', ['L', 16], 'confirmed', null,
+            'Tối đó cơ sở có sự cố mất điện nên em chốt sổ sáng hôm sau.'],
+        ['academiclead@menglish.edu.vn', 'academic', 'Không nộp giáo án / bài tập đúng hạn', 'Đề Big Test kỳ 3 duyệt trễ 1 ngày so với lịch.', ['L', 20], 'resolved', null,
+            'Đề phải sửa lại theo góp ý GVNN nên duyệt trễ 1 ngày, lớp vẫn thi đúng lịch.'],
+        ['nguyenvanan@menglish.edu.vn', 'operations', 'Nghỉ dạy không phép', 'Nghỉ buổi FAM 0 CG, báo trước 30 phút, Học vụ phải dạy thay.', ['L', 22], 'deducted', 300000, null],
+        ['giaovu2@menglish.edu.vn', 'operations', 'Quá hạn SLA chăm sóc học viên tháng đầu', 'Lập nhầm người phụ trách (HV thuộc Học vụ Cầu Giấy).', ['L', 24], 'cancelled', null, null],
+        ['gv.native1@menglish.edu.vn', 'academic', 'Dạy sai tiến độ giáo trình', 'Speaking Club dạy vượt 1 unit so với giáo trình đã giao.', ['ago', 9], 'deducted', 150000,
+            'I followed the old syllabus file, I will catch up with the right unit next class.'],
+        ['hoangthinh@menglish.edu.vn', 'operations', 'Vi phạm nội quy trung tâm', 'Không cập nhật CRM sau 3 cuộc gọi tư vấn trong ngày.', ['ago', 7], 'paid', 100000,
+            'Hôm đó em đi sự kiện ở trường, về muộn nên chưa nhập kịp.'],
+        ['gv.banthoigian1@menglish.edu.vn', 'academic', 'Chậm nộp nhận xét buổi học (> 24h)', 'Nhận xét buổi Giao tiếp Teens nộp sau 30 giờ.', ['ago', 6], 'remedied', 50000,
+            'Em đi dạy liền 2 ca nên nhập nhận xét muộn, em đã đặt nhắc lịch.'],
+        ['gv.cohuu1@menglish.edu.vn', 'academic', 'Không nhập điểm / kết quả kiểm tra đúng hạn', 'Điểm mini test lớp IELTS chưa nhập sau 3 ngày.', ['ago', 5], 'confirmed', null,
+            'Bài viết cần chấm kỹ nên em nhập chậm, đã nhập xong hôm qua.'],
+        ['ketoan2@menglish.edu.vn', 'operations', 'Vi phạm nội quy trung tâm', 'Lập phiếu thu sai tên học viên, phải hủy hóa đơn lập lại.', ['ago', 4], 'deducted', 200000,
+            'Hai học viên trùng tên, em chọn nhầm hồ sơ.'],
+        ['nva@menglish.edu.vn', 'operations', 'Không check-in / điểm danh đúng giờ', 'Không mở điểm danh cho lớp FAM 1 CG, GV phải chờ 10 phút.', ['ago', 3], 'resolved', null,
+            'Hệ thống báo lỗi đăng nhập lúc 17h45, em đã báo IT và mở lại được ngay sau đó.'],
+        ['manager@menglish.edu.vn', 'operations', 'Vi phạm nội quy trung tâm', 'Không duyệt đơn nghỉ của nhân sự trong 24h.', ['ago', 2], 'fined', 100000,
+            'Em đi công tác cơ sở Ba Đình, không kiểm tra hệ thống.'],
+        ['ta.tram@menglish.edu.vn', 'operations', 'Vi phạm nội quy trung tâm', 'Dùng điện thoại cá nhân trong giờ lớp IELTS.', ['ago', 2], 'pending', null, null],
+        ['levanvu@menglish.edu.vn', 'operations', 'Vi phạm nội quy trung tâm', 'Báo sai lịch khai giảng lớp K28 cho PH.', ['ago', 1], 'explained', null,
+            'Em xem nhầm lịch lớp Cầu Giấy, đã gọi lại xin lỗi PH ngay trong ngày.'],
+    ];
+
     /** @var array<string, User> */
     private array $staff = [];
+
+    /** @var list<Penalty> biên bản tháng trước để quá hạn nộp (trừ vào kỳ lương tháng trước) */
+    private array $deductedPenalties = [];
 
     /** @var array<string, Branch> mã cơ sở => cơ sở */
     private array $branches = [];
@@ -210,12 +300,6 @@ class DemoPayrollSeeder extends Seeder
 
             return;
         }
-        if (ClassModel::withTrashed()->where('code', self::FIRST_CLASS)->exists()) {
-            $this->command?->info('DemoPayrollSeeder: đã có dữ liệu demo lương — bỏ qua (chỉ in số liệu).');
-            $this->printSummary();
-
-            return;
-        }
 
         $this->attendance = app(StaffAttendanceService::class);
         $this->staff = collect(self::STAFF)->map(fn (string $email) => User::where('email', $email)->firstOrFail())->all();
@@ -223,15 +307,14 @@ class DemoPayrollSeeder extends Seeder
             $this->branches[$branch->code] = $branch;
             $this->branchCode[$branch->id] = $branch->code;
         }
-
-        $previousTestNow = Carbon::getTestNow();
-        $originalRequest = app('request');
         $this->realNow = now()->copy();
         $this->thisMonth = $this->realNow->copy()->startOfMonth();
         $this->lastMonth = $this->thisMonth->copy()->subMonthNoOverflow()->startOfMonth();
 
-        try {
-            DB::transaction(function () {
+        if (ClassModel::withTrashed()->where('code', self::FIRST_CLASS)->exists()) {
+            $this->command?->info('DemoPayrollSeeder: đã có dữ liệu demo lương — chỉ bổ sung phần còn thiếu.');
+        } else {
+            $this->travel(function () {
                 $this->setupBranches();
                 $this->setupStaff();
                 $this->setupRates();
@@ -250,16 +333,28 @@ class DemoPayrollSeeder extends Seeder
 
                 $this->closePayroll();
             });
+        }
+
+        // KPI Học thuật (dự án, việc giao, order học liệu, phiếu Trưởng Học thuật): seeder riêng, chạy được cả khi đã có dữ liệu lương.
+        $this->call(DemoAcademicKpiSeeder::class);
+        // Kỳ lương tháng trước đủ mọi vai trò (sau KPI Học thuật để phiếu lương lấy đúng KPI đã chốt).
+        $this->travel(fn () => $this->completeLastMonth());
+        $this->printSummary();
+    }
+
+    /** Chạy trong 1 transaction với đồng hồ tua; luôn trả lại giờ thật, request và người đăng nhập. */
+    private function travel(Closure $callback): void
+    {
+        $previousTestNow = Carbon::getTestNow();
+        $originalRequest = app('request');
+        try {
+            DB::transaction($callback);
         } finally {
             Carbon::setTestNow($previousTestNow);
             app()->instance('request', $originalRequest);
             Auth::forgetUser();
         }
-
-        $this->printSummary();
     }
-
-    // ── Thời gian ──────────────────────────────────────────────────────────────
 
     private function at(Carbon $at): void
     {
@@ -1029,46 +1124,9 @@ class DemoPayrollSeeder extends Seeder
     private function planKpi(): void
     {
         $sheets = app(KpiSheetService::class);
-        $L = $this->lastMonth;
 
         // Phiếu tháng trước (kỳ lương đã khóa): duyệt cuối tháng (1 phiếu không duyệt). Phiếu đã chốt từ trước giữ nguyên.
-        $this->event($this->thisMonth->copy()->setTime(10, 0)->min($this->realNow->copy()->subMinutes(30)), function () use ($sheets, $L) {
-            $rejected = false;
-            $sheets->staffQuery()->with('roles')
-                ->where(fn ($q) => $q->whereNull('contract_start_date')->orWhereDate('contract_start_date', '<', $this->thisMonth->toDateString()))
-                ->orderBy('id')->get()
-                ->each(function (User $staff) use ($sheets, $L, &$rejected) {
-                    $period = KpiSheetService::periodFor($staff, $L->month, $L->year);
-                    if ($period['months'] !== 1) {
-                        return;
-                    }
-                    $evaluation = KpiEvaluation::firstOrCreate(
-                        ['user_id' => $staff->id, 'month' => $period['month'], 'year' => $period['year']],
-                        ['period_months' => 1, 'total_score' => 0, 'status' => KpiEvaluation::STATUS_PENDING]
-                    );
-                    if ($evaluation->status !== KpiEvaluation::STATUS_PENDING) {
-                        return;
-                    }
-                    $this->fillManualValues($staff, $evaluation, $L);
-                    $sheet = $sheets->sheet($staff, $period['month'], $period['year'], $evaluation->fresh('items'));
-                    $reject = ! $rejected && $staff->hasRole(Roles::ASSISTANT);
-                    $rejected = $rejected || $reject;
-                    foreach ($sheet['lines'] as $line) {
-                        KpiEvaluationItem::updateOrCreate(
-                            ['kpi_evaluation_id' => $evaluation->id, 'kpi_criterion_id' => $line['criterion']->id],
-                            ['actual' => $line['value'] === null ? null : (string) $line['value'], 'score' => $line['level'] ?? 0, 'evidence' => $line['auto'] ? $line['evidence'] : null]
-                        );
-                    }
-                    $evaluation->update([
-                        'evaluator_id' => $this->deciderFor($staff)->id,
-                        'total_score' => $sheet['total'],
-                        'status' => $reject ? KpiEvaluation::STATUS_REJECTED : KpiEvaluation::STATUS_APPROVED,
-                        'reject_reason' => $reject ? 'Thiếu số liệu điểm danh 2 buổi tuần cuối tháng — Học vụ bổ sung rồi gửi lại.' : null,
-                        'comment' => $reject ? null : 'Đánh giá KPI tháng '.$L->format('m/Y').'.',
-                        'decided_at' => now(),
-                    ]);
-                });
-        });
+        $this->event($this->thisMonth->copy()->setTime(10, 0)->min($this->realNow->copy()->subMinutes(30)), fn () => $this->freezeLastMonthSheets(true));
 
         // Phiếu tháng này: tự tạo đầu tháng (kpi:create-sheets), người chấm đã điền số liệu điền tay cho ~80% phiếu.
         $this->event($this->thisMonth->copy()->setTime(0, 10), fn () => $sheets->ensureSheets($this->thisMonth->month, $this->thisMonth->year));
@@ -1077,7 +1135,8 @@ class DemoPayrollSeeder extends Seeder
             KpiEvaluation::with('user.roles')->where('year', $this->thisMonth->year)->where('month', $this->thisMonth->month)
                 ->where('status', KpiEvaluation::STATUS_PENDING)->get()
                 ->each(function (KpiEvaluation $evaluation) {
-                    if ($evaluation->user && $this->roll($evaluation->user_id, $this->thisMonth->format('Y-m'), 'kpi') < 80) {
+                    if ($evaluation->user && KpiCriterion::roleFor($evaluation->user) !== Roles::ACADEMIC_LEAD
+                        && $this->roll($evaluation->user_id, $this->thisMonth->format('Y-m'), 'kpi') < 80) {
                         $this->fillManualValues($evaluation->user, $evaluation, $this->thisMonth);
                     }
                 });
@@ -1085,22 +1144,89 @@ class DemoPayrollSeeder extends Seeder
     }
 
     /** Điền số liệu tiêu chí điền tay (và nguồn tỉ lệ chưa có dữ liệu): phần lớn đạt, vài mục trượt bậc. */
-    private function fillManualValues(User $staff, KpiEvaluation $evaluation, Carbon $month): void
+    /**
+     * Chấm và chốt phiếu KPI tháng trước cho nhân sự đã vào làm trước tháng này (bỏ Trưởng Học thuật — DemoAcademicKpiSeeder chấm
+     * riêng); $withRejected: 1 phiếu trợ giảng không duyệt. Phiếu đã chốt từ trước giữ nguyên.
+     */
+    private function freezeLastMonthSheets(bool $withRejected): void
+    {
+        $sheets = app(KpiSheetService::class);
+        $L = $this->lastMonth;
+        $rejected = ! $withRejected;
+        $sheets->staffQuery()->with('roles')
+            ->where(fn ($q) => $q->whereNull('contract_start_date')->orWhereDate('contract_start_date', '<', $this->thisMonth->toDateString()))
+            ->orderBy('id')->get()
+            ->each(function (User $staff) use ($sheets, $L, &$rejected) {
+                $period = KpiSheetService::periodFor($staff, $L->month, $L->year);
+                if ($period['months'] !== 1 || KpiCriterion::roleFor($staff) === Roles::ACADEMIC_LEAD) {
+                    return;
+                }
+                $evaluation = KpiEvaluation::firstOrCreate(
+                    ['user_id' => $staff->id, 'month' => $period['month'], 'year' => $period['year']],
+                    ['period_months' => 1, 'total_score' => 0, 'status' => KpiEvaluation::STATUS_PENDING]
+                );
+                if ($evaluation->status !== KpiEvaluation::STATUS_PENDING) {
+                    return;
+                }
+                $this->fillManualValues($staff, $evaluation, $L);
+                $sheet = $sheets->sheet($staff, $period['month'], $period['year'], $evaluation->fresh('items'));
+                $reject = ! $rejected && $staff->hasRole(Roles::ASSISTANT);
+                $rejected = $rejected || $reject;
+                foreach ($sheet['lines'] as $line) {
+                    KpiEvaluationItem::updateOrCreate(
+                        ['kpi_evaluation_id' => $evaluation->id, 'kpi_criterion_id' => $line['criterion']->id],
+                        ['actual' => $line['value'] === null ? null : (string) $line['value'], 'score' => $line['level'] ?? 0, 'evidence' => $line['auto'] ? $line['evidence'] : null, 'not_applicable' => $line['na']]
+                    );
+                }
+                $evaluation->update([
+                    'evaluator_id' => $this->deciderFor($staff)->id,
+                    'total_score' => $sheet['total'],
+                    'status' => $reject ? KpiEvaluation::STATUS_REJECTED : KpiEvaluation::STATUS_APPROVED,
+                    'reject_reason' => $reject ? 'Thiếu số liệu điểm danh 2 buổi tuần cuối tháng — Học vụ bổ sung rồi gửi lại.' : null,
+                    'comment' => $reject ? null : 'Đánh giá KPI tháng '.$L->format('m/Y').'.',
+                    'decided_at' => now(),
+                ]);
+            });
+    }
+
+    private function fillManualValues(User $staff, KpiEvaluation $evaluation, Carbon $month, bool $overwrite = false): void
     {
         $role = KpiCriterion::roleFor($staff);
         if (! $role) {
             return;
         }
         $key = $month->format('Y-m');
-        $filled = $evaluation->items()->whereNotNull('actual')->pluck('kpi_criterion_id')->all();
+        $profile = self::KPI_PROFILES[$staff->email] ?? null;
+        $filled = $evaluation->items()->where(fn ($q) => $q->whereNotNull('actual')->orWhere('not_applicable', true))
+            ->when($overwrite, fn ($q) => $q->where('not_applicable', true))->pluck('kpi_criterion_id')->all();
         foreach (KpiCriterion::forRole($role)->active()->ordered()->get() as $criterion) {
             if (! $criterion->hasRule() || ($criterion->isAuto() && ! $criterion->isRateSource()) || in_array($criterion->id, $filled)) {
                 continue;
             }
             $salt = $key.'|'.$criterion->id;
-            $value = $criterion->isRate()
-                ? (string) $this->between($staff->id, $salt, 'rate', 72, 100)
-                : (string) ($this->roll($staff->id, $salt, 'cnt') < 75 ? 0 : $this->between($staff->id, $salt, 'cnt2', 1, 3));
+            // Ngưỡng của tiêu chí tỉ lệ: bậc thấp nhất / cao nhất (hoặc mức đủ điểm) — tốt thì vượt bậc cao, kém thì dưới bậc thấp.
+            $marks = $criterion->tiers ? array_column($criterion->tiers, 0) : [(float) ($criterion->full_at ?: 100)];
+            [$low, $top] = [(int) min($marks), (int) max($marks)];
+            $rate = fn (int $min, int $max) => $this->between($staff->id, $salt, 'rate', $min, max($min, $max));
+            $value = match (true) {
+                ! $criterion->isRate() => match ($profile) {
+                    'good' => 0,
+                    'bad' => $this->between($staff->id, $salt, 'cnt3', 3, 6),
+                    default => $this->roll($staff->id, $salt, 'cnt') < 75 ? 0 : $this->between($staff->id, $salt, 'cnt2', 1, 3),
+                },
+                // Tỉ lệ càng thấp càng tốt (vd. % lỗi lặp lại): phần lớn thấp.
+                $criterion->isLowerBetter() => match ($profile) {
+                    'good' => $rate(0, 3),
+                    'bad' => $rate(20, 40),
+                    default => $rate(0, 15),
+                },
+                default => match ($profile) {
+                    'good' => $rate($top, min(100, $top + 10)),
+                    'bad' => $rate((int) round($low * 0.4), (int) round($low * 0.85)),
+                    default => $rate((int) round($low * 0.85), min(100, $top + 15)),
+                },
+            };
+            $value = (string) $value;
             KpiEvaluationItem::updateOrCreate(
                 ['kpi_evaluation_id' => $evaluation->id, 'kpi_criterion_id' => $criterion->id],
                 ['actual' => $value, 'score' => $criterion->levelFor((float) $value) ?? 0]
@@ -1131,30 +1257,13 @@ class DemoPayrollSeeder extends Seeder
         // Phiếu đã có khoản nhập tay từ trước (DemoPhase3) giữ nguyên.
         PayrollRecord::with('user.roles')->where('payroll_period_id', $period->id)->whereIn('user_id', array_keys($this->touchedProfiles))
             ->whereNull('adjustment_notes')->orderBy('id')->get()
-            ->each(function (PayrollRecord $record) use ($admin, &$skipped) {
-                $role = $record->user?->getRoleNames()->first();
-                $manualKpi = $record->kpi_source === PayrollRecord::KPI_MANUAL;
-                if ($manualKpi && ! $skipped && $role === Roles::MANAGER) {
+            ->each(function (PayrollRecord $record) use (&$skipped) {
+                if ($record->kpi_source === PayrollRecord::KPI_MANUAL && ! $skipped && $record->user?->getRoleNames()->first() === Roles::MANAGER) {
                     $skipped = true;
 
                     return;
                 }
-                $base = (float) $record->base_salary;
-                $lines = match ($role) {
-                    Roles::MANAGER => [['kind' => 'earning', 'label' => 'Phụ cấp trách nhiệm', 'amount' => 1000000]],
-                    Roles::SALES_CONSULTANT => [['kind' => 'earning', 'label' => 'Phụ cấp xăng xe, điện thoại', 'amount' => 300000]],
-                    Roles::ACADEMIC_STAFF => [['kind' => 'earning', 'label' => 'Gửi xe', 'amount' => 100000]],
-                    Roles::ASSISTANT => [['kind' => 'earning', 'label' => 'Hỗ trợ sự kiện khai giảng', 'amount' => 150000]],
-                    default => [],
-                };
-                $this->asUser($admin, PayrollController::class, 'adjustRecord', array_filter([
-                    'retention_tier' => $record->retention_tier,
-                    'foreign_session_pay' => $record->foreign_session_pay,
-                    'kpi_manual_amount' => $manualKpi ? ($role === Roles::MANAGER ? 1500000 : 600000) : null,
-                    'tax_deduction' => $base >= 11000000 ? round(($base - 11000000) * 0.05 / 1000) * 1000 + 150000 : null,
-                    'lines' => $lines,
-                    'adjustment_notes' => 'Admin nhập tay kỳ '.$this->thisMonth->format('m/Y').'.',
-                ], fn ($v) => $v !== null && $v !== []), ['id' => $record->id]);
+                $this->adjustManual($record, $this->thisMonth);
             });
 
         $this->at($this->realNow->copy()->subMinutes(10));
@@ -1162,6 +1271,303 @@ class DemoPayrollSeeder extends Seeder
     }
 
     // ── Tổng kết ───────────────────────────────────────────────────────────────
+
+    /** Admin nhập tay trên phiếu lương: KPI tự do (vai trò không có phiếu KPI), phụ cấp theo vai trò, thuế TNCN. */
+    private function adjustManual(PayrollRecord $record, Carbon $month): void
+    {
+        $role = $record->user?->getRoleNames()->first();
+        $manualKpi = $record->kpi_source === PayrollRecord::KPI_MANUAL;
+        $base = (float) $record->base_salary;
+        $lines = match ($role) {
+            Roles::MANAGER => [['kind' => 'earning', 'label' => 'Phụ cấp trách nhiệm', 'amount' => 1000000]],
+            Roles::SALES_CONSULTANT => [['kind' => 'earning', 'label' => 'Phụ cấp xăng xe, điện thoại', 'amount' => 300000]],
+            Roles::ACADEMIC_STAFF => [['kind' => 'earning', 'label' => 'Gửi xe', 'amount' => 100000]],
+            Roles::ASSISTANT => [['kind' => 'earning', 'label' => 'Hỗ trợ sự kiện khai giảng', 'amount' => 150000]],
+            default => [],
+        };
+        $this->asUser($this->staff['admin'], PayrollController::class, 'adjustRecord', array_filter([
+            'retention_tier' => $record->retention_tier,
+            'foreign_session_pay' => $record->foreign_session_pay,
+            'kpi_manual_amount' => $manualKpi ? ($role === Roles::MANAGER ? 1500000 : 600000) : null,
+            'tax_deduction' => $base >= 11000000 ? round(($base - 11000000) * 0.05 / 1000) * 1000 + 150000 : null,
+            'lines' => $lines,
+            'adjustment_notes' => 'Admin nhập tay kỳ '.$month->format('m/Y').'.',
+        ], fn ($v) => $v !== null && $v !== []), ['id' => $record->id]);
+    }
+
+    // ── Kỳ lương tháng trước đủ mọi vai trò ───────────────────────────────────
+
+    /**
+     * Kỳ tháng trước do DemoPhase3 duyệt từ khi Quản lý cơ sở, 1 Sale, GV part-time, GVNN, phần lớn trợ giảng chưa có hồ sơ lương /
+     * lịch dạy, nên thiếu phiếu của họ. Bổ sung: lớp K27 dạy cả tháng trước (GV / TA check-in từng buổi, Học vụ duyệt ca, chấm công
+     * điện thoại các ngày dạy), mở lại kỳ (đảo đúng các bước của Duyệt), Admin "Đồng bộ & Tính lại", nhập KPI / phụ cấp cho phiếu
+     * mới, duyệt lại; từ ngày 10 (lịch trả lương) đánh dấu đã chi trả. Nhân sự vào làm từ tháng này không có phiếu tháng trước.
+     * Idempotent theo lớp K27 đầu tiên; kỳ đã chi trả hoặc không phải kỳ demo thì không đụng tới.
+     */
+    private function completeLastMonth(): void
+    {
+        if (ClassModel::withTrashed()->where('code', array_key_first(self::LAST_MONTH_CLASSES))->exists()) {
+            return;
+        }
+        $period = PayrollPeriod::where('year', $this->lastMonth->year)->where('month', $this->lastMonth->month)->first();
+        if ($period && ($period->status === 'paid' || ($period->isLocked() && ! $period->records()->where('adjustment_notes', 'like', '%demo%')->exists()))) {
+            $this->command?->warn('DemoPayrollSeeder: kỳ lương tháng trước đã chi trả hoặc không phải kỳ demo — không bổ sung.');
+
+            return;
+        }
+
+        // Giờ thật lúc bắt đầu phần này (sau các seeder trước): tính lại / duyệt kỳ sau mọi thay đổi đã ghi, để "Duyệt" không
+        // báo dữ liệu đổi sau lần tính.
+        $now = Carbon::now();
+        $sessions = $this->setupLastMonthClasses();
+        $hadRecord = $period ? $period->records()->pluck('user_id')->all() : [];
+        if ($period?->isLocked()) {
+            $this->at($now);
+            $this->reopenPeriod($period);
+        }
+
+        // GV / TA check-in từng buổi (đến sớm 8–25 phút), chấm công điện thoại theo giờ dạy, Học vụ duyệt ca sáng hôm sau; trừ các
+        // buổi có sự cố trong LAST_MONTH_TEACHING_ISSUES (đi muộn, quên check-in, vắng).
+        $reviewers = ['CG' => $this->staff['academic_cg'], 'BD' => $this->staff['academic_bd'], 'DD' => $this->staff['admin']];
+        $days = [];
+        $nth = [];
+        foreach ($sessions as $session) {
+            $date = $session->date->toDateString();
+            $start = $session->date->copy()->setTimeFromTimeString($session->start_time->format('H:i'));
+            $reviewer = $reviewers[$this->branchCode[$session->branch_id] ?? 'CG'];
+            foreach (array_filter([$session->teacher_id, $session->assistant_id]) as $uid) {
+                $user = User::find($uid);
+                $nth[$uid] = ($nth[$uid] ?? 0) + 1;
+                [$issue, $minutes] = self::LAST_MONTH_TEACHING_ISSUES[$user->email][$nth[$uid]] ?? [null, null];
+                if ($issue === 'absent') {
+                    continue;
+                }
+                $arrive = $issue === 'late' ? $start->copy()->addMinutes($minutes) : $start->copy()->subMinutes($this->between($uid, $date, 'k27', 8, 25));
+                if ($issue === 'forgot') {
+                    $this->event($start->copy()->setTime(21, 15), fn () => $this->asUser($reviewer, PayrollController::class, 'storeTimesheet', [
+                        'user_id' => $uid, 'class_id' => $session->class_id, 'teaching_date' => $date,
+                        'time_in' => $session->start_time->format('H:i'), 'time_out' => $session->end_time->format('H:i'), 'type' => 'regular',
+                        'notes' => 'GV quên check-in — đối chiếu sổ điểm danh và camera lớp, xác nhận có dạy.',
+                    ]));
+                } else {
+                    $this->event($arrive->copy()->addMinute(), fn () => $this->asUser($user, TeacherPortalController::class, 'checkin', ['session_ids' => [$session->id]]));
+                }
+                $days[$uid][$date] ??= [$arrive, $session->date->copy()->setTimeFromTimeString($session->end_time->format('H:i'))->addMinutes(10)];
+            }
+            $this->event($session->date->copy()->addDay()->setTime(7, 45), function () use ($session, $reviewer) {
+                TeacherTimesheet::where('class_session_id', $session->id)->where('status', 'pending_review')->orderBy('id')->get()
+                    ->each(fn (TeacherTimesheet $t) => $this->asUser($reviewer, PayrollController::class, 'reviewTimesheet', ['decision' => 'valid'], ['id' => $t->id]));
+            });
+        }
+        // TA đề nghị tính công buổi hỗ trợ ngoài lịch (thứ 6, lớp không có buổi) → Học vụ từ chối.
+        $ta = $this->user('ta.thu@menglish.edu.vn');
+        $class = ClassModel::where('code', 'DEMO-CG-IE27')->first();
+        $friday = $this->lastMonth->copy()->addDays(9)->next(Carbon::FRIDAY);
+        if ($ta && $class) {
+            $this->event($friday->copy()->setTime(20, 0), fn () => $this->asUser($this->staff['academic_cg'], PayrollController::class, 'storeTimesheet', [
+                'user_id' => $ta->id, 'class_id' => $class->id, 'teaching_date' => $friday->toDateString(),
+                'time_in' => '17:00', 'time_out' => '19:00', 'type' => 'workshop', 'notes' => 'TA đề nghị tính công buổi trang trí lớp chuẩn bị Halloween.',
+            ]));
+            $this->event($friday->copy()->addDay()->setTime(8, 0), function () use ($ta, $friday) {
+                TeacherTimesheet::where('user_id', $ta->id)->whereDate('teaching_date', $friday->toDateString())->where('status', 'pending_review')->get()
+                    ->each(fn (TeacherTimesheet $t) => $this->asUser($this->staff['academic_cg'], PayrollController::class, 'reviewTimesheet', [
+                        'decision' => 'invalid', 'rejection_reason' => 'Không có buổi học trên lịch lớp ngày này — việc trang trí lớp không tính buổi dạy.',
+                    ], ['id' => $t->id]));
+            });
+        }
+        foreach ($days as $uid => $byDate) {
+            $user = User::find($uid);
+            foreach ($byDate as $date => [$in, $out]) {
+                $this->event($out, fn () => $this->writePast($user, Carbon::parse($date), $in, $out));
+            }
+        }
+        $this->planViolations();
+        $this->runEvents();
+        ClassModel::whereIn('code', array_keys(self::LAST_MONTH_CLASSES))->update(['status' => 'completed']);
+
+        // KPI mọi vai trò: bộ mẫu cho vai trò còn thiếu (Quản lý cơ sở), chốt phiếu tháng trước còn thiếu; phiếu tháng này của
+        // người tốt / kém điền lại theo mức của họ, phiếu còn trống thì điền.
+        $this->setupKpiCriteria();
+        $this->at($this->thisMonth->copy()->setTime(10, 0)->min($now->copy()->subMinutes(30)));
+        $this->freezeLastMonthSheets(false);
+        $this->at($now);
+        app(KpiSheetService::class)->ensureSheets($this->thisMonth->month, $this->thisMonth->year);
+        KpiEvaluation::with('user.roles')->where('year', $this->thisMonth->year)->where('month', $this->thisMonth->month)
+            ->where('status', KpiEvaluation::STATUS_PENDING)->get()
+            ->each(function (KpiEvaluation $evaluation) {
+                if ($evaluation->user && KpiCriterion::roleFor($evaluation->user) !== Roles::ACADEMIC_LEAD
+                    && (isset(self::KPI_PROFILES[$evaluation->user->email]) || ($evaluation->user->hasRole(Roles::MANAGER)
+                        && $this->roll($evaluation->user_id, $this->thisMonth->format('Y-m'), 'kpi') < 80 && ! $evaluation->items()->whereNotNull('actual')->exists()))) {
+                    $this->fillManualValues($evaluation->user, $evaluation, $this->thisMonth, isset(self::KPI_PROFILES[$evaluation->user->email]));
+                }
+            });
+
+        // Admin tính lại kỳ (hôm nay), nhập tay phiếu mới, tính lại, duyệt; từ ngày 10 ghi nhận chi trả.
+        $admin = $this->staff['admin'];
+        $this->at($now);
+        if (! $period) {
+            $this->asUser($admin, PayrollController::class, 'storePeriod', ['month' => $this->lastMonth->month, 'year' => $this->lastMonth->year]);
+            $period = PayrollPeriod::where('year', $this->lastMonth->year)->where('month', $this->lastMonth->month)->firstOrFail();
+        }
+        $this->calculateExcludingNewStaff($period);
+        $this->at($now);
+        $period->records()->with('user.roles')->whereNotIn('user_id', $hadRecord)->whereNull('adjustment_notes')->orderBy('id')->get()
+            ->each(fn (PayrollRecord $record) => $this->adjustManual($record, $this->lastMonth));
+        $this->at($now);
+        $this->calculateExcludingNewStaff($period);
+        $this->at($now);
+        $this->asUser($admin, PayrollController::class, 'approvePeriod', [], ['id' => $period->id]);
+        // Biên bản tháng trước đã trừ lương → nhân sự khắc phục; kỳ tháng này tính lại để trừ biên bản quá hạn nộp.
+        foreach ($this->deductedPenalties as $penalty) {
+            if ($penalty->fresh()->status === 'deducted') {
+                $this->asUser($this->deciderFor($penalty->user), PenaltyController::class, 'remedyPenalty', ['remedy_note' => 'Đã khắc phục, tháng này không tái phạm.'], ['id' => $penalty->id]);
+            }
+        }
+        $current = PayrollPeriod::where('year', $this->thisMonth->year)->where('month', $this->thisMonth->month)->first();
+        if ($current && ! $current->isLocked()) {
+            $this->asUser($admin, PayrollController::class, 'calculatePeriod', [], ['id' => $current->id]);
+        }
+        if ($period->refresh()->status === 'approved' && $now->day >= 10) {
+            $this->at($now);
+            $this->asUser($admin, PayrollController::class, 'markPaid', [], ['id' => $period->id]);
+        }
+        $this->at($this->realNow);
+    }
+
+    /**
+     * Lập biên bản VIOLATIONS qua đúng luồng: Học vụ / Quản lý lập (kèm ảnh bằng chứng) ngay sau vi phạm, nhân sự giải trình tối
+     * đó, người chốt theo loại lỗi (Học thuật: lỗi chuyên môn; Quản lý cơ sở: lỗi vận hành; Admin khi người vi phạm là Quản lý /
+     * Học thuật) chốt sáng hôm sau, nộp phạt trực tiếp trong hạn hoặc để quá hạn cho bảng lương trừ.
+     *
+     * Biên bản tháng trước sẽ trừ lương được ghi vào $deductedPenalties (khắc phục sau khi duyệt kỳ).
+     */
+    private function planViolations(): void
+    {
+        $admin = $this->staff['admin'];
+        $lead = $this->user('academiclead@menglish.edu.vn');
+        foreach (self::VIOLATIONS as [$email, $category, $type, $note, [$unit, $value], $flow, $amount, $explanation]) {
+            $user = $this->user($email);
+            if (! $user) {
+                continue;
+            }
+            $at = ($unit === 'L' ? $this->lastMonth->copy()->addDays($value - 1) : $this->realNow->copy()->startOfDay()->subDays($value))->setTime(17, 30);
+            $code = $this->branchCode[$user->branch_id] ?? null;
+            $academic = $user->hasRole(Roles::ACADEMIC_STAFF) || $user->hasRole(Roles::MANAGER) || $user->hasRole(Roles::ACADEMIC_LEAD);
+            $reporter = match (true) {
+                $academic => $admin,
+                $code === 'CG' => $this->staff['academic_cg'],
+                $code === 'BD' => $this->staff['academic_bd'],
+                $code === 'DD' && $at->gte($this->thisMonth) => $this->user('giaovu.dd@menglish.edu.vn') ?? $admin,
+                default => $admin,
+            };
+            $decider = $academic ? $admin : ($category === 'academic' ? $lead ?? $admin : $this->deciderFor($user));
+            $find = fn () => Penalty::where('user_id', $user->id)->where('violation_type', $type)->whereDate('violation_date', $at->toDateString())->latest('id')->first();
+
+            $this->event($at->copy()->addHours(2), fn () => $this->asUser($reporter, PenaltyController::class, 'storePenalty', [
+                'user_id' => $user->id, 'error_category' => $category, 'violation_type' => $type, 'violation_at' => $at->format('Y-m-d H:i:s'),
+                'amount' => $amount, 'notes' => $note, 'evidence' => $this->photoFile($user, $at, 'bang-chung'),
+            ]));
+            if ($explanation && $flow !== 'pending') {
+                $this->event($at->copy()->addHours(4), fn () => $this->asUser($user, PenaltyController::class, 'explain', ['explanation' => $explanation], ['id' => $find()->id]));
+            }
+            $decideAt = $at->copy()->addDay()->setTime(10, 0);
+            match ($flow) {
+                'confirmed' => $this->event($decideAt, fn () => $this->asUser($decider, PenaltyController::class, 'confirmPenalty', ['decision' => 'error', 'decision_note' => 'Xác nhận có lỗi, nhắc nhở lần đầu — chưa phạt tiền.'], ['id' => $find()->id])),
+                'resolved' => $this->event($decideAt, fn () => $this->asUser($admin, PenaltyController::class, 'resolvePenalty', [], ['id' => $find()->id])),
+                'cancelled' => $this->event($at->copy()->addHours(3), fn () => $this->asUser($reporter, PenaltyController::class, 'cancelPenalty', [], ['id' => $find()->id])),
+                'fined', 'paid', 'remedied', 'deducted' => $this->event($decideAt, fn () => $this->asUser($decider, PenaltyController::class, 'confirmPenalty', ['decision' => 'fine', 'amount' => $amount, 'decision_note' => 'Phạt theo quy chế, nộp trong hạn hoặc trừ vào lương.'], ['id' => $find()->id])),
+                default => null,
+            };
+            if (in_array($flow, ['paid', 'remedied'], true)) {
+                $payer = $decider->can('violation.mark_paid') ? $decider : $admin;
+                $this->event($decideAt->copy()->addDay()->setTime(9, 0), fn () => $this->asUser($payer, PenaltyController::class, 'markPaidPenalty', [], ['id' => $find()->id]));
+            }
+            if ($flow === 'remedied') {
+                $this->event($decideAt->copy()->addDays(3), fn () => $this->asUser($payer, PenaltyController::class, 'remedyPenalty', ['remedy_note' => 'Đã khắc phục, không tái phạm.'], ['id' => $find()->id]));
+            }
+            if ($flow === 'deducted' && $unit === 'L') {
+                $this->event($decideAt->copy()->addMinute(), function () use ($find) {
+                    $this->deductedPenalties[] = $find();
+                });
+            }
+        }
+    }
+
+    /** @return Collection<int, ClassSession> buổi đã dạy của các lớp K27 */
+    private function setupLastMonthClasses()
+    {
+        $this->at($this->lastMonth->copy()->subDays(5)->setTime(9, 0));
+        $start = $this->lastMonth->copy();
+        $end = $this->thisMonth->copy()->subDay();
+        $days = ['', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'];
+        $sessions = collect();
+
+        foreach (self::LAST_MONTH_CLASSES as $code => [$name, $branchCode, $courseKeyword, $teacherEmail, $assistantEmails, $room, $schedule]) {
+            $branch = $this->branches[$branchCode] ?? null;
+            $teacher = $this->user($teacherEmail);
+            $assistants = collect($assistantEmails)->map(fn ($e) => $this->user($e))->filter()->values();
+            if (! $branch || ! $teacher) {
+                continue;
+            }
+            $course = Course::where('name', 'like', "%{$courseKeyword}%")->first() ?? Course::query()->orderBy('id')->first();
+            $class = ClassModel::create([
+                'code' => $code, 'name' => $name, 'course_id' => $course?->id, 'branch_id' => $branch->id,
+                'program' => $course?->name ? trim(str_replace('#', '', $course->name)) : null, 'level' => 'K27',
+                'teacher_id' => $teacher->id, 'assistant_id' => $assistants->first()?->id, 'room' => $room,
+                'schedule_text' => collect($schedule)->map(fn ($s) => "{$days[$s[0]]} {$s[1]}-{$s[2]}")->implode('; '),
+                'start_date' => $start->toDateString(), 'end_date' => $end->toDateString(),
+                'max_capacity' => 14, 'min_students' => 6, 'tuition_fee' => $course?->tuition_fee,
+                'status' => 'active', 'notes' => 'Lớp K27 đã kết thúc tháng trước (dữ liệu mẫu lương '.self::MARKER.').',
+            ]);
+
+            $n = 0;
+            for ($day = $start->copy(); $day->lte($end); $day->addDay()) {
+                foreach ($schedule as [$weekday, $from, $to, $shift]) {
+                    if ($day->dayOfWeekIso !== $weekday || $this->isHoliday($day)) {
+                        continue;
+                    }
+                    $sessions->push(ClassSession::create([
+                        'class_id' => $class->id, 'branch_id' => $branch->id, 'date' => $day->toDateString(),
+                        'shift_name' => $shift, 'type' => ClassSession::TYPE_REGULAR, 'start_time' => $from, 'end_time' => $to,
+                        'room' => $room, 'teacher_id' => $teacher->id,
+                        'assistant_id' => $assistants->isEmpty() ? null : $assistants[$n % $assistants->count()]->id,
+                        'status' => 'completed',
+                    ]));
+                    $n++;
+                }
+            }
+        }
+
+        return $sessions;
+    }
+
+    /** Đảo đúng các bước của "Duyệt bảng lương" (PayrollController::approvePeriod) để kỳ demo tính lại được. */
+    private function reopenPeriod(PayrollPeriod $period): void
+    {
+        $recordIds = $period->records()->pluck('id');
+        Penalty::whereIn('payroll_record_id', $recordIds)->where('status', 'deducted')->update(['status' => 'fined']);
+        CommissionAdjustment::whereIn('payroll_record_id', $recordIds)->update(['settled_at' => null]);
+        CommissionItem::whereIn('payroll_record_id', $recordIds)->where('status', CommissionItem::STATUS_PAID)
+            ->update(['settled_at' => null, 'status' => CommissionItem::STATUS_PAYABLE]);
+        AdminNotification::where('type', 'payroll_approved')->where('data', 'like', '%"payroll_period_id":'.$period->id.',%')->delete();
+        $period->records()->update(['status' => 'pending']);
+        $period->update(['status' => 'reviewing']);
+    }
+
+    /**
+     * "Đồng bộ & Tính lại" kỳ tháng trước. Phép tính lấy mọi nhân sự đang hoạt động, kể cả người vào làm từ tháng này (chưa có
+     * hồ sơ tháng trước) — tạm loại họ khỏi lần tính để không sinh phiếu lương tháng trước cho người chưa vào làm.
+     */
+    private function calculateExcludingNewStaff(PayrollPeriod $period): void
+    {
+        $newcomers = User::where('is_active', true)->whereDate('contract_start_date', '>', $period->end_date->toDateString())->pluck('id');
+        User::whereKey($newcomers)->update(['is_active' => false]);
+        try {
+            $this->asUser($this->staff['admin'], PayrollController::class, 'calculatePeriod', [], ['id' => $period->id]);
+        } finally {
+            User::whereKey($newcomers)->update(['is_active' => true]);
+        }
+    }
 
     private function printSummary(): void
     {
