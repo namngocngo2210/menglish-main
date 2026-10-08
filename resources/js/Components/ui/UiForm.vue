@@ -66,8 +66,11 @@ function onBefore(visit) {
 
 function onSuccess(page) {
     if (modal) {
-        if (props.stay) reloadRemoteModal();
-        else closeRemoteModal();
+        if (props.stay) {
+            // Đã lưu, modal giữ mở → bỏ đánh dấu "đã sửa" (tải lại êm không đổi key nên host không tự bỏ).
+            modal.markClean?.();
+            reloadRemoteModal();
+        } else closeRemoteModal();
     }
     emit('success', page);
 }

@@ -16,6 +16,7 @@ provide(REMOTE_MODAL, {
     close: () => modalRef.value?.requestClose(),
     forceClose: closeRemoteModal,
     reload: reloadRemoteModal,
+    markClean: () => modalRef.value?.markClean(),
 });
 
 const open = computed(() => remoteModal.open);

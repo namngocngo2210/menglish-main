@@ -3,6 +3,7 @@
  *   const modal = useRemoteModal();   // null khi là trang đầy đủ
  *   modal?.close();                   // đóng modal
  *   modal?.reload();                  // tải lại nội dung modal (vd. sau khi gửi phản hồi ticket)
+ *   modal?.markClean();               // bỏ đánh dấu "đã sửa" (vd. vừa lưu xong mà modal vẫn mở) → đóng không hỏi
  */
 import { inject } from 'vue';
 
