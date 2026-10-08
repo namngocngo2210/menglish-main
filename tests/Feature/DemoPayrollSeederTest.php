@@ -2,16 +2,20 @@
 
 namespace Tests\Feature;
 
+use App\Models\AcademicProject;
 use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\KpiCriterion;
 use App\Models\KpiEvaluation;
+use App\Models\MaterialOrder;
 use App\Models\PayrollPeriod;
 use App\Models\Penalty;
 use App\Models\StaffAttendance;
 use App\Models\StaffAttendanceRequest;
 use App\Models\TeacherTimesheet;
 use App\Models\User;
+use App\Models\WorkTask;
+use App\Services\Kpi\KpiSheetService;
 use App\Support\Roles;
 use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\DemoPayrollSeeder;
@@ -68,6 +72,25 @@ class DemoPayrollSeederTest extends TestCase
         $this->assertSame(1, (clone $lastSheets)->where('status', KpiEvaluation::STATUS_REJECTED)->count());
         $this->assertGreaterThan(15, KpiEvaluation::where('year', $month->year)->where('month', $month->month)->where('status', KpiEvaluation::STATUS_PENDING)->count());
 
+        // KPI Học thuật: nguồn tự đếm có số liệu (mốc dự án, việc giao, order học liệu); phiếu tháng trước chốt có xếp loại,
+        // phiếu tháng này có mục Không phát sinh, order giao sau giờ dùng chặn mục ở 50%.
+        $lead = User::where('email', 'academiclead@menglish.edu.vn')->firstOrFail();
+        $this->assertSame(2, AcademicProject::where('owner_id', $lead->id)->count());
+        $this->assertTrue(WorkTask::where('assignee_id', $lead->id)->where('status', 'completed')->exists());
+        $this->assertTrue(MaterialOrder::where('category', MaterialOrder::CATEGORY_ACADEMIC)->where('created_late', true)->exists());
+        $sheets = app(KpiSheetService::class);
+        $leadLast = KpiEvaluation::where('user_id', $lead->id)->where('year', $last->year)->where('month', $last->month)->firstOrFail();
+        $this->assertSame(KpiEvaluation::STATUS_APPROVED, $leadLast->status);
+        $lastSheet = $sheets->sheet($lead, $last->month, $last->year, $leadLast);
+        $this->assertNotNull($lastSheet['grade']);
+        foreach (['academic_deliverable_on_time', 'task_on_time', 'academic_order_on_time'] as $source) {
+            $line = $lastSheet['lines']->first(fn ($l) => $l['criterion']->auto_source === $source);
+            $this->assertTrue($line['auto'] && $line['value'] !== null, "Thiếu số liệu {$source} tháng trước.");
+        }
+        $currentSheet = $sheets->sheet($lead, $month->month, $month->year, KpiSheetService::evaluationFor($lead, $month->month, $month->year));
+        $this->assertTrue($currentSheet['lines']->contains(fn ($l) => $l['na']));
+        $this->assertTrue($currentSheet['lines']->contains(fn ($l) => $l['cap']));
+
         // Bảng lương tháng này đang soát, có phiếu cho nhân sự mới; kỳ tháng trước vẫn khóa, không thêm phiếu.
         $period = PayrollPeriod::where('year', $month->year)->where('month', $month->month)->firstOrFail();
         $this->assertSame('reviewing', $period->status);
@@ -78,9 +101,11 @@ class DemoPayrollSeederTest extends TestCase
         $this->assertFalse($lastPeriod->records()->where('user_id', $newTeacher->id)->exists());
 
         // Chạy lại không nhân bản.
-        $counts = [StaffAttendance::count(), StaffAttendanceRequest::count(), TeacherTimesheet::count(), KpiEvaluation::count(), User::count()];
+        $counts = fn () => [StaffAttendance::count(), StaffAttendanceRequest::count(), TeacherTimesheet::count(), KpiEvaluation::count(), User::count(),
+            AcademicProject::count(), WorkTask::count(), MaterialOrder::count()];
+        $before = $counts();
         $this->seed(DemoPayrollSeeder::class);
-        $this->assertSame($counts, [StaffAttendance::count(), StaffAttendanceRequest::count(), TeacherTimesheet::count(), KpiEvaluation::count(), User::count()]);
+        $this->assertSame($before, $counts());
     }
 
     public function test_command_refuses_production_without_force(): void

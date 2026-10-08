@@ -53,6 +53,7 @@ use Illuminate\Support\Str;
  * - Bộ tiêu chí KPI mẫu cho GV full-time, Trợ giảng, Sale (vai trò chưa có bộ). Phiếu KPI tháng trước đã duyệt (1 phiếu
  *   không duyệt), phiếu tháng này chờ duyệt, phần lớn đã điền số liệu.
  * - Kỳ lương tháng này: Admin "Đồng bộ & Tính lại", nhập KPI / phụ cấp cho phiếu mới, tính lại (để Đang soát).
+ * - KPI Học thuật (Trưởng Học thuật): DemoAcademicKpiSeeder (dự án học thuật, việc giao, order học liệu, phiếu tháng trước / này).
  *
  * Không nằm trong DatabaseSeeder: chạy tay bằng `php artisan demo:luong` sau `db:seed` (CSDL demo). Idempotent: lớp DEMO-CG-IF1
  * đã có thì bỏ qua (chỉ in số liệu). Chạy trong 1 transaction.
@@ -212,6 +213,7 @@ class DemoPayrollSeeder extends Seeder
         }
         if (ClassModel::withTrashed()->where('code', self::FIRST_CLASS)->exists()) {
             $this->command?->info('DemoPayrollSeeder: đã có dữ liệu demo lương — bỏ qua (chỉ in số liệu).');
+            $this->call(DemoAcademicKpiSeeder::class);
             $this->printSummary();
 
             return;
@@ -256,6 +258,8 @@ class DemoPayrollSeeder extends Seeder
             Auth::forgetUser();
         }
 
+        // KPI Học thuật (dự án, việc giao, order học liệu, phiếu Trưởng Học thuật): seeder riêng, chạy được cả khi đã có dữ liệu lương.
+        $this->call(DemoAcademicKpiSeeder::class);
         $this->printSummary();
     }
 
@@ -1039,7 +1043,8 @@ class DemoPayrollSeeder extends Seeder
                 ->orderBy('id')->get()
                 ->each(function (User $staff) use ($sheets, $L, &$rejected) {
                     $period = KpiSheetService::periodFor($staff, $L->month, $L->year);
-                    if ($period['months'] !== 1) {
+                    // Trưởng Học thuật: DemoAcademicKpiSeeder chấm theo nguồn số liệu riêng.
+                    if ($period['months'] !== 1 || KpiCriterion::roleFor($staff) === Roles::ACADEMIC_LEAD) {
                         return;
                     }
                     $evaluation = KpiEvaluation::firstOrCreate(
@@ -1056,7 +1061,7 @@ class DemoPayrollSeeder extends Seeder
                     foreach ($sheet['lines'] as $line) {
                         KpiEvaluationItem::updateOrCreate(
                             ['kpi_evaluation_id' => $evaluation->id, 'kpi_criterion_id' => $line['criterion']->id],
-                            ['actual' => $line['value'] === null ? null : (string) $line['value'], 'score' => $line['level'] ?? 0, 'evidence' => $line['auto'] ? $line['evidence'] : null]
+                            ['actual' => $line['value'] === null ? null : (string) $line['value'], 'score' => $line['level'] ?? 0, 'evidence' => $line['auto'] ? $line['evidence'] : null, 'not_applicable' => $line['na']]
                         );
                     }
                     $evaluation->update([
@@ -1077,7 +1082,8 @@ class DemoPayrollSeeder extends Seeder
             KpiEvaluation::with('user.roles')->where('year', $this->thisMonth->year)->where('month', $this->thisMonth->month)
                 ->where('status', KpiEvaluation::STATUS_PENDING)->get()
                 ->each(function (KpiEvaluation $evaluation) {
-                    if ($evaluation->user && $this->roll($evaluation->user_id, $this->thisMonth->format('Y-m'), 'kpi') < 80) {
+                    if ($evaluation->user && KpiCriterion::roleFor($evaluation->user) !== Roles::ACADEMIC_LEAD
+                        && $this->roll($evaluation->user_id, $this->thisMonth->format('Y-m'), 'kpi') < 80) {
                         $this->fillManualValues($evaluation->user, $evaluation, $this->thisMonth);
                     }
                 });
@@ -1092,14 +1098,15 @@ class DemoPayrollSeeder extends Seeder
             return;
         }
         $key = $month->format('Y-m');
-        $filled = $evaluation->items()->whereNotNull('actual')->pluck('kpi_criterion_id')->all();
+        $filled = $evaluation->items()->where(fn ($q) => $q->whereNotNull('actual')->orWhere('not_applicable', true))->pluck('kpi_criterion_id')->all();
         foreach (KpiCriterion::forRole($role)->active()->ordered()->get() as $criterion) {
             if (! $criterion->hasRule() || ($criterion->isAuto() && ! $criterion->isRateSource()) || in_array($criterion->id, $filled)) {
                 continue;
             }
             $salt = $key.'|'.$criterion->id;
             $value = $criterion->isRate()
-                ? (string) $this->between($staff->id, $salt, 'rate', 72, 100)
+                // Tỉ lệ càng thấp càng tốt (vd. % lỗi lặp lại): phần lớn thấp.
+                ? (string) ($criterion->isLowerBetter() ? $this->between($staff->id, $salt, 'rate', 0, 15) : $this->between($staff->id, $salt, 'rate', 72, 100))
                 : (string) ($this->roll($staff->id, $salt, 'cnt') < 75 ? 0 : $this->between($staff->id, $salt, 'cnt2', 1, 3));
             KpiEvaluationItem::updateOrCreate(
                 ['kpi_evaluation_id' => $evaluation->id, 'kpi_criterion_id' => $criterion->id],
