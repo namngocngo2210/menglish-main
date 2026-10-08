@@ -2,8 +2,10 @@
 
 namespace App\Services\Kpi;
 
+use App\Models\AcademicProjectMilestone;
 use App\Models\AdminNotification;
 use App\Models\BigTestResult;
+use App\Models\ClassModel;
 use App\Models\ClassSession;
 use App\Models\CrmCustomer;
 use App\Models\MaterialOrder;
@@ -11,6 +13,7 @@ use App\Models\MerchandiseStockMovement;
 use App\Models\MiniTestScore;
 use App\Models\Penalty;
 use App\Models\SlaEvent;
+use App\Models\StaffAttendance;
 use App\Models\StaffAttendanceRequest;
 use App\Models\StaffReport;
 use App\Models\StudentTuition;
@@ -55,6 +58,18 @@ class KpiAutoCounter
 
     public const MONTHLY_REPORT_DEADLINE = '12:00';
 
+    /** Học thuật: tháng có ít hơn chừng này đơn vị đánh giá thì gộp thêm tháng trước (tránh 1 việc = cả mục). */
+    public const MIN_UNITS = 3;
+
+    /** Học thuật: đầu ra học sinh tính cuốn chiếu chừng này tháng (gồm tháng chấm). */
+    public const PASS_RATE_MONTHS = 3;
+
+    /** Đi muộn của nhân sự văn phòng tính khi quá chừng này phút (file KPI Học thuật). */
+    public const STAFF_LATE_MINUTES = 10;
+
+    /** Giờ dùng mặc định của order khi lớp không có buổi học trong ngày sử dụng. */
+    public const ORDER_DEFAULT_USE_TIME = '08:00';
+
     /**
      * Số liệu của nguồn: đếm số lần → value = số bản ghi được tính; tỉ lệ → value = % (null nếu chưa có dữ liệu).
      *
@@ -68,6 +83,10 @@ class KpiAutoCounter
             'class_attendance_rate' => $this->classRate('attendance', $user, $from, $to),
             'homework_rate' => $this->classRate('homework', $user, $from, $to),
             'monthly_report_on_time' => $this->monthlyReportOnTime($user, $from, $to),
+            'academic_deliverable_on_time' => $this->factorRate(fn (CarbonInterface $f) => $this->deliverableRows($user, $f, $to), $from),
+            'task_on_time' => $this->factorRate(fn (CarbonInterface $f) => $this->taskRows($user, $f, $to), $from),
+            'academic_order_on_time' => $this->factorRate(fn (CarbonInterface $f) => $this->orderRows($f, $to), $from),
+            'student_pass_rate' => $this->studentPassRate($user, $to),
             default => null,
         };
         if ($rate !== null) {
@@ -91,6 +110,7 @@ class KpiAutoCounter
             'teacher_absent_unexcused' => $this->teacherAbsences($user, $from, $to, excused: false),
             'teacher_leave' => $this->teacherAbsences($user, $from, $to, excused: true),
             'teacher_late' => $this->teacherLate($user, $from, $to),
+            'staff_late' => $this->staffLate($user, $from, $to),
             default => collect(),
         };
 
@@ -427,5 +447,210 @@ class KpiAutoCounter
         }
 
         return ['value' => $counted ? round($onTime / $counted * 100, 1) : null, 'evidence' => $evidence];
+    }
+
+    // ───────────────────── Học thuật ─────────────────────
+
+    /**
+     * Tỉ lệ theo hệ số từng bản ghi (đúng hạn = 1, trễ nhẹ 0,5 / vừa 0,25 / nặng 0): % = trung bình hệ số. Ít hơn MIN_UNITS bản
+     * ghi trong kỳ thì gộp thêm tháng trước. Không có bản ghi → null (Không phát sinh / điền tay). Dòng có cap = điều kiện chặn.
+     *
+     * @param  callable(CarbonInterface): Collection  $rows  bản ghi từ một ngày đến cuối kỳ: ['sort', 'text', 'factor' (null = không tính), 'note', 'cap']
+     */
+    private function factorRate(callable $rows, CarbonInterface $from): array
+    {
+        $list = $rows($from);
+        $note = null;
+        if ($list->whereNotNull('factor')->count() < self::MIN_UNITS) {
+            $list = $rows(Carbon::instance($from)->startOfMonth()->subMonth());
+            $note = 'Tháng có ít hơn '.self::MIN_UNITS.' bản ghi: gộp thêm tháng trước';
+        }
+        $counted = $list->whereNotNull('factor');
+        if ($counted->isEmpty()) {
+            return ['value' => null, 'evidence' => []];
+        }
+        $fmt = fn (float $f) => rtrim(rtrim(number_format($f, 2, ',', '.'), '0'), ',');
+        $evidence = $list->sortBy('sort')->map(fn (array $r) => [
+            'date' => $r['sort']->format('d/m'),
+            'month' => $r['sort']->format('Y-m'),
+            'text' => $r['text'].($r['factor'] !== null ? ' · hệ số '.$fmt($r['factor']) : ''),
+            'counted' => $r['factor'] !== null,
+            'note' => $r['note'] ?? null,
+            'cap' => (bool) ($r['cap'] ?? false),
+        ])->values()->all();
+        if ($note) {
+            array_unshift($evidence, ['date' => '', 'month' => '', 'text' => $note, 'counted' => true, 'note' => null, 'cap' => false]);
+        }
+
+        return ['value' => round((float) $counted->avg('factor') * 100, 1), 'evidence' => $evidence];
+    }
+
+    /** Hệ số trễ theo ngày của deliverable: đúng hạn 1; trễ 1–3 ngày 0,5; 4–7 ngày 0,25; từ 8 ngày 0. */
+    private static function dayFactor(int $daysLate): float
+    {
+        return match (true) {
+            $daysLate <= 0 => 1.0,
+            $daysLate <= 3 => 0.5,
+            $daysLate <= 7 => 0.25,
+            default => 0.0,
+        };
+    }
+
+    /**
+     * Mốc dự án học thuật (deliverable theo master plan) đến hạn trong kỳ: mốc người này phụ trách, hoặc mốc chưa giao người
+     * của dự án người này làm chủ. Mốc chưa xong mà chưa tới hạn thì chưa tính; quá hạn chưa xong tính trễ tới hôm nay.
+     */
+    private function deliverableRows(User $user, CarbonInterface $from, CarbonInterface $to): Collection
+    {
+        $today = now()->startOfDay();
+
+        return AcademicProjectMilestone::with('project:id,name,owner_id')
+            ->whereBetween('due_date', [$from->toDateString(), $to->toDateString()])
+            ->whereHas('project')
+            ->where(fn ($q) => $q->where('assignee_id', $user->id)
+                ->orWhere(fn ($w) => $w->whereNull('assignee_id')->whereHas('project', fn ($p) => $p->where('owner_id', $user->id))))
+            ->get()
+            ->map(function (AcademicProjectMilestone $m) use ($today) {
+                $due = $m->due_date->copy()->startOfDay();
+                $doneOn = $m->completed_at?->copy()->startOfDay();
+                if (! $doneOn && $due->gte($today)) {
+                    return null;
+                }
+                $late = max(0, (int) $due->diffInDays($doneOn ?? $today, false));
+                $state = match (true) {
+                    ! $doneOn => 'chưa xong, đã trễ '.$late.' ngày',
+                    $late > 0 => 'xong trễ '.$late.' ngày',
+                    default => 'xong đúng hạn',
+                };
+
+                return [
+                    'sort' => $due,
+                    'text' => 'Mốc "'.$m->title.'" ('.($m->project?->name ?? 'dự án').'): hạn '.$due->format('d/m').', '.$state,
+                    'factor' => self::dayFactor($late),
+                ];
+            })->filter()->values();
+    }
+
+    /** Hệ số trễ theo giờ của task / phân bổ: đúng hạn 1; trễ ≤ 4 giờ 0,5; 4–24 giờ 0,25; quá 24 giờ 0. */
+    private static function hourFactor(float $hoursLate): float
+    {
+        return match (true) {
+            $hoursLate <= 0 => 1.0,
+            $hoursLate <= 4 => 0.5,
+            $hoursLate <= 24 => 0.25,
+            default => 0.0,
+        };
+    }
+
+    /** Việc được giao (trừ nhiệm vụ trực ca của TA) có hạn trong kỳ: hoàn thành so với hạn; chưa xong mà chưa tới hạn thì chưa tính. */
+    private function taskRows(User $user, CarbonInterface $from, CarbonInterface $to): Collection
+    {
+        $now = now();
+
+        return WorkTask::withDeadline()->where('assignee_id', $user->id)->whereNotNull('due_date')
+            ->whereBetween('due_date', [$from->toDateString(), $to->toDateString()])
+            ->where('status', '!=', 'canceled')
+            ->get()
+            ->map(function (WorkTask $t) use ($now) {
+                $due = $t->dueAt();
+                $done = $t->completed_at ?? (in_array($t->status, ['completed', 'pending_confirmation'], true) ? $t->updated_at : null);
+                if (! $done && $now->lte($due)) {
+                    return null;
+                }
+                $hours = $done && $done->lte($due) ? 0.0 : $due->diffInMinutes($done ?? $now) / 60;
+                $late = $hours <= 0 ? 'đúng hạn' : 'trễ '.($hours < 1 ? (int) ceil($hours * 60).' phút' : rtrim(rtrim(number_format($hours, 1, ',', '.'), '0'), ',').' giờ');
+
+                return [
+                    'sort' => $due,
+                    'text' => '"'.$t->title.'": hạn '.$due->format('H:i d/m').', '.($done ? 'xong '.$late : 'chưa xong, '.$late),
+                    'factor' => self::hourFactor($hours),
+                ];
+            })->filter()->values();
+    }
+
+    /** Giờ dùng của order: giờ bắt đầu buổi học đầu tiên của lớp trong ngày sử dụng, không có buổi thì ORDER_DEFAULT_USE_TIME. */
+    private static function orderUseAt(MaterialOrder $order): Carbon
+    {
+        $start = $order->class_id ? ClassSession::where('class_id', $order->class_id)->whereDate('date', $order->use_date->toDateString())
+            ->where('status', '!=', 'cancelled')->orderBy('start_time')->value('start_time') : null;
+
+        return $order->use_date->copy()->setTimeFromTimeString($start ? Carbon::parse($start)->format('H:i') : self::ORDER_DEFAULT_USE_TIME);
+    }
+
+    /**
+     * Order "Học liệu học thuật" (Trưởng Học thuật xử lý) có ngày sử dụng trong kỳ, theo thời gian còn lại trước giờ dùng lúc
+     * giao xong: ≥ 24 giờ 1; 12–24 giờ 0,5; 6–12 giờ 0,25; dưới 6 giờ 0; xong sau giờ dùng / quá giờ dùng chưa xong = 0 và là điều
+     * kiện chặn. Order tạo khi còn dưới 24 giờ tới giờ dùng là lỗi bên yêu cầu: hiện để đối chiếu, không tính.
+     */
+    private function orderRows(CarbonInterface $from, CarbonInterface $to): Collection
+    {
+        $now = now();
+
+        return MaterialOrder::with('classRoom:id,code,name')->where('category', MaterialOrder::CATEGORY_ACADEMIC)
+            ->whereBetween('use_date', [$from->toDateString(), $to->toDateString()])
+            ->where('status', '!=', MaterialOrder::STATUS_REJECTED)
+            ->get()
+            ->map(function (MaterialOrder $o) use ($now) {
+                $use = self::orderUseAt($o);
+                $done = $o->status === MaterialOrder::STATUS_DONE ? ($o->processed_at ?? $o->updated_at) : null;
+                $label = 'Order '.$o->code.' ('.$o->title.($o->classRoom ? ', lớp '.($o->classRoom->code ?: $o->classRoom->name) : '').'): dùng '.$use->format('H:i d/m');
+                if ($o->created_at->gt($use->copy()->subDay())) {
+                    return ['sort' => $use, 'text' => $label, 'factor' => null, 'note' => 'Tạo sát giờ dùng dưới 24 giờ, lỗi bên yêu cầu, không tính'];
+                }
+                if (! $done && $now->lt($use)) {
+                    return null;
+                }
+                if (! $done || $done->gte($use)) {
+                    return ['sort' => $use, 'text' => $label.', '.($done ? 'giao sau giờ dùng' : 'quá giờ dùng chưa giao'), 'factor' => 0.0, 'cap' => true];
+                }
+                $hours = $done->diffInMinutes($use) / 60;
+                $factor = match (true) {
+                    $hours >= 24 => 1.0,
+                    $hours >= 12 => 0.5,
+                    $hours >= 6 => 0.25,
+                    default => 0.0,
+                };
+
+                return ['sort' => $use, 'text' => $label.', giao xong '.$done->format('H:i d/m').' (trước '.(int) floor($hours).' giờ)', 'factor' => $factor];
+            })->filter()->values();
+    }
+
+    /** % bài test (Big Test + mini test, thang 10) đạt chuẩn ≥ 7 của các lớp trong phạm vi Lớp học của người này, cuốn chiếu 3 tháng. */
+    private function studentPassRate(User $user, CarbonInterface $to): array
+    {
+        $from = Carbon::instance($to)->startOfMonth()->subMonths(self::PASS_RATE_MONTHS - 1);
+        $classes = ClassModel::query()->visibleTo($user)->get(['id', 'code', 'name']);
+        $scores = $this->testScores($classes, $from, $to);
+        if ($scores->isEmpty()) {
+            return ['value' => null, 'evidence' => []];
+        }
+        $pass = fn (Collection $rows) => $rows->filter(fn ($s) => $s['score'] >= self::PASS_SCORE)->count();
+        $evidence = [['date' => '', 'month' => '', 'text' => 'Từ '.$from->format('d/m/Y').' đến '.Carbon::instance($to)->format('d/m/Y').': '
+            .$pass($scores).'/'.$scores->count().' bài đạt chuẩn', 'counted' => true, 'note' => null]];
+        foreach ($scores->groupBy('class_id') as $classId => $rows) {
+            $class = $classes->firstWhere('id', $classId);
+            $evidence[] = [
+                'date' => '',
+                'month' => '',
+                'text' => 'Lớp '.($class?->code ?: $class?->name ?: '#'.$classId).': '.$pass($rows).'/'.$rows->count().' bài đạt chuẩn ('.self::pct($pass($rows) / $rows->count() * 100).')',
+                'counted' => true,
+                'note' => null,
+            ];
+        }
+
+        return ['value' => round($pass($scores) / $scores->count() * 100, 1), 'evidence' => $evidence];
+    }
+
+    /** Ngày chấm công đi muộn quá STAFF_LATE_MINUTES phút, không có đơn đi muộn được duyệt. */
+    private function staffLate(User $user, CarbonInterface $from, CarbonInterface $to): Collection
+    {
+        return StaffAttendance::where('user_id', $user->id)
+            ->whereBetween('work_date', [$from->toDateString(), $to->toDateString()])
+            ->where('late_minutes', '>', self::STAFF_LATE_MINUTES)->where('late_excused', false)
+            ->orderBy('work_date')->get()
+            ->map(fn (StaffAttendance $a) => [
+                'sort' => $a->work_date,
+                'text' => 'Đi muộn '.(int) $a->late_minutes.' phút'.($a->check_in_at ? ' (check-in '.$a->check_in_at->format('H:i').')' : ''),
+            ]);
     }
 }

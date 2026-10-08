@@ -563,7 +563,7 @@ class Phase3MockupParityTest extends TestCase
 
         // KPI Học vụ: bảng 6 nhóm / 15 mục, Lỗi nghiêm trọng → 0%, lưu nháp không dùng cho lương, chốt thì dùng.
         $lead = $this->userWithRole('academic_lead', ['name' => 'Học thuật Chấm']);
-        $criteria = \App\Models\KpiCriterion::active()->ordered()->get();
+        $criteria = \App\Models\KpiCriterion::forRole('academic_staff')->active()->ordered()->get();
         $this->assertCount(15, $criteria);
         $scores = $criteria->mapWithKeys(fn ($c) => [$c->id => 100])->all();
         $first = $criteria->first();

@@ -16,6 +16,7 @@ class KpiEvaluationItem extends Model
         'score',
         'actual',
         'critical_error',
+        'not_applicable',
         'note',
         'evidence',
     ];
@@ -23,6 +24,7 @@ class KpiEvaluationItem extends Model
     protected $casts = [
         'score' => 'decimal:2',
         'critical_error' => 'boolean',
+        'not_applicable' => 'boolean',
         'evidence' => 'array',
     ];
 

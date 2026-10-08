@@ -386,7 +386,7 @@ class Phase3FormulaTest extends TestCase
     {
         $this->assertSame(15, KpiCriterion::whereNotNull('code')->count());
         $this->assertSame(6, KpiCriterion::whereNotNull('code')->distinct()->count('group_name'));
-        $this->assertEquals(100, (float) KpiCriterion::active()->sum('weight'));
+        $this->assertEquals(100, (float) KpiCriterion::forRole('academic_staff')->active()->sum('weight'));
 
         $staff = $this->userWithRole('academic_staff', ['name' => 'Học vụ Phượng', 'base_salary' => 8000000]);
         $lead = $this->userWithRole('manager');
