@@ -6,6 +6,7 @@ use App\Models\KpiCriterion;
 use App\Models\KpiEvaluation;
 use App\Models\User;
 use App\Support\Roles;
+use App\Support\StaffType;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -17,6 +18,8 @@ use Illuminate\Support\Collection;
  * đã điền (kpi_evaluation_items.actual). Phiếu đã duyệt dùng số và mức đạt đã chốt lúc duyệt, không đếm lại.
  * Tiêu chí cho phép "Không phát sinh" (allow_na): người chấm đánh dấu, hoặc nguồn tỉ lệ tự động không có dữ liệu → bỏ khỏi
  * cả tử số và mẫu số. Bằng chứng có cờ cap (vd. order xong sau giờ dùng) → mục tối đa 50% và phiếu tối đa loại B.
+ * Học thuật kiêm nhiệm giảng dạy có thêm phiếu KPI giảng dạy (track teaching): chấm theo bộ tiêu chí GV part-time (chu kỳ,
+ * nguồn tự động, xếp loại như GV part-time), lưu riêng với phiếu Học thuật.
  */
 class KpiSheetService
 {
@@ -52,10 +55,32 @@ class KpiSheetService
         ];
     }
 
-    /** Kỳ phiếu của một nhân sự (theo vai trò KPI của người đó). */
-    public static function periodFor(User $staff, int $month, int $year): array
+    /** Kỳ phiếu của một nhân sự (theo vai trò KPI của người đó, hoặc bộ GV part-time với phiếu KPI giảng dạy). */
+    public static function periodFor(User $staff, int $month, int $year, string $track = KpiEvaluation::TRACK_MAIN): array
     {
-        return self::period(KpiCriterion::roleFor($staff), $month, $year);
+        return self::period(self::roleFor($staff, $track), $month, $year);
+    }
+
+    /** Bộ tiêu chí chấm phiếu: vai trò KPI của nhân sự; phiếu KPI giảng dạy của Học thuật kiêm nhiệm → bộ GV part-time. */
+    public static function roleFor(User $staff, string $track = KpiEvaluation::TRACK_MAIN): ?string
+    {
+        if ($track === KpiEvaluation::TRACK_TEACHING) {
+            return StaffType::isTeachingAcademicLead($staff) ? Roles::TEACHER_PARTTIME : null;
+        }
+
+        return KpiCriterion::roleFor($staff);
+    }
+
+    /** Học thuật kiêm nhiệm giảng dạy và bộ GV part-time đang có tiêu chí áp dụng → có phiếu KPI giảng dạy. */
+    public static function hasTeachingSheet(User $staff): bool
+    {
+        return StaffType::isTeachingAcademicLead($staff) && KpiCriterion::forRole(Roles::TEACHER_PARTTIME)->active()->exists();
+    }
+
+    /** Mảng việc có phiếu của nhân sự: phiếu chính, thêm phiếu KPI giảng dạy với Học thuật kiêm nhiệm. */
+    public static function tracksFor(User $staff): array
+    {
+        return self::hasTeachingSheet($staff) ? KpiEvaluation::TRACKS : [KpiEvaluation::TRACK_MAIN];
     }
 
     /** Điều kiện chặn từ bằng chứng có cờ cap: mức đạt tối đa của mục và hạng cao nhất của phiếu. */
@@ -69,13 +94,19 @@ class KpiSheetService
         return floor($value) === $value ? (int) $value : $value;
     }
 
-    /** Nhân sự đang làm có vai trò KPI mà vai trò đó có ít nhất một tiêu chí đang áp dụng. */
+    /**
+     * Nhân sự đang làm có vai trò KPI mà vai trò đó có ít nhất một tiêu chí đang áp dụng. Lọc GV part-time thì gồm cả Học
+     * thuật kiêm nhiệm giảng dạy (phiếu KPI giảng dạy chấm theo bộ GV part-time).
+     */
     public function staffQuery(?string $role = null): Builder
     {
         $roles = KpiCriterion::active()->whereIn('role', $role ? [$role] : KpiCriterion::ROLES)->distinct()->pluck('role')->all();
+        $teachingLeads = $role === Roles::TEACHER_PARTTIME && in_array(Roles::TEACHER_PARTTIME, $roles, true);
 
         return User::query()->where('is_active', true)
-            ->whereHas('roles', fn ($q) => $q->whereIn('name', $roles ?: ['__none__']));
+            ->where(fn ($q) => $q->whereHas('roles', fn ($r) => $r->whereIn('name', $roles ?: ['__none__']))
+                ->when($teachingLeads, fn ($q) => $q->orWhere(fn ($w) => $w->where('academic_teaching', true)
+                    ->whereHas('roles', fn ($r) => $r->where('name', Roles::ACADEMIC_LEAD)))));
     }
 
     /**
@@ -85,23 +116,25 @@ class KpiSheetService
     {
         $created = 0;
         $this->staffQuery()->with('roles')->orderBy('id')->each(function (User $user) use ($month, $year, &$created) {
-            $period = self::periodFor($user, $month, $year);
-            $evaluation = KpiEvaluation::firstOrCreate(
-                ['user_id' => $user->id, 'month' => $period['month'], 'year' => $period['year']],
-                ['period_months' => $period['months'], 'total_score' => 0, 'status' => KpiEvaluation::STATUS_PENDING]
-            );
-            $created += $evaluation->wasRecentlyCreated ? 1 : 0;
+            foreach (self::tracksFor($user) as $track) {
+                $period = self::periodFor($user, $month, $year, $track);
+                $evaluation = KpiEvaluation::firstOrCreate(
+                    ['user_id' => $user->id, 'month' => $period['month'], 'year' => $period['year'], 'track' => $track],
+                    ['period_months' => $period['months'], 'total_score' => 0, 'status' => KpiEvaluation::STATUS_PENDING]
+                );
+                $created += $evaluation->wasRecentlyCreated ? 1 : 0;
+            }
         });
 
         return $created;
     }
 
-    /** Phiếu đã có của nhân sự cho kỳ chứa tháng này. */
-    public static function evaluationFor(User $staff, int $month, int $year): ?KpiEvaluation
+    /** Phiếu đã có của nhân sự cho kỳ chứa tháng này (theo mảng việc). */
+    public static function evaluationFor(User $staff, int $month, int $year, string $track = KpiEvaluation::TRACK_MAIN): ?KpiEvaluation
     {
-        $period = self::periodFor($staff, $month, $year);
+        $period = self::periodFor($staff, $month, $year, $track);
 
-        return KpiEvaluation::with(['items', 'evaluator'])->where('user_id', $staff->id)
+        return KpiEvaluation::with(['items', 'evaluator'])->where('user_id', $staff->id)->where('track', $track)
             ->where('month', $period['month'])->where('year', $period['year'])->first();
     }
 
@@ -111,9 +144,10 @@ class KpiSheetService
      *
      * @return array{role: ?string, fund: ?float, period: array, lines: Collection, missing: int, total: float, amount: ?float, knockout: ?string, grade: ?array, bonus_fund: ?float, bonus: ?float}
      */
-    public function sheet(User $staff, int $month, int $year, ?KpiEvaluation $evaluation = null): array
+    public function sheet(User $staff, int $month, int $year, ?KpiEvaluation $evaluation = null, ?string $track = null): array
     {
-        $role = KpiCriterion::roleFor($staff);
+        $track ??= $evaluation?->track ?? KpiEvaluation::TRACK_MAIN;
+        $role = self::roleFor($staff, $track);
         $period = self::period($role, $month, $year);
         $criteria = $role ? KpiCriterion::forRole($role)->active()->ordered()->get() : collect();
         // Phiếu đã duyệt theo bộ tiêu chí trước đây: hiện đúng các tiêu chí đã chấm (phiếu chờ duyệt dùng bộ hiện hành).
@@ -208,6 +242,7 @@ class KpiSheetService
 
         return [
             'role' => $role,
+            'track' => $track,
             'fund' => $fund,
             'period' => $period,
             'lines' => $lines,

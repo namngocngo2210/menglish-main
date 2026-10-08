@@ -15,6 +15,7 @@ defineOptions({ layout: { title: 'Phiếu KPI tháng' } });
 
 const props = defineProps({
     staff: { type: Object, required: true },
+    track: { type: String, default: 'main' },
     month: { type: Number, required: true },
     year: { type: Number, required: true },
     periodMonths: { type: Number, default: 1 },
@@ -140,11 +141,13 @@ const notice = computed(() => {
     >
         <input type="hidden" name="month" :value="month" />
         <input type="hidden" name="year" :value="year" />
+        <input v-if="track !== 'main'" type="hidden" name="track" :value="track" />
 
         <div class="flex flex-wrap items-center gap-sm">
             <UiBadge :color="statusColor">{{ statusLabel }}</UiBadge>
-            <span v-if="status === 'confirmed' && decidedBy" class="font-body-small text-body-small text-on-surface-variant">Duyệt bởi {{ decidedBy }}<template v-if="decidedAt"> lúc {{ decidedAt }}</template>. Số tiền đã vào bảng lương kỳ này.</span>
+            <span v-if="status === 'confirmed' && decidedBy" class="font-body-small text-body-small text-on-surface-variant">Duyệt bởi {{ decidedBy }}<template v-if="decidedAt"> lúc {{ decidedAt }}</template>.<template v-if="track === 'main'"> Số tiền đã vào bảng lương kỳ này.</template></span>
         </div>
+        <UiAlert v-if="track === 'teaching'" type="info" data-kpi-teaching-note>Phiếu KPI giảng dạy của Học thuật kiêm nhiệm: chấm theo bộ tiêu chí GV part-time (Cài đặt → Tiêu chí KPI), riêng với phiếu KPI Học thuật. Xếp loại hiện trên phiếu lương, phần Kiêm nhiệm giảng dạy.</UiAlert>
         <UiAlert v-if="rejectReason" type="error">Không duyệt<template v-if="decidedBy"> ({{ decidedBy }})</template>: {{ rejectReason }}</UiAlert>
         <UiAlert v-if="notice" type="info">{{ notice }}</UiAlert>
         <UiAlert v-if="localError || serverError" type="error">{{ localError || serverError }}</UiAlert>

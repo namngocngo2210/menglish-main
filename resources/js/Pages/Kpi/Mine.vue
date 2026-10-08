@@ -15,6 +15,8 @@ const props = defineProps({
     hasKpi: { type: Boolean, default: true },
     name: { type: String, required: true },
     roleLabel: { type: String, default: '' },
+    track: { type: String, default: 'main' },
+    trackOptions: { type: Array, default: () => [] },
     period: { type: String, required: true },
     periodMonths: { type: Number, default: 1 },
     periodLabel: { type: String, default: '' },
@@ -39,8 +41,13 @@ const props = defineProps({
 const openEvidence = reactive({});
 const fmt = (n) => String(Math.round(n * 100) / 100).replace('.', ',');
 const levelColor = (l) => (l >= 100 ? 'success' : l > 0 ? 'warning' : 'error');
+const trackParam = (track) => (track && track !== 'main' ? { track } : {});
 function changePeriod(event) {
-    router.get(route('kpi.mine'), { period: event.target.value }, { preserveScroll: true });
+    router.get(route('kpi.mine'), { period: event.target.value, ...trackParam(props.track) }, { preserveScroll: true });
+}
+// Học thuật kiêm nhiệm giảng dạy: phiếu Học thuật / phiếu KPI giảng dạy (bộ GV part-time).
+function changeTrack(track) {
+    router.get(route('kpi.mine'), { period: props.period, ...trackParam(track) }, { preserveScroll: true });
 }
 </script>
 
@@ -48,6 +55,16 @@ function changePeriod(event) {
     <div class="space-y-lg">
         <UiPageHeader title="KPI của tôi" :description="hasKpi ? `${name} · ${roleLabel} · ${periodLabel}. Số liệu hệ thống ghi nhận cập nhật hằng ngày; tiêu chí điền tay có số khi người chấm điền cuối kỳ.` : null">
             <template v-if="hasKpi" #actions>
+                <div v-if="trackOptions.length" class="flex flex-wrap gap-xs" role="group" aria-label="Phiếu KPI" data-kpi-tracks>
+                    <button
+                        v-for="o in trackOptions"
+                        :key="o.value"
+                        type="button"
+                        :class="['rounded-full px-md py-xs font-body-small text-body-small transition-colors', o.value === track ? 'bg-primary-container font-semibold text-white' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high']"
+                        :aria-pressed="o.value === track"
+                        @click="changeTrack(o.value)"
+                    >{{ o.label }}</button>
+                </div>
                 <label for="kpi-mine-period" class="sr-only">{{ periodMonths > 1 ? 'Quý' : 'Kỳ lương' }}</label>
                 <select id="kpi-mine-period" class="rounded-lg border border-outline-variant bg-surface-container-lowest py-sm pl-md pr-xl font-body-base text-body-base text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/50" :value="period" @change="changePeriod">
                     <option v-for="o in periodOptions" :key="o.value" :value="o.value">{{ o.label }}</option>

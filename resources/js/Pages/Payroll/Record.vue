@@ -242,6 +242,13 @@ function sessionNote(ts) {
                                     Giữ {{ record.retention_students }} / {{ record.retention_base_students }} HS ở các lớp đã dạy{{ record.retention_lost ? ` · nghỉ ${record.retention_lost} HS` : '' }}{{ lostStudents ? ` (${lostStudents})` : '' }}
                                     = <strong class="font-mono">{{ money(record.teaching_kpi_bonus) }} đ</strong>
                                 </p>
+                                <p v-if="teachingShare.kpi_sheet" class="flex flex-wrap items-center gap-xs font-body-small text-body-small text-on-surface-variant" data-teaching-kpi-sheet>
+                                    Phiếu KPI giảng dạy {{ teachingShare.kpi_sheet.period_label.toLowerCase() }}:
+                                    <strong class="font-mono text-on-surface">{{ pct(teachingShare.kpi_sheet.rate) }}%</strong>
+                                    <template v-if="teachingShare.kpi_sheet.grade"> · loại {{ teachingShare.kpi_sheet.grade }}</template>
+                                    <UiBadge :color="teachingShare.kpi_sheet.status_color">{{ teachingShare.kpi_sheet.status_label }}</UiBadge>
+                                    <a v-if="teachingShare.kpi_sheet.url" :href="teachingShare.kpi_sheet.url" class="font-semibold text-primary hover:underline">Mở phiếu</a>
+                                </p>
                             </div>
                         </div>
                         <div class="overflow-x-auto">

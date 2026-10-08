@@ -8,6 +8,7 @@ use App\Models\ClassModel;
 use App\Models\CommissionAdjustment;
 use App\Models\CommissionItem;
 use App\Models\CommissionTier;
+use App\Models\KpiEvaluation;
 use App\Models\PayrollPeriod;
 use App\Models\PayrollRecord;
 use App\Models\Penalty;
@@ -17,6 +18,7 @@ use App\Models\TeacherTimesheet;
 use App\Models\TimesheetSyncLog;
 use App\Models\SystemSetting;
 use App\Models\User;
+use App\Services\Kpi\KpiSheetService;
 use App\Services\PayrollFormulaService;
 use App\Services\SalesCommissionService;
 use App\Support\DataScope;
@@ -547,6 +549,7 @@ class PayrollController extends Controller
                 'default_percent' => (float) data_get($record->calculation_details, 'teaching_share.default_percent', $settings['teaching_share_percent']),
                 'skipped' => (int) data_get($record->calculation_details, 'teaching_share.skipped', 0),
                 'rate_percent' => $currentRate?->isTuitionShare() ? (float) $currentRate->hourly_rate : null,
+                'kpi_sheet' => $this->teachingKpiSheet($record, $period),
             ] : null,
             'timesheets' => $timesheets->map(function (TeacherTimesheet $ts) use ($record) {
                 $pay = $ts->sessionPay($record->user);
@@ -2062,6 +2065,35 @@ class PayrollController extends Controller
     }
 
     /** Một dòng bảng lương (bảng lương của kỳ, bảng theo khối): chỉ các cột hiển thị. */
+    /**
+     * Phiếu KPI giảng dạy (bộ GV part-time) của Học thuật kiêm nhiệm cho kỳ lương: xếp loại, tỉ lệ đạt, trạng thái, link mở
+     * phiếu. Tham chiếu cho người chấm khi chọn bậc KPI kiêm nhiệm.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function teachingKpiSheet(PayrollRecord $record, PayrollPeriod $period): ?array
+    {
+        $user = $record->user;
+        if (! $user || ! KpiSheetService::hasTeachingSheet($user)) {
+            return null;
+        }
+        $track = KpiEvaluation::TRACK_TEACHING;
+        $evaluation = KpiSheetService::evaluationFor($user, (int) $period->month, (int) $period->year, $track);
+        $sheet = app(KpiSheetService::class)->sheet($user, (int) $period->month, (int) $period->year, $evaluation, $track);
+        $status = $evaluation?->status ?? KpiEvaluation::STATUS_PENDING;
+
+        return [
+            'period_label' => $sheet['period']['label'],
+            'rate' => (float) $sheet['total'],
+            'grade' => $sheet['grade'] ? $sheet['grade']['grade'].' · '.$sheet['grade']['label'] : null,
+            'status_label' => KpiEvaluation::STATUS_LABELS[$status] ?? $status,
+            'status_color' => KpiEvaluation::STATUS_COLORS[$status] ?? 'neutral',
+            'url' => Auth::user()?->can('kpi.view')
+                ? route('kpi.evaluate', ['userId' => $user->id, 'period' => sprintf('%04d-%02d', $period->year, $period->month), 'track' => $track], false)
+                : null,
+        ];
+    }
+
     private function recordRow(PayrollRecord $r): array
     {
         return [

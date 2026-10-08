@@ -279,7 +279,7 @@ class KpiController extends Controller
         // Phiếu tháng lưu ở tháng đó, phiếu quý ở tháng đầu quý: nạp cả hai rồi chọn theo kỳ của từng người.
         $quarterStart = intdiv($month - 1, 3) * 3 + 1;
         $evaluations = KpiEvaluation::with('items')->where('year', $year)->whereIn('month', array_unique([$month, $quarterStart]))->get()
-            ->groupBy('user_id');
+            ->groupBy(fn (KpiEvaluation $e) => $e->user_id.'-'.$e->track);
         $staff = $this->scopedStaff($sheets->staffQuery($role))
             ->when($branchId, fn ($q) => $q->where(fn ($w) => $w->where('branch_id', $branchId)
                 ->orWhereHas('branches', fn ($b) => $b->where('branches.id', $branchId))))
@@ -288,26 +288,36 @@ class KpiController extends Controller
         $currentPeriod = now()->format('Y-m');
 
         return Inertia::render('Kpi/Monthly', [
-            'staff' => $staff->through(function (User $s) use ($sheets, $evaluations, $month, $year, $periodValue) {
-                $period = KpiSheetService::periodFor($s, $month, $year);
-                $evaluation = $evaluations->get($s->id, collect())->firstWhere('month', $period['month']);
-                $sheet = $sheets->sheet($s, $month, $year, $evaluation);
-                $status = $evaluation?->status ?? KpiEvaluation::STATUS_PENDING;
+            'staff' => $staff->through(function (User $s) use ($sheets, $evaluations, $month, $year, $periodValue, $role) {
+                // Học thuật kiêm nhiệm giảng dạy: thêm phiếu KPI giảng dạy (bộ GV part-time). Lọc GV part-time chỉ hiện phiếu giảng dạy.
+                $tracks = collect(KpiSheetService::tracksFor($s))
+                    ->reject(fn (string $track) => $role !== null && KpiSheetService::roleFor($s, $track) !== $role)->values();
+                $sheetRows = $tracks->map(function (string $track) use ($s, $sheets, $evaluations, $month, $year, $periodValue) {
+                    $period = KpiSheetService::periodFor($s, $month, $year, $track);
+                    $evaluation = $evaluations->get($s->id.'-'.$track, collect())->firstWhere('month', $period['month']);
+                    $sheet = $sheets->sheet($s, $month, $year, $evaluation, $track);
+                    $status = $evaluation?->status ?? KpiEvaluation::STATUS_PENDING;
+
+                    return [
+                        'track' => $track,
+                        'role' => $this->sheetRoleLabel($sheet),
+                        'period_label' => $period['months'] > 1 ? 'Phiếu '.mb_strtolower($period['label']) : null,
+                        'rate_label' => $this->percent($sheet['total']).'%',
+                        'amount_label' => $sheet['amount'] !== null ? Money::format($sheet['amount'])
+                            : ($sheet['grade'] ? 'Loại '.$sheet['grade']['grade'].' · '.($sheet['bonus'] !== null ? Money::format($sheet['bonus']) : 'hệ số '.$sheet['grade']['pay'].'%') : '—'),
+                        'status' => $status,
+                        'status_label' => KpiEvaluation::STATUS_LABELS[$status] ?? $status,
+                        'status_color' => KpiEvaluation::STATUS_COLORS[$status] ?? 'neutral',
+                        'url' => route('kpi.evaluate', array_filter(['userId' => $s->id, 'period' => $periodValue, 'track' => $track === KpiEvaluation::TRACK_MAIN ? null : $track]), false),
+                    ];
+                })->values();
 
                 return [
                     'id' => $s->id,
                     'name' => $s->name,
                     'branch' => $s->branch?->name,
-                    'role' => AclHelper::roleLabel((string) $sheet['role']),
-                    'period_label' => $period['months'] > 1 ? 'Phiếu '.mb_strtolower($period['label']) : null,
-                    'rate_label' => $this->percent($sheet['total']).'%',
-                    'amount_label' => $sheet['amount'] !== null ? Money::format($sheet['amount'])
-                        : ($sheet['grade'] ? 'Loại '.$sheet['grade']['grade'].' · '.($sheet['bonus'] !== null ? Money::format($sheet['bonus']) : 'hệ số '.$sheet['grade']['pay'].'%') : '—'),
-                    'status' => $status,
-                    'status_label' => KpiEvaluation::STATUS_LABELS[$status] ?? $status,
-                    'status_color' => KpiEvaluation::STATUS_COLORS[$status] ?? 'neutral',
-                    'url' => route('kpi.evaluate', ['userId' => $s->id, 'period' => $periodValue], false),
-                ];
+                    'sheets' => $sheetRows,
+                ] + ($sheetRows->first() ?? []);
             }),
             'filters' => ['period' => $periodValue, 'role' => $role, 'branch_id' => $branchId],
             'currentPeriod' => $currentPeriod,
@@ -329,6 +339,26 @@ class KpiController extends Controller
     private function percent(float $value): string
     {
         return rtrim(rtrim(number_format($value, 2, ',', '.'), '0'), ',');
+    }
+
+    /** Nhãn bộ tiêu chí của phiếu: vai trò, hoặc "KPI giảng dạy (kiêm nhiệm)" với phiếu giảng dạy của Học thuật. */
+    private function sheetRoleLabel(array $sheet): string
+    {
+        return ($sheet['track'] ?? KpiEvaluation::TRACK_MAIN) === KpiEvaluation::TRACK_TEACHING
+            ? 'KPI giảng dạy (kiêm nhiệm)'
+            : AclHelper::roleLabel((string) $sheet['role']);
+    }
+
+    /** Mảng việc của phiếu từ ?track= (teaching chỉ với Học thuật kiêm nhiệm giảng dạy). */
+    private function track(Request $request, User $staff): string
+    {
+        $track = (string) $request->input('track', KpiEvaluation::TRACK_MAIN);
+        if ($track === KpiEvaluation::TRACK_MAIN || $track === '') {
+            return KpiEvaluation::TRACK_MAIN;
+        }
+        abort_unless($track === KpiEvaluation::TRACK_TEACHING && KpiSheetService::hasTeachingSheet($staff), 404);
+
+        return $track;
     }
 
     /** Tháng/năm từ ?period=YYYY-MM (ô chọn kỳ theo mockup) hoặc ?month=&year=. */
@@ -424,8 +454,9 @@ class KpiController extends Controller
         $this->guard();
         $staff = $this->scopedStaff(User::query())->with('branch')->findOrFail($userId);
         [$month, $year] = $this->monthYear($request);
-        $evaluation = KpiSheetService::evaluationFor($staff, $month, $year);
-        $sheet = $sheets->sheet($staff, $month, $year, $evaluation);
+        $track = $this->track($request, $staff);
+        $evaluation = KpiSheetService::evaluationFor($staff, $month, $year, $track);
+        $sheet = $sheets->sheet($staff, $month, $year, $evaluation, $track);
         $period = $sheet['period'];
         $status = $evaluation?->status ?? KpiEvaluation::STATUS_PENDING;
         $isSelf = $userId === (int) $request->user()->id;
@@ -437,9 +468,10 @@ class KpiController extends Controller
             'staff' => [
                 'id' => $staff->id,
                 'name' => $staff->name,
-                'role_label' => AclHelper::roleLabel((string) $sheet['role']),
+                'role_label' => $this->sheetRoleLabel($sheet),
                 'branch' => $staff->branch?->name,
             ],
+            'track' => $track,
             'month' => $period['month'],
             'year' => $period['year'],
             'periodMonths' => $period['months'],
@@ -475,6 +507,7 @@ class KpiController extends Controller
     {
         $this->guard('kpi.confirm');
         $staff = $this->scopedStaff(User::query())->findOrFail($userId);
+        $track = $this->track($request, $staff);
         // Nhân viên không tự chấm KPI của chính mình (A3 / Phase 3)
         abort_if($userId === (int) $request->user()->id, 403, 'Bạn không được tự chấm KPI của chính mình.');
         $validated = $request->validate([
@@ -499,7 +532,7 @@ class KpiController extends Controller
         $action = $validated['action'] ?? 'confirm';
         // Phiếu Duyệt / Không duyệt theo kỳ của vai trò (tháng / quý); cách gửi điểm cũ luôn theo tháng.
         $period = in_array($action, ['approve', 'reject'], true)
-            ? KpiSheetService::periodFor($staff, (int) $validated['month'], (int) $validated['year'])
+            ? KpiSheetService::periodFor($staff, (int) $validated['month'], (int) $validated['year'], $track)
             : KpiSheetService::period(null, (int) $validated['month'], (int) $validated['year']);
         $validated['month'] = $period['month'];
         $monthStart = Carbon::create($period['year'], $period['month'], 1);
@@ -524,11 +557,11 @@ class KpiController extends Controller
         }
 
         if (in_array($action, ['approve', 'reject'], true)) {
-            return $this->decideSheet($staff, $validated, $action, $sheets);
+            return $this->decideSheet($staff, $validated, $action, $sheets, $track);
         }
 
         $critical = collect($validated['critical'] ?? [])->filter()->keys()->map(fn ($id) => (int) $id)->all();
-        $kpiRole = KpiCriterion::roleFor($staff);
+        $kpiRole = KpiSheetService::roleFor($staff, $track);
         $criteria = $kpiRole ? KpiCriterion::forRole($kpiRole)->active()->get()->keyBy('id') : collect();
 
         // Tiêu chí đếm lỗi: nhập SỐ LẦN thực tế, hệ thống tự ra mức 100 / 50 / 0% (không tự chọn %). Chưa nhập số → giữ % gửi lên.
@@ -556,9 +589,9 @@ class KpiController extends Controller
         $total = $weightTotal > 0 ? round($weightedSum / $weightTotal, 2) : 0;
 
         // Phiếu + từng mục ghi cùng lúc: lỗi giữa chừng không để lại phiếu đã chốt thiếu mục.
-        $evaluation = DB::transaction(function () use ($userId, $validated, $total, $criteria, $critical, $action) {
+        $evaluation = DB::transaction(function () use ($userId, $validated, $total, $criteria, $critical, $action, $track) {
             $evaluation = KpiEvaluation::updateOrCreate(
-                ['user_id' => $userId, 'month' => $validated['month'], 'year' => $validated['year']],
+                ['user_id' => $userId, 'month' => $validated['month'], 'year' => $validated['year'], 'track' => $track],
                 [
                     'evaluator_id' => Auth::id(),
                     'total_score' => $total,
@@ -604,11 +637,11 @@ class KpiController extends Controller
      * Duyệt / Không duyệt phiếu KPI tháng. Lưu số các tiêu chí điền tay; tiêu chí tự động lấy số hệ thống đếm (kèm danh
      * sách bản ghi để đối chiếu về sau). Duyệt cần đủ số mọi tiêu chí; Không duyệt cần lý do, phiếu không vào bảng lương.
      */
-    private function decideSheet(User $staff, array $validated, string $action, KpiSheetService $sheets)
+    private function decideSheet(User $staff, array $validated, string $action, KpiSheetService $sheets, string $track = KpiEvaluation::TRACK_MAIN)
     {
-        $period = KpiSheetService::periodFor($staff, (int) $validated['month'], (int) $validated['year']);
+        $period = KpiSheetService::periodFor($staff, (int) $validated['month'], (int) $validated['year'], $track);
         [$month, $year] = [$period['month'], $period['year']];
-        $kpiRole = KpiCriterion::roleFor($staff);
+        $kpiRole = KpiSheetService::roleFor($staff, $track);
         $criteria = $kpiRole ? KpiCriterion::forRole($kpiRole)->active()->get() : collect();
         // Số điền tay: tiêu chí không tự động, và nguồn tỉ lệ tự động (kỳ chưa có dữ liệu thì điền tay).
         $manual = $criteria->filter(fn (KpiCriterion $c) => $c->hasRule() && (! $c->isAuto() || $c->isRateSource()));
@@ -651,9 +684,9 @@ class KpiController extends Controller
             return back()->withErrors($errors);
         }
 
-        $evaluation = DB::transaction(function () use ($staff, $month, $year, $period, $values, $na, $action, $validated, $sheets, &$errors) {
+        $evaluation = DB::transaction(function () use ($staff, $month, $year, $period, $values, $na, $action, $validated, $sheets, $track, &$errors) {
             $evaluation = KpiEvaluation::firstOrCreate(
-                ['user_id' => $staff->id, 'month' => $month, 'year' => $year],
+                ['user_id' => $staff->id, 'month' => $month, 'year' => $year, 'track' => $track],
                 ['period_months' => $period['months'], 'total_score' => 0, 'status' => KpiEvaluation::STATUS_PENDING]
             );
             if ($evaluation->status === KpiEvaluation::STATUS_APPROVED) {
@@ -674,7 +707,7 @@ class KpiController extends Controller
                 );
             }
 
-            $sheet = $sheets->sheet($staff, $month, $year, $evaluation->fresh('items'));
+            $sheet = $sheets->sheet($staff, $month, $year, $evaluation->fresh('items'), $track);
             if ($action === 'approve' && $sheet['missing'] > 0) {
                 $errors['actual'] = "Còn {$sheet['missing']} tiêu chí chưa có số liệu.";
 
@@ -709,7 +742,7 @@ class KpiController extends Controller
             return back()->withErrors($errors);
         }
 
-        $what = $period['months'] > 1 ? mb_strtolower($period['label']) : "tháng {$month}/{$year}";
+        $what = ($track === KpiEvaluation::TRACK_TEACHING ? 'giảng dạy ' : '').($period['months'] > 1 ? mb_strtolower($period['label']) : "tháng {$month}/{$year}");
         $message = $action === 'approve'
             ? "Đã duyệt KPI {$what} của {$staff->name} ({$this->percent((float) $evaluation->total_score)}%)."
             : "Đã không duyệt phiếu KPI của {$staff->name}.";
@@ -722,8 +755,9 @@ class KpiController extends Controller
     {
         $user = $request->user();
         [$month, $year] = $this->monthYear($request);
-        $evaluation = KpiSheetService::evaluationFor($user, $month, $year);
-        $sheet = $sheets->sheet($user, $month, $year, $evaluation);
+        $track = $this->track($request, $user);
+        $evaluation = KpiSheetService::evaluationFor($user, $month, $year, $track);
+        $sheet = $sheets->sheet($user, $month, $year, $evaluation, $track);
         $period = $sheet['period'];
         $status = $evaluation?->status ?? KpiEvaluation::STATUS_PENDING;
         $periodValue = $period['key'];
@@ -731,7 +765,13 @@ class KpiController extends Controller
         return Inertia::render('Kpi/Mine', [
             'hasKpi' => $sheet['role'] !== null,
             'name' => $user->name,
-            'roleLabel' => AclHelper::roleLabel((string) $sheet['role']),
+            'roleLabel' => $this->sheetRoleLabel($sheet),
+            // Học thuật kiêm nhiệm giảng dạy: chuyển giữa phiếu Học thuật và phiếu KPI giảng dạy.
+            'track' => $track,
+            'trackOptions' => KpiSheetService::hasTeachingSheet($user) ? [
+                ['value' => KpiEvaluation::TRACK_MAIN, 'label' => AclHelper::roleLabel((string) KpiCriterion::roleFor($user))],
+                ['value' => KpiEvaluation::TRACK_TEACHING, 'label' => 'KPI giảng dạy (kiêm nhiệm)'],
+            ] : [],
             'period' => $periodValue,
             'periodMonths' => $period['months'],
             'periodLabel' => $this->periodLabel($period),

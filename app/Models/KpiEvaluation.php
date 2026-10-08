@@ -17,6 +17,7 @@ class KpiEvaluation extends Model
         'evaluator_id',
         'month',
         'year',
+        'track',
         'total_score',
         'comment',
         'strengths',
@@ -27,6 +28,16 @@ class KpiEvaluation extends Model
         'decided_at',
         'period_months',
     ];
+
+    /**
+     * Mảng việc của phiếu: main = vai trò chính của nhân sự; teaching = KPI giảng dạy (bộ tiêu chí GV part-time) của Học
+     * thuật kiêm nhiệm giảng dạy — phiếu riêng, chu kỳ và xếp loại theo bộ GV part-time.
+     */
+    public const TRACK_MAIN = 'main';
+
+    public const TRACK_TEACHING = 'teaching';
+
+    public const TRACKS = [self::TRACK_MAIN, self::TRACK_TEACHING];
 
     /** Trạng thái phiếu: draft = chờ duyệt (phiếu tự tạo đầu tháng), confirmed = đã duyệt (vào bảng lương), rejected = không duyệt. */
     public const STATUS_PENDING = 'draft';
@@ -46,6 +57,8 @@ class KpiEvaluation extends Model
         self::STATUS_APPROVED => 'success',
         self::STATUS_REJECTED => 'error',
     ];
+
+    protected $attributes = ['track' => self::TRACK_MAIN];
 
     protected $casts = [
         'total_score' => 'decimal:2',
