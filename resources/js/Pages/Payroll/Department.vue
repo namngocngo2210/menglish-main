@@ -158,6 +158,7 @@ const initial = (name) => Array.from(name ?? 'N')[0] ?? '';
                                     <p v-if="r.teaching_concurrent" class="text-xs text-on-surface-subtle">gồm KPI kiêm nhiệm {{ formatMoney(r.teaching_kpi_bonus) }}</p>
                                     <p v-if="r.kpi_source === 'academic_kpi'" class="text-xs text-on-surface-subtle">{{ r.kpi_score !== null ? trimNumber(r.kpi_score, 2, '.', ',') + '% × quỹ' : 'chưa chấm KPI' }}</p>
                                     <p v-else-if="r.kpi_source === 'manual'" class="text-xs text-on-surface-subtle">{{ r.kpi_manual_amount !== null ? 'nhập tay' : 'chưa nhập' }}</p>
+                                    <p v-else-if="r.kpi_source === 'self' && r.kpi_score !== null" class="text-xs text-on-surface-subtle">KPI {{ trimNumber(r.kpi_score, 2, '.', ',') }}% (chỉ xem)</p>
                                 </td>
                                 <td v-if="config.showCommission" class="text-right font-mono text-tertiary font-semibold">
                                     {{ formatMoney(r.commission_bonus) }}

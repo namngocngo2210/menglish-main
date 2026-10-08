@@ -446,6 +446,8 @@ class Phase3MockupParityTest extends TestCase
         $period = $this->period();
         $lead = $this->userWithRole('academic_lead', ['name' => 'Học thuật P3', 'base_salary' => 15000000]);
         $ftTeacher = $this->userWithRole('teacher_fulltime', ['name' => 'GV Fulltime P3', 'base_salary' => 15000000]);
+        // Lương cơ bản hồ sơ khớp phiếu dựng tay: lệch thì kỳ báo phải "Đồng bộ & Tính lại" trước khi chốt.
+        $this->academicStaff->update(['base_salary' => 6500000]);
         \App\Models\TeacherHourlyRate::create(['user_id' => $this->teacher->id, 'hourly_rate' => 150000, 'rate_unit' => 'session', 'effective_from' => '2026-01-01']);
         $this->timesheet(['status' => 'valid', 'teaching_date' => '2026-08-05', 'type' => 'sub', 'scheduled_time' => '17:30-19:00']);
 

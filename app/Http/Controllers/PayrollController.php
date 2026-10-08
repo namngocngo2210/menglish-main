@@ -225,6 +225,8 @@ class PayrollController extends Controller
             ->whereDoesntHave('roles', fn ($r) => $r->where('name', Roles::ADMIN))
             ->whereNotIn('id', $period->records()->select('user_id'))
             ->where('created_at', '<=', $period->end_date->copy()->endOfDay())
+            // Hợp đồng bắt đầu sau kỳ: kỳ này chưa phải trả lương
+            ->where(fn ($q) => $q->whereNull('contract_start_date')->orWhereDate('contract_start_date', '<=', $period->end_date->toDateString()))
             ->orderBy('name')
             ->get()
             ->map(fn (User $staff) => [
@@ -255,7 +257,7 @@ class PayrollController extends Controller
             ->orderBy('department')->orderBy('id')
             ->get();
 
-        $kpiSources = [PayrollRecord::KPI_RETENTION => 'Giữ học sinh', PayrollRecord::KPI_ACADEMIC => 'KPI Học vụ (tự động)', PayrollRecord::KPI_MANUAL => 'Nhập tự do'];
+        $kpiSources = [PayrollRecord::KPI_RETENTION => 'Giữ học sinh', PayrollRecord::KPI_ACADEMIC => 'KPI Học vụ (tự động)', PayrollRecord::KPI_MANUAL => 'Nhập tự do', PayrollRecord::KPI_SELF => 'Admin: chỉ xem % KPI'];
         $lineText = fn (PayrollRecord $r, string $kind) => collect($r->manualLines($kind))
             ->map(fn ($l) => $l['label'].': '.Money::format($l['amount'], ''))->implode('; ');
 

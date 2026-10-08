@@ -51,6 +51,9 @@ class PayrollRecord extends Model
 
     public const KPI_ACADEMIC = 'academic_kpi';
 
+    /** Admin: không chốt KPI, không có tiền KPI — phiếu chỉ hiện % KPI của chính họ nếu có phiếu KPI đã chốt. */
+    public const KPI_SELF = 'self';
+
     protected $table = 'payroll_records';
 
     protected $fillable = [
@@ -185,13 +188,17 @@ class PayrollRecord extends Model
      * "Trạng thái KPI" trên danh sách bảng lương (mockup): KPI của phiếu đã được chốt chưa.
      * Part-time: đã chọn bậc KPI giữ HS (không có HS đầu kỳ thì không áp dụng); Học vụ: đã có đánh giá KPI tháng
      * được chốt; GV Full-time / Học thuật / Sale / khác: đã nhập KPI tự do (kể cả 0đ). Phiếu trước Q3: không áp dụng.
+     * Admin: không phải chốt (không chặn chốt bảng lương), chỉ hiện % KPI của bản thân nếu có.
      *
-     * @return array{0: string, 1: string} [done|pending|na, nhãn]
+     * @return array{0: string, 1: string} [done|pending|na|self, nhãn]
      */
     public function getKpiStateAttribute(): array
     {
         if (! $this->usesQ3Formula()) {
             return ['na', 'Không áp dụng'];
+        }
+        if ($this->kpi_source === self::KPI_SELF) {
+            return ['self', $this->kpi_score !== null ? 'KPI '.self::percent($this->kpi_score).'%' : ''];
         }
 
         $done = match ($this->kpi_source) {
@@ -267,14 +274,21 @@ class PayrollRecord extends Model
                 'hint' => 'Kế toán nhập tay'.((int) $this->foreign_teacher_sessions_count > 0 ? ' · '.(int) $this->foreign_teacher_sessions_count.' buổi có GVNN cùng lớp trong kỳ' : '')];
         } else {
             $lines[] = ['key' => 'base_salary', 'label' => 'Lương cơ bản', 'amount' => (float) $this->base_salary, 'hint' => null];
-            $lines[] = ['key' => 'kpi_bonus', 'label' => $this->kpi_source === self::KPI_ACADEMIC ? 'KPI Học vụ (6 nhóm / 15 mục)' : 'KPI', 'amount' => (float) $this->kpi_bonus,
-                'hint' => match ($this->kpi_source) {
-                    self::KPI_ACADEMIC => $this->kpi_score !== null
-                        ? 'Quỹ '.$money(data_get($this->calculation_details, 'kpi.fund', 0)).' × '.rtrim(rtrim(number_format((float) $this->kpi_score, 2, ',', '.'), '0'), ',').'% điểm KPI tháng'
-                        : 'Chưa có đánh giá KPI tháng đã chốt',
-                    self::KPI_MANUAL => $this->kpi_manual_amount !== null ? 'Nhập tay' : 'Chưa nhập KPI',
-                    default => null,
-                }];
+            if ($this->kpi_source === self::KPI_SELF) {
+                if ($this->kpi_score !== null) {
+                    $lines[] = ['key' => 'kpi_bonus', 'label' => 'KPI', 'amount' => (float) $this->kpi_bonus,
+                        'hint' => self::percent($this->kpi_score).'% KPI của bản thân (chỉ để xem, Admin không có tiền KPI)'];
+                }
+            } else {
+                $lines[] = ['key' => 'kpi_bonus', 'label' => $this->kpi_source === self::KPI_ACADEMIC ? 'KPI Học vụ (6 nhóm / 15 mục)' : 'KPI', 'amount' => (float) $this->kpi_bonus,
+                    'hint' => match ($this->kpi_source) {
+                        self::KPI_ACADEMIC => $this->kpi_score !== null
+                            ? 'Quỹ '.$money(data_get($this->calculation_details, 'kpi.fund', 0)).' × '.rtrim(rtrim(number_format((float) $this->kpi_score, 2, ',', '.'), '0'), ',').'% điểm KPI tháng'
+                            : 'Chưa có đánh giá KPI tháng đã chốt',
+                        self::KPI_MANUAL => $this->kpi_manual_amount !== null ? 'Nhập tay' : 'Chưa nhập KPI',
+                        default => null,
+                    }];
+            }
             if ($this->teaching_concurrent) {
                 $percent = data_get($this->calculation_details, 'teaching_share.default_percent');
                 $lines[] = ['key' => 'teaching_salary', 'label' => 'Lương đứng lớp ('.(int) $this->teaching_sessions.' buổi)', 'amount' => (float) $this->teaching_salary,
@@ -429,6 +443,12 @@ class PayrollRecord extends Model
         }
 
         $this->calculateNetSalary();
+    }
+
+    /** 85.50 → "85,5" (bỏ số 0 thừa sau dấu phẩy). */
+    public static function percent(float|string $value): string
+    {
+        return rtrim(rtrim(number_format((float) $value, 2, ',', '.'), '0'), ',');
     }
 
     public function calculateNetSalary(): void

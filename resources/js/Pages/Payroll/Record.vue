@@ -197,6 +197,11 @@ function sessionNote(ts) {
                                 <UiInput v-if="canEdit" type="number" name="kpi_manual_amount" label="Lương KPI (VNĐ) — nhập tự do" min="0" step="1000" :value="record.kpi_manual_amount !== null ? Math.trunc(record.kpi_manual_amount) : null" :hint="`${kpiStateLabel} · Admin / Kế toán nhập (0đ vẫn tính là đã chốt).`" />
                                 <div v-else class="rounded-lg bg-surface-container-low p-md"><p class="font-body-small text-body-small text-on-surface-variant">Lương KPI (VNĐ)</p><p class="font-h3 text-h3 font-mono">{{ money(record.kpi_bonus) }}</p></div>
                             </template>
+                            <div v-else-if="record.kpi_source === 'self' && record.kpi_score !== null" class="rounded-lg bg-surface-container-low p-md">
+                                <p class="font-body-small text-body-small text-on-surface-variant">KPI của bản thân</p>
+                                <p class="font-h3 text-h3 font-mono">{{ pct(record.kpi_score) }}%</p>
+                                <p class="font-caption text-caption text-on-surface-variant">Chỉ để xem · Admin không chốt KPI, không có tiền KPI</p>
+                            </div>
                             <div v-else-if="record.kpi_source === 'academic_kpi'" class="rounded-lg bg-surface-container-low p-md">
                                 <p class="font-body-small text-body-small text-on-surface-variant">Lương KPI (tự động theo 6 nhóm / 15 mục)</p>
                                 <p class="font-h3 text-h3 font-mono">{{ money(record.kpi_bonus) }}</p>

@@ -31,7 +31,7 @@ const type = computed(() => query.value.get('type'));
 const pendingUrl = computed(() => urlWith({ kpi: 'pending', page: null }));
 const showPending = computed(() => props.kpiPending.count > 0 && !props.period.locked);
 const [statusColor, statusText] = props.period.status === 'paid' ? ['secondary', 'Đã trả'] : props.period.status === 'approved' ? ['success', 'Đã chốt'] : ['info', 'Đang tính'];
-const kpiIcons = { done: 'check', pending: 'close', na: 'remove' };
+const kpiIcons = { done: 'check', pending: 'close', na: 'remove', self: 'insights' };
 const kpiOptions = [{ value: 'pending', label: 'Chưa chốt KPI' }, { value: 'done', label: 'Đã chốt KPI' }];
 const pad = (n) => String(n).padStart(2, '0');
 const foreignOpen = ref(null);
@@ -197,9 +197,11 @@ function filter(event) {
                             </span>
                         </td>
                         <td>
-                            <span :class="['inline-flex items-center gap-xs font-body-small text-body-small', r.kpi_state[0] === 'done' ? 'text-tertiary' : r.kpi_state[0] === 'pending' ? 'text-error' : 'text-on-surface-variant']">
+                            <!-- Admin: không chốt KPI, chỉ hiện % KPI của bản thân nếu có -->
+                            <span v-if="r.kpi_state[1]" :class="['inline-flex items-center gap-xs font-body-small text-body-small', r.kpi_state[0] === 'done' ? 'text-tertiary' : r.kpi_state[0] === 'pending' ? 'text-error' : 'text-on-surface-variant']">
                                 <span class="material-symbols-outlined text-[16px]" aria-hidden="true">{{ kpiIcons[r.kpi_state[0]] }}</span>{{ r.kpi_state[1] }}
                             </span>
+                            <span v-else class="text-on-surface-variant">—</span>
                         </td>
                         <td class="text-right font-mono">
                             <template v-if="r.is_part_time">
@@ -208,7 +210,8 @@ function filter(event) {
                             </template>
                             <template v-else>{{ formatMoney(r.base_salary + r.teaching_salary) }}</template>
                         </td>
-                        <td class="text-right font-mono">
+                        <td v-if="r.kpi_source === 'self'" class="text-right font-mono text-on-surface-variant">{{ r.kpi_score !== null ? trimNumber(r.kpi_score, 2, '.', ',') + '%' : '—' }}</td>
+                        <td v-else class="text-right font-mono">
                             {{ formatMoney(r.kpi_bonus) }}
                             <p v-if="r.kpi_source === 'retention'" class="font-caption text-caption text-on-surface-variant">{{ r.retention_students }} HS × {{ r.retention_tier !== null ? money(r.retention_tier) : 'chưa chọn bậc' }}</p>
                             <p v-else-if="r.kpi_source === 'academic_kpi'" class="font-caption text-caption text-on-surface-variant">{{ r.kpi_score !== null ? trimNumber(r.kpi_score, 2, '.', ',') + '% quỹ' : 'chưa chấm' }}</p>
