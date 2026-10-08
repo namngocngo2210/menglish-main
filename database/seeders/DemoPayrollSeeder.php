@@ -58,9 +58,12 @@ use Illuminate\Support\Str;
  *   không duyệt), phiếu tháng này chờ duyệt, phần lớn đã điền số liệu.
  * - Kỳ lương tháng này: Admin "Đồng bộ & Tính lại", nhập KPI / phụ cấp cho phiếu mới, tính lại (để Đang soát).
  * - KPI Học thuật (Trưởng Học thuật): DemoAcademicKpiSeeder (dự án học thuật, việc giao, order học liệu, phiếu tháng trước / này).
+ * - Kỳ lương tháng trước đủ mọi vai trò (completeLastMonth): lớp K27 cho GV / TA chưa có lịch tháng trước (có buổi đi muộn, quên
+ *   check-in, vắng, ca bị từ chối), biên bản vi phạm lập tay cho mọi vai trò ở đủ các bước, KPI bộ mẫu Quản lý cơ sở và mỗi vai trò
+ *   1 người tốt / 1 người kém; mở lại kỳ demo, tính lại, duyệt, từ ngày 10 ghi nhận đã chi trả.
  *
  * Không nằm trong DatabaseSeeder: chạy tay bằng `php artisan demo:luong` sau `db:seed` (CSDL demo). Idempotent: lớp DEMO-CG-IF1
- * đã có thì bỏ qua (chỉ in số liệu). Chạy trong 1 transaction.
+ * đã có thì bỏ qua phần chính, lớp DEMO-CG-SPK27 đã có thì bỏ qua phần tháng trước. Mỗi phần chạy trong 1 transaction.
  */
 class DemoPayrollSeeder extends Seeder
 {
