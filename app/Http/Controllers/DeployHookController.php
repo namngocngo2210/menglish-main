@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
+use Database\Seeders\DemoPayrollSeeder;
+use Database\Seeders\ProductionBootstrapSeeder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -50,18 +53,30 @@ class DeployHookController extends Controller
 
         // Seed:
         //  - "bootstrap": vai trò, quyền, danh mục + 1 Admin từ .env — chỉ khi database CHƯA có người dùng (cài mới, kể cả production).
-        //  - "demo": toàn bộ DatabaseSeeder (tài khoản & dữ liệu demo) — bị chặn trên production.
+        //  - "demo": toàn bộ DatabaseSeeder (tài khoản & dữ liệu demo).
+        //  - "demo-luong": dữ liệu mẫu phần lương (php artisan demo:luong), chạy sau "demo".
+        //  Hai loại demo bị chặn trên production, trừ khi deploy tích "demo_on_production" (production chưa dùng thật)
+        //  VÀ .env đặt SEED_DEFAULT_PASSWORD riêng: tài khoản demo (kể cả Admin) không được mang mật khẩu mặc định ra internet.
         $seed = (string) $request->input('seed', '');
-        if ($migrateCode === 0 && in_array($seed, ['bootstrap', 'demo', '1'], true)) {
+        $demoOnProduction = $request->boolean('allow_production_demo');
+        if ($migrateCode === 0 && in_array($seed, ['bootstrap', 'demo', 'demo-luong', '1'], true)) {
             if ($seed === 'bootstrap') {
-                if (\App\Models\User::query()->exists()) {
+                if (User::query()->exists()) {
                     $steps[] = ['command' => 'db:seed', 'exit' => 1, 'output' => 'Bỏ qua: database đã có người dùng, không khởi tạo lại.'];
                 } else {
-                    $run('db:seed', ['--class' => \Database\Seeders\ProductionBootstrapSeeder::class, '--force' => true]);
+                    $run('db:seed', ['--class' => ProductionBootstrapSeeder::class, '--force' => true]);
                 }
-            } elseif (app()->environment('production')) {
-                $steps[] = ['command' => 'db:seed', 'exit' => 1, 'output' => 'Bị chặn: không chạy seed demo trên production.'];
+            } elseif (app()->environment('production') && ! $demoOnProduction) {
+                $steps[] = ['command' => 'db:seed', 'exit' => 1, 'output' => 'Bị chặn: không chạy seed demo trên production (tích demo_on_production khi deploy nếu production chưa dùng thật).'];
+            } elseif (app()->environment('production') && ! $this->hasOwnSeedPassword()) {
+                $steps[] = ['command' => 'db:seed', 'exit' => 1, 'output' => 'Bị chặn: đặt SEED_DEFAULT_PASSWORD (≥ 10 ký tự, khác mặc định) trong .env trước khi seed demo trên production.'];
+            } elseif ($seed === 'demo-luong') {
+                $run('db:seed', ['--class' => DemoPayrollSeeder::class, '--force' => true]);
             } else {
+                // DatabaseSeeder chỉ đổ dữ liệu nghiệp vụ mẫu (DemoPhase1–4) ngoài production hoặc khi bật seed_demo.
+                if ($demoOnProduction) {
+                    config(['app.seed_demo' => true]);
+                }
                 $run('db:seed', ['--force' => true]);
             }
         }
@@ -80,5 +95,12 @@ class DeployHookController extends Controller
         $ok = collect($steps)->every(fn ($step) => $step['exit'] === 0);
 
         return response()->json(['ok' => $ok, 'steps' => $steps], $ok ? 200 : 500);
+    }
+
+    private function hasOwnSeedPassword(): bool
+    {
+        $password = (string) config('access.seed_password');
+
+        return strlen($password) >= 10 && $password !== 'Password123!';
     }
 }

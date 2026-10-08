@@ -2,7 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Models\Branch;
+use App\Models\User;
+use App\Support\DataScope;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Schema;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class DeployHookTest extends TestCase
@@ -41,7 +47,7 @@ class DeployHookTest extends TestCase
         // Cài mới: bảng sessions/cache chưa có — hook (chính là thứ chạy migrate) không được phụ thuộc chúng.
         $token = str_repeat('d', 64);
         config(['app.deploy_hook_token' => $token, 'session.driver' => 'database', 'cache.default' => 'database']);
-        \Illuminate\Support\Facades\Schema::drop('sessions');
+        Schema::drop('sessions');
 
         $response = $this->post('/_deploy/hook', [], ['X-Deploy-Token' => $token]);
 
@@ -66,6 +72,32 @@ class DeployHookTest extends TestCase
         $this->assertStringContainsString('production', $step['output']);
     }
 
+    public function test_payroll_demo_seed_needs_opt_in_on_production(): void
+    {
+        $token = str_repeat('f', 64);
+        config(['app.deploy_hook_token' => $token]);
+
+        $seedStep = fn ($response) => collect($response->json('steps'))->firstWhere('command', 'db:seed');
+
+        // Chưa có tài khoản demo: seeder tự bỏ qua, không lỗi.
+        $this->assertSame(0, $seedStep($this->post('/_deploy/hook', ['seed' => 'demo-luong'], ['X-Deploy-Token' => $token]))['exit']);
+
+        $this->app['env'] = 'production';
+        $blocked = $seedStep($this->post('/_deploy/hook', ['seed' => 'demo-luong'], ['X-Deploy-Token' => $token]));
+        $this->assertSame(1, $blocked['exit']);
+        $this->assertStringContainsString('production', $blocked['output']);
+
+        // Tích cho phép nhưng còn mật khẩu seed mặc định: vẫn chặn (tài khoản demo có cả Admin).
+        $optIn = ['seed' => 'demo-luong', 'allow_production_demo' => 'true'];
+        config(['access.seed_password' => 'Password123!']);
+        $weak = $seedStep($this->post('/_deploy/hook', $optIn, ['X-Deploy-Token' => $token]));
+        $this->assertSame(1, $weak['exit']);
+        $this->assertStringContainsString('SEED_DEFAULT_PASSWORD', $weak['output']);
+
+        config(['access.seed_password' => 'Demo-Only-Pass-2026']);
+        $this->assertSame(0, $seedStep($this->post('/_deploy/hook', $optIn, ['X-Deploy-Token' => $token]))['exit']);
+    }
+
     public function test_bootstrap_seed_creates_single_admin_only_on_empty_database(): void
     {
         $token = str_repeat('e', 64);
@@ -76,24 +108,24 @@ class DeployHookTest extends TestCase
 
         $this->post('/_deploy/hook', ['seed' => 'bootstrap'], ['X-Deploy-Token' => $token])->assertOk();
 
-        $this->assertSame(1, \App\Models\User::count());
-        $admin = \App\Models\User::first();
+        $this->assertSame(1, User::count());
+        $admin = User::first();
         $this->assertSame('owner@meducation.vn', $admin->email);
         $this->assertTrue($admin->hasRole('admin'));
         $this->assertTrue((bool) $admin->must_change_password);
-        $this->assertSame(0, \App\Models\Branch::count());
+        $this->assertSame(0, Branch::count());
 
         // RBAC khởi tạo đầy đủ theo danh mục (docs/rbac.md): Super Admin toàn quyền, vai trò mặc định có phạm vi dữ liệu,
         // quyền cũ *.all_branches đã thay bằng *.scope_all.
         $this->assertTrue($admin->isSuperAdmin());
         $this->assertTrue($admin->can('tuition.scope_all'));
         $this->assertTrue($admin->can('role.assign_permission'));
-        $this->assertSame('all', \App\Support\DataScope::level($admin, 'lead'));
-        $this->assertFalse(\Spatie\Permission\Models\Permission::where('name', 'tuition.all_branches')->exists());
+        $this->assertSame('all', DataScope::level($admin, 'lead'));
+        $this->assertFalse(Permission::where('name', 'tuition.all_branches')->exists());
         foreach (array_keys(config('access.roles')) as $role) {
-            $this->assertTrue(\Spatie\Permission\Models\Role::where('name', $role)->exists(), "Thiếu vai trò {$role}");
+            $this->assertTrue(Role::where('name', $role)->exists(), "Thiếu vai trò {$role}");
         }
-        $academicStaff = \Spatie\Permission\Models\Role::findByName('academic_staff', 'web');
+        $academicStaff = Role::findByName('academic_staff', 'web');
         $this->assertTrue($academicStaff->hasPermissionTo('lead.update'));
         $this->assertFalse($academicStaff->hasPermissionTo('lead.delete'));
         $this->assertFalse($academicStaff->hasPermissionTo('lead.stage_back'));
@@ -101,6 +133,6 @@ class DeployHookTest extends TestCase
         // Chạy lại: không khởi tạo lại khi đã có người dùng.
         $again = $this->post('/_deploy/hook', ['seed' => 'bootstrap'], ['X-Deploy-Token' => $token]);
         $this->assertStringContainsString('đã có người dùng', collect($again->json('steps'))->firstWhere('command', 'db:seed')['output']);
-        $this->assertSame(1, \App\Models\User::count());
+        $this->assertSame(1, User::count());
     }
 }
