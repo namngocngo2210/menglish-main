@@ -213,7 +213,7 @@ class DemoPayrollSeeder extends Seeder
         }
         if (ClassModel::withTrashed()->where('code', self::FIRST_CLASS)->exists()) {
             $this->command?->info('DemoPayrollSeeder: đã có dữ liệu demo lương — bỏ qua (chỉ in số liệu).');
-            $this->call(DemoAcademicKpiSeeder::class);
+            $this->call([DemoAcademicKpiSeeder::class, DemoCoverageSeeder::class]);
             $this->printSummary();
 
             return;
@@ -260,6 +260,8 @@ class DemoPayrollSeeder extends Seeder
 
         // KPI Học thuật (dự án, việc giao, order học liệu, phiếu Trưởng Học thuật): seeder riêng, chạy được cả khi đã có dữ liệu lương.
         $this->call(DemoAcademicKpiSeeder::class);
+        // Phần còn lại của hệ thống (CRM, đào tạo, báo cáo, vận hành, tài chính): đủ case đẹp lẫn xấu cho mọi màn.
+        $this->call(DemoCoverageSeeder::class);
         $this->printSummary();
     }
 

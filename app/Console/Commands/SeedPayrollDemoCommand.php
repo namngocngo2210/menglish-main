@@ -7,7 +7,7 @@ use Illuminate\Console\Command;
 
 /**
  * Tạo dữ liệu mẫu cho phần lương (chấm công điện thoại, đơn xin duyệt, giờ dạy, biên bản đi muộn, KPI mọi vai trò, bảng lương
- * kỳ đang soát) để xem các màn có nội dung. Chỉ chạy khi gọi tay, không chạy khi deploy; dựng trên tài khoản mẫu và dữ liệu demo
+ * kỳ đang soát) và dữ liệu phủ các màn còn lại của hệ thống (DemoCoverageSeeder, cả case đẹp lẫn xấu) để xem các màn có nội dung. Chỉ chạy khi gọi tay, không chạy khi deploy; dựng trên tài khoản mẫu và dữ liệu demo
  * Phase 1–4 (php artisan db:seed trên CSDL demo). Production phải thêm --force.
  */
 class SeedPayrollDemoCommand extends Command

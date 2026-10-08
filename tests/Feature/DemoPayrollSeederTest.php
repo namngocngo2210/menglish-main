@@ -5,13 +5,22 @@ namespace Tests\Feature;
 use App\Models\AcademicProject;
 use App\Models\Branch;
 use App\Models\ClassModel;
+use App\Models\CrmBranchTransfer;
+use App\Models\JobPosting;
 use App\Models\KpiCriterion;
 use App\Models\KpiEvaluation;
 use App\Models\MaterialOrder;
+use App\Models\MerchandiseStockMovement;
 use App\Models\PayrollPeriod;
 use App\Models\Penalty;
+use App\Models\Promotion;
+use App\Models\QaObservation;
+use App\Models\SlaEvent;
 use App\Models\StaffAttendance;
 use App\Models\StaffAttendanceRequest;
+use App\Models\StaffReport;
+use App\Models\Survey;
+use App\Models\SyllabusAdjustmentRequest;
 use App\Models\TeacherTimesheet;
 use App\Models\User;
 use App\Models\WorkTask;
@@ -75,7 +84,8 @@ class DemoPayrollSeederTest extends TestCase
         // KPI Học thuật: nguồn tự đếm có số liệu (mốc dự án, việc giao, order học liệu); phiếu tháng trước chốt có xếp loại,
         // phiếu tháng này có mục Không phát sinh, order giao sau giờ dùng chặn mục ở 50%.
         $lead = User::where('email', 'academiclead@menglish.edu.vn')->firstOrFail();
-        $this->assertSame(2, AcademicProject::where('owner_id', $lead->id)->count());
+        $this->assertSame(2, AcademicProject::where('owner_id', $lead->id)
+            ->whereIn('name', ['# Giáo trình Starters K28 (Book 1–2)', '# Chương trình IELTS Foundation 2027'])->count());
         $this->assertTrue(WorkTask::where('assignee_id', $lead->id)->where('status', 'completed')->exists());
         $this->assertTrue(MaterialOrder::where('category', MaterialOrder::CATEGORY_ACADEMIC)->where('created_late', true)->exists());
         $sheets = app(KpiSheetService::class);
@@ -100,9 +110,15 @@ class DemoPayrollSeederTest extends TestCase
         $this->assertSame('approved', $lastPeriod->status);
         $this->assertFalse($lastPeriod->records()->where('user_id', $newTeacher->id)->exists());
 
+        // Phần phủ toàn hệ thống (DemoCoverageSeeder) chạy cùng lệnh; chi tiết từng phần kiểm ở DemoCoverage*SeederTest.
+        foreach ([CrmBranchTransfer::class, Promotion::class, SlaEvent::class, SyllabusAdjustmentRequest::class, Survey::class,
+            StaffReport::class, QaObservation::class, JobPosting::class, MerchandiseStockMovement::class] as $model) {
+            $this->assertTrue($model::query()->exists(), "Thiếu dữ liệu demo {$model}.");
+        }
+
         // Chạy lại không nhân bản.
         $counts = fn () => [StaffAttendance::count(), StaffAttendanceRequest::count(), TeacherTimesheet::count(), KpiEvaluation::count(), User::count(),
-            AcademicProject::count(), WorkTask::count(), MaterialOrder::count()];
+            AcademicProject::count(), WorkTask::count(), MaterialOrder::count(), Promotion::count(), JobPosting::count(), StaffReport::count()];
         $before = $counts();
         $this->seed(DemoPayrollSeeder::class);
         $this->assertSame($before, $counts());
