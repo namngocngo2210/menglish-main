@@ -22,6 +22,7 @@ const props = defineProps({
     periodMonths: { type: Number, default: 1 },
     cycleOptions: { type: Array, default: () => [] },
     grades: { type: Array, default: () => [] },
+    gradeFund: { type: Number, default: null },
     groups: { type: Array, default: () => [] },
     fund: { type: Number, default: null },
     totalWeight: { type: Number, default: 0 },
@@ -45,10 +46,15 @@ const selectedCycle = ref(props.periodMonths);
 watch(selectedCycle, (value) => {
     if (Number(value) !== props.periodMonths) router.post(route('kpi.criteria.cycle'), { role: props.role, period_months: Number(value) }, { preserveScroll: true });
 });
+// Thưởng KPI tối đa / tháng theo xếp loại (vai trò có xếp loại A–E); để trống = không có khoản thưởng này.
+const gradeFundInput = ref(props.gradeFund ?? '');
+function saveGradeFund() {
+    router.post(route('kpi.criteria.cycle'), { role: props.role, period_months: props.periodMonths, grade_fund: gradeFundInput.value === '' ? null : Number(gradeFundInput.value) }, { preserveScroll: true });
+}
 const gradeText = computed(() => props.grades.map((g) => `${g.grade} ≥ ${g.from}% (hệ số ${g.pay}%)`).join(' · '));
 
 // Modal thêm / sửa: một form, đổi nội dung theo tiêu chí đang sửa (null = thêm mới).
-const blankRule = () => ({ measure: 'count', tiers: [{ at: 0, percent: 100 }, { at: 2, percent: 50 }], linear: false, full_at: 100, knockout: false, per_month: false });
+const blankRule = () => ({ measure: 'count', tiers: [{ at: 0, percent: 100 }, { at: 2, percent: 50 }], linear: false, full_at: 100, knockout: false, per_month: false, allow_na: false });
 const modal = reactive({ open: false, item: null, weight: '', ...blankRule() });
 function openCreate() {
     Object.assign(modal, { item: null, weight: '', ...blankRule(), open: true });
@@ -64,10 +70,13 @@ function openEdit(item) {
         full_at: item.full_at ?? 100,
         knockout: item.knockout,
         per_month: item.per_month,
+        allow_na: item.allow_na,
         open: true,
     });
 }
-const isRate = computed(() => modal.measure === 'rate');
+const isRate = computed(() => modal.measure !== 'count');
+const isRateUp = computed(() => modal.measure === 'rate');
+const tierLabel = computed(() => (isRateUp.value ? 'Từ (%)' : isRate.value ? 'Không quá (%)' : 'Không quá (số lần)'));
 const weightMoney = computed(() => (hasFund.value ? Math.round((props.fund * (parseFloat(modal.weight) || 0)) / 100) : null));
 const formKey = computed(() => (modal.item ? `edit-${modal.item.id}` : 'new'));
 </script>
@@ -84,9 +93,12 @@ const formKey = computed(() => (modal.item ? `edit-${modal.item.id}` : 'new'));
             <UiAlert v-if="firstError" type="error">{{ firstError }}</UiAlert>
 
             <div class="flex flex-col gap-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md shadow-sm sm:flex-row sm:items-end sm:justify-between">
-                <div class="flex w-full flex-col gap-md sm:max-w-lg sm:flex-row">
+                <div class="flex w-full flex-col gap-md sm:max-w-2xl sm:flex-row">
                     <div class="w-full sm:w-64">
                         <UiSelect v-model="selectedRole" name="role" label="Vai trò" :options="roleOptions" :searchable="false" />
+                    </div>
+                    <div v-if="canManage && grades.length && !hasFund" class="w-full sm:w-48">
+                        <UiInput v-model="gradeFundInput" type="number" name="grade_fund" label="Thưởng KPI tối đa/tháng" suffix="đ" min="0" step="100000" @change="saveGradeFund" />
                     </div>
                     <div class="w-full sm:w-44">
                         <UiSelect v-if="canManage" v-model="selectedCycle" name="period_months" label="Chu kỳ chấm" :options="cycleOptions" :searchable="false" />
@@ -97,6 +109,7 @@ const formKey = computed(() => (modal.item ? `edit-${modal.item.id}` : 'new'));
                     Tổng trọng số đang áp dụng:
                     <strong :class="matched ? 'text-tertiary' : 'text-warning'">{{ totalWeightLabel }}%</strong>
                     <template v-if="hasFund"> · Quỹ KPI tháng <strong class="text-on-surface">{{ money(fund) }} đ</strong></template>
+                    <template v-else-if="gradeFund"> · Thưởng KPI tối đa <strong class="text-on-surface">{{ money(gradeFund) }} đ</strong>/tháng × hệ số xếp loại</template>
                     <template v-else> · Vai trò này chưa có quỹ tiền KPI trong bảng lương, KPI tính theo % đạt</template>
                 </p>
             </div>
@@ -149,6 +162,7 @@ const formKey = computed(() => (modal.item ? `edit-${modal.item.id}` : 'new'));
                                 <td class="min-w-[200px] max-w-xs font-body-small text-body-small">
                                     {{ cr.rule_label || '—' }}
                                     <p v-if="cr.per_month && periodMonths > 1" class="font-caption text-caption text-on-surface-variant">Tính từng tháng, lấy trung bình quý</p>
+                                    <p v-if="cr.allow_na" class="font-caption text-caption text-on-surface-variant">Tháng không phát sinh thì bỏ khỏi tổng</p>
                                 </td>
                                 <td>
                                     <UiBadge :color="cr.is_active ? 'success' : 'neutral'">{{ cr.is_active ? 'Áp dụng' : 'Tạm tắt' }}</UiBadge>
@@ -209,18 +223,19 @@ const formKey = computed(() => (modal.item ? `edit-${modal.item.id}` : 'new'));
                 <input type="hidden" name="knockout" :value="!isRate && modal.knockout ? 1 : 0" />
                 <input type="hidden" name="linear" :value="isRate && modal.linear ? 1 : 0" />
                 <input type="hidden" name="per_month" :value="modal.per_month ? 1 : 0" />
+                <input type="hidden" name="allow_na" :value="modal.allow_na ? 1 : 0" />
                 <UiCheckbox v-if="!isRate" v-model="modal.knockout" label="Điều kiện loại trừ: có từ 1 lần là mất toàn bộ KPI kỳ" />
-                <UiCheckbox v-if="isRate" v-model="modal.linear" label="Tính điểm thẳng theo tỉ lệ" />
-                <UiInput v-if="isRate && modal.linear" v-model="modal.full_at" type="number" name="full_at" label="Đủ điểm khi đạt" suffix="%" min="0.01" max="1000" step="any" hint="vd 100%: đạt 80% được 80% điểm; 10%: tăng 5% được một nửa điểm" />
+                <UiCheckbox v-if="isRateUp" v-model="modal.linear" label="Tính điểm thẳng theo tỉ lệ" />
+                <UiInput v-if="isRateUp && modal.linear" v-model="modal.full_at" type="number" name="full_at" label="Đủ điểm khi đạt" suffix="%" min="0.01" max="1000" step="any" hint="vd 100%: đạt 80% được 80% điểm; 10%: tăng 5% được một nửa điểm" />
 
-                <fieldset v-if="!modal.knockout && !(isRate && modal.linear)" class="space-y-sm rounded-lg border border-outline-variant p-md">
+                <fieldset v-if="!modal.knockout && !(isRateUp && modal.linear)" class="space-y-sm rounded-lg border border-outline-variant p-md">
                     <legend class="px-xs font-body-semibold text-body-semibold text-on-surface">Bậc tính điểm</legend>
                     <p class="font-caption text-caption text-on-surface-variant">
-                        {{ isRate ? 'Từ ngưỡng % trở lên thì đạt số % điểm tương ứng; dưới bậc thấp nhất là 0%.' : 'Không quá số lần thì đạt số % điểm tương ứng; vượt bậc cuối là 0%.' }}
+                        {{ isRateUp ? 'Từ ngưỡng % trở lên thì đạt số % điểm tương ứng; dưới bậc thấp nhất là 0%.' : isRate ? 'Không quá tỉ lệ % thì đạt số % điểm tương ứng; vượt bậc cuối là 0%.' : 'Không quá số lần thì đạt số % điểm tương ứng; vượt bậc cuối là 0%.' }}
                     </p>
                     <div v-for="(tier, i) in modal.tiers" :key="i" class="flex items-end gap-sm">
                         <div class="flex-1">
-                            <UiInput v-model="tier.at" type="number" :name="`tiers[${i}][at]`" :label="i === 0 ? (isRate ? 'Từ (%)' : 'Không quá (số lần)') : null" :aria-label="isRate ? 'Từ (%)' : 'Không quá (số lần)'" min="0" step="any" />
+                            <UiInput v-model="tier.at" type="number" :name="`tiers[${i}][at]`" :label="i === 0 ? tierLabel : null" :aria-label="tierLabel" min="0" step="any" />
                         </div>
                         <div class="flex-1">
                             <UiInput v-model="tier.percent" type="number" :name="`tiers[${i}][percent]`" :label="i === 0 ? 'Đạt (% điểm)' : null" aria-label="Đạt (% điểm)" min="0" max="100" step="any" />
@@ -230,6 +245,7 @@ const formKey = computed(() => (modal.item ? `edit-${modal.item.id}` : 'new'));
                     <UiButton v-if="modal.tiers.length < 8" variant="secondary" size="sm" icon="add" @click="modal.tiers.push({ at: '', percent: '' })">Thêm bậc</UiButton>
                 </fieldset>
                 <UiCheckbox v-if="periodMonths > 1 && !isRate && !modal.knockout" v-model="modal.per_month" label="Tính từng tháng rồi lấy trung bình quý (số liệu tự động)" />
+                <UiCheckbox v-if="!modal.knockout" v-model="modal.allow_na" label="Cho phép &quot;Không phát sinh&quot;: kỳ không có việc để đánh giá thì bỏ mục khỏi tổng KPI" />
                 <UiSelect name="auto_source" label="Số liệu" :options="sourceOptions" :value="modal.item?.auto_source ?? ''" :searchable="false" hint="Tự động: hệ thống tự đếm, người chấm không điền. Điền tay: người chấm điền số trên phiếu KPI tháng." />
                 <UiTextarea name="description" label="Cách đếm" :rows="3" :value="modal.item?.description ?? ''" placeholder="Đếm cái gì, lấy số liệu ở đâu" />
                 <template v-if="modal.item">

@@ -90,6 +90,7 @@ class KpiController extends Controller
             'periodMonths' => KpiCriterion::periodMonths($role),
             'cycleOptions' => Ui::options(KpiCriterion::CYCLES),
             'grades' => KpiCriterion::hasGrades($role, KpiCriterion::periodMonths($role)) ? array_map(fn ($g) => ['grade' => $g[0], 'from' => $g[1], 'label' => $g[2], 'pay' => $g[3]], KpiCriterion::GRADES) : [],
+            'gradeFund' => KpiCriterion::gradeFund($role),
             'totalWeight' => $totalWeight,
             'totalWeightLabel' => $fmtWeight($totalWeight),
             'criteriaGroups' => $criteria->groupBy(fn ($c) => $c->group_name ?: 'Chưa phân nhóm')
@@ -110,12 +111,13 @@ class KpiController extends Controller
                         'max_half' => $cr->max_half,
                         'threshold_full' => $cr->threshold_full,
                         'threshold_half' => $cr->threshold_half,
-                        'measure' => $cr->isRate() ? 'rate' : 'count',
+                        'measure' => in_array($cr->measure, array_keys(KpiCriterion::MEASURES), true) ? $cr->measure : 'count',
                         'tiers' => $cr->tierList(),
                         'linear' => (bool) $cr->linear,
                         'full_at' => $cr->full_at !== null ? (float) $cr->full_at : null,
                         'per_month' => (bool) $cr->per_month,
                         'knockout' => (bool) $cr->knockout,
+                        'allow_na' => (bool) $cr->allow_na,
                         'rule_label' => $cr->ruleLabel(),
                         'description' => $cr->description,
                         'is_active' => (bool) $cr->is_active,
@@ -159,7 +161,7 @@ class KpiController extends Controller
             'name' => 'required|string|max:255',
             'weight' => 'required|numeric|min:0|max:100',
             'measure' => ['nullable', \Illuminate\Validation\Rule::in(array_keys(KpiCriterion::MEASURES))],
-            'unit' => ['required_unless:measure,rate', 'nullable', \Illuminate\Validation\Rule::in(array_keys(KpiCriterion::UNITS))],
+            'unit' => [\Illuminate\Validation\Rule::requiredIf(fn () => request()->input('measure', 'count') === 'count'), 'nullable', \Illuminate\Validation\Rule::in(array_keys(KpiCriterion::UNITS))],
             'tiers' => 'nullable|array|max:8',
             // Cách gửi cũ (bộ Học vụ): 2 ngưỡng số lần cho mức 100% / 50% thay cho bậc tính điểm.
             'max_full' => [\Illuminate\Validation\Rule::requiredIf(fn () => $this->needsLegacyThresholds()), 'nullable', 'integer', 'min:0', 'max:9999'],
@@ -170,6 +172,7 @@ class KpiController extends Controller
             'full_at' => 'nullable|numeric|min:0.01|max:1000',
             'per_month' => 'nullable|boolean',
             'knockout' => 'nullable|boolean',
+            'allow_na' => 'nullable|boolean',
             'description' => 'nullable|string|max:2000',
             'auto_source' => ['nullable', \Illuminate\Validation\Rule::in(array_keys(KpiCriterion::AUTO_SOURCES))],
         ];
@@ -180,7 +183,7 @@ class KpiController extends Controller
     {
         $request = request();
 
-        return ! $request->has('tiers') && $request->input('measure', 'count') !== 'rate' && ! $request->boolean('knockout');
+        return ! $request->has('tiers') && $request->input('measure', 'count') === 'count' && ! $request->boolean('knockout');
     }
 
     /**
@@ -195,10 +198,12 @@ class KpiController extends Controller
         }
         unset($validated['new_group']);
         $validated['auto_source'] = ($validated['auto_source'] ?? null) ?: null;
-        $rate = ($validated['measure'] ?? 'count') === 'rate';
-        $validated['measure'] = $rate ? 'rate' : 'count';
+        $validated['measure'] = in_array($validated['measure'] ?? null, array_keys(KpiCriterion::MEASURES), true) ? $validated['measure'] : 'count';
+        $rate = $validated['measure'] !== 'count';
+        $lowerBetter = $validated['measure'] !== 'rate';
         $validated['knockout'] = ! $rate && (bool) ($validated['knockout'] ?? false);
-        $validated['linear'] = $rate && (bool) ($validated['linear'] ?? false);
+        $validated['linear'] = $validated['measure'] === 'rate' && (bool) ($validated['linear'] ?? false);
+        $validated['allow_na'] = (bool) ($validated['allow_na'] ?? false);
         $validated['per_month'] = (bool) ($validated['per_month'] ?? false);
         $validated['full_at'] = $validated['linear'] && is_numeric($validated['full_at'] ?? null) ? (float) $validated['full_at'] : null;
         if ($rate) {
@@ -211,7 +216,7 @@ class KpiController extends Controller
             ->filter(fn ($t) => is_numeric($t['at'] ?? null) && is_numeric($t['percent'] ?? null))
             ->map(fn ($t) => [(float) $t['at'], (float) $t['percent']])
             ->unique(0);
-        $tiers = ($rate ? $tiers->sortByDesc(0) : $tiers->sortBy(0))->values();
+        $tiers = ($lowerBetter ? $tiers->sortBy(0) : $tiers->sortByDesc(0))->values();
         if ($validated['knockout']) {
             $tiers = collect([[0.0, 100.0]]);   // có từ 1 lần là mất toàn bộ KPI kỳ; mức đạt của chính mục không ảnh hưởng
         }
@@ -236,8 +241,13 @@ class KpiController extends Controller
         $validated = $request->validate([
             'role' => ['required', \Illuminate\Validation\Rule::in(KpiCriterion::ROLES)],
             'period_months' => ['required', \Illuminate\Validation\Rule::in(array_keys(KpiCriterion::CYCLES))],
+            'grade_fund' => 'nullable|numeric|min:0|max:1000000000',
         ]);
         \App\Models\SystemSetting::set('kpi_cycle_'.$validated['role'], (string) $validated['period_months'], 'Chu kỳ chấm KPI (1 = tháng, 3 = quý)');
+        if ($request->has('grade_fund')) {
+            // Thưởng KPI tối đa / tháng theo xếp loại; để trống = vai trò không có khoản thưởng này.
+            \App\Models\SystemSetting::set('kpi_grade_fund_'.$validated['role'], (string) (int) ($validated['grade_fund'] ?? 0), 'Thưởng KPI tối đa / tháng theo xếp loại (đ)');
+        }
 
         return redirect()->route('kpi.criteria', ['role' => $validated['role']])
             ->with('success', 'Đã đổi chu kỳ chấm KPI: '.mb_strtolower(KpiCriterion::CYCLES[(int) $validated['period_months']]).'.');
@@ -292,7 +302,7 @@ class KpiController extends Controller
                     'period_label' => $period['months'] > 1 ? 'Phiếu '.mb_strtolower($period['label']) : null,
                     'rate_label' => $this->percent($sheet['total']).'%',
                     'amount_label' => $sheet['amount'] !== null ? Money::format($sheet['amount'])
-                        : ($sheet['grade'] ? 'Loại '.$sheet['grade']['grade'].' · hệ số '.$sheet['grade']['pay'].'%' : '—'),
+                        : ($sheet['grade'] ? 'Loại '.$sheet['grade']['grade'].' · '.($sheet['bonus'] !== null ? Money::format($sheet['bonus']) : 'hệ số '.$sheet['grade']['pay'].'%') : '—'),
                     'status' => $status,
                     'status_label' => KpiEvaluation::STATUS_LABELS[$status] ?? $status,
                     'status_color' => KpiEvaluation::STATUS_COLORS[$status] ?? 'neutral',
@@ -378,6 +388,9 @@ class KpiController extends Controller
             'auto' => $l['auto'],
             'value' => $l['value'],
             'level' => $l['level'],
+            'allow_na' => (bool) $c->allow_na && ! $l['auto'],
+            'na' => $l['na'],
+            'cap' => $l['cap'],
             'evidence' => $l['evidence'],
         ];
     }
@@ -441,6 +454,8 @@ class KpiController extends Controller
             'weightTotal' => $weightTotal,
             'grades' => KpiCriterion::hasGrades($sheet['role'], $period['months']) ? array_map(fn ($g) => ['grade' => $g[0], 'from' => $g[1], 'label' => $g[2], 'pay' => $g[3]], KpiCriterion::GRADES) : [],
             'simpleRules' => $this->simpleRules($sheet['lines']),
+            'bonusFund' => $sheet['bonus_fund'] ?? KpiCriterion::gradeFund($sheet['role']),
+            'gradeCap' => $sheet['lines']->contains(fn ($l) => $l['cap']) ? KpiSheetService::CAP_GRADE : null,
             'isSelf' => $isSelf,
             'locked' => $locked,
             // Chủ dự án chốt: KPI duyệt từ ngày cuối kỳ (cuối tháng, phiếu quý: cuối quý); trước đó chỉ xem / điền dần.
@@ -472,6 +487,7 @@ class KpiController extends Controller
             'actual' => 'nullable|array',
             'actual.*' => 'nullable|string|max:255',
             'critical' => 'nullable|array',
+            'na' => 'nullable|array',
             'strengths' => 'nullable|string|max:2000',
             'improvements' => 'nullable|string|max:2000',
             'next_actions' => 'nullable|string|max:2000',
@@ -599,7 +615,17 @@ class KpiController extends Controller
 
         $errors = [];
         $values = [];
+        // Không phát sinh (tiêu chí cho phép): 1 = đánh dấu, 0 = bỏ đánh dấu.
+        $na = [];
+        foreach ($manual->filter(fn (KpiCriterion $c) => $c->allow_na) as $criterion) {
+            if (array_key_exists($criterion->id, $validated['na'] ?? [])) {
+                $na[$criterion->id] = (bool) $validated['na'][$criterion->id];
+            }
+        }
         foreach ($manual as $criterion) {
+            if ($na[$criterion->id] ?? false) {
+                continue;
+            }
             $raw = str_replace(',', '.', trim((string) ($validated['actual'][$criterion->id] ?? '')));
             if ($raw === '') {
                 continue;
@@ -625,7 +651,7 @@ class KpiController extends Controller
             return back()->withErrors($errors);
         }
 
-        $evaluation = DB::transaction(function () use ($staff, $month, $year, $period, $values, $action, $validated, $sheets, &$errors) {
+        $evaluation = DB::transaction(function () use ($staff, $month, $year, $period, $values, $na, $action, $validated, $sheets, &$errors) {
             $evaluation = KpiEvaluation::firstOrCreate(
                 ['user_id' => $staff->id, 'month' => $month, 'year' => $year],
                 ['period_months' => $period['months'], 'total_score' => 0, 'status' => KpiEvaluation::STATUS_PENDING]
@@ -635,10 +661,16 @@ class KpiController extends Controller
 
                 return null;
             }
+            foreach ($na as $criterionId => $notApplicable) {
+                KpiEvaluationItem::updateOrCreate(
+                    ['kpi_evaluation_id' => $evaluation->id, 'kpi_criterion_id' => $criterionId],
+                    $notApplicable ? ['actual' => null, 'not_applicable' => true] : ['not_applicable' => false]
+                );
+            }
             foreach ($values as $criterionId => $value) {
                 KpiEvaluationItem::updateOrCreate(
                     ['kpi_evaluation_id' => $evaluation->id, 'kpi_criterion_id' => $criterionId],
-                    ['actual' => (string) $value]
+                    ['actual' => (string) $value, 'not_applicable' => false]
                 );
             }
 
@@ -658,6 +690,7 @@ class KpiController extends Controller
                         'actual' => $line['value'] === null ? null : (string) $line['value'],
                         'score' => $line['level'] ?? 0,
                         'evidence' => $line['auto'] ? $line['evidence'] : null,
+                        'not_applicable' => $line['na'],
                     ]
                 );
             }
@@ -713,6 +746,8 @@ class KpiController extends Controller
             'amount' => $sheet['amount'],
             'rateLabel' => $this->percent($sheet['total']).'%',
             'grade' => $sheet['grade'],
+            'bonus' => $sheet['bonus'],
+            'bonusFund' => $sheet['bonus_fund'],
             'missing' => $status === KpiEvaluation::STATUS_APPROVED ? 0 : $sheet['missing'],
             'knockout' => $sheet['knockout'],
             'groups' => $sheet['lines']->groupBy(fn ($l) => $l['criterion']->group_name ?: 'Chưa phân nhóm')

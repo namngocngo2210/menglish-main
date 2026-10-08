@@ -13,8 +13,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  *  - count: đếm số lần (càng ít càng tốt), đơn vị chọn từ UNITS; bậc = [số lần tối đa, % điểm], vượt bậc cuối = 0%.
  *    Bộ Học vụ dùng 2 bậc max_full (100%) / max_half (50%).
  *  - rate: tỉ lệ % (càng cao càng tốt); bậc = [từ %, % điểm], hoặc linear = điểm theo tỉ lệ, đủ điểm khi đạt full_at %.
- * per_month: phiếu theo quý tính từng tháng rồi lấy trung bình. knockout: có từ 1 lần là mất toàn bộ KPI kỳ (trọng số 0).
- * Bộ Học vụ theo file KPI Học vụ (Excel, chấm tháng); bộ GV part-time theo file KPI GV part-time (chấm quý).
+ *  - rate_down: tỉ lệ % (càng thấp càng tốt, vd. % lỗi lặp lại); bậc = [tỉ lệ tối đa, % điểm], vượt bậc cuối = 0%.
+ * per_month: phiếu theo quý tính từng tháng rồi lấy trung bình. knockout: có từ 1 lần là mất toàn bộ KPI kỳ.
+ * allow_na: kỳ không phát sinh đơn vị đánh giá → "Không phát sinh", bỏ khỏi cả tử số và mẫu số của tổng KPI.
+ * Bộ Học vụ theo file KPI Học vụ (Excel, chấm tháng); bộ GV part-time theo file KPI GV part-time; bộ Học thuật theo file
+ * KPI Học thuật V11 (chấm tháng, xếp loại A–E, thưởng KPI = mức tối đa × hệ số xếp loại).
  */
 class KpiCriterion extends Model
 {
@@ -80,22 +83,39 @@ class KpiCriterion extends Model
         'class_attendance_rate' => 'Tỷ lệ chuyên cần học sinh các lớp',
         'homework_rate' => 'Tỷ lệ nộp bài tập về nhà đúng hạn',
         'monthly_report_on_time' => 'Tỷ lệ tháng nộp báo cáo tháng trước 12h ngày mùng 2',
+        // Học thuật (tỉ lệ %; kỳ không phát sinh thì "Không phát sinh" hoặc người chấm điền tay)
+        'academic_deliverable_on_time' => 'Mốc dự án học thuật đúng hạn (hệ số trễ theo ngày)',
+        'task_on_time' => 'Việc được giao đúng hạn (hệ số trễ theo giờ)',
+        'academic_order_on_time' => 'Order học liệu học thuật giao đúng SLA trước giờ dùng',
+        'student_pass_rate' => 'Tỷ lệ bài test học sinh đạt chuẩn, 3 tháng gần nhất',
+        // Nhân sự văn phòng (đếm số lần)
+        'staff_late' => 'Ngày chấm công đi muộn quá 10 phút',
     ];
 
     /** Nguồn tự động cho số liệu tỉ lệ % (còn lại đếm số lần). */
-    public const RATE_SOURCES = ['test_result', 'test_progress', 'class_attendance_rate', 'homework_rate', 'monthly_report_on_time'];
+    public const RATE_SOURCES = [
+        'test_result', 'test_progress', 'class_attendance_rate', 'homework_rate', 'monthly_report_on_time',
+        'academic_deliverable_on_time', 'task_on_time', 'academic_order_on_time', 'student_pass_rate',
+    ];
 
     /** Cách đo: đếm số lần / tỉ lệ %. */
     public const MEASURES = [
         'count' => 'Đếm số lần (càng ít càng tốt)',
         'rate' => 'Tỉ lệ % (càng cao càng tốt)',
+        'rate_down' => 'Tỉ lệ % (càng thấp càng tốt)',
     ];
 
     /** Đơn vị của tiêu chí đo bằng tỉ lệ. */
     public const RATE_UNIT = 'phan_tram';
 
     /** Vai trò xếp loại A–E theo tổng % đạt (file KPI GV part-time). Mọi vai trò chấm theo tháng, Admin đổi sang quý ở Tiêu chí KPI. */
-    public const GRADED_ROLES = [Roles::TEACHER_PARTTIME];
+    public const GRADED_ROLES = [Roles::TEACHER_PARTTIME, Roles::ACADEMIC_LEAD];
+
+    /**
+     * Thưởng KPI tối đa / tháng theo xếp loại (đ): thưởng = mức này × hệ số xếp loại. Học thuật 2.000.000đ (file KPI Học thuật,
+     * trả ngoài lương; chạy thử chưa vào bảng lương). Admin sửa ở màn Tiêu chí KPI (SystemSetting kpi_grade_fund_{role}).
+     */
+    public const GRADE_FUND_DEFAULTS = [Roles::ACADEMIC_LEAD => 2000000];
 
     /** Chu kỳ chấm KPI (số tháng mỗi phiếu => nhãn). */
     public const CYCLES = [1 => 'Theo tháng', 3 => 'Theo quý'];
@@ -144,9 +164,16 @@ class KpiCriterion extends Model
         return $this->isAuto() && in_array($this->auto_source, self::RATE_SOURCES, true);
     }
 
+    /** Đo bằng tỉ lệ % (càng cao hoặc càng thấp càng tốt). */
     public function isRate(): bool
     {
-        return $this->measure === 'rate';
+        return in_array($this->measure, ['rate', 'rate_down'], true);
+    }
+
+    /** Số càng nhỏ càng tốt (đếm số lần, tỉ lệ % càng thấp càng tốt): bậc = ngưỡng tối đa. */
+    public function isLowerBetter(): bool
+    {
+        return $this->measure !== 'rate';
     }
 
     /**
@@ -164,13 +191,13 @@ class KpiCriterion extends Model
             $tiers = collect([[(float) $this->max_full, 100.0], [(float) $this->max_half, 50.0]]);
         }
 
-        return ($this->isRate() ? $tiers->sortByDesc(0) : $tiers->sortBy(0))->values()->all();
+        return ($this->isLowerBetter() ? $tiers->sortBy(0) : $tiers->sortByDesc(0))->values()->all();
     }
 
     /** Tiêu chí có quy tắc tính mức đạt từ số liệu (tiêu chí % cũ không có quy tắc: người chấm chọn % trực tiếp). */
     public function hasRule(): bool
     {
-        return ($this->isRate() && $this->linear) || $this->tierList() !== [];
+        return ($this->measure === 'rate' && $this->linear) || $this->tierList() !== [];
     }
 
     /** Tiêu chí đếm số lần có bậc tính điểm. */
@@ -195,11 +222,11 @@ class KpiCriterion extends Model
             return null;
         }
         $whole = fn (float $v) => floor($v) === $v ? (int) $v : $v;
-        if ($this->isRate() && $this->linear) {
+        if ($this->measure === 'rate' && $this->linear) {
             return $whole(round(max(0.0, min(100.0, $value / $this->fullAt() * 100)), 2));
         }
         foreach ($this->tierList() as [$at, $percent]) {
-            if ($this->isRate() ? $value >= $at : $value <= $at) {
+            if ($this->isLowerBetter() ? $value <= $at : $value >= $at) {
                 return $whole($percent);
             }
         }
@@ -219,7 +246,7 @@ class KpiCriterion extends Model
         if ($this->knockout) {
             return 'Có từ 1 '.self::unitLabel($this->unit).': mất toàn bộ KPI kỳ';
         }
-        if ($this->isRate() && $this->linear) {
+        if ($this->measure === 'rate' && $this->linear) {
             return 'Theo tỉ lệ, đủ điểm khi đạt '.self::number($this->fullAt()).'%';
         }
         $tiers = $this->tierList();
@@ -227,6 +254,14 @@ class KpiCriterion extends Model
             return null;
         }
         $parts = [];
+        if ($this->measure === 'rate_down') {
+            foreach ($tiers as [$at, $percent]) {
+                $parts[] = ($at > 0 ? '≤ ' : '').self::number($at).'%: '.self::number($percent).'%';
+            }
+            $parts[] = 'trên '.self::number(end($tiers)[0]).'%: 0%';
+
+            return implode(' · ', $parts);
+        }
         if ($this->isRate()) {
             foreach ($tiers as [$at, $percent]) {
                 $parts[] = '≥ '.self::number($at).'%: '.self::number($percent).'%';
@@ -255,8 +290,9 @@ class KpiCriterion extends Model
     {
         return [
             'measure' => $this->isRate() ? 'rate' : 'count',
+            'lower_better' => $this->isLowerBetter(),
             'tiers' => $this->tierList(),
-            'linear' => $this->isRate() && (bool) $this->linear,
+            'linear' => $this->measure === 'rate' && (bool) $this->linear,
             'full_at' => $this->fullAt(),
             'has_rule' => $this->hasRule(),
             'knockout' => (bool) $this->knockout,
@@ -280,17 +316,33 @@ class KpiCriterion extends Model
         return (int) ($setting ?? 1) === 3 ? 3 : 1;
     }
 
-    /** Vai trò có xếp loại A–E (GV part-time; phiếu quý của vai trò khác cũng xếp loại). */
+    /** Thưởng KPI tối đa / tháng theo xếp loại của vai trò (đ), null = vai trò không có khoản thưởng này. */
+    public static function gradeFund(?string $role): ?float
+    {
+        if ($role === null) {
+            return null;
+        }
+        $value = SystemSetting::get('kpi_grade_fund_'.$role) ?? (self::GRADE_FUND_DEFAULTS[$role] ?? null);
+
+        return is_numeric($value) && (float) $value > 0 ? (float) $value : null;
+    }
+
+    /** Vai trò có xếp loại A–E (GV part-time, Học thuật; phiếu quý của vai trò khác cũng xếp loại). */
     public static function hasGrades(?string $role, int $months = 1): bool
     {
         return in_array($role, self::GRADED_ROLES, true) || $months === 3;
     }
 
-    /** Xếp loại theo tổng % đạt: ['grade' => 'B', 'label' => 'Tốt', 'pay' => 85, 'pass' => true]. */
-    public static function gradeFor(float $total): array
+    /**
+     * Xếp loại theo tổng % đạt: ['grade' => 'B', 'label' => 'Tốt', 'pay' => 85, 'pass' => true]. $cap = hạng cao nhất được xếp
+     * (điều kiện chặn, vd. có order xong sau giờ dùng → tối đa B).
+     */
+    public static function gradeFor(float $total, ?string $cap = null): array
     {
+        $capped = $cap === null;
         foreach (self::GRADES as [$grade, $from, $label, $pay, $pass]) {
-            if ($total >= $from) {
+            $capped = $capped || $grade === $cap;
+            if ($capped && $total >= $from) {
                 return ['grade' => $grade, 'label' => $label, 'pay' => $pay, 'pass' => $pass];
             }
         }
@@ -316,6 +368,7 @@ class KpiCriterion extends Model
         'full_at',
         'per_month',
         'knockout',
+        'allow_na',
         'auto_source',
         'description',
         'is_active',
@@ -331,6 +384,7 @@ class KpiCriterion extends Model
         'full_at' => 'decimal:2',
         'per_month' => 'boolean',
         'knockout' => 'boolean',
+        'allow_na' => 'boolean',
         'is_active' => 'boolean',
         'sort_order' => 'integer',
     ];

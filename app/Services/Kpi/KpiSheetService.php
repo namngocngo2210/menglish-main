@@ -15,6 +15,8 @@ use Illuminate\Support\Collection;
  * hoặc quý với vai trò chấm theo quý (KpiCriterion::periodMonths, mặc định GV part-time). Phiếu quý lưu ở tháng đầu quý.
  * Tiêu chí có nguồn tự động lấy số từ KpiAutoCounter; tiêu chí điền tay (và nguồn tỉ lệ chưa có dữ liệu) lấy số người chấm
  * đã điền (kpi_evaluation_items.actual). Phiếu đã duyệt dùng số và mức đạt đã chốt lúc duyệt, không đếm lại.
+ * Tiêu chí cho phép "Không phát sinh" (allow_na): người chấm đánh dấu, hoặc nguồn tỉ lệ tự động không có dữ liệu → bỏ khỏi
+ * cả tử số và mẫu số. Bằng chứng có cờ cap (vd. order xong sau giờ dùng) → mục tối đa 50% và phiếu tối đa loại B.
  */
 class KpiSheetService
 {
@@ -55,6 +57,11 @@ class KpiSheetService
     {
         return self::period(KpiCriterion::roleFor($staff), $month, $year);
     }
+
+    /** Điều kiện chặn từ bằng chứng có cờ cap: mức đạt tối đa của mục và hạng cao nhất của phiếu. */
+    public const CAP_LEVEL = 50;
+
+    public const CAP_GRADE = 'B';
 
     /** 100.0 → 100 (mức đạt nguyên giữ kiểu số nguyên như levelFor). */
     private static function whole(float $value): int|float
@@ -102,7 +109,7 @@ class KpiSheetService
      * Nội dung phiếu: từng tiêu chí (số liệu, mức đạt, tiền), tổng % đạt theo trọng số (mục chưa có số = 0), tiền KPI (Học vụ),
      * xếp loại A–E (GV part-time, phiếu quý). Có điều kiện loại trừ (vd. nghỉ dạy không phép) → tổng = 0.
      *
-     * @return array{role: ?string, fund: ?float, period: array, lines: Collection, missing: int, total: float, amount: ?float, knockout: ?string, grade: ?array}
+     * @return array{role: ?string, fund: ?float, period: array, lines: Collection, missing: int, total: float, amount: ?float, knockout: ?string, grade: ?array, bonus_fund: ?float, bonus: ?float}
      */
     public function sheet(User $staff, int $month, int $year, ?KpiEvaluation $evaluation = null): array
     {
@@ -125,11 +132,13 @@ class KpiSheetService
             $evidence = [];
             $auto = false;
             $level = null;
+            $na = false;
             if ($frozen) {
                 $value = $cast($item?->actual);
                 $evidence = $item?->evidence ?? [];
                 $auto = $c->isAuto() && $item?->evidence !== null;
-                $level = $item ? (float) $item->score : null;
+                $na = (bool) $item?->not_applicable;
+                $level = $item && ! $na ? (float) $item->score : null;
             } else {
                 $value = null;
                 if ($c->isAuto()) {
@@ -141,6 +150,9 @@ class KpiSheetService
                 }
                 if (! $auto) {
                     $value = $cast($item?->actual);
+                    // Không phát sinh: người chấm đánh dấu; nguồn tự động không có dữ liệu thì mặc định Không phát sinh.
+                    $na = $c->allow_na && ($item ? (bool) $item->not_applicable : $c->isRateSource());
+                    $value = $na ? null : $value;
                 }
                 if ($c->hasRule()) {
                     $level = match (true) {
@@ -158,6 +170,9 @@ class KpiSheetService
                 if ($item?->critical_error) {
                     $level = 0.0;
                 }
+                if ($level !== null && collect($evidence)->contains(fn ($e) => ! empty($e['cap']))) {
+                    $level = min($level, self::CAP_LEVEL);
+                }
             }
             $maxAmount = $fund !== null && $weightTotal > 0 ? $fund * (float) $c->weight / $weightTotal : null;
 
@@ -167,13 +182,18 @@ class KpiSheetService
                 'value' => $value,
                 'evidence' => $evidence,
                 'level' => $level,
+                'na' => $na,
+                'cap' => collect($evidence)->contains(fn ($e) => ! empty($e['cap'])),
                 'max_amount' => $maxAmount,
                 'amount' => $maxAmount !== null && $level !== null ? $maxAmount * $level / 100 : null,
             ];
         });
 
         $knockout = $lines->first(fn ($l) => $l['criterion']->knockout && ($l['value'] ?? 0) > 0);
-        $total = $weightTotal > 0 ? round($lines->sum(fn ($l) => ($l['level'] ?? 0) * (float) $l['criterion']->weight) / $weightTotal, 2) : 0.0;
+        // Mục Không phát sinh bỏ khỏi cả tử số và mẫu số.
+        $applicable = $lines->reject(fn ($l) => $l['na']);
+        $applicableWeight = (float) $applicable->sum(fn ($l) => (float) $l['criterion']->weight);
+        $total = $applicableWeight > 0 ? round($applicable->sum(fn ($l) => ($l['level'] ?? 0) * (float) $l['criterion']->weight) / $applicableWeight, 2) : 0.0;
         if ($knockout) {
             $total = 0.0;
         }
@@ -181,16 +201,24 @@ class KpiSheetService
             $total = (float) $evaluation->total_score;
         }
 
+        $grade = KpiCriterion::hasGrades($role, $period['months'])
+            ? KpiCriterion::gradeFor($total, $lines->contains(fn ($l) => $l['cap']) ? self::CAP_GRADE : null)
+            : null;
+        $bonusFund = $grade ? KpiCriterion::gradeFund($role) : null;
+
         return [
             'role' => $role,
             'fund' => $fund,
             'period' => $period,
             'lines' => $lines,
-            'missing' => $lines->filter(fn ($l) => $l['level'] === null)->count(),
+            'missing' => $lines->filter(fn ($l) => $l['level'] === null && ! $l['na'])->count(),
             'total' => $total,
             'amount' => $fund !== null ? round($fund * $total / 100) : null,
             'knockout' => $knockout ? $knockout['criterion']->name : null,
-            'grade' => KpiCriterion::hasGrades($role, $period['months']) ? KpiCriterion::gradeFor($total) : null,
+            'grade' => $grade,
+            // Thưởng KPI theo xếp loại (Học thuật): mức tối đa × hệ số xếp loại.
+            'bonus_fund' => $bonusFund,
+            'bonus' => $bonusFund !== null ? round($bonusFund * $grade['pay'] / 100) : null,
         ];
     }
 }

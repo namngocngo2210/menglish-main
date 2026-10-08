@@ -30,6 +30,8 @@ const props = defineProps({
     rateLabel: { type: String, default: '0%' },
     grade: { type: Object, default: null },
     missing: { type: Number, default: 0 },
+    bonus: { type: Number, default: null },
+    bonusFund: { type: Number, default: null },
     knockout: { type: String, default: null },
     groups: { type: Array, default: () => [] },
 });
@@ -70,6 +72,11 @@ function changePeriod(event) {
                     <p class="font-caption text-caption text-on-surface-variant">{{ grade.label }} · hệ số lương KPI {{ grade.pay }}%</p>
                     <p v-if="missing > 0" class="font-caption text-caption text-on-surface-variant">Tạm tính: còn {{ missing }} tiêu chí chưa có số liệu</p>
                 </div>
+                <div v-if="bonus !== null">
+                    <p class="font-label-caps text-label-caps uppercase text-on-surface-variant">Thưởng KPI</p>
+                    <p class="tabular-nums text-h2 font-bold text-on-surface">{{ money(bonus) }} đ</p>
+                    <p class="font-caption text-caption text-on-surface-variant">{{ money(bonusFund) }} đ × hệ số loại {{ grade.grade }}</p>
+                </div>
                 <div>
                     <p class="font-label-caps text-label-caps uppercase text-on-surface-variant">Phiếu</p>
                     <p class="mt-xs"><UiBadge :color="statusColor">{{ statusLabel }}</UiBadge></p>
@@ -85,7 +92,8 @@ function changePeriod(event) {
                     <div class="min-w-0">
                         <p class="font-medium text-on-surface">{{ c.name }}</p>
                         <p class="font-caption text-caption text-on-surface-variant">
-                            <template v-if="c.value === null">Chưa có số liệu</template>
+                            <template v-if="c.na">Không phát sinh trong kỳ</template>
+                            <template v-else-if="c.value === null">Chưa có số liệu</template>
                             <template v-else-if="c.measure === 'rate'"><span class="font-semibold tabular-nums text-on-surface">{{ fmt(c.value) }}%</span></template>
                             <template v-else><span class="font-semibold tabular-nums text-on-surface">{{ c.value }}</span> {{ c.unit }}</template>
                             · {{ c.rule_label }}<template v-if="c.per_month && periodMonths > 1"> (tính từng tháng, lấy trung bình quý)</template>
