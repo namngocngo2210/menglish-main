@@ -34,6 +34,12 @@ final class StaffType
         return $roles->contains(Roles::ASSISTANT) && $roles->intersect(self::TEACHER_ROLES)->isEmpty();
     }
 
+    /** Học thuật có bật "Kiêm nhiệm giảng dạy": lương đứng lớp theo % học phí + KPI kiêm nhiệm. */
+    public static function isTeachingAcademicLead(User $user): bool
+    {
+        return (bool) $user->academic_teaching && self::roles($user)->contains(Roles::ACADEMIC_LEAD);
+    }
+
     /** Học vụ: KPI tự động 6 nhóm / 15 mục, quỹ 2 triệu (A6 Q3). */
     public static function usesAcademicStaffKpi(User $user): bool
     {

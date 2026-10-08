@@ -13,7 +13,8 @@ use Illuminate\Support\Carbon;
 /**
  * Đơn giá riêng của một giáo viên, hiệu lực từ effective_from cho tới khi có dòng mới hơn.
  * Không sửa/xoá dòng cũ để giữ lịch sử. Số tiền ở cột hourly_rate (tên cũ), đơn vị ở rate_unit:
- * 'session' = đ/buổi (Q3 Part-time: số buổi × đơn giá buổi), 'hour' = đ/giờ (các dòng trước Q3).
+ * 'session' = đ/buổi (Q3 Part-time: số buổi × đơn giá buổi), 'hour' = đ/giờ (các dòng trước Q3),
+ * 'tuition' = % học phí theo buổi đã dạy (Học thuật kiêm nhiệm giảng dạy, vd. 40 = 40%; xem TeachingShareService).
  */
 class TeacherHourlyRate extends Model
 {
@@ -38,7 +39,9 @@ class TeacherHourlyRate extends Model
 
     public const UNIT_HOUR = 'hour';
 
-    public const UNITS = [self::UNIT_SESSION => 'đ/buổi', self::UNIT_HOUR => 'đ/giờ'];
+    public const UNIT_TUITION = 'tuition';
+
+    public const UNITS = [self::UNIT_SESSION => 'đ/buổi', self::UNIT_HOUR => 'đ/giờ', self::UNIT_TUITION => '% học phí'];
 
     /** Loại giáo viên hiển thị trên phiên bản đơn giá (mockup). */
     public const TEACHER_TYPES = [
@@ -46,6 +49,7 @@ class TeacherHourlyRate extends Model
         'fulltime' => 'Full-time',
         'foreign' => 'Giáo viên nước ngoài',
         'assistant' => 'Trợ giảng',
+        'academic' => 'Học thuật kiêm giảng dạy',
     ];
 
     /** Loại giáo viên mặc định theo vai trò / hợp đồng (Q3). */
@@ -56,6 +60,9 @@ class TeacherHourlyRate extends Model
         }
         if (StaffType::isAssistantOnly($user)) {
             return 'assistant';
+        }
+        if (StaffType::isTeachingAcademicLead($user)) {
+            return 'academic';
         }
 
         return app(PayrollFormulaService::class)->profile($user)['employee_type'] === PayrollRecord::TYPE_PARTTIME
@@ -97,18 +104,31 @@ class TeacherHourlyRate extends Model
     }
 
     /**
-     * Đơn giá GIỜ riêng hiệu lực tại một ngày (null = không có, hoặc phiên bản hiệu lực tính theo buổi).
+     * Đơn giá GIỜ riêng hiệu lực tại một ngày (null = không có, hoặc phiên bản hiệu lực tính theo buổi / % học phí).
      */
     public static function rateFor(int $userId, CarbonInterface|string $date): ?float
     {
         $rate = static::effectiveFor($userId, $date);
 
-        return $rate === null || $rate->isPerSession() ? null : (float) $rate->hourly_rate;
+        return $rate === null || $rate->isPerSession() || $rate->isTuitionShare() ? null : (float) $rate->hourly_rate;
+    }
+
+    /** % học phí riêng hiệu lực tại một ngày (null = phiên bản hiệu lực không tính theo % học phí). */
+    public static function tuitionPercentFor(int $userId, CarbonInterface|string $date): ?float
+    {
+        $rate = static::effectiveFor($userId, $date);
+
+        return $rate?->isTuitionShare() ? (float) $rate->hourly_rate : null;
     }
 
     public function isPerSession(): bool
     {
         return $this->rate_unit === self::UNIT_SESSION;
+    }
+
+    public function isTuitionShare(): bool
+    {
+        return $this->rate_unit === self::UNIT_TUITION;
     }
 
     public function getUnitLabelAttribute(): string

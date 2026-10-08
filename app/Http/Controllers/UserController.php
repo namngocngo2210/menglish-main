@@ -205,6 +205,7 @@ class UserController extends Controller
                 'primary_role_label' => $primaryRole ? AclHelper::roleLabel($primaryRole) : null,
                 'primary_role_short' => $primaryRole ? AclHelper::shortRoleLabel($primaryRole) : null,
                 'extra_roles' => $user->roles->slice(1)->map(fn ($role) => AclHelper::shortRoleLabel($role->name))->values()->all(),
+                'academic_teaching' => $primaryRole === Roles::ACADEMIC_LEAD && $user->academic_teaching,
                 'base_salary' => $canViewSensitive ? $user->base_salary : null,
                 'hourly_rate' => $canViewSensitive ? $user->hourly_rate : null,
                 // [nhãn, giá trị (false = không có quyền xem), font mã]
@@ -300,7 +301,7 @@ class UserController extends Controller
                 ...$user->only([
                     'name', 'employee_code', 'email', 'phone', 'branch_id',
                     'emergency_contact', 'hometown', 'current_address', 'graduation_school', 'certificates', 'teaching_level',
-                    'contract_type',
+                    'contract_type', 'academic_teaching',
                 ]),
                 ...($canEditSensitive ? $user->only(self::SENSITIVE_FIELDS) : []),
                 'contract_start_date' => $user->contract_start_date?->format('Y-m-d'),

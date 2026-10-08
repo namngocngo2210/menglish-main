@@ -4,7 +4,7 @@
  * bấm dòng → modal chi tiết GV theo ?teacher_id=), lịch sử thay đổi đơn giá, khung đơn giá tham khảo theo cấp bậc.
  * "Cập nhật đơn giá" = thêm phiên bản mới có ngày hiệu lực (modal new-rate); "Thêm cấp bậc tham khảo" (modal new-rank).
  */
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { route } from '@/lib/route';
 import { urlWith } from '@/lib/url';
@@ -39,13 +39,20 @@ const detailUrl = (id) => route('payroll.config.teacher-rates', { teacher_id: id
 const detailOpen = ref(!!props.selectedTeacher);
 const rateOpen = ref(false);
 const rankOpen = ref(false);
-const unit = ref('session');
+const unit = ref(props.selectedType === 'academic' ? 'tuition' : 'session');
 const type = ref(props.selectedType ?? 'parttime');
 const teacherOptions = computed(() => props.teachers.map((t) => ({ value: String(t.id), label: t.name + (t.employee_code ? ` — ${t.employee_code}` : '') })));
 const unitOptions = [
     { value: 'session', label: 'Theo buổi dạy (VNĐ / buổi)' },
     { value: 'hour', label: 'Theo giờ (VNĐ / giờ)' },
+    { value: 'tuition', label: '% học phí theo buổi đã dạy' },
 ];
+const unitSuffix = { session: 'VNĐ / buổi', hour: 'VNĐ / giờ', tuition: '% học phí' };
+// Chọn loại "Học thuật kiêm giảng dạy" → đơn vị mặc định là % học phí.
+watch(type, (value) => {
+    if (value === 'academic') unit.value = 'tuition';
+    else if (unit.value === 'tuition') unit.value = 'session';
+});
 </script>
 
 <template>
@@ -180,10 +187,10 @@ const unitOptions = [
                     <UiSelect v-model="type" name="teacher_type" label="Loại giáo viên" required :options="teacherTypes" />
                     <UiDate name="effective_from" label="Ngày hiệu lực từ" required :value="todayDate" hint="Áp dụng cho các ca dạy từ ngày này tới khi có đơn giá mới hơn." />
                     <UiSelect v-model="unit" name="rate_unit" label="Đơn vị tính" required :options="unitOptions" />
-                    <UiField label="Mức đơn giá mới" name="hourly_rate" for="f_hourly_rate" required hint="* Đơn vị tính theo loại giáo viên: Part-time tính theo buổi.">
+                    <UiField label="Mức đơn giá mới" name="hourly_rate" for="f_hourly_rate" required :hint="unit === 'tuition' ? '* % × học phí theo buổi của các HS trong lớp, cho mỗi buổi dạy hợp lệ (VD: 40).' : '* Đơn vị tính theo loại giáo viên: Part-time tính theo buổi.'">
                         <div class="flex items-center gap-sm">
-                            <input id="f_hourly_rate" type="number" name="hourly_rate" required min="1000" step="1000" placeholder="Nhập số tiền..." :class="['w-full rounded-lg border bg-surface-container-lowest px-md py-sm text-right font-mono text-body-base focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/50', page.props.errors?.hourly_rate ? 'border-error' : 'border-outline-variant']" />
-                            <span class="whitespace-nowrap font-body-medium text-body-medium text-on-surface-variant">{{ unit === 'session' ? 'VNĐ / buổi' : 'VNĐ / giờ' }}</span>
+                            <input id="f_hourly_rate" :key="unit === 'tuition' ? 'pct' : 'money'" type="number" name="hourly_rate" required :min="unit === 'tuition' ? 0.1 : 1000" :max="unit === 'tuition' ? 100 : null" :step="unit === 'tuition' ? 0.5 : 1000" :placeholder="unit === 'tuition' ? 'VD: 40' : 'Nhập số tiền...'" :class="['w-full rounded-lg border bg-surface-container-lowest px-md py-sm text-right font-mono text-body-base focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/50', page.props.errors?.hourly_rate ? 'border-error' : 'border-outline-variant']" />
+                            <span class="whitespace-nowrap font-body-medium text-body-medium text-on-surface-variant">{{ unitSuffix[unit] }}</span>
                         </div>
                     </UiField>
                 </div>
@@ -191,6 +198,9 @@ const unitOptions = [
 
                 <p v-show="type === 'fulltime'" class="rounded-lg bg-warning-container px-md py-sm font-body-small text-body-small text-on-warning-container">
                     GV Full-time hưởng lương cơ bản — đơn giá buổi chỉ dùng để đối soát, không cộng vào lương.
+                </p>
+                <p v-show="type === 'academic'" class="rounded-lg bg-info-container px-md py-sm font-body-small text-body-small text-on-info-container">
+                    Học thuật kiêm nhiệm giảng dạy: mỗi buổi chấm công hợp lệ được trả % × học phí theo buổi của các học sinh trong lớp (lớp thu theo khóa hay theo tháng đều quy về một buổi). Cần bật "Kiêm nhiệm giảng dạy" ở hồ sơ nhân sự.
                 </p>
                 <p v-show="type === 'foreign'" class="rounded-lg bg-warning-container px-md py-sm font-body-small text-body-small text-on-warning-container">
                     Lương buổi có GVNN đang chờ BA chốt cách tính — Kế toán nhập tay trên phiếu lương.

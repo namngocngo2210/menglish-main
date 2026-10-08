@@ -185,8 +185,20 @@ class TeacherTimesheet extends Model
     public function payOutcome(?User $user = null, ?array $settings = null): array
     {
         $base = $this->basePay($user);
+
+        return array_merge($base, $this->applyLateRules($base['amount'], $settings));
+    }
+
+    /**
+     * Quy tắc đi muộn / về sớm (xem payOutcome) áp lên tiền công cơ bản của ca — dùng chung cho đơn giá buổi / giờ của
+     * GV part-time và lương đứng lớp theo % học phí của Học thuật kiêm nhiệm giảng dạy.
+     *
+     * @return array{amount: float, base_amount: float, counted: bool, late_minutes: int, late_rule: string|null, late_deduction: float}
+     */
+    public function applyLateRules(float $baseAmount, ?array $settings = null): array
+    {
         $minutes = $this->late_total_minutes;
-        $result = $base + ['base_amount' => $base['amount'], 'counted' => true, 'late_minutes' => $minutes, 'late_rule' => null, 'late_deduction' => 0.0];
+        $result = ['amount' => $baseAmount, 'base_amount' => $baseAmount, 'counted' => true, 'late_minutes' => $minutes, 'late_rule' => null, 'late_deduction' => 0.0];
         if ($minutes <= 0) {
             return $result;
         }
@@ -197,20 +209,20 @@ class TeacherTimesheet extends Model
 
         if ($this->late_notified) {
             $scheduled = $this->scheduledMinutes();
-            $paid = round($base['amount'] * max(0, $scheduled - $minutes) / $scheduled, 2);
+            $paid = round($baseAmount * max(0, $scheduled - $minutes) / $scheduled, 2);
             $result['amount'] = $paid;
             $result['late_rule'] = 'notified';
-            $result['late_deduction'] = round($base['amount'] - $paid, 2);
+            $result['late_deduction'] = round($baseAmount - $paid, 2);
         } elseif ($minutes < $threshold) {
-            $deduction = min($base['amount'], round($minutes * $perMinute, 2));
-            $result['amount'] = round($base['amount'] - $deduction, 2);
+            $deduction = min($baseAmount, round($minutes * $perMinute, 2));
+            $result['amount'] = round($baseAmount - $deduction, 2);
             $result['late_rule'] = 'deduct';
             $result['late_deduction'] = $deduction;
         } else {
             $result['amount'] = 0.0;
             $result['counted'] = false;
             $result['late_rule'] = 'void';
-            $result['late_deduction'] = $base['amount'];
+            $result['late_deduction'] = $baseAmount;
         }
 
         return $result;

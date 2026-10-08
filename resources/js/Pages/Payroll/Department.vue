@@ -56,6 +56,7 @@ const configs = {
         guides: [
             ['1. Lương cơ bản & khấu trừ', 'BHXH, Công đoàn tự động trên lương cơ bản; thuế TNCN Admin nhập tay; trừ vi phạm quá hạn nộp.'],
             ['2. KPI (nhập tự do)', 'Học thuật: Admin / Kế toán nhập số tiền KPI trên phiếu lương.'],
+            ['Kiêm nhiệm giảng dạy', 'Học thuật bật "Kiêm nhiệm giảng dạy" ở hồ sơ: cộng lương đứng lớp (buổi dạy × % học phí theo buổi) và KPI kiêm nhiệm (HS giữ được × bậc).'],
             ['3. Phụ cấp & thưởng tái tục', 'Phụ cấp / thưởng là các dòng tự do có tên. Thưởng tái tục nếu phụ trách lớp.'],
         ],
         cardClass: 'from-on-info-container to-on-accent-container',
@@ -63,7 +64,7 @@ const configs = {
         cardTitle: 'Tổng chi Khối Học Thuật',
         cardIcon: 'school',
         countText: 'chuyên viên học thuật',
-        figures: (t) => [['Lương cứng:', t.base_salary], ['KPI & Phụ cấp:', t.kpi_bonus + t.allowance]],
+        figures: (t) => [['Lương cứng & đứng lớp:', t.base_salary + t.teaching_salary], ['KPI & Phụ cấp:', t.kpi_bonus + t.teaching_kpi_bonus + t.allowance]],
     },
     operations: {
         title: 'Bảng lương khối Học vụ & Vận hành (CSKH / Sales)',
@@ -149,10 +150,12 @@ const initial = (name) => Array.from(name ?? 'N')[0] ?? '';
                                 </td>
                                 <td class="text-right font-mono font-semibold">
                                     {{ formatMoney(r.base_salary + r.teaching_salary) }}
-                                    <p v-if="r.teaching_sessions > 0" class="text-xs text-on-surface-subtle">{{ r.teaching_sessions }} buổi dạy</p>
+                                    <p v-if="r.teaching_concurrent" class="text-xs text-on-surface-subtle">gồm đứng lớp {{ formatMoney(r.teaching_salary) }} · {{ r.teaching_sessions }} buổi</p>
+                                    <p v-else-if="r.teaching_sessions > 0" class="text-xs text-on-surface-subtle">{{ r.teaching_sessions }} buổi dạy</p>
                                 </td>
                                 <td class="text-right font-mono text-warning font-semibold">
-                                    {{ formatMoney(r.kpi_bonus) }}
+                                    {{ formatMoney(r.kpi_bonus + r.teaching_kpi_bonus) }}
+                                    <p v-if="r.teaching_concurrent" class="text-xs text-on-surface-subtle">gồm KPI kiêm nhiệm {{ formatMoney(r.teaching_kpi_bonus) }}</p>
                                     <p v-if="r.kpi_source === 'academic_kpi'" class="text-xs text-on-surface-subtle">{{ r.kpi_score !== null ? trimNumber(r.kpi_score, 2, '.', ',') + '% × quỹ' : 'chưa chấm KPI' }}</p>
                                     <p v-else-if="r.kpi_source === 'manual'" class="text-xs text-on-surface-subtle">{{ r.kpi_manual_amount !== null ? 'nhập tay' : 'chưa nhập' }}</p>
                                 </td>

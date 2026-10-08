@@ -28,6 +28,7 @@ const props = defineProps({
     timesheets: { type: Array, default: () => [] },
     kpiGroups: { type: Array, default: () => [] },
     renewalClasses: { type: Array, default: () => [] },
+    teachingShare: { type: Object, default: null },
     lateLines: { type: Array, default: () => [] },
     lateInfo: { type: Object, default: () => ({ threshold: 15, per_minute: 5000, total: 0 }) },
     dailyAttendance: { type: Object, default: null },
@@ -223,6 +224,60 @@ function sessionNote(ts) {
                         </details>
                     </section>
 
+                    <!-- Học thuật kiêm nhiệm giảng dạy: lương đứng lớp (% học phí theo buổi) + KPI kiêm nhiệm (giữ HS × bậc). -->
+                    <section v-if="teachingShare" class="rounded-xl border border-outline-variant bg-surface-container-lowest p-lg space-y-md" data-teaching-share>
+                        <h3 class="flex items-center gap-xs font-h3 text-h3 text-on-surface"><span class="material-symbols-outlined text-primary-container" aria-hidden="true">co_present</span>Kiêm nhiệm giảng dạy</h3>
+                        <div class="grid grid-cols-1 gap-md md:grid-cols-2">
+                            <div class="rounded-lg bg-surface-container-low p-md">
+                                <p class="font-body-small text-body-small text-on-surface-variant">Lương đứng lớp ({{ record.teaching_sessions }} buổi)</p>
+                                <p class="font-h3 text-h3 font-mono">{{ money(record.teaching_salary) }}</p>
+                                <p class="font-caption text-caption text-on-surface-variant">
+                                    Buổi chấm công hợp lệ × {{ pct(teachingShare.rate_percent ?? teachingShare.default_percent) }}% học phí theo buổi{{ teachingShare.rate_percent === null ? ' (mức mặc định)' : '' }}
+                                </p>
+                            </div>
+                            <div class="space-y-xs">
+                                <UiSelect v-if="canEdit" name="retention_tier" label="KPI kiêm nhiệm — đơn giá (đ/hs/tháng)" :options="tierOptions" :value="record.retention_tier !== null ? String(Math.trunc(record.retention_tier)) : ''" placeholder="— Chưa chọn bậc —" :hint="tierHint" />
+                                <p v-else class="font-body-medium text-body-medium">KPI kiêm nhiệm: {{ record.retention_tier !== null ? money(record.retention_tier) + 'đ/hs/tháng' : 'chưa chọn bậc' }}</p>
+                                <p class="font-body-small text-body-small text-on-surface-variant">
+                                    Giữ {{ record.retention_students }} / {{ record.retention_base_students }} HS ở các lớp đã dạy{{ record.retention_lost ? ` · nghỉ ${record.retention_lost} HS` : '' }}{{ lostStudents ? ` (${lostStudents})` : '' }}
+                                    = <strong class="font-mono">{{ money(record.teaching_kpi_bonus) }} đ</strong>
+                                </p>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full min-w-[640px] text-left font-body-small text-body-small [&_td]:px-xs [&_th]:px-xs" data-teaching-share-table>
+                                <thead>
+                                    <tr class="whitespace-nowrap font-label text-label uppercase text-on-surface-variant">
+                                        <th class="py-xs">Lớp</th><th class="py-xs text-right">Học phí / buổi</th><th class="py-xs text-right">Số HS</th><th class="py-xs text-right">Số buổi</th><th class="py-xs text-right">Vào sau / nghỉ</th><th class="py-xs text-right">Lương</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="row in teachingShare.classes" :key="row.class_id" class="border-t border-surface-container">
+                                        <td class="min-w-[12rem] py-xs">{{ row.class }}<span class="block font-caption text-caption text-on-surface-variant">{{ row.percent !== null ? pct(row.percent) + '%' : 'nhiều mức %' }} × {{ money(row.tuition) }}đ học phí các buổi</span></td>
+                                        <td class="py-xs text-right font-mono">{{ money(row.avg_price) }}</td>
+                                        <td class="py-xs text-right font-mono">{{ row.students }}</td>
+                                        <td class="py-xs text-right font-mono">{{ row.sessions }}</td>
+                                        <td class="py-xs text-right font-mono">{{ row.partial_students || '' }}</td>
+                                        <td class="py-xs text-right font-mono font-semibold">{{ money(row.amount) }}</td>
+                                    </tr>
+                                    <tr v-if="!teachingShare.classes.length"><td colspan="6" class="py-sm text-on-surface-variant">Chưa có buổi dạy lớp hợp lệ trong kỳ.</td></tr>
+                                </tbody>
+                                <tfoot v-if="teachingShare.classes.length">
+                                    <tr class="border-t-2 border-outline-variant font-semibold">
+                                        <td class="py-xs">Tổng</td><td></td>
+                                        <td class="py-xs text-right font-mono">{{ teachingShare.classes.reduce((n, r) => n + r.students, 0) }}</td>
+                                        <td class="py-xs text-right font-mono">{{ teachingShare.classes.reduce((n, r) => n + r.sessions, 0) }}</td>
+                                        <td></td>
+                                        <td class="py-xs text-right font-mono">{{ money(record.teaching_salary) }}</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        <p class="font-caption text-caption text-on-surface-variant">
+                            Học phí / buổi lấy theo khoản học phí của từng HS (thu theo khóa hay theo tháng đều chia ra buổi, đã trừ ưu đãi); HS chưa có khoản học phí tính theo giá niêm yết của lớp. HS vào lớp sau, rời lớp hoặc bảo lưu không tính những buổi đó.{{ teachingShare.skipped ? ` ${teachingShare.skipped} ca không phải buổi dạy lớp (kèm 1-1, chấm bài, workshop) không tính % học phí.` : '' }}
+                        </p>
+                    </section>
+
                     <section v-if="showCommissionBlock" class="rounded-xl border border-outline-variant bg-surface-container-lowest p-lg space-y-md">
                         <h3 class="flex items-center gap-xs font-h3 text-h3 text-on-surface"><span class="material-symbols-outlined text-primary-container" aria-hidden="true">trending_up</span>Hoa hồng tuyển sinh &amp; Thưởng tái tục (chỉ đọc)</h3>
                         <UiAlert type="info">Dữ liệu này được hệ thống tính toán tự động, không thể chỉnh sửa thủ công.</UiAlert>
@@ -309,7 +364,7 @@ function sessionNote(ts) {
 
                 <!-- Căn cứ chi tiết -->
                 <UiDataTable v-if="!isPT && timesheets.length" min-width="480px">
-                    <template #header><h3 class="font-h3 text-h3 text-on-surface">Buổi dạy trong kỳ ({{ timesheets.length }}) — đối soát, đã gồm trong lương cơ bản</h3></template>
+                    <template #header><h3 class="font-h3 text-h3 text-on-surface">Buổi dạy trong kỳ ({{ timesheets.length }}) — {{ teachingShare ? 'căn cứ lương đứng lớp' : 'đối soát, đã gồm trong lương cơ bản' }}</h3></template>
                     <table>
                         <thead><tr><th>Ngày</th><th>Ca học</th><th>Lớp</th><th class="text-right">Giờ</th></tr></thead>
                         <tbody>
