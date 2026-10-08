@@ -49,6 +49,11 @@ return [
     // Tiền KPI = quỹ × tổng điểm có trọng số (%) của đánh giá KPI tháng đã chốt.
     'academic_kpi_fund' => 2000000,
 
+    // ── Học thuật kiêm nhiệm giảng dạy ──────────────────────────────────────────
+    // Lương đứng lớp = Σ buổi dạy hợp lệ × (học phí theo buổi của từng HS trong lớp) × %. % riêng từng người ở màn
+    // Đơn giá giáo viên (đơn vị "% học phí"); chưa có thì lấy mức mặc định này (sửa ở Tham số tính lương).
+    'teaching_share_percent' => 40,
+
     // ── Hoa hồng tuyển sinh (khách mới) ─────────────────────────────────────────
     'commission' => [
         // Gate kép: đủ N ngày từ ngày chốt VÀ đủ số mốc chăm sóc tháng đầu; thiếu → hoãn sang kỳ sau.

@@ -24,7 +24,7 @@ const page = usePage();
 const fid = (field) => props.idPrefix + field;
 
 const tabs = {
-    account: ['Tài khoản', 'manage_accounts', ['name', 'employee_code', 'email', 'phone', 'branch_id', 'role', 'concurrent_roles', 'password']],
+    account: ['Tài khoản', 'manage_accounts', ['name', 'employee_code', 'email', 'phone', 'branch_id', 'role', 'academic_teaching', 'concurrent_roles', 'password']],
     profile: ['Hồ sơ', 'badge', ['id_card_number', 'emergency_contact', 'hometown', 'current_address', 'graduation_school', 'certificates', 'teaching_level']],
     salary: ['Hợp đồng & Lương', 'payments', ['contract_type', 'base_salary', 'hourly_rate', 'contract_start_date', 'contract_end_date', 'contract_file']],
 };
@@ -41,6 +41,10 @@ const errors = computed(() => {
 });
 const tabHasError = (key) => Object.keys(errors.value).some((e) => tabs[key][2].some((f) => e === f || e.startsWith(f + '.')));
 const firstErrorTab = () => Object.keys(tabs).find((key) => tabHasError(key)) ?? null;
+
+// Học thuật: option "Kiêm nhiệm giảng dạy" hiện ngay dưới ô vai trò khi chọn vai trò chính Học thuật.
+const role = ref(props.currentRole ?? '');
+const teaching = ref(!!props.user?.academic_teaching);
 
 const tab = ref(firstErrorTab() ?? (tabs[props.initialTab] ? props.initialTab : 'account'));
 watch(errors, () => {
@@ -92,7 +96,23 @@ onMounted(() => {
                 <UiInput name="email" :id="fid('email')" type="email" label="Email công việc" required :value="user?.email" placeholder="VD: nva@menglish.edu.vn" />
                 <UiInput name="phone" :id="fid('phone')" label="Số điện thoại" :value="user?.phone" placeholder="10 số, bắt đầu bằng 0" class="font-code" />
                 <UiSelect name="branch_id" :id="fid('branch_id')" label="Cơ sở / Chi nhánh" required placeholder="-- Chọn cơ sở --" :value="user?.branch_id" :options="branches" />
-                <UiSelect name="role" :id="fid('role')" label="Vai trò & Chức vụ" required placeholder="-- Chọn vai trò --" :value="currentRole" :options="roleOptions" />
+                <UiSelect v-model="role" name="role" :id="fid('role')" label="Vai trò & Chức vụ" required placeholder="-- Chọn vai trò --" :options="roleOptions" />
+            </div>
+
+            <!-- Học thuật kiêm nhiệm giảng dạy: phiếu lương mở thêm lương đứng lớp (% học phí theo buổi) + KPI kiêm nhiệm. -->
+            <div v-if="role === 'academic_lead'" class="rounded-lg border border-outline-variant p-md" data-academic-teaching>
+                <input type="hidden" name="academic_teaching" value="0" />
+                <label class="flex cursor-pointer items-start gap-sm">
+                    <input v-model="teaching" type="checkbox" name="academic_teaching" value="1" :id="fid('academic_teaching')" class="mt-0.5 rounded border-outline-variant text-primary-container focus:ring-primary-container" />
+                    <span>
+                        <span class="block font-body-medium text-body-medium font-semibold text-on-surface">Kiêm nhiệm giảng dạy</span>
+                        <span class="block font-caption text-caption text-on-surface-variant">
+                            {{ teaching
+                                ? 'Phiếu lương có thêm lương đứng lớp: mỗi buổi dạy được chấm công như GV part-time × % học phí theo buổi của lớp (cấu hình ở Đơn giá giáo viên, mặc định 40%), và KPI kiêm nhiệm giữ học sinh.'
+                                : 'Không kiêm nhiệm: phiếu lương Học thuật giữ nguyên lương cơ bản như hiện tại.' }}
+                        </span>
+                    </span>
+                </label>
             </div>
 
             <!-- Kiêm nhiệm: vai trò phụ ngoài vai trò chính (chỉ các vai trò người thao tác được phép gán). -->

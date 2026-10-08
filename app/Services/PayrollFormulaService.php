@@ -230,7 +230,7 @@ class PayrollFormulaService
         $fund = (float) PayrollPeriod::payrollSettings()['academic_kpi_fund'];
         $evaluation = KpiEvaluation::with('items')
             ->where('user_id', $user->id)->where('month', $month)->where('year', $year)
-            ->where('status', 'confirmed')
+            ->where('track', KpiEvaluation::TRACK_MAIN)->where('status', 'confirmed')
             ->first();
         if (! $evaluation) {
             return ['amount' => 0.0, 'score' => null, 'fund' => $fund, 'evaluation_id' => null, 'items' => []];
@@ -277,7 +277,7 @@ class PayrollFormulaService
         $fund = (float) PayrollPeriod::payrollSettings()['academic_kpi_fund'];
         $evaluation = KpiEvaluation::with(['items', 'evaluator'])
             ->where('user_id', $user->id)->where('month', $month)->where('year', $year)
-            ->first();
+            ->where('track', KpiEvaluation::TRACK_MAIN)->first();
         $scores = $evaluation ? $evaluation->items->keyBy('kpi_criterion_id') : collect();
         $criteria = KpiCriterion::forRole(Roles::ACADEMIC_STAFF)->active()->ordered()->get();
         $weightTotal = (float) $criteria->sum('weight');

@@ -145,7 +145,8 @@ const money = computed(() => [
                             <div class="flex flex-wrap gap-xs">
                                 <UiBadge color="primary" :dot="false" title="Vai trò chính">{{ user.primary_role_short ?? 'Người dùng' }}</UiBadge>
                                 <UiBadge v-for="extra in user.extra_roles" :key="extra" color="secondary" :dot="false">Kiêm nhiệm: {{ extra }}</UiBadge>
-                                <span v-if="!user.extra_roles.length" class="font-caption text-caption italic text-on-surface-variant">Không kiêm nhiệm vai trò khác</span>
+                                <UiBadge v-if="user.academic_teaching" color="secondary" :dot="false" title="Phiếu lương có thêm lương đứng lớp và KPI kiêm nhiệm">Kiêm nhiệm: Giảng dạy</UiBadge>
+                                <span v-if="!user.extra_roles.length && !user.academic_teaching" class="font-caption text-caption italic text-on-surface-variant">Không kiêm nhiệm vai trò khác</span>
                             </div>
 
                             <ul class="space-y-sm">

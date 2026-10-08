@@ -5,9 +5,11 @@ namespace App\Models;
 use App\Services\PayrollFormulaService;
 use App\Services\SalesCommissionService;
 use App\Services\StaffAttendance\StaffAttendanceService;
+use App\Services\TeachingShareService;
 use App\Support\Money;
 use App\Support\RequestMemo;
 use App\Support\Roles;
+use App\Support\StaffType;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -204,6 +206,10 @@ class PayrollPeriod extends Model
             || StaffAttendance::whereBetween('work_date', $range)->where('updated_at', '>', $this->calculated_at)->exists()
             || StaffAttendanceRequest::approved()->overlapping($this->start_date->toDateString(), $this->end_date->toDateString())
                 ->where('updated_at', '>', $this->calculated_at)->exists()
+            // Học thuật kiêm nhiệm giảng dạy: học phí / xếp lớp đổi làm đổi lương đứng lớp
+            || ($this->records()->where('teaching_concurrent', true)->exists()
+                && (StudentTuition::where('updated_at', '>', $this->calculated_at)->exists()
+                    || ClassEnrollment::where('updated_at', '>', $this->calculated_at)->exists()))
             // Đánh giá KPI tháng của kỳ được chốt / sửa sau lần tính (KPI Học vụ tự động)
             || KpiEvaluation::where('month', $this->month)->where('year', $this->year)
                 ->where('updated_at', '>', $this->calculated_at)->exists();
@@ -284,6 +290,8 @@ class PayrollPeriod extends Model
             'late_threshold_minutes' => (int) SystemSetting::get('payroll_late_threshold_minutes', config('payroll.late.threshold_minutes', 15)),
             'late_deduction_per_minute' => (float) SystemSetting::get('payroll_late_deduction_per_minute', config('payroll.late.deduction_per_minute', 5000)),
             'renewal_beyond_percent' => (float) SystemSetting::get('payroll_renewal_beyond_percent', config('payroll.renewal_bonus.beyond_percent', 0)),
+            // Học thuật kiêm nhiệm giảng dạy: % học phí theo buổi khi chưa có đơn giá "% học phí" riêng.
+            'teaching_share_percent' => (float) SystemSetting::get('payroll_teaching_share_percent', config('payroll.teaching_share_percent', 40)),
         ];
     }
 
@@ -327,6 +335,7 @@ class PayrollPeriod extends Model
         $commissionService = app(SalesCommissionService::class);
         $formula = app(PayrollFormulaService::class);
         $attendanceService = app(StaffAttendanceService::class);
+        $teachingShare = app(TeachingShareService::class);
         $existingRecords = $this->records()->get()->keyBy('user_id');
         $closedCounts = $commissionService->closedCountsBySales($this->start_date, $this->end_date);
         $start = $this->start_date->copy();
@@ -360,15 +369,22 @@ class PayrollPeriod extends Model
                 ->where('status', 'valid')
                 ->with('classModel')
                 ->get();
-            $outcomes = $timesheets->values()->map(fn (TeacherTimesheet $ts) => $ts->payOutcome($user, $settings));
-            // Ca đi muộn / về sớm từ ngưỡng mà không báo trước: không tính buổi (chỉ áp cho Part-time; Full-time lương cơ bản không đổi).
-            $voided = $isPartTime ? $outcomes->where('counted', false)->count() : 0;
-            $actualHours = (float) $timesheets->values()->filter(fn (TeacherTimesheet $ts, $i) => ! $isPartTime || $outcomes[$i]['counted'])->sum('hours');
+            // Học thuật kiêm nhiệm giảng dạy: chấm công như Part-time, mỗi buổi = % học phí theo buổi của lớp (TeachingShareService).
+            $teachesAsLead = ! $isPartTime && $profile['salary_role'] === Roles::ACADEMIC_LEAD && StaffType::isTeachingAcademicLead($user);
+            $share = $teachesAsLead ? $teachingShare->forTimesheets($timesheets, $settings) : null;
+            $paysSessions = $isPartTime || $share !== null;
+            $outcomes = $timesheets->values()->map(fn (TeacherTimesheet $ts) => $share !== null
+                ? ($share['outcomes'][$ts->id] ?? ['amount' => 0.0, 'counted' => false, 'late_rule' => null, 'unit' => null])
+                : $ts->payOutcome($user, $settings));
+            // Ca đi muộn / về sớm từ ngưỡng mà không báo trước: không tính buổi (Part-time và Học thuật kiêm nhiệm; Full-time lương cơ bản không đổi).
+            $voided = $paysSessions ? $outcomes->where('counted', false)->count() : 0;
+            $actualHours = (float) $timesheets->values()->filter(fn (TeacherTimesheet $ts, $i) => ! $paysSessions || $outcomes[$i]['counted'])->sum('hours');
             $sessions = $timesheets->count() - $voided;
             $sessionPay = $outcomes;
-            $teachingSalary = $isPartTime ? round((float) $sessionPay->sum('amount'), 2) : 0.0;
+            // Kiêm nhiệm: tổng theo bảng lớp (làm tròn từng lớp tới đồng) để phiếu khớp bảng lương đứng lớp.
+            $teachingSalary = $share !== null ? (float) $share['amount'] : ($paysSessions ? round((float) $sessionPay->sum('amount'), 2) : 0.0);
             // Chi tiết khoản trừ đi muộn / về sớm để Kế toán thấy lý do trên phiếu lương.
-            $lateLines = $isPartTime ? $timesheets->values()->map(fn (TeacherTimesheet $ts, $i) => $outcomes[$i]['late_rule'] ? [
+            $lateLines = $paysSessions ? $timesheets->values()->map(fn (TeacherTimesheet $ts, $i) => $outcomes[$i]['late_rule'] ? [
                 'timesheet_id' => $ts->id,
                 'date' => $ts->teaching_date?->format('d/m/Y'),
                 'class' => $ts->classModel?->name,
@@ -426,6 +442,13 @@ class PayrollPeriod extends Model
                 $retention = ['base' => $retentionData['base'], 'retained' => $retentionData['retained']];
                 $details['retention'] = ['base' => $retentionData['base'], 'lost' => $retentionData['lost'], 'retained' => $retentionData['retained'], 'lost_ids' => $retentionData['lost_ids']];
             } else {
+                if ($share !== null) {
+                    // KPI kiêm nhiệm giảng dạy = HS giữ được ở các lớp đã dạy × bậc chọn tay (như KPI giữ HS của GV part-time).
+                    $retentionData = $formula->retentionFor($timesheets->pluck('class_id')->filter()->unique()->values()->all(), $start, $end);
+                    $retention = ['base' => $retentionData['base'], 'retained' => $retentionData['retained']];
+                    $details['retention'] = ['base' => $retentionData['base'], 'lost' => $retentionData['lost'], 'retained' => $retentionData['retained'], 'lost_ids' => $retentionData['lost_ids']];
+                    $details['teaching_share'] = ['default_percent' => $share['default_percent'], 'classes' => $share['classes'], 'skipped' => $share['skipped']];
+                }
                 if ($profile['salary_role'] === Roles::ACADEMIC_STAFF) {
                     $kpiSource = PayrollRecord::KPI_ACADEMIC;
                     $academic = $formula->academicKpiFor($user, (int) $this->month, (int) $this->year);
@@ -474,6 +497,7 @@ class PayrollPeriod extends Model
                 'actual_hours' => $actualHours,
                 'teaching_sessions' => $sessions,
                 'teaching_salary' => $teachingSalary,
+                'teaching_concurrent' => $share !== null,
                 'retention_base_students' => $retention['base'],
                 'retention_students' => $retention['retained'],
                 'kpi_source' => $kpiSource,
@@ -535,6 +559,10 @@ class PayrollPeriod extends Model
             $parts[] = 'giữ '.(int) $record->retention_students.'/'.(int) $record->retention_base_students.' HS';
         } else {
             $parts[] = 'lương cơ bản '.$money($record->base_salary);
+            if ($record->teaching_concurrent) {
+                $parts[] = 'đứng lớp '.(int) $record->teaching_sessions.' buổi = '.$money($record->teaching_salary);
+                $parts[] = 'giữ '.(int) $record->retention_students.'/'.(int) $record->retention_base_students.' HS';
+            }
         }
         if ((float) $record->commission_bonus > 0 || (float) $record->commission_deferred > 0) {
             $parts[] = 'hoa hồng '.$money($record->commission_bonus).((float) $record->commission_deferred > 0 ? ' (hoãn '.$money($record->commission_deferred).')' : '');

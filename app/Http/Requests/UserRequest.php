@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\Roles;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -26,6 +27,10 @@ class UserRequest extends FormRequest
                 $this->merge([$field => 0]);
             }
         }
+        // "Kiêm nhiệm giảng dạy" chỉ có nghĩa với vai trò chính Học thuật: đổi sang vai trò khác thì tắt.
+        if ($this->filled('role') && $this->input('role') !== Roles::ACADEMIC_LEAD) {
+            $this->merge(['academic_teaching' => false]);
+        }
     }
 
     /**
@@ -45,6 +50,7 @@ class UserRequest extends FormRequest
             'password' => [$userId ? 'nullable' : 'required', 'string', 'min:8'],
             'base_salary' => ['nullable', 'numeric', 'min:0'],
             'hourly_rate' => ['nullable', 'numeric', 'min:0'],
+            'academic_teaching' => ['nullable', 'boolean'],
             'id_card_number' => ['nullable', 'string', 'max:30'],
             'hometown' => ['nullable', 'string', 'max:255'],
             'current_address' => ['nullable', 'string', 'max:255'],

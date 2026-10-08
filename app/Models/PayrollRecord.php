@@ -16,6 +16,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  *   + lương buổi có GVNN (nhập tay, chờ BA) + phụ cấp tự do − phạt quá hạn − khấu trừ tự do. Không BHXH/Công đoàn.
  * - Full-time (GV full-time, Học vụ, Học thuật, Sale, nhân sự khác): lương cơ bản + KPI + hoa hồng + thưởng tái tục
  *   + phụ cấp tự do − BHXH − Công đoàn (tự động trên lương cơ bản) − thuế TNCN (nhập tay) − phạt − khấu trừ tự do.
+ *   Học thuật kiêm nhiệm giảng dạy (teaching_concurrent): cộng thêm lương đứng lớp (teaching_salary = buổi dạy × % học phí
+ *   theo buổi, TeachingShareService) và KPI kiêm nhiệm (teaching_kpi_bonus = HS giữ được × bậc chọn tay, như Part-time).
  *
  * Khoản nhập tay (giữ khi tính lại): retention_tier, kpi_manual_amount, foreign_session_pay, tax_deduction,
  * manual_lines ([{kind: earning|deduction, label, amount}]), adjustment_notes.
@@ -66,6 +68,8 @@ class PayrollRecord extends Model
         'retention_tier',
         'overtime_hours',
         'teaching_salary',
+        'teaching_concurrent',
+        'teaching_kpi_bonus',
         'kpi_bonus',
         'kpi_source',
         'kpi_manual_amount',
@@ -107,6 +111,8 @@ class PayrollRecord extends Model
         'retention_tier' => 'decimal:2',
         'overtime_hours' => 'decimal:2',
         'teaching_salary' => 'decimal:2',
+        'teaching_concurrent' => 'boolean',
+        'teaching_kpi_bonus' => 'decimal:2',
         'kpi_bonus' => 'decimal:2',
         'kpi_manual_amount' => 'decimal:2',
         'kpi_score' => 'decimal:2',
@@ -194,6 +200,10 @@ class PayrollRecord extends Model
             self::KPI_MANUAL => $this->kpi_manual_amount !== null,
             default => null,
         };
+        // Học thuật kiêm nhiệm giảng dạy: còn phải chọn bậc KPI kiêm nhiệm (giữ HS) khi lớp đã dạy có HS đầu kỳ.
+        if ($done === true && $this->teaching_concurrent && (int) $this->retention_base_students > 0 && $this->retention_tier === null) {
+            $done = false;
+        }
 
         return match ($done) {
             true => ['done', 'Đã chốt KPI'],
@@ -217,7 +227,7 @@ class PayrollRecord extends Model
      */
     public function getGrossIncomeAttribute(): float
     {
-        return (float) $this->base_salary + (float) $this->teaching_salary + (float) $this->kpi_bonus
+        return (float) $this->base_salary + (float) $this->teaching_salary + (float) $this->kpi_bonus + (float) $this->teaching_kpi_bonus
             + (float) $this->renew_bonus + (float) $this->commission_bonus + (float) $this->allowance
             + (float) $this->other_bonus + (float) $this->foreign_session_pay;
     }
@@ -265,6 +275,15 @@ class PayrollRecord extends Model
                     self::KPI_MANUAL => $this->kpi_manual_amount !== null ? 'Nhập tay' : 'Chưa nhập KPI',
                     default => null,
                 }];
+            if ($this->teaching_concurrent) {
+                $percent = data_get($this->calculation_details, 'teaching_share.default_percent');
+                $lines[] = ['key' => 'teaching_salary', 'label' => 'Lương đứng lớp ('.(int) $this->teaching_sessions.' buổi)', 'amount' => (float) $this->teaching_salary,
+                    'hint' => 'Kiêm nhiệm giảng dạy: mỗi buổi chấm công hợp lệ × % học phí theo buổi của HS trong lớp'
+                        .($percent !== null ? ' (mặc định '.rtrim(rtrim(number_format((float) $percent, 2, ',', '.'), '0'), ',').'%)' : '')];
+                $lines[] = ['key' => 'teaching_kpi_bonus', 'label' => 'KPI kiêm nhiệm giảng dạy', 'amount' => (float) $this->teaching_kpi_bonus,
+                    'hint' => (int) $this->retention_students.'/'.(int) $this->retention_base_students.' HS giữ được'
+                        .($this->retention_tier !== null ? ' × '.$money($this->retention_tier).'/HS' : ' — chưa chọn bậc KPI')];
+            }
             if ($this->salary_role === 'sales' || (float) $this->commission_bonus != 0.0 || (float) $this->commission_deferred != 0.0) {
                 $lines[] = $this->commissionLine();
             }
@@ -397,6 +416,10 @@ class PayrollRecord extends Model
         } elseif ($this->kpi_source === self::KPI_MANUAL) {
             $this->kpi_bonus = (float) ($this->kpi_manual_amount ?? 0);
         }
+        // KPI kiêm nhiệm giảng dạy (Học thuật): HS giữ được × bậc, tách khỏi KPI Học thuật nhập tay.
+        $this->teaching_kpi_bonus = $this->teaching_concurrent
+            ? round((int) $this->retention_students * (float) ($this->retention_tier ?? 0), 2)
+            : 0;
 
         if ($this->isPartTime()) {
             // Part-time không trừ BHXH / Công đoàn / thuế TNCN (Q3).

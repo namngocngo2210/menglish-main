@@ -57,6 +57,14 @@ const renewalRowError = computed(() => {
                     </div>
 
                     <div class="space-y-2">
+                        <h3 class="text-xs font-bold text-on-surface-variant">Học thuật kiêm nhiệm giảng dạy</h3>
+                        <p class="text-xs text-on-surface-variant">Lương đứng lớp = mỗi buổi dạy hợp lệ × học phí theo buổi của các HS trong lớp × %. Người có đơn giá "% học phí" riêng ở màn Đơn giá giáo viên thì dùng mức riêng.</p>
+                        <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                            <UiInput id="teaching_share_percent" type="number" name="teaching_share_percent" label="% học phí theo buổi (mặc định)" suffix="%" min="0" max="100" step="0.5" :value="settings.teaching_share_percent" class="font-mono" />
+                        </div>
+                    </div>
+
+                    <div class="space-y-2">
                         <div class="flex items-center justify-between">
                             <div>
                                 <h3 class="text-xs font-bold text-on-surface-variant">Thưởng tái tục — % doanh thu lớp theo số HS nghỉ trong kỳ</h3>
@@ -95,7 +103,7 @@ const renewalRowError = computed(() => {
 
                 <div class="flex flex-col items-center justify-between gap-4 border-t border-surface-container-highest bg-surface-container-low p-6 sm:flex-row">
                     <div class="text-center text-xs text-on-surface-variant sm:text-left">
-                        Mặc định (config/payroll.php): BHXH 10,5% · Công đoàn 0,5% · quỹ KPI Học vụ 2.000.000đ · đi muộn ngưỡng 15 phút, trừ 5.000đ/phút.
+                        Mặc định (config/payroll.php): BHXH 10,5% · Công đoàn 0,5% · quỹ KPI Học vụ 2.000.000đ · đi muộn ngưỡng 15 phút, trừ 5.000đ/phút · Học thuật kiêm giảng dạy 40% học phí.
                     </div>
                     <UiButton type="submit" icon="save" class="w-full sm:w-auto">Lưu tham số</UiButton>
                 </div>
