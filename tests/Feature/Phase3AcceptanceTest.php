@@ -249,7 +249,7 @@ class Phase3AcceptanceTest extends TestCase
         $this->actingAs($this->lead)->post(route('penalties.confirm', $lateAug->id), ['decision' => 'fine', 'amount' => 150000])->assertSessionHasNoErrors();
         $this->assertSame('2026-09-02', $lateAug->fresh()->due_date->toDateString());
 
-        $scores = KpiCriterion::active()->ordered()->get()->mapWithKeys(fn (KpiCriterion $c) => [$c->id => $c->code === '1.2' ? 50 : 100])->all();
+        $scores = KpiCriterion::forRole('academic_staff')->active()->ordered()->get()->mapWithKeys(fn (KpiCriterion $c) => [$c->id => $c->code === '1.2' ? 50 : 100])->all();
         $this->assertCount(15, $scores);
         $this->actingAs($this->academic)->post(route('kpi.evaluate.store', $this->academic->id), ['month' => 8, 'year' => 2026, 'score' => $scores])->assertForbidden();
         $this->actingAs($this->manager)->post(route('kpi.evaluate.store', $this->academic->id), ['month' => 8, 'year' => 2026, 'score' => $scores])->assertSessionHasNoErrors();
