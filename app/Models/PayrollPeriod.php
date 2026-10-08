@@ -188,6 +188,8 @@ class PayrollPeriod extends Model
                 ->whereIn('user_id', $this->records()->select('user_id'))->exists()
             // Biên bản đã trừ ở lần tính bị gỡ khỏi phiếu (nộp trực tiếp / miễn phạt) — kể cả biên bản vi phạm từ kỳ trước
             || $this->penaltyDeductionOutOfSync()
+            // Lương cơ bản / ngày bắt đầu hợp đồng ở hồ sơ nhân sự đổi sau lần tính (vd. vừa nhập hợp đồng cho người mới)
+            || $this->baseSalaryOutOfSync()
             // Phiếu thu được duyệt / thu hồi hoa hồng phát sinh sau lần tính
             || TuitionReceipt::whereBetween('approved_at', [$this->start_date->copy()->startOfDay(), $this->end_date->copy()->endOfDay()])
                 ->where('updated_at', '>', $this->calculated_at)->exists()
@@ -224,6 +226,30 @@ class PayrollPeriod extends Model
 
         return $this->records()->get(['id', 'penalty_deduction'])
             ->contains(fn (PayrollRecord $record) => abs((float) $record->penalty_deduction - (float) ($linked[$record->id] ?? 0)) > 0.5);
+    }
+
+    /**
+     * Lương cơ bản trên phiếu khác lương cơ bản hồ sơ hiện tính cho kỳ, hoặc có nhân sự đang làm đã có lương cơ bản cho kỳ
+     * mà chưa có phiếu: hồ sơ được sửa sau lần tính, bấm "Đồng bộ & Tính lại" mới lên bảng lương.
+     */
+    private function baseSalaryOutOfSync(): bool
+    {
+        if ($this->isLocked()) {
+            return false;
+        }
+        $formula = app(PayrollFormulaService::class);
+        $end = $this->end_date->copy();
+        $records = $this->records()->where('employee_type', PayrollRecord::TYPE_FULLTIME)
+            ->with(['user' => fn ($q) => $q->withTrashed()->with('roles')])->get(['id', 'user_id', 'base_salary']);
+        if ($records->contains(fn (PayrollRecord $r) => $r->user && abs((float) $r->base_salary - $formula->baseSalaryFor($r->user, $end)) > 0.5)) {
+            return true;
+        }
+
+        return User::with('roles')->where('is_active', true)->staffAccounts()
+            ->where('base_salary', '>', 0)
+            ->whereNotIn('id', $this->records()->select('user_id'))
+            ->get()
+            ->contains(fn (User $user) => $formula->baseSalaryFor($user, $end) > 0);
     }
 
     /**
@@ -422,7 +448,7 @@ class PayrollPeriod extends Model
             $penaltyDeduction = (float) $penalties->sum('amount');
 
             // 4. Công thức theo loại nhân sự
-            $baseSalary = $isPartTime ? 0.0 : (float) max(0, (float) $user->base_salary);
+            $baseSalary = $formula->baseSalaryFor($user, $end);
             $details = [
                 'rates' => ['insurance' => $settings['insurance_rate_percent'], 'union' => $settings['union_rate_percent']],
                 'sessions' => ['count' => $sessions, 'per_session' => $sessionPay->where('unit', 'session')->count(), 'per_hour' => $sessionPay->where('unit', 'hour')->count()],
@@ -455,6 +481,10 @@ class PayrollPeriod extends Model
                     $kpiAuto = $academic['amount'];
                     $kpiScore = $academic['score'];
                     $details['kpi'] = ['fund' => $academic['fund'], 'score' => $academic['score'], 'evaluation_id' => $academic['evaluation_id'], 'items' => $academic['items']];
+                } elseif ($user->roles->contains('name', Roles::ADMIN)) {
+                    // Admin không chốt KPI / không có tiền KPI: phiếu chỉ hiện % KPI của chính họ nếu có.
+                    $kpiSource = PayrollRecord::KPI_SELF;
+                    $kpiScore = $formula->ownKpiScoreFor($user, (int) $this->month, (int) $this->year);
                 } else {
                     $kpiSource = PayrollRecord::KPI_MANUAL;
                 }

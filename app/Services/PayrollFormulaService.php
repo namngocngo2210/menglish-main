@@ -11,6 +11,7 @@ use App\Models\PayrollRecord;
 use App\Models\Student;
 use App\Models\TuitionReceipt;
 use App\Models\User;
+use App\Services\Kpi\KpiSheetService;
 use App\Support\Roles;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
@@ -71,6 +72,30 @@ class PayrollFormulaService
         }
 
         return ['employee_type' => PayrollRecord::TYPE_FULLTIME, 'salary_role' => 'staff', 'department' => $fallbackDepartment];
+    }
+
+    /**
+     * Lương cơ bản tính vào kỳ: Part-time không có; hợp đồng bắt đầu sau ngày cuối kỳ thì kỳ đó chưa có lương cơ bản
+     * (tính lại kỳ cũ không sinh phiếu cho người vào làm sau kỳ).
+     */
+    public function baseSalaryFor(User $user, CarbonInterface $periodEnd): float
+    {
+        if ($this->profile($user)['employee_type'] === PayrollRecord::TYPE_PARTTIME) {
+            return 0.0;
+        }
+        if ($user->contract_start_date && $user->contract_start_date->copy()->startOfDay()->gt($periodEnd->copy()->endOfDay())) {
+            return 0.0;
+        }
+
+        return (float) max(0, (float) $user->base_salary);
+    }
+
+    /** % KPI của chính Admin trong kỳ (phiếu KPI chính đã chốt của kỳ chứa tháng này): chỉ để xem, không thành tiền. */
+    public function ownKpiScoreFor(User $user, int $month, int $year): ?float
+    {
+        $evaluation = KpiSheetService::evaluationFor($user, $month, $year);
+
+        return $evaluation?->status === KpiEvaluation::STATUS_APPROVED ? round((float) $evaluation->total_score, 2) : null;
     }
 
     /**
