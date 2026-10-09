@@ -38,6 +38,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use RuntimeException;
 
 /**
  * Dữ liệu demo phần lương (Phase 5): chấm công điện thoại, đơn xin duyệt, giờ dạy, KPI mọi vai trò, bảng lương kỳ đang soát.
@@ -1416,7 +1417,12 @@ class DemoPayrollSeeder extends Seeder
         $this->at($now);
         $this->calculateExcludingNewStaff($period);
         $this->at($now);
-        $this->asUser($admin, PayrollController::class, 'approvePeriod', [], ['id' => $period->id]);
+        // Nhân sự sẵn có trên hệ thống (ngoài demo) chưa chốt KPI… thì không duyệt được: để kỳ "Đang soát", không chốt hộ.
+        try {
+            $this->asUser($admin, PayrollController::class, 'approvePeriod', [], ['id' => $period->id]);
+        } catch (RuntimeException $e) {
+            $this->command?->warn("{$e->getMessage()} → kỳ {$period->code} để ở \"Đang soát\".");
+        }
         // Biên bản tháng trước đã trừ lương → nhân sự khắc phục; kỳ tháng này tính lại để trừ biên bản quá hạn nộp.
         foreach ($this->deductedPenalties as $penalty) {
             if ($penalty->fresh()->status === 'deducted') {

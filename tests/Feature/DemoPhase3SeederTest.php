@@ -11,8 +11,12 @@ use App\Models\Penalty;
 use App\Models\TeacherHourlyRate;
 use App\Models\TeacherTimesheet;
 use App\Models\User;
+use App\Support\Roles;
+use Database\Seeders\BranchSeeder;
 use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\DemoPhase3Seeder;
+use Database\Seeders\PermissionSeeder;
+use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia;
@@ -103,5 +107,29 @@ class DemoPhase3SeederTest extends TestCase
         $this->actingAs($teacher)->get(route('portal.my-salary'))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->where('record.payroll_period_id', $last->id));
         $this->actingAs($teacher)->get(route('portal.my-salary', ['period_id' => $current->id]))->assertNotFound();
+    }
+
+    public function test_demo_seed_on_a_system_with_existing_staff_leaves_last_month_open_instead_of_failing(): void
+    {
+        // Production chạy thử: đã có nhân sự thật, chấm công tháng trước ghi ở thời điểm thật (sau mốc duyệt giả lập) và KPI chưa chốt.
+        $this->travelTo(now()->startOfMonth()->addDays(14)->setTime(12, 0));
+        $this->seed([BranchSeeder::class, PermissionSeeder::class, RoleSeeder::class]);
+        $staff = User::create([
+            'name' => 'Nhân sự đang dùng thử', 'email' => 'that@example.com', 'password' => 'secret-password',
+            'is_active' => true, 'base_salary' => 7000000, 'contract_type' => 'Toàn thời gian', 'contract_start_date' => now()->subYear()->toDateString(),
+        ]);
+        $staff->syncRoles([Roles::ASSISTANT]);
+        DB::table('staff_attendances')->insert([
+            'user_id' => $staff->id, 'work_date' => now()->subMonthNoOverflow()->startOfMonth()->addDays(9)->toDateString(),
+            'source' => 'mobile', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->seed(DatabaseSeeder::class);
+
+        $last = PayrollPeriod::where('year', now()->subMonthNoOverflow()->year)->where('month', now()->subMonthNoOverflow()->month)->firstOrFail();
+        $this->assertSame('reviewing', $last->status);
+        $this->assertFalse($last->hasChangesSinceCalculation());
+        $this->assertTrue($last->records()->where('user_id', $staff->id)->exists());
+        $this->assertTrue(TeacherHourlyRate::where('note', 'like', '%'.DemoPhase3Seeder::MARKER.'%')->exists());
     }
 }
