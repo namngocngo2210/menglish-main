@@ -53,9 +53,9 @@ class DeployHookController extends Controller
 
         // Seed:
         //  - "bootstrap": vai trò, quyền, danh mục + 1 Admin từ .env — chỉ khi database CHƯA có người dùng (cài mới, kể cả production).
-        //  - "demo": toàn bộ DatabaseSeeder (tài khoản & dữ liệu demo).
-        //  - "demo-luong": dữ liệu mẫu phần lương (php artisan demo:luong), chạy sau "demo".
-        //  Hai loại demo bị chặn trên production, trừ khi deploy tích "demo_on_production" (production chưa dùng thật)
+        //  - "demo": toàn bộ DatabaseSeeder (tài khoản & dữ liệu demo) rồi dữ liệu mẫu phần lương (chấm công, vi phạm, KPI,
+        //    bảng lương — php artisan demo:luong) trong cùng một lần. "demo-luong" (tên cũ) chạy y như "demo".
+        //  Seed demo bị chặn trên production, trừ khi deploy tích "demo_on_production" (production chưa dùng thật)
         //  VÀ .env đặt SEED_DEFAULT_PASSWORD riêng: tài khoản demo (kể cả Admin) không được mang mật khẩu mặc định ra internet.
         $seed = (string) $request->input('seed', '');
         $demoOnProduction = $request->boolean('allow_production_demo');
@@ -70,14 +70,14 @@ class DeployHookController extends Controller
                 $steps[] = ['command' => 'db:seed', 'exit' => 1, 'output' => 'Bị chặn: không chạy seed demo trên production (tích demo_on_production khi deploy nếu production chưa dùng thật).'];
             } elseif (app()->environment('production') && ! $this->hasOwnSeedPassword()) {
                 $steps[] = ['command' => 'db:seed', 'exit' => 1, 'output' => 'Bị chặn: đặt SEED_DEFAULT_PASSWORD (≥ 10 ký tự, khác mặc định) trong .env trước khi seed demo trên production.'];
-            } elseif ($seed === 'demo-luong') {
-                $run('db:seed', ['--class' => DemoPayrollSeeder::class, '--force' => true]);
             } else {
                 // DatabaseSeeder chỉ đổ dữ liệu nghiệp vụ mẫu (DemoPhase1–4) ngoài production hoặc khi bật seed_demo.
                 if ($demoOnProduction) {
                     config(['app.seed_demo' => true]);
                 }
-                $run('db:seed', ['--force' => true]);
+                if ($run('db:seed', ['--force' => true]) === 0) {
+                    $run('db:seed', ['--class' => DemoPayrollSeeder::class, '--force' => true]);
+                }
             }
         }
 
