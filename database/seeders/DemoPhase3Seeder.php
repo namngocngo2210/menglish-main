@@ -59,7 +59,8 @@ use RuntimeException;
  *   hồi → trừ vào kỳ tháng này của Sale.
  * - Bảng % thưởng tái tục (BA chốt 0 nghỉ → 1%, 1 nghỉ → 0,7%; các mốc khác chờ BA).
  * - Kỳ tháng trước: Kế toán tính → nhập bậc KPI giữ HS / KPI tự do / thuế TNCN / phụ cấp → tính lại → Admin duyệt (khóa).
- *   Kỳ tháng này: Kế toán tính + nhập tay + tính lại, để ở "Đang soát".
+ *   Kỳ tháng này: Kế toán tính + nhập tay + tính lại, để ở "Đang soát". Hệ thống đã có dữ liệu ghi ở thời điểm thật (sau
+ *   mốc duyệt giả lập, vd. production đang chạy thử) thì kỳ tháng trước được tính lại và duyệt ở thời điểm thật, sau cùng.
  *
  * Chạy cùng điều kiện với DemoPhase1Seeder / DemoPhase2Seeder (DatabaseSeeder). Idempotent: đánh dấu bằng ghi chú
  * "[demo-p3]" trên đơn giá GV — đã có thì bỏ qua toàn bộ luồng (chỉ in số liệu). Toàn bộ chạy trong 1 transaction.
@@ -130,6 +131,9 @@ class DemoPhase3Seeder extends Seeder
 
     private Carbon $realNow;
 
+    /** Kỳ tháng trước chưa duyệt được ở mốc giả lập vì dữ liệu sẵn có ghi sau mốc đó: duyệt ở thời điểm thật. */
+    private bool $approveLastMonthAtRealNow = false;
+
     private Carbon $lastMonth;
 
     private Carbon $thisMonth;
@@ -169,6 +173,12 @@ class DemoPhase3Seeder extends Seeder
                 $this->backdateEarlierSeeds();
                 $this->planEvents();
                 $this->runEvents();
+                if ($this->approveLastMonthAtRealNow) {
+                    Carbon::setTestNow($this->realNow);
+                    $period = $this->periodFor($this->lastMonth);
+                    $this->asUser($this->staff['admin'], PayrollController::class, 'calculatePeriod', [], ['id' => $period->id]);
+                    $this->approveLastMonth($period);
+                }
             });
         } finally {
             Carbon::setTestNow($previousTestNow);
@@ -266,9 +276,16 @@ class DemoPhase3Seeder extends Seeder
         $this->event($C->copy()->addDays(2)->setTime(9, 0), function () {
             $period = $this->periodFor($this->lastMonth);
             // Đang ở ngày 1–2 của tháng (chưa qua chốt công / lỗi) thì kỳ tháng trước chưa duyệt được — để mở.
-            if ($period->canApproveAt()) {
-                $this->asUser($this->staff['admin'], PayrollController::class, 'approvePeriod', [], ['id' => $period->id]);
+            if (! $period->canApproveAt()) {
+                return;
             }
+            // Dữ liệu sẵn có trên hệ thống mang thời điểm ghi thật (sau mốc này) làm kỳ "đổi sau lần tính": để duyệt sau cùng.
+            if ($period->hasChangesSinceCalculation()) {
+                $this->approveLastMonthAtRealNow = true;
+
+                return;
+            }
+            $this->approveLastMonth($period);
         });
 
         // Tháng này: tick mốc chăm sóc, hoàn phí có thu hồi hoa hồng.
@@ -628,7 +645,7 @@ class DemoPhase3Seeder extends Seeder
     {
         $path = tempnam(sys_get_temp_dir(), 'refund-proof');
         file_put_contents($path, base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='));
-        $file = new \Illuminate\Http\UploadedFile($path, 'uy-nhiem-chi.png', 'image/png', null, true);
+        $file = new UploadedFile($path, 'uy-nhiem-chi.png', 'image/png', null, true);
         $pending = true;
         app()->rebinding('request', function ($app, $request) use ($file, &$pending) {
             if ($pending && $request->getPathInfo() === '/demo-seed') {
@@ -679,6 +696,19 @@ class DemoPhase3Seeder extends Seeder
         $this->asUser($accountant, PayrollController::class, 'calculatePeriod', [], ['id' => $period->id]);
 
         return $period->refresh();
+    }
+
+    /**
+     * Admin duyệt kỳ tháng trước. Nhân sự sẵn có trên hệ thống (ngoài demo) chưa chốt KPI… thì không duyệt được: để kỳ ở
+     * "Đang soát" và cảnh báo, không chốt hộ dữ liệu không phải của demo.
+     */
+    private function approveLastMonth(PayrollPeriod $period): void
+    {
+        try {
+            $this->asUser($this->staff['admin'], PayrollController::class, 'approvePeriod', [], ['id' => $period->id]);
+        } catch (RuntimeException $e) {
+            $this->command?->warn("{$e->getMessage()} → kỳ {$period->code} để ở \"Đang soát\".");
+        }
     }
 
     private function calculateLastMonth(): void
