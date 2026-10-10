@@ -39,8 +39,12 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        // Luôn vào trang đầu của tài khoản vừa đăng nhập, bỏ url.intended: trang đó thường do tài khoản trước để lại
+        // (đăng xuất / hết phiên khi đang ở màn cần quyền) và tài khoản mới có thể không có quyền → 403.
+        $request->session()->forget('url.intended');
+
         // Phiên vừa đổi (token CSRF, user) → tải lại hẳn trang đích (Inertia: 409 + X-Inertia-Location); request thường: redirect như cũ.
-        return Inertia::location(redirect()->intended($this->homeUrl($request->user())));
+        return Inertia::location(redirect($this->homeUrl($request->user())));
     }
 
     /**
