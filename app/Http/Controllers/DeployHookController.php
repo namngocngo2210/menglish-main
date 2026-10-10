@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Database\Seeders\DemoPayrollSeeder;
 use Database\Seeders\ProductionBootstrapSeeder;
+use Dotenv\Dotenv;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -59,6 +60,12 @@ class DeployHookController extends Controller
         //  VÀ .env đặt SEED_DEFAULT_PASSWORD riêng: tài khoản demo (kể cả Admin) không được mang mật khẩu mặc định ra internet.
         $seed = (string) $request->input('seed', '');
         $demoOnProduction = $request->boolean('allow_production_demo');
+        // Request này chạy với config đã cache từ lần deploy trước (config:clear chỉ xoá file): đọc lại mật khẩu seed
+        // từ .env để tài khoản demo nhận đúng giá trị vừa sửa trong .env, không phải giá trị cũ trong cache.
+        $envPassword = app()->runningInConsole() ? null : $this->envSeedPassword();
+        if ($envPassword !== null) {
+            config(['access.seed_password' => $envPassword]);
+        }
         if ($migrateCode === 0 && in_array($seed, ['bootstrap', 'demo', 'demo-luong', '1'], true)) {
             if ($seed === 'bootstrap') {
                 if (User::query()->exists()) {
@@ -95,6 +102,17 @@ class DeployHookController extends Controller
         $ok = collect($steps)->every(fn ($step) => $step['exit'] === 0);
 
         return response()->json(['ok' => $ok, 'steps' => $steps], $ok ? 200 : 500);
+    }
+
+    private function envSeedPassword(): ?string
+    {
+        try {
+            $values = Dotenv::createArrayBacked(app()->environmentPath(), app()->environmentFile())->safeLoad();
+        } catch (Throwable) {
+            return null;
+        }
+
+        return isset($values['SEED_DEFAULT_PASSWORD']) && $values['SEED_DEFAULT_PASSWORD'] !== '' ? $values['SEED_DEFAULT_PASSWORD'] : null;
     }
 
     private function hasOwnSeedPassword(): bool

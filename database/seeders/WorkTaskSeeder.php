@@ -12,6 +12,8 @@ use App\Models\Student;
 use App\Models\User;
 use App\Models\WorkTask;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Role;
 
 class WorkTaskSeeder extends Seeder
 {
@@ -19,44 +21,52 @@ class WorkTaskSeeder extends Seeder
     {
         $branchCG = Branch::where('code', 'CG')->first() ?? Branch::first();
         $admin = User::where('email', 'admin@menglish.edu.vn')->first() ?? User::first();
-        
-        \Spatie\Permission\Models\Role::findOrCreate('assistant', 'web');
-        
-        // Tạo thêm các TA (Trợ giảng) nếu chưa có
+
+        Role::findOrCreate('assistant', 'web');
+
+        // Tạo thêm các TA (Trợ giảng) nếu chưa có. Mật khẩu chung của tài khoản demo (SEED_DEFAULT_PASSWORD), đặt lại mỗi
+        // lần seed để khớp các tài khoản UserSeeder.
+        $password = Hash::make(config('access.seed_password'));
         $ta1 = User::firstOrCreate(
             ['email' => 'ta.tuan@menglish.edu.vn'],
-            ['name' => 'Trần Anh Tuấn', 'phone' => '0912000001', 'branch_id' => $branchCG?->id, 'password' => bcrypt('Password123!'), 'is_active' => true]
+            ['name' => 'Trần Anh Tuấn', 'phone' => '0912000001', 'branch_id' => $branchCG?->id, 'password' => $password, 'is_active' => true]
         );
+        $ta1->forceFill(['password' => $password])->save();
         $ta1->syncRoles(['assistant']);
 
         $ta2 = User::firstOrCreate(
             ['email' => 'ta.tram@menglish.edu.vn'],
-            ['name' => 'Mai Ngọc Trâm', 'phone' => '0912000002', 'branch_id' => $branchCG?->id, 'password' => bcrypt('Password123!'), 'is_active' => true]
+            ['name' => 'Mai Ngọc Trâm', 'phone' => '0912000002', 'branch_id' => $branchCG?->id, 'password' => $password, 'is_active' => true]
         );
+        $ta2->forceFill(['password' => $password])->save();
         $ta2->syncRoles(['assistant']);
 
         $ta3 = User::firstOrCreate(
             ['email' => 'ta.yen@menglish.edu.vn'],
-            ['name' => 'Lê Hải Yến', 'phone' => '0912000003', 'branch_id' => $branchCG?->id, 'password' => bcrypt('Password123!'), 'is_active' => true]
+            ['name' => 'Lê Hải Yến', 'phone' => '0912000003', 'branch_id' => $branchCG?->id, 'password' => $password, 'is_active' => true]
         );
+        $ta3->forceFill(['password' => $password])->save();
         $ta3->syncRoles(['assistant']);
 
         $ta4 = User::firstOrCreate(
             ['email' => 'ta.thu@menglish.edu.vn'],
-            ['name' => 'Phạm Thị Thu', 'phone' => '0912000004', 'branch_id' => $branchCG?->id, 'password' => bcrypt('Password123!'), 'is_active' => true]
+            ['name' => 'Phạm Thị Thu', 'phone' => '0912000004', 'branch_id' => $branchCG?->id, 'password' => $password, 'is_active' => true]
         );
+        $ta4->forceFill(['password' => $password])->save();
         $ta4->syncRoles(['assistant']);
 
         $ta5 = User::firstOrCreate(
             ['email' => 'ta.hai@menglish.edu.vn'],
-            ['name' => 'Hoàng Văn Hải', 'phone' => '0912000005', 'branch_id' => $branchCG?->id, 'password' => bcrypt('Password123!'), 'is_active' => true]
+            ['name' => 'Hoàng Văn Hải', 'phone' => '0912000005', 'branch_id' => $branchCG?->id, 'password' => $password, 'is_active' => true]
         );
+        $ta5->forceFill(['password' => $password])->save();
         $ta5->syncRoles(['assistant']);
 
         $ta6 = User::firstOrCreate(
             ['email' => 'ta.linh@menglish.edu.vn'],
-            ['name' => 'Nguyễn Thu Linh', 'phone' => '0912000006', 'branch_id' => $branchCG?->id, 'password' => bcrypt('Password123!'), 'is_active' => true]
+            ['name' => 'Nguyễn Thu Linh', 'phone' => '0912000006', 'branch_id' => $branchCG?->id, 'password' => $password, 'is_active' => true]
         );
+        $ta6->forceFill(['password' => $password])->save();
         $ta6->syncRoles(['assistant']);
 
         $classIE = ClassModel::where('code', 'IE-2408')->first();
@@ -265,7 +275,7 @@ class WorkTaskSeeder extends Seeder
 
         foreach ($tasks as $t) {
             // Đánh dấu dữ liệu seed bằng tiền tố "# "
-            $t['title'] = '# ' . $t['title'];
+            $t['title'] = '# '.$t['title'];
             // Idempotent: chạy lại db:seed không nhân bản việc mẫu.
             WorkTask::firstOrCreate(['title' => $t['title'], 'assignee_id' => $t['assignee_id']], $t);
         }

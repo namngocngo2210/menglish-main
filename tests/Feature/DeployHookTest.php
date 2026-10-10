@@ -7,6 +7,7 @@ use App\Models\ClassModel;
 use App\Models\User;
 use App\Support\DataScope;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -103,6 +104,10 @@ class DeployHookTest extends TestCase
         $this->assertStringContainsString('DemoPayrollSeeder', $seeded[1]['output']);
         $this->assertTrue(ClassModel::where('code', 'DEMO-CG-IF1')->exists());
         $this->assertTrue(User::where('email', 'gv.minhduc@menglish.edu.vn')->exists());
+        // Mọi tài khoản nhân sự demo đăng nhập được bằng đúng SEED_DEFAULT_PASSWORD (không còn tài khoản mang mật khẩu mặc định).
+        $staff = User::where('email', 'like', '%@menglish.edu.vn')->get();
+        $this->assertGreaterThan(30, $staff->count());
+        $this->assertSame([], $staff->reject(fn (User $user) => Hash::check('Demo-Only-Pass-2026', $user->password))->pluck('email')->values()->all());
     }
 
     public function test_bootstrap_seed_creates_single_admin_only_on_empty_database(): void
