@@ -280,7 +280,7 @@ class Phase4PlatformParityTest extends TestCase
         // IX-3: form Giao việc không nhúng sẵn trong danh sách nữa — nút mở modal chung tải tasks.create.
         $this->actingAs($academic)->get(route('tasks.index'))->assertOk()
             ->assertSee('href="'.route('tasks.create', absolute: false).'"', false)
-            ->assertSeeInOrder(['Của tôi', 'Tôi giao', 'Tất cả']);
+            ->assertSeeInOrder(['Của tôi', 'Tôi giao']);
         $this->actingAs($academic)->get(route('tasks.create'), ['X-Remote-Modal' => 'true'])->assertOk()
             ->assertSee('Giao việc mới')->assertSee('Lưu và Giao việc')
             ->assertSee($teacher->name.' (Giáo viên Full-time)')          // nhãn vai trò, không phải mã "teacher_fulltime"

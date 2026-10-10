@@ -42,7 +42,7 @@ defineProps({ dashboard: { type: Object, required: true } });
         <div v-if="['admin', 'manager'].includes(dashboard.type)" class="rounded-xl border border-surface-variant bg-surface-container-lowest">
             <div class="flex items-center justify-between border-b border-surface-variant px-md py-sm">
                 <h3 class="font-h3 text-h3 text-on-surface">Việc quá hạn cần xử lý</h3>
-                <Link :href="route('tasks.index', { tab: 'all', status: 'overdue' })" class="font-body-small text-body-small text-primary hover:underline">Xem danh sách</Link>
+                <Link :href="route('tasks.index', { tab: 'assigned', status: 'overdue' })" class="font-body-small text-body-small text-primary hover:underline">Xem danh sách</Link>
             </div>
             <div v-for="task in dashboard.overdueTasks" :key="task.id" class="flex items-center justify-between gap-sm border-b border-surface-variant/60 px-md py-sm last:border-0">
                 <div class="min-w-0">

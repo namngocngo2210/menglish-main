@@ -248,13 +248,12 @@ class Phase4PlatformTest extends TestCase
         $this->actingAs($manager)->get(route('classes.edit', $classB->id))->assertForbidden();
         $this->actingAs($manager)->get(route('classes.edit', $classA->id))->assertOk();
 
-        WorkTask::create(['title' => 'Việc chi nhánh A', 'creator_id' => $this->admin->id, 'assignee_id' => $staffA->id, 'branch_id' => $this->branchA->id, 'due_date' => now()->addDay(), 'task_type' => 'one_time', 'status' => 'new']);
-        WorkTask::create(['title' => 'Việc chi nhánh B', 'creator_id' => $this->admin->id, 'assignee_id' => $staffB->id, 'branch_id' => $this->branchB->id, 'due_date' => now()->addDay(), 'task_type' => 'one_time', 'status' => 'new']);
+        $taskA = WorkTask::create(['title' => 'Việc chi nhánh A', 'creator_id' => $this->admin->id, 'assignee_id' => $staffA->id, 'branch_id' => $this->branchA->id, 'due_date' => now()->addDay(), 'task_type' => 'one_time', 'status' => 'new']);
+        $taskB = WorkTask::create(['title' => 'Việc chi nhánh B', 'creator_id' => $this->admin->id, 'assignee_id' => $staffB->id, 'branch_id' => $this->branchB->id, 'due_date' => now()->addDay(), 'task_type' => 'one_time', 'status' => 'new']);
 
-        $this->actingAs($manager)->get(route('tasks.index', ['tab' => 'all']))
-            ->assertOk()
-            ->assertSee('Việc chi nhánh A')
-            ->assertDontSee('Việc chi nhánh B');
+        // Danh sách đầu việc chỉ gồm việc của tôi / tôi giao; mở chi tiết vẫn theo phạm vi chi nhánh.
+        $this->actingAs($manager)->get(route('tasks.show', $taskA->id))->assertOk();
+        $this->actingAs($manager)->get(route('tasks.show', $taskB->id))->assertNotFound();
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -364,7 +363,7 @@ class Phase4PlatformTest extends TestCase
         $mine = WorkTask::create(['title' => 'Việc của tôi', 'creator_id' => $academic->id, 'assignee_id' => $teacher->id, 'due_date' => now()->addDay(), 'task_type' => 'one_time', 'status' => 'new']);
         $notMine = WorkTask::create(['title' => 'Việc người khác', 'creator_id' => $academic->id, 'assignee_id' => $other->id, 'due_date' => now()->addDay(), 'task_type' => 'one_time', 'status' => 'new']);
 
-        $this->actingAs($teacher)->get(route('tasks.index', ['tab' => 'all']))
+        $this->actingAs($teacher)->get(route('tasks.index', ['tab' => 'mine']))
             ->assertOk()
             ->assertSee('Việc của tôi')
             ->assertDontSee('Việc người khác');

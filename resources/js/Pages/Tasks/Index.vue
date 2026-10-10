@@ -19,7 +19,6 @@ const props = defineProps({
     status: { type: String, default: 'all' },
     assignees: { type: Array, default: () => [] },
     counts: { type: Object, required: true },
-    canViewAll: { type: Boolean, default: false },
 });
 
 const statuses = [
@@ -68,7 +67,7 @@ function openTask(event, task) {
         <template #actions>
             <UiButton v-if="can('work_task.approve')" variant="secondary" icon="fact_check" :href="route('tasks.manual-approvals')">
                 Chờ xác nhận
-                <span v-if="counts.pending > 0" class="rounded-full bg-error px-1.5 font-code text-caption text-white">{{ counts.pending }}</span>
+                <span v-if="counts.approvals > 0" class="rounded-full bg-error px-1.5 font-code text-caption text-white">{{ counts.approvals }}</span>
             </UiButton>
             <UiButton v-if="canCreate" icon="add" :href="route('tasks.create')" modal="2xl">
                 {{ can('work_task.create') ? 'Tạo đầu việc' : 'Đề xuất việc cho Admin / Học vụ' }}
@@ -78,8 +77,8 @@ function openTask(event, task) {
 
     <div id="task-list">
         <div class="mb-md grid grid-cols-2 gap-md sm:grid-cols-4">
-            <UiStatCard label="Tất cả công việc" :value="counts.all" icon="assignment" />
             <UiStatCard label="Việc của tôi" :value="counts.mine" icon="person" tone="primary" />
+            <UiStatCard label="Việc tôi giao" :value="counts.assigned" icon="assignment" />
             <UiStatCard label="Chờ xác nhận" :value="counts.pending" icon="pending_actions" tone="warning" />
             <UiStatCard label="Quá hạn" :value="counts.overdue" icon="warning" tone="error" />
         </div>
@@ -97,7 +96,6 @@ function openTask(event, task) {
                 <UiTabs class="border-0">
                     <UiTab :href="urlWith({ page: null, tab: 'mine' })" :active="tab === 'mine'" :count="counts.mine">Của tôi</UiTab>
                     <UiTab :href="urlWith({ page: null, tab: 'assigned' })" :active="tab === 'assigned'" :count="counts.assigned">Tôi giao</UiTab>
-                    <UiTab v-if="canViewAll" :href="urlWith({ page: null, tab: 'all' })" :active="tab === 'all'" :count="counts.all">Tất cả</UiTab>
                 </UiTabs>
             </template>
             <table>
