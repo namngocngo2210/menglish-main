@@ -43,6 +43,23 @@ class AuthenticationTest extends TestCase
         }
     }
 
+    public function test_login_ignores_the_page_left_by_the_previous_account(): void
+    {
+        $this->seed(\Database\Seeders\PermissionSeeder::class);
+        $this->seed(\Database\Seeders\RoleSeeder::class);
+
+        // Đang ở trang cần quyền thì bị đăng xuất / hết phiên → guest mở lại trang đó, Laravel nhớ nó làm url.intended.
+        $this->get(route('academic.dashboards.reports'))->assertRedirect(route('login'));
+
+        $assistant = User::factory()->create();
+        $assistant->assignRole('assistant');
+
+        // Tài khoản khác đăng nhập: vào trang đầu của chính nó, không bị đưa về trang cũ (403).
+        $this->post('/login', ['email' => $assistant->email, 'password' => 'password'])
+            ->assertRedirect(route('portal.ta-tasks', absolute: false));
+        $this->assertNull(session('url.intended'));
+    }
+
     public function test_login_screen_is_in_vietnamese(): void
     {
         $this->get('/login')
