@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\AclHelper;
 use App\Models\AdminNotification;
 use App\Models\ClassModel;
 use App\Models\Penalty;
@@ -67,7 +68,7 @@ class PenaltyController extends Controller
             ->withQueryString();
 
         $users = $canViewAll
-            ? User::where('is_active', true)->whereNotIn('id', \App\Support\Rbac::scopeUsersWithPermission(User::query(), 'portal.student')->select('id'))->orderBy('name')->get()
+            ? User::with('roles:id,name')->where('is_active', true)->whereNotIn('id', \App\Support\Rbac::scopeUsersWithPermission(User::query(), 'portal.student')->select('id'))->orderBy('name')->get()
             : collect();
         $classes = $canViewAll ? ClassModel::orderBy('name')->get() : collect();
 
@@ -125,6 +126,7 @@ class PenaltyController extends Controller
             'users' => $users->map(fn (User $u) => [
                 'value' => $u->id,
                 'label' => $u->name.($u->employee_code ? ' — '.$u->employee_code : '').' ('.$u->email.')',
+                'roles' => $u->roles->pluck('name')->values(),
             ])->values(),
             'classes' => Ui::options($classes, 'name'),
             'canViewAll' => $canViewAll,
@@ -138,7 +140,14 @@ class PenaltyController extends Controller
             'categoryOptions' => Ui::options(collect(Penalty::CATEGORIES)->map(fn ($c) => $c['label'])),
             'categoryConfirmerOptions' => Ui::options(collect(Penalty::CATEGORIES)->map(fn ($c) => $c['label'].' — '.$c['confirmer'])),
             'statusOptions' => Ui::options(['open' => 'Đang xử lý (chưa đóng)', 'overdue' => 'Quá hạn nộp'] + Penalty::statusLabels()),
-            'commonViolations' => collect(Penalty::COMMON_VIOLATIONS)->flatten()->values(),
+            // Lỗi thường gặp theo vai trò: ô "Lỗi vi phạm" chỉ gợi ý lỗi của vai trò nhân sự được chọn.
+            'roleViolations' => collect(array_keys(Penalty::ROLE_VIOLATIONS))->mapWithKeys(fn (string $role) => [$role => [
+                'label' => AclHelper::shortRoleLabel($role),
+                'violations' => collect(Penalty::commonViolationsFor([$role]))
+                    ->map(fn (string $category, string $type) => ['value' => $type, 'category' => $category])->values(),
+            ]]),
+            'allViolations' => collect(Penalty::commonViolationsFor([]))
+                ->map(fn (string $category, string $type) => ['value' => $type, 'category' => $category])->values(),
             'lockedPenalty' => session('locked_penalty'),
             'paymentDueDays' => Penalty::paymentDueDays(),
             // Ô "Thời điểm vi phạm" chỉ cho chọn trong N giờ gần nhất (SLA penalty.record_window; server kiểm tra lại khi lưu).
@@ -195,7 +204,7 @@ class PenaltyController extends Controller
             'user_id' => $validated['user_id'],
             'class_id' => $validated['class_id'] ?? null,
             'violation_type' => $validated['violation_type'],
-            'error_category' => $validated['error_category'] ?? $this->guessCategory($validated['violation_type']),
+            'error_category' => $this->categoryFor($validated['violation_type'], (int) $validated['user_id'], $validated['error_category'] ?? null),
             'violation_date' => $violationAt->toDateString(),
             'violation_at' => $violationAt,
             'amount' => $validated['amount'] ?? 0,
@@ -382,16 +391,15 @@ class PenaltyController extends Controller
         return redirect()->back()->with('status', "Đã hủy bỏ biên bản vi phạm {$penalty->code}!");
     }
 
-    /** Loại lỗi mặc định theo danh sách lỗi thường gặp (không khớp → lỗi vận hành). */
-    private function guessCategory(string $violationType): string
+    /**
+     * Loại lỗi của biên bản: lỗi thường gặp của vai trò nhân sự vi phạm thì theo lỗi (đúng người chốt); lỗi tự mô tả theo loại
+     * người lập chọn, không chọn → lỗi vận hành.
+     */
+    private function categoryFor(string $violationType, int $userId, ?string $chosen): string
     {
-        foreach (Penalty::COMMON_VIOLATIONS as $category => $types) {
-            if (in_array($violationType, $types, true)) {
-                return $category;
-            }
-        }
+        $roles = User::find($userId)?->getRoleNames() ?? [];
 
-        return 'operations';
+        return Penalty::commonViolationsFor($roles)[$violationType] ?? $chosen ?? 'operations';
     }
 
     /** Biên bản đã nằm trong kỳ lương đã duyệt/chi trả thì không được đổi trạng thái nữa. */
