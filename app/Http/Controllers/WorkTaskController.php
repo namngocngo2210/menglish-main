@@ -53,13 +53,10 @@ class WorkTaskController extends Controller
     {
         $currentUser = Auth::user();
         $currentUserId = Auth::id();
-        // Tab "Tất cả" chỉ dành cho người có quyền duyệt công việc; người khác
-        // chỉ thấy việc mình được giao hoặc mình tạo.
-        $canViewAll = $currentUser->can('work_task.approve');
-        // Tab mặc định (giao diện): Super Admin mở "Tất cả", người khác "Việc của tôi".
-        $defaultTab = ($currentUser && $currentUser->isSuperAdmin()) ? 'all' : 'mine';
-        $tab = $request->get('tab', $defaultTab); // 'mine', 'assigned', 'all'
-        if (! in_array($tab, ['mine', 'assigned', 'all'], true) || ($tab === 'all' && ! $canViewAll)) {
+        // Danh sách chỉ gồm việc mình được giao (tab "Của tôi") và việc mình giao (tab "Tôi giao"),
+        // kể cả Admin — không còn tab "Tất cả". Việc chờ duyệt của người khác xem ở màn "Chờ xác nhận".
+        $tab = $request->get('tab', 'mine');
+        if (! in_array($tab, ['mine', 'assigned'], true)) {
             $tab = 'mine';
         }
         $status = $request->get('status', 'all');
@@ -75,11 +72,7 @@ class WorkTaskController extends Controller
         $query = WorkTask::with(['creator', 'assignee.roles', 'branch', 'classModel']);
         $this->scopeVisibleTasks($query, $currentUser);
 
-        if ($tab === 'mine') {
-            $query->where('assignee_id', $currentUserId);
-        } elseif ($tab === 'assigned') {
-            $query->where('creator_id', $currentUserId);
-        }
+        $query->where($tab === 'mine' ? 'assignee_id' : 'creator_id', $currentUserId);
 
         if ($status !== 'all' && ! empty($status)) {
             $query->where('status', $status);
@@ -124,18 +117,21 @@ class WorkTaskController extends Controller
         ")->latest()->paginate($request->perPage(10))->withQueryString();
 
         // Form "Giao việc" tải riêng qua modal (tasks.create) nên danh sách không cần nạp nhân sự / chi nhánh / lớp.
-        $visible = fn () => $this->scopeVisibleTasks(WorkTask::query(), $currentUser);
+        // Số đếm và ô "Nhân viên" cũng chỉ tính việc của tôi + việc tôi giao.
+        $own = fn () => $this->scopeVisibleTasks(WorkTask::query(), $currentUser)
+            ->where(fn ($q) => $q->where('assignee_id', $currentUserId)->orWhere('creator_id', $currentUserId));
         $counts = [
-            'all' => $visible()->count(),
             'mine' => WorkTask::where('assignee_id', $currentUserId)->count(),
             'assigned' => WorkTask::where('creator_id', $currentUserId)->count(),
-            'overdue' => $visible()->where('status', 'overdue')->count(),
-            'pending' => $visible()->where('status', 'pending_confirmation')->count(),
+            'overdue' => $own()->where('status', 'overdue')->count(),
+            'pending' => $own()->where('status', 'pending_confirmation')->count(),
+            // Nút "Chờ xác nhận": số việc đang chờ chính người này xác nhận.
+            'approvals' => WorkTask::query()->awaitingConfirmationBy($currentUser)->count(),
         ];
 
-        // Ô "Nhân viên": người nhận của các việc trong phạm vi được xem.
+        // Ô "Nhân viên": người nhận của các việc trong danh sách.
         $assignees = User::query()
-            ->whereIn('id', $visible()->whereNotNull('assignee_id')->select('assignee_id'))
+            ->whereIn('id', $own()->whereNotNull('assignee_id')->select('assignee_id'))
             ->with('roles')->orderBy('name')->get();
 
         $viewAssistantSlot = fn (WorkTask $task) => $task->time_slot_category && $task->assignee?->can('portal.assistant');
@@ -162,7 +158,6 @@ class WorkTaskController extends Controller
             'status' => $status,
             'assignees' => Ui::options($assignees, self::userLabel(...)),
             'counts' => $counts,
-            'canViewAll' => $canViewAll,
         ]);
     }
 

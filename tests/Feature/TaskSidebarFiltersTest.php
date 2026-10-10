@@ -145,6 +145,43 @@ class TaskSidebarFiltersTest extends TestCase
         $this->assertDatabaseMissing('work_tasks', ['title' => 'Việc ngoài phạm vi']);
     }
 
+    /** Danh sách đầu việc chỉ có "Của tôi" và "Tôi giao" — kể cả Admin, không còn tab "Tất cả" việc của người khác. */
+    public function test_task_list_only_shows_my_tasks_and_tasks_i_assigned(): void
+    {
+        $admin = $this->makeUser('admin');
+        $academic = $this->makeUser('academic_staff');
+        $teacher = $this->makeUser('teacher');
+        $ta = $this->makeUser('assistant');
+
+        $make = fn (string $title, User $creator, User $assignee, string $status = 'new') => WorkTask::create([
+            'title' => $title, 'creator_id' => $creator->id, 'assignee_id' => $assignee->id, 'branch_id' => $this->branch->id,
+            'task_type' => 'one_time', 'due_date' => now()->addDay()->toDateString(), 'status' => $status,
+        ]);
+        $make('Việc giao cho Admin', $teacher, $admin);
+        $make('Việc Admin giao', $admin, $ta, 'overdue');
+        $make('Việc người khác', $academic, $teacher, 'overdue');
+        $make('Việc người khác chờ duyệt', $academic, $ta, 'pending_confirmation');
+
+        $props = fn (array $query = []) => $this->actingAs($admin)->get(route('tasks.index', $query))->assertOk()->viewData('page')['props'];
+        $titles = fn (array $props) => collect($props['tasks']['data'])->pluck('title')->all();
+
+        $page = $props();
+        $this->assertSame('mine', $page['tab']);
+        $this->assertSame(['Việc giao cho Admin'], $titles($page));
+        $this->assertSame(['Việc Admin giao'], $titles($props(['tab' => 'assigned'])));
+        // Tab "Tất cả" cũ quay về "Của tôi".
+        $this->assertSame(['Việc giao cho Admin'], $titles($props(['tab' => 'all'])));
+
+        $this->assertArrayNotHasKey('all', $page['counts']);
+        $this->assertSame(1, $page['counts']['mine']);
+        $this->assertSame(1, $page['counts']['assigned']);
+        $this->assertSame(1, $page['counts']['overdue']);
+        $this->assertSame(0, $page['counts']['pending']);
+        // Nút "Chờ xác nhận" vẫn đếm việc Admin cần duyệt.
+        $this->assertSame(1, $page['counts']['approvals']);
+        $this->assertEqualsCanonicalizing([$admin->id, $ta->id], collect($page['assignees'])->pluck('value')->all());
+    }
+
     public function test_teacher_assistant_and_accountant_can_open_their_notifications(): void
     {
         foreach (['teacher', 'teacher_fulltime', 'teacher_parttime', 'assistant', 'accountant'] as $role) {
