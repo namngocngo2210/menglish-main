@@ -69,7 +69,7 @@ class WorkTaskController extends Controller
             'assignee_id' => ['nullable', 'integer'],
         ]);
 
-        $query = WorkTask::with(['creator', 'assignee.roles', 'branch', 'classModel']);
+        $query = WorkTask::with(['creator', 'assignee.roles', 'handedBackFrom:id,name', 'branch', 'classModel']);
         $this->scopeVisibleTasks($query, $currentUser);
 
         $query->where($tab === 'mine' ? 'assignee_id' : 'creator_id', $currentUserId);
@@ -148,6 +148,7 @@ class WorkTaskController extends Controller
                 'class_label' => $task->classModel ? $task->classModel->name.($task->lesson_session ? ' · '.$task->lesson_session : '') : null,
                 'slot_label' => $viewAssistantSlot($task) ? $task->time_slot_category_label : null,
                 'blocked_reason' => $task->status === 'blocked' ? $task->blocked_reason : null,
+                'handed_back_from' => $task->handed_back_at && ! in_array($task->status, ['completed', 'canceled'], true) ? $task->handedBackFrom?->name : null,
                 'assignee' => $task->assignee?->name,
                 'creator' => $task->creator?->name,
                 'due_date' => $task->due_date?->toDateString(),
@@ -170,12 +171,16 @@ class WorkTaskController extends Controller
     /** Nhãn tần suất việc lặp. */
     private const FREQUENCIES = ['daily' => 'Hàng ngày', 'weekly' => 'Hàng tuần', 'monthly' => 'Hàng tháng'];
 
-    /** Nhãn nút chuyển trạng thái (việc đang chờ xác nhận mà trả về "Đang thực hiện" = "Trả về làm tiếp"). */
-    private static function transitionOptions(WorkTask $task, array $allowed): array
+    /**
+     * Nhãn nút chuyển trạng thái (việc đang chờ xác nhận mà trả về "Đang thực hiện" = "Trả về làm tiếp").
+     * "Chuyển lại cho người giao" với chính người giao là "Nhận lại việc".
+     */
+    private static function transitionOptions(WorkTask $task, array $allowed, User $user): array
     {
         $labels = [
             'in_progress' => $task->status === 'pending_confirmation' ? 'Trả về làm tiếp' : 'Đang thực hiện', 'blocked' => 'Bị chặn',
             'pending_confirmation' => 'Gửi chờ xác nhận', 'completed' => 'Xác nhận hoàn thành', 'canceled' => 'Hủy công việc',
+            self::HAND_BACK => (int) $task->creator_id === (int) $user->id ? 'Nhận lại việc' : 'Chuyển lại cho người giao',
         ];
 
         return array_map(fn (string $next) => ['value' => $next, 'label' => $labels[$next] ?? $next], $allowed);
@@ -212,11 +217,11 @@ class WorkTaskController extends Controller
     {
         $user = $request->user();
         $task = $this->scopeVisibleTasks(WorkTask::query(), $user)
-            ->with(['creator:id,name', 'assignee:id,name', 'branch:id,name', 'classModel:id,name,code', 'confirmedBy:id,name'])
+            ->with(['creator:id,name', 'assignee:id,name', 'handedBackFrom:id,name', 'branch:id,name', 'classModel:id,name,code', 'confirmedBy:id,name'])
             ->findOrFail($id);
         $allowed = self::allowedTransitions($task, $user);
 
-        return $this->modalPage('Tasks/Show', ['task' => $this->taskDetail($task), 'allowed' => self::transitionOptions($task, $allowed)]);
+        return $this->modalPage('Tasks/Show', ['task' => $this->taskDetail($task), 'allowed' => self::transitionOptions($task, $allowed, $user)]);
     }
 
     /** Dữ liệu chi tiết công việc (modal xem nhanh / trang đầy đủ). */
@@ -228,10 +233,13 @@ class WorkTaskController extends Controller
             'description' => $task->description,
             'status' => $task->status,
             'status_label' => $task->status_label,
+            'creator' => $task->creator?->name,
+            'creator_is_me' => (int) $task->creator_id === (int) Auth::id(),
             'slot_label' => $task->time_slot_category && $task->lesson_session ? $task->time_slot_category_label : null,
             'rows' => array_values(array_filter([
                 ['person', 'Người nhận', $task->assignee?->name ?? 'Chưa phân công'],
                 ['assignment_ind', 'Người giao', $task->creator?->name ?? '—'],
+                $task->handed_back_at ? ['undo', 'Chuyển lại từ', ($task->handedBackFrom?->name ?? '—').' · '.$task->handed_back_at->format('H:i d/m/Y')] : null,
                 ['event', 'Hạn hoàn thành', ($task->due_date?->format('d/m/Y') ?? '—').($task->due_time ? ' · '.substr($task->due_time, 0, 5) : '')],
                 ['repeat', 'Loại', $task->task_type_label.($task->frequency ? ' ('.(self::FREQUENCIES[$task->frequency] ?? $task->frequency).')' : '')],
                 ['apartment', 'Chi nhánh', $task->branch?->name ?? '—'],
@@ -301,7 +309,7 @@ class WorkTaskController extends Controller
     {
         $task = WorkTask::findOrFail($id);
         $request->validate([
-            'status' => 'required|string|in:'.implode(',', array_keys(self::STATUS_TRANSITIONS)),
+            'status' => 'required|string|in:'.implode(',', [...array_keys(self::STATUS_TRANSITIONS), self::HAND_BACK]),
             'reason' => 'nullable|string|max:1000',
             'note' => 'nullable|string|max:2000',
         ]);
@@ -318,6 +326,12 @@ class WorkTaskController extends Controller
                 : "Không thể chuyển công việc từ \"{$task->status_label}\" sang trạng thái này.";
 
             return back()->withErrors(['status' => $message]);
+        }
+
+        if ($status === self::HAND_BACK) {
+            $this->handBackToCreator($task, $user, $note ?? $reason);
+
+            return $this->modalSaved('Đã chuyển công việc lại cho người giao.', url()->previous(), 'success');
         }
 
         // Mockup "Thay đổi trạng thái": Bị chặn / Hủy bắt buộc ghi lý do.
@@ -353,6 +367,34 @@ class WorkTaskController extends Controller
 
         // Từ modal xem nhanh: đóng modal + làm mới danh sách; từ trang: quay lại như cũ.
         return $this->modalSaved('Đã cập nhật trạng thái công việc thành công!', url()->previous(), 'success');
+    }
+
+    /**
+     * Việc bị chặn → về tay người giao: người giao thành người thực hiện, trạng thái Mới, giữ lý do bị chặn
+     * (ghi chú khi chuyển nối thêm vào lý do) và ghi người làm cũ. Báo người giao và người làm cũ (trừ người thao tác).
+     */
+    private function handBackToCreator(WorkTask $task, User $actor, ?string $note): void
+    {
+        $from = $task->assignee;
+        $note = filled($note) ? trim($note) : null;
+
+        $task->update([
+            'assignee_id' => $task->creator_id,
+            'handed_back_from_id' => $from?->id,
+            'handed_back_at' => now(),
+            'status' => 'new',
+            'blocked_reason' => trim(($task->blocked_reason ?? '').($note ? "\n[Ghi chú khi chuyển lại – {$actor->name}]: {$note}" : '')) ?: null,
+        ]);
+
+        $data = ['task_id' => $task->id];
+        $detail = route('tasks.show', $task->id);
+        $fromName = $from?->name ?? 'Người thực hiện';
+        $reason = $task->blocked_reason ? " Lý do bị chặn: {$task->blocked_reason}" : '';
+
+        $this->notifyEach([$task->creator_id], $actor, 'task_assigned', "Việc bị chặn chuyển lại cho bạn: {$task->title}",
+            "{$actor->name} đã chuyển công việc từ {$fromName} về cho bạn xử lý.{$reason}", $detail, $data);
+        $this->notifyEach([$from?->id], $actor, 'task_assigned', "Công việc đã chuyển về người giao: {$task->title}",
+            "{$actor->name} đã chuyển công việc về cho ".($task->creator?->name ?? 'người giao').' xử lý, bạn không cần làm tiếp.', $detail, $data);
     }
 
     /**
@@ -1214,10 +1256,16 @@ class WorkTaskController extends Controller
         'canceled' => [],
     ];
 
+    /** Thao tác "Chuyển lại cho người giao" (không phải trạng thái): việc bị chặn về tay người giao, trạng thái Mới. */
+    public const HAND_BACK = 'hand_back';
+
     /**
      * Trạng thái mà $user được chuyển công việc sang:
      *  - Người thực hiện: bắt đầu / báo bị chặn / gửi chờ xác nhận (KHÔNG tự hoàn thành).
-     *  - Người giao hoặc người có quyền duyệt (khác người thực hiện): hoàn thành, hủy, trả về.
+     *  - Admin (khác người thực hiện): hoàn thành, trả về làm tiếp.
+     *  - Hủy công việc: chỉ người giao việc và Admin (ticket 53) — người thực hiện không tự hủy, kể cả khi bị chặn.
+     *  - Việc bị chặn: người thực hiện, người giao hoặc Admin được "Chuyển lại cho người giao" (khi người giao khác
+     *    người thực hiện). Hủy luôn đứng cuối danh sách.
      *
      * @return string[]
      */
@@ -1226,15 +1274,21 @@ class WorkTaskController extends Controller
         $next = self::STATUS_TRANSITIONS[$task->status] ?? [];
         $isAssignee = (int) $task->assignee_id === (int) $user->id;
         $isCreator = (int) $task->creator_id === (int) $user->id;
-        $isApprover = ! $isAssignee && AdminOnlyApprovals::allows($user); // chỉ Admin xác nhận hoàn thành
+        $isAdmin = AdminOnlyApprovals::allows($user);
+        $isApprover = ! $isAssignee && $isAdmin; // chỉ Admin xác nhận hoàn thành, không tự duyệt việc của mình
 
-        return array_values(array_filter($next, function (string $status) use ($isAssignee, $isApprover, $isCreator, $task) {
+        if ($task->status === 'blocked' && $task->creator_id && (int) $task->creator_id !== (int) $task->assignee_id) {
+            array_splice($next, array_search('canceled', $next, true), 0, [self::HAND_BACK]);
+        }
+
+        return array_values(array_filter($next, function (string $status) use ($isAssignee, $isApprover, $isAdmin, $isCreator, $task) {
             return match ($status) {
                 'completed' => $isApprover,
-                'canceled' => $isApprover || $isCreator,
+                'canceled' => $isCreator || $isAdmin,
                 'pending_confirmation' => $isAssignee,
                 'in_progress' => $isAssignee || ($isApprover && $task->status === 'pending_confirmation'),
                 'blocked' => $isAssignee,
+                self::HAND_BACK => $isAssignee || $isCreator || $isAdmin,
                 default => false,
             };
         }));
