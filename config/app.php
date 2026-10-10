@@ -75,13 +75,14 @@ return [
     | Application Timezone
     |--------------------------------------------------------------------------
     |
-    | Here you may specify the default timezone for your application, which
-    | will be used by the PHP date and date-time functions. The timezone
-    | is set to "UTC" by default as it is suitable for most use cases.
+    | Cố định giờ Việt Nam, không đọc APP_TIMEZONE: giờ chấm công / check-in dạy lấy theo giờ máy chủ lúc bấm và so
+    | với giờ ca (18:00…) theo giờ Việt Nam. Nếu .env trên hosting thiếu hoặc để UTC, mọi lượt chấm bị ghi sớm 7 tiếng
+    | (bấm 18:20 ghi 11:20) nên không bao giờ tính đi muộn. Giao diện cũng hiển thị theo Asia/Ho_Chi_Minh
+    | (resources/js/lib/format.js).
     |
     */
 
-    'timezone' => env('APP_TIMEZONE', 'UTC'),
+    'timezone' => 'Asia/Ho_Chi_Minh',
 
     /*
     |--------------------------------------------------------------------------

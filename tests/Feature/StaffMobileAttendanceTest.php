@@ -11,6 +11,7 @@ use App\Models\PayrollRecord;
 use App\Models\Penalty;
 use App\Models\StaffAttendance;
 use App\Models\StaffAttendanceRequest;
+use App\Models\TeacherTimesheet;
 use App\Models\User;
 use App\Support\Approvals\ApprovalInboxService;
 use Carbon\Carbon;
@@ -239,6 +240,51 @@ class StaffMobileAttendanceTest extends TestCase
         $row = StaffAttendance::sole();
         $this->assertSame('18:00', substr((string) $row->expected_start, 0, 5));
         $this->assertSame(12, $row->late_minutes);
+    }
+
+    /**
+     * Lỗi 10/10/2026: hosting chạy giờ UTC (.env thiếu APP_TIMEZONE) → bấm chấm công 18:20 bị ghi 11:20, trước giờ ca,
+     * không tính muộn. Giờ ứng dụng cố định giờ Việt Nam, không đọc APP_TIMEZONE.
+     */
+    public function test_check_in_time_is_vietnam_time_even_when_env_says_utc(): void
+    {
+        $previous = getenv('APP_TIMEZONE');
+        putenv('APP_TIMEZONE=UTC');
+        $_ENV['APP_TIMEZONE'] = $_SERVER['APP_TIMEZONE'] = 'UTC';
+        try {
+            $this->assertSame('Asia/Ho_Chi_Minh', (require config_path('app.php'))['timezone']);
+        } finally {
+            $previous === false ? putenv('APP_TIMEZONE') : putenv('APP_TIMEZONE='.$previous);
+            unset($_ENV['APP_TIMEZONE'], $_SERVER['APP_TIMEZONE']);
+        }
+
+        $teacher = $this->user('teacher', $this->branch);
+        $course = Course::create(['name' => 'IELTS TZ', 'code' => 'IELTS-TZ', 'total_lessons' => 24, 'is_active' => true]);
+        $class = ClassModel::create([
+            'name' => 'Lớp TZ', 'code' => 'TZ-1', 'course_id' => $course->id, 'program' => $course->name, 'level' => 'B1',
+            'branch_id' => $this->branch->id, 'status' => 'active', 'max_capacity' => 12, 'start_date' => '2026-09-01',
+        ]);
+        $session = ClassSession::create([
+            'class_id' => $class->id, 'branch_id' => $this->branch->id, 'date' => '2026-10-05',
+            'start_time' => '18:00', 'end_time' => '19:30', 'teacher_id' => $teacher->id, 'status' => 'scheduled',
+        ]);
+
+        // Đăng nhập trước giờ ca, 20 phút sau giờ ca mới chấm (11:20 UTC = 18:20 giờ Việt Nam).
+        $this->travelTo(Carbon::parse('2026-10-05 10:50:00', 'UTC'));
+        $this->actingAs($teacher)->get(route('mobile.home'))->assertOk();
+        $this->travelTo(Carbon::parse('2026-10-05 11:20:00', 'UTC'));
+
+        $this->punch($teacher)->assertSessionHas('warning', fn (string $message) => str_contains($message, 'lúc 18:20'));
+        $row = StaffAttendance::sole();
+        $this->assertSame('2026-10-05 18:20', $row->check_in_at->format('Y-m-d H:i'));
+        $this->assertSame(20, $row->late_minutes);
+        $this->assertNotNull($row->penalty_id);
+
+        // Check-in ca dạy trên Cổng giáo viên cũng ghi 18:20, muộn 20 phút.
+        $this->actingAs($teacher)->post(route('teacher.checkin'), ['session_ids' => [$session->id]])->assertSessionHasNoErrors();
+        $timesheet = TeacherTimesheet::where('class_session_id', $session->id)->sole();
+        $this->assertSame('18:20', substr((string) $timesheet->checkin_time, 0, 5));
+        $this->assertSame(20, $timesheet->late_minutes);
     }
 
     public function test_correction_request_goes_to_admin_and_creates_attendance_when_approved(): void
