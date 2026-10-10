@@ -302,6 +302,9 @@ class DemoPayrollSeeder extends Seeder
             return;
         }
 
+        // Nhân sự mới của demo dùng mật khẩu chung như tài khoản UserSeeder (UserSeeder đặt lại mỗi lần seed): đặt lại theo.
+        User::whereIn('email', array_column(self::NEW_STAFF, 2))->toBase()->update(['password' => Hash::make(config('access.seed_password'))]);
+
         $this->attendance = app(StaffAttendanceService::class);
         $this->staff = collect(self::STAFF)->map(fn (string $email) => User::where('email', $email)->firstOrFail())->all();
         foreach (Branch::whereIn('code', array_keys(self::BRANCH_GEO))->get() as $branch) {

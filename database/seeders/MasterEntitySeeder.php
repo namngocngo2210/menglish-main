@@ -28,6 +28,7 @@ use App\Models\TeacherTimesheet;
 use App\Models\TuitionReceipt;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 
 class MasterEntitySeeder extends Seeder
 {
@@ -38,10 +39,10 @@ class MasterEntitySeeder extends Seeder
         $branchDD = Branch::firstOrCreate(['code' => 'DD'], ['name' => 'Cơ sở 3 - Đống Đa', 'address' => 'Hà Nội', 'phone' => '0900000003', 'is_active' => true]);
         $branchHBT = Branch::firstOrCreate(['code' => 'HBT'], ['name' => 'Cơ sở 4 - Hai Bà Trưng', 'address' => 'Hà Nội', 'phone' => '0900000004', 'is_active' => true]);
 
-        $admin = User::firstOrCreate(['email' => 'admin@menglish.edu.vn'], ['name' => 'Admin Hệ thống', 'password' => bcrypt('Password123!'), 'is_active' => true, 'branch_id' => $branchCG->id]);
-        $teacher = User::firstOrCreate(['email' => 'nguyenvanan@menglish.edu.vn'], ['name' => 'ThS. Nguyễn Quốc Anh', 'password' => bcrypt('Password123!'), 'is_active' => true, 'branch_id' => $branchCG->id]);
-        $academic = User::firstOrCreate(['email' => 'nva@menglish.edu.vn'], ['name' => 'Đặng Hồng Nhung', 'password' => bcrypt('Password123!'), 'is_active' => true, 'branch_id' => $branchCG->id]);
-        $accountant = User::firstOrCreate(['email' => 'ttb@menglish.edu.vn'], ['name' => 'Trần Thị B', 'password' => bcrypt('Password123!'), 'is_active' => true, 'branch_id' => $branchBD->id]);
+        $admin = User::firstOrCreate(['email' => 'admin@menglish.edu.vn'], ['name' => 'Admin Hệ thống', 'password' => Hash::make(config('access.seed_password')), 'is_active' => true, 'branch_id' => $branchCG->id]);
+        $teacher = User::firstOrCreate(['email' => 'nguyenvanan@menglish.edu.vn'], ['name' => 'ThS. Nguyễn Quốc Anh', 'password' => Hash::make(config('access.seed_password')), 'is_active' => true, 'branch_id' => $branchCG->id]);
+        $academic = User::firstOrCreate(['email' => 'nva@menglish.edu.vn'], ['name' => 'Đặng Hồng Nhung', 'password' => Hash::make(config('access.seed_password')), 'is_active' => true, 'branch_id' => $branchCG->id]);
+        $accountant = User::firstOrCreate(['email' => 'ttb@menglish.edu.vn'], ['name' => 'Trần Thị B', 'password' => Hash::make(config('access.seed_password')), 'is_active' => true, 'branch_id' => $branchBD->id]);
 
         // 1. Khung trình độ
         $levelsData = [
@@ -67,7 +68,7 @@ class MasterEntitySeeder extends Seeder
             ['code' => 'STARTER', 'name' => 'Tiếng Anh Mất Gốc', 'course_level_id' => CourseLevel::where('code', 'A1')->first()?->id, 'tuition_fee' => 6900000, 'total_lessons' => 16, 'description' => 'Xây dựng lại nền tảng phát âm IPA và ngữ pháp căn bản'],
         ];
         foreach ($coursesData as $cd) {
-            $cd['name'] = '# ' . $cd['name'];
+            $cd['name'] = '# '.$cd['name'];
             Course::query()->updateOrCreate(['code' => $cd['code']], $cd + ['is_active' => true]);
         }
         $courseIE65 = Course::where('code', 'IE-65')->first();
@@ -103,7 +104,7 @@ class MasterEntitySeeder extends Seeder
             ],
         ];
         foreach ($classesData as $cld) {
-            $cld['name'] = '# ' . $cld['name'];
+            $cld['name'] = '# '.$cld['name'];
             ClassModel::query()->updateOrCreate(['code' => $cld['code']], $cld);
         }
         $classIE2408 = ClassModel::where('code', 'IE-2408')->first();
@@ -198,7 +199,7 @@ class MasterEntitySeeder extends Seeder
         ];
 
         foreach ($studentsData as $sd) {
-            $sd['name'] = '# ' . $sd['name'];
+            $sd['name'] = '# '.$sd['name'];
             $tuitionFee = $sd['tuition_fee'];
             $paidFee = $sd['paid_fee'];
             $dueDate = $sd['due_date'];
@@ -241,10 +242,10 @@ class MasterEntitySeeder extends Seeder
                 TuitionReceipt::query()->firstOrCreate(
                     ['student_tuition_id' => $tuition->id],
                     [
-                        'receipt_number' => 'PT-2026-' . str_pad($student->id, 4, '0', STR_PAD_LEFT),
+                        'receipt_number' => 'PT-2026-'.str_pad($student->id, 4, '0', STR_PAD_LEFT),
                         'amount' => $paidFee,
                         'payment_method' => 'transfer',
-                        'transaction_code' => 'FT260814' . str_pad($student->id, 4, '0', STR_PAD_LEFT),
+                        'transaction_code' => 'FT260814'.str_pad($student->id, 4, '0', STR_PAD_LEFT),
                         'payment_date' => now()->subDays(3),
                         'creator_id' => $admin?->id,
                         'approver_id' => $accountant?->id,
@@ -340,7 +341,7 @@ class MasterEntitySeeder extends Seeder
             $protoStudent = Student::query()->updateOrCreate(
                 ['code' => $p['student_code']],
                 [
-                    'name' => '# ' . $p['student_name'],
+                    'name' => '# '.$p['student_name'],
                     'phone' => $p['phone'],
                     'branch_id' => $p['branch_id'],
                     'current_class_id' => $p['class_id'],

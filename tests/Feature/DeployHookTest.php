@@ -3,9 +3,11 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
+use App\Models\ClassModel;
 use App\Models\User;
 use App\Support\DataScope;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -72,30 +74,40 @@ class DeployHookTest extends TestCase
         $this->assertStringContainsString('production', $step['output']);
     }
 
-    public function test_payroll_demo_seed_needs_opt_in_on_production(): void
+    public function test_demo_seed_needs_opt_in_on_production_and_includes_payroll_demo(): void
     {
+        // Kỳ lương tháng trước chỉ duyệt được từ ngày 3: cố định "hôm nay" giữa tháng như các test seeder demo.
+        $this->travelTo(now()->startOfMonth()->addDays(14)->setTime(12, 0));
         $token = str_repeat('f', 64);
         config(['app.deploy_hook_token' => $token]);
 
-        $seedStep = fn ($response) => collect($response->json('steps'))->firstWhere('command', 'db:seed');
-
-        // Chưa có tài khoản demo: seeder tự bỏ qua, không lỗi.
-        $this->assertSame(0, $seedStep($this->post('/_deploy/hook', ['seed' => 'demo-luong'], ['X-Deploy-Token' => $token]))['exit']);
+        $seedSteps = fn ($response) => collect($response->json('steps'))->where('command', 'db:seed')->values();
 
         $this->app['env'] = 'production';
-        $blocked = $seedStep($this->post('/_deploy/hook', ['seed' => 'demo-luong'], ['X-Deploy-Token' => $token]));
-        $this->assertSame(1, $blocked['exit']);
-        $this->assertStringContainsString('production', $blocked['output']);
+        $blocked = $seedSteps($this->post('/_deploy/hook', ['seed' => 'demo'], ['X-Deploy-Token' => $token]));
+        $this->assertSame(1, $blocked[0]['exit']);
+        $this->assertStringContainsString('production', $blocked[0]['output']);
 
         // Tích cho phép nhưng còn mật khẩu seed mặc định: vẫn chặn (tài khoản demo có cả Admin).
-        $optIn = ['seed' => 'demo-luong', 'allow_production_demo' => 'true'];
+        $optIn = ['seed' => 'demo', 'allow_production_demo' => 'true'];
         config(['access.seed_password' => 'Password123!']);
-        $weak = $seedStep($this->post('/_deploy/hook', $optIn, ['X-Deploy-Token' => $token]));
-        $this->assertSame(1, $weak['exit']);
-        $this->assertStringContainsString('SEED_DEFAULT_PASSWORD', $weak['output']);
+        $weak = $seedSteps($this->post('/_deploy/hook', $optIn, ['X-Deploy-Token' => $token]));
+        $this->assertCount(1, $weak);
+        $this->assertSame(1, $weak[0]['exit']);
+        $this->assertStringContainsString('SEED_DEFAULT_PASSWORD', $weak[0]['output']);
 
+        // Một lần seed "demo": dữ liệu demo chung rồi dữ liệu mẫu phần lương (chấm công, lương, KPI).
         config(['access.seed_password' => 'Demo-Only-Pass-2026']);
-        $this->assertSame(0, $seedStep($this->post('/_deploy/hook', $optIn, ['X-Deploy-Token' => $token]))['exit']);
+        $seeded = $seedSteps($this->post('/_deploy/hook', $optIn, ['X-Deploy-Token' => $token]));
+        $this->assertCount(2, $seeded);
+        $this->assertSame([0, 0], $seeded->pluck('exit')->all());
+        $this->assertStringContainsString('DemoPayrollSeeder', $seeded[1]['output']);
+        $this->assertTrue(ClassModel::where('code', 'DEMO-CG-IF1')->exists());
+        $this->assertTrue(User::where('email', 'gv.minhduc@menglish.edu.vn')->exists());
+        // Mọi tài khoản nhân sự demo đăng nhập được bằng đúng SEED_DEFAULT_PASSWORD (không còn tài khoản mang mật khẩu mặc định).
+        $staff = User::where('email', 'like', '%@menglish.edu.vn')->get();
+        $this->assertGreaterThan(30, $staff->count());
+        $this->assertSame([], $staff->reject(fn (User $user) => Hash::check('Demo-Only-Pass-2026', $user->password))->pluck('email')->values()->all());
     }
 
     public function test_bootstrap_seed_creates_single_admin_only_on_empty_database(): void
