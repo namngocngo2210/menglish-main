@@ -4,6 +4,7 @@
  * Bộ lọc một hàng: tìm kiếm, hạn hoàn thành (từ – đến), nhân viên nhận việc (ô chọn có tìm kiếm), trạng thái.
  * "Giao việc" mở modal 2xl (có lựa chọn "Giao cho: Trợ giảng"); bấm tiêu đề → modal xem nhanh chi tiết.
  * Lưu xong trong modal: server trả lại trang này → danh sách tự làm mới (giữ tab, bộ lọc, trang hiện tại).
+ * Việc bị chặn có thêm "Chuyển lại cho người giao"; "Hủy công việc" (chỉ người giao / Admin) tách riêng, màu đỏ, đứng cuối.
  */
 import { computed, ref } from 'vue';
 import { openRemoteModal } from '@/lib/remoteModal';
@@ -33,14 +34,19 @@ const statusColors = {
 const transitionLabels = {
     in_progress: ['Đang thực hiện', 'play_arrow'], blocked: ['Bị chặn', 'block'],
     pending_confirmation: ['Gửi chờ xác nhận', 'outgoing_mail'], completed: ['Xác nhận hoàn thành', 'check_circle'],
-    canceled: ['Hủy công việc', 'cancel'],
+    canceled: ['Hủy công việc', 'cancel'], hand_back: ['Chuyển lại cho người giao', 'undo'],
 };
 const canCreate = computed(() => can('work_task.create') || can('work_task.request'));
 
-/** Nhãn + icon của một bước chuyển (việc chờ xác nhận trả về "Đang thực hiện" = "Trả về làm tiếp"). */
+/**
+ * Nhãn + icon của một bước chuyển (việc chờ xác nhận trả về "Đang thực hiện" = "Trả về làm tiếp";
+ * tab "Tôi giao": "Chuyển lại cho người giao" = "Nhận lại việc").
+ */
 function transition(task, next) {
     const [label, icon] = transitionLabels[next] ?? [next, 'arrow_forward'];
-    return { label: next === 'in_progress' && task.status === 'pending_confirmation' ? 'Trả về làm tiếp' : label, icon };
+    if (next === 'in_progress' && task.status === 'pending_confirmation') return { label: 'Trả về làm tiếp', icon };
+    if (next === 'hand_back' && props.tab === 'assigned') return { label: 'Nhận lại việc', icon };
+    return { label, icon };
 }
 
 // Modal "Thay đổi trạng thái"
@@ -123,6 +129,9 @@ function openTask(event, task) {
                             <div v-if="task.blocked_reason" class="mt-xs flex items-center gap-xs font-caption text-caption text-status-blocked">
                                 <span class="material-symbols-outlined text-[14px]" aria-hidden="true">block</span>Lý do: {{ task.blocked_reason }}
                             </div>
+                            <div v-if="task.handed_back_from" class="mt-xs flex items-center gap-xs font-caption text-caption text-on-surface-variant">
+                                <span class="material-symbols-outlined text-[14px]" aria-hidden="true">undo</span>Chuyển lại từ {{ task.handed_back_from }} (bị chặn)
+                            </div>
                         </td>
                         <td>
                             <UiBadge :color="task.task_type === 'recurring' ? 'secondary' : 'info'" :dot="false">{{ task.type_label }}</UiBadge>
@@ -151,10 +160,14 @@ function openTask(event, task) {
                                         v-for="next in task.allowed"
                                         :key="next"
                                         type="button"
-                                        class="flex w-full items-center gap-sm px-md py-xs text-left font-body-small text-body-small hover:bg-surface-container-low"
+                                        :class="[
+                                            'flex w-full items-center gap-sm px-md py-xs text-left font-body-small text-body-small hover:bg-surface-container-low',
+                                            next === 'canceled' ? 'text-error' : '',
+                                            next === 'canceled' && task.allowed.length > 1 ? 'mt-xs border-t border-outline-variant pt-sm' : '',
+                                        ]"
                                         @click="openStatusModal(task, next)"
                                     >
-                                        <span class="material-symbols-outlined text-[16px] text-on-surface-variant" aria-hidden="true">{{ transition(task, next).icon }}</span>{{ transition(task, next).label }}
+                                        <span :class="['material-symbols-outlined text-[16px]', next === 'canceled' ? 'text-error' : 'text-on-surface-variant']" aria-hidden="true">{{ transition(task, next).icon }}</span>{{ transition(task, next).label }}
                                     </button>
                                     <p v-if="!task.allowed.length" class="px-md py-xs text-left font-caption text-caption text-on-surface-variant">Không có thao tác khả dụng</p>
                                 </template>
@@ -180,12 +193,16 @@ function openTask(event, task) {
             </div>
             <div>
                 <p class="font-caption text-caption text-on-surface-variant">Trạng thái mới</p>
-                <p class="flex items-center gap-xs font-body-medium text-body-medium font-semibold text-primary">{{ statusLabel }}</p>
+                <p :class="['flex items-center gap-xs font-body-medium text-body-medium font-semibold', newStatus === 'canceled' ? 'text-error' : 'text-primary']">{{ statusLabel }}</p>
             </div>
+            <UiAlert v-if="newStatus === 'hand_back'" type="info">
+                <template v-if="tab === 'assigned'">Công việc chuyển về bạn (người giao) với trạng thái Mới, lý do bị chặn vẫn giữ trong chi tiết. {{ current.assignee }} nhận được thông báo và không cần làm tiếp.</template>
+                <template v-else>Công việc sẽ chuyển sang <strong>{{ current.creator ?? 'người giao' }}</strong> (người giao) với trạng thái Mới. Lý do bị chặn vẫn giữ trong chi tiết, người giao nhận được thông báo.</template>
+            </UiAlert>
             <UiErrors :messages="errors.status" />
             <label class="block" for="task-status-reason">
                 <span class="mb-xs block font-body-small text-body-small font-medium">
-                    {{ reasonRequired ? 'Ghi chú lý do' : 'Ghi chú / kết quả (tùy chọn)' }}<span v-if="reasonRequired" class="text-error"> *</span>
+                    {{ reasonRequired ? 'Ghi chú lý do' : newStatus === 'hand_back' ? 'Ghi chú cho người giao (tùy chọn)' : 'Ghi chú / kết quả (tùy chọn)' }}<span v-if="reasonRequired" class="text-error"> *</span>
                 </span>
                 <UiTextarea id="task-status-reason" name="reason" :rows="3" :required="reasonRequired" maxlength="1000" placeholder="Nhập lý do chi tiết khiến công việc bị chặn / kết quả..." />
             </label>
@@ -193,7 +210,7 @@ function openTask(event, task) {
         </UiForm>
         <template #footer>
             <UiButton variant="secondary" @click="current = null">Hủy</UiButton>
-            <UiButton type="submit" form="task-status-change-form">Xác nhận</UiButton>
+            <UiButton type="submit" form="task-status-change-form" :variant="newStatus === 'canceled' ? 'danger' : 'primary'">Xác nhận</UiButton>
         </template>
     </UiModal>
 </template>
