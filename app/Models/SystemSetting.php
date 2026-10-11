@@ -140,6 +140,13 @@ class SystemSetting extends Model
      */
     public static function applyDynamicMailConfig(): void
     {
+        if (config('mail.block_outgoing')) {
+            config(['mail.default' => 'log']);
+            \Illuminate\Support\Facades\Mail::purge();
+
+            return;
+        }
+
         try {
             $smtp = static::getSmtpConfig();
 

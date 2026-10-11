@@ -18,6 +18,10 @@ return [
 
     'tech_support_email' => env('TECH_SUPPORT_EMAIL', 'tech.vmst@gmail.com'),
 
+    // Chặn mọi email gửi ra ngoài: ép driver "log", bỏ qua SMTP lưu ở màn Cấu hình → Email (bảng system_settings).
+    // Mặc định bật khi APP_ENV=staging vì staging chạy trên bản sao dữ liệu thật (email phụ huynh, nhân sự).
+    'block_outgoing' => (bool) env('MAIL_BLOCK_OUTGOING', env('APP_ENV') === 'staging'),
+
     /*
     |--------------------------------------------------------------------------
     | Mailer Configurations

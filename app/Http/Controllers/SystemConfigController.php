@@ -607,6 +607,11 @@ class SystemConfigController extends Controller
      */
     public function sendTestTicketEmail(Request $request)
     {
+        if (config('mail.block_outgoing')) {
+            return redirect()->route('system-config.ticket-emails')
+                ->with('error', 'Môi trường này đang chặn gửi email ra ngoài (MAIL_BLOCK_OUTGOING), không gửi thử được.');
+        }
+
         $testEmail = trim((string) $request->input('test_email'));
         $recipients = [];
 
