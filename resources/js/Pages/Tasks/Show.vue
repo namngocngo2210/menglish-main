@@ -2,6 +2,7 @@
 /**
  * Chi tiết công việc: mở từ danh sách → modal xem nhanh 2xl; mở thẳng link → trang đầy đủ.
  * Đổi trạng thái ngay tại đây (chỉ các bước server cho phép): lưu xong đóng modal, danh sách nền tự làm mới.
+ * "Hủy công việc" không bao giờ được chọn sẵn và tô đỏ; việc bị chặn có thêm "Chuyển lại cho người giao".
  */
 import { computed, ref, watch } from 'vue';
 
@@ -17,12 +18,14 @@ const statusColors = {
     new: 'status-new', in_progress: 'status-progress', pending_confirmation: 'status-pending',
     blocked: 'status-blocked', completed: 'status-done', overdue: 'status-overdue', canceled: 'status-canceled',
 };
-const next = ref(props.allowed[0]?.value ?? '');
+// Chọn sẵn bước đầu tiên, trừ "Hủy công việc" (phải bấm chọn chủ động).
+const firstSafe = (list) => list.find((o) => o.value !== 'canceled')?.value ?? '';
+const next = ref(firstSafe(props.allowed));
 // Trang đầy đủ: lưu xong server trả lại trang với các bước mới → chọn lại bước đầu.
 watch(
     () => props.allowed,
     (list) => {
-        if (!list.some((o) => o.value === next.value)) next.value = list[0]?.value ?? '';
+        if (!list.some((o) => o.value === next.value)) next.value = firstSafe(list);
     },
 );
 const reasonRequired = computed(() => ['blocked', 'canceled'].includes(next.value));
@@ -51,7 +54,7 @@ const formId = computed(() => (props.asModal ? 'modal-task-status-form' : 'task-
                 <p class="mb-xs font-label text-label uppercase text-on-surface-variant">Mô tả</p>
                 <p class="whitespace-pre-line font-body-base text-body-base text-on-surface">{{ task.description }}</p>
             </div>
-            <UiAlert v-for="note in task.notes" :key="note.title" :type="note.type" :title="note.title">{{ note.text }}</UiAlert>
+            <UiAlert v-for="note in task.notes" :key="note.title" :type="note.type" :title="note.title"><span class="whitespace-pre-line">{{ note.text }}</span></UiAlert>
 
             <UiForm v-if="allowed.length" :id="formId" :action="route('tasks.status.update', task.id)" method="post" class="space-y-md rounded-lg border border-outline-variant p-md" reset-on-success #default="{ errors }">
                 <UiAlert v-if="errors.status" type="error">{{ errors.status }}</UiAlert>
@@ -62,20 +65,26 @@ const formId = computed(() => (props.asModal ? 'modal-task-status-form' : 'task-
                         :key="opt.value"
                         :class="[
                             'inline-flex cursor-pointer items-center gap-xs rounded-lg border px-sm py-xs font-body-small text-body-small',
-                            next === opt.value ? 'border-primary-container bg-primary-container/10 text-primary' : 'border-outline-variant text-on-surface-variant',
+                            opt.value === 'canceled'
+                                ? next === opt.value ? 'border-error bg-error/10 text-error' : 'border-error/40 text-error'
+                                : next === opt.value ? 'border-primary-container bg-primary-container/10 text-primary' : 'border-outline-variant text-on-surface-variant',
                         ]"
                     >
                         <input v-model="next" type="radio" name="status" :value="opt.value" class="sr-only" />{{ opt.label }}
                     </label>
                 </div>
+                <UiAlert v-if="next === 'hand_back'" type="info">
+                    <template v-if="task.creator_is_me">Công việc chuyển về bạn (người giao) với trạng thái Mới, lý do bị chặn vẫn giữ trong chi tiết. Người đang làm nhận được thông báo và không cần làm tiếp.</template>
+                    <template v-else>Công việc sẽ chuyển sang <strong>{{ task.creator ?? 'người giao' }}</strong> (người giao) với trạng thái Mới. Lý do bị chặn vẫn giữ trong chi tiết, người giao nhận được thông báo.</template>
+                </UiAlert>
                 <UiTextarea :id="(asModal ? 'modal-' : '') + 'task-status-reason'" name="reason" :rows="2" maxlength="1000" :required="reasonRequired" label="Ghi chú lý do / kết quả" hint="Bắt buộc khi chuyển Bị chặn hoặc Hủy công việc." />
-                <div v-if="!asModal" class="flex justify-end"><UiButton type="submit" icon="check">Cập nhật trạng thái</UiButton></div>
+                <div v-if="!asModal" class="flex justify-end"><UiButton type="submit" icon="check" :variant="next === 'canceled' ? 'danger' : 'primary'" :disabled="!next">Cập nhật trạng thái</UiButton></div>
             </UiForm>
         </div>
 
         <template v-if="asModal" #footer>
             <UiButton variant="secondary" icon="open_in_new" :href="route('tasks.show', task.id)" native>Mở trang đầy đủ</UiButton>
-            <UiButton v-if="allowed.length" type="submit" :form="formId" icon="check">Cập nhật trạng thái</UiButton>
+            <UiButton v-if="allowed.length" type="submit" :form="formId" icon="check" :variant="next === 'canceled' ? 'danger' : 'primary'" :disabled="!next">Cập nhật trạng thái</UiButton>
         </template>
     </UiModalFrame>
 </template>

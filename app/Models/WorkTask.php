@@ -19,6 +19,8 @@ class WorkTask extends Model
         'description',
         'creator_id',
         'assignee_id',
+        'handed_back_from_id',
+        'handed_back_at',
         'branch_id',
         'class_id',
         'student_id',
@@ -48,6 +50,7 @@ class WorkTask extends Model
         'confirmed_at' => 'datetime',
         'completed_at' => 'datetime',
         'sla_breached_at' => 'datetime',
+        'handed_back_at' => 'datetime',
     ];
 
     protected static function booted(): void
@@ -78,6 +81,12 @@ class WorkTask extends Model
     public function assignee()
     {
         return $this->belongsTo(User::class, 'assignee_id');
+    }
+
+    /** Người đang làm khi việc bị chặn được chuyển lại cho người giao. */
+    public function handedBackFrom()
+    {
+        return $this->belongsTo(User::class, 'handed_back_from_id');
     }
 
     public function branch()
@@ -264,7 +273,8 @@ class WorkTask extends Model
     {
         return DataScope::apply(
             $query, $user, 'work_task',
-            fn ($q) => $q->where('creator_id', $user->id)->orWhere('assignee_id', $user->id),
+            // Người làm cũ của việc đã chuyển lại cho người giao vẫn mở được chi tiết (không còn thao tác).
+            fn ($q) => $q->where('creator_id', $user->id)->orWhere('assignee_id', $user->id)->orWhere('handed_back_from_id', $user->id),
             fn ($q, array $branchIds) => $q->whereIn('branch_id', $branchIds)
                 ->orWhereHas('assignee', fn ($a) => $a->whereIn('branch_id', $branchIds)),
             branchIncludesOwn: true,
