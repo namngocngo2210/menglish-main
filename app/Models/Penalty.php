@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Roles;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -56,22 +57,126 @@ class Penalty extends Model
         ],
     ];
 
-    /** Lỗi thường gặp, nhóm theo loại lỗi (gợi ý khi lập biên bản). */
-    public const COMMON_VIOLATIONS = [
+    /** Lỗi chung của nhân sự văn phòng (Học vụ, Học thuật, Tư vấn viên, Quản lý cơ sở). */
+    private const OFFICE_VIOLATIONS = [
+        'Đi làm muộn không báo trước',
+        'Nghỉ làm không phép',
+        'Vắng họp / đào tạo bắt buộc',
+        'Vi phạm nội quy trung tâm',
+    ];
+
+    /** Lỗi hạn SLA CRM của người phụ trách khách (tên trùng biên bản hệ thống tự lập, config/sla.php 'violation'). */
+    private const CRM_VIOLATIONS = [
+        'Quá hạn SLA liên hệ khách mới',
+        'Quá hạn SLA chuyển trạng thái chăm sóc khách',
+        'Quá hạn SLA trả kết quả test đầu vào',
+        'Quá hạn SLA phản hồi sau học thử',
+    ];
+
+    private const TEACHER_VIOLATIONS = [
         'academic' => [
-            'Chậm nộp nhận xét buổi học (> 24h)',
+            'Gửi nhận xét sau buổi học trễ',
             'Không nộp giáo án / bài tập đúng hạn',
             'Dạy sai tiến độ giáo trình',
             'Không nhập điểm / kết quả kiểm tra đúng hạn',
+            'Trả kết quả Big Test trễ',
         ],
         'operations' => [
             'Đến muộn > 15 phút không báo trước',
             'Nghỉ dạy không phép',
             'Không check-in / điểm danh đúng giờ',
+            'Không thông báo kịp thời vấn đề lớp (nghỉ / đổi ca / case học sinh)',
+            'Vắng họp / đào tạo bắt buộc',
             'Vi phạm nội quy trung tâm',
-            'Quá hạn SLA chăm sóc học viên tháng đầu',
         ],
     ];
+
+    /**
+     * Lỗi thường gặp theo vai trò của nhân sự vi phạm, nhóm theo loại lỗi: ô "Lỗi vi phạm" chỉ gợi ý lỗi của vai trò người
+     * được chọn (kiêm nhiều vai trò thì gộp), chọn lỗi có sẵn thì loại lỗi (người chốt) đi theo lỗi. Lỗi có SLA tự lập biên
+     * bản dùng đúng tên trong config/sla.php để biên bản lập tay và tự động cùng một tên lỗi.
+     */
+    public const ROLE_VIOLATIONS = [
+        Roles::TEACHER_FULLTIME => self::TEACHER_VIOLATIONS,
+        Roles::TEACHER_PARTTIME => self::TEACHER_VIOLATIONS,
+        Roles::ASSISTANT => [
+            'academic' => [
+                'Không hoàn thành nhiệm vụ trợ giảng được giao',
+            ],
+            'operations' => [
+                'Đến muộn > 15 phút không báo trước',
+                'Nghỉ trực lớp không phép',
+                'Không check-in / điểm danh đúng giờ',
+                'Vắng họp / đào tạo bắt buộc',
+                'Vi phạm nội quy trung tâm',
+            ],
+        ],
+        Roles::ACADEMIC_STAFF => [
+            'operations' => [
+                ...self::CRM_VIOLATIONS,
+                'Quá hạn SLA chăm sóc học viên tháng đầu',
+                'Không nhắc / follow học phí đúng quy trình',
+                'Thu sai / thiếu học phí',
+                'Sai sót dữ liệu học sinh / học phí trên hệ thống',
+                'Nộp báo cáo ngày trễ hạn',
+                'Sự cố vận hành lớp do lỗi học vụ',
+                'Order học liệu quá hạn',
+                ...self::OFFICE_VIOLATIONS,
+            ],
+        ],
+        Roles::ACADEMIC_LEAD => [
+            'academic' => [
+                'Trễ deadline mốc dự án học thuật',
+                'Quá hạn duyệt đề Big Test',
+                'Order học liệu quá hạn',
+                'Xử lý phản ánh về GV trễ hạn',
+                'Không đào tạo GV đúng kế hoạch',
+            ],
+            'operations' => self::OFFICE_VIOLATIONS,
+        ],
+        Roles::SALES_CONSULTANT => [
+            'operations' => [
+                ...self::CRM_VIOLATIONS,
+                'Nhập sai / thiếu dữ liệu khách hàng trên CRM',
+                ...self::OFFICE_VIOLATIONS,
+            ],
+        ],
+        Roles::MANAGER => [
+            'operations' => [
+                'Thu sai / thiếu học phí',
+                'Tiền mặt chưa nộp về TK công ty',
+                'Quá hạn xử lý hoàn phí / chuyển nhượng',
+                'Nộp báo cáo trễ hạn',
+                ...self::OFFICE_VIOLATIONS,
+            ],
+        ],
+    ];
+
+    /**
+     * Lỗi thường gặp của các vai trò (lỗi => loại lỗi), theo thứ tự vai trò rồi loại lỗi; lỗi trùng giữ loại lỗi gặp đầu tiên.
+     * Không có vai trò nào trong ROLE_VIOLATIONS (Admin, vai trò tự tạo) → lỗi của mọi vai trò.
+     *
+     * @param  iterable<string>  $roles
+     * @return array<string, string>
+     */
+    public static function commonViolationsFor(iterable $roles): array
+    {
+        $roles = collect($roles)->filter(fn ($role) => isset(self::ROLE_VIOLATIONS[$role]));
+        if ($roles->isEmpty()) {
+            $roles = collect(array_keys(self::ROLE_VIOLATIONS));
+        }
+
+        $list = [];
+        foreach ($roles as $role) {
+            foreach (self::ROLE_VIOLATIONS[$role] as $category => $types) {
+                foreach ($types as $type) {
+                    $list[$type] ??= $category;
+                }
+            }
+        }
+
+        return $list;
+    }
 
     /** Trạng thái còn mở (chưa đóng hồ sơ). */
     public const OPEN_STATUSES = ['pending', 'explained', 'confirmed', 'fined'];

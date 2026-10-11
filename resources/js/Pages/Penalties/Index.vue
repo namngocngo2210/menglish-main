@@ -4,7 +4,7 @@
  * chốt mức phạt → nộp trong N ngày (SLA penalty.payment_due, quá hạn trừ lương) → khắc phục. Mỗi dòng chỉ giữ nút của bước tiếp theo;
  * "Đóng - không phạt" / "Hủy vi phạm" nằm trong hộp thoại chi tiết (nút ⋯). Lọc nhanh theo bước + bộ lọc nâng cao.
  */
-import { computed, reactive, ref } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { urlWith } from '@/lib/url';
 import { can } from '@/lib/can';
@@ -21,7 +21,9 @@ const props = defineProps({
     categoryOptions: { type: Array, default: () => [] },
     categoryConfirmerOptions: { type: Array, default: () => [] },
     statusOptions: { type: Array, default: () => [] },
-    commonViolations: { type: Array, default: () => [] },
+    // Lỗi thường gặp theo vai trò: { role: { label, violations: [{ value, category }] } }; allViolations = mọi vai trò.
+    roleViolations: { type: Object, default: () => ({}) },
+    allViolations: { type: Array, default: () => [] },
     lockedPenalty: { type: String, default: null },
     violationWindow: { type: Object, required: true },
     // Số ngày phải nộp phạt sau khi chốt mức phạt (SLA penalty.payment_due).
@@ -49,6 +51,31 @@ const decisionOptions = [
     { value: 'fine', label: `Chốt mức phạt (nộp trong ${props.paymentDueDays} ngày, quá hạn trừ lương)` },
 ];
 const category = ref('operations');
+
+// Ô "Lỗi vi phạm" chỉ gợi ý lỗi thuộc vai trò của nhân sự được chọn (kiêm nhiều vai trò thì gộp); Admin / vai trò tự tạo /
+// chưa chọn nhân sự → lỗi của mọi vai trò. Chọn lỗi có sẵn thì loại lỗi (người chốt) đi theo lỗi.
+const violatorId = ref('');
+const violationType = ref('');
+const violatorRoles = computed(() => {
+    const user = props.users.find((u) => String(u.value) === String(violatorId.value));
+    return (user?.roles ?? []).filter((role) => props.roleViolations[role]);
+});
+const violationSuggestions = computed(() => {
+    if (!violatorRoles.value.length) return props.allViolations;
+    const seen = new Map();
+    violatorRoles.value.forEach((role) => props.roleViolations[role].violations.forEach((v) => seen.has(v.value) || seen.set(v.value, v)));
+    return [...seen.values()];
+});
+const categoryLabels = computed(() => Object.fromEntries(props.categoryOptions.map((o) => [o.value, o.label])));
+const violationHint = computed(() =>
+    violatorRoles.value.length
+        ? `Gợi ý ${violationSuggestions.value.length} lỗi của vai trò ${violatorRoles.value.map((role) => props.roleViolations[role].label).join(', ')}. Không có trong danh sách thì nhập mô tả.`
+        : 'Chọn nhân sự để chỉ gợi ý lỗi đúng vai trò. Không có trong danh sách thì nhập mô tả.',
+);
+watch(violationType, (value) => {
+    const known = violationSuggestions.value.find((v) => v.value === value);
+    if (known) category.value = known.category;
+});
 const decidable = (pen) => ['pending', 'explained', 'confirmed'].includes(pen.status);
 const showAmount = (pen) => pen.amount > 0 && !['pending', 'explained', 'confirmed', 'resolved'].includes(pen.status);
 </script>
@@ -241,12 +268,12 @@ const showAmount = (pen) => pen.amount > 0 && !['pending', 'explained', 'confirm
 
         <UiModal v-if="can('violation.create')" :show="open === 'new-penalty'" title="Ghi nhận vi phạm mới" data-modal="new-penalty" @close="open = null">
             <UiForm id="new-penalty-form" :action="route('penalties.store')" method="post" preserve-state="errors" class="space-y-md">
-                <UiSelect name="user_id" label="Nhân sự vi phạm" required placeholder="-- Chọn nhân sự --" :options="users" />
+                <UiSelect v-model="violatorId" name="user_id" label="Nhân sự vi phạm" required placeholder="-- Chọn nhân sự --" :options="users" />
                 <UiSelect v-model="category" name="error_category" label="Loại lỗi" required hint="Lỗi chuyên môn do Học thuật (HT) chốt; lỗi vận hành do Học vụ / Quản lý (CM) chốt." :options="categoryConfirmerOptions" />
-                <UiField label="Lỗi vi phạm" name="violation_type" required for="f_violation_type">
-                    <input id="f_violation_type" list="violation-types" name="violation_type" required placeholder="Chọn lỗi thường gặp hoặc nhập mô tả" class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/50" />
+                <UiField label="Lỗi vi phạm" name="violation_type" required for="f_violation_type" :hint="violationHint">
+                    <input id="f_violation_type" v-model="violationType" list="violation-types" name="violation_type" required placeholder="Chọn lỗi thường gặp hoặc nhập mô tả" class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm font-body-base text-body-base text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/50" />
                     <datalist id="violation-types">
-                        <option v-for="type in commonViolations" :key="type" :value="type"></option>
+                        <option v-for="v in violationSuggestions" :key="v.value" :value="v.value" :label="categoryLabels[v.category]"></option>
                     </datalist>
                 </UiField>
                 <div class="grid grid-cols-2 gap-md">
