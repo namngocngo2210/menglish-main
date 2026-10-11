@@ -59,6 +59,20 @@ Chạy workflow với tham số **`seed`**:
 
 Sau khi `bootstrap` production: đăng nhập Admin → đổi mật khẩu → tạo **chi nhánh**, **tài khoản nhân sự** (gán vai trò + chi nhánh), **ngày nghỉ**, **khóa học / trình độ**, **tài khoản ngân hàng**, **dải số hóa đơn**, rồi mới nhập khách / học viên. Nên xóa `INITIAL_ADMIN_PASSWORD` khỏi `.env` sau khi đăng nhập được.
 
+## Staging và production
+
+| | Staging | Production |
+|---|---|---|
+| Domain | `staging.meducation.vn` | `portal.meducation.vn` |
+| Nhánh deploy | nhánh bất kỳ (thử nhánh tính năng trước khi merge) | **chỉ `main`** (workflow tự chặn nhánh khác) |
+| Dữ liệu | bản sao dữ liệu cũ, dùng để thử | dữ liệu thật |
+| `APP_ENV` | `staging` | `production` |
+| Email | **không gửi ra ngoài**: `APP_ENV=staging` tự bật `MAIL_BLOCK_OUTGOING`, bỏ qua cả SMTP nhập ở *Cấu hình → Email* | gửi thật |
+| SePay / Zalo | `SEPAY_WEBHOOK_ENABLED=false`, `ZALO_ZNS_MODE=sandbox` | bật khi đã cấu hình |
+| `APP_KEY`, `DEPLOY_HOOK_TOKEN`, database, cron | riêng | riêng |
+
+Staging chứa tên, SĐT, email thật: chỉ chia sẻ link cho người trong đội. Nên bật *Required reviewers* cho môi trường `production` trên GitHub.
+
 ## Mỗi lần deploy
 
 GitHub → *Actions* → **Deploy hosting (DirectAdmin)** → *Run workflow* → chọn `staging` hoặc `production`.
