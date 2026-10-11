@@ -9,8 +9,10 @@ use App\Models\User;
 use App\Services\MediaManagerService;
 use App\Services\NotificationService;
 use App\Support\Ui;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -101,6 +103,9 @@ class SupportTicketController extends Controller
         return $this->modalPage('SupportTickets/Create', ['staffs' => Ui::options($staffs, 'name')]);
     }
 
+    /** Ticket giống hệt (cùng người tạo, tiêu đề, mô tả) tạo trong khoảng này coi là gửi lặp, không tạo thêm. */
+    private const DUPLICATE_WINDOW_MINUTES = 10;
+
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -109,6 +114,7 @@ class SupportTicketController extends Controller
             'priority' => 'required|string|in:low,medium,high,urgent',
             'description' => 'required|string',
             'assignee_id' => 'nullable|exists:users,id',
+            'submission_token' => 'nullable|string|max:64',
             'attachments.*' => 'nullable|file|mimes:jpg,jpeg,png,gif,webp,pdf,doc,docx,xlsx|max:15360',
         ]);
 
@@ -117,33 +123,87 @@ class SupportTicketController extends Controller
             $this->ensureValidHandler((int) $validated['assignee_id']);
         }
 
+        $token = $validated['submission_token'] ?? null;
+
+        // Gửi lặp (bấm lại sau khi mạng lỗi / gateway timeout trong khi lần đầu đã lưu): trả về ticket đã có.
+        if ($existing = $this->findSubmittedTicket($token, $validated)) {
+            return $this->ticketAlreadyCreated($existing);
+        }
+
         $attachmentPath = $this->handleUploadedFiles($request);
 
-        $ticket = SupportTicket::create([
-            'code' => SupportTicket::generateCode(),
-            'title' => $validated['title'],
-            'category' => $validated['category'],
-            'priority' => $validated['priority'],
-            'description' => $validated['description'],
-            'attachment_path' => $attachmentPath,
-            'creator_id' => Auth::id(),
-            'assignee_id' => $validated['assignee_id'] ?? null,
-            'status' => 'open',
-        ]);
+        try {
+            $ticket = DB::transaction(function () use ($validated, $token, $attachmentPath) {
+                $ticket = SupportTicket::create([
+                    'code' => SupportTicket::generateCode(),
+                    'submission_token' => $token,
+                    'title' => $validated['title'],
+                    'category' => $validated['category'],
+                    'priority' => $validated['priority'],
+                    'description' => $validated['description'],
+                    'attachment_path' => $attachmentPath,
+                    'creator_id' => Auth::id(),
+                    'assignee_id' => $validated['assignee_id'] ?? null,
+                    'status' => 'open',
+                ]);
 
-        // Tạo tin nhắn khởi tạo đầu tiên
-        TicketMessage::create([
-            'support_ticket_id' => $ticket->id,
-            'user_id' => Auth::id(),
-            'message' => $validated['description'],
-            'attachment_path' => $attachmentPath,
-            'is_internal_note' => false,
-        ]);
+                // Tạo tin nhắn khởi tạo đầu tiên
+                TicketMessage::create([
+                    'support_ticket_id' => $ticket->id,
+                    'user_id' => Auth::id(),
+                    'message' => $validated['description'],
+                    'attachment_path' => $attachmentPath,
+                    'is_internal_note' => false,
+                ]);
+
+                return $ticket;
+            });
+        } catch (UniqueConstraintViolationException $e) {
+            // Hai request cùng mã lần gửi chạy song song: request kia đã lưu trước → bỏ file vừa lưu, trả về ticket đó.
+            $existing = $this->findSubmittedTicket($token, $validated);
+            if (! $existing) {
+                throw $e;
+            }
+            $this->deleteStoredFiles($attachmentPath);
+
+            return $this->ticketAlreadyCreated($existing);
+        }
 
         // Bắn thông báo chuông + email cho những người trong luồng ticket (sau khi đã trả phản hồi)
         defer(fn () => $this->notificationService->notifyTicketCreated($ticket));
 
         return $this->modalSaved("Đã tạo phiếu yêu cầu hỗ trợ / báo lỗi {$ticket->code} thành công!", route('tickets.show', $ticket->id));
+    }
+
+    /**
+     * Ticket mà lần gửi này đã tạo trước đó: cùng mã lần gửi của form, hoặc (form cũ không có mã / mở lại form gõ lại)
+     * ticket cùng người tạo, cùng tiêu đề và mô tả trong DUPLICATE_WINDOW_MINUTES phút gần nhất.
+     */
+    private function findSubmittedTicket(?string $token, array $validated): ?SupportTicket
+    {
+        $mine = SupportTicket::where('creator_id', Auth::id());
+
+        if ($token && ($ticket = (clone $mine)->where('submission_token', $token)->first())) {
+            return $ticket;
+        }
+
+        return (clone $mine)
+            ->where('title', $validated['title'])
+            ->where('description', $validated['description'])
+            ->where('created_at', '>=', now()->subMinutes(self::DUPLICATE_WINDOW_MINUTES))
+            ->latest('id')
+            ->first();
+    }
+
+    private function ticketAlreadyCreated(SupportTicket $ticket)
+    {
+        return $this->modalSaved("Ticket {$ticket->code} đã được tạo trước đó, hệ thống không tạo thêm bản trùng.", route('tickets.show', $ticket->id));
+    }
+
+    private function deleteStoredFiles(?string $attachmentPath): void
+    {
+        $paths = $attachmentPath ? (json_decode($attachmentPath, true) ?: [$attachmentPath]) : [];
+        Storage::disk(self::ATTACHMENT_DISK)->delete($paths);
     }
 
     /** Chi tiết ticket: mở từ danh sách → modal (hội thoại + ô trả lời); mở thẳng URL → trang đầy đủ. */

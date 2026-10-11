@@ -16,6 +16,7 @@ class SupportTicket extends Model
 
     protected $fillable = [
         'code',
+        'submission_token',
         'title',
         'category',
         'priority',
