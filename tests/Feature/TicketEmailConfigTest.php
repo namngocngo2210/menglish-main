@@ -191,6 +191,25 @@ class TicketEmailConfigTest extends TestCase
         $this->assertSame('smtp', config('mail.default'));
     }
 
+    public function test_blocked_outgoing_mail_ignores_saved_smtp_and_refuses_test_email(): void
+    {
+        Mail::spy();
+        config(['mail.block_outgoing' => true, 'mail.default' => 'log']);
+        SystemSetting::set('mail_host', 'smtp.gmail.com');
+        SystemSetting::set('mail_mailer', 'smtp');
+
+        SystemSetting::applyDynamicMailConfig();
+        $this->assertSame('log', config('mail.default'));
+
+        $response = $this->actingAs($this->admin)->post(route('system-config.ticket-emails.test'), [
+            'test_email' => 'tech.diagnostics@meducation.vn',
+        ]);
+
+        $response->assertRedirect(route('system-config.ticket-emails'));
+        $response->assertSessionHas('error');
+        Mail::shouldNotHaveReceived('html');
+    }
+
     public function test_failed_test_email_shows_real_smtp_error_on_page(): void
     {
         config(['mail.default' => 'log']);
