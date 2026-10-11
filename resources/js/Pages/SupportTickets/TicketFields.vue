@@ -1,12 +1,22 @@
 <script setup>
-/** Trường form tạo ticket — dùng chung modal và trang riêng (Create.vue). Đính kèm: AttachmentUploader (chọn / kéo thả / dán ảnh). */
+/**
+ * Trường form tạo ticket — dùng chung modal và trang riêng (Create.vue). Đính kèm: AttachmentUploader (chọn / kéo thả / dán ảnh).
+ * submission_token: mã lần gửi sinh khi mở form, giữ nguyên khi bấm gửi lại sau lỗi mạng → server trả về ticket đã tạo thay vì tạo trùng.
+ */
 import { ref } from 'vue';
 import AttachmentUploader from './AttachmentUploader.vue';
 
 defineProps({ staffs: { type: Array, default: () => [] } });
 
+const newToken = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
+const token = ref(newToken());
 const uploader = ref(null);
-defineExpose({ reset: () => uploader.value?.reset() });
+defineExpose({
+    reset: () => {
+        uploader.value?.reset();
+        token.value = newToken();
+    },
+});
 
 const categories = [
     { value: 'technical_issue', label: 'Lỗi Hệ Thống / IT' },
@@ -25,6 +35,7 @@ const priorities = [
 
 <template>
     <div class="space-y-4 text-xs">
+        <input type="hidden" name="submission_token" :value="token" />
         <UiInput name="title" label="Tiêu đề sự cố / yêu cầu" required placeholder="Ví dụ: Lỗi không xuất được hóa đơn điện tử cho học viên HV-0012" class="text-xs font-bold" />
 
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
