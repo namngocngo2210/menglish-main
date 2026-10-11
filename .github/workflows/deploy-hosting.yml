@@ -44,7 +44,20 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Production chỉ nhận code từ nhánh main; staging deploy được mọi nhánh (thử nhánh tính năng trước khi merge).
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Kiểm tra nhánh
+        run: |
+          echo "Môi trường: ${{ inputs.environment }} · nhánh: ${{ github.ref_name }}"
+          if [ "${{ inputs.environment }}" = "production" ] && [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "::error::Production chỉ deploy từ nhánh main (đang chọn ${{ github.ref_name }}). Merge vào main trước, hoặc chọn staging."
+            exit 1
+          fi
+
   test:
+    needs: guard
     if: ${{ inputs.run_tests }}
     runs-on: ubuntu-latest
     steps:
@@ -58,8 +71,8 @@ jobs:
       - run: php artisan test
 
   deploy:
-    needs: test
-    if: ${{ always() && (needs.test.result == 'success' || needs.test.result == 'skipped') }}
+    needs: [guard, test]
+    if: ${{ always() && needs.guard.result == 'success' && (needs.test.result == 'success' || needs.test.result == 'skipped') }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     env:
