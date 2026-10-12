@@ -168,7 +168,7 @@ class UserController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'phone' => $user->phone,
-                'employee_code' => $user->employee_code ?? ('NV-'.str_pad($user->id, 4, '0', STR_PAD_LEFT)),
+                'employee_code' => $user->employee_code,
                 'branch_name' => $user->branch?->name,
                 'role_name' => $user->roles->first()?->name ? AclHelper::roleLabel($user->roles->first()->name) : 'Nhân viên',
                 'base_salary' => self::canViewSensitive($request->user()) && $user->base_salary
@@ -199,7 +199,7 @@ class UserController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'phone' => $user->phone,
-                'employee_code' => $user->employee_code ?? ('NV-'.str_pad($user->id, 4, '0', STR_PAD_LEFT)),
+                'employee_code' => $user->employee_code,
                 'branch_name' => $user->branch?->name,
                 'locked' => $user->isLocked(),
                 'primary_role_label' => $primaryRole ? AclHelper::roleLabel($primaryRole) : null,
@@ -420,7 +420,7 @@ class UserController extends Controller
                 'email' => $user->email,
                 'phone' => $user->phone,
                 'branch_name' => $user->branch?->name,
-                'employee_code' => $user->employee_code ?? ('NV-'.str_pad($user->id, 4, '0', STR_PAD_LEFT)),
+                'employee_code' => $user->employee_code,
                 'roles' => $user->roles->pluck('name')->all(),
             ],
             'roles' => Role::query()->withCount('permissions')->orderBy('name')->get()->map(fn (Role $role) => [
@@ -601,7 +601,7 @@ class UserController extends Controller
             'name' => $user->name,
             'email' => $user->email,
             'phone' => $user->phone,
-            'employee_code' => $user->employee_code ?: 'NV-'.str_pad((string) $user->id, 4, '0', STR_PAD_LEFT),
+            'employee_code' => $user->employee_code,
             'branch' => $user->branch ? ['name' => $user->branch->name] : null,
             'primary_role' => $roles->first() ? AclHelper::shortRoleLabel($roles->first()) : null,
             // Kiêm nhiệm: vai trò phụ ngoài vai trò chính + lớp đang phụ trách.

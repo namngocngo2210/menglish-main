@@ -18,7 +18,7 @@ return [
             ],
             'steps' => [
                 'Mở trình duyệt trên điện thoại, vào địa chỉ portal trung tâm gửi.',
-                'Ở ô **Email hoặc mã học viên**, nhập mã học viên (ví dụ HV-...) hoặc email đã đăng ký.',
+                'Ở ô **Mã nhân viên hoặc email**, học viên nhập mã học viên (ví dụ HV-...) hoặc email đã đăng ký.',
                 'Nhập **Mật khẩu**, tích **Ghi nhớ đăng nhập** nếu dùng máy riêng, rồi bấm **Đăng nhập**.',
                 'Lần đầu đăng nhập, nếu được yêu cầu đổi mật khẩu, hãy đặt mật khẩu mới trước khi dùng tiếp.',
             ],

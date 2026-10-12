@@ -92,7 +92,7 @@ onMounted(() => {
         <div v-show="tab === 'account'" role="tabpanel" :id="fid('panel-account')" :aria-labelledby="fid('tab-account')" data-tab-panel="account" class="space-y-md">
             <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
                 <UiInput name="name" :id="fid('name')" label="Họ và tên" required :value="user?.name" placeholder="Họ và tên đầy đủ" />
-                <UiInput name="employee_code" :id="fid('employee_code')" label="Mã nhân viên" :value="user?.employee_code" placeholder="VD: NV-0012" class="font-code" />
+                <UiInput name="employee_code" :id="fid('employee_code')" label="Mã nhân viên (dùng để đăng nhập)" :value="user?.employee_code" placeholder="Để trống: tự cấp MESxxx" class="font-code" />
                 <UiInput name="email" :id="fid('email')" type="email" label="Email công việc" required :value="user?.email" placeholder="VD: nva@menglish.edu.vn" />
                 <UiInput name="phone" :id="fid('phone')" label="Số điện thoại" :value="user?.phone" placeholder="10 số, bắt đầu bằng 0" class="font-code" />
                 <UiSelect name="branch_id" :id="fid('branch_id')" label="Cơ sở / Chi nhánh" required placeholder="-- Chọn cơ sở --" :value="user?.branch_id" :options="branches" />

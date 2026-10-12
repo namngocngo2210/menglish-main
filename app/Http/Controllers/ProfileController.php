@@ -379,7 +379,7 @@ class ProfileController extends Controller
                 'email' => $user->email,
                 'initial' => Str::substr($user->name ?? 'A', 0, 1),
                 'branch_name' => $user->branch?->name,
-                'staff_code' => '#NV-'.str_pad((string) $user->id, 4, '0', STR_PAD_LEFT),
+                'staff_code' => $user->employee_code ? '#'.$user->employee_code : null,
                 'must_change_password' => (bool) $user->must_change_password,
                 'email_unverified' => $user instanceof MustVerifyEmail && ! $user->hasVerifiedEmail(),
             ],

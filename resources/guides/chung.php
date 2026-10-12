@@ -23,19 +23,20 @@ return [
             'icon' => 'login',
             'menu' => 'Ảnh đại diện góc trên phải → Hồ sơ cá nhân → Cài đặt tài khoản',
             'route' => 'profile.edit',
-            'intro' => 'Mỗi người có một tài khoản riêng. Học viên đăng nhập bằng email hoặc mã học viên do trung tâm cấp.',
+            'intro' => 'Mỗi người có một tài khoản riêng. Nhân viên đăng nhập bằng mã nhân viên (dạng MES012), học viên bằng mã học viên do trung tâm cấp. Ai cũng vẫn đăng nhập được bằng email.',
             'images' => [
                 ['src' => 'chung/dang-nhap.webp', 'caption' => 'Màn hình đăng nhập'],
                 ['src' => 'chung/doi-mat-khau.webp', 'caption' => 'Hồ sơ cá nhân → Cài đặt tài khoản → Đổi mật khẩu'],
             ],
             'steps' => [
-                'Mở portal, nhập **Email hoặc mã học viên** và **Mật khẩu**, bấm **Đăng nhập**.',
+                'Mở portal, nhập mã của bạn vào ô **Mã nhân viên hoặc email** (học viên nhập mã học viên), nhập **Mật khẩu** rồi bấm **Đăng nhập**.',
                 'Lần đầu đăng nhập, nếu hệ thống yêu cầu đổi mật khẩu, hãy đặt mật khẩu mới trước khi dùng tiếp.',
                 'Muốn đổi mật khẩu sau này: bấm ảnh đại diện góc trên bên phải, chọn **Hồ sơ cá nhân**, rồi bấm **Cài đặt tài khoản**.',
                 'Ở khối **Đổi mật khẩu**, nhập mật khẩu hiện tại, mật khẩu mới hai lần, rồi bấm **Cập nhật mật khẩu**.',
             ],
             'tips' => [
                 'Quên mật khẩu: bấm **Quên mật khẩu?** ở màn đăng nhập để nhận link đặt lại qua email, hoặc báo Học vụ / Admin đặt lại giúp.',
+                'Mã nhân viên của bạn hiện cạnh tên ở trang **Hồ sơ cá nhân**.',
                 'Không dùng chung tài khoản: mọi thao tác đều được ghi lại theo người đăng nhập.',
             ],
         ],

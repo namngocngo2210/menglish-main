@@ -119,7 +119,7 @@ const ticketColor = (s) => (s === 'resolved' ? 'success' : s === 'in_progress' ?
                                     <span class="material-symbols-outlined text-sm text-on-surface-subtle">domain</span>
                                     <span>{{ account.branch_name ?? 'Toàn hệ thống ME Education' }}</span>
                                 </span>
-                                <span v-if="portal !== 'student'" class="flex items-center gap-1 font-mono">
+                                <span v-if="portal !== 'student' && account.staff_code" class="flex items-center gap-1 font-mono" title="Mã nhân viên, dùng để đăng nhập">
                                     <span class="material-symbols-outlined text-sm text-on-surface-subtle">badge</span>
                                     <span>{{ account.staff_code }}</span>
                                 </span>

@@ -248,6 +248,19 @@ class AclRoleUserTest extends TestCase
         $this->assertTrue($createdUser->hasRole('teacher'));
     }
 
+    public function test_employee_code_used_for_login_rejects_at_sign_and_spaces(): void
+    {
+        Role::firstOrCreate(['name' => 'teacher', 'guard_name' => 'web']);
+
+        foreach (['nv@0100', 'NV 0100'] as $code) {
+            $this->actingAs($this->adminUser)->post(route('users.store'), [
+                'name' => 'Mã sai', 'email' => 'ma-sai@menglish.edu.vn', 'employee_code' => $code,
+                'branch_id' => $this->branch->id, 'role' => 'teacher', 'password' => 'SecurePass123!',
+            ])->assertSessionHasErrors(['employee_code' => 'Mã nhân viên không được chứa "@" hoặc khoảng trắng.']);
+        }
+        $this->assertDatabaseMissing('users', ['email' => 'ma-sai@menglish.edu.vn']);
+    }
+
     public function test_user_creation_validation_fails_on_duplicate_email_and_missing_branch(): void
     {
         Role::firstOrCreate(['name' => 'staff', 'guard_name' => 'web']);
