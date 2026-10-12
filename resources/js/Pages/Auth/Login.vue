@@ -23,7 +23,7 @@ const email = ref('');
 
     <UiForm :action="route('login')" method="post" :reset-on-success="['password']">
         <div>
-            <UiInput id="email" v-model="email" type="text" name="email" label="Mã nhân viên hoặc email" placeholder="VD: NV-0012" required autofocus autocomplete="username" autocapitalize="none" spellcheck="false" />
+            <UiInput id="email" v-model="email" type="text" name="email" label="Mã nhân viên hoặc email" placeholder="VD: MES012" required autofocus autocomplete="username" autocapitalize="none" spellcheck="false" />
         </div>
 
         <div class="mt-4">

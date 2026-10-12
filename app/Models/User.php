@@ -212,33 +212,25 @@ class User extends Authenticatable
     }
 
     /**
-     * Mã nhân viên là tên đăng nhập (LoginRequest) nên tài khoản nào cũng phải có: tạo không nhập mã → tự cấp NV-<id 4 số>;
-     * sửa mà xoá trống mã → cấp lại mã đó (không để tài khoản mất tên đăng nhập).
+     * Mã nhân viên là tên đăng nhập (LoginRequest) nên tài khoản nào cũng phải có: tạo không nhập mã, hoặc sửa mà xoá
+     * trống mã → tự cấp mã MES kế tiếp (nextEmployeeCode).
      */
     protected static function booted(): void
     {
         static::saving(function (User $user) {
             $code = trim((string) $user->employee_code);
-            $user->employee_code = $code !== '' ? $code : ($user->exists ? self::defaultEmployeeCode($user->id) : null);
-        });
-
-        static::created(function (User $user) {
-            if ($user->employee_code === null) {
-                $user->forceFill(['employee_code' => self::defaultEmployeeCode($user->id)])->saveQuietly();
-            }
+            $user->employee_code = $code !== '' ? $code : self::nextEmployeeCode();
         });
     }
 
-    /** Mã tự cấp NV-<id 4 số>; trùng mã đã nhập tay cho người khác thì thêm hậu tố -2, -3, … */
-    public static function defaultEmployeeCode(int $id): string
+    /** Mã tự cấp MES001, MES002, … — số lớn nhất trong các mã MES<số> đang có (kể cả tài khoản đã xoá) cộng 1. */
+    public static function nextEmployeeCode(): string
     {
-        $base = 'NV-'.str_pad((string) $id, 4, '0', STR_PAD_LEFT);
-        $code = $base;
-        for ($n = 2; DB::table('users')->where('id', '!=', $id)->whereRaw('UPPER(employee_code) = ?', [Str::upper($code)])->exists(); $n++) {
-            $code = $base.'-'.$n;
-        }
+        $last = DB::table('users')->where('employee_code', 'like', 'MES%')->pluck('employee_code')
+            ->map(fn ($code) => preg_match('/^MES(\d+)$/i', (string) $code, $m) ? (int) $m[1] : 0)
+            ->max() ?? 0;
 
-        return $code;
+        return 'MES'.str_pad((string) ($last + 1), 3, '0', STR_PAD_LEFT);
     }
 
     public function isLocked(): bool

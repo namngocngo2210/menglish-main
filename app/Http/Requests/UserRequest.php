@@ -41,7 +41,7 @@ class UserRequest extends FormRequest
         $userId = $this->route('user')?->id;
 
         return [
-            // Mã nhân viên là tên đăng nhập: không chứa "@" (ô đăng nhập coi chuỗi có "@" là email) hay khoảng trắng; để trống → tự cấp NV-<id>.
+            // Mã nhân viên là tên đăng nhập: không chứa "@" (ô đăng nhập coi chuỗi có "@" là email) hay khoảng trắng; để trống → tự cấp MES kế tiếp.
             'employee_code' => ['nullable', 'string', 'max:50', 'not_regex:/[@\s]/', Rule::unique('users', 'employee_code')->ignore($userId)],
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],

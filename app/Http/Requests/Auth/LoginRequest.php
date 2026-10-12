@@ -34,7 +34,7 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // Ô "email" nhận mã tài khoản (mã nhân viên NV-… / ME-…, mã học viên HV-…) hoặc email.
+            // Ô "email" nhận mã tài khoản (mã nhân viên MES…, mã học viên HV-…) hoặc email.
             'email' => ['required', 'string', 'max:255'],
             'password' => ['required', 'string'],
         ];
