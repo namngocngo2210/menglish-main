@@ -23,6 +23,7 @@
     },
     "dependencies": {
         "@inertiajs/vue3": "^3.7.1",
+        "leaflet": "^1.9.4",
         "pdfjs-dist": "^6.4.299",
         "tom-select": "^2.6.2",
         "vue": "^3.5.43",
