@@ -3,6 +3,7 @@
 import { computed, ref } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { currentPosition } from '@/lib/geo';
+import BranchLocationMap from './BranchLocationMap.vue';
 
 defineOptions({ layout: { title: 'Cơ sở & chi nhánh' } });
 
@@ -24,13 +25,17 @@ function openEdit(branch) {
     editData.value = { ...branch };
 }
 
-// Cài đặt chấm công: toạ độ (gõ tay / dán từ Google Maps "vĩ độ, kinh độ" / lấy vị trí hiện tại khi đang ở cơ sở).
+// Cài đặt chấm công: toạ độ (tìm địa chỉ / bấm trên bản đồ / gõ tay / dán từ Google Maps "vĩ độ, kinh độ" / lấy vị trí hiện tại khi đang ở cơ sở).
 const checkin = ref(null);
 const locating = ref(false);
 const locateError = ref(null);
 function openCheckin(branch) {
     locateError.value = null;
-    checkin.value = { id: branch.id, name: branch.name, ...branch.checkin, latitude: branch.checkin.latitude ?? '', longitude: branch.checkin.longitude ?? '' };
+    checkin.value = { id: branch.id, name: branch.name, address: branch.address, ...branch.checkin, latitude: branch.checkin.latitude ?? '', longitude: branch.checkin.longitude ?? '' };
+}
+function pickOnMap({ latitude, longitude }) {
+    checkin.value.latitude = latitude;
+    checkin.value.longitude = longitude;
 }
 function pasteCoordinates(event) {
     const match = (event.clipboardData?.getData('text') ?? '').match(/(-?\d{1,2}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)/);
@@ -186,21 +191,22 @@ const mapUrl = computed(() =>
         </UiModal>
 
         <!-- Cài đặt chấm công của cơ sở -->
-        <UiModal :show="!!checkin" :title="checkin ? `Cài đặt chấm công: ${checkin.name}` : ''" max-width="lg" @close="checkin = null">
+        <UiModal :show="!!checkin" :title="checkin ? `Cài đặt chấm công: ${checkin.name}` : ''" max-width="2xl" @close="checkin = null">
             <UiForm v-if="checkin" id="branchCheckinForm" :key="checkin.id" :action="route('branches.attendance', checkin.id)" method="put" class="space-y-md" @success="checkin = null">
                 <p class="font-body-small text-body-small text-on-surface-variant">
-                    Nhân sự của cơ sở chỉ chấm công được trên điện thoại khi GPS nằm trong bán kính quanh toạ độ này. Dán toạ độ từ Google Maps (nhấn giữ vị trí → sao chép "vĩ độ, kinh độ") hoặc đứng tại cơ sở và bấm "Lấy vị trí hiện tại".
+                    Nhân sự của cơ sở chỉ chấm công được trên điện thoại khi GPS nằm trong bán kính quanh toạ độ này. Tìm địa chỉ trên bản đồ rồi kéo ghim đến đúng cổng cơ sở, dán toạ độ từ Google Maps (nhấn giữ vị trí → sao chép "vĩ độ, kinh độ") hoặc đứng tại cơ sở và bấm "Lấy vị trí hiện tại".
                 </p>
+                <BranchLocationMap :latitude="checkin.latitude" :longitude="checkin.longitude" :radius="checkin.radius" :address="checkin.address" @pick="pickOnMap" />
                 <div class="grid grid-cols-2 gap-md">
                     <UiInput v-model="checkin.latitude" name="latitude" label="Vĩ độ (latitude)" required inputmode="decimal" placeholder="21.0285" class="font-mono" @paste="pasteCoordinates" />
                     <UiInput v-model="checkin.longitude" name="longitude" label="Kinh độ (longitude)" required inputmode="decimal" placeholder="105.8542" class="font-mono" @paste="pasteCoordinates" />
                 </div>
                 <div class="flex flex-wrap items-center gap-sm">
                     <UiButton variant="secondary" size="sm" icon="my_location" :disabled="locating" @click="useCurrentLocation">{{ locating ? 'Đang lấy vị trí…' : 'Lấy vị trí hiện tại' }}</UiButton>
-                    <UiButton v-if="mapUrl" variant="ghost" size="sm" icon="map" :href="mapUrl" target="_blank" rel="noopener">Xem trên bản đồ</UiButton>
+                    <UiButton v-if="mapUrl" variant="ghost" size="sm" icon="open_in_new" :href="mapUrl" target="_blank" rel="noopener">Mở Google Maps</UiButton>
                 </div>
                 <UiAlert v-if="locateError" type="warning">{{ locateError }}</UiAlert>
-                <UiInput name="checkin_radius" type="number" label="Bán kính được chấm công" required min="20" max="5000" suffix="mét" :value="checkin.radius" hint="Nên 50–150 m: GPS điện thoại trong nhà thường lệch 10–50 m." />
+                <UiInput v-model="checkin.radius" name="checkin_radius" type="number" label="Bán kính được chấm công" required min="20" max="5000" suffix="mét" hint="Nên 50–150 m: GPS điện thoại trong nhà thường lệch 10–50 m." />
                 <div class="grid grid-cols-3 gap-md">
                     <UiInput name="work_start_time" type="time" label="Giờ vào" required :value="checkin.work_start ?? '08:00'" />
                     <UiInput name="work_end_time" type="time" label="Giờ ra" required :value="checkin.work_end ?? '17:30'" />
