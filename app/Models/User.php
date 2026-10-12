@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Spatie\Permission\Traits\HasRoles;
 
@@ -208,6 +209,36 @@ class User extends Authenticatable
         return $legacyGenerated && $this->employee_code
             ? (string) $this->employee_code
             : (string) $this->email;
+    }
+
+    /**
+     * Mã nhân viên là tên đăng nhập (LoginRequest) nên tài khoản nào cũng phải có: tạo không nhập mã → tự cấp NV-<id 4 số>;
+     * sửa mà xoá trống mã → cấp lại mã đó (không để tài khoản mất tên đăng nhập).
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (User $user) {
+            $code = trim((string) $user->employee_code);
+            $user->employee_code = $code !== '' ? $code : ($user->exists ? self::defaultEmployeeCode($user->id) : null);
+        });
+
+        static::created(function (User $user) {
+            if ($user->employee_code === null) {
+                $user->forceFill(['employee_code' => self::defaultEmployeeCode($user->id)])->saveQuietly();
+            }
+        });
+    }
+
+    /** Mã tự cấp NV-<id 4 số>; trùng mã đã nhập tay cho người khác thì thêm hậu tố -2, -3, … */
+    public static function defaultEmployeeCode(int $id): string
+    {
+        $base = 'NV-'.str_pad((string) $id, 4, '0', STR_PAD_LEFT);
+        $code = $base;
+        for ($n = 2; DB::table('users')->where('id', '!=', $id)->whereRaw('UPPER(employee_code) = ?', [Str::upper($code)])->exists(); $n++) {
+            $code = $base.'-'.$n;
+        }
+
+        return $code;
     }
 
     public function isLocked(): bool

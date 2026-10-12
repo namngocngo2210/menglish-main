@@ -81,12 +81,49 @@ class AuthenticationTest extends TestCase
         $this->assertAuthenticatedAs($user);
     }
 
+    public function test_accounts_without_a_code_get_one_and_can_log_in_with_it(): void
+    {
+        $user = User::factory()->create(['employee_code' => null]);
+
+        $this->assertSame('NV-'.str_pad((string) $user->id, 4, '0', STR_PAD_LEFT), $user->fresh()->employee_code);
+
+        $this->post('/login', ['email' => strtolower($user->fresh()->employee_code), 'password' => 'password']);
+        $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_clearing_the_code_gives_it_back_and_taken_codes_get_a_suffix(): void
+    {
+        $user = User::factory()->create(['employee_code' => 'ME-0500']);
+        $default = 'NV-'.str_pad((string) $user->id, 4, '0', STR_PAD_LEFT);
+        User::factory()->create(['employee_code' => $default]);
+
+        $user->update(['employee_code' => '  ']);
+
+        $this->assertSame($default.'-2', $user->fresh()->employee_code);
+    }
+
+    public function test_bootstrap_admin_can_log_in_with_email_or_employee_code(): void
+    {
+        config(['app.initial_admin' => ['name' => 'Quản trị', 'email' => 'admin@example.test', 'password' => 'mat-khau-dai-123']]);
+        $this->seed(\Database\Seeders\ProductionBootstrapSeeder::class);
+        $admin = User::where('email', 'admin@example.test')->firstOrFail();
+
+        $this->assertNotNull($admin->employee_code);
+
+        $this->post('/login', ['email' => 'admin@example.test', 'password' => 'mat-khau-dai-123']);
+        $this->assertAuthenticatedAs($admin);
+        $this->post('/logout');
+
+        $this->post('/login', ['email' => $admin->employee_code, 'password' => 'mat-khau-dai-123']);
+        $this->assertAuthenticatedAs($admin);
+    }
+
     public function test_wrong_credentials_show_a_vietnamese_message(): void
     {
         User::factory()->create(['employee_code' => 'HV-00104']);
 
         $this->post('/login', ['email' => 'HV-99999', 'password' => 'password'])
-            ->assertSessionHasErrors(['email' => 'Email hoặc mật khẩu không đúng.']);
+            ->assertSessionHasErrors(['email' => 'Mã nhân viên / email hoặc mật khẩu không đúng.']);
 
         $this->assertGuest();
     }
