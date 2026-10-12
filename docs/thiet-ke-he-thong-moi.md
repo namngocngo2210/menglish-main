@@ -579,3 +579,4 @@ Tám giai đoạn, khoảng **46 tuần (10–11 tháng) với 3 lập trình vi
 | Học viên/phụ huynh đăng nhập bằng gì | Cả mã học viên và SĐT phụ huynh | Một SĐT có nhiều con thì sau đăng nhập chọn học viên |
 | Mang dữ liệu từ hệ thống cũ | Có | Lệnh `menglish import-legacy` đọc MySQL cũ ghi vào Postgres, viết song song giai đoạn 6–7, chạy thử 2 lần trên bản sao trước ngày ra mắt (giai đoạn 8) |
 | VPS | Tìm sau | Code trước; Docker Compose chạy được trên máy dev và bất kỳ VPS nào có Docker |
+| Xác thực hai bước | Bắt buộc với nhóm quyền cao | TOTP bắt buộc với Admin và người có quyền phân quyền, duyệt tiền, chạy lương; tùy chọn với người khác; làm trong giai đoạn 0 |
