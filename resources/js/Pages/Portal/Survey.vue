@@ -122,6 +122,6 @@ function select(title) {
             </template>
         </UiModal>
 
-        <PortalBottomNav active-tab="survey" :student="student" :unread-count="unreadCount" />
+        <PortalBottomNav v-show="!responseOpen" active-tab="survey" :student="student" :unread-count="unreadCount" />
     </div>
 </template>

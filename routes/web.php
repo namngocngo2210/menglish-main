@@ -50,6 +50,7 @@ use App\Http\Controllers\TeachingShiftController;
 use App\Http\Controllers\TrialGuestController;
 use App\Http\Controllers\TuitionController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\UserGuideController;
 use App\Http\Controllers\UserPermissionOverrideController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\SettingsController;
@@ -128,6 +129,8 @@ Route::post('/portal/recruitment', [RecruitmentController::class, 'portalSubmit'
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    // Hướng dẫn sử dụng theo vai trò (mọi người dùng đã đăng nhập, kể cả học viên).
+    Route::get('/huong-dan', [UserGuideController::class, 'index'])->name('guide.index');
     // Người dùng KHÔNG được tự xóa tài khoản (Phase 4): chỉ người quản lý tài khoản xóa/khóa qua màn Tài khoản.
 
     // ─────────────────────────────────────────────

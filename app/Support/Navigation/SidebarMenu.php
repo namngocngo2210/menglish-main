@@ -450,6 +450,16 @@ final class SidebarMenu
                     ['label' => 'Ứng dụng di động', 'route' => 'portal.app-shell'],
                 ],
             ],
+            [
+                // Hướng dẫn sử dụng theo vai trò: mọi người dùng (route chỉ cần đăng nhập), xem App\Support\Guide\UserGuide.
+                'id' => 'guide',
+                'section' => 'Cá nhân',
+                'label' => 'Hướng dẫn sử dụng',
+                'icon' => 'help',
+                'items' => [
+                    ['label' => 'Hướng dẫn sử dụng', 'route' => 'guide.index'],
+                ],
+            ],
         ];
     }
 

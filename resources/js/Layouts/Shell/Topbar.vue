@@ -66,6 +66,9 @@ function search(event) {
                     <Link :href="shell.profile_url" class="flex items-center gap-sm px-md py-sm font-body-medium text-body-medium text-on-surface hover:bg-surface-container-low">
                         <span class="material-symbols-outlined text-[20px] text-on-surface-variant" aria-hidden="true">account_circle</span> Hồ sơ cá nhân
                     </Link>
+                    <Link :href="shell.guide_url" class="flex items-center gap-sm px-md py-sm font-body-medium text-body-medium text-on-surface hover:bg-surface-container-low">
+                        <span class="material-symbols-outlined text-[20px] text-on-surface-variant" aria-hidden="true">help</span> Hướng dẫn sử dụng
+                    </Link>
                     <Link :href="shell.logout_url" method="post" as="button" class="flex w-full items-center gap-sm px-md py-sm font-body-medium text-body-medium text-error hover:bg-error-container/40">
                         <span class="material-symbols-outlined text-[20px]" aria-hidden="true">logout</span> Đăng xuất
                     </Link>

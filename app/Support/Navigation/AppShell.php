@@ -58,6 +58,7 @@ final class AppShell
             'settings' => $isSettingsRoute ? $this->menu->settingsFor($user, $request) : [],
             'logout_url' => route('logout'),
             'profile_url' => route('profile.edit'),
+            'guide_url' => route('guide.index'),
         ];
     }
 
