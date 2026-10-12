@@ -1,0 +1,260 @@
+<?php
+
+// Hướng dẫn cho vai trò Học vụ. Cấu trúc mỗi mục: xem resources/guides/chung.php.
+return [
+    'label' => 'Học vụ',
+    'icon' => 'support_agent',
+    'summary' => 'Học vụ chăm sóc khách và chốt, xếp lớp, quản lý học viên và lớp học, điểm danh thay giáo viên, lập phiếu thu, giao việc cho trợ giảng, đối soát giờ dạy, ghi nhận vi phạm và nộp báo cáo ngày.',
+    'sections' => [
+        [
+            'id' => 'crm',
+            'title' => 'Chăm sóc khách hàng trên CRM',
+            'icon' => 'person_search',
+            'menu' => 'Khách hàng (CRM) → Kanban / Danh sách',
+            'route' => 'crm.pipeline',
+            'intro' => 'Mỗi khách đi qua các giai đoạn Mới → Đang tư vấn → Hẹn test → Test → Đã test → Gửi kết quả → Chờ xếp lớp → Đã chốt. Thẻ khách cho biết hạn chăm sóc để bạn không bỏ sót ai.',
+            'images' => [
+                ['src' => 'hoc-vu/crm-kanban.webp', 'caption' => 'Kanban tuyển sinh: mỗi cột là một giai đoạn'],
+                ['src' => 'hoc-vu/crm-khach-hang.webp', 'caption' => 'Hồ sơ một khách hàng'],
+            ],
+            'steps' => [
+                'Vào **Khách hàng (CRM)**, tab **Kanban** mở sẵn. Dùng ô tìm tên / số điện thoại, nguồn, người phụ trách, ngày tạo rồi bấm **Lọc**. Nhãn **Còn hạn**, **Sắp hết hạn**, **Quá hạn** trên thẻ cho biết hạn liên hệ hoặc chăm sóc.',
+                'Bấm **Sang bước: ...** ở cuối thẻ để chuyển khách sang giai đoạn kế tiếp khi đã làm xong việc của giai đoạn này.',
+                'Bấm vào thẻ khách để mở hồ sơ (ở tab Danh sách thì bấm vào tên). Tab **Đặt lịch & Kết quả** có lịch hẹn test, link test, kết quả, học thử; tab **Thông tin khách hàng** để sửa thông tin. Nút **Sang bước** và **Phân công lại** nằm góc trên phải.',
+                'Có khách mới: bấm **Thêm khách mới**, nhập **Họ và tên**, **Số điện thoại**, **Nguồn khách**, **Chi nhánh**, rồi bấm **Lưu thông tin**.',
+                'Mở tab **Danh sách** và bấm các nút lọc nhanh **Chưa liên hệ >24h**, **Hẹn test hôm nay**, **Cần gọi lại**, **Chờ xếp lớp** để xử lý việc gấp trước.',
+            ],
+            'tips' => [
+                'Trang **Tổng quan** có khối **Cần xử lý** (khách chưa liên hệ quá 24h, khách chờ xếp lớp, học phí quá hạn) và **Lịch hẹn 7 ngày tới**.',
+                'Có nhiều khách trong file Excel: bấm **Nhập Excel**.',
+            ],
+        ],
+        [
+            'id' => 'chot-xep-lop',
+            'title' => 'Chốt khách và xếp lớp',
+            'icon' => 'how_to_reg',
+            'menu' => 'Khách hàng (CRM) → Kanban → Chốt & Xếp lớp',
+            'route' => 'crm.closing-wizard',
+            'intro' => 'Quy trình 4 bước biến khách thành học viên: xác nhận chốt, tính học phí và ưu đãi, chọn lớp (hoặc để Chờ xếp lớp), rồi thu phí đăng ký và xuất phiếu thu.',
+            'images' => [
+                ['src' => 'hoc-vu/chot-xep-lop.webp', 'caption' => 'Quy trình Chốt & Xếp lớp, Bước 1'],
+                ['src' => 'hoc-vu/cho-xep-lop.webp', 'caption' => 'Danh sách khách chờ xếp lớp'],
+            ],
+            'steps' => [
+                'Trên Kanban, bấm **Chốt & Xếp lớp** ở thẻ khách. Ở **Bước 1**, kiểm tra **Khách cần chốt** và chọn **Khóa học đăng ký**.',
+                'Bấm **Tiếp tục: Tính học phí & Ưu đãi**. Kiểm tra học phí, chọn **Chương trình Ưu đãi / Voucher** nếu có, nhập khoản thu khác và số tiền thu trước, rồi bấm **Tiếp tục: Xếp lớp**.',
+                'Ở **Bước 3**, chọn **Chọn lớp** và chọn một lớp đang học hoặc sắp khai giảng còn chỗ. Chưa có lớp phù hợp thì chọn **Xếp lớp sau**. Bấm **Tiếp tục: Xác nhận & Thu tiền**.',
+                'Ở **Bước 4**, kiểm tra tóm tắt hợp đồng, nhập **Số tiền thu thực tế đợt 1**, chọn **Chuyển khoản (VietQR)** hoặc **Tiền mặt tại quầy**. Bấm **Xem & In Bill** nếu cần in, rồi bấm **Hoàn tất Chốt Deal, Xếp Lớp & Xuất Phiếu Thu**.',
+                'Khách đã chọn Xếp lớp sau: vào tab **Danh sách**, bấm **Chờ xếp lớp**, chọn lớp ở dòng của khách rồi bấm **Xếp lớp**.',
+            ],
+            'tips' => [
+                'Thu tiền mặt phải nhập số hóa đơn giấy và tải ảnh hóa đơn giấy.',
+                'Chưa thu tiền khi chốt: hệ thống tự tạo việc "Nhắc thu học phí" cho người phụ trách khách, hạn 3 ngày.',
+            ],
+        ],
+        [
+            'id' => 'xac-nhan-nhap-hoc',
+            'title' => 'Xác nhận nhập học và bàn giao lớp',
+            'icon' => 'assignment_turned_in',
+            'menu' => 'Học viên → Tiếp nhận & Xếp lớp',
+            'route' => 'students.enrollments',
+            'intro' => 'Sau khi học viên được xếp lớp, Học vụ hoàn tất bàn giao: phát giáo trình và thêm vào nhóm Zalo lớp.',
+            'images' => [
+                ['src' => 'hoc-vu/xac-nhan-nhap-hoc.webp', 'caption' => 'Màn Xác nhận nhập học'],
+            ],
+            'steps' => [
+                'Vào **Học viên**, bấm **Tiếp nhận & Xếp lớp** ở góc trên phải.',
+                'Ở **Danh sách bàn giao học viên gần đây**, xem cột **Phát giáo trình** và **Nhóm Zalo lớp**. Làm xong việc nào thì tích vào ô đó rồi bấm **Lưu**; trạng thái chuyển sang **Hoàn tất** khi đủ.',
+                'Dòng của học viên chốt từ CRM có link **Sửa ở Xác nhận chính thức**: bấm vào để cập nhật bàn giao ở màn đó.',
+                'Cần xếp một học viên đã có hồ sơ vào lớp: bấm **Xếp lớp cho học viên**, chọn **Chọn Học viên** và **Chọn Lớp học mục tiêu**, rồi bấm **Xếp lớp**.',
+                'Dòng báo đỏ "khách chốt từ CRM đang chờ xếp lớp" cho biết số khách còn chờ. Bấm **Xếp lớp** ở dòng đó để mở danh sách chờ.',
+            ],
+        ],
+        [
+            'id' => 'hoc-vien',
+            'title' => 'Tra cứu và cập nhật hồ sơ học viên',
+            'icon' => 'school',
+            'menu' => 'Học viên',
+            'route' => 'students.index',
+            'intro' => 'Xem toàn bộ học viên theo trạng thái, lớp, chi nhánh và sửa thông tin liên hệ, phụ huynh khi cần.',
+            'images' => [
+                ['src' => 'hoc-vu/hoc-vien.webp', 'caption' => 'Hồ sơ học sinh: danh sách'],
+                ['src' => 'hoc-vu/hoc-vien-chi-tiet.webp', 'caption' => 'Chi tiết hồ sơ học sinh'],
+            ],
+            'steps' => [
+                'Bấm **Học viên** ở menu trái. Bấm các nút **Trạng thái** (Chờ khai giảng, Đang học, Bảo lưu, Nghỉ hè, Hoàn thành khóa học, Thôi học) để lọc nhanh.',
+                'Gõ tên hoặc số điện thoại, chọn chi nhánh, lớp, thâm niên rồi bấm **Lọc**.',
+                'Bấm **Chi tiết** để mở hồ sơ. Sửa họ tên, số điện thoại, phụ huynh, SĐT phụ huynh (dùng để gửi kết quả qua Zalo), trường học, ghi chú, rồi bấm **Lưu thay đổi**.',
+                'Học viên học song song thêm một lớp: bấm **Liên kết lớp khác** ở dòng học viên. Lớp chính không đổi.',
+            ],
+            'tips' => [
+                'Nhớ nhập đúng **SĐT phụ huynh**: thiếu số này thì không gửi được kết quả Big Test cho phụ huynh.',
+            ],
+        ],
+        [
+            'id' => 'tao-lop',
+            'title' => 'Tạo lớp mới',
+            'icon' => 'add_home',
+            'menu' => 'Lớp học → Tạo lớp mới',
+            'route' => 'classes.create',
+            'intro' => 'Tạo khung thông tin của lớp trước, sau đó mới xếp lịch định kỳ và xếp học viên vào lớp.',
+            'images' => [
+                ['src' => 'hoc-vu/tao-lop.webp', 'caption' => 'Màn Tạo lớp mới'],
+            ],
+            'steps' => [
+                'Vào **Lớp học**, bấm **Tạo lớp mới** ở góc phải hàng tab.',
+                'Ở mục **1. Định danh & phân loại chương trình**, nhập **Tên lớp**, chọn **Chi nhánh**, **Chương trình**, **Cấp độ**. Mã lớp để trống thì hệ thống tự tạo.',
+                'Ở mục **2. Sĩ số & phòng học dự kiến**, nhập **Sĩ số tối đa**, **Ngưỡng khai giảng** và chọn phòng (nếu đã biết).',
+                'Ở mục **3. Nhân sự phụ trách**, chọn **Giáo viên chính** và **Giáo viên nước ngoài** (nếu có). Mục **4** để nhập học phí niêm yết và ghi chú nội bộ.',
+                'Bấm **Lưu lớp mới**. Lớp ở trạng thái Chờ lịch; mở tab **Lịch & buổi học** của lớp để xếp lịch định kỳ.',
+            ],
+            'tips' => [
+                'Ngưỡng khai giảng là số học viên tối thiểu để mở lớp, không vượt sĩ số tối đa.',
+            ],
+        ],
+        [
+            'id' => 'lop-hoc-diem-danh',
+            'title' => 'Theo dõi lớp, lịch học và điểm danh thay giáo viên',
+            'icon' => 'fact_check',
+            'menu' => 'Lớp học → Danh sách lớp / Lịch học các lớp',
+            'route' => 'classes.index',
+            'intro' => 'Trang lớp gom mọi thông tin của một lớp. Khi giáo viên chưa điểm danh, Học vụ điểm danh thay ngay trên portal.',
+            'images' => [
+                ['src' => 'hoc-vu/trang-lop.webp', 'caption' => 'Trang lớp, tab Điểm danh & báo cáo buổi'],
+                ['src' => 'hoc-vu/diem-danh.webp', 'caption' => 'Màn điểm danh một buổi học'],
+            ],
+            'steps' => [
+                'Vào **Lớp học**, lọc theo trạng thái (Sắp khai giảng, Đang học...) và bấm **Mở lớp** ở lớp cần xem. Ô **Buổi hôm nay chưa điểm danh** đưa bạn thẳng tới các buổi còn thiếu.',
+                'Trên trang lớp, thanh tiến trình cho biết lớp đang ở bước nào (Tạo lớp → Cấu hình lịch → Xếp học viên → Khai giảng → Vận hành → Kết thúc). Các tab: **Tổng quan**, **Học viên**, **Lịch & buổi học**, **Điểm danh & báo cáo buổi**, **Học thuật**, **Sự vụ**.',
+                'Mở tab **Điểm danh & báo cáo buổi**, bấm **Điểm danh** ở buổi có nhãn **Chưa điểm danh**.',
+                'Chọn trạng thái cho từng học sinh: **Đúng giờ**, **Đi muộn**, **Nghỉ có phép**, **Nghỉ không phép**, ghi chú nếu cần.',
+                'Bấm **Lưu điểm danh**. Hệ thống ghi nhận bạn là người điểm danh thay giáo viên.',
+                'Xem tất cả buổi học trong ngày ở tab **Lịch học các lớp** (**Theo ngày** / **Theo tuần**): số buổi đã và chưa điểm danh, trợ giảng làm việc hôm nay. Bấm **Xuất báo cáo** để tải về.',
+            ],
+            'tips' => [
+                'Thanh màu trên màn điểm danh cho biết buổi có đang trong cửa sổ điểm danh hay không. Bấm **Xem quy định** để đọc quy định.',
+            ],
+        ],
+        [
+            'id' => 'lap-phieu-thu',
+            'title' => 'Lập phiếu thu học phí',
+            'icon' => 'add_card',
+            'menu' => 'Học phí → Lập phiếu thu',
+            'route' => 'tuition.receipts.create',
+            'intro' => 'Ghi nhận tiền học viên đã nộp. Phiếu thu được gửi lên để duyệt; Học vụ lập phiếu, không tự duyệt.',
+            'images' => [
+                ['src' => 'hoc-vu/cong-no.webp', 'caption' => 'Học phí → Công nợ học viên'],
+                ['src' => 'hoc-vu/lap-phieu-thu.webp', 'caption' => 'Màn Lập phiếu thu học phí'],
+            ],
+            'steps' => [
+                'Vào **Học phí**, tab **Công nợ học viên** cho biết ai còn nợ, hạn nộp, trạng thái. Bấm **Lập phiếu thu** (hoặc biểu tượng thu tiền ở dòng học viên).',
+                'Chọn **Khoản học phí đang nợ** và **Học viên được ghi nhận**. Kiểm tra số buổi thu đợt này, đơn giá và tiền học phí theo buổi.',
+                'Nếu có, chọn ưu đãi hoặc nhập số tiền giảm trừ, thêm học liệu, phí thi, khoản thu khác, phụ thu. Khung tổng ở dưới cho biết **Tổng thực thu**.',
+                'Chọn **Hình thức thu tiền** (**Chuyển khoản** hoặc **Tiền mặt**), điền người nộp tiền và tải ảnh ủy nhiệm chi hoặc biên lai ở **Minh chứng thanh toán**.',
+                'Bấm **Lưu phiếu thu & Gửi duyệt**. Chưa đủ thông tin thì bấm **Lưu nháp** để làm tiếp sau.',
+            ],
+            'tips' => [
+                'Theo dõi phiếu đã lập ở tab **Lịch sử thu**. Học viên trễ hạn nằm ở tab **Quá hạn & Nhắc phí**.',
+            ],
+        ],
+        [
+            'id' => 'giao-viec-tro-giang',
+            'title' => 'Giao việc cho trợ giảng và theo dõi đầu việc',
+            'icon' => 'support_agent',
+            'menu' => 'Danh sách đầu việc → Giao việc cho Trợ giảng',
+            'route' => 'tasks.ta-assign',
+            'intro' => 'Giao nhiệm vụ theo ca (trước, trong, sau giờ học) cho trợ giảng, và theo dõi mọi việc bạn nhận hoặc giao.',
+            'images' => [
+                ['src' => 'hoc-vu/giao-viec-tro-giang.webp', 'caption' => 'Tạo lượt giao việc cho Trợ giảng'],
+                ['src' => 'hoc-vu/danh-sach-dau-viec.webp', 'caption' => 'Danh sách đầu việc'],
+            ],
+            'steps' => [
+                'Vào **Danh sách đầu việc**, bấm **Giao việc cho Trợ giảng** ở góc phải hàng tab (hoặc ở màn **Lịch học các lớp**).',
+                'Chọn **Chọn Trợ giảng**, **Ngày giao việc** và **Chi nhánh**.',
+                'Với mỗi đầu việc, chọn nhóm (**Trước giờ học**, **Trong giờ học**, **Sau giờ học**), nhập nội dung, tích **Gắn lớp?** nếu việc gắn với một buổi học. Bấm **Thêm đầu việc** để thêm dòng.',
+                'Bấm **Gửi nhiệm vụ**. Trợ giảng thấy việc ở màn Nhiệm vụ hôm nay.',
+                'Ở **Danh sách đầu việc**, tab **Của tôi** là việc bạn nhận, **Tôi giao** là việc bạn giao. Bấm **⋮** ở một dòng để đổi trạng thái. Giao việc cho nhân sự khác: bấm **Tạo đầu việc**.',
+            ],
+            'tips' => [
+                'Nên gửi trước 15h30. Hạn từng ca: trước giờ học là lúc lớp bắt đầu, trong giờ học là lúc lớp tan, sau giờ học là 1 tiếng sau khi lớp tan.',
+            ],
+        ],
+        [
+            'id' => 'gio-day-giao-vien',
+            'title' => 'Đối soát giờ dạy giáo viên',
+            'icon' => 'schedule',
+            'menu' => 'Chấm công → Giờ dạy giáo viên',
+            'route' => 'payroll.timesheets.teachers',
+            'intro' => 'Kiểm tra ca dạy thực tế (check-in hoặc chấm tay) của giáo viên, trợ giảng trước khi chốt bảng công và tính lương.',
+            'images' => [
+                ['src' => 'hoc-vu/gio-day-giao-vien.webp', 'caption' => 'Chấm công theo lịch trong ngày'],
+                ['src' => 'hoc-vu/ca-day-trong-ky.webp', 'caption' => 'Bảng Ca dạy trong kỳ'],
+            ],
+            'steps' => [
+                'Vào **Chấm công → Giờ dạy giáo viên**. Chọn kỳ lương, chi nhánh, lớp, giáo viên, trạng thái rồi bấm **Lọc**.',
+                'Ở khối **Chấm công theo lịch**, chọn **Ngày**. Bấm **Xác nhận** ở buổi học để tính công theo giờ lịch cho giáo viên dự kiến.',
+                'Ở bảng **Ca dạy trong kỳ**, ca **Chờ đối soát** có nút **Duyệt** và **Từ chối**. Bấm biểu tượng bút để chỉnh tay giờ vào, giờ ra, phút đi muộn, về sớm, nhập lý do rồi bấm **Lưu thay đổi**.',
+                'Tích chọn nhiều ca chờ đối soát rồi bấm **Chốt bảng công** để duyệt cùng lúc.',
+                'Buổi giáo viên quên chấm công hiện ở **Buổi thiếu chấm công**: bấm **Chấm công tay**. Gặp sự cố mất mạng, mất điện: dùng nút **Chấm công thủ công** (tab **Chấm công đơn lẻ**).',
+            ],
+        ],
+        [
+            'id' => 'vi-pham',
+            'title' => 'Ghi nhận vi phạm và chốt lỗi vận hành',
+            'icon' => 'gavel',
+            'menu' => 'Lương & Phạt',
+            'route' => 'penalties.index',
+            'intro' => 'Ghi nhận vi phạm của nhân sự kèm bằng chứng. Lỗi vận hành / nội quy do Học vụ hoặc Quản lý chốt; lỗi chuyên môn do Học thuật chốt.',
+            'images' => [
+                ['src' => 'hoc-vu/vi-pham.webp', 'caption' => 'Danh sách vi phạm'],
+                ['src' => 'hoc-vu/ghi-nhan-vi-pham.webp', 'caption' => 'Hộp thoại Ghi nhận vi phạm mới'],
+            ],
+            'steps' => [
+                'Vào **Lương & Phạt**, bấm **Ghi nhận vi phạm mới**.',
+                'Chọn **Nhân sự vi phạm**, **Loại lỗi**, **Lỗi vi phạm** (chọn lỗi thường gặp hoặc tự nhập), **Thời điểm vi phạm**, lớp liên quan. Tải **Bằng chứng vi phạm**, ghi **Mô tả sự việc**, rồi bấm **Ghi nhận**.',
+                'Nhân sự sẽ giải trình. Khi đến lượt bạn, bấm **Chốt lỗi** ở dòng lỗi vận hành (ghi "chốt bởi Học vụ / Quản lý (CM)"), chọn **Kết luận**, nhập số tiền nếu chốt mức phạt, rồi bấm **Chốt**.',
+                'Dùng **Lọc theo bước** (Ghi nhận, Đã chốt lỗi, Đã chốt phạt...) và các ô số liệu đầu trang để theo dõi. Bấm **...** để xem chi tiết biên bản.',
+            ],
+            'tips' => [
+                'Chỉ ghi nhận được vi phạm trong vòng 24 giờ. Không cần nhập số tiền khi ghi nhận: mức phạt được chốt sau khi nhân sự giải trình.',
+            ],
+        ],
+        [
+            'id' => 'big-test-nhac-lich',
+            'title' => 'Nhắc lịch Big Test',
+            'icon' => 'notifications_active',
+            'menu' => 'Big Test → Nhắc lịch',
+            'route' => 'syllabus.big-tests.schedules',
+            'intro' => 'Theo dõi lớp sắp thi Big Test và gửi thông báo nhắc lịch thi cho học viên, phụ huynh.',
+            'images' => [
+                ['src' => 'hoc-vu/big-test-nhac-lich.webp', 'caption' => 'Big Test → Nhắc lịch'],
+            ],
+            'steps' => [
+                'Vào **Big Test**, tab **Nhắc lịch** mở sẵn. Ô **Khẩn cấp (1-2 ngày)** cho biết chặng sắp thi gấp.',
+                'Bảng **Chặng sắp thi, chưa duyệt đề** liệt kê lớp sắp thi trong 7 ngày mà đề chưa được duyệt. Nhắc giáo viên order đề và báo Học thuật.',
+                'Ở bảng **Đợt thi Big Test đã tạo**, bấm **Nhắc lịch** rồi xác nhận để gửi thông báo lịch thi vào Cổng Phụ huynh & Học sinh của cả lớp.',
+                'Bấm **Xem điểm** để mở bảng điểm của đợt thi, hoặc **Lịch dự kiến theo lớp** để xem lịch thi dự kiến.',
+            ],
+        ],
+        [
+            'id' => 'bao-cao-ngay',
+            'title' => 'Nộp báo cáo ngày',
+            'icon' => 'summarize',
+            'menu' => 'Báo cáo của tôi → Báo cáo ngày',
+            'route' => 'reports.my',
+            'intro' => 'Cuối mỗi ngày, Học vụ nộp báo cáo vận hành: việc đã làm, việc tồn và kế hoạch hôm sau.',
+            'images' => [
+                ['src' => 'hoc-vu/bao-cao-ngay.webp', 'caption' => 'Hộp thoại Nộp báo cáo ngày mới'],
+            ],
+            'steps' => [
+                'Bấm **Báo cáo của tôi** ở menu trái, tab **Báo cáo ngày** mở sẵn.',
+                'Bấm **Nộp báo cáo ngày**.',
+                'Nhập **Tiêu đề**, kiểm tra **Ngày báo cáo**, ghi **Nội dung**: kết quả thực hiện, tồn đọng, kế hoạch.',
+                'Bấm **Nộp báo cáo**. Báo cáo đã nộp hiện ở **Lịch sử đã nộp**.',
+            ],
+            'tips' => [
+                'Tab **Báo cáo tuần (KPI)** dùng cho báo cáo tuần theo KPI.',
+            ],
+        ],
+    ],
+];
