@@ -41,8 +41,7 @@ class UserRequest extends FormRequest
         $userId = $this->route('user')?->id;
 
         return [
-            // Mã nhân viên là tên đăng nhập: không chứa "@" (ô đăng nhập coi chuỗi có "@" là email) hay khoảng trắng; để trống → tự cấp MES kế tiếp.
-            'employee_code' => ['nullable', 'string', 'max:50', 'not_regex:/[@\s]/', Rule::unique('users', 'employee_code')->ignore($userId)],
+            // Không có employee_code: mã nhân viên (tên đăng nhập) do hệ thống tự cấp MESxxx (User::nextEmployeeCode), form không gửi / không sửa.
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
             'phone' => ['nullable', 'string', 'max:20'],
@@ -73,8 +72,6 @@ class UserRequest extends FormRequest
     {
         return [
             'email.unique' => 'Email này đã được sử dụng bởi tài khoản khác.',
-            'employee_code.unique' => 'Mã nhân viên này đã tồn tại.',
-            'employee_code.not_regex' => 'Mã nhân viên không được chứa "@" hoặc khoảng trắng.',
             'branch_id.required' => 'Vui lòng chọn chi nhánh.',
             'role.required' => 'Vui lòng chọn vai trò.',
         ];

@@ -222,7 +222,6 @@ class AclRoleUserTest extends TestCase
         $payload = [
             'name' => 'Nguyễn Thị Hương',
             'email' => 'huong.nguyen@menglish.edu.vn',
-            'employee_code' => 'NV-0099',
             'phone' => '0987654321',
             'branch_id' => $this->branch->id,
             'role' => 'teacher',
@@ -236,7 +235,6 @@ class AclRoleUserTest extends TestCase
         $this->assertDatabaseHas('users', [
             'name' => 'Nguyễn Thị Hương',
             'email' => 'huong.nguyen@menglish.edu.vn',
-            'employee_code' => 'NV-0099',
             'phone' => '0987654321',
             'branch_id' => $this->branch->id,
             'is_active' => true,
@@ -248,17 +246,22 @@ class AclRoleUserTest extends TestCase
         $this->assertTrue($createdUser->hasRole('teacher'));
     }
 
-    public function test_employee_code_used_for_login_rejects_at_sign_and_spaces(): void
+    public function test_employee_code_is_always_auto_assigned_and_cannot_be_typed_or_changed(): void
     {
         Role::firstOrCreate(['name' => 'teacher', 'guard_name' => 'web']);
+        User::factory()->create(['employee_code' => 'MES004']);
+        $this->actingAs($this->adminUser)->get(route('users.create'))->assertOk()
+            ->assertSee('Tự cấp khi lưu')->assertDontSee('name="employee_code"', false);
+        $payload = ['name' => 'Tự cấp mã', 'email' => 'tu-cap@menglish.edu.vn', 'branch_id' => $this->branch->id, 'role' => 'teacher', 'password' => 'SecurePass123!'];
 
-        foreach (['nv@0100', 'NV 0100'] as $code) {
-            $this->actingAs($this->adminUser)->post(route('users.store'), [
-                'name' => 'Mã sai', 'email' => 'ma-sai@menglish.edu.vn', 'employee_code' => $code,
-                'branch_id' => $this->branch->id, 'role' => 'teacher', 'password' => 'SecurePass123!',
-            ])->assertSessionHasErrors(['employee_code' => 'Mã nhân viên không được chứa "@" hoặc khoảng trắng.']);
-        }
-        $this->assertDatabaseMissing('users', ['email' => 'ma-sai@menglish.edu.vn']);
+        $this->actingAs($this->adminUser)->post(route('users.store'), [...$payload, 'employee_code' => 'MES004'])
+            ->assertSessionHas('status', 'Đã tạo tài khoản. Mã nhân viên (dùng để đăng nhập): MES005.');
+        $user = User::where('email', 'tu-cap@menglish.edu.vn')->firstOrFail();
+        $this->assertSame('MES005', $user->employee_code);
+
+        $this->actingAs($this->adminUser)->put(route('users.update', $user), [...$payload, 'employee_code' => 'TU-DAT'])
+            ->assertSessionHasNoErrors();
+        $this->assertSame('MES005', $user->fresh()->employee_code);
     }
 
     public function test_user_creation_validation_fails_on_duplicate_email_and_missing_branch(): void
@@ -307,7 +310,6 @@ class AclRoleUserTest extends TestCase
         $response = $this->actingAs($this->adminUser)->put(route('users.update', $user), [
             'name' => 'Phạm Hoàng Long (Lead)',
             'email' => 'long.pham@menglish.edu.vn',
-            'employee_code' => 'NV-0088',
             'phone' => '0912345678',
             'branch_id' => $this->branch->id,
             'role' => 'counselor_lead',
@@ -316,7 +318,6 @@ class AclRoleUserTest extends TestCase
         $response->assertRedirect(route('users.index'));
         $user->refresh();
         $this->assertEquals('Phạm Hoàng Long (Lead)', $user->name);
-        $this->assertEquals('NV-0088', $user->employee_code);
         $this->assertTrue($user->hasRole('counselor_lead'));
         $this->assertFalse($user->hasRole('counselor'));
     }

@@ -257,8 +257,9 @@ class UserAccessModalTest extends TestCase
         $this->assertFalse(User::where('email', 'ha.le@menglish.test')->exists());
 
         $this->actingAs($this->admin)->from($list)->post(route('users.store'), $valid, self::MODAL)
-            ->assertRedirect($list)->assertSessionHas('status', 'Đã tạo tài khoản thành công.');
+            ->assertRedirect($list);
         $created = User::where('email', 'ha.le@menglish.test')->firstOrFail();
+        $this->assertSame("Đã tạo tài khoản. Mã nhân viên (dùng để đăng nhập): {$created->employee_code}.", session('status'));
 
         $this->actingAs($this->admin)->from(route('users.show', $created))->put(route('users.update', $created), [...$valid, 'password' => '', 'hometown' => 'Nam Định'], self::MODAL)
             ->assertRedirect(route('users.show', $created))->assertSessionHas('status', 'Đã cập nhật tài khoản thành công.');
