@@ -24,7 +24,7 @@ const page = usePage();
 const fid = (field) => props.idPrefix + field;
 
 const tabs = {
-    account: ['Tài khoản', 'manage_accounts', ['name', 'employee_code', 'email', 'phone', 'branch_id', 'role', 'academic_teaching', 'concurrent_roles', 'password']],
+    account: ['Tài khoản', 'manage_accounts', ['name', 'email', 'phone', 'branch_id', 'role', 'academic_teaching', 'concurrent_roles', 'password']],
     profile: ['Hồ sơ', 'badge', ['id_card_number', 'emergency_contact', 'hometown', 'current_address', 'graduation_school', 'certificates', 'teaching_level']],
     salary: ['Hợp đồng & Lương', 'payments', ['contract_type', 'base_salary', 'hourly_rate', 'contract_start_date', 'contract_end_date', 'contract_file']],
 };
@@ -92,7 +92,8 @@ onMounted(() => {
         <div v-show="tab === 'account'" role="tabpanel" :id="fid('panel-account')" :aria-labelledby="fid('tab-account')" data-tab-panel="account" class="space-y-md">
             <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
                 <UiInput name="name" :id="fid('name')" label="Họ và tên" required :value="user?.name" placeholder="Họ và tên đầy đủ" />
-                <UiInput name="employee_code" :id="fid('employee_code')" label="Mã nhân viên (dùng để đăng nhập)" :value="user?.employee_code" placeholder="Để trống: tự cấp MESxxx" class="font-code" />
+                <!-- Mã nhân viên do hệ thống tự cấp (MESxxx) — chỉ hiển thị, không có name nên không gửi đi. -->
+                <UiInput :id="fid('employee_code')" label="Mã nhân viên (dùng để đăng nhập)" :value="user?.employee_code ?? 'Tự cấp khi lưu'" hint="Hệ thống tự cấp theo dạng MESxxx" disabled class="font-code" />
                 <UiInput name="email" :id="fid('email')" type="email" label="Email công việc" required :value="user?.email" placeholder="VD: nva@menglish.edu.vn" />
                 <UiInput name="phone" :id="fid('phone')" label="Số điện thoại" :value="user?.phone" placeholder="10 số, bắt đầu bằng 0" class="font-code" />
                 <UiSelect name="branch_id" :id="fid('branch_id')" label="Cơ sở / Chi nhánh" required placeholder="-- Chọn cơ sở --" :value="user?.branch_id" :options="branches" />

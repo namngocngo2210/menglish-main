@@ -16,6 +16,7 @@ use App\Support\Money;
 use App\Support\Rbac;
 use App\Support\Roles;
 use App\Support\Ui;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -261,19 +262,20 @@ class UserController extends Controller
 
         Audit::describe('Tạo tài khoản nhân viên mới');
 
-        // Tài khoản mới luôn phải đổi mật khẩu ở lần đăng nhập đầu tiên.
-        $user = User::create([
+        // Tài khoản mới luôn phải đổi mật khẩu ở lần đăng nhập đầu tiên. Mã nhân viên tự cấp (MES kế tiếp); hai người tạo
+        // cùng lúc có thể lấy trùng số → ràng buộc unique chặn, tạo lại để lấy số sau.
+        $user = retry(3, fn () => User::create([
             ...$request->safe()->except(['role', 'password', 'contract_file', 'concurrent_roles', 'concurrent_roles_present']),
             'password' => Hash::make($request->validated('password')),
             'must_change_password' => true,
             'is_active' => true,
             'created_by' => auth()->id(),
-        ]);
+        ]), when: fn (\Throwable $e) => $e instanceof UniqueConstraintViolationException);
 
         $user->syncRoles($this->rolesWithConcurrent($request, $request->validated('role'), []));
         $this->storeContractFile($request, $user);
 
-        return $this->modalSaved('Đã tạo tài khoản thành công.', route('users.index'));
+        return $this->modalSaved("Đã tạo tài khoản. Mã nhân viên (dùng để đăng nhập): {$user->employee_code}.", route('users.index'));
     }
 
     public function edit(Request $request, User $user): InertiaResponse
