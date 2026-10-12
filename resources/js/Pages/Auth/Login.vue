@@ -8,7 +8,7 @@ defineProps({
     canResetPassword: { type: Boolean, default: true },
 });
 
-// Email giữ bằng v-model: trường có lỗi vẽ lại sẽ không bị xoá chữ đã nhập (như old('email') của Blade).
+// Mã / email giữ bằng v-model: trường có lỗi vẽ lại sẽ không bị xoá chữ đã nhập (như old('email') của Blade).
 const email = ref('');
 </script>
 
@@ -16,14 +16,14 @@ const email = ref('');
     <Head title="Đăng nhập" />
     <div class="mb-lg">
         <h1 class="font-h2 text-h2 text-on-surface">Đăng nhập</h1>
-        <p class="mt-xs font-body-small text-body-small text-on-surface-variant">Dùng email hoặc mã học viên do trung tâm cấp.</p>
+        <p class="mt-xs font-body-small text-body-small text-on-surface-variant">Nhân viên dùng mã nhân viên, học viên dùng mã học viên do trung tâm cấp. Vẫn đăng nhập được bằng email.</p>
     </div>
 
     <UiAlert v-if="status" type="success" class="mb-4">{{ status }}</UiAlert>
 
     <UiForm :action="route('login')" method="post" :reset-on-success="['password']">
         <div>
-            <UiInput id="email" v-model="email" type="text" name="email" label="Email hoặc mã học viên" required autofocus autocomplete="username" inputmode="email" autocapitalize="none" spellcheck="false" />
+            <UiInput id="email" v-model="email" type="text" name="email" label="Mã nhân viên hoặc email" placeholder="VD: MES012" required autofocus autocomplete="username" autocapitalize="none" spellcheck="false" />
         </div>
 
         <div class="mt-4">

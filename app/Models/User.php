@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Spatie\Permission\Traits\HasRoles;
 
@@ -208,6 +209,28 @@ class User extends Authenticatable
         return $legacyGenerated && $this->employee_code
             ? (string) $this->employee_code
             : (string) $this->email;
+    }
+
+    /**
+     * Mã nhân viên là tên đăng nhập (LoginRequest) nên tài khoản nào cũng phải có: tạo không nhập mã, hoặc sửa mà xoá
+     * trống mã → tự cấp mã MES kế tiếp (nextEmployeeCode).
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (User $user) {
+            $code = trim((string) $user->employee_code);
+            $user->employee_code = $code !== '' ? $code : self::nextEmployeeCode();
+        });
+    }
+
+    /** Mã tự cấp MES001, MES002, … — số lớn nhất trong các mã MES<số> đang có (kể cả tài khoản đã xoá) cộng 1. */
+    public static function nextEmployeeCode(): string
+    {
+        $last = DB::table('users')->where('employee_code', 'like', 'MES%')->pluck('employee_code')
+            ->map(fn ($code) => preg_match('/^MES(\d+)$/i', (string) $code, $m) ? (int) $m[1] : 0)
+            ->max() ?? 0;
+
+        return 'MES'.str_pad((string) ($last + 1), 3, '0', STR_PAD_LEFT);
     }
 
     public function isLocked(): bool

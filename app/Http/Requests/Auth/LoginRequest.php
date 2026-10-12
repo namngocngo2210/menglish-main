@@ -34,7 +34,7 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // Ô "email" nhận email hoặc mã tài khoản (mã học viên HV-… / mã nhân sự ME-…).
+            // Ô "email" nhận mã tài khoản (mã nhân viên MES…, mã học viên HV-…) hoặc email.
             'email' => ['required', 'string', 'max:255'],
             'password' => ['required', 'string'],
         ];
@@ -57,7 +57,7 @@ class LoginRequest extends FormRequest
 
             activity('auth')
                 ->withProperties(['email' => $this->string('email')->toString()])
-                ->log('Đăng nhập thất bại (sai email hoặc mật khẩu)');
+                ->log('Đăng nhập thất bại (sai mã / email hoặc mật khẩu)');
 
             throw ValidationException::withMessages([
                 'email' => trans('auth.failed'),

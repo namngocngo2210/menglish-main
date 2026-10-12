@@ -153,7 +153,7 @@ class UserPermissionOverrideController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
-                'employee_code' => $user->employee_code ?: 'NV-'.str_pad((string) $user->id, 4, '0', STR_PAD_LEFT),
+                'employee_code' => $user->employee_code,
                 'branch_name' => $user->branch?->name,
                 'roles' => $user->roles->map(fn ($role) => AclHelper::shortRoleLabel($role->name))->values()->all(),
             ],
