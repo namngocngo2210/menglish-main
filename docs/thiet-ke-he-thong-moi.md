@@ -414,6 +414,96 @@ Lưới "Các phân hệ của bạn" ở Tổng quan lấy từ cùng nguồn v
 - Chuẩn WCAG 2.1 AA: tương phản 4,5:1, focus nhìn thấy, dùng được bằng bàn phím (kể cả Kanban), tôn trọng "giảm chuyển động", trạng thái không chỉ dựa vào màu.
 - CI chạy axe-core và đo tương phản trên mỗi trang Storybook và bộ Playwright theo vai trò, lặp lại đúng phép đo của báo cáo UI/UX (`danh-gia-ui-ux-pro-max/crawl.js`).
 
+## Bảo mật
+
+Hệ thống giữ ba loại dữ liệu nhạy cảm: thông tin cá nhân của học viên (phần lớn là trẻ em) và SĐT phụ huynh, lương và giấy tờ của nhân sự, tiền học phí cùng khóa tích hợp ngân hàng. Kẻ tấn công cần tính đến: người ngoài internet dò mật khẩu hoặc giả webhook; người dùng nội bộ vượt quyền (giáo viên xem lương người khác, chi nhánh A xem chi nhánh B, phụ huynh xem con nhà khác); nhân viên đã nghỉ còn giữ phiên; người có quyền sửa chứng từ tiền. Nguyên tắc chung: **mặc định từ chối**, kiểm ở server cho mọi request, mỗi lớp chặn được khi lớp khác lọt.
+
+### Đăng nhập và tài khoản
+
+- Mật khẩu băm **argon2id** (64 MB, 3 vòng, 2 luồng), tối thiểu 10 ký tự, từ chối mật khẩu nằm trong danh sách mật khẩu phổ biến đã lộ (danh sách cài sẵn, không gọi dịch vụ ngoài).
+- Giới hạn sai: 5 lần mỗi tài khoản + IP và 30 lần mỗi IP trong 10 phút; sai 10 lần liên tiếp thì khóa tạm tài khoản 15 phút và báo Admin. Thông báo lỗi luôn là "Sai thông tin đăng nhập", không lộ email, mã hay SĐT có tồn tại hay không.
+- Học viên và phụ huynh đăng nhập bằng mã học viên hoặc SĐT phụ huynh **kèm mật khẩu**; mật khẩu ban đầu do trung tâm cấp và bắt đổi ở lần đăng nhập đầu. SĐT dễ đoán nên không bao giờ cho đăng nhập chỉ bằng SĐT.
+- **Xác thực hai bước (TOTP)** bắt buộc với Admin và người có quyền phân quyền, duyệt tiền, chạy lương; tùy chọn với người khác. Có 10 mã dự phòng dùng một lần.
+- Quên mật khẩu: link một lần, hạn 30 phút, token lưu dạng băm; đặt lại xong thì hủy mọi phiên cũ.
+- Khóa tài khoản hoặc cho nghỉ việc: xóa mọi phiên ngay (Redis), tài khoản không đăng nhập lại được nhưng lịch sử vẫn giữ.
+
+### Phiên và trình duyệt
+
+- Cookie `__Host-session`: `HttpOnly; Secure; SameSite=Lax; Path=/`, token ngẫu nhiên 256 bit; Redis chỉ lưu bản băm SHA-256 của token. Đăng nhập luôn cấp token mới (chống cố định phiên).
+- Chống CSRF hai lớp: `SameSite=Lax` và header `X-CSRF-Token` gắn với phiên cho mọi phương thức ghi, kèm kiểm `Origin`.
+- Màn "Phiên đăng nhập" cho người dùng xem thiết bị đang mở và đăng xuất từng thiết bị; Admin đăng xuất được mọi phiên của một người.
+- React tự thoát ký tự khi hiển thị; cấm `dangerouslySetInnerHTML`, trừ nội dung soạn thảo (giáo trình, thông báo) đã lọc bằng DOMPurify ở cả lúc lưu (server, bluemonday) và lúc hiển thị. Không lưu token hay dữ liệu nhạy cảm trong `localStorage`.
+- Caddy gửi header bảo mật: `Content-Security-Policy: default-src 'self'; script-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'`, HSTS 1 năm, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` chỉ mở `geolocation` và `camera` cho chính trang (chấm công GPS + ảnh).
+
+### Phân quyền và phạm vi dữ liệu
+
+- Mọi route khai báo quyền trong đặc tả OpenAPI; test CI duyệt toàn bộ route và **fail nếu có route ghi không gắn quyền**.
+- Kiểm theo ba bước ở `service`: có quyền thao tác → bản ghi nằm trong phạm vi (own/branch/all) → hàm policy của loại bản ghi đó (ví dụ không sửa được tài khoản ngang cấp, không lập phạt cho chi nhánh khác). Handler không tự kiểm quyền.
+- Store nhận phạm vi bắt buộc làm tham số, không có hàm "lấy tất cả" không phạm vi. UUIDv7 khó đoán nhưng không được coi là lớp bảo mật: truy cập bằng ID vẫn qua đủ ba bước trên.
+- **Bảng chân lý quyền**: test cho 9 vai trò × mọi thao tác chính, cộng test phạm vi "chi nhánh A không đọc, không ghi được dữ liệu chi nhánh B" cho mọi danh sách và thao tác ghi. Thêm module mới phải thêm dòng vào bảng này.
+- Phụ huynh nhiều con: mọi request cổng học viên kiểm học viên đang chọn có thuộc phụ huynh đó không, không tin `student_id` gửi lên.
+- Quyền duyệt tiền chỉ Admin; người lập và người duyệt một chứng từ phải khác nhau (trừ Admin, có ghi nhật ký).
+- Lớp chặn cuối (giai đoạn 4, cho các bảng tiền và học viên): Row Level Security của Postgres theo `branch_id`, ứng dụng đặt `app.branch_ids` cho từng transaction. Có thể bật sau nếu thấy tốn công.
+
+### API và dữ liệu đầu vào
+
+- Mỗi thao tác có DTO request riêng; không bind cả request vào bản ghi. Các trường `branch_id`, `role`, `status`, `owner_id` chỉ đổi qua thao tác riêng có quyền riêng.
+- Kiểm dữ liệu theo đặc tả OpenAPI (kiểu, độ dài, định dạng) rồi kiểm nghiệp vụ ở `service`. Body JSON tối đa 1 MB, phân trang tối đa 100 dòng, timeout đọc/ghi 30 giây.
+- SQL luôn truyền tham số (sqlc, squirrel); cột sắp xếp và lọc map từ danh sách cố định trong code. `gosec` chặn ghép chuỗi SQL.
+- Phản hồi chỉ chứa trường người gọi được xem: lương, CCCD, số tài khoản, khóa tích hợp nằm ở DTO riêng, chỉ trả khi có quyền; CCCD và số tài khoản mặc định hiện 4 số cuối.
+- Lỗi trả theo `problem+json` không kèm stack trace, câu SQL hay tên bảng; chi tiết chỉ ghi log server kèm request id.
+- Xuất Excel/PDF danh sách lớn cần quyền riêng (`*.export`), được ghi nhật ký và có tên người xuất trong file.
+
+### File tải lên
+
+- Chỉ nhận các loại trong danh sách cho phép (ảnh, PDF, Excel, âm thanh bài nói), kiểm loại bằng nội dung file chứ không bằng đuôi; giới hạn 20 MB (ảnh 10 MB).
+- Ảnh được mã hóa lại (bỏ EXIF và mã độc nhúng); tọa độ chấm công lưu ở cột riêng chứ không đọc từ EXIF. Excel nhập vào chỉ đọc giá trị, không chạy công thức hay macro.
+- Bucket MinIO riêng tư, tên đối tượng ngẫu nhiên; tải xuống bằng URL ký hạn 5 phút sau khi kiểm quyền, `Content-Disposition: attachment` cho tài liệu. File không bao giờ được phục vụ từ cùng tên miền với ứng dụng.
+
+### Tích hợp và bề mặt công khai
+
+- **Webhook SePay**: kiểm chữ ký HMAC-SHA256 bằng so sánh hằng thời gian, từ chối request lệch quá 5 phút, chống trùng bằng unique `provider_txn_id`; webhook chỉ ghi giao dịch thô, việc khớp với công nợ chạy trong worker. Giới hạn theo IP của SePay nếu họ công bố dải IP.
+- **Link làm bài test công khai**: token ngẫu nhiên 128 bit lưu dạng băm, hạn 7 ngày, khóa vào một lượt làm bài, có giới hạn tốc độ; trang làm bài không lộ đáp án qua API.
+- Cổng tuyển dụng: giới hạn tốc độ và chống bot (Cloudflare Turnstile hoặc hCaptcha) cho form nộp hồ sơ; CV đi vào bucket riêng tư như mọi file khác.
+- Hệ thống không tải URL do người dùng nhập (không có SSRF). Gotenberg chỉ render HTML nội bộ, chặn tải tài nguyên từ ngoài.
+- Email và Zalo gửi từ worker với mẫu cố định; nội dung người dùng nhập được thoát ký tự trước khi chèn vào mẫu.
+
+### Bí mật và mã hóa
+
+- Bí mật hạ tầng (mật khẩu DB, Redis, MinIO, khóa chính) nằm trong `.env` quyền 600 trên VPS hoặc Docker secrets; `.env.example` trong repo chỉ có giá trị giả. CI chạy `gitleaks` để chặn commit nhầm bí mật.
+- Khóa tích hợp lưu trong DB (SePay, SMTP, Zalo) và CCCD được **mã hóa AES-256-GCM** theo kiểu envelope: khóa chính nằm ngoài DB, mỗi bản ghi lưu mã khóa nên xoay khóa được mà không phải giải mã một lần toàn bộ.
+- TLS cho mọi kết nối từ ngoài (Caddy tự cấp chứng chỉ). Trong mạng nội bộ Docker, Postgres và Redis không mở cổng ra ngoài và đều có mật khẩu.
+- Bản sao lưu được pgBackRest mã hóa trước khi đẩy lên S3, đặt ở nhà cung cấp khác VPS.
+
+### Hạ tầng (Docker, VPS)
+
+- VPS chỉ mở 80/443 (ufw); SSH chỉ bằng khóa, tắt đăng nhập root và mật khẩu, bật fail2ban và tự cập nhật bản vá bảo mật.
+- Container chạy user không phải root, `read_only` rootfs, `cap_drop: [ALL]`, `no-new-privileges`; image `api` là distroless. Image gắn digest cố định, CI quét bằng Trivy.
+- Postgres tách hai role: `menglish_owner` chạy migration, `menglish_app` chỉ có quyền đọc/ghi dữ liệu và **không có quyền UPDATE/DELETE trên `audit_log`**, nên kể cả khi ứng dụng bị chiếm cũng không xóa được dấu vết.
+- Thư viện: `govulncheck` và `npm audit`/OSV-Scanner chạy mỗi PR, Renovate mở PR cập nhật hằng tuần.
+
+### Nhật ký, giám sát và xử lý sự cố
+
+- Sự kiện bảo mật đều ghi `audit_log`: đăng nhập thành công/thất bại, khóa tài khoản, đổi mật khẩu, bật/tắt 2FA, đổi vai trò và quyền, xem phiếu lương người khác, xuất dữ liệu, sửa và hủy chứng từ tiền.
+- Cảnh báo cho Admin qua email/Zalo khi: nhiều lần đăng nhập sai, có quyền bị cấp thêm cho vai trò, xuất dữ liệu số lượng lớn, có người đăng nhập Admin từ thiết bị mới.
+- Log JSON và Sentry tự che mật khẩu, token, cookie, CCCD, số tài khoản trước khi gửi đi.
+- Có quy trình xử lý sự cố một trang: thu hồi phiên và khóa, xoay bí mật, khôi phục từ sao lưu, thông báo cho người bị ảnh hưởng và cơ quan chức năng trong thời hạn luật định.
+
+### Dữ liệu cá nhân
+
+Trung tâm xử lý dữ liệu cá nhân của trẻ em nên chịu Nghị định 13/2023/NĐ-CP và Luật Bảo vệ dữ liệu cá nhân (hiệu lực 01/01/2026); phần này cần người phụ trách pháp lý xác nhận.
+
+- Khi nhập học, phụ huynh đồng ý xử lý dữ liệu (lưu phiên bản văn bản đồng ý và thời điểm).
+- Chỉ thu dữ liệu cần cho nghiệp vụ; CCCD và số tài khoản mã hóa, hiện rút gọn.
+- Xuất dữ liệu của một học viên khi phụ huynh yêu cầu; ẩn danh hóa hồ sơ học viên đã nghỉ sau thời hạn trung tâm quy định, giữ chứng từ tiền theo luật kế toán.
+- Nhật ký truy cập dữ liệu nhạy cảm giữ tối thiểu 2 năm.
+
+### Kiểm thử bảo mật
+
+- Mỗi PR: bảng chân lý quyền, test phạm vi chi nhánh, test route thiếu quyền, `gosec`, `govulncheck`, `gitleaks`, Trivy, ESLint quy tắc bảo mật.
+- Giai đoạn 0 làm xong toàn bộ phần đăng nhập, phiên, 2FA, header và các bước kiểm trong CI ở trên, để mọi module sau dùng lại.
+- Giai đoạn 8: rà theo **OWASP ASVS mức 2**, thuê hoặc tự làm kiểm thử xâm nhập bằng OWASP ZAP trên staging, diễn tập khôi phục sao lưu và quy trình xử lý sự cố; không ra mắt khi còn lỗi bảo mật mức Cao.
+
 ## Triển khai với Docker
 
 Toàn bộ hệ thống chạy bằng **Docker Compose trên một VPS**; dev, staging và production dùng cùng file compose, khác nhau ở file override và biến môi trường. Cấu hình ước tính cho một trung tâm vài chi nhánh: 4 vCPU, 8 GB RAM, 100 GB SSD (suy luận từ quy mô dữ liệu, chưa đo tải).
