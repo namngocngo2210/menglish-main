@@ -15,7 +15,7 @@ Sáu quyết định chính:
 3. **Việc nền chạy trên Postgres (River)**, xếp hàng trong cùng transaction nghiệp vụ. Redis không giữ dữ liệu quan trọng, mất Redis chỉ làm mọi người phải đăng nhập lại.
 4. **Phân quyền giữ mô hình đang dùng tốt**: quyền `module.action`, phạm vi dữ liệu của tôi/chi nhánh/tất cả, ghi đè theo người, 9 vai trò mặc định; thêm kiểm quyền theo bản ghi tường minh.
 5. **React 19 + TanStack Router/Query + shadcn/ui + Tailwind 4**, design system giữ thương hiệu cam và sửa các lỗi tương phản, cỡ chữ, điện thoại đã đo được ở hệ thống cũ.
-6. **Docker Compose trên một VPS**: Caddy, web, api, worker, PostgreSQL, Redis, MinIO (file), Gotenberg (PDF). Không phụ thuộc hosting PHP.
+6. **Docker Compose trên một VPS**: Caddy, api, worker, PostgreSQL, Redis, Gotenberg (PDF) trên VPS 4 core, 4 GB RAM, 30 GB SSD; file người dùng và bản sao lưu nằm trên Cloudflare R2. Không phụ thuộc hosting PHP.
 
 Tài liệu này là thiết kế, không sửa repo hiện tại. Thời gian ước cho đội 3 lập trình viên.
 
@@ -77,31 +77,33 @@ Dựng mới nên sửa luôn các điểm yếu đã ghi trong hai lần audit 
 | Khóa SePay, mật khẩu SMTP lưu dạng rõ | Mã hóa AES-GCM, khóa nằm ngoài DB |
 | Kiểm quyền theo bản ghi rải trong controller, từng để lọt (sửa tài khoản, lập phạt chi nhánh khác) | Hàm policy tường minh cho từng loại bản ghi, có test bắt buộc |
 | Tính lương N+1 (\~10–15 query mỗi người) | Nạp dữ liệu gộp một lần, tính bằng hàm thuần |
-| File tải lên rải ở 3 thư mục, có file công khai không kiểm quyền | Một kho đối tượng riêng tư (MinIO/S3), tải bằng URL ký ngắn hạn |
+| File tải lên rải ở 3 thư mục, có file công khai không kiểm quyền | Một kho đối tượng riêng tư (Cloudflare R2), tải bằng URL ký ngắn hạn |
 | Mã ULID 26 ký tự hiện trên màn hình, tài khoản học viên khó gõ | Mã ngắn theo quy tắc (HV-00001, PT-2026-000123), học viên đăng nhập bằng mã hoặc SĐT phụ huynh |
 | Không có API cho bên ngoài | API REST có tài liệu OpenAPI, dùng được cho app di động sau này |
 | Không giám sát lỗi tập trung, `activity_log` không bao giờ dọn | Sentry, Prometheus, log JSON; nhật ký chia phân vùng theo tháng, dọn theo chính sách |
 
 ## Kiến trúc tổng thể
 
-Người dùng và webhook SePay đi qua một cổng Caddy duy nhất; Caddy phục vụ file React và chuyển `/api/*` sang tiến trình `api`. Tiến trình `worker` cùng image, chạy việc nền và gửi tin ra ngoài. Postgres, Redis, MinIO, Gotenberg chỉ nằm trong mạng nội bộ của Docker.
+Người dùng và webhook SePay đi qua một cổng Caddy duy nhất; Caddy phục vụ file React và chuyển `/api/*` sang tiến trình `api`. Tiến trình `worker` cùng image, chạy việc nền và gửi tin ra ngoài. Postgres, Redis, Gotenberg chỉ nằm trong mạng nội bộ của Docker; file tải lên và bản sao lưu nằm trên Cloudflare R2, ngoài VPS.
 
 ```mermaid
 flowchart LR
   U[Người dùng<br/>trình duyệt, điện thoại] --> C
   S[Webhook SePay] --> C
-  subgraph VPS[Docker Compose trên VPS]
+  subgraph VPS[Docker Compose trên VPS 4 core, 4 GB RAM]
     C[caddy<br/>TLS, file React] -->|/api/*| A[api<br/>Go HTTP + SSE]
     M[migrate<br/>chạy một lần] --> P
     A --> P[(postgres<br/>dữ liệu + hàng đợi River)]
     A --> R[(redis<br/>phiên, cache, pub/sub)]
-    A --> O[(minio<br/>file)]
     W[worker<br/>việc nền, lịch chạy] --> P
     W --> R
-    W --> O
     W --> G[gotenberg<br/>HTML → PDF]
     A --> G
   end
+  A --> O[(Cloudflare R2<br/>file, sao lưu)]
+  W --> O
+  P -.->|sao lưu| O
+  U -.->|tải file bằng URL ký| O
   W --> E[Email, Zalo]
 ```
 
@@ -126,7 +128,7 @@ Backend là **một chương trình Go chia module theo phân hệ (modular mono
 | Mật khẩu | argon2id (`x/crypto/argon2`) |  |
 | Excel | `excelize` | Nhập lead, học phí; xuất báo cáo; chống chèn công thức |
 | PDF | Gotenberg (Chromium) render từ HTML; đọc PDF đề test bằng `pdfcpu` | Phiếu lương, bill học phí, biên bản vi phạm |
-| File | `minio-go` (S3 API) | Kho riêng tư, URL ký 5 phút |
+| File | `minio-go` (S3 API) | Cloudflare R2 (dev dùng MinIO), kho riêng tư, URL ký 5 phút |
 | Log, đo đạc | `log/slog` (JSON), Prometheus `/metrics`, OpenTelemetry, Sentry |  |
 
 ### Cấu trúc mã
@@ -260,12 +262,12 @@ ALTER TABLE payroll.payslips ADD CONSTRAINT payslips_staff_uq UNIQUE (period_id,
 | `shell:<user_id>` (menu), `counts:approvals:<user_id>` | 60 giây–5 phút | Tính lại |
 | Kênh pub/sub `user:<id>`, `branch:<id>` |  | Mất thông báo tức thời, dữ liệu vẫn đúng khi tải lại |
 
-Mọi khóa đều có hạn; chính sách `volatile-lru` và cấp đủ bộ nhớ (256–512 MB là dư cho một trung tâm) để phiên không bị đẩy ra. Bật AOF `everysec` để khởi động lại Redis không đăng xuất mọi người.
+Mọi khóa đều có hạn; chính sách `volatile-lru` và `maxmemory 256mb` (dư cho một trung tâm, production dùng DB 0, staging DB 1) để phiên không bị đẩy ra. Bật AOF `everysec` để khởi động lại Redis không đăng xuất mọi người.
 
 ### Sao lưu và dữ liệu ban đầu
 
-- Postgres: WAL archive liên tục + bản sao lưu đầy đủ hằng đêm bằng pgBackRest lên kho S3 ngoài VPS, giữ 30 ngày, khôi phục về thời điểm bất kỳ. Thử khôi phục mỗi tháng.
-- MinIO: sao chép bucket sang kho ngoài hằng đêm.
+- Postgres: WAL archive liên tục + bản sao lưu đầy đủ hằng đêm bằng pgBackRest lên bucket sao lưu trên Cloudflare R2, giữ 30 ngày, khôi phục về thời điểm bất kỳ. Thử khôi phục mỗi tháng.
+- File: nằm sẵn trên R2, ứng dụng chỉ xóa mềm và dọn sau 30 ngày; chi tiết ở mục Triển khai.
 - Lệnh `menglish seed` tạo dữ liệu ban đầu: danh mục quyền, 9 vai trò với quyền mặc định (theo `config/access.php` cũ), 27 luật SLA, tham số lương, 15 tiêu chí KPI Học vụ và thang A–E, một chi nhánh và tài khoản Admin đầu tiên. Dữ liệu hệ thống cũ được mang sang bằng lệnh \`menglish import-legacy\` (đọc MySQL, map bảng cũ sang schema mới, đổi tiền DECIMAL sang đồng, giữ mã cũ ở cột \`legacy\_code\`).
 
 ## Frontend React
@@ -458,7 +460,7 @@ Hệ thống giữ ba loại dữ liệu nhạy cảm: thông tin cá nhân củ
 
 - Chỉ nhận các loại trong danh sách cho phép (ảnh, PDF, Excel, âm thanh bài nói), kiểm loại bằng nội dung file chứ không bằng đuôi; giới hạn 20 MB (ảnh 10 MB).
 - Ảnh được mã hóa lại (bỏ EXIF và mã độc nhúng); tọa độ chấm công lưu ở cột riêng chứ không đọc từ EXIF. Excel nhập vào chỉ đọc giá trị, không chạy công thức hay macro.
-- Bucket MinIO riêng tư, tên đối tượng ngẫu nhiên; tải xuống bằng URL ký hạn 5 phút sau khi kiểm quyền, `Content-Disposition: attachment` cho tài liệu. File không bao giờ được phục vụ từ cùng tên miền với ứng dụng.
+- Bucket R2 riêng tư, tên đối tượng ngẫu nhiên; tải xuống bằng URL ký hạn 5 phút sau khi kiểm quyền, `Content-Disposition: attachment` cho tài liệu. File không bao giờ được phục vụ từ cùng tên miền với ứng dụng.
 
 ### Tích hợp và bề mặt công khai
 
@@ -470,10 +472,10 @@ Hệ thống giữ ba loại dữ liệu nhạy cảm: thông tin cá nhân củ
 
 ### Bí mật và mã hóa
 
-- Bí mật hạ tầng (mật khẩu DB, Redis, MinIO, khóa chính) nằm trong `.env` quyền 600 trên VPS hoặc Docker secrets; `.env.example` trong repo chỉ có giá trị giả. CI chạy `gitleaks` để chặn commit nhầm bí mật.
+- Bí mật hạ tầng (mật khẩu DB, Redis, khóa R2, khóa chính) nằm trong `.env` quyền 600 trên VPS hoặc Docker secrets; `.env.example` trong repo chỉ có giá trị giả. CI chạy `gitleaks` để chặn commit nhầm bí mật.
 - Khóa tích hợp lưu trong DB (SePay, SMTP, Zalo) và CCCD được **mã hóa AES-256-GCM** theo kiểu envelope: khóa chính nằm ngoài DB, mỗi bản ghi lưu mã khóa nên xoay khóa được mà không phải giải mã một lần toàn bộ.
 - TLS cho mọi kết nối từ ngoài (Caddy tự cấp chứng chỉ). Trong mạng nội bộ Docker, Postgres và Redis không mở cổng ra ngoài và đều có mật khẩu.
-- Bản sao lưu được pgBackRest mã hóa trước khi đẩy lên S3, đặt ở nhà cung cấp khác VPS.
+- Bản sao lưu được pgBackRest mã hóa trước khi đẩy lên R2 (Cloudflare, khác nhà cung cấp VPS).
 
 ### Hạ tầng (Docker, VPS)
 
@@ -506,26 +508,77 @@ Trung tâm xử lý dữ liệu cá nhân của trẻ em nên chịu Nghị đ�
 
 ## Triển khai với Docker
 
-Toàn bộ hệ thống chạy bằng **Docker Compose trên một VPS**; dev, staging và production dùng cùng file compose, khác nhau ở file override và biến môi trường. Cấu hình ước tính cho một trung tâm vài chi nhánh: 4 vCPU, 8 GB RAM, 100 GB SSD (suy luận từ quy mô dữ liệu, chưa đo tải).
+Toàn bộ hệ thống chạy bằng **Docker Compose trên một VPS 4 core, 4 GB RAM, 30 GB SSD**, cùng **Cloudflare R2** cho file người dùng và bản sao lưu. Production và staging chạy chung máy: dùng chung một Caddy, một Postgres, một Redis, một Gotenberg; mỗi môi trường có `api` và `worker` riêng. Các con số dưới đây là ước tính cho một trung tâm vài chi nhánh, vài trăm người dùng, chưa đo tải thật. Mỗi container có giới hạn bộ nhớ để một tiến trình không kéo sập cả máy.
 
-| Service | Image | Vai trò | Ghi chú |
-| --- | --- | --- | --- |
-| `caddy` | Caddy 2 + file tĩnh React | TLS tự động, phục vụ SPA, chuyển `/api/*` sang `api` | Cổng 80/443 duy nhất mở ra ngoài; header bảo mật, CSP |
-| `migrate` | `menglish` | `menglish migrate up` rồi thoát | `api`, `worker` chờ nó xong (`service_completed_successfully`) |
-| `api` | `menglish` (distroless, \~25 MB) | HTTP API, SSE | Kiểm tra sức khỏe `/healthz`, `/readyz`; chạy 2 bản khi cần |
-| `worker` | `menglish` | Việc nền River, 21 lịch chạy, gửi email/Zalo | Cùng image, khác lệnh |
-| `postgres` | PostgreSQL 18 | Dữ liệu + hàng đợi | Volume riêng; pgBackRest đẩy bản sao lưu ra S3 ngoài |
-| `redis` | Redis 8 (hoặc Valkey) | Phiên, giới hạn tốc độ, cache, pub/sub | AOF, `volatile-lru` |
-| `minio` | MinIO | Ảnh chấm công, minh chứng, tài liệu, PDF đề | Thay bằng S3 của nhà cung cấp nếu có |
-| `gotenberg` | Gotenberg 8 | HTML → PDF | Chỉ mở trong mạng nội bộ |
-| `monitoring` (tùy chọn) | Prometheus, Grafana, Loki | Số đo, log | Hoặc chỉ dùng Sentry + dịch vụ báo uptime |
+### Dịch vụ và ngân sách RAM
 
+| Service | Image | Vai trò | RAM tối đa | Ghi chú |
+| --- | --- | --- | --- | --- |
+| `caddy` | `menglish-web` (Caddy 2 + file tĩnh React) | TLS, phục vụ SPA, chuyển `/api/*` theo tên miền (`app.` → production, `staging.` → staging) | 64 MB | Cổng 80/443 duy nhất mở ra ngoài; header bảo mật, CSP |
+| `postgres` | PostgreSQL 18 | Dữ liệu + hàng đợi River; hai database `menglish` và `menglish_staging` | 1,2 GB | `shared_buffers=512MB`, `effective_cache_size=1536MB`, `work_mem=8MB`, `max_connections=60`, `max_wal_size=1GB` |
+| `redis` | Redis 8 | Phiên, giới hạn tốc độ, cache, pub/sub | 300 MB | `maxmemory 256mb`, `volatile-lru`, AOF; production dùng DB 0, staging DB 1 |
+| `gotenberg` | Gotenberg 8 | HTML → PDF | 512 MB | Một trình duyệt chạy cùng lúc; mọi lệnh in PDF đi qua hàng đợi của worker nên không dồn tải |
+| `api` (production) | `menglish` (distroless, \~25 MB) | HTTP API, SSE | 384 MB | `GOMEMLIMIT=300MiB`; bình thường dùng 50–150 MB; kiểm tra sức khỏe `/healthz`, `/readyz` |
+| `worker` (production) | `menglish` | Việc nền River, 21 lịch chạy, gửi email/Zalo | 384 MB | Cùng image, khác lệnh; `GOMEMLIMIT=300MiB` |
+| `api`, `worker` (staging) | `menglish` | Bản thử trước khi lên production | 192 MB mỗi tiến trình | Tắt được khi không dùng |
+| `migrate` | `menglish` | `menglish migrate up` rồi thoát | — | `api`, `worker` chờ nó xong (`service_completed_successfully`) |
+
+- Tổng giới hạn khoảng 3,2 GB; phần còn lại cho hệ điều hành, Docker và bộ đệm file của Linux (Postgres đọc nhanh hơn nhờ phần này).
+- Tạo thêm 2 GB swap làm lưới an toàn. Swap bị dùng thường xuyên là dấu hiệu cần nâng cấp, không phải trạng thái bình thường.
+- Không chạy Prometheus, Grafana, Loki trên máy này (riêng bộ này đã cần hơn 1 GB). Dùng Sentry gói miễn phí cho lỗi, một dịch vụ báo uptime bên ngoài gọi `/readyz` mỗi phút, và Grafana Cloud gói miễn phí nếu muốn xem số đo từ `/metrics`.
+
+### Ổ đĩa 30 GB
+
+| Phần | Dung lượng ước tính |
+| --- | --- |
+| Hệ điều hành + Docker | 5–6 GB |
+| Image Docker (giữ 3 bản gần nhất; Gotenberg \~1,5 GB là image lớn nhất) | 3–4 GB |
+| Dữ liệu Postgres (production + staging) | 1–3 GB trong vài năm đầu |
+| WAL đang dùng | tối đa \~2 GB (WAL cũ đã đẩy lên R2 thì tự xóa) |
+| Log | tối đa \~1 GB nhờ xoay vòng |
+| Còn trống | 13–15 GB |
+
+- **Không có file người dùng nào nằm trên VPS**; mọi file tải lên đi thẳng lên R2.
+- **Xoay vòng log**: mọi container dùng driver `json-file` với `max-size: 10m`, `max-file: 5`; journald đặt `SystemMaxUse=500M`; ứng dụng chỉ ghi log ra stdout, không ghi file riêng.
+- Sau mỗi lần deploy, dọn image cũ và chỉ giữ 3 tag gần nhất để còn quay lại được.
+- Một script cron gửi cảnh báo qua email/Zalo khi ổ dùng quá 80% hoặc RAM quá 85% kéo dài 10 phút.
+
+### Cloudflare R2
+
+- Ba bucket riêng tư: `menglish-files` (production), `menglish-files-staging`, `menglish-backups`. Mỗi bucket có API token riêng chỉ có quyền trên bucket đó; token của ứng dụng không chạm được bucket sao lưu.
+- R2 chứa toàn bộ file người dùng: ảnh chấm công hằng ngày, minh chứng, tài liệu, PDF đề test, phiếu lương và bill PDF sinh ra, CV tuyển dụng, file Excel nhập vào.
+- **Tải lên**: file đi qua `api` theo luồng (không giữ cả file trong RAM), bị giới hạn kích thước, kiểm loại và mã hóa lại ảnh như mục Bảo mật, rồi ghi lên R2.
+- **Tải xuống**: URL ký hạn 5 phút trỏ thẳng tới R2, không đi qua VPS. R2 không tính phí băng thông tải ra.
+- Ảnh chấm công được nén về JPEG cạnh dài 1280 px (\~200–400 KB) trước khi lưu, nên khoảng 100 nhân sự chấm công 2 lần mỗi ngày chỉ ra khoảng 20 GB mỗi năm trên R2 (ước tính). Có thể đặt quy tắc vòng đời trên R2 để xóa ảnh chấm công cũ hơn thời hạn trung tâm quy định.
+- Ứng dụng nói chuyện với R2 qua API S3 (`minio-go`). Máy dev chạy MinIO trong compose dev với cùng API, nên code không đổi giữa dev và production.
+
+### Sao lưu
+
+- Postgres: pgBackRest đẩy WAL liên tục, bản đầy đủ hằng tuần và bản chênh lệch hằng đêm lên bucket `menglish-backups` trên R2. Dữ liệu được mã hóa trên VPS trước khi gửi, giữ 30 ngày, khôi phục được về thời điểm bất kỳ trong 30 ngày đó.
+- Thêm một bản `pg_dump` nén và mã hóa mỗi đêm lên cùng bucket làm bản dự phòng dễ khôi phục, giữ 14 bản.
+- Không giữ bản sao lưu nào trên VPS, ngoài file tạm trong lúc chạy.
+- File trên R2: ứng dụng chỉ xóa mềm, worker xóa hẳn sau 30 ngày, nên lỡ tay xóa vẫn lấy lại được.
+- Mỗi tháng thử khôi phục bản mới nhất vào một database tạm rồi xóa đi; mỗi quý diễn tập dựng lại cả hệ thống trên một VPS mới chỉ từ repo và R2.
+
+### Build, CI và deploy
+
+- **Không build trên VPS.** GitHub Actions build React (Vite) và Go, đóng gói thành hai image: `menglish` (Go) và `menglish-web` (Caddy + file tĩnh React), đẩy lên GHCR gắn tag theo commit. Build React có thể chiếm 1–2 GB RAM; chạy trên VPS sẽ làm hệ thống đang chạy bị chậm.
+- **CI** chạy golangci-lint, `go test` với Postgres + Redis thật, kiểm code sinh từ OpenAPI/sqlc không lệch, ESLint + `tsc` + Vitest, Playwright trên compose, và các bước quét bảo mật ở mục Bảo mật.
+- **Deploy**: merge vào `main` thì tự deploy staging; production deploy khi gắn tag phát hành và có người bấm duyệt trong GitHub Actions. Workflow SSH vào VPS bằng một khóa chỉ dùng cho deploy, chạy `docker compose pull && docker compose up -d` (migrate chạy trước), kiểm `/readyz` và một luồng đăng nhập; lỗi thì quay lại tag trước. Migration luôn theo kiểu thêm trước xóa sau để quay lại được.
+- **File compose**: `deploy/compose.infra.yml` (caddy, postgres, redis, gotenberg) chạy một lần; `deploy/compose.app.yml` chạy hai lần với `-p menglish-prod` và `-p menglish-staging`, mỗi bản đọc một file `.env` riêng.
 - **Repo một khối**: `api/` (Go), `web/` (React), `deploy/` (compose, Caddyfile, file override), `docs/`.
-- **Môi trường dev**: `docker compose up` dựng Postgres, Redis, MinIO, Gotenberg; Go chạy với `air` (tự build lại), React chạy Vite dev server; dữ liệu mẫu bằng `menglish seed --demo`.
-- **CI (GitHub Actions)**: golangci-lint, `go test` với Postgres + Redis thật, kiểm code sinh từ OpenAPI/sqlc không lệch, ESLint + `tsc` + Vitest, Playwright trên compose; build image, đẩy lên GHCR gắn tag theo commit.
-- **Deploy**: SSH vào VPS, `docker compose pull && docker compose up -d` (migrate chạy trước), kiểm tra nhanh `/readyz` và một luồng đăng nhập; lỗi thì quay lại tag trước. Migration luôn theo kiểu thêm trước xóa sau để quay lại được.
-- **Bí mật** (khóa mã hóa, mật khẩu DB, khóa SePay webhook, SMTP) nằm trong file `.env` quyền 600 trên VPS hoặc Docker secrets, không nằm trong repo hay DB dạng rõ.
+- **Môi trường dev**: `deploy/compose.dev.yml` dựng Postgres, Redis, MinIO, Gotenberg; Go chạy với `air` (tự build lại), React chạy Vite dev server; dữ liệu mẫu bằng `menglish seed --demo`.
+- **Bí mật** (khóa mã hóa, mật khẩu DB, khóa R2, khóa SePay webhook, SMTP) nằm trong file `.env` quyền 600 trên VPS hoặc Docker secrets, không nằm trong repo hay DB dạng rõ.
 - **Staging** không gửi email, Zalo thật và tắt webhook SePay theo mặc định (bài học từ hệ thống cũ).
+- **Cloudflare phía trước** (nếu tên miền quản lý trên Cloudflare): bật proxy để có chống DDoS cơ bản và ẩn IP VPS. Khi đó ufw chỉ mở 80/443 cho dải IP của Cloudflare, Caddy dùng chứng chỉ Origin của Cloudflare, và SSE gửi nhịp mỗi 30 giây để kết nối không bị ngắt.
+
+### Khi nào cần nâng cấp
+
+- RAM dùng trên 85% kéo dài hoặc swap dùng thường xuyên: chuyển staging sang máy khác hoặc lên gói 8 GB.
+- Postgres lớn hơn khoảng 10 GB hoặc ổ còn dưới 20%: nâng dung lượng ổ.
+- CPU trên 70% vào giờ cao điểm (đầu giờ chấm công, lúc chạy lương): lên 6–8 core.
+
+Nâng cấp chỉ là đổi gói VPS, hoặc dựng máy mới từ repo và R2; không phải sửa code.
 
 ## Lộ trình xây dựng
 
@@ -550,6 +603,7 @@ Tám giai đoạn, khoảng **46 tuần (10–11 tháng) với 3 lập trình vi
 | Công thức tiền (lương, học phí, hoa hồng) làm lại sai | Cao | Hàm thuần + test bảng lấy kịch bản từ test cũ; đối chiếu phiếu lương thật nếu hệ thống cũ còn chạy |
 | Quy tắc lương còn để sau (% tái tục khi lớp nghỉ từ 2 HS) | Cao | Chốt trước giai đoạn 6; tham số hóa thay vì viết cứng |
 | Lọt quyền giữa chi nhánh | Cao | Policy tường minh + test phạm vi bắt buộc cho mọi danh sách và thao tác ghi |
+| VPS 4 GB RAM thiếu bộ nhớ hoặc đầy ổ 30 GB | Trung bình | Giới hạn RAM từng container, swap 2 GB, file và sao lưu trên R2, xoay vòng log, cảnh báo ở 80%; nâng gói khi chạm ngưỡng ở mục Triển khai |
 | Một VPS là điểm lỗi duy nhất | Trung bình | Sao lưu ngoài máy + PITR, tài liệu khôi phục đã diễn tập; sau này chuyển Postgres sang dịch vụ quản lý |
 | Phạm vi phình ra (yêu cầu mới trong lúc xây) | Trung bình | Chốt phạm vi mỗi giai đoạn; yêu cầu mới vào giai đoạn sau |
 | Đội chưa quen Go | Trung bình | Giai đoạn 0 làm mẫu chuẩn một module trọn vẹn (handler → service → store → test) để chép theo |
@@ -566,6 +620,7 @@ Tám giai đoạn, khoảng **46 tuần (10–11 tháng) với 3 lập trình vi
 | 06 | Tiền `bigint` đồng | `numeric(15,2)` | Không có hào (VND không cần); đổi lại tính toán chính xác và nhanh |
 | 07 | React SPA: TanStack Router/Query, shadcn/ui, Tailwind 4 | Next.js (SSR) | Không SSR (không cần cho app nội bộ); chỉ cần file tĩnh |
 | 08 | Docker Compose trên một VPS | Kubernetes | Không tự dịch chuyển khi máy hỏng; đổi lại đơn giản, rẻ, đủ cho quy mô hiện tại |
+| 09 | File và sao lưu trên Cloudflare R2 | MinIO trên chính VPS | Phụ thuộc thêm Cloudflare; đổi lại ổ 30 GB không bị file làm đầy, không tốn phí băng thông tải ra, bản sao lưu nằm ngoài máy |
 
 ### Đã chốt (12/10/2026)
 
@@ -578,5 +633,5 @@ Tám giai đoạn, khoảng **46 tuần (10–11 tháng) với 3 lập trình vi
 | Phạt tăng dần theo lần tái phạm | Không | Bỏ bậc tái phạm khỏi luật SLA; mức phạt do người chốt nhập |
 | Học viên/phụ huynh đăng nhập bằng gì | Cả mã học viên và SĐT phụ huynh | Một SĐT có nhiều con thì sau đăng nhập chọn học viên |
 | Mang dữ liệu từ hệ thống cũ | Có | Lệnh `menglish import-legacy` đọc MySQL cũ ghi vào Postgres, viết song song giai đoạn 6–7, chạy thử 2 lần trên bản sao trước ngày ra mắt (giai đoạn 8) |
-| VPS | Tìm sau | Code trước; Docker Compose chạy được trên máy dev và bất kỳ VPS nào có Docker |
+| VPS (13/10/2026) | 4 core, 4 GB RAM, 30 GB SSD + Cloudflare R2 | Production và staging chung một VPS với giới hạn RAM từng container; file người dùng và sao lưu trên R2; build trên GitHub Actions, VPS chỉ kéo image về chạy |
 | Xác thực hai bước | Bắt buộc với nhóm quyền cao | TOTP bắt buộc với Admin và người có quyền phân quyền, duyệt tiền, chạy lương; tùy chọn với người khác; làm trong giai đoạn 0 |
