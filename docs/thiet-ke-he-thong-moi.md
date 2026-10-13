@@ -62,6 +62,14 @@ Hệ thống mới phải làm được những gì MEnglish hiện tại đang 
 - **Sổ buổi học** (`SessionLedger`, 456 dòng): tính tại chỗ số buổi đã đóng − đã học, trừ khoảng bảo lưu.
 - **Đánh số chứng từ**: `document_sequences` khóa dòng (HV-00001, BT-YYYY-0001, BB-YYYY-001...), dải số hóa đơn điện tử/giấy theo chi nhánh.
 - **Hộp phê duyệt**: 13 nguồn duyệt (phiếu thu, hoàn phí, đề xuất giáo trình, đơn chấm công...) gom về một hộp; mỗi nguồn gọi lại route POST gốc của phân hệ.
+- **Báo cáo định kỳ của nhân sự** (làm lại theo mockup ở PR #129, 13/10/2026): sáu loại, phân biệt bằng `kind`. Mỗi người có tối đa một báo cáo cho mỗi loại trong mỗi kỳ, nên người vừa là Học thuật vừa là giáo viên không bị ghi đè báo cáo tháng (lỗi hệ thống cũ đã gặp).
+  - Báo cáo ngày Học vụ (`daily_ops`): 3 khối Vận hành lớp học, Tuyển sinh / Học viên, Truyền thông; ô số đi cùng ô ghi chú; bật "Tạo Task" để giao việc follow-up ngay từ báo cáo (tạo `work_task` liên kết với báo cáo).
+  - Báo cáo tuần KPI Học vụ (`weekly_kpi`): một form chỉ số quy mô (lớp đang chạy, học sinh, data mới, học viên mới chốt, chuyển lớp, học bù...).
+  - Báo cáo tuần Học thuật (`academic_weekly`): 3 bảng nhập theo dòng (đã làm, dự kiến tuần tới, quản lý yêu cầu); mỗi dòng có nội dung, chi tiết, deadline, tiến độ 0/25/50/75/100%, link sản phẩm, đề xuất hỗ trợ, ghi chú.
+  - Báo cáo tháng Học thuật (`academic_monthly`): bảng các tuần trong tháng (tuần, khoảng ngày, người phụ trách), bấm để mở báo cáo tuần, cộng phần đánh giá tháng. Báo cáo quý Học thuật (`academic_quarterly`) giữ như cũ.
+  - Báo cáo tháng giáo viên (`teacher_monthly`): chấm công tháng + báo cáo theo từng lớp gồm A. Học thuật, B. Vận hành, C. Chất lượng (mục tích kèm ghi chú, lựa chọn hai mức, ô chữ); lưu nháp rồi nộp.
+  - Màn tổng hợp cho Admin: tab ngày / tuần / tháng, bấm dòng để xem nội dung, không hiện bản nháp. Lịch nhắc nộp báo cáo kiểm theo `kind` và kỳ.
+  - Lưu trữ: bảng `ops.staff_reports` với unique `(user_id, kind, period)`, trạng thái nháp / đã nộp; nội dung từng loại là JSONB được kiểm bằng struct Go và schema OpenAPI riêng cho mỗi `kind`; việc follow-up nằm ở `ops.staff_report_followups` trỏ tới `work_tasks`. Lệnh `import-legacy` mang báo cáo chữ tự do cũ sang loại `legacy_text`, chỉ để xem lại.
 
 ### Những điểm làm khác hệ thống cũ
 
@@ -224,7 +232,7 @@ Một database PostgreSQL 18 tên `menglish`, **mỗi phân hệ một schema**.
 | `finance` | tuitions, tuition\_fee\_items, receipts, receipt\_allocations, invoice\_ranges, invoice\_cancellations, refund\_requests, bank\_accounts, payment\_providers, bank\_transactions, payment\_reports, debt\_reminder\_rules, expenses | Khóa SePay trong `payment_providers` mã hóa AES-GCM |
 | `hr` | teaching\_shifts, timesheets, rates (hiệu lực theo ngày), staff\_attendance, attendance\_requests, penalties, sla\_rules, sla\_events, kpi\_criteria, kpi\_sheets, kpi\_items |  |
 | `payroll` | periods, payslips, payslip\_lines, params (có phiên bản), commission\_tiers, commission\_items, commission\_adjustments | Phiếu lương = nhiều dòng thay cho \~30 cột tiền cố định của hệ thống cũ |
-| `ops` | work\_tasks, tickets, ticket\_messages, surveys, survey\_responses, material\_orders, inventory\_items, stock, stock\_movements, job\_postings, candidates |  |
+| `ops` | work\_tasks, staff\_reports, staff\_report\_followups, tickets, ticket\_messages, surveys, survey\_responses, material\_orders, inventory\_items, stock, stock\_movements, job\_postings, candidates |  |
 
 ### Ràng buộc để DB tự giữ đúng
 
@@ -591,7 +599,7 @@ Tám giai đoạn, khoảng **46 tuần (10–11 tháng) với 3 lập trình vi
 | 2 | CRM & test đầu vào | Lead, Kanban, hồ sơ khách, lịch test, làm bài công khai có khóa màn hình, học thử, chuyển chi nhánh, nhập Excel, SLA CRM | 6 | Kịch bản của \~170 test CRM cũ chạy xanh trên Go |
 | 3 | Lớp & giảng dạy | Học viên, lớp, sinh lịch, nghỉ & học bù, điểm danh, nhận xét, bài tập, Cổng giáo viên, nhiệm vụ trợ giảng, bảo lưu | 7 | GV dùng điện thoại dạy trọn một tuần thử |
 | 4 | Học phí & thu chi | Hợp đồng học phí, sổ buổi, phiếu thu, dải số hóa đơn, SePay, hoàn/chuyển phí, nhắc nợ, chi phí, báo cáo tài chính | 6 | Số hóa đơn liên tục; webhook SePay khớp 100% giao dịch thử |
-| 5 | Học thuật & vận hành | Giáo trình, giao chặng, Big Test, dự án học thuật, công việc, ticket, hộp phê duyệt | 6 | 13 loại phê duyệt chạy trong một hộp |
+| 5 | Học thuật & vận hành | Giáo trình, giao chặng, Big Test, dự án học thuật, công việc, báo cáo ngày / tuần / tháng / quý của nhân sự, ticket, hộp phê duyệt | 6 | 13 loại phê duyệt chạy trong một hộp |
 | 6 | Nhân sự & lương | Chấm công GPS + ảnh, đơn từ, KPI, vi phạm, SLA giáo viên, đơn giá, kỳ lương, hoa hồng, phiếu lương PDF | 7 | Test bảng lương/KPI/hoa hồng xanh; 1–2 kỳ lương thật đối chiếu khớp hệ thống cũ |
 | 7 | Cổng học sinh & phần còn lại | Cổng phụ huynh & học sinh, báo cáo, học liệu, hàng hóa, tuyển dụng, khảo sát | 4 |  |
 | 8 | Nghiệm thu & ra mắt | Nhập dữ liệu từ hệ thống cũ (chạy thử 2 lần), kiểm thử theo 9 vai trò trên máy thật và điện thoại, tải, bảo mật, đo lại UI/UX, diễn tập khôi phục sao lưu | 3 | Không còn lỗi mức Cao |
