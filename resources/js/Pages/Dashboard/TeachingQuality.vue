@@ -169,6 +169,7 @@ const supportCount = (report) => report.classes.filter((c) => c.need_support).le
                         {{ c.class }}
                         <UiBadge v-if="c.need_support" color="warning">Cần hỗ trợ</UiBadge>
                     </p>
+                    <p v-if="c.situation" class="mt-xs whitespace-pre-line font-body-small text-body-small"><span class="font-semibold">Vấn đề phát sinh:</span> {{ c.situation }}</p>
                     <p v-if="c.attention" class="mt-xs whitespace-pre-line font-body-small text-body-small"><span class="font-semibold">Học sinh cần chú ý:</span> {{ c.attention }}</p>
                     <p v-if="c.solution" class="mt-xs whitespace-pre-line font-body-small text-body-small"><span class="font-semibold">Giải pháp:</span> {{ c.solution }}</p>
                     <p v-if="c.support_note" class="mt-xs whitespace-pre-line font-body-small text-body-small"><span class="font-semibold">Cần hỗ trợ:</span> {{ c.support_note }}</p>

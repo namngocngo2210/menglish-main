@@ -22,7 +22,7 @@ class AcademicDashboardController extends Controller
 {
     /**
      * Dashboard Báo cáo Admin:
-     * Tổng hợp báo cáo ngày của Học vụ, tuần của Học thuật, tháng của Giáo viên.
+     * Tổng hợp báo cáo ngày của Học vụ (+ báo cáo trực lớp), tuần của Học thuật (+ tuần KPI Học vụ), tháng / quý của Giáo viên và Học thuật.
      */
     public function reports(Request $request): Response
     {
@@ -30,20 +30,23 @@ class AcademicDashboardController extends Controller
         $tab = $request->get('tab', 'daily'); // 'daily', 'weekly', 'monthly'
         $branches = Branch::where('is_active', true)->get();
 
-        // 1. Báo cáo ngày Học vụ
-        $dailyReportsQuery = AcademicRecord::forScreen('06_bao_cao_ngay_hoc_vu')->with('user')->latest();
+        // Báo cáo trực lớp theo buổi (GV / TA), hiện cùng tab báo cáo ngày.
         $classReports = ClassReport::with(['classModel', 'reporter'])->withCount('studentSupports')->latest()->take(10)->get();
-        $dailyReports = $dailyReportsQuery->take(15)->get();
 
-        // 2. Báo cáo tuần (Học thuật + báo cáo tuần KPI của Học vụ) và 3. báo cáo tháng / quý (giáo viên, Học thuật) — staff_reports.
-        $weeklyReports = StaffReport::with('user')->where('type', 'weekly')->latest('report_date')->latest('id')->take(10)->get();
-        $monthlyReports = StaffReport::with('user')->whereIn('type', ['monthly', 'quarterly'])->latest('report_date')->latest('id')->take(10)->get();
+        // Báo cáo nhân sự đã nộp (staff_reports, bỏ bản nháp): 1. báo cáo ngày của Học vụ, 2. báo cáo tuần của Học thuật
+        // (+ báo cáo tuần KPI của Học vụ, bảng riêng), 3. báo cáo tháng / quý (giáo viên, Học thuật).
+        $submitted = fn () => StaffReport::with('user:id,name')->where('status', '!=', 'draft')->latest('report_date')->latest('id');
+        $staffDailyReports = $tab === 'daily' ? $submitted()->where('type', 'daily')->take(15)->get() : collect();
+        $weeklyReports = $tab === 'weekly' ? $submitted()->where('type', 'weekly')
+            ->where(fn ($q) => $q->where('kind', 'academic_weekly')->orWhereNull('kind'))->take(10)->get() : collect();
+        $weeklyKpiReports = $tab === 'weekly' ? $submitted()->where('kind', 'weekly_kpi')->take(10)->get() : collect();
+        $monthlyReports = $tab === 'monthly' ? $submitted()->whereIn('type', ['monthly', 'quarterly'])->take(15)->get() : collect();
 
         // Thống kê tổng hợp (số liệu thật; không có dữ liệu thì view hiện "Chưa có dữ liệu")
         $totalClasses = ClassModel::count();
         $activeClasses = ClassModel::where('status', 'active')->count();
         $totalDailyReportsToday = ClassReport::whereDate('created_at', today())->count()
-            + AcademicRecord::forScreen('06_bao_cao_ngay_hoc_vu')->whereDate('created_at', today())->count();
+            + StaffReport::where('type', 'daily')->whereDate('report_date', today())->count();
 
         $todayAttendance = StudentAttendance::whereDate('session_date', today())->get(['status']);
         $attendanceRateToday = $todayAttendance->isEmpty()
@@ -86,9 +89,28 @@ class AcademicDashboardController extends Controller
             'title' => $report->title ?: 'Báo cáo',
             'record_code' => $report->period_key,
             'user' => $report->user?->name,
-            'status_label' => $report->type_label,
+            'status_label' => $report->kind ? (StaffReportController::STRUCTURED[$report->kind]['label'] ?? $report->type_label) : $report->type_label,
+            'content' => $report->content,
             'created_at' => $report->updated_at?->format('H:i d/m/Y'),
         ];
+        $dailyRow = function (StaffReport $report) {
+            $f = $report->data['fields'] ?? [];
+
+            return [
+                'id' => $report->id,
+                'date' => $report->report_date->toDateString(),
+                'user' => $report->user?->name,
+                'title' => $report->title,
+                'content' => $report->content,
+                'structured' => $report->kind === 'daily_ops',
+                'classes' => isset($f['classes_planned']) || isset($f['classes_actual']) ? ($f['classes_actual'] ?? '—').' / '.($f['classes_planned'] ?? '—') : null,
+                'staff' => isset($f['teachers']) || isset($f['assistants']) ? ($f['teachers'] ?? 0).' GV · '.($f['assistants'] ?? 0).' TG' : null,
+                'enrollment' => collect(['Data' => $f['new_data'] ?? null, 'Test' => $f['test_students'] ?? null, 'Thu phí' => $f['fees'] ?? null])
+                    ->filter(fn ($v) => $v !== null)->map(fn ($v, $k) => "{$k} {$v}")->implode(' · ') ?: null,
+                'task_id' => $report->data['task_id'] ?? null,
+                'updated_at' => $report->updated_at?->format('H:i d/m/Y'),
+            ];
+        };
 
         return Inertia::render('Academic/Reports', [
             'tab' => $tab,
@@ -105,8 +127,10 @@ class AcademicDashboardController extends Controller
                 'student_supports_count' => (int) $cr->student_supports_count,
                 'created_at' => $cr->created_at->format('H:i d/m'),
             ])->values() : [],
-            'weeklyReports' => $tab === 'weekly' ? $weeklyReports->map($recordRow)->values() : [],
-            'monthlyReports' => $tab === 'monthly' ? $monthlyReports->map($recordRow)->values() : [],
+            'staffDailyReports' => $staffDailyReports->map($dailyRow)->values(),
+            'weeklyReports' => $weeklyReports->map($recordRow)->values(),
+            'weeklyKpiReports' => $weeklyKpiReports->map($recordRow)->values(),
+            'monthlyReports' => $monthlyReports->map($recordRow)->values(),
             'totalClasses' => $totalClasses,
             'activeClasses' => $activeClasses,
             'totalDailyReportsToday' => $totalDailyReportsToday,

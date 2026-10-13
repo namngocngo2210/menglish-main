@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\StaffReportController;
 use App\Models\AdminNotification;
 use App\Models\Branch;
 use App\Models\ClassModel;
@@ -375,17 +376,22 @@ class SlaTeacherRulesTest extends TestCase
 
     public function test_my_reports_shows_monthly_due_and_state(): void
     {
-        $this->actingAs($this->teacher)->get(route('reports.my'))
-            ->assertInertia(fn (AssertableInertia $page) => $page
-                ->where('monthlyDue.due_label', 'Chủ nhật 25/10')
-                ->where('monthlyDue.submitted', false));
+        // GV vào "Báo cáo của tôi" là vào màn báo cáo tháng, có hạn nộp tháng.
+        $this->actingAs($this->teacher)->get(route('reports.my'))->assertRedirect(route('reports.periodic.teacher-monthly'));
+        $this->actingAs($this->teacher)->get(route('reports.periodic.teacher-monthly'))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('dueLabel', 'Chủ nhật 25/10')->where('status', null));
+        $this->assertFalse(StaffReportController::submittedCurrentPeriod($this->teacher));
 
+        // Báo cáo tháng dạng chữ cũ vẫn tính là đã nộp kỳ này.
         StaffReport::create(['user_id' => $this->teacher->id, 'type' => 'monthly', 'title' => 'BC T10', 'content' => 'x', 'report_date' => '2026-10-07', 'status' => 'submitted']);
-        $this->actingAs($this->teacher)->get(route('reports.my'))
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('monthlyDue.submitted', true));
+        $this->assertTrue(StaffReportController::submittedCurrentPeriod($this->teacher));
 
-        // Học vụ báo cáo ngày → không có hạn tháng.
-        $this->actingAs($this->academic)->get(route('reports.my'))
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('monthlyDue', null));
+        // Nháp báo cáo giảng dạy chưa tính là đã nộp.
+        StaffReport::query()->delete();
+        StaffReport::create(['user_id' => $this->teacher->id, 'type' => 'monthly', 'kind' => 'teacher_monthly', 'period_key' => '2026-10', 'title' => 'Nháp', 'content' => 'x', 'report_date' => '2026-10-07', 'status' => 'draft']);
+        $this->assertFalse(StaffReportController::submittedCurrentPeriod($this->teacher));
+
+        // Học vụ báo cáo ngày → vào màn báo cáo ngày.
+        $this->actingAs($this->academic)->get(route('reports.my'))->assertRedirect(route('reports.periodic.daily'));
     }
 }

@@ -2,8 +2,8 @@
 
 namespace App\Console\Commands;
 
+use App\Http\Controllers\StaffReportController;
 use App\Models\AdminNotification;
-use App\Models\StaffReport;
 use App\Models\User;
 use App\Support\MonthlyReportDue;
 use App\Support\StaffType;
@@ -46,10 +46,7 @@ class RemindMonthlyReportsCommand extends Command
                 if (StaffType::reportCadence($user) !== 'monthly') {
                     continue;
                 }
-                $submitted = StaffReport::where('user_id', $user->id)->where('type', 'monthly')
-                    ->whereBetween('report_date', [$today->copy()->startOfMonth()->toDateString(), $today->copy()->endOfMonth()->toDateString()])
-                    ->exists();
-                if ($submitted) {
+                if (StaffReportController::submittedCurrentPeriod($user, $today)) {
                     continue;
                 }
                 $exists = AdminNotification::where('user_id', $user->id)->where('type', 'monthly_report_due')
