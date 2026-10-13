@@ -88,6 +88,7 @@ const lockedInput = 'w-full rounded-lg border border-outline-variant px-md py-sm
                     </div>
                 </UiField>
                 <div class="md:col-span-2"><UiInput id="f_address" name="address" label="Địa chỉ" :value="customer.address" /></div>
+                <div class="md:col-span-2"><UiInput id="f_school" name="school" label="Trường học" :value="customer.school" /></div>
                 <div class="md:col-span-2"><UiTextarea id="f_notes" name="notes" label="Ghi chú nhu cầu" :rows="3" :value="customer.notes" /></div>
             </div>
         </details>

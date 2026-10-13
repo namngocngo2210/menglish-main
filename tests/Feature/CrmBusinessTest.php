@@ -118,6 +118,7 @@ class CrmBusinessTest extends TestCase
             'dob' => '2004-11-20',
             'gender' => 'Nam',
             'address' => 'P402 Tòa nhà Golden Land, Thanh Xuân, Hà Nội',
+            'school' => 'THPT Nguyễn Trãi',
             'branch_id' => $this->branch->id,
             'course_interest' => 'IELTS Pro 6.5 - 7.5',
             'source' => 'Facebook Ads',
@@ -140,6 +141,7 @@ class CrmBusinessTest extends TestCase
             'email' => 'nhatminh.hoang@gmail.com',
             'gender' => 'Nam',
             'address' => 'P402 Tòa nhà Golden Land, Thanh Xuân, Hà Nội',
+            'school' => 'THPT Nguyễn Trãi',
             'branch_id' => $this->branch->id,
             'course_interest' => 'IELTS Pro 6.5 - 7.5',
             'source' => 'Facebook Ads',
@@ -230,6 +232,7 @@ class CrmBusinessTest extends TestCase
             'name' => 'Vũ Thuỳ Dung (VIP Lead)',
             'phone' => '0933999888',
             'email' => 'thuydung.vu@gmail.com',
+            'school' => 'THCS Giảng Võ',
             'branch_id' => $this->branch->id,
             'source' => 'Hotline',
             'deal_value' => 12500000,
@@ -245,6 +248,7 @@ class CrmBusinessTest extends TestCase
         $this->assertEquals('Vũ Thuỳ Dung (VIP Lead)', $customer->name);
         $this->assertEquals('consulting', $customer->stage);
         $this->assertEquals(12500000, $customer->deal_value);
+        $this->assertEquals('THCS Giảng Võ', $customer->school);
 
         // Verify stage_change history record was created
         $this->assertDatabaseHas('crm_customer_histories', [
@@ -368,6 +372,7 @@ class CrmBusinessTest extends TestCase
             'dob' => '2002-05-10',
             'gender' => 'Nam',
             'address' => 'Kim Mã, Ba Đình, Hà Nội',
+            'school' => 'THPT Phan Đình Phùng',
             'branch_id' => $this->branch->id,
             'course_interest' => 'IELTS Pro 6.5 - 7.5',
             'test_score' => '5.5 Overall',
@@ -408,6 +413,7 @@ class CrmBusinessTest extends TestCase
         $this->assertEquals('baochau.ngo@gmail.com', $student->email);
         $this->assertEquals('2002-05-10', $student->dob?->format('Y-m-d'));
         $this->assertEquals('Nam', $student->gender);
+        $this->assertEquals('THPT Phan Đình Phùng', $student->school);
         $this->assertEquals($this->branch->id, $student->branch_id);
         $this->assertEquals($this->classModel->id, $student->current_class_id);
         $this->assertEquals('waiting_start', $student->status, 'Hồ sơ tạo khi chốt bắt đầu ở Chờ khai giảng');

@@ -105,6 +105,7 @@ class CrmCustomer extends Model
         'dob',
         'gender',
         'address',
+        'school',
         'branch_id',
         'course_interest',
         'source',
