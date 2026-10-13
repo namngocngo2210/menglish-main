@@ -6,7 +6,7 @@ Phiên bản 12/10/2026 · Người yêu cầu: Desiglobal
 
 Dựng mới một hệ thống quản lý trung tâm Anh ngữ tương đương MEnglish bằng **React (SPA) + Go (API) + PostgreSQL**, đóng gói **Docker**, dùng **Redis** cho phiên đăng nhập, cache, giới hạn tốc độ và thông báo tức thời. Hệ thống Laravel hiện tại chỉ là bản mô tả nghiệp vụ: chức năng, vai trò, công thức lương/KPI/học phí được lấy từ code đang chạy; không giữ database cũ, không chạy song song.
 
-Phạm vi tham chiếu (đếm trên `main` ngày 12/10/2026): 92 model, \~100 bảng nghiệp vụ, 58 controller (\~34.300 dòng), \~560 route, 21 việc chạy định kỳ, 293 màn/component Vue, 9 vai trò, 224 quyền, 1.437 test.
+Phạm vi tham chiếu (đếm trên `main` ngày 12/10/2026, đối chiếu lại 14/10/2026): 91 model, \~100 bảng nghiệp vụ, 62 controller (\~34.300 dòng), \~545 route, 21 việc chạy định kỳ, 296 màn/component Vue, 9 vai trò, 224 quyền, \~1.440 test.
 
 Sáu quyết định chính:
 
@@ -39,14 +39,24 @@ Hệ thống mới phải làm được những gì MEnglish hiện tại đang 
 | Công việc, ticket, phê duyệt | work\_tasks, support\_tickets, ticket\_messages, admin\_notifications | \~45 | WorkTaskController 2.342 |
 | Cổng phụ huynh & học sinh | academic\_records (JSON), students | 24 | StudentPortalController 1.087 |
 | Học liệu, hàng hóa | material\_orders, merchandise\_\* | \~22 |  |
+| Chất lượng lớp | academic\_observations, qa\_observations, class\_checklists, teacher\_meeting\_reports (quyền `class_quality.*`) | – | ObservationController, ClassChecklistController, TeacherMeetingReportController |
+| Bổ trợ, dạy thay | mini\_test\_scores, support\_sessions, class\_report\_student\_supports, substitute\_sessions | – | ClassManagementController, TeacherPortalController |
+| Tiện ích chung | system\_categories, kho Media, tìm kiếm toàn cục, hướng dẫn sử dụng | – | SystemCategoryController, MediaManagerController, GlobalSearchController, UserGuideController |
 
 ### Vai trò và phân quyền
 
 - **9 vai trò cố định** (`app/Support/Roles.php`): Admin, Quản lý cơ sở, Trưởng học thuật, Học vụ, Tư vấn tuyển sinh, GV Full-time, GV Part-time, Trợ giảng, Học sinh. Admin tạo thêm vai trò tùy chỉnh được.
 - **224 quyền tĩnh** khai báo trong `config/permission_catalog.php`: 168 quyền thao tác dạng `module.action`, 48 quyền phạm vi dữ liệu `module.scope_own|branch|all`, 8 quyền "đối tượng" (`class.teach`, `portal.student`...), cộng quyền động `user.assign_role.<vai trò>`.
 - **Thứ tự quyết định** (`AppServiceProvider` `Gate::before`): Admin được tất cả (trừ quyền đối tượng) → 9 quyền duyệt chỉ Admin → ghi đè theo người (cho hoặc thu hồi) → quyền của vai trò (spatie). Không có Policy; kiểm tra theo bản ghi nằm trong controller.
-- **Phạm vi dữ liệu** (`DataScope`): mức cao nhất trong `scope_own < scope_branch < scope_all`; chi nhánh của người dùng = `users.branch_id` + bảng `user_branches`. Dùng ở 31 file và 12 scope `visibleTo`.
-- **Menu theo quyền, không theo tên vai trò**: `SidebarMenu.php` đọc quyền `can:` của từng route (326 chỗ).
+- **Phạm vi dữ liệu** (`DataScope`): mức cao nhất trong `scope_own < scope_branch < scope_all`; chi nhánh của người dùng = `users.branch_id` + bảng `user_branches`. Dùng ở 37 file và 12 scope `visibleTo`.
+- **Menu theo quyền, không theo tên vai trò**: `SidebarMenu.php` đọc quyền `can:` của từng route (336 chỗ).
+- **Ghi đè theo người có phạm vi**: `user_permission_overrides` có `scope_type` (all/branch/class); hiện chỉ `class.view|update|delete` áp dụng branch/class (`UserPermissionOverride::SCOPE_ENFORCED`).
+- **Cú pháp quyền mặc định** (`config/access.php`): `module.*` (không gồm quyền đối tượng và quyền phạm vi), `user.assign_role.*`, `*` (chỉ Admin). Quyền `user.assign_role.<vai trò>` sinh động theo vai trò.
+- **Cây gán vai trò** (`access.php`, `app/Support/Rbac.php`): Quản lý cơ sở gán mọi vai trò trừ Admin và Quản lý khác; Học vụ chỉ gán Học viên, GV, Trợ giảng, Học thuật. Bản mới giữ nguyên quy tắc này ở `iam`.
+- **Vai trò đã bỏ** (`Roles::RETIRED`): `accountant` → Quản lý cơ sở, `teacher` → GV Full-time. Seed mới không tạo, nhưng `import-legacy` phải map.
+- **Nhóm vai trò dùng trong nghiệp vụ** (`Roles::TEACHERS`, `TEACHING`, `ACADEMIC`, `KPI_ROLES`, `BRANCH_OPERATORS`): KPI, lương, người nhận việc phụ thuộc các nhóm này, nên khai báo thành hằng ở `iam`. Admin đổi được nhãn vai trò (`roles.label`).
+- **Ability ngoài dạng `module.action`**: `approve-as-admin` (9 quyền duyệt chỉ Admin, `AdminOnlyApprovals`) và ability KPI của chính mình (`KpiCriterion::OWN_ABILITY`). Quyền lùi bước CRM là `lead.stage_back`, chỉ Admin.
+- Chi tiết ma trận quyền mặc định nằm ở `docs/rbac.md`; khi có lệch, `docs/rbac.md` và `config/access.php` là nguồn chuẩn.
 
 ### Đăng nhập và bề mặt công khai
 
@@ -70,6 +80,14 @@ Hệ thống mới phải làm được những gì MEnglish hiện tại đang 
   - Báo cáo tháng giáo viên (`teacher_monthly`): chấm công tháng + báo cáo theo từng lớp gồm A. Học thuật, B. Vận hành, C. Chất lượng (mục tích kèm ghi chú, lựa chọn hai mức, ô chữ); lưu nháp rồi nộp.
   - Màn tổng hợp cho Admin: tab ngày / tuần / tháng, bấm dòng để xem nội dung, không hiện bản nháp. Lịch nhắc nộp báo cáo kiểm theo `kind` và kỳ.
   - Lưu trữ: bảng `ops.staff_reports` với unique `(user_id, kind, period)`, trạng thái nháp / đã nộp; nội dung từng loại là JSONB được kiểm bằng struct Go và schema OpenAPI riêng cho mỗi `kind`; việc follow-up nằm ở `ops.staff_report_followups` trỏ tới `work_tasks`. Lệnh `import-legacy` mang báo cáo chữ tự do cũ sang loại `legacy_text`, chỉ để xem lại.
+- **Chất lượng lớp** (`class_quality.*`): dự giờ học thuật và QA dự giờ (một bản ghi mỗi lớp mỗi tháng, chấm chuyên cần, tỷ lệ đạt, nội dung, tương tác, thái độ), checklist lớp theo tháng (học phí, feedback Big Test; Có/Không/N-A), báo cáo họp giáo viên theo tuần. Hai loại dự giờ dùng chung bảng `academic.class_observations` với cột `kind`.
+- **Học tập bổ sung**: điểm mini test theo học viên + bài học (`skill_scores` JSONB), buổi học bổ trợ có lịch/phòng, danh sách học viên cần bổ trợ trong báo cáo lớp, buổi dạy thay (`substitute_sessions`, bảng có migration nhưng chưa có model ở hệ thống cũ).
+- **Cấu hình SLA** (`config/sla.php` + `sla_settings`): 27 luật chia 12 nhóm — `crm` (7), `gv` (3), `big_test` (4), `academic` (2), `material` (2), `tuition` (2), `penalty` (2), `syllabus`, `care`, `payroll`, `hr`, `stock` (mỗi nhóm 1). Mỗi luật có bật/tắt, mốc thời hạn, có phạt hay không, số tiền và `ladder` (phạt bậc thang, ví dụ `gv.remarks_late` = 0 / 30.000 / 60.000). Trang cấu hình SLA đưa vào giai đoạn 1; mọi mốc nhắc/phạt đọc từ đây, không viết cứng.
+- **Ba bộ KPI** (theo code hiện tại): Học vụ (15 tiêu chí), Học thuật (12 tiêu chí, tỷ lệ SLA tự đếm, quỹ thưởng), GV Part-time (15 tiêu chí, bậc điểm, xếp loại A–E). Học thuật kiêm nhiệm giảng dạy được trả theo % học phí và có KPI riêng. Mỗi nhân sự một phiếu mỗi tháng, có Duyệt/Không duyệt và màn "KPI của tôi".
+- **Quyền xem lương**: ngoài Admin, mỗi người chỉ xem phiếu lương của mình; Admin thấy ai chưa có phiếu; đổi hồ sơ lương sau khi tính thì kỳ báo cần tính lại.
+- **Công việc**: danh sách mặc định chỉ hiện việc của tôi / việc tôi giao; báo SOS khi bị chặn; chuyển lại cho người giao (`handed_back`); hủy chỉ Admin hoặc người giao; mọi nhân sự giao được việc cho Admin. Ticket hỗ trợ có token chống tạo trùng khi gửi lặp form.
+- **Học phí theo sổ buổi**: phiếu thu lập theo số buổi cần thu; buổi bị trừ theo buổi lớp thực diễn ra. Xếp lớp theo cấp độ (cùng cấp độ khóa đã chốt hoặc cấp độ test đầu vào); khách tự điền học phí niêm yết khi chốt.
+- **Nhật ký liên hệ nhắc phí** (`finance.tuition_contact_logs`) ghi từng lần nhắc theo khoản học phí; bảo lưu, hoàn phí, chuyển nhượng chạy theo hạn SLA tương ứng.
 
 ### Những điểm làm khác hệ thống cũ
 
@@ -89,6 +107,28 @@ Dựng mới nên sửa luôn các điểm yếu đã ghi trong hai lần audit 
 | Mã ULID 26 ký tự hiện trên màn hình, tài khoản học viên khó gõ | Mã ngắn theo quy tắc (HV-00001, PT-2026-000123), học viên đăng nhập bằng mã hoặc SĐT phụ huynh |
 | Không có API cho bên ngoài | API REST có tài liệu OpenAPI, dùng được cho app di động sau này |
 | Không giám sát lỗi tập trung, `activity_log` không bao giờ dọn | Sentry, Prometheus, log JSON; nhật ký chia phân vùng theo tháng, dọn theo chính sách |
+
+### Phần của hệ thống cũ không làm lại
+
+| Thành phần cũ | Quyết định | Lý do |
+| --- | --- | --- |
+| `AcademicSystemController` (17 route `academic-admin`, `academic-ops`, cổng giáo viên/phụ huynh mô phỏng trên `academic_records`) | Không port nguyên; nghiệp vụ thật được phủ bởi bảng riêng ở giai đoạn 5 và 7 | Là bản CMS/mockup trên bảng JSON chung (cần xác nhận lại với người phụ trách học thuật) |
+| `MockupHubController` (`/mockup-hub`) | Thay bằng Storybook | Chỉ là kho mockup nội bộ |
+| Route `_deploy/hook`, `deploy.sh`, GitHub Actions FTPS lên DirectAdmin, `deploy/release-install.php` | Thay bằng GitHub Actions → GHCR → Docker Compose (xem mục Triển khai) | Bản mới không chạy trên hosting PHP |
+| `SeedPayrollDemoCommand` (`demo:luong`), seed demo qua deploy hook | Thay bằng `menglish seed --demo` | Dữ liệu mẫu chỉ dùng dev/staging |
+| `TimesheetSyncLog` | Hoãn | Code cũ ghi chú chưa có tích hợp nào ghi vào bảng này |
+| Ziggy, SSR của Inertia, Tom Select, Spatie permission/activitylog | Thay bằng TanStack Router, không SSR, Combobox, `iam`, `audit` | Đã nêu ở các mục Frontend và Backend |
+| Queue/cache/session trên database của Laravel | Thay bằng River (Postgres) và Redis | Xem ADR 03, 04 |
+
+### Tài liệu nguồn trong repo
+
+Khi làm lại từng phân hệ, đối chiếu các tài liệu sau (đường dẫn tính từ gốc repo):
+
+- `docs/rbac.md`: ma trận vai trò – quyền chi tiết.
+- `docs/audit-report-and-roadmap.md`: audit codebase lần 1 và lộ trình.
+- `docs/frontend-ux-audit.md`, `docs/frontend-interaction-redesign.md`: rà soát UI/UX hệ thống cũ. Các mã lỗi T1–T6, C3, C5 trích trong tài liệu này thuộc bản rà soát UI/UX lần 2 chưa được đưa vào repo; cần đưa báo cáo đó vào `docs/` hoặc bỏ mã trích dẫn.
+- `docs/deploy-directadmin.md`: quy trình deploy hiện tại (chỉ để tham khảo).
+- `docs/MEnglish-Tai-lieu-BA.docx` và thư mục `ui-full-tinh-nang-menglish/` (mockup HTML, sơ đồ BPMN, schema, test case): nguồn BA cho từng epic.
 
 ## Kiến trúc tổng thể
 
@@ -182,10 +222,39 @@ Mỗi module có 3 lớp: `handler` (HTTP, DTO, kiểm tra đầu vào) → `ser
 
 ### Việc nền và sự kiện
 
-- **Lịch chạy**: 21 việc định kỳ của hệ thống cũ (SLA 15 phút, đánh dấu việc quá hạn, nhắc nợ T-7/T-3/T0/T+3, tạo phiếu KPI, bắt đầu/kết thúc bảo lưu, kiểm tiền mặt chưa nộp 19:00...) là `PeriodicJob` của River, chạy theo giờ Việt Nam, chỉ một worker nhận mỗi lượt. Mọi việc đều idempotent (chạy lại không tạo trùng).
+- **Lịch chạy**: 21 việc định kỳ của hệ thống cũ chuyển thành `PeriodicJob` của River, chạy theo giờ Việt Nam, chỉ một worker nhận mỗi lượt. Mọi việc đều idempotent (chạy lại không tạo trùng). Bảng dưới là toàn bộ lịch hiện tại (`routes/console.php`):
+
+| Lệnh cũ | Giờ chạy | Việc | Giai đoạn |
+| --- | --- | --- | --- |
+| `kpi:create-sheets` | 00:20 hằng ngày | Sang tháng mới tự tạo phiếu KPI (Chờ duyệt) cho nhân sự có tiêu chí | 6 |
+| `students:start-deferrals` | 06:45 | Tới ngày bảo lưu đã duyệt: đóng băng số buổi/công nợ, học viên sang Bảo lưu | 3 |
+| `students:end-deferrals` | 06:50 | Hết bảo lưu: về Đang học / Chờ khai giảng, báo Học vụ | 3 |
+| `students:start-studying` | 06:55 | Lớp tới ngày khai giảng: học viên Chờ khai giảng đã nhập học sang Đang học | 3 |
+| `bigtests:remind-upcoming` | 07:45 | Nhắc Big Test sắp tới, nhắc duyệt đề | 5 |
+| `hr:notify-expiring-contracts` | 07:50 | Hợp đồng nhân sự hết hạn trong N ngày (mặc định 30) | 6 |
+| `bigtests:enforce-sla` | 07:55 | Phạt trả kết quả trễ, việc duyệt đề của Học thuật | 5 |
+| `students:send-birthday-notifications` | 08:00 | Thông báo sinh nhật học viên | 3 |
+| `reports:remind-monthly` | 08:00 | Nhắc báo cáo giảng dạy tháng của GV/trợ giảng ở D-3, D-1, đúng hạn (Chủ nhật cuối tháng); chỉ nhắc, không phạt | 5 |
+| `tuition:send-debt-reminders` | 08:30 | Nhắc nợ T-7/T-3/T0/T+3 | 4 |
+| `penalties:remind-due` | 08:30 | Nhắc nộp phạt (hạn mặc định 2 ngày) | 6 |
+| `payroll:remind-calendar` | 08:35 | Cuối tháng nhắc chốt KPI, +1/+2 ngày nhắc chốt công/lỗi, ngày 10 nhắc trả lương | 6 |
+| `tuition:notify-refund-deadlines` | 08:40 | Hoàn phí/chuyển nhượng còn ≤ 1 ngày hoặc quá hạn (mặc định 7 ngày) | 4 |
+| `students:schedule-first-month-care` | hằng giờ phút 40 | Giao việc chăm sóc tháng đầu (Buổi 1, Buổi 4–5, đủ 30 ngày) cho Học vụ | 3 |
+| `syllabus:notify-adjustment-sla` | hằng giờ phút 20 | Yêu cầu giãn tiến độ giáo trình chờ duyệt quá hạn (mặc định 3 ngày) | 5 |
+| `bigtests:enforce-sla --paper-only` | hằng giờ phút 55 | GV chưa nhận đề khi còn dưới N giờ (mặc định 24h) tới giờ thi | 5 |
+| `crm:scan-stale-leads` | hằng giờ | Quét lead bỏ quên | 2 |
+| `sla:enforce` | 15 phút | SLA CRM (liên hệ 24h, chuyển trạng thái 36h, trả kết quả test, phản hồi học thử, học phí tuần đầu): giao việc + biên bản phạt | 2 |
+| `tasks:mark-overdue` | 15 phút | Việc/nhiệm vụ trợ giảng quá hạn; việc chăm sóc tháng đầu quá SLA sinh biên bản | 5 |
+| `material-orders:mark-overdue` | 15 phút | Đơn học liệu quá hạn xử lý, báo người xử lý | 7 |
+| `tuition:check-cash-deposits` | 15 phút | Tiền mặt thu trong ngày chưa nộp trước 19:00 (không tự phạt) | 4 |
+
+Thứ tự phụ thuộc giữ nguyên như hệ thống cũ: bảo lưu (06:45, 06:50) → khai giảng (06:55) → chăm sóc tháng đầu → nhắc nợ (08:30). River không đảm bảo thứ tự theo giờ nên mỗi việc phải tự kiểm trạng thái đầu vào, không dựa vào việc trước đã chạy.
 - **Gửi ra ngoài** (email, Zalo ZNS, thông báo): `service` xếp việc River trong cùng transaction; worker gửi sau khi commit, thử lại theo lũy thừa, màn quản trị xem việc lỗi.
+  - Zalo ZNS có hai mẫu tin (Big Test, nhắc nợ) và chế độ `sandbox`/`live`; tin cho phụ huynh đi qua `ParentMessenger` (email `ParentNotice` hoặc Zalo). Staging đặt cờ chặn mọi email ra ngoài (`MAIL_BLOCK_OUTGOING`), kể cả SMTP lưu trong DB.
 - **Sự kiện trong tiến trình**: `ReceiptApproved`, `ReceiptCancelled`, `LeadStageChanged`, `SessionHeld`, `PenaltyFined`... để module khác phản ứng (hoa hồng, thu hồi hoa hồng, SLA, KPI tự đếm) mà không import chéo.
 - **Webhook SePay**: xác thực HMAC-SHA256 hoặc API key, chống trùng bằng unique `provider_txn_id`, khớp nội dung chuyển khoản theo mã thanh toán → mã học viên → mã lead, khóa dòng công nợ khi ghi phiếu thu.
+  - Giữ cả hai đường webhook hiện có để khỏi đổi cấu hình bên SePay: `/hook/sepay-gateway/v1/add-payment` và `/api/sepay/webhook` (cùng `/api/sepay/transactions` để tra giao dịch). URL staging bị ghi cứng trong `SepayConfiguration` ở code cũ không mang sang. Cả hai đường được miễn CSRF vì xác thực bằng chữ ký.
+  - QR chuyển khoản dùng VietQR (`img.vietqr.io`); cần chốt gọi dịch vụ ngoài hay tự sinh QR trước giai đoạn 4.
 - **Nhật ký**: `audit` ghi trước/sau (JSONB) cho các bảng quan trọng, kèm người thao tác, IP, request id; cho hoàn tác một số trường như hệ thống cũ.
 
 ### Các động cơ tính toán
@@ -223,16 +292,16 @@ Một database PostgreSQL 18 tên `menglish`, **mỗi phân hệ một schema**.
 
 | Schema | Bảng chính | Ghi chú |
 | --- | --- | --- |
-| `core` | branches (tọa độ, bán kính chấm công, giờ làm), rooms, room\_types, holidays, holiday\_branches, settings, document\_sequences, files, notifications, audit\_log | `audit_log` chia phân vùng theo tháng |
-| `iam` | users, user\_branches, roles, permissions, role\_permissions, user\_roles, permission\_overrides, staff\_profiles, guardians | Lương cơ bản, CCCD nằm riêng trong `staff_profiles` để dễ kiểm quyền |
-| `crm` | leads, lead\_events, trial\_bookings, branch\_transfers, promotions, lead\_sources, lost\_reasons | 9 giai đoạn; mọi chuyển giai đoạn ghi `lead_events` |
+| `core` | branches (tọa độ, bán kính chấm công, giờ làm), rooms, room\_types, holidays, holiday\_branches, settings, system\_categories (danh mục chung theo `type`: nguồn khách, lý do thất bại...), document\_sequences, files, notifications, audit\_log | `audit_log` chia phân vùng theo tháng |
+| `iam` | users, user\_branches, roles, permissions, role\_permissions, user\_roles, permission\_overrides, staff\_profiles, guardians | Lương cơ bản, CCCD nằm riêng trong `staff_profiles` để dễ kiểm quyền; `permission_overrides` có `scope_type` (all/branch/class) và `scope_id` |
+| `crm` | leads, lead\_events, trial\_bookings, branch\_transfers, promotions, lead\_sources, lost\_reasons | 9 giai đoạn; mọi chuyển giai đoạn ghi `lead_events`; `leads.school` (trường học) |
 | `placement` | tests, invitations, submissions | Link mời lưu hash token + hạn; vi phạm làm bài lưu JSONB |
-| `academic` | courses, course\_levels, students, classes, class\_slots, class\_sessions, session\_staff, enrollments, deferrals, student\_attendance, remarks, homeworks, homework\_submissions, class\_reports | Không còn bảng JSON chung `academic_records` |
-| `syllabus` | curricula, stages, units, lessons, documents, document\_views, assignments, change\_proposals, pacing\_requests, big\_tests, big\_test\_orders, big\_test\_results, projects, milestones, project\_updates |  |
-| `finance` | tuitions, tuition\_fee\_items, receipts, receipt\_allocations, invoice\_ranges, invoice\_cancellations, refund\_requests, bank\_accounts, payment\_providers, bank\_transactions, payment\_reports, debt\_reminder\_rules, expenses | Khóa SePay trong `payment_providers` mã hóa AES-GCM |
-| `hr` | teaching\_shifts, timesheets, rates (hiệu lực theo ngày), staff\_attendance, attendance\_requests, penalties, sla\_rules, sla\_events, kpi\_criteria, kpi\_sheets, kpi\_items |  |
+| `academic` | courses, course\_levels, students, classes, class\_slots, class\_sessions, session\_staff, enrollments, deferrals, student\_attendance, remarks, homeworks, homework\_submissions, class\_reports, class\_report\_support\_students, class\_schedule\_configs, mini\_test\_scores, support\_sessions, substitute\_sessions, class\_observations, class\_checklists, teacher\_meeting\_reports | Không còn bảng JSON chung `academic_records` |
+| `syllabus` | curricula, stages, units, lessons, documents, document\_views, assignments, change\_proposals, pacing\_requests, big\_tests, big\_test\_orders, big\_test\_results, projects, milestones, project\_updates, project\_members |  |
+| `finance` | tuitions, tuition\_fee\_items, receipts, receipt\_allocations, invoice\_ranges, invoice\_cancellations, refund\_requests, bank\_accounts, payment\_providers, bank\_transactions, payment\_reports, debt\_reminder\_rules, tuition\_contact\_logs, expenses (chi phí vận hành) | Khóa SePay trong `payment_providers` mã hóa AES-GCM |
+| `hr` | teaching\_shifts, timesheets, rates (hiệu lực theo ngày), staff\_attendance, attendance\_requests, penalties, sla\_rules, sla\_events, kpi\_criteria, kpi\_sheets, kpi\_items, daily\_demands, timesheet\_sync\_logs | `sla_rules` có cột `ladder` (JSONB, phạt bậc thang); `rates` giữ đơn giá riêng theo người (`rate_unit`, loại giáo viên); `daily_demands` là nhu cầu nhân sự theo ngày và chi nhánh; `timesheet_sync_logs` hoãn |
 | `payroll` | periods, payslips, payslip\_lines, params (có phiên bản), commission\_tiers, commission\_items, commission\_adjustments | Phiếu lương = nhiều dòng thay cho \~30 cột tiền cố định của hệ thống cũ |
-| `ops` | work\_tasks, staff\_reports, staff\_report\_followups, tickets, ticket\_messages, surveys, survey\_responses, material\_orders, inventory\_items, stock, stock\_movements, job\_postings, candidates |  |
+| `ops` | work\_tasks, staff\_reports, staff\_report\_followups, tickets, ticket\_messages, surveys, survey\_responses, material\_orders, inventory\_items, stock, stock\_movements, job\_postings, candidates | `work_tasks.handed_back`; `candidates` kèm file CV; `staff_reports.kind` |
 
 ### Ràng buộc để DB tự giữ đúng
 
@@ -277,6 +346,7 @@ Mọi khóa đều có hạn; chính sách `volatile-lru` và `maxmemory 256mb` 
 - Postgres: WAL archive liên tục + bản sao lưu đầy đủ hằng đêm bằng pgBackRest lên bucket sao lưu trên Cloudflare R2, giữ 30 ngày, khôi phục về thời điểm bất kỳ. Thử khôi phục mỗi tháng.
 - File: nằm sẵn trên R2, ứng dụng chỉ xóa mềm và dọn sau 30 ngày; chi tiết ở mục Triển khai.
 - Lệnh `menglish seed` tạo dữ liệu ban đầu: danh mục quyền, 9 vai trò với quyền mặc định (theo `config/access.php` cũ), 27 luật SLA, tham số lương, 15 tiêu chí KPI Học vụ và thang A–E, một chi nhánh và tài khoản Admin đầu tiên. Dữ liệu hệ thống cũ được mang sang bằng lệnh \`menglish import-legacy\` (đọc MySQL, map bảng cũ sang schema mới, đổi tiền DECIMAL sang đồng, giữ mã cũ ở cột \`legacy\_code\`).
+- Bốn file config nghiệp vụ của hệ thống cũ (`config/payroll.php`, `sla.php`, `tuition.php`, `material_orders.php`) chuyển thành dữ liệu trong DB có phiên bản hiệu lực: `payroll.params`, `hr.sla_rules`, `core.settings`; `seed` nạp giá trị mặc định từ chính các file này.
 
 ## Frontend React
 
@@ -327,6 +397,22 @@ web/
 - **Menu do Go trả về** qua `GET /api/v1/me/shell`, cùng cấu trúc với prop `shell` hiện tại (sidebar, workspace, thông báo, chip). Logic `SidebarMenu.php` (843 dòng) của hệ thống cũ được làm lại trong module \`shell\` của Go: menu tính theo quyền, không theo tên vai trò; lưới "Các phân hệ của bạn" ở Tổng quan dùng cùng nguồn.
 - **Quyền trên giao diện chỉ để ẩn/hiện.** `can('lead.create')` đọc từ map quyền trong `/me`; mọi kiểm tra thật nằm ở Go.
 - **Modal có URL riêng** (như `UiModalFrame` hiện nay): mở form tạo/sửa bằng tham số `?modal=lead-edit&id=...`; F5 hoặc gửi link vẫn mở đúng form, nút Back đóng modal.
+
+### Đối chiếu thành phần giao diện hiện có
+
+| Hiện có (Vue) | Bản React | Ghi chú |
+| --- | --- | --- |
+| 4 layout: `AppLayout`, `MobileLayout`, `GuestLayout`, `BareLayout` | Shell quản trị, Shell điện thoại `/m`, trang đăng nhập/quên mật khẩu, trang in/công khai | Doc gọi "3 khung" cho vùng đăng nhập; thêm `GuestLayout` và `BareLayout` |
+| `Layouts/Shell`: Sidebar, SidebarLink, Topbar, WorkspaceTabs, NotificationMenu, SettingsNav | Cùng tên trong `app/` | Nguồn dữ liệu là `/me/shell` |
+| `UiDropdown`, `UiForm`, `UiErrors`, `UiTab`, `modalStack`, `modalContext` | `DropdownMenu`, `FormField` + `Alert`, `Tabs`, quản lý ngăn xếp `Dialog` lồng nhau | Bổ sung vào bảng Bộ component |
+| Component nghiệp vụ dùng chung (CRM: `ListFilters`, `SlaCountdown`, `ImportPreview`, `WaitingClassBanner`, `ClosingBillPreview`; Placement: `PdfSheetEditor`, `RubricScoreFields`; `StudentProfile`, `PaymentHistory`, `BarList`, `TeacherBottomNav`...) | Nằm trong `features/<phân hệ>/components` | Port theo phân hệ ở giai đoạn tương ứng |
+| `lib/`: `can`, `geo`, `http`, `confirm`, `toast`, `route`, `remoteModal`, `backLink`, `rowLink`, `clipboard`, `url`, `format` | `shared/lib` (`can`, `geo`, `format`, `clipboard`...); `http` → `openapi-fetch`; `confirm`/`toast` → AlertDialog/Sonner; `route`/Ziggy → TanStack Router; `remoteModal` → Dialog gắn URL | Công thức `promotion.js`, `sessionReceipt.js` chuyển sang API "tính thử" |
+| Trang `Search` (tìm kiếm toàn cục `/search`) | Command palette ở topbar, giai đoạn 0 | |
+| Trang `Guide` (hướng dẫn theo vai trò, `UserGuide.php`) | Trang trợ giúp, giai đoạn 7 | Giữ ảnh chụp theo vai trò |
+| `Mobile/*` (4 trang `/m`) | Shell điện thoại | Đã có ở mục Trải nghiệm theo vai trò |
+| Quản lý Media (`MediaManagerController`: thư mục, tải lên, di chuyển, xóa lọc) | Màn quản lý trên `core.files` + R2 | Giai đoạn 7; không còn thư mục `public_html/uploads` |
+
+Hệ thống cũ chia file ở ba nơi (`storage/app/private`, `storage/app/public`, `public_html/uploads`); bản mới gộp vào một kho riêng tư trên R2.
 
 ### Quy ước dữ liệu
 
@@ -415,14 +501,14 @@ Mỗi component Vue hiện có có một bản React tương ứng, dựng trên
 | Học sinh / phụ huynh | Cổng học sinh | Lịch học → bài cần nộp → tiến độ → thông tin | Nộp bài, xem điểm, báo đã đóng tiền |
 | Mọi nhân sự | Điện thoại `/m` | Chấm công | Chụp ảnh + GPS, xin duyệt, xem lịch sử công |
 
-Lưới "Các phân hệ của bạn" ở Tổng quan lấy từ cùng nguồn với menu, nên không còn hiện ô mà người dùng không có quyền (lỗi đã ghi trong tài liệu "Mỗi vai trò thấy gì").
+Lưới "Các phân hệ của bạn" ở Tổng quan lấy từ cùng nguồn với menu, nên không còn hiện ô mà người dùng không có quyền (lỗi đã ghi trong bản rà soát UI/UX của hệ thống cũ; xem mục Tài liệu nguồn trong repo).
 
 ### Điện thoại và trợ năng
 
 - Vùng bấm tối thiểu 44×44px trên cổng giáo viên/học sinh (hiện 75% vùng bấm nhỏ hơn), thanh đáy tối đa 5 mục, chừa vùng an toàn tai thỏ.
 - Không cuộn ngang ở 375px; bảng chuyển thành thẻ (sửa màn Công nợ đang tràn 730px).
 - Chuẩn WCAG 2.1 AA: tương phản 4,5:1, focus nhìn thấy, dùng được bằng bàn phím (kể cả Kanban), tôn trọng "giảm chuyển động", trạng thái không chỉ dựa vào màu.
-- CI chạy axe-core và đo tương phản trên mỗi trang Storybook và bộ Playwright theo vai trò, lặp lại đúng phép đo của báo cáo UI/UX (`danh-gia-ui-ux-pro-max/crawl.js`).
+- CI chạy axe-core và đo tương phản trên mỗi trang Storybook và bộ Playwright theo vai trò, lặp lại đúng phép đo của báo cáo UI/UX (script đo `crawl.js` của đợt rà soát cũ chưa có trong repo; viết lại ở giai đoạn 0).
 
 ## Bảo mật
 
@@ -594,14 +680,14 @@ Tám giai đoạn, khoảng **46 tuần (10–11 tháng) với 3 lập trình vi
 
 | # | Giai đoạn | Phạm vi | Tuần | Xong khi |
 | --- | --- | --- | --- | --- |
-| 0 | Nền tảng | Repo, CI/CD, compose, `iam` (đăng nhập, vai trò, quyền, phạm vi), menu, nhật ký, thông báo, file, design system + Storybook | 4 | 9 vai trò đăng nhập thấy đúng menu; bảng chân lý quyền xanh |
-| 1 | Danh mục & tổ chức | Chi nhánh, phòng, khóa học, trình độ, ngày nghỉ, ca dạy, hồ sơ nhân sự, cấu hình | 3 | Admin dựng được một trung tâm từ trống |
+| 0 | Nền tảng | Repo, CI/CD, compose, `iam` (đăng nhập, vai trò, quyền, phạm vi), menu, nhật ký, thông báo, file, design system + Storybook, tìm kiếm toàn cục | 4 | 9 vai trò đăng nhập thấy đúng menu; bảng chân lý quyền xanh |
+| 1 | Danh mục & tổ chức | Chi nhánh, phòng, khóa học, trình độ, ngày nghỉ, ca dạy, hồ sơ nhân sự, danh mục chung, cấu hình SLA, cấu hình | 3 | Admin dựng được một trung tâm từ trống |
 | 2 | CRM & test đầu vào | Lead, Kanban, hồ sơ khách, lịch test, làm bài công khai có khóa màn hình, học thử, chuyển chi nhánh, nhập Excel, SLA CRM | 6 | Kịch bản của \~170 test CRM cũ chạy xanh trên Go |
-| 3 | Lớp & giảng dạy | Học viên, lớp, sinh lịch, nghỉ & học bù, điểm danh, nhận xét, bài tập, Cổng giáo viên, nhiệm vụ trợ giảng, bảo lưu | 7 | GV dùng điện thoại dạy trọn một tuần thử |
+| 3 | Lớp & giảng dạy | Học viên, lớp, sinh lịch, nghỉ & học bù, điểm danh, nhận xét, bài tập, mini test, buổi bổ trợ, dạy thay, Cổng giáo viên, nhiệm vụ trợ giảng, bảo lưu | 7 | GV dùng điện thoại dạy trọn một tuần thử |
 | 4 | Học phí & thu chi | Hợp đồng học phí, sổ buổi, phiếu thu, dải số hóa đơn, SePay, hoàn/chuyển phí, nhắc nợ, chi phí, báo cáo tài chính | 6 | Số hóa đơn liên tục; webhook SePay khớp 100% giao dịch thử |
-| 5 | Học thuật & vận hành | Giáo trình, giao chặng, Big Test, dự án học thuật, công việc, báo cáo ngày / tuần / tháng / quý của nhân sự, ticket, hộp phê duyệt | 6 | 13 loại phê duyệt chạy trong một hộp |
+| 5 | Học thuật & vận hành | Giáo trình, giao chặng, Big Test, dự án học thuật, công việc, chất lượng lớp (dự giờ, checklist, họp GV), báo cáo ngày / tuần / tháng / quý của nhân sự, ticket, hộp phê duyệt | 6 | 13 loại phê duyệt chạy trong một hộp |
 | 6 | Nhân sự & lương | Chấm công GPS + ảnh, đơn từ, KPI, vi phạm, SLA giáo viên, đơn giá, kỳ lương, hoa hồng, phiếu lương PDF | 7 | Test bảng lương/KPI/hoa hồng xanh; 1–2 kỳ lương thật đối chiếu khớp hệ thống cũ |
-| 7 | Cổng học sinh & phần còn lại | Cổng phụ huynh & học sinh, báo cáo, học liệu, hàng hóa, tuyển dụng, khảo sát | 4 |  |
+| 7 | Cổng học sinh & phần còn lại | Cổng phụ huynh & học sinh, báo cáo, học liệu, hàng hóa, tuyển dụng, khảo sát, quản lý Media, hướng dẫn sử dụng | 4 |  |
 | 8 | Nghiệm thu & ra mắt | Nhập dữ liệu từ hệ thống cũ (chạy thử 2 lần), kiểm thử theo 9 vai trò trên máy thật và điện thoại, tải, bảo mật, đo lại UI/UX, diễn tập khôi phục sao lưu | 3 | Không còn lỗi mức Cao |
 
 ### Rủi ro
@@ -614,6 +700,7 @@ Tám giai đoạn, khoảng **46 tuần (10–11 tháng) với 3 lập trình vi
 | VPS 4 GB RAM thiếu bộ nhớ hoặc đầy ổ 30 GB | Trung bình | Giới hạn RAM từng container, swap 2 GB, file và sao lưu trên R2, xoay vòng log, cảnh báo ở 80%; nâng gói khi chạm ngưỡng ở mục Triển khai |
 | Một VPS là điểm lỗi duy nhất | Trung bình | Sao lưu ngoài máy + PITR, tài liệu khôi phục đã diễn tập; sau này chuyển Postgres sang dịch vụ quản lý |
 | Phạm vi phình ra (yêu cầu mới trong lúc xây) | Trung bình | Chốt phạm vi mỗi giai đoạn; yêu cầu mới vào giai đoạn sau |
+| Giai đoạn 5 quá tải (báo cáo định kỳ 6 loại + chất lượng lớp + giáo trình + hộp phê duyệt) trong 6 tuần | Trung bình | Làm hộp phê duyệt và giáo trình trước; báo cáo `academic_*` và chất lượng lớp có thể lùi sang giai đoạn 7 nếu trễ |
 | Đội chưa quen Go | Trung bình | Giai đoạn 0 làm mẫu chuẩn một module trọn vẹn (handler → service → store → test) để chép theo |
 
 ### Quyết định kiến trúc (ADR)
