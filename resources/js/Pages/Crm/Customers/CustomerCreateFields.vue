@@ -42,6 +42,7 @@ const genders = [{ value: 'Nam', label: 'Nam' }, { value: 'Nữ', label: 'Nữ' 
             <UiSelect name="gender" label="Giới tính" placeholder="-- Chọn --" :options="genders" />
             <UiInput name="course_interest" label="Khóa học quan tâm" placeholder="Ví dụ: Starters" />
             <div class="sm:col-span-2"><UiInput name="address" label="Địa chỉ" /></div>
+            <div class="sm:col-span-2"><UiInput name="school" label="Trường học" placeholder="Ví dụ: Tiểu học Kim Đồng" /></div>
             <UiSelect v-if="can('lead.assign')" name="assigned_user_id" label="Người phụ trách" placeholder="-- Chọn người phụ trách --" :value="defaultAssigneeId" :options="salesUsers" />
             <UiInput name="deal_value" type="number" min="0" label="Giá trị dự kiến (VNĐ)" :value="0" />
             <div class="sm:col-span-2">

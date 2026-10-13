@@ -443,6 +443,7 @@ const trialTitle = computed(() => (props.trial.pending ? 'Xếp học thử' : `
                                     ['Khóa quan tâm', customer.course_interest ?? 'Chưa chọn'],
                                     ['Giá trị hợp đồng', formatMoney(customer.deal_value ?? 0)],
                                     ['Địa chỉ', customer.address ?? 'Chưa cập nhật'],
+                                    ['Trường học', customer.school ?? 'Chưa cập nhật'],
                                     ['Ngày tạo hồ sơ', customer.created_at],
                                     ['Ngày chốt', customer.converted_at ?? '—'],
                                 ]"

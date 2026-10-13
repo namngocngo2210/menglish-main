@@ -51,7 +51,7 @@ class Audit
         CrmCustomer::class => [
             'log' => 'CRM & Leads',
             'label' => 'khách hàng',
-            'undo' => ['name', 'parent_name', 'email', 'dob', 'gender', 'address', 'course_interest', 'source'],
+            'undo' => ['name', 'parent_name', 'email', 'dob', 'gender', 'address', 'school', 'course_interest', 'source'],
         ],
         TuitionReceipt::class => [
             'log' => 'Học phí & Thu chi',

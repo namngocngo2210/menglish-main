@@ -52,13 +52,14 @@ class CrmImportController extends Controller
         'ngaysinh' => 'dob', 'dob' => 'dob',
         'gioitinh' => 'gender', 'gender' => 'gender',
         'diachi' => 'address', 'address' => 'address',
+        'truonghoc' => 'school', 'truong' => 'school', 'school' => 'school',
         'nguon' => 'source', 'nguonkhach' => 'source', 'source' => 'source',
         'khoahocquantam' => 'course_interest', 'khoaquantam' => 'course_interest', 'khoahoc' => 'course_interest', 'courseinterest' => 'course_interest',
         'ghichu' => 'notes', 'notes' => 'notes',
         'nguoiphutrach' => 'owner', 'phutrach' => 'owner', 'hocvuphutrach' => 'owner', 'owner' => 'owner',
     ];
 
-    private const TEMPLATE_HEADINGS = ['Họ tên', 'Số điện thoại', 'Tên phụ huynh', 'SĐT phụ huynh', 'Email', 'Ngày sinh', 'Giới tính', 'Địa chỉ', 'Nguồn', 'Khóa học quan tâm', 'Ghi chú', 'Người phụ trách'];
+    private const TEMPLATE_HEADINGS = ['Họ tên', 'Số điện thoại', 'Tên phụ huynh', 'SĐT phụ huynh', 'Email', 'Ngày sinh', 'Giới tính', 'Địa chỉ', 'Trường học', 'Nguồn', 'Khóa học quan tâm', 'Ghi chú', 'Người phụ trách'];
 
     public function create(Request $request): InertiaResponse
     {
@@ -107,7 +108,7 @@ class CrmImportController extends Controller
     {
         return Excel::download(
             new ArrayExport(self::TEMPLATE_HEADINGS, [
-                ['Nguyễn Văn An', '0912345678', 'Nguyễn Văn Bình', '0987654321', 'an.nguyen@example.com', '15/08/2015', 'Nam', 'Hà Nội', 'Facebook Ads', 'Starters', 'Muốn học buổi tối', ''],
+                ['Nguyễn Văn An', '0912345678', 'Nguyễn Văn Bình', '0987654321', 'an.nguyen@example.com', '15/08/2015', 'Nam', 'Hà Nội', 'Tiểu học Kim Đồng', 'Facebook Ads', 'Starters', 'Muốn học buổi tối', ''],
             ]),
             'mau-nhap-khach-hang.xlsx',
             ExcelFormat::XLSX
@@ -135,6 +136,7 @@ class CrmImportController extends Controller
             ($row['data']['dob_error'] ?? null) ?: (filled($row['data']['dob'] ?? null) ? Carbon::parse($row['data']['dob'])->format('d/m/Y') : null),
             $row['data']['gender'] ?? null,
             $row['data']['address'] ?? null,
+            $row['data']['school'] ?? null,
             $row['data']['source'] ?? null,
             $row['data']['course_interest'] ?? null,
             $row['data']['notes'] ?? null,
@@ -281,6 +283,7 @@ class CrmImportController extends Controller
                         'dob' => $data['dob'] ?: null,
                         'gender' => $data['gender'] ?: null,
                         'address' => $data['address'] ?: null,
+                        'school' => $data['school'] ?: null,
                         'source' => $data['source'],
                         'course_interest' => $data['course_interest'] ?: null,
                         'notes' => $data['notes'] ?: null,
