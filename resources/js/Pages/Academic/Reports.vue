@@ -1,7 +1,9 @@
 <script setup>
 /**
- * Dashboard Báo cáo đào tạo: báo cáo ngày của Học vụ, tuần của Học thuật, tháng của Giáo viên (tab theo ?tab=).
+ * Dashboard Báo cáo đào tạo (tab theo ?tab=): báo cáo ngày của Học vụ + báo cáo trực lớp, tuần của Học thuật + tuần KPI Học vụ,
+ * tháng / quý của Giáo viên và Học thuật. Bấm một báo cáo để xem nội dung.
  */
+import { ref } from 'vue';
 import SectionTabs from '@/Components/Academic/SectionTabs.vue';
 import RecordList from '@/Components/Academic/RecordList.vue';
 
@@ -11,6 +13,8 @@ defineProps({
     tab: { type: String, default: 'daily' },
     today: { type: String, default: '' },
     classReports: { type: Array, default: () => [] },
+    staffDailyReports: { type: Array, default: () => [] },
+    weeklyKpiReports: { type: Array, default: () => [] },
     weeklyReports: { type: Array, default: () => [] },
     monthlyReports: { type: Array, default: () => [] },
     totalClasses: { type: Number, default: 0 },
@@ -19,6 +23,8 @@ defineProps({
     attendanceRateToday: { type: Number, default: null },
     weeklyStats: { type: Object, required: true },
 });
+
+const viewing = ref(null);
 </script>
 
 <template>
@@ -48,11 +54,48 @@ defineProps({
 
             <!-- Tab 1: Báo cáo ngày -->
             <div v-if="tab === 'daily'" class="space-y-6 p-6">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h3 class="text-sm font-bold text-on-surface">Báo cáo Vận hành Ngày của Khối Học vụ</h3>
-                        <p class="text-xs text-on-surface-variant">Ghi nhận sĩ số, tỷ lệ đi học, học sinh vắng và các task phát sinh trong ca học</p>
-                    </div>
+                <div>
+                    <h3 class="text-sm font-bold text-on-surface">Báo cáo Vận hành Ngày của Khối Học vụ</h3>
+                    <p class="text-xs text-on-surface-variant">Vận hành lớp, tuyển sinh / học viên, truyền thông và task follow-up Học vụ nộp mỗi ngày</p>
+                </div>
+
+                <UiDataTable data-staff-daily>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Ngày</th>
+                                <th>Học vụ</th>
+                                <th>Lớp thực tế / kế hoạch</th>
+                                <th>GV / TG</th>
+                                <th>Tuyển sinh</th>
+                                <th>Cập nhật</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="r in staffDailyReports" :key="r.id" class="cursor-pointer hover:bg-surface-container-low" tabindex="0" @click="viewing = r" @keydown.enter="viewing = r">
+                                <td class="font-code">{{ formatDate(r.date, 'd/m/Y') }}</td>
+                                <td class="font-semibold">{{ r.user ?? 'Chưa cập nhật' }}</td>
+                                <template v-if="r.structured">
+                                    <td>{{ r.classes ?? '—' }}</td>
+                                    <td>{{ r.staff ?? '—' }}</td>
+                                    <td>
+                                        {{ r.enrollment ?? '—' }}
+                                        <UiBadge v-if="r.task_id" color="info" class="ml-xs">Có task</UiBadge>
+                                    </td>
+                                </template>
+                                <td v-else colspan="3" class="text-on-surface-variant">{{ r.title }} (dạng chữ)</td>
+                                <td class="font-code text-xs text-on-surface-variant">{{ r.updated_at }}</td>
+                            </tr>
+                            <tr v-if="!staffDailyReports.length">
+                                <td colspan="6"><UiEmptyState title="Chưa có báo cáo ngày nào của Học vụ." /></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </UiDataTable>
+
+                <div>
+                    <h3 class="text-sm font-bold text-on-surface">Báo cáo trực lớp theo buổi</h3>
+                    <p class="text-xs text-on-surface-variant">Sĩ số, nội dung bài học và học viên cần bổ trợ do giáo viên / trợ giảng nộp sau từng buổi</p>
                 </div>
 
                 <UiDataTable>
@@ -145,7 +188,15 @@ defineProps({
                 </div>
 
                 <UiDataTable>
-                    <RecordList :records="weeklyReports" empty="Chưa có báo cáo tuần nào." />
+                    <RecordList :records="weeklyReports" empty="Chưa có báo cáo tuần nào của Học thuật." @open="viewing = $event" />
+                </UiDataTable>
+
+                <div>
+                    <h3 class="text-sm font-bold text-on-surface">Báo cáo tuần theo mục KPI của Học vụ</h3>
+                    <p class="text-xs text-on-surface-variant">Số lần phát sinh theo từng mục KPI và chỉ số quy mô trong tuần</p>
+                </div>
+                <UiDataTable>
+                    <RecordList :records="weeklyKpiReports" empty="Chưa có báo cáo tuần KPI nào." @open="viewing = $event" />
                 </UiDataTable>
             </div>
 
@@ -159,9 +210,14 @@ defineProps({
                 </div>
 
                 <UiDataTable>
-                    <RecordList :records="monthlyReports" empty="Chưa có báo cáo tháng nào." />
+                    <RecordList :records="monthlyReports" empty="Chưa có báo cáo tháng nào." @open="viewing = $event" />
                 </UiDataTable>
             </div>
         </div>
     </div>
+
+    <UiModal :show="!!viewing" :title="viewing ? `${viewing.title} · ${viewing.user ?? ''}` : ''" max-width="2xl" @close="viewing = null">
+        <p v-if="viewing" class="whitespace-pre-line text-on-surface" data-report-content>{{ viewing.content || 'Không có nội dung.' }}</p>
+        <template #footer><UiButton variant="secondary" @click="viewing = null">Đóng</UiButton></template>
+    </UiModal>
 </template>

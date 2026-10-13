@@ -18,6 +18,7 @@ defineProps({
                     :class="['block rounded-lg px-sm py-xs transition-colors hover:bg-surface-container-low', item.period === current ? 'bg-primary-container/10 font-semibold text-primary' : 'text-on-surface']"
                 >
                     {{ item.label }}
+                    <UiBadge v-if="item.draft" color="neutral" class="ml-xs">Nháp</UiBadge>
                     <span v-if="item.updated_at" class="block font-body-small text-body-small text-on-surface-variant">Cập nhật {{ formatDate(item.updated_at, 'H:i d/m/Y') }}</span>
                 </Link>
             </li>

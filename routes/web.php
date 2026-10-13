@@ -763,6 +763,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/my', 'reportStore')->name('my.store');
         Route::get('/all', 'allReports')->middleware('can:staff_report.view_all')->name('all');
         // Báo cáo có cấu trúc theo vai trò (StaffType::structuredReports — controller kiểm tra).
+        Route::get('/daily', 'daily')->name('periodic.daily');
+        Route::post('/daily', 'dailyStore')->name('periodic.daily.store');
+        Route::get('/academic-weekly', 'academicWeekly')->name('periodic.academic-weekly');
+        Route::post('/academic-weekly', 'academicWeeklyStore')->name('periodic.academic-weekly.store');
         Route::get('/weekly-kpi', 'weeklyKpi')->name('periodic.weekly-kpi');
         Route::post('/weekly-kpi', 'weeklyKpiStore')->name('periodic.weekly-kpi.store');
         Route::get('/academic-monthly', 'academicMonthly')->name('periodic.academic-monthly');
@@ -771,6 +775,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/academic-quarterly', 'academicQuarterlyStore')->name('periodic.academic-quarterly.store');
         Route::get('/teacher-monthly', 'teacherMonthly')->name('periodic.teacher-monthly');
         Route::post('/teacher-monthly', 'teacherMonthlyStore')->name('periodic.teacher-monthly.store');
+        Route::post('/teacher-attendance', 'teacherAttendanceStore')->name('periodic.teacher-attendance.store');
     });
 
     // ──────────────────────────────────────

@@ -131,8 +131,8 @@ class DashboardController extends Controller
      */
     private function teacherReports(array $teachers, TeachingQuality $quality): array
     {
-        $reports = StaffReport::query()->whereIn('user_id', array_keys($teachers))->where('type', 'monthly')
-            ->where('period_key', $quality->monthKey())->get()->keyBy('user_id');
+        $reports = StaffReport::query()->whereIn('user_id', array_keys($teachers))->where('kind', 'teacher_monthly')
+            ->where('period_key', $quality->monthKey())->where('status', 'submitted')->get()->keyBy('user_id');
         $classNames = ClassModel::query()
             ->whereIn('id', $reports->flatMap(fn (StaffReport $r) => array_keys($r->data['classes'] ?? []))->unique()->all())
             ->pluck('name', 'id');
@@ -151,6 +151,7 @@ class DashboardController extends Controller
                 'proposals' => $general['proposals'] ?? null,
                 'classes' => collect($report?->data['classes'] ?? [])->map(fn (array $row, $classId) => [
                     'class' => $classNames[(int) $classId] ?? 'Lớp',
+                    'situation' => $row['situation'] ?? null,
                     'attention' => $row['attention'] ?? null,
                     'solution' => $row['solution'] ?? null,
                     'need_support' => (bool) ($row['need_support'] ?? false),

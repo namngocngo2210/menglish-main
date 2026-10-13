@@ -1414,7 +1414,7 @@ class WorkTaskController extends Controller
      * có quyền đề xuất (work_task.request — GV/TA) chỉ giao ngược cho Admin,
      * Quản lý cơ sở, Học vụ, Học thuật.
      */
-    private function assignableUsers(User $user)
+    public static function assignableUsers(User $user)
     {
         $query = User::with('roles')->staffAccounts()->where('is_active', true)->whereNull('locked_at')->orderBy('name');
         // Mọi nhân sự đều giao được việc cho Admin (07/10/2026), kể cả khi chỉ được đề xuất hoặc bị giới hạn chi nhánh.

@@ -9,7 +9,6 @@ use App\Models\CommissionItem;
 use App\Models\CrmCustomer;
 use App\Models\PayrollPeriod;
 use App\Models\PayrollRecord;
-use App\Models\StaffReport;
 use App\Models\SupportTicket;
 use App\Models\TeacherTimesheet;
 use App\Models\User;
@@ -191,15 +190,7 @@ class ProfileController extends Controller
         $reportCard = null;
         if ($user->can('staff_report.submit')) {
             $cadence = StaffType::reportCadence($user);
-            [$from, $to] = match ($cadence) {
-                'weekly' => [now()->startOfWeek(), now()->endOfWeek()],
-                'monthly' => [now()->startOfMonth(), now()->endOfMonth()],
-                default => [now()->startOfDay(), now()->endOfDay()],
-            };
-            $submitted = StaffReport::where('user_id', $user->id)
-                ->where('type', $cadence)
-                ->whereBetween('report_date', [$from->toDateString(), $to->toDateString()])
-                ->exists();
+            $submitted = StaffReportController::submittedCurrentPeriod($user);
             [$label, $when] = self::REPORT_LABELS[$cadence] ?? self::REPORT_LABELS['daily'];
             $reportCard = [
                 'label' => $label,

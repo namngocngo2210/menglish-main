@@ -282,11 +282,10 @@ class ClassQualityTest extends TestCase
         $this->actingAs($staff)->post(route('reports.periodic.weekly-kpi.store'), ['week' => $week, 'counts' => [$criterion->id => -1]])
             ->assertSessionHasErrors('counts.'.$criterion->id);
 
-        // Báo cáo có cấu trúc không lẫn vào danh sách báo cáo định kỳ chính.
-        $this->actingAs($staff)->get(route('reports.my'))->assertOk()
-            ->assertInertia(fn (AssertableInertia $page) => $page->has('reports.data', 0));
+        // Học vụ vào "Báo cáo của tôi" là vào thẳng màn báo cáo ngày có cấu trúc.
+        $this->actingAs($staff)->get(route('reports.my'))->assertRedirect(route('reports.periodic.daily'));
 
-        $this->actingAs($this->makeUser('academic_lead', $this->branch))->get(route('reports.periodic.weekly-kpi'))->assertRedirect(route('reports.my'));
+        $this->actingAs($this->makeUser('academic_lead', $this->branch))->get(route('reports.periodic.weekly-kpi'))->assertRedirect(route('reports.periodic.academic-weekly'));
         $this->actingAs($this->makeUser('academic_lead', $this->branch))->post(route('reports.periodic.weekly-kpi.store'), ['week' => $week])->assertForbidden();
     }
 
@@ -304,9 +303,10 @@ class ClassQualityTest extends TestCase
             'week_start' => now()->startOfWeek(), 'teacher_id' => $this->teacher->id, 'author_id' => $lead->id,
             'class_note' => 'Ổn', 'status' => 'handled',
         ]);
-        $this->actingAs($lead)->get(route('reports.periodic.academic-monthly'))->assertOk()
-            ->assertSee('Báo cáo tuần đầu tháng')->assertSee('Cô Lan')
-            ->assertInertia(fn (AssertableInertia $page) => $page->component('Reports/AcademicMonthly')->has('tabs', 3));
+        // Bảng tuần trong tháng (Tuần / Khoảng ngày / PIC) nhận cả báo cáo tuần dạng chữ cũ; bấm vào xem nội dung.
+        $this->actingAs($lead)->get(route('reports.periodic.academic-monthly'))->assertOk()->assertSee('Cô Lan')
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Reports/AcademicMonthly')->has('tabs', 3)
+                ->where('weeklyReports', fn ($weeks) => collect($weeks)->contains(fn ($w) => $w['title'] === 'Báo cáo tuần đầu tháng' && $w['pic'] === $lead->name)));
         $this->actingAs($lead)->post(route('reports.periodic.academic-monthly.store'), ['month' => $month, 'narrative' => []])
             ->assertSessionHasErrors();
         $this->actingAs($lead)->post(route('reports.periodic.academic-monthly.store'), [
@@ -314,7 +314,9 @@ class ClassQualityTest extends TestCase
         ])->assertSessionHasNoErrors();
 
         $monthly = StaffReport::where('type', 'monthly')->sole();
-        $this->actingAs($lead)->get(route('reports.my'))->assertOk()->assertSee('Báo cáo tuần đầu tháng');
+        // Báo cáo tuần dạng chữ cũ vẫn xem lại được ở màn báo cáo tuần mới.
+        $this->actingAs($lead)->get(route('reports.my'))->assertRedirect(route('reports.periodic.academic-weekly'));
+        $this->actingAs($lead)->get(route('reports.periodic.academic-weekly'))->assertOk()->assertSee('Báo cáo tuần đầu tháng');
         $this->assertSame($month, $monthly->period_key);
         $this->assertSame('Tháng ổn định', $monthly->data['narrative']['overall']);
 
@@ -328,7 +330,7 @@ class ClassQualityTest extends TestCase
         $this->actingAs($lead)->get(route('reports.periodic.academic-quarterly', ['quarter' => $quarter]))->assertOk()->assertSee('Mở 2 lớp mới')->assertSee('Đã nộp');
 
         $staff = $this->makeUser('academic_staff', $this->branch);
-        $this->actingAs($staff)->get(route('reports.periodic.academic-monthly'))->assertRedirect(route('reports.my'));
+        $this->actingAs($staff)->get(route('reports.periodic.academic-monthly'))->assertRedirect(route('reports.periodic.daily'));
         $this->actingAs($staff)->post(route('reports.periodic.academic-quarterly.store'), ['quarter' => $quarter, 'narrative' => ['next_plan' => 'x']])
             ->assertForbidden();
     }

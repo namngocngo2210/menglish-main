@@ -1,9 +1,10 @@
 <script setup>
-/** Danh sách báo cáo định kỳ (staff_reports) dùng cho tab tuần / tháng của dashboard báo cáo đào tạo. */
+/** Danh sách báo cáo định kỳ (staff_reports) dùng cho tab tuần / tháng của dashboard báo cáo đào tạo — bấm dòng để xem nội dung. */
 defineProps({
     records: { type: Array, default: () => [] },
     empty: { type: String, required: true },
 });
+defineEmits(['open']);
 </script>
 
 <template>
@@ -17,7 +18,7 @@ defineProps({
             </tr>
         </thead>
         <tbody>
-            <tr v-for="record in records" :key="record.id">
+            <tr v-for="record in records" :key="record.id" class="cursor-pointer hover:bg-surface-container-low" tabindex="0" @click="$emit('open', record)" @keydown.enter="$emit('open', record)">
                 <td>
                     <span class="font-bold">{{ record.title }}</span>
                     <span v-if="record.record_code" class="block font-code text-xs text-on-surface-variant">{{ record.record_code }}</span>

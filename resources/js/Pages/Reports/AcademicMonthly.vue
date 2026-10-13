@@ -1,10 +1,10 @@
 <script setup>
 /**
- * Báo cáo tháng Học thuật (mockup "Báo cáo tháng"): tham chiếu các báo cáo tuần đã nộp trong tháng và các buổi họp giáo viên
- * đã ghi; nhập tường thuật theo 4 mục. Mỗi tháng 1 báo cáo, lưu lại là cập nhật.
+ * Báo cáo tháng Học thuật (mockup 02/19 "Báo cáo tháng — Học thuật"): trái là tường thuật công việc (4 mục); phải là bảng
+ * báo cáo tuần trong tháng (Tuần / Khoảng ngày / PIC, bấm để xem) và các buổi họp giáo viên đã ghi. Mỗi tháng 1 báo cáo, lưu lại là cập nhật.
  */
 import { ref } from 'vue';
-import { formatDate } from '@/lib/format';
+import { Link, router } from '@inertiajs/vue3';
 import ReportTabs from './ReportTabs.vue';
 import ReportHistory from './ReportHistory.vue';
 
@@ -23,51 +23,76 @@ const props = defineProps({
 });
 
 const viewing = ref(null);
-const monthLabel = props.months.find((m) => m.value === props.month)?.label ?? props.month;
-const week = (start, end) => `${formatDate(start, 'd/m')} – ${formatDate(end, 'd/m')}`;
+const placeholders = {
+    test_syllabus_review: 'Nhập nội dung rà soát bài kiểm tra và chương trình học...',
+    materials_transfers: 'Nhập nội dung chuẩn bị tài liệu và kế hoạch chuyển lớp...',
+    overall: 'Nhập nhận xét tổng quan về hoạt động học thuật trong tháng...',
+    teacher_notes: 'Nhập nhận xét cụ thể cho các giáo viên cần lưu ý...',
+};
+const pickMonth = (value) => value && value !== props.month && router.get(route('reports.periodic.academic-monthly'), { month: value });
 </script>
 
 <template>
-    <UiPageHeader title="Báo cáo tháng" icon="summarize">
-        <template #meta>Tổng hợp công việc học thuật của {{ monthLabel.toLowerCase() }} từ các báo cáo tuần và buổi họp giáo viên</template>
+    <UiPageHeader title="Báo cáo tháng — Học thuật" icon="summarize">
+        <template #actions>
+            <div class="flex items-center gap-sm">
+                <span class="whitespace-nowrap font-body-small text-body-small text-on-surface-variant">Chọn tháng:</span>
+                <UiSelect :model-value="month" :options="months" :searchable="false" aria-label="Chọn tháng" @update:model-value="pickMonth" />
+            </div>
+        </template>
     </UiPageHeader>
 
     <ReportTabs :tabs="tabs" />
 
-    <UiFilterBar :search="false">
-        <UiSelect name="month" label="Tháng báo cáo" :options="months" :value="month" />
-    </UiFilterBar>
+    <div class="grid grid-cols-1 gap-lg lg:grid-cols-[1fr_400px]">
+        <UiForm id="academic-monthly-form" :action="route('reports.periodic.academic-monthly.store')" method="post" class="h-fit space-y-md rounded-2xl border border-primary-container/30 bg-surface-container-lowest p-lg shadow-sm">
+            <input type="hidden" name="month" :value="month" />
+            <h2 class="border-b border-primary-container/30 pb-sm font-h2 text-h2 text-on-surface">Tường thuật công việc</h2>
+            <UiAlert v-if="submittedAt" type="info">Đã nộp báo cáo tháng này lúc {{ formatDate(submittedAt, 'H:i d/m/Y') }}. Lưu lại để cập nhật.</UiAlert>
+            <UiTextarea v-for="(label, key) in fields" :key="key" :name="`narrative[${key}]`" :label="label" :rows="4" :placeholder="placeholders[key]" :value="values[key]" />
+            <div class="flex justify-end">
+                <UiButton type="submit" icon="save">Lưu phần tường thuật</UiButton>
+            </div>
+        </UiForm>
 
-    <div class="grid grid-cols-1 gap-lg lg:grid-cols-[1fr_280px]">
         <div class="space-y-lg">
-            <section class="rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-lg shadow-sm">
-                <h2 class="mb-md flex items-center gap-xs font-semibold text-on-surface">
-                    <span class="material-symbols-outlined text-[20px] text-primary-container" aria-hidden="true">date_range</span>Báo cáo tuần trong tháng
+            <section class="overflow-hidden rounded-2xl border border-surface-container-highest bg-surface-container-lowest shadow-sm" data-weekly-in-month>
+                <h2 class="flex items-center gap-xs px-lg py-md font-semibold text-on-surface">
+                    <span class="material-symbols-outlined text-[20px] text-primary-container" aria-hidden="true">table_rows</span>Báo cáo tuần trong tháng
                 </h2>
-                <ul v-if="weeklyReports.length" class="divide-y divide-surface-container-highest">
-                    <li v-for="r in weeklyReports" :key="r.id">
-                        <button type="button" class="flex w-full items-center justify-between gap-md py-sm text-left hover:text-primary" @click="viewing = r">
-                            <span>
-                                <span class="font-semibold">{{ r.title }}</span>
-                                <span class="block font-body-small text-body-small text-on-surface-variant">Tuần {{ week(r.week_start, r.week_end) }}</span>
-                            </span>
-                            <span class="material-symbols-outlined text-[18px] text-on-surface-variant" aria-hidden="true">chevron_right</span>
-                        </button>
-                    </li>
-                </ul>
-                <p v-else class="font-body-small text-body-small italic text-on-surface-variant">Chưa nộp báo cáo tuần nào trong tháng này.</p>
-            </section>
-
-            <section class="rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-lg shadow-sm">
-                <h2 class="mb-md flex items-center gap-xs font-semibold text-on-surface">
-                    <span class="material-symbols-outlined text-[20px] text-primary-container" aria-hidden="true">groups</span>Họp giáo viên trong tháng
-                    <UiButton variant="ghost" size="sm" class="ml-auto" :href="route('class-quality.teacher-meetings')">Mở danh sách</UiButton>
-                </h2>
-                <UiDataTable v-if="meetings.length">
+                <UiDataTable>
                     <table>
                         <thead>
                             <tr>
                                 <th>Tuần</th>
+                                <th>Khoảng ngày</th>
+                                <th>PIC</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="w in weeklyReports" :key="w.week" :class="w.content ? 'cursor-pointer hover:bg-surface-container-low' : ''" @click="w.content && (viewing = w)">
+                                <td class="font-semibold">{{ w.label }}</td>
+                                <td class="font-code text-on-surface-variant">{{ w.range }}</td>
+                                <td>
+                                    <span v-if="w.pic">{{ w.pic }}</span>
+                                    <Link v-else :href="w.href" class="font-body-small text-body-small italic text-on-surface-variant hover:text-primary" @click.stop>Chưa nộp</Link>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </UiDataTable>
+            </section>
+
+            <section class="overflow-hidden rounded-2xl border border-surface-container-highest bg-surface-container-lowest shadow-sm" data-meetings-in-month>
+                <h2 class="flex items-center gap-xs px-lg py-md font-semibold text-on-surface">
+                    <span class="material-symbols-outlined text-[20px] text-primary-container" aria-hidden="true">groups</span>Họp giáo viên
+                    <UiButton variant="ghost" size="sm" class="ml-auto" :href="route('class-quality.teacher-meetings')">Mở danh sách</UiButton>
+                </h2>
+                <UiDataTable>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Ngày</th>
                                 <th>Giáo viên</th>
                                 <th>Tình trạng</th>
                             </tr>
@@ -78,32 +103,23 @@ const week = (start, end) => `${formatDate(start, 'd/m')} – ${formatDate(end, 
                                 <td>{{ m.teacher }}</td>
                                 <td><UiBadge :color="m.status_color">{{ m.status_label }}</UiBadge></td>
                             </tr>
+                            <tr v-if="!meetings.length">
+                                <td colspan="3" class="font-body-small text-body-small italic text-on-surface-variant">Chưa ghi buổi họp giáo viên nào trong tháng này.</td>
+                            </tr>
                         </tbody>
                     </table>
                 </UiDataTable>
-                <p v-else class="font-body-small text-body-small italic text-on-surface-variant">Chưa ghi buổi họp giáo viên nào trong tháng này.</p>
             </section>
 
-            <UiForm id="academic-monthly-form" :action="route('reports.periodic.academic-monthly.store')" method="post" class="space-y-lg">
-                <input type="hidden" name="month" :value="month" />
-                <UiAlert v-if="submittedAt" type="info">Đã nộp báo cáo tháng này lúc {{ formatDate(submittedAt, 'H:i d/m/Y') }} — lưu lại để cập nhật.</UiAlert>
-                <section class="space-y-md rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-lg shadow-sm">
-                    <h2 class="flex items-center gap-xs font-semibold text-on-surface">
-                        <span class="material-symbols-outlined text-[20px] text-primary-container" aria-hidden="true">edit_note</span>Nội dung báo cáo
-                    </h2>
-                    <UiTextarea v-for="(label, key) in fields" :key="key" :name="`narrative[${key}]`" :label="label" :rows="4" :value="values[key]" />
-                </section>
-                <div class="flex justify-end">
-                    <UiButton type="submit" icon="save">Lưu báo cáo tháng</UiButton>
-                </div>
-            </UiForm>
+            <ReportHistory :items="history" :current="month" title="Các tháng đã nộp" />
         </div>
-
-        <ReportHistory :items="history" :current="month" title="Các tháng đã nộp" />
     </div>
 
-    <UiModal :show="!!viewing" :title="viewing?.title ?? ''" max-width="lg" @close="viewing = null">
+    <UiModal :show="!!viewing" :title="viewing ? `${viewing.label} (${viewing.range}) · ${viewing.title}` : ''" max-width="2xl" @close="viewing = null">
         <p v-if="viewing" class="whitespace-pre-line text-on-surface">{{ viewing.content }}</p>
-        <template #footer><UiButton variant="secondary" @click="viewing = null">Đóng</UiButton></template>
+        <template #footer>
+            <UiButton v-if="viewing" variant="secondary" :href="viewing.href">Mở báo cáo tuần</UiButton>
+            <UiButton variant="secondary" @click="viewing = null">Đóng</UiButton>
+        </template>
     </UiModal>
 </template>

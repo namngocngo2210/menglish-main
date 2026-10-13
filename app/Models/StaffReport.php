@@ -15,6 +15,7 @@ class StaffReport extends Model
         'user_id',
         'class_id',
         'type',
+        'kind',
         'title',
         'content',
         'data',

@@ -60,9 +60,9 @@ final class StaffType
     }
 
     /**
-     * Báo cáo có cấu trúc ngoài báo cáo định kỳ chính: Học vụ nộp thêm báo cáo tuần theo mục KPI;
-     * Học thuật nộp thêm báo cáo tháng và quý (tổng hợp báo cáo tuần, họp giáo viên); giáo viên nộp thêm báo cáo tháng
-     * theo lớp (tiến độ, khó khăn, đề xuất + tình hình từng lớp).
+     * Báo cáo có cấu trúc theo vai trò (màn cùng loại kỳ với reportCadence thay cho báo cáo chữ tự do): Học vụ báo cáo ngày
+     * + báo cáo tuần theo mục KPI; Học thuật báo cáo tuần dạng bảng + tháng + quý (tổng hợp báo cáo tuần, họp giáo viên);
+     * giáo viên báo cáo tháng theo lớp (kèm báo cáo chấm công tháng).
      *
      * @return list<string> khóa trong StaffReportController::STRUCTURED
      */
@@ -71,7 +71,9 @@ final class StaffType
         $roles = self::roles($user);
 
         return array_values(array_filter([
+            $roles->contains(Roles::ACADEMIC_STAFF) ? 'daily_ops' : null,
             $roles->contains(Roles::ACADEMIC_STAFF) ? 'weekly_kpi' : null,
+            $roles->contains(Roles::ACADEMIC_LEAD) ? 'academic_weekly' : null,
             $roles->contains(Roles::ACADEMIC_LEAD) ? 'academic_monthly' : null,
             $roles->contains(Roles::ACADEMIC_LEAD) ? 'academic_quarterly' : null,
             $roles->intersect(self::TEACHER_ROLES)->isNotEmpty() ? 'teacher_monthly' : null,
