@@ -1,0 +1,21 @@
+name: Probe sites (tạm, chẩn đoán 503)
+on:
+  push:
+    branches: [claude/fix-503-eu1hqx]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          for host in portal.meducation.vn dungthu.meducation.vn; do
+            for path in / /login /index.php /robots.txt /build/manifest.json /_deploy-release.php; do
+              printf '%-24s %-18s ' "$host" "$path"
+              curl -s -o /dev/null -w '%{http_code} t=%{time_total}s server=%header{server} powered=%header{x-powered-by} retry=%header{retry-after}\n' --max-time 30 "https://$host$path" || echo "curl lỗi"
+            done
+            echo "---- headers + body /login ($host)"
+            curl -s -i --max-time 30 "https://$host/login" | head -c 3000; echo
+            echo "---- http:// ($host)"
+            curl -s -o /dev/null -w '%{http_code} server=%header{server}\n' --max-time 30 "http://$host/robots.txt" || true
+          done
+          echo "---- DNS"; getent hosts portal.meducation.vn dungthu.meducation.vn meducation.vn || true
+          echo "---- meducation.vn"; curl -s -o /dev/null -w '%{http_code} server=%header{server}\n' --max-time 30 https://meducation.vn/ || true
