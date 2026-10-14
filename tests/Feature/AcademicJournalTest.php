@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AdminNotification;
 use App\Models\Branch;
 use App\Models\StaffReport;
 use App\Models\User;
@@ -13,6 +14,7 @@ use Tests\TestCase;
 
 /**
  * Nhật ký Học vụ (mockup 02/05): ghi sự việc bằng mã KPI Học vụ + nội dung; chỉ Admin xác nhận "Lỗi nghiêm trọng".
+ * Báo cáo định kỳ nộp xong được đẩy về Admin kiểm tra ở "Tổng hợp báo cáo & nhật ký" (14/10/2026).
  */
 class AcademicJournalTest extends TestCase
 {
@@ -89,5 +91,61 @@ class AcademicJournalTest extends TestCase
         $this->actingAs($admin)->post(route('reports.journal.serious', $entry->id), ['serious' => 0]);
         $this->assertNull($entry->fresh()->serious_confirmed_by);
         $this->assertNull($entry->fresh()->serious_confirmed_at);
+    }
+
+    public function test_submitted_report_is_pushed_to_admin_for_review(): void
+    {
+        $staff = $this->makeUser('academic_staff', ['name' => 'Học vụ A']);
+        $manager = $this->makeUser('manager');
+        $admin = $this->makeUser('admin');
+        $today = now()->toDateString();
+
+        $this->actingAs($staff)->post(route('reports.periodic.daily.store'), ['date' => $today, 'fields' => ['classes_planned' => 5]])
+            ->assertSessionHasNoErrors();
+        $report = StaffReport::where('kind', 'daily_ops')->sole();
+        $this->assertNull($report->reviewed_at);
+        $this->assertSame(1, AdminNotification::where('user_id', $admin->id)->where('type', 'staff_report_submitted')->count());
+
+        // Sửa lại khi vẫn chờ kiểm tra → không báo thêm.
+        $this->actingAs($staff)->post(route('reports.periodic.daily.store'), ['date' => $today, 'fields' => ['classes_planned' => 6]]);
+        $this->assertSame(1, AdminNotification::where('user_id', $admin->id)->where('type', 'staff_report_submitted')->count());
+
+        $this->actingAs($admin)->get(route('reports.all', ['review' => 'pending']))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Reports/All')
+                ->where('canReview', true)->where('stats.pending_review', 1)
+                ->where('reports.data.0.id', $report->id)->where('reports.data.0.reviewed_at', null));
+
+        $this->actingAs($manager)->post(route('reports.review', $report->id))->assertForbidden();
+        $this->actingAs($admin)->post(route('reports.review', $report->id), ['reviewed' => 1])->assertRedirect();
+        $this->assertSame($admin->id, $report->fresh()->reviewed_by);
+        $this->actingAs($admin)->get(route('reports.all', ['review' => 'pending']))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('stats.pending_review', 0)->has('reports.data', 0));
+
+        // Sửa sau khi Admin đã kiểm tra → về lại chờ kiểm tra và báo Admin lần nữa.
+        $this->actingAs($staff)->post(route('reports.periodic.daily.store'), ['date' => $today, 'fields' => ['classes_planned' => 7]]);
+        $this->assertNull($report->fresh()->reviewed_at);
+        $this->assertSame(2, AdminNotification::where('user_id', $admin->id)->where('type', 'staff_report_submitted')->count());
+    }
+
+    public function test_academic_lead_creates_daily_report_and_admin_is_notified(): void
+    {
+        $lead = $this->makeUser('academic_lead', ['name' => 'Học thuật B']);
+        $admin = $this->makeUser('admin');
+        $today = now()->toDateString();
+
+        // Cùng biểu mẫu báo cáo ngày Học vụ; tab Ngày đứng trước Tuần / Tháng / Quý, báo cáo chính vẫn là tuần.
+        $this->actingAs($lead)->get(route('reports.periodic.daily'))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Reports/DailyOps')->where('audience', 'Học thuật')
+                ->has('sections', 3)->has('tabs', 4)->where('tabs.0.active', true));
+        $this->actingAs($lead)->get(route('reports.my'))->assertRedirect(route('reports.periodic.academic-weekly'));
+
+        $this->actingAs($lead)->post(route('reports.periodic.daily.store'), ['date' => $today, 'fields' => ['classes_planned' => 4]])
+            ->assertSessionHasNoErrors();
+        $report = StaffReport::where('kind', 'daily_ops')->sole();
+        $this->assertSame($lead->id, (int) $report->user_id);
+        $this->assertSame(1, AdminNotification::where('user_id', $admin->id)->where('type', 'staff_report_submitted')->count());
+
+        $this->actingAs($admin)->get(route('reports.all', ['review' => 'pending']))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('reports.data.0.id', $report->id)->where('reports.data.0.for', 'Học thuật'));
     }
 }

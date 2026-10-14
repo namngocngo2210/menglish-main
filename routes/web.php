@@ -763,6 +763,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/my', 'myReports')->name('my');
         Route::post('/my', 'reportStore')->name('my.store');
         Route::get('/all', 'allReports')->middleware('can:staff_report.view_all')->name('all');
+        Route::post('/{id}/review', 'review')->whereNumber('id')->middleware('can:'.AdminOnlyApprovals::ABILITY)->name('review');
         // Báo cáo có cấu trúc theo vai trò (StaffType::structuredReports — controller kiểm tra).
         Route::get('/daily', 'daily')->name('periodic.daily');
         Route::post('/daily', 'dailyStore')->name('periodic.daily.store');

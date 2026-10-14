@@ -28,8 +28,11 @@ const pickWeek = (value) => value && value !== props.week && router.get(route('r
 
 <template>
     <UiPageHeader title="Nhập báo cáo tuần" icon="assignment_turned_in">
-        <template #meta>
-            <span class="inline-flex items-center gap-xs"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">info</span>Nhập số liệu thực tế phát sinh trong tuần học vụ tương ứng.</span>
+        <template #badges>
+            <UiInfo title="Hướng dẫn nhập báo cáo tuần">
+                <p>Nhập số liệu thực tế phát sinh trong tuần học vụ tương ứng.</p>
+                <p>Mỗi mục KPI ghi <strong class="text-on-surface">số lần phát sinh</strong> trong tuần (để trống = 0). Các chỉ số quy mô chỉ để theo dõi, không tính KPI.</p>
+            </UiInfo>
         </template>
         <template #actions>
             <div class="w-72">

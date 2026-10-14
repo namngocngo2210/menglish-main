@@ -305,7 +305,7 @@ class ClassQualityTest extends TestCase
         ]);
         // Bảng tuần trong tháng (Tuần / Khoảng ngày / PIC) nhận cả báo cáo tuần dạng chữ cũ; bấm vào xem nội dung.
         $this->actingAs($lead)->get(route('reports.periodic.academic-monthly'))->assertOk()->assertSee('Cô Lan')
-            ->assertInertia(fn (AssertableInertia $page) => $page->component('Reports/AcademicMonthly')->has('tabs', 3)
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Reports/AcademicMonthly')->has('tabs', 4)
                 ->where('weeklyReports', fn ($weeks) => collect($weeks)->contains(fn ($w) => $w['title'] === 'Báo cáo tuần đầu tháng' && $w['pic'] === $lead->name)));
         $this->actingAs($lead)->post(route('reports.periodic.academic-monthly.store'), ['month' => $month, 'narrative' => []])
             ->assertSessionHasErrors();

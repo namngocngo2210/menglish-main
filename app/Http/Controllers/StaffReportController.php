@@ -13,6 +13,7 @@ use App\Models\StaffReportFollowup;
 use App\Models\TeacherMeetingReport;
 use App\Models\User;
 use App\Models\WorkTask;
+use App\Services\BranchStaff;
 use App\Support\Approvals\AdminOnlyApprovals;
 use App\Support\Dashboard\TeachingQuality;
 use App\Support\MonthlyReportDue;
@@ -50,7 +51,7 @@ class StaffReportController extends Controller
      * `tab` = false: không có tab riêng (phần chấm công tháng nằm trong màn báo cáo tháng của giáo viên).
      */
     public const STRUCTURED = [
-        'daily_ops' => ['label' => 'Báo cáo ngày', 'type' => 'daily', 'route' => 'reports.periodic.daily', 'for' => 'Học vụ'],
+        'daily_ops' => ['label' => 'Báo cáo ngày', 'type' => 'daily', 'route' => 'reports.periodic.daily', 'for' => 'Học vụ / Học thuật'],
         'weekly_kpi' => ['label' => 'Báo cáo tuần (KPI)', 'type' => 'weekly', 'route' => 'reports.periodic.weekly-kpi', 'for' => 'Học vụ'],
         'academic_weekly' => ['label' => 'Báo cáo tuần', 'type' => 'weekly', 'route' => 'reports.periodic.academic-weekly', 'for' => 'Học thuật'],
         'academic_monthly' => ['label' => 'Báo cáo tháng', 'type' => 'monthly', 'route' => 'reports.periodic.academic-monthly', 'for' => 'Học thuật'],
@@ -437,7 +438,7 @@ class StaffReportController extends Controller
             $classId = $class->id;
         }
 
-        StaffReport::create([
+        $report = StaffReport::create([
             'user_id' => Auth::id(),
             'class_id' => $classId,
             'type' => $type,
@@ -446,6 +447,7 @@ class StaffReportController extends Controller
             'report_date' => $validated['report_date'] ?? now()->toDateString(),
             'status' => 'submitted',
         ]);
+        self::notifyAdminsSubmitted($report);
 
         return back()->with('success', 'Đã nộp ' . (StaffReport::TYPE_LABELS[$type] ?? 'báo cáo') . ' thành công!');
     }
@@ -482,7 +484,7 @@ class StaffReportController extends Controller
     }
 
     // ───────────────────────── BÁO CÁO CÓ CẤU TRÚC ─────────────────────────
-    /** Báo cáo ngày Học vụ (mockup 02/06): vận hành lớp, tuyển sinh / học viên, truyền thông + tạo việc follow-up. */
+    /** Báo cáo ngày Học vụ / Học thuật (mockup 02/06): vận hành lớp, tuyển sinh / học viên, truyền thông + tạo việc follow-up. */
     public function daily(Request $request): Response|RedirectResponse
     {
         if ($redirect = $this->redirectUnlessStructured('daily_ops')) {
@@ -493,6 +495,7 @@ class StaffReportController extends Controller
         $task = ($taskId = $report?->data['task_id'] ?? null) ? WorkTask::with('assignee:id,name')->find($taskId) : null;
 
         return Inertia::render('Reports/DailyOps', [
+            'audience' => StaffType::dailyReportAudience(Auth::user()),
             'tabs' => $this->reportTabs(Auth::user(), 'daily_ops'),
             'date' => $date,
             'dateLabel' => Str::ucfirst(Carbon::parse($date)->locale('vi')->isoFormat('dddd, D [tháng] M, YYYY')),
@@ -1112,10 +1115,43 @@ class StaffReportController extends Controller
     /** @param array<string, mixed> $data */
     private function saveStructured(string $kind, string $period, string $title, string $reportDate, array $data, string $content, string $status = 'submitted'): void
     {
-        StaffReport::updateOrCreate(
+        $before = StaffReport::where('user_id', Auth::id())->where('kind', $kind)->where('period_key', $period)->first(['id', 'status', 'reviewed_at']);
+        // Nộp (hoặc sửa bản đã nộp) → về lại "Chờ kiểm tra" để Admin xem bản mới.
+        $report = StaffReport::updateOrCreate(
             ['user_id' => Auth::id(), 'kind' => $kind, 'period_key' => $period],
-            ['type' => self::STRUCTURED[$kind]['type'], 'title' => $title, 'report_date' => $reportDate, 'data' => $data, 'content' => $content, 'status' => $status],
+            ['type' => self::STRUCTURED[$kind]['type'], 'title' => $title, 'report_date' => $reportDate, 'data' => $data, 'content' => $content, 'status' => $status]
+                + ($status === 'submitted' ? ['reviewed_by' => null, 'reviewed_at' => null] : []),
         );
+        // Báo Admin khi báo cáo mới vào hàng chờ kiểm tra (lần nộp đầu, nộp từ nháp, hoặc sửa sau khi Admin đã kiểm tra);
+        // sửa tiếp khi vẫn đang chờ kiểm tra thì không báo lại.
+        if ($status === 'submitted' && (! $before || $before->status !== 'submitted' || $before->reviewed_at !== null)) {
+            self::notifyAdminsSubmitted($report, $before?->status === 'submitted');
+        }
+    }
+
+    /** Báo cáo mọi vai trò nộp xong được đẩy về Admin kiểm tra (14/10/2026) ở "Tổng hợp báo cáo & nhật ký". */
+    private static function notifyAdminsSubmitted(StaffReport $report, bool $updated = false): void
+    {
+        $name = Auth::user()?->name ?? 'Nhân sự';
+        AdminNotification::notifyUsers(
+            BranchStaff::admins()->pluck('id'),
+            'staff_report_submitted',
+            ($updated ? 'Báo cáo cập nhật: ' : 'Báo cáo mới: ').$report->title,
+            "{$name} vừa ".($updated ? 'cập nhật' : 'nộp')." {$report->title}. Mở để kiểm tra.",
+            route('reports.all', ['review' => 'pending']),
+            ['staff_report_id' => $report->id],
+            Auth::id(),
+        );
+    }
+
+    /** Admin đánh dấu báo cáo đã kiểm tra / bỏ đánh dấu (route chỉ Admin). */
+    public function review(Request $request, int $id): RedirectResponse
+    {
+        $report = StaffReport::query()->where('type', '!=', 'journal')->where('status', '!=', 'draft')->findOrFail($id);
+        $reviewed = $request->boolean('reviewed', true);
+        $report->update(['reviewed_by' => $reviewed ? Auth::id() : null, 'reviewed_at' => $reviewed ? now() : null]);
+
+        return back()->with('success', $reviewed ? 'Đã đánh dấu đã kiểm tra.' : 'Đã chuyển về chờ kiểm tra.');
     }
 
     /**
@@ -1207,25 +1243,36 @@ class StaffReportController extends Controller
         $this->guard();
         abort_unless($this->isPrivileged(), 403, 'Chỉ Admin / Manager mới xem tổng hợp.');
 
-        $query = StaffReport::with(['user', 'followups'])->where('status', '!=', 'draft');
+        $query = StaffReport::with(['user.roles', 'followups', 'reviewer:id,name'])->where('status', '!=', 'draft');
         if ($type = $request->input('type')) {
             $query->where('type', $type);
         }
         if ($date = $request->input('date')) {
             $query->whereDate('report_date', $date);
         }
+        // Hàng chờ Admin kiểm tra (báo cáo định kỳ; nhật ký sự vụ không cần kiểm tra ở đây).
+        $review = $request->input('review');
+        if (in_array($review, ['pending', 'done'], true)) {
+            $query->where('type', '!=', 'journal')->when($review === 'pending', fn ($q) => $q->whereNull('reviewed_at'), fn ($q) => $q->whereNotNull('reviewed_at'));
+        }
 
-        $reports = $query->latest('report_date')->latest('id')->paginate(20)->withQueryString()
+        $reports = $query->orderByRaw($review === 'pending' ? 'updated_at desc' : 'report_date desc')->latest('id')->paginate(20)->withQueryString()
             ->through(fn (StaffReport $r) => [
                 'id' => $r->id,
                 'type' => $r->type,
-                'type_label' => $r->type_label,
+                'type_label' => $r->kind ? (self::STRUCTURED[$r->kind]['label'] ?? $r->type_label) : $r->type_label,
+                // Báo cáo ngày dùng chung cho Học vụ và Học thuật → ghi theo chức danh người nộp.
+                'for' => $r->kind === 'daily_ops' && $r->user ? StaffType::dailyReportAudience($r->user) : ($r->kind ? (self::STRUCTURED[$r->kind]['for'] ?? null) : null),
                 'severity_label' => $r->type === 'journal' ? $r->severity_label : null,
                 'title' => $r->title,
                 'content' => $r->content,
                 'report_date' => $r->report_date->toDateString(),
+                'submitted_at' => $r->updated_at?->toIso8601String(),
                 'user' => $r->user?->name,
                 'followups_count' => $r->followups->count(),
+                'reviewable' => $r->type !== 'journal',
+                'reviewed_at' => $r->reviewed_at?->toIso8601String(),
+                'reviewed_by' => $r->reviewer?->name,
             ]);
 
         $stats = [
@@ -1234,11 +1281,13 @@ class StaffReportController extends Controller
             'weekly' => StaffReport::where('type', 'weekly')->count(),
             'monthly' => StaffReport::where('type', 'monthly')->count(),
             'urgent_open' => StaffReport::where('type', 'journal')->where('severity', 'urgent')->where('status', '!=', 'resolved')->count(),
+            'pending_review' => StaffReport::where('type', '!=', 'journal')->where('status', '!=', 'draft')->whereNull('reviewed_at')->count(),
         ];
 
         return Inertia::render('Reports/All', [
             'reports' => $reports,
             'stats' => $stats,
+            'canReview' => (bool) Auth::user()?->can(AdminOnlyApprovals::ABILITY),
             'types' => Ui::options(StaffReport::TYPE_LABELS),
         ]);
     }

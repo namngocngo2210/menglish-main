@@ -40,6 +40,12 @@ final class StaffType
         return (bool) $user->academic_teaching && self::roles($user)->contains(Roles::ACADEMIC_LEAD);
     }
 
+    /** Nhãn chức danh của báo cáo ngày (cùng biểu mẫu): Học vụ, hoặc Học thuật khi không kiêm Học vụ. */
+    public static function dailyReportAudience(User $user): string
+    {
+        return self::roles($user)->contains(Roles::ACADEMIC_STAFF) || ! self::roles($user)->contains(Roles::ACADEMIC_LEAD) ? 'Học vụ' : 'Học thuật';
+    }
+
     /** Học vụ: KPI tự động 6 nhóm / 15 mục, quỹ 2 triệu (A6 Q3). */
     public static function usesAcademicStaffKpi(User $user): bool
     {
@@ -61,8 +67,8 @@ final class StaffType
 
     /**
      * Báo cáo có cấu trúc theo vai trò (màn cùng loại kỳ với reportCadence thay cho báo cáo chữ tự do): Học vụ báo cáo ngày
-     * + báo cáo tuần theo mục KPI; Học thuật báo cáo tuần dạng bảng + tháng + quý (tổng hợp báo cáo tuần, họp giáo viên);
-     * giáo viên báo cáo tháng theo lớp (kèm báo cáo chấm công tháng).
+     * + báo cáo tuần theo mục KPI; Học thuật báo cáo ngày (cùng biểu mẫu với Học vụ, yêu cầu 14/10/2026) + tuần dạng bảng
+     * + tháng + quý (tổng hợp báo cáo tuần, họp giáo viên); giáo viên báo cáo tháng theo lớp (kèm báo cáo chấm công tháng).
      *
      * @return list<string> khóa trong StaffReportController::STRUCTURED
      */
@@ -71,7 +77,7 @@ final class StaffType
         $roles = self::roles($user);
 
         return array_values(array_filter([
-            $roles->contains(Roles::ACADEMIC_STAFF) ? 'daily_ops' : null,
+            $roles->contains(Roles::ACADEMIC_STAFF) || $roles->contains(Roles::ACADEMIC_LEAD) ? 'daily_ops' : null,
             $roles->contains(Roles::ACADEMIC_STAFF) ? 'weekly_kpi' : null,
             $roles->contains(Roles::ACADEMIC_LEAD) ? 'academic_weekly' : null,
             $roles->contains(Roles::ACADEMIC_LEAD) ? 'academic_monthly' : null,

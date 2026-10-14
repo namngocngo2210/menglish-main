@@ -1,6 +1,6 @@
 <script setup>
 /**
- * Báo cáo ngày Học vụ (mockup 02/06 "Báo cáo ngày Học vụ"): Vận hành lớp học, Tuyển sinh / Học viên, Truyền thông
+ * Báo cáo ngày Học vụ (mockup 02/06 "Báo cáo ngày Học vụ"), Học thuật dùng chung biểu mẫu (tiêu đề theo `audience`): Vận hành lớp học, Tuyển sinh / Học viên, Truyền thông
  * (khối và ô theo StaffReportController::DAILY_SECTIONS) + Task follow-up (bật "Tạo Task" → tạo đầu việc trong Giao việc).
  * Mỗi ngày 1 báo cáo, lưu lại là cập nhật; chọn ngày khác ở góc phải để xem / bổ sung báo cáo ngày đó.
  */
@@ -11,9 +11,10 @@ import ReportTabs from './ReportTabs.vue';
 import ReportHistory from './ReportHistory.vue';
 import LegacyReports from './LegacyReports.vue';
 
-defineOptions({ layout: { title: 'Báo cáo ngày Học vụ' } });
+defineOptions({ layout: { title: 'Báo cáo ngày' } });
 
 const props = defineProps({
+    audience: { type: String, default: 'Học vụ' },
     tabs: { type: Array, default: () => [] },
     date: { type: String, required: true },
     dateLabel: { type: String, default: '' },
@@ -41,7 +42,7 @@ const textRows = (row, name) => field(name).rows ?? (row.length > 1 ? 2 : 3);
 </script>
 
 <template>
-    <UiPageHeader title="Báo cáo ngày Học vụ" icon="assignment">
+    <UiPageHeader :title="`Báo cáo ngày ${audience}`" icon="assignment">
         <template #meta>Hoàn thành biểu mẫu để cập nhật thông tin vận hành trong ngày.</template>
         <template #actions>
             <div class="relative text-right">
