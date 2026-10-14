@@ -18,7 +18,7 @@ return [
             ],
             'steps' => [
                 'Sau khi đăng nhập, bạn vào thẳng **Tổng quan**. Hàng thẻ trên cùng cho biết **Hẹn test hôm nay**, **Học thử 7 ngày tới**, **Cần gọi lại hôm nay**, việc đến hạn tuần này và **Khách chốt** trong tháng.',
-                'Khối **Lịch hẹn 7 ngày tới** liệt kê lịch test đầu vào, học thử và hẹn gọi lại của khách bạn phụ trách, xếp theo ngày và giờ.',
+                'Khối **Lịch hẹn 7 ngày tới** liệt kê lịch test đầu vào, học thử, hẹn gọi lại và support sau chốt (chăm sóc tháng đầu của khách đã chốt vào lớp) của khách bạn phụ trách, xếp theo ngày và giờ.',
                 'Khối **Cần xử lý** nhắc những nhóm khách cần làm ngay, ví dụ **Khách chưa liên hệ >24h**. Bấm vào dòng đó để mở danh sách khách tương ứng.',
                 'Khối **Việc của tôi trong tuần** hiện các đầu việc đến hạn. Bấm **Xem tất cả** để mở danh sách đầu việc.',
             ],

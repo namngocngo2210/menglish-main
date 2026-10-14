@@ -1,5 +1,5 @@
 <script setup>
-/** Lịch hẹn 7 ngày tới (MyWorkBoard::agenda): test đầu vào, học thử, gọi lại khách, Big Test, hạn mốc dự án học thuật — nhóm theo ngày, xếp theo giờ. */
+/** Lịch hẹn 7 ngày tới (MyWorkBoard::agenda): test đầu vào, học thử, gọi lại khách, support sau chốt, Big Test, hạn mốc dự án học thuật — nhóm theo ngày, xếp theo giờ. */
 import { Link } from '@inertiajs/vue3';
 
 defineProps({ agenda: { type: Object, required: true } });
@@ -9,6 +9,7 @@ const kinds = {
     test: 'bg-primary-fixed text-primary',
     trial: 'bg-secondary-fixed text-secondary',
     call: 'bg-warning-container text-warning',
+    care: 'bg-info-container text-info',
     bigtest: 'bg-tertiary-fixed/50 text-tertiary',
     project: 'bg-error-container text-error',
 };

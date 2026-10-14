@@ -384,7 +384,7 @@ class CrmController extends Controller
                 'updated_at' => $c->updated_at?->format('d/m/Y H:i'),
                 'updated_label' => $this->updatedLabel($c->updated_at ?? $c->created_at),
                 'sla' => $c->contactSlaPayload(),
-                'test_today_at' => $c->appointment_at?->isToday() && $c->stage !== CrmCustomer::STAGE_LOST ? $c->appointment_at->format('H:i') : null,
+                'test_today_at' => $c->appointment_at?->isToday() && $c->stage !== CrmCustomer::STAGE_LOST && ! $c->isClosed() ? $c->appointment_at->format('H:i') : null,
                 'test_today_type' => $c->appointment_at?->isToday() ? ($c->appointment_type === 'online' ? 'Online' : 'Tại cơ sở') : null,
                 'follow_up_label' => $c->followUpStatus() === 'overdue' || ($c->next_follow_up_at?->isToday() && in_array($c->stage, CrmCustomer::ACTIVE_STAGES, true))
                     ? $this->relativeDeadlineLabel($c->next_follow_up_at) : null,

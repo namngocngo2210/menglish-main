@@ -193,10 +193,11 @@ class CrmCustomer extends Model
         return $query->withMax(['histories as last_care_at' => fn (Builder $history) => $history->counted()->whereIn('type', CrmCustomerHistory::CARE_TYPES)], 'created_at');
     }
 
-    /** Khách có lịch hẹn test đầu vào trong hôm nay (đã làm hay chưa đều tính), bỏ khách Thất bại. */
+    /** Khách có lịch hẹn test đầu vào trong hôm nay (đã làm hay chưa đều tính), bỏ khách Thất bại và khách đã chốt vào lớp. */
     public function scopeTestToday(Builder $query): Builder
     {
-        return $query->whereBetween('appointment_at', [today(), today()->endOfDay()])->where('stage', '!=', self::STAGE_LOST);
+        return $query->whereBetween('appointment_at', [today(), today()->endOfDay()])
+            ->whereNotIn('stage', [self::STAGE_LOST, ...self::CLOSED_STAGES]);
     }
 
     /** Khách đang chăm sóc có hạn gọi lại tới hết hôm nay (gồm khách đã quá hạn). */

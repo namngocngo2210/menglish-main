@@ -4,12 +4,15 @@ namespace App\Support\Dashboard;
 
 use App\Models\AcademicProjectMilestone;
 use App\Models\BigTest;
+use App\Models\ClassSession;
 use App\Models\CrmCustomer;
 use App\Models\CrmTrialBooking;
 use App\Models\PayrollPeriod;
+use App\Models\StudentAttendance;
 use App\Models\StudentTuition;
 use App\Models\User;
 use App\Models\WorkTask;
+use App\Services\FirstMonthCareService;
 use App\Support\Approvals\ApprovalInboxService;
 use App\Support\DataScope;
 use App\Support\TuitionBranchScope;
@@ -22,8 +25,9 @@ use Illuminate\Support\Collection;
  * Tổng quan cá nhân cho mọi vai trò trừ Admin / Quản lý cơ sở (chủ dự án 03/10/2026: Admin xem nhiều số liệu, các vai trò
  * khác chủ yếu thấy lịch hẹn và đầu việc cần xử lý trong tuần / tháng). Mỗi khối chỉ có khi user có quyền tương ứng và
  * mở được màn đích; số liệu theo phạm vi dữ liệu của user (chi nhánh / khách mình phụ trách / việc giao cho mình).
- *  - Lịch hẹn 7 ngày tới: hẹn test đầu vào, học thử, hẹn gọi lại khách (CRM); Big Test (Học thuật); deadline mốc dự án
- *    học thuật (mốc mình nhận; người quản lý dự án thấy mọi mốc).
+ *  - Lịch hẹn 7 ngày tới: hẹn test đầu vào, học thử, hẹn gọi lại khách (CRM); support sau chốt (chăm sóc tháng đầu của
+ *    khách đã chốt vào lớp, thay cho hẹn test cũ); Big Test (Học thuật); deadline mốc dự án học thuật (mốc mình nhận;
+ *    người quản lý dự án thấy mọi mốc).
  *  - Việc cần xử lý: số đếm + link (khách quá hạn gọi lại, chưa liên hệ >24h, chờ xếp lớp, mục chờ duyệt theo nguồn,
  *    học phí quá hạn, kỳ lương chưa chốt).
  *  - Việc của tôi: việc được giao chưa xong, hạn trong tuần này hoặc đã quá hạn.
@@ -36,6 +40,9 @@ final class MyWorkBoard
     private const AGENDA_LIMIT = 40;
 
     private const OPEN_TASK_STATUSES = ['new', 'in_progress', 'overdue', 'blocked'];
+
+    /** Học viên vừa chốt (chờ khai giảng) hoặc đang học mới có support sau chốt. */
+    private const CARE_STUDENT_STATUSES = ['waiting_start', 'studying'];
 
     /**
      * @param  Closure(string, array<int, string>=): bool  $canOpen  user mở được route (như menu trái)
@@ -163,7 +170,7 @@ final class MyWorkBoard
     /**
      * Lịch hẹn từ hôm nay đến hết ngày thứ 7, nhóm theo ngày.
      *
-     * @param  bool  $withCrmCare  gồm học thử + hẹn gọi lại (việc chăm sóc khách của Học vụ / Sales)
+     * @param  bool  $withCrmCare  gồm học thử + hẹn gọi lại + support sau chốt (việc chăm sóc khách của Học vụ / Sales)
      * @return array{days: list<array<string, mixed>>, total: int, more: int, range: string}
      */
     private function agenda(bool $withCrmCare = true): array
@@ -174,8 +181,9 @@ final class MyWorkBoard
         if ($this->seesLeads()) {
             $customerUrl = fn (CrmCustomer $c) => route('crm.customers.show', $c->id);
 
+            // Khách đã chốt (Chờ xếp lớp / Đã chốt) không còn hẹn test: thay bằng support sau chốt bên dưới.
             $this->customers()->with('assignedUser:id,name')
-                ->where('stage', '!=', CrmCustomer::STAGE_LOST)
+                ->whereNotIn('stage', [CrmCustomer::STAGE_LOST, ...CrmCustomer::CLOSED_STAGES])
                 ->whereBetween('appointment_at', [today(), $end])
                 ->get()
                 ->each(fn (CrmCustomer $c) => $items->push([
@@ -215,6 +223,8 @@ final class MyWorkBoard
                         'subtitle' => $c->stage_label,
                         'href' => $customerUrl($c),
                     ]));
+
+                $this->postCloseCare($end)->each(fn (array $item) => $items->push($item));
             }
         }
 
@@ -259,13 +269,88 @@ final class MyWorkBoard
                     'label' => $this->dayLabel(Carbon::parse($date)),
                     'items' => $dayItems->map(fn (array $item) => [
                         'time' => $item['at']->format('H:i') === '00:00' ? null : $item['at']->format('H:i'),
-                        'past' => $item['at']->isPast(),
+                        // Mục chỉ có ngày (hạn mốc, support sau chốt) còn hạn đến hết ngày.
+                        'past' => $item['at']->format('H:i') === '00:00' ? $item['at']->lt(today()) : $item['at']->isPast(),
                     ] + collect($item)->except('at')->all())->values()->all(),
                 ])->values()->all(),
             'total' => $sorted->count(),
             'more' => max(0, $sorted->count() - $shown->count()),
             'range' => today()->format('d/m').' – '.$end->format('d/m'),
         ];
+    }
+
+    /**
+     * Support sau chốt (FirstMonthCareService) của khách đã chốt trong phạm vi: mốc chăm sóc tháng đầu chưa xong (việc chưa
+     * hoàn thành, checklist CRM chưa tick) có hạn trong 7 ngày tới. Mốc chưa có hạn thì dự kiến: Buổi 1 vào buổi học đầu
+     * tiên sắp tới của lớp (học viên chưa đi buổi nào), Đủ 30 ngày vào ngày chốt + 30.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function postCloseCare(Carbon $end): Collection
+    {
+        $customers = $this->customers()
+            ->whereIn('stage', CrmCustomer::CLOSED_STAGES)
+            ->whereNotNull('converted_student_id')
+            ->where('converted_at', '>=', today()->subDays(FirstMonthCareService::DAYS_AFTER_CLOSING + FirstMonthCareService::CATCH_UP_DAYS))
+            ->with('convertedStudent.currentClass:id,name')
+            ->get(['id', 'name', 'converted_student_id', 'converted_at', 'care_checklist'])
+            ->filter(fn (CrmCustomer $c) => in_array($c->convertedStudent?->status, self::CARE_STUDENT_STATUSES, true));
+        if ($customers->isEmpty()) {
+            return collect();
+        }
+
+        $studentIds = $customers->pluck('converted_student_id')->map(fn ($id) => (int) $id)->unique()->values()->all();
+        $tasks = WorkTask::with('assignee:id,name')->whereIn('student_id', $studentIds)->whereNotNull('care_milestone')->get()
+            ->keyBy(fn (WorkTask $t) => $t->student_id.'-'.(int) $t->care_milestone);
+        $attended = StudentAttendance::query()->whereIn('student_id', $studentIds)->whereIn('status', ['present', 'late'])
+            ->distinct()->pluck('student_id')->map(fn ($id) => (int) $id)->all();
+        $classIds = $customers->pluck('convertedStudent.current_class_id')->filter()->unique()->values()->all();
+        $firstSessions = $classIds === [] ? collect() : ClassSession::query()->whereIn('class_id', $classIds)
+            ->where('status', '!=', 'cancelled')
+            ->whereDate('date', '>=', today()->toDateString())->whereDate('date', '<=', $end->toDateString())
+            ->orderBy('date')->orderBy('start_time')->get()
+            ->groupBy('class_id')->map(fn (Collection $sessions) => $sessions->first());
+
+        $inWindow = fn (?Carbon $at) => $at && $at->betweenIncluded(today(), $end);
+        $items = collect();
+
+        foreach ($customers as $customer) {
+            $student = $customer->convertedStudent;
+            $crmState = (array) ($customer->care_checklist ?? []);
+
+            foreach (FirstMonthCareService::MILESTONES as $milestone => $key) {
+                $task = $tasks->get($student->id.'-'.$milestone);
+                if (! empty($crmState[$key]) || ($task && ! in_array($task->status, self::OPEN_TASK_STATUSES, true))) {
+                    continue; // Đã chăm sóc (tick CRM / việc xong) hoặc việc đã hủy.
+                }
+
+                $note = FirstMonthCareService::milestoneLabel($milestone);
+                if ($task?->due_date) {
+                    $at = Carbon::parse($task->due_date->toDateString().' '.($task->due_time ? substr((string) $task->due_time, 0, 5) : '00:00'));
+                } elseif ($milestone === FirstMonthCareService::MILESTONE_DAY_30) {
+                    $at = $customer->converted_at->copy()->startOfDay()->addDays(FirstMonthCareService::DAYS_AFTER_CLOSING);
+                } elseif ($milestone === FirstMonthCareService::MILESTONE_SESSION_1 && ! in_array((int) $student->id, $attended, true)) {
+                    $at = $firstSessions->get($student->current_class_id)?->startsAt();
+                    $note = 'Buổi học đầu tiên, hỏi phản hồi sau buổi';
+                } else {
+                    $at = null;
+                }
+                if (! $inWindow($at)) {
+                    continue;
+                }
+
+                $items->push([
+                    'at' => $at,
+                    'kind' => 'care',
+                    'kindLabel' => 'Support sau chốt',
+                    'title' => $customer->name,
+                    'subtitle' => collect([$note, $student->currentClass?->name, $task?->assignee?->name])->filter()->implode(' · '),
+                    'href' => route('crm.customers.show', $customer->id),
+                ]);
+            }
+        }
+
+        return $items;
     }
 
     private function dayLabel(Carbon $day): string
