@@ -467,6 +467,9 @@ class StudentProfileController extends Controller
                 'code' => $student->code,
                 'name' => $student->name,
                 'dob_label' => $student->dob ? $student->dob->format('d/m/Y').' ('.$student->dob->age.' tuổi)' : null,
+                'dob_value' => $student->dob?->toDateString(),
+                'gender' => $student->gender,
+                'entrance_score' => $student->entrance_score,
                 'phone' => $contact ? $student->phone : null,
                 'email' => $contact ? $student->email : null,
                 'branch' => $student->branch?->name,
@@ -642,6 +645,8 @@ class StudentProfileController extends Controller
             'parent_name' => 'nullable|string|max:255',
             'parent_phone' => ['nullable', 'string', 'max:20', 'regex:/^[0-9+\s().-]{8,20}$/'],
             'email' => 'nullable|email|max:255',
+            'dob' => 'nullable|date|before:today|after:1940-01-01',
+            'gender' => 'nullable|string|max:20',
             'target' => 'nullable|string|max:100',
             'address' => 'nullable|string|max:255',
             'school' => 'nullable|string|max:255',
@@ -651,7 +656,7 @@ class StudentProfileController extends Controller
         ], [
             'parent_phone.regex' => 'Số điện thoại phụ huynh không hợp lệ.',
             'study_started_on.before_or_equal' => 'Ngày bắt đầu học không được sau hôm nay.',
-        ], ['study_started_on' => 'ngày bắt đầu học']);
+        ], ['study_started_on' => 'ngày bắt đầu học', 'dob' => 'ngày sinh', 'gender' => 'giới tính']);
 
         // Form sửa hồ sơ không gửi trạng thái; đổi trạng thái cần quyền riêng (student.change_status).
         if (! $request->user()->can('student.change_status') || empty($validated['status'])) {

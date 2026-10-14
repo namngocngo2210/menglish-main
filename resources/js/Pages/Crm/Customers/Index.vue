@@ -1,6 +1,7 @@
 <script setup>
 /**
  * Danh sách khách (mockup danh-sach-khach): lọc Từ khóa, Nguồn, Người phụ trách, Giai đoạn, Chi nhánh + chip lọc nhanh.
+ * Cột Nguồn theo mockup stitch_menglish_v3 "Danh sách khách hàng" (Owen.zip).
  * Thêm khách mở modal 2xl (nút trên thanh tab); bấm tên / nút sửa → hồ sơ đầy đủ (sửa trực tiếp trong trang).
  */
 import { computed } from 'vue';
@@ -48,7 +49,7 @@ const followUp = computed(() => ['1', 'true'].includes(currentQuery().get('follo
         </UiFilterBar>
 
         <div id="customer-list">
-            <UiDataTable min-width="1200px" sticky="both">
+            <UiDataTable min-width="1300px" sticky="both">
                 <table>
                     <thead>
                         <tr>
@@ -58,6 +59,7 @@ const followUp = computed(() => ['1', 'true'].includes(currentQuery().get('follo
                             <th>Giai đoạn</th>
                             <th>Hạn SLA liên hệ</th>
                             <th>Người phụ trách</th>
+                            <th>Nguồn</th>
                             <th>Chi nhánh</th>
                             <th>Cập nhật gần nhất</th>
                             <th class="text-right">Thao tác</th>
@@ -91,6 +93,7 @@ const followUp = computed(() => ['1', 'true'].includes(currentQuery().get('follo
                                 </div>
                                 <span v-else class="text-on-surface-subtle">Chưa phân công</span>
                             </td>
+                            <td class="whitespace-nowrap text-on-surface-variant" data-col="source">{{ c.source || '—' }}</td>
                             <td class="whitespace-nowrap text-on-surface-variant">{{ c.branch ?? '—' }}</td>
                             <td class="whitespace-nowrap font-caption text-caption text-on-surface-variant" :title="c.updated_at">{{ c.updated_label }}</td>
                             <td class="whitespace-nowrap text-right">
@@ -101,7 +104,7 @@ const followUp = computed(() => ['1', 'true'].includes(currentQuery().get('follo
                             </td>
                         </tr>
                         <tr v-if="!customers.data.length">
-                            <td colspan="9">
+                            <td colspan="10">
                                 <UiEmptyState icon="search_off" title="Không tìm thấy khách hàng" description="Thử đổi từ khóa hoặc xóa bộ lọc." />
                             </td>
                         </tr>

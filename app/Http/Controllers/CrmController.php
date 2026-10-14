@@ -375,6 +375,7 @@ class CrmController extends Controller
                 'name' => $c->name,
                 'phone' => $c->phone,
                 'parent_name' => $c->parent_name,
+                'source' => $c->source,
                 'stage' => $c->stage,
                 'stage_label' => $c->stage_label,
                 'stage_badge' => $c->stage_badge,

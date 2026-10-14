@@ -181,6 +181,7 @@ class CrmBusinessTest extends TestCase
             'code' => 'KH-00001',
             'name' => 'Lê Bích Phương',
             'phone' => '0911222333',
+            'source' => 'Facebook',
             'stage' => 'consulting',
             'deal_value' => 12000000,
             'branch_id' => $this->branch->id,
@@ -210,6 +211,8 @@ class CrmBusinessTest extends TestCase
         $responseFilter->assertOk();
         $responseFilter->assertSee('Lê Bích Phương');
         $responseFilter->assertDontSee('Đỗ Duy Mạnh');
+        // Cột Nguồn trên danh sách khách.
+        $responseFilter->assertInertia(fn (Assert $page) => $page->where('customers.data.0.source', 'Facebook'));
     }
 
     // =========================================================================

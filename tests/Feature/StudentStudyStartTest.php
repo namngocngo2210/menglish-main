@@ -170,6 +170,32 @@ class StudentStudyStartTest extends TestCase
         $this->assertSame('2026-09-12', $student->fresh()->study_started_on->toDateString());
     }
 
+    public function test_profile_edits_birthday_and_gender_and_shows_entrance_score(): void
+    {
+        $student = $this->student('HV-INFO', null, ['entrance_score' => '7.5 (Movers)', 'gender' => 'Nam']);
+        $staff = $this->staff();
+        $payload = ['name' => $student->name, 'phone' => $student->phone];
+
+        $this->actingAs($staff)->put(route('students.update', $student->id), $payload + ['dob' => '2014-05-20', 'gender' => 'Nữ'])
+            ->assertSessionHasNoErrors();
+        $fresh = $student->fresh();
+        $this->assertSame('2014-05-20', $fresh->dob->toDateString());
+        $this->assertSame('Nữ', $fresh->gender);
+
+        $this->actingAs($staff)->get(route('students.show', $student->id))->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('student.dob_value', '2014-05-20')
+                ->where('student.dob_label', '20/05/2014 (12 tuổi)')
+                ->where('student.gender', 'Nữ')
+                ->where('student.entrance_score', '7.5 (Movers)'));
+
+        // Ngày sinh tương lai bị chặn; form không gửi ô ngày sinh thì giữ nguyên.
+        $this->actingAs($staff)->put(route('students.update', $student->id), $payload + ['dob' => '2026-12-01'])
+            ->assertSessionHasErrors('dob');
+        $this->actingAs($staff)->put(route('students.update', $student->id), $payload)->assertSessionHasNoErrors();
+        $this->assertSame('2014-05-20', $student->fresh()->dob->toDateString());
+    }
+
     public function test_student_portal_home_shows_start_date_and_tenure(): void
     {
         $user = User::factory()->create(['is_active' => true]);
