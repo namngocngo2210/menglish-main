@@ -153,14 +153,25 @@ jobs:
         run: |
           set -e
           # Gọi thẳng qua index.php: không phụ thuộc rewrite .htaccess của web server.
-          status=$(curl -s -o hook.json -w '%{http_code}' --max-time 300 -X POST \
-            -H "X-Deploy-Token: ${{ secrets.DEPLOY_HOOK_TOKEN }}" \
-            -d "seed=${{ inputs.seed }}" \
-            -d "allow_production_demo=${{ inputs.demo_on_production }}" \
-            "${{ secrets.APP_URL }}/index.php/_deploy/hook")
-          echo "HTTP $status"
+          # Hosting đôi khi trả 503 "server temporarily busy" ngay sau khi thay code (14/10/2026: code mới đã cài
+          # nhưng chưa migrate → trang lỗi 500). Gặp 429/502/503/504 thì chờ rồi gọi lại; migrate chạy lại không sao.
+          for attempt in 1 2 3 4 5; do
+            status=$(curl -s -o hook.json -w '%{http_code}' --max-time 300 -X POST \
+              -H "X-Deploy-Token: ${{ secrets.DEPLOY_HOOK_TOKEN }}" \
+              -d "seed=${{ inputs.seed }}" \
+              -d "allow_production_demo=${{ inputs.demo_on_production }}" \
+              "${{ secrets.APP_URL }}/index.php/_deploy/hook") || true
+            echo "Lần $attempt: HTTP $status"
+            case "$status" in
+              429|502|503|504) [ "$attempt" -lt 5 ] && sleep $((attempt * 20)) && continue ;;
+            esac
+            break
+          done
           head -c 5000 hook.json || true
-          test "$status" = "200"
+          if [ "$status" != "200" ]; then
+            echo "::error::Chưa migrate được (HTTP $status). Code mới ĐÃ cài nên trang có thể lỗi 500 — chạy lại workflow này cho cùng môi trường."
+            exit 1
+          fi
 
       - name: Kiểm tra trang đăng nhập
         run: |

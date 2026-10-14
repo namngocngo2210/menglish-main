@@ -6,6 +6,7 @@
  */
 import { computed, ref } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
+import { route } from '@/lib/route';
 import BarList from '@/Components/Dashboard/BarList.vue';
 import { formatDate, formatPercent, formatScore } from '@/lib/format';
 
