@@ -32,6 +32,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PromotionController;
 use App\Http\Controllers\RecruitmentController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\RoleSwitcherController;
 use App\Http\Controllers\RoomController;
 use App\Http\Controllers\RoomTypeController;
 use App\Http\Controllers\SepayWebhookController;
@@ -131,6 +132,8 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     // Hướng dẫn sử dụng theo vai trò (mọi người dùng đã đăng nhập, kể cả học viên).
     Route::get('/huong-dan', [UserGuideController::class, 'index'])->name('guide.index');
+    // Đổi vai trò nhanh: chỉ môi trường thử nghiệm bật ROLE_SWITCHER_ENABLED, chỉ Super Admin (App\Support\RoleSwitcher).
+    Route::post('/doi-vai-tro/{user}', RoleSwitcherController::class)->name('role-switcher.switch');
     // Người dùng KHÔNG được tự xóa tài khoản (Phase 4): chỉ người quản lý tài khoản xóa/khóa qua màn Tài khoản.
 
     // ─────────────────────────────────────────────
