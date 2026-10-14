@@ -5,6 +5,7 @@
  */
 import { ref } from 'vue';
 import { router } from '@inertiajs/vue3';
+import { route } from '@/lib/route';
 import ReportTabs from './ReportTabs.vue';
 import ReportHistory from './ReportHistory.vue';
 

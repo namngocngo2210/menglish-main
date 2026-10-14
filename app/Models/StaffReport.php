@@ -20,6 +20,9 @@ class StaffReport extends Model
         'content',
         'data',
         'severity',
+        'kpi_code',
+        'serious_confirmed_by',
+        'serious_confirmed_at',
         'report_date',
         'period_key',
         'status',
@@ -28,6 +31,7 @@ class StaffReport extends Model
     protected $casts = [
         'report_date' => 'date',
         'data' => 'array',
+        'serious_confirmed_at' => 'datetime',
     ];
 
     public const TYPE_LABELS = [
@@ -47,6 +51,12 @@ class StaffReport extends Model
     public function classModel(): BelongsTo
     {
         return $this->belongsTo(ClassModel::class, 'class_id')->withTrashed();
+    }
+
+    /** Admin đã xác nhận sự việc trong nhật ký là "Lỗi nghiêm trọng" (null = chưa xác nhận). */
+    public function seriousConfirmer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'serious_confirmed_by');
     }
 
     public function followups(): HasMany

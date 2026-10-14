@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\AclHelper;
 use App\Models\AdminNotification;
 use App\Models\ClassModel;
 use App\Models\ClassSession;
@@ -12,6 +13,7 @@ use App\Models\StaffReportFollowup;
 use App\Models\TeacherMeetingReport;
 use App\Models\User;
 use App\Models\WorkTask;
+use App\Support\Approvals\AdminOnlyApprovals;
 use App\Support\Dashboard\TeachingQuality;
 use App\Support\MonthlyReportDue;
 use App\Support\ReportPeriod;
@@ -22,9 +24,11 @@ use Carbon\CarbonInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -223,7 +227,7 @@ class StaffReportController extends Controller
         $this->guard();
         $isPriv = $this->isPrivileged();
 
-        $query = StaffReport::with(['user', 'followups.user', 'classModel:id,code,name'])
+        $query = StaffReport::with(['user.roles', 'seriousConfirmer:id,name', 'followups.user', 'classModel:id,code,name'])
             ->where('type', 'journal');
         if (! $isPriv) {
             $query->where('user_id', Auth::id());
@@ -246,10 +250,15 @@ class StaffReportController extends Controller
                 'content' => $j->content,
                 'severity' => $j->severity,
                 'severity_label' => $j->severity_label,
+                'kpi_code' => $j->kpi_code,
+                'serious' => $j->serious_confirmed_at !== null,
+                'serious_by' => $j->seriousConfirmer?->name,
                 'status' => $j->status,
                 'report_date' => $j->report_date->toDateString(),
+                'created_at' => $j->created_at?->toIso8601String(),
                 'class' => $j->classModel ? ['id' => $j->class_id, 'code' => $j->classModel->code] : null,
-                'user' => $isPriv ? $j->user?->name : null,
+                'user' => $j->user?->name,
+                'user_role' => ($role = $j->user?->roles->first()?->name) ? AclHelper::shortRoleLabel($role) : null,
                 'followups' => $j->followups->map(fn (StaffReportFollowup $f) => [
                     'id' => $f->id,
                     'user' => $f->user?->name,
@@ -264,19 +273,34 @@ class StaffReportController extends Controller
             'journals' => $journals,
             'isPriv' => $isPriv,
             'classes' => Ui::options($classes, fn (ClassModel $c) => $c->code.' · '.$c->name),
+            'kpiOptions' => self::journalKpiCodes()->map(fn (string $name, string $code) => ['value' => $code, 'label' => "KPI {$code} · {$name}"])->values(),
+            // Chỉ Admin đánh dấu "Lỗi nghiêm trọng" (mockup 02/05).
+            'canConfirmSerious' => (bool) Auth::user()?->can(AdminOnlyApprovals::ABILITY),
             'today' => now()->toDateString(),
         ]);
+    }
+
+    /** Mã mục KPI Học vụ đang áp dụng (mã => tên) để gắn vào nhật ký. */
+    private static function journalKpiCodes(): Collection
+    {
+        return KpiCriterion::forRole(Roles::ACADEMIC_STAFF)->active()->ordered()->whereNotNull('code')->get()
+            ->mapWithKeys(fn (KpiCriterion $c) => [(string) $c->code => $c->name]);
     }
 
     public function journalStore(Request $request)
     {
         $this->guard();
+        // Nhật ký Học vụ (mockup 02/05) chỉ có mã KPI + nội dung; tab "Sự vụ" của Trang lớp gửi thêm tiêu đề / mức độ / lớp.
         $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'content' => 'nullable|string',
-            'severity' => 'required|in:normal,important,urgent',
+            'title' => 'nullable|string|max:255',
+            'content' => 'required_without:title|nullable|string',
+            'severity' => 'nullable|in:normal,important,urgent',
+            'kpi_code' => ['nullable', 'string', Rule::in(self::journalKpiCodes()->keys()->all())],
             'report_date' => 'nullable|date',
             'class_id' => 'nullable|integer',
+        ], [
+            'content.required_without' => 'Vui lòng nhập nội dung sự việc.',
+            'kpi_code.in' => 'Mã KPI không có trong bộ KPI Học vụ đang áp dụng.',
         ]);
         $classId = null;
         if (! empty($validated['class_id'])) {
@@ -284,19 +308,35 @@ class StaffReportController extends Controller
             abort_unless($class, 403, 'Lớp học này nằm ngoài phạm vi bạn được xem.');
             $classId = $class->id;
         }
+        $content = $validated['content'] ?? null;
 
         StaffReport::create([
             'user_id' => Auth::id(),
             'class_id' => $classId,
             'type' => 'journal',
-            'title' => $validated['title'],
-            'content' => $validated['content'] ?? null,
-            'severity' => $validated['severity'],
+            // Không có tiêu đề riêng → lấy dòng đầu nội dung (danh sách sự vụ ở dashboard / Trang lớp hiện tiêu đề).
+            'title' => ($validated['title'] ?? null) ?: Str::limit(Str::squish(Str::before((string) $content, "\n")), 120),
+            'content' => $content,
+            'severity' => $validated['severity'] ?? 'normal',
+            'kpi_code' => $validated['kpi_code'] ?? null,
             'report_date' => $validated['report_date'] ?? now()->toDateString(),
             'status' => 'open',
         ]);
 
-        return back()->with('success', 'Đã ghi nhận sự vụ vào nhật ký!');
+        return back()->with('success', 'Đã thêm nhật ký!');
+    }
+
+    /** Admin bật / tắt "Lỗi nghiêm trọng" cho một sự việc; lưu người xác nhận để Học vụ thấy "Xác nhận bởi". */
+    public function journalSerious(Request $request, int $id): RedirectResponse
+    {
+        $report = StaffReport::query()->where('type', 'journal')->findOrFail($id);
+        $serious = $request->boolean('serious');
+        $report->update([
+            'serious_confirmed_by' => $serious ? Auth::id() : null,
+            'serious_confirmed_at' => $serious ? now() : null,
+        ]);
+
+        return back()->with('success', $serious ? 'Đã xác nhận lỗi nghiêm trọng.' : 'Đã bỏ đánh dấu lỗi nghiêm trọng.');
     }
 
     public function journalFollowup(Request $request, int $id)
@@ -817,7 +857,7 @@ class StaffReportController extends Controller
     /**
      * Báo cáo tháng của giáo viên (mockup 03/17 "Báo cáo chung của giáo viên"): báo cáo chấm công tháng (ghi chú) + báo cáo giảng dạy
      * theo từng lớp (A. Học thuật, B. Vận hành lớp, C. Chất lượng lớp) và nhận xét chung tháng (tiến độ, khó khăn, đề xuất — 04/10/2026).
-     * Kèm số liệu lớp trong tháng và order học thuật đã gửi để giáo viên tham chiếu. Lưu nháp được; nộp rồi thì lưu lại là cập nhật.
+     * Chuyên cần / bài tập gợi ý sẵn từ số liệu lớp trong tháng. Lưu nháp được; nộp rồi thì lưu lại là cập nhật.
      */
     public function teacherMonthly(Request $request): Response|RedirectResponse
     {
@@ -849,7 +889,6 @@ class StaffReportController extends Controller
             'general' => $report?->data['general'] ?? [],
             'classValues' => (object) ($report?->data['classes'] ?? []),
             'classes' => $classes,
-            'orders' => $this->academicOrders([Auth::id()], $quality),
             'status' => $report?->status,
             'submittedAt' => $report?->updated_at?->toIso8601String(),
             'attendance' => [
