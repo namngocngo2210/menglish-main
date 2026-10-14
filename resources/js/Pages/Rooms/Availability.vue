@@ -5,6 +5,7 @@
  */
 import { reactive } from 'vue';
 import { router } from '@inertiajs/vue3';
+import { route } from '@/lib/route';
 import BranchBlocked from './BranchBlocked.vue';
 import RoomTabs from './RoomTabs.vue';
 
