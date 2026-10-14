@@ -102,7 +102,8 @@ final class RoleSwitcher
         foreach (Roles::ALL as $role) {
             $users = $demo->filter(fn (User $user) => $user->roles->contains('name', $role))->values();
             if ($users->isEmpty()) {
-                $users = $this->activeUsers()->role($role)->orderBy('id')->limit((int) config('role_switcher.fallback_per_role', 3))->get();
+                // whereHas thay cho scope role(): vai trò đã bị xóa khỏi hệ thống thì bỏ qua, không lỗi cả trang.
+                $users = $this->activeUsers()->whereHas('roles', fn ($q) => $q->where('name', $role))->orderBy('id')->limit((int) config('role_switcher.fallback_per_role', 3))->get();
             }
             if ($users->isNotEmpty()) {
                 $groups[$role] = $users;

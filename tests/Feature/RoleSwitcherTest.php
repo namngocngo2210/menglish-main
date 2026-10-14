@@ -30,8 +30,9 @@ class RoleSwitcherTest extends TestCase
         $this->assistant = $this->user('ta.hai@menglish.edu.vn', Roles::ASSISTANT);
     }
 
-    public function test_switcher_is_off_by_default(): void
+    public function test_switcher_is_hidden_and_blocked_when_disabled(): void
     {
+        config(['role_switcher.enabled' => false]);
         $this->login($this->admin);
 
         $this->get(route('dashboard'))
