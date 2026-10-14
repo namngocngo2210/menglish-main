@@ -87,7 +87,7 @@ class StaffReportController extends Controller
         'test_students' => ['label' => 'Số học sinh test', 'type' => 'number'],
         'test_note' => ['label' => 'Ghi chú test', 'type' => 'text', 'placeholder' => 'Ghi chú chi tiết...'],
         'fees' => ['label' => 'Số lượng thu phí', 'type' => 'number'],
-        'fee_detail' => ['label' => 'Chi tiết thu phí', 'type' => 'text', 'placeholder' => 'Liệt kê tên học sinh + số tiền...'],
+        'fee_detail' => ['label' => 'Chi tiết thu phí', 'type' => 'text', 'rows' => 3, 'placeholder' => 'Liệt kê tên học sinh + số tiền...'],
         'media_posts' => ['label' => 'Bài đăng truyền thông', 'type' => 'text', 'placeholder' => 'Nhập nội dung kèm link bài viết...'],
     ];
 
