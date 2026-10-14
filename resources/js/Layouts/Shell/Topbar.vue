@@ -63,6 +63,9 @@ function search(event) {
                         <div class="truncate font-body-semibold text-body-small text-on-surface">{{ shell.user.name }}</div>
                         <div class="truncate font-caption text-caption text-on-surface-variant">{{ shell.user.login }}</div>
                     </div>
+                    <Link v-if="shell.checkin_url" :href="shell.checkin_url" class="flex items-center gap-sm px-md py-sm font-body-medium text-body-medium text-on-surface hover:bg-surface-container-low" data-menu-checkin>
+                        <span class="material-symbols-outlined text-[20px] text-on-surface-variant" aria-hidden="true">fingerprint</span> Chấm công
+                    </Link>
                     <Link :href="shell.profile_url" class="flex items-center gap-sm px-md py-sm font-body-medium text-body-medium text-on-surface hover:bg-surface-container-low">
                         <span class="material-symbols-outlined text-[20px] text-on-surface-variant" aria-hidden="true">account_circle</span> Hồ sơ cá nhân
                     </Link>

@@ -13,7 +13,7 @@ use WeakMap;
 /**
  * Hộp "Việc cần duyệt": gom các ApprovableSource user được duyệt (đăng ký ở ApprovalServiceProvider).
  * Chỉ Admin dùng hộp này (yêu cầu 06/10/2026, xem allowsModule()): vai trò khác không có nguồn nào → không thấy menu,
- * badge, thẻ "Chờ bạn duyệt" và bị 403 ở /approvals, /m/can-duyet. Duyệt ở màn nghiệp vụ gốc cũng chỉ Admin (AdminOnlyApprovals).
+ * badge, thẻ "Chờ bạn duyệt" và bị 403 ở /approvals. Duyệt ở màn nghiệp vụ gốc cũng chỉ Admin (AdminOnlyApprovals).
  *
  * Số đếm (badge sidebar + chip lọc):
  *  - Cache 60s theo user, kèm "phiên bản" chung; đọc bằng 1 lệnh Cache::many (1 truy vấn với cache database).
@@ -75,7 +75,7 @@ final class ApprovalInboxService
         return $this->remember($user, 'sources', fn () => array_filter($this->sources, fn (ApprovableSource $s) => $s->canView($user)));
     }
 
-    /** Vào được hộp (menu, badge, /approvals, /m/can-duyet, thẻ "Chờ bạn duyệt"): Admin và duyệt được ít nhất 1 nguồn. */
+    /** Vào được hộp (menu, badge, /approvals, thẻ "Chờ bạn duyệt"): Admin và duyệt được ít nhất 1 nguồn. */
     public function canView(?User $user): bool
     {
         return $user !== null && $this->visibleSources($user) !== [];

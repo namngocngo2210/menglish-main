@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Đơn xin duyệt về chấm công của nhân sự (mục "Xin duyệt" trên điện thoại), duyệt ở hộp Việc cần duyệt:
+ * Đơn xin duyệt về chấm công của nhân sự (Xin duyệt → Đơn chấm công & nghỉ), duyệt ở hộp Việc cần duyệt:
  *  - correction: Bổ sung công — quên / không chấm được, khai giờ vào / ra của 1 ngày.
  *  - late_early: Xin đi muộn / về sớm 1 ngày — đi muộn ngày đó không tính lỗi (biên bản tự động đang mở bị hủy).
  *  - leave:      Xin nghỉ (từ ngày → đến ngày) — ngày nghỉ có phép, hiện trên bảng công và phiếu lương.

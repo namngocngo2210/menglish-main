@@ -21,8 +21,8 @@ use App\Http\Controllers\KpiController;
 use App\Http\Controllers\MediaManagerController;
 use App\Http\Controllers\MerchandiseItemController;
 use App\Http\Controllers\MerchandiseStockController;
-use App\Http\Controllers\MobileStaffController;
 use App\Http\Controllers\MockupHubController;
+use App\Http\Controllers\MyAttendanceController;
 use App\Http\Controllers\ObservationController;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\PenaltyController;
@@ -134,20 +134,25 @@ Route::middleware('auth')->group(function () {
     // Người dùng KHÔNG được tự xóa tài khoản (Phase 4): chỉ người quản lý tài khoản xóa/khóa qua màn Tài khoản.
 
     // ─────────────────────────────────────────────
-    // Giao diện điện thoại cho nhân sự: chấm công (ảnh + GPS), lịch sử công, xin duyệt, cần duyệt
+    // Chấm công của nhân sự (ảnh khuôn mặt + GPS), lịch sử công, đơn chấm công & nghỉ: trang thường trong khu "Chấm công",
+    // máy tính và điện thoại dùng chung. Giao diện điện thoại riêng /m đã bỏ (14/10/2026); link /m cũ (đã lưu, ghim
+    // màn hình chính) chuyển hướng sang trang tương ứng, /m/can-duyet sang hộp Việc cần duyệt.
     // ─────────────────────────────────────────────
-    Route::controller(MobileStaffController::class)->prefix('m')->name('mobile.')->middleware('can:portal.staff')->group(function () {
+    Route::controller(MyAttendanceController::class)->prefix('cham-cong')->name('my-attendance.')->middleware('can:portal.staff')->group(function () {
         Route::get('/', 'home')->name('home');
-        Route::post('/cham-cong', 'punch')->middleware('throttle:20,1')->name('punch');
+        Route::post('/', 'punch')->middleware('throttle:20,1')->name('punch');
         Route::get('/lich-su', 'history')->name('history');
-        Route::get('/xin-duyet', 'requests')->name('requests');
-        Route::post('/xin-duyet', 'storeRequest')->name('requests.store');
-        Route::post('/xin-duyet/{attendanceRequest}/rut', 'cancelRequest')->whereNumber('attendanceRequest')->name('requests.cancel');
-        Route::get('/can-duyet', 'approvals')->name('approvals');
+        Route::get('/don', 'requests')->name('requests');
+        Route::post('/don', 'storeRequest')->name('requests.store');
+        Route::post('/don/{attendanceRequest}/rut', 'cancelRequest')->whereNumber('attendanceRequest')->name('requests.cancel');
     });
+    Route::redirect('/m', '/cham-cong');
+    Route::redirect('/m/lich-su', '/cham-cong/lich-su');
+    Route::redirect('/m/xin-duyet', '/cham-cong/don');
+    Route::redirect('/m/can-duyet', '/approvals');
     Route::get('/staff-attendance', [StaffAttendanceController::class, 'index'])->middleware('can:staff_checkin.view')->name('staff-attendance.index');
     Route::get('/staff-attendance/{attendance}', [StaffAttendanceController::class, 'show'])->whereNumber('attendance')->middleware('can:staff_checkin.view')->name('staff-attendance.show');
-    Route::get('/staff-attendance/{attendance}/photo/{kind}', [MobileStaffController::class, 'photo'])->whereNumber('attendance')->whereIn('kind', ['in', 'out'])->name('staff-attendance.photo');
+    Route::get('/staff-attendance/{attendance}/photo/{kind}', [MyAttendanceController::class, 'photo'])->whereNumber('attendance')->whereIn('kind', ['in', 'out'])->name('staff-attendance.photo');
 
     // ─────────────────────────────────────────────
     // Tuyển dụng & Quản lý Hồ sơ CV Ứng viên

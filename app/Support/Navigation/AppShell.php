@@ -59,6 +59,8 @@ final class AppShell
             'logout_url' => route('logout'),
             'profile_url' => route('profile.edit'),
             'guide_url' => route('guide.index'),
+            // Mục "Chấm công" trong menu tài khoản (bấm avatar): mọi nhân sự, cùng quyền với route.
+            'checkin_url' => $user->can('portal.staff') ? route('my-attendance.home') : null,
         ];
     }
 
@@ -76,10 +78,6 @@ final class AppShell
             'label' => $group['label'],
             'icon' => $group['icon'],
             'url' => $group['url'],
-            // Link trên máy tính (≥ md) khi khác link điện thoại: bỏ qua mục chỉ dành cho điện thoại.
-            'desktop_url' => $group['desktop_url'] !== $group['url'] ? $group['desktop_url'] : null,
-            // Khu chỉ có mục dành cho điện thoại (vd. "Xin duyệt" của người chỉ gửi được đơn chấm công): ẩn trên máy tính.
-            'desktop_hidden' => $group['desktop_url'] === null,
             'active' => $group['is_active'],
             // Mục mở modal thay vì chuyển trang (vd. "Tạo đầu việc"); mở thẳng URL vẫn ra trang đầy đủ.
             'modal' => $group['modal'] ?? null,
@@ -148,8 +146,6 @@ final class AppShell
             'label' => $tab['label'],
             'url' => $tab['url'],
             'route' => $tab['route'],
-            // Tab chỉ dành cho điện thoại (vd. Chấm công /m): ẩn trên máy tính.
-            'mobile_only' => ! empty($tab['mobile_only']),
             'active' => $tab['active'] || $chips->contains(fn (array $chip) => $chip['chip_of'] === $tab['route'] && $chip['active']),
         ])->values();
 

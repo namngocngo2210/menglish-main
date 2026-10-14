@@ -194,7 +194,7 @@ const mapUrl = computed(() =>
         <UiModal :show="!!checkin" :title="checkin ? `Cài đặt chấm công: ${checkin.name}` : ''" max-width="2xl" @close="checkin = null">
             <UiForm v-if="checkin" id="branchCheckinForm" :key="checkin.id" :action="route('branches.attendance', checkin.id)" method="put" class="space-y-md" @success="checkin = null">
                 <p class="font-body-small text-body-small text-on-surface-variant">
-                    Nhân sự của cơ sở chỉ chấm công được trên điện thoại khi GPS nằm trong bán kính quanh toạ độ này. Tìm địa chỉ trên bản đồ rồi kéo ghim đến đúng cổng cơ sở, dán toạ độ từ Google Maps (nhấn giữ vị trí → sao chép "vĩ độ, kinh độ") hoặc đứng tại cơ sở và bấm "Lấy vị trí hiện tại".
+                    Nhân sự của cơ sở chỉ chấm công được khi GPS nằm trong bán kính quanh toạ độ này. Tìm địa chỉ trên bản đồ rồi kéo ghim đến đúng cổng cơ sở, dán toạ độ từ Google Maps (nhấn giữ vị trí → sao chép "vĩ độ, kinh độ") hoặc đứng tại cơ sở và bấm "Lấy vị trí hiện tại".
                 </p>
                 <BranchLocationMap :latitude="checkin.latitude" :longitude="checkin.longitude" :radius="checkin.radius" :address="checkin.address" @pick="pickOnMap" />
                 <div class="grid grid-cols-2 gap-md">

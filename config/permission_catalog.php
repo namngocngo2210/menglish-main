@@ -408,7 +408,7 @@ return [
         ],
         // Mọi nhân sự (portal.staff) tự chấm công trên điện thoại và gửi đơn của mình, không cần quyền riêng.
         'staff_checkin' => [
-            'label' => 'Chấm công hằng ngày (điện thoại)',
+            'label' => 'Chấm công hằng ngày (ảnh + GPS)',
             'group' => 'hr',
             'icon' => 'fingerprint',
             'actions' => [
