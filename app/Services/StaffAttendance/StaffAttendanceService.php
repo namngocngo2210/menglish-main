@@ -401,7 +401,7 @@ class StaffAttendanceService
             'type' => 'staff_attendance_request',
             'title' => "{$verb} đơn {$request->typeLabel()} ngày {$request->periodLabel()}",
             'message' => $reason ? 'Lý do: '.$reason : 'Đơn của bạn đã được duyệt.',
-            'data' => ['link' => route('mobile.requests')],
+            'data' => ['link' => route('my-attendance.requests')],
             'is_read' => false,
         ]);
     }

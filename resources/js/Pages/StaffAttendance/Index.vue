@@ -1,7 +1,7 @@
 <script setup>
 /**
  * Chấm công hằng ngày (quản lý): theo ngày (ai đã vào / ra, đi muộn, chưa chấm, nghỉ phép; bấm dòng xem ảnh + vị trí)
- * hoặc tổng hợp theo tháng (đối soát lương). Nhân sự tự chấm trên điện thoại (/m).
+ * hoặc tổng hợp theo tháng (đối soát lương). Nhân sự tự chấm ở tab Chấm công của tôi (/cham-cong).
  */
 import { computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
@@ -27,11 +27,7 @@ const tabClass = (active) => [
 </script>
 
 <template>
-    <UiPageHeader title="Chấm công hằng ngày" icon="fingerprint" description="Nhân sự chấm công trên điện thoại bằng ảnh khuôn mặt + GPS tại cơ sở; giờ lấy theo máy chủ.">
-        <template #actions>
-            <UiButton variant="secondary" icon="smartphone" :href="route('mobile.home')">Giao diện điện thoại</UiButton>
-        </template>
-    </UiPageHeader>
+    <UiPageHeader title="Chấm công hằng ngày" icon="fingerprint" description="Nhân sự chấm công ở tab Chấm công của tôi bằng ảnh khuôn mặt + GPS tại cơ sở; giờ lấy theo máy chủ." />
 
     <div class="space-y-md">
         <UiAlert v-if="unconfigured.length" type="warning">
