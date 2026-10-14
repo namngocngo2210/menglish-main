@@ -38,6 +38,9 @@ const props = defineProps({
 });
 
 const cardClass = 'rounded-xl border border-outline-variant bg-surface-container-lowest shadow-sm';
+const genders = [{ value: 'Nam', label: 'Nam' }, { value: 'Nữ', label: 'Nữ' }, { value: 'Khác', label: 'Khác' }];
+// Giá trị cũ ngoài danh sách (nhập Excel CRM ghi tự do) vẫn hiện để lưu form không làm mất.
+const genderOptions = computed(() => (props.student.gender && !genders.some((g) => g.value === props.student.gender) ? [...genders, { value: props.student.gender, label: props.student.gender }] : genders));
 const roadmapFilter = ref('all');
 const showAll = ref(false);
 const filterOptions = [
@@ -73,7 +76,7 @@ const openPayments = () => openRemoteModal(paymentsUrl.value, { size: '2xl' });
                     <h2 class="font-h2 text-h2 text-on-surface">{{ student.name }}</h2>
                     <p class="flex items-center justify-center gap-xs font-body-small text-body-small text-on-surface-variant">
                         <span class="material-symbols-outlined text-[18px] text-primary-container" aria-hidden="true">cake</span>
-                        {{ student.dob_label ?? 'Chưa cập nhật ngày sinh' }}
+                        {{ student.dob_label ?? 'Chưa cập nhật ngày sinh' }}<template v-if="student.gender"> · {{ student.gender }}</template>
                     </p>
                     <div v-if="canViewContact" data-section="contact" class="space-y-xs">
                         <p class="flex items-center justify-center gap-xs font-code text-code text-on-surface">
@@ -92,6 +95,10 @@ const openPayments = () => openRemoteModal(paymentsUrl.value, { size: '2xl' });
                     <div class="rounded-lg bg-surface-container-low p-sm" data-field="study-started">
                         <p class="font-label text-label uppercase text-on-surface-variant">Ngày bắt đầu học</p>
                         <p class="font-code text-code font-semibold text-on-surface">{{ student.study_started_on ?? 'Chưa vào học' }}</p>
+                    </div>
+                    <div class="col-span-2 rounded-lg bg-surface-container-low p-sm" data-field="entrance-score">
+                        <p class="font-label text-label uppercase text-on-surface-variant">Điểm test đầu vào</p>
+                        <p class="font-code text-code font-semibold text-on-surface">{{ student.entrance_score || 'Chưa có' }}</p>
                     </div>
                     <div class="col-span-2 space-y-xs font-caption text-caption text-on-surface-variant">
                         <p class="flex flex-wrap items-center justify-center gap-xs">
@@ -113,6 +120,8 @@ const openPayments = () => openRemoteModal(paymentsUrl.value, { size: '2xl' });
                     <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
                         <UiInput name="name" label="Họ và tên" required :value="student.name" />
                         <UiInput name="phone" type="tel" label="Số điện thoại" required :value="student.phone" />
+                        <UiDate name="dob" label="Ngày sinh" :value="student.dob_value" :max="student.today" />
+                        <UiSelect name="gender" label="Giới tính" placeholder="-- Chọn --" :value="student.gender" :options="genderOptions" />
                         <UiInput name="email" type="email" label="Email liên hệ" :value="student.email" placeholder="hocvien@menglish.edu.vn" />
                         <UiInput name="target" label="Mục tiêu học tập" :value="student.target" placeholder="VD: IELTS 6.5, Cambridge Starters..." />
                         <UiInput name="parent_name" label="Họ tên phụ huynh" :value="student.parent_name" placeholder="VD: Nguyễn Thị Hoa" />
@@ -137,7 +146,10 @@ const openPayments = () => openRemoteModal(paymentsUrl.value, { size: '2xl' });
                     </div>
                 </UiForm>
                 <div v-else class="space-y-md">
-                    <UiInput id="ro_school" label="Trường học" :value="student.school" disabled />
+                    <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
+                        <UiInput id="ro_school" label="Trường học" :value="student.school" disabled />
+                        <UiInput id="ro_gender" label="Giới tính" :value="student.gender ?? 'Chưa cập nhật'" disabled />
+                    </div>
                     <template v-if="canViewContact">
                         <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
                             <UiInput id="ro_parent_name" label="Họ tên phụ huynh" :value="student.parent_name" disabled />
