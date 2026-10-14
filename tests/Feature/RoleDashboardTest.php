@@ -8,6 +8,7 @@ use App\Models\ClassSession;
 use App\Models\Course;
 use App\Models\CrmCustomer;
 use App\Models\CrmTrialBooking;
+use App\Models\Student;
 use App\Models\User;
 use App\Models\WorkTask;
 use Database\Seeders\PermissionSeeder;
@@ -100,6 +101,35 @@ class RoleDashboardTest extends TestCase
         $this->assertContains('Khách chưa liên hệ >24h', collect($board['queues'])->pluck('label')->all());
     }
 
+    public function test_closed_customer_shows_post_close_support_instead_of_test_appointment(): void
+    {
+        $class = ClassModel::where('code', 'ST1')->firstOrFail();
+        // Vừa chốt vào lớp, còn lịch test cũ ngày mai → thay bằng support Buổi 1 vào buổi học đầu tiên của lớp (thứ 2).
+        $newStudent = Student::create(['code' => 'HV-1', 'name' => 'Khách Vừa Chốt', 'phone' => '0911000001', 'branch_id' => $this->branch->id, 'current_class_id' => $class->id, 'status' => 'waiting_start']);
+        $this->lead(['name' => 'Khách Vừa Chốt', 'stage' => 'won', 'appointment_at' => '2026-10-04 09:00', 'converted_student_id' => $newStudent->id, 'converted_at' => '2026-10-02 10:00']);
+        // Chờ xếp lớp có lịch test hôm nay: không còn tính là hẹn test.
+        $this->lead(['name' => 'Chờ Xếp Lớp', 'stage' => 'waiting_class', 'appointment_at' => '2026-10-03 15:00']);
+
+        // Đang học: việc Buổi 4–5 hạn thứ 4 chưa xong thì hiện; Buổi 1 đã xong, Đủ 30 ngày (05/10) đã tick CRM thì không.
+        $studying = Student::create(['code' => 'HV-2', 'name' => 'Đang Học', 'phone' => '0911000002', 'branch_id' => $this->branch->id, 'current_class_id' => $class->id, 'status' => 'studying']);
+        $this->lead(['name' => 'Đang Học', 'stage' => 'won', 'converted_student_id' => $studying->id, 'converted_at' => '2026-09-05 10:00', 'care_checklist' => ['day_30' => ['done_at' => '2026-10-01 09:00', 'by' => 'CM']]]);
+        $care = fn (int $milestone, string $due, string $status) => WorkTask::create(['title' => "Chăm sóc mốc {$milestone}", 'creator_id' => $this->sales->id, 'assignee_id' => $this->staff->id, 'branch_id' => $this->branch->id, 'student_id' => $studying->id, 'care_milestone' => $milestone, 'due_date' => $due, 'task_type' => 'one_time', 'status' => $status]);
+        $care(1, '2026-10-03', 'completed');
+        $care(4, '2026-10-07', 'new');
+
+        $board = $this->actingAs($this->staff)->get(route('dashboard'))->assertOk()->inertiaProps('roleDashboard');
+
+        $agenda = collect($board['agenda']['days'])->flatMap(fn ($day) => collect($day['items'])->map(fn ($item) => $day['label'].' | '.$item['time'].' | '.$item['kindLabel'].' | '.$item['title'].' | '.$item['subtitle']));
+        $this->assertSame([
+            'Hôm nay · 03/10 | 09:00 | Test đầu vào | Test Sáng Nay | Tại cơ sở · Chưa làm bài · '.$this->sales->name,
+            'Thứ 2 · 05/10 | 18:00 | Học thử | Học Thử Thứ Hai | Lớp ST1 · 18:00–19:30',
+            'Thứ 2 · 05/10 | 18:00 | Support sau chốt | Khách Vừa Chốt | Buổi học đầu tiên, hỏi phản hồi sau buổi · Lớp ST1',
+            'Thứ 3 · 06/10 | 14:00 | Gọi lại | Gọi Lại Thứ Ba | Đang tư vấn',
+            'Thứ 4 · 07/10 |  | Support sau chốt | Đang Học | Buổi 4–5 — Trao đổi tiến độ với phụ huynh · Lớp ST1 · '.$this->staff->name,
+        ], $agenda->all());
+        $this->assertSame('1', collect($board['stats'])->keyBy('label')['Hẹn test hôm nay']['value']);
+    }
+
     public function test_sales_only_sees_own_customers(): void
     {
         $board = $this->actingAs($this->sales)->get(route('dashboard'))->assertOk()->inertiaProps('roleDashboard');
@@ -130,7 +160,7 @@ class RoleDashboardTest extends TestCase
             ->inertiaProps('roleDashboard');
         // Học thuật: không kèm học thử / gọi lại khách của CRM.
         $kinds = collect($board['agenda']['days'])->flatMap(fn ($day) => collect($day['items'])->pluck('kind'))->unique()->values()->all();
-        $this->assertEmpty(array_intersect($kinds, ['trial', 'call']));
+        $this->assertEmpty(array_intersect($kinds, ['trial', 'call', 'care']));
     }
 
     public function test_teacher_gets_personal_board_without_crm_blocks(): void
