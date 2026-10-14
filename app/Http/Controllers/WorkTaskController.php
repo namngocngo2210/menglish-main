@@ -813,6 +813,8 @@ class WorkTaskController extends Controller
         $canComplete = $taUser && ((int) $taUser->id === (int) $viewer->id || $viewer->can('work_task.approve'));
         $isToday = $date->isToday();
 
+        // Phòng / giờ học của lớp trong ngày (chip "Trực lớp: … (Phòng …)", "Ca học: 18:00 - 19:30" — mockup TA 15/09/2026).
+        $sessionOf = $sessions->keyBy('class_id');
         $card = fn (WorkTask $task) => [
             'id' => $task->id,
             'title' => $task->title,
@@ -820,6 +822,11 @@ class WorkTaskController extends Controller
             'status_label' => $task->status_label,
             'class_id' => $task->class_id,
             'class_label' => $task->classModel ? ($task->classModel->code ?? $task->classModel->name).($task->lesson_session ? ' · '.$task->lesson_session : '') : null,
+            'room' => $task->class_id ? $sessionOf->get($task->class_id)?->room : null,
+            'session_time' => ($s = $task->class_id ? $sessionOf->get($task->class_id) : null) && $s->start_time && $s->end_time
+                ? $s->start_time->format('H:i').' - '.$s->end_time->format('H:i') : null,
+            'creator' => $task->creator?->name,
+            'has_proof' => $task->status === 'completed' && (filled($task->completion_proof_image) || (bool) $task->classReport?->has_image),
             'blocked_reason' => $task->blocked_reason,
             'late_hours' => $task->status === 'overdue' ? max(1, $task->lateHours()) : 0,
             'completed_at' => $task->completed_at?->format('H:i'),
@@ -839,8 +846,12 @@ class WorkTaskController extends Controller
         ]);
 
         return Inertia::render('Tasks/TaPortal', [
-            'title' => $isToday ? 'Nhiệm vụ hằng ngày' : 'Nhiệm vụ ngày '.$date->format('d/m/Y'),
-            'taUser' => $taUser ? ['id' => $taUser->id, 'name' => $taUser->name] : null,
+            'title' => $isToday ? 'Nhiệm vụ hôm nay' : 'Nhiệm vụ ngày '.$date->format('d/m/Y'),
+            'taUser' => $taUser ? ['id' => $taUser->id, 'name' => $taUser->name, 'branch' => $taUser->branch?->name] : null,
+            'progress' => [
+                'done' => $tasks->where('status', 'completed')->count(),
+                'total' => $tasks->where('status', '!=', 'canceled')->count(),
+            ],
             'date' => $date->toDateString(),
             'isToday' => $isToday,
             'canPickTa' => $canPickTa,
@@ -928,7 +939,7 @@ class WorkTaskController extends Controller
 
         // Buổi học thật của lớp (30 ngày gần nhất tới hôm nay) cho ô "Buổi học" và "Buổi vắng".
         $sessions = $selectedClass
-            ? ClassSession::where('class_id', $selectedClass->id)
+            ? ClassSession::with('branch:id,name')->where('class_id', $selectedClass->id)
                 ->where('status', '!=', 'cancelled')
                 ->where('type', '!=', ClassSession::TYPE_SUPPORT)
                 ->whereDate('date', '<=', today()->toDateString())
@@ -961,6 +972,23 @@ class WorkTaskController extends Controller
             // Dòng gợi ý "Không có ảnh →": chờ Admin xác nhận (khi lớp có GV chính hoặc gắn việc được giao) / bắt buộc ảnh.
             'confirmMode' => $selectedClass?->teacher_id && (int) $selectedClass->teacher_id !== (int) $user->id ? 'teacher' : ($confirmer ? 'creator' : 'none'),
             'confirmer' => $confirmer?->name,
+            // Khối "Thông tin ca trực gán sẵn (chỉ đọc)" — mockup Báo cáo trực lớp 14/10/2026.
+            'classInfo' => $selectedClass ? [
+                'name' => $selectedClass->name,
+                'code' => $selectedClass->code,
+                'teacher' => $selectedClass->teacher?->name,
+                'total_sessions' => ClassSession::where('class_id', $selectedClass->id)->where('status', '!=', 'cancelled')
+                    ->where('type', '!=', ClassSession::TYPE_SUPPORT)->count(),
+            ] : null,
+            'sessionDetails' => $sessions->mapWithKeys(fn (ClassSession $s) => [$s->id => [
+                'no' => $lessons[$s->id]['no'] ?? null,
+                'title' => $lessons[$s->id]['title'] ?? null,
+                'date' => $s->date->toDateString(),
+                'time' => $s->start_time && $s->end_time ? $s->start_time->format('H:i').' - '.$s->end_time->format('H:i') : null,
+                'room' => $s->room,
+                'branch' => $s->branch?->name,
+            ]])->all(),
+            'reporter' => $user->name.(($role = $user->roles->first()?->name) ? ' ('.AclHelper::shortRoleLabel($role).')' : ''),
         ]);
     }
 

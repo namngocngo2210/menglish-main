@@ -72,7 +72,7 @@ class ProfileController extends Controller
             ['label' => 'Lịch học các lớp', 'route' => 'tasks.classes-dashboard', 'icon' => 'calendar_month'],
             ['label' => 'Công việc', 'route' => 'tasks.index', 'icon' => 'task_alt'],
             ['label' => 'Việc cần duyệt', 'route' => 'approvals.index', 'icon' => 'approval', 'can' => [\App\Providers\ApprovalServiceProvider::INBOX_ABILITY]],
-            ['label' => 'Nhật ký sự vụ học vụ', 'route' => 'reports.journal', 'icon' => 'edit_note'],
+            ['label' => 'Nhật ký Học vụ', 'route' => 'reports.journal', 'icon' => 'edit_note'],
             ['label' => 'Báo cáo ngày của tôi', 'route' => 'reports.my', 'icon' => 'summarize'],
             ['label' => 'Lương của tôi', 'route' => 'portal.my-salary', 'icon' => 'payments', 'can' => ['payroll.view_own']],
         ],

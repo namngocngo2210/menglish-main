@@ -384,7 +384,7 @@ final class SidebarMenu
                     // Báo cáo & nhật ký mọi nhân sự đã nộp (trước nằm trong Cài đặt → Hệ thống); route cần staff_report.view_all.
                     ['label' => 'Tổng hợp báo cáo & nhật ký', 'route' => 'reports.all'],
                     ...self::anchored(self::HR, [
-                        ['label' => 'Nhật ký sự vụ học vụ', 'route' => 'reports.journal'],
+                        ['label' => 'Nhật ký Học vụ', 'route' => 'reports.journal'],
                         ['label' => 'Phiếu KPI tháng', 'route' => 'kpi.monthly', 'active' => ['kpi.monthly', 'kpi.evaluate']],
                         ['label' => 'Rà soát điểm danh', 'route' => 'kpi.attendance-review'],
                     ]),

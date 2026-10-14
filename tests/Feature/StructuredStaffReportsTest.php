@@ -51,16 +51,17 @@ class StructuredStaffReportsTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page->component('Reports/DailyOps')->where('date', $today)
                 ->has('sections', 3)->where('assignees.0.value', $staff->id)->where('task', null));
 
-        // Không nhập gì → báo lỗi; bật Tạo Task mà thiếu tiêu đề → báo lỗi.
+        // Không nhập gì → báo lỗi; bật Tạo Task mà thiếu ngày giải quyết → báo lỗi.
         $this->actingAs($staff)->post(route('reports.periodic.daily.store'), ['date' => $today, 'fields' => []])->assertSessionHasErrors('fields');
         $this->actingAs($staff)->post(route('reports.periodic.daily.store'), [
             'date' => $today, 'fields' => ['classes_planned' => 5], 'task' => ['enabled' => 1],
-        ])->assertSessionHasErrors(['task.title', 'task.description', 'task.due_date', 'task.assignee_id']);
+        ])->assertSessionHasErrors('task.due_date');
         // Ngày chưa tới không nộp được.
         $this->actingAs($staff)->post(route('reports.periodic.daily.store'), ['date' => now()->addDay()->toDateString(), 'fields' => ['classes_planned' => 5]])
             ->assertSessionHasErrors('date');
 
-        $task = ['enabled' => 1, 'title' => 'Sửa điều hòa phòng 302', 'description' => 'Gọi bảo trì', 'due_date' => $today, 'assignee_id' => $staff->id];
+        // Mockup 02/06: Task follow-up chỉ có Ngày giải quyết + Người phụ trách (để trống là mình).
+        $task = ['enabled' => 1, 'due_date' => $today, 'assignee_id' => ''];
         $this->actingAs($staff)->post(route('reports.periodic.daily.store'), [
             'date' => $today, 'fields' => ['classes_planned' => 12, 'classes_actual' => 11, 'facilities' => 'Phòng 302 hỏng điều hòa'], 'task' => $task,
         ])->assertSessionHasNoErrors()->assertRedirect(route('reports.periodic.daily', ['date' => $today]));
@@ -77,10 +78,12 @@ class StructuredStaffReportsTest extends TestCase
 
         $created = WorkTask::sole();
         $this->assertSame($report->data['task_id'], $created->id);
-        $this->assertSame([$staff->id, $staff->id, 'Sửa điều hòa phòng 302'], [(int) $created->creator_id, (int) $created->assignee_id, $created->title]);
+        $label = now()->format('d/m/Y');
+        $this->assertSame([$staff->id, $staff->id, 'Follow-up báo cáo ngày '.$label], [(int) $created->creator_id, (int) $created->assignee_id, $created->title]);
+        $this->assertStringContainsString('Cơ sở vật chất: Phòng 302 hỏng điều hòa', $created->description);
 
         $this->actingAs($staff)->get(route('reports.periodic.daily', ['date' => $today]))->assertOk()
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('values.classes_actual', 12)->where('task.title', 'Sửa điều hòa phòng 302')->has('history', 1));
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('values.classes_actual', 12)->where('task.title', 'Follow-up báo cáo ngày '.$label)->has('history', 1));
 
         // Việc follow-up chỉ giao cho người mình được giao việc (tài khoản đã khóa thì không).
         $stranger = $this->makeUser('teacher_fulltime', ['is_active' => false]);

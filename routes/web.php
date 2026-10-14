@@ -764,9 +764,11 @@ Route::middleware('auth')->group(function () {
         Route::post('/journal', 'journalStore')->name('journal.store');
         Route::post('/journal/{id}/followup', 'journalFollowup')->name('journal.followup');
         Route::post('/journal/{id}/status', 'journalStatus')->name('journal.status');
+        Route::post('/journal/{id}/serious', 'journalSerious')->whereNumber('id')->middleware('can:'.AdminOnlyApprovals::ABILITY)->name('journal.serious');
         Route::get('/my', 'myReports')->name('my');
         Route::post('/my', 'reportStore')->name('my.store');
         Route::get('/all', 'allReports')->middleware('can:staff_report.view_all')->name('all');
+        Route::post('/{id}/review', 'review')->whereNumber('id')->middleware('can:'.AdminOnlyApprovals::ABILITY)->name('review');
         // Báo cáo có cấu trúc theo vai trò (StaffType::structuredReports — controller kiểm tra).
         Route::get('/daily', 'daily')->name('periodic.daily');
         Route::post('/daily', 'dailyStore')->name('periodic.daily.store');

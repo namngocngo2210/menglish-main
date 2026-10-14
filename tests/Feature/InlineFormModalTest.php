@@ -62,26 +62,25 @@ class InlineFormModalTest extends TestCase
         $this->assertMatchesRegularExpression('/<div[^>]*style="display:\s*none;?"[^>]*data-modal|<div[^>]*data-modal[^>]*style="display:\s*none;?"/', substr($html, strrpos(substr($html, 0, $dialog), '<div'), $form));
     }
 
-    /** Nhật ký sự vụ đã sang Vue: form tạo nằm trong UiModal đóng sẵn; lỗi validate trả về kèm lỗi, modal (giữ state) vẫn mở. */
-    public function test_journal_create_form_lives_in_a_closed_vue_modal(): void
+    /** Nhật ký Học vụ (mockup 02/05): form "Thêm nhật ký mới" nằm ngay trên trang, không trong modal. */
+    public function test_journal_create_form_is_inline_on_the_page(): void
     {
         $this->actingAs($this->admin)->get(route('reports.journal'))->assertOk()
-            ->assertSee('Ghi nhận sự vụ mới')
+            ->assertSee('Thêm nhật ký mới')
             ->assertSee('id="new-journal-form"', false)
-            ->assertSee('form="new-journal-form"', false)
             ->assertInertia(fn (AssertableInertia $page) => $page->component('Reports/Journal'));
     }
 
     public function test_validation_error_returns_with_errors_and_entered_values(): void
     {
         $this->actingAs($this->admin)->from(route('reports.journal'))
-            ->post(route('reports.journal.store'), ['title' => '', 'severity' => 'normal', 'content' => 'Mô tả giữ lại'])
+            ->post(route('reports.journal.store'), ['kpi_code' => '9.9', 'content' => 'Mô tả giữ lại'])
             ->assertRedirect(route('reports.journal'))
-            ->assertSessionHasErrors('title')
+            ->assertSessionHasErrors('kpi_code')
             ->assertSessionHasInput('content', 'Mô tả giữ lại');
         $this->assertSame(0, StaffReport::count());
 
         $this->actingAs($this->admin)->get(route('reports.journal'))->assertOk()
-            ->assertInertia(fn (AssertableInertia $page) => $page->component('Reports/Journal')->has('errors.title'));
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Reports/Journal')->has('errors.kpi_code'));
     }
 }

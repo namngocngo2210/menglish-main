@@ -4,12 +4,14 @@
  * cấu hình KPI Học vụ), phải là thông tin theo dõi (chỉ số quy mô, không tính KPI). Mỗi tuần 1 báo cáo, lưu lại trong tuần là cập nhật.
  */
 import { ref } from 'vue';
+import { router } from '@inertiajs/vue3';
+import { route } from '@/lib/route';
 import ReportTabs from './ReportTabs.vue';
 import ReportHistory from './ReportHistory.vue';
 
 defineOptions({ layout: { title: 'Báo cáo tuần Học vụ' } });
 
-defineProps({
+const props = defineProps({
     tabs: { type: Array, default: () => [] },
     week: { type: String, required: true },
     weeks: { type: Array, default: () => [] },
@@ -21,18 +23,26 @@ defineProps({
 });
 
 const form = ref(null);
+const pickWeek = (value) => value && value !== props.week && router.get(route('reports.periodic.weekly-kpi'), { week: value });
 </script>
 
 <template>
     <UiPageHeader title="Nhập báo cáo tuần" icon="assignment_turned_in">
-        <template #meta>Nhập số liệu thực tế phát sinh trong tuần học vụ tương ứng</template>
+        <template #badges>
+            <UiInfo title="Hướng dẫn nhập báo cáo tuần">
+                <p>Nhập số liệu thực tế phát sinh trong tuần học vụ tương ứng.</p>
+                <p>Mỗi mục KPI ghi <strong class="text-on-surface">số lần phát sinh</strong> trong tuần (để trống = 0). Các chỉ số quy mô chỉ để theo dõi, không tính KPI.</p>
+            </UiInfo>
+        </template>
+        <template #actions>
+            <div class="w-72">
+                <p class="mb-xs font-body-small text-body-small font-semibold text-on-surface-variant">Tuần báo cáo</p>
+                <UiSelect :model-value="week" :options="weeks" :searchable="false" aria-label="Tuần báo cáo" @update:model-value="pickWeek" />
+            </div>
+        </template>
     </UiPageHeader>
 
     <ReportTabs :tabs="tabs" />
-
-    <UiFilterBar :search="false">
-        <UiSelect name="week" label="Tuần báo cáo" :options="weeks" :value="week" />
-    </UiFilterBar>
 
     <UiForm ref="form" id="weekly-kpi-form" :action="route('reports.periodic.weekly-kpi.store')" method="post" class="space-y-lg">
         <input type="hidden" name="week" :value="week" />
