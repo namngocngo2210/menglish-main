@@ -1,7 +1,8 @@
 <script setup>
-/** Topbar: tiêu đề trang (chữ thuần) · tìm kiếm chung · thông báo · tài khoản. */
+/** Topbar: tiêu đề trang (chữ thuần) · tìm kiếm chung · đổi vai trò (chỉ bản thử nghiệm) · thông báo · tài khoản. */
 import { Link, router } from '@inertiajs/vue3';
 import NotificationMenu from './NotificationMenu.vue';
+import RoleSwitcherMenu from './RoleSwitcherMenu.vue';
 
 defineProps({
     shell: { type: Object, required: true },
@@ -44,6 +45,7 @@ function search(event) {
         </div>
 
         <div class="flex shrink-0 items-center gap-xs sm:gap-md">
+            <RoleSwitcherMenu />
             <NotificationMenu :notifications="shell.notifications" />
 
             <UiDropdown align="right" width="56">

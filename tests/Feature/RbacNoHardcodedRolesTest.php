@@ -45,6 +45,7 @@ class RbacNoHardcodedRolesTest extends TestCase
         'app/Http/Controllers/WorkTaskController.php' => 1, // tab mặc định "Tất cả" (giao diện)
         'app/Services/NotificationService.php' => 1,       // không tìm được người phân công ticket → báo Super Admin
         'resources/views/users/permissions.blade.php' => 1, // cảnh báo "Super Admin luôn toàn quyền"
+        'app/Support/RoleSwitcher.php' => 1,               // đổi vai trò thử nghiệm (staging): chỉ Super Admin bắt đầu được
     ];
 
     public function test_business_code_has_no_hardcoded_role_checks(): void
