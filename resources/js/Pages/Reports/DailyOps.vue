@@ -102,18 +102,12 @@ const textRows = (row, name) => field(name).rows ?? (row.length > 1 ? 2 : 3);
                     </label>
                 </div>
                 <p v-if="task" class="font-body-small text-body-small text-on-surface" data-daily-task-created>
-                    Đã tạo việc <strong>{{ task.title }}</strong> · Người phụ trách: {{ task.assignee ?? '—' }} · Hạn {{ formatDate(task.due_date, 'd/m/Y') }}.
+                    Đã tạo việc <strong>{{ task.title }}</strong> · Người phụ trách: {{ task.assignee ?? '—' }} · Ngày giải quyết {{ formatDate(task.due_date, 'd/m/Y') }}.
                     <UiButton variant="ghost" size="sm" :href="route('tasks.index')">Mở danh sách việc</UiButton>
                 </p>
                 <div v-else-if="taskOn" class="grid grid-cols-1 gap-lg md:grid-cols-2">
-                    <div class="md:col-span-2">
-                        <UiInput name="task[title]" label="Tiêu đề công việc follow-up" required placeholder="Ví dụ: Gọi điện phụ huynh em Minh giải thích việc vắng học..." />
-                    </div>
-                    <div class="md:col-span-2">
-                        <UiTextarea name="task[description]" label="Nội dung chi tiết & hành động tiếp theo" required :rows="3" placeholder="Mô tả cụ thể nhiệm vụ, kết quả mong đợi hoặc tài liệu cần chuẩn bị..." />
-                    </div>
-                    <UiDate name="task[due_date]" label="Ngày hạn chót giải quyết" required :value="today" />
-                    <UiSelect name="task[assignee_id]" label="Người phụ trách (PIC)" required :options="assignees" :value="assignees[0]?.value" />
+                    <UiDate name="task[due_date]" label="Ngày giải quyết" required icon="calendar_today" :value="today" />
+                    <UiSelect name="task[assignee_id]" label="Người phụ trách (PIC)" :options="assignees" :value="assignees[0]?.value" :searchable="assignees.length > 8" />
                 </div>
             </section>
 

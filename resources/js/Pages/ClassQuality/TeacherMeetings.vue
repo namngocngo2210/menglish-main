@@ -23,13 +23,26 @@ const editing = ref(null);
 const deleting = ref(null);
 const teacherId = ref('');
 const classId = ref('');
+const weekDate = ref(null);
 
 function openForm(report = {}) {
     viewing.value = null;
     editing.value = report;
     teacherId.value = report.teacher_id ? String(report.teacher_id) : '';
     classId.value = report.class_id ? String(report.class_id) : '';
+    weekDate.value = report.week_start ?? props.currentWeek;
 }
+// Tuần (thứ 2 – chủ nhật) của ngày đang chọn, hiện dưới ô như mockup "10/10/2023 - 16/10/2023".
+const weekRange = computed(() => {
+    if (!weekDate.value || !/^\d{4}-\d{2}-\d{2}/.test(weekDate.value)) return null;
+    const d = new Date(`${weekDate.value.slice(0, 10)}T00:00:00`);
+    const start = new Date(d);
+    start.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    const f = (x) => `${String(x.getDate()).padStart(2, '0')}/${String(x.getMonth() + 1).padStart(2, '0')}/${x.getFullYear()}`;
+    return `${f(start)} - ${f(end)}`;
+});
 
 const classOptions = computed(() => {
     const e = editing.value;
@@ -144,29 +157,27 @@ const NOTES = [
             @success="editing = null"
         >
             <section class="space-y-md">
-                <h3 class="font-semibold text-on-surface">Thông tin chung</h3>
+                <h3 class="font-h3 text-h3 text-on-surface">Thông tin chung</h3>
                 <div class="grid grid-cols-1 gap-md sm:grid-cols-3">
-                    <UiDate name="week_start" label="Tuần (chọn 1 ngày bất kỳ)" required :value="editing.week_start ?? currentWeek" />
-                    <UiSelect name="teacher_id" label="Giáo viên" required :options="teachers" placeholder="-- Chọn giáo viên --" :model-value="teacherId" @update:model-value="pickTeacher" />
-                    <UiSelect v-model="classId" name="class_id" label="Lớp học" :options="classOptions" :placeholder="teacherId ? '-- Chọn lớp --' : 'Chọn giáo viên trước'" :hint="course ? `Chương trình: ${course}` : null" />
+                    <UiDate name="week_start" label="Chọn tuần" required :value="editing.week_start ?? currentWeek" :hint="weekRange ? `Tuần ${weekRange}` : null" @input="weekDate = $event.target.value" />
+                    <UiSelect name="teacher_id" label="Chọn giáo viên" required :options="teachers" placeholder="-- Chọn giáo viên --" :model-value="teacherId" @update:model-value="pickTeacher" />
+                    <UiSelect v-model="classId" name="class_id" label="Chọn lớp học" :options="classOptions" :placeholder="teacherId ? '-- Chọn lớp --' : 'Chọn giáo viên trước'" :hint="course ? `Chương trình: ${course}` : null" />
                 </div>
             </section>
             <section class="space-y-md">
-                <h3 class="font-semibold text-on-surface">Nội dung chuyên môn</h3>
+                <h3 class="font-h3 text-h3 text-on-surface">Nội dung chuyên môn</h3>
                 <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
-                    <UiTextarea name="syllabus_note" label="Ghi chú Syllabus" hint="Tùy chọn" :rows="3" :value="editing.syllabus_note" />
-                    <UiTextarea name="scores_note" label="Ghi chú Bảng điểm" hint="Tùy chọn" :rows="3" :value="editing.scores_note" />
+                    <UiTextarea name="syllabus_note" label="Ghi chú Syllabus" hint="Tùy chọn" :rows="3" placeholder="Nhập ghi chú về tiến độ Syllabus..." :value="editing.syllabus_note" />
+                    <UiTextarea name="scores_note" label="Ghi chú Bảng điểm" hint="Tùy chọn" :rows="3" placeholder="Nhập ghi chú về tình hình điểm số..." :value="editing.scores_note" />
                 </div>
-                <UiTextarea name="class_note" label="Ghi chú tình hình lớp / học sinh" required :rows="3" :value="editing.class_note" />
+                <UiTextarea name="class_note" label="Ghi chú tình hình lớp / học sinh" required :rows="4" placeholder="Nhập đánh giá chung về lớp, học sinh cần lưu ý..." :value="editing.class_note" />
             </section>
             <section class="space-y-md">
-                <h3 class="font-semibold text-on-surface">Đề xuất & Hành động</h3>
+                <h3 class="font-h3 text-h3 text-on-surface">Đề xuất & Hành động</h3>
+                <UiTextarea name="academic_order" label="Order học thuật" :rows="3" placeholder="Yêu cầu từ giáo viên gửi bộ phận học thuật..." :value="editing.academic_order" />
                 <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
-                    <UiTextarea name="academic_order" label="Order học thuật" :rows="3" :value="editing.academic_order" />
-                    <UiTextarea name="recommendation" label="Nhận xét / đề xuất của Học thuật" :rows="3" :value="editing.recommendation" />
-                </div>
-                <div class="sm:w-1/2">
-                    <UiSelect name="status" label="Tình trạng xử lý" required :options="statuses" placeholder="-- Chọn tình trạng --" :value="editing.status" />
+                    <UiTextarea name="recommendation" label="Nhận xét / đề xuất của Học thuật" :rows="3" placeholder="Phản hồi từ bộ phận học thuật..." :value="editing.recommendation" />
+                    <UiSelect name="status" label="Tình trạng xử lý" required :options="statuses" :value="editing.status ?? 'in_progress'" :searchable="false" />
                 </div>
             </section>
         </UiForm>

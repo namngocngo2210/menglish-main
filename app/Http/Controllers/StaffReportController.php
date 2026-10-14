@@ -482,10 +482,8 @@ class StaffReportController extends Controller
             'fields' => ['nullable', 'array'],
             'task' => ['nullable', 'array'],
             'task.enabled' => ['nullable', 'boolean'],
-            'task.title' => ['nullable', 'required_if:task.enabled,1', 'string', 'max:255'],
-            'task.description' => ['nullable', 'required_if:task.enabled,1', 'string', 'max:5000'],
             'task.due_date' => ['nullable', 'required_if:task.enabled,1', 'date'],
-            'task.assignee_id' => ['nullable', 'required_if:task.enabled,1', 'integer'],
+            'task.assignee_id' => ['nullable', 'integer'],
         ];
         foreach (self::DAILY_FIELDS as $key => $field) {
             $rules["fields.{$key}"] = match ($field['type']) {
@@ -499,9 +497,7 @@ class StaffReportController extends Controller
             'fields.*.min' => 'Số liệu không âm.',
             'task.*.required_if' => 'Bật "Tạo Task" thì phải nhập :attribute.',
         ], [
-            'task.title' => 'tiêu đề công việc',
-            'task.description' => 'nội dung chi tiết',
-            'task.due_date' => 'ngày hạn chót',
+            'task.due_date' => 'ngày giải quyết',
             'task.assignee_id' => 'người phụ trách',
         ]);
 
@@ -514,12 +510,6 @@ class StaffReportController extends Controller
             throw ValidationException::withMessages(['fields' => 'Nhập ít nhất một mục của báo cáo.']);
         }
 
-        $existing = $this->structuredReport('daily_ops', $data['date']);
-        $taskId = $existing?->data['task_id'] ?? null;
-        if (! $taskId && $request->boolean('task.enabled')) {
-            $taskId = $this->createFollowUpTask($data['task'], $data['date'])->id;
-        }
-
         $date = Carbon::parse($data['date']);
         $lines = collect(self::DAILY_SECTIONS)->map(function (array $section) use ($fields) {
             $items = collect($section['rows'])->flatten()->filter(fn ($key) => $fields[$key] !== null)
@@ -527,6 +517,12 @@ class StaffReportController extends Controller
 
             return $items->isEmpty() ? null : $section['title'].":\n".$items->implode("\n");
         })->filter();
+
+        $existing = $this->structuredReport('daily_ops', $data['date']);
+        $taskId = $existing?->data['task_id'] ?? null;
+        if (! $taskId && $request->boolean('task.enabled')) {
+            $taskId = $this->createFollowUpTask($data['task'], $data['date'], $lines->implode("\n\n"))->id;
+        }
         if ($taskId) {
             $lines->push('Task follow-up: #'.$taskId);
         }
@@ -538,18 +534,22 @@ class StaffReportController extends Controller
             ->with('success', 'Đã lưu báo cáo ngày '.$date->format('d/m/Y').'.');
     }
 
-    /** Việc follow-up tạo từ báo cáo ngày: người phụ trách là chính mình hoặc người mình được giao việc (như màn Giao việc). */
-    private function createFollowUpTask(array $input, string $reportDate): WorkTask
+    /**
+     * Việc follow-up tạo từ báo cáo ngày (mockup 02/06 chỉ có "Ngày giải quyết" + "Người phụ trách"): tiêu đề theo ngày báo cáo,
+     * nội dung là chính báo cáo; người phụ trách để trống là mình, hoặc người mình được giao việc (như màn Giao việc).
+     */
+    private function createFollowUpTask(array $input, string $reportDate, string $reportText): WorkTask
     {
         $user = Auth::user();
-        $assigneeId = (int) $input['assignee_id'];
+        $assigneeId = (int) ($input['assignee_id'] ?? 0) ?: (int) $user->id;
         if (! collect($this->taskAssignees())->contains('value', $assigneeId)) {
             throw ValidationException::withMessages(['task.assignee_id' => 'Bạn không giao việc được cho người này.']);
         }
 
+        $label = Carbon::parse($reportDate)->format('d/m/Y');
         $task = WorkTask::create([
-            'title' => $input['title'],
-            'description' => trim($input['description'])."\n\n(Từ báo cáo ngày ".Carbon::parse($reportDate)->format('d/m/Y').')',
+            'title' => 'Follow-up báo cáo ngày '.$label,
+            'description' => "Xử lý tiếp các việc trong báo cáo ngày {$label}:\n\n".$reportText,
             'creator_id' => $user->id,
             'assignee_id' => $assigneeId,
             'branch_id' => $user->branch_id,
@@ -577,7 +577,7 @@ class StaffReportController extends Controller
             : collect();
 
         return [
-            ['value' => (int) $user->id, 'label' => 'Tôi ('.$user->name.')'],
+            ['value' => (int) $user->id, 'label' => $user->name.' (Tôi)'],
             ...$others->map(fn (User $u) => ['value' => (int) $u->id, 'label' => $u->name])->values()->all(),
         ];
     }
@@ -1014,7 +1014,7 @@ class StaffReportController extends Controller
             'submittedAt' => $report?->updated_at?->toIso8601String(),
             'monthlyReports' => collect(ReportPeriod::quarterMonths($quarter))->map(fn (string $m) => [
                 'month' => $m,
-                'label' => 'Báo cáo '.mb_strtolower(ReportPeriod::monthLabel($m)),
+                'label' => 'Báo cáo '.ReportPeriod::monthLabel($m),
                 'submitted' => $monthly->has($m),
                 'updated_at' => $monthly->get($m)?->updated_at?->toIso8601String(),
             ])->values(),
