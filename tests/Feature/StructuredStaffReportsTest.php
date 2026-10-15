@@ -42,59 +42,58 @@ class StructuredStaffReportsTest extends TestCase
         return $user;
     }
 
-    public function test_daily_report_saves_fields_and_creates_follow_up_task_once(): void
+    public function test_daily_report_saves_notes_and_creates_follow_up_task_once(): void
     {
         $staff = $this->makeUser('academic_staff', ['name' => 'Học vụ A']);
         $today = now()->toDateString();
 
+        // Số liệu lấy từ hệ thống (DailyReportMetricsTest); người viết chỉ nhập ghi chú từng khối.
         $this->actingAs($staff)->get(route('reports.periodic.daily'))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->component('Reports/DailyOps')->where('date', $today)
-                ->has('sections', 3)->where('assignees.0.value', $staff->id)->where('task', null));
+                ->has('sections', 3)->where('live', true)->where('assignees.0.value', $staff->id)->where('task', null));
 
-        // Không nhập gì → báo lỗi; bật Tạo Task mà thiếu ngày giải quyết → báo lỗi.
-        $this->actingAs($staff)->post(route('reports.periodic.daily.store'), ['date' => $today, 'fields' => []])->assertSessionHasErrors('fields');
-        $this->actingAs($staff)->post(route('reports.periodic.daily.store'), [
-            'date' => $today, 'fields' => ['classes_planned' => 5], 'task' => ['enabled' => 1],
-        ])->assertSessionHasErrors('task.due_date');
-        // Ngày chưa tới không nộp được.
-        $this->actingAs($staff)->post(route('reports.periodic.daily.store'), ['date' => now()->addDay()->toDateString(), 'fields' => ['classes_planned' => 5]])
+        // Bật Tạo Task mà thiếu ngày giải quyết → báo lỗi; ngày chưa tới không nộp được.
+        $this->actingAs($staff)->post(route('reports.periodic.daily.store'), ['date' => $today, 'task' => ['enabled' => 1]])
+            ->assertSessionHasErrors('task.due_date');
+        $this->actingAs($staff)->post(route('reports.periodic.daily.store'), ['date' => now()->addDay()->toDateString()])
             ->assertSessionHasErrors('date');
 
         // Mockup 02/06: Task follow-up chỉ có Ngày giải quyết + Người phụ trách (để trống là mình).
         $task = ['enabled' => 1, 'due_date' => $today, 'assignee_id' => ''];
         $this->actingAs($staff)->post(route('reports.periodic.daily.store'), [
-            'date' => $today, 'fields' => ['classes_planned' => 12, 'classes_actual' => 11, 'facilities' => 'Phòng 302 hỏng điều hòa'], 'task' => $task,
+            'date' => $today, 'notes' => ['operations' => 'Phòng 302 hỏng điều hòa'], 'task' => $task,
         ])->assertSessionHasNoErrors()->assertRedirect(route('reports.periodic.daily', ['date' => $today]));
         // Lưu lại trong ngày là cập nhật, không tạo thêm việc.
         $this->actingAs($staff)->post(route('reports.periodic.daily.store'), [
-            'date' => $today, 'fields' => ['classes_planned' => 12, 'classes_actual' => 12], 'task' => $task,
+            'date' => $today, 'notes' => ['operations' => 'Đã báo sửa điều hòa'], 'task' => $task,
         ])->assertSessionHasNoErrors();
 
         $report = StaffReport::sole();
         $this->assertSame(['daily_ops', 'daily', $today], [$report->kind, $report->type, $report->period_key]);
-        $this->assertSame(12, $report->data['fields']['classes_actual']);
-        $this->assertNull($report->data['fields']['facilities']);
-        $this->assertStringContainsString('Số lớp thực tế: 12', $report->content);
+        $this->assertSame(0, $report->data['fields']['classes_actual']);
+        $this->assertSame(['operations' => 'Đã báo sửa điều hòa'], $report->data['notes']);
+        $this->assertStringContainsString('Số lớp thực tế: 0', $report->content);
 
         $created = WorkTask::sole();
         $this->assertSame($report->data['task_id'], $created->id);
         $label = now()->format('d/m/Y');
         $this->assertSame([$staff->id, $staff->id, 'Follow-up báo cáo ngày '.$label], [(int) $created->creator_id, (int) $created->assignee_id, $created->title]);
-        $this->assertStringContainsString('Cơ sở vật chất: Phòng 302 hỏng điều hòa', $created->description);
+        $this->assertStringContainsString('Ghi chú: Phòng 302 hỏng điều hòa', $created->description);
 
         $this->actingAs($staff)->get(route('reports.periodic.daily', ['date' => $today]))->assertOk()
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('values.classes_actual', 12)->where('task.title', 'Follow-up báo cáo ngày '.$label)->has('history', 1));
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('live', false)->where('notes.operations', 'Đã báo sửa điều hòa')
+                ->where('task.title', 'Follow-up báo cáo ngày '.$label)->has('history', 1));
 
         // Việc follow-up chỉ giao cho người mình được giao việc (tài khoản đã khóa thì không).
         $stranger = $this->makeUser('teacher_fulltime', ['is_active' => false]);
         $yesterday = now()->subDay()->toDateString();
         $this->actingAs($staff)->post(route('reports.periodic.daily.store'), [
-            'date' => $yesterday, 'fields' => ['classes_planned' => 3], 'task' => [...$task, 'assignee_id' => $stranger->id],
+            'date' => $yesterday, 'task' => [...$task, 'assignee_id' => $stranger->id],
         ])->assertSessionHasErrors('task.assignee_id');
         $this->assertSame(1, WorkTask::count());
 
         // Vai trò khác không vào được báo cáo ngày Học vụ.
-        $this->actingAs($this->makeUser('teacher_fulltime'))->post(route('reports.periodic.daily.store'), ['date' => $today, 'fields' => ['classes_planned' => 1]])
+        $this->actingAs($this->makeUser('teacher_fulltime'))->post(route('reports.periodic.daily.store'), ['date' => $today])
             ->assertForbidden();
     }
 
@@ -192,9 +191,8 @@ class StructuredStaffReportsTest extends TestCase
     {
         $staff = $this->makeUser('academic_staff', ['name' => 'Học vụ A']);
         $today = now()->toDateString();
-        $this->actingAs($staff)->post(route('reports.periodic.daily.store'), [
-            'date' => $today, 'fields' => ['classes_planned' => 12, 'classes_actual' => 11, 'teachers' => 9, 'assistants' => 6, 'new_data' => 8],
-        ])->assertSessionHasNoErrors();
+        $this->actingAs($staff)->post(route('reports.periodic.daily.store'), ['date' => $today, 'notes' => ['operations' => 'Ổn định']])
+            ->assertSessionHasNoErrors();
         $lead = $this->makeUser('academic_lead', ['name' => 'Học thuật B']);
         $this->actingAs($lead)->post(route('reports.periodic.academic-weekly.store'), ['week' => ReportPeriod::currentWeek(), 'rows' => ['done' => [['content' => 'Dự giờ']]]])
             ->assertSessionHasNoErrors();
@@ -204,9 +202,9 @@ class StructuredStaffReportsTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page->component('Academic/Reports')
                 ->has('staffDailyReports', 1)
                 ->where('staffDailyReports.0.user', 'Học vụ A')
-                ->where('staffDailyReports.0.classes', '11 / 12')
-                ->where('staffDailyReports.0.staff', '9 GV · 6 TG')
-                ->where('staffDailyReports.0.enrollment', 'Data 8')
+                ->where('staffDailyReports.0.classes', '0 / 0')
+                ->where('staffDailyReports.0.staff', '0 GV · 0 TG')
+                ->where('staffDailyReports.0.enrollment', 'Data 0 · Test 0 · Thu phí 0')
                 ->where('totalDailyReportsToday', 1));
 
         $this->actingAs($admin)->get(route('academic.reports', ['tab' => 'weekly']))->assertOk()

@@ -22,7 +22,8 @@ class SessionLessonService
 
     /**
      * @param  Collection<int, ClassSession>  $sessions
-     * @return array<int, array{no: int, unit: ?string, title: ?string}> session_id => nội dung
+     * @return array<int, array{no: int, unit: ?string, title: ?string, summary: ?string}> session_id => nội dung
+     *                                                                                     (`summary`: bài + từ vựng / ngữ pháp trọng tâm — điền sẵn ô "Hôm nay học gì" của báo cáo trực lớp)
      */
     public function lessonsFor(Collection $sessions): array
     {
@@ -49,6 +50,12 @@ class SessionLessonService
                 'no' => $no,
                 'unit' => $lesson?->unit ? 'Unit '.$lesson->unit->unit_number.': '.$lesson->unit->title : null,
                 'title' => $lesson?->title ?: ($lesson?->grammar_focus ?: null),
+                'summary' => $lesson ? collect([
+                    $lesson->unit ? 'Unit '.$lesson->unit->unit_number.': '.$lesson->unit->title : null,
+                    $lesson->title ? 'Bài: '.$lesson->title : null,
+                    filled($lesson->vocabulary_focus) ? 'Từ vựng: '.trim($lesson->vocabulary_focus) : null,
+                    filled($lesson->grammar_focus) ? 'Ngữ pháp: '.trim($lesson->grammar_focus) : null,
+                ])->filter()->implode("\n") ?: null : null,
             ];
         }
 

@@ -14,6 +14,7 @@ use App\Models\TeacherMeetingReport;
 use App\Models\User;
 use App\Models\WorkTask;
 use App\Services\BranchStaff;
+use App\Services\Reports\DailyReportMetrics;
 use App\Support\Approvals\AdminOnlyApprovals;
 use App\Support\Dashboard\TeachingQuality;
 use App\Support\MonthlyReportDue;
@@ -61,8 +62,8 @@ class StaffReportController extends Controller
     ];
 
     /**
-     * Báo cáo ngày Học vụ (mockup 02/06 "Báo cáo ngày Học vụ"): 3 khối, mỗi hàng 1–2 ô (ô số + ghi chú cạnh nhau).
-     * type: number (số nguyên ≥ 0), short (chữ ngắn, vd. "7/10"), text (nhiều dòng).
+     * Ô nhập tay của báo cáo ngày Học vụ bản cũ (mockup 02/06, trước 15/10/2026). Từ 15/10 số liệu lấy tự động (DailyReportMetrics);
+     * hai hằng số này chỉ còn để hiện lại báo cáo đã nộp theo bản cũ.
      */
     public const DAILY_SECTIONS = [
         'operations' => ['title' => 'Vận hành lớp học', 'icon' => 'school', 'rows' => [
@@ -449,7 +450,7 @@ class StaffReportController extends Controller
         ]);
         self::notifyAdminsSubmitted($report);
 
-        return back()->with('success', 'Đã nộp ' . (StaffReport::TYPE_LABELS[$type] ?? 'báo cáo') . ' thành công!');
+        return back()->with('success', 'Đã nộp '.(StaffReport::TYPE_LABELS[$type] ?? 'báo cáo').' thành công!');
     }
 
     /** Màn có cấu trúc thay cho báo cáo định kỳ chính của người này (cùng loại kỳ), null nếu không có. */
@@ -484,25 +485,41 @@ class StaffReportController extends Controller
     }
 
     // ───────────────────────── BÁO CÁO CÓ CẤU TRÚC ─────────────────────────
-    /** Báo cáo ngày Học vụ / Học thuật (mockup 02/06): vận hành lớp, tuyển sinh / học viên, truyền thông + tạo việc follow-up. */
+    /**
+     * Báo cáo ngày Học vụ / Học thuật (mockup 02/06 + chủ dự án 15/10/2026): mọi số liệu lấy từ hệ thống (DailyReportMetrics),
+     * người viết chỉ nhập ghi chú từng khối + tạo việc follow-up. Ngày chưa nộp → tính trực tiếp; đã nộp → hiện số liệu đã chụp lúc nộp
+     * (`refresh=1` tính lại để xem số mới, Lưu lại là cập nhật). Báo cáo nộp trước 15/10 (nhập tay, `data.fields`) vẫn hiện bản cũ.
+     */
     public function daily(Request $request): Response|RedirectResponse
     {
         if ($redirect = $this->redirectUnlessStructured('daily_ops')) {
             return $redirect;
         }
+        $user = Auth::user();
         $date = $this->pickDate($request->input('date'));
+        $audience = StaffType::dailyReportAudience($user);
         $report = $this->structuredReport('daily_ops', $date);
+        $snapshot = $report?->data['auto'] ?? null;
+        $live = ! $snapshot || $request->boolean('refresh');
+        $metrics = $live ? DailyReportMetrics::compute($user, $date, $audience) : $snapshot;
         $task = ($taskId = $report?->data['task_id'] ?? null) ? WorkTask::with('assignee:id,name')->find($taskId) : null;
+        // Báo cáo nhập tay trước khi chuyển sang số liệu tự động: hiện lại các ô đã nhập (chỉ đọc).
+        $legacyFields = $report && ! $snapshot ? collect(self::DAILY_FIELDS)
+            ->map(fn (array $f, string $key) => ['label' => $f['label'], 'value' => $report->data['fields'][$key] ?? null])
+            ->filter(fn (array $f) => filled($f['value']))->values()->all() : [];
 
         return Inertia::render('Reports/DailyOps', [
-            'audience' => StaffType::dailyReportAudience(Auth::user()),
-            'tabs' => $this->reportTabs(Auth::user(), 'daily_ops'),
+            'audience' => $audience,
+            'tabs' => $this->reportTabs($user, 'daily_ops'),
             'date' => $date,
             'dateLabel' => Str::ucfirst(Carbon::parse($date)->locale('vi')->isoFormat('dddd, D [tháng] M, YYYY')),
             'today' => now()->toDateString(),
-            'sections' => self::DAILY_SECTIONS,
-            'fields' => self::DAILY_FIELDS,
-            'values' => (object) ($report?->data['fields'] ?? []),
+            'sections' => $metrics['sections'],
+            'computedAt' => $metrics['computed_at'] ?? null,
+            'live' => $live,
+            'noteLabels' => DailyReportMetrics::NOTE_LABELS,
+            'notes' => (object) ($report?->data['notes'] ?? []),
+            'legacyFields' => $legacyFields,
             'task' => $task ? [
                 'id' => $task->id,
                 'title' => $task->title,
@@ -520,58 +537,42 @@ class StaffReportController extends Controller
     public function dailyStore(Request $request): RedirectResponse
     {
         $this->guardStructured('daily_ops');
-        $rules = [
+        $data = $request->validate([
             'date' => ['required', 'date_format:Y-m-d', 'before_or_equal:today'],
-            'fields' => ['nullable', 'array'],
+            'notes' => ['nullable', 'array'],
+            'notes.*' => ['nullable', 'string', 'max:5000'],
             'task' => ['nullable', 'array'],
             'task.enabled' => ['nullable', 'boolean'],
             'task.due_date' => ['nullable', 'required_if:task.enabled,1', 'date'],
             'task.assignee_id' => ['nullable', 'integer'],
-        ];
-        foreach (self::DAILY_FIELDS as $key => $field) {
-            $rules["fields.{$key}"] = match ($field['type']) {
-                'number' => ['nullable', 'integer', 'min:0', 'max:99999'],
-                'short' => ['nullable', 'string', 'max:50'],
-                default => ['nullable', 'string', 'max:5000'],
-            };
-        }
-        $data = $request->validate($rules, [
+        ], [
             'date.before_or_equal' => 'Không nộp báo cáo cho ngày chưa tới.',
-            'fields.*.min' => 'Số liệu không âm.',
             'task.*.required_if' => 'Bật "Tạo Task" thì phải nhập :attribute.',
         ], [
             'task.due_date' => 'ngày giải quyết',
             'task.assignee_id' => 'người phụ trách',
         ]);
 
-        $fields = collect(self::DAILY_FIELDS)->map(function (array $field, string $key) use ($data) {
-            $value = $data['fields'][$key] ?? null;
-
-            return $field['type'] === 'number' ? (is_numeric($value) ? (int) $value : null) : (filled($value) ? trim((string) $value) : null);
-        })->all();
-        if (collect($fields)->filter(fn ($v) => $v !== null)->isEmpty()) {
-            throw ValidationException::withMessages(['fields' => 'Nhập ít nhất một mục của báo cáo.']);
-        }
-
+        // Số liệu luôn tính lại ở máy chủ lúc nộp (không nhận số từ trình duyệt), chụp lại để Admin xem đúng số tại thời điểm nộp.
+        $user = Auth::user();
         $date = Carbon::parse($data['date']);
-        $lines = collect(self::DAILY_SECTIONS)->map(function (array $section) use ($fields) {
-            $items = collect($section['rows'])->flatten()->filter(fn ($key) => $fields[$key] !== null)
-                ->map(fn ($key) => '- '.self::DAILY_FIELDS[$key]['label'].': '.$fields[$key]);
-
-            return $items->isEmpty() ? null : $section['title'].":\n".$items->implode("\n");
-        })->filter();
+        $snapshot = DailyReportMetrics::compute($user, $data['date'], StaffType::dailyReportAudience($user));
+        $notes = collect($data['notes'] ?? [])->only(array_keys($snapshot['sections']))
+            ->map(fn ($v) => filled($v) ? trim((string) $v) : null)->filter()->all();
+        $text = DailyReportMetrics::text($snapshot, $notes);
 
         $existing = $this->structuredReport('daily_ops', $data['date']);
         $taskId = $existing?->data['task_id'] ?? null;
         if (! $taskId && $request->boolean('task.enabled')) {
-            $taskId = $this->createFollowUpTask($data['task'], $data['date'], $lines->implode("\n\n"))->id;
-        }
-        if ($taskId) {
-            $lines->push('Task follow-up: #'.$taskId);
+            $taskId = $this->createFollowUpTask($data['task'], $data['date'], $text)->id;
         }
 
-        $this->saveStructured('daily_ops', $data['date'], 'Báo cáo ngày '.$date->format('d/m/Y'), $data['date'],
-            ['fields' => $fields, 'task_id' => $taskId], $lines->implode("\n\n"));
+        $this->saveStructured('daily_ops', $data['date'], 'Báo cáo ngày '.$date->format('d/m/Y'), $data['date'], [
+            'auto' => ['audience' => $snapshot['audience'], 'sections' => $snapshot['sections'], 'computed_at' => $snapshot['computed_at']],
+            'fields' => $snapshot['fields'],
+            'notes' => $notes,
+            'task_id' => $taskId,
+        ], $text.($taskId ? "\n\nTask follow-up: #{$taskId}" : ''));
 
         return redirect()->route('reports.periodic.daily', ['date' => $data['date']])
             ->with('success', 'Đã lưu báo cáo ngày '.$date->format('d/m/Y').'.');

@@ -13,8 +13,10 @@ use App\Models\ClassReportStudentSupport;
 use App\Models\ClassScheduleConfig;
 use App\Models\ClassSession;
 use App\Models\HrDailyDemand;
+use App\Models\MiniTestScore;
 use App\Models\PayrollPeriod;
 use App\Models\Room;
+use App\Models\StudentAttendance;
 use App\Models\SupportSession;
 use App\Models\TeacherTimesheet;
 use App\Models\TeachingShift;
@@ -37,8 +39,10 @@ use App\Support\Ui;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
@@ -492,8 +496,7 @@ class WorkTaskController extends Controller
             $open = $session->status !== 'cancelled' && $class && $canRecord;
             $action = match (true) {
                 // Chưa tới giờ học → nút Điểm danh khóa kèm quy định cửa sổ 24h.
-                $open && $state['key'] !== 'done' && $windowLimited && ! $session->withinTeacherAttendanceWindow()
-                    => ['kind' => 'locked', 'message' => TeacherPortalController::outsideAttendanceWindowMessage()],
+                $open && $state['key'] !== 'done' && $windowLimited && ! $session->withinTeacherAttendanceWindow() => ['kind' => 'locked', 'message' => TeacherPortalController::outsideAttendanceWindowMessage()],
                 $open && $state['key'] !== 'done' && $window === 'before' && ! $windowLimited => ['kind' => 'locked', 'message' => 'Chưa tới giờ học — chưa điểm danh được.'],
                 $open && ($windowLimited ? true : ! $session->date->gt($today)) => [
                     'kind' => 'link',
@@ -955,6 +958,8 @@ class WorkTaskController extends Controller
         $confirmerId = ClassReport::resolveConfirmerId($selectedClass, $task, (int) $user->id);
         $confirmer = $confirmerId ? User::find($confirmerId, ['id', 'name']) : null;
         $task?->loadMissing('creator:id,name');
+        $attendance = $sessions->isEmpty() ? collect() : StudentAttendance::with('student:id,name')
+            ->whereIn('class_session_id', $sessions->pluck('id'))->get()->groupBy('class_session_id');
 
         return $this->modalPage('Tasks/ClassReportCreate', [
             'classes' => Ui::options($classes, fn (ClassModel $c) => "{$c->name} ({$c->code})".($c->schedule_text ? ' - '.$c->schedule_text : '')),
@@ -983,13 +988,70 @@ class WorkTaskController extends Controller
             'sessionDetails' => $sessions->mapWithKeys(fn (ClassSession $s) => [$s->id => [
                 'no' => $lessons[$s->id]['no'] ?? null,
                 'title' => $lessons[$s->id]['title'] ?? null,
+                // Điền sẵn "Hôm nay học gì" từ giáo trình của buổi; sĩ số / học sinh vắng từ điểm danh của GV (chủ dự án 15/10/2026).
+                'lesson_text' => $lessons[$s->id]['summary'] ?? null,
+                'attendance' => self::attendanceSummary($attendance->get($s->id, collect())),
+                'suggested' => $attendance->get($s->id, collect())
+                    ->filter(fn (StudentAttendance $a) => in_array($a->status, ['absent', 'excused'], true) && $students->contains('id', $a->student_id))
+                    ->map(fn (StudentAttendance $a) => [
+                        'student_id' => (int) $a->student_id,
+                        'absence_session' => $sessionOptions[$s->id] ?? null,
+                        'reason' => 'Vắng buổi '.$s->date->format('d/m').($a->status === 'excused' ? ' (có phép)' : ''),
+                    ])->values()->all(),
                 'date' => $s->date->toDateString(),
                 'time' => $s->start_time && $s->end_time ? $s->start_time->format('H:i').' - '.$s->end_time->format('H:i') : null,
                 'room' => $s->room,
                 'branch' => $s->branch?->name,
             ]])->all(),
             'reporter' => $user->name.(($role = $user->roles->first()?->name) ? ' ('.AclHelper::shortRoleLabel($role).')' : ''),
+            // Gợi ý danh sách bổ trợ theo lớp: mini test gần nhất (30 ngày) dưới 7 điểm thang 10 — cùng ngưỡng danh sách bổ trợ.
+            'testSuggestions' => $selectedClass ? self::lowMiniTestSuggestions($selectedClass, $students) : [],
         ]);
+    }
+
+    /** "Sĩ số 8/10 · Vắng: An, Bình" từ điểm danh của buổi; null khi GV chưa điểm danh. */
+    private static function attendanceSummary(Collection $rows): ?array
+    {
+        if ($rows->isEmpty()) {
+            return null;
+        }
+        $present = $rows->whereIn('status', ['present', 'late']);
+        $absent = $rows->whereIn('status', ['absent', 'excused'])->map(fn (StudentAttendance $a) => $a->student?->name)->filter()->values();
+        $late = $rows->where('status', 'late')->map(fn (StudentAttendance $a) => $a->student?->name)->filter()->values();
+
+        return [
+            'present' => $present->count(),
+            'total' => $rows->count(),
+            'absent' => $absent->all(),
+            'late' => $late->all(),
+            'text' => 'Sĩ số (theo điểm danh): '.$present->count().'/'.$rows->count()
+                .($absent->isNotEmpty() ? ' · Vắng: '.$absent->implode(', ') : '')
+                .($late->isNotEmpty() ? ' · Đi muộn: '.$late->implode(', ') : ''),
+        ];
+    }
+
+    /** @return list<array{student_id: int, absence_session: null, reason: string}> */
+    private static function lowMiniTestSuggestions(ClassModel $class, Collection $students): array
+    {
+        return MiniTestScore::where('class_id', $class->id)
+            ->whereIn('student_id', $students->pluck('id'))
+            ->whereDate('test_date', '>=', today()->subDays(30))
+            ->whereNotNull('score')
+            ->orderByDesc('test_date')->orderByDesc('id')
+            ->get()
+            ->unique('student_id')
+            ->filter(fn (MiniTestScore $m) => (float) $m->score / max((float) ($m->max_score ?: 10), 1) * 10 < 7)
+            ->map(fn (MiniTestScore $m) => [
+                'student_id' => (int) $m->student_id,
+                'absence_session' => null,
+                'reason' => (Str::startsWith(Str::lower((string) $m->name), 'mini test') ? $m->name : trim('Mini test '.$m->name)).': '.self::trimNumber($m->score).'/'.self::trimNumber($m->max_score ?: 10)
+                    .($m->test_date ? ' ('.$m->test_date->format('d/m').')' : ''),
+            ])->values()->all();
+    }
+
+    private static function trimNumber(mixed $value): string
+    {
+        return rtrim(rtrim(number_format((float) $value, 2, '.', ''), '0'), '.');
     }
 
     /** "Buổi N - Nội dung bài (dd/mm)" cho một buổi học. */
@@ -1111,7 +1173,11 @@ class WorkTaskController extends Controller
                 'session_name' => $sessionName,
                 'session_date' => ($session?->date ?? today())->toDateString(),
                 'topics_learned' => $validated['hom_nay_hoc_gi'],
-                'teaching_log' => $validated['nhat_ky_day'] ?? null,
+                // Dòng sĩ số lấy từ điểm danh của buổi (nếu GV đã điểm danh), phần còn lại là ghi chú tay của người nộp.
+                'teaching_log' => collect([
+                    $session ? self::attendanceSummary(StudentAttendance::with('student:id,name')->where('class_session_id', $session->id)->get())['text'] ?? null : null,
+                    filled($validated['nhat_ky_day'] ?? null) ? trim($validated['nhat_ky_day']) : null,
+                ])->filter()->implode("\n") ?: null,
                 'board_image' => $paths[0] ?? null,
                 'board_images' => $paths ?: null,
                 'has_image' => $hasImage,

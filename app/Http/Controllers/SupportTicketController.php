@@ -110,7 +110,7 @@ class SupportTicketController extends Controller
     {
         $validated = $request->validate([
             'title' => 'required|string|max:255',
-            'category' => 'required|string|in:technical_issue,curriculum,tuition,customer_complaint,other',
+            'category' => 'required|string|in:technical_issue,facilities,curriculum,tuition,customer_complaint,other',
             'priority' => 'required|string|in:low,medium,high,urgent',
             'description' => 'required|string',
             'assignee_id' => 'nullable|exists:users,id',

@@ -78,6 +78,7 @@ class SupportTicket extends Model
         if (is_array($decoded)) {
             return $decoded;
         }
+
         return [$this->attachment_path];
     }
 
@@ -94,6 +95,7 @@ class SupportTicket extends Model
     {
         return match ($this->category) {
             'technical_issue' => 'Lỗi Hệ Thống / IT',
+            'facilities' => 'Cơ Sở Vật Chất',
             'curriculum' => 'Giáo Trình / Học Vụ',
             'tuition' => 'Học Phí / Hóa Đơn',
             'customer_complaint' => 'Khiếu Nại Học Viên',
