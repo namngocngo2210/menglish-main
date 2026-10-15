@@ -1308,7 +1308,7 @@ class StaffReportController extends Controller
     /**
      * Chi tiết một báo cáo cho Admin (modal "Chi tiết" ở màn Tổng hợp, chủ dự án 15/10/2026): hiện như màn người viết nhập —
      * số liệu tự động + ghi chú theo khối (báo cáo ngày), bảng KPI + chỉ số (báo cáo tuần Học vụ), 3 bảng (báo cáo tuần Học thuật).
-     * Loại chưa có màn có cấu trúc → nội dung chữ.
+     * Báo cáo ngày / tuần nhập tay bản cũ → đủ mọi ô của form cũ (`legacy`); báo cáo ngày cũ kèm số liệu hệ thống tính lại cho ngày đó. Loại chưa có màn có cấu trúc → nội dung chữ.
      */
     public function reportDetail(int $id): Response
     {
@@ -1321,20 +1321,23 @@ class StaffReportController extends Controller
         $view = match (true) {
             $r->type === 'journal' => 'journal',
             $r->kind === 'daily_ops' && isset($data['auto']) => 'daily',
-            $r->kind === 'daily_ops' && isset($data['fields']) => 'fields',
+            $r->kind === 'daily_ops' && isset($data['fields']) => 'daily_legacy',
             $r->kind === 'weekly_kpi' && isset($data['auto']) => 'weekly_kpi',
-            $r->kind === 'weekly_kpi' => 'fields',
+            $r->kind === 'weekly_kpi' => 'weekly_legacy',
             $r->kind === 'academic_weekly' && isset($data['rows']) => 'academic_weekly',
             default => 'text',
         };
-        $fields = match (true) {
-            $view === 'fields' && $r->kind === 'daily_ops' => collect(self::DAILY_SECTIONS)->map(fn (array $section) => [
-                'title' => $section['title'],
-                'rows' => collect($section['rows'])->flatten()->map(fn (string $key) => ['label' => self::DAILY_FIELDS[$key]['label'], 'value' => $data['fields'][$key] ?? null])
-                    ->filter(fn (array $f) => filled($f['value']))->values()->all(),
-            ])->filter(fn (array $s) => $s['rows'] !== [])->values()->all(),
-            $view === 'fields' => [['title' => 'Số liệu đã nhập tay', 'rows' => $this->legacyWeeklyKpi($r)]],
-            default => [],
+        // Báo cáo nhập tay bản cũ: hiện đủ mọi ô như màn nhập lúc đó (ô trống hiện "—"), không lọc bớt ô chưa nhập.
+        $legacy = match ($view) {
+            'daily_legacy' => ['sections' => self::DAILY_SECTIONS, 'fields' => self::DAILY_FIELDS, 'values' => (object) ($data['fields'] ?? [])],
+            'weekly_legacy' => [
+                'groups' => collect($data['counts'] ?? [])->groupBy(fn (array $c) => $c['group'] ?? 'Khác')
+                    ->map(fn ($items, $group) => ['name' => $group, 'items' => $items->map(fn (array $c) => [
+                        'id' => $c['id'] ?? $c['code'] ?? $c['name'], 'code' => $c['code'] ?? null, 'name' => $c['name'], 'count' => (int) ($c['count'] ?? 0),
+                    ])->values()->all()])->values()->all(),
+                'metrics' => collect(self::WEEKLY_METRICS)->map(fn (string $label, string $key) => ['key' => $key, 'label' => $label, 'value' => $data['metrics'][$key] ?? null])->values()->all(),
+            ],
+            default => null,
         };
         $task = ($taskId = $data['task_id'] ?? null) ? WorkTask::with('assignee:id,name')->find($taskId) : null;
 
@@ -1356,12 +1359,17 @@ class StaffReportController extends Controller
                 'followups' => $r->followups->map(fn (StaffReportFollowup $f) => ['user' => $f->user?->name, 'content' => $f->content, 'created_at' => $f->created_at->toIso8601String()])->all(),
             ],
             'view' => $view,
-            'auto' => in_array($view, ['daily', 'weekly_kpi'], true) ? $data['auto'] : null,
+            'auto' => match (true) {
+                in_array($view, ['daily', 'weekly_kpi'], true) => $data['auto'],
+                // Báo cáo ngày nhập tay cũ chỉ lưu con số: tính lại số liệu + chi tiết của ngày đó theo phạm vi người viết, như màn Học vụ đang thấy.
+                $view === 'daily_legacy' && $r->user !== null => DailyReportMetrics::compute($r->user, $r->report_date->toDateString(), StaffType::dailyReportAudience($r->user)),
+                default => null,
+            },
             'notes' => (object) ($data['notes'] ?? []),
             'noteLabels' => DailyReportMetrics::NOTE_LABELS,
             'note' => $data['note'] ?? null,
             'task' => $task ? ['title' => $task->title, 'assignee' => $task->assignee?->name, 'due_date' => $task->due_date?->toDateString(), 'status' => $task->status] : null,
-            'fields' => $fields,
+            'legacy' => $legacy,
             'rows' => (object) ($view === 'academic_weekly' ? $data['rows'] : []),
             'sections' => self::WEEKLY_SECTIONS,
             'columns' => self::WEEKLY_COLUMNS,

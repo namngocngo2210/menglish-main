@@ -1,19 +1,21 @@
 <script setup>
 /**
  * Một mục số liệu tự động của báo cáo ngày (StaffReportController::daily → DailyReportMetrics): nhãn + icon "i" (cách đếm),
- * số chỉ đọc và danh sách chi tiết (5 dòng đầu, bấm "Xem thêm" để mở hết). Mục không có số (danh sách) chiếm cả hàng.
+ * số chỉ đọc và danh sách chi tiết (5 dòng đầu, bấm "Xem thêm" để mở hết; `full` = hiện hết, dùng ở modal Chi tiết của Admin).
+ * Mục không có số (danh sách) chiếm cả hàng.
  */
 import { computed, ref } from 'vue';
 import { Link } from '@inertiajs/vue3';
 
 const props = defineProps({
     item: { type: Object, required: true },
+    full: { type: Boolean, default: false },
 });
 
 const LIMIT = 5;
 const expanded = ref(false);
 const details = computed(() => props.item.details ?? []);
-const shown = computed(() => (expanded.value ? details.value : details.value.slice(0, LIMIT)));
+const shown = computed(() => (props.full || expanded.value ? details.value : details.value.slice(0, LIMIT)));
 const toneColor = { success: 'success', warning: 'warning', error: 'error', muted: 'neutral' };
 const textClass = (d) => (d.tone === 'strong' ? 'font-semibold text-on-surface' : d.tone === 'muted' ? 'text-on-surface-variant line-through' : 'text-on-surface');
 </script>
@@ -36,7 +38,7 @@ const textClass = (d) => (d.tone === 'strong' ? 'font-semibold text-on-surface' 
         </ul>
         <p v-else-if="item.value === null || item.value === undefined" class="font-body-small text-body-small text-on-surface-variant">Không có phát sinh.</p>
         <button
-            v-if="details.length > LIMIT"
+            v-if="!full && details.length > LIMIT"
             type="button"
             class="self-start font-body-small text-body-small font-semibold text-primary hover:underline"
             @click="expanded = !expanded"
