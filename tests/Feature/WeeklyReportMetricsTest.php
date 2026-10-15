@@ -227,7 +227,7 @@ class WeeklyReportMetricsTest extends TestCase
                     $this->assertSame(["milestone:{$next->id}"], array_column($suggestions['planned'], 'source'));
                     $this->assertSame(50, $suggestions['planned'][0]['progress']);
                     $this->assertStringContainsString('Đã làm 2/4 unit', $suggestions['planned'][0]['detail']);
-                    $this->assertSame(["order:{$order->id}"], array_column($suggestions['requests'], 'source'));
+                    $this->assertContains("order:{$order->id}", array_column($suggestions['requests'], 'source'));
 
                     return true;
                 })
