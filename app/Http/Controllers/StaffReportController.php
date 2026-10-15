@@ -1304,4 +1304,67 @@ class StaffReportController extends Controller
             'types' => Ui::options(StaffReport::TYPE_LABELS),
         ]);
     }
+
+    /**
+     * Chi tiết một báo cáo cho Admin (modal "Chi tiết" ở màn Tổng hợp, chủ dự án 15/10/2026): hiện như màn người viết nhập —
+     * số liệu tự động + ghi chú theo khối (báo cáo ngày), bảng KPI + chỉ số (báo cáo tuần Học vụ), 3 bảng (báo cáo tuần Học thuật).
+     * Loại chưa có màn có cấu trúc → nội dung chữ.
+     */
+    public function reportDetail(int $id): Response
+    {
+        $this->guard();
+        abort_unless($this->isPrivileged(), 403, 'Chỉ Admin / Manager mới xem tổng hợp.');
+        $r = StaffReport::with(['user.roles', 'reviewer:id,name', 'classModel:id,name', 'followups.user:id,name'])
+            ->where('status', '!=', 'draft')->findOrFail($id);
+        $data = $r->data ?? [];
+
+        $view = match (true) {
+            $r->type === 'journal' => 'journal',
+            $r->kind === 'daily_ops' && isset($data['auto']) => 'daily',
+            $r->kind === 'daily_ops' && isset($data['fields']) => 'fields',
+            $r->kind === 'weekly_kpi' && isset($data['auto']) => 'weekly_kpi',
+            $r->kind === 'weekly_kpi' => 'fields',
+            $r->kind === 'academic_weekly' && isset($data['rows']) => 'academic_weekly',
+            default => 'text',
+        };
+        $fields = match (true) {
+            $view === 'fields' && $r->kind === 'daily_ops' => collect(self::DAILY_SECTIONS)->map(fn (array $section) => [
+                'title' => $section['title'],
+                'rows' => collect($section['rows'])->flatten()->map(fn (string $key) => ['label' => self::DAILY_FIELDS[$key]['label'], 'value' => $data['fields'][$key] ?? null])
+                    ->filter(fn (array $f) => filled($f['value']))->values()->all(),
+            ])->filter(fn (array $s) => $s['rows'] !== [])->values()->all(),
+            $view === 'fields' => [['title' => 'Số liệu đã nhập tay', 'rows' => $this->legacyWeeklyKpi($r)]],
+            default => [],
+        };
+        $task = ($taskId = $data['task_id'] ?? null) ? WorkTask::with('assignee:id,name')->find($taskId) : null;
+
+        return Inertia::render('Reports/Detail', [
+            'report' => [
+                'id' => $r->id,
+                'title' => $r->title,
+                'type_label' => $r->kind ? (self::STRUCTURED[$r->kind]['label'] ?? $r->type_label) : $r->type_label,
+                'for' => $r->kind === 'daily_ops' && $r->user ? StaffType::dailyReportAudience($r->user) : ($r->kind ? (self::STRUCTURED[$r->kind]['for'] ?? null) : null),
+                'user' => $r->user?->name,
+                'report_date' => $r->report_date->toDateString(),
+                'submitted_at' => $r->updated_at?->toIso8601String(),
+                'reviewed_at' => $r->reviewed_at?->toIso8601String(),
+                'reviewed_by' => $r->reviewer?->name,
+                'content' => $r->content,
+                'severity_label' => $r->type === 'journal' ? $r->severity_label : null,
+                'kpi_code' => $r->kpi_code,
+                'class' => $r->classModel?->name,
+                'followups' => $r->followups->map(fn (StaffReportFollowup $f) => ['user' => $f->user?->name, 'content' => $f->content, 'created_at' => $f->created_at->toIso8601String()])->all(),
+            ],
+            'view' => $view,
+            'auto' => in_array($view, ['daily', 'weekly_kpi'], true) ? $data['auto'] : null,
+            'notes' => (object) ($data['notes'] ?? []),
+            'noteLabels' => DailyReportMetrics::NOTE_LABELS,
+            'note' => $data['note'] ?? null,
+            'task' => $task ? ['title' => $task->title, 'assignee' => $task->assignee?->name, 'due_date' => $task->due_date?->toDateString(), 'status' => $task->status] : null,
+            'fields' => $fields,
+            'rows' => (object) ($view === 'academic_weekly' ? $data['rows'] : []),
+            'sections' => self::WEEKLY_SECTIONS,
+            'columns' => self::WEEKLY_COLUMNS,
+        ]);
+    }
 }

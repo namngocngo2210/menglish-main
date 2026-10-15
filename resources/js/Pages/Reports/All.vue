@@ -2,11 +2,13 @@
 /**
  * Tổng hợp báo cáo & nhật ký toàn trung tâm (staff_report.view_all): thống kê theo loại + lọc theo loại / ngày / trạng thái kiểm tra.
  * Báo cáo định kỳ mọi vai trò nộp xong vào hàng "Chờ kiểm tra" và báo Admin (14/10/2026); Admin bấm "Đã kiểm tra".
+ * Nút "Chi tiết" mở modal hiện báo cáo như màn người viết nhập (Reports/Detail, chủ dự án 15/10/2026); danh sách chỉ hiện 2 dòng tóm tắt.
  */
-import { computed, reactive } from 'vue';
+import { computed } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import { route } from '@/lib/route';
 import { compactQuery, currentQuery } from '@/lib/url';
+import { openRemoteModal } from '@/lib/remoteModal';
 
 defineOptions({ layout: { title: 'Tổng hợp Báo cáo & Nhật ký toàn trung tâm' } });
 
@@ -22,7 +24,7 @@ const reviewOptions = [
     { value: 'pending', label: 'Chờ kiểm tra' },
     { value: 'done', label: 'Đã kiểm tra' },
 ];
-const expanded = reactive({});
+const openDetail = (r) => openRemoteModal(route('reports.detail', r.id), { size: '5xl', history: true });
 const markReviewed = (r, reviewed = true) => router.post(route('reports.review', r.id), { reviewed: reviewed ? 1 : 0 }, { preserveScroll: true });
 
 function onFilter(event) {
@@ -69,12 +71,14 @@ function onFilter(event) {
                         <template v-if="r.followups_count"> · {{ r.followups_count }} follow-up</template>
                         <template v-if="r.reviewed_at"> · {{ r.reviewed_by ?? 'Admin' }} kiểm tra lúc {{ formatDate(r.reviewed_at, 'H:i d/m') }}</template>
                     </div>
-                    <p v-if="r.content" :class="['mt-1.5 whitespace-pre-line text-sm text-on-surface-variant', expanded[r.id] ? '' : 'line-clamp-2']">{{ r.content }}</p>
-                    <button v-if="r.content && r.content.length > 140" type="button" class="mt-1 text-xs font-semibold text-primary hover:underline" @click="expanded[r.id] = !expanded[r.id]">{{ expanded[r.id] ? 'Thu gọn' : 'Xem đầy đủ' }}</button>
+                    <p v-if="r.content" class="mt-1.5 line-clamp-2 whitespace-pre-line text-sm text-on-surface-variant">{{ r.content }}</p>
                 </div>
-                <div v-if="canReview && r.reviewable" class="shrink-0">
-                    <UiButton v-if="!r.reviewed_at" size="sm" icon="fact_check" @click="markReviewed(r)">Đã kiểm tra</UiButton>
-                    <UiButton v-else size="sm" variant="ghost" icon="undo" @click="markReviewed(r, false)">Bỏ đánh dấu</UiButton>
+                <div class="flex shrink-0 flex-wrap gap-2">
+                    <UiButton size="sm" variant="secondary" icon="visibility" :data-report-detail-button="r.id" @click="openDetail(r)">Chi tiết</UiButton>
+                    <template v-if="canReview && r.reviewable">
+                        <UiButton v-if="!r.reviewed_at" size="sm" icon="fact_check" @click="markReviewed(r)">Đã kiểm tra</UiButton>
+                        <UiButton v-else size="sm" variant="ghost" icon="undo" @click="markReviewed(r, false)">Bỏ đánh dấu</UiButton>
+                    </template>
                 </div>
             </div>
             <UiEmptyState v-if="!reports.data.length" icon="inbox" title="Không có báo cáo nào khớp bộ lọc." />

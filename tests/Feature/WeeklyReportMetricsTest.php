@@ -244,4 +244,41 @@ class WeeklyReportMetricsTest extends TestCase
         $row = StaffReport::where('kind', 'academic_weekly')->sole()->data['rows']['done'][0];
         $this->assertSame(["milestone:{$done->id}", 100, 'Đã gửi GV'], [$row['source'], $row['progress'], $row['report']]);
     }
+
+    public function test_admin_opens_report_detail_like_the_entry_screen(): void
+    {
+        $staff = $this->makeUser('academic_staff', ['name' => 'Giáo vụ A']);
+        $lead = $this->makeUser('academic_lead', ['name' => 'Học thuật B']);
+        $this->makeSession($this->class, today());
+        $this->actingAs($staff)->post(route('reports.periodic.daily.store'), ['date' => today()->toDateString(), 'notes' => ['operations' => 'Phòng 302 hỏng loa']])
+            ->assertSessionHasNoErrors();
+        $this->actingAs($staff)->post(route('reports.periodic.weekly-kpi.store'), ['week' => $this->week, 'note' => 'Tuần ổn'])->assertSessionHasNoErrors();
+        $this->actingAs($lead)->post(route('reports.periodic.academic-weekly.store'), ['week' => $this->week, 'rows' => ['done' => [['content' => 'Dự giờ ST1', 'progress' => '100']]]])
+            ->assertSessionHasNoErrors();
+        $legacy = StaffReport::create(['user_id' => $staff->id, 'type' => 'daily', 'kind' => 'daily_ops', 'period_key' => '2026-10-01', 'title' => 'Báo cáo ngày 01/10',
+            'content' => 'x', 'report_date' => '2026-10-01', 'data' => ['fields' => ['classes_planned' => 3, 'classes_note' => 'test']]]);
+        $journal = StaffReport::create(['user_id' => $staff->id, 'class_id' => $this->class->id, 'type' => 'journal', 'title' => 'Sự vụ', 'content' => 'Phụ huynh phản ánh', 'kpi_code' => '2.3', 'report_date' => today()]);
+
+        $admin = $this->makeUser('admin');
+        $this->actingAs($admin)->get(route('reports.all'))->assertOk()->assertSee('Chi tiết')->assertDontSee('Xem đầy đủ');
+
+        $id = fn (string $kind) => StaffReport::where('kind', $kind)->where('period_key', '!=', '2026-10-01')->value('id');
+        $this->actingAs($admin)->get(route('reports.detail', $id('daily_ops')))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Reports/Detail')->where('view', 'daily')
+                ->where('auto.sections.operations.items.0.value', '1')
+                ->where('notes.operations', 'Phòng 302 hỏng loa')
+                ->where('report.for', 'Học vụ'));
+        $this->actingAs($admin)->get(route('reports.detail', $id('weekly_kpi')))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('view', 'weekly_kpi')->where('note', 'Tuần ổn')->has('auto.metrics.items', 9));
+        $this->actingAs($admin)->get(route('reports.detail', $id('academic_weekly')))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('view', 'academic_weekly')->where('rows.done.0.content', 'Dự giờ ST1'));
+        $this->actingAs($admin)->get(route('reports.detail', $legacy->id))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('view', 'fields')
+                ->where('fields.0.rows', [['label' => 'Số lớp kế hoạch', 'value' => 3], ['label' => 'Ghi chú lớp học', 'value' => 'test']]));
+        $this->actingAs($admin)->get(route('reports.detail', $journal->id))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('view', 'journal')->where('report.class', 'Lớp ST1')->where('report.kpi_code', '2.3'));
+
+        // Chỉ người xem tổng hợp mới mở được.
+        $this->actingAs($staff)->get(route('reports.detail', $journal->id))->assertForbidden();
+    }
 }
