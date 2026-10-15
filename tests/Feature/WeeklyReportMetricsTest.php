@@ -273,8 +273,21 @@ class WeeklyReportMetricsTest extends TestCase
         $this->actingAs($admin)->get(route('reports.detail', $id('academic_weekly')))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->where('view', 'academic_weekly')->where('rows.done.0.content', 'Dự giờ ST1'));
         $this->actingAs($admin)->get(route('reports.detail', $legacy->id))->assertOk()
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('view', 'fields')
-                ->where('fields.0.rows', [['label' => 'Số lớp kế hoạch', 'value' => 3], ['label' => 'Ghi chú lớp học', 'value' => 'test']]));
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('view', 'daily_legacy')
+                ->has('legacy.sections', 3)->has('legacy.fields.media_posts')
+                ->where('legacy.values.classes_planned', 3)->where('legacy.values.classes_note', 'test')->missing('legacy.values.classes_actual'));
+
+        // Báo cáo tuần nhập tay bản cũ: mọi mục KPI (kể cả 0) theo nhóm và đủ 9 chỉ số (ô trống = null).
+        $legacyWeek = StaffReport::create(['user_id' => $staff->id, 'type' => 'weekly', 'kind' => 'weekly_kpi', 'period_key' => '2026-W38', 'title' => 'Báo cáo tuần cũ',
+            'content' => 'x', 'report_date' => '2026-09-14', 'data' => [
+                'counts' => [['id' => 1, 'code' => '1.1', 'name' => 'Mục A', 'group' => 'Vận hành', 'count' => 2], ['id' => 2, 'code' => '1.2', 'name' => 'Mục B', 'group' => 'Vận hành', 'count' => 0]],
+                'metrics' => ['students' => 40, 'teachers' => null],
+            ]]);
+        $this->actingAs($admin)->get(route('reports.detail', $legacyWeek->id))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('view', 'weekly_legacy')
+                ->where('legacy.groups.0.name', 'Vận hành')->has('legacy.groups.0.items', 2)->where('legacy.groups.0.items.1.count', 0)
+                ->has('legacy.metrics', 9)->where('legacy.metrics.1', ['key' => 'students', 'label' => 'Số học sinh', 'value' => 40])
+                ->where('legacy.metrics.2.value', null));
         $this->actingAs($admin)->get(route('reports.detail', $journal->id))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->where('view', 'journal')->where('report.class', 'Lớp ST1')->where('report.kpi_code', '2.3'));
 
