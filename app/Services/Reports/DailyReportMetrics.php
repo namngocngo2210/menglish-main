@@ -5,7 +5,6 @@ namespace App\Services\Reports;
 use App\Models\AcademicObservation;
 use App\Models\AcademicProjectMilestone;
 use App\Models\BigTestOrder;
-use App\Models\ClassModel;
 use App\Models\ClassReport;
 use App\Models\ClassReportStudentSupport;
 use App\Models\ClassSession;
@@ -25,11 +24,11 @@ use App\Models\SyllabusChangeProposal;
 use App\Models\TeacherTimesheet;
 use App\Models\TuitionReceipt;
 use App\Models\User;
+use App\Services\Reports\Concerns\BuildsReportItems;
 use App\Support\DataScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
 /**
@@ -43,6 +42,8 @@ use Illuminate\Support\Str;
  */
 class DailyReportMetrics
 {
+    use BuildsReportItems;
+
     public const AUDIENCE_ACADEMIC = 'Học thuật';
 
     /** Trạng thái phiếu thu tính là "đã thu trong ngày" (không tính nháp / trả về / hủy). */
@@ -474,33 +475,6 @@ class DailyReportMetrics
 
     // ───────────────────────── HỖ TRỢ ─────────────────────────
 
-    /** @var list<int>|null */
-    private ?array $classIds = null;
-
-    /** Lớp người viết được xem (cùng phạm vi màn Lớp học). */
-    private function classIds(): array
-    {
-        return $this->classIds ??= ClassModel::query()->visibleTo($this->user)->pluck('id')->map(fn ($id) => (int) $id)->all();
-    }
-
-    private function section(string $title, string $icon, array $items, ?string $empty = null): array
-    {
-        return ['title' => $title, 'icon' => $icon, 'items' => $items, 'empty' => $empty];
-    }
-
-    /** `count` là số dùng cho `fields` (ô tổng hợp ở Tổng quan); mặc định là `value` khi `value` là số. */
-    private function item(string $key, string $label, int|string|null $value, string $info, array $details = [], ?int $count = null): array
-    {
-        return [
-            'key' => $key,
-            'label' => $label,
-            'value' => $value === null ? null : (string) $value,
-            'count' => $count ?? (is_int($value) ? $value : null),
-            'info' => $info,
-            'details' => array_values(array_map(fn (array $d) => array_filter($d, fn ($v) => $v !== null), $details)),
-        ];
-    }
-
     private function className(ClassSession $s): string
     {
         return $s->classModel?->name ?? 'Lớp #'.$s->class_id;
@@ -509,15 +483,5 @@ class DailyReportMetrics
     private function sessionTime(ClassSession $s): string
     {
         return $s->start_time && $s->end_time ? $s->start_time->format('H:i').'–'.$s->end_time->format('H:i') : ($s->shift_name ?: 'Ca học');
-    }
-
-    private function link(string $name, mixed $params = []): ?string
-    {
-        return Route::has($name) ? route($name, $params) : null;
-    }
-
-    private static function money(mixed $amount): string
-    {
-        return number_format((float) $amount, 0, ',', '.').'đ';
     }
 }

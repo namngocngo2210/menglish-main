@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Models\WorkTask;
 use App\Services\BranchStaff;
 use App\Services\Reports\DailyReportMetrics;
+use App\Services\Reports\WeeklyReportMetrics;
 use App\Support\Approvals\AdminOnlyApprovals;
 use App\Support\Dashboard\TeachingQuality;
 use App\Support\MonthlyReportDue;
@@ -172,7 +173,7 @@ class StaffReportController extends Controller
         'homework_level' => ['label' => 'Tỉ lệ hoàn thành bài tập', 'options' => ['high' => 'Cao (>80%)', 'low' => 'Thấp']],
     ];
 
-    /** Chỉ số quy mô trong báo cáo tuần Học vụ (theo dõi, không tính KPI). */
+    /** Chỉ số quy mô trong báo cáo tuần Học vụ (theo dõi, không tính KPI). Số tính tự động ở WeeklyReportMetrics; nhãn giữ để đọc báo cáo nhập tay cũ. */
     public const WEEKLY_METRICS = [
         'classes_running' => 'Số lớp đang chạy',
         'students' => 'Số học sinh',
@@ -634,6 +635,8 @@ class StaffReportController extends Controller
         }
         $week = ReportPeriod::pick($request->input('week'), ReportPeriod::WEEK_PATTERN, ReportPeriod::currentWeek());
         $report = $this->structuredReport('academic_weekly', $week);
+        // Số tuần + dòng gợi ý từ hệ thống (WeeklyReportMetrics): tuần chưa nộp thì điền sẵn vào 3 bảng, đã nộp thì bấm "Thêm từ hệ thống".
+        $metrics = WeeklyReportMetrics::academic(Auth::user(), $week);
 
         return Inertia::render('Reports/AcademicWeekly', [
             'tabs' => $this->reportTabs(Auth::user(), 'academic_weekly'),
@@ -643,6 +646,9 @@ class StaffReportController extends Controller
             'columns' => self::WEEKLY_COLUMNS,
             'progressOptions' => array_map(fn (int $p) => ['value' => (string) $p, 'label' => $p.'%'], self::WEEKLY_PROGRESS),
             'rows' => (object) ($report?->data['rows'] ?? []),
+            'summary' => $metrics['summary'],
+            'suggestions' => $metrics['suggestions'],
+            'computedAt' => $metrics['computed_at'],
             'submittedAt' => $report?->updated_at?->toIso8601String(),
             'history' => $this->structuredHistory('academic_weekly', fn (string $key) => ReportPeriod::weekLabel($key), 'week'),
             'legacy' => $this->legacyReports('weekly'),
@@ -664,6 +670,7 @@ class StaffReportController extends Controller
                 "rows.{$section}.*.report" => ['nullable', 'string', 'max:1000'],
                 "rows.{$section}.*.support" => ['nullable', 'string', 'max:1000'],
                 "rows.{$section}.*.note" => ['nullable', 'string', 'max:1000'],
+                "rows.{$section}.*.source" => ['nullable', 'string', 'max:100'],
             ];
         }
         $data = $request->validate($rules, [
@@ -685,6 +692,8 @@ class StaffReportController extends Controller
                     $errors["rows.{$section}.{$i}.content"] = 'Nhập nội dung công việc.';
                 }
                 $clean['progress'] = $clean['progress'] === null ? null : (int) $clean['progress'];
+                // Dòng điền sẵn từ hệ thống giữ mã nguồn (milestone:12, task:5…) để lần sau không gợi ý trùng.
+                $clean['source'] = filled($row['source'] ?? null) ? (string) $row['source'] : null;
                 $rows[$section][] = $clean;
             }
         }
@@ -714,7 +723,10 @@ class StaffReportController extends Controller
         return back()->with('success', 'Đã lưu báo cáo tuần '.$data['week'].'.');
     }
 
-    /** Báo cáo tuần Học vụ: số lần phát sinh theo từng mục KPI đang áp dụng + chỉ số quy mô. */
+    /**
+     * Báo cáo tuần Học vụ: số lần phát sinh theo từng mục KPI đang áp dụng + chỉ số quy mô, tính tự động cho cả tuần
+     * (WeeklyReportMetrics). Người viết chỉ nhập ghi chú tuần; tuần đã nộp hiện số lúc nộp, "Cập nhật số liệu" tính lại.
+     */
     public function weeklyKpi(Request $request): Response|RedirectResponse
     {
         if ($redirect = $this->redirectUnlessStructured('weekly_kpi')) {
@@ -722,28 +734,35 @@ class StaffReportController extends Controller
         }
         $week = ReportPeriod::pick($request->input('week'), ReportPeriod::WEEK_PATTERN, ReportPeriod::currentWeek());
         $report = $this->structuredReport('weekly_kpi', $week);
-        $counts = collect($report?->data['counts'] ?? [])->pluck('count', 'id');
+        $snapshot = $report?->data['auto'] ?? null;
+        $live = ! $snapshot || $request->boolean('refresh');
+        $metrics = $live ? WeeklyReportMetrics::operations(Auth::user(), $week) : $snapshot;
 
         return Inertia::render('Reports/WeeklyKpi', [
             'tabs' => $this->reportTabs(Auth::user(), 'weekly_kpi'),
             'week' => $week,
             'weeks' => ReportPeriod::weekOptions(),
-            'groups' => KpiCriterion::forRole(Roles::ACADEMIC_STAFF)->active()->ordered()->get()
-                ->groupBy('group_name')
-                ->map(fn ($items, $group) => [
-                    'name' => $group,
-                    'items' => $items->map(fn (KpiCriterion $c) => [
-                        'id' => $c->id,
-                        'code' => $c->code,
-                        'name' => $c->name,
-                        'count' => $counts[$c->id] ?? null,
-                    ])->values(),
-                ])->values(),
-            'metrics' => self::WEEKLY_METRICS,
-            'metricValues' => $report?->data['metrics'] ?? [],
+            'groups' => $metrics['groups'],
+            'metrics' => $metrics['metrics'],
+            'daily' => $metrics['daily'],
+            'computedAt' => $metrics['computed_at'] ?? null,
+            'live' => $live,
+            'note' => $report?->data['note'] ?? null,
+            'legacy' => $report && ! $snapshot ? $this->legacyWeeklyKpi($report) : [],
             'submittedAt' => $report?->updated_at?->toIso8601String(),
             'history' => $this->structuredHistory('weekly_kpi', fn (string $key) => ReportPeriod::weekLabel($key), 'week'),
         ]);
+    }
+
+    /** Báo cáo tuần nhập tay trước khi chuyển sang số liệu tự động: các số đã nhập (chỉ đọc). */
+    private function legacyWeeklyKpi(StaffReport $report): array
+    {
+        return [
+            ...collect($report->data['counts'] ?? [])->filter(fn ($c) => ($c['count'] ?? 0) > 0)
+                ->map(fn ($c) => ['label' => $c['name'], 'value' => $c['count'].' lần'])->values()->all(),
+            ...collect($report->data['metrics'] ?? [])->filter(fn ($v) => $v !== null)
+                ->map(fn ($v, $k) => ['label' => self::WEEKLY_METRICS[$k] ?? $k, 'value' => (string) $v])->values()->all(),
+        ];
     }
 
     public function weeklyKpiStore(Request $request): RedirectResponse
@@ -751,29 +770,22 @@ class StaffReportController extends Controller
         $this->guardStructured('weekly_kpi');
         $data = $request->validate([
             'week' => ['required', 'regex:'.ReportPeriod::WEEK_PATTERN],
-            'counts' => ['nullable', 'array'],
-            'counts.*' => ['nullable', 'integer', 'min:0', 'max:9999'],
-            'metrics' => ['nullable', 'array'],
-            'metrics.*' => ['nullable', 'integer', 'min:0', 'max:99999'],
-        ], ['counts.*.min' => 'Số lần phát sinh không âm.', 'metrics.*.min' => 'Chỉ số không âm.']);
+            'note' => ['nullable', 'string', 'max:5000'],
+        ]);
 
-        // Lưu kèm tên / nhóm mục KPI tại thời điểm nộp để báo cáo cũ vẫn đọc được khi Admin đổi cấu hình KPI.
-        $counts = KpiCriterion::forRole(Roles::ACADEMIC_STAFF)->active()->ordered()->get()->map(fn (KpiCriterion $c) => [
-            'id' => $c->id,
-            'code' => $c->code,
-            'name' => $c->name,
-            'group' => $c->group_name,
-            'count' => isset($data['counts'][$c->id]) ? (int) $data['counts'][$c->id] : 0,
-        ])->values()->all();
-        $metrics = collect(self::WEEKLY_METRICS)->keys()
-            ->mapWithKeys(fn ($k) => [$k => isset($data['metrics'][$k]) ? (int) $data['metrics'][$k] : null])->all();
-
-        $lines = collect($counts)->filter(fn ($c) => $c['count'] > 0)->map(fn ($c) => "{$c['group']} — {$c['name']}: {$c['count']} lần");
-        $lines = $lines->merge(collect($metrics)->filter(fn ($v) => $v !== null)->map(fn ($v, $k) => self::WEEKLY_METRICS[$k].": {$v}"));
+        // Số liệu tính lại trên server lúc nộp (không nhận số từ form) và lưu kèm tên / nhóm mục KPI để báo cáo cũ
+        // vẫn đọc được khi Admin đổi cấu hình KPI.
+        $snapshot = WeeklyReportMetrics::operations(Auth::user(), $data['week']);
+        $counts = collect($snapshot['groups'])->flatMap(fn (array $g) => collect($g['items'])->map(fn (array $i) => [
+            'id' => $i['id'], 'code' => $i['code'], 'name' => $i['name'], 'group' => $g['name'], 'count' => $i['count'],
+        ]))->values()->all();
+        $metrics = collect($snapshot['metrics']['items'])->mapWithKeys(fn (array $i) => [$i['key'] => $i['count']])->all();
+        $note = filled($data['note'] ?? null) ? trim($data['note']) : null;
         [$start] = ReportPeriod::weekRange($data['week']);
 
         $this->saveStructured('weekly_kpi', $data['week'], 'Báo cáo tuần '.ReportPeriod::weekLabel($data['week']), $start->toDateString(),
-            ['counts' => $counts, 'metrics' => $metrics], $lines->implode("\n") ?: 'Không có phát sinh trong tuần.');
+            ['auto' => $snapshot, 'counts' => $counts, 'metrics' => $metrics, 'note' => $note],
+            WeeklyReportMetrics::operationsText($snapshot, $note));
 
         return back()->with('success', 'Đã lưu báo cáo tuần '.$data['week'].'.');
     }

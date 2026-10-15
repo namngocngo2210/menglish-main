@@ -265,22 +265,21 @@ class ClassQualityTest extends TestCase
         $this->actingAs($staff)->get(route('reports.periodic.weekly-kpi'))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->component('Reports/WeeklyKpi')->where('week', $week)->has('tabs', 2));
 
+        // Số lần phát sinh do hệ thống đếm (Nhật ký Học vụ gắn mã KPI), số gửi từ form bị bỏ qua.
+        StaffReport::create(['user_id' => $staff->id, 'type' => 'journal', 'title' => 'Sự vụ', 'content' => 'Gọi phụ huynh trễ', 'kpi_code' => 'CS1', 'report_date' => today()]);
         $this->actingAs($staff)->post(route('reports.periodic.weekly-kpi.store'), [
-            'week' => $week, 'counts' => [$criterion->id => 3], 'metrics' => ['classes_running' => 12],
+            'week' => $week, 'counts' => [$criterion->id => 9], 'metrics' => ['classes_running' => 12],
         ])->assertSessionHasNoErrors();
         // Lưu lại trong tuần là cập nhật, không tạo báo cáo mới.
-        $this->actingAs($staff)->post(route('reports.periodic.weekly-kpi.store'), ['week' => $week, 'counts' => [$criterion->id => 4]])
-            ->assertSessionHasNoErrors();
+        $this->actingAs($staff)->post(route('reports.periodic.weekly-kpi.store'), ['week' => $week, 'note' => 'Ổn'])->assertSessionHasNoErrors();
 
-        $report = StaffReport::sole();
+        $report = StaffReport::where('kind', 'weekly_kpi')->sole();
         $this->assertSame('weekly', $report->type);
         $this->assertSame($week, $report->period_key);
-        $this->assertSame(4, $report->data['counts'][0]['count']);
-        $this->assertStringContainsString('Gọi điện phụ huynh: 4 lần', $report->content);
+        $this->assertSame(1, $report->data['counts'][0]['count']);
+        $this->assertSame(0, $report->data['metrics']['classes_running']);
+        $this->assertStringContainsString('Gọi điện phụ huynh: 1 lần', $report->content);
         $this->actingAs($staff)->get(route('reports.periodic.weekly-kpi', ['week' => $week]))->assertOk()->assertSee('Gọi điện phụ huynh')->assertSee('Đã nộp tuần này');
-
-        $this->actingAs($staff)->post(route('reports.periodic.weekly-kpi.store'), ['week' => $week, 'counts' => [$criterion->id => -1]])
-            ->assertSessionHasErrors('counts.'.$criterion->id);
 
         // Học vụ vào "Báo cáo của tôi" là vào thẳng màn báo cáo ngày có cấu trúc.
         $this->actingAs($staff)->get(route('reports.my'))->assertRedirect(route('reports.periodic.daily'));
