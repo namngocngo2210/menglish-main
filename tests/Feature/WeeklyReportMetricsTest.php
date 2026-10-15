@@ -275,7 +275,9 @@ class WeeklyReportMetricsTest extends TestCase
         $this->actingAs($admin)->get(route('reports.detail', $legacy->id))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->where('view', 'daily_legacy')
                 ->has('legacy.sections', 3)->has('legacy.fields.media_posts')
-                ->where('legacy.values.classes_planned', 3)->where('legacy.values.classes_note', 'test')->missing('legacy.values.classes_actual'));
+                ->where('legacy.values.classes_planned', 3)->where('legacy.values.classes_note', 'test')->missing('legacy.values.classes_actual')
+                // Số liệu + chi tiết hệ thống tính lại cho ngày đó, như màn Học vụ đang thấy.
+                ->has('auto.sections.operations.items')->has('auto.computed_at'));
 
         // Báo cáo tuần nhập tay bản cũ: mọi mục KPI (kể cả 0) theo nhóm và đủ 9 chỉ số (ô trống = null).
         $legacyWeek = StaffReport::create(['user_id' => $staff->id, 'type' => 'weekly', 'kind' => 'weekly_kpi', 'period_key' => '2026-W38', 'title' => 'Báo cáo tuần cũ',

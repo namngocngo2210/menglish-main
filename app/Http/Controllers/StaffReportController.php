@@ -1308,7 +1308,7 @@ class StaffReportController extends Controller
     /**
      * Chi tiết một báo cáo cho Admin (modal "Chi tiết" ở màn Tổng hợp, chủ dự án 15/10/2026): hiện như màn người viết nhập —
      * số liệu tự động + ghi chú theo khối (báo cáo ngày), bảng KPI + chỉ số (báo cáo tuần Học vụ), 3 bảng (báo cáo tuần Học thuật).
-     * Báo cáo ngày / tuần nhập tay bản cũ → đủ mọi ô của form cũ (`legacy`). Loại chưa có màn có cấu trúc → nội dung chữ.
+     * Báo cáo ngày / tuần nhập tay bản cũ → đủ mọi ô của form cũ (`legacy`); báo cáo ngày cũ kèm số liệu hệ thống tính lại cho ngày đó. Loại chưa có màn có cấu trúc → nội dung chữ.
      */
     public function reportDetail(int $id): Response
     {
@@ -1359,7 +1359,12 @@ class StaffReportController extends Controller
                 'followups' => $r->followups->map(fn (StaffReportFollowup $f) => ['user' => $f->user?->name, 'content' => $f->content, 'created_at' => $f->created_at->toIso8601String()])->all(),
             ],
             'view' => $view,
-            'auto' => in_array($view, ['daily', 'weekly_kpi'], true) ? $data['auto'] : null,
+            'auto' => match (true) {
+                in_array($view, ['daily', 'weekly_kpi'], true) => $data['auto'],
+                // Báo cáo ngày nhập tay cũ chỉ lưu con số: tính lại số liệu + chi tiết của ngày đó theo phạm vi người viết, như màn Học vụ đang thấy.
+                $view === 'daily_legacy' && $r->user !== null => DailyReportMetrics::compute($r->user, $r->report_date->toDateString(), StaffType::dailyReportAudience($r->user)),
+                default => null,
+            },
             'notes' => (object) ($data['notes'] ?? []),
             'noteLabels' => DailyReportMetrics::NOTE_LABELS,
             'note' => $data['note'] ?? null,

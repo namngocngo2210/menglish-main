@@ -2,9 +2,11 @@
 /**
  * Chi tiết báo cáo cho Admin (StaffReportController::reportDetail, mở trong modal từ màn Tổng hợp — chủ dự án 15/10/2026):
  * hiện như màn người viết nhập, đủ mọi ô (ô trống hiện "—"). Báo cáo ngày: số liệu tự động (đủ mọi dòng chi tiết) + ghi chú từng khối
- * + Task follow-up; báo cáo ngày nhập tay bản cũ: đủ các ô của form cũ, cùng bố cục (ô số + ghi chú chia 4/8); báo cáo tuần Học vụ:
+ * + Task follow-up; báo cáo ngày nhập tay bản cũ: số liệu hệ thống tính lại cho ngày đó (như màn Học vụ đang thấy) + đủ các ô của
+ * form cũ trong từng khối, cùng bố cục (ô số + ghi chú chia 4/8); báo cáo tuần Học vụ:
  * bảng KPI + chỉ số quy mô + ghi chú (bản cũ: số đã nhập ở mọi mục, kể cả 0); báo cáo tuần Học thuật: 3 bảng; loại khác: nội dung chữ.
  */
+import { computed } from 'vue';
 import { route } from '@/lib/route';
 import DailyMetric from './DailyMetric.vue';
 import WeeklyKpiTable from './WeeklyKpiTable.vue';
@@ -30,6 +32,9 @@ const sectionClass = 'space-y-lg rounded-xl border border-surface-variant bg-sur
 const field = (key) => props.legacy?.fields?.[key] ?? { label: key, type: 'text' };
 const paired = (row) => row.length > 1 && row.some((name) => field(name).type === 'text');
 const rowClass = (row) => (row.length < 2 ? '' : paired(row) ? 'md:grid-cols-12' : 'md:grid-cols-2');
+const extraLegacy = computed(() =>
+    Object.fromEntries(Object.entries(props.legacy?.sections ?? {}).filter(([key]) => !props.auto?.sections?.[key])),
+);
 const cellClass = (row, name) => (paired(row) ? (field(name).type === 'text' ? 'md:col-span-8' : 'md:col-span-4') : '');
 </script>
 
@@ -47,40 +52,48 @@ const cellClass = (row, name) => (paired(row) ? (field(name).type === 'text' ? '
                     <template v-if="report.reviewed_at"> · {{ report.reviewed_by ?? 'Admin' }} kiểm tra lúc {{ formatDate(report.reviewed_at, 'H:i d/m') }}</template>
                 </span>
             </div>
-            <p v-if="auto?.computed_at" class="font-body-small text-body-small text-on-surface-variant">
+            <p v-if="auto?.computed_at" class="font-body-small text-body-small text-on-surface-variant" data-computed-at>
                 <span class="material-symbols-outlined align-middle text-[16px]" aria-hidden="true">sync</span>
-                Số liệu hệ thống tính lúc {{ formatDate(auto.computed_at, 'H:i d/m/Y') }} (lúc người viết nộp).
+                Số liệu hệ thống tính lúc {{ formatDate(auto.computed_at, 'H:i d/m/Y') }}
+                {{ view === 'daily_legacy' ? '(tính lại khi mở chi tiết).' : '(lúc người viết nộp).' }}
             </p>
 
-            <!-- Báo cáo ngày: số liệu + ghi chú từng khối -->
+            <!-- Báo cáo ngày: số liệu + ghi chú từng khối. Bản nhập tay cũ: số liệu hệ thống tính lại cho ngày đó + các ô người viết đã nhập. -->
             <template v-if="view === 'daily' || view === 'daily_legacy'">
-                <template v-if="view === 'daily'">
-                    <section v-for="(section, key) in auto.sections" :key="key" :class="sectionClass" :data-detail-section="key">
-                        <h3 class="flex items-center gap-xs font-h3 text-h3 text-on-surface">
-                            <span class="material-symbols-outlined text-primary-container" style="font-variation-settings: 'FILL' 1" aria-hidden="true">{{ section.icon }}</span>{{ section.title }}
-                        </h3>
-                        <p v-if="!section.items.length && section.empty" class="font-body-small text-body-small text-on-surface-variant">{{ section.empty }}</p>
-                        <div v-if="section.items.length" class="grid grid-cols-1 gap-md md:grid-cols-2 xl:grid-cols-3">
-                            <DailyMetric v-for="item in section.items" :key="item.key" :item="item" full :class="hasValue(item) ? '' : 'md:col-span-2 xl:col-span-3'" />
-                        </div>
-                        <ReadonlyField :label="noteLabels[key] ?? 'Ghi chú'" :value="notes[key]" multiline data-detail-note />
-                    </section>
-                </template>
-
-                <!-- Báo cáo ngày nhập tay (bản cũ): đủ các ô của form lúc đó -->
-                <template v-else>
-                    <UiAlert type="info">Báo cáo nộp trước khi chuyển sang số liệu tự động: các ô dưới đây do người viết nhập tay.</UiAlert>
-                    <section v-for="(section, key) in legacy.sections" :key="key" :class="sectionClass" :data-detail-section="key">
-                        <h3 class="flex items-center gap-xs font-h3 text-h3 text-on-surface">
-                            <span class="material-symbols-outlined text-primary-container" style="font-variation-settings: 'FILL' 1" aria-hidden="true">{{ section.icon }}</span>{{ section.title }}
-                        </h3>
-                        <div v-for="(row, i) in section.rows" :key="i" :class="['grid grid-cols-1 gap-lg', rowClass(row)]">
+                <UiAlert v-if="view === 'daily_legacy'" type="info">
+                    Báo cáo này nộp trước khi chuyển sang số liệu tự động. Số liệu và chi tiết bên dưới được hệ thống tính lại cho ngày
+                    {{ formatDate(report.report_date, 'd/m/Y') }} như màn Học vụ đang thấy; khung "Nhập tay lúc nộp" là các ô người viết đã nhập.
+                </UiAlert>
+                <section v-for="(section, key) in auto?.sections ?? {}" :key="key" :class="sectionClass" :data-detail-section="key">
+                    <h3 class="flex items-center gap-xs font-h3 text-h3 text-on-surface">
+                        <span class="material-symbols-outlined text-primary-container" style="font-variation-settings: 'FILL' 1" aria-hidden="true">{{ section.icon }}</span>{{ section.title }}
+                    </h3>
+                    <p v-if="!section.items.length && section.empty" class="font-body-small text-body-small text-on-surface-variant">{{ section.empty }}</p>
+                    <div v-if="section.items.length" class="grid grid-cols-1 gap-md md:grid-cols-2 xl:grid-cols-3">
+                        <DailyMetric v-for="item in section.items" :key="item.key" :item="item" full :class="hasValue(item) ? '' : 'md:col-span-2 xl:col-span-3'" />
+                    </div>
+                    <ReadonlyField v-if="view === 'daily'" :label="noteLabels[key] ?? 'Ghi chú'" :value="notes[key]" multiline data-detail-note />
+                    <div v-else-if="legacy.sections[key]" class="space-y-lg rounded-lg border border-dashed border-outline-variant p-md" data-legacy-block>
+                        <p class="font-label text-label uppercase text-on-surface-variant">Nhập tay lúc nộp</p>
+                        <div v-for="(row, i) in legacy.sections[key].rows" :key="i" :class="['grid grid-cols-1 gap-lg', rowClass(row)]">
                             <div v-for="name in row" :key="name" :class="cellClass(row, name)" :data-legacy-field="name">
                                 <ReadonlyField :label="field(name).label" :value="legacy.values[name]" :multiline="field(name).type === 'text'" />
                             </div>
                         </div>
-                    </section>
-                </template>
+                    </div>
+                </section>
+
+                <!-- Khối của form cũ không có trong số liệu tự động (vd. người viết đổi chức danh) -->
+                <section v-for="(section, key) in extraLegacy" :key="key" :class="sectionClass" :data-detail-section="key">
+                    <h3 class="flex items-center gap-xs font-h3 text-h3 text-on-surface">
+                        <span class="material-symbols-outlined text-primary-container" style="font-variation-settings: 'FILL' 1" aria-hidden="true">{{ section.icon }}</span>{{ section.title }}
+                    </h3>
+                    <div v-for="(row, i) in section.rows" :key="i" :class="['grid grid-cols-1 gap-lg', rowClass(row)]">
+                        <div v-for="name in row" :key="name" :class="cellClass(row, name)" :data-legacy-field="name">
+                            <ReadonlyField :label="field(name).label" :value="legacy.values[name]" :multiline="field(name).type === 'text'" />
+                        </div>
+                    </div>
+                </section>
 
                 <section class="space-y-md rounded-xl border border-primary-container/30 bg-surface-container-low p-lg shadow-sm" data-detail-task>
                     <h3 class="flex items-center gap-xs font-h3 text-h3 text-on-surface">
