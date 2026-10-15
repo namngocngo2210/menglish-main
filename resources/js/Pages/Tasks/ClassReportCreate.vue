@@ -23,6 +23,7 @@ const props = defineProps({
     classInfo: { type: Object, default: null },
     sessionDetails: { type: Object, default: () => ({}) },
     reporter: { type: String, default: null },
+    testSuggestions: { type: Array, default: () => [] },
 });
 const back = useBackLink(() => route('portal.ta-tasks'));
 </script>

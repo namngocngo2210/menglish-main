@@ -100,14 +100,14 @@ class AcademicJournalTest extends TestCase
         $admin = $this->makeUser('admin');
         $today = now()->toDateString();
 
-        $this->actingAs($staff)->post(route('reports.periodic.daily.store'), ['date' => $today, 'fields' => ['classes_planned' => 5]])
+        $this->actingAs($staff)->post(route('reports.periodic.daily.store'), ['date' => $today, 'notes' => ['operations' => 'Ghi chú 5']])
             ->assertSessionHasNoErrors();
         $report = StaffReport::where('kind', 'daily_ops')->sole();
         $this->assertNull($report->reviewed_at);
         $this->assertSame(1, AdminNotification::where('user_id', $admin->id)->where('type', 'staff_report_submitted')->count());
 
         // Sửa lại khi vẫn chờ kiểm tra → không báo thêm.
-        $this->actingAs($staff)->post(route('reports.periodic.daily.store'), ['date' => $today, 'fields' => ['classes_planned' => 6]]);
+        $this->actingAs($staff)->post(route('reports.periodic.daily.store'), ['date' => $today, 'notes' => ['operations' => 'Ghi chú 6']]);
         $this->assertSame(1, AdminNotification::where('user_id', $admin->id)->where('type', 'staff_report_submitted')->count());
 
         $this->actingAs($admin)->get(route('reports.all', ['review' => 'pending']))->assertOk()
@@ -122,7 +122,7 @@ class AcademicJournalTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page->where('stats.pending_review', 0)->has('reports.data', 0));
 
         // Sửa sau khi Admin đã kiểm tra → về lại chờ kiểm tra và báo Admin lần nữa.
-        $this->actingAs($staff)->post(route('reports.periodic.daily.store'), ['date' => $today, 'fields' => ['classes_planned' => 7]]);
+        $this->actingAs($staff)->post(route('reports.periodic.daily.store'), ['date' => $today, 'notes' => ['operations' => 'Ghi chú 7']]);
         $this->assertNull($report->fresh()->reviewed_at);
         $this->assertSame(2, AdminNotification::where('user_id', $admin->id)->where('type', 'staff_report_submitted')->count());
     }
@@ -136,10 +136,10 @@ class AcademicJournalTest extends TestCase
         // Cùng biểu mẫu báo cáo ngày Học vụ; tab Ngày đứng trước Tuần / Tháng / Quý, báo cáo chính vẫn là tuần.
         $this->actingAs($lead)->get(route('reports.periodic.daily'))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->component('Reports/DailyOps')->where('audience', 'Học thuật')
-                ->has('sections', 3)->has('tabs', 4)->where('tabs.0.active', true));
+                ->has('sections', 4)->has('tabs', 4)->where('tabs.0.active', true));
         $this->actingAs($lead)->get(route('reports.my'))->assertRedirect(route('reports.periodic.academic-weekly'));
 
-        $this->actingAs($lead)->post(route('reports.periodic.daily.store'), ['date' => $today, 'fields' => ['classes_planned' => 4]])
+        $this->actingAs($lead)->post(route('reports.periodic.daily.store'), ['date' => $today, 'notes' => ['projects' => 'Ghi chú 4']])
             ->assertSessionHasNoErrors();
         $report = StaffReport::where('kind', 'daily_ops')->sole();
         $this->assertSame($lead->id, (int) $report->user_id);

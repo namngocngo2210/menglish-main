@@ -5,8 +5,10 @@
  * 3. Ảnh minh chứng (nhiều ảnh), 4. Học sinh cần bổ trợ (bảng động). Quy tắc chuyển trạng thái nằm sau nút "i"; cuối form báo
  * trước kết quả sau khi nộp (có ảnh → hoàn thành ngay, không ảnh → chờ Admin xác nhận).
  * Đổi lớp: tải lại form theo lớp mới (buổi / học sinh / người xác nhận của lớp). Ảnh: gửi multipart, xem trước và bỏ bớt ảnh đã chọn.
+ * Lấy từ hệ thống (chủ dự án 15/10/2026): "Hôm nay học gì" điền sẵn theo giáo trình của buổi, sĩ số theo điểm danh của GV,
+ * danh sách bổ trợ gợi ý sẵn học sinh vắng buổi này + mini test gần nhất dưới 7 (người nộp xóa / sửa được, chỉ "Kế hoạch xử lý" là nhập tay).
  */
-import { computed, onBeforeUnmount, ref } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { openRemoteModal } from '@/lib/remoteModal';
 import { route } from '@/lib/route';
@@ -26,6 +28,7 @@ const props = defineProps({
     sessionDetails: { type: Object, default: () => ({}) },
     reporter: { type: String, default: null },
     cancelHref: { type: String, default: null },
+    testSuggestions: { type: Array, default: () => [] },
 });
 
 const p = props.asModal ? 'modal-' : 'f_';
@@ -41,11 +44,23 @@ function pickClass(value) {
 const sessionId = ref(props.defaultSessionId ?? '');
 const session = computed(() => props.sessionDetails?.[sessionId.value] ?? null);
 
-// Học sinh cần bổ trợ
+// "Hôm nay học gì": điền theo giáo trình của buổi; đổi buổi thì thay nếu người nộp chưa sửa.
+const lessonText = ref(session.value?.lesson_text ?? '');
+watch(session, (next, prev) => {
+    if (!lessonText.value || lessonText.value === (prev?.lesson_text ?? '')) lessonText.value = next?.lesson_text ?? '';
+});
+
+// Học sinh cần bổ trợ: dòng gợi ý (`auto`: 'session' theo buổi đang chọn, 'test' theo mini test) + dòng thêm tay.
 let seq = 1;
-const supports = ref([]);
-const addSupport = () => supports.value.push({ id: seq++, student_id: '', absence_session: '', reason: '', action_plan: '' });
+const row = (s = {}, auto = null) => ({ id: seq++, student_id: s.student_id ? String(s.student_id) : '', absence_session: s.absence_session ?? '', reason: s.reason ?? '', action_plan: '', auto });
+const supports = ref([...(session.value?.suggested ?? []).map((s) => row(s, 'session')), ...props.testSuggestions.map((s) => row(s, 'test'))]);
+const addSupport = () => supports.value.push(row());
 const removeSupport = (index) => supports.value.splice(index, 1);
+watch(session, (next) => {
+    const kept = supports.value.filter((s) => s.auto !== 'session' || s.action_plan);
+    const have = new Set(kept.map((s) => s.student_id));
+    supports.value = [...(next?.suggested ?? []).filter((s) => !have.has(String(s.student_id))).map((s) => row(s, 'session')), ...kept];
+});
 
 // Ảnh bảng / lớp: xem trước + bỏ từng ảnh
 const photos = ref(null);
@@ -146,8 +161,22 @@ const labelCls = 'mb-xs block font-label text-label uppercase text-on-surface-va
             <!-- 2. Nội dung & diễn biến buổi học -->
             <section class="space-y-md rounded-2xl border border-outline-variant bg-surface-container-lowest p-md shadow-sm" data-report-section="content">
                 <h2 class="flex items-center gap-sm border-b border-surface-container pb-sm font-h3 text-h3 text-on-surface"><span class="h-2 w-2 rounded-full bg-primary-container" aria-hidden="true"></span>2. Nội dung & Diễn biến buổi học</h2>
-                <UiTextarea :id="p + 'hom_nay_hoc_gi'" name="hom_nay_hoc_gi" label="Hôm nay học gì" required :rows="3" placeholder="VD: Tên bài học, dạng bài, kiến thức ngữ pháp / từ vựng cốt lõi đã dạy trên lớp..." />
-                <UiTextarea :id="p + 'nhat_ky_day'" name="nhat_ky_day" label="Nhật ký dạy & Ghi chú nề nếp lớp học (tùy chọn)" :rows="3" placeholder="Sĩ số, học sinh vắng, không khí lớp, thiết bị phòng học..." />
+                <UiTextarea
+                    :id="p + 'hom_nay_hoc_gi'"
+                    v-model="lessonText"
+                    name="hom_nay_hoc_gi"
+                    label="Hôm nay học gì"
+                    required
+                    :rows="3"
+                    :hint="session?.lesson_text ? 'Điền sẵn theo giáo trình của buổi. Sửa lại nếu buổi thực tế dạy khác.' : null"
+                    placeholder="VD: Tên bài học, dạng bài, kiến thức ngữ pháp / từ vựng cốt lõi đã dạy trên lớp..."
+                />
+                <div class="rounded-xl border border-outline-variant bg-surface-container-low p-sm" data-report-attendance>
+                    <p class="font-label text-label uppercase text-on-surface-variant">Sĩ số (lấy từ điểm danh)</p>
+                    <p v-if="session?.attendance" class="mt-xs font-body-small text-body-small text-on-surface">{{ session.attendance.text.replace('Sĩ số (theo điểm danh): ', '') }}</p>
+                    <p v-else class="mt-xs font-body-small text-body-small italic text-on-surface-variant">GV chưa điểm danh buổi này. Sĩ số sẽ tự thêm vào báo cáo khi có điểm danh lúc nộp.</p>
+                </div>
+                <UiTextarea :id="p + 'nhat_ky_day'" name="nhat_ky_day" label="Ghi chú nề nếp lớp học (tùy chọn)" :rows="3" placeholder="Không khí lớp, nề nếp, thiết bị phòng học..." />
             </section>
 
             <!-- 3. Ảnh minh chứng ca trực -->
@@ -188,7 +217,10 @@ const labelCls = 'mb-xs block font-label text-label uppercase text-on-surface-va
                 <p v-if="!supports.length" class="text-center font-body-small text-body-small italic text-on-surface-variant">Chưa có học sinh cần bổ trợ.</p>
                 <div v-for="(sup, idx) in supports" :key="sup.id" class="space-y-sm rounded-xl border border-outline-variant bg-surface-container-low p-sm">
                     <div class="flex items-center justify-between">
-                        <span class="inline-flex items-center gap-xs rounded-md border border-outline-variant bg-surface-container-lowest px-sm py-[2px] font-caption text-caption font-semibold text-on-surface"><span class="h-1.5 w-1.5 rounded-full bg-primary-container" aria-hidden="true"></span>Học sinh #{{ idx + 1 }}</span>
+                        <span class="inline-flex items-center gap-xs">
+                            <span class="inline-flex items-center gap-xs rounded-md border border-outline-variant bg-surface-container-lowest px-sm py-[2px] font-caption text-caption font-semibold text-on-surface"><span class="h-1.5 w-1.5 rounded-full bg-primary-container" aria-hidden="true"></span>Học sinh #{{ idx + 1 }}</span>
+                            <UiBadge v-if="sup.auto" color="info" :dot="false" data-support-suggested>{{ sup.auto === 'test' ? 'Gợi ý: mini test dưới 7' : 'Gợi ý: vắng buổi này' }}</UiBadge>
+                        </span>
                         <button type="button" class="inline-flex items-center gap-xs font-caption text-caption font-semibold text-error hover:underline" @click="removeSupport(idx)"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">delete</span>Xóa dòng</button>
                     </div>
                     <div class="grid grid-cols-1 gap-sm md:grid-cols-3">

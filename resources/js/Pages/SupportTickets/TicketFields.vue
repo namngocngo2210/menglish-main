@@ -20,6 +20,7 @@ defineExpose({
 
 const categories = [
     { value: 'technical_issue', label: 'Lỗi Hệ Thống / IT' },
+    { value: 'facilities', label: 'Cơ Sở Vật Chất' },
     { value: 'curriculum', label: 'Giáo Trình / Học Vụ' },
     { value: 'tuition', label: 'Học Phí / Hóa Đơn' },
     { value: 'customer_complaint', label: 'Khiếu Nại Học Viên' },
