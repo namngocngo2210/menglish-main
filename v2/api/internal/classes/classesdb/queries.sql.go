@@ -545,6 +545,37 @@ func (q *Queries) ClassStartInfo(ctx context.Context, id uuid.UUID) (ClassStartI
 	return i, err
 }
 
+const classStartInfos = `-- name: ClassStartInfos :many
+SELECT id, status, start_date FROM academic.classes WHERE id = ANY ($1::uuid[])
+`
+
+type ClassStartInfosRow struct {
+	ID        uuid.UUID
+	Status    string
+	StartDate *time.Time
+}
+
+// Trạng thái / ngày khai giảng của các lớp (màn Xác nhận nhập học bên CRM).
+func (q *Queries) ClassStartInfos(ctx context.Context, ids []uuid.UUID) ([]ClassStartInfosRow, error) {
+	rows, err := q.db.Query(ctx, classStartInfos, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ClassStartInfosRow
+	for rows.Next() {
+		var i ClassStartInfosRow
+		if err := rows.Scan(&i.ID, &i.Status, &i.StartDate); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const classStatusCounts = `-- name: ClassStatusCounts :many
 
 SELECT c.status, count(*)::bigint AS total
@@ -674,6 +705,109 @@ type CloseEnrollmentsParams struct {
 func (q *Queries) CloseEnrollments(ctx context.Context, arg CloseEnrollmentsParams) error {
 	_, err := q.db.Exec(ctx, closeEnrollments, arg.Today, arg.StudentID, arg.ClassID)
 	return err
+}
+
+const closingClassChoices = `-- name: ClosingClassChoices :many
+SELECT c.id, c.name, c.code::text AS code, c.branch_id, c.course_id, c.status, c.start_date, c.max_capacity, c.min_students,
+       cl.id AS class_level_id, co.course_level_id, cl.name AS class_level_name, ccl.name AS course_level_name,
+       (SELECT count(DISTINCT r.student_id) FROM academic.class_roster r WHERE r.class_id = c.id)::bigint AS roster_count
+FROM academic.classes c
+LEFT JOIN academic.courses co ON co.id = c.course_id AND co.deleted_at IS NULL
+LEFT JOIN academic.course_levels cl ON cl.code = c.level AND cl.deleted_at IS NULL
+LEFT JOIN academic.course_levels ccl ON ccl.id = co.course_level_id
+WHERE c.deleted_at IS NULL AND ($1::uuid IS NULL OR c.branch_id = $1::uuid)
+  AND (c.status = 'active' OR (c.status = 'upcoming' AND (c.start_date IS NULL OR c.start_date >= $2::date)))
+ORDER BY (c.status = 'upcoming') DESC, c.start_date NULLS LAST, c.name
+`
+
+type ClosingClassChoicesParams struct {
+	BranchID *uuid.UUID
+	Today    time.Time
+}
+
+type ClosingClassChoicesRow struct {
+	ID              uuid.UUID
+	Name            string
+	Code            string
+	BranchID        uuid.UUID
+	CourseID        *uuid.UUID
+	Status          string
+	StartDate       *time.Time
+	MaxCapacity     int32
+	MinStudents     int32
+	ClassLevelID    *uuid.UUID
+	CourseLevelID   *uuid.UUID
+	ClassLevelName  *string
+	CourseLevelName *string
+	RosterCount     int64
+}
+
+// Lớp nhận ghi danh khi chốt / xếp lớp khách CRM (đang học, hoặc sắp khai giảng chưa tới ngày bắt đầu) của một chi nhánh
+// (NULL = mọi chi nhánh), kèm trình độ và sĩ số; lớp sắp khai giảng lên đầu, rồi theo ngày khai giảng.
+func (q *Queries) ClosingClassChoices(ctx context.Context, arg ClosingClassChoicesParams) ([]ClosingClassChoicesRow, error) {
+	rows, err := q.db.Query(ctx, closingClassChoices, arg.BranchID, arg.Today)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ClosingClassChoicesRow
+	for rows.Next() {
+		var i ClosingClassChoicesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Code,
+			&i.BranchID,
+			&i.CourseID,
+			&i.Status,
+			&i.StartDate,
+			&i.MaxCapacity,
+			&i.MinStudents,
+			&i.ClassLevelID,
+			&i.CourseLevelID,
+			&i.ClassLevelName,
+			&i.CourseLevelName,
+			&i.RosterCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const closingCourses = `-- name: ClosingCourses :many
+SELECT id, name, tuition_fee FROM academic.courses WHERE deleted_at IS NULL AND is_active ORDER BY name
+`
+
+type ClosingCoursesRow struct {
+	ID         uuid.UUID
+	Name       string
+	TuitionFee int64
+}
+
+// Khóa học đang mở (chốt khách, xếp lớp sau).
+func (q *Queries) ClosingCourses(ctx context.Context) ([]ClosingCoursesRow, error) {
+	rows, err := q.db.Query(ctx, closingCourses)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ClosingCoursesRow
+	for rows.Next() {
+		var i ClosingCoursesRow
+		if err := rows.Scan(&i.ID, &i.Name, &i.TuitionFee); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const conflictCandidates = `-- name: ConflictCandidates :many
@@ -3467,6 +3601,17 @@ func (q *Queries) StartStudyingDue(ctx context.Context, today time.Time) (int64,
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const studentBranchID = `-- name: StudentBranchID :one
+SELECT branch_id FROM academic.students WHERE id = $1
+`
+
+func (q *Queries) StudentBranchID(ctx context.Context, id uuid.UUID) (*uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, studentBranchID, id)
+	var branch_id *uuid.UUID
+	err := row.Scan(&branch_id)
+	return branch_id, err
 }
 
 const studentClasses = `-- name: StudentClasses :many

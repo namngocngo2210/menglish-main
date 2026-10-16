@@ -230,6 +230,13 @@ export type LeadInput = {
 export type Saved = { id: string; message: string }
 export type StageResult = { stage: string; stage_label: string; message: string }
 
+export type ClassChoice = { id: string; label: string; course_id: string | null }
+export type ClosingChoices = {
+  classes: ClassChoice[]
+  courses: { id: string; label: string; fee: number }[]
+  promotions: Option[]
+}
+
 export type WaitingRow = {
   id: string
   short_code: string
@@ -459,6 +466,8 @@ export const crmApi = {
   restore: (id: string) => request<Saved>('POST', `${lead(id)}/restore`),
   close: (id: string, b: Record<string, unknown>) => request<Saved>('POST', `${lead(id)}/close`, b),
   assignClass: (id: string, class_id: string) => request<Saved>('POST', `${lead(id)}/assign-class`, { class_id }),
+  closingChoices: (id: string) => request<ClosingChoices>('GET', `${lead(id)}/closing-options`),
+  classChoices: (id: string) => request<{ classes: ClassChoice[] }>('GET', `${lead(id)}/class-options`),
 
   transfers: (status: string, page: number) => request<Page<TransferRow>>('GET', `/crm/transfers${query({ status, page })}`),
   approveTransfer: (id: string, note: string) => request<Saved>('POST', `/crm/transfers/${id}/approve`, { note }),

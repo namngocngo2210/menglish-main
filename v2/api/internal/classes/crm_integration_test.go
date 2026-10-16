@@ -74,6 +74,18 @@ func TestCRMCloseCreatesStudentAndEnrolls(t *testing.T) {
 	path := "/crm/leads/" + won.String() + "/close"
 	expect(t, teacher.do("POST", path, map[string]any{"class_id": small}), 403, "forbidden")
 
+	// Lựa chọn cho hộp Chốt & Xếp lớp: lớp cùng cơ sở còn chỗ, khóa đang mở, ưu đãi trong danh mục
+	expect(t, teacher.do("GET", "/crm/leads/"+won.String()+"/closing-options", nil), 403, "forbidden")
+	co := staff.do("GET", "/crm/leads/"+won.String()+"/closing-options", nil)
+	expect(t, co, 200, "")
+	if cl := list(co, "classes"); len(cl) != 3 || cl[0]["id"] != small.String() || cl[0]["label"] != "IELTS tối 2-4 (IE-01) · Trung cấp B1 · còn 1 chỗ" {
+		t.Fatalf("lớp chọn khi chốt: %v", cl)
+	}
+	if cs, ps := list(co, "courses"), list(co, "promotions"); len(cs) != 2 || cs[0]["label"] != "IELTS Foundation" || cs[0]["fee"] != float64(6000000) ||
+		len(ps) != 1 || ps[0]["value"] != promo.String() {
+		t.Fatalf("khóa / ưu đãi khi chốt: %v %v", cs, ps)
+	}
+
 	// Chốt có lớp: hồ sơ học viên gắn Lead, ghi danh lớp, giá trị hợp đồng = học phí khóa − ưu đãi
 	r := staff.do("POST", path, map[string]any{"class_id": small, "promotion_id": promo})
 	msg := expectPrefix(t, r, 200, "Đã chốt deal và tạo hồ sơ HV-")
@@ -112,6 +124,24 @@ func TestCRMCloseCreatesStudentAndEnrolls(t *testing.T) {
 	if confirmations != 1 {
 		t.Fatalf("chờ xác nhận chính thức: %d", confirmations)
 	}
+	// Màn Xác nhận nhập học: trạng thái khai giảng theo lớp thật
+	boss := e.access(e.member("MES999", nil, iam.RoleAdmin))
+	startLabel := func() string {
+		t.Helper()
+		l, err := e.svc.CRM.ListConfirmations(context.Background(), boss, crm.ConfirmationFilter{ClassID: &small})
+		if err != nil || len(l.Data) != 1 {
+			t.Fatalf("danh sách xác nhận: %+v %v", l, err)
+		}
+		return l.Data[0].StartLabel
+	}
+	if got := startLabel(); got != "Đã khai giảng" {
+		t.Fatalf("lớp đã khai giảng: %s", got)
+	}
+	e.exec("UPDATE academic.classes SET status = 'upcoming', start_date = '2026-11-02' WHERE id = $1", small)
+	if got := startLabel(); got != "Sắp khai giảng 02/11/2026" {
+		t.Fatalf("lớp sắp khai giảng: %s", got)
+	}
+	e.exec("UPDATE academic.classes SET status = 'active', start_date = '2026-10-19' WHERE id = $1", small)
 	// Trang lớp thấy học viên mới
 	if r := admin.do("GET", "/classes/"+small.String()+"?tab=students", nil); r.status != 200 || !strings.Contains(strings.ToLower(jsonString(r.body)), "lê chốt") {
 		t.Fatalf("học viên chưa vào lớp: %v", r.body)
@@ -143,6 +173,11 @@ func TestCRMCloseCreatesStudentAndEnrolls(t *testing.T) {
 		t.Fatalf("khóa chờ xếp lớp: %v", waitingCourse)
 	}
 	assign := "/crm/leads/" + full.String() + "/assign-class"
+	// Lớp gợi ý: đúng khóa / cấp độ đã chốt, còn chỗ
+	if cl := list(staff.do("GET", "/crm/leads/"+full.String()+"/class-options", nil), "classes"); len(cl) != 1 || cl[0]["id"] != big.String() ||
+		cl[0]["label"] != "IELTS tối 3-5 (IE-02) · Trung cấp B1 · còn 10 chỗ" {
+		t.Fatalf("lớp gợi ý cho khách chờ xếp lớp: %v", cl)
+	}
 	expectMessage(t, staff.do("POST", assign, map[string]any{"class_id": other}), 422, "Lớp phải thuộc khóa học đã chốt (IELTS Foundation) hoặc cùng cấp độ (Trung cấp B1).")
 	expectMessage(t, staff.do("POST", assign, map[string]any{"class_id": small}), 422, "Lớp đã đủ sĩ số, vui lòng chọn lớp khác.")
 	expectMessage(t, staff.do("POST", assign, map[string]any{"class_id": big}), 200, "Đã xếp lớp cho học viên và chuyển Lead sang Đã chốt.")

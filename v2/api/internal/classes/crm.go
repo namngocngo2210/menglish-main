@@ -287,3 +287,22 @@ func (s *Service) waitingLead(ctx context.Context, tx pgx.Tx, q *classesdb.Queri
 	}
 	return s.CRM.LockWaitingLead(ctx, tx, id)
 }
+
+var _ crm.ClassStarts = (*CRMStudents)(nil)
+
+// ClassStarts (crm.ClassStarts): lớp đã khai giảng (đang hoạt động và tới ngày khai giảng) hoặc đã kết thúc.
+func (b *CRMStudents) ClassStarts(ctx context.Context, classIDs []uuid.UUID) (map[uuid.UUID]crm.ClassStart, error) {
+	out := map[uuid.UUID]crm.ClassStart{}
+	if len(classIDs) == 0 {
+		return out, nil
+	}
+	rows, err := b.cls.q.ClassStartInfos(ctx, classIDs)
+	if err != nil {
+		return nil, err
+	}
+	today := b.cls.today()
+	for _, r := range rows {
+		out[r.ID] = crm.ClassStart{Started: isStudying(r.Status, r.StartDate, today) || r.Status == StatusCompleted, StartDate: r.StartDate}
+	}
+	return out, nil
+}

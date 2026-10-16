@@ -2,6 +2,7 @@ package crm
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -60,4 +61,39 @@ func (s *Service) WaitingCount(ctx context.Context, a *iam.Access) (int64, error
 	sc := scopeOf(a)
 	rows, err := s.q.WaitingLeads(ctx, crmdb.WaitingLeadsParams{ScopeOwner: sc.owner, ScopeBranches: sc.branches})
 	return int64(len(rows)), err
+}
+
+// ClassStart: lớp đã khai giảng chưa (ClassStartActivation::classHasStarted, hoặc lớp đã kết thúc) và ngày khai giảng.
+type ClassStart struct {
+	Started   bool
+	StartDate *time.Time
+}
+
+// ClassStarts: StudentCreator cài thêm interface này (classes.CRMStudents) thì màn Xác nhận nhập học lấy trạng thái
+// khai giảng thật của lớp thay cho ngày khai giảng chép lúc ghi danh.
+type ClassStarts interface {
+	ClassStarts(ctx context.Context, classIDs []uuid.UUID) (map[uuid.UUID]ClassStart, error)
+}
+
+func (s *Service) classStarts(ctx context.Context, rows []crmdb.ListConfirmationsRow) (map[uuid.UUID]ClassStart, error) {
+	cs, ok := s.students.(ClassStarts)
+	if !ok || len(rows) == 0 {
+		return map[uuid.UUID]ClassStart{}, nil
+	}
+	ids := make([]uuid.UUID, 0, len(rows))
+	for _, r := range rows {
+		ids = append(ids, r.ClassID)
+	}
+	return cs.ClassStarts(ctx, ids)
+}
+
+// label: "Đã khai giảng" | "Sắp khai giảng dd/mm/yyyy".
+func (c ClassStart) label() string {
+	if c.Started {
+		return "Đã khai giảng"
+	}
+	if c.StartDate != nil {
+		return "Sắp khai giảng " + c.StartDate.Format("02/01/2006")
+	}
+	return "Sắp khai giảng"
 }

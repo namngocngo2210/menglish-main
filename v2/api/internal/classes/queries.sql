@@ -901,3 +901,28 @@ WHERE s.date = sqlc.arg(day)::date AND s.status <> 'cancelled'
   AND (s.teacher_id = sqlc.arg(staff_id)::uuid OR s.foreign_teacher_id = sqlc.arg(staff_id)::uuid
        OR s.assistant_id = sqlc.arg(staff_id)::uuid OR s.class_id = ANY (sqlc.arg(class_ids)::uuid[]))
 ORDER BY s.start_time, s.id;
+
+-- name: ClassStartInfos :many
+-- Trạng thái / ngày khai giảng của các lớp (màn Xác nhận nhập học bên CRM).
+SELECT id, status, start_date FROM academic.classes WHERE id = ANY (sqlc.arg(ids)::uuid[]);
+
+-- name: ClosingClassChoices :many
+-- Lớp nhận ghi danh khi chốt / xếp lớp khách CRM (đang học, hoặc sắp khai giảng chưa tới ngày bắt đầu) của một chi nhánh
+-- (NULL = mọi chi nhánh), kèm trình độ và sĩ số; lớp sắp khai giảng lên đầu, rồi theo ngày khai giảng.
+SELECT c.id, c.name, c.code::text AS code, c.branch_id, c.course_id, c.status, c.start_date, c.max_capacity, c.min_students,
+       cl.id AS class_level_id, co.course_level_id, cl.name AS class_level_name, ccl.name AS course_level_name,
+       (SELECT count(DISTINCT r.student_id) FROM academic.class_roster r WHERE r.class_id = c.id)::bigint AS roster_count
+FROM academic.classes c
+LEFT JOIN academic.courses co ON co.id = c.course_id AND co.deleted_at IS NULL
+LEFT JOIN academic.course_levels cl ON cl.code = c.level AND cl.deleted_at IS NULL
+LEFT JOIN academic.course_levels ccl ON ccl.id = co.course_level_id
+WHERE c.deleted_at IS NULL AND (sqlc.narg(branch_id)::uuid IS NULL OR c.branch_id = sqlc.narg(branch_id)::uuid)
+  AND (c.status = 'active' OR (c.status = 'upcoming' AND (c.start_date IS NULL OR c.start_date >= sqlc.arg(today)::date)))
+ORDER BY (c.status = 'upcoming') DESC, c.start_date NULLS LAST, c.name;
+
+-- name: ClosingCourses :many
+-- Khóa học đang mở (chốt khách, xếp lớp sau).
+SELECT id, name, tuition_fee FROM academic.courses WHERE deleted_at IS NULL AND is_active ORDER BY name;
+
+-- name: StudentBranchID :one
+SELECT branch_id FROM academic.students WHERE id = $1;
