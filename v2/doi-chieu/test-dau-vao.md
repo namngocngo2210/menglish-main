@@ -85,11 +85,13 @@ trang Vue `PlacementTests/*`, `PlacementTests/Portal/*`, `TrialGuests/Index`, `C
   Hiện đang dùng `NoLeads`. Hệ quả là chưa thấy bài gắn khách (trừ người có `lead.scope_all`) và chưa đặt được học thử.
   Thêm FK `placement.invitations.lead_id`, `placement.submissions.lead_id`, `crm.trial_bookings.lead_id` → `crm.leads`
   (đã có comment `-- FK tới … thêm khi gộp`).
-- **Lớp học (`academic.classes` / buổi học)**: hiện thực interface `placement.Sessions`:
-  - `Get`, `Lookup`: buổi học, tên lớp, giáo viên.
-  - `TeachingScope`: buổi tôi dạy / trợ giảng và lớp tôi phụ trách.
+- **Lớp học (`academic.classes` / buổi học)**: đã gắn — `placement.Options{Sessions: cls.PlacementSessions()}`:
+  - `Get`, `Lookup`: buổi học (lớp chưa xóa), tên lớp, khóa / chương trình, chi nhánh, giờ, giáo viên.
+  - `TeachingScope`: buổi tôi dạy / dạy GVNN / trợ giảng (kể cả dạy thay) và lớp tôi phụ trách.
 
-  Thêm FK `crm.trial_bookings.class_id` / `class_session_id`. Màn đặt học thử cần danh sách buổi trống (TrialSlotFinder).
+  FK `crm.trial_bookings.class_id` / `class_session_id`, `placement.submissions.student_id`: `00110_academic_links_fk`
+  (xóa buổi xóa luôn lịch hẹn như Laravel). Nghỉ lễ hủy buổi thì phân hệ Lớp học hủy lịch hẹn học thử của buổi đó;
+  xếp lại TKB không xóa buổi đã có khách hẹn. Màn đặt học thử vẫn cần danh sách buổi trống (TrialSlotFinder).
 - **Kho file**: tải đề PDF, file nghe, ảnh câu hỏi; phân tích đáp án từ PDF.
 - **Thông báo / audit**: các chỗ `TODO(notify)`.
 - `internal/iam/iamdb/models.go` được sqlc sinh lại vì có thêm migration. Khi gộp nhiều nhánh thì chạy lại `sqlc generate`.

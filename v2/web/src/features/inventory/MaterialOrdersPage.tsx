@@ -186,13 +186,23 @@ function CreateDialog({ onClose, onCreated }: { onClose: () => void; onCreated: 
 function CreateForm({ opts, onClose, onCreated }: { opts: OrderFormOptions; onClose: () => void; onCreated: (text: string, warning?: string) => void }) {
   const [category, setCategory] = useState('props')
   const [branch, setBranch] = useState(opts.default_branch_id ?? '')
+  const [classId, setClassId] = useState('')
+  const classes = (opts.classes ?? []).filter((c) => !branch || c.branch_id === branch)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [useDate, setUseDate] = useState('')
   const [quantity, setQuantity] = useState('')
   const save = useMutation({
     mutationFn: () =>
-      inventoryApi.createOrder({ category, branch_id: branch || null, title, description, quantity: toInt(quantity), use_date: useDate }),
+      inventoryApi.createOrder({
+        category,
+        branch_id: branch || null,
+        class_id: classId || null,
+        title,
+        description,
+        quantity: toInt(quantity),
+        use_date: useDate,
+      }),
     onSuccess: (r) => onCreated(r.message, r.warning),
   })
   const due = previewDueAt(category, useDate, opts.start_of_month_day, opts.day_before_cutoff)
@@ -214,7 +224,15 @@ function CreateForm({ opts, onClose, onCreated }: { opts: OrderFormOptions; onCl
             </option>
           ))}
         </Select>
-        <Select label="Chi nhánh" required value={branch} onChange={(e) => setBranch(e.target.value)}>
+        <Select
+          label="Chi nhánh"
+          required
+          value={branch}
+          onChange={(e) => {
+            setBranch(e.target.value)
+            setClassId('')
+          }}
+        >
           {opts.branches.map((b) => (
             <option key={b.value} value={b.value}>
               {b.label}
@@ -222,6 +240,16 @@ function CreateForm({ opts, onClose, onCreated }: { opts: OrderFormOptions; onCl
           ))}
         </Select>
       </div>
+      {classes.length > 0 && (
+        <Select label="Lớp (nếu có)" value={classId} onChange={(e) => setClassId(e.target.value)}>
+          <option value="">-- Không gắn lớp --</option>
+          {classes.map((c) => (
+            <option key={c.value} value={c.value}>
+              {c.label}
+            </option>
+          ))}
+        </Select>
+      )}
       <Field label="Nội dung order" required maxLength={255} placeholder="VD: Flashcard unit 5, in 20 bộ đề..." value={title} onChange={(e) => setTitle(e.target.value)} />
       <Textarea label="Mô tả chi tiết" rows={3} maxLength={2000} value={description} onChange={(e) => setDescription(e.target.value)} />
       <div className="grid gap-4 sm:grid-cols-2">
