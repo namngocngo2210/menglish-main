@@ -2,7 +2,7 @@
 /** Cơ sở & chi nhánh: danh sách + số liệu; Thêm / Sửa trong hộp thoại ngay trên trang, bấm trạng thái để Bật / Tắt, Xóa có hộp xác nhận. */
 import { computed, ref } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
-import { currentPosition } from '@/lib/geo';
+import { currentPosition, parseCoordinates } from '@/lib/geo';
 import BranchLocationMap from './BranchLocationMap.vue';
 
 defineOptions({ layout: { title: 'Cơ sở & chi nhánh' } });
@@ -37,12 +37,13 @@ function pickOnMap({ latitude, longitude }) {
     checkin.value.latitude = latitude;
     checkin.value.longitude = longitude;
 }
+// Dán "vĩ độ, kinh độ" hoặc nguyên link Google Maps → điền cả 2 ô.
 function pasteCoordinates(event) {
-    const match = (event.clipboardData?.getData('text') ?? '').match(/(-?\d{1,2}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)/);
-    if (!match) return;
+    const coordinates = parseCoordinates(event.clipboardData?.getData('text'));
+    if (!coordinates) return;
     event.preventDefault();
-    checkin.value.latitude = match[1];
-    checkin.value.longitude = match[2];
+    checkin.value.latitude = coordinates.latitude;
+    checkin.value.longitude = coordinates.longitude;
 }
 async function useCurrentLocation() {
     locating.value = true;
@@ -194,7 +195,7 @@ const mapUrl = computed(() =>
         <UiModal :show="!!checkin" :title="checkin ? `Cài đặt chấm công: ${checkin.name}` : ''" max-width="2xl" @close="checkin = null">
             <UiForm v-if="checkin" id="branchCheckinForm" :key="checkin.id" :action="route('branches.attendance', checkin.id)" method="put" class="space-y-md" @success="checkin = null">
                 <p class="font-body-small text-body-small text-on-surface-variant">
-                    Nhân sự của cơ sở chỉ chấm công được khi GPS nằm trong bán kính quanh toạ độ này. Tìm địa chỉ trên bản đồ rồi kéo ghim đến đúng cổng cơ sở, dán toạ độ từ Google Maps (nhấn giữ vị trí → sao chép "vĩ độ, kinh độ") hoặc đứng tại cơ sở và bấm "Lấy vị trí hiện tại".
+                    Nhân sự của cơ sở chỉ chấm công được khi GPS nằm trong bán kính quanh toạ độ này. Tìm địa chỉ trên bản đồ rồi kéo ghim đến đúng cổng cơ sở, dán toạ độ hoặc link địa điểm từ Google Maps (nhấn giữ vị trí → sao chép "vĩ độ, kinh độ") hoặc đứng tại cơ sở và bấm "Lấy vị trí hiện tại".
                 </p>
                 <BranchLocationMap :latitude="checkin.latitude" :longitude="checkin.longitude" :radius="checkin.radius" :address="checkin.address" @pick="pickOnMap" />
                 <div class="grid grid-cols-2 gap-md">

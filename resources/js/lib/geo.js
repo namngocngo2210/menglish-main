@@ -2,6 +2,7 @@
  * Vị trí GPS & camera trên trình duyệt (chấm công điện thoại, cài toạ độ cơ sở).
  *   const pos = await currentPosition();            // { latitude, longitude, accuracy }
  *   distanceMeters(lat1, lng1, lat2, lng2)           // mét, cùng công thức với App\Support\Geo (máy chủ quyết định cuối)
+ *   parseCoordinates('21.0333749, 105.830532' | link Google Maps)  // { latitude, longitude } (chuỗi) hoặc null
  * Trình duyệt chỉ cho dùng GPS / camera trên https (hoặc localhost).
  */
 
@@ -13,6 +14,23 @@ export function distanceMeters(lat1, lng1, lat2, lng2) {
     const dLng = rad(lng2 - lng1);
     const a = Math.sin(dLat / 2) ** 2 + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLng / 2) ** 2;
     return EARTH_RADIUS_METERS * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+const inRange = (lat, lng) => Math.abs(Number(lat)) <= 90 && Math.abs(Number(lng)) <= 180;
+
+/**
+ * Toạ độ trong chuỗi dán vào: "vĩ độ, kinh độ" hoặc link Google Maps.
+ * Link địa điểm có 2 cặp số: `@21.03338,105.82796,17z` là TÂM KHUNG ĐANG XEM (lệch hàng trăm mét), còn
+ * `!3d21.0333749!4d105.830532` mới là vị trí địa điểm → ưu tiên `!3d…!4d…`, rồi `?q=` / `query=` / `ll=`, bỏ qua `@…`.
+ */
+export function parseCoordinates(text) {
+    const value = String(text ?? '');
+    const pin = [...value.matchAll(/!3d(-?\d{1,2}\.\d+)!4d(-?\d{1,3}\.\d+)/g)].at(-1);
+    const query = value.match(/[?&](?:q|query|ll|center|destination)=(-?\d{1,2}\.\d+)(?:,|%2C)\s*(-?\d{1,3}\.\d+)/i);
+    const plain = value.replace(/@-?[\d.]+,-?[\d.]+(?:,[\d.]+[a-z])?/gi, ' ').match(/(-?\d{1,2}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)/);
+    const match = pin ?? query ?? plain;
+    if (!match || !inRange(match[1], match[2])) return null;
+    return { latitude: match[1], longitude: match[2] };
 }
 
 function secureContextMessage() {

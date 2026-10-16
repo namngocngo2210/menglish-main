@@ -7,6 +7,7 @@
  */
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { firstError } from '@/lib/http';
+import { parseCoordinates } from '@/lib/geo';
 import { route } from '@/lib/route';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
@@ -76,6 +77,14 @@ function pick(latlng, options) {
 async function search() {
     const text = query.value.trim();
     if (!text || searching.value) return;
+    // Dán toạ độ / link Google Maps vào ô tìm → đặt ghim luôn, không cần tìm.
+    const coordinates = parseCoordinates(text);
+    if (coordinates) {
+        results.value = [];
+        searchMessage.value = `Đã đặt ghim theo toạ độ ${coordinates.latitude}, ${coordinates.longitude}.`;
+        pick({ lat: Number(coordinates.latitude), lng: Number(coordinates.longitude) }, { fit: true });
+        return;
+    }
     searching.value = true;
     searchMessage.value = null;
     results.value = [];
@@ -168,7 +177,7 @@ watch(
                     <UiInput
                         v-model="query"
                         icon="search"
-                        placeholder="Tìm địa chỉ cơ sở, vd. 25 Trần Duy Hưng, Cầu Giấy, Hà Nội"
+                        placeholder="Tìm địa chỉ, hoặc dán link / toạ độ Google Maps"
                         aria-label="Tìm địa chỉ trên bản đồ"
                         autocomplete="off"
                         data-map-search
