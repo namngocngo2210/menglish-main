@@ -114,31 +114,6 @@ func (q *Queries) ActiveLevels(ctx context.Context) ([]ActiveLevelsRow, error) {
 	return items, nil
 }
 
-const branchClassIDs = `-- name: BranchClassIDs :many
-SELECT id FROM academic.classes WHERE deleted_at IS NULL AND branch_id = ANY ($1::uuid[])
-`
-
-// Lớp (chưa xóa) thuộc các chi nhánh — phạm vi học viên mức Chi nhánh với học viên chưa gán chi nhánh.
-func (q *Queries) BranchClassIDs(ctx context.Context, branchIds []uuid.UUID) ([]uuid.UUID, error) {
-	rows, err := q.db.Query(ctx, branchClassIDs, branchIds)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []uuid.UUID
-	for rows.Next() {
-		var id uuid.UUID
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		items = append(items, id)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const branchExists = `-- name: BranchExists :one
 SELECT EXISTS (SELECT 1 FROM core.branches WHERE id = $1)
 `
@@ -914,8 +889,12 @@ SELECT st.id, st.code::text AS code, st.full_name, st.branch_id, b.name AS branc
 FROM academic.students st
 LEFT JOIN core.branches b ON b.id = st.branch_id
 WHERE st.deleted_at IS NULL AND st.status <> 'dropped'
-  AND (NOT $1::bool OR st.branch_id = ANY ($2::uuid[]))
-  AND (NOT $3::bool OR st.current_class_id = ANY ($4::uuid[]))
+  AND (NOT $1::bool OR st.branch_id = ANY ($2::uuid[])
+       OR (st.branch_id IS NULL AND EXISTS (SELECT 1 FROM academic.classes cc
+                                            WHERE cc.id = st.current_class_id AND cc.branch_id = ANY ($2::uuid[]))))
+  AND (NOT $3::bool OR st.current_class_id = ANY ($4::uuid[])
+       OR EXISTS (SELECT 1 FROM academic.enrollments ee WHERE ee.student_id = st.id AND ee.class_id = ANY ($4::uuid[])
+                  AND ee.status IN ('pending', 'completed')))
 ORDER BY st.full_name, st.id
 `
 
@@ -1710,9 +1689,11 @@ WHERE st.deleted_at IS NULL
   AND ($1::uuid IS NULL OR e.student_id = $1)
   AND ($2::uuid IS NULL OR e.class_id = $2)
   AND (NOT $3::bool OR st.branch_id = ANY ($4::uuid[])
-       OR (st.branch_id IS NULL AND c.branch_id = ANY ($4::uuid[])))
+       OR (st.branch_id IS NULL AND EXISTS (SELECT 1 FROM academic.classes cc
+                                            WHERE cc.id = st.current_class_id AND cc.branch_id = ANY ($4::uuid[]))))
   AND (NOT $5::bool OR st.current_class_id = ANY ($6::uuid[])
-       OR e.class_id = ANY ($6::uuid[]))
+       OR EXISTS (SELECT 1 FROM academic.enrollments ee WHERE ee.student_id = st.id AND ee.class_id = ANY ($6::uuid[])
+                  AND ee.status IN ('pending', 'completed')))
 ORDER BY e.created_at DESC, e.id DESC
 LIMIT $8 OFFSET $7
 `
@@ -2878,6 +2859,23 @@ func (q *Queries) StartStudying(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const startStudyingDue = `-- name: StartStudyingDue :execrows
+UPDATE academic.students st SET status = 'studying', updated_at = now(), version = version + 1
+WHERE st.status = 'waiting_start' AND st.deleted_at IS NULL AND EXISTS (
+    SELECT 1 FROM academic.enrollments e JOIN academic.classes c ON c.id = e.class_id
+    WHERE e.student_id = st.id AND e.status = 'completed' AND c.status = 'active' AND c.deleted_at IS NULL
+      AND (c.start_date IS NULL OR c.start_date <= $1::date))
+`
+
+// Học viên Chờ khai giảng có lượt xếp lớp đã bàn giao xong ở lớp đã khai giảng → Đang học (students:start-studying).
+func (q *Queries) StartStudyingDue(ctx context.Context, today time.Time) (int64, error) {
+	result, err := q.db.Exec(ctx, startStudyingDue, today)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const studentClasses = `-- name: StudentClasses :many
 SELECT c.id, c.name, c.code::text AS code, c.status, c.schedule_text, c.branch_id,
        (c.id = st.current_class_id)::bool AS is_main
@@ -2926,6 +2924,41 @@ func (q *Queries) StudentClasses(ctx context.Context, id uuid.UUID) ([]StudentCl
 		return nil, err
 	}
 	return items, nil
+}
+
+const studentInScope = `-- name: StudentInScope :one
+SELECT EXISTS (
+    SELECT 1 FROM academic.students st
+    WHERE st.id = $1 AND st.deleted_at IS NULL
+      AND (NOT $2::bool OR st.branch_id = ANY ($3::uuid[])
+       OR (st.branch_id IS NULL AND EXISTS (SELECT 1 FROM academic.classes cc
+                                            WHERE cc.id = st.current_class_id AND cc.branch_id = ANY ($3::uuid[]))))
+      AND (NOT $4::bool OR st.current_class_id = ANY ($5::uuid[])
+       OR EXISTS (SELECT 1 FROM academic.enrollments ee WHERE ee.student_id = st.id AND ee.class_id = ANY ($5::uuid[])
+                  AND ee.status IN ('pending', 'completed')))
+)
+`
+
+type StudentInScopeParams struct {
+	ID            uuid.UUID
+	LimitBranches bool
+	BranchIds     []uuid.UUID
+	LimitClasses  bool
+	ClassIds      []uuid.UUID
+}
+
+// Học viên (chưa xóa) trong phạm vi Học viên của người dùng (Student::visibleTo).
+func (q *Queries) StudentInScope(ctx context.Context, arg StudentInScopeParams) (bool, error) {
+	row := q.db.QueryRow(ctx, studentInScope,
+		arg.ID,
+		arg.LimitBranches,
+		arg.BranchIds,
+		arg.LimitClasses,
+		arg.ClassIds,
+	)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const studentsByIDs = `-- name: StudentsByIDs :many

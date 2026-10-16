@@ -33,16 +33,6 @@ func (s *Service) DropEnrollments(ctx context.Context, tx pgx.Tx, studentID uuid
 	return s.q.WithTx(tx).DropEnrollments(ctx, classesdb.DropEnrollmentsParams{StudentID: studentID, Today: s.today()})
 }
 
-// BranchClassIDs (students.ClassHooks): lớp thuộc các chi nhánh — học viên chưa gán chi nhánh thì xét theo chi nhánh
-// của lớp đang học.
-func (s *Service) BranchClassIDs(ctx context.Context, branchIDs []uuid.UUID) ([]uuid.UUID, error) {
-	if len(branchIDs) == 0 {
-		return []uuid.UUID{}, nil
-	}
-	ids, err := s.q.BranchClassIDs(ctx, branchIDs)
-	return nonNil(ids), err
-}
-
 // CourseClassCounts (catalogs.ClassHooks).
 func (s *Service) CourseClassCounts(ctx context.Context, courseIDs []uuid.UUID) (map[uuid.UUID]int64, error) {
 	rows, err := s.q.CourseClassCounts(ctx, courseIDs)

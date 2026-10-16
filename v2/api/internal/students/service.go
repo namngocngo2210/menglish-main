@@ -65,7 +65,7 @@ func (s *Service) scopeOf(ctx context.Context, actor *iam.Access) (scope, error)
 	case iam.ScopeAll:
 		return scope{}, nil
 	case iam.ScopeBranch:
-		// TODO(classes): học viên chưa gán chi nhánh thì xét theo chi nhánh của lớp đang học (như Laravel).
+		// Học viên chưa gán chi nhánh xét theo chi nhánh của lớp đang học (truy vấn / inScope).
 		return scope{limitBranches: true, branches: append([]uuid.UUID{}, actor.BranchIDs()...)}, nil
 	}
 	sc := scope{limitClasses: true, classes: []uuid.UUID{}}
@@ -77,6 +77,28 @@ func (s *Service) scopeOf(ctx context.Context, actor *iam.Access) (scope, error)
 		sc.classes = append(sc.classes, ids...)
 	}
 	return sc, nil
+}
+
+// inScope: covers, cộng phần cần tra lớp (học viên chưa gán chi nhánh thuộc lớp của chi nhánh mình; lượt xếp lớp
+// còn hiệu lực ở lớp mình được xem).
+func (s *Service) inScope(ctx context.Context, sc scope, id uuid.UUID, branch, class *uuid.UUID) (bool, error) {
+	if sc.covers(branch, class) {
+		return true, nil
+	}
+	if (sc.limitBranches && branch == nil && class != nil) || sc.limitClasses {
+		return s.q.InScopeViaClasses(ctx, studentsdb.InScopeViaClassesParams{
+			ID: id, LimitBranches: sc.limitBranches, BranchIds: nonNilIDs(sc.branches),
+			LimitClasses: sc.limitClasses, ClassIds: nonNilIDs(sc.classes),
+		})
+	}
+	return false, nil
+}
+
+func nonNilIDs(v []uuid.UUID) []uuid.UUID {
+	if v == nil {
+		return []uuid.UUID{}
+	}
+	return v
 }
 
 func (sc scope) covers(branch, class *uuid.UUID) bool {
@@ -341,7 +363,9 @@ func (s *Service) find(ctx context.Context, actor *iam.Access, idOrCode string) 
 	if err != nil {
 		return st, err
 	}
-	if !sc.covers(st.BranchID, st.CurrentClassID) {
+	if ok, err := s.inScope(ctx, sc, st.ID, st.BranchID, st.CurrentClassID); err != nil {
+		return st, err
+	} else if !ok {
 		return st, ErrNotFound
 	}
 	return st, nil
@@ -571,7 +595,9 @@ func (s *Service) locked(ctx context.Context, q *studentsdb.Queries, actor *iam.
 	if err != nil {
 		return st, err
 	}
-	if !sc.covers(st.BranchID, st.CurrentClassID) {
+	if ok, err := s.inScope(ctx, sc, st.ID, st.BranchID, st.CurrentClassID); err != nil {
+		return st, err
+	} else if !ok {
 		return st, ErrNotFound
 	}
 	return st, nil

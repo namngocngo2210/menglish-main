@@ -12,10 +12,6 @@ WHERE c.deleted_at IS NULL AND (
     OR c.id = ANY (sqlc.arg(class_ids)::uuid[])
 );
 
--- name: BranchClassIDs :many
--- Lớp (chưa xóa) thuộc các chi nhánh — phạm vi học viên mức Chi nhánh với học viên chưa gán chi nhánh.
-SELECT id FROM academic.classes WHERE deleted_at IS NULL AND branch_id = ANY (sqlc.arg(branch_ids)::uuid[]);
-
 -- ───────────────────────── Danh sách lớp ─────────────────────────
 
 -- name: ClassStatusCounts :many
@@ -552,6 +548,27 @@ SELECT id, full_name FROM iam.users WHERE id = ANY (sqlc.arg(ids)::uuid[]);
 SELECT id, code::text AS code, full_name, branch_id, current_class_id, status
 FROM academic.students WHERE id = $1 AND deleted_at IS NULL FOR UPDATE;
 
+-- name: StudentInScope :one
+-- Học viên (chưa xóa) trong phạm vi Học viên của người dùng (Student::visibleTo).
+SELECT EXISTS (
+    SELECT 1 FROM academic.students st
+    WHERE st.id = sqlc.arg(id) AND st.deleted_at IS NULL
+      AND (NOT sqlc.arg(limit_branches)::bool OR st.branch_id = ANY (sqlc.arg(branch_ids)::uuid[])
+       OR (st.branch_id IS NULL AND EXISTS (SELECT 1 FROM academic.classes cc
+                                            WHERE cc.id = st.current_class_id AND cc.branch_id = ANY (sqlc.arg(branch_ids)::uuid[]))))
+      AND (NOT sqlc.arg(limit_classes)::bool OR st.current_class_id = ANY (sqlc.arg(class_ids)::uuid[])
+       OR EXISTS (SELECT 1 FROM academic.enrollments ee WHERE ee.student_id = st.id AND ee.class_id = ANY (sqlc.arg(class_ids)::uuid[])
+                  AND ee.status IN ('pending', 'completed')))
+);
+
+-- name: StartStudyingDue :execrows
+-- Học viên Chờ khai giảng có lượt xếp lớp đã bàn giao xong ở lớp đã khai giảng → Đang học (students:start-studying).
+UPDATE academic.students st SET status = 'studying', updated_at = now(), version = version + 1
+WHERE st.status = 'waiting_start' AND st.deleted_at IS NULL AND EXISTS (
+    SELECT 1 FROM academic.enrollments e JOIN academic.classes c ON c.id = e.class_id
+    WHERE e.student_id = st.id AND e.status = 'completed' AND c.status = 'active' AND c.deleted_at IS NULL
+      AND (c.start_date IS NULL OR c.start_date <= sqlc.arg(today)::date));
+
 -- name: HasActiveEnrollment :one
 SELECT EXISTS (SELECT 1 FROM academic.enrollments
                WHERE student_id = sqlc.arg(student_id) AND class_id = sqlc.arg(class_id)
@@ -589,9 +606,11 @@ WHERE st.deleted_at IS NULL
   AND (sqlc.narg(student_id)::uuid IS NULL OR e.student_id = sqlc.narg(student_id))
   AND (sqlc.narg(class_id)::uuid IS NULL OR e.class_id = sqlc.narg(class_id))
   AND (NOT sqlc.arg(limit_branches)::bool OR st.branch_id = ANY (sqlc.arg(branch_ids)::uuid[])
-       OR (st.branch_id IS NULL AND c.branch_id = ANY (sqlc.arg(branch_ids)::uuid[])))
+       OR (st.branch_id IS NULL AND EXISTS (SELECT 1 FROM academic.classes cc
+                                            WHERE cc.id = st.current_class_id AND cc.branch_id = ANY (sqlc.arg(branch_ids)::uuid[]))))
   AND (NOT sqlc.arg(limit_classes)::bool OR st.current_class_id = ANY (sqlc.arg(class_ids)::uuid[])
-       OR e.class_id = ANY (sqlc.arg(class_ids)::uuid[]))
+       OR EXISTS (SELECT 1 FROM academic.enrollments ee WHERE ee.student_id = st.id AND ee.class_id = ANY (sqlc.arg(class_ids)::uuid[])
+                  AND ee.status IN ('pending', 'completed')))
 ORDER BY e.created_at DESC, e.id DESC
 LIMIT sqlc.arg(lim) OFFSET sqlc.arg(off);
 
@@ -619,8 +638,12 @@ SELECT st.id, st.code::text AS code, st.full_name, st.branch_id, b.name AS branc
 FROM academic.students st
 LEFT JOIN core.branches b ON b.id = st.branch_id
 WHERE st.deleted_at IS NULL AND st.status <> 'dropped'
-  AND (NOT sqlc.arg(limit_branches)::bool OR st.branch_id = ANY (sqlc.arg(branch_ids)::uuid[]))
-  AND (NOT sqlc.arg(limit_classes)::bool OR st.current_class_id = ANY (sqlc.arg(class_ids)::uuid[]))
+  AND (NOT sqlc.arg(limit_branches)::bool OR st.branch_id = ANY (sqlc.arg(branch_ids)::uuid[])
+       OR (st.branch_id IS NULL AND EXISTS (SELECT 1 FROM academic.classes cc
+                                            WHERE cc.id = st.current_class_id AND cc.branch_id = ANY (sqlc.arg(branch_ids)::uuid[]))))
+  AND (NOT sqlc.arg(limit_classes)::bool OR st.current_class_id = ANY (sqlc.arg(class_ids)::uuid[])
+       OR EXISTS (SELECT 1 FROM academic.enrollments ee WHERE ee.student_id = st.id AND ee.class_id = ANY (sqlc.arg(class_ids)::uuid[])
+                  AND ee.status IN ('pending', 'completed')))
 ORDER BY st.full_name, st.id;
 
 -- name: EnrollableClasses :many

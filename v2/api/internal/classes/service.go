@@ -29,7 +29,9 @@ var (
 	errPortalStudent   = &iam.Error{Status: 403, Code: "forbidden", Message: "Bạn không có quyền truy cập trang này."}
 )
 
-func forbidden(msg string) *iam.Error { return &iam.Error{Status: 403, Code: "forbidden", Message: msg} }
+func forbidden(msg string) *iam.Error {
+	return &iam.Error{Status: 403, Code: "forbidden", Message: msg}
+}
 
 func conflict(msg string) *iam.Error { return &iam.Error{Status: 409, Code: "conflict", Message: msg} }
 

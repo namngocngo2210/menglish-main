@@ -16,6 +16,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/catalogs"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/classes"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/config"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/geo"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
@@ -111,6 +112,12 @@ func runAPI(ctx context.Context) error {
 
 	inv := inventory.NewService(d.pool, log, inventory.DefaultConfig())
 	go inv.RunOverdueLoop(ctx, 15*time.Minute)
+	cat := catalogs.NewService(d.pool, d.box, log)
+	stu := students.NewService(d.pool, d.iam, log)
+	// Phân hệ Lớp học làm phần việc lớp cho Học viên, Danh mục (khóa / trình độ / phòng / nghỉ lễ / ca dạy) và Order học liệu.
+	cls := classes.NewService(d.pool, cat, log)
+	stu.Classes, cat.Classes, inv.Classes = cls, cls, cls
+	go cls.RunStartStudyingLoop(ctx, time.Hour)
 	auth := iam.NewHandler(d.iam, log).WithAddressSearch(geo.NewSearcher(d.rdb, log, cfg.PublicURL))
 	checks := map[string]server.Pinger{
 		"postgres": d.pool,
@@ -121,9 +128,10 @@ func runAPI(ctx context.Context) error {
 		Handler: server.New(server.Deps{
 			Log: log, Version: version, Env: cfg.Env, Checks: checks,
 			API: apiRoutes(auth,
-				students.NewHandler(students.NewService(d.pool, d.iam, log), log),
+				students.NewHandler(stu, log),
 				inventory.NewHandler(inv, log),
-				catalogs.NewHandler(catalogs.NewService(d.pool, d.box, log), log),
+				catalogs.NewHandler(cat, log),
+				classes.NewHandler(cls, log),
 			),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
