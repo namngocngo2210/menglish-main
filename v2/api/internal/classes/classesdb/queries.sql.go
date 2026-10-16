@@ -2384,6 +2384,32 @@ func (q *Queries) ReplaceableSessionIDs(ctx context.Context, arg ReplaceableSess
 	return items, nil
 }
 
+const responsibleClassIDs = `-- name: ResponsibleClassIDs :many
+SELECT id FROM academic.classes
+WHERE deleted_at IS NULL AND (teacher_id = $1 OR assistant_id = $1 OR foreign_teacher_id = $1)
+`
+
+// Lớp người dùng phụ trách (GV chính, trợ giảng cố định, GVNN mặc định).
+func (q *Queries) ResponsibleClassIDs(ctx context.Context, userID *uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, responsibleClassIDs, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const restoreSession = `-- name: RestoreSession :exec
 UPDATE academic.class_sessions SET status = 'scheduled', holiday_id = NULL, notes = $1, updated_at = now()
 WHERE id = $2
@@ -2649,6 +2675,78 @@ func (q *Queries) SessionProgress(ctx context.Context, arg SessionProgressParams
 	var i SessionProgressRow
 	err := row.Scan(&i.Total, &i.Done)
 	return i, err
+}
+
+const sessionsByIDs = `-- name: SessionsByIDs :many
+
+SELECT s.id, s.class_id, c.name AS class_name, c.code::text AS class_code, coalesce(co.name, c.program, '')::text AS course_name,
+       c.status AS class_status, s.status, s.type, s.branch_id, b.name AS branch_name, s.date, s.room, s.shift_name,
+       to_char(s.start_time, 'HH24:MI') AS start_time, to_char(s.end_time, 'HH24:MI') AS end_time,
+       t.full_name AS teacher_name
+FROM academic.class_sessions s
+JOIN academic.classes c ON c.id = s.class_id AND c.deleted_at IS NULL
+JOIN core.branches b ON b.id = s.branch_id
+LEFT JOIN academic.courses co ON co.id = c.course_id
+LEFT JOIN iam.users t ON t.id = coalesce(s.teacher_id, s.foreign_teacher_id)
+WHERE s.id = ANY ($1::uuid[])
+`
+
+type SessionsByIDsRow struct {
+	ID          uuid.UUID
+	ClassID     uuid.UUID
+	ClassName   string
+	ClassCode   string
+	CourseName  string
+	ClassStatus string
+	Status      string
+	Type        string
+	BranchID    uuid.UUID
+	BranchName  string
+	Date        time.Time
+	Room        *string
+	ShiftName   *string
+	StartTime   string
+	EndTime     string
+	TeacherName *string
+}
+
+// ───────────────────────── Phân hệ khác: test đầu vào / báo cáo / công việc ─────────────────────────
+// Buổi học (lớp chưa xóa) cho học thử / thẻ việc trợ giảng.
+func (q *Queries) SessionsByIDs(ctx context.Context, ids []uuid.UUID) ([]SessionsByIDsRow, error) {
+	rows, err := q.db.Query(ctx, sessionsByIDs, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SessionsByIDsRow
+	for rows.Next() {
+		var i SessionsByIDsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ClassID,
+			&i.ClassName,
+			&i.ClassCode,
+			&i.CourseName,
+			&i.ClassStatus,
+			&i.Status,
+			&i.Type,
+			&i.BranchID,
+			&i.BranchName,
+			&i.Date,
+			&i.Room,
+			&i.ShiftName,
+			&i.StartTime,
+			&i.EndTime,
+			&i.TeacherName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const sessionsOnDate = `-- name: SessionsOnDate :many
@@ -3119,6 +3217,33 @@ func (q *Queries) StudentsByIDs(ctx context.Context, ids []uuid.UUID) ([]Student
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const teachingSessionIDs = `-- name: TeachingSessionIDs :many
+SELECT s.id FROM academic.class_sessions s
+JOIN academic.classes c ON c.id = s.class_id AND c.deleted_at IS NULL
+WHERE s.teacher_id = $1 OR s.foreign_teacher_id = $1 OR s.assistant_id = $1
+`
+
+// Buổi người dùng dạy / dạy GVNN / trợ giảng (kể cả dạy thay).
+func (q *Queries) TeachingSessionIDs(ctx context.Context, userID *uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, teachingSessionIDs, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

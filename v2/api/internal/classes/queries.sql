@@ -728,3 +728,29 @@ RETURNING id;
 -- Khách CRM Chờ xếp lớp đã chốt ra học viên này (WaitingLeadPlacement::waitingLeadFor).
 SELECT id FROM crm.leads WHERE converted_student_id = $1 AND stage = 'waiting_class' AND deleted_at IS NULL
 ORDER BY converted_at DESC NULLS LAST LIMIT 1;
+
+-- ───────────────────────── Phân hệ khác: test đầu vào / báo cáo / công việc ─────────────────────────
+
+-- name: SessionsByIDs :many
+-- Buổi học (lớp chưa xóa) cho học thử / thẻ việc trợ giảng.
+SELECT s.id, s.class_id, c.name AS class_name, c.code::text AS class_code, coalesce(co.name, c.program, '')::text AS course_name,
+       c.status AS class_status, s.status, s.type, s.branch_id, b.name AS branch_name, s.date, s.room, s.shift_name,
+       to_char(s.start_time, 'HH24:MI') AS start_time, to_char(s.end_time, 'HH24:MI') AS end_time,
+       t.full_name AS teacher_name
+FROM academic.class_sessions s
+JOIN academic.classes c ON c.id = s.class_id AND c.deleted_at IS NULL
+JOIN core.branches b ON b.id = s.branch_id
+LEFT JOIN academic.courses co ON co.id = c.course_id
+LEFT JOIN iam.users t ON t.id = coalesce(s.teacher_id, s.foreign_teacher_id)
+WHERE s.id = ANY (sqlc.arg(ids)::uuid[]);
+
+-- name: TeachingSessionIDs :many
+-- Buổi người dùng dạy / dạy GVNN / trợ giảng (kể cả dạy thay).
+SELECT s.id FROM academic.class_sessions s
+JOIN academic.classes c ON c.id = s.class_id AND c.deleted_at IS NULL
+WHERE s.teacher_id = sqlc.arg(user_id) OR s.foreign_teacher_id = sqlc.arg(user_id) OR s.assistant_id = sqlc.arg(user_id);
+
+-- name: ResponsibleClassIDs :many
+-- Lớp người dùng phụ trách (GV chính, trợ giảng cố định, GVNN mặc định).
+SELECT id FROM academic.classes
+WHERE deleted_at IS NULL AND (teacher_id = sqlc.arg(user_id) OR assistant_id = sqlc.arg(user_id) OR foreign_teacher_id = sqlc.arg(user_id));
