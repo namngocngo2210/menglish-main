@@ -102,6 +102,9 @@ func (s *Service) ListSubmissions(ctx context.Context, a *iam.Access, testID *uu
 	if err != nil {
 		return nil, err
 	}
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
 	out := &SubmissionList{Submissions: []SubmissionRow{}}
 	if testID != nil {
 		t, err := s.q.GetTest(ctx, *testID)
