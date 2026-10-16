@@ -19,6 +19,7 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/audit/auditapi"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/catalogs"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/config"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/crm"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/geo"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/inventory"
@@ -149,6 +150,7 @@ func runAPI(ctx context.Context) error {
 				tasks.NewHandler(taskSvc, log),
 				place,
 				reports.NewHandler(reportSvc, log),
+				crm.NewHandler(crm.NewService(d.pool, d.iam, log), log),
 			),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,

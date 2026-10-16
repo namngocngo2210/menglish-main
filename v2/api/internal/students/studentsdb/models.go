@@ -207,6 +207,147 @@ type CoreSystemCategory struct {
 	DeletedAt *time.Time
 }
 
+type CrmBranchTransfer struct {
+	ID           uuid.UUID
+	LeadID       uuid.UUID
+	FromBranchID *uuid.UUID
+	ToBranchID   uuid.UUID
+	FromUserID   *uuid.UUID
+	ToUserID     uuid.UUID
+	RequestedBy  *uuid.UUID
+	Reason       *string
+	Status       string
+	DecidedBy    *uuid.UUID
+	DecidedAt    *time.Time
+	DecisionNote *string
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
+type CrmEnrollmentConfirmation struct {
+	ID                  uuid.UUID
+	LeadID              uuid.UUID
+	EnrollmentID        *uuid.UUID
+	StudentID           uuid.UUID
+	ClassID             uuid.UUID
+	StudentCode         string
+	StudentName         string
+	ClassName           string
+	ClassCode           *string
+	ClassBranchID       *uuid.UUID
+	ClassStartDate      *time.Time
+	EnrolledAt          time.Time
+	AccountSent         bool
+	ZaloGroupAdded      bool
+	CurriculumDelivered bool
+	Status              string
+	ConfirmedAt         *time.Time
+	ConfirmedBy         *uuid.UUID
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
+}
+
+type CrmImportBatch struct {
+	ID             uuid.UUID
+	CreatedBy      uuid.UUID
+	BranchID       uuid.UUID
+	AssignedUserID uuid.UUID
+	FileName       string
+	Rows           []byte
+	Status         string
+	CreatedCount   int32
+	Skipped        []byte
+	CreatedAt      time.Time
+	CommittedAt    *time.Time
+}
+
+type CrmLead struct {
+	ID                 uuid.UUID
+	Code               string
+	Name               string
+	Phone              string
+	PhoneNormalized    *string
+	Email              *string
+	DeletedEmail       *string
+	ParentName         *string
+	ParentPhone        *string
+	Dob                *time.Time
+	Gender             *string
+	Address            *string
+	School             *string
+	BranchID           *uuid.UUID
+	CourseInterest     *string
+	Source             *string
+	AssignedUserID     *uuid.UUID
+	Stage              string
+	DealValue          int64
+	TestDecision       *string
+	TestScore          *string
+	AppointmentAt      *time.Time
+	AppointmentType    *string
+	AssignedTestID     *uuid.UUID
+	ExaminerID         *uuid.UUID
+	NextFollowUpAt     *time.Time
+	LastCareAt         *time.Time
+	WaitingSince       *time.Time
+	WaitingCourseID    *uuid.UUID
+	WaitingBranchID    *uuid.UUID
+	PreferredSchedule  *string
+	DesiredStartDate   *time.Time
+	WaitingPriority    *int32
+	WaitingNotes       *string
+	LostReason         *string
+	LostAt             *time.Time
+	ConvertedStudentID *uuid.UUID
+	ConvertedBy        *uuid.UUID
+	CommissionUserID   *uuid.UUID
+	ConvertedAt        *time.Time
+	FeePaidAtClosing   bool
+	Notes              *string
+	CareChecklist      []byte
+	CreatedBy          *uuid.UUID
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+	DeletedAt          *time.Time
+}
+
+type CrmLeadEvent struct {
+	ID        uuid.UUID
+	LeadID    uuid.UUID
+	UserID    *uuid.UUID
+	Type      string
+	Outcome   *string
+	Content   string
+	FromStage *string
+	ToStage   *string
+	Reason    *string
+	Changes   []byte
+	CreatedAt time.Time
+}
+
+type CrmPromotion struct {
+	ID                uuid.UUID
+	Code              string
+	Name              string
+	Type              string
+	Value             pgtype.Numeric
+	MaxDiscountAmount *int64
+	Description       *string
+	Reason            *string
+	BranchID          *uuid.UUID
+	CourseID          *uuid.UUID
+	StartsAt          *time.Time
+	EndsAt            *time.Time
+	UsageLimit        *int32
+	UsedCount         int32
+	IsActive          bool
+	IsDefault         bool
+	IsSpecial         bool
+	CreatedBy         *uuid.UUID
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
 type CrmTrialBooking struct {
 	ID             uuid.UUID
 	LeadID         uuid.UUID
