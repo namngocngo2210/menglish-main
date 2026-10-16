@@ -15,6 +15,8 @@ export const NAV: NavItem[] = [
   { path: '/branches', label: 'Cơ sở & Chi nhánh', perms: ['branch.view'], group: 'Tổ chức & Đào tạo' },
   { path: '/roles', label: 'Vai trò & quyền', perms: ['role.view'], group: 'Hệ thống' },
   { path: '/activity-logs', label: 'Nhật ký vận hành', perms: ['activity_log.view'], group: 'Hệ thống' },
+  // Mở từ ô tìm kiếm trên topbar, không có trên menu.
+  { path: '/search', label: 'Tìm kiếm', hidden: true },
 ]
 
 // Workspace của sidebar theo đúng thứ tự SidebarMenu::definition(): khu (section) → workspace (label, icon).

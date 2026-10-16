@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 import { App } from '../../App'
 import { timeAgo, toQuery } from './format'
+import { moveIndex, paletteItems } from './palette'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -219,4 +220,88 @@ test('trang thông báo: lọc nhanh, cảnh báo lead, sao chép nội dung, đ
   await user.click(screen.getByRole('button', { name: /Lead tồn đọng/ }))
   await vi.waitFor(() => expect(screen.queryByText('Kính gửi phụ huynh')).not.toBeInTheDocument())
   expect(calls.some((c) => c.key === 'GET /notifications' && c.url.searchParams.get('type') === 'stale_lead_24h')).toBe(true)
+})
+
+test('paletteItems và moveIndex', () => {
+  const result = {
+    term: 'ha',
+    searched: ['users'],
+    total: 1,
+    groups: [{ key: 'users', label: 'Người dùng', icon: 'group', items: [{ id: 'u2', title: 'Trần Hà', code: 'GV001', subtitle: 'ha@x.vn', meta: ['Đang hoạt động'], link: '/users?q=GV001&open=u2' }] }],
+  }
+  const items = paletteItems([{ title: 'Hệ thống › Vai trò', path: '/roles' }], result, ' ha ')
+  expect(items.map((i) => [i.section, i.title, i.subtitle, i.path])).toEqual([
+    ['Màn hình', 'Hệ thống › Vai trò', '', '/roles'],
+    ['Người dùng', 'Trần Hà', 'GV001 · ha@x.vn · Đang hoạt động', '/users?q=GV001&open=u2'],
+    ['', 'Xem tất cả kết quả cho “ha”', '', '/search?q=ha'],
+  ])
+  expect(paletteItems([], undefined, 'h')).toEqual([])
+  expect(moveIndex(0, -1, 3)).toBe(2)
+  expect(moveIndex(2, 1, 3)).toBe(0)
+  expect(moveIndex(0, 1, 0)).toBe(0)
+})
+
+const searchResult = {
+  term: 'Hà',
+  searched: ['users', 'branches'],
+  total: 2,
+  groups: [
+    { key: 'users', label: 'Người dùng', icon: 'group', items: [{ id: 'u2', title: 'Trần Thị Hà', code: 'GV001', link: '/users?q=GV001&open=u2' }] },
+    { key: 'branches', label: 'Cơ sở & Chi nhánh', icon: 'apartment', items: [{ id: 'b1', title: 'Hà Nội', code: 'HN01', link: '/branches' }] },
+  ],
+}
+
+test('Ctrl K: tìm màn hình và người dùng, chọn bằng bàn phím', async () => {
+  const calls = renderAt('/', ['user.view', 'branch.view'], {
+    'GET /auth/sessions': () => [200, { sessions: [] }],
+    'GET /search': () => [200, searchResult],
+    'GET /users': () => [200, { users: [], total: 0, page_size: 50 }],
+    'GET /users/u2': () => [404, { error: 'not_found', message: 'Không tìm thấy.' }],
+    'GET /branches': () => [200, { branches: [] }],
+  })
+  const user = userEvent.setup()
+  await screen.findByRole('navigation', { name: 'Menu chính' })
+  await user.keyboard('{Control>}k{/Control}')
+  const dialog = screen.getByRole('dialog', { name: 'Tìm kiếm nhanh' })
+  await user.type(within(dialog).getByRole('combobox', { name: 'Từ khóa tìm kiếm' }), 'chi nh')
+  expect(within(dialog).getByRole('option', { name: /Tổ chức & Đào tạo › Cơ sở & Chi nhánh|Cài đặt › Cơ sở & Chi nhánh/ })).toBeInTheDocument()
+
+  await user.clear(within(dialog).getByRole('combobox'))
+  await user.type(within(dialog).getByRole('combobox'), 'Hà')
+  expect(await within(dialog).findByRole('option', { name: /Trần Thị Hà/ })).toBeInTheDocument()
+  expect(calls.find((c) => c.key === 'GET /search')?.url.searchParams.get('limit')).toBe('5')
+  // Dòng đầu là màn "Cơ sở & Chi nhánh" ("nhánh" khớp "ha" khi bỏ dấu); xuống một dòng là người dùng
+  const options = within(dialog).getAllByRole('option')
+  expect(options[0]).toHaveTextContent('Cơ sở & Chi nhánh')
+  expect(options[0]).toHaveAttribute('aria-selected', 'true')
+  await user.keyboard('{ArrowDown}')
+  expect(options[1]).toHaveAttribute('aria-selected', 'true')
+  await user.keyboard('{Enter}')
+  expect(window.location.pathname + window.location.search).toBe('/users?q=GV001&open=u2')
+  // Trang Người dùng tìm sẵn theo mã và mở hộp chi tiết tài khoản
+  await vi.waitFor(() => expect(calls.some((c) => c.key === 'GET /users/u2')).toBe(true))
+  expect(calls.some((c) => c.key === 'GET /users' && c.url.searchParams.get('q') === 'GV001')).toBe(true)
+  expect(screen.queryByRole('dialog', { name: 'Tìm kiếm nhanh' })).not.toBeInTheDocument()
+})
+
+test('trang tìm kiếm: kết quả theo nhóm, không có quyền, từ khóa ngắn', async () => {
+  let forbidden = false
+  renderAt('/search?q=H%C3%A0', ['user.view', 'branch.view'], {
+    'GET /search': () => (forbidden ? [403, { error: 'forbidden', message: 'Không có quyền.' }] : [200, searchResult]),
+  })
+  const user = userEvent.setup()
+  expect(await screen.findByText(/Tìm thấy 3 kết quả cho/)).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: /Trần Thị Hà/ })).toHaveAttribute('href', '/users?q=GV001&open=u2')
+  expect(screen.getByRole('heading', { name: 'Cơ sở & Chi nhánh (1)' })).toBeInTheDocument()
+
+  forbidden = true
+  const input = screen.getByLabelText('Từ khóa tìm kiếm')
+  await user.clear(input)
+  await user.type(input, 'xyz{Enter}')
+  expect(window.location.search).toBe('?q=xyz')
+  expect(await screen.findByText('Bạn chưa có quyền tìm kiếm')).toBeInTheDocument()
+
+  await user.clear(input)
+  await user.type(input, 'x{Enter}')
+  expect(await screen.findByText('Nhập từ khóa để tìm kiếm')).toBeInTheDocument()
 })

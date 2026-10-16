@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState, type ReactNode } from 'react'
 import { api, type Me } from '../api'
+import { CommandPalette } from '../features/platform/CommandPalette'
 import { NotificationBell } from '../features/platform/NotificationBell'
 import { can, pageTitle, settingsNav, workspaceTabs } from '../nav'
 import { usePath } from '../router'
@@ -30,9 +31,22 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
   })
   const [open, setOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(loadCollapsed)
+  const [searching, setSearching] = useState(false)
 
   // Chuyển trang thì đóng ngăn kéo menu trên điện thoại.
   useEffect(() => setOpen(false), [path])
+
+  // Ctrl K / ⌘ K mở bảng tìm nhanh ở mọi trang.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setSearching(true)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   function toggleCollapsed() {
     setCollapsed((v) => {
@@ -73,7 +87,7 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
           title={pageTitle(path)}
           bell={can(me, 'notification.view') ? <NotificationBell /> : null}
           onOpenMenu={() => setOpen(true)}
-          onOpenSearch={() => {}}
+          onOpenSearch={() => setSearching(true)}
           onLogout={() => logout.mutate()}
         />
         <main id="main-content" tabIndex={-1} className="flex-1 p-4 focus:outline-none lg:p-6">
@@ -98,6 +112,7 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
           )}
         </footer>
       </div>
+      {searching && <CommandPalette me={me} onClose={() => setSearching(false)} />}
     </div>
   )
 }

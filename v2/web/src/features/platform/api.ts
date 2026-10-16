@@ -1,4 +1,4 @@
-import { request } from '../../api'
+import { ApiError, request } from '../../api'
 import { toQuery } from './format'
 
 // ───── Nhật ký vận hành ─────
@@ -98,3 +98,21 @@ export const TONE_CLASS: Record<NotificationTone, string> = {
 
 // Số chưa đọc trên chuông: quá 9 hiện "9+".
 export const unreadBadge = (n: number) => (n > 9 ? '9+' : String(n))
+
+// ───── Tìm kiếm chung ─────
+
+export type SearchHit = { id: string; title: string; code?: string; subtitle?: string; meta?: string[]; link: string }
+export type SearchGroup = { key: string; label: string; icon: string; items: SearchHit[] }
+export type SearchResult = { term: string; searched: string[]; groups: SearchGroup[]; total: number; forbidden?: boolean }
+
+export const searchApi = {
+  // Người không có quyền của nhóm nào (403) vẫn tìm được màn hình ở giao diện: trả kết quả rỗng kèm forbidden.
+  search: async (q: string, limit?: number): Promise<SearchResult> => {
+    try {
+      return await request<SearchResult>('GET', `/search?${toQuery({ q, limit })}`)
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 403) return { term: q, searched: [], groups: [], total: 0, forbidden: true }
+      throw e
+    }
+  },
+}

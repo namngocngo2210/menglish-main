@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import type { Me } from './api'
 import { ActivityLogsPage } from './features/platform/ActivityLogsPage'
 import { NotificationsPage } from './features/platform/NotificationsPage'
+import { SearchPage } from './features/platform/SearchPage'
 import { AccountPage } from './pages/AccountPage'
 import { BranchesPage } from './pages/admin/BranchesPage'
 import { RolesPage } from './pages/admin/RolesPage'
@@ -16,4 +17,5 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/branches': (me) => <BranchesPage me={me} />,
   '/activity-logs': () => <ActivityLogsPage />,
   '/notifications': (me) => <NotificationsPage me={me} />,
+  '/search': (me) => <SearchPage me={me} />,
 }
