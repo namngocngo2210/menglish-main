@@ -27,6 +27,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // Đổi / đặt lại mật khẩu thì các phiên đăng nhập cũ (thiết bị khác, phiên bị lộ) tự đăng xuất ở request kế tiếp.
         $middleware->authenticateSessions();
         $middleware->append(SecurityHeaders::class);
+        // Chạy sau reverse proxy (Docker + Caddy): tin X-Forwarded-* để nhận đúng https / IP. Hosting không đặt biến này.
+        if ($trustedProxies = getenv('TRUSTED_PROXIES')) {
+            $middleware->trustProxies(at: $trustedProxies === '*' ? '*' : array_map('trim', explode(',', $trustedProxies)));
+        }
         $middleware->appendToGroup('web', [
             EnsureAccountIsActive::class,
             RequireInitialPasswordChange::class,

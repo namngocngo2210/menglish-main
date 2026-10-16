@@ -1,0 +1,28 @@
+# Reverse proxy chung cho production + staging, tự cấp HTTPS (Let's Encrypt) khi đặt domain trong docker/proxy/.env
+name: menglish-proxy
+
+services:
+  caddy:
+    image: caddy:2.10
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    name: menglish-proxy
+
+volumes:
+  caddy_data:
+  caddy_config:
