@@ -1,4 +1,4 @@
-// Một binary cho mọi vai trò: menglish api | migrate <lệnh goose> | user <lệnh> | healthcheck | version.
+// Một binary cho mọi vai trò: menglish api | migrate <lệnh goose> | user <lệnh> | import-legacy | healthcheck | version.
 package main
 
 import (
@@ -41,6 +41,8 @@ func main() {
 		err = runMigrate(ctx, os.Args[2:])
 	case "user":
 		err = runUser(ctx, os.Args[2:])
+	case "import-legacy":
+		err = runImportLegacy(ctx, os.Args[2:])
 	case "healthcheck":
 		err = healthcheck()
 	case "version":
@@ -55,7 +57,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "Dùng: menglish api | migrate <up|down|status|...> | user <create|reset-password> | healthcheck | version")
+	fmt.Fprintln(os.Stderr, "Dùng: menglish api | migrate <up|down|status|...> | user <create|set-roles|reset-password> | import-legacy [--from DSN] [--only ...] [--dry-run] | healthcheck | version")
 	os.Exit(2)
 }
 

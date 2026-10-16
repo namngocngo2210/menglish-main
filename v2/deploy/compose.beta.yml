@@ -88,6 +88,25 @@ services:
         condition: service_healthy
     mem_limit: 256m
 
+  # Nhập dữ liệu Laravel (chỉ đọc MySQL): chạy qua `beta.sh import-legacy <production|staging>`, không tự khởi động.
+  # Nối thêm vào mạng mặc định của Laravel (menglish-<môi trường>_default) để gọi được container db.
+  import-legacy:
+    <<: *api
+    profiles: ["tools"]
+    command: ["import-legacy"]
+    restart: "no"
+    environment:
+      MENGLISH_ENV: beta
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      REDIS_URL: redis://redis:6379/0
+      LEGACY_MYSQL_DSN: ${LEGACY_MYSQL_DSN:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      default:
+      legacy:
+
   web:
     image: menglish-web:beta
     restart: unless-stopped
@@ -104,6 +123,9 @@ services:
 networks:
   proxy:
     name: menglish-proxy
+    external: true
+  legacy:
+    name: ${LEGACY_NETWORK:-menglish-production_default}
     external: true
 
 volumes:

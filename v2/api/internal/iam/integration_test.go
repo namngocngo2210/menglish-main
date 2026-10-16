@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pquerna/otp/totp"
 	"github.com/redis/go-redis/v9"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/geo"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/secretbox"
@@ -49,7 +51,7 @@ func setup(t *testing.T) *env {
 	if err := store.Migrate(ctx, pool, "up"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := pool.Exec(ctx, "TRUNCATE iam.users, iam.roles, iam.role_permissions, core.branches CASCADE"); err != nil {
+	if _, err := pool.Exec(ctx, "TRUNCATE iam.users, iam.roles, iam.role_permissions, core.branches, legacy.id_map CASCADE"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := SyncCatalog(ctx, pool); err != nil {
@@ -379,4 +381,23 @@ func TestSessionsListAndRevoke(t *testing.T) {
 	if n := len(c.do("GET", "/auth/sessions", nil).body["sessions"].([]any)); n != 1 {
 		t.Fatalf("còn %d phiên", n)
 	}
+}
+
+func TestLegacyBcryptPasswordIsRehashed(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	u, _ := e.staff(t)
+	h, _ := bcrypt.GenerateFromPassword([]byte(newPassword), 4)
+	legacy := "$2y$" + string(h)[4:] // Laravel ghi $2y$
+	if _, err := e.pg.Exec(ctx, "UPDATE iam.users SET password_hash = $2, must_change_password = false WHERE id = $1", u.ID, legacy); err != nil {
+		t.Fatal(err)
+	}
+	expect(t, e.client().login("MES001", "sai-mat-khau-roi"), 401, "invalid_credentials")
+	expect(t, e.client().login("MES001", newPassword), 200, "")
+	var stored string
+	_ = e.pg.QueryRow(ctx, "SELECT password_hash FROM iam.users WHERE id = $1", u.ID).Scan(&stored)
+	if !strings.HasPrefix(stored, "$argon2id$") {
+		t.Fatalf("mật khẩu cũ phải được băm lại bằng argon2id, nhận %q", stored[:10])
+	}
+	expect(t, e.client().login("MES001", newPassword), 200, "")
 }

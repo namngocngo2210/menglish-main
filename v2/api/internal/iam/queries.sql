@@ -31,6 +31,9 @@ WHERE id = $1;
 -- name: UnlockUser :exec
 UPDATE iam.users SET failed_logins = 0, locked_until = NULL, updated_at = now() WHERE id = $1;
 
+-- name: RehashPassword :exec
+UPDATE iam.users SET password_hash = $2, updated_at = now() WHERE id = $1;
+
 -- name: SetPassword :exec
 UPDATE iam.users SET
     password_hash = $2, must_change_password = $3, password_changed_at = now(), updated_at = now()

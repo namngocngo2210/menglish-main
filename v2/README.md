@@ -106,6 +106,21 @@ Giữ nguyên mô hình của bản Laravel (`docs/rbac.md`):
 - Tìm địa chỉ đi qua API (`GET /api/v1/branches/address-search`, gói `internal/geo`): Nominatim trước, Photon sau, cache Redis 30 ngày, 30 lần / phút mỗi người. Máy chủ cần ra được `nominatim.openstreetmap.org` và `photon.komoot.io`; không ra được thì màn báo lỗi và vẫn bấm bản đồ / dán tọa độ được.
 - `PUBLIC_URL` (compose đặt sẵn theo `BETA_SITE`) được gửi kèm User-Agent theo chính sách của Nominatim.
 
+## Nhập dữ liệu từ Laravel (import-legacy)
+
+```bash
+v2/deploy/beta.sh import-legacy production --dry-run   # chạy thử, in báo cáo, không ghi gì
+v2/deploy/beta.sh import-legacy production             # nhập thật
+v2/deploy/beta.sh import-legacy production --only branches,users
+```
+
+- Chỉ đọc DB Laravel (nối vào mạng `menglish-<môi trường>_default` để gọi container `db`, tài khoản DB lấy từ `.env.<môi trường>`).
+- Chạy lại bao nhiêu lần cũng được: bảng `legacy.id_map` nối id cũ với uuid mới, bản ghi đã nhập thì cập nhật theo Laravel. Trước khi chuyển một phân hệ sang v2: khóa ghi bên Laravel, chạy lần cuối.
+- Hiện nhập: chi nhánh (kể cả cài đặt chấm công), tài khoản (mã, email, SĐT, trạng thái, mật khẩu), vai trò (vai trò đã bỏ `accountant` → Quản lý cơ sở, `teacher` → GV Full-time), chi nhánh của tài khoản, ma trận quyền theo vai trò, phân quyền cá nhân (phạm vi lớp chờ phân hệ lớp học).
+- Mật khẩu: giữ chuỗi bcrypt của Laravel; lần đăng nhập đầu trên v2 tự băm lại bằng argon2id. Tài khoản đã đổi mật khẩu trên v2 thì lần nhập sau không ghi đè. Tài khoản tạo tay trên v2 trùng mã / email được nhận làm một (giữ mật khẩu và 2FA của v2).
+- Thêm phân hệ: viết `LegacySteps()` trong gói của phân hệ (xem `internal/legacy`, `internal/iam/legacy_import.go`) rồi nối vào `legacySteps()` ở `cmd/menglish/importlegacy.go`.
+- CI chạy migration Laravel lên MariaDB rồi chạy test nhập (`TEST_LEGACY_MYSQL_DSN`): bảng Laravel đổi cột thì CI của v2 đỏ, kể cả PR chỉ sửa `database/migrations`.
+
 ## Bám theo Laravel trong lúc làm v2
 
 Laravel vẫn chạy production và được sửa bình thường. `doi-chieu-laravel.txt` ghi mỗi mảng v2 dựa trên file Laravel nào, đã đối chiếu tới commit nào.

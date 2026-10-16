@@ -886,6 +886,20 @@ func (q *Queries) RecordLoginSuccess(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const rehashPassword = `-- name: RehashPassword :exec
+UPDATE iam.users SET password_hash = $2, updated_at = now() WHERE id = $1
+`
+
+type RehashPasswordParams struct {
+	ID           uuid.UUID
+	PasswordHash string
+}
+
+func (q *Queries) RehashPassword(ctx context.Context, arg RehashPasswordParams) error {
+	_, err := q.db.Exec(ctx, rehashPassword, arg.ID, arg.PasswordHash)
+	return err
+}
+
 const setBranchActive = `-- name: SetBranchActive :one
 UPDATE core.branches SET is_active = $2, updated_at = now() WHERE id = $1 RETURNING id, code, name, address, phone, is_active, created_by, created_at, updated_at, latitude, longitude, checkin_radius, work_start_time, work_end_time, late_grace_minutes
 `

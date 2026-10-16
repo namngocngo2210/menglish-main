@@ -96,3 +96,18 @@ type IamUserRole struct {
 	UserID uuid.UUID
 	Role   string
 }
+
+type LegacyIDMap struct {
+	Entity     string
+	LegacyID   int64
+	NewID      uuid.UUID
+	ImportedAt time.Time
+}
+
+type LegacyRun struct {
+	ID         uuid.UUID
+	StartedAt  time.Time
+	FinishedAt *time.Time
+	DryRun     bool
+	Report     []byte
+}
