@@ -48,7 +48,10 @@ func setup(t *testing.T) *env {
 	if err := store.Migrate(ctx, pool, "up"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := pool.Exec(ctx, "TRUNCATE iam.users CASCADE"); err != nil {
+	if _, err := pool.Exec(ctx, "TRUNCATE iam.users, iam.roles, iam.role_permissions, core.branches CASCADE"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := SyncCatalog(ctx, pool); err != nil {
 		t.Fatal(err)
 	}
 	rdb, err := store.OpenRedis(redisURL)
@@ -70,6 +73,7 @@ func setup(t *testing.T) *env {
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(SameOrigin, h.LoadSession)
 		h.Routes(r)
+		h.AdminRoutes(r)
 	})
 	srv := httptest.NewServer(r)
 	t.Cleanup(srv.Close)

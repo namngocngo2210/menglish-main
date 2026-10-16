@@ -10,6 +10,48 @@ import (
 	"github.com/google/uuid"
 )
 
+type CoreBranch struct {
+	ID        uuid.UUID
+	Code      string
+	Name      string
+	Address   *string
+	Phone     *string
+	IsActive  bool
+	CreatedBy *uuid.UUID
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+type IamPermission struct {
+	Name   string
+	Module string
+	Kind   string
+}
+
+type IamPermissionOverride struct {
+	UserID     uuid.UUID
+	Permission string
+	Allow      bool
+	ScopeType  string
+	ScopeID    *uuid.UUID
+	CreatedBy  *uuid.UUID
+	CreatedAt  time.Time
+}
+
+type IamRole struct {
+	Name       string
+	Label      string
+	ShortLabel string
+	Sort       int32
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+}
+
+type IamRolePermission struct {
+	Role       string
+	Permission string
+}
+
 type IamTotpRecoveryCode struct {
 	UserID   uuid.UUID
 	CodeHash []byte
@@ -34,4 +76,16 @@ type IamUser struct {
 	LastLoginAt        *time.Time
 	CreatedAt          time.Time
 	UpdatedAt          time.Time
+	CreatedBy          *uuid.UUID
+}
+
+type IamUserBranch struct {
+	UserID    uuid.UUID
+	BranchID  uuid.UUID
+	IsPrimary bool
+}
+
+type IamUserRole struct {
+	UserID uuid.UUID
+	Role   string
 }

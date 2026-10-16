@@ -1,5 +1,12 @@
 // Thành phần giao diện tối thiểu cho bước đăng nhập; bước 3 thay bằng design system (shadcn/ui).
-import { useId, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode } from 'react'
+import {
+  useId,
+  useState,
+  type ButtonHTMLAttributes,
+  type InputHTMLAttributes,
+  type ReactNode,
+  type SelectHTMLAttributes,
+} from 'react'
 
 export function Card({ title, children }: { title?: ReactNode; children: ReactNode }) {
   return (
@@ -109,5 +116,76 @@ export function GuestShell({ children }: { children: ReactNode }) {
         </a>
       </p>
     </main>
+  )
+}
+
+export function Select({
+  label,
+  children,
+  ...props
+}: SelectHTMLAttributes<HTMLSelectElement> & { label: string; children: ReactNode }) {
+  const id = useId()
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor={id} className="block text-sm font-medium text-on-surface">
+        {label}
+      </label>
+      <select
+        id={id}
+        className="block h-10 w-full rounded-lg border border-outline-variant bg-surface px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/25"
+        {...props}
+      >
+        {children}
+      </select>
+    </div>
+  )
+}
+
+export function Checkbox({
+  label,
+  hint,
+  ...props
+}: Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> & { label: ReactNode; hint?: string }) {
+  return (
+    <label className="flex items-start gap-2 text-sm" title={hint}>
+      <input type="checkbox" className="mt-0.5 size-4 shrink-0 accent-primary" {...props} />
+      <span>{label}</span>
+    </label>
+  )
+}
+
+export function Badge({ tone = 'neutral', children }: { tone?: 'neutral' | 'success' | 'error' | 'info'; children: ReactNode }) {
+  const styles = {
+    neutral: 'bg-surface-container-low text-on-surface-variant',
+    success: 'bg-success-container text-on-success-container',
+    error: 'bg-error-container text-on-error-container',
+    info: 'bg-info-container text-on-info-container',
+  }[tone]
+  return <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${styles}`}>{children}</span>
+}
+
+// Hộp thoại đơn giản (lớp phủ + thẻ ở giữa); Esc hoặc bấm nền để đóng.
+export function Dialog({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 px-4 py-10"
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+      onKeyDown={(e) => e.key === 'Escape' && onClose()}
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="w-full max-w-lg rounded-xl bg-surface p-6 shadow-lg"
+      >
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <h2 className="text-base font-semibold">{title}</h2>
+          <button type="button" onClick={onClose} className="text-sm text-on-surface-variant hover:text-on-surface" aria-label="Đóng">
+            Đóng
+          </button>
+        </div>
+        {children}
+      </section>
+    </div>
   )
 }

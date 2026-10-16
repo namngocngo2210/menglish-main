@@ -1,9 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
-import { api, errorMessage } from './api'
-import { Alert, GuestShell } from './components/ui'
+import { api, errorMessage, type Me } from './api'
+import { Shell } from './components/Shell'
+import { Alert, Card, GuestShell } from './components/ui'
+import { can, navItemFor } from './nav'
+import { AccountPage } from './pages/AccountPage'
+import { BranchesPage } from './pages/admin/BranchesPage'
+import { RolesPage } from './pages/admin/RolesPage'
+import { UsersPage } from './pages/admin/UsersPage'
 import { FirstPasswordPage } from './pages/FirstPasswordPage'
-import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
+import { TotpRequiredPage } from './pages/TotpRequiredPage'
+import { usePath } from './router'
 
 export function App() {
   const me = useQuery({ queryKey: ['me'], queryFn: api.me })
@@ -24,5 +31,29 @@ export function App() {
   }
   if (!me.data) return <LoginPage />
   if (me.data.user.must_change_password) return <FirstPasswordPage user={me.data.user} />
-  return <HomePage me={me.data} />
+  if (me.data.totp_required && !me.data.user.totp_enabled) return <TotpRequiredPage me={me.data} />
+  return (
+    <Shell me={me.data}>
+      <Page me={me.data} />
+    </Shell>
+  )
+}
+
+function Page({ me }: { me: Me }) {
+  const path = usePath()
+  const item = navItemFor(path)
+  if (!item) return <Card title="Không tìm thấy trang">Đường dẫn này không tồn tại.</Card>
+  if (item.perms && !can(me, ...item.perms)) {
+    return <Card title="Không có quyền">Bạn không có quyền xem trang này.</Card>
+  }
+  switch (item.path) {
+    case '/users':
+      return <UsersPage me={me} />
+    case '/roles':
+      return <RolesPage me={me} />
+    case '/branches':
+      return <BranchesPage me={me} />
+    default:
+      return <AccountPage me={me} />
+  }
 }

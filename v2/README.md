@@ -4,7 +4,8 @@ Hệ thống mới theo [tài liệu thiết kế](../docs/thiet-ke-he-thong-moi
 
 ```
 v2/
-├── api/      Go: một binary `menglish` (api | migrate | healthcheck | version)
+├── api/      Go: một binary `menglish` (api | migrate | user | healthcheck | version)
+├── tools/    parity.sh: đối chiếu v2 với Laravel
 ├── web/      React 19 + Vite + TanStack Query + Tailwind 4
 └── deploy/   Dockerfile, Caddyfile của web, compose beta, script beta.sh
 ```
@@ -20,7 +21,7 @@ cd v2/api
 export DATABASE_URL=postgres://postgres:dev@localhost:5432/postgres?sslmode=disable REDIS_URL=redis://localhost:6379/0
 export APP_ENCRYPTION_KEY=$(openssl rand -base64 32)
 go run ./cmd/menglish migrate up
-go run ./cmd/menglish user create --code MES001 --email admin@example.com --name "Quản trị"   # in mật khẩu tạm
+go run ./cmd/menglish user create --code MES001 --email admin@example.com --name "Quản trị" --role admin   # in mật khẩu tạm
 go run ./cmd/menglish api            # http://localhost:8080/readyz
 
 cd v2/web && npm ci && npm run dev   # http://localhost:5173, /api chuyển sang Go
@@ -54,8 +55,9 @@ Giới hạn RAM của cụm beta khoảng 1 GB (postgres 512 MB, api 256 MB, re
 5. Deploy lần đầu: `v2/deploy/beta.sh deploy origin/main`. Lần deploy đầu tự thêm `APP_ENCRYPTION_KEY` vào `.env.beta`; hãy sao lưu file này, mất khóa thì mọi người phải bật lại 2FA.
 6. Tạo tài khoản Admin đầu tiên, lệnh in ra mật khẩu tạm (bắt đổi ở lần đăng nhập đầu):
    ```bash
-   v2/deploy/beta.sh user create --code MES001 --email admin@meducation.vn --name "Họ tên"
+   v2/deploy/beta.sh user create --code MES001 --email admin@meducation.vn --name "Họ tên" --role admin
    ```
+   Tài khoản tạo trước bước 2 (chưa có vai trò) thì gán vai trò Admin: `v2/deploy/beta.sh user set-roles MES001 admin`. Admin phải bật xác thực hai bước ở lần đăng nhập tới.
 
 ### Lệnh thường dùng
 
@@ -66,7 +68,8 @@ v2/deploy/beta.sh ps
 v2/deploy/beta.sh logs -f api
 v2/deploy/beta.sh migrate status
 v2/deploy/beta.sh psql
-v2/deploy/beta.sh user create --code MES002 --name "..." [--email ...] [--phone ...] [--kind staff|student|guardian]
+v2/deploy/beta.sh user create --code MES002 --name "..." [--email ...] [--phone ...] [--kind staff|student|guardian] [--role admin]
+v2/deploy/beta.sh user set-roles MES002 manager,teacher_fulltime
 v2/deploy/beta.sh user reset-password MES002    # mật khẩu tạm mới, mở khóa, đăng xuất mọi thiết bị
 v2/deploy/beta.sh backup-db         # → backups/beta-<thời gian>.sql.gz, giữ 14 ngày
 v2/deploy/beta.sh stop              # tạm tắt beta để nhường RAM cho Laravel
@@ -82,4 +85,24 @@ Deploy bằng GitHub Actions: *Deploy server* → *Run workflow* → chọn **be
 - Sai 5 lần mỗi tài khoản + IP hoặc 30 lần mỗi IP trong 10 phút thì chặn; sai 10 lần liên tiếp thì khóa tài khoản 15 phút. Thông báo lỗi không cho biết tài khoản có tồn tại hay không.
 - 2FA bằng TOTP (ứng dụng xác thực), 10 mã dự phòng dùng một lần; khóa TOTP mã hóa AES-256-GCM bằng `APP_ENCRYPTION_KEY`.
 - Đổi mật khẩu thì đăng xuất các thiết bị khác; người dùng xem và đăng xuất từng thiết bị.
-- Chưa có: bắt buộc 2FA theo vai trò (bước 2, cùng vai trò và quyền), nhật ký thao tác và cảnh báo Admin (bước 5).
+- Chưa có: nhật ký thao tác và cảnh báo Admin (bước 5).
+
+## Vai trò và quyền (giai đoạn 0, bước 2)
+
+Giữ nguyên mô hình của bản Laravel (`docs/rbac.md`):
+
+- 9 vai trò cố định và danh mục quyền lấy thẳng từ `config/permission_catalog.php`, `config/access.php`: `php api/internal/iam/catalog/export.php > api/internal/iam/catalog/catalog.json` (chạy từ gốc repo; CI báo nếu lệch). `menglish migrate up` đồng bộ danh mục xuống DB; quyền mặc định chỉ cấp cho vai trò vừa tạo, không ghi đè cấu hình Admin đã chỉnh.
+- Thứ tự quyết định: Admin được mọi quyền thao tác và phạm vi (trừ quyền đối tượng) → quyền duyệt chỉ Admin → phân quyền cá nhân (cho phép / chặn) → quyền của vai trò. Tập quyền đã tính cache trong Redis 10 phút, bỏ ngay khi đổi vai trò, phân quyền hoặc chi nhánh.
+- Phạm vi dữ liệu `module.scope_own|branch|all`: `Access.Level`, `Access.BranchLimit`, `Access.CoversBranch`. Chi nhánh của người dùng = chi nhánh chính + chi nhánh cấp thêm.
+- Cây vai trò: chỉ quản lý được người mà mọi vai trò của họ mình gán được (`user.assign_role.<vai trò>`); Quản lý cơ sở gán mọi vai trò trừ Admin và Quản lý cơ sở; Học vụ gán GV, Trợ giảng, Học viên, Học thuật. Không ai tự bỏ được quyền quản trị phân quyền của mình.
+- Bắt buộc 2FA với Admin và người có `role.assign_permission`, `permission.override`, `user.assign_role`, quyền chạy lương; chưa bật thì mọi API nghiệp vụ trả `totp_setup_required` và không tắt được 2FA.
+- Mọi route nghiệp vụ gắn `iam.Require(quyền)`: middleware này kiểm luôn đăng nhập, CSRF, đổi mật khẩu lần đầu, 2FA bắt buộc. `TestEveryRouteHasPermission` đỏ nếu route nào thiếu; tên quyền gõ sai thì chương trình dừng ngay lúc khởi động.
+- Menu theo quyền: `web/src/nav.ts`.
+
+## Bám theo Laravel trong lúc làm v2
+
+Laravel vẫn chạy production và được sửa bình thường. `doi-chieu-laravel.txt` ghi mỗi mảng v2 dựa trên file Laravel nào, đã đối chiếu tới commit nào.
+
+- Workflow *Đối chiếu v2 với Laravel* chạy trên mọi PR: PR sửa file Laravel của mảng đã chuyển thì hiện cảnh báo "Cần cập nhật v2" (không chặn merge).
+- Xem mảng nào đang lệch: `v2/tools/parity.sh`, rồi `git diff <commit> HEAD -- <file>` để biết cần bổ sung gì. Cập nhật v2 xong thì sửa commit trong `doi-chieu-laravel.txt`.
+- Dữ liệu không đối chiếu tay: `menglish import-legacy` (bước 4) đọc thẳng DB Laravel, chạy lại được nhiều lần; trước khi chuyển hẳn một mảng thì khóa mảng đó trên Laravel và import lần cuối.

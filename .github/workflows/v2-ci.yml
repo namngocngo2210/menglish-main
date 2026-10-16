@@ -53,6 +53,9 @@ jobs:
           sqlc-version: '1.31.1'
       - name: Code sinh từ SQL không lệch
         run: sqlc diff
+      # Danh mục quyền xuất từ config Laravel; lệch thì chạy lại lệnh export (xem catalog/export.php).
+      - name: Danh mục quyền khớp config Laravel
+        run: php internal/iam/catalog/export.php | diff -u internal/iam/catalog/catalog.json -
       # -p 1: các gói test dùng chung một database (test migration xóa sạch schema)
       - run: go test -race -p 1 ./...
 

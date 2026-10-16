@@ -12,7 +12,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
@@ -112,10 +111,7 @@ func runAPI(ctx context.Context) error {
 		Addr: cfg.HTTPAddr,
 		Handler: server.New(server.Deps{
 			Log: log, Version: version, Env: cfg.Env, Checks: checks,
-			API: func(r chi.Router) {
-				r.Use(iam.SameOrigin, auth.LoadSession)
-				auth.Routes(r)
-			},
+			API: apiRoutes(auth),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       60 * time.Second,
@@ -141,6 +137,7 @@ func runAPI(ctx context.Context) error {
 	return nil
 }
 
+// runMigrate chạy goose; sau "up" thì đồng bộ danh mục quyền và 9 vai trò, rồi bỏ cache quyền của mọi người.
 func runMigrate(ctx context.Context, args []string) error {
 	if len(args) == 0 {
 		args = []string{"up"}
@@ -154,7 +151,23 @@ func runMigrate(ctx context.Context, args []string) error {
 		return err
 	}
 	defer pool.Close()
-	return store.Migrate(ctx, pool, args[0], args[1:]...)
+	if err := store.Migrate(ctx, pool, args[0], args[1:]...); err != nil || args[0] != "up" {
+		return err
+	}
+	rep, err := iam.SyncCatalog(ctx, pool)
+	if err != nil {
+		return fmt.Errorf("đồng bộ danh mục quyền: %w", err)
+	}
+	fmt.Printf("Danh mục quyền: %d quyền; vai trò mới: %v; quyền đã bỏ: %v\n", rep.Permissions, rep.CreatedRoles, rep.RemovedPermissions)
+	if cfg.RedisURL == "" {
+		return nil
+	}
+	rdb, err := store.OpenRedis(cfg.RedisURL)
+	if err != nil {
+		return err
+	}
+	defer rdb.Close()
+	return iam.InvalidateAllAccess(ctx, rdb)
 }
 
 // healthcheck dùng cho HEALTHCHECK của Docker: image distroless không có curl.

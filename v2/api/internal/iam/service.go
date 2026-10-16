@@ -40,6 +40,11 @@ var (
 	ErrTOTPSetupExpired   = &Error{409, "totp_setup_expired", "Mã QR đã hết hạn, hãy tạo lại."}
 	ErrSessionNotFound    = &Error{404, "session_not_found", "Không tìm thấy phiên đăng nhập."}
 	ErrUnauthenticated    = &Error{401, "unauthenticated", "Bạn cần đăng nhập."}
+
+	ErrPasswordChangeRequired = &Error{403, "password_change_required", "Bạn cần đổi mật khẩu trước khi tiếp tục."}
+	ErrTOTPSetupRequired      = &Error{403, "totp_setup_required", "Tài khoản của bạn bắt buộc bật xác thực hai bước trước khi tiếp tục."}
+	ErrTOTPMandatory          = &Error{409, "totp_mandatory", "Vai trò của bạn bắt buộc bật xác thực hai bước, không tắt được."}
+	ErrForbidden              = &Error{403, "forbidden", "Bạn không có quyền thực hiện thao tác này."}
 )
 
 func weakPassword(msg string) *Error { return &Error{422, "weak_password", msg} }
@@ -429,8 +434,7 @@ func (s *Service) EnableTOTP(ctx context.Context, sess *Session, code string) ([
 	return codes, nil
 }
 
-// DisableTOTP tắt 2FA sau khi nhập lại mật khẩu.
-// TODO(giai đoạn 0, bước 2): chặn tắt với Admin và nhóm quyền cao (bắt buộc 2FA).
+// DisableTOTP tắt 2FA sau khi nhập lại mật khẩu. Admin và nhóm quyền cao không tắt được.
 func (s *Service) DisableTOTP(ctx context.Context, sess *Session, password string) error {
 	u, err := s.q.GetUser(ctx, sess.UserID)
 	if err != nil {
@@ -438,6 +442,13 @@ func (s *Service) DisableTOTP(ctx context.Context, sess *Session, password strin
 	}
 	if u.TotpEnabledAt == nil {
 		return ErrTOTPNotEnabled
+	}
+	acc, err := s.LoadAccess(ctx, u.ID)
+	if err != nil {
+		return err
+	}
+	if acc.RequiresTOTP() {
+		return ErrTOTPMandatory
 	}
 	ok, err := VerifyPassword(ctx, password, u.PasswordHash)
 	if err != nil {
@@ -529,22 +540,27 @@ func (s *Service) ResetPassword(ctx context.Context, identifier string) (User, s
 	if err != nil {
 		return User{}, "", err
 	}
-	password := RandomPassword()
-	hash, err := HashPassword(ctx, password)
+	password, err := s.resetPassword(ctx, u.ID)
 	if err != nil {
-		return User{}, "", err
-	}
-	if err := s.q.SetPassword(ctx, iamdb.SetPasswordParams{ID: u.ID, PasswordHash: hash, MustChangePassword: true}); err != nil {
-		return User{}, "", err
-	}
-	if err := s.q.UnlockUser(ctx, u.ID); err != nil {
-		return User{}, "", err
-	}
-	if err := s.sessions.revokeAll(ctx, u.ID, ""); err != nil {
 		return User{}, "", err
 	}
 	u.MustChangePassword = true
 	return toUser(u), password, nil
+}
+
+func (s *Service) resetPassword(ctx context.Context, uid uuid.UUID) (string, error) {
+	password := RandomPassword()
+	hash, err := HashPassword(ctx, password)
+	if err != nil {
+		return "", err
+	}
+	if err := s.q.SetPassword(ctx, iamdb.SetPasswordParams{ID: uid, PasswordHash: hash, MustChangePassword: true}); err != nil {
+		return "", err
+	}
+	if err := s.q.UnlockUser(ctx, uid); err != nil {
+		return "", err
+	}
+	return password, s.sessions.revokeAll(ctx, uid, "")
 }
 
 func upperOrNil(s string) *string {
