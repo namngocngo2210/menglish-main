@@ -103,6 +103,8 @@ type ItemList struct {
 	PageSize   int         `json:"page_size"`
 	Metrics    ItemMetrics `json:"metrics"`
 	Categories []Category  `json:"categories"`
+	// Chi nhánh nhận tồn ban đầu ở form thêm mới
+	Branches []Option `json:"branches"`
 }
 
 func (f ItemFilter) params() (search, category *string, active *bool) {
@@ -142,6 +144,14 @@ func (s *Service) ListItems(ctx context.Context, f ItemFilter) (ItemList, error)
 	out := ItemList{
 		Items: make([]Item, 0, len(rows)), Total: total, Page: f.Page, PageSize: itemsPageSize, Categories: Categories,
 		Metrics: ItemMetrics{Total: m.Total, Active: m.Active, TotalStock: m.TotalStock, Books: m.Books, Uniforms: m.Uniforms},
+	}
+	branches, err := s.q.ListBranches(ctx, nil)
+	if err != nil {
+		return ItemList{}, err
+	}
+	out.Branches = make([]Option, 0, len(branches))
+	for _, b := range branches {
+		out.Branches = append(out.Branches, Option{b.ID.String(), b.Name})
 	}
 	for _, r := range rows {
 		it := toItem(inventorydb.OpsInventoryItem{
