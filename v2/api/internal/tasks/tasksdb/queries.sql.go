@@ -945,3 +945,46 @@ func (q *Queries) TaskCounts(ctx context.Context, me uuid.UUID) (TaskCountsRow, 
 	)
 	return i, err
 }
+
+const taskSummaries = `-- name: TaskSummaries :many
+SELECT t.id, t.title, t.due_date, t.status, u.full_name AS assignee_name
+FROM ops.work_tasks t
+LEFT JOIN iam.users u ON u.id = t.assignee_id
+WHERE t.id = ANY ($1::uuid[])
+ORDER BY t.no
+`
+
+type TaskSummariesRow struct {
+	ID           uuid.UUID
+	Title        string
+	DueDate      *time.Time
+	Status       string
+	AssigneeName *string
+}
+
+// Tóm tắt việc theo id (việc follow-up của báo cáo ngày, phân hệ reports).
+func (q *Queries) TaskSummaries(ctx context.Context, ids []uuid.UUID) ([]TaskSummariesRow, error) {
+	rows, err := q.db.Query(ctx, taskSummaries, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []TaskSummariesRow
+	for rows.Next() {
+		var i TaskSummariesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.DueDate,
+			&i.Status,
+			&i.AssigneeName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

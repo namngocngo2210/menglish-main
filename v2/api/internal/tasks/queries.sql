@@ -208,3 +208,11 @@ WHERE status IN ('new', 'in_progress')
   AND due_date IS NOT NULL
   AND due_date + COALESCE(due_time, time '23:59') + interval '1 minute' <= @now_local::timestamp
 RETURNING id, title, assignee_id, due_date, due_time;
+
+-- name: TaskSummaries :many
+-- Tóm tắt việc theo id (việc follow-up của báo cáo ngày, phân hệ reports).
+SELECT t.id, t.title, t.due_date, t.status, u.full_name AS assignee_name
+FROM ops.work_tasks t
+LEFT JOIN iam.users u ON u.id = t.assignee_id
+WHERE t.id = ANY (@ids::uuid[])
+ORDER BY t.no;

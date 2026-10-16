@@ -126,8 +126,13 @@ func runAPI(ctx context.Context) error {
 	crmSvc := crm.NewService(d.pool, d.iam, log)
 	// Leads: khách CRM. Sessions: lớp học nối vào khi gộp phân hệ lớp (hiện dùng bản rỗng).
 	place := placement.NewHandler(placement.NewService(d.pool, d.rdb, log, placement.Options{Leads: crmSvc.PlacementLeads()}), log)
-	// TODO(gộp): truyền MetricsProvider / TaskService / ClassDirectory / Calendar thật khi các phân hệ đó có ở v2.
-	reportSvc := reports.NewService(d.pool, log, reports.Deps{})
+	catalogSvc := catalogs.NewService(d.pool, d.box, log)
+	studentSvc := students.NewService(d.pool, d.iam, log)
+	// Báo cáo: số liệu tuyển sinh từ CRM / test đầu vào, việc follow-up qua Công việc, ngày nghỉ từ danh mục.
+	// TODO(gộp): ClassDirectory và số liệu lớp học / học phí khi các phân hệ đó có ở v2.
+	reportSvc := reports.NewService(d.pool, log, reports.Deps{
+		Metrics: reports.NewMetrics(crmSvc.ReportSource()), Tasks: taskSvc.ReportTasks(), Calendar: catalogSvc.ReportCalendar(),
+	})
 	// Nhắc hạn báo cáo ngày / tháng và tổng hợp cho Admin (lệnh reports:remind-* / reports:daily-digest ở bản Laravel).
 	go reportSvc.RunReminderLoop(ctx, time.Minute)
 	checks := map[string]server.Pinger{
@@ -143,11 +148,11 @@ func runAPI(ctx context.Context) error {
 				audit:   auditapi.NewHandler(auditapi.NewService(d.pool, log), log),
 				notify:  notifyapi.NewHandler(notifyapi.NewService(d.pool), log),
 				// Module mới có nhóm tìm kiếm thì thêm: search.Builtin(d.iam).Add(<module>.Searcher(...)).
-				search: search.NewHandler(search.Builtin(d.iam), log),
+				search: search.NewHandler(search.Builtin(d.iam).Add(crm.Searcher(crmSvc)).Add(students.Searcher(studentSvc)), log),
 			},
-				students.NewHandler(students.NewService(d.pool, d.iam, log), log),
+				students.NewHandler(studentSvc, log),
 				inventory.NewHandler(inv, log),
-				catalogs.NewHandler(catalogs.NewService(d.pool, d.box, log), log),
+				catalogs.NewHandler(catalogSvc, log),
 				tasks.NewHandler(taskSvc, log),
 				place,
 				reports.NewHandler(reportSvc, log),

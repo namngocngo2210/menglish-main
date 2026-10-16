@@ -2695,6 +2695,34 @@ func (q *Queries) PromotionCodeTaken(ctx context.Context, code string) (bool, er
 	return exists, err
 }
 
+const reportAppointments = `-- name: ReportAppointments :one
+SELECT count(*) FROM crm.leads l
+WHERE l.deleted_at IS NULL
+  AND l.appointment_at >= $1::timestamptz AND l.appointment_at < $2::timestamptz
+  AND ($3::uuid IS NULL OR l.assigned_user_id = $3::uuid)
+  AND ($4::uuid[] IS NULL OR l.branch_id = ANY ($4::uuid[]))
+`
+
+type ReportAppointmentsParams struct {
+	Since         time.Time
+	Until         time.Time
+	ScopeOwner    *uuid.UUID
+	ScopeBranches []uuid.UUID
+}
+
+// Số khách có lịch hẹn test trong khoảng.
+func (q *Queries) ReportAppointments(ctx context.Context, arg ReportAppointmentsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, reportAppointments,
+		arg.Since,
+		arg.Until,
+		arg.ScopeOwner,
+		arg.ScopeBranches,
+	)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const reportClosedCount = `-- name: ReportClosedCount :one
 SELECT count(*) FROM crm.leads l
 WHERE l.deleted_at IS NULL AND l.stage IN ('waiting_class', 'won')
@@ -2725,6 +2753,60 @@ func (q *Queries) ReportClosedCount(ctx context.Context, arg ReportClosedCountPa
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const reportClosedLeads = `-- name: ReportClosedLeads :many
+SELECT DISTINCT ON (l.id) l.id, l.name, e.created_at AS closed_at
+FROM crm.lead_events e
+JOIN crm.leads l ON l.id = e.lead_id
+WHERE e.type = 'stage_change' AND e.to_stage IN ('waiting_class', 'won')
+  AND e.created_at >= $1::timestamptz AND e.created_at < $2::timestamptz
+  AND l.deleted_at IS NULL
+  AND ($3::uuid IS NULL OR l.assigned_user_id = $3::uuid)
+  AND ($4::uuid[] IS NULL OR l.branch_id = ANY ($4::uuid[]))
+  AND ($5::uuid[] IS NULL OR l.branch_id = ANY ($5::uuid[]))
+ORDER BY l.id, e.created_at
+`
+
+type ReportClosedLeadsParams struct {
+	Since         time.Time
+	Until         time.Time
+	ScopeOwner    *uuid.UUID
+	ScopeBranches []uuid.UUID
+	OnlyBranches  []uuid.UUID
+}
+
+type ReportClosedLeadsRow struct {
+	ID       uuid.UUID
+	Name     string
+	ClosedAt time.Time
+}
+
+// Khách chuyển sang Chờ xếp lớp / Đã chốt trong khoảng (lần đầu trong khoảng của mỗi khách).
+func (q *Queries) ReportClosedLeads(ctx context.Context, arg ReportClosedLeadsParams) ([]ReportClosedLeadsRow, error) {
+	rows, err := q.db.Query(ctx, reportClosedLeads,
+		arg.Since,
+		arg.Until,
+		arg.ScopeOwner,
+		arg.ScopeBranches,
+		arg.OnlyBranches,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ReportClosedLeadsRow
+	for rows.Next() {
+		var i ReportClosedLeadsRow
+		if err := rows.Scan(&i.ID, &i.Name, &i.ClosedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const reportCohort = `-- name: ReportCohort :many
@@ -2892,6 +2974,132 @@ func (q *Queries) ReportLost(ctx context.Context, arg ReportLostParams) ([]Repor
 	return items, nil
 }
 
+const reportNewLeads = `-- name: ReportNewLeads :many
+
+SELECT l.id, l.name, coalesce(l.source, '')::text AS source, l.branch_id, l.created_at,
+       EXISTS (SELECT 1 FROM crm.lead_events e WHERE e.lead_id = l.id AND e.type IN ('call', 'message', 'meet')
+               AND e.outcome IS DISTINCT FROM 'failed' AND e.created_at < $1::timestamptz) AS contacted
+FROM crm.leads l
+WHERE l.deleted_at IS NULL
+  AND l.created_at >= $2::timestamptz AND l.created_at < $1::timestamptz
+  AND ($3::uuid IS NULL OR l.assigned_user_id = $3::uuid)
+  AND ($4::uuid[] IS NULL OR l.branch_id = ANY ($4::uuid[]))
+  AND ($5::uuid[] IS NULL OR l.branch_id = ANY ($5::uuid[]))
+ORDER BY l.created_at, l.id
+`
+
+type ReportNewLeadsParams struct {
+	Until         time.Time
+	Since         time.Time
+	ScopeOwner    *uuid.UUID
+	ScopeBranches []uuid.UUID
+	OnlyBranches  []uuid.UUID
+}
+
+type ReportNewLeadsRow struct {
+	ID        uuid.UUID
+	Name      string
+	Source    string
+	BranchID  *uuid.UUID
+	CreatedAt time.Time
+	Contacted bool
+}
+
+// ───────────────────────── Số liệu cho báo cáo ngày / tuần (phân hệ reports) ─────────────────────────
+// Phạm vi như danh sách khách (scope_owner / scope_branches); only_branches: chi nhánh của người viết (NULL = không lọc).
+// Khách tạo trong khoảng; contacted: đã có lần gọi / nhắn / gặp liên hệ được trước hết khoảng.
+func (q *Queries) ReportNewLeads(ctx context.Context, arg ReportNewLeadsParams) ([]ReportNewLeadsRow, error) {
+	rows, err := q.db.Query(ctx, reportNewLeads,
+		arg.Until,
+		arg.Since,
+		arg.ScopeOwner,
+		arg.ScopeBranches,
+		arg.OnlyBranches,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ReportNewLeadsRow
+	for rows.Next() {
+		var i ReportNewLeadsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Source,
+			&i.BranchID,
+			&i.CreatedAt,
+			&i.Contacted,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const reportTests = `-- name: ReportTests :many
+SELECT s.lead_id, l.name, coalesce(s.overall_score::text, '')::text AS overall_score,
+       coalesce(s.cefr_level, '')::text AS cefr_level, s.status
+FROM placement.submissions s
+JOIN crm.leads l ON l.id = s.lead_id
+WHERE s.created_at >= $1::timestamptz AND s.created_at < $2::timestamptz
+  AND l.deleted_at IS NULL
+  AND ($3::uuid IS NULL OR l.assigned_user_id = $3::uuid)
+  AND ($4::uuid[] IS NULL OR l.branch_id = ANY ($4::uuid[]))
+ORDER BY s.created_at, s.id
+`
+
+type ReportTestsParams struct {
+	Since         time.Time
+	Until         time.Time
+	ScopeOwner    *uuid.UUID
+	ScopeBranches []uuid.UUID
+}
+
+type ReportTestsRow struct {
+	LeadID       *uuid.UUID
+	Name         string
+	OverallScore string
+	CefrLevel    string
+	Status       string
+}
+
+// Bài test đầu vào (placement.submissions) làm trong khoảng của khách trong phạm vi.
+func (q *Queries) ReportTests(ctx context.Context, arg ReportTestsParams) ([]ReportTestsRow, error) {
+	rows, err := q.db.Query(ctx, reportTests,
+		arg.Since,
+		arg.Until,
+		arg.ScopeOwner,
+		arg.ScopeBranches,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ReportTestsRow
+	for rows.Next() {
+		var i ReportTestsRow
+		if err := rows.Scan(
+			&i.LeadID,
+			&i.Name,
+			&i.OverallScore,
+			&i.CefrLevel,
+			&i.Status,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const restoreLead = `-- name: RestoreLead :exec
 UPDATE crm.leads SET deleted_at = NULL, phone_normalized = $1, email = $2,
     deleted_email = NULL, updated_at = now()
@@ -2938,6 +3146,71 @@ func (q *Queries) SaveConfirmation(ctx context.Context, arg SaveConfirmationPara
 		arg.ID,
 	)
 	return err
+}
+
+const searchLeads = `-- name: SearchLeads :many
+SELECT l.id, l.code, l.name, l.phone, l.stage, b.name AS branch_name
+FROM crm.leads l
+LEFT JOIN core.branches b ON b.id = l.branch_id
+WHERE l.deleted_at IS NULL
+  AND ($1::uuid IS NULL OR l.assigned_user_id = $1::uuid)
+  AND ($2::uuid[] IS NULL OR l.branch_id = ANY ($2::uuid[]))
+  AND (l.name ILIKE $3::text OR l.code ILIKE $3::text OR l.email::text ILIKE $3::text
+       OR ($4::text <> '' AND (l.phone ILIKE $4::text OR l.phone_normalized LIKE $4::text
+           OR l.parent_phone ILIKE $4::text)))
+ORDER BY l.created_at DESC, l.id DESC
+LIMIT $5
+`
+
+type SearchLeadsParams struct {
+	ScopeOwner    *uuid.UUID
+	ScopeBranches []uuid.UUID
+	Term          string
+	Phone         string
+	Lim           int32
+}
+
+type SearchLeadsRow struct {
+	ID         uuid.UUID
+	Code       string
+	Name       string
+	Phone      string
+	Stage      string
+	BranchName *string
+}
+
+// Tìm kiếm chung (topbar, Laravel GlobalSearchController): tên / mã / email, SĐT khách / phụ huynh khi từ khóa có số.
+func (q *Queries) SearchLeads(ctx context.Context, arg SearchLeadsParams) ([]SearchLeadsRow, error) {
+	rows, err := q.db.Query(ctx, searchLeads,
+		arg.ScopeOwner,
+		arg.ScopeBranches,
+		arg.Term,
+		arg.Phone,
+		arg.Lim,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchLeadsRow
+	for rows.Next() {
+		var i SearchLeadsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.Name,
+			&i.Phone,
+			&i.Stage,
+			&i.BranchName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const setCareChecklist = `-- name: SetCareChecklist :exec

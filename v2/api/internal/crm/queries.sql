@@ -640,3 +640,66 @@ SET status = 'cancelled',
     notes = left(trim(coalesce(notes || E'\n', '') || 'Hủy: ' || sqlc.arg(reason)::text), 3000),
     updated_at = now(), version = version + 1
 WHERE lead_id = sqlc.arg(lead_id) AND status = 'scheduled';
+
+-- ───────────────────────── Số liệu cho báo cáo ngày / tuần (phân hệ reports) ─────────────────────────
+-- Phạm vi như danh sách khách (scope_owner / scope_branches); only_branches: chi nhánh của người viết (NULL = không lọc).
+
+-- name: ReportNewLeads :many
+-- Khách tạo trong khoảng; contacted: đã có lần gọi / nhắn / gặp liên hệ được trước hết khoảng.
+SELECT l.id, l.name, coalesce(l.source, '')::text AS source, l.branch_id, l.created_at,
+       EXISTS (SELECT 1 FROM crm.lead_events e WHERE e.lead_id = l.id AND e.type IN ('call', 'message', 'meet')
+               AND e.outcome IS DISTINCT FROM 'failed' AND e.created_at < sqlc.arg(until)::timestamptz) AS contacted
+FROM crm.leads l
+WHERE l.deleted_at IS NULL
+  AND l.created_at >= sqlc.arg(since)::timestamptz AND l.created_at < sqlc.arg(until)::timestamptz
+  AND (sqlc.narg(scope_owner)::uuid IS NULL OR l.assigned_user_id = sqlc.narg(scope_owner)::uuid)
+  AND (sqlc.narg(scope_branches)::uuid[] IS NULL OR l.branch_id = ANY (sqlc.narg(scope_branches)::uuid[]))
+  AND (sqlc.narg(only_branches)::uuid[] IS NULL OR l.branch_id = ANY (sqlc.narg(only_branches)::uuid[]))
+ORDER BY l.created_at, l.id;
+
+-- name: ReportAppointments :one
+-- Số khách có lịch hẹn test trong khoảng.
+SELECT count(*) FROM crm.leads l
+WHERE l.deleted_at IS NULL
+  AND l.appointment_at >= sqlc.arg(since)::timestamptz AND l.appointment_at < sqlc.arg(until)::timestamptz
+  AND (sqlc.narg(scope_owner)::uuid IS NULL OR l.assigned_user_id = sqlc.narg(scope_owner)::uuid)
+  AND (sqlc.narg(scope_branches)::uuid[] IS NULL OR l.branch_id = ANY (sqlc.narg(scope_branches)::uuid[]));
+
+-- name: ReportClosedLeads :many
+-- Khách chuyển sang Chờ xếp lớp / Đã chốt trong khoảng (lần đầu trong khoảng của mỗi khách).
+SELECT DISTINCT ON (l.id) l.id, l.name, e.created_at AS closed_at
+FROM crm.lead_events e
+JOIN crm.leads l ON l.id = e.lead_id
+WHERE e.type = 'stage_change' AND e.to_stage IN ('waiting_class', 'won')
+  AND e.created_at >= sqlc.arg(since)::timestamptz AND e.created_at < sqlc.arg(until)::timestamptz
+  AND l.deleted_at IS NULL
+  AND (sqlc.narg(scope_owner)::uuid IS NULL OR l.assigned_user_id = sqlc.narg(scope_owner)::uuid)
+  AND (sqlc.narg(scope_branches)::uuid[] IS NULL OR l.branch_id = ANY (sqlc.narg(scope_branches)::uuid[]))
+  AND (sqlc.narg(only_branches)::uuid[] IS NULL OR l.branch_id = ANY (sqlc.narg(only_branches)::uuid[]))
+ORDER BY l.id, e.created_at;
+
+-- name: ReportTests :many
+-- Bài test đầu vào (placement.submissions) làm trong khoảng của khách trong phạm vi.
+SELECT s.lead_id, l.name, coalesce(s.overall_score::text, '')::text AS overall_score,
+       coalesce(s.cefr_level, '')::text AS cefr_level, s.status
+FROM placement.submissions s
+JOIN crm.leads l ON l.id = s.lead_id
+WHERE s.created_at >= sqlc.arg(since)::timestamptz AND s.created_at < sqlc.arg(until)::timestamptz
+  AND l.deleted_at IS NULL
+  AND (sqlc.narg(scope_owner)::uuid IS NULL OR l.assigned_user_id = sqlc.narg(scope_owner)::uuid)
+  AND (sqlc.narg(scope_branches)::uuid[] IS NULL OR l.branch_id = ANY (sqlc.narg(scope_branches)::uuid[]))
+ORDER BY s.created_at, s.id;
+
+-- name: SearchLeads :many
+-- Tìm kiếm chung (topbar, Laravel GlobalSearchController): tên / mã / email, SĐT khách / phụ huynh khi từ khóa có số.
+SELECT l.id, l.code, l.name, l.phone, l.stage, b.name AS branch_name
+FROM crm.leads l
+LEFT JOIN core.branches b ON b.id = l.branch_id
+WHERE l.deleted_at IS NULL
+  AND (sqlc.narg(scope_owner)::uuid IS NULL OR l.assigned_user_id = sqlc.narg(scope_owner)::uuid)
+  AND (sqlc.narg(scope_branches)::uuid[] IS NULL OR l.branch_id = ANY (sqlc.narg(scope_branches)::uuid[]))
+  AND (l.name ILIKE sqlc.arg(term)::text OR l.code ILIKE sqlc.arg(term)::text OR l.email::text ILIKE sqlc.arg(term)::text
+       OR (sqlc.arg(phone)::text <> '' AND (l.phone ILIKE sqlc.arg(phone)::text OR l.phone_normalized LIKE sqlc.arg(phone)::text
+           OR l.parent_phone ILIKE sqlc.arg(phone)::text)))
+ORDER BY l.created_at DESC, l.id DESC
+LIMIT sqlc.arg(lim);
