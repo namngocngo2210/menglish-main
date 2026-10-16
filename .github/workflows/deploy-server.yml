@@ -1,0 +1,92 @@
+# Deploy MEnglish lên máy chủ Docker (docs/deploy-docker.md).
+#
+# - Push vào main → test → deploy production (portal.meducation.vn).
+# - Chạy tay (Actions → Deploy server → Run workflow): chọn staging (mọi nhánh) hoặc production (chỉ main).
+#
+# CI SSH vào máy chủ bằng khóa riêng, bị ép chạy docker/ci-deploy.sh (forced command) với "<môi trường> <sha>";
+# máy chủ tự build image từ đúng commit đó, khởi động lại, migrate.
+#
+# Secrets (Settings → Secrets and variables → Actions):
+#   DEPLOY_SSH_KEY       khóa riêng ed25519 của CI
+#   DEPLOY_KNOWN_HOSTS   dòng known_hosts của máy chủ (ssh-keyscan -p <port> <host>)
+# Variables: DEPLOY_HOST (IP máy chủ), DEPLOY_PORT (cổng SSH), DEPLOY_USER
+name: Deploy server
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Môi trường deploy
+        type: choice
+        options: [staging, production]
+        default: staging
+      run_tests:
+        description: Chạy toàn bộ test trước khi deploy
+        type: boolean
+        default: true
+
+concurrency:
+  group: deploy-${{ inputs.environment || 'production' }}
+  cancel-in-progress: false
+
+env:
+  TARGET: ${{ inputs.environment || 'production' }}
+
+jobs:
+  # Production chỉ nhận code từ nhánh main; staging deploy được mọi nhánh (thử nhánh tính năng trước khi merge).
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Kiểm tra nhánh
+        run: |
+          echo "Môi trường: $TARGET · nhánh: ${{ github.ref_name }} · commit: ${{ github.sha }}"
+          if [ "$TARGET" = "production" ] && [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "::error::Production chỉ deploy từ nhánh main (đang chọn ${{ github.ref_name }}). Merge vào main trước, hoặc chọn staging."
+            exit 1
+          fi
+
+  test:
+    needs: guard
+    if: ${{ github.event_name == 'push' || inputs.run_tests }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_sqlite, intl, gd, zip, bcmath
+      - run: composer install --no-interaction --no-progress --prefer-dist
+      - run: cp .env.example .env && php artisan key:generate
+      - run: php artisan test
+
+  deploy:
+    needs: [guard, test]
+    if: ${{ always() && needs.guard.result == 'success' && (needs.test.result == 'success' || needs.test.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment || 'production' }}
+      url: ${{ (inputs.environment || 'production') == 'production' && 'https://portal.meducation.vn' || 'https://dungthu.meducation.vn' }}
+    steps:
+      - name: Cấu hình SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+
+      - name: Deploy trên máy chủ
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "${{ vars.DEPLOY_PORT }}" -o BatchMode=yes -o ServerAliveInterval=30 \
+            "${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}" "$TARGET ${{ github.sha }}"
+
+      - name: Kiểm tra trang đăng nhập
+        run: |
+          url=$([ "$TARGET" = production ] && echo https://portal.meducation.vn || echo https://dungthu.meducation.vn)
+          for i in 1 2 3 4 5; do
+            status=$(curl -s -o /dev/null -w '%{http_code}' "$url/login") || true
+            echo "Lần $i: HTTP $status"
+            [ "$status" = "200" ] && exit 0
+            sleep 10
+          done
+          exit 1

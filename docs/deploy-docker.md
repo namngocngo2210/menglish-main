@@ -22,7 +22,29 @@ docker/menglish.sh production artisan tinker
 docker/menglish.sh production backup-db           # → backups/production-<thời gian>.sql.gz
 ```
 
-Cập nhật code: `git pull` rồi `docker/menglish.sh <env> deploy`. Staging muốn chạy nhánh khác thì checkout nhánh đó trước khi deploy staging (image build từ code đang có trong thư mục).
+`deploy <ref>` build image từ đúng commit / nhánh (qua `git archive`, không đổi thư mục làm việc), vd. `docker/menglish.sh staging deploy origin/feature-x`; `version` cho biết commit đang chạy. Không truyền ref thì build từ thư mục hiện tại.
+
+`deploy` giữ nguyên trạng thái scheduler: đang dừng thì vẫn dừng.
+
+## Deploy tự động (GitHub Actions)
+
+`.github/workflows/deploy-server.yml`:
+- Push / merge vào `main` → chạy test → deploy **production**.
+- Actions → *Deploy server* → *Run workflow*: chọn **staging** (mọi nhánh) hoặc production (chỉ `main`).
+
+CI SSH vào máy chủ bằng khóa riêng (`~/.ssh/ci/deploy_key` trên máy chủ). Trong `~/.ssh/authorized_keys` khóa này bị ép chạy `docker/ci-deploy.sh` (forced command), chỉ nhận `"<production|staging> <sha>"`; production chỉ nhận commit đã nằm trên `main`. Mỗi lúc chỉ một deploy (flock).
+
+Cấu hình trên GitHub (Settings → Secrets and variables → Actions):
+
+| Loại | Tên | Giá trị |
+|---|---|---|
+| Secret | `DEPLOY_SSH_KEY` | nội dung `~/.ssh/ci/deploy_key` trên máy chủ |
+| Secret | `DEPLOY_KNOWN_HOSTS` | `ssh-keyscan -p 24700 103.72.96.61` |
+| Variable | `DEPLOY_HOST` | `103.72.96.61` |
+| Variable | `DEPLOY_PORT` | `24700` |
+| Variable | `DEPLOY_USER` | `menglish` |
+
+Thu hồi quyền deploy của CI: xóa dòng `github-actions-deploy@menglish` trong `~/.ssh/authorized_keys`.
 
 ## Chuyển từ hosting sang
 
