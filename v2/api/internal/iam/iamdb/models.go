@@ -11,6 +11,27 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type CoreAuditLog struct {
+	ID           uuid.UUID
+	CreatedAt    time.Time
+	ActorID      *uuid.UUID
+	Module       string
+	Event        string
+	Action       string
+	SubjectType  *string
+	SubjectID    *string
+	SubjectLabel *string
+	BranchID     *uuid.UUID
+	Description  string
+	Changes      []byte
+	Properties   []byte
+	Ip           *string
+	UserAgent    *string
+	Method       *string
+	Path         *string
+	RequestID    *uuid.UUID
+}
+
 type CoreBranch struct {
 	ID               uuid.UUID
 	Code             string

@@ -15,6 +15,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/audit"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/audit/auditapi"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/config"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/geo"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
@@ -112,7 +114,10 @@ func runAPI(ctx context.Context) error {
 		Addr: cfg.HTTPAddr,
 		Handler: server.New(server.Deps{
 			Log: log, Version: version, Env: cfg.Env, Checks: checks,
-			API: apiRoutes(auth),
+			API: apiRoutes(auth, platform{
+				auditMW: audit.Middleware(d.pool, log, "/api/v1", iam.CurrentUserID),
+				audit:   auditapi.NewHandler(auditapi.NewService(d.pool, log), log),
+			}),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       60 * time.Second,

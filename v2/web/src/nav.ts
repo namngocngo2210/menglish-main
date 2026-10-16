@@ -13,6 +13,7 @@ export const NAV: NavItem[] = [
   { path: '/users', label: 'Người dùng & Tài khoản', perms: ['user.view'], group: 'Người dùng' },
   { path: '/branches', label: 'Cơ sở & Chi nhánh', perms: ['branch.view'], group: 'Tổ chức & Đào tạo' },
   { path: '/roles', label: 'Vai trò & quyền', perms: ['role.view'], group: 'Hệ thống' },
+  { path: '/activity-logs', label: 'Nhật ký vận hành', perms: ['activity_log.view'], group: 'Hệ thống' },
 ]
 
 // Workspace của sidebar theo đúng thứ tự SidebarMenu::definition(): khu (section) → workspace (label, icon).
