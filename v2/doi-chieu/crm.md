@@ -1,0 +1,70 @@
+# Đối chiếu CRM (Khách hàng tiềm năng) — Laravel → v2
+
+Đối chiếu tới commit Laravel `41070de1`. Nguồn Laravel: `routes/web.php` (nhóm `crm.`), `CrmController`, `CrmImportController`,
+`PromotionController`, `CrmCustomer`, `CrmCustomerHistory`, `CrmBranchTransfer`, `Promotion`, `ClassEnrollment`, `CrmStageService`,
+`Services/Crm/*`, `config/sla.php`, `Pages/Crm/*`, `Pages/Promotions/*`, `Components/Crm/*` và các test CRM trong `tests/Feature`.
+
+v2: API Go ở `v2/api/internal/crm` (route `/api/v1/crm/...`, mọi route gắn `iam.Require`), schema `crm` ở migration
+`00040_crm.sql`, giao diện ở `v2/web/src/features/crm`. Menu nhóm **Khách hàng (CRM)**: Kanban, Danh sách khách (kèm chip),
+Báo cáo, Ưu đãi, Nhập Excel, Thêm khách mới, Xác nhận chính thức.
+
+Phạm vi dữ liệu (`lead.scope_own` / `scope_branch` / `scope_all`) giống Laravel: ngoài phạm vi thì 404. Mọi lần đổi giai đoạn
+ghi một dòng `stage_change` trong `crm.lead_events`.
+
+## Route / màn hình
+
+| Laravel | v2 (API + màn) | Trạng thái | Ghi chú |
+|---|---|---|---|
+| `crm.pipeline` GET `/crm/pipeline` (Kanban 8 cột) | `GET /crm/pipeline` · màn `/crm/pipeline` | Đã làm | Kéo thả HTML5: tiến đúng 1 bước, Admin lùi bước (hộp lý do), không kéo vào / ra Chờ xếp lớp, Đã chốt; mỗi cột 30 thẻ + số còn ẩn, tổng giá trị; cột Đã chốt chỉ 30 ngày gần nhất; nút "Sửa giai đoạn" trên thẻ; đồng hồ SLA. Bộ lọc giống danh sách. |
+| `crm.customers.index` GET `/crm/customers` | `GET /crm/leads` · màn `/crm/customers` | Đã làm | Tìm theo tên / SĐT (bỏ dấu cách, chấm) / mã / email / phụ huynh; lọc cơ sở, người phụ trách, nguồn, giai đoạn, ngày tạo; chip Chưa liên hệ >24h, Hẹn test hôm nay, Cần gọi lại (kèm số đếm); phân trang 15. Khác: tìm kiếm Postgres `ILIKE` phân biệt dấu (MySQL `utf8mb4_unicode_ci` của Laravel không phân biệt dấu) — giống quy ước các module v2 khác. |
+| Xuất danh sách (`exportCustomers`, `?export=`) | `GET /crm/leads/export?format=xlsx\|csv` | Đã làm | Cột như Laravel; CSV có BOM UTF-8. Dùng thư viện `github.com/xuri/excelize/v2`. |
+| `crm.customers.bulk-reassign` | `POST /crm/leads/bulk-reassign` · thanh chọn trên danh sách | Đã làm | Tối đa 500 khách, bắt buộc lý do; khách khác cơ sở với người nhận → yêu cầu chuyển chờ Admin duyệt; thông báo như Laravel. |
+| `crm.waiting-list` | `GET /crm/waiting` · màn `/crm/waiting` (chip Chờ xếp lớp) | Làm một phần | Danh sách cũ nhất trước, số ngày chờ, học phí đã đóng. Chưa có gợi ý lớp phù hợp (`WaitingLeadPlacement`) — cần phân hệ lớp học. |
+| `crm.customers.create` / `crm.customers.store` | `GET /crm/options`, `POST /crm/leads` · màn `/crm/customers/new` | Đã làm | Kiểm tra và thông báo như Laravel (SĐT Việt Nam, trùng SĐT kèm mã khách / gợi ý "Mở lại khách", trùng email, SĐT phụ huynh, cơ sở trong phạm vi, người phụ trách cùng cơ sở hoặc Admin). Mã khách `KH-<ULID>` (rút gọn KH-xxxxxx). Nguồn khách: danh sách mặc định (xem "Danh mục"). |
+| `crm.customers.show` (`showCustomer` / `showProps`) | `GET /crm/leads/{id hoặc mã}` · màn `/crm/customers/{id}` | Làm một phần | Có: thông tin, thẻ Trạng thái & hạn xử lý (SLA, số ngày ở giai đoạn, bỏ quên 3 ngày), nút chuyển giai đoạn theo quyền, yêu cầu chuyển cơ sở đang chờ, lịch sử hoạt động có lọc theo loại, chăm sóc tháng đầu. Chưa có tab Vận hành của test đầu vào / học thử (thuộc phân hệ placement) và phần học phí / phiếu thu. |
+| `crm.customers.edit` / `crm.customers.update` | `PUT /crm/leads/{id}` · hộp "Sửa thông tin" | Làm một phần | Ghi lịch sử trước / sau từng trường; khóa Giá trị HĐ / Cơ sở / Khóa học khi đã chốt; đổi người phụ trách khác cơ sở → yêu cầu duyệt. Chưa đồng bộ sang hồ sơ học viên (`syncConvertedStudent`) — `TODO(merge)`. |
+| `crm.customers.stage` (`updateStage`) | `POST /crm/leads/{id}/stage` | Đã làm | Đủ luật `CrmStageService`: tiến 1 bước (`lead.stage_forward`), lùi cần `lead.stage_back` + lý do, Hẹn test cần lịch hẹn, Đã test cần điểm, không lùi / không thất bại khi đã chốt, Thất bại cần `lead.mark_lost` + lý do, Mở lại chỉ về Đang tư vấn + lý do. Thông báo lỗi giữ nguyên văn. |
+| `crm.customers.next-stage` | `POST /crm/leads/{id}/next-stage` | Đã làm | |
+| `crm.customers.cancel-closing` | `POST /crm/leads/{id}/cancel-closing` · nút "Huỷ chốt" | Làm một phần | Phía CRM xong (chỉ Admin, Chờ xếp lớp, lý do ≥ 5 ký tự, khách → Thất bại "Huỷ chốt: …"). Chuyển học viên Thôi học, hủy phiếu thu, lập hồ sơ hoàn phí: `TODO(merge)` phân hệ học viên / tài chính. |
+| `crm.customers.notes.store` (`addNote`) | `POST /crm/leads/{id}/notes` · khung "Ghi nhật ký chăm sóc" | Đã làm | Loại gọi / nhắn / gặp / test / ghi chú / gửi kết quả; kết quả liên hệ; hẹn liên hệ tiếp (phải sau thời điểm hiện tại); liên hệ được lần đầu → khách Mới tự sang Đang tư vấn; liên hệ được sau lịch hẹn → xóa lịch hẹn. Cảnh báo 3 lần liên hệ thất bại liên tiếp mới ghi log — gửi thông báo là `TODO(notify)`. |
+| `crm.customers.schedule-test`, `test-no-show`, `save-test-score`, `link-submission` | — | Chưa làm (phân hệ khác) | Thuộc phân hệ test đầu vào (placement). CRM có sẵn hook `Service.SetLeadTest` (lịch hẹn, đề, người chấm, điểm) và `Service.AdvanceTo` (tự chuyển Hẹn test / Test / Đã test / Gửi kết quả) để phân hệ đó gọi trong giao dịch của mình. |
+| `crm.customers.trial-bookings.store` / `.cancel` | — | Chưa làm (phân hệ khác) | Thuộc phân hệ học thử (placement). Hủy buổi học thử khi khách Thất bại: `TODO(merge)` trong `moveLocked`. |
+| `crm.customers.assign-class` | `POST /crm/leads/{id}/assign-class` · nút "Xếp lớp" | Làm một phần | Phía CRM xong (chỉ khách Chờ xếp lớp, ghi dòng chờ xác nhận, chuyển Đã chốt). Ghi danh lớp gọi `StudentCreator.EnrollWaiting`; chưa gộp phân hệ lớp học thì trả 501 `students_not_ready`. Màn nhập mã lớp (chưa có danh sách lớp). |
+| `crm.customers-won` (`wonCustomers`, `exportWon`) | `GET /crm/won` (`?export=xlsx\|csv`) · màn `/crm/won` (chip Đã nhập học) | Làm một phần | Danh sách, lọc theo ngày chốt, tổng giá trị HĐ, lớp, trạng thái xác nhận, xuất file. "Đã thu (duyệt)" / "Còn nợ" luôn 0 — cần phân hệ học phí (`TODO(merge)`). |
+| `crm.closing-wizard` GET / POST (`closingWizard`, `processClosingWizard`) | `POST /crm/leads/{id}/close` · hộp "Chốt & Xếp lớp" | Làm một phần | Phía CRM xong: kiểm tra số tiền / phương thức, chỉ chốt từ Đang tư vấn / Đã test / Gửi kết quả, chống chốt trùng, kiểm ưu đãi còn hiệu lực + tăng lượt dùng, ghi giá trị HĐ, chuyển Chờ xếp lớp / Đã chốt, ghi dòng chờ xác nhận. Tạo hồ sơ học viên, tài khoản, học phí, phiếu thu, task nhắc thu do phân hệ học viên làm qua interface `StudentCreator` (`// TODO(merge): gọi students.Service.Create`); chưa gộp thì trả 501. Chưa có màn chọn lớp còn chỗ / khóa / bảng phí / xem trước phiếu thu (`ClosingBillPreview`). |
+| `crm.promotions.*` (`PromotionController` index / create / store / edit / update / toggle) | `GET/POST /crm/promotions`, `GET/PUT /crm/promotions/{id}`, `POST /crm/promotions/{id}/toggle` · màn `/crm/promotions` | Làm một phần | Hai tab Danh mục / Ưu đãi riêng (ca đặc biệt: 1 lượt, bắt buộc lý do), mã `UD<tiền tố><3 ký tự>`, lọc trạng thái, tìm kiếm, không xóa chỉ ngừng; kiểm tra như Laravel. Phạm vi theo khóa học lưu mã khóa nhưng chưa kiểm khóa tồn tại / hiện tên khóa (`TODO(merge)` phân hệ danh mục). |
+| `crm.lost-deals` | `GET /crm/lost` (`?export=`) · màn `/crm/lost` (chip Thất bại) | Đã làm | Tìm cả theo lý do thất bại, lọc ngày thất bại, xuất file. |
+| `crm.customers.deleted` / `crm.customers.restore` | `GET /crm/deleted`, `POST /crm/leads/{id}/restore` · màn `/crm/deleted` (chip Đã xóa, `lead.delete`) | Đã làm | Không có chức năng xóa (như Laravel từ 29/09/2026). Khôi phục chặn khi SĐT đã thuộc khách khác; email đã có người dùng thì khôi phục không kèm email. |
+| `crm.customers.reassign` | `POST /crm/leads/{id}/reassign` · hộp "Phân công lại" | Đã làm | Bắt buộc lý do; cùng cơ sở áp dụng ngay; khác cơ sở tạo yêu cầu chờ Admin duyệt (Admin đổi thì áp dụng ngay); một khách chỉ một yêu cầu chờ. |
+| Duyệt chuyển cơ sở (Laravel: hộp "Việc cần duyệt" — `CrmBranchTransferService`, approvals) | `GET /crm/transfers`, `POST /crm/transfers/{id}/approve\|reject` · màn `/crm/transfers` (nút trên danh sách, `lead.approve_transfer`) | Làm một phần | Duyệt / từ chối (bắt buộc lý do), lịch sử. Chưa gắn vào hộp "Việc cần duyệt" chung (phân hệ nền tảng). Khách đã là học viên: chuyển học viên sang cơ sở mới là `TODO(merge)`. |
+| `crm.customers.care-checklist` | `POST /crm/leads/{id}/care-checklist` · thẻ "Chăm sóc tháng đầu" | Đã làm | 3 mốc (buổi 1, buổi 4–5, đủ 30 ngày), ghi người / ngày tick, chỉ khách đã chốt. |
+| `crm.customers.print` (in hồ sơ) | — | Chưa làm | Bản in hồ sơ khách chưa làm. |
+| `crm.confirmations` / `crm.enrollments.confirm` | `GET /crm/confirmations`, `POST /crm/confirmations/{id}` · màn `/crm/confirmations` | Làm một phần | Lọc trạng thái / cơ sở / lớp / tìm kiếm; lưu tiến độ; xác nhận cần đủ 3 mục; ghi lịch sử khách. Dữ liệu lấy từ `crm.enrollment_confirmations` (CRM ghi khi chốt / xếp lớp qua `RecordEnrollment`) thay cho `ClassEnrollment`. Nhãn ngày khai giảng và "lớp đã khai giảng → học viên Đang học" (`ClassStartActivation`) là `TODO(merge)`. |
+| `crm.enrollments.reset-account` | — | Chưa làm | Cấp lại tài khoản cổng học viên — thuộc phân hệ học viên / tài khoản. |
+| `crm.import` / `.template` / `.preview` / `.errors` / `.store` (`CrmImportController`) | `GET /crm/import/options`, `GET /crm/import/template`, `POST /crm/import/preview` (multipart), `GET /crm/import/{id}`, `GET /crm/import/{id}/errors`, `POST /crm/import/{id}/commit`, `POST /crm/import/{id}/cancel` · màn `/crm/import` | Làm một phần | Đọc .xlsx (excelize) và .csv (BOM, dấu `;`), tối đa 1000 dòng / 5 MB, ánh xạ tiêu đề không dấu, bù số 0 đầu SĐT, ngày sinh dạng số Excel / dd/mm/yyyy, lỗi từng dòng như Laravel (trùng trong file, đã có trong CRM…), cột "Người phụ trách", nhập từng dòng trong savepoint. Khác: bản xem trước lưu ở bảng `crm.import_batches` thay cho session. **File .xls cũ không hỗ trợ** (báo người dùng lưu lại thành .xlsx). |
+| `crm.reports` (`reports`, `exportReps`) | `GET /crm/reports`, `GET /crm/reports/export` · màn `/crm/reports` (`report.view`) | Làm một phần | Kỳ báo cáo (hôm nay, hôm qua, 7 / 30 / 60 / 90 ngày, tuần trước, 6 tháng, 1 năm, tùy chọn), so với kỳ trước, phễu giai đoạn, khách thất bại gần đây, bảng theo người phụ trách, lọc cơ sở, xuất Excel. Doanh thu thực thu, hoa hồng, bậc hoa hồng (`SalesCommissionService`) luôn 0 — cần phân hệ học phí (`TODO(merge)`). |
+| `crm.tuition-bill` | — | Chưa làm (phân hệ khác) | Phiếu thu học phí — phân hệ tài chính. |
+
+## Nghiệp vụ nền
+
+| Laravel | v2 | Trạng thái | Ghi chú |
+|---|---|---|---|
+| `CrmCustomer` (9 giai đoạn, mã KH ULID, chuẩn hóa SĐT, unique SĐT / email) | `crm.leads` | Đã làm | `phone_normalized` / `email` UNIQUE là chốt chặn cuối khi hai phiên tạo trùng. |
+| `CrmCustomerHistory` (lịch sử, lọc theo loại) | `crm.lead_events` | Đã làm | Ghi nhật ký cập nhật `last_care_at` (đồng hồ SLA) trong cùng câu lệnh. |
+| `CrmBranchTransfer` | `crm.branch_transfers` | Đã làm | Mỗi khách tối đa một yêu cầu chờ (unique index). |
+| `Promotion` (`calculateDiscount`, còn hiệu lực) | `crm.promotions`, `CalculateDiscount` | Đã làm | |
+| SLA liên hệ (`config/sla.php`: 24h liên hệ đầu, 72h chăm sóc tiếp, cảnh báo 25%, lịch hẹn tối đa 14 ngày) | `contactSLA` (Go) + `slaState` / `remainingLabel` (web) | Làm một phần | Đồng hồ trên danh sách / Kanban / hồ sơ và chip đúng như Laravel. Ngưỡng cố định trong code; đọc từ trang Cấu hình SLA là `TODO(merge)`. |
+| Lệnh `crm:scan-stale-leads` (mỗi giờ, `CrmSlaService` gửi thông báo quá hạn, liên hệ thất bại liên tiếp) | — | Chưa làm | Cần phân hệ thông báo (nền tảng). Các chỗ gửi thông báo trong luồng đã đánh dấu `TODO(notify)`. |
+| Ghi nhật ký hệ thống (`Audit::describe`) | log `slog` kèm `by` | Làm một phần | Ghi log có cấu trúc; nhật ký audit chung là `TODO(audit)` khi gộp phân hệ nền tảng. |
+| Danh mục nguồn khách / lý do thất bại (`system_categories`) | Danh sách nguồn mặc định + nguồn đã dùng; lý do thất bại là chữ tự do | Làm một phần | `core.system_categories` thuộc phân hệ danh mục: `TODO(merge)` đọc danh mục `lead_source`. Lý do thất bại Laravel cũng là chữ tự do. |
+| `LeadOwners` (người được nhận phụ trách: Học vụ cùng cơ sở hoặc Admin, quyền `lead.be_assigned`) | `owners.go` | Đã làm | Kiểm theo quyền thật của từng người (`LoadAccess`). |
+| Liên kết học viên (`converted_student_id`, ghi danh) | cột uuid, không FK | Làm một phần | FK tới `academic.students` / `academic.enrollments` thêm khi gộp. |
+
+## Kiểm thử
+
+- Go: `internal/crm/integration_test.go` (đăng nhập thật kể cả 2FA, Postgres + Redis thật): quyền bị từ chối, phạm vi own / branch / all
+  (404 ngoài phạm vi), thông báo kiểm tra, thêm / sửa / lịch sử, nhật ký tự chuyển giai đoạn, luật chuyển giai đoạn, Kanban,
+  thất bại / mở lại, xuất Excel / CSV, chốt + xếp lớp + huỷ chốt + xác nhận chính thức (phân hệ học viên giả), báo cáo,
+  phân công / chuyển cơ sở / duyệt / từ chối / hàng loạt, khôi phục khách đã xóa, ưu đãi, nhập CSV / XLSX.
+  `internal/crm/unit_test.go`: SĐT, mã khách, SLA, nhãn thời gian, ngày sinh, ưu đãi, kỳ báo cáo, luật giai đoạn.
+- Web: `features/crm/logic.test.ts` (SĐT, đồng hồ SLA, định dạng, luật kéo thả Kanban, hộp sửa giai đoạn).
