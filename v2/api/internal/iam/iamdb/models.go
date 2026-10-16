@@ -96,3 +96,78 @@ type IamUserRole struct {
 	UserID uuid.UUID
 	Role   string
 }
+
+type OpsInventoryItem struct {
+	ID                  uuid.UUID
+	Code                string
+	Name                string
+	Category            string
+	Unit                string
+	Price               int64
+	CostPrice           *int64
+	UnallocatedQuantity int32
+	IsActive            bool
+	Description         *string
+	LegacyID            *int64
+	CreatedBy           *uuid.UUID
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
+	DeletedAt           *time.Time
+}
+
+type OpsMaterialOrder struct {
+	ID            uuid.UUID
+	Code          string
+	BranchID      uuid.UUID
+	ClassID       *uuid.UUID
+	WorkTaskID    *uuid.UUID
+	RequesterID   uuid.UUID
+	Category      string
+	Title         string
+	Description   *string
+	Quantity      *int32
+	UseDate       pgtype.Date
+	DueAt         time.Time
+	Status        string
+	CreatedLate   bool
+	ProcessedBy   *uuid.UUID
+	ProcessedAt   *time.Time
+	ProcessedLate bool
+	ProcessorNote *string
+	RejectReason  *string
+	LegacyID      *int64
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	DeletedAt     *time.Time
+}
+
+type OpsMaterialOrderCounter struct {
+	Year       int16
+	LastNumber int32
+}
+
+type OpsStock struct {
+	BranchID  uuid.UUID
+	ItemID    uuid.UUID
+	Quantity  int32
+	UpdatedAt time.Time
+}
+
+type OpsStockMovement struct {
+	ID                  uuid.UUID
+	BranchID            uuid.UUID
+	ItemID              uuid.UUID
+	Type                string
+	Source              *string
+	QuantityChange      int32
+	BalanceAfter        int32
+	TransferID          *uuid.UUID
+	CounterpartBranchID *uuid.UUID
+	ReceiptID           *uuid.UUID
+	TuitionID           *uuid.UUID
+	StudentID           *uuid.UUID
+	DocumentNumber      *string
+	Note                *string
+	CreatedBy           *uuid.UUID
+	CreatedAt           time.Time
+}

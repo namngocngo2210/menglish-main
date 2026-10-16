@@ -18,6 +18,7 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/config"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/geo"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/inventory"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/secretbox"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/server"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/store"
@@ -103,6 +104,8 @@ func runAPI(ctx context.Context) error {
 	defer d.close()
 	cfg, log := d.cfg, d.log
 
+	inv := inventory.NewService(d.pool, log, inventory.DefaultConfig())
+	go inv.RunOverdueLoop(ctx, 15*time.Minute)
 	auth := iam.NewHandler(d.iam, log).WithAddressSearch(geo.NewSearcher(d.rdb, log, cfg.PublicURL))
 	checks := map[string]server.Pinger{
 		"postgres": d.pool,
@@ -112,7 +115,7 @@ func runAPI(ctx context.Context) error {
 		Addr: cfg.HTTPAddr,
 		Handler: server.New(server.Deps{
 			Log: log, Version: version, Env: cfg.Env, Checks: checks,
-			API: apiRoutes(auth),
+			API: apiRoutes(auth, inventory.NewHandler(inv, log)),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       60 * time.Second,
