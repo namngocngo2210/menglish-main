@@ -9,10 +9,16 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/placement"
 )
 
 // publicRoutes: route không cần quyền (đăng nhập và tự quản lý tài khoản của chính mình; đã có RequireAuth).
-var publicRoutes = []string{"/auth/"}
+var publicRoutes = []string{
+	"/auth/",
+	// Thí sinh làm bài test đầu vào không đăng nhập: chỉ vào được bằng token link mời (băm SHA-256, có hạn,
+	// thu hồi được) và bị giới hạn tần suất theo IP.
+	placement.PublicPrefix + "/",
+}
 
 // unguarded trả các route nghiệp vụ không gắn iam.Require / iam.RequireAny, và số route đã kiểm.
 func unguarded(t *testing.T, r chi.Routes) ([]string, int) {
@@ -47,7 +53,7 @@ func unguarded(t *testing.T, r chi.Routes) ([]string, int) {
 // Thêm module mới mà quên gắn quyền thì test này đỏ.
 func TestEveryRouteHasPermission(t *testing.T) {
 	r := chi.NewRouter()
-	apiRoutes(iam.NewHandler(nil, nil))(r)
+	apiRoutes(iam.NewHandler(nil, nil), placement.NewHandler(nil, nil))(r)
 	bad, count := unguarded(t, r)
 	for _, b := range bad {
 		t.Errorf("%s không gắn iam.Require / iam.RequireAny", b)
