@@ -232,7 +232,29 @@ type FormOptions struct {
 	Rooms           []RoomOption   `json:"rooms"`
 	Teachers        []Option       `json:"teachers"`
 	ForeignTeachers []Option       `json:"foreign_teachers"`
-	Assistants      []Option       `json:"assistants"` // chỉ lớp cũ còn trợ giảng cố định
+	Assistants      []Option       `json:"assistants"`       // chỉ lớp cũ còn trợ giảng cố định
+	Values          *FormValues    `json:"values,omitempty"` // khi sửa: giá trị hiện tại của lớp
+}
+
+// FormValues: giá trị hiện tại điền sẵn form Sửa lớp.
+type FormValues struct {
+	Name             string     `json:"name"`
+	Code             string     `json:"code"`
+	BranchID         uuid.UUID  `json:"branch_id"`
+	Program          string     `json:"program"`
+	Level            string     `json:"level"`
+	MaxCapacity      int32      `json:"max_capacity"`
+	MinStudents      int32      `json:"min_students"`
+	RoomID           *uuid.UUID `json:"room_id"`
+	TeacherID        *uuid.UUID `json:"teacher_id"`
+	ForeignTeacherID *uuid.UUID `json:"foreign_teacher_id"`
+	AssistantID      *uuid.UUID `json:"assistant_id"`
+	TuitionFee       *int64     `json:"tuition_fee"`
+	Notes            string     `json:"notes"`
+	Status           string     `json:"status"`
+	StartDate        *string    `json:"start_date"`
+	EndDate          *string    `json:"end_date"`
+	ScheduleText     string     `json:"schedule_text"`
 }
 
 // legacyPrograms / legacyLevels: giá trị cũ cố định của form Sửa lớp.
@@ -317,6 +339,15 @@ func (s *Service) FormOptions(ctx context.Context, actor *iam.Access, classID *u
 		current = &c
 	}
 	out := &FormOptions{Assistants: []Option{}}
+	if current != nil {
+		c := current
+		out.Values = &FormValues{
+			Name: c.Name, Code: c.Code, BranchID: c.BranchID, Program: deref(c.Program), Level: deref(c.Level),
+			MaxCapacity: c.MaxCapacity, MinStudents: c.MinStudents, RoomID: c.RoomID, TeacherID: c.TeacherID,
+			ForeignTeacherID: c.ForeignTeacherID, AssistantID: c.AssistantID, TuitionFee: c.TuitionFee, Notes: deref(c.Notes),
+			Status: c.Status, StartDate: fmtDate(c.StartDate), EndDate: fmtDate(c.EndDate), ScheduleText: deref(c.ScheduleText),
+		}
+	}
 	branches, err := s.q.ActiveBranches(ctx)
 	if err != nil {
 		return nil, err
