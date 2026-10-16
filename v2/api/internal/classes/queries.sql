@@ -265,10 +265,12 @@ ORDER BY s.date, s.start_time;
 
 -- name: ReplaceableSessionIDs :many
 -- Buổi chính khóa chưa diễn ra, chưa có dữ liệu thực tế: xóa được khi xếp lại TKB (ClassSession::replaceable).
--- TODO(hr): thêm điều kiện chưa chấm công / không gắn phụ đạo; TODO(crm): không có khách hẹn học thử.
+-- Buổi đã có khách hẹn học thử: xóa đi thì lịch hẹn mồ côi, Sales không biết để báo khách.
+-- TODO(hr): thêm điều kiện chưa chấm công / không gắn phụ đạo.
 SELECT s.id FROM academic.class_sessions s
 WHERE s.class_id = sqlc.arg(class_id) AND s.type = 'regular' AND s.status = 'scheduled' AND s.date >= sqlc.arg(today)::date
-  AND NOT EXISTS (SELECT 1 FROM academic.student_attendance sa WHERE sa.session_id = s.id);
+  AND NOT EXISTS (SELECT 1 FROM academic.student_attendance sa WHERE sa.session_id = s.id)
+  AND NOT EXISTS (SELECT 1 FROM crm.trial_bookings tb WHERE tb.class_session_id = s.id AND tb.status = 'scheduled');
 
 -- name: KeptSessionsFrom :many
 -- Buổi được giữ khi xếp lại TKB: không phải phụ đạo, chưa hủy, từ ngày xếp, không nằm trong danh sách sẽ xóa.
@@ -648,7 +650,7 @@ ORDER BY st.full_name, st.id;
 
 -- name: EnrollableClasses :many
 -- Lớp chọn được khi xếp lớp (theo phạm vi Học viên), kèm sĩ số.
-SELECT c.id, c.name, c.code::text AS code, c.branch_id, c.course_id, c.max_capacity, c.status,
+SELECT c.id, c.name, c.code::text AS code, c.branch_id, c.course_id, c.max_capacity, c.status, c.start_date,
        (SELECT count(DISTINCT r.student_id) FROM academic.class_roster r WHERE r.class_id = c.id)::bigint AS roster_count
 FROM academic.classes c
 WHERE c.deleted_at IS NULL
@@ -694,3 +696,270 @@ ON CONFLICT (session_id, student_id) DO UPDATE SET
 -- Buổi có mặt / đi muộn đầu tiên = ngày bắt đầu vào học (Student::recordStudyStart): chỉ điền khi chưa có hoặc sớm hơn.
 UPDATE academic.students SET study_started_on = sqlc.arg(day)::date
 WHERE id = ANY (sqlc.arg(ids)::uuid[]) AND (study_started_on IS NULL OR study_started_on > sqlc.arg(day)::date);
+
+-- ───────────────────────── Chốt & Xếp lớp (CRM) ─────────────────────────
+
+-- name: LockClassForClosing :one
+-- Lớp được chọn khi chốt / xếp lớp khách CRM (khóa dòng lớp), kèm khóa học, trình độ của lớp và sĩ số.
+SELECT c.id, c.name, c.code::text AS code, c.branch_id, c.course_id, c.status, c.start_date, c.max_capacity,
+       co.name AS course_name, co.is_active AS course_active, co.tuition_fee AS course_fee, co.total_lessons AS course_lessons,
+       cl.id AS class_level_id, co.course_level_id,
+       (SELECT count(DISTINCT r.student_id) FROM academic.class_roster r WHERE r.class_id = c.id)::bigint AS roster_count
+FROM academic.classes c
+LEFT JOIN academic.courses co ON co.id = c.course_id AND co.deleted_at IS NULL
+LEFT JOIN academic.course_levels cl ON cl.code = c.level AND cl.deleted_at IS NULL
+WHERE c.id = $1 AND c.deleted_at IS NULL
+FOR UPDATE OF c;
+
+-- name: CourseForClosing :one
+SELECT co.id, co.name, co.is_active, co.tuition_fee, co.total_lessons, co.course_level_id, cl.name AS level_name
+FROM academic.courses co
+LEFT JOIN academic.course_levels cl ON cl.id = co.course_level_id
+WHERE co.id = $1 AND co.deleted_at IS NULL;
+
+-- name: BranchName :one
+SELECT name FROM core.branches WHERE id = $1;
+
+-- name: CreateLeadEnrollment :one
+-- Lượt xếp lớp tạo từ CRM (Chốt & Xếp lớp / Gán lớp cho khách Chờ xếp lớp).
+INSERT INTO academic.enrollments (student_id, class_id, lead_id, enrolled_at, status, created_by)
+VALUES (sqlc.arg(student_id), sqlc.arg(class_id), sqlc.arg(lead_id), sqlc.arg(enrolled_at), 'pending', sqlc.narg(created_by))
+RETURNING id;
+
+-- name: WaitingLeadOfStudent :one
+-- Khách CRM Chờ xếp lớp đã chốt ra học viên này (WaitingLeadPlacement::waitingLeadFor).
+SELECT id FROM crm.leads WHERE converted_student_id = $1 AND stage = 'waiting_class' AND deleted_at IS NULL
+ORDER BY converted_at DESC NULLS LAST LIMIT 1;
+
+-- ───────────────────────── Phân hệ khác: test đầu vào / báo cáo / công việc ─────────────────────────
+
+-- name: SessionsByIDs :many
+-- Buổi học (lớp chưa xóa) cho học thử / thẻ việc trợ giảng.
+SELECT s.id, s.class_id, c.name AS class_name, c.code::text AS class_code, coalesce(co.name, c.program, '')::text AS course_name,
+       c.status AS class_status, s.status, s.type, s.branch_id, b.name AS branch_name, s.date, s.room, s.shift_name,
+       to_char(s.start_time, 'HH24:MI') AS start_time, to_char(s.end_time, 'HH24:MI') AS end_time,
+       t.full_name AS teacher_name
+FROM academic.class_sessions s
+JOIN academic.classes c ON c.id = s.class_id AND c.deleted_at IS NULL
+JOIN core.branches b ON b.id = s.branch_id
+LEFT JOIN academic.courses co ON co.id = c.course_id
+LEFT JOIN iam.users t ON t.id = coalesce(s.teacher_id, s.foreign_teacher_id)
+WHERE s.id = ANY (sqlc.arg(ids)::uuid[]);
+
+-- name: TeachingSessionIDs :many
+-- Buổi người dùng dạy / dạy GVNN / trợ giảng (kể cả dạy thay).
+SELECT s.id FROM academic.class_sessions s
+JOIN academic.classes c ON c.id = s.class_id AND c.deleted_at IS NULL
+WHERE s.teacher_id = sqlc.arg(user_id) OR s.foreign_teacher_id = sqlc.arg(user_id) OR s.assistant_id = sqlc.arg(user_id);
+
+-- name: ResponsibleClassIDs :many
+-- Lớp người dùng phụ trách (GV chính, trợ giảng cố định, GVNN mặc định).
+SELECT id FROM academic.classes
+WHERE deleted_at IS NULL AND (teacher_id = sqlc.arg(user_id) OR assistant_id = sqlc.arg(user_id) OR foreign_teacher_id = sqlc.arg(user_id));
+
+-- name: ReportClassOptions :many
+-- Lớp gắn được vào nhật ký / báo cáo chữ: lớp người dùng thấy, chưa hủy.
+SELECT c.id, c.code::text AS code, c.name
+FROM academic.classes c
+WHERE c.deleted_at IS NULL AND c.status <> 'cancelled' AND (sqlc.arg(all_classes)::bool OR c.id = ANY (sqlc.arg(ids)::uuid[]))
+ORDER BY c.code;
+
+-- name: ClassCodesByIDs :many
+SELECT id, code::text AS code, name FROM academic.classes WHERE id = ANY (sqlc.arg(ids)::uuid[]);
+
+-- name: ReportClassIDs :many
+-- Lớp tính vào báo cáo của người viết: lớp người viết thấy, chỉ trong các chi nhánh của người viết (rỗng = không lọc).
+SELECT c.id FROM academic.classes c
+WHERE c.deleted_at IS NULL AND (sqlc.arg(all_classes)::bool OR c.id = ANY (sqlc.arg(ids)::uuid[]))
+  AND (cardinality(sqlc.arg(branch_ids)::uuid[]) = 0 OR c.branch_id = ANY (sqlc.arg(branch_ids)::uuid[]));
+
+-- name: ReportDaySessions :many
+-- Buổi học trong ngày (không tính phụ đạo) của các lớp tính vào báo cáo ngày.
+SELECT s.id, s.class_id, c.name AS class_name, c.branch_id AS class_branch_id, c.teacher_id AS class_teacher_id,
+       s.status, s.type, s.room, s.shift_name, to_char(s.start_time, 'HH24:MI') AS start_time, to_char(s.end_time, 'HH24:MI') AS end_time,
+       s.teacher_id, s.foreign_teacher_id, s.assistant_id, (s.holiday_id IS NOT NULL)::bool AS holiday,
+       t.full_name AS teacher_name
+FROM academic.class_sessions s
+JOIN academic.classes c ON c.id = s.class_id
+LEFT JOIN iam.users t ON t.id = s.teacher_id
+WHERE s.date = sqlc.arg(day)::date AND s.type <> 'support' AND s.class_id = ANY (sqlc.arg(class_ids)::uuid[])
+ORDER BY s.start_time, c.name;
+
+-- name: SessionAttendanceIssues :many
+-- Học sinh vắng / vắng có phép / đi muộn của các buổi.
+SELECT a.session_id, a.status, st.full_name AS student_name
+FROM academic.student_attendance a
+JOIN academic.students st ON st.id = a.student_id
+WHERE a.session_id = ANY (sqlc.arg(session_ids)::uuid[]) AND a.status IN ('absent', 'excused', 'late')
+ORDER BY st.full_name;
+
+-- name: ReportRangeSessions :many
+-- Buổi đã / sẽ diễn ra trong khoảng (không tính phụ đạo, buổi hủy) của các lớp tính vào báo cáo tuần.
+SELECT s.class_id, c.name AS class_name, s.teacher_id, s.foreign_teacher_id
+FROM academic.class_sessions s
+JOIN academic.classes c ON c.id = s.class_id
+WHERE s.date BETWEEN sqlc.arg(from_date)::date AND sqlc.arg(to_date)::date AND s.type <> 'support' AND s.status <> 'cancelled'
+  AND s.class_id = ANY (sqlc.arg(class_ids)::uuid[]);
+
+-- name: ActiveStudentsAsOf :one
+-- Học sinh đang học của các lớp tính đến ngày (lượt xếp lớp còn hiệu lực, chưa rời lớp).
+SELECT count(DISTINCT e.student_id)::bigint FROM academic.enrollments e
+WHERE e.class_id = ANY (sqlc.arg(class_ids)::uuid[]) AND e.status IN ('pending', 'completed')
+  AND e.enrolled_at <= sqlc.arg(as_of)::date AND (e.left_at IS NULL OR e.left_at > sqlc.arg(as_of)::date);
+
+-- name: ClassTransfers :many
+-- Học sinh rời một lớp (không phải thôi học) trong khoảng và vào lớp khác trong khoảng.
+SELECT DISTINCT st.full_name AS student_name, c1.name AS from_class, c2.name AS to_class
+FROM academic.enrollments o
+JOIN academic.enrollments i ON i.student_id = o.student_id AND i.class_id <> o.class_id
+     AND i.enrolled_at BETWEEN sqlc.arg(from_date)::date AND sqlc.arg(to_date)::date
+JOIN academic.students st ON st.id = o.student_id
+JOIN academic.classes c1 ON c1.id = o.class_id
+JOIN academic.classes c2 ON c2.id = i.class_id
+WHERE o.class_id = ANY (sqlc.arg(class_ids)::uuid[]) AND o.status <> 'dropped'
+  AND o.left_at BETWEEN sqlc.arg(from_date)::date AND sqlc.arg(to_date)::date
+ORDER BY st.full_name;
+
+-- name: MakeupAttendees :many
+-- Học sinh có mặt ở buổi học bù trong khoảng (mỗi học sinh một dòng).
+SELECT DISTINCT ON (a.student_id) st.full_name AS student_name, c.name AS class_name
+FROM academic.student_attendance a
+JOIN academic.class_sessions s ON s.id = a.session_id AND s.type = 'makeup'
+JOIN academic.students st ON st.id = a.student_id
+JOIN academic.classes c ON c.id = s.class_id
+WHERE a.status IN ('present', 'late') AND s.class_id = ANY (sqlc.arg(class_ids)::uuid[])
+  AND s.date BETWEEN sqlc.arg(from_date)::date AND sqlc.arg(to_date)::date
+ORDER BY a.student_id, st.full_name;
+
+-- name: TeacherMonthClasses :many
+-- Lớp giáo viên giữ trong tháng (TeachingQuality::classesOf): lớp đang học mình là GV / trợ giảng / GVNN, hoặc có buổi
+-- mình đứng trong tháng; kèm chuyên cần (%) của tháng và số buổi mình đã đứng lớp (tới hôm nay, không tính buổi hủy).
+SELECT c.id, c.code::text AS code, c.name,
+       (SELECT count(*) FROM academic.student_attendance a
+        WHERE a.class_id = c.id AND a.session_date BETWEEN sqlc.arg(from_date)::date AND sqlc.arg(to_date)::date)::bigint AS attendance_total,
+       (SELECT count(*) FROM academic.student_attendance a
+        WHERE a.class_id = c.id AND a.session_date BETWEEN sqlc.arg(from_date)::date AND sqlc.arg(to_date)::date
+          AND a.status IN ('present', 'late'))::bigint AS attended,
+       (SELECT count(*) FROM academic.class_sessions s
+        WHERE s.class_id = c.id AND s.status <> 'cancelled' AND s.date BETWEEN sqlc.arg(from_date)::date AND sqlc.arg(until)::date
+          AND (s.teacher_id = sqlc.arg(user_id) OR s.foreign_teacher_id = sqlc.arg(user_id) OR s.assistant_id = sqlc.arg(user_id)))::bigint AS sessions_done
+FROM academic.classes c
+WHERE c.deleted_at IS NULL AND (
+    (c.status = 'active' AND (c.teacher_id = sqlc.arg(user_id) OR c.assistant_id = sqlc.arg(user_id) OR c.foreign_teacher_id = sqlc.arg(user_id)))
+    OR EXISTS (SELECT 1 FROM academic.class_sessions s WHERE s.class_id = c.id
+               AND s.date BETWEEN sqlc.arg(from_date)::date AND sqlc.arg(to_date)::date
+               AND (s.teacher_id = sqlc.arg(user_id) OR s.foreign_teacher_id = sqlc.arg(user_id) OR s.assistant_id = sqlc.arg(user_id))))
+ORDER BY c.name;
+
+-- name: TaskClassOptions :many
+-- Lớp gắn vào công việc: lớp người dùng thấy, chưa xóa, theo trạng thái.
+SELECT c.id, c.code::text AS code, c.name, c.schedule_text
+FROM academic.classes c
+WHERE c.deleted_at IS NULL AND c.status = ANY (sqlc.arg(statuses)::text[])
+  AND (sqlc.arg(all_classes)::bool OR c.id = ANY (sqlc.arg(ids)::uuid[]))
+ORDER BY c.name, c.code;
+
+-- name: TaskSessions :many
+-- Buổi học (không hủy, không phụ đạo) của các lớp trong khoảng ngày, kèm thứ tự buổi chính khóa (SessionLessonService::
+-- sessionNumbers: buổi regular không hủy của lớp, theo ngày / giờ).
+WITH numbered AS (
+    SELECT n.id, row_number() OVER (PARTITION BY n.class_id ORDER BY n.date, n.start_time, n.id) AS lesson_no
+    FROM academic.class_sessions n
+    WHERE n.class_id = ANY (sqlc.arg(class_ids)::uuid[]) AND n.type = 'regular' AND n.status <> 'cancelled'
+)
+SELECT s.id, s.class_id, c.name AS class_name, s.date, s.shift_name, s.type, s.room, s.branch_id, b.name AS branch_name,
+       to_char(s.start_time, 'HH24:MI') AS start_time, to_char(s.end_time, 'HH24:MI') AS end_time,
+       coalesce(nb.lesson_no, 0)::bigint AS lesson_no
+FROM academic.class_sessions s
+JOIN academic.classes c ON c.id = s.class_id AND c.deleted_at IS NULL
+JOIN core.branches b ON b.id = s.branch_id
+LEFT JOIN numbered nb ON nb.id = s.id
+WHERE s.class_id = ANY (sqlc.arg(class_ids)::uuid[]) AND s.status <> 'cancelled' AND s.type <> 'support'
+  AND s.date BETWEEN sqlc.arg(from_date)::date AND sqlc.arg(to_date)::date
+ORDER BY s.date, s.start_time, s.id;
+
+-- name: TaskSession :one
+-- Một buổi học (lớp chưa xóa) kèm thứ tự buổi chính khóa.
+SELECT s.id, s.class_id, c.name AS class_name, s.date, s.shift_name, s.type, s.room, s.branch_id, b.name AS branch_name,
+       to_char(s.start_time, 'HH24:MI') AS start_time, to_char(s.end_time, 'HH24:MI') AS end_time,
+       coalesce((SELECT x.lesson_no FROM (
+           SELECT n.id, row_number() OVER (ORDER BY n.date, n.start_time, n.id) AS lesson_no
+           FROM academic.class_sessions n
+           WHERE n.class_id = s.class_id AND n.type = 'regular' AND n.status <> 'cancelled') x
+        WHERE x.id = s.id), 0)::bigint AS lesson_no
+FROM academic.class_sessions s
+JOIN academic.classes c ON c.id = s.class_id AND c.deleted_at IS NULL
+JOIN core.branches b ON b.id = s.branch_id
+WHERE s.id = $1;
+
+-- name: TaskDaySessions :many
+-- Lớp trực trong ngày của trợ giảng: buổi không hủy mình dạy / dạy GVNN / trợ giảng, hoặc thuộc các lớp có việc giao.
+SELECT s.id, s.class_id, c.name AS class_name, s.date, s.shift_name, s.type, s.room, s.branch_id, b.name AS branch_name,
+       to_char(s.start_time, 'HH24:MI') AS start_time, to_char(s.end_time, 'HH24:MI') AS end_time
+FROM academic.class_sessions s
+JOIN academic.classes c ON c.id = s.class_id AND c.deleted_at IS NULL
+JOIN core.branches b ON b.id = s.branch_id
+WHERE s.date = sqlc.arg(day)::date AND s.status <> 'cancelled'
+  AND (s.teacher_id = sqlc.arg(staff_id)::uuid OR s.foreign_teacher_id = sqlc.arg(staff_id)::uuid
+       OR s.assistant_id = sqlc.arg(staff_id)::uuid OR s.class_id = ANY (sqlc.arg(class_ids)::uuid[]))
+ORDER BY s.start_time, s.id;
+
+-- name: ClassStartInfos :many
+-- Trạng thái / ngày khai giảng của các lớp (màn Xác nhận nhập học bên CRM).
+SELECT id, status, start_date FROM academic.classes WHERE id = ANY (sqlc.arg(ids)::uuid[]);
+
+-- name: ClosingClassChoices :many
+-- Lớp nhận ghi danh khi chốt / xếp lớp khách CRM (đang học, hoặc sắp khai giảng chưa tới ngày bắt đầu) của một chi nhánh
+-- (NULL = mọi chi nhánh), kèm trình độ và sĩ số; lớp sắp khai giảng lên đầu, rồi theo ngày khai giảng.
+SELECT c.id, c.name, c.code::text AS code, c.branch_id, c.course_id, c.status, c.start_date, c.max_capacity, c.min_students,
+       cl.id AS class_level_id, co.course_level_id, cl.name AS class_level_name, ccl.name AS course_level_name,
+       (SELECT count(DISTINCT r.student_id) FROM academic.class_roster r WHERE r.class_id = c.id)::bigint AS roster_count
+FROM academic.classes c
+LEFT JOIN academic.courses co ON co.id = c.course_id AND co.deleted_at IS NULL
+LEFT JOIN academic.course_levels cl ON cl.code = c.level AND cl.deleted_at IS NULL
+LEFT JOIN academic.course_levels ccl ON ccl.id = co.course_level_id
+WHERE c.deleted_at IS NULL AND (sqlc.narg(branch_id)::uuid IS NULL OR c.branch_id = sqlc.narg(branch_id)::uuid)
+  AND (c.status = 'active' OR (c.status = 'upcoming' AND (c.start_date IS NULL OR c.start_date >= sqlc.arg(today)::date)))
+ORDER BY (c.status = 'upcoming') DESC, c.start_date NULLS LAST, c.name;
+
+-- name: ClosingCourses :many
+-- Khóa học đang mở (chốt khách, xếp lớp sau).
+SELECT id, name, tuition_fee FROM academic.courses WHERE deleted_at IS NULL AND is_active ORDER BY name;
+
+-- name: StudentBranchID :one
+SELECT branch_id FROM academic.students WHERE id = $1;
+
+-- name: UpcomingTaskAssistants :many
+-- Trợ giảng 7 ngày tới: người được giao việc gắn lớp có hạn trong 7 ngày (trợ giảng không cố định theo lớp).
+SELECT DISTINCT u.full_name
+FROM ops.work_tasks t
+JOIN iam.users u ON u.id = t.assignee_id
+WHERE t.class_id = sqlc.arg(class_id) AND t.due_date BETWEEN sqlc.arg(today)::date AND sqlc.arg(today)::date + 7
+ORDER BY u.full_name;
+
+-- name: ClassTaskAssistants :many
+-- Trợ giảng của từng ngày: người được giao việc gắn lớp theo ngày hạn.
+SELECT DISTINCT t.due_date::date AS day, u.full_name
+FROM ops.work_tasks t
+JOIN iam.users u ON u.id = t.assignee_id
+WHERE t.class_id = $1 AND t.due_date IS NOT NULL
+ORDER BY day, u.full_name;
+
+-- name: CancelTrialBookingsForHoliday :exec
+-- Khách hẹn học thử vào buổi bị hủy vì nghỉ lễ: hủy lịch hẹn (HolidayRescheduleService::apply).
+UPDATE crm.trial_bookings
+SET status = 'cancelled', notes = trim(coalesce(notes || E'\n', '') || sqlc.arg(note)::text), updated_at = now()
+WHERE class_session_id = sqlc.arg(session_id) AND status = 'scheduled';
+
+-- name: DropReplacedTrialBookings :exec
+-- Trước khi chuyển lịch hẹn của buổi bù về buổi gốc: bỏ lịch hẹn (đã hủy vì nghỉ lễ) của cùng khách ở buổi gốc.
+DELETE FROM crm.trial_bookings o
+WHERE o.class_session_id = sqlc.arg(to_session)
+  AND EXISTS (SELECT 1 FROM crm.trial_bookings m WHERE m.class_session_id = sqlc.arg(from_session) AND m.lead_id = o.lead_id);
+
+-- name: MoveTrialBookings :exec
+-- Khách hẹn học thử vào buổi bù chuyển về buổi gốc được khôi phục (xóa buổi bù sẽ xóa luôn lịch hẹn).
+UPDATE crm.trial_bookings b
+SET class_session_id = s.id, session_date = s.date, start_time = s.start_time, end_time = s.end_time, updated_at = now()
+FROM academic.class_sessions s
+WHERE s.id = sqlc.arg(to_session) AND b.class_session_id = sqlc.arg(from_session);

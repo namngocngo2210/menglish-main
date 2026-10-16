@@ -76,7 +76,8 @@ func CalculateDiscount(typ string, value float64, maxDiscount *int64, base float
 	return math.Min(base, value)
 }
 
-func promotionApplicable(p crmdb.CrmPromotion, branch, course *uuid.UUID, now time.Time) bool {
+// PromotionApplicable: ưu đãi đang hiệu lực, còn lượt, đúng cơ sở / khóa (Promotion::isApplicable).
+func PromotionApplicable(p crmdb.CrmPromotion, branch, course *uuid.UUID, now time.Time) bool {
 	return p.IsActive && (p.StartsAt == nil || !p.StartsAt.After(now)) && (p.EndsAt == nil || !p.EndsAt.Before(now)) &&
 		(p.UsageLimit == nil || p.UsedCount < *p.UsageLimit) &&
 		(p.BranchID == nil || (branch != nil && *p.BranchID == *branch)) &&
@@ -154,7 +155,7 @@ func promotionRow(p crmdb.CrmPromotion, branchName, courseName, creator *string,
 		MaxDiscountAmount: p.MaxDiscountAmount, BranchID: p.BranchID, CourseID: p.CourseID, ScopeLabel: scopeLabel,
 		PeriodLabel: periodLabel(p.StartsAt, p.EndsAt), UsageLabel: usage, StartsAt: p.StartsAt, EndsAt: p.EndsAt,
 		UsageLimit: p.UsageLimit, UsedCount: p.UsedCount, IsActive: p.IsActive, IsDefault: p.IsDefault, IsSpecial: p.IsSpecial,
-		IsAvailable: promotionApplicable(p, p.BranchID, p.CourseID, now), Description: p.Description, Reason: p.Reason,
+		IsAvailable: PromotionApplicable(p, p.BranchID, p.CourseID, now), Description: p.Description, Reason: p.Reason,
 		CreatorName: creator, CreatedAt: p.CreatedAt,
 	}
 }

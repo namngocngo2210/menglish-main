@@ -45,7 +45,7 @@ CREATE TABLE crm.leads (
     last_care_at         timestamptz,
     -- Chờ xếp lớp
     waiting_since        date,
-    waiting_course_id    uuid, -- FK tới academic.courses thêm khi gộp
+    waiting_course_id    uuid, -- FK tới academic.courses: 00110_academic_links_fk
     waiting_branch_id    uuid REFERENCES core.branches (id) ON DELETE SET NULL,
     preferred_schedule   text CHECK (length(preferred_schedule) <= 255),
     desired_start_date   date,
@@ -54,7 +54,7 @@ CREATE TABLE crm.leads (
     lost_reason          text CHECK (length(lost_reason) <= 255),
     lost_at              timestamptz,
     -- Chốt khách
-    converted_student_id uuid, -- FK tới academic.students thêm khi gộp
+    converted_student_id uuid, -- FK tới academic.students: 00110_academic_links_fk
     converted_by         uuid REFERENCES iam.users (id) ON DELETE SET NULL,
     commission_user_id   uuid REFERENCES iam.users (id) ON DELETE SET NULL,
     converted_at         timestamptz,
@@ -125,7 +125,7 @@ CREATE TABLE crm.promotions (
     description         text CHECK (length(description) <= 1000),
     reason              text CHECK (length(reason) <= 1000),
     branch_id           uuid REFERENCES core.branches (id) ON DELETE SET NULL,
-    course_id           uuid, -- FK tới academic.courses thêm khi gộp
+    course_id           uuid, -- FK tới academic.courses: 00110_academic_links_fk
     starts_at           timestamptz,
     ends_at             timestamptz,
     usage_limit         integer CHECK (usage_limit >= 1),
@@ -146,9 +146,9 @@ CREATE TABLE crm.promotions (
 CREATE TABLE crm.enrollment_confirmations (
     id                   uuid PRIMARY KEY DEFAULT uuidv7(),
     lead_id              uuid NOT NULL REFERENCES crm.leads (id) ON DELETE CASCADE,
-    enrollment_id        uuid UNIQUE, -- FK tới academic.enrollments thêm khi gộp
-    student_id           uuid NOT NULL, -- FK tới academic.students thêm khi gộp
-    class_id             uuid NOT NULL, -- FK tới academic.classes thêm khi gộp
+    enrollment_id        uuid UNIQUE, -- FK tới academic.enrollments: 00110_academic_links_fk
+    student_id           uuid NOT NULL, -- FK tới academic.students: 00110_academic_links_fk
+    class_id             uuid NOT NULL, -- FK tới academic.classes: 00110_academic_links_fk
     student_code         text NOT NULL,
     student_name         text NOT NULL,
     class_name           text NOT NULL,

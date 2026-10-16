@@ -114,6 +114,25 @@ func (q *Queries) ActiveLevels(ctx context.Context) ([]ActiveLevelsRow, error) {
 	return items, nil
 }
 
+const activeStudentsAsOf = `-- name: ActiveStudentsAsOf :one
+SELECT count(DISTINCT e.student_id)::bigint FROM academic.enrollments e
+WHERE e.class_id = ANY ($1::uuid[]) AND e.status IN ('pending', 'completed')
+  AND e.enrolled_at <= $2::date AND (e.left_at IS NULL OR e.left_at > $2::date)
+`
+
+type ActiveStudentsAsOfParams struct {
+	ClassIds []uuid.UUID
+	AsOf     time.Time
+}
+
+// Học sinh đang học của các lớp tính đến ngày (lượt xếp lớp còn hiệu lực, chưa rời lớp).
+func (q *Queries) ActiveStudentsAsOf(ctx context.Context, arg ActiveStudentsAsOfParams) (int64, error) {
+	row := q.db.QueryRow(ctx, activeStudentsAsOf, arg.ClassIds, arg.AsOf)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const branchExists = `-- name: BranchExists :one
 SELECT EXISTS (SELECT 1 FROM core.branches WHERE id = $1)
 `
@@ -123,6 +142,17 @@ func (q *Queries) BranchExists(ctx context.Context, id uuid.UUID) (bool, error) 
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
+}
+
+const branchName = `-- name: BranchName :one
+SELECT name FROM core.branches WHERE id = $1
+`
+
+func (q *Queries) BranchName(ctx context.Context, id uuid.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, branchName, id)
+	var name string
+	err := row.Scan(&name)
+	return name, err
 }
 
 const branchRooms = `-- name: BranchRooms :many
@@ -183,6 +213,23 @@ func (q *Queries) CancelSessionForHoliday(ctx context.Context, arg CancelSession
 	return err
 }
 
+const cancelTrialBookingsForHoliday = `-- name: CancelTrialBookingsForHoliday :exec
+UPDATE crm.trial_bookings
+SET status = 'cancelled', notes = trim(coalesce(notes || E'\n', '') || $1::text), updated_at = now()
+WHERE class_session_id = $2 AND status = 'scheduled'
+`
+
+type CancelTrialBookingsForHolidayParams struct {
+	Note      string
+	SessionID uuid.UUID
+}
+
+// Khách hẹn học thử vào buổi bị hủy vì nghỉ lễ: hủy lịch hẹn (HolidayRescheduleService::apply).
+func (q *Queries) CancelTrialBookingsForHoliday(ctx context.Context, arg CancelTrialBookingsForHolidayParams) error {
+	_, err := q.db.Exec(ctx, cancelTrialBookingsForHoliday, arg.Note, arg.SessionID)
+	return err
+}
+
 const classCodeTaken = `-- name: ClassCodeTaken :one
 SELECT EXISTS (SELECT 1 FROM academic.classes WHERE code = $1 AND deleted_at IS NULL AND id <> $2)
 `
@@ -197,6 +244,36 @@ func (q *Queries) ClassCodeTaken(ctx context.Context, arg ClassCodeTakenParams) 
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
+}
+
+const classCodesByIDs = `-- name: ClassCodesByIDs :many
+SELECT id, code::text AS code, name FROM academic.classes WHERE id = ANY ($1::uuid[])
+`
+
+type ClassCodesByIDsRow struct {
+	ID   uuid.UUID
+	Code string
+	Name string
+}
+
+func (q *Queries) ClassCodesByIDs(ctx context.Context, ids []uuid.UUID) ([]ClassCodesByIDsRow, error) {
+	rows, err := q.db.Query(ctx, classCodesByIDs, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ClassCodesByIDsRow
+	for rows.Next() {
+		var i ClassCodesByIDsRow
+		if err := rows.Scan(&i.ID, &i.Code, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const classExists = `-- name: ClassExists :one
@@ -485,6 +562,37 @@ func (q *Queries) ClassStartInfo(ctx context.Context, id uuid.UUID) (ClassStartI
 	return i, err
 }
 
+const classStartInfos = `-- name: ClassStartInfos :many
+SELECT id, status, start_date FROM academic.classes WHERE id = ANY ($1::uuid[])
+`
+
+type ClassStartInfosRow struct {
+	ID        uuid.UUID
+	Status    string
+	StartDate *time.Time
+}
+
+// Trạng thái / ngày khai giảng của các lớp (màn Xác nhận nhập học bên CRM).
+func (q *Queries) ClassStartInfos(ctx context.Context, ids []uuid.UUID) ([]ClassStartInfosRow, error) {
+	rows, err := q.db.Query(ctx, classStartInfos, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ClassStartInfosRow
+	for rows.Next() {
+		var i ClassStartInfosRow
+		if err := rows.Scan(&i.ID, &i.Status, &i.StartDate); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const classStatusCounts = `-- name: ClassStatusCounts :many
 
 SELECT c.status, count(*)::bigint AS total
@@ -534,6 +642,86 @@ func (q *Queries) ClassStatusCounts(ctx context.Context, arg ClassStatusCountsPa
 	return items, nil
 }
 
+const classTaskAssistants = `-- name: ClassTaskAssistants :many
+SELECT DISTINCT t.due_date::date AS day, u.full_name
+FROM ops.work_tasks t
+JOIN iam.users u ON u.id = t.assignee_id
+WHERE t.class_id = $1 AND t.due_date IS NOT NULL
+ORDER BY day, u.full_name
+`
+
+type ClassTaskAssistantsRow struct {
+	Day      time.Time
+	FullName string
+}
+
+// Trợ giảng của từng ngày: người được giao việc gắn lớp theo ngày hạn.
+func (q *Queries) ClassTaskAssistants(ctx context.Context, classID *uuid.UUID) ([]ClassTaskAssistantsRow, error) {
+	rows, err := q.db.Query(ctx, classTaskAssistants, classID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ClassTaskAssistantsRow
+	for rows.Next() {
+		var i ClassTaskAssistantsRow
+		if err := rows.Scan(&i.Day, &i.FullName); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const classTransfers = `-- name: ClassTransfers :many
+SELECT DISTINCT st.full_name AS student_name, c1.name AS from_class, c2.name AS to_class
+FROM academic.enrollments o
+JOIN academic.enrollments i ON i.student_id = o.student_id AND i.class_id <> o.class_id
+     AND i.enrolled_at BETWEEN $1::date AND $2::date
+JOIN academic.students st ON st.id = o.student_id
+JOIN academic.classes c1 ON c1.id = o.class_id
+JOIN academic.classes c2 ON c2.id = i.class_id
+WHERE o.class_id = ANY ($3::uuid[]) AND o.status <> 'dropped'
+  AND o.left_at BETWEEN $1::date AND $2::date
+ORDER BY st.full_name
+`
+
+type ClassTransfersParams struct {
+	FromDate time.Time
+	ToDate   time.Time
+	ClassIds []uuid.UUID
+}
+
+type ClassTransfersRow struct {
+	StudentName string
+	FromClass   string
+	ToClass     string
+}
+
+// Học sinh rời một lớp (không phải thôi học) trong khoảng và vào lớp khác trong khoảng.
+func (q *Queries) ClassTransfers(ctx context.Context, arg ClassTransfersParams) ([]ClassTransfersRow, error) {
+	rows, err := q.db.Query(ctx, classTransfers, arg.FromDate, arg.ToDate, arg.ClassIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ClassTransfersRow
+	for rows.Next() {
+		var i ClassTransfersRow
+		if err := rows.Scan(&i.StudentName, &i.FromClass, &i.ToClass); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const clearSessionRoom = `-- name: ClearSessionRoom :exec
 UPDATE academic.class_sessions s SET room = NULL, updated_at = now()
 WHERE s.class_id = $1 AND s.room = $2 AND s.type IN ('regular', 'makeup') AND s.status = 'scheduled'
@@ -568,6 +756,109 @@ type CloseEnrollmentsParams struct {
 func (q *Queries) CloseEnrollments(ctx context.Context, arg CloseEnrollmentsParams) error {
 	_, err := q.db.Exec(ctx, closeEnrollments, arg.Today, arg.StudentID, arg.ClassID)
 	return err
+}
+
+const closingClassChoices = `-- name: ClosingClassChoices :many
+SELECT c.id, c.name, c.code::text AS code, c.branch_id, c.course_id, c.status, c.start_date, c.max_capacity, c.min_students,
+       cl.id AS class_level_id, co.course_level_id, cl.name AS class_level_name, ccl.name AS course_level_name,
+       (SELECT count(DISTINCT r.student_id) FROM academic.class_roster r WHERE r.class_id = c.id)::bigint AS roster_count
+FROM academic.classes c
+LEFT JOIN academic.courses co ON co.id = c.course_id AND co.deleted_at IS NULL
+LEFT JOIN academic.course_levels cl ON cl.code = c.level AND cl.deleted_at IS NULL
+LEFT JOIN academic.course_levels ccl ON ccl.id = co.course_level_id
+WHERE c.deleted_at IS NULL AND ($1::uuid IS NULL OR c.branch_id = $1::uuid)
+  AND (c.status = 'active' OR (c.status = 'upcoming' AND (c.start_date IS NULL OR c.start_date >= $2::date)))
+ORDER BY (c.status = 'upcoming') DESC, c.start_date NULLS LAST, c.name
+`
+
+type ClosingClassChoicesParams struct {
+	BranchID *uuid.UUID
+	Today    time.Time
+}
+
+type ClosingClassChoicesRow struct {
+	ID              uuid.UUID
+	Name            string
+	Code            string
+	BranchID        uuid.UUID
+	CourseID        *uuid.UUID
+	Status          string
+	StartDate       *time.Time
+	MaxCapacity     int32
+	MinStudents     int32
+	ClassLevelID    *uuid.UUID
+	CourseLevelID   *uuid.UUID
+	ClassLevelName  *string
+	CourseLevelName *string
+	RosterCount     int64
+}
+
+// Lớp nhận ghi danh khi chốt / xếp lớp khách CRM (đang học, hoặc sắp khai giảng chưa tới ngày bắt đầu) của một chi nhánh
+// (NULL = mọi chi nhánh), kèm trình độ và sĩ số; lớp sắp khai giảng lên đầu, rồi theo ngày khai giảng.
+func (q *Queries) ClosingClassChoices(ctx context.Context, arg ClosingClassChoicesParams) ([]ClosingClassChoicesRow, error) {
+	rows, err := q.db.Query(ctx, closingClassChoices, arg.BranchID, arg.Today)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ClosingClassChoicesRow
+	for rows.Next() {
+		var i ClosingClassChoicesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Code,
+			&i.BranchID,
+			&i.CourseID,
+			&i.Status,
+			&i.StartDate,
+			&i.MaxCapacity,
+			&i.MinStudents,
+			&i.ClassLevelID,
+			&i.CourseLevelID,
+			&i.ClassLevelName,
+			&i.CourseLevelName,
+			&i.RosterCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const closingCourses = `-- name: ClosingCourses :many
+SELECT id, name, tuition_fee FROM academic.courses WHERE deleted_at IS NULL AND is_active ORDER BY name
+`
+
+type ClosingCoursesRow struct {
+	ID         uuid.UUID
+	Name       string
+	TuitionFee int64
+}
+
+// Khóa học đang mở (chốt khách, xếp lớp sau).
+func (q *Queries) ClosingCourses(ctx context.Context) ([]ClosingCoursesRow, error) {
+	rows, err := q.db.Query(ctx, closingCourses)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ClosingCoursesRow
+	for rows.Next() {
+		var i ClosingCoursesRow
+		if err := rows.Scan(&i.ID, &i.Name, &i.TuitionFee); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const conflictCandidates = `-- name: ConflictCandidates :many
@@ -680,6 +971,38 @@ func (q *Queries) CourseClassCounts(ctx context.Context, courseIds []uuid.UUID) 
 	return items, nil
 }
 
+const courseForClosing = `-- name: CourseForClosing :one
+SELECT co.id, co.name, co.is_active, co.tuition_fee, co.total_lessons, co.course_level_id, cl.name AS level_name
+FROM academic.courses co
+LEFT JOIN academic.course_levels cl ON cl.id = co.course_level_id
+WHERE co.id = $1 AND co.deleted_at IS NULL
+`
+
+type CourseForClosingRow struct {
+	ID            uuid.UUID
+	Name          string
+	IsActive      bool
+	TuitionFee    int64
+	TotalLessons  int32
+	CourseLevelID *uuid.UUID
+	LevelName     *string
+}
+
+func (q *Queries) CourseForClosing(ctx context.Context, id uuid.UUID) (CourseForClosingRow, error) {
+	row := q.db.QueryRow(ctx, courseForClosing, id)
+	var i CourseForClosingRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.IsActive,
+		&i.TuitionFee,
+		&i.TotalLessons,
+		&i.CourseLevelID,
+		&i.LevelName,
+	)
+	return i, err
+}
+
 const courseIDByName = `-- name: CourseIDByName :one
 SELECT id FROM academic.courses WHERE name = $1 AND deleted_at IS NULL ORDER BY created_at LIMIT 1
 `
@@ -778,6 +1101,34 @@ func (q *Queries) CreateEnrollment(ctx context.Context, arg CreateEnrollmentPara
 	return id, err
 }
 
+const createLeadEnrollment = `-- name: CreateLeadEnrollment :one
+INSERT INTO academic.enrollments (student_id, class_id, lead_id, enrolled_at, status, created_by)
+VALUES ($1, $2, $3, $4, 'pending', $5)
+RETURNING id
+`
+
+type CreateLeadEnrollmentParams struct {
+	StudentID  uuid.UUID
+	ClassID    uuid.UUID
+	LeadID     *uuid.UUID
+	EnrolledAt time.Time
+	CreatedBy  *uuid.UUID
+}
+
+// Lượt xếp lớp tạo từ CRM (Chốt & Xếp lớp / Gán lớp cho khách Chờ xếp lớp).
+func (q *Queries) CreateLeadEnrollment(ctx context.Context, arg CreateLeadEnrollmentParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, createLeadEnrollment,
+		arg.StudentID,
+		arg.ClassID,
+		arg.LeadID,
+		arg.EnrolledAt,
+		arg.CreatedBy,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const deleteSessions = `-- name: DeleteSessions :exec
 DELETE FROM academic.class_sessions WHERE id = ANY ($1::uuid[])
 `
@@ -821,8 +1172,25 @@ func (q *Queries) DropEnrollments(ctx context.Context, arg DropEnrollmentsParams
 	return err
 }
 
+const dropReplacedTrialBookings = `-- name: DropReplacedTrialBookings :exec
+DELETE FROM crm.trial_bookings o
+WHERE o.class_session_id = $1
+  AND EXISTS (SELECT 1 FROM crm.trial_bookings m WHERE m.class_session_id = $2 AND m.lead_id = o.lead_id)
+`
+
+type DropReplacedTrialBookingsParams struct {
+	ToSession   uuid.UUID
+	FromSession uuid.UUID
+}
+
+// Trước khi chuyển lịch hẹn của buổi bù về buổi gốc: bỏ lịch hẹn (đã hủy vì nghỉ lễ) của cùng khách ở buổi gốc.
+func (q *Queries) DropReplacedTrialBookings(ctx context.Context, arg DropReplacedTrialBookingsParams) error {
+	_, err := q.db.Exec(ctx, dropReplacedTrialBookings, arg.ToSession, arg.FromSession)
+	return err
+}
+
 const enrollableClasses = `-- name: EnrollableClasses :many
-SELECT c.id, c.name, c.code::text AS code, c.branch_id, c.course_id, c.max_capacity, c.status,
+SELECT c.id, c.name, c.code::text AS code, c.branch_id, c.course_id, c.max_capacity, c.status, c.start_date,
        (SELECT count(DISTINCT r.student_id) FROM academic.class_roster r WHERE r.class_id = c.id)::bigint AS roster_count
 FROM academic.classes c
 WHERE c.deleted_at IS NULL
@@ -846,6 +1214,7 @@ type EnrollableClassesRow struct {
 	CourseID    *uuid.UUID
 	MaxCapacity int32
 	Status      string
+	StartDate   *time.Time
 	RosterCount int64
 }
 
@@ -872,6 +1241,7 @@ func (q *Queries) EnrollableClasses(ctx context.Context, arg EnrollableClassesPa
 			&i.CourseID,
 			&i.MaxCapacity,
 			&i.Status,
+			&i.StartDate,
 			&i.RosterCount,
 		); err != nil {
 			return nil, err
@@ -1857,6 +2227,62 @@ func (q *Queries) LockClass(ctx context.Context, id uuid.UUID) (AcademicClass, e
 	return i, err
 }
 
+const lockClassForClosing = `-- name: LockClassForClosing :one
+
+SELECT c.id, c.name, c.code::text AS code, c.branch_id, c.course_id, c.status, c.start_date, c.max_capacity,
+       co.name AS course_name, co.is_active AS course_active, co.tuition_fee AS course_fee, co.total_lessons AS course_lessons,
+       cl.id AS class_level_id, co.course_level_id,
+       (SELECT count(DISTINCT r.student_id) FROM academic.class_roster r WHERE r.class_id = c.id)::bigint AS roster_count
+FROM academic.classes c
+LEFT JOIN academic.courses co ON co.id = c.course_id AND co.deleted_at IS NULL
+LEFT JOIN academic.course_levels cl ON cl.code = c.level AND cl.deleted_at IS NULL
+WHERE c.id = $1 AND c.deleted_at IS NULL
+FOR UPDATE OF c
+`
+
+type LockClassForClosingRow struct {
+	ID            uuid.UUID
+	Name          string
+	Code          string
+	BranchID      uuid.UUID
+	CourseID      *uuid.UUID
+	Status        string
+	StartDate     *time.Time
+	MaxCapacity   int32
+	CourseName    *string
+	CourseActive  *bool
+	CourseFee     *int64
+	CourseLessons *int32
+	ClassLevelID  *uuid.UUID
+	CourseLevelID *uuid.UUID
+	RosterCount   int64
+}
+
+// ───────────────────────── Chốt & Xếp lớp (CRM) ─────────────────────────
+// Lớp được chọn khi chốt / xếp lớp khách CRM (khóa dòng lớp), kèm khóa học, trình độ của lớp và sĩ số.
+func (q *Queries) LockClassForClosing(ctx context.Context, id uuid.UUID) (LockClassForClosingRow, error) {
+	row := q.db.QueryRow(ctx, lockClassForClosing, id)
+	var i LockClassForClosingRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Code,
+		&i.BranchID,
+		&i.CourseID,
+		&i.Status,
+		&i.StartDate,
+		&i.MaxCapacity,
+		&i.CourseName,
+		&i.CourseActive,
+		&i.CourseFee,
+		&i.CourseLessons,
+		&i.ClassLevelID,
+		&i.CourseLevelID,
+		&i.RosterCount,
+	)
+	return i, err
+}
+
 const lockStudent = `-- name: LockStudent :one
 
 SELECT id, code::text AS code, full_name, branch_id, current_class_id, status
@@ -1887,6 +2313,49 @@ func (q *Queries) LockStudent(ctx context.Context, id uuid.UUID) (LockStudentRow
 	return i, err
 }
 
+const makeupAttendees = `-- name: MakeupAttendees :many
+SELECT DISTINCT ON (a.student_id) st.full_name AS student_name, c.name AS class_name
+FROM academic.student_attendance a
+JOIN academic.class_sessions s ON s.id = a.session_id AND s.type = 'makeup'
+JOIN academic.students st ON st.id = a.student_id
+JOIN academic.classes c ON c.id = s.class_id
+WHERE a.status IN ('present', 'late') AND s.class_id = ANY ($1::uuid[])
+  AND s.date BETWEEN $2::date AND $3::date
+ORDER BY a.student_id, st.full_name
+`
+
+type MakeupAttendeesParams struct {
+	ClassIds []uuid.UUID
+	FromDate time.Time
+	ToDate   time.Time
+}
+
+type MakeupAttendeesRow struct {
+	StudentName string
+	ClassName   string
+}
+
+// Học sinh có mặt ở buổi học bù trong khoảng (mỗi học sinh một dòng).
+func (q *Queries) MakeupAttendees(ctx context.Context, arg MakeupAttendeesParams) ([]MakeupAttendeesRow, error) {
+	rows, err := q.db.Query(ctx, makeupAttendees, arg.ClassIds, arg.FromDate, arg.ToDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MakeupAttendeesRow
+	for rows.Next() {
+		var i MakeupAttendeesRow
+		if err := rows.Scan(&i.StudentName, &i.ClassName); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const missingAttendanceToday = `-- name: MissingAttendanceToday :one
 SELECT count(*)::bigint FROM academic.class_sessions s
 JOIN academic.classes c ON c.id = s.class_id
@@ -1915,6 +2384,24 @@ func (q *Queries) MissingAttendanceToday(ctx context.Context, arg MissingAttenda
 	var column_1 int64
 	err := row.Scan(&column_1)
 	return column_1, err
+}
+
+const moveTrialBookings = `-- name: MoveTrialBookings :exec
+UPDATE crm.trial_bookings b
+SET class_session_id = s.id, session_date = s.date, start_time = s.start_time, end_time = s.end_time, updated_at = now()
+FROM academic.class_sessions s
+WHERE s.id = $1 AND b.class_session_id = $2
+`
+
+type MoveTrialBookingsParams struct {
+	ToSession   uuid.UUID
+	FromSession uuid.UUID
+}
+
+// Khách hẹn học thử vào buổi bù chuyển về buổi gốc được khôi phục (xóa buổi bù sẽ xóa luôn lịch hẹn).
+func (q *Queries) MoveTrialBookings(ctx context.Context, arg MoveTrialBookingsParams) error {
+	_, err := q.db.Exec(ctx, moveTrialBookings, arg.ToSession, arg.FromSession)
+	return err
 }
 
 const nextSession = `-- name: NextSession :one
@@ -2226,6 +2713,7 @@ const replaceableSessionIDs = `-- name: ReplaceableSessionIDs :many
 SELECT s.id FROM academic.class_sessions s
 WHERE s.class_id = $1 AND s.type = 'regular' AND s.status = 'scheduled' AND s.date >= $2::date
   AND NOT EXISTS (SELECT 1 FROM academic.student_attendance sa WHERE sa.session_id = s.id)
+  AND NOT EXISTS (SELECT 1 FROM crm.trial_bookings tb WHERE tb.class_session_id = s.id AND tb.status = 'scheduled')
 `
 
 type ReplaceableSessionIDsParams struct {
@@ -2234,9 +2722,229 @@ type ReplaceableSessionIDsParams struct {
 }
 
 // Buổi chính khóa chưa diễn ra, chưa có dữ liệu thực tế: xóa được khi xếp lại TKB (ClassSession::replaceable).
-// TODO(hr): thêm điều kiện chưa chấm công / không gắn phụ đạo; TODO(crm): không có khách hẹn học thử.
+// Buổi đã có khách hẹn học thử: xóa đi thì lịch hẹn mồ côi, Sales không biết để báo khách.
+// TODO(hr): thêm điều kiện chưa chấm công / không gắn phụ đạo.
 func (q *Queries) ReplaceableSessionIDs(ctx context.Context, arg ReplaceableSessionIDsParams) ([]uuid.UUID, error) {
 	rows, err := q.db.Query(ctx, replaceableSessionIDs, arg.ClassID, arg.Today)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const reportClassIDs = `-- name: ReportClassIDs :many
+SELECT c.id FROM academic.classes c
+WHERE c.deleted_at IS NULL AND ($1::bool OR c.id = ANY ($2::uuid[]))
+  AND (cardinality($3::uuid[]) = 0 OR c.branch_id = ANY ($3::uuid[]))
+`
+
+type ReportClassIDsParams struct {
+	AllClasses bool
+	Ids        []uuid.UUID
+	BranchIds  []uuid.UUID
+}
+
+// Lớp tính vào báo cáo của người viết: lớp người viết thấy, chỉ trong các chi nhánh của người viết (rỗng = không lọc).
+func (q *Queries) ReportClassIDs(ctx context.Context, arg ReportClassIDsParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, reportClassIDs, arg.AllClasses, arg.Ids, arg.BranchIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const reportClassOptions = `-- name: ReportClassOptions :many
+SELECT c.id, c.code::text AS code, c.name
+FROM academic.classes c
+WHERE c.deleted_at IS NULL AND c.status <> 'cancelled' AND ($1::bool OR c.id = ANY ($2::uuid[]))
+ORDER BY c.code
+`
+
+type ReportClassOptionsParams struct {
+	AllClasses bool
+	Ids        []uuid.UUID
+}
+
+type ReportClassOptionsRow struct {
+	ID   uuid.UUID
+	Code string
+	Name string
+}
+
+// Lớp gắn được vào nhật ký / báo cáo chữ: lớp người dùng thấy, chưa hủy.
+func (q *Queries) ReportClassOptions(ctx context.Context, arg ReportClassOptionsParams) ([]ReportClassOptionsRow, error) {
+	rows, err := q.db.Query(ctx, reportClassOptions, arg.AllClasses, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ReportClassOptionsRow
+	for rows.Next() {
+		var i ReportClassOptionsRow
+		if err := rows.Scan(&i.ID, &i.Code, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const reportDaySessions = `-- name: ReportDaySessions :many
+SELECT s.id, s.class_id, c.name AS class_name, c.branch_id AS class_branch_id, c.teacher_id AS class_teacher_id,
+       s.status, s.type, s.room, s.shift_name, to_char(s.start_time, 'HH24:MI') AS start_time, to_char(s.end_time, 'HH24:MI') AS end_time,
+       s.teacher_id, s.foreign_teacher_id, s.assistant_id, (s.holiday_id IS NOT NULL)::bool AS holiday,
+       t.full_name AS teacher_name
+FROM academic.class_sessions s
+JOIN academic.classes c ON c.id = s.class_id
+LEFT JOIN iam.users t ON t.id = s.teacher_id
+WHERE s.date = $1::date AND s.type <> 'support' AND s.class_id = ANY ($2::uuid[])
+ORDER BY s.start_time, c.name
+`
+
+type ReportDaySessionsParams struct {
+	Day      time.Time
+	ClassIds []uuid.UUID
+}
+
+type ReportDaySessionsRow struct {
+	ID               uuid.UUID
+	ClassID          uuid.UUID
+	ClassName        string
+	ClassBranchID    uuid.UUID
+	ClassTeacherID   *uuid.UUID
+	Status           string
+	Type             string
+	Room             *string
+	ShiftName        *string
+	StartTime        string
+	EndTime          string
+	TeacherID        *uuid.UUID
+	ForeignTeacherID *uuid.UUID
+	AssistantID      *uuid.UUID
+	Holiday          bool
+	TeacherName      *string
+}
+
+// Buổi học trong ngày (không tính phụ đạo) của các lớp tính vào báo cáo ngày.
+func (q *Queries) ReportDaySessions(ctx context.Context, arg ReportDaySessionsParams) ([]ReportDaySessionsRow, error) {
+	rows, err := q.db.Query(ctx, reportDaySessions, arg.Day, arg.ClassIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ReportDaySessionsRow
+	for rows.Next() {
+		var i ReportDaySessionsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ClassID,
+			&i.ClassName,
+			&i.ClassBranchID,
+			&i.ClassTeacherID,
+			&i.Status,
+			&i.Type,
+			&i.Room,
+			&i.ShiftName,
+			&i.StartTime,
+			&i.EndTime,
+			&i.TeacherID,
+			&i.ForeignTeacherID,
+			&i.AssistantID,
+			&i.Holiday,
+			&i.TeacherName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const reportRangeSessions = `-- name: ReportRangeSessions :many
+SELECT s.class_id, c.name AS class_name, s.teacher_id, s.foreign_teacher_id
+FROM academic.class_sessions s
+JOIN academic.classes c ON c.id = s.class_id
+WHERE s.date BETWEEN $1::date AND $2::date AND s.type <> 'support' AND s.status <> 'cancelled'
+  AND s.class_id = ANY ($3::uuid[])
+`
+
+type ReportRangeSessionsParams struct {
+	FromDate time.Time
+	ToDate   time.Time
+	ClassIds []uuid.UUID
+}
+
+type ReportRangeSessionsRow struct {
+	ClassID          uuid.UUID
+	ClassName        string
+	TeacherID        *uuid.UUID
+	ForeignTeacherID *uuid.UUID
+}
+
+// Buổi đã / sẽ diễn ra trong khoảng (không tính phụ đạo, buổi hủy) của các lớp tính vào báo cáo tuần.
+func (q *Queries) ReportRangeSessions(ctx context.Context, arg ReportRangeSessionsParams) ([]ReportRangeSessionsRow, error) {
+	rows, err := q.db.Query(ctx, reportRangeSessions, arg.FromDate, arg.ToDate, arg.ClassIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ReportRangeSessionsRow
+	for rows.Next() {
+		var i ReportRangeSessionsRow
+		if err := rows.Scan(
+			&i.ClassID,
+			&i.ClassName,
+			&i.TeacherID,
+			&i.ForeignTeacherID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const responsibleClassIDs = `-- name: ResponsibleClassIDs :many
+SELECT id FROM academic.classes
+WHERE deleted_at IS NULL AND (teacher_id = $1 OR assistant_id = $1 OR foreign_teacher_id = $1)
+`
+
+// Lớp người dùng phụ trách (GV chính, trợ giảng cố định, GVNN mặc định).
+func (q *Queries) ResponsibleClassIDs(ctx context.Context, userID *uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, responsibleClassIDs, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -2498,6 +3206,41 @@ func (q *Queries) SessionAttendance(ctx context.Context, sessionID uuid.UUID) ([
 	return items, nil
 }
 
+const sessionAttendanceIssues = `-- name: SessionAttendanceIssues :many
+SELECT a.session_id, a.status, st.full_name AS student_name
+FROM academic.student_attendance a
+JOIN academic.students st ON st.id = a.student_id
+WHERE a.session_id = ANY ($1::uuid[]) AND a.status IN ('absent', 'excused', 'late')
+ORDER BY st.full_name
+`
+
+type SessionAttendanceIssuesRow struct {
+	SessionID   uuid.UUID
+	Status      string
+	StudentName string
+}
+
+// Học sinh vắng / vắng có phép / đi muộn của các buổi.
+func (q *Queries) SessionAttendanceIssues(ctx context.Context, sessionIds []uuid.UUID) ([]SessionAttendanceIssuesRow, error) {
+	rows, err := q.db.Query(ctx, sessionAttendanceIssues, sessionIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SessionAttendanceIssuesRow
+	for rows.Next() {
+		var i SessionAttendanceIssuesRow
+		if err := rows.Scan(&i.SessionID, &i.Status, &i.StudentName); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const sessionProgress = `-- name: SessionProgress :one
 SELECT count(*)::bigint AS total,
        count(*) FILTER (WHERE date <= $1::date)::bigint AS done
@@ -2520,6 +3263,78 @@ func (q *Queries) SessionProgress(ctx context.Context, arg SessionProgressParams
 	var i SessionProgressRow
 	err := row.Scan(&i.Total, &i.Done)
 	return i, err
+}
+
+const sessionsByIDs = `-- name: SessionsByIDs :many
+
+SELECT s.id, s.class_id, c.name AS class_name, c.code::text AS class_code, coalesce(co.name, c.program, '')::text AS course_name,
+       c.status AS class_status, s.status, s.type, s.branch_id, b.name AS branch_name, s.date, s.room, s.shift_name,
+       to_char(s.start_time, 'HH24:MI') AS start_time, to_char(s.end_time, 'HH24:MI') AS end_time,
+       t.full_name AS teacher_name
+FROM academic.class_sessions s
+JOIN academic.classes c ON c.id = s.class_id AND c.deleted_at IS NULL
+JOIN core.branches b ON b.id = s.branch_id
+LEFT JOIN academic.courses co ON co.id = c.course_id
+LEFT JOIN iam.users t ON t.id = coalesce(s.teacher_id, s.foreign_teacher_id)
+WHERE s.id = ANY ($1::uuid[])
+`
+
+type SessionsByIDsRow struct {
+	ID          uuid.UUID
+	ClassID     uuid.UUID
+	ClassName   string
+	ClassCode   string
+	CourseName  string
+	ClassStatus string
+	Status      string
+	Type        string
+	BranchID    uuid.UUID
+	BranchName  string
+	Date        time.Time
+	Room        *string
+	ShiftName   *string
+	StartTime   string
+	EndTime     string
+	TeacherName *string
+}
+
+// ───────────────────────── Phân hệ khác: test đầu vào / báo cáo / công việc ─────────────────────────
+// Buổi học (lớp chưa xóa) cho học thử / thẻ việc trợ giảng.
+func (q *Queries) SessionsByIDs(ctx context.Context, ids []uuid.UUID) ([]SessionsByIDsRow, error) {
+	rows, err := q.db.Query(ctx, sessionsByIDs, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SessionsByIDsRow
+	for rows.Next() {
+		var i SessionsByIDsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ClassID,
+			&i.ClassName,
+			&i.ClassCode,
+			&i.CourseName,
+			&i.ClassStatus,
+			&i.Status,
+			&i.Type,
+			&i.BranchID,
+			&i.BranchName,
+			&i.Date,
+			&i.Room,
+			&i.ShiftName,
+			&i.StartTime,
+			&i.EndTime,
+			&i.TeacherName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const sessionsOnDate = `-- name: SessionsOnDate :many
@@ -2876,6 +3691,17 @@ func (q *Queries) StartStudyingDue(ctx context.Context, today time.Time) (int64,
 	return result.RowsAffected(), nil
 }
 
+const studentBranchID = `-- name: StudentBranchID :one
+SELECT branch_id FROM academic.students WHERE id = $1
+`
+
+func (q *Queries) StudentBranchID(ctx context.Context, id uuid.UUID) (*uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, studentBranchID, id)
+	var branch_id *uuid.UUID
+	err := row.Scan(&branch_id)
+	return branch_id, err
+}
+
 const studentClasses = `-- name: StudentClasses :many
 SELECT c.id, c.name, c.code::text AS code, c.status, c.schedule_text, c.branch_id,
        (c.id = st.current_class_id)::bool AS is_main
@@ -2997,6 +3823,338 @@ func (q *Queries) StudentsByIDs(ctx context.Context, ids []uuid.UUID) ([]Student
 	return items, nil
 }
 
+const taskClassOptions = `-- name: TaskClassOptions :many
+SELECT c.id, c.code::text AS code, c.name, c.schedule_text
+FROM academic.classes c
+WHERE c.deleted_at IS NULL AND c.status = ANY ($1::text[])
+  AND ($2::bool OR c.id = ANY ($3::uuid[]))
+ORDER BY c.name, c.code
+`
+
+type TaskClassOptionsParams struct {
+	Statuses   []string
+	AllClasses bool
+	Ids        []uuid.UUID
+}
+
+type TaskClassOptionsRow struct {
+	ID           uuid.UUID
+	Code         string
+	Name         string
+	ScheduleText *string
+}
+
+// Lớp gắn vào công việc: lớp người dùng thấy, chưa xóa, theo trạng thái.
+func (q *Queries) TaskClassOptions(ctx context.Context, arg TaskClassOptionsParams) ([]TaskClassOptionsRow, error) {
+	rows, err := q.db.Query(ctx, taskClassOptions, arg.Statuses, arg.AllClasses, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []TaskClassOptionsRow
+	for rows.Next() {
+		var i TaskClassOptionsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.Name,
+			&i.ScheduleText,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const taskDaySessions = `-- name: TaskDaySessions :many
+SELECT s.id, s.class_id, c.name AS class_name, s.date, s.shift_name, s.type, s.room, s.branch_id, b.name AS branch_name,
+       to_char(s.start_time, 'HH24:MI') AS start_time, to_char(s.end_time, 'HH24:MI') AS end_time
+FROM academic.class_sessions s
+JOIN academic.classes c ON c.id = s.class_id AND c.deleted_at IS NULL
+JOIN core.branches b ON b.id = s.branch_id
+WHERE s.date = $1::date AND s.status <> 'cancelled'
+  AND (s.teacher_id = $2::uuid OR s.foreign_teacher_id = $2::uuid
+       OR s.assistant_id = $2::uuid OR s.class_id = ANY ($3::uuid[]))
+ORDER BY s.start_time, s.id
+`
+
+type TaskDaySessionsParams struct {
+	Day      time.Time
+	StaffID  uuid.UUID
+	ClassIds []uuid.UUID
+}
+
+type TaskDaySessionsRow struct {
+	ID         uuid.UUID
+	ClassID    uuid.UUID
+	ClassName  string
+	Date       time.Time
+	ShiftName  *string
+	Type       string
+	Room       *string
+	BranchID   uuid.UUID
+	BranchName string
+	StartTime  string
+	EndTime    string
+}
+
+// Lớp trực trong ngày của trợ giảng: buổi không hủy mình dạy / dạy GVNN / trợ giảng, hoặc thuộc các lớp có việc giao.
+func (q *Queries) TaskDaySessions(ctx context.Context, arg TaskDaySessionsParams) ([]TaskDaySessionsRow, error) {
+	rows, err := q.db.Query(ctx, taskDaySessions, arg.Day, arg.StaffID, arg.ClassIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []TaskDaySessionsRow
+	for rows.Next() {
+		var i TaskDaySessionsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ClassID,
+			&i.ClassName,
+			&i.Date,
+			&i.ShiftName,
+			&i.Type,
+			&i.Room,
+			&i.BranchID,
+			&i.BranchName,
+			&i.StartTime,
+			&i.EndTime,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const taskSession = `-- name: TaskSession :one
+SELECT s.id, s.class_id, c.name AS class_name, s.date, s.shift_name, s.type, s.room, s.branch_id, b.name AS branch_name,
+       to_char(s.start_time, 'HH24:MI') AS start_time, to_char(s.end_time, 'HH24:MI') AS end_time,
+       coalesce((SELECT x.lesson_no FROM (
+           SELECT n.id, row_number() OVER (ORDER BY n.date, n.start_time, n.id) AS lesson_no
+           FROM academic.class_sessions n
+           WHERE n.class_id = s.class_id AND n.type = 'regular' AND n.status <> 'cancelled') x
+        WHERE x.id = s.id), 0)::bigint AS lesson_no
+FROM academic.class_sessions s
+JOIN academic.classes c ON c.id = s.class_id AND c.deleted_at IS NULL
+JOIN core.branches b ON b.id = s.branch_id
+WHERE s.id = $1
+`
+
+type TaskSessionRow struct {
+	ID         uuid.UUID
+	ClassID    uuid.UUID
+	ClassName  string
+	Date       time.Time
+	ShiftName  *string
+	Type       string
+	Room       *string
+	BranchID   uuid.UUID
+	BranchName string
+	StartTime  string
+	EndTime    string
+	LessonNo   int64
+}
+
+// Một buổi học (lớp chưa xóa) kèm thứ tự buổi chính khóa.
+func (q *Queries) TaskSession(ctx context.Context, id uuid.UUID) (TaskSessionRow, error) {
+	row := q.db.QueryRow(ctx, taskSession, id)
+	var i TaskSessionRow
+	err := row.Scan(
+		&i.ID,
+		&i.ClassID,
+		&i.ClassName,
+		&i.Date,
+		&i.ShiftName,
+		&i.Type,
+		&i.Room,
+		&i.BranchID,
+		&i.BranchName,
+		&i.StartTime,
+		&i.EndTime,
+		&i.LessonNo,
+	)
+	return i, err
+}
+
+const taskSessions = `-- name: TaskSessions :many
+WITH numbered AS (
+    SELECT n.id, row_number() OVER (PARTITION BY n.class_id ORDER BY n.date, n.start_time, n.id) AS lesson_no
+    FROM academic.class_sessions n
+    WHERE n.class_id = ANY ($1::uuid[]) AND n.type = 'regular' AND n.status <> 'cancelled'
+)
+SELECT s.id, s.class_id, c.name AS class_name, s.date, s.shift_name, s.type, s.room, s.branch_id, b.name AS branch_name,
+       to_char(s.start_time, 'HH24:MI') AS start_time, to_char(s.end_time, 'HH24:MI') AS end_time,
+       coalesce(nb.lesson_no, 0)::bigint AS lesson_no
+FROM academic.class_sessions s
+JOIN academic.classes c ON c.id = s.class_id AND c.deleted_at IS NULL
+JOIN core.branches b ON b.id = s.branch_id
+LEFT JOIN numbered nb ON nb.id = s.id
+WHERE s.class_id = ANY ($1::uuid[]) AND s.status <> 'cancelled' AND s.type <> 'support'
+  AND s.date BETWEEN $2::date AND $3::date
+ORDER BY s.date, s.start_time, s.id
+`
+
+type TaskSessionsParams struct {
+	ClassIds []uuid.UUID
+	FromDate time.Time
+	ToDate   time.Time
+}
+
+type TaskSessionsRow struct {
+	ID         uuid.UUID
+	ClassID    uuid.UUID
+	ClassName  string
+	Date       time.Time
+	ShiftName  *string
+	Type       string
+	Room       *string
+	BranchID   uuid.UUID
+	BranchName string
+	StartTime  string
+	EndTime    string
+	LessonNo   int64
+}
+
+// Buổi học (không hủy, không phụ đạo) của các lớp trong khoảng ngày, kèm thứ tự buổi chính khóa (SessionLessonService::
+// sessionNumbers: buổi regular không hủy của lớp, theo ngày / giờ).
+func (q *Queries) TaskSessions(ctx context.Context, arg TaskSessionsParams) ([]TaskSessionsRow, error) {
+	rows, err := q.db.Query(ctx, taskSessions, arg.ClassIds, arg.FromDate, arg.ToDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []TaskSessionsRow
+	for rows.Next() {
+		var i TaskSessionsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ClassID,
+			&i.ClassName,
+			&i.Date,
+			&i.ShiftName,
+			&i.Type,
+			&i.Room,
+			&i.BranchID,
+			&i.BranchName,
+			&i.StartTime,
+			&i.EndTime,
+			&i.LessonNo,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const teacherMonthClasses = `-- name: TeacherMonthClasses :many
+SELECT c.id, c.code::text AS code, c.name,
+       (SELECT count(*) FROM academic.student_attendance a
+        WHERE a.class_id = c.id AND a.session_date BETWEEN $1::date AND $2::date)::bigint AS attendance_total,
+       (SELECT count(*) FROM academic.student_attendance a
+        WHERE a.class_id = c.id AND a.session_date BETWEEN $1::date AND $2::date
+          AND a.status IN ('present', 'late'))::bigint AS attended,
+       (SELECT count(*) FROM academic.class_sessions s
+        WHERE s.class_id = c.id AND s.status <> 'cancelled' AND s.date BETWEEN $1::date AND $3::date
+          AND (s.teacher_id = $4 OR s.foreign_teacher_id = $4 OR s.assistant_id = $4))::bigint AS sessions_done
+FROM academic.classes c
+WHERE c.deleted_at IS NULL AND (
+    (c.status = 'active' AND (c.teacher_id = $4 OR c.assistant_id = $4 OR c.foreign_teacher_id = $4))
+    OR EXISTS (SELECT 1 FROM academic.class_sessions s WHERE s.class_id = c.id
+               AND s.date BETWEEN $1::date AND $2::date
+               AND (s.teacher_id = $4 OR s.foreign_teacher_id = $4 OR s.assistant_id = $4)))
+ORDER BY c.name
+`
+
+type TeacherMonthClassesParams struct {
+	FromDate time.Time
+	ToDate   time.Time
+	Until    time.Time
+	UserID   *uuid.UUID
+}
+
+type TeacherMonthClassesRow struct {
+	ID              uuid.UUID
+	Code            string
+	Name            string
+	AttendanceTotal int64
+	Attended        int64
+	SessionsDone    int64
+}
+
+// Lớp giáo viên giữ trong tháng (TeachingQuality::classesOf): lớp đang học mình là GV / trợ giảng / GVNN, hoặc có buổi
+// mình đứng trong tháng; kèm chuyên cần (%) của tháng và số buổi mình đã đứng lớp (tới hôm nay, không tính buổi hủy).
+func (q *Queries) TeacherMonthClasses(ctx context.Context, arg TeacherMonthClassesParams) ([]TeacherMonthClassesRow, error) {
+	rows, err := q.db.Query(ctx, teacherMonthClasses,
+		arg.FromDate,
+		arg.ToDate,
+		arg.Until,
+		arg.UserID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []TeacherMonthClassesRow
+	for rows.Next() {
+		var i TeacherMonthClassesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.Name,
+			&i.AttendanceTotal,
+			&i.Attended,
+			&i.SessionsDone,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const teachingSessionIDs = `-- name: TeachingSessionIDs :many
+SELECT s.id FROM academic.class_sessions s
+JOIN academic.classes c ON c.id = s.class_id AND c.deleted_at IS NULL
+WHERE s.teacher_id = $1 OR s.foreign_teacher_id = $1 OR s.assistant_id = $1
+`
+
+// Buổi người dùng dạy / dạy GVNN / trợ giảng (kể cả dạy thay).
+func (q *Queries) TeachingSessionIDs(ctx context.Context, userID *uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, teachingSessionIDs, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const upcomingForeignTeachers = `-- name: UpcomingForeignTeachers :many
 SELECT DISTINCT u.full_name
 FROM academic.class_sessions s
@@ -3108,6 +4266,40 @@ func (q *Queries) UpcomingScheduledCount(ctx context.Context, arg UpcomingSchedu
 	var column_1 int64
 	err := row.Scan(&column_1)
 	return column_1, err
+}
+
+const upcomingTaskAssistants = `-- name: UpcomingTaskAssistants :many
+SELECT DISTINCT u.full_name
+FROM ops.work_tasks t
+JOIN iam.users u ON u.id = t.assignee_id
+WHERE t.class_id = $1 AND t.due_date BETWEEN $2::date AND $2::date + 7
+ORDER BY u.full_name
+`
+
+type UpcomingTaskAssistantsParams struct {
+	ClassID *uuid.UUID
+	Today   time.Time
+}
+
+// Trợ giảng 7 ngày tới: người được giao việc gắn lớp có hạn trong 7 ngày (trợ giảng không cố định theo lớp).
+func (q *Queries) UpcomingTaskAssistants(ctx context.Context, arg UpcomingTaskAssistantsParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, upcomingTaskAssistants, arg.ClassID, arg.Today)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var full_name string
+		if err := rows.Scan(&full_name); err != nil {
+			return nil, err
+		}
+		items = append(items, full_name)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const updateClass = `-- name: UpdateClass :exec
@@ -3348,4 +4540,17 @@ func (q *Queries) VisibleClassIDs(ctx context.Context, arg VisibleClassIDsParams
 		return nil, err
 	}
 	return items, nil
+}
+
+const waitingLeadOfStudent = `-- name: WaitingLeadOfStudent :one
+SELECT id FROM crm.leads WHERE converted_student_id = $1 AND stage = 'waiting_class' AND deleted_at IS NULL
+ORDER BY converted_at DESC NULLS LAST LIMIT 1
+`
+
+// Khách CRM Chờ xếp lớp đã chốt ra học viên này (WaitingLeadPlacement::waitingLeadFor).
+func (q *Queries) WaitingLeadOfStudent(ctx context.Context, convertedStudentID *uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, waitingLeadOfStudent, convertedStudentID)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
 }

@@ -18,8 +18,8 @@ CREATE TABLE ops.work_tasks (
     handed_back_from_id      uuid REFERENCES iam.users (id) ON DELETE SET NULL,
     handed_back_at           timestamptz,
     branch_id                uuid REFERENCES core.branches (id) ON DELETE SET NULL,
-    class_id                 uuid, -- FK tới academic.classes thêm khi gộp
-    student_id               uuid, -- FK tới academic.students thêm khi gộp
+    class_id                 uuid, -- FK tới academic.classes: 00110_academic_links_fk
+    student_id               uuid, -- FK tới academic.students: 00110_academic_links_fk
     -- Mốc chăm sóc tháng đầu (ngày 3 / 7 / 14 / 30) của việc CRM tự tạo
     care_milestone           smallint CHECK (care_milestone > 0),
     big_test_id              uuid, -- FK tới syllabus.big_tests thêm khi gộp

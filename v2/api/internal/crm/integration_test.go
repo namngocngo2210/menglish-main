@@ -566,29 +566,45 @@ func TestLeadLifecycle(t *testing.T) {
 	}
 }
 
-// fakeStudents: phân hệ học viên giả cho luồng Chốt & Xếp lớp.
+// fakeStudents: phân hệ học viên giả cho luồng Chốt & Xếp lớp (luồng thật test ở phân hệ lớp học). Ghi hồ sơ học viên,
+// khóa và lớp tối thiểu vì các cột chốt khách có khóa ngoại tới academic.*.
 type fakeStudents struct{ n int }
+
+func fakeRow(ctx context.Context, tx pgx.Tx, sql string, args ...any) uuid.UUID {
+	var id uuid.UUID
+	if err := tx.QueryRow(ctx, sql, args...).Scan(&id); err != nil {
+		panic(err)
+	}
+	return id
+}
+
+func fakeClass(ctx context.Context, tx pgx.Tx, id uuid.UUID, branch *uuid.UUID) {
+	fakeRow(ctx, tx, `INSERT INTO academic.classes (id, code, name, branch_id, status) VALUES ($1, $2, 'IELTS', $3, 'active')
+		ON CONFLICT (id) DO UPDATE SET name = excluded.name RETURNING id`, id, "L-"+id.String()[:8], branch)
+}
 
 func (f *fakeStudents) CreateFromLead(ctx context.Context, tx pgx.Tx, _ *iam.Access, l LeadSnapshot, in CloseInput) (*ClosedStudent, error) {
 	f.n++
-	st := &ClosedStudent{StudentID: uuid.New(), StudentCode: fmt.Sprintf("HS%03d", f.n), StudentName: l.Name, ContractTotal: 6_000_000,
+	code := fmt.Sprintf("HS%03d", f.n)
+	sid := fakeRow(ctx, tx, `INSERT INTO academic.students (code, full_name, phone, branch_id, lead_id) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+		code, l.Name, l.Phone, l.BranchID, l.ID)
+	st := &ClosedStudent{StudentID: sid, StudentCode: code, StudentName: l.Name, ContractTotal: 6_000_000,
 		CourseName: "IELTS Foundation", BranchID: l.BranchID}
-	// Hồ sơ học viên thật (crm.leads.converted_student_id / enrollment_confirmations.student_id có khoá ngoại).
-	if _, err := tx.Exec(ctx, `INSERT INTO academic.students (id, code, full_name, phone, branch_id, lead_id) VALUES ($1, $2, $3, $4, $5, $6)`,
-		st.StudentID, st.StudentCode, l.Name, l.Phone, l.BranchID, l.ID); err != nil {
-		return nil, err
-	}
 	if in.ClassID != nil {
+		fakeClass(ctx, tx, *in.ClassID, l.BranchID)
 		st.ClassName = ptr("IELTS-01")
 		st.Enrollment = &Enrollment{StudentID: st.StudentID, StudentCode: st.StudentCode, StudentName: l.Name, ClassID: *in.ClassID,
 			ClassName: "IELTS-01", ClassBranchID: l.BranchID}
 	} else {
+		fakeRow(ctx, tx, `INSERT INTO academic.courses (id, code, name, tuition_fee, total_lessons) VALUES ($1, $2, 'IELTS Foundation', 6000000, 24)
+			RETURNING id`, *in.CourseID, "CS-"+in.CourseID.String()[:8])
 		st.CourseID = in.CourseID
 	}
 	return st, nil
 }
 
-func (f *fakeStudents) EnrollWaiting(_ context.Context, _ pgx.Tx, _ *iam.Access, l LeadSnapshot, studentID, classID uuid.UUID) (*Enrollment, error) {
+func (f *fakeStudents) EnrollWaiting(ctx context.Context, tx pgx.Tx, _ *iam.Access, l LeadSnapshot, studentID, classID uuid.UUID) (*Enrollment, error) {
+	fakeClass(ctx, tx, classID, l.BranchID)
 	return &Enrollment{StudentID: studentID, StudentCode: "HS-W", StudentName: l.Name, ClassID: classID, ClassName: "IELTS-02",
 		ClassBranchID: l.BranchID}, nil
 }

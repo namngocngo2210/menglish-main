@@ -65,8 +65,11 @@ func (s *Service) HolidayApplied(ctx context.Context, h catalogs.HolidayScope) (
 				return err
 			}
 			out.Cancelled++
-			// TODO(crm): hủy lịch hẹn học thử (trial bookings) đang hẹn vào buổi này —
-			// ghi chú "Hủy: buổi học thử trùng nghỉ lễ <tên>".
+			if err := q.CancelTrialBookingsForHoliday(ctx, classesdb.CancelTrialBookingsForHolidayParams{
+				SessionID: se.ID, Note: "Hủy: buổi học thử trùng nghỉ lễ " + h.Name,
+			}); err != nil {
+				return err
+			}
 			ok, err := s.scheduleMakeup(ctx, q, se, h)
 			if err != nil {
 				return err
@@ -119,7 +122,13 @@ func (s *Service) restoreUncovered(ctx context.Context, q *classesdb.Queries, h 
 			if deref(se.MakeupStatus) != "scheduled" || se.MakeupHasData {
 				continue
 			}
-			// TODO(crm): chuyển lịch hẹn học thử của buổi bù về buổi gốc được khôi phục.
+			// Khách hẹn học thử vào buổi bù chuyển về buổi gốc được khôi phục (xóa buổi bù sẽ xóa luôn lịch hẹn).
+			if err := q.DropReplacedTrialBookings(ctx, classesdb.DropReplacedTrialBookingsParams{ToSession: se.ID, FromSession: *se.MakeupID}); err != nil {
+				return 0, err
+			}
+			if err := q.MoveTrialBookings(ctx, classesdb.MoveTrialBookingsParams{ToSession: se.ID, FromSession: *se.MakeupID}); err != nil {
+				return 0, err
+			}
 			if err := q.DeleteSessions(ctx, []uuid.UUID{*se.MakeupID}); err != nil {
 				return 0, err
 			}

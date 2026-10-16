@@ -1140,6 +1140,18 @@ func (q *Queries) StockQuantity(ctx context.Context, arg StockQuantityParams) (i
 	return column_1, err
 }
 
+const studentExists = `-- name: StudentExists :one
+SELECT EXISTS (SELECT 1 FROM academic.students WHERE id = $1 AND deleted_at IS NULL)
+`
+
+// Học viên (chưa xóa) nhận hàng khi xuất kho tay.
+func (q *Queries) StudentExists(ctx context.Context, id uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, studentExists, id)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const takeUnallocated = `-- name: TakeUnallocated :exec
 UPDATE ops.inventory_items SET unallocated_quantity = unallocated_quantity - $2::int, updated_at = now()
 WHERE id = $1

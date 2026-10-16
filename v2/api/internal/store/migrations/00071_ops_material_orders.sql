@@ -8,7 +8,7 @@ CREATE TABLE ops.material_orders (
     -- OH-2026-0001
     code           text NOT NULL UNIQUE CHECK (code ~ '^OH-[0-9]{4}-[0-9]{4,}$'),
     branch_id      uuid NOT NULL REFERENCES core.branches (id),
-    class_id       uuid, -- FK tới academic.classes thêm khi gộp
+    class_id       uuid, -- FK tới academic.classes: 00081_academic_enrollments_attendance
     work_task_id   uuid, -- FK tới ops.work_tasks thêm khi gộp (order tạo từ đầu việc)
     requester_id   uuid NOT NULL REFERENCES iam.users (id),
     category       text NOT NULL CHECK (category IN ('props', 'printing', 'foreign_teacher', 'academic')),

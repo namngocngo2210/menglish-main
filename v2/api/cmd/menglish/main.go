@@ -118,26 +118,33 @@ func runAPI(ctx context.Context) error {
 	defer d.close()
 	cfg, log := d.cfg, d.log
 
+	catalogSvc := catalogs.NewService(d.pool, d.box, log)
+	studentSvc := students.NewService(d.pool, d.iam, log)
+	// Phân hệ Lớp học làm phần việc lớp cho Học viên, Danh mục (khóa / trình độ / phòng / nghỉ lễ / ca dạy) và Order học liệu.
+	cls := classes.NewService(d.pool, catalogSvc, log)
+	go cls.RunStartStudyingLoop(ctx, time.Hour)
 	auth := iam.NewHandler(d.iam, log).WithAddressSearch(geo.NewSearcher(d.rdb, log, cfg.PublicURL))
-	taskSvc := tasks.NewService(d.pool, log)
+	// Công việc: lớp / buổi học gắn vào việc và lớp trực trong ngày của trợ giảng lấy từ phân hệ Lớp học.
+	taskSvc := tasks.NewService(d.pool, log).WithClasses(cls.TaskClasses())
 	// Chuyển việc đã qua hạn sang "Quá hạn" (lệnh tasks:mark-overdue chạy theo lịch ở bản Laravel).
 	go taskSvc.RunOverdueLoop(ctx, 10*time.Minute)
 	// Kho hết / âm sau khi xuất → phân hệ Công việc giao Admin việc nhập bù.
 	inv := inventory.NewService(d.pool, log, inventory.DefaultConfig()).WithRestocker(taskSvc.Restocker())
 	go inv.RunOverdueLoop(ctx, 15*time.Minute)
-	crmSvc := crm.NewService(d.pool, d.iam, log)
-	// Leads: khách CRM. Sessions: lớp học nối vào khi gộp phân hệ lớp (hiện dùng bản rỗng).
-	place := placement.NewHandler(placement.NewService(d.pool, d.rdb, log, placement.Options{Leads: crmSvc.PlacementLeads()}), log)
-	catalogSvc := catalogs.NewService(d.pool, d.box, log)
-	studentSvc := students.NewService(d.pool, d.iam, log)
-	// Phân hệ Lớp học làm phần việc lớp cho Học viên, Danh mục (khóa / trình độ / phòng / nghỉ lễ / ca dạy) và Order học liệu.
-	cls := classes.NewService(d.pool, catalogSvc, log)
 	studentSvc.Classes, catalogSvc.Classes, inv.Classes = cls, cls, cls
-	go cls.RunStartStudyingLoop(ctx, time.Hour)
-	// Báo cáo: số liệu tuyển sinh từ CRM / test đầu vào, việc follow-up qua Công việc, ngày nghỉ từ danh mục.
-	// TODO(gộp): ClassDirectory và số liệu lớp học / học phí khi các phân hệ đó có ở v2.
+	// Chốt & Xếp lớp: Lớp học tạo hồ sơ học viên và ghi danh trong giao dịch của CRM; xếp lớp từ màn Học viên hoàn tất
+	// khách Chờ xếp lớp bên CRM.
+	crmSvc := crm.NewService(d.pool, d.iam, log).WithStudents(cls.CRMStudents(studentSvc))
+	cls.CRM = crmSvc
+	// Leads: khách CRM. Sessions: buổi học thật của phân hệ Lớp học cho học thử.
+	place := placement.NewHandler(placement.NewService(d.pool, d.rdb, log, placement.Options{
+		Leads: crmSvc.PlacementLeads(), Sessions: cls.PlacementSessions(),
+	}), log)
+	// Báo cáo: số liệu tuyển sinh từ CRM / test đầu vào, bọc thêm số liệu lớp / buổi / điểm danh của Lớp học; việc follow-up
+	// qua Công việc, ngày nghỉ từ danh mục. TODO(gộp): số liệu học phí khi phân hệ đó có ở v2.
 	reportSvc := reports.NewService(d.pool, log, reports.Deps{
-		Metrics: reports.NewMetrics(crmSvc.ReportSource()), Tasks: taskSvc.ReportTasks(), Calendar: catalogSvc.ReportCalendar(),
+		Metrics: cls.ReportMetrics(reports.NewMetrics(crmSvc.ReportSource()), d.iam.LoadAccess),
+		Classes: cls.ReportClasses(), Tasks: taskSvc.ReportTasks(), Calendar: catalogSvc.ReportCalendar(),
 	})
 	// Nhắc hạn báo cáo ngày / tháng và tổng hợp cho Admin (lệnh reports:remind-* / reports:daily-digest ở bản Laravel).
 	go reportSvc.RunReminderLoop(ctx, time.Minute)

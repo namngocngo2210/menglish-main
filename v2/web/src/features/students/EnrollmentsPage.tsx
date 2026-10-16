@@ -40,6 +40,16 @@ export function EnrollmentsPage({ me: _me }: { me: Me }) {
       />
       <div className="space-y-4">
         {notice && <Alert tone={notice.tone}>{notice.text}</Alert>}
+        {d && d.crm_waiting_count > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-error/20 bg-error-container/20 px-4 py-2 text-sm">
+            <span>
+              <strong className="text-error">{d.crm_waiting_count}</strong> khách chốt từ CRM đang chờ xếp lớp
+            </span>
+            <Button variant="secondary" className="h-8" onClick={() => navigate('/crm/waiting')}>
+              {d.can_assign ? 'Xếp lớp' : 'Xem danh sách'}
+            </Button>
+          </div>
+        )}
         {d?.can_assign && <AssignForm d={d} onDone={done} onError={fail} />}
         <Card title="Lượt xếp lớp">
           {list.isError && <Alert>{errorMessage(list.error)}</Alert>}

@@ -51,6 +51,8 @@ func (h *Handler) Routes(r chi.Router) {
 			r.With(iam.Require("lead.delete")).Post("/restore", h.restore)
 			r.With(iam.Require("lead.convert")).Post("/close", h.closeLead)
 			r.With(iam.Require("student.assign_class")).Post("/assign-class", h.assignClass)
+			r.With(iam.Require("lead.convert")).Get("/closing-options", h.closingChoices)
+			r.With(iam.Require("student.assign_class")).Get("/class-options", h.waitingChoices)
 		})
 		r.Group(func(r chi.Router) {
 			r.Use(iam.Require("lead.approve_transfer"))

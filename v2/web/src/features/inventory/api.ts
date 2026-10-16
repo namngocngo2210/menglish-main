@@ -153,6 +153,8 @@ export type OrderDetail = { order: Order; actions: { claim: boolean; complete: b
 export type OrderFormOptions = {
   categories: Option[]
   branches: Option[]
+  // Lớp mình thấy (phân hệ Lớp học), lọc theo chi nhánh đã chọn.
+  classes?: (Option & { branch_id: string })[]
   default_branch_id: string | null
   start_of_month_day: number
   day_before_cutoff: string
@@ -160,6 +162,7 @@ export type OrderFormOptions = {
 export type OrderInput = {
   category: string
   branch_id: string | null
+  class_id: string | null
   title: string
   description: string
   quantity: number | null

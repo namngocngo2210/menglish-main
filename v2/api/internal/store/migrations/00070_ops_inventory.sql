@@ -57,7 +57,7 @@ CREATE TABLE ops.stock_movements (
     counterpart_branch_id uuid REFERENCES core.branches (id),
     receipt_id            uuid, -- FK tới finance.receipts thêm khi gộp
     tuition_id            uuid, -- FK tới finance.tuitions thêm khi gộp
-    student_id            uuid, -- FK tới academic.students thêm khi gộp
+    student_id            uuid, -- FK tới academic.students: 00110_academic_links_fk
     -- Số chứng từ hiển thị (số phiếu thu...), ghi lúc xuất để không phụ thuộc module tài chính
     document_number       text CHECK (length(document_number) <= 50),
     note                  text CHECK (length(note) <= 500),

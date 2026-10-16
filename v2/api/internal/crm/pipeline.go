@@ -136,7 +136,7 @@ type WaitingRow struct {
 	FeePaid     bool       `json:"fee_paid_at_closing"`
 }
 
-// Waiting: danh sách Chờ xếp lớp (cũ nhất trước). Gợi ý lớp phù hợp cần phân hệ lớp học (TODO(merge)).
+// Waiting: danh sách Chờ xếp lớp (cũ nhất trước). Lớp gợi ý của từng khách: WaitingChoices (GET …/class-options).
 func (s *Service) Waiting(ctx context.Context, a *iam.Access) ([]WaitingRow, ChipCounts, error) {
 	sc := scopeOf(a)
 	rows, err := s.q.WaitingLeads(ctx, crmdb.WaitingLeadsParams{ScopeOwner: sc.owner, ScopeBranches: sc.branches})

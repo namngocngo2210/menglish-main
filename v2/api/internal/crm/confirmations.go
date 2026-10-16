@@ -81,6 +81,10 @@ func (s *Service) ListConfirmations(ctx context.Context, a *iam.Access, f Confir
 		return nil, err
 	}
 	now := s.now()
+	starts, err := s.classStarts(ctx, rows)
+	if err != nil {
+		return nil, err
+	}
 	out := &ConfirmationList{
 		Page: Page[ConfirmationRow]{Data: make([]ConfirmationRow, 0, len(rows)), Meta: Meta{Page: page, PerPage: per}}, Status: status,
 		FilterClasses: []Option{}, FilterBranches: []Option{},
@@ -99,8 +103,11 @@ func (s *Service) ListConfirmations(ctx context.Context, a *iam.Access, f Confir
 		if r.LeadConvertedAt != nil {
 			row.ClosedAt = *r.LeadConvertedAt
 		}
-		// TODO(merge): trạng thái khai giảng lấy từ phân hệ lớp học; tạm theo ngày khai giảng chép lúc ghi danh.
+		// Trạng thái khai giảng theo phân hệ lớp học; chưa gắn thì theo ngày khai giảng chép lúc ghi danh.
+		st, ok := starts[r.ClassID]
 		switch {
+		case ok:
+			row.StartLabel = st.label()
 		case r.ClassStartDate != nil && r.ClassStartDate.After(now):
 			row.StartLabel = "Sắp khai giảng " + r.ClassStartDate.Format("02/01/2006")
 		case r.ClassStartDate != nil:

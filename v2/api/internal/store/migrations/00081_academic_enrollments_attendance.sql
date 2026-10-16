@@ -6,7 +6,7 @@ CREATE TABLE academic.enrollments (
     id                   uuid PRIMARY KEY DEFAULT uuidv7(),
     student_id           uuid NOT NULL REFERENCES academic.students (id) ON DELETE CASCADE,
     class_id             uuid NOT NULL REFERENCES academic.classes (id) ON DELETE CASCADE,
-    lead_id              uuid, -- FK tới crm.leads thêm khi gộp (lượt xếp lớp từ CRM)
+    lead_id              uuid, -- FK tới crm.leads: 00110_academic_links_fk (lượt xếp lớp từ CRM)
     enrolled_at          date NOT NULL,
     -- Ngày rời lớp (chuyển lớp chính / thôi học): từ ngày này không còn trong danh sách lớp, không trừ buổi
     left_at              date,

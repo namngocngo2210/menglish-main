@@ -389,6 +389,28 @@ func TestForeignTeacherAndDelete(t *testing.T) {
 	if n != 2 {
 		t.Fatalf("buổi có GVNN: %d", n)
 	}
+	var title, body, link string
+	if err := e.pg.QueryRow(context.Background(), "SELECT title, body, link FROM core.notifications WHERE user_id = $1 AND type = 'class_assigned'", nn.id).
+		Scan(&title, &body, &link); err != nil {
+		t.Fatal(err)
+	}
+	if title != "Bạn được xếp dạy GVNN lớp NN" || body != "2 buổi lớp Lớp GVNN: 21/10, 28/10." || link != "/classes/"+id.String()+"?tab=schedule" {
+		t.Fatalf("thông báo GVNN: %q %q %q", title, body, link)
+	}
+	var logs []string
+	rows, err := e.pg.Query(context.Background(), "SELECT action || ': ' || description FROM core.audit_log WHERE subject_type = 'class' AND subject_id = $1 ORDER BY created_at, id", id.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for rows.Next() {
+		var l string
+		_ = rows.Scan(&l)
+		logs = append(logs, l)
+	}
+	rows.Close()
+	if len(logs) != 2 || logs[0] != `class.create: Tạo mới lớp học "Lớp GVNN"` || logs[1] != `class.foreign_teacher: Gán GVNN cho 2 buổi lớp "Lớp GVNN"` {
+		t.Fatalf("nhật ký lớp: %v", logs)
+	}
 	// GVNN thấy lớp qua buổi được gán
 	expect(t, e.as(nn).do("GET", "/classes/"+id.String(), nil), 200, "")
 	expectMessage(t, admin.do("POST", path, map[string]any{"foreign_teacher_id": "none", "session_ids": []uuid.UUID{s1}}), 200, "Đã gỡ GVNN khỏi 1 buổi.")
@@ -398,6 +420,10 @@ func TestForeignTeacherAndDelete(t *testing.T) {
 		"Không thể xóa lớp 'Lớp GVNN' (NN) vì còn 0 học viên đang xếp lớp và 8 buổi học chưa diễn ra. Hãy chuyển lớp sang trạng thái Đã hủy thay vì xóa.")
 	empty := e.newClass(admin, map[string]any{"name": "Lớp trống", "code": "TRONG", "branch_id": a})
 	expectMessage(t, admin.do("DELETE", "/classes/"+empty.String(), nil), 200, "Đã xóa lớp học 'Lớp trống' (TRONG) thành công.")
+	e.scalar(&n, "SELECT count(*) FROM core.audit_log WHERE subject_type = 'class' AND subject_id = $1 AND event = 'deleted'", empty.String())
+	if n != 1 {
+		t.Fatalf("nhật ký xóa lớp: %d", n)
+	}
 	expect(t, admin.do("GET", "/classes/"+empty.String(), nil), 404, "class_not_found")
 }
 

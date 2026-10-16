@@ -475,8 +475,10 @@ function ReassignDialog({ d, onClose, onDone }: { d: LeadDetail; onClose: () => 
   )
 }
 
-// Chốt & Xếp lớp. Lớp / khóa / ưu đãi chọn theo mã (danh mục lớp, khóa của hệ thống mới chưa gộp).
+// Chốt & Xếp lớp: chọn lớp (cùng cơ sở, còn chỗ) để xếp ngay, hoặc khóa học để xếp lớp sau; ưu đãi trong danh mục.
 function CloseDialog({ d, onClose, onDone }: { d: LeadDetail; onClose: () => void; onDone: (m: string) => void }) {
+  const choices = useQuery({ queryKey: ['crm', 'closing-options', d.id], queryFn: () => crmApi.closingChoices(d.id) })
+  const c = choices.data
   const [f, setF] = useState({
     class_id: '',
     course_id: '',
@@ -514,9 +516,33 @@ function CloseDialog({ d, onClose, onDone }: { d: LeadDetail; onClose: () => voi
           m.mutate()
         }}
       >
-        <Field label="Mã lớp (xếp lớp ngay)" value={f.class_id} onChange={set('class_id')} />
-        <Field label="Mã khóa học (xếp lớp sau)" value={f.course_id} onChange={set('course_id')} />
-        <Field label="Mã ưu đãi" value={f.promotion_id} onChange={set('promotion_id')} />
+        {choices.isError && <Alert>{errorMessage(choices.error)}</Alert>}
+        <Select label="Lớp (xếp lớp ngay)" value={f.class_id} onChange={(e) => setF({ ...f, class_id: e.target.value, course_id: '' })}>
+          <option value="">— Chưa xếp lớp —</option>
+          {c?.classes.map((x) => (
+            <option key={x.id} value={x.id}>
+              {x.label}
+            </option>
+          ))}
+        </Select>
+        {!f.class_id && (
+          <Select label="Khóa học (xếp lớp sau)" value={f.course_id} onChange={set('course_id')}>
+            <option value="">— Chọn khóa học —</option>
+            {c?.courses.map((x) => (
+              <option key={x.id} value={x.id}>
+                {x.label} · {formatMoney(x.fee)}
+              </option>
+            ))}
+          </Select>
+        )}
+        <Select label="Ưu đãi" value={f.promotion_id} onChange={set('promotion_id')}>
+          <option value="">— Không áp dụng —</option>
+          {c?.promotions.map((x) => (
+            <option key={x.value} value={x.value}>
+              {x.label}
+            </option>
+          ))}
+        </Select>
         <Field label="Mã học viên (để trống: tự sinh)" value={f.student_code} onChange={set('student_code')} />
         <Checkbox
           label="Đã đóng học phí đăng ký"
@@ -549,8 +575,10 @@ function CloseDialog({ d, onClose, onDone }: { d: LeadDetail; onClose: () => voi
   )
 }
 
+// Xếp lớp khách Chờ xếp lớp: lớp gợi ý đúng khóa / cấp độ và cơ sở đã chốt, còn chỗ (lớp đúng khóa lên đầu).
 function PlaceDialog({ d, onClose, onDone }: { d: LeadDetail; onClose: () => void; onDone: (m: string) => void }) {
   const [classId, setClassId] = useState('')
+  const choices = useQuery({ queryKey: ['crm', 'class-options', d.id], queryFn: () => crmApi.classChoices(d.id) })
   const m = useMutation({ mutationFn: () => crmApi.assignClass(d.id, classId), onSuccess: (r) => (onDone(r.message), onClose()) })
   return (
     <Dialog title={`Xếp lớp cho ${d.name}`} onClose={onClose}>
@@ -561,7 +589,18 @@ function PlaceDialog({ d, onClose, onDone }: { d: LeadDetail; onClose: () => voi
           m.mutate()
         }}
       >
-        <Field label="Mã lớp" value={classId} onChange={(e) => setClassId(e.target.value)} required />
+        {choices.isError && <Alert>{errorMessage(choices.error)}</Alert>}
+        {choices.data && choices.data.classes.length === 0 && (
+          <Alert tone="info">Chưa có lớp phù hợp (đúng khóa / cấp độ, cơ sở đã chốt, còn chỗ).</Alert>
+        )}
+        <Select label="Lớp" value={classId} onChange={(e) => setClassId(e.target.value)} required>
+          <option value="">— Chọn lớp —</option>
+          {choices.data?.classes.map((x) => (
+            <option key={x.id} value={x.id}>
+              {x.label}
+            </option>
+          ))}
+        </Select>
         {m.isError && <Alert>{errorMessage(m.error)}</Alert>}
         <div className="flex justify-end gap-2">
           <Button type="button" variant="secondary" onClick={onClose}>

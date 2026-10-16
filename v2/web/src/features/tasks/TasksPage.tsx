@@ -181,9 +181,9 @@ function TaskListPage({ me }: { me: Me }) {
                         {t.title}
                       </a>
                       {t.description && <p className="line-clamp-1 text-xs text-on-surface-variant">{t.description}</p>}
-                      {(t.lesson_session || t.slot_label) && (
+                      {(t.class_label || t.lesson_session || t.slot_label) && (
                         <div className="mt-1 flex flex-wrap gap-1">
-                          {t.lesson_session && <Chip tone="primary">{t.lesson_session}</Chip>}
+                          {(t.class_label || t.lesson_session) && <Chip tone="primary">{t.class_label ?? t.lesson_session}</Chip>}
                           {t.slot_label && <Chip>{t.slot_label}</Chip>}
                         </div>
                       )}
@@ -335,7 +335,8 @@ export function TaskDetail({ id, onDone }: { id: string; onDone: (message: strin
         <Row label="Hạn hoàn thành" value={formatDate(t.due_date) + (t.due_time ? ` · ${t.due_time}` : '')} />
         <Row label="Loại" value={t.type_label} />
         <Row label="Chi nhánh" value={t.branch ?? '—'} />
-        {t.lesson_session && <Row label="Buổi học" value={t.lesson_session} />}
+        {t.class_label && <Row label="Lớp" value={t.class_label} />}
+        {!t.class_label && t.lesson_session && <Row label="Buổi học" value={t.lesson_session} />}
         {t.confirmed_by && <Row label="Xác nhận bởi" value={`${t.confirmed_by}${t.confirmed_at ? ' · ' + formatDateTime(t.confirmed_at) : ''}`} />}
       </dl>
       {t.description && (

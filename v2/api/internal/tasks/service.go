@@ -39,6 +39,8 @@ type Service struct {
 	q    *tasksdb.Queries
 	log  *slog.Logger
 	now  func() time.Time
+	// classes: phân hệ Lớp học (WithClasses); nil khi chưa gắn.
+	classes Classes
 }
 
 func NewService(pool *pgxpool.Pool, log *slog.Logger) *Service {
@@ -75,6 +77,7 @@ type Task struct {
 	TypeLabel      string       `json:"type_label"`
 	Kind           *string      `json:"kind"`
 	ClassID        *uuid.UUID   `json:"class_id"`
+	ClassLabel     *string      `json:"class_label"`
 	LessonSession  *string      `json:"lesson_session"`
 	SlotLabel      *string      `json:"slot_label"`
 	BlockedReason  *string      `json:"blocked_reason"`
@@ -254,6 +257,9 @@ func (s *Service) List(ctx context.Context, a *iam.Access, f ListFilter) (ListRe
 		out.Total = r.Total
 		out.Tasks = append(out.Tasks, s.toTask(r.OpsWorkTask, r.AssigneeName, r.CreatorName, r.HandedBackFromName, a))
 	}
+	if err := s.fillClassLabels(ctx, out.Tasks); err != nil {
+		return ListResult{}, err
+	}
 	if len(rows) == 0 && page > 1 {
 		// Trang vượt quá: vẫn trả tổng số để giao diện quay về trang cuối.
 		p.Lim, p.Off = 1, 0
@@ -312,7 +318,11 @@ func (s *Service) Get(ctx context.Context, a *iam.Access, id uuid.UUID) (Task, e
 	out.ConfirmedBy, out.ConfirmedAt, out.CompletedAt = r.ConfirmedByName, t.ConfirmedAt, t.CompletedAt
 	out.RejectionReason, out.CompletionNote, out.CompletionProof = t.RejectionReason, t.CompletionNote, t.CompletionProofUrl
 	out.TimeSlotCategory = t.TimeSlotCategory
-	return out, nil
+	one := []Task{out}
+	if err := s.fillClassLabels(ctx, one); err != nil {
+		return Task{}, err
+	}
+	return one[0], nil
 }
 
 // ───── Giao việc ─────
@@ -327,6 +337,7 @@ type CreateInput struct {
 	TaskType         string `json:"task_type"`
 	Frequency        string `json:"frequency"`
 	BranchID         string `json:"branch_id"`
+	ClassID          string `json:"class_id"`
 	TimeSlotCategory string `json:"time_slot_category"`
 }
 
@@ -334,6 +345,7 @@ type CreateOptions struct {
 	Title          string   `json:"title"`
 	Users          []Option `json:"users"`
 	Branches       []Option `json:"branches"`
+	Classes        []Option `json:"classes"`
 	DefaultDueDate string   `json:"default_due_date"`
 	CanTAAssign    bool     `json:"can_ta_assign"`
 }
@@ -370,6 +382,7 @@ func (s *Service) CreateOptions(ctx context.Context, a *iam.Access) (CreateOptio
 		Title:          "Giao việc mới",
 		Users:          []Option{},
 		Branches:       []Option{},
+		Classes:        []Option{},
 		DefaultDueDate: dateOnly(s.now()).AddDate(0, 0, 2).Format(time.DateOnly),
 		CanTAAssign:    a.Can("work_task.assign"),
 	}
@@ -389,6 +402,10 @@ func (s *Service) CreateOptions(ctx context.Context, a *iam.Access) (CreateOptio
 	}
 	for _, b := range branches {
 		out.Branches = append(out.Branches, Option{b.ID, b.Name})
+	}
+	// Lớp gắn được: lớp mình thấy, đang học — "Tên (Mã)".
+	if out.Classes, err = s.classOptions(ctx, a, []string{"active"}, false); err != nil {
+		return out, err
 	}
 	return out, nil
 }
@@ -461,6 +478,13 @@ func (in *CreateInput) validate() (tasksdb.InsertTaskParams, uuid.UUID, error) {
 		}
 		p.BranchID = &id
 	}
+	if c := strings.TrimSpace(in.ClassID); c != "" {
+		id, err := uuid.Parse(c)
+		if err != nil {
+			return p, uuid.Nil, iam.Invalid("Lớp học đã chọn không tồn tại.")
+		}
+		p.ClassID = &id
+	}
 	return p, assignee, nil
 }
 
@@ -477,6 +501,11 @@ func (s *Service) Create(ctx context.Context, a *iam.Access, in CreateInput) (Ta
 		if _, err := s.q.GetActiveBranch(ctx, *p.BranchID); errors.Is(err, pgx.ErrNoRows) {
 			return Task{}, iam.Invalid("Chi nhánh đã chọn không tồn tại.")
 		} else if err != nil {
+			return Task{}, err
+		}
+	}
+	if p.ClassID != nil {
+		if err := s.checkClassExists(ctx, *p.ClassID); err != nil {
 			return Task{}, err
 		}
 	}

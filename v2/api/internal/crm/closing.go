@@ -32,6 +32,11 @@ type LeadSnapshot struct {
 	School      *string
 	BranchID    *uuid.UUID
 	AssignedTo  *uuid.UUID
+	// Mục tiêu / điểm test chép sang hồ sơ học viên; khóa / cơ sở đã chốt của khách Chờ xếp lớp
+	CourseInterest  *string
+	TestScore       *string
+	WaitingCourseID *uuid.UUID
+	WaitingBranchID *uuid.UUID
 }
 
 // CloseInput: form Chốt & Xếp lớp.
@@ -76,7 +81,8 @@ func snapshot(l crmdb.CrmLead) LeadSnapshot {
 	return LeadSnapshot{
 		ID: l.ID, Code: l.Code, Name: l.Name, Phone: l.Phone, ParentName: l.ParentName, ParentPhone: l.ParentPhone,
 		Email: l.Email, Dob: l.Dob, Gender: l.Gender, Address: l.Address, School: l.School, BranchID: l.BranchID,
-		AssignedTo: l.AssignedUserID,
+		AssignedTo: l.AssignedUserID, CourseInterest: l.CourseInterest, TestScore: l.TestScore,
+		WaitingCourseID: l.WaitingCourseID, WaitingBranchID: l.WaitingBranchID,
 	}
 }
 
@@ -98,7 +104,7 @@ func (s *Service) Close(ctx context.Context, a *iam.Access, idOrCode string, in 
 		return nil, iam.Invalid("Vui lòng chọn phương thức thanh toán.")
 	}
 	if s.students == nil {
-		// TODO(merge): gọi students.Service.Create (tạo hồ sơ học viên, tài khoản, học phí, phiếu thu, ghi danh).
+		// Chưa gắn phân hệ học viên / lớp học (cmd/menglish gắn classes.CRMStudents).
 		return nil, errStudentsNotReady
 	}
 	var out *Saved
@@ -125,7 +131,8 @@ func (s *Service) Close(ctx context.Context, a *iam.Access, idOrCode string, in 
 			if err != nil {
 				return iam.Invalid("Ưu đãi không hợp lệ.")
 			}
-			if !promotionApplicable(p, l.BranchID, in.CourseID, s.now()) && !(p.IsSpecial && p.UsedCount == 0) {
+			// Chọn lớp: khóa / cơ sở theo lớp nên StudentCreator kiểm ưu đãi (PromotionApplicable) khi tính học phí.
+			if in.ClassID == nil && !PromotionApplicable(p, l.BranchID, in.CourseID, s.now()) && !(p.IsSpecial && p.UsedCount == 0) {
 				return iam.Invalid("Ưu đãi đã hết hiệu lực hoặc không áp dụng cho cơ sở / khóa này.")
 			}
 			promo = &p
@@ -189,7 +196,6 @@ func (s *Service) AssignClass(ctx context.Context, a *iam.Access, idOrCode strin
 		return nil, iam.Invalid("Vui lòng chọn lớp.")
 	}
 	if s.students == nil {
-		// TODO(merge): gọi phân hệ lớp học xếp lớp (ghi danh) cho học viên.
 		return nil, errStudentsNotReady
 	}
 	var out *Saved

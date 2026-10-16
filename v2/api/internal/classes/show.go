@@ -3,6 +3,7 @@ package classes
 import (
 	"context"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -135,7 +136,7 @@ type ClassPage struct {
 
 	// Tab Tổng quan
 	UpcomingForeignTeachers []string `json:"upcoming_foreign_teachers,omitempty"`
-	// TODO(tasks): trợ giảng 7 ngày tới = người được giao việc (ops.work_tasks) gắn lớp.
+	// Trợ giảng 7 ngày tới = người được giao việc (ops.work_tasks) gắn lớp có hạn trong 7 ngày.
 	UpcomingAssistants []string `json:"upcoming_assistants,omitempty"`
 	// Tab Học viên
 	Students []RosterStudent `json:"students,omitempty"`
@@ -202,7 +203,11 @@ func (s *Service) Show(ctx context.Context, actor *iam.Access, id uuid.UUID, tab
 		if err != nil {
 			return nil, err
 		}
-		page.UpcomingForeignTeachers, page.UpcomingAssistants = nonNil(names), []string{}
+		assistants, err := s.q.UpcomingTaskAssistants(ctx, classesdb.UpcomingTaskAssistantsParams{ClassID: &id, Today: today})
+		if err != nil {
+			return nil, err
+		}
+		page.UpcomingForeignTeachers, page.UpcomingAssistants = nonNil(names), nonNil(assistants)
 	case "students":
 		rows, err := s.q.RosterStudents(ctx, &id)
 		if err != nil {
@@ -228,7 +233,16 @@ func (s *Service) Show(ctx context.Context, actor *iam.Access, id uuid.UUID, tab
 			return nil, err
 		}
 		if tab == "schedule" {
-			s.fillSchedule(page, c, rows, today)
+			byDay, err := s.q.ClassTaskAssistants(ctx, &id)
+			if err != nil {
+				return nil, err
+			}
+			assistants := map[string][]string{}
+			for _, r := range byDay {
+				k := r.Day.Format(time.DateOnly)
+				assistants[k] = append(assistants[k], r.FullName)
+			}
+			s.fillSchedule(page, c, rows, today, assistants)
 			if page.CanManage && slices.ContainsFunc(page.Sessions, func(r SessionRow) bool { return r.Editable }) {
 				if page.ForeignTeacherOptions, err = s.staffOptions(ctx, "class.teach", false); err != nil {
 					return nil, err
@@ -243,7 +257,8 @@ func (s *Service) Show(ctx context.Context, actor *iam.Access, id uuid.UUID, tab
 	return page, nil
 }
 
-func (s *Service) fillSchedule(page *ClassPage, c classesdb.GetClassRow, rows []classesdb.ClassSessionsRow, today time.Time) {
+// taskAssistants: người được giao việc gắn lớp theo ngày hạn (trợ giảng không cố định theo lớp).
+func (s *Service) fillSchedule(page *ClassPage, c classesdb.GetClassRow, rows []classesdb.ClassSessionsRow, today time.Time, taskAssistants map[string][]string) {
 	page.Sessions = make([]SessionRow, 0, len(rows))
 	for _, r := range rows {
 		room := deref(r.Room)
@@ -258,10 +273,14 @@ func (s *Service) fillSchedule(page *ClassPage, c classesdb.GetClassRow, rows []
 		if r.TeacherID != nil && !sameID(r.TeacherID, r.ForeignTeacherID) && r.TeacherName != nil {
 			teacher = *r.TeacherName
 		}
-		// TODO(tasks): trợ giảng của buổi = người được giao việc gắn lớp trong ngày (ops.work_tasks).
+		// Trợ giảng của buổi = người được giao việc gắn lớp trong ngày; dữ liệu cũ vẫn đọc trợ giảng của buổi.
+		names := slices.Clone(taskAssistants[r.Date.Format(time.DateOnly)])
+		if r.AssistantName != nil && !slices.Contains(names, *r.AssistantName) {
+			names = append(names, *r.AssistantName)
+		}
 		assistants := "—"
-		if r.AssistantName != nil {
-			assistants = *r.AssistantName
+		if len(names) > 0 {
+			assistants = strings.Join(names, ", ")
 		}
 		page.Sessions = append(page.Sessions, SessionRow{
 			ID: r.ID, Date: r.Date.Format(time.DateOnly), Weekday: int(r.Date.Weekday()), Start: r.StartTime, End: r.EndTime,

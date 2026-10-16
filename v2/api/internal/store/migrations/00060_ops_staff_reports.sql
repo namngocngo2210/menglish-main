@@ -12,7 +12,7 @@ CREATE TABLE ops.staff_reports (
     id                   uuid PRIMARY KEY DEFAULT uuidv7(),
     -- Người viết (nhật ký: người có sự việc; Admin / Quản lý ghi hộ thì created_by là người ghi)
     user_id              uuid NOT NULL REFERENCES iam.users (id) ON DELETE CASCADE,
-    class_id             uuid, -- FK tới academic.classes thêm khi gộp
+    class_id             uuid, -- FK tới academic.classes: 00110_academic_links_fk
     type                 text NOT NULL CHECK (type IN ('journal', 'daily', 'weekly', 'monthly', 'quarterly')),
     kind                 text CHECK (kind IN ('daily_ops', 'weekly_kpi', 'academic_weekly', 'academic_monthly',
                                               'academic_quarterly', 'teacher_monthly', 'teacher_attendance')),

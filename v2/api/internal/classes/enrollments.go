@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/classes/classesdb"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/crm"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 )
 
@@ -100,8 +101,8 @@ type EnrollmentList struct {
 	Classes     []EnrollClassOption `json:"classes"`
 	Students    []StudentOption     `json:"students"`
 	CanAssign   bool                `json:"can_assign"`
-	// TODO(crm): luật xếp lớp theo khóa / chi nhánh đã chốt của khách Chờ xếp lớp (WaitingLeadPlacement,
-	// PlacementLevelMatcher) và số khách Chờ xếp lớp bên CRM.
+	// Số khách Chờ xếp lớp bên CRM (người có quyền xem khách). Gợi ý lớp theo khóa / cấp độ đã chốt
+	// (placementRules của Laravel) chưa làm: chọn sai lớp thì Enroll báo lỗi.
 	CrmWaitingCount int64 `json:"crm_waiting_count"`
 }
 
@@ -165,6 +166,11 @@ func (s *Service) Enrollments(ctx context.Context, actor *iam.Access, f Enrollme
 	out.Students = make([]StudentOption, 0, len(sts))
 	for _, st := range sts {
 		out.Students = append(out.Students, StudentOption{Value: st.ID, Label: fmt.Sprintf("%s (%s)", st.FullName, st.Code), BranchID: st.BranchID, Branch: st.BranchName})
+	}
+	if s.CRM != nil {
+		if out.CrmWaitingCount, err = s.CRM.WaitingCount(ctx, actor); err != nil {
+			return nil, err
+		}
 	}
 	return out, nil
 }
@@ -255,7 +261,7 @@ func (s *Service) Enroll(ctx context.Context, actor *iam.Access, in EnrollInput,
 	}
 	today := s.today()
 	var studentName string
-	err = s.tx(ctx, func(_ pgx.Tx, q *classesdb.Queries) error {
+	err = s.tx(ctx, func(tx pgx.Tx, q *classesdb.Queries) error {
 		st, err := q.LockStudent(ctx, *in.StudentID)
 		if isNoRows(err) {
 			return &iam.Error{Status: 404, Code: "student_not_found", Message: "Không tìm thấy học viên."}
@@ -267,15 +273,42 @@ func (s *Service) Enroll(ctx context.Context, actor *iam.Access, in EnrollInput,
 		if err := joinCheck(ctx, q, st, class.ID, class.BranchID); err != nil {
 			return err
 		}
-		// TODO(crm): học viên chốt từ CRM đang Chờ xếp lớp — kiểm khóa / chi nhánh đã chốt và hoàn tất lead
-		// (WaitingLeadPlacement::complete: lead → Đã chốt, học phí gắn lớp).
+		// Học viên chốt từ CRM đang Chờ xếp lớp: lớp phải đúng khóa / chi nhánh đã chốt (WaitingLeadPlacement).
+		lead, err := s.waitingLead(ctx, tx, q, st.ID)
+		if err != nil {
+			return err
+		}
+		if lead != nil {
+			c, err := q.LockClassForClosing(ctx, class.ID)
+			if err != nil {
+				return err
+			}
+			if err := checkWaitingPlacement(ctx, q, *lead, c); err != nil {
+				return err
+			}
+		}
 		if err := seatCheck(ctx, q, class.ID); err != nil {
 			return err
 		}
-		if _, err := q.CreateEnrollment(ctx, classesdb.CreateEnrollmentParams{
-			StudentID: st.ID, ClassID: class.ID, EnrolledAt: today, CreatedBy: &actor.UserID,
-		}); err != nil {
+		var leadID *uuid.UUID
+		if lead != nil {
+			leadID = &lead.ID
+		}
+		eid, err := q.CreateLeadEnrollment(ctx, classesdb.CreateLeadEnrollmentParams{
+			StudentID: st.ID, ClassID: class.ID, LeadID: leadID, EnrolledAt: today, CreatedBy: &actor.UserID,
+		})
+		if err != nil {
 			return err
+		}
+		if lead != nil {
+			// Lead → Đã chốt, lượt ghi danh vào hàng xác nhận chính thức (học phí gắn lớp: chờ phân hệ Học phí).
+			code := class.Code
+			if err := s.CRM.CompleteWaiting(ctx, tx, actor, lead.ID, crm.Enrollment{
+				EnrollmentID: &eid, StudentID: st.ID, StudentCode: st.Code, StudentName: st.FullName, ClassID: class.ID,
+				ClassName: class.Name, ClassCode: &code, ClassBranchID: &class.BranchID, ClassStartDate: class.StartDate,
+			}); err != nil {
+				return err
+			}
 		}
 		if main {
 			// Đổi lớp chính (chuyển lớp): lượt ở lớp chính cũ hết hiệu lực từ hôm nay.

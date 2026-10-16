@@ -1,11 +1,12 @@
 // Nhiệm vụ hôm nay của TA (portal.ta-tasks): việc trợ giảng theo 3 ca, tiến độ trong ngày, báo hoàn thành kèm ảnh minh chứng.
-// Có ảnh minh chứng → hoàn thành ngay; không có → chờ Admin xác nhận. Lớp trực / báo cáo buổi học: chờ module lớp.
+// Có ảnh minh chứng → hoàn thành ngay; không có → chờ Admin xác nhận. Lớp trực: buổi mình được gán + buổi của lớp có
+// việc giao trong ngày. Báo cáo trực lớp: chờ chuyển màn báo cáo buổi học.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { errorMessage, type Me } from '../../api'
 import { Alert, Button, Card, Dialog, Field, Select } from '../../components/ui'
 import { tasksApi, type SlotKey, type TACard } from './api'
-import { PageHeader, StatusBadge, TextArea } from './components'
+import { Chip, PageHeader, StatusBadge, TextArea } from './components'
 import { formatDate, formatDateTime, percent } from './logic'
 
 const COMPLETABLE = ['new', 'in_progress', 'overdue']
@@ -101,8 +102,29 @@ export function TAPortalPage(_: { me: Me }) {
       </div>
 
       <div className="mt-4">
-        <Card title="Lớp trực trong ngày">
-          <p className="text-sm text-on-surface-variant">Danh sách buổi học và báo cáo trực lớp sẽ hiển thị khi module lớp học được gộp.</p>
+        <Card title={`Lớp trực ${p.is_today ? 'hôm nay' : 'ngày ' + formatDate(p.date)}`}>
+          {p.sessions.length === 0 ? (
+            <p className="text-sm italic text-on-surface-variant">Không có buổi học nào trong ngày.</p>
+          ) : (
+            <ul className="space-y-2">
+              {p.sessions.map((s) => (
+                <li key={s.id} className="flex items-center justify-between gap-2 rounded-lg border border-outline-variant p-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{s.class_name}</p>
+                    <p className="text-xs text-on-surface-variant">
+                      <span className="tabular-nums">
+                        {s.start} - {s.end}
+                      </span>
+                      {' · '}
+                      {s.room || 'Chưa có phòng'}
+                      {s.branch && ` · ${s.branch}`}
+                    </p>
+                  </div>
+                  {s.makeup && <Chip>Học bù</Chip>}
+                </li>
+              ))}
+            </ul>
+          )}
         </Card>
       </div>
 
