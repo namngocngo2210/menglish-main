@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/tasks"
 )
 
 // publicRoutes: route không cần quyền (đăng nhập và tự quản lý tài khoản của chính mình; đã có RequireAuth).
@@ -47,7 +48,7 @@ func unguarded(t *testing.T, r chi.Routes) ([]string, int) {
 // Thêm module mới mà quên gắn quyền thì test này đỏ.
 func TestEveryRouteHasPermission(t *testing.T) {
 	r := chi.NewRouter()
-	apiRoutes(iam.NewHandler(nil, nil))(r)
+	apiRoutes(iam.NewHandler(nil, nil), tasks.NewHandler(nil, nil).Routes)(r)
 	bad, count := unguarded(t, r)
 	for _, b := range bad {
 		t.Errorf("%s không gắn iam.Require / iam.RequireAny", b)

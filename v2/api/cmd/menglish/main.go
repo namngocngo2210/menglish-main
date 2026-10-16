@@ -21,6 +21,7 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/secretbox"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/server"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/store"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/tasks"
 )
 
 // Gắn lúc build: -ldflags "-X main.version=<commit>".
@@ -104,6 +105,9 @@ func runAPI(ctx context.Context) error {
 	cfg, log := d.cfg, d.log
 
 	auth := iam.NewHandler(d.iam, log).WithAddressSearch(geo.NewSearcher(d.rdb, log, cfg.PublicURL))
+	taskSvc := tasks.NewService(d.pool, log)
+	// Chuyển việc đã qua hạn sang "Quá hạn" (lệnh tasks:mark-overdue chạy theo lịch ở bản Laravel).
+	go taskSvc.RunOverdueLoop(ctx, 10*time.Minute)
 	checks := map[string]server.Pinger{
 		"postgres": d.pool,
 		"redis":    server.PingFunc(func(ctx context.Context) error { return d.rdb.Ping(ctx).Err() }),
@@ -112,7 +116,7 @@ func runAPI(ctx context.Context) error {
 		Addr: cfg.HTTPAddr,
 		Handler: server.New(server.Deps{
 			Log: log, Version: version, Env: cfg.Env, Checks: checks,
-			API: apiRoutes(auth),
+			API: apiRoutes(auth, tasks.NewHandler(taskSvc, log).Routes),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       60 * time.Second,

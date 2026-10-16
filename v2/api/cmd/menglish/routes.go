@@ -8,10 +8,14 @@ import (
 
 // apiRoutes gắn mọi module vào /api/v1. Route nghiệp vụ phải gắn iam.Require / iam.RequireAny
 // (TestEveryRouteHasPermission); chỉ các route đăng nhập trong publicRoutes được miễn.
-func apiRoutes(auth *iam.Handler) func(chi.Router) {
+// modules: hàm Routes của từng module nghiệp vụ (tasks, ...).
+func apiRoutes(auth *iam.Handler, modules ...func(chi.Router)) func(chi.Router) {
 	return func(r chi.Router) {
 		r.Use(iam.SameOrigin, auth.LoadSession)
 		auth.Routes(r)
 		auth.AdminRoutes(r)
+		for _, m := range modules {
+			m(r)
+		}
 	}
 }
