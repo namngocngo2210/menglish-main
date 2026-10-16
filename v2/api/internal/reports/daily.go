@@ -227,6 +227,9 @@ func (s *Service) Daily(ctx context.Context, a *iam.Access, dateParam string, re
 			return nil, err
 		}
 	}
+	if f.Tasks == nil {
+		f.Tasks = []TaskSummary{}
+	}
 	if f.Assignees, err = s.assignees(ctx, a, w); err != nil {
 		return nil, err
 	}
