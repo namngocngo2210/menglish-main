@@ -37,7 +37,7 @@ const revealable = computed(() => props.type === 'password');
 const describedBy = computed(() => (props.label && id ? (error.value ? id + '-error' : props.hint ? id + '-hint' : null) : null));
 const controlled = computed(() => props.modelValue !== undefined);
 // Không v-model: giữ chữ đang gõ khi render lại (mật khẩu không nhận giá trị ban đầu từ server).
-const { value: typed, bindEl } = useTypedValue(() => (revealable.value ? null : props.value));
+const { value: typed, bindEl, sync: syncTyped } = useTypedValue(() => (revealable.value ? null : props.value));
 const currentValue = computed(() => (controlled.value ? props.modelValue : typed.value));
 const control = computed(() => [
     'w-full rounded-lg border bg-surface-container-lowest px-md py-sm font-body-base text-body-base text-on-surface placeholder:text-on-surface-subtle transition-colors focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:bg-surface-container-low disabled:text-on-surface-variant',
@@ -55,6 +55,12 @@ const wrapped = computed(() => props.label || props.inlineLabel || props.icon ||
 function onInput(event) {
     if (controlled.value) emit('update:modelValue', event.target.value);
 }
+
+// Nút hiện / ẩn nằm trong slot của UiField: bấm chỉ vẽ lại UiField, nên giữ chữ đang gõ trước khi đổi kiểu ô.
+function toggleReveal() {
+    if (!controlled.value) syncTyped();
+    reveal.value = !reveal.value;
+}
 </script>
 
 <template>
@@ -63,7 +69,7 @@ function onInput(event) {
             <span v-if="icon" class="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant" aria-hidden="true">{{ icon }}</span>
             <input :ref="bindEl" v-bind="inputAttrs" :type="revealable && reveal ? 'text' : type" :name="name" :id="id" :value="currentValue" :required="required" :aria-invalid="error ? 'true' : null" :aria-describedby="describedBy" :class="control" @input="onInput" />
             <span v-if="suffix" class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 font-body-small text-body-small text-on-surface-variant">{{ suffix }}</span>
-            <button v-if="revealable" type="button" class="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container/40" :aria-pressed="reveal.toString()" :aria-label="reveal ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'" @click="reveal = !reveal">
+            <button v-if="revealable" type="button" class="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container/40" :aria-pressed="reveal.toString()" :aria-label="reveal ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'" @click="toggleReveal">
                 <span class="material-symbols-outlined text-[20px]" aria-hidden="true">{{ reveal ? 'visibility_off' : 'visibility' }}</span>
             </button>
         </div>
@@ -73,7 +79,7 @@ function onInput(event) {
         <span v-if="icon" class="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant" aria-hidden="true">{{ icon }}</span>
         <input :ref="bindEl" v-bind="inputAttrs" :type="revealable && reveal ? 'text' : type" :name="name" :id="id" :value="currentValue" :required="required" :aria-invalid="error ? 'true' : null" :class="control" @input="onInput" />
         <span v-if="suffix" class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 font-body-small text-body-small text-on-surface-variant">{{ suffix }}</span>
-        <button v-if="revealable" type="button" class="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container/40" :aria-pressed="reveal.toString()" :aria-label="reveal ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'" @click="reveal = !reveal">
+        <button v-if="revealable" type="button" class="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container/40" :aria-pressed="reveal.toString()" :aria-label="reveal ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'" @click="toggleReveal">
             <span class="material-symbols-outlined text-[20px]" aria-hidden="true">{{ reveal ? 'visibility_off' : 'visibility' }}</span>
         </button>
     </label>

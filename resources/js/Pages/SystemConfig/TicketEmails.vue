@@ -20,7 +20,6 @@ const props = defineProps({
 const emails = ref([...props.emails]);
 const newEmail = ref('');
 const errorMessage = ref('');
-const showPassword = ref(false);
 const smtp = reactive({
     host: props.mailConfig.host || 'smtp.gmail.com',
     port: props.mailConfig.port || 587,
@@ -234,15 +233,9 @@ function applyDomainPreset() {
                             </div>
 
                             <div>
-                                <div class="mb-1 flex items-center justify-between">
-                                    <label for="f_mail_password" class="block font-semibold text-on-surface-variant">Mật khẩu ứng dụng (App Password) <span class="text-error">*</span></label>
-                                    <button type="button" class="flex cursor-pointer items-center gap-1 text-xs text-primary hover:underline" @click="showPassword = !showPassword">
-                                        <span class="material-symbols-outlined text-[13px]">{{ showPassword ? 'visibility_off' : 'visibility' }}</span>
-                                        <span>{{ showPassword ? 'Ẩn' : 'Hiện' }}</span>
-                                    </button>
-                                </div>
+                                <label for="f_mail_password" class="mb-1 block font-semibold text-on-surface-variant">Mật khẩu ứng dụng (App Password) <span class="text-error">*</span></label>
                                 <div class="relative">
-                                    <UiInput :type="showPassword ? 'text' : 'password'" name="mail_password" :placeholder="mailConfig.has_password ? '•••••••••••••••• (Đã cấu hình mật khẩu, nhập mới nếu muốn đổi)' : 'Nhập 16 ký tự Mật khẩu ứng dụng Gmail...'" class="pr-8 font-mono" />
+                                    <UiInput type="password" name="mail_password" :placeholder="mailConfig.has_password ? '•••••••••••••••• (Đã cấu hình mật khẩu, nhập mới nếu muốn đổi)' : 'Nhập 16 ký tự Mật khẩu ứng dụng Gmail...'" class="font-mono" autocomplete="new-password" />
                                 </div>
                                 <UiErrors :messages="$page.props.errors?.mail_password" class="mt-1" />
                                 <span class="mt-1 block text-xs text-on-surface-subtle">Đối với @gmail.com: dùng <strong>Mật khẩu ứng dụng 16 ký tự</strong> (không dùng mật khẩu đăng nhập cá nhân)</span>

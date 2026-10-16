@@ -151,4 +151,36 @@ class AuthenticationTest extends TestCase
         $this->assertGuest();
         $response->assertRedirect('/');
     }
+
+    public function test_remember_me_keeps_the_user_signed_in_after_the_session_is_gone(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->post('/login', ['email' => $user->email, 'password' => 'password', 'remember' => 'on']);
+        $recaller = auth()->guard('web')->getRecallerName();
+        $cookie = $response->getCookie($recaller, false);
+        $this->assertNotNull($cookie, 'Tick "Ghi nhớ đăng nhập" phải đặt cookie ghi nhớ.');
+        $this->assertGreaterThan(now()->addDays(30)->getTimestamp(), $cookie->getExpiresTime());
+
+        // Phiên hết hạn / trình duyệt mở lại: không còn phiên, chỉ còn cookie ghi nhớ → vẫn vào được.
+        $this->flushSession();
+        $this->app['auth']->forgetGuards();
+        $this->withUnencryptedCookie($recaller, $cookie->getValue())
+            ->get(route('profile.edit'))
+            ->assertOk();
+        $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_without_remember_me_the_user_must_sign_in_again_after_the_session_is_gone(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->post('/login', ['email' => $user->email, 'password' => 'password']);
+        $this->assertNull($response->getCookie(auth()->guard('web')->getRecallerName(), false));
+
+        $this->flushSession();
+        $this->app['auth']->forgetGuards();
+        $this->get(route('profile.edit'))->assertRedirect(route('login'));
+        $this->assertGuest();
+    }
 }
