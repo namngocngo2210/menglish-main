@@ -44,16 +44,21 @@ export function fieldId(props, attrs) {
  * Giá trị ô nhập không dùng v-model (form HTML thường theo `name`). Vue gán lại thuộc tính `value` mỗi lần component
  * render lại (vd. vừa hiện lỗi validate) → nếu bám thẳng props.value, chữ người dùng đã gõ bị xoá. Trước mỗi lần render
  * lại, lấy giá trị đang có trên ô (DOM là nguồn đúng, kể cả sau form.reset() của Inertia); props.value đổi → dùng giá trị mới.
- *   const { value, bindEl } = useTypedValue(() => props.value);   <input :ref="bindEl" :value="value" …>
+ * Lưu ý: state chỉ được đọc bên trong slot (vd. nút hiện mật khẩu trong slot của UiField) làm vẽ lại component con chứ
+ * không gọi onBeforeUpdate ở đây → gọi `sync()` trước khi đổi state đó, nếu không ô bị gán lại giá trị cũ (rỗng).
+ *   const { value, bindEl, sync } = useTypedValue(() => props.value);   <input :ref="bindEl" :value="value" …>
  */
 export function useTypedValue(source) {
     let el = null;
     let last = source();
     const value = ref(last);
+    const sync = () => {
+        if (el) value.value = el.value;
+    };
     onBeforeUpdate(() => {
         const next = source();
         if (next !== last) value.value = last = next;
-        else if (el) value.value = el.value;
+        else sync();
     });
-    return { value, bindEl: (node) => (el = node) };
+    return { value, bindEl: (node) => (el = node), sync };
 }
