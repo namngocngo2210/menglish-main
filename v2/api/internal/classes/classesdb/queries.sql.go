@@ -213,6 +213,23 @@ func (q *Queries) CancelSessionForHoliday(ctx context.Context, arg CancelSession
 	return err
 }
 
+const cancelTrialBookingsForHoliday = `-- name: CancelTrialBookingsForHoliday :exec
+UPDATE crm.trial_bookings
+SET status = 'cancelled', notes = trim(coalesce(notes || E'\n', '') || $1::text), updated_at = now()
+WHERE class_session_id = $2 AND status = 'scheduled'
+`
+
+type CancelTrialBookingsForHolidayParams struct {
+	Note      string
+	SessionID uuid.UUID
+}
+
+// Khách hẹn học thử vào buổi bị hủy vì nghỉ lễ: hủy lịch hẹn (HolidayRescheduleService::apply).
+func (q *Queries) CancelTrialBookingsForHoliday(ctx context.Context, arg CancelTrialBookingsForHolidayParams) error {
+	_, err := q.db.Exec(ctx, cancelTrialBookingsForHoliday, arg.Note, arg.SessionID)
+	return err
+}
+
 const classCodeTaken = `-- name: ClassCodeTaken :one
 SELECT EXISTS (SELECT 1 FROM academic.classes WHERE code = $1 AND deleted_at IS NULL AND id <> $2)
 `
@@ -615,6 +632,40 @@ func (q *Queries) ClassStatusCounts(ctx context.Context, arg ClassStatusCountsPa
 	for rows.Next() {
 		var i ClassStatusCountsRow
 		if err := rows.Scan(&i.Status, &i.Total); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const classTaskAssistants = `-- name: ClassTaskAssistants :many
+SELECT DISTINCT t.due_date::date AS day, u.full_name
+FROM ops.work_tasks t
+JOIN iam.users u ON u.id = t.assignee_id
+WHERE t.class_id = $1 AND t.due_date IS NOT NULL
+ORDER BY day, u.full_name
+`
+
+type ClassTaskAssistantsRow struct {
+	Day      time.Time
+	FullName string
+}
+
+// Trợ giảng của từng ngày: người được giao việc gắn lớp theo ngày hạn.
+func (q *Queries) ClassTaskAssistants(ctx context.Context, classID *uuid.UUID) ([]ClassTaskAssistantsRow, error) {
+	rows, err := q.db.Query(ctx, classTaskAssistants, classID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ClassTaskAssistantsRow
+	for rows.Next() {
+		var i ClassTaskAssistantsRow
+		if err := rows.Scan(&i.Day, &i.FullName); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -1118,6 +1169,23 @@ type DropEnrollmentsParams struct {
 // Thôi học: đóng các lượt xếp lớp còn hiệu lực.
 func (q *Queries) DropEnrollments(ctx context.Context, arg DropEnrollmentsParams) error {
 	_, err := q.db.Exec(ctx, dropEnrollments, arg.Today, arg.StudentID)
+	return err
+}
+
+const dropReplacedTrialBookings = `-- name: DropReplacedTrialBookings :exec
+DELETE FROM crm.trial_bookings o
+WHERE o.class_session_id = $1
+  AND EXISTS (SELECT 1 FROM crm.trial_bookings m WHERE m.class_session_id = $2 AND m.lead_id = o.lead_id)
+`
+
+type DropReplacedTrialBookingsParams struct {
+	ToSession   uuid.UUID
+	FromSession uuid.UUID
+}
+
+// Trước khi chuyển lịch hẹn của buổi bù về buổi gốc: bỏ lịch hẹn (đã hủy vì nghỉ lễ) của cùng khách ở buổi gốc.
+func (q *Queries) DropReplacedTrialBookings(ctx context.Context, arg DropReplacedTrialBookingsParams) error {
+	_, err := q.db.Exec(ctx, dropReplacedTrialBookings, arg.ToSession, arg.FromSession)
 	return err
 }
 
@@ -2318,6 +2386,24 @@ func (q *Queries) MissingAttendanceToday(ctx context.Context, arg MissingAttenda
 	return column_1, err
 }
 
+const moveTrialBookings = `-- name: MoveTrialBookings :exec
+UPDATE crm.trial_bookings b
+SET class_session_id = s.id, session_date = s.date, start_time = s.start_time, end_time = s.end_time, updated_at = now()
+FROM academic.class_sessions s
+WHERE s.id = $1 AND b.class_session_id = $2
+`
+
+type MoveTrialBookingsParams struct {
+	ToSession   uuid.UUID
+	FromSession uuid.UUID
+}
+
+// Khách hẹn học thử vào buổi bù chuyển về buổi gốc được khôi phục (xóa buổi bù sẽ xóa luôn lịch hẹn).
+func (q *Queries) MoveTrialBookings(ctx context.Context, arg MoveTrialBookingsParams) error {
+	_, err := q.db.Exec(ctx, moveTrialBookings, arg.ToSession, arg.FromSession)
+	return err
+}
+
 const nextSession = `-- name: NextSession :one
 SELECT s.date, to_char(s.start_time, 'HH24:MI') AS start_time, to_char(s.end_time, 'HH24:MI') AS end_time, s.room,
        t.full_name AS teacher_name
@@ -2627,6 +2713,7 @@ const replaceableSessionIDs = `-- name: ReplaceableSessionIDs :many
 SELECT s.id FROM academic.class_sessions s
 WHERE s.class_id = $1 AND s.type = 'regular' AND s.status = 'scheduled' AND s.date >= $2::date
   AND NOT EXISTS (SELECT 1 FROM academic.student_attendance sa WHERE sa.session_id = s.id)
+  AND NOT EXISTS (SELECT 1 FROM crm.trial_bookings tb WHERE tb.class_session_id = s.id AND tb.status = 'scheduled')
 `
 
 type ReplaceableSessionIDsParams struct {
@@ -2635,7 +2722,8 @@ type ReplaceableSessionIDsParams struct {
 }
 
 // Buổi chính khóa chưa diễn ra, chưa có dữ liệu thực tế: xóa được khi xếp lại TKB (ClassSession::replaceable).
-// TODO(hr): thêm điều kiện chưa chấm công / không gắn phụ đạo; TODO(crm): không có khách hẹn học thử.
+// Buổi đã có khách hẹn học thử: xóa đi thì lịch hẹn mồ côi, Sales không biết để báo khách.
+// TODO(hr): thêm điều kiện chưa chấm công / không gắn phụ đạo.
 func (q *Queries) ReplaceableSessionIDs(ctx context.Context, arg ReplaceableSessionIDsParams) ([]uuid.UUID, error) {
 	rows, err := q.db.Query(ctx, replaceableSessionIDs, arg.ClassID, arg.Today)
 	if err != nil {
@@ -4178,6 +4266,40 @@ func (q *Queries) UpcomingScheduledCount(ctx context.Context, arg UpcomingSchedu
 	var column_1 int64
 	err := row.Scan(&column_1)
 	return column_1, err
+}
+
+const upcomingTaskAssistants = `-- name: UpcomingTaskAssistants :many
+SELECT DISTINCT u.full_name
+FROM ops.work_tasks t
+JOIN iam.users u ON u.id = t.assignee_id
+WHERE t.class_id = $1 AND t.due_date BETWEEN $2::date AND $2::date + 7
+ORDER BY u.full_name
+`
+
+type UpcomingTaskAssistantsParams struct {
+	ClassID *uuid.UUID
+	Today   time.Time
+}
+
+// Trợ giảng 7 ngày tới: người được giao việc gắn lớp có hạn trong 7 ngày (trợ giảng không cố định theo lớp).
+func (q *Queries) UpcomingTaskAssistants(ctx context.Context, arg UpcomingTaskAssistantsParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, upcomingTaskAssistants, arg.ClassID, arg.Today)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var full_name string
+		if err := rows.Scan(&full_name); err != nil {
+			return nil, err
+		}
+		items = append(items, full_name)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const updateClass = `-- name: UpdateClass :exec

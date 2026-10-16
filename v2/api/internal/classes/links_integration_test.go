@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/catalogs"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/reports"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/tasks"
@@ -318,5 +319,80 @@ func TestTaskClasses(t *testing.T) {
 	task, err := svc.Create(ctx, mgr, in)
 	if err != nil || task.ClassID == nil || *task.ClassID != c1 || task.ClassLabel == nil || *task.ClassLabel != "Lớp Một" {
 		t.Fatalf("việc gắn lớp: %+v %v", task, err)
+	}
+}
+
+func TestTrialBookingsAndTaskAssistants(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	a := e.branch("CN-A")
+	adm := e.member("MES001", nil, iam.RoleAdmin)
+	admin := e.as(adm)
+	ta := e.member("TG001", []uuid.UUID{a}, iam.RoleAssistant)
+	id := e.newClass(admin, map[string]any{"name": "Lớp thử", "code": "LT", "branch_id": a})
+	expectMessage(t, admin.do("POST", "/schedule-config", weekly(id, nil)), 200, "Đã lưu lịch và tạo 8 buổi học thực tế.")
+
+	lead := e.lead("KH-0001", "Khách thử", a, "")
+	book := func(session uuid.UUID, date string) uuid.UUID {
+		var bid uuid.UUID
+		e.scalar(&bid, `INSERT INTO crm.trial_bookings (lead_id, class_id, class_session_id, branch_id, session_date, start_time, end_time)
+			VALUES ($1, $2, $3, $4, $5, '18:00', '19:30') RETURNING id`, lead, id, session, a, date)
+		return bid
+	}
+	onHoliday := book(e.sessionOn(id, "2026-10-26"), "2026-10-26")
+	kept := e.sessionOn(id, "2026-10-28")
+	book(kept, "2026-10-28")
+
+	// Nghỉ lễ: lịch hẹn học thử của buổi bị hủy cũng hủy
+	hid, _, err := e.cat.CreateHoliday(ctx, e.access(adm), catalogs.HolidayInput{
+		Code: "NL1", Name: "Nghỉ thử", StartDate: "2026-10-26", EndDate: "2026-10-26", IsSystemWide: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var status, notes string
+	if err := e.pg.QueryRow(ctx, "SELECT status, coalesce(notes, '') FROM crm.trial_bookings WHERE id = $1", onHoliday).Scan(&status, &notes); err != nil {
+		t.Fatal(err)
+	}
+	if status != "cancelled" || notes != "Hủy: buổi học thử trùng nghỉ lễ Nghỉ thử" {
+		t.Fatalf("lịch học thử trùng nghỉ lễ: %s %q", status, notes)
+	}
+	// Gỡ ngày nghỉ: lịch hẹn vào buổi bù chuyển về buổi gốc
+	moved := book(e.sessionOn(id, "2026-11-16"), "2026-11-16")
+	if _, err := e.cat.DeleteHoliday(ctx, e.access(adm), hid); err != nil {
+		t.Fatal(err)
+	}
+	var day string
+	var session uuid.UUID
+	if err := e.pg.QueryRow(ctx, "SELECT class_session_id, session_date::text FROM crm.trial_bookings WHERE id = $1", moved).Scan(&session, &day); err != nil {
+		t.Fatal(err)
+	}
+	if session != e.sessionOn(id, "2026-10-26") || day != "2026-10-26" {
+		t.Fatalf("lịch hẹn buổi bù: %s %s", session, day)
+	}
+
+	// Xếp lại TKB không xóa buổi đã có khách hẹn học thử
+	expect(t, admin.do("POST", "/schedule-config", weekly(id, nil)), 200, "")
+	var n int
+	e.scalar(&n, "SELECT count(*) FROM academic.class_sessions WHERE id = $1", kept)
+	if n != 1 {
+		t.Fatal("buổi có khách hẹn học thử bị xóa khi xếp lại TKB")
+	}
+
+	// Trợ giảng của lớp = người được giao việc gắn lớp
+	e.exec(`INSERT INTO ops.work_tasks (title, creator_id, assignee_id, class_id, time_slot_category, task_type, kind, due_date)
+		VALUES ('Trực lớp', $1, $2, $3, 'during', 'one_time', 'ta_daily', '2026-10-21')`, adm.id, ta.id, id)
+	if r := admin.do("GET", "/classes/"+id.String()+"?tab=overview", nil); jsonString(r.body["upcoming_assistants"]) != `["Người TG001"]` {
+		t.Fatalf("trợ giảng 7 ngày tới: %v", r.body["upcoming_assistants"])
+	}
+	r := admin.do("GET", "/classes/"+id.String()+"?tab=schedule", nil)
+	found := false
+	for _, s := range list(r, "sessions") {
+		if s["date"] == "2026-10-21" {
+			found = s["assistants"] == "Người TG001"
+		}
+	}
+	if !found {
+		t.Fatalf("trợ giảng của buổi: %v", r.body["sessions"])
 	}
 }

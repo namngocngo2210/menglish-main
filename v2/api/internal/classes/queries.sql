@@ -265,10 +265,12 @@ ORDER BY s.date, s.start_time;
 
 -- name: ReplaceableSessionIDs :many
 -- Buổi chính khóa chưa diễn ra, chưa có dữ liệu thực tế: xóa được khi xếp lại TKB (ClassSession::replaceable).
--- TODO(hr): thêm điều kiện chưa chấm công / không gắn phụ đạo; TODO(crm): không có khách hẹn học thử.
+-- Buổi đã có khách hẹn học thử: xóa đi thì lịch hẹn mồ côi, Sales không biết để báo khách.
+-- TODO(hr): thêm điều kiện chưa chấm công / không gắn phụ đạo.
 SELECT s.id FROM academic.class_sessions s
 WHERE s.class_id = sqlc.arg(class_id) AND s.type = 'regular' AND s.status = 'scheduled' AND s.date >= sqlc.arg(today)::date
-  AND NOT EXISTS (SELECT 1 FROM academic.student_attendance sa WHERE sa.session_id = s.id);
+  AND NOT EXISTS (SELECT 1 FROM academic.student_attendance sa WHERE sa.session_id = s.id)
+  AND NOT EXISTS (SELECT 1 FROM crm.trial_bookings tb WHERE tb.class_session_id = s.id AND tb.status = 'scheduled');
 
 -- name: KeptSessionsFrom :many
 -- Buổi được giữ khi xếp lại TKB: không phải phụ đạo, chưa hủy, từ ngày xếp, không nằm trong danh sách sẽ xóa.
@@ -926,3 +928,38 @@ SELECT id, name, tuition_fee FROM academic.courses WHERE deleted_at IS NULL AND 
 
 -- name: StudentBranchID :one
 SELECT branch_id FROM academic.students WHERE id = $1;
+
+-- name: UpcomingTaskAssistants :many
+-- Trợ giảng 7 ngày tới: người được giao việc gắn lớp có hạn trong 7 ngày (trợ giảng không cố định theo lớp).
+SELECT DISTINCT u.full_name
+FROM ops.work_tasks t
+JOIN iam.users u ON u.id = t.assignee_id
+WHERE t.class_id = sqlc.arg(class_id) AND t.due_date BETWEEN sqlc.arg(today)::date AND sqlc.arg(today)::date + 7
+ORDER BY u.full_name;
+
+-- name: ClassTaskAssistants :many
+-- Trợ giảng của từng ngày: người được giao việc gắn lớp theo ngày hạn.
+SELECT DISTINCT t.due_date::date AS day, u.full_name
+FROM ops.work_tasks t
+JOIN iam.users u ON u.id = t.assignee_id
+WHERE t.class_id = $1 AND t.due_date IS NOT NULL
+ORDER BY day, u.full_name;
+
+-- name: CancelTrialBookingsForHoliday :exec
+-- Khách hẹn học thử vào buổi bị hủy vì nghỉ lễ: hủy lịch hẹn (HolidayRescheduleService::apply).
+UPDATE crm.trial_bookings
+SET status = 'cancelled', notes = trim(coalesce(notes || E'\n', '') || sqlc.arg(note)::text), updated_at = now()
+WHERE class_session_id = sqlc.arg(session_id) AND status = 'scheduled';
+
+-- name: DropReplacedTrialBookings :exec
+-- Trước khi chuyển lịch hẹn của buổi bù về buổi gốc: bỏ lịch hẹn (đã hủy vì nghỉ lễ) của cùng khách ở buổi gốc.
+DELETE FROM crm.trial_bookings o
+WHERE o.class_session_id = sqlc.arg(to_session)
+  AND EXISTS (SELECT 1 FROM crm.trial_bookings m WHERE m.class_session_id = sqlc.arg(from_session) AND m.lead_id = o.lead_id);
+
+-- name: MoveTrialBookings :exec
+-- Khách hẹn học thử vào buổi bù chuyển về buổi gốc được khôi phục (xóa buổi bù sẽ xóa luôn lịch hẹn).
+UPDATE crm.trial_bookings b
+SET class_session_id = s.id, session_date = s.date, start_time = s.start_time, end_time = s.end_time, updated_at = now()
+FROM academic.class_sessions s
+WHERE s.id = sqlc.arg(to_session) AND b.class_session_id = sqlc.arg(from_session);
