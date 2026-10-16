@@ -56,6 +56,8 @@ func TestImportLegacyIAM(t *testing.T) {
 		       (2, 'MES002', 'Quản lý HN', 'ql@meducation.vn', '0912.345.678', ?, 1, 0, 1, NOW(), NOW()),
 		       (3, 'MES003', 'Nghỉ việc', 'old@meducation.vn', NULL, ?, 0, 0, 2, NOW(), NOW())`, legacyHash, legacyHash, legacyHash)
 	exec(`UPDATE users SET created_by = 1 WHERE id = 2`)
+	exec(`UPDATE users SET id_card_number = '001200012345', hometown = 'Nam Định', contract_type = 'Toàn thời gian',
+		contract_end_date = '2027-03-31', base_salary = 9000000.40, hourly_rate = 250000 WHERE id = 2`)
 	exec(`INSERT INTO user_branches (user_id, branch_id, created_at, updated_at) VALUES (2, 1, NOW(), NOW()), (2, 2, NOW(), NOW()), (3, 2, NOW(), NOW())`)
 	roleID := func(name string) int64 {
 		var id int64
@@ -109,6 +111,9 @@ func TestImportLegacyIAM(t *testing.T) {
 	if rep["branches"].Inserted != 2 || rep["users"].Inserted != 3 || rep["permission_overrides"].Inserted != 1 || rep["permission_overrides"].Skipped != 1 {
 		t.Fatalf("báo cáo: branches %+v users %+v overrides %+v", rep["branches"], rep["users"], rep["permission_overrides"])
 	}
+	if rep["staff_profiles"].Inserted != 1 {
+		t.Fatalf("hồ sơ nhân sự: %+v", rep["staff_profiles"])
+	}
 	// Chạy lại: cập nhật, không tạo trùng
 	rep = run(false)
 	if rep["users"].Inserted != 0 || rep["users"].Updated != 3 || rep["branches"].Updated != 2 {
@@ -125,6 +130,14 @@ func TestImportLegacyIAM(t *testing.T) {
 	_ = e.pg.QueryRow(ctx, "SELECT code FROM core.branches WHERE name = 'Hồ Chí Minh'").Scan(&code)
 	if code != "HCM-01" {
 		t.Fatalf("mã chi nhánh phải được sửa cho hợp lệ, nhận %q", code)
+	}
+
+	var idCard, contract, end string
+	var base int64
+	_ = e.pg.QueryRow(ctx, `SELECT p.id_card_number, p.contract_type, p.contract_end_date::text, p.base_salary
+		FROM iam.staff_profiles p JOIN iam.users u ON u.id = p.user_id WHERE u.code = 'MES002'`).Scan(&idCard, &contract, &end, &base)
+	if idCard != "001200012345" || contract != "Toàn thời gian" || end != "2027-03-31" || base != 9000000 {
+		t.Fatalf("hồ sơ nhân sự sau khi nhập: %s %s %s %d", idCard, contract, end, base)
 	}
 
 	// Đăng nhập bằng mật khẩu Laravel; vai trò, chi nhánh chính, phân quyền cá nhân đúng như bên cũ

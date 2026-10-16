@@ -214,3 +214,24 @@ WHERE u.status = 'active'
              EXISTS (SELECT 1 FROM iam.user_roles ur JOIN iam.role_permissions rp ON rp.role = ur.role
                      WHERE ur.user_id = u.id AND rp.permission = sqlc.arg(perm)::text))))
 ORDER BY u.id;
+
+-- name: GetStaffProfile :one
+SELECT * FROM iam.staff_profiles WHERE user_id = $1;
+
+-- name: UpsertStaffProfile :one
+INSERT INTO iam.staff_profiles (user_id, id_card_number, hometown, current_address, emergency_contact, graduation_school,
+    certificates, teaching_level, contract_type, contract_start_date, contract_end_date, base_salary, hourly_rate,
+    academic_teaching, updated_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+ON CONFLICT (user_id) DO UPDATE SET
+    id_card_number = EXCLUDED.id_card_number, hometown = EXCLUDED.hometown, current_address = EXCLUDED.current_address,
+    emergency_contact = EXCLUDED.emergency_contact, graduation_school = EXCLUDED.graduation_school,
+    certificates = EXCLUDED.certificates, teaching_level = EXCLUDED.teaching_level, contract_type = EXCLUDED.contract_type,
+    contract_start_date = EXCLUDED.contract_start_date, contract_end_date = EXCLUDED.contract_end_date,
+    base_salary = EXCLUDED.base_salary, hourly_rate = EXCLUDED.hourly_rate, academic_teaching = EXCLUDED.academic_teaching,
+    updated_by = EXCLUDED.updated_by, updated_at = now()
+RETURNING *;
+
+-- name: GetSlaValue :one
+-- Giá trị SLA (bảng của phân hệ danh mục); không có dòng thì dùng mặc định ở code.
+SELECT COALESCE(value, default_value)::integer AS value FROM hr.sla_rules WHERE key = $1;

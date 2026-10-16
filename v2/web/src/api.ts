@@ -212,6 +212,8 @@ export const api = {
   setUserLocked: (id: string, locked: boolean) => request<void>('POST', `/users/${id}/${locked ? 'lock' : 'unlock'}`),
   resetUserPassword: (id: string) => request<{ temporary_password: string }>('POST', `/users/${id}/reset-password`),
   resetUserTotp: (id: string) => request<void>('POST', `/users/${id}/reset-totp`),
+  staffProfile: (id: string) => request<StaffProfile>('GET', `/users/${id}/profile`),
+  updateStaffProfile: (id: string, p: StaffProfileInput) => request<StaffProfile>('PUT', `/users/${id}/profile`, p),
   userPermissions: (id: string) => request<UserPermissions>('GET', `/users/${id}/permissions`),
   setUserPermissions: (id: string, overrides: Override[]) =>
     request<UserPermissions>('PUT', `/users/${id}/permissions`, { overrides }),
@@ -220,4 +222,43 @@ export const api = {
 export function errorMessage(e: unknown): string {
   if (e instanceof ApiError) return e.message
   return 'Không kết nối được máy chủ, vui lòng thử lại.'
+}
+
+// Hồ sơ nhân sự (tab "Hồ sơ" và "Hợp đồng & Lương" của Laravel). Trường nhạy cảm là null khi không được xem.
+export type StaffBadge = { label: string; tone: 'success' | 'warning' | 'error' | 'neutral' }
+export type StaffProfile = {
+  can_view_sensitive: boolean
+  id_card_number: string | null
+  hometown: string | null
+  current_address: string | null
+  emergency_contact: string | null
+  graduation_school: string | null
+  certificates: string | null
+  teaching_level: string | null
+  contract_type: string | null
+  contract_start_date: string | null
+  contract_end_date: string | null
+  base_salary: number | null
+  hourly_rate: number | null
+  academic_teaching: boolean
+  academic_lead: boolean
+  contract_status: StaffBadge
+  contract_remaining: StaffBadge | null
+  contract_types: string[]
+  updated_at: string | null
+}
+export type StaffProfileInput = {
+  id_card_number: string
+  hometown: string
+  current_address: string
+  emergency_contact: string
+  graduation_school: string
+  certificates: string
+  teaching_level: string
+  contract_type: string
+  contract_start_date: string
+  contract_end_date: string
+  base_salary: number | null
+  hourly_rate: number | null
+  academic_teaching: boolean
 }

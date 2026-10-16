@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam/iamdb"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/legacy"
@@ -25,6 +26,7 @@ func LegacySteps() []legacy.Step {
 	return []legacy.Step{
 		{Name: "branches", Run: importBranches},
 		{Name: "users", Run: importUsers},
+		{Name: "staff_profiles", Run: importStaffProfiles},
 		{Name: "role_permissions", Run: importRolePermissions},
 		{Name: "permission_overrides", Run: importOverrides},
 	}
@@ -512,6 +514,82 @@ func importOverrides(ctx context.Context, r *legacy.Run) error {
 		}
 		if err := q.AddUserOverride(ctx, p); err != nil {
 			return err
+		}
+		r.Count().Inserted++
+	}
+	return nil
+}
+
+// importStaffProfiles: hồ sơ nhân sự (cột hồ sơ / hợp đồng / lương trên bảng users của Laravel). File hợp đồng
+// (contract_file_path) chờ phân hệ lưu file. Lương làm tròn về đồng.
+func importStaffProfiles(ctx context.Context, r *legacy.Run) error {
+	rows, err := r.Src.QueryContext(ctx, `SELECT id, id_card_number, hometown, current_address, emergency_contact,
+		graduation_school, certificates, teaching_level, contract_type, contract_start_date, contract_end_date,
+		COALESCE(ROUND(base_salary), 0), COALESCE(ROUND(hourly_rate), 0), COALESCE(academic_teaching, 0) FROM users ORDER BY id`)
+	if err != nil {
+		return err
+	}
+	type profile struct {
+		id                                                 int64
+		idCard, hometown, address, emergency, school, cert sql.NullString
+		level, contract                                    sql.NullString
+		start, end                                         sql.NullTime
+		base, hourly                                       int64
+		teaching                                           bool
+	}
+	var list []profile
+	for rows.Next() {
+		var p profile
+		if err := rows.Scan(&p.id, &p.idCard, &p.hometown, &p.address, &p.emergency, &p.school, &p.cert, &p.level,
+			&p.contract, &p.start, &p.end, &p.base, &p.hourly, &p.teaching); err != nil {
+			rows.Close()
+			return err
+		}
+		list = append(list, p)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	q := iamdb.New(r.Tx)
+	text := func(v sql.NullString, max int) *string {
+		s := nullStr(v)
+		if s != nil && len([]rune(*s)) > max {
+			cut := string([]rune(*s)[:max])
+			s = &cut
+		}
+		return s
+	}
+	date := func(t sql.NullTime) pgtype.Date { return pgtype.Date{Time: t.Time, Valid: t.Valid} }
+	for _, p := range list {
+		id, ok, err := r.Lookup(ctx, EntityUser, p.id)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			continue // tài khoản bị bỏ ở bước users
+		}
+		var kind string
+		if err := r.Tx.QueryRow(ctx, "SELECT kind FROM iam.users WHERE id = $1", id).Scan(&kind); err != nil {
+			return err
+		}
+		empty := !p.idCard.Valid && !p.hometown.Valid && !p.address.Valid && !p.emergency.Valid && !p.school.Valid &&
+			!p.cert.Valid && !p.level.Valid && !p.contract.Valid && !p.start.Valid && !p.end.Valid && p.base == 0 && p.hourly == 0 && !p.teaching
+		if kind != "staff" || empty {
+			continue
+		}
+		if p.base < 0 || p.hourly < 0 {
+			r.Note("tài khoản #%d: lương âm, nhập thành 0", p.id)
+			p.base, p.hourly = max(p.base, 0), max(p.hourly, 0)
+		}
+		_, err = q.UpsertStaffProfile(ctx, iamdb.UpsertStaffProfileParams{
+			UserID: id, IDCardNumber: text(p.idCard, 30), Hometown: text(p.hometown, 255), CurrentAddress: text(p.address, 255),
+			EmergencyContact: text(p.emergency, 255), GraduationSchool: text(p.school, 255), Certificates: text(p.cert, 255),
+			TeachingLevel: text(p.level, 255), ContractType: text(p.contract, 50), ContractStartDate: date(p.start),
+			ContractEndDate: date(p.end), BaseSalary: p.base, HourlyRate: p.hourly, AcademicTeaching: p.teaching,
+		})
+		if err != nil {
+			return fmt.Errorf("hồ sơ tài khoản #%d: %w", p.id, err)
 		}
 		r.Count().Inserted++
 	}

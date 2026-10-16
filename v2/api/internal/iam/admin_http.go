@@ -41,6 +41,8 @@ func (h *Handler) AdminRoutes(r chi.Router) {
 		r.With(Require("user.create")).Post("/", h.createUser)
 		r.With(Require("user.view")).Get("/{id}", h.getUser)
 		r.With(Require("user.update")).Patch("/{id}", h.updateUser)
+		r.With(Require("user.view")).Get("/{id}/profile", h.getStaffProfile)
+		r.With(Require("user.update")).Put("/{id}/profile", h.updateStaffProfile)
 		r.With(Require("user.assign_role")).Put("/{id}/roles", h.setUserRoles)
 		r.With(Require("user.lock")).Post("/{id}/lock", h.setUserLocked(true))
 		r.With(Require("user.lock")).Post("/{id}/unlock", h.setUserLocked(false))
@@ -257,6 +259,33 @@ func (h *Handler) getUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.JSON(w, http.StatusOK, u)
+}
+
+func (h *Handler) getStaffProfile(w http.ResponseWriter, r *http.Request) {
+	id, ok := idParam(w, r)
+	if !ok {
+		return
+	}
+	p, err := h.svc.GetStaffProfile(r.Context(), actorOf(r), id)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, p)
+}
+
+func (h *Handler) updateStaffProfile(w http.ResponseWriter, r *http.Request) {
+	id, ok := idParam(w, r)
+	var in StaffProfileInput
+	if !ok || !httpx.Decode(w, r, &in) {
+		return
+	}
+	p, err := h.svc.UpdateStaffProfile(r.Context(), actorOf(r), id, in)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, p)
 }
 
 func (h *Handler) updateUser(w http.ResponseWriter, r *http.Request) {

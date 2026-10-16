@@ -332,6 +332,46 @@ func (q *Queries) GetRole(ctx context.Context, name string) (IamRole, error) {
 	return i, err
 }
 
+const getSlaValue = `-- name: GetSlaValue :one
+SELECT COALESCE(value, default_value)::integer AS value FROM hr.sla_rules WHERE key = $1
+`
+
+// Giá trị SLA (bảng của phân hệ danh mục); không có dòng thì dùng mặc định ở code.
+func (q *Queries) GetSlaValue(ctx context.Context, key string) (int32, error) {
+	row := q.db.QueryRow(ctx, getSlaValue, key)
+	var value int32
+	err := row.Scan(&value)
+	return value, err
+}
+
+const getStaffProfile = `-- name: GetStaffProfile :one
+SELECT user_id, id_card_number, hometown, current_address, emergency_contact, graduation_school, certificates, teaching_level, contract_type, contract_start_date, contract_end_date, base_salary, hourly_rate, academic_teaching, updated_at, updated_by FROM iam.staff_profiles WHERE user_id = $1
+`
+
+func (q *Queries) GetStaffProfile(ctx context.Context, userID uuid.UUID) (IamStaffProfile, error) {
+	row := q.db.QueryRow(ctx, getStaffProfile, userID)
+	var i IamStaffProfile
+	err := row.Scan(
+		&i.UserID,
+		&i.IDCardNumber,
+		&i.Hometown,
+		&i.CurrentAddress,
+		&i.EmergencyContact,
+		&i.GraduationSchool,
+		&i.Certificates,
+		&i.TeachingLevel,
+		&i.ContractType,
+		&i.ContractStartDate,
+		&i.ContractEndDate,
+		&i.BaseSalary,
+		&i.HourlyRate,
+		&i.AcademicTeaching,
+		&i.UpdatedAt,
+		&i.UpdatedBy,
+	)
+	return i, err
+}
+
 const getUser = `-- name: GetUser :one
 SELECT id, kind, code, email, phone, full_name, password_hash, must_change_password, status, failed_logins, locked_until, totp_secret, totp_enabled_at, password_changed_at, last_login_at, created_at, updated_at, created_by FROM iam.users WHERE id = $1
 `
@@ -1216,6 +1256,79 @@ type UpsertPermissionParams struct {
 func (q *Queries) UpsertPermission(ctx context.Context, arg UpsertPermissionParams) error {
 	_, err := q.db.Exec(ctx, upsertPermission, arg.Name, arg.Module, arg.Kind)
 	return err
+}
+
+const upsertStaffProfile = `-- name: UpsertStaffProfile :one
+INSERT INTO iam.staff_profiles (user_id, id_card_number, hometown, current_address, emergency_contact, graduation_school,
+    certificates, teaching_level, contract_type, contract_start_date, contract_end_date, base_salary, hourly_rate,
+    academic_teaching, updated_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+ON CONFLICT (user_id) DO UPDATE SET
+    id_card_number = EXCLUDED.id_card_number, hometown = EXCLUDED.hometown, current_address = EXCLUDED.current_address,
+    emergency_contact = EXCLUDED.emergency_contact, graduation_school = EXCLUDED.graduation_school,
+    certificates = EXCLUDED.certificates, teaching_level = EXCLUDED.teaching_level, contract_type = EXCLUDED.contract_type,
+    contract_start_date = EXCLUDED.contract_start_date, contract_end_date = EXCLUDED.contract_end_date,
+    base_salary = EXCLUDED.base_salary, hourly_rate = EXCLUDED.hourly_rate, academic_teaching = EXCLUDED.academic_teaching,
+    updated_by = EXCLUDED.updated_by, updated_at = now()
+RETURNING user_id, id_card_number, hometown, current_address, emergency_contact, graduation_school, certificates, teaching_level, contract_type, contract_start_date, contract_end_date, base_salary, hourly_rate, academic_teaching, updated_at, updated_by
+`
+
+type UpsertStaffProfileParams struct {
+	UserID            uuid.UUID
+	IDCardNumber      *string
+	Hometown          *string
+	CurrentAddress    *string
+	EmergencyContact  *string
+	GraduationSchool  *string
+	Certificates      *string
+	TeachingLevel     *string
+	ContractType      *string
+	ContractStartDate pgtype.Date
+	ContractEndDate   pgtype.Date
+	BaseSalary        int64
+	HourlyRate        int64
+	AcademicTeaching  bool
+	UpdatedBy         *uuid.UUID
+}
+
+func (q *Queries) UpsertStaffProfile(ctx context.Context, arg UpsertStaffProfileParams) (IamStaffProfile, error) {
+	row := q.db.QueryRow(ctx, upsertStaffProfile,
+		arg.UserID,
+		arg.IDCardNumber,
+		arg.Hometown,
+		arg.CurrentAddress,
+		arg.EmergencyContact,
+		arg.GraduationSchool,
+		arg.Certificates,
+		arg.TeachingLevel,
+		arg.ContractType,
+		arg.ContractStartDate,
+		arg.ContractEndDate,
+		arg.BaseSalary,
+		arg.HourlyRate,
+		arg.AcademicTeaching,
+		arg.UpdatedBy,
+	)
+	var i IamStaffProfile
+	err := row.Scan(
+		&i.UserID,
+		&i.IDCardNumber,
+		&i.Hometown,
+		&i.CurrentAddress,
+		&i.EmergencyContact,
+		&i.GraduationSchool,
+		&i.Certificates,
+		&i.TeachingLevel,
+		&i.ContractType,
+		&i.ContractStartDate,
+		&i.ContractEndDate,
+		&i.BaseSalary,
+		&i.HourlyRate,
+		&i.AcademicTeaching,
+		&i.UpdatedAt,
+		&i.UpdatedBy,
+	)
+	return i, err
 }
 
 const useRecoveryCode = `-- name: UseRecoveryCode :execrows

@@ -154,12 +154,19 @@ export function Checkbox({
   )
 }
 
-export function Badge({ tone = 'neutral', children }: { tone?: 'neutral' | 'success' | 'error' | 'info'; children: ReactNode }) {
+export function Badge({
+  tone = 'neutral',
+  children,
+}: {
+  tone?: 'neutral' | 'success' | 'error' | 'info' | 'warning'
+  children: ReactNode
+}) {
   const styles = {
     neutral: 'bg-surface-container-low text-on-surface-variant',
     success: 'bg-success-container text-on-success-container',
     error: 'bg-error-container text-on-error-container',
     info: 'bg-info-container text-on-info-container',
+    warning: 'bg-warning-container text-warning',
   }[tone]
   return <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${styles}`}>{children}</span>
 }

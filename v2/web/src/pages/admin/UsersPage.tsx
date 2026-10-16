@@ -4,6 +4,7 @@ import { api, errorMessage, type Me, type UserDetail, type UserInput, type UserS
 import { Alert, Badge, Button, Card, Checkbox, Dialog, Field, Select } from '../../components/ui'
 import { can } from '../../nav'
 import { useQueryParam } from '../../router'
+import { StaffProfilePanel } from './StaffProfile'
 import { UserPermissionsDialog } from './UserPermissionsDialog'
 
 export function UsersPage({ me }: { me: Me }) {
@@ -306,7 +307,7 @@ function UserDialog({
     return <UserPermissionsDialog user={user.data} onClose={() => setMode('view')} />
   }
   return (
-    <Dialog title={user.data?.full_name ?? 'Tài khoản'} onClose={onClose}>
+    <Dialog title={user.data?.full_name ?? 'Tài khoản'} onClose={onClose} wide>
       {user.isError && <Alert>{errorMessage(user.error)}</Alert>}
       {user.data && mode === 'edit' && <EditUserForm user={user.data} onDone={() => (refresh(), setMode('view'))} />}
       {user.data && mode === 'roles' && <RolesForm user={user.data} onDone={() => (refresh(), setMode('view'))} />}
@@ -369,6 +370,7 @@ function UserDialog({
                 </Button>
               ))}
           </div>
+          {user.data.kind === 'staff' && <StaffProfilePanel userId={user.data.id} canEdit={can(me, 'user.update')} />}
         </div>
       )}
     </Dialog>

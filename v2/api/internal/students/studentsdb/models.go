@@ -473,6 +473,25 @@ type IamRolePermission struct {
 	Permission string
 }
 
+type IamStaffProfile struct {
+	UserID            uuid.UUID
+	IDCardNumber      *string
+	Hometown          *string
+	CurrentAddress    *string
+	EmergencyContact  *string
+	GraduationSchool  *string
+	Certificates      *string
+	TeachingLevel     *string
+	ContractType      *string
+	ContractStartDate *time.Time
+	ContractEndDate   *time.Time
+	BaseSalary        int64
+	HourlyRate        int64
+	AcademicTeaching  bool
+	UpdatedAt         time.Time
+	UpdatedBy         *uuid.UUID
+}
+
 type IamTotpRecoveryCode struct {
 	UserID   uuid.UUID
 	CodeHash []byte
