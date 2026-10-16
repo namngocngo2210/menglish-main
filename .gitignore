@@ -39,3 +39,4 @@ yarn-error.log
 # Docker: env theo môi trường, bản sao lưu DB
 /.env.staging
 /backups/
+/.ci-deploy.lock

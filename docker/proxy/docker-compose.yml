@@ -20,8 +20,10 @@ services:
       - proxy
 
 networks:
+  # Tạo bởi docker/menglish.sh (ensure_proxy); app của từng môi trường cũng gắn vào network này.
   proxy:
     name: menglish-proxy
+    external: true
 
 volumes:
   caddy_data:

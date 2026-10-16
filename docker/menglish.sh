@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Vận hành MEnglish trên Docker theo môi trường.
-#   docker/menglish.sh <production|staging> deploy        build image, khởi động, migrate
+#   docker/menglish.sh <production|staging> deploy [ref]  build image (từ commit/nhánh ref nếu có), khởi động, migrate
+#   docker/menglish.sh <production|staging> version       commit đang chạy (khi deploy bằng ref)
 #   docker/menglish.sh <production|staging> migrate       php artisan migrate --force
 #   docker/menglish.sh <production|staging> artisan ...   chạy lệnh artisan bất kỳ
 #   docker/menglish.sh <production|staging> import-db <file.sql|file.sql.gz>
@@ -30,13 +31,30 @@ cmd="${1:-ps}"
 [ $# -gt 0 ] && shift
 case "$cmd" in
     deploy)
+        # Có ref (commit / nhánh): build từ đúng commit đó qua git archive, không đụng thư mục làm việc.
+        # Không có ref: build từ thư mục hiện tại (kể cả thay đổi chưa commit).
+        ref="${1:-}"
         ensure_proxy
-        compose build app
-        compose up -d --remove-orphans
+        if [ -n "$ref" ]; then
+            git -C "$ROOT" fetch --quiet origin
+            sha="$(git -C "$ROOT" rev-parse --verify "$ref^{commit}")"
+            echo "→ Build $ENV_NAME từ commit $sha"
+            git -C "$ROOT" archive --format=tar "$sha" \
+                | docker build --label "org.opencontainers.image.revision=$sha" -t "menglish-app:$ENV_NAME" -
+        else
+            compose build app
+        fi
+        # Scheduler đang dừng (vd. hosting cũ còn chạy cron) thì giữ nguyên trạng thái dừng.
+        scheduler_running="$(compose ps --status running -q scheduler)"
+        compose up -d --no-build --remove-orphans
+        [ -n "$scheduler_running" ] || compose stop scheduler
         compose exec app php artisan migrate --force
         compose exec app php artisan optimize
-        compose restart scheduler
+        [ -z "$scheduler_running" ] || compose restart scheduler
         compose ps
+        ;;
+    version)
+        docker image inspect "menglish-app:$ENV_NAME" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}'
         ;;
     migrate)
         compose exec app php artisan migrate --force
