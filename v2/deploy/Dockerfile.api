@@ -1,0 +1,16 @@
+# Go API: một binary cho api / migrate / healthcheck. Context build là thư mục v2/.
+FROM golang:1.27-alpine AS build
+WORKDIR /src
+COPY api/go.mod api/go.sum ./
+RUN go mod download
+COPY api/ ./
+ARG VERSION=dev
+RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/menglish ./cmd/menglish
+
+FROM gcr.io/distroless/static-debian12:nonroot
+COPY --from=build /out/menglish /menglish
+USER nonroot:nonroot
+EXPOSE 8080
+HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 CMD ["/menglish", "healthcheck"]
+ENTRYPOINT ["/menglish"]
+CMD ["api"]

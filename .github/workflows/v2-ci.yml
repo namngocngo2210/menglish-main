@@ -1,0 +1,73 @@
+# CI cho hệ thống mới trong v2/ (Go API + React). Chỉ chạy khi v2/ thay đổi; không đụng CI / deploy của Laravel.
+name: v2 CI
+
+on:
+  pull_request:
+    paths: ['v2/**', '.github/workflows/v2-ci.yml']
+  push:
+    branches: [main]
+    paths: ['v2/**', '.github/workflows/v2-ci.yml']
+
+concurrency:
+  group: v2-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: v2/api
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U test" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://test:test@localhost:5432/test?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: v2/api/go.mod
+          cache-dependency-path: v2/api/go.sum
+      - name: gofmt
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+      - run: go vet ./...
+      - run: go test -race ./...
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: v2/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: v2/web/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm test
+      - run: npm run build
+
+  images:
+    runs-on: ubuntu-latest
+    needs: [api, web]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image api
+        run: docker build -f v2/deploy/Dockerfile.api --build-arg VERSION=${{ github.sha }} v2
+      - name: Build image web
+        run: docker build -f v2/deploy/Dockerfile.web v2
+      - name: Kiểm compose beta
+        run: cp v2/deploy/.env.beta.example v2/deploy/.env.beta && docker compose -f v2/deploy/compose.beta.yml --env-file v2/deploy/.env.beta config -q

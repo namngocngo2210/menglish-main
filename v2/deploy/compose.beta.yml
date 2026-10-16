@@ -1,0 +1,108 @@
+# Bản beta của hệ thống mới, chạy cạnh Laravel trên cùng máy chủ, sau Caddy chung ở docker/proxy.
+# Chạy qua script: v2/deploy/beta.sh <lệnh>   (xem v2/README.md)
+name: menglish-beta
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "5" }
+
+x-api: &api
+  image: menglish-api:beta
+  env_file: .env.beta
+  environment:
+    MENGLISH_ENV: beta
+    DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+    REDIS_URL: redis://redis:6379/0
+    GOMEMLIMIT: 200MiB
+  logging: *logging
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: Asia/Ho_Chi_Minh
+    # Máy chủ dùng chung với Laravel (6 GB RAM): cấu hình nhỏ, nâng khi v2 lên production.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=128MB
+      - -c
+      - effective_cache_size=384MB
+      - -c
+      - work_mem=4MB
+      - -c
+      - max_connections=40
+      - -c
+      - max_wal_size=512MB
+    volumes:
+      - pgdata:/var/lib/postgresql
+    # Chỉ mở cho máy chủ (SSH tunnel), không ra Internet. MariaDB của Laravel dùng 3306/3307.
+    ports:
+      - "127.0.0.1:${POSTGRES_FORWARD_PORT:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 512m
+    shm_size: 128m
+    logging: *logging
+
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--maxmemory", "96mb", "--maxmemory-policy", "volatile-lru", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    mem_limit: 128m
+    logging: *logging
+
+  migrate:
+    <<: *api
+    command: ["migrate", "up"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    <<: *api
+    command: ["api"]
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    mem_limit: 256m
+
+  web:
+    image: menglish-web:beta
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      default:
+      proxy:
+        aliases: ["menglish-beta"]
+    mem_limit: 64m
+    logging: *logging
+
+networks:
+  proxy:
+    name: menglish-proxy
+    external: true
+
+volumes:
+  pgdata:
+  redisdata:

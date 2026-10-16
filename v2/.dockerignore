@@ -1,0 +1,4 @@
+**/node_modules
+web/dist
+deploy/.env.*
+!deploy/.env.beta.example
