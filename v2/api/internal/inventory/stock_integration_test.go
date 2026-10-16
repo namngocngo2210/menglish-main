@@ -207,7 +207,12 @@ func TestLegacyAllocationIssueAndTransfer(t *testing.T) {
 	// Xuất kho tay không được làm âm
 	expectMsg(t, staff.do("POST", "/inventory/stock/movements", map[string]any{"type": "issue", "item_id": book, "branch_id": a, "quantity": 13}), 422,
 		"Tồn Sách Kids Box 1 tại Cầu Giấy chỉ còn 12 Cuốn, không xuất được 13.")
-	student := uuid.New()
+	expectMsg(t, staff.do("POST", "/inventory/stock/movements", map[string]any{"type": "issue", "item_id": book, "branch_id": a, "quantity": 2, "student_id": uuid.New()}), 422,
+		"Học viên đã chọn không tồn tại.")
+	var student uuid.UUID
+	if err := e.pool.QueryRow(context.Background(), "INSERT INTO academic.students (code, full_name, phone) VALUES ('HV-00001', 'Bé An', '0912345678') RETURNING id").Scan(&student); err != nil {
+		t.Fatal(err)
+	}
 	expect(t, staff.do("POST", "/inventory/stock/movements", map[string]any{"type": "issue", "item_id": book, "branch_id": a, "quantity": 2, "student_id": student, "note": "Cấp cho học viên"}), 201, "")
 	if e.stockAt(book, a) != 10 {
 		t.Fatalf("tồn sau xuất: %d", e.stockAt(book, a))

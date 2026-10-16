@@ -706,6 +706,7 @@ func TestTrialBooking(t *testing.T) {
 		e.sessions.sessions[s.ID] = s
 	}
 	e.sessions.teaching[teacherM.id] = []uuid.UUID{s1.ID, s2.ID}
+	e.realSessions(t, s1, s2, far)
 
 	expect(t, nobody.do("POST", "/trial-bookings", map[string]any{"lead_id": lead.ID}), 403, "forbidden")
 	expect(t, staff.do("POST", "/trial-bookings", map[string]any{"lead_id": hidden.ID, "class_session_id": s1.ID}), 404, "not_found")
@@ -786,4 +787,20 @@ func TestTrialBooking(t *testing.T) {
 	}
 	r = staff.do("GET", "/trial-bookings?scope=past", nil)
 	expect(t, r, 200, "")
+}
+
+// realSessions ghi lớp / buổi học thật cùng id với buổi giả (crm.trial_bookings có khóa ngoại tới academic.*).
+func (e *env) realSessions(t *testing.T, list ...Session) {
+	t.Helper()
+	ctx := context.Background()
+	for _, s := range list {
+		if _, err := e.pg.Exec(ctx, `INSERT INTO academic.classes (id, code, name, branch_id, status) VALUES ($1, $2, $3, $4, 'active')
+			ON CONFLICT (id) DO NOTHING`, s.ClassID, "L-"+s.ClassID.String()[:8], s.ClassName, s.BranchID); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := e.pg.Exec(ctx, `INSERT INTO academic.class_sessions (id, class_id, branch_id, date, start_time, end_time)
+			VALUES ($1, $2, $3, $4, $5::time, $6::time)`, s.ID, s.ClassID, s.BranchID, s.Date, s.Start, s.End); err != nil {
+			t.Fatal(err)
+		}
+	}
 }

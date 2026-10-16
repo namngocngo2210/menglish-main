@@ -209,3 +209,7 @@ RETURNING processed_late;
 UPDATE ops.material_orders SET status = 'overdue', updated_at = now()
 WHERE deleted_at IS NULL AND status IN ('pending', 'processing') AND due_at < $1
 RETURNING id, code, title, category, branch_id, due_at;
+
+-- name: StudentExists :one
+-- Học viên (chưa xóa) nhận hàng khi xuất kho tay.
+SELECT EXISTS (SELECT 1 FROM academic.students WHERE id = $1 AND deleted_at IS NULL);

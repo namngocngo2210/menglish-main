@@ -69,7 +69,7 @@ CREATE TABLE placement.submissions (
     test_id                 uuid NOT NULL REFERENCES placement.tests (id),
     invitation_id           uuid REFERENCES placement.invitations (id) ON DELETE SET NULL,
     lead_id                 uuid, -- FK tới crm.leads thêm khi gộp
-    student_id              uuid, -- FK tới academic.students thêm khi gộp
+    student_id              uuid, -- FK tới academic.students: 00110_academic_links_fk
     candidate_name          text NOT NULL CHECK (length(candidate_name) BETWEEN 1 AND 255),
     candidate_phone         text NOT NULL CHECK (length(candidate_phone) <= 20),
     candidate_email         text CHECK (length(candidate_email) <= 255),
@@ -113,8 +113,8 @@ CREATE INDEX submissions_pending_idx ON placement.submissions (status) WHERE sta
 CREATE TABLE crm.trial_bookings (
     id               uuid PRIMARY KEY DEFAULT uuidv7(),
     lead_id          uuid NOT NULL, -- FK tới crm.leads thêm khi gộp
-    class_id         uuid NOT NULL, -- FK tới academic.classes thêm khi gộp
-    class_session_id uuid NOT NULL, -- FK tới academic.class_sessions thêm khi gộp
+    class_id         uuid NOT NULL, -- FK tới academic.classes: 00110_academic_links_fk
+    class_session_id uuid NOT NULL, -- FK tới academic.class_sessions: 00110_academic_links_fk
     branch_id        uuid REFERENCES core.branches (id),
     -- Ngày giờ buổi học lúc xếp (để sắp lịch, lọc sắp tới / đã diễn ra); đổi lịch buổi học thì cập nhật theo
     session_date     date NOT NULL,

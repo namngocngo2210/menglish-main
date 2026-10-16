@@ -24,8 +24,8 @@ CREATE TABLE academic.students (
     parent_name      text CHECK (length(parent_name) <= 255),
     parent_phone     text CHECK (length(parent_phone) <= 20),
     branch_id        uuid REFERENCES core.branches (id),
-    current_class_id uuid, -- FK tới academic.classes thêm khi gộp
-    lead_id          uuid, -- FK tới crm.leads thêm khi gộp (Lead đã chốt ra học viên này)
+    current_class_id uuid, -- FK tới academic.classes: 00081_academic_enrollments_attendance
+    lead_id          uuid, -- FK tới crm.leads: 00110_academic_links_fk (Lead đã chốt ra học viên này)
     target           text CHECK (length(target) <= 255),
     entrance_score   text CHECK (length(entrance_score) <= 255),
     total_lessons    integer CHECK (total_lessons >= 0),

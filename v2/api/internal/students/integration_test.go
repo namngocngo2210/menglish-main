@@ -312,8 +312,11 @@ func TestCreateFromLeadWithStudentAccount(t *testing.T) {
 	e := setup(t)
 	a := e.branch("CN-A")
 	staff := e.member("HV001", []uuid.UUID{a}, iam.RoleAcademicStaff)
-	lead := uuid.New()
 	ctx := context.Background()
+	var lead uuid.UUID
+	if err := e.pg.QueryRow(ctx, "INSERT INTO crm.leads (code, name, phone) VALUES ('KH-T1', 'Trần Bình', '0912345678') RETURNING id").Scan(&lead); err != nil {
+		t.Fatal(err)
+	}
 
 	code, err := e.svc.NextCode(ctx, nil)
 	if err != nil {

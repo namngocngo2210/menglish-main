@@ -524,6 +524,13 @@ func (s *Service) Move(ctx context.Context, actor *iam.Access, in MoveInput) (Mo
 		if qty < 1 {
 			return MoveResult{}, iam.Invalid("Số lượng xuất phải lớn hơn 0.")
 		}
+		if in.StudentID != nil {
+			if ok, err := s.q.StudentExists(ctx, *in.StudentID); err != nil {
+				return MoveResult{}, err
+			} else if !ok {
+				return MoveResult{}, iam.Invalid("Học viên đã chọn không tồn tại.")
+			}
+		}
 		err = s.withTx(ctx, func(q *inventorydb.Queries) error {
 			mv, err := s.apply(ctx, q, move{
 				itemID: item.ID, branchID: branch.ID, change: -qty, typ: TypeIssue, studentID: in.StudentID,
