@@ -3,6 +3,7 @@ import { useState, type ChangeEvent, type ReactNode, type TextareaHTMLAttributes
 import { ApiError, errorMessage, type Me } from '../../api'
 import { Alert, Button, Card, Dialog, Field, Select } from '../../components/ui'
 import { navigate } from '../../router'
+import { StudentClasses } from './EnrollmentsPage'
 import { studentsApi, type StudentInput, type StudentProfile, type StudentStatus } from './api'
 import { NotYet, PageHeader, StatusBadge, TempAccount } from './components'
 import { formatDate, formatDateTime, genderOptions, toInput } from './logic'
@@ -609,10 +610,7 @@ function ClassesTab({ st }: { st: StudentProfile }) {
   }
   return (
     <div className="space-y-3">
-      <NotYet title="Lớp học hiện tại, liên kết lớp khác">
-        Phân hệ Lớp học chưa chuyển sang hệ thống mới.{' '}
-        {st.current_class_id ? 'Học viên đã có lớp chính trên bản cũ.' : 'Học viên chưa được xếp lớp.'}
-      </NotYet>
+      <StudentClasses studentId={st.id} />
       <NotYet title="Lộ trình học tập & danh sách buổi học">Buổi học và nội dung giáo trình hiện khi phân hệ Lớp học và Giáo trình có ở v2.</NotYet>
       <NotYet title="Chuyên cần & lịch sử điểm danh">Điểm danh học viên thuộc phân hệ Điểm danh, chưa có ở v2.</NotYet>
       <NotYet title="Chăm sóc tháng đầu">Ba mốc chăm sóc (Buổi 1, Buổi 4–5, đủ 30 ngày) cần lớp học, điểm danh và công việc.</NotYet>

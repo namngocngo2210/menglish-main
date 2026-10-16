@@ -12,6 +12,9 @@ export const NAV: NavItem[] = [
   { path: '/branches', label: 'Chi nhánh', perms: ['branch.view'] },
   // Trang con /students/<id>, /students/enrollments do StudentsPage tự đọc đường dẫn
   { path: '/students', label: 'Danh sách học viên', perms: ['student.view'], group: 'Học viên' },
+  // Trang con /classes/new, /classes/<id>[/edit|/attendance] do ClassesPage tự đọc đường dẫn
+  { path: '/classes', label: 'Danh sách lớp', perms: ['class.update', 'class.teach', 'class.assist', 'attendance_student.record_any'], group: 'Lớp học' },
+  { path: '/schedule-config', label: 'Lịch & TKB lớp', perms: ['work_task.assign'], group: 'Tổ chức & Đào tạo' },
   {
     path: '/material-orders',
     label: 'Order học liệu',
