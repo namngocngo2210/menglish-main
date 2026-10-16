@@ -11,6 +11,54 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AcademicStudent struct {
+	ID             uuid.UUID
+	Code           string
+	UserID         *uuid.UUID
+	FullName       string
+	Phone          string
+	Email          *string
+	Dob            pgtype.Date
+	Gender         *string
+	Address        *string
+	School         *string
+	ParentName     *string
+	ParentPhone    *string
+	BranchID       *uuid.UUID
+	CurrentClassID *uuid.UUID
+	LeadID         *uuid.UUID
+	Target         *string
+	EntranceScore  *string
+	TotalLessons   *int32
+	Status         string
+	StudyStartedOn pgtype.Date
+	Notes          *string
+	CreatedBy      *uuid.UUID
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	DeletedAt      *time.Time
+	Version        int32
+}
+
+type AcademicStudentEvent struct {
+	ID         uuid.UUID
+	StudentID  uuid.UUID
+	Kind       string
+	Message    string
+	FromStatus *string
+	ToStatus   *string
+	CreatedBy  *uuid.UUID
+	CreatedAt  time.Time
+}
+
+type AcademicStudentGuardian struct {
+	StudentID    uuid.UUID
+	GuardianID   uuid.UUID
+	Relationship *string
+	CreatedBy    *uuid.UUID
+	CreatedAt    time.Time
+}
+
 type CoreBranch struct {
 	ID               uuid.UUID
 	Code             string

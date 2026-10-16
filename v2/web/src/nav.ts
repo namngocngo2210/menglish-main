@@ -10,6 +10,8 @@ export const NAV: NavItem[] = [
   { path: '/users', label: 'Người dùng', perms: ['user.view'] },
   { path: '/roles', label: 'Vai trò & quyền', perms: ['role.view'] },
   { path: '/branches', label: 'Chi nhánh', perms: ['branch.view'] },
+  // Trang con /students/<id>, /students/enrollments do StudentsPage tự đọc đường dẫn
+  { path: '/students', label: 'Danh sách học viên', perms: ['student.view'], group: 'Học viên' },
 ]
 
 export function can(me: Me, ...perms: string[]) {

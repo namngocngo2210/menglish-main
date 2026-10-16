@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import type { Me } from './api'
+import { StudentsPage } from './features/students/StudentsPage'
 import { AccountPage } from './pages/AccountPage'
 import { BranchesPage } from './pages/admin/BranchesPage'
 import { RolesPage } from './pages/admin/RolesPage'
@@ -12,4 +13,5 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/users': (me) => <UsersPage me={me} />,
   '/roles': (me) => <RolesPage me={me} />,
   '/branches': (me) => <BranchesPage me={me} />,
+  '/students': (me) => <StudentsPage me={me} />,
 }

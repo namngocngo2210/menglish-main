@@ -21,6 +21,7 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/secretbox"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/server"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/store"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/students"
 )
 
 // Gắn lúc build: -ldflags "-X main.version=<commit>".
@@ -114,7 +115,7 @@ func runAPI(ctx context.Context) error {
 		Addr: cfg.HTTPAddr,
 		Handler: server.New(server.Deps{
 			Log: log, Version: version, Env: cfg.Env, Checks: checks,
-			API: apiRoutes(auth),
+			API: apiRoutes(auth, students.NewHandler(students.NewService(d.pool, d.iam, log), log)),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       60 * time.Second,
