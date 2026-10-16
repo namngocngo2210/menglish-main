@@ -20,6 +20,7 @@ docker/menglish.sh production ps
 docker/menglish.sh production logs -f app scheduler
 docker/menglish.sh production artisan tinker
 docker/menglish.sh production backup-db           # → backups/production-<thời gian>.sql.gz
+docker/menglish.sh production backup              # DB + file upload (public/uploads, storage/app), xóa bản > 14 ngày
 ```
 
 `deploy <ref>` build image từ đúng commit / nhánh (qua `git archive`, không đổi thư mục làm việc), vd. `docker/menglish.sh staging deploy origin/feature-x`; `version` cho biết commit đang chạy. Không truyền ref thì build từ thư mục hiện tại.
@@ -45,6 +46,14 @@ Cấu hình trên GitHub (Settings → Secrets and variables → Actions):
 | Variable | `DEPLOY_USER` | `menglish` |
 
 Thu hồi quyền deploy của CI: xóa dòng `github-actions-deploy@menglish` trong `~/.ssh/authorized_keys`.
+
+## Sao lưu
+
+Cron của user `menglish` trên máy chủ (`crontab -l`): 02:00 production, 02:30 staging chạy `docker/menglish.sh <env> backup` → `backups/` (quyền 700), log ở `backups/cron.log`. Giữ 14 ngày (`BACKUP_KEEP_DAYS`).
+
+Bản sao lưu nằm cùng máy chủ: hỏng ổ / mất máy là mất cả bản sao lưu — nên chép định kỳ ra nơi khác (Google Drive, S3...).
+
+Khôi phục DB: `docker/menglish.sh production import-db backups/production-<thời gian>.sql.gz`. Khôi phục file: `docker/menglish.sh production exec -T app tar xzf - -C /var/www/html < backups/production-<thời gian>-files.tar.gz`.
 
 ## Chuyển từ hosting sang
 
