@@ -1,5 +1,8 @@
 // Package tasks: công việc (giao việc 2 chiều, đổi trạng thái, chuyển lại cho người giao, Admin xác nhận hoàn thành,
 // nhiệm vụ hằng ngày của trợ giảng). Bám theo WorkTaskController / WorkTask của bản Laravel.
+//
+// TODO(audit): mọi thao tác ghi hiện chỉ log slog ("by", người làm); ghi nhật ký audit khi có module audit.
+// TODO(notify): thông báo Laravel ghi ở từng chỗ, gắn khi có module thông báo.
 package tasks
 
 import (
