@@ -1,1 +1,46 @@
 @import 'tailwindcss';
+@import '@fontsource/be-vietnam-pro/400.css';
+@import '@fontsource/be-vietnam-pro/500.css';
+@import '@fontsource/be-vietnam-pro/600.css';
+@import '@fontsource/be-vietnam-pro/700.css';
+@import '@fontsource/jetbrains-mono/400.css';
+
+/*
+ * Token màu lấy từ bản Laravel (tailwind.config.js) để giữ nhận diện cam của MEnglish.
+ * Component chỉ dùng tên token, không viết mã màu trực tiếp (tài liệu thiết kế, mục UI/UX).
+ *  - primary (#c2410c): nút chính, mục đang chọn, vòng focus; chữ trắng trên nền đạt WCAG AA.
+ *  - brand (#f5691a): cam logo, chỉ để trang trí, không làm nền chữ.
+ */
+@theme {
+  --font-sans: 'Be Vietnam Pro', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  --color-primary: #c2410c;
+  --color-primary-hover: #a23f00;
+  --color-primary-light: #fff3eb;
+  --color-brand: #f5691a;
+  --color-sidebar: #111a2b;
+
+  --color-background: #f9f9ff;
+  --color-surface: #ffffff;
+  --color-surface-container-low: #f1f3ff;
+  --color-surface-container-high: #e3e8f9;
+  --color-surface-container-highest: #dde2f3;
+  --color-on-surface: #161c27;
+  --color-on-surface-variant: #594137;
+  --color-on-surface-subtle: #74635b;
+  --color-outline: #8d7165;
+  --color-outline-variant: #e1bfb2;
+
+  --color-error: #ba1a1a;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+  --color-success: #15803d;
+  --color-success-container: #dcfce7;
+  --color-on-success-container: #14532d;
+  --color-info: #1d4ed8;
+  --color-info-container: #dbeafe;
+  --color-on-info-container: #1e3a8a;
+  --color-warning: #9a4608;
+  --color-warning-container: #fef3c7;
+}

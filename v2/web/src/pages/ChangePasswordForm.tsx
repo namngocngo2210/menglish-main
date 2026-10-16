@@ -43,7 +43,7 @@ export function ChangePasswordForm({ onDone }: { onDone: () => void }) {
         value={confirm}
         onChange={(e) => setConfirm(e.target.value)}
       />
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-on-surface-variant">
         Ít nhất 10 ký tự, không dùng mật khẩu phổ biến hoặc chứa mã, email, SĐT của bạn. Các thiết bị khác sẽ bị đăng
         xuất.
       </p>
