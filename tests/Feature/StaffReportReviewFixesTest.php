@@ -49,7 +49,7 @@ class StaffReportReviewFixesTest extends TestCase
 
     private function makeUser(string|array $roles, array $attributes = []): User
     {
-        $user = User::factory()->create(array_merge(['branch_id' => $this->branchA->id, 'is_active' => true], $attributes));
+        $user = User::factory()->create(array_merge(['branch_id' => $this->branchA->id, 'is_active' => true, 'created_at' => '2026-09-01 08:00'], $attributes));
         $user->assignRole($roles);
 
         return $user;
@@ -120,6 +120,10 @@ class StaffReportReviewFixesTest extends TestCase
         StaffAttendanceRequest::create(['user_id' => $staff->id, 'branch_id' => $this->branchA->id, 'type' => StaffAttendanceRequest::TYPE_LEAVE,
             'date_from' => '2026-10-13', 'date_to' => '2026-10-13', 'reason' => 'Ốm', 'status' => StaffAttendanceRequest::STATUS_APPROVED]);
         $this->assertSame([], DailyReportDue::missingDays($staff, $from, $to)->all());
+
+        // Người mới tạo tài khoản ngày 14/10 (nghỉ lễ): không tính thiếu các ngày trước đó.
+        $newcomer = $this->makeUser('academic_staff', ['created_at' => '2026-10-14 09:00']);
+        $this->assertSame([], DailyReportDue::missingDays($newcomer, $from, $to)->map->toDateString()->all());
     }
 
     public function test_daily_page_opens_yesterday_before_ten_and_lists_missing_days(): void

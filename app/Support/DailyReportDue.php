@@ -51,7 +51,8 @@ final class DailyReportDue
     }
 
     /**
-     * Ngày phải nộp trong khoảng [$from, $to], chỉ tính ngày đã qua hạn hoặc đã tới (không tính hôm nay trở đi).
+     * Ngày phải nộp trong khoảng [$from, $to], chỉ tính ngày đã qua hạn hoặc đã tới (không tính hôm nay trở đi)
+     * và không tính những ngày trước khi tài khoản được tạo (người mới vào giữa tháng).
      *
      * @return Collection<int, Carbon>
      */
@@ -59,6 +60,9 @@ final class DailyReportDue
     {
         $to = Carbon::parse(min($to->toDateString(), today()->subDay()->toDateString()));
         $from = Carbon::parse($from->toDateString());
+        if ($user->created_at !== null && $user->created_at->toDateString() > $from->toDateString()) {
+            $from = Carbon::parse($user->created_at->toDateString());
+        }
         if ($from->gt($to)) {
             return collect();
         }

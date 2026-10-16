@@ -78,7 +78,7 @@ class WeeklyReportMetricsTest extends TestCase
 
     private function makeUser(string $role, array $attributes = []): User
     {
-        $user = User::factory()->create(array_merge(['branch_id' => $this->branch->id, 'is_active' => true], $attributes));
+        $user = User::factory()->create(array_merge(['branch_id' => $this->branch->id, 'is_active' => true, 'created_at' => '2026-09-01 08:00'], $attributes));
         $user->assignRole($role);
 
         return $user;
