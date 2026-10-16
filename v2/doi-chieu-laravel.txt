@@ -1,0 +1,5 @@
+# Mảng v2 dựa trên những file Laravel nào, đã đối chiếu tới commit nào (v2/tools/parity.sh đọc file này).
+# Khi chuyển thêm một mảng sang v2: thêm dòng. Khi đã cập nhật v2 theo thay đổi mới của Laravel: sửa commit thành
+# commit Laravel vừa đối chiếu. Mỗi dòng: <mảng> <commit> <file Laravel>...
+iam.rbac  19682e935e5add839864c6b7eaf693c233f1bc16  config/permission_catalog.php config/access.php app/Support/Roles.php app/Support/Rbac.php app/Support/DataScope.php app/Support/PermissionCatalog.php app/Support/Approvals/AdminOnlyApprovals.php app/Models/UserPermissionOverride.php app/Providers/AppServiceProvider.php app/Http/Controllers/UserController.php app/Http/Controllers/RoleController.php app/Http/Controllers/UserPermissionOverrideController.php app/Http/Controllers/BranchController.php
+web.menu  19682e935e5add839864c6b7eaf693c233f1bc16  app/Support/Navigation/SidebarMenu.php

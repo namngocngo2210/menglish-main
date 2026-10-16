@@ -54,3 +54,137 @@ WHERE user_id = $1 AND code_hash = $2 AND used_at IS NULL;
 
 -- name: CountUnusedRecoveryCodes :one
 SELECT count(*) FROM iam.totp_recovery_codes WHERE user_id = $1 AND used_at IS NULL;
+
+-- ───────────── Vai trò, quyền, chi nhánh ─────────────
+
+-- name: ListPermissionNames :many
+SELECT name FROM iam.permissions ORDER BY name;
+
+-- name: UpsertPermission :exec
+INSERT INTO iam.permissions (name, module, kind) VALUES ($1, $2, $3)
+ON CONFLICT (name) DO UPDATE SET module = EXCLUDED.module, kind = EXCLUDED.kind;
+
+-- name: DeletePermission :exec
+DELETE FROM iam.permissions WHERE name = $1;
+
+-- name: InsertRoleIfMissing :execrows
+INSERT INTO iam.roles (name, label, short_label, sort) VALUES ($1, $2, $3, $4)
+ON CONFLICT (name) DO NOTHING;
+
+-- name: SetRoleSort :exec
+UPDATE iam.roles SET sort = $2 WHERE name = $1 AND sort <> $2;
+
+-- name: GrantRolePermission :exec
+INSERT INTO iam.role_permissions (role, permission) VALUES ($1, $2) ON CONFLICT DO NOTHING;
+
+-- name: DeleteRolePermissions :exec
+DELETE FROM iam.role_permissions WHERE role = $1;
+
+-- name: ListRoles :many
+SELECT r.*, (SELECT count(*) FROM iam.user_roles ur WHERE ur.role = r.name)::bigint AS user_count
+FROM iam.roles r ORDER BY r.sort, r.name;
+
+-- name: GetRole :one
+SELECT * FROM iam.roles WHERE name = $1;
+
+-- name: UpdateRoleLabels :exec
+UPDATE iam.roles SET label = $2, short_label = $3, updated_at = now() WHERE name = $1;
+
+-- name: ListRolePermissions :many
+SELECT role, permission FROM iam.role_permissions ORDER BY role, permission;
+
+-- name: ListPermissionsOfRole :many
+SELECT permission FROM iam.role_permissions WHERE role = $1 ORDER BY permission;
+
+-- name: ListUserRoles :many
+SELECT role FROM iam.user_roles WHERE user_id = $1 ORDER BY role;
+
+-- name: ListUserRolePermissions :many
+SELECT DISTINCT rp.permission FROM iam.role_permissions rp
+JOIN iam.user_roles ur ON ur.role = rp.role
+WHERE ur.user_id = $1;
+
+-- name: DeleteUserRoles :exec
+DELETE FROM iam.user_roles WHERE user_id = $1;
+
+-- name: AddUserRole :exec
+INSERT INTO iam.user_roles (user_id, role) VALUES ($1, $2) ON CONFLICT DO NOTHING;
+
+-- name: ListUserOverrides :many
+SELECT permission, allow, scope_type, scope_id FROM iam.permission_overrides
+WHERE user_id = $1 ORDER BY permission, scope_type;
+
+-- name: DeleteUserOverridesAll :exec
+DELETE FROM iam.permission_overrides WHERE user_id = $1 AND scope_type = 'all';
+
+-- name: AddUserOverride :exec
+INSERT INTO iam.permission_overrides (user_id, permission, allow, scope_type, scope_id, created_by)
+VALUES ($1, $2, $3, $4, $5, $6);
+
+-- name: ListUserBranches :many
+SELECT ub.branch_id, ub.is_primary, b.code, b.name FROM iam.user_branches ub
+JOIN core.branches b ON b.id = ub.branch_id
+WHERE ub.user_id = $1 ORDER BY ub.is_primary DESC, b.name;
+
+-- name: DeleteUserBranches :exec
+DELETE FROM iam.user_branches WHERE user_id = $1;
+
+-- name: AddUserBranch :exec
+INSERT INTO iam.user_branches (user_id, branch_id, is_primary) VALUES ($1, $2, $3);
+
+-- name: ListUsers :many
+-- Bộ lọc NULL = không giới hạn. assignable: chỉ người có ít nhất một vai trò và mọi vai trò nằm trong danh sách
+-- (cây vai trò); branch_ids: chi nhánh chính thuộc danh sách; created_by: tài khoản do người này tạo.
+SELECT u.id, u.kind, u.code, u.email, u.phone, u.full_name, u.status, u.must_change_password,
+       u.totp_enabled_at, u.locked_until, u.last_login_at, u.created_at,
+       ARRAY(SELECT ur.role FROM iam.user_roles ur WHERE ur.user_id = u.id ORDER BY ur.role)::text[] AS roles,
+       pb.branch_id AS primary_branch_id,
+       count(*) OVER () AS total
+FROM iam.users u
+LEFT JOIN iam.user_branches pb ON pb.user_id = u.id AND pb.is_primary
+WHERE (sqlc.narg(assignable)::text[] IS NULL OR (
+        EXISTS (SELECT 1 FROM iam.user_roles ur WHERE ur.user_id = u.id)
+        AND NOT EXISTS (SELECT 1 FROM iam.user_roles ur WHERE ur.user_id = u.id
+                        AND NOT (ur.role = ANY (sqlc.narg(assignable)::text[])))))
+  AND (sqlc.narg(branch_ids)::uuid[] IS NULL OR EXISTS (
+        SELECT 1 FROM iam.user_branches ub WHERE ub.user_id = u.id AND ub.is_primary
+        AND ub.branch_id = ANY (sqlc.narg(branch_ids)::uuid[])))
+  AND (sqlc.narg(created_by)::uuid IS NULL OR u.created_by = sqlc.narg(created_by)::uuid)
+  AND (sqlc.narg(search)::text IS NULL OR u.full_name ILIKE sqlc.narg(search)::text
+       OR u.code ILIKE sqlc.narg(search)::text OR u.email ILIKE sqlc.narg(search)::text
+       OR u.phone ILIKE sqlc.narg(search)::text)
+  AND (sqlc.narg(role)::text IS NULL OR EXISTS (
+        SELECT 1 FROM iam.user_roles ur WHERE ur.user_id = u.id AND ur.role = sqlc.narg(role)::text))
+  AND (sqlc.narg(status)::text IS NULL OR u.status = sqlc.narg(status)::text)
+ORDER BY u.full_name, u.id
+LIMIT sqlc.arg(lim) OFFSET sqlc.arg(off);
+
+-- name: UpdateUserProfile :one
+UPDATE iam.users SET code = $2, email = $3, phone = $4, full_name = $5, updated_at = now()
+WHERE id = $1 RETURNING *;
+
+-- name: SetUserStatus :exec
+UPDATE iam.users SET status = $2, updated_at = now() WHERE id = $1;
+
+-- name: SetUserCreatedBy :exec
+UPDATE iam.users SET created_by = $2 WHERE id = $1;
+
+-- name: ListBranches :many
+SELECT * FROM core.branches ORDER BY is_active DESC, name;
+
+-- name: GetBranch :one
+SELECT * FROM core.branches WHERE id = $1;
+
+-- name: CreateBranch :one
+INSERT INTO core.branches (code, name, address, phone, created_by) VALUES ($1, $2, $3, $4, $5)
+RETURNING *;
+
+-- name: UpdateBranch :one
+UPDATE core.branches SET code = $2, name = $3, address = $4, phone = $5, updated_at = now()
+WHERE id = $1 RETURNING *;
+
+-- name: SetBranchActive :one
+UPDATE core.branches SET is_active = $2, updated_at = now() WHERE id = $1 RETURNING *;
+
+-- name: CountActiveBranches :one
+SELECT count(*) FROM core.branches WHERE is_active AND id = ANY (sqlc.arg(ids)::uuid[]);

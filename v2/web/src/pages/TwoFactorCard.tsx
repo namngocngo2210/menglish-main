@@ -12,16 +12,25 @@ export function TwoFactorCard({ me }: { me: Me }) {
   return (
     <Card title="Xác thực hai bước">
       {recovery ? (
-        <RecoveryCodes codes={recovery} onClose={() => setRecovery(null)} />
-      ) : me.user.totp_enabled ? (
-        <Enabled left={me.recovery_codes_left ?? 0} onDisabled={refresh} />
-      ) : (
-        <Setup
-          onEnabled={(codes) => {
-            setRecovery(codes)
+        // Chỉ tải lại thông tin tài khoản sau khi người dùng lưu mã: màn bắt buộc 2FA biến mất ngay khi tải lại.
+        <RecoveryCodes
+          codes={recovery}
+          onClose={() => {
+            setRecovery(null)
             refresh()
           }}
         />
+      ) : me.user.totp_enabled ? (
+        me.totp_required ? (
+          <Alert tone="success">
+            Đang bật. Còn {me.recovery_codes_left ?? 0} mã dự phòng chưa dùng. Vai trò của bạn bắt buộc xác thực hai bước
+            nên không tắt được.
+          </Alert>
+        ) : (
+          <Enabled left={me.recovery_codes_left ?? 0} onDisabled={refresh} />
+        )
+      ) : (
+        <Setup onEnabled={setRecovery} />
       )}
     </Card>
   )

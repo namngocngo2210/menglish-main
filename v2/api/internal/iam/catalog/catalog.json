@@ -1,0 +1,2030 @@
+{
+    "groups": [
+        {
+            "key": "crm",
+            "label": "CRM & Tuyển sinh"
+        },
+        {
+            "key": "academic",
+            "label": "Học vụ & Đào tạo"
+        },
+        {
+            "key": "finance",
+            "label": "Kế toán / Học phí"
+        },
+        {
+            "key": "hr",
+            "label": "Nhân sự, Chấm công & Lương"
+        },
+        {
+            "key": "operations",
+            "label": "Vận hành & Hỗ trợ"
+        },
+        {
+            "key": "system",
+            "label": "Hệ thống & Phân quyền"
+        },
+        {
+            "key": "portal",
+            "label": "Cổng & Đối tượng người dùng"
+        }
+    ],
+    "scope_levels": [
+        {
+            "key": "own",
+            "label": "Của tôi"
+        },
+        {
+            "key": "branch",
+            "label": "Chi nhánh"
+        },
+        {
+            "key": "all",
+            "label": "Toàn hệ thống"
+        }
+    ],
+    "matrix_columns": [
+        {
+            "key": "view",
+            "label": "Xem"
+        },
+        {
+            "key": "create",
+            "label": "Thêm"
+        },
+        {
+            "key": "update",
+            "label": "Sửa"
+        },
+        {
+            "key": "delete",
+            "label": "Xóa"
+        },
+        {
+            "key": "approve",
+            "label": "Duyệt"
+        }
+    ],
+    "modules": [
+        {
+            "key": "lead",
+            "label": "Khách hàng tiềm năng (CRM)",
+            "group": "crm",
+            "icon": "leaderboard",
+            "actions": [
+                {
+                    "key": "view",
+                    "label": "Xem khách",
+                    "description": "Xem Kanban, danh sách, hồ sơ khách, khách chốt / thất bại, báo cáo CRM (trong phạm vi dữ liệu)."
+                },
+                {
+                    "key": "create",
+                    "label": "Thêm khách",
+                    "description": "Thêm khách mới, nhập khách từ Excel."
+                },
+                {
+                    "key": "update",
+                    "label": "Sửa khách",
+                    "description": "Sửa thông tin khách, ghi nhật ký chăm sóc, tick mốc chăm sóc tháng đầu."
+                },
+                {
+                    "key": "delete",
+                    "label": "Xóa khách",
+                    "description": "Xóa khách (xóa mềm), xem danh sách khách đã xóa và khôi phục."
+                },
+                {
+                    "key": "assign",
+                    "label": "Phân công / phân công lại",
+                    "description": "Chọn hoặc đổi người phụ trách khách (bắt buộc lý do khi đổi)."
+                },
+                {
+                    "key": "convert",
+                    "label": "Chốt khách & xếp lớp",
+                    "description": "Chốt khách: tạo hồ sơ học viên, tài khoản, học phí, xếp lớp / đưa vào Chờ xếp lớp."
+                },
+                {
+                    "key": "mark_lost",
+                    "label": "Đánh dấu thất bại",
+                    "description": "Chuyển khách chưa chốt sang Thất bại (có lý do)."
+                },
+                {
+                    "key": "stage_forward",
+                    "label": "Chuyển bước pipeline (tiến)",
+                    "description": "Chuyển khách tiến từng bước một trên pipeline, đặt lịch học thử (vai trò CM — A6 Q1)."
+                },
+                {
+                    "key": "stage_back",
+                    "label": "Lùi bước pipeline",
+                    "description": "Lùi giai đoạn của khách chưa chốt, bắt buộc lý do (A6: chỉ Admin)."
+                },
+                {
+                    "key": "trial_feedback",
+                    "label": "Nhận xét học thử mọi buổi",
+                    "description": "Ghi nhận xét học thử cho khách ở buổi mình không dạy."
+                },
+                {
+                    "key": "approve_transfer",
+                    "label": "Duyệt chuyển cơ sở",
+                    "description": "Duyệt / từ chối yêu cầu đổi người phụ trách sang cơ sở khác (khách và học viên chuyển sang cơ sở mới); tự đổi được ngay không cần duyệt. Chỉ Admin dùng được (06/10/2026), cấp cho vai trò khác không có tác dụng."
+                }
+            ],
+            "audience": [
+                {
+                    "key": "be_assigned",
+                    "label": "Được nhận phụ trách khách",
+                    "description": "Có tên trong danh sách người phụ trách khi phân công khách (mặc định Học vụ và Admin)."
+                }
+            ],
+            "scope": {
+                "levels": [
+                    "own",
+                    "branch",
+                    "all"
+                ],
+                "descriptions": {
+                    "own": "Khách được giao cho tôi phụ trách",
+                    "branch": "Khách thuộc chi nhánh của tôi (chi nhánh chính + chi nhánh được cấp thêm)",
+                    "all": "Mọi khách, mọi chi nhánh"
+                }
+            }
+        },
+        {
+            "key": "promotion",
+            "label": "Ưu đãi tuyển sinh",
+            "group": "crm",
+            "icon": "redeem",
+            "actions": [
+                {
+                    "key": "manage",
+                    "label": "Quản lý ưu đãi",
+                    "description": "Quản lý danh mục ưu đãi (mặc định, ngừng áp dụng), tạo ưu đãi riêng cho ca đặc biệt khi chốt khách."
+                }
+            ],
+            "audience": []
+        },
+        {
+            "key": "entrance_test",
+            "label": "Lịch & chấm test đầu vào",
+            "group": "crm",
+            "icon": "quiz",
+            "actions": [
+                {
+                    "key": "view",
+                    "label": "Xem lịch / kết quả test",
+                    "description": "Xem lịch hẹn test và kết quả test đầu vào của khách."
+                },
+                {
+                    "key": "send",
+                    "label": "Hẹn test / gửi link test",
+                    "description": "Hẹn lịch test, gửi link bài test online cho khách."
+                },
+                {
+                    "key": "grade",
+                    "label": "Nhập điểm test",
+                    "description": "Nhập / chấm điểm test đầu vào, gồm phần Viết / Nói (A6 Q7)."
+                }
+            ],
+            "audience": [
+                {
+                    "key": "examine",
+                    "label": "Được chọn làm người chấm test",
+                    "description": "Có tên trong danh sách người chấm khi hẹn test cho khách."
+                }
+            ]
+        },
+        {
+            "key": "placement_test",
+            "label": "Đề test đầu vào (AI)",
+            "group": "crm",
+            "icon": "quiz",
+            "actions": [
+                {
+                    "key": "view",
+                    "label": "Xem đề",
+                    "description": "Xem danh sách đề, thang điểm & hướng dẫn chấm."
+                },
+                {
+                    "key": "create",
+                    "label": "Tạo đề",
+                    "description": "Tạo đề mới, nhân bản đề."
+                },
+                {
+                    "key": "update",
+                    "label": "Sửa đề",
+                    "description": "Sửa đề, bật / tắt đề."
+                },
+                {
+                    "key": "delete",
+                    "label": "Xóa đề",
+                    "description": "Xóa đề test."
+                },
+                {
+                    "key": "send",
+                    "label": "Gửi đề",
+                    "description": "Gửi đề cho thí sinh."
+                },
+                {
+                    "key": "grade",
+                    "label": "Chấm bài làm",
+                    "description": "Xem và chấm bài làm của thí sinh."
+                },
+                {
+                    "key": "distribute",
+                    "label": "Phân phối đề",
+                    "description": "Phân phối đề cho chi nhánh / người dùng."
+                }
+            ],
+            "audience": []
+        },
+        {
+            "key": "student",
+            "label": "Hồ sơ học viên",
+            "group": "academic",
+            "icon": "school",
+            "actions": [
+                {
+                    "key": "view",
+                    "label": "Xem học viên",
+                    "description": "Xem danh sách, hồ sơ học viên (trong phạm vi dữ liệu)."
+                },
+                {
+                    "key": "update",
+                    "label": "Sửa học viên",
+                    "description": "Sửa thông tin hồ sơ học viên."
+                },
+                {
+                    "key": "delete",
+                    "label": "Xóa học viên",
+                    "description": "Xóa hồ sơ học viên."
+                },
+                {
+                    "key": "change_status",
+                    "label": "Đổi trạng thái học tập",
+                    "description": "Đổi trạng thái (bảo lưu, nghỉ hè, thôi học…), kết thúc bảo lưu."
+                },
+                {
+                    "key": "assign_class",
+                    "label": "Xếp lớp / xác nhận nhập học",
+                    "description": "Xếp lớp, liên kết lớp, xác nhận chính thức, bàn giao nhập học."
+                }
+            ],
+            "audience": [],
+            "scope": {
+                "levels": [
+                    "own",
+                    "branch",
+                    "all"
+                ],
+                "descriptions": {
+                    "own": "Học viên thuộc lớp tôi phụ trách / dạy",
+                    "branch": "Học viên thuộc chi nhánh của tôi (chưa gán chi nhánh thì theo lớp đang học)",
+                    "all": "Mọi học viên"
+                }
+            }
+        },
+        {
+            "key": "class",
+            "label": "Lớp học & lịch học",
+            "group": "academic",
+            "icon": "groups",
+            "actions": [
+                {
+                    "key": "view",
+                    "label": "Xem lớp",
+                    "description": "Xem danh sách, hồ sơ lớp, lịch học (trong phạm vi dữ liệu)."
+                },
+                {
+                    "key": "create",
+                    "label": "Tạo lớp",
+                    "description": "Mở lớp mới, sinh lịch học."
+                },
+                {
+                    "key": "update",
+                    "label": "Sửa lớp",
+                    "description": "Sửa lớp, lịch, đặt lịch học thử, dashboard đào tạo."
+                },
+                {
+                    "key": "delete",
+                    "label": "Xóa lớp",
+                    "description": "Xóa / hủy lớp."
+                }
+            ],
+            "audience": [
+                {
+                    "key": "teach",
+                    "label": "Được xếp dạy lớp (GV chính / GVNN)",
+                    "description": "Có tên trong danh sách giáo viên chính / GVNN khi tạo, sửa lớp."
+                },
+                {
+                    "key": "assist",
+                    "label": "Được xếp làm trợ giảng lớp",
+                    "description": "Có tên trong danh sách trợ giảng khi tạo, sửa lớp."
+                }
+            ],
+            "scope": {
+                "levels": [
+                    "own",
+                    "branch",
+                    "all"
+                ],
+                "descriptions": {
+                    "own": "Lớp tôi dạy / trợ giảng / GVNN (kể cả dạy thay theo buổi)",
+                    "branch": "Lớp của tôi + mọi lớp thuộc chi nhánh của tôi",
+                    "all": "Mọi lớp"
+                }
+            }
+        },
+        {
+            "key": "class_quality",
+            "label": "Dự giờ & chất lượng lớp",
+            "group": "academic",
+            "icon": "verified",
+            "actions": [
+                {
+                    "key": "view",
+                    "label": "Xem dự giờ & checklist lớp",
+                    "description": "Xem lượt dự giờ vận hành, đánh giá dự giờ học thuật, checklist học phí & feedback, báo cáo họp giáo viên (lớp trong phạm vi Lớp học)."
+                },
+                {
+                    "key": "observe_operations",
+                    "label": "Ghi nhận dự giờ vận hành",
+                    "description": "Ghi nhận / sửa / xóa lượt dự giờ QA của đội vận hành."
+                },
+                {
+                    "key": "observe_academic",
+                    "label": "Đánh giá dự giờ học thuật",
+                    "description": "Ghi đánh giá dự giờ theo lớp và tháng (6 tiêu chí, % chuyên cần, % đạt yêu cầu)."
+                },
+                {
+                    "key": "checklist",
+                    "label": "Cập nhật checklist học phí & feedback",
+                    "description": "Đánh dấu Có / Không / N-A việc nhắc, thu học phí và feedback Big Test theo lớp, theo tháng."
+                },
+                {
+                    "key": "teacher_meeting",
+                    "label": "Ghi báo cáo họp giáo viên",
+                    "description": "Ghi / sửa / xóa báo cáo họp giáo viên theo tuần."
+                }
+            ],
+            "audience": []
+        },
+        {
+            "key": "academic_project",
+            "label": "Dự án học thuật (soạn sách, chương trình)",
+            "group": "academic",
+            "icon": "auto_stories",
+            "actions": [
+                {
+                    "key": "view",
+                    "label": "Xem dự án mình tham gia",
+                    "description": "Xem dự án mình phụ trách / là thành viên / được giao mốc; cập nhật tiến độ phần việc của mình."
+                },
+                {
+                    "key": "view_all",
+                    "label": "Xem mọi dự án & báo cáo dự án",
+                    "description": "Xem mọi dự án học thuật và trang Báo cáo → Dự án học thuật."
+                },
+                {
+                    "key": "manage",
+                    "label": "Tạo & quản lý dự án",
+                    "description": "Tạo / sửa / xóa dự án, chốt tiến độ, thêm mốc và người nhận, phản hồi khó khăn, đóng dự án."
+                }
+            ],
+            "audience": []
+        },
+        {
+            "key": "room",
+            "label": "Phòng học",
+            "group": "academic",
+            "icon": "meeting_room",
+            "actions": [
+                {
+                    "key": "view",
+                    "label": "Xem phòng học",
+                    "description": "Xem danh sách phòng, tra cứu phòng trống (trong phạm vi dữ liệu)."
+                },
+                {
+                    "key": "manage",
+                    "label": "Thêm / sửa phòng học",
+                    "description": "Thêm phòng, sửa tên / loại phòng / sức chứa / ghi chú của phòng."
+                },
+                {
+                    "key": "delete",
+                    "label": "Xóa phòng học",
+                    "description": "Xóa phòng (bị chặn khi phòng đang có lớp học)."
+                },
+                {
+                    "key": "manage_types",
+                    "label": "Quản lý loại phòng",
+                    "description": "Thêm / sửa / ngừng dùng / xóa danh mục loại phòng dùng chung toàn hệ thống."
+                }
+            ],
+            "audience": [],
+            "scope": {
+                "levels": [
+                    "branch",
+                    "all"
+                ],
+                "descriptions": {
+                    "branch": "Phòng thuộc chi nhánh của tôi (chi nhánh chính + chi nhánh được cấp thêm)",
+                    "all": "Phòng mọi chi nhánh"
+                }
+            }
+        },
+        {
+            "key": "teaching_shift",
+            "label": "Khung giờ ca dạy",
+            "group": "academic",
+            "icon": "schedule",
+            "actions": [
+                {
+                    "key": "manage",
+                    "label": "Sửa khung giờ ca dạy",
+                    "description": "Thêm / sửa / ngừng dùng / xóa khung giờ ca dạy (Ca 1, Ca 2, ca cuối tuần) dùng khi xếp TKB lớp."
+                }
+            ],
+            "audience": []
+        },
+        {
+            "key": "attendance_student",
+            "label": "Điểm danh học viên",
+            "group": "academic",
+            "icon": "how_to_reg",
+            "actions": [
+                {
+                    "key": "view",
+                    "label": "Xem điểm danh",
+                    "description": "Xem điểm danh, chuyên cần của học viên."
+                },
+                {
+                    "key": "record",
+                    "label": "Điểm danh lớp mình",
+                    "description": "Dùng cổng giáo viên: điểm danh, giao bài, nhận xét, nhập điểm cho lớp mình được phân công."
+                },
+                {
+                    "key": "record_any",
+                    "label": "Điểm danh / nhập liệu thay GV",
+                    "description": "Thao tác trên cổng giáo viên thay giáo viên cho mọi lớp trong phạm vi dữ liệu Lớp học."
+                }
+            ],
+            "audience": []
+        },
+        {
+            "key": "homework",
+            "label": "Bài tập học viên nộp",
+            "group": "academic",
+            "icon": "assignment",
+            "actions": [
+                {
+                    "key": "grade",
+                    "label": "Chấm bài nộp",
+                    "description": "Xem và chấm bài tập học viên nộp qua cổng (lớp mình dạy; phạm vi Lớp học \"Toàn hệ thống\" thì mọi lớp)."
+                }
+            ],
+            "audience": []
+        },
+        {
+            "key": "level",
+            "label": "Khung trình độ",
+            "group": "academic",
+            "icon": "stairs",
+            "actions": [
+                {
+                    "key": "view",
+                    "label": "Xem trình độ",
+                    "description": "Xem khung trình độ (CEFR)."
+                },
+                {
+                    "key": "create",
+                    "label": "Thêm trình độ",
+                    "description": "Thêm trình độ."
+                },
+                {
+                    "key": "update",
+                    "label": "Sửa trình độ",
+                    "description": "Sửa, sắp xếp trình độ."
+                },
+                {
+                    "key": "delete",
+                    "label": "Xóa trình độ",
+                    "description": "Xóa trình độ."
+                }
+            ],
+            "audience": []
+        },
+        {
+            "key": "syllabus",
+            "label": "Giáo trình & chặng",
+            "group": "academic",
+            "icon": "menu_book",
+            "actions": [
+                {
+                    "key": "view",
+                    "label": "Xem giáo trình",
+                    "description": "Xem tài liệu, giáo trình, chặng, bài giảng."
+                },
+                {
+                    "key": "update",
+                    "label": "Nhập kết quả / cập nhật",
+                    "description": "Nhập kết quả Big Test, cập nhật nội dung buổi học."
+                },
+                {
+                    "key": "manage",
+                    "label": "Quản lý giáo trình",
+                    "description": "Soạn giáo trình / chặng / unit / buổi, giao chặng, tạo đợt Big Test, nhắc lịch."
+                },
+                {
+                    "key": "upload",
+                    "label": "Tải tài liệu",
+                    "description": "Tải lên / xóa tài liệu giáo trình."
+                },
+                {
+                    "key": "propose_adjustment",
+                    "label": "Đề xuất sửa / giãn tiến độ",
+                    "description": "Gửi đề xuất sửa giáo trình, xin điều chỉnh tiến độ."
+                },
+                {
+                    "key": "approve_adjustment",
+                    "label": "Duyệt đề xuất & tiến độ",
+                    "description": "Duyệt / từ chối đề xuất sửa giáo trình, điều chỉnh tiến độ; đóng chặng. Nút duyệt / từ chối chỉ Admin (06/10/2026)."
+                }
+            ],
+            "audience": []
+        },
+        {
+            "key": "big_test",
+            "label": "Big Test (Học thuật)",
+            "group": "academic",
+            "icon": "fact_check",
+            "actions": [
+                {
+                    "key": "approve",
+                    "label": "Duyệt Big Test",
+                    "description": "Duyệt order đề, phân phối đề, duyệt kết quả và gửi phụ huynh. Nút duyệt / từ chối chỉ Admin (06/10/2026)."
+                }
+            ],
+            "audience": [],
+            "scope": {
+                "levels": [
+                    "own",
+                    "branch",
+                    "all"
+                ],
+                "descriptions": {
+                    "own": "Đợt thi / order đề của lớp tôi phụ trách (hoặc do tôi gửi)",
+                    "branch": "Đợt thi / order đề của lớp tôi phụ trách + lớp thuộc chi nhánh của tôi",
+                    "all": "Mọi đợt thi / order đề"
+                }
+            }
+        },
+        {
+            "key": "tuition",
+            "label": "Học phí & phiếu thu",
+            "group": "finance",
+            "icon": "payments",
+            "actions": [
+                {
+                    "key": "view",
+                    "label": "Xem học phí",
+                    "description": "Xem học viên & công nợ, lịch sử thu, hoàn phí, quá hạn, cấu hình dải số."
+                },
+                {
+                    "key": "create",
+                    "label": "Lập phiếu thu",
+                    "description": "Lập / sửa phiếu thu của mình, nhập học phí từ Excel, ghi khoản chi."
+                },
+                {
+                    "key": "approve",
+                    "label": "Duyệt phiếu thu",
+                    "description": "Duyệt phiếu thu (không tự duyệt phiếu mình lập), xác nhận khoản thu trước khi chốt. Chỉ Admin dùng được (06/10/2026), cấp cho vai trò khác không có tác dụng."
+                },
+                {
+                    "key": "reject",
+                    "label": "Trả về phiếu thu",
+                    "description": "Trả về phiếu thu kèm lý do. Chỉ Admin dùng được (06/10/2026), cấp cho vai trò khác không có tác dụng."
+                },
+                {
+                    "key": "mark_contacted",
+                    "label": "Nhắc phí / đã liên hệ",
+                    "description": "Gửi nhắc phí, đánh dấu đã liên hệ phụ huynh."
+                },
+                {
+                    "key": "report_overdue",
+                    "label": "Báo cáo nợ quá hạn",
+                    "description": "Báo cáo khoản quá hạn cho Admin."
+                },
+                {
+                    "key": "confirm_deposit",
+                    "label": "Xác nhận nộp tiền về TK công ty",
+                    "description": "Xác nhận tiền mặt thu trong ngày đã nộp về tài khoản công ty (hạn 19:00 cùng ngày) và nhận nhắc khi quá hạn."
+                }
+            ],
+            "audience": [],
+            "scope": {
+                "levels": [
+                    "branch",
+                    "all"
+                ],
+                "descriptions": {
+                    "branch": "Học phí của học viên thuộc chi nhánh của tôi",
+                    "all": "Học phí mọi chi nhánh (kế toán tổng)"
+                }
+            }
+        },
+        {
+            "key": "invoice",
+            "label": "Hóa đơn & hủy hóa đơn",
+            "group": "finance",
+            "icon": "receipt_long",
+            "actions": [
+                {
+                    "key": "request_cancel",
+                    "label": "Yêu cầu hủy hóa đơn",
+                    "description": "Lập yêu cầu hủy hóa đơn (kể cả số hóa đơn giấy tiền mặt bị ghi sai)."
+                },
+                {
+                    "key": "approve_cancel",
+                    "label": "Duyệt / từ chối hủy hóa đơn",
+                    "description": "Duyệt hoặc từ chối yêu cầu hủy hóa đơn. Chỉ Admin dùng được (06/10/2026), cấp cho vai trò khác không có tác dụng."
+                }
+            ],
+            "audience": []
+        },
+        {
+            "key": "merchandise_stock",
+            "label": "Tồn kho hàng hóa theo chi nhánh",
+            "group": "finance",
+            "icon": "inventory",
+            "actions": [
+                {
+                    "key": "view",
+                    "label": "Xem tồn kho",
+                    "description": "Xem số tồn sách / hàng hóa của từng chi nhánh và nhật ký xuất nhập kho (trong phạm vi dữ liệu)."
+                },
+                {
+                    "key": "manage",
+                    "label": "Nhập kho / kiểm kê",
+                    "description": "Nhập thêm hàng về chi nhánh, kiểm kê điều chỉnh số tồn thực tế."
+                }
+            ],
+            "audience": [],
+            "scope": {
+                "levels": [
+                    "branch",
+                    "all"
+                ],
+                "descriptions": {
+                    "branch": "Kho của chi nhánh của tôi (chi nhánh chính + chi nhánh được cấp thêm)",
+                    "all": "Kho mọi chi nhánh"
+                }
+            }
+        },
+        {
+            "key": "refund_transfer",
+            "label": "Hoàn phí, chuyển phí, khất nợ, bảo lưu",
+            "group": "finance",
+            "icon": "currency_exchange",
+            "actions": [
+                {
+                    "key": "request",
+                    "label": "Lập yêu cầu",
+                    "description": "Lập yêu cầu hoàn / chuyển / khất nợ / bảo lưu."
+                },
+                {
+                    "key": "approve",
+                    "label": "Duyệt khất nợ / bảo lưu",
+                    "description": "Duyệt yêu cầu khất nợ, bảo lưu. Chỉ Admin dùng được (06/10/2026), cấp cho vai trò khác không có tác dụng."
+                },
+                {
+                    "key": "approve_transfer",
+                    "label": "Duyệt chuyển nhượng phí",
+                    "description": "Duyệt chuyển nhượng buổi dư sang học viên khác. Chỉ Admin dùng được (06/10/2026), cấp cho vai trò khác không có tác dụng."
+                },
+                {
+                    "key": "approve_refund",
+                    "label": "Duyệt hoàn tiền (chi tiền)",
+                    "description": "Duyệt hoàn tiền cho phụ huynh (bắt buộc ảnh bằng chứng). Chỉ Admin dùng được (06/10/2026), cấp cho vai trò khác không có tác dụng."
+                },
+                {
+                    "key": "reject",
+                    "label": "Từ chối yêu cầu",
+                    "description": "Từ chối yêu cầu hoàn / chuyển / khất nợ / bảo lưu. Chỉ Admin dùng được (06/10/2026), cấp cho vai trò khác không có tác dụng."
+                }
+            ],
+            "audience": []
+        },
+        {
+            "key": "mail_config",
+            "label": "Hòm thư gửi (SMTP)",
+            "group": "system",
+            "icon": "outbox",
+            "actions": [
+                {
+                    "key": "manage",
+                    "label": "Cấu hình hòm thư gửi",
+                    "description": "Đổi máy chủ / tài khoản SMTP dùng gửi mọi email của hệ thống (kể cả email đặt lại mật khẩu)."
+                }
+            ],
+            "audience": []
+        },
+        {
+            "key": "sla",
+            "label": "Cấu hình SLA",
+            "group": "system",
+            "icon": "timer",
+            "actions": [
+                {
+                    "key": "configure",
+                    "label": "Cấu hình SLA",
+                    "description": "Đổi ngưỡng giờ / số lần, bật tắt, tự phạt và mức phạt của các SLA tự động."
+                }
+            ],
+            "audience": []
+        },
+        {
+            "key": "bank_account",
+            "label": "Tài khoản ngân hàng & SePay",
+            "group": "finance",
+            "icon": "account_balance",
+            "actions": [
+                {
+                    "key": "manage",
+                    "label": "Quản lý tài khoản & SePay",
+                    "description": "Thêm / sửa tài khoản nhận tiền, cấu hình SePay, xem thông số máy chủ."
+                }
+            ],
+            "audience": []
+        },
+        {
+            "key": "invoice_range",
+            "label": "Dải số hóa đơn",
+            "group": "finance",
+            "icon": "pin",
+            "actions": [
+                {
+                    "key": "manage",
+                    "label": "Cấu hình dải số chi nhánh",
+                    "description": "Thêm / bật / tắt dải số hóa đơn của chi nhánh trong phạm vi Học phí."
+                },
+                {
+                    "key": "manage_default",
+                    "label": "Cấu hình dải số mặc định",
+                    "description": "Cấu hình dải số dùng chung (không gắn chi nhánh)."
+                }
+            ],
+            "audience": []
+        },
+        {
+            "key": "fee_reminder_config",
+            "label": "Cấu hình nhắc nợ",
+            "group": "finance",
+            "icon": "notifications_active",
+            "actions": [
+                {
+                    "key": "manage",
+                    "label": "Cấu hình nhắc nợ",
+                    "description": "Cấu hình mốc và mẫu nhắc nợ tự động."
+                }
+            ],
+            "audience": []
+        },
+        {
+            "key": "finance",
+            "label": "Báo cáo thu chi & sổ khoản chi",
+            "group": "finance",
+            "icon": "query_stats",
+            "actions": [
+                {
+                    "key": "view",
+                    "label": "Xem báo cáo thu chi",
+                    "description": "Xem doanh thu tạm tính, sổ khoản chi vận hành, xuất Excel."
+                }
+            ],
+            "audience": [],
+            "scope": {
+                "levels": [
+                    "branch",
+                    "all"
+                ],
+                "descriptions": {
+                    "branch": "Số liệu chi nhánh của tôi",
+                    "all": "Số liệu mọi chi nhánh"
+                }
+            }
+        },
+        {
+            "key": "user",
+            "label": "Nhân sự & tài khoản",
+            "group": "hr",
+            "icon": "badge",
+            "actions": [
+                {
+                    "key": "view",
+                    "label": "Xem nhân sự",
+                    "description": "Xem danh sách, hồ sơ nhân sự (trong phạm vi dữ liệu)."
+                },
+                {
+                    "key": "create",
+                    "label": "Tạo tài khoản",
+                    "description": "Tạo tài khoản nhân sự / học viên (chỉ vai trò được phép gán)."
+                },
+                {
+                    "key": "update",
+                    "label": "Sửa tài khoản",
+                    "description": "Sửa hồ sơ, hợp đồng, vai trò chính."
+                },
+                {
+                    "key": "delete",
+                    "label": "Xóa tài khoản",
+                    "description": "Xóa (mềm) tài khoản."
+                },
+                {
+                    "key": "lock",
+                    "label": "Khóa / mở khóa",
+                    "description": "Khóa hoặc kích hoạt lại tài khoản."
+                },
+                {
+                    "key": "reset_password",
+                    "label": "Đặt lại mật khẩu",
+                    "description": "Đặt mật khẩu tạm, bắt buộc đổi ở lần đăng nhập sau."
+                },
+                {
+                    "key": "assign_role",
+                    "label": "Mở màn gán vai trò",
+                    "description": "Gán vai trò chính / kiêm nhiệm (chỉ các vai trò được phép gán bên dưới)."
+                }
+            ],
+            "audience": [],
+            "scope": {
+                "levels": [
+                    "own",
+                    "branch",
+                    "all"
+                ],
+                "descriptions": {
+                    "own": "Tài khoản do tôi tạo",
+                    "branch": "Nhân sự thuộc chi nhánh của tôi",
+                    "all": "Mọi nhân sự"
+                }
+            },
+            "dynamic": [
+                {
+                    "prefix": "assign_role.",
+                    "label": "Gán vai trò: :role",
+                    "description": "Được tạo tài khoản / gán vai trò \":role\" cho người khác."
+                }
+            ]
+        },
+        {
+            "key": "attendance_staff",
+            "label": "Chấm công nhân sự",
+            "group": "hr",
+            "icon": "schedule",
+            "actions": [
+                {
+                    "key": "view",
+                    "label": "Xem & duyệt chấm công",
+                    "description": "Xem giờ dạy, đối soát, xác nhận ca theo lịch, duyệt ca."
+                },
+                {
+                    "key": "manual_record",
+                    "label": "Chấm công thủ công",
+                    "description": "Chấm công tay / chỉnh ca (bắt buộc lý do)."
+                },
+                {
+                    "key": "sync",
+                    "label": "Đồng bộ máy chấm công",
+                    "description": "Xem lịch sử đồng bộ, tải file lỗi."
+                }
+            ],
+            "audience": [],
+            "scope": {
+                "levels": [
+                    "own",
+                    "branch",
+                    "all"
+                ],
+                "descriptions": {
+                    "own": "Ca của lớp trong phạm vi Lớp học của tôi",
+                    "branch": "Ca của lớp thuộc chi nhánh của tôi + lớp của tôi",
+                    "all": "Mọi ca, mọi lớp"
+                }
+            }
+        },
+        {
+            "key": "staff_checkin",
+            "label": "Chấm công hằng ngày (ảnh + GPS)",
+            "group": "hr",
+            "icon": "fingerprint",
+            "actions": [
+                {
+                    "key": "view",
+                    "label": "Xem chấm công nhân sự",
+                    "description": "Xem giờ vào / ra, ảnh khuôn mặt, vị trí lúc chấm công của nhân sự (trong phạm vi dữ liệu)."
+                },
+                {
+                    "key": "approve",
+                    "label": "Duyệt đơn chấm công",
+                    "description": "Duyệt / từ chối đơn bổ sung công, xin đi muộn / về sớm, xin nghỉ (không tự duyệt đơn của mình). Chỉ Admin dùng được (06/10/2026), cấp cho vai trò khác không có tác dụng."
+                }
+            ],
+            "audience": [],
+            "scope": {
+                "levels": [
+                    "branch",
+                    "all"
+                ],
+                "descriptions": {
+                    "branch": "Nhân sự thuộc chi nhánh của tôi (chi nhánh chính + chi nhánh được cấp thêm)",
+                    "all": "Nhân sự mọi chi nhánh"
+                }
+            }
+        },
+        {
+            "key": "payroll",
+            "label": "Bảng lương",
+            "group": "hr",
+            "icon": "request_quote",
+            "actions": [
+                {
+                    "key": "view",
+                    "label": "Xem bảng lương",
+                    "description": "Xem kỳ lương, phiếu lương, lương cơ bản / CCCD của nhân sự."
+                },
+                {
+                    "key": "create",
+                    "label": "Tạo kỳ lương",
+                    "description": "Tạo kỳ lương mới."
+                },
+                {
+                    "key": "edit",
+                    "label": "Nhập khoản tay",
+                    "description": "Nhập khoản tay trên phiếu lương."
+                },
+                {
+                    "key": "calculate",
+                    "label": "Tính lương",
+                    "description": "Tính / tính lại bảng lương."
+                },
+                {
+                    "key": "approve",
+                    "label": "Duyệt bảng lương",
+                    "description": "Duyệt / chốt bảng lương (chặn khi còn người chưa chốt KPI)."
+                },
+                {
+                    "key": "mark_paid",
+                    "label": "Đánh dấu đã chi trả",
+                    "description": "Đánh dấu kỳ lương đã chi trả."
+                },
+                {
+                    "key": "view_own",
+                    "label": "Xem lương của tôi",
+                    "description": "Xem phiếu lương, giờ dạy của chính mình."
+                }
+            ],
+            "audience": [],
+            "scope": {
+                "levels": [
+                    "own",
+                    "branch",
+                    "all"
+                ],
+                "descriptions": {
+                    "own": "Chỉ phiếu lương của tôi",
+                    "branch": "Phiếu lương nhân sự thuộc chi nhánh của tôi",
+                    "all": "Mọi phiếu lương"
+                }
+            }
+        },
+        {
+            "key": "kpi",
+            "label": "KPI",
+            "group": "hr",
+            "icon": "insights",
+            "actions": [
+                {
+                    "key": "view",
+                    "label": "Xem KPI",
+                    "description": "Xem cấu hình KPI, tổng hợp KPI tháng, bảng xếp hạng, rà soát điểm danh."
+                },
+                {
+                    "key": "confirm",
+                    "label": "Chấm / chốt KPI",
+                    "description": "Chấm và chốt KPI tháng (không tự chấm cho mình), rà soát điểm danh."
+                },
+                {
+                    "key": "manage",
+                    "label": "Cấu hình tiêu chí KPI",
+                    "description": "Thêm / sửa / xóa tiêu chí KPI."
+                }
+            ],
+            "audience": [],
+            "scope": {
+                "levels": [
+                    "own",
+                    "branch",
+                    "all"
+                ],
+                "descriptions": {
+                    "own": "Chỉ KPI của tôi",
+                    "branch": "KPI nhân sự thuộc chi nhánh của tôi",
+                    "all": "KPI mọi nhân sự"
+                }
+            }
+        },
+        {
+            "key": "teacher_rate",
+            "label": "Đơn giá & tham số lương",
+            "group": "hr",
+            "icon": "price_change",
+            "actions": [
+                {
+                    "key": "manage",
+                    "label": "Cấu hình đơn giá & tham số",
+                    "description": "Cấu hình tham số lương, đơn giá giáo viên (chung / cá nhân)."
+                }
+            ],
+            "audience": []
+        },
+        {
+            "key": "commission_config",
+            "label": "Hoa hồng & thưởng tái tục",
+            "group": "hr",
+            "icon": "workspace_premium",
+            "actions": [
+                {
+                    "key": "manage",
+                    "label": "Cấu hình hoa hồng",
+                    "description": "Cấu hình bậc hoa hồng tuyển sinh, bảng thưởng tái tục."
+                }
+            ],
+            "audience": []
+        },
+        {
+            "key": "violation",
+            "label": "Vi phạm & kỷ luật",
+            "group": "hr",
+            "icon": "gavel",
+            "actions": [
+                {
+                    "key": "view",
+                    "label": "Xem mọi biên bản",
+                    "description": "Xem biên bản của mọi nhân sự (người khác chỉ xem biên bản của mình)."
+                },
+                {
+                    "key": "create",
+                    "label": "Lập biên bản",
+                    "description": "Lập biên bản vi phạm."
+                },
+                {
+                    "key": "confirm_error",
+                    "label": "Xác nhận lỗi",
+                    "description": "Xác nhận lỗi vi phạm."
+                },
+                {
+                    "key": "confirm_fine",
+                    "label": "Quyết định mức phạt",
+                    "description": "Chốt biên bản và mức phạt (theo loại lỗi được phép chốt)."
+                },
+                {
+                    "key": "decide_academic",
+                    "label": "Chốt lỗi chuyên môn",
+                    "description": "Được chốt biên bản lỗi chuyên môn / giảng dạy (HT)."
+                },
+                {
+                    "key": "decide_operations",
+                    "label": "Chốt lỗi vận hành",
+                    "description": "Được chốt biên bản lỗi vận hành / nội quy (CM)."
+                },
+                {
+                    "key": "cancel",
+                    "label": "Hủy biên bản",
+                    "description": "Hủy biên bản."
+                },
+                {
+                    "key": "mark_paid",
+                    "label": "Ghi nhận đã nộp phạt",
+                    "description": "Đánh dấu đã nộp phạt."
+                },
+                {
+                    "key": "mark_resolved",
+                    "label": "Ghi nhận khắc phục",
+                    "description": "Đánh dấu đã khắc phục / giải quyết."
+                }
+            ],
+            "audience": []
+        },
+        {
+            "key": "staff_report",
+            "label": "Nhật ký & báo cáo định kỳ",
+            "group": "hr",
+            "icon": "edit_note",
+            "actions": [
+                {
+                    "key": "submit",
+                    "label": "Viết nhật ký & báo cáo",
+                    "description": "Ghi nhật ký sự vụ, nộp báo cáo định kỳ của mình."
+                },
+                {
+                    "key": "view_all",
+                    "label": "Xem báo cáo của mọi người",
+                    "description": "Xem tổng hợp báo cáo & nhật ký của mọi nhân sự."
+                }
+            ],
+            "audience": []
+        },
+        {
+            "key": "work_task",
+            "label": "Giao việc & trợ giảng",
+            "group": "operations",
+            "icon": "task",
+            "actions": [
+                {
+                    "key": "view",
+                    "label": "Xem công việc",
+                    "description": "Xem việc mình được giao / mình giao (và việc trong phạm vi dữ liệu)."
+                },
+                {
+                    "key": "create",
+                    "label": "Giao việc",
+                    "description": "Giao việc cho nhân sự trong phạm vi."
+                },
+                {
+                    "key": "update",
+                    "label": "Sửa công việc",
+                    "description": "Sửa công việc."
+                },
+                {
+                    "key": "approve",
+                    "label": "Duyệt hoàn thành",
+                    "description": "Xác nhận / trả lại việc, báo cáo trực lớp; xem tab \"Tất cả\". Nút duyệt / từ chối chỉ Admin (06/10/2026)."
+                },
+                {
+                    "key": "assign",
+                    "label": "Giao việc trợ giảng",
+                    "description": "Giao nhiệm vụ ca cho trợ giảng, cấu hình lịch, buổi bổ trợ."
+                },
+                {
+                    "key": "request",
+                    "label": "Đề xuất việc ngược",
+                    "description": "Giáo viên / trợ giảng giao ngược việc cho người duyệt."
+                }
+            ],
+            "audience": [],
+            "scope": {
+                "levels": [
+                    "own",
+                    "branch",
+                    "all"
+                ],
+                "descriptions": {
+                    "own": "Việc tôi giao / được giao; KPI của tôi",
+                    "branch": "Việc thuộc chi nhánh của tôi (+ việc của tôi); KPI nhân sự chi nhánh",
+                    "all": "Mọi công việc; KPI mọi nhân sự"
+                }
+            }
+        },
+        {
+            "key": "material_order",
+            "label": "Order học liệu",
+            "group": "operations",
+            "icon": "inventory_2",
+            "actions": [
+                {
+                    "key": "create",
+                    "label": "Tạo order học liệu",
+                    "description": "Giáo viên đặt đạo cụ / in ấn / học liệu GVNN / học liệu học thuật."
+                },
+                {
+                    "key": "view_all",
+                    "label": "Xem order của người khác",
+                    "description": "Xem order của giáo viên khác trong phạm vi dữ liệu (người lập luôn xem order của mình)."
+                },
+                {
+                    "key": "process_ops",
+                    "label": "Xử lý order Đạo cụ / In ấn / GVNN",
+                    "description": "Học vụ (CM): nhận xử lý, hoàn thành, từ chối order đạo cụ, in ấn, GVNN của chi nhánh mình."
+                },
+                {
+                    "key": "process_academic",
+                    "label": "Xử lý order học liệu học thuật",
+                    "description": "Trưởng Học thuật: nhận xử lý, hoàn thành, từ chối order học liệu học thuật."
+                }
+            ],
+            "audience": [],
+            "scope": {
+                "levels": [
+                    "own",
+                    "branch",
+                    "all"
+                ],
+                "descriptions": {
+                    "own": "Order tôi tạo",
+                    "branch": "Order thuộc chi nhánh của tôi (+ order của tôi); Học vụ chỉ xử lý order chi nhánh mình",
+                    "all": "Mọi order học liệu"
+                }
+            }
+        },
+        {
+            "key": "support_ticket",
+            "label": "Ticket hỗ trợ",
+            "group": "operations",
+            "icon": "support_agent",
+            "actions": [
+                {
+                    "key": "view",
+                    "label": "Xem ticket",
+                    "description": "Xem ticket trong phạm vi dữ liệu, trao đổi trong ticket."
+                },
+                {
+                    "key": "create",
+                    "label": "Tạo ticket",
+                    "description": "Tạo ticket hỗ trợ."
+                },
+                {
+                    "key": "update",
+                    "label": "Xử lý ticket",
+                    "description": "Được nhận xử lý ticket, cấu hình email nhận ticket."
+                },
+                {
+                    "key": "assign",
+                    "label": "Phân công ticket",
+                    "description": "Phân công người xử lý ticket."
+                },
+                {
+                    "key": "close",
+                    "label": "Đổi trạng thái / đóng",
+                    "description": "Đổi trạng thái, đóng ticket."
+                }
+            ],
+            "audience": [],
+            "scope": {
+                "levels": [
+                    "own",
+                    "branch",
+                    "all"
+                ],
+                "descriptions": {
+                    "own": "Ticket tôi tạo hoặc được giao xử lý",
+                    "branch": "Ticket của tôi + ticket do nhân sự chi nhánh tôi tạo",
+                    "all": "Mọi ticket"
+                }
+            }
+        },
+        {
+            "key": "notification",
+            "label": "Thông báo",
+            "group": "operations",
+            "icon": "notifications",
+            "actions": [
+                {
+                    "key": "view",
+                    "label": "Xem thông báo của tôi",
+                    "description": "Xem hộp thông báo cá nhân."
+                },
+                {
+                    "key": "view_system",
+                    "label": "Xem thông báo chung",
+                    "description": "Xem cả thông báo chung của hệ thống (lead sót SLA 24h…)."
+                },
+                {
+                    "key": "manage",
+                    "label": "Quét cảnh báo",
+                    "description": "Chạy quét lead chưa liên hệ, quản lý thông báo."
+                }
+            ],
+            "audience": []
+        },
+        {
+            "key": "media",
+            "label": "Media & tệp tin",
+            "group": "operations",
+            "icon": "perm_media",
+            "actions": [
+                {
+                    "key": "view",
+                    "label": "Xem media",
+                    "description": "Xem, tải tệp."
+                },
+                {
+                    "key": "upload",
+                    "label": "Tải lên",
+                    "description": "Tải tệp lên."
+                },
+                {
+                    "key": "delete",
+                    "label": "Xóa tệp",
+                    "description": "Xóa tệp, thư mục."
+                },
+                {
+                    "key": "manage",
+                    "label": "Quản lý thư mục",
+                    "description": "Tạo thư mục, di chuyển tệp."
+                }
+            ],
+            "audience": []
+        },
+        {
+            "key": "survey",
+            "label": "Khảo sát",
+            "group": "operations",
+            "icon": "ballot",
+            "actions": [
+                {
+                    "key": "manage",
+                    "label": "Quản lý đợt khảo sát",
+                    "description": "Tạo / sửa / xóa đợt khảo sát."
+                }
+            ],
+            "audience": []
+        },
+        {
+            "key": "course",
+            "label": "Khóa học & bảng giá",
+            "group": "operations",
+            "icon": "sell",
+            "actions": [
+                {
+                    "key": "view",
+                    "label": "Xem khóa học",
+                    "description": "Xem khóa học, bảng giá."
+                },
+                {
+                    "key": "create",
+                    "label": "Thêm khóa học",
+                    "description": "Thêm khóa học."
+                },
+                {
+                    "key": "update",
+                    "label": "Sửa khóa học",
+                    "description": "Sửa, bật / tắt khóa học."
+                },
+                {
+                    "key": "delete",
+                    "label": "Xóa khóa học",
+                    "description": "Xóa khóa học."
+                }
+            ],
+            "audience": []
+        },
+        {
+            "key": "recruitment",
+            "label": "Tuyển dụng",
+            "group": "operations",
+            "icon": "work",
+            "actions": [
+                {
+                    "key": "view",
+                    "label": "Xem tuyển dụng",
+                    "description": "Xem tin tuyển dụng, hồ sơ ứng viên."
+                },
+                {
+                    "key": "manage",
+                    "label": "Quản lý tuyển dụng",
+                    "description": "Đăng tin, đổi trạng thái hồ sơ."
+                }
+            ],
+            "audience": []
+        },
+        {
+            "key": "report",
+            "label": "Báo cáo tổng hợp",
+            "group": "operations",
+            "icon": "bar_chart",
+            "actions": [
+                {
+                    "key": "view",
+                    "label": "Xem báo cáo",
+                    "description": "Xem Báo cáo tuyển sinh (doanh số, hoa hồng từng Sales). Mặc định chỉ Admin."
+                }
+            ],
+            "audience": []
+        },
+        {
+            "key": "dashboard",
+            "label": "Bảng điều khiển (Tổng quan)",
+            "group": "operations",
+            "icon": "dashboard",
+            "actions": [
+                {
+                    "key": "operations",
+                    "label": "Bảng điều hành",
+                    "description": "Số liệu vận hành: doanh thu tháng, học viên, lead, lớp, việc quá hạn, hàng chờ duyệt."
+                },
+                {
+                    "key": "academic",
+                    "label": "Bảng học thuật",
+                    "description": "Lớp đang chạy, đề xuất giáo trình / giãn tiến độ chờ duyệt, Big Test sắp tới."
+                }
+            ],
+            "audience": [],
+            "scope": {
+                "levels": [
+                    "branch",
+                    "all"
+                ],
+                "descriptions": {
+                    "branch": "Số liệu chi nhánh của tôi",
+                    "all": "Số liệu toàn hệ thống"
+                }
+            }
+        },
+        {
+            "key": "role",
+            "label": "Vai trò",
+            "group": "system",
+            "icon": "admin_panel_settings",
+            "actions": [
+                {
+                    "key": "view",
+                    "label": "Xem vai trò",
+                    "description": "Xem danh sách vai trò và ma trận quyền."
+                },
+                {
+                    "key": "create",
+                    "label": "Tạo / nhân bản vai trò",
+                    "description": "Tạo vai trò mới, nhân bản vai trò có sẵn."
+                },
+                {
+                    "key": "update",
+                    "label": "Sửa / đổi tên vai trò",
+                    "description": "Đổi tên hiển thị, mô tả vai trò."
+                },
+                {
+                    "key": "delete",
+                    "label": "Xóa vai trò",
+                    "description": "Xóa vai trò chưa gán cho ai (không xóa được Super Admin)."
+                },
+                {
+                    "key": "assign_permission",
+                    "label": "Phân quyền cho vai trò",
+                    "description": "Bật / tắt quyền và phạm vi dữ liệu của vai trò."
+                }
+            ],
+            "audience": []
+        },
+        {
+            "key": "permission",
+            "label": "Danh mục quyền & phân quyền cá nhân",
+            "group": "system",
+            "icon": "security",
+            "actions": [
+                {
+                    "key": "view",
+                    "label": "Xem danh mục quyền",
+                    "description": "Xem danh mục quyền của hệ thống."
+                },
+                {
+                    "key": "create",
+                    "label": "Thêm quyền",
+                    "description": "Thêm quyền thủ công (quyền mới nên khai báo trong danh mục)."
+                },
+                {
+                    "key": "update",
+                    "label": "Sửa quyền",
+                    "description": "Sửa tên quyền."
+                },
+                {
+                    "key": "delete",
+                    "label": "Xóa quyền",
+                    "description": "Xóa quyền chưa gán cho vai trò nào."
+                },
+                {
+                    "key": "override",
+                    "label": "Phân quyền cá nhân",
+                    "description": "Cho phép / chặn từng quyền và phạm vi dữ liệu cho từng người."
+                }
+            ],
+            "audience": []
+        },
+        {
+            "key": "branch",
+            "label": "Cơ sở & chi nhánh",
+            "group": "system",
+            "icon": "domain",
+            "actions": [
+                {
+                    "key": "view",
+                    "label": "Xem chi nhánh",
+                    "description": "Xem danh sách chi nhánh."
+                },
+                {
+                    "key": "create",
+                    "label": "Thêm chi nhánh",
+                    "description": "Thêm chi nhánh."
+                },
+                {
+                    "key": "update",
+                    "label": "Sửa chi nhánh",
+                    "description": "Sửa chi nhánh."
+                },
+                {
+                    "key": "delete",
+                    "label": "Xóa chi nhánh",
+                    "description": "Xóa chi nhánh."
+                },
+                {
+                    "key": "manage",
+                    "label": "Bật / tắt chi nhánh",
+                    "description": "Kích hoạt / ngừng chi nhánh."
+                }
+            ],
+            "audience": []
+        },
+        {
+            "key": "system_category",
+            "label": "Danh mục hệ thống",
+            "group": "system",
+            "icon": "settings",
+            "actions": [
+                {
+                    "key": "manage",
+                    "label": "Quản lý danh mục",
+                    "description": "Danh mục hệ thống, hàng hóa & vật phẩm, bộ màn mockup."
+                }
+            ],
+            "audience": []
+        },
+        {
+            "key": "holiday",
+            "label": "Ngày nghỉ lễ",
+            "group": "system",
+            "icon": "beach_access",
+            "actions": [
+                {
+                    "key": "manage",
+                    "label": "Quản lý ngày nghỉ",
+                    "description": "Thêm / sửa / xóa ngày nghỉ lễ, xếp bù."
+                }
+            ],
+            "audience": []
+        },
+        {
+            "key": "activity_log",
+            "label": "Nhật ký vận hành",
+            "group": "system",
+            "icon": "history",
+            "actions": [
+                {
+                    "key": "view",
+                    "label": "Xem nhật ký",
+                    "description": "Xem, lọc, xuất nhật ký thao tác (trước / sau)."
+                },
+                {
+                    "key": "undo",
+                    "label": "Hoàn tác thao tác",
+                    "description": "Khôi phục giá trị cũ của một thao tác cập nhật."
+                }
+            ],
+            "audience": [],
+            "scope": {
+                "levels": [
+                    "own",
+                    "branch",
+                    "all"
+                ],
+                "descriptions": {
+                    "own": "Thao tác do tôi thực hiện",
+                    "branch": "Thao tác của nhân sự thuộc chi nhánh của tôi",
+                    "all": "Mọi thao tác"
+                }
+            }
+        },
+        {
+            "key": "portal",
+            "label": "Cổng người dùng",
+            "group": "portal",
+            "icon": "door_open",
+            "actions": [],
+            "audience": [
+                {
+                    "key": "staff",
+                    "label": "Khu làm việc nhân sự",
+                    "description": "Tài khoản nhân sự: thấy menu ticket, vi phạm của tôi… (học viên thì không)."
+                },
+                {
+                    "key": "student",
+                    "label": "Cổng học viên / phụ huynh",
+                    "description": "Tài khoản học viên: dùng cổng học viên (học tập, nộp bài, thông báo…)."
+                },
+                {
+                    "key": "teacher",
+                    "label": "Cổng giáo viên",
+                    "description": "Là giáo viên: menu Cổng giáo viên, tài liệu dành cho giáo viên, giờ dạy của tôi."
+                },
+                {
+                    "key": "assistant",
+                    "label": "Cổng trợ giảng",
+                    "description": "Là trợ giảng: menu Cổng giáo viên, tài liệu dành cho trợ giảng, nhiệm vụ ca TA."
+                }
+            ]
+        }
+    ],
+    "roles": [
+        {
+            "name": "admin",
+            "label": "Quản trị viên Cấp cao (Admin)",
+            "short_label": "Admin",
+            "defaults": [
+                "*",
+                "lead.be_assigned",
+                "entrance_test.examine",
+                "portal.staff"
+            ]
+        },
+        {
+            "name": "manager",
+            "label": "Quản lý Cơ sở (Manager)",
+            "short_label": "Quản lý cơ sở",
+            "defaults": [
+                "user.view",
+                "user.lock",
+                "user.reset_password",
+                "user.assign_role",
+                "user.assign_role.*",
+                "role.view",
+                "lead.view",
+                "lead.create",
+                "lead.update",
+                "lead.delete",
+                "lead.assign",
+                "lead.convert",
+                "lead.mark_lost",
+                "lead.stage_forward",
+                "lead.trial_feedback",
+                "entrance_test.*",
+                "entrance_test.examine",
+                "student.*",
+                "class.*",
+                "class.teach",
+                "attendance_student.*",
+                "placement_test.view",
+                "placement_test.grade",
+                "level.*",
+                "syllabus.view",
+                "syllabus.update",
+                "syllabus.manage",
+                "syllabus.upload",
+                "syllabus.propose_adjustment",
+                "tuition.view",
+                "tuition.create",
+                "tuition.mark_contacted",
+                "tuition.report_overdue",
+                "invoice.request_cancel",
+                "refund_transfer.request",
+                "payroll.view_own",
+                "kpi.*",
+                "teacher_rate.manage",
+                "commission_config.manage",
+                "attendance_staff.view",
+                "attendance_staff.manual_record",
+                "staff_checkin.view",
+                "staff_checkin.scope_branch",
+                "violation.view",
+                "violation.create",
+                "violation.confirm_error",
+                "violation.confirm_fine",
+                "violation.cancel",
+                "violation.mark_paid",
+                "violation.mark_resolved",
+                "violation.decide_operations",
+                "work_task.*",
+                "support_ticket.*",
+                "notification.*",
+                "survey.manage",
+                "course.view",
+                "recruitment.view",
+                "recruitment.manage",
+                "media.*",
+                "activity_log.view",
+                "finance.view",
+                "promotion.manage",
+                "staff_report.submit",
+                "staff_report.view_all",
+                "dashboard.operations",
+                "portal.staff",
+                "room.view",
+                "room.manage",
+                "class_quality.*",
+                "academic_project.view",
+                "academic_project.view_all",
+                "merchandise_stock.view",
+                "merchandise_stock.manage",
+                "lead.scope_branch",
+                "student.scope_branch",
+                "class.scope_branch",
+                "room.scope_branch",
+                "big_test.scope_all",
+                "tuition.scope_branch",
+                "finance.scope_branch",
+                "attendance_staff.scope_branch",
+                "payroll.scope_own",
+                "kpi.scope_all",
+                "work_task.scope_branch",
+                "merchandise_stock.scope_branch",
+                "support_ticket.scope_all",
+                "user.scope_branch",
+                "activity_log.scope_all",
+                "dashboard.scope_branch",
+                "material_order.view_all",
+                "material_order.process_ops",
+                "material_order.scope_branch"
+            ]
+        },
+        {
+            "name": "academic_lead",
+            "label": "Học thuật độc lập (Academic Lead)",
+            "short_label": "Học thuật",
+            "defaults": [
+                "user.view",
+                "user.create",
+                "user.update",
+                "user.assign_role",
+                "user.assign_role.teacher_fulltime",
+                "user.assign_role.teacher_parttime",
+                "lead.view",
+                "student.view",
+                "class.*",
+                "class.teach",
+                "attendance_student.*",
+                "level.*",
+                "syllabus.*",
+                "big_test.*",
+                "entrance_test.*",
+                "entrance_test.examine",
+                "placement_test.*",
+                "kpi.view",
+                "kpi.confirm",
+                "violation.view",
+                "violation.confirm_error",
+                "violation.confirm_fine",
+                "violation.decide_academic",
+                "work_task.*",
+                "support_ticket.create",
+                "support_ticket.view",
+                "notification.view",
+                "survey.manage",
+                "course.view",
+                "staff_report.submit",
+                "dashboard.academic",
+                "portal.staff",
+                "payroll.view_own",
+                "payroll.scope_own",
+                "room.view",
+                "room.scope_all",
+                "class_quality.view",
+                "class_quality.observe_academic",
+                "class_quality.teacher_meeting",
+                "academic_project.*",
+                "lead.scope_branch",
+                "student.scope_branch",
+                "class.scope_all",
+                "big_test.scope_all",
+                "kpi.scope_all",
+                "work_task.scope_all",
+                "user.scope_all",
+                "support_ticket.scope_own",
+                "material_order.view_all",
+                "material_order.process_academic",
+                "material_order.scope_all"
+            ]
+        },
+        {
+            "name": "academic_staff",
+            "label": "Học vụ (Academic Staff)",
+            "short_label": "Học vụ",
+            "defaults": [
+                "user.view",
+                "user.create",
+                "user.update",
+                "user.assign_role",
+                "user.assign_role.assistant",
+                "user.assign_role.teacher_fulltime",
+                "user.assign_role.teacher_parttime",
+                "user.assign_role.student",
+                "user.assign_role.academic_lead",
+                "lead.view",
+                "lead.create",
+                "lead.update",
+                "lead.assign",
+                "lead.convert",
+                "lead.mark_lost",
+                "lead.stage_forward",
+                "lead.trial_feedback",
+                "lead.be_assigned",
+                "promotion.manage",
+                "student.*",
+                "class.*",
+                "class.assist",
+                "attendance_student.*",
+                "attendance_staff.view",
+                "attendance_staff.manual_record",
+                "level.*",
+                "syllabus.view",
+                "syllabus.update",
+                "syllabus.manage",
+                "syllabus.upload",
+                "syllabus.propose_adjustment",
+                "entrance_test.*",
+                "entrance_test.examine",
+                "placement_test.view",
+                "placement_test.create",
+                "placement_test.update",
+                "placement_test.send",
+                "placement_test.grade",
+                "placement_test.distribute",
+                "kpi.view",
+                "kpi.confirm",
+                "violation.view",
+                "violation.create",
+                "violation.confirm_error",
+                "violation.confirm_fine",
+                "violation.decide_operations",
+                "tuition.view",
+                "tuition.create",
+                "tuition.mark_contacted",
+                "tuition.report_overdue",
+                "work_task.*",
+                "support_ticket.create",
+                "support_ticket.view",
+                "notification.view",
+                "survey.manage",
+                "course.view",
+                "staff_report.submit",
+                "portal.staff",
+                "payroll.view_own",
+                "payroll.scope_own",
+                "room.view",
+                "room.manage",
+                "room.scope_branch",
+                "class_quality.view",
+                "class_quality.observe_operations",
+                "class_quality.checklist",
+                "academic_project.view",
+                "merchandise_stock.view",
+                "merchandise_stock.manage",
+                "merchandise_stock.scope_branch",
+                "invoice.request_cancel",
+                "lead.scope_branch",
+                "student.scope_branch",
+                "class.scope_all",
+                "big_test.scope_all",
+                "tuition.scope_branch",
+                "attendance_staff.scope_all",
+                "kpi.scope_all",
+                "work_task.scope_all",
+                "user.scope_branch",
+                "support_ticket.scope_own",
+                "material_order.view_all",
+                "material_order.process_ops",
+                "material_order.scope_branch"
+            ]
+        },
+        {
+            "name": "sales_consultant",
+            "label": "Chuyên viên Tư vấn Tuyển sinh (Sales)",
+            "short_label": "Tư vấn viên",
+            "defaults": [
+                "lead.view",
+                "lead.create",
+                "lead.update",
+                "lead.convert",
+                "lead.mark_lost",
+                "entrance_test.send",
+                "work_task.view",
+                "work_task.request",
+                "support_ticket.create",
+                "support_ticket.view",
+                "notification.view",
+                "portal.staff",
+                "lead.scope_own",
+                "work_task.scope_own",
+                "support_ticket.scope_own"
+            ]
+        },
+        {
+            "name": "teacher_fulltime",
+            "label": "Giáo viên Fulltime",
+            "short_label": "Giáo viên Full-time",
+            "defaults": [
+                "payroll.view_own",
+                "class.view",
+                "class.teach",
+                "attendance_student.view",
+                "attendance_student.record",
+                "homework.grade",
+                "entrance_test.examine",
+                "work_task.view",
+                "work_task.request",
+                "support_ticket.create",
+                "support_ticket.view",
+                "notification.view",
+                "syllabus.view",
+                "syllabus.update",
+                "syllabus.propose_adjustment",
+                "staff_report.submit",
+                "portal.teacher",
+                "portal.staff",
+                "academic_project.view",
+                "class.scope_own",
+                "student.scope_own",
+                "big_test.scope_own",
+                "payroll.scope_own",
+                "work_task.scope_own",
+                "support_ticket.scope_own",
+                "material_order.create",
+                "material_order.scope_own"
+            ]
+        },
+        {
+            "name": "teacher_parttime",
+            "label": "Giáo viên Parttime",
+            "short_label": "Giáo viên Part-time",
+            "defaults": [
+                "payroll.view_own",
+                "class.view",
+                "class.teach",
+                "attendance_student.view",
+                "attendance_student.record",
+                "homework.grade",
+                "entrance_test.examine",
+                "work_task.view",
+                "work_task.request",
+                "support_ticket.create",
+                "support_ticket.view",
+                "notification.view",
+                "syllabus.view",
+                "syllabus.update",
+                "syllabus.propose_adjustment",
+                "staff_report.submit",
+                "portal.teacher",
+                "portal.staff",
+                "academic_project.view",
+                "class.scope_own",
+                "student.scope_own",
+                "big_test.scope_own",
+                "payroll.scope_own",
+                "work_task.scope_own",
+                "support_ticket.scope_own",
+                "material_order.create",
+                "material_order.scope_own"
+            ]
+        },
+        {
+            "name": "assistant",
+            "label": "Trợ giảng (Teaching Assistant)",
+            "short_label": "Trợ giảng",
+            "defaults": [
+                "payroll.view_own",
+                "class.view",
+                "class.assist",
+                "attendance_student.view",
+                "attendance_student.record",
+                "homework.grade",
+                "work_task.view",
+                "work_task.request",
+                "support_ticket.create",
+                "support_ticket.view",
+                "notification.view",
+                "syllabus.view",
+                "syllabus.propose_adjustment",
+                "staff_report.submit",
+                "portal.assistant",
+                "portal.staff",
+                "academic_project.view",
+                "class.scope_own",
+                "student.scope_own",
+                "big_test.scope_own",
+                "payroll.scope_own",
+                "work_task.scope_own",
+                "support_ticket.scope_own"
+            ]
+        },
+        {
+            "name": "student",
+            "label": "Học viên (Student)",
+            "short_label": "Học viên",
+            "defaults": [
+                "class.view",
+                "attendance_student.view",
+                "support_ticket.create",
+                "support_ticket.view",
+                "notification.view",
+                "portal.student",
+                "class.scope_own",
+                "support_ticket.scope_own"
+            ]
+        }
+    ],
+    "admin_only": [
+        "tuition.approve",
+        "tuition.reject",
+        "invoice.approve_cancel",
+        "refund_transfer.approve",
+        "refund_transfer.approve_refund",
+        "refund_transfer.approve_transfer",
+        "refund_transfer.reject",
+        "staff_checkin.approve",
+        "lead.approve_transfer"
+    ]
+}

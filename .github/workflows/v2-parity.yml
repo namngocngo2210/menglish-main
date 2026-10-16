@@ -1,0 +1,19 @@
+# Cảnh báo (không chặn merge) khi PR sửa file Laravel mà một mảng đã chuyển sang v2 đang bám theo.
+# Danh sách mảng và file: v2/doi-chieu-laravel.txt.
+name: Đối chiếu v2 với Laravel
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: v2/tools/parity.sh "origin/${{ github.base_ref }}"

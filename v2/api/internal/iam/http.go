@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam/iamdb"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/httpx"
@@ -23,6 +24,19 @@ type ctxKey struct{}
 type authInfo struct {
 	session *Session
 	user    iamdb.IamUser
+	svc     *Service
+	access  *Access // tính khi cần lần đầu trong request
+}
+
+func (a *authInfo) loadAccess(ctx context.Context) (*Access, error) {
+	if a.access == nil {
+		acc, err := a.svc.LoadAccess(ctx, a.user.ID)
+		if err != nil {
+			return nil, err
+		}
+		a.access = acc
+	}
+	return a.access, nil
 }
 
 func fromContext(ctx context.Context) *authInfo {
@@ -31,11 +45,19 @@ func fromContext(ctx context.Context) *authInfo {
 }
 
 // CurrentUserID trả về id người dùng đang đăng nhập (module khác dùng).
-func CurrentUserID(ctx context.Context) (string, bool) {
+func CurrentUserID(ctx context.Context) (uuid.UUID, bool) {
 	if a := fromContext(ctx); a != nil {
-		return a.user.ID.String(), true
+		return a.user.ID, true
 	}
-	return "", false
+	return uuid.Nil, false
+}
+
+// AccessFrom trả tập quyền của người đang đăng nhập; chỉ gọi sau Require (luôn có người dùng).
+func AccessFrom(ctx context.Context) *Access {
+	if a := fromContext(ctx); a != nil {
+		return a.access
+	}
+	return nil
 }
 
 type Handler struct {
@@ -61,7 +83,7 @@ func (h *Handler) LoadSession(next http.Handler) http.Handler {
 		case err != nil:
 			httpx.InternalError(w, r, h.log, err)
 		default:
-			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, &authInfo{sess, u})))
+			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, &authInfo{session: sess, user: u, svc: h.svc})))
 		}
 	})
 }
@@ -69,27 +91,102 @@ func (h *Handler) LoadSession(next http.Handler) http.Handler {
 // RequireAuth chặn request chưa đăng nhập; với phương thức ghi thì kiểm thêm header X-CSRF-Token.
 func RequireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		a := fromContext(r.Context())
-		if a == nil {
-			writeErr(w, ErrUnauthenticated)
-			return
+		if checkAuth(w, r) != nil {
+			next.ServeHTTP(w, r)
 		}
-		if !isSafeMethod(r.Method) {
-			got := r.Header.Get("X-CSRF-Token")
-			if subtle.ConstantTimeCompare([]byte(got), []byte(a.session.CSRF)) != 1 {
-				httpx.Error(w, http.StatusForbidden, "csrf", "Phiên làm việc không hợp lệ, hãy tải lại trang.")
-				return
-			}
-		}
-		next.ServeHTTP(w, r)
 	})
+}
+
+func checkAuth(w http.ResponseWriter, r *http.Request) *authInfo {
+	a := fromContext(r.Context())
+	if a == nil {
+		writeErr(w, ErrUnauthenticated)
+		return nil
+	}
+	if !isSafeMethod(r.Method) {
+		got := r.Header.Get("X-CSRF-Token")
+		if subtle.ConstantTimeCompare([]byte(got), []byte(a.session.CSRF)) != 1 {
+			httpx.Error(w, http.StatusForbidden, "csrf", "Phiên làm việc không hợp lệ, hãy tải lại trang.")
+			return nil
+		}
+	}
+	return a
+}
+
+// Require chặn request nếu người dùng không có quyền perm. Một route gắn Require là đủ: middleware này kiểm luôn
+// đăng nhập, CSRF, đổi mật khẩu lần đầu và 2FA bắt buộc. Mọi route nghiệp vụ phải gắn Require hoặc RequireAny
+// (test TestEveryRouteHasPermission trong cmd/menglish kiểm điều này).
+//
+// go:noinline giữ một bản duy nhất của hàm trả về để test nhận ra middleware này theo con trỏ hàm.
+//
+//go:noinline
+func Require(perm string) func(http.Handler) http.Handler {
+	mustExist(perm)
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if authorize(w, r, perm) {
+				next.ServeHTTP(w, r)
+			}
+		})
+	}
+}
+
+// RequireAny: như Require nhưng chỉ cần một trong các quyền.
+//
+//go:noinline
+func RequireAny(perms ...string) func(http.Handler) http.Handler {
+	mustExist(perms...)
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if authorize(w, r, perms...) {
+				next.ServeHTTP(w, r)
+			}
+		})
+	}
+}
+
+// mustExist dừng chương trình ngay lúc gắn route nếu tên quyền gõ sai (không ai vào được route đó).
+func mustExist(perms ...string) {
+	if len(perms) == 0 {
+		panic("iam: Require cần ít nhất một quyền")
+	}
+	for _, p := range perms {
+		if GetCatalog().Kind(p) == "" {
+			panic("iam: quyền " + p + " không có trong danh mục")
+		}
+	}
+}
+
+func authorize(w http.ResponseWriter, r *http.Request, perms ...string) bool {
+	a := checkAuth(w, r)
+	if a == nil {
+		return false
+	}
+	if a.user.MustChangePassword {
+		writeErr(w, ErrPasswordChangeRequired)
+		return false
+	}
+	acc, err := a.loadAccess(r.Context())
+	if err != nil {
+		httpx.InternalError(w, r, a.svc.log, err)
+		return false
+	}
+	if a.user.TotpEnabledAt == nil && acc.RequiresTOTP() {
+		writeErr(w, ErrTOTPSetupRequired)
+		return false
+	}
+	if !acc.CanAny(perms...) {
+		writeErr(w, ErrForbidden)
+		return false
+	}
+	return true
 }
 
 // RequirePasswordChanged chặn mọi thao tác khi tài khoản còn phải đổi mật khẩu lần đầu.
 func RequirePasswordChanged(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if a := fromContext(r.Context()); a != nil && a.user.MustChangePassword {
-			httpx.Error(w, http.StatusForbidden, "password_change_required", "Bạn cần đổi mật khẩu trước khi tiếp tục.")
+			writeErr(w, ErrPasswordChangeRequired)
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -206,9 +303,21 @@ func clearCookie(w http.ResponseWriter) {
 }
 
 type meResponse struct {
-	User              User   `json:"user"`
-	CSRFToken         string `json:"csrf_token"`
-	RecoveryCodesLeft *int64 `json:"recovery_codes_left,omitempty"`
+	User              User              `json:"user"`
+	CSRFToken         string            `json:"csrf_token"`
+	RecoveryCodesLeft *int64            `json:"recovery_codes_left,omitempty"`
+	TOTPRequired      bool              `json:"totp_required"`
+	Roles             []RoleRef         `json:"roles"`
+	Permissions       []string          `json:"permissions"`
+	Scopes            map[string]string `json:"scopes"`
+	Branches          []UserBranch      `json:"branches"`
+}
+
+// RoleRef là vai trò kèm nhãn hiển thị.
+type RoleRef struct {
+	Name       string `json:"name"`
+	Label      string `json:"label"`
+	ShortLabel string `json:"short_label"`
 }
 
 func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
@@ -222,6 +331,18 @@ func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
 		}
 		resp.RecoveryCodesLeft = &n
 	}
+	acc, err := a.loadAccess(r.Context())
+	if err == nil {
+		resp.Roles, err = h.svc.roleRefs(r.Context(), acc.Roles)
+	}
+	if err != nil {
+		httpx.InternalError(w, r, h.log, err)
+		return
+	}
+	resp.TOTPRequired = acc.RequiresTOTP()
+	resp.Permissions = acc.Permissions()
+	resp.Scopes = acc.Scopes()
+	resp.Branches = acc.Branches
 	httpx.JSON(w, http.StatusOK, resp)
 }
 

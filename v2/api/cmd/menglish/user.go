@@ -6,19 +6,21 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 )
 
-// runUser: tạo tài khoản đầu tiên và cấp lại mật khẩu từ dòng lệnh (trước khi có màn quản lý người dùng).
+// runUser: tạo Admin đầu tiên, gán vai trò và cấp lại mật khẩu từ dòng lệnh trên máy chủ.
 //
-//	menglish user create --code MES001 --email admin@... --name "Nguyễn Văn A" [--kind staff] [--phone 09...]
+//	menglish user create --code MES001 --email admin@... --name "Nguyễn Văn A" [--role admin] [--kind staff] [--phone 09...]
+//	menglish user set-roles <mã | email> admin[,manager...]
 //	menglish user reset-password <mã | email | SĐT phụ huynh>
 func runUser(ctx context.Context, args []string) error {
 	if len(args) == 0 {
-		return errors.New("dùng: menglish user create ... | reset-password <mã|email|SĐT>")
+		return errors.New("dùng: menglish user create ... | set-roles <mã|email> <vai trò,...> | reset-password <mã|email|SĐT>")
 	}
 	d, err := openDeps(ctx)
 	if err != nil {
@@ -35,6 +37,7 @@ func runUser(ctx context.Context, args []string) error {
 		fs.StringVar(&in.Email, "email", "", "email")
 		fs.StringVar(&in.Phone, "phone", "", "số điện thoại")
 		fs.StringVar(&in.FullName, "name", "", "họ tên")
+		roles := fs.String("role", "", "vai trò, cách nhau bởi dấu phẩy, vd. admin")
 		if err := fs.Parse(args[1:]); err != nil {
 			return err
 		}
@@ -45,7 +48,24 @@ func runUser(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
+		if *roles != "" {
+			if err := d.iam.SetRolesUnchecked(ctx, u.ID, strings.Split(*roles, ",")); err != nil {
+				return err
+			}
+		}
 		printCredentials("Đã tạo tài khoản", u, password)
+	case "set-roles":
+		if len(args) != 3 {
+			return errors.New("dùng: menglish user set-roles <mã|email> <vai trò,...> (vd. admin)")
+		}
+		u, err := d.iam.SetRolesByIdentifier(ctx, args[1], strings.Split(args[2], ","))
+		if errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("không tìm thấy tài khoản %q", args[1])
+		}
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Đã gán vai trò %s cho %s.\n", args[2], u.FullName)
 	case "reset-password":
 		if len(args) != 2 {
 			return errors.New("dùng: menglish user reset-password <mã|email|SĐT phụ huynh>")

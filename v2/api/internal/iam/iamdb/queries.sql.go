@@ -12,6 +12,72 @@ import (
 	"github.com/google/uuid"
 )
 
+const addUserBranch = `-- name: AddUserBranch :exec
+INSERT INTO iam.user_branches (user_id, branch_id, is_primary) VALUES ($1, $2, $3)
+`
+
+type AddUserBranchParams struct {
+	UserID    uuid.UUID
+	BranchID  uuid.UUID
+	IsPrimary bool
+}
+
+func (q *Queries) AddUserBranch(ctx context.Context, arg AddUserBranchParams) error {
+	_, err := q.db.Exec(ctx, addUserBranch, arg.UserID, arg.BranchID, arg.IsPrimary)
+	return err
+}
+
+const addUserOverride = `-- name: AddUserOverride :exec
+INSERT INTO iam.permission_overrides (user_id, permission, allow, scope_type, scope_id, created_by)
+VALUES ($1, $2, $3, $4, $5, $6)
+`
+
+type AddUserOverrideParams struct {
+	UserID     uuid.UUID
+	Permission string
+	Allow      bool
+	ScopeType  string
+	ScopeID    *uuid.UUID
+	CreatedBy  *uuid.UUID
+}
+
+func (q *Queries) AddUserOverride(ctx context.Context, arg AddUserOverrideParams) error {
+	_, err := q.db.Exec(ctx, addUserOverride,
+		arg.UserID,
+		arg.Permission,
+		arg.Allow,
+		arg.ScopeType,
+		arg.ScopeID,
+		arg.CreatedBy,
+	)
+	return err
+}
+
+const addUserRole = `-- name: AddUserRole :exec
+INSERT INTO iam.user_roles (user_id, role) VALUES ($1, $2) ON CONFLICT DO NOTHING
+`
+
+type AddUserRoleParams struct {
+	UserID uuid.UUID
+	Role   string
+}
+
+func (q *Queries) AddUserRole(ctx context.Context, arg AddUserRoleParams) error {
+	_, err := q.db.Exec(ctx, addUserRole, arg.UserID, arg.Role)
+	return err
+}
+
+const countActiveBranches = `-- name: CountActiveBranches :one
+SELECT count(*) FROM core.branches WHERE is_active AND id = ANY ($1::uuid[])
+`
+
+func (q *Queries) CountActiveBranches(ctx context.Context, ids []uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countActiveBranches, ids)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countUnusedRecoveryCodes = `-- name: CountUnusedRecoveryCodes :one
 SELECT count(*) FROM iam.totp_recovery_codes WHERE user_id = $1 AND used_at IS NULL
 `
@@ -23,10 +89,46 @@ func (q *Queries) CountUnusedRecoveryCodes(ctx context.Context, userID uuid.UUID
 	return count, err
 }
 
+const createBranch = `-- name: CreateBranch :one
+INSERT INTO core.branches (code, name, address, phone, created_by) VALUES ($1, $2, $3, $4, $5)
+RETURNING id, code, name, address, phone, is_active, created_by, created_at, updated_at
+`
+
+type CreateBranchParams struct {
+	Code      string
+	Name      string
+	Address   *string
+	Phone     *string
+	CreatedBy *uuid.UUID
+}
+
+func (q *Queries) CreateBranch(ctx context.Context, arg CreateBranchParams) (CoreBranch, error) {
+	row := q.db.QueryRow(ctx, createBranch,
+		arg.Code,
+		arg.Name,
+		arg.Address,
+		arg.Phone,
+		arg.CreatedBy,
+	)
+	var i CoreBranch
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Name,
+		&i.Address,
+		&i.Phone,
+		&i.IsActive,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const createUser = `-- name: CreateUser :one
 INSERT INTO iam.users (kind, code, email, phone, full_name, password_hash, must_change_password)
 VALUES ($1, $2, $3, $4, $5, $6, true)
-RETURNING id, kind, code, email, phone, full_name, password_hash, must_change_password, status, failed_logins, locked_until, totp_secret, totp_enabled_at, password_changed_at, last_login_at, created_at, updated_at
+RETURNING id, kind, code, email, phone, full_name, password_hash, must_change_password, status, failed_logins, locked_until, totp_secret, totp_enabled_at, password_changed_at, last_login_at, created_at, updated_at, created_by
 `
 
 type CreateUserParams struct {
@@ -66,8 +168,18 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (IamUser
 		&i.LastLoginAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CreatedBy,
 	)
 	return i, err
+}
+
+const deletePermission = `-- name: DeletePermission :exec
+DELETE FROM iam.permissions WHERE name = $1
+`
+
+func (q *Queries) DeletePermission(ctx context.Context, name string) error {
+	_, err := q.db.Exec(ctx, deletePermission, name)
+	return err
 }
 
 const deleteRecoveryCodes = `-- name: DeleteRecoveryCodes :exec
@@ -76,6 +188,42 @@ DELETE FROM iam.totp_recovery_codes WHERE user_id = $1
 
 func (q *Queries) DeleteRecoveryCodes(ctx context.Context, userID uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteRecoveryCodes, userID)
+	return err
+}
+
+const deleteRolePermissions = `-- name: DeleteRolePermissions :exec
+DELETE FROM iam.role_permissions WHERE role = $1
+`
+
+func (q *Queries) DeleteRolePermissions(ctx context.Context, role string) error {
+	_, err := q.db.Exec(ctx, deleteRolePermissions, role)
+	return err
+}
+
+const deleteUserBranches = `-- name: DeleteUserBranches :exec
+DELETE FROM iam.user_branches WHERE user_id = $1
+`
+
+func (q *Queries) DeleteUserBranches(ctx context.Context, userID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteUserBranches, userID)
+	return err
+}
+
+const deleteUserOverridesAll = `-- name: DeleteUserOverridesAll :exec
+DELETE FROM iam.permission_overrides WHERE user_id = $1 AND scope_type = 'all'
+`
+
+func (q *Queries) DeleteUserOverridesAll(ctx context.Context, userID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteUserOverridesAll, userID)
+	return err
+}
+
+const deleteUserRoles = `-- name: DeleteUserRoles :exec
+DELETE FROM iam.user_roles WHERE user_id = $1
+`
+
+func (q *Queries) DeleteUserRoles(ctx context.Context, userID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteUserRoles, userID)
 	return err
 }
 
@@ -102,8 +250,29 @@ func (q *Queries) EnableTOTP(ctx context.Context, arg EnableTOTPParams) error {
 	return err
 }
 
+const getBranch = `-- name: GetBranch :one
+SELECT id, code, name, address, phone, is_active, created_by, created_at, updated_at FROM core.branches WHERE id = $1
+`
+
+func (q *Queries) GetBranch(ctx context.Context, id uuid.UUID) (CoreBranch, error) {
+	row := q.db.QueryRow(ctx, getBranch, id)
+	var i CoreBranch
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Name,
+		&i.Address,
+		&i.Phone,
+		&i.IsActive,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getGuardianByPhone = `-- name: GetGuardianByPhone :one
-SELECT id, kind, code, email, phone, full_name, password_hash, must_change_password, status, failed_logins, locked_until, totp_secret, totp_enabled_at, password_changed_at, last_login_at, created_at, updated_at FROM iam.users WHERE kind = 'guardian' AND phone = $1
+SELECT id, kind, code, email, phone, full_name, password_hash, must_change_password, status, failed_logins, locked_until, totp_secret, totp_enabled_at, password_changed_at, last_login_at, created_at, updated_at, created_by FROM iam.users WHERE kind = 'guardian' AND phone = $1
 `
 
 func (q *Queries) GetGuardianByPhone(ctx context.Context, phone *string) (IamUser, error) {
@@ -127,12 +296,31 @@ func (q *Queries) GetGuardianByPhone(ctx context.Context, phone *string) (IamUse
 		&i.LastLoginAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CreatedBy,
+	)
+	return i, err
+}
+
+const getRole = `-- name: GetRole :one
+SELECT name, label, short_label, sort, created_at, updated_at FROM iam.roles WHERE name = $1
+`
+
+func (q *Queries) GetRole(ctx context.Context, name string) (IamRole, error) {
+	row := q.db.QueryRow(ctx, getRole, name)
+	var i IamRole
+	err := row.Scan(
+		&i.Name,
+		&i.Label,
+		&i.ShortLabel,
+		&i.Sort,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, kind, code, email, phone, full_name, password_hash, must_change_password, status, failed_logins, locked_until, totp_secret, totp_enabled_at, password_changed_at, last_login_at, created_at, updated_at FROM iam.users WHERE id = $1
+SELECT id, kind, code, email, phone, full_name, password_hash, must_change_password, status, failed_logins, locked_until, totp_secret, totp_enabled_at, password_changed_at, last_login_at, created_at, updated_at, created_by FROM iam.users WHERE id = $1
 `
 
 func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (IamUser, error) {
@@ -156,12 +344,13 @@ func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (IamUser, error) {
 		&i.LastLoginAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CreatedBy,
 	)
 	return i, err
 }
 
 const getUserByCode = `-- name: GetUserByCode :one
-SELECT id, kind, code, email, phone, full_name, password_hash, must_change_password, status, failed_logins, locked_until, totp_secret, totp_enabled_at, password_changed_at, last_login_at, created_at, updated_at FROM iam.users WHERE code = $1
+SELECT id, kind, code, email, phone, full_name, password_hash, must_change_password, status, failed_logins, locked_until, totp_secret, totp_enabled_at, password_changed_at, last_login_at, created_at, updated_at, created_by FROM iam.users WHERE code = $1
 `
 
 func (q *Queries) GetUserByCode(ctx context.Context, code *string) (IamUser, error) {
@@ -185,12 +374,13 @@ func (q *Queries) GetUserByCode(ctx context.Context, code *string) (IamUser, err
 		&i.LastLoginAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CreatedBy,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, kind, code, email, phone, full_name, password_hash, must_change_password, status, failed_logins, locked_until, totp_secret, totp_enabled_at, password_changed_at, last_login_at, created_at, updated_at FROM iam.users WHERE email = $1
+SELECT id, kind, code, email, phone, full_name, password_hash, must_change_password, status, failed_logins, locked_until, totp_secret, totp_enabled_at, password_changed_at, last_login_at, created_at, updated_at, created_by FROM iam.users WHERE email = $1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email *string) (IamUser, error) {
@@ -214,8 +404,23 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email *string) (IamUser, e
 		&i.LastLoginAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CreatedBy,
 	)
 	return i, err
+}
+
+const grantRolePermission = `-- name: GrantRolePermission :exec
+INSERT INTO iam.role_permissions (role, permission) VALUES ($1, $2) ON CONFLICT DO NOTHING
+`
+
+type GrantRolePermissionParams struct {
+	Role       string
+	Permission string
+}
+
+func (q *Queries) GrantRolePermission(ctx context.Context, arg GrantRolePermissionParams) error {
+	_, err := q.db.Exec(ctx, grantRolePermission, arg.Role, arg.Permission)
+	return err
 }
 
 const insertRecoveryCode = `-- name: InsertRecoveryCode :exec
@@ -230,6 +435,409 @@ type InsertRecoveryCodeParams struct {
 func (q *Queries) InsertRecoveryCode(ctx context.Context, arg InsertRecoveryCodeParams) error {
 	_, err := q.db.Exec(ctx, insertRecoveryCode, arg.UserID, arg.CodeHash)
 	return err
+}
+
+const insertRoleIfMissing = `-- name: InsertRoleIfMissing :execrows
+INSERT INTO iam.roles (name, label, short_label, sort) VALUES ($1, $2, $3, $4)
+ON CONFLICT (name) DO NOTHING
+`
+
+type InsertRoleIfMissingParams struct {
+	Name       string
+	Label      string
+	ShortLabel string
+	Sort       int32
+}
+
+func (q *Queries) InsertRoleIfMissing(ctx context.Context, arg InsertRoleIfMissingParams) (int64, error) {
+	result, err := q.db.Exec(ctx, insertRoleIfMissing,
+		arg.Name,
+		arg.Label,
+		arg.ShortLabel,
+		arg.Sort,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const listBranches = `-- name: ListBranches :many
+SELECT id, code, name, address, phone, is_active, created_by, created_at, updated_at FROM core.branches ORDER BY is_active DESC, name
+`
+
+func (q *Queries) ListBranches(ctx context.Context) ([]CoreBranch, error) {
+	rows, err := q.db.Query(ctx, listBranches)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CoreBranch
+	for rows.Next() {
+		var i CoreBranch
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.Name,
+			&i.Address,
+			&i.Phone,
+			&i.IsActive,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPermissionNames = `-- name: ListPermissionNames :many
+
+SELECT name FROM iam.permissions ORDER BY name
+`
+
+// ───────────── Vai trò, quyền, chi nhánh ─────────────
+func (q *Queries) ListPermissionNames(ctx context.Context) ([]string, error) {
+	rows, err := q.db.Query(ctx, listPermissionNames)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		items = append(items, name)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPermissionsOfRole = `-- name: ListPermissionsOfRole :many
+SELECT permission FROM iam.role_permissions WHERE role = $1 ORDER BY permission
+`
+
+func (q *Queries) ListPermissionsOfRole(ctx context.Context, role string) ([]string, error) {
+	rows, err := q.db.Query(ctx, listPermissionsOfRole, role)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var permission string
+		if err := rows.Scan(&permission); err != nil {
+			return nil, err
+		}
+		items = append(items, permission)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRolePermissions = `-- name: ListRolePermissions :many
+SELECT role, permission FROM iam.role_permissions ORDER BY role, permission
+`
+
+func (q *Queries) ListRolePermissions(ctx context.Context) ([]IamRolePermission, error) {
+	rows, err := q.db.Query(ctx, listRolePermissions)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []IamRolePermission
+	for rows.Next() {
+		var i IamRolePermission
+		if err := rows.Scan(&i.Role, &i.Permission); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRoles = `-- name: ListRoles :many
+SELECT r.name, r.label, r.short_label, r.sort, r.created_at, r.updated_at, (SELECT count(*) FROM iam.user_roles ur WHERE ur.role = r.name)::bigint AS user_count
+FROM iam.roles r ORDER BY r.sort, r.name
+`
+
+type ListRolesRow struct {
+	Name       string
+	Label      string
+	ShortLabel string
+	Sort       int32
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+	UserCount  int64
+}
+
+func (q *Queries) ListRoles(ctx context.Context) ([]ListRolesRow, error) {
+	rows, err := q.db.Query(ctx, listRoles)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListRolesRow
+	for rows.Next() {
+		var i ListRolesRow
+		if err := rows.Scan(
+			&i.Name,
+			&i.Label,
+			&i.ShortLabel,
+			&i.Sort,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.UserCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUserBranches = `-- name: ListUserBranches :many
+SELECT ub.branch_id, ub.is_primary, b.code, b.name FROM iam.user_branches ub
+JOIN core.branches b ON b.id = ub.branch_id
+WHERE ub.user_id = $1 ORDER BY ub.is_primary DESC, b.name
+`
+
+type ListUserBranchesRow struct {
+	BranchID  uuid.UUID
+	IsPrimary bool
+	Code      string
+	Name      string
+}
+
+func (q *Queries) ListUserBranches(ctx context.Context, userID uuid.UUID) ([]ListUserBranchesRow, error) {
+	rows, err := q.db.Query(ctx, listUserBranches, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListUserBranchesRow
+	for rows.Next() {
+		var i ListUserBranchesRow
+		if err := rows.Scan(
+			&i.BranchID,
+			&i.IsPrimary,
+			&i.Code,
+			&i.Name,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUserOverrides = `-- name: ListUserOverrides :many
+SELECT permission, allow, scope_type, scope_id FROM iam.permission_overrides
+WHERE user_id = $1 ORDER BY permission, scope_type
+`
+
+type ListUserOverridesRow struct {
+	Permission string
+	Allow      bool
+	ScopeType  string
+	ScopeID    *uuid.UUID
+}
+
+func (q *Queries) ListUserOverrides(ctx context.Context, userID uuid.UUID) ([]ListUserOverridesRow, error) {
+	rows, err := q.db.Query(ctx, listUserOverrides, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListUserOverridesRow
+	for rows.Next() {
+		var i ListUserOverridesRow
+		if err := rows.Scan(
+			&i.Permission,
+			&i.Allow,
+			&i.ScopeType,
+			&i.ScopeID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUserRolePermissions = `-- name: ListUserRolePermissions :many
+SELECT DISTINCT rp.permission FROM iam.role_permissions rp
+JOIN iam.user_roles ur ON ur.role = rp.role
+WHERE ur.user_id = $1
+`
+
+func (q *Queries) ListUserRolePermissions(ctx context.Context, userID uuid.UUID) ([]string, error) {
+	rows, err := q.db.Query(ctx, listUserRolePermissions, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var permission string
+		if err := rows.Scan(&permission); err != nil {
+			return nil, err
+		}
+		items = append(items, permission)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUserRoles = `-- name: ListUserRoles :many
+SELECT role FROM iam.user_roles WHERE user_id = $1 ORDER BY role
+`
+
+func (q *Queries) ListUserRoles(ctx context.Context, userID uuid.UUID) ([]string, error) {
+	rows, err := q.db.Query(ctx, listUserRoles, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var role string
+		if err := rows.Scan(&role); err != nil {
+			return nil, err
+		}
+		items = append(items, role)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUsers = `-- name: ListUsers :many
+SELECT u.id, u.kind, u.code, u.email, u.phone, u.full_name, u.status, u.must_change_password,
+       u.totp_enabled_at, u.locked_until, u.last_login_at, u.created_at,
+       ARRAY(SELECT ur.role FROM iam.user_roles ur WHERE ur.user_id = u.id ORDER BY ur.role)::text[] AS roles,
+       pb.branch_id AS primary_branch_id,
+       count(*) OVER () AS total
+FROM iam.users u
+LEFT JOIN iam.user_branches pb ON pb.user_id = u.id AND pb.is_primary
+WHERE ($1::text[] IS NULL OR (
+        EXISTS (SELECT 1 FROM iam.user_roles ur WHERE ur.user_id = u.id)
+        AND NOT EXISTS (SELECT 1 FROM iam.user_roles ur WHERE ur.user_id = u.id
+                        AND NOT (ur.role = ANY ($1::text[])))))
+  AND ($2::uuid[] IS NULL OR EXISTS (
+        SELECT 1 FROM iam.user_branches ub WHERE ub.user_id = u.id AND ub.is_primary
+        AND ub.branch_id = ANY ($2::uuid[])))
+  AND ($3::uuid IS NULL OR u.created_by = $3::uuid)
+  AND ($4::text IS NULL OR u.full_name ILIKE $4::text
+       OR u.code ILIKE $4::text OR u.email ILIKE $4::text
+       OR u.phone ILIKE $4::text)
+  AND ($5::text IS NULL OR EXISTS (
+        SELECT 1 FROM iam.user_roles ur WHERE ur.user_id = u.id AND ur.role = $5::text))
+  AND ($6::text IS NULL OR u.status = $6::text)
+ORDER BY u.full_name, u.id
+LIMIT $8 OFFSET $7
+`
+
+type ListUsersParams struct {
+	Assignable []string
+	BranchIds  []uuid.UUID
+	CreatedBy  *uuid.UUID
+	Search     *string
+	Role       *string
+	Status     *string
+	Off        int32
+	Lim        int32
+}
+
+type ListUsersRow struct {
+	ID                 uuid.UUID
+	Kind               string
+	Code               *string
+	Email              *string
+	Phone              *string
+	FullName           string
+	Status             string
+	MustChangePassword bool
+	TotpEnabledAt      *time.Time
+	LockedUntil        *time.Time
+	LastLoginAt        *time.Time
+	CreatedAt          time.Time
+	Roles              []string
+	PrimaryBranchID    *uuid.UUID
+	Total              int64
+}
+
+// Bộ lọc NULL = không giới hạn. assignable: chỉ người có ít nhất một vai trò và mọi vai trò nằm trong danh sách
+// (cây vai trò); branch_ids: chi nhánh chính thuộc danh sách; created_by: tài khoản do người này tạo.
+func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUsersRow, error) {
+	rows, err := q.db.Query(ctx, listUsers,
+		arg.Assignable,
+		arg.BranchIds,
+		arg.CreatedBy,
+		arg.Search,
+		arg.Role,
+		arg.Status,
+		arg.Off,
+		arg.Lim,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListUsersRow
+	for rows.Next() {
+		var i ListUsersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.Code,
+			&i.Email,
+			&i.Phone,
+			&i.FullName,
+			&i.Status,
+			&i.MustChangePassword,
+			&i.TotpEnabledAt,
+			&i.LockedUntil,
+			&i.LastLoginAt,
+			&i.CreatedAt,
+			&i.Roles,
+			&i.PrimaryBranchID,
+			&i.Total,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const recordLoginFailure = `-- name: RecordLoginFailure :one
@@ -259,6 +867,32 @@ func (q *Queries) RecordLoginSuccess(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const setBranchActive = `-- name: SetBranchActive :one
+UPDATE core.branches SET is_active = $2, updated_at = now() WHERE id = $1 RETURNING id, code, name, address, phone, is_active, created_by, created_at, updated_at
+`
+
+type SetBranchActiveParams struct {
+	ID       uuid.UUID
+	IsActive bool
+}
+
+func (q *Queries) SetBranchActive(ctx context.Context, arg SetBranchActiveParams) (CoreBranch, error) {
+	row := q.db.QueryRow(ctx, setBranchActive, arg.ID, arg.IsActive)
+	var i CoreBranch
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Name,
+		&i.Address,
+		&i.Phone,
+		&i.IsActive,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const setPassword = `-- name: SetPassword :exec
 UPDATE iam.users SET
     password_hash = $2, must_change_password = $3, password_changed_at = now(), updated_at = now()
@@ -276,12 +910,166 @@ func (q *Queries) SetPassword(ctx context.Context, arg SetPasswordParams) error 
 	return err
 }
 
+const setRoleSort = `-- name: SetRoleSort :exec
+UPDATE iam.roles SET sort = $2 WHERE name = $1 AND sort <> $2
+`
+
+type SetRoleSortParams struct {
+	Name string
+	Sort int32
+}
+
+func (q *Queries) SetRoleSort(ctx context.Context, arg SetRoleSortParams) error {
+	_, err := q.db.Exec(ctx, setRoleSort, arg.Name, arg.Sort)
+	return err
+}
+
+const setUserCreatedBy = `-- name: SetUserCreatedBy :exec
+UPDATE iam.users SET created_by = $2 WHERE id = $1
+`
+
+type SetUserCreatedByParams struct {
+	ID        uuid.UUID
+	CreatedBy *uuid.UUID
+}
+
+func (q *Queries) SetUserCreatedBy(ctx context.Context, arg SetUserCreatedByParams) error {
+	_, err := q.db.Exec(ctx, setUserCreatedBy, arg.ID, arg.CreatedBy)
+	return err
+}
+
+const setUserStatus = `-- name: SetUserStatus :exec
+UPDATE iam.users SET status = $2, updated_at = now() WHERE id = $1
+`
+
+type SetUserStatusParams struct {
+	ID     uuid.UUID
+	Status string
+}
+
+func (q *Queries) SetUserStatus(ctx context.Context, arg SetUserStatusParams) error {
+	_, err := q.db.Exec(ctx, setUserStatus, arg.ID, arg.Status)
+	return err
+}
+
 const unlockUser = `-- name: UnlockUser :exec
 UPDATE iam.users SET failed_logins = 0, locked_until = NULL, updated_at = now() WHERE id = $1
 `
 
 func (q *Queries) UnlockUser(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, unlockUser, id)
+	return err
+}
+
+const updateBranch = `-- name: UpdateBranch :one
+UPDATE core.branches SET code = $2, name = $3, address = $4, phone = $5, updated_at = now()
+WHERE id = $1 RETURNING id, code, name, address, phone, is_active, created_by, created_at, updated_at
+`
+
+type UpdateBranchParams struct {
+	ID      uuid.UUID
+	Code    string
+	Name    string
+	Address *string
+	Phone   *string
+}
+
+func (q *Queries) UpdateBranch(ctx context.Context, arg UpdateBranchParams) (CoreBranch, error) {
+	row := q.db.QueryRow(ctx, updateBranch,
+		arg.ID,
+		arg.Code,
+		arg.Name,
+		arg.Address,
+		arg.Phone,
+	)
+	var i CoreBranch
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Name,
+		&i.Address,
+		&i.Phone,
+		&i.IsActive,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateRoleLabels = `-- name: UpdateRoleLabels :exec
+UPDATE iam.roles SET label = $2, short_label = $3, updated_at = now() WHERE name = $1
+`
+
+type UpdateRoleLabelsParams struct {
+	Name       string
+	Label      string
+	ShortLabel string
+}
+
+func (q *Queries) UpdateRoleLabels(ctx context.Context, arg UpdateRoleLabelsParams) error {
+	_, err := q.db.Exec(ctx, updateRoleLabels, arg.Name, arg.Label, arg.ShortLabel)
+	return err
+}
+
+const updateUserProfile = `-- name: UpdateUserProfile :one
+UPDATE iam.users SET code = $2, email = $3, phone = $4, full_name = $5, updated_at = now()
+WHERE id = $1 RETURNING id, kind, code, email, phone, full_name, password_hash, must_change_password, status, failed_logins, locked_until, totp_secret, totp_enabled_at, password_changed_at, last_login_at, created_at, updated_at, created_by
+`
+
+type UpdateUserProfileParams struct {
+	ID       uuid.UUID
+	Code     *string
+	Email    *string
+	Phone    *string
+	FullName string
+}
+
+func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (IamUser, error) {
+	row := q.db.QueryRow(ctx, updateUserProfile,
+		arg.ID,
+		arg.Code,
+		arg.Email,
+		arg.Phone,
+		arg.FullName,
+	)
+	var i IamUser
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.Code,
+		&i.Email,
+		&i.Phone,
+		&i.FullName,
+		&i.PasswordHash,
+		&i.MustChangePassword,
+		&i.Status,
+		&i.FailedLogins,
+		&i.LockedUntil,
+		&i.TotpSecret,
+		&i.TotpEnabledAt,
+		&i.PasswordChangedAt,
+		&i.LastLoginAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.CreatedBy,
+	)
+	return i, err
+}
+
+const upsertPermission = `-- name: UpsertPermission :exec
+INSERT INTO iam.permissions (name, module, kind) VALUES ($1, $2, $3)
+ON CONFLICT (name) DO UPDATE SET module = EXCLUDED.module, kind = EXCLUDED.kind
+`
+
+type UpsertPermissionParams struct {
+	Name   string
+	Module string
+	Kind   string
+}
+
+func (q *Queries) UpsertPermission(ctx context.Context, arg UpsertPermissionParams) error {
+	_, err := q.db.Exec(ctx, upsertPermission, arg.Name, arg.Module, arg.Kind)
 	return err
 }
 

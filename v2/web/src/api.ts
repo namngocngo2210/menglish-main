@@ -11,7 +11,90 @@ export type User = {
   totp_enabled: boolean
 }
 
-export type Me = { user: User; csrf_token: string; recovery_codes_left?: number }
+export type RoleRef = { name: string; label: string; short_label: string }
+export type UserBranch = { id: string; code: string; name: string; primary: boolean }
+export type ScopeLevel = 'own' | 'branch' | 'all'
+
+export type Me = {
+  user: User
+  csrf_token: string
+  recovery_codes_left?: number
+  totp_required: boolean
+  roles: RoleRef[]
+  permissions: string[]
+  scopes: Record<string, ScopeLevel>
+  branches: UserBranch[]
+}
+
+export type Branch = {
+  id: string
+  code: string
+  name: string
+  address: string | null
+  phone: string | null
+  is_active: boolean
+  created_at: string
+}
+export type BranchInput = { code: string; name: string; address: string; phone: string }
+
+export type RoleView = RoleRef & { super_admin: boolean; user_count: number; permissions: string[] }
+
+type Labeled = { key: string; label: string }
+export type CatalogAction = { key: string; label: string; description: string }
+export type CatalogModule = {
+  key: string
+  label: string
+  group: string
+  icon: string
+  actions: CatalogAction[] | null
+  audience: CatalogAction[] | null
+  scope?: { levels: ScopeLevel[]; descriptions: Record<string, string> }
+  dynamic?: { prefix: string; label: string; description: string }[]
+}
+export type Catalog = {
+  groups: Labeled[]
+  scope_levels: Labeled[]
+  matrix_columns: Labeled[]
+  modules: CatalogModule[]
+  roles: { name: string; label: string; short_label: string }[]
+  admin_only: string[]
+}
+
+export type UserSummary = {
+  id: string
+  kind: User['kind']
+  code: string | null
+  email: string | null
+  phone: string | null
+  full_name: string
+  status: 'active' | 'disabled'
+  must_change_password: boolean
+  totp_enabled: boolean
+  locked: boolean
+  last_login_at: string | null
+  created_at: string
+  roles: string[]
+  primary_branch_id: string | null
+}
+export type UserDetail = UserSummary & { branches: UserBranch[] }
+export type UserInput = {
+  kind?: User['kind']
+  code: string
+  email: string
+  phone: string
+  full_name: string
+  roles?: string[]
+  primary_branch_id: string | null
+  branch_ids: string[]
+}
+export type UserOptions = { roles: RoleRef[]; branches: Branch[] }
+export type Override = { permission: string; allow: boolean }
+export type UserPermissions = {
+  user: UserDetail
+  role_permissions: string[]
+  overrides: Override[]
+  effective: string[]
+}
 export type Meta = { version: string; env: string }
 export type LoginResponse =
   | { status: 'ok'; user: User; csrf_token: string }
@@ -79,6 +162,36 @@ export const api = {
   totpDisable: (password: string) => request<void>('POST', '/auth/totp/disable', { password }),
   sessions: () => request<{ sessions: SessionInfo[] }>('GET', '/auth/sessions'),
   revokeSession: (id: string) => request<void>('DELETE', `/auth/sessions/${encodeURIComponent(id)}`),
+
+  branches: () => request<{ branches: Branch[] }>('GET', '/branches'),
+  createBranch: (b: BranchInput) => request<Branch>('POST', '/branches', b),
+  updateBranch: (id: string, b: BranchInput) => request<Branch>('PATCH', `/branches/${id}`, b),
+  setBranchActive: (id: string, active: boolean) =>
+    request<Branch>('POST', `/branches/${id}/${active ? 'activate' : 'deactivate'}`),
+
+  catalog: () => request<Catalog>('GET', '/permissions/catalog'),
+  roles: () => request<{ roles: RoleView[] }>('GET', '/roles'),
+  updateRole: (name: string, label: string, short_label: string) =>
+    request<void>('PATCH', `/roles/${name}`, { label, short_label }),
+  setRolePermissions: (name: string, permissions: string[]) =>
+    request<{ permissions: string[] }>('PUT', `/roles/${name}/permissions`, { permissions }),
+
+  users: (params: { q?: string; role?: string; status?: string; page?: number }) => {
+    const qs = new URLSearchParams()
+    for (const [k, v] of Object.entries(params)) if (v) qs.set(k, String(v))
+    return request<{ users: UserSummary[]; total: number; page_size: number }>('GET', `/users?${qs}`)
+  },
+  userOptions: () => request<UserOptions>('GET', '/users/options'),
+  user: (id: string) => request<UserDetail>('GET', `/users/${id}`),
+  createUser: (u: UserInput) => request<{ user: UserDetail; temporary_password: string }>('POST', '/users', u),
+  updateUser: (id: string, u: UserInput) => request<UserDetail>('PATCH', `/users/${id}`, u),
+  setUserRoles: (id: string, roles: string[]) => request<UserDetail>('PUT', `/users/${id}/roles`, { roles }),
+  setUserLocked: (id: string, locked: boolean) => request<void>('POST', `/users/${id}/${locked ? 'lock' : 'unlock'}`),
+  resetUserPassword: (id: string) => request<{ temporary_password: string }>('POST', `/users/${id}/reset-password`),
+  resetUserTotp: (id: string) => request<void>('POST', `/users/${id}/reset-totp`),
+  userPermissions: (id: string) => request<UserPermissions>('GET', `/users/${id}/permissions`),
+  setUserPermissions: (id: string, overrides: Override[]) =>
+    request<UserPermissions>('PUT', `/users/${id}/permissions`, { overrides }),
 }
 
 export function errorMessage(e: unknown): string {

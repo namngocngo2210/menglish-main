@@ -5,7 +5,10 @@ import { afterEach, expect, test, vi } from 'vitest'
 import { App } from './App'
 import { describeAgent } from './pages/SessionsCard'
 
-afterEach(() => vi.restoreAllMocks())
+afterEach(() => {
+  vi.restoreAllMocks()
+  window.history.pushState(null, '', '/')
+})
 
 const staff = {
   id: 'u1',
@@ -16,6 +19,11 @@ const staff = {
   full_name: 'Quản trị',
   must_change_password: false,
   totp_enabled: false,
+}
+
+// Phản hồi /auth/me với các trường phân quyền mặc định (không vai trò, không quyền).
+function meOf(user: typeof staff, extra: Record<string, unknown> = {}) {
+  return { user, csrf_token: 'c', totp_required: false, roles: [], permissions: [], scopes: {}, branches: [], ...extra }
 }
 
 type Route = (body: unknown, init: RequestInit) => [number, unknown?]
@@ -47,7 +55,7 @@ function renderApp() {
 test('đăng nhập sai báo lỗi, đúng thì vào trang chính', async () => {
   let loggedIn = false
   const calls = mockApi({
-    'GET /auth/me': () => (loggedIn ? [200, { user: staff, csrf_token: 'csrf-1' }] : [401, { error: 'unauthenticated' }]),
+    'GET /auth/me': () => (loggedIn ? [200, meOf(staff, { csrf_token: 'csrf-1' })] : [401, { error: 'unauthenticated' }]),
     'POST /auth/login': (body) => {
       const { password } = body as { password: string }
       if (password !== 'dung-mat-khau') return [401, { error: 'invalid_credentials', message: 'Sai thông tin đăng nhập.' }]
@@ -81,7 +89,7 @@ test('tài khoản bật 2FA phải nhập mã', async () => {
   let loggedIn = false
   mockApi({
     'GET /auth/me': () =>
-      loggedIn ? [200, { user: { ...staff, totp_enabled: true }, csrf_token: 'c', recovery_codes_left: 10 }] : [401, {}],
+      loggedIn ? [200, meOf({ ...staff, totp_enabled: true }, { recovery_codes_left: 10 })] : [401, {}],
     'POST /auth/login': () => [200, { status: 'totp_required', challenge: 'ch-1' }],
     'POST /auth/login/totp': (body) => {
       const { challenge, code } = body as { challenge: string; code: string }
@@ -111,7 +119,7 @@ test('tài khoản bật 2FA phải nhập mã', async () => {
 test('mật khẩu tạm phải đổi trước khi vào hệ thống', async () => {
   let changed = false
   mockApi({
-    'GET /auth/me': () => [200, { user: { ...staff, must_change_password: !changed }, csrf_token: 'c' }],
+    'GET /auth/me': () => [200, meOf({ ...staff, must_change_password: !changed })],
     'POST /auth/password': () => {
       changed = true
       return [204]
@@ -132,6 +140,39 @@ test('mật khẩu tạm phải đổi trước khi vào hệ thống', async ()
   await user.type(screen.getByLabelText('Nhập lại mật khẩu mới'), 'Trung-tam-tieng-anh-2026')
   await user.click(screen.getByRole('button', { name: 'Đổi mật khẩu' }))
   expect(await screen.findByText('Tài khoản', { selector: 'h2' })).toBeInTheDocument()
+})
+
+test('vai trò bắt buộc 2FA phải bật trước khi vào hệ thống', async () => {
+  mockApi({
+    'GET /auth/me': () => [
+      200,
+      meOf(staff, { totp_required: true, roles: [{ name: 'admin', label: 'Admin', short_label: 'Admin' }], permissions: ['user.view'] }),
+    ],
+  })
+  renderApp()
+  expect(await screen.findByText(/bắt buộc bật xác thực hai bước/)).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Bật xác thực hai bước' })).toBeInTheDocument()
+  expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
+})
+
+test('menu chỉ hiện mục có quyền, mở thẳng đường dẫn không có quyền thì báo', async () => {
+  window.history.pushState(null, '', '/roles')
+  mockApi({
+    'GET /auth/me': () => [200, meOf({ ...staff, totp_enabled: true }, { permissions: ['user.view'] })],
+    'GET /meta': () => [200, { version: 'v', env: 'beta' }],
+    'GET /users?page=1': () => [200, { users: [], total: 0, page_size: 50 }],
+  })
+  const user = userEvent.setup()
+  renderApp()
+  const nav = await screen.findByRole('navigation', { name: 'Menu chính' })
+  expect(nav).toHaveTextContent('Người dùng')
+  expect(nav).not.toHaveTextContent('Vai trò & quyền')
+  expect(nav).not.toHaveTextContent('Chi nhánh')
+  expect(screen.getByText('Bạn không có quyền xem trang này.')).toBeInTheDocument()
+
+  await user.click(screen.getByRole('link', { name: 'Người dùng' }))
+  expect(await screen.findByText('Không có tài khoản nào trong phạm vi bạn quản lý.')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Thêm tài khoản' })).not.toBeInTheDocument()
 })
 
 test('mô tả thiết bị từ User-Agent', () => {
