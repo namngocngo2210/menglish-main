@@ -113,9 +113,16 @@ func TestPlacementLeads(t *testing.T) {
 	}
 
 	// Khách chuyển Thất bại → buổi học thử đang hẹn hủy theo (buổi đã học giữ nguyên).
+	// Lớp và buổi học thật (crm.trial_bookings có khóa ngoại tới academic.classes / class_sessions)
+	class, s1, s2 := uuid.New(), uuid.New(), uuid.New()
+	e.exec(`INSERT INTO academic.classes (id, code, name, branch_id, status)
+		SELECT $1, 'L-TRIAL', 'IELTS', branch_id, 'active' FROM crm.leads WHERE id = $2`, class, na)
+	e.exec(`INSERT INTO academic.class_sessions (id, class_id, branch_id, date, start_time, end_time)
+		SELECT s.id, c.id, c.branch_id, current_date + s.d, '18:00', '19:30' FROM academic.classes c,
+		(VALUES ($2::uuid, 1), ($3::uuid, -1)) AS s (id, d) WHERE c.id = $1`, class, s1, s2)
 	e.exec(`INSERT INTO crm.trial_bookings (lead_id, class_id, class_session_id, session_date, status, notes) VALUES
 		($1, $2, $3, current_date + 1, 'scheduled', 'Phụ huynh đưa đón'), ($1, $2, $4, current_date - 1, 'attended', NULL)`,
-		na, uuid.New(), uuid.New(), uuid.New())
+		na, class, s1, s2)
 	expect(t, tm.adminC.do("POST", "/crm/leads/"+na.String()+"/stage", map[string]any{"stage": StageLost, "lost_reason": "Học phí cao"}), 200, "")
 	var trials string
 	if err := e.pg.QueryRow(ctx, `SELECT string_agg(status || ':' || coalesce(notes, ''), '|' ORDER BY session_date DESC)
