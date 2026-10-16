@@ -441,6 +441,9 @@ func (f fakeMetrics) TeacherClasses(context.Context, Writer, string) ([]TeacherC
 	return f.classes, nil
 }
 
+// Pending: bản giả có đủ nguồn (không hiện ghi chú "Chờ phân hệ …").
+func (fakeMetrics) Pending(string) bool { return false }
+
 func (f fakeMetrics) KpiCriteria(context.Context, string) ([]KpiCriterion, error) { return f.kpis, nil }
 
 func TestTeacherMonthly(t *testing.T) {

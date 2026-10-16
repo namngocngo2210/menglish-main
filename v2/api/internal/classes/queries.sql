@@ -754,3 +754,97 @@ WHERE s.teacher_id = sqlc.arg(user_id) OR s.foreign_teacher_id = sqlc.arg(user_i
 -- Lớp người dùng phụ trách (GV chính, trợ giảng cố định, GVNN mặc định).
 SELECT id FROM academic.classes
 WHERE deleted_at IS NULL AND (teacher_id = sqlc.arg(user_id) OR assistant_id = sqlc.arg(user_id) OR foreign_teacher_id = sqlc.arg(user_id));
+
+-- name: ReportClassOptions :many
+-- Lớp gắn được vào nhật ký / báo cáo chữ: lớp người dùng thấy, chưa hủy.
+SELECT c.id, c.code::text AS code, c.name
+FROM academic.classes c
+WHERE c.deleted_at IS NULL AND c.status <> 'cancelled' AND (sqlc.arg(all_classes)::bool OR c.id = ANY (sqlc.arg(ids)::uuid[]))
+ORDER BY c.code;
+
+-- name: ClassCodesByIDs :many
+SELECT id, code::text AS code, name FROM academic.classes WHERE id = ANY (sqlc.arg(ids)::uuid[]);
+
+-- name: ReportClassIDs :many
+-- Lớp tính vào báo cáo của người viết: lớp người viết thấy, chỉ trong các chi nhánh của người viết (rỗng = không lọc).
+SELECT c.id FROM academic.classes c
+WHERE c.deleted_at IS NULL AND (sqlc.arg(all_classes)::bool OR c.id = ANY (sqlc.arg(ids)::uuid[]))
+  AND (cardinality(sqlc.arg(branch_ids)::uuid[]) = 0 OR c.branch_id = ANY (sqlc.arg(branch_ids)::uuid[]));
+
+-- name: ReportDaySessions :many
+-- Buổi học trong ngày (không tính phụ đạo) của các lớp tính vào báo cáo ngày.
+SELECT s.id, s.class_id, c.name AS class_name, c.branch_id AS class_branch_id, c.teacher_id AS class_teacher_id,
+       s.status, s.type, s.room, s.shift_name, to_char(s.start_time, 'HH24:MI') AS start_time, to_char(s.end_time, 'HH24:MI') AS end_time,
+       s.teacher_id, s.foreign_teacher_id, s.assistant_id, (s.holiday_id IS NOT NULL)::bool AS holiday,
+       t.full_name AS teacher_name
+FROM academic.class_sessions s
+JOIN academic.classes c ON c.id = s.class_id
+LEFT JOIN iam.users t ON t.id = s.teacher_id
+WHERE s.date = sqlc.arg(day)::date AND s.type <> 'support' AND s.class_id = ANY (sqlc.arg(class_ids)::uuid[])
+ORDER BY s.start_time, c.name;
+
+-- name: SessionAttendanceIssues :many
+-- Học sinh vắng / vắng có phép / đi muộn của các buổi.
+SELECT a.session_id, a.status, st.full_name AS student_name
+FROM academic.student_attendance a
+JOIN academic.students st ON st.id = a.student_id
+WHERE a.session_id = ANY (sqlc.arg(session_ids)::uuid[]) AND a.status IN ('absent', 'excused', 'late')
+ORDER BY st.full_name;
+
+-- name: ReportRangeSessions :many
+-- Buổi đã / sẽ diễn ra trong khoảng (không tính phụ đạo, buổi hủy) của các lớp tính vào báo cáo tuần.
+SELECT s.class_id, c.name AS class_name, s.teacher_id, s.foreign_teacher_id
+FROM academic.class_sessions s
+JOIN academic.classes c ON c.id = s.class_id
+WHERE s.date BETWEEN sqlc.arg(from_date)::date AND sqlc.arg(to_date)::date AND s.type <> 'support' AND s.status <> 'cancelled'
+  AND s.class_id = ANY (sqlc.arg(class_ids)::uuid[]);
+
+-- name: ActiveStudentsAsOf :one
+-- Học sinh đang học của các lớp tính đến ngày (lượt xếp lớp còn hiệu lực, chưa rời lớp).
+SELECT count(DISTINCT e.student_id)::bigint FROM academic.enrollments e
+WHERE e.class_id = ANY (sqlc.arg(class_ids)::uuid[]) AND e.status IN ('pending', 'completed')
+  AND e.enrolled_at <= sqlc.arg(as_of)::date AND (e.left_at IS NULL OR e.left_at > sqlc.arg(as_of)::date);
+
+-- name: ClassTransfers :many
+-- Học sinh rời một lớp (không phải thôi học) trong khoảng và vào lớp khác trong khoảng.
+SELECT DISTINCT st.full_name AS student_name, c1.name AS from_class, c2.name AS to_class
+FROM academic.enrollments o
+JOIN academic.enrollments i ON i.student_id = o.student_id AND i.class_id <> o.class_id
+     AND i.enrolled_at BETWEEN sqlc.arg(from_date)::date AND sqlc.arg(to_date)::date
+JOIN academic.students st ON st.id = o.student_id
+JOIN academic.classes c1 ON c1.id = o.class_id
+JOIN academic.classes c2 ON c2.id = i.class_id
+WHERE o.class_id = ANY (sqlc.arg(class_ids)::uuid[]) AND o.status <> 'dropped'
+  AND o.left_at BETWEEN sqlc.arg(from_date)::date AND sqlc.arg(to_date)::date
+ORDER BY st.full_name;
+
+-- name: MakeupAttendees :many
+-- Học sinh có mặt ở buổi học bù trong khoảng (mỗi học sinh một dòng).
+SELECT DISTINCT ON (a.student_id) st.full_name AS student_name, c.name AS class_name
+FROM academic.student_attendance a
+JOIN academic.class_sessions s ON s.id = a.session_id AND s.type = 'makeup'
+JOIN academic.students st ON st.id = a.student_id
+JOIN academic.classes c ON c.id = s.class_id
+WHERE a.status IN ('present', 'late') AND s.class_id = ANY (sqlc.arg(class_ids)::uuid[])
+  AND s.date BETWEEN sqlc.arg(from_date)::date AND sqlc.arg(to_date)::date
+ORDER BY a.student_id, st.full_name;
+
+-- name: TeacherMonthClasses :many
+-- Lớp giáo viên giữ trong tháng (TeachingQuality::classesOf): lớp đang học mình là GV / trợ giảng / GVNN, hoặc có buổi
+-- mình đứng trong tháng; kèm chuyên cần (%) của tháng và số buổi mình đã đứng lớp (tới hôm nay, không tính buổi hủy).
+SELECT c.id, c.code::text AS code, c.name,
+       (SELECT count(*) FROM academic.student_attendance a
+        WHERE a.class_id = c.id AND a.session_date BETWEEN sqlc.arg(from_date)::date AND sqlc.arg(to_date)::date)::bigint AS attendance_total,
+       (SELECT count(*) FROM academic.student_attendance a
+        WHERE a.class_id = c.id AND a.session_date BETWEEN sqlc.arg(from_date)::date AND sqlc.arg(to_date)::date
+          AND a.status IN ('present', 'late'))::bigint AS attended,
+       (SELECT count(*) FROM academic.class_sessions s
+        WHERE s.class_id = c.id AND s.status <> 'cancelled' AND s.date BETWEEN sqlc.arg(from_date)::date AND sqlc.arg(until)::date
+          AND (s.teacher_id = sqlc.arg(user_id) OR s.foreign_teacher_id = sqlc.arg(user_id) OR s.assistant_id = sqlc.arg(user_id)))::bigint AS sessions_done
+FROM academic.classes c
+WHERE c.deleted_at IS NULL AND (
+    (c.status = 'active' AND (c.teacher_id = sqlc.arg(user_id) OR c.assistant_id = sqlc.arg(user_id) OR c.foreign_teacher_id = sqlc.arg(user_id)))
+    OR EXISTS (SELECT 1 FROM academic.class_sessions s WHERE s.class_id = c.id
+               AND s.date BETWEEN sqlc.arg(from_date)::date AND sqlc.arg(to_date)::date
+               AND (s.teacher_id = sqlc.arg(user_id) OR s.foreign_teacher_id = sqlc.arg(user_id) OR s.assistant_id = sqlc.arg(user_id))))
+ORDER BY c.name;

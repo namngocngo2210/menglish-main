@@ -136,8 +136,12 @@ func runAPI(ctx context.Context) error {
 	go taskSvc.RunOverdueLoop(ctx, 10*time.Minute)
 	// Sessions: buổi học thật của phân hệ Lớp học cho học thử. Leads: CRM nối vào khi gộp (hiện dùng bản rỗng).
 	place := placement.NewHandler(placement.NewService(d.pool, d.rdb, log, placement.Options{Sessions: cls.PlacementSessions()}), log)
-	// TODO(gộp): truyền MetricsProvider / TaskService / ClassDirectory / Calendar thật khi các phân hệ đó có ở v2.
-	reportSvc := reports.NewService(d.pool, log, reports.Deps{})
+	// Lớp học: danh mục lớp và số liệu lớp / buổi / điểm danh (bọc provider số liệu gốc — phân hệ khác bọc thêm lớp của mình).
+	// TODO(gộp): TaskService / Calendar thật khi các phân hệ đó có ở v2.
+	reportSvc := reports.NewService(d.pool, log, reports.Deps{
+		Metrics: cls.ReportMetrics(reports.Skeleton(), d.iam.LoadAccess),
+		Classes: cls.ReportClasses(),
+	})
 	// Nhắc hạn báo cáo ngày / tháng và tổng hợp cho Admin (lệnh reports:remind-* / reports:daily-digest ở bản Laravel).
 	go reportSvc.RunReminderLoop(ctx, time.Minute)
 	checks := map[string]server.Pinger{

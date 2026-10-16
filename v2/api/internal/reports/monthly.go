@@ -167,7 +167,7 @@ func (s *Service) AcademicMonthly(ctx context.Context, a *iam.Access, monthParam
 	if f.Meetings == nil {
 		f.Meetings = []Meeting{}
 	}
-	if _, ok := s.metrics.(skeletonMetrics); ok {
+	if pendingPart(s.metrics, "meetings") {
 		f.MeetingsNote = srcQuality
 	}
 	if f.History, err = s.history(ctx, a.UserID, KindAcademicMonthly, monthLabel); err != nil {
@@ -373,7 +373,7 @@ func (s *Service) TeacherMonthly(ctx context.Context, a *iam.Access, monthParam 
 	if f.Classes == nil {
 		f.Classes = []TeacherClass{}
 	}
-	if _, ok := s.metrics.(skeletonMetrics); ok {
+	if pendingPart(s.metrics, "classes") {
 		f.ClassesNote = srcClasses
 	}
 	if f.Review, err = s.reviewState(ctx, report); err != nil {
