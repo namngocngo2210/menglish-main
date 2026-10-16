@@ -107,6 +107,8 @@ func runAPI(ctx context.Context) error {
 	auth := iam.NewHandler(d.iam, log).WithAddressSearch(geo.NewSearcher(d.rdb, log, cfg.PublicURL))
 	// TODO(gộp): truyền MetricsProvider / TaskService / ClassDirectory / Calendar thật khi các phân hệ đó có ở v2.
 	reportSvc := reports.NewService(d.pool, log, reports.Deps{})
+	// Nhắc hạn báo cáo ngày / tháng và tổng hợp cho Admin (lệnh reports:remind-* / reports:daily-digest ở bản Laravel).
+	go reportSvc.RunReminderLoop(ctx, time.Minute)
 	checks := map[string]server.Pinger{
 		"postgres": d.pool,
 		"redis":    server.PingFunc(func(ctx context.Context) error { return d.rdb.Ping(ctx).Err() }),
