@@ -118,22 +118,27 @@ func runAPI(ctx context.Context) error {
 	defer d.close()
 	cfg, log := d.cfg, d.log
 
-	inv := inventory.NewService(d.pool, log, inventory.DefaultConfig())
-	go inv.RunOverdueLoop(ctx, 15*time.Minute)
-	cat := catalogs.NewService(d.pool, d.box, log)
-	stu := students.NewService(d.pool, d.iam, log)
-	// Phân hệ Lớp học làm phần việc lớp cho Học viên, Danh mục (khóa / trình độ / phòng / nghỉ lễ / ca dạy) và Order học liệu.
-	cls := classes.NewService(d.pool, cat, log)
-	stu.Classes, cat.Classes, inv.Classes = cls, cls, cls
-	go cls.RunStartStudyingLoop(ctx, time.Hour)
 	auth := iam.NewHandler(d.iam, log).WithAddressSearch(geo.NewSearcher(d.rdb, log, cfg.PublicURL))
 	taskSvc := tasks.NewService(d.pool, log)
 	// Chuyển việc đã qua hạn sang "Quá hạn" (lệnh tasks:mark-overdue chạy theo lịch ở bản Laravel).
 	go taskSvc.RunOverdueLoop(ctx, 10*time.Minute)
-	// Leads / Sessions: CRM và lớp học nối vào khi gộp module (hiện dùng bản rỗng).
-	place := placement.NewHandler(placement.NewService(d.pool, d.rdb, log, placement.Options{}), log)
-	// TODO(gộp): truyền MetricsProvider / TaskService / ClassDirectory / Calendar thật khi các phân hệ đó có ở v2.
-	reportSvc := reports.NewService(d.pool, log, reports.Deps{})
+	// Kho hết / âm sau khi xuất → phân hệ Công việc giao Admin việc nhập bù.
+	inv := inventory.NewService(d.pool, log, inventory.DefaultConfig()).WithRestocker(taskSvc.Restocker())
+	go inv.RunOverdueLoop(ctx, 15*time.Minute)
+	crmSvc := crm.NewService(d.pool, d.iam, log)
+	// Leads: khách CRM. Sessions: lớp học nối vào khi gộp phân hệ lớp (hiện dùng bản rỗng).
+	place := placement.NewHandler(placement.NewService(d.pool, d.rdb, log, placement.Options{Leads: crmSvc.PlacementLeads()}), log)
+	catalogSvc := catalogs.NewService(d.pool, d.box, log)
+	studentSvc := students.NewService(d.pool, d.iam, log)
+	// Phân hệ Lớp học làm phần việc lớp cho Học viên, Danh mục (khóa / trình độ / phòng / nghỉ lễ / ca dạy) và Order học liệu.
+	cls := classes.NewService(d.pool, catalogSvc, log)
+	studentSvc.Classes, catalogSvc.Classes, inv.Classes = cls, cls, cls
+	go cls.RunStartStudyingLoop(ctx, time.Hour)
+	// Báo cáo: số liệu tuyển sinh từ CRM / test đầu vào, việc follow-up qua Công việc, ngày nghỉ từ danh mục.
+	// TODO(gộp): ClassDirectory và số liệu lớp học / học phí khi các phân hệ đó có ở v2.
+	reportSvc := reports.NewService(d.pool, log, reports.Deps{
+		Metrics: reports.NewMetrics(crmSvc.ReportSource()), Tasks: taskSvc.ReportTasks(), Calendar: catalogSvc.ReportCalendar(),
+	})
 	// Nhắc hạn báo cáo ngày / tháng và tổng hợp cho Admin (lệnh reports:remind-* / reports:daily-digest ở bản Laravel).
 	go reportSvc.RunReminderLoop(ctx, time.Minute)
 	checks := map[string]server.Pinger{
@@ -149,16 +154,16 @@ func runAPI(ctx context.Context) error {
 				audit:   auditapi.NewHandler(auditapi.NewService(d.pool, log), log),
 				notify:  notifyapi.NewHandler(notifyapi.NewService(d.pool), log),
 				// Module mới có nhóm tìm kiếm thì thêm: search.Builtin(d.iam).Add(<module>.Searcher(...)).
-				search: search.NewHandler(search.Builtin(d.iam), log),
+				search: search.NewHandler(search.Builtin(d.iam).Add(crm.Searcher(crmSvc)).Add(students.Searcher(studentSvc)), log),
 			},
-				students.NewHandler(stu, log),
+				students.NewHandler(studentSvc, log),
 				inventory.NewHandler(inv, log),
-				catalogs.NewHandler(cat, log),
+				catalogs.NewHandler(catalogSvc, log),
 				classes.NewHandler(cls, log),
 				tasks.NewHandler(taskSvc, log),
 				place,
 				reports.NewHandler(reportSvc, log),
-				crm.NewHandler(crm.NewService(d.pool, d.iam, log), log),
+				crm.NewHandler(crmSvc, log),
 			),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,

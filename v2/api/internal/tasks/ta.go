@@ -167,10 +167,15 @@ func (s *Service) TAAssign(ctx context.Context, a *iam.Access, in TAAssignInput)
 	}
 
 	kind := KindTADaily
-	err = s.inTx(ctx, func(q *tasksdb.Queries) error {
+	n := len(in.Tasks)
+	now := s.now()
+	late := isLateAssignment(day, now)
+	err = s.inTx(ctx, func(tx pgx.Tx, q *tasksdb.Queries) error {
+		var last tasksdb.OpsWorkTask
 		for _, t := range in.Tasks {
 			desc := "Nhiệm vụ trực ca " + slotLabels[t.Category]
-			if _, err := q.InsertTask(ctx, tasksdb.InsertTaskParams{
+			var err error
+			if last, err = q.InsertTask(ctx, tasksdb.InsertTaskParams{
 				Title: strings.TrimSpace(t.Content), Description: &desc, CreatorID: a.UserID, AssigneeID: &assistant,
 				BranchID: branch, TimeSlotCategory: t.Category, TaskType: "one_time", Kind: &kind,
 				DueDate: &day, DueTime: pgTimeOf(slotDue[t.Category]),
@@ -178,19 +183,18 @@ func (s *Service) TAAssign(ctx context.Context, a *iam.Access, in TAAssignInput)
 				return err
 			}
 		}
+		if err := notifyAssigned(ctx, tx, q, a, last, n); err != nil {
+			return err
+		}
+		if late {
+			return notifyLateTAAssign(ctx, tx, q, a, assistant, assistantName, day, now, n)
+		}
 		return nil
 	})
 	if err != nil {
 		return TAAssignResult{}, err
 	}
-	n := len(in.Tasks)
-	now := s.now()
-	late := isLateAssignment(day, now)
 	s.log.Info("ta tasks assigned", "assistant", assistant, "date", day.Format(time.DateOnly), "count", n, "late", late, "by", a.UserID)
-	// TODO(notify): trợ giảng: "Bạn được giao {n} nhiệm vụ mới", "{người giao} đã giao {n} nhiệm vụ trực ca ngày dd/mm/yyyy."
-	// (1 việc: "Bạn được giao việc: {title}"). Gửi trễ: mọi Admin và người giao, mỗi người một thông báo
-	// "Giao việc trợ giảng sau 15:30", "{người giao | Bạn} giao {n} nhiệm vụ ngày dd/mm/yyyy cho {trợ giảng} lúc HH:MM.",
-	// link Portal trợ giảng (ta_id, date).
 	msg := "Đã tạo thành công " + strconv.Itoa(n) + " nhiệm vụ cho Trợ giảng!"
 	if late {
 		msg += " (Gửi sau " + TAAssignCutoff + " — đã báo Admin và người giao.)"
@@ -427,7 +431,7 @@ func (s *Service) Complete(ctx context.Context, a *iam.Access, id uuid.UUID, in 
 		return "", iam.Invalid("Ghi chú không được vượt quá 2000 ký tự.")
 	}
 	var msg string
-	err := s.inTx(ctx, func(q *tasksdb.Queries) error {
+	err := s.inTx(ctx, func(tx pgx.Tx, q *tasksdb.Queries) error {
 		t, err := q.LockTask(ctx, id)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotFound
@@ -470,9 +474,7 @@ func (s *Service) Complete(ctx context.Context, a *iam.Access, id uuid.UUID, in 
 		}
 		msg = "Đã gửi báo cáo tiến độ. Do không đính kèm ảnh, nhiệm vụ chuyển sang 'Chờ Admin xác nhận'!"
 		s.log.Info("work task sent for confirmation", "task_id", id, "by", a.UserID)
-		// TODO(notify): mọi Admin trừ người làm: "Việc chờ xác nhận: {title}", "{người làm} đã báo hoàn thành (không ảnh
-		// minh chứng), cần Admin xác nhận.", link màn xác nhận (selected_id).
-		return nil
+		return notifyConfirmer(ctx, tx, q, a, t)
 	})
 	return msg, err
 }

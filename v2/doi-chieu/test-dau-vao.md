@@ -49,9 +49,9 @@ trang Vue `PlacementTests/*`, `PlacementTests/Portal/*`, `TrialGuests/Index`, `C
 | `placement-tests.edit` / `update` — `editTest` / `updateTest` | `PUT /placement-tests/{id}`; màn `/placement-tests/<id>/edit` | Đã làm | Đề mẫu bị khóa sửa (409). Đề PDF cũ sửa được phiếu trả lời và đáp án, nhưng chưa thay được file PDF mới. |
 | `placement-tests.duplicate` — `duplicateTest` | `POST /placement-tests/{id}/duplicate` | Đã làm | Mã mới dạng `TEST-CUSTOM-XXXXX`, giống Laravel. |
 | `placement-tests.destroy` — `destroyTest` | `DELETE /placement-tests/{id}` | Đã làm | Xóa mềm. Không xóa được đề mẫu hoặc đề đã có bài làm (409). |
-| `placement-tests.distribute` — `distributeTest` | `POST /placement-tests/{id}/distribute` | Làm một phần | Kích hoạt đề và tạo link chung (giao diện tự sao chép link). Chưa gửi thông báo cho người phát hành (`TODO(notify)`). |
+| `placement-tests.distribute` — `distributeTest` | `POST /placement-tests/{id}/distribute` | Làm một phần | Kích hoạt đề và tạo link chung (giao diện tự sao chép link). Người phát hành nhận thông báo kèm link làm bài như `notifyUser`. |
 | `placement-tests.results.show` — `showResult` | `GET /placement-submissions/{id}`; màn `/placement-tests/submissions/<id>` | Đã làm | Form chấm theo thang khối (`RubricScoreFields`). Nhận xét gợi ý chạy theo điểm cho tới khi người chấm sửa tay. Có nhật ký rời bài và đối chiếu từng câu, lọc đúng / sai / kỹ năng. |
-| `placement-tests.results.update` — `updateResult` | `POST /placement-submissions/{id}/grade` | Đã làm | Có "Lưu bản nháp" và "Xác nhận kết quả". Bài đã chấm không lùi về nháp. Khi xác nhận thì ghi nhật ký vào khách và chuyển khách sang "Đã test" qua interface `Leads`, nhưng **phần này chỉ chạy được sau khi gộp module CRM** (xem mục Cần khi gộp). |
+| `placement-tests.results.update` — `updateResult` | `POST /placement-submissions/{id}/grade` | Đã làm | Có "Lưu bản nháp" và "Xác nhận kết quả". Bài đã chấm không lùi về nháp. Khi xác nhận thì ghi nhật ký vào khách và chuyển khách sang "Đã test" qua interface `Leads` (đã nối CRM: `crm.Service.PlacementLeads`). |
 | `placement-tests.rubric-guide` — `rubricGuide` | `GET /placement-tests/rubric`; màn `/placement-tests/rubric-guide` | Đã làm | Có công cụ tính thử và bảng băng điểm / xếp lớp của từng khối. |
 | `portal.test.take` — `portalTakeTest` | `GET /public/placement/{token}`; màn `/lam-bai/<token>` | Đã làm | Khóa màn hình: toàn màn hình; ghi lại khi ẩn tab / mất focus / thoát toàn màn hình (gộp các sự kiện trong 1,5 giây); 3 lần thì tự nộp. Chặn chuột phải, sao chép / dán, kéo thả, bôi đen, phím tắt, nút quay lại và tải lại. Link riêng thì điền sẵn thông tin khách và chuyển khách sang "Test". Trang trả về không chứa đáp án. |
 | `GET portal/placement-test/{code}/submit` | — | Đã làm | Không cần trong SPA (Laravel chỉ dùng để chuyển hướng). |
@@ -67,29 +67,30 @@ trang Vue `PlacementTests/*`, `PlacementTests/Portal/*`, `TrialGuests/Index`, `C
 | (hồ sơ khách: danh sách học thử, số lượt còn lại) | `GET /trial-bookings/lead/{leadId}` | Làm một phần | Có API; màn hồ sơ khách thuộc CRM. |
 | `classes.trial-booking` — `ClassManagementController::trialBooking` | `GET /trial-bookings`; màn `/trial-bookings` "Lịch học thử" | Đã làm | Có tab "Hôm nay & sắp tới" / "Đã diễn ra", lọc trạng thái, phân trang, theo phạm vi khách. Tên khách / lớp lấy từ module CRM / lớp học sau khi gộp. |
 | `teacher.trial-guests` — `TrialGuestController::index` | `GET /trial-bookings/teacher`; màn `/teacher/trial-guests` "Khách học thử" | Đã làm | Giáo viên chỉ thấy buổi mình dạy / lớp mình phụ trách (cần `Sessions.TeachingScope` sau khi gộp). Người có phạm vi lead "toàn hệ thống" thấy tất cả. |
-| `teacher.trial-guests.feedback` — `TrialGuestController::feedback` | `POST /trial-bookings/{id}/feedback` | Đã làm | Có điểm danh có mặt / vắng, đánh giá 1–5, 3 đầu mục nhận xét, nhận xét chi tiết. Chỉ mở từ ngày học. Ghi nhật ký vào khách. Chưa gửi thông báo cho Học vụ (`TODO(notify)`). |
+| `teacher.trial-guests.feedback` — `TrialGuestController::feedback` | `POST /trial-bookings/{id}/feedback` | Đã làm | Có điểm danh có mặt / vắng, đánh giá 1–5, 3 đầu mục nhận xét, nhận xét chi tiết. Chỉ mở từ ngày học. Ghi nhật ký vào khách. Báo Học vụ đã xếp lịch + người phụ trách khách (`trial_feedback`). |
 | `Components/Teacher/SessionTrialGuests.vue` (khách học thử trong màn điểm danh buổi dạy) | — | Chưa làm | Thuộc màn điểm danh của Cổng giáo viên; dữ liệu lấy được từ `GET /trial-bookings/teacher`. |
 | Đề mẫu hệ thống (`is_preset`, seeder) | Cột `is_preset`, khóa sửa / xóa | Làm một phần | v2 không tự tạo đề mẫu; đề mẫu sẽ được đưa sang khi nhập dữ liệu cũ. |
-| Thông báo: `notifyUser` (phát hành), `notifyHomeworkOrTestSubmission`, `notifyTrialBooked`, `notifyTrialFeedback`, `AppointmentConfirmation::forTrial` | `// TODO(notify)` trong code | Chưa làm | Chờ module thông báo. |
+| Thông báo: `notifyUser` (phát hành), `notifyHomeworkOrTestSubmission`, `notifyTrialBooked`, `notifyTrialFeedback`, `AppointmentConfirmation::forTrial` | `placement/notify.go` (`notify.Send`) | Làm một phần | Đã gửi: phát hành đề, nộp bài (báo người có `placement_test.grade` của chi nhánh — Laravel gửi email vận hành, v2 là thông báo trong ứng dụng), đặt học thử (giáo viên / trợ giảng), nhận xét học thử. Chưa làm: xác nhận lịch học thử cho khách (`AppointmentConfirmation`, `TODO(email)` — chưa có kênh email / Zalo). |
 | Sinh đề bằng AI | — | Đã làm | Laravel không có tính năng này; "(AI)" chỉ là nhãn menu, đã giữ nguyên. |
 
 ## Cần khi gộp (liên module)
 
-- **CRM (`crm.leads`)**: hiện thực interface `placement.Leads`, rồi truyền vào `placement.Options{Leads: …}` trong
-  `cmd/menglish/main.go`. Interface gồm:
-  - `VisibleIDs`: phạm vi lead own / branch.
+- **CRM (`crm.leads`)**: đã nối. `crm.Service.PlacementLeads()` hiện thực `placement.Leads` và được truyền vào
+  `placement.Options{Leads: …}` trong `cmd/menglish/main.go`:
+  - `VisibleIDs`: phạm vi khách như danh sách CRM (own / branch / all).
   - `Get`, `Lookup`: thông tin khách.
-  - `MatchByPhone`: khớp khách chưa chốt theo SĐT khách hoặc SĐT phụ huynh.
-  - `Record`: ghi lịch sử, chuyển giai đoạn khách chỉ theo chiều tiến (testing → tested), ghi `test_score`.
+  - `MatchByPhone`: khớp đúng một khách chưa chốt theo SĐT khách hoặc SĐT phụ huynh.
+  - `Record`: trong một giao dịch ghi `test_score` (khách Thất bại giữ nguyên), chuyển giai đoạn chỉ theo chiều tiến,
+    ghi nhật ký khách (thêm "Giữ nguyên giai đoạn hiện tại …" khi không chuyển được).
 
-  Hiện đang dùng `NoLeads`. Hệ quả là chưa thấy bài gắn khách (trừ người có `lead.scope_all`) và chưa đặt được học thử.
-  Thêm FK `placement.invitations.lead_id`, `placement.submissions.lead_id`, `crm.trial_bookings.lead_id` → `crm.leads`
-  (đã có comment `-- FK tới … thêm khi gộp`).
+  Khoá ngoại `placement.invitations.lead_id` (CASCADE), `placement.submissions.lead_id` (SET NULL),
+  `crm.trial_bookings.lead_id` (CASCADE) → `crm.leads`, `crm.leads.assigned_test_id` → `placement.tests`: migration 00100.
+  Khách chuyển Thất bại thì buổi học thử đang hẹn tự hủy.
 - **Lớp học (`academic.classes` / buổi học)**: hiện thực interface `placement.Sessions`:
   - `Get`, `Lookup`: buổi học, tên lớp, giáo viên.
   - `TeachingScope`: buổi tôi dạy / trợ giảng và lớp tôi phụ trách.
 
   Thêm FK `crm.trial_bookings.class_id` / `class_session_id`. Màn đặt học thử cần danh sách buổi trống (TrialSlotFinder).
 - **Kho file**: tải đề PDF, file nghe, ảnh câu hỏi; phân tích đáp án từ PDF.
-- **Thông báo / audit**: các chỗ `TODO(notify)`.
+- **Thông báo**: đã gửi (xem bảng trên); còn xác nhận lịch học thử cho khách (`TODO(email)`).
 - `internal/iam/iamdb/models.go` được sqlc sinh lại vì có thêm migration. Khi gộp nhiều nhánh thì chạy lại `sqlc generate`.

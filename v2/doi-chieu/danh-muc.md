@@ -121,5 +121,5 @@ Ký hiệu: **Đã làm** = đủ hành vi như Laravel; **Làm một phần** =
 | Laravel (route name / method) | v2 (API + màn) | Trạng thái | Ghi chú |
 |---|---|---|---|
 | `system-config.hosting` GET /hosting | — | Chưa làm | Thông tin máy chủ PHP / Laravel, không còn đúng với v2. |
-| `Audit::describe` ở các controller trên | — | Chưa làm | Đánh dấu `// TODO(audit)` trong code; nối khi có phân hệ nhật ký. |
+| `Audit::describe` ở các controller trên | `catalogs/audit.go` (`audit.Record` trong giao dịch) + `audit.Middleware` | Đã làm | Ngày nghỉ, khung giờ ca dạy, danh mục hệ thống có nhật ký riêng như Laravel; khóa học / trình độ / phòng có dòng chung của middleware (nhóm Hệ thống). |
 | Ô sidebar (`SidebarMenu`) | `NAV` trong `v2/web/src/nav.ts` | Đã làm | Nhóm "Tổ chức & Đào tạo", "Học phí", "Hệ thống" với đúng quyền như Laravel. |

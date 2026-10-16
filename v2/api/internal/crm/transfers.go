@@ -84,7 +84,11 @@ func (s *Service) changeOwnerTx(ctx context.Context, q *crmdb.Queries, a *iam.Ac
 			return "", err
 		}
 	}
-	// TODO(notify): báo người phụ trách mới "Bạn được giao phụ trách khách {tên}".
+	if l.AssignedUserID == nil || *l.AssignedUserID != o.ID {
+		if err := notifyNewOwner(ctx, q, a.UserID, l, o.ID); err != nil {
+			return "", err
+		}
+	}
 	return "", nil
 }
 
@@ -139,7 +143,9 @@ func (s *Service) requestOrApply(ctx context.Context, q *crmdb.Queries, a *iam.A
 	if _, err := q.InsertEvent(ctx, crmdb.InsertEventParams{LeadID: l.ID, UserID: &a.UserID, Type: "assign", Reason: reason, Content: content}); err != nil {
 		return "", err
 	}
-	// TODO(notify): báo Admin có yêu cầu chuyển cơ sở chờ duyệt (hộp Việc cần duyệt — "Chuyển cơ sở (CRM)").
+	if err := notifyTransferPending(ctx, q, a, l, content); err != nil {
+		return "", err
+	}
 	return "Đã gửi yêu cầu chuyển khách sang " + o.Name + " (" + deref(toName) + "). Chờ Admin duyệt chuyển cơ sở.", nil
 }
 
@@ -172,6 +178,11 @@ func (s *Service) applyTransfer(ctx context.Context, q *crmdb.Queries, t crmdb.C
 	}
 	if err := q.MoveLeadBranch(ctx, crmdb.MoveLeadBranchParams{ID: l.ID, AssignedUserID: &o.ID, BranchID: t.ToBranchID}); err != nil {
 		return err
+	}
+	if l.AssignedUserID == nil || *l.AssignedUserID != o.ID {
+		if err := notifyNewOwner(ctx, q, actor, l, o.ID); err != nil {
+			return err
+		}
 	}
 	// TODO(merge): khách đã chốt → học viên chuyển sang cơ sở mới (students.Service), thêm " Học viên {tên} chuyển sang cơ sở mới."
 	fromUser, err := s.userName(ctx, q, t.FromUserID)

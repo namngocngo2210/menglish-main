@@ -90,6 +90,33 @@ func Send(ctx context.Context, db DB, userIDs []uuid.UUID, n Notification) (int,
 	return int(rows), err
 }
 
+// SendOnce như Send nhưng bỏ người đã nhận thông báo cùng loại với cùng key (lưu ở data.dedup_key), vd. lời nhắc
+// "chưa nộp báo cáo ngày 05/10" chỉ gửi một lần cho mỗi người dù lệnh nhắc chạy lại.
+func SendOnce(ctx context.Context, db DB, userIDs []uuid.UUID, key string, n Notification) (int, error) {
+	if key == "" {
+		return 0, errors.New("notify: thiếu key chống gửi trùng")
+	}
+	if len(userIDs) == 0 {
+		return 0, nil
+	}
+	sent, err := notifydb.New(db).UsersNotifiedWithKey(ctx, notifydb.UsersNotifiedWithKeyParams{Type: n.Type, Key: key, UserIds: userIDs})
+	if err != nil {
+		return 0, err
+	}
+	rest := make([]uuid.UUID, 0, len(userIDs))
+	for _, id := range userIDs {
+		if !slices.Contains(sent, id) {
+			rest = append(rest, id)
+		}
+	}
+	data := map[string]any{"dedup_key": key}
+	for k, v := range n.Data {
+		data[k] = v
+	}
+	n.Data = data
+	return Send(ctx, db, rest, n)
+}
+
 // ValidLink: đường dẫn trong ứng dụng ("/..."), không phải "//host" hay URL tuyệt đối (tránh chuyển hướng ra ngoài).
 func ValidLink(s string) bool {
 	return strings.HasPrefix(s, "/") && !strings.HasPrefix(s, "//") && !strings.ContainsAny(s, "\\\r\n") &&

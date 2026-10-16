@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/inventory/inventorydb"
@@ -403,18 +404,28 @@ func (s *Service) CreateOrder(ctx context.Context, actor *iam.Access, in OrderIn
 	now := s.now()
 	due := s.cfg.DueAt(in.Category, useDate)
 	var id uuid.UUID
-	err = s.withTx(ctx, func(q *inventorydb.Queries) error {
+	err = s.inTx(ctx, func(tx pgx.Tx, q *inventorydb.Queries) error {
 		year := now.In(vnZone).Year()
 		n, err := q.NextOrderNumber(ctx, int16(year))
 		if err != nil {
 			return err
 		}
+		code := fmt.Sprintf("OH-%d-%04d", year, n)
+		late := due.Before(now)
 		id, err = q.CreateOrder(ctx, inventorydb.CreateOrderParams{
-			Code: fmt.Sprintf("OH-%d-%04d", year, n), BranchID: *in.BranchID, ClassID: in.ClassID, WorkTaskID: in.WorkTaskID,
+			Code: code, BranchID: *in.BranchID, ClassID: in.ClassID, WorkTaskID: in.WorkTaskID,
 			RequesterID: actor.UserID, Category: in.Category, Title: in.Title, Description: in.Description,
-			Quantity: in.Quantity, UseDate: useDate, DueAt: due, CreatedLate: due.Before(now),
+			Quantity: in.Quantity, UseDate: useDate, DueAt: due, CreatedLate: late,
 		})
-		return err
+		if err != nil {
+			return err
+		}
+		body := fmt.Sprintf("%s · %s · hạn %s", code, labelOf(OrderCategories, in.Category), formatVN(due))
+		if late {
+			body += " (tạo trễ)"
+		}
+		return notifyProcessors(ctx, tx, Order{ID: id, Category: in.Category, BranchID: *in.BranchID},
+			"material_order_new", "Order học liệu mới: "+in.Title, body+".", &actor.UserID)
 	})
 	if err != nil {
 		return OrderCreated{}, err
@@ -425,9 +436,6 @@ func (s *Service) CreateOrder(ctx context.Context, actor *iam.Access, in OrderIn
 	}
 	o := s.toOrder(r, now)
 	s.log.Info("tạo order học liệu", "order", id, "code", o.Code, "by", actor.UserID)
-	// TODO(notify): báo người xử lý (process_ops + phụ trách chi nhánh của order, hoặc process_academic) loại
-	// "material_order_new": tiêu đề "Order học liệu mới: <title>", nội dung
-	// "<code> · <loại> · hạn <H:i d/m/Y>[ (tạo trễ)].", link /material-orders/<id>.
 	res := OrderCreated{Order: o, Message: fmt.Sprintf("Đã tạo order %s.", o.Code)}
 	if o.CreatedLate {
 		res.Warning = fmt.Sprintf("Order được tạo trễ: đã quá hạn xử lý (%s). Học vụ vẫn tiếp nhận nhưng có thể không kịp.", formatVN(o.DueAt))
@@ -517,16 +525,25 @@ func (s *Service) finish(ctx context.Context, actor *iam.Access, id uuid.UUID, s
 
 // MarkOverdue: order Chờ / Đang xử lý đã qua hạn → "Quá hạn" (idempotent). Trả số order được chuyển.
 func (s *Service) MarkOverdue(ctx context.Context) (int, error) {
-	rows, err := s.q.MarkOverdue(ctx, s.now())
-	if err != nil {
-		return 0, err
-	}
-	for _, r := range rows {
-		s.log.Info("order học liệu quá hạn", "order", r.ID, "code", r.Code)
-		// TODO(notify): báo người xử lý (như lúc tạo) loại "material_order_overdue": tiêu đề
-		// "Order học liệu quá hạn: <title>", nội dung "<code> · <loại> · hạn <H:i d/m/Y> — hãy xử lý sớm.".
-	}
-	return len(rows), nil
+	n := 0
+	err := s.inTx(ctx, func(tx pgx.Tx, q *inventorydb.Queries) error {
+		rows, err := q.MarkOverdue(ctx, s.now())
+		if err != nil {
+			return err
+		}
+		n = len(rows)
+		for _, r := range rows {
+			s.log.Info("order học liệu quá hạn", "order", r.ID, "code", r.Code)
+			// Báo người xử lý một lần (lần chạy sau không lấy lại order đã Quá hạn).
+			body := fmt.Sprintf("%s · %s · hạn %s — hãy xử lý sớm.", r.Code, labelOf(OrderCategories, r.Category), formatVN(r.DueAt))
+			if err := notifyProcessors(ctx, tx, Order{ID: r.ID, Category: r.Category, BranchID: r.BranchID},
+				"material_order_overdue", "Order học liệu quá hạn: "+r.Title, body, nil); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	return n, err
 }
 
 // RunOverdueLoop chạy MarkOverdue định kỳ (Laravel: lệnh material-orders:mark-overdue mỗi 15 phút) tới khi ctx dừng.

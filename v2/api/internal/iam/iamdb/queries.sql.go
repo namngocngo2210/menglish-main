@@ -763,6 +763,42 @@ func (q *Queries) ListUserIDsWithPermission(ctx context.Context, arg ListUserIDs
 	return items, nil
 }
 
+const listUserIDsWithRole = `-- name: ListUserIDsWithRole :many
+SELECT u.id
+FROM iam.users u
+WHERE u.status = 'active'
+  AND EXISTS (SELECT 1 FROM iam.user_roles ur WHERE ur.user_id = u.id AND ur.role = $1::text)
+  AND ($2::uuid IS NULL
+       OR EXISTS (SELECT 1 FROM iam.user_branches ub WHERE ub.user_id = u.id AND ub.branch_id = $2::uuid))
+ORDER BY u.id
+`
+
+type ListUserIDsWithRoleParams struct {
+	Role     string
+	BranchID *uuid.UUID
+}
+
+// Người dùng đang hoạt động có vai trò @role; branch_id NULL = mọi chi nhánh, ngược lại chỉ người thuộc chi nhánh đó.
+func (q *Queries) ListUserIDsWithRole(ctx context.Context, arg ListUserIDsWithRoleParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, listUserIDsWithRole, arg.Role, arg.BranchID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listUserOverrides = `-- name: ListUserOverrides :many
 SELECT permission, allow, scope_type, scope_id FROM iam.permission_overrides
 WHERE user_id = $1 ORDER BY permission, scope_type

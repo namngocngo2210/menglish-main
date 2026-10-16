@@ -174,8 +174,12 @@ func (s *Service) moveLocked(ctx context.Context, q *crmdb.Queries, a *iam.Acces
 		if r == "" {
 			return iam.Invalid("Vui lòng nhập lý do thất bại.")
 		}
-		// TODO(merge): hủy buổi học thử đang chờ của khách (phân hệ placement) — "Hủy: khách chuyển Thất bại".
-		return applyStage(ctx, q, l, stage, &a.UserID, r, "set", false)
+		if err := applyStage(ctx, q, l, stage, &a.UserID, r, "set", false); err != nil {
+			return err
+		}
+		// Buổi học thử đang hẹn của khách (crm.trial_bookings, phân hệ placement) hủy theo.
+		_, err := q.CancelPendingTrials(ctx, crmdb.CancelPendingTrialsParams{LeadID: l.ID, Reason: "khách chuyển Thất bại"})
+		return err
 	}
 	fromIdx, toIdx := stageIndex(from), stageIndex(stage)
 	if fromIdx < 0 || toIdx < 0 {

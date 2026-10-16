@@ -676,6 +676,17 @@ func TestAllScopeAndReview(t *testing.T) {
 	if r := a.do("GET", "/reports/daily?date="+key, nil); obj(r.body["review"])["status"] != "reviewed" {
 		t.Fatalf("người viết thấy: %v", r.body["review"])
 	}
+	// Thông báo: người viết nhận "Cần bổ sung", rồi "Đã kiểm tra" mỗi lần được kiểm tra (bỏ đánh dấu rồi kiểm tra hàng
+	// loạt là lần thứ hai); Admin nhận "Đã bổ sung" khi nộp lại.
+	if n := e.count("SELECT count(*) FROM core.notifications WHERE user_id = $1 AND type = 'staff_report_returned' AND title LIKE 'Cần bổ sung: Báo cáo ngày %'", aM.id); n != 1 {
+		t.Fatalf("thông báo cần bổ sung: %d", n)
+	}
+	if n := e.count("SELECT count(*) FROM core.notifications WHERE user_id = $1 AND type = 'staff_report_reviewed'", aM.id); n != 2 {
+		t.Fatalf("thông báo đã kiểm tra: %d", n)
+	}
+	if n := e.count("SELECT count(*) FROM core.notifications WHERE type = 'staff_report_resubmitted' AND body LIKE 'Học vụ HN1 đã nộp lại%'"); n != 1 {
+		t.Fatalf("thông báo đã bổ sung: %d", n)
+	}
 
 	// Tab "Chưa nộp": ngày phải nộp còn thiếu của Học vụ trong phạm vi.
 	r = manager.do("GET", "/reports/all?view=missing", nil)
@@ -741,8 +752,22 @@ func TestReminders(t *testing.T) {
 	// Vòng nhắc chạy mỗi việc một lần mỗi ngày.
 	last := map[string]string{}
 	e.svc.SetClock(func() time.Time { return vn(2026, 10, 22, 9, 10) })
+	adminM := e.member("Admin", nil, iam.RoleAdmin)
 	e.svc.runDueReminders(ctx, last)
 	if last["remind-daily"] != "2026-10-22" || last["daily-digest"] != "2026-10-22" {
 		t.Fatalf("vòng nhắc: %v", last)
+	}
+	// Đã gửi thật qua notify; chạy lại (vd. tiến trình khởi động lại) không gửi trùng.
+	e.svc.runDueReminders(ctx, map[string]string{})
+	for _, c := range []struct {
+		user uuid.UUID
+		typ  string
+	}{{bM.id, "daily_report_due"}, {teacherM.id, "monthly_report_due"}, {adminM.id, "staff_report_digest"}} {
+		if n := e.count("SELECT count(*) FROM core.notifications WHERE user_id = $1 AND type = $2", c.user, c.typ); n != 1 {
+			t.Fatalf("thông báo %s: %d", c.typ, n)
+		}
+	}
+	if n := e.count("SELECT count(*) FROM core.notifications WHERE user_id = $1", aM.id); n != 0 {
+		t.Fatalf("người đã nộp vẫn bị nhắc: %d", n)
 	}
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/audit"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/crm/crmdb"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 )
@@ -447,11 +448,24 @@ func stagePerms(a *iam.Access) StagePerms {
 	}
 }
 
+// leadSources: nguồn khách của danh mục chung (type lead_source); chưa cấu hình thì dùng DefaultSources như Laravel.
+func (s *Service) leadSources(ctx context.Context) ([]string, error) {
+	names, err := s.q.ListLeadSourceNames(ctx)
+	if err != nil || len(names) == 0 {
+		return DefaultSources, err
+	}
+	return names, nil
+}
+
 func (s *Service) Options(ctx context.Context, a *iam.Access) (*Options, error) {
 	sc := scopeOf(a)
 	level := a.Level("lead")
+	sources, err := s.leadSources(ctx)
+	if err != nil {
+		return nil, err
+	}
 	o := &Options{
-		Scope: level, Sources: DefaultSources, DefaultAssigneeID: a.UserID, Permissions: stagePerms(a),
+		Scope: level, Sources: sources, DefaultAssigneeID: a.UserID, Permissions: stagePerms(a),
 		FilterBranches: []Option{}, FilterOwners: []Option{}, FormBranches: []Option{}, AllOwners: []OwnerOption{},
 	}
 	for _, st := range append(slices.Clone(PipelineStages), StageLost) {
@@ -465,7 +479,6 @@ func (s *Service) Options(ctx context.Context, a *iam.Access) (*Options, error) 
 	}
 	// Bộ lọc chi nhánh: toàn hệ thống → mọi chi nhánh; phạm vi chi nhánh nhiều chi nhánh → chi nhánh của mình.
 	var fb []crmdb.ListBranchesBriefRow
-	var err error
 	switch {
 	case level == iam.ScopeAll:
 		fb, err = s.q.ListBranchesBrief(ctx, crmdb.ListBranchesBriefParams{})
@@ -767,6 +780,15 @@ func (s *Service) CreateLead(ctx context.Context, a *iam.Access, in LeadInput) (
 		}); err != nil {
 			return err
 		}
+		if err := recordLead(ctx, q, a, l.ID, l.Code, l.Name, l.BranchID, audit.EventCreated, "lead.create",
+			`Tạo mới khách hàng "`+l.Name+`"`, nil); err != nil {
+			return err
+		}
+		if assignee != a.UserID {
+			if err := notifyNewOwner(ctx, q, a.UserID, l, assignee); err != nil {
+				return err
+			}
+		}
 		out = &Saved{ID: l.ID, Message: "Đã thêm khách hàng " + l.Name + " (" + ShortCode(l.Code) + ") thành công vào Cơ sở dữ liệu!"}
 		return nil
 	})
@@ -957,6 +979,10 @@ func (s *Service) UpdateLead(ctx context.Context, a *iam.Access, idOrCode string
 		}
 		if len(keys) > 0 {
 			if err := insertChanges(ctx, q, l.ID, a.UserID, "update", "Sửa thông tin khách hàng", nil, keys, changes); err != nil {
+				return err
+			}
+			if err := recordLead(ctx, q, a, l.ID, l.Code, c.name, branchID, audit.EventUpdated, "lead.update",
+				`Cập nhật khách hàng "`+c.name+`"`, leadAuditChanges(keys, changes)); err != nil {
 				return err
 			}
 		}

@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/audit"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/reports/reportsdb"
 )
@@ -283,9 +284,7 @@ func (s *Service) AddJournal(ctx context.Context, a *iam.Access, in JournalInput
 	}
 	s.log.Info("staff journal added", "by", a.UserID, "id", e.ID, "subject", subject, "severity", severity)
 	if severity == "urgent" {
-		_ = className
-		// TODO(notify): báo mọi Admin + Quản lý cơ sở chi nhánh người ghi, loại staff_journal_urgent, "Sự việc khẩn: <title>" —
-		// "<tên> vừa ghi sự việc mức Khẩn[ ở lớp <className>].", link Tổng hợp ?open=<id>.
+		s.notifyUrgentJournal(ctx, a, e.ID, subject, t, className)
 	}
 	return e.ID, "Đã thêm nhật ký!", nil
 }
@@ -360,11 +359,24 @@ func (s *Service) SetJournalSerious(ctx context.Context, a *iam.Access, id uuid.
 	if serious {
 		by = &a.UserID
 	}
-	if err := s.q.SetJournalSerious(ctx, reportsdb.SetJournalSeriousParams{ID: e.ID, SeriousConfirmedBy: by}); err != nil {
+	desc := "Bỏ xác nhận lỗi nghiêm trọng của sự vụ: " + e.Title
+	if serious {
+		desc = "Xác nhận lỗi nghiêm trọng của sự vụ: " + e.Title
+	}
+	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		if err := s.q.WithTx(tx).SetJournalSerious(ctx, reportsdb.SetJournalSeriousParams{ID: e.ID, SeriousConfirmedBy: by}); err != nil {
+			return err
+		}
+		return audit.Record(ctx, tx, audit.Entry{
+			ActorID: &a.UserID, Module: audit.ModuleTasks, Event: audit.EventUpdated, Action: "staff_journal.serious",
+			SubjectType: "staff_report", SubjectID: e.ID.String(), SubjectLabel: e.Title, Description: desc,
+			Changes: audit.Changes{"serious": {Old: e.SeriousConfirmedBy != nil, New: serious}},
+		})
+	})
+	if err != nil {
 		return "", err
 	}
 	s.log.Info("staff journal serious", "by", a.UserID, "id", id, "serious", serious)
-	// TODO(audit): ghi nhật ký thao tác "Xác nhận / bỏ lỗi nghiêm trọng" cho sự vụ <id>.
 	if serious {
 		return "Đã xác nhận lỗi nghiêm trọng.", nil
 	}

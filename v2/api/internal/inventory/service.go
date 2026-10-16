@@ -47,6 +47,8 @@ type Service struct {
 	now  func() time.Time
 	// Classes: phân hệ Lớp học (ô chọn lớp, kiểm lớp tồn tại); nil = chưa có lớp nào.
 	Classes ClassLookup
+	// restock: phân hệ Công việc giao việc nhập bù (nil = chưa nối)
+	restock Restocker
 }
 
 // ClassLookup là phần việc của phân hệ Lớp học mà order học liệu cần (gắn ở cmd/menglish).

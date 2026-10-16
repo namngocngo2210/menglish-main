@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/audit"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/students/studentsdb"
 )
@@ -568,6 +569,14 @@ func (s *Service) Create(ctx context.Context, tx pgx.Tx, actor *iam.Access, in C
 	if err := s.event(ctx, q, id, "created", msg, nil, ptr(StatusWaitingStart), actor); err != nil {
 		return nil, err
 	}
+	name := strings.TrimSpace(in.FullName)
+	if err := audit.Record(ctx, tx, audit.Entry{
+		ActorID: &actor.UserID, Module: audit.ModuleStudents, Event: audit.EventCreated, Action: "student.create",
+		SubjectType: "student", SubjectID: id.String(), SubjectLabel: name + " (" + code + ")", BranchID: in.BranchID,
+		Description: `Tạo mới học viên "` + name + `"`,
+	}); err != nil {
+		return nil, err
+	}
 	s.log.Info("student created", "student_id", id, "code", code, "lead_id", in.LeadID, "by", actor.UserID)
 	return out, nil
 }
@@ -652,13 +661,13 @@ func (s *Service) Update(ctx context.Context, actor *iam.Access, id uuid.UUID, i
 		if email != nil {
 			*email = strings.ToLower(*email)
 		}
-		_, err = q.UpdateStudent(ctx, studentsdb.UpdateStudentParams{
+		p := studentsdb.UpdateStudentParams{
 			ID: id, FullName: strings.TrimSpace(in.FullName), Phone: strings.TrimSpace(in.Phone), Email: email,
 			Dob: vals.dob, Gender: strPtr(in.Gender), Target: strPtr(in.Target), Address: strPtr(in.Address),
 			School: strPtr(in.School), ParentName: strPtr(in.ParentName), ParentPhone: strPtr(in.ParentPhone),
 			StudyStartedOn: vals.studyStartedOn, Notes: strPtr(in.Notes),
-		})
-		if err != nil {
+		}
+		if _, err = q.UpdateStudent(ctx, p); err != nil {
 			return err
 		}
 		// TODO(attendance): xóa ngày bắt đầu học → lấy lại theo buổi có mặt / đi muộn đầu tiên (Student::recordStudyStart).
@@ -667,7 +676,16 @@ func (s *Service) Update(ctx context.Context, actor *iam.Access, id uuid.UUID, i
 				return err
 			}
 		}
-		// TODO(audit): "Cập nhật hồ sơ học viên {name}".
+		if len(changed) > 0 {
+			after := st
+			after.FullName, after.Phone, after.Email, after.Dob, after.Gender = p.FullName, p.Phone, p.Email, p.Dob, p.Gender
+			after.Target, after.Address, after.School, after.ParentName = p.Target, p.Address, p.School, p.ParentName
+			after.ParentPhone, after.StudyStartedOn, after.Notes = p.ParentPhone, p.StudyStartedOn, p.Notes
+			if err := recordStudent(ctx, tx, actor, after, audit.EventUpdated, "student.update", "Cập nhật hồ sơ học viên "+after.FullName,
+				audit.Diff(studentSnapshot(st), studentSnapshot(after))); err != nil {
+				return err
+			}
+		}
 		if status := strings.TrimSpace(in.Status); status != "" && status != st.Status && actor.Can("student.change_status") {
 			if _, err := s.applyStatus(ctx, tx, actor, st, status); err != nil {
 				return err
@@ -754,8 +772,9 @@ func (s *Service) EndDeferral(ctx context.Context, actor *iam.Access, id uuid.UU
 			return err
 		}
 		// TODO(finance): bỏ đóng băng số buổi / công nợ, xóa khoảng bảo lưu, nhắc nợ chạy lại (StudentDeferralService::releaseTuition).
-		// TODO(notify): báo Học vụ cùng chi nhánh (không có thì Quản lý, rồi Admin): "Học viên {name} kết thúc bảo lưu" —
-		// "Bảo lưu được kết thúc sớm — học viên {name} ({code}) đã chuyển sang "{trạng thái}". Vui lòng sắp xếp lớp / lịch học lại."
+		if err := notifyDeferralEnded(ctx, tx, actor, st, next); err != nil {
+			return err
+		}
 		text := "Kết thúc bảo lưu → " + StatusLabel(next) + "."
 		if err := s.event(ctx, q, id, "deferral_ended", text, &st.Status, &next, actor); err != nil {
 			return err
@@ -782,7 +801,10 @@ func (s *Service) Delete(ctx context.Context, actor *iam.Access, id uuid.UUID) (
 		if err := q.SoftDeleteStudent(ctx, id); err != nil {
 			return err
 		}
-		// TODO(audit): "Xóa hồ sơ học viên {name}".
+		if err := recordStudent(ctx, tx, actor, st, audit.EventDeleted, "student.delete", "Xóa hồ sơ học viên "+st.FullName,
+			audit.Diff(studentSnapshot(st), nil)); err != nil {
+			return err
+		}
 		msg = fmt.Sprintf("Đã xóa hồ sơ học viên %s!", st.FullName)
 		s.log.Info("student deleted", "student_id", id, "code", st.Code, "by", actor.UserID)
 		return nil
@@ -934,10 +956,24 @@ func (s *Service) ResetAccount(ctx context.Context, actor *iam.Access, id uuid.U
 	if acc.Code != nil {
 		login = *acc.Code
 	}
-	if err := s.event(ctx, s.q, id, "account_reset", "Cấp mật khẩu tạm cho tài khoản học viên "+login+".", nil, nil, actor); err != nil {
+	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		if err := s.event(ctx, s.q.WithTx(tx), id, "account_reset", "Cấp mật khẩu tạm cho tài khoản học viên "+login+".", nil, nil, actor); err != nil {
+			return err
+		}
+		// Như Laravel: ghi vào phân hệ Người dùng & Phân quyền, đối tượng là tài khoản.
+		label := st.FullName
+		if acc.Code != nil {
+			label += " (" + *acc.Code + ")"
+		}
+		return audit.Record(ctx, tx, audit.Entry{
+			ActorID: &actor.UserID, Module: audit.ModuleUsers, Event: audit.EventUpdated, Action: "student.account_reset",
+			SubjectType: "user", SubjectID: acc.ID.String(), SubjectLabel: label, BranchID: st.BranchID,
+			Description: "Cấp mật khẩu tạm cho tài khoản học viên (bắt buộc đổi ở lần đăng nhập tới)",
+		})
+	})
+	if err != nil {
 		return nil, err
 	}
-	// TODO(audit): "Cấp mật khẩu tạm cho tài khoản học viên (bắt buộc đổi ở lần đăng nhập tới)".
 	s.log.Info("student account reset", "student_id", id, "user_id", acc.ID, "by", actor.UserID)
 	return &AccountReset{
 		Login: login, TemporaryPassword: password,

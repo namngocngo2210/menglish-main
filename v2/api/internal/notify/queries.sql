@@ -33,3 +33,9 @@ WHERE id = $1 AND user_id = $2;
 
 -- name: MarkAllNotificationsRead :execrows
 UPDATE core.notifications SET read_at = now() WHERE user_id = $1 AND read_at IS NULL;
+
+-- name: UsersNotifiedWithKey :many
+-- Người trong user_ids đã nhận thông báo loại @type có data.dedup_key = @key (lời nhắc không gửi trùng).
+SELECT DISTINCT n.user_id FROM core.notifications n
+WHERE n.type = sqlc.arg(type)::text AND n.data ->> 'dedup_key' = sqlc.arg(key)::text
+  AND n.user_id = ANY (sqlc.arg(user_ids)::uuid[]);

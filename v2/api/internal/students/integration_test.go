@@ -314,6 +314,8 @@ func TestCreateFromLeadWithStudentAccount(t *testing.T) {
 	staff := e.member("HV001", []uuid.UUID{a}, iam.RoleAcademicStaff)
 	lead := uuid.New()
 	ctx := context.Background()
+	// academic.students.lead_id có khoá ngoại tới crm.leads
+	e.exec("INSERT INTO crm.leads (id, code, name, phone, branch_id) VALUES ($1, 'KH-HS-TEST', 'Trần Bình', '0912345678', $2)", lead, a)
 
 	code, err := e.svc.NextCode(ctx, nil)
 	if err != nil {
@@ -572,6 +574,7 @@ func TestStatusDeferralAndDelete(t *testing.T) {
 	e := setup(t)
 	a := e.branch("CN-A")
 	manager := e.member("QL001", []uuid.UUID{a}, iam.RoleManager)
+	staff := e.member("HV001", []uuid.UUID{a}, iam.RoleAcademicStaff)
 	st := e.student(manager, CreateInput{FullName: "Nguyễn An", BranchID: &a, CurrentClassID: ptr(e.class(a, "L-A1"))})
 	c := e.as(manager)
 	path := "/students/" + st.ID.String()
@@ -605,6 +608,25 @@ func TestStatusDeferralAndDelete(t *testing.T) {
 	}
 	if strings.Join(kinds, ",") != "created,status_changed,deferral_ended,status_changed,deferral_ended,status_changed,deleted" {
 		t.Fatalf("lịch sử: %v", kinds)
+	}
+	// Nhật ký vận hành: tạo + xóa hồ sơ (phân hệ Học viên & Lớp học)
+	var actions []string
+	if err := e.pg.QueryRow(context.Background(), `SELECT array_agg(action ORDER BY id) FROM core.audit_log
+		WHERE subject_type = 'student' AND subject_id = $1 AND module = 'Học viên & Lớp học'`, st.ID.String()).Scan(&actions); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(actions, ",") != "student.create,student.delete" {
+		t.Fatalf("nhật ký: %v", actions)
+	}
+	// Kết thúc bảo lưu báo Học vụ cùng chi nhánh (người thao tác không nhận)
+	var n int
+	var title string
+	if err := e.pg.QueryRow(context.Background(), `SELECT count(*), max(title) FROM core.notifications
+		WHERE type = 'deferral_ended' AND user_id = $1`, staff.id).Scan(&n, &title); err != nil {
+		t.Fatal(err)
+	}
+	if n != 2 || title != "Học viên Nguyễn An kết thúc bảo lưu" {
+		t.Fatalf("thông báo kết thúc bảo lưu: %d %q", n, title)
 	}
 }
 

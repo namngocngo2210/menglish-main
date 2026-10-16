@@ -58,7 +58,7 @@
 |---|---|---|---|
 | `SidebarMenu::searchScreens` (màn hình theo tên, chỉ màn được mở) | `searchScreens` trong `web/src/nav.ts` | Đã làm | So khớp không dấu ("chi nhanh" ~ "Chi nhánh"). |
 | `GlobalSearchController` (ít nhất 2 ký tự, mỗi nhóm theo quyền và `visibleTo`, tối đa 20) | `GET /search`, `internal/search` (`Registry`, `Searcher`) | Đã làm | Module tự đăng ký nhóm; route mở cho người có quyền của ít nhất một nhóm (Laravel chỉ cần đăng nhập). Từ khóa quá 100 ký tự trả 422. |
-| Nhóm khách CRM (`lead.view`), học viên (`student.view`), lớp học (`class.view`) | — | Chưa làm | Module CRM / học viên / lớp thêm `Searcher` khi chuyển (mẫu trong README). |
+| Nhóm khách CRM (`lead.view`), học viên (`student.view`), lớp học (`class.view`) | `crm.Searcher`, `students.Searcher` (đăng ký ở `main.go`) | Làm một phần | Khách và học viên đã có (phạm vi như danh sách của từng phân hệ). Nhóm lớp học chờ phân hệ lớp. |
 | — | Nhóm người dùng (`user.view`), chi nhánh (`branch.view`) | Đã làm | Mới ở v2; người dùng cùng phạm vi màn Người dùng; bấm kết quả mở thẳng hộp chi tiết tài khoản. |
 | Ô tìm kiếm trên topbar (form GET `/search`) | Bảng tìm nhanh Ctrl K (`CommandPalette.tsx`) | Đã làm | Mũi tên lên / xuống, Enter, Esc; dòng cuối "Xem tất cả kết quả". |
 | `Pages/Search/Index.vue` | `web/src/features/platform/SearchPage.tsx` | Đã làm | Các trạng thái: từ khóa ngắn, chưa có quyền tìm kiếm, không có kết quả, kết quả theo nhóm. |

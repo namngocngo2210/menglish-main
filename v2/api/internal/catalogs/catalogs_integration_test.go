@@ -1,6 +1,7 @@
 package catalogs
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -241,6 +242,23 @@ func TestHolidays(t *testing.T) {
 	}
 	expectMsg(t, admin.do("DELETE", "/holidays/"+tet, nil), 200, "Đã xóa ngày nghỉ.")
 	expect(t, admin.do("GET", "/holidays/"+tet, nil), 404, "not_found")
+
+	// Nhật ký vận hành ghi cùng giao dịch, mô tả như Laravel
+	var descs []string
+	rows, err := e.pg.Query(context.Background(), `SELECT description FROM core.audit_log
+		WHERE subject_type = 'holiday' AND subject_id = $1 AND module = 'Cấu hình hệ thống' ORDER BY id`, tet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for rows.Next() {
+		var d string
+		_ = rows.Scan(&d)
+		descs = append(descs, d)
+	}
+	rows.Close()
+	if strings.Join(descs, "|") != "Tạo ngày nghỉ mới|Xóa ngày nghỉ" {
+		t.Fatalf("nhật ký ngày nghỉ: %v", descs)
+	}
 }
 
 func TestSystemCategories(t *testing.T) {

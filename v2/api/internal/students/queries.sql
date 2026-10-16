@@ -148,3 +148,16 @@ ORDER BY name;
 
 -- name: BranchExists :one
 SELECT EXISTS (SELECT 1 FROM core.branches WHERE id = $1);
+
+-- name: SearchStudents :many
+-- Tìm kiếm chung (topbar, Laravel GlobalSearchController): tên / mã / email, SĐT khi từ khóa có số; phạm vi như ListStudents.
+SELECT s.id, s.code, s.full_name, s.phone, s.status, b.name AS branch_name
+FROM academic.students s
+LEFT JOIN core.branches b ON b.id = s.branch_id
+WHERE s.deleted_at IS NULL
+  AND (NOT sqlc.arg(limit_branches)::bool OR s.branch_id = ANY (sqlc.arg(branch_ids)::uuid[]))
+  AND (NOT sqlc.arg(limit_classes)::bool OR s.current_class_id = ANY (sqlc.arg(class_ids)::uuid[]))
+  AND (s.full_name ILIKE sqlc.arg(term)::text OR s.code::text ILIKE sqlc.arg(term)::text OR s.email::text ILIKE sqlc.arg(term)::text
+       OR (sqlc.arg(phone)::text <> '' AND s.phone ILIKE sqlc.arg(phone)::text))
+ORDER BY s.full_name, s.id
+LIMIT sqlc.arg(lim);

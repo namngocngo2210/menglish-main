@@ -283,12 +283,11 @@ func (s *Service) saveStructured(ctx context.Context, a *iam.Access, kind, perio
 	}
 	switch {
 	case before != nil && before.Status == "returned" && before.ReviewedBy != nil:
-		// TODO(notify): báo người đã trả về (before.ReviewedBy), loại staff_report_resubmitted,
-		// "Đã bổ sung: <title>" — "<tên> đã nộp lại <title> sau khi bạn yêu cầu bổ sung.", link Tổng hợp ?open=<id>.
+		s.notifyResubmitted(ctx, a, saved, *before.ReviewedBy)
 	case kind != KindDailyOps && (before == nil || before.Status != "submitted" || before.ReviewedAt != nil):
-		// Báo cáo ngày không báo từng bản (Admin nhận bản tổng hợp mỗi sáng). Kỳ khác: báo Admin khi báo cáo vào hàng chờ.
-		// TODO(notify): báo mọi Admin, loại staff_report_submitted, "Báo cáo mới: <title>" (sửa sau khi đã kiểm tra:
-		// "Báo cáo cập nhật: <title>") — "<tên> vừa nộp / cập nhật <title>. Mở để kiểm tra.", link Tổng hợp ?open=<id>.
+		// Báo cáo ngày không báo từng bản (Admin nhận bản tổng hợp mỗi sáng). Kỳ khác: báo Admin khi báo cáo vào hàng chờ
+		// (sửa sau khi đã kiểm tra: "Báo cáo cập nhật").
+		s.notifySubmitted(ctx, a, saved, before != nil && before.Status == "submitted" && before.ReviewedAt != nil)
 	}
 	return saved, nil
 }

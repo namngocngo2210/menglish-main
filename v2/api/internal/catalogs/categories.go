@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/audit"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/catalogs/catalogsdb"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 )
@@ -174,15 +175,19 @@ func (s *Service) CreateCategory(ctx context.Context, actor *iam.Access, in Cate
 		m++
 		sort = &m
 	}
-	r, err := s.q.CreateCategory(ctx, catalogsdb.CreateCategoryParams{
-		Type: in.Type, Code: in.Code, Name: in.Name, SortOrder: *sort, IsActive: in.IsActive == nil || *in.IsActive, CreatedBy: &actor.UserID,
+	var c Category
+	err := s.audited(ctx, actor, func(q *catalogsdb.Queries) (audit.Entry, error) {
+		r, err := q.CreateCategory(ctx, catalogsdb.CreateCategoryParams{
+			Type: in.Type, Code: in.Code, Name: in.Name, SortOrder: *sort, IsActive: in.IsActive == nil || *in.IsActive, CreatedBy: &actor.UserID,
+		})
+		c = Category{ID: r.ID, Type: r.Type, Code: r.Code, Name: r.Name, SortOrder: r.SortOrder, IsActive: r.IsActive}
+		return categoryEntry(c, audit.EventCreated, "system_category.create", "Tạo danh mục hệ thống",
+			audit.Diff(nil, categorySnapshot(c))), err
 	})
 	if err != nil {
 		return Category{}, "", categoryErr(err)
 	}
-	// TODO(audit): "Tạo danh mục hệ thống"
-	s.log.Info("system category created", "category_id", r.ID, "type", r.Type, "by", actor.UserID)
-	c := Category{ID: r.ID, Type: r.Type, Code: r.Code, Name: r.Name, SortOrder: r.SortOrder, IsActive: r.IsActive}
+	s.log.Info("system category created", "category_id", c.ID, "type", c.Type, "by", actor.UserID)
 	return c, fmt.Sprintf("Đã thêm danh mục \"%s\".", c.Name), nil
 }
 
@@ -204,13 +209,19 @@ func (s *Service) UpdateCategory(ctx context.Context, actor *iam.Access, id uuid
 	if in.IsActive != nil {
 		active = *in.IsActive
 	}
-	r, err := s.q.UpdateCategory(ctx, catalogsdb.UpdateCategoryParams{ID: id, Type: in.Type, Code: in.Code, Name: in.Name, SortOrder: sort, IsActive: active})
+	before := Category{ID: id, Type: old.Type, Code: old.Code, Name: old.Name, SortOrder: old.SortOrder, IsActive: old.IsActive}
+	var c Category
+	err = s.audited(ctx, actor, func(q *catalogsdb.Queries) (audit.Entry, error) {
+		r, err := q.UpdateCategory(ctx, catalogsdb.UpdateCategoryParams{ID: id, Type: in.Type, Code: in.Code, Name: in.Name, SortOrder: sort, IsActive: active})
+		c = Category{ID: r.ID, Type: r.Type, Code: r.Code, Name: r.Name, SortOrder: r.SortOrder, IsActive: r.IsActive}
+		return categoryEntry(c, audit.EventUpdated, "system_category.update", "Cập nhật danh mục hệ thống",
+			audit.Diff(categorySnapshot(before), categorySnapshot(c))), err
+	})
 	if err != nil {
 		return Category{}, "", categoryErr(err)
 	}
-	// TODO(audit): "Cập nhật danh mục hệ thống"
 	s.log.Info("system category updated", "category_id", id, "by", actor.UserID)
-	return Category{ID: r.ID, Type: r.Type, Code: r.Code, Name: r.Name, SortOrder: r.SortOrder, IsActive: r.IsActive}, "Đã cập nhật danh mục.", nil
+	return c, "Đã cập nhật danh mục.", nil
 }
 
 // SetCategoryActive: ngừng sử dụng (thay cho xóa) hoặc kích hoạt lại.
@@ -225,14 +236,21 @@ func (s *Service) SetCategoryActive(ctx context.Context, actor *iam.Access, id u
 	if active && old.IsActive {
 		return "Danh mục đang được sử dụng.", nil
 	}
-	if _, err := s.q.SetCategoryActive(ctx, catalogsdb.SetCategoryActiveParams{ID: id, IsActive: active}); err != nil {
+	c := Category{ID: id, Type: old.Type, Code: old.Code, Name: old.Name, SortOrder: old.SortOrder, IsActive: active}
+	action, desc := "system_category.deactivate", "Ngừng sử dụng danh mục hệ thống"
+	if active {
+		action, desc = "system_category.activate", "Kích hoạt lại danh mục hệ thống"
+	}
+	err = s.audited(ctx, actor, func(q *catalogsdb.Queries) (audit.Entry, error) {
+		_, err := q.SetCategoryActive(ctx, catalogsdb.SetCategoryActiveParams{ID: id, IsActive: active})
+		return categoryEntry(c, audit.EventUpdated, action, desc, audit.Changes{"is_active": {Old: old.IsActive, New: active}}), err
+	})
+	if err != nil {
 		return "", err
 	}
 	s.log.Info("system category status changed", "category_id", id, "active", active, "by", actor.UserID)
 	if active {
-		// TODO(audit): "Kích hoạt lại danh mục hệ thống"
 		return fmt.Sprintf("Đã kích hoạt lại danh mục \"%s\".", old.Name), nil
 	}
-	// TODO(audit): "Ngừng sử dụng danh mục hệ thống"
 	return fmt.Sprintf("Đã ngừng sử dụng \"%s\".", old.Name), nil
 }

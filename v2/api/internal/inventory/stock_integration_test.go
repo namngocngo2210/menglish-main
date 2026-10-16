@@ -38,6 +38,9 @@ func TestItemsCRUDAndPermissions(t *testing.T) {
 	if e.stockAt(uniID, a) != 15 || num(uni["unallocated_quantity"]) != 0 {
 		t.Fatalf("tồn ban đầu: chi nhánh %d, chưa phân %v", e.stockAt(uniID, a), uni["unallocated_quantity"])
 	}
+	if n := e.audited("merchandise_item.create", uniID.String()); n != 1 {
+		t.Fatalf("nhật ký tạo hàng hóa: %d dòng", n)
+	}
 
 	// Không chọn chi nhánh → tồn cũ chưa phân chi nhánh.
 	r = admin.do("POST", "/inventory/items", item("BOOK-01", "Sách Kids Box 1", map[string]any{"stock_quantity": 30}))

@@ -482,6 +482,29 @@ func TestStatusFlowApprovalAndRecurring(t *testing.T) {
 	expect(t, ac.do("POST", "/tasks/"+own+"/approve", map[string]any{}), 403, "self_approval")
 	// Người ngoài không đổi được trạng thái
 	expect(t, tc.do("POST", "/tasks/"+own+"/status", map[string]any{"status": StatusInProgress}), 403, "forbidden")
+
+	// Thông báo như WorkTaskController: người làm nhận giao việc / trả về / xác nhận; Admin nhận "chờ xác nhận"
+	// (tự giao cho mình, tự gửi chờ xác nhận thì không ai nhận)
+	if got := e.inbox(teacher.id); got != "Bạn được giao việc: Báo cáo tuần|Công việc bị trả về: Báo cáo tuần|Việc đã được xác nhận hoàn thành: Báo cáo tuần" {
+		t.Fatalf("thông báo người làm: %s", got)
+	}
+	if got := e.inbox(admin.id); got != "Việc chờ xác nhận: Báo cáo tuần|Việc chờ xác nhận: Báo cáo tuần" {
+		t.Fatalf("thông báo Admin: %s", got)
+	}
+	if got := e.inbox(manager.id); got != "" {
+		t.Fatalf("người giao không nhận gì: %s", got)
+	}
+}
+
+// inbox: tiêu đề thông báo của một người (theo thứ tự gửi), nối bằng "|".
+func (e *env) inbox(user uuid.UUID) string {
+	e.t.Helper()
+	var s string
+	if err := e.pg.QueryRow(context.Background(), `SELECT coalesce(string_agg(title, '|' ORDER BY id), '') FROM core.notifications
+		WHERE user_id = $1`, user).Scan(&s); err != nil {
+		e.t.Fatal(err)
+	}
+	return s
 }
 
 func TestHandBackAndCancel(t *testing.T) {
@@ -505,6 +528,12 @@ func TestHandBackAndCancel(t *testing.T) {
 		t.Fatalf("việc bị chặn, người giao: %v", got)
 	}
 	expectMsg(t, st(tc, map[string]any{"status": HandBack, "note": "Nhờ anh xử lý"}), 200, "Đã chuyển công việc lại cho người giao.")
+	if got := e.inbox(manager.id); got != "SOS – Việc bị chặn: Chuẩn bị phòng|Việc bị chặn chuyển lại cho bạn: Chuẩn bị phòng" {
+		t.Fatalf("thông báo người giao: %s", got)
+	}
+	if got := e.inbox(admin.id); got != "SOS – Việc bị chặn: Chuẩn bị phòng" {
+		t.Fatalf("SOS cho Admin: %s", got)
+	}
 
 	var assignee, from uuid.UUID
 	var status, reason string

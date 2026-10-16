@@ -181,3 +181,36 @@ func (q *Queries) NotificationStats(ctx context.Context, arg NotificationStatsPa
 	err := row.Scan(&i.Total, &i.Unread, &i.Alerts)
 	return i, err
 }
+
+const usersNotifiedWithKey = `-- name: UsersNotifiedWithKey :many
+SELECT DISTINCT n.user_id FROM core.notifications n
+WHERE n.type = $1::text AND n.data ->> 'dedup_key' = $2::text
+  AND n.user_id = ANY ($3::uuid[])
+`
+
+type UsersNotifiedWithKeyParams struct {
+	Type    string
+	Key     string
+	UserIds []uuid.UUID
+}
+
+// Người trong user_ids đã nhận thông báo loại @type có data.dedup_key = @key (lời nhắc không gửi trùng).
+func (q *Queries) UsersNotifiedWithKey(ctx context.Context, arg UsersNotifiedWithKeyParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, usersNotifiedWithKey, arg.Type, arg.Key, arg.UserIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var user_id uuid.UUID
+		if err := rows.Scan(&user_id); err != nil {
+			return nil, err
+		}
+		items = append(items, user_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

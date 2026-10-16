@@ -589,6 +589,74 @@ func (q *Queries) NextStudentNumber(ctx context.Context) (int64, error) {
 	return column_1, err
 }
 
+const searchStudents = `-- name: SearchStudents :many
+SELECT s.id, s.code, s.full_name, s.phone, s.status, b.name AS branch_name
+FROM academic.students s
+LEFT JOIN core.branches b ON b.id = s.branch_id
+WHERE s.deleted_at IS NULL
+  AND (NOT $1::bool OR s.branch_id = ANY ($2::uuid[]))
+  AND (NOT $3::bool OR s.current_class_id = ANY ($4::uuid[]))
+  AND (s.full_name ILIKE $5::text OR s.code::text ILIKE $5::text OR s.email::text ILIKE $5::text
+       OR ($6::text <> '' AND s.phone ILIKE $6::text))
+ORDER BY s.full_name, s.id
+LIMIT $7
+`
+
+type SearchStudentsParams struct {
+	LimitBranches bool
+	BranchIds     []uuid.UUID
+	LimitClasses  bool
+	ClassIds      []uuid.UUID
+	Term          string
+	Phone         string
+	Lim           int32
+}
+
+type SearchStudentsRow struct {
+	ID         uuid.UUID
+	Code       string
+	FullName   string
+	Phone      string
+	Status     string
+	BranchName *string
+}
+
+// Tìm kiếm chung (topbar, Laravel GlobalSearchController): tên / mã / email, SĐT khi từ khóa có số; phạm vi như ListStudents.
+func (q *Queries) SearchStudents(ctx context.Context, arg SearchStudentsParams) ([]SearchStudentsRow, error) {
+	rows, err := q.db.Query(ctx, searchStudents,
+		arg.LimitBranches,
+		arg.BranchIds,
+		arg.LimitClasses,
+		arg.ClassIds,
+		arg.Term,
+		arg.Phone,
+		arg.Lim,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchStudentsRow
+	for rows.Next() {
+		var i SearchStudentsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.FullName,
+			&i.Phone,
+			&i.Status,
+			&i.BranchName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setStudentStatus = `-- name: SetStudentStatus :exec
 UPDATE academic.students SET
     status = $1,

@@ -110,12 +110,8 @@ func (s *Service) apply(ctx context.Context, q *inventorydb.Queries, m move) (in
 	if err != nil {
 		return inventorydb.OpsStockMovement{}, err
 	}
-	// TODO(task): hết / âm kho sau một lần xuất (balance_after <= 0, quantity_change < 0) → giao Admin việc
-	// "Nhập bù sách: <mặt hàng> — <chi nhánh>" (work_tasks.kind = merchandise_restock, hạn SLA stock.restock_task),
-	// mỗi chi nhánh + mặt hàng một việc đang mở; tồn lên trên 0 → việc tự hoàn thành
-	// ("Tự hoàn thành: chi nhánh đã nhập kho, tồn hiện tại <n>."). Xem App\Services\Merchandise\RestockTaskService.
-	// TODO(notify): báo Admin "Việc mới: Nhập bù sách: ..." khi tạo việc trên.
-	return mv, nil
+	// Hết / âm kho sau một lần xuất → giao Admin việc "Nhập bù sách" (kèm thông báo); tồn lên trên 0 → việc tự hoàn thành.
+	return mv, s.syncRestock(ctx, q, m, mv)
 }
 
 // RecordInput: xuất / hoàn kho từ module khác (tài chính: duyệt phiếu thu, hủy hóa đơn).

@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/placement/placementdb"
 )
@@ -253,6 +255,13 @@ func (s *Service) Submit(ctx context.Context, token string, in SubmitInput) (*Su
 		}
 		s.record(ctx, LeadEvent{LeadID: *sub.LeadID, Type: "test", AdvanceTo: "testing", Content: content})
 	}
-	// TODO(notify): NotificationService::notifyHomeworkOrTestSubmission — báo Học vụ có bài test mới chờ chấm.
+	// Báo người chấm cùng chi nhánh của khách (chưa gắn khách → mọi người chấm).
+	var branch *uuid.UUID
+	if sub.LeadID != nil {
+		if l, err := s.leads.Get(ctx, *sub.LeadID); err == nil && l != nil {
+			branch = l.BranchID
+		}
+	}
+	s.notifySubmission(ctx, sub.ID, sub.CandidateName, sub.CandidatePhone, test.Title, branch, s.now())
 	return &SubmitResult{CandidateName: sub.CandidateName, TestTitle: test.Title}, nil
 }

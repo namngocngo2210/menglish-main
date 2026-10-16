@@ -13,7 +13,8 @@ import (
 // lớp học, buổi học, điểm danh, CRM, phiếu thu, ticket, order học liệu, dự án học thuật, giáo trình, KPI…
 // Các phân hệ đó đang chuyển song song nên module báo cáo chỉ đọc qua interface dưới đây. Bản mặc định (skeletonMetrics)
 // trả đúng khung mục / nhãn / cách tính như Laravel nhưng chưa có số (Item.Unavailable ghi lý do).
-// TODO(gộp): cài MetricsProvider thật khi các phân hệ lớp học, CRM, học phí, ticket, order, dự án, giáo trình, KPI có ở v2.
+// NewMetrics (sources.go) điền các mục tuyển sinh từ CRM / test đầu vào.
+// TODO(gộp): điền tiếp khi các phân hệ lớp học, học phí, ticket, order, dự án, giáo trình, KPI có ở v2.
 
 // Writer là người viết báo cáo (phạm vi số liệu tính theo người này).
 type Writer struct {
@@ -150,8 +151,7 @@ type FollowUpTask struct {
 	BranchID    *uuid.UUID
 }
 
-// TaskService là phân hệ Công việc (ops.work_tasks) — đang làm song song.
-// TODO(gộp): nối với module tasks (tạo việc, người được giao việc, tóm tắt việc).
+// TaskService là phân hệ Công việc (ops.work_tasks): tasks.Service.ReportTasks.
 type TaskService interface {
 	Enabled() bool
 	// Assignees: người mình giao việc được (ngoài chính mình), như màn Giao việc.
@@ -173,7 +173,7 @@ type ClassDirectory interface {
 
 // Calendar trả các ngày không phải nộp báo cáo ngày ngoài Chủ nhật: ngày lễ (toàn hệ thống / chi nhánh) và ngày nghỉ phép
 // đã duyệt của người viết (DailyReportDue::requiredDays).
-// TODO(gộp): nối core.holidays và đơn nghỉ phép (hr) khi có ở v2.
+// Ngày lễ: catalogs.Service.ReportCalendar. TODO(hr): đơn nghỉ phép đã duyệt khi phân hệ nghỉ phép có ở v2.
 type Calendar interface {
 	OffDays(ctx context.Context, userID uuid.UUID, branchID *uuid.UUID, from, to time.Time) (map[string]bool, error)
 }

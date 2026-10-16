@@ -212,6 +212,36 @@ func setup(t *testing.T) *env {
 
 const testPassword = "Trung-tam-tieng-anh-2026"
 
+// inbox: tiêu đề thông báo loại typ của một người (theo thứ tự gửi), nối bằng "|".
+func (e *env) inbox(user uuid.UUID, typ string) string {
+	e.t.Helper()
+	var s string
+	if err := e.pg.QueryRow(context.Background(), `SELECT coalesce(string_agg(title, '|' ORDER BY id), '') FROM core.notifications
+		WHERE user_id = $1 AND type = $2`, user, typ).Scan(&s); err != nil {
+		e.t.Fatal(err)
+	}
+	return s
+}
+
+// addLead: khách giả cho fakeLeads, kèm dòng crm.leads cùng id (bảng placement có khoá ngoại tới crm.leads).
+func (e *env) addLead(l Lead) {
+	e.t.Helper()
+	e.leads.mu.Lock()
+	e.leads.leads[l.ID] = l
+	e.leads.mu.Unlock()
+	if _, err := e.pg.Exec(context.Background(), `INSERT INTO crm.leads (id, code, name, phone, stage, branch_id)
+		VALUES ($1, $2, $3, $4, $5, $6)`, l.ID, "KH-"+l.ID.String(), l.Name, coalesce(l.Phone, "0900000000"), l.Stage, l.BranchID); err != nil {
+		e.t.Fatal(err)
+	}
+}
+
+func coalesce(s, def string) string {
+	if s == "" {
+		return def
+	}
+	return s
+}
+
 type member struct {
 	id   uuid.UUID
 	code string
@@ -440,7 +470,7 @@ func TestInvitationAndPublicTest(t *testing.T) {
 	grader := e.as(t, e.member(t, "hv01", "placement_test.view", "placement_test.grade"))
 
 	lead := Lead{ID: uuid.New(), Name: "Bé Na", Phone: "0912345678", Email: "na@example.com", Stage: "test_scheduled", BranchID: &e.branch}
-	e.leads.leads[lead.ID] = lead
+	e.addLead(lead)
 	e.leads.visible[saleM.id] = []uuid.UUID{lead.ID}
 
 	testID := e.createTest(t, author, "TEST-G3-G4-01")
@@ -608,7 +638,7 @@ func TestGrading(t *testing.T) {
 	graderM := e.member(t, "hv01", "placement_test.view", "placement_test.grade", "lead.scope_all")
 	grader := e.as(t, graderM)
 	lead := Lead{ID: uuid.New(), Name: "Bé Bin", Phone: "0987654321", Stage: "testing"}
-	e.leads.leads[lead.ID] = lead
+	e.addLead(lead)
 
 	testID := e.createTest(t, author, "TEST-G3-G4-01")
 	r := author.do("POST", "/placement-tests/"+testID+"/invitations", map[string]any{})
@@ -690,12 +720,12 @@ func TestTrialBooking(t *testing.T) {
 	closed := Lead{ID: uuid.New(), Name: "Đã chốt", Stage: "won", BranchID: &e.branch}
 	hidden := Lead{ID: uuid.New(), Name: "Không thấy", Stage: "consulting"}
 	for _, l := range []Lead{lead, closed, hidden} {
-		e.leads.leads[l.ID] = l
+		e.addLead(l)
 	}
 	e.leads.visible[staffM.id] = []uuid.UUID{lead.ID, closed.ID}
 	classID := uuid.New()
 	s1 := Session{ID: uuid.New(), ClassID: classID, ClassName: "Movers A", ClassStatus: "active", Status: "scheduled", BranchID: &e.branch,
-		Date: day(1), Start: "17:30", End: "19:00", TeacherName: "Cô Lan"}
+		Date: day(1), Start: "17:30", End: "19:00", TeacherName: "Cô Lan", TeacherID: &teacherM.id}
 	s2 := s1
 	s2.ID, s2.Date = uuid.New(), day(3)
 	far := s1
@@ -726,6 +756,10 @@ func TestTrialBooking(t *testing.T) {
 	}
 	expectMsg(t, staff.do("POST", "/trial-bookings", map[string]any{"lead_id": lead.ID, "class_session_id": s2.ID}),
 		fmt.Sprintf("Khách đang có buổi học thử chưa diễn ra (%s). Xếp buổi tiếp theo sau khi buổi này kết thúc.", day(1).Format("02/01/2006")))
+	// Giáo viên của buổi nhận thông báo chuẩn bị (người xếp không nhận)
+	if got := e.inbox(teacherM.id, "trial_booked"); got != "Khách học thử buổi "+day(1).Format("02/01/2006")+" 17:30 · Movers A" {
+		t.Fatalf("thông báo giáo viên: %q", got)
+	}
 
 	r = staff.do("GET", "/trial-bookings/lead/"+lead.ID.String(), nil)
 	expect(t, r, 200, "")
@@ -766,6 +800,10 @@ func TestTrialBooking(t *testing.T) {
 	}
 	if ev := e.leads.lastEvent(t, lead.ID); !strings.HasPrefix(ev.Content, "Nhận xét học thử (4/5) buổi Movers A") {
 		t.Fatalf("nhật ký nhận xét: %+v", ev)
+	}
+	// Học vụ đã xếp nhận nhận xét để chăm sóc khách
+	if got := e.inbox(staffM.id, "trial_feedback"); got != "Nhận xét học thử: Bé Mai · Movers A ngày "+s1.Date.Format("02/01/2006") {
+		t.Fatalf("thông báo nhận xét học thử: %q", got)
 	}
 	expectMsg(t, staff.do("POST", "/trial-bookings/"+b1+"/cancel", map[string]any{"reason": "bận"}), "Chỉ hủy được buổi học thử đang chờ.")
 

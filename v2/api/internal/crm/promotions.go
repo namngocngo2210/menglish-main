@@ -133,14 +133,13 @@ type PromotionRow struct {
 	CreatedAt         time.Time  `json:"created_at"`
 }
 
-func promotionRow(p crmdb.CrmPromotion, branchName, creator *string, now time.Time) PromotionRow {
+func promotionRow(p crmdb.CrmPromotion, branchName, courseName, creator *string, now time.Time) PromotionRow {
 	scopeParts := []string{}
 	if branchName != nil {
 		scopeParts = append(scopeParts, *branchName)
 	}
-	if p.CourseID != nil {
-		// TODO(merge): tên khóa học từ phân hệ danh mục (academic.courses).
-		scopeParts = append(scopeParts, "Khóa đã chọn")
+	if courseName != nil {
+		scopeParts = append(scopeParts, *courseName)
 	}
 	scopeLabel := strings.Join(scopeParts, " · ")
 	if scopeLabel == "" {
@@ -196,7 +195,7 @@ func (s *Service) ListPromotions(ctx context.Context, tab, status, search string
 			EndsAt: r.EndsAt, UsageLimit: r.UsageLimit, UsedCount: r.UsedCount, IsActive: r.IsActive, IsDefault: r.IsDefault,
 			IsSpecial: r.IsSpecial, CreatedBy: r.CreatedBy, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
 		}
-		out.Data = append(out.Data, promotionRow(p, r.BranchName, r.CreatorName, now))
+		out.Data = append(out.Data, promotionRow(p, r.BranchName, r.CourseName, r.CreatorName, now))
 	}
 	c, err := s.q.CountPromotions(ctx)
 	if err != nil {
@@ -223,7 +222,7 @@ type PromotionInput struct {
 	Description       *string    `json:"description"`
 	Reason            *string    `json:"reason"`
 	BranchID          *uuid.UUID `json:"branch_id"`
-	CourseID          *uuid.UUID `json:"course_id"` // TODO(merge): kiểm khóa học tồn tại (academic.courses)
+	CourseID          *uuid.UUID `json:"course_id"`
 	StartsAt          *string    `json:"starts_at"`
 	EndsAt            *string    `json:"ends_at"`
 	UsageLimit        *int32     `json:"usage_limit"`
@@ -281,7 +280,14 @@ func (s *Service) cleanPromotion(ctx context.Context, q *crmdb.Queries, in Promo
 		}
 		c.branch = in.BranchID
 	}
-	c.course = in.CourseID
+	if in.CourseID != nil {
+		if _, err := q.GetCourseName(ctx, *in.CourseID); errors.Is(err, pgx.ErrNoRows) {
+			return nil, iam.Invalid("Khóa học không hợp lệ.")
+		} else if err != nil {
+			return nil, err
+		}
+		c.course = in.CourseID
+	}
 	for _, f := range []struct {
 		in  *string
 		out **time.Time
@@ -377,7 +383,11 @@ func (s *Service) GetPromotion(ctx context.Context, id uuid.UUID) (*PromotionRow
 	if err != nil {
 		return nil, err
 	}
-	row := promotionRow(p, bn, nil, s.now())
+	cn, err := s.courseName(ctx, s.q, p.CourseID)
+	if err != nil {
+		return nil, err
+	}
+	row := promotionRow(p, bn, cn, nil, s.now())
 	return &row, nil
 }
 
@@ -431,4 +441,16 @@ func (s *Service) TogglePromotion(ctx context.Context, a *iam.Access, id uuid.UU
 		return &Saved{ID: p.ID, Message: "Đã bật lại ưu đãi '" + p.Name + "'."}, nil
 	}
 	return &Saved{ID: p.ID, Message: "Đã ngừng áp dụng ưu đãi '" + p.Name + "'. Hợp đồng đã dùng ưu đãi này không đổi."}, nil
+}
+
+// courseName: tên khóa học của ưu đãi (nil nếu không gắn khóa / khóa đã xóa).
+func (s *Service) courseName(ctx context.Context, q *crmdb.Queries, id *uuid.UUID) (*string, error) {
+	if id == nil {
+		return nil, nil
+	}
+	n, err := q.GetCourseName(ctx, *id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	return &n, err
 }
