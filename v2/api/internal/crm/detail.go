@@ -294,10 +294,14 @@ func (s *Service) editForm(ctx context.Context, a *iam.Access, l crmdb.GetLeadRo
 		}
 	}
 	f.Owners = ownerOptions(owners)
-	for _, src := range DefaultSources {
+	sources, err := s.leadSources(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, src := range sources {
 		f.Sources = append(f.Sources, Option{src, src})
 	}
-	if l.Source != nil && !slices.Contains(DefaultSources, *l.Source) {
+	if l.Source != nil && !slices.Contains(sources, *l.Source) {
 		f.Sources = append(f.Sources, Option{*l.Source, *l.Source + " (hiện tại)"})
 	}
 	labels := make([]string, 0, len(contractLockedFields))

@@ -18,10 +18,10 @@ v2:
 | Laravel (route / method) | v2 (API + màn) | Trạng thái | Ghi chú |
 |---|---|---|---|
 | `reports.my` GET `/reports/my` (`myReports`) | GET `/api/v1/reports/my` · màn `/reports` | Đã làm | Vai trò có màn có cấu trúc cho kỳ chính → tự mở màn đó (Học vụ → ngày, Học thuật → tuần, GV → tháng). Vai trò khác: danh sách báo cáo chữ (10/trang), băng hạn nộp tháng (Chủ nhật cuối tháng) cho GV / trợ giảng. |
-| `reports.my.store` POST `/reports/my` (`reportStore`) | POST `/api/v1/reports/my` · hộp "Nộp báo cáo" | Đã làm | Kiểm tra tiêu đề / nội dung / lớp trong phạm vi như Laravel. Thông báo Admin là TODO(notify). |
-| `reports.periodic.daily` GET `/reports/daily` (`daily`) | GET `/api/v1/reports/daily?date=&refresh=` · `/reports/daily` | Làm một phần | Đủ khung: chọn ngày, trước 10:00 tự mở hôm qua nếu chưa nộp, danh sách ngày còn thiếu (14 ngày), lịch sử, báo cáo cũ, trạng thái kiểm tra, ghi chú theo khối, nháp ghi chú ở trình duyệt, "Cập nhật số liệu". **Số liệu tự điền** đọc qua `MetricsProvider.Daily`; chưa có phân hệ nguồn nên mỗi mục hiện "Chờ phân hệ … chuyển sang hệ thống mới." |
-| `reports.periodic.daily.store` POST `/reports/daily` (`dailyStore`) | POST `/api/v1/reports/daily` | Làm một phần | Lưu / nộp lại cùng ngày (cập nhật bản cũ), chụp số liệu lúc nộp, nộp trễ (sau 09:00 hôm sau), nộp lại sau "yêu cầu bổ sung" chuyển về chờ kiểm tra. **Tạo việc follow-up** đi qua `TaskService`; chưa nối phân hệ Công việc nên gửi kèm việc trả 409 `tasks_unavailable` ("Chưa tạo được task: phân hệ Công việc chưa chuyển sang hệ thống mới."). |
-| `reports.periodic.weekly-kpi` GET `/reports/weekly-kpi` (`weeklyKpi`) | GET `/api/v1/reports/weekly-kpi?week=&refresh=` · `/reports/weekly-kpi` | Làm một phần | Tuần ISO, 9 chỉ số quy mô (`MetricsProvider.WeeklyScale`), bảng KPI (`KpiCriteria` + `KpiEvidence`), ghi chú tuần. Chưa có phân hệ KPI nên bảng KPI trống; chỉ số quy mô hiện "Chờ phân hệ…". |
+| `reports.my.store` POST `/reports/my` (`reportStore`) | POST `/api/v1/reports/my` · hộp "Nộp báo cáo" | Đã làm | Kiểm tra tiêu đề / nội dung / lớp trong phạm vi như Laravel. Báo Admin qua thông báo trong ứng dụng (`staff_report_submitted`). |
+| `reports.periodic.daily` GET `/reports/daily` (`daily`) | GET `/api/v1/reports/daily?date=&refresh=` · `/reports/daily` | Làm một phần | Đủ khung: chọn ngày, trước 10:00 tự mở hôm qua nếu chưa nộp, danh sách ngày còn thiếu (14 ngày), lịch sử, báo cáo cũ, trạng thái kiểm tra, ghi chú theo khối, nháp ghi chú ở trình duyệt, "Cập nhật số liệu". **Số liệu tự điền** đọc qua `MetricsProvider.Daily` (`reports.NewMetrics`): "Data mới nhận" (theo nguồn, đã liên hệ lần đầu, tách chi nhánh) và "Số học sinh test" (bài test / số hẹn) lấy từ CRM + test đầu vào theo phạm vi khách người viết được xem; mục lớp học / học phí / ticket hiện "Chờ phân hệ … chuyển sang hệ thống mới." |
+| `reports.periodic.daily.store` POST `/reports/daily` (`dailyStore`) | POST `/api/v1/reports/daily` | Làm một phần | Lưu / nộp lại cùng ngày (cập nhật bản cũ), chụp số liệu lúc nộp, nộp trễ (sau 09:00 hôm sau), nộp lại sau "yêu cầu bổ sung" chuyển về chờ kiểm tra. **Tạo việc follow-up** qua phân hệ Công việc (`tasks.Service.ReportTasks`): việc một lần, hạn 18:00, người nhận như màn Giao việc; người được giao nhận thông báo "Bạn được giao việc: …". |
+| `reports.periodic.weekly-kpi` GET `/reports/weekly-kpi` (`weeklyKpi`) | GET `/api/v1/reports/weekly-kpi?week=&refresh=` · `/reports/weekly-kpi` | Làm một phần | Tuần ISO, 9 chỉ số quy mô (`MetricsProvider.WeeklyScale`), bảng KPI (`KpiCriteria` + `KpiEvidence`), ghi chú tuần. Chưa có phân hệ KPI nên bảng KPI trống. Chỉ số "Data mới nhận" / "HV mới chốt" lấy từ CRM; các chỉ số lớp học hiện "Chờ phân hệ…". |
 | `reports.periodic.weekly-kpi.store` POST | POST `/api/v1/reports/weekly-kpi` | Đã làm | Lưu ghi chú + chụp bảng KPI lúc nộp. |
 | `reports.periodic.academic-weekly` GET (`academicWeekly`) | GET `/api/v1/reports/academic-weekly?week=` · `/reports/academic-weekly` | Làm một phần | 3 bảng (đã làm / dự kiến / yêu cầu đang quản lý), 9 tuần gần nhất, dòng gợi ý "Thêm từ hệ thống". Số liệu tuần và dòng gợi ý qua `MetricsProvider.WeeklyAcademic` — hiện trống. Ticket CSVC / buổi chưa điểm danh (mục 5.1): TODO(gộp). |
 | `reports.periodic.academic-weekly.store` POST | POST `/api/v1/reports/academic-weekly` | Đã làm | Kiểm tra từng dòng (nội dung bắt buộc, tiến độ 0/25/50/75/100, link https, deadline), thông báo lỗi "Mục, dòng N: …" như Laravel; dựng nội dung chữ. |
@@ -30,39 +30,40 @@ v2:
 | `reports.periodic.teacher-monthly` GET / POST (`teacherMonthly*`) | GET/POST `/api/v1/reports/teacher-monthly` · `/reports/teacher-monthly` | Làm một phần | Nháp / nộp, phần chung, từng lớp (số buổi, tiến độ, chuyên cần / bài tập gợi ý từ số liệu, checklist học thuật, cần hỗ trợ), hạn Chủ nhật cuối tháng, báo cáo chấm công trong cùng màn. Danh sách lớp + chuyên cần / bài tập qua `MetricsProvider.TeacherClasses` — chưa có phân hệ Lớp học nên trống, có ghi chú. Link "Đề xuất điều chỉnh giáo trình" (`syllabus.teacher-propose`): TODO(gộp). |
 | `reports.periodic.teacher-attendance.store` POST | POST `/api/v1/reports/teacher-attendance` | Đã làm | Ghi chú chấm công tháng. |
 | `reports.journal` GET (`journal`) | GET `/api/v1/reports/journal` · `/reports/journal` | Đã làm | 15/trang, lọc mức độ / trạng thái, phạm vi dữ liệu (của mình; quản lý theo chi nhánh; Admin tất cả), "Sự việc của" cho Admin / Quản lý ghi thay Học vụ. Mã KPI lấy từ `KpiCriteria` (trống tới khi có KPI). Lớp liên quan qua `ClassDirectory` (trống tới khi có Lớp học). |
-| `reports.journal.store` POST | POST `/api/v1/reports/journal` | Đã làm | Tiêu đề lấy dòng đầu, kiểm tra mã KPI thuộc bộ đang áp dụng. Sự việc khẩn báo Admin / Quản lý: TODO(notify). |
+| `reports.journal.store` POST | POST `/api/v1/reports/journal` | Đã làm | Tiêu đề lấy dòng đầu, kiểm tra mã KPI thuộc bộ đang áp dụng. Sự việc khẩn báo Admin + Quản lý cơ sở (`staff_journal_urgent`). |
 | `reports.journal.followup` POST | POST `/api/v1/reports/journal/{id}/followup` | Đã làm | Mới → Đang theo dõi khi có follow-up đầu. |
 | `reports.journal.status` POST | POST `/api/v1/reports/journal/{id}/status` | Đã làm | |
-| `reports.journal.serious` POST (Admin) | POST `/api/v1/reports/journal/{id}/serious` | Đã làm | Chỉ Admin (super admin). Nhật ký thao tác: TODO(audit). |
+| `reports.journal.serious` POST (Admin) | POST `/api/v1/reports/journal/{id}/serious` | Đã làm | Chỉ Admin (super admin). Ghi nhật ký thao tác (`staff_journal.serious`). |
 | `reports.all` GET (`allReports`, `staff_report.view_all`) | GET `/api/v1/reports/all` · `/reports/all` | Đã làm | Lọc loại / trạng thái kiểm tra / người / chi nhánh / khoảng ngày, thống kê (kể cả "chưa nộp hôm qua"), tab "Chưa nộp" (ngày còn thiếu từng người), `?open=` mở chi tiết. Quản lý không phải Admin chỉ thấy nhân sự chi nhánh mình. |
 | `reports.detail` GET (`reportDetail`) | GET `/api/v1/reports/{id}/detail` · hộp chi tiết | Đã làm | Các dạng: nhật ký, ngày (mới / cũ), KPI tuần (mới / cũ), tuần Học thuật, chữ; nút "báo cáo kế tiếp". |
-| `reports.review` POST (Admin) | POST `/api/v1/reports/{id}/review` | Đã làm | Đánh dấu / bỏ đánh dấu, tự chuyển báo cáo kế tiếp. Báo người viết: TODO(notify). |
-| `reports.request-changes` POST (Admin) | POST `/api/v1/reports/{id}/request-changes` | Đã làm | Bắt buộc ghi chú. Báo người viết: TODO(notify). |
+| `reports.review` POST (Admin) | POST `/api/v1/reports/{id}/review` | Đã làm | Đánh dấu / bỏ đánh dấu, tự chuyển báo cáo kế tiếp. Báo người viết "Đã kiểm tra: …" (`staff_report_reviewed`). |
+| `reports.request-changes` POST (Admin) | POST `/api/v1/reports/{id}/request-changes` | Đã làm | Bắt buộc ghi chú. Báo người viết "Cần bổ sung: …" (`staff_report_returned`); nộp lại thì Admin nhận "Đã bổ sung: …". |
 | `reports.review-bulk` POST (Admin) | POST `/api/v1/reports/review-bulk` | Đã làm | "Đã đánh dấu N báo cáo đã kiểm tra." |
-| `reports:remind-daily` (08:00) | `Service.DailyReminders` + `RunReminderLoop` | Làm một phần | Tính đúng ai chưa nộp ngày cần nộp (bỏ Chủ nhật; ngày lễ / nghỉ phép qua `Calendar`, chưa nối). Gửi thông báo: TODO(notify) — hiện chỉ ghi log. |
-| `reports:remind-monthly` (08:00) | `Service.MonthlyReminders` | Làm một phần | Mốc hạn −3 / −1 / đúng ngày (Chủ nhật cuối tháng). Gửi: TODO(notify). |
-| `reports:daily-digest` (09:05) | `Service.DailyDigest` | Làm một phần | Tổng hợp chưa nộp / nộp trễ hôm qua cho Admin. Gửi: TODO(notify). |
+| `reports:remind-daily` (08:00) | `Service.DailyReminders` + `RunReminderLoop` | Làm một phần | Tính ai chưa nộp ngày cần nộp (bỏ Chủ nhật và ngày nghỉ toàn hệ thống / chi nhánh qua `catalogs.Service.ReportCalendar`; nghỉ phép chờ phân hệ HR). Gửi `daily_report_due`, chạy lại không gửi trùng (`notify.SendOnce`). |
+| `reports:remind-monthly` (08:00) | `Service.MonthlyReminders` | Đã làm | Mốc hạn −3 / −1 / đúng ngày (Chủ nhật cuối tháng). Gửi `monthly_report_due`, không gửi trùng. |
+| `reports:daily-digest` (09:05) | `Service.DailyDigest` | Đã làm | Tổng hợp chưa nộp / nộp trễ hôm qua gửi mọi Admin (`staff_report_digest`), không gửi trùng. |
 
-## Phụ thuộc phân hệ khác (cài khi gộp)
+## Phụ thuộc phân hệ khác
 
-`reports.NewService(pool, log, reports.Deps{...})` ở `cmd/menglish/main.go` hiện truyền rỗng nên dùng bản mặc định:
+`reports.NewService(pool, log, reports.Deps{...})` ở `cmd/menglish/main.go` truyền `Metrics: reports.NewMetrics(crmSvc.ReportSource())`,
+`Tasks: taskSvc.ReportTasks()`, `Calendar: catalogSvc.ReportCalendar()`; `Classes` còn bản mặc định:
 
-| Interface | Phân hệ nguồn | Dùng cho | Bản mặc định hiện tại |
+| Interface | Phân hệ nguồn | Dùng cho | Hiện tại |
 |---|---|---|---|
-| `MetricsProvider.Daily` | Lớp học / buổi học, CRM, Học phí, Test đầu vào, Ticket / Order, Dự án | khối số liệu báo cáo ngày (Học vụ / Học thuật) | mục hiện "Chờ phân hệ … chuyển sang hệ thống mới." |
-| `MetricsProvider.WeeklyScale` | Lớp học, CRM, Học phí | 9 chỉ số quy mô báo cáo tuần Học vụ | như trên |
+| `MetricsProvider.Daily` | Lớp học / buổi học, CRM, Học phí, Test đầu vào, Ticket / Order, Dự án | khối số liệu báo cáo ngày (Học vụ / Học thuật) | "Data mới nhận", "Số học sinh test" có số (CRM + test đầu vào, `crm.Service.ReportSource`); mục khác "Chờ phân hệ …" |
+| `MetricsProvider.WeeklyScale` | Lớp học, CRM, Học phí | 9 chỉ số quy mô báo cáo tuần Học vụ | "Data mới nhận", "HV mới chốt" có số (CRM); mục lớp học "Chờ phân hệ …" |
 | `MetricsProvider.WeeklyAcademic` | Lớp học, Giáo trình, Ticket | số liệu + dòng gợi ý báo cáo tuần Học thuật | trống |
 | `MetricsProvider.KpiCriteria` / `KpiEvidence` | KPI (chưa có) | bảng KPI tuần, mã KPI của nhật ký | trống (nhật ký không gắn được mã KPI) |
 | `MetricsProvider.TeacherClasses` | Lớp học / điểm danh / bài tập | lớp trong báo cáo tháng GV | trống + ghi chú |
 | `MetricsProvider.TeacherMeetings` | Chất lượng lớp (họp GV) | báo cáo tháng Học thuật | trống + ghi chú |
-| `TaskService` | Công việc (`ops.work_tasks`) | tạo việc follow-up từ báo cáo ngày, người nhận việc | tắt (409 `tasks_unavailable`) |
+| `TaskService` | Công việc (`ops.work_tasks`) | tạo việc follow-up từ báo cáo ngày, người nhận việc | đã nối (`tasks.Service.ReportTasks`) |
 | `ClassDirectory` | Lớp học (`academic.classes`) | "Lớp liên quan" ở nhật ký / báo cáo chữ, kiểm tra lớp trong phạm vi | không có lớp |
-| `Calendar` | Ngày lễ (`core.holidays`), nghỉ phép (HR) | ngày không phải nộp báo cáo ngày | chỉ bỏ Chủ nhật |
+| `Calendar` | Ngày lễ (`core.holidays`), nghỉ phép (HR) | ngày không phải nộp báo cáo ngày | ngày nghỉ đã nối (`catalogs.Service.ReportCalendar`); nghỉ phép chờ phân hệ HR |
 
 Khóa ngoại để khi gộp: `ops.staff_reports.class_id` → `academic.classes` (ghi chú `-- FK tới … thêm khi gộp` trong migration).
 
-Thông báo (`TODO(notify)`): báo cáo mới / nộp lại sau bổ sung / đã kiểm tra / cần bổ sung, sự việc khẩn, nhắc nộp ngày /
-tháng, tổng hợp 09:05. Nhật ký thao tác (`TODO(audit)`): xác nhận lỗi nghiêm trọng.
+Thông báo đã gửi qua `notify` (báo cáo mới / nộp lại sau bổ sung / đã kiểm tra / cần bổ sung, sự việc khẩn, việc follow-up, nhắc
+nộp ngày / tháng, tổng hợp 09:05); nhật ký thao tác ghi khi xác nhận / bỏ lỗi nghiêm trọng.
 
 ## Chưa làm / thuộc phân hệ khác
 

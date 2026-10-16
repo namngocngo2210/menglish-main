@@ -558,10 +558,15 @@ func TestLeadLifecycle(t *testing.T) {
 // fakeStudents: phân hệ học viên giả cho luồng Chốt & Xếp lớp.
 type fakeStudents struct{ n int }
 
-func (f *fakeStudents) CreateFromLead(_ context.Context, _ pgx.Tx, _ *iam.Access, l LeadSnapshot, in CloseInput) (*ClosedStudent, error) {
+func (f *fakeStudents) CreateFromLead(ctx context.Context, tx pgx.Tx, _ *iam.Access, l LeadSnapshot, in CloseInput) (*ClosedStudent, error) {
 	f.n++
 	st := &ClosedStudent{StudentID: uuid.New(), StudentCode: fmt.Sprintf("HS%03d", f.n), StudentName: l.Name, ContractTotal: 6_000_000,
 		CourseName: "IELTS Foundation", BranchID: l.BranchID}
+	// Hồ sơ học viên thật (crm.leads.converted_student_id / enrollment_confirmations.student_id có khoá ngoại).
+	if _, err := tx.Exec(ctx, `INSERT INTO academic.students (id, code, full_name, phone, branch_id, lead_id) VALUES ($1, $2, $3, $4, $5, $6)`,
+		st.StudentID, st.StudentCode, l.Name, l.Phone, l.BranchID, l.ID); err != nil {
+		return nil, err
+	}
 	if in.ClassID != nil {
 		st.ClassName = ptr("IELTS-01")
 		st.Enrollment = &Enrollment{StudentID: st.StudentID, StudentCode: st.StudentCode, StudentName: l.Name, ClassID: *in.ClassID,
@@ -819,6 +824,41 @@ func TestPromotions(t *testing.T) {
 		t.Fatalf("bật lại ưu đãi: %s", r.raw)
 	}
 	expect(t, c.do("GET", "/crm/promotions/"+uuid.NewString(), nil), 404, "")
+
+	// Ưu đãi theo khóa học: khóa phải có trong danh mục, phạm vi hiện tên khóa.
+	invalid(t, c.do("POST", "/crm/promotions", map[string]any{"name": "Khóa lạ", "type": "fixed", "value": 100000, "course_id": uuid.New()}),
+		"Khóa học không hợp lệ.")
+	var course uuid.UUID
+	if err := e.pg.QueryRow(context.Background(), `INSERT INTO academic.courses (code, name, tuition_fee, total_lessons)
+		VALUES ('CS-CRM-1', 'IELTS Foundation', 6000000, 48) RETURNING id`).Scan(&course); err != nil {
+		t.Fatal(err)
+	}
+	r = c.do("POST", "/crm/promotions", map[string]any{"name": "Ưu đãi IELTS", "type": "fixed", "value": 200000, "course_id": course, "branch_id": tm.a})
+	expect(t, r, 201, "")
+	if p := c.do("GET", "/crm/promotions/"+r.body["id"].(string), nil); p.body["scope_label"] != "Cơ sở CN-A · IELTS Foundation" {
+		t.Fatalf("phạm vi ưu đãi theo khóa: %s", p.raw)
+	}
+}
+
+// Nguồn khách theo danh mục chung (core.system_categories, type lead_source).
+func TestLeadSources(t *testing.T) {
+	e := setup(t)
+	tm := newTeam(e)
+	// Nguồn khách: mặc định khi danh mục trống, có danh mục "lead_source" thì theo danh mục (thứ tự sort_order).
+	sources := func() []any {
+		t.Helper()
+		r := tm.staffAC.do("GET", "/crm/options", nil)
+		expect(t, r, 200, "")
+		return r.body["sources"].([]any)
+	}
+	if got := sources(); len(got) != len(DefaultSources) || got[0] != DefaultSources[0] {
+		t.Fatalf("nguồn mặc định: %v", got)
+	}
+	e.exec(`INSERT INTO core.system_categories (type, code, name, sort_order) VALUES ('lead_source', 'S2', 'Zalo OA', 2),
+		('lead_source', 'S1', 'Hội thảo', 1), ('lost_reason', 'L1', 'Học phí', 1)`)
+	if got := sources(); len(got) != 2 || got[0] != "Hội thảo" || got[1] != "Zalo OA" {
+		t.Fatalf("nguồn theo danh mục: %v", got)
+	}
 }
 
 func TestImport(t *testing.T) {

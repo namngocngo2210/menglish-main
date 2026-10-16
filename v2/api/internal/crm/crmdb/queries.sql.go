@@ -711,6 +711,18 @@ func (q *Queries) GetBranchBrief(ctx context.Context, id uuid.UUID) (GetBranchBr
 	return i, err
 }
 
+const getCourseName = `-- name: GetCourseName :one
+SELECT name FROM academic.courses WHERE id = $1 AND deleted_at IS NULL
+`
+
+// Tên khóa học (danh mục academic.courses) chưa xóa.
+func (q *Queries) GetCourseName(ctx context.Context, id uuid.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, getCourseName, id)
+	var name string
+	err := row.Scan(&name)
+	return name, err
+}
+
 const getDeletedLead = `-- name: GetDeletedLead :one
 SELECT id, code, name, phone, phone_normalized, email, deleted_email, parent_name, parent_phone, dob, gender, address, school, branch_id, course_interest, source, assigned_user_id, stage, deal_value, test_decision, test_score, appointment_at, appointment_type, assigned_test_id, examiner_id, next_follow_up_at, last_care_at, waiting_since, waiting_course_id, waiting_branch_id, preferred_schedule, desired_start_date, waiting_priority, waiting_notes, lost_reason, lost_at, converted_student_id, converted_by, commission_user_id, converted_at, fee_paid_at_closing, notes, care_checklist, created_by, created_at, updated_at, deleted_at FROM crm.leads l
 WHERE l.id = $1 AND l.deleted_at IS NOT NULL
@@ -1517,6 +1529,33 @@ func (q *Queries) ListLeadIDsInScope(ctx context.Context, arg ListLeadIDsInScope
 	return items, nil
 }
 
+const listLeadSourceNames = `-- name: ListLeadSourceNames :many
+SELECT name FROM core.system_categories
+WHERE type = 'lead_source' AND deleted_at IS NULL
+ORDER BY sort_order, name
+`
+
+// Nguồn khách từ danh mục chung (core.system_categories, type lead_source) như Laravel SystemCategory::where('type', 'lead_source').
+func (q *Queries) ListLeadSourceNames(ctx context.Context) ([]string, error) {
+	rows, err := q.db.Query(ctx, listLeadSourceNames)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		items = append(items, name)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listLeads = `-- name: ListLeads :many
 
 
@@ -1817,10 +1856,11 @@ func (q *Queries) ListOwnerCandidateIDs(ctx context.Context) ([]uuid.UUID, error
 
 const listPromotions = `-- name: ListPromotions :many
 
-SELECT p.id, p.code, p.name, p.type, p.value, p.max_discount_amount, p.description, p.reason, p.branch_id, p.course_id, p.starts_at, p.ends_at, p.usage_limit, p.used_count, p.is_active, p.is_default, p.is_special, p.created_by, p.created_at, p.updated_at, b.name AS branch_name, u.full_name AS creator_name, count(*) OVER () AS total
+SELECT p.id, p.code, p.name, p.type, p.value, p.max_discount_amount, p.description, p.reason, p.branch_id, p.course_id, p.starts_at, p.ends_at, p.usage_limit, p.used_count, p.is_active, p.is_default, p.is_special, p.created_by, p.created_at, p.updated_at, b.name AS branch_name, u.full_name AS creator_name, c.name AS course_name, count(*) OVER () AS total
 FROM crm.promotions p
 LEFT JOIN core.branches b ON b.id = p.branch_id
 LEFT JOIN iam.users u ON u.id = p.created_by
+LEFT JOIN academic.courses c ON c.id = p.course_id AND c.deleted_at IS NULL
 WHERE p.is_special = $1::bool
   AND ($2::text IS NULL OR p.name ILIKE $2::text OR p.code ILIKE $2::text
        OR p.reason ILIKE $2::text)
@@ -1864,6 +1904,7 @@ type ListPromotionsRow struct {
 	UpdatedAt         time.Time
 	BranchName        *string
 	CreatorName       *string
+	CourseName        *string
 	Total             int64
 }
 
@@ -1906,6 +1947,7 @@ func (q *Queries) ListPromotions(ctx context.Context, arg ListPromotionsParams) 
 			&i.UpdatedAt,
 			&i.BranchName,
 			&i.CreatorName,
+			&i.CourseName,
 			&i.Total,
 		); err != nil {
 			return nil, err

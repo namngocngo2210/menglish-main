@@ -216,3 +216,33 @@ FROM ops.work_tasks t
 LEFT JOIN iam.users u ON u.id = t.assignee_id
 WHERE t.id = ANY (@ids::uuid[])
 ORDER BY t.no;
+
+-- ───── Việc "Nhập bù sách" (phân hệ kho gọi, Laravel RestockTaskService) ─────
+
+-- name: LockOpenRestockTask :one
+-- Việc nhập bù đang mở (Mới / Đang làm / Quá hạn) của chi nhánh + mặt hàng: mỗi cặp chỉ một việc.
+SELECT id FROM ops.work_tasks
+WHERE kind = 'merchandise_restock' AND merchandise_item_id = @item_id AND branch_id = @branch_id
+  AND status IN ('new', 'in_progress', 'overdue')
+ORDER BY created_at
+LIMIT 1
+FOR UPDATE;
+
+-- name: InsertRestockTask :one
+INSERT INTO ops.work_tasks (title, description, creator_id, assignee_id, branch_id, merchandise_item_id, time_slot_category,
+                            task_type, kind, due_date, due_time, status)
+VALUES (@title, @description, @assignee_id, @assignee_id, @branch_id, @item_id, 'during', 'one_time', 'merchandise_restock',
+        @due_date, '17:00', 'new')
+RETURNING id;
+
+-- name: SetRestockDescription :exec
+UPDATE ops.work_tasks SET description = @description, updated_at = now(), version = version + 1 WHERE id = @id;
+
+-- name: AutoCompleteRestockTask :exec
+UPDATE ops.work_tasks SET status = 'completed', completed_at = now(), completion_note = @note, updated_at = now(),
+    version = version + 1
+WHERE id = @id;
+
+-- name: RestockDueDays :one
+-- Số ngày Admin có để nhập bù (SLA stock.restock_task; Admin ghi đè ở Cấu hình SLA).
+SELECT coalesce((SELECT coalesce(value, default_value) FROM hr.sla_rules WHERE key = 'stock.restock_task'), 2)::int;

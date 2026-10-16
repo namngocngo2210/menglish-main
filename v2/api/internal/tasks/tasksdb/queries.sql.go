@@ -13,6 +13,22 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const autoCompleteRestockTask = `-- name: AutoCompleteRestockTask :exec
+UPDATE ops.work_tasks SET status = 'completed', completed_at = now(), completion_note = $1, updated_at = now(),
+    version = version + 1
+WHERE id = $2
+`
+
+type AutoCompleteRestockTaskParams struct {
+	Note *string
+	ID   uuid.UUID
+}
+
+func (q *Queries) AutoCompleteRestockTask(ctx context.Context, arg AutoCompleteRestockTaskParams) error {
+	_, err := q.db.Exec(ctx, autoCompleteRestockTask, arg.Note, arg.ID)
+	return err
+}
+
 const countAwaitingConfirmation = `-- name: CountAwaitingConfirmation :one
 SELECT count(*) FROM ops.work_tasks t
 WHERE t.status = 'pending_confirmation' AND (t.assignee_id IS NULL OR t.assignee_id <> $1::uuid)
@@ -167,6 +183,37 @@ func (q *Queries) GetVisibleTask(ctx context.Context, arg GetVisibleTaskParams) 
 		&i.BranchName,
 	)
 	return i, err
+}
+
+const insertRestockTask = `-- name: InsertRestockTask :one
+INSERT INTO ops.work_tasks (title, description, creator_id, assignee_id, branch_id, merchandise_item_id, time_slot_category,
+                            task_type, kind, due_date, due_time, status)
+VALUES ($1, $2, $3, $3, $4, $5, 'during', 'one_time', 'merchandise_restock',
+        $6, '17:00', 'new')
+RETURNING id
+`
+
+type InsertRestockTaskParams struct {
+	Title       string
+	Description *string
+	AssigneeID  uuid.UUID
+	BranchID    *uuid.UUID
+	ItemID      *uuid.UUID
+	DueDate     *time.Time
+}
+
+func (q *Queries) InsertRestockTask(ctx context.Context, arg InsertRestockTaskParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, insertRestockTask,
+		arg.Title,
+		arg.Description,
+		arg.AssigneeID,
+		arg.BranchID,
+		arg.ItemID,
+		arg.DueDate,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
 }
 
 const insertTask = `-- name: InsertTask :one
@@ -713,6 +760,30 @@ func (q *Queries) ListTasks(ctx context.Context, arg ListTasksParams) ([]ListTas
 	return items, nil
 }
 
+const lockOpenRestockTask = `-- name: LockOpenRestockTask :one
+
+SELECT id FROM ops.work_tasks
+WHERE kind = 'merchandise_restock' AND merchandise_item_id = $1 AND branch_id = $2
+  AND status IN ('new', 'in_progress', 'overdue')
+ORDER BY created_at
+LIMIT 1
+FOR UPDATE
+`
+
+type LockOpenRestockTaskParams struct {
+	ItemID   *uuid.UUID
+	BranchID *uuid.UUID
+}
+
+// ───── Việc "Nhập bù sách" (phân hệ kho gọi, Laravel RestockTaskService) ─────
+// Việc nhập bù đang mở (Mới / Đang làm / Quá hạn) của chi nhánh + mặt hàng: mỗi cặp chỉ một việc.
+func (q *Queries) LockOpenRestockTask(ctx context.Context, arg LockOpenRestockTaskParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, lockOpenRestockTask, arg.ItemID, arg.BranchID)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const lockTask = `-- name: LockTask :one
 SELECT id, no, title, description, creator_id, assignee_id, handed_back_from_id, handed_back_at, branch_id, class_id, student_id, care_milestone, big_test_id, merchandise_item_id, lesson_session, time_slot_category, task_type, kind, frequency, due_date, due_time, status, completion_note, completion_proof_url, completion_proof_file_id, blocked_reason, rejection_reason, confirmed_by, confirmed_at, completed_at, sla_breached_at, version, created_at, updated_at FROM ops.work_tasks WHERE id = $1 FOR UPDATE
 `
@@ -826,6 +897,18 @@ func (q *Queries) RecurringOccurrenceExists(ctx context.Context, arg RecurringOc
 	return exists, err
 }
 
+const restockDueDays = `-- name: RestockDueDays :one
+SELECT coalesce((SELECT coalesce(value, default_value) FROM hr.sla_rules WHERE key = 'stock.restock_task'), 2)::int
+`
+
+// Số ngày Admin có để nhập bù (SLA stock.restock_task; Admin ghi đè ở Cấu hình SLA).
+func (q *Queries) RestockDueDays(ctx context.Context) (int32, error) {
+	row := q.db.QueryRow(ctx, restockDueDays)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const saveTaskState = `-- name: SaveTaskState :one
 UPDATE ops.work_tasks SET
     status = $1,
@@ -914,6 +997,20 @@ func (q *Queries) SaveTaskState(ctx context.Context, arg SaveTaskStateParams) (O
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const setRestockDescription = `-- name: SetRestockDescription :exec
+UPDATE ops.work_tasks SET description = $1, updated_at = now(), version = version + 1 WHERE id = $2
+`
+
+type SetRestockDescriptionParams struct {
+	Description *string
+	ID          uuid.UUID
+}
+
+func (q *Queries) SetRestockDescription(ctx context.Context, arg SetRestockDescriptionParams) error {
+	_, err := q.db.Exec(ctx, setRestockDescription, arg.Description, arg.ID)
+	return err
 }
 
 const taskCounts = `-- name: TaskCounts :one

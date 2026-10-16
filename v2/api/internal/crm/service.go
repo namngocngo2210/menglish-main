@@ -448,11 +448,24 @@ func stagePerms(a *iam.Access) StagePerms {
 	}
 }
 
+// leadSources: nguồn khách của danh mục chung (type lead_source); chưa cấu hình thì dùng DefaultSources như Laravel.
+func (s *Service) leadSources(ctx context.Context) ([]string, error) {
+	names, err := s.q.ListLeadSourceNames(ctx)
+	if err != nil || len(names) == 0 {
+		return DefaultSources, err
+	}
+	return names, nil
+}
+
 func (s *Service) Options(ctx context.Context, a *iam.Access) (*Options, error) {
 	sc := scopeOf(a)
 	level := a.Level("lead")
+	sources, err := s.leadSources(ctx)
+	if err != nil {
+		return nil, err
+	}
 	o := &Options{
-		Scope: level, Sources: DefaultSources, DefaultAssigneeID: a.UserID, Permissions: stagePerms(a),
+		Scope: level, Sources: sources, DefaultAssigneeID: a.UserID, Permissions: stagePerms(a),
 		FilterBranches: []Option{}, FilterOwners: []Option{}, FormBranches: []Option{}, AllOwners: []OwnerOption{},
 	}
 	for _, st := range append(slices.Clone(PipelineStages), StageLost) {
@@ -466,7 +479,6 @@ func (s *Service) Options(ctx context.Context, a *iam.Access) (*Options, error) 
 	}
 	// Bộ lọc chi nhánh: toàn hệ thống → mọi chi nhánh; phạm vi chi nhánh nhiều chi nhánh → chi nhánh của mình.
 	var fb []crmdb.ListBranchesBriefRow
-	var err error
 	switch {
 	case level == iam.ScopeAll:
 		fb, err = s.q.ListBranchesBrief(ctx, crmdb.ListBranchesBriefParams{})

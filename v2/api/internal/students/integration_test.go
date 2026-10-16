@@ -303,6 +303,8 @@ func TestCreateFromLeadWithStudentAccount(t *testing.T) {
 	staff := e.member("HV001", []uuid.UUID{a}, iam.RoleAcademicStaff)
 	lead := uuid.New()
 	ctx := context.Background()
+	// academic.students.lead_id có khoá ngoại tới crm.leads
+	e.exec("INSERT INTO crm.leads (id, code, name, phone, branch_id) VALUES ($1, 'KH-HS-TEST', 'Trần Bình', '0912345678', $2)", lead, a)
 
 	code, err := e.svc.NextCode(ctx, nil)
 	if err != nil {

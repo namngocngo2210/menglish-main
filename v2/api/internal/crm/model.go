@@ -76,8 +76,7 @@ var careChecklistItems = []struct{ Key, Label string }{
 	{"day_30", "Đủ 30 ngày — Đánh giá cuối tháng đầu, mức độ hài lòng"},
 }
 
-// DefaultSources: nguồn khách mặc định khi chưa cấu hình danh mục "lead_source".
-// TODO(merge): đọc danh mục core.system_categories (type lead_source) của phân hệ danh mục.
+// DefaultSources: nguồn khách mặc định khi chưa cấu hình danh mục "lead_source" (Danh mục hệ thống, xem leadSources).
 var DefaultSources = []string{"Landing page", "Marketing", "Giới thiệu", "Vãng lai", "Tiktok", "Facebook", "Google Ads", "Chị Liên"}
 
 // Loại nhật ký (Laravel CrmCustomerHistory::FILTER_TYPES).

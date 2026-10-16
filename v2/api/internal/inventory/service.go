@@ -45,6 +45,8 @@ type Service struct {
 	log  *slog.Logger
 	cfg  Config
 	now  func() time.Time
+	// restock: phân hệ Công việc giao việc nhập bù (nil = chưa nối)
+	restock Restocker
 }
 
 func NewService(pool *pgxpool.Pool, log *slog.Logger, cfg Config) *Service {

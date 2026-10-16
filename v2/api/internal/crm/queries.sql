@@ -396,10 +396,11 @@ LIMIT sqlc.arg(lim) OFFSET sqlc.arg(off);
 -- ───────────────────────── Ưu đãi ─────────────────────────
 
 -- name: ListPromotions :many
-SELECT p.*, b.name AS branch_name, u.full_name AS creator_name, count(*) OVER () AS total
+SELECT p.*, b.name AS branch_name, u.full_name AS creator_name, c.name AS course_name, count(*) OVER () AS total
 FROM crm.promotions p
 LEFT JOIN core.branches b ON b.id = p.branch_id
 LEFT JOIN iam.users u ON u.id = p.created_by
+LEFT JOIN academic.courses c ON c.id = p.course_id AND c.deleted_at IS NULL
 WHERE p.is_special = sqlc.arg(special)::bool
   AND (sqlc.narg(q)::text IS NULL OR p.name ILIKE sqlc.narg(q)::text OR p.code ILIKE sqlc.narg(q)::text
        OR p.reason ILIKE sqlc.narg(q)::text)
@@ -703,3 +704,13 @@ WHERE l.deleted_at IS NULL
            OR l.parent_phone ILIKE sqlc.arg(phone)::text)))
 ORDER BY l.created_at DESC, l.id DESC
 LIMIT sqlc.arg(lim);
+
+-- name: ListLeadSourceNames :many
+-- Nguồn khách từ danh mục chung (core.system_categories, type lead_source) như Laravel SystemCategory::where('type', 'lead_source').
+SELECT name FROM core.system_categories
+WHERE type = 'lead_source' AND deleted_at IS NULL
+ORDER BY sort_order, name;
+
+-- name: GetCourseName :one
+-- Tên khóa học (danh mục academic.courses) chưa xóa.
+SELECT name FROM academic.courses WHERE id = $1 AND deleted_at IS NULL;

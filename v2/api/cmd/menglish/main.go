@@ -117,12 +117,13 @@ func runAPI(ctx context.Context) error {
 	defer d.close()
 	cfg, log := d.cfg, d.log
 
-	inv := inventory.NewService(d.pool, log, inventory.DefaultConfig())
-	go inv.RunOverdueLoop(ctx, 15*time.Minute)
 	auth := iam.NewHandler(d.iam, log).WithAddressSearch(geo.NewSearcher(d.rdb, log, cfg.PublicURL))
 	taskSvc := tasks.NewService(d.pool, log)
 	// Chuyển việc đã qua hạn sang "Quá hạn" (lệnh tasks:mark-overdue chạy theo lịch ở bản Laravel).
 	go taskSvc.RunOverdueLoop(ctx, 10*time.Minute)
+	// Kho hết / âm sau khi xuất → phân hệ Công việc giao Admin việc nhập bù.
+	inv := inventory.NewService(d.pool, log, inventory.DefaultConfig()).WithRestocker(taskSvc.Restocker())
+	go inv.RunOverdueLoop(ctx, 15*time.Minute)
 	crmSvc := crm.NewService(d.pool, d.iam, log)
 	// Leads: khách CRM. Sessions: lớp học nối vào khi gộp phân hệ lớp (hiện dùng bản rỗng).
 	place := placement.NewHandler(placement.NewService(d.pool, d.rdb, log, placement.Options{Leads: crmSvc.PlacementLeads()}), log)
