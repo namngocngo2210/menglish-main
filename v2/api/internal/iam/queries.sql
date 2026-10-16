@@ -188,3 +188,8 @@ UPDATE core.branches SET is_active = $2, updated_at = now() WHERE id = $1 RETURN
 
 -- name: CountActiveBranches :one
 SELECT count(*) FROM core.branches WHERE is_active AND id = ANY (sqlc.arg(ids)::uuid[]);
+
+-- name: UpdateBranchCheckin :one
+UPDATE core.branches SET latitude = $2, longitude = $3, checkin_radius = $4, work_start_time = $5, work_end_time = $6,
+    late_grace_minutes = $7, updated_at = now()
+WHERE id = $1 RETURNING *;

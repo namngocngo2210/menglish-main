@@ -19,6 +19,7 @@ import (
 	"github.com/pquerna/otp/totp"
 	"github.com/redis/go-redis/v9"
 
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/geo"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/secretbox"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/store"
 )
@@ -67,7 +68,7 @@ func setup(t *testing.T) *env {
 	box, _ := secretbox.FromBase64(base64.StdEncoding.EncodeToString(key))
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	svc := NewService(pool, rdb, box, log)
-	h := NewHandler(svc, log)
+	h := NewHandler(svc, log).WithAddressSearch(fakeAddressSearch(t, rdb, log))
 
 	r := chi.NewRouter()
 	r.Route("/api/v1", func(r chi.Router) {
@@ -78,6 +79,22 @@ func setup(t *testing.T) *env {
 	srv := httptest.NewServer(r)
 	t.Cleanup(srv.Close)
 	return &env{t: t, svc: svc, srv: srv, rdb: rdb, pg: pool}
+}
+
+// fakeAddressSearch: Nominatim giả không thấy gì, Photon giả trả 1 điểm cho mọi câu tìm.
+func fakeAddressSearch(t *testing.T, rdb *redis.Client, log *slog.Logger) *geo.Searcher {
+	fake := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/nominatim" {
+			_, _ = io.WriteString(w, `[]`)
+			return
+		}
+		_, _ = io.WriteString(w, `{"features":[{"geometry":{"coordinates":[105.8,21.03]},"properties":{"name":"Đội Cấn","city":"Hà Nội","countrycode":"VN","osm_type":"W","osm_id":42}}]}`)
+	}))
+	t.Cleanup(fake.Close)
+	s := geo.NewSearcher(rdb, log, "")
+	s.NominatimURL, s.PhotonURL = fake.URL+"/nominatim", fake.URL+"/photon"
+	return s
 }
 
 // client giữ cookie phiên và CSRF như trình duyệt (cookie Secure không đi qua http của httptest nên tự gắn).

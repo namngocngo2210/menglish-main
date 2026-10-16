@@ -16,6 +16,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/config"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/geo"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/secretbox"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/server"
@@ -102,7 +103,7 @@ func runAPI(ctx context.Context) error {
 	defer d.close()
 	cfg, log := d.cfg, d.log
 
-	auth := iam.NewHandler(d.iam, log)
+	auth := iam.NewHandler(d.iam, log).WithAddressSearch(geo.NewSearcher(d.rdb, log, cfg.PublicURL))
 	checks := map[string]server.Pinger{
 		"postgres": d.pool,
 		"redis":    server.PingFunc(func(ctx context.Context) error { return d.rdb.Ping(ctx).Err() }),

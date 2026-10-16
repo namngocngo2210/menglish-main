@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/geo"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam/iamdb"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/httpx"
 )
@@ -63,9 +64,16 @@ func AccessFrom(ctx context.Context) *Access {
 type Handler struct {
 	svc *Service
 	log *slog.Logger
+	geo *geo.Searcher
 }
 
 func NewHandler(svc *Service, log *slog.Logger) *Handler { return &Handler{svc: svc, log: log} }
+
+// WithAddressSearch bật tìm địa chỉ cho bản đồ chấm công chi nhánh (không bật → API trả 502).
+func (h *Handler) WithAddressSearch(s *geo.Searcher) *Handler {
+	h.geo = s
+	return h
+}
 
 // LoadSession đọc cookie phiên (nếu có) và gắn người dùng vào context. Không chặn request.
 func (h *Handler) LoadSession(next http.Handler) http.Handler {

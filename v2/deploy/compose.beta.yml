@@ -13,6 +13,7 @@ x-api: &api
     MENGLISH_ENV: beta
     DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
     REDIS_URL: redis://redis:6379/0
+    PUBLIC_URL: https://${BETA_SITE:-beta.meducation.vn}
     GOMEMLIMIT: 200MiB
   logging: *logging
 

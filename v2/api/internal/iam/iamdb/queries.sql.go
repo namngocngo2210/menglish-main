@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const addUserBranch = `-- name: AddUserBranch :exec
@@ -91,7 +92,7 @@ func (q *Queries) CountUnusedRecoveryCodes(ctx context.Context, userID uuid.UUID
 
 const createBranch = `-- name: CreateBranch :one
 INSERT INTO core.branches (code, name, address, phone, created_by) VALUES ($1, $2, $3, $4, $5)
-RETURNING id, code, name, address, phone, is_active, created_by, created_at, updated_at
+RETURNING id, code, name, address, phone, is_active, created_by, created_at, updated_at, latitude, longitude, checkin_radius, work_start_time, work_end_time, late_grace_minutes
 `
 
 type CreateBranchParams struct {
@@ -121,6 +122,12 @@ func (q *Queries) CreateBranch(ctx context.Context, arg CreateBranchParams) (Cor
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Latitude,
+		&i.Longitude,
+		&i.CheckinRadius,
+		&i.WorkStartTime,
+		&i.WorkEndTime,
+		&i.LateGraceMinutes,
 	)
 	return i, err
 }
@@ -251,7 +258,7 @@ func (q *Queries) EnableTOTP(ctx context.Context, arg EnableTOTPParams) error {
 }
 
 const getBranch = `-- name: GetBranch :one
-SELECT id, code, name, address, phone, is_active, created_by, created_at, updated_at FROM core.branches WHERE id = $1
+SELECT id, code, name, address, phone, is_active, created_by, created_at, updated_at, latitude, longitude, checkin_radius, work_start_time, work_end_time, late_grace_minutes FROM core.branches WHERE id = $1
 `
 
 func (q *Queries) GetBranch(ctx context.Context, id uuid.UUID) (CoreBranch, error) {
@@ -267,6 +274,12 @@ func (q *Queries) GetBranch(ctx context.Context, id uuid.UUID) (CoreBranch, erro
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Latitude,
+		&i.Longitude,
+		&i.CheckinRadius,
+		&i.WorkStartTime,
+		&i.WorkEndTime,
+		&i.LateGraceMinutes,
 	)
 	return i, err
 }
@@ -463,7 +476,7 @@ func (q *Queries) InsertRoleIfMissing(ctx context.Context, arg InsertRoleIfMissi
 }
 
 const listBranches = `-- name: ListBranches :many
-SELECT id, code, name, address, phone, is_active, created_by, created_at, updated_at FROM core.branches ORDER BY is_active DESC, name
+SELECT id, code, name, address, phone, is_active, created_by, created_at, updated_at, latitude, longitude, checkin_radius, work_start_time, work_end_time, late_grace_minutes FROM core.branches ORDER BY is_active DESC, name
 `
 
 func (q *Queries) ListBranches(ctx context.Context) ([]CoreBranch, error) {
@@ -485,6 +498,12 @@ func (q *Queries) ListBranches(ctx context.Context) ([]CoreBranch, error) {
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Latitude,
+			&i.Longitude,
+			&i.CheckinRadius,
+			&i.WorkStartTime,
+			&i.WorkEndTime,
+			&i.LateGraceMinutes,
 		); err != nil {
 			return nil, err
 		}
@@ -868,7 +887,7 @@ func (q *Queries) RecordLoginSuccess(ctx context.Context, id uuid.UUID) error {
 }
 
 const setBranchActive = `-- name: SetBranchActive :one
-UPDATE core.branches SET is_active = $2, updated_at = now() WHERE id = $1 RETURNING id, code, name, address, phone, is_active, created_by, created_at, updated_at
+UPDATE core.branches SET is_active = $2, updated_at = now() WHERE id = $1 RETURNING id, code, name, address, phone, is_active, created_by, created_at, updated_at, latitude, longitude, checkin_radius, work_start_time, work_end_time, late_grace_minutes
 `
 
 type SetBranchActiveParams struct {
@@ -889,6 +908,12 @@ func (q *Queries) SetBranchActive(ctx context.Context, arg SetBranchActiveParams
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Latitude,
+		&i.Longitude,
+		&i.CheckinRadius,
+		&i.WorkStartTime,
+		&i.WorkEndTime,
+		&i.LateGraceMinutes,
 	)
 	return i, err
 }
@@ -963,7 +988,7 @@ func (q *Queries) UnlockUser(ctx context.Context, id uuid.UUID) error {
 
 const updateBranch = `-- name: UpdateBranch :one
 UPDATE core.branches SET code = $2, name = $3, address = $4, phone = $5, updated_at = now()
-WHERE id = $1 RETURNING id, code, name, address, phone, is_active, created_by, created_at, updated_at
+WHERE id = $1 RETURNING id, code, name, address, phone, is_active, created_by, created_at, updated_at, latitude, longitude, checkin_radius, work_start_time, work_end_time, late_grace_minutes
 `
 
 type UpdateBranchParams struct {
@@ -993,6 +1018,59 @@ func (q *Queries) UpdateBranch(ctx context.Context, arg UpdateBranchParams) (Cor
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Latitude,
+		&i.Longitude,
+		&i.CheckinRadius,
+		&i.WorkStartTime,
+		&i.WorkEndTime,
+		&i.LateGraceMinutes,
+	)
+	return i, err
+}
+
+const updateBranchCheckin = `-- name: UpdateBranchCheckin :one
+UPDATE core.branches SET latitude = $2, longitude = $3, checkin_radius = $4, work_start_time = $5, work_end_time = $6,
+    late_grace_minutes = $7, updated_at = now()
+WHERE id = $1 RETURNING id, code, name, address, phone, is_active, created_by, created_at, updated_at, latitude, longitude, checkin_radius, work_start_time, work_end_time, late_grace_minutes
+`
+
+type UpdateBranchCheckinParams struct {
+	ID               uuid.UUID
+	Latitude         *float64
+	Longitude        *float64
+	CheckinRadius    int32
+	WorkStartTime    pgtype.Time
+	WorkEndTime      pgtype.Time
+	LateGraceMinutes int16
+}
+
+func (q *Queries) UpdateBranchCheckin(ctx context.Context, arg UpdateBranchCheckinParams) (CoreBranch, error) {
+	row := q.db.QueryRow(ctx, updateBranchCheckin,
+		arg.ID,
+		arg.Latitude,
+		arg.Longitude,
+		arg.CheckinRadius,
+		arg.WorkStartTime,
+		arg.WorkEndTime,
+		arg.LateGraceMinutes,
+	)
+	var i CoreBranch
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Name,
+		&i.Address,
+		&i.Phone,
+		&i.IsActive,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Latitude,
+		&i.Longitude,
+		&i.CheckinRadius,
+		&i.WorkStartTime,
+		&i.WorkEndTime,
+		&i.LateGraceMinutes,
 	)
 	return i, err
 }

@@ -14,6 +14,7 @@ type Config struct {
 	DatabaseURL     string
 	RedisURL        string
 	EncryptionKey   string // APP_ENCRYPTION_KEY: 32 byte base64, mã hóa khóa TOTP và dữ liệu nhạy cảm
+	PublicURL       string // PUBLIC_URL: địa chỉ hệ thống, gửi kèm khi gọi dịch vụ ngoài (Nominatim yêu cầu định danh)
 	LogLevel        slog.Level
 	ShutdownTimeout time.Duration
 }
@@ -25,6 +26,7 @@ func Load() (Config, error) {
 		DatabaseURL:     os.Getenv("DATABASE_URL"),
 		RedisURL:        os.Getenv("REDIS_URL"),
 		EncryptionKey:   os.Getenv("APP_ENCRYPTION_KEY"),
+		PublicURL:       os.Getenv("PUBLIC_URL"),
 		ShutdownTimeout: 15 * time.Second,
 	}
 	if err := c.LogLevel.UnmarshalText([]byte(get("LOG_LEVEL", "info"))); err != nil {

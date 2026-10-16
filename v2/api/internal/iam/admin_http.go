@@ -1,12 +1,17 @@
 package iam
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
+	"strings"
+	"time"
+	"unicode/utf8"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/geo"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/httpx"
 )
 
@@ -17,6 +22,8 @@ func (h *Handler) AdminRoutes(r chi.Router) {
 		r.With(Require("branch.view")).Get("/", h.listBranches)
 		r.With(Require("branch.create")).Post("/", h.createBranch)
 		r.With(Require("branch.update")).Patch("/{id}", h.updateBranch)
+		r.With(Require("branch.update")).Put("/{id}/checkin", h.updateBranchCheckin)
+		r.With(Require("branch.update")).Get("/address-search", h.addressSearch)
 		r.With(Require("branch.manage")).Post("/{id}/activate", h.setBranchActive(true))
 		r.With(Require("branch.manage")).Post("/{id}/deactivate", h.setBranchActive(false))
 	})
@@ -90,6 +97,61 @@ func (h *Handler) updateBranch(w http.ResponseWriter, r *http.Request) {
 	}
 	httpx.JSON(w, http.StatusOK, b)
 }
+
+func (h *Handler) updateBranchCheckin(w http.ResponseWriter, r *http.Request) {
+	id, ok := idParam(w, r)
+	var in BranchCheckinInput
+	if !ok || !httpx.Decode(w, r, &in) {
+		return
+	}
+	b, err := h.svc.UpdateBranchCheckin(r.Context(), actorOf(r), id, in)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, b)
+}
+
+// Tìm địa chỉ cho bản đồ chấm công: 30 lần / phút mỗi người (giống throttle:30,1 bên Laravel).
+const addressSearchPerMinute = 30
+
+func (h *Handler) addressSearch(w http.ResponseWriter, r *http.Request) {
+	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	if q == "" || utf8.RuneCountInString(q) > 300 {
+		httpx.Error(w, http.StatusUnprocessableEntity, "invalid", "Nhập địa chỉ cần tìm (tối đa 300 ký tự).")
+		return
+	}
+	if h.geo == nil {
+		httpx.Error(w, http.StatusBadGateway, "address_search_unavailable", addressSearchDown)
+		return
+	}
+	ctx := r.Context()
+	key := "address-search:rate:" + actorOf(r).UserID.String()
+	n, err := h.svc.rdb.Incr(ctx, key).Result()
+	if err == nil && n == 1 {
+		err = h.svc.rdb.Expire(ctx, key, time.Minute).Err()
+	}
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	if n > addressSearchPerMinute {
+		httpx.Error(w, http.StatusTooManyRequests, "too_many_requests", "Tìm quá nhiều lần liên tiếp, đợi 1 phút rồi thử lại.")
+		return
+	}
+	res, err := h.geo.Search(ctx, q)
+	if errors.Is(err, geo.ErrUnavailable) {
+		httpx.Error(w, http.StatusBadGateway, "address_search_unavailable", addressSearchDown)
+		return
+	}
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, res)
+}
+
+const addressSearchDown = "Không kết nối được dịch vụ tìm địa chỉ. Thử lại sau, hoặc bấm thẳng vào bản đồ / dán tọa độ."
 
 func (h *Handler) setBranchActive(active bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

@@ -8,18 +8,25 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type CoreBranch struct {
-	ID        uuid.UUID
-	Code      string
-	Name      string
-	Address   *string
-	Phone     *string
-	IsActive  bool
-	CreatedBy *uuid.UUID
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID               uuid.UUID
+	Code             string
+	Name             string
+	Address          *string
+	Phone            *string
+	IsActive         bool
+	CreatedBy        *uuid.UUID
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	Latitude         *float64
+	Longitude        *float64
+	CheckinRadius    int32
+	WorkStartTime    pgtype.Time
+	WorkEndTime      pgtype.Time
+	LateGraceMinutes int16
 }
 
 type IamPermission struct {

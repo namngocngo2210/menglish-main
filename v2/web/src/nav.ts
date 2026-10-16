@@ -2,7 +2,8 @@ import type { Me } from './api'
 
 // Menu theo quyền: mục chỉ hiện khi người dùng có ít nhất một quyền trong perms (giống SidebarMenu của bản Laravel).
 // Chỉ gồm các màn đã có ở v2; module mới thêm mục của mình vào đây.
-export type NavItem = { path: string; label: string; perms?: string[] }
+// group: tên nhóm menu như SidebarMenu của Laravel (vd. 'Khách hàng (CRM)'); không có thì nằm nhóm đầu.
+export type NavItem = { path: string; label: string; perms?: string[]; group?: string; hidden?: boolean }
 
 export const NAV: NavItem[] = [
   { path: '/', label: 'Tài khoản của tôi' },
@@ -16,7 +17,7 @@ export function can(me: Me, ...perms: string[]) {
 }
 
 export function visibleNav(me: Me) {
-  return NAV.filter((item) => !item.perms || can(me, ...item.perms))
+  return NAV.filter((item) => !item.hidden && (!item.perms || can(me, ...item.perms)))
 }
 
 // Mục menu ứng với đường dẫn (khớp tiền tố dài nhất), null nếu không có.
