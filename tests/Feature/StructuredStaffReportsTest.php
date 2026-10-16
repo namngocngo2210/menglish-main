@@ -42,30 +42,36 @@ class StructuredStaffReportsTest extends TestCase
         return $user;
     }
 
-    public function test_daily_report_saves_notes_and_creates_follow_up_task_once(): void
+    public function test_daily_report_saves_notes_and_creates_follow_up_tasks(): void
     {
         $staff = $this->makeUser('academic_staff', ['name' => 'Học vụ A']);
         $today = now()->toDateString();
 
         // Số liệu lấy từ hệ thống (DailyReportMetricsTest); người viết chỉ nhập ghi chú từng khối.
-        $this->actingAs($staff)->get(route('reports.periodic.daily'))->assertOk()
+        $this->actingAs($staff)->get(route('reports.periodic.daily', ['date' => $today]))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->component('Reports/DailyOps')->where('date', $today)
-                ->has('sections', 3)->where('live', true)->where('assignees.0.value', $staff->id)->where('task', null));
+                ->has('sections', 3)->where('live', true)->where('assignees.0.value', $staff->id)->where('tasks', []));
 
-        // Bật Tạo Task mà thiếu ngày giải quyết → báo lỗi; ngày chưa tới không nộp được.
-        $this->actingAs($staff)->post(route('reports.periodic.daily.store'), ['date' => $today, 'task' => ['enabled' => 1]])
-            ->assertSessionHasErrors('task.due_date');
+        // Task thiếu tiêu đề / hạn đã qua → báo lỗi; ngày chưa tới không nộp được.
+        $this->actingAs($staff)->post(route('reports.periodic.daily.store'), ['date' => $today, 'tasks' => [['title' => '', 'due_date' => now()->subDay()->toDateString()]]])
+            ->assertSessionHasErrors(['tasks.0.title', 'tasks.0.due_date']);
         $this->actingAs($staff)->post(route('reports.periodic.daily.store'), ['date' => now()->addDay()->toDateString()])
             ->assertSessionHasErrors('date');
 
-        // Mockup 02/06: Task follow-up chỉ có Ngày giải quyết + Người phụ trách (để trống là mình).
-        $task = ['enabled' => 1, 'due_date' => $today, 'assignee_id' => ''];
+        // Rà soát 16/10/2026: mỗi báo cáo nhiều task, mỗi task có tiêu đề, nội dung, hạn (từ hôm nay) và người phụ trách (để trống là mình).
         $this->actingAs($staff)->post(route('reports.periodic.daily.store'), [
-            'date' => $today, 'notes' => ['operations' => 'Phòng 302 hỏng điều hòa'], 'task' => $task,
+            'date' => $today, 'notes' => ['operations' => 'Phòng 302 hỏng điều hòa'],
+            'tasks' => [
+                ['title' => 'Gọi thợ sửa điều hòa 302', 'content' => 'Hỏng từ chiều', 'due_date' => $today, 'assignee_id' => ''],
+                ['title' => 'Báo phụ huynh lớp ST1 đổi phòng', 'due_date' => now()->addDay()->toDateString()],
+            ],
         ])->assertSessionHasNoErrors()->assertRedirect(route('reports.periodic.daily', ['date' => $today]));
-        // Lưu lại trong ngày là cập nhật, không tạo thêm việc.
+        // Lưu lại không gửi task mới → giữ task cũ, không tạo thêm; gửi thêm task → cộng vào.
         $this->actingAs($staff)->post(route('reports.periodic.daily.store'), [
-            'date' => $today, 'notes' => ['operations' => 'Đã báo sửa điều hòa'], 'task' => $task,
+            'date' => $today, 'notes' => ['operations' => 'Đã báo sửa điều hòa'],
+        ])->assertSessionHasNoErrors();
+        $this->actingAs($staff)->post(route('reports.periodic.daily.store'), [
+            'date' => $today, 'notes' => ['operations' => 'Đã báo sửa điều hòa'], 'tasks' => [['title' => 'Kiểm tra lại điều hòa', 'due_date' => $today]],
         ])->assertSessionHasNoErrors();
 
         $report = StaffReport::sole();
@@ -74,23 +80,23 @@ class StructuredStaffReportsTest extends TestCase
         $this->assertSame(['operations' => 'Đã báo sửa điều hòa'], $report->data['notes']);
         $this->assertStringContainsString('Số lớp thực tế: 0', $report->content);
 
-        $created = WorkTask::sole();
-        $this->assertSame($report->data['task_id'], $created->id);
-        $label = now()->format('d/m/Y');
-        $this->assertSame([$staff->id, $staff->id, 'Follow-up báo cáo ngày '.$label], [(int) $created->creator_id, (int) $created->assignee_id, $created->title]);
-        $this->assertStringContainsString('Ghi chú: Phòng 302 hỏng điều hòa', $created->description);
+        $tasks = WorkTask::orderBy('id')->get();
+        $this->assertSame($tasks->pluck('id')->all(), $report->data['task_ids']);
+        $this->assertSame(['Gọi thợ sửa điều hòa 302', 'Báo phụ huynh lớp ST1 đổi phòng', 'Kiểm tra lại điều hòa'], $tasks->pluck('title')->all());
+        $this->assertSame([$staff->id, $staff->id], [(int) $tasks[0]->creator_id, (int) $tasks[0]->assignee_id]);
+        $this->assertStringContainsString('Hỏng từ chiều', $tasks[0]->description);
 
         $this->actingAs($staff)->get(route('reports.periodic.daily', ['date' => $today]))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->where('live', false)->where('notes.operations', 'Đã báo sửa điều hòa')
-                ->where('task.title', 'Follow-up báo cáo ngày '.$label)->has('history', 1));
+                ->has('tasks', 3)->where('tasks.0.title', 'Gọi thợ sửa điều hòa 302')->where('history.0.period', $today)->where('history.0.missing', false));
 
         // Việc follow-up chỉ giao cho người mình được giao việc (tài khoản đã khóa thì không).
         $stranger = $this->makeUser('teacher_fulltime', ['is_active' => false]);
         $yesterday = now()->subDay()->toDateString();
         $this->actingAs($staff)->post(route('reports.periodic.daily.store'), [
-            'date' => $yesterday, 'task' => [...$task, 'assignee_id' => $stranger->id],
-        ])->assertSessionHasErrors('task.assignee_id');
-        $this->assertSame(1, WorkTask::count());
+            'date' => $yesterday, 'tasks' => [['title' => 'Việc', 'due_date' => $today, 'assignee_id' => $stranger->id]],
+        ])->assertSessionHasErrors('tasks.0.assignee_id');
+        $this->assertSame(3, WorkTask::count());
 
         // Vai trò khác không vào được báo cáo ngày Học vụ.
         $this->actingAs($this->makeUser('teacher_fulltime'))->post(route('reports.periodic.daily.store'), ['date' => $today])

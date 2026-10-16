@@ -12,6 +12,7 @@ import { router } from '@inertiajs/vue3';
 import { route } from '@/lib/route';
 import { formatDate } from '@/lib/format';
 import ReportHistory from './ReportHistory.vue';
+import ReportReviewState from './ReportReviewState.vue';
 import LegacyReports from './LegacyReports.vue';
 
 defineOptions({ layout: { title: 'Báo cáo chung của giáo viên' } });
@@ -33,6 +34,7 @@ const props = defineProps({
     classes: { type: Array, default: () => [] },
     status: { type: String, default: null },
     submittedAt: { type: String, default: null },
+    review: { type: Object, default: null },
     attendance: { type: Object, default: () => ({}) },
     proposeUrl: { type: String, default: null },
     history: { type: Array, default: () => [] },
@@ -84,6 +86,7 @@ const boxTitle = 'mb-md flex items-center gap-sm border-b border-surface-variant
                 </label>
             </template>
         </UiPageHeader>
+        <ReportReviewState :review="review" />
 
         <!-- 1. Báo cáo chấm công tháng -->
         <UiForm :action="route('reports.periodic.teacher-attendance.store')" method="post" class="rounded-xl border border-surface-variant bg-surface-container-lowest p-lg shadow-sm" data-teacher-attendance>

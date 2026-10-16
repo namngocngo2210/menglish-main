@@ -13,12 +13,12 @@ use Illuminate\Support\Str;
 
 /**
  * Tìm buổi học thử cho khách trước Chốt: mọi lớp đang mở khớp trình độ khách đăng ký
- * (khóa quan tâm / lớp xếp sau test), mỗi lớp kèm các buổi trong 7 ngày tới (gần nhất trước).
+ * (khóa quan tâm / lớp xếp sau test), mỗi lớp kèm các buổi trong 14 ngày tới (gần nhất trước).
  * Chỉ để đặt học thử — không bao giờ tạo ghi danh chính thức (xếp lớp chính thức đi qua WaitingLeadPlacement sau Chốt).
  */
 class TrialSlotFinder
 {
-    public const WINDOW_DAYS = 7;
+    public const WINDOW_DAYS = 14;
 
     public function __construct(private PlacementLevelMatcher $levels) {}
 
@@ -64,7 +64,7 @@ class TrialSlotFinder
             'class' => $class,
             'sessions' => $sessions->get($class->id, collect())->values(),
         ])
-            // Lớp có buổi gần nhất lên đầu; lớp không có buổi trong 7 ngày xuống cuối.
+            // Lớp có buổi gần nhất lên đầu; lớp không có buổi trong 14 ngày xuống cuối.
             ->sortBy(fn (array $row) => $row['sessions']->isEmpty()
                 ? '9'
                 : '0'.$row['sessions']->first()->date->format('Y-m-d').($row['sessions']->first()->start_time?->format('H:i') ?? ''))

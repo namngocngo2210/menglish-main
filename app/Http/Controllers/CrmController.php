@@ -25,6 +25,7 @@ use App\Models\Student;
 use App\Models\StudentTuition;
 use App\Models\SystemCategory;
 use App\Models\TuitionReceipt;
+use App\Models\TuitionRefundRequest;
 use App\Models\User;
 use App\Models\WorkTask;
 use App\Services\Crm\AppointmentConfirmation;
@@ -115,11 +116,14 @@ class CrmController extends Controller
         $duplicate = CrmCustomer::query()
             ->when($ignoreId, fn (Builder $query) => $query->whereKeyNot($ignoreId))
             ->where('phone_normalized', $phoneNormalized)
-            ->first(['id', 'code']);
+            ->first(['id', 'code', 'stage']);
 
         if ($duplicate) {
             throw ValidationException::withMessages([
-                'phone' => "Số điện thoại này đã tồn tại trong CRM (khách {$duplicate->short_code}).",
+                'phone' => "Số điện thoại này đã tồn tại trong CRM (khách {$duplicate->short_code}"
+                    .($duplicate->stage === CrmCustomer::STAGE_LOST
+                        ? ', đang Thất bại). Khách quay lại: mở hồ sơ khách đó và bấm "Mở lại khách", không tạo mới.'
+                        : ', '.CrmCustomer::stageLabel($duplicate->stage).').'),
             ]);
         }
 
@@ -144,6 +148,10 @@ class CrmController extends Controller
         }
     }
 
+    private const KANBAN_COLUMN_LIMIT = 30;
+
+    private const KANBAN_WON_RECENT_DAYS = 30;
+
     public function pipeline(Request $request, CrmStageService $stages)
     {
         $query = $this->scopeCustomerQuery()
@@ -159,18 +167,26 @@ class CrmController extends Controller
             ->whereNotNull('confirmed_at')
             ->pluck('customer_id')->flip();
 
+        // Cột Đã chốt chỉ giữ khách chốt trong 30 ngày gần nhất hoặc chưa xác nhận hồ sơ (khách cũ xem ở trang Đã chốt);
+        // mỗi cột hiện tối đa KANBAN_COLUMN_LIMIT thẻ, phần còn lại mở danh sách lọc theo giai đoạn.
+        $allCustomers->put('won', $allCustomers->get('won', collect())->filter(fn (CrmCustomer $c) => ! $confirmedIds->has($c->id)
+            || ($c->converted_at ?? $c->updated_at)?->gte(now()->subDays(self::KANBAN_WON_RECENT_DAYS))));
+
         $stageColumns = [];
         foreach (CrmCustomer::PIPELINE_STAGES as $key => $label) {
-            $group = $allCustomers->get($key, collect());
+            $all = $allCustomers->get($key, collect());
+            $group = $all->take(self::KANBAN_COLUMN_LIMIT);
             $style = CrmCustomer::stageStyle($key);
 
             $stageColumns[] = [
                 'id' => $key,
                 'name' => $label,
                 'next' => $stages->nextStage($key),
-                'count' => $group->count(),
-                'amount_raw' => (float) $group->sum('deal_value'),
-                'amount' => Money::format($group->sum('deal_value')),
+                'count' => $all->count(),
+                'hidden' => $all->count() - $group->count(),
+                'more_url' => $key === 'won' ? route('crm.customers.won') : route('crm.customers.index', array_filter($request->only(['search', 'branch_id', 'assigned_user_id', 'source', 'from', 'to'])) + ['stage' => $key]),
+                'amount_raw' => (float) $all->sum('deal_value'),
+                'amount' => Money::format($all->sum('deal_value')),
                 'color' => $style['border'],
                 'bg_badge' => $style['badge'],
                 'dot' => $style['bar'],
@@ -191,6 +207,7 @@ class CrmController extends Controller
                     'score' => $c->test_score ?? 'Chưa test',
                     'has_test_result' => filled($c->test_score),
                     'confirmed' => $confirmedIds->has($c->id),
+                    'next_blocked' => ($nextKey = $stages->nextStage($c->stage)) ? $stages->forwardBlockReason($c, $nextKey) : null,
                     'status' => $c->converted_student_id ? ($c->convertedStudent?->tuition?->status_label ?? 'Chưa có học phí') : null,
                     'payment_status' => $c->convertedStudent?->tuition?->status,
                     // Đồng hồ SLA liên hệ 24h / chăm sóc 72h (CrmCustomer::contactSla) — xanh / vàng / đỏ, không chặn thao tác.
@@ -367,6 +384,12 @@ class CrmController extends Controller
             $query->testToday()->reorder('appointment_at')->orderBy('id');
         }
 
+        if (in_array($request->input('export'), ['xlsx', 'csv'], true)) {
+            return $this->exportCustomers((clone $query)->get(), $request->input('export'));
+        }
+
+        $request->session()->put('crm.customers_query', $request->query());
+
         $dbCustomers = $query->paginate($request->perPage(15))->withQueryString()
             ->through(fn (CrmCustomer $c) => [
                 'id' => $c->id,
@@ -386,9 +409,9 @@ class CrmController extends Controller
                 'sla' => $c->contactSlaPayload(),
                 'test_today_at' => $c->appointment_at?->isToday() && $c->stage !== CrmCustomer::STAGE_LOST && ! $c->isClosed() ? $c->appointment_at->format('H:i') : null,
                 'test_today_type' => $c->appointment_at?->isToday() ? ($c->appointment_type === 'online' ? 'Online' : 'Tại cơ sở') : null,
-                'follow_up_label' => $c->followUpStatus() === 'overdue' || ($c->next_follow_up_at?->isToday() && in_array($c->stage, CrmCustomer::ACTIVE_STAGES, true))
-                    ? $this->relativeDeadlineLabel($c->next_follow_up_at) : null,
-                'follow_up_overdue' => $c->followUpStatus() === 'overdue',
+                'follow_up_label' => ($sla = $c->contactSla()) && ($sla['state'] === 'overdue' || ($sla['kind'] === 'appointment' && $sla['deadline']->isToday()))
+                    ? $this->relativeDeadlineLabel($sla['deadline']) : null,
+                'follow_up_overdue' => ($sla['state'] ?? null) === 'overdue',
             ]);
 
         return Inertia::render('Crm/Customers/Index', [
@@ -396,7 +419,69 @@ class CrmController extends Controller
             'stageOptions' => Ui::options(CrmCustomer::PIPELINE_STAGES + ['lost' => CrmCustomer::stageLabel('lost')]),
             'importSkipped' => session('import_skipped'),
             'chipCounts' => $this->chipCounts(),
+            // Phân công lại hàng loạt: người nhận khác cơ sở của khách → tạo yêu cầu chuyển cơ sở như phân công lẻ.
+            'bulkOwners' => $request->user()->can('lead.assign')
+                ? LeadOwners::candidates(DataScope::isAll($request->user(), 'lead') ? null : $request->user()->branchIds())
+                    ->map(fn (User $u) => ['value' => $u->id, 'label' => LeadOwners::label($u)])->values()->all()
+                : [],
         ] + $this->listFilterOptions());
+    }
+
+    /** Xuất danh sách khách theo bộ lọc đang chọn. */
+    protected function exportCustomers(Collection $customers, string $format)
+    {
+        $rows = $customers->map(fn (CrmCustomer $c) => [
+            $c->short_code,
+            $c->name,
+            $c->phone,
+            $c->parent_name,
+            $c->parent_phone,
+            $c->stage_label,
+            ($sla = $c->contactSla()) ? $sla['deadline']->format('d/m/Y H:i') : null,
+            $c->assignedUser?->name,
+            $c->source,
+            $c->branch?->name,
+            $c->course_interest,
+            $c->created_at?->format('d/m/Y H:i'),
+            $c->updated_at?->format('d/m/Y H:i'),
+        ])->all();
+
+        return $this->downloadTable('danh-sach-khach', ['Mã KH', 'Họ tên', 'SĐT', 'Phụ huynh', 'SĐT phụ huynh', 'Giai đoạn', 'Hạn liên hệ', 'Người phụ trách', 'Nguồn', 'Chi nhánh', 'Khóa quan tâm', 'Ngày tạo', 'Cập nhật gần nhất'], $rows, $format);
+    }
+
+    /** Phân công lại hàng loạt (Học vụ nghỉ việc…): một người nhận, một lý do cho mọi khách đã chọn. */
+    public function bulkReassign(Request $request)
+    {
+        $validated = $request->validate([
+            'ids' => 'required|array|min:1|max:500',
+            'ids.*' => 'integer',
+            'assigned_user_id' => ['required', Rule::exists('users', 'id')->whereNull('deleted_at')],
+            'reason' => 'required|string|max:1000',
+        ], [
+            'ids.required' => 'Chọn ít nhất một khách.',
+            'reason.required' => 'Vui lòng nhập lý do phân công lại.',
+        ]);
+        $assignee = User::findOrFail($validated['assigned_user_id']);
+        if (! LeadOwners::isCandidate($assignee)) {
+            throw ValidationException::withMessages(['assigned_user_id' => self::OWNER_INVALID]);
+        }
+
+        $moved = $pending = $skipped = 0;
+        $customers = $this->scopeCustomerQuery()->whereIn('id', $validated['ids'])->get();
+        foreach ($customers as $customer) {
+            if ((int) $customer->assigned_user_id === $assignee->id) {
+                $skipped++;
+
+                continue;
+            }
+            $this->changeOwner($customer, $assignee, $request->user(), $validated['reason'], 'Phân công lại hàng loạt') ? $pending++ : $moved++;
+        }
+
+        $message = "Đã phân công {$moved} khách cho {$assignee->name}."
+            .($pending ? " {$pending} khách khác cơ sở đã gửi yêu cầu chuyển, chờ Admin duyệt." : '')
+            .($skipped ? " Bỏ qua {$skipped} khách đã do người này phụ trách." : '');
+
+        return redirect()->back()->with('status', $message);
     }
 
     /** "10:30, hôm nay" / "Hôm qua" / "3 ngày trước" / "10:30, 01/09/2026" — cột Cập nhật gần nhất. */
@@ -639,6 +724,8 @@ class CrmController extends Controller
             'next' => $stages->manualNextStage($customer, $user),
             'backward' => $stages->backwardTargets($customer, $user),
             'canLose' => $user->can('lead.mark_lost') && ! $customer->isClosed() && $customer->stage !== CrmCustomer::STAGE_LOST,
+            'canReopen' => $customer->stage === CrmCustomer::STAGE_LOST && $stages->canReopen($user),
+            'canCancelClosing' => $stages->canCancelClosing($customer, $user),
             // Hủy buổi học thử đang chờ được ở mọi giai đoạn (kể cả sau khi chốt / thất bại).
             'canCancelTrial' => $stages->canMoveForward($user),
         ];
@@ -674,7 +761,9 @@ class CrmController extends Controller
 
         return Inertia::render('Crm/Customers/Show', $this->showProps($customer, $user, compact('placementTests', 'examiners', 'latestSubmission',
             'portalTestLink', 'canBookTrial', 'trialSlots', 'trialState', 'stageControls', 'histories', 'logType', 'rubric', 'statusCard',
-            'canReassign', 'reassignUsers', 'reassignBranches', 'editForm', 'unlinkedSubmissions', 'pendingTransfer')));
+            'canReassign', 'reassignUsers', 'reassignBranches', 'editForm', 'unlinkedSubmissions', 'pendingTransfer'))
+            // Breadcrumb "Khách hàng" quay về đúng danh sách đang lọc (vd "Cần gọi lại") thay vì danh sách trống bộ lọc.
+            + ['listUrl' => route('crm.customers.index', (array) $request->session()->get('crm.customers_query', []))]);
     }
 
     /**
@@ -750,6 +839,7 @@ class CrmController extends Controller
                 'next_follow_up_input' => $customer->next_follow_up_at?->format('Y-m-d\TH:i'),
                 'appointment_at' => $customer->appointment_at?->format('H:i, d/m/Y'),
                 'appointment_type' => $customer->appointment_type,
+                'appointment_at_passed' => (bool) $customer->appointment_at?->isPast(),
                 'assigned_test_id' => $customer->assigned_test_id,
                 'examiner_id' => $customer->examiner_id,
                 'assigned_test' => $customer->assignedTest ? [
@@ -1012,7 +1102,9 @@ class CrmController extends Controller
     protected function statusCardData(CrmCustomer $customer): array
     {
         $stageSince = $customer->histories->firstWhere('type', 'stage_change')?->created_at ?? $customer->created_at;
-        $lastContact = $customer->histories->whereIn('type', ['call', 'message', 'meet'])->first()?->created_at;
+        // Liên hệ gần nhất: chỉ lần liên hệ được (gọi không bắt máy không tính).
+        $lastContact = $customer->histories->whereIn('type', CrmCustomerHistory::CONTACT_TYPES)
+            ->first(fn (CrmCustomerHistory $h) => $h->outcome !== CrmCustomerHistory::OUTCOME_FAILED)?->created_at;
         $neglectDays = app(NotificationService::class)->neglectThresholdDays();
         $lastActivity = $customer->lastCareAt() ?? $customer->created_at;
 
@@ -1023,7 +1115,8 @@ class CrmController extends Controller
             'follow_up_status' => $customer->followUpStatus(),
             'follow_up_remaining' => $this->remainingLabel($customer->next_follow_up_at),
             'sla' => $customer->contactSlaPayload(),
-            'neglected' => in_array($customer->stage, CrmCustomer::ACTIVE_STAGES, true) && $lastActivity->lt(now()->subDays($neglectDays)),
+            'neglected' => in_array($customer->stage, CrmCustomer::ACTIVE_STAGES, true) && $lastActivity->lt(now()->subDays($neglectDays))
+                && ! $customer->activeFollowUpAppointment()?->isFuture(),
             'neglect_days' => $neglectDays,
         ];
     }
@@ -1091,9 +1184,10 @@ class CrmController extends Controller
     {
         $customer = $this->findScopedCustomer($id);
         $validated = $request->validate(['submission_id' => 'required|integer']);
-        $submission = PlacementTestSubmission::query()->whereNull('customer_id')->with('test')->find($validated['submission_id']);
+        // Chỉ gắn bài khớp SĐT / tên khách (danh sách gợi ý trên hồ sơ), không gắn bài bất kỳ theo mã.
+        $submission = $linker->candidatesFor($customer, PHP_INT_MAX)->firstWhere('id', $validated['submission_id']);
         if (! $submission) {
-            throw ValidationException::withMessages(['submission_id' => 'Bài test không tồn tại hoặc đã được gắn với khách khác.']);
+            throw ValidationException::withMessages(['submission_id' => 'Bài test không tồn tại, đã được gắn với khách khác, hoặc không khớp SĐT / tên khách.']);
         }
         if ($customer->stage === CrmCustomer::STAGE_LOST) {
             throw ValidationException::withMessages(['submission_id' => 'Khách Thất bại được lưu để đối soát, không gắn thêm bài test.']);
@@ -1284,6 +1378,28 @@ class CrmController extends Controller
             ->with('appointment_confirmation', $confirmation);
     }
 
+    /**
+     * Khách không đến làm test theo lịch: ghi nhật ký và bỏ lịch cũ để đặt lại (khách vẫn ở "Đã hẹn test").
+     */
+    public function testNoShow(Request $request, $id)
+    {
+        $customer = $this->findScopedCustomer($id);
+        if ($customer->stage !== 'test_scheduled' || ! $customer->appointment_at?->isPast()) {
+            throw ValidationException::withMessages(['appointment_at' => 'Chỉ ghi nhận vắng test khi lịch hẹn test đã qua.']);
+        }
+
+        $missed = $customer->appointment_at->format('H:i d/m/Y');
+        $customer->update(['appointment_at' => null]);
+        CrmCustomerHistory::create([
+            'customer_id' => $customer->id,
+            'user_id' => $request->user()->id,
+            'type' => 'test',
+            'content' => "Khách không đến làm test theo lịch hẹn lúc {$missed}.",
+        ]);
+
+        return redirect()->back()->with('status', 'Đã ghi nhận khách vắng test. Bấm "Đổi lịch / đề test" để hẹn lại.');
+    }
+
     /** @param  array{emailed: string|null}  $confirmation */
     private function confirmationNotice(array $confirmation): string
     {
@@ -1457,7 +1573,8 @@ class CrmController extends Controller
             'gender' => 'nullable|string|max:20',
             'address' => 'nullable|string|max:255',
             'school' => 'nullable|string|max:255',
-            'branch_id' => ['required', Rule::in($this->leadBranchOptions($request->user(), (int) $customer->branch_id)->pluck('id')->all())],
+            // Khách đã có chi nhánh: đổi chi nhánh chỉ qua "Phân công lại" (sang cơ sở khác cần Admin duyệt).
+            'branch_id' => $customer->branch_id ? 'nullable' : ['required', Rule::in($this->leadBranchOptions($request->user(), 0)->pluck('id')->all())],
             'course_interest' => 'nullable|string|max:255',
             'source' => 'required|string|max:255',
             'assigned_user_id' => ['nullable', Rule::exists('users', 'id')->whereNull('deleted_at')],
@@ -1478,6 +1595,9 @@ class CrmController extends Controller
             }
         }
 
+        if ($customer->branch_id) {
+            unset($validated['branch_id']);
+        }
         $validated['phone_normalized'] = $this->assertUniqueLead($validated['phone'], $validated['email'] ?? null, $customer->id);
         $this->assertValidParentPhone($validated['parent_phone'] ?? null);
         // Đổi người phụ trách đi riêng (có thể phải chuyển cơ sở, chờ Admin duyệt) sau khi lưu các trường khác.
@@ -1502,6 +1622,7 @@ class CrmController extends Controller
                 if ($changes !== []) {
                     $this->logCustomerChanges($customer, $changes, $request->user(), 'update', 'Sửa thông tin khách hàng');
                 }
+                $this->syncConvertedStudent($customer);
             });
         } catch (UniqueConstraintViolationException) {
             throw ValidationException::withMessages(['phone' => 'Số điện thoại hoặc email này vừa được phiên khác sử dụng. Vui lòng kiểm tra lại.']);
@@ -1512,6 +1633,24 @@ class CrmController extends Controller
             'Cập nhật thông tin khách hàng thành công!'.($pendingMessage ? ' '.$pendingMessage : ''),
             route('crm.customers.show', ['id' => $customer->id, 'tab' => 'info']),
         );
+    }
+
+    /** Thông tin liên hệ chép sang hồ sơ học viên lúc chốt: sửa trong CRM sau đó thì đồng bộ theo (cả tên tài khoản cổng học viên). */
+    private const STUDENT_SYNC_FIELDS = ['name', 'phone', 'parent_name', 'parent_phone', 'dob'];
+
+    protected function syncConvertedStudent(CrmCustomer $customer): void
+    {
+        $student = $customer->converted_student_id ? Student::find($customer->converted_student_id) : null;
+        if (! $student) {
+            return;
+        }
+        $student->fill($customer->only(self::STUDENT_SYNC_FIELDS));
+        if ($student->isDirty()) {
+            $student->save();
+            if ($student->wasChanged('name') && $student->user_id) {
+                User::whereKey($student->user_id)->update(['name' => $student->name]);
+            }
+        }
     }
 
     protected function fieldChanged(CrmCustomer $customer, string $field, mixed $new): bool
@@ -1603,6 +1742,63 @@ class CrmController extends Controller
                 'stage' => $customer->stage,
                 'stage_label' => $customer->stage_label,
             ]);
+        }
+
+        return redirect()->back()->with('status', $message);
+    }
+
+    /**
+     * Huỷ chốt (Admin): khách Chờ xếp lớp huỷ trước khi có lớp. Khách sang Thất bại, học viên sang Thôi học,
+     * phiếu thu chưa duyệt bị huỷ, phần học phí còn nợ được xoá; tiền đã thu lập sẵn hồ sơ hoàn phí chờ duyệt.
+     */
+    public function cancelClosing(Request $request, CrmStageService $stages, $id)
+    {
+        $customer = $this->findScopedCustomer($id);
+        abort_unless($stages->canCancelClosing($customer, $request->user()), 403, 'Chỉ Admin được huỷ chốt khách đang Chờ xếp lớp.');
+        $validated = $request->validate(['reason' => 'required|string|min:5|max:1000'], ['reason.required' => 'Vui lòng nhập lý do huỷ chốt.']);
+
+        $refund = DB::transaction(function () use ($customer, $stages, $request, $validated) {
+            $stages->cancelClosing($customer, $request->user(), $validated['reason']);
+            $student = $customer->convertedStudent()->with('tuition')->first();
+            if (! $student) {
+                return null;
+            }
+            $student->update([
+                'status' => Student::STATUS_DROPPED,
+                'notes' => trim(($student->notes ? $student->notes."\n" : '').'Huỷ chốt '.now()->format('d/m/Y').': '.$validated['reason']),
+            ]);
+            $tuition = $student->tuition;
+            if (! $tuition) {
+                return null;
+            }
+            $tuition->receipts()->whereIn('status', [TuitionReceipt::STATUS_DRAFT, TuitionReceipt::STATUS_PENDING])
+                ->update(['status' => TuitionReceipt::STATUS_CANCELLED]);
+            $tuition->recalculateDebt();
+            $original = (float) $tuition->final_amount;
+            // Bỏ phần còn nợ: học phí = phần đã thu, không còn bị nhắc nợ.
+            $tuition->update([
+                'final_amount' => (float) $tuition->paid_amount,
+                'notes' => trim(($tuition->notes ? $tuition->notes."\n" : '').'Huỷ chốt '.now()->format('d/m/Y').': học phí gốc '.Money::format($original).', bỏ phần còn nợ.'),
+            ]);
+            $tuition->recalculateDebt();
+
+            return (float) $tuition->paid_amount > 0 ? TuitionRefundRequest::create([
+                'student_id' => $student->id,
+                'type' => TuitionRefundRequest::TYPE_REFUND,
+                'total_paid' => $tuition->paid_amount,
+                'attended_lessons' => 0,
+                'admin_fee' => 0,
+                'refund_amount' => $tuition->paid_amount,
+                'reason' => 'Huỷ chốt trước khi xếp lớp: '.$validated['reason'],
+                'no_transfer_reason' => 'Khách huỷ đăng ký trước khi có lớp.',
+                'requester_id' => $request->user()->id,
+                'status' => 'pending',
+            ]) : null;
+        });
+
+        $message = "Đã huỷ chốt {$customer->name}: khách chuyển Thất bại".($customer->converted_student_id ? ', học viên chuyển Thôi học' : '').'.';
+        if ($refund) {
+            $message .= ' Đã lập hồ sơ hoàn '.Money::format($refund->refund_amount).' chờ duyệt ở mục Hoàn phí.';
         }
 
         return redirect()->back()->with('status', $message);
@@ -1952,7 +2148,7 @@ class CrmController extends Controller
             ->with('temporary_password', $temporaryPassword);
     }
 
-    public function addNote(Request $request, $id)
+    public function addNote(Request $request, CrmStageService $stages, $id)
     {
         $customer = $this->findScopedCustomer($id);
 
@@ -1963,8 +2159,11 @@ class CrmController extends Controller
             'outcome' => 'nullable|string|in:reached,failed',
             // Mockup Chi tiết khách — "Gửi kết quả & Phản hồi": ngày gửi KQ cho phụ huynh + phản hồi của phụ huynh.
             'sent_at' => 'required_if:type,result|nullable|date|before_or_equal:now',
+            // Hẹn liên hệ tiếp ngay trong form ghi nhật ký (không phải mở form sửa hồ sơ).
+            'next_follow_up_at' => 'nullable|date|after:now',
         ], [
             'content.required_unless' => 'Vui lòng nhập nội dung ghi chú.',
+            'next_follow_up_at.after' => 'Hẹn liên hệ tiếp phải sau thời điểm hiện tại.',
             'sent_at.required_if' => 'Vui lòng chọn ngày gửi kết quả cho phụ huynh.',
             'sent_at.before_or_equal' => 'Ngày gửi kết quả không được ở tương lai.',
         ]);
@@ -1986,9 +2185,18 @@ class CrmController extends Controller
         if ($isContact) {
             app(\App\Services\Sla\CrmSlaService::class)->checkFailedContacts($customer);
         }
+        $reached = $isContact && ($validated['outcome'] ?? CrmCustomerHistory::OUTCOME_REACHED) === CrmCustomerHistory::OUTCOME_REACHED;
+        if (filled($validated['next_follow_up_at'] ?? null)) {
+            $customer->update(['next_follow_up_at' => Carbon::parse($validated['next_follow_up_at'])]);
+        } elseif ($reached && $customer->next_follow_up_at?->lte(now())) {
+            // Liên hệ được sau lịch hẹn → lịch hẹn đã xong, bỏ để khách không còn "Quá hạn" / "Cần gọi lại".
+            $customer->update(['next_follow_up_at' => null]);
+        }
+        // Chủ dự án 16/10/2026: khách "Mới" liên hệ được lần đầu tự sang "Đang tư vấn" (kể cả Sales ghi), để Sales / Học vụ hẹn test tiếp.
+        $advanced = $reached && $stages->advanceTo($customer, 'consulting', $request->user(), 'Liên hệ được lần đầu ('.Str::lower(CrmCustomerHistory::FILTER_TYPES[$validated['type']]).').');
 
         return redirect()->route('crm.customers.show', $customer->id)
-            ->with('status', 'Đã lưu nhật ký chăm sóc thành công!');
+            ->with('status', $advanced ? 'Đã lưu nhật ký. Khách chuyển sang Đang tư vấn.' : 'Đã lưu nhật ký chăm sóc thành công!');
     }
 
     public function wonCustomers(Request $request)
@@ -2081,6 +2289,19 @@ class CrmController extends Controller
         ])->all();
 
         return $this->downloadTable('khach-chot-thanh-cong', ['Mã KH', 'Họ tên', 'SĐT', 'Phụ huynh', 'Cơ sở', 'Nguồn', 'Khóa đăng ký', 'Lớp', 'Giá trị HĐ', 'Đã thu (duyệt)', 'Còn nợ', 'Người phụ trách', 'Ngày chốt'], $rows, $format);
+    }
+
+    /** Chốt không thành (lỗi số hoá đơn, trùng…): xoá ảnh hoá đơn vừa tải, không để file mồ côi. */
+    private function cleanUploadOnFailure(?string $publicPath, callable $work): mixed
+    {
+        try {
+            return $work();
+        } catch (\Throwable $e) {
+            if ($publicPath && is_file(public_path($publicPath))) {
+                @unlink(public_path($publicPath));
+            }
+            throw $e;
+        }
     }
 
     /** Xuất bảng ra Excel (.xlsx) hoặc CSV (UTF-8 BOM) qua maatwebsite/excel. */
@@ -2320,7 +2541,7 @@ class CrmController extends Controller
             ? '/uploads/tuition/receipts/'.SafeUploadService::moveTo($request->file('paper_invoice_photo'), public_path('uploads/tuition/receipts'), ['jpg', 'jpeg', 'png', 'webp', 'pdf'], 'paper_invoice_photo')
             : null;
 
-        $result = DB::transaction(function () use ($request, $validated, $paidAmount, $prepaidAmount, $feePaid, $paymentMethod, $paperInvoiceNumber, $paperRange, $paperPhoto): array {
+        $result = $this->cleanUploadOnFailure($paperPhoto, fn () => DB::transaction(function () use ($request, $validated, $paidAmount, $prepaidAmount, $feePaid, $paymentMethod, $paperInvoiceNumber, $paperRange, $paperPhoto): array {
             $customer = $this->scopeCustomerQuery()->lockForUpdate()->findOrFail($validated['customer_id']);
 
             if ($customer->converted_student_id) {
@@ -2577,7 +2798,7 @@ class CrmController extends Controller
             }
 
             return [$student, $tuition, $temporaryPassword, false];
-        }, 3);
+        }, 3));
 
         [$student, $tuition, $temporaryPassword, $alreadyConverted] = $result;
         $message = $alreadyConverted

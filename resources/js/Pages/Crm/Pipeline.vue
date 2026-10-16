@@ -7,7 +7,7 @@
  * Bấm thẻ → hồ sơ khách đầy đủ; "Thêm khách mới" (cột Mới) mở modal.
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { Link, router } from '@inertiajs/vue3';
 import { toast } from '@/lib/toast';
 import { postJson } from '@/lib/http';
 import { can } from '@/lib/can';
@@ -324,6 +324,7 @@ onBeforeUnmount(() => window.removeEventListener('resize', onResize));
                                             <template v-if="stage.id === 'waiting_class'">
                                                 <UiButton v-if="canAssignClass" variant="secondary" size="sm" :href="route('crm.waiting-list')" icon="assignment_turned_in" class="w-full">Xếp lớp</UiButton>
                                             </template>
+                                            <p v-else-if="forwardTarget(stage) && lead.next_blocked" class="font-caption text-caption text-on-surface-variant" data-next-blocked>{{ lead.next_blocked }}</p>
                                             <UiButton
                                                 v-else-if="forwardTarget(stage)"
                                                 size="sm"
@@ -339,6 +340,13 @@ onBeforeUnmount(() => window.removeEventListener('resize', onResize));
                                     </div>
                                 </div>
                                 <p v-if="!stage.leads.length" class="px-xs py-md text-center font-caption text-caption text-on-surface-subtle">Chưa có khách</p>
+                                <Link
+                                    v-if="stage.hidden > 0"
+                                    :href="stage.more_url"
+                                    class="flex w-full items-center justify-center gap-xs rounded-lg border border-outline-variant py-sm font-body-small text-body-small font-semibold text-secondary hover:bg-surface-container-low"
+                                    data-kanban-more
+                                >Xem thêm {{ stage.hidden }} khách<span class="material-symbols-outlined text-[16px]">arrow_forward</span></Link>
+                                <p v-if="stage.id === 'won'" class="px-xs text-center font-caption text-caption text-on-surface-variant">Chỉ hiện khách chốt 30 ngày gần nhất hoặc chưa xác nhận. <Link :href="route('crm.customers.won')" class="underline">Xem tất cả</Link></p>
                             </div>
 
                             <a

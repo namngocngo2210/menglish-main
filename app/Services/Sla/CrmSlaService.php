@@ -74,8 +74,8 @@ class CrmSlaService
 
                     return;
                 }
-                $this->breaches->breach($event, "{$customer->code} {$customer->name}", [
-                    'Khách hàng' => "{$customer->code} — {$customer->name} ({$customer->phone})",
+                $this->breaches->breach($event, "{$customer->short_code} {$customer->name}", [
+                    'Khách hàng' => "{$customer->short_code} — {$customer->name} ({$customer->phone})",
                     'Thêm vào hệ thống lúc' => $customer->created_at->format('H:i d/m/Y'),
                     'Trạng thái hiện tại' => CrmCustomer::PIPELINE_STAGES[$customer->stage] ?? $customer->stage,
                     'Hoạt động hợp lệ đầu tiên' => $firstAt ? Carbon::parse($firstAt)->format('H:i d/m/Y') : 'Chưa có',
@@ -100,14 +100,14 @@ class CrmSlaService
                 $due = $submission->created_at->copy()->addHours($hours);
                 $event = $this->breaches->open('crm.test_result', 'placement_submission', $submission->id, $customer->assignedUser, $submission->created_at, $due, [
                     'title' => "Trả kết quả test đầu vào cho {$customer->name}",
-                    'description' => "Khách {$customer->code} đã nộp bài test lúc {$submission->created_at->format('H:i d/m/Y')}. Chấm / xác nhận điểm và ghi nhận \"Gửi kết quả\" cho phụ huynh trước {$due->format('H:i d/m/Y')}.",
+                    'description' => "Khách {$customer->short_code} đã nộp bài test lúc {$submission->created_at->format('H:i d/m/Y')}. Chấm / xác nhận điểm và ghi nhận \"Gửi kết quả\" cho phụ huynh trước {$due->format('H:i d/m/Y')}.",
                     'branch_id' => $customer->branch_id,
                 ], $opened);
                 $count += $opened ? 1 : 0;
 
                 $sentAt = $customer->histories()->where('type', 'result')->where('created_at', '>=', $submission->created_at)->min('created_at');
-                $this->settle($event, $sentAt ? Carbon::parse($sentAt) : null, $now, "{$customer->code} {$customer->name}", [
-                    'Khách hàng' => "{$customer->code} — {$customer->name}",
+                $this->settle($event, $sentAt ? Carbon::parse($sentAt) : null, $now, "{$customer->short_code} {$customer->name}", [
+                    'Khách hàng' => "{$customer->short_code} — {$customer->name}",
                     'Nộp bài test lúc' => $submission->created_at->format('H:i d/m/Y'),
                     'Đã gửi kết quả' => $sentAt ? Carbon::parse($sentAt)->format('H:i d/m/Y') : 'Chưa gửi',
                 ], route('crm.customers.show', $customer->id));
@@ -139,8 +139,8 @@ class CrmSlaService
 
                 $contactAt = $customer->histories()->counted()->whereIn('type', ['call', 'message', 'meet', 'result'])
                     ->where('created_at', '>=', $ends)->min('created_at');
-                $this->settle($event, $contactAt ? Carbon::parse($contactAt) : null, $now, "{$customer->code} {$customer->name}", [
-                    'Khách hàng' => "{$customer->code} — {$customer->name}",
+                $this->settle($event, $contactAt ? Carbon::parse($contactAt) : null, $now, "{$customer->short_code} {$customer->name}", [
+                    'Khách hàng' => "{$customer->short_code} — {$customer->name}",
                     'Lớp học thử' => (string) $booking->classModel?->name,
                     'Buổi học thử kết thúc lúc' => $ends->format('H:i d/m/Y'),
                     'Liên hệ phản hồi đầu tiên' => $contactAt ? Carbon::parse($contactAt)->format('H:i d/m/Y') : 'Chưa có',
@@ -161,15 +161,15 @@ class CrmSlaService
                 $due = $customer->converted_at->copy()->addHours($hours);
                 $event = $this->breaches->open('crm.tuition_followup', 'crm_customer', $customer->id, $customer->assignedUser, $customer->converted_at, $due, [
                     'title' => "Theo dõi thu học phí: {$customer->name}",
-                    'description' => "Khách {$customer->code} đã chốt lúc {$customer->converted_at->format('H:i d/m/Y')}. Theo dõi và thu đủ học phí trước {$due->format('H:i d/m/Y')}.",
+                    'description' => "Khách {$customer->short_code} đã chốt lúc {$customer->converted_at->format('H:i d/m/Y')}. Theo dõi và thu đủ học phí trước {$due->format('H:i d/m/Y')}.",
                     'branch_id' => $customer->branch_id,
                 ], $opened);
                 $count += $opened ? 1 : 0;
 
                 $tuition = $customer->convertedStudent?->tuition;
                 $paid = $tuition && (float) $tuition->paid_amount > 0 && (float) $tuition->debt_amount <= 0;
-                $this->settle($event, $paid ? $now : null, $now, "{$customer->code} {$customer->name}", [
-                    'Khách hàng' => "{$customer->code} — {$customer->name}",
+                $this->settle($event, $paid ? $now : null, $now, "{$customer->short_code} {$customer->name}", [
+                    'Khách hàng' => "{$customer->short_code} — {$customer->name}",
                     'Chốt lúc' => $customer->converted_at->format('H:i d/m/Y'),
                     'Còn nợ học phí' => $tuition ? Money::format($tuition->debt_amount) : 'Chưa có hồ sơ học phí',
                 ], route('crm.customers.show', $customer->id));
@@ -226,7 +226,7 @@ class CrmSlaService
         $owner = $customer->assignedUser;
         $event = $this->breaches->open('crm.failed_contacts', 'crm_failed_streak', $first->id, $owner, $first->created_at, $now->copy()->addDay(), [
             'title' => "Báo cáo liên hệ thất bại {$threshold} lần: {$customer->name}",
-            'description' => "Đã liên hệ {$customer->code} thất bại ".count($streak).' lần liên tiếp. Báo cáo nguyên nhân và hướng xử lý tiếp theo (đổi kênh, nhờ người thân, chuyển Thất bại…).',
+            'description' => "Đã liên hệ {$customer->short_code} thất bại ".count($streak).' lần liên tiếp. Báo cáo nguyên nhân và hướng xử lý tiếp theo (đổi kênh, nhờ người thân, chuyển Thất bại…).',
             'branch_id' => $customer->branch_id,
         ], $created);
         if (! $created) {
@@ -237,7 +237,7 @@ class CrmSlaService
             AdminNotification::create([
                 'user_id' => $user->id,
                 'type' => 'sla_breach',
-                'title' => "Cảnh báo: {$customer->code} liên hệ thất bại ".count($streak).' lần liên tiếp',
+                'title' => "Cảnh báo: {$customer->short_code} liên hệ thất bại ".count($streak).' lần liên tiếp',
                 'message' => "{$customer->name} ({$customer->phone}) — người phụ trách ".($owner?->name ?? 'chưa phân công').'.',
                 'data' => ['link' => route('crm.customers.show', $customer->id), 'sla_rule' => 'crm.failed_contacts'],
                 'is_read' => false,

@@ -25,7 +25,7 @@ use App\Models\User;
 use App\Models\WorkTask;
 use App\Services\Kpi\KpiAutoCounter;
 use App\Services\Reports\Concerns\BuildsReportItems;
-use App\Support\DataScope;
+use App\Support\DailyReportDue;
 use App\Support\ReportPeriod;
 use App\Support\Roles;
 use Illuminate\Database\Eloquent\Builder;
@@ -45,9 +45,6 @@ use Illuminate\Support\Str;
 class WeeklyReportMetrics
 {
     use BuildsReportItems;
-
-    /** Thứ 2 → thứ 7 là ngày phải nộp báo cáo ngày. */
-    public const REPORT_DAYS = 6;
 
     /** Mỗi bảng báo cáo tuần Học thuật nhận tối đa 50 dòng; gợi ý giữ dưới mức đó. */
     private const MAX_SUGGESTIONS = 30;
@@ -115,12 +112,15 @@ class WeeklyReportMetrics
         $teachers = User::whereIn('id', $sessions->flatMap(fn (ClassSession $s) => [$s->teacher_id, $s->foreign_teacher_id])->filter()->unique())
             ->orderBy('name')->get(['id', 'name']);
 
-        $leads = CrmCustomer::query()->visibleTo($this->user)->whereBetween('created_at', [$this->from, $this->to])->get(['id', 'source']);
+        $leads = CrmCustomer::query()->visibleTo($this->user)->whereBetween('created_at', [$this->from, $this->to])
+            ->when($this->reportBranchIds() !== [], fn (Builder $q) => $q->whereIn('branch_id', $this->reportBranchIds()))
+            ->get(['id', 'source']);
 
         $closed = CrmCustomerHistory::with('customer:id,name')
             ->where('type', 'stage_change')->whereIn('to_stage', CrmCustomer::CLOSED_STAGES)
             ->whereBetween('created_at', [$this->from, $this->to])
-            ->whereHas('customer', fn (Builder $c) => $c->visibleTo($this->user))
+            ->whereHas('customer', fn (Builder $c) => $c->visibleTo($this->user)
+                ->when($this->reportBranchIds() !== [], fn (Builder $b) => $b->whereIn('branch_id', $this->reportBranchIds())))
             ->get(['id', 'customer_id', 'to_stage', 'created_at'])
             ->unique('customer_id');
 
@@ -292,7 +292,7 @@ class WeeklyReportMetrics
     {
         return SupportTicket::where('category', 'facilities')
             ->whereBetween('created_at', [$this->from, $this->to])
-            ->when(! DataScope::isAll($this->user, 'class'), fn (Builder $q) => $q->whereHas('creator', fn (Builder $u) => $u->whereIn('branch_id', $this->user->branchIds())))
+            ->when($this->reportBranchIds() !== [], fn (Builder $q) => $q->whereHas('creator', fn (Builder $u) => $u->whereIn('branch_id', $this->reportBranchIds())))
             ->orderBy('created_at')->get(['id', 'code', 'title']);
     }
 
@@ -307,11 +307,10 @@ class WeeklyReportMetrics
         $reports = StaffReport::where('kind', 'daily_ops')->where('user_id', $this->user->id)
             ->whereBetween('period_key', [$this->from->toDateString(), $this->to->toDateString()])
             ->orderBy('period_key')->get(['id', 'period_key', 'data']);
-        $submitted = $reports->pluck('period_key')->all();
 
-        $due = collect(range(0, self::REPORT_DAYS - 1))->map(fn (int $d) => $this->from->copy()->addDays($d))
-            ->filter(fn (Carbon $d) => $d->lt(today()));
-        $missing = $due->reject(fn (Carbon $d) => in_array($d->toDateString(), $submitted, true))->map(fn (Carbon $d) => $d->format('d/m'))->values()->all();
+        // Ngày phải nộp: thứ Hai → thứ Bảy đã qua, trừ ngày lễ và nghỉ phép đã duyệt (DailyReportDue).
+        $due = DailyReportDue::requiredDays($this->user, $this->from, $this->to);
+        $missing = DailyReportDue::missingDays($this->user, $this->from, $this->to)->map(fn (Carbon $d) => $d->format('d/m'))->values()->all();
 
         $notes = collect(DailyReportMetrics::NOTE_LABELS)->map(fn (string $label, string $key) => [
             'key' => $key,
@@ -321,7 +320,7 @@ class WeeklyReportMetrics
         ])->filter(fn (array $n) => $n['lines'] !== [])->values()->all();
 
         return $this->daily = [
-            'submitted' => $reports->count(),
+            'submitted' => $due->count() - count($missing),
             'expected' => $due->count(),
             'missing' => $missing,
             'notes' => $notes,

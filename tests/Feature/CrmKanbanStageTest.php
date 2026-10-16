@@ -124,7 +124,10 @@ class CrmKanbanStageTest extends TestCase
         $customer->refresh();
         $this->assertEquals('consulting', $customer->stage);
 
-        // 2. Consulting → Hẹn test (đúng 1 bước kế tiếp)
+        // 2. Consulting → Hẹn test (đúng 1 bước kế tiếp): cần lịch hẹn test trước
+        $this->actingAs($this->cmUser)->json('POST', route('crm.customers.next-stage', $customer->id))->assertStatus(422);
+        $this->assertEquals('consulting', $customer->refresh()->stage);
+        $customer->update(['appointment_at' => now()->addDay()]);
         $res2 = $this->actingAs($this->cmUser)->json('POST', route('crm.customers.next-stage', $customer->id));
         $res2->assertStatus(200);
         $customer->refresh();

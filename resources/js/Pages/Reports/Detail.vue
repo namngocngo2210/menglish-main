@@ -6,8 +6,9 @@
  * form cũ trong từng khối, cùng bố cục (ô số + ghi chú chia 4/8); báo cáo tuần Học vụ:
  * bảng KPI + chỉ số quy mô + ghi chú (bản cũ: số đã nhập ở mọi mục, kể cả 0); báo cáo tuần Học thuật: 3 bảng; loại khác: nội dung chữ.
  */
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { route } from '@/lib/route';
+import { openRemoteModal } from '@/lib/remoteModal';
 import DailyMetric from './DailyMetric.vue';
 import WeeklyKpiTable from './WeeklyKpiTable.vue';
 import ReadonlyField from './ReadonlyField.vue';
@@ -19,7 +20,9 @@ const props = defineProps({
     notes: { type: Object, default: () => ({}) },
     noteLabels: { type: Object, default: () => ({}) },
     note: { type: String, default: null },
-    task: { type: Object, default: null },
+    tasks: { type: Array, default: () => [] },
+    canReview: { type: Boolean, default: false },
+    nextId: { type: Number, default: null },
     legacy: { type: Object, default: null },
     rows: { type: Object, default: () => ({}) },
     sections: { type: Object, default: () => ({}) },
@@ -35,6 +38,10 @@ const rowClass = (row) => (row.length < 2 ? '' : paired(row) ? 'md:grid-cols-12'
 const extraLegacy = computed(() =>
     Object.fromEntries(Object.entries(props.legacy?.sections ?? {}).filter(([key]) => !props.auto?.sections?.[key])),
 );
+// Kiểm tra liên tục (rà soát 16/10/2026 B11): "Đã kiểm tra" xong mở luôn báo cáo kế tiếp đang chờ; "Yêu cầu bổ sung" kèm nhận xét.
+const asking = ref(false);
+const openNext = () => props.nextId && openRemoteModal(route('reports.detail', props.nextId), { size: '5xl', history: true });
+const onReviewed = () => openNext();
 const cellClass = (row, name) => (paired(row) ? (field(name).type === 'text' ? 'md:col-span-8' : 'md:col-span-4') : '');
 </script>
 
@@ -44,14 +51,27 @@ const cellClass = (row, name) => (paired(row) ? (field(name).type === 'text' ? '
             <div class="flex flex-wrap items-center gap-sm">
                 <UiBadge color="primary" pill :dot="false">{{ report.type_label }}<template v-if="report.for"> · {{ report.for }}</template></UiBadge>
                 <UiBadge v-if="report.severity_label" color="neutral" pill :dot="false">{{ report.severity_label }}</UiBadge>
+                <UiBadge v-else-if="report.status === 'returned'" color="warning" pill>Đã yêu cầu bổ sung</UiBadge>
                 <UiBadge v-else-if="report.reviewed_at" color="success" pill>Đã kiểm tra</UiBadge>
                 <UiBadge v-else color="warning" pill>Chờ kiểm tra</UiBadge>
+                <UiBadge v-if="report.late" color="error" pill :title="`Hạn nộp ${report.deadline}`">Trễ</UiBadge>
                 <span class="font-body-small text-body-small text-on-surface-variant">
                     {{ formatDate(report.report_date) }} · <strong class="text-on-surface">{{ report.user }}</strong>
                     <template v-if="report.submitted_at"> · nộp lúc {{ formatDate(report.submitted_at, 'H:i d/m') }}</template>
+                    <template v-if="report.updated_at && report.updated_at !== report.submitted_at"> · sửa lúc {{ formatDate(report.updated_at, 'H:i d/m') }}</template>
                     <template v-if="report.reviewed_at"> · {{ report.reviewed_by ?? 'Admin' }} kiểm tra lúc {{ formatDate(report.reviewed_at, 'H:i d/m') }}</template>
                 </span>
             </div>
+            <UiAlert v-if="report.status === 'returned' && report.review_note" type="warning" title="Đã yêu cầu bổ sung">
+                <p class="whitespace-pre-line">{{ report.review_note }}</p>
+            </UiAlert>
+            <UiForm v-if="asking" :action="route('reports.request-changes', report.id)" method="post" stay class="space-y-sm rounded-xl border border-warning/40 bg-surface-container-low p-md" data-request-changes-form @success="asking = false">
+                <UiTextarea name="note" label="Cần bổ sung gì?" required :rows="3" placeholder="Vd: Thiếu ghi chú lớp K26 nghỉ đột xuất, bổ sung lý do và hướng xử lý." />
+                <div class="flex justify-end gap-sm">
+                    <UiButton type="button" variant="ghost" size="sm" @click="asking = false">Thôi</UiButton>
+                    <UiButton type="submit" size="sm" icon="send">Gửi cho {{ report.user }}</UiButton>
+                </div>
+            </UiForm>
             <p v-if="auto?.computed_at" class="font-body-small text-body-small text-on-surface-variant" data-computed-at>
                 <span class="material-symbols-outlined align-middle text-[16px]" aria-hidden="true">sync</span>
                 Số liệu hệ thống tính lúc {{ formatDate(auto.computed_at, 'H:i d/m/Y') }}
@@ -99,12 +119,13 @@ const cellClass = (row, name) => (paired(row) ? (field(name).type === 'text' ? '
                     <h3 class="flex items-center gap-xs font-h3 text-h3 text-on-surface">
                         <span class="material-symbols-outlined text-primary-container" aria-hidden="true">assignment_turned_in</span>Task follow-up
                     </h3>
-                    <div v-if="task" class="grid grid-cols-1 gap-lg md:grid-cols-3">
+                    <div v-for="task in tasks" :key="task.id" class="grid grid-cols-1 gap-lg md:grid-cols-4">
                         <ReadonlyField label="Việc đã tạo" :value="task.title" />
                         <ReadonlyField label="Người phụ trách (PIC)" :value="task.assignee" />
-                        <ReadonlyField label="Ngày giải quyết" :value="task.due_date ? formatDate(task.due_date, 'd/m/Y') : null" />
+                        <ReadonlyField label="Hạn xử lý" :value="task.due_date ? formatDate(task.due_date, 'd/m/Y') : null" />
+                        <ReadonlyField label="Trạng thái" :value="task.status_label" />
                     </div>
-                    <p v-else class="font-body-small text-body-small italic text-on-surface-variant">Không tạo task.</p>
+                    <p v-if="!tasks.length" class="font-body-small text-body-small italic text-on-surface-variant">Không tạo task.</p>
                 </section>
             </template>
 
@@ -229,5 +250,16 @@ const cellClass = (row, name) => (paired(row) ? (field(name).type === 'text' ? '
                 </ul>
             </section>
         </div>
+
+        <template v-if="(canReview && report.reviewable) || nextId" #footer>
+            <template v-if="canReview && report.reviewable">
+                <UiButton v-if="!asking && report.status !== 'returned'" type="button" variant="secondary" icon="assignment_return" data-request-changes @click="asking = true">Yêu cầu bổ sung</UiButton>
+                <UiForm v-if="!report.reviewed_at" :action="route('reports.review', report.id)" method="post" stay @success="onReviewed">
+                    <input type="hidden" name="reviewed" value="1" />
+                    <UiButton type="submit" icon="fact_check" data-detail-review>{{ nextId ? 'Đã kiểm tra, sang báo cáo kế tiếp' : 'Đã kiểm tra' }}</UiButton>
+                </UiForm>
+            </template>
+            <UiButton v-if="nextId" type="button" variant="ghost" icon="arrow_forward" data-detail-next @click="openNext">Kế tiếp</UiButton>
+        </template>
     </UiModalFrame>
 </template>

@@ -60,7 +60,7 @@ const w = reactive({
     courseName: defaultClass?.course_name ?? defaultCourse?.name ?? '',
     classId: defaultClass ? String(defaultClass.id) : '',
     assignLater: props.classes.length === 0,
-    feePaid: true,
+    feePaid: false, // Mặc định chưa thu: người chốt tự tick khi đã nhận tiền, tránh tạo phiếu thu nhầm.
     className: defaultClass?.name ?? '',
     classBranchId: String(defaultClass?.branch_id ?? ''),
     courseId: String(props.defaultCourseId ?? ''),
@@ -69,7 +69,7 @@ const w = reactive({
     otherFees: 0,
     feeItems: [],
     prepaidAmount: 0,
-    paidAmount: defaultTuition,
+    paidAmount: 0,
     selectedPromotionId: '',
     // Người dùng đã tự chọn / bỏ ưu đãi → không tự đổi sang ưu đãi mặc định khi đổi lớp / khóa nữa.
     promoTouched: false,

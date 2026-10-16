@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Http\Controllers\StaffReportController;
 use App\Models\AdminNotification;
+use App\Models\StaffReport;
 use App\Models\User;
 use App\Support\MonthlyReportDue;
 use App\Support\StaffType;
@@ -13,6 +14,7 @@ use Illuminate\Support\Carbon;
 /**
  * Nhắc nộp báo cáo giảng dạy tháng (GV / trợ giảng — kỳ báo cáo "monthly"): hạn là Chủ nhật cuối tháng;
  * nhắc vào 3 ngày trước, 1 ngày trước và đúng ngày hạn cho người CHƯA nộp báo cáo tháng này.
+ * Người kiêm giáo viên (Học vụ / Học thuật có lớp dạy) cũng được nhắc báo cáo tháng giáo viên (rà soát 16/10/2026).
  * Chỉ nhắc, không có phạt. Idempotent theo (người, tháng, loại nhắc): chạy lại cùng ngày không tạo trùng.
  */
 class RemindMonthlyReportsCommand extends Command
@@ -43,10 +45,14 @@ class RemindMonthlyReportsCommand extends Command
 
         User::query()->where('is_active', true)->with('roles')->orderBy('id')->chunkById(200, function ($users) use ($today, $due, $kind, $month, &$count) {
             foreach ($users as $user) {
-                if (StaffType::reportCadence($user) !== 'monthly') {
-                    continue;
-                }
-                if (StaffReportController::submittedCurrentPeriod($user, $today)) {
+                // Người kiêm giáo viên (Học vụ / Học thuật dạy lớp) có kỳ chính khác tháng nhưng vẫn phải nộp báo cáo tháng giáo viên.
+                $teaches = in_array('teacher_monthly', StaffType::structuredReports($user), true);
+                if (StaffType::reportCadence($user) === 'monthly') {
+                    if (StaffReportController::submittedCurrentPeriod($user, $today)) {
+                        continue;
+                    }
+                } elseif (! $teaches || StaffReport::where('user_id', $user->id)->where('kind', 'teacher_monthly')
+                    ->where('period_key', $month)->where('status', 'submitted')->exists()) {
                     continue;
                 }
                 $exists = AdminNotification::where('user_id', $user->id)->where('type', 'monthly_report_due')
@@ -60,7 +66,7 @@ class RemindMonthlyReportsCommand extends Command
                     'type' => 'monthly_report_due',
                     'title' => 'Nhắc nộp báo cáo giảng dạy tháng '.$today->format('m/Y'),
                     'message' => 'Hạn nộp: Chủ nhật '.$due->format('d/m').' ('.self::LABELS[$kind].'). Bạn chưa nộp báo cáo tháng này.',
-                    'data' => ['month' => $month, 'kind' => $kind, 'due' => $due->toDateString(), 'link' => route('reports.my')],
+                    'data' => ['month' => $month, 'kind' => $kind, 'due' => $due->toDateString(), 'link' => $teaches ? route('reports.periodic.teacher-monthly', ['month' => $month]) : route('reports.my')],
                     'is_read' => false,
                 ]);
                 $count++;

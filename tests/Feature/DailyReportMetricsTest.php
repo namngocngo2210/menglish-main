@@ -131,7 +131,7 @@ class DailyReportMetricsTest extends TestCase
         StaffReport::create(['user_id' => $staff->id, 'class_id' => $this->class->id, 'type' => 'journal', 'title' => 'Sự vụ',
             'content' => 'Phụ huynh bé Bình phản ánh giờ tan học', 'report_date' => $today]);
 
-        $this->actingAs($staff)->get(route('reports.periodic.daily'))->assertOk()
+        $this->actingAs($staff)->get(route('reports.periodic.daily', ['date' => $today]))->assertOk()
             ->assertInertia(function (AssertableInertia $page) {
                 $page->component('Reports/DailyOps')->where('live', true)->has('sections', 3)->where('notes', [])
                     ->where('sections', function ($sections) {
@@ -153,14 +153,14 @@ class DailyReportMetricsTest extends TestCase
                     });
             });
 
-        // Số liệu gửi kèm từ trình duyệt bị bỏ qua; chỉ ghi chú là nhập tay. Bật Tạo Task thiếu ngày giải quyết → lỗi.
-        $this->actingAs($staff)->post(route('reports.periodic.daily.store'), ['date' => $today, 'task' => ['enabled' => 1]])
-            ->assertSessionHasErrors('task.due_date');
+        // Số liệu gửi kèm từ trình duyệt bị bỏ qua; chỉ ghi chú là nhập tay. Task thiếu hạn xử lý → lỗi.
+        $this->actingAs($staff)->post(route('reports.periodic.daily.store'), ['date' => $today, 'tasks' => [['title' => 'Kê thêm bàn']]])
+            ->assertSessionHasErrors('tasks.0.due_date');
         $this->actingAs($staff)->post(route('reports.periodic.daily.store'), [
             'date' => $today,
             'fields' => ['classes_planned' => 99],
             'notes' => ['operations' => 'Lớp ST1 cần thêm bàn', 'media' => 'Đăng bài khai giảng https://fb.com/p/1', 'other' => 'bỏ qua'],
-            'task' => ['enabled' => 1, 'due_date' => $today, 'assignee_id' => ''],
+            'tasks' => [['title' => 'Kê thêm bàn ST1', 'content' => 'Lớp ST1 cần thêm 2 bàn', 'due_date' => $today, 'assignee_id' => '']],
         ])->assertSessionHasNoErrors()->assertRedirect(route('reports.periodic.daily', ['date' => $today]));
 
         $report = StaffReport::where('kind', 'daily_ops')->sole();
@@ -169,7 +169,7 @@ class DailyReportMetricsTest extends TestCase
         $this->assertSame(['operations' => 'Lớp ST1 cần thêm bàn', 'media' => 'Đăng bài khai giảng https://fb.com/p/1'], $report->data['notes']);
         $this->assertStringContainsString('Số lớp thực tế: 1', $report->content);
         $this->assertStringContainsString('- Ghi chú: Lớp ST1 cần thêm bàn', $report->content);
-        $this->assertStringContainsString('Tổng tiền: 2.000.000đ', WorkTask::sole()->description);
+        $this->assertStringContainsString('Lớp ST1 cần thêm 2 bàn', WorkTask::sole()->description);
 
         // Dữ liệu gốc đổi sau khi nộp: báo cáo vẫn giữ số lúc nộp, "Cập nhật số liệu" (refresh) mới tính lại.
         $late = $this->class->replicate()->fill(['name' => 'Lớp ST3', 'code' => 'ST3']);
@@ -180,10 +180,17 @@ class DailyReportMetricsTest extends TestCase
                 ->where('sections.operations.items.0.value', '2'));
         $this->actingAs($staff)->get(route('reports.periodic.daily', ['date' => $today, 'refresh' => 1]))
             ->assertInertia(fn (AssertableInertia $page) => $page->where('live', true)->where('sections.operations.items.0.value', '3'));
+        // Sửa ghi chú (không bấm "Cập nhật số liệu") giữ nguyên số đã chụp; Lưu sau khi cập nhật (refresh=1) mới ghi số mới.
+        $this->actingAs($staff)->post(route('reports.periodic.daily.store'), ['date' => $today, 'notes' => ['operations' => 'Sửa chính tả']]);
+        $this->assertSame(2, $report->fresh()->data['fields']['classes_planned']);
+        $this->assertSame('2', $report->fresh()->data['auto']['sections']['operations']['items'][0]['value']);
+        $this->actingAs($staff)->post(route('reports.periodic.daily.store'), ['date' => $today, 'refresh' => 1, 'notes' => ['operations' => 'Sửa chính tả']]);
+        $this->assertSame(3, $report->fresh()->data['fields']['classes_planned']);
+        $this->assertSame(1, WorkTask::count());
 
         // Tổng quan Học thuật vẫn đọc được số chính từ `fields`.
         $this->actingAs($this->makeUser('admin'))->get(route('academic.reports', ['tab' => 'daily']))->assertOk()
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('staffDailyReports.0.classes', '1 / 2'));
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('staffDailyReports.0.classes', '1 / 3'));
     }
 
     public function test_legacy_manual_daily_report_still_shows_its_typed_values(): void
@@ -210,7 +217,7 @@ class DailyReportMetricsTest extends TestCase
         MaterialOrder::create(['code' => 'OD-1', 'branch_id' => $this->branch->id, 'class_id' => $this->class->id, 'requester_id' => $this->teacher->id,
             'category' => MaterialOrder::CATEGORY_ACADEMIC, 'title' => 'Flashcard Unit 3', 'quantity' => 1, 'use_date' => today()->addDays(2), 'due_at' => now()->addDay(), 'status' => 'pending']);
 
-        $this->actingAs($lead)->get(route('reports.periodic.daily'))->assertOk()
+        $this->actingAs($lead)->get(route('reports.periodic.daily', ['date' => today()->toDateString()]))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->where('audience', 'Học thuật')
                 ->where('sections', function ($sections) {
                     $sections = collect($sections)->all();

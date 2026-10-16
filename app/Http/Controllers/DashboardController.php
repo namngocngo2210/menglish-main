@@ -18,6 +18,7 @@ use App\Models\TuitionReceipt;
 use App\Models\User;
 use App\Models\WorkTask;
 use App\Support\Approvals\ApprovalInboxService;
+use App\Support\DailyReportDue;
 use App\Support\Dashboard\MyWorkBoard;
 use App\Support\Dashboard\TeachingQuality;
 use App\Support\DataScope;
@@ -81,8 +82,42 @@ class DashboardController extends Controller
                 'tasksUrl' => $user->can('work_task.view') ? route('portal.ta-tasks') : null,
             ],
             'roleDashboard' => $roleDashboard,
+            'dailyReport' => $this->dailyReport($user),
             'teaching' => $this->teaching($user, $request->input('month'), $canOpen),
         ]);
+    }
+
+    /**
+     * Thẻ "Báo cáo ngày" cho Học vụ / Học thuật (rà soát 16/10/2026 B3): ngày còn thiếu trong 14 ngày qua, báo cáo Admin yêu cầu
+     * bổ sung, và hôm nay đã nộp chưa; mỗi mục có link mở thẳng ngày đó.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function dailyReport(User $user): ?array
+    {
+        if (! $user->can('staff_report.submit') || ! DailyReportDue::appliesTo($user)) {
+            return null;
+        }
+        $link = fn (string $date) => route('reports.periodic.daily', ['date' => $date]);
+        $missing = DailyReportDue::missingDays($user, today()->subDays(14), today()->subDay())->reverse()->values();
+        $returned = StaffReport::where('user_id', $user->id)->where('kind', 'daily_ops')->where('status', 'returned')
+            ->orderByDesc('report_date')->get(['report_date', 'review_note']);
+
+        return [
+            'missing' => $missing->map(fn ($d) => [
+                'label' => $d->format('d/m'),
+                'href' => $link($d->toDateString()),
+                'deadline' => DailyReportDue::deadline($d)->format('H:i d/m'),
+                'overdue' => DailyReportDue::deadline($d)->isPast(),
+            ])->all(),
+            'returned' => $returned->map(fn (StaffReport $r) => [
+                'label' => $r->report_date->format('d/m'),
+                'href' => $link($r->report_date->toDateString()),
+                'note' => $r->review_note,
+            ])->all(),
+            'todaySubmitted' => isset(DailyReportDue::submittedDates($user, today(), today())[today()->toDateString()]),
+            'todayHref' => $link(today()->toDateString()),
+        ];
     }
 
     /**

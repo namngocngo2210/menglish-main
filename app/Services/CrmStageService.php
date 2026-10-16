@@ -6,6 +6,7 @@ use App\Exceptions\CrmStageTransitionException;
 use App\Models\CrmCustomer;
 use App\Models\CrmCustomerHistory;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Nguồn luật duy nhất cho giai đoạn Lead CRM (BA chốt 2026-09-25).
@@ -15,8 +16,10 @@ use App\Models\User;
  * - move(): thao tác tay (Kanban / nút trong hồ sơ).
  *     + CM (admin, manager, academic_staff) chỉ chuyển TIẾN đúng 1 bước. Sales không đổi giai đoạn.
  *     + Chờ xếp lớp / Đã chốt chỉ đạt được qua luồng Chốt & Xếp lớp / Gán lớp, không kéo tay.
- *     + Lùi bước: chỉ Admin, bắt buộc lý do. Không "hủy chốt": lead đã chốt không lùi, không sang thất bại.
- *     + Thất bại: chỉ lead chưa chốt, bắt buộc lý do; lead thất bại không bao giờ mở lại.
+ *     + Lùi bước: chỉ Admin, bắt buộc lý do. Lead đã chốt không lùi, không sang thất bại.
+ *     + Hẹn test / Đã test không kéo tay khi thiếu dữ liệu: cần lịch hẹn test / điểm test (forwardBlockReason).
+ *     + Huỷ chốt: chỉ Admin, chỉ khách Chờ xếp lớp (gia đình huỷ trước khi có lớp) — cancelClosing().
+ *     + Thất bại: chỉ lead chưa chốt, bắt buộc lý do. Khách Thất bại quay lại: CM "Mở lại" về Đang tư vấn, bắt buộc lý do.
  * - advanceTo(): hook tự động cho các luồng nghiệp vụ (mở link test → testing, chấm xong → tested,
  *   hẹn test, chốt, gán lớp). Chỉ đi tiến; trả về false (no-op) nếu không áp dụng được.
  *
@@ -24,6 +27,9 @@ use App\Models\User;
  */
 class CrmStageService
 {
+    /** Khách Thất bại được mở lại về bước này. */
+    public const REOPEN_STAGE = 'consulting';
+
     /**
      * Nguồn hợp lệ cho các bước chuyển tự động: stage đích => stage nguồn.
      * testing/tested chấp nhận nguồn sớm hơn vì thí sinh có thể làm bài khi chưa hẹn (link / offline).
@@ -63,6 +69,16 @@ class CrmStageService
      */
     public function move(CrmCustomer $customer, string $stage, User $user, ?string $reason = null): void
     {
+        // Khoá dòng khách: hai người cùng bấm chuyển giai đoạn thì người sau thấy giai đoạn mới, không ghi lịch sử trùng.
+        DB::transaction(function () use ($customer, $stage, $user, $reason) {
+            $customer->stage = CrmCustomer::whereKey($customer->id)->lockForUpdate()->value('stage') ?? $customer->stage;
+            $customer->syncOriginalAttribute('stage');
+            $this->moveLocked($customer, $stage, $user, $reason);
+        });
+    }
+
+    private function moveLocked(CrmCustomer $customer, string $stage, User $user, ?string $reason): void
+    {
         $from = $customer->stage;
         $reason = $reason !== null ? trim($reason) : null;
 
@@ -70,7 +86,19 @@ class CrmStageService
             return;
         }
         if ($from === CrmCustomer::STAGE_LOST) {
-            throw new CrmStageTransitionException('Lead đã thất bại được lưu để đối soát, không thể mở lại.');
+            // Chủ dự án 16/10/2026: khách Thất bại quay lại thì Học vụ / Quản lý / Admin "Mở lại" về Đang tư vấn (bắt buộc lý do).
+            if ($stage !== self::REOPEN_STAGE) {
+                throw new CrmStageTransitionException('Khách Thất bại chỉ mở lại được về bước '.CrmCustomer::stageLabel(self::REOPEN_STAGE).'.');
+            }
+            if (! $this->canReopen($user)) {
+                throw CrmStageTransitionException::forbidden('Chỉ Học vụ / Quản lý cơ sở / Admin được mở lại khách Thất bại.');
+            }
+            if (! $reason) {
+                throw new CrmStageTransitionException('Vui lòng nhập lý do mở lại khách.');
+            }
+            $this->apply($customer, $stage, $user, $reason, ['lost_at' => null, 'lost_reason' => null]);
+
+            return;
         }
         // Đánh dấu Thất bại theo quyền riêng lead.mark_lost (có cả Sales — chủ dự án chốt 27/09/2026);
         // các bước pipeline khác vẫn chỉ Học vụ / Quản lý / Admin.
@@ -123,6 +151,9 @@ class CrmStageService
         if ($toIndex !== $fromIndex + 1) {
             throw new CrmStageTransitionException('Chỉ được chuyển tiến 1 bước: '.CrmCustomer::stageLabel($from).' → '.CrmCustomer::stageLabel($this->nextStage($from)).'.');
         }
+        if ($blocked = $this->forwardBlockReason($customer, $stage)) {
+            throw new CrmStageTransitionException($blocked);
+        }
 
         $this->apply($customer, $stage, $user, $reason ?: null);
     }
@@ -141,8 +172,38 @@ class CrmStageService
         $next = $this->nextStage($customer->stage);
 
         return $this->canMoveForward($user) && $next && ! in_array($next, CrmCustomer::CLOSED_STAGES, true)
+            && ! $this->forwardBlockReason($customer, $next)
             ? $next
             : null;
+    }
+
+    /**
+     * Bước cần dữ liệu thật: "Hẹn test" cần lịch hẹn, "Đã test" cần điểm. Không chuyển tay khi thiếu,
+     * tránh khách chốt với điểm đầu vào "Chưa test". Trả về lời nhắc thao tác đúng, hoặc null nếu được chuyển.
+     */
+    public function forwardBlockReason(CrmCustomer $customer, string $stage): ?string
+    {
+        return match (true) {
+            $stage === 'test_scheduled' && ! $customer->appointment_at => 'Chưa có lịch hẹn test. Bấm "Hẹn test" trong tab Vận hành, khách tự chuyển sang Đã hẹn test.',
+            $stage === 'tested' && blank($customer->test_score) => 'Chưa có điểm test. Nhập điểm test đầu vào, khách tự chuyển sang Đã test.',
+            default => null,
+        };
+    }
+
+    /** Huỷ chốt (gia đình huỷ trước khi có lớp): chỉ Admin, chỉ khách Chờ xếp lớp. */
+    public function canCancelClosing(CrmCustomer $customer, User $user): bool
+    {
+        return $customer->stage === 'waiting_class' && $this->canMoveBackward($user);
+    }
+
+    /** Khách Chờ xếp lớp huỷ: chuyển Thất bại kèm lý do "Huỷ chốt" (học viên / học phí do CrmController xử lý cùng giao dịch). */
+    public function cancelClosing(CrmCustomer $customer, User $user, string $reason): void
+    {
+        if (! $this->canCancelClosing($customer, $user)) {
+            throw CrmStageTransitionException::forbidden('Chỉ Admin được huỷ chốt, và chỉ với khách đang Chờ xếp lớp.');
+        }
+        $reason = 'Huỷ chốt: '.trim($reason);
+        $this->apply($customer, CrmCustomer::STAGE_LOST, $user, $reason, ['lost_reason' => mb_substr($reason, 0, 255), 'lost_at' => now(), 'waiting_since' => null]);
     }
 
     /** Các bước Admin có thể lùi về (rỗng nếu lead đã chốt / thất bại). */
@@ -154,6 +215,12 @@ class CrmStageService
         $index = $this->indexOf($customer->stage) ?? 0;
 
         return array_slice(array_keys(CrmCustomer::PIPELINE_STAGES), 0, $index);
+    }
+
+    /** Mở lại khách Thất bại (cùng quyền chuyển tiến giai đoạn). */
+    public function canReopen(User $user): bool
+    {
+        return $this->canMoveForward($user);
     }
 
     /** CM chuyển tiến từng bước (lead.stage_forward — mặc định Admin, Quản lý cơ sở, Học vụ). */

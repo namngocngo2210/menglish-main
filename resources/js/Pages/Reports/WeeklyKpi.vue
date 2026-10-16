@@ -8,6 +8,8 @@ import { router } from '@inertiajs/vue3';
 import { route } from '@/lib/route';
 import ReportTabs from './ReportTabs.vue';
 import ReportHistory from './ReportHistory.vue';
+import ReportReviewState from './ReportReviewState.vue';
+import { useNoteDraft } from './useNoteDraft';
 import DailyMetric from './DailyMetric.vue';
 import WeeklyKpiTable from './WeeklyKpiTable.vue';
 
@@ -23,13 +25,17 @@ const props = defineProps({
     computedAt: { type: String, default: null },
     live: { type: Boolean, default: true },
     note: { type: String, default: null },
+    draftKey: { type: String, default: 'report-draft:weekly-kpi' },
+    review: { type: Object, default: null },
     legacy: { type: Array, default: () => [] },
     submittedAt: { type: String, default: null },
     history: { type: Array, default: () => [] },
 });
 
 const pickWeek = (value) => value && value !== props.week && router.get(route('reports.periodic.weekly-kpi'), { week: value });
-const refresh = () => router.get(route('reports.periodic.weekly-kpi'), { week: props.week, refresh: 1 }, { preserveScroll: true });
+// Giữ nguyên ghi chú đang gõ, chỉ thay số liệu (rà soát 16/10/2026 B5); ghi chú còn lưu nháp trên máy khi đổi tuần.
+const refresh = () => router.get(route('reports.periodic.weekly-kpi'), { week: props.week, refresh: 1 }, { preserveScroll: true, preserveState: true });
+const { notes: draft, restored, discard, clear } = useNoteDraft(props.draftKey, { note: props.note ?? '' });
 </script>
 
 <template>
@@ -54,12 +60,18 @@ const refresh = () => router.get(route('reports.periodic.weekly-kpi'), { week: p
 
     <ReportTabs :tabs="tabs" />
 
-    <UiForm id="weekly-kpi-form" :action="route('reports.periodic.weekly-kpi.store')" method="post" class="space-y-lg">
+    <UiForm id="weekly-kpi-form" :action="route('reports.periodic.weekly-kpi.store')" method="post" class="space-y-lg" @success="clear">
         <input type="hidden" name="week" :value="week" />
+        <input type="hidden" name="refresh" :value="live && submittedAt ? 1 : 0" />
+        <ReportReviewState :review="review" />
         <UiAlert v-if="submittedAt" type="info">
             Đã nộp tuần này lúc {{ formatDate(submittedAt, 'H:i d/m/Y') }}.
-            <template v-if="!live">Số liệu bên dưới là số lúc nộp.</template>
-            <template v-else>Số liệu bên dưới vừa được tính lại, bấm Lưu để cập nhật báo cáo.</template>
+            <template v-if="!live">Số liệu bên dưới là số lúc nộp, sửa ghi chú không làm đổi số.</template>
+            <template v-else>Số liệu bên dưới vừa được tính lại, bấm Lưu để cập nhật báo cáo bằng số mới.</template>
+        </UiAlert>
+        <UiAlert v-if="restored" type="info">
+            Đã khôi phục ghi chú bạn gõ trên máy này nhưng chưa lưu.
+            <button type="button" class="ml-xs font-semibold underline" @click="discard">Bỏ bản nháp</button>
         </UiAlert>
 
         <div class="flex flex-wrap items-center justify-between gap-sm">
@@ -117,7 +129,7 @@ const refresh = () => router.get(route('reports.periodic.weekly-kpi'), { week: p
                     </ul>
                 </div>
             </div>
-            <UiTextarea name="note" label="Ghi chú tuần" :rows="3" placeholder="Tổng kết tuần, việc cần lưu ý tuần tới..." :value="note" />
+            <UiTextarea v-model="draft.note" name="note" label="Ghi chú tuần" :rows="3" placeholder="Tổng kết tuần, việc cần lưu ý tuần tới..." />
         </section>
 
         <div class="flex justify-end">

@@ -184,6 +184,14 @@ const notice = computed(() => {
                                     <template v-if="c.per_month && periodMonths > 1"> · tính từng tháng, lấy trung bình quý</template>
                                 </p>
                                 <p v-if="c.cap" class="font-caption text-caption font-medium text-error">Có order giao sau giờ dùng: mục tối đa 50%, tháng không xếp loại A</p>
+                                <div v-if="c.suggestion" class="mt-xs flex flex-wrap items-center gap-x-sm gap-y-0.5 font-caption text-caption text-on-surface-variant" data-kpi-journal-suggestion>
+                                    <span>Nhật ký sự vụ trong kỳ: <strong class="text-on-surface">{{ c.suggestion.count }} lần</strong></span>
+                                    <button v-if="canDecide && c.count_based && !isNa(c) && values[c.id] !== String(c.suggestion.count)" type="button" class="font-medium text-primary hover:underline" @click="values[c.id] = String(c.suggestion.count)">Điền {{ c.suggestion.count }}</button>
+                                    <button v-if="c.suggestion.evidence.length" type="button" class="font-medium text-primary hover:underline" @click="openEvidence['j' + c.id] = !openEvidence['j' + c.id]">{{ openEvidence['j' + c.id] ? 'Ẩn' : 'Xem' }}</button>
+                                </div>
+                                <ul v-if="c.suggestion && openEvidence['j' + c.id]" class="mt-xs space-y-0.5 rounded-lg bg-surface-container-low px-sm py-xs font-caption text-caption text-on-surface-variant">
+                                    <li v-for="(e, i) in c.suggestion.evidence" :key="i">{{ e.date }} · {{ e.text }}</li>
+                                </ul>
                                 <template v-if="c.auto && c.evidence.length">
                                     <button type="button" class="mt-xs font-caption text-caption font-medium text-primary hover:underline" @click="openEvidence[c.id] = !openEvidence[c.id]">
                                         {{ openEvidence[c.id] ? 'Ẩn' : 'Xem' }} {{ c.evidence.length }} bản ghi

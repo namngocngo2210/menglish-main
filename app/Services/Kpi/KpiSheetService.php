@@ -4,6 +4,7 @@ namespace App\Services\Kpi;
 
 use App\Models\KpiCriterion;
 use App\Models\KpiEvaluation;
+use App\Models\StaffReport;
 use App\Models\User;
 use App\Support\Roles;
 use App\Support\StaffType;
@@ -160,7 +161,12 @@ class KpiSheetService
         $weightTotal = (float) $criteria->sum('weight');
         $monthKeys = collect(range(0, $period['months'] - 1))->map(fn ($i) => $period['from']->copy()->addMonths($i)->format('Y-m'));
 
-        $lines = $criteria->map(function (KpiCriterion $c) use ($items, $frozen, $staff, $period, $fund, $weightTotal, $monthKeys) {
+        // Mục KPI nhập tay có mã: gợi ý số lần từ nhật ký sự vụ ghi vào tên nhân sự trong kỳ (rà soát 16/10/2026 B9), người chấm bấm để điền.
+        $journal = $frozen ? collect() : StaffReport::where('type', 'journal')->where('user_id', $staff->id)->whereNotNull('kpi_code')
+            ->whereDate('report_date', '>=', $period['from']->toDateString())->whereDate('report_date', '<=', $period['to']->toDateString())
+            ->orderBy('report_date')->get(['id', 'kpi_code', 'title', 'report_date'])->groupBy('kpi_code');
+
+        $lines = $criteria->map(function (KpiCriterion $c) use ($items, $frozen, $staff, $period, $fund, $weightTotal, $monthKeys, $journal) {
             $item = $items->get($c->id);
             $cast = fn ($v) => is_numeric($v) ? ($c->isRate() ? round((float) $v, 2) : (int) $v) : null;
             $evidence = [];
@@ -209,10 +215,15 @@ class KpiSheetService
                 }
             }
             $maxAmount = $fund !== null && $weightTotal > 0 ? $fund * (float) $c->weight / $weightTotal : null;
+            $journalRows = ! $frozen && ! $auto && $c->code && ! $c->isRate() ? $journal->get((string) $c->code, collect()) : null;
 
             return [
                 'criterion' => $c,
                 'auto' => $auto,
+                'suggestion' => $journalRows === null ? null : [
+                    'count' => $journalRows->count(),
+                    'evidence' => $journalRows->map(fn (StaffReport $r) => ['date' => $r->report_date->format('d/m'), 'text' => $r->title])->values()->all(),
+                ],
                 'value' => $value,
                 'evidence' => $evidence,
                 'level' => $level,

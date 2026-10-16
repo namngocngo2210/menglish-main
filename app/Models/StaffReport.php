@@ -25,6 +25,7 @@ class StaffReport extends Model
         'serious_confirmed_at',
         'reviewed_by',
         'reviewed_at',
+        'review_note',
         'report_date',
         'period_key',
         'status',

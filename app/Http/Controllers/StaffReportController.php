@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Helpers\AclHelper;
 use App\Models\AdminNotification;
+use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\ClassSession;
 use App\Models\KpiCriterion;
@@ -17,6 +18,7 @@ use App\Services\BranchStaff;
 use App\Services\Reports\DailyReportMetrics;
 use App\Services\Reports\WeeklyReportMetrics;
 use App\Support\Approvals\AdminOnlyApprovals;
+use App\Support\DailyReportDue;
 use App\Support\Dashboard\TeachingQuality;
 use App\Support\MonthlyReportDue;
 use App\Support\ReportPeriod;
@@ -29,6 +31,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -218,6 +221,42 @@ class StaffReportController extends Controller
         return (bool) Auth::user()?->can('staff_report.view_all');
     }
 
+    /**
+     * Người xem tổng hợp không phải Admin (Quản lý cơ sở): chỉ thấy báo cáo / nhật ký của nhân sự chi nhánh mình (rà soát 16/10/2026).
+     * null = không giới hạn (Admin, hoặc người xem chưa gán chi nhánh).
+     *
+     * @return list<int>|null
+     */
+    private function viewerStaffIds(): ?array
+    {
+        $viewer = Auth::user();
+        if (! $viewer || $viewer->can(AdminOnlyApprovals::ABILITY) || $viewer->branchIds() === []) {
+            return null;
+        }
+
+        return User::query()->where(fn ($q) => $q->whereIn('branch_id', $viewer->branchIds())
+            ->orWhereHas('branches', fn ($b) => $b->whereIn('branches.id', $viewer->branchIds())))
+            ->pluck('id')->map(fn ($id) => (int) $id)->push((int) $viewer->id)->unique()->values()->all();
+    }
+
+    /** Giới hạn truy vấn báo cáo theo phạm vi người xem (viewerStaffIds). */
+    private function scopeViewer($query)
+    {
+        $ids = $this->viewerStaffIds();
+
+        return $ids === null ? $query : $query->whereIn('user_id', $ids);
+    }
+
+    /** Học vụ (vai trò academic_staff) trong phạm vi người xem: Admin / Quản lý ghi sự việc vào tên một Học vụ. */
+    private function journalSubjects(): Collection
+    {
+        $ids = $this->viewerStaffIds();
+
+        return User::role(Roles::ACADEMIC_STAFF)->where('is_active', true)
+            ->when($ids !== null, fn ($q) => $q->whereIn('id', $ids))
+            ->orderBy('name')->get(['id', 'name']);
+    }
+
     /** Loại báo cáo định kỳ chính theo chức danh. */
     private function primaryType(User $u): string
     {
@@ -234,6 +273,8 @@ class StaffReportController extends Controller
             ->where('type', 'journal');
         if (! $isPriv) {
             $query->where('user_id', Auth::id());
+        } else {
+            $this->scopeViewer($query);
         }
         if ($sev = $request->input('severity')) {
             $query->where('severity', $sev);
@@ -261,6 +302,7 @@ class StaffReportController extends Controller
                 'created_at' => $j->created_at?->toIso8601String(),
                 'class' => $j->classModel ? ['id' => $j->class_id, 'code' => $j->classModel->code] : null,
                 'user' => $j->user?->name,
+                'logged_by' => $j->data['logged_by'] ?? null,
                 'user_role' => ($role = $j->user?->roles->first()?->name) ? AclHelper::shortRoleLabel($role) : null,
                 'followups' => $j->followups->map(fn (StaffReportFollowup $f) => [
                     'id' => $f->id,
@@ -279,6 +321,8 @@ class StaffReportController extends Controller
             'kpiOptions' => self::journalKpiCodes()->map(fn (string $name, string $code) => ['value' => $code, 'label' => "KPI {$code} · {$name}"])->values(),
             // Chỉ Admin đánh dấu "Lỗi nghiêm trọng" (mockup 02/05).
             'canConfirmSerious' => (bool) Auth::user()?->can(AdminOnlyApprovals::ABILITY),
+            // Admin / Quản lý ghi sự việc vào tên một Học vụ (KPI đếm cả sự việc này, không phụ thuộc Học vụ tự ghi).
+            'subjects' => $isPriv ? Ui::options($this->journalSubjects(), 'name') : [],
             'today' => now()->toDateString(),
         ]);
     }
@@ -301,6 +345,7 @@ class StaffReportController extends Controller
             'kpi_code' => ['nullable', 'string', Rule::in(self::journalKpiCodes()->keys()->all())],
             'report_date' => 'nullable|date',
             'class_id' => 'nullable|integer',
+            'subject_user_id' => 'nullable|integer',
         ], [
             'content.required_without' => 'Vui lòng nhập nội dung sự việc.',
             'kpi_code.in' => 'Mã KPI không có trong bộ KPI Học vụ đang áp dụng.',
@@ -312,9 +357,15 @@ class StaffReportController extends Controller
             $classId = $class->id;
         }
         $content = $validated['content'] ?? null;
+        $subjectId = (int) Auth::id();
+        if (! empty($validated['subject_user_id']) && (int) $validated['subject_user_id'] !== $subjectId) {
+            abort_unless($this->isPrivileged() && $this->journalSubjects()->contains('id', (int) $validated['subject_user_id']), 403, 'Bạn không ghi nhật ký cho người này được.');
+            $subjectId = (int) $validated['subject_user_id'];
+        }
 
-        StaffReport::create([
-            'user_id' => Auth::id(),
+        $entry = StaffReport::create([
+            'user_id' => $subjectId,
+            'data' => $subjectId !== (int) Auth::id() ? ['logged_by' => Auth::user()->name, 'logged_by_id' => Auth::id()] : null,
             'class_id' => $classId,
             'type' => 'journal',
             // Không có tiêu đề riêng → lấy dòng đầu nội dung (danh sách sự vụ ở dashboard / Trang lớp hiện tiêu đề).
@@ -325,6 +376,19 @@ class StaffReportController extends Controller
             'report_date' => $validated['report_date'] ?? now()->toDateString(),
             'status' => 'open',
         ]);
+        // Sự việc mức "Khẩn" báo ngay Admin và Quản lý cơ sở của người ghi.
+        if ($entry->severity === 'urgent') {
+            $author = Auth::user();
+            AdminNotification::notifyUsers(
+                BranchStaff::admins()->pluck('id')->concat(BranchStaff::withRoles(Roles::MANAGER, $author->branch_id)->pluck('id')),
+                'staff_journal_urgent',
+                'Sự việc khẩn: '.$entry->title,
+                "{$author->name} vừa ghi sự việc mức Khẩn".($entry->classModel ? ' ở lớp '.$entry->classModel->name : '').'.',
+                route('reports.all', ['open' => $entry->id]),
+                ['staff_report_id' => $entry->id],
+                $author->id,
+            );
+        }
 
         return back()->with('success', 'Đã thêm nhật ký!');
     }
@@ -379,7 +443,7 @@ class StaffReportController extends Controller
     private function journalEntry(int $id): StaffReport
     {
         return StaffReport::query()->where('type', 'journal')
-            ->when(! $this->isPrivileged(), fn ($q) => $q->where('user_id', Auth::id()))
+            ->when(! $this->isPrivileged(), fn ($q) => $q->where('user_id', Auth::id()), fn ($q) => $this->scopeViewer($q))
             ->findOrFail($id);
     }
 
@@ -490,6 +554,7 @@ class StaffReportController extends Controller
      * Báo cáo ngày Học vụ / Học thuật (mockup 02/06 + chủ dự án 15/10/2026): mọi số liệu lấy từ hệ thống (DailyReportMetrics),
      * người viết chỉ nhập ghi chú từng khối + tạo việc follow-up. Ngày chưa nộp → tính trực tiếp; đã nộp → hiện số liệu đã chụp lúc nộp
      * (`refresh=1` tính lại để xem số mới, Lưu lại là cập nhật). Báo cáo nộp trước 15/10 (nhập tay, `data.fields`) vẫn hiện bản cũ.
+     * Rà soát 16/10/2026: trước 10:00 mà hôm qua chưa nộp thì mở sẵn hôm qua; liệt kê các ngày còn thiếu 14 ngày gần nhất.
      */
     public function daily(Request $request): Response|RedirectResponse
     {
@@ -498,16 +563,30 @@ class StaffReportController extends Controller
         }
         $user = Auth::user();
         $date = $this->pickDate($request->input('date'));
+        $missing = DailyReportDue::missingDays($user, today()->subDays(14), today()->subDay());
+        $yesterday = today()->subDay()->toDateString();
+        if (! $request->filled('date') && now()->format('H:i') < DailyReportDue::OPEN_YESTERDAY_BEFORE
+            && $missing->contains(fn (Carbon $d) => $d->toDateString() === $yesterday)) {
+            $date = $yesterday;
+        }
         $audience = StaffType::dailyReportAudience($user);
         $report = $this->structuredReport('daily_ops', $date);
         $snapshot = $report?->data['auto'] ?? null;
         $live = ! $snapshot || $request->boolean('refresh');
         $metrics = $live ? DailyReportMetrics::compute($user, $date, $audience) : $snapshot;
-        $task = ($taskId = $report?->data['task_id'] ?? null) ? WorkTask::with('assignee:id,name')->find($taskId) : null;
         // Báo cáo nhập tay trước khi chuyển sang số liệu tự động: hiện lại các ô đã nhập (chỉ đọc).
         $legacyFields = $report && ! $snapshot ? collect(self::DAILY_FIELDS)
             ->map(fn (array $f, string $key) => ['label' => $f['label'], 'value' => $report->data['fields'][$key] ?? null])
             ->filter(fn (array $f) => filled($f['value']))->values()->all() : [];
+        $history = collect($this->structuredHistory('daily_ops', fn (string $key) => 'Ngày '.Carbon::parse($key)->format('d/m/Y'), 'date'))
+            ->concat($missing->map(fn (Carbon $d) => [
+                'period' => $d->toDateString(),
+                'label' => 'Ngày '.$d->format('d/m/Y'),
+                'href' => route('reports.periodic.daily', ['date' => $d->toDateString()]),
+                'updated_at' => null,
+                'draft' => false,
+                'missing' => true,
+            ]))->sortByDesc('period')->values()->take(20)->all();
 
         return Inertia::render('Reports/DailyOps', [
             'audience' => $audience,
@@ -515,22 +594,26 @@ class StaffReportController extends Controller
             'date' => $date,
             'dateLabel' => Str::ucfirst(Carbon::parse($date)->locale('vi')->isoFormat('dddd, D [tháng] M, YYYY')),
             'today' => now()->toDateString(),
+            'deadline' => DailyReportDue::deadline(Carbon::parse($date))->format('H:i d/m'),
             'sections' => $metrics['sections'],
             'computedAt' => $metrics['computed_at'] ?? null,
             'live' => $live,
             'noteLabels' => DailyReportMetrics::NOTE_LABELS,
             'notes' => (object) ($report?->data['notes'] ?? []),
+            'draftKey' => "report-draft:daily:{$user->id}:{$date}",
             'legacyFields' => $legacyFields,
-            'task' => $task ? [
-                'id' => $task->id,
-                'title' => $task->title,
-                'due_date' => $task->due_date?->toDateString(),
-                'assignee' => $task->assignee?->name,
-                'status' => $task->status,
-            ] : null,
+            'tasks' => $this->reportTasks($report?->data ?? []),
             'assignees' => $this->taskAssignees(),
             'submittedAt' => $report?->updated_at?->toIso8601String(),
-            'history' => $this->structuredHistory('daily_ops', fn (string $key) => 'Ngày '.Carbon::parse($key)->format('d/m/Y'), 'date'),
+            'firstSubmittedAt' => $report?->created_at?->toIso8601String(),
+            'late' => $report ? DailyReportDue::isLate($report) : false,
+            'review' => $this->reviewState($report),
+            'missingDays' => $missing->reverse()->values()->map(fn (Carbon $d) => [
+                'date' => $d->toDateString(),
+                'label' => $d->format('d/m'),
+                'href' => route('reports.periodic.daily', ['date' => $d->toDateString()]),
+            ])->all(),
+            'history' => $history,
             'legacy' => $this->legacyReports('daily'),
         ]);
     }
@@ -540,61 +623,76 @@ class StaffReportController extends Controller
         $this->guardStructured('daily_ops');
         $data = $request->validate([
             'date' => ['required', 'date_format:Y-m-d', 'before_or_equal:today'],
+            'refresh' => ['nullable', 'boolean'],
             'notes' => ['nullable', 'array'],
             'notes.*' => ['nullable', 'string', 'max:5000'],
-            'task' => ['nullable', 'array'],
-            'task.enabled' => ['nullable', 'boolean'],
-            'task.due_date' => ['nullable', 'required_if:task.enabled,1', 'date'],
-            'task.assignee_id' => ['nullable', 'integer'],
+            'tasks' => ['nullable', 'array', 'max:10'],
+            'tasks.*.title' => ['required', 'string', 'max:255'],
+            'tasks.*.content' => ['nullable', 'string', 'max:5000'],
+            'tasks.*.due_date' => ['required', 'date', 'after_or_equal:today'],
+            'tasks.*.assignee_id' => ['nullable', 'integer'],
         ], [
             'date.before_or_equal' => 'Không nộp báo cáo cho ngày chưa tới.',
-            'task.*.required_if' => 'Bật "Tạo Task" thì phải nhập :attribute.',
+            'tasks.*.due_date.after_or_equal' => 'Hạn xử lý phải từ hôm nay trở đi.',
+            'tasks.*.*.required' => 'Nhập :attribute cho task.',
         ], [
-            'task.due_date' => 'ngày giải quyết',
-            'task.assignee_id' => 'người phụ trách',
+            'tasks.*.title' => 'tiêu đề',
+            'tasks.*.due_date' => 'hạn xử lý',
+            'tasks.*.assignee_id' => 'người phụ trách',
         ]);
 
-        // Số liệu luôn tính lại ở máy chủ lúc nộp (không nhận số từ trình duyệt), chụp lại để Admin xem đúng số tại thời điểm nộp.
         $user = Auth::user();
         $date = Carbon::parse($data['date']);
-        $snapshot = DailyReportMetrics::compute($user, $data['date'], StaffType::dailyReportAudience($user));
+        $existing = $this->structuredReport('daily_ops', $data['date']);
+        // Sửa ghi chú báo cáo đã nộp giữ nguyên số liệu đã chụp (số Admin đã kiểm tra); chỉ tính lại khi người viết bấm
+        // "Cập nhật số liệu" (form gửi refresh=1). Số liệu luôn tính ở máy chủ, không nhận số từ trình duyệt.
+        $kept = $existing?->data['auto'] ?? null;
+        $snapshot = $kept && ! $request->boolean('refresh')
+            ? $kept + ['fields' => $existing->data['fields'] ?? []]
+            : DailyReportMetrics::compute($user, $data['date'], StaffType::dailyReportAudience($user));
         $notes = collect($data['notes'] ?? [])->only(array_keys($snapshot['sections']))
             ->map(fn ($v) => filled($v) ? trim((string) $v) : null)->filter()->all();
         $text = DailyReportMetrics::text($snapshot, $notes);
 
-        $existing = $this->structuredReport('daily_ops', $data['date']);
-        $taskId = $existing?->data['task_id'] ?? null;
-        if (! $taskId && $request->boolean('task.enabled')) {
-            $taskId = $this->createFollowUpTask($data['task'], $data['date'], $text)->id;
+        $assignees = collect($this->taskAssignees())->pluck('value');
+        foreach ($data['tasks'] ?? [] as $i => $task) {
+            if (filled($task['assignee_id'] ?? null) && ! $assignees->contains((int) $task['assignee_id'])) {
+                throw ValidationException::withMessages(["tasks.{$i}.assignee_id" => 'Bạn không giao việc được cho người này.']);
+            }
         }
 
-        $this->saveStructured('daily_ops', $data['date'], 'Báo cáo ngày '.$date->format('d/m/Y'), $data['date'], [
-            'auto' => ['audience' => $snapshot['audience'], 'sections' => $snapshot['sections'], 'computed_at' => $snapshot['computed_at']],
-            'fields' => $snapshot['fields'],
-            'notes' => $notes,
-            'task_id' => $taskId,
-        ], $text.($taskId ? "\n\nTask follow-up: #{$taskId}" : ''));
+        DB::transaction(function () use ($data, $existing, $snapshot, $notes, $text, $date) {
+            $taskIds = $this->reportTaskIds($existing?->data ?? []);
+            foreach ($data['tasks'] ?? [] as $task) {
+                $taskIds[] = $this->createFollowUpTask($task, $data['date'])->id;
+            }
+
+            $this->saveStructured('daily_ops', $data['date'], 'Báo cáo ngày '.$date->format('d/m/Y'), $data['date'], [
+                'auto' => ['audience' => $snapshot['audience'], 'sections' => $snapshot['sections'], 'computed_at' => $snapshot['computed_at']],
+                'fields' => $snapshot['fields'],
+                'notes' => $notes,
+                'task_ids' => $taskIds,
+                // Khóa cũ (một task / báo cáo) giữ cho màn Báo cáo Admin đọc báo cáo trước 16/10.
+                'task_id' => $taskIds[0] ?? null,
+            ], $text.($taskIds ? "\n\nTask follow-up: #".implode(', #', $taskIds) : ''));
+        });
 
         return redirect()->route('reports.periodic.daily', ['date' => $data['date']])
             ->with('success', 'Đã lưu báo cáo ngày '.$date->format('d/m/Y').'.');
     }
 
     /**
-     * Việc follow-up tạo từ báo cáo ngày (mockup 02/06 chỉ có "Ngày giải quyết" + "Người phụ trách"): tiêu đề theo ngày báo cáo,
-     * nội dung là chính báo cáo; người phụ trách để trống là mình, hoặc người mình được giao việc (như màn Giao việc).
+     * Việc follow-up tạo từ báo cáo ngày (rà soát 16/10/2026: mỗi báo cáo nhiều task, mỗi task có tiêu đề, nội dung, hạn từ hôm nay
+     * và người phụ trách). Người phụ trách để trống là mình, hoặc người mình được giao việc (như màn Giao việc).
      */
-    private function createFollowUpTask(array $input, string $reportDate, string $reportText): WorkTask
+    private function createFollowUpTask(array $input, string $reportDate): WorkTask
     {
         $user = Auth::user();
         $assigneeId = (int) ($input['assignee_id'] ?? 0) ?: (int) $user->id;
-        if (! collect($this->taskAssignees())->contains('value', $assigneeId)) {
-            throw ValidationException::withMessages(['task.assignee_id' => 'Bạn không giao việc được cho người này.']);
-        }
-
         $label = Carbon::parse($reportDate)->format('d/m/Y');
         $task = WorkTask::create([
-            'title' => 'Follow-up báo cáo ngày '.$label,
-            'description' => "Xử lý tiếp các việc trong báo cáo ngày {$label}:\n\n".$reportText,
+            'title' => trim($input['title']),
+            'description' => trim(($input['content'] ?? '')."\n\nTạo từ báo cáo ngày {$label} của {$user->name}."),
             'creator_id' => $user->id,
             'assignee_id' => $assigneeId,
             'branch_id' => $user->branch_id,
@@ -606,11 +704,49 @@ class StaffReportController extends Controller
         ]);
         if ($assigneeId !== (int) $user->id) {
             AdminNotification::notifyUser($assigneeId, 'task_assigned', "Bạn được giao việc: {$task->title}",
-                "{$user->name} đã giao việc từ báo cáo ngày, hạn ".$task->due_date?->format('d/m/Y').'.',
+                "{$user->name} đã giao việc từ báo cáo ngày {$label}, hạn ".$task->due_date?->format('d/m/Y').'.',
                 route('tasks.index', ['tab' => 'mine']), ['task_id' => $task->id]);
         }
 
         return $task;
+    }
+
+    /** @return list<int> Task follow-up của báo cáo ngày (`task_ids`, hoặc `task_id` của báo cáo trước 16/10). */
+    private function reportTaskIds(array $data): array
+    {
+        return collect($data['task_ids'] ?? [])->push($data['task_id'] ?? null)->filter()->map(fn ($id) => (int) $id)->unique()->values()->all();
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function reportTasks(array $data): array
+    {
+        $ids = $this->reportTaskIds($data);
+
+        return $ids === [] ? [] : WorkTask::with('assignee:id,name')->whereIn('id', $ids)->orderBy('id')->get()
+            ->map(fn (WorkTask $task) => [
+                'id' => $task->id,
+                'title' => $task->title,
+                'due_date' => $task->due_date?->toDateString(),
+                'assignee' => $task->assignee?->name,
+                'status' => $task->status,
+                'status_label' => $task->status_label,
+            ])->all();
+    }
+
+    /** Trạng thái kiểm tra hiện cho người viết: đã kiểm tra / Admin yêu cầu bổ sung (kèm nhận xét). */
+    private function reviewState(?StaffReport $report): ?array
+    {
+        if (! $report || $report->status === 'draft') {
+            return null;
+        }
+        $report->loadMissing('reviewer:id,name');
+
+        return [
+            'status' => $report->status === 'returned' ? 'returned' : ($report->reviewed_at ? 'reviewed' : 'pending'),
+            'note' => $report->review_note,
+            'by' => $report->reviewer?->name,
+            'at' => $report->reviewed_at?->toIso8601String(),
+        ];
     }
 
     /** @return list<array{value: int, label: string}> Người phụ trách việc follow-up: "Tôi" + người mình giao việc được. */
@@ -633,7 +769,7 @@ class StaffReportController extends Controller
         if ($redirect = $this->redirectUnlessStructured('academic_weekly')) {
             return $redirect;
         }
-        $week = ReportPeriod::pick($request->input('week'), ReportPeriod::WEEK_PATTERN, ReportPeriod::currentWeek());
+        $week = $this->pickWeek($request->input('week'));
         $report = $this->structuredReport('academic_weekly', $week);
         // Số tuần + dòng gợi ý từ hệ thống (WeeklyReportMetrics): tuần chưa nộp thì điền sẵn vào 3 bảng, đã nộp thì bấm "Thêm từ hệ thống".
         $metrics = WeeklyReportMetrics::academic(Auth::user(), $week);
@@ -650,6 +786,7 @@ class StaffReportController extends Controller
             'suggestions' => $metrics['suggestions'],
             'computedAt' => $metrics['computed_at'],
             'submittedAt' => $report?->updated_at?->toIso8601String(),
+            'review' => $this->reviewState($report),
             'history' => $this->structuredHistory('academic_weekly', fn (string $key) => ReportPeriod::weekLabel($key), 'week'),
             'legacy' => $this->legacyReports('weekly'),
         ]);
@@ -658,7 +795,7 @@ class StaffReportController extends Controller
     public function academicWeeklyStore(Request $request): RedirectResponse
     {
         $this->guardStructured('academic_weekly');
-        $rules = ['week' => ['required', 'regex:'.ReportPeriod::WEEK_PATTERN], 'rows' => ['nullable', 'array']];
+        $rules = ['week' => ['required', 'regex:'.ReportPeriod::WEEK_PATTERN, $this->notFutureWeek()], 'rows' => ['nullable', 'array']];
         foreach (array_keys(self::WEEKLY_SECTIONS) as $section) {
             $rules += [
                 "rows.{$section}" => ['nullable', 'array', 'max:50'],
@@ -720,7 +857,7 @@ class StaffReportController extends Controller
         $this->saveStructured('academic_weekly', $data['week'], 'Báo cáo tuần '.ReportPeriod::weekLabel($data['week']), $start->toDateString(),
             ['rows' => $rows], $text);
 
-        return back()->with('success', 'Đã lưu báo cáo tuần '.$data['week'].'.');
+        return back()->with('success', 'Đã lưu báo cáo '.Str::lcfirst(ReportPeriod::weekLabel($data['week'])).'.');
     }
 
     /**
@@ -732,7 +869,7 @@ class StaffReportController extends Controller
         if ($redirect = $this->redirectUnlessStructured('weekly_kpi')) {
             return $redirect;
         }
-        $week = ReportPeriod::pick($request->input('week'), ReportPeriod::WEEK_PATTERN, ReportPeriod::currentWeek());
+        $week = $this->pickWeek($request->input('week'));
         $report = $this->structuredReport('weekly_kpi', $week);
         $snapshot = $report?->data['auto'] ?? null;
         $live = ! $snapshot || $request->boolean('refresh');
@@ -748,8 +885,10 @@ class StaffReportController extends Controller
             'computedAt' => $metrics['computed_at'] ?? null,
             'live' => $live,
             'note' => $report?->data['note'] ?? null,
+            'draftKey' => 'report-draft:weekly-kpi:'.Auth::id().":{$week}",
             'legacy' => $report && ! $snapshot ? $this->legacyWeeklyKpi($report) : [],
             'submittedAt' => $report?->updated_at?->toIso8601String(),
+            'review' => $this->reviewState($report),
             'history' => $this->structuredHistory('weekly_kpi', fn (string $key) => ReportPeriod::weekLabel($key), 'week'),
         ]);
     }
@@ -769,13 +908,15 @@ class StaffReportController extends Controller
     {
         $this->guardStructured('weekly_kpi');
         $data = $request->validate([
-            'week' => ['required', 'regex:'.ReportPeriod::WEEK_PATTERN],
+            'week' => ['required', 'regex:'.ReportPeriod::WEEK_PATTERN, $this->notFutureWeek()],
             'note' => ['nullable', 'string', 'max:5000'],
+            'refresh' => ['nullable', 'boolean'],
         ]);
 
-        // Số liệu tính lại trên server lúc nộp (không nhận số từ form) và lưu kèm tên / nhóm mục KPI để báo cáo cũ
-        // vẫn đọc được khi Admin đổi cấu hình KPI.
-        $snapshot = WeeklyReportMetrics::operations(Auth::user(), $data['week']);
+        // Số liệu tính trên server (không nhận số từ form) và lưu kèm tên / nhóm mục KPI để báo cáo cũ vẫn đọc được khi Admin
+        // đổi cấu hình KPI. Sửa ghi chú tuần đã nộp giữ số đã chụp; chỉ tính lại khi người viết bấm "Cập nhật số liệu" (refresh=1).
+        $kept = $this->structuredReport('weekly_kpi', $data['week'])?->data['auto'] ?? null;
+        $snapshot = $kept && ! $request->boolean('refresh') ? $kept : WeeklyReportMetrics::operations(Auth::user(), $data['week']);
         $counts = collect($snapshot['groups'])->flatMap(fn (array $g) => collect($g['items'])->map(fn (array $i) => [
             'id' => $i['id'], 'code' => $i['code'], 'name' => $i['name'], 'group' => $g['name'], 'count' => $i['count'],
         ]))->values()->all();
@@ -787,7 +928,7 @@ class StaffReportController extends Controller
             ['auto' => $snapshot, 'counts' => $counts, 'metrics' => $metrics, 'note' => $note],
             WeeklyReportMetrics::operationsText($snapshot, $note));
 
-        return back()->with('success', 'Đã lưu báo cáo tuần '.$data['week'].'.');
+        return back()->with('success', 'Đã lưu báo cáo '.Str::lcfirst(ReportPeriod::weekLabel($data['week'])).'.');
     }
 
     /** Báo cáo tháng Học thuật (mockup 02/19): tường thuật + bảng báo cáo tuần trong tháng và họp giáo viên. */
@@ -807,6 +948,7 @@ class StaffReportController extends Controller
             'fields' => self::MONTHLY_FIELDS,
             'values' => $report?->data['narrative'] ?? [],
             'submittedAt' => $report?->updated_at?->toIso8601String(),
+            'review' => $this->reviewState($report),
             'weeklyReports' => $this->weeksOfMonth($from, $to),
             'meetings' => TeacherMeetingReport::with('teacher:id,name')
                 ->where('author_id', Auth::id())
@@ -907,6 +1049,7 @@ class StaffReportController extends Controller
             'classes' => $classes,
             'status' => $report?->status,
             'submittedAt' => $report?->updated_at?->toIso8601String(),
+            'review' => $this->reviewState($report),
             'attendance' => [
                 'note' => $attendance?->data['note'] ?? null,
                 'submitted_at' => $attendance?->updated_at?->toIso8601String(),
@@ -1067,6 +1210,7 @@ class StaffReportController extends Controller
             'sections' => self::QUARTERLY_SECTIONS,
             'values' => $report?->data['narrative'] ?? [],
             'submittedAt' => $report?->updated_at?->toIso8601String(),
+            'review' => $this->reviewState($report),
             'monthlyReports' => collect(ReportPeriod::quarterMonths($quarter))->map(fn (string $m) => [
                 'month' => $m,
                 'label' => 'Báo cáo '.ReportPeriod::monthLabel($m),
@@ -1117,6 +1261,24 @@ class StaffReportController extends Controller
         return is_string($value) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) && strtotime($value) !== false && $value <= $today ? $value : $today;
     }
 
+    /** Tuần báo cáo hợp lệ và không phải tuần chưa tới, ngược lại tuần hiện tại. */
+    private function pickWeek(?string $value): string
+    {
+        $week = ReportPeriod::pick($value, ReportPeriod::WEEK_PATTERN, ReportPeriod::currentWeek());
+
+        return ReportPeriod::weekRange($week)[0]->gt(today()) ? ReportPeriod::currentWeek() : $week;
+    }
+
+    /** Luật kiểm tra: không nộp báo cáo cho tuần chưa tới. */
+    private function notFutureWeek(): \Closure
+    {
+        return function (string $attribute, mixed $value, \Closure $fail) {
+            if (is_string($value) && preg_match(ReportPeriod::WEEK_PATTERN, $value) && ReportPeriod::weekRange($value)[0]->gt(today())) {
+                $fail('Không nộp báo cáo cho tuần chưa tới.');
+            }
+        };
+    }
+
     private function structuredReport(string $kind, string $period): ?StaffReport
     {
         return StaffReport::where('user_id', Auth::id())
@@ -1125,24 +1287,42 @@ class StaffReportController extends Controller
             ->first();
     }
 
-    /** @param array<string, mixed> $data */
-    private function saveStructured(string $kind, string $period, string $title, string $reportDate, array $data, string $content, string $status = 'submitted'): void
+    /**
+     * Mỗi người một báo cáo / loại / kỳ (khóa duy nhất staff_reports_user_kind_period_unique): updateOrCreate dùng createOrFirst nên
+     * hai tab cùng bấm Lưu không tạo hai bản (rà soát 16/10/2026 B17).
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function saveStructured(string $kind, string $period, string $title, string $reportDate, array $data, string $content, string $status = 'submitted'): StaffReport
     {
-        $before = StaffReport::where('user_id', Auth::id())->where('kind', $kind)->where('period_key', $period)->first(['id', 'status', 'reviewed_at']);
-        // Nộp (hoặc sửa bản đã nộp) → về lại "Chờ kiểm tra" để Admin xem bản mới.
+        $before = StaffReport::where('user_id', Auth::id())->where('kind', $kind)->where('period_key', $period)->first(['id', 'status', 'reviewed_at', 'reviewed_by']);
+        // Nộp (hoặc sửa bản đã nộp / bản Admin yêu cầu bổ sung) → về lại "Chờ kiểm tra" để Admin xem bản mới.
         $report = StaffReport::updateOrCreate(
             ['user_id' => Auth::id(), 'kind' => $kind, 'period_key' => $period],
             ['type' => self::STRUCTURED[$kind]['type'], 'title' => $title, 'report_date' => $reportDate, 'data' => $data, 'content' => $content, 'status' => $status]
-                + ($status === 'submitted' ? ['reviewed_by' => null, 'reviewed_at' => null] : []),
+                + ($status === 'submitted' ? ['reviewed_by' => null, 'reviewed_at' => null, 'review_note' => null] : []),
         );
-        // Báo Admin khi báo cáo mới vào hàng chờ kiểm tra (lần nộp đầu, nộp từ nháp, hoặc sửa sau khi Admin đã kiểm tra);
-        // sửa tiếp khi vẫn đang chờ kiểm tra thì không báo lại.
-        if ($status === 'submitted' && (! $before || $before->status !== 'submitted' || $before->reviewed_at !== null)) {
+        if ($status !== 'submitted') {
+            return $report;
+        }
+        // Bản Admin yêu cầu bổ sung đã nộp lại: báo đúng người đã trả về.
+        if ($before?->status === 'returned' && $before->reviewed_by) {
+            AdminNotification::notifyUser($before->reviewed_by, 'staff_report_resubmitted', 'Đã bổ sung: '.$report->title,
+                (Auth::user()?->name ?? 'Nhân sự')." đã nộp lại {$report->title} sau khi bạn yêu cầu bổ sung.",
+                route('reports.all', ['open' => $report->id]), ['staff_report_id' => $report->id]);
+
+            return $report;
+        }
+        // Báo cáo ngày không báo từng bản (Admin nhận bản tổng hợp mỗi sáng: reports:daily-digest). Báo cáo kỳ khác: báo Admin khi
+        // báo cáo mới vào hàng chờ kiểm tra (lần nộp đầu, nộp từ nháp, hoặc sửa sau khi đã kiểm tra); sửa tiếp khi đang chờ thì không báo lại.
+        if ($kind !== 'daily_ops' && (! $before || $before->status !== 'submitted' || $before->reviewed_at !== null)) {
             self::notifyAdminsSubmitted($report, $before?->status === 'submitted');
         }
+
+        return $report;
     }
 
-    /** Báo cáo mọi vai trò nộp xong được đẩy về Admin kiểm tra (14/10/2026) ở "Tổng hợp báo cáo & nhật ký". */
+    /** Báo cáo mọi vai trò nộp xong được đẩy về Admin kiểm tra (14/10/2026) ở "Tổng hợp báo cáo & nhật ký"; link mở thẳng báo cáo. */
     private static function notifyAdminsSubmitted(StaffReport $report, bool $updated = false): void
     {
         $name = Auth::user()?->name ?? 'Nhân sự';
@@ -1151,20 +1331,83 @@ class StaffReportController extends Controller
             'staff_report_submitted',
             ($updated ? 'Báo cáo cập nhật: ' : 'Báo cáo mới: ').$report->title,
             "{$name} vừa ".($updated ? 'cập nhật' : 'nộp')." {$report->title}. Mở để kiểm tra.",
-            route('reports.all', ['review' => 'pending']),
+            route('reports.all', ['open' => $report->id]),
             ['staff_report_id' => $report->id],
             Auth::id(),
         );
     }
 
-    /** Admin đánh dấu báo cáo đã kiểm tra / bỏ đánh dấu (route chỉ Admin). */
+    /** Link màn nhập của người viết đúng kỳ báo cáo (thông báo "đã kiểm tra" / "yêu cầu bổ sung"). */
+    private static function writerUrl(StaffReport $report): string
+    {
+        if (! $report->kind || ! isset(self::STRUCTURED[$report->kind])) {
+            return route('reports.my');
+        }
+        $param = match (self::STRUCTURED[$report->kind]['type']) {
+            'daily' => 'date',
+            'weekly' => 'week',
+            'quarterly' => 'quarter',
+            default => 'month',
+        };
+
+        return route(self::STRUCTURED[$report->kind]['route'], [$param => $report->period_key]);
+    }
+
+    /** Báo cáo Admin kiểm tra được (không phải nhật ký, không phải nháp), trong phạm vi người xem. */
+    private function reviewableReport(int $id): StaffReport
+    {
+        return $this->scopeViewer(StaffReport::query())->where('type', '!=', 'journal')->where('status', '!=', 'draft')->findOrFail($id);
+    }
+
+    /** Admin đánh dấu báo cáo đã kiểm tra / bỏ đánh dấu (route chỉ Admin); người viết được báo khi đã kiểm tra. */
     public function review(Request $request, int $id): RedirectResponse
     {
-        $report = StaffReport::query()->where('type', '!=', 'journal')->where('status', '!=', 'draft')->findOrFail($id);
+        $report = $this->reviewableReport($id);
         $reviewed = $request->boolean('reviewed', true);
-        $report->update(['reviewed_by' => $reviewed ? Auth::id() : null, 'reviewed_at' => $reviewed ? now() : null]);
+        $this->markReviewed($report, $reviewed);
 
         return back()->with('success', $reviewed ? 'Đã đánh dấu đã kiểm tra.' : 'Đã chuyển về chờ kiểm tra.');
+    }
+
+    /** "Đã kiểm tra" hàng loạt ở màn Tổng hợp (chọn nhiều dòng). */
+    public function reviewBulk(Request $request): RedirectResponse
+    {
+        $data = $request->validate(['ids' => ['required', 'array', 'min:1', 'max:200'], 'ids.*' => ['integer']], ['ids.required' => 'Chọn ít nhất một báo cáo.']);
+        $reports = $this->scopeViewer(StaffReport::query())->where('type', '!=', 'journal')->where('status', 'submitted')
+            ->whereNull('reviewed_at')->whereIn('id', $data['ids'])->get();
+        $reports->each(fn (StaffReport $r) => $this->markReviewed($r, true));
+
+        return back()->with('success', "Đã đánh dấu {$reports->count()} báo cáo đã kiểm tra.");
+    }
+
+    private function markReviewed(StaffReport $report, bool $reviewed): void
+    {
+        $wasReviewed = $report->reviewed_at !== null;
+        $report->update([
+            'reviewed_by' => $reviewed ? Auth::id() : null,
+            'reviewed_at' => $reviewed ? now() : null,
+            'status' => $report->status === 'returned' && $reviewed ? 'submitted' : $report->status,
+            'review_note' => $reviewed ? null : $report->review_note,
+        ]);
+        if ($reviewed && ! $wasReviewed && (int) $report->user_id !== (int) Auth::id()) {
+            AdminNotification::notifyUser($report->user_id, 'staff_report_reviewed', 'Đã kiểm tra: '.$report->title,
+                (Auth::user()?->name ?? 'Admin')." đã kiểm tra {$report->title}.", self::writerUrl($report), ['staff_report_id' => $report->id]);
+        }
+    }
+
+    /**
+     * Admin "Yêu cầu bổ sung" (rà soát 16/10/2026 B7): báo cáo về trạng thái `returned` kèm nhận xét, người viết được báo và sửa
+     * lại trên màn nhập; nộp lại thì về "Chờ kiểm tra" và người trả về được báo.
+     */
+    public function requestChanges(Request $request, int $id): RedirectResponse
+    {
+        $report = $this->reviewableReport($id);
+        $data = $request->validate(['note' => ['required', 'string', 'max:2000']], ['note.required' => 'Nhập nội dung cần bổ sung.']);
+        $report->update(['status' => 'returned', 'review_note' => trim($data['note']), 'reviewed_by' => Auth::id(), 'reviewed_at' => null]);
+        AdminNotification::notifyUser($report->user_id, 'staff_report_returned', 'Cần bổ sung: '.$report->title,
+            (Auth::user()?->name ?? 'Admin').': '.Str::limit(trim($data['note']), 200), self::writerUrl($report), ['staff_report_id' => $report->id]);
+
+        return back()->with('success', 'Đã gửi yêu cầu bổ sung cho '.($report->user?->name ?? 'người viết').'.');
     }
 
     /**
@@ -1177,13 +1420,16 @@ class StaffReportController extends Controller
         return StaffReport::where('user_id', Auth::id())
             ->where('kind', $kind)
             ->whereNotNull('period_key')
-            ->orderByDesc('period_key')->limit(12)->get(['period_key', 'updated_at', 'status'])
+            ->orderByDesc('period_key')->limit(12)->get(['period_key', 'updated_at', 'status', 'reviewed_at'])
             ->map(fn (StaffReport $r) => [
                 'period' => $r->period_key,
                 'label' => $label($r->period_key),
                 'href' => route(self::STRUCTURED[$kind]['route'], [$param => $r->period_key]),
                 'updated_at' => $r->updated_at?->toIso8601String(),
                 'draft' => $r->status === 'draft',
+                'returned' => $r->status === 'returned',
+                'reviewed' => $r->reviewed_at !== null,
+                'missing' => false,
             ])->values()->all();
     }
 
@@ -1251,22 +1497,46 @@ class StaffReportController extends Controller
     }
 
     // ───────────────────────── ADMIN XEM TỔNG ─────────────────────────
+    /**
+     * Tổng hợp báo cáo & nhật ký. Rà soát 16/10/2026: Quản lý cơ sở chỉ thấy nhân sự chi nhánh mình (viewerStaffIds); lọc theo
+     * người, chi nhánh, khoảng ngày (báo cáo tuần / tháng / quý tính theo kỳ giao với khoảng); xem trước bằng ghi chú người viết;
+     * giờ nộp lần đầu + nhãn Trễ; "Đã kiểm tra" hàng loạt; tab "Chưa nộp" (báo cáo ngày, theo người × ngày).
+     */
     public function allReports(Request $request): Response
     {
         $this->guard();
         abort_unless($this->isPrivileged(), 403, 'Chỉ Admin / Manager mới xem tổng hợp.');
 
-        $query = StaffReport::with(['user.roles', 'followups', 'reviewer:id,name'])->where('status', '!=', 'draft');
+        $view = $request->input('view') === 'missing' ? 'missing' : 'list';
+        $staffIds = $this->viewerStaffIds();
+        // `date` (link cũ) = lọc đúng một ngày.
+        $from = $this->filterDate($request->input('from') ?? $request->input('date'));
+        $to = $this->filterDate($request->input('to') ?? $request->input('date'));
+        $userId = $request->integer('user_id') ?: null;
+        $branchId = $request->integer('branch_id') ?: null;
+        $inBranch = fn ($q) => $q->where('branch_id', $branchId)->orWhereHas('branches', fn ($b) => $b->where('branches.id', $branchId));
+
+        $query = $this->scopeViewer(StaffReport::with(['user.roles', 'user.branch:id,name', 'followups', 'reviewer:id,name']))->where('status', '!=', 'draft');
         if ($type = $request->input('type')) {
             $query->where('type', $type);
         }
-        if ($date = $request->input('date')) {
-            $query->whereDate('report_date', $date);
-        }
+        $query->when($userId, fn ($q) => $q->where('user_id', $userId))
+            ->when($branchId, fn ($q) => $q->whereHas('user', $inBranch))
+            ->when($to, fn ($q) => $q->whereDate('report_date', '<=', $to->toDateString()))
+            ->when($from, fn ($q) => $q->where(fn ($p) => $p
+                ->where(fn ($d) => $d->whereNotIn('type', ['weekly', 'monthly', 'quarterly'])->whereDate('report_date', '>=', $from->toDateString()))
+                ->orWhere(fn ($w) => $w->where('type', 'weekly')->whereDate('report_date', '>=', $from->copy()->subDays(6)->toDateString()))
+                ->orWhere(fn ($m) => $m->where('type', 'monthly')->whereDate('report_date', '>=', $from->copy()->startOfMonth()->toDateString()))
+                ->orWhere(fn ($m) => $m->where('type', 'quarterly')->whereDate('report_date', '>=', $from->copy()->firstOfQuarter()->toDateString()))));
         // Hàng chờ Admin kiểm tra (báo cáo định kỳ; nhật ký sự vụ không cần kiểm tra ở đây).
         $review = $request->input('review');
-        if (in_array($review, ['pending', 'done'], true)) {
-            $query->where('type', '!=', 'journal')->when($review === 'pending', fn ($q) => $q->whereNull('reviewed_at'), fn ($q) => $q->whereNotNull('reviewed_at'));
+        if (in_array($review, ['pending', 'done', 'returned'], true)) {
+            $query->where('type', '!=', 'journal');
+            match ($review) {
+                'pending' => $query->where('status', 'submitted')->whereNull('reviewed_at'),
+                'done' => $query->whereNotNull('reviewed_at'),
+                'returned' => $query->where('status', 'returned'),
+            };
         }
 
         $reports = $query->orderByRaw($review === 'pending' ? 'updated_at desc' : 'report_date desc')->latest('id')->paginate(20)->withQueryString()
@@ -1278,31 +1548,101 @@ class StaffReportController extends Controller
                 'for' => $r->kind === 'daily_ops' && $r->user ? StaffType::dailyReportAudience($r->user) : ($r->kind ? (self::STRUCTURED[$r->kind]['for'] ?? null) : null),
                 'severity_label' => $r->type === 'journal' ? $r->severity_label : null,
                 'title' => $r->title,
-                'content' => $r->content,
+                'preview' => self::preview($r),
                 'report_date' => $r->report_date->toDateString(),
-                'submitted_at' => $r->updated_at?->toIso8601String(),
+                'submitted_at' => $r->created_at?->toIso8601String(),
+                'updated_at' => $r->updated_at && $r->created_at && $r->updated_at->diffInMinutes($r->created_at, true) >= 1 ? $r->updated_at->toIso8601String() : null,
+                'late' => DailyReportDue::isLate($r),
                 'user' => $r->user?->name,
+                'branch' => $r->user?->branch?->name,
                 'followups_count' => $r->followups->count(),
                 'reviewable' => $r->type !== 'journal',
+                'status' => $r->status,
+                'review_note' => $r->review_note,
                 'reviewed_at' => $r->reviewed_at?->toIso8601String(),
                 'reviewed_by' => $r->reviewer?->name,
             ]);
 
+        $scoped = fn () => $this->scopeViewer(StaffReport::query());
         $stats = [
-            'journal' => StaffReport::where('type', 'journal')->count(),
-            'daily' => StaffReport::where('type', 'daily')->count(),
-            'weekly' => StaffReport::where('type', 'weekly')->count(),
-            'monthly' => StaffReport::where('type', 'monthly')->count(),
-            'urgent_open' => StaffReport::where('type', 'journal')->where('severity', 'urgent')->where('status', '!=', 'resolved')->count(),
-            'pending_review' => StaffReport::where('type', '!=', 'journal')->where('status', '!=', 'draft')->whereNull('reviewed_at')->count(),
+            'journal' => $scoped()->where('type', 'journal')->count(),
+            'daily' => $scoped()->where('type', 'daily')->count(),
+            'weekly' => $scoped()->where('type', 'weekly')->count(),
+            'monthly' => $scoped()->where('type', 'monthly')->count(),
+            'urgent_open' => $scoped()->where('type', 'journal')->where('severity', 'urgent')->where('status', '!=', 'resolved')->count(),
+            'pending_review' => $scoped()->where('type', '!=', 'journal')->where('status', 'submitted')->whereNull('reviewed_at')->count(),
+            'returned' => $scoped()->where('type', '!=', 'journal')->where('status', 'returned')->count(),
         ];
+        $writers = DailyReportDue::writers($staffIds);
+        $yesterday = today()->subDay();
+        $stats['missing_yesterday'] = $writers->filter(fn (User $u) => DailyReportDue::missingDays($u, $yesterday, $yesterday)->isNotEmpty())->count();
+
+        $openId = $request->integer('open') ?: null;
 
         return Inertia::render('Reports/All', [
+            'view' => $view,
             'reports' => $reports,
+            'missing' => $view === 'missing' ? $this->missingReports($writers, $from ?? today()->subDays(7), $to ?? $yesterday, $userId, $branchId) : null,
             'stats' => $stats,
+            'filters' => [
+                'type' => $request->input('type'),
+                'review' => $review,
+                'user_id' => $userId,
+                'branch_id' => $branchId,
+                'from' => $from?->toDateString(),
+                'to' => $to?->toDateString(),
+            ],
             'canReview' => (bool) Auth::user()?->can(AdminOnlyApprovals::ABILITY),
             'types' => Ui::options(StaffReport::TYPE_LABELS),
+            'users' => User::whereIn('id', $scoped()->select('user_id')->distinct())->orderBy('name')->get(['id', 'name'])
+                ->map(fn (User $u) => ['value' => $u->id, 'label' => $u->name])->all(),
+            'branches' => Branch::where('is_active', true)->when($staffIds !== null, fn ($q) => $q->whereIn('id', Auth::user()->branchIds()))
+                ->orderBy('name')->get(['id', 'name'])->map(fn (Branch $b) => ['value' => $b->id, 'label' => $b->name])->all(),
+            'openId' => $openId && $scoped()->where('status', '!=', 'draft')->whereKey($openId)->exists() ? $openId : null,
         ]);
+    }
+
+    private function filterDate(mixed $value): ?Carbon
+    {
+        return is_string($value) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) && strtotime($value) !== false ? Carbon::parse($value)->startOfDay() : null;
+    }
+
+    /**
+     * Tab "Chưa nộp": người phải nộp báo cáo ngày (DailyReportDue) còn thiếu ngày nào trong khoảng (mặc định 7 ngày qua).
+     *
+     * @param  Collection<int, User>  $writers
+     * @return array{from: string, to: string, rows: list<array<string, mixed>>}
+     */
+    private function missingReports(Collection $writers, Carbon $from, Carbon $to, ?int $userId, ?int $branchId): array
+    {
+        $rows = $writers
+            ->when($userId, fn ($c) => $c->where('id', $userId))
+            ->when($branchId, fn ($c) => $c->filter(fn (User $u) => in_array($branchId, array_map('intval', $u->branchIds()), true)))
+            ->map(fn (User $u) => [
+                'user_id' => $u->id,
+                'user' => $u->name,
+                'branch' => $u->branch?->name,
+                'for' => StaffType::dailyReportAudience($u),
+                'days' => DailyReportDue::missingDays($u, $from, $to)->map(fn (Carbon $d) => [
+                    'date' => $d->toDateString(),
+                    'label' => Str::ucfirst($d->locale('vi')->isoFormat('dd D/M')),
+                ])->all(),
+            ])->filter(fn (array $row) => $row['days'] !== [])->sortByDesc(fn (array $row) => count($row['days']))->values()->all();
+
+        return ['from' => $from->toDateString(), 'to' => $to->toDateString(), 'rows' => $rows];
+    }
+
+    /** Xem trước ở danh sách: ghi chú của người viết (báo cáo ngày / tuần KPI), không có thì nội dung chữ. */
+    private static function preview(StaffReport $r): ?string
+    {
+        $data = $r->data ?? [];
+        $notes = collect($data['notes'] ?? [])->filter()->map(fn ($text, $key) => Str::ucfirst(Str::after(DailyReportMetrics::NOTE_LABELS[$key] ?? 'Ghi chú khác', 'Ghi chú ')).': '.$text);
+        if (filled($data['note'] ?? null)) {
+            $notes->push('Tuần: '.$data['note']);
+        }
+        $text = $notes->isNotEmpty() ? $notes->implode(' · ') : ($r->kind === 'daily_ops' && isset($data['auto']) ? 'Không có ghi chú (chỉ số liệu hệ thống).' : $r->content);
+
+        return $text === null ? null : Str::limit(preg_replace('/\s+/u', ' ', $text), 280);
     }
 
     /**
@@ -1314,7 +1654,7 @@ class StaffReportController extends Controller
     {
         $this->guard();
         abort_unless($this->isPrivileged(), 403, 'Chỉ Admin / Manager mới xem tổng hợp.');
-        $r = StaffReport::with(['user.roles', 'reviewer:id,name', 'classModel:id,name', 'followups.user:id,name'])
+        $r = $this->scopeViewer(StaffReport::with(['user.roles', 'reviewer:id,name', 'classModel:id,name', 'followups.user:id,name']))
             ->where('status', '!=', 'draft')->findOrFail($id);
         $data = $r->data ?? [];
 
@@ -1339,7 +1679,9 @@ class StaffReportController extends Controller
             ],
             default => null,
         };
-        $task = ($taskId = $data['task_id'] ?? null) ? WorkTask::with('assignee:id,name')->find($taskId) : null;
+        // Báo cáo kế tiếp đang chờ kiểm tra (nút "Kế tiếp" trong cửa sổ chi tiết).
+        $nextId = $r->type === 'journal' ? null : $this->scopeViewer(StaffReport::query())->where('type', '!=', 'journal')->where('status', 'submitted')
+            ->whereNull('reviewed_at')->whereKeyNot($r->id)->orderByDesc('updated_at')->orderByDesc('id')->value('id');
 
         return Inertia::render('Reports/Detail', [
             'report' => [
@@ -1349,7 +1691,13 @@ class StaffReportController extends Controller
                 'for' => $r->kind === 'daily_ops' && $r->user ? StaffType::dailyReportAudience($r->user) : ($r->kind ? (self::STRUCTURED[$r->kind]['for'] ?? null) : null),
                 'user' => $r->user?->name,
                 'report_date' => $r->report_date->toDateString(),
-                'submitted_at' => $r->updated_at?->toIso8601String(),
+                'submitted_at' => $r->created_at?->toIso8601String(),
+                'updated_at' => $r->updated_at?->toIso8601String(),
+                'late' => DailyReportDue::isLate($r),
+                'deadline' => $r->type === 'daily' ? DailyReportDue::deadline($r->report_date)->format('H:i d/m') : null,
+                'status' => $r->status,
+                'review_note' => $r->review_note,
+                'reviewable' => $r->type !== 'journal',
                 'reviewed_at' => $r->reviewed_at?->toIso8601String(),
                 'reviewed_by' => $r->reviewer?->name,
                 'content' => $r->content,
@@ -1368,7 +1716,9 @@ class StaffReportController extends Controller
             'notes' => (object) ($data['notes'] ?? []),
             'noteLabels' => DailyReportMetrics::NOTE_LABELS,
             'note' => $data['note'] ?? null,
-            'task' => $task ? ['title' => $task->title, 'assignee' => $task->assignee?->name, 'due_date' => $task->due_date?->toDateString(), 'status' => $task->status] : null,
+            'tasks' => $this->reportTasks($data),
+            'canReview' => (bool) Auth::user()?->can(AdminOnlyApprovals::ABILITY),
+            'nextId' => $nextId,
             'legacy' => $legacy,
             'rows' => (object) ($view === 'academic_weekly' ? $data['rows'] : []),
             'sections' => self::WEEKLY_SECTIONS,

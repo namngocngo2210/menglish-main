@@ -69,13 +69,19 @@ class NotificationService
             if ($lastActivity->gt($cutoff)) {
                 continue;
             }
+            // Đã hẹn khách liên hệ lại (chưa tới hạn, trong khung tối đa) → chưa tính là bỏ quên.
+            $appointment = $lead->next_follow_up_at;
+            if ($appointment && $appointment->isFuture() && $appointment->gt($lastActivity)
+                && $appointment->lte($lastActivity->copy()->addDays(CrmCustomer::MAX_SCHEDULED_FOLLOW_UP_DAYS))) {
+                continue;
+            }
             $marker = $lastActivity->toDateTimeString();
             if ($sent->has($lead->id.'|'.$marker)) {
                 continue;
             }
 
             $idleDays = (int) $lastActivity->diffInDays(now());
-            $title = "Khách {$lead->code} bị bỏ quên {$idleDays} ngày ({$lead->stage_label})";
+            $title = "Khách {$lead->short_code} bị bỏ quên {$idleDays} ngày ({$lead->stage_label})";
             $message = "Khách hàng {$lead->name} (SĐT: {$lead->phone}) đang ở giai đoạn '{$lead->stage_label}' nhưng không có hoạt động chăm sóc nào từ "
                 .$lastActivity->format('d/m/Y H:i')." (ngưỡng {$days} ngày). Sales phụ trách: ".($lead->assignedUser?->name ?? 'Chưa phân công').'.';
             $data = [
@@ -141,7 +147,7 @@ class NotificationService
                 $this->notifyNeglect(
                     $lead,
                     'stale_lead_24h',
-                    "Cảnh báo: Lead {$lead->code} bị sót quá {$hoursElapsed}h chưa xử lý!",
+                    "Cảnh báo: Lead {$lead->short_code} bị sót quá {$hoursElapsed}h chưa xử lý!",
                     "Khách hàng {$lead->name} (SĐT: {$lead->phone}) được tiếp nhận từ {$lead->created_at->format('d/m/Y H:i')} ({$hoursElapsed} giờ trước) nhưng vẫn ở trạng thái 'Mới tiếp nhận' và chưa được liên hệ chăm sóc.",
                     [
                         'customer_id' => $lead->id,
@@ -159,7 +165,7 @@ class NotificationService
                 // Bắn email cảnh báo vận hành cho danh sách email nhận thông báo
                 $this->sendOperationalAlertEmail(
                     'stale_lead',
-                    "[CRM] Cảnh báo: Lead #{$lead->code} ({$lead->name}) sót quá {$hoursElapsed}h",
+                    "[CRM] Cảnh báo: Lead {$lead->short_code} ({$lead->name}) sót quá {$hoursElapsed}h",
                     "Khách hàng {$lead->name} (SĐT: {$lead->phone}) được tiếp nhận từ ".Carbon::parse($lead->created_at)->format('d/m/Y H:i')." ({$hoursElapsed} giờ trước) nhưng vẫn ở trạng thái 'Mới tiếp nhận' và chưa được nhân sự liên hệ chăm sóc.\nNhân sự phụ trách: ".($lead->assignedUser?->name ?? 'Chưa phân công'),
                     [
                         'code' => $lead->code,
@@ -171,7 +177,7 @@ class NotificationService
                         'category_label' => 'CRM & Tuyển sinh',
                         'sender_name' => 'Hệ thống Quét CRM',
                         'action_url' => route('crm.customers.show', $lead->id),
-                        'action_text' => "Chăm sóc Lead #{$lead->code}",
+                        'action_text' => "Chăm sóc Lead {$lead->short_code}",
                     ]
                 );
             }

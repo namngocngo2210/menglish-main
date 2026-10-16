@@ -78,7 +78,7 @@ class WeeklyReportMetricsTest extends TestCase
 
     private function makeUser(string $role, array $attributes = []): User
     {
-        $user = User::factory()->create(array_merge(['branch_id' => $this->branch->id, 'is_active' => true], $attributes));
+        $user = User::factory()->create(array_merge(['branch_id' => $this->branch->id, 'is_active' => true, 'created_at' => '2026-09-01 08:00'], $attributes));
         $user->assignRole($role);
 
         return $user;
@@ -165,7 +165,7 @@ class WeeklyReportMetricsTest extends TestCase
                     $this->assertSame(['auto', 1], [self::kpi($groups, '1.2')['source'], self::kpi($groups, '1.2')['count']]);
                     $this->assertSame(['journal', 2], [self::kpi($groups, '2.3')['source'], self::kpi($groups, '2.3')['count']]);
                     $late = self::kpi($groups, '4.1');
-                    $this->assertSame(1, $late['count']);
+                    $this->assertSame(2, $late['count']); // 1 bản nộp trễ + 1 ngày không nộp (13/10) tính là trễ.
                     $this->assertSame('Báo cáo ngày đã nộp 1/2 ngày · còn thiếu 13/10', collect($late['details'])->firstWhere('tag', 'Tham khảo')['text']);
 
                     return true;

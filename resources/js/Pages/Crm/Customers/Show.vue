@@ -20,6 +20,7 @@ import SlaCountdown from '@/Components/Crm/SlaCountdown.vue';
 defineOptions({ layout: (props) => ({ title: 'Chi tiết khách — ' + props.customer.name }) });
 
 const props = defineProps({
+    listUrl: { type: String, default: null },
     customer: { type: Object, required: true },
     actions: { type: Object, required: true },
     stageControls: { type: Object, required: true },
@@ -68,7 +69,7 @@ const initials = computed(() => {
 });
 
 // Modal dựng sẵn: mở / đóng theo tên.
-const modals = reactive({ reassign: false, lost: false, backward: false, trial: false, scheduleTest: false, score: false });
+const modals = reactive({ reassign: false, lost: false, reopen: false, cancelClosing: false, backward: false, trial: false, scheduleTest: false, score: false });
 const open = (name) => {
     if (name === 'reassign') resetReassign();
     modals[name] = true;
@@ -141,7 +142,7 @@ const trialTitle = computed(() => (props.trial.pending ? 'Xếp học thử' : `
     <!-- Tên khách làm tiêu đề (không lặp tiêu đề chung), mã ngắn ở breadcrumb -->
     <UiPageHeader :title="customer.name">
         <template #breadcrumbs>
-            <Link :href="route('crm.customers.index')" class="hover:text-primary">Khách hàng</Link>
+            <Link :href="listUrl ?? route('crm.customers.index')" class="hover:text-primary">Khách hàng</Link>
             <span class="material-symbols-outlined text-[14px]">chevron_right</span>
             <span class="font-code" :title="customer.code">{{ customer.short_code }}</span>
         </template>
@@ -223,7 +224,7 @@ const trialTitle = computed(() => (props.trial.pending ? 'Xếp học thử' : `
 
     <!-- Thất bại (Sales cũng được đánh — quyền lead.mark_lost) -->
     <UiModal v-if="stageControls.canLose" :show="modals.lost" title="Ghi nhận lý do thất bại" max-width="md" @close="close('lost')">
-        <p class="mb-3 text-xs text-on-surface-variant">Khách thất bại được lưu để đối soát và không mở lại.</p>
+        <p class="mb-3 text-xs text-on-surface-variant">Khách thất bại được lưu để đối soát. Nếu khách quay lại, Học vụ / Quản lý mở lại được về bước Đang tư vấn.</p>
         <UiForm id="mark-lost-form" :action="route('crm.customers.stage', customer.id)" method="post" class="space-y-3 text-xs" @success="close('lost')">
             <input type="hidden" name="stage" value="lost" />
             <UiTextarea name="lost_reason" :rows="4" required maxlength="255" placeholder="Ví dụ: chưa phù hợp học phí, lịch học, không liên hệ được..." aria-label="Lý do thất bại" />
@@ -231,6 +232,19 @@ const trialTitle = computed(() => (props.trial.pending ? 'Xếp học thử' : `
         <template #footer>
             <UiButton variant="secondary" @click="close('lost')">Hủy</UiButton>
             <UiButton type="submit" form="mark-lost-form" variant="danger">Xác nhận</UiButton>
+        </template>
+    </UiModal>
+
+    <!-- Mở lại khách Thất bại quay lại (chủ dự án 16/10/2026): về Đang tư vấn, bắt buộc lý do -->
+    <UiModal v-if="stageControls.canReopen" :show="modals.reopen" title="Mở lại khách" max-width="md" @close="close('reopen')">
+        <p class="mb-3 text-xs text-on-surface-variant">Khách quay về bước Đang tư vấn, giữ nguyên lịch sử chăm sóc trước đây. Lý do được lưu vào lịch sử.</p>
+        <UiForm id="reopen-form" :action="route('crm.customers.stage', customer.id)" method="post" class="space-y-3 text-xs" @success="close('reopen')">
+            <input type="hidden" name="stage" value="consulting" />
+            <UiTextarea id="reopen_reason" name="reason" :rows="3" required maxlength="1000" placeholder="Ví dụ: phụ huynh liên hệ lại, muốn học lớp cuối tuần" aria-label="Lý do mở lại" />
+        </UiForm>
+        <template #footer>
+            <UiButton variant="secondary" @click="close('reopen')">Hủy</UiButton>
+            <UiButton type="submit" form="reopen-form" icon="restart_alt">Mở lại khách</UiButton>
         </template>
     </UiModal>
 
@@ -247,11 +261,11 @@ const trialTitle = computed(() => (props.trial.pending ? 'Xếp học thử' : `
         </template>
     </UiModal>
 
-    <!-- Xếp học thử trước Chốt: lớp khớp trình độ đăng ký, buổi trong 7 ngày tới; mỗi lần 1 buổi, tối đa 2 lần.
+    <!-- Xếp học thử trước Chốt: lớp khớp trình độ đăng ký, buổi trong 14 ngày tới; mỗi lần 1 buổi, tối đa 2 lần.
          Không tạo ghi danh — khách chỉ vào lớp chính thức khi xếp lớp sau Chốt. -->
     <UiModal v-if="canBookTrial" :show="modals.trial" :title="trialTitle" max-width="lg" @close="close('trial')">
         <div class="mb-3 space-y-1 text-xs">
-            <p class="text-on-surface-variant">Chọn 1 buổi học thật trong 7 ngày tới của lớp cùng trình độ{{ customer.branch ? ' tại ' + customer.branch : '' }}. Giáo viên buổi đó nhận ghi chú, nhận xét khách sau giờ học và Học vụ được báo để chăm sóc.</p>
+            <p class="text-on-surface-variant">Chọn 1 buổi học thật trong 14 ngày tới của lớp cùng trình độ{{ customer.branch ? ' tại ' + customer.branch : '' }}. Giáo viên buổi đó nhận ghi chú, nhận xét khách sau giờ học và Học vụ được báo để chăm sóc.</p>
             <p><span class="text-on-surface-variant">Trình độ đăng ký:</span> <span class="font-semibold text-on-surface">{{ trialSlots.level ?? 'Chưa có (hiện mọi lớp đang mở)' }}</span></p>
         </div>
         <UiAlert v-if="trial.pending" type="info">Khách đang có buổi học thử {{ trial.pending.class }} ngày {{ trial.pending.date }} {{ trial.pending.time }}. Buổi tiếp theo xếp lại sau khi buổi này kết thúc.</UiAlert>
@@ -262,7 +276,7 @@ const trialTitle = computed(() => (props.trial.pending ? 'Xếp học thử' : `
                         <span class="font-bold text-on-surface">{{ row.class.name }}</span>
                         <span class="text-on-surface-variant">{{ row.class.course ?? 'Chưa gán khóa' }}{{ row.class.level ? ' · ' + row.class.level : '' }}</span>
                     </div>
-                    <p v-if="!row.sessions.length" class="mt-1 italic text-on-surface-subtle">Không có buổi học trong 7 ngày tới.</p>
+                    <p v-if="!row.sessions.length" class="mt-1 italic text-on-surface-subtle">Không có buổi học trong 14 ngày tới.</p>
                     <div v-else class="mt-2 flex flex-wrap gap-1.5">
                         <label v-for="slot in row.sessions" :key="slot.id" class="cursor-pointer">
                             <input type="radio" name="class_session_id" :value="slot.id" class="peer sr-only" required />
@@ -340,14 +354,39 @@ const trialTitle = computed(() => (props.trial.pending ? 'Xếp học thử' : `
     </UiModal>
 
     <UiAlert v-if="customer.stage === 'lost'" type="error" class="mb-lg" data-testid="lost-banner">
-        <div class="font-semibold">Khách Thất bại{{ customer.lost_at ? ' từ ' + customer.lost_at : '' }} — không mở lại, giữ để đối soát.</div>
-        <div v-if="customer.lost_reason">Lý do: {{ customer.lost_reason }}</div>
+        <div class="flex flex-wrap items-start justify-between gap-sm">
+            <div>
+                <div class="font-semibold">Khách Thất bại{{ customer.lost_at ? ' từ ' + customer.lost_at : '' }}</div>
+                <div v-if="customer.lost_reason">Lý do: {{ customer.lost_reason }}</div>
+            </div>
+            <UiButton v-if="stageControls.canReopen" size="sm" icon="restart_alt" data-reopen-button @click="open('reopen')">Mở lại khách</UiButton>
+        </div>
     </UiAlert>
 
     <UiAlert v-if="customer.stage === 'waiting_class'" type="warning" class="mb-lg" :title="'Đã chốt, chờ xếp lớp' + (customer.waiting_since ? ' từ ' + customer.waiting_since : '')">
-        Khóa: {{ customer.waiting_course ?? 'Chưa chọn khóa' }} · {{ customer.waiting_branch ?? customer.branch }}
-        · Học phí đăng ký: {{ customer.fee_paid_at_closing ? 'Đã đóng' : 'Chưa đóng (đã tạo task nhắc thu)' }}
+        <div class="flex flex-wrap items-start justify-between gap-sm">
+            <div>
+                Khóa: {{ customer.waiting_course ?? 'Chưa chọn khóa' }} · {{ customer.waiting_branch ?? customer.branch }}
+                · Học phí đăng ký: {{ customer.fee_paid_at_closing ? 'Đã đóng' : 'Chưa đóng (đã tạo task nhắc thu)' }}
+            </div>
+            <UiButton v-if="stageControls.canCancelClosing" size="sm" variant="secondary" icon="cancel" data-cancel-closing @click="open('cancelClosing')">Huỷ chốt</UiButton>
+        </div>
     </UiAlert>
+
+    <!-- Huỷ chốt (Admin): gia đình huỷ trước khi có lớp -->
+    <UiModal v-if="stageControls.canCancelClosing" :show="modals.cancelClosing" title="Huỷ chốt khách" max-width="md" @close="close('cancelClosing')">
+        <p class="mb-3 text-xs text-on-surface-variant">
+            Khách chuyển sang Thất bại, học viên chuyển Thôi học, phiếu thu chưa duyệt bị huỷ và phần học phí còn nợ được xoá.
+            Nếu đã thu tiền, hệ thống lập sẵn hồ sơ hoàn phí chờ duyệt ở mục Hoàn phí.
+        </p>
+        <UiForm id="cancel-closing-form" :action="route('crm.customers.cancel-closing', customer.id)" method="post" class="space-y-3 text-xs" @success="close('cancelClosing')">
+            <UiTextarea id="cancel_closing_reason" name="reason" :rows="3" required maxlength="1000" placeholder="Ví dụ: gia đình chuyển nhà, không học nữa" aria-label="Lý do huỷ chốt" />
+        </UiForm>
+        <template #footer>
+            <UiButton variant="secondary" @click="close('cancelClosing')">Đóng</UiButton>
+            <UiButton type="submit" form="cancel-closing-form" variant="danger">Huỷ chốt</UiButton>
+        </template>
+    </UiModal>
 
     <div class="grid grid-cols-1 gap-lg lg:grid-cols-12">
         <!-- ── Cột trái: thông tin, trạng thái & hạn xử lý, chăm sóc tháng đầu ── -->
@@ -368,7 +407,11 @@ const trialTitle = computed(() => (props.trial.pending ? 'Xếp học thử' : `
                 <dl class="space-y-md font-body-base text-body-base">
                     <div v-for="[label, value, mono] in contactRows" :key="label" class="flex items-start justify-between gap-md border-b border-surface-container pb-sm last:border-0 last:pb-0">
                         <dt class="text-on-surface-variant">{{ label }}</dt>
-                        <dd :class="['text-right font-medium text-on-surface', mono ? 'font-code' : '']">{{ value }}</dd>
+                        <dd v-if="mono && value !== '—'" class="text-right font-code font-medium text-on-surface">
+                            <a :href="'tel:' + String(value).replace(/[^\d+]/g, '')" class="hover:text-primary" title="Gọi">{{ value }}</a>
+                            <a :href="'https://zalo.me/' + String(value).replace(/\D/g, '').replace(/^84/, '0')" target="_blank" rel="noopener" class="ml-xs font-body-small text-caption text-info hover:underline" title="Mở Zalo">Zalo</a>
+                        </dd>
+                        <dd v-else :class="['text-right font-medium text-on-surface', mono ? 'font-code' : '']">{{ value }}</dd>
                     </div>
                 </dl>
             </div>
