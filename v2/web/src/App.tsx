@@ -9,8 +9,16 @@ import { LoginPage } from './pages/LoginPage'
 import { TotpRequiredPage } from './pages/TotpRequiredPage'
 import { PAGES } from './routes'
 import { usePath } from './router'
+import { PublicTestPage, publicToken } from './features/placement/PublicTestPage'
 
 export function App() {
+  // Trang làm bài test đầu vào qua link mời: công khai, không cần đăng nhập.
+  const token = publicToken(usePath())
+  if (token) return <PublicTestPage token={token} />
+  return <AuthedApp />
+}
+
+function AuthedApp() {
   const me = useQuery({ queryKey: ['me'], queryFn: api.me })
 
   if (me.isPending) {

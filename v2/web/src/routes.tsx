@@ -9,6 +9,8 @@ import { CreateTaskPage } from './features/tasks/CreateTaskPage'
 import { TAAssignPage } from './features/tasks/TAAssignPage'
 import { TAPortalPage } from './features/tasks/TAPortalPage'
 import { TasksPage } from './features/tasks/TasksPage'
+import { PlacementTestsPage } from './features/placement/TestsPage'
+import { TeacherTrialsPage, TrialSchedulePage } from './features/placement/TrialPages'
 import { AccountPage } from './pages/AccountPage'
 import { BranchesPage } from './pages/admin/BranchesPage'
 import { RolesPage } from './pages/admin/RolesPage'
@@ -50,4 +52,8 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/tasks/ta-assign': (me) => <TAAssignPage me={me} />,
   '/tasks/approvals': (me) => <ApprovalsPage me={me} />,
   '/portal/ta-tasks': (me) => <TAPortalPage me={me} />,
+  '/trial-bookings': (me) => <TrialSchedulePage me={me} />,
+  '/placement-tests': (me) => <PlacementTestsPage me={me} />,
+  '/placement-tests/rubric-guide': (me) => <PlacementTestsPage me={me} />,
+  '/teacher/trial-guests': () => <TeacherTrialsPage />,
 }

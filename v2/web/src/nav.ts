@@ -61,6 +61,16 @@ export const NAV: NavItem[] = [
     perms: ['work_task.view'],
     menu: (me) => can(me, 'portal.teacher', 'portal.assistant'),
   },
+  // Test đầu vào & học thử (Laravel: "Lịch học thử" gắn quyền sửa lớp; "(AI)" chỉ là nhãn menu, không gọi AI)
+  { path: '/trial-bookings', label: 'Lịch học thử', group: 'Test đầu vào & học thử', perms: ['class.update'] },
+  { path: '/placement-tests', label: 'Đề test đầu vào (AI)', group: 'Test đầu vào & học thử', perms: ['placement_test.view'] },
+  {
+    path: '/placement-tests/rubric-guide',
+    label: 'Thang điểm & Hướng dẫn chấm',
+    group: 'Test đầu vào & học thử',
+    perms: ['placement_test.view'],
+  },
+  { path: '/teacher/trial-guests', label: 'Khách học thử', group: 'Cổng Giáo viên', perms: ['portal.teacher', 'portal.assistant'] },
 ]
 
 export function can(me: Me, ...perms: string[]) {

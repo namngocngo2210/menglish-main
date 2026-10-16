@@ -20,6 +20,7 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/geo"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/inventory"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/placement"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/secretbox"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/server"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/store"
@@ -116,6 +117,8 @@ func runAPI(ctx context.Context) error {
 	taskSvc := tasks.NewService(d.pool, log)
 	// Chuyển việc đã qua hạn sang "Quá hạn" (lệnh tasks:mark-overdue chạy theo lịch ở bản Laravel).
 	go taskSvc.RunOverdueLoop(ctx, 10*time.Minute)
+	// Leads / Sessions: CRM và lớp học nối vào khi gộp module (hiện dùng bản rỗng).
+	place := placement.NewHandler(placement.NewService(d.pool, d.rdb, log, placement.Options{}), log)
 	checks := map[string]server.Pinger{
 		"postgres": d.pool,
 		"redis":    server.PingFunc(func(ctx context.Context) error { return d.rdb.Ping(ctx).Err() }),
@@ -129,6 +132,7 @@ func runAPI(ctx context.Context) error {
 				inventory.NewHandler(inv, log),
 				catalogs.NewHandler(catalogs.NewService(d.pool, d.box, log), log),
 				tasks.NewHandler(taskSvc, log),
+				place,
 			),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,

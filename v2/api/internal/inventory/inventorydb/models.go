@@ -173,6 +173,28 @@ type CoreSystemCategory struct {
 	DeletedAt *time.Time
 }
 
+type CrmTrialBooking struct {
+	ID             uuid.UUID
+	LeadID         uuid.UUID
+	ClassID        uuid.UUID
+	ClassSessionID uuid.UUID
+	BranchID       *uuid.UUID
+	SessionDate    time.Time
+	StartTime      pgtype.Time
+	EndTime        pgtype.Time
+	Status         string
+	Notes          *string
+	Rating         *int16
+	Remarks        []byte
+	Feedback       *string
+	FeedbackBy     *uuid.UUID
+	FeedbackAt     *time.Time
+	BookedBy       *uuid.UUID
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	Version        int32
+}
+
 type FinanceBankAccount struct {
 	ID              uuid.UUID
 	AccountType     string
@@ -439,4 +461,86 @@ type OpsWorkTask struct {
 	Version               int32
 	CreatedAt             time.Time
 	UpdatedAt             time.Time
+}
+
+type PlacementInvitation struct {
+	ID              uuid.UUID
+	TestID          uuid.UUID
+	TokenHash       []byte
+	Kind            string
+	LeadID          *uuid.UUID
+	CandidateName   *string
+	CandidatePhone  *string
+	CandidateEmail  *string
+	Note            *string
+	ExpiresAt       time.Time
+	MaxSubmissions  *int32
+	SubmissionCount int32
+	OpenedAt        *time.Time
+	RevokedAt       *time.Time
+	RevokedBy       *uuid.UUID
+	CreatedBy       *uuid.UUID
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+type PlacementSubmission struct {
+	ID                    uuid.UUID
+	Number                int64
+	TestID                uuid.UUID
+	InvitationID          *uuid.UUID
+	LeadID                *uuid.UUID
+	StudentID             *uuid.UUID
+	CandidateName         string
+	CandidatePhone        string
+	CandidateEmail        *string
+	GradeGroup            *string
+	ListeningScore        *float64
+	ReadingScore          *float64
+	WritingScore          *float64
+	SpeakingScore         *float64
+	ReadingWritingScore   *float64
+	OverallScore          *float64
+	TotalScore            *float64
+	CefrLevel             *string
+	WritingContent        *string
+	Answers               []byte
+	SpeakingAudioUrl      *string
+	RecommendedCourse     *string
+	TeacherComments       *string
+	SuggestedClass        *string
+	ChosenClass           *string
+	ListeningComment      *string
+	ReadingWritingComment *string
+	SpeakingComment       *string
+	GraderID              *uuid.UUID
+	GradedAt              *time.Time
+	Status                string
+	ViolationCount        int32
+	ViolationLog          []byte
+	AutoSubmitted         bool
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
+	Version               int32
+}
+
+type PlacementTest struct {
+	ID              uuid.UUID
+	Code            string
+	Title           string
+	Description     *string
+	TargetLevel     string
+	GradeLevel      *string
+	DurationMinutes int32
+	QuestionsCount  int32
+	Questions       []byte
+	PdfPath         *string
+	AudioUrl        *string
+	IsActive        bool
+	IsPreset        bool
+	CreatedBy       *uuid.UUID
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	DeletedAt       *time.Time
+	Version         int32
 }
