@@ -17,12 +17,18 @@ defineProps({
     classes: { type: Array, default: () => [] },
     kpiOptions: { type: Array, default: () => [] },
     canConfirmSerious: { type: Boolean, default: false },
+    subjects: { type: Array, default: () => [] },
     today: { type: String, default: null },
 });
 
 const open = reactive({});
 const statusLabel = { open: 'Mới', resolved: 'Đã xử lý', following: 'Đang theo dõi' };
 const statusOptions = Object.entries(statusLabel).map(([value, label]) => ({ value, label }));
+const severityOptions = [
+    { value: 'normal', label: 'Bình thường' },
+    { value: 'important', label: 'Quan trọng' },
+    { value: 'urgent', label: 'Khẩn (báo ngay Admin / Quản lý)' },
+];
 const submitOnChange = (event) => event.target.form?.requestSubmit();
 const toggleSerious = (j) => router.post(route('reports.journal.serious', j.id), { serious: j.serious ? 0 : 1 }, { preserveScroll: true });
 </script>
@@ -37,7 +43,10 @@ const toggleSerious = (j) => router.post(route('reports.journal.serious', j.id),
             <UiForm id="new-journal-form" :action="route('reports.journal.store')" method="post" class="space-y-md" reset-on-success>
                 <div class="flex flex-col gap-md md:flex-row">
                     <div class="space-y-md md:w-1/3">
+                        <!-- Admin / Quản lý ghi sự việc vào tên một Học vụ: KPI của Học vụ đó đếm cả sự việc này. -->
+                        <UiSelect v-if="subjects.length" id="journal_subject" name="subject_user_id" label="SỰ VIỆC CỦA" placeholder="-- Của tôi --" :value="''" :options="subjects" :searchable="subjects.length > 8" />
                         <UiSelect id="journal_kpi_code" name="kpi_code" label="GẮN MÃ KPI (TÙY CHỌN)" placeholder="-- Không chọn --" :value="''" :options="kpiOptions" />
+                        <UiSelect id="journal_severity" name="severity" label="MỨC ĐỘ" :value="'normal'" :options="severityOptions" :searchable="false" />
                         <!-- Gắn lớp để sự việc hiện ở tab "Sự vụ" của Trang lớp -->
                         <UiSelect v-if="classes.length" id="journal_class_id" name="class_id" label="LỚP LIÊN QUAN (TÙY CHỌN)" placeholder="-- Không gắn lớp --" :value="''" :options="classes" :searchable="classes.length > 8" />
                     </div>
@@ -75,9 +84,11 @@ const toggleSerious = (j) => router.post(route('reports.journal.serious', j.id),
                                 <span class="material-symbols-outlined text-[14px]" aria-hidden="true">schedule</span>
                                 {{ formatDate(j.created_at ?? j.report_date, j.created_at ? 'd/m/Y H:i' : 'd/m/Y') }}
                             </div>
-                            <div v-if="j.user" class="mt-xs font-label text-label uppercase text-primary">Người ghi: {{ j.user }}<template v-if="j.user_role"> ({{ j.user_role }})</template></div>
+                            <div v-if="j.user" class="mt-xs font-label text-label uppercase text-primary">{{ j.logged_by ? 'Sự việc của' : 'Người ghi' }}: {{ j.user }}<template v-if="j.user_role"> ({{ j.user_role }})</template></div>
+                            <div v-if="j.logged_by" class="font-caption text-caption text-on-surface-variant" data-journal-logged-by>Ghi bởi {{ j.logged_by }}</div>
                         </div>
                         <div class="flex shrink-0 flex-col items-end gap-xs">
+                            <UiBadge v-if="j.severity === 'urgent' || j.severity === 'important'" :color="j.severity === 'urgent' ? 'error' : 'warning'">{{ j.severity_label }}</UiBadge>
                             <!-- Admin: bật / tắt lỗi nghiêm trọng -->
                             <label v-if="canConfirmSerious" class="flex cursor-pointer items-center gap-xs" title="Chỉ Admin mới có quyền đánh dấu lỗi nghiêm trọng">
                                 <span :class="['font-label text-label', j.serious ? 'text-error' : 'text-on-surface-variant']">Lỗi nghiêm trọng</span>

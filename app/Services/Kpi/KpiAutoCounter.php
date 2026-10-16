@@ -22,6 +22,7 @@ use App\Models\TuitionContactLog;
 use App\Models\User;
 use App\Models\WorkTask;
 use App\Services\FirstMonthCareService;
+use App\Support\DailyReportDue;
 use App\Support\Dashboard\TeachingQuality;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
@@ -39,7 +40,7 @@ use Illuminate\Support\Collection;
 class KpiAutoCounter
 {
     /** Báo cáo ngày nộp sau giờ này của sáng hôm sau là trễ (theo file KPI Học vụ). */
-    public const DAILY_REPORT_DEADLINE = '09:00';
+    public const DAILY_REPORT_DEADLINE = DailyReportDue::DEADLINE;
 
     /** Nhắc học phí được tính nếu có lần liên hệ từ chừng này ngày trước hạn trở đi. */
     public const TUITION_REMIND_DAYS_BEFORE = 3;
@@ -217,17 +218,24 @@ class KpiAutoCounter
             ]);
     }
 
+    /**
+     * Nộp báo cáo ngày trễ (sau 09:00 hôm sau) + ngày phải nộp mà không nộp (chủ dự án 16/10/2026: không nộp tính là trễ;
+     * thứ Hai → thứ Bảy, trừ ngày lễ và nghỉ phép đã duyệt — DailyReportDue).
+     */
     private function dailyReportLate(User $user, CarbonInterface $from, CarbonInterface $to): Collection
     {
-        [$h, $m] = array_map('intval', explode(':', self::DAILY_REPORT_DEADLINE));
-
-        return StaffReport::where('user_id', $user->id)->where('type', 'daily')
+        $late = StaffReport::where('user_id', $user->id)->where('type', 'daily')->where('status', '!=', 'draft')
             ->whereDate('report_date', '>=', $from->toDateString())->whereDate('report_date', '<=', $to->toDateString())->get()
-            ->filter(fn (StaffReport $r) => $r->created_at->gt($r->report_date->copy()->addDay()->setTime($h, $m)))
+            ->filter(fn (StaffReport $r) => DailyReportDue::isLate($r))
             ->map(fn (StaffReport $r) => [
                 'sort' => $r->report_date,
                 'text' => 'Báo cáo ngày '.$r->report_date->format('d/m').' nộp lúc '.$r->created_at->format('H:i d/m'),
             ]);
+        $missing = DailyReportDue::appliesTo($user)
+            ? DailyReportDue::missingDays($user, $from, $to)->map(fn (Carbon $d) => ['sort' => $d, 'text' => 'Không nộp báo cáo ngày '.$d->format('d/m')])
+            : collect();
+
+        return $late->concat($missing)->values();
     }
 
     private function materialStock(User $user, CarbonInterface $from, CarbonInterface $to): Collection

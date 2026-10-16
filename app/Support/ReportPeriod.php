@@ -84,11 +84,12 @@ final class ReportPeriod
         return array_map(fn (int $i) => $start->copy()->addMonths($i)->format('Y-m'), [0, 1, 2]);
     }
 
+    /** "Tuần 42 (12/10 – 18/10/2026)": số tuần ISO kèm khoảng ngày, thay cho khóa "2026-W42" khó đọc. */
     public static function weekLabel(string $key): string
     {
         [$start, $end] = self::weekRange($key);
 
-        return $key.' ('.$start->format('d/m').' – '.$end->format('d/m').')';
+        return 'Tuần '.(int) substr($key, -2).' ('.$start->format('d/m').' – '.$end->format('d/m/Y').')';
     }
 
     public static function monthLabel(string $key): string
@@ -109,7 +110,11 @@ final class ReportPeriod
         return array_map(function (int $i) {
             $key = self::weekKey(now()->subWeeks($i));
 
-            return ['value' => $key, 'label' => self::weekLabel($key)];
+            return ['value' => $key, 'label' => match ($i) {
+                0 => 'Tuần này · ',
+                1 => 'Tuần trước · ',
+                default => '',
+            }.self::weekLabel($key)];
         }, range(0, $back));
     }
 

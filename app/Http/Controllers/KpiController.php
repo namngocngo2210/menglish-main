@@ -422,6 +422,7 @@ class KpiController extends Controller
             'na' => $l['na'],
             'cap' => $l['cap'],
             'evidence' => $l['evidence'],
+            'suggestion' => $l['suggestion'] ?? null,
         ];
     }
 

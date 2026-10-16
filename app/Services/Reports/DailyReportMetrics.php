@@ -25,7 +25,6 @@ use App\Models\TeacherTimesheet;
 use App\Models\TuitionReceipt;
 use App\Models\User;
 use App\Services\Reports\Concerns\BuildsReportItems;
-use App\Support\DataScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -100,7 +99,7 @@ class DailyReportMetrics
     private function operations(): array
     {
         $sessions = ClassSession::with([
-            'classModel' => fn ($q) => $q->withTrashed()->select('id', 'name', 'code', 'teacher_id'),
+            'classModel' => fn ($q) => $q->withTrashed()->select('id', 'name', 'code', 'teacher_id', 'branch_id'),
             'teacher:id,name', 'foreignTeacher:id,name', 'assistant:id,name', 'holiday:id,name',
         ])
             ->whereDate('date', $this->date)
@@ -122,9 +121,14 @@ class DailyReportMetrics
             ->get();
         $supportDone = $support->where('status', 'completed')->count();
 
-        $leads = CrmCustomer::query()->visibleTo($this->user)->whereDate('created_at', $this->date)->get(['id', 'name', 'source']);
+        $leads = CrmCustomer::query()->visibleTo($this->user)->whereDate('created_at', $this->date)
+            ->when($this->reportBranchIds() !== [], fn (Builder $q) => $q->whereIn('branch_id', $this->reportBranchIds()))
+            ->get(['id', 'name', 'source', 'branch_id']);
+        // Chỉ tính liên hệ được trong ngày báo cáo: xem lại ngày cũ thì số không tăng theo các lần gọi sau đó.
         $contacted = $leads->isEmpty() ? 0 : CrmCustomerHistory::whereIn('customer_id', $leads->pluck('id'))
-            ->whereIn('type', CrmCustomerHistory::CONTACT_TYPES)->distinct()->count('customer_id');
+            ->whereIn('type', CrmCustomerHistory::CONTACT_TYPES)->counted()
+            ->where('created_at', '<=', $this->date->copy()->endOfDay())
+            ->distinct()->count('customer_id');
 
         $tests = PlacementTestSubmission::with('customer:id,name')
             ->whereDate('created_at', $this->date)
@@ -135,17 +139,19 @@ class DailyReportMetrics
         $booked = CrmCustomer::query()->visibleTo($this->user)
             ->whereBetween('appointment_at', [$this->date, $this->date->copy()->endOfDay()])->count();
 
-        $receipts = TuitionReceipt::with('student:id,name,code')
+        $receipts = TuitionReceipt::with('student:id,name,code,branch_id')
             ->whereDate('payment_date', $this->date)
             ->whereIn('status', self::RECEIPT_STATUSES)
-            ->whereHas('student', fn (Builder $s) => $s->visibleTo($this->user))
+            ->whereHas('student', fn (Builder $s) => $s->visibleTo($this->user)
+                ->when($this->reportBranchIds() !== [], fn (Builder $b) => $b->whereIn('branch_id', $this->reportBranchIds())))
             ->orderBy('id')
             ->get();
 
         $sections = [
             'operations' => $this->section('Vận hành lớp học', 'school', [
                 $this->item('classes_planned', 'Số lớp kế hoạch', $running->pluck('class_id')->unique()->count(),
-                    'Số lớp có buổi học trong ngày theo lịch (gồm buổi học bù), không tính buổi đã hủy / nghỉ.'),
+                    'Số lớp có buổi học trong ngày theo lịch (gồm buổi học bù), không tính buổi đã hủy / nghỉ. Chỉ tính lớp thuộc chi nhánh của bạn.',
+                    $this->branchSplit($running->unique('class_id')->map(fn (ClassSession $s) => $s->classModel?->branch_id), 'lớp')),
                 $this->item('classes_actual', 'Số lớp thực tế', $done->pluck('class_id')->unique()->count(),
                     'Số lớp có buổi đã được giáo viên điểm danh trong ngày.'),
                 $this->item('classes_list', 'Danh sách lớp trong ngày', null,
@@ -173,7 +179,8 @@ class DailyReportMetrics
                     'Khách mới tạo trong CRM trong ngày. "Đã liên hệ" là khách đã có lần gọi / nhắn / gặp.',
                     $leads->isEmpty() ? [] : [
                         ...$leads->groupBy(fn ($c) => $c->source ?: 'Chưa rõ nguồn')->map(fn ($group, $source) => ['text' => "{$source}: {$group->count()}"])->values()->all(),
-                        ['text' => "Đã liên hệ lần đầu: {$contacted}/{$leads->count()}", 'tone' => $contacted < $leads->count() ? 'warning' : 'success'],
+                        ['text' => "Đã liên hệ lần đầu trong ngày: {$contacted}/{$leads->count()}", 'tone' => $contacted < $leads->count() ? 'warning' : 'success'],
+                        ...$this->branchSplit($leads->pluck('branch_id'), 'khách'),
                     ]),
                 $this->item('test_students', 'Số học sinh test', "{$tests->count()} / {$booked} hẹn",
                     'Bài test đầu vào làm trong ngày trên số khách có lịch hẹn test trong ngày.',
@@ -193,6 +200,7 @@ class DailyReportMetrics
                             'tone' => $r->status === TuitionReceipt::STATUS_APPROVED ? 'success' : null,
                         ])->values()->all(),
                         ['text' => 'Tổng tiền: '.self::money($receipts->sum('amount')), 'tone' => 'strong'],
+                        ...$this->branchSplit($receipts->map(fn (TuitionReceipt $r) => $r->student?->branch_id), 'phiếu'),
                     ]),
             ]),
             'media' => $this->section('Truyền thông', 'campaign', [], 'Hệ thống chưa ghi nhận bài đăng truyền thông. Ghi bài đăng (kèm link) vào ô ghi chú.'),
@@ -261,8 +269,10 @@ class DailyReportMetrics
     private function assistantDetails(Collection $running, Collection $assistantIds): array
     {
         $withTa = $running->filter(fn (ClassSession $s) => $s->assistant_id);
+        // Trợ giảng nộp lại sau khi bị trả về tạo bản mới: lấy bản mới nhất của mỗi buổi.
         $reports = ClassReport::whereIn('class_id', $withTa->pluck('class_id')->unique())
             ->whereDate('session_date', $this->date)
+            ->orderByDesc('id')
             ->get(['id', 'class_id', 'class_session_id', 'reporter_id', 'status']);
         $details = [];
         foreach ($withTa as $s) {
@@ -321,7 +331,10 @@ class DailyReportMetrics
         ClassReportStudentSupport::with(['student:id,name', 'classModel:id,name'])
             ->whereIn('class_id', $this->classIds())
             ->whereDate('created_at', $this->date)
+            ->latest('id')
             ->get()
+            // Báo cáo trực lớp nộp lại ghi lại danh sách bổ trợ: mỗi học sinh / lớp chỉ một dòng.
+            ->unique(fn (ClassReportStudentSupport $s) => $s->student_id.'|'.$s->class_id)
             ->each(function (ClassReportStudentSupport $s) use (&$details) {
                 $details[] = [
                     'text' => ($s->student?->name ?? 'Học sinh').' · '.($s->classModel?->name ?? '').($s->reason ? ' · '.Str::limit($s->reason, 80) : ''),
@@ -340,7 +353,7 @@ class DailyReportMetrics
             ->where('created_at', '<=', $end)
             ->where(fn (Builder $q) => $q->whereNull('resolved_at')->orWhere('resolved_at', '>=', $this->date))
             ->whereNotIn('status', $this->date->isToday() ? ['resolved', 'closed'] : [])
-            ->when(! DataScope::isAll($this->user, 'class'), fn (Builder $q) => $q->whereHas('creator', fn (Builder $u) => $u->whereIn('branch_id', $this->user->branchIds())))
+            ->when($this->reportBranchIds() !== [], fn (Builder $q) => $q->whereHas('creator', fn (Builder $u) => $u->whereIn('branch_id', $this->reportBranchIds())))
             ->orderBy('created_at')
             ->get(['id', 'code', 'title', 'status', 'created_at']);
         $orders = MaterialOrder::query()->visibleTo($this->user)

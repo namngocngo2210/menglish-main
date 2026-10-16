@@ -8,6 +8,7 @@ import { computed } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import { route } from '@/lib/route';
 import ReportTabs from './ReportTabs.vue';
+import ReportReviewState from './ReportReviewState.vue';
 import ReportHistory from './ReportHistory.vue';
 
 defineOptions({ layout: { title: 'Báo cáo quý Học thuật' } });
@@ -20,6 +21,7 @@ const props = defineProps({
     sections: { type: Object, default: () => ({}) },
     values: { type: Object, default: () => ({}) },
     submittedAt: { type: String, default: null },
+    review: { type: Object, default: null },
     monthlyReports: { type: Array, default: () => [] },
     history: { type: Array, default: () => [] },
 });
@@ -62,6 +64,7 @@ const pickQuarter = (value) => value && value !== props.quarter && router.get(ro
     </UiPageHeader>
 
     <ReportTabs :tabs="tabs" />
+    <div v-if="review?.status === 'returned' || review?.status === 'reviewed'" class="mb-lg"><ReportReviewState :review="review" /></div>
 
     <div class="grid grid-cols-1 gap-lg lg:grid-cols-[1fr_340px]">
         <UiForm id="academic-quarterly-form" :action="route('reports.periodic.academic-quarterly.store')" method="post" class="space-y-lg">

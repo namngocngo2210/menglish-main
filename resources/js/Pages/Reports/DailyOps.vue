@@ -1,16 +1,20 @@
 <script setup>
 /**
  * Báo cáo ngày Học vụ / Học thuật (mockup 02/06 + chủ dự án 15/10/2026): số liệu từng khối lấy từ hệ thống
- * (StaffReportController::daily → DailyReportMetrics), người viết chỉ nhập ghi chú mỗi khối + bật "Tạo Task" nếu cần follow-up.
- * Ngày chưa nộp: số liệu tính trực tiếp. Đã nộp: hiện số đã chụp lúc nộp; "Cập nhật số liệu" tính lại, Lưu để ghi đè.
+ * (StaffReportController::daily → DailyReportMetrics), người viết chỉ nhập ghi chú mỗi khối + thêm task follow-up nếu cần.
+ * Ngày chưa nộp: số liệu tính trực tiếp. Đã nộp: hiện số đã chụp lúc nộp; sửa ghi chú giữ nguyên số đó, "Cập nhật số liệu"
+ * tính lại và Lưu thì ghi số mới. Rà soát 16/10/2026: ghi chú giữ trên máy khi tải lại số liệu / đổi ngày (useNoteDraft),
+ * băng nhắc ngày còn thiếu, trạng thái Admin kiểm tra / yêu cầu bổ sung, nhiều task (mỗi task có tiêu đề, hạn, người phụ trách).
  */
-import { ref } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import { Link, router } from '@inertiajs/vue3';
 import { route } from '@/lib/route';
 import ReportTabs from './ReportTabs.vue';
 import ReportHistory from './ReportHistory.vue';
+import ReportReviewState from './ReportReviewState.vue';
 import LegacyReports from './LegacyReports.vue';
 import DailyMetric from './DailyMetric.vue';
+import { useNoteDraft } from './useNoteDraft';
 
 defineOptions({ layout: { title: 'Báo cáo ngày' } });
 
@@ -20,26 +24,47 @@ const props = defineProps({
     date: { type: String, required: true },
     dateLabel: { type: String, default: '' },
     today: { type: String, required: true },
+    deadline: { type: String, default: null },
     sections: { type: Object, default: () => ({}) },
     computedAt: { type: String, default: null },
     live: { type: Boolean, default: true },
     noteLabels: { type: Object, default: () => ({}) },
     notes: { type: Object, default: () => ({}) },
+    draftKey: { type: String, default: 'report-draft:daily' },
     legacyFields: { type: Array, default: () => [] },
-    task: { type: Object, default: null },
+    tasks: { type: Array, default: () => [] },
     assignees: { type: Array, default: () => [] },
     submittedAt: { type: String, default: null },
+    firstSubmittedAt: { type: String, default: null },
+    late: { type: Boolean, default: false },
+    review: { type: Object, default: null },
+    missingDays: { type: Array, default: () => [] },
     history: { type: Array, default: () => [] },
     legacy: { type: Array, default: () => [] },
 });
 
-const taskOn = ref(false);
+// Mọi khối đều có khóa (chuỗi rỗng) để ô ghi chú là v-model ngay từ đầu.
+const { notes: draft, restored, discard, clear } = useNoteDraft(props.draftKey, {
+    ...Object.fromEntries(Object.keys(props.sections).map((key) => [key, ''])),
+    ...props.notes,
+});
+const otherMissing = computed(() => props.missingDays.filter((d) => d.date !== props.date));
 const picker = ref(null);
 const openPicker = () => (picker.value?.showPicker ? picker.value.showPicker() : picker.value?.click());
 const pickDate = (event) => event.target.value && event.target.value !== props.date && router.get(route('reports.periodic.daily'), { date: event.target.value });
-const refresh = () => router.get(route('reports.periodic.daily'), { date: props.date, refresh: 1 }, { preserveScroll: true });
+// Giữ nguyên trang (ghi chú đang gõ, task đang thêm), chỉ thay số liệu.
+const refresh = () => router.get(route('reports.periodic.daily'), { date: props.date, refresh: 1 }, { preserveScroll: true, preserveState: true });
 // Mục có số → thẻ nhỏ (3 cột); mục chỉ là danh sách (không có số) → cả hàng.
 const hasValue = (item) => item.value !== null && item.value !== undefined;
+
+let uid = 0;
+const newTasks = ref([]);
+const addTask = () => newTasks.value.push({ uid: ++uid });
+const removeTask = (t) => (newTasks.value = newTasks.value.filter((x) => x.uid !== t.uid));
+const onSaved = () => {
+    clear();
+    newTasks.value = [];
+};
 </script>
 
 <template>
@@ -69,12 +94,27 @@ const hasValue = (item) => item.value !== null && item.value !== undefined;
     <ReportTabs :tabs="tabs" />
 
     <div class="space-y-xl">
-        <UiForm id="daily-ops-form" :action="route('reports.periodic.daily.store')" method="post" class="space-y-xl" #default="{ errors }">
+        <UiForm id="daily-ops-form" :action="route('reports.periodic.daily.store')" method="post" class="space-y-xl" #default="{ errors }" @success="onSaved">
             <input type="hidden" name="date" :value="date" />
-            <UiAlert v-if="submittedAt" type="info">
-                Đã nộp báo cáo ngày này lúc {{ formatDate(submittedAt, 'H:i d/m/Y') }}.
-                <template v-if="!live">Số liệu bên dưới là số lúc nộp.</template>
-                <template v-else>Số liệu bên dưới vừa được tính lại, bấm Lưu để cập nhật báo cáo.</template>
+            <!-- Đã nộp mà vừa bấm "Cập nhật số liệu" → Lưu ghi số mới; không thì giữ số đã chụp lúc nộp. -->
+            <input type="hidden" name="refresh" :value="live && submittedAt ? 1 : 0" />
+            <UiAlert v-if="otherMissing.length" type="warning" data-daily-missing>
+                Bạn chưa nộp báo cáo ngày
+                <template v-for="(d, i) in otherMissing.slice(0, 6)" :key="d.date">
+                    <Link :href="d.href" class="font-semibold underline">{{ d.label }}</Link><template v-if="i < Math.min(otherMissing.length, 6) - 1">, </template>
+                </template><template v-if="otherMissing.length > 6"> và {{ otherMissing.length - 6 }} ngày khác (xem danh sách bên dưới)</template>. Ngày không nộp tính là nộp trễ.
+            </UiAlert>
+            <ReportReviewState :review="review" />
+            <UiAlert v-if="submittedAt" type="info" data-daily-submitted>
+                Đã nộp lúc {{ formatDate(firstSubmittedAt ?? submittedAt, 'H:i d/m/Y') }}<template v-if="firstSubmittedAt && firstSubmittedAt !== submittedAt">, sửa lần cuối {{ formatDate(submittedAt, 'H:i d/m/Y') }}</template>.
+                <UiBadge v-if="late" color="error">Nộp sau hạn {{ deadline }}</UiBadge>
+                <template v-if="!live">Số liệu bên dưới là số lúc nộp, sửa ghi chú không làm đổi số.</template>
+                <template v-else>Số liệu bên dưới vừa được tính lại, bấm Lưu để cập nhật báo cáo bằng số mới.</template>
+            </UiAlert>
+            <UiAlert v-else-if="deadline && date < today" type="info">Hạn nộp báo cáo ngày này: {{ deadline }}.</UiAlert>
+            <UiAlert v-if="restored" type="info" data-daily-draft-restored>
+                Đã khôi phục ghi chú bạn gõ trên máy này nhưng chưa lưu.
+                <button type="button" class="ml-xs font-semibold underline" @click="discard">Bỏ bản nháp</button>
             </UiAlert>
             <UiAlert v-if="errors.notes" type="error">{{ errors.notes }}</UiAlert>
 
@@ -115,40 +155,41 @@ const hasValue = (item) => item.value !== null && item.value !== undefined;
                     />
                 </div>
                 <UiTextarea
+                    v-model="draft[key]"
                     :name="`notes[${key}]`"
                     :label="noteLabels[key] ?? 'Ghi chú'"
                     :rows="3"
                     :placeholder="key === 'media' ? 'Nhập nội dung kèm link bài viết...' : 'Ghi chú thêm (nếu có)...'"
-                    :value="notes[key]"
                 />
             </section>
 
             <section class="space-y-lg rounded-xl border border-primary-container/30 bg-surface-container-low p-lg shadow-sm" data-daily-task>
-                <div class="flex items-center justify-between gap-md">
+                <div class="flex flex-wrap items-center justify-between gap-md">
                     <h2 class="flex items-center gap-xs font-h3 text-h3 text-on-surface">
                         <span class="material-symbols-outlined text-primary-container" aria-hidden="true">assignment_turned_in</span>Task follow-up
                     </h2>
-                    <label v-if="!task" class="flex cursor-pointer items-center gap-sm font-body-medium text-body-medium text-on-surface">
-                        <input type="hidden" name="task[enabled]" :value="taskOn ? 1 : 0" />
-                        <button
-                            type="button"
-                            role="switch"
-                            :aria-checked="taskOn"
-                            :class="['relative h-6 w-11 rounded-full transition-colors', taskOn ? 'bg-primary-container' : 'bg-outline-variant']"
-                            @click="taskOn = !taskOn"
-                        >
-                            <span :class="['absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all', taskOn ? 'left-[22px]' : 'left-0.5']" />
-                        </button>
-                        Tạo Task
-                    </label>
+                    <UiButton type="button" variant="secondary" size="sm" icon="add" data-daily-task-add @click="addTask">Thêm task</UiButton>
                 </div>
-                <p v-if="task" class="font-body-small text-body-small text-on-surface" data-daily-task-created>
-                    Đã tạo việc <strong>{{ task.title }}</strong> · Người phụ trách: {{ task.assignee ?? '—' }} · Ngày giải quyết {{ formatDate(task.due_date, 'd/m/Y') }}.
-                    <UiButton variant="ghost" size="sm" :href="route('tasks.index')">Mở danh sách việc</UiButton>
-                </p>
-                <div v-else-if="taskOn" class="grid grid-cols-1 gap-lg md:grid-cols-2">
-                    <UiDate name="task[due_date]" label="Ngày giải quyết" required icon="calendar_today" :value="today" />
-                    <UiSelect name="task[assignee_id]" label="Người phụ trách (PIC)" :options="assignees" :value="assignees[0]?.value" :searchable="assignees.length > 8" />
+                <ul v-if="tasks.length" class="space-y-xs" data-daily-task-created>
+                    <li v-for="t in tasks" :key="t.id" class="flex flex-wrap items-center gap-x-sm gap-y-0.5 rounded-lg bg-surface-container-lowest px-md py-sm font-body-small text-body-small text-on-surface">
+                        <strong>{{ t.title }}</strong>
+                        <span class="text-on-surface-variant">· {{ t.assignee ?? '—' }} · hạn {{ formatDate(t.due_date, 'd/m/Y') }}</span>
+                        <UiBadge color="neutral">{{ t.status_label }}</UiBadge>
+                    </li>
+                </ul>
+                <p v-else-if="!newTasks.length" class="font-body-small text-body-small text-on-surface-variant">Cần ai xử lý tiếp việc gì thì bấm "Thêm task". Mỗi task có tiêu đề, hạn và người phụ trách riêng.</p>
+                <div v-for="(t, i) in newTasks" :key="t.uid" class="space-y-md rounded-lg border border-surface-variant bg-surface-container-lowest p-md" data-daily-task-row>
+                    <div class="flex items-start gap-md">
+                        <div class="min-w-0 flex-1">
+                            <UiInput :name="`tasks[${i}][title]`" label="Tiêu đề task" required placeholder="Vd: Gọi lại phụ huynh bé An về học bù" />
+                        </div>
+                        <UiButton type="button" variant="ghost" size="sm" icon="close" class="mt-lg" :aria-label="`Bỏ task ${i + 1}`" @click="removeTask(t)" />
+                    </div>
+                    <UiTextarea :name="`tasks[${i}][content]`" label="Nội dung (tùy chọn)" :rows="2" />
+                    <div class="grid grid-cols-1 gap-md md:grid-cols-2">
+                        <UiDate :name="`tasks[${i}][due_date]`" label="Hạn xử lý" required icon="calendar_today" :value="today" :min="today" />
+                        <UiSelect :name="`tasks[${i}][assignee_id]`" label="Người phụ trách (PIC)" :options="assignees" :value="assignees[0]?.value" :searchable="assignees.length > 8" />
+                    </div>
                 </div>
             </section>
 
@@ -158,7 +199,7 @@ const hasValue = (item) => item.value !== null && item.value !== undefined;
         </UiForm>
 
         <div class="grid grid-cols-1 gap-lg lg:grid-cols-2">
-            <ReportHistory :items="history" :current="date" title="Các ngày đã nộp" />
+            <ReportHistory :items="history" :current="date" title="Các ngày gần đây" />
             <LegacyReports :items="legacy" />
         </div>
     </div>

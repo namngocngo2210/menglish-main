@@ -7,6 +7,7 @@ import { ref } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import { route } from '@/lib/route';
 import ReportTabs from './ReportTabs.vue';
+import ReportReviewState from './ReportReviewState.vue';
 import ReportHistory from './ReportHistory.vue';
 
 defineOptions({ layout: { title: 'Báo cáo tháng Học thuật' } });
@@ -18,6 +19,7 @@ const props = defineProps({
     fields: { type: Object, default: () => ({}) },
     values: { type: Object, default: () => ({}) },
     submittedAt: { type: String, default: null },
+    review: { type: Object, default: null },
     weeklyReports: { type: Array, default: () => [] },
     meetings: { type: Array, default: () => [] },
     history: { type: Array, default: () => [] },
@@ -44,6 +46,7 @@ const pickMonth = (value) => value && value !== props.month && router.get(route(
     </UiPageHeader>
 
     <ReportTabs :tabs="tabs" />
+    <div v-if="review?.status === 'returned' || review?.status === 'reviewed'" class="mb-lg"><ReportReviewState :review="review" /></div>
 
     <div class="grid grid-cols-1 gap-lg lg:grid-cols-[1fr_400px]">
         <UiForm id="academic-monthly-form" :action="route('reports.periodic.academic-monthly.store')" method="post" class="h-fit space-y-md rounded-2xl border border-primary-container/30 bg-surface-container-lowest p-lg shadow-sm">

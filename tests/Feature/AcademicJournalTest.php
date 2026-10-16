@@ -104,11 +104,10 @@ class AcademicJournalTest extends TestCase
             ->assertSessionHasNoErrors();
         $report = StaffReport::where('kind', 'daily_ops')->sole();
         $this->assertNull($report->reviewed_at);
-        $this->assertSame(1, AdminNotification::where('user_id', $admin->id)->where('type', 'staff_report_submitted')->count());
+        // Báo cáo ngày không báo Admin từng bản (rà soát 16/10/2026): Admin nhận bản tổng hợp mỗi sáng (reports:daily-digest).
+        $this->assertSame(0, AdminNotification::where('user_id', $admin->id)->where('type', 'staff_report_submitted')->count());
 
-        // Sửa lại khi vẫn chờ kiểm tra → không báo thêm.
         $this->actingAs($staff)->post(route('reports.periodic.daily.store'), ['date' => $today, 'notes' => ['operations' => 'Ghi chú 6']]);
-        $this->assertSame(1, AdminNotification::where('user_id', $admin->id)->where('type', 'staff_report_submitted')->count());
 
         $this->actingAs($admin)->get(route('reports.all', ['review' => 'pending']))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->component('Reports/All')
@@ -118,16 +117,17 @@ class AcademicJournalTest extends TestCase
         $this->actingAs($manager)->post(route('reports.review', $report->id))->assertForbidden();
         $this->actingAs($admin)->post(route('reports.review', $report->id), ['reviewed' => 1])->assertRedirect();
         $this->assertSame($admin->id, $report->fresh()->reviewed_by);
+        // Người viết được báo báo cáo đã được kiểm tra.
+        $this->assertSame(1, AdminNotification::where('user_id', $staff->id)->where('type', 'staff_report_reviewed')->count());
         $this->actingAs($admin)->get(route('reports.all', ['review' => 'pending']))
             ->assertInertia(fn (AssertableInertia $page) => $page->where('stats.pending_review', 0)->has('reports.data', 0));
 
-        // Sửa sau khi Admin đã kiểm tra → về lại chờ kiểm tra và báo Admin lần nữa.
+        // Sửa sau khi Admin đã kiểm tra → về lại chờ kiểm tra.
         $this->actingAs($staff)->post(route('reports.periodic.daily.store'), ['date' => $today, 'notes' => ['operations' => 'Ghi chú 7']]);
         $this->assertNull($report->fresh()->reviewed_at);
-        $this->assertSame(2, AdminNotification::where('user_id', $admin->id)->where('type', 'staff_report_submitted')->count());
     }
 
-    public function test_academic_lead_creates_daily_report_and_admin_is_notified(): void
+    public function test_academic_lead_creates_daily_report_for_admin_review(): void
     {
         $lead = $this->makeUser('academic_lead', ['name' => 'Học thuật B']);
         $admin = $this->makeUser('admin');
@@ -143,7 +143,6 @@ class AcademicJournalTest extends TestCase
             ->assertSessionHasNoErrors();
         $report = StaffReport::where('kind', 'daily_ops')->sole();
         $this->assertSame($lead->id, (int) $report->user_id);
-        $this->assertSame(1, AdminNotification::where('user_id', $admin->id)->where('type', 'staff_report_submitted')->count());
 
         $this->actingAs($admin)->get(route('reports.all', ['review' => 'pending']))
             ->assertInertia(fn (AssertableInertia $page) => $page->where('reports.data.0.id', $report->id)->where('reports.data.0.for', 'Học thuật'));
