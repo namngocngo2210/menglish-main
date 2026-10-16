@@ -42,6 +42,36 @@ func (q *Queries) ActiveBranches(ctx context.Context) ([]ActiveBranchesRow, erro
 	return items, nil
 }
 
+const activeCourses = `-- name: ActiveCourses :many
+SELECT id, name, tuition_fee FROM academic.courses WHERE is_active AND deleted_at IS NULL ORDER BY name, id
+`
+
+type ActiveCoursesRow struct {
+	ID         uuid.UUID
+	Name       string
+	TuitionFee int64
+}
+
+func (q *Queries) ActiveCourses(ctx context.Context) ([]ActiveCoursesRow, error) {
+	rows, err := q.db.Query(ctx, activeCourses)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ActiveCoursesRow
+	for rows.Next() {
+		var i ActiveCoursesRow
+		if err := rows.Scan(&i.ID, &i.Name, &i.TuitionFee); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const activeEnrollmentCount = `-- name: ActiveEnrollmentCount :one
 SELECT count(*)::bigint FROM academic.enrollments WHERE class_id = $1 AND status IN ('pending', 'completed') AND left_at IS NULL
 `
@@ -51,6 +81,37 @@ func (q *Queries) ActiveEnrollmentCount(ctx context.Context, classID uuid.UUID) 
 	var column_1 int64
 	err := row.Scan(&column_1)
 	return column_1, err
+}
+
+const activeLevels = `-- name: ActiveLevels :many
+SELECT code::text AS code, name, target FROM academic.course_levels WHERE is_active AND deleted_at IS NULL
+ORDER BY sort_order, level_group, code
+`
+
+type ActiveLevelsRow struct {
+	Code   string
+	Name   string
+	Target string
+}
+
+func (q *Queries) ActiveLevels(ctx context.Context) ([]ActiveLevelsRow, error) {
+	rows, err := q.db.Query(ctx, activeLevels)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ActiveLevelsRow
+	for rows.Next() {
+		var i ActiveLevelsRow
+		if err := rows.Scan(&i.Code, &i.Name, &i.Target); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const branchClassIDs = `-- name: BranchClassIDs :many
@@ -518,12 +579,12 @@ func (q *Queries) ClearSessionRoom(ctx context.Context, arg ClearSessionRoomPara
 }
 
 const closeEnrollments = `-- name: CloseEnrollments :exec
-UPDATE academic.enrollments SET left_at = $1, updated_at = now()
+UPDATE academic.enrollments SET left_at = greatest(enrolled_at, $1::date), updated_at = now()
 WHERE student_id = $2 AND class_id = $3 AND left_at IS NULL AND status <> 'dropped'
 `
 
 type CloseEnrollmentsParams struct {
-	Today     *time.Time
+	Today     time.Time
 	StudentID uuid.UUID
 	ClassID   uuid.UUID
 }
@@ -770,12 +831,12 @@ func (q *Queries) DetachRoomFromClass(ctx context.Context, id uuid.UUID) error {
 }
 
 const dropEnrollments = `-- name: DropEnrollments :exec
-UPDATE academic.enrollments SET status = 'dropped', left_at = coalesce(left_at, $1), updated_at = now()
+UPDATE academic.enrollments SET status = 'dropped', left_at = coalesce(left_at, greatest(enrolled_at, $1::date)), updated_at = now()
 WHERE student_id = $2 AND status IN ('pending', 'completed')
 `
 
 type DropEnrollmentsParams struct {
-	Today     *time.Time
+	Today     time.Time
 	StudentID uuid.UUID
 }
 
@@ -1256,7 +1317,7 @@ func (q *Queries) HolidayCancelledSessions(ctx context.Context, holidayID *uuid.
 
 const holidaySessionsUpcoming = `-- name: HolidaySessionsUpcoming :many
 SELECT s.id, c.name AS class_name, c.code::text AS class_code, s.date, to_char(s.start_time, 'HH24:MI') AS start_time,
-       h.name AS holiday_name, m.date AS makeup_date, to_char(m.start_time, 'HH24:MI') AS makeup_start
+       h.name AS holiday_name, m.date AS makeup_date, coalesce(to_char(m.start_time, 'HH24:MI'), '')::text AS makeup_start
 FROM academic.class_sessions s
 JOIN academic.classes c ON c.id = s.class_id
 LEFT JOIN core.holidays h ON h.id = s.holiday_id
@@ -3169,7 +3230,7 @@ func (q *Queries) UserNames(ctx context.Context, ids []uuid.UUID) ([]UserNamesRo
 
 const usersWithPermission = `-- name: UsersWithPermission :many
 
-SELECT u.id, u.full_name, u.code::text AS code, u.email::text AS email
+SELECT u.id, u.full_name, coalesce(u.code::text, '')::text AS code, coalesce(u.email::text, '')::text AS email
 FROM iam.users u
 WHERE u.status = 'active' AND u.kind = 'staff' AND (
     EXISTS (SELECT 1 FROM iam.permission_overrides o WHERE o.user_id = u.id AND o.permission = $1 AND o.scope_type = 'all' AND o.allow)

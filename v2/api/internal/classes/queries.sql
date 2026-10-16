@@ -105,6 +105,13 @@ WHERE s.date = sqlc.arg(today)::date AND s.status <> 'cancelled'
 -- name: ActiveBranches :many
 SELECT id, code::text AS code, name FROM core.branches WHERE is_active ORDER BY name;
 
+-- name: ActiveCourses :many
+SELECT id, name, tuition_fee FROM academic.courses WHERE is_active AND deleted_at IS NULL ORDER BY name, id;
+
+-- name: ActiveLevels :many
+SELECT code::text AS code, name, target FROM academic.course_levels WHERE is_active AND deleted_at IS NULL
+ORDER BY sort_order, level_group, code;
+
 -- ───────────────────────── Một lớp ─────────────────────────
 
 -- name: GetClass :one
@@ -417,7 +424,7 @@ SELECT id, status, branch_id, end_date FROM academic.classes WHERE id = $1 AND d
 -- name: HolidaySessionsUpcoming :many
 -- Buổi sắp tới bị hủy do ngày nghỉ lễ (kèm buổi học bù) của các lớp trong phạm vi.
 SELECT s.id, c.name AS class_name, c.code::text AS class_code, s.date, to_char(s.start_time, 'HH24:MI') AS start_time,
-       h.name AS holiday_name, m.date AS makeup_date, to_char(m.start_time, 'HH24:MI') AS makeup_start
+       h.name AS holiday_name, m.date AS makeup_date, coalesce(to_char(m.start_time, 'HH24:MI'), '')::text AS makeup_start
 FROM academic.class_sessions s
 JOIN academic.classes c ON c.id = s.class_id
 LEFT JOIN core.holidays h ON h.id = s.holiday_id
@@ -525,7 +532,7 @@ SELECT status, start_date FROM academic.classes WHERE id = $1;
 
 -- name: UsersWithPermission :many
 -- Nhân sự đang hoạt động có quyền (đối tượng) perm: theo vai trò, trừ khi bị chặn riêng; hoặc được cấp riêng.
-SELECT u.id, u.full_name, u.code::text AS code, u.email::text AS email
+SELECT u.id, u.full_name, coalesce(u.code::text, '')::text AS code, coalesce(u.email::text, '')::text AS email
 FROM iam.users u
 WHERE u.status = 'active' AND u.kind = 'staff' AND (
     EXISTS (SELECT 1 FROM iam.permission_overrides o WHERE o.user_id = u.id AND o.permission = sqlc.arg(perm) AND o.scope_type = 'all' AND o.allow)
@@ -557,7 +564,7 @@ RETURNING id;
 
 -- name: CloseEnrollments :exec
 -- Chuyển lớp chính: lượt xếp lớp ở lớp chính cũ hết hiệu lực từ hôm nay.
-UPDATE academic.enrollments SET left_at = sqlc.arg(today), updated_at = now()
+UPDATE academic.enrollments SET left_at = greatest(enrolled_at, sqlc.arg(today)::date), updated_at = now()
 WHERE student_id = sqlc.arg(student_id) AND class_id = sqlc.arg(class_id) AND left_at IS NULL AND status <> 'dropped';
 
 -- name: SetStudentClass :exec
@@ -566,7 +573,7 @@ WHERE id = sqlc.arg(id);
 
 -- name: DropEnrollments :exec
 -- Thôi học: đóng các lượt xếp lớp còn hiệu lực.
-UPDATE academic.enrollments SET status = 'dropped', left_at = coalesce(left_at, sqlc.arg(today)), updated_at = now()
+UPDATE academic.enrollments SET status = 'dropped', left_at = coalesce(left_at, greatest(enrolled_at, sqlc.arg(today)::date)), updated_at = now()
 WHERE student_id = sqlc.arg(student_id) AND status IN ('pending', 'completed');
 
 -- name: ListEnrollments :many

@@ -419,7 +419,7 @@ func (h *Handler) deleteRoomType(w http.ResponseWriter, r *http.Request) {
 // ───────────────────────── Khung giờ ca dạy ─────────────────────────
 
 func (h *Handler) listShifts(w http.ResponseWriter, r *http.Request) {
-	out, err := h.svc.ListShifts(r.Context())
+	out, err := h.svc.ListShifts(r.Context(), actor(r))
 	if err != nil {
 		h.fail(w, r, err)
 		return

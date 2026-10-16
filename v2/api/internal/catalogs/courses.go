@@ -89,13 +89,24 @@ func (s *Service) ListCourses(ctx context.Context, f CourseFilter) (CourseList, 
 		c := Course{
 			ID: r.ID, Code: r.Code, Name: r.Name, Description: r.Description, CourseLevelID: r.CourseLevelID,
 			TuitionFee: r.TuitionFee, TotalLessons: r.TotalLessons, IsActive: r.IsActive,
-			// TODO(classes): đếm lớp của khóa khi có academic.classes.
-			ClassesCount: 0,
 		}
 		if r.LevelCode != nil {
 			c.Level = &LevelRef{Code: *r.LevelCode, Name: deref(r.LevelName), Target: deref(r.LevelTarget)}
 		}
 		items = append(items, c)
+	}
+	if s.Classes != nil && len(items) > 0 {
+		ids := make([]uuid.UUID, 0, len(items))
+		for _, c := range items {
+			ids = append(ids, c.ID)
+		}
+		counts, err := s.Classes.CourseClassCounts(ctx, ids)
+		if err != nil {
+			return CourseList{}, err
+		}
+		for i := range items {
+			items[i].ClassesCount = counts[items[i].ID]
+		}
 	}
 	st, err := s.q.CourseStats(ctx)
 	if err != nil {
@@ -249,7 +260,15 @@ func (s *Service) DeleteCourse(ctx context.Context, actor *iam.Access, id uuid.U
 	if err != nil {
 		return "", err
 	}
-	// TODO(classes): chặn "Không thể xóa khóa học '<tên>' vì đang có N lớp học liên kết!" khi có academic.classes.
+	if s.Classes != nil {
+		counts, err := s.Classes.CourseClassCounts(ctx, []uuid.UUID{id})
+		if err != nil {
+			return "", err
+		}
+		if n := counts[id]; n > 0 {
+			return "", conflict(fmt.Sprintf("Không thể xóa khóa học '%s' vì đang có %d lớp học liên kết!", c.Name, n))
+		}
+	}
 	if err := s.q.DeleteCourse(ctx, id); err != nil {
 		return "", err
 	}

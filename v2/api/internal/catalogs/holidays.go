@@ -170,9 +170,28 @@ func (s *Service) CreateHoliday(ctx context.Context, actor *iam.Access, in Holid
 		return uuid.Nil, "", holidayCodeErr(err)
 	}
 	// TODO(audit): "Tạo ngày nghỉ mới"
-	// TODO(classes): hủy buổi học trùng ngày nghỉ và xếp bù cuối lịch (HolidayRescheduleService::apply), nối tóm tắt vào thông báo.
 	s.log.Info("holiday created", "holiday_id", id, "by", actor.UserID)
-	return id, "Đã thêm ngày nghỉ.", nil
+	summary, err := s.applyHoliday(ctx, id, in)
+	if err != nil {
+		return id, "", err
+	}
+	return id, "Đã thêm ngày nghỉ." + summary, nil
+}
+
+// applyHoliday: hủy buổi học trùng ngày nghỉ, xếp bù cuối lịch (HolidayRescheduleService::apply); trả phần tóm tắt.
+func (s *Service) applyHoliday(ctx context.Context, id uuid.UUID, in HolidayInput) (string, error) {
+	if s.Classes == nil {
+		return "", nil
+	}
+	start, _ := time.Parse(time.DateOnly, in.StartDate)
+	end, _ := time.Parse(time.DateOnly, in.EndDate)
+	sum, err := s.Classes.HolidayApplied(ctx, HolidayScope{
+		ID: id, Name: in.Name, StartDate: start, EndDate: end, SystemWide: in.IsSystemWide, BranchIDs: in.BranchIDs,
+	})
+	if err != nil {
+		return "", err
+	}
+	return sum.Text(), nil
 }
 
 func (s *Service) UpdateHoliday(ctx context.Context, actor *iam.Access, id uuid.UUID, in HolidayInput) (string, error) {
@@ -212,9 +231,12 @@ func (s *Service) UpdateHoliday(ctx context.Context, actor *iam.Access, id uuid.
 		return "", holidayCodeErr(err)
 	}
 	// TODO(audit): "Cập nhật ngày nghỉ"
-	// TODO(classes): áp lại lịch học theo ngày nghỉ mới (HolidayRescheduleService::apply).
 	s.log.Info("holiday updated", "holiday_id", id, "by", actor.UserID)
-	return "Đã cập nhật ngày nghỉ.", nil
+	summary, err := s.applyHoliday(ctx, id, in)
+	if err != nil {
+		return "", err
+	}
+	return "Đã cập nhật ngày nghỉ." + summary, nil
 }
 
 func (s *Service) DeleteHoliday(ctx context.Context, actor *iam.Access, id uuid.UUID) (string, error) {
@@ -226,9 +248,19 @@ func (s *Service) DeleteHoliday(ctx context.Context, actor *iam.Access, id uuid.
 		return "", errHolidayNotFound
 	}
 	// TODO(audit): "Xóa ngày nghỉ"
-	// TODO(classes): khôi phục buổi học bị hủy do ngày nghỉ này và gỡ buổi bù (HolidayRescheduleService::release).
 	s.log.Info("holiday deleted", "holiday_id", id, "by", actor.UserID)
-	return "Đã xóa ngày nghỉ.", nil
+	msg := "Đã xóa ngày nghỉ."
+	// Khôi phục buổi học bị hủy do ngày nghỉ này và gỡ buổi bù chưa diễn ra (HolidayRescheduleService::release).
+	if s.Classes != nil {
+		restored, err := s.Classes.HolidayReleased(ctx, id)
+		if err != nil {
+			return "", err
+		}
+		if restored > 0 {
+			msg += fmt.Sprintf(" Đã khôi phục %d buổi học bị hủy do ngày nghỉ này (buổi bù tương ứng đã được gỡ).", restored)
+		}
+	}
+	return msg, nil
 }
 
 // HolidaysBetween: ngày nghỉ áp dụng cho chi nhánh trong khoảng ngày (dùng cho xếp lịch lớp, tra phòng trống).

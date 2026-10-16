@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/catalogs/catalogsdb"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
@@ -78,8 +79,8 @@ type Room struct {
 	Name        string    `json:"name"`
 	Capacity    *int32    `json:"capacity"`
 	Description *string   `json:"description"`
-	// Lớp đang dùng phòng (tên lớp, khung giờ); TODO(classes) khi có academic.classes
-	Classes []any `json:"classes"`
+	// Lớp còn mở đang gắn phòng (tên lớp, ca học tuần)
+	Classes []RoomClass `json:"classes"`
 }
 
 type RoomTypeOption struct {
@@ -123,8 +124,11 @@ func (s *Service) ListRooms(ctx context.Context, actor *iam.Access, f RoomFilter
 		total = r.Total
 		items = append(items, Room{
 			ID: r.ID, BranchID: r.BranchID, Branch: r.BranchName, RoomTypeID: r.RoomTypeID, Type: r.TypeName, TypeActive: r.TypeActive,
-			Name: r.Name, Capacity: r.Capacity, Description: r.Description, Classes: []any{},
+			Name: r.Name, Capacity: r.Capacity, Description: r.Description, Classes: []RoomClass{},
 		})
+	}
+	if err := s.attachRoomClasses(ctx, items); err != nil {
+		return out, err
 	}
 	p := newPage(items, total, page, roomsPageSize)
 	out.Rooms = &p
@@ -238,8 +242,33 @@ func (s *Service) GetRoom(ctx context.Context, actor *iam.Access, id uuid.UUID) 
 	if err != nil {
 		return Room{}, err
 	}
-	return Room{ID: r.ID, BranchID: r.BranchID, Branch: r.BranchName, RoomTypeID: r.RoomTypeID, Name: r.Name,
-		Capacity: r.Capacity, Description: r.Description, Classes: []any{}}, nil
+	out := []Room{{ID: r.ID, BranchID: r.BranchID, Branch: r.BranchName, RoomTypeID: r.RoomTypeID, Name: r.Name,
+		Capacity: r.Capacity, Description: r.Description, Classes: []RoomClass{}}}
+	if err := s.attachRoomClasses(ctx, out); err != nil {
+		return Room{}, err
+	}
+	return out[0], nil
+}
+
+// attachRoomClasses: điền lớp đang dùng từng phòng (RoomService::usage).
+func (s *Service) attachRoomClasses(ctx context.Context, rooms []Room) error {
+	if s.Classes == nil || len(rooms) == 0 {
+		return nil
+	}
+	ids := make([]uuid.UUID, 0, len(rooms))
+	for _, r := range rooms {
+		ids = append(ids, r.ID)
+	}
+	usage, err := s.Classes.RoomClasses(ctx, ids)
+	if err != nil {
+		return err
+	}
+	for i := range rooms {
+		if cs := usage[rooms[i].ID]; len(cs) > 0 {
+			rooms[i].Classes = cs
+		}
+	}
+	return nil
 }
 
 func (s *Service) UpdateRoom(ctx context.Context, actor *iam.Access, id uuid.UUID, in RoomInput) (string, error) {
@@ -250,9 +279,15 @@ func (s *Service) UpdateRoom(ctx context.Context, actor *iam.Access, id uuid.UUI
 	if err := s.validateRoom(ctx, &in, &r.RoomTypeID); err != nil {
 		return "", err
 	}
-	// TODO(classes): đổi tên phòng thì chép tên mới sang lớp / buổi học còn dùng tên cũ (RoomService::syncName).
-	err = s.q.UpdateRoom(ctx, catalogsdb.UpdateRoomParams{
-		ID: id, RoomTypeID: *in.RoomTypeID, Name: in.Name, Capacity: in.Capacity, Description: optText(in.Description),
+	// Đổi tên phòng thì chép tên mới sang lớp / buổi học sắp tới còn dùng tên cũ (RoomService::syncName).
+	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		err := s.q.WithTx(tx).UpdateRoom(ctx, catalogsdb.UpdateRoomParams{
+			ID: id, RoomTypeID: *in.RoomTypeID, Name: in.Name, Capacity: in.Capacity, Description: optText(in.Description),
+		})
+		if err != nil || s.Classes == nil || r.Name == in.Name {
+			return err
+		}
+		return s.Classes.RoomRenamed(ctx, tx, id, r.BranchID, r.Name, in.Name)
 	})
 	if err != nil {
 		return "", roomNameErr(err)
@@ -266,13 +301,26 @@ func (s *Service) DeleteRoom(ctx context.Context, actor *iam.Access, id uuid.UUI
 	if err != nil {
 		return "", err
 	}
-	// TODO(classes): phòng đang có lớp đang học thì chặn "Không thể xóa: <phòng> đang được lớp ... sử dụng.";
-	// lớp chưa bắt đầu thì bỏ liên kết phòng khỏi các lớp đó rồi xóa.
-	if err := s.q.DeleteRoom(ctx, id); err != nil {
+	// Phòng đang có lớp đang học thì chặn; lớp chưa bắt đầu học thì bỏ liên kết phòng khỏi các lớp đó rồi xóa.
+	var detached []string
+	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		if s.Classes != nil {
+			var err error
+			if detached, err = s.Classes.RoomDeleting(ctx, tx, id, r.Name); err != nil {
+				return err
+			}
+		}
+		return s.q.WithTx(tx).DeleteRoom(ctx, id)
+	})
+	if err != nil {
 		return "", err
 	}
 	s.log.Info("room deleted", "room_id", id, "by", actor.UserID)
-	return fmt.Sprintf("Đã xóa %s.", r.Name), nil
+	msg := fmt.Sprintf("Đã xóa %s.", r.Name)
+	if len(detached) > 0 {
+		msg += fmt.Sprintf(" Đã bỏ liên kết phòng khỏi lớp %s.", strings.Join(detached, ", "))
+	}
+	return msg, nil
 }
 
 // ───────────────────────── Loại phòng ─────────────────────────

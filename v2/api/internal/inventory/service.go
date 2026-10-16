@@ -45,6 +45,23 @@ type Service struct {
 	log  *slog.Logger
 	cfg  Config
 	now  func() time.Time
+	// Classes: phân hệ Lớp học (ô chọn lớp, kiểm lớp tồn tại); nil = chưa có lớp nào.
+	Classes ClassLookup
+}
+
+// ClassLookup là phần việc của phân hệ Lớp học mà order học liệu cần (gắn ở cmd/menglish).
+type ClassLookup interface {
+	// ClassOptions: lớp người dùng được xem (ClassModel::visibleTo), theo tên.
+	ClassOptions(ctx context.Context, actor *iam.Access) ([]ClassOption, error)
+	// ClassExists: lớp chưa xóa.
+	ClassExists(ctx context.Context, id uuid.UUID) (bool, error)
+}
+
+// ClassOption: một lớp cho ô chọn lớp của form order (lọc theo chi nhánh đang chọn ở giao diện).
+type ClassOption struct {
+	Value    uuid.UUID `json:"value"`
+	Label    string    `json:"label"`
+	BranchID uuid.UUID `json:"branch_id"`
 }
 
 func NewService(pool *pgxpool.Pool, log *slog.Logger, cfg Config) *Service {
