@@ -58,6 +58,12 @@ jobs:
           php-version: '8.4'
           extensions: mbstring, pdo_sqlite, intl, gd, zip, bcmath
       - run: composer install --no-interaction --no-progress --prefer-dist
+      # Test trang Inertia render qua SSR thật (tests/Support/InertiaSsrServer): cần Node + bundle bootstrap/ssr.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund && npm run build && npx vite build --ssr
       - run: cp .env.example .env && php artisan key:generate
       - run: php artisan test
 
