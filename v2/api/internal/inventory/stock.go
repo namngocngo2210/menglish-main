@@ -195,16 +195,16 @@ type StockFilter struct {
 }
 
 type StockOverview struct {
-	Branches     []BranchRef      `json:"branches"`
-	Branch       *BranchRef       `json:"branch"`
-	Rows         []StockRow       `json:"rows"`
-	Counts       map[string]int   `json:"counts"`
-	LegacyTotal  int64            `json:"legacy_total"`
-	Movements    []Movement       `json:"movements"`
-	Categories   []Category       `json:"categories"`
-	Filters      map[string]any   `json:"filters"`
-	LowThreshold int              `json:"low_threshold"`
-	CanManage    bool             `json:"can_manage"`
+	Branches     []BranchRef       `json:"branches"`
+	Branch       *BranchRef        `json:"branch"`
+	Rows         []StockRow        `json:"rows"`
+	Counts       map[string]int    `json:"counts"`
+	LegacyTotal  int64             `json:"legacy_total"`
+	Movements    []Movement        `json:"movements"`
+	Categories   []Category        `json:"categories"`
+	Filters      map[string]any    `json:"filters"`
+	LowThreshold int               `json:"low_threshold"`
+	CanManage    bool              `json:"can_manage"`
 	TypeLabels   map[string]string `json:"type_labels"`
 }
 
@@ -302,9 +302,9 @@ func (s *Service) Overview(ctx context.Context, actor *iam.Access, f StockFilter
 }
 
 type StockHistory struct {
-	Item      Item      `json:"item"`
-	Branch    BranchRef `json:"branch"`
-	Quantity  int32     `json:"quantity"`
+	Item      Item       `json:"item"`
+	Branch    BranchRef  `json:"branch"`
+	Quantity  int32      `json:"quantity"`
 	Movements []Movement `json:"movements"`
 }
 

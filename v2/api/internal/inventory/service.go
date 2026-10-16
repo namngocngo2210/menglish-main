@@ -35,7 +35,9 @@ type Config struct {
 	DueSoonHours int
 }
 
-func DefaultConfig() Config { return Config{MonthlyDeadline: 5, DayBeforeCutoff: 15 * 60, DueSoonHours: 24} }
+func DefaultConfig() Config {
+	return Config{MonthlyDeadline: 5, DayBeforeCutoff: 15 * 60, DueSoonHours: 24}
+}
 
 type Service struct {
 	pool *pgxpool.Pool
