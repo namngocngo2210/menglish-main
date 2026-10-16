@@ -6,7 +6,7 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 )
 
-// module là phần API của một phân hệ (students.Handler...).
+// module là phần API của một phân hệ (students.Handler, inventory.Handler...).
 type module interface{ Routes(chi.Router) }
 
 // apiRoutes gắn mọi module vào /api/v1. Route nghiệp vụ phải gắn iam.Require / iam.RequireAny

@@ -12,6 +12,14 @@ export const NAV: NavItem[] = [
   { path: '/branches', label: 'Chi nhánh', perms: ['branch.view'] },
   // Trang con /students/<id>, /students/enrollments do StudentsPage tự đọc đường dẫn
   { path: '/students', label: 'Danh sách học viên', perms: ['student.view'], group: 'Học viên' },
+  {
+    path: '/material-orders',
+    label: 'Order học liệu',
+    perms: ['material_order.create', 'material_order.view_all', 'material_order.process_ops', 'material_order.process_academic'],
+    group: 'Danh sách đầu việc',
+  },
+  { path: '/inventory/items', label: 'Hàng hóa & Vật phẩm', perms: ['system_category.manage'], group: 'Kho vật phẩm' },
+  { path: '/inventory/stock', label: 'Tồn kho theo chi nhánh', perms: ['merchandise_stock.view'], group: 'Kho vật phẩm' },
 ]
 
 export function can(me: Me, ...perms: string[]) {
