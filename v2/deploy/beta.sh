@@ -3,6 +3,8 @@
 #   v2/deploy/beta.sh deploy [ref]   build 2 image (từ commit/nhánh ref nếu có), migrate, khởi động
 #   v2/deploy/beta.sh version        commit đang chạy
 #   v2/deploy/beta.sh migrate [lệnh] chạy migration (mặc định up; vd. status, down)
+#   v2/deploy/beta.sh user create --code MES001 --email ... --name "..."   tạo tài khoản, in mật khẩu tạm
+#   v2/deploy/beta.sh user reset-password <mã|email|SĐT>                  cấp lại mật khẩu tạm
 #   v2/deploy/beta.sh psql           mở psql vào database beta
 #   v2/deploy/beta.sh backup-db      → backups/beta-<thời gian>.sql.gz, xóa bản cũ hơn 14 ngày
 #   v2/deploy/beta.sh <lệnh docker compose khác>   (ps, logs -f api, stop, down, ...)
@@ -41,6 +43,12 @@ case "$cmd" in
     deploy)
         ref="${1:-}" sha=""
         ensure_proxy
+        if [ -z "$(env_value APP_ENCRYPTION_KEY)" ]; then
+            # Khóa sinh ngay trên máy chủ, không rời khỏi máy. Sao lưu file .env.beta cùng bản sao lưu DB.
+            sed -i '/^APP_ENCRYPTION_KEY=/d' "$ENV_FILE"
+            echo "APP_ENCRYPTION_KEY=$(openssl rand -base64 32)" >> "$ENV_FILE"
+            echo "→ Đã tạo APP_ENCRYPTION_KEY trong $ENV_FILE"
+        fi
         if [ -n "$ref" ]; then
             git -C "$ROOT" fetch --quiet origin
             sha="$(git -C "$ROOT" rev-parse --verify "$ref^{commit}")"
@@ -65,6 +73,9 @@ case "$cmd" in
         ;;
     migrate)
         compose run --rm migrate migrate "${@:-up}"
+        ;;
+    user)
+        compose exec api /menglish user "$@"
         ;;
     psql)
         compose exec postgres psql -U "$(env_value POSTGRES_USER)" -d "$(env_value POSTGRES_DB)"

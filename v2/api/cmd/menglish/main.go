@@ -1,4 +1,4 @@
-// Một binary cho mọi vai trò: menglish api | migrate <lệnh goose> | healthcheck | version.
+// Một binary cho mọi vai trò: menglish api | migrate <lệnh goose> | user <lệnh> | healthcheck | version.
 package main
 
 import (
@@ -12,7 +12,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
+
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/config"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/secretbox"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/server"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/store"
 )
@@ -33,6 +39,8 @@ func main() {
 		err = runAPI(ctx)
 	case "migrate":
 		err = runMigrate(ctx, os.Args[2:])
+	case "user":
+		err = runUser(ctx, os.Args[2:])
 	case "healthcheck":
 		err = healthcheck()
 	case "version":
@@ -47,36 +55,68 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "Dùng: menglish api | migrate <up|down|status|...> | healthcheck | version")
+	fmt.Fprintln(os.Stderr, "Dùng: menglish api | migrate <up|down|status|...> | user <create|reset-password> | healthcheck | version")
 	os.Exit(2)
 }
 
-func runAPI(ctx context.Context) error {
+// deps mở Postgres, Redis, khóa mã hóa và dựng dịch vụ iam (dùng chung cho api và lệnh user).
+type deps struct {
+	cfg  config.Config
+	log  *slog.Logger
+	pool *pgxpool.Pool
+	rdb  *redis.Client
+	iam  *iam.Service
+}
+
+func openDeps(ctx context.Context) (*deps, error) {
 	cfg, err := config.Load()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: cfg.LogLevel}))
-
+	box, err := secretbox.FromBase64(cfg.EncryptionKey)
+	if err != nil {
+		return nil, err
+	}
 	pool, err := store.OpenPostgres(ctx, cfg.DatabaseURL)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer pool.Close()
-	checks := map[string]server.Pinger{"postgres": pool}
-
 	rdb, err := store.OpenRedis(cfg.RedisURL)
+	if err != nil {
+		pool.Close()
+		return nil, err
+	}
+	return &deps{cfg: cfg, log: log, pool: pool, rdb: rdb, iam: iam.NewService(pool, rdb, box, log)}, nil
+}
+
+func (d *deps) close() {
+	d.rdb.Close()
+	d.pool.Close()
+}
+
+func runAPI(ctx context.Context) error {
+	d, err := openDeps(ctx)
 	if err != nil {
 		return err
 	}
-	if rdb != nil {
-		defer rdb.Close()
-		checks["redis"] = server.PingFunc(func(ctx context.Context) error { return rdb.Ping(ctx).Err() })
-	}
+	defer d.close()
+	cfg, log := d.cfg, d.log
 
+	auth := iam.NewHandler(d.iam, log)
+	checks := map[string]server.Pinger{
+		"postgres": d.pool,
+		"redis":    server.PingFunc(func(ctx context.Context) error { return d.rdb.Ping(ctx).Err() }),
+	}
 	srv := &http.Server{
-		Addr:              cfg.HTTPAddr,
-		Handler:           server.New(server.Deps{Log: log, Version: version, Env: cfg.Env, Checks: checks}),
+		Addr: cfg.HTTPAddr,
+		Handler: server.New(server.Deps{
+			Log: log, Version: version, Env: cfg.Env, Checks: checks,
+			API: func(r chi.Router) {
+				r.Use(iam.SameOrigin, auth.LoadSession)
+				auth.Routes(r)
+			},
+		}),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       60 * time.Second,
 		IdleTimeout:       120 * time.Second,

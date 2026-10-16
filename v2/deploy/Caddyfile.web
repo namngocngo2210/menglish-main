@@ -2,6 +2,10 @@
 {
 	auto_https off
 	admin off
+	# Chỉ Caddy chung (docker/proxy) gọi vào đây: giữ X-Forwarded-For nó gửi để API biết IP thật của người dùng.
+	servers {
+		trusted_proxies static private_ranges
+	}
 }
 
 :8080 {
