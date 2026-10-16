@@ -40,7 +40,7 @@ function Setup({ onEnabled }: { onEnabled: (codes: string[]) => void }) {
   if (!setup.data) {
     return (
       <div className="space-y-3">
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-on-surface-variant">
           Khi bật, mỗi lần đăng nhập cần thêm mã 6 số từ ứng dụng xác thực (Google Authenticator, Microsoft
           Authenticator...). Bắt buộc với Admin và người có quyền phân quyền, duyệt tiền, chạy lương.
         </p>
@@ -60,10 +60,10 @@ function Setup({ onEnabled }: { onEnabled: (codes: string[]) => void }) {
         enable.mutate()
       }}
     >
-      <p className="text-sm text-slate-600">1. Quét mã QR bằng ứng dụng xác thực, hoặc nhập khóa bên dưới.</p>
-      {qr && <img src={qr} alt="Mã QR xác thực hai bước" className="size-48 rounded border border-slate-200" />}
-      <p className="font-mono text-xs break-all text-slate-700">{setup.data.secret}</p>
-      <p className="text-sm text-slate-600">2. Nhập mã 6 số ứng dụng hiện ra để xác nhận.</p>
+      <p className="text-sm text-on-surface-variant">1. Quét mã QR bằng ứng dụng xác thực, hoặc nhập khóa bên dưới.</p>
+      {qr && <img src={qr} alt="Mã QR xác thực hai bước" className="size-48 rounded border border-surface-container-highest" />}
+      <p className="font-mono text-xs break-all text-on-surface">{setup.data.secret}</p>
+      <p className="text-sm text-on-surface-variant">2. Nhập mã 6 số ứng dụng hiện ra để xác nhận.</p>
       {enable.isError && <Alert>{errorMessage(enable.error)}</Alert>}
       <Field
         label="Mã xác thực"
@@ -84,11 +84,11 @@ function RecoveryCodes({ codes, onClose }: { codes: string[]; onClose: () => voi
   return (
     <div className="space-y-4">
       <Alert tone="success">Đã bật xác thực hai bước.</Alert>
-      <p className="text-sm text-slate-700">
+      <p className="text-sm text-on-surface">
         Lưu 10 mã dự phòng này ở nơi an toàn. Mỗi mã dùng được một lần khi bạn không có điện thoại. Mã chỉ hiện một
         lần.
       </p>
-      <ul className="grid grid-cols-2 gap-2 rounded-lg bg-slate-50 p-3 font-mono text-sm">
+      <ul className="grid grid-cols-2 gap-2 rounded-lg bg-background p-3 font-mono text-sm">
         {codes.map((c) => (
           <li key={c}>{c}</li>
         ))}

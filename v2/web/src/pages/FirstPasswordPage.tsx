@@ -16,7 +16,7 @@ export function FirstPasswordPage({ user }: { user: User }) {
         <ChangePasswordForm onDone={() => qc.invalidateQueries({ queryKey: ['me'] })} />
         <button
           type="button"
-          className="mt-3 w-full text-center text-xs text-slate-500 hover:underline"
+          className="mt-3 w-full text-center text-xs text-on-surface-variant hover:underline"
           onClick={async () => {
             await api.logout()
             qc.invalidateQueries({ queryKey: ['me'] })

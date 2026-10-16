@@ -11,7 +11,7 @@ export function App() {
   if (me.isPending) {
     return (
       <GuestShell>
-        <p className="text-center text-sm text-slate-500">Đang tải…</p>
+        <p className="text-center text-sm text-on-surface-variant">Đang tải…</p>
       </GuestShell>
     )
   }

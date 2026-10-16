@@ -39,11 +39,17 @@ function PasswordStep({ onDone }: { onDone: (r: LoginResponse) => void }) {
 
   return (
     <Card title="Đăng nhập">
+      <p className="-mt-2 mb-4 text-sm text-on-surface-variant">
+        Nhân viên dùng mã nhân viên, học viên dùng mã học viên do trung tâm cấp, phụ huynh dùng số điện thoại. Vẫn đăng
+        nhập được bằng email.
+      </p>
       <form onSubmit={submit} className="space-y-4">
         {login.isError && <Alert>{errorMessage(login.error)}</Alert>}
         <Field
           label="Tài khoản"
-          hint="Email, mã nhân viên, mã học viên hoặc SĐT phụ huynh"
+          placeholder="VD: MES012"
+          autoCapitalize="none"
+          spellCheck={false}
           autoComplete="username"
           autoFocus
           required
@@ -57,19 +63,19 @@ function PasswordStep({ onDone }: { onDone: (r: LoginResponse) => void }) {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
-        <label className="flex items-center gap-2 text-sm text-slate-700">
+        <label className="flex items-center gap-2 text-sm text-on-surface">
           <input
             type="checkbox"
-            className="size-4 rounded border-slate-300"
+            className="size-4 rounded border-outline-variant accent-primary"
             checked={remember}
             onChange={(e) => setRemember(e.target.checked)}
           />
-          Ghi nhớ đăng nhập 30 ngày
+          Ghi nhớ đăng nhập
         </label>
         <Button type="submit" className="w-full" disabled={login.isPending}>
           {login.isPending ? 'Đang đăng nhập…' : 'Đăng nhập'}
         </Button>
-        <p className="text-center text-xs text-slate-500">Quên mật khẩu? Liên hệ quản lý cơ sở để được cấp lại.</p>
+        <p className="text-center text-xs text-on-surface-variant">Quên mật khẩu? Liên hệ quản lý cơ sở để được cấp lại.</p>
       </form>
     </Card>
   )
@@ -117,7 +123,7 @@ function TotpStep({
             {verify.isPending ? 'Đang kiểm tra…' : 'Xác nhận'}
           </Button>
         )}
-        <button type="button" onClick={onRestart} className="w-full text-center text-xs text-slate-500 hover:underline">
+        <button type="button" onClick={onRestart} className="w-full text-center text-xs text-on-surface-variant hover:underline">
           Quay lại
         </button>
       </form>

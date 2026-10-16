@@ -38,7 +38,7 @@ export function SessionsCard() {
     <Card title="Thiết bị đang đăng nhập">
       {list.isError && <Alert>{errorMessage(list.error)}</Alert>}
       {revoke.isError && <Alert>{errorMessage(revoke.error)}</Alert>}
-      <ul className="divide-y divide-slate-100">
+      <ul className="divide-y divide-surface-container-high">
         {list.data?.sessions
           .slice()
           .sort((a, b) => Number(b.current) - Number(a.current) || b.last_seen.localeCompare(a.last_seen))
@@ -47,9 +47,9 @@ export function SessionsCard() {
               <div>
                 <p className="font-medium">
                   {describeAgent(s.user_agent)}
-                  {s.current && <span className="ml-2 text-xs font-normal text-emerald-700">Thiết bị này</span>}
+                  {s.current && <span className="ml-2 text-xs font-normal text-success">Thiết bị này</span>}
                 </p>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-on-surface-variant">
                   {s.ip} · hoạt động {dateTime.format(new Date(s.last_seen))}
                 </p>
               </div>
