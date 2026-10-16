@@ -97,7 +97,7 @@ function RoomsTab({ me }: { me: Me }) {
         {act.notice}
         {rooms && rooms.items.length === 0 && <Empty>Chưa có phòng học nào.</Empty>}
         {rooms && rooms.items.length > 0 && (
-          <Table head={['Tên phòng', 'Chi nhánh', 'Loại phòng', 'Sức chứa', 'Ghi chú', '']}>
+          <Table head={['Tên phòng', 'Chi nhánh', 'Loại phòng', 'Sức chứa', 'Lớp đang dùng', 'Ghi chú', '']}>
             {rooms.items.map((r) => (
               <tr key={r.id}>
                 <td className={`${td} font-medium`}>{r.name}</td>
@@ -106,6 +106,16 @@ function RoomsTab({ me }: { me: Me }) {
                   {r.type} {!r.type_active && <Badge>Ngừng dùng</Badge>}
                 </td>
                 <td className={td}>{r.capacity ?? '—'}</td>
+                <td className={td}>
+                  {r.classes && r.classes.length > 0
+                    ? r.classes.map((c) => (
+                        <p key={c.id}>
+                          {c.name} {c.studying ? <Badge tone="success">Đang học</Badge> : <Badge>Dự kiến</Badge>}
+                          {c.slots.length > 0 && <span className="block text-xs text-on-surface-variant">{c.slots.join(', ')}</span>}
+                        </p>
+                      ))
+                    : '—'}
+                </td>
                 <td className={`${td} text-on-surface-variant`}>{r.description}</td>
                 <td className={actionsTd}>
                   {can(me, 'room.manage') && (
