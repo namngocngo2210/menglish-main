@@ -165,7 +165,17 @@ export function Badge({ tone = 'neutral', children }: { tone?: 'neutral' | 'succ
 }
 
 // Hộp thoại đơn giản (lớp phủ + thẻ ở giữa); Esc hoặc bấm nền để đóng.
-export function Dialog({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+export function Dialog({
+  title,
+  onClose,
+  wide,
+  children,
+}: {
+  title: string
+  onClose: () => void
+  wide?: boolean
+  children: ReactNode
+}) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 px-4 py-10"
@@ -176,7 +186,7 @@ export function Dialog({ title, onClose, children }: { title: string; onClose: (
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="w-full max-w-lg rounded-xl bg-surface p-6 shadow-lg"
+        className={`w-full ${wide ? 'max-w-2xl' : 'max-w-lg'} rounded-xl bg-surface p-6 shadow-lg`}
       >
         <div className="mb-4 flex items-center justify-between gap-4">
           <h2 className="text-base font-semibold">{title}</h2>

@@ -3,3 +3,4 @@
 # commit Laravel vừa đối chiếu. Mỗi dòng: <mảng> <commit> <file Laravel>...
 iam.rbac  19682e935e5add839864c6b7eaf693c233f1bc16  config/permission_catalog.php config/access.php app/Support/Roles.php app/Support/Rbac.php app/Support/DataScope.php app/Support/PermissionCatalog.php app/Support/Approvals/AdminOnlyApprovals.php app/Models/UserPermissionOverride.php app/Providers/AppServiceProvider.php app/Http/Controllers/UserController.php app/Http/Controllers/RoleController.php app/Http/Controllers/UserPermissionOverrideController.php app/Http/Controllers/BranchController.php
 web.menu  19682e935e5add839864c6b7eaf693c233f1bc16  app/Support/Navigation/SidebarMenu.php
+core.branch_checkin  4c774db90e7e27aa07b99beaf1bd59bcf466eb8a  app/Http/Controllers/BranchController.php app/Support/AddressSearch.php app/Models/Branch.php resources/js/Pages/Branches/Index.vue resources/js/Pages/Branches/BranchLocationMap.vue resources/js/lib/geo.js

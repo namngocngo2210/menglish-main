@@ -99,6 +99,13 @@ Giữ nguyên mô hình của bản Laravel (`docs/rbac.md`):
 - Mọi route nghiệp vụ gắn `iam.Require(quyền)`: middleware này kiểm luôn đăng nhập, CSRF, đổi mật khẩu lần đầu, 2FA bắt buộc. `TestEveryRouteHasPermission` đỏ nếu route nào thiếu; tên quyền gõ sai thì chương trình dừng ngay lúc khởi động.
 - Menu theo quyền: `web/src/nav.ts`.
 
+## Chấm công theo chi nhánh
+
+- Màn Chi nhánh có cột "Chấm công" và hộp cài đặt giống Laravel: tọa độ, bán kính (20–5000 m), giờ vào / ra, số phút cho phép muộn.
+- Tọa độ chọn trên bản đồ OpenStreetMap (Leaflet), tìm theo địa chỉ, dán "vĩ độ, kinh độ" từ Google Maps hoặc lấy vị trí hiện tại.
+- Tìm địa chỉ đi qua API (`GET /api/v1/branches/address-search`, gói `internal/geo`): Nominatim trước, Photon sau, cache Redis 30 ngày, 30 lần / phút mỗi người. Máy chủ cần ra được `nominatim.openstreetmap.org` và `photon.komoot.io`; không ra được thì màn báo lỗi và vẫn bấm bản đồ / dán tọa độ được.
+- `PUBLIC_URL` (compose đặt sẵn theo `BETA_SITE`) được gửi kèm User-Agent theo chính sách của Nominatim.
+
 ## Bám theo Laravel trong lúc làm v2
 
 Laravel vẫn chạy production và được sửa bình thường. `doi-chieu-laravel.txt` ghi mỗi mảng v2 dựa trên file Laravel nào, đã đối chiếu tới commit nào.

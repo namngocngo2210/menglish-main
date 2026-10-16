@@ -34,8 +34,28 @@ export type Branch = {
   phone: string | null
   is_active: boolean
   created_at: string
+  checkin: BranchCheckin
 }
 export type BranchInput = { code: string; name: string; address: string; phone: string }
+// Cài đặt chấm công: configured = đã có tọa độ; work_start / work_end dạng "HH:MM".
+export type BranchCheckin = {
+  latitude: number | null
+  longitude: number | null
+  radius: number
+  work_start: string | null
+  work_end: string | null
+  grace: number
+  configured: boolean
+}
+export type BranchCheckinInput = {
+  latitude: number | null
+  longitude: number | null
+  checkin_radius: number | null
+  work_start_time: string
+  work_end_time: string
+  late_grace_minutes: number | null
+}
+export type AddressPlace = { id: string; label: string; lat: number; lng: number }
 
 export type RoleView = RoleRef & { super_admin: boolean; user_count: number; permissions: string[] }
 
@@ -166,6 +186,9 @@ export const api = {
   branches: () => request<{ branches: Branch[] }>('GET', '/branches'),
   createBranch: (b: BranchInput) => request<Branch>('POST', '/branches', b),
   updateBranch: (id: string, b: BranchInput) => request<Branch>('PATCH', `/branches/${id}`, b),
+  updateBranchCheckin: (id: string, c: BranchCheckinInput) => request<Branch>('PUT', `/branches/${id}/checkin`, c),
+  addressSearch: (q: string) =>
+    request<{ results: AddressPlace[]; matched: string | null }>('GET', `/branches/address-search?${new URLSearchParams({ q })}`),
   setBranchActive: (id: string, active: boolean) =>
     request<Branch>('POST', `/branches/${id}/${active ? 'activate' : 'deactivate'}`),
 
