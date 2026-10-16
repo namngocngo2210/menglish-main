@@ -1,7 +1,7 @@
 # Deploy MEnglish lên máy chủ Docker (docs/deploy-docker.md).
 #
-# - Push vào main → test → deploy production (portal.meducation.vn).
-# - Chạy tay (Actions → Deploy server → Run workflow): chọn staging (mọi nhánh) hoặc production (chỉ main).
+# Chỉ deploy tay: Actions → Deploy server → Run workflow, chọn staging (mọi nhánh) hoặc production (chỉ main).
+# Push / merge vào main KHÔNG tự deploy.
 #
 # CI SSH vào máy chủ bằng khóa riêng, bị ép chạy docker/ci-deploy.sh (forced command) với "<môi trường> <sha>";
 # máy chủ tự build image từ đúng commit đó, khởi động lại, migrate.
@@ -13,8 +13,6 @@
 name: Deploy server
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       environment:
@@ -28,11 +26,11 @@ on:
         default: true
 
 concurrency:
-  group: deploy-${{ inputs.environment || 'production' }}
+  group: deploy-${{ inputs.environment }}
   cancel-in-progress: false
 
 env:
-  TARGET: ${{ inputs.environment || 'production' }}
+  TARGET: ${{ inputs.environment }}
 
 jobs:
   # Production chỉ nhận code từ nhánh main; staging deploy được mọi nhánh (thử nhánh tính năng trước khi merge).
@@ -49,7 +47,7 @@ jobs:
 
   test:
     needs: guard
-    if: ${{ github.event_name == 'push' || inputs.run_tests }}
+    if: ${{ inputs.run_tests }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -66,8 +64,8 @@ jobs:
     if: ${{ always() && needs.guard.result == 'success' && (needs.test.result == 'success' || needs.test.result == 'skipped') }}
     runs-on: ubuntu-latest
     environment:
-      name: ${{ inputs.environment || 'production' }}
-      url: ${{ (inputs.environment || 'production') == 'production' && 'https://portal.meducation.vn' || 'https://dungthu.meducation.vn' }}
+      name: ${{ inputs.environment }}
+      url: ${{ inputs.environment == 'production' && 'https://portal.meducation.vn' || 'https://dungthu.meducation.vn' }}
     steps:
       - name: Cấu hình SSH
         run: |

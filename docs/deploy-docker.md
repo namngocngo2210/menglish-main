@@ -27,11 +27,10 @@ docker/menglish.sh production backup              # DB + file upload (public/upl
 
 `deploy` giữ nguyên trạng thái scheduler: đang dừng thì vẫn dừng.
 
-## Deploy tự động (GitHub Actions)
+## Deploy bằng GitHub Actions (chạy tay)
 
-`.github/workflows/deploy-server.yml`:
-- Push / merge vào `main` → chạy test → deploy **production**.
-- Actions → *Deploy server* → *Run workflow*: chọn **staging** (mọi nhánh) hoặc production (chỉ `main`).
+`.github/workflows/deploy-server.yml` chỉ chạy khi bấm tay, push / merge vào `main` không tự deploy:
+- Actions → *Deploy server* → *Run workflow*: chọn **staging** (mọi nhánh) hoặc **production** (chỉ `main`), có thể bỏ chạy test.
 
 CI SSH vào máy chủ bằng khóa riêng (`~/.ssh/ci/deploy_key` trên máy chủ). Trong `~/.ssh/authorized_keys` khóa này bị ép chạy `docker/ci-deploy.sh` (forced command), chỉ nhận `"<production|staging> <sha>"`; production chỉ nhận commit đã nằm trên `main`. Mỗi lúc chỉ một deploy (flock).
 
