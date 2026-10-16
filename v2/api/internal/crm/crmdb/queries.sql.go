@@ -61,6 +61,28 @@ func (q *Queries) AvailablePromotions(ctx context.Context) ([]CrmPromotion, erro
 	return items, nil
 }
 
+const cancelPendingTrials = `-- name: CancelPendingTrials :execrows
+UPDATE crm.trial_bookings
+SET status = 'cancelled',
+    notes = left(trim(coalesce(notes || E'\n', '') || 'Hủy: ' || $1::text), 3000),
+    updated_at = now(), version = version + 1
+WHERE lead_id = $2 AND status = 'scheduled'
+`
+
+type CancelPendingTrialsParams struct {
+	Reason string
+	LeadID uuid.UUID
+}
+
+// Hủy buổi học thử đang hẹn của khách (Laravel CrmCustomer::cancelPendingTrialBookings), ghi lý do vào ghi chú.
+func (q *Queries) CancelPendingTrials(ctx context.Context, arg CancelPendingTrialsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, cancelPendingTrials, arg.Reason, arg.LeadID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const chipCounts = `-- name: ChipCounts :one
 SELECT
   count(*) FILTER (WHERE l.deleted_at IS NULL AND l.stage = 'new' AND l.created_at <= $1::timestamptz
@@ -1460,6 +1482,41 @@ func (q *Queries) ListEvents(ctx context.Context, leadID uuid.UUID) ([]ListEvent
 	return items, nil
 }
 
+const listLeadIDsInScope = `-- name: ListLeadIDsInScope :many
+
+SELECT l.id FROM crm.leads l
+WHERE l.deleted_at IS NULL
+  AND ($1::uuid IS NULL OR l.assigned_user_id = $1::uuid)
+  AND ($2::uuid[] IS NULL OR l.branch_id = ANY ($2::uuid[]))
+`
+
+type ListLeadIDsInScopeParams struct {
+	ScopeOwner    *uuid.UUID
+	ScopeBranches []uuid.UUID
+}
+
+// ───────────────────────── Cổng cho phân hệ test đầu vào (placement) ─────────────────────────
+// Id khách người dùng được xem (phạm vi lead): placement lọc bài test / học thử theo khách.
+func (q *Queries) ListLeadIDsInScope(ctx context.Context, arg ListLeadIDsInScopeParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, listLeadIDsInScope, arg.ScopeOwner, arg.ScopeBranches)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listLeads = `-- name: ListLeads :many
 
 
@@ -2309,6 +2366,55 @@ func (q *Queries) MarkLeadConverted(ctx context.Context, arg MarkLeadConvertedPa
 	return err
 }
 
+const matchLeadByPhone = `-- name: MatchLeadByPhone :one
+SELECT l.id FROM crm.leads l
+WHERE l.deleted_at IS NULL AND l.phone_normalized = $1::text
+  AND l.stage IN ('new', 'consulting', 'test_scheduled', 'testing', 'tested', 'result_sent')
+LIMIT 1
+`
+
+// Khách chưa chốt (Laravel PHONE_MATCH_STAGES) có SĐT chuẩn hoá khớp.
+func (q *Queries) MatchLeadByPhone(ctx context.Context, phone string) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, matchLeadByPhone, phone)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const matchLeadsByParentPhone = `-- name: MatchLeadsByParentPhone :many
+SELECT l.id, coalesce(l.parent_phone, '')::text AS parent_phone FROM crm.leads l
+WHERE l.deleted_at IS NULL
+  AND l.stage IN ('new', 'consulting', 'test_scheduled', 'testing', 'tested', 'result_sent')
+  AND regexp_replace(coalesce(l.parent_phone, ''), '[ .-]', '', 'g') LIKE '%' || $1::text
+LIMIT 5
+`
+
+type MatchLeadsByParentPhoneRow struct {
+	ID          uuid.UUID
+	ParentPhone string
+}
+
+// Khách chưa chốt có SĐT phụ huynh (bỏ khoảng trắng / chấm / gạch) kết thúc bằng 9 số cuối; Go so khớp chuẩn hoá.
+func (q *Queries) MatchLeadsByParentPhone(ctx context.Context, tail string) ([]MatchLeadsByParentPhoneRow, error) {
+	rows, err := q.db.Query(ctx, matchLeadsByParentPhone, tail)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MatchLeadsByParentPhoneRow
+	for rows.Next() {
+		var i MatchLeadsByParentPhoneRow
+		if err := rows.Scan(&i.ID, &i.ParentPhone); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const moveLeadBranch = `-- name: MoveLeadBranch :exec
 UPDATE crm.leads SET assigned_user_id = $1, branch_id = $2::uuid,
     waiting_branch_id = CASE WHEN waiting_branch_id IS NOT NULL THEN $2::uuid ELSE NULL END,
@@ -2512,6 +2618,61 @@ func (q *Queries) PipelineLeads(ctx context.Context, arg PipelineLeadsParams) ([
 			&i.Confirmed,
 			&i.StageCount,
 			&i.StageAmount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const placementLeads = `-- name: PlacementLeads :many
+SELECT l.id, l.code, l.name, l.parent_name, l.phone, l.email, l.stage, l.branch_id, l.assigned_user_id, l.test_score,
+       coalesce(u.full_name, '')::text AS assigned_user_name
+FROM crm.leads l
+LEFT JOIN iam.users u ON u.id = l.assigned_user_id
+WHERE l.deleted_at IS NULL AND l.id = ANY ($1::uuid[])
+`
+
+type PlacementLeadsRow struct {
+	ID               uuid.UUID
+	Code             string
+	Name             string
+	ParentName       *string
+	Phone            string
+	Email            *string
+	Stage            string
+	BranchID         *uuid.UUID
+	AssignedUserID   *uuid.UUID
+	TestScore        *string
+	AssignedUserName string
+}
+
+// Khách (kèm tên người phụ trách) theo danh sách id, không lọc phạm vi.
+func (q *Queries) PlacementLeads(ctx context.Context, ids []uuid.UUID) ([]PlacementLeadsRow, error) {
+	rows, err := q.db.Query(ctx, placementLeads, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PlacementLeadsRow
+	for rows.Next() {
+		var i PlacementLeadsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.Name,
+			&i.ParentName,
+			&i.Phone,
+			&i.Email,
+			&i.Stage,
+			&i.BranchID,
+			&i.AssignedUserID,
+			&i.TestScore,
+			&i.AssignedUserName,
 		); err != nil {
 			return nil, err
 		}

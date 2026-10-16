@@ -123,8 +123,9 @@ func runAPI(ctx context.Context) error {
 	taskSvc := tasks.NewService(d.pool, log)
 	// Chuyển việc đã qua hạn sang "Quá hạn" (lệnh tasks:mark-overdue chạy theo lịch ở bản Laravel).
 	go taskSvc.RunOverdueLoop(ctx, 10*time.Minute)
-	// Leads / Sessions: CRM và lớp học nối vào khi gộp module (hiện dùng bản rỗng).
-	place := placement.NewHandler(placement.NewService(d.pool, d.rdb, log, placement.Options{}), log)
+	crmSvc := crm.NewService(d.pool, d.iam, log)
+	// Leads: khách CRM. Sessions: lớp học nối vào khi gộp phân hệ lớp (hiện dùng bản rỗng).
+	place := placement.NewHandler(placement.NewService(d.pool, d.rdb, log, placement.Options{Leads: crmSvc.PlacementLeads()}), log)
 	// TODO(gộp): truyền MetricsProvider / TaskService / ClassDirectory / Calendar thật khi các phân hệ đó có ở v2.
 	reportSvc := reports.NewService(d.pool, log, reports.Deps{})
 	// Nhắc hạn báo cáo ngày / tháng và tổng hợp cho Admin (lệnh reports:remind-* / reports:daily-digest ở bản Laravel).
@@ -150,7 +151,7 @@ func runAPI(ctx context.Context) error {
 				tasks.NewHandler(taskSvc, log),
 				place,
 				reports.NewHandler(reportSvc, log),
-				crm.NewHandler(crm.NewService(d.pool, d.iam, log), log),
+				crm.NewHandler(crmSvc, log),
 			),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,

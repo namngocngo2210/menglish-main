@@ -600,3 +600,43 @@ WHERE l.deleted_at IS NULL AND l.stage = 'waiting_class'
   AND (sqlc.narg(scope_owner)::uuid IS NULL OR l.assigned_user_id = sqlc.narg(scope_owner)::uuid)
   AND (sqlc.narg(scope_branches)::uuid[] IS NULL OR l.branch_id = ANY (sqlc.narg(scope_branches)::uuid[]))
 ORDER BY l.converted_at NULLS LAST, l.id;
+
+-- ───────────────────────── Cổng cho phân hệ test đầu vào (placement) ─────────────────────────
+
+-- name: ListLeadIDsInScope :many
+-- Id khách người dùng được xem (phạm vi lead): placement lọc bài test / học thử theo khách.
+SELECT l.id FROM crm.leads l
+WHERE l.deleted_at IS NULL
+  AND (sqlc.narg(scope_owner)::uuid IS NULL OR l.assigned_user_id = sqlc.narg(scope_owner)::uuid)
+  AND (sqlc.narg(scope_branches)::uuid[] IS NULL OR l.branch_id = ANY (sqlc.narg(scope_branches)::uuid[]));
+
+-- name: PlacementLeads :many
+-- Khách (kèm tên người phụ trách) theo danh sách id, không lọc phạm vi.
+SELECT l.id, l.code, l.name, l.parent_name, l.phone, l.email, l.stage, l.branch_id, l.assigned_user_id, l.test_score,
+       coalesce(u.full_name, '')::text AS assigned_user_name
+FROM crm.leads l
+LEFT JOIN iam.users u ON u.id = l.assigned_user_id
+WHERE l.deleted_at IS NULL AND l.id = ANY (sqlc.arg(ids)::uuid[]);
+
+-- name: MatchLeadByPhone :one
+-- Khách chưa chốt (Laravel PHONE_MATCH_STAGES) có SĐT chuẩn hoá khớp.
+SELECT l.id FROM crm.leads l
+WHERE l.deleted_at IS NULL AND l.phone_normalized = sqlc.arg(phone)::text
+  AND l.stage IN ('new', 'consulting', 'test_scheduled', 'testing', 'tested', 'result_sent')
+LIMIT 1;
+
+-- name: MatchLeadsByParentPhone :many
+-- Khách chưa chốt có SĐT phụ huynh (bỏ khoảng trắng / chấm / gạch) kết thúc bằng 9 số cuối; Go so khớp chuẩn hoá.
+SELECT l.id, coalesce(l.parent_phone, '')::text AS parent_phone FROM crm.leads l
+WHERE l.deleted_at IS NULL
+  AND l.stage IN ('new', 'consulting', 'test_scheduled', 'testing', 'tested', 'result_sent')
+  AND regexp_replace(coalesce(l.parent_phone, ''), '[ .-]', '', 'g') LIKE '%' || sqlc.arg(tail)::text
+LIMIT 5;
+
+-- name: CancelPendingTrials :execrows
+-- Hủy buổi học thử đang hẹn của khách (Laravel CrmCustomer::cancelPendingTrialBookings), ghi lý do vào ghi chú.
+UPDATE crm.trial_bookings
+SET status = 'cancelled',
+    notes = left(trim(coalesce(notes || E'\n', '') || 'Hủy: ' || sqlc.arg(reason)::text), 3000),
+    updated_at = now(), version = version + 1
+WHERE lead_id = sqlc.arg(lead_id) AND status = 'scheduled';

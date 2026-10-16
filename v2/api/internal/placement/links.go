@@ -11,8 +11,8 @@ import (
 
 // Liên kết với phân hệ khác. Khách CRM (crm.leads) do phân hệ CRM quản lý, lớp / buổi học (academic.classes,
 // academic.class_sessions) do phân hệ lớp học quản lý: phân hệ này chỉ giữ id và hỏi qua hai interface dưới đây.
-// Khi gộp: CRM cài Leads, lớp học cài Sessions, rồi truyền vào NewService (cmd/menglish/main.go).
-// Chưa gộp thì dùng NoLeads / NoSessions: không có khách nên mọi bài làm là bài chưa gắn khách, không xếp được học thử.
+// CRM cài Leads (crm.Service.PlacementLeads, truyền vào NewService ở cmd/menglish/main.go); lớp học cài Sessions khi gộp.
+// Chưa có thì dùng NoLeads / NoSessions: không có khách nên mọi bài làm là bài chưa gắn khách, không xếp được học thử.
 
 // Lead: thông tin khách cần cho test đầu vào & học thử.
 type Lead struct {

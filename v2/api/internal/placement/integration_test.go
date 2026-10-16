@@ -223,6 +223,25 @@ func (e *env) inbox(user uuid.UUID, typ string) string {
 	return s
 }
 
+// addLead: khách giả cho fakeLeads, kèm dòng crm.leads cùng id (bảng placement có khoá ngoại tới crm.leads).
+func (e *env) addLead(l Lead) {
+	e.t.Helper()
+	e.leads.mu.Lock()
+	e.leads.leads[l.ID] = l
+	e.leads.mu.Unlock()
+	if _, err := e.pg.Exec(context.Background(), `INSERT INTO crm.leads (id, code, name, phone, stage, branch_id)
+		VALUES ($1, $2, $3, $4, $5, $6)`, l.ID, "KH-"+l.ID.String(), l.Name, coalesce(l.Phone, "0900000000"), l.Stage, l.BranchID); err != nil {
+		e.t.Fatal(err)
+	}
+}
+
+func coalesce(s, def string) string {
+	if s == "" {
+		return def
+	}
+	return s
+}
+
 type member struct {
 	id   uuid.UUID
 	code string
@@ -451,7 +470,7 @@ func TestInvitationAndPublicTest(t *testing.T) {
 	grader := e.as(t, e.member(t, "hv01", "placement_test.view", "placement_test.grade"))
 
 	lead := Lead{ID: uuid.New(), Name: "Bé Na", Phone: "0912345678", Email: "na@example.com", Stage: "test_scheduled", BranchID: &e.branch}
-	e.leads.leads[lead.ID] = lead
+	e.addLead(lead)
 	e.leads.visible[saleM.id] = []uuid.UUID{lead.ID}
 
 	testID := e.createTest(t, author, "TEST-G3-G4-01")
@@ -619,7 +638,7 @@ func TestGrading(t *testing.T) {
 	graderM := e.member(t, "hv01", "placement_test.view", "placement_test.grade", "lead.scope_all")
 	grader := e.as(t, graderM)
 	lead := Lead{ID: uuid.New(), Name: "Bé Bin", Phone: "0987654321", Stage: "testing"}
-	e.leads.leads[lead.ID] = lead
+	e.addLead(lead)
 
 	testID := e.createTest(t, author, "TEST-G3-G4-01")
 	r := author.do("POST", "/placement-tests/"+testID+"/invitations", map[string]any{})
@@ -701,7 +720,7 @@ func TestTrialBooking(t *testing.T) {
 	closed := Lead{ID: uuid.New(), Name: "Đã chốt", Stage: "won", BranchID: &e.branch}
 	hidden := Lead{ID: uuid.New(), Name: "Không thấy", Stage: "consulting"}
 	for _, l := range []Lead{lead, closed, hidden} {
-		e.leads.leads[l.ID] = l
+		e.addLead(l)
 	}
 	e.leads.visible[staffM.id] = []uuid.UUID{lead.ID, closed.ID}
 	classID := uuid.New()
