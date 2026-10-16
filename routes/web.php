@@ -617,6 +617,7 @@ Route::middleware('auth')->group(function () {
     Route::put('branches/{branch}', [BranchController::class, 'update'])->middleware('can:branch.update')->name('branches.update');
     Route::delete('branches/{branch}', [BranchController::class, 'destroy'])->middleware('can:branch.delete')->name('branches.destroy');
     Route::put('branches/{branch}/attendance', [BranchController::class, 'updateAttendance'])->middleware('can:branch.update')->name('branches.attendance');
+    Route::get('branches/address-search', [BranchController::class, 'addressSearch'])->middleware(['can:branch.update', 'throttle:30,1'])->name('branches.address-search');
     Route::post('branches/{id}/toggle', [BranchController::class, 'toggleStatus'])->middleware('can:branch.manage')->name('branches.toggle');
     Route::resource('system-categories', SystemCategoryController::class)->except('show')->middleware('can:system_category.manage');
     Route::post('system-categories/{system_category}/reactivate', [SystemCategoryController::class, 'reactivate'])

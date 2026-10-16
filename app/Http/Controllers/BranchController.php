@@ -7,7 +7,9 @@ use App\Models\ClassModel;
 use App\Models\CrmCustomer;
 use App\Models\Student;
 use App\Models\User;
+use App\Support\AddressSearch;
 use App\Support\Audit;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
@@ -153,6 +155,19 @@ class BranchController extends Controller
 
         return redirect()->route('branches.index')
             ->with('status', "Đã lưu cài đặt chấm công của [{$branch->name}].");
+    }
+
+    /** Bản đồ cài đặt chấm công: tìm toạ độ theo địa chỉ qua máy chủ (xem App\Support\AddressSearch). */
+    public function addressSearch(Request $request): JsonResponse
+    {
+        $validated = $request->validate(['q' => 'required|string|max:300']);
+        $found = AddressSearch::search($validated['q']);
+
+        if ($found === null) {
+            return response()->json(['message' => 'Không kết nối được dịch vụ tìm địa chỉ. Thử lại sau, hoặc bấm thẳng vào bản đồ / dán toạ độ.'], 502);
+        }
+
+        return response()->json($found);
     }
 
     public function destroy($id)

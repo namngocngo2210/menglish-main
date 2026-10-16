@@ -2,10 +2,12 @@
 /**
  * Bản đồ chọn toạ độ chấm công của cơ sở (OpenStreetMap + Leaflet, không cần API key).
  *   <BranchLocationMap :latitude="lat" :longitude="lng" :radius="radius" :address="branch.address" @pick="({ latitude, longitude }) => …" />
- * Tìm theo địa chỉ (Nominatim), bấm vào bản đồ hoặc kéo ghim để chỉnh; vòng tròn = bán kính được chấm công.
+ * Tìm theo địa chỉ (qua máy chủ, xem search()), bấm vào bản đồ hoặc kéo ghim để chỉnh; vòng tròn = bán kính được chấm công.
  * Sửa tay ô vĩ độ / kinh độ → ghim tự chạy theo. Leaflet chỉ tải trên trình duyệt (trang có render phía server).
  */
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { firstError } from '@/lib/http';
+import { route } from '@/lib/route';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
@@ -19,7 +21,7 @@ const props = defineProps({
 const emit = defineEmits(['pick']);
 
 const DEFAULT_CENTER = [21.0285, 105.8542]; // Hà Nội, khi cơ sở chưa có toạ độ
-const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
+const CONNECT_ERROR = 'Không kết nối được dịch vụ tìm địa chỉ. Thử lại sau, hoặc bấm thẳng vào bản đồ / dán toạ độ.';
 
 const container = ref(null);
 const query = ref(props.address ?? '');
@@ -66,18 +68,10 @@ function pick(latlng, options) {
     emit('pick', { latitude: latlng.lat.toFixed(7), longitude: latlng.lng.toFixed(7) });
 }
 
-async function request(q) {
-    const params = new URLSearchParams({ q, format: 'jsonv2', limit: '5', countrycodes: 'vn', 'accept-language': 'vi' });
-    const response = await fetch(`${NOMINATIM_URL}?${params}`, { headers: { Accept: 'application/json' } });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return response.json();
-}
-
-const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
 /**
- * Địa chỉ Việt Nam đủ số nhà / ngõ thường không khớp trên OpenStreetMap → không thấy thì bỏ dần phần đầu
- * ("Số 12, ngõ 34, Trần Duy Hưng, Cầu Giấy, Hà Nội" → "ngõ 34, …" → "Trần Duy Hưng, …"), tối đa 3 lần (Nominatim cho 1 lượt / giây).
+ * Tìm qua máy chủ (route branches.address-search → App\Support\AddressSearch): máy chủ gọi Nominatim / Photon, tự thử lại
+ * khi địa chỉ đủ số nhà / ngõ không khớp và trả `matched` = câu đã khớp. Trình duyệt không gọi thẳng dịch vụ bản đồ
+ * (Nominatim chặn / giới hạn request từ trình duyệt, mạng công ty có thể chặn tên miền ngoài).
  */
 async function search() {
     const text = query.value.trim();
@@ -86,21 +80,20 @@ async function search() {
     searchMessage.value = null;
     results.value = [];
     try {
-        let parts = text.split(',').map((part) => part.trim()).filter(Boolean);
-        for (let attempt = 0; attempt < 3 && parts.length; attempt++) {
-            if (attempt) await wait(1100);
-            const found = await request(parts.join(', '));
-            if (found.length) {
-                results.value = found.map((item) => ({ id: item.place_id, label: item.display_name, lat: Number(item.lat), lng: Number(item.lon) }));
-                if (attempt) searchMessage.value = `Không thấy chính xác địa chỉ đã nhập, đang hiện kết quả gần nhất cho "${parts.join(', ')}". Kéo ghim về đúng cổng cơ sở.`;
-                return;
-            }
-            if (parts.length < 3) break;
-            parts = parts.slice(1);
+        const response = await fetch(route('branches.address-search', { q: text }), { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            searchMessage.value = response.status === 429 ? 'Tìm quá nhiều lần liên tiếp, đợi 1 phút rồi thử lại.' : firstError(data, CONNECT_ERROR);
+            return;
         }
-        searchMessage.value = 'Không tìm thấy địa chỉ. Thử ghi ngắn hơn (tên đường, phường, quận, tỉnh) hoặc bấm thẳng vào bản đồ.';
+        results.value = data.results ?? [];
+        if (!results.value.length) {
+            searchMessage.value = 'Không tìm thấy địa chỉ. Thử ghi ngắn hơn (tên đường, phường, quận, tỉnh) hoặc bấm thẳng vào bản đồ.';
+        } else if (data.matched) {
+            searchMessage.value = `Không thấy chính xác địa chỉ đã nhập, đang hiện kết quả gần nhất cho "${data.matched}". Kéo ghim về đúng cổng cơ sở.`;
+        }
     } catch {
-        searchMessage.value = 'Không kết nối được dịch vụ tìm địa chỉ. Thử lại sau, hoặc bấm thẳng vào bản đồ / dán toạ độ.';
+        searchMessage.value = CONNECT_ERROR;
     } finally {
         searching.value = false;
     }
