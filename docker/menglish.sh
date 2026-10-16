@@ -6,6 +6,7 @@
 #   docker/menglish.sh <production|staging> artisan ...   chạy lệnh artisan bất kỳ
 #   docker/menglish.sh <production|staging> import-db <file.sql|file.sql.gz>
 #   docker/menglish.sh <production|staging> backup-db     → backups/<env>-<thời gian>.sql.gz
+#   docker/menglish.sh <production|staging> backup        DB + file upload, xóa bản cũ hơn 14 ngày (cron hằng ngày)
 #   docker/menglish.sh <production|staging> <lệnh docker compose khác>   (ps, logs -f, stop scheduler, ...)
 set -euo pipefail
 
@@ -78,12 +79,24 @@ case "$cmd" in
         compose restart app
         echo "→ Xong. Bật lại scheduler khi chắc chắn hosting cũ đã tắt cron: $0 $ENV_NAME start scheduler"
         ;;
-    backup-db)
-        mkdir -p "$ROOT/backups"
+    backup-db|backup)
+        # backup-db: chỉ DB. backup: DB + file người dùng (public/uploads, storage/app), xóa bản cũ hơn
+        # BACKUP_KEEP_DAYS ngày (mặc định 14) — dùng cho cron hằng ngày.
+        dir="$ROOT/backups"; stamp="$(date +%Y%m%d-%H%M%S)"
+        install -d -m 700 "$dir"
         db="$(env_value DB_DATABASE)"; pass="$(env_value DB_ROOT_PASSWORD)"
-        out="$ROOT/backups/$ENV_NAME-$(date +%Y%m%d-%H%M%S).sql.gz"
-        compose exec -T db mariadb-dump -uroot -p"$pass" --single-transaction --routines --triggers "$db" | gzip > "$out"
-        echo "→ $out"
+        out="$dir/$ENV_NAME-$stamp.sql.gz"
+        # Ghi ra file tạm rồi đổi tên: dump lỗi giữa chừng không để lại file trông như bản sao lưu hợp lệ.
+        compose exec -T db mariadb-dump -uroot -p"$pass" --single-transaction --routines --triggers "$db" | gzip > "$out.tmp"
+        mv "$out.tmp" "$out" && chmod 600 "$out"
+        echo "→ $out ($(du -h "$out" | cut -f1))"
+        if [ "$cmd" = backup ]; then
+            files="$dir/$ENV_NAME-$stamp-files.tar.gz"
+            compose exec -T app tar czf - -C /var/www/html public/uploads storage/app > "$files.tmp"
+            mv "$files.tmp" "$files" && chmod 600 "$files"
+            echo "→ $files ($(du -h "$files" | cut -f1))"
+            find "$dir" -maxdepth 1 -name "$ENV_NAME-*" -mtime +"${BACKUP_KEEP_DAYS:-14}" -print -delete
+        fi
         ;;
     *)
         compose "$cmd" "$@"
