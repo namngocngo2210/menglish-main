@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/audit"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/classes/classesdb"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/students"
@@ -757,7 +758,7 @@ func (s *Service) Create(ctx context.Context, actor *iam.Access, in ClassInput) 
 		p.ScheduleText = &text
 	}
 	var id uuid.UUID
-	err = s.tx(ctx, func(_ pgx.Tx, q *classesdb.Queries) error {
+	err = s.tx(ctx, func(tx pgx.Tx, q *classesdb.Queries) error {
 		var err error
 		if p.Code, err = uniqueCode(ctx, q, code, uuid.Nil); err != nil {
 			return err
@@ -777,7 +778,11 @@ func (s *Service) Create(ctx context.Context, actor *iam.Access, in ClassInput) 
 				return err
 			}
 		}
-		return nil
+		after := classValues{Name: &p.Name, Code: &p.Code, Program: p.Program, Level: p.Level, Room: p.Room, Status: &p.Status,
+			ScheduleText: p.ScheduleText, Notes: p.Notes, BranchID: &p.BranchID, TeacherID: p.TeacherID, ForeignTeacherID: p.ForeignTeacherID,
+			MaxCapacity: p.MaxCapacity, MinStudents: p.MinStudents, TuitionFee: p.TuitionFee, StartDate: p.StartDate, EndDate: p.EndDate}
+		return recordClass(ctx, tx, actor, audit.EventCreated, "class.create", id, p.Name, p.Code, branch,
+			fmt.Sprintf("Tạo mới lớp học \"%s\"", p.Name), audit.Diff(nil, after.snapshot()), map[string]any{"scheduled_sessions": len(sessions)})
 	})
 	if isUnique(err, "classes_code_uq") {
 		return nil, errCodeRace
@@ -785,7 +790,6 @@ func (s *Service) Create(ctx context.Context, actor *iam.Access, in ClassInput) 
 	if err != nil {
 		return nil, err
 	}
-	// TODO(audit): AcademicRecord "Lớp mới: <tên>" (màn 13_tao_lop_moi) khi có nhật ký nghiệp vụ.
 	s.log.Info("class created", "class_id", id, "code", p.Code, "sessions", len(sessions), "by", actor.UserID)
 	if len(sessions) > 0 {
 		return &Saved{ID: id, Tab: "overview", Message: fmt.Sprintf("Tạo lớp học '%s' (%s) thành công với %d buổi học đã lên lịch; lớp đã được kích hoạt.", in.Name, p.Code, len(sessions))}, nil
@@ -973,12 +977,24 @@ func (s *Service) Update(ctx context.Context, actor *iam.Access, id uuid.UUID, i
 		return nil, err
 	}
 	all := sessionIDs(future)
-	err = s.tx(ctx, func(_ pgx.Tx, q *classesdb.Queries) error {
+	err = s.tx(ctx, func(tx pgx.Tx, q *classesdb.Queries) error {
 		var err error
 		if p.Code, err = uniqueCode(ctx, q, code, id); err != nil {
 			return err
 		}
 		if err := q.UpdateClass(ctx, p); err != nil {
+			return err
+		}
+		before := classValues{Name: &c.Name, Code: &c.Code, Program: c.Program, Level: c.Level, Room: c.Room, Status: &c.Status,
+			ScheduleText: c.ScheduleText, Notes: c.Notes, BranchID: &c.BranchID, TeacherID: c.TeacherID, AssistantID: c.AssistantID,
+			ForeignTeacherID: c.ForeignTeacherID, MaxCapacity: c.MaxCapacity, MinStudents: c.MinStudents, TuitionFee: c.TuitionFee,
+			StartDate: c.StartDate, EndDate: c.EndDate}
+		after := classValues{Name: &p.Name, Code: &p.Code, Program: p.Program, Level: p.Level, Room: p.Room, Status: &p.Status,
+			ScheduleText: p.ScheduleText, Notes: p.Notes, BranchID: &p.BranchID, TeacherID: p.TeacherID, AssistantID: p.AssistantID,
+			ForeignTeacherID: p.ForeignTeacherID, MaxCapacity: p.MaxCapacity, MinStudents: p.MinStudents, TuitionFee: p.TuitionFee,
+			StartDate: p.StartDate, EndDate: p.EndDate}
+		if err := recordClass(ctx, tx, actor, audit.EventUpdated, "class.update", id, p.Name, p.Code, branch,
+			fmt.Sprintf("Cập nhật lớp học \"%s\"", p.Name), audit.Diff(before.snapshot(), after.snapshot()), nil); err != nil {
 			return err
 		}
 		if len(all) == 0 {
@@ -1081,7 +1097,7 @@ func (s *Service) AssignForeignTeacher(ctx context.Context, actor *iam.Access, i
 		}
 	}
 	ids := sessionIDs(chosen)
-	err = s.tx(ctx, func(_ pgx.Tx, q *classesdb.Queries) error {
+	err = s.tx(ctx, func(tx pgx.Tx, q *classesdb.Queries) error {
 		if err := q.SetSessionsForeignTeacher(ctx, classesdb.SetSessionsForeignTeacherParams{ForeignTeacherID: foreign, Ids: ids}); err != nil {
 			return err
 		}
@@ -1089,9 +1105,27 @@ func (s *Service) AssignForeignTeacher(ctx context.Context, actor *iam.Access, i
 			return err
 		}
 		if in.SetDefault {
-			return q.SetClassForeignTeacher(ctx, classesdb.SetClassForeignTeacherParams{ID: id, ForeignTeacherID: foreign})
+			if err := q.SetClassForeignTeacher(ctx, classesdb.SetClassForeignTeacherParams{ID: id, ForeignTeacherID: foreign}); err != nil {
+				return err
+			}
 		}
-		return nil
+		desc := fmt.Sprintf("Gỡ GVNN khỏi %d buổi lớp \"%s\"", len(ids), c.Name)
+		if foreign != nil {
+			desc = fmt.Sprintf("Gán GVNN cho %d buổi lớp \"%s\"", len(ids), c.Name)
+		}
+		if err := recordClass(ctx, tx, actor, audit.EventUpdated, "class.foreign_teacher", id, c.Name, c.Code, c.BranchID, desc,
+			audit.Diff(map[string]any{"foreign_teacher_id": idText(c.ForeignTeacherID)}, map[string]any{"foreign_teacher_id": idText(foreign)}),
+			map[string]any{"sessions": len(ids), "set_default": in.SetDefault}); err != nil {
+			return err
+		}
+		if foreign == nil {
+			return nil
+		}
+		dates := make([]time.Time, 0, len(chosen))
+		for _, r := range chosen {
+			dates = append(dates, r.Date)
+		}
+		return notifyForeignTeacher(ctx, tx, actor, *foreign, id, c.Code, c.Name, dates)
 	})
 	if err != nil {
 		return "", err
@@ -1100,8 +1134,6 @@ func (s *Service) AssignForeignTeacher(ctx context.Context, actor *iam.Access, i
 	if foreign == nil {
 		return fmt.Sprintf("Đã gỡ GVNN khỏi %d buổi.", len(ids)), nil
 	}
-	// TODO(notify): gửi GVNN (nếu không phải người thao tác) "Bạn được xếp dạy GVNN lớp <mã>" —
-	// "<n> buổi lớp <tên>: <dd/mm, … tối đa 6 ngày>…." kèm link tab Lịch & buổi học.
 	names, err := s.q.UserNames(ctx, []uuid.UUID{*foreign})
 	if err != nil {
 		return "", err
@@ -1135,7 +1167,14 @@ func (s *Service) Delete(ctx context.Context, actor *iam.Access, id uuid.UUID) (
 	if enrolled > 0 || upcoming > 0 {
 		return "", conflict(fmt.Sprintf("Không thể xóa lớp '%s' (%s) vì còn %d học viên đang xếp lớp và %d buổi học chưa diễn ra. Hãy chuyển lớp sang trạng thái Đã hủy thay vì xóa.", c.Name, c.Code, enrolled, upcoming))
 	}
-	if err := s.q.SoftDeleteClass(ctx, id); err != nil {
+	err = s.tx(ctx, func(tx pgx.Tx, q *classesdb.Queries) error {
+		if err := q.SoftDeleteClass(ctx, id); err != nil {
+			return err
+		}
+		return recordClass(ctx, tx, actor, audit.EventDeleted, "class.delete", id, c.Name, c.Code, c.BranchID,
+			fmt.Sprintf("Xóa lớp học \"%s\"", c.Name), nil, nil)
+	})
+	if err != nil {
 		return "", err
 	}
 	s.log.Info("class deleted", "class_id", id, "by", actor.UserID)
