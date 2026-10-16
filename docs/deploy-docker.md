@@ -2,7 +2,8 @@
 
 ```
 Internet ─▶ Caddy (80/443, tự cấp HTTPS) ─┬─▶ menglish-production: app + scheduler + db   portal.meducation.vn
-           docker/proxy/                  └─▶ menglish-staging:    app + scheduler + db   dungthu.meducation.vn
+           docker/proxy/                  ├─▶ menglish-staging:    app + scheduler + db   dungthu.meducation.vn
+                                          └─▶ menglish-beta:  web + api + postgres + redis  beta.meducation.vn  (v2, xem v2/README.md)
 ```
 
 - `docker-compose.yml`: dùng chung cho 2 môi trường; mỗi môi trường là một project Docker riêng (`menglish-<env>`), có DB, volume (`db`, `storage`, `uploads`) và scheduler riêng.
@@ -31,6 +32,7 @@ docker/menglish.sh production backup              # DB + file upload (public/upl
 
 `.github/workflows/deploy-server.yml` chỉ chạy khi bấm tay, push / merge vào `main` không tự deploy:
 - Actions → *Deploy server* → *Run workflow*: chọn **staging** (mọi nhánh) hoặc **production** (chỉ `main`), có thể bỏ chạy test.
+- Chọn **beta** để deploy bản thử hệ thống mới trong `v2/` (mọi nhánh, chạy `v2/deploy/beta.sh deploy <sha>`; test của v2 chạy ở workflow *v2 CI*).
 
 CI SSH vào máy chủ bằng khóa riêng (`~/.ssh/ci/deploy_key` trên máy chủ). Trong `~/.ssh/authorized_keys` khóa này bị ép chạy `docker/ci-deploy.sh` (forced command), chỉ nhận `"<production|staging> <sha>"`; production chỉ nhận commit đã nằm trên `main`. Mỗi lúc chỉ một deploy (flock).
 

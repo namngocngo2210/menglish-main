@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Điểm vào deploy từ GitHub Actions. Khóa SSH của CI bị ép chạy đúng script này (forced command trong
 # ~/.ssh/authorized_keys), nên CI chỉ deploy được, không mở được shell.
-#   ssh menglish@server "<production|staging> <commit sha 40 ký tự>"
+#   ssh menglish@server "<production|staging|beta> <commit sha 40 ký tự>"
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 read -r ENV_NAME SHA EXTRA <<< "${SSH_ORIGINAL_COMMAND:-${*:-}}"
 
 case "$ENV_NAME" in
-    production|staging) ;;
+    production|staging|beta) ;;
     *) echo "Môi trường không hợp lệ: '$ENV_NAME'" >&2; exit 2 ;;
 esac
 [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] && [ -z "${EXTRA:-}" ] || { echo "Cần đúng 1 commit sha 40 ký tự" >&2; exit 2; }
@@ -28,4 +28,9 @@ if [ "$ENV_NAME" = production ]; then
     git -C "$ROOT" merge --quiet --ff-only origin/main
 fi
 
-"$ROOT/docker/menglish.sh" "$ENV_NAME" deploy "$SHA"
+if [ "$ENV_NAME" = beta ]; then
+    # Bản beta hệ thống mới (v2/): build từ đúng commit qua git archive, không đổi thư mục làm việc.
+    "$ROOT/v2/deploy/beta.sh" deploy "$SHA"
+else
+    "$ROOT/docker/menglish.sh" "$ENV_NAME" deploy "$SHA"
+fi
