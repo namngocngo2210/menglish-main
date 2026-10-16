@@ -434,6 +434,40 @@ type OpsMaterialOrderCounter struct {
 	LastNumber int32
 }
 
+type OpsStaffReport struct {
+	ID                 uuid.UUID
+	UserID             uuid.UUID
+	ClassID            *uuid.UUID
+	Type               string
+	Kind               *string
+	PeriodKey          *string
+	Title              string
+	Content            *string
+	Data               []byte
+	Severity           *string
+	KpiCode            *string
+	SeriousConfirmedBy *uuid.UUID
+	SeriousConfirmedAt *time.Time
+	ReportDate         time.Time
+	Status             string
+	SubmittedAt        *time.Time
+	ReviewedBy         *uuid.UUID
+	ReviewedAt         *time.Time
+	ReviewNote         *string
+	CreatedBy          *uuid.UUID
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+}
+
+type OpsStaffReportFollowup struct {
+	ID            uuid.UUID
+	StaffReportID uuid.UUID
+	UserID        *uuid.UUID
+	Content       string
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
 type OpsStock struct {
 	BranchID  uuid.UUID
 	ItemID    uuid.UUID

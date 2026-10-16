@@ -14,6 +14,7 @@ import { TeacherTrialsPage, TrialSchedulePage } from './features/placement/Trial
 import { ActivityLogsPage } from './features/platform/ActivityLogsPage'
 import { NotificationsPage } from './features/platform/NotificationsPage'
 import { SearchPage } from './features/platform/SearchPage'
+import { AllPage, JournalPage, ReportsPage } from './features/reports'
 import { AccountPage } from './pages/AccountPage'
 import { BranchesPage } from './pages/admin/BranchesPage'
 import { RolesPage } from './pages/admin/RolesPage'
@@ -62,4 +63,7 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/activity-logs': () => <ActivityLogsPage />,
   '/notifications': (me) => <NotificationsPage me={me} />,
   '/search': (me) => <SearchPage me={me} />,
+  '/reports': () => <ReportsPage />,
+  '/reports/all': () => <AllPage />,
+  '/reports/journal': () => <JournalPage />,
 }

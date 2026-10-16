@@ -79,6 +79,17 @@ export const NAV: NavItem[] = [
     perms: ['placement_test.view'],
   },
   { path: '/teacher/trial-guests', label: 'Khách học thử', group: 'Cổng Giáo viên', perms: ['portal.teacher', 'portal.assistant'] },
+  // Báo cáo ngày / tuần / tháng theo vai trò (StaffReportController)
+  { path: '/reports', label: 'Báo cáo định kỳ', perms: ['staff_report.submit'], group: 'Báo cáo của tôi' },
+  { path: '/reports/all', label: 'Tổng hợp báo cáo & nhật ký', perms: ['staff_report.view_all'], group: 'Nhân sự & KPI' },
+  // Laravel: @can staff_report.submit và thêm user.view hoặc kpi.view
+  {
+    path: '/reports/journal',
+    label: 'Nhật ký Học vụ',
+    perms: ['staff_report.submit'],
+    group: 'Nhân sự & KPI',
+    menu: (me) => can(me, 'user.view', 'kpi.view'),
+  },
 ]
 
 // Workspace của sidebar theo đúng thứ tự SidebarMenu::definition(): khu (section) → workspace (label, icon).

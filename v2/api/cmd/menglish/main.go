@@ -25,6 +25,7 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/notify/notifyapi"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/placement"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/secretbox"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/reports"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/search"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/server"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/store"
@@ -123,6 +124,10 @@ func runAPI(ctx context.Context) error {
 	go taskSvc.RunOverdueLoop(ctx, 10*time.Minute)
 	// Leads / Sessions: CRM và lớp học nối vào khi gộp module (hiện dùng bản rỗng).
 	place := placement.NewHandler(placement.NewService(d.pool, d.rdb, log, placement.Options{}), log)
+	// TODO(gộp): truyền MetricsProvider / TaskService / ClassDirectory / Calendar thật khi các phân hệ đó có ở v2.
+	reportSvc := reports.NewService(d.pool, log, reports.Deps{})
+	// Nhắc hạn báo cáo ngày / tháng và tổng hợp cho Admin (lệnh reports:remind-* / reports:daily-digest ở bản Laravel).
+	go reportSvc.RunReminderLoop(ctx, time.Minute)
 	checks := map[string]server.Pinger{
 		"postgres": d.pool,
 		"redis":    server.PingFunc(func(ctx context.Context) error { return d.rdb.Ping(ctx).Err() }),
@@ -143,6 +148,7 @@ func runAPI(ctx context.Context) error {
 				catalogs.NewHandler(catalogs.NewService(d.pool, d.box, log), log),
 				tasks.NewHandler(taskSvc, log),
 				place,
+				reports.NewHandler(reportSvc, log),
 			),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
