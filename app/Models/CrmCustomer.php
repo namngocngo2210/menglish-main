@@ -93,6 +93,12 @@ class CrmCustomer extends Model
      */
     public const SLA_WARNING_RATIO = 0.25;
 
+    /**
+     * "Hạn liên hệ tiếp theo" người phụ trách hẹn với khách được dùng làm hạn SLA kể cả khi muộn hơn khung 72h
+     * (khách hẹn "tuần sau gọi lại"), tối đa bấy nhiêu ngày kể từ lần chăm sóc gần nhất.
+     */
+    public const MAX_SCHEDULED_FOLLOW_UP_DAYS = 14;
+
     protected $fillable = [
         'code',
         'name',
@@ -203,7 +209,10 @@ class CrmCustomer extends Model
     /** Khách đang chăm sóc có hạn gọi lại tới hết hôm nay (gồm khách đã quá hạn). */
     public function scopeFollowUpDueToday(Builder $query): Builder
     {
-        return $query->whereIn('stage', self::ACTIVE_STAGES)->whereNotNull('next_follow_up_at')->where('next_follow_up_at', '<=', today()->endOfDay());
+        return $query->whereIn('stage', self::ACTIVE_STAGES)->whereNotNull('next_follow_up_at')->where('next_follow_up_at', '<=', today()->endOfDay())
+            // Đã chăm sóc từ lúc hẹn trở đi = đã gọi lại, không còn "Cần gọi lại".
+            ->whereDoesntHave('histories', fn (Builder $history) => $history->counted()->whereIn('type', CrmCustomerHistory::CARE_TYPES)
+                ->whereColumn('crm_customer_histories.created_at', '>=', 'crm_customers.next_follow_up_at'));
     }
 
     /**
@@ -458,8 +467,11 @@ class CrmCustomer extends Model
             [$kind, $label, $hours, $anchor] = ['follow_up', 'Hạn chăm sóc tiếp theo', self::followUpSlaHours(), $lastCare ?? $this->created_at];
         }
         $deadline = $anchor->copy()->addHours($hours);
-        if ($this->next_follow_up_at && $this->next_follow_up_at->lt($deadline)) {
-            [$kind, $label, $deadline] = ['appointment', $this->stage === 'new' ? 'Hạn liên hệ (đã hẹn)' : 'Hạn chăm sóc tiếp theo (đã hẹn)', $this->next_follow_up_at->copy()];
+        if ($appointment = $this->activeFollowUpAppointment($lastCare)) {
+            // Hẹn sớm hơn khung SLA → hạn là lúc hẹn; hẹn muộn hơn (khách xin gọi lại sau) → dời hạn, tối đa MAX_SCHEDULED_FOLLOW_UP_DAYS.
+            if ($appointment->lt($deadline) || $appointment->lte($anchor->copy()->addDays(self::MAX_SCHEDULED_FOLLOW_UP_DAYS))) {
+                [$kind, $label, $deadline] = ['appointment', $this->stage === 'new' ? 'Hạn liên hệ (đã hẹn)' : 'Hạn chăm sóc tiếp theo (đã hẹn)', $appointment->copy()];
+            }
         }
         $warnSeconds = (int) round($hours * 3600 * self::SLA_WARNING_RATIO);
         $state = match (true) {
@@ -476,6 +488,21 @@ class CrmCustomer extends Model
             'state' => $state,
             'remaining' => self::remainingLabel($deadline, $now),
         ];
+    }
+
+    /**
+     * Lịch hẹn liên hệ còn hiệu lực: bỏ qua hẹn đã được thực hiện (có lần chăm sóc từ lúc hẹn trở đi), để gọi được khách
+     * rồi thì khách không còn "Quá hạn" theo lịch hẹn cũ.
+     */
+    public function activeFollowUpAppointment(?Carbon $lastCare = null): ?Carbon
+    {
+        $appointment = $this->next_follow_up_at;
+        if (! $appointment) {
+            return null;
+        }
+        $lastCare ??= $this->lastCareAt();
+
+        return $lastCare && $lastCare->gte($appointment) ? null : $appointment;
     }
 
     /** Hạn liên hệ theo đồng hồ SLA: overdue (Quá hạn) | due_soon (Sắp hết hạn) | null (còn hạn / không áp dụng). */

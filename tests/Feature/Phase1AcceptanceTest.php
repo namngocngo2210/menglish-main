@@ -137,9 +137,9 @@ class Phase1AcceptanceTest extends TestCase
         $this->actingAs($this->sales)->post(route('crm.customers.store'), $this->customerPayload(['phone' => '+84 912 345 601', 'name' => 'Trùng']))
             ->assertSessionHasErrors('phone');
 
-        // Sale không đổi giai đoạn; vẫn ghi nhật ký chăm sóc.
+        // Sale không đổi giai đoạn bằng tay; gọi không được thì khách vẫn Mới.
         $this->actingAs($this->sales)->post(route('crm.customers.next-stage', $lead->id))->assertForbidden();
-        $this->actingAs($this->sales)->post(route('crm.customers.notes.store', $lead->id), ['type' => 'call', 'content' => 'Gọi tư vấn lần 1, PH quan tâm lớp Starters.'])
+        $this->actingAs($this->sales)->post(route('crm.customers.notes.store', $lead->id), ['type' => 'call', 'outcome' => 'failed', 'content' => 'Không bắt máy.'])
             ->assertRedirect();
         $this->assertSame('new', $lead->fresh()->stage);
 
@@ -147,7 +147,15 @@ class Phase1AcceptanceTest extends TestCase
         $this->actingAs($this->academic)->from(route('crm.customers.show', $lead->id))
             ->post(route('crm.customers.stage', $lead->id), ['stage' => 'test_scheduled'])
             ->assertSessionHasErrors('stage');
-        $this->actingAs($this->academic)->post(route('crm.customers.next-stage', $lead->id))->assertSessionHasNoErrors();
+
+        // Liên hệ được lần đầu → tự sang Đang tư vấn (chủ dự án 16/10/2026), kể cả khi Sales ghi.
+        $this->actingAs($this->sales)->post(route('crm.customers.notes.store', $lead->id), ['type' => 'call', 'outcome' => 'reached', 'content' => 'Gọi tư vấn lần 1, PH quan tâm lớp Starters.'])
+            ->assertRedirect();
+        $this->assertSame('consulting', $lead->fresh()->stage);
+        $this->assertDatabaseHas('crm_customer_histories', ['customer_id' => $lead->id, 'type' => 'stage_change', 'from_stage' => 'new', 'to_stage' => 'consulting', 'user_id' => $this->sales->id]);
+        // "Hẹn test" không chuyển tay khi chưa có lịch hẹn.
+        $this->actingAs($this->academic)->from(route('crm.customers.show', $lead->id))
+            ->post(route('crm.customers.next-stage', $lead->id))->assertSessionHasErrors('stage');
         $this->assertSame('consulting', $lead->fresh()->stage);
 
         // Hẹn test: gán đề + người chấm → "Hẹn test" tự động.
@@ -401,10 +409,9 @@ class Phase1AcceptanceTest extends TestCase
         $this->assertSame('Học phí vượt ngân sách', $lead->lost_reason);
         $this->assertNotNull($lead->lost_at);
 
-        foreach (['consulting', 'new'] as $target) {
-            $this->actingAs($this->admin)->postJson(route('crm.customers.stage', $lead->id), ['stage' => $target, 'reason' => 'Khách quay lại'])
-                ->assertStatus(422)->assertJsonFragment(['success' => false]);
-        }
+        // Khách Thất bại chỉ mở lại về Đang tư vấn (cần lý do); không về Mới, không "Sang bước".
+        $this->actingAs($this->admin)->postJson(route('crm.customers.stage', $lead->id), ['stage' => 'new', 'reason' => 'Khách quay lại'])
+            ->assertStatus(422)->assertJsonFragment(['success' => false]);
         $this->actingAs($this->admin)->postJson(route('crm.customers.next-stage', $lead->id))->assertStatus(422);
         $this->actingAs($this->academic)->post(route('crm.customers.trial-bookings.store', $lead->id), [
             'class_session_id' => ClassSession::where('class_id', $this->activeClass->id)->whereDate('date', '>=', today())->value('id'),

@@ -114,7 +114,7 @@ class Phase1MockupParityTest extends TestCase
         // Sửa thông tin: form nằm trong tab "Thông tin khách hàng" của hồ sơ đầy đủ.
         $this->actingAs($this->manager)->get(route('crm.customers.show', ['id' => $lead->id, 'tab' => 'info']))->assertOk()
             ->assertSee('Thông tin khách hàng')->assertSee('Trần Thị Lan')
-            ->assertSee('Không thể thay đổi nếu học viên đã có lớp')->assertSee('Lưu thay đổi')
+            ->assertSee('Đổi chi nhánh: bấm')->assertSee('Lưu thay đổi')
             ->assertDontSee('Closing Wizard');
     }
 

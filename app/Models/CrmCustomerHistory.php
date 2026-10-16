@@ -60,6 +60,9 @@ class CrmCustomerHistory extends Model
         return $query->where(fn ($q) => $q->whereNull('outcome')->orWhere('outcome', '!=', self::OUTCOME_FAILED));
     }
 
+    /** Ghi nhật ký = khách vừa có hoạt động: cột "Cập nhật gần nhất" và thứ tự danh sách khách đổi theo. */
+    protected $touches = ['customer'];
+
     protected $casts = [
         'changes' => 'array',
     ];

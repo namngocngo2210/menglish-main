@@ -178,9 +178,11 @@ Route::middleware('auth')->group(function () {
         // Chuyển giai đoạn: lead.stage_forward (CM tiến 1 bước) / lead.stage_back (lùi bước) — CrmStageService kiểm tra theo hướng.
         Route::post('/customers/{id}/stage', [CrmController::class, 'updateStage'])->name('customers.stage');
         Route::post('/customers/{id}/next-stage', [CrmController::class, 'nextStage'])->name('customers.next-stage');
+        Route::post('/customers/{id}/cancel-closing', [CrmController::class, 'cancelClosing'])->name('customers.cancel-closing');
         // Không có xoá khách (chủ dự án 29/09/2026): bỏ khách = đánh "Thất bại" kèm lý do. Khách đã xoá trước đây vẫn xem / khôi phục được.
         Route::post('/customers/{id}/notes', [CrmController::class, 'addNote'])->middleware('can:lead.update')->name('customers.notes.store');
         Route::post('/customers/{id}/schedule-test', [CrmController::class, 'schedulePlacementTest'])->middleware('can:entrance_test.send')->name('customers.schedule-test');
+        Route::post('/customers/{id}/test-no-show', [CrmController::class, 'testNoShow'])->middleware('can:entrance_test.send')->name('customers.test-no-show');
         Route::post('/customers/{id}/test-score', [CrmController::class, 'saveTestScore'])->middleware('can:entrance_test.grade')->name('customers.save-test-score');
         Route::post('/customers/{id}/link-submission', [CrmController::class, 'linkSubmission'])->middleware('can:entrance_test.grade')->name('customers.link-submission');
         Route::post('/customers/{id}/trial-bookings', [CrmController::class, 'storeTrialBooking'])->name('customers.trial-bookings.store');
@@ -204,6 +206,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/customers-deleted', [CrmController::class, 'deletedCustomers'])->middleware('can:lead.delete')->name('customers.deleted');
         Route::post('/customers/{id}/restore', [CrmController::class, 'restoreCustomer'])->middleware('can:lead.delete')->name('customers.restore');
         Route::post('/customers/{id}/reassign', [CrmController::class, 'reassignCustomer'])->middleware('can:lead.assign')->name('customers.reassign');
+        Route::post('/customers/bulk-reassign', [CrmController::class, 'bulkReassign'])->middleware('can:lead.assign')->name('customers.bulk-reassign');
         Route::post('/customers/{id}/care-checklist', [CrmController::class, 'updateCareChecklist'])->middleware('can:lead.update')->name('customers.care-checklist');
         Route::get('/customers/{id}/print', [CrmController::class, 'printCustomer'])->name('customers.print');
         Route::get('/confirmations', [CrmController::class, 'confirmations'])->middleware('can:student.assign_class')->name('confirmations');

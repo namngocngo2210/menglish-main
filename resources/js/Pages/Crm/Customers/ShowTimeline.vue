@@ -55,7 +55,7 @@ function iconTone(history) {
             :action="route('crm.customers.notes.store', customer.id)"
             method="post"
             class="border-b border-surface-container-highest bg-surface-container-low/40 p-lg"
-            :reset-on-success="['content']"
+            :reset-on-success="['content', 'next_follow_up_at']"
             @input="dirty = true"
             @success="dirty = false"
         >
@@ -83,6 +83,9 @@ function iconTone(history) {
                             :class="['rounded-full border px-md py-xs font-body-small text-body-small transition-colors', outcome === key ? (key === 'failed' ? 'border-error bg-error text-white' : 'border-secondary bg-secondary text-white') : 'border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-high']"
                             @click="outcome = key; dirty = true"
                         >{{ label }}</button>
+                    </div>
+                    <div class="max-w-[280px]">
+                        <UiInput id="note_next_follow_up_at" name="next_follow_up_at" type="datetime-local" label="Hẹn liên hệ tiếp (nếu có)" />
                     </div>
                 </div>
                 <UiButton type="submit" variant="secondary" icon="send" :class="dirty ? dirtySave : ''">Lưu ghi chú</UiButton>

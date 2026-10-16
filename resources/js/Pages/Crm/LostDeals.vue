@@ -1,5 +1,5 @@
 <script setup>
-/** Khách thất bại (mockup crm-ui-mockup/khach-khong-chot-lost-deals). A6: khách Thất bại không mở lại, chỉ xem để đối soát. */
+/** Khách thất bại (mockup crm-ui-mockup/khach-khong-chot-lost-deals). Khách quay lại: mở hồ sơ, bấm "Mở lại khách" (16/10/2026). */
 import { Link } from '@inertiajs/vue3';
 import CrmHeader from '@/Components/Crm/CrmHeader.vue';
 import ListFilters from '@/Components/Crm/ListFilters.vue';
@@ -72,7 +72,7 @@ defineProps({
                         </td>
                         <td class="whitespace-nowrap font-code text-caption text-on-surface-variant">{{ lc.lost_at ?? '—' }}</td>
                         <td class="text-right">
-                            <UiButton variant="ghost" size="sm" icon="visibility" :href="route('crm.customers.show', lc.id)" title="Xem chi tiết (không mở lại khách Thất bại)">Xem chi tiết</UiButton>
+                            <UiButton variant="ghost" size="sm" icon="visibility" :href="route('crm.customers.show', lc.id)" title="Xem chi tiết / mở lại khách">Xem chi tiết</UiButton>
                         </td>
                     </tr>
                     <tr v-if="!lostCustomers.data.length">

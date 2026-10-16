@@ -93,7 +93,7 @@ class CrmSlaTest extends TestCase
 
         app(CrmSlaService::class)->run();
 
-        $this->assertTrue(Penalty::where('auto_source', 'crm.first_contact')->where('violation_type', 'like', '%'.$lead->code.'%')->exists());
+        $this->assertTrue(Penalty::where('auto_source', 'crm.first_contact')->where('violation_type', 'like', '%'.$lead->short_code.'%')->exists());
         $this->assertFalse(Penalty::where('auto_source', 'crm.first_contact')->where('violation_type', 'like', '%'.$reached->code.'%')->exists());
         // Cả hai vẫn "Mới" quá 36h → quá hạn chuyển trạng thái.
         $this->assertSame(2, Penalty::where('auto_source', 'crm.status_move')->count());
@@ -120,7 +120,7 @@ class CrmSlaTest extends TestCase
         app(CrmSlaService::class)->run();
 
         $this->assertSame(0, Penalty::where('auto_source', 'crm.first_contact')->count(), 'tắt tự phạt → chỉ thông báo');
-        $this->assertTrue(AdminNotification::where('user_id', $this->admin->id)->where('type', 'sla_breach')->where('title', 'like', '%'.$lead->code.'%')->exists());
+        $this->assertTrue(AdminNotification::where('user_id', $this->admin->id)->where('type', 'sla_breach')->where('title', 'like', '%'.$lead->short_code.'%')->exists());
 
         $this->actingAs($this->admin)->put(route('system-config.sla.update', 'crm.first_contact'), ['value' => 0, 'enabled' => 1, 'penalty' => 1])
             ->assertSessionHasErrors('value');
@@ -202,7 +202,7 @@ class CrmSlaTest extends TestCase
         app(CrmSlaService::class)->run();
         $this->assertNotNull($event->fresh()->breached_at);
         $this->assertSame(0, Penalty::where('auto_source', 'crm.tuition_followup')->count(), 'mặc định không tự phạt');
-        $this->assertTrue(AdminNotification::where('user_id', $this->admin->id)->where('type', 'sla_breach')->where('title', 'like', '%'.$lead->code.'%')->exists());
+        $this->assertTrue(AdminNotification::where('user_id', $this->admin->id)->where('type', 'sla_breach')->where('title', 'like', '%'.$lead->short_code.'%')->exists());
     }
 
     public function test_trial_feedback_task_starts_at_session_end_and_breaches_after_24h_without_contact(): void

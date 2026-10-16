@@ -23,6 +23,7 @@ const props = defineProps({
     today: { type: String, default: null },
     tomorrow: { type: String, default: null },
     placementTests: { type: Array, default: () => [] },
+    examiners: { type: Array, default: () => [] },
     gradeLevels: { type: Array, default: () => [] },
     portalTestLink: { type: String, default: null },
     linkTtlDays: { type: Number, default: 7 },
@@ -41,6 +42,12 @@ const resultDirty = ref(false);
 
 // Hẹn test: "Chọn cấp độ" → "Danh sách đề tương ứng" (mockup).
 const level = ref('');
+// Lần hẹn đầu chọn được làm online (gửi link) hoặc tại cơ sở (có người coi thi).
+const appointmentType = ref('online');
+const appointmentTypes = [
+    { value: 'online', label: 'Online (gửi link làm bài)' },
+    { value: 'offline', label: 'Tại cơ sở' },
+];
 const testId = ref(String(props.placementTests[0]?.id ?? ''));
 const levelTests = computed(() => props.placementTests.filter((t) => !level.value || t.group === level.value)
     .map((t) => ({ value: String(t.id), label: `[${t.code}] ${t.title}${t.duration_minutes ? ` (${t.duration_minutes}')` : ''}` })));
@@ -75,7 +82,6 @@ function copyLink(message) {
             </p>
             <template v-else-if="!test.hasResult && !test.hasScheduled">
                 <UiForm v-if="can('entrance_test.send')" :action="route('crm.customers.schedule-test', customer.id)" method="post" class="space-y-md">
-                    <input type="hidden" name="appointment_type" value="online" />
                     <UiAlert v-if="!placementTests.length" type="warning">
                         Chưa có đề test đầu vào nào đang mở.
                         <template v-if="can('placement_test.create')">
@@ -95,10 +101,12 @@ function copyLink(message) {
                         </div>
                         <UiDate name="appointment_date" label="Ngày hẹn làm test" required :min="today" :value="tomorrow" />
                         <UiInput type="time" name="appointment_time" label="Giờ hẹn" required value="09:00" />
+                        <UiSelect id="first_appointment_type" v-model="appointmentType" name="appointment_type" label="Hình thức làm bài" required :searchable="false" :options="appointmentTypes" />
+                        <UiSelect id="first_examiner_id" name="examiner_id" label="Người coi thi / chấm (nếu có)" placeholder="-- Chưa gán --" :options="examiners" />
                     </div>
                     <div class="flex flex-wrap items-center justify-end gap-sm">
                         <UiButton v-if="can('entrance_test.grade')" variant="secondary" icon="edit_note" @click="emit('open', 'score')">Nhập điểm trực tiếp</UiButton>
-                        <UiButton type="submit" icon="send">Gửi link test online</UiButton>
+                        <UiButton type="submit" :icon="appointmentType === 'online' ? 'send' : 'event_available'">{{ appointmentType === 'online' ? 'Gửi link test online' : 'Hẹn test tại cơ sở' }}</UiButton>
                     </div>
                 </UiForm>
                 <p v-else class="font-body-small text-body-small text-on-surface-variant">Chưa hẹn test. Học vụ / Quản lý cơ sở gửi link test cho khách.</p>
@@ -108,11 +116,23 @@ function copyLink(message) {
                     <div class="flex items-start gap-sm">
                         <span class="material-symbols-outlined mt-0.5 text-secondary">schedule_send</span>
                         <div>
-                            <p class="font-body-semibold text-body-semibold text-on-surface">Đã gửi link — chờ khách làm bài</p>
+                            <p class="font-body-semibold text-body-semibold text-on-surface">{{ customer.appointment_type === 'offline' ? 'Đã hẹn test tại cơ sở' : 'Đã gửi link — chờ khách làm bài' }}</p>
                             <p class="font-caption text-caption italic text-info">Hẹn lúc {{ customer.appointment_at ?? '—' }} · {{ customer.assigned_test?.title ?? 'Chưa gán đề' }}{{ customer.assigned_test?.duration_minutes ? ' · ' + customer.assigned_test.duration_minutes + ' phút' : '' }}</p>
                         </div>
                     </div>
                     <UiButton v-if="can('entrance_test.grade')" variant="secondary" size="sm" icon="edit" @click="emit('open', 'score')">Nhập điểm ngay</UiButton>
+                </div>
+                <!-- Khách xin dời lịch / không đến: đổi lịch, đổi đề, đổi hình thức ngay ở đây (trước chỉ làm được sau khi có điểm). -->
+                <div v-if="can('entrance_test.send')" class="flex flex-wrap gap-sm">
+                    <UiButton variant="secondary" size="sm" icon="event_repeat" data-reschedule-test @click="emit('open', 'scheduleTest')">Đổi lịch / đề test</UiButton>
+                    <UiForm
+                        v-if="customer.appointment_at_passed"
+                        :action="route('crm.customers.test-no-show', customer.id)"
+                        method="post"
+                        confirm="Ghi nhận khách không đến làm test theo lịch hẹn? Sau đó hẹn lại lịch mới."
+                    >
+                        <UiButton type="submit" variant="ghost" size="sm" icon="event_busy" data-test-no-show>Khách vắng test</UiButton>
+                    </UiForm>
                 </div>
                 <p class="font-body-small text-body-small text-on-surface-variant">Cấp độ: <strong class="text-on-surface">{{ customer.assigned_test_level ?? 'Chưa chọn cấp độ' }}</strong></p>
                 <div v-if="portalTestLink" class="flex flex-wrap gap-sm">
@@ -121,7 +141,7 @@ function copyLink(message) {
                     <UiButton variant="secondary" size="sm" icon="content_copy" @click="copyLink('Đã sao chép đường dẫn bài test.')">Sao chép link test</UiButton>
                     <p class="w-full font-caption text-caption italic text-on-surface-variant">Link riêng của khách, hiệu lực {{ linkTtlDays }} ngày kể từ lúc mở trang này.</p>
                 </div>
-                <UiAlert v-else type="warning">Khách chưa được gán đề test đang hoạt động nên chưa thể tạo link làm bài.</UiAlert>
+                <UiAlert v-else-if="customer.appointment_type !== 'offline'" type="warning">Khách chưa được gán đề test đang hoạt động nên chưa thể tạo link làm bài. Bấm "Đổi lịch / đề test" để gán đề.</UiAlert>
             </template>
             <template v-else>
                 <p class="font-body-small text-body-small text-on-surface-variant">

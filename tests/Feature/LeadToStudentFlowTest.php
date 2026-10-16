@@ -190,7 +190,8 @@ class LeadToStudentFlowTest extends TestCase
         $this->actingAs($this->sales)->post(route('crm.customers.notes.store', $contacted->id), ['type' => 'call', 'content' => 'Gọi tư vấn lần 1'])
             ->assertRedirect();
 
-        $this->assertSame('new', $contacted->fresh()->stage);
+        // Liên hệ được lần đầu → tự sang Đang tư vấn, không còn trong nhóm "Chưa liên hệ".
+        $this->assertSame('consulting', $contacted->fresh()->stage);
         $this->assertEqualsCanonicalizing([$silent->id], CrmCustomer::staleNew()->pluck('id')->all());
     }
 

@@ -13,6 +13,7 @@ use App\Models\CrmTrialBooking;
 use App\Models\PlacementTest;
 use App\Models\User;
 use App\Services\Crm\AppointmentConfirmation;
+use App\Services\Crm\TrialSlotFinder;
 use App\Services\CrmStageService;
 use App\Services\ParentMessenger;
 use App\Services\PlacementPortalLinkService;
@@ -26,7 +27,7 @@ use Tests\TestCase;
 /**
  * Pipeline CRM 8 bước + thất bại (BA chốt 2026-09-25):
  * CM (Học vụ / Quản lý cơ sở) chuyển tiến từng bước, chỉ Admin lùi bước (bắt buộc lý do),
- * không hủy chốt, lead thất bại không mở lại, Test / Đã test tự động.
+ * huỷ chốt chỉ Admin với khách Chờ xếp lớp, khách Thất bại chỉ mở lại về Đang tư vấn, Test / Đã test tự động.
  */
 class CrmPipelineTest extends TestCase
 {
@@ -82,6 +83,12 @@ class CrmPipelineTest extends TestCase
             ->assertUnprocessable();
         $this->assertSame('consulting', $lead->fresh()->stage);
 
+        // "Hẹn test" cần lịch hẹn thật: chưa có lịch thì "Sang bước" bị chặn, kèm hướng dẫn.
+        $this->actingAs($this->manager)->postJson(route('crm.customers.next-stage', $lead))
+            ->assertUnprocessable()->assertJsonFragment(['success' => false]);
+        $this->assertSame('consulting', $lead->fresh()->stage);
+
+        $lead->update(['appointment_at' => now()->addDay()]);
         $this->actingAs($this->manager)->postJson(route('crm.customers.next-stage', $lead))
             ->assertOk();
         $this->assertSame('test_scheduled', $lead->fresh()->stage);
@@ -153,7 +160,7 @@ class CrmPipelineTest extends TestCase
         }
     }
 
-    public function test_lost_requires_reason_and_lost_leads_are_never_reopened(): void
+    public function test_lost_requires_reason_and_returning_lead_reopens_to_consulting(): void
     {
         $lead = $this->lead('consulting');
 
@@ -163,9 +170,18 @@ class CrmPipelineTest extends TestCase
             ->assertOk();
         $this->assertSame('lost', $lead->fresh()->stage);
 
-        $this->actingAs($this->admin)->postJson(route('crm.customers.stage', $lead), ['stage' => 'consulting', 'reason' => 'Mở lại'])
+        // Khách quay lại (chủ dự án 16/10/2026): mở lại về Đang tư vấn, bắt buộc lý do; Sales không mở lại được.
+        $this->actingAs($this->admin)->postJson(route('crm.customers.stage', $lead), ['stage' => 'consulting'])
             ->assertUnprocessable();
-        $this->assertSame('lost', $lead->fresh()->stage);
+        $this->actingAs($this->sales)->postJson(route('crm.customers.stage', $lead), ['stage' => 'consulting', 'reason' => 'Khách quay lại'])
+            ->assertForbidden();
+        $this->actingAs($this->academic)->postJson(route('crm.customers.stage', $lead), ['stage' => 'consulting', 'reason' => 'Phụ huynh gọi lại'])
+            ->assertOk();
+        $fresh = $lead->fresh();
+        $this->assertSame('consulting', $fresh->stage);
+        $this->assertNull($fresh->lost_at);
+        $this->assertNull($fresh->lost_reason);
+        $this->assertDatabaseHas('crm_customer_histories', ['customer_id' => $lead->id, 'type' => 'stage_change', 'from_stage' => 'lost', 'to_stage' => 'consulting', 'reason' => 'Phụ huynh gọi lại']);
     }
 
     public function test_opening_signed_test_link_moves_lead_to_testing(): void
@@ -429,18 +445,18 @@ class CrmPipelineTest extends TestCase
         }
     }
 
-    public function test_lost_lead_has_no_reopen_action_stays_listed_and_cannot_be_deleted(): void
+    public function test_lost_lead_only_reopens_to_consulting_stays_listed_and_cannot_be_deleted(): void
     {
         $lead = $this->lead('consulting');
         $this->actingAs($this->manager)->postJson(route('crm.customers.stage', $lead), ['stage' => 'lost', 'lost_reason' => 'Không liên hệ được'])
             ->assertOk();
 
-        // Không có thao tác mở lại trên hồ sơ; mọi đường chuyển giai đoạn đều bị server từ chối.
+        // Hồ sơ chỉ có nút "Mở lại khách" (về Đang tư vấn); mọi đường chuyển giai đoạn khác bị server từ chối.
         $this->actingAs($this->admin)->get(route('crm.customers.show', $lead))->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->where('stageControls', fn ($c) => $c['next'] === null && $c['backward'] === [] && $c['canLose'] === false))
-            ->assertSee('không mở lại, giữ để đối soát');
+            ->assertInertia(fn (Assert $page) => $page->where('stageControls', fn ($c) => $c['next'] === null && $c['backward'] === [] && $c['canLose'] === false && $c['canReopen'] === true))
+            ->assertSee('Mở lại khách');
         $this->actingAs($this->admin)->postJson(route('crm.customers.next-stage', $lead))->assertUnprocessable();
-        foreach (['new', 'consulting', 'tested'] as $target) {
+        foreach (['new', 'tested'] as $target) {
             $this->actingAs($this->admin)->postJson(route('crm.customers.stage', $lead), ['stage' => $target, 'reason' => 'Mở lại'])
                 ->assertUnprocessable();
         }
@@ -475,8 +491,8 @@ class CrmPipelineTest extends TestCase
         $sessions[1]->update(['date' => today()->subDay()->toDateString()]);
         CrmTrialBooking::where('class_session_id', $sessions[1]->id)->update(['status' => 'no_show']);
 
-        // Buổi ngoài 7 ngày tới không đặt được.
-        $sessions[2]->update(['date' => today()->addDays(10)->toDateString()]);
+        // Buổi ngoài 14 ngày tới không đặt được.
+        $sessions[2]->update(['date' => today()->addDays(TrialSlotFinder::WINDOW_DAYS + 3)->toDateString()]);
         $this->actingAs($this->academic)->post(route('crm.customers.trial-bookings.store', $lead), ['class_session_id' => $sessions[2]->id])
             ->assertSessionHasErrors('class_session_id');
         $sessions[2]->update(['date' => today()->addDays(2)->toDateString()]);
@@ -500,16 +516,16 @@ class CrmPipelineTest extends TestCase
         $startersA = $classFor($starters, 'ST1');
         $a3 = $sessionFor($startersA, 3);
         $a1 = $sessionFor($startersA, 1);
-        $sessionFor($startersA, 9); // ngoài 7 ngày
+        $sessionFor($startersA, 16); // ngoài 14 ngày
         $startersB = $classFor($starters, 'ST2');
-        $sessionFor($startersB, 12); // chỉ có buổi ngoài 7 ngày → vẫn hiện lớp, không có khung giờ
+        $sessionFor($startersB, 20); // chỉ có buổi ngoài 14 ngày → vẫn hiện lớp, không có khung giờ
 
         $lead = $this->lead('consulting');
         $lead->update(['course_interest' => 'Starters FAM 1']);
 
         $slots = $this->actingAs($this->academic)->get(route('crm.customers.show', $lead))->assertOk()
             ->assertSee('Lớp ST1')->assertSee('Lớp ST2')->assertDontSee('Lớp MV1')
-            ->assertSee('Không có buổi học trong 7 ngày tới')
+            ->assertSee('Không có buổi học trong 14 ngày tới')
             ->inertiaProps('trialSlots');
 
         $this->assertTrue($slots['filtered']);

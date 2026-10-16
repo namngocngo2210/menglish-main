@@ -1,7 +1,8 @@
 <script setup>
 /**
  * Form Sửa thông tin khách — nằm trong tab "Thông tin khách hàng" của hồ sơ (Show.vue).
- * Trường hợp đồng khóa sau chốt (A3): Giá trị hợp đồng, Cơ sở, Khóa đăng ký.
+ * Trường hợp đồng khóa sau chốt (A3): Giá trị hợp đồng, Cơ sở, Khóa đăng ký. Chi nhánh chỉ đổi qua "Phân công lại".
+ * Sau chốt: họ tên, SĐT, phụ huynh, ngày sinh sửa ở đây được đồng bộ sang hồ sơ học viên.
  * options: CrmController::showProps → editForm (branches, salesUsers, leadSources, courseNames, lockedFields).
  */
 import { computed } from 'vue';
@@ -29,8 +30,14 @@ const lockedInput = 'w-full rounded-lg border border-outline-variant px-md py-sm
         <div class="grid grid-cols-1 gap-md md:grid-cols-2">
             <UiSelect id="f_source" name="source" label="Nguồn" required placeholder="Chọn nguồn" :value="customer.source" :options="options.leadSources" />
             <div class="flex flex-col gap-xs">
-                <UiSelect id="f_branch_id" name="branch_id" label="Chi nhánh" required placeholder="Chọn chi nhánh" :value="customer.branch_id" :options="options.branches" :disabled="locked" />
-                <p class="font-caption text-caption italic text-on-surface-variant">* Không thể thay đổi nếu học viên đã có lớp</p>
+                <!-- Đổi chi nhánh chỉ qua "Phân công lại" (sang cơ sở khác cần Admin duyệt); khách chưa có chi nhánh thì chọn ở đây. -->
+                <template v-if="customer.branch_id">
+                    <UiField label="Chi nhánh">
+                        <div class="rounded-lg border border-outline-variant bg-surface-container-low px-md py-sm font-body-medium text-body-medium text-on-surface-variant">{{ customer.branch ?? '—' }}</div>
+                    </UiField>
+                    <p class="font-caption text-caption italic text-on-surface-variant">Đổi chi nhánh: bấm "Phân công lại" ở đầu trang (sang cơ sở khác cần Admin duyệt).</p>
+                </template>
+                <UiSelect v-else id="f_branch_id" name="branch_id" label="Chi nhánh" required placeholder="Chọn chi nhánh" :options="options.branches" />
             </div>
         </div>
 
@@ -41,7 +48,7 @@ const lockedInput = 'w-full rounded-lg border border-outline-variant px-md py-sm
             </summary>
             <div class="grid grid-cols-1 gap-md border-t border-surface-container-highest p-md md:grid-cols-2">
                 <UiInput id="f_parent_phone" name="parent_phone" type="tel" label="SĐT phụ huynh" placeholder="VD: 0912 345 678" :value="customer.parent_phone" />
-                <UiInput id="next_follow_up_at" name="next_follow_up_at" type="datetime-local" label="Hạn liên hệ tiếp theo" :value="customer.next_follow_up_input" hint="Pipeline báo &quot;Sắp hết hạn&quot; trước 24 giờ và &quot;Quá hạn&quot; khi quá hạn." />
+                <UiInput id="next_follow_up_at" name="next_follow_up_at" type="datetime-local" label="Hạn liên hệ tiếp theo" :value="customer.next_follow_up_input" hint="Hẹn này thay hạn chăm sóc mặc định. Còn 1/4 thời gian thì báo &quot;Sắp hết hạn&quot;, qua hạn báo &quot;Quá hạn&quot;." />
                 <UiInput id="f_email" name="email" type="email" label="Email" :value="customer.email" />
                 <UiDate id="f_dob" name="dob" label="Ngày sinh" :value="customer.dob" />
                 <UiSelect id="f_gender" name="gender" label="Giới tính" placeholder="-- Chọn --" :value="customer.gender" :options="genders" />
