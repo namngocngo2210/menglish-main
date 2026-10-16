@@ -670,6 +670,59 @@ func (q *Queries) ListUserBranches(ctx context.Context, userID uuid.UUID) ([]Lis
 	return items, nil
 }
 
+const listUserIDsWithPermission = `-- name: ListUserIDsWithPermission :many
+SELECT u.id
+FROM iam.users u
+WHERE u.status = 'active'
+  AND ($1::uuid IS NULL
+       OR EXISTS (SELECT 1 FROM iam.user_branches ub WHERE ub.user_id = u.id AND ub.branch_id = $1::uuid))
+  AND (($2::boolean
+        AND EXISTS (SELECT 1 FROM iam.user_roles ur WHERE ur.user_id = u.id AND ur.role = $3::text))
+       OR ($4::boolean AND coalesce(
+             (SELECT o.allow FROM iam.permission_overrides o
+              WHERE o.user_id = u.id AND o.permission = $5::text AND o.scope_type = 'all' LIMIT 1),
+             EXISTS (SELECT 1 FROM iam.user_roles ur JOIN iam.role_permissions rp ON rp.role = ur.role
+                     WHERE ur.user_id = u.id AND rp.permission = $5::text))))
+ORDER BY u.id
+`
+
+type ListUserIDsWithPermissionParams struct {
+	BranchID    *uuid.UUID
+	AdminAll    bool
+	AdminRole   string
+	RoleAllowed bool
+	Perm        string
+}
+
+// Người dùng đang hoạt động có quyền @perm, cùng thứ tự quyết định với Access.Can (bỏ qua phân quyền theo chi nhánh /
+// lớp). admin_all: Admin được quyền này mặc định; role_allowed: quyền không thuộc nhóm chỉ Admin. branch_id NULL = mọi
+// chi nhánh, ngược lại chỉ người thuộc chi nhánh đó.
+func (q *Queries) ListUserIDsWithPermission(ctx context.Context, arg ListUserIDsWithPermissionParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, listUserIDsWithPermission,
+		arg.BranchID,
+		arg.AdminAll,
+		arg.AdminRole,
+		arg.RoleAllowed,
+		arg.Perm,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listUserOverrides = `-- name: ListUserOverrides :many
 SELECT permission, allow, scope_type, scope_id FROM iam.permission_overrides
 WHERE user_id = $1 ORDER BY permission, scope_type

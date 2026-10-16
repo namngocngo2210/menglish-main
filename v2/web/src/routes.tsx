@@ -11,6 +11,9 @@ import { TAPortalPage } from './features/tasks/TAPortalPage'
 import { TasksPage } from './features/tasks/TasksPage'
 import { PlacementTestsPage } from './features/placement/TestsPage'
 import { TeacherTrialsPage, TrialSchedulePage } from './features/placement/TrialPages'
+import { ActivityLogsPage } from './features/platform/ActivityLogsPage'
+import { NotificationsPage } from './features/platform/NotificationsPage'
+import { SearchPage } from './features/platform/SearchPage'
 import { AccountPage } from './pages/AccountPage'
 import { BranchesPage } from './pages/admin/BranchesPage'
 import { RolesPage } from './pages/admin/RolesPage'
@@ -56,4 +59,7 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/placement-tests': (me) => <PlacementTestsPage me={me} />,
   '/placement-tests/rubric-guide': (me) => <PlacementTestsPage me={me} />,
   '/teacher/trial-guests': () => <TeacherTrialsPage />,
+  '/activity-logs': () => <ActivityLogsPage />,
+  '/notifications': (me) => <NotificationsPage me={me} />,
+  '/search': (me) => <SearchPage me={me} />,
 }

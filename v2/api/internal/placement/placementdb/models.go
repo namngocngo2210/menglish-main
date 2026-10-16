@@ -92,6 +92,27 @@ type AcademicStudentGuardian struct {
 	CreatedAt    time.Time
 }
 
+type CoreAuditLog struct {
+	ID           uuid.UUID
+	CreatedAt    time.Time
+	ActorID      *uuid.UUID
+	Module       string
+	Event        string
+	Action       string
+	SubjectType  *string
+	SubjectID    *string
+	SubjectLabel *string
+	BranchID     *uuid.UUID
+	Description  string
+	Changes      []byte
+	Properties   []byte
+	Ip           *string
+	UserAgent    *string
+	Method       *string
+	Path         *string
+	RequestID    *uuid.UUID
+}
+
 type CoreBranch struct {
 	ID               uuid.UUID
 	Code             string
@@ -126,6 +147,19 @@ type CoreHoliday struct {
 type CoreHolidayBranch struct {
 	HolidayID uuid.UUID
 	BranchID  uuid.UUID
+}
+
+type CoreNotification struct {
+	ID        uuid.UUID
+	UserID    uuid.UUID
+	Type      string
+	Title     string
+	Body      string
+	Link      *string
+	Data      []byte
+	ReadAt    *time.Time
+	CreatedBy *uuid.UUID
+	CreatedAt time.Time
 }
 
 type CoreRoom struct {

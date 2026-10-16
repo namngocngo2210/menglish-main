@@ -3,14 +3,26 @@ import { useState, type ChangeEvent } from 'react'
 import { api, errorMessage, type Me, type UserDetail, type UserInput, type UserSummary } from '../../api'
 import { Alert, Badge, Button, Card, Checkbox, Dialog, Field, Select } from '../../components/ui'
 import { can } from '../../nav'
+import { useQueryParam } from '../../router'
 import { UserPermissionsDialog } from './UserPermissionsDialog'
 
 export function UsersPage({ me }: { me: Me }) {
-  const [q, setQ] = useState('')
-  const [search, setSearch] = useState('')
+  // ?q=<từ khóa>&open=<id>: mở từ tìm kiếm chung (tìm sẵn và mở hộp chi tiết tài khoản).
+  const urlQ = useQueryParam('q')
+  const urlOpen = useQueryParam('open')
+  const [fromUrl, setFromUrl] = useState({ q: urlQ, open: urlOpen })
+  const [q, setQ] = useState(urlQ)
+  const [search, setSearch] = useState(urlQ)
   const [role, setRole] = useState('')
   const [page, setPage] = useState(1)
-  const [open, setOpen] = useState<string | 'new' | null>(null)
+  const [open, setOpen] = useState<string | 'new' | null>(urlOpen || null)
+  if (fromUrl.q !== urlQ || fromUrl.open !== urlOpen) {
+    setFromUrl({ q: urlQ, open: urlOpen })
+    setQ(urlQ)
+    setSearch(urlQ)
+    setPage(1)
+    setOpen(urlOpen || null)
+  }
   const users = useQuery({
     queryKey: ['users', search, role, page],
     queryFn: () => api.users({ q: search, role, page }),

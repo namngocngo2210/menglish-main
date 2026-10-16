@@ -85,7 +85,7 @@ Deploy bằng GitHub Actions: *Deploy server* → *Run workflow* → chọn **be
 - Sai 5 lần mỗi tài khoản + IP hoặc 30 lần mỗi IP trong 10 phút thì chặn; sai 10 lần liên tiếp thì khóa tài khoản 15 phút. Thông báo lỗi không cho biết tài khoản có tồn tại hay không.
 - 2FA bằng TOTP (ứng dụng xác thực), 10 mã dự phòng dùng một lần; khóa TOTP mã hóa AES-256-GCM bằng `APP_ENCRYPTION_KEY`.
 - Đổi mật khẩu thì đăng xuất các thiết bị khác; người dùng xem và đăng xuất từng thiết bị.
-- Chưa có: nhật ký thao tác và cảnh báo Admin (bước 5).
+- Thao tác ghi trên `/auth` (đổi mật khẩu, bật / tắt 2FA, đăng xuất thiết bị) ghi một dòng chung vào nhật ký vận hành, không kèm dữ liệu gửi lên. Chưa có: cảnh báo Admin.
 
 ## Vai trò và quyền (giai đoạn 0, bước 2)
 
@@ -120,6 +120,71 @@ v2/deploy/beta.sh import-legacy production --only branches,users
 - Mật khẩu: giữ chuỗi bcrypt của Laravel; lần đăng nhập đầu trên v2 tự băm lại bằng argon2id. Tài khoản đã đổi mật khẩu trên v2 thì lần nhập sau không ghi đè. Tài khoản tạo tay trên v2 trùng mã / email được nhận làm một (giữ mật khẩu và 2FA của v2).
 - Thêm phân hệ: viết `LegacySteps()` trong gói của phân hệ (xem `internal/legacy`, `internal/iam/legacy_import.go`) rồi nối vào `legacySteps()` ở `cmd/menglish/importlegacy.go`.
 - CI chạy migration Laravel lên MariaDB rồi chạy test nhập (`TEST_LEGACY_MYSQL_DSN`): bảng Laravel đổi cột thì CI của v2 đỏ, kể cả PR chỉ sửa `database/migrations`.
+## Nền tảng: khung giao diện, nhật ký vận hành, thông báo, tìm kiếm
+
+Đối chiếu từng phần với Laravel: `doi-chieu/nen-tang.md`.
+
+### Khung giao diện và menu (`web/src/nav.ts`, `web/src/components/Shell.tsx`)
+
+- Như `AppLayout.vue` + `SidebarMenu.php`: sidebar tối chia khu (Phê duyệt, Giao việc, Tuyển sinh, Đào tạo, Tài chính, Người dùng, Báo cáo, Cá nhân), thu gọn được (nhớ trong trình duyệt), ngăn kéo trên điện thoại; topbar có tiêu đề trang, ô tìm kiếm (Ctrl K), chuông thông báo, menu tài khoản; tab của workspace hoặc menu Cài đặt ở đầu nội dung.
+- Module mới chỉ thêm mục vào `NAV` (và một dòng trong `routes.tsx`): `{ path, label, perms, group, hidden?, icon? }`. `group` là tên workspace trong `WORKSPACES` (vd. `'Khách hàng (CRM)'`, `'Học viên'`, `'Của tôi'`): mỗi workspace là một dòng sidebar, các mục cùng workspace hiện thành tab. Màn cấu hình dùng nhóm Cài đặt: `'Tổ chức & Đào tạo'`, `'Lương'`, `'Hệ thống'` hoặc `'Cài đặt › <nhóm>'` (vd. `'Cài đặt › Học phí'`). Nhóm lạ rơi vào khu "Khác". `hidden: true`: có trang nhưng không hiện trên menu (vd. `/search`).
+- Biểu tượng Material Symbols tự host (`web/src/assets/fonts`, không dùng CDN vì CSP chỉ cho `'self'`): `<Icon name="..." />` trong `components/ui.tsx`.
+
+### Nhật ký vận hành (`api/internal/audit`, màn `/activity-logs`)
+
+Ghi trong transaction của thao tác (lỗi thì rollback cùng thao tác), mô tả tiếng Việt như `Audit::describe` của Laravel:
+
+```go
+err := pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
+    // ... ghi dữ liệu ...
+    return audit.Record(ctx, tx, audit.Entry{
+        ActorID: &actor.UserID, Module: audit.ModuleStudents, Event: audit.EventUpdated, Action: "student.update",
+        SubjectType: "student", SubjectID: id.String(), SubjectLabel: "Nguyễn Văn A (HV-00001)", BranchID: &branchID,
+        Description: "Cập nhật hồ sơ học viên",
+        Changes: audit.Diff(before, after), // map[string]any trước / sau; trường nhạy cảm tự che ***
+    })
+})
+```
+
+- `Module`: dùng hằng `audit.Module*` (tên phân hệ như `log_name` của Laravel, nhóm lọc nhanh theo `audit.Groups`). `Event`: `created | updated | deleted | restored` hoặc tên thao tác. `Description` bắt buộc.
+- `audit.RegisterSubject("student", "Học viên")`: tên loại đối tượng trên màn chi tiết. `audit.RegisterPath("/students", audit.ModuleStudents)`: phân hệ cho dòng ghi tự động.
+- `audit.Middleware` (gắn sẵn trong `cmd/menglish`) lưu IP / User-Agent / đường dẫn / mã request cho `Record`, và tự ghi một dòng chung cho mọi request ghi thành công của người đã đăng nhập mà handler không gọi `Record` (như `AuditOperationMiddleware`), nên module chưa gọi `Record` vẫn có dấu vết.
+- Giá trị nhạy cảm (mật khẩu, token, khóa, mã 2FA, CCCD…) che bằng `***` (`audit.IsSensitiveKey`, như `SensitiveData`).
+- Màn hình: quyền `activity_log.view`, phạm vi `activity_log.scope_own|branch|all` (của tôi / nhân sự chi nhánh của tôi / tất cả), lọc theo nhóm, phân hệ, người, loại, khoảng ngày, tìm kiếm, xuất CSV.
+
+### Thông báo (`api/internal/notify`, chuông trên topbar, màn `/notifications`)
+
+```go
+ids, err := iam.UserIDsWithPermission(ctx, tx, "tuition.approve", &branchID) // hoặc iam.AdminIDs(ctx, tx), hoặc id cụ thể
+_, err = notify.Send(ctx, tx, ids, notify.Notification{
+    Type: "receipt_pending", Title: "Phiếu thu PT-00012 chờ duyệt", Body: "Học viên Nguyễn Văn A · 3.000.000đ",
+    Link: "/tuition/receipts/<id>", CreatedBy: &actor.UserID, Except: &actor.UserID,
+})
+```
+
+- Mỗi người nhận một dòng riêng (trạng thái đã đọc riêng). `Send` bỏ trùng, bỏ người trong `Except`, bỏ tài khoản đã khóa; gửi trong transaction thì rollback cùng nghiệp vụ.
+- `Link` chỉ nhận đường dẫn trong ứng dụng (`/...`). `Data` (tùy chọn) là dữ liệu kèm cho màn hình: `customer_id`, `customer_name`, `customer_phone`, `assigned_user`, `hours_elapsed` (thẻ lead tồn đọng), `copy_text` (nút sao chép nội dung gửi phụ huynh).
+- Loại thông báo của Laravel (nhãn, biểu tượng, màu) khai báo sẵn trong `notify`; loại mới: `notify.RegisterType("x", notify.TypeInfo{Label, Icon, Tone})` trong `init()` của module.
+- API của người đang đăng nhập (quyền `notification.view`): `GET /notifications?type=&unread=1&page=`, `GET /notifications/summary` (số chưa đọc + 6 tin mới nhất cho chuông), `POST /notifications/{id}/read`, `POST /notifications/read-all`.
+
+### Tìm kiếm chung (`api/internal/search`, bảng Ctrl K, màn `/search`)
+
+- Màn hình theo tên tìm ở giao diện (`searchScreens` trong `nav.ts`, chỉ màn người dùng mở được).
+- Dữ liệu tìm qua `GET /search?q=&limit=` (ít nhất 2 ký tự): mỗi module đăng ký một nhóm, nhóm chỉ chạy khi người dùng có quyền của nhóm và tự lọc theo phạm vi dữ liệu. Có sẵn: người dùng (`user.view`, cùng phạm vi màn Người dùng), chi nhánh (`branch.view`). Thêm nhóm trong `cmd/menglish/main.go`:
+
+```go
+search.Builtin(d.iam).Add(search.Searcher{
+    Key: "students", Label: "Học viên", Icon: "school", Perms: []string{"student.view"},
+    Search: func(ctx context.Context, actor *iam.Access, q search.Query) ([]search.Hit, error) {
+        // q.Like = "%từ khóa%" đã thoát ký tự LIKE; q.Phone = "%chữ số%" khi có từ 3 chữ số; q.Limit
+        // trả []search.Hit{ID, Title, Code, Subtitle, Meta, Link}, đã lọc theo phạm vi của actor
+    },
+})
+```
+
+### Test tích hợp dùng chung (`api/internal/iam/iamtest`)
+
+`iamtest.Setup(t, "<bảng của module cần xóa>")` migrate DB test, xóa dữ liệu, đồng bộ quyền; `e.Serve(handler.Routes)`; `e.Branch`, `e.Member(code, tên, chi nhánh, vai trò...)` (tạo tài khoản + đăng nhập, tự bật 2FA khi vai trò bắt buộc), `e.Grant / e.Revoke` quyền của vai trò, `e.Anon()`; `c.Do(method, path, body)`, `iamtest.Expect(t, r, status, code)`.
 
 ## Bám theo Laravel trong lúc làm v2
 
