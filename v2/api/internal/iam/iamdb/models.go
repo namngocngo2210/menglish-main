@@ -11,6 +11,39 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AcademicCourse struct {
+	ID            uuid.UUID
+	Code          string
+	Name          string
+	CourseLevelID *uuid.UUID
+	TuitionFee    int64
+	TotalLessons  int32
+	Description   *string
+	IsActive      bool
+	CreatedBy     *uuid.UUID
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	DeletedAt     *time.Time
+}
+
+type AcademicCourseLevel struct {
+	ID                   uuid.UUID
+	Code                 string
+	Name                 string
+	Description          *string
+	LevelGroup           *string
+	GradeLevels          []string
+	Target               string
+	LessonsCount         int32
+	SyllabusCurriculumID *uuid.UUID
+	IsActive             bool
+	SortOrder            int32
+	CreatedBy            *uuid.UUID
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
+	DeletedAt            *time.Time
+}
+
 type AcademicStudent struct {
 	ID             uuid.UUID
 	Code           string
@@ -75,6 +108,142 @@ type CoreBranch struct {
 	WorkStartTime    pgtype.Time
 	WorkEndTime      pgtype.Time
 	LateGraceMinutes int16
+}
+
+type CoreHoliday struct {
+	ID           uuid.UUID
+	Code         string
+	Name         string
+	StartDate    pgtype.Date
+	EndDate      pgtype.Date
+	IsSystemWide bool
+	CreatedBy    *uuid.UUID
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	DeletedAt    *time.Time
+}
+
+type CoreHolidayBranch struct {
+	HolidayID uuid.UUID
+	BranchID  uuid.UUID
+}
+
+type CoreRoom struct {
+	ID          uuid.UUID
+	BranchID    uuid.UUID
+	RoomTypeID  uuid.UUID
+	Name        string
+	Capacity    *int32
+	Description *string
+	CreatedBy   *uuid.UUID
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	DeletedAt   *time.Time
+}
+
+type CoreRoomType struct {
+	ID        uuid.UUID
+	Name      string
+	IsActive  bool
+	CreatedBy *uuid.UUID
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt *time.Time
+}
+
+type CoreSetting struct {
+	Key         string
+	Value       []byte
+	Secret      []byte
+	Description *string
+	UpdatedBy   *uuid.UUID
+	UpdatedAt   time.Time
+}
+
+type CoreSystemCategory struct {
+	ID        uuid.UUID
+	Type      string
+	Code      string
+	Name      string
+	SortOrder int32
+	IsActive  bool
+	CreatedBy *uuid.UUID
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt *time.Time
+}
+
+type FinanceBankAccount struct {
+	ID              uuid.UUID
+	AccountType     string
+	BankCode        string
+	BankName        string
+	AccountNumber   string
+	AccountHolder   string
+	BranchLocation  *string
+	BranchID        *uuid.UUID
+	IsDefaultVietqr bool
+	IsActive        bool
+	CreatedBy       *uuid.UUID
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	DeletedAt       *time.Time
+}
+
+type FinanceDebtReminderRule struct {
+	ID              uuid.UUID
+	MilestoneKey    string
+	OffsetDays      int32
+	Title           string
+	TemplateContent string
+	Channels        []string
+	IsEnabled       bool
+	CreatedBy       *uuid.UUID
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+type HrSlaRule struct {
+	Key            string
+	GroupKey       string
+	Label          string
+	Description    string
+	Unit           string
+	DefaultValue   int32
+	DefaultPenalty *bool
+	DefaultAmount  int64
+	DefaultLadder  []byte
+	AmountLabel    *string
+	AmountPer      *string
+	Task           bool
+	Switchable     bool
+	Category       string
+	Violation      string
+	Sort           int32
+	Value          *int32
+	Enabled        *bool
+	Penalty        *bool
+	Amount         *int64
+	Ladder         []byte
+	UpdatedBy      *uuid.UUID
+	UpdatedAt      *time.Time
+}
+
+type HrTeachingShift struct {
+	ID           uuid.UUID
+	DayType      string
+	Name         string
+	StartTime    pgtype.Time
+	EndTime      pgtype.Time
+	AltStartTime pgtype.Time
+	AltEndTime   pgtype.Time
+	Note         *string
+	SortOrder    int32
+	IsActive     bool
+	CreatedBy    *uuid.UUID
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	DeletedAt    *time.Time
 }
 
 type IamPermission struct {

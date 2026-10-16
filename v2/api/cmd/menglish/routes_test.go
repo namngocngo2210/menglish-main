@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/catalogs"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/inventory"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/students"
@@ -49,7 +50,7 @@ func unguarded(t *testing.T, r chi.Routes) ([]string, int) {
 // Thêm module mới mà quên gắn quyền thì test này đỏ.
 func TestEveryRouteHasPermission(t *testing.T) {
 	r := chi.NewRouter()
-	apiRoutes(iam.NewHandler(nil, nil), students.NewHandler(nil, nil), inventory.NewHandler(nil, nil))(r)
+	apiRoutes(iam.NewHandler(nil, nil), students.NewHandler(nil, nil), inventory.NewHandler(nil, nil), catalogs.NewHandler(nil, nil))(r)
 	bad, count := unguarded(t, r)
 	for _, b := range bad {
 		t.Errorf("%s không gắn iam.Require / iam.RequireAny", b)

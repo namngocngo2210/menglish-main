@@ -52,5 +52,7 @@ func runGoose(ctx context.Context, db *sql.DB, command string, args ...string) e
 	if err := goose.SetDialect("postgres"); err != nil {
 		return err
 	}
-	return goose.RunContext(ctx, command, db, "migrations", args...)
+	// Mỗi phân hệ giữ một dải số migration riêng nên dải thấp có thể gộp sau dải cao: cho phép chạy bù migration
+	// còn thiếu thay vì báo lỗi.
+	return goose.RunWithOptionsContext(ctx, command, db, "migrations", args, goose.WithAllowMissing())
 }
