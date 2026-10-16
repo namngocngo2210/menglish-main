@@ -55,11 +55,14 @@ type ShiftList struct {
 	// "Ca 1 (18:00–19:30 hoặc 18:10–19:40) và Ca 2 (...)": khung Thứ 2–6 đang dùng
 	WeekdayRule string `json:"weekday_rule"`
 	Duration    int    `json:"duration"`
-	// Buổi học 60 ngày tới lệch khung giờ; TODO(classes) khi có academic.class_sessions
-	OffScheduleClasses []any `json:"off_schedule_classes"`
+	// Lớp (trong phạm vi người xem) có buổi chính khóa 60 ngày tới lệch khung giờ
+	OffScheduleClasses []OffScheduleClass `json:"off_schedule_classes"`
 }
 
-func (s *Service) ListShifts(ctx context.Context) (ShiftList, error) {
+// offScheduleDays: số ngày tới xét buổi lệch khung giờ.
+const offScheduleDays = 60
+
+func (s *Service) ListShifts(ctx context.Context, actor *iam.Access) (ShiftList, error) {
 	rows, err := s.q.ListShifts(ctx)
 	if err != nil {
 		return ShiftList{}, err
@@ -77,8 +80,27 @@ func (s *Service) ListShifts(ctx context.Context) (ShiftList, error) {
 			weekday = append(weekday, part+")")
 		}
 	}
-	return ShiftList{DayTypes: DayTypes, Shifts: shifts, WeekdayRule: joinVi(weekday, "ca theo danh mục"),
-		Duration: ShiftMinutes, OffScheduleClasses: []any{}}, nil
+	out := ShiftList{DayTypes: DayTypes, Shifts: shifts, WeekdayRule: joinVi(weekday, "ca theo danh mục"),
+		Duration: ShiftMinutes, OffScheduleClasses: []OffScheduleClass{}}
+	if s.Classes != nil {
+		from := dateOnly(time.Now())
+		sessions, err := s.Classes.RegularSessions(ctx, actor, from, from.AddDate(0, 0, offScheduleDays))
+		if err != nil {
+			return out, err
+		}
+		rules, err := s.ShiftRules(ctx)
+		if err != nil {
+			return out, err
+		}
+		out.OffScheduleClasses = rules.offSchedule(sessions)
+	}
+	return out, nil
+}
+
+// dateOnly: ngày (giờ Việt Nam) của t, lúc 00:00 UTC — cùng cách biểu diễn cột date của pgx.
+func dateOnly(t time.Time) time.Time {
+	y, m, d := t.In(time.FixedZone("ICT", 7*3600)).Date()
+	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
 }
 
 func toShift(r catalogsdb.ListShiftsRow) Shift {

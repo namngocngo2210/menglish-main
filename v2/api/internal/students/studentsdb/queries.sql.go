@@ -53,8 +53,12 @@ func (q *Queries) BranchExists(ctx context.Context, id uuid.UUID) (bool, error) 
 const countVisibleStudents = `-- name: CountVisibleStudents :one
 SELECT count(*) FROM academic.students s
 WHERE s.deleted_at IS NULL
-  AND (NOT $1::bool OR s.branch_id = ANY ($2::uuid[]))
-  AND (NOT $3::bool OR s.current_class_id = ANY ($4::uuid[]))
+  AND (NOT $1::bool OR s.branch_id = ANY ($2::uuid[])
+       OR (s.branch_id IS NULL AND EXISTS (SELECT 1 FROM academic.classes c
+                                           WHERE c.id = s.current_class_id AND c.branch_id = ANY ($2::uuid[]))))
+  AND (NOT $3::bool OR s.current_class_id = ANY ($4::uuid[])
+       OR EXISTS (SELECT 1 FROM academic.enrollments e WHERE e.student_id = s.id AND e.class_id = ANY ($4::uuid[])
+                  AND e.status IN ('pending', 'completed')))
 `
 
 type CountVisibleStudentsParams struct {
@@ -224,6 +228,42 @@ func (q *Queries) GetStudent(ctx context.Context, arg GetStudentParams) (GetStud
 		&i.AccountLastLoginAt,
 	)
 	return i, err
+}
+
+const inScopeViaClasses = `-- name: InScopeViaClasses :one
+SELECT EXISTS (
+    SELECT 1 FROM academic.students s
+    WHERE s.id = $1 AND (
+        ($2::bool AND s.branch_id IS NULL AND EXISTS (
+            SELECT 1 FROM academic.classes c WHERE c.id = s.current_class_id AND c.branch_id = ANY ($3::uuid[])))
+        OR ($4::bool AND EXISTS (
+            SELECT 1 FROM academic.enrollments e WHERE e.student_id = s.id AND e.class_id = ANY ($5::uuid[])
+              AND e.status IN ('pending', 'completed')))
+    )
+)
+`
+
+type InScopeViaClassesParams struct {
+	ID            uuid.UUID
+	LimitBranches bool
+	BranchIds     []uuid.UUID
+	LimitClasses  bool
+	ClassIds      []uuid.UUID
+}
+
+// Phần phạm vi cần tra lớp: học viên chưa gán chi nhánh thuộc lớp của chi nhánh mình; học viên có lượt xếp lớp còn
+// hiệu lực ở lớp mình được xem.
+func (q *Queries) InScopeViaClasses(ctx context.Context, arg InScopeViaClassesParams) (bool, error) {
+	row := q.db.QueryRow(ctx, inScopeViaClasses,
+		arg.ID,
+		arg.LimitBranches,
+		arg.BranchIds,
+		arg.LimitClasses,
+		arg.ClassIds,
+	)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const linkGuardian = `-- name: LinkGuardian :execrows
@@ -396,8 +436,12 @@ SELECT s.id, s.code, s.full_name, s.dob, s.phone, s.email, s.branch_id, s.curren
 FROM academic.students s
 LEFT JOIN core.branches b ON b.id = s.branch_id
 WHERE s.deleted_at IS NULL
-  AND (NOT $1::bool OR s.branch_id = ANY ($2::uuid[]))
-  AND (NOT $3::bool OR s.current_class_id = ANY ($4::uuid[]))
+  AND (NOT $1::bool OR s.branch_id = ANY ($2::uuid[])
+       OR (s.branch_id IS NULL AND EXISTS (SELECT 1 FROM academic.classes c
+                                           WHERE c.id = s.current_class_id AND c.branch_id = ANY ($2::uuid[]))))
+  AND (NOT $3::bool OR s.current_class_id = ANY ($4::uuid[])
+       OR EXISTS (SELECT 1 FROM academic.enrollments e WHERE e.student_id = s.id AND e.class_id = ANY ($4::uuid[])
+                  AND e.status IN ('pending', 'completed')))
   AND ($5::text IS NULL OR s.full_name ILIKE $5 OR s.phone ILIKE $5
        OR s.code::text ILIKE $5 OR s.email::text ILIKE $5)
   AND ($6::uuid IS NULL OR s.branch_id = $6)
@@ -446,7 +490,8 @@ type ListStudentsRow struct {
 	Total          int64
 }
 
-// Phạm vi: limit_branches → chỉ chi nhánh trong branch_ids; limit_classes → chỉ học viên của các lớp class_ids.
+// Phạm vi: limit_branches → chỉ chi nhánh trong branch_ids (học viên chưa gán chi nhánh: theo chi nhánh lớp đang học);
+// limit_classes → chỉ học viên của các lớp class_ids (lớp chính hoặc lượt xếp lớp còn hiệu lực).
 func (q *Queries) ListStudents(ctx context.Context, arg ListStudentsParams) ([]ListStudentsRow, error) {
 	rows, err := q.db.Query(ctx, listStudents,
 		arg.LimitBranches,

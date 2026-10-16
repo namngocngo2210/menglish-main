@@ -18,6 +18,7 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/audit"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/audit/auditapi"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/catalogs"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/classes"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/config"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/crm"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/geo"
@@ -119,6 +120,12 @@ func runAPI(ctx context.Context) error {
 
 	inv := inventory.NewService(d.pool, log, inventory.DefaultConfig())
 	go inv.RunOverdueLoop(ctx, 15*time.Minute)
+	cat := catalogs.NewService(d.pool, d.box, log)
+	stu := students.NewService(d.pool, d.iam, log)
+	// Phân hệ Lớp học làm phần việc lớp cho Học viên, Danh mục (khóa / trình độ / phòng / nghỉ lễ / ca dạy) và Order học liệu.
+	cls := classes.NewService(d.pool, cat, log)
+	stu.Classes, cat.Classes, inv.Classes = cls, cls, cls
+	go cls.RunStartStudyingLoop(ctx, time.Hour)
 	auth := iam.NewHandler(d.iam, log).WithAddressSearch(geo.NewSearcher(d.rdb, log, cfg.PublicURL))
 	taskSvc := tasks.NewService(d.pool, log)
 	// Chuyển việc đã qua hạn sang "Quá hạn" (lệnh tasks:mark-overdue chạy theo lịch ở bản Laravel).
@@ -144,9 +151,10 @@ func runAPI(ctx context.Context) error {
 				// Module mới có nhóm tìm kiếm thì thêm: search.Builtin(d.iam).Add(<module>.Searcher(...)).
 				search: search.NewHandler(search.Builtin(d.iam), log),
 			},
-				students.NewHandler(students.NewService(d.pool, d.iam, log), log),
+				students.NewHandler(stu, log),
 				inventory.NewHandler(inv, log),
-				catalogs.NewHandler(catalogs.NewService(d.pool, d.box, log), log),
+				catalogs.NewHandler(cat, log),
+				classes.NewHandler(cls, log),
 				tasks.NewHandler(taskSvc, log),
 				place,
 				reports.NewHandler(reportSvc, log),

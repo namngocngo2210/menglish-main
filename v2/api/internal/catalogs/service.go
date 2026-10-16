@@ -24,6 +24,8 @@ type Service struct {
 	q    *catalogsdb.Queries
 	box  *secretbox.Box
 	log  *slog.Logger
+	// Classes: phân hệ Lớp học (đếm lớp, phòng đang dùng, xếp lại lịch theo ngày nghỉ); nil = chưa có lớp nào.
+	Classes ClassHooks
 }
 
 func NewService(pool *pgxpool.Pool, box *secretbox.Box, log *slog.Logger) *Service {

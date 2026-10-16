@@ -29,6 +29,12 @@ export function ShiftsPage({ me }: { me: Me }) {
           </Alert>
         )}
         {act.notice}
+        {d?.off_schedule_classes && d.off_schedule_classes.length > 0 && (
+          <Alert tone="info">
+            Lớp có buổi lệch khung giờ (60 ngày tới):{' '}
+            {d.off_schedule_classes.map((c) => `${c.class_name} (${c.class_code}, ${c.sessions} buổi: ${c.slots.join(', ')})`).join('; ')}
+          </Alert>
+        )}
         {d && d.shifts.length === 0 && <Empty>Chưa có khung giờ nào.</Empty>}
         {d &&
           d.day_types.map((dt) => {

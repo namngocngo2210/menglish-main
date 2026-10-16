@@ -296,7 +296,8 @@ type OrderFormOptions struct {
 	// Cho form báo hạn ngay khi chọn loại + ngày sử dụng
 	StartOfMonthDay int    `json:"start_of_month_day"`
 	DayBeforeCutoff string `json:"day_before_cutoff"`
-	// TODO(classes): danh sách lớp (ClassModel::visibleTo) khi module lớp có; form hiện chưa chọn lớp.
+	// Lớp người lập được xem (ClassModel::visibleTo)
+	Classes []ClassOption `json:"classes"`
 }
 
 // requesterBranches: chi nhánh người lập được chọn: chi nhánh của mình (mức all: mọi chi nhánh đang hoạt động).
@@ -330,6 +331,12 @@ func (s *Service) OrderFormOptions(ctx context.Context, actor *iam.Access) (Orde
 	}
 	if out.DefaultBranchID == nil && len(bs) > 0 {
 		out.DefaultBranchID = &bs[0].ID
+	}
+	out.Classes = []ClassOption{}
+	if s.Classes != nil {
+		if out.Classes, err = s.Classes.ClassOptions(ctx, actor); err != nil {
+			return out, err
+		}
 	}
 	return out, nil
 }
@@ -382,7 +389,17 @@ func (s *Service) CreateOrder(ctx context.Context, actor *iam.Access, in OrderIn
 	case dateErr != nil:
 		return OrderCreated{}, iam.Invalid("Ngày sử dụng không phải là ngày hợp lệ.")
 	}
-	// TODO(classes): kiểm class_id thuộc lớp chưa xóa (Rule::exists('classes')) khi module lớp có.
+	if in.ClassID != nil {
+		ok := false
+		if s.Classes != nil {
+			if ok, err = s.Classes.ClassExists(ctx, *in.ClassID); err != nil {
+				return OrderCreated{}, err
+			}
+		}
+		if !ok {
+			return OrderCreated{}, iam.Invalid("Lớp học đã chọn không tồn tại trong hệ thống.")
+		}
+	}
 	now := s.now()
 	due := s.cfg.DueAt(in.Category, useDate)
 	var id uuid.UUID

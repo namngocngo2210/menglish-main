@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
 import type { Me } from './api'
 import { StudentsPage } from './features/students/StudentsPage'
+import { ClassesPage } from './features/classes/ClassesPage'
+import { ScheduleConfigPage } from './features/classes/ScheduleConfigPage'
 import { ItemsPage } from './features/inventory/ItemsPage'
 import { MaterialOrdersPage } from './features/inventory/MaterialOrdersPage'
 import { StockPage } from './features/inventory/StockPage'
@@ -46,6 +48,8 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/roles': (me) => <RolesPage me={me} />,
   '/branches': (me) => <BranchesPage me={me} />,
   '/students': (me) => <StudentsPage me={me} />,
+  '/classes': (me) => <ClassesPage me={me} />,
+  '/schedule-config': () => <ScheduleConfigPage />,
   '/material-orders': () => <MaterialOrdersPage />,
   '/inventory/items': (me) => <ItemsPage me={me} />,
   '/inventory/stock': (me) => <StockPage me={me} />,

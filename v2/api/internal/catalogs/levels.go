@@ -106,8 +106,20 @@ func (s *Service) ListLevels(ctx context.Context, f LevelFilter) (LevelList, err
 			ID: r.ID, Code: r.Code, Name: r.Name, Description: r.Description, LevelGroup: r.LevelGroup,
 			GradeLevels: nonNil(r.GradeLevels), GradeLabels: labels, Target: r.Target, LessonsCount: r.LessonsCount,
 			SyllabusCurriculumID: r.SyllabusCurriculumID, IsActive: r.IsActive, CoursesCount: r.CoursesCount,
-			// TODO(classes): số lớp dùng trình độ và số học viên đang học khi có academic.classes / students.
 		})
+	}
+	if s.Classes != nil && len(items) > 0 {
+		codes := make([]string, 0, len(items))
+		for _, l := range items {
+			codes = append(codes, l.Code)
+		}
+		classes, students, err := s.Classes.LevelUsage(ctx, codes)
+		if err != nil {
+			return LevelList{}, err
+		}
+		for i := range items {
+			items[i].ClassesCount, items[i].StudentsUsing = classes[items[i].Code], students[items[i].Code]
+		}
 	}
 	st, err := s.q.LevelStats(ctx)
 	if err != nil {
@@ -294,8 +306,14 @@ func (s *Service) DeleteLevel(ctx context.Context, actor *iam.Access, id uuid.UU
 	if err != nil {
 		return "", err
 	}
-	// TODO(classes): cộng số lớp đang dùng trình độ khi có academic.classes.
 	var classes int64
+	if s.Classes != nil {
+		counts, _, err := s.Classes.LevelUsage(ctx, []string{lv.Code})
+		if err != nil {
+			return "", err
+		}
+		classes = counts[lv.Code]
+	}
 	if courses > 0 || classes > 0 {
 		return "", conflict(fmt.Sprintf("Không thể xóa trình độ %s: đang gắn với %d khóa học và %d lớp học. Hãy chuyển sang \"Ngừng hoạt động\".", lv.Name, courses, classes))
 	}

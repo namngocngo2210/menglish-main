@@ -91,6 +91,8 @@ export type Room = {
   name: string
   capacity: number | null
   description: string | null
+  // Lớp còn mở đang gắn phòng (phân hệ Lớp học); studying = lớp đang học giữ chặt phòng
+  classes?: { id: string; name: string; code: string; studying: boolean; slots: string[] }[]
 }
 export type RoomTypeOption = { value: string; label: string; is_active: boolean }
 export type RoomList = RoomScope & { rooms: Page<Room> | null; types: RoomTypeOption[] }
@@ -119,7 +121,14 @@ export type Shift = {
   note: string | null
   is_active: boolean
 }
-export type ShiftList = { day_types: Option[]; shifts: Shift[]; weekday_rule: string; duration: number }
+export type ShiftList = {
+  day_types: Option[]
+  shifts: Shift[]
+  weekday_rule: string
+  duration: number
+  // Lớp có buổi chính khóa lệch khung giờ ca dạy trong 60 ngày tới
+  off_schedule_classes?: { class_id: string; class_name: string; class_code: string; branch: string; slots: string[]; sessions: number }[]
+}
 export type ShiftInput = {
   day_type: string
   name: string

@@ -21,14 +21,19 @@ RETURNING id;
 SELECT EXISTS (SELECT 1 FROM academic.students WHERE user_id = $1);
 
 -- name: ListStudents :many
--- Phạm vi: limit_branches → chỉ chi nhánh trong branch_ids; limit_classes → chỉ học viên của các lớp class_ids.
+-- Phạm vi: limit_branches → chỉ chi nhánh trong branch_ids (học viên chưa gán chi nhánh: theo chi nhánh lớp đang học);
+-- limit_classes → chỉ học viên của các lớp class_ids (lớp chính hoặc lượt xếp lớp còn hiệu lực).
 SELECT s.id, s.code, s.full_name, s.dob, s.phone, s.email, s.branch_id, s.current_class_id, s.status,
        s.study_started_on, s.created_at, b.name AS branch_name, count(*) OVER () AS total
 FROM academic.students s
 LEFT JOIN core.branches b ON b.id = s.branch_id
 WHERE s.deleted_at IS NULL
-  AND (NOT sqlc.arg(limit_branches)::bool OR s.branch_id = ANY (sqlc.arg(branch_ids)::uuid[]))
-  AND (NOT sqlc.arg(limit_classes)::bool OR s.current_class_id = ANY (sqlc.arg(class_ids)::uuid[]))
+  AND (NOT sqlc.arg(limit_branches)::bool OR s.branch_id = ANY (sqlc.arg(branch_ids)::uuid[])
+       OR (s.branch_id IS NULL AND EXISTS (SELECT 1 FROM academic.classes c
+                                           WHERE c.id = s.current_class_id AND c.branch_id = ANY (sqlc.arg(branch_ids)::uuid[]))))
+  AND (NOT sqlc.arg(limit_classes)::bool OR s.current_class_id = ANY (sqlc.arg(class_ids)::uuid[])
+       OR EXISTS (SELECT 1 FROM academic.enrollments e WHERE e.student_id = s.id AND e.class_id = ANY (sqlc.arg(class_ids)::uuid[])
+                  AND e.status IN ('pending', 'completed')))
   AND (sqlc.narg(search)::text IS NULL OR s.full_name ILIKE sqlc.narg(search) OR s.phone ILIKE sqlc.narg(search)
        OR s.code::text ILIKE sqlc.narg(search) OR s.email::text ILIKE sqlc.narg(search))
   AND (sqlc.narg(branch_id)::uuid IS NULL OR s.branch_id = sqlc.narg(branch_id))
@@ -47,8 +52,26 @@ LIMIT sqlc.arg(lim) OFFSET sqlc.arg(off);
 -- name: CountVisibleStudents :one
 SELECT count(*) FROM academic.students s
 WHERE s.deleted_at IS NULL
-  AND (NOT sqlc.arg(limit_branches)::bool OR s.branch_id = ANY (sqlc.arg(branch_ids)::uuid[]))
-  AND (NOT sqlc.arg(limit_classes)::bool OR s.current_class_id = ANY (sqlc.arg(class_ids)::uuid[]));
+  AND (NOT sqlc.arg(limit_branches)::bool OR s.branch_id = ANY (sqlc.arg(branch_ids)::uuid[])
+       OR (s.branch_id IS NULL AND EXISTS (SELECT 1 FROM academic.classes c
+                                           WHERE c.id = s.current_class_id AND c.branch_id = ANY (sqlc.arg(branch_ids)::uuid[]))))
+  AND (NOT sqlc.arg(limit_classes)::bool OR s.current_class_id = ANY (sqlc.arg(class_ids)::uuid[])
+       OR EXISTS (SELECT 1 FROM academic.enrollments e WHERE e.student_id = s.id AND e.class_id = ANY (sqlc.arg(class_ids)::uuid[])
+                  AND e.status IN ('pending', 'completed')));
+
+-- name: InScopeViaClasses :one
+-- Phần phạm vi cần tra lớp: học viên chưa gán chi nhánh thuộc lớp của chi nhánh mình; học viên có lượt xếp lớp còn
+-- hiệu lực ở lớp mình được xem.
+SELECT EXISTS (
+    SELECT 1 FROM academic.students s
+    WHERE s.id = sqlc.arg(id) AND (
+        (sqlc.arg(limit_branches)::bool AND s.branch_id IS NULL AND EXISTS (
+            SELECT 1 FROM academic.classes c WHERE c.id = s.current_class_id AND c.branch_id = ANY (sqlc.arg(branch_ids)::uuid[])))
+        OR (sqlc.arg(limit_classes)::bool AND EXISTS (
+            SELECT 1 FROM academic.enrollments e WHERE e.student_id = s.id AND e.class_id = ANY (sqlc.arg(class_ids)::uuid[])
+              AND e.status IN ('pending', 'completed')))
+    )
+);
 
 -- name: GetStudent :one
 -- Tìm theo id hoặc theo mã (Laravel findVisibleStudent nhận cả hai).

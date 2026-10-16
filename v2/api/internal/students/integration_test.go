@@ -105,6 +105,17 @@ func (e *env) branch(code string) uuid.UUID {
 	return id
 }
 
+// class: một lớp (academic.classes) của chi nhánh để gán làm lớp hiện tại.
+func (e *env) class(branch uuid.UUID, code string) uuid.UUID {
+	e.t.Helper()
+	var id uuid.UUID
+	if err := e.pg.QueryRow(context.Background(), "INSERT INTO academic.classes (code, name, branch_id) VALUES ($1, $2, $3) RETURNING id",
+		code, "Lớp "+code, branch).Scan(&id); err != nil {
+		e.t.Fatal(err)
+	}
+	return id
+}
+
 type member struct {
 	id     uuid.UUID
 	code   string
@@ -403,7 +414,7 @@ func TestListFiltersAndBranchScope(t *testing.T) {
 	binh := e.student(admin, CreateInput{FullName: "Trần Bình", BranchID: &a, Phone: "0901000002"})
 	chi := e.student(admin, CreateInput{FullName: "Lê Chi", BranchID: &b, Phone: "0901000003"})
 	none := e.student(admin, CreateInput{FullName: "Không Chi Nhánh"})
-	class := uuid.New()
+	class := e.class(a, "L-A1")
 	e.exec("UPDATE academic.students SET status = 'studying', study_started_on = current_date - interval '4 years', current_class_id = $2 WHERE id = $1", an.ID, class)
 	e.exec("UPDATE academic.students SET status = 'deferred', study_started_on = current_date - interval '2 years' WHERE id = $1", binh.ID)
 
@@ -561,7 +572,7 @@ func TestStatusDeferralAndDelete(t *testing.T) {
 	e := setup(t)
 	a := e.branch("CN-A")
 	manager := e.member("QL001", []uuid.UUID{a}, iam.RoleManager)
-	st := e.student(manager, CreateInput{FullName: "Nguyễn An", BranchID: &a, CurrentClassID: ptr(uuid.New())})
+	st := e.student(manager, CreateInput{FullName: "Nguyễn An", BranchID: &a, CurrentClassID: ptr(e.class(a, "L-A1"))})
 	c := e.as(manager)
 	path := "/students/" + st.ID.String()
 
@@ -649,4 +660,22 @@ func TestGuardiansAndAccountReset(t *testing.T) {
 	e.exec("INSERT INTO iam.user_roles (user_id, role) VALUES ($1, 'assistant')", binh.UserID)
 	expectMessage(t, c.do("POST", "/students/"+binh.ID.String()+"/reset-account", nil), 422,
 		"Học viên chưa có tài khoản cổng học viên riêng, liên hệ Admin để cấp tài khoản.")
+}
+
+// Học viên chưa gán chi nhánh: phạm vi Chi nhánh xét theo chi nhánh của lớp đang học (Student::scopeVisibleTo).
+func TestBranchScopeFollowsClassBranch(t *testing.T) {
+	e := setup(t)
+	a, b := e.branch("CN-A"), e.branch("CN-B")
+	admin := e.member("MES001", nil, iam.RoleAdmin)
+	st := e.student(admin, CreateInput{FullName: "Không Chi Nhánh", CurrentClassID: ptr(e.class(a, "L-A1"))})
+	ma := e.as(e.member("QL001", []uuid.UUID{a}, iam.RoleManager))
+	mb := e.as(e.member("QL002", []uuid.UUID{b}, iam.RoleManager))
+	if got := codes(t, ma.do("GET", "/students", nil)); !sameSet(got, []string{st.Code}) {
+		t.Fatalf("Quản lý chi nhánh A phải thấy học viên của lớp chi nhánh A: %v", got)
+	}
+	expect(t, ma.do("GET", "/students/"+st.ID.String(), nil), 200, "")
+	if got := codes(t, mb.do("GET", "/students", nil)); len(got) != 0 {
+		t.Fatalf("Quản lý chi nhánh B không thấy: %v", got)
+	}
+	expect(t, mb.do("GET", "/students/"+st.ID.String(), nil), 404, "student_not_found")
 }

@@ -56,6 +56,7 @@ function mockApi() {
     if (key === 'GET /students/options') data = options
     else if (key.startsWith('GET /students?')) data = { students: key.includes('statuses=dropped') ? [] : [row], total: 1, page: 1, per_page: 20, total_visible: 7, has_filters: key.includes('statuses') }
     else if (key === 'GET /students/s1') data = profile
+    else if (key === 'GET /class-enrollments?student_id=s1') data = { enrollments: [], total: 0, page: 1, per_page: 15, classes: [], students: [], can_assign: true, crm_waiting_count: 0 }
     else if (key === 'PATCH /students/s1') data = { student: { ...profile, version: 4 }, message: 'Cập nhật hồ sơ học viên Nguyễn An thành công!' }
     else status = 404
     return new Response(JSON.stringify(data), { status })
@@ -86,7 +87,7 @@ test('danh sách: hiện học viên, lọc chip trạng thái, mở hồ sơ', 
   expect(calls.some((c) => c.key.includes('statuses=dropped'))).toBe(true)
 })
 
-test('hồ sơ: sửa gửi kèm phiên bản, tab lớp học báo chưa có', async () => {
+test('hồ sơ: sửa gửi kèm phiên bản, tab lớp học lấy lượt xếp lớp', async () => {
   const calls = mockApi()
   renderPage('/students/s1')
   const name = await screen.findByLabelText('Họ và tên')
@@ -98,7 +99,7 @@ test('hồ sơ: sửa gửi kèm phiên bản, tab lớp học báo chưa có', 
   expect(patch?.body).toMatchObject({ full_name: 'Nguyễn Văn An', parent_phone: '0987654321', version: 3 })
 
   await userEvent.click(screen.getByRole('tab', { name: 'Lớp học & lộ trình' }))
-  expect(screen.getByText('Lớp học hiện tại, liên kết lớp khác: chưa có')).toBeInTheDocument()
+  expect(await screen.findByText('Học viên chưa được xếp lớp.')).toBeInTheDocument()
   await userEvent.click(screen.getByRole('tab', { name: 'Lịch sử' }))
   expect(screen.getByText('Tạo hồ sơ học viên HV-00001.')).toBeInTheDocument()
   // Không có tuition.view → không có tab Học phí

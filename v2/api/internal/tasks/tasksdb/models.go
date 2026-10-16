@@ -11,6 +11,73 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AcademicClass struct {
+	ID               uuid.UUID
+	Code             string
+	Name             string
+	BranchID         uuid.UUID
+	CourseID         *uuid.UUID
+	Program          *string
+	Level            *string
+	TeacherID        *uuid.UUID
+	AssistantID      *uuid.UUID
+	ForeignTeacherID *uuid.UUID
+	RoomID           *uuid.UUID
+	Room             *string
+	ScheduleText     *string
+	AcademicYear     *string
+	StartDate        *time.Time
+	EndDate          *time.Time
+	MaxCapacity      int32
+	MinStudents      int32
+	TuitionFee       *int64
+	Notes            *string
+	Status           string
+	CreatedBy        *uuid.UUID
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	DeletedAt        *time.Time
+	Version          int32
+}
+
+type AcademicClassRoster struct {
+	ClassID   *uuid.UUID
+	StudentID uuid.UUID
+	IsMain    bool
+}
+
+type AcademicClassSession struct {
+	ID                uuid.UUID
+	ClassID           uuid.UUID
+	BranchID          uuid.UUID
+	Date              time.Time
+	ShiftName         *string
+	Type              string
+	StartTime         pgtype.Time
+	EndTime           pgtype.Time
+	Room              *string
+	TeacherID         *uuid.UUID
+	ForeignTeacherID  *uuid.UUID
+	AssistantID       *uuid.UUID
+	Status            string
+	Notes             *string
+	HolidayID         *uuid.UUID
+	RescheduledFromID *uuid.UUID
+	CreatedBy         *uuid.UUID
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
+type AcademicClassSlot struct {
+	ClassID   uuid.UUID
+	Position  int16
+	Weekday   int16
+	StartTime pgtype.Time
+	EndTime   pgtype.Time
+	ShiftName string
+	CreatedAt time.Time
+}
+
 type AcademicCourse struct {
 	ID            uuid.UUID
 	Code          string
@@ -44,6 +111,24 @@ type AcademicCourseLevel struct {
 	DeletedAt            *time.Time
 }
 
+type AcademicEnrollment struct {
+	ID                  uuid.UUID
+	StudentID           uuid.UUID
+	ClassID             uuid.UUID
+	LeadID              *uuid.UUID
+	EnrolledAt          time.Time
+	LeftAt              *time.Time
+	CurriculumDelivered bool
+	ZaloGroupAdded      bool
+	AccountSent         bool
+	Status              string
+	ConfirmedAt         *time.Time
+	ConfirmedBy         *uuid.UUID
+	CreatedBy           *uuid.UUID
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
+}
+
 type AcademicStudent struct {
 	ID             uuid.UUID
 	Code           string
@@ -71,6 +156,24 @@ type AcademicStudent struct {
 	UpdatedAt      time.Time
 	DeletedAt      *time.Time
 	Version        int32
+}
+
+type AcademicStudentAttendance struct {
+	ID           uuid.UUID
+	SessionID    uuid.UUID
+	ClassID      uuid.UUID
+	StudentID    uuid.UUID
+	SessionDate  time.Time
+	Status       string
+	Note         *string
+	TeacherID    *uuid.UUID
+	RecordedBy   *uuid.UUID
+	ReviewStatus string
+	ReviewedBy   *uuid.UUID
+	ReviewedAt   *time.Time
+	ReviewNote   *string
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 }
 
 type AcademicStudentEvent struct {
