@@ -1,0 +1,30 @@
+# Sinh code Go từ SQL: chạy `sqlc generate` trong v2/api sau khi sửa migration hoặc queries.sql.
+# CI kiểm code sinh ra không lệch (sqlc diff).
+version: "2"
+sql:
+  - engine: postgresql
+    schema: internal/store/migrations
+    queries: internal/iam/queries.sql
+    gen:
+      go:
+        package: iamdb
+        out: internal/iam/iamdb
+        sql_package: pgx/v5
+        emit_pointers_for_null_types: true
+        overrides:
+          - db_type: uuid
+            go_type: github.com/google/uuid.UUID
+          - db_type: citext
+            go_type: string
+          - db_type: citext
+            nullable: true
+            go_type:
+              type: string
+              pointer: true
+          - db_type: timestamptz
+            go_type: time.Time
+          - db_type: timestamptz
+            nullable: true
+            go_type:
+              type: time.Time
+              pointer: true

@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/go-chi/chi/v5"
 )
 
 func newTestServer(checks map[string]Pinger) http.Handler {
@@ -65,5 +67,27 @@ func TestMetaAndNotFound(t *testing.T) {
 	rec, body = get(t, h, "/api/v1/khong-co")
 	if rec.Code != http.StatusNotFound || body["error"] != "not_found" {
 		t.Fatalf("got %d %v", rec.Code, body)
+	}
+}
+
+func TestModuleRoutesWithMiddleware(t *testing.T) {
+	h := New(Deps{
+		Log: slog.New(slog.NewTextHandler(io.Discard, nil)),
+		API: func(r chi.Router) {
+			r.Use(func(next http.Handler) http.Handler {
+				return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("X-Module", "1")
+					next.ServeHTTP(w, r)
+				})
+			})
+			r.Get("/ping", func(w http.ResponseWriter, _ *http.Request) { writeJSON(w, 200, map[string]string{"pong": "1"}) })
+		},
+	})
+	rec, body := get(t, h, "/api/v1/ping")
+	if rec.Code != http.StatusOK || body["pong"] != "1" || rec.Header().Get("X-Module") != "1" {
+		t.Fatalf("got %d %v", rec.Code, body)
+	}
+	if rec, _ := get(t, h, "/api/v1/meta"); rec.Code != http.StatusOK {
+		t.Fatalf("meta: %d", rec.Code)
 	}
 }

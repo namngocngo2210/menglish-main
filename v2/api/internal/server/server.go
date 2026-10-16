@@ -3,13 +3,14 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/httpx"
 )
 
 // Pinger là phụ thuộc cần sống để API phục vụ được (Postgres, Redis).
@@ -26,12 +27,13 @@ type Deps struct {
 	Version string
 	Env     string
 	Checks  map[string]Pinger
+	// API gắn middleware và route của các module vào nhóm /api/v1.
+	API func(r chi.Router)
 }
 
 func New(d Deps) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
 	r.Use(requestLog(d.Log))
 	r.Use(middleware.Recoverer)
 	r.Use(securityHeaders)
@@ -48,6 +50,10 @@ func New(d Deps) http.Handler {
 		r.Get("/meta", func(w http.ResponseWriter, _ *http.Request) {
 			writeJSON(w, http.StatusOK, map[string]string{"version": d.Version, "env": d.Env})
 		})
+		if d.API != nil {
+			// Group riêng để module được thêm middleware của mình (chi cấm Use sau khi đã gắn route).
+			r.Group(d.API)
+		}
 	})
 
 	r.NotFound(func(w http.ResponseWriter, _ *http.Request) {
@@ -96,14 +102,11 @@ func requestLog(log *slog.Logger) func(http.Handler) http.Handler {
 				"path", r.URL.Path,
 				"status", ww.Status(),
 				"dur_ms", time.Since(start).Milliseconds(),
+				"ip", httpx.ClientIP(r),
 				"req_id", middleware.GetReqID(r.Context()),
 			)
 		})
 	}
 }
 
-func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(v)
-}
+func writeJSON(w http.ResponseWriter, status int, v any) { httpx.JSON(w, status, v) }

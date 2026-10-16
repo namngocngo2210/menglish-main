@@ -28,10 +28,10 @@ func OpenPostgres(ctx context.Context, url string) (*pgxpool.Pool, error) {
 	return pool, nil
 }
 
-// OpenRedis trả về nil khi chưa cấu hình REDIS_URL (dev chỉ cần Postgres).
+// OpenRedis mở Redis (phiên đăng nhập, giới hạn tốc độ).
 func OpenRedis(url string) (*redis.Client, error) {
 	if url == "" {
-		return nil, nil
+		return nil, fmt.Errorf("thiếu REDIS_URL")
 	}
 	opt, err := redis.ParseURL(url)
 	if err != nil {

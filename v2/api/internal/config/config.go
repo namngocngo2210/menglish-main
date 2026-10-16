@@ -13,6 +13,7 @@ type Config struct {
 	HTTPAddr        string
 	DatabaseURL     string
 	RedisURL        string
+	EncryptionKey   string // APP_ENCRYPTION_KEY: 32 byte base64, mã hóa khóa TOTP và dữ liệu nhạy cảm
 	LogLevel        slog.Level
 	ShutdownTimeout time.Duration
 }
@@ -23,6 +24,7 @@ func Load() (Config, error) {
 		HTTPAddr:        get("HTTP_ADDR", ":8080"),
 		DatabaseURL:     os.Getenv("DATABASE_URL"),
 		RedisURL:        os.Getenv("REDIS_URL"),
+		EncryptionKey:   os.Getenv("APP_ENCRYPTION_KEY"),
 		ShutdownTimeout: 15 * time.Second,
 	}
 	if err := c.LogLevel.UnmarshalText([]byte(get("LOG_LEVEL", "info"))); err != nil {
