@@ -104,6 +104,17 @@ func (l testLog) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
+// inbox: tiêu đề thông báo loại typ của một người (theo thứ tự gửi), nối bằng "|".
+func (e *env) inbox(user uuid.UUID, typ string) string {
+	e.t.Helper()
+	var s string
+	if err := e.pg.QueryRow(context.Background(), `SELECT coalesce(string_agg(title, '|' ORDER BY id), '') FROM core.notifications
+		WHERE user_id = $1 AND type = $2`, user, typ).Scan(&s); err != nil {
+		e.t.Fatal(err)
+	}
+	return s
+}
+
 func (e *env) exec(sql string, args ...any) {
 	e.t.Helper()
 	if _, err := e.pg.Exec(context.Background(), sql, args...); err != nil {
@@ -336,6 +347,11 @@ func TestLeadScopeAndPermissions(t *testing.T) {
 		t.Fatalf("thông báo thêm khách: %s", message(r))
 	}
 	leadA := r.body["id"].(string)
+	var desc string
+	if err := e.pg.QueryRow(context.Background(), `SELECT description FROM core.audit_log
+		WHERE action = 'lead.create' AND subject_id = $1 AND module = 'CRM & Leads'`, leadA).Scan(&desc); err != nil || desc != `Tạo mới khách hàng "Nguyễn Văn An"` {
+		t.Fatalf("nhật ký thêm khách: %q %v", desc, err)
+	}
 	invalid(t, tm.staffAC.do("POST", "/crm/leads", newLead("Trùng", "+84912345678", tm.a)), "Số điện thoại này đã tồn tại trong CRM (khách KH-")
 
 	// Tư vấn viên (phạm vi own): khách tự giao cho chính mình; không gán được người khác
@@ -682,6 +698,9 @@ func TestReassignAndTransfers(t *testing.T) {
 	if message(r) != "Đã phân công lại khách cho "+tm.staffA2.name+"." {
 		t.Fatalf("phân công cùng cơ sở: %s", r.raw)
 	}
+	if got := e.inbox(tm.staffA2.id, "lead_assigned"); got != "Bạn được giao phụ trách khách Đỗ Chuyển" {
+		t.Fatalf("thông báo người phụ trách mới: %q", got)
+	}
 
 	// Khác cơ sở → yêu cầu chờ Admin duyệt
 	r = c.do("POST", path, map[string]any{"assigned_user_id": tm.staffB.id, "reason": "Khách chuyển nhà"})
@@ -689,6 +708,9 @@ func TestReassignAndTransfers(t *testing.T) {
 		t.Fatalf("yêu cầu chuyển cơ sở: %s", r.raw)
 	}
 	invalid(t, c.do("POST", path, map[string]any{"assigned_user_id": tm.staffB.id, "reason": "lần nữa"}), "Khách đang có yêu cầu chuyển cơ sở chờ Admin duyệt.")
+	if got := e.inbox(tm.admin.id, "crm_transfer_pending"); !strings.HasPrefix(got, "Chuyển cơ sở chờ duyệt: Đỗ Chuyển (KH-") {
+		t.Fatalf("thông báo Admin duyệt chuyển cơ sở: %q", got)
+	}
 	d := c.do("GET", "/crm/leads/"+id, nil)
 	if d.body["pending_transfer"] == nil {
 		t.Fatal("hồ sơ phải hiện yêu cầu chuyển đang chờ")
@@ -705,6 +727,9 @@ func TestReassignAndTransfers(t *testing.T) {
 	expect(t, c.do("POST", path, map[string]any{"assigned_user_id": tm.staffB.id, "reason": "Khách chuyển nhà"}), 200, "")
 	tid = data(tm.adminC.do("GET", "/crm/transfers", nil))[0].(map[string]any)["id"].(string)
 	expect(t, tm.adminC.do("POST", "/crm/transfers/"+tid+"/approve", map[string]any{"note": "Đồng ý"}), 200, "")
+	if got := e.inbox(tm.staffB.id, "lead_assigned"); got != "Bạn được giao phụ trách khách Đỗ Chuyển" {
+		t.Fatalf("thông báo người phụ trách sau duyệt: %q", got)
+	}
 	expect(t, c.do("GET", "/crm/leads/"+id, nil), 404, "lead_not_found")
 	d = tm.staffBC.do("GET", "/crm/leads/"+id, nil)
 	if d.body["branch_id"] != tm.b.String() || d.body["assigned_user_id"] != tm.staffB.id.String() {

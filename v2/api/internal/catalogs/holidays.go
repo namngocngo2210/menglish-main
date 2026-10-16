@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/audit"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/catalogs/catalogsdb"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 )
@@ -141,16 +142,16 @@ func (s *Service) CreateHoliday(ctx context.Context, actor *iam.Access, in Holid
 		return uuid.Nil, "", err
 	}
 	var id uuid.UUID
-	err = s.tx(ctx, func(q *catalogsdb.Queries) error {
+	err = s.audited(ctx, actor, func(q *catalogsdb.Queries) (audit.Entry, error) {
 		code := in.Code
 		if code == "" {
 			year := fmt.Sprint(start.Year())
 			if err := q.LockKey(ctx, "core.holiday_code"); err != nil {
-				return err
+				return audit.Entry{}, err
 			}
 			n, err := q.NextHolidayNumber(ctx, year)
 			if err != nil {
-				return err
+				return audit.Entry{}, err
 			}
 			code = fmt.Sprintf("HOL-%s-%03d", year, n)
 		}
@@ -159,17 +160,19 @@ func (s *Service) CreateHoliday(ctx context.Context, actor *iam.Access, in Holid
 			Code: code, Name: in.Name, StartDate: in.StartDate, EndDate: in.EndDate, IsSystemWide: in.IsSystemWide, CreatedBy: &actor.UserID,
 		})
 		if err != nil {
-			return err
+			return audit.Entry{}, err
 		}
 		if len(in.BranchIDs) > 0 {
-			return q.AddHolidayBranches(ctx, catalogsdb.AddHolidayBranchesParams{HolidayID: id, BranchIds: in.BranchIDs})
+			if err := q.AddHolidayBranches(ctx, catalogsdb.AddHolidayBranchesParams{HolidayID: id, BranchIds: in.BranchIDs}); err != nil {
+				return audit.Entry{}, err
+			}
 		}
-		return nil
+		return holidayEntry(id, code, in.Name, audit.EventCreated, "holiday.create", "Tạo ngày nghỉ mới",
+			audit.Diff(nil, holidaySnapshot(in, code))), nil
 	})
 	if err != nil {
 		return uuid.Nil, "", holidayCodeErr(err)
 	}
-	// TODO(audit): "Tạo ngày nghỉ mới"
 	// TODO(classes): hủy buổi học trùng ngày nghỉ và xếp bù cuối lịch (HolidayRescheduleService::apply), nối tóm tắt vào thông báo.
 	s.log.Info("holiday created", "holiday_id", id, "by", actor.UserID)
 	return id, "Đã thêm ngày nghỉ.", nil
@@ -190,42 +193,55 @@ func (s *Service) UpdateHoliday(ctx context.Context, actor *iam.Access, id uuid.
 	if code == "" {
 		code = old.Code
 	}
-	err = s.tx(ctx, func(q *catalogsdb.Queries) error {
+	err = s.audited(ctx, actor, func(q *catalogsdb.Queries) (audit.Entry, error) {
 		n, err := q.UpdateHoliday(ctx, catalogsdb.UpdateHolidayParams{
 			ID: id, Code: code, Name: in.Name, StartDate: in.StartDate, EndDate: in.EndDate, IsSystemWide: in.IsSystemWide,
 		})
 		if err != nil {
-			return err
+			return audit.Entry{}, err
 		}
 		if n == 0 {
-			return errHolidayNotFound
+			return audit.Entry{}, errHolidayNotFound
 		}
 		if err := q.ClearHolidayBranches(ctx, id); err != nil {
-			return err
+			return audit.Entry{}, err
 		}
 		if len(in.BranchIDs) > 0 {
-			return q.AddHolidayBranches(ctx, catalogsdb.AddHolidayBranchesParams{HolidayID: id, BranchIds: in.BranchIDs})
+			if err := q.AddHolidayBranches(ctx, catalogsdb.AddHolidayBranchesParams{HolidayID: id, BranchIds: in.BranchIDs}); err != nil {
+				return audit.Entry{}, err
+			}
 		}
-		return nil
+		return holidayEntry(id, code, in.Name, audit.EventUpdated, "holiday.update", "Cập nhật ngày nghỉ",
+			audit.Diff(holidayRowSnapshot(old), holidaySnapshot(in, code))), nil
 	})
 	if err != nil {
 		return "", holidayCodeErr(err)
 	}
-	// TODO(audit): "Cập nhật ngày nghỉ"
 	// TODO(classes): áp lại lịch học theo ngày nghỉ mới (HolidayRescheduleService::apply).
 	s.log.Info("holiday updated", "holiday_id", id, "by", actor.UserID)
 	return "Đã cập nhật ngày nghỉ.", nil
 }
 
 func (s *Service) DeleteHoliday(ctx context.Context, actor *iam.Access, id uuid.UUID) (string, error) {
-	n, err := s.q.DeleteHoliday(ctx, id)
+	err := s.audited(ctx, actor, func(q *catalogsdb.Queries) (audit.Entry, error) {
+		old, err := q.GetHoliday(ctx, id)
+		if isNoRows(err) {
+			return audit.Entry{}, errHolidayNotFound
+		}
+		if err != nil {
+			return audit.Entry{}, err
+		}
+		if n, err := q.DeleteHoliday(ctx, id); err != nil {
+			return audit.Entry{}, err
+		} else if n == 0 {
+			return audit.Entry{}, errHolidayNotFound
+		}
+		return holidayEntry(id, old.Code, old.Name, audit.EventDeleted, "holiday.delete", "Xóa ngày nghỉ",
+			audit.Diff(holidayRowSnapshot(old), nil)), nil
+	})
 	if err != nil {
 		return "", err
 	}
-	if n == 0 {
-		return "", errHolidayNotFound
-	}
-	// TODO(audit): "Xóa ngày nghỉ"
 	// TODO(classes): khôi phục buổi học bị hủy do ngày nghỉ này và gỡ buổi bù (HolidayRescheduleService::release).
 	s.log.Info("holiday deleted", "holiday_id", id, "by", actor.UserID)
 	return "Đã xóa ngày nghỉ.", nil

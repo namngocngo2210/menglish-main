@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/audit"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/catalogs/catalogsdb"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 )
@@ -48,6 +49,14 @@ type Shift struct {
 }
 
 func (s Shift) label() string { return s.DayLabel + " · " + s.Name + " " + s.Standard }
+
+// input: dữ liệu khung giờ dạng form (để so trước / sau trong nhật ký).
+func (s Shift) input() ShiftInput {
+	return ShiftInput{
+		DayType: s.DayType, Name: s.Name, StartTime: s.StartTime, EndTime: s.EndTime,
+		AltStartTime: deref(s.AltStartTime), AltEndTime: deref(s.AltEndTime), Note: deref(s.Note),
+	}
+}
 
 type ShiftList struct {
 	DayTypes []Option `json:"day_types"`
@@ -173,14 +182,19 @@ func (s *Service) CreateShift(ctx context.Context, actor *iam.Access, in ShiftIn
 	if err := in.validate(); err != nil {
 		return uuid.Nil, "", err
 	}
-	id, err := s.q.CreateShift(ctx, catalogsdb.CreateShiftParams{
-		DayType: in.DayType, Name: in.Name, StartTime: in.StartTime, EndTime: in.EndTime,
-		AltStartTime: optText(in.AltStartTime), AltEndTime: optText(in.AltEndTime), Note: optText(in.Note), CreatedBy: &actor.UserID,
+	var id uuid.UUID
+	err := s.audited(ctx, actor, func(q *catalogsdb.Queries) (audit.Entry, error) {
+		var err error
+		id, err = q.CreateShift(ctx, catalogsdb.CreateShiftParams{
+			DayType: in.DayType, Name: in.Name, StartTime: in.StartTime, EndTime: in.EndTime,
+			AltStartTime: optText(in.AltStartTime), AltEndTime: optText(in.AltEndTime), Note: optText(in.Note), CreatedBy: &actor.UserID,
+		})
+		return shiftEntry(id, in.label(), audit.EventCreated, "teaching_shift.create", "Thêm khung giờ ca dạy: "+in.label(),
+			audit.Diff(nil, shiftSnapshot(in))), err
 	})
 	if err != nil {
 		return uuid.Nil, "", err
 	}
-	// TODO(audit): "Thêm khung giờ ca dạy: <nhãn>"
 	s.log.Info("teaching shift created", "shift_id", id, "by", actor.UserID)
 	return id, fmt.Sprintf("Đã thêm khung %s.", in.label()), nil
 }
@@ -189,17 +203,27 @@ func (s *Service) UpdateShift(ctx context.Context, actor *iam.Access, id uuid.UU
 	if err := in.validate(); err != nil {
 		return "", err
 	}
-	n, err := s.q.UpdateShift(ctx, catalogsdb.UpdateShiftParams{
-		ID: id, DayType: in.DayType, Name: in.Name, StartTime: in.StartTime, EndTime: in.EndTime,
-		AltStartTime: optText(in.AltStartTime), AltEndTime: optText(in.AltEndTime), Note: optText(in.Note),
+	old, err := s.shiftByID(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	err = s.audited(ctx, actor, func(q *catalogsdb.Queries) (audit.Entry, error) {
+		n, err := q.UpdateShift(ctx, catalogsdb.UpdateShiftParams{
+			ID: id, DayType: in.DayType, Name: in.Name, StartTime: in.StartTime, EndTime: in.EndTime,
+			AltStartTime: optText(in.AltStartTime), AltEndTime: optText(in.AltEndTime), Note: optText(in.Note),
+		})
+		if err != nil {
+			return audit.Entry{}, err
+		}
+		if n == 0 {
+			return audit.Entry{}, errShiftNotFound
+		}
+		return shiftEntry(id, in.label(), audit.EventUpdated, "teaching_shift.update", "Sửa khung giờ ca dạy: "+in.label(),
+			audit.Diff(shiftSnapshot(old.input()), shiftSnapshot(in))), nil
 	})
 	if err != nil {
 		return "", err
 	}
-	if n == 0 {
-		return "", errShiftNotFound
-	}
-	// TODO(audit): "Sửa khung giờ ca dạy: <nhãn>"
 	s.log.Info("teaching shift updated", "shift_id", id, "by", actor.UserID)
 	return fmt.Sprintf("Đã lưu khung %s. Lịch đã xếp không đổi — chỉ áp khi xếp / sửa TKB.", in.label()), nil
 }
@@ -219,16 +243,27 @@ func (s *Service) shiftByID(ctx context.Context, id uuid.UUID) (Shift, error) {
 
 // ToggleShift: Ngừng dùng ↔ Dùng lại.
 func (s *Service) ToggleShift(ctx context.Context, actor *iam.Access, id uuid.UUID) (string, error) {
-	if n, err := s.q.ToggleShift(ctx, id); err != nil {
-		return "", err
-	} else if n == 0 {
-		return "", errShiftNotFound
-	}
 	sh, err := s.shiftByID(ctx, id)
 	if err != nil {
 		return "", err
 	}
-	// TODO(audit): "Dùng lại / Ngừng dùng khung giờ ca dạy: <nhãn>"
+	sh.IsActive = !sh.IsActive
+	err = s.audited(ctx, actor, func(q *catalogsdb.Queries) (audit.Entry, error) {
+		if n, err := q.ToggleShift(ctx, id); err != nil {
+			return audit.Entry{}, err
+		} else if n == 0 {
+			return audit.Entry{}, errShiftNotFound
+		}
+		verb := "Ngừng dùng"
+		if sh.IsActive {
+			verb = "Dùng lại"
+		}
+		return shiftEntry(id, sh.label(), audit.EventUpdated, "teaching_shift.toggle", verb+" khung giờ ca dạy: "+sh.label(),
+			audit.Changes{"is_active": {Old: !sh.IsActive, New: sh.IsActive}}), nil
+	})
+	if err != nil {
+		return "", err
+	}
 	s.log.Info("teaching shift toggled", "shift_id", id, "active", sh.IsActive, "by", actor.UserID)
 	if sh.IsActive {
 		return fmt.Sprintf("Đã dùng lại khung %s.", sh.label()), nil
@@ -241,10 +276,14 @@ func (s *Service) DeleteShift(ctx context.Context, actor *iam.Access, id uuid.UU
 	if err != nil {
 		return "", err
 	}
-	if _, err := s.q.DeleteShift(ctx, id); err != nil {
+	err = s.audited(ctx, actor, func(q *catalogsdb.Queries) (audit.Entry, error) {
+		_, err := q.DeleteShift(ctx, id)
+		return shiftEntry(id, sh.label(), audit.EventDeleted, "teaching_shift.delete", "Xóa khung giờ ca dạy: "+sh.label(),
+			audit.Diff(shiftSnapshot(sh.input()), nil)), err
+	})
+	if err != nil {
 		return "", err
 	}
-	// TODO(audit): "Xóa khung giờ ca dạy: <nhãn>"
 	s.log.Info("teaching shift deleted", "shift_id", id, "by", actor.UserID)
 	return fmt.Sprintf("Đã xóa khung %s.", sh.label()), nil
 }

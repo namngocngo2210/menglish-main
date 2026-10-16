@@ -109,6 +109,10 @@ func TestMaterialOrderFlow(t *testing.T) {
 	if !due.Equal(vn("2026-10-11 15:00")) {
 		t.Fatalf("hạn: %v", due)
 	}
+	// Báo người xử lý: Học vụ chi nhánh của order + Admin (không báo Học vụ chi nhánh khác)
+	if got := e.notified("material_order_new", "/material-orders/"+propsID); got != "HV001,MES001" {
+		t.Fatalf("người nhận order mới: %s", got)
+	}
 
 	// Tạo trễ: vẫn nhận, cảnh báo + cờ
 	r = teacher.do("POST", "/material-orders", orderPayload(cg, map[string]any{"use_date": "2026-10-08", "title": "Kịp"}))

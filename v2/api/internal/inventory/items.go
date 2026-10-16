@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/audit"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/inventory/inventorydb"
 )
@@ -257,7 +259,7 @@ func (s *Service) CreateItem(ctx context.Context, actor *iam.Access, in ItemInpu
 		branch = &b
 	}
 	var item inventorydb.OpsInventoryItem
-	err := s.withTx(ctx, func(q *inventorydb.Queries) error {
+	err := s.inTx(ctx, func(tx pgx.Tx, q *inventorydb.Queries) error {
 		// Có chọn chi nhánh → tồn ban đầu vào kho chi nhánh đó; không chọn → tồn chưa phân chi nhánh.
 		unallocated := initial
 		if branch != nil {
@@ -276,18 +278,20 @@ func (s *Service) CreateItem(ctx context.Context, actor *iam.Access, in ItemInpu
 			return err
 		}
 		if branch != nil && initial > 0 {
-			_, err = s.apply(ctx, q, move{
+			if _, err = s.apply(ctx, q, move{
 				itemID: item.ID, branchID: branch.ID, change: initial, typ: TypeOpening,
 				note: ptr("Tồn ban đầu khi thêm mặt hàng"), by: &actor.UserID,
-			})
+			}); err != nil {
+				return err
+			}
 		}
-		return err
+		return audit.Record(ctx, tx, itemEntry(actor, item, audit.EventCreated, "merchandise_item.create",
+			"Tạo mới hàng hóa: "+item.Name, audit.Diff(nil, itemSnapshot(item))))
 	})
 	if err != nil {
 		return Item{}, "", err
 	}
 	s.log.Info("tạo hàng hóa", "item", item.ID, "code", item.Code, "by", actor.UserID)
-	// TODO(audit): "Tạo mới hàng hóa: <tên>"
 	return toItem(item), fmt.Sprintf("Đã thêm thành công mặt hàng [%s] %s!", item.Code, item.Name), nil
 }
 
@@ -296,9 +300,21 @@ func (s *Service) UpdateItem(ctx context.Context, actor *iam.Access, id uuid.UUI
 		return Item{}, "", err
 	}
 	// Số tồn đổi qua trang Tồn kho theo chi nhánh (nhập kho / kiểm kê), không sửa ở đây.
-	item, err := s.q.UpdateItem(ctx, inventorydb.UpdateItemParams{
-		ID: id, Code: in.Code, Name: in.Name, Category: in.Category, Unit: in.Unit, Price: *in.Price, CostPrice: in.CostPrice,
-		IsActive: in.IsActive == nil || *in.IsActive, Description: in.Description,
+	var item inventorydb.OpsInventoryItem
+	err := s.inTx(ctx, func(tx pgx.Tx, q *inventorydb.Queries) error {
+		old, err := q.GetItem(ctx, id)
+		if err != nil {
+			return err
+		}
+		item, err = q.UpdateItem(ctx, inventorydb.UpdateItemParams{
+			ID: id, Code: in.Code, Name: in.Name, Category: in.Category, Unit: in.Unit, Price: *in.Price, CostPrice: in.CostPrice,
+			IsActive: in.IsActive == nil || *in.IsActive, Description: in.Description,
+		})
+		if err != nil {
+			return err
+		}
+		return audit.Record(ctx, tx, itemEntry(actor, item, audit.EventUpdated, "merchandise_item.update",
+			"Cập nhật hàng hóa: "+item.Name, audit.Diff(itemSnapshot(old), itemSnapshot(item))))
 	})
 	switch {
 	case isUnique(err):
@@ -309,7 +325,6 @@ func (s *Service) UpdateItem(ctx context.Context, actor *iam.Access, id uuid.UUI
 		return Item{}, "", err
 	}
 	s.log.Info("cập nhật hàng hóa", "item", id, "by", actor.UserID)
-	// TODO(audit): "Cập nhật hàng hóa: <tên>"
 	return toItem(item), fmt.Sprintf("Đã cập nhật thông tin mặt hàng [%s] %s!", item.Code, item.Name), nil
 }
 
@@ -331,7 +346,15 @@ func (s *Service) ToggleItem(ctx context.Context, actor *iam.Access, id uuid.UUI
 
 // DeleteItem xóa mềm: không còn chọn được khi lập hóa đơn; nhật ký kho cũ vẫn giữ.
 func (s *Service) DeleteItem(ctx context.Context, actor *iam.Access, id uuid.UUID) (string, error) {
-	item, err := s.q.SoftDeleteItem(ctx, id)
+	var item inventorydb.OpsInventoryItem
+	err := s.inTx(ctx, func(tx pgx.Tx, q *inventorydb.Queries) error {
+		var err error
+		if item, err = q.SoftDeleteItem(ctx, id); err != nil {
+			return err
+		}
+		return audit.Record(ctx, tx, itemEntry(actor, item, audit.EventDeleted, "merchandise_item.delete",
+			"Xóa hàng hóa: "+item.Name, audit.Diff(itemSnapshot(item), nil)))
+	})
 	if isNoRows(err) {
 		return "", ErrItemNotFound
 	}
@@ -339,6 +362,5 @@ func (s *Service) DeleteItem(ctx context.Context, actor *iam.Access, id uuid.UUI
 		return "", err
 	}
 	s.log.Info("xóa hàng hóa", "item", id, "by", actor.UserID)
-	// TODO(audit): "Xóa hàng hóa: <tên>"
 	return fmt.Sprintf("Đã xóa mặt hàng %s vào thùng rác.", item.Name), nil
 }

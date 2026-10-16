@@ -113,10 +113,13 @@ func (s *Service) AddNote(ctx context.Context, a *iam.Access, idOrCode string, i
 				}
 				n++
 			}
-			if n >= 3 {
-				// TODO(notify): báo người phụ trách + quản lý "Khách {tên} đã liên hệ thất bại {n} lần liên tiếp"
-				// (Laravel CrmSlaService::checkFailedContacts, SLA crm.failed_contacts).
+			// Chạm ngưỡng lần đầu trong chuỗi → báo một lần (lần thất bại tiếp theo không báo lại).
+			// TODO(sla): ngưỡng lấy từ Cấu hình SLA (crm.failed_contacts) và mở vi phạm SLA khi có phân hệ SLA.
+			if n == failedContactsThreshold && locked.Stage != StageLost {
 				s.log.Info("crm: liên hệ thất bại liên tiếp", "lead", l.ID, "count", n)
+				if err := notifyFailedContacts(ctx, q, a, locked, n); err != nil {
+					return err
+				}
 			}
 		}
 		advanced := false

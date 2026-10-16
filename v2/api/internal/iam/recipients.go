@@ -32,6 +32,12 @@ func UserIDsWithPermission(ctx context.Context, db iamdb.DBTX, perm string, bran
 	})
 }
 
+// UserIDsWithRole trả id người dùng đang hoạt động có vai trò role (vd. Học vụ của một chi nhánh, như User::role(...)
+// của Laravel). branchID khác nil thì chỉ lấy người thuộc chi nhánh đó.
+func UserIDsWithRole(ctx context.Context, db iamdb.DBTX, role string, branchID *uuid.UUID) ([]uuid.UUID, error) {
+	return iamdb.New(db).ListUserIDsWithRole(ctx, iamdb.ListUserIDsWithRoleParams{Role: role, BranchID: branchID})
+}
+
 // AdminIDs trả id các Admin đang hoạt động: người nhận mặc định của thông báo vận hành không gắn với ai cụ thể.
 func AdminIDs(ctx context.Context, db iamdb.DBTX) ([]uuid.UUID, error) {
 	return iamdb.New(db).ListUserIDsWithPermission(ctx, iamdb.ListUserIDsWithPermissionParams{

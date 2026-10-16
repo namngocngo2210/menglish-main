@@ -8,11 +8,13 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/notify"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/reports/reportsdb"
 )
 
 // Nhắc hạn báo cáo (lệnh Laravel reports:remind-daily 08:00, reports:remind-monthly 08:00, reports:daily-digest 09:05).
-// Phần tính ai cần nhắc làm ở đây; gửi thông báo chờ phân hệ thông báo (TODO(notify)).
+// Phần tính ai cần nhắc làm ở đây; gửi qua notify.SendOnce (không trùng khi lệnh chạy lại / tiến trình khởi động lại).
 
 // Reminder là một thông báo cần gửi cho một người.
 type Reminder struct {
@@ -193,11 +195,24 @@ func (s *Service) sendDailyReminders(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	for range list {
-		// TODO(notify): gửi Reminder (loại daily_report_due, tiêu đề "Chưa nộp báo cáo ngày dd/mm", nội dung "Hạn nộp 09:00 dd/mm.
-		// Nộp sau hạn tính là nộp trễ.", link màn báo cáo ngày); không gửi trùng theo (người, ngày báo cáo).
+	// Không gửi trùng theo (người, ngày báo cáo).
+	key := "daily:" + dateKey(s.today().AddDate(0, 0, -1))
+	if err := s.sendReminders(ctx, list, key); err != nil {
+		return err
 	}
 	s.log.Info("daily report reminders", "count", len(list))
+	return nil
+}
+
+// sendReminders gửi từng lời nhắc (mỗi người một nội dung), bỏ người đã nhận cùng key.
+func (s *Service) sendReminders(ctx context.Context, list []Reminder, key string) error {
+	for _, r := range list {
+		if _, err := notify.SendOnce(ctx, s.pool, []uuid.UUID{r.UserID}, key, notify.Notification{
+			Type: r.Type, Title: r.Title, Body: r.Message, Link: r.Link,
+		}); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -206,9 +221,10 @@ func (s *Service) sendMonthlyReminders(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	for range list {
-		// TODO(notify): gửi Reminder (loại monthly_report_due, "Nhắc nộp báo cáo giảng dạy tháng mm/YYYY" — "Hạn nộp: Chủ nhật
-		// dd/mm (còn 3 ngày / còn 1 ngày / hôm nay là hạn). Bạn chưa nộp báo cáo tháng này."); không trùng theo (người, tháng, loại nhắc).
+	// Không trùng theo (người, tháng, loại nhắc).
+	now := s.now()
+	if err := s.sendReminders(ctx, list, "monthly:"+monthKey(now)+":"+monthlyReminderKind(now)); err != nil {
+		return err
 	}
 	s.log.Info("monthly report reminders", "count", len(list))
 	return nil
@@ -219,7 +235,16 @@ func (s *Service) sendDailyDigest(ctx context.Context) error {
 	if err != nil || d == nil {
 		return err
 	}
-	// TODO(notify): gửi mọi Admin (loại staff_report_digest) d.Title / d.Message / d.Link; không trùng theo ngày.
+	// Gửi mọi Admin, không trùng theo ngày.
+	admins, err := iam.AdminIDs(ctx, s.pool)
+	if err != nil {
+		return err
+	}
+	if _, err := notify.SendOnce(ctx, s.pool, admins, "digest:"+d.Date, notify.Notification{
+		Type: "staff_report_digest", Title: d.Title, Body: d.Message, Link: d.Link,
+	}); err != nil {
+		return err
+	}
 	s.log.Info("daily report digest", "date", d.Date, "submitted", d.Submitted, "due", d.Due)
 	return nil
 }

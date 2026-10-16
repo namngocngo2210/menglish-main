@@ -254,3 +254,25 @@ func list(v any) []map[string]any {
 	}
 	return out
 }
+
+// notified: mã người nhận (sắp xếp, nối bằng dấu phẩy) của thông báo loại typ có link.
+func (e *env) notified(typ, link string) string {
+	e.t.Helper()
+	var codes string
+	if err := e.pool.QueryRow(context.Background(), `SELECT coalesce(string_agg(u.code, ',' ORDER BY u.code), '')
+		FROM core.notifications n JOIN iam.users u ON u.id = n.user_id WHERE n.type = $1 AND n.link = $2`, typ, link).Scan(&codes); err != nil {
+		e.t.Fatal(err)
+	}
+	return codes
+}
+
+// audited: số dòng nhật ký vận hành theo mã thao tác và đối tượng.
+func (e *env) audited(action, subjectID string) int {
+	e.t.Helper()
+	var n int
+	if err := e.pool.QueryRow(context.Background(), `SELECT count(*) FROM core.audit_log WHERE action = $1 AND subject_id = $2`,
+		action, subjectID).Scan(&n); err != nil {
+		e.t.Fatal(err)
+	}
+	return n
+}

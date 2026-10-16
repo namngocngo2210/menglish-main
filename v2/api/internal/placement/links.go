@@ -16,17 +16,18 @@ import (
 
 // Lead: thông tin khách cần cho test đầu vào & học thử.
 type Lead struct {
-	ID           uuid.UUID
-	Code         string
-	Name         string
-	ParentName   string
-	Phone        string
-	Email        string
-	Stage        string // new, consulting, test_scheduled, testing, tested, result_sent, waiting_class, won, lost
-	StageLabel   string
-	BranchID     *uuid.UUID
-	AssignedName string
-	TestScore    string
+	ID             uuid.UUID
+	Code           string
+	Name           string
+	ParentName     string
+	Phone          string
+	Email          string
+	Stage          string // new, consulting, test_scheduled, testing, tested, result_sent, waiting_class, won, lost
+	StageLabel     string
+	BranchID       *uuid.UUID
+	AssignedUserID *uuid.UUID
+	AssignedName   string
+	TestScore      string
 }
 
 // LeadEvent: việc cần ghi sang hồ sơ khách (nhật ký tuyển sinh, chuyển giai đoạn chỉ đi tiến, điểm test).
@@ -69,6 +70,8 @@ type Session struct {
 	Date        time.Time
 	Start, End  string // "15:04", rỗng nếu chưa có giờ
 	TeacherName string
+	// Giáo viên / trợ giảng của buổi (nhận thông báo khách học thử); nil = chưa phân công
+	TeacherID, AssistantID *uuid.UUID
 }
 
 // Sessions: cổng sang phân hệ lớp học.

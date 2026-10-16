@@ -392,8 +392,7 @@ func (s *Service) SaveDaily(ctx context.Context, a *iam.Access, in DailyInput) (
 		data.TaskIDs = append(data.TaskIDs, id)
 		titles = append(titles, t.Title)
 		if t.AssigneeID != w.ID {
-			// TODO(notify): báo người được giao (t.AssigneeID), loại task_assigned, "Bạn được giao việc: <tiêu đề>" —
-			// "<tên> đã giao việc từ báo cáo ngày <d/m/Y>, hạn <d/m/Y>.", link Công việc tab "của tôi".
+			s.notifyFollowUpTask(ctx, a, id, t, date.Format("02/01/2006"))
 		}
 	}
 	text := dailyText(data.Auto.Sections, data.Notes)

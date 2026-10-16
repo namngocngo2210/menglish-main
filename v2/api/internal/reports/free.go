@@ -182,7 +182,6 @@ func (s *Service) SaveMy(ctx context.Context, a *iam.Access, in FreeReportInput)
 		return "", err
 	}
 	s.log.Info("staff report submitted", "by", a.UserID, "type", typ, "id", r.ID)
-	// TODO(notify): báo mọi Admin, loại staff_report_submitted, "Báo cáo mới: <title>" — "<tên> vừa nộp <title>. Mở để
-	// kiểm tra.", link Tổng hợp ?open=<id>.
+	s.notifySubmitted(ctx, a, r, false)
 	return "Đã nộp " + typeLabel(typ) + " thành công!", nil
 }

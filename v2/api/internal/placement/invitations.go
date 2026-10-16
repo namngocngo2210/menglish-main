@@ -178,8 +178,7 @@ func (s *Service) Distribute(ctx context.Context, a *iam.Access, testID uuid.UUI
 	if err != nil {
 		return nil, "", err
 	}
-	// TODO(notify): AdminNotification::notifyUser(người phát hành, 'info', "Phát hành đề test đầu vào: {title}",
-	// "Đề [{code}] {title} đã được phát hành. Link làm bài: {link}")
+	s.notifyDistributed(ctx, a, testID, t.Code, t.Title, issued.Path)
 	return issued, fmt.Sprintf("Đã phát hành đề [%s] %s.", t.Code, t.Title), nil
 }
 

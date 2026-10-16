@@ -1,8 +1,8 @@
 // Package tasks: công việc (giao việc 2 chiều, đổi trạng thái, chuyển lại cho người giao, Admin xác nhận hoàn thành,
 // nhiệm vụ hằng ngày của trợ giảng). Bám theo WorkTaskController / WorkTask của bản Laravel.
 //
-// TODO(audit): mọi thao tác ghi hiện chỉ log slog ("by", người làm); ghi nhật ký audit khi có module audit.
-// TODO(notify): thông báo Laravel ghi ở từng chỗ, gắn khi có module thông báo.
+// Nhật ký vận hành: Laravel không ghi riêng cho WorkTask (không có trong Audit::MODELS) mà để AuditOperationMiddleware
+// ghi dòng chung; v2 cũng vậy (audit.Middleware, phân hệ "Quản lý công việc" theo đường dẫn /tasks). Thông báo: notify.go.
 package tasks
 
 import (
@@ -56,8 +56,9 @@ func scopeOf(a *iam.Access) (string, []uuid.UUID) {
 
 func isAdmin(a *iam.Access) bool { return a.SuperAdmin }
 
-func (s *Service) inTx(ctx context.Context, fn func(q *tasksdb.Queries) error) error {
-	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error { return fn(s.q.WithTx(tx)) })
+// inTx chạy fn trong một giao dịch (tx để gửi thông báo cùng giao dịch).
+func (s *Service) inTx(ctx context.Context, fn func(tx pgx.Tx, q *tasksdb.Queries) error) error {
+	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error { return fn(tx, s.q.WithTx(tx)) })
 }
 
 // ───── Kiểu dữ liệu trả cho giao diện ─────
@@ -491,13 +492,18 @@ func (s *Service) Create(ctx context.Context, a *iam.Access, in CreateInput) (Ta
 		return Task{}, iam.Invalid("Bạn chỉ được giao việc cho Admin, Quản lý cơ sở, Học vụ hoặc Học thuật.")
 	}
 	p.CreatorID = a.UserID
-	t, err := s.q.InsertTask(ctx, p)
+	var t tasksdb.OpsWorkTask
+	err = s.inTx(ctx, func(tx pgx.Tx, q *tasksdb.Queries) error {
+		var err error
+		if t, err = q.InsertTask(ctx, p); err != nil {
+			return err
+		}
+		return notifyAssigned(ctx, tx, q, a, t, 1)
+	})
 	if err != nil {
 		return Task{}, err
 	}
 	s.log.Info("work task created", "task_id", t.ID, "assignee", assignee, "by", a.UserID)
-	// TODO(notify): báo người nhận (trừ khi tự giao cho mình) — "Bạn được giao việc: {title}",
-	// "{người giao} đã giao việc, hạn dd/mm/yyyy.", link danh sách tab "Của tôi".
 	return s.Get(ctx, a, t.ID)
 }
 
@@ -549,7 +555,7 @@ func (s *Service) ChangeStatus(ctx context.Context, a *iam.Access, id uuid.UUID,
 		return Task{}, "", iam.Invalid("Ghi chú không được vượt quá 2000 ký tự.")
 	}
 	msg := "Đã cập nhật trạng thái công việc thành công!"
-	err := s.inTx(ctx, func(q *tasksdb.Queries) error {
+	err := s.inTx(ctx, func(tx pgx.Tx, q *tasksdb.Queries) error {
 		t, err := q.LockTask(ctx, id)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotFound
@@ -583,8 +589,10 @@ func (s *Service) ChangeStatus(ctx context.Context, a *iam.Access, id uuid.UUID,
 				return err
 			}
 			msg = "Đã chuyển công việc lại cho người giao."
-			_, err := q.SaveTaskState(ctx, p)
-			return err
+			if _, err := q.SaveTaskState(ctx, p); err != nil {
+				return err
+			}
+			return notifyHandBack(ctx, tx, q, a, t, p.BlockedReason)
 		}
 
 		// Bị chặn / Hủy bắt buộc ghi lý do.
@@ -626,14 +634,7 @@ func (s *Service) ChangeStatus(ctx context.Context, a *iam.Access, id uuid.UUID,
 			}
 		}
 		s.log.Info("work task status changed", "task_id", t.ID, "from", t.Status, "to", target, "by", a.UserID)
-		// TODO(notify): theo WorkTaskController::notifyStatusChange (không báo người vừa thao tác):
-		//   blocked → người giao + mọi Admin, loại task_blocked: "SOS – Việc bị chặn: {title}", "{người} báo bị chặn, cần hỗ trợ. Lý do: {lý do}";
-		//   blocked → in_progress → người giao: "Việc đã gỡ chặn: {title}";
-		//   pending_confirmation → in_progress → người làm: "Công việc bị trả về: {title}", "{người} trả về làm tiếp: {ghi chú}";
-		//   pending_confirmation → mọi Admin trừ người làm: "Việc chờ xác nhận: {title}";
-		//   completed → người làm: "Việc đã được xác nhận hoàn thành: {title}";
-		//   canceled → người làm + người giao: "Công việc đã bị hủy: {title}", "... Lý do: {lý do}".
-		return nil
+		return notifyStatusChange(ctx, tx, q, a, saved, t.Status, note)
 	})
 	if err != nil {
 		return Task{}, "", err
@@ -667,8 +668,6 @@ func (s *Service) handBack(ctx context.Context, q *tasksdb.Queries, a *iam.Acces
 	p.Status = StatusNew
 	p.BlockedReason = strOrNil(reason)
 	s.log.Info("work task handed back", "task_id", t.ID, "from", t.AssigneeID, "by", a.UserID)
-	// TODO(notify): người giao: "Việc bị chặn chuyển lại cho bạn: {title}", "{người} đã chuyển công việc từ {người làm} về
-	// cho bạn xử lý. Lý do bị chặn: ..."; người làm cũ: "Công việc đã chuyển về người giao: {title}", "... bạn không cần làm tiếp."
 	return nil
 }
 
@@ -823,7 +822,7 @@ func (s *Service) Approve(ctx context.Context, a *iam.Access, id uuid.UUID, note
 		return "", iam.Invalid("Ghi chú xác nhận không được vượt quá 1000 ký tự.")
 	}
 	var title string
-	err := s.inTx(ctx, func(q *tasksdb.Queries) error {
+	err := s.inTx(ctx, func(tx pgx.Tx, q *tasksdb.Queries) error {
 		t, err := lockForApproval(ctx, q, a, id)
 		if err != nil {
 			return err
@@ -844,7 +843,9 @@ func (s *Service) Approve(ctx context.Context, a *iam.Access, id uuid.UUID, note
 		}
 		title = t.Title
 		s.log.Info("work task approved", "task_id", id, "by", a.UserID)
-		// TODO(notify): người làm: "Việc đã được xác nhận hoàn thành: {title}", "{Admin} đã xác nhận hoàn thành. Ghi chú: ...".
+		if err := notifyStatusChange(ctx, tx, q, a, saved, StatusPendingConfirmation, note); err != nil {
+			return err
+		}
 		return s.spawnNext(ctx, q, saved)
 	})
 	if err != nil {
@@ -866,7 +867,7 @@ func (s *Service) Reject(ctx context.Context, a *iam.Access, id uuid.UUID, note 
 		return "", iam.Invalid("Lý do từ chối không được vượt quá 1000 ký tự.")
 	}
 	var title string
-	err := s.inTx(ctx, func(q *tasksdb.Queries) error {
+	err := s.inTx(ctx, func(tx pgx.Tx, q *tasksdb.Queries) error {
 		t, err := lockForApproval(ctx, q, a, id)
 		if err != nil {
 			return err
@@ -878,8 +879,8 @@ func (s *Service) Reject(ctx context.Context, a *iam.Access, id uuid.UUID, note 
 		}
 		title = t.Title
 		s.log.Info("work task rejected", "task_id", id, "by", a.UserID)
-		// TODO(notify): người làm: "Công việc bị trả về: {title}", nội dung = lý do, link danh sách tab "Của tôi".
-		return nil
+		return sendTask(ctx, tx, []*uuid.UUID{t.AssigneeID}, &a.UserID, nil, "task_assigned", "Công việc bị trả về: "+t.Title,
+			note, linkMine, t.ID)
 	})
 	if err != nil {
 		return "", err
@@ -894,17 +895,31 @@ func (s *Service) Reject(ctx context.Context, a *iam.Access, id uuid.UUID, note 
 func (s *Service) MarkOverdue(ctx context.Context) (int, error) {
 	n := s.now().In(vnZone)
 	local := time.Date(n.Year(), n.Month(), n.Day(), n.Hour(), n.Minute(), n.Second(), 0, time.UTC)
-	rows, err := s.q.MarkOverdue(ctx, local)
-	if err != nil {
-		return 0, err
-	}
-	for _, r := range rows {
-		s.log.Info("work task overdue", "task_id", r.ID)
-		// TODO(notify): người làm: "Công việc quá hạn: {title}", "Hạn HH:MM dd/mm/yyyy — hãy hoàn thành hoặc báo lý do.",
-		// link danh sách tab "Của tôi" lọc Quá hạn.
-	}
+	count := 0
+	err := s.inTx(ctx, func(tx pgx.Tx, q *tasksdb.Queries) error {
+		rows, err := q.MarkOverdue(ctx, local)
+		if err != nil {
+			return err
+		}
+		count = len(rows)
+		for _, r := range rows {
+			s.log.Info("work task overdue", "task_id", r.ID)
+			due := "23:59"
+			if c := formatClock(r.DueTime); c != nil {
+				due = *c
+			}
+			if r.DueDate != nil {
+				due += " " + r.DueDate.Format("02/01/2006")
+			}
+			if err := sendTask(ctx, tx, []*uuid.UUID{r.AssigneeID}, nil, nil, "task_assigned", "Công việc quá hạn: "+r.Title,
+				"Hạn "+due+" — hãy hoàn thành hoặc báo lý do.", linkMine+"?status=overdue", r.ID); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 	// TODO(module CRM): việc chăm sóc tháng đầu quá SLA → biên bản vi phạm (FirstMonthCareService::enforceSla).
-	return len(rows), nil
+	return count, err
 }
 
 // RunOverdueLoop chạy MarkOverdue ngay và sau mỗi khoảng interval tới khi ctx kết thúc (gọi trong tiến trình api).

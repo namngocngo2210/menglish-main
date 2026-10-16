@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/audit"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/crm/crmdb"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 )
@@ -764,6 +765,15 @@ func (s *Service) CreateLead(ctx context.Context, a *iam.Access, in LeadInput) (
 		}); err != nil {
 			return err
 		}
+		if err := recordLead(ctx, q, a, l.ID, l.Code, l.Name, l.BranchID, audit.EventCreated, "lead.create",
+			`Tạo mới khách hàng "`+l.Name+`"`, nil); err != nil {
+			return err
+		}
+		if assignee != a.UserID {
+			if err := notifyNewOwner(ctx, q, a.UserID, l, assignee); err != nil {
+				return err
+			}
+		}
 		out = &Saved{ID: l.ID, Message: "Đã thêm khách hàng " + l.Name + " (" + ShortCode(l.Code) + ") thành công vào Cơ sở dữ liệu!"}
 		return nil
 	})
@@ -954,6 +964,10 @@ func (s *Service) UpdateLead(ctx context.Context, a *iam.Access, idOrCode string
 		}
 		if len(keys) > 0 {
 			if err := insertChanges(ctx, q, l.ID, a.UserID, "update", "Sửa thông tin khách hàng", nil, keys, changes); err != nil {
+				return err
+			}
+			if err := recordLead(ctx, q, a, l.ID, l.Code, c.name, branchID, audit.EventUpdated, "lead.update",
+				`Cập nhật khách hàng "`+c.name+`"`, leadAuditChanges(keys, changes)); err != nil {
 				return err
 			}
 		}

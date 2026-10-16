@@ -567,9 +567,7 @@ func (s *Service) markReviewed(ctx context.Context, a *iam.Access, id uuid.UUID,
 	}
 	s.log.Info("staff report reviewed", "by", a.UserID, "id", id, "reviewed", reviewed)
 	if reviewed && !wasReviewed && writer != a.UserID {
-		_ = r
-		// TODO(notify): báo người viết, loại staff_report_reviewed, "Đã kiểm tra: <title>" — "<tên Admin> đã kiểm tra
-		// <title>.", link màn nhập đúng kỳ (writerPath).
+		s.notifyReviewed(ctx, a, r)
 	}
 	return nil
 }
@@ -632,8 +630,7 @@ func (s *Service) RequestChanges(ctx context.Context, a *iam.Access, id uuid.UUI
 		return "", err
 	}
 	s.log.Info("staff report returned", "by", a.UserID, "id", r.ID)
-	// TODO(notify): báo người viết, loại staff_report_returned, "Cần bổ sung: <title>" — "<tên Admin>: <note cắt 200 ký tự>",
-	// link màn nhập đúng kỳ (writerPath).
+	s.notifyReturned(ctx, a, r, note)
 	return "Đã gửi yêu cầu bổ sung cho " + r.UserName + ".", nil
 }
 

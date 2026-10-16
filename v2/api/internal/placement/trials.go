@@ -410,8 +410,8 @@ func (s *Service) BookTrial(ctx context.Context, a *iam.Access, in BookTrialInpu
 		content += "."
 	}
 	s.record(ctx, LeadEvent{LeadID: lead.ID, ActorID: &a.UserID, Type: "trial", Content: content})
-	// TODO(notify): NotificationService::notifyTrialBooked — báo giáo viên buổi đó + người phụ trách khách.
-	// TODO(notify): AppointmentConfirmation::forTrial — gửi xác nhận lịch học thử cho khách (email / mẫu Zalo).
+	s.notifyTrialBooked(ctx, a, b.ID, lead, sess, hhmm(b.StartTime), strings.TrimSpace(in.Notes))
+	// TODO(email): AppointmentConfirmation::forTrial — gửi xác nhận lịch học thử cho khách (email / mẫu Zalo) khi có kênh gửi.
 	rows, err := s.trialRows(ctx, []placementdb.CrmTrialBooking{b}, nil)
 	if err != nil {
 		return nil, err
@@ -554,7 +554,11 @@ func (s *Service) TrialFeedback(ctx context.Context, a *iam.Access, id uuid.UUID
 		}
 	}
 	s.record(ctx, LeadEvent{LeadID: b.LeadID, ActorID: &a.UserID, Type: "trial", Content: content})
-	// TODO(notify): NotificationService::notifyTrialFeedback — báo Học vụ đã xếp + người phụ trách khách để chăm sóc sau học thử.
+	lead, err := s.leads.Get(ctx, b.LeadID)
+	if err != nil {
+		s.log.Error("placement: đọc khách học thử", "err", err, "lead", b.LeadID)
+	}
+	s.notifyTrialFeedback(ctx, a, b.ID, b.BookedBy, lead, label, attended, in.Rating, in.Feedback)
 	rows, err := s.trialRows(ctx, []placementdb.CrmTrialBooking{b}, nil)
 	if err != nil {
 		return nil, "", err

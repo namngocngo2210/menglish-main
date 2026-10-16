@@ -215,6 +215,16 @@ WHERE u.status = 'active'
                      WHERE ur.user_id = u.id AND rp.permission = sqlc.arg(perm)::text))))
 ORDER BY u.id;
 
+-- name: ListUserIDsWithRole :many
+-- Người dùng đang hoạt động có vai trò @role; branch_id NULL = mọi chi nhánh, ngược lại chỉ người thuộc chi nhánh đó.
+SELECT u.id
+FROM iam.users u
+WHERE u.status = 'active'
+  AND EXISTS (SELECT 1 FROM iam.user_roles ur WHERE ur.user_id = u.id AND ur.role = sqlc.arg(role)::text)
+  AND (sqlc.narg(branch_id)::uuid IS NULL
+       OR EXISTS (SELECT 1 FROM iam.user_branches ub WHERE ub.user_id = u.id AND ub.branch_id = sqlc.narg(branch_id)::uuid))
+ORDER BY u.id;
+
 -- name: GetStaffProfile :one
 SELECT * FROM iam.staff_profiles WHERE user_id = $1;
 
