@@ -19,6 +19,7 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/geo"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/secretbox"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/reports"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/server"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/store"
 )
@@ -104,6 +105,8 @@ func runAPI(ctx context.Context) error {
 	cfg, log := d.cfg, d.log
 
 	auth := iam.NewHandler(d.iam, log).WithAddressSearch(geo.NewSearcher(d.rdb, log, cfg.PublicURL))
+	// TODO(gộp): truyền MetricsProvider / TaskService / ClassDirectory / Calendar thật khi các phân hệ đó có ở v2.
+	reportSvc := reports.NewService(d.pool, log, reports.Deps{})
 	checks := map[string]server.Pinger{
 		"postgres": d.pool,
 		"redis":    server.PingFunc(func(ctx context.Context) error { return d.rdb.Ping(ctx).Err() }),
@@ -112,7 +115,7 @@ func runAPI(ctx context.Context) error {
 		Addr: cfg.HTTPAddr,
 		Handler: server.New(server.Deps{
 			Log: log, Version: version, Env: cfg.Env, Checks: checks,
-			API: apiRoutes(auth),
+			API: apiRoutes(auth, reports.NewHandler(reportSvc, log).Routes),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       60 * time.Second,
