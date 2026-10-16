@@ -164,6 +164,15 @@ export function Badge({ tone = 'neutral', children }: { tone?: 'neutral' | 'succ
   return <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${styles}`}>{children}</span>
 }
 
+// Icon Material Symbols (font tự host, xem index.css); chỉ để trang trí nên ẩn với trình đọc màn hình.
+export function Icon({ name, className = '', fill = false }: { name: string; className?: string; fill?: boolean }) {
+  return (
+    <span className={`material-symbols-outlined shrink-0 ${fill ? 'fill' : ''} ${className}`} aria-hidden="true">
+      {name}
+    </span>
+  )
+}
+
 // Hộp thoại đơn giản (lớp phủ + thẻ ở giữa); Esc hoặc bấm nền để đóng.
 export function Dialog({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   return (

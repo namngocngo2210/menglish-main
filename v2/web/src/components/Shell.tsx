@@ -1,11 +1,24 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { MouseEvent, ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { api, type Me } from '../api'
-import { navItemFor, visibleNav } from '../nav'
-import { navigate, usePath } from '../router'
-import { Button } from './ui'
+import { pageTitle, settingsNav, workspaceTabs } from '../nav'
+import { usePath } from '../router'
+import { Sidebar } from './shell/Sidebar'
+import { SettingsNav, WorkspaceTabs } from './shell/PageNav'
+import { Topbar } from './shell/Topbar'
 
-// Khung tạm sau đăng nhập: thanh trên cùng có menu theo quyền. Bước 3 thay bằng sidebar như bản Laravel.
+const COLLAPSED_KEY = 'sidebar_collapsed'
+
+function loadCollapsed() {
+  try {
+    return localStorage.getItem(COLLAPSED_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+// Khung sau đăng nhập như AppLayout.vue của Laravel: sidebar trái theo nhóm (nav.ts), topbar (tiêu đề, tìm kiếm chung,
+// thông báo, tài khoản), tab của workspace hoặc menu Cài đặt ở đầu nội dung, chân trang.
 export function Shell({ me, children }: { me: Me; children: ReactNode }) {
   const qc = useQueryClient()
   const path = usePath()
@@ -14,46 +27,76 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
     mutationFn: api.logout,
     onSettled: () => qc.invalidateQueries({ queryKey: ['me'] }),
   })
-  const current = navItemFor(path)
+  const [open, setOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(loadCollapsed)
+
+  // Chuyển trang thì đóng ngăn kéo menu trên điện thoại.
+  useEffect(() => setOpen(false), [path])
+
+  function toggleCollapsed() {
+    setCollapsed((v) => {
+      try {
+        localStorage.setItem(COLLAPSED_KEY, v ? '0' : '1')
+      } catch {
+        // Không lưu được thì chỉ không nhớ.
+      }
+      return !v
+    })
+  }
+
+  const ws = workspaceTabs(me, path)
+  // Menu Cài đặt chỉ hiện khi trang đang mở thuộc trang Cài đặt.
+  const sections = settingsNav(me, path)
+  const settings = sections.some((s) => s.items.some((i) => i.active)) ? sections : []
 
   return (
-    <div className="min-h-dvh bg-background text-on-surface">
-      <header className="border-b border-surface-container-highest bg-surface">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4">
-          <span className="flex shrink-0 items-center gap-2 font-semibold">
-            <img src="/images/menglish-logo.png" alt="" width={32} height={32} className="size-8 rounded-md" />
-            MEnglish
-          </span>
-          <div className="flex items-center gap-3 text-sm">
-            <span className="hidden text-on-surface-variant sm:inline">{me.user.full_name}</span>
-            <Button variant="secondary" onClick={() => logout.mutate()} disabled={logout.isPending}>
-              Đăng xuất
-            </Button>
-          </div>
-        </div>
-        <nav aria-label="Menu chính" className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-4">
-          {visibleNav(me).map((item) => (
-            <a
-              key={item.path}
-              href={item.path}
-              onClick={(e: MouseEvent) => {
-                e.preventDefault()
-                navigate(item.path)
-              }}
-              aria-current={current?.path === item.path ? 'page' : undefined}
-              className="border-b-2 border-transparent px-3 py-2 text-sm whitespace-nowrap text-on-surface-variant hover:text-on-surface aria-[current=page]:border-primary aria-[current=page]:font-medium aria-[current=page]:text-primary"
-            >
-              {item.label}
-            </a>
-          ))}
-        </nav>
-      </header>
-      <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
-      {meta.data && (
-        <p className="pb-6 text-center text-xs text-on-surface-subtle">
-          {meta.data.env} · {meta.data.version.slice(0, 12)}
-        </p>
-      )}
+    <div className="min-h-dvh bg-background text-on-surface" onKeyDown={(e) => e.key === 'Escape' && setOpen(false)}>
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:rounded-lg focus:bg-surface focus:px-4 focus:py-2 focus:text-primary focus:shadow-lg"
+      >
+        Bỏ qua menu, tới nội dung chính
+      </a>
+      <Sidebar
+        me={me}
+        path={path}
+        open={open}
+        collapsed={collapsed}
+        onClose={() => setOpen(false)}
+        onToggleCollapsed={toggleCollapsed}
+        onLogout={() => logout.mutate()}
+      />
+      <div className={`flex min-h-dvh min-w-0 flex-col transition-[padding] duration-200 ${collapsed ? 'md:pl-16' : 'md:pl-16 lg:pl-64'}`}>
+        <Topbar
+          me={me}
+          title={pageTitle(path)}
+          bell={null}
+          onOpenMenu={() => setOpen(true)}
+          onOpenSearch={() => {}}
+          onLogout={() => logout.mutate()}
+        />
+        <main id="main-content" tabIndex={-1} className="flex-1 p-4 focus:outline-none lg:p-6">
+          {ws && <WorkspaceTabs label={ws.label} tabs={ws.tabs} />}
+          {settings.length > 0 ? (
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+              <SettingsNav sections={settings} />
+              <div className="min-w-0 flex-1">{children}</div>
+            </div>
+          ) : (
+            children
+          )}
+        </main>
+        <footer className="mt-auto flex flex-col items-center justify-center gap-1 border-t border-surface-container-highest bg-surface px-4 py-4 text-xs text-on-surface-variant select-none sm:flex-row lg:px-6">
+          <span className="font-semibold text-on-surface">MENGLISH</span>
+          <span aria-hidden="true">•</span>
+          <span>Hệ thống quản trị giáo dục &amp; học vụ</span>
+          {meta.data && (
+            <span className="text-on-surface-subtle sm:ml-2">
+              {meta.data.env} · {meta.data.version.slice(0, 12)}
+            </span>
+          )}
+        </footer>
+      </div>
     </div>
   )
 }
