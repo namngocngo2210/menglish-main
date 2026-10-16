@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/catalogs"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/config"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/geo"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
@@ -65,6 +66,7 @@ type deps struct {
 	log  *slog.Logger
 	pool *pgxpool.Pool
 	rdb  *redis.Client
+	box  *secretbox.Box
 	iam  *iam.Service
 }
 
@@ -87,7 +89,7 @@ func openDeps(ctx context.Context) (*deps, error) {
 		pool.Close()
 		return nil, err
 	}
-	return &deps{cfg: cfg, log: log, pool: pool, rdb: rdb, iam: iam.NewService(pool, rdb, box, log)}, nil
+	return &deps{cfg: cfg, log: log, pool: pool, rdb: rdb, box: box, iam: iam.NewService(pool, rdb, box, log)}, nil
 }
 
 func (d *deps) close() {
@@ -112,7 +114,7 @@ func runAPI(ctx context.Context) error {
 		Addr: cfg.HTTPAddr,
 		Handler: server.New(server.Deps{
 			Log: log, Version: version, Env: cfg.Env, Checks: checks,
-			API: apiRoutes(auth),
+			API: apiRoutes(auth, catalogs.NewHandler(catalogs.NewService(d.pool, d.box, log), log)),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       60 * time.Second,
@@ -160,6 +162,11 @@ func runMigrate(ctx context.Context, args []string) error {
 		return fmt.Errorf("đồng bộ danh mục quyền: %w", err)
 	}
 	fmt.Printf("Danh mục quyền: %d quyền; vai trò mới: %v; quyền đã bỏ: %v\n", rep.Permissions, rep.CreatedRoles, rep.RemovedPermissions)
+	nSLA, err := catalogs.SyncSLA(ctx, pool)
+	if err != nil {
+		return fmt.Errorf("đồng bộ danh mục SLA: %w", err)
+	}
+	fmt.Printf("Danh mục SLA: %d luật\n", nSLA)
 	if cfg.RedisURL == "" {
 		return nil
 	}
