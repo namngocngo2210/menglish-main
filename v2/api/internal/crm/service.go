@@ -517,6 +517,9 @@ func (s *Service) Options(ctx context.Context, a *iam.Access) (*Options, error) 
 	if o.FilterSources, err = s.q.ListSources(ctx, crmdb.ListSourcesParams{ScopeOwner: sc.owner, ScopeBranches: sc.branches}); err != nil {
 		return nil, err
 	}
+	if o.FilterSources == nil {
+		o.FilterSources = []string{} // chưa có khách nào: trả [] để màn lọc không lỗi
+	}
 	// Form thêm khách.
 	branches, err := s.leadBranchOptions(ctx, s.q, a)
 	if err != nil {

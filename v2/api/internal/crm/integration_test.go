@@ -409,6 +409,17 @@ func TestLeadScopeAndPermissions(t *testing.T) {
 	}
 }
 
+// Chưa có khách nào: danh sách nguồn để lọc là [] (null làm màn Kanban / Danh sách lỗi).
+func TestOptionsWithoutLeads(t *testing.T) {
+	e := setup(t)
+	tm := newTeam(e)
+	o := e.as(tm.salesA).do("GET", "/crm/options", nil)
+	expect(t, o, 200, "")
+	if v, ok := field(o.body, "filter_sources").([]any); !ok || len(v) != 0 {
+		t.Fatalf("filter_sources khi chưa có khách: %#v", field(o.body, "filter_sources"))
+	}
+}
+
 func TestLeadLifecycle(t *testing.T) {
 	e := setup(t)
 	tm := newTeam(e)

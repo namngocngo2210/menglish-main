@@ -10,7 +10,8 @@ export default defineConfig({
   },
   server: {
     // Dev: Vite phục vụ giao diện, chuyển /api sang Go API đang chạy ở máy.
-    proxy: { '/api': 'http://localhost:8080' },
+    // Giữ Host của trình duyệt để API kiểm Origin (SameOrigin) khớp.
+    proxy: { '/api': { target: 'http://localhost:8080', changeOrigin: false } },
   },
   test: {
     environment: 'jsdom',
