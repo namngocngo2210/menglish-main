@@ -19,6 +19,7 @@ import (
 
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/catalogs"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/classes/classesdb"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/crm"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 )
 
@@ -41,6 +42,8 @@ type Service struct {
 	cat  *catalogs.Service
 	log  *slog.Logger
 	now  func() time.Time
+	// CRM: khách Chờ xếp lớp khi xếp lớp từ màn Học viên (nil = chưa gắn, cmd/menglish gắn crm.Service).
+	CRM *crm.Service
 }
 
 func NewService(pool *pgxpool.Pool, cat *catalogs.Service, log *slog.Logger) *Service {

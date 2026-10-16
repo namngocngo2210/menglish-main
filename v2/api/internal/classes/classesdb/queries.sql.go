@@ -125,6 +125,17 @@ func (q *Queries) BranchExists(ctx context.Context, id uuid.UUID) (bool, error) 
 	return exists, err
 }
 
+const branchName = `-- name: BranchName :one
+SELECT name FROM core.branches WHERE id = $1
+`
+
+func (q *Queries) BranchName(ctx context.Context, id uuid.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, branchName, id)
+	var name string
+	err := row.Scan(&name)
+	return name, err
+}
+
 const branchRooms = `-- name: BranchRooms :many
 SELECT r.id, r.branch_id, r.name::text AS name, r.capacity, rt.name::text AS type_name
 FROM core.rooms r
@@ -680,6 +691,38 @@ func (q *Queries) CourseClassCounts(ctx context.Context, courseIds []uuid.UUID) 
 	return items, nil
 }
 
+const courseForClosing = `-- name: CourseForClosing :one
+SELECT co.id, co.name, co.is_active, co.tuition_fee, co.total_lessons, co.course_level_id, cl.name AS level_name
+FROM academic.courses co
+LEFT JOIN academic.course_levels cl ON cl.id = co.course_level_id
+WHERE co.id = $1 AND co.deleted_at IS NULL
+`
+
+type CourseForClosingRow struct {
+	ID            uuid.UUID
+	Name          string
+	IsActive      bool
+	TuitionFee    int64
+	TotalLessons  int32
+	CourseLevelID *uuid.UUID
+	LevelName     *string
+}
+
+func (q *Queries) CourseForClosing(ctx context.Context, id uuid.UUID) (CourseForClosingRow, error) {
+	row := q.db.QueryRow(ctx, courseForClosing, id)
+	var i CourseForClosingRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.IsActive,
+		&i.TuitionFee,
+		&i.TotalLessons,
+		&i.CourseLevelID,
+		&i.LevelName,
+	)
+	return i, err
+}
+
 const courseIDByName = `-- name: CourseIDByName :one
 SELECT id FROM academic.courses WHERE name = $1 AND deleted_at IS NULL ORDER BY created_at LIMIT 1
 `
@@ -778,6 +821,34 @@ func (q *Queries) CreateEnrollment(ctx context.Context, arg CreateEnrollmentPara
 	return id, err
 }
 
+const createLeadEnrollment = `-- name: CreateLeadEnrollment :one
+INSERT INTO academic.enrollments (student_id, class_id, lead_id, enrolled_at, status, created_by)
+VALUES ($1, $2, $3, $4, 'pending', $5)
+RETURNING id
+`
+
+type CreateLeadEnrollmentParams struct {
+	StudentID  uuid.UUID
+	ClassID    uuid.UUID
+	LeadID     *uuid.UUID
+	EnrolledAt time.Time
+	CreatedBy  *uuid.UUID
+}
+
+// Lượt xếp lớp tạo từ CRM (Chốt & Xếp lớp / Gán lớp cho khách Chờ xếp lớp).
+func (q *Queries) CreateLeadEnrollment(ctx context.Context, arg CreateLeadEnrollmentParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, createLeadEnrollment,
+		arg.StudentID,
+		arg.ClassID,
+		arg.LeadID,
+		arg.EnrolledAt,
+		arg.CreatedBy,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const deleteSessions = `-- name: DeleteSessions :exec
 DELETE FROM academic.class_sessions WHERE id = ANY ($1::uuid[])
 `
@@ -822,7 +893,7 @@ func (q *Queries) DropEnrollments(ctx context.Context, arg DropEnrollmentsParams
 }
 
 const enrollableClasses = `-- name: EnrollableClasses :many
-SELECT c.id, c.name, c.code::text AS code, c.branch_id, c.course_id, c.max_capacity, c.status,
+SELECT c.id, c.name, c.code::text AS code, c.branch_id, c.course_id, c.max_capacity, c.status, c.start_date,
        (SELECT count(DISTINCT r.student_id) FROM academic.class_roster r WHERE r.class_id = c.id)::bigint AS roster_count
 FROM academic.classes c
 WHERE c.deleted_at IS NULL
@@ -846,6 +917,7 @@ type EnrollableClassesRow struct {
 	CourseID    *uuid.UUID
 	MaxCapacity int32
 	Status      string
+	StartDate   *time.Time
 	RosterCount int64
 }
 
@@ -872,6 +944,7 @@ func (q *Queries) EnrollableClasses(ctx context.Context, arg EnrollableClassesPa
 			&i.CourseID,
 			&i.MaxCapacity,
 			&i.Status,
+			&i.StartDate,
 			&i.RosterCount,
 		); err != nil {
 			return nil, err
@@ -1853,6 +1926,62 @@ func (q *Queries) LockClass(ctx context.Context, id uuid.UUID) (AcademicClass, e
 		&i.UpdatedAt,
 		&i.DeletedAt,
 		&i.Version,
+	)
+	return i, err
+}
+
+const lockClassForClosing = `-- name: LockClassForClosing :one
+
+SELECT c.id, c.name, c.code::text AS code, c.branch_id, c.course_id, c.status, c.start_date, c.max_capacity,
+       co.name AS course_name, co.is_active AS course_active, co.tuition_fee AS course_fee, co.total_lessons AS course_lessons,
+       cl.id AS class_level_id, co.course_level_id,
+       (SELECT count(DISTINCT r.student_id) FROM academic.class_roster r WHERE r.class_id = c.id)::bigint AS roster_count
+FROM academic.classes c
+LEFT JOIN academic.courses co ON co.id = c.course_id AND co.deleted_at IS NULL
+LEFT JOIN academic.course_levels cl ON cl.code = c.level AND cl.deleted_at IS NULL
+WHERE c.id = $1 AND c.deleted_at IS NULL
+FOR UPDATE OF c
+`
+
+type LockClassForClosingRow struct {
+	ID            uuid.UUID
+	Name          string
+	Code          string
+	BranchID      uuid.UUID
+	CourseID      *uuid.UUID
+	Status        string
+	StartDate     *time.Time
+	MaxCapacity   int32
+	CourseName    *string
+	CourseActive  *bool
+	CourseFee     *int64
+	CourseLessons *int32
+	ClassLevelID  *uuid.UUID
+	CourseLevelID *uuid.UUID
+	RosterCount   int64
+}
+
+// ───────────────────────── Chốt & Xếp lớp (CRM) ─────────────────────────
+// Lớp được chọn khi chốt / xếp lớp khách CRM (khóa dòng lớp), kèm khóa học, trình độ của lớp và sĩ số.
+func (q *Queries) LockClassForClosing(ctx context.Context, id uuid.UUID) (LockClassForClosingRow, error) {
+	row := q.db.QueryRow(ctx, lockClassForClosing, id)
+	var i LockClassForClosingRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Code,
+		&i.BranchID,
+		&i.CourseID,
+		&i.Status,
+		&i.StartDate,
+		&i.MaxCapacity,
+		&i.CourseName,
+		&i.CourseActive,
+		&i.CourseFee,
+		&i.CourseLessons,
+		&i.ClassLevelID,
+		&i.CourseLevelID,
+		&i.RosterCount,
 	)
 	return i, err
 }
@@ -3348,4 +3477,17 @@ func (q *Queries) VisibleClassIDs(ctx context.Context, arg VisibleClassIDsParams
 		return nil, err
 	}
 	return items, nil
+}
+
+const waitingLeadOfStudent = `-- name: WaitingLeadOfStudent :one
+SELECT id FROM crm.leads WHERE converted_student_id = $1 AND stage = 'waiting_class' AND deleted_at IS NULL
+ORDER BY converted_at DESC NULLS LAST LIMIT 1
+`
+
+// Khách CRM Chờ xếp lớp đã chốt ra học viên này (WaitingLeadPlacement::waitingLeadFor).
+func (q *Queries) WaitingLeadOfStudent(ctx context.Context, convertedStudentID *uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, waitingLeadOfStudent, convertedStudentID)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
 }

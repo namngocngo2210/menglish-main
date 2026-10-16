@@ -126,6 +126,10 @@ func runAPI(ctx context.Context) error {
 	cls := classes.NewService(d.pool, cat, log)
 	stu.Classes, cat.Classes, inv.Classes = cls, cls, cls
 	go cls.RunStartStudyingLoop(ctx, time.Hour)
+	// Chốt & Xếp lớp: Lớp học tạo hồ sơ học viên và ghi danh trong giao dịch của CRM; xếp lớp từ màn Học viên hoàn tất
+	// khách Chờ xếp lớp bên CRM.
+	crmSvc := crm.NewService(d.pool, d.iam, log).WithStudents(cls.CRMStudents(stu))
+	cls.CRM = crmSvc
 	auth := iam.NewHandler(d.iam, log).WithAddressSearch(geo.NewSearcher(d.rdb, log, cfg.PublicURL))
 	taskSvc := tasks.NewService(d.pool, log)
 	// Chuyển việc đã qua hạn sang "Quá hạn" (lệnh tasks:mark-overdue chạy theo lịch ở bản Laravel).
@@ -158,7 +162,7 @@ func runAPI(ctx context.Context) error {
 				tasks.NewHandler(taskSvc, log),
 				place,
 				reports.NewHandler(reportSvc, log),
-				crm.NewHandler(crm.NewService(d.pool, d.iam, log), log),
+				crm.NewHandler(crmSvc, log),
 			),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,

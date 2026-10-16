@@ -648,7 +648,7 @@ ORDER BY st.full_name, st.id;
 
 -- name: EnrollableClasses :many
 -- Lớp chọn được khi xếp lớp (theo phạm vi Học viên), kèm sĩ số.
-SELECT c.id, c.name, c.code::text AS code, c.branch_id, c.course_id, c.max_capacity, c.status,
+SELECT c.id, c.name, c.code::text AS code, c.branch_id, c.course_id, c.max_capacity, c.status, c.start_date,
        (SELECT count(DISTINCT r.student_id) FROM academic.class_roster r WHERE r.class_id = c.id)::bigint AS roster_count
 FROM academic.classes c
 WHERE c.deleted_at IS NULL
@@ -694,3 +694,37 @@ ON CONFLICT (session_id, student_id) DO UPDATE SET
 -- Buổi có mặt / đi muộn đầu tiên = ngày bắt đầu vào học (Student::recordStudyStart): chỉ điền khi chưa có hoặc sớm hơn.
 UPDATE academic.students SET study_started_on = sqlc.arg(day)::date
 WHERE id = ANY (sqlc.arg(ids)::uuid[]) AND (study_started_on IS NULL OR study_started_on > sqlc.arg(day)::date);
+
+-- ───────────────────────── Chốt & Xếp lớp (CRM) ─────────────────────────
+
+-- name: LockClassForClosing :one
+-- Lớp được chọn khi chốt / xếp lớp khách CRM (khóa dòng lớp), kèm khóa học, trình độ của lớp và sĩ số.
+SELECT c.id, c.name, c.code::text AS code, c.branch_id, c.course_id, c.status, c.start_date, c.max_capacity,
+       co.name AS course_name, co.is_active AS course_active, co.tuition_fee AS course_fee, co.total_lessons AS course_lessons,
+       cl.id AS class_level_id, co.course_level_id,
+       (SELECT count(DISTINCT r.student_id) FROM academic.class_roster r WHERE r.class_id = c.id)::bigint AS roster_count
+FROM academic.classes c
+LEFT JOIN academic.courses co ON co.id = c.course_id AND co.deleted_at IS NULL
+LEFT JOIN academic.course_levels cl ON cl.code = c.level AND cl.deleted_at IS NULL
+WHERE c.id = $1 AND c.deleted_at IS NULL
+FOR UPDATE OF c;
+
+-- name: CourseForClosing :one
+SELECT co.id, co.name, co.is_active, co.tuition_fee, co.total_lessons, co.course_level_id, cl.name AS level_name
+FROM academic.courses co
+LEFT JOIN academic.course_levels cl ON cl.id = co.course_level_id
+WHERE co.id = $1 AND co.deleted_at IS NULL;
+
+-- name: BranchName :one
+SELECT name FROM core.branches WHERE id = $1;
+
+-- name: CreateLeadEnrollment :one
+-- Lượt xếp lớp tạo từ CRM (Chốt & Xếp lớp / Gán lớp cho khách Chờ xếp lớp).
+INSERT INTO academic.enrollments (student_id, class_id, lead_id, enrolled_at, status, created_by)
+VALUES (sqlc.arg(student_id), sqlc.arg(class_id), sqlc.arg(lead_id), sqlc.arg(enrolled_at), 'pending', sqlc.narg(created_by))
+RETURNING id;
+
+-- name: WaitingLeadOfStudent :one
+-- Khách CRM Chờ xếp lớp đã chốt ra học viên này (WaitingLeadPlacement::waitingLeadFor).
+SELECT id FROM crm.leads WHERE converted_student_id = $1 AND stage = 'waiting_class' AND deleted_at IS NULL
+ORDER BY converted_at DESC NULLS LAST LIMIT 1;
