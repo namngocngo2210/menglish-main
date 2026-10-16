@@ -707,19 +707,19 @@ func contains(list []string, v string) bool {
 
 // ApprovalItem: một việc chờ xác nhận (màn "Xác nhận hoàn thành thủ công"), đủ dữ liệu cho hộp chi tiết.
 type ApprovalItem struct {
-	ID             uuid.UUID  `json:"id"`
-	No             int64      `json:"no"`
-	Kind           string     `json:"kind"` // task (báo cáo trực lớp: chờ module lớp)
-	Title          string     `json:"title"`
-	ClassID        *uuid.UUID `json:"class_id"`
-	LessonSession  *string    `json:"lesson_session"`
-	Person         *string    `json:"person"`
-	Creator        string     `json:"creator"`
-	AssignedDate   string     `json:"assigned_date"`
-	Due            *string    `json:"due"`
-	Note           *string    `json:"note"`
-	Links          []string   `json:"links"`
-	UpdatedAt      time.Time  `json:"updated_at"`
+	ID            uuid.UUID  `json:"id"`
+	No            int64      `json:"no"`
+	Kind          string     `json:"kind"` // task (báo cáo trực lớp: chờ module lớp)
+	Title         string     `json:"title"`
+	ClassID       *uuid.UUID `json:"class_id"`
+	LessonSession *string    `json:"lesson_session"`
+	Person        *string    `json:"person"`
+	Creator       string     `json:"creator"`
+	AssignedDate  string     `json:"assigned_date"`
+	Due           *string    `json:"due"`
+	Note          *string    `json:"note"`
+	Links         []string   `json:"links"`
+	UpdatedAt     time.Time  `json:"updated_at"`
 }
 
 type ApprovalsResult struct {
