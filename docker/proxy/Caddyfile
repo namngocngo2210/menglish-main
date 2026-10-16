@@ -1,0 +1,14 @@
+# Domain đặt trong docker/proxy/.env (PRODUCTION_SITE / STAGING_SITE); DNS trỏ về máy chủ → Caddy tự cấp HTTPS.
+# Không đặt: production ở http://<IP>, staging ở http://<IP>:8081 (khi đó thêm cổng 8081 vào docker-compose.yml).
+
+{$PRODUCTION_SITE::80} {
+	encode zstd gzip
+	reverse_proxy menglish-production:8080
+}
+
+{$STAGING_SITE::8081} {
+	encode zstd gzip
+	# Không cho máy tìm kiếm index bản dùng thử
+	header X-Robots-Tag "noindex, nofollow"
+	reverse_proxy menglish-staging:8080
+}

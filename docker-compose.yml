@@ -1,0 +1,76 @@
+# Một file cho cả production và staging: mỗi môi trường là một project riêng (DB, volume, scheduler riêng).
+# Chạy qua script: docker/menglish.sh <production|staging> <lệnh compose>   — xem docs/deploy-docker.md
+name: menglish-${DEPLOY_ENV:?đặt DEPLOY_ENV trong .env.<môi trường>}
+
+x-app: &app
+  image: menglish-app:${DEPLOY_ENV}
+  restart: unless-stopped
+  env_file: .env.${DEPLOY_ENV}
+  environment: &app-env
+    DB_HOST: db
+    DB_PORT: 3306
+    # Chỉ nhận request qua proxy Caddy (app không mở cổng ra ngoài)
+    TRUSTED_PROXIES: "*"
+    PHP_OPCACHE_ENABLE: 1
+    PHP_POST_MAX_SIZE: 100M
+    PHP_UPLOAD_MAX_FILE_SIZE: 100M
+  volumes:
+    - storage:/var/www/html/storage
+    - uploads:/var/www/html/public/uploads
+  depends_on:
+    db:
+      condition: service_healthy
+
+services:
+  app:
+    <<: *app
+    build: .
+    environment:
+      <<: *app-env
+      # Cache config/route/view + storage:link khi khởi động. Không tự migrate: chạy tay (docker/menglish.sh <env> migrate).
+      AUTORUN_ENABLED: "true"
+      AUTORUN_LARAVEL_MIGRATION: "false"
+    networks:
+      default:
+      proxy:
+        aliases: ["menglish-${DEPLOY_ENV}"]
+
+  scheduler:
+    <<: *app
+    pull_policy: never
+    command: ["php", "/var/www/html/artisan", "schedule:work"]
+    stop_signal: SIGTERM
+    healthcheck:
+      test: ["CMD", "healthcheck-schedule"]
+      start_period: 10s
+
+  db:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${DB_DATABASE}
+      MARIADB_USER: ${DB_USERNAME}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      TZ: Asia/Ho_Chi_Minh
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci", "--max-allowed-packet=256M"]
+    volumes:
+      - db:/var/lib/mysql
+    # Chỉ mở cho máy chủ (SSH tunnel / công cụ quản trị), không ra Internet.
+    ports:
+      - "127.0.0.1:${DB_FORWARD_PORT}:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+networks:
+  proxy:
+    name: menglish-proxy
+    external: true
+
+volumes:
+  db:
+  storage:
+  uploads:

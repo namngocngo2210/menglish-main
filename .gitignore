@@ -35,3 +35,7 @@ yarn-error.log
 
 # Ảnh phiếu thu do test tạo ra
 /public/uploads/tuition/
+
+# Docker: env theo môi trường, bản sao lưu DB
+/.env.staging
+/backups/
