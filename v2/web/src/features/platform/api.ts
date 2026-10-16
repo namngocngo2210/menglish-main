@@ -51,3 +51,50 @@ export const auditApi = {
   options: () => request<AuditOptions>('GET', '/activity-logs/options'),
   exportUrl: (f: AuditFilter) => `/api/v1/activity-logs/export?${toQuery({ ...f, page: undefined, per_page: undefined })}`,
 }
+
+// ───── Thông báo ─────
+
+export type NotificationTone = 'neutral' | 'error' | 'warning' | 'success' | 'info' | 'primary'
+export type NotificationItem = {
+  id: string
+  type: string
+  type_label: string
+  icon: string
+  tone: NotificationTone
+  title: string
+  body: string
+  link: string | null
+  data: Record<string, unknown>
+  is_read: boolean
+  read_at: string | null
+  created_at: string
+}
+export type NotificationFilter = { type?: string; unread?: boolean; page?: number; per_page?: number }
+export type NotificationPage = {
+  notifications: NotificationItem[]
+  total: number
+  page: number
+  per_page: number
+  stats: { total: number; unread: number; alerts: number }
+  types: Option[]
+}
+
+export const notifyApi = {
+  list: (f: NotificationFilter) => request<NotificationPage>('GET', `/notifications?${toQuery(f)}`),
+  summary: () => request<{ unread: number; items: NotificationItem[] }>('GET', '/notifications/summary'),
+  read: (id: string) => request<{ unread: number }>('POST', `/notifications/${id}/read`),
+  readAll: () => request<{ unread: number; updated: number }>('POST', '/notifications/read-all'),
+}
+
+// Màu thẻ loại thông báo (badge_color của Laravel).
+export const TONE_CLASS: Record<NotificationTone, string> = {
+  neutral: 'bg-surface-container-low text-on-surface-variant border-surface-container-highest',
+  error: 'bg-error/10 text-error border-error/30',
+  warning: 'bg-warning/10 text-warning border-warning/30',
+  success: 'bg-success/10 text-success border-success/30',
+  info: 'bg-info/10 text-info border-info/30',
+  primary: 'bg-primary/10 text-primary border-primary/30',
+}
+
+// Số chưa đọc trên chuông: quá 9 hiện "9+".
+export const unreadBadge = (n: number) => (n > 9 ? '9+' : String(n))

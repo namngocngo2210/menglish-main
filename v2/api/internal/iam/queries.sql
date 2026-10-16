@@ -193,3 +193,21 @@ SELECT count(*) FROM core.branches WHERE is_active AND id = ANY (sqlc.arg(ids)::
 UPDATE core.branches SET latitude = $2, longitude = $3, checkin_radius = $4, work_start_time = $5, work_end_time = $6,
     late_grace_minutes = $7, updated_at = now()
 WHERE id = $1 RETURNING *;
+
+-- name: ListUserIDsWithPermission :many
+-- Người dùng đang hoạt động có quyền @perm, cùng thứ tự quyết định với Access.Can (bỏ qua phân quyền theo chi nhánh /
+-- lớp). admin_all: Admin được quyền này mặc định; role_allowed: quyền không thuộc nhóm chỉ Admin. branch_id NULL = mọi
+-- chi nhánh, ngược lại chỉ người thuộc chi nhánh đó.
+SELECT u.id
+FROM iam.users u
+WHERE u.status = 'active'
+  AND (sqlc.narg(branch_id)::uuid IS NULL
+       OR EXISTS (SELECT 1 FROM iam.user_branches ub WHERE ub.user_id = u.id AND ub.branch_id = sqlc.narg(branch_id)::uuid))
+  AND ((sqlc.arg(admin_all)::boolean
+        AND EXISTS (SELECT 1 FROM iam.user_roles ur WHERE ur.user_id = u.id AND ur.role = sqlc.arg(admin_role)::text))
+       OR (sqlc.arg(role_allowed)::boolean AND coalesce(
+             (SELECT o.allow FROM iam.permission_overrides o
+              WHERE o.user_id = u.id AND o.permission = sqlc.arg(perm)::text AND o.scope_type = 'all' LIMIT 1),
+             EXISTS (SELECT 1 FROM iam.user_roles ur JOIN iam.role_permissions rp ON rp.role = ur.role
+                     WHERE ur.user_id = u.id AND rp.permission = sqlc.arg(perm)::text))))
+ORDER BY u.id;

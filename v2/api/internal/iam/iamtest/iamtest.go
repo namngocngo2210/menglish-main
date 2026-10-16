@@ -202,6 +202,11 @@ func (e *Env) Login(u User) *Client {
 	return c
 }
 
+// Anon: trình duyệt chưa đăng nhập.
+func (e *Env) Anon() *Client {
+	return &Client{e: e, ip: fmt.Sprintf("203.0.113.%d", e.ips.Add(1)%250+1)}
+}
+
 // Member = User + Login.
 func (e *Env) Member(code, name string, branches []uuid.UUID, roles ...string) (User, *Client) {
 	e.T.Helper()

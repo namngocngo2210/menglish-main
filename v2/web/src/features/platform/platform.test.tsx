@@ -123,3 +123,100 @@ test('không có quyền nhật ký thì không thấy trang', async () => {
   renderAt('/activity-logs', ['user.view'], { 'GET /users': () => [200, { users: [], total: 0, page_size: 50 }] })
   expect(await screen.findByText('Bạn không có quyền xem trang này.')).toBeInTheDocument()
 })
+
+const notif = (id: string, extra: Record<string, unknown> = {}) => ({
+  id,
+  type: 'task_assigned',
+  type_label: 'Được giao việc',
+  icon: 'assignment',
+  tone: 'success',
+  title: `Việc ${id}`,
+  body: 'Chuẩn bị tài liệu',
+  link: null,
+  data: {},
+  is_read: false,
+  read_at: null,
+  created_at: new Date().toISOString(),
+  ...extra,
+})
+
+test('chuông: số chưa đọc, mở thông báo thì đánh dấu đã đọc và chuyển trang', async () => {
+  let unread = 12
+  const calls = renderAt('/', ['notification.view'], {
+    'GET /auth/sessions': () => [200, { sessions: [] }],
+    'GET /notifications/summary': () => [200, { unread, items: [notif('n1', { link: '/notifications' }), notif('n2', { is_read: true })] }],
+    'POST /notifications/n1/read': () => {
+      unread = 11
+      return [200, { unread }]
+    },
+    'POST /notifications/read-all': () => {
+      unread = 0
+      return [200, { unread: 0, updated: 11 }]
+    },
+    'GET /notifications': () => [200, { notifications: [], total: 0, page: 1, per_page: 15, stats: { total: 0, unread: 0, alerts: 0 }, types: [] }],
+  })
+  const user = userEvent.setup()
+  const bell = await screen.findByRole('button', { name: 'Thông báo (12 chưa đọc)' })
+  expect(bell).toHaveTextContent('9+')
+  await user.click(bell)
+  expect(screen.getByText('Việc n1')).toBeInTheDocument()
+  await user.click(screen.getByRole('link', { name: /Xử lý ngay/ }))
+  expect(calls.some((c) => c.key === 'POST /notifications/n1/read')).toBe(true)
+  expect(window.location.pathname).toBe('/notifications')
+  expect(await screen.findByRole('button', { name: 'Thông báo (11 chưa đọc)' })).toBeInTheDocument()
+
+  await user.click(screen.getByRole('button', { name: 'Thông báo (11 chưa đọc)' }))
+  await user.click(screen.getByRole('button', { name: 'Đã đọc tất cả' }))
+  expect(await screen.findByRole('button', { name: 'Thông báo' })).toBeInTheDocument()
+})
+
+test('không có quyền thông báo thì không hiện chuông', async () => {
+  renderAt('/users', ['user.view'], { 'GET /users': () => [200, { users: [], total: 0, page_size: 50 }] })
+  expect(await screen.findByRole('navigation', { name: 'Menu chính' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /^Thông báo/ })).not.toBeInTheDocument()
+})
+
+test('trang thông báo: lọc nhanh, cảnh báo lead, sao chép nội dung, đánh dấu đã đọc', async () => {
+  const lead = notif('l1', {
+    type: 'stale_lead_24h',
+    type_label: 'Lead sót >24h',
+    tone: 'error',
+    icon: 'person_alert',
+    link: '/crm/customers/c1',
+    data: { customer_id: 'c1', customer_name: 'Phạm Minh', customer_phone: '0912345678', assigned_user: 'Sales A', hours_elapsed: 30 },
+  })
+  const copy = notif('c1', { type: 'payment_confirm_manual', type_label: 'Báo đã nhận học phí qua Zalo', data: { copy_text: 'Kính gửi phụ huynh' } })
+  const calls = renderAt('/notifications', ['notification.view', 'lead.view'], {
+    'GET /notifications/summary': () => [200, { unread: 2, items: [] }],
+    'GET /notifications': (_b, url) => [
+      200,
+      {
+        notifications: url.searchParams.get('type') === 'stale_lead_24h' ? [lead] : [lead, copy],
+        total: 2,
+        page: 1,
+        per_page: 15,
+        stats: { total: 2, unread: 2, alerts: 1 },
+        types: [{ value: 'stale_lead_24h', label: 'Lead sót >24h' }],
+      },
+    ],
+    'POST /notifications/c1/read': () => [200, { unread: 1 }],
+  })
+  const user = userEvent.setup()
+  expect(await screen.findByText('Phạm Minh')).toBeInTheDocument()
+  expect(screen.getByText('Lead bị sót >24h (Chưa xử lý)')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Xử lý Lead ngay' })).toBeInTheDocument()
+
+  const writeText = vi.fn().mockResolvedValue(undefined)
+  Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+  await user.click(screen.getByRole('button', { name: 'Sao chép nội dung' }))
+  expect(writeText).toHaveBeenCalledWith('Kính gửi phụ huynh')
+  expect(await screen.findByRole('button', { name: 'Đã sao chép' })).toBeInTheDocument()
+
+  const items = within(screen.getByRole('main')).getAllByRole('listitem')
+  await user.click(within(items[1]).getByRole('button', { name: 'Đánh dấu đã đọc' }))
+  expect(calls.some((c) => c.key === 'POST /notifications/c1/read')).toBe(true)
+
+  await user.click(screen.getByRole('button', { name: /Lead tồn đọng/ }))
+  await vi.waitFor(() => expect(screen.queryByText('Kính gửi phụ huynh')).not.toBeInTheDocument())
+  expect(calls.some((c) => c.key === 'GET /notifications' && c.url.searchParams.get('type') === 'stale_lead_24h')).toBe(true)
+})

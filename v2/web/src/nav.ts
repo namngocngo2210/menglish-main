@@ -10,6 +10,7 @@ export type NavItem = { path: string; label: string; perms?: string[]; group?: s
 
 export const NAV: NavItem[] = [
   { path: '/', label: 'Tài khoản của tôi', icon: 'account_circle' },
+  { path: '/notifications', label: 'Thông báo', perms: ['notification.view'], group: 'Của tôi' },
   { path: '/users', label: 'Người dùng & Tài khoản', perms: ['user.view'], group: 'Người dùng' },
   { path: '/branches', label: 'Cơ sở & Chi nhánh', perms: ['branch.view'], group: 'Tổ chức & Đào tạo' },
   { path: '/roles', label: 'Vai trò & quyền', perms: ['role.view'], group: 'Hệ thống' },

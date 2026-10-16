@@ -20,6 +20,7 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/config"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/geo"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/notify/notifyapi"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/secretbox"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/server"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/store"
@@ -117,6 +118,7 @@ func runAPI(ctx context.Context) error {
 			API: apiRoutes(auth, platform{
 				auditMW: audit.Middleware(d.pool, log, "/api/v1", iam.CurrentUserID),
 				audit:   auditapi.NewHandler(auditapi.NewService(d.pool, log), log),
+				notify:  notifyapi.NewHandler(notifyapi.NewService(d.pool), log),
 			}),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,

@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState, type ReactNode } from 'react'
 import { api, type Me } from '../api'
-import { pageTitle, settingsNav, workspaceTabs } from '../nav'
+import { NotificationBell } from '../features/platform/NotificationBell'
+import { can, pageTitle, settingsNav, workspaceTabs } from '../nav'
 import { usePath } from '../router'
 import { Sidebar } from './shell/Sidebar'
 import { SettingsNav, WorkspaceTabs } from './shell/PageNav'
@@ -70,7 +71,7 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
         <Topbar
           me={me}
           title={pageTitle(path)}
-          bell={null}
+          bell={can(me, 'notification.view') ? <NotificationBell /> : null}
           onOpenMenu={() => setOpen(true)}
           onOpenSearch={() => {}}
           onLogout={() => logout.mutate()}

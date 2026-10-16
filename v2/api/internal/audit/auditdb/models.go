@@ -50,6 +50,19 @@ type CoreBranch struct {
 	LateGraceMinutes int16
 }
 
+type CoreNotification struct {
+	ID        uuid.UUID
+	UserID    uuid.UUID
+	Type      string
+	Title     string
+	Body      string
+	Link      *string
+	Data      []byte
+	ReadAt    *time.Time
+	CreatedBy *uuid.UUID
+	CreatedAt time.Time
+}
+
 type IamPermission struct {
 	Name   string
 	Module string

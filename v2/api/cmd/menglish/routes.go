@@ -7,12 +7,14 @@ import (
 
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/audit/auditapi"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/notify/notifyapi"
 )
 
 // platform gom các phần nền tảng dùng chung: nhật ký vận hành, thông báo, tìm kiếm chung.
 type platform struct {
 	auditMW func(http.Handler) http.Handler // gắn thông tin request cho audit.Record (nil = bỏ qua)
 	audit   *auditapi.Handler
+	notify  *notifyapi.Handler
 }
 
 // apiRoutes gắn mọi module vào /api/v1. Route nghiệp vụ phải gắn iam.Require / iam.RequireAny
@@ -26,5 +28,6 @@ func apiRoutes(auth *iam.Handler, p platform) func(chi.Router) {
 		auth.Routes(r)
 		auth.AdminRoutes(r)
 		p.audit.Routes(r)
+		p.notify.Routes(r)
 	}
 }
