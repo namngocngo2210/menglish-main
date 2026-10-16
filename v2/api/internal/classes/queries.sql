@@ -848,3 +848,56 @@ WHERE c.deleted_at IS NULL AND (
                AND s.date BETWEEN sqlc.arg(from_date)::date AND sqlc.arg(to_date)::date
                AND (s.teacher_id = sqlc.arg(user_id) OR s.foreign_teacher_id = sqlc.arg(user_id) OR s.assistant_id = sqlc.arg(user_id))))
 ORDER BY c.name;
+
+-- name: TaskClassOptions :many
+-- Lớp gắn vào công việc: lớp người dùng thấy, chưa xóa, theo trạng thái.
+SELECT c.id, c.code::text AS code, c.name, c.schedule_text
+FROM academic.classes c
+WHERE c.deleted_at IS NULL AND c.status = ANY (sqlc.arg(statuses)::text[])
+  AND (sqlc.arg(all_classes)::bool OR c.id = ANY (sqlc.arg(ids)::uuid[]))
+ORDER BY c.name, c.code;
+
+-- name: TaskSessions :many
+-- Buổi học (không hủy, không phụ đạo) của các lớp trong khoảng ngày, kèm thứ tự buổi chính khóa (SessionLessonService::
+-- sessionNumbers: buổi regular không hủy của lớp, theo ngày / giờ).
+WITH numbered AS (
+    SELECT n.id, row_number() OVER (PARTITION BY n.class_id ORDER BY n.date, n.start_time, n.id) AS lesson_no
+    FROM academic.class_sessions n
+    WHERE n.class_id = ANY (sqlc.arg(class_ids)::uuid[]) AND n.type = 'regular' AND n.status <> 'cancelled'
+)
+SELECT s.id, s.class_id, c.name AS class_name, s.date, s.shift_name, s.type, s.room, s.branch_id, b.name AS branch_name,
+       to_char(s.start_time, 'HH24:MI') AS start_time, to_char(s.end_time, 'HH24:MI') AS end_time,
+       coalesce(nb.lesson_no, 0)::bigint AS lesson_no
+FROM academic.class_sessions s
+JOIN academic.classes c ON c.id = s.class_id AND c.deleted_at IS NULL
+JOIN core.branches b ON b.id = s.branch_id
+LEFT JOIN numbered nb ON nb.id = s.id
+WHERE s.class_id = ANY (sqlc.arg(class_ids)::uuid[]) AND s.status <> 'cancelled' AND s.type <> 'support'
+  AND s.date BETWEEN sqlc.arg(from_date)::date AND sqlc.arg(to_date)::date
+ORDER BY s.date, s.start_time, s.id;
+
+-- name: TaskSession :one
+-- Một buổi học (lớp chưa xóa) kèm thứ tự buổi chính khóa.
+SELECT s.id, s.class_id, c.name AS class_name, s.date, s.shift_name, s.type, s.room, s.branch_id, b.name AS branch_name,
+       to_char(s.start_time, 'HH24:MI') AS start_time, to_char(s.end_time, 'HH24:MI') AS end_time,
+       coalesce((SELECT x.lesson_no FROM (
+           SELECT n.id, row_number() OVER (ORDER BY n.date, n.start_time, n.id) AS lesson_no
+           FROM academic.class_sessions n
+           WHERE n.class_id = s.class_id AND n.type = 'regular' AND n.status <> 'cancelled') x
+        WHERE x.id = s.id), 0)::bigint AS lesson_no
+FROM academic.class_sessions s
+JOIN academic.classes c ON c.id = s.class_id AND c.deleted_at IS NULL
+JOIN core.branches b ON b.id = s.branch_id
+WHERE s.id = $1;
+
+-- name: TaskDaySessions :many
+-- Lớp trực trong ngày của trợ giảng: buổi không hủy mình dạy / dạy GVNN / trợ giảng, hoặc thuộc các lớp có việc giao.
+SELECT s.id, s.class_id, c.name AS class_name, s.date, s.shift_name, s.type, s.room, s.branch_id, b.name AS branch_name,
+       to_char(s.start_time, 'HH24:MI') AS start_time, to_char(s.end_time, 'HH24:MI') AS end_time
+FROM academic.class_sessions s
+JOIN academic.classes c ON c.id = s.class_id AND c.deleted_at IS NULL
+JOIN core.branches b ON b.id = s.branch_id
+WHERE s.date = sqlc.arg(day)::date AND s.status <> 'cancelled'
+  AND (s.teacher_id = sqlc.arg(staff_id)::uuid OR s.foreign_teacher_id = sqlc.arg(staff_id)::uuid
+       OR s.assistant_id = sqlc.arg(staff_id)::uuid OR s.class_id = ANY (sqlc.arg(class_ids)::uuid[]))
+ORDER BY s.start_time, s.id;

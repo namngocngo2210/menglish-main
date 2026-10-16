@@ -16,6 +16,7 @@ export type Task = {
   type_label: string
   kind: string | null
   class_id: string | null
+  class_label: string | null
   lesson_session: string | null
   slot_label: string | null
   blocked_reason: string | null
@@ -70,6 +71,7 @@ export type CreateOptions = {
   title: string
   users: Option[]
   branches: Option[]
+  classes: Option[]
   default_due_date: string
   can_ta_assign: boolean
 }
@@ -83,6 +85,7 @@ export type CreateInput = {
   task_type: 'one_time' | 'recurring'
   frequency: string
   branch_id: string
+  class_id: string
 }
 
 export type ApprovalItem = {
@@ -107,6 +110,8 @@ export type TAAssignOptions = {
   assistants: Option[]
   branches: Option[]
   slots: { value: SlotKey; label: string; due: string }[]
+  classes: Option[]
+  class_sessions: Record<string, SessionOption[]>
   today: string
   now_time: string
   cutoff: string
@@ -115,7 +120,25 @@ export type TAAssignInput = {
   assistant_id: string
   assign_date: string
   branch_id: string
-  tasks: { category: SlotKey; content: string }[]
+  tasks: TATaskInput[]
+}
+export type SessionOption = { id: string; date: string; label: string }
+export type TATaskInput = {
+  category: SlotKey
+  content: string
+  attach_class: boolean
+  class_id: string
+  class_session_id: string
+  session: string
+}
+export type PortalSession = {
+  id: string
+  class_name: string
+  start: string
+  end: string
+  room: string | null
+  branch: string
+  makeup: boolean
 }
 
 export type TACard = {
@@ -150,7 +173,7 @@ export type TAPortal = {
   has_tasks: boolean
   first_open: SlotKey
   groups: { key: SlotKey; title: string; tasks: TACard[] }[]
-  sessions: unknown[]
+  sessions: PortalSession[]
 }
 
 type Message = { message: string }

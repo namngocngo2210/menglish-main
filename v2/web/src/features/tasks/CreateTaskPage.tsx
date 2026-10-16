@@ -40,6 +40,7 @@ export function CreateTaskPage(_: { me: Me }) {
     task_type: 'one_time',
     frequency: 'weekly',
     branch_id: '',
+    class_id: '',
   }
   const set = (patch: Partial<CreateInput>) => setForm({ ...f, ...patch })
 
@@ -72,14 +73,24 @@ export function CreateTaskPage(_: { me: Me }) {
               <Field label="Giờ hạn" type="time" value={f.due_time} placeholder="18:00" onChange={(e) => set({ due_time: e.target.value })} hint="Mặc định 18:00" />
             </div>
           </div>
-          <Select label="Chi nhánh" value={f.branch_id} onChange={(e) => set({ branch_id: e.target.value })}>
-            <option value="">-- Không chỉ định --</option>
-            {o.branches.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.label}
-              </option>
-            ))}
-          </Select>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Select label="Chi nhánh" value={f.branch_id} onChange={(e) => set({ branch_id: e.target.value })}>
+              <option value="">-- Không chỉ định --</option>
+              {o.branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.label}
+                </option>
+              ))}
+            </Select>
+            <Select label="Gắn lớp (nếu có)" value={f.class_id} onChange={(e) => set({ class_id: e.target.value })}>
+              <option value="">-- Không gắn lớp --</option>
+              {o.classes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
+                </option>
+              ))}
+            </Select>
+          </div>
           <fieldset className="space-y-3 rounded-lg border border-outline-variant bg-surface-container-low p-4">
             <legend className="px-1 text-sm font-medium">Loại công việc</legend>
             <div className="flex flex-wrap gap-6 text-sm">

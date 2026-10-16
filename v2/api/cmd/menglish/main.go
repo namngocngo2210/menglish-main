@@ -131,7 +131,8 @@ func runAPI(ctx context.Context) error {
 	crmSvc := crm.NewService(d.pool, d.iam, log).WithStudents(cls.CRMStudents(stu))
 	cls.CRM = crmSvc
 	auth := iam.NewHandler(d.iam, log).WithAddressSearch(geo.NewSearcher(d.rdb, log, cfg.PublicURL))
-	taskSvc := tasks.NewService(d.pool, log)
+	// Công việc: lớp / buổi học gắn vào việc và lớp trực trong ngày của trợ giảng lấy từ phân hệ Lớp học.
+	taskSvc := tasks.NewService(d.pool, log).WithClasses(cls.TaskClasses())
 	// Chuyển việc đã qua hạn sang "Quá hạn" (lệnh tasks:mark-overdue chạy theo lịch ở bản Laravel).
 	go taskSvc.RunOverdueLoop(ctx, 10*time.Minute)
 	// Sessions: buổi học thật của phân hệ Lớp học cho học thử. Leads: CRM nối vào khi gộp (hiện dùng bản rỗng).

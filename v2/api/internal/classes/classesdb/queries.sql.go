@@ -3590,6 +3590,242 @@ func (q *Queries) StudentsByIDs(ctx context.Context, ids []uuid.UUID) ([]Student
 	return items, nil
 }
 
+const taskClassOptions = `-- name: TaskClassOptions :many
+SELECT c.id, c.code::text AS code, c.name, c.schedule_text
+FROM academic.classes c
+WHERE c.deleted_at IS NULL AND c.status = ANY ($1::text[])
+  AND ($2::bool OR c.id = ANY ($3::uuid[]))
+ORDER BY c.name, c.code
+`
+
+type TaskClassOptionsParams struct {
+	Statuses   []string
+	AllClasses bool
+	Ids        []uuid.UUID
+}
+
+type TaskClassOptionsRow struct {
+	ID           uuid.UUID
+	Code         string
+	Name         string
+	ScheduleText *string
+}
+
+// Lớp gắn vào công việc: lớp người dùng thấy, chưa xóa, theo trạng thái.
+func (q *Queries) TaskClassOptions(ctx context.Context, arg TaskClassOptionsParams) ([]TaskClassOptionsRow, error) {
+	rows, err := q.db.Query(ctx, taskClassOptions, arg.Statuses, arg.AllClasses, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []TaskClassOptionsRow
+	for rows.Next() {
+		var i TaskClassOptionsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.Name,
+			&i.ScheduleText,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const taskDaySessions = `-- name: TaskDaySessions :many
+SELECT s.id, s.class_id, c.name AS class_name, s.date, s.shift_name, s.type, s.room, s.branch_id, b.name AS branch_name,
+       to_char(s.start_time, 'HH24:MI') AS start_time, to_char(s.end_time, 'HH24:MI') AS end_time
+FROM academic.class_sessions s
+JOIN academic.classes c ON c.id = s.class_id AND c.deleted_at IS NULL
+JOIN core.branches b ON b.id = s.branch_id
+WHERE s.date = $1::date AND s.status <> 'cancelled'
+  AND (s.teacher_id = $2::uuid OR s.foreign_teacher_id = $2::uuid
+       OR s.assistant_id = $2::uuid OR s.class_id = ANY ($3::uuid[]))
+ORDER BY s.start_time, s.id
+`
+
+type TaskDaySessionsParams struct {
+	Day      time.Time
+	StaffID  uuid.UUID
+	ClassIds []uuid.UUID
+}
+
+type TaskDaySessionsRow struct {
+	ID         uuid.UUID
+	ClassID    uuid.UUID
+	ClassName  string
+	Date       time.Time
+	ShiftName  *string
+	Type       string
+	Room       *string
+	BranchID   uuid.UUID
+	BranchName string
+	StartTime  string
+	EndTime    string
+}
+
+// Lớp trực trong ngày của trợ giảng: buổi không hủy mình dạy / dạy GVNN / trợ giảng, hoặc thuộc các lớp có việc giao.
+func (q *Queries) TaskDaySessions(ctx context.Context, arg TaskDaySessionsParams) ([]TaskDaySessionsRow, error) {
+	rows, err := q.db.Query(ctx, taskDaySessions, arg.Day, arg.StaffID, arg.ClassIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []TaskDaySessionsRow
+	for rows.Next() {
+		var i TaskDaySessionsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ClassID,
+			&i.ClassName,
+			&i.Date,
+			&i.ShiftName,
+			&i.Type,
+			&i.Room,
+			&i.BranchID,
+			&i.BranchName,
+			&i.StartTime,
+			&i.EndTime,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const taskSession = `-- name: TaskSession :one
+SELECT s.id, s.class_id, c.name AS class_name, s.date, s.shift_name, s.type, s.room, s.branch_id, b.name AS branch_name,
+       to_char(s.start_time, 'HH24:MI') AS start_time, to_char(s.end_time, 'HH24:MI') AS end_time,
+       coalesce((SELECT x.lesson_no FROM (
+           SELECT n.id, row_number() OVER (ORDER BY n.date, n.start_time, n.id) AS lesson_no
+           FROM academic.class_sessions n
+           WHERE n.class_id = s.class_id AND n.type = 'regular' AND n.status <> 'cancelled') x
+        WHERE x.id = s.id), 0)::bigint AS lesson_no
+FROM academic.class_sessions s
+JOIN academic.classes c ON c.id = s.class_id AND c.deleted_at IS NULL
+JOIN core.branches b ON b.id = s.branch_id
+WHERE s.id = $1
+`
+
+type TaskSessionRow struct {
+	ID         uuid.UUID
+	ClassID    uuid.UUID
+	ClassName  string
+	Date       time.Time
+	ShiftName  *string
+	Type       string
+	Room       *string
+	BranchID   uuid.UUID
+	BranchName string
+	StartTime  string
+	EndTime    string
+	LessonNo   int64
+}
+
+// Một buổi học (lớp chưa xóa) kèm thứ tự buổi chính khóa.
+func (q *Queries) TaskSession(ctx context.Context, id uuid.UUID) (TaskSessionRow, error) {
+	row := q.db.QueryRow(ctx, taskSession, id)
+	var i TaskSessionRow
+	err := row.Scan(
+		&i.ID,
+		&i.ClassID,
+		&i.ClassName,
+		&i.Date,
+		&i.ShiftName,
+		&i.Type,
+		&i.Room,
+		&i.BranchID,
+		&i.BranchName,
+		&i.StartTime,
+		&i.EndTime,
+		&i.LessonNo,
+	)
+	return i, err
+}
+
+const taskSessions = `-- name: TaskSessions :many
+WITH numbered AS (
+    SELECT n.id, row_number() OVER (PARTITION BY n.class_id ORDER BY n.date, n.start_time, n.id) AS lesson_no
+    FROM academic.class_sessions n
+    WHERE n.class_id = ANY ($1::uuid[]) AND n.type = 'regular' AND n.status <> 'cancelled'
+)
+SELECT s.id, s.class_id, c.name AS class_name, s.date, s.shift_name, s.type, s.room, s.branch_id, b.name AS branch_name,
+       to_char(s.start_time, 'HH24:MI') AS start_time, to_char(s.end_time, 'HH24:MI') AS end_time,
+       coalesce(nb.lesson_no, 0)::bigint AS lesson_no
+FROM academic.class_sessions s
+JOIN academic.classes c ON c.id = s.class_id AND c.deleted_at IS NULL
+JOIN core.branches b ON b.id = s.branch_id
+LEFT JOIN numbered nb ON nb.id = s.id
+WHERE s.class_id = ANY ($1::uuid[]) AND s.status <> 'cancelled' AND s.type <> 'support'
+  AND s.date BETWEEN $2::date AND $3::date
+ORDER BY s.date, s.start_time, s.id
+`
+
+type TaskSessionsParams struct {
+	ClassIds []uuid.UUID
+	FromDate time.Time
+	ToDate   time.Time
+}
+
+type TaskSessionsRow struct {
+	ID         uuid.UUID
+	ClassID    uuid.UUID
+	ClassName  string
+	Date       time.Time
+	ShiftName  *string
+	Type       string
+	Room       *string
+	BranchID   uuid.UUID
+	BranchName string
+	StartTime  string
+	EndTime    string
+	LessonNo   int64
+}
+
+// Buổi học (không hủy, không phụ đạo) của các lớp trong khoảng ngày, kèm thứ tự buổi chính khóa (SessionLessonService::
+// sessionNumbers: buổi regular không hủy của lớp, theo ngày / giờ).
+func (q *Queries) TaskSessions(ctx context.Context, arg TaskSessionsParams) ([]TaskSessionsRow, error) {
+	rows, err := q.db.Query(ctx, taskSessions, arg.ClassIds, arg.FromDate, arg.ToDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []TaskSessionsRow
+	for rows.Next() {
+		var i TaskSessionsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ClassID,
+			&i.ClassName,
+			&i.Date,
+			&i.ShiftName,
+			&i.Type,
+			&i.Room,
+			&i.BranchID,
+			&i.BranchName,
+			&i.StartTime,
+			&i.EndTime,
+			&i.LessonNo,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const teacherMonthClasses = `-- name: TeacherMonthClasses :many
 SELECT c.id, c.code::text AS code, c.name,
        (SELECT count(*) FROM academic.student_attendance a

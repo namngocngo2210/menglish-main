@@ -1,12 +1,12 @@
 // Tạo lượt giao việc cho Trợ giảng (tasks.ta-assign): nhiều đầu việc theo 3 ca Trước / Trong / Sau giờ học trong một ngày.
 // Luật riêng: chỉ work_task.assign, trợ giảng trong phạm vi, gửi sau 15:30 vẫn lưu nhưng báo Admin và người giao.
-// Gắn lớp / chọn buổi học: chờ module lớp.
+// Gắn lớp: chọn lớp + buổi học trong ngày giao (giờ hạn theo giờ buổi); lớp không có buổi hôm đó thì gõ tên buổi.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { errorMessage, type Me } from '../../api'
 import { Alert, Button, Card, Field, Select } from '../../components/ui'
 import { navigate } from '../../router'
-import { tasksApi, type SlotKey } from './api'
+import { tasksApi, type SlotKey, type TATaskInput } from './api'
 import { PageHeader, flash } from './components'
 import { DUE_TEXT, isLateAssign } from './logic'
 
@@ -35,8 +35,9 @@ export function AssignModeSwitch({ current }: { current: 'staff' | 'assistant' }
   )
 }
 
-type Row = { id: number; category: SlotKey; content: string }
+type Row = TATaskInput & { id: number }
 let seq = 1
+const newRow = (category: SlotKey): Row => ({ id: seq++, category, content: '', attach_class: false, class_id: '', class_session_id: '', session: '' })
 
 export function TAAssignPage(_: { me: Me }) {
   const qc = useQueryClient()
@@ -44,7 +45,7 @@ export function TAAssignPage(_: { me: Me }) {
   const [assistant, setAssistant] = useState('')
   const [date, setDate] = useState('')
   const [branch, setBranch] = useState('')
-  const [rows, setRows] = useState<Row[]>([{ id: seq++, category: 'before', content: '' }])
+  const [rows, setRows] = useState<Row[]>(() => [newRow('before')])
   // Đồng hồ chạy tiếp từ giờ máy chủ để cảnh báo gửi trễ ngay trên form.
   const [elapsed, setElapsed] = useState(0)
   useEffect(() => {
@@ -82,7 +83,7 @@ export function TAAssignPage(_: { me: Me }) {
               assistant_id: assistant,
               assign_date: day,
               branch_id: branch,
-              tasks: rows.map((r) => ({ category: r.category, content: r.content })),
+              tasks: rows.map(({ id: _id, ...r }) => r),
             })
           }}
         >
@@ -118,27 +119,67 @@ export function TAAssignPage(_: { me: Me }) {
               <h2 className="font-semibold">Danh sách nhiệm vụ</h2>
               <span className="text-xs text-on-surface-variant">{rows.length} đầu việc</span>
             </div>
-            {rows.map((r) => (
-              <div key={r.id} className="grid gap-3 rounded-lg border border-outline-variant bg-surface-container-low p-3 md:grid-cols-[12rem_1fr_auto] md:items-end">
-                <Select label="Nhóm đầu mục" value={r.category} onChange={(e) => update(r.id, { category: e.target.value as SlotKey })}>
-                  {o.slots.map((s) => (
-                    <option key={s.value} value={s.value}>
-                      {s.label}
-                    </option>
-                  ))}
-                </Select>
-                <Field label="Nội dung" required maxLength={500} placeholder="Nhập nội dung công việc..." value={r.content} onChange={(e) => update(r.id, { content: e.target.value })} />
-                <Button type="button" variant="danger" disabled={rows.length <= 1} onClick={() => setRows(rows.filter((x) => x.id !== r.id))} aria-label="Xóa đầu việc">
-                  Xóa
-                </Button>
-              </div>
-            ))}
+            {rows.map((r) => {
+              const sessions = (o.class_sessions[r.class_id] ?? []).filter((s) => s.date === day)
+              return (
+                <div key={r.id} className="space-y-3 rounded-lg border border-outline-variant bg-surface-container-low p-3">
+                  <div className="grid gap-3 md:grid-cols-[12rem_1fr_auto_auto] md:items-end">
+                    <Select label="Nhóm đầu mục" value={r.category} onChange={(e) => update(r.id, { category: e.target.value as SlotKey })}>
+                      {o.slots.map((s) => (
+                        <option key={s.value} value={s.value}>
+                          {s.label}
+                        </option>
+                      ))}
+                    </Select>
+                    <Field label="Nội dung" required maxLength={500} placeholder="Nhập nội dung công việc..." value={r.content} onChange={(e) => update(r.id, { content: e.target.value })} />
+                    <label className="inline-flex h-10 items-center gap-2 text-sm font-medium">
+                      <input type="checkbox" className="accent-primary" checked={r.attach_class} onChange={(e) => update(r.id, { attach_class: e.target.checked })} />
+                      Gắn lớp?
+                    </label>
+                    <Button type="button" variant="danger" disabled={rows.length <= 1} onClick={() => setRows(rows.filter((x) => x.id !== r.id))} aria-label="Xóa đầu việc">
+                      Xóa
+                    </Button>
+                  </div>
+                  {r.attach_class && (
+                    <div className="grid gap-3 border-t border-dashed border-outline-variant pt-3 md:grid-cols-2">
+                      <Select label="Lớp học" required value={r.class_id} onChange={(e) => update(r.id, { class_id: e.target.value, class_session_id: '' })}>
+                        <option value="">-- Chọn lớp --</option>
+                        {o.classes.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.label}
+                          </option>
+                        ))}
+                      </Select>
+                      {sessions.length > 0 ? (
+                        <Select label="Buổi học" required value={r.class_session_id} onChange={(e) => update(r.id, { class_session_id: e.target.value })}>
+                          <option value="">Chọn buổi học</option>
+                          {sessions.map((x) => (
+                            <option key={x.id} value={x.id}>
+                              {x.label}
+                            </option>
+                          ))}
+                        </Select>
+                      ) : (
+                        <Field
+                          label="Buổi học"
+                          required
+                          maxLength={255}
+                          placeholder="Lớp không có buổi học hôm đó, hãy gõ tên buổi"
+                          value={r.session}
+                          onChange={(e) => update(r.id, { session: e.target.value, class_session_id: '' })}
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
             <Button
               type="button"
               variant="secondary"
               className="w-full border-dashed"
               disabled={rows.length >= 30}
-              onClick={() => setRows([...rows, { id: seq++, category: 'during', content: '' }])}
+              onClick={() => setRows([...rows, newRow('during')])}
             >
               + Thêm đầu việc
             </Button>

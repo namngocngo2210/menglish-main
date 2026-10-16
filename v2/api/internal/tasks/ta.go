@@ -40,9 +40,13 @@ type TAAssignOptions struct {
 	Assistants []Option     `json:"assistants"`
 	Branches   []Option     `json:"branches"`
 	Slots      []SlotOption `json:"slots"`
-	Today      string       `json:"today"`
-	NowTime    string       `json:"now_time"`
-	Cutoff     string       `json:"cutoff"`
+	// Lớp gắn được (đang học / sắp khai giảng) và buổi học thật của từng lớp (7 ngày trước → 30 ngày tới), giao diện lọc
+	// theo ngày giao.
+	Classes       []Option                   `json:"classes"`
+	ClassSessions map[string][]SessionOption `json:"class_sessions"`
+	Today         string                     `json:"today"`
+	NowTime       string                     `json:"now_time"`
+	Cutoff        string                     `json:"cutoff"`
 }
 
 func slotOptions() []SlotOption {
@@ -61,7 +65,7 @@ func (s *Service) assistants(ctx context.Context, a *iam.Access) ([]tasksdb.List
 func (s *Service) TAAssignOptions(ctx context.Context, a *iam.Access) (TAAssignOptions, error) {
 	now := s.now()
 	out := TAAssignOptions{
-		Assistants: []Option{}, Branches: []Option{}, Slots: slotOptions(),
+		Assistants: []Option{}, Branches: []Option{}, Slots: slotOptions(), Classes: []Option{}, ClassSessions: map[string][]SessionOption{},
 		Today: dateOnly(now).Format(time.DateOnly), NowTime: now.In(vnZone).Format("15:04"), Cutoff: TAAssignCutoff,
 	}
 	list, err := s.assistants(ctx, a)
@@ -78,12 +82,20 @@ func (s *Service) TAAssignOptions(ctx context.Context, a *iam.Access) (TAAssignO
 	for _, b := range branches {
 		out.Branches = append(out.Branches, Option{b.ID, b.Name})
 	}
+	if err := s.taClassOptions(ctx, a, &out); err != nil {
+		return out, err
+	}
 	return out, nil
 }
 
 type TATaskInput struct {
 	Category string `json:"category"`
 	Content  string `json:"content"`
+	// Gắn lớp: chọn lớp + buổi học trong ngày giao (hoặc gõ tên buổi khi lớp không có buổi hôm đó).
+	AttachClass    bool   `json:"attach_class"`
+	ClassID        string `json:"class_id"`
+	ClassSessionID string `json:"class_session_id"`
+	Session        string `json:"session"`
 }
 
 type TAAssignInput struct {
@@ -101,8 +113,7 @@ type TAAssignResult struct {
 
 // TAAssign: tạo nhiều nhiệm vụ trực ca (Trước / Trong / Sau giờ học) cho một trợ giảng trong một ngày. Nhiệm vụ hằng ngày
 // không có hạn thật (kind = ta_daily); giờ hạn là mốc mặc định của ca. Gửi trễ (ngày đã qua, hoặc hôm nay sau 15:30)
-// vẫn lưu nhưng báo Admin và người giao.
-// TODO(module lớp): "Gắn lớp" + chọn buổi học (giờ hạn theo giờ buổi học, tên buổi theo giáo trình).
+// vẫn lưu nhưng báo Admin và người giao. Gắn buổi học: giờ hạn theo giờ buổi, chi nhánh theo buổi khi không chọn.
 func (s *Service) TAAssign(ctx context.Context, a *iam.Access, in TAAssignInput) (TAAssignResult, error) {
 	assistant, err := uuid.Parse(strings.TrimSpace(in.AssistantID))
 	if err != nil {
@@ -166,14 +177,24 @@ func (s *Service) TAAssign(ctx context.Context, a *iam.Access, in TAAssignInput)
 		}
 	}
 
+	links, err := s.taClassLinks(ctx, a, in.Tasks, day)
+	if err != nil {
+		return TAAssignResult{}, err
+	}
+
 	kind := KindTADaily
 	err = s.inTx(ctx, func(q *tasksdb.Queries) error {
-		for _, t := range in.Tasks {
+		for i, t := range in.Tasks {
 			desc := "Nhiệm vụ trực ca " + slotLabels[t.Category]
+			l := links[i]
+			b := branch
+			if b == nil && l.session != nil {
+				b = &l.session.BranchID
+			}
 			if _, err := q.InsertTask(ctx, tasksdb.InsertTaskParams{
 				Title: strings.TrimSpace(t.Content), Description: &desc, CreatorID: a.UserID, AssigneeID: &assistant,
-				BranchID: branch, TimeSlotCategory: t.Category, TaskType: "one_time", Kind: &kind,
-				DueDate: &day, DueTime: pgTimeOf(slotDue[t.Category]),
+				BranchID: b, ClassID: l.classID, LessonSession: l.lesson, TimeSlotCategory: t.Category, TaskType: "one_time", Kind: &kind,
+				DueDate: &day, DueTime: pgTimeOf(slotDueFor(t.Category, l.session)),
 			}); err != nil {
 				return err
 			}
@@ -254,8 +275,8 @@ type TAPortal struct {
 	HasTasks     bool      `json:"has_tasks"`
 	FirstOpen    string    `json:"first_open"`
 	Groups       []TAGroup `json:"groups"`
-	// Buổi học trong ngày của các lớp trực: chờ module lớp (luôn rỗng).
-	Sessions []struct{} `json:"sessions"`
+	// Lớp trực trong ngày: buổi mình được gán + buổi của các lớp có việc giao trong ngày.
+	Sessions []PortalSession `json:"sessions"`
 }
 
 // TAPortal: "Nhiệm vụ hôm nay" của trợ giảng. Người có quyền giao / duyệt việc chọn xem trợ giảng bất kỳ trong phạm vi;
@@ -273,7 +294,7 @@ func (s *Service) TAPortal(ctx context.Context, a *iam.Access, date, taID string
 	}
 	out := TAPortal{
 		Date: day.Format(time.DateOnly), IsToday: day.Equal(today), Assistants: []Option{},
-		Groups: []TAGroup{}, Sessions: []struct{}{}, FirstOpen: "before",
+		Groups: []TAGroup{}, Sessions: []PortalSession{}, FirstOpen: "before",
 		CanPickTA: a.CanAny("work_task.assign", "work_task.approve"),
 	}
 	out.Title = "Nhiệm vụ hôm nay"
@@ -334,6 +355,16 @@ func (s *Service) TAPortal(ctx context.Context, a *iam.Access, date, taID string
 	}
 	out.CanComplete = *ta == a.UserID || a.Can("work_task.approve")
 	out.HasTasks = len(rows) > 0
+	classIDs := []uuid.UUID{}
+	for _, r := range rows {
+		if id := r.OpsWorkTask.ClassID; id != nil && !containsID(classIDs, *id) {
+			classIDs = append(classIDs, *id)
+		}
+	}
+	cards, err := s.portalClasses(ctx, *ta, classIDs, day, &out)
+	if err != nil {
+		return out, err
+	}
 
 	groups := emptyGroups()
 	for _, r := range rows {
@@ -348,6 +379,9 @@ func (s *Service) TAPortal(ctx context.Context, a *iam.Access, date, taID string
 			ID: t.ID, Title: t.Title, Status: t.Status, StatusLabel: statusLabel(t.Status), ClassID: t.ClassID,
 			Creator: r.CreatorName, BlockedReason: t.BlockedReason,
 			HasProof: t.Status == StatusCompleted && t.CompletionProofUrl != nil && *t.CompletionProofUrl != "",
+		}
+		if t.ClassID != nil {
+			cards.fill(&c, *t.ClassID, t.LessonSession)
 		}
 		if t.Status == StatusOverdue {
 			c.LateHours = max(1, lateHours(t.Kind, t.DueDate, t.DueTime, now))
