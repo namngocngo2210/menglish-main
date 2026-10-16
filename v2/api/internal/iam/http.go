@@ -442,6 +442,19 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 	httpx.InternalError(w, r, h.log, err)
 }
 
+// Fail trả lỗi cho module khác: *Error (kể cả bọc) → đúng mã và thông báo; lỗi khác → 500 và ghi log.
+func Fail(w http.ResponseWriter, r *http.Request, log *slog.Logger, err error) {
+	var e *Error
+	if errors.As(err, &e) {
+		writeErr(w, e)
+		return
+	}
+	httpx.InternalError(w, r, log, err)
+}
+
+// Invalid: lỗi 422 "invalid" với thông báo tiếng Việt cho người dùng.
+func Invalid(msg string) *Error { return invalid(msg) }
+
 func writeErr(w http.ResponseWriter, e *Error) {
 	httpx.Error(w, e.Status, e.Code, e.Message)
 }
