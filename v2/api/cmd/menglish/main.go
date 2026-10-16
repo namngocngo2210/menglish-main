@@ -24,6 +24,7 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/server"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/store"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/students"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/tasks"
 )
 
 // Gắn lúc build: -ldflags "-X main.version=<commit>".
@@ -112,6 +113,9 @@ func runAPI(ctx context.Context) error {
 	inv := inventory.NewService(d.pool, log, inventory.DefaultConfig())
 	go inv.RunOverdueLoop(ctx, 15*time.Minute)
 	auth := iam.NewHandler(d.iam, log).WithAddressSearch(geo.NewSearcher(d.rdb, log, cfg.PublicURL))
+	taskSvc := tasks.NewService(d.pool, log)
+	// Chuyển việc đã qua hạn sang "Quá hạn" (lệnh tasks:mark-overdue chạy theo lịch ở bản Laravel).
+	go taskSvc.RunOverdueLoop(ctx, 10*time.Minute)
 	checks := map[string]server.Pinger{
 		"postgres": d.pool,
 		"redis":    server.PingFunc(func(ctx context.Context) error { return d.rdb.Ping(ctx).Err() }),
@@ -124,6 +128,7 @@ func runAPI(ctx context.Context) error {
 				students.NewHandler(students.NewService(d.pool, d.iam, log), log),
 				inventory.NewHandler(inv, log),
 				catalogs.NewHandler(catalogs.NewService(d.pool, d.box, log), log),
+				tasks.NewHandler(taskSvc, log),
 			),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,

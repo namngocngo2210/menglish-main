@@ -4,6 +4,11 @@ import { StudentsPage } from './features/students/StudentsPage'
 import { ItemsPage } from './features/inventory/ItemsPage'
 import { MaterialOrdersPage } from './features/inventory/MaterialOrdersPage'
 import { StockPage } from './features/inventory/StockPage'
+import { ApprovalsPage } from './features/tasks/ApprovalsPage'
+import { CreateTaskPage } from './features/tasks/CreateTaskPage'
+import { TAAssignPage } from './features/tasks/TAAssignPage'
+import { TAPortalPage } from './features/tasks/TAPortalPage'
+import { TasksPage } from './features/tasks/TasksPage'
 import { AccountPage } from './pages/AccountPage'
 import { BranchesPage } from './pages/admin/BranchesPage'
 import { RolesPage } from './pages/admin/RolesPage'
@@ -40,4 +45,9 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/system-config/bank-accounts': (me) => <BankAccountsPage me={me} />,
   '/system-config/ticket-emails': (me) => <TicketEmailsPage me={me} />,
   '/system-config/sla': (me) => <SlaPage me={me} />,
+  '/tasks': (me) => <TasksPage me={me} />,
+  '/tasks/new': (me) => <CreateTaskPage me={me} />,
+  '/tasks/ta-assign': (me) => <TAAssignPage me={me} />,
+  '/tasks/approvals': (me) => <ApprovalsPage me={me} />,
+  '/portal/ta-tasks': (me) => <TAPortalPage me={me} />,
 }

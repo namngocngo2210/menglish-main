@@ -403,3 +403,40 @@ type OpsStockMovement struct {
 	CreatedBy           *uuid.UUID
 	CreatedAt           time.Time
 }
+
+type OpsWorkTask struct {
+	ID                    uuid.UUID
+	No                    int64
+	Title                 string
+	Description           *string
+	CreatorID             uuid.UUID
+	AssigneeID            *uuid.UUID
+	HandedBackFromID      *uuid.UUID
+	HandedBackAt          *time.Time
+	BranchID              *uuid.UUID
+	ClassID               *uuid.UUID
+	StudentID             *uuid.UUID
+	CareMilestone         *int16
+	BigTestID             *uuid.UUID
+	MerchandiseItemID     *uuid.UUID
+	LessonSession         *string
+	TimeSlotCategory      string
+	TaskType              string
+	Kind                  *string
+	Frequency             *string
+	DueDate               pgtype.Date
+	DueTime               pgtype.Time
+	Status                string
+	CompletionNote        *string
+	CompletionProofUrl    *string
+	CompletionProofFileID *uuid.UUID
+	BlockedReason         *string
+	RejectionReason       *string
+	ConfirmedBy           *uuid.UUID
+	ConfirmedAt           *time.Time
+	CompletedAt           *time.Time
+	SlaBreachedAt         *time.Time
+	Version               int32
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
+}
