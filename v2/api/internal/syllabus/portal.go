@@ -10,9 +10,8 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/syllabus/syllabusdb"
 )
 
-// Dữ liệu giáo trình cho Cổng Giáo viên / Cổng PH-HS (SessionLessonService + StudentPortalController của Laravel).
-// TODO(gộp): khi gộp nhánh cổng, adapter teacher.Syllabus (Units, Lessons) và portal.Syllabus (BigTestResults,
-// CurrentStage) gọi thẳng các hàm dưới đây; ở nhánh này chưa có hai gói đó.
+// Dữ liệu giáo trình cho Cổng Giáo viên / Cổng PH-HS (SessionLessonService + StudentPortalController của Laravel):
+// adapter teacher.Syllabus (Units, Lessons) và portal.Syllabus (BigTestResults, CurrentStage) ở cmd/menglish/wiring.go.
 
 // UnitRef: Unit của giáo trình lớp (ô "Chọn Unit" khi nhập điểm mini test).
 type UnitRef struct {

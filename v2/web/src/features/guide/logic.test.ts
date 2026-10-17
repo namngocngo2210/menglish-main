@@ -35,8 +35,10 @@ test('nút "Mở màn hình" chỉ khi mở được', () => {
   expect(openUrl(sales, 'users.index')).toBeNull()
   expect(openUrl(sales, 'classes.create')).toBeNull()
   expect(openUrl(me(['manager'], ['class.update', 'class.create']), 'classes.create')).toBe('/classes/new')
-  // Màn chưa có ở v2 / không có route
+  // Không có quyền / màn không có ở v2
   expect(openUrl(sales, 'teacher.home')).toBeNull()
+  expect(openUrl(me(['teacher_fulltime'], ['attendance_student.record', 'portal.teacher']), 'teacher.home')).toBe('/teacher/home')
+  expect(openUrl(me(['admin'], ['lead.convert']), 'crm.closing-wizard')).toBeNull()
   expect(openUrl(sales, undefined)).toBeNull()
   // Việc cần duyệt: chỉ Admin
   expect(openUrl(me(['manager'], ['tuition.approve']), 'approvals.index')).toBeNull()

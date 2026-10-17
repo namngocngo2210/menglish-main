@@ -46,7 +46,7 @@ trình, điều chỉnh tiến độ) và màn order đề của Cổng GV (`tea
 | `teacher.order-test` GET `/teacher/order-test/{classId}` | `GET /api/v1/teacher/order-test/{classId}` · màn `/teacher/order-test/<id>` | Đã làm | Quyền như cổng GV: `attendance_student.record` hoặc `record_any`; lớp cụ thể service kiểm (GV / GVNN / trợ giảng của lớp hoặc người làm thay). |
 | `teacher.order-test.submit` POST | `POST /teacher/order-test/{classId}` | Đã làm | Chọn loại đề, ngày thi, ghi chú; lớp phải có chặng mở; mỗi chặng / loại đề chỉ một order chờ duyệt; báo người duyệt. |
 | `syllabus.teacher-view` GET (`teacherView`) | `GET /syllabus/teacher-view?class=&document=&tab=` · màn `/syllabus/teacher-view` | Đã làm | Bài giảng theo buổi của lớp, tài liệu đi kèm, xem tài liệu trong hộp thoại có watermark tên người xem; tài liệu không cho tải thì không hiện nút tải. |
-| `SessionLessonService` (tên bài theo buổi ở cổng GV / giao việc) | `Service.ClassUnits`, `ClassLessons` (`portal.go`) | Làm một phần | Giáo trình của lớp = giáo trình của chặng đang mở, không có thì giáo trình của cấp độ; bài buổi N = `session_no` N. Hàm đã có và có test; chưa nối vào `teacher.Syllabus` (nhánh cổng chưa gộp, `TODO(gộp)`), và tên bài trong giao việc trợ giảng (`tasks`) vẫn "Buổi N". |
+| `SessionLessonService` (tên bài theo buổi ở cổng GV / giao việc) | `Service.ClassUnits`, `ClassLessons` (`portal.go`) ← `teacher.Syllabus` (adapter `teacherSyllabus`) | Làm một phần | Giáo trình của lớp = giáo trình của chặng đang mở, không có thì giáo trình của cấp độ; bài buổi N = `session_no` N. Cổng GV dùng cho Unit của mini test và tên bài theo buổi khi giao bài tập. Tên bài trong giao việc trợ giảng (`tasks`) vẫn "Buổi N". |
 
 ## Đề xuất sửa giáo trình (Cần duyệt / Xin duyệt)
 
@@ -57,7 +57,7 @@ trình, điều chỉnh tiến độ) và màn order đề của Cổng GV (`tea
 | `syllabus.proposals.store` POST (`storeProposal`) | `POST /syllabus/proposals` (multipart) | Đã làm | Đính kèm tối đa 20 MB qua kho file; báo người duyệt. |
 | `syllabus.proposals.approve / reject` POST | `POST /syllabus/proposals/{id}/approve / reject` | Đã làm | Chỉ Admin; ghi chú duyệt (`review_note`); áp nội dung vào bài khi duyệt; báo người đề xuất. |
 | `syllabus.proposals.attachment` GET | `GET /api/v1/files/{id}` (reader `syllabus_proposal`) | Khác | Như tài liệu: đi qua kho file. |
-| `ProposalApprovalSource` (hộp duyệt chung) | — | Chưa làm | Hộp duyệt chung chưa có ở v2 (xem `cong-viec.md`). |
+| `ProposalApprovalSource` (hộp duyệt chung) | `proposalSource` (`approvals.go`) | Đã làm | Nhóm Đào tạo; duyệt / từ chối bằng nghiệp vụ của màn Đề xuất sửa giáo trình; link `/syllabus/versions?status=pending`. Xem [can-duyet.md](can-duyet.md). |
 
 ## Điều chỉnh (giãn) tiến độ
 
@@ -69,7 +69,7 @@ trình, điều chỉnh tiến độ) và màn order đề của Cổng GV (`tea
 | `syllabus.adjustment-requests.approve` POST | `POST /syllabus/adjustment-requests/{id}/approve` | Đã làm | Chỉ Admin; số buổi duyệt (`extra_sessions`, tối đa như Laravel). Trong cùng giao dịch: thêm N buổi chính khóa theo ca lặp tuần của lớp (bỏ ngày lễ, chặn trùng phòng / nhân sự), lùi ngày kết thúc lớp, cộng buổi giãn vào chặng; báo GV. Chặng đã đóng / lớp đã xóa thì chỉ duyệt 0 buổi (ghi nhận) hoặc từ chối. |
 | `syllabus.adjustment-requests.reject` POST | `POST /syllabus/adjustment-requests/{id}/reject` | Đã làm | Bắt buộc lý do (`rejection_reason`). |
 | `ScheduleExtensionService::extend / slotsFor` | `classes.SyllabusClasses.ExtendSessions` (`classes/extension.go`) | Khác | Ca lặp tuần lấy từ bảng ca TKB của lớp ở v2 (Laravel đọc `slot1/slot2` của `class_schedule_configs`, thiếu giờ thì mặc định 18:00–19:30); không có TKB thì suy ra từ buổi chính khóa như Laravel. |
-| `AdjustmentApprovalSource` (hộp duyệt chung) | — | Chưa làm | Chờ hộp duyệt chung. |
+| `AdjustmentApprovalSource` (hộp duyệt chung) | `pacingSource` (`approvals.go`) | Đã làm | Nhóm Đào tạo; duyệt / từ chối như màn Điều chỉnh tiến độ; link `/syllabus/adjustment-requests?status=pending`. |
 | `syllabus:notify-adjustment-sla` (mỗi giờ, phút 20) | `Service.NotifyPacingBreaches` trong `RunLoop` | Đã làm | Yêu cầu quá hạn duyệt (SLA `syllabus.adjustment_approval`, mặc định 3 ngày) → báo người duyệt một lần. |
 
 ## Big Test
@@ -89,27 +89,26 @@ trình, điều chỉnh tiến độ) và màn order đề của Cổng GV (`tea
 | `syllabus.big-tests.send-zalo` POST | `POST /syllabus/big-tests/{id}/send-zalo` | Làm một phần | Đánh dấu đã gửi, chạy đóng chặng / mở chặng kế; Zalo ZNS thật chưa có ở v2 (chế độ sandbox ghi log, `TODO(gộp)`). |
 | `syllabus.big-tests.send-single-zalo` POST | `POST /syllabus/big-test-results/{resultId}/send-zalo` | Làm một phần | Như trên, một học viên. |
 | `syllabus.big-tests.results.approve-send` POST | `POST /syllabus/big-test-results/{resultId}/approve-send` | Làm một phần | Duyệt và gửi một kết quả; Zalo như trên. |
-| `BigTestOrderApprovalSource` (hộp duyệt chung) | — | Chưa làm | Chờ hộp duyệt chung. |
+| `BigTestOrderApprovalSource` (hộp duyệt chung) | `orderSource` (`approvals.go`) | Đã làm | Nhóm Đào tạo; chỉ từ chối ở hộp (duyệt cần link đề + lịch / phòng thi ở màn Phân phối đề, như Laravel); link `/syllabus/big-tests/distribution?order_status=pending`. |
 | `bigtests:remind-upcoming` (07:45) | `Service.RemindUpcoming` trong `RunLoop` | Đã làm | Nhắc GV đợt thi trong N ngày tới (1 lần / đợt), đề chưa phân phối thì báo người duyệt, nhắc chặng có ngày dự kiến mà chưa có đợt thi, nhắc Admin duyệt đề mỗi ngày. |
-| `bigtests:enforce-sla` (07:55) và `--paper-only` (mỗi giờ, phút 55) | `Service.EnforceSLA(paperOnly)` trong `RunLoop` | Làm một phần | Có: GV chưa nhận đề sát giờ thi, trả kết quả trễ (quét 90 ngày), ngưỡng / mức phạt đọc Cấu hình SLA. Thiếu: lập biên bản phạt (phân hệ Lương & biên bản chưa gộp — interface `Penalties`, chưa gắn thì chỉ gửi thông báo `sla_breach`), việc "Duyệt & phân phối đề" (interface `ApprovalTasks`, phân hệ Công việc cần thêm truy vấn). |
-| `SupportListService::syncBigTest` (danh sách bổ trợ sau Big Test) | interface `Support` | Chưa làm | Phân hệ Chất lượng lớp chưa có ở v2; chưa gắn thì bỏ qua. |
-| `teacher.big-test-report` GET (`bigTestReport`) | — | Chưa làm | Màn thuộc Cổng GV (nhánh cổng chưa gộp). Dữ liệu có sẵn ở bảng `syllabus.big_test_results`. |
+| `bigtests:enforce-sla` (07:55) và `--paper-only` (mỗi giờ, phút 55) | `Service.EnforceSLA(paperOnly)` trong `RunLoop` | Đã làm | GV chưa nhận đề sát giờ thi, trả kết quả trễ (quét 90 ngày), ngưỡng / mức phạt đọc Cấu hình SLA. Biên bản trả kết quả trễ lập qua `Penalties` = `syllabusPenalties` (`payroll.Service.SyncBigTestLate`); việc "Duyệt & phân phối đề" qua `ApprovalTasks` = `syllabusTasks` (`tasks.EnsureBigTestTask`, đóng việc khi đề đã phân phối). |
+| `SupportListService::syncBigTest` (danh sách bổ trợ sau Big Test) | interface `Support` | Chưa làm | Danh sách bổ trợ / buổi phụ đạo (`SupportListService`, `support_sessions`) chưa có ở v2 (không phân hệ nào đã chuyển có nó); chưa gắn thì bỏ qua. |
+| `teacher.big-test-report` GET (`bigTestReport`) | `GET /teacher/big-test-report?page=` (`teacher_report.go`) · màn `/teacher/big-test-report` | Đã làm | Kết quả Big Test các lớp là GV chính / GVNN (`attendance_student.record` / `record_any`), mới nhất trước, 20 dòng / trang; Nghe / Đọc / Viết / Nói / Tổng ("—" khi trống), "Đã duyệt" / "Chờ duyệt". Không có mục menu như Laravel. |
 
 ## Nối với phân hệ khác
 
 | Laravel | v2 | Trạng thái | Ghi chú |
 | --- | --- | --- | --- |
-| Cổng PH/HS: kết quả Big Test (`StudentPortalController`, đã duyệt / đã gửi, mới nhất, 5 dòng) | `Service.StudentBigTestResults` | Làm một phần | Hàm + truy vấn có test, khớp trường `portal.BigTestResult`; adapter `portal.Syllabus` làm khi gộp (`TODO(gộp)`). |
-| Cổng PH/HS: chặng đang học | `Service.CurrentStage` | Làm một phần | "Chặng N: tên chặng" của chặng đang mở; chờ adapter như trên. |
-| Dashboard / Tổng quan học thuật: đề xuất, giãn tiến độ chờ duyệt, Big Test 14 ngày tới | — | Chưa làm | `dashboard/board.go`, `academic.go` vẫn ghi "Chờ phân hệ Giáo trình & Big Test"; cần thêm nguồn đọc, để lần gộp sau. |
-| Báo cáo ngày / tuần / tháng: order đề, đề xuất, giãn tiến độ, lớp sắp thi; link "Đề xuất điều chỉnh giáo trình" | — | Chưa làm | `reports/metrics.go` (khung mục), `reports/monthly.go` (`TODO(gộp)` link `/syllabus/teacher-propose` — màn đã có). |
-| KPI: tiêu chí đếm Big Test | — | Chưa làm | KPI vẫn điền tay. |
+| Cổng PH/HS: kết quả Big Test (`StudentPortalController`, đã duyệt / đã gửi, mới nhất, 5 dòng) | `Service.StudentBigTestResults` ← `portal.Syllabus` (adapter `portalSyllabus`) | Đã làm | Trang chủ, tiến độ và bảng điểm của cổng (xem [cong-hoc-vien.md](cong-hoc-vien.md)). |
+| Cổng PH/HS: chặng đang học | `Service.CurrentStage` ← `portal.Syllabus` | Đã làm | "Chặng N: tên chặng" của chặng đang mở; dùng cho góp ý theo chặng. |
+| Dashboard / Tổng quan học thuật: đề xuất, giãn tiến độ chờ duyệt, Big Test 14 ngày tới | `Service.Dashboard()` → `dashboard.Deps.Syllabus` (`dashboard.go`) | Đã làm | Bảng Học thuật: thẻ đề xuất / giãn tiến độ chờ duyệt, Big Test 14 ngày tới, hàng chờ (kết quả chờ duyệt, đề xuất, order đề), 5 yêu cầu giãn tiến độ + 8 Big Test sắp tới; Báo cáo đào tạo: số liệu tuần (giãn tiến độ chờ / trong tuần, Big Test 7 ngày tới, đề đã phân phối); lịch "Việc của bạn": đợt Big Test (link Nhắc lịch). Xem [tong-quan.md](tong-quan.md). |
+| Báo cáo ngày / tuần / tháng: order đề, đề xuất, giãn tiến độ, lớp sắp thi; link "Đề xuất điều chỉnh giáo trình" | `Service.ReportMetrics` (`reports.go`) bọc `reports.MetricsProvider`; `reports/monthly.go` | Đã làm | Báo cáo ngày Học thuật: order đề chờ duyệt, đề xuất sửa giáo trình, yêu cầu điều chỉnh tiến độ (chi tiết từng dòng); báo cáo tuần Học vụ: lớp có lịch Big Test tuần này / tuần sau; báo cáo tuần Học thuật: dòng gợi ý "Quản lý yêu cầu" (order đề, đề xuất, điều chỉnh). Báo cáo tháng GV có link "Gửi đề xuất sửa giáo trình" (`/syllabus/teacher-propose`) khi có quyền `syllabus.propose_adjustment`. Xem [bao-cao.md](bao-cao.md). |
+| KPI: tiêu chí đếm Big Test | `classes.Service.KpiTestSources` (`test_result`, `test_progress`, `student_pass_rate`) | Đã làm | Đọc `syllabus.big_test_results` đã duyệt / đã gửi cùng mini test (xem [kpi.md](kpi.md)). |
 | Danh mục: cấp độ gắn giáo trình (`syllabus_curriculum_id`) | Giáo trình chọn cấp độ ở màn Soạn syllabus | Khác | Liên kết lưu ở `syllabus.curricula.course_level_id`; form cấp độ ở Danh mục chưa có ô chọn giáo trình. |
 
 ## Tổng
 
-Đã làm 38 · Khác 6 · Làm một phần 7 · Chưa làm 8.
+Đã làm 48 · Khác 6 · Làm một phần 4 · Chưa làm 1.
 
-Còn thiếu chính: biên bản phạt trả kết quả trễ và việc duyệt đề (chờ phân hệ Lương & biên bản, Công việc), Zalo ZNS thật,
-hộp duyệt chung, danh sách bổ trợ, màn báo cáo Big Test của Cổng GV, adapter cho Cổng GV / Cổng PH-HS (hàm đã có), số liệu
-dashboard / báo cáo / KPI.
+Còn thiếu chính: Zalo ZNS thật, danh sách bổ trợ / buổi phụ đạo (chưa có ở v2), tên bài theo buổi trong giao việc trợ
+giảng.

@@ -211,9 +211,19 @@ func runAPI(ctx context.Context) error {
 	projectSvc := projects.NewService(d.pool, log).WithSla(catalogSvc).WithPenalties(projectPenalties{p: payrollSvc, sla: catalogSvc})
 	// Lệnh sla:run (academic.milestone_late / milestone_remind) ở bản Laravel.
 	go projectSvc.RunSlaLoop(ctx, 5*time.Minute)
+	// Ticket hỗ trợ: file đính kèm ở kho file; hàng chờ "Ticket đang mở" / ticket khẩn ở Tổng quan và Nhật ký sự vụ.
+	ticketSvc := tickets.NewService(d.pool, log).WithFiles(fileSvc)
+	// Lớp bọc số liệu báo cáo, trong ra ngoài (thứ tự dòng gợi ý báo cáo tuần như Laravel: mốc dự án, việc, order học liệu,
+	// order đề / đề xuất / điều chỉnh giáo trình, dự giờ): lớp học → học phí → ticket CSVC → công việc → order học liệu →
+	// giáo trình & Big Test → chất lượng lớp → dự án học thuật → KPI. Cổng giáo viên điền tỷ lệ bài tập của lớp trong báo
+	// cáo tháng giáo viên.
+	var metrics reports.MetricsProvider = cls.ReportMetrics(reports.NewMetrics(crmSvc.ReportSource()), d.iam.LoadAccess)
+	metrics = ticketSvc.ReportMetrics(tuitionSvc.ReportMetrics(teacherSvc.ReportMetrics(metrics)))
+	metrics = inv.ReportMetrics(taskSvc.ReportMetrics(metrics), d.iam.LoadAccess)
+	metrics = qualitySvc.ReportMetrics(sylSvc.ReportMetrics(metrics, d.iam.LoadAccess), d.iam.LoadAccess)
+	metrics = kpiSvc.ReportMetrics(projectSvc.ReportMetrics(metrics, d.iam.LoadAccess))
 	reportSvc := reports.NewService(d.pool, log, reports.Deps{
-		Metrics: kpiSvc.ReportMetrics(projectSvc.ReportMetrics(qualitySvc.ReportMetrics(tuitionSvc.ReportMetrics(
-			cls.ReportMetrics(reports.NewMetrics(crmSvc.ReportSource()), d.iam.LoadAccess)), d.iam.LoadAccess), d.iam.LoadAccess)),
+		Metrics: metrics,
 		Classes: cls.ReportClasses(), Tasks: taskSvc.ReportTasks(), Calendar: catalogSvc.ReportCalendar(),
 	})
 	// Nhắc hạn báo cáo ngày / tháng và tổng hợp cho Admin (lệnh reports:remind-* / reports:daily-digest ở bản Laravel).
@@ -221,14 +231,14 @@ func runAPI(ctx context.Context) error {
 	// Thu chi: sổ khoản chi + doanh thu tạm tính từ phiếu thu đã duyệt của Học phí, chi lương tự động từ kỳ lương.
 	finSvc := finance.NewService(d.pool, log).WithRevenue(tuitionSvc.RevenueSource()).WithPayroll(payrollSvc.Finance())
 	// Số liệu KPI tự động từ báo cáo / công việc / kho / lớp học / chấm công; tạo phiếu đầu kỳ hằng ngày (kpi:create-sheets).
-	// TODO(gộp): nguồn Học phí / SLA CRM / Big Test khi có ở v2. Kỳ lương đã chốt khóa phiếu KPI.
-	kpiSvc.AddSources(reportSvc.KpiSources(), taskSvc.KpiSources(), inv.KpiSources(), cls.KpiSources(), attSvc.KpiSources(), projectSvc.KpiSources()).
+	// Học phí (không nhắc học phí, phiếu thu bị trả về), điểm Big Test + mini test (lớp học). Kỳ lương đã chốt khóa phiếu KPI.
+	// TODO(gộp): crm_sla_late chờ máy SLA của CRM (sla_events) — chưa có ở v2.
+	kpiSvc.AddSources(reportSvc.KpiSources(), taskSvc.KpiSources(), inv.KpiSources(), cls.KpiSources(), attSvc.KpiSources(), projectSvc.KpiSources(),
+		tuitionSvc.KpiSources(), cls.KpiTestSources(d.iam.LoadAccess)).
 		WithJournal(reportSvc).WithAttendance(cls.KpiAttendance()).WithBoard(cls.KpiBoard(), taskSvc.KpiBoard()).
 		WithPayrollLock(payrollSvc)
 	kpiSvc.AddSources(teacherSvc.KpiSources()).WithHomework(teacherSvc.KpiBoard())
 	go kpiSvc.RunSheetLoop(ctx, time.Hour)
-	// Ticket hỗ trợ: file đính kèm ở kho file; hàng chờ "Ticket đang mở" / ticket khẩn ở Tổng quan và Nhật ký sự vụ.
-	ticketSvc := tickets.NewService(d.pool, log).WithFiles(fileSvc)
 	// Cổng Phụ huynh & Học sinh: học phí đọc qua adapter của Học phí; bài tập / bài nộp / nhận xét / mini test qua Cổng
 	// giáo viên, tab Phát âm của màn chấm bài đọc bản ghi âm của cổng học viên (portal_teacher.go); khảo sát 5 sao của
 	// phân hệ Khảo sát, kết quả Big Test / chặng đang học của Giáo trình (wiring.go).
@@ -248,7 +258,7 @@ func runAPI(ctx context.Context) error {
 	dash := dashboard.NewService(dashboard.Deps{
 		Leads: crmSvc.DashboardLeads(), Tasks: taskSvc.DashboardTasks(), Classes: cls.DashboardClasses(),
 		Students: studentSvc.DashboardStudents(), Reports: reportSvc.DashboardReports(), Orders: inv.DashboardOrders(),
-		Branches: d.iam, Finance: tuitionSvc.DashboardFinance(), Homework: teacherSvc.Dashboard(), Work: attSvc.DashboardWork(), Tickets: ticketSvc.DashboardTickets(), Projects: projectSvc.DashboardMilestones(), Payroll: payrollSvc,
+		Branches: d.iam, Finance: tuitionSvc.DashboardFinance(), Homework: teacherSvc.Dashboard(), Work: attSvc.DashboardWork(), Tickets: ticketSvc.DashboardTickets(), Projects: projectSvc.DashboardMilestones(), Payroll: payrollSvc, Syllabus: sylSvc.Dashboard(),
 	}, log)
 	checks := map[string]server.Pinger{
 		"postgres": d.pool,

@@ -566,6 +566,107 @@ func (q *Queries) RecentDuplicateTicket(ctx context.Context, arg RecentDuplicate
 	return i, err
 }
 
+const reportDayFacilityTickets = `-- name: ReportDayFacilityTickets :many
+SELECT t.id, t.code, t.title, t.status, t.created_at
+FROM ops.tickets t
+WHERE t.category = 'facilities' AND t.created_at <= $1::timestamptz
+  AND (t.resolved_at IS NULL OR t.resolved_at >= $2::timestamptz)
+  AND (NOT $3::bool OR t.status NOT IN ('resolved', 'closed'))
+  AND (cardinality($4::uuid[]) = 0 OR EXISTS (
+        SELECT 1 FROM iam.user_branches ub WHERE ub.user_id = t.creator_id AND ub.branch_id = ANY ($4::uuid[])))
+ORDER BY t.created_at, t.id
+`
+
+type ReportDayFacilityTicketsParams struct {
+	DayEnd    time.Time
+	DayStart  time.Time
+	OpenOnly  bool
+	BranchIds []uuid.UUID
+}
+
+type ReportDayFacilityTicketsRow struct {
+	ID        uuid.UUID
+	Code      string
+	Title     string
+	Status    string
+	CreatedAt time.Time
+}
+
+// Báo cáo ngày Học vụ (DailyReportMetrics::facilityDetails): ticket CSVC tạo trước cuối ngày, chưa xử lý xong trước ngày
+// (báo cáo hôm nay bỏ ticket đã xong); người tạo thuộc chi nhánh của người viết (rỗng = không lọc).
+func (q *Queries) ReportDayFacilityTickets(ctx context.Context, arg ReportDayFacilityTicketsParams) ([]ReportDayFacilityTicketsRow, error) {
+	rows, err := q.db.Query(ctx, reportDayFacilityTickets,
+		arg.DayEnd,
+		arg.DayStart,
+		arg.OpenOnly,
+		arg.BranchIds,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ReportDayFacilityTicketsRow
+	for rows.Next() {
+		var i ReportDayFacilityTicketsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.Title,
+			&i.Status,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const reportWeekFacilityTickets = `-- name: ReportWeekFacilityTickets :many
+SELECT t.id, t.code, t.title
+FROM ops.tickets t
+WHERE t.category = 'facilities' AND t.created_at BETWEEN $1::timestamptz AND $2::timestamptz
+  AND (cardinality($3::uuid[]) = 0 OR EXISTS (
+        SELECT 1 FROM iam.user_branches ub WHERE ub.user_id = t.creator_id AND ub.branch_id = ANY ($3::uuid[])))
+ORDER BY t.created_at, t.id
+`
+
+type ReportWeekFacilityTicketsParams struct {
+	FromAt    time.Time
+	ToAt      time.Time
+	BranchIds []uuid.UUID
+}
+
+type ReportWeekFacilityTicketsRow struct {
+	ID    uuid.UUID
+	Code  string
+	Title string
+}
+
+// Dòng tham khảo của mục KPI material_stock (WeeklyReportMetrics::facilityTickets): ticket CSVC tạo trong tuần.
+func (q *Queries) ReportWeekFacilityTickets(ctx context.Context, arg ReportWeekFacilityTicketsParams) ([]ReportWeekFacilityTicketsRow, error) {
+	rows, err := q.db.Query(ctx, reportWeekFacilityTickets, arg.FromAt, arg.ToAt, arg.BranchIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ReportWeekFacilityTicketsRow
+	for rows.Next() {
+		var i ReportWeekFacilityTicketsRow
+		if err := rows.Scan(&i.ID, &i.Code, &i.Title); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setTicketAssignee = `-- name: SetTicketAssignee :exec
 UPDATE ops.tickets SET assignee_id = $1, updated_at = now() WHERE id = $2
 `

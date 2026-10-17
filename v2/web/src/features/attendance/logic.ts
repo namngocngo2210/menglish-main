@@ -82,12 +82,14 @@ export function isRequestType(v: string): v is RequestType {
   return v === 'correction' || v === 'late_early' || v === 'leave'
 }
 
-// "Yêu cầu khác theo vai trò" (MyAttendanceController::ROLE_REQUESTS) — chỉ các màn đã có ở v2.
-// TODO(gộp): thêm "Đề xuất sửa giáo trình", "Xin điều chỉnh tiến độ" (Giáo trình) và "Gửi ticket hỗ trợ" khi có ở v2.
+// "Yêu cầu khác theo vai trò" (MyAttendanceController::ROLE_REQUESTS).
 const ROLE_REQUESTS = [
+  { label: 'Đề xuất sửa giáo trình', path: '/syllabus/teacher-propose', icon: 'rate_review', perms: ['syllabus.propose_adjustment'] },
+  { label: 'Xin điều chỉnh tiến độ', path: '/syllabus/teacher-adjust', icon: 'event_repeat', perms: ['syllabus.propose_adjustment'] },
   { label: 'Hoàn tiền & khất nợ học phí', path: '/tuition/refunds', icon: 'currency_exchange', perms: ['refund_transfer.request'] },
   { label: 'Yêu cầu hủy hóa đơn', path: '/tuition/invoices/cancellations', icon: 'receipt_long', perms: ['invoice.request_cancel'] },
   { label: 'Nhờ hỗ trợ / giao việc', path: '/tasks/new', icon: 'assignment_add', perms: ['work_task.request', 'work_task.create'] },
+  { label: 'Gửi ticket hỗ trợ', path: '/tickets/new', icon: 'confirmation_number', perms: ['support_ticket.create'] },
 ]
 export function roleRequests(me: Me) {
   return ROLE_REQUESTS.filter((r) => can(me, ...r.perms))

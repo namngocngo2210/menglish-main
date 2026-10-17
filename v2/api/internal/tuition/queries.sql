@@ -1140,3 +1140,35 @@ WHERE r.status = 'pending'
 -- Ảnh minh chứng ở kho file (proof_url = link mở file); NULL cả hai = gỡ minh chứng.
 UPDATE finance.receipts SET proof_file_id = sqlc.narg(proof_file_id), proof_url = sqlc.narg(proof_url), updated_at = now()
 WHERE id = sqlc.arg(id);
+
+-- name: KpiTuitionNoReminder :many
+-- KPI tuition_no_reminder (KpiAutoCounter::tuitionNoReminder): hồ sơ của học viên do người này chốt từ khách CRM, đến hạn
+-- trong [from_date, end_date) mà quá hạn (còn nợ, hoặc có phiếu duyệt sau hạn), không khất nợ qua hạn và không có lần liên
+-- hệ học phí nào từ 3 ngày trước hạn tới end_at.
+SELECT t.id, t.due_date::date AS due_date, coalesce(s.full_name, 'Học viên')::text AS student_name
+FROM finance.tuitions t
+LEFT JOIN academic.students s ON s.id = t.student_id AND s.deleted_at IS NULL
+WHERE t.student_id IN (SELECT l.converted_student_id FROM crm.leads l
+                       WHERE l.assigned_user_id = sqlc.arg(user_id) AND l.converted_student_id IS NOT NULL)
+  AND t.due_date IS NOT NULL AND t.due_date >= sqlc.arg(from_date)::date AND t.due_date < sqlc.arg(end_date)::date
+  AND NOT (t.reminder_paused_until IS NOT NULL AND t.reminder_paused_until > t.due_date)
+  AND (t.debt_amount > 0 OR EXISTS (
+        SELECT 1 FROM finance.receipts r WHERE r.tuition_id = t.id AND r.status = 'approved'
+          AND (r.approved_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date > t.due_date))
+  AND NOT EXISTS (
+        SELECT 1 FROM finance.tuition_contact_logs c WHERE c.tuition_id = t.id
+          AND c.contacted_at BETWEEN ((t.due_date - 3)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh') AND sqlc.arg(end_at)::timestamptz)
+ORDER BY t.due_date, t.id;
+
+-- name: KpiReceiptRejected :many
+-- KPI receipt_rejected (KpiAutoCounter::receiptRejected): thông báo "Phiếu thu bị trả về" gửi người lập trong khoảng, mỗi
+-- phiếu một lần trong ngày.
+SELECT x.created_at, x.title, x.body FROM (
+    SELECT DISTINCT ON (coalesce(n.data->>'receipt_id', 'n' || n.id::text), (n.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date)
+           n.created_at, n.title, n.body
+    FROM core.notifications n
+    WHERE n.user_id = sqlc.arg(user_id) AND n.type = 'receipt_rejected'
+      AND n.created_at BETWEEN sqlc.arg(from_at)::timestamptz AND sqlc.arg(to_at)::timestamptz
+    ORDER BY coalesce(n.data->>'receipt_id', 'n' || n.id::text), (n.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date, n.created_at, n.id
+) x
+ORDER BY x.created_at;

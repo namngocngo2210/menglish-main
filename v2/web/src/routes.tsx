@@ -80,10 +80,8 @@ import { HomePage as PortalHomePage } from './features/portal/HomePage'
 import { HomeworkPage as PortalHomeworkPage } from './features/portal/HomeworkPage'
 import { isPortalOnly } from './features/portal/logic'
 import { PortalNotificationsPage } from './features/portal/NotificationsPage'
-import { PaymentReportsPage } from './features/portal/PaymentReportsPage'
 import { PronunciationPage as PortalPronunciationPage } from './features/portal/PronunciationPage'
 import { SurveyPage as PortalSurveyPage } from './features/portal/SurveyPage'
-import { ApprovalsPage as AttendanceApprovalsPage } from './features/attendance/ApprovalsPage'
 import { DailyPage as StaffAttendancePage } from './features/attendance/DailyPage'
 import { HistoryPage as AttendanceHistoryPage } from './features/attendance/HistoryPage'
 import { ManualPage as TimesheetManualPage } from './features/attendance/ManualPage'
@@ -107,6 +105,7 @@ import { TeacherProposePage, VersionsPage as SyllabusVersionsPage } from './feat
 import { ResultsPage as BigTestResultsPage } from './features/syllabus/ResultsPage'
 import { SchedulesPage as BigTestSchedulesPage } from './features/syllabus/SchedulesPage'
 import { OrderTestPage, TeachingStagesPage } from './features/syllabus/TeachingStagesPage'
+import { TeacherBigTestReportPage } from './features/syllabus/TeacherBigTestReportPage'
 import { TeacherViewPage as SyllabusTeacherViewPage } from './features/syllabus/TeacherViewPage'
 
 // Trang theo đường dẫn mục menu (NAV trong nav.ts). Trang con (vd. /students/<id>) dùng chung mục cha và tự đọc
@@ -196,7 +195,7 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/tuition/refunds': (me) => <TuitionRefundsPage me={me} />,
   '/tuition/sepay': (me) => <TuitionSepayPage me={me} />,
   '/tuition/import': (me) => <TuitionImportPage me={me} />,
-  '/payment-reports': (me) => <PaymentReportsPage me={me} />,
+  '/payment-reports': () => <Redirect to="/approvals?group=hoc-phi" />,
   '/portal/home': () => <PortalHomePage />,
   '/portal/student-homework': (me) => <PortalHomeworkPage me={me} />,
   '/portal/pronunciation': () => <PortalPronunciationPage />,
@@ -209,7 +208,7 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/cham-cong': () => <MyAttendancePage />,
   '/cham-cong/lich-su': () => <AttendanceHistoryPage />,
   '/cham-cong/don': (me) => <AttendanceRequestsPage me={me} />,
-  '/approvals/staff-attendance': () => <AttendanceApprovalsPage />,
+  '/approvals/staff-attendance': () => <Redirect to="/approvals?group=nhan-su" />,
   '/staff-attendance': () => <StaffAttendancePage />,
   '/payroll/timesheets/teachers': () => <TeacherTimesheetsPage />,
   '/payroll/timesheets/manual': () => <TimesheetManualPage />,
@@ -235,6 +234,7 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/syllabus/teaching-stages': () => <TeachingStagesPage />,
   '/syllabus/teacher-view': (me) => <SyllabusTeacherViewPage me={me} />,
   '/teacher/order-test': () => <OrderTestPage />,
+  '/teacher/big-test-report': () => <TeacherBigTestReportPage />,
   '/syllabus/versions': () => <SyllabusVersionsPage />,
   '/syllabus/teacher-propose': () => <TeacherProposePage />,
   '/syllabus/teacher-adjust': () => <TeacherAdjustPage />,

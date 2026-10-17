@@ -1148,6 +1148,67 @@ func (q *Queries) RecurringOccurrenceExists(ctx context.Context, arg RecurringOc
 	return exists, err
 }
 
+const reportWeekTasks = `-- name: ReportWeekTasks :many
+SELECT id, title, description, completion_note, due_date, status, completed_at
+FROM ops.work_tasks
+WHERE assignee_id = $1 AND care_milestone IS NULL
+  AND ((status = 'completed' AND completed_at BETWEEN $2::timestamptz AND $3::timestamptz)
+       OR (status IN ('new', 'in_progress') AND due_date IS NOT NULL AND due_date <= $4::date))
+ORDER BY completed_at, due_date, id
+`
+
+type ReportWeekTasksParams struct {
+	UserID    *uuid.UUID
+	FromAt    time.Time
+	ToAt      time.Time
+	PlannedTo time.Time
+}
+
+type ReportWeekTasksRow struct {
+	ID             uuid.UUID
+	Title          string
+	Description    *string
+	CompletionNote *string
+	DueDate        *time.Time
+	Status         string
+	CompletedAt    *time.Time
+}
+
+// Dòng gợi ý của báo cáo tuần Học thuật (WeeklyReportMetrics::academicSuggestions): việc được giao cho người viết (không
+// phải việc chăm sóc) hoàn thành trong [from_at, to_at], hoặc còn mở có hạn tới planned_to.
+func (q *Queries) ReportWeekTasks(ctx context.Context, arg ReportWeekTasksParams) ([]ReportWeekTasksRow, error) {
+	rows, err := q.db.Query(ctx, reportWeekTasks,
+		arg.UserID,
+		arg.FromAt,
+		arg.ToAt,
+		arg.PlannedTo,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ReportWeekTasksRow
+	for rows.Next() {
+		var i ReportWeekTasksRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Description,
+			&i.CompletionNote,
+			&i.DueDate,
+			&i.Status,
+			&i.CompletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const restockDueDays = `-- name: RestockDueDays :one
 SELECT coalesce((SELECT coalesce(value, default_value) FROM hr.sla_rules WHERE key = 'stock.restock_task'), 2)::int
 `

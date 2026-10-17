@@ -302,3 +302,13 @@ WHERE big_test_id IS NOT NULL
   AND status IN ('new', 'in_progress', 'overdue', 'blocked', 'pending_confirmation')
   AND big_test_id IN (SELECT b.id FROM syllabus.big_tests b
                       WHERE b.is_distributed AND (sqlc.narg(big_test_id)::uuid IS NULL OR b.id = sqlc.narg(big_test_id)::uuid));
+
+-- name: ReportWeekTasks :many
+-- Dòng gợi ý của báo cáo tuần Học thuật (WeeklyReportMetrics::academicSuggestions): việc được giao cho người viết (không
+-- phải việc chăm sóc) hoàn thành trong [from_at, to_at], hoặc còn mở có hạn tới planned_to.
+SELECT id, title, description, completion_note, due_date, status, completed_at
+FROM ops.work_tasks
+WHERE assignee_id = sqlc.arg(user_id) AND care_milestone IS NULL
+  AND ((status = 'completed' AND completed_at BETWEEN sqlc.arg(from_at)::timestamptz AND sqlc.arg(to_at)::timestamptz)
+       OR (status IN ('new', 'in_progress') AND due_date IS NOT NULL AND due_date <= sqlc.arg(planned_to)::date))
+ORDER BY completed_at, due_date, id;

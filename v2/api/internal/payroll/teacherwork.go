@@ -9,9 +9,9 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/payroll/payrolldb"
 )
 
-// Phần Lương / Phạt cho teacher.Work (cổng giáo viên). TODO(gộp): adapter teacher.Work ghép các hàm này với phân hệ
-// Chấm công (Checkins / CheckIn / giờ dạy): Month.Estimate = Σ giờ × RateOn, Month.Violations / Latest = Violations,
-// CheckIn chặn ngày thuộc kỳ đã khóa bằng LockedOn + LockedMessage.
+// Phần Lương / Phạt cho teacher.Work (cổng giáo viên): adapter ở cmd/menglish/wiring.go ghép các hàm này với phân hệ
+// Chấm công (Checkins / CheckIn / giờ dạy): Month.Estimate = Σ giờ × RateOn, Month.Violations / Latest = Violations;
+// CheckIn chặn ngày thuộc kỳ đã khóa qua PayrollLock của Chấm công.
 
 // RateOn: đơn giá riêng hiệu lực của GV tại ngày (TeacherHourlyRate::rateFor); nil = chưa có đơn giá riêng.
 func (s *Service) RateOn(ctx context.Context, userID uuid.UUID, day time.Time) (*float64, string, error) {

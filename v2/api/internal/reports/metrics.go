@@ -13,8 +13,9 @@ import (
 // lớp học, buổi học, điểm danh, CRM, phiếu thu, ticket, order học liệu, dự án học thuật, giáo trình, KPI…
 // Các phân hệ đó đang chuyển song song nên module báo cáo chỉ đọc qua interface dưới đây. Bản mặc định (skeletonMetrics)
 // trả đúng khung mục / nhãn / cách tính như Laravel nhưng chưa có số (Item.Unavailable ghi lý do).
-// NewMetrics (sources.go) điền các mục tuyển sinh từ CRM / test đầu vào.
-// TODO(gộp): điền tiếp khi các phân hệ lớp học, học phí, ticket, order, dự án, giáo trình, KPI có ở v2.
+// NewMetrics (sources.go) điền các mục tuyển sinh từ CRM / test đầu vào; các phân hệ lớp học, học phí, ticket, order, công
+// việc, dự án, giáo trình, chất lượng lớp, KPI bọc thêm phần của mình (cmd/menglish). TODO(gộp): "Số học sinh bổ trợ" chờ
+// phân hệ buổi bổ trợ (SupportSession) — chưa có ở v2.
 
 // Writer là người viết báo cáo (phạm vi số liệu tính theo người này).
 type Writer struct {
@@ -126,6 +127,9 @@ type MetricsProvider interface {
 	KpiCriteria(ctx context.Context, role string) ([]KpiCriterion, error)
 	// KpiEvidence: số lần + bản ghi đã đếm của mục KPI tự động trong khoảng.
 	KpiEvidence(ctx context.Context, c KpiCriterion, w Writer, from, to time.Time) (int, []Detail, error)
+	// KpiHints: dòng tham khảo (không đếm) kèm mục KPI của báo cáo tuần Học vụ (WeeklyReportMetrics::kpiHints): ticket CSVC
+	// của mục material_stock, buổi chưa điểm danh của mục 5.1. Phân hệ bọc ngoài nối thêm dòng của mình.
+	KpiHints(ctx context.Context, c KpiCriterion, w Writer, from, to time.Time) ([]Detail, error)
 	// TeacherClasses: lớp giáo viên giữ trong tháng kèm chuyên cần / bài tập / số buổi đã dạy.
 	TeacherClasses(ctx context.Context, w Writer, month string) ([]TeacherClass, error)
 	// TeacherMeetings: buổi họp giáo viên người viết đã ghi trong khoảng.
@@ -160,8 +164,8 @@ type TaskService interface {
 	Summaries(ctx context.Context, ids []uuid.UUID) ([]TaskSummary, error)
 }
 
-// ClassDirectory là phân hệ Lớp học (academic.classes) — lớp gắn được vào nhật ký / báo cáo chữ.
-// TODO(gộp): nối với module classes (ClassModel::visibleTo).
+// ClassDirectory là phân hệ Lớp học (academic.classes) — lớp gắn được vào nhật ký / báo cáo chữ (classes.Service.ReportClasses,
+// ClassModel::visibleTo).
 type ClassDirectory interface {
 	// Visible: lớp trong phạm vi người dùng được xem; trả mã + tên.
 	Visible(ctx context.Context, actor *iam.Access, id uuid.UUID) (code, name string, ok bool, err error)
@@ -270,6 +274,10 @@ func (skeletonMetrics) KpiCriteria(context.Context, string) ([]KpiCriterion, err
 
 func (skeletonMetrics) KpiEvidence(context.Context, KpiCriterion, Writer, time.Time, time.Time) (int, []Detail, error) {
 	return 0, nil, nil
+}
+
+func (skeletonMetrics) KpiHints(context.Context, KpiCriterion, Writer, time.Time, time.Time) ([]Detail, error) {
+	return nil, nil
 }
 
 func (skeletonMetrics) TeacherClasses(context.Context, Writer, string) ([]TeacherClass, error) {

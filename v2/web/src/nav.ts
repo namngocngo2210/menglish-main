@@ -40,6 +40,9 @@ export const APPROVAL_ANCHORS = [
   'student.assign_class',
   'work_task.create',
   'work_task.approve',
+  'syllabus.approve_adjustment',
+  'big_test.approve',
+  'staff_checkin.approve',
 ]
 // Quyền neo khu Lương (SidebarMenu::PAYROLL).
 const PAYROLL_ANCHORS = ['payroll.view', 'payroll.view_own']
@@ -246,14 +249,9 @@ export const NAV: NavItem[] = [
     group: 'Cần duyệt',
     menu: (me) => isAdmin(me) && can(me, ...TUITION_ANCHORS),
   },
-  // Học viên / phụ huynh báo đã đóng học phí ở Cổng học viên (PaymentReportApprovalSource) — features/portal.
-  {
-    path: '/payment-reports',
-    label: 'Học viên báo đóng học phí',
-    perms: ['tuition.approve'],
-    group: 'Cần duyệt',
-    menu: (me) => isAdmin(me) && can(me, 'tuition.view'),
-  },
+  // Học viên / phụ huynh báo đã đóng học phí (PaymentReportApprovalSource) duyệt trong hộp Việc cần duyệt, nhóm Học phí;
+  // URL cũ của v2 chuyển hướng sang đó.
+  { path: '/payment-reports', label: 'Học viên báo đóng học phí', perms: ['tuition.approve'], group: 'Cần duyệt', hidden: true },
   // Giáo trình (features/syllabus). Cần duyệt: chỉ Admin thấy, neo syllabus.approve_adjustment (người duyệt Học thuật).
   {
     path: '/syllabus/versions',
@@ -293,15 +291,9 @@ export const NAV: NavItem[] = [
   { path: '/payroll/timesheets/appsheet', label: 'AppSheet', perms: ['attendance_staff.view'], group: 'Chấm công' },
   { path: '/payroll/timesheets/sync-history', label: 'Lịch sử đồng bộ', perms: ['attendance_staff.sync'], group: 'Chấm công' },
   { path: '/cham-cong/don', label: 'Đơn chấm công & nghỉ', perms: ['portal.staff'], group: 'Xin duyệt' },
-  // Laravel duyệt đơn trong hộp "Cần duyệt" chung (approvals.index); v2 tạm có trang riêng, chỉ Admin thấy trên menu.
-  // TODO(gộp): chuyển vào hộp duyệt chung khi có.
-  {
-    path: '/approvals/staff-attendance',
-    label: 'Đơn chấm công & nghỉ',
-    perms: ['staff_checkin.approve'],
-    group: 'Cần duyệt',
-    menu: isAdmin,
-  },
+  // Đơn chấm công & nghỉ duyệt trong hộp "Cần duyệt" chung (approvals.index, nhóm Nhân sự) như Laravel; URL cũ của v2
+  // chuyển hướng sang đó.
+  { path: '/approvals/staff-attendance', label: 'Đơn chấm công & nghỉ', perms: ['staff_checkin.approve'], group: 'Cần duyệt', hidden: true },
   // URL giao diện điện thoại cũ /m (Laravel chuyển hướng sang trang tương ứng).
   { path: '/m', label: 'Chấm công của tôi', hidden: true },
   // Ticket hỗ trợ (features/tickets): trang con /tickets/new, /tickets/<id> do TicketsPage tự đọc. Menu neo portal.staff
@@ -329,7 +321,14 @@ export const NAV: NavItem[] = [
     group: 'Nhân sự & KPI',
     menu: (me) => can(me, ...PAYROLL_ANCHORS),
   },
-  { path: '/portal/my-salary', label: 'Lương của tôi', perms: ['payroll.view_own'], group: 'Của tôi' },
+  // Lương của tôi: như route Go (payroll.view_own / payroll.view / portal.staff); menu chỉ người có lương riêng.
+  {
+    path: '/portal/my-salary',
+    label: 'Lương của tôi',
+    perms: ['payroll.view_own', 'payroll.view'],
+    group: 'Của tôi',
+    menu: (me) => can(me, 'payroll.view_own'),
+  },
   { path: '/payroll/config/settings', label: 'Tham số lương', perms: ['teacher_rate.manage'], group: 'Lương', menu: (me) => can(me, ...PAYROLL_ANCHORS) },
   {
     path: '/payroll/config/teacher-rates',
@@ -360,6 +359,14 @@ export const NAV: NavItem[] = [
     label: 'Order đề test',
     perms: ['attendance_student.record', 'attendance_student.record_any'],
     group: 'Giáo trình',
+    hidden: true,
+  },
+  // Bảng điểm Big Test các lớp phụ trách (teacher.big-test-report): Laravel không có mục sidebar, mở bằng URL.
+  {
+    path: '/teacher/big-test-report',
+    label: 'Bảng điểm Big Test',
+    perms: ['attendance_student.record', 'attendance_student.record_any'],
+    group: 'Cổng Giáo viên',
     hidden: true,
   },
   { path: '/syllabus/big-tests/schedules', label: 'Nhắc lịch', perms: ['syllabus.view'], group: 'Big Test', menu: (me) => can(me, SYLLABUS_MANAGER) },

@@ -90,7 +90,8 @@ type BigTestTask struct {
 }
 
 // SupportList: danh sách bổ trợ (điểm Big Test dưới 7/10, không tính vắng thi → tự vào danh sách bổ trợ;
-// SupportListService::syncBigTest). TODO(gộp): phân hệ Chất lượng lớp cài interface này; chưa gắn thì bỏ qua.
+// SupportListService::syncBigTest). TODO(gộp): danh sách bổ trợ (báo cáo trực lớp / buổi bổ trợ của WorkTaskController)
+// chưa có ở v2; chưa gắn thì bỏ qua.
 type SupportList interface {
 	SyncBigTestResults(ctx context.Context, tx pgx.Tx, bigTestID uuid.UUID) error
 }
@@ -152,7 +153,7 @@ type Deps struct {
 	Classes Classes
 	Files   *files.Service
 	SLA     SLA
-	// Penalties / Tasks / Support nil = chưa gắn (xem TODO(gộp) ở interface). Zalo nil = sandbox (ghi log).
+	// Penalties / Tasks / Support nil = chưa gắn (cmd/menglish gắn Penalties, Tasks). Zalo nil = sandbox (ghi log).
 	Penalties Penalties
 	Tasks     ApprovalTasks
 	Support   SupportList

@@ -590,7 +590,24 @@ export type OrderTestPage = {
   }[]
 }
 
-export function query(params: Record<string, string | number | undefined | null>) {
+// --- Cổng GV: bảng điểm Big Test các lớp phụ trách ---
+export type TeacherBigTestReportPage = {
+  results: {
+    id: string
+    student_name: string | null
+    test_title: string
+    class_name: string
+    listening_score: number | null
+    reading_score: number | null
+    writing_score: number | null
+    speaking_score: number | null
+    overall_score: number | null
+    approved: boolean
+  }[]
+  page: Paged
+}
+
+export function query(params:Record<string, string | number | undefined | null>) {
   const qs = new URLSearchParams()
   for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== null && v !== '') qs.set(k, String(v))
   const s = qs.toString()
@@ -692,4 +709,5 @@ export const syllabusApi = {
   orderTest: (classId: string) => request<OrderTestPage>('GET', `/teacher/order-test/${classId}`),
   submitOrderTest: (classId: string, input: { test_type: string; exam_date: string; note: string }) =>
     request<Message>('POST', `/teacher/order-test/${classId}`, input),
+  teacherBigTestReport: (page?: number) => request<TeacherBigTestReportPage>('GET', `/teacher/big-test-report${query({ page })}`),
 }

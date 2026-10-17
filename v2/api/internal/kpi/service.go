@@ -56,8 +56,8 @@ var (
 
 // ───────────── Phân hệ khác ─────────────
 
-// PayrollLock: kỳ lương của tháng đã duyệt / đã chi trả thì khóa phiếu KPI tháng đó (PayrollPeriod::isLockedFor).
-// TODO(gộp): nối phân hệ Lương khi chuyển sang v2; hiện không kỳ nào bị khóa.
+// PayrollLock: kỳ lương của tháng đã duyệt / đã chi trả thì khóa phiếu KPI tháng đó (PayrollPeriod::isLockedFor) —
+// payroll.Service; chưa gắn thì không kỳ nào bị khóa.
 type PayrollLock interface {
 	Locked(ctx context.Context, day time.Time) (bool, error)
 }

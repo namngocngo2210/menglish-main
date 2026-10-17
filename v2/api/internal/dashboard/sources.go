@@ -307,6 +307,48 @@ type Projects interface {
 	Agenda(ctx context.Context, a *iam.Access, from, to time.Time) ([]AgendaItem, error)
 }
 
+// Syllabus: số liệu Giáo trình & Big Test (syllabus.Service.Dashboard). nil = chưa nối (màn ghi "Chờ phân hệ Giáo trình").
+type Syllabus interface {
+	// Board: hàng chờ chuyên môn của bảng Học thuật (DashboardController::academicDashboard).
+	Board(ctx context.Context, now time.Time) (SyllabusBoard, error)
+	// Week: số liệu tuần của màn Báo cáo đào tạo (AcademicDashboardController::reports, weeklyStats).
+	Week(ctx context.Context, now time.Time) (SyllabusWeek, error)
+	// Agenda: đợt Big Test lên lịch trong [from, to] (MyWorkBoard::agenda, kind "bigtest").
+	Agenda(ctx context.Context, from, to time.Time) ([]AgendaItem, error)
+}
+
+// SyllabusBoard: đề xuất / giãn tiến độ / order đề / kết quả Big Test chờ duyệt và Big Test 14 ngày tới.
+type SyllabusBoard struct {
+	PendingProposals   int64
+	PendingOrders      int64
+	PendingResults     int64 // số đợt Big Test có kết quả chờ duyệt
+	PendingAdjustments int64
+	Adjustments        []PendingAdjustment // 5 yêu cầu giãn tiến độ mới nhất
+	UpcomingBigTests   []UpcomingBigTest   // tối đa 8 đợt
+}
+
+type PendingAdjustment struct {
+	ID      uuid.UUID `json:"id"`
+	Class   *string   `json:"class"`
+	Teacher *string   `json:"teacher"`
+	Reason  string    `json:"reason"`
+}
+
+type UpcomingBigTest struct {
+	ID          uuid.UUID  `json:"id"`
+	Title       string     `json:"title"`
+	Class       *string    `json:"class"`
+	ScheduledAt *time.Time `json:"scheduled_at"`
+}
+
+// SyllabusWeek: giãn tiến độ chờ duyệt / gửi trong tuần, Big Test 7 ngày tới, đề đã phân phối trong tuần.
+type SyllabusWeek struct {
+	AdjustmentsPending  int64
+	AdjustmentsWeek     int64
+	BigTestsUpcoming    int64
+	BigTestsDistributed int64
+}
+
 type noFinance struct{}
 
 func (noFinance) Revenue(context.Context, []uuid.UUID, time.Time, time.Time) (*int64, error) {
@@ -332,8 +374,8 @@ type WorkStats struct {
 	Violations int `json:"violations"`
 }
 
-// StaffWork: chấm công / nghỉ phép / biên bản lỗi. ok = false khi phân hệ chưa có.
-// TODO(gộp): adapter của phân hệ chấm công & KPI (teacher_timesheets, staff_attendances, đơn nghỉ phép, penalties).
+// StaffWork: chấm công / nghỉ phép / biên bản lỗi (attendance.Service.DashboardWork, biên bản qua Lương & Phạt). ok = false
+// khi phân hệ chưa có.
 type StaffWork interface {
 	Stats(ctx context.Context, ids []uuid.UUID, from, to time.Time) (stats map[uuid.UUID]WorkStats, ok bool, err error)
 }

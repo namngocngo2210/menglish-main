@@ -38,7 +38,7 @@ type env struct {
 	seq int
 }
 
-func setup(t *testing.T) *env {
+func setup(t *testing.T, opts ...func(*dashboard.Deps)) *env {
 	t.Helper()
 	e := iamtest.Setup(t, "crm.leads", "crm.trial_bookings", "ops.work_tasks", "ops.staff_reports", "ops.material_orders",
 		"academic.students", "academic.classes")
@@ -57,11 +57,15 @@ func setup(t *testing.T) *env {
 		Metrics: cls.ReportMetrics(reports.NewMetrics(crmSvc.ReportSource()), e.IAM.LoadAccess),
 		Classes: cls.ReportClasses(), Tasks: taskSvc.ReportTasks(), Calendar: cat.ReportCalendar(),
 	})
-	svc := dashboard.NewService(dashboard.Deps{
+	deps := dashboard.Deps{
 		Leads: crmSvc.DashboardLeads(), Tasks: taskSvc.DashboardTasks(), Classes: cls.DashboardClasses(),
 		Students: studentSvc.DashboardStudents(), Reports: reportSvc.DashboardReports(), Orders: inv.DashboardOrders(),
 		Branches: e.IAM,
-	}, e.Log)
+	}
+	for _, o := range opts {
+		o(&deps)
+	}
+	svc := dashboard.NewService(deps, e.Log)
 	e.Serve(dashboard.NewHandler(svc, e.Log).Routes)
 	return &env{Env: e, t: t, ctx: context.Background()}
 }

@@ -220,9 +220,8 @@ type SurveyInput struct {
 	By          uuid.UUID
 }
 
-// Surveys: đợt khảo sát và phản hồi (phân hệ Khảo sát, bảng ops.surveys / ops.survey_responses).
-// TODO(gộp): phân hệ Khảo sát (ticket / khảo sát) đang làm song song; khi gộp cài interface này và truyền vào
-// WithSurveys trong cmd/menglish/main.go.
+// Surveys: đợt khảo sát và phản hồi (phân hệ Khảo sát, bảng ops.surveys / ops.survey_responses); adapter ở
+// cmd/menglish/wiring.go gắn bằng WithSurveys.
 type Surveys interface {
 	Ready() bool
 	Open(ctx context.Context) ([]OpenSurvey, error)
@@ -266,8 +265,8 @@ type BigTestResult struct {
 	Note        *string    `json:"progress_note"`
 }
 
-// Syllabus: kết quả Big Test và chặng đang học của lớp (phân hệ Giáo trình).
-// TODO(gộp): phân hệ Giáo trình & Big Test đang làm song song; khi gộp cài interface này và truyền vào WithSyllabus.
+// Syllabus: kết quả Big Test và chặng đang học của lớp (phân hệ Giáo trình); adapter ở cmd/menglish/wiring.go gắn bằng
+// WithSyllabus.
 type Syllabus interface {
 	BigTestResults(ctx context.Context, studentID uuid.UUID, limit int) ([]BigTestResult, error)
 	// CurrentStage: tên chặng đang học (giao chặng in_progress mới nhất) của lớp, nil khi chưa có.

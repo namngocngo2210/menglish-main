@@ -5,7 +5,6 @@ import type { ReactNode } from 'react'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { Me } from '../../api'
 import type { DailyPage as DailyData, HomePage, TeacherTimesheetsPage as TsData, TimesheetRow } from './api'
-import { ApprovalsPage } from './ApprovalsPage'
 import { DailyPage } from './DailyPage'
 import { MyAttendancePage } from './MyAttendancePage'
 import { RequestsPage } from './RequestsPage'
@@ -104,39 +103,6 @@ test('đơn chấm công: ?type=correction mở form, gửi đơn', async () => 
     reason: 'Quên chấm công vào',
   })
   expect(screen.getByRole('link', { name: /Nhờ hỗ trợ \/ giao việc/ })).toHaveAttribute('href', '/tasks/new')
-})
-
-test('duyệt đơn: từ chối bắt buộc lý do', async () => {
-  const calls = mockApi({
-    'GET /attendance/approvals': () => [
-      200,
-      {
-        items: [
-          {
-            id: 'r1',
-            user_name: 'Lê Hà',
-            user_code: 'NV01',
-            branch: 'Cầu Giấy',
-            type: 'leave',
-            type_label: 'Xin nghỉ phép',
-            period: '20/10/2026 – 21/10/2026',
-            date: '2026-10-20',
-            reason: 'Việc gia đình',
-            current_punch: null,
-            created_at: '2026-10-17T01:00:00Z',
-          },
-        ],
-      },
-    ],
-    'POST /attendance/approvals/r1/reject': () => [200, { message: 'Đã từ chối đơn.' }],
-  })
-  wrap(<ApprovalsPage />)
-  await userEvent.click(await screen.findByRole('button', { name: 'Từ chối' }))
-  const dialog = screen.getByRole('dialog', { name: 'Từ chối đơn' })
-  await userEvent.type(within(dialog).getByLabelText('Lý do từ chối'), 'Trùng lịch')
-  await userEvent.click(within(dialog).getByRole('button', { name: 'Từ chối đơn' }))
-  expect(await screen.findByText('Đã từ chối đơn.')).toBeInTheDocument()
-  expect(calls.find((c) => c.key === 'POST /attendance/approvals/r1/reject')?.body).toEqual({ reason: 'Trùng lịch' })
 })
 
 const daily: DailyData = {

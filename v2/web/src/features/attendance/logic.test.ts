@@ -107,6 +107,7 @@ describe('chấm công của tôi', () => {
     expect(legacyMobileTarget('/m')).toBe('/cham-cong')
     expect(legacyMobileTarget('/m/lich-su/')).toBe('/cham-cong/lich-su')
     expect(legacyMobileTarget('/m/xin-duyet')).toBe('/cham-cong/don')
+    expect(legacyMobileTarget('/m/can-duyet')).toBe('/approvals')
   })
 })
 

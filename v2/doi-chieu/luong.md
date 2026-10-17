@@ -74,7 +74,7 @@ Trạng thái: **Đã làm** · **Khác** (đã làm, có khác biệt có chủ
 | `penalties.explain` POST | `POST /api/v1/penalties/{id}/explain` | Đã làm | Chỉ người vi phạm, ở bước chờ giải trình, 10–2000 ký tự. |
 | `penalties.confirm` POST | `POST /api/v1/penalties/{id}/confirm` `{decision: fine\|error, amount, decision_note}` | Đã làm | Chốt lỗi / chốt mức phạt (≥ 1.000 đ, hạn nộp theo SLA `penalty.payment_due`, mặc định 2 ngày), đúng người chốt theo loại lỗi (HT chốt lỗi chuyên môn, CM chốt lỗi vận hành), không tự chốt biên bản của mình; quyết phạt gửi thông báo `penalty_fined`. |
 | `penalties.mark-paid` / `resolve` / `cancel` / `remedy` POST | `POST /api/v1/penalties/{id}/mark-paid`, `/resolve`, `/cancel`, `/remedy` | Đã làm | Nộp trực tiếp chỉ khi còn hạn; đã vào vòng phạt không hủy được; biên bản đã trừ trong kỳ đã khóa không đổi được; khắc phục sau khi đã nộp / đã trừ. |
-| Biên bản tự động của phân hệ khác (SLA chăm sóc, Big Test, CRM…) | `Service.CreateAutoPenalty`, `Service.AutoOccurrences` | Làm một phần | Hàm có sẵn (chống trùng theo `auto_source` + `auto_key`); các phân hệ gọi chưa nối (`TODO(gộp)`). |
+| Biên bản tự động của phân hệ khác (SLA chăm sóc, Big Test, CRM…) | `Service.CreateAutoPenalty`, `Service.AutoOccurrences`, `SyncLatePenalty`, `BreachSla`, `SyncBigTestLate` | Làm một phần | Đã nối (adapter ở `cmd/menglish/wiring.go`): đi muộn của Chấm công (lập / cập nhật / tự hủy), trễ mốc Dự án học thuật (`SlaBreachService::breach`: bậc tái phạm theo `LadderResetMonths`, báo người phụ trách + Admin), trả kết quả Big Test trễ của Giáo trình. Còn thiếu: SLA chăm sóc / CRM (máy SLA `sla_events` của CRM chưa có ở v2) và file PDF minh chứng của biên bản SLA. |
 
 ## Lệnh nền
 
@@ -84,10 +84,10 @@ Trạng thái: **Đã làm** · **Khác** (đã làm, có khác biệt có chủ
 | `payroll:remind-calendar` (08:35) | `Service.RunReminderLoop` → `RemindCalendar` | Đã làm | Ngày cuối tháng nhắc chốt KPI (`kpi.confirm`), các ngày chốt công / lỗi (`attendance_staff.view`, `violation.confirm_fine`, `payroll.approve`), ngày 10 tháng sau nhắc khung trả lương (`payroll.approve`, `payroll.mark_paid`); chống gửi trùng theo kỳ + mốc. |
 | `payroll:seed-demo` | | Chưa làm | Lệnh dựng dữ liệu mẫu, không cần cho vận hành. |
 
-## Chờ phân hệ khác
+## Nối với phân hệ khác
 
 | Laravel | v2 | Trạng thái | Ghi chú |
 | --- | --- | --- | --- |
-| Ca dạy hợp lệ, chấm công hằng ngày, đơn nghỉ (`TeacherTimesheet`, `StaffAttendance`) | `payroll.Attendance` (no-op) | Làm một phần | Interface `ValidTimesheets` / `Summary` / `ChangedSince` / `Pending`, mặc định chưa có dữ liệu (màn hiện "Chờ phân hệ Chấm công…"); `TODO(gộp)`: phân hệ Chấm công gắn adapter bằng `WithAttendance`. |
-| Cổng giáo viên: lương tạm tính, vi phạm tháng, khóa check-in theo kỳ lương (`teacher.Work`) | `Service.RateOn`, `Service.Violations`, `Service.LockedOn` / `LockedMessage` | Làm một phần | Hàm cho adapter `teacher.Work` (ghép với phân hệ Chấm công khi gộp). |
+| Ca dạy hợp lệ, chấm công hằng ngày, đơn nghỉ (`TeacherTimesheet`, `StaffAttendance`) | `payroll.Attendance` ← `payrollAttendance` (`WithAttendance` trong `main.go`) | Đã làm | Bảng lương đọc ca dạy hợp lệ (`ValidTimesheets`), ngày công / đi muộn / về sớm / thiếu giờ ra / nghỉ phép (`Summary`, tháng không có ngày công lẫn ngày nghỉ thì không ghi vào chi tiết) và cờ dữ liệu đổi sau khi tính (`ChangedSince`) của phân hệ Chấm công. |
+| Cổng giáo viên: lương tạm tính, vi phạm tháng, khóa check-in theo kỳ lương (`teacher.Work`) | `Service.RateOn`, `Service.Violations` ← adapter `teacherWork`; khóa kỳ lương qua `attendance.PayrollLock` | Đã làm | Lương tạm tính = Σ giờ × đơn giá giờ hiệu lực ngày dạy; số biên bản vi phạm của tháng; check-in (ghi qua Chấm công) bỏ qua ngày thuộc kỳ lương đã khóa. |
 | Học sinh có lớp hiện tại nhưng không có lượt xếp lớp | | Khác | Kiêm nhiệm giảng dạy chỉ tính học phí theo lượt xếp lớp (`academic.enrollments`). |

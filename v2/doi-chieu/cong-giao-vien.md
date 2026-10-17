@@ -12,9 +12,11 @@ v2:
   `00211_academic_mini_test_scores.sql`, `00212_academic_remarks.sql`. Điểm danh dùng lại `classes`
   (`/classes/<id>/attendance`), khách học thử dùng lại `placement` (`SessionGuests`), file qua `internal/files`.
 - Giao diện: `web/src/features/teacher` (màn `/teacher/home`, `/teacher/classes/<id>/homework|scores|remarks`,
-  `/teacher/submissions`, `/teacher/general-report`).
-- Phân hệ chưa chuyển nối qua interface trong `teacher/deps.go` (mặc định "chưa có", `TODO(gộp)`): `Work` (Lương &
-  chấm công: check-in, giờ dạy, bảng công), `Syllabus` (unit / bài học), `SupportList` (danh sách hỗ trợ khi mini test thấp).
+  `/teacher/submissions`, `/teacher/general-report`, `/teacher/big-test-report`).
+- Phân hệ khác nối qua interface trong `teacher/deps.go`, adapter ở `cmd/menglish/wiring.go`: `Work` = Chấm công + Lương
+  (check-in ca dạy, bảng công tháng, lương tạm tính theo đơn giá, vi phạm), `Syllabus` = Giáo trình (Unit / bài học của
+  lớp). `SupportList` (danh sách hỗ trợ khi mini test thấp) còn mặc định "chưa có": danh sách bổ trợ / buổi phụ đạo
+  (`SupportListService`) chưa có ở v2. Test tích hợp `cmd/menglish/wiring_test.go`.
 - Đã nối với Cổng Phụ huynh & Học sinh (`cmd/menglish/portal_teacher.go`): `Pronunciation` = bản ghi âm của cổng học viên
   (tab Phát âm), `StudentPortal` = nguồn bài tập / bài nộp / nhận xét / mini test của cổng học viên, `SetFileAccess` = học
   viên / phụ huynh mở file bài nộp / file nghe. Test tích hợp `cmd/menglish/portal_teacher_test.go`.
@@ -41,18 +43,18 @@ v2:
 | Laravel | v2 API + màn | Trạng thái | Ghi chú |
 | --- | --- | --- | --- |
 | `teacher.home` GET (`home`) | `GET /teacher/home?week=` · màn `/teacher/home` (Check-in & Điểm danh hôm nay) | Đã làm | Ca hôm nay (đếm ngược hạn check-in, cảnh báo 15 phút), ca sắp tới, buổi cần điểm danh bù 30 ngày, lịch tuần, số khách học thử từng ca. |
-| Widget trang chủ: lương tạm tính, giờ dạy, bảng công, vi phạm | `widgets` của `GET /teacher/home` | Làm một phần | Chờ Lương & chấm công (`Work.Month`); hiện "Chờ phân hệ…". Khối "Cần chú ý" (mini test dưới 7) đã làm. |
-| `teacher.checkin` POST (`checkin`) | `POST /teacher/checkin` `{session_ids}` | Làm một phần | Kiểm phân công, khung giờ, buổi đã check-in. Ghi công chờ Lương & chấm công (`Work.CheckIn`). |
+| Widget trang chủ: lương tạm tính, giờ dạy, bảng công, vi phạm | `widgets` của `GET /teacher/home` ← `teacherWork.Month` | Đã làm | Mọi ca trong tháng trừ ca bị từ chối (như `where('status', '!=', 'rejected')`), lương tạm tính = Σ giờ × đơn giá giờ hiệu lực ngày dạy, số biên bản vi phạm của tháng. Khối "Cần chú ý" (mini test dưới 7). |
+| `teacher.checkin` POST (`checkin`) | `POST /teacher/checkin` `{session_ids}` → `attendance.RecordCheckin` | Đã làm | Kiểm phân công, khung giờ, buổi đã check-in; ghi ca dạy chờ duyệt ở Chấm công (bỏ qua buổi đã chấm tay, ngày thuộc kỳ lương đã khóa). |
 | `teacher.attendance` / `teacher.attendance.store` | Dùng lại `/classes/<id>/attendance?session=` (Lớp học) | Đã làm | Nút "Điểm danh" / "Điểm danh bù" trỏ sang màn của phân hệ Lớp học. |
 | `teacher.homework` GET | `GET /teacher/classes/{id}/homework` · màn `/teacher/classes/<id>/homework` | Đã làm | 6 loại bài, hạn nộp, unit, đếm bài đã nộp / sĩ số. |
 | `teacher.homework.store` / `.update` / `.destroy` | `POST /teacher/classes/{id}/homework`, `PUT` / `DELETE /teacher/homework/{hid}` | Đã làm | File nghe tải qua `POST /teacher/homework/audio` (kho file, ≤ 50 MB). |
 | `teacher.scores` GET | `GET /teacher/classes/{id}/scores?unit=&name=&date=&student=` · màn `/teacher/classes/<id>/scores` | Đã làm | |
 | Form nhập điểm cả lớp một lần (bản cũ) | — | Khác | v2 nhập từng học sinh như màn Laravel hiện tại. |
-| `teacher.scores.store` | `POST /teacher/classes/{id}/scores` | Làm một phần | Unit lấy từ giáo trình (chờ Giáo trình, hiện nhập tên bài test tự do, mặc định "Mini Test"). Đồng bộ danh sách hỗ trợ qua `SupportList` (chờ Chất lượng lớp). |
-| `teacher.remarks` / `teacher.remarks.store` | `GET` / `POST /teacher/classes/{id}/remarks` · màn `/teacher/classes/<id>/remarks` | Đã làm | Chọn buổi 30 ngày gần nhất, lưu nháp / lưu, kèm trạng thái điểm danh và khách học thử. Học sinh của buổi phụ đạo: TODO (chờ Công việc). |
-| `teacher.order-test` / `teacher.order-test.submit` | — | Chưa làm | Chờ Giáo trình & Big Test. |
-| `teacher.big-test-report` | — | Chưa làm | Chờ Big Test. |
-| `teacher.general-report` | `GET /teacher/general-report?period=` · màn `/teacher/general-report` (Báo cáo của tôi → Báo cáo giảng dạy) | Làm một phần | Lớp đang dạy, số buổi điểm danh, số điểm đã nhập. Giờ dạy / bảng công chờ Lương & chấm công. |
+| `teacher.scores.store` | `POST /teacher/classes/{id}/scores` | Làm một phần | Unit chọn từ giáo trình của lớp (`Syllabus.Units`, tên bài "Unit N: …"; Unit không thuộc giáo trình → "Unit không thuộc giáo trình của lớp."); lớp chưa có giáo trình thì nhập tên tự do. Chưa lưu khóa `syllabus_unit_id` (cần migration). Đồng bộ danh sách hỗ trợ (`SupportList`) chưa có: danh sách bổ trợ chưa có ở v2. |
+| `teacher.remarks` / `teacher.remarks.store` | `GET` / `POST /teacher/classes/{id}/remarks` · màn `/teacher/classes/<id>/remarks` | Đã làm | Chọn buổi 30 ngày gần nhất, lưu nháp / lưu, kèm trạng thái điểm danh và khách học thử. Học sinh được xếp buổi phụ đạo: chưa có (buổi phụ đạo chưa có ở v2). |
+| `teacher.order-test` / `teacher.order-test.submit` | `GET` / `POST /teacher/order-test/{class}` · màn `/teacher/order-test/<lớp>` (phân hệ Giáo trình) | Đã làm | Xem [giao-trinh.md](giao-trinh.md). |
+| `teacher.big-test-report` | `GET /teacher/big-test-report?page=` · màn `/teacher/big-test-report` (phân hệ Giáo trình) | Đã làm | Kết quả Big Test các lớp là GV chính hoặc GVNN, mới nhất trước, 20 dòng / trang; điểm 4 kỹ năng + tổng ("—" khi trống), "Đã duyệt" khi `status = approved`. Laravel không có mục menu (mở bằng URL), v2 cũng để ẩn. |
+| `teacher.general-report` | `GET /teacher/general-report?period=` · màn `/teacher/general-report` (Báo cáo của tôi → Báo cáo giảng dạy) | Đã làm | Lớp đang dạy, số buổi điểm danh, số điểm đã nhập, giờ dạy / phiên chấm công và chi tiết ca của tháng (`Work.Month`). |
 | `portal.teacher.submissions` (+ alias) | `GET /teacher/submissions?class_id=&type=` · màn `/teacher/submissions` (`/portal/teacher-submissions` cũ tự chuyển sang) | Đã làm | Màn duy nhất cho chấm bài (bản trùng của cổng học viên đã bỏ khi gộp). 6 tab bài nộp + tab Phát âm (bản ghi âm của cổng học viên). Giao diện như `Portal/TeacherSubmissions.vue`: chọn lớp dạy, tab có biểu tượng, "Danh sách đã nộp bài (n)", chấm ngay trên dòng (bài nộp: "Đánh dấu đã xem", điểm tùy chọn; phát âm: "Chấm", điểm /100 bắt buộc), bài đã chấm hiện "Đã chấm: …" / "Đã xem", nút "Xem giao diện Học sinh nộp bài" khi có `student.view`. Nhãn hạng mục và giờ nộp (dd/mm/YYYY HH:MM) như dữ liệu Laravel. |
 | `portal.teacher.submissions.mark` | `POST /teacher/submissions/{id}/mark` | Đã làm | Điểm ≤ 20 ký tự, phản hồi ≤ 1000 ký tự, chỉ giáo viên chấm của lớp (`homework.grade`, ngoài lớp → 404). Bản ghi âm: điểm bắt buộc ("Vui lòng nhập điểm bài phát âm."), học viên nhận thông báo `pronunciation_reviewed` ở hộp thư cổng (thêm so với Laravel). |
 | `submitHomework` / `updateHomework` / `deleteHomework` (cổng học viên) | `teacher.Service.StudentPortal()` ← `POST/DELETE /portal/homework*` | Đã làm | Cổng học viên kiểm quyền ghi (`authorizeStudent`) rồi gọi qua adapter; bài nộp + file + nhật ký trong một transaction; xem mục thay đổi. |

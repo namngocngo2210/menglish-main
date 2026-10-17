@@ -829,3 +829,114 @@ LEFT JOIN syllabus.assignments a ON a.id = r.assignment_id
 LEFT JOIN iam.users t ON t.id = r.user_id
 WHERE r.status = 'pending'
 ORDER BY r.created_at DESC, r.id DESC;
+
+-- ───── Số liệu báo cáo ngày / tuần (DailyReportMetrics::academic, WeeklyReportMetrics) ─────
+
+-- name: ReportOrders :many
+-- Order đề trong phạm vi Big Test của người viết: chờ duyệt tạo trước created_before, và (báo cáo tuần) đã duyệt trong
+-- [from_at, to_at]; theo hạn duyệt.
+SELECT o.id, o.code, c.name AS class_name, o.test_type, o.due_date, o.status
+FROM syllabus.big_test_orders o
+JOIN academic.classes c ON c.id = o.class_id AND c.deleted_at IS NULL
+WHERE (sqlc.arg(all_rows)::bool OR o.teacher_id = sqlc.arg(user_id)
+       OR c.teacher_id = sqlc.arg(user_id) OR c.foreign_teacher_id = sqlc.arg(user_id) OR c.assistant_id = sqlc.arg(user_id)
+       OR c.branch_id = ANY (sqlc.arg(branch_ids)::uuid[]))
+  AND ((o.status = 'pending' AND o.created_at <= sqlc.arg(created_before)::timestamptz)
+       OR (sqlc.arg(with_reviewed)::bool AND o.status = 'approved'
+           AND o.reviewed_at BETWEEN sqlc.arg(from_at)::timestamptz AND sqlc.arg(to_at)::timestamptz))
+ORDER BY o.due_date IS NULL, o.due_date, o.created_at, o.id;
+
+-- name: ReportProposals :many
+-- Đề xuất sửa giáo trình người viết thấy (người duyệt thấy mọi đề xuất): chờ duyệt, hoặc gửi / duyệt trong [from_at, to_at]
+-- (cờ by_review: theo ngày duyệt — báo cáo tuần; không: theo ngày gửi — báo cáo ngày), gửi trước created_before. Mới nhất trước.
+SELECT p.id, cu.title AS curriculum_title, p.reason, p.status, pu.full_name AS proposer_name
+FROM syllabus.change_proposals p
+JOIN syllabus.curricula cu ON cu.id = p.curriculum_id
+LEFT JOIN iam.users pu ON pu.id = p.user_id
+WHERE (sqlc.arg(all_rows)::bool OR p.user_id = sqlc.arg(user_id))
+  AND p.created_at <= sqlc.arg(created_before)::timestamptz
+  AND (p.status = 'pending'
+       OR (sqlc.arg(by_review)::bool AND p.reviewed_at BETWEEN sqlc.arg(from_at)::timestamptz AND sqlc.arg(to_at)::timestamptz)
+       OR (NOT sqlc.arg(by_review)::bool AND p.created_at BETWEEN sqlc.arg(from_at)::timestamptz AND sqlc.arg(to_at)::timestamptz))
+ORDER BY p.created_at DESC, p.id DESC;
+
+-- name: ReportPacing :many
+-- Yêu cầu giãn / điều chỉnh tiến độ của các lớp (lớp người viết thấy, lọc chi nhánh): như ReportProposals.
+SELECT r.id, r.class_id, c.name AS class_name, r.reason, r.status, t.full_name AS teacher_name
+FROM syllabus.pacing_requests r
+JOIN academic.classes c ON c.id = r.class_id
+LEFT JOIN iam.users t ON t.id = r.user_id
+WHERE r.class_id = ANY (sqlc.arg(class_ids)::uuid[])
+  AND r.created_at <= sqlc.arg(created_before)::timestamptz
+  AND (r.status = 'pending'
+       OR (sqlc.arg(by_review)::bool AND r.reviewed_at BETWEEN sqlc.arg(from_at)::timestamptz AND sqlc.arg(to_at)::timestamptz)
+       OR (NOT sqlc.arg(by_review)::bool AND r.created_at BETWEEN sqlc.arg(from_at)::timestamptz AND sqlc.arg(to_at)::timestamptz))
+ORDER BY r.created_at DESC, r.id DESC;
+
+-- name: ReportUpcomingBigTests :many
+-- Đợt Big Test của các lớp lên lịch trong [from_at, to_at] (tuần này và tuần kế tiếp).
+SELECT b.id, b.class_id, coalesce(c.name, 'Lớp')::text AS class_name, b.scheduled_at
+FROM syllabus.big_tests b
+LEFT JOIN academic.classes c ON c.id = b.class_id
+WHERE b.class_id = ANY (sqlc.arg(class_ids)::uuid[])
+  AND b.scheduled_at BETWEEN sqlc.arg(from_at)::timestamptz AND sqlc.arg(to_at)::timestamptz
+ORDER BY b.scheduled_at, b.id;
+
+-- name: TeacherBigTestResults :many
+-- Bảng điểm Big Test các lớp giáo viên phụ trách (GV chính hoặc GVNN), mới nhất trước (TeacherPortalController::bigTestReport).
+SELECT r.id, s.full_name AS student_name, b.title AS test_title, c.name AS class_name, r.listening_score, r.reading_score,
+       r.writing_score, r.speaking_score, r.overall_score, r.status
+FROM syllabus.big_test_results r
+JOIN syllabus.big_tests b ON b.id = r.big_test_id
+JOIN academic.classes c ON c.id = b.class_id AND c.deleted_at IS NULL
+LEFT JOIN academic.students s ON s.id = r.student_id AND s.deleted_at IS NULL
+WHERE c.teacher_id = sqlc.arg(user_id) OR c.foreign_teacher_id = sqlc.arg(user_id)
+ORDER BY r.created_at DESC, r.id DESC
+LIMIT sqlc.arg(lim) OFFSET sqlc.arg(off);
+
+-- name: CountTeacherBigTestResults :one
+SELECT count(*) FROM syllabus.big_test_results r
+JOIN syllabus.big_tests b ON b.id = r.big_test_id
+JOIN academic.classes c ON c.id = b.class_id AND c.deleted_at IS NULL
+WHERE c.teacher_id = sqlc.arg(user_id) OR c.foreign_teacher_id = sqlc.arg(user_id);
+
+-- ───── Tổng quan (DashboardController::academicDashboard, AcademicDashboardController::reports, MyWorkBoard) ─────
+
+-- name: DashboardCounts :one
+SELECT (SELECT count(*) FROM syllabus.change_proposals WHERE status = 'pending')::bigint AS proposals,
+       (SELECT count(*) FROM syllabus.big_test_orders WHERE status = 'pending')::bigint AS orders,
+       (SELECT count(DISTINCT big_test_id) FROM syllabus.big_test_results WHERE status = 'pending_review')::bigint AS results,
+       (SELECT count(*) FROM syllabus.pacing_requests WHERE status = 'pending')::bigint AS adjustments;
+
+-- name: DashboardAdjustments :many
+-- Yêu cầu giãn tiến độ chờ duyệt mới nhất.
+SELECT r.id, c.name AS class_name, t.full_name AS teacher_name, r.reason
+FROM syllabus.pacing_requests r
+LEFT JOIN academic.classes c ON c.id = r.class_id
+LEFT JOIN iam.users t ON t.id = r.user_id
+WHERE r.status = 'pending'
+ORDER BY r.created_at DESC, r.id DESC
+LIMIT sqlc.arg(lim);
+
+-- name: DashboardBigTests :many
+-- Đợt Big Test lên lịch trong [from_at, to_at], theo giờ thi.
+SELECT b.id, b.code, b.title, c.name AS class_name, b.scheduled_at
+FROM syllabus.big_tests b
+LEFT JOIN academic.classes c ON c.id = b.class_id
+WHERE b.scheduled_at BETWEEN sqlc.arg(from_at)::timestamptz AND sqlc.arg(to_at)::timestamptz
+ORDER BY b.scheduled_at, b.id
+LIMIT sqlc.arg(lim);
+
+-- name: DashboardWeek :one
+SELECT (SELECT count(*) FROM syllabus.pacing_requests WHERE status = 'pending')::bigint AS adjustments_pending,
+       (SELECT count(*) FROM syllabus.pacing_requests WHERE created_at >= sqlc.arg(week_start)::timestamptz)::bigint AS adjustments_week,
+       (SELECT count(*) FROM syllabus.big_tests
+        WHERE scheduled_at BETWEEN sqlc.arg(now_at)::timestamptz AND sqlc.arg(week_ahead)::timestamptz)::bigint AS big_tests_upcoming,
+       (SELECT count(*) FROM syllabus.big_tests
+        WHERE is_distributed AND distributed_at >= sqlc.arg(week_start)::timestamptz)::bigint AS big_tests_distributed;
+
+-- name: ReportClassIDs :many
+-- Lớp người viết thấy, lọc theo chi nhánh của người viết (BuildsReportItems::classIds; rỗng = không lọc thêm).
+SELECT c.id FROM academic.classes c
+WHERE c.deleted_at IS NULL AND c.id = ANY (sqlc.arg(ids)::uuid[])
+  AND (cardinality(sqlc.arg(branch_ids)::uuid[]) = 0 OR c.branch_id = ANY (sqlc.arg(branch_ids)::uuid[]));

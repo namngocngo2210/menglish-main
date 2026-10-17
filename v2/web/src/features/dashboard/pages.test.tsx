@@ -164,6 +164,36 @@ test('Bảng điều hành Admin: không lời chào, hàng chờ chờ phân h�
   expect(within(queues).queryByRole('link')).not.toBeInTheDocument()
 })
 
+test('Bảng Học thuật: đề xuất giãn tiến độ chờ duyệt và Big Test sắp tới từ Giáo trình', async () => {
+  mockApi({
+    'GET /dashboard': () => [
+      200,
+      {
+        is_operations: false,
+        daily_report: null,
+        teaching: null,
+        role_dashboard: {
+          type: 'academic',
+          title: 'Bảng Học thuật',
+          scope: 'Toàn hệ thống',
+          updated_at: '08:00 17/10/2026',
+          stats: [],
+          queues: [],
+          pending_adjustments: [{ id: 'a1', class: 'Kids 1', teacher: null, reason: 'Lớp học chậm' }],
+          upcoming_big_tests: [{ id: 'b1', title: 'Thi chặng 1', class: null, scheduled_at: '2026-10-20T02:30:00Z' }],
+        },
+      } satisfies Overview,
+    ],
+  })
+  wrap(<DashboardPage me={{ ...me, permissions: ['dashboard.academic'] }} />)
+  expect(await screen.findByText('Kids 1 — Giáo viên')).toBeInTheDocument()
+  expect(screen.getByText('Lớp học chậm')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Duyệt đề xuất' })).toHaveAttribute('href', '/syllabus/adjustment-requests')
+  expect(screen.getByText('Thi chặng 1')).toBeInTheDocument()
+  expect(screen.getByText('09:30 20/10')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Lịch Big Test' })).toHaveAttribute('href', '/syllabus/big-tests/schedules')
+})
+
 test('Báo cáo & sự vụ lớp: tab báo cáo theo URL, xem nội dung; tab sự vụ lọc theo mức độ', async () => {
   window.history.pushState(null, '', '/academic/dashboards/reports?tab=monthly')
   const base = {
@@ -177,7 +207,7 @@ test('Báo cáo & sự vụ lớp: tab báo cáo theo URL, xem nội dung; tab s
     active_classes: 3,
     total_daily_reports_today: 2,
     attendance_rate_today: 90,
-    weekly_stats: { pending: 'Chờ phân hệ Giáo trình & Big Test' },
+    weekly_stats: { adjustments_pending: 4, adjustments_week: 6, big_tests_upcoming: 2, big_tests_distributed: 1 },
   }
   const incidents = (severity: string) => ({
     severity,
@@ -230,6 +260,7 @@ test('Báo cáo & sự vụ lớp: tab báo cáo theo URL, xem nội dung; tab s
   const user = userEvent.setup()
   wrap(<AcademicPage />)
   await user.click(await screen.findByText('Báo cáo tháng 9'))
+  expect(screen.getByText('Đề xuất điều chỉnh tiến độ chờ duyệt').nextElementSibling).toHaveTextContent('4')
   expect(screen.getByRole('dialog')).toHaveTextContent('Lớp ổn định')
   await user.click(within(screen.getByRole('dialog')).getAllByRole('button', { name: 'Đóng' })[0])
   expect(screen.getByRole('link', { name: '3. Báo cáo tháng Giáo viên' })).toHaveClass('text-primary')

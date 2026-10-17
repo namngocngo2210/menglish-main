@@ -137,3 +137,24 @@ FROM ops.tickets t
 WHERE t.category = 'facilities' AND t.status IN ('open', 'in_progress')
 ORDER BY t.created_at DESC, t.id DESC
 LIMIT @lim::int;
+
+-- name: ReportDayFacilityTickets :many
+-- Báo cáo ngày Học vụ (DailyReportMetrics::facilityDetails): ticket CSVC tạo trước cuối ngày, chưa xử lý xong trước ngày
+-- (báo cáo hôm nay bỏ ticket đã xong); người tạo thuộc chi nhánh của người viết (rỗng = không lọc).
+SELECT t.id, t.code, t.title, t.status, t.created_at
+FROM ops.tickets t
+WHERE t.category = 'facilities' AND t.created_at <= sqlc.arg(day_end)::timestamptz
+  AND (t.resolved_at IS NULL OR t.resolved_at >= sqlc.arg(day_start)::timestamptz)
+  AND (NOT sqlc.arg(open_only)::bool OR t.status NOT IN ('resolved', 'closed'))
+  AND (cardinality(sqlc.arg(branch_ids)::uuid[]) = 0 OR EXISTS (
+        SELECT 1 FROM iam.user_branches ub WHERE ub.user_id = t.creator_id AND ub.branch_id = ANY (sqlc.arg(branch_ids)::uuid[])))
+ORDER BY t.created_at, t.id;
+
+-- name: ReportWeekFacilityTickets :many
+-- Dòng tham khảo của mục KPI material_stock (WeeklyReportMetrics::facilityTickets): ticket CSVC tạo trong tuần.
+SELECT t.id, t.code, t.title
+FROM ops.tickets t
+WHERE t.category = 'facilities' AND t.created_at BETWEEN sqlc.arg(from_at)::timestamptz AND sqlc.arg(to_at)::timestamptz
+  AND (cardinality(sqlc.arg(branch_ids)::uuid[]) = 0 OR EXISTS (
+        SELECT 1 FROM iam.user_branches ub WHERE ub.user_id = t.creator_id AND ub.branch_id = ANY (sqlc.arg(branch_ids)::uuid[])))
+ORDER BY t.created_at, t.id;

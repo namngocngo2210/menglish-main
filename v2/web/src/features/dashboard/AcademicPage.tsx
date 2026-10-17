@@ -89,7 +89,13 @@ function ReportsView() {
           icon="how_to_reg"
         />
         <StatCard label="Báo cáo ngày hôm nay" value={d.total_daily_reports_today} tone="secondary" icon="assignment_turned_in" />
-        <StatCard label="Đề xuất điều chỉnh tiến độ chờ duyệt" value={null} icon="pending_actions" pending={d.weekly_stats.pending} />
+        <StatCard
+          label="Đề xuất điều chỉnh tiến độ chờ duyệt"
+          value={d.weekly_stats.adjustments_pending ?? 0}
+          tone="secondary"
+          icon="pending_actions"
+          pending={d.weekly_stats.pending}
+        />
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-surface-container-highest bg-surface shadow-sm">
@@ -117,10 +123,24 @@ function ReportsView() {
             <Heading title="Báo cáo Tiến độ Tuần của Khối Học thuật" sub="Kiểm soát tiến độ syllabus, kết quả dự giờ, kỳ thi Big Test định kỳ" />
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <MiniBox title="Điều chỉnh tiến độ Syllabus">
-                <Pending>{d.weekly_stats.pending}</Pending>
+                {d.weekly_stats.pending ? (
+                  <Pending>{d.weekly_stats.pending}</Pending>
+                ) : (
+                  <>
+                    <MiniRow label="Yêu cầu mới trong tuần:" value={d.weekly_stats.adjustments_week} />
+                    <MiniRow label="Đang chờ duyệt:" value={d.weekly_stats.adjustments_pending} className="text-warning" />
+                  </>
+                )}
               </MiniBox>
               <MiniBox title="Khảo thí & Big Test">
-                <Pending>{d.weekly_stats.pending}</Pending>
+                {d.weekly_stats.pending ? (
+                  <Pending>{d.weekly_stats.pending}</Pending>
+                ) : (
+                  <>
+                    <MiniRow label="Big Test trong 7 ngày tới:" value={d.weekly_stats.big_tests_upcoming} />
+                    <MiniRow label="Đề đã phân phối trong tuần:" value={d.weekly_stats.big_tests_distributed} />
+                  </>
+                )}
               </MiniBox>
               <MiniBox title="Lớp đang chạy">
                 <div className="flex items-center justify-between text-xs">
@@ -174,6 +194,15 @@ function MiniBox({ title, children }: { title: string; children: ReactNode }) {
     <div className="space-y-2 rounded-xl border border-surface-container-highest bg-surface-container-low p-4">
       <span className="text-xs font-bold text-on-surface-variant uppercase">{title}</span>
       {children}
+    </div>
+  )
+}
+
+function MiniRow({ label, value, className = 'text-on-surface' }: { label: string; value: number | null; className?: string }) {
+  return (
+    <div className="flex items-center justify-between text-xs">
+      <span>{label}</span>
+      <span className={`font-bold ${className}`}>{value ?? 0}</span>
     </div>
   )
 }

@@ -41,6 +41,7 @@ Trạng thái: **Đã làm** · **Khác** (đã làm, khác có chủ đích, xe
 | --- | --- | --- | --- |
 | Dashboard: hàng chờ "Ticket đang mở" | `tickets.DashboardTickets()` → `dashboard.Tickets` | Đã làm | Số ticket mở / chưa có người xử lý ("%d ticket chưa có người xử lý"), link `/tickets`. |
 | Nhật ký sự vụ: ticket theo mức độ / trạng thái / chi nhánh | `dashboard.Tickets.Incidents` (màn `/academic/dashboards/incidents`) | Đã làm | Ticket theo mức ưu tiên ứng với mức độ sự vụ, chi nhánh chính của người tạo; lọc theo lớp thì không có ticket (ticket không gắn lớp) như Laravel. Câu truy vấn `FacilityTickets` (ticket cơ sở vật chất còn mở) đã có nhưng chưa nối vào báo cáo ngày / tuần. |
+| Báo cáo ngày Học vụ "Cơ sở vật chất" (`DailyReportMetrics::facilityDetails`), mục KPI `material_stock` của báo cáo tuần | `tickets.Service.ReportMetrics` bọc `reports.MetricsProvider` | Đã làm | Ticket loại Cơ sở vật chất mở / còn mở trong ngày (chi nhánh của người viết; ticket mới trong ngày ghi "(mới)"), đứng trước order đạo cụ; báo cáo tuần KPI: "Ticket CSVC <mã> · <tiêu đề>" làm dòng tham khảo. |
 | SLA ticket | — | Không áp dụng | Laravel không có quy tắc SLA cho ticket (`config/sla.php` chỉ CRM). |
 | Nhật ký thao tác (`AuditOperationMiddleware`, "Ticket hỗ trợ") | `audit.Record` (module "Ticket hỗ trợ", subject `ticket`) | Đã làm | Tạo, phản hồi, đổi trạng thái, mở lại, phân công. |
 | Nhập ticket cũ (`support_tickets`, `ticket_messages`, file `public/uploads`) | — | Chưa làm | `import-legacy` chưa chép; cột `legacy_id` đã có. |

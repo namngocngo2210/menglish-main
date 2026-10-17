@@ -102,20 +102,6 @@ export type RequestInput = {
   reason: string
 }
 
-export type PendingItem = {
-  id: string
-  user_name: string
-  user_code: string
-  branch: string | null
-  type: RequestType
-  type_label: string
-  period: string
-  date: string
-  reason: string
-  current_punch: string | null
-  created_at: string
-}
-
 export type Meta = { page: number; per_page: number; total: number }
 
 export type DailyRow = {
@@ -343,9 +329,6 @@ export const attendanceApi = {
   requests: () => request<RequestsPage>('GET', '/attendance/me/requests'),
   submit: (in_: RequestInput) => request<Msg>('POST', '/attendance/me/requests', in_),
   cancel: (id: string) => request<Msg>('POST', `/attendance/me/requests/${id}/cancel`),
-  pending: () => request<{ items: PendingItem[] }>('GET', '/attendance/approvals'),
-  approve: (id: string) => request<Msg>('POST', `/attendance/approvals/${id}/approve`),
-  reject: (id: string, reason: string) => request<Msg>('POST', `/attendance/approvals/${id}/reject`, { reason }),
   daily: (f: DailyFilter) => request<DailyPage>('GET', `/attendance/daily${query(f)}`),
   detail: (id: string) => request<AttendanceDetail>('GET', `/attendance/daily/${id}`),
   teachers: (f: TimesheetFilter) => request<TeacherTimesheetsPage>('GET', `/timesheets/teachers${query(f)}`),

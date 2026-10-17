@@ -90,7 +90,7 @@ type Timesheet struct {
 }
 
 // Attendance: dữ liệu của phân hệ Chấm công cho bảng lương.
-// TODO(gộp): adapter của phân hệ Chấm công (hr.teacher_timesheets, hr.staff_attendances, đơn nghỉ) khi gộp; hiện no-op.
+// Adapter của phân hệ Chấm công ở cmd/menglish/wiring.go; chưa gắn thì no-op.
 type Attendance interface {
 	// ValidTimesheets: ca dạy hợp lệ trong [from, to] (ngày), mọi nhân sự.
 	ValidTimesheets(ctx context.Context, from, to time.Time) ([]Timesheet, error)

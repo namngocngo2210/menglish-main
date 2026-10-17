@@ -11,6 +11,7 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/files"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam/iamtest"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/reports"
 )
 
 func TestAccess(t *testing.T) {
@@ -494,4 +495,27 @@ func TestMetrics(t *testing.T) {
 	if err != nil || board[e.gv.ID].Expected != 2 || board[e.gv.ID].Submitted != 2 || board[e.gv2.ID].Expected != 0 {
 		t.Fatalf("bảng KPI: %+v %v", board, err)
 	}
+
+	// Báo cáo tháng giáo viên: lớp của provider gốc + tỷ lệ bài về nhà của tháng (lớp không giao bài để trống)
+	m := e.svc.ReportMetrics(monthClasses{reports.Skeleton(), []uuid.UUID{e.c1, e.c2}})
+	rows, err := m.TeacherClasses(ctx, reports.Writer{ID: e.gv.ID}, "2026-10")
+	if err != nil || len(rows) != 2 || rows[0].Homework == nil || *rows[0].Homework != 50 || rows[1].Homework != nil {
+		t.Fatalf("báo cáo tháng: %+v %v", rows, err)
+	}
+	if rows, _ := m.TeacherClasses(ctx, reports.Writer{ID: e.gv.ID}, "2026-09"); rows[0].Homework != nil {
+		t.Fatalf("tháng 9: %+v", rows)
+	}
+}
+
+type monthClasses struct {
+	reports.MetricsProvider
+	ids []uuid.UUID
+}
+
+func (m monthClasses) TeacherClasses(context.Context, reports.Writer, string) ([]reports.TeacherClass, error) {
+	out := []reports.TeacherClass{}
+	for _, id := range m.ids {
+		out = append(out, reports.TeacherClass{ID: id})
+	}
+	return out, nil
 }

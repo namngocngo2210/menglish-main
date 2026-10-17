@@ -39,6 +39,9 @@ export type TaskItem = { id: string; title: string; status: string; status_label
 export type MyTasks = { items: TaskItem[]; total: number; url: string | null }
 export type OverdueTask = { id: string; title: string; assignee: string | null; due_date: string | null }
 
+export type PendingAdjustment = { id: string; class: string | null; teacher: string | null; reason: string }
+export type UpcomingBigTest = { id: string; title: string; class: string | null; scheduled_at: string | null }
+
 export type RoleDashboard = {
   type: 'admin' | 'manager' | 'academic' | 'personal'
   title: string
@@ -47,8 +50,8 @@ export type RoleDashboard = {
   stats: Stat[]
   queues: Queue[]
   overdue_tasks?: OverdueTask[]
-  pending_adjustments?: unknown[]
-  upcoming_big_tests?: unknown[]
+  pending_adjustments?: PendingAdjustment[]
+  upcoming_big_tests?: UpcomingBigTest[]
   academic_pending?: string
   agenda?: Agenda
   my_tasks?: MyTasks
@@ -165,7 +168,13 @@ export type AcademicReports = {
   active_classes: number
   total_daily_reports_today: number
   attendance_rate_today: number | null
-  weekly_stats: { pending: string }
+  weekly_stats: {
+    pending?: string
+    adjustments_pending: number | null
+    adjustments_week: number | null
+    big_tests_upcoming: number | null
+    big_tests_distributed: number | null
+  }
 }
 
 export type Journal = {

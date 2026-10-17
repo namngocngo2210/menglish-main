@@ -71,14 +71,13 @@ export function TableCard({ children, footer }: { children: ReactNode; footer?: 
   )
 }
 
-// /m, /m/lich-su, /m/xin-duyet (giao diện điện thoại cũ) → trang mới.
-// TODO(gộp): /m/can-duyet → hộp "Cần duyệt" chung (/approvals) khi có; tạm sang trang duyệt đơn chấm công.
+// /m, /m/lich-su, /m/xin-duyet (giao diện điện thoại cũ) → trang mới; /m/can-duyet → hộp "Việc cần duyệt" (web.php).
 export function legacyMobileTarget(path: string) {
   const map: Record<string, string> = {
     '/m': '/cham-cong',
     '/m/lich-su': '/cham-cong/lich-su',
     '/m/xin-duyet': '/cham-cong/don',
-    '/m/can-duyet': '/approvals/staff-attendance',
+    '/m/can-duyet': '/approvals',
   }
   return map[path.replace(/\/+$/, '')] ?? '/cham-cong'
 }

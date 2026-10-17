@@ -203,17 +203,6 @@ export type FeedbackInput = {
   content: string
 }
 
-// Kế toán: "Học viên báo đã đóng học phí".
-export type ReportRow = PaymentReport & {
-  student_id: string
-  student_code: string
-  student_name: string
-  class_name: string | null
-  resolver_name: string | null
-  creator_name: string | null
-  tuition_id: string | null
-}
-
 type Msg = { message: string }
 
 const q = (studentId?: string | null) => (studentId ? `?student_id=${encodeURIComponent(studentId)}` : '')
@@ -250,8 +239,4 @@ export const portalApi = {
   feedback: (studentId?: string | null) => request<FeedbackPage>('GET', `/portal/feedback${q(studentId)}`),
   submitFeedback: (body: FeedbackInput) => request<Msg & { feedback: StageFeedback; created: boolean }>('POST', '/portal/feedback', body),
   deleteFeedback: (id: string) => request<Msg>('DELETE', `/portal/feedback/${id}`),
-
-  paymentReports: (status: PaymentReportStatus) => request<{ data: ReportRow[] }>('GET', `/payment-reports?status=${status}`),
-  confirmReport: (id: string) => request<Msg>('POST', `/payment-reports/${id}/confirm`),
-  rejectReport: (id: string, reason: string) => request<Msg>('POST', `/payment-reports/${id}/reject`, { reason }),
 }

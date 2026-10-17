@@ -93,6 +93,8 @@ func (h *Handler) Routes(r chi.Router) {
 	teacher := iam.RequireAny("attendance_student.record", "attendance_student.record_any")
 	r.With(teacher).Get("/teacher/order-test/{classId}", h.orderTest)
 	r.With(teacher).Post("/teacher/order-test/{classId}", h.submitOrderTest)
+	// Bảng điểm Big Test các lớp của giáo viên.
+	r.With(teacher).Get("/teacher/big-test-report", h.teacherBigTestReport)
 }
 
 func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
@@ -532,6 +534,11 @@ func (h *Handler) orderTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	res, err := h.svc.OrderTest(r.Context(), actor(r), id)
+	h.reply(w, r, res, err)
+}
+
+func (h *Handler) teacherBigTestReport(w http.ResponseWriter, r *http.Request) {
+	res, err := h.svc.TeacherBigTestReport(r.Context(), actor(r), queryInt(r, "page"))
 	h.reply(w, r, res, err)
 }
 

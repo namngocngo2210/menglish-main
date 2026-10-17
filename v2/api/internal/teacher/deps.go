@@ -11,12 +11,11 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 )
 
-// Phân hệ đang làm song song: interface + mặc định "chưa có" (TODO(gộp): truyền adapter thật vào Deps ở cmd/menglish).
+// Phân hệ khác: interface + mặc định "chưa có"; adapter thật truyền vào Deps ở cmd/menglish (wiring.go).
 
 // ───────────── Chấm công giờ dạy, lương tạm tính, vi phạm (Lương & chấm công) ─────────────
 
-// Work: chấm công giờ dạy của giáo viên (Laravel teacher_timesheets, TeacherHourlyRate, penalties).
-// TODO(gộp): adapter của phân hệ Lương / chấm công (hr.timesheets, hr.rates, hr.penalties).
+// Work: chấm công giờ dạy của giáo viên (Laravel teacher_timesheets, TeacherHourlyRate, penalties) — Chấm công + Lương.
 type Work interface {
 	// Available: phân hệ đã có ở v2 (false → màn hiện "Chờ phân hệ…", nút check-in báo chưa dùng được).
 	Available() bool
@@ -102,8 +101,7 @@ var errWorkPending = &iam.Error{Status: 409, Code: "work_pending",
 
 // ───────────── Giáo trình ─────────────
 
-// Syllabus: giáo trình đang áp dụng cho lớp (SessionLessonService::unitsForClass / lessonsFor).
-// TODO(gộp): adapter của phân hệ Giáo trình.
+// Syllabus: giáo trình đang áp dụng cho lớp (SessionLessonService::unitsForClass / lessonsFor) — phân hệ Giáo trình.
 type Syllabus interface {
 	// Units: Unit của giáo trình lớp; rỗng = lớp chưa gắn giáo trình (nhập tên bài tự do).
 	Units(ctx context.Context, classID uuid.UUID) ([]Unit, error)
@@ -132,7 +130,7 @@ func (NoSyllabus) Lessons(context.Context, uuid.UUID, []int) (map[int]Lesson, er
 // ───────────── Danh sách bổ trợ ─────────────
 
 // SupportList: điểm mini test dưới 7/10 tự vào danh sách bổ trợ (SupportListService::syncMiniTest).
-// TODO(gộp): adapter của phân hệ Chất lượng lớp / buổi bổ trợ.
+// TODO(gộp): danh sách bổ trợ (báo cáo trực lớp / buổi bổ trợ của WorkTaskController) chưa có ở v2.
 type SupportList interface {
 	SyncMiniTest(ctx context.Context, tx pgx.Tx, score MiniTestRef) error
 }

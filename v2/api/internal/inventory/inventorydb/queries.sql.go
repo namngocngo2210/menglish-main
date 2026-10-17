@@ -1193,6 +1193,149 @@ func (q *Queries) NextOrderNumber(ctx context.Context, year int16) (int32, error
 	return last_number, err
 }
 
+const reportDayOrders = `-- name: ReportDayOrders :many
+SELECT o.id, o.code, o.title, o.category, o.status, c.name AS class_name
+FROM ops.material_orders o LEFT JOIN academic.classes c ON c.id = o.class_id
+WHERE o.deleted_at IS NULL
+  AND ($1::boolean OR o.requester_id = $2
+       OR o.branch_id = ANY(COALESCE($3::uuid[], '{}')))
+  AND o.category = ANY($4::text[])
+  AND ((NOT $5::bool AND o.created_at <= $6::timestamptz
+        AND (o.created_at >= $7::timestamptz
+             OR o.processed_at BETWEEN $7::timestamptz AND $6::timestamptz
+             OR (o.status IN ('pending', 'processing', 'overdue') AND o.due_at < $6::timestamptz)))
+    OR ($5::bool AND (o.use_date = $8::date
+        OR (o.status IN ('pending', 'processing', 'overdue') AND o.due_at < $6::timestamptz
+            AND o.created_at <= $6::timestamptz))))
+ORDER BY o.due_at, o.id
+`
+
+type ReportDayOrdersParams struct {
+	AllScope   bool
+	UserID     uuid.UUID
+	BranchIds  []uuid.UUID
+	Categories []string
+	ByUse      bool
+	DayEnd     time.Time
+	DayStart   time.Time
+	Day        time.Time
+}
+
+type ReportDayOrdersRow struct {
+	ID        uuid.UUID
+	Code      string
+	Title     string
+	Category  string
+	Status    string
+	ClassName *string
+}
+
+// Báo cáo ngày (DailyReportMetrics): order trong phạm vi xem của người viết, thuộc các loại categories.
+// by_use = false (học liệu học thuật): tạo hoặc xử lý trong ngày, hoặc còn mở đã quá hạn (tạo trước cuối ngày).
+// by_use = true (đạo cụ / in ấn): dùng trong ngày, hoặc còn mở đã quá hạn (tạo trước cuối ngày).
+func (q *Queries) ReportDayOrders(ctx context.Context, arg ReportDayOrdersParams) ([]ReportDayOrdersRow, error) {
+	rows, err := q.db.Query(ctx, reportDayOrders,
+		arg.AllScope,
+		arg.UserID,
+		arg.BranchIds,
+		arg.Categories,
+		arg.ByUse,
+		arg.DayEnd,
+		arg.DayStart,
+		arg.Day,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ReportDayOrdersRow
+	for rows.Next() {
+		var i ReportDayOrdersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.Title,
+			&i.Category,
+			&i.Status,
+			&i.ClassName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const reportWeekOrders = `-- name: ReportWeekOrders :many
+SELECT o.id, o.code, o.title, o.status, o.due_at, o.created_at, o.processed_at
+FROM ops.material_orders o
+WHERE o.deleted_at IS NULL
+  AND ($1::boolean OR o.requester_id = $2
+       OR o.branch_id = ANY(COALESCE($3::uuid[], '{}')))
+  AND o.category = 'academic'
+  AND (o.created_at BETWEEN $4::timestamptz AND $5::timestamptz
+       OR (o.status = 'done' AND o.processed_at BETWEEN $4::timestamptz AND $5::timestamptz)
+       OR o.status IN ('pending', 'processing', 'overdue'))
+ORDER BY o.due_at, o.id
+`
+
+type ReportWeekOrdersParams struct {
+	AllScope  bool
+	UserID    uuid.UUID
+	BranchIds []uuid.UUID
+	FromAt    time.Time
+	ToAt      time.Time
+}
+
+type ReportWeekOrdersRow struct {
+	ID          uuid.UUID
+	Code        string
+	Title       string
+	Status      string
+	DueAt       time.Time
+	CreatedAt   time.Time
+	ProcessedAt *time.Time
+}
+
+// Báo cáo tuần Học thuật (WeeklyReportMetrics): order học liệu học thuật trong phạm vi xem — tạo trong tuần (mục số liệu),
+// hoàn thành trong tuần (dòng "đã làm") và đang mở (dòng "đề xuất / yêu cầu").
+func (q *Queries) ReportWeekOrders(ctx context.Context, arg ReportWeekOrdersParams) ([]ReportWeekOrdersRow, error) {
+	rows, err := q.db.Query(ctx, reportWeekOrders,
+		arg.AllScope,
+		arg.UserID,
+		arg.BranchIds,
+		arg.FromAt,
+		arg.ToAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ReportWeekOrdersRow
+	for rows.Next() {
+		var i ReportWeekOrdersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.Title,
+			&i.Status,
+			&i.DueAt,
+			&i.CreatedAt,
+			&i.ProcessedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setStock = `-- name: SetStock :exec
 UPDATE ops.stock SET quantity = $3, updated_at = now() WHERE branch_id = $1 AND item_id = $2
 `

@@ -57,6 +57,8 @@ type Deps struct {
 	// Projects: hạn mốc dự án học thuật; nil = lịch ghi "Chờ phân hệ Dự án học thuật".
 	Projects Projects
 	Payroll  Payroll
+	// Syllabus: hàng chờ chuyên môn / Big Test của Giáo trình; nil = "Chờ phân hệ Giáo trình & Big Test".
+	Syllabus Syllabus
 }
 
 type Service struct {
@@ -165,12 +167,12 @@ type RoleDashboard struct {
 	Queues    []Queue `json:"queues"`
 	// Bảng điều hành
 	OverdueTasks []OverdueTask `json:"overdue_tasks,omitempty"`
-	// Học thuật: đề xuất giãn tiến độ / Big Test chờ phân hệ Giáo trình
-	PendingAdjustments []any    `json:"pending_adjustments,omitempty"`
-	UpcomingBigTests   []any    `json:"upcoming_big_tests,omitempty"`
-	AcademicPending    *string  `json:"academic_pending,omitempty"`
-	Agenda             *Agenda  `json:"agenda,omitempty"`
-	MyTasks            *MyTasks `json:"my_tasks,omitempty"`
+	// Học thuật: yêu cầu giãn tiến độ chờ duyệt / Big Test 14 ngày tới (AcademicPending khi chưa nối Giáo trình)
+	PendingAdjustments []PendingAdjustment `json:"pending_adjustments,omitempty"`
+	UpcomingBigTests   []UpcomingBigTest   `json:"upcoming_big_tests,omitempty"`
+	AcademicPending    *string             `json:"academic_pending,omitempty"`
+	Agenda             *Agenda             `json:"agenda,omitempty"`
+	MyTasks            *MyTasks            `json:"my_tasks,omitempty"`
 }
 
 type MissingDay struct {

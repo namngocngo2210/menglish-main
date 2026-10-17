@@ -39,10 +39,8 @@ export const GUIDE_ROLES: Record<string, string[]> = {
 }
 export const COMMON = 'chung'
 
-// Tên route Laravel → đường dẫn v2. Màn chưa có ở v2 thì chưa có nút "Mở màn hình".
-// TODO(gộp): thêm route của Chấm công, Lương & Phạt, Cổng Giáo viên, Cổng PH/HS, Chất lượng lớp, Giáo trình khi gộp
-// (teacher.home, payroll.*, penalties.index, staff-attendance.index, portal.student.*, portal.teacher.submissions,
-// portal.my-salary, syllabus.*, class-quality.academic, academic-projects.index, reports.periodic.teacher-monthly).
+// Tên route Laravel → đường dẫn v2. Màn không có ở v2 (crm.closing-wizard: chốt khách làm ngay trên hồ sơ khách) thì
+// không có nút "Mở màn hình".
 export const ROUTE_PATHS: Record<string, string> = {
   dashboard: '/dashboard',
   'profile.edit': '/profile',
@@ -77,6 +75,33 @@ export const ROUTE_PATHS: Record<string, string> = {
   'reports.my': '/reports',
   'kpi.mine': '/kpi/mine',
   'kpi.monthly': '/kpi/monthly',
+  'reports.periodic.teacher-monthly': '/reports/teacher-monthly',
+  'staff-attendance.index': '/staff-attendance',
+  'payroll.periods.index': '/payroll/periods',
+  'payroll.timesheets.teachers': '/payroll/timesheets/teachers',
+  'payroll.config.teacher-rates': '/payroll/config/teacher-rates',
+  'payroll.kpi-leaderboard': '/payroll/kpi-leaderboard',
+  'penalties.index': '/penalties',
+  'teacher.home': '/teacher/home',
+  'portal.teacher.submissions': '/teacher/submissions',
+  'portal.my-salary': '/portal/my-salary',
+  'portal.student.home': '/portal/home',
+  'portal.student.homework': '/portal/student-homework',
+  'portal.student.pronunciation': '/portal/pronunciation',
+  'portal.student.notifications': '/portal/notifications',
+  'portal.student.survey': '/portal/survey',
+  'portal.student.feedback': '/portal/feedback',
+  'class-quality.academic': '/class-quality/academic',
+  'academic-projects.index': '/academic-projects',
+  'syllabus.documents': '/syllabus/documents',
+  'syllabus.builder': '/syllabus/builder',
+  'syllabus.assignments': '/syllabus/assignments',
+  'syllabus.teaching-stages': '/syllabus/teaching-stages',
+  'syllabus.versions': '/syllabus/versions',
+  'syllabus.teacher-propose': '/syllabus/teacher-propose',
+  'syllabus.big-tests.schedules': '/syllabus/big-tests/schedules',
+  'syllabus.big-tests.distribution': '/syllabus/big-tests/distribution',
+  'syllabus.big-tests.results': '/syllabus/big-tests/results',
 }
 
 // Quyền riêng của màn con (đường dẫn con dùng chung mục menu với màn cha).

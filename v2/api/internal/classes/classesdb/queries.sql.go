@@ -2096,6 +2096,67 @@ func (q *Queries) KpiTeacherAttendance(ctx context.Context, arg KpiTeacherAttend
 	return items, nil
 }
 
+const kpiTestScores = `-- name: KpiTestScores :many
+SELECT c.id AS class_id, c.code::text AS code, c.name, x.day, x.score
+FROM (
+    SELECT b.class_id, (b.scheduled_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date AS day, least(10, r.overall_score)::float8 AS score
+    FROM syllabus.big_test_results r
+    JOIN syllabus.big_tests b ON b.id = r.big_test_id
+    WHERE b.class_id = ANY ($1::uuid[]) AND b.scheduled_at BETWEEN $2::timestamptz AND $3::timestamptz
+      AND NOT r.is_absent AND r.overall_score IS NOT NULL AND r.status IN ('approved', 'sent')
+    UNION ALL
+    SELECT m.class_id, m.test_date, least(10, coalesce(m.score, 0) / m.max_score * 10)::float8
+    FROM academic.mini_test_scores m
+    WHERE m.class_id = ANY ($1::uuid[]) AND m.max_score > 0
+      AND m.test_date BETWEEN ($2::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::date
+                          AND ($3::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::date
+) x
+JOIN academic.classes c ON c.id = x.class_id
+ORDER BY c.name, c.id, x.day
+`
+
+type KpiTestScoresParams struct {
+	ClassIds []uuid.UUID
+	FromAt   time.Time
+	ToAt     time.Time
+}
+
+type KpiTestScoresRow struct {
+	ClassID uuid.UUID
+	Code    string
+	Name    string
+	Day     time.Time
+	Score   float64
+}
+
+// Điểm test của học sinh các lớp trong khoảng, quy về thang 10 (KpiAutoCounter::testScores): Big Test đã duyệt / đã gửi,
+// không vắng, có điểm tổng (theo ngày thi) và mini test (theo ngày test; điểm trống tính 0 như bản Laravel).
+func (q *Queries) KpiTestScores(ctx context.Context, arg KpiTestScoresParams) ([]KpiTestScoresRow, error) {
+	rows, err := q.db.Query(ctx, kpiTestScores, arg.ClassIds, arg.FromAt, arg.ToAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []KpiTestScoresRow
+	for rows.Next() {
+		var i KpiTestScoresRow
+		if err := rows.Scan(
+			&i.ClassID,
+			&i.Code,
+			&i.Name,
+			&i.Day,
+			&i.Score,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const kpiVisibleClasses = `-- name: KpiVisibleClasses :many
 SELECT c.id, c.name FROM academic.classes c
 WHERE c.deleted_at IS NULL AND ($1::bool OR c.id = ANY ($2::uuid[]))
@@ -3028,6 +3089,57 @@ func (q *Queries) ReplaceableSessionIDs(ctx context.Context, arg ReplaceableSess
 	return items, nil
 }
 
+const reportCareDue = `-- name: ReportCareDue :many
+SELECT t.id, c.id AS class_id, c.name AS class_name, coalesce(s.full_name, t.title)::text AS name, t.due_date
+FROM ops.work_tasks t
+LEFT JOIN academic.students s ON s.id = t.student_id AND s.deleted_at IS NULL
+JOIN academic.classes c ON c.id = coalesce(t.class_id, s.current_class_id)
+WHERE t.care_milestone IS NOT NULL AND t.status IN ('new', 'in_progress') AND t.due_date <= $1::date
+  AND c.id = ANY ($2::uuid[])
+ORDER BY c.name, c.id, t.due_date, t.id
+`
+
+type ReportCareDueParams struct {
+	ToDate   time.Time
+	ClassIds []uuid.UUID
+}
+
+type ReportCareDueRow struct {
+	ID        uuid.UUID
+	ClassID   uuid.UUID
+	ClassName string
+	Name      string
+	DueDate   *time.Time
+}
+
+// Việc chăm sóc tháng đầu còn mở có hạn tới to_date (Công việc), theo lớp của việc (hoặc lớp hiện tại của học viên) trong các
+// lớp tính vào báo cáo — "Lớp đến hạn chăm sóc" của báo cáo tuần Học vụ.
+func (q *Queries) ReportCareDue(ctx context.Context, arg ReportCareDueParams) ([]ReportCareDueRow, error) {
+	rows, err := q.db.Query(ctx, reportCareDue, arg.ToDate, arg.ClassIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ReportCareDueRow
+	for rows.Next() {
+		var i ReportCareDueRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ClassID,
+			&i.ClassName,
+			&i.Name,
+			&i.DueDate,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const reportClassIDs = `-- name: ReportClassIDs :many
 SELECT c.id FROM academic.classes c
 WHERE c.deleted_at IS NULL AND ($1::bool OR c.id = ANY ($2::uuid[]))
@@ -3174,6 +3286,61 @@ func (q *Queries) ReportDaySessions(ctx context.Context, arg ReportDaySessionsPa
 	return items, nil
 }
 
+const reportMiniTests = `-- name: ReportMiniTests :many
+SELECT m.id, m.name, (m.score IS NOT NULL)::bool AS has_score, coalesce(m.score, 0)::float8 AS score, m.max_score::float8 AS max_score, c.name AS class_name,
+       coalesce(s.full_name, 'Học sinh')::text AS student_name
+FROM academic.mini_test_scores m
+JOIN academic.classes c ON c.id = m.class_id
+LEFT JOIN academic.students s ON s.id = m.student_id AND s.deleted_at IS NULL
+WHERE m.class_id = ANY ($1::uuid[]) AND m.test_date BETWEEN $2::date AND $3::date
+ORDER BY m.test_date, m.id
+`
+
+type ReportMiniTestsParams struct {
+	ClassIds []uuid.UUID
+	FromDate time.Time
+	ToDate   time.Time
+}
+
+type ReportMiniTestsRow struct {
+	ID          uuid.UUID
+	Name        string
+	HasScore    bool
+	Score       float64
+	MaxScore    float64
+	ClassName   string
+	StudentName string
+}
+
+// Điểm mini test có ngày test trong khoảng của các lớp tính vào báo cáo (mục "Kết quả mini test").
+func (q *Queries) ReportMiniTests(ctx context.Context, arg ReportMiniTestsParams) ([]ReportMiniTestsRow, error) {
+	rows, err := q.db.Query(ctx, reportMiniTests, arg.ClassIds, arg.FromDate, arg.ToDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ReportMiniTestsRow
+	for rows.Next() {
+		var i ReportMiniTestsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.HasScore,
+			&i.Score,
+			&i.MaxScore,
+			&i.ClassName,
+			&i.StudentName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const reportRangeSessions = `-- name: ReportRangeSessions :many
 SELECT s.class_id, c.name AS class_name, s.teacher_id, s.foreign_teacher_id
 FROM academic.class_sessions s
@@ -3210,6 +3377,55 @@ func (q *Queries) ReportRangeSessions(ctx context.Context, arg ReportRangeSessio
 			&i.ClassName,
 			&i.TeacherID,
 			&i.ForeignTeacherID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const reportUnmarkedSessions = `-- name: ReportUnmarkedSessions :many
+SELECT s.id, s.class_id, c.name AS class_name, s.date
+FROM academic.class_sessions s
+JOIN academic.classes c ON c.id = s.class_id
+WHERE s.class_id = ANY ($1::uuid[]) AND s.date >= $2::date AND s.date < $3::date
+  AND s.type <> 'support' AND s.status NOT IN ('cancelled', 'completed')
+ORDER BY s.date, s.start_time, s.id
+`
+
+type ReportUnmarkedSessionsParams struct {
+	ClassIds   []uuid.UUID
+	FromDate   time.Time
+	BeforeDate time.Time
+}
+
+type ReportUnmarkedSessionsRow struct {
+	ID        uuid.UUID
+	ClassID   uuid.UUID
+	ClassName string
+	Date      time.Time
+}
+
+// Buổi chưa điểm danh (không tính phụ đạo, buổi hủy / đã xong) có ngày trong [from_date, before_date) của các lớp tính vào
+// báo cáo — dòng tham khảo của mục KPI 5.1 ở báo cáo tuần Học vụ.
+func (q *Queries) ReportUnmarkedSessions(ctx context.Context, arg ReportUnmarkedSessionsParams) ([]ReportUnmarkedSessionsRow, error) {
+	rows, err := q.db.Query(ctx, reportUnmarkedSessions, arg.ClassIds, arg.FromDate, arg.BeforeDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ReportUnmarkedSessionsRow
+	for rows.Next() {
+		var i ReportUnmarkedSessionsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ClassID,
+			&i.ClassName,
+			&i.Date,
 		); err != nil {
 			return nil, err
 		}

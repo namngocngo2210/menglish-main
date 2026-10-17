@@ -317,6 +317,11 @@ function TeacherMonthlyView({ form, onPick }: { form: TeacherMonthlyForm; onPick
     v && (
       <div key={key} className="space-y-1 rounded-md p-2 hover:bg-surface-container-low">
         <Checkbox label={label} checked={!!v.checks?.[key]} onChange={(e) => setClass(c.id, { checks: { ...v.checks, [key]: e.target.checked } })} />
+        {key === 'syllabus_adjust' && form.propose_url && (
+          <a href={form.propose_url} className="ml-6 inline-block text-sm text-secondary underline underline-offset-4">
+            Gửi đề xuất sửa giáo trình
+          </a>
+        )}
         {note && (
           <input
             className="ml-6 block w-[calc(100%-1.5rem)] rounded-lg border border-outline-variant px-2 py-1 text-sm"

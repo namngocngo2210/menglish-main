@@ -104,9 +104,9 @@ type Deps struct {
 	SLA     SLA
 	Files   *files.Service
 	Trials  Trials
-	// TODO(gộp): các phân hệ đang làm song song — chấm công giờ dạy / lương / vi phạm (Work), giáo trình (Syllabus),
-	// danh sách bổ trợ (SupportList). Bài phát âm của cổng học viên (Pronunciation): cmd/menglish gắn bằng WithPronunciation
-	// (cổng học viên tạo sau phân hệ này).
+	// Chấm công giờ dạy / lương / vi phạm (Work), giáo trình (Syllabus): adapter ở cmd/menglish. TODO(gộp): danh sách
+	// bổ trợ (SupportList) chưa có ở v2. Bài phát âm của cổng học viên (Pronunciation): cmd/menglish gắn bằng
+	// WithPronunciation (cổng học viên tạo sau phân hệ này).
 	Work          Work
 	Syllabus      Syllabus
 	SupportList   SupportList

@@ -44,13 +44,13 @@ Trạng thái: **Đã làm** · **Khác** (đã làm, có khác biệt có chủ
 | `material_stock` | `inventory.Service.KpiSources` | Đã làm | Order học liệu xử lý trễ hạn + kiểm kê lệch. |
 | `academic_order_on_time` | `inventory.Service.KpiSources` | Đã làm | Hệ số theo giờ còn lại trước giờ dùng (≥ 24 giờ 1; 12–24 giờ 0,5; 6–12 giờ 0,25); giao sau giờ dùng / quá giờ dùng chưa giao = 0 và là điều kiện chặn; order tạo sát giờ dùng không tính. |
 | `class_attendance_rate` | `classes.Service.KpiSources` | Khác | Chuyên cần các lớp giáo viên giữ trong kỳ, trung bình theo sĩ số; bản ghi ghi "Lớp X: y% (n học sinh)". |
-| `tuition_no_reminder`, `receipt_rejected` | — | Chưa làm | Chờ phân hệ Học phí; tiêu chí dùng nguồn này người chấm điền tay (ghi chú "Chờ phân hệ Học phí…"). |
-| `crm_sla_late` | — | Chưa làm | Chờ SLA / phạt CRM. Điền tay. |
-| `teacher_absent_unexcused`, `teacher_leave`, `teacher_late` | — | Chưa làm | Chờ Cổng giáo viên (giờ dạy, đơn nghỉ). Điền tay. |
-| `staff_late` | — | Chưa làm | Chờ Chấm công. Điền tay. |
-| `test_result`, `test_progress`, `student_pass_rate` | — | Chưa làm | Chờ Big Test / mini test. Điền tay (tỉ lệ %). |
+| `tuition_no_reminder`, `receipt_rejected` | `tuition.Service.KpiSources()` | Đã làm | Không nhắc học phí: hồ sơ đến hạn trong kỳ đã quá hạn mà không có lần nhắc nào từ 3 ngày trước hạn, tính cho người phụ trách khách đã chốt ra học viên (kỳ chưa hết thì tới hiện tại); bản ghi "<học viên>: hạn dd/mm, chưa có lần nhắc học phí". Phiếu thu bị trả về: mỗi phiếu một lần mỗi ngày theo thông báo trả về gửi người lập (nội dung = lý do, không có thì tiêu đề). |
+| `crm_sla_late` | — | Chưa làm | Cần máy SLA của CRM (`sla_events`, `SlaBreachService` cho khách) — chưa có ở v2. Điền tay ("Chờ phân hệ SLA / phạt CRM…"). |
+| `teacher_absent_unexcused`, `teacher_leave`, `teacher_late` | `attendance.Service.KpiSources()` | Đã làm | Buổi dạy không có giờ dạy và không có đơn nghỉ được duyệt, đơn nghỉ được duyệt, ca dạy đến muộn (xem [cham-cong.md](cham-cong.md)). |
+| `staff_late` | `attendance.Service.KpiSources()` | Đã làm | Ngày chấm công vào muộn quá 10 phút ("dd/mm Đi muộn N phút (check-in HH:MM)"). |
+| `test_result`, `test_progress`, `student_pass_rate` | `classes.Service.KpiTestSources` | Đã làm | Điểm Big Test (đã duyệt / đã gửi, không vắng, ngày theo giờ VN của lịch thi, tối đa 10) + mini test (điểm ÷ điểm tối đa × 10, chưa có điểm tính 0 như Laravel) các lớp giáo viên giữ trong kỳ: điểm TB + tỉ lệ đạt chuẩn ≥ 7 ("Lớp X: N bài, điểm TB a, đạt chuẩn p%"), tiến bộ = điểm TB ngày test cuối so ngày test đầu trong kỳ, trung bình các lớp ("Lớp X: a → b (+g%)"); đầu ra học sinh = tỉ lệ bài đạt chuẩn 3 tháng cuốn chiếu của các lớp trong phạm vi Lớp học. |
 | `homework_rate` | `teacher.Service.KpiSources` | Đã làm | Bài nộp ÷ (bài giao có hạn trong kỳ × sĩ số) các lớp giáo viên giữ, trung bình theo sĩ số (xem `cong-giao-vien.md`). |
 | `academic_deliverable_on_time` | `projects.Service.KpiSources()` | Đã làm | Mốc dự án học thuật đến hạn trong kỳ, hệ số trễ theo ngày như `deliverableRows` (xem [chat-luong-lop.md](chat-luong-lop.md)). |
 | `WeeklyReportMetrics::kpiGroups` (bảng KPI báo cáo tuần, mã KPI nhật ký) | `kpi.ReportMetrics` bọc `reports.MetricsProvider` (`KpiCriteria`, `KpiEvidence`) | Đã làm | Mục đếm số lần có nguồn ở v2 là "tự động" (đếm cùng cách phiếu KPI); còn lại báo cáo tuần đếm sự vụ nhật ký theo mã. |
 | Nhật ký Học vụ gắn mã KPI → gợi ý số lần trên phiếu | `kpi.Journal` = `reports.Service.KpiJournal` | Đã làm | |
-| `PayrollFormulaService` / `PayrollController::kpiLeaderboard` đọc phiếu KPI | — | Chưa làm | Thuộc phân hệ Lương. |
+| `PayrollFormulaService` / `PayrollController::kpiLeaderboard` đọc phiếu KPI | phân hệ Lương (`/payroll/kpi-leaderboard`, bảng lương) | Đã làm | Xem [luong.md](luong.md); kỳ lương đã chốt khóa phiếu KPI (`kpi.WithPayrollLock(payrollSvc)`). |

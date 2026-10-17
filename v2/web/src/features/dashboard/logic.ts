@@ -51,6 +51,12 @@ export function formatDate(value: string | null | undefined, withTime = false) {
   return withTime ? `${parts.hour}:${parts.minute} ${day}` : day
 }
 
+// Giờ + ngày/tháng ("H:i d/m" của Laravel formatDate), theo giờ Việt Nam.
+export function formatHourDay(value: string | null | undefined) {
+  const full = formatDate(value, true)
+  return /^\d{2}:\d{2} \d{2}\/\d{2}\/\d{4}$/.test(full) ? full.slice(0, -5) : full
+}
+
 // Màu nhãn loại lịch hẹn (AgendaCard.vue) theo token có sẵn.
 const KIND_CLASS: Record<string, string> = {
   test: 'bg-primary-light text-primary',
@@ -87,15 +93,15 @@ export function statGridClass(n: number, personal: boolean) {
 
 export type Welcome = { name: string; roles: string; branch: string; salaryUrl: string | null; tasksUrl: string | null }
 
-// Lời chào cho người không có bảng điều hành (DashboardController::__invoke 'welcome'). Lương của tôi: phân hệ Lương
-// chưa có ở v2 nên không có nút (TODO(gộp): /portal/my-salary khi có phân hệ Lương).
+// Lời chào cho người không có bảng điều hành (DashboardController::__invoke 'welcome'): nút Lương của tôi khi xem được
+// lương (payroll.view / payroll.view_own), nút nhiệm vụ hôm nay khi xem được công việc.
 export function welcomeOf(me: Me): Welcome {
   const primary = me.branches.find((b) => b.primary) ?? me.branches[0]
   return {
     name: me.user.full_name,
     roles: me.roles.map((r) => r.short_label || r.label).join(', ') || 'Nhân viên',
     branch: primary?.name ?? 'Trung tâm',
-    salaryUrl: null,
+    salaryUrl: me.permissions.includes('payroll.view') || me.permissions.includes('payroll.view_own') ? '/portal/my-salary' : null,
     tasksUrl: me.permissions.includes('work_task.view') ? '/portal/ta-tasks' : null,
   }
 }

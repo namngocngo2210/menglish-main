@@ -783,6 +783,20 @@ func (q *Queries) CountProposals(ctx context.Context, arg CountProposalsParams) 
 	return count, err
 }
 
+const countTeacherBigTestResults = `-- name: CountTeacherBigTestResults :one
+SELECT count(*) FROM syllabus.big_test_results r
+JOIN syllabus.big_tests b ON b.id = r.big_test_id
+JOIN academic.classes c ON c.id = b.class_id AND c.deleted_at IS NULL
+WHERE c.teacher_id = $1 OR c.foreign_teacher_id = $1
+`
+
+func (q *Queries) CountTeacherBigTestResults(ctx context.Context, userID *uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countTeacherBigTestResults, userID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const courseExists = `-- name: CourseExists :one
 SELECT EXISTS (SELECT 1 FROM academic.courses WHERE id = $1 AND deleted_at IS NULL)
 `
@@ -1049,6 +1063,161 @@ func (q *Queries) CurriculumOfLevel(ctx context.Context, arg CurriculumOfLevelPa
 		return nil, err
 	}
 	return items, nil
+}
+
+const dashboardAdjustments = `-- name: DashboardAdjustments :many
+SELECT r.id, c.name AS class_name, t.full_name AS teacher_name, r.reason
+FROM syllabus.pacing_requests r
+LEFT JOIN academic.classes c ON c.id = r.class_id
+LEFT JOIN iam.users t ON t.id = r.user_id
+WHERE r.status = 'pending'
+ORDER BY r.created_at DESC, r.id DESC
+LIMIT $1
+`
+
+type DashboardAdjustmentsRow struct {
+	ID          uuid.UUID
+	ClassName   *string
+	TeacherName *string
+	Reason      string
+}
+
+// Yêu cầu giãn tiến độ chờ duyệt mới nhất.
+func (q *Queries) DashboardAdjustments(ctx context.Context, lim int32) ([]DashboardAdjustmentsRow, error) {
+	rows, err := q.db.Query(ctx, dashboardAdjustments, lim)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DashboardAdjustmentsRow
+	for rows.Next() {
+		var i DashboardAdjustmentsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ClassName,
+			&i.TeacherName,
+			&i.Reason,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const dashboardBigTests = `-- name: DashboardBigTests :many
+SELECT b.id, b.code, b.title, c.name AS class_name, b.scheduled_at
+FROM syllabus.big_tests b
+LEFT JOIN academic.classes c ON c.id = b.class_id
+WHERE b.scheduled_at BETWEEN $1::timestamptz AND $2::timestamptz
+ORDER BY b.scheduled_at, b.id
+LIMIT $3
+`
+
+type DashboardBigTestsParams struct {
+	FromAt time.Time
+	ToAt   time.Time
+	Lim    int32
+}
+
+type DashboardBigTestsRow struct {
+	ID          uuid.UUID
+	Code        string
+	Title       string
+	ClassName   *string
+	ScheduledAt *time.Time
+}
+
+// Đợt Big Test lên lịch trong [from_at, to_at], theo giờ thi.
+func (q *Queries) DashboardBigTests(ctx context.Context, arg DashboardBigTestsParams) ([]DashboardBigTestsRow, error) {
+	rows, err := q.db.Query(ctx, dashboardBigTests, arg.FromAt, arg.ToAt, arg.Lim)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DashboardBigTestsRow
+	for rows.Next() {
+		var i DashboardBigTestsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.Title,
+			&i.ClassName,
+			&i.ScheduledAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const dashboardCounts = `-- name: DashboardCounts :one
+
+SELECT (SELECT count(*) FROM syllabus.change_proposals WHERE status = 'pending')::bigint AS proposals,
+       (SELECT count(*) FROM syllabus.big_test_orders WHERE status = 'pending')::bigint AS orders,
+       (SELECT count(DISTINCT big_test_id) FROM syllabus.big_test_results WHERE status = 'pending_review')::bigint AS results,
+       (SELECT count(*) FROM syllabus.pacing_requests WHERE status = 'pending')::bigint AS adjustments
+`
+
+type DashboardCountsRow struct {
+	Proposals   int64
+	Orders      int64
+	Results     int64
+	Adjustments int64
+}
+
+// ───── Tổng quan (DashboardController::academicDashboard, AcademicDashboardController::reports, MyWorkBoard) ─────
+func (q *Queries) DashboardCounts(ctx context.Context) (DashboardCountsRow, error) {
+	row := q.db.QueryRow(ctx, dashboardCounts)
+	var i DashboardCountsRow
+	err := row.Scan(
+		&i.Proposals,
+		&i.Orders,
+		&i.Results,
+		&i.Adjustments,
+	)
+	return i, err
+}
+
+const dashboardWeek = `-- name: DashboardWeek :one
+SELECT (SELECT count(*) FROM syllabus.pacing_requests WHERE status = 'pending')::bigint AS adjustments_pending,
+       (SELECT count(*) FROM syllabus.pacing_requests WHERE created_at >= $1::timestamptz)::bigint AS adjustments_week,
+       (SELECT count(*) FROM syllabus.big_tests
+        WHERE scheduled_at BETWEEN $2::timestamptz AND $3::timestamptz)::bigint AS big_tests_upcoming,
+       (SELECT count(*) FROM syllabus.big_tests
+        WHERE is_distributed AND distributed_at >= $1::timestamptz)::bigint AS big_tests_distributed
+`
+
+type DashboardWeekParams struct {
+	WeekStart time.Time
+	NowAt     time.Time
+	WeekAhead time.Time
+}
+
+type DashboardWeekRow struct {
+	AdjustmentsPending  int64
+	AdjustmentsWeek     int64
+	BigTestsUpcoming    int64
+	BigTestsDistributed int64
+}
+
+func (q *Queries) DashboardWeek(ctx context.Context, arg DashboardWeekParams) (DashboardWeekRow, error) {
+	row := q.db.QueryRow(ctx, dashboardWeek, arg.WeekStart, arg.NowAt, arg.WeekAhead)
+	var i DashboardWeekRow
+	err := row.Scan(
+		&i.AdjustmentsPending,
+		&i.AdjustmentsWeek,
+		&i.BigTestsUpcoming,
+		&i.BigTestsDistributed,
+	)
+	return i, err
 }
 
 const detachLevels = `-- name: DetachLevels :exec
@@ -3479,6 +3648,286 @@ func (q *Queries) ReminderStudents(ctx context.Context, currentClassID *uuid.UUI
 	return items, nil
 }
 
+const reportClassIDs = `-- name: ReportClassIDs :many
+SELECT c.id FROM academic.classes c
+WHERE c.deleted_at IS NULL AND c.id = ANY ($1::uuid[])
+  AND (cardinality($2::uuid[]) = 0 OR c.branch_id = ANY ($2::uuid[]))
+`
+
+type ReportClassIDsParams struct {
+	Ids       []uuid.UUID
+	BranchIds []uuid.UUID
+}
+
+// Lớp người viết thấy, lọc theo chi nhánh của người viết (BuildsReportItems::classIds; rỗng = không lọc thêm).
+func (q *Queries) ReportClassIDs(ctx context.Context, arg ReportClassIDsParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, reportClassIDs, arg.Ids, arg.BranchIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const reportOrders = `-- name: ReportOrders :many
+
+SELECT o.id, o.code, c.name AS class_name, o.test_type, o.due_date, o.status
+FROM syllabus.big_test_orders o
+JOIN academic.classes c ON c.id = o.class_id AND c.deleted_at IS NULL
+WHERE ($1::bool OR o.teacher_id = $2
+       OR c.teacher_id = $2 OR c.foreign_teacher_id = $2 OR c.assistant_id = $2
+       OR c.branch_id = ANY ($3::uuid[]))
+  AND ((o.status = 'pending' AND o.created_at <= $4::timestamptz)
+       OR ($5::bool AND o.status = 'approved'
+           AND o.reviewed_at BETWEEN $6::timestamptz AND $7::timestamptz))
+ORDER BY o.due_date IS NULL, o.due_date, o.created_at, o.id
+`
+
+type ReportOrdersParams struct {
+	AllRows       bool
+	UserID        *uuid.UUID
+	BranchIds     []uuid.UUID
+	CreatedBefore time.Time
+	WithReviewed  bool
+	FromAt        time.Time
+	ToAt          time.Time
+}
+
+type ReportOrdersRow struct {
+	ID        uuid.UUID
+	Code      string
+	ClassName string
+	TestType  string
+	DueDate   *time.Time
+	Status    string
+}
+
+// ───── Số liệu báo cáo ngày / tuần (DailyReportMetrics::academic, WeeklyReportMetrics) ─────
+// Order đề trong phạm vi Big Test của người viết: chờ duyệt tạo trước created_before, và (báo cáo tuần) đã duyệt trong
+// [from_at, to_at]; theo hạn duyệt.
+func (q *Queries) ReportOrders(ctx context.Context, arg ReportOrdersParams) ([]ReportOrdersRow, error) {
+	rows, err := q.db.Query(ctx, reportOrders,
+		arg.AllRows,
+		arg.UserID,
+		arg.BranchIds,
+		arg.CreatedBefore,
+		arg.WithReviewed,
+		arg.FromAt,
+		arg.ToAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ReportOrdersRow
+	for rows.Next() {
+		var i ReportOrdersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.ClassName,
+			&i.TestType,
+			&i.DueDate,
+			&i.Status,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const reportPacing = `-- name: ReportPacing :many
+SELECT r.id, r.class_id, c.name AS class_name, r.reason, r.status, t.full_name AS teacher_name
+FROM syllabus.pacing_requests r
+JOIN academic.classes c ON c.id = r.class_id
+LEFT JOIN iam.users t ON t.id = r.user_id
+WHERE r.class_id = ANY ($1::uuid[])
+  AND r.created_at <= $2::timestamptz
+  AND (r.status = 'pending'
+       OR ($3::bool AND r.reviewed_at BETWEEN $4::timestamptz AND $5::timestamptz)
+       OR (NOT $3::bool AND r.created_at BETWEEN $4::timestamptz AND $5::timestamptz))
+ORDER BY r.created_at DESC, r.id DESC
+`
+
+type ReportPacingParams struct {
+	ClassIds      []uuid.UUID
+	CreatedBefore time.Time
+	ByReview      bool
+	FromAt        time.Time
+	ToAt          time.Time
+}
+
+type ReportPacingRow struct {
+	ID          uuid.UUID
+	ClassID     uuid.UUID
+	ClassName   string
+	Reason      string
+	Status      string
+	TeacherName *string
+}
+
+// Yêu cầu giãn / điều chỉnh tiến độ của các lớp (lớp người viết thấy, lọc chi nhánh): như ReportProposals.
+func (q *Queries) ReportPacing(ctx context.Context, arg ReportPacingParams) ([]ReportPacingRow, error) {
+	rows, err := q.db.Query(ctx, reportPacing,
+		arg.ClassIds,
+		arg.CreatedBefore,
+		arg.ByReview,
+		arg.FromAt,
+		arg.ToAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ReportPacingRow
+	for rows.Next() {
+		var i ReportPacingRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ClassID,
+			&i.ClassName,
+			&i.Reason,
+			&i.Status,
+			&i.TeacherName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const reportProposals = `-- name: ReportProposals :many
+SELECT p.id, cu.title AS curriculum_title, p.reason, p.status, pu.full_name AS proposer_name
+FROM syllabus.change_proposals p
+JOIN syllabus.curricula cu ON cu.id = p.curriculum_id
+LEFT JOIN iam.users pu ON pu.id = p.user_id
+WHERE ($1::bool OR p.user_id = $2)
+  AND p.created_at <= $3::timestamptz
+  AND (p.status = 'pending'
+       OR ($4::bool AND p.reviewed_at BETWEEN $5::timestamptz AND $6::timestamptz)
+       OR (NOT $4::bool AND p.created_at BETWEEN $5::timestamptz AND $6::timestamptz))
+ORDER BY p.created_at DESC, p.id DESC
+`
+
+type ReportProposalsParams struct {
+	AllRows       bool
+	UserID        uuid.UUID
+	CreatedBefore time.Time
+	ByReview      bool
+	FromAt        time.Time
+	ToAt          time.Time
+}
+
+type ReportProposalsRow struct {
+	ID              uuid.UUID
+	CurriculumTitle string
+	Reason          *string
+	Status          string
+	ProposerName    *string
+}
+
+// Đề xuất sửa giáo trình người viết thấy (người duyệt thấy mọi đề xuất): chờ duyệt, hoặc gửi / duyệt trong [from_at, to_at]
+// (cờ by_review: theo ngày duyệt — báo cáo tuần; không: theo ngày gửi — báo cáo ngày), gửi trước created_before. Mới nhất trước.
+func (q *Queries) ReportProposals(ctx context.Context, arg ReportProposalsParams) ([]ReportProposalsRow, error) {
+	rows, err := q.db.Query(ctx, reportProposals,
+		arg.AllRows,
+		arg.UserID,
+		arg.CreatedBefore,
+		arg.ByReview,
+		arg.FromAt,
+		arg.ToAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ReportProposalsRow
+	for rows.Next() {
+		var i ReportProposalsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.CurriculumTitle,
+			&i.Reason,
+			&i.Status,
+			&i.ProposerName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const reportUpcomingBigTests = `-- name: ReportUpcomingBigTests :many
+SELECT b.id, b.class_id, coalesce(c.name, 'Lớp')::text AS class_name, b.scheduled_at
+FROM syllabus.big_tests b
+LEFT JOIN academic.classes c ON c.id = b.class_id
+WHERE b.class_id = ANY ($1::uuid[])
+  AND b.scheduled_at BETWEEN $2::timestamptz AND $3::timestamptz
+ORDER BY b.scheduled_at, b.id
+`
+
+type ReportUpcomingBigTestsParams struct {
+	ClassIds []uuid.UUID
+	FromAt   time.Time
+	ToAt     time.Time
+}
+
+type ReportUpcomingBigTestsRow struct {
+	ID          uuid.UUID
+	ClassID     *uuid.UUID
+	ClassName   string
+	ScheduledAt *time.Time
+}
+
+// Đợt Big Test của các lớp lên lịch trong [from_at, to_at] (tuần này và tuần kế tiếp).
+func (q *Queries) ReportUpcomingBigTests(ctx context.Context, arg ReportUpcomingBigTestsParams) ([]ReportUpcomingBigTestsRow, error) {
+	rows, err := q.db.Query(ctx, reportUpcomingBigTests, arg.ClassIds, arg.FromAt, arg.ToAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ReportUpcomingBigTestsRow
+	for rows.Next() {
+		var i ReportUpcomingBigTestsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ClassID,
+			&i.ClassName,
+			&i.ScheduledAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const resultStatuses = `-- name: ResultStatuses :many
 SELECT student_id, status, is_absent FROM syllabus.big_test_results WHERE big_test_id = $1
 `
@@ -3907,6 +4356,69 @@ func (q *Queries) TaughtSessions(ctx context.Context, arg TaughtSessionsParams) 
 	var column_1 int32
 	err := row.Scan(&column_1)
 	return column_1, err
+}
+
+const teacherBigTestResults = `-- name: TeacherBigTestResults :many
+SELECT r.id, s.full_name AS student_name, b.title AS test_title, c.name AS class_name, r.listening_score, r.reading_score,
+       r.writing_score, r.speaking_score, r.overall_score, r.status
+FROM syllabus.big_test_results r
+JOIN syllabus.big_tests b ON b.id = r.big_test_id
+JOIN academic.classes c ON c.id = b.class_id AND c.deleted_at IS NULL
+LEFT JOIN academic.students s ON s.id = r.student_id AND s.deleted_at IS NULL
+WHERE c.teacher_id = $1 OR c.foreign_teacher_id = $1
+ORDER BY r.created_at DESC, r.id DESC
+LIMIT $3 OFFSET $2
+`
+
+type TeacherBigTestResultsParams struct {
+	UserID *uuid.UUID
+	Off    int32
+	Lim    int32
+}
+
+type TeacherBigTestResultsRow struct {
+	ID             uuid.UUID
+	StudentName    *string
+	TestTitle      string
+	ClassName      string
+	ListeningScore *float64
+	ReadingScore   *float64
+	WritingScore   *float64
+	SpeakingScore  *float64
+	OverallScore   *float64
+	Status         string
+}
+
+// Bảng điểm Big Test các lớp giáo viên phụ trách (GV chính hoặc GVNN), mới nhất trước (TeacherPortalController::bigTestReport).
+func (q *Queries) TeacherBigTestResults(ctx context.Context, arg TeacherBigTestResultsParams) ([]TeacherBigTestResultsRow, error) {
+	rows, err := q.db.Query(ctx, teacherBigTestResults, arg.UserID, arg.Off, arg.Lim)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []TeacherBigTestResultsRow
+	for rows.Next() {
+		var i TeacherBigTestResultsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.StudentName,
+			&i.TestTitle,
+			&i.ClassName,
+			&i.ListeningScore,
+			&i.ReadingScore,
+			&i.WritingScore,
+			&i.SpeakingScore,
+			&i.OverallScore,
+			&i.Status,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const teacherOptions = `-- name: TeacherOptions :many

@@ -2971,6 +2971,110 @@ func (q *Queries) ItemsByIDs(ctx context.Context, ids []uuid.UUID) ([]ItemsByIDs
 	return items, nil
 }
 
+const kpiReceiptRejected = `-- name: KpiReceiptRejected :many
+SELECT x.created_at, x.title, x.body FROM (
+    SELECT DISTINCT ON (coalesce(n.data->>'receipt_id', 'n' || n.id::text), (n.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date)
+           n.created_at, n.title, n.body
+    FROM core.notifications n
+    WHERE n.user_id = $1 AND n.type = 'receipt_rejected'
+      AND n.created_at BETWEEN $2::timestamptz AND $3::timestamptz
+    ORDER BY coalesce(n.data->>'receipt_id', 'n' || n.id::text), (n.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date, n.created_at, n.id
+) x
+ORDER BY x.created_at
+`
+
+type KpiReceiptRejectedParams struct {
+	UserID uuid.UUID
+	FromAt time.Time
+	ToAt   time.Time
+}
+
+type KpiReceiptRejectedRow struct {
+	CreatedAt time.Time
+	Title     string
+	Body      string
+}
+
+// KPI receipt_rejected (KpiAutoCounter::receiptRejected): thông báo "Phiếu thu bị trả về" gửi người lập trong khoảng, mỗi
+// phiếu một lần trong ngày.
+func (q *Queries) KpiReceiptRejected(ctx context.Context, arg KpiReceiptRejectedParams) ([]KpiReceiptRejectedRow, error) {
+	rows, err := q.db.Query(ctx, kpiReceiptRejected, arg.UserID, arg.FromAt, arg.ToAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []KpiReceiptRejectedRow
+	for rows.Next() {
+		var i KpiReceiptRejectedRow
+		if err := rows.Scan(&i.CreatedAt, &i.Title, &i.Body); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const kpiTuitionNoReminder = `-- name: KpiTuitionNoReminder :many
+SELECT t.id, t.due_date::date AS due_date, coalesce(s.full_name, 'Học viên')::text AS student_name
+FROM finance.tuitions t
+LEFT JOIN academic.students s ON s.id = t.student_id AND s.deleted_at IS NULL
+WHERE t.student_id IN (SELECT l.converted_student_id FROM crm.leads l
+                       WHERE l.assigned_user_id = $1 AND l.converted_student_id IS NOT NULL)
+  AND t.due_date IS NOT NULL AND t.due_date >= $2::date AND t.due_date < $3::date
+  AND NOT (t.reminder_paused_until IS NOT NULL AND t.reminder_paused_until > t.due_date)
+  AND (t.debt_amount > 0 OR EXISTS (
+        SELECT 1 FROM finance.receipts r WHERE r.tuition_id = t.id AND r.status = 'approved'
+          AND (r.approved_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date > t.due_date))
+  AND NOT EXISTS (
+        SELECT 1 FROM finance.tuition_contact_logs c WHERE c.tuition_id = t.id
+          AND c.contacted_at BETWEEN ((t.due_date - 3)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh') AND $4::timestamptz)
+ORDER BY t.due_date, t.id
+`
+
+type KpiTuitionNoReminderParams struct {
+	UserID   *uuid.UUID
+	FromDate time.Time
+	EndDate  time.Time
+	EndAt    time.Time
+}
+
+type KpiTuitionNoReminderRow struct {
+	ID          uuid.UUID
+	DueDate     time.Time
+	StudentName string
+}
+
+// KPI tuition_no_reminder (KpiAutoCounter::tuitionNoReminder): hồ sơ của học viên do người này chốt từ khách CRM, đến hạn
+// trong [from_date, end_date) mà quá hạn (còn nợ, hoặc có phiếu duyệt sau hạn), không khất nợ qua hạn và không có lần liên
+// hệ học phí nào từ 3 ngày trước hạn tới end_at.
+func (q *Queries) KpiTuitionNoReminder(ctx context.Context, arg KpiTuitionNoReminderParams) ([]KpiTuitionNoReminderRow, error) {
+	rows, err := q.db.Query(ctx, kpiTuitionNoReminder,
+		arg.UserID,
+		arg.FromDate,
+		arg.EndDate,
+		arg.EndAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []KpiTuitionNoReminderRow
+	for rows.Next() {
+		var i KpiTuitionNoReminderRow
+		if err := rows.Scan(&i.ID, &i.DueDate, &i.StudentName); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lastContactLogs = `-- name: LastContactLogs :many
 SELECT DISTINCT ON (l.tuition_id, l.action) l.tuition_id, l.action, l.note, l.contacted_at, u.full_name AS user_name
 FROM finance.tuition_contact_logs l

@@ -148,14 +148,20 @@ func (s *Service) kpiGroups(ctx context.Context, w Writer, from, to time.Time, d
 				}
 			}
 		}
-		// Dòng tham khảo (không đếm): báo cáo ngày đã nộp.
-		// TODO(gộp): ticket CSVC (material_stock) và buổi chưa điểm danh (mục 5.1) khi có phân hệ ticket / lớp học.
+		// Dòng tham khảo (không đếm): báo cáo ngày đã nộp; ticket CSVC (material_stock) và buổi chưa điểm danh (mục 5.1)
+		// từ phân hệ Ticket / Lớp học.
 		if c.AutoSource == "daily_report_late" {
 			text := fmt.Sprintf("Báo cáo ngày đã nộp %d/%d ngày", daily.Submitted, daily.Expected)
 			if len(daily.Missing) > 0 {
 				text += " · còn thiếu " + strings.Join(daily.Missing, ", ")
 			}
 			item.Details = append(item.Details, Detail{Text: text, Tag: "Tham khảo", URL: "/reports/daily"})
+		} else {
+			hints, err := s.metrics.KpiHints(ctx, c, w, from, to)
+			if err != nil {
+				return nil, err
+			}
+			item.Details = append(item.Details, hints...)
 		}
 		i := slices.IndexFunc(groups, func(g KpiGroup) bool { return g.Name == c.Group })
 		if i < 0 {

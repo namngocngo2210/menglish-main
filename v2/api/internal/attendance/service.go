@@ -86,7 +86,7 @@ type PayrollPeriod struct {
 }
 
 // PayrollLock: kỳ lương đã duyệt / đã chi trả khóa dữ liệu chấm công của các ngày trong kỳ (PayrollPeriod::isLockedFor).
-// TODO(gộp): adapter của phân hệ Lương & Phạt (kỳ lương trạng thái approved / paid); hiện không kỳ nào bị khóa.
+// Adapter của phân hệ Lương & Phạt ở cmd/menglish/wiring.go; chưa gắn thì không kỳ nào bị khóa.
 type PayrollLock interface {
 	LockedRanges(ctx context.Context) ([]LockedRange, error)
 	// Period: kỳ lương của tháng chứa month; nil = chưa khởi tạo bảng lương.
@@ -120,7 +120,7 @@ type PenaltyRef struct {
 }
 
 // Penalties: biên bản đi muộn tự động (StaffAttendanceService::syncLatePenalty, bảng penalties của Lương & Phạt).
-// TODO(gộp): adapter của phân hệ Lương & Phạt; hiện chưa lập biên bản (dòng chấm công vẫn ghi phút muộn).
+// Adapter ở cmd/menglish/wiring.go; chưa gắn thì không lập biên bản (dòng chấm công vẫn ghi phút muộn).
 type Penalties interface {
 	// Late: dòng đi muộn tính lỗi. current = biên bản đang gắn (nil = chưa có). Chưa có hoặc đã hủy → lập mới (chờ giải
 	// trình, 0đ, Created = true); còn chờ giải trình → cập nhật nội dung vi phạm. Trả biên bản đang gắn.
