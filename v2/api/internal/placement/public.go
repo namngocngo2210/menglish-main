@@ -262,6 +262,6 @@ func (s *Service) Submit(ctx context.Context, token string, in SubmitInput) (*Su
 			branch = l.BranchID
 		}
 	}
-	s.notifySubmission(ctx, sub.ID, sub.CandidateName, sub.CandidatePhone, test.Title, branch, s.now())
+	s.notifySubmission(ctx, sub.ID, sub.Number, sub.CandidateName, sub.CandidatePhone, test.Title, branch, s.now())
 	return &SubmitResult{CandidateName: sub.CandidateName, TestTitle: test.Title}, nil
 }

@@ -169,7 +169,7 @@ func setup(t *testing.T) *env {
 		t.Fatal(err)
 	}
 	if _, err := pool.Exec(ctx, `TRUNCATE placement.submissions, placement.invitations, placement.tests, crm.trial_bookings,
-		iam.users, iam.roles, iam.role_permissions, core.branches CASCADE`); err != nil {
+		core.mail_outbox, core.settings, iam.users, iam.roles, iam.role_permissions, core.branches CASCADE`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := iam.SyncCatalog(ctx, pool); err != nil {
@@ -752,7 +752,7 @@ func TestTrialBooking(t *testing.T) {
 	if r.body["class_name"] != "Movers A" || r.body["customer_name"] != "Bé Mai" || r.body["start"] != "17:30" {
 		t.Fatalf("xếp học thử: %s", r.raw)
 	}
-	if ev := e.leads.lastEvent(t, lead.ID); !strings.Contains(ev.Content, "Đặt lịch học thử: Movers A") || !strings.Contains(ev.Content, "Ghi chú cho giáo viên: Bé nhút nhát") {
+	if ev := e.leads.event(t, lead.ID, "Đặt lịch học thử: Movers A"); !strings.Contains(ev.Content, "Ghi chú cho giáo viên: Bé nhút nhát") {
 		t.Fatalf("nhật ký xếp học thử: %+v", ev)
 	}
 	expectMsg(t, staff.do("POST", "/trial-bookings", map[string]any{"lead_id": lead.ID, "class_session_id": s2.ID}),

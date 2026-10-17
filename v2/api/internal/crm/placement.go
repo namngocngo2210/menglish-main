@@ -32,7 +32,7 @@ func toPlacementLead(r crmdb.PlacementLeadsRow) placement.Lead {
 	return placement.Lead{
 		ID: r.ID, Code: r.Code, Name: r.Name, ParentName: deref(r.ParentName), Phone: r.Phone, Email: deref(r.Email),
 		Stage: r.Stage, StageLabel: StageLabel(r.Stage), BranchID: r.BranchID, AssignedUserID: r.AssignedUserID,
-		AssignedName: r.AssignedUserName, TestScore: deref(r.TestScore),
+		AssignedName: r.AssignedUserName, TestScore: deref(r.TestScore), ParentPhone: deref(r.ParentPhone),
 	}
 }
 
