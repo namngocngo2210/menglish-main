@@ -55,7 +55,9 @@ func (f fakeClasses) VisibleClassIDs(ctx context.Context, a *iam.Access) ([]uuid
 // fakeLock: kỳ lương đã khóa (phân hệ Lương chưa gộp).
 type fakeLock struct{ ranges []attendance.LockedRange }
 
-func (f fakeLock) LockedRanges(context.Context) ([]attendance.LockedRange, error) { return f.ranges, nil }
+func (f fakeLock) LockedRanges(context.Context) ([]attendance.LockedRange, error) {
+	return f.ranges, nil
+}
 func (f fakeLock) Period(_ context.Context, m time.Time) (*attendance.PayrollPeriod, error) {
 	for _, r := range f.ranges {
 		if r.From.Format("2006-01") == m.Format("2006-01") {
@@ -300,7 +302,9 @@ func TestPunchLockedPeriod(t *testing.T) {
 func TestRequests(t *testing.T) {
 	e := setup(t, nil)
 	f := newFixture(e)
-	submit := func(c *iamtest.Client, body map[string]any) iamtest.Resp { return c.Do("POST", "/attendance/me/requests", body) }
+	submit := func(c *iamtest.Client, body map[string]any) iamtest.Resp {
+		return c.Do("POST", "/attendance/me/requests", body)
+	}
 
 	for _, c := range []struct {
 		body map[string]any

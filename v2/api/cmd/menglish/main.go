@@ -180,8 +180,8 @@ func runAPI(ctx context.Context) error {
 	go reportSvc.RunReminderLoop(ctx, time.Minute)
 	// Thu chi: sổ khoản chi + doanh thu tạm tính từ phiếu thu đã duyệt của Học phí. TODO(gộp): WithPayroll(kỳ lương).
 	finSvc := finance.NewService(d.pool, log).WithRevenue(tuitionSvc.RevenueSource())
-	// Số liệu KPI tự động từ báo cáo / công việc / kho / lớp học; tạo phiếu đầu kỳ hằng ngày (kpi:create-sheets).
-	// Chấm công: đi muộn, giờ dạy muộn / vắng / nghỉ có phép. TODO(gộp): nguồn Học phí / SLA CRM / Big Test, WithPayrollLock(kỳ lương) khi có ở v2.
+	// Số liệu KPI tự động từ báo cáo / công việc / kho / lớp học / chấm công; tạo phiếu đầu kỳ hằng ngày (kpi:create-sheets).
+	// TODO(gộp): nguồn Học phí / SLA CRM / Cổng giáo viên / Big Test, WithPayrollLock(kỳ lương) khi có ở v2.
 	// Chấm công: ảnh khuôn mặt ở kho file, phạm vi lớp của giờ dạy từ Lớp học. TODO(gộp): WithPayrollLock(kỳ lương đã
 	// duyệt / chi trả), WithPenalties(biên bản đi muộn) của phân hệ Lương & Phạt.
 	attSvc := attendance.NewService(d.pool, d.iam, log).WithFiles(fileSvc).WithClasses(cls)

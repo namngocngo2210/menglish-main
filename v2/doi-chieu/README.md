@@ -27,6 +27,7 @@ Số dòng theo trạng thái tính tới lần gộp cuối của PR #152.
 | Kho file | [kho-file.md](kho-file.md) | 10 | 2 | 0 | 1 | Nhập file cũ từ Laravel, file của phân hệ chưa chuyển (minh chứng, CV, file nghe bài tập…) |
 | Thu - Chi | [thu-chi.md](thu-chi.md) | 7 | 1 | 2 | 1 | Dòng chi lương tự động (chờ phân hệ Lương) |
 | KPI nhân sự | [kpi.md](kpi.md) | 17 | 7 | 0 | 8 | Nguồn tự đếm của Học phí / CRM SLA / cổng giáo viên / chấm công / Big Test / bài tập / dự án học thuật (hiện điền tay), khóa phiếu theo kỳ lương |
+| Chấm công (của tôi, đơn & duyệt, hằng ngày, giờ dạy giáo viên, chấm tay, đồng bộ) | [cham-cong.md](cham-cong.md) | 21 | 4 | 4 | 4 | Biên bản đi muộn & khóa kỳ lương (chờ Lương & Phạt), hộp duyệt chung, check-in cổng giáo viên, nhập dữ liệu cũ |
 | Học phí (hồ sơ, phiếu thu, công nợ, hoàn phí, hủy hóa đơn, SePay, nhập Excel) | [hoc-phi.md](hoc-phi.md) | 31 | 10 | 0 | 4 | Cổng học viên báo chuyển khoản, thu hồi hoa hồng (chờ Lương), nguồn KPI tự đếm, nhập dữ liệu học phí cũ |
 
 ## Phần dùng chung chưa có ở v2
