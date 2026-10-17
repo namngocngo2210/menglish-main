@@ -39,6 +39,7 @@ import { RoomsPage } from './features/catalogs/RoomsPage'
 import { ShiftsPage } from './features/catalogs/ShiftsPage'
 import { SlaPage } from './features/catalogs/SlaPage'
 import { TicketEmailsPage } from './features/catalogs/TicketEmailsPage'
+import { OutboxPage } from './features/mail/OutboxPage'
 
 // Trang theo đường dẫn mục menu (NAV trong nav.ts). Trang con (vd. /students/<id>) dùng chung mục cha và tự đọc
 // phần còn lại của đường dẫn bằng usePath(). Module mới: thêm mục vào NAV và một dòng ở đây.
@@ -63,6 +64,7 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/system-config/bank-accounts': (me) => <BankAccountsPage me={me} />,
   '/system-config/ticket-emails': (me) => <TicketEmailsPage me={me} />,
   '/system-config/sla': (me) => <SlaPage me={me} />,
+  '/system-config/mail-outbox': () => <OutboxPage />,
   '/tasks': (me) => <TasksPage me={me} />,
   '/tasks/new': (me) => <CreateTaskPage me={me} />,
   '/tasks/ta-assign': (me) => <TAAssignPage me={me} />,

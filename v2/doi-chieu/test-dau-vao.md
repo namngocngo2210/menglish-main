@@ -58,7 +58,7 @@ trang Vue `PlacementTests/*`, `PlacementTests/Portal/*`, `TrialGuests/Index`, `C
 | `portal.test.submit` — `portalSubmitTest` | `POST /public/placement/{token}/submit` | Đã làm | Tự chấm Nghe và Đọc & Viết theo thang khối, kèm nhận xét gợi ý; bài vẫn ở trạng thái "Chờ chấm". Lưu nhật ký rời bài (tối đa 50 dòng) và cờ tự nộp. |
 | `portal.test.done` — `portalDone` | Màn cảm ơn trong `/lam-bai/<token>` | Đã làm | |
 | `portal.test.scorecard` / `portal.test.results` — `portalScorecard` (URL ký) | `GET /placement-submissions/{id}/scorecard`; màn `/placement-tests/submissions/<id>/scorecard` (in được) | Làm một phần | Màn nội bộ, cần đăng nhập. Chưa có link ký công khai để gửi phụ huynh. Chưa có hotline / danh sách cơ sở (`CenterInfo`) ở đầu phiếu và khối "Mục tiêu học tiếng Anh". |
-| `crm.customers.schedule-test` — `CrmController::schedulePlacementTest` | Service `LeadLinkFor` (tạo link riêng của khách) | Chưa làm | Màn hồ sơ khách thuộc module CRM. Chưa gửi xác nhận lịch test (`AppointmentConfirmation`). |
+| `crm.customers.schedule-test` — `CrmController::schedulePlacementTest` | Service `LeadLinkFor` (tạo link riêng của khách) | Chưa làm | Màn hồ sơ khách thuộc module CRM. Chưa gửi xác nhận lịch test (`AppointmentConfirmation::forTest`; dùng `mail.ParentNotice` khi chuyển). |
 | `crm.customers.test-no-show` — `testNoShow` | — | Chưa làm | Thuộc CRM. |
 | `crm.customers.save-test-score` — `saveTestScore` | — | Chưa làm | Thuộc CRM. Có thể dùng lại component `RubricScoreFields` và cách tính điểm của v2. |
 | `crm.customers.link-submission` — `linkSubmission` (`PlacementSubmissionLinker`) | — | Chưa làm | Gắn bài nộp chưa khớp vào khách. Cần màn CRM. |
@@ -70,7 +70,7 @@ trang Vue `PlacementTests/*`, `PlacementTests/Portal/*`, `TrialGuests/Index`, `C
 | `teacher.trial-guests.feedback` — `TrialGuestController::feedback` | `POST /trial-bookings/{id}/feedback` | Đã làm | Có điểm danh có mặt / vắng, đánh giá 1–5, 3 đầu mục nhận xét, nhận xét chi tiết. Chỉ mở từ ngày học. Ghi nhật ký vào khách. Báo Học vụ đã xếp lịch + người phụ trách khách (`trial_feedback`). |
 | `Components/Teacher/SessionTrialGuests.vue` (khách học thử trong màn điểm danh buổi dạy) | — | Chưa làm | Thuộc màn điểm danh của Cổng giáo viên; dữ liệu lấy được từ `GET /trial-bookings/teacher`. |
 | Đề mẫu hệ thống (`is_preset`, seeder) | Cột `is_preset`, khóa sửa / xóa | Làm một phần | v2 không tự tạo đề mẫu; đề mẫu sẽ được đưa sang khi nhập dữ liệu cũ. |
-| Thông báo: `notifyUser` (phát hành), `notifyHomeworkOrTestSubmission`, `notifyTrialBooked`, `notifyTrialFeedback`, `AppointmentConfirmation::forTrial` | `placement/notify.go` (`notify.Send`) | Làm một phần | Đã gửi: phát hành đề, nộp bài (báo người có `placement_test.grade` của chi nhánh — Laravel gửi email vận hành, v2 là thông báo trong ứng dụng), đặt học thử (giáo viên / trợ giảng), nhận xét học thử. Chưa làm: xác nhận lịch học thử cho khách (`AppointmentConfirmation`, `TODO(email)` — chưa có kênh email / Zalo). |
+| Thông báo: `notifyUser` (phát hành), `notifyHomeworkOrTestSubmission`, `notifyTrialBooked`, `notifyTrialFeedback`, `AppointmentConfirmation::forTrial` | `placement/notify.go` (`notify.Send`), `placement/confirm.go` (`mail.Enqueue`) | Đã làm | Đã gửi: phát hành đề, nộp bài (thông báo trong ứng dụng cho người có `placement_test.grade` của chi nhánh, kèm email vận hành như Laravel), đặt học thử (giáo viên / trợ giảng), nhận xét học thử, xác nhận lịch học thử cho khách (email qua hàng đợi; chưa có email hoặc gửi lỗi thì nhắc người phụ trách gửi Zalo). Xem [email.md](email.md). |
 | Sinh đề bằng AI | — | Đã làm | Laravel không có tính năng này; "(AI)" chỉ là nhãn menu, đã giữ nguyên. |
 
 ## Cần khi gộp (liên module)
@@ -94,5 +94,6 @@ trang Vue `PlacementTests/*`, `PlacementTests/Portal/*`, `TrialGuests/Index`, `C
   (xóa buổi xóa luôn lịch hẹn như Laravel). Nghỉ lễ hủy buổi thì phân hệ Lớp học hủy lịch hẹn học thử của buổi đó;
   xếp lại TKB không xóa buổi đã có khách hẹn. Màn đặt học thử vẫn cần danh sách buổi trống (TrialSlotFinder).
 - **Kho file**: tải đề PDF, file nghe, ảnh câu hỏi; phân tích đáp án từ PDF.
-- **Thông báo**: đã gửi (xem bảng trên); còn xác nhận lịch học thử cho khách (`TODO(email)`).
+- **Thông báo / email**: đã gửi (xem bảng trên), kể cả xác nhận lịch học thử cho khách. Màn CRM khi có nút đặt học thử
+  thì hiện `confirmation` trả về từ `POST /trial-bookings` (nội dung sao chép gửi Zalo).
 - `internal/iam/iamdb/models.go` được sqlc sinh lại vì có thêm migration. Khi gộp nhiều nhánh thì chạy lại `sqlc generate`.
