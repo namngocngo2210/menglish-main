@@ -282,6 +282,8 @@ const STATUS_OPTIONS = [
   { value: 'resolved', label: 'Đã giải quyết' },
 ]
 const PRIORITY_TONE: Record<string, 'error' | 'warning' | 'info'> = { urgent: 'error', high: 'warning', medium: 'info' }
+const TICKET_PRIORITY: Record<string, string> = { urgent: 'Khẩn cấp', high: 'Cao', medium: 'Trung bình', low: 'Thấp' }
+const TICKET_STATUS_TONE: Record<string, 'warning' | 'info' | 'success'> = { open: 'warning', in_progress: 'info', resolved: 'success' }
 const JOURNAL_STATUS: Record<string, { label: string; tone: 'success' | 'info' | 'warning' }> = {
   resolved: { label: 'Đã xử lý', tone: 'success' },
   following: { label: 'Đang theo dõi', tone: 'info' },
@@ -358,7 +360,7 @@ function IncidentsView() {
         <div className="space-y-1 border-b border-surface-container-highest px-4 py-3">
           <h3 className="text-sm font-bold text-on-surface">Nhật ký sự vụ các lớp và cơ sở</h3>
           <p className="text-xs text-on-surface-variant">Theo dõi, giao quyền xử lý và ghi nhận giải pháp khắc phục</p>
-          <Pending>Ticket hỗ trợ khẩn / cao: {d.tickets_pending}</Pending>
+          {d.tickets_pending && <Pending>Ticket hỗ trợ khẩn / cao: {d.tickets_pending}</Pending>}
         </div>
         <table className="w-full text-sm">
           <thead className="border-b border-surface-container-highest">
@@ -371,6 +373,37 @@ function IncidentsView() {
             </tr>
           </thead>
           <tbody>
+            {d.tickets.map((t) => (
+              <tr key={`t${t.id}`} className={`border-b border-surface-container-highest/60 last:border-0 ${t.priority === 'urgent' ? 'bg-error/5' : ''}`}>
+                <td className={td}>
+                  {t.can_open ? (
+                    <Link href={`/tickets/${t.id}`} className="font-mono text-xs font-bold text-on-surface hover:underline">
+                      {t.code}
+                    </Link>
+                  ) : (
+                    <span className="font-mono text-xs font-bold">{t.code}</span>
+                  )}
+                  <span className="block text-xs text-on-surface-variant">{t.branch ?? 'Chưa cập nhật'}</span>
+                </td>
+                <td className={td}>
+                  <Badge>{t.category_label}</Badge>
+                </td>
+                <td className={`${td} max-w-sm`}>
+                  <p className="font-semibold">{t.title}</p>
+                  <p className="line-clamp-1 text-xs text-on-surface-variant">{t.excerpt}</p>
+                </td>
+                <td className={td}>
+                  <Badge tone={PRIORITY_TONE[t.priority] ?? 'neutral'}>{TICKET_PRIORITY[t.priority] ?? 'Chưa cập nhật'}</Badge>
+                </td>
+                <td className={td}>
+                  <span className="font-bold">{t.assignee ?? 'Chưa phân công'}</span>
+                  <span className="block text-xs text-on-surface-variant">Người tạo: {t.creator}</span>
+                </td>
+                <td className={td}>
+                  <Badge tone={TICKET_STATUS_TONE[t.status] ?? 'neutral'}>{t.status_label}</Badge>
+                </td>
+              </tr>
+            ))}
             {d.journals.map((j) => {
               const st = JOURNAL_STATUS[j.status] ?? { label: 'Mới', tone: 'warning' as const }
               return (
@@ -407,7 +440,7 @@ function IncidentsView() {
                 </tr>
               )
             })}
-            {!d.journals.length && (
+            {!d.journals.length && !d.tickets.length && (
               <tr>
                 <td colSpan={6}>
                   <Empty title="Chưa có sự vụ nào phù hợp bộ lọc." />

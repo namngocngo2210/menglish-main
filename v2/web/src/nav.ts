@@ -175,6 +175,9 @@ export const NAV: NavItem[] = [
     perms: ['work_task.view'],
     menu: (me) => isAdmin(me) && can(me, 'work_task.create'),
   },
+  // Ticket hỗ trợ (features/tickets): trang con /tickets/new, /tickets/<id> do TicketsPage tự đọc. Menu neo portal.staff
+  // như SidebarMenu (học viên vẫn mở được ticket của mình qua link thông báo).
+  { path: '/tickets', label: 'Ticket hỗ trợ', perms: ['support_ticket.view'], group: 'Ticket hỗ trợ', menu: (me) => can(me, 'portal.staff') },
 ]
 
 // Workspace của sidebar theo đúng thứ tự SidebarMenu::definition(): khu (section) → workspace (label, icon).
