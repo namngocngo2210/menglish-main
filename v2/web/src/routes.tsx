@@ -55,6 +55,7 @@ import { BillPage as TuitionBillPage } from './features/tuition/BillPage'
 import { HistoryPage as TuitionHistoryPage } from './features/tuition/HistoryPage'
 import { OverduePage as TuitionOverduePage } from './features/tuition/OverduePage'
 import { ReceiptsRoute } from './features/tuition/ReceiptFormPage'
+import { RefundsPage as TuitionRefundsPage } from './features/tuition/RefundsPage'
 import { StudentsPage as TuitionStudentsPage } from './features/tuition/StudentsPage'
 
 // Trang theo đường dẫn mục menu (NAV trong nav.ts). Trang con (vd. /students/<id>) dùng chung mục cha và tự đọc
@@ -126,4 +127,5 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/tuition/receipts': (me) => <ReceiptsRoute me={me} />,
   '/tuition/receipts/approve': (me) => <TuitionApprovePage me={me} />,
   '/tuition/bill': (me) => <TuitionBillPage me={me} />,
+  '/tuition/refunds': (me) => <TuitionRefundsPage me={me} />,
 }

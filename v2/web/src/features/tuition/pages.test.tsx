@@ -4,10 +4,11 @@ import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { Me } from '../../api'
-import { buildSidebar } from '../../nav'
+import { buildSidebar, workspaceTabs } from '../../nav'
 import { ApprovePage } from './ApprovePage'
 import { BillPage } from './BillPage'
 import { OverduePage } from './OverduePage'
+import { RefundsPage } from './RefundsPage'
 import { StudentsPage } from './StudentsPage'
 
 afterEach(() => {
@@ -351,4 +352,119 @@ test('Quá hạn & nhắc phí: thống kê, gửi nhắc, ghi nhận liên hệ
   await userEvent.click(screen.getByRole('button', { name: 'Lưu liên hệ' }))
   expect(await screen.findByText('Đã ghi nhận liên hệ với phụ huynh học viên Nguyễn Văn An — chờ thu.')).toBeInTheDocument()
   expect(calls.find((c) => c.key === 'POST /tuition/overdue/t1/contacted')?.body).toEqual({ note: 'Hẹn thứ 6' })
+})
+
+test('Hoàn tiền & Khất nợ: căn cứ hoàn, lập hồ sơ, bắt buộc ảnh bằng chứng, từ chối', async () => {
+  const pending = {
+    id: 'r1',
+    ref: '#A1B2C3',
+    type: 'refund',
+    type_label: 'Hoàn tiền',
+    status: 'pending',
+    student: { name: 'Nguyễn Văn An', code: 'HV0001', class_name: 'IELTS 1' },
+    target: null,
+    refund_amount: 900000,
+    defer_from: null,
+    defer_to: null,
+    extended_due_date: null,
+    processing_deadline: '20/10/2026',
+    overdue: true,
+    overdue_days: 2,
+    reason: 'Chuyển nơi ở',
+    no_transfer_reason: 'Không có người nhận',
+    rejection_reason: null,
+    created_date: '10/10/2026',
+    created_at: '10/10/2026 09:00',
+    requester_name: 'Quản lý',
+    approver_name: null,
+    clawback_commission: null,
+    clawback_amount: 0,
+    clawback_user_name: null,
+    has_proof: false,
+    proof_url: null,
+    approve_permission: 'refund_transfer.approve_refund',
+  }
+  const calls = mockApi({
+    'GET /tuition/refunds': () => [
+      200,
+      {
+        pending_requests: [pending],
+        overdue_count: 1,
+        history_requests: [],
+        total_count: 1,
+        filters: { status: '', type: '', search: '' },
+        type_options: [
+          { value: 'refund', label: 'Hoàn tiền' },
+          { value: 'transfer', label: 'Chuyển nhượng' },
+          { value: 'extension', label: 'Khất nợ' },
+          { value: 'deferral', label: 'Bảo lưu' },
+        ],
+        approvable_types: ['refund', 'transfer', 'extension', 'deferral'],
+        can_reject_any: true,
+        clawback_hints: { r1: { suggest: true, amount: 0, owner: 'Tư vấn A', start: '01/10/2026' } },
+        student_finance: {
+          s2: {
+            has_tuition: true,
+            paid: 2000000,
+            contract: 2400000,
+            debt: 400000,
+            due_date: '01/11/2026',
+            total_sessions: 24,
+            attended_sessions: 12,
+            remaining_sessions: 12,
+            unit_price: 100000,
+            remaining_value: 1200000,
+            admin_fee: 120000,
+            suggested_refund: 1080000,
+            status_label: 'Còn nợ',
+          },
+        },
+        admin_fee_percent: 10,
+        targets: [],
+        source_options: [{ value: 's2', label: 'Trần Thị Bình · HV0002' }],
+        debtor_options: [],
+        deadline: '24/10/2026',
+        current_month: '2026-10',
+        today: '2026-10-17',
+        tomorrow: '2026-10-18',
+      },
+    ],
+    'POST /tuition/refunds': () => [201, { message: 'Đã lập hồ sơ Hoàn tiền và gửi lên Admin phê duyệt! Hạn xử lý: 24/10/2026.' }],
+    'POST /tuition/refunds/r1/reject': () => [200, { message: 'Đã từ chối yêu cầu.' }],
+  })
+  wrap(<RefundsPage me={me(['tuition.view', 'refund_transfer.request', 'refund_transfer.reject'], true)} />)
+  expect(await screen.findByText('Nguyễn Văn An')).toBeInTheDocument()
+  expect(screen.getByText('Quá hạn xử lý 2 ngày')).toBeInTheDocument()
+
+  await userEvent.selectOptions(screen.getByLabelText('Học viên'), 's2')
+  expect(screen.getByText('12 / 24')).toBeInTheDocument()
+  expect(screen.getByLabelText('Số tiền (đ)')).toHaveValue('1080000')
+  await userEvent.type(screen.getByLabelText('Lý do'), 'Không theo được lịch')
+  await userEvent.click(screen.getByRole('button', { name: 'Gửi duyệt' }))
+  expect(await screen.findByText(/Đã lập hồ sơ Hoàn tiền/)).toBeInTheDocument()
+  expect(calls.find((c) => c.key === 'POST /tuition/refunds')?.body).toEqual({
+    student_id: 's2',
+    type: 'refund',
+    reason: 'Không theo được lịch',
+    refund_amount: 1080000,
+  })
+
+  await userEvent.click(screen.getByRole('button', { name: 'Duyệt' }))
+  expect(screen.getByLabelText('Thu hồi hoa hồng của tư vấn viên')).toBeChecked()
+  await userEvent.click(screen.getAllByRole('button', { name: 'Duyệt' }).at(-1)!)
+  expect(await screen.findByText('Hoàn tiền bắt buộc đính kèm ảnh bằng chứng (ủy nhiệm chi / biên nhận).')).toBeInTheDocument()
+  expect(calls.some((c) => c.key === 'POST /tuition/refunds/r1/approve')).toBe(false)
+  await userEvent.click(screen.getByRole('button', { name: 'Hủy' }))
+
+  await userEvent.click(screen.getByRole('button', { name: 'Từ chối' }))
+  await userEvent.type(screen.getByLabelText('Lý do từ chối'), 'Thiếu chứng từ')
+  await userEvent.click(screen.getAllByRole('button', { name: 'Từ chối' }).at(-1)!)
+  expect(await screen.findByText('Đã từ chối yêu cầu.')).toBeInTheDocument()
+  expect(calls.find((c) => c.key === 'POST /tuition/refunds/r1/reject')?.body).toEqual({ rejection_reason: 'Thiếu chứng từ' })
+})
+
+test('Sidebar: Hoàn tiền & Khất nợ chỉ Admin thấy ở Cần duyệt', () => {
+  const tabs = (m: Me) => workspaceTabs(m, '/tuition/refunds')?.tabs.map((t) => t.label) ?? []
+  expect(tabs(me(['tuition.view', 'refund_transfer.request'], true))).toEqual(['Phiếu thu', 'Hoàn tiền & Khất nợ'])
+  expect(tabs(me(['tuition.view', 'refund_transfer.request']))).not.toContain('Hoàn tiền & Khất nợ')
 })

@@ -158,7 +158,8 @@ func runAPI(ctx context.Context) error {
 	// khách Chờ xếp lớp bên CRM.
 	crmSvc := crm.NewService(d.pool, d.iam, log).WithStudents(tuitionSvc.Closing(cls.CRMStudents(studentSvc))).WithTuition(tuitionSvc)
 	cls.CRM, cls.Tuition, studentSvc.Tuition = crmSvc, tuitionSvc, tuitionSvc
-	tuitionSvc.WithLeads(crmSvc).WithStudents(studentSvc).WithAccess(d.iam.LoadAccess)
+	// Ảnh bằng chứng hoàn tiền lưu ở kho file. TODO(gộp): WithCommissions(hoa hồng tư vấn) khi phân hệ Lương có ở v2.
+	tuitionSvc.WithLeads(crmSvc).WithStudents(studentSvc).WithAccess(d.iam.LoadAccess).WithFiles(fileSvc)
 	// Nhắc nợ theo mốc, SLA tiền mặt / hoàn phí, bảo lưu bắt đầu / hết hạn (lệnh tuition:* / students:*-deferrals ở bản Laravel).
 	go tuitionSvc.RunReminderLoop(ctx, time.Minute)
 	// Leads: khách CRM. Sessions: buổi học thật của phân hệ Lớp học cho học thử.

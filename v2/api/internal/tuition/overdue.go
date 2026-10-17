@@ -14,6 +14,7 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/catalogs"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/notify"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/notify/mail"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/tuition/tuitiondb"
 )
 
@@ -396,9 +397,21 @@ func (s *Service) remindDebt(ctx context.Context, t tuitiondb.ReminderTargetRow,
 			}
 		}
 		if slices.Contains(channels, "email") {
-			// TODO(email): thư cảnh báo nội bộ "[Nhắc nợ <mốc>] <học viên> — <số tiền>" (sendOperationalAlertEmail overdue_debt),
-			// thêm dòng "(Đã đồng thời gửi thông báo vào Cổng PH/HS của học viên.)" khi bật kênh portal.
-			_ = content
+			// Thư cảnh báo nội bộ cho danh sách "Email nhận Ticket" (sendOperationalAlertEmail overdue_debt).
+			body := content
+			if slices.Contains(channels, "portal") {
+				body += "\n\n(Đã đồng thời gửi thông báo vào Cổng PH/HS của học viên.)"
+			}
+			if _, err := mail.OperationalAlert(ctx, tx, mail.EventOverdueDebt,
+				fmt.Sprintf("[Nhắc nợ %s] %s — %s", milestone, t.StudentName, money(t.DebtAmount)), body, mail.Alert{
+					Code: "DEBT-" + milestone + "-" + t.ID.String(), Title: fmt.Sprintf("[Nhắc nợ %s] %s", milestone, t.StudentName),
+					Status: "overdue", StatusLabel: "Nhắc nợ " + milestone, Priority: "high", PriorityLabel: "Nhắc nợ",
+					CategoryLabel: "Tài chính & Công nợ", SenderName: "Bộ phận Thu hồi Công nợ",
+					ActionURL: "/tuition/overdue", ActionText: "Xem Danh sách Quá hạn",
+					RefType: "student_tuition", RefID: t.ID.String(), CreatedBy: by,
+				}); err != nil {
+				return err
+			}
 		}
 		return nil
 	})

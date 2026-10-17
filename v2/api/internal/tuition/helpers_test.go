@@ -23,7 +23,7 @@ type env struct {
 func setup(t *testing.T) *env {
 	t.Helper()
 	e := iamtest.Setup(t, "academic.courses", "academic.classes", "academic.students", "finance.tuitions", "finance.receipts",
-		"finance.invoice_ranges", "finance.bank_transactions", "finance.debt_reminder_rules", "core.notifications")
+		"finance.invoice_ranges", "finance.bank_transactions", "finance.debt_reminder_rules", "core.notifications", "core.files")
 	box, _ := secretbox.FromBase64("MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=")
 	svc := NewService(e.Pool, box, catalogs.NewService(e.Pool, box, e.Log), e.Log)
 	e.Serve(func(r chi.Router) { NewHandler(svc, e.Log).Routes(r) })

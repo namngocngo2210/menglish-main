@@ -46,6 +46,36 @@ func (s *Service) StartScheduledDeferral(ctx context.Context, tx pgx.Tx, id uuid
 	return true, nil
 }
 
+// ApproveDeferral: Học phí duyệt hồ sơ bảo lưu (trong giao dịch duyệt) → ghi chú hồ sơ; start = bảo lưu bắt đầu từ hôm
+// nay hoặc trước đó thì chuyển "Bảo lưu" ngay (bắt đầu ở tương lai thì lệnh hằng ngày chuyển vào ngày đó).
+func (s *Service) ApproveDeferral(ctx context.Context, tx pgx.Tx, id uuid.UUID, start bool, note string, actor uuid.UUID) error {
+	q := s.q.WithTx(tx)
+	st, err := q.LockStudent(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	stamp := "[" + s.now().In(vnZone).Format("02/01/2006 15:04") + "] "
+	if err := q.AppendStudentNote(ctx, studentsdb.AppendStudentNoteParams{ID: id, Line: stamp + note}); err != nil {
+		return err
+	}
+	if !start || st.Status == StatusDeferred {
+		return nil
+	}
+	next := StatusDeferred
+	if err := q.SetStudentStatus(ctx, studentsdb.SetStudentStatusParams{ID: id, Status: next}); err != nil {
+		return err
+	}
+	by := &actor
+	if actor == uuid.Nil {
+		by = nil
+	}
+	return q.AddEvent(ctx, studentsdb.AddEventParams{StudentID: id, Kind: "status_changed",
+		Message: "Đổi trạng thái: " + StatusLabel(st.Status) + " → " + StatusLabel(next) + " (duyệt bảo lưu).", FromStatus: &st.Status, ToStatus: &next, CreatedBy: by})
+}
+
 // EndExpiredDeferral: hết thời gian bảo lưu → lớp đang học đã khai giảng thì Đang học, còn lại Chờ khai giảng; bỏ đóng
 // băng học phí, báo Học vụ. false: học viên không còn ở trạng thái Bảo lưu.
 func (s *Service) EndExpiredDeferral(ctx context.Context, id uuid.UUID) (bool, error) {

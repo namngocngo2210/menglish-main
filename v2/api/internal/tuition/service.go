@@ -23,6 +23,7 @@ import (
 	"golang.org/x/text/unicode/norm"
 
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/catalogs"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/files"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/inventory"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/inventory/inventorydb"
@@ -47,11 +48,13 @@ type Service struct {
 	now func() time.Time
 
 	// Nối phân hệ khác (gắn ở cmd/menglish; nil = chưa nối, bỏ qua)
-	stock    StockRecorder
-	tasks    FeeTasks
-	students StudentStatus
-	leads    LeadVisibility
-	access   AccessLoader
+	stock       StockRecorder
+	tasks       FeeTasks
+	students    StudentStatus
+	leads       LeadVisibility
+	access      AccessLoader
+	commissions Commissions
+	files       *files.Service
 }
 
 func NewService(pool *pgxpool.Pool, box *secretbox.Box, cat *catalogs.Service, log *slog.Logger) *Service {
@@ -75,6 +78,28 @@ type StudentStatus interface {
 	StartScheduledDeferral(ctx context.Context, tx pgx.Tx, studentID uuid.UUID, until time.Time) (bool, error)
 	// EndExpiredDeferral: hết bảo lưu → học lại (gọi lại ReleaseDeferral của Học phí); false = không ở trạng thái Bảo lưu.
 	EndExpiredDeferral(ctx context.Context, studentID uuid.UUID) (bool, error)
+	// ApproveDeferral: duyệt hồ sơ bảo lưu → ghi chú hồ sơ, start thì chuyển "Bảo lưu" ngay.
+	ApproveDeferral(ctx context.Context, tx pgx.Tx, studentID uuid.UUID, start bool, note string, actor uuid.UUID) error
+}
+
+// Commissions: hoa hồng tư vấn (SalesCommissionService) — gợi ý số thu hồi khi duyệt hoàn phí và ghi quyết định thu hồi
+// (hủy khoản còn hoãn, tạo khoản điều chỉnh âm). TODO(gộp): phân hệ Lương / hoa hồng chưa có ở v2; nil = không có khoản
+// hoa hồng nào (gợi ý 0 đ, chỉ lưu quyết định trên hồ sơ).
+type Commissions interface {
+	SuggestedClawback(ctx context.Context, studentID, ownerID uuid.UUID, refundAmount int64) (int64, error)
+	RecordClawback(ctx context.Context, tx pgx.Tx, refundID, studentID, ownerID uuid.UUID, amount int64, approver uuid.UUID) error
+}
+
+// WithCommissions gắn phân hệ hoa hồng (cmd/menglish).
+func (s *Service) WithCommissions(x Commissions) *Service { s.commissions = x; return s }
+
+// WithFiles gắn kho file (ảnh minh chứng hoàn tiền) và đăng ký quyền tải ảnh minh chứng.
+func (s *Service) WithFiles(x *files.Service) *Service {
+	s.files = x
+	if x != nil {
+		x.RegisterReader(refundProofSubject, s.readRefundProof)
+	}
+	return s
 }
 
 // AccessLoader: quyền + phạm vi của một người dùng (iam.Service.LoadAccess) — lọc người nhận nhắc SLA theo phạm vi

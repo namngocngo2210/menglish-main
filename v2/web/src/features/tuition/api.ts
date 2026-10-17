@@ -1,6 +1,6 @@
 // API Học phí: công nợ học viên, lịch sử thanh toán, lập / sửa / duyệt / trả về phiếu thu, xác nhận nộp tiền mặt,
 // lịch sử thu (Go: internal/tuition).
-import { request } from '../../api'
+import { request, upload } from '../../api'
 
 export type Option = { value: string; label: string }
 export type Tone = 'neutral' | 'success' | 'error' | 'info' | 'warning'
@@ -550,6 +550,100 @@ export const tuitionApi = {
   contacted: (id: string, body: { note?: string; contacted_at?: string }) =>
     request<{ message: string }>('POST', `/tuition/overdue/${id}/contacted`, body),
   reportAdmin: (id: string, note: string) => request<{ message: string }>('POST', `/tuition/overdue/${id}/report-admin`, { note }),
+  refunds: (p: { status?: string; type?: string; search?: string }) => request<RefundsPage>('GET', `/tuition/refunds${query(p)}`),
+  createRefund: (body: RefundInput) => request<Saved>('POST', '/tuition/refunds', body),
+  approveRefund: (id: string, d: { clawback_commission?: boolean; clawback_amount?: number }, proof?: File | null) => {
+    if (!proof) return request<Saved>('POST', `/tuition/refunds/${id}/approve`, d)
+    const f = new FormData()
+    f.append('proof_image', proof)
+    if (d.clawback_commission !== undefined) f.append('clawback_commission', d.clawback_commission ? '1' : '0')
+    if (d.clawback_amount !== undefined) f.append('clawback_amount', String(d.clawback_amount))
+    return upload<Saved>(`/tuition/refunds/${id}/approve`, f)
+  },
+  rejectRefund: (id: string, rejection_reason: string) => request<Saved>('POST', `/tuition/refunds/${id}/reject`, { rejection_reason }),
+}
+
+export type RefundType = 'refund' | 'transfer' | 'extension' | 'deferral'
+
+export type RefundPerson = { name: string; code: string; class_name: string | null }
+
+export type RefundRow = {
+  id: string
+  ref: string
+  type: RefundType
+  type_label: string
+  status: 'pending' | 'approved' | 'rejected'
+  student: RefundPerson | null
+  target: RefundPerson | null
+  refund_amount: number
+  defer_from: string | null
+  defer_to: string | null
+  extended_due_date: string | null
+  processing_deadline: string | null
+  overdue: boolean
+  reason: string
+  no_transfer_reason: string | null
+  rejection_reason: string | null
+  created_date: string
+  created_at: string
+  requester_name: string | null
+  approver_name: string | null
+  clawback_commission: boolean | null
+  clawback_amount: number
+  clawback_user_name: string | null
+  has_proof: boolean
+  proof_url: string | null
+  overdue_days?: number
+  approve_permission?: string
+}
+
+export type RefundBasis = {
+  has_tuition: boolean
+  paid: number
+  contract: number
+  debt: number
+  due_date: string | null
+  total_sessions: number | null
+  attended_sessions: number
+  remaining_sessions: number | null
+  unit_price: number
+  remaining_value: number
+  admin_fee: number
+  suggested_refund: number
+  status_label: string
+}
+
+export type RefundsPage = {
+  pending_requests: RefundRow[]
+  overdue_count: number
+  history_requests: RefundRow[]
+  total_count: number
+  filters: { status: string; type: string; search: string }
+  type_options: Option[]
+  approvable_types: RefundType[]
+  can_reject_any: boolean
+  clawback_hints: Record<string, { suggest: boolean; amount: number; owner: string | null; start: string | null }>
+  student_finance: Record<string, RefundBasis>
+  admin_fee_percent: number
+  targets: { id: string; name: string; code: string; class: string | null; debt: number }[]
+  source_options: Option[]
+  debtor_options: Option[]
+  deadline: string
+  current_month: string
+  today: string
+  tomorrow: string
+}
+
+export type RefundInput = {
+  student_id: string
+  type: RefundType
+  refund_amount?: number
+  target_student_id?: string
+  extended_due_date?: string
+  defer_from?: string
+  defer_to?: string
+  reason: string
+  no_transfer_reason?: string
 }
 
 export type DebtStat = { total_debt: number; count: number; overdue_count: number }

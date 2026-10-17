@@ -10,11 +10,12 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/audit"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/notify"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/notify/mail"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/tuition/tuitiondb"
 )
 
-// Nhật ký (phân hệ "Học phí & Thu chi") và thông báo của Học phí (AdminNotification của Laravel). Thư điện tử gửi
-// phụ huynh / kế toán chưa có ở v2: TODO(email).
+// Nhật ký (phân hệ "Học phí & Thu chi"), thông báo (AdminNotification của Laravel) và email (hàng đợi notify/mail) của
+// Học phí.
 
 func init() {
 	audit.RegisterSubject("tuition_receipt", "Phiếu thu")
@@ -91,11 +92,11 @@ func (s *Service) notifyReceiptPending(ctx context.Context, tx pgx.Tx, r tuition
 }
 
 func (s *Service) notifyReceiptApproved(ctx context.Context, tx pgx.Tx, actor *iam.Access, r tuitiondb.FinanceReceipt, student string) error {
-	if r.CreatorID == nil {
-		return nil
-	}
 	if student == "" {
 		student = "Học viên"
+	}
+	if r.CreatorID == nil {
+		return s.notifyTransaction(ctx, tx, r, student)
 	}
 	_, err := notify.Send(ctx, tx, []uuid.UUID{*r.CreatorID}, notify.Notification{
 		Type: "receipt_approved", Title: "Xác nhận thu học phí thành công",
@@ -104,7 +105,56 @@ func (s *Service) notifyReceiptApproved(ctx context.Context, tx pgx.Tx, actor *i
 		Data:      map[string]any{"receipt_id": r.ID, "receipt_number": r.Code, "invoice_number": r.InvoiceNumber, "amount": r.Amount, "student_id": r.StudentID},
 		CreatedBy: &actor.UserID, Except: &actor.UserID,
 	})
-	// TODO(email): thư "Giao dịch mới" cho kế toán (NotificationService::notifyTransactionReceipt).
+	if err != nil {
+		return err
+	}
+	return s.notifyTransaction(ctx, tx, r, student)
+}
+
+// notifyTransaction: thư "Giao dịch mới" cho danh sách "Email nhận Ticket" khi duyệt phiếu thu
+// (NotificationService::notifyTransactionReceipt, sự kiện transaction).
+func (s *Service) notifyTransaction(ctx context.Context, tx pgx.Tx, r tuitiondb.FinanceReceipt, student string) error {
+	q := s.q.WithTx(tx)
+	phone, sender := "---", "Hệ thống Kế toán"
+	if info, err := q.GetReceipt(ctx, r.ID); err == nil {
+		if info.StudentPhone != nil && *info.StudentPhone != "" {
+			phone = *info.StudentPhone
+		}
+	} else if !isNoRows(err) {
+		return err
+	}
+	if r.CreatorID != nil {
+		if n, err := q.UserFullName(ctx, *r.CreatorID); err == nil && n != "" {
+			sender = n
+		}
+	}
+	label := map[string]string{"transfer": "Chuyển khoản / VietQR", "vietqr": "Chuyển khoản / VietQR", "cash": "Tiền mặt", "pos": "Quẹt thẻ POS",
+		"sepay": "Cổng SePay Tự động"}[r.PaymentMethod]
+	if label == "" {
+		label = r.PaymentMethod
+	}
+	day := s.nowVN().Format("02/01/2006")
+	if r.PaymentDate != nil {
+		day = r.PaymentDate.Format("02/01/2006")
+	}
+	inv := "Chưa xuất"
+	if r.InvoiceNumber != nil {
+		inv = *r.InvoiceNumber
+	}
+	note := "Thanh toán học phí"
+	if r.Notes != nil && *r.Notes != "" {
+		note = *r.Notes
+	}
+	content := "Hệ thống ghi nhận giao dịch thanh toán học phí thành công:\n\n" +
+		"• Số tiền: " + money(r.Amount) + "\n• Mã phiếu thu: " + r.Code + "\n• Mã HĐĐT: " + inv + "\n" +
+		"• Học viên: " + student + " (" + phone + ")\n• Phương thức: " + label + "\n• Thời gian: " + day + "\n• Ghi chú: " + note
+	_, err := mail.OperationalAlert(ctx, tx, mail.EventTransaction,
+		fmt.Sprintf("[Tài chính] Giao dịch mới #%s: %s (%s)", r.Code, student, money(r.Amount)), content, mail.Alert{
+			Code: r.Code, Title: "[Tài chính] Giao dịch mới: " + student, Status: "approved", StatusLabel: "Đã duyệt",
+			Priority: "medium", PriorityLabel: "Kế toán", CategoryLabel: "Tài chính & Thu chi", SenderName: sender,
+			ActionURL: "/tuition/history?search=" + r.Code, ActionText: "Xem Phiếu thu #" + r.Code,
+			RefType: "tuition_receipt", RefID: r.ID.String(),
+		})
 	return err
 }
 
@@ -142,22 +192,30 @@ func (s *Service) confirmPayment(ctx context.Context, tx pgx.Tx, r tuitiondb.Fin
 	text := s.paymentText(info, st.FullName)
 	key := "PAYCONFIRM-" + r.ID.String()
 	if st.UserID != nil {
-		if _, err := notify.SendOnce(ctx, tx, []uuid.UUID{*st.UserID}, key, notify.Notification{
+		n, err := notify.SendOnce(ctx, tx, []uuid.UUID{*st.UserID}, key, notify.Notification{
 			Type: "fee_payment", Title: "Đã nhận học phí " + money(r.Amount), Body: text,
 			Data: map[string]any{"receipt_id": r.ID, "student_id": st.ID},
-		}); err != nil {
+		})
+		if err != nil {
 			return err
 		}
+		if n == 0 {
+			return nil // đã xác nhận phiếu này
+		}
 	}
-	// TODO(email): gửi thư xác nhận cho phụ huynh (ParentMessenger); gửi được thì không cần báo người phụ trách.
+	// Thư xác nhận cho phụ huynh (ParentMessenger: email học viên, rồi email khách CRM); xếp được thư thì không cần báo
+	// người phụ trách.
+	if to := mail.ParentRecipient(textOf(st.Email), textOf(st.LeadEmail)); to != "" {
+		m := mail.ParentNotice(to, "Xác nhận đã nhận học phí — "+st.FullName, text, "", "")
+		m.RefType, m.RefID = "tuition_receipt", r.ID.String()
+		_, err := mail.Enqueue(ctx, tx, m)
+		return err
+	}
 	if st.OwnerID == nil {
 		return nil
 	}
 	phone := firstText(st.ParentPhone, &st.Phone)
 	reason := "Học viên chưa có email"
-	if st.Email != nil || st.LeadEmail != nil {
-		reason = "Chưa gửi được email xác nhận"
-	}
 	suffix := ""
 	if phone != nil {
 		suffix = " (" + *phone + ")"

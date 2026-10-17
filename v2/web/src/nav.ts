@@ -149,6 +149,13 @@ export const NAV: NavItem[] = [
     group: 'Cần duyệt',
     menu: (me) => isAdmin(me) && can(me, ...TUITION_ANCHORS),
   },
+  {
+    path: '/tuition/refunds',
+    label: 'Hoàn tiền & Khất nợ',
+    perms: ['tuition.view'],
+    group: 'Cần duyệt',
+    menu: (me) => isAdmin(me) && can(me, ...TUITION_ANCHORS),
+  },
 ]
 
 // Workspace của sidebar theo đúng thứ tự SidebarMenu::definition(): khu (section) → workspace (label, icon).

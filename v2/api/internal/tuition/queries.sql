@@ -785,3 +785,99 @@ JOIN academic.students s ON s.id = t.student_id
 LEFT JOIN academic.classes sc ON sc.id = COALESCE(t.class_id, s.current_class_id)
 LEFT JOIN academic.courses sco ON sco.id = sc.course_id
 WHERE t.id = $1;
+
+-- ───────────── Hoàn phí / chuyển nhượng / khất nợ / bảo lưu (TuitionController::refunds) ─────────────
+
+-- name: ListRefundRequests :many
+-- Hồ sơ của học viên trong phạm vi (chi nhánh học viên, rồi chi nhánh lớp đang học), mới nhất trước.
+SELECT q.*, s.full_name AS student_name, s.code AS student_code, sc.name AS student_class_name,
+    ts.full_name AS target_name, ts.code AS target_code, tc.name AS target_class_name,
+    ru.full_name AS requester_name, au.full_name AS approver_name, cu.full_name AS clawback_user_name
+FROM finance.refund_requests q
+JOIN academic.students s ON s.id = q.student_id
+LEFT JOIN academic.classes sc ON sc.id = s.current_class_id
+LEFT JOIN academic.students ts ON ts.id = q.target_student_id
+LEFT JOIN academic.classes tc ON tc.id = ts.current_class_id
+LEFT JOIN iam.users ru ON ru.id = q.requester_id
+LEFT JOIN iam.users au ON au.id = q.approver_id
+LEFT JOIN iam.users cu ON cu.id = q.clawback_user_id
+WHERE sqlc.narg(branch_ids)::uuid[] IS NULL OR COALESCE(s.branch_id, sc.branch_id) = ANY (sqlc.narg(branch_ids)::uuid[])
+ORDER BY q.created_at DESC, q.id DESC;
+
+-- name: RefundStudents :many
+-- Học viên trong phạm vi + khoản học phí mới nhất và số buổi (căn cứ tính hoàn phí, ô chọn học viên).
+SELECT s.id, s.code, s.full_name, s.status, s.branch_id, c.name AS class_name,
+    (lt.id IS NOT NULL)::boolean AS has_tuition, COALESCE(lt.paid_amount, 0)::bigint AS paid_amount,
+    COALESCE(lt.final_amount, 0)::bigint AS final_amount, COALESCE(lt.debt_amount, 0)::bigint AS debt_amount, lt.due_date, lt.frozen_remaining_sessions,
+    COALESCE(sco.total_lessons, 0)::int AS course_lessons,
+    (SELECT count(*) FROM academic.class_sessions x
+     WHERE x.class_id = COALESCE(lt.class_id, s.current_class_id) AND x.status <> 'cancelled')::int AS scheduled_sessions,
+    (SELECT count(*) FROM academic.student_attendance a
+     WHERE a.student_id = s.id AND a.status IN ('present', 'late')
+       AND (COALESCE(lt.class_id, s.current_class_id) IS NULL OR a.class_id = COALESCE(lt.class_id, s.current_class_id)))::int AS attended_sessions,
+    COALESCE(lt.class_id, s.current_class_id) AS stats_class_id
+FROM academic.students s
+LEFT JOIN academic.classes c ON c.id = s.current_class_id
+LEFT JOIN LATERAL (SELECT t.* FROM finance.tuitions t WHERE t.student_id = s.id ORDER BY t.created_at DESC, t.id DESC LIMIT 1) lt ON true
+LEFT JOIN academic.classes sc ON sc.id = COALESCE(lt.class_id, s.current_class_id)
+LEFT JOIN academic.courses sco ON sco.id = sc.course_id
+WHERE s.deleted_at IS NULL
+  AND (sqlc.narg(branch_ids)::uuid[] IS NULL OR COALESCE(s.branch_id, c.branch_id) = ANY (sqlc.narg(branch_ids)::uuid[]))
+  AND (sqlc.narg(student_id)::uuid IS NULL OR s.id = sqlc.narg(student_id))
+ORDER BY s.full_name, s.id;
+
+-- name: RefundScope :one
+-- Hồ sơ kèm học viên (kiểm phạm vi chi nhánh).
+SELECT q.*, s.full_name AS student_name, s.code AS student_code, COALESCE(s.branch_id, sc.branch_id) AS scope_branch_id,
+    ts.full_name AS target_name, ts.code AS target_code
+FROM finance.refund_requests q
+JOIN academic.students s ON s.id = q.student_id
+LEFT JOIN academic.classes sc ON sc.id = s.current_class_id
+LEFT JOIN academic.students ts ON ts.id = q.target_student_id
+WHERE q.id = $1;
+
+-- name: StudentScope :one
+SELECT s.id, s.full_name, s.code, s.notes, COALESCE(s.branch_id, c.branch_id) AS scope_branch_id
+FROM academic.students s LEFT JOIN academic.classes c ON c.id = s.current_class_id
+WHERE s.id = $1 AND s.deleted_at IS NULL;
+
+-- name: LockRefundRequest :one
+SELECT * FROM finance.refund_requests WHERE id = $1 FOR UPDATE;
+
+-- name: ApproveRefundRequest :exec
+UPDATE finance.refund_requests SET status = 'approved', approver_id = sqlc.narg(approver_id), approved_at = now(),
+    proof_file_id = COALESCE(sqlc.narg(proof_file_id), proof_file_id), clawback_commission = sqlc.narg(clawback_commission),
+    clawback_amount = sqlc.narg(clawback_amount), clawback_user_id = sqlc.narg(clawback_user_id), updated_at = now()
+WHERE id = sqlc.arg(id);
+
+-- name: RejectRefundRequest :exec
+UPDATE finance.refund_requests SET status = 'rejected', approver_id = sqlc.narg(approver_id),
+    rejection_reason = sqlc.narg(rejection_reason), updated_at = now()
+WHERE id = sqlc.arg(id);
+
+-- name: ApplyTuitionExtension :exec
+UPDATE finance.tuitions SET due_date = sqlc.arg(due_date), reminder_paused_until = sqlc.arg(due_date), notes = sqlc.narg(notes),
+    updated_at = now()
+WHERE id = sqlc.arg(id);
+
+-- name: ApplyTuitionDeferral :exec
+UPDATE finance.tuitions SET deferred_from = sqlc.arg(deferred_from), deferred_until = sqlc.arg(deferred_until),
+    frozen_remaining_sessions = sqlc.narg(frozen_remaining_sessions), frozen_debt_amount = sqlc.narg(frozen_debt_amount),
+    reminder_paused_until = sqlc.narg(reminder_paused_until), due_date = sqlc.narg(due_date), notes = sqlc.narg(notes),
+    updated_at = now()
+WHERE id = sqlc.arg(id);
+
+-- name: CommissionOwner :one
+-- Người hưởng hoa hồng của học viên: khách CRM đã chốt ra học viên (SalesCommissionService::ownerOfStudent).
+SELECT COALESCE(commission_user_id, assigned_user_id)::uuid AS owner_id FROM crm.leads
+WHERE converted_student_id = $1 AND COALESCE(commission_user_id, assigned_user_id) IS NOT NULL
+ORDER BY created_at DESC, id DESC LIMIT 1;
+
+-- name: StudyStartDates :many
+-- Ngày bắt đầu học: buổi có mặt đầu tiên hoặc ngày vào lớp sớm nhất (SalesCommissionService::studyStartDate).
+SELECT x.student_id, min(x.d)::date AS start_date FROM (
+    SELECT a.student_id, min(a.session_date) AS d FROM academic.student_attendance a
+    WHERE a.student_id = ANY (sqlc.arg(ids)::uuid[]) AND a.status IN ('present', 'late') GROUP BY a.student_id
+    UNION ALL
+    SELECT e.student_id, min(e.enrolled_at) FROM academic.enrollments e WHERE e.student_id = ANY (sqlc.arg(ids)::uuid[]) GROUP BY e.student_id
+) x GROUP BY x.student_id;

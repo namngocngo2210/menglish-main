@@ -180,6 +180,56 @@ func (q *Queries) AppliedBankTransaction(ctx context.Context, arg AppliedBankTra
 	return i, err
 }
 
+const applyTuitionDeferral = `-- name: ApplyTuitionDeferral :exec
+UPDATE finance.tuitions SET deferred_from = $1, deferred_until = $2,
+    frozen_remaining_sessions = $3, frozen_debt_amount = $4,
+    reminder_paused_until = $5, due_date = $6, notes = $7,
+    updated_at = now()
+WHERE id = $8
+`
+
+type ApplyTuitionDeferralParams struct {
+	DeferredFrom            *time.Time
+	DeferredUntil           *time.Time
+	FrozenRemainingSessions *int32
+	FrozenDebtAmount        *int64
+	ReminderPausedUntil     *time.Time
+	DueDate                 *time.Time
+	Notes                   *string
+	ID                      uuid.UUID
+}
+
+func (q *Queries) ApplyTuitionDeferral(ctx context.Context, arg ApplyTuitionDeferralParams) error {
+	_, err := q.db.Exec(ctx, applyTuitionDeferral,
+		arg.DeferredFrom,
+		arg.DeferredUntil,
+		arg.FrozenRemainingSessions,
+		arg.FrozenDebtAmount,
+		arg.ReminderPausedUntil,
+		arg.DueDate,
+		arg.Notes,
+		arg.ID,
+	)
+	return err
+}
+
+const applyTuitionExtension = `-- name: ApplyTuitionExtension :exec
+UPDATE finance.tuitions SET due_date = $1, reminder_paused_until = $1, notes = $2,
+    updated_at = now()
+WHERE id = $3
+`
+
+type ApplyTuitionExtensionParams struct {
+	DueDate *time.Time
+	Notes   *string
+	ID      uuid.UUID
+}
+
+func (q *Queries) ApplyTuitionExtension(ctx context.Context, arg ApplyTuitionExtensionParams) error {
+	_, err := q.db.Exec(ctx, applyTuitionExtension, arg.DueDate, arg.Notes, arg.ID)
+	return err
+}
+
 const approveReceipt = `-- name: ApproveReceipt :one
 UPDATE finance.receipts SET invoice_number = $2, status = 'approved', approver_id = $3, approved_at = now(),
     rejection_reason = NULL, tuition_id = $4, updated_at = now()
@@ -246,6 +296,34 @@ func (q *Queries) ApproveReceipt(ctx context.Context, arg ApproveReceiptParams) 
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const approveRefundRequest = `-- name: ApproveRefundRequest :exec
+UPDATE finance.refund_requests SET status = 'approved', approver_id = $1, approved_at = now(),
+    proof_file_id = COALESCE($2, proof_file_id), clawback_commission = $3,
+    clawback_amount = $4, clawback_user_id = $5, updated_at = now()
+WHERE id = $6
+`
+
+type ApproveRefundRequestParams struct {
+	ApproverID         *uuid.UUID
+	ProofFileID        *uuid.UUID
+	ClawbackCommission *bool
+	ClawbackAmount     *int64
+	ClawbackUserID     *uuid.UUID
+	ID                 uuid.UUID
+}
+
+func (q *Queries) ApproveRefundRequest(ctx context.Context, arg ApproveRefundRequestParams) error {
+	_, err := q.db.Exec(ctx, approveRefundRequest,
+		arg.ApproverID,
+		arg.ProofFileID,
+		arg.ClawbackCommission,
+		arg.ClawbackAmount,
+		arg.ClawbackUserID,
+		arg.ID,
+	)
+	return err
 }
 
 const approvedDeferrals = `-- name: ApprovedDeferrals :many
@@ -668,6 +746,20 @@ func (q *Queries) CenterSettings(ctx context.Context) ([]CenterSettingsRow, erro
 		return nil, err
 	}
 	return items, nil
+}
+
+const commissionOwner = `-- name: CommissionOwner :one
+SELECT COALESCE(commission_user_id, assigned_user_id)::uuid AS owner_id FROM crm.leads
+WHERE converted_student_id = $1 AND COALESCE(commission_user_id, assigned_user_id) IS NOT NULL
+ORDER BY created_at DESC, id DESC LIMIT 1
+`
+
+// Người hưởng hoa hồng của học viên: khách CRM đã chốt ra học viên (SalesCommissionService::ownerOfStudent).
+func (q *Queries) CommissionOwner(ctx context.Context, convertedStudentID *uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, commissionOwner, convertedStudentID)
+	var owner_id uuid.UUID
+	err := row.Scan(&owner_id)
+	return owner_id, err
 }
 
 const confirmDeposit = `-- name: ConfirmDeposit :one
@@ -2761,6 +2853,121 @@ func (q *Queries) ListReceipts(ctx context.Context, arg ListReceiptsParams) ([]L
 	return items, nil
 }
 
+const listRefundRequests = `-- name: ListRefundRequests :many
+
+SELECT q.id, q.student_id, q.tuition_id, q.type, q.total_paid, q.attended_lessons, q.admin_fee, q.refund_amount, q.target_student_id, q.extended_due_date, q.defer_from, q.defer_to, q.reason, q.no_transfer_reason, q.proof_url, q.proof_file_id, q.rejection_reason, q.status, q.requester_id, q.approver_id, q.approved_at, q.legacy_id, q.created_at, q.updated_at, q.clawback_commission, q.clawback_amount, q.clawback_user_id, s.full_name AS student_name, s.code AS student_code, sc.name AS student_class_name,
+    ts.full_name AS target_name, ts.code AS target_code, tc.name AS target_class_name,
+    ru.full_name AS requester_name, au.full_name AS approver_name, cu.full_name AS clawback_user_name
+FROM finance.refund_requests q
+JOIN academic.students s ON s.id = q.student_id
+LEFT JOIN academic.classes sc ON sc.id = s.current_class_id
+LEFT JOIN academic.students ts ON ts.id = q.target_student_id
+LEFT JOIN academic.classes tc ON tc.id = ts.current_class_id
+LEFT JOIN iam.users ru ON ru.id = q.requester_id
+LEFT JOIN iam.users au ON au.id = q.approver_id
+LEFT JOIN iam.users cu ON cu.id = q.clawback_user_id
+WHERE $1::uuid[] IS NULL OR COALESCE(s.branch_id, sc.branch_id) = ANY ($1::uuid[])
+ORDER BY q.created_at DESC, q.id DESC
+`
+
+type ListRefundRequestsRow struct {
+	ID                 uuid.UUID
+	StudentID          uuid.UUID
+	TuitionID          *uuid.UUID
+	Type               string
+	TotalPaid          int64
+	AttendedLessons    int32
+	AdminFee           int64
+	RefundAmount       int64
+	TargetStudentID    *uuid.UUID
+	ExtendedDueDate    *time.Time
+	DeferFrom          *time.Time
+	DeferTo            *time.Time
+	Reason             string
+	NoTransferReason   *string
+	ProofUrl           *string
+	ProofFileID        *uuid.UUID
+	RejectionReason    *string
+	Status             string
+	RequesterID        *uuid.UUID
+	ApproverID         *uuid.UUID
+	ApprovedAt         *time.Time
+	LegacyID           *int64
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+	ClawbackCommission *bool
+	ClawbackAmount     *int64
+	ClawbackUserID     *uuid.UUID
+	StudentName        string
+	StudentCode        string
+	StudentClassName   *string
+	TargetName         *string
+	TargetCode         *string
+	TargetClassName    *string
+	RequesterName      *string
+	ApproverName       *string
+	ClawbackUserName   *string
+}
+
+// ───────────── Hoàn phí / chuyển nhượng / khất nợ / bảo lưu (TuitionController::refunds) ─────────────
+// Hồ sơ của học viên trong phạm vi (chi nhánh học viên, rồi chi nhánh lớp đang học), mới nhất trước.
+func (q *Queries) ListRefundRequests(ctx context.Context, branchIds []uuid.UUID) ([]ListRefundRequestsRow, error) {
+	rows, err := q.db.Query(ctx, listRefundRequests, branchIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListRefundRequestsRow
+	for rows.Next() {
+		var i ListRefundRequestsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.StudentID,
+			&i.TuitionID,
+			&i.Type,
+			&i.TotalPaid,
+			&i.AttendedLessons,
+			&i.AdminFee,
+			&i.RefundAmount,
+			&i.TargetStudentID,
+			&i.ExtendedDueDate,
+			&i.DeferFrom,
+			&i.DeferTo,
+			&i.Reason,
+			&i.NoTransferReason,
+			&i.ProofUrl,
+			&i.ProofFileID,
+			&i.RejectionReason,
+			&i.Status,
+			&i.RequesterID,
+			&i.ApproverID,
+			&i.ApprovedAt,
+			&i.LegacyID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ClawbackCommission,
+			&i.ClawbackAmount,
+			&i.ClawbackUserID,
+			&i.StudentName,
+			&i.StudentCode,
+			&i.StudentClassName,
+			&i.TargetName,
+			&i.TargetCode,
+			&i.TargetClassName,
+			&i.RequesterName,
+			&i.ApproverName,
+			&i.ClawbackUserName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTuitions = `-- name: ListTuitions :many
 
 
@@ -3011,6 +3218,45 @@ func (q *Queries) LockReceipt(ctx context.Context, id uuid.UUID) (FinanceReceipt
 		&i.LegacyID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const lockRefundRequest = `-- name: LockRefundRequest :one
+SELECT id, student_id, tuition_id, type, total_paid, attended_lessons, admin_fee, refund_amount, target_student_id, extended_due_date, defer_from, defer_to, reason, no_transfer_reason, proof_url, proof_file_id, rejection_reason, status, requester_id, approver_id, approved_at, legacy_id, created_at, updated_at, clawback_commission, clawback_amount, clawback_user_id FROM finance.refund_requests WHERE id = $1 FOR UPDATE
+`
+
+func (q *Queries) LockRefundRequest(ctx context.Context, id uuid.UUID) (FinanceRefundRequest, error) {
+	row := q.db.QueryRow(ctx, lockRefundRequest, id)
+	var i FinanceRefundRequest
+	err := row.Scan(
+		&i.ID,
+		&i.StudentID,
+		&i.TuitionID,
+		&i.Type,
+		&i.TotalPaid,
+		&i.AttendedLessons,
+		&i.AdminFee,
+		&i.RefundAmount,
+		&i.TargetStudentID,
+		&i.ExtendedDueDate,
+		&i.DeferFrom,
+		&i.DeferTo,
+		&i.Reason,
+		&i.NoTransferReason,
+		&i.ProofUrl,
+		&i.ProofFileID,
+		&i.RejectionReason,
+		&i.Status,
+		&i.RequesterID,
+		&i.ApproverID,
+		&i.ApprovedAt,
+		&i.LegacyID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ClawbackCommission,
+		&i.ClawbackAmount,
+		&i.ClawbackUserID,
 	)
 	return i, err
 }
@@ -3403,6 +3649,176 @@ func (q *Queries) ReceiptTuitionID(ctx context.Context, id uuid.UUID) (*uuid.UUI
 	return tuition_id, err
 }
 
+const refundScope = `-- name: RefundScope :one
+SELECT q.id, q.student_id, q.tuition_id, q.type, q.total_paid, q.attended_lessons, q.admin_fee, q.refund_amount, q.target_student_id, q.extended_due_date, q.defer_from, q.defer_to, q.reason, q.no_transfer_reason, q.proof_url, q.proof_file_id, q.rejection_reason, q.status, q.requester_id, q.approver_id, q.approved_at, q.legacy_id, q.created_at, q.updated_at, q.clawback_commission, q.clawback_amount, q.clawback_user_id, s.full_name AS student_name, s.code AS student_code, COALESCE(s.branch_id, sc.branch_id) AS scope_branch_id,
+    ts.full_name AS target_name, ts.code AS target_code
+FROM finance.refund_requests q
+JOIN academic.students s ON s.id = q.student_id
+LEFT JOIN academic.classes sc ON sc.id = s.current_class_id
+LEFT JOIN academic.students ts ON ts.id = q.target_student_id
+WHERE q.id = $1
+`
+
+type RefundScopeRow struct {
+	ID                 uuid.UUID
+	StudentID          uuid.UUID
+	TuitionID          *uuid.UUID
+	Type               string
+	TotalPaid          int64
+	AttendedLessons    int32
+	AdminFee           int64
+	RefundAmount       int64
+	TargetStudentID    *uuid.UUID
+	ExtendedDueDate    *time.Time
+	DeferFrom          *time.Time
+	DeferTo            *time.Time
+	Reason             string
+	NoTransferReason   *string
+	ProofUrl           *string
+	ProofFileID        *uuid.UUID
+	RejectionReason    *string
+	Status             string
+	RequesterID        *uuid.UUID
+	ApproverID         *uuid.UUID
+	ApprovedAt         *time.Time
+	LegacyID           *int64
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+	ClawbackCommission *bool
+	ClawbackAmount     *int64
+	ClawbackUserID     *uuid.UUID
+	StudentName        string
+	StudentCode        string
+	ScopeBranchID      uuid.UUID
+	TargetName         *string
+	TargetCode         *string
+}
+
+// Hồ sơ kèm học viên (kiểm phạm vi chi nhánh).
+func (q *Queries) RefundScope(ctx context.Context, id uuid.UUID) (RefundScopeRow, error) {
+	row := q.db.QueryRow(ctx, refundScope, id)
+	var i RefundScopeRow
+	err := row.Scan(
+		&i.ID,
+		&i.StudentID,
+		&i.TuitionID,
+		&i.Type,
+		&i.TotalPaid,
+		&i.AttendedLessons,
+		&i.AdminFee,
+		&i.RefundAmount,
+		&i.TargetStudentID,
+		&i.ExtendedDueDate,
+		&i.DeferFrom,
+		&i.DeferTo,
+		&i.Reason,
+		&i.NoTransferReason,
+		&i.ProofUrl,
+		&i.ProofFileID,
+		&i.RejectionReason,
+		&i.Status,
+		&i.RequesterID,
+		&i.ApproverID,
+		&i.ApprovedAt,
+		&i.LegacyID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ClawbackCommission,
+		&i.ClawbackAmount,
+		&i.ClawbackUserID,
+		&i.StudentName,
+		&i.StudentCode,
+		&i.ScopeBranchID,
+		&i.TargetName,
+		&i.TargetCode,
+	)
+	return i, err
+}
+
+const refundStudents = `-- name: RefundStudents :many
+SELECT s.id, s.code, s.full_name, s.status, s.branch_id, c.name AS class_name,
+    (lt.id IS NOT NULL)::boolean AS has_tuition, COALESCE(lt.paid_amount, 0)::bigint AS paid_amount,
+    COALESCE(lt.final_amount, 0)::bigint AS final_amount, COALESCE(lt.debt_amount, 0)::bigint AS debt_amount, lt.due_date, lt.frozen_remaining_sessions,
+    COALESCE(sco.total_lessons, 0)::int AS course_lessons,
+    (SELECT count(*) FROM academic.class_sessions x
+     WHERE x.class_id = COALESCE(lt.class_id, s.current_class_id) AND x.status <> 'cancelled')::int AS scheduled_sessions,
+    (SELECT count(*) FROM academic.student_attendance a
+     WHERE a.student_id = s.id AND a.status IN ('present', 'late')
+       AND (COALESCE(lt.class_id, s.current_class_id) IS NULL OR a.class_id = COALESCE(lt.class_id, s.current_class_id)))::int AS attended_sessions,
+    COALESCE(lt.class_id, s.current_class_id) AS stats_class_id
+FROM academic.students s
+LEFT JOIN academic.classes c ON c.id = s.current_class_id
+LEFT JOIN LATERAL (SELECT t.id, t.student_id, t.class_id, t.branch_id, t.bank_account_id, t.promotion_id, t.total_amount, t.session_count, t.discount_amount, t.other_fees, t.fee_items, t.prepaid_amount, t.final_amount, t.paid_amount, t.debt_amount, t.due_date, t.reminder_paused_until, t.deferred_from, t.deferred_until, t.frozen_remaining_sessions, t.frozen_debt_amount, t.status, t.notes, t.transfer_memo, t.legacy_id, t.created_by, t.created_at, t.updated_at FROM finance.tuitions t WHERE t.student_id = s.id ORDER BY t.created_at DESC, t.id DESC LIMIT 1) lt ON true
+LEFT JOIN academic.classes sc ON sc.id = COALESCE(lt.class_id, s.current_class_id)
+LEFT JOIN academic.courses sco ON sco.id = sc.course_id
+WHERE s.deleted_at IS NULL
+  AND ($1::uuid[] IS NULL OR COALESCE(s.branch_id, c.branch_id) = ANY ($1::uuid[]))
+  AND ($2::uuid IS NULL OR s.id = $2)
+ORDER BY s.full_name, s.id
+`
+
+type RefundStudentsParams struct {
+	BranchIds []uuid.UUID
+	StudentID *uuid.UUID
+}
+
+type RefundStudentsRow struct {
+	ID                      uuid.UUID
+	Code                    string
+	FullName                string
+	Status                  string
+	BranchID                *uuid.UUID
+	ClassName               *string
+	HasTuition              bool
+	PaidAmount              int64
+	FinalAmount             int64
+	DebtAmount              int64
+	DueDate                 *time.Time
+	FrozenRemainingSessions *int32
+	CourseLessons           int32
+	ScheduledSessions       int32
+	AttendedSessions        int32
+	StatsClassID            *uuid.UUID
+}
+
+// Học viên trong phạm vi + khoản học phí mới nhất và số buổi (căn cứ tính hoàn phí, ô chọn học viên).
+func (q *Queries) RefundStudents(ctx context.Context, arg RefundStudentsParams) ([]RefundStudentsRow, error) {
+	rows, err := q.db.Query(ctx, refundStudents, arg.BranchIds, arg.StudentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []RefundStudentsRow
+	for rows.Next() {
+		var i RefundStudentsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.FullName,
+			&i.Status,
+			&i.BranchID,
+			&i.ClassName,
+			&i.HasTuition,
+			&i.PaidAmount,
+			&i.FinalAmount,
+			&i.DebtAmount,
+			&i.DueDate,
+			&i.FrozenRemainingSessions,
+			&i.CourseLessons,
+			&i.ScheduledSessions,
+			&i.AttendedSessions,
+			&i.StatsClassID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const rejectReceipt = `-- name: RejectReceipt :one
 UPDATE finance.receipts SET status = 'rejected', approver_id = $2, rejection_reason = $3, updated_at = now()
 WHERE id = $1
@@ -3462,6 +3878,23 @@ func (q *Queries) RejectReceipt(ctx context.Context, arg RejectReceiptParams) (F
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const rejectRefundRequest = `-- name: RejectRefundRequest :exec
+UPDATE finance.refund_requests SET status = 'rejected', approver_id = $1,
+    rejection_reason = $2, updated_at = now()
+WHERE id = $3
+`
+
+type RejectRefundRequestParams struct {
+	ApproverID      *uuid.UUID
+	RejectionReason *string
+	ID              uuid.UUID
+}
+
+func (q *Queries) RejectRefundRequest(ctx context.Context, arg RejectRefundRequestParams) error {
+	_, err := q.db.Exec(ctx, rejectRefundRequest, arg.ApproverID, arg.RejectionReason, arg.ID)
+	return err
 }
 
 const releaseTuitionDeferral = `-- name: ReleaseTuitionDeferral :exec
@@ -4186,6 +4619,33 @@ func (q *Queries) StudentReceipts(ctx context.Context, studentID uuid.UUID) ([]S
 	return items, nil
 }
 
+const studentScope = `-- name: StudentScope :one
+SELECT s.id, s.full_name, s.code, s.notes, COALESCE(s.branch_id, c.branch_id) AS scope_branch_id
+FROM academic.students s LEFT JOIN academic.classes c ON c.id = s.current_class_id
+WHERE s.id = $1 AND s.deleted_at IS NULL
+`
+
+type StudentScopeRow struct {
+	ID            uuid.UUID
+	FullName      string
+	Code          string
+	Notes         *string
+	ScopeBranchID uuid.UUID
+}
+
+func (q *Queries) StudentScope(ctx context.Context, id uuid.UUID) (StudentScopeRow, error) {
+	row := q.db.QueryRow(ctx, studentScope, id)
+	var i StudentScopeRow
+	err := row.Scan(
+		&i.ID,
+		&i.FullName,
+		&i.Code,
+		&i.Notes,
+		&i.ScopeBranchID,
+	)
+	return i, err
+}
+
 const studentTotalLessons = `-- name: StudentTotalLessons :one
 SELECT total_lessons FROM academic.students WHERE id = $1
 `
@@ -4352,6 +4812,41 @@ func (q *Queries) StudentsTuitionTotals(ctx context.Context, studentIds []uuid.U
 	var i StudentsTuitionTotalsRow
 	err := row.Scan(&i.Paid, &i.Debt)
 	return i, err
+}
+
+const studyStartDates = `-- name: StudyStartDates :many
+SELECT x.student_id, min(x.d)::date AS start_date FROM (
+    SELECT a.student_id, min(a.session_date) AS d FROM academic.student_attendance a
+    WHERE a.student_id = ANY ($1::uuid[]) AND a.status IN ('present', 'late') GROUP BY a.student_id
+    UNION ALL
+    SELECT e.student_id, min(e.enrolled_at) FROM academic.enrollments e WHERE e.student_id = ANY ($1::uuid[]) GROUP BY e.student_id
+) x GROUP BY x.student_id
+`
+
+type StudyStartDatesRow struct {
+	StudentID uuid.UUID
+	StartDate time.Time
+}
+
+// Ngày bắt đầu học: buổi có mặt đầu tiên hoặc ngày vào lớp sớm nhất (SalesCommissionService::studyStartDate).
+func (q *Queries) StudyStartDates(ctx context.Context, ids []uuid.UUID) ([]StudyStartDatesRow, error) {
+	rows, err := q.db.Query(ctx, studyStartDates, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StudyStartDatesRow
+	for rows.Next() {
+		var i StudyStartDatesRow
+		if err := rows.Scan(&i.StudentID, &i.StartDate); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const toggleInvoiceRange = `-- name: ToggleInvoiceRange :one

@@ -1,7 +1,9 @@
 package tuition
 
 import (
+	"errors"
 	"log/slog"
+	"mime"
 	"net/http"
 	"strconv"
 
@@ -9,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/filestore"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/httpx"
 )
 
@@ -47,6 +50,13 @@ func (h *Handler) Routes(r chi.Router) {
 		r.With(view, contact).Post("/overdue/{id}/upcoming-remind", h.remind)
 		r.With(view, contact).Post("/overdue/{id}/contacted", h.markContacted)
 		r.With(view, iam.Require("tuition.report_overdue")).Post("/overdue/{id}/report-admin", h.reportOverdue)
+
+		// Hoàn tiền & Khất nợ: quyền duyệt theo loại hồ sơ kiểm trong service (TuitionRefundRequest::approvePermission).
+		r.With(view).Get("/refunds", h.refunds)
+		r.With(view, iam.Require("refund_transfer.request")).Post("/refunds", h.createRefund)
+		r.With(view, iam.RequireAny("refund_transfer.approve", "refund_transfer.approve_refund", "refund_transfer.approve_transfer")).
+			Post("/refunds/{id}/approve", h.approveRefund)
+		r.With(view, iam.Require("refund_transfer.reject")).Post("/refunds/{id}/reject", h.rejectRefund)
 
 		// Bill "Thông báo nộp học phí" (crm.tuition-bill): tư vấn viên (lead.view) hoặc người xem học phí.
 		r.With(iam.RequireAny("lead.view", "tuition.view")).Get("/bill/{id}", h.bill)
@@ -282,6 +292,85 @@ func (h *Handler) reportOverdue(w http.ResponseWriter, r *http.Request) {
 	}
 	msg, err := h.svc.ReportOverdue(r.Context(), actorOf(r), id, in.Note)
 	h.reply(w, r, messageReply{msg}, err)
+}
+
+func (h *Handler) refunds(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	out, err := h.svc.Refunds(r.Context(), actorOf(r), RefundFilter{Status: q.Get("status"), Type: q.Get("type"), Search: q.Get("search")})
+	h.reply(w, r, out, err)
+}
+
+func (h *Handler) createRefund(w http.ResponseWriter, r *http.Request) {
+	var in RefundInput
+	if !httpx.Decode(w, r, &in) {
+		return
+	}
+	out, err := h.svc.CreateRefund(r.Context(), actorOf(r), in)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusCreated, out)
+}
+
+// approveRefund: JSON {clawback_commission, clawback_amount} hoặc multipart (cùng các trường + proof_image) — hoàn tiền
+// bắt buộc ảnh bằng chứng.
+func (h *Handler) approveRefund(w http.ResponseWriter, r *http.Request) {
+	id, ok := idParam(w, r)
+	if !ok {
+		return
+	}
+	var in RefundDecision
+	var proof *filestore.Upload
+	if mt, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type")); mt == "multipart/form-data" {
+		form, err := filestore.ReadMultipart(w, r, RefundProofPolicy.MaxBytes, RefundProofPolicy.TooLarge)
+		if err != nil {
+			h.fail(w, r, uploadErr(err))
+			return
+		}
+		defer form.Close()
+		if proof = form.File("proof_image"); proof == nil {
+			proof = form.File("file")
+		}
+		if v := form.Value("clawback_commission"); v != "" {
+			in.ClawbackCommission = ptr(v == "1" || v == "true" || v == "on")
+		}
+		if v := form.Value("clawback_amount"); v != "" {
+			n, err := strconv.ParseInt(v, 10, 64)
+			if err != nil {
+				h.fail(w, r, iam.Invalid("Số hoa hồng thu hồi không hợp lệ."))
+				return
+			}
+			in.ClawbackAmount = &n
+		}
+	} else if r.ContentLength > 0 && !httpx.Decode(w, r, &in) {
+		return
+	}
+	out, err := h.svc.ApproveRefund(r.Context(), actorOf(r), id, in, proof)
+	h.reply(w, r, out, err)
+}
+
+func uploadErr(err error) error {
+	var ve *filestore.ValidationError
+	if errors.As(err, &ve) {
+		return iam.Invalid(ve.Message)
+	}
+	return err
+}
+
+func (h *Handler) rejectRefund(w http.ResponseWriter, r *http.Request) {
+	id, ok := idParam(w, r)
+	if !ok {
+		return
+	}
+	var in struct {
+		RejectionReason *string `json:"rejection_reason"`
+	}
+	if r.ContentLength > 0 && !httpx.Decode(w, r, &in) {
+		return
+	}
+	out, err := h.svc.RejectRefund(r.Context(), actorOf(r), id, in.RejectionReason)
+	h.reply(w, r, out, err)
 }
 
 func csvFile(w http.ResponseWriter, name string, b []byte) {
