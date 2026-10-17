@@ -45,7 +45,7 @@ type RevenueRow struct {
 }
 
 // RevenueSource: phiếu thu tính doanh thu — CHỈ phiếu đã duyệt, theo ngày thu (revenueReceiptQuery của Laravel).
-// TODO(gộp): nối phân hệ Học phí (internal/tuition, bảng finance.receipts) khi gộp; hiện dùng noRevenue.
+// Nguồn thật: tuition.Service.RevenueSource (gắn ở cmd/menglish); chưa gắn thì dùng noRevenue.
 type RevenueSource interface {
 	Revenue(ctx context.Context, from, to time.Time) ([]RevenueRow, error)
 	// Pending: chưa có nguồn thật (màn hình hiện "Chờ phân hệ Học phí").

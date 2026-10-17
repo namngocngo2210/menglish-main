@@ -35,6 +35,15 @@ type ClassHooks interface {
 	DropEnrollments(ctx context.Context, tx pgx.Tx, studentID uuid.UUID) error
 }
 
+// TuitionHooks là phần việc của phân hệ Học phí (khoảng bảo lưu, đóng băng số buổi / công nợ nằm ở khoản học phí).
+// Chưa gắn thì hồ sơ không có hạn bảo lưu và kết thúc bảo lưu không đụng học phí.
+type TuitionHooks interface {
+	// DeferredUntil: ngày cuối bảo lưu ghi trên khoản học phí mới nhất (nil = không có).
+	DeferredUntil(ctx context.Context, studentID uuid.UUID) (*time.Time, error)
+	// ReleaseDeferral: bỏ đóng băng, xóa khoảng bảo lưu, nhắc nợ chạy lại (StudentDeferralService::releaseTuition).
+	ReleaseDeferral(ctx context.Context, tx pgx.Tx, studentID, actor uuid.UUID) error
+}
+
 type Service struct {
 	pool    *pgxpool.Pool
 	q       *studentsdb.Queries
@@ -42,6 +51,7 @@ type Service struct {
 	log     *slog.Logger
 	now     func() time.Time
 	Classes ClassHooks
+	Tuition TuitionHooks
 }
 
 func NewService(pool *pgxpool.Pool, iamSvc *iam.Service, log *slog.Logger) *Service {
@@ -322,7 +332,7 @@ type Profile struct {
 	StudyStartedOn *string    `json:"study_started_on"`
 	TenureLabel    *string    `json:"tenure_label"`
 	LongTerm       bool       `json:"long_term"`
-	// Hạn bảo lưu nằm ở khoản học phí (phân hệ Học phí chưa có ở v2)
+	// Hạn bảo lưu nằm ở khoản học phí (phân hệ Học phí, TuitionHooks)
 	DeferredUntil *string    `json:"deferred_until"`
 	CreatedAt     time.Time  `json:"created_at"`
 	UpdatedAt     time.Time  `json:"updated_at"`
@@ -397,6 +407,13 @@ func (s *Service) Get(ctx context.Context, actor *iam.Access, idOrCode string, s
 		TenureLabel: TenureLabel(st.StudyStartedOn, st.Status, today), LongTerm: LongTerm(st.StudyStartedOn, st.Status, today),
 		CreatedAt: st.CreatedAt, UpdatedAt: st.UpdatedAt, Version: st.Version,
 		Guardians: []Guardian{}, History: []Event{}, View: v,
+	}
+	if s.Tuition != nil && st.Status == StatusDeferred {
+		until, err := s.Tuition.DeferredUntil(ctx, st.ID)
+		if err != nil {
+			return nil, err
+		}
+		p.DeferredUntil = fmtDate(until)
 	}
 	if v.CanViewContact {
 		p.Phone, p.Email, p.Address, p.ParentName, p.ParentPhone = &st.Phone, st.Email, st.Address, st.ParentName, st.ParentPhone
@@ -715,14 +732,35 @@ func (s *Service) applyStatus(ctx context.Context, tx pgx.Tx, actor *iam.Access,
 		}
 		msg += " Học viên đã được đưa ra khỏi danh sách lớp đang học; lịch sử học tập vẫn được giữ."
 	}
-	// TODO(finance): rời "Bảo lưu" bằng tay (st.Status == deferred) → bỏ đóng băng học phí
-	// (StudentDeferralService::releaseTuition).
+	// Rời "Bảo lưu" bằng tay → bỏ đóng băng học phí (StudentDeferralService::releaseTuition).
+	if st.Status == StatusDeferred && s.Tuition != nil {
+		if err := s.Tuition.ReleaseDeferral(ctx, tx, st.ID, actor.UserID); err != nil {
+			return "", err
+		}
+	}
 	text := fmt.Sprintf("Đổi trạng thái: %s → %s.", StatusLabel(st.Status), StatusLabel(status))
 	if err := s.event(ctx, q, st.ID, "status_changed", text, &st.Status, &status, actor); err != nil {
 		return "", err
 	}
 	s.log.Info("student status changed", "student_id", st.ID, "from", st.Status, "to", status, "by", actor.UserID)
 	return msg, nil
+}
+
+// DropForCancelledClosing: CRM hủy chốt khách Chờ xếp lớp → học viên chuyển Thôi học, ghi lý do vào ghi chú hồ sơ
+// (CrmController::cancelClosing). Chạy trong giao dịch của CRM; quyền đã kiểm ở CRM (lead.stage_back).
+func (s *Service) DropForCancelledClosing(ctx context.Context, tx pgx.Tx, actor *iam.Access, id uuid.UUID, reason string) error {
+	q := s.q.WithTx(tx)
+	st, err := q.LockStudent(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if _, err := s.applyStatus(ctx, tx, actor, st, StatusDropped); err != nil {
+		return err
+	}
+	return q.AppendStudentNote(ctx, studentsdb.AppendStudentNoteParams{ID: id, Line: "Huỷ chốt " + s.today().Format("02/01/2006") + ": " + reason})
 }
 
 // ChangeStatus: đổi trạng thái học tập (6 trạng thái) qua thao tác riêng, tách khỏi sửa hồ sơ.
@@ -771,8 +809,13 @@ func (s *Service) EndDeferral(ctx context.Context, actor *iam.Access, id uuid.UU
 		if err := q.SetStudentStatus(ctx, studentsdb.SetStudentStatusParams{ID: id, Status: next}); err != nil {
 			return err
 		}
-		// TODO(finance): bỏ đóng băng số buổi / công nợ, xóa khoảng bảo lưu, nhắc nợ chạy lại (StudentDeferralService::releaseTuition).
-		if err := notifyDeferralEnded(ctx, tx, actor, st, next); err != nil {
+		// Bỏ đóng băng số buổi / công nợ, xóa khoảng bảo lưu, nhắc nợ chạy lại (StudentDeferralService::releaseTuition).
+		if s.Tuition != nil {
+			if err := s.Tuition.ReleaseDeferral(ctx, tx, id, actor.UserID); err != nil {
+				return err
+			}
+		}
+		if err := notifyDeferralEnded(ctx, tx, &actor.UserID, st, next); err != nil {
 			return err
 		}
 		text := "Kết thúc bảo lưu → " + StatusLabel(next) + "."

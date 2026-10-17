@@ -185,6 +185,40 @@ func (q *Queries) GetVisibleTask(ctx context.Context, arg GetVisibleTaskParams) 
 	return i, err
 }
 
+const insertFeeReminderTask = `-- name: InsertFeeReminderTask :one
+INSERT INTO ops.work_tasks (title, description, creator_id, assignee_id, branch_id, student_id, time_slot_category, task_type,
+                            due_date, due_time, status)
+VALUES ($1, $2, $3, $4, $5, $6, 'during', 'one_time',
+        $7, '17:00', 'new')
+RETURNING id
+`
+
+type InsertFeeReminderTaskParams struct {
+	Title       string
+	Description *string
+	CreatorID   uuid.UUID
+	AssigneeID  *uuid.UUID
+	BranchID    *uuid.UUID
+	StudentID   *uuid.UUID
+	DueDate     *time.Time
+}
+
+// Việc "Nhắc thu học phí" khi chốt khách chưa đóng học phí (phân hệ Học phí, CrmController::createFeeReminderTask).
+func (q *Queries) InsertFeeReminderTask(ctx context.Context, arg InsertFeeReminderTaskParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, insertFeeReminderTask,
+		arg.Title,
+		arg.Description,
+		arg.CreatorID,
+		arg.AssigneeID,
+		arg.BranchID,
+		arg.StudentID,
+		arg.DueDate,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const insertRestockTask = `-- name: InsertRestockTask :one
 INSERT INTO ops.work_tasks (title, description, creator_id, assignee_id, branch_id, merchandise_item_id, time_slot_category,
                             task_type, kind, due_date, due_time, status)

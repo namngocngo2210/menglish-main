@@ -23,6 +23,13 @@ type Config struct {
 	// production (beta / staging chạy trên bản sao dữ liệu thật: email phụ huynh, nhân sự).
 	MailBlockOutgoing bool
 	Files             Files
+	Sepay             Sepay
+}
+
+// Sepay: webhook SePay tự gạch nợ học phí (services.sepay của Laravel).
+type Sepay struct {
+	WebhookEnabled bool   // SEPAY_WEBHOOK_ENABLED: tắt (mặc định) thì webhook trả 503 để SePay gửi lại sau
+	WebhookSecret  string // SEPAY_WEBHOOK_SECRET: khóa HMAC ban đầu khi chưa có cấu hình trong DB
 }
 
 // Files: kho file người dùng tải lên (internal/platform/filestore). Mặc định driver local ghi vào FILES_DIR.
@@ -69,6 +76,11 @@ func Load() (Config, error) {
 		}
 		c.Files.URLTTL = d
 	}
+	sepay, err := parseBool(get("SEPAY_WEBHOOK_ENABLED", "false"))
+	if err != nil {
+		return c, fmt.Errorf("SEPAY_WEBHOOK_ENABLED: %w", err)
+	}
+	c.Sepay = Sepay{WebhookEnabled: sepay, WebhookSecret: os.Getenv("SEPAY_WEBHOOK_SECRET")}
 	if c.DatabaseURL == "" {
 		return c, fmt.Errorf("thiếu DATABASE_URL")
 	}

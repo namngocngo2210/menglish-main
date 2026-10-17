@@ -50,6 +50,17 @@ import { ShiftsPage } from './features/catalogs/ShiftsPage'
 import { SlaPage } from './features/catalogs/SlaPage'
 import { TicketEmailsPage } from './features/catalogs/TicketEmailsPage'
 import { OutboxPage } from './features/mail/OutboxPage'
+import { ApprovePage as TuitionApprovePage } from './features/tuition/ApprovePage'
+import { BillPage as TuitionBillPage } from './features/tuition/BillPage'
+import { CancellationsPage as TuitionCancellationsPage } from './features/tuition/CancellationsPage'
+import { ConfigPage as TuitionConfigPage } from './features/tuition/ConfigPage'
+import { SepayPage as TuitionSepayPage } from './features/tuition/SepayPage'
+import { ImportPage as TuitionImportPage } from './features/tuition/ImportPage'
+import { HistoryPage as TuitionHistoryPage } from './features/tuition/HistoryPage'
+import { OverduePage as TuitionOverduePage } from './features/tuition/OverduePage'
+import { ReceiptsRoute } from './features/tuition/ReceiptFormPage'
+import { RefundsPage as TuitionRefundsPage } from './features/tuition/RefundsPage'
+import { StudentsPage as TuitionStudentsPage } from './features/tuition/StudentsPage'
 
 // Trang theo đường dẫn mục menu (NAV trong nav.ts). Trang con (vd. /students/<id>) dùng chung mục cha và tự đọc
 // phần còn lại của đường dẫn bằng usePath(). Module mới: thêm mục vào NAV và một dòng ở đây.
@@ -114,4 +125,15 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/crm/promotions': (me) => <PromotionsPage me={me} />,
   '/crm/reports': (me) => <CrmReportsPage me={me} />,
   '/crm/import': (me) => <ImportPage me={me} />,
+  '/tuition/students': (me) => <TuitionStudentsPage me={me} />,
+  '/tuition/history': (me) => <TuitionHistoryPage me={me} />,
+  '/tuition/overdue': (me) => <TuitionOverduePage me={me} />,
+  '/tuition/receipts': (me) => <ReceiptsRoute me={me} />,
+  '/tuition/receipts/approve': (me) => <TuitionApprovePage me={me} />,
+  '/tuition/bill': (me) => <TuitionBillPage me={me} />,
+  '/tuition/invoices/cancellations': (me) => <TuitionCancellationsPage me={me} />,
+  '/tuition/config': (me) => <TuitionConfigPage me={me} />,
+  '/tuition/refunds': (me) => <TuitionRefundsPage me={me} />,
+  '/tuition/sepay': (me) => <TuitionSepayPage me={me} />,
+  '/tuition/import': (me) => <TuitionImportPage me={me} />,
 }

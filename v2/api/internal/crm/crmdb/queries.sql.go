@@ -3599,3 +3599,64 @@ func (q *Queries) WaitingLeads(ctx context.Context, arg WaitingLeadsParams) ([]W
 	}
 	return items, nil
 }
+
+const wonStudentIDs = `-- name: WonStudentIDs :many
+SELECT l.converted_student_id::uuid AS student_id
+FROM crm.leads l
+WHERE l.deleted_at IS NULL AND l.stage = $1::text AND l.converted_student_id IS NOT NULL
+  AND ($2::uuid IS NULL OR l.assigned_user_id = $2::uuid)
+  AND ($3::uuid[] IS NULL OR l.branch_id = ANY ($3::uuid[]))
+  AND ($4::text IS NULL OR l.name ILIKE $4::text OR l.phone ILIKE $4::text
+       OR l.code ILIKE $4::text OR l.email::text ILIKE $4::text OR l.parent_name ILIKE $4::text
+       OR ($5::text IS NOT NULL AND l.phone_normalized LIKE $5::text))
+  AND ($6::uuid IS NULL OR l.branch_id = $6::uuid)
+  AND ($7::uuid IS NULL OR l.assigned_user_id = $7::uuid)
+  AND ($8::text IS NULL OR l.source = $8::text)
+  AND ($9::timestamptz IS NULL OR l.converted_at >= $9::timestamptz)
+  AND ($10::timestamptz IS NULL OR l.converted_at <= $10::timestamptz)
+`
+
+type WonStudentIDsParams struct {
+	Stage          string
+	ScopeOwner     *uuid.UUID
+	ScopeBranches  []uuid.UUID
+	Q              *string
+	QDigits        *string
+	BranchID       *uuid.UUID
+	AssignedUserID *uuid.UUID
+	Source         *string
+	DateFrom       *time.Time
+	DateTo         *time.Time
+}
+
+// Học viên của khách Đã chốt theo cùng bộ lọc LeadTotals (không phân trang) — tổng Đã thu / Còn nợ từ phân hệ Học phí.
+func (q *Queries) WonStudentIDs(ctx context.Context, arg WonStudentIDsParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, wonStudentIDs,
+		arg.Stage,
+		arg.ScopeOwner,
+		arg.ScopeBranches,
+		arg.Q,
+		arg.QDigits,
+		arg.BranchID,
+		arg.AssignedUserID,
+		arg.Source,
+		arg.DateFrom,
+		arg.DateTo,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var student_id uuid.UUID
+		if err := rows.Scan(&student_id); err != nil {
+			return nil, err
+		}
+		items = append(items, student_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

@@ -44,6 +44,14 @@ type Service struct {
 	now  func() time.Time
 	// CRM: khách Chờ xếp lớp khi xếp lớp từ màn Học viên (nil = chưa gắn, cmd/menglish gắn crm.Service).
 	CRM *crm.Service
+	// Tuition: khoản học phí chưa gắn lớp của khách Chờ xếp lớp nhận lớp vừa xếp (nil = chưa gắn, cmd/menglish gắn
+	// tuition.Service).
+	Tuition WaitingTuition
+}
+
+// WaitingTuition: phân hệ Học phí gắn lớp cho khoản học phí lập lúc chốt chưa có lớp.
+type WaitingTuition interface {
+	AttachWaitingClass(ctx context.Context, tx pgx.Tx, studentID, classID uuid.UUID) error
 }
 
 func NewService(pool *pgxpool.Pool, cat *catalogs.Service, log *slog.Logger) *Service {

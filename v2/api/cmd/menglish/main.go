@@ -40,6 +40,7 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/store"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/students"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/tasks"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/tuition"
 )
 
 // Gắn lúc build: -ldflags "-X main.version=<commit>".
@@ -150,37 +151,45 @@ func runAPI(ctx context.Context) error {
 	inv := inventory.NewService(d.pool, log, inventory.DefaultConfig()).WithRestocker(taskSvc.Restocker())
 	go inv.RunOverdueLoop(ctx, 15*time.Minute)
 	studentSvc.Classes, catalogSvc.Classes, inv.Classes = cls, cls, cls
+	// Học phí: phiếu thu duyệt thì xuất bán / hủy thì hoàn kho vật phẩm qua phân hệ Kho; chốt khách chưa đóng học phí
+	// → task "Nhắc thu học phí" (phân hệ Công việc). tuitionSvc.Closing bọc phần chốt của Lớp học để lập học phí / phiếu thu.
+	tuitionSvc := tuition.NewService(d.pool, d.box, catalogSvc, log).WithStock(inv).WithTasks(taskSvc)
 	// Chốt & Xếp lớp: Lớp học tạo hồ sơ học viên và ghi danh trong giao dịch của CRM; xếp lớp từ màn Học viên hoàn tất
 	// khách Chờ xếp lớp bên CRM.
-	crmSvc := crm.NewService(d.pool, d.iam, log).WithStudents(cls.CRMStudents(studentSvc))
-	cls.CRM = crmSvc
+	crmSvc := crm.NewService(d.pool, d.iam, log).WithStudents(tuitionSvc.Closing(cls.CRMStudents(studentSvc))).WithTuition(tuitionSvc)
+	cls.CRM, cls.Tuition, studentSvc.Tuition = crmSvc, tuitionSvc, tuitionSvc
+	// Ảnh bằng chứng hoàn tiền lưu ở kho file. TODO(gộp): WithCommissions(hoa hồng tư vấn) khi phân hệ Lương có ở v2.
+	tuitionSvc.WithLeads(crmSvc).WithStudents(studentSvc).WithAccess(d.iam.LoadAccess).WithFiles(fileSvc).
+		WithSepay(tuition.SepaySettings{WebhookEnabled: cfg.Sepay.WebhookEnabled, WebhookSecret: cfg.Sepay.WebhookSecret})
+	// Nhắc nợ theo mốc, SLA tiền mặt / hoàn phí, bảo lưu bắt đầu / hết hạn (lệnh tuition:* / students:*-deferrals ở bản Laravel).
+	go tuitionSvc.RunReminderLoop(ctx, time.Minute)
 	// Leads: khách CRM. Sessions: buổi học thật của phân hệ Lớp học cho học thử.
 	place := placement.NewHandler(placement.NewService(d.pool, d.rdb, log, placement.Options{
 		Leads: crmSvc.PlacementLeads(), Sessions: cls.PlacementSessions(), Files: fileSvc,
 	}), log)
 	// Báo cáo: số liệu tuyển sinh từ CRM / test đầu vào, bọc thêm số liệu lớp / buổi / điểm danh của Lớp học; việc follow-up
-	// qua Công việc, ngày nghỉ từ danh mục. TODO(gộp): số liệu học phí khi phân hệ đó có ở v2.
+	// qua Công việc, ngày nghỉ từ danh mục; "Số lượng thu phí" từ Học phí.
 	// KPI: mục KPI của báo cáo tuần lấy từ bộ tiêu chí đang áp dụng (bọc MetricsProvider của báo cáo).
 	kpiSvc := kpi.NewService(d.pool, log)
 	reportSvc := reports.NewService(d.pool, log, reports.Deps{
-		Metrics: kpiSvc.ReportMetrics(cls.ReportMetrics(reports.NewMetrics(crmSvc.ReportSource()), d.iam.LoadAccess)),
+		Metrics: kpiSvc.ReportMetrics(tuitionSvc.ReportMetrics(cls.ReportMetrics(reports.NewMetrics(crmSvc.ReportSource()), d.iam.LoadAccess))),
 		Classes: cls.ReportClasses(), Tasks: taskSvc.ReportTasks(), Calendar: catalogSvc.ReportCalendar(),
 	})
 	// Nhắc hạn báo cáo ngày / tháng và tổng hợp cho Admin (lệnh reports:remind-* / reports:daily-digest ở bản Laravel).
 	go reportSvc.RunReminderLoop(ctx, time.Minute)
-	// Thu chi: sổ khoản chi + doanh thu tạm tính. TODO(gộp): WithRevenue(phiếu thu Học phí), WithPayroll(kỳ lương).
-	finSvc := finance.NewService(d.pool, log)
+	// Thu chi: sổ khoản chi + doanh thu tạm tính từ phiếu thu đã duyệt của Học phí. TODO(gộp): WithPayroll(kỳ lương).
+	finSvc := finance.NewService(d.pool, log).WithRevenue(tuitionSvc.RevenueSource())
 	// Số liệu KPI tự động từ báo cáo / công việc / kho / lớp học; tạo phiếu đầu kỳ hằng ngày (kpi:create-sheets).
 	// TODO(gộp): nguồn Học phí / SLA CRM / Cổng giáo viên / Chấm công / Big Test, WithPayrollLock(kỳ lương) khi có ở v2.
 	kpiSvc.AddSources(reportSvc.KpiSources(), taskSvc.KpiSources(), inv.KpiSources(), cls.KpiSources()).
 		WithJournal(reportSvc).WithAttendance(cls.KpiAttendance()).WithBoard(cls.KpiBoard(), taskSvc.KpiBoard())
 	go kpiSvc.RunSheetLoop(ctx, time.Hour)
-	// Tổng quan + Báo cáo & sự vụ lớp: đọc số liệu các phân hệ qua adapter. TODO(gộp): Finance = adapter của internal/tuition,
-	// Work = chấm công / biên bản lỗi (KPI) khi các phân hệ đó có ở v2 (để nil: màn hiện "Chờ phân hệ…").
+	// Tổng quan + Báo cáo & sự vụ lớp: đọc số liệu các phân hệ qua adapter (Finance: doanh thu / phiếu chờ duyệt / quá hạn
+	// của Học phí). TODO(gộp): Work = chấm công / biên bản lỗi (KPI) khi có ở v2 (để nil: màn hiện "Chờ phân hệ…").
 	dash := dashboard.NewService(dashboard.Deps{
 		Leads: crmSvc.DashboardLeads(), Tasks: taskSvc.DashboardTasks(), Classes: cls.DashboardClasses(),
 		Students: studentSvc.DashboardStudents(), Reports: reportSvc.DashboardReports(), Orders: inv.DashboardOrders(),
-		Branches: d.iam,
+		Branches: d.iam, Finance: tuitionSvc.DashboardFinance(),
 	}, log)
 	checks := map[string]server.Pinger{
 		"postgres": d.pool,
@@ -190,6 +199,8 @@ func runAPI(ctx context.Context) error {
 		Addr: cfg.HTTPAddr,
 		Handler: server.New(server.Deps{
 			Log: log, Version: version, Env: cfg.Env, Checks: checks,
+			// Webhook SePay giữ đường dẫn cũ (/hook/sepay-gateway/v1/add-payment, /api/sepay/*) ngoài /api/v1.
+			Root: tuition.NewHandler(tuitionSvc, log).RootRoutes(iam.SameOrigin, auth.LoadSession),
 			API: apiRoutes(auth, platform{
 				auditMW: audit.Middleware(d.pool, log, "/api/v1", iam.CurrentUserID),
 				audit:   auditapi.NewHandler(auditapi.NewService(d.pool, log), log),
@@ -205,6 +216,7 @@ func runAPI(ctx context.Context) error {
 				place,
 				reports.NewHandler(reportSvc, log),
 				crm.NewHandler(crmSvc, log),
+				tuition.NewHandler(tuitionSvc, log),
 				finance.NewHandler(finSvc, log),
 				kpi.NewHandler(kpiSvc, log),
 				mailapi.NewHandler(mailSvc, log),

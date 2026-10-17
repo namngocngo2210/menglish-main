@@ -25,6 +25,8 @@ const KPI_ROLES = ['academic_staff', 'academic_lead', 'manager', 'sales_consulta
 export const hasKpiRole = (me: Me) => me.roles.some((r) => KPI_ROLES.includes(r.name))
 
 const CRM = 'Khách hàng (CRM)'
+// Quyền neo khu Học phí (SidebarMenu::TUITION): người xử lý nghiệp vụ kế toán.
+const TUITION_ANCHORS = ['tuition.approve', 'tuition.reject', 'invoice.request_cancel', 'refund_transfer.request']
 
 export const NAV: NavItem[] = [
   // Tổng quan (DashboardController) cho nhân sự; học viên / phụ huynh thấy "Tài khoản của tôi" thay chỗ (routes.tsx).
@@ -63,7 +65,16 @@ export const NAV: NavItem[] = [
   { path: '/teaching-shifts', label: 'Khung giờ ca dạy', perms: ['class.update'], group: 'Tổ chức & Đào tạo' },
   { path: '/rooms', label: 'Phòng học', perms: ['room.view'], group: 'Tổ chức & Đào tạo' },
   { path: '/system-config/debt-reminders', label: 'Nhắc nợ học phí', perms: ['fee_reminder_config.manage'], group: 'Cài đặt › Học phí' },
+  {
+    path: '/tuition/config',
+    label: 'Dải số hóa đơn',
+    perms: ['tuition.view'],
+    group: 'Cài đặt › Học phí',
+    menu: (me) => can(me, ...TUITION_ANCHORS),
+  },
   { path: '/system-config/bank-accounts', label: 'Tài khoản ngân hàng', perms: ['bank_account.manage'], group: 'Cài đặt › Học phí' },
+  // Tab "Webhook SePay" / "Nhật ký giao dịch SePay" của màn Tài khoản ngân hàng (Laravel) — features/tuition
+  { path: '/tuition/sepay', label: 'Webhook SePay', perms: ['bank_account.manage'], group: 'Cài đặt › Học phí' },
   { path: '/system-config/ticket-emails', label: 'Email nhận Ticket', perms: ['support_ticket.update'], group: 'Hệ thống' },
   { path: '/system-config/sla', label: 'Cấu hình SLA', perms: ['sla.configure'], group: 'Hệ thống' },
   { path: '/system-config/mail-outbox', label: 'Hàng đợi email', perms: ['mail_config.manage'], group: 'Hệ thống' },
@@ -132,6 +143,37 @@ export const NAV: NavItem[] = [
   { path: '/crm/waiting', label: 'Chờ xếp lớp', perms: ['lead.view'], group: CRM, hidden: true },
   { path: '/crm/deleted', label: 'Khách đã xóa', perms: ['lead.delete'], group: CRM, hidden: true },
   { path: '/crm/transfers', label: 'Duyệt chuyển cơ sở', perms: ['lead.approve_transfer'], group: CRM, hidden: true },
+  // Học phí (features/tuition). Như SidebarMenu: mục workspace neo quyền kế toán (TUITION_ANCHORS); "Cần duyệt › Phiếu
+  // thu" chỉ Admin thấy. Lập / sửa phiếu (/tuition/receipts/new, /tuition/receipts/<id>/edit) mở từ nút trên trang.
+  { path: '/tuition/students', label: 'Công nợ học viên', perms: ['tuition.view'], group: 'Học phí', menu: (me) => can(me, ...TUITION_ANCHORS) },
+  { path: '/tuition/history', label: 'Lịch sử thu', perms: ['tuition.view'], group: 'Học phí', menu: (me) => can(me, ...TUITION_ANCHORS) },
+  { path: '/tuition/overdue', label: 'Quá hạn & Nhắc phí', perms: ['tuition.view'], group: 'Học phí', menu: (me) => can(me, ...TUITION_ANCHORS) },
+  { path: '/tuition/receipts', label: 'Lập phiếu thu', perms: ['tuition.create'], group: 'Học phí', hidden: true },
+  // Nút "Nhập Excel" trên Công nợ học viên.
+  { path: '/tuition/import', label: 'Nhập học phí từ Excel', perms: ['tuition.view'], group: 'Học phí', hidden: true },
+  // Bill "Thông báo nộp học phí" (/tuition/bill/<id>): mở từ Chốt khách (CRM) hoặc Lịch sử thu.
+  { path: '/tuition/bill', label: 'Thông báo nộp học phí', perms: ['lead.view', 'tuition.view'], group: 'Học phí', hidden: true },
+  {
+    path: '/tuition/receipts/approve',
+    label: 'Phiếu thu',
+    perms: ['tuition.view'],
+    group: 'Cần duyệt',
+    menu: (me) => isAdmin(me) && can(me, ...TUITION_ANCHORS),
+  },
+  {
+    path: '/tuition/invoices/cancellations',
+    label: 'Hủy hóa đơn',
+    perms: ['tuition.view'],
+    group: 'Cần duyệt',
+    menu: (me) => isAdmin(me) && can(me, ...TUITION_ANCHORS),
+  },
+  {
+    path: '/tuition/refunds',
+    label: 'Hoàn tiền & Khất nợ',
+    perms: ['tuition.view'],
+    group: 'Cần duyệt',
+    menu: (me) => isAdmin(me) && can(me, ...TUITION_ANCHORS),
+  },
 ]
 
 // Workspace của sidebar theo đúng thứ tự SidebarMenu::definition(): khu (section) → workspace (label, icon).

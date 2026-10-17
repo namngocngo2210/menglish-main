@@ -89,7 +89,7 @@ func TestCRMCloseCreatesStudentAndEnrolls(t *testing.T) {
 	// Chốt có lớp: hồ sơ học viên gắn Lead, ghi danh lớp, giá trị hợp đồng = học phí khóa − ưu đãi
 	r := staff.do("POST", path, map[string]any{"class_id": small, "promotion_id": promo})
 	msg := expectPrefix(t, r, 200, "Đã chốt deal và tạo hồ sơ HV-")
-	if !strings.Contains(msg, msgTuitionPending) || !strings.Contains(msg, "mật khẩu tạm") {
+	if !strings.Contains(msg, MsgTuitionPending) || !strings.Contains(msg, "mật khẩu tạm") {
 		t.Fatalf("thông báo chốt: %s", msg)
 	}
 	var sid uuid.UUID
