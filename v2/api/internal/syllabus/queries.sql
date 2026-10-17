@@ -62,13 +62,15 @@ WHERE syllabus_curriculum_id = sqlc.arg(curriculum_id) AND NOT (id = ANY (sqlc.a
 UPDATE academic.course_levels SET syllabus_curriculum_id = sqlc.arg(curriculum_id), updated_at = now()
 WHERE id = ANY (sqlc.arg(ids)::uuid[]);
 
--- name: CurriculumOfLevel :one
--- Giáo trình theo trình độ của lớp: classes.level là mã trình độ; lớp tạo nơi khác lấy trình độ của khóa học.
-SELECT coalesce(
-    (SELECT l.syllabus_curriculum_id FROM academic.course_levels l WHERE l.code = sqlc.arg(level)::text AND l.deleted_at IS NULL LIMIT 1),
-    (SELECT l.syllabus_curriculum_id FROM academic.courses co JOIN academic.course_levels l ON l.id = co.course_level_id
-     WHERE co.id = sqlc.narg(course_id)::uuid)
-)::uuid AS curriculum_id;
+-- name: CurriculumOfLevel :many
+-- Giáo trình theo trình độ của lớp: classes.level là mã trình độ (ưu tiên, rank 0); lớp tạo nơi khác lấy trình độ của
+-- khóa học (rank 1).
+SELECT 0 AS rank, l.syllabus_curriculum_id FROM academic.course_levels l
+WHERE l.code = sqlc.arg(level)::text AND l.deleted_at IS NULL AND l.syllabus_curriculum_id IS NOT NULL
+UNION ALL
+SELECT 1 AS rank, l.syllabus_curriculum_id FROM academic.courses co JOIN academic.course_levels l ON l.id = co.course_level_id
+WHERE co.id = sqlc.narg(course_id)::uuid AND l.syllabus_curriculum_id IS NOT NULL
+ORDER BY rank;
 
 -- name: LevelCurricula :many
 SELECT code::text AS code, syllabus_curriculum_id FROM academic.course_levels
@@ -130,11 +132,11 @@ ORDER BY n.position, n.id LIMIT 1;
 
 -- name: StageRange :one
 -- Phạm vi Unit / Buổi của chặng ("Unit 1–3 · Buổi 1–12").
-SELECT min(u.unit_number)::int AS unit_min, max(u.unit_number)::int AS unit_max,
-       (SELECT min(l.session_no) FROM syllabus.lessons l JOIN syllabus.units x ON x.id = l.unit_id
-        WHERE x.stage_id = sqlc.arg(stage_id) AND x.deleted_at IS NULL AND l.deleted_at IS NULL)::int AS session_min,
-       (SELECT max(l.session_no) FROM syllabus.lessons l JOIN syllabus.units x ON x.id = l.unit_id
-        WHERE x.stage_id = sqlc.arg(stage_id) AND x.deleted_at IS NULL AND l.deleted_at IS NULL)::int AS session_max
+SELECT coalesce(min(u.unit_number), 0)::int AS unit_min, coalesce(max(u.unit_number), 0)::int AS unit_max,
+       coalesce((SELECT min(l.session_no) FROM syllabus.lessons l JOIN syllabus.units x ON x.id = l.unit_id
+        WHERE x.stage_id = sqlc.arg(stage_id) AND x.deleted_at IS NULL AND l.deleted_at IS NULL), 0)::int AS session_min,
+       coalesce((SELECT max(l.session_no) FROM syllabus.lessons l JOIN syllabus.units x ON x.id = l.unit_id
+        WHERE x.stage_id = sqlc.arg(stage_id) AND x.deleted_at IS NULL AND l.deleted_at IS NULL), 0)::int AS session_max
 FROM syllabus.units u WHERE u.stage_id = sqlc.arg(stage_id) AND u.deleted_at IS NULL;
 
 -- name: ListUnits :many
@@ -282,7 +284,7 @@ WHERE c.id = ANY (sqlc.arg(ids)::uuid[]) AND c.deleted_at IS NULL
 ORDER BY c.name, c.id;
 
 -- name: TeacherOptions :many
-SELECT u.id, u.full_name, u.code::text AS code FROM iam.users u
+SELECT u.id, u.full_name, coalesce(u.code::text, '')::text AS code FROM iam.users u
 WHERE u.status = 'active' AND EXISTS (SELECT 1 FROM iam.user_roles r WHERE r.user_id = u.id
     AND r.role IN ('teacher_fulltime', 'teacher_parttime', 'academic_lead'))
 ORDER BY u.full_name;
@@ -321,7 +323,7 @@ ORDER BY full_name;
 
 -- name: ListAssignments :many
 SELECT a.id, a.no, a.class_id, c.name AS class_name, c.code::text AS class_code, b.name AS branch_name, c.room AS class_room,
-       cu.title AS curriculum_title, a.user_id, t.full_name AS teacher_name, t.code::text AS teacher_code,
+       cu.title AS curriculum_title, a.user_id, t.full_name AS teacher_name, coalesce(t.code::text, '')::text AS teacher_code,
        s.position AS stage_position, s.name AS stage_title, a.stage_name, a.assigned_chapters, a.extra_sessions,
        a.opened_at, a.created_at, a.closed_at, a.close_reason, a.deadline, a.status, a.curriculum_completed_at,
        bt.code AS closing_big_test
@@ -507,7 +509,7 @@ WHERE (sqlc.arg(all_rows)::bool OR r.user_id = sqlc.arg(user_id))
 -- name: GetPacing :one
 SELECT r.id, r.class_id, c.name AS class_name, c.end_date AS class_end_date, c.deleted_at AS class_deleted_at,
        r.assignment_id, a.stage_name AS assignment_stage, a.status AS assignment_status,
-       r.user_id, t.full_name AS teacher_name, t.code::text AS teacher_code, r.request_type, r.reason, r.extra_sessions, r.status,
+       r.user_id, t.full_name AS teacher_name, coalesce(t.code::text, '')::text AS teacher_code, r.request_type, r.reason, r.extra_sessions, r.status,
        r.approver_id, ap.full_name AS approver_name, r.reviewed_at, r.rejection_reason, r.applied_note, r.created_at
 FROM syllabus.pacing_requests r
 LEFT JOIN academic.classes c ON c.id = r.class_id
@@ -558,7 +560,7 @@ VALUES (sqlc.arg(code), sqlc.arg(title), sqlc.arg(class_id), sqlc.narg(stage_id)
 RETURNING id, code, scheduled_at;
 
 -- name: ListBigTests :many
-SELECT bt.id, bt.code, bt.title, bt.class_id, c.name AS class_name, c.code::text AS class_code, b.name AS branch_name,
+SELECT bt.id, bt.code, bt.title, bt.class_id, c.name AS class_name, coalesce(c.code::text, '')::text AS class_code, b.name AS branch_name,
        c.teacher_id, c.foreign_teacher_id, c.assistant_id, bt.stage_id, s.position AS stage_position, s.name AS stage_title,
        bt.test_type, bt.scheduled_at, bt.room, pu.full_name AS proctor_name, bt.passcode, bt.content_url, bt.speaking_url,
        bt.is_distributed, bt.results_completed_at
@@ -786,8 +788,8 @@ UPDATE syllabus.big_tests SET teacher_reminded_at = now() WHERE id = $1;
 
 -- name: UndistributedUpcoming :many
 -- Đợt thi chưa phân phối đề trong khoảng (nhắc Admin duyệt đề, GV chưa nhận đề).
-SELECT bt.id, bt.code, bt.title, bt.scheduled_at, c.name AS class_name
-FROM syllabus.big_tests bt JOIN academic.classes c ON c.id = bt.class_id
+SELECT bt.id, bt.code, bt.title, bt.scheduled_at, bt.class_id, c.name AS class_name, c.branch_id
+FROM syllabus.big_tests bt JOIN academic.classes c ON c.id = bt.class_id AND c.deleted_at IS NULL
 WHERE NOT bt.is_distributed AND bt.scheduled_at BETWEEN sqlc.arg(from_at) AND sqlc.arg(to_at)
 ORDER BY bt.scheduled_at;
 

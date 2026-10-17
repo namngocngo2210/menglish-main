@@ -39,6 +39,7 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/server"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/store"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/students"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/syllabus"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/tasks"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/tuition"
 )
@@ -191,6 +192,12 @@ func runAPI(ctx context.Context) error {
 		Students: studentSvc.DashboardStudents(), Reports: reportSvc.DashboardReports(), Orders: inv.DashboardOrders(),
 		Branches: d.iam, Finance: tuitionSvc.DashboardFinance(),
 	}, log)
+	// Giáo trình & Big Test: lớp được xem + giãn tiến độ (thêm buổi theo TKB) qua phân hệ Lớp học, tài liệu / file đính kèm
+	// ở kho file, luật SLA ở Danh mục. TODO(gộp): Penalties (biên bản trả kết quả trễ), Tasks (việc duyệt đề), Support
+	// (danh sách bổ trợ), Zalo ZNS thật khi các phân hệ có ở v2.
+	sylSvc := syllabus.NewService(d.pool, log, syllabus.Deps{Classes: cls.SyllabusClasses(), Files: fileSvc, SLA: catalogSvc})
+	// Nhắc lịch Big Test, SLA đề / kết quả, SLA duyệt giãn tiến độ (bigtests:* / syllabus:notify-adjustment-sla ở bản Laravel).
+	go sylSvc.RunLoop(ctx, time.Minute)
 	checks := map[string]server.Pinger{
 		"postgres": d.pool,
 		"redis":    server.PingFunc(func(ctx context.Context) error { return d.rdb.Ping(ctx).Err() }),
@@ -222,6 +229,7 @@ func runAPI(ctx context.Context) error {
 				mailapi.NewHandler(mailSvc, log),
 				dashboard.NewHandler(dash, log),
 				files.NewHandler(fileSvc, log),
+				syllabus.NewHandler(sylSvc, log),
 			),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
