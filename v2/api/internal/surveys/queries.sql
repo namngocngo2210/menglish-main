@@ -67,6 +67,8 @@ DELETE FROM ops.survey_responses WHERE id = $1;
 SELECT st.id, st.full_name, st.code::text AS code
 FROM academic.students st
 WHERE st.deleted_at IS NULL
+  -- Học viên vừa chốt (Chờ khai giảng) / nghỉ hè vẫn dùng cổng (getActiveStudent).
+  AND st.status IN ('waiting_start', 'studying', 'summer_break')
   AND (st.user_id = @user_id::uuid
        OR EXISTS (SELECT 1 FROM academic.student_guardians g WHERE g.student_id = st.id AND g.guardian_id = @user_id::uuid))
 ORDER BY st.full_name, st.id;

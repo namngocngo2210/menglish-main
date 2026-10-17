@@ -41,6 +41,7 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/store"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/students"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/tasks"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/surveys"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/tickets"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/tuition"
 )
@@ -233,6 +234,8 @@ func runAPI(ctx context.Context) error {
 				files.NewHandler(fileSvc, log),
 				tickets.NewHandler(ticketSvc, log),
 				approvals.NewHandler(approvalSvc, log),
+				// Khảo sát: đợt khảo sát (survey.manage) + API Cổng PH/HS. TODO(gộp): WithStudents(bộ chọn học viên của cổng).
+				surveys.NewHandler(surveys.NewService(d.pool, log), log),
 			),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
