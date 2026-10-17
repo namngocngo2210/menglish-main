@@ -67,7 +67,7 @@ Trạng thái: **Đã làm** · **Khác** (đã làm, khác có chủ đích, xe
 | Xuất / hoàn kho hàng hóa (`StockService::syncReceipt`) | Đã làm | Qua `tuition.StockRecorder` (phân hệ Kho). |
 | Nội dung chuyển khoản gợi ý (`TransferMemo`) | Đã làm | |
 | Xác nhận đã nhận học phí (`PaymentConfirmation`) | Khác | Cổng học viên (khi học viên có tài khoản) + email phụ huynh qua hàng đợi; không có email → báo người phụ trách kèm nội dung Zalo. |
-| Hộp duyệt chung (`Approvals/*ApprovalSource`, `AdminOnlyApprovals`) | Khác | Thông báo theo loại (`fee_payment`, `invoice_cancel_pending`, `refund_request_pending`, `sepay_review`…) thay cho hộp duyệt chung (chưa có ở v2). |
+| Hộp duyệt chung (`Approvals/*ApprovalSource`, `AdminOnlyApprovals`) | Đã làm | Nguồn `receipt`, `invoice_cancellation`, `refund` của hộp "Việc cần duyệt" (`tuition/approvals.go`, xem `can-duyet.md`); thông báo theo loại (`fee_payment`, `invoice_cancel_pending`, `refund_request_pending`, `sepay_review`…) vẫn giữ. Nguồn `payment_report` chờ cổng học viên. |
 | Nhật ký (activity log của các model) | Đã làm | `audit.Record`, subject `tuition_receipt`, `student_tuition`, `invoice_range`, `invoice_cancellation`, `tuition_refund_request`, `sepay_config`, `tuition_import`. |
 | Doanh thu cho Thu chi (`revenueReceiptQuery`) | Đã làm | `tuitionSvc.RevenueSource()` → `finSvc.WithRevenue`. |
 | Số liệu Tổng quan (doanh thu tháng, phiếu chờ duyệt, học phí quá hạn) | Đã làm | `tuitionSvc.DashboardFinance()` → `dashboard.Deps.Finance`; ô / hàng chờ có link `/tuition/overdue`, `/tuition/receipts/approve`. |
