@@ -41,7 +41,7 @@ sql:
               pointer: true
   - engine: postgresql
     schema: internal/store/migrations
-    queries: internal/students/queries.sql
+    queries: [internal/students/queries.sql, internal/students/dashboard.sql]
     gen:
       go:
         package: studentsdb
@@ -85,7 +85,7 @@ sql:
               pointer: true
   - engine: postgresql
     schema: internal/store/migrations
-    queries: internal/inventory/queries.sql
+    queries: [internal/inventory/queries.sql, internal/inventory/dashboard.sql]
     gen:
       go:
         package: inventorydb
@@ -161,7 +161,7 @@ sql:
               pointer: true
   - engine: postgresql
     schema: internal/store/migrations
-    queries: internal/tasks/queries.sql
+    queries: [internal/tasks/queries.sql, internal/tasks/dashboard.sql]
     gen:
       go:
         package: tasksdb
@@ -315,7 +315,39 @@ sql:
               pointer: true
   - engine: postgresql
     schema: internal/store/migrations
-    queries: internal/reports/queries.sql
+    queries: internal/notify/mail/queries.sql
+    gen:
+      go:
+        package: maildb
+        out: internal/notify/mail/maildb
+        sql_package: pgx/v5
+        emit_pointers_for_null_types: true
+        overrides:
+          - db_type: uuid
+            go_type: github.com/google/uuid.UUID
+          - db_type: uuid
+            nullable: true
+            go_type:
+              import: github.com/google/uuid
+              type: UUID
+              pointer: true
+          - db_type: citext
+            go_type: string
+          - db_type: citext
+            nullable: true
+            go_type:
+              type: string
+              pointer: true
+          - db_type: timestamptz
+            go_type: time.Time
+          - db_type: timestamptz
+            nullable: true
+            go_type:
+              type: time.Time
+              pointer: true
+  - engine: postgresql
+    schema: internal/store/migrations
+    queries: [internal/reports/queries.sql, internal/reports/dashboard.sql]
     gen:
       go:
         package: reportsdb
@@ -359,7 +391,7 @@ sql:
               pointer: true
   - engine: postgresql
     schema: internal/store/migrations
-    queries: internal/crm/queries.sql
+    queries: [internal/crm/queries.sql, internal/crm/dashboard.sql]
     gen:
       go:
         package: crmdb
@@ -405,7 +437,7 @@ sql:
               pointer: true
   - engine: postgresql
     schema: internal/store/migrations
-    queries: internal/classes/queries.sql
+    queries: [internal/classes/queries.sql, internal/classes/dashboard.sql]
     gen:
       go:
         package: classesdb
@@ -442,6 +474,135 @@ sql:
             go_type:
               type: time.Time
               pointer: true
+          - db_type: pg_catalog.numeric
+            nullable: true
+            go_type:
+              type: float64
+              pointer: true
+  - engine: postgresql
+    schema: internal/store/migrations
+    queries: internal/files/queries.sql
+    gen:
+      go:
+        package: filesdb
+        out: internal/files/filesdb
+        sql_package: pgx/v5
+        emit_pointers_for_null_types: true
+        overrides:
+          - db_type: uuid
+            go_type: github.com/google/uuid.UUID
+          - db_type: uuid
+            nullable: true
+            go_type:
+              import: github.com/google/uuid
+              type: UUID
+              pointer: true
+          - db_type: citext
+            go_type: string
+          - db_type: citext
+            nullable: true
+            go_type:
+              type: string
+              pointer: true
+          - db_type: timestamptz
+            go_type: time.Time
+          - db_type: timestamptz
+            nullable: true
+            go_type:
+              type: time.Time
+              pointer: true
+          - db_type: pg_catalog.numeric
+            nullable: true
+            go_type:
+              type: float64
+              pointer: true
+  - engine: postgresql
+    schema: internal/store/migrations
+    queries: internal/finance/queries.sql
+    gen:
+      go:
+        package: financedb
+        out: internal/finance/financedb
+        sql_package: pgx/v5
+        emit_pointers_for_null_types: true
+        overrides:
+          - db_type: uuid
+            go_type: github.com/google/uuid.UUID
+          - db_type: uuid
+            nullable: true
+            go_type:
+              import: github.com/google/uuid
+              type: UUID
+              pointer: true
+          - db_type: citext
+            go_type: string
+          - db_type: citext
+            nullable: true
+            go_type:
+              type: string
+              pointer: true
+          - db_type: timestamptz
+            go_type: time.Time
+          - db_type: timestamptz
+            nullable: true
+            go_type:
+              type: time.Time
+              pointer: true
+          - db_type: date
+            go_type: time.Time
+          - db_type: date
+            nullable: true
+            go_type:
+              type: time.Time
+              pointer: true
+          - db_type: pg_catalog.numeric
+            go_type: float64
+          - db_type: pg_catalog.numeric
+            nullable: true
+            go_type:
+              type: float64
+              pointer: true
+  - engine: postgresql
+    schema: internal/store/migrations
+    queries: internal/kpi/queries.sql
+    gen:
+      go:
+        package: kpidb
+        out: internal/kpi/kpidb
+        sql_package: pgx/v5
+        emit_pointers_for_null_types: true
+        overrides:
+          - db_type: uuid
+            go_type: github.com/google/uuid.UUID
+          - db_type: uuid
+            nullable: true
+            go_type:
+              import: github.com/google/uuid
+              type: UUID
+              pointer: true
+          - db_type: citext
+            go_type: string
+          - db_type: citext
+            nullable: true
+            go_type:
+              type: string
+              pointer: true
+          - db_type: timestamptz
+            go_type: time.Time
+          - db_type: timestamptz
+            nullable: true
+            go_type:
+              type: time.Time
+              pointer: true
+          - db_type: date
+            go_type: time.Time
+          - db_type: date
+            nullable: true
+            go_type:
+              type: time.Time
+              pointer: true
+          - db_type: pg_catalog.numeric
+            go_type: float64
           - db_type: pg_catalog.numeric
             nullable: true
             go_type:

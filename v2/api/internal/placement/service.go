@@ -21,6 +21,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/files"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/placement/placementdb"
 )
@@ -32,7 +33,9 @@ var vnZone = time.FixedZone("ICT", 7*3600)
 type Options struct {
 	Leads    Leads
 	Sessions Sessions
-	Now      func() time.Time
+	// Kho file chung: file nghe / ảnh câu hỏi, file đề PDF (nil = chưa cấu hình, tải file báo lỗi).
+	Files *files.Service
+	Now   func() time.Time
 }
 
 type Service struct {
@@ -42,11 +45,12 @@ type Service struct {
 	log      *slog.Logger
 	leads    Leads
 	sessions Sessions
+	files    *files.Service
 	now      func() time.Time
 }
 
 func NewService(pool *pgxpool.Pool, rdb *redis.Client, log *slog.Logger, opt Options) *Service {
-	s := &Service{pool: pool, rdb: rdb, log: log, leads: opt.Leads, sessions: opt.Sessions, now: opt.Now}
+	s := &Service{pool: pool, rdb: rdb, log: log, leads: opt.Leads, sessions: opt.Sessions, files: opt.Files, now: opt.Now}
 	if pool != nil {
 		s.q = placementdb.New(pool)
 	}
@@ -58,6 +62,9 @@ func NewService(pool *pgxpool.Pool, rdb *redis.Client, log *slog.Logger, opt Opt
 	}
 	if s.now == nil {
 		s.now = time.Now
+	}
+	if s.files != nil {
+		s.registerFileReaders()
 	}
 	return s
 }

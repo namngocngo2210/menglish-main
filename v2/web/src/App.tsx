@@ -10,11 +10,15 @@ import { TotpRequiredPage } from './pages/TotpRequiredPage'
 import { PAGES } from './routes'
 import { usePath } from './router'
 import { PublicTestPage, publicToken } from './features/placement/PublicTestPage'
+import { usePasswordResetRoute } from './pages/PasswordResetPages'
 
 export function App() {
   // Trang làm bài test đầu vào qua link mời: công khai, không cần đăng nhập.
   const token = publicToken(usePath())
+  // Quên / đặt lại mật khẩu qua link email: công khai.
+  const passwordReset = usePasswordResetRoute()
   if (token) return <PublicTestPage token={token} />
+  if (passwordReset) return passwordReset
   return <AuthedApp />
 }
 

@@ -334,6 +334,152 @@ func (q *Queries) InsertTask(ctx context.Context, arg InsertTaskParams) (OpsWork
 	return i, err
 }
 
+const kpiBoardTasks = `-- name: KpiBoardTasks :many
+SELECT assignee_id::uuid AS user_id, count(*)::int AS total, count(*) FILTER (WHERE status = 'completed')::int AS done
+FROM ops.work_tasks
+WHERE assignee_id = ANY($1::uuid[]) AND due_date BETWEEN $2::date AND $3::date
+GROUP BY assignee_id
+`
+
+type KpiBoardTasksParams struct {
+	UserIds  []uuid.UUID
+	FromDate time.Time
+	ToDate   time.Time
+}
+
+type KpiBoardTasksRow struct {
+	UserID uuid.UUID
+	Total  int32
+	Done   int32
+}
+
+// Bảng KPI tự động: việc được giao có hạn trong kỳ / đã hoàn thành, theo người.
+func (q *Queries) KpiBoardTasks(ctx context.Context, arg KpiBoardTasksParams) ([]KpiBoardTasksRow, error) {
+	rows, err := q.db.Query(ctx, kpiBoardTasks, arg.UserIds, arg.FromDate, arg.ToDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []KpiBoardTasksRow
+	for rows.Next() {
+		var i KpiBoardTasksRow
+		if err := rows.Scan(&i.UserID, &i.Total, &i.Done); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const kpiCareOverdue = `-- name: KpiCareOverdue :many
+
+SELECT t.id, t.title, t.care_milestone::int AS milestone, t.sla_breached_at::timestamptz AS breached_at,
+       coalesce(s.full_name, '')::text AS student_name
+FROM ops.work_tasks t LEFT JOIN academic.students s ON s.id = t.student_id
+WHERE t.care_milestone IS NOT NULL AND t.assignee_id = $1
+  AND t.sla_breached_at BETWEEN $2::timestamptz AND $3::timestamptz
+ORDER BY t.sla_breached_at, t.id
+`
+
+type KpiCareOverdueParams struct {
+	UserID *uuid.UUID
+	FromAt time.Time
+	ToAt   time.Time
+}
+
+type KpiCareOverdueRow struct {
+	ID          uuid.UUID
+	Title       string
+	Milestone   int32
+	BreachedAt  time.Time
+	StudentName string
+}
+
+// ───────────── Số liệu KPI tự động (internal/kpi) ─────────────
+// Việc chăm sóc tháng đầu của người được giao bị quá hạn SLA trong khoảng.
+func (q *Queries) KpiCareOverdue(ctx context.Context, arg KpiCareOverdueParams) ([]KpiCareOverdueRow, error) {
+	rows, err := q.db.Query(ctx, kpiCareOverdue, arg.UserID, arg.FromAt, arg.ToAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []KpiCareOverdueRow
+	for rows.Next() {
+		var i KpiCareOverdueRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Milestone,
+			&i.BreachedAt,
+			&i.StudentName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const kpiTasksWithDeadline = `-- name: KpiTasksWithDeadline :many
+SELECT id, title, status, due_date::date AS due_date, coalesce(to_char(due_time, 'HH24:MI'), '23:59')::text AS due_time,
+       completed_at, updated_at
+FROM ops.work_tasks
+WHERE assignee_id = $1 AND due_date IS NOT NULL AND due_date BETWEEN $2::date AND $3::date
+  AND status <> 'canceled' AND kind IS DISTINCT FROM 'ta_daily'
+ORDER BY due_date, due_time, id
+`
+
+type KpiTasksWithDeadlineParams struct {
+	UserID   *uuid.UUID
+	FromDate time.Time
+	ToDate   time.Time
+}
+
+type KpiTasksWithDeadlineRow struct {
+	ID          uuid.UUID
+	Title       string
+	Status      string
+	DueDate     time.Time
+	DueTime     string
+	CompletedAt *time.Time
+	UpdatedAt   time.Time
+}
+
+// Việc được giao (trừ nhiệm vụ trực ca của TA, trừ việc hủy) có hạn trong khoảng.
+func (q *Queries) KpiTasksWithDeadline(ctx context.Context, arg KpiTasksWithDeadlineParams) ([]KpiTasksWithDeadlineRow, error) {
+	rows, err := q.db.Query(ctx, kpiTasksWithDeadline, arg.UserID, arg.FromDate, arg.ToDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []KpiTasksWithDeadlineRow
+	for rows.Next() {
+		var i KpiTasksWithDeadlineRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Status,
+			&i.DueDate,
+			&i.DueTime,
+			&i.CompletedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listActiveBranches = `-- name: ListActiveBranches :many
 SELECT id, name FROM core.branches
 WHERE is_active AND ($1::uuid[] IS NULL OR id = ANY ($1::uuid[]))

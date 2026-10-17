@@ -1848,6 +1848,290 @@ func (q *Queries) KeptSessionsFrom(ctx context.Context, arg KeptSessionsFromPara
 	return items, nil
 }
 
+const kpiAttendanceDay = `-- name: KpiAttendanceDay :many
+SELECT a.id, a.status, a.note, a.review_status, s.full_name AS student_name, c.name AS class_name,
+       coalesce(t.full_name, '')::text AS teacher_name
+FROM academic.student_attendance a
+JOIN academic.students s ON s.id = a.student_id
+JOIN academic.classes c ON c.id = a.class_id
+LEFT JOIN iam.users t ON t.id = a.teacher_id
+WHERE a.session_date = $1::date AND c.deleted_at IS NULL
+  AND ($2::bool OR a.class_id = ANY ($3::uuid[]))
+  AND ($4::uuid IS NULL OR a.class_id = $4::uuid)
+ORDER BY a.id DESC
+`
+
+type KpiAttendanceDayParams struct {
+	Day        time.Time
+	AllClasses bool
+	Ids        []uuid.UUID
+	ClassID    *uuid.UUID
+}
+
+type KpiAttendanceDayRow struct {
+	ID           uuid.UUID
+	Status       string
+	Note         *string
+	ReviewStatus string
+	StudentName  string
+	ClassName    string
+	TeacherName  string
+}
+
+// Rà soát điểm danh: lượt điểm danh trong ngày của các lớp người xem thấy (lọc thêm một lớp), mới nhất trước.
+func (q *Queries) KpiAttendanceDay(ctx context.Context, arg KpiAttendanceDayParams) ([]KpiAttendanceDayRow, error) {
+	rows, err := q.db.Query(ctx, kpiAttendanceDay,
+		arg.Day,
+		arg.AllClasses,
+		arg.Ids,
+		arg.ClassID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []KpiAttendanceDayRow
+	for rows.Next() {
+		var i KpiAttendanceDayRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Status,
+			&i.Note,
+			&i.ReviewStatus,
+			&i.StudentName,
+			&i.ClassName,
+			&i.TeacherName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const kpiBoardClasses = `-- name: KpiBoardClasses :many
+SELECT c.id, c.teacher_id, c.assistant_id, c.foreign_teacher_id,
+       (SELECT count(*) FROM academic.students st
+        WHERE st.current_class_id = c.id AND st.deleted_at IS NULL AND st.status <> 'waiting_start')::int AS students,
+       (SELECT count(*) FROM academic.students st
+        WHERE st.current_class_id = c.id AND st.deleted_at IS NULL AND st.status NOT IN ('waiting_start', 'dropped'))::int AS retained,
+       (SELECT count(*) FROM academic.student_attendance a
+        WHERE a.class_id = c.id AND a.session_date BETWEEN $1::date AND $2::date
+          AND a.review_status <> 'rejected')::int AS attendance_total,
+       (SELECT count(*) FROM academic.student_attendance a
+        WHERE a.class_id = c.id AND a.session_date BETWEEN $1::date AND $2::date
+          AND a.review_status <> 'rejected' AND a.status IN ('present', 'late'))::int AS attendance_present
+FROM academic.classes c
+WHERE c.deleted_at IS NULL AND (c.teacher_id = ANY ($3::uuid[]) OR c.assistant_id = ANY ($3::uuid[])
+       OR c.foreign_teacher_id = ANY ($3::uuid[]))
+`
+
+type KpiBoardClassesParams struct {
+	FromDate time.Time
+	ToDate   time.Time
+	UserIds  []uuid.UUID
+}
+
+type KpiBoardClassesRow struct {
+	ID                uuid.UUID
+	TeacherID         *uuid.UUID
+	AssistantID       *uuid.UUID
+	ForeignTeacherID  *uuid.UUID
+	Students          int32
+	Retained          int32
+	AttendanceTotal   int32
+	AttendancePresent int32
+}
+
+// Bảng KPI tự động: lớp có nhân sự là GV / trợ giảng / GVNN, học viên đã vào lớp (trừ chờ khai giảng) / chưa thôi học,
+// lượt điểm danh trong kỳ (bỏ bản ghi bị từ chối khi rà soát) / có mặt + đi muộn.
+func (q *Queries) KpiBoardClasses(ctx context.Context, arg KpiBoardClassesParams) ([]KpiBoardClassesRow, error) {
+	rows, err := q.db.Query(ctx, kpiBoardClasses, arg.FromDate, arg.ToDate, arg.UserIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []KpiBoardClassesRow
+	for rows.Next() {
+		var i KpiBoardClassesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TeacherID,
+			&i.AssistantID,
+			&i.ForeignTeacherID,
+			&i.Students,
+			&i.Retained,
+			&i.AttendanceTotal,
+			&i.AttendancePresent,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const kpiLockAttendance = `-- name: KpiLockAttendance :one
+SELECT a.id, a.class_id, a.review_status, a.session_date, s.full_name AS student_name, c.name AS class_name, c.branch_id
+FROM academic.student_attendance a
+JOIN academic.students s ON s.id = a.student_id
+JOIN academic.classes c ON c.id = a.class_id
+WHERE a.id = $1
+FOR UPDATE OF a
+`
+
+type KpiLockAttendanceRow struct {
+	ID           uuid.UUID
+	ClassID      uuid.UUID
+	ReviewStatus string
+	SessionDate  time.Time
+	StudentName  string
+	ClassName    string
+	BranchID     uuid.UUID
+}
+
+func (q *Queries) KpiLockAttendance(ctx context.Context, id uuid.UUID) (KpiLockAttendanceRow, error) {
+	row := q.db.QueryRow(ctx, kpiLockAttendance, id)
+	var i KpiLockAttendanceRow
+	err := row.Scan(
+		&i.ID,
+		&i.ClassID,
+		&i.ReviewStatus,
+		&i.SessionDate,
+		&i.StudentName,
+		&i.ClassName,
+		&i.BranchID,
+	)
+	return i, err
+}
+
+const kpiReviewAttendance = `-- name: KpiReviewAttendance :exec
+UPDATE academic.student_attendance
+SET review_status = $1, reviewed_by = $2, reviewed_at = now(), review_note = $3, updated_at = now()
+WHERE id = $4
+`
+
+type KpiReviewAttendanceParams struct {
+	ReviewStatus string
+	ReviewedBy   *uuid.UUID
+	ReviewNote   *string
+	ID           uuid.UUID
+}
+
+func (q *Queries) KpiReviewAttendance(ctx context.Context, arg KpiReviewAttendanceParams) error {
+	_, err := q.db.Exec(ctx, kpiReviewAttendance,
+		arg.ReviewStatus,
+		arg.ReviewedBy,
+		arg.ReviewNote,
+		arg.ID,
+	)
+	return err
+}
+
+const kpiTeacherAttendance = `-- name: KpiTeacherAttendance :many
+
+SELECT c.id, c.code::text AS code, c.name,
+       (SELECT count(*) FROM academic.student_attendance a
+        WHERE a.class_id = c.id AND a.session_date BETWEEN $1::date AND $2::date)::int AS attendance_total,
+       (SELECT count(*) FROM academic.student_attendance a
+        WHERE a.class_id = c.id AND a.session_date BETWEEN $1::date AND $2::date
+          AND a.status IN ('present', 'late'))::int AS attended,
+       (SELECT count(DISTINCT r.student_id) FROM academic.class_roster r WHERE r.class_id = c.id)::int AS students
+FROM academic.classes c
+WHERE c.deleted_at IS NULL AND (
+    (c.status = 'active' AND (c.teacher_id = $3 OR c.assistant_id = $3 OR c.foreign_teacher_id = $3))
+    OR EXISTS (SELECT 1 FROM academic.class_sessions s WHERE s.class_id = c.id
+               AND s.date BETWEEN $1::date AND $2::date
+               AND (s.teacher_id = $3 OR s.foreign_teacher_id = $3 OR s.assistant_id = $3)))
+ORDER BY c.name, c.id
+`
+
+type KpiTeacherAttendanceParams struct {
+	FromDate time.Time
+	ToDate   time.Time
+	UserID   *uuid.UUID
+}
+
+type KpiTeacherAttendanceRow struct {
+	ID              uuid.UUID
+	Code            string
+	Name            string
+	AttendanceTotal int32
+	Attended        int32
+	Students        int32
+}
+
+// ───────────── Số liệu KPI (internal/kpi) ─────────────
+// Lớp giáo viên giữ trong khoảng (như TeacherMonthClasses): chuyên cần trong khoảng và sĩ số (danh sách lớp thật).
+func (q *Queries) KpiTeacherAttendance(ctx context.Context, arg KpiTeacherAttendanceParams) ([]KpiTeacherAttendanceRow, error) {
+	rows, err := q.db.Query(ctx, kpiTeacherAttendance, arg.FromDate, arg.ToDate, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []KpiTeacherAttendanceRow
+	for rows.Next() {
+		var i KpiTeacherAttendanceRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.Name,
+			&i.AttendanceTotal,
+			&i.Attended,
+			&i.Students,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const kpiVisibleClasses = `-- name: KpiVisibleClasses :many
+SELECT c.id, c.name FROM academic.classes c
+WHERE c.deleted_at IS NULL AND ($1::bool OR c.id = ANY ($2::uuid[]))
+ORDER BY c.name, c.id
+`
+
+type KpiVisibleClassesParams struct {
+	AllClasses bool
+	Ids        []uuid.UUID
+}
+
+type KpiVisibleClassesRow struct {
+	ID   uuid.UUID
+	Name string
+}
+
+func (q *Queries) KpiVisibleClasses(ctx context.Context, arg KpiVisibleClassesParams) ([]KpiVisibleClassesRow, error) {
+	rows, err := q.db.Query(ctx, kpiVisibleClasses, arg.AllClasses, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []KpiVisibleClassesRow
+	for rows.Next() {
+		var i KpiVisibleClassesRow
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lastRegularOrMakeupDate = `-- name: LastRegularOrMakeupDate :one
 SELECT date FROM academic.class_sessions
 WHERE class_id = $1 AND type IN ('regular', 'makeup') AND status <> 'cancelled'

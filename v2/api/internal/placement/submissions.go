@@ -266,7 +266,7 @@ func detailOf(r placementdb.GetSubmissionRow) SubmissionDetail {
 	var answers map[string]string
 	_ = json.Unmarshal(r.Answers, &answers)
 	d := SubmissionDetail{
-		ID: r.ID, Number: r.Number, TestID: r.TestID, TestCode: r.TestCode, TestTitle: r.TestTitle, TestPdfURL: pdfURL(r.TestPdfPath),
+		ID: r.ID, Number: r.Number, TestID: r.TestID, TestCode: r.TestCode, TestTitle: r.TestTitle, TestPdfURL: staffPdfURL(r.TestPdfPath),
 		LeadID: r.LeadID, CandidateName: r.CandidateName, CandidatePhone: r.CandidatePhone, CandidateEmail: deref(r.CandidateEmail),
 		Status: r.Status, IsPending: r.Status != "graded", ScoreSummary: f.summary(), SubmittedAt: r.CreatedAt, GradedAt: r.GradedAt,
 		GraderName: deref(r.GraderName), GradeGroup: group, GradeGroupLabel: GroupLabel(resolved), HasRubric: HasRubric(resolved),

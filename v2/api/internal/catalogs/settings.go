@@ -117,6 +117,8 @@ type TicketEmailConfig struct {
 	Mail          *MailConfig `json:"mail"`
 	CanManageMail bool        `json:"can_manage_mail"`
 	EventLabels   []Option    `json:"event_labels"`
+	// Môi trường chặn gửi email ra ngoài (MAIL_BLOCK_OUTGOING): nút gửi thử báo lỗi
+	MailBlocked bool `json:"mail_blocked"`
 }
 
 func (s *Service) TicketEmails(ctx context.Context, actor *iam.Access) (TicketEmailConfig, error) {
@@ -129,6 +131,7 @@ func (s *Service) TicketEmails(ctx context.Context, actor *iam.Access) (TicketEm
 		return TicketEmailConfig{}, err
 	}
 	out := TicketEmailConfig{Emails: []string{}, Events: map[string]bool{}, EventLabels: TicketEvents, CanManageMail: actor.Can("mail_config.manage")}
+	out.MailBlocked = s.Mail != nil && s.Mail.Blocked()
 	if v, ok := vals[keyTicketEmails]; ok {
 		var list []string
 		_ = json.Unmarshal(v, &list)

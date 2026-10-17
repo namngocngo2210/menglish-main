@@ -1,5 +1,5 @@
 // Logic thuần của module test đầu vào: tính điểm theo thang khối (giống server), khóa màn hình khi làm bài, soạn câu hỏi.
-import type { Question, RubricGroupConfig, Skill, Violation } from './api'
+import type { KeyEntry, Question, QuestionOption, RubricGroupConfig, Skill, Violation } from './api'
 
 export const SKILLS: Skill[] = ['listening', 'reading_writing', 'speaking']
 export const SKILL_LABELS: Record<Skill, string> = { listening: 'Nghe', reading_writing: 'Đọc & Viết', speaking: 'Nói' }
@@ -196,4 +196,119 @@ export function formatDateTime(iso: string | null | undefined) {
 export function formatDate(ymd: string) {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(ymd)
   return m ? `${m[3]}/${m[2]}/${m[1]}` : ymd
+}
+
+// ---- Phiếu trả lời đề PDF (PdfSheetEditor.vue của Laravel) ----
+
+export const SHEET_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+export const SHEET_SKILLS = [
+  { value: 'listening', label: 'Nghe' },
+  { value: 'reading', label: 'Đọc' },
+  { value: 'grammar', label: 'Ngữ pháp' },
+  { value: 'writing', label: 'Viết' },
+  { value: 'speaking', label: 'Nói' },
+]
+export const SHEET_TYPES = [
+  { value: 'multiple_choice', label: 'Trắc nghiệm' },
+  { value: 'fill_blank', label: 'Điền từ' },
+  { value: 'essay', label: 'Tự luận' },
+  { value: 'speaking_prompt', label: 'Speaking' },
+]
+
+// Câu chấm tự động (có đáp án)
+export const isGradable = (q: Question) => q.type === 'multiple_choice' || q.type === 'fill_blank'
+const hasKey = (q: Question) => String(q.correct_answer ?? '').trim() !== ''
+export const keyedCount = (qs: Question[]) => qs.filter((q) => isGradable(q) && hasKey(q)).length
+export const gradableCount = (qs: Question[]) => qs.filter(isGradable).length
+// Phiếu đã có đáp án / nội dung nhập tay (hỏi trước khi thay cả phiếu)
+export const sheetHasWork = (qs: Question[]) => qs.some((q) => hasKey(q) || String(q.title ?? '').trim() !== '')
+
+export function sheetOptions(count: number, old: QuestionOption[] = []): QuestionOption[] {
+  return SHEET_LETTERS.slice(0, count).map((key, i) => ({ ...(old[i] ?? {}), key, text: old[i]?.text ?? '' }))
+}
+
+export function sheetQuestion(id: string, number: string | number): Question {
+  return {
+    id,
+    number: String(number),
+    skill: 'reading',
+    type: 'multiple_choice',
+    section: '',
+    title: '',
+    audio_url: '',
+    passage: '',
+    options: sheetOptions(3),
+    correct_answer: '',
+    points: 1,
+    explanation: '',
+    teacher_note: '',
+  }
+}
+
+// id kế tiếp: số lớn nhất + 1 (phiếu dùng id số như Laravel)
+export const nextSheetId = (qs: Question[]) => String(qs.reduce((max, q) => Math.max(max, Number(q.id) || 0), 0) + 1)
+
+export function setSheetType(q: Question, type: string): Question {
+  if (type === 'multiple_choice') {
+    const options = q.options?.length ? q.options : sheetOptions(3)
+    return { ...q, type, options, correct_answer: options.some((o) => o.key === q.correct_answer) ? q.correct_answer : '' }
+  }
+  return { ...q, type, options: [], correct_answer: type === 'fill_blank' ? q.correct_answer : '' }
+}
+
+export function setOptionCount(q: Question, count: number): Question {
+  const options = sheetOptions(Math.max(2, Math.min(SHEET_LETTERS.length, count)), q.options)
+  return { ...q, options, correct_answer: options.some((o) => o.key === q.correct_answer) ? q.correct_answer : '' }
+}
+
+// addSheetRow: câu mới cuối phiếu, số câu nối tiếp, cùng kỹ năng / phần với câu cuối.
+export function addSheetRow(qs: Question[]): Question[] {
+  const last = qs[qs.length - 1]
+  const number = last && /^\d+$/.test(String(last.number ?? '')) ? Number(last.number) + 1 : qs.length + 1
+  const row = sheetQuestion(nextSheetId(qs), number)
+  if (last) {
+    row.skill = last.skill
+    row.section = last.section ?? ''
+  }
+  return [...qs, row]
+}
+
+export function blankSheet(count: number): Question[] {
+  const n = Math.max(1, Math.min(200, Math.trunc(count) || 0))
+  return Array.from({ length: n }, (_, i) => sheetQuestion(String(i + 1), i + 1))
+}
+
+// showSection: in tiêu đề phần trước câu đầu của mỗi phần.
+export function showSection(qs: Question[], i: number) {
+  const section = qs[i]?.section ?? ''
+  return section !== '' && (i === 0 || (qs[i - 1]?.section ?? '') !== section)
+}
+
+// fillAnswers điền danh sách {number, answer} vào phiếu: số câu không trùng → ghép theo số câu; đề đánh lại số từng
+// phần → ghép theo thứ tự các câu chấm tự động. Chữ A–H vào câu trắc nghiệm, còn lại chuyển câu sang điền từ.
+export function fillAnswers(qs: Question[], answers: KeyEntry[]): { questions: Question[]; applied: number } {
+  if (!answers.length) return { questions: qs, applied: 0 }
+  let out = qs.length ? qs.map((q) => ({ ...q })) : answers.map((a, i) => sheetQuestion(String(i + 1), a.number))
+  const numbers = out.map((q) => String(q.number ?? ''))
+  const unique = (list: string[]) => new Set(list).size === list.length
+  const byNumber = unique(numbers) && numbers.every((n) => n !== '') && unique(answers.map((a) => String(a.number)))
+  const gradable = out.map((q, i) => ({ q, i })).filter(({ q }) => q.type !== 'essay' && q.type !== 'speaking_prompt')
+  let applied = 0
+  answers.forEach((entry, k) => {
+    const idx = byNumber ? out.findIndex((q) => String(q.number) === String(entry.number)) : (gradable[k]?.i ?? -1)
+    const q = out[idx]
+    if (!q || q.type === 'essay' || q.type === 'speaking_prompt') return
+    const letter = /^\(?([A-Ha-h])\)?\.?$/.exec(entry.answer.trim())
+    let next: Question
+    if (q.type === 'multiple_choice' && letter) {
+      const key = letter[1].toUpperCase()
+      next = SHEET_LETTERS.indexOf(key) >= (q.options?.length ?? 0) ? setOptionCount(q, SHEET_LETTERS.indexOf(key) + 1) : q
+      next = { ...next, correct_answer: key }
+    } else {
+      next = { ...setSheetType(q, 'fill_blank'), correct_answer: entry.answer }
+    }
+    out = out.map((x, j) => (j === idx ? next : x))
+    applied++
+  })
+  return { questions: out, applied }
 }

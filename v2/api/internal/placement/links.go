@@ -21,6 +21,7 @@ type Lead struct {
 	Name           string
 	ParentName     string
 	Phone          string
+	ParentPhone    string
 	Email          string
 	Stage          string // new, consulting, test_scheduled, testing, tested, result_sent, waiting_class, won, lost
 	StageLabel     string

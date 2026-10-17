@@ -254,3 +254,30 @@ INSERT INTO ops.work_tasks (title, description, creator_id, assignee_id, branch_
 VALUES (@title, @description, @creator_id, @assignee_id, sqlc.narg(branch_id), sqlc.narg(student_id), 'during', 'one_time',
         @due_date, '17:00', 'new')
 RETURNING id;
+
+-- ───────────── Số liệu KPI tự động (internal/kpi) ─────────────
+
+-- name: KpiCareOverdue :many
+-- Việc chăm sóc tháng đầu của người được giao bị quá hạn SLA trong khoảng.
+SELECT t.id, t.title, t.care_milestone::int AS milestone, t.sla_breached_at::timestamptz AS breached_at,
+       coalesce(s.full_name, '')::text AS student_name
+FROM ops.work_tasks t LEFT JOIN academic.students s ON s.id = t.student_id
+WHERE t.care_milestone IS NOT NULL AND t.assignee_id = @user_id
+  AND t.sla_breached_at BETWEEN @from_at::timestamptz AND @to_at::timestamptz
+ORDER BY t.sla_breached_at, t.id;
+
+-- name: KpiTasksWithDeadline :many
+-- Việc được giao (trừ nhiệm vụ trực ca của TA, trừ việc hủy) có hạn trong khoảng.
+SELECT id, title, status, due_date::date AS due_date, coalesce(to_char(due_time, 'HH24:MI'), '23:59')::text AS due_time,
+       completed_at, updated_at
+FROM ops.work_tasks
+WHERE assignee_id = @user_id AND due_date IS NOT NULL AND due_date BETWEEN @from_date::date AND @to_date::date
+  AND status <> 'canceled' AND kind IS DISTINCT FROM 'ta_daily'
+ORDER BY due_date, due_time, id;
+
+-- name: KpiBoardTasks :many
+-- Bảng KPI tự động: việc được giao có hạn trong kỳ / đã hoàn thành, theo người.
+SELECT assignee_id::uuid AS user_id, count(*)::int AS total, count(*) FILTER (WHERE status = 'completed')::int AS done
+FROM ops.work_tasks
+WHERE assignee_id = ANY(@user_ids::uuid[]) AND due_date BETWEEN @from_date::date AND @to_date::date
+GROUP BY assignee_id;

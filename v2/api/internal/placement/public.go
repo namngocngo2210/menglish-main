@@ -85,12 +85,15 @@ func (s *Service) OpenInvitation(ctx context.Context, token string) (*PublicPage
 	if err := s.q.MarkInvitationOpened(ctx, inv.ID); err != nil {
 		return nil, err
 	}
+	// File của đề (kho mới): URL ký sẵn dùng được hết giờ làm bài + 60 phút (như hạn nộp bài).
+	sign := s.publicSigner(ctx, time.Duration(t.DurationMinutes)*time.Minute+submitGrace)
 	page := &PublicPage{
 		Test: PublicTest{Code: t.Code, Title: t.Title, TargetLevel: t.TargetLevel, DurationMinutes: t.DurationMinutes,
-			QuestionsCount: t.QuestionsCount, PdfURL: pdfURL(t.PdfPath), AudioSrc: audioSrc(deref(t.AudioUrl))},
+			QuestionsCount: t.QuestionsCount, PdfURL: sign(pdfURL(t.PdfPath)), AudioSrc: sign(audioSrc(deref(t.AudioUrl)))},
 		PortalContent: portalContent(parseQuestions(t.Questions), t.PdfPath != nil),
 		MaxViolations: MaxViolations, ExpiresAt: inv.ExpiresAt,
 	}
+	signPortal(&page.PortalContent, sign)
 	if inv.LeadID != nil {
 		page.Lead = &Prefill{deref(inv.CandidateName), deref(inv.CandidatePhone), deref(inv.CandidateEmail)}
 		s.record(ctx, LeadEvent{LeadID: *inv.LeadID, Type: "test", AdvanceTo: "testing",
@@ -99,13 +102,8 @@ func (s *Service) OpenInvitation(ctx context.Context, token string) (*PublicPage
 	return page, nil
 }
 
-// pdfURL: đề PDF nhập từ Laravel (file ở kho công khai /storage/...); v2 chưa có kho file nên giữ đường dẫn cũ.
-func pdfURL(p *string) string {
-	if p == nil || *p == "" {
-		return ""
-	}
-	return "/storage/" + strings.TrimPrefix(*p, "/")
-}
+// pdfURL: đường dẫn file đề (kho mới: /api/v1/files/<id>, ký lại cho thí sinh; đề nhập từ Laravel: /storage/...).
+func pdfURL(p *string) string { return staffPdfURL(p) }
 
 // SubmitInput: bài nộp từ trang làm bài.
 type SubmitInput struct {
@@ -262,6 +260,6 @@ func (s *Service) Submit(ctx context.Context, token string, in SubmitInput) (*Su
 			branch = l.BranchID
 		}
 	}
-	s.notifySubmission(ctx, sub.ID, sub.CandidateName, sub.CandidatePhone, test.Title, branch, s.now())
+	s.notifySubmission(ctx, sub.ID, sub.Number, sub.CandidateName, sub.CandidatePhone, test.Title, branch, s.now())
 	return &SubmitResult{CandidateName: sub.CandidateName, TestTitle: test.Title}, nil
 }

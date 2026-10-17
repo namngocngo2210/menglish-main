@@ -1,4 +1,5 @@
 import type { Me } from './api'
+import { seesDashboard } from './features/dashboard/logic'
 
 // Menu theo quyền: mục chỉ hiện khi người dùng có ít nhất một quyền trong perms (giống SidebarMenu của bản Laravel).
 // Chỉ gồm các màn đã có ở v2; module mới thêm mục của mình vào đây.
@@ -19,12 +20,20 @@ export type NavItem = {
 
 export const isAdmin = (me: Me) => me.roles.some((r) => r.name === 'admin')
 
+// Vai trò chấm KPI (Roles::KPI_ROLES); trang KPI của tôi tự báo khi vai trò chưa có tiêu chí.
+const KPI_ROLES = ['academic_staff', 'academic_lead', 'manager', 'sales_consultant', 'teacher_fulltime', 'teacher_parttime', 'assistant']
+export const hasKpiRole = (me: Me) => me.roles.some((r) => KPI_ROLES.includes(r.name))
+
 const CRM = 'Khách hàng (CRM)'
 // Quyền neo khu Học phí (SidebarMenu::TUITION): người xử lý nghiệp vụ kế toán.
 const TUITION_ANCHORS = ['tuition.approve', 'tuition.reject', 'invoice.request_cancel', 'refund_transfer.request']
 
 export const NAV: NavItem[] = [
-  { path: '/', label: 'Tài khoản của tôi', icon: 'account_circle' },
+  // Tổng quan (DashboardController) cho nhân sự; học viên / phụ huynh thấy "Tài khoản của tôi" thay chỗ (routes.tsx).
+  { path: '/', label: 'Tổng quan', icon: 'dashboard', menu: seesDashboard },
+  { path: '/profile', label: 'Tài khoản của tôi', icon: 'account_circle', menu: (me) => !seesDashboard(me) },
+  // URL Tổng quan cũ của Laravel (/dashboard), giữ cho liên kết đã lưu.
+  { path: '/dashboard', label: 'Tổng quan', hidden: true },
   { path: '/notifications', label: 'Thông báo', perms: ['notification.view'], group: 'Của tôi' },
   { path: '/users', label: 'Người dùng & Tài khoản', perms: ['user.view'], group: 'Người dùng' },
   { path: '/branches', label: 'Cơ sở & Chi nhánh', perms: ['branch.view'], group: 'Tổ chức & Đào tạo' },
@@ -45,6 +54,9 @@ export const NAV: NavItem[] = [
   },
   { path: '/inventory/items', label: 'Hàng hóa & Vật phẩm', perms: ['system_category.manage'], group: 'Kho vật phẩm' },
   { path: '/inventory/stock', label: 'Tồn kho theo chi nhánh', perms: ['merchandise_stock.view'], group: 'Kho vật phẩm' },
+  // Thu - Chi (FinanceController) — features/finance
+  { path: '/finance/expenses', label: 'Khoản chi vận hành', perms: ['finance.view'], group: 'Thu - Chi' },
+  { path: '/finance/reports/provisional-revenue', label: 'Doanh thu tạm tính', perms: ['finance.view'], group: 'Doanh thu' },
   // Danh mục & tổ chức (features/catalogs)
   { path: '/courses', label: 'Khóa học & Bảng giá', perms: ['course.view'], group: 'Tổ chức & Đào tạo' },
   { path: '/course-levels', label: 'Trình độ (CEFR)', perms: ['level.view'], group: 'Tổ chức & Đào tạo' },
@@ -56,6 +68,7 @@ export const NAV: NavItem[] = [
   { path: '/system-config/bank-accounts', label: 'Tài khoản ngân hàng', perms: ['bank_account.manage'], group: 'Cài đặt › Học phí' },
   { path: '/system-config/ticket-emails', label: 'Email nhận Ticket', perms: ['support_ticket.update'], group: 'Hệ thống' },
   { path: '/system-config/sla', label: 'Cấu hình SLA', perms: ['sla.configure'], group: 'Hệ thống' },
+  { path: '/system-config/mail-outbox', label: 'Hàng đợi email', perms: ['mail_config.manage'], group: 'Hệ thống' },
   // Công việc (WorkTaskController). Cần duyệt → "Hoàn thành công việc": chỉ Admin, neo work_task.create.
   {
     path: '/tasks/approvals',
@@ -97,6 +110,17 @@ export const NAV: NavItem[] = [
     group: 'Nhân sự & KPI',
     menu: (me) => can(me, 'user.view', 'kpi.view'),
   },
+  // KPI nhân sự (KpiController) — features/kpi. Menu neo user.view / kpi.view; "KPI tự động" neo work_task.create.
+  { path: '/kpi/monthly', label: 'Phiếu KPI tháng', perms: ['kpi.view'], group: 'Nhân sự & KPI', menu: (me) => can(me, 'user.view', 'kpi.view') },
+  { path: '/kpi/attendance-review', label: 'Rà soát điểm danh', perms: ['kpi.view'], group: 'Nhân sự & KPI', menu: (me) => can(me, 'user.view', 'kpi.view') },
+  { path: '/tasks/kpi-dashboard', label: 'KPI tự động', perms: ['work_task.view'], group: 'Nhân sự & KPI', menu: (me) => can(me, 'work_task.create') },
+  { path: '/kpi/criteria', label: 'Tiêu chí KPI', perms: ['kpi.view'], group: 'Tổ chức & Đào tạo', menu: (me) => can(me, 'user.view', 'kpi.view') },
+  { path: '/kpi/mine', label: 'KPI của tôi', perms: ['notification.view', 'kpi.view'], group: 'Của tôi', menu: (me) => hasKpiRole(me) },
+  // Báo cáo & sự vụ lớp (AcademicDashboardController): /academic/dashboards[/reports|/incidents] do AcademicPage tự đọc đường dẫn.
+  { path: '/academic/dashboards', label: 'Báo cáo & sự vụ lớp', perms: ['class.update'], group: 'Đào tạo & Chất lượng lớp' },
+  // URL cũ academic.reports / academic.incidents của Laravel.
+  { path: '/academic/reports', label: 'Báo cáo & sự vụ lớp', perms: ['class.update'], group: 'Đào tạo & Chất lượng lớp', hidden: true },
+  { path: '/academic/incidents', label: 'Báo cáo & sự vụ lớp', perms: ['class.update'], group: 'Đào tạo & Chất lượng lớp', hidden: true },
   // Khách hàng (CRM) — features/crm. Danh sách phụ (chốt, thất bại, chờ xếp lớp, đã xóa, duyệt chuyển cơ sở) mở từ chip.
   { path: '/crm/pipeline', label: 'Kanban', perms: ['lead.view'], group: CRM },
   { path: '/crm/customers', label: 'Danh sách khách', perms: ['lead.view'], group: CRM },

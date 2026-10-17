@@ -284,7 +284,10 @@ export type TicketEmailConfig = {
   mail: MailConfig | null
   can_manage_mail: boolean
   event_labels: Option[]
+  mail_blocked: boolean // MAIL_BLOCK_OUTGOING: môi trường chặn gửi email ra ngoài
 }
+// Kết quả gửi thử (SystemConfigController::sendTestTicketEmail).
+export type MailTestResult = { ok: boolean; message: string; detail?: string; hints: string[] }
 export type MailInput = Omit<MailConfig, 'has_password'> & { password: string }
 export type TicketEmailInput = { emails: string[]; events: Record<string, boolean>; mail?: MailInput }
 
@@ -350,4 +353,5 @@ export const catalogsApi = {
 
   ticketEmails: () => request<TicketEmailConfig>('GET', '/system-config/ticket-emails'),
   updateTicketEmails: (t: TicketEmailInput) => request<Msg>('POST', '/system-config/ticket-emails', t),
+  testTicketEmail: (test_email: string) => request<MailTestResult>('POST', '/system-config/ticket-emails/test', { test_email }),
 }

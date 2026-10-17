@@ -39,25 +39,27 @@ type Badge struct {
 // StaffProfile: hồ sơ trả cho màn hình. Trường nhạy cảm (CCCD, quê quán, nơi ở, liên lạc khẩn cấp, lương cơ bản,
 // thù lao giờ) là null khi người xem không có quyền (CanViewSensitive = false), như canViewSensitive của Laravel.
 type StaffProfile struct {
-	CanViewSensitive  bool       `json:"can_view_sensitive"`
-	IDCardNumber      *string    `json:"id_card_number"`
-	Hometown          *string    `json:"hometown"`
-	CurrentAddress    *string    `json:"current_address"`
-	EmergencyContact  *string    `json:"emergency_contact"`
-	GraduationSchool  *string    `json:"graduation_school"`
-	Certificates      *string    `json:"certificates"`
-	TeachingLevel     *string    `json:"teaching_level"`
-	ContractType      *string    `json:"contract_type"`
-	ContractStartDate *string    `json:"contract_start_date"`
-	ContractEndDate   *string    `json:"contract_end_date"`
-	BaseSalary        *int64     `json:"base_salary"`
-	HourlyRate        *int64     `json:"hourly_rate"`
-	AcademicTeaching  bool       `json:"academic_teaching"`
-	AcademicLead      bool       `json:"academic_lead"` // có vai trò Học thuật: mới hiện ô "Kiêm nhiệm giảng dạy"
-	ContractStatus    Badge      `json:"contract_status"`
-	ContractRemaining *Badge     `json:"contract_remaining"`
-	ContractTypes     []string   `json:"contract_types"`
-	UpdatedAt         *time.Time `json:"updated_at"`
+	CanViewSensitive  bool     `json:"can_view_sensitive"`
+	IDCardNumber      *string  `json:"id_card_number"`
+	Hometown          *string  `json:"hometown"`
+	CurrentAddress    *string  `json:"current_address"`
+	EmergencyContact  *string  `json:"emergency_contact"`
+	GraduationSchool  *string  `json:"graduation_school"`
+	Certificates      *string  `json:"certificates"`
+	TeachingLevel     *string  `json:"teaching_level"`
+	ContractType      *string  `json:"contract_type"`
+	ContractStartDate *string  `json:"contract_start_date"`
+	ContractEndDate   *string  `json:"contract_end_date"`
+	BaseSalary        *int64   `json:"base_salary"`
+	HourlyRate        *int64   `json:"hourly_rate"`
+	AcademicTeaching  bool     `json:"academic_teaching"`
+	AcademicLead      bool     `json:"academic_lead"` // có vai trò Học thuật: mới hiện ô "Kiêm nhiệm giảng dạy"
+	ContractStatus    Badge    `json:"contract_status"`
+	ContractRemaining *Badge   `json:"contract_remaining"`
+	ContractTypes     []string `json:"contract_types"`
+	// File hợp đồng hiện tại (null: chưa tải lên). Laravel: has_contract_file + nút "Tải HĐ".
+	ContractFile *ContractFile `json:"contract_file"`
+	UpdatedAt    *time.Time    `json:"updated_at"`
 }
 
 // StaffProfileInput: thân PUT /users/{id}/profile. Ngày dạng YYYY-MM-DD, trống = bỏ. Người không xem được trường
@@ -143,6 +145,7 @@ func (s *Service) staffProfile(ctx context.Context, actor *Access, t *target, p 
 	if found {
 		out.UpdatedAt = &p.UpdatedAt
 	}
+	out.ContractFile = s.currentContract(ctx, t.user.ID)
 	out.ContractStatus, out.ContractRemaining = ContractStatus(p.ContractType, dateTime(p.ContractEndDate), s.now().In(vnZone), s.contractWarningDays(ctx))
 	return out
 }
