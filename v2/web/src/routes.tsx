@@ -50,6 +50,8 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/dashboard': (me) => (seesDashboard(me) ? <DashboardPage me={me} /> : <AccountPage me={me} />),
   '/profile': (me) => <AccountPage me={me} />,
   '/academic/dashboards': () => <AcademicPage />,
+  '/academic/reports': () => <AcademicPage />,
+  '/academic/incidents': () => <AcademicPage />,
   '/users': (me) => <UsersPage me={me} />,
   '/roles': (me) => <RolesPage me={me} />,
   '/branches': (me) => <BranchesPage me={me} />,

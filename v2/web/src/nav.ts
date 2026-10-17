@@ -102,6 +102,9 @@ export const NAV: NavItem[] = [
   },
   // Báo cáo & sự vụ lớp (AcademicDashboardController): /academic/dashboards[/reports|/incidents] do AcademicPage tự đọc đường dẫn.
   { path: '/academic/dashboards', label: 'Báo cáo & sự vụ lớp', perms: ['class.update'], group: 'Đào tạo & Chất lượng lớp' },
+  // URL cũ academic.reports / academic.incidents của Laravel.
+  { path: '/academic/reports', label: 'Báo cáo & sự vụ lớp', perms: ['class.update'], group: 'Đào tạo & Chất lượng lớp', hidden: true },
+  { path: '/academic/incidents', label: 'Báo cáo & sự vụ lớp', perms: ['class.update'], group: 'Đào tạo & Chất lượng lớp', hidden: true },
   // Khách hàng (CRM) — features/crm. Danh sách phụ (chốt, thất bại, chờ xếp lớp, đã xóa, duyệt chuyển cơ sở) mở từ chip.
   { path: '/crm/pipeline', label: 'Kanban', perms: ['lead.view'], group: CRM },
   { path: '/crm/customers', label: 'Danh sách khách', perms: ['lead.view'], group: CRM },

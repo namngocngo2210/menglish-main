@@ -182,6 +182,11 @@ search.Builtin(d.iam).Add(search.Searcher{
 })
 ```
 
+### Tổng quan (`api/internal/dashboard`, màn `/`, Báo cáo & sự vụ lớp `/academic/dashboards`)
+
+- `GET /dashboard?month=` (mọi nhân sự, `portal.staff`), `GET /academic/dashboards/reports?tab=`, `GET /academic/dashboards/incidents` (`class.update`). Chỉ đọc; trang tài khoản ở `/profile`.
+- Gói `dashboard` không đọc bảng của module khác: mỗi nguồn là interface trong `dashboard/sources.go`, module nguồn cài bằng `Dashboard<Tên>()` với SQL riêng trong `<module>/dashboard.sql` (khai báo thêm vào `queries` của module trong `sqlc.yaml`), nối trong `cmd/menglish/main.go`. Nguồn chưa có (học phí `Finance`, chấm công & KPI `StaffWork`) mặc định trả "Chờ phân hệ …"; khi gộp chỉ cần truyền vào `dashboard.Deps`.
+
 ### Test tích hợp dùng chung (`api/internal/iam/iamtest`)
 
 `iamtest.Setup(t, "<bảng của module cần xóa>")` migrate DB test, xóa dữ liệu, đồng bộ quyền; `e.Serve(handler.Routes)`; `e.Branch`, `e.Member(code, tên, chi nhánh, vai trò...)` (tạo tài khoản + đăng nhập, tự bật 2FA khi vai trò bắt buộc), `e.Grant / e.Revoke` quyền của vai trò, `e.Anon()`; `c.Do(method, path, body)`, `iamtest.Expect(t, r, status, code)`.

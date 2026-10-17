@@ -1,4 +1,5 @@
 // Báo cáo & sự vụ lớp (AcademicDashboardController): hai màn giám sát chung một chỗ — /academic/dashboards[/reports]
+// (URL cũ /academic/reports)
 // "Báo cáo đào tạo" (tab ?tab=daily|weekly|monthly) và /academic/dashboards/incidents "Nhật ký sự vụ" (lọc cơ sở, lớp,
 // mức độ, trạng thái). Báo cáo trực lớp, đề xuất giãn tiến độ / Big Test và ticket hỗ trợ chờ phân hệ nguồn.
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
@@ -15,7 +16,8 @@ const REPORTS_PATH = `${ACADEMIC_BASE}/reports`
 const INCIDENTS_PATH = `${ACADEMIC_BASE}/incidents`
 
 export function AcademicPage() {
-  const path = usePath()
+  // /academic/incidents: URL cũ academic.incidents của Laravel, giữ cho liên kết đã lưu.
+  const incidents = usePath().endsWith('/incidents')
   return (
     <div className="mx-auto max-w-7xl">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
@@ -27,8 +29,8 @@ export function AcademicPage() {
           </div>
         </div>
       </div>
-      <SectionTabs incidents={path === INCIDENTS_PATH} />
-      {path === INCIDENTS_PATH ? <IncidentsView /> : <ReportsView />}
+      <SectionTabs incidents={incidents} />
+      {incidents ? <IncidentsView /> : <ReportsView />}
     </div>
   )
 }
