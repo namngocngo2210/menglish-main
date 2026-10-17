@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/audit"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/notify"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/syllabus/syllabusdb"
@@ -119,7 +120,7 @@ func (s *Service) ApproveOrder(ctx context.Context, actor *iam.Access, id uuid.U
 			}
 			testID = &bt.ID
 			createdNote = " Đã tạo đợt thi " + bt.Code + " lúc " + fmtDateTime(bt.ScheduledAt) + " tại " + room + "."
-			if err := record(ctx, tx, &actor.UserID, "big_test.created", "create", "big_test", bt.ID, bt.Code,
+			if err := record(ctx, tx, &actor.UserID, audit.EventCreated, "big_test.create", "big_test", bt.ID, bt.Code,
 				"Tạo đợt Big Test "+bt.Code+" khi duyệt order "+o.Code+".", o.BranchID); err != nil {
 				return err
 			}
@@ -144,7 +145,7 @@ func (s *Service) ApproveOrder(ctx context.Context, actor *iam.Access, id uuid.U
 				return err
 			}
 		}
-		if err := record(ctx, tx, &actor.UserID, "big_test_order.approved", "approve", "big_test_order", o.ID, o.Code,
+		if err := record(ctx, tx, &actor.UserID, audit.EventUpdated, "big_test_order.approve", "big_test_order", o.ID, o.Code,
 			"Duyệt & phân phối order đề "+o.Code+" lớp "+deref(o.ClassName)+"."+createdNote, o.BranchID); err != nil {
 			return err
 		}
@@ -223,7 +224,7 @@ func (s *Service) RejectOrder(ctx context.Context, actor *iam.Access, id uuid.UU
 		if n == 0 {
 			return errAlreadyHandled
 		}
-		if err := record(ctx, tx, &actor.UserID, "big_test_order.rejected", "reject", "big_test_order", o.ID, o.Code,
+		if err := record(ctx, tx, &actor.UserID, audit.EventUpdated, "big_test_order.reject", "big_test_order", o.ID, o.Code,
 			"Từ chối order đề "+o.Code+": "+reason, o.BranchID); err != nil {
 			return err
 		}
@@ -430,7 +431,7 @@ func (s *Service) SubmitOrderTest(ctx context.Context, actor *iam.Access, classI
 		if err != nil {
 			return err
 		}
-		if err := record(ctx, tx, &actor.UserID, "big_test_order.created", "create", "big_test_order", created.ID, created.Code,
+		if err := record(ctx, tx, &actor.UserID, audit.EventCreated, "big_test_order.create", "big_test_order", created.ID, created.Code,
 			"Order đề "+orderTypeLabel(testType)+" cho "+label+" lớp "+c.Name+".", &c.BranchID); err != nil {
 			return err
 		}

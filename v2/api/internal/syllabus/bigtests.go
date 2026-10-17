@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/audit"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/notify"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/syllabus/syllabusdb"
@@ -574,7 +575,7 @@ func (s *Service) CreateBigTest(ctx context.Context, actor *iam.Access, in BigTe
 			return err
 		}
 		msg = fmt.Sprintf("Đã tạo bản nháp Big Test %s (%s); cần duyệt trước khi phân phối.", title, code)
-		return record(ctx, tx, &actor.UserID, "big_test.created", "create", "big_test", bt.ID, code+" · "+title,
+		return record(ctx, tx, &actor.UserID, audit.EventCreated, "big_test.create", "big_test", bt.ID, code+" · "+title,
 			"Tạo đợt Big Test "+code+" lớp "+c.Name+" lúc "+fmtDateTime(&at)+".", &c.BranchID)
 	})
 	if err != nil {
@@ -628,7 +629,7 @@ func (s *Service) ApproveBigTest(ctx context.Context, actor *iam.Access, id uuid
 		if n == 0 {
 			return nil
 		}
-		return record(ctx, tx, &actor.UserID, "big_test.distributed", "approve", "big_test", id, t.Code+" · "+t.Title,
+		return record(ctx, tx, &actor.UserID, audit.EventUpdated, "big_test.distribute", "big_test", id, t.Code+" · "+t.Title,
 			"Duyệt & phân phối đề "+t.Code+".", t.BranchID)
 	})
 	if err != nil {
@@ -674,7 +675,7 @@ func (s *Service) AssignBigTestStage(ctx context.Context, actor *iam.Access, id 
 		if stageID != nil {
 			desc = "Gắn đợt thi " + t.Code + " vào " + label + "."
 		}
-		if err := record(ctx, tx, &actor.UserID, "big_test.stage_assigned", "update", "big_test", id, t.Code+" · "+t.Title, desc,
+		if err := record(ctx, tx, &actor.UserID, audit.EventUpdated, "big_test.assign_stage", "big_test", id, t.Code+" · "+t.Title, desc,
 			t.BranchID); err != nil {
 			return err
 		}
@@ -810,7 +811,7 @@ func (s *Service) SendBigTestReminder(ctx context.Context, actor *iam.Access, id
 		}); err != nil {
 			return err
 		}
-		return record(ctx, tx, &actor.UserID, "big_test.reminded", "notify", "big_test", t.ID, t.Code+" · "+t.Title,
+		return record(ctx, tx, &actor.UserID, audit.EventUpdated, "big_test.remind", "big_test", t.ID, t.Code+" · "+t.Title,
 			fmt.Sprintf("Gửi nhắc lịch thi tới %d học viên lớp %s.", len(students), className), t.BranchID)
 	})
 	if err != nil {

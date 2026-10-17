@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/audit"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/syllabus/syllabusdb"
 )
@@ -432,7 +433,7 @@ func (s *Service) StoreResults(ctx context.Context, actor *iam.Access, id uuid.U
 		if draft {
 			action = "Lưu nháp"
 		}
-		return record(ctx, tx, &actor.UserID, "big_test.results_saved", "update", "big_test_result", t.ID, t.Code+" · "+t.Title,
+		return record(ctx, tx, &actor.UserID, audit.EventUpdated, "big_test_result.save", "big_test_result", t.ID, t.Code+" · "+t.Title,
 			fmt.Sprintf("%s kết quả %d học viên.", action, len(rows)+promoted), t.BranchID)
 	})
 	if err != nil {
@@ -489,7 +490,7 @@ func (s *Service) ApproveResults(ctx context.Context, actor *iam.Access, id uuid
 			return err
 		}
 		if n > 0 {
-			if err := record(ctx, tx, &actor.UserID, "big_test.results_approved", "approve", "big_test_result", t.ID,
+			if err := record(ctx, tx, &actor.UserID, audit.EventUpdated, "big_test_result.approve", "big_test_result", t.ID,
 				t.Code+" · "+t.Title, fmt.Sprintf("Duyệt kết quả %d học viên.", n), t.BranchID); err != nil {
 				return err
 			}
@@ -528,7 +529,7 @@ func (s *Service) deliver(ctx context.Context, actor *iam.Access, t syllabusdb.G
 		if err := q.MarkResultSent(ctx, r.ID); err != nil {
 			return err
 		}
-		return record(ctx, tx, &actor.UserID, "big_test.result_sent", "notify", "big_test_result", r.ID, r.StudentName,
+		return record(ctx, tx, &actor.UserID, audit.EventUpdated, "big_test_result.send", "big_test_result", r.ID, r.StudentName,
 			"Gửi kết quả "+t.Code+" cho phụ huynh em "+r.StudentName+" qua Zalo ZNS.", t.BranchID)
 	})
 	if err != nil {
@@ -666,7 +667,7 @@ func (s *Service) ApproveAndSend(ctx context.Context, actor *iam.Access, id uuid
 			if err := q.ApproveResult(ctx, syllabusdb.ApproveResultParams{By: &actor.UserID, ID: r.ID}); err != nil {
 				return err
 			}
-			return record(ctx, tx, &actor.UserID, "big_test.result_approved", "approve", "big_test_result", r.ID, name,
+			return record(ctx, tx, &actor.UserID, audit.EventUpdated, "big_test_result.approve", "big_test_result", r.ID, name,
 				"Duyệt kết quả "+t.Code+" của em "+name+".", t.BranchID)
 		}); err != nil {
 			return nil, err

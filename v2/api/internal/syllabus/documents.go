@@ -208,8 +208,16 @@ func (s *Service) Documents(ctx context.Context, actor *iam.Access, f DocumentFi
 	}
 	out := &DocumentList{Documents: make([]Document, 0, len(rows)), Curriculums: refs, CanUpload: actor.Can("syllabus.upload"),
 		Page: Page{Total: total, Page: page, PageSize: docsPageSize}}
+	seen, err := s.q.ViewedDocumentIDs(ctx, actor.UserID)
+	if err != nil {
+		return nil, err
+	}
+	viewed := map[uuid.UUID]bool{}
+	for _, id := range seen {
+		viewed[id] = true
+	}
 	for _, r := range rows {
-		out.Documents = append(out.Documents, toDocument(r, au, nil))
+		out.Documents = append(out.Documents, toDocument(r, au, viewed))
 	}
 	return out, nil
 }
