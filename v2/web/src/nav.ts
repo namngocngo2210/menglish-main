@@ -193,6 +193,8 @@ export const NAV: NavItem[] = [
   { path: '/tickets', label: 'Ticket hỗ trợ', perms: ['support_ticket.view'], group: 'Ticket hỗ trợ', menu: (me) => can(me, 'portal.staff') },
   // Khảo sát (features/surveys): /surveys/<id> = bài đã nộp của đợt.
   { path: '/surveys', label: 'Đợt khảo sát', perms: ['survey.manage'], group: 'Khảo sát' },
+  // Hướng dẫn sử dụng (features/guide): mọi người đã đăng nhập; ?vai-tro=<bộ hướng dẫn>.
+  { path: '/huong-dan', label: 'Hướng dẫn sử dụng', group: 'Hướng dẫn sử dụng', icon: 'help' },
 ]
 
 // Workspace của sidebar theo đúng thứ tự SidebarMenu::definition(): khu (section) → workspace (label, icon).

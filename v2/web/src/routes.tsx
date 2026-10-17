@@ -38,6 +38,7 @@ import { seesDashboard } from './features/dashboard/logic'
 import { AccountPage } from './pages/AccountPage'
 import { ApprovalsPage as ApprovalInboxPage } from './features/approvals/ApprovalsPage'
 import { SurveysPage } from './features/surveys/SurveysPage'
+import { GuidePage } from './features/guide/GuidePage'
 import { BranchesPage } from './pages/admin/BranchesPage'
 import { RolesPage } from './pages/admin/RolesPage'
 import { UsersPage } from './pages/admin/UsersPage'
@@ -142,4 +143,5 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/tickets': (me) => <TicketsPage me={me} />,
   '/approvals': (me) => <ApprovalInboxPage me={me} />,
   '/surveys': (me) => <SurveysPage me={me} />,
+  '/huong-dan': (me) => <GuidePage me={me} />,
 }
