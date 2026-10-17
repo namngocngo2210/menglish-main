@@ -284,13 +284,22 @@ func (s *Service) operations(ctx context.Context, a *iam.Access, c Clock) (*Role
 	if receipts != nil {
 		receiptQueue = Queue{Label: "Phiếu thu chờ duyệt", Value: receipts, Icon: "receipt_long", Href: ptr("/tuition/receipts/approve")}
 	}
+	tickets, err := s.d.Tickets.Counts(ctx, branches)
+	if err != nil {
+		return nil, err
+	}
+	ticketQueue := pendingQueue("Ticket đang mở", "support_agent", pendingTickets)
+	if tickets != nil {
+		ticketQueue = Queue{Label: "Ticket đang mở", Value: &tickets.Open, Icon: "support_agent", Href: ptr("/tickets"),
+			Hint: hintIf(tickets.Unassigned > 0, "%d ticket chưa có người xử lý", tickets.Unassigned)}
+	}
 	reports := pendingQueue("Báo cáo trực lớp chờ xác nhận", "fact_check", pendingClassReports)
 	reports.Hint = ptr("Admin xác nhận")
 	out.Queues = []Queue{
 		queue("Việc chờ xác nhận", tasks.PendingConfirmation, "pending_actions", pathApprovals, nil),
 		reports,
 		receiptQueue,
-		pendingQueue("Ticket đang mở", "support_agent", pendingTickets),
+		ticketQueue,
 	}
 	// Lịch hẹn test hôm nay: cùng phạm vi khách CRM với danh sách mà link mở ra.
 	if seesLeads(a) {

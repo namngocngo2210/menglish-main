@@ -40,6 +40,7 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/store"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/students"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/tasks"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/tickets"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/tuition"
 )
 
@@ -184,12 +185,14 @@ func runAPI(ctx context.Context) error {
 	kpiSvc.AddSources(reportSvc.KpiSources(), taskSvc.KpiSources(), inv.KpiSources(), cls.KpiSources()).
 		WithJournal(reportSvc).WithAttendance(cls.KpiAttendance()).WithBoard(cls.KpiBoard(), taskSvc.KpiBoard())
 	go kpiSvc.RunSheetLoop(ctx, time.Hour)
+	// Ticket hỗ trợ: file đính kèm ở kho file; hàng chờ "Ticket đang mở" / ticket khẩn ở Tổng quan và Nhật ký sự vụ.
+	ticketSvc := tickets.NewService(d.pool, log).WithFiles(fileSvc)
 	// Tổng quan + Báo cáo & sự vụ lớp: đọc số liệu các phân hệ qua adapter (Finance: doanh thu / phiếu chờ duyệt / quá hạn
 	// của Học phí). TODO(gộp): Work = chấm công / biên bản lỗi (KPI) khi có ở v2 (để nil: màn hiện "Chờ phân hệ…").
 	dash := dashboard.NewService(dashboard.Deps{
 		Leads: crmSvc.DashboardLeads(), Tasks: taskSvc.DashboardTasks(), Classes: cls.DashboardClasses(),
 		Students: studentSvc.DashboardStudents(), Reports: reportSvc.DashboardReports(), Orders: inv.DashboardOrders(),
-		Branches: d.iam, Finance: tuitionSvc.DashboardFinance(),
+		Branches: d.iam, Finance: tuitionSvc.DashboardFinance(), Tickets: ticketSvc.DashboardTickets(),
 	}, log)
 	checks := map[string]server.Pinger{
 		"postgres": d.pool,
@@ -222,6 +225,7 @@ func runAPI(ctx context.Context) error {
 				mailapi.NewHandler(mailSvc, log),
 				dashboard.NewHandler(dash, log),
 				files.NewHandler(fileSvc, log),
+				tickets.NewHandler(ticketSvc, log),
 			),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
