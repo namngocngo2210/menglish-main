@@ -252,6 +252,30 @@ type CoreHolidayBranch struct {
 	BranchID  uuid.UUID
 }
 
+type CoreMailOutbox struct {
+	ID            uuid.UUID
+	Kind          string
+	ToAddress     string
+	ToName        string
+	Subject       string
+	Template      string
+	Data          []byte
+	Sensitive     bool
+	Status        string
+	Attempts      int32
+	MaxAttempts   int32
+	NextAttemptAt time.Time
+	LockedUntil   *time.Time
+	LastError     *string
+	Fallback      []byte
+	RefType       *string
+	RefID         *string
+	CreatedBy     *uuid.UUID
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	SentAt        *time.Time
+}
+
 type CoreNotification struct {
 	ID        uuid.UUID
 	UserID    uuid.UUID

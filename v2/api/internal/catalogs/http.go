@@ -98,6 +98,7 @@ func (h *Handler) Routes(r chi.Router) {
 
 		r.With(iam.Require("support_ticket.update")).Get("/ticket-emails", h.ticketEmails)
 		r.With(iam.Require("support_ticket.update")).Post("/ticket-emails", h.updateTicketEmails)
+		r.With(iam.Require("support_ticket.update")).Post("/ticket-emails/test", h.testTicketEmail)
 	})
 }
 

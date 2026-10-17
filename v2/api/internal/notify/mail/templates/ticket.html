@@ -1,0 +1,48 @@
+{{/* Thư ticket / cảnh báo vận hành: như resources/views/emails/ticket-notification.blade.php */}}<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}}</title>
+</head>
+<body style="margin: 0; padding: 24px 12px; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 580px; margin: 0 auto;">
+        <tr>
+            <td>
+                <div style="background-color: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05); padding: 26px 24px;">
+                    <h1 style="margin: 0 0 16px 0; font-size: 19px; font-weight: 800; color: #0f172a; line-height: 1.4; letter-spacing: -0.3px;">
+                        {{.Title}}
+                    </h1>
+                    <div style="font-size: 15px; color: #334155; line-height: 1.65; white-space: pre-wrap; margin-bottom: 22px;">{{if .Reply}}<strong style="color: #0f172a;">{{.SenderName}}:</strong> {{end}}{{.Content}}</div>
+                    <div style="border-top: 1px solid #e2e8f0; margin: 22px 0 18px 0;"></div>
+                    <div style="background-color: #f8fafc; border-radius: 12px; padding: 16px; border: 1px solid #f1f5f9;">
+                        <div style="margin-bottom: 12px;">
+                            <span style="display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 6px; margin-right: 6px; {{.StatusStyle}}">
+                                ● {{.StatusLabel}}
+                            </span>
+                            {{- if .PriorityLabel}}
+                            <span style="display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 6px; margin-right: 6px; text-transform: uppercase; {{.PriorityStyle}}">
+                                ⚡ {{.PriorityLabel}}
+                            </span>
+                            {{- end}}
+                            {{- if .CategoryLabel}}
+                            <span style="display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 6px; background-color: #f3e8ff; color: #7e22ce; border: 1px solid #e9d5ff;">
+                                📁 {{.CategoryLabel}}
+                            </span>
+                            {{- end}}
+                        </div>
+                        <div style="font-size: 12px; color: #64748b; margin-bottom: 14px; line-height: 1.5;">
+                            👤 <strong>Người gửi:</strong> {{.SenderName}} &bull; 🕒 {{.Time}}
+                        </div>
+                        <div>
+                            <a href="{{.ActionURL}}" style="display: inline-block; background-color: #ea580c; color: #ffffff; text-decoration: none; padding: 9px 20px; border-radius: 8px; font-weight: 700; font-size: 13px;">
+                                👉 {{.ActionText}}
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
