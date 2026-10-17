@@ -7,7 +7,7 @@
  * Đổi khách → tải lại trang theo customer_id (lớp, tài khoản nhận tiền, lớp gợi ý theo trình độ tính theo khách).
  * Mã học viên cấp sẵn (studentCodePreview) để nội dung CK / VietQR xem trước trùng với mã thật; server vẫn tự sinh transfer_memo.
  */
-import { computed, reactive, ref } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import ClosingBillPreview from '@/Components/Crm/ClosingBillPreview.vue';
 import { can } from '@/lib/can';
@@ -99,10 +99,27 @@ const contextBranchId = computed(() => (!w.assignLater && w.classBranchId) || w.
 const availablePromotions = computed(() => promotionsList.value.filter((p) => promotionApplies(p, contextBranchId.value, w.courseId)));
 const promotionOptions = computed(() => availablePromotions.value.map((p) => ({ value: p.id, label: promotionLabel(p) })));
 const selectedPromotion = computed(() => promotionsList.value.find((p) => String(p.id) === String(w.selectedPromotionId)) ?? null);
+/** TK dùng được cho cơ sở đang chốt: TK gắn cơ sở + TK dùng chung (không gắn cơ sở nào); chưa rõ cơ sở thì mọi TK. */
+const availableBanks = computed(() => {
+    const branchId = Number(contextBranchId.value) || null;
+    return branchId ? props.bankAccounts.filter((b) => !b.branch_ids.length || b.branch_ids.includes(branchId)) : props.bankAccounts;
+});
+/** Như BankAccount::resolveFor(): TK gắn cơ sở → TK dùng chung, trong mỗi nhóm ưu tiên TK mặc định; chưa rõ cơ sở → TK mặc định. */
+function preferredBank() {
+    const branchId = Number(contextBranchId.value) || null;
+    const pick = (list) => list.find((b) => b.is_default_vietqr) ?? list[0] ?? null;
+    const shared = props.bankAccounts.filter((b) => !b.branch_ids.length);
+    if (!branchId) return props.bankAccounts.find((b) => b.is_default_vietqr) ?? pick(shared) ?? props.bankAccounts[0] ?? null;
+    return pick(props.bankAccounts.filter((b) => b.branch_ids.includes(branchId))) ?? pick(shared);
+}
+// Đổi lớp sang cơ sở khác → chọn lại tài khoản nhận tiền của cơ sở đó.
+watch(contextBranchId, () => {
+    w.selectedBankAccountId = String(preferredBank()?.id ?? '');
+});
 const selectedBank = computed(
-    () => props.bankAccounts.find((b) => String(b.id) === String(w.selectedBankAccountId)) || props.bankAccounts[0] || { bank_code: '', bank_name: '', account_number: '', account_holder: '' },
+    () => availableBanks.value.find((b) => String(b.id) === String(w.selectedBankAccountId)) || { bank_code: '', bank_name: '', account_number: '', account_holder: '' },
 );
-const bankOptions = computed(() => props.bankAccounts.map((b) => ({ value: b.id, label: `${b.bank_name} - ${b.account_number} (${b.account_holder})` })));
+const bankOptions = computed(() => availableBanks.value.map((b) => ({ value: b.id, label: `${b.bank_name} - ${b.account_number} (${b.account_holder})` })));
 const cleanAccountNumber = computed(() => (selectedBank.value.account_number || '').replace(/\s+/g, ''));
 
 function removeVietnameseTones(str) {
@@ -448,7 +465,7 @@ if (w.assignLater) setAssignLater(true);
                 <li v-for="(error, i) in errorMessages" :key="i">{{ error }}</li>
             </ul>
         </UiAlert>
-        <UiAlert v-if="!bankAccounts.length" type="warning" class="font-semibold">Chưa có tài khoản ngân hàng hoạt động. Bạn vẫn có thể thu tiền mặt; chuyển khoản sẽ cần cấu hình tài khoản trước.</UiAlert>
+        <UiAlert v-if="!availableBanks.length" type="warning" class="font-semibold">Chưa có tài khoản ngân hàng hoạt động cho cơ sở này. Bạn vẫn có thể thu tiền mặt; chuyển khoản sẽ cần cấu hình tài khoản trước.</UiAlert>
         <UiAlert v-if="!customers.length" type="info" class="font-semibold">Chưa có khách nào sẵn sàng chốt (Đang tư vấn, Đã test hoặc Gửi kết quả).</UiAlert>
         <UiAlert v-if="!classes.length" type="warning" class="font-semibold">Không còn lớp đang học / sắp khai giảng nào còn chỗ. Bạn vẫn chốt được với "Xếp lớp sau" — học viên vào danh sách Chờ xếp lớp.</UiAlert>
 

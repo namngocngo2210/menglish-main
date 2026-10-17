@@ -63,8 +63,8 @@ class SepayWebhookTest extends TestCase
         // Phase 4: webhook chỉ gạch nợ khi tiền vào đúng tài khoản đã cấu hình.
         BankAccount::create([
             'bank_code' => 'MBB', 'bank_name' => 'MB Bank', 'account_number' => '0123 456 789',
-            'account_holder' => 'TRUNG TAM MENGLISH', 'branch_id' => $this->branch->id, 'is_active' => true,
-        ]);
+            'account_holder' => 'TRUNG TAM MENGLISH', 'is_active' => true,
+        ])->branches()->attach($this->branch->id);
         $course = Course::create(['code' => 'SP-COURSE', 'name' => 'Khóa SePay', 'is_active' => true]);
         ClassModel::create([
             'code' => 'SP-CLASS', 'name' => 'Lớp SePay', 'course_id' => $course->id,

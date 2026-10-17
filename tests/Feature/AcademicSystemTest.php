@@ -575,7 +575,7 @@ class AcademicSystemTest extends TestCase
             'account_number' => '09887766554433',
             'account_holder' => 'TRUNG TAM TIENG ANH MENGLISH',
             'branch_location' => 'Hà Đông, Hà Nội',
-            'branch_id' => $this->branch->id,
+            'branch_ids' => [$this->branch->id],
         ];
 
         $responseBank = $this->actingAs($configAdmin)->post(route('system-config.bank-accounts.store'), $bankPayload);

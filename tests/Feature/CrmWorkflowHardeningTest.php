@@ -61,9 +61,10 @@ class CrmWorkflowHardeningTest extends TestCase
         ]);
         $this->bank = BankAccount::create([
             'bank_code' => 'VCB', 'bank_name' => 'Vietcombank', 'account_number' => '999999',
-            'account_holder' => 'MENGLISH', 'branch_id' => $this->branch->id,
+            'account_holder' => 'MENGLISH',
             'is_default_vietqr' => true, 'is_active' => true,
         ]);
+        $this->bank->branches()->attach($this->branch->id);
     }
 
     public function test_non_crm_role_cannot_access_crm(): void

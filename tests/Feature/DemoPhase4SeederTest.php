@@ -42,7 +42,7 @@ class DemoPhase4SeederTest extends TestCase
         // Tài khoản NH + dải số HĐ theo chi nhánh; phiếu thu đủ trạng thái; HĐ cấp theo dải chi nhánh.
         foreach (['CG', 'BD'] as $code) {
             $branchId = DB::table('branches')->where('code', $code)->value('id');
-            $this->assertTrue(BankAccount::where('branch_id', $branchId)->where('is_active', true)->exists(), "Thiếu TK ngân hàng {$code}.");
+            $this->assertTrue(BankAccount::whereHas('branches', fn ($q) => $q->whereKey($branchId))->where('is_active', true)->exists(), "Thiếu TK ngân hàng {$code}.");
             $this->assertTrue(TuitionReceipt::where('invoice_number', 'like', "C26M{$code}%")->where('status', 'approved')->exists(), "Thiếu HĐ dải {$code}.");
         }
         foreach (['draft', 'pending', 'approved', 'rejected', 'cancelled'] as $status) {

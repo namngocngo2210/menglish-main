@@ -120,7 +120,7 @@ class Phase4AcceptanceTest extends TestCase
         foreach ([[$this->branchA, 'N4A', '0901 000 111', $this->accountant], [$this->branchB, 'N4B', '1903 000 222', $this->accountantB]] as [$branch, $series, $number, $branchAccountant]) {
             $this->actingAs($branchAccountant)->post(route('tuition.config.ranges.store'), $this->range($branch, $series))->assertRedirect()->assertSessionHasNoErrors();
             $this->actingAs($branchAccountant)->post(route('system-config.bank-accounts.store'), [
-                'bank_code' => 'MB', 'bank_name' => 'MB Bank', 'account_number' => $number, 'account_holder' => 'Menglish', 'branch_id' => $branch->id,
+                'bank_code' => 'MB', 'bank_name' => 'MB Bank', 'account_number' => $number, 'account_holder' => 'Menglish', 'branch_ids' => [$branch->id],
             ])->assertRedirect()->assertSessionHasNoErrors();
         }
         $this->actingAs($this->sale)->post(route('system-config.sepay.update'), $this->sepayConfig())->assertForbidden();

@@ -575,9 +575,10 @@ class TuitionBusinessTest extends TestCase
         $crmUser->assignRole('admin');
         $bank = BankAccount::create([
             'bank_code' => 'VCB', 'bank_name' => 'Vietcombank', 'account_number' => '123456789',
-            'account_holder' => 'MENGLISH', 'branch_id' => $this->branch->id,
+            'account_holder' => 'MENGLISH',
             'is_default_vietqr' => true, 'is_active' => true,
         ]);
+        $bank->branches()->attach($this->branch->id);
         $promotion = Promotion::create([
             'code' => 'TUITION1M', 'name' => 'Giảm 1 triệu', 'type' => 'fixed', 'value' => 1000000, 'is_active' => true,
         ]);

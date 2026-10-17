@@ -13,7 +13,6 @@ const props = defineProps({
     form: { type: Object, required: true },
     prefix: { type: String, default: '' },
     recentRejection: { type: Object, default: null },
-    hasDefaultBank: { type: Boolean, default: false },
     canRequestCancel: { type: Boolean, default: false },
 });
 
@@ -420,10 +419,10 @@ const methodClass = (method) => (s.value.paymentMethod === method ? 'border-prim
                     </div>
                     <div class="flex items-center gap-1.5 rounded-lg bg-surface-container px-2.5 py-1.5 text-xs italic text-on-surface-variant">
                         <span class="material-symbols-outlined text-xs text-on-surface-subtle">lock</span>
-                        <span>Tài khoản lấy theo hợp đồng / chi nhánh của học viên; CM không đổi được trên màn hình này.</span>
+                        <span>Tài khoản lấy theo hợp đồng / cơ sở của học viên; CM không đổi được trên màn hình này.</span>
                     </div>
                 </div>
-                <UiAlert v-if="!hasDefaultBank" v-show="!form.bank" type="warning"><strong>Chưa cấu hình tài khoản ngân hàng</strong> đang hoạt động để nhận học phí. Mã VietQR sẽ không được tạo — vui lòng liên hệ Kế toán/Admin cấu hình tài khoản trước khi hướng dẫn phụ huynh chuyển khoản.</UiAlert>
+                <UiAlert v-show="!form.bank" type="warning"><strong>Chưa cấu hình tài khoản ngân hàng</strong> đang hoạt động cho cơ sở này (tài khoản riêng của cơ sở hoặc tài khoản dùng chung). Mã VietQR sẽ không được tạo — vui lòng liên hệ Kế toán/Admin cấu hình tài khoản trước khi hướng dẫn phụ huynh chuyển khoản.</UiAlert>
 
                 <UiInput v-model="s.transactionCode" name="transaction_code" :id="prefix + 'transaction_code'" label="Mã tham chiếu / Mã giao dịch ngân hàng (nếu có)" placeholder="Ví dụ: FT232981354789..." class="font-code" />
             </div>

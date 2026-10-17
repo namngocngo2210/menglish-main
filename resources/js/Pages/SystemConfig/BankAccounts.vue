@@ -2,7 +2,7 @@
 /**
  * Cấu hình tài khoản ngân hàng thu tiền (mockup ui-full-tinh-nang-menglish/epic-5/cau-hinh-tai-khoan-ngan-hang):
  * tab Tài khoản ngân hàng / Webhook SePay / Nhật ký giao dịch SePay. Thêm / Sửa tài khoản dùng chung 1 hộp thoại
- * (lỗi validate → giữ hộp thoại mở kèm dữ liệu đã nhập).
+ * (lỗi validate → giữ hộp thoại mở kèm dữ liệu đã nhập). Mỗi tài khoản gắn được nhiều cơ sở; không gắn cơ sở nào = dùng chung mọi cơ sở.
  */
 import { computed, reactive, ref } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
@@ -17,13 +17,14 @@ const props = defineProps({
     defaultAccount: { type: Object, default: null },
     search: { type: String, default: '' },
     branches: { type: Array, default: () => [] },
+    uncoveredBranches: { type: Array, default: () => [] },
     sepayEnabled: { type: Boolean, default: false },
     sepay: { type: Object, default: null },
     transactions: { type: Array, default: () => [] },
 });
 
 const page = usePage();
-const blank = { id: '', account_type: 'company', bank_code: '', bank_name: '', account_number: '', account_holder: '', branch_id: '', is_default_vietqr: false, is_active: true };
+const blank = { id: '', account_type: 'company', bank_code: '', bank_name: '', account_number: '', account_holder: '', branch_ids: [], is_default_vietqr: false, is_active: true };
 const activeTab = ref('banks');
 const showSecret = ref(false);
 const copiedTag = ref('');
@@ -39,6 +40,7 @@ function generateSecret() {
 }
 const webhookUrl = ref(props.sepay ? props.sepay.webhook_url || props.sepay.current_endpoint : '');
 const isActiveError = computed(() => page.props.errors?.is_active ?? null);
+const branchScopeText = computed(() => (form.branch_ids.length ? `Đã chọn ${form.branch_ids.length} cơ sở` : 'Dùng chung cho mọi cơ sở'));
 
 const tabClass = (tab) => [
     'flex items-center gap-1.5 rounded-xl border border-surface-container-highest px-4 py-2 text-xs transition',
@@ -55,7 +57,7 @@ async function copyVal(text, tag) {
 
 function openNew() {
     activeTab.value = 'banks';
-    Object.assign(form, blank);
+    Object.assign(form, { ...blank, branch_ids: [] });
     formOpen.value = true;
 }
 
@@ -67,7 +69,7 @@ function openEdit(acc) {
         bank_name: acc.bank_name,
         account_number: acc.account_number,
         account_holder: acc.account_holder,
-        branch_id: acc.branch_id ? String(acc.branch_id) : '',
+        branch_ids: (acc.branch_ids ?? []).map(Number),
         is_default_vietqr: Boolean(acc.is_default_vietqr),
         is_active: acc.is_active === undefined ? true : Boolean(acc.is_active),
     });
@@ -121,7 +123,11 @@ function onSearch(event) {
         <div v-show="activeTab === 'banks'" class="space-y-4">
             <UiAlert type="info">
                 <strong>Lưu ý:</strong> Mọi tài khoản ngân hàng được cấu hình tại đây đều tự động tích hợp mã QR gắn mã học sinh.
-                Chỉ có <strong>01 tài khoản "Mặc định"</strong> hiển thị tự động trên màn hình Lập phiếu thu khi hợp đồng / chi nhánh của học viên chưa có tài khoản riêng.
+                Phiếu thu và mã QR lấy tài khoản theo thứ tự: tài khoản gắn với hợp đồng → tài khoản gắn <strong>cơ sở</strong> của học viên → tài khoản <strong>dùng chung</strong> (không gắn cơ sở nào).
+                Tài khoản đã gắn cơ sở chỉ dùng cho các cơ sở đó. Trong cùng nhóm, tài khoản <strong>"Mặc định"</strong> được ưu tiên.
+            </UiAlert>
+            <UiAlert v-if="uncoveredBranches.length" type="warning">
+                <strong>Cơ sở chưa có tài khoản nhận tiền:</strong> {{ uncoveredBranches.join(', ') }}. Phiếu thu của các cơ sở này sẽ không tạo được mã VietQR — hãy gắn một tài khoản cho cơ sở hoặc thêm tài khoản dùng chung.
             </UiAlert>
 
             <UiAlert v-if="isActiveError" type="error">{{ isActiveError }}</UiAlert>
@@ -142,7 +148,7 @@ function onSearch(event) {
                                     <th>Loại</th>
                                     <th>Ngân hàng &amp; Số TK</th>
                                     <th>Chủ tài khoản</th>
-                                    <th>Chi nhánh</th>
+                                    <th>Cơ sở áp dụng</th>
                                     <th>Trạng thái</th>
                                     <th class="text-right">Thao tác</th>
                                 </tr>
@@ -158,9 +164,15 @@ function onSearch(event) {
                                                 <span class="material-symbols-outlined text-[16px]">{{ copiedTag === `stk_${acc.id}` ? 'check' : 'content_copy' }}</span>
                                             </button>
                                         </div>
+                                        <div v-if="acc.branch_location" class="font-caption text-caption text-on-surface-variant">{{ acc.branch_location }}</div>
                                     </td>
                                     <td class="uppercase">{{ acc.account_holder }}</td>
-                                    <td>{{ acc.branch_name ?? acc.branch_location ?? 'Toàn hệ thống' }}</td>
+                                    <td>
+                                        <div v-if="acc.branch_names.length" class="flex flex-wrap gap-xs">
+                                            <UiBadge v-for="name in acc.branch_names" :key="name" color="neutral" :dot="false">{{ name }}</UiBadge>
+                                        </div>
+                                        <span v-else class="text-on-surface-variant">Dùng chung mọi cơ sở</span>
+                                    </td>
                                     <td class="whitespace-nowrap">
                                         <span v-if="acc.is_default_vietqr" class="inline-flex items-center gap-xs font-body-medium text-primary"><span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1" aria-hidden="true">star</span>Mặc định</span>
                                         <UiBadge v-else-if="!acc.is_active" color="neutral">Ngừng dùng</UiBadge>
@@ -422,11 +434,17 @@ function onSearch(event) {
                         </div>
                     </div>
                     <UiInput v-model="form.account_holder" label="Chủ tài khoản" name="account_holder" required placeholder="Nhập tên đầy đủ chủ tài khoản" class="uppercase" />
-                    <UiSelect v-model="form.branch_id" label="Cơ sở áp dụng" name="branch_id" :options="branches" placeholder="Toàn hệ thống" />
+                    <UiField label="Cơ sở áp dụng" name="branch_ids">
+                        <div class="max-h-48 space-y-xs overflow-y-auto rounded-lg border border-outline-variant p-sm">
+                            <p :class="['font-body-small text-body-small font-semibold', form.branch_ids.length ? 'text-on-surface-variant' : 'text-primary']">{{ branchScopeText }}</p>
+                            <UiCheckbox v-for="branch in branches" :key="branch.value" v-model="form.branch_ids" name="branch_ids[]" :value="Number(branch.value)" :label="branch.label" />
+                        </div>
+                        <p class="font-caption text-caption text-on-surface-variant">* Để trống nếu tài khoản dùng chung cho tất cả cơ sở.</p>
+                    </UiField>
                     <label class="flex items-center justify-between gap-sm rounded-lg border border-outline-variant p-sm">
                         <span>
                             <span class="block font-body-medium text-body-medium">Đặt làm tài khoản mặc định</span>
-                            <span class="block font-caption text-caption text-on-surface-variant">Sử dụng cho toàn bộ phiếu thu tự động</span>
+                            <span class="block font-caption text-caption text-on-surface-variant">Ưu tiên khi cơ sở có nhiều tài khoản; tài khoản dự phòng khi chưa rõ cơ sở</span>
                         </span>
                         <input v-model="form.is_default_vietqr" type="checkbox" name="is_default_vietqr" value="1" class="rounded text-primary-container focus:ring-primary-container" />
                     </label>

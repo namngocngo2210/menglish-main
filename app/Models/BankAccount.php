@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection as SupportCollection;
 
 class BankAccount extends Model
 {
@@ -26,7 +28,6 @@ class BankAccount extends Model
         'account_number',
         'account_holder',
         'branch_location',
-        'branch_id',
         'is_default_vietqr',
         'is_active',
     ];
@@ -52,26 +53,61 @@ class BankAccount extends Model
             .'-compact2.png?accountName='.rawurlencode((string) $this->account_holder);
     }
 
-    public function branch(): BelongsTo
+    /**
+     * Cơ sở dùng tài khoản này; không gắn cơ sở nào = tài khoản dùng chung cho mọi cơ sở.
+     * Gồm cả cơ sở đã xoá để tài khoản riêng của cơ sở đó không bị coi là dùng chung.
+     */
+    public function branches(): BelongsToMany
     {
-        return $this->belongsTo(Branch::class);
+        return $this->belongsToMany(Branch::class, 'bank_account_branch')->withTimestamps()->withTrashed();
     }
 
-    /** Tài khoản đang hoạt động (kèm chi nhánh) để StudentTuition::resolveBankAccount() chọn trong bộ nhớ. */
-    public static function activeForResolve(): \Illuminate\Database\Eloquent\Collection
+    public function isShared(): bool
     {
-        return static::query()->with('branch')->where('is_active', true)->get();
+        return $this->branches->isEmpty();
     }
 
-    /** Tài khoản mặc định toàn hệ thống (đang hoạt động, ưu tiên cờ mặc định VietQR). */
+    /** Tài khoản dùng được cho cơ sở: tài khoản dùng chung hoặc đã gắn cơ sở đó. Chưa rõ cơ sở thì dùng được mọi tài khoản. */
+    public function appliesToBranch(?int $branchId): bool
+    {
+        return ! $branchId || $this->isShared() || $this->branches->contains('id', $branchId);
+    }
+
+    /** Tài khoản đang hoạt động (kèm cơ sở) để resolveFor() chọn trong bộ nhớ. */
+    public static function activeForResolve(): Collection
+    {
+        return static::query()->with('branches')->where('is_active', true)->get();
+    }
+
+    /**
+     * Tài khoản nhận tiền cho một cơ sở, chọn trong danh sách tài khoản đang hoạt động:
+     * tài khoản chỉ định (nếu dùng được cho cơ sở) → tài khoản gắn cơ sở → tài khoản dùng chung.
+     * Trong mỗi nhóm ưu tiên cờ mặc định VietQR rồi tài khoản tạo trước. Không lấy tài khoản của cơ sở khác.
+     * Chưa rõ cơ sở thì lấy tài khoản mặc định toàn hệ thống.
+     */
+    public static function resolveFor(?int $branchId, ?int $preferredId = null, ?SupportCollection $activeAccounts = null): ?self
+    {
+        $accounts = $activeAccounts ?? static::activeForResolve();
+
+        if ($preferredId && ($own = $accounts->firstWhere('id', $preferredId)) && $own->appliesToBranch($branchId)) {
+            return $own;
+        }
+
+        $byDefault = fn ($a, $b) => (int) $b->is_default_vietqr <=> (int) $a->is_default_vietqr;
+        $byId = fn ($a, $b) => $a->id <=> $b->id;
+
+        if (! $branchId) {
+            return $accounts->sortBy([$byDefault, fn ($a, $b) => (int) ! $a->isShared() <=> (int) ! $b->isShared(), $byId])->first();
+        }
+
+        return $accounts->filter(fn (self $a) => $a->branches->contains('id', $branchId))->sortBy([$byDefault, $byId])->first()
+            ?? $accounts->filter(fn (self $a) => $a->isShared())->sortBy([$byDefault, $byId])->first();
+    }
+
+    /** Tài khoản mặc định toàn hệ thống (đang hoạt động, ưu tiên cờ mặc định VietQR, rồi tài khoản dùng chung). */
     public static function defaultAccount(): ?self
     {
-        return static::query()
-            ->where('is_active', true)
-            ->orderByDesc('is_default_vietqr')
-            ->orderByRaw('CASE WHEN branch_id IS NULL THEN 0 ELSE 1 END')
-            ->orderBy('id')
-            ->first();
+        return static::resolveFor(null);
     }
 
     /** Chuẩn hoá số tài khoản để so khớp (chỉ giữ chữ số và chữ cái, bỏ khoảng trắng/gạch). */

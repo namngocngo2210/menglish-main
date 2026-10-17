@@ -58,8 +58,9 @@ class Phase1EnrollmentTest extends TestCase
         $this->course = Course::create(['code' => 'FAM1', 'name' => 'Starters FAM 1', 'tuition_fee' => 10000000, 'total_lessons' => 48, 'is_active' => true]);
         $this->bank = BankAccount::create([
             'bank_code' => 'VCB', 'bank_name' => 'Vietcombank', 'account_number' => '123456',
-            'account_holder' => 'MENGLISH', 'branch_id' => $this->branch->id, 'is_default_vietqr' => true, 'is_active' => true,
+            'account_holder' => 'MENGLISH', 'is_default_vietqr' => true, 'is_active' => true,
         ]);
+        $this->bank->branches()->attach($this->branch->id);
     }
 
     // ── 8 + 10. Lớp sắp khai giảng, sĩ số, ngưỡng khai giảng ─────────────

@@ -703,18 +703,18 @@ class MasterEntitySeeder extends Seeder
         }
 
         // 11. Tài khoản ngân hàng & Nhắc nợ
-        BankAccount::query()->updateOrCreate(
+        $bankCG = BankAccount::query()->updateOrCreate(
             ['account_number' => '9988 2345 6789'],
             [
                 'bank_code' => 'VCB',
                 'bank_name' => 'Vietcombank (Ngoại thương Việt Nam)',
                 'account_holder' => 'CONG TY CO PHAN GIAO DUC MENGLISH',
                 'branch_location' => 'Chi nhánh Cầu Giấy, Hà Nội',
-                'branch_id' => $branchCG?->id,
                 'is_default_vietqr' => true,
                 'is_active' => true,
             ]
         );
+        $bankCG->branches()->sync(array_filter([$branchCG?->id]));
 
         DebtReminderRule::query()->updateOrCreate(
             ['milestone_key' => 'T-7'],

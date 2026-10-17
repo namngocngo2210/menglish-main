@@ -59,8 +59,9 @@ class ClosingWizardRulesTest extends TestCase
         ]);
         $this->bank = BankAccount::create([
             'bank_code' => 'VCB', 'bank_name' => 'Vietcombank', 'account_number' => '123456',
-            'account_holder' => 'MENGLISH', 'branch_id' => $this->branch->id, 'is_default_vietqr' => true, 'is_active' => true,
+            'account_holder' => 'MENGLISH', 'is_default_vietqr' => true, 'is_active' => true,
         ]);
+        $this->bank->branches()->attach($this->branch->id);
     }
 
     public function test_closing_with_class_and_paid_fee_goes_straight_to_won(): void
@@ -349,6 +350,28 @@ class ClosingWizardRulesTest extends TestCase
         ]))->assertSessionHasErrors(['course_id' => 'Lớp / khóa học chưa được cấu hình học phí.']);
 
         $this->assertSame(0, Student::count());
+    }
+
+    public function test_closing_only_accepts_bank_account_of_class_branch_or_shared(): void
+    {
+        $other = Branch::create(['name' => 'Cơ sở khác', 'code' => 'KHAC', 'is_active' => true]);
+        $otherBank = BankAccount::create(['bank_code' => 'TCB', 'bank_name' => 'Techcombank', 'account_number' => '222333', 'account_holder' => 'MENGLISH KHAC', 'is_active' => true]);
+        $otherBank->branches()->attach($other->id);
+
+        $this->actingAs($this->sales)->post(route('crm.closing-wizard.store'), $this->payload($this->lead('consulting'), [
+            'fee_paid_at_closing' => 1, 'bank_account_id' => $otherBank->id,
+        ]))->assertSessionHasErrors(['bank_account_id' => 'Tài khoản thu tiền không dùng cho cơ sở của lớp.']);
+
+        // Gắn thêm cơ sở của lớp vào tài khoản → dùng được; màn chốt gửi kèm cơ sở gắn để lọc theo lớp đang chọn.
+        $otherBank->branches()->attach($this->branch->id);
+        $this->actingAs($this->sales)->post(route('crm.closing-wizard.store'), $this->payload($this->lead('consulting'), [
+            'fee_paid_at_closing' => 1, 'bank_account_id' => $otherBank->id,
+        ]))->assertSessionHasNoErrors();
+
+        $this->actingAs($this->sales)->get(route('crm.closing-wizard', ['customer_id' => $this->lead('consulting')->id]))->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('defaultBankAccountId', $this->bank->id)
+                ->where('bankAccounts', fn ($banks) => collect(collect($banks)->firstWhere('id', $otherBank->id)['branch_ids'])->sort()->values()->all() === collect([$other->id, $this->branch->id])->sort()->values()->all()));
     }
 
     private function closeWithoutClass(): CrmCustomer
