@@ -340,7 +340,9 @@ func (h *Handler) createPenalty(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		defer form.Close()
-		evidence = form.File("evidence")
+		if evidence = form.File("evidence"); evidence == nil {
+			evidence = form.File("file")
+		}
 		in.UserID, in.ErrorCategory, in.ViolationType = form.Value("user_id"), form.Value("error_category"), form.Value("violation_type")
 		in.ViolationAt, in.ClassID = form.Value("violation_at"), form.Value("class_id")
 		if v := strings.TrimSpace(form.Value("amount")); v != "" {

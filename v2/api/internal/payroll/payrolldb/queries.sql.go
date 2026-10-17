@@ -1026,20 +1026,16 @@ func (q *Queries) ExplainPenalty(ctx context.Context, arg ExplainPenaltyParams) 
 }
 
 const finishCalculation = `-- name: FinishCalculation :exec
-UPDATE hr.payroll_periods p SET status = 'reviewing', calculated_at = $1,
+UPDATE hr.payroll_periods p SET status = 'reviewing', calculated_at = now(),
     total_staff = t.staff, total_hours = t.hours, total_amount = t.amount, updated_at = now()
 FROM (SELECT count(*)::int AS staff, coalesce(sum(actual_hours), 0)::numeric AS hours, coalesce(sum(net_salary), 0)::bigint AS amount
-      FROM hr.payroll_records WHERE period_id = $2) t
-WHERE p.id = $2
+      FROM hr.payroll_records WHERE period_id = $1) t
+WHERE p.id = $1
 `
 
-type FinishCalculationParams struct {
-	CalculatedAt *time.Time
-	ID           uuid.UUID
-}
-
-func (q *Queries) FinishCalculation(ctx context.Context, arg FinishCalculationParams) error {
-	_, err := q.db.Exec(ctx, finishCalculation, arg.CalculatedAt, arg.ID)
+// calculated_at theo giờ DB (cùng mốc với updated_at của dữ liệu) để so "đổi sau lần tính".
+func (q *Queries) FinishCalculation(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, finishCalculation, id)
 	return err
 }
 

@@ -387,7 +387,7 @@ func (s *Service) runCalculation(ctx context.Context, q *payrolldb.Queries, p pa
 	if err := q.DeleteRecordsExcept(ctx, payrolldb.DeleteRecordsExceptParams{PeriodID: p.ID, Keep: produced}); err != nil {
 		return err
 	}
-	return q.FinishCalculation(ctx, payrolldb.FinishCalculationParams{CalculatedAt: ptr(s.now()), ID: p.ID})
+	return q.FinishCalculation(ctx, p.ID)
 }
 
 func idsOf[T any](rows []T, f func(T) uuid.UUID) []uuid.UUID {

@@ -118,7 +118,8 @@ VALUES (@code, @title, @month, @year, @start_date, @end_date, 'draft', @created_
 RETURNING *;
 
 -- name: FinishCalculation :exec
-UPDATE hr.payroll_periods p SET status = 'reviewing', calculated_at = @calculated_at,
+-- calculated_at theo giờ DB (cùng mốc với updated_at của dữ liệu) để so "đổi sau lần tính".
+UPDATE hr.payroll_periods p SET status = 'reviewing', calculated_at = now(),
     total_staff = t.staff, total_hours = t.hours, total_amount = t.amount, updated_at = now()
 FROM (SELECT count(*)::int AS staff, coalesce(sum(actual_hours), 0)::numeric AS hours, coalesce(sum(net_salary), 0)::bigint AS amount
       FROM hr.payroll_records WHERE period_id = @id) t
