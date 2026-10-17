@@ -208,8 +208,13 @@ func isOverdue(status string, due *time.Time, today time.Time) bool {
 // ───────────── Danh sách ─────────────
 
 type PenaltyFilter struct {
-	Search, Status, Category, Step, From, To string
-	Page                                     int
+	Search   string `json:"search"`
+	Status   string `json:"status"`
+	Category string `json:"error_category"`
+	Step     string `json:"step"`
+	From     string `json:"from"`
+	To       string `json:"to"`
+	Page     int    `json:"page"`
 }
 
 type PenaltyRow struct {

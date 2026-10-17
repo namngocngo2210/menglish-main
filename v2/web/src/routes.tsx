@@ -61,6 +61,11 @@ import { OverduePage as TuitionOverduePage } from './features/tuition/OverduePag
 import { ReceiptsRoute } from './features/tuition/ReceiptFormPage'
 import { RefundsPage as TuitionRefundsPage } from './features/tuition/RefundsPage'
 import { StudentsPage as TuitionStudentsPage } from './features/tuition/StudentsPage'
+import { RatesPage as PayrollRatesPage, SettingsPage as PayrollSettingsPage, TiersPage as PayrollTiersPage } from './features/payroll/ConfigPages'
+import { PenaltiesPage } from './features/payroll/PenaltiesPage'
+import { PeriodsRoute as PayrollPeriodsRoute } from './features/payroll/PeriodsPage'
+import { LeaderboardPage as PayrollLeaderboardPage, MySalaryPage } from './features/payroll/PortalPages'
+import { RecordRoute as PayrollRecordRoute } from './features/payroll/RecordPage'
 
 // Trang theo đường dẫn mục menu (NAV trong nav.ts). Trang con (vd. /students/<id>) dùng chung mục cha và tự đọc
 // phần còn lại của đường dẫn bằng usePath(). Module mới: thêm mục vào NAV và một dòng ở đây.
@@ -136,4 +141,12 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/tuition/refunds': (me) => <TuitionRefundsPage me={me} />,
   '/tuition/sepay': (me) => <TuitionSepayPage me={me} />,
   '/tuition/import': (me) => <TuitionImportPage me={me} />,
+  '/payroll/periods': (me) => <PayrollPeriodsRoute me={me} />,
+  '/payroll/records': (me) => <PayrollRecordRoute me={me} />,
+  '/penalties': () => <PenaltiesPage />,
+  '/payroll/kpi-leaderboard': () => <PayrollLeaderboardPage />,
+  '/portal/my-salary': () => <MySalaryPage />,
+  '/payroll/config/settings': () => <PayrollSettingsPage />,
+  '/payroll/config/teacher-rates': () => <PayrollRatesPage />,
+  '/payroll/config/commission-tiers': () => <PayrollTiersPage />,
 }

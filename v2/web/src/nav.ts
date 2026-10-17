@@ -27,6 +27,8 @@ export const hasKpiRole = (me: Me) => me.roles.some((r) => KPI_ROLES.includes(r.
 const CRM = 'Khách hàng (CRM)'
 // Quyền neo khu Học phí (SidebarMenu::TUITION): người xử lý nghiệp vụ kế toán.
 const TUITION_ANCHORS = ['tuition.approve', 'tuition.reject', 'invoice.request_cancel', 'refund_transfer.request']
+// Quyền neo khu Lương (SidebarMenu::PAYROLL).
+const PAYROLL_ANCHORS = ['payroll.view', 'payroll.view_own']
 
 export const NAV: NavItem[] = [
   // Tổng quan (DashboardController) cho nhân sự; học viên / phụ huynh thấy "Tài khoản của tôi" thay chỗ (routes.tsx).
@@ -174,6 +176,40 @@ export const NAV: NavItem[] = [
     group: 'Cần duyệt',
     perms: ['work_task.view'],
     menu: (me) => isAdmin(me) && can(me, 'work_task.create'),
+  },
+  // Lương & Phạt (PayrollController, PenaltyController) — features/payroll. Menu neo payroll.view / payroll.view_own
+  // (SidebarMenu::PAYROLL); phiếu lương /payroll/records/<id> mở từ bảng lương.
+  { path: '/payroll/periods', label: 'Bảng lương theo kỳ', perms: ['payroll.view'], group: 'Lương & Phạt', menu: (me) => can(me, ...PAYROLL_ANCHORS) },
+  { path: '/payroll/records', label: 'Phiếu lương', perms: ['payroll.view'], group: 'Lương & Phạt', hidden: true },
+  {
+    path: '/penalties',
+    label: 'Vi phạm & Phạt',
+    perms: ['violation.view', 'portal.staff'],
+    group: 'Lương & Phạt',
+    menu: (me) => can(me, ...PAYROLL_ANCHORS),
+  },
+  {
+    path: '/payroll/kpi-leaderboard',
+    label: 'Xếp hạng KPI & Thưởng',
+    perms: ['kpi.view'],
+    group: 'Nhân sự & KPI',
+    menu: (me) => can(me, ...PAYROLL_ANCHORS),
+  },
+  { path: '/portal/my-salary', label: 'Lương của tôi', perms: ['payroll.view_own'], group: 'Của tôi' },
+  { path: '/payroll/config/settings', label: 'Tham số lương', perms: ['teacher_rate.manage'], group: 'Lương', menu: (me) => can(me, ...PAYROLL_ANCHORS) },
+  {
+    path: '/payroll/config/teacher-rates',
+    label: 'Đơn giá giáo viên',
+    perms: ['teacher_rate.manage'],
+    group: 'Lương',
+    menu: (me) => can(me, ...PAYROLL_ANCHORS),
+  },
+  {
+    path: '/payroll/config/commission-tiers',
+    label: 'Mốc hoa hồng / Thưởng',
+    perms: ['commission_config.manage'],
+    group: 'Lương',
+    menu: (me) => can(me, ...PAYROLL_ANCHORS),
   },
 ]
 
