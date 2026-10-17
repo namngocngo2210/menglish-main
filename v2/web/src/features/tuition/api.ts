@@ -578,6 +578,15 @@ export const tuitionApi = {
   updateRange: (d: RangeInput & { config_id?: string; current_number: number | null }) => request<Saved>('POST', '/tuition/config', d),
   createRange: (d: RangeInput & { kind: 'electronic' | 'paper'; branch_id: string | null }) => request<Saved>('POST', '/tuition/config/ranges', d),
   toggleRange: (id: string) => request<Saved>('POST', `/tuition/config/ranges/${id}/toggle`),
+  importForm: (token?: string) => request<ImportPage>('GET', `/tuition/import${token ? `?token=${encodeURIComponent(token)}` : ''}`),
+  importPreview: (branchId: string, file: File) => {
+    const f = new FormData()
+    f.append('branch_id', branchId)
+    f.append('excel_file', file)
+    return upload<ImportPreview>('/tuition/import', f)
+  },
+  importConfirm: (token: string) => request<ImportResult>('POST', '/tuition/import/confirm', { token }),
+  importTemplateUrl: '/api/v1/tuition/import/template',
   sepay: () => request<SepayPage>('GET', '/tuition/sepay'),
   saveSepay: (d: SepayInput) => request<Saved>('POST', '/tuition/sepay/config', d),
   rejectCancellation: (id: string, rejection_reason: string) =>
@@ -803,6 +812,33 @@ export type SepayConfig = {
 }
 
 export type SepayPage = { enabled: boolean; config: SepayConfig | null; transactions: BankTxn[] }
+
+export type ImportPreviewRow = {
+  line: number
+  student_name: string | null
+  student_code: string
+  creates_tuition: boolean
+  class_code: string | null
+  final_amount: number | null
+  due_date: string | null
+  paid_amount: number
+  method_label: string
+  transaction_code: string | null
+  errors: string[]
+}
+
+export type ImportPreview = { token: string; file_name: string; branch_name: string; rows: ImportPreviewRow[]; valid_count: number }
+
+export type ImportPage = { branches: Option[]; template_headings: string; preview: ImportPreview | null }
+
+export type ImportResult = {
+  message: string
+  file_name: string
+  tuitions: number
+  receipts: number
+  skipped: number
+  failed: { line: number; error: string }[]
+}
 
 export type SepayInput = {
   webhook_name: string

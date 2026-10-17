@@ -55,6 +55,7 @@ import { BillPage as TuitionBillPage } from './features/tuition/BillPage'
 import { CancellationsPage as TuitionCancellationsPage } from './features/tuition/CancellationsPage'
 import { ConfigPage as TuitionConfigPage } from './features/tuition/ConfigPage'
 import { SepayPage as TuitionSepayPage } from './features/tuition/SepayPage'
+import { ImportPage as TuitionImportPage } from './features/tuition/ImportPage'
 import { HistoryPage as TuitionHistoryPage } from './features/tuition/HistoryPage'
 import { OverduePage as TuitionOverduePage } from './features/tuition/OverduePage'
 import { ReceiptsRoute } from './features/tuition/ReceiptFormPage'
@@ -134,4 +135,5 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/tuition/config': (me) => <TuitionConfigPage me={me} />,
   '/tuition/refunds': (me) => <TuitionRefundsPage me={me} />,
   '/tuition/sepay': (me) => <TuitionSepayPage me={me} />,
+  '/tuition/import': (me) => <TuitionImportPage me={me} />,
 }

@@ -9,6 +9,7 @@ import { ApprovePage } from './ApprovePage'
 import { BillPage } from './BillPage'
 import { CancellationsPage } from './CancellationsPage'
 import { ConfigPage } from './ConfigPage'
+import { ImportPage } from './ImportPage'
 import { OverduePage } from './OverduePage'
 import { RefundsPage } from './RefundsPage'
 import { SepayPage } from './SepayPage'
@@ -25,7 +26,7 @@ function mockApi(routes: Record<string, Route>) {
   const calls: { key: string; body: unknown }[] = []
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init = {}) => {
     const key = `${init.method ?? 'GET'} ${String(input).replace('/api/v1', '')}`
-    const body = init.body ? JSON.parse(String(init.body)) : undefined
+    const body = init.body instanceof FormData ? Object.fromEntries(init.body) : init.body ? JSON.parse(String(init.body)) : undefined
     calls.push({ key, body })
     const route = routes[key.split('?')[0]]
     if (!route) return new Response(JSON.stringify({ error: 'not_found', message: key }), { status: 404 })
@@ -701,4 +702,79 @@ test('Webhook SePay tắt bằng cờ máy chủ: chỉ báo tắt', async () =>
   wrap(<SepayPage me={me(['bank_account.manage'])} />)
   expect(await screen.findByText(/SePay webhook hiện đang tắt trên hệ thống/)).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Lưu cấu hình SePay' })).not.toBeInTheDocument()
+})
+
+test('Nhập học phí từ Excel: xem trước lỗi từng dòng rồi nhập dòng hợp lệ', async () => {
+  const preview = {
+    token: 'tk1',
+    file_name: 'hoc-phi.csv',
+    branch_name: 'Cầu Giấy',
+    valid_count: 1,
+    rows: [
+      {
+        line: 2,
+        student_name: 'Phạm Thu Hà',
+        student_code: 'HV0009',
+        creates_tuition: true,
+        class_code: 'IE-CG-01',
+        final_amount: 12_850_000,
+        due_date: '31/10/2026',
+        paid_amount: 5_000_000,
+        method_label: 'Chuyển khoản',
+        transaction_code: 'FT1',
+        errors: [],
+      },
+      {
+        line: 3,
+        student_name: null,
+        student_code: 'HV9999',
+        creates_tuition: false,
+        class_code: null,
+        final_amount: null,
+        due_date: null,
+        paid_amount: 0,
+        method_label: '—',
+        transaction_code: null,
+        errors: ['Không tìm thấy học viên mã HV9999.'],
+      },
+    ],
+  }
+  let stage = 'upload'
+  const calls = mockApi({
+    'GET /tuition/import': () => [
+      200,
+      { branches: [{ value: 'b1', label: 'Cầu Giấy' }], template_headings: 'Mã học viên, Mã lớp', preview: stage === 'preview' ? preview : null },
+    ],
+    'POST /tuition/import': () => {
+      stage = 'preview'
+      return [201, preview]
+    },
+    'POST /tuition/import/confirm': () => {
+      stage = 'done'
+      return [
+        200,
+        { message: 'Đã nhập 1 hồ sơ học phí và 1 phiếu thu chờ duyệt.', file_name: 'hoc-phi.csv', tuitions: 1, receipts: 1, skipped: 1, failed: [] },
+      ]
+    },
+  })
+  wrap(<ImportPage me={me(['tuition.view', 'tuition.create'])} />)
+  await screen.findByText(/Cột của file mẫu: Mã học viên, Mã lớp/)
+  expect(screen.getByRole('button', { name: 'Xem trước' })).toBeDisabled()
+  await userEvent.upload(screen.getByLabelText('File Excel / CSV'), new File(['x'], 'hoc-phi.csv', { type: 'text/csv' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Xem trước' }))
+  expect(await screen.findByText('Không tìm thấy học viên mã HV9999.')).toBeInTheDocument()
+  expect(calls.find((c) => c.key === 'POST /tuition/import')?.body).toMatchObject({ branch_id: 'b1' })
+  expect(window.location.search).toBe('?token=tk1')
+  expect(screen.getByText(/Phải nộp 12.850.000/)).toBeInTheDocument()
+
+  await userEvent.click(screen.getByRole('button', { name: 'Nhập 1 dòng hợp lệ' }))
+  expect(await screen.findByText(/Đã nhập 1 hồ sơ học phí và 1 phiếu thu chờ duyệt. Bỏ qua 1 dòng lỗi./)).toBeInTheDocument()
+  expect(calls.find((c) => c.key === 'POST /tuition/import/confirm')?.body).toEqual({ token: 'tk1' })
+})
+
+test('Nhập Excel: chỉ có quyền xem thì không tải file lên được', async () => {
+  mockApi({ 'GET /tuition/import': () => [200, { branches: [], template_headings: 'Mã học viên', preview: null }] })
+  wrap(<ImportPage me={me(['tuition.view'])} />)
+  expect(await screen.findByText(/cần quyền lập phiếu thu để nhập từ Excel/)).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Xem trước' })).not.toBeInTheDocument()
 })

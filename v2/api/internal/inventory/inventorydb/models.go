@@ -763,6 +763,18 @@ type FinanceTuitionContactLog struct {
 	CreatedAt   time.Time
 }
 
+type FinanceTuitionImportBatch struct {
+	ID          uuid.UUID
+	CreatedBy   uuid.UUID
+	BranchID    uuid.UUID
+	FileName    string
+	Rows        []byte
+	Status      string
+	Result      []byte
+	CreatedAt   time.Time
+	CommittedAt *time.Time
+}
+
 type HrKpiCriterium struct {
 	ID            uuid.UUID
 	Role          string

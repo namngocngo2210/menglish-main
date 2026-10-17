@@ -24,6 +24,7 @@ func init() {
 	audit.RegisterSubject("invoice_cancellation", "Yêu cầu hủy hóa đơn")
 	audit.RegisterSubject("tuition_refund_request", "Yêu cầu hoàn / chuyển phí")
 	audit.RegisterSubject("sepay_config", "Cấu hình SePay")
+	audit.RegisterSubject("tuition_import", "Nhập học phí từ Excel")
 	for _, p := range []string{"/tuition", "/sepay"} {
 		audit.RegisterPath(p, audit.ModuleTuition)
 	}

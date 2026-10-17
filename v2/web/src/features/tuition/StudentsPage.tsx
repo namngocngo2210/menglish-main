@@ -36,7 +36,14 @@ export function StudentsPage({ me }: { me: Me }) {
           <h1 className="text-xl font-semibold">Công nợ học viên</h1>
           <p className="text-sm text-on-surface-variant">Sổ toàn bộ khoản học phí: đã thu, còn nợ, hạn nộp và trạng thái của từng học viên.</p>
         </div>
-        {canCreate && <Button onClick={() => navigate('/tuition/receipts/new')}>Lập phiếu thu</Button>}
+        {canCreate && (
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={() => navigate('/tuition/import')}>
+              Nhập Excel
+            </Button>
+            <Button onClick={() => navigate('/tuition/receipts/new')}>Lập phiếu thu</Button>
+          </div>
+        )}
       </div>
 
       {list.isError && <Alert>{errorMessage(list.error)}</Alert>}

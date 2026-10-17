@@ -1073,3 +1073,33 @@ LIMIT 1;
 
 -- name: UserEmails :many
 SELECT DISTINCT email::text AS email FROM iam.users WHERE id = ANY (sqlc.arg(ids)::uuid[]) AND email IS NOT NULL AND email <> '';
+
+-- ───────────────────────── Nhập học phí từ Excel ─────────────────────────
+
+-- name: ImportStudentsByCodes :many
+-- Học viên theo mã (in hoa) kèm khoản học phí mới nhất ($student->tuition) để kiểm tra dòng nhập.
+SELECT s.id, s.code, s.full_name, s.branch_id, s.current_class_id, t.id AS tuition_id, COALESCE(t.debt_amount, 0)::bigint AS tuition_debt
+FROM academic.students s
+LEFT JOIN LATERAL (SELECT x.id, x.debt_amount FROM finance.tuitions x WHERE x.student_id = s.id ORDER BY x.created_at DESC, x.id DESC LIMIT 1) t ON true
+WHERE upper(s.code) = ANY (sqlc.arg(codes)::text[]) AND s.deleted_at IS NULL;
+
+-- name: ImportClassesByCodes :many
+SELECT id, code, name, branch_id FROM academic.classes WHERE upper(code) = ANY (sqlc.arg(codes)::text[]);
+
+-- name: LockLatestStudentTuition :one
+SELECT * FROM finance.tuitions WHERE student_id = $1 ORDER BY created_at DESC, id DESC LIMIT 1 FOR UPDATE;
+
+-- name: CreateTuitionImport :one
+INSERT INTO finance.tuition_import_batches (created_by, branch_id, file_name, rows)
+VALUES (sqlc.arg(created_by), sqlc.arg(branch_id), sqlc.arg(file_name), sqlc.arg(rows))
+RETURNING *;
+
+-- name: GetTuitionImport :one
+SELECT b.*, br.name AS branch_name FROM finance.tuition_import_batches b JOIN core.branches br ON br.id = b.branch_id
+WHERE b.id = sqlc.arg(id) AND b.created_by = sqlc.arg(created_by);
+
+-- name: LockTuitionImport :one
+SELECT * FROM finance.tuition_import_batches WHERE id = sqlc.arg(id) AND created_by = sqlc.arg(created_by) FOR UPDATE;
+
+-- name: CommitTuitionImport :exec
+UPDATE finance.tuition_import_batches SET status = 'committed', result = sqlc.arg(result), committed_at = now() WHERE id = sqlc.arg(id);

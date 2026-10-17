@@ -73,6 +73,12 @@ func (h *Handler) Routes(r chi.Router) {
 			Post("/refunds/{id}/approve", h.approveRefund)
 		r.With(view, iam.Require("refund_transfer.reject")).Post("/refunds/{id}/reject", h.rejectRefund)
 
+		// Nhập học phí từ Excel: xem trước → xác nhận (phiếu thu chờ duyệt).
+		r.With(view).Get("/import", h.importForm)
+		r.With(view).Get("/import/template", h.importTemplate)
+		r.With(view, create).Post("/import", h.importPreview)
+		r.With(view, create).Post("/import/confirm", h.importCommit)
+
 		// SePay: cấu hình webhook + nhật ký giao dịch (tab SePay của màn Tài khoản ngân hàng), giao dịch gần đây.
 		bank := iam.Require("bank_account.manage")
 		r.With(bank).Get("/sepay", h.sepayPage)

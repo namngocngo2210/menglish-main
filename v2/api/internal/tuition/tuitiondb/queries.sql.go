@@ -869,6 +869,20 @@ func (q *Queries) CommissionOwner(ctx context.Context, convertedStudentID *uuid.
 	return owner_id, err
 }
 
+const commitTuitionImport = `-- name: CommitTuitionImport :exec
+UPDATE finance.tuition_import_batches SET status = 'committed', result = $1, committed_at = now() WHERE id = $2
+`
+
+type CommitTuitionImportParams struct {
+	Result []byte
+	ID     uuid.UUID
+}
+
+func (q *Queries) CommitTuitionImport(ctx context.Context, arg CommitTuitionImportParams) error {
+	_, err := q.db.Exec(ctx, commitTuitionImport, arg.Result, arg.ID)
+	return err
+}
+
 const configuredAccountNumbers = `-- name: ConfiguredAccountNumbers :many
 SELECT upper(regexp_replace(account_number, '[^A-Za-z0-9]', '', 'g'))::text AS number FROM finance.bank_accounts WHERE deleted_at IS NULL
 `
@@ -1506,6 +1520,41 @@ func (q *Queries) CreateTuition(ctx context.Context, arg CreateTuitionParams) (F
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createTuitionImport = `-- name: CreateTuitionImport :one
+INSERT INTO finance.tuition_import_batches (created_by, branch_id, file_name, rows)
+VALUES ($1, $2, $3, $4)
+RETURNING id, created_by, branch_id, file_name, rows, status, result, created_at, committed_at
+`
+
+type CreateTuitionImportParams struct {
+	CreatedBy uuid.UUID
+	BranchID  uuid.UUID
+	FileName  string
+	Rows      []byte
+}
+
+func (q *Queries) CreateTuitionImport(ctx context.Context, arg CreateTuitionImportParams) (FinanceTuitionImportBatch, error) {
+	row := q.db.QueryRow(ctx, createTuitionImport,
+		arg.CreatedBy,
+		arg.BranchID,
+		arg.FileName,
+		arg.Rows,
+	)
+	var i FinanceTuitionImportBatch
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedBy,
+		&i.BranchID,
+		&i.FileName,
+		&i.Rows,
+		&i.Status,
+		&i.Result,
+		&i.CreatedAt,
+		&i.CommittedAt,
 	)
 	return i, err
 }
@@ -2463,6 +2512,131 @@ func (q *Queries) GetTuition(ctx context.Context, id uuid.UUID) (GetTuitionRow, 
 		&i.ScopeBranchID,
 	)
 	return i, err
+}
+
+const getTuitionImport = `-- name: GetTuitionImport :one
+SELECT b.id, b.created_by, b.branch_id, b.file_name, b.rows, b.status, b.result, b.created_at, b.committed_at, br.name AS branch_name FROM finance.tuition_import_batches b JOIN core.branches br ON br.id = b.branch_id
+WHERE b.id = $1 AND b.created_by = $2
+`
+
+type GetTuitionImportParams struct {
+	ID        uuid.UUID
+	CreatedBy uuid.UUID
+}
+
+type GetTuitionImportRow struct {
+	ID          uuid.UUID
+	CreatedBy   uuid.UUID
+	BranchID    uuid.UUID
+	FileName    string
+	Rows        []byte
+	Status      string
+	Result      []byte
+	CreatedAt   time.Time
+	CommittedAt *time.Time
+	BranchName  string
+}
+
+func (q *Queries) GetTuitionImport(ctx context.Context, arg GetTuitionImportParams) (GetTuitionImportRow, error) {
+	row := q.db.QueryRow(ctx, getTuitionImport, arg.ID, arg.CreatedBy)
+	var i GetTuitionImportRow
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedBy,
+		&i.BranchID,
+		&i.FileName,
+		&i.Rows,
+		&i.Status,
+		&i.Result,
+		&i.CreatedAt,
+		&i.CommittedAt,
+		&i.BranchName,
+	)
+	return i, err
+}
+
+const importClassesByCodes = `-- name: ImportClassesByCodes :many
+SELECT id, code, name, branch_id FROM academic.classes WHERE upper(code) = ANY ($1::text[])
+`
+
+type ImportClassesByCodesRow struct {
+	ID       uuid.UUID
+	Code     string
+	Name     string
+	BranchID uuid.UUID
+}
+
+func (q *Queries) ImportClassesByCodes(ctx context.Context, codes []string) ([]ImportClassesByCodesRow, error) {
+	rows, err := q.db.Query(ctx, importClassesByCodes, codes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ImportClassesByCodesRow
+	for rows.Next() {
+		var i ImportClassesByCodesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.Name,
+			&i.BranchID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const importStudentsByCodes = `-- name: ImportStudentsByCodes :many
+
+SELECT s.id, s.code, s.full_name, s.branch_id, s.current_class_id, t.id AS tuition_id, COALESCE(t.debt_amount, 0)::bigint AS tuition_debt
+FROM academic.students s
+LEFT JOIN LATERAL (SELECT x.id, x.debt_amount FROM finance.tuitions x WHERE x.student_id = s.id ORDER BY x.created_at DESC, x.id DESC LIMIT 1) t ON true
+WHERE upper(s.code) = ANY ($1::text[]) AND s.deleted_at IS NULL
+`
+
+type ImportStudentsByCodesRow struct {
+	ID             uuid.UUID
+	Code           string
+	FullName       string
+	BranchID       *uuid.UUID
+	CurrentClassID *uuid.UUID
+	TuitionID      uuid.UUID
+	TuitionDebt    int64
+}
+
+// ───────────────────────── Nhập học phí từ Excel ─────────────────────────
+// Học viên theo mã (in hoa) kèm khoản học phí mới nhất ($student->tuition) để kiểm tra dòng nhập.
+func (q *Queries) ImportStudentsByCodes(ctx context.Context, codes []string) ([]ImportStudentsByCodesRow, error) {
+	rows, err := q.db.Query(ctx, importStudentsByCodes, codes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ImportStudentsByCodesRow
+	for rows.Next() {
+		var i ImportStudentsByCodesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.FullName,
+			&i.BranchID,
+			&i.CurrentClassID,
+			&i.TuitionID,
+			&i.TuitionDebt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const incrementPromotionUse = `-- name: IncrementPromotionUse :exec
@@ -3744,6 +3918,46 @@ func (q *Queries) LockInvoiceRange(ctx context.Context, id uuid.UUID) (FinanceIn
 	return i, err
 }
 
+const lockLatestStudentTuition = `-- name: LockLatestStudentTuition :one
+SELECT id, student_id, class_id, branch_id, bank_account_id, promotion_id, total_amount, session_count, discount_amount, other_fees, fee_items, prepaid_amount, final_amount, paid_amount, debt_amount, due_date, reminder_paused_until, deferred_from, deferred_until, frozen_remaining_sessions, frozen_debt_amount, status, notes, transfer_memo, legacy_id, created_by, created_at, updated_at FROM finance.tuitions WHERE student_id = $1 ORDER BY created_at DESC, id DESC LIMIT 1 FOR UPDATE
+`
+
+func (q *Queries) LockLatestStudentTuition(ctx context.Context, studentID uuid.UUID) (FinanceTuition, error) {
+	row := q.db.QueryRow(ctx, lockLatestStudentTuition, studentID)
+	var i FinanceTuition
+	err := row.Scan(
+		&i.ID,
+		&i.StudentID,
+		&i.ClassID,
+		&i.BranchID,
+		&i.BankAccountID,
+		&i.PromotionID,
+		&i.TotalAmount,
+		&i.SessionCount,
+		&i.DiscountAmount,
+		&i.OtherFees,
+		&i.FeeItems,
+		&i.PrepaidAmount,
+		&i.FinalAmount,
+		&i.PaidAmount,
+		&i.DebtAmount,
+		&i.DueDate,
+		&i.ReminderPausedUntil,
+		&i.DeferredFrom,
+		&i.DeferredUntil,
+		&i.FrozenRemainingSessions,
+		&i.FrozenDebtAmount,
+		&i.Status,
+		&i.Notes,
+		&i.TransferMemo,
+		&i.LegacyID,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const lockLatestTuitionDeferral = `-- name: LockLatestTuitionDeferral :one
 SELECT id, deferred_from, deferred_until, frozen_remaining_sessions, frozen_debt_amount, reminder_paused_until, notes
 FROM finance.tuitions WHERE student_id = $1
@@ -3914,6 +4128,32 @@ func (q *Queries) LockTuition(ctx context.Context, id uuid.UUID) (FinanceTuition
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const lockTuitionImport = `-- name: LockTuitionImport :one
+SELECT id, created_by, branch_id, file_name, rows, status, result, created_at, committed_at FROM finance.tuition_import_batches WHERE id = $1 AND created_by = $2 FOR UPDATE
+`
+
+type LockTuitionImportParams struct {
+	ID        uuid.UUID
+	CreatedBy uuid.UUID
+}
+
+func (q *Queries) LockTuitionImport(ctx context.Context, arg LockTuitionImportParams) (FinanceTuitionImportBatch, error) {
+	row := q.db.QueryRow(ctx, lockTuitionImport, arg.ID, arg.CreatedBy)
+	var i FinanceTuitionImportBatch
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedBy,
+		&i.BranchID,
+		&i.FileName,
+		&i.Rows,
+		&i.Status,
+		&i.Result,
+		&i.CreatedAt,
+		&i.CommittedAt,
 	)
 	return i, err
 }
