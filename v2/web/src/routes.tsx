@@ -61,6 +61,16 @@ import { OverduePage as TuitionOverduePage } from './features/tuition/OverduePag
 import { ReceiptsRoute } from './features/tuition/ReceiptFormPage'
 import { RefundsPage as TuitionRefundsPage } from './features/tuition/RefundsPage'
 import { StudentsPage as TuitionStudentsPage } from './features/tuition/StudentsPage'
+import { AssignmentsPage as SyllabusAssignmentsPage } from './features/syllabus/AssignmentsPage'
+import { BuilderPage as SyllabusBuilderPage } from './features/syllabus/BuilderPage'
+import { DistributionPage as BigTestDistributionPage } from './features/syllabus/DistributionPage'
+import { DocumentsPage as SyllabusDocumentsPage } from './features/syllabus/DocumentsPage'
+import { AdjustmentRequestsPage, TeacherAdjustPage } from './features/syllabus/PacingPages'
+import { TeacherProposePage, VersionsPage as SyllabusVersionsPage } from './features/syllabus/ProposalsPages'
+import { ResultsPage as BigTestResultsPage } from './features/syllabus/ResultsPage'
+import { SchedulesPage as BigTestSchedulesPage } from './features/syllabus/SchedulesPage'
+import { OrderTestPage, TeachingStagesPage } from './features/syllabus/TeachingStagesPage'
+import { TeacherViewPage as SyllabusTeacherViewPage } from './features/syllabus/TeacherViewPage'
 
 // Trang theo đường dẫn mục menu (NAV trong nav.ts). Trang con (vd. /students/<id>) dùng chung mục cha và tự đọc
 // phần còn lại của đường dẫn bằng usePath(). Module mới: thêm mục vào NAV và một dòng ở đây.
@@ -136,4 +146,18 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/tuition/refunds': (me) => <TuitionRefundsPage me={me} />,
   '/tuition/sepay': (me) => <TuitionSepayPage me={me} />,
   '/tuition/import': (me) => <TuitionImportPage me={me} />,
+  '/syllabus': () => <SyllabusDocumentsPage />,
+  '/syllabus/documents': () => <SyllabusDocumentsPage />,
+  '/syllabus/builder': () => <SyllabusBuilderPage />,
+  '/syllabus/assignments': () => <SyllabusAssignmentsPage />,
+  '/syllabus/teaching-stages': () => <TeachingStagesPage />,
+  '/syllabus/teacher-view': (me) => <SyllabusTeacherViewPage me={me} />,
+  '/teacher/order-test': () => <OrderTestPage />,
+  '/syllabus/versions': () => <SyllabusVersionsPage />,
+  '/syllabus/teacher-propose': () => <TeacherProposePage />,
+  '/syllabus/teacher-adjust': () => <TeacherAdjustPage />,
+  '/syllabus/adjustment-requests': () => <AdjustmentRequestsPage />,
+  '/syllabus/big-tests/schedules': () => <BigTestSchedulesPage />,
+  '/syllabus/big-tests/distribution': () => <BigTestDistributionPage />,
+  '/syllabus/big-tests/results': () => <BigTestResultsPage />,
 }
