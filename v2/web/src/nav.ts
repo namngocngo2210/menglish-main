@@ -1,4 +1,5 @@
 import type { Me } from './api'
+import { seesDashboard } from './features/dashboard/logic'
 
 // Menu theo quyền: mục chỉ hiện khi người dùng có ít nhất một quyền trong perms (giống SidebarMenu của bản Laravel).
 // Chỉ gồm các màn đã có ở v2; module mới thêm mục của mình vào đây.
@@ -22,7 +23,11 @@ export const isAdmin = (me: Me) => me.roles.some((r) => r.name === 'admin')
 const CRM = 'Khách hàng (CRM)'
 
 export const NAV: NavItem[] = [
-  { path: '/', label: 'Tài khoản của tôi', icon: 'account_circle' },
+  // Tổng quan (DashboardController) cho nhân sự; học viên / phụ huynh thấy "Tài khoản của tôi" thay chỗ (routes.tsx).
+  { path: '/', label: 'Tổng quan', icon: 'dashboard', menu: seesDashboard },
+  { path: '/profile', label: 'Tài khoản của tôi', icon: 'account_circle', menu: (me) => !seesDashboard(me) },
+  // URL Tổng quan cũ của Laravel (/dashboard), giữ cho liên kết đã lưu.
+  { path: '/dashboard', label: 'Tổng quan', hidden: true },
   { path: '/notifications', label: 'Thông báo', perms: ['notification.view'], group: 'Của tôi' },
   { path: '/users', label: 'Người dùng & Tài khoản', perms: ['user.view'], group: 'Người dùng' },
   { path: '/branches', label: 'Cơ sở & Chi nhánh', perms: ['branch.view'], group: 'Tổ chức & Đào tạo' },
@@ -95,6 +100,8 @@ export const NAV: NavItem[] = [
     group: 'Nhân sự & KPI',
     menu: (me) => can(me, 'user.view', 'kpi.view'),
   },
+  // Báo cáo & sự vụ lớp (AcademicDashboardController): /academic/dashboards[/reports|/incidents] do AcademicPage tự đọc đường dẫn.
+  { path: '/academic/dashboards', label: 'Báo cáo & sự vụ lớp', perms: ['class.update'], group: 'Đào tạo & Chất lượng lớp' },
   // Khách hàng (CRM) — features/crm. Danh sách phụ (chốt, thất bại, chờ xếp lớp, đã xóa, duyệt chuyển cơ sở) mở từ chip.
   { path: '/crm/pipeline', label: 'Kanban', perms: ['lead.view'], group: CRM },
   { path: '/crm/customers', label: 'Danh sách khách', perms: ['lead.view'], group: CRM },

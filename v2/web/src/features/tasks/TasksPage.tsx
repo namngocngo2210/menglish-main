@@ -19,10 +19,21 @@ export function TasksPage({ me }: { me: Me }) {
 type Filters = { q: string; date_from: string; date_to: string; assignee_id: string; status: string }
 const emptyFilters: Filters = { q: '', date_from: '', date_to: '', assignee_id: '', status: '' }
 
+// Tab và trạng thái ban đầu đọc từ URL (vd. Tổng quan mở /tasks?tab=assigned&status=overdue như route Laravel).
+function initialList() {
+  const q = new URLSearchParams(window.location.search)
+  const status = q.get('status') ?? ''
+  return {
+    tab: q.get('tab') === 'assigned' ? ('assigned' as const) : ('mine' as const),
+    filters: { ...emptyFilters, status: STATUS_OPTIONS.some((o) => o.value === status) ? status : '' },
+  }
+}
+
 function TaskListPage({ me }: { me: Me }) {
-  const [tab, setTab] = useState<'mine' | 'assigned'>('mine')
-  const [draft, setDraft] = useState<Filters>(emptyFilters)
-  const [filters, setFilters] = useState<Filters>(emptyFilters)
+  const [initial] = useState(initialList)
+  const [tab, setTab] = useState<'mine' | 'assigned'>(initial.tab)
+  const [draft, setDraft] = useState<Filters>(initial.filters)
+  const [filters, setFilters] = useState<Filters>(initial.filters)
   const [page, setPage] = useState(1)
   const [notice, setNotice] = useState(flash.take)
   const [detail, setDetail] = useState<string | null>(null)

@@ -25,6 +25,9 @@ import { PipelinePage } from './features/crm/PipelinePage'
 import { PromotionsPage } from './features/crm/PromotionsPage'
 import { ReportsPage as CrmReportsPage } from './features/crm/ReportsPage'
 import { ConfirmationsPage, TransfersPage } from './features/crm/WorkflowPages'
+import { AcademicPage } from './features/dashboard/AcademicPage'
+import { DashboardPage } from './features/dashboard/DashboardPage'
+import { seesDashboard } from './features/dashboard/logic'
 import { AccountPage } from './pages/AccountPage'
 import { BranchesPage } from './pages/admin/BranchesPage'
 import { RolesPage } from './pages/admin/RolesPage'
@@ -43,7 +46,10 @@ import { TicketEmailsPage } from './features/catalogs/TicketEmailsPage'
 // Trang theo đường dẫn mục menu (NAV trong nav.ts). Trang con (vd. /students/<id>) dùng chung mục cha và tự đọc
 // phần còn lại của đường dẫn bằng usePath(). Module mới: thêm mục vào NAV và một dòng ở đây.
 export const PAGES: Record<string, (me: Me) => ReactNode> = {
-  '/': (me) => <AccountPage me={me} />,
+  '/': (me) => (seesDashboard(me) ? <DashboardPage me={me} /> : <AccountPage me={me} />),
+  '/dashboard': (me) => (seesDashboard(me) ? <DashboardPage me={me} /> : <AccountPage me={me} />),
+  '/profile': (me) => <AccountPage me={me} />,
+  '/academic/dashboards': () => <AcademicPage />,
   '/users': (me) => <UsersPage me={me} />,
   '/roles': (me) => <RolesPage me={me} />,
   '/branches': (me) => <BranchesPage me={me} />,
