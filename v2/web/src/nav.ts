@@ -122,6 +122,18 @@ export const NAV: NavItem[] = [
   // URL cũ academic.reports / academic.incidents của Laravel.
   { path: '/academic/reports', label: 'Báo cáo & sự vụ lớp', perms: ['class.update'], group: 'Đào tạo & Chất lượng lớp', hidden: true },
   { path: '/academic/incidents', label: 'Báo cáo & sự vụ lớp', perms: ['class.update'], group: 'Đào tạo & Chất lượng lớp', hidden: true },
+  // Chất lượng lớp (ObservationController, ClassChecklistController, TeacherMeetingReportController) — features/quality.
+  { path: '/class-quality/operations', label: 'Dự giờ vận hành', perms: ['class_quality.view'], group: 'Đào tạo & Chất lượng lớp' },
+  { path: '/class-quality/academic', label: 'Đánh giá dự giờ', perms: ['class_quality.view'], group: 'Đào tạo & Chất lượng lớp' },
+  { path: '/class-quality/checklist', label: 'Checklist học phí & feedback', perms: ['class_quality.view'], group: 'Đào tạo & Chất lượng lớp' },
+  { path: '/class-quality/teacher-meetings', label: 'Họp giáo viên', perms: ['class_quality.view'], group: 'Đào tạo & Chất lượng lớp' },
+  { path: '/academic-projects/report', label: 'Dự án học thuật', perms: ['academic_project.view_all'], group: 'Đào tạo & Chất lượng lớp' },
+  // URL cũ classes.qa-observation / checklist / evaluate-observation của Laravel → chuyển sang màn Chất lượng lớp.
+  { path: '/classes/qa-observation', label: 'Dự giờ vận hành', perms: ['class_quality.view'], group: 'Đào tạo & Chất lượng lớp', hidden: true },
+  { path: '/classes/checklist', label: 'Checklist học phí & feedback', perms: ['class_quality.view'], group: 'Đào tạo & Chất lượng lớp', hidden: true },
+  { path: '/classes/evaluate-observation', label: 'Đánh giá dự giờ', perms: ['class_quality.view'], group: 'Đào tạo & Chất lượng lớp', hidden: true },
+  // Dự án học thuật (AcademicProjectController); chi tiết /academic-projects/<id> do ProjectsPage tự đọc đường dẫn.
+  { path: '/academic-projects', label: 'Dự án soạn sách & chương trình', perms: ['academic_project.view'], group: 'Giáo trình' },
   // Khách hàng (CRM) — features/crm. Danh sách phụ (chốt, thất bại, chờ xếp lớp, đã xóa, duyệt chuyển cơ sở) mở từ chip.
   { path: '/crm/pipeline', label: 'Kanban', perms: ['lead.view'], group: CRM },
   { path: '/crm/customers', label: 'Danh sách khách', perms: ['lead.view'], group: CRM },

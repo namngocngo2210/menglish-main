@@ -23,7 +23,7 @@ Ký hiệu: **Đã làm** = đủ hành vi như Laravel; **Làm một phần** =
 | `classes.show` GET /classes/{id}?tab= | GET /classes/{id}?tab= · màn `/classes/{id}` | Làm một phần | Thanh bước vòng đời, việc tiếp theo, sĩ số, tiến độ, buổi kế tiếp. Tab Tổng quan (GVNN 7 ngày tới), Học viên (lớp chính + liên kết), Lịch & buổi học, Điểm danh & báo cáo buổi (trạng thái điểm danh từng buổi). Trợ giảng 7 ngày tới và trợ giảng của từng buổi = người được giao việc gắn lớp (`ops.work_tasks`, như Laravel). Chưa có: báo cáo buổi, tab Học thuật (Big Test, giáo trình) — TODO(academic); tab Sự vụ — TODO(incidents). |
 | `classes.trial-booking` GET | — | Chưa làm | Lịch học thử thuộc CRM: TODO(crm). |
 | `classes.profile`, `academic-overview`, `academic-list`, `academic-detail` | — | Chưa làm | Ở Laravel chỉ là chuyển hướng sang `classes.index` / `classes.show`; v2 dùng thẳng `/classes`, `/classes/{id}?tab=academic`. |
-| `classes.qa-observation`, `checklist`, `evaluate-observation` | — | Chưa làm | Chuyển hướng sang phân hệ Dự giờ & chất lượng lớp (chưa có ở v2). |
+| `classes.qa-observation`, `checklist`, `evaluate-observation` | NAV ẩn `/classes/qa-observation`, `/classes/checklist`, `/classes/evaluate-observation` | Đã làm | Chuyển sang màn Chất lượng lớp (xem [chat-luong-lop.md](chat-luong-lop.md)). |
 
 ## Lịch & TKB lớp (`WorkTaskController::scheduleConfig`, `SessionScheduleService`)
 

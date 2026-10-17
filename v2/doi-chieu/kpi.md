@@ -50,7 +50,7 @@ Trạng thái: **Đã làm** · **Khác** (đã làm, có khác biệt có chủ
 | `staff_late` | — | Chưa làm | Chờ Chấm công. Điền tay. |
 | `test_result`, `test_progress`, `student_pass_rate` | — | Chưa làm | Chờ Big Test / mini test. Điền tay (tỉ lệ %). |
 | `homework_rate` | — | Chưa làm | Chờ phân hệ Bài tập. Điền tay. |
-| `academic_deliverable_on_time` | — | Chưa làm | Chờ Dự án học thuật. Điền tay. |
+| `academic_deliverable_on_time` | `projects.Service.KpiSources()` | Đã làm | Mốc dự án học thuật đến hạn trong kỳ, hệ số trễ theo ngày như `deliverableRows` (xem [chat-luong-lop.md](chat-luong-lop.md)). |
 | `WeeklyReportMetrics::kpiGroups` (bảng KPI báo cáo tuần, mã KPI nhật ký) | `kpi.ReportMetrics` bọc `reports.MetricsProvider` (`KpiCriteria`, `KpiEvidence`) | Đã làm | Mục đếm số lần có nguồn ở v2 là "tự động" (đếm cùng cách phiếu KPI); còn lại báo cáo tuần đếm sự vụ nhật ký theo mã. |
 | Nhật ký Học vụ gắn mã KPI → gợi ý số lần trên phiếu | `kpi.Journal` = `reports.Service.KpiJournal` | Đã làm | |
 | `PayrollFormulaService` / `PayrollController::kpiLeaderboard` đọc phiếu KPI | — | Chưa làm | Thuộc phân hệ Lương. |
