@@ -86,7 +86,7 @@ Trạng thái: **Đã làm** · **Khác** (đã làm, khác có chủ đích, xe
 |---|---|---|---|
 | Chọn tháng (tháng này + 6 tháng trước), tháng sai → tháng này | `pickMonth`, `monthOptions` | Đã làm | Tháng giữ trên URL (`?month=`). |
 | Giáo viên / trợ giảng: lớp đang giữ, học sinh, HS mới / nghỉ, chuyên cần theo lớp (biểu đồ thanh) | `Classes.TeachingOf`, `ClassStats` | Đã làm | Trung bình có trọng số theo số học sinh như `totals()`. |
-| Bài về nhà, điểm trung bình mini test | — | Chưa làm | "Chờ cổng Giáo viên (bài tập, mini test)": cột hiện "—". |
+| Bài về nhà, điểm trung bình mini test | `teacher.Service.Dashboard` (`Deps.Homework`) | Đã làm | Xem `cong-giao-vien.md`. |
 | Ngày công, đi muộn, nghỉ phép, vi phạm (`workStats`) | `StaffWork` (mặc định không có) | Chưa làm | "Chờ phân hệ Chấm công & KPI"; `TODO(gộp)` nối `internal/kpi`. |
 | Người theo dõi giáo viên (`kpi.view`, bảng điều hành, Học thuật): biểu đồ + bảng theo giáo viên chính | `Classes.TeamClasses`, `teamRows` | Làm một phần | Cột chấm công chờ phân hệ như trên. |
 | Học thuật / Admin / Quản lý: báo cáo tháng của giáo viên (đã nộp / chưa nộp, số lớp cần hỗ trợ, xem chi tiết) | `Reports.TeacherMonthly`, `teacher_reports` | Đã làm | Hộp thoại chi tiết: tiến độ, khó khăn, đề xuất, ghi chú từng lớp. |
