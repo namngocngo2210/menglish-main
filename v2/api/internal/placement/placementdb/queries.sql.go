@@ -1428,6 +1428,53 @@ func (q *Queries) SaveTrialFeedback(ctx context.Context, arg SaveTrialFeedbackPa
 	return i, err
 }
 
+const sessionTrialBookings = `-- name: SessionTrialBookings :many
+SELECT id, lead_id, class_id, class_session_id, branch_id, session_date, start_time, end_time, status, notes, rating, remarks, feedback, feedback_by, feedback_at, booked_by, created_at, updated_at, version FROM crm.trial_bookings b
+WHERE b.status <> 'cancelled' AND b.class_session_id = ANY($1::uuid[])
+ORDER BY b.session_date, b.start_time, b.id
+`
+
+// Khách học thử (chưa hủy) của các buổi: số khách trên ca dạy và khối "Khách học thử buổi này" của Cổng giáo viên.
+func (q *Queries) SessionTrialBookings(ctx context.Context, sessionIds []uuid.UUID) ([]CrmTrialBooking, error) {
+	rows, err := q.db.Query(ctx, sessionTrialBookings, sessionIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CrmTrialBooking
+	for rows.Next() {
+		var i CrmTrialBooking
+		if err := rows.Scan(
+			&i.ID,
+			&i.LeadID,
+			&i.ClassID,
+			&i.ClassSessionID,
+			&i.BranchID,
+			&i.SessionDate,
+			&i.StartTime,
+			&i.EndTime,
+			&i.Status,
+			&i.Notes,
+			&i.Rating,
+			&i.Remarks,
+			&i.Feedback,
+			&i.FeedbackBy,
+			&i.FeedbackAt,
+			&i.BookedBy,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setTestActive = `-- name: SetTestActive :one
 UPDATE placement.tests SET is_active = $1, updated_at = now(), version = version + 1
 WHERE id = $2 AND deleted_at IS NULL

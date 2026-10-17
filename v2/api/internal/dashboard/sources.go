@@ -277,6 +277,17 @@ type StaffWork interface {
 	Stats(ctx context.Context, ids []uuid.UUID, from, to time.Time) (stats map[uuid.UUID]WorkStats, ok bool, err error)
 }
 
+// ClassHomework: tỷ lệ làm bài về nhà + điểm mini test trung bình (thang 10) theo lớp trong tháng (cổng Giáo viên).
+type ClassHomework interface {
+	ClassQuality(ctx context.Context, classIDs []uuid.UUID, from, to time.Time) (map[uuid.UUID]ClassQuality, error)
+}
+
+// ClassQuality: nil = lớp không giao bài / không có điểm trong tháng.
+type ClassQuality struct {
+	Homework *float64
+	Score    *float64
+}
+
 type noStaffWork struct{}
 
 func (noStaffWork) Stats(context.Context, []uuid.UUID, time.Time, time.Time) (map[uuid.UUID]WorkStats, bool, error) {

@@ -129,6 +129,82 @@ type AcademicEnrollment struct {
 	UpdatedAt           time.Time
 }
 
+type AcademicHomework struct {
+	ID          uuid.UUID
+	ClassID     uuid.UUID
+	SessionID   *uuid.UUID
+	TeacherID   *uuid.UUID
+	Title       string
+	Description *string
+	ClassNote   *string
+	YoutubeUrl  *string
+	QuizizzUrl  *string
+	AudioFileID *uuid.UUID
+	Items       []byte
+	DueDate     pgtype.Date
+	DueAt       *time.Time
+	CreatedBy   *uuid.UUID
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	DeletedAt   *time.Time
+}
+
+type AcademicHomeworkSubmission struct {
+	ID               uuid.UUID
+	StudentID        uuid.UUID
+	HomeworkID       *uuid.UUID
+	HomeworkType     string
+	Notes            *string
+	AttachmentFileID *uuid.UUID
+	AttachmentName   *string
+	Status           string
+	Score            *string
+	Feedback         *string
+	ReviewedBy       *uuid.UUID
+	ReviewedAt       *time.Time
+	SubmittedBy      *uuid.UUID
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
+type AcademicMiniTestScore struct {
+	ID             uuid.UUID
+	ClassID        uuid.UUID
+	StudentID      uuid.UUID
+	TeacherID      *uuid.UUID
+	SyllabusUnitID *uuid.UUID
+	Name           string
+	Score          *float64
+	MaxScore       pgtype.Numeric
+	SkillScores    []byte
+	TestDate       time.Time
+	Note           *string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+type AcademicRemark struct {
+	SheetID       uuid.UUID
+	StudentID     uuid.UUID
+	MonstersGroup *string
+	MonstersBonus *string
+	Grammar       *string
+	Attitude      *string
+	Result        *string
+	Comment       *string
+}
+
+type AcademicRemarkSheet struct {
+	ID        uuid.UUID
+	SessionID uuid.UUID
+	ClassID   uuid.UUID
+	Status    string
+	CreatedBy *uuid.UUID
+	UpdatedBy *uuid.UUID
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
 type AcademicStudent struct {
 	ID             uuid.UUID
 	Code           string
