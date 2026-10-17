@@ -234,6 +234,32 @@ export const NAV: NavItem[] = [
     perms: ['work_task.view'],
     menu: (me) => isAdmin(me) && can(me, 'work_task.create'),
   },
+  // Chấm công (MyAttendanceController, StaffAttendanceController, phần chấm công của PayrollController) — features/attendance.
+  { path: '/cham-cong', label: 'Chấm công của tôi', perms: ['portal.staff'], group: 'Chấm công' },
+  { path: '/cham-cong/lich-su', label: 'Lịch sử công của tôi', perms: ['portal.staff'], group: 'Chấm công' },
+  { path: '/staff-attendance', label: 'Chấm công hằng ngày', perms: ['staff_checkin.view'], group: 'Chấm công' },
+  {
+    path: '/payroll/timesheets/teachers',
+    label: 'Giờ dạy giáo viên',
+    perms: ['attendance_staff.view', 'payroll.view_own'],
+    group: 'Chấm công',
+    menu: (me) => can(me, 'attendance_staff.view', 'portal.teacher', 'portal.assistant'),
+  },
+  { path: '/payroll/timesheets/manual', label: 'Chấm công đơn lẻ', perms: ['attendance_staff.manual_record'], group: 'Chấm công' },
+  { path: '/payroll/timesheets/appsheet', label: 'AppSheet', perms: ['attendance_staff.view'], group: 'Chấm công' },
+  { path: '/payroll/timesheets/sync-history', label: 'Lịch sử đồng bộ', perms: ['attendance_staff.sync'], group: 'Chấm công' },
+  { path: '/cham-cong/don', label: 'Đơn chấm công & nghỉ', perms: ['portal.staff'], group: 'Xin duyệt' },
+  // Laravel duyệt đơn trong hộp "Cần duyệt" chung (approvals.index); v2 tạm có trang riêng, chỉ Admin thấy trên menu.
+  // TODO(gộp): chuyển vào hộp duyệt chung khi có.
+  {
+    path: '/approvals/staff-attendance',
+    label: 'Đơn chấm công & nghỉ',
+    perms: ['staff_checkin.approve'],
+    group: 'Cần duyệt',
+    menu: isAdmin,
+  },
+  // URL giao diện điện thoại cũ /m (Laravel chuyển hướng sang trang tương ứng).
+  { path: '/m', label: 'Chấm công của tôi', hidden: true },
 ]
 
 // Workspace của sidebar theo đúng thứ tự SidebarMenu::definition(): khu (section) → workspace (label, icon).

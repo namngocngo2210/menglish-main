@@ -30,6 +30,7 @@ Số dòng theo trạng thái tính tới lần gộp cuối của PR #152.
 | Học phí (hồ sơ, phiếu thu, công nợ, hoàn phí, hủy hóa đơn, SePay, nhập Excel) | [hoc-phi.md](hoc-phi.md) | 31 | 11 | 0 | 3 | Thu hồi hoa hồng (chờ Lương), nguồn KPI tự đếm, nhập dữ liệu học phí cũ |
 | Cổng Phụ huynh & Học sinh (trang chủ, học phí, nộp bài, phát âm, hộp thư, khảo sát, góp ý, App Shell) | [cong-hoc-vien.md](cong-hoc-vien.md) | 9 | 8 | 6 | 0 | Bài tập / bài nộp / nhận xét (chờ Cổng giáo viên), khảo sát (chờ Khảo sát), Big Test & chặng học (chờ Giáo trình), buổi phụ đạo |
 | Cổng giáo viên (check-in, bài tập, mini test, nhận xét, chấm bài, báo cáo giảng dạy) | [cong-giao-vien.md](cong-giao-vien.md) | 11 | 2 | 5 | 2 | Ghi công check-in / giờ dạy / lương (chờ Lương & chấm công), unit giáo trình, order test & Big Test, tab Phát âm (chờ cổng học viên) |
+| Chấm công (của tôi, đơn & duyệt, hằng ngày, giờ dạy giáo viên, chấm tay, đồng bộ) | [cham-cong.md](cham-cong.md) | 21 | 4 | 4 | 4 | Biên bản đi muộn & khóa kỳ lương (chờ Lương & Phạt), hộp duyệt chung, check-in cổng giáo viên, nhập dữ liệu cũ |
 
 ## Phần dùng chung chưa có ở v2
 
