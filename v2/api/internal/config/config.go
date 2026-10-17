@@ -22,6 +22,20 @@ type Config struct {
 	// MAIL_BLOCK_OUTGOING: chặn mọi email gửi ra ngoài, kể cả SMTP lưu trong DB. Mặc định bật khi không phải
 	// production (beta / staging chạy trên bản sao dữ liệu thật: email phụ huynh, nhân sự).
 	MailBlockOutgoing bool
+	Files             Files
+}
+
+// Files: kho file người dùng tải lên (internal/platform/filestore). Mặc định driver local ghi vào FILES_DIR.
+type Files struct {
+	Driver      string        // FILES_DRIVER: local (mặc định) | s3 (Cloudflare R2 / MinIO)
+	Dir         string        // FILES_DIR: thư mục của driver local (mặc định ./data/files)
+	URLTTL      time.Duration // FILES_URL_TTL: hạn URL tải file ký sẵn (mặc định 5m)
+	S3Endpoint  string        // FILES_S3_ENDPOINT: vd. <account>.r2.cloudflarestorage.com, localhost:9000
+	S3Bucket    string        // FILES_S3_BUCKET
+	S3AccessKey string        // FILES_S3_ACCESS_KEY
+	S3SecretKey string        // FILES_S3_SECRET_KEY
+	S3Region    string        // FILES_S3_REGION (R2: auto)
+	S3UseSSL    bool          // FILES_S3_USE_SSL (mặc định true; MinIO dev: false)
 }
 
 func Load() (Config, error) {
@@ -42,6 +56,19 @@ func Load() (Config, error) {
 		return c, fmt.Errorf("MAIL_BLOCK_OUTGOING: %w", err)
 	}
 	c.MailBlockOutgoing = block
+	c.Files = Files{
+		Driver: get("FILES_DRIVER", "local"), Dir: get("FILES_DIR", "data/files"), URLTTL: 5 * time.Minute,
+		S3Endpoint: os.Getenv("FILES_S3_ENDPOINT"), S3Bucket: os.Getenv("FILES_S3_BUCKET"),
+		S3AccessKey: os.Getenv("FILES_S3_ACCESS_KEY"), S3SecretKey: os.Getenv("FILES_S3_SECRET_KEY"),
+		S3Region: get("FILES_S3_REGION", "auto"), S3UseSSL: get("FILES_S3_USE_SSL", "true") != "false",
+	}
+	if v := os.Getenv("FILES_URL_TTL"); v != "" {
+		d, err := time.ParseDuration(v)
+		if err != nil || d < 30*time.Second || d > 24*time.Hour {
+			return c, fmt.Errorf("FILES_URL_TTL không hợp lệ (30s … 24h): %q", v)
+		}
+		c.Files.URLTTL = d
+	}
 	if c.DatabaseURL == "" {
 		return c, fmt.Errorf("thiếu DATABASE_URL")
 	}

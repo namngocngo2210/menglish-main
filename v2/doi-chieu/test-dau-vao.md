@@ -40,13 +40,13 @@ trang Vue `PlacementTests/*`, `PlacementTests/Portal/*`, `TrialGuests/Index`, `C
 |---|---|---|---|
 | `placement-tests.index` — `index` | `GET /placement-tests`, `GET /placement-submissions`; màn `/placement-tests` | Đã làm | Có lọc tên/mã, cấp độ, trạng thái; thẻ số liệu; phân trang; bảng bài làm gần đây (50 bài, theo phạm vi khách). Nút "Mở link làm bài theo mã" thay bằng "Phát hành" / "Tạo link". |
 | `placement-tests.toggle-active` — `toggleActive` | `POST /placement-tests/{id}/toggle-active` | Đã làm | |
-| `placement-tests.create` — `create` | `GET /placement-tests/options`; màn `/placement-tests/new` | Làm một phần | Chỉ có cách "Soạn từng câu". Chưa có cách "Tải đề PDF" vì v2 chưa có kho file. Mã đề gợi ý theo khối như Laravel. |
+| `placement-tests.create` — `create` | `GET /placement-tests/options`; màn `/placement-tests/new` | Đã làm | Hai cách "Soạn từng câu" và "Tải đề PDF" (`PdfSheetEditor.tsx`). Mã đề gợi ý theo khối như Laravel. |
 | `placement-tests.store` — `storeTest` | `POST /placement-tests` | Đã làm | Kiểm tra và thông báo lỗi giống Laravel, gồm cả quy tắc mã đề phải chứa khối (G3-G4…). "Lưu nháp" thì đề ở trạng thái ẩn. |
-| `placement-tests.media.store` — `uploadMedia` | — | Chưa làm | Chưa có kho file. Form soạn đề nhận URL file nghe / ảnh để dán vào. |
-| `placement-tests.pdf.store` — `uploadPdf` | — | Chưa làm | Chưa có kho file. Đề PDF cũ nhập từ Laravel vẫn làm bài được bằng phiếu trả lời. File đề mở qua `/storage/<pdf_path>`, nên cần phục vụ thư mục file cũ. |
-| `placement-tests.pdf.answers` — `parseAnswers` (`PlacementPdfAnswerSheet`) | — | Chưa làm | Đi kèm phần tải PDF. |
-| `placement-tests.show` — `showTest` | `GET /placement-tests/{id}`, `GET /placement-tests/{id}/invitations`; màn `/placement-tests/<id>` | Đã làm | Có thêm bảng link mời (hạn, số lượt nộp, thu hồi). Đề PDF chỉ hiện link mở file, chưa có trình xem PDF nhúng. |
-| `placement-tests.edit` / `update` — `editTest` / `updateTest` | `PUT /placement-tests/{id}`; màn `/placement-tests/<id>/edit` | Đã làm | Đề mẫu bị khóa sửa (409). Đề PDF cũ sửa được phiếu trả lời và đáp án, nhưng chưa thay được file PDF mới. |
+| `placement-tests.media.store` — `uploadMedia` | `POST /placement-tests/media`; nút "Tải file nghe" / "Tải ảnh lên" ở form soạn câu | Đã làm | Kho file riêng tư (`doi-chieu/kho-file.md`): URL dạng `/api/v1/files/<id>`, thí sinh nhận link ký sẵn khi mở link làm bài. Ảnh phương án chưa có ô tải. |
+| `placement-tests.pdf.store` — `uploadPdf` | `POST /placement-tests/pdf` (cả `answers_only`) | Đã làm | Đọc chữ PDF bằng `ledongthuc/pdf` (tối đa 60 trang, 20 giây). Đề PDF cũ nhập từ Laravel vẫn mở qua `/storage/<pdf_path>` cho tới khi nhập file cũ vào kho. |
+| `placement-tests.pdf.answers` — `parseAnswers` (`PlacementPdfAnswerSheet`) | `POST /placement-tests/pdf/answers`; `placement/pdfsheet.go` | Đã làm | Regex chép sang Go, test lấy từ `PlacementPdfTestTest.php`. |
+| `placement-tests.show` — `showTest` | `GET /placement-tests/{id}`, `GET /placement-tests/{id}/invitations`; màn `/placement-tests/<id>` | Đã làm | Có thêm bảng link mời (hạn, số lượt nộp, thu hồi). Đề PDF hiện link mở file (`pdf_url`, kiểm quyền), chưa có trình xem PDF nhúng ở màn này (màn soạn đề có). |
+| `placement-tests.edit` / `update` — `editTest` / `updateTest` | `PUT /placement-tests/{id}`; màn `/placement-tests/<id>/edit` | Đã làm | Đề mẫu bị khóa sửa (409). Đề PDF đổi / bỏ được file; file mới còn trang đáp án thì không cho lưu (như Laravel). |
 | `placement-tests.duplicate` — `duplicateTest` | `POST /placement-tests/{id}/duplicate` | Đã làm | Mã mới dạng `TEST-CUSTOM-XXXXX`, giống Laravel. |
 | `placement-tests.destroy` — `destroyTest` | `DELETE /placement-tests/{id}` | Đã làm | Xóa mềm. Không xóa được đề mẫu hoặc đề đã có bài làm (409). |
 | `placement-tests.distribute` — `distributeTest` | `POST /placement-tests/{id}/distribute` | Làm một phần | Kích hoạt đề và tạo link chung (giao diện tự sao chép link). Người phát hành nhận thông báo kèm link làm bài như `notifyUser`. |
@@ -93,7 +93,9 @@ trang Vue `PlacementTests/*`, `PlacementTests/Portal/*`, `TrialGuests/Index`, `C
   FK `crm.trial_bookings.class_id` / `class_session_id`, `placement.submissions.student_id`: `00110_academic_links_fk`
   (xóa buổi xóa luôn lịch hẹn như Laravel). Nghỉ lễ hủy buổi thì phân hệ Lớp học hủy lịch hẹn học thử của buổi đó;
   xếp lại TKB không xóa buổi đã có khách hẹn. Màn đặt học thử vẫn cần danh sách buổi trống (TrialSlotFinder).
-- **Kho file**: tải đề PDF, file nghe, ảnh câu hỏi; phân tích đáp án từ PDF.
+- **Kho file**: đã nối — `placement.Options{Files: fileSvc}` (`internal/files`). Loại file `placement_media` (file nghe /
+  ảnh) và `placement_pdf` (đề PDF, gắn `subject_id` = id đề khi lưu); người có quyền xem / soạn / chấm đề mở được.
+  Chưa nhập file cũ của Laravel (cách ánh xạ trong `doi-chieu/kho-file.md`).
 - **Thông báo / email**: đã gửi (xem bảng trên), kể cả xác nhận lịch học thử cho khách. Màn CRM khi có nút đặt học thử
   thì hiện `confirmation` trả về từ `POST /trial-bookings` (nội dung sao chép gửi Zalo).
 - `internal/iam/iamdb/models.go` được sqlc sinh lại vì có thêm migration. Khi gộp nhiều nhánh thì chạy lại `sqlc generate`.

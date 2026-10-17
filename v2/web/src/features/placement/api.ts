@@ -1,5 +1,5 @@
 // API module Test đầu vào & học thử (v2/api/internal/placement).
-import { request } from '../../api'
+import { request, upload } from '../../api'
 
 export type Opt = { value: string; label: string }
 export type Skill = 'listening' | 'reading_writing' | 'speaking'
@@ -87,6 +87,8 @@ export type TestDetail = {
   questions_count: number
   questions: Question[]
   pdf_path: string
+  // Link mở file đề cho người soạn / chấm (kho file mới: /api/v1/files/<id>; đề cũ: /storage/...)
+  pdf_url: string
   audio_url: string
   is_active: boolean
   is_preset: boolean
@@ -101,8 +103,9 @@ export type TestInput = {
   grade_level: string | null
   duration_minutes: number | null
   questions: Question[]
-  // Không gửi mode: giữ đề PDF cũ (nhập từ Laravel); 'manual' = đề soạn từng câu
-  mode?: 'manual'
+  // manual = đề soạn từng câu; pdf = đề PDF (pdf_path là file tải lên qua /placement-tests/pdf)
+  mode?: 'manual' | 'pdf'
+  pdf_path?: string | null
   audio_url: string | null
   save_mode?: 'draft' | 'publish'
   is_active?: boolean
@@ -117,6 +120,26 @@ export type FormOptions = {
   max_violations: number
 }
 export type WithMessage<T> = { data: T; message: string }
+
+// Tải file cho đề (placement-tests.media.store / pdf.store / pdf.answers).
+export type MediaFile = { id: string; url: string; path: string; name: string }
+export type KeyEntry = { number: number; answer: string }
+export type PdfUpload = {
+  file_id: string
+  pdf_path: string
+  pdf_url: string
+  // Trang còn phần đáp án (phải đổi file trước khi lưu đề)
+  answer_key_page: number | null
+  questions: Question[]
+  answers_found: number
+  warnings: string[]
+}
+const fileForm = (file: File, fields: Record<string, string> = {}) => {
+  const f = new FormData()
+  for (const [k, v] of Object.entries(fields)) f.append(k, v)
+  f.append('file', file)
+  return f
+}
 
 export type InvitationStatus = 'active' | 'expired' | 'revoked' | 'used_up'
 export type Invitation = {
@@ -354,6 +377,10 @@ export const placementApi = {
   duplicateTest: (id: string) => request<WithMessage<TestDetail>>('POST', `/placement-tests/${id}/duplicate`),
   toggleTest: (id: string) => request<WithMessage<TestDetail>>('POST', `/placement-tests/${id}/toggle-active`),
   deleteTest: (id: string) => request<WithMessage<null>>('DELETE', `/placement-tests/${id}`),
+  uploadMedia: (kind: 'audio' | 'image', file: File) => upload<MediaFile>('/placement-tests/media', fileForm(file, { kind })),
+  uploadPdf: (file: File) => upload<PdfUpload>('/placement-tests/pdf', fileForm(file)),
+  readAnswerKey: (file: File) => upload<{ answers: KeyEntry[] }>('/placement-tests/pdf', fileForm(file, { answers_only: '1' })),
+  parseAnswers: (text: string) => request<{ answers: KeyEntry[] }>('POST', '/placement-tests/pdf/answers', { text }),
   distribute: (id: string) => request<WithMessage<IssuedInvitation>>('POST', `/placement-tests/${id}/distribute`),
   invitations: (id: string) => request<{ invitations: Invitation[] }>('GET', `/placement-tests/${id}/invitations`),
   createInvitation: (id: string, inv: InvitationInput) =>

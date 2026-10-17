@@ -14,6 +14,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/filestore"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/httpx"
 )
 
@@ -50,6 +51,10 @@ func (h *Handler) Routes(r chi.Router) {
 		r.With(iam.RequireAny("placement_test.view", "placement_test.create", "placement_test.update")).Get("/options", h.options)
 		r.With(iam.RequireAny("placement_test.view", "placement_test.grade", "entrance_test.grade")).Get("/rubric", h.rubric)
 		r.With(iam.Require("placement_test.create")).Post("/", h.createTest)
+		// Tải file nghe / ảnh, file đề PDF, dán nhanh đáp án (placement-tests.media.store / pdf.store / pdf.answers)
+		r.With(iam.RequireAny("placement_test.create", "placement_test.update")).Post("/media", h.uploadMedia)
+		r.With(iam.RequireAny("placement_test.create", "placement_test.update")).Post("/pdf", h.uploadPdf)
+		r.With(iam.RequireAny("placement_test.create", "placement_test.update")).Post("/pdf/answers", h.parseAnswers)
 		r.With(iam.Require("placement_test.view")).Get("/{id}", h.getTest)
 		r.With(iam.Require("placement_test.update")).Put("/{id}", h.updateTest)
 		r.With(iam.Require("placement_test.create")).Post("/{id}/duplicate", h.duplicateTest)
@@ -472,4 +477,81 @@ func (h *Handler) publicSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.JSON(w, http.StatusCreated, out)
+}
+
+// uploadErr: lỗi kiểm file (dung lượng, loại) → 422 với thông báo tiếng Việt.
+func uploadErr(err error) error {
+	var ve *filestore.ValidationError
+	if errors.As(err, &ve) {
+		return errInvalid(ve.Message)
+	}
+	return err
+}
+
+// uploadMedia: multipart kind=audio|image + file → {url, path}.
+func (h *Handler) uploadMedia(w http.ResponseWriter, r *http.Request) {
+	form, err := filestore.ReadMultipart(w, r, AudioPolicy.MaxBytes, mediaTooLarge)
+	if err != nil {
+		h.fail(w, r, uploadErr(err))
+		return
+	}
+	defer form.Close()
+	kind := form.Value("kind")
+	policy, ok := map[string]filestore.Policy{"audio": AudioPolicy, "image": ImagePolicy}[kind]
+	if !ok {
+		h.fail(w, r, errInvalid("Loại file đã chọn không hợp lệ."))
+		return
+	}
+	up := form.File("file")
+	if err := up.Check(policy); err != nil {
+		h.fail(w, r, uploadErr(err))
+		return
+	}
+	m, err := h.svc.UploadMedia(r.Context(), iam.AccessFrom(r.Context()), kind, up)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, m)
+}
+
+// uploadPdf: multipart file (+ answers_only=1: chỉ đọc đáp án, không lưu file).
+func (h *Handler) uploadPdf(w http.ResponseWriter, r *http.Request) {
+	form, err := filestore.ReadMultipart(w, r, PdfPolicy.MaxBytes, PdfPolicy.TooLarge)
+	if err != nil {
+		h.fail(w, r, uploadErr(err))
+		return
+	}
+	defer form.Close()
+	up := form.File("file")
+	if err := up.Check(PdfPolicy); err != nil {
+		h.fail(w, r, uploadErr(err))
+		return
+	}
+	if v := form.Value("answers_only"); v == "1" || v == "true" || v == "on" {
+		httpx.JSON(w, http.StatusOK, map[string]any{"answers": h.svc.ReadAnswerKeyPdf(r.Context(), up)})
+		return
+	}
+	res, err := h.svc.UploadPdf(r.Context(), iam.AccessFrom(r.Context()), up)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, res)
+}
+
+// parseAnswers: {text} → {answers: [{number, answer}]}.
+func (h *Handler) parseAnswers(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Text string `json:"text"`
+	}
+	if !decode(w, r, 128<<10, &in) {
+		return
+	}
+	answers, err := ParseAnswers(in.Text)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"answers": answers})
 }

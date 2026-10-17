@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type ChangeEvent, type ReactNode } from 'react'
 import { api, errorMessage, type StaffProfile, type StaffProfileInput } from '../../api'
-import { Alert, Badge, Button, Checkbox, Field } from '../../components/ui'
+import { FileUpload } from '../../components/FileUpload'
+import { Alert, Badge, Button, Checkbox, Field, Icon } from '../../components/ui'
+import { CONTRACT_RULE, formatBytes } from '../../lib/files'
 
 // Hồ sơ nhân sự trong hộp Tài khoản: tab "Hồ sơ" và "Hợp đồng & Lương" của Laravel (Users/Show + UserFields.vue).
 // CCCD, quê quán, nơi ở, liên lạc khẩn cấp, lương cơ bản, thù lao giờ chỉ người xem được mọi phiếu lương thấy / sửa.
@@ -72,8 +74,47 @@ export function StaffProfilePanel({ userId, canEdit }: { userId: string; canEdit
         <dd>{p.can_view_sensitive ? money(p.base_salary) : hidden}</dd>
         <dt className="text-on-surface-variant">Thù lao theo giờ</dt>
         <dd>{p.can_view_sensitive ? money(p.hourly_rate) : hidden}</dd>
+        <dt className="text-on-surface-variant">File hợp đồng</dt>
+        <dd>
+          <ContractFileField userId={userId} profile={p} canEdit={canEdit} />
+        </dd>
       </dl>
     </section>
+  )
+}
+
+// File hợp đồng lao động (UserController::storeContractFile / downloadContract): link tải qua /api/v1/files/<id>
+// (máy chủ kiểm quyền rồi chuyển sang link có hạn 5 phút), nút tải lên / thay file cho người sửa được hồ sơ.
+function ContractFileField({ userId, profile: p, canEdit }: { userId: string; profile: StaffProfile; canEdit: boolean }) {
+  const qc = useQueryClient()
+  const [done, setDone] = useState('')
+  const f = p.contract_file
+  return (
+    <div className="space-y-2">
+      {f ? (
+        <a href={f.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-medium text-primary hover:underline">
+          <Icon name="description" className="text-[18px]" />
+          <span className="break-all">{f.name}</span>
+          <span className="text-xs font-normal text-on-surface-variant">({formatBytes(f.size)})</span>
+        </a>
+      ) : (
+        <span className="text-on-surface-variant">Chưa tải lên</span>
+      )}
+      {canEdit && (
+        <FileUpload
+          rule={CONTRACT_RULE}
+          label={f ? 'Thay file hợp đồng' : 'Tải file hợp đồng'}
+          hint="PDF, Word hoặc ảnh (jpg, png, webp), tối đa 10 MB."
+          onUpload={async (file) => {
+            setDone('')
+            const r = await api.uploadContract(userId, file)
+            qc.setQueryData<StaffProfile>(['staff-profile', userId], (old) => (old ? { ...old, contract_file: r.contract_file } : old))
+            setDone(r.message)
+          }}
+        />
+      )}
+      {done && <Alert tone="success">{done}</Alert>}
+    </div>
   )
 }
 

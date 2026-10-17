@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/geo"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/filestore"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/httpx"
 )
 
@@ -43,6 +44,7 @@ func (h *Handler) AdminRoutes(r chi.Router) {
 		r.With(Require("user.update")).Patch("/{id}", h.updateUser)
 		r.With(Require("user.view")).Get("/{id}/profile", h.getStaffProfile)
 		r.With(Require("user.update")).Put("/{id}/profile", h.updateStaffProfile)
+		r.With(Require("user.update")).Post("/{id}/contract", h.uploadContract)
 		r.With(Require("user.assign_role")).Put("/{id}/roles", h.setUserRoles)
 		r.With(Require("user.lock")).Post("/{id}/lock", h.setUserLocked(true))
 		r.With(Require("user.lock")).Post("/{id}/unlock", h.setUserLocked(false))
@@ -384,4 +386,38 @@ func (h *Handler) setUserPermissions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.JSON(w, http.StatusOK, out)
+}
+
+// uploadContract: POST /users/{id}/contract (multipart, trường "file") — tải lên / thay file hợp đồng lao động.
+func (h *Handler) uploadContract(w http.ResponseWriter, r *http.Request) {
+	id, ok := idParam(w, r)
+	if !ok {
+		return
+	}
+	form, err := filestore.ReadMultipart(w, r, ContractPolicy.MaxBytes, ContractPolicy.TooLarge)
+	if err != nil {
+		h.fail(w, r, uploadErr(err))
+		return
+	}
+	defer form.Close()
+	up := form.File("file")
+	if err := up.Check(ContractPolicy); err != nil {
+		h.fail(w, r, uploadErr(err))
+		return
+	}
+	f, err := h.svc.UploadContract(r.Context(), actorOf(r), id, up)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"contract_file": f, "message": "Đã cập nhật file hợp đồng."})
+}
+
+// uploadErr: lỗi kiểm file (dung lượng, loại) → 422 với thông báo tiếng Việt.
+func uploadErr(err error) error {
+	var ve *filestore.ValidationError
+	if errors.As(err, &ve) {
+		return invalid(ve.Message)
+	}
+	return err
 }

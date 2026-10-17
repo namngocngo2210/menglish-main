@@ -234,6 +234,25 @@ type CoreBranch struct {
 	LateGraceMinutes int16
 }
 
+type CoreFile struct {
+	ID           uuid.UUID
+	OwnerModule  string
+	SubjectType  string
+	SubjectID    *uuid.UUID
+	BranchID     *uuid.UUID
+	StorageKey   string
+	OriginalName string
+	Extension    string
+	MimeType     string
+	SizeBytes    int64
+	Sha256       []byte
+	LegacyPath   *string
+	UploadedBy   *uuid.UUID
+	CreatedAt    time.Time
+	DeletedAt    *time.Time
+	DeletedBy    *uuid.UUID
+}
+
 type CoreHoliday struct {
 	ID           uuid.UUID
 	Code         string

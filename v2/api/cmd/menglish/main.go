@@ -22,6 +22,7 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/config"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/crm"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/dashboard"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/files"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/geo"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/inventory"
@@ -29,6 +30,7 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/notify/mail/mailapi"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/notify/notifyapi"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/placement"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/filestore"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/secretbox"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/reports"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/search"
@@ -124,6 +126,13 @@ func runAPI(ctx context.Context) error {
 	// Email: nghiệp vụ xếp thư bằng mail.Enqueue trong transaction; vòng nền gửi qua SMTP lưu ở màn Email nhận Ticket.
 	mailSvc := mail.NewService(d.pool, d.box, log, mail.Options{BlockOutgoing: cfg.MailBlockOutgoing, PublicURL: cfg.PublicURL})
 	go mailSvc.RunLoop(ctx, 5*time.Second)
+	// Kho file chung: thư mục local (FILES_DIR) hoặc R2 / MinIO (FILES_DRIVER=s3). Module khác gắn file qua fileSvc.
+	fileSvc, err := openFiles(cfg, log, d.pool)
+	if err != nil {
+		return err
+	}
+	go fileSvc.RunPurgeLoop(ctx, 6*time.Hour)
+	d.iam.SetContractFiles(fileSvc.StaffContracts(d.iam))
 	catalogSvc := catalogs.NewService(d.pool, d.box, log)
 	catalogSvc.Mail = mailSvc
 	studentSvc := students.NewService(d.pool, d.iam, log)
@@ -145,7 +154,7 @@ func runAPI(ctx context.Context) error {
 	cls.CRM = crmSvc
 	// Leads: khách CRM. Sessions: buổi học thật của phân hệ Lớp học cho học thử.
 	place := placement.NewHandler(placement.NewService(d.pool, d.rdb, log, placement.Options{
-		Leads: crmSvc.PlacementLeads(), Sessions: cls.PlacementSessions(),
+		Leads: crmSvc.PlacementLeads(), Sessions: cls.PlacementSessions(), Files: fileSvc,
 	}), log)
 	// Báo cáo: số liệu tuyển sinh từ CRM / test đầu vào, bọc thêm số liệu lớp / buổi / điểm danh của Lớp học; việc follow-up
 	// qua Công việc, ngày nghỉ từ danh mục. TODO(gộp): số liệu học phí khi phân hệ đó có ở v2.
@@ -187,6 +196,7 @@ func runAPI(ctx context.Context) error {
 				crm.NewHandler(crmSvc, log),
 				mailapi.NewHandler(mailSvc, log),
 				dashboard.NewHandler(dash, log),
+				files.NewHandler(fileSvc, log),
 			),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
@@ -211,6 +221,25 @@ func runAPI(ctx context.Context) error {
 		return err
 	}
 	return nil
+}
+
+// openFiles dựng kho file theo cấu hình; URL tải của driver local ký bằng khóa suy ra từ APP_ENCRYPTION_KEY.
+func openFiles(cfg config.Config, log *slog.Logger, pool *pgxpool.Pool) (*files.Service, error) {
+	key, err := filestore.DeriveKey(cfg.EncryptionKey)
+	if err != nil {
+		return nil, err
+	}
+	fc := cfg.Files
+	store, err := filestore.New(filestore.Config{
+		Driver: fc.Driver, Dir: fc.Dir, URLPrefix: files.APIBase + files.BlobPrefix, SignKey: key,
+		S3Endpoint: fc.S3Endpoint, S3Bucket: fc.S3Bucket, S3AccessKey: fc.S3AccessKey, S3SecretKey: fc.S3SecretKey,
+		S3Region: fc.S3Region, S3UseSSL: fc.S3UseSSL,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("kho file: %w", err)
+	}
+	log.Info("file store", "driver", store.Driver())
+	return files.NewService(pool, store, log, fc.URLTTL), nil
 }
 
 // runMigrate chạy goose; sau "up" thì đồng bộ danh mục quyền và 9 vai trò, rồi bỏ cache quyền của mọi người.
