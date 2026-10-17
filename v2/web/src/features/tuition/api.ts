@@ -578,6 +578,8 @@ export const tuitionApi = {
   updateRange: (d: RangeInput & { config_id?: string; current_number: number | null }) => request<Saved>('POST', '/tuition/config', d),
   createRange: (d: RangeInput & { kind: 'electronic' | 'paper'; branch_id: string | null }) => request<Saved>('POST', '/tuition/config/ranges', d),
   toggleRange: (id: string) => request<Saved>('POST', `/tuition/config/ranges/${id}/toggle`),
+  sepay: () => request<SepayPage>('GET', '/tuition/sepay'),
+  saveSepay: (d: SepayInput) => request<Saved>('POST', '/tuition/sepay/config', d),
   rejectCancellation: (id: string, rejection_reason: string) =>
     request<Saved>('POST', `/tuition/invoices/cancellations/${id}/reject`, { rejection_reason }),
 }
@@ -768,3 +770,48 @@ export type InvoiceRange = {
 export type ConfigPage = { ranges: InvoiceRange[]; branches: Option[]; can_manage: boolean; can_manage_default: boolean }
 
 export type RangeInput = { template_code: string; series_code: string; start_number: number | null; end_number: number | null }
+
+export type BankTxn = {
+  id: string
+  sepay_id: string
+  date: string
+  gateway: string | null
+  account_number: string | null
+  transfer_type: string
+  amount: number
+  content: string | null
+  reference_code: string | null
+  status: string
+  status_label: string
+  response_message: string | null
+}
+
+export type SepayConfig = {
+  webhook_name: string
+  webhook_url: string
+  transaction_type: 'in' | 'out' | 'all'
+  data_format: 'json' | 'form' | 'urlencoded'
+  auth_method: 'hmac_sha256' | 'api_key'
+  has_secret: boolean
+  has_api_key: boolean
+  is_active: boolean
+  auto_retry: boolean
+  current_endpoint: string
+  saved_host: string
+  current_host: string
+  different_host: boolean
+}
+
+export type SepayPage = { enabled: boolean; config: SepayConfig | null; transactions: BankTxn[] }
+
+export type SepayInput = {
+  webhook_name: string
+  webhook_url: string
+  transaction_type: string
+  data_format: string
+  auth_method: string
+  secret_key: string
+  api_key: string
+  is_active: boolean
+  auto_retry: boolean
+}

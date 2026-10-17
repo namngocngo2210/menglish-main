@@ -443,6 +443,38 @@ func (q *Queries) AvailablePromotions(ctx context.Context, keepID *uuid.UUID) ([
 	return items, nil
 }
 
+const bankTransactionByProviderID = `-- name: BankTransactionByProviderID :one
+SELECT id, provider, provider_txn_id, gateway, transaction_date, account_number, sub_account, transfer_type, transfer_amount, accumulated, content, reference_code, raw_payload, status, matched_student_id, matched_tuition_id, matched_receipt_id, response_message, created_at, updated_at FROM finance.bank_transactions WHERE provider = 'sepay' AND provider_txn_id = $1
+`
+
+func (q *Queries) BankTransactionByProviderID(ctx context.Context, providerTxnID string) (FinanceBankTransaction, error) {
+	row := q.db.QueryRow(ctx, bankTransactionByProviderID, providerTxnID)
+	var i FinanceBankTransaction
+	err := row.Scan(
+		&i.ID,
+		&i.Provider,
+		&i.ProviderTxnID,
+		&i.Gateway,
+		&i.TransactionDate,
+		&i.AccountNumber,
+		&i.SubAccount,
+		&i.TransferType,
+		&i.TransferAmount,
+		&i.Accumulated,
+		&i.Content,
+		&i.ReferenceCode,
+		&i.RawPayload,
+		&i.Status,
+		&i.MatchedStudentID,
+		&i.MatchedTuitionID,
+		&i.MatchedReceiptID,
+		&i.ResponseMessage,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const billBankAccounts = `-- name: BillBankAccounts :many
 SELECT id, bank_code, bank_name, account_number, account_holder, branch_id, is_default_vietqr
 FROM finance.bank_accounts WHERE deleted_at IS NULL AND is_active ORDER BY created_at, id
@@ -835,6 +867,31 @@ func (q *Queries) CommissionOwner(ctx context.Context, convertedStudentID *uuid.
 	var owner_id uuid.UUID
 	err := row.Scan(&owner_id)
 	return owner_id, err
+}
+
+const configuredAccountNumbers = `-- name: ConfiguredAccountNumbers :many
+SELECT upper(regexp_replace(account_number, '[^A-Za-z0-9]', '', 'g'))::text AS number FROM finance.bank_accounts WHERE deleted_at IS NULL
+`
+
+// Số tài khoản đã cấu hình (BankAccount::isConfiguredNumber), chuẩn hóa chỉ giữ chữ và số, in hoa.
+func (q *Queries) ConfiguredAccountNumbers(ctx context.Context) ([]string, error) {
+	rows, err := q.db.Query(ctx, configuredAccountNumbers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var number string
+		if err := rows.Scan(&number); err != nil {
+			return nil, err
+		}
+		items = append(items, number)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const confirmDeposit = `-- name: ConfirmDeposit :one
@@ -1987,6 +2044,33 @@ func (q *Queries) GetInvoiceRange(ctx context.Context, id uuid.UUID) (GetInvoice
 	return i, err
 }
 
+const getPaymentProvider = `-- name: GetPaymentProvider :one
+
+SELECT provider, webhook_name, transaction_type, auth_method, api_key_enc, secret_key_enc, is_active, updated_by, created_at, updated_at, webhook_url, data_format, auto_retry FROM finance.payment_providers WHERE provider = 'sepay'
+`
+
+// ───────────────────────── SePay webhook ─────────────────────────
+func (q *Queries) GetPaymentProvider(ctx context.Context) (FinancePaymentProvider, error) {
+	row := q.db.QueryRow(ctx, getPaymentProvider)
+	var i FinancePaymentProvider
+	err := row.Scan(
+		&i.Provider,
+		&i.WebhookName,
+		&i.TransactionType,
+		&i.AuthMethod,
+		&i.ApiKeyEnc,
+		&i.SecretKeyEnc,
+		&i.IsActive,
+		&i.UpdatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.WebhookUrl,
+		&i.DataFormat,
+		&i.AutoRetry,
+	)
+	return i, err
+}
+
 const getPromotion = `-- name: GetPromotion :one
 
 SELECT id, code, name, type, value, max_discount_amount, description, reason, branch_id, course_id, starts_at, ends_at, usage_limit, used_count, is_active, is_default, is_special, created_by, created_at, updated_at FROM crm.promotions WHERE id = $1
@@ -2390,6 +2474,71 @@ func (q *Queries) IncrementPromotionUse(ctx context.Context, id uuid.UUID) error
 	return err
 }
 
+const insertBankTransaction = `-- name: InsertBankTransaction :one
+INSERT INTO finance.bank_transactions (provider, provider_txn_id, gateway, transaction_date, account_number, sub_account,
+    transfer_type, transfer_amount, accumulated, content, reference_code, raw_payload, status)
+VALUES ('sepay', $1, $2, $3, $4,
+    $5, $6, $7, $8, $9,
+    $10, $11, 'pending')
+ON CONFLICT (provider, provider_txn_id) DO NOTHING
+RETURNING id, provider, provider_txn_id, gateway, transaction_date, account_number, sub_account, transfer_type, transfer_amount, accumulated, content, reference_code, raw_payload, status, matched_student_id, matched_tuition_id, matched_receipt_id, response_message, created_at, updated_at
+`
+
+type InsertBankTransactionParams struct {
+	ProviderTxnID   string
+	Gateway         *string
+	TransactionDate *time.Time
+	AccountNumber   *string
+	SubAccount      *string
+	TransferType    string
+	TransferAmount  int64
+	Accumulated     int64
+	Content         *string
+	ReferenceCode   *string
+	RawPayload      []byte
+}
+
+// Ghi giao dịch nhận qua webhook; trùng (provider, mã giao dịch) thì không có dòng trả về (webhook gửi lại).
+func (q *Queries) InsertBankTransaction(ctx context.Context, arg InsertBankTransactionParams) (FinanceBankTransaction, error) {
+	row := q.db.QueryRow(ctx, insertBankTransaction,
+		arg.ProviderTxnID,
+		arg.Gateway,
+		arg.TransactionDate,
+		arg.AccountNumber,
+		arg.SubAccount,
+		arg.TransferType,
+		arg.TransferAmount,
+		arg.Accumulated,
+		arg.Content,
+		arg.ReferenceCode,
+		arg.RawPayload,
+	)
+	var i FinanceBankTransaction
+	err := row.Scan(
+		&i.ID,
+		&i.Provider,
+		&i.ProviderTxnID,
+		&i.Gateway,
+		&i.TransactionDate,
+		&i.AccountNumber,
+		&i.SubAccount,
+		&i.TransferType,
+		&i.TransferAmount,
+		&i.Accumulated,
+		&i.Content,
+		&i.ReferenceCode,
+		&i.RawPayload,
+		&i.Status,
+		&i.MatchedStudentID,
+		&i.MatchedTuitionID,
+		&i.MatchedReceiptID,
+		&i.ResponseMessage,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const insertContactLog = `-- name: InsertContactLog :exec
 INSERT INTO finance.tuition_contact_logs (tuition_id, user_id, action, note, contacted_at)
 VALUES ($1, $2, $3, $4, $5)
@@ -2445,6 +2594,24 @@ func (q *Queries) InsertDebtReminderLog(ctx context.Context, arg InsertDebtRemin
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const insertPaymentProvider = `-- name: InsertPaymentProvider :exec
+INSERT INTO finance.payment_providers (provider, webhook_url, secret_key_enc, is_active)
+VALUES ('sepay', $1, $2, $3)
+ON CONFLICT (provider) DO NOTHING
+`
+
+type InsertPaymentProviderParams struct {
+	WebhookUrl   *string
+	SecretKeyEnc []byte
+	IsActive     bool
+}
+
+// Lần đầu: tạo cấu hình mặc định (SepayConfiguration::getActiveConfig); có rồi thì giữ nguyên.
+func (q *Queries) InsertPaymentProvider(ctx context.Context, arg InsertPaymentProviderParams) error {
+	_, err := q.db.Exec(ctx, insertPaymentProvider, arg.WebhookUrl, arg.SecretKeyEnc, arg.IsActive)
+	return err
 }
 
 const invoiceCancellationCounts = `-- name: InvoiceCancellationCounts :one
@@ -2760,6 +2927,30 @@ func (q *Queries) LatestTuitionDeferredUntil(ctx context.Context, studentID uuid
 	var deferred_until *time.Time
 	err := row.Scan(&deferred_until)
 	return deferred_until, err
+}
+
+const leadByCode = `-- name: LeadByCode :one
+SELECT id, phone, converted_student_id FROM crm.leads WHERE upper(code) = $1::text OR upper(code) = $2::text
+ORDER BY created_at, id
+LIMIT 1
+`
+
+type LeadByCodeParams struct {
+	Code    string
+	Compact string
+}
+
+type LeadByCodeRow struct {
+	ID                 uuid.UUID
+	Phone              string
+	ConvertedStudentID *uuid.UUID
+}
+
+func (q *Queries) LeadByCode(ctx context.Context, arg LeadByCodeParams) (LeadByCodeRow, error) {
+	row := q.db.QueryRow(ctx, leadByCode, arg.Code, arg.Compact)
+	var i LeadByCodeRow
+	err := row.Scan(&i.ID, &i.Phone, &i.ConvertedStudentID)
+	return i, err
 }
 
 const leadOfStudent = `-- name: LeadOfStudent :one
@@ -3727,6 +3918,77 @@ func (q *Queries) LockTuition(ctx context.Context, id uuid.UUID) (FinanceTuition
 	return i, err
 }
 
+const manualReceiptInWindow = `-- name: ManualReceiptInWindow :one
+SELECT r.id, r.code, r.source, r.invoice_number, r.tuition_id, r.student_id, r.amount, r.tuition_amount, r.session_count, r.session_unit_price, r.material_fee, r.exam_fee, r.other_fee, r.other_fee_reason, r.surcharge_amount, r.surcharge_reason, r.discount_amount, r.promotion_id, r.discount_reason, r.payment_method, r.transaction_code, r.transfer_reference, r.payer_name, r.payer_phone, r.is_vat_invoice, r.paper_invoice_number, r.proof_url, r.proof_file_id, r.payment_date, r.collected_items, r.status, r.notes, r.rejection_reason, r.creator_id, r.approver_id, r.approved_at, r.deposited_at, r.deposited_by, r.legacy_id, r.created_at, r.updated_at FROM finance.receipts r
+WHERE r.tuition_id = $1 AND r.status = 'approved' AND r.payment_method IN ('transfer', 'vietqr')
+  AND r.amount = $2 AND r.payment_date BETWEEN $3::date AND $4::date
+  AND NOT EXISTS (SELECT 1 FROM finance.bank_transactions bt WHERE bt.matched_receipt_id = r.id)
+ORDER BY r.created_at, r.id
+LIMIT 1
+`
+
+type ManualReceiptInWindowParams struct {
+	TuitionID *uuid.UUID
+	Amount    int64
+	FromDay   time.Time
+	ToDay     time.Time
+}
+
+// Phiếu chuyển khoản tay đã duyệt cùng hợp đồng, cùng số tiền, trong ±N ngày, chưa gắn giao dịch SePay nào.
+func (q *Queries) ManualReceiptInWindow(ctx context.Context, arg ManualReceiptInWindowParams) (FinanceReceipt, error) {
+	row := q.db.QueryRow(ctx, manualReceiptInWindow,
+		arg.TuitionID,
+		arg.Amount,
+		arg.FromDay,
+		arg.ToDay,
+	)
+	var i FinanceReceipt
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Source,
+		&i.InvoiceNumber,
+		&i.TuitionID,
+		&i.StudentID,
+		&i.Amount,
+		&i.TuitionAmount,
+		&i.SessionCount,
+		&i.SessionUnitPrice,
+		&i.MaterialFee,
+		&i.ExamFee,
+		&i.OtherFee,
+		&i.OtherFeeReason,
+		&i.SurchargeAmount,
+		&i.SurchargeReason,
+		&i.DiscountAmount,
+		&i.PromotionID,
+		&i.DiscountReason,
+		&i.PaymentMethod,
+		&i.TransactionCode,
+		&i.TransferReference,
+		&i.PayerName,
+		&i.PayerPhone,
+		&i.IsVatInvoice,
+		&i.PaperInvoiceNumber,
+		&i.ProofUrl,
+		&i.ProofFileID,
+		&i.PaymentDate,
+		&i.CollectedItems,
+		&i.Status,
+		&i.Notes,
+		&i.RejectionReason,
+		&i.CreatorID,
+		&i.ApproverID,
+		&i.ApprovedAt,
+		&i.DepositedAt,
+		&i.DepositedBy,
+		&i.LegacyID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const maxIssuedInvoice = `-- name: MaxIssuedInvoice :one
 SELECT COALESCE(max(invoice_number), '')::text FROM finance.receipts
 WHERE invoice_number LIKE $1::text || '-_______' AND invoice_number BETWEEN $2::text AND $3::text
@@ -3999,6 +4261,60 @@ func (q *Queries) PendingReceiptTotal(ctx context.Context, tuitionID *uuid.UUID)
 	return column_1, err
 }
 
+const receiptByReferences = `-- name: ReceiptByReferences :one
+SELECT id, code, source, invoice_number, tuition_id, student_id, amount, tuition_amount, session_count, session_unit_price, material_fee, exam_fee, other_fee, other_fee_reason, surcharge_amount, surcharge_reason, discount_amount, promotion_id, discount_reason, payment_method, transaction_code, transfer_reference, payer_name, payer_phone, is_vat_invoice, paper_invoice_number, proof_url, proof_file_id, payment_date, collected_items, status, notes, rejection_reason, creator_id, approver_id, approved_at, deposited_at, deposited_by, legacy_id, created_at, updated_at FROM finance.receipts WHERE transfer_reference = ANY ($1::text[]) ORDER BY created_at, id LIMIT 1
+`
+
+// Phiếu (chờ duyệt / đã duyệt) đang giữ một trong các mã giao dịch.
+func (q *Queries) ReceiptByReferences(ctx context.Context, refs []string) (FinanceReceipt, error) {
+	row := q.db.QueryRow(ctx, receiptByReferences, refs)
+	var i FinanceReceipt
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Source,
+		&i.InvoiceNumber,
+		&i.TuitionID,
+		&i.StudentID,
+		&i.Amount,
+		&i.TuitionAmount,
+		&i.SessionCount,
+		&i.SessionUnitPrice,
+		&i.MaterialFee,
+		&i.ExamFee,
+		&i.OtherFee,
+		&i.OtherFeeReason,
+		&i.SurchargeAmount,
+		&i.SurchargeReason,
+		&i.DiscountAmount,
+		&i.PromotionID,
+		&i.DiscountReason,
+		&i.PaymentMethod,
+		&i.TransactionCode,
+		&i.TransferReference,
+		&i.PayerName,
+		&i.PayerPhone,
+		&i.IsVatInvoice,
+		&i.PaperInvoiceNumber,
+		&i.ProofUrl,
+		&i.ProofFileID,
+		&i.PaymentDate,
+		&i.CollectedItems,
+		&i.Status,
+		&i.Notes,
+		&i.RejectionReason,
+		&i.CreatorID,
+		&i.ApproverID,
+		&i.ApprovedAt,
+		&i.DepositedAt,
+		&i.DepositedBy,
+		&i.LegacyID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const receiptByTransferReference = `-- name: ReceiptByTransferReference :one
 SELECT id, code, status FROM finance.receipts
 WHERE transfer_reference = $1::text AND ($2::uuid IS NULL OR id <> $2)
@@ -4084,6 +4400,51 @@ func (q *Queries) ReceiptTuitionID(ctx context.Context, id uuid.UUID) (*uuid.UUI
 	var tuition_id *uuid.UUID
 	err := row.Scan(&tuition_id)
 	return tuition_id, err
+}
+
+const recentBankTransactions = `-- name: RecentBankTransactions :many
+SELECT id, provider, provider_txn_id, gateway, transaction_date, account_number, sub_account, transfer_type, transfer_amount, accumulated, content, reference_code, raw_payload, status, matched_student_id, matched_tuition_id, matched_receipt_id, response_message, created_at, updated_at FROM finance.bank_transactions ORDER BY created_at DESC, id DESC LIMIT $1
+`
+
+func (q *Queries) RecentBankTransactions(ctx context.Context, n int32) ([]FinanceBankTransaction, error) {
+	rows, err := q.db.Query(ctx, recentBankTransactions, n)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FinanceBankTransaction
+	for rows.Next() {
+		var i FinanceBankTransaction
+		if err := rows.Scan(
+			&i.ID,
+			&i.Provider,
+			&i.ProviderTxnID,
+			&i.Gateway,
+			&i.TransactionDate,
+			&i.AccountNumber,
+			&i.SubAccount,
+			&i.TransferType,
+			&i.TransferAmount,
+			&i.Accumulated,
+			&i.Content,
+			&i.ReferenceCode,
+			&i.RawPayload,
+			&i.Status,
+			&i.MatchedStudentID,
+			&i.MatchedTuitionID,
+			&i.MatchedReceiptID,
+			&i.ResponseMessage,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const recentIssuedInvoices = `-- name: RecentIssuedInvoices :many
@@ -4715,6 +5076,34 @@ func (q *Queries) SeriesRanges(ctx context.Context, arg SeriesRangesParams) ([]F
 	return items, nil
 }
 
+const setBankTransactionResult = `-- name: SetBankTransactionResult :exec
+UPDATE finance.bank_transactions SET status = $1, matched_student_id = $2,
+    matched_tuition_id = $3, matched_receipt_id = $4,
+    response_message = $5, updated_at = now()
+WHERE id = $6
+`
+
+type SetBankTransactionResultParams struct {
+	Status           string
+	MatchedStudentID *uuid.UUID
+	MatchedTuitionID *uuid.UUID
+	MatchedReceiptID *uuid.UUID
+	ResponseMessage  *string
+	ID               uuid.UUID
+}
+
+func (q *Queries) SetBankTransactionResult(ctx context.Context, arg SetBankTransactionResultParams) error {
+	_, err := q.db.Exec(ctx, setBankTransactionResult,
+		arg.Status,
+		arg.MatchedStudentID,
+		arg.MatchedTuitionID,
+		arg.MatchedReceiptID,
+		arg.ResponseMessage,
+		arg.ID,
+	)
+	return err
+}
+
 const setCancellationProof = `-- name: SetCancellationProof :exec
 UPDATE finance.invoice_cancellations SET proof_file_id = $2, updated_at = now() WHERE id = $1
 `
@@ -5003,6 +5392,108 @@ func (q *Queries) StatementForReference(ctx context.Context, reference string) (
 		&i.AccountNumber,
 	)
 	return i, err
+}
+
+const studentBrief = `-- name: StudentBrief :one
+SELECT id, code, full_name, branch_id FROM academic.students WHERE id = $1
+`
+
+type StudentBriefRow struct {
+	ID       uuid.UUID
+	Code     string
+	FullName string
+	BranchID *uuid.UUID
+}
+
+func (q *Queries) StudentBrief(ctx context.Context, id uuid.UUID) (StudentBriefRow, error) {
+	row := q.db.QueryRow(ctx, studentBrief, id)
+	var i StudentBriefRow
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.FullName,
+		&i.BranchID,
+	)
+	return i, err
+}
+
+const studentByCode = `-- name: StudentByCode :one
+SELECT id, code, full_name, branch_id FROM academic.students
+WHERE code = $1::text OR replace(upper(code::text), '-', '') = $2::text
+ORDER BY created_at, id
+LIMIT 1
+`
+
+type StudentByCodeParams struct {
+	Code    string
+	Compact string
+}
+
+type StudentByCodeRow struct {
+	ID       uuid.UUID
+	Code     string
+	FullName string
+	BranchID *uuid.UUID
+}
+
+func (q *Queries) StudentByCode(ctx context.Context, arg StudentByCodeParams) (StudentByCodeRow, error) {
+	row := q.db.QueryRow(ctx, studentByCode, arg.Code, arg.Compact)
+	var i StudentByCodeRow
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.FullName,
+		&i.BranchID,
+	)
+	return i, err
+}
+
+const studentByPhone = `-- name: StudentByPhone :one
+SELECT id, code, full_name, branch_id FROM academic.students
+WHERE (CASE WHEN regexp_replace(phone, '\D', '', 'g') LIKE '84%' AND length(regexp_replace(phone, '\D', '', 'g')) >= 10
+            THEN '0' || substr(regexp_replace(phone, '\D', '', 'g'), 3) ELSE regexp_replace(phone, '\D', '', 'g') END) = $1::text
+ORDER BY created_at, id
+LIMIT 1
+`
+
+type StudentByPhoneRow struct {
+	ID       uuid.UUID
+	Code     string
+	FullName string
+	BranchID *uuid.UUID
+}
+
+// Học viên theo SĐT đã chuẩn hóa (chỉ chữ số, 84… → 0…).
+func (q *Queries) StudentByPhone(ctx context.Context, phone string) (StudentByPhoneRow, error) {
+	row := q.db.QueryRow(ctx, studentByPhone, phone)
+	var i StudentByPhoneRow
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.FullName,
+		&i.BranchID,
+	)
+	return i, err
+}
+
+const studentPayTuition = `-- name: StudentPayTuition :one
+SELECT id FROM finance.tuitions
+WHERE student_id = $1 AND (NOT $2::boolean OR debt_amount > 0)
+ORDER BY (debt_amount > 0) DESC, created_at DESC, id DESC
+LIMIT 1
+`
+
+type StudentPayTuitionParams struct {
+	StudentID uuid.UUID
+	DebtOnly  bool
+}
+
+// Khoản học phí để gạch nợ: khoản còn nợ mới nhất, không có thì khoản mới nhất (debt_only: chỉ khoản còn nợ).
+func (q *Queries) StudentPayTuition(ctx context.Context, arg StudentPayTuitionParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, studentPayTuition, arg.StudentID, arg.DebtOnly)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
 }
 
 const studentReceipts = `-- name: StudentReceipts :many
@@ -5381,6 +5872,27 @@ func (q *Queries) ToggleInvoiceRange(ctx context.Context, id uuid.UUID) (Finance
 	return i, err
 }
 
+const tuitionByMemo = `-- name: TuitionByMemo :one
+SELECT id, student_id FROM finance.tuitions
+WHERE transfer_memo IS NOT NULL AND regexp_replace(upper(transfer_memo), '[^A-Z0-9]', '', 'g') <> ''
+  AND position(regexp_replace(upper(transfer_memo), '[^A-Z0-9]', '', 'g') IN $1::text) > 0
+ORDER BY created_at, id
+LIMIT 1
+`
+
+type TuitionByMemoRow struct {
+	ID        uuid.UUID
+	StudentID uuid.UUID
+}
+
+// Khoản học phí có nội dung chuyển khoản gợi ý nằm trong nội dung CK (đã bỏ ký tự không phải chữ / số, in hoa).
+func (q *Queries) TuitionByMemo(ctx context.Context, content string) (TuitionByMemoRow, error) {
+	row := q.db.QueryRow(ctx, tuitionByMemo, content)
+	var i TuitionByMemoRow
+	err := row.Scan(&i.ID, &i.StudentID)
+	return i, err
+}
+
 const tuitionFeeItems = `-- name: TuitionFeeItems :one
 SELECT fee_items FROM finance.tuitions WHERE id = $1
 `
@@ -5521,6 +6033,60 @@ func (q *Queries) UpdateInvoiceRange(ctx context.Context, arg UpdateInvoiceRange
 	return i, err
 }
 
+const updatePaymentProvider = `-- name: UpdatePaymentProvider :one
+UPDATE finance.payment_providers SET webhook_name = $1, webhook_url = $2,
+    transaction_type = $3, data_format = $4, auth_method = $5,
+    secret_key_enc = $6, api_key_enc = $7, is_active = $8,
+    auto_retry = $9, updated_by = $10, updated_at = now()
+WHERE provider = 'sepay'
+RETURNING provider, webhook_name, transaction_type, auth_method, api_key_enc, secret_key_enc, is_active, updated_by, created_at, updated_at, webhook_url, data_format, auto_retry
+`
+
+type UpdatePaymentProviderParams struct {
+	WebhookName     string
+	WebhookUrl      *string
+	TransactionType string
+	DataFormat      string
+	AuthMethod      string
+	SecretKeyEnc    []byte
+	ApiKeyEnc       []byte
+	IsActive        bool
+	AutoRetry       bool
+	UpdatedBy       *uuid.UUID
+}
+
+func (q *Queries) UpdatePaymentProvider(ctx context.Context, arg UpdatePaymentProviderParams) (FinancePaymentProvider, error) {
+	row := q.db.QueryRow(ctx, updatePaymentProvider,
+		arg.WebhookName,
+		arg.WebhookUrl,
+		arg.TransactionType,
+		arg.DataFormat,
+		arg.AuthMethod,
+		arg.SecretKeyEnc,
+		arg.ApiKeyEnc,
+		arg.IsActive,
+		arg.AutoRetry,
+		arg.UpdatedBy,
+	)
+	var i FinancePaymentProvider
+	err := row.Scan(
+		&i.Provider,
+		&i.WebhookName,
+		&i.TransactionType,
+		&i.AuthMethod,
+		&i.ApiKeyEnc,
+		&i.SecretKeyEnc,
+		&i.IsActive,
+		&i.UpdatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.WebhookUrl,
+		&i.DataFormat,
+		&i.AutoRetry,
+	)
+	return i, err
+}
+
 const updateReceipt = `-- name: UpdateReceipt :one
 UPDATE finance.receipts SET
     tuition_id = $1, amount = $2, tuition_amount = $3,
@@ -5643,6 +6209,30 @@ func (q *Queries) UpdateReceipt(ctx context.Context, arg UpdateReceiptParams) (F
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const userEmails = `-- name: UserEmails :many
+SELECT DISTINCT email::text AS email FROM iam.users WHERE id = ANY ($1::uuid[]) AND email IS NOT NULL AND email <> ''
+`
+
+func (q *Queries) UserEmails(ctx context.Context, ids []uuid.UUID) ([]string, error) {
+	rows, err := q.db.Query(ctx, userEmails, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var email string
+		if err := rows.Scan(&email); err != nil {
+			return nil, err
+		}
+		items = append(items, email)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const userFullName = `-- name: UserFullName :one

@@ -11,6 +11,7 @@ import { CancellationsPage } from './CancellationsPage'
 import { ConfigPage } from './ConfigPage'
 import { OverduePage } from './OverduePage'
 import { RefundsPage } from './RefundsPage'
+import { SepayPage } from './SepayPage'
 import { StudentsPage } from './StudentsPage'
 
 afterEach(() => {
@@ -628,4 +629,76 @@ test('Cấu hình dải số hóa đơn: bảng dải, sửa số kế tiếp, t
 
   await userEvent.click(screen.getByRole('button', { name: 'Ngừng dùng' }))
   expect(await screen.findByText('Đã ngừng dùng dải số C26CG.')).toBeInTheDocument()
+})
+
+test('Webhook SePay: lưu cấu hình (khóa để trống giữ khóa cũ) và nhật ký giao dịch', async () => {
+  const calls = mockApi({
+    'GET /tuition/sepay': () => [
+      200,
+      {
+        enabled: true,
+        config: {
+          webhook_name: 'Xác Thực Thanh Toán Meducation',
+          webhook_url: 'https://dungthu.meducation.vn/hook/sepay-gateway/v1/add-payment',
+          transaction_type: 'in',
+          data_format: 'json',
+          auth_method: 'hmac_sha256',
+          has_secret: true,
+          has_api_key: false,
+          is_active: true,
+          auto_retry: true,
+          current_endpoint: 'https://hoc.menglish.vn/hook/sepay-gateway/v1/add-payment',
+          saved_host: 'dungthu.meducation.vn',
+          current_host: 'hoc.menglish.vn',
+          different_host: true,
+        },
+        transactions: [
+          {
+            id: 't1',
+            sepay_id: '1004',
+            date: '17/10/2026 09:30',
+            gateway: 'VCB',
+            account_number: '0123456789',
+            transfer_type: 'in',
+            amount: 1_000_000,
+            content: 'NGUYEN VAN AN HV0001',
+            reference_code: 'FT1004',
+            status: 'matched',
+            status_label: 'Đã khớp',
+            response_message: 'Đã gạch nợ thành công',
+          },
+        ],
+      },
+    ],
+    'POST /tuition/sepay/config': () => [200, { message: 'Đã lưu cấu hình kết nối SePay Gateway thành công!' }],
+  })
+  wrap(<SepayPage me={me(['bank_account.manage'])} />)
+  expect(await screen.findByText('https://hoc.menglish.vn/hook/sepay-gateway/v1/add-payment')).toBeInTheDocument()
+  expect(screen.getByText(/khác tên miền đang mở \(hoc.menglish.vn\)/)).toBeInTheDocument()
+  expect(screen.getByText('Đã khớp')).toBeInTheDocument()
+  expect(screen.getByText('NGUYEN VAN AN HV0001')).toBeInTheDocument()
+
+  await userEvent.selectOptions(screen.getByLabelText('Phương thức xác thực'), 'api_key')
+  await userEvent.type(screen.getByLabelText('API Key'), 'k-123')
+  await userEvent.click(screen.getByLabelText('Tự gửi lại khi lỗi'))
+  await userEvent.click(screen.getByRole('button', { name: 'Lưu cấu hình SePay' }))
+  expect(await screen.findByText('Đã lưu cấu hình kết nối SePay Gateway thành công!')).toBeInTheDocument()
+  expect(calls.find((c) => c.key === 'POST /tuition/sepay/config')?.body).toEqual({
+    webhook_name: 'Xác Thực Thanh Toán Meducation',
+    webhook_url: 'https://dungthu.meducation.vn/hook/sepay-gateway/v1/add-payment',
+    transaction_type: 'in',
+    data_format: 'json',
+    auth_method: 'api_key',
+    secret_key: '',
+    api_key: 'k-123',
+    is_active: true,
+    auto_retry: false,
+  })
+})
+
+test('Webhook SePay tắt bằng cờ máy chủ: chỉ báo tắt', async () => {
+  mockApi({ 'GET /tuition/sepay': () => [200, { enabled: false, config: null, transactions: [] }] })
+  wrap(<SepayPage me={me(['bank_account.manage'])} />)
+  expect(await screen.findByText(/SePay webhook hiện đang tắt trên hệ thống/)).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Lưu cấu hình SePay' })).not.toBeInTheDocument()
 })

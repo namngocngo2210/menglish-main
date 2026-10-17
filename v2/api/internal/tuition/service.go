@@ -55,6 +55,8 @@ type Service struct {
 	access      AccessLoader
 	commissions Commissions
 	files       *files.Service
+	// sepay: bật webhook / khóa ký (env SEPAY_WEBHOOK_*)
+	sepay SepaySettings
 }
 
 func NewService(pool *pgxpool.Pool, box *secretbox.Box, cat *catalogs.Service, log *slog.Logger) *Service {

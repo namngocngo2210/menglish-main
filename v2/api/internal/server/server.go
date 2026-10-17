@@ -29,6 +29,9 @@ type Deps struct {
 	Checks  map[string]Pinger
 	// API gắn middleware và route của các module vào nhóm /api/v1.
 	API func(r chi.Router)
+	// Root: route ngoài /api/v1 giữ đúng đường dẫn cũ cho dịch vụ bên ngoài (vd. webhook SePay
+	// /hook/sepay-gateway/v1/add-payment). Không qua middleware phiên / SameOrigin của /api/v1.
+	Root func(r chi.Router)
 }
 
 func New(d Deps) http.Handler {
@@ -44,6 +47,12 @@ func New(d Deps) http.Handler {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 	r.Get("/readyz", readyz(d.Checks))
+	if d.Root != nil {
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.Timeout(30 * time.Second))
+			d.Root(r)
+		})
+	}
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(middleware.Timeout(30 * time.Second))

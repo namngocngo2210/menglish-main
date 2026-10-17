@@ -73,6 +73,12 @@ func (h *Handler) Routes(r chi.Router) {
 			Post("/refunds/{id}/approve", h.approveRefund)
 		r.With(view, iam.Require("refund_transfer.reject")).Post("/refunds/{id}/reject", h.rejectRefund)
 
+		// SePay: cấu hình webhook + nhật ký giao dịch (tab SePay của màn Tài khoản ngân hàng), giao dịch gần đây.
+		bank := iam.Require("bank_account.manage")
+		r.With(bank).Get("/sepay", h.sepayPage)
+		r.With(bank).Post("/sepay/config", h.updateSepayConfig)
+		r.With(view).Get("/sepay/transactions", h.sepayTransactions)
+
 		// Bill "Thông báo nộp học phí" (crm.tuition-bill): tư vấn viên (lead.view) hoặc người xem học phí.
 		r.With(iam.RequireAny("lead.view", "tuition.view")).Get("/bill/{id}", h.bill)
 	})

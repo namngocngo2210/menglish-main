@@ -643,6 +643,9 @@ type FinancePaymentProvider struct {
 	UpdatedBy       *uuid.UUID
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+	WebhookUrl      *string
+	DataFormat      string
+	AutoRetry       bool
 }
 
 type FinanceReceipt struct {

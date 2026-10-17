@@ -28,6 +28,10 @@
 	handle /readyz {
 		reverse_proxy api:8080
 	}
+	# Webhook SePay giữ đường dẫn cũ đã khai trên cổng SePay (/hook/sepay-gateway/v1/add-payment).
+	handle /hook/* {
+		reverse_proxy api:8080
+	}
 
 	# File build có hash trong tên: cache lâu, thiếu file thì 404 (không trả index.html).
 	handle /assets/* {

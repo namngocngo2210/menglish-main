@@ -975,3 +975,101 @@ WHERE id = $1;
 -- name: CancelReceiptForInvoice :one
 -- Vô hiệu phiếu, giữ nguyên số hóa đơn (không tái sử dụng số).
 UPDATE finance.receipts SET status = 'cancelled', rejection_reason = $2, updated_at = now() WHERE id = $1 RETURNING *;
+
+-- ───────────────────────── SePay webhook ─────────────────────────
+
+-- name: GetPaymentProvider :one
+SELECT * FROM finance.payment_providers WHERE provider = 'sepay';
+
+-- name: InsertPaymentProvider :exec
+-- Lần đầu: tạo cấu hình mặc định (SepayConfiguration::getActiveConfig); có rồi thì giữ nguyên.
+INSERT INTO finance.payment_providers (provider, webhook_url, secret_key_enc, is_active)
+VALUES ('sepay', sqlc.arg(webhook_url), sqlc.arg(secret_key_enc), sqlc.arg(is_active))
+ON CONFLICT (provider) DO NOTHING;
+
+-- name: UpdatePaymentProvider :one
+UPDATE finance.payment_providers SET webhook_name = sqlc.arg(webhook_name), webhook_url = sqlc.arg(webhook_url),
+    transaction_type = sqlc.arg(transaction_type), data_format = sqlc.arg(data_format), auth_method = sqlc.arg(auth_method),
+    secret_key_enc = sqlc.narg(secret_key_enc), api_key_enc = sqlc.narg(api_key_enc), is_active = sqlc.arg(is_active),
+    auto_retry = sqlc.arg(auto_retry), updated_by = sqlc.narg(updated_by), updated_at = now()
+WHERE provider = 'sepay'
+RETURNING *;
+
+-- name: InsertBankTransaction :one
+-- Ghi giao dịch nhận qua webhook; trùng (provider, mã giao dịch) thì không có dòng trả về (webhook gửi lại).
+INSERT INTO finance.bank_transactions (provider, provider_txn_id, gateway, transaction_date, account_number, sub_account,
+    transfer_type, transfer_amount, accumulated, content, reference_code, raw_payload, status)
+VALUES ('sepay', sqlc.arg(provider_txn_id), sqlc.narg(gateway), sqlc.narg(transaction_date), sqlc.narg(account_number),
+    sqlc.narg(sub_account), sqlc.arg(transfer_type), sqlc.arg(transfer_amount), sqlc.arg(accumulated), sqlc.narg(content),
+    sqlc.narg(reference_code), sqlc.arg(raw_payload), 'pending')
+ON CONFLICT (provider, provider_txn_id) DO NOTHING
+RETURNING *;
+
+-- name: BankTransactionByProviderID :one
+SELECT * FROM finance.bank_transactions WHERE provider = 'sepay' AND provider_txn_id = $1;
+
+-- name: SetBankTransactionResult :exec
+UPDATE finance.bank_transactions SET status = sqlc.arg(status), matched_student_id = sqlc.narg(matched_student_id),
+    matched_tuition_id = sqlc.narg(matched_tuition_id), matched_receipt_id = sqlc.narg(matched_receipt_id),
+    response_message = sqlc.narg(response_message), updated_at = now()
+WHERE id = sqlc.arg(id);
+
+-- name: RecentBankTransactions :many
+SELECT * FROM finance.bank_transactions ORDER BY created_at DESC, id DESC LIMIT sqlc.arg(n);
+
+-- name: ConfiguredAccountNumbers :many
+-- Số tài khoản đã cấu hình (BankAccount::isConfiguredNumber), chuẩn hóa chỉ giữ chữ và số, in hoa.
+SELECT upper(regexp_replace(account_number, '[^A-Za-z0-9]', '', 'g'))::text AS number FROM finance.bank_accounts WHERE deleted_at IS NULL;
+
+-- name: TuitionByMemo :one
+-- Khoản học phí có nội dung chuyển khoản gợi ý nằm trong nội dung CK (đã bỏ ký tự không phải chữ / số, in hoa).
+SELECT id, student_id FROM finance.tuitions
+WHERE transfer_memo IS NOT NULL AND regexp_replace(upper(transfer_memo), '[^A-Z0-9]', '', 'g') <> ''
+  AND position(regexp_replace(upper(transfer_memo), '[^A-Z0-9]', '', 'g') IN sqlc.arg(content)::text) > 0
+ORDER BY created_at, id
+LIMIT 1;
+
+-- name: StudentByCode :one
+SELECT id, code, full_name, branch_id FROM academic.students
+WHERE code = sqlc.arg(code)::text OR replace(upper(code::text), '-', '') = sqlc.arg(compact)::text
+ORDER BY created_at, id
+LIMIT 1;
+
+-- name: StudentPayTuition :one
+-- Khoản học phí để gạch nợ: khoản còn nợ mới nhất, không có thì khoản mới nhất (debt_only: chỉ khoản còn nợ).
+SELECT id FROM finance.tuitions
+WHERE student_id = sqlc.arg(student_id) AND (NOT sqlc.arg(debt_only)::boolean OR debt_amount > 0)
+ORDER BY (debt_amount > 0) DESC, created_at DESC, id DESC
+LIMIT 1;
+
+-- name: LeadByCode :one
+SELECT id, phone, converted_student_id FROM crm.leads WHERE upper(code) = sqlc.arg(code)::text OR upper(code) = sqlc.arg(compact)::text
+ORDER BY created_at, id
+LIMIT 1;
+
+-- name: StudentByPhone :one
+-- Học viên theo SĐT đã chuẩn hóa (chỉ chữ số, 84… → 0…).
+SELECT id, code, full_name, branch_id FROM academic.students
+WHERE (CASE WHEN regexp_replace(phone, '\D', '', 'g') LIKE '84%' AND length(regexp_replace(phone, '\D', '', 'g')) >= 10
+            THEN '0' || substr(regexp_replace(phone, '\D', '', 'g'), 3) ELSE regexp_replace(phone, '\D', '', 'g') END) = sqlc.arg(phone)::text
+ORDER BY created_at, id
+LIMIT 1;
+
+-- name: StudentBrief :one
+SELECT id, code, full_name, branch_id FROM academic.students WHERE id = $1;
+
+-- name: ReceiptByReferences :one
+-- Phiếu (chờ duyệt / đã duyệt) đang giữ một trong các mã giao dịch.
+SELECT * FROM finance.receipts WHERE transfer_reference = ANY (sqlc.arg(refs)::text[]) ORDER BY created_at, id LIMIT 1;
+
+-- name: ManualReceiptInWindow :one
+-- Phiếu chuyển khoản tay đã duyệt cùng hợp đồng, cùng số tiền, trong ±N ngày, chưa gắn giao dịch SePay nào.
+SELECT r.* FROM finance.receipts r
+WHERE r.tuition_id = sqlc.arg(tuition_id) AND r.status = 'approved' AND r.payment_method IN ('transfer', 'vietqr')
+  AND r.amount = sqlc.arg(amount) AND r.payment_date BETWEEN sqlc.arg(from_day)::date AND sqlc.arg(to_day)::date
+  AND NOT EXISTS (SELECT 1 FROM finance.bank_transactions bt WHERE bt.matched_receipt_id = r.id)
+ORDER BY r.created_at, r.id
+LIMIT 1;
+
+-- name: UserEmails :many
+SELECT DISTINCT email::text AS email FROM iam.users WHERE id = ANY (sqlc.arg(ids)::uuid[]) AND email IS NOT NULL AND email <> '';

@@ -73,6 +73,8 @@ export const NAV: NavItem[] = [
     menu: (me) => can(me, ...TUITION_ANCHORS),
   },
   { path: '/system-config/bank-accounts', label: 'Tài khoản ngân hàng', perms: ['bank_account.manage'], group: 'Cài đặt › Học phí' },
+  // Tab "Webhook SePay" / "Nhật ký giao dịch SePay" của màn Tài khoản ngân hàng (Laravel) — features/tuition
+  { path: '/tuition/sepay', label: 'Webhook SePay', perms: ['bank_account.manage'], group: 'Cài đặt › Học phí' },
   { path: '/system-config/ticket-emails', label: 'Email nhận Ticket', perms: ['support_ticket.update'], group: 'Hệ thống' },
   { path: '/system-config/sla', label: 'Cấu hình SLA', perms: ['sla.configure'], group: 'Hệ thống' },
   { path: '/system-config/mail-outbox', label: 'Hàng đợi email', perms: ['mail_config.manage'], group: 'Hệ thống' },
