@@ -18,7 +18,6 @@ import (
 )
 
 const (
-	fileSubjectHomework      = "homework_submission"
 	fileSubjectPronunciation = "pronunciation_record"
 	// Hạn "gấp" của bài GV giao: tô cam mục chưa nộp đầu tiên khi hạn ≤ 2 ngày nữa.
 	urgentDays = 2
@@ -127,13 +126,14 @@ type HomeworkInput struct {
 	Notes        *string
 }
 
-// SubmitHomework: học viên nộp bài một hạng mục (submitHomework). File (tùy chọn) lưu kho file trong cùng transaction.
+// SubmitHomework: học viên nộp bài một hạng mục (submitHomework). Bài nộp, file (tùy chọn) và nhật ký do phân hệ Cổng
+// giáo viên ghi trong một transaction.
 func (s *Service) SubmitHomework(ctx context.Context, actor *iam.Access, in HomeworkInput, up *filestore.Upload) (uuid.UUID, error) {
 	if in.StudentID == nil {
 		return uuid.Nil, errNoStudent
 	}
-	label, ok := homeworkLabel(strings.TrimSpace(in.HomeworkType))
-	if !ok {
+	in.HomeworkType = strings.TrimSpace(in.HomeworkType)
+	if _, ok := homeworkLabel(in.HomeworkType); !ok {
 		return uuid.Nil, iam.Invalid("Loại bài tập không hợp lệ.")
 	}
 	if up != nil {
@@ -152,25 +152,8 @@ func (s *Service) SubmitHomework(ctx context.Context, actor *iam.Access, in Home
 	if notes == nil {
 		notes = ptr("Con đã hoàn thành bài tập đầy đủ theo hướng dẫn của cô.")
 	}
-	var id uuid.UUID
-	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		sub := SubmissionInput{StudentID: st.ID, StudentName: st.FullName, HomeworkType: in.HomeworkType, HomeworkLabel: label,
-			Notes: notes, By: actor.UserID}
-		if up != nil {
-			f, err := s.saveFile(ctx, tx, up, fileSubjectHomework, st, actor, "Tải bài nộp: "+label)
-			if err != nil {
-				return err
-			}
-			sub.FileID, sub.AttachmentName = &f.ID, &f.Name
-		}
-		var err error
-		if id, err = s.teacher.Submit(ctx, tx, sub); err != nil {
-			return err
-		}
-		return audit.Record(ctx, tx, audit.Entry{ActorID: &actor.UserID, Module: audit.ModuleStudents, Event: audit.EventCreated,
-			Action: "portal.homework_submit", SubjectType: "homework_submission", SubjectID: id.String(),
-			SubjectLabel: st.FullName, BranchID: st.BranchID, Description: "Bài nộp: " + label + " - " + st.FullName})
-	})
+	id, err := s.teacher.Submit(ctx, SubmissionInput{StudentID: st.ID, HomeworkType: in.HomeworkType, Notes: notes, Upload: up,
+		By: actor.UserID})
 	if err != nil {
 		return uuid.Nil, err
 	}
@@ -218,22 +201,15 @@ func (s *Service) UpdateHomework(ctx context.Context, actor *iam.Access, id uuid
 	if err != nil {
 		return err
 	}
-	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		in := SubmissionUpdate{Notes: trimPtr(notes), SetNotes: setNotes, By: actor.UserID}
-		if up != nil {
-			f, err := s.saveFile(ctx, tx, up, fileSubjectHomework, st, actor, "Nộp lại bài làm")
-			if err != nil {
-				return err
-			}
-			in.FileID, in.AttachmentName = &f.ID, &f.Name
+	in := SubmissionUpdate{Upload: up, By: actor.UserID}
+	if setNotes {
+		n := ""
+		if notes != nil {
+			n = strings.TrimSpace(*notes)
 		}
-		if err := s.teacher.UpdateSubmission(ctx, tx, id, in); err != nil {
-			return err
-		}
-		return audit.Record(ctx, tx, audit.Entry{ActorID: &actor.UserID, Module: audit.ModuleStudents, Event: audit.EventUpdated,
-			Action: "portal.homework_update", SubjectType: "homework_submission", SubjectID: id.String(),
-			SubjectLabel: st.FullName, BranchID: st.BranchID, Description: "Cập nhật bài nộp - " + st.FullName})
-	})
+		in.Notes = &n
+	}
+	return s.teacher.UpdateSubmission(ctx, st.ID, id, in)
 }
 
 // DeleteHomework: hủy bài nộp để nộp lại (deleteHomework).
@@ -245,14 +221,7 @@ func (s *Service) DeleteHomework(ctx context.Context, actor *iam.Access, id uuid
 	if err != nil {
 		return err
 	}
-	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		if err := s.teacher.DeleteSubmission(ctx, tx, id); err != nil {
-			return err
-		}
-		return audit.Record(ctx, tx, audit.Entry{ActorID: &actor.UserID, Module: audit.ModuleStudents, Event: audit.EventDeleted,
-			Action: "portal.homework_delete", SubjectType: "homework_submission", SubjectID: id.String(),
-			SubjectLabel: st.FullName, BranchID: st.BranchID, Description: "Hủy bài nộp - " + st.FullName})
-	})
+	return s.teacher.DeleteSubmission(ctx, st.ID, id, actor.UserID)
 }
 
 // ───── Luyện phát âm ─────

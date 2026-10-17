@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/filestore"
 )
 
 // Phần dữ liệu cổng học viên lấy từ phân hệ khác qua interface nhỏ (module nguồn cài, nối trong cmd/menglish/main.go).
@@ -70,7 +71,6 @@ func homeworkLabel(key string) (string, bool) {
 // Submission: một bài nộp của học viên.
 type Submission struct {
 	ID             uuid.UUID `json:"id"`
-	StudentID      uuid.UUID `json:"-"`
 	HomeworkType   string    `json:"homework_type"`
 	Status         string    `json:"status"` // submitted | reviewed
 	SubmittedAt    time.Time `json:"submitted_at"`
@@ -79,7 +79,6 @@ type Submission struct {
 	Notes          *string   `json:"notes"`
 	AttachmentURL  *string   `json:"attachment_url"`
 	AttachmentName *string   `json:"attachment_name"`
-	StudentName    string    `json:"student_name,omitempty"`
 }
 
 // AssignedHomework: bài tập giáo viên giao gần nhất của các lớp.
@@ -105,7 +104,7 @@ type MiniTest struct {
 	ID       uuid.UUID  `json:"id"`
 	Name     string     `json:"name"`
 	TestDate *time.Time `json:"test_date"`
-	Score    float64    `json:"score"`
+	Score    *float64   `json:"score"`
 	MaxScore float64    `json:"max_score"`
 }
 
@@ -133,44 +132,37 @@ type HomeworkStats struct {
 	SubmittedTypes int
 }
 
-// SubmissionInput: học viên nộp bài (file đã lưu vào kho file trong cùng transaction).
+// SubmissionInput: học viên nộp bài (phân hệ Cổng giáo viên lưu bài nộp và file trong một transaction).
 type SubmissionInput struct {
-	StudentID      uuid.UUID
-	StudentName    string
-	HomeworkType   string
-	HomeworkLabel  string
-	Notes          *string
-	FileID         *uuid.UUID
-	AttachmentName *string
-	By             uuid.UUID
+	StudentID    uuid.UUID
+	HomeworkType string
+	Notes        *string
+	Upload       *filestore.Upload // nil = không đính kèm (đã kiểm HomeworkPolicy)
+	By           uuid.UUID
 }
 
-// SubmissionUpdate: sửa ghi chú / thay file bài nộp (nil = giữ nguyên).
+// SubmissionUpdate: sửa ghi chú / thay file bài nộp.
 type SubmissionUpdate struct {
-	Notes          *string
-	SetNotes       bool
-	FileID         *uuid.UUID
-	AttachmentName *string
-	By             uuid.UUID
+	Notes  *string // nil = giữ nguyên; rỗng = xóa ghi chú
+	Upload *filestore.Upload
+	By     uuid.UUID
 }
 
-// TeacherPortal: bài tập GV giao và bài nộp của học viên (phân hệ Cổng giáo viên, TeacherPortalController).
-// TODO(gộp): phân hệ Cổng giáo viên (homeworks, homework_submissions, remarks, mini_test_scores) đang làm song song;
-// khi gộp thì cài interface này và truyền vào WithTeacherPortal trong cmd/menglish/main.go.
+// TeacherPortal: bài tập GV giao, bài nộp, nhận xét buổi học, điểm mini test của học viên (phân hệ Cổng giáo viên,
+// TeacherPortalController). Cài ở cmd/menglish (bọc teacher.StudentPortal), truyền vào WithTeacherPortal.
+// Màn chấm bài nộp của lớp thuộc phân hệ Cổng giáo viên (/teacher/submissions); tab Phát âm đọc / chấm bản ghi âm của
+// phân hệ này qua ClassPronunciations / MarkPronunciation.
 type TeacherPortal interface {
-	// Ready: false khi phân hệ chưa gắn (nộp / sửa / chấm bài báo "chờ phân hệ").
+	// Ready: false khi phân hệ chưa gắn (nộp / sửa bài báo "chờ phân hệ").
 	Ready() bool
 	Learning(ctx context.Context, studentID uuid.UUID, classIDs []uuid.UUID) (Learning, error)
 	HomeworkStats(ctx context.Context, studentID uuid.UUID, classIDs []uuid.UUID) (HomeworkStats, error)
 	PracticeAudio(ctx context.Context, classIDs []uuid.UUID) ([]PracticeItem, error)
 	// SubmissionOwner: học viên của bài nộp (pgx.ErrNoRows khi không có).
 	SubmissionOwner(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
-	Submit(ctx context.Context, tx pgx.Tx, in SubmissionInput) (uuid.UUID, error)
-	UpdateSubmission(ctx context.Context, tx pgx.Tx, id uuid.UUID, in SubmissionUpdate) error
-	DeleteSubmission(ctx context.Context, tx pgx.Tx, id uuid.UUID) error
-	// ClassSubmissions: bài nộp loại homeworkType của các học viên (màn Chấm bài nộp), mới nhất trước.
-	ClassSubmissions(ctx context.Context, studentIDs []uuid.UUID, homeworkType string) ([]Submission, error)
-	ReviewSubmission(ctx context.Context, tx pgx.Tx, id, by uuid.UUID, score, feedback *string) error
+	Submit(ctx context.Context, in SubmissionInput) (uuid.UUID, error)
+	UpdateSubmission(ctx context.Context, studentID, id uuid.UUID, in SubmissionUpdate) error
+	DeleteSubmission(ctx context.Context, studentID, id, by uuid.UUID) error
 }
 
 type noTeacherPortal struct{}
@@ -188,19 +180,13 @@ func (noTeacherPortal) PracticeAudio(context.Context, []uuid.UUID) ([]PracticeIt
 func (noTeacherPortal) SubmissionOwner(context.Context, uuid.UUID) (uuid.UUID, error) {
 	return uuid.Nil, pgx.ErrNoRows
 }
-func (noTeacherPortal) Submit(context.Context, pgx.Tx, SubmissionInput) (uuid.UUID, error) {
+func (noTeacherPortal) Submit(context.Context, SubmissionInput) (uuid.UUID, error) {
 	return uuid.Nil, errPending("Cổng giáo viên")
 }
-func (noTeacherPortal) UpdateSubmission(context.Context, pgx.Tx, uuid.UUID, SubmissionUpdate) error {
+func (noTeacherPortal) UpdateSubmission(context.Context, uuid.UUID, uuid.UUID, SubmissionUpdate) error {
 	return errPending("Cổng giáo viên")
 }
-func (noTeacherPortal) DeleteSubmission(context.Context, pgx.Tx, uuid.UUID) error {
-	return errPending("Cổng giáo viên")
-}
-func (noTeacherPortal) ClassSubmissions(context.Context, []uuid.UUID, string) ([]Submission, error) {
-	return nil, nil
-}
-func (noTeacherPortal) ReviewSubmission(context.Context, pgx.Tx, uuid.UUID, uuid.UUID, *string, *string) error {
+func (noTeacherPortal) DeleteSubmission(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) error {
 	return errPending("Cổng giáo viên")
 }
 

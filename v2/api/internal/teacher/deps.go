@@ -153,8 +153,8 @@ func (NoSupportList) SyncMiniTest(context.Context, pgx.Tx, MiniTestRef) error { 
 
 // ───────────── Bài phát âm (cổng học viên) ─────────────
 
-// Pronunciation: bản ghi âm học viên nộp (tab "Phát âm" của màn chấm bài) — phân hệ Cổng học viên.
-// TODO(gộp): adapter của phân hệ Cổng học viên.
+// Pronunciation: bản ghi âm học viên nộp (tab "Phát âm" của màn chấm bài) — phân hệ Cổng học viên (adapter ở
+// cmd/menglish/portal_teacher.go, gắn bằng WithPronunciation).
 type Pronunciation interface {
 	Available() bool
 	// ClassSubmissions: bài phát âm của học viên đang trong lớp, mới nhất trước.

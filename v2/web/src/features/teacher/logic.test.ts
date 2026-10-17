@@ -8,11 +8,30 @@ import {
   editHomeworkForm,
   emptyHomeworkForm,
   homeworkInput,
+  initials,
   overMax,
+  reviewedLabel,
+  SUBMISSION_TAB_ICONS,
   scorePreview,
   selectable,
+  submissionsHref,
   toggleCategory,
 } from './logic'
+
+describe('màn chấm bài nộp', () => {
+  it('đường dẫn lớp + tab', () => {
+    expect(submissionsHref(undefined, '')).toBe('/teacher/submissions')
+    expect(submissionsHref('c1', 'pronunciation')).toBe('/teacher/submissions?class_id=c1&type=pronunciation')
+    expect(submissionsHref(undefined, 'quiz')).toBe('/teacher/submissions?type=quiz')
+  })
+  it('chữ đầu tên, nhãn đã chấm, biểu tượng tab', () => {
+    expect(initials('Bé An')).toBe('Bé')
+    expect(initials('')).toBe('HV')
+    expect(reviewedLabel('9/10')).toBe('Đã chấm: 9/10')
+    expect(reviewedLabel(' ')).toBe('Đã xem')
+    expect(SUBMISSION_TAB_ICONS.pronunciation).toBe('mic')
+  })
+})
 
 const shift = (over: Partial<Shift> = {}): Shift => ({
   session_id: 's1',

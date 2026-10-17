@@ -405,9 +405,16 @@ func TestSubmissions(t *testing.T) {
 	}
 	portal.SetFileAccess(nil)
 
-	// Bài đã chấm không sửa / xóa được; bài chưa chấm sửa / xóa được
-	if _, err := portal.Update(ctx, nil, e.st1, sub.ID, ptr("Sửa"), nil); err != errSubmissionChanged {
-		t.Fatalf("sửa bài đã chấm: %v", err)
+	// Như Laravel: bài đã chấm vẫn sửa ghi chú được (giữ trạng thái và điểm); học viên khác thì không
+	if got, err := portal.Update(ctx, nil, e.st1, sub.ID, ptr("Sửa"), nil); err != nil || got.Notes != "Sửa" ||
+		got.Status != "reviewed" || got.Score != "9/10" {
+		t.Fatalf("sửa bài đã chấm: %+v %v", got, err)
+	}
+	if _, err := portal.Update(ctx, nil, e.st2, sub.ID, ptr("Sửa"), nil); err != ErrSubmissionNotFound {
+		t.Fatalf("sửa bài học viên khác: %v", err)
+	}
+	if owner, err := portal.SubmissionOwner(ctx, sub.ID); err != nil || owner != e.st1 {
+		t.Fatalf("chủ bài nộp: %v %v", owner, err)
 	}
 	s2, _ := portal.Submit(ctx, nil, SubmitInput{StudentID: e.st1, HomeworkType: "video", Upload: upload(t, "a.png", pngBytes)})
 	s2, err = portal.Update(ctx, nil, e.st1, s2.ID, ptr("Đã sửa"), upload(t, "b.png", pngBytes))

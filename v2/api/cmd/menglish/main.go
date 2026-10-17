@@ -171,7 +171,8 @@ func runAPI(ctx context.Context) error {
 	})
 	place := placement.NewHandler(placeSvc, log)
 	// Cổng giáo viên: lớp / buổi / điểm danh của Lớp học, khách học thử của Test đầu vào, file bài tập / bài nộp ở kho file.
-	// TODO(gộp): Work (chấm công giờ dạy / lương), Syllabus, SupportList, Pronunciation khi các phân hệ có ở v2.
+	// Bài phát âm (tab chấm bài) của Cổng học viên gắn ở wirePortalTeacher bên dưới.
+	// TODO(gộp): Work (chấm công giờ dạy / lương), Syllabus, SupportList khi các phân hệ có ở v2.
 	teacherSvc := teacher.NewService(d.pool, log, teacher.Deps{
 		Classes: cls.TeacherPortal(), SLA: catalogSvc, Files: fileSvc, Trials: teacher.PlacementTrials(placeSvc),
 	})
@@ -200,9 +201,11 @@ func runAPI(ctx context.Context) error {
 		Students: studentSvc.DashboardStudents(), Reports: reportSvc.DashboardReports(), Orders: inv.DashboardOrders(),
 		Branches: d.iam, Finance: tuitionSvc.DashboardFinance(), Homework: teacherSvc.Dashboard(),
 	}, log)
-	// Cổng Phụ huynh & Học sinh: học phí đọc qua adapter của Học phí. TODO(gộp): WithTeacherPortal (bài tập / bài nộp),
-	// WithSurveys (khảo sát 5 sao), WithSyllabus (Big Test, chặng học) khi các phân hệ đó có ở v2.
+	// Cổng Phụ huynh & Học sinh: học phí đọc qua adapter của Học phí; bài tập / bài nộp / nhận xét / mini test qua Cổng
+	// giáo viên, tab Phát âm của màn chấm bài đọc bản ghi âm của cổng học viên (portal_teacher.go).
+	// TODO(gộp): WithSurveys (khảo sát 5 sao), WithSyllabus (Big Test, chặng học) khi các phân hệ đó có ở v2.
 	portalSvc := portal.NewService(d.pool, fileSvc, studentSvc, log).WithTuition(tuitionSvc.PortalTuition())
+	wirePortalTeacher(portalSvc, teacherSvc)
 	checks := map[string]server.Pinger{
 		"postgres": d.pool,
 		"redis":    server.PingFunc(func(ctx context.Context) error { return d.rdb.Ping(ctx).Err() }),

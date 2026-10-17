@@ -105,7 +105,8 @@ type Deps struct {
 	Files   *files.Service
 	Trials  Trials
 	// TODO(gộp): các phân hệ đang làm song song — chấm công giờ dạy / lương / vi phạm (Work), giáo trình (Syllabus),
-	// danh sách bổ trợ (SupportList), bài phát âm của cổng học viên (Pronunciation).
+	// danh sách bổ trợ (SupportList). Bài phát âm của cổng học viên (Pronunciation): cmd/menglish gắn bằng WithPronunciation
+	// (cổng học viên tạo sau phân hệ này).
 	Work          Work
 	Syllabus      Syllabus
 	SupportList   SupportList
@@ -133,6 +134,14 @@ func NewService(pool *pgxpool.Pool, log *slog.Logger, d Deps) *Service {
 	if s.files != nil {
 		s.files.RegisterReader(audioSubject, s.readAudio)
 		s.files.RegisterReader(submissionSubject, s.readSubmissionFile)
+	}
+	return s
+}
+
+// WithPronunciation: gắn bản ghi âm của cổng học viên (tab "Phát âm" của màn chấm bài).
+func (s *Service) WithPronunciation(p Pronunciation) *Service {
+	if p != nil {
+		s.pron = p
 	}
 	return s
 }

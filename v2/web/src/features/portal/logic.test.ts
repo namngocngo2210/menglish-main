@@ -3,7 +3,6 @@ import type { Me } from '../../api'
 import {
   dmy,
   feedbackFilled,
-  initials,
   isPortalOnly,
   markUrgent,
   parseAmount,
@@ -97,7 +96,3 @@ describe('báo đóng học phí', () => {
   })
 })
 
-it('initials', () => {
-  expect(initials('Nguyễn An')).toBe('Ng')
-  expect(initials(null)).toBe('HV')
-})

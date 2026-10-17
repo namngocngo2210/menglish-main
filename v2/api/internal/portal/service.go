@@ -75,8 +75,8 @@ func NewService(pool *pgxpool.Pool, fileSvc *files.Service, studentSvc Students,
 	s := &Service{pool: pool, q: portaldb.New(pool), log: log, now: time.Now, files: fileSvc, students: studentSvc,
 		tuition: noTuition{}, teacher: noTeacherPortal{}, surveys: noSurveys{}, syllabus: noSyllabus{}}
 	if fileSvc != nil {
+		// File bài nộp (homework_submission) thuộc phân hệ Cổng giáo viên: nó hỏi lại StudentFileAccess / ClassFileAccess.
 		fileSvc.RegisterReader(fileSubjectPronunciation, s.readStudentFile)
-		fileSvc.RegisterReader(fileSubjectHomework, s.readStudentFile)
 	}
 	return s
 }
@@ -249,43 +249,68 @@ func (s *Service) writable(ctx context.Context, actor *iam.Access, studentID uui
 	return row, nil
 }
 
-// readStudentFile: tải file bản ghi âm / bài nộp (subject = học viên): chủ hồ sơ, nhân sự xem được học viên, giáo viên
-// chấm bài của lớp học viên.
+// readStudentFile: tải file bản ghi âm (subject = học viên).
 func (s *Service) readStudentFile(ctx context.Context, a *iam.Access, f files.File) (string, error) {
 	if f.SubjectID == nil {
 		return "", iam.ErrForbidden
 	}
-	uid := a.UserID
-	row, err := s.q.GetStudent(ctx, portaldb.GetStudentParams{UserID: &uid, ID: *f.SubjectID})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return "", iam.ErrForbidden
-	}
+	ok, err := s.StudentFileAccess(ctx, a, *f.SubjectID)
 	if err != nil {
 		return "", err
 	}
+	if !ok {
+		return "", iam.ErrForbidden
+	}
+	return "", nil
+}
+
+// StudentFileAccess: người dùng mở được file của học viên (bản ghi âm, bài nộp): chủ hồ sơ (học viên / phụ huynh), giáo
+// viên chấm bài của lớp học viên, nhân sự xem được học viên.
+func (s *Service) StudentFileAccess(ctx context.Context, a *iam.Access, studentID uuid.UUID) (bool, error) {
+	uid := a.UserID
+	row, err := s.q.GetStudent(ctx, portaldb.GetStudentParams{UserID: &uid, ID: studentID})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
 	if row.Linked {
-		return "", nil
+		return true, nil
 	}
 	if a.Can("homework.grade") {
 		ok, err := s.q.TeacherCoversStudent(ctx, portaldb.TeacherCoversStudentParams{
 			AllClasses: a.Level("class") == iam.ScopeAll, UserID: &uid, StudentID: row.ID})
-		if err != nil {
-			return "", err
-		}
-		if ok {
-			return "", nil
+		if err != nil || ok {
+			return ok, err
 		}
 	}
 	if a.Can("student.view") {
-		ok, err := s.students.Visible(ctx, a, row.ID)
+		return s.students.Visible(ctx, a, row.ID)
+	}
+	return false, nil
+}
+
+// ClassFileAccess: người dùng mở được file nghe bài tập của lớp (bài nghe mẫu ở màn Luyện phát âm): học viên / phụ huynh
+// của học viên đang học lớp; nhân sự student.view xem hộ (bản Laravel để file nghe công khai trong /storage).
+func (s *Service) ClassFileAccess(ctx context.Context, a *iam.Access, classID uuid.UUID) (bool, error) {
+	if a.Can("student.view") {
+		return true, nil
+	}
+	rows, err := s.q.LinkedStudents(ctx, &a.UserID)
+	if err != nil {
+		return false, err
+	}
+	for _, r := range rows {
+		ids, err := s.q.ActiveClassIDs(ctx, r.ID)
 		if err != nil {
-			return "", err
+			return false, err
 		}
-		if ok {
-			return "", nil
+		if slices.Contains(ids, classID) {
+			return true, nil
 		}
 	}
-	return "", iam.ErrForbidden
+	return false, nil
 }
 
 // ───── Mã nghiệp vụ ─────

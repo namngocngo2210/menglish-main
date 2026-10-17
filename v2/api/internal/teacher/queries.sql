@@ -314,6 +314,20 @@ WHERE h.class_id = ANY (sqlc.arg(class_ids)::uuid[]) AND h.deleted_at IS NULL
 ORDER BY h.due_date DESC NULLS LAST, h.created_at DESC, h.id DESC
 LIMIT sqlc.arg(lim);
 
+-- name: ClassesHomeworkCount :one
+-- Số bài GV giao của các lớp (trang chủ cổng học viên: tiến độ bài tập).
+SELECT count(*)::int FROM academic.homeworks h
+WHERE h.class_id = ANY (sqlc.arg(class_ids)::uuid[]) AND h.deleted_at IS NULL;
+
+-- name: ClassesHomeworkAudio :many
+-- Bài nghe mẫu luyện phát âm: bài tập có file nghe của các lớp, mới giao trước.
+SELECT h.title, c.name AS class_name, h.audio_file_id::uuid AS audio_file_id
+FROM academic.homeworks h
+JOIN academic.classes c ON c.id = h.class_id
+WHERE h.class_id = ANY (sqlc.arg(class_ids)::uuid[]) AND h.deleted_at IS NULL AND h.audio_file_id IS NOT NULL
+ORDER BY h.created_at DESC, h.id DESC
+LIMIT sqlc.arg(lim);
+
 -- name: StudentRemarks :many
 -- Nhận xét đã lưu (không phải nháp) của học viên ở các lớp, buổi mới nhất trước.
 SELECT s.date, r.monsters_group, r.monsters_bonus, r.grammar, r.attitude, r.result, r.comment

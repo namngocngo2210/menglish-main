@@ -130,7 +130,7 @@ export type Homework = PortalContext & {
   cards: { key: string; title: string; submission: Submission | null }[]
   completed_count: number
   remarks: Remark[]
-  mini_tests: { id: string; name: string; test_date: string | null; score: number; max_score: number }[]
+  mini_tests: { id: string; name: string; test_date: string | null; score: number | null; max_score: number }[]
   big_test_results: BigTestResult[]
   latest_homework: { title: string; description: string | null; class_name: string | null; due_date: string | null } | null
   homework_urgent: boolean
@@ -203,31 +203,6 @@ export type FeedbackInput = {
   content: string
 }
 
-// Màn "Chấm bài nộp của lớp" (giáo viên / trợ giảng).
-export type TeacherClass = { id: string; code: string; name: string }
-export type TeacherItem = {
-  id: string
-  status: string
-  student_name: string
-  submitted_at: string
-  notes: string | null
-  audio_url: string | null
-  unit_title: string | null
-  duration: string | null
-  attachment_url: string | null
-  attachment_name: string | null
-  homework_label: string | null
-  score: string | null
-  feedback: string | null
-}
-export type TeacherSubmissions = {
-  classes: TeacherClass[]
-  current_class: TeacherClass | null
-  active_tab: string
-  submissions: TeacherItem[]
-  ready: boolean
-}
-
 // Kế toán: "Học viên báo đã đóng học phí".
 export type ReportRow = PaymentReport & {
   student_id: string
@@ -275,17 +250,6 @@ export const portalApi = {
   feedback: (studentId?: string | null) => request<FeedbackPage>('GET', `/portal/feedback${q(studentId)}`),
   submitFeedback: (body: FeedbackInput) => request<Msg & { feedback: StageFeedback; created: boolean }>('POST', '/portal/feedback', body),
   deleteFeedback: (id: string) => request<Msg>('DELETE', `/portal/feedback/${id}`),
-
-  teacherSubmissions: (classId: string, type: string) => {
-    const p = new URLSearchParams()
-    if (classId) p.set('class_id', classId)
-    if (type) p.set('type', type)
-    return request<TeacherSubmissions>('GET', `/portal/teacher/submissions?${p.toString()}`)
-  },
-  reviewPronunciation: (id: string, body: { score: string; feedback: string }) =>
-    request<Msg>('POST', `/portal/teacher/pronunciation/${id}/review`, body),
-  reviewSubmission: (id: string, body: { score: string; feedback: string }) =>
-    request<Msg>('POST', `/portal/teacher/submissions/${id}/review`, body),
 
   paymentReports: (status: PaymentReportStatus) => request<{ data: ReportRow[] }>('GET', `/payment-reports?status=${status}`),
   confirmReport: (id: string) => request<Msg>('POST', `/payment-reports/${id}/confirm`),

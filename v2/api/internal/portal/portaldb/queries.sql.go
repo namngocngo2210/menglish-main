@@ -215,9 +215,11 @@ func (q *Queries) ClassPronunciations(ctx context.Context, studentIds []uuid.UUI
 }
 
 const classRoster = `-- name: ClassRoster :many
+
 SELECT r.student_id::uuid FROM academic.class_roster r WHERE r.class_id = $1::uuid
 `
 
+// ───── Chấm bài nộp của lớp (tab Phát âm), quyền mở file của học viên ─────
 func (q *Queries) ClassRoster(ctx context.Context, classID uuid.UUID) ([]uuid.UUID, error) {
 	rows, err := q.db.Query(ctx, classRoster, classID)
 	if err != nil {
@@ -1023,49 +1025,6 @@ func (q *Queries) StudentRecipients(ctx context.Context, studentID uuid.UUID) ([
 			return nil, err
 		}
 		items = append(items, u)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const teacherClasses = `-- name: TeacherClasses :many
-
-SELECT c.id, c.code, c.name
-FROM academic.classes c
-WHERE c.deleted_at IS NULL AND c.status <> 'cancelled'
-  AND ($1::bool OR c.teacher_id = $2 OR c.assistant_id = $2
-       OR c.foreign_teacher_id = $2)
-ORDER BY c.name, c.id
-`
-
-type TeacherClassesParams struct {
-	AllClasses bool
-	UserID     *uuid.UUID
-}
-
-type TeacherClassesRow struct {
-	ID   uuid.UUID
-	Code string
-	Name string
-}
-
-// ───── Cổng giáo viên: chấm bài nộp ─────
-// Lớp mình dạy / trợ giảng / GVNN; phạm vi Lớp học "Toàn hệ thống" → mọi lớp (teacherClassesQuery). Bỏ lớp đã hủy.
-func (q *Queries) TeacherClasses(ctx context.Context, arg TeacherClassesParams) ([]TeacherClassesRow, error) {
-	rows, err := q.db.Query(ctx, teacherClasses, arg.AllClasses, arg.UserID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []TeacherClassesRow
-	for rows.Next() {
-		var i TeacherClassesRow
-		if err := rows.Scan(&i.ID, &i.Code, &i.Name); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

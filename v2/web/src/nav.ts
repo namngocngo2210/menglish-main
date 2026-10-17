@@ -116,7 +116,7 @@ export const NAV: NavItem[] = [
     perms: ['work_task.view'],
     menu: (me) => can(me, 'portal.teacher', 'portal.assistant'),
   },
-  // Bản chấm bài của features/portal (trùng /teacher/submissions, chờ gộp làm một màn).
+  // Đường dẫn cũ của màn chấm bài (route portal.teacher.submissions): chuyển sang /teacher/submissions.
   {
     path: '/portal/teacher-submissions',
     label: 'Chấm bài nộp của lớp',

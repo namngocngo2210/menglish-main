@@ -42,7 +42,7 @@ export function HomeworkPage({ me }: { me: Me }) {
       tab="learning"
       actions={
         can(me, 'homework.grade') ? (
-          <PortalLink href="/portal/teacher-submissions" className="inline-flex h-9 items-center gap-1 rounded-lg border border-outline-variant px-3 text-xs font-medium hover:bg-surface-container-low">
+          <PortalLink href="/teacher/submissions" className="inline-flex h-9 items-center gap-1 rounded-lg border border-outline-variant px-3 text-xs font-medium hover:bg-surface-container-low">
             <Icon name="video_library" className="text-[16px]" /> Cổng GV: Xem bài nộp của lớp
           </PortalLink>
         ) : null
@@ -129,7 +129,7 @@ export function HomeworkPage({ me }: { me: Me }) {
                     <p className="font-mono text-xs text-on-surface-variant">Ngày thi: {dmy(t.test_date)}</p>
                   </div>
                   <div className="font-mono text-lg font-black text-primary">
-                    {t.score}
+                    {t.score ?? '—'}
                     <span className="text-xs text-on-surface-variant">/{t.max_score}</span>
                   </div>
                 </div>
