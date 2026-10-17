@@ -29,7 +29,7 @@ import { TeacherTrialsPage, TrialSchedulePage } from './features/placement/Trial
 import { TeacherClassPage } from './features/teacher/ClassPage'
 import { GeneralReportPage as TeacherReportPage } from './features/teacher/GeneralReportPage'
 import { HomePage as TeacherHomePage } from './features/teacher/HomePage'
-import { SubmissionsPage as TeacherSubmissionsPage } from './features/teacher/SubmissionsPage'
+import { LegacySubmissionsRedirect, SubmissionsPage as TeacherSubmissionsPage } from './features/teacher/SubmissionsPage'
 import { ActivityLogsPage } from './features/platform/ActivityLogsPage'
 import { NotificationsPage } from './features/platform/NotificationsPage'
 import { SearchPage } from './features/platform/SearchPage'
@@ -83,7 +83,6 @@ import { PortalNotificationsPage } from './features/portal/NotificationsPage'
 import { PaymentReportsPage } from './features/portal/PaymentReportsPage'
 import { PronunciationPage as PortalPronunciationPage } from './features/portal/PronunciationPage'
 import { SurveyPage as PortalSurveyPage } from './features/portal/SurveyPage'
-import { TeacherSubmissionsPage as PortalTeacherSubmissionsPage } from './features/portal/TeacherSubmissionsPage'
 import { ApprovalsPage as AttendanceApprovalsPage } from './features/attendance/ApprovalsPage'
 import { DailyPage as StaffAttendancePage } from './features/attendance/DailyPage'
 import { HistoryPage as AttendanceHistoryPage } from './features/attendance/HistoryPage'
@@ -151,7 +150,7 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/teacher/trial-guests': () => <TeacherTrialsPage />,
   '/teacher/home': () => <TeacherHomePage />,
   '/teacher/classes': () => <TeacherClassPage />,
-  '/teacher/submissions': () => <TeacherSubmissionsPage />,
+  '/teacher/submissions': (me) => <TeacherSubmissionsPage me={me} />,
   '/teacher/general-report': () => <TeacherReportPage />,
   '/activity-logs': () => <ActivityLogsPage />,
   '/notifications': (me) => <NotificationsPage me={me} />,
@@ -190,7 +189,8 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/portal/survey': () => <PortalSurveyPage />,
   '/portal/feedback': () => <PortalFeedbackPage />,
   '/portal/app-shell': () => <PortalAppShellPage />,
-  '/portal/teacher-submissions': (me) => <PortalTeacherSubmissionsPage me={me} />,
+  // Đường dẫn cũ của màn chấm bài → /teacher/submissions
+  '/portal/teacher-submissions': () => <LegacySubmissionsRedirect />,
   '/cham-cong': () => <MyAttendancePage />,
   '/cham-cong/lich-su': () => <AttendanceHistoryPage />,
   '/cham-cong/don': (me) => <AttendanceRequestsPage me={me} />,

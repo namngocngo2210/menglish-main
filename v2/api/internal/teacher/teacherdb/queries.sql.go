@@ -445,6 +445,60 @@ func (q *Queries) ClassSubmissions(ctx context.Context, arg ClassSubmissionsPara
 	return items, nil
 }
 
+const classesHomeworkAudio = `-- name: ClassesHomeworkAudio :many
+SELECT h.title, c.name AS class_name, h.audio_file_id::uuid AS audio_file_id
+FROM academic.homeworks h
+JOIN academic.classes c ON c.id = h.class_id
+WHERE h.class_id = ANY ($1::uuid[]) AND h.deleted_at IS NULL AND h.audio_file_id IS NOT NULL
+ORDER BY h.created_at DESC, h.id DESC
+LIMIT $2
+`
+
+type ClassesHomeworkAudioParams struct {
+	ClassIds []uuid.UUID
+	Lim      int32
+}
+
+type ClassesHomeworkAudioRow struct {
+	Title       string
+	ClassName   string
+	AudioFileID uuid.UUID
+}
+
+// Bài nghe mẫu luyện phát âm: bài tập có file nghe của các lớp, mới giao trước.
+func (q *Queries) ClassesHomeworkAudio(ctx context.Context, arg ClassesHomeworkAudioParams) ([]ClassesHomeworkAudioRow, error) {
+	rows, err := q.db.Query(ctx, classesHomeworkAudio, arg.ClassIds, arg.Lim)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ClassesHomeworkAudioRow
+	for rows.Next() {
+		var i ClassesHomeworkAudioRow
+		if err := rows.Scan(&i.Title, &i.ClassName, &i.AudioFileID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const classesHomeworkCount = `-- name: ClassesHomeworkCount :one
+SELECT count(*)::int FROM academic.homeworks h
+WHERE h.class_id = ANY ($1::uuid[]) AND h.deleted_at IS NULL
+`
+
+// Số bài GV giao của các lớp (trang chủ cổng học viên: tiến độ bài tập).
+func (q *Queries) ClassesHomeworkCount(ctx context.Context, classIds []uuid.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, classesHomeworkCount, classIds)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const classesHomeworks = `-- name: ClassesHomeworks :many
 SELECT h.id, h.class_id, c.name AS class_name, h.session_id, h.title, h.description, h.class_note, h.youtube_url, h.quizizz_url,
        h.audio_file_id, h.items, h.due_date, h.due_at, h.created_at

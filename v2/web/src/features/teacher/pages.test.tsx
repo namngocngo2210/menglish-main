@@ -164,12 +164,14 @@ test('nhận xét: lưu nháp gửi đúng buổi và học sinh', async () => {
   expect(post.remarks.st1.comment).toBe('Con phát biểu tốt')
 })
 
-test('chấm bài: lỗi máy chủ hiện trong hộp thoại, chấm xong báo thành công', async () => {
+test('chấm bài: lỗi máy chủ hiện trên màn, chấm xong báo thành công', async () => {
   let fail = true
+  const bodies: unknown[] = []
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init = {}) => {
     const key = `${init.method ?? 'GET'} ${String(input).replace('/api/v1', '')}`
     if (key === 'GET /teacher/submissions') return new Response(JSON.stringify(subs))
     if (key === 'POST /teacher/submissions/sb1/mark') {
+      bodies.push(JSON.parse(String(init.body)))
       if (fail) {
         fail = false
         return new Response(JSON.stringify({ error: 'invalid', message: 'Điểm không được vượt quá 20 ký tự.' }), { status: 422 })
@@ -179,12 +181,37 @@ test('chấm bài: lỗi máy chủ hiện trong hộp thoại, chấm xong báo
     return new Response('{}', { status: 404 })
   })
   renderAt('/teacher/submissions', <Submissions />)
-  expect(await screen.findByText('Con đã quay')).toBeInTheDocument()
+  expect(await screen.findByText('"Con đã quay"')).toBeInTheDocument()
+  expect(screen.getByText('Danh sách đã nộp bài (1)')).toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'video.mp4' })).toHaveAttribute('href', '/api/v1/files/f1')
-  await userEvent.click(screen.getByRole('button', { name: 'Chấm bài' }))
+  expect(screen.queryByText(/Bài phát âm: chờ phân hệ/)).toBeNull()
   await userEvent.type(screen.getByLabelText('Điểm'), '9/10')
-  await userEvent.click(screen.getByRole('button', { name: 'Lưu điểm & phản hồi' }))
+  await userEvent.type(screen.getByLabelText('Nhận xét'), 'Tốt')
+  await userEvent.click(screen.getByRole('button', { name: /Đánh dấu đã xem/ }))
   expect(await screen.findByText('Điểm không được vượt quá 20 ký tự.')).toBeInTheDocument()
-  await userEvent.click(screen.getByRole('button', { name: 'Lưu điểm & phản hồi' }))
+  await userEvent.click(screen.getByRole('button', { name: /Đánh dấu đã xem/ }))
   expect(await screen.findByText('Đã chấm điểm và gửi phản hồi bài nộp thành công!')).toBeInTheDocument()
+  expect(bodies[1]).toEqual({ score: '9/10', feedback: 'Tốt' })
+})
+
+test('chấm bài: bài đã chấm chỉ hiện nhãn, tab phát âm bắt buộc điểm', async () => {
+  const reviewed = { ...subs.submissions[0], id: 'sb2', status: 'reviewed' as const, score: '8' }
+  const pron = {
+    ...subs,
+    active_tab: 'pronunciation',
+    pronunciation_pending: false,
+    submissions: [{ ...subs.submissions[0], id: 'pr1', audio_url: '/api/v1/files/a1', unit_title: 'Unit 1', attachment_url: '', homework_label: '' }],
+  }
+  mockApi({
+    'GET /teacher/submissions?type=video': { data: { ...subs, submissions: [reviewed] } },
+    'GET /teacher/submissions?type=pronunciation': { data: pron },
+  })
+  const first = renderAt('/teacher/submissions?type=video', <Submissions />)
+  expect(await screen.findByText(/Đã chấm: 8/)).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /Đánh dấu đã xem/ })).toBeNull()
+  first.unmount()
+  renderAt('/teacher/submissions?type=pronunciation', <Submissions />)
+  expect(await screen.findByText('Unit 1')).toBeInTheDocument()
+  expect(screen.getByLabelText('Điểm phát âm')).toBeRequired()
+  expect(screen.getByRole('button', { name: 'Chấm' })).toBeInTheDocument()
 })

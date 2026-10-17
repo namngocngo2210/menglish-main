@@ -20,8 +20,8 @@ type Handler struct {
 
 func NewHandler(svc *Service, log *slog.Logger) *Handler { return &Handler{svc: svc, log: log} }
 
-// Routes gắn /portal (cổng học viên: tài khoản cổng portal.student hoặc nhân sự student.view xem hộ; chấm bài nộp:
-// homework.grade) và /payment-reports (kế toán xác nhận "Học viên báo đã đóng học phí": tuition.view + tuition.approve).
+// Routes gắn /portal (cổng học viên: tài khoản cổng portal.student hoặc nhân sự student.view xem hộ; màn chấm bài nộp
+// của lớp ở phân hệ Cổng giáo viên /teacher/submissions) và /payment-reports (kế toán xác nhận "Học viên báo đã đóng học phí": tuition.view + tuition.approve).
 func (h *Handler) Routes(r chi.Router) {
 	r.Route("/portal", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
@@ -49,12 +49,6 @@ func (h *Handler) Routes(r chi.Router) {
 			r.Get("/feedback", h.feedback)
 			r.Post("/feedback", h.submitFeedback)
 			r.Delete("/feedback/{id}", h.deleteFeedback)
-		})
-		r.Route("/teacher", func(r chi.Router) {
-			r.Use(iam.Require("homework.grade"))
-			r.Get("/submissions", h.teacherSubmissions)
-			r.Post("/pronunciation/{id}/review", h.reviewPronunciation)
-			r.Post("/submissions/{id}/review", h.reviewSubmission)
 		})
 	})
 	r.Route("/payment-reports", func(r chi.Router) {
@@ -331,34 +325,6 @@ func (h *Handler) deleteFeedback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.message(w, r, "Đã xóa feedback thành công! Trạng thái đã được đặt lại ban đầu.", h.svc.DeleteFeedback(r.Context(), actorOf(r), id))
-}
-
-// ───── Chấm bài nộp của lớp ─────
-
-func (h *Handler) teacherSubmissions(w http.ResponseWriter, r *http.Request) {
-	q := r.URL.Query()
-	out, err := h.svc.TeacherSubmissions(r.Context(), actorOf(r), optUUID(q.Get("class_id")), q.Get("type"))
-	h.reply(w, r, out, err)
-}
-
-const reviewed = "Đã chấm điểm và gửi phản hồi bài nộp thành công!"
-
-func (h *Handler) reviewPronunciation(w http.ResponseWriter, r *http.Request) {
-	id, ok := idParam(w, r)
-	var in ReviewInput
-	if !ok || !httpx.Decode(w, r, &in) {
-		return
-	}
-	h.message(w, r, reviewed, h.svc.ReviewPronunciation(r.Context(), actorOf(r), id, in))
-}
-
-func (h *Handler) reviewSubmission(w http.ResponseWriter, r *http.Request) {
-	id, ok := idParam(w, r)
-	var in ReviewInput
-	if !ok || !httpx.Decode(w, r, &in) {
-		return
-	}
-	h.message(w, r, reviewed, h.svc.ReviewSubmission(r.Context(), actorOf(r), id, in))
 }
 
 // ───── Kế toán: Học viên báo đã đóng học phí ─────

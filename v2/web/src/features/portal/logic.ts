@@ -103,20 +103,6 @@ export function feedbackFilled(f: { rating: number; fb_hoc_thuat: boolean; fb_gi
 
 export const FEEDBACK_REQUIRED = 'Vui lòng điền ít nhất 1 mục (Nội dung, Lĩnh vực góp ý hoặc Chọn mức hài lòng) để gửi feedback.'
 
-// Hai chữ đầu tên học viên (ô ảnh đại diện ở màn chấm bài).
-export const initials = (name: string | null | undefined) => Array.from(name || 'HV').slice(0, 2).join('')
-
-// Tab màn chấm bài (TeacherSubmissions.vue).
-export const TEACHER_TABS: { key: string; label: string; icon: string }[] = [
-  { key: 'video', label: 'Quay video', icon: 'videocam' },
-  { key: 'vocabulary', label: 'Viết từ vựng', icon: 'edit_document' },
-  { key: 'workbook', label: 'Workbook', icon: 'menu_book' },
-  { key: 'extra_book', label: 'Sách bổ trợ', icon: 'library_books' },
-  { key: 'bgd_book', label: 'Sách bộ giáo dục', icon: 'import_contacts' },
-  { key: 'quiz', label: 'Quiz', icon: 'quiz' },
-  { key: 'pronunciation', label: 'Phát âm', icon: 'mic' },
-]
-
 // Số tiền gợi ý ở hộp "Báo đóng học phí": còn nợ (làm tròn xuống), không nợ thì để trống.
 export const suggestedAmount = (debt: number) => (debt > 0 ? String(Math.trunc(debt)) : '')
 

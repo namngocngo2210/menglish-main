@@ -29,7 +29,8 @@ func (fakeTuition) PortalPayments(_ context.Context, id uuid.UUID) (TuitionTotal
 
 type env struct {
 	*iamtest.Env
-	t *testing.T
+	t   *testing.T
+	svc *Service
 }
 
 func setup(t *testing.T) *env {
@@ -48,7 +49,7 @@ func setup(t *testing.T) *env {
 		fh.Routes(r)
 		fh.PublicRoutes(r)
 	})
-	return &env{Env: e, t: t}
+	return &env{Env: e, t: t, svc: svc}
 }
 
 func (e *env) exec(sql string, args ...any) {
@@ -312,7 +313,6 @@ func TestPortalPronunciationAndGrading(t *testing.T) {
 	e := setup(t)
 	a := e.Branch("CSA")
 	gv, gvC := e.Member("GV001", "Cô Hoa", []uuid.UUID{a}, iam.RoleTeacherFulltime)
-	_, gv2 := e.Member("GV002", "Thầy Nam", []uuid.UUID{a}, iam.RoleTeacherFulltime)
 	cls := e.class(a, "L01", &gv.ID)
 	cls2 := e.class(a, "L02", nil)
 	hsU := e.account("student", "HS001", "", "Nguyễn An")
@@ -349,27 +349,34 @@ func TestPortalPronunciationAndGrading(t *testing.T) {
 	}
 	iamtest.Expect(t, oc.Do("DELETE", "/portal/pronunciation/"+id, nil), 403, "forbidden")
 
-	// Màn chấm bài: học viên không có homework.grade; giáo viên chỉ thấy lớp mình
-	iamtest.Expect(t, c.Do("GET", "/portal/teacher/submissions", nil), 403, "forbidden")
-	r = gvC.Do("GET", "/portal/teacher/submissions?type=pronunciation", nil)
-	iamtest.Expect(t, r, 200, "")
-	if l := iamtest.List(t, r, "submissions"); len(l) != 1 || l[0]["student_name"] != "Nguyễn An" || len(iamtest.List(t, r, "classes")) != 1 {
-		t.Fatalf("tab phát âm: %s", r.Raw)
+	// Tab Phát âm của màn chấm bài (phân hệ Cổng giáo viên gọi qua adapter): bản ghi âm theo danh sách lớp, chấm điểm
+	ctx := context.Background()
+	recs, err := e.svc.ClassPronunciations(ctx, cls)
+	if err != nil || len(recs) != 1 || recs[0].StudentName != "Nguyễn An" || recs[0].AudioURL == nil {
+		t.Fatalf("tab phát âm: %+v %v", recs, err)
 	}
-	msg(t, gvC.Do("GET", "/portal/teacher/submissions?class_id="+cls2.String(), nil), 403, "Bạn không phụ trách lớp này.")
-	msg(t, gvC.Do("POST", "/portal/teacher/pronunciation/"+id+"/review", map[string]any{"feedback": "Tốt"}), 422, "Vui lòng nhập điểm.")
-	iamtest.Expect(t, gv2.Do("POST", "/portal/teacher/pronunciation/"+id+"/review", map[string]any{"score": "90"}), 404, "not_found")
-	msg(t, gvC.Do("POST", "/portal/teacher/pronunciation/"+id+"/review", map[string]any{"score": "90", "feedback": "Phát âm rõ"}), 200,
-		"Đã chấm điểm và gửi phản hồi bài nộp thành công!")
+	if recs, _ := e.svc.ClassPronunciations(ctx, cls2); len(recs) != 0 {
+		t.Fatalf("lớp khác: %+v", recs)
+	}
+	deny := func(uuid.UUID) (bool, error) { return false, nil }
+	allow := func(st uuid.UUID) (bool, error) { return st == hs, nil }
+	if ok, err := e.svc.MarkPronunciation(ctx, uuid.MustParse(id), gv.ID, "90", "", deny); ok || err != nil {
+		t.Fatalf("ngoài lớp phụ trách: %v %v", ok, err)
+	}
+	if ok, err := e.svc.MarkPronunciation(ctx, uuid.New(), gv.ID, "90", "", allow); ok || err != nil {
+		t.Fatalf("không có bản ghi: %v %v", ok, err)
+	}
+	if ok, err := e.svc.MarkPronunciation(ctx, uuid.MustParse(id), gv.ID, " 90 ", " Phát âm rõ ", allow); !ok || err != nil {
+		t.Fatalf("chấm: %v %v", ok, err)
+	}
 	h := iamtest.List(t, c.Do("GET", "/portal/pronunciation", nil), "history")
-	if h[0]["status"] != "reviewed" || h[0]["score"] != "90" {
+	if h[0]["status"] != "reviewed" || h[0]["score"] != "90" || h[0]["feedback"] != "Phát âm rõ" {
 		t.Fatalf("sau chấm: %v", h)
 	}
 	if l := iamtest.List(t, c.Do("GET", "/portal/notifications", nil), "notifications"); len(l) != 1 || l[0]["type"] != "pronunciation_reviewed" {
 		t.Fatalf("thông báo chấm: %v", l)
 	}
-	// Bài nộp thường chờ phân hệ Cổng giáo viên
-	iamtest.Expect(t, gvC.Do("POST", "/portal/teacher/submissions/"+id+"/review", map[string]any{"score": "8"}), 503, "module_pending")
+	// Chưa gắn phân hệ Cổng giáo viên: nộp bài báo chờ phân hệ
 	hw := c.Do("GET", "/portal/homework", nil)
 	if hw.Body["ready"] != false || len(iamtest.List(t, hw, "cards")) != 6 {
 		t.Fatalf("học tập: %s", hw.Raw)

@@ -236,16 +236,7 @@ SELECT * FROM academic.stage_feedbacks WHERE id = $1;
 -- name: DeleteStageFeedback :exec
 DELETE FROM academic.stage_feedbacks WHERE id = $1;
 
--- ───── Cổng giáo viên: chấm bài nộp ─────
-
--- name: TeacherClasses :many
--- Lớp mình dạy / trợ giảng / GVNN; phạm vi Lớp học "Toàn hệ thống" → mọi lớp (teacherClassesQuery). Bỏ lớp đã hủy.
-SELECT c.id, c.code, c.name
-FROM academic.classes c
-WHERE c.deleted_at IS NULL AND c.status <> 'cancelled'
-  AND (sqlc.arg(all_classes)::bool OR c.teacher_id = sqlc.arg(user_id) OR c.assistant_id = sqlc.arg(user_id)
-       OR c.foreign_teacher_id = sqlc.arg(user_id))
-ORDER BY c.name, c.id;
+-- ───── Chấm bài nộp của lớp (tab Phát âm), quyền mở file của học viên ─────
 
 -- name: ClassRoster :many
 SELECT r.student_id::uuid FROM academic.class_roster r WHERE r.class_id = sqlc.arg(class_id)::uuid;

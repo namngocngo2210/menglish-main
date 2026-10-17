@@ -144,3 +144,31 @@ export const classHref = (classId: string, tab: ClassTab, sessionId?: string) =>
 
 // formatMoney: 1500000 → "1.500.000 đ".
 export const formatMoney = (v: number) => `${new Intl.NumberFormat('vi-VN').format(v)} đ`
+
+// ───────────── Chấm bài nộp của lớp (Portal/TeacherSubmissions.vue) ─────────────
+
+// Biểu tượng tab theo loại bài (nhãn tab lấy từ API).
+export const SUBMISSION_TAB_ICONS: Record<string, string> = {
+  video: 'videocam',
+  vocabulary: 'edit_document',
+  workbook: 'menu_book',
+  extra_book: 'library_books',
+  bgd_book: 'import_contacts',
+  quiz: 'quiz',
+  pronunciation: 'mic',
+}
+
+// Đường dẫn màn chấm bài theo lớp + tab (bỏ tham số rỗng).
+export function submissionsHref(classId: string | undefined, type: string) {
+  const q = new URLSearchParams()
+  if (classId) q.set('class_id', classId)
+  if (type) q.set('type', type)
+  const s = q.toString()
+  return s ? `/teacher/submissions?${s}` : '/teacher/submissions'
+}
+
+// Hai chữ đầu tên học viên (ô ảnh đại diện).
+export const initials = (name: string | null | undefined) => Array.from(name || 'HV').slice(0, 2).join('')
+
+// Nhãn bài đã chấm: có điểm → "Đã chấm: 9/10", không điểm → "Đã xem".
+export const reviewedLabel = (score: string | null | undefined) => (score && score.trim() !== '' ? `Đã chấm: ${score}` : 'Đã xem')

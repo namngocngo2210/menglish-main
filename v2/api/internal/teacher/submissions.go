@@ -30,7 +30,7 @@ type Submission struct {
 	ID             uuid.UUID `json:"id"`
 	Status         string    `json:"status"` // submitted | reviewed
 	StudentName    string    `json:"student_name"`
-	SubmittedAt    string    `json:"submitted_at"` // HH:MM, dd/mm/YYYY
+	SubmittedAt    string    `json:"submitted_at"` // dd/mm/YYYY HH:MM (như submitted_at Laravel ghi lúc nộp)
 	Notes          string    `json:"notes"`
 	AudioURL       string    `json:"audio_url"`  // bài phát âm
 	UnitTitle      string    `json:"unit_title"` // bài phát âm
@@ -57,7 +57,8 @@ type SubmissionsPage struct {
 	PronunciationPending bool `json:"pronunciation_pending"`
 }
 
-func submittedAt(t time.Time) string { return t.In(vnZone).Format("15:04, 02/01/2006") }
+// SubmittedAt: giờ nộp hiển thị trên màn chấm bài.
+func SubmittedAt(t time.Time) string { return t.In(vnZone).Format("02/01/2006 15:04") }
 
 func guardGrader(a *iam.Access) error {
 	if !a.Can("homework.grade") {
@@ -115,8 +116,8 @@ func (s *Service) Submissions(ctx context.Context, a *iam.Access, classID *uuid.
 		return nil, err
 	}
 	for _, r := range list {
-		sub := Submission{ID: r.ID, Status: r.Status, StudentName: r.StudentName, SubmittedAt: submittedAt(r.CreatedAt),
-			Notes: deref(r.Notes), AttachmentName: deref(r.AttachmentName), HomeworkLabel: categoryLabel(r.HomeworkType),
+		sub := Submission{ID: r.ID, Status: r.Status, StudentName: r.StudentName, SubmittedAt: SubmittedAt(r.CreatedAt),
+			Notes: deref(r.Notes), AttachmentName: deref(r.AttachmentName), HomeworkLabel: submissionLabel(r.HomeworkType),
 			Score: deref(r.Score), Feedback: deref(r.Feedback)}
 		if r.HomeworkTitle != nil {
 			sub.HomeworkLabel = *r.HomeworkTitle

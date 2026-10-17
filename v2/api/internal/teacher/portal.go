@@ -19,8 +19,7 @@ import (
 // StudentPortal: API cho phân hệ Cổng học viên / phụ huynh (StudentPortalController::submitHomework / updateHomework /
 // deleteHomework, bài tập / nhận xét / điểm mini test của học viên). Bảng bài tập + bài nộp thuộc phân hệ này; cổng học
 // viên tự kiểm người dùng được thao tác cho học viên nào (authorizeStudent) rồi gọi các hàm dưới với studentID đã kiểm.
-//
-// TODO(gộp): phân hệ Cổng học viên lấy qua teacherSvc.StudentPortal() ở cmd/menglish và gọi SetFileAccess.
+// cmd/menglish bọc nó thành portal.TeacherPortal và gọi SetFileAccess.
 type StudentPortal struct{ s *Service }
 
 func (s *Service) StudentPortal() *StudentPortal { return &StudentPortal{s} }
@@ -33,6 +32,19 @@ var SubmissionPolicy = filestore.Policy{
 
 // SetFileAccess: cổng học viên cho học viên / phụ huynh mở file bài nộp của mình và file nghe bài tập lớp mình.
 func (p *StudentPortal) SetFileAccess(fn FileAccess) { p.s.portalReader = fn }
+
+// SubmissionLabels: tên hạng mục bài nộp như cổng học viên ghi vào bài nộp (StudentPortalController::submitHomework).
+var SubmissionLabels = map[string]string{
+	"video": "Quay video bài học", "vocabulary": "Viết từ vựng & Chụp ảnh", "workbook": "Làm Workbook bài tập",
+	"extra_book": "Sách bổ trợ", "bgd_book": "Sách Bộ Giáo dục", "quiz": "Làm Quiz trực tuyến",
+}
+
+func submissionLabel(key string) string {
+	if l, ok := SubmissionLabels[key]; ok {
+		return l
+	}
+	return key
+}
 
 // StudentSubmission: bài nộp của học viên.
 type StudentSubmission struct {
@@ -55,7 +67,7 @@ type StudentSubmission struct {
 
 func toStudentSubmission(r teacherdb.GetStudentSubmissionRow) StudentSubmission {
 	out := StudentSubmission{ID: r.ID, StudentID: r.StudentID, HomeworkID: r.HomeworkID, HomeworkType: r.HomeworkType,
-		HomeworkLabel: categoryLabel(r.HomeworkType), Notes: deref(r.Notes), AttachmentID: r.AttachmentFileID,
+		HomeworkLabel: submissionLabel(r.HomeworkType), Notes: deref(r.Notes), AttachmentID: r.AttachmentFileID,
 		AttachmentName: deref(r.AttachmentName), Status: r.Status, Score: deref(r.Score), Feedback: deref(r.Feedback),
 		ReviewedAt: r.ReviewedAt, SubmittedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt}
 	if r.AttachmentFileID != nil {
@@ -72,8 +84,6 @@ type SubmitInput struct {
 	Notes        string
 	Upload       *filestore.Upload
 }
-
-var errSubmissionChanged = &iam.Error{Status: 409, Code: "conflict", Message: "Bài nộp đã được giáo viên chấm, không sửa / xóa được."}
 
 func (p *StudentPortal) saveAttachment(ctx context.Context, tx pgx.Tx, by *uuid.UUID, subID uuid.UUID, up *filestore.Upload) (*uuid.UUID, *string, error) {
 	if up == nil {
@@ -138,7 +148,7 @@ func (p *StudentPortal) Submit(ctx context.Context, by *uuid.UUID, in SubmitInpu
 		}
 		return audit.Record(ctx, tx, audit.Entry{ActorID: by, Module: audit.ModuleStudents, Event: audit.EventCreated,
 			Action: "homework_submission.create", SubjectType: "homework_submission", SubjectID: id.String(),
-			SubjectLabel: name + " · " + categoryLabel(in.HomeworkType), Description: "Nộp bài " + categoryLabel(in.HomeworkType) + " — " + name})
+			SubjectLabel: name + " · " + submissionLabel(in.HomeworkType), Description: "Bài nộp: " + submissionLabel(in.HomeworkType) + " - " + name})
 	})
 	if err != nil {
 		return nil, err
@@ -159,7 +169,17 @@ func (p *StudentPortal) Submission(ctx context.Context, studentID, id uuid.UUID)
 	return &out, nil
 }
 
-// Update: sửa ghi chú (notes nil = giữ) và / hoặc thay file bài nộp chưa chấm.
+// SubmissionOwner: học viên của bài nộp (ErrSubmissionNotFound khi không có).
+func (p *StudentPortal) SubmissionOwner(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	r, err := p.s.q.GetStudentSubmission(ctx, id)
+	if isNoRows(err) {
+		return uuid.Nil, ErrSubmissionNotFound
+	}
+	return r.StudentID, err
+}
+
+// Update: sửa ghi chú (notes nil = giữ) và / hoặc thay file bài nộp. Như Laravel, bài đã chấm vẫn sửa / nộp lại được
+// (giữ trạng thái và điểm).
 func (p *StudentPortal) Update(ctx context.Context, by *uuid.UUID, studentID, id uuid.UUID, notes *string, up *filestore.Upload) (*StudentSubmission, error) {
 	if notes != nil && tooLong(strings.TrimSpace(*notes), 5000) {
 		return nil, iam.Invalid("Ghi chú không được vượt quá 5000 ký tự.")
@@ -167,9 +187,6 @@ func (p *StudentPortal) Update(ctx context.Context, by *uuid.UUID, studentID, id
 	cur, err := p.Submission(ctx, studentID, id)
 	if err != nil {
 		return nil, err
-	}
-	if cur.Status == "reviewed" {
-		return nil, errSubmissionChanged
 	}
 	err = p.s.tx(ctx, func(tx pgx.Tx, q *teacherdb.Queries) error {
 		fileID, fileName, err := p.saveAttachment(ctx, tx, by, id, up)
@@ -199,14 +216,11 @@ func (p *StudentPortal) Update(ctx context.Context, by *uuid.UUID, studentID, id
 	return p.Submission(ctx, studentID, id)
 }
 
-// Delete: hủy bài nộp chưa chấm (file xóa mềm).
+// Delete: hủy bài nộp để nộp lại (file xóa mềm); như Laravel không chặn bài đã chấm.
 func (p *StudentPortal) Delete(ctx context.Context, by *uuid.UUID, studentID, id uuid.UUID) error {
 	cur, err := p.Submission(ctx, studentID, id)
 	if err != nil {
 		return err
-	}
-	if cur.Status == "reviewed" {
-		return errSubmissionChanged
 	}
 	return p.s.tx(ctx, func(tx pgx.Tx, q *teacherdb.Queries) error {
 		if cur.AttachmentID != nil && p.s.files != nil {
@@ -250,6 +264,7 @@ type ClassHomework struct {
 	QuizizzURL  string         `json:"quizizz_url"`
 	AudioURL    string         `json:"audio_url"`
 	Items       []HomeworkItem `json:"items"`
+	DueDate     *time.Time     `json:"due_date"` // ngày hạn nộp
 	DueAt       *time.Time     `json:"due_at"`
 	DueLabel    string         `json:"due_label"`
 	CreatedAt   time.Time      `json:"created_at"`
@@ -266,7 +281,7 @@ func (p *StudentPortal) Homeworks(ctx context.Context, classIDs []uuid.UUID, lim
 		items := parseItems(r.Items)
 		h := ClassHomework{ID: r.ID, ClassID: r.ClassID, ClassName: r.ClassName, SessionID: r.SessionID, Title: r.Title,
 			Description: deref(r.Description), ClassNote: deref(r.ClassNote), YoutubeURL: deref(r.YoutubeUrl), QuizizzURL: deref(r.QuizizzUrl),
-			Items: []HomeworkItem{}, DueAt: r.DueAt, DueLabel: dueLabel(r.DueAt, r.DueDate), CreatedAt: r.CreatedAt}
+			Items: []HomeworkItem{}, DueDate: r.DueDate, DueAt: r.DueAt, DueLabel: dueLabel(r.DueAt, r.DueDate), CreatedAt: r.CreatedAt}
 		if r.AudioFileID != nil {
 			h.AudioURL = files.URL(*r.AudioFileID)
 		}
@@ -274,6 +289,31 @@ func (p *StudentPortal) Homeworks(ctx context.Context, classIDs []uuid.UUID, lim
 			h.Items = append(h.Items, HomeworkItem{Key: k, Label: categoryLabel(k), Text: items[k]})
 		}
 		out[i] = h
+	}
+	return out, nil
+}
+
+// HomeworkCount: số bài GV giao của các lớp.
+func (p *StudentPortal) HomeworkCount(ctx context.Context, classIDs []uuid.UUID) (int, error) {
+	n, err := p.s.q.ClassesHomeworkCount(ctx, classIDs)
+	return int(n), err
+}
+
+// PracticeAudio: file nghe giáo viên đính kèm bài tập của các lớp (bài nghe mẫu luyện phát âm), mới giao trước.
+type PracticeAudio struct {
+	Title     string
+	ClassName string
+	AudioURL  string
+}
+
+func (p *StudentPortal) PracticeAudio(ctx context.Context, classIDs []uuid.UUID, limit int) ([]PracticeAudio, error) {
+	rows, err := p.s.q.ClassesHomeworkAudio(ctx, teacherdb.ClassesHomeworkAudioParams{ClassIds: classIDs, Lim: int32(limit)})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]PracticeAudio, len(rows))
+	for i, r := range rows {
+		out[i] = PracticeAudio{Title: r.Title, ClassName: r.ClassName, AudioURL: files.URL(r.AudioFileID)}
 	}
 	return out, nil
 }
