@@ -36,6 +36,7 @@ import { AcademicPage } from './features/dashboard/AcademicPage'
 import { DashboardPage } from './features/dashboard/DashboardPage'
 import { seesDashboard } from './features/dashboard/logic'
 import { AccountPage } from './pages/AccountPage'
+import { ApprovalsPage as ApprovalInboxPage } from './features/approvals/ApprovalsPage'
 import { BranchesPage } from './pages/admin/BranchesPage'
 import { RolesPage } from './pages/admin/RolesPage'
 import { UsersPage } from './pages/admin/UsersPage'
@@ -138,4 +139,5 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/tuition/sepay': (me) => <TuitionSepayPage me={me} />,
   '/tuition/import': (me) => <TuitionImportPage me={me} />,
   '/tickets': (me) => <TicketsPage me={me} />,
+  '/approvals': (me) => <ApprovalInboxPage me={me} />,
 }

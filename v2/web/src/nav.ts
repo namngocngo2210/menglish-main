@@ -27,6 +27,17 @@ export const hasKpiRole = (me: Me) => me.roles.some((r) => KPI_ROLES.includes(r.
 const CRM = 'Khách hàng (CRM)'
 // Quyền neo khu Học phí (SidebarMenu::TUITION): người xử lý nghiệp vụ kế toán.
 const TUITION_ANCHORS = ['tuition.approve', 'tuition.reject', 'invoice.request_cancel', 'refund_transfer.request']
+// Quyền neo hộp "Việc cần duyệt" (approvals.Anchors).
+export const APPROVAL_ANCHORS = [
+  'tuition.approve',
+  'tuition.reject',
+  'invoice.approve_cancel',
+  'refund_transfer.reject',
+  'lead.approve_transfer',
+  'student.assign_class',
+  'work_task.create',
+  'work_task.approve',
+]
 
 export const NAV: NavItem[] = [
   // Tổng quan (DashboardController) cho nhân sự; học viên / phụ huynh thấy "Tài khoản của tôi" thay chỗ (routes.tsx).
@@ -145,6 +156,8 @@ export const NAV: NavItem[] = [
   { path: '/tuition/import', label: 'Nhập học phí từ Excel', perms: ['tuition.view'], group: 'Học phí', hidden: true },
   // Bill "Thông báo nộp học phí" (/tuition/bill/<id>): mở từ Chốt khách (CRM) hoặc Lịch sử thu.
   { path: '/tuition/bill', label: 'Thông báo nộp học phí', perms: ['lead.view', 'tuition.view'], group: 'Học phí', hidden: true },
+  // Việc cần duyệt (features/approvals): tab đầu của "Cần duyệt", chỉ Admin; quyền neo = approvals.Anchors của Go.
+  { path: '/approvals', label: 'Việc cần duyệt', perms: APPROVAL_ANCHORS, group: 'Cần duyệt', icon: 'fact_check', menu: isAdmin },
   {
     path: '/tuition/receipts/approve',
     label: 'Phiếu thu',

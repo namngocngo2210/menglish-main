@@ -391,7 +391,7 @@ sql:
               pointer: true
   - engine: postgresql
     schema: internal/store/migrations
-    queries: [internal/crm/queries.sql, internal/crm/dashboard.sql]
+    queries: [internal/crm/queries.sql, internal/crm/dashboard.sql, internal/crm/approvals.sql]
     gen:
       go:
         package: crmdb
@@ -437,7 +437,7 @@ sql:
               pointer: true
   - engine: postgresql
     schema: internal/store/migrations
-    queries: [internal/classes/queries.sql, internal/classes/dashboard.sql]
+    queries: [internal/classes/queries.sql, internal/classes/dashboard.sql, internal/classes/approvals.sql]
     gen:
       go:
         package: classesdb
@@ -610,7 +610,7 @@ sql:
               pointer: true
   - engine: postgresql
     schema: internal/store/migrations
-    queries: internal/tuition/queries.sql
+    queries: [internal/tuition/queries.sql, internal/tuition/approvals.sql]
     gen:
       go:
         package: tuitiondb

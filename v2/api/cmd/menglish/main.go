@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/approvals"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/audit"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/audit/auditapi"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/catalogs"
@@ -187,6 +188,11 @@ func runAPI(ctx context.Context) error {
 	go kpiSvc.RunSheetLoop(ctx, time.Hour)
 	// Ticket hỗ trợ: file đính kèm ở kho file; hàng chờ "Ticket đang mở" / ticket khẩn ở Tổng quan và Nhật ký sự vụ.
 	ticketSvc := tickets.NewService(d.pool, log).WithFiles(fileSvc)
+	// Hộp "Việc cần duyệt" (chỉ Admin): nguồn của Học phí, CRM, Lớp học, Công việc. TODO(gộp): báo nộp học phí (Cổng
+	// PH/HS), đề xuất giáo trình / giãn tiến độ / order đề Big Test (Giáo trình), báo cáo trực lớp (Chất lượng lớp), đơn
+	// chấm công (Chấm công) — mỗi phân hệ thêm một approvals.Source.
+	approvalSvc := approvals.NewService(d.rdb, log).Add(tuitionSvc.ApprovalSources()...).Add(crmSvc.ApprovalSources()...).
+		Add(cls.ApprovalSource(), taskSvc.ApprovalSource())
 	// Tổng quan + Báo cáo & sự vụ lớp: đọc số liệu các phân hệ qua adapter (Finance: doanh thu / phiếu chờ duyệt / quá hạn
 	// của Học phí). TODO(gộp): Work = chấm công / biên bản lỗi (KPI) khi có ở v2 (để nil: màn hiện "Chờ phân hệ…").
 	dash := dashboard.NewService(dashboard.Deps{
@@ -226,6 +232,7 @@ func runAPI(ctx context.Context) error {
 				dashboard.NewHandler(dash, log),
 				files.NewHandler(fileSvc, log),
 				tickets.NewHandler(ticketSvc, log),
+				approvals.NewHandler(approvalSvc, log),
 			),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
