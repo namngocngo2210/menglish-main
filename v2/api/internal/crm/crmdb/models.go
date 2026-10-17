@@ -546,6 +546,83 @@ type FinanceDebtReminderRule struct {
 	UpdatedAt       time.Time
 }
 
+type FinanceExpense struct {
+	ID            uuid.UUID
+	ExpenseDate   time.Time
+	Title         string
+	Amount        int64
+	PaymentMethod string
+	BranchID      *uuid.UUID
+	Category      string
+	Notes         *string
+	CreatedBy     *uuid.UUID
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	DeletedAt     *time.Time
+}
+
+type HrKpiCriterium struct {
+	ID            uuid.UUID
+	Role          string
+	GroupName     *string
+	Code          *string
+	Name          string
+	Weight        float64
+	ThresholdFull *string
+	ThresholdHalf *string
+	MaxFull       *int32
+	MaxHalf       *int32
+	Unit          *string
+	Measure       string
+	Tiers         []byte
+	Linear        bool
+	FullAt        *float64
+	PerMonth      bool
+	Knockout      bool
+	AllowNa       bool
+	AutoSource    *string
+	Description   *string
+	IsActive      bool
+	SortOrder     int32
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	DeletedAt     *time.Time
+}
+
+type HrKpiItem struct {
+	ID            uuid.UUID
+	SheetID       uuid.UUID
+	CriterionID   uuid.UUID
+	Score         float64
+	Actual        *string
+	CriticalError bool
+	NotApplicable bool
+	Note          *string
+	Evidence      []byte
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
+type HrKpiSheet struct {
+	ID           uuid.UUID
+	UserID       uuid.UUID
+	EvaluatorID  *uuid.UUID
+	Month        int16
+	Year         int16
+	Track        string
+	PeriodMonths int16
+	TotalScore   float64
+	Comment      *string
+	Strengths    *string
+	Improvements *string
+	NextActions  *string
+	Status       string
+	RejectReason *string
+	DecidedAt    *time.Time
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
 type HrSlaRule struct {
 	Key            string
 	GroupKey       string

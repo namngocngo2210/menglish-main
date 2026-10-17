@@ -963,3 +963,71 @@ UPDATE crm.trial_bookings b
 SET class_session_id = s.id, session_date = s.date, start_time = s.start_time, end_time = s.end_time, updated_at = now()
 FROM academic.class_sessions s
 WHERE s.id = sqlc.arg(to_session) AND b.class_session_id = sqlc.arg(from_session);
+
+-- ───────────── Số liệu KPI (internal/kpi) ─────────────
+
+-- name: KpiTeacherAttendance :many
+-- Lớp giáo viên giữ trong khoảng (như TeacherMonthClasses): chuyên cần trong khoảng và sĩ số (danh sách lớp thật).
+SELECT c.id, c.code::text AS code, c.name,
+       (SELECT count(*) FROM academic.student_attendance a
+        WHERE a.class_id = c.id AND a.session_date BETWEEN sqlc.arg(from_date)::date AND sqlc.arg(to_date)::date)::int AS attendance_total,
+       (SELECT count(*) FROM academic.student_attendance a
+        WHERE a.class_id = c.id AND a.session_date BETWEEN sqlc.arg(from_date)::date AND sqlc.arg(to_date)::date
+          AND a.status IN ('present', 'late'))::int AS attended,
+       (SELECT count(DISTINCT r.student_id) FROM academic.class_roster r WHERE r.class_id = c.id)::int AS students
+FROM academic.classes c
+WHERE c.deleted_at IS NULL AND (
+    (c.status = 'active' AND (c.teacher_id = sqlc.arg(user_id) OR c.assistant_id = sqlc.arg(user_id) OR c.foreign_teacher_id = sqlc.arg(user_id)))
+    OR EXISTS (SELECT 1 FROM academic.class_sessions s WHERE s.class_id = c.id
+               AND s.date BETWEEN sqlc.arg(from_date)::date AND sqlc.arg(to_date)::date
+               AND (s.teacher_id = sqlc.arg(user_id) OR s.foreign_teacher_id = sqlc.arg(user_id) OR s.assistant_id = sqlc.arg(user_id))))
+ORDER BY c.name, c.id;
+
+-- name: KpiAttendanceDay :many
+-- Rà soát điểm danh: lượt điểm danh trong ngày của các lớp người xem thấy (lọc thêm một lớp), mới nhất trước.
+SELECT a.id, a.status, a.note, a.review_status, s.full_name AS student_name, c.name AS class_name,
+       coalesce(t.full_name, '')::text AS teacher_name
+FROM academic.student_attendance a
+JOIN academic.students s ON s.id = a.student_id
+JOIN academic.classes c ON c.id = a.class_id
+LEFT JOIN iam.users t ON t.id = a.teacher_id
+WHERE a.session_date = @day::date AND c.deleted_at IS NULL
+  AND (sqlc.arg(all_classes)::bool OR a.class_id = ANY (sqlc.arg(ids)::uuid[]))
+  AND (sqlc.narg('class_id')::uuid IS NULL OR a.class_id = sqlc.narg('class_id')::uuid)
+ORDER BY a.id DESC;
+
+-- name: KpiVisibleClasses :many
+SELECT c.id, c.name FROM academic.classes c
+WHERE c.deleted_at IS NULL AND (sqlc.arg(all_classes)::bool OR c.id = ANY (sqlc.arg(ids)::uuid[]))
+ORDER BY c.name, c.id;
+
+-- name: KpiLockAttendance :one
+SELECT a.id, a.class_id, a.review_status, a.session_date, s.full_name AS student_name, c.name AS class_name, c.branch_id
+FROM academic.student_attendance a
+JOIN academic.students s ON s.id = a.student_id
+JOIN academic.classes c ON c.id = a.class_id
+WHERE a.id = $1
+FOR UPDATE OF a;
+
+-- name: KpiReviewAttendance :exec
+UPDATE academic.student_attendance
+SET review_status = @review_status, reviewed_by = @reviewed_by, reviewed_at = now(), review_note = @review_note, updated_at = now()
+WHERE id = @id;
+
+-- name: KpiBoardClasses :many
+-- Bảng KPI tự động: lớp có nhân sự là GV / trợ giảng / GVNN, học viên đã vào lớp (trừ chờ khai giảng) / chưa thôi học,
+-- lượt điểm danh trong kỳ (bỏ bản ghi bị từ chối khi rà soát) / có mặt + đi muộn.
+SELECT c.id, c.teacher_id, c.assistant_id, c.foreign_teacher_id,
+       (SELECT count(*) FROM academic.students st
+        WHERE st.current_class_id = c.id AND st.deleted_at IS NULL AND st.status <> 'waiting_start')::int AS students,
+       (SELECT count(*) FROM academic.students st
+        WHERE st.current_class_id = c.id AND st.deleted_at IS NULL AND st.status NOT IN ('waiting_start', 'dropped'))::int AS retained,
+       (SELECT count(*) FROM academic.student_attendance a
+        WHERE a.class_id = c.id AND a.session_date BETWEEN sqlc.arg(from_date)::date AND sqlc.arg(to_date)::date
+          AND a.review_status <> 'rejected')::int AS attendance_total,
+       (SELECT count(*) FROM academic.student_attendance a
+        WHERE a.class_id = c.id AND a.session_date BETWEEN sqlc.arg(from_date)::date AND sqlc.arg(to_date)::date
+          AND a.review_status <> 'rejected' AND a.status IN ('present', 'late'))::int AS attendance_present
+FROM academic.classes c
+WHERE c.deleted_at IS NULL AND (c.teacher_id = ANY (sqlc.arg(user_ids)::uuid[]) OR c.assistant_id = ANY (sqlc.arg(user_ids)::uuid[])
+       OR c.foreign_teacher_id = ANY (sqlc.arg(user_ids)::uuid[]));

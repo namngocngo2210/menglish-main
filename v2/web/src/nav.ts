@@ -20,6 +20,10 @@ export type NavItem = {
 
 export const isAdmin = (me: Me) => me.roles.some((r) => r.name === 'admin')
 
+// Vai trò chấm KPI (Roles::KPI_ROLES); trang KPI của tôi tự báo khi vai trò chưa có tiêu chí.
+const KPI_ROLES = ['academic_staff', 'academic_lead', 'manager', 'sales_consultant', 'teacher_fulltime', 'teacher_parttime', 'assistant']
+export const hasKpiRole = (me: Me) => me.roles.some((r) => KPI_ROLES.includes(r.name))
+
 const CRM = 'Khách hàng (CRM)'
 
 export const NAV: NavItem[] = [
@@ -48,6 +52,9 @@ export const NAV: NavItem[] = [
   },
   { path: '/inventory/items', label: 'Hàng hóa & Vật phẩm', perms: ['system_category.manage'], group: 'Kho vật phẩm' },
   { path: '/inventory/stock', label: 'Tồn kho theo chi nhánh', perms: ['merchandise_stock.view'], group: 'Kho vật phẩm' },
+  // Thu - Chi (FinanceController) — features/finance
+  { path: '/finance/expenses', label: 'Khoản chi vận hành', perms: ['finance.view'], group: 'Thu - Chi' },
+  { path: '/finance/reports/provisional-revenue', label: 'Doanh thu tạm tính', perms: ['finance.view'], group: 'Doanh thu' },
   // Danh mục & tổ chức (features/catalogs)
   { path: '/courses', label: 'Khóa học & Bảng giá', perms: ['course.view'], group: 'Tổ chức & Đào tạo' },
   { path: '/course-levels', label: 'Trình độ (CEFR)', perms: ['level.view'], group: 'Tổ chức & Đào tạo' },
@@ -101,6 +108,12 @@ export const NAV: NavItem[] = [
     group: 'Nhân sự & KPI',
     menu: (me) => can(me, 'user.view', 'kpi.view'),
   },
+  // KPI nhân sự (KpiController) — features/kpi. Menu neo user.view / kpi.view; "KPI tự động" neo work_task.create.
+  { path: '/kpi/monthly', label: 'Phiếu KPI tháng', perms: ['kpi.view'], group: 'Nhân sự & KPI', menu: (me) => can(me, 'user.view', 'kpi.view') },
+  { path: '/kpi/attendance-review', label: 'Rà soát điểm danh', perms: ['kpi.view'], group: 'Nhân sự & KPI', menu: (me) => can(me, 'user.view', 'kpi.view') },
+  { path: '/tasks/kpi-dashboard', label: 'KPI tự động', perms: ['work_task.view'], group: 'Nhân sự & KPI', menu: (me) => can(me, 'work_task.create') },
+  { path: '/kpi/criteria', label: 'Tiêu chí KPI', perms: ['kpi.view'], group: 'Tổ chức & Đào tạo', menu: (me) => can(me, 'user.view', 'kpi.view') },
+  { path: '/kpi/mine', label: 'KPI của tôi', perms: ['notification.view', 'kpi.view'], group: 'Của tôi', menu: (me) => hasKpiRole(me) },
   // Báo cáo & sự vụ lớp (AcademicDashboardController): /academic/dashboards[/reports|/incidents] do AcademicPage tự đọc đường dẫn.
   { path: '/academic/dashboards', label: 'Báo cáo & sự vụ lớp', perms: ['class.update'], group: 'Đào tạo & Chất lượng lớp' },
   // URL cũ academic.reports / academic.incidents của Laravel.

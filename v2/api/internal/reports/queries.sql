@@ -283,3 +283,21 @@ WHERE s.id = ANY(@ids::uuid[]) AND s.type <> 'journal' AND s.status = 'submitted
   AND (sqlc.narg('scope_branches')::uuid[] IS NULL
        OR s.user_id = sqlc.arg('viewer_id')::uuid
        OR EXISTS (SELECT 1 FROM iam.user_branches b WHERE b.user_id = s.user_id AND b.branch_id = ANY(sqlc.narg('scope_branches')::uuid[])));
+
+-- ───────────── Số liệu KPI tự động (internal/kpi) ─────────────
+
+-- name: KpiDailyReports :many
+-- Báo cáo ngày đã nộp (không tính nháp) của một người trong khoảng: giờ nộp lần đầu để xét trễ hạn 09:00 hôm sau.
+SELECT report_date, submitted_at, created_at FROM ops.staff_reports
+WHERE user_id = $1 AND type = 'daily' AND status <> 'draft' AND report_date BETWEEN @from_date AND @to_date
+ORDER BY report_date, created_at;
+
+-- name: KpiMonthlyReports :many
+-- Báo cáo tháng đã nộp theo tháng (báo cáo tháng có cấu trúc theo period_key, báo cáo chữ tự do theo tháng của report_date).
+SELECT coalesce(period_key, to_char(report_date, 'YYYY-MM'))::text AS month,
+       min(coalesce(submitted_at, created_at))::timestamptz AS submitted
+FROM ops.staff_reports
+WHERE user_id = $1 AND type = 'monthly' AND status <> 'draft'
+  AND (kind IS NULL OR kind IN ('teacher_monthly', 'academic_monthly'))
+  AND coalesce(period_key, to_char(report_date, 'YYYY-MM')) = ANY(@months::text[])
+GROUP BY 1;

@@ -727,6 +727,88 @@ func (q *Queries) JournalWithKpiBetween(ctx context.Context, arg JournalWithKpiB
 	return items, nil
 }
 
+const kpiDailyReports = `-- name: KpiDailyReports :many
+
+SELECT report_date, submitted_at, created_at FROM ops.staff_reports
+WHERE user_id = $1 AND type = 'daily' AND status <> 'draft' AND report_date BETWEEN $2 AND $3
+ORDER BY report_date, created_at
+`
+
+type KpiDailyReportsParams struct {
+	UserID   uuid.UUID
+	FromDate time.Time
+	ToDate   time.Time
+}
+
+type KpiDailyReportsRow struct {
+	ReportDate  time.Time
+	SubmittedAt *time.Time
+	CreatedAt   time.Time
+}
+
+// ───────────── Số liệu KPI tự động (internal/kpi) ─────────────
+// Báo cáo ngày đã nộp (không tính nháp) của một người trong khoảng: giờ nộp lần đầu để xét trễ hạn 09:00 hôm sau.
+func (q *Queries) KpiDailyReports(ctx context.Context, arg KpiDailyReportsParams) ([]KpiDailyReportsRow, error) {
+	rows, err := q.db.Query(ctx, kpiDailyReports, arg.UserID, arg.FromDate, arg.ToDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []KpiDailyReportsRow
+	for rows.Next() {
+		var i KpiDailyReportsRow
+		if err := rows.Scan(&i.ReportDate, &i.SubmittedAt, &i.CreatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const kpiMonthlyReports = `-- name: KpiMonthlyReports :many
+SELECT coalesce(period_key, to_char(report_date, 'YYYY-MM'))::text AS month,
+       min(coalesce(submitted_at, created_at))::timestamptz AS submitted
+FROM ops.staff_reports
+WHERE user_id = $1 AND type = 'monthly' AND status <> 'draft'
+  AND (kind IS NULL OR kind IN ('teacher_monthly', 'academic_monthly'))
+  AND coalesce(period_key, to_char(report_date, 'YYYY-MM')) = ANY($2::text[])
+GROUP BY 1
+`
+
+type KpiMonthlyReportsParams struct {
+	UserID uuid.UUID
+	Months []string
+}
+
+type KpiMonthlyReportsRow struct {
+	Month     string
+	Submitted time.Time
+}
+
+// Báo cáo tháng đã nộp theo tháng (báo cáo tháng có cấu trúc theo period_key, báo cáo chữ tự do theo tháng của report_date).
+func (q *Queries) KpiMonthlyReports(ctx context.Context, arg KpiMonthlyReportsParams) ([]KpiMonthlyReportsRow, error) {
+	rows, err := q.db.Query(ctx, kpiMonthlyReports, arg.UserID, arg.Months)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []KpiMonthlyReportsRow
+	for rows.Next() {
+		var i KpiMonthlyReportsRow
+		if err := rows.Scan(&i.Month, &i.Submitted); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const legacyReports = `-- name: LegacyReports :many
 SELECT id, title, content, report_date FROM ops.staff_reports
 WHERE user_id = $1 AND type = $2 AND period_key IS NULL
