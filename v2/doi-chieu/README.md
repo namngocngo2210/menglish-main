@@ -27,12 +27,14 @@ Số dòng theo trạng thái tính tới lần gộp cuối của PR #152.
 | Kho file | [kho-file.md](kho-file.md) | 10 | 2 | 0 | 1 | Nhập file cũ từ Laravel, file của phân hệ chưa chuyển (minh chứng, CV, file nghe bài tập…) |
 | Thu - Chi | [thu-chi.md](thu-chi.md) | 6 | 1 | 2 | 2 | Phiếu thu (chờ gộp Học phí), dòng chi lương tự động (chờ phân hệ Lương) |
 | KPI nhân sự | [kpi.md](kpi.md) | 17 | 7 | 0 | 8 | Nguồn tự đếm của Học phí / CRM SLA / cổng giáo viên / chấm công / Big Test / bài tập / dự án học thuật (hiện điền tay), khóa phiếu theo kỳ lương |
+| Học phí (hồ sơ, phiếu thu, công nợ, hoàn phí, hủy hóa đơn, SePay, nhập Excel) | [hoc-phi.md](hoc-phi.md) | 31 | 10 | 0 | 4 | Cổng học viên báo chuyển khoản, thu hồi hoa hồng (chờ Lương), nguồn KPI tự đếm, nhập dữ liệu học phí cũ |
 
 ## Phần dùng chung chưa có ở v2
 
 Các dòng "Chưa làm" / "Làm một phần" phần lớn chờ những phân hệ sau:
 
 - **Học phí & tài chính**: phiếu thu, công nợ, nhắc thu, SePay. Chốt khách CRM đã tạo học viên và xếp lớp nhưng chưa lập học phí.
+  Học phí đã có (`hoc-phi.md`); các bảng phân hệ khác ghi "chờ học phí" cần đối chiếu lại khi gộp.
 - **Kho file**: đã có (`kho-file.md`); còn nhập file cũ từ Laravel và nối vào các phân hệ chưa chuyển.
 - **Gửi email**: đã có hàng đợi email (`internal/notify/mail`), xác nhận lịch học thử, email vận hành khi nộp bài, quên
   mật khẩu. Còn email ticket (chưa có phân hệ Ticket), email học phí (phân hệ học phí gọi `mail.Enqueue`), Zalo ZNS.
