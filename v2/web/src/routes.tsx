@@ -61,12 +61,22 @@ import { OverduePage as TuitionOverduePage } from './features/tuition/OverduePag
 import { ReceiptsRoute } from './features/tuition/ReceiptFormPage'
 import { RefundsPage as TuitionRefundsPage } from './features/tuition/RefundsPage'
 import { StudentsPage as TuitionStudentsPage } from './features/tuition/StudentsPage'
+import { AppShellPage as PortalAppShellPage } from './features/portal/AppShellPage'
+import { FeedbackPage as PortalFeedbackPage } from './features/portal/FeedbackPage'
+import { HomePage as PortalHomePage } from './features/portal/HomePage'
+import { HomeworkPage as PortalHomeworkPage } from './features/portal/HomeworkPage'
+import { isPortalOnly } from './features/portal/logic'
+import { PortalNotificationsPage } from './features/portal/NotificationsPage'
+import { PaymentReportsPage } from './features/portal/PaymentReportsPage'
+import { PronunciationPage as PortalPronunciationPage } from './features/portal/PronunciationPage'
+import { SurveyPage as PortalSurveyPage } from './features/portal/SurveyPage'
+import { TeacherSubmissionsPage } from './features/portal/TeacherSubmissionsPage'
 
 // Trang theo đường dẫn mục menu (NAV trong nav.ts). Trang con (vd. /students/<id>) dùng chung mục cha và tự đọc
 // phần còn lại của đường dẫn bằng usePath(). Module mới: thêm mục vào NAV và một dòng ở đây.
 export const PAGES: Record<string, (me: Me) => ReactNode> = {
-  '/': (me) => (seesDashboard(me) ? <DashboardPage me={me} /> : <AccountPage me={me} />),
-  '/dashboard': (me) => (seesDashboard(me) ? <DashboardPage me={me} /> : <AccountPage me={me} />),
+  '/': (me) => home(me),
+  '/dashboard': (me) => home(me),
   '/profile': (me) => <AccountPage me={me} />,
   '/academic/dashboards': () => <AcademicPage />,
   '/academic/reports': () => <AcademicPage />,
@@ -136,4 +146,21 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/tuition/refunds': (me) => <TuitionRefundsPage me={me} />,
   '/tuition/sepay': (me) => <TuitionSepayPage me={me} />,
   '/tuition/import': (me) => <TuitionImportPage me={me} />,
+  '/payment-reports': (me) => <PaymentReportsPage me={me} />,
+  '/portal/home': () => <PortalHomePage />,
+  '/portal/student-homework': (me) => <PortalHomeworkPage me={me} />,
+  '/portal/pronunciation': () => <PortalPronunciationPage />,
+  '/portal/notifications': () => <PortalNotificationsPage />,
+  '/portal/survey': () => <PortalSurveyPage />,
+  '/portal/feedback': () => <PortalFeedbackPage />,
+  '/portal/app-shell': () => <PortalAppShellPage />,
+  '/portal/teacher-submissions': (me) => <TeacherSubmissionsPage me={me} />,
+}
+
+// Trang "/": nhân sự → Tổng quan; tài khoản cổng (học viên / phụ huynh) → Trang chủ cổng học viên như Laravel
+// (DashboardController chuyển sang portal.student.home); còn lại → Tài khoản của tôi.
+function home(me: Me) {
+  if (seesDashboard(me)) return <DashboardPage me={me} />
+  if (isPortalOnly(me)) return <PortalHomePage />
+  return <AccountPage me={me} />
 }

@@ -382,6 +382,15 @@ func (s *Service) find(ctx context.Context, actor *iam.Access, idOrCode string) 
 	return st, nil
 }
 
+// Visible: học viên nằm trong phạm vi xem của người dùng (Student::visibleTo) — cổng học viên dùng khi nhân sự xem hộ.
+func (s *Service) Visible(ctx context.Context, actor *iam.Access, id uuid.UUID) (bool, error) {
+	_, err := s.find(ctx, actor, id.String())
+	if errors.Is(err, ErrNotFound) {
+		return false, nil
+	}
+	return err == nil, err
+}
+
 // Get trả hồ sơ học viên. scoped = "Xem theo phân quyền": chỉ gửi phần người xem có quyền (lớp học / điểm danh cần
 // attendance_student.view hoặc student.update; liên hệ cần student.update hoặc tuition.view).
 func (s *Service) Get(ctx context.Context, actor *iam.Access, idOrCode string, scoped bool) (*Profile, error) {

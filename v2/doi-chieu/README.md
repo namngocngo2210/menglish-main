@@ -27,7 +27,8 @@ Số dòng theo trạng thái tính tới lần gộp cuối của PR #152.
 | Kho file | [kho-file.md](kho-file.md) | 10 | 2 | 0 | 1 | Nhập file cũ từ Laravel, file của phân hệ chưa chuyển (minh chứng, CV, file nghe bài tập…) |
 | Thu - Chi | [thu-chi.md](thu-chi.md) | 7 | 1 | 2 | 1 | Dòng chi lương tự động (chờ phân hệ Lương) |
 | KPI nhân sự | [kpi.md](kpi.md) | 17 | 7 | 0 | 8 | Nguồn tự đếm của Học phí / CRM SLA / cổng giáo viên / chấm công / Big Test / bài tập / dự án học thuật (hiện điền tay), khóa phiếu theo kỳ lương |
-| Học phí (hồ sơ, phiếu thu, công nợ, hoàn phí, hủy hóa đơn, SePay, nhập Excel) | [hoc-phi.md](hoc-phi.md) | 31 | 10 | 0 | 4 | Cổng học viên báo chuyển khoản, thu hồi hoa hồng (chờ Lương), nguồn KPI tự đếm, nhập dữ liệu học phí cũ |
+| Học phí (hồ sơ, phiếu thu, công nợ, hoàn phí, hủy hóa đơn, SePay, nhập Excel) | [hoc-phi.md](hoc-phi.md) | 31 | 11 | 0 | 3 | Thu hồi hoa hồng (chờ Lương), nguồn KPI tự đếm, nhập dữ liệu học phí cũ |
+| Cổng Phụ huynh & Học sinh (trang chủ, học phí, nộp bài, phát âm, hộp thư, khảo sát, góp ý, App Shell) | [cong-hoc-vien.md](cong-hoc-vien.md) | 9 | 8 | 6 | 0 | Bài tập / bài nộp / nhận xét (chờ Cổng giáo viên), khảo sát (chờ Khảo sát), Big Test & chặng học (chờ Giáo trình), buổi phụ đạo |
 
 ## Phần dùng chung chưa có ở v2
 
@@ -38,6 +39,6 @@ Các dòng "Chưa làm" / "Làm một phần" phần lớn chờ những phân h
 - **Kho file**: đã có (`kho-file.md`); còn nhập file cũ từ Laravel và nối vào các phân hệ chưa chuyển.
 - **Gửi email**: đã có hàng đợi email (`internal/notify/mail`), xác nhận lịch học thử, email vận hành khi nộp bài, quên
   mật khẩu. Còn email ticket (chưa có phân hệ Ticket), email học phí (phân hệ học phí gọi `mail.Enqueue`), Zalo ZNS.
-- **Cổng giáo viên, cổng học viên, giáo trình, Lương**. Tổng quan và KPI đã có: các ô của những phân hệ này hiện "Chờ phân hệ …",
+- **Cổng giáo viên, giáo trình, Lương** (cổng học viên đã có: `cong-hoc-vien.md`, phần dữ liệu của các phân hệ này để no-op). Tổng quan và KPI đã có: các ô của những phân hệ này hiện "Chờ phân hệ …",
   tiêu chí KPI dùng nguồn của chúng do người chấm điền tay.
 - **Import dữ liệu nghiệp vụ cũ**: `import-legacy` mới chép chi nhánh, tài khoản, vai trò, quyền và hồ sơ nhân sự.

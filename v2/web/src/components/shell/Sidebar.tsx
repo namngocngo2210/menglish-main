@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type SyntheticEvent } from 'react'
 import type { Me } from '../../api'
+import { isPortalOnly } from '../../features/portal/logic'
 import { buildSidebar, type SidebarLink } from '../../nav'
 import { navigate } from '../../router'
 import { Icon } from '../ui'
@@ -131,7 +132,7 @@ export function Sidebar({
             </span>
             <span className={`min-w-0 flex-col ${collapsed ? 'flex md:hidden' : 'flex md:hidden desktop:flex'}`}>
               <span className="text-lg leading-none font-bold tracking-tight text-brand">MENGLISH</span>
-              <span className="mt-1 text-xs font-semibold tracking-widest whitespace-nowrap text-slate-400 uppercase">Hệ thống quản trị</span>
+              <span className="mt-1 text-xs font-semibold tracking-widest whitespace-nowrap text-slate-400 uppercase">{isPortalOnly(me) ? 'Cổng học viên' : 'Hệ thống quản trị'}</span>
             </span>
           </a>
           <button
