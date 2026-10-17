@@ -81,8 +81,8 @@ type LockedRange struct {
 
 // PayrollPeriod: kỳ lương của tháng (thẻ "Kỳ lương" ở màn Giờ dạy giáo viên).
 type PayrollPeriod struct {
-	StatusLabel string
-	Locked      bool
+	StatusLabel string `json:"status_label"`
+	Locked      bool   `json:"locked"`
 }
 
 // PayrollLock: kỳ lương đã duyệt / đã chi trả khóa dữ liệu chấm công của các ngày trong kỳ (PayrollPeriod::isLockedFor).

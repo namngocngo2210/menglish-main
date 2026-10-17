@@ -2025,7 +2025,7 @@ func (q *Queries) SyncLogs(ctx context.Context, arg SyncLogsParams) ([]SyncLogsR
 }
 
 const teachingStaff = `-- name: TeachingStaff :many
-SELECT u.id, u.full_name, u.code::text AS code, u.email::text AS email,
+SELECT u.id, u.full_name, u.code::text AS code, COALESCE(u.email::text, '')::text AS email,
        string_agg(r.label, ', ' ORDER BY r.label)::text AS role_labels
 FROM iam.users u
 JOIN iam.user_roles ur ON ur.user_id = u.id
