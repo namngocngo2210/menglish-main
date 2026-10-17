@@ -15,6 +15,8 @@ x-api: &api
     REDIS_URL: redis://redis:6379/0
     PUBLIC_URL: https://${BETA_SITE:-beta.meducation.vn}
     GOMEMLIMIT: 200MiB
+    # Kho file (hợp đồng, đề test...): mặc định ổ đĩa trong volume files; R2 xem FILES_* trong .env.beta.example
+    FILES_DIR: /data/files
   logging: *logging
 
 services:
@@ -86,6 +88,8 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+    volumes:
+      - files:/data/files
     mem_limit: 256m
 
   # Nhập dữ liệu Laravel (chỉ đọc MySQL): chạy qua `beta.sh import-legacy <production|staging>`, không tự khởi động.
@@ -131,3 +135,4 @@ networks:
 volumes:
   pgdata:
   redisdata:
+  files:

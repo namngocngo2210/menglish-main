@@ -14,7 +14,7 @@ màn `web/src/pages/admin/StaffProfile.tsx` (trong hộp Tài khoản ở màn N
 | Sửa hồ sơ trên form Người dùng (`users.update`, rule của `UserRequest`, thông báo lỗi) | `PUT /api/v1/users/{id}/profile` (quyền `user.update`), form "Sửa hồ sơ" | Đã làm | Độ dài tối đa, ngày, lương không âm, lương để trống = 0 |
 | Người không xem được lương sửa form: bỏ qua CCCD, lương cơ bản, thù lao giờ | Như Laravel, và bỏ qua thêm quê quán, nơi ở, liên lạc khẩn cấp | Làm một phần | Khác có chủ ý: Laravel ẩn 3 trường này ở màn xem nhưng vẫn cho sửa trên form; v2 ẩn và khóa cả hai cho nhất quán |
 | Ghi nhật ký "Cập nhật tài khoản nhân viên" | Nhật ký vận hành "Cập nhật hồ sơ nhân sự", CCCD tự che `***` | Đã làm | |
-| Tải lên / tải về file hợp đồng (`contract_file`, `users.contract.download`) | — | Chưa làm | Chờ phân hệ lưu file |
+| Tải lên / tải về file hợp đồng (`contract_file`, `users.contract.download`) | `POST /api/v1/users/{id}/contract` (quyền `user.update`), tải về `GET /api/v1/files/<id>` (chính chủ, hoặc `user.view` + quản lý được tài khoản); dòng "File hợp đồng" ở mục Hợp đồng & Lương | Đã làm | Kho file chung (`doi-chieu/kho-file.md`): tải riêng, không đi cùng form sửa tài khoản; file cũ xóa mềm 30 ngày. Chưa nhập file hợp đồng cũ từ Laravel. |
 | Cảnh báo hợp đồng sắp hết hạn (thông báo 1 lần / hợp đồng, đánh dấu trên danh sách người dùng) | — | Chưa làm | Có sẵn `ContractStatus` và index `contract_end_date`; cần job quét + `notify.Send` |
 | Thẻ hồ sơ rút gọn (popup nhân sự, lớp đang phụ trách) | — | Chưa làm | Cần phân hệ lớp học |
 | Nhập từ Laravel | `import-legacy` bước `staff_profiles` (cột hồ sơ trên bảng `users`) | Đã làm | Bỏ qua tài khoản không có dữ liệu hồ sơ |

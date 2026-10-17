@@ -186,6 +186,49 @@ search.Builtin(d.iam).Add(search.Searcher{
 
 `iamtest.Setup(t, "<bảng của module cần xóa>")` migrate DB test, xóa dữ liệu, đồng bộ quyền; `e.Serve(handler.Routes)`; `e.Branch`, `e.Member(code, tên, chi nhánh, vai trò...)` (tạo tài khoản + đăng nhập, tự bật 2FA khi vai trò bắt buộc), `e.Grant / e.Revoke` quyền của vai trò, `e.Anon()`; `c.Do(method, path, body)`, `iamtest.Expect(t, r, status, code)`.
 
+## Kho file (`api/internal/files`, `api/internal/platform/filestore`)
+
+Đối chiếu với Laravel: `doi-chieu/kho-file.md`. File nằm trong kho riêng tư, không có thư mục công khai như disk `public` của Laravel: bảng `core.files` giữ thông tin (phân hệ / bản ghi sở hữu, tên gốc, loại, dung lượng, SHA-256, người tải, thời điểm xóa), nội dung nằm ở driver.
+
+- Tải về: `GET /api/v1/files/<id>` (cần đăng nhập) hỏi phân hệ sở hữu file người này được mở không (hàm đăng ký theo `subject_type`), rồi chuyển (302) sang link ký sẵn hạn 5 phút; `?format=json` trả `{url, name, size, mime_type, expires_in}`. Giao diện chỉ cần đặt `href` / `src` là `file.url`.
+- Tải lên: API của từng phân hệ (mỗi chỗ một luật dung lượng / loại như validation của Laravel). Loại file nhận theo nội dung (magic bytes, cấu trúc zip / OLE của Word, Excel), không tin đuôi; HTML, SVG, script luôn bị từ chối. Mỗi lần tải lên / xóa ghi nhật ký vận hành.
+- Xóa: xóa mềm (`deleted_at`), API dọn hẳn dòng + nội dung sau 30 ngày (chạy nền 6 giờ một lần).
+- Giao diện: `web/src/components/FileUpload.tsx` (nút hoặc ô kéo-thả, kiểm đuôi + dung lượng trước khi gửi, hiện lỗi của máy chủ), luật từng chỗ trong `web/src/lib/files.ts`, gửi bằng `upload(path, FormData)` trong `web/src/api.ts`.
+
+Dùng trong phân hệ khác (vd. học phí gắn ảnh minh chứng hoàn tiền), xem chú thích đầu `internal/files/service.go`:
+
+```go
+form, err := filestore.ReadMultipart(w, r, policy.MaxBytes, policy.TooLarge) // defer form.Close()
+up := form.File("file")
+if err := up.Check(policy); err != nil { /* 422 với err.Error() */ }
+f, err := fileSvc.Save(ctx, tx, up, files.SaveInput{
+    Owner: files.Owner{Module: "tuition", SubjectType: "refund_proof", SubjectID: &refundID, BranchID: &branchID},
+    By:    &actor.UserID,
+    Audit: audit.Entry{Module: audit.ModuleTuition, SubjectType: "refund", SubjectID: refundID.String(), Description: "Tải ảnh minh chứng hoàn tiền"},
+})
+fileSvc.RegisterReader("refund_proof", func(ctx context.Context, a *iam.Access, f files.File) (string, error) {
+    // kiểm a xem được bản ghi *f.SubjectID không (iam.ErrForbidden nếu không); trả tên file khi tải ("" = tên gốc)
+})
+```
+
+Cấu hình (biến môi trường của API):
+
+| Biến | Mặc định | Ý nghĩa |
+|---|---|---|
+| `FILES_DRIVER` | `local` | `local`: ổ đĩa của API; `s3`: Cloudflare R2 / S3 / MinIO qua S3 API |
+| `FILES_DIR` | `data/files` | Thư mục của driver local (beta: volume `files` ở `/data/files`) |
+| `FILES_URL_TTL` | `5m` | Hạn link tải ký sẵn (30s – 24h) |
+| `FILES_S3_ENDPOINT` | | vd. `<account-id>.r2.cloudflarestorage.com`, `localhost:9000` (MinIO) |
+| `FILES_S3_BUCKET` | | bucket riêng tư (không bật public) |
+| `FILES_S3_ACCESS_KEY`, `FILES_S3_SECRET_KEY` | | khóa API của bucket (chỉ trong `.env`, không commit) |
+| `FILES_S3_REGION` | `auto` | R2 dùng `auto` |
+| `FILES_S3_USE_SSL` | `true` | `false` cho MinIO chạy http ở máy dev |
+
+- Driver local ký link bằng khóa suy ra từ `APP_ENCRYPTION_KEY` (HMAC-SHA256), nội dung phục vụ ở `/api/v1/files/blob/<token>` với header riêng (`nosniff`, CSP `sandbox`; PDF cho nhúng trong trang cùng gốc). Caddy của web không đè header ở đường dẫn này.
+- Driver `s3`: link tải là URL ký của bucket (hạn `FILES_URL_TTL`). Khi bật trên beta / production cần thêm host của bucket vào `img-src`, `media-src`, `frame-src` trong CSP của `deploy/Caddyfile.web` (file nghe, ảnh câu hỏi, khung xem đề PDF).
+- MinIO ở máy dev: `docker run -d -p 9000:9000 -e MINIO_ROOT_USER=dev -e MINIO_ROOT_PASSWORD=devdevdev minio/minio server /data`, tạo bucket rồi đặt `FILES_DRIVER=s3 FILES_S3_ENDPOINT=localhost:9000 FILES_S3_USE_SSL=false FILES_S3_ACCESS_KEY=dev FILES_S3_SECRET_KEY=devdevdev FILES_S3_BUCKET=<tên bucket>`.
+- Sao lưu: với driver local, sao lưu volume `files` cùng lúc với `backup-db`, vd. `docker run --rm -v menglish-beta_files:/data:ro -v "$PWD/backups:/out" alpine tar czf /out/files-$(date +%Y%m%d).tar.gz -C /data .`
+
 ## Bám theo Laravel trong lúc làm v2
 
 Laravel vẫn chạy production và được sửa bình thường. `doi-chieu-laravel.txt` ghi mỗi mảng v2 dựa trên file Laravel nào, đã đối chiếu tới commit nào.
