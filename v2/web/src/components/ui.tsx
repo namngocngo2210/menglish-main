@@ -154,18 +154,44 @@ export function Checkbox({
   )
 }
 
-export function Badge({ tone = 'neutral', children }: { tone?: 'neutral' | 'success' | 'error' | 'info'; children: ReactNode }) {
+export function Badge({
+  tone = 'neutral',
+  children,
+}: {
+  tone?: 'neutral' | 'success' | 'error' | 'info' | 'warning'
+  children: ReactNode
+}) {
   const styles = {
     neutral: 'bg-surface-container-low text-on-surface-variant',
     success: 'bg-success-container text-on-success-container',
     error: 'bg-error-container text-on-error-container',
     info: 'bg-info-container text-on-info-container',
+    warning: 'bg-warning-container text-warning',
   }[tone]
   return <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${styles}`}>{children}</span>
 }
 
+// Icon Material Symbols (font tự host, xem index.css); chỉ để trang trí nên ẩn với trình đọc màn hình.
+export function Icon({ name, className = '', fill = false }: { name: string; className?: string; fill?: boolean }) {
+  return (
+    <span className={`material-symbols-outlined shrink-0 ${fill ? 'fill' : ''} ${className}`} aria-hidden="true">
+      {name}
+    </span>
+  )
+}
+
 // Hộp thoại đơn giản (lớp phủ + thẻ ở giữa); Esc hoặc bấm nền để đóng.
-export function Dialog({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+export function Dialog({
+  title,
+  onClose,
+  wide,
+  children,
+}: {
+  title: string
+  onClose: () => void
+  wide?: boolean
+  children: ReactNode
+}) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 px-4 py-10"
@@ -176,7 +202,7 @@ export function Dialog({ title, onClose, children }: { title: string; onClose: (
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="w-full max-w-lg rounded-xl bg-surface p-6 shadow-lg"
+        className={`w-full ${wide ? 'max-w-2xl' : 'max-w-lg'} rounded-xl bg-surface p-6 shadow-lg`}
       >
         <div className="mb-4 flex items-center justify-between gap-4">
           <h2 className="text-base font-semibold">{title}</h2>

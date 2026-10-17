@@ -199,6 +199,14 @@ func (s *Service) Login(ctx context.Context, in LoginInput) (*LoginResult, error
 		s.log.Info("login failed", "reason", "disabled", "user_id", u.ID, "ip", in.IP)
 		return nil, ErrInvalidCredentials
 	}
+	if IsLegacyHash(u.PasswordHash) {
+		// Mật khẩu mang từ Laravel: băm lại bằng argon2id, người dùng không phải làm gì.
+		if h, err := HashPassword(ctx, in.Password); err == nil {
+			if err := s.q.RehashPassword(ctx, iamdb.RehashPasswordParams{ID: u.ID, PasswordHash: h}); err != nil {
+				s.log.Warn("rehash legacy password failed", "user_id", u.ID, "err", err)
+			}
+		}
+	}
 	if err := s.q.RecordLoginSuccess(ctx, u.ID); err != nil {
 		return nil, err
 	}

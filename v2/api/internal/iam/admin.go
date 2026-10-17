@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"math"
 	"regexp"
 	"slices"
 	"strings"
@@ -13,7 +14,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/audit"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam/iamdb"
 )
 
@@ -38,17 +41,58 @@ func invalid(msg string) *Error { return &Error{422, "invalid", msg} }
 // ───────────────────────── Chi nhánh ─────────────────────────
 
 type Branch struct {
-	ID        uuid.UUID `json:"id"`
-	Code      string    `json:"code"`
-	Name      string    `json:"name"`
-	Address   *string   `json:"address"`
-	Phone     *string   `json:"phone"`
-	IsActive  bool      `json:"is_active"`
-	CreatedAt time.Time `json:"created_at"`
+	ID        uuid.UUID     `json:"id"`
+	Code      string        `json:"code"`
+	Name      string        `json:"name"`
+	Address   *string       `json:"address"`
+	Phone     *string       `json:"phone"`
+	IsActive  bool          `json:"is_active"`
+	CreatedAt time.Time     `json:"created_at"`
+	Checkin   BranchCheckin `json:"checkin"`
 }
 
+// BranchCheckin: cài đặt chấm công của chi nhánh. Configured = đã có tọa độ (nhân sự mới chấm công được).
+type BranchCheckin struct {
+	Latitude   *float64 `json:"latitude"`
+	Longitude  *float64 `json:"longitude"`
+	Radius     int      `json:"radius"`
+	WorkStart  *string  `json:"work_start"`
+	WorkEnd    *string  `json:"work_end"`
+	Grace      int      `json:"grace"`
+	Configured bool     `json:"configured"`
+}
+
+const defaultCheckinRadius = 100
+
 func toBranch(b iamdb.CoreBranch) Branch {
-	return Branch{b.ID, b.Code, b.Name, b.Address, b.Phone, b.IsActive, b.CreatedAt}
+	radius := int(b.CheckinRadius)
+	if radius <= 0 {
+		radius = defaultCheckinRadius
+	}
+	return Branch{b.ID, b.Code, b.Name, b.Address, b.Phone, b.IsActive, b.CreatedAt, BranchCheckin{
+		Latitude: b.Latitude, Longitude: b.Longitude, Radius: radius,
+		WorkStart: clock(b.WorkStartTime), WorkEnd: clock(b.WorkEndTime), Grace: int(b.LateGraceMinutes),
+		Configured: b.Latitude != nil && b.Longitude != nil,
+	}}
+}
+
+// clock: cột time → "HH:MM".
+func clock(t pgtype.Time) *string {
+	if !t.Valid {
+		return nil
+	}
+	m := t.Microseconds / 60e6
+	s := fmt.Sprintf("%02d:%02d", m/60, m%60)
+	return &s
+}
+
+// parseClock: "HH:MM" → số phút trong ngày.
+func parseClock(s string) (int, bool) {
+	t, err := time.Parse("15:04", strings.TrimSpace(s))
+	if err != nil {
+		return 0, false
+	}
+	return t.Hour()*60 + t.Minute(), true
 }
 
 type BranchInput struct {
@@ -102,9 +146,18 @@ func (s *Service) CreateBranch(ctx context.Context, actor *Access, in BranchInpu
 	if err != nil {
 		return Branch{}, err
 	}
-	b, err := s.q.CreateBranch(ctx, iamdb.CreateBranchParams{Code: code, Name: name, Address: address, Phone: phone, CreatedBy: &actor.UserID})
+	var b iamdb.CoreBranch
+	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		var err error
+		b, err = s.q.WithTx(tx).CreateBranch(ctx, iamdb.CreateBranchParams{Code: code, Name: name, Address: address, Phone: phone, CreatedBy: &actor.UserID})
+		if err != nil {
+			return uniqueErr(err)
+		}
+		return recordTx(ctx, tx, actor, branchEntry(b, "branch.create",
+			fmt.Sprintf("Thêm mới cơ sở chi nhánh: %s (%s)", name, code), audit.Diff(nil, branchSnapshot(b))))
+	})
 	if err != nil {
-		return Branch{}, uniqueErr(err)
+		return Branch{}, err
 	}
 	s.log.Info("branch created", "branch_id", b.ID, "by", actor.UserID)
 	return toBranch(b), nil
@@ -115,19 +168,123 @@ func (s *Service) UpdateBranch(ctx context.Context, actor *Access, id uuid.UUID,
 	if err != nil {
 		return Branch{}, err
 	}
-	b, err := s.q.UpdateBranch(ctx, iamdb.UpdateBranchParams{ID: id, Code: code, Name: name, Address: address, Phone: phone})
+	var b iamdb.CoreBranch
+	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		q := s.q.WithTx(tx)
+		old, err := q.GetBranch(ctx, id)
+		if err != nil {
+			return err
+		}
+		if b, err = q.UpdateBranch(ctx, iamdb.UpdateBranchParams{ID: id, Code: code, Name: name, Address: address, Phone: phone}); err != nil {
+			return uniqueErr(err)
+		}
+		return recordTx(ctx, tx, actor, branchEntry(b, "branch.update",
+			fmt.Sprintf("Cập nhật thông tin cơ sở chi nhánh: %s (%s)", name, code), audit.Diff(branchSnapshot(old), branchSnapshot(b))))
+	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Branch{}, ErrBranchNotFound
 	}
 	if err != nil {
-		return Branch{}, uniqueErr(err)
+		return Branch{}, err
 	}
 	s.log.Info("branch updated", "branch_id", id, "by", actor.UserID)
 	return toBranch(b), nil
 }
 
+// BranchCheckinInput: giống validate của Laravel BranchController::updateAttendance.
+type BranchCheckinInput struct {
+	Latitude         *float64 `json:"latitude"`
+	Longitude        *float64 `json:"longitude"`
+	CheckinRadius    *int     `json:"checkin_radius"`
+	WorkStartTime    string   `json:"work_start_time"`
+	WorkEndTime      string   `json:"work_end_time"`
+	LateGraceMinutes *int     `json:"late_grace_minutes"`
+}
+
+func (in BranchCheckinInput) params(id uuid.UUID) (iamdb.UpdateBranchCheckinParams, error) {
+	p := iamdb.UpdateBranchCheckinParams{ID: id}
+	switch {
+	case in.Latitude == nil:
+		return p, invalid(`Nhập vĩ độ của chi nhánh (hoặc bấm "Lấy vị trí hiện tại" khi đang đứng ở chi nhánh).`)
+	case *in.Latitude < -90 || *in.Latitude > 90:
+		return p, invalid("Vĩ độ phải nằm trong khoảng -90 đến 90.")
+	case in.Longitude == nil:
+		return p, invalid("Nhập kinh độ của chi nhánh.")
+	case *in.Longitude < -180 || *in.Longitude > 180:
+		return p, invalid("Kinh độ phải nằm trong khoảng -180 đến 180.")
+	case in.CheckinRadius == nil || *in.CheckinRadius < 20:
+		return p, invalid("Bán kính tối thiểu 20 m (GPS điện thoại thường lệch 5–20 m).")
+	case *in.CheckinRadius > 5000:
+		return p, invalid("Bán kính tối đa 5000 m.")
+	case in.LateGraceMinutes == nil || *in.LateGraceMinutes < 0 || *in.LateGraceMinutes > 240:
+		return p, invalid("Số phút cho phép muộn từ 0 đến 240.")
+	}
+	start, ok := parseClock(in.WorkStartTime)
+	if !ok {
+		return p, invalid("Giờ vào phải theo dạng HH:MM.")
+	}
+	end, ok := parseClock(in.WorkEndTime)
+	if !ok {
+		return p, invalid("Giờ ra phải theo dạng HH:MM.")
+	}
+	if end <= start {
+		return p, invalid("Giờ ra phải sau giờ vào.")
+	}
+	lat, lng := math.Round(*in.Latitude*1e7)/1e7, math.Round(*in.Longitude*1e7)/1e7
+	p.Latitude, p.Longitude = &lat, &lng
+	p.CheckinRadius = int32(*in.CheckinRadius)
+	p.WorkStartTime = pgtype.Time{Microseconds: int64(start) * 60e6, Valid: true}
+	p.WorkEndTime = pgtype.Time{Microseconds: int64(end) * 60e6, Valid: true}
+	p.LateGraceMinutes = int16(*in.LateGraceMinutes)
+	return p, nil
+}
+
+func (s *Service) UpdateBranchCheckin(ctx context.Context, actor *Access, id uuid.UUID, in BranchCheckinInput) (Branch, error) {
+	p, err := in.params(id)
+	if err != nil {
+		return Branch{}, err
+	}
+	var b iamdb.CoreBranch
+	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		q := s.q.WithTx(tx)
+		old, err := q.GetBranch(ctx, id)
+		if err != nil {
+			return err
+		}
+		if b, err = q.UpdateBranchCheckin(ctx, p); err != nil {
+			return err
+		}
+		return recordTx(ctx, tx, actor, branchEntry(b, "branch.checkin",
+			"Cập nhật cài đặt chấm công cơ sở: "+b.Name, audit.Diff(checkinSnapshot(old), checkinSnapshot(b))))
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Branch{}, ErrBranchNotFound
+	}
+	if err != nil {
+		return Branch{}, err
+	}
+	s.log.Info("branch checkin updated", "branch_id", id, "by", actor.UserID)
+	return toBranch(b), nil
+}
+
 func (s *Service) SetBranchActive(ctx context.Context, actor *Access, id uuid.UUID, active bool) (Branch, error) {
-	b, err := s.q.SetBranchActive(ctx, iamdb.SetBranchActiveParams{ID: id, IsActive: active})
+	var b iamdb.CoreBranch
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		q := s.q.WithTx(tx)
+		old, err := q.GetBranch(ctx, id)
+		if err != nil {
+			return err
+		}
+		if b, err = q.SetBranchActive(ctx, iamdb.SetBranchActiveParams{ID: id, IsActive: active}); err != nil {
+			return err
+		}
+		status := "Tạm dừng"
+		if active {
+			status = "Đang hoạt động"
+		}
+		return recordTx(ctx, tx, actor, branchEntry(b, "branch.set_active",
+			fmt.Sprintf("Chuyển trạng thái chi nhánh [%s] sang %s", b.Name, status), audit.Diff(branchSnapshot(old), branchSnapshot(b))))
+	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Branch{}, ErrBranchNotFound
 	}
@@ -214,12 +371,23 @@ func (s *Service) UpdateRoleLabels(ctx context.Context, actor *Access, name, lab
 	if label == "" || len([]rune(label)) > 100 || short == "" || len([]rune(short)) > 50 {
 		return invalid("Tên vai trò không được trống (tối đa 100 ký tự, tên ngắn tối đa 50).")
 	}
-	if _, err := s.q.GetRole(ctx, name); errors.Is(err, pgx.ErrNoRows) {
+	old, err := s.q.GetRole(ctx, name)
+	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrRoleNotFound
 	} else if err != nil {
 		return err
 	}
-	if err := s.q.UpdateRoleLabels(ctx, iamdb.UpdateRoleLabelsParams{Name: name, Label: label, ShortLabel: short}); err != nil {
+	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		if err := s.q.WithTx(tx).UpdateRoleLabels(ctx, iamdb.UpdateRoleLabelsParams{Name: name, Label: label, ShortLabel: short}); err != nil {
+			return err
+		}
+		return recordTx(ctx, tx, actor, audit.Entry{
+			Module: audit.ModuleUsers, Event: audit.EventUpdated, Action: "role.update", SubjectType: "role", SubjectID: name,
+			SubjectLabel: label, Description: fmt.Sprintf("Cập nhật vai trò %q", name),
+			Changes: audit.Diff(map[string]any{"label": old.Label, "short_label": old.ShortLabel}, map[string]any{"label": label, "short_label": short}),
+		})
+	})
+	if err != nil {
 		return err
 	}
 	s.log.Info("role labels updated", "role", name, "by", actor.UserID)
@@ -279,6 +447,10 @@ func (s *Service) SetRolePermissions(ctx context.Context, actor *Access, role st
 	}
 	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		q := s.q.WithTx(tx)
+		before, err := q.ListPermissionsOfRole(ctx, role)
+		if err != nil {
+			return err
+		}
 		if err := q.DeleteRolePermissions(ctx, role); err != nil {
 			return err
 		}
@@ -287,7 +459,16 @@ func (s *Service) SetRolePermissions(ctx context.Context, actor *Access, role st
 				return err
 			}
 		}
-		return nil
+		added, removed := setDiff(before, perms)
+		desc := fmt.Sprintf("Cập nhật vai trò %q", role)
+		if len(added)+len(removed) > 0 {
+			desc += fmt.Sprintf(" (+%d / −%d quyền)", len(added), len(removed))
+		}
+		return recordTx(ctx, tx, actor, audit.Entry{
+			Module: audit.ModuleUsers, Event: audit.EventUpdated, Action: "role.permissions", SubjectType: "role", SubjectID: role,
+			Description: desc, Changes: audit.Changes{"permissions": {Old: before, New: perms}},
+			Properties: map[string]any{"added": added, "removed": removed},
+		})
 	})
 	if err != nil {
 		return nil, err
@@ -689,8 +870,12 @@ func (s *Service) CreateManagedUser(ctx context.Context, actor *Access, in UserI
 		if err := replaceBranches(ctx, q, u.ID, branches); err != nil {
 			return err
 		}
-		t, err = s.loadTarget(ctx, q, u.ID)
-		return err
+		if t, err = s.loadTarget(ctx, q, u.ID); err != nil {
+			return err
+		}
+		after := userSnapshot(t)
+		after["kind"], after["roles"] = t.user.Kind, t.roles
+		return recordTx(ctx, tx, actor, userEntry(t, audit.EventCreated, "user.create", "Tạo tài khoản nhân viên mới", audit.Diff(nil, after)))
 	})
 	if err != nil {
 		return UserDetail{}, "", err
@@ -723,6 +908,7 @@ func (s *Service) UpdateManagedUser(ctx context.Context, actor *Access, id uuid.
 			}
 		}
 	}
+	before := userSnapshot(t)
 	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		q := s.q.WithTx(tx)
 		_, err := q.UpdateUserProfile(ctx, iamdb.UpdateUserProfileParams{
@@ -735,8 +921,10 @@ func (s *Service) UpdateManagedUser(ctx context.Context, actor *Access, id uuid.
 		if err := replaceBranches(ctx, q, id, branches); err != nil {
 			return err
 		}
-		t, err = s.loadTarget(ctx, q, id)
-		return err
+		if t, err = s.loadTarget(ctx, q, id); err != nil {
+			return err
+		}
+		return recordTx(ctx, tx, actor, userEntry(t, audit.EventUpdated, "user.update", "Cập nhật tài khoản nhân viên", audit.Diff(before, userSnapshot(t))))
 	})
 	if err != nil {
 		return UserDetail{}, err
@@ -775,7 +963,12 @@ func (s *Service) SetUserRoles(ctx context.Context, actor *Access, id uuid.UUID,
 		}
 	}
 	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		return replaceRoles(ctx, s.q.WithTx(tx), id, roles)
+		if err := replaceRoles(ctx, s.q.WithTx(tx), id, roles); err != nil {
+			return err
+		}
+		after := slices.Sorted(slices.Values(roles))
+		return recordTx(ctx, tx, actor, userEntry(t, audit.EventUpdated, "user.roles", "Cập nhật vai trò nhân viên",
+			audit.Changes{"roles": {Old: t.roles, New: after}}))
 	})
 	if err != nil {
 		return UserDetail{}, err
@@ -799,7 +992,17 @@ func (s *Service) SetUserLocked(ctx context.Context, actor *Access, id uuid.UUID
 	if locked {
 		status = "disabled"
 	}
-	if err := s.q.SetUserStatus(ctx, iamdb.SetUserStatusParams{ID: id, Status: status}); err != nil {
+	desc, action := "Kích hoạt lại tài khoản", "user.unlock"
+	if locked {
+		desc, action = "Vô hiệu hóa tài khoản", "user.lock"
+	}
+	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		if err := s.q.WithTx(tx).SetUserStatus(ctx, iamdb.SetUserStatusParams{ID: id, Status: status}); err != nil {
+			return err
+		}
+		return recordTx(ctx, tx, actor, userEntry(t, audit.EventUpdated, action, desc, audit.Changes{"status": {Old: t.user.Status, New: status}}))
+	})
+	if err != nil {
 		return err
 	}
 	if locked {
@@ -823,26 +1026,33 @@ func (s *Service) ResetManagedPassword(ctx context.Context, actor *Access, id uu
 		return "", ErrSelfAction
 	}
 	password, err := s.resetPassword(ctx, t.user.ID)
-	if err == nil {
-		s.log.Info("password reset", "user_id", id, "by", actor.UserID)
+	if err != nil {
+		return "", err
 	}
-	return password, err
+	s.log.Info("password reset", "user_id", id, "by", actor.UserID)
+	s.record(ctx, actor, userEntry(t, audit.EventUpdated, "user.reset_password", "Đặt lại mật khẩu (bắt buộc đổi ở lần đăng nhập tới)", nil))
+	return password, nil
 }
 
 // ResetManagedTOTP tắt 2FA của người mất điện thoại; họ phải bật lại ở lần đăng nhập tới nếu vai trò bắt buộc.
 func (s *Service) ResetManagedTOTP(ctx context.Context, actor *Access, id uuid.UUID) error {
-	if _, err := s.managedTarget(ctx, actor, id); err != nil {
+	t, err := s.managedTarget(ctx, actor, id)
+	if err != nil {
 		return err
 	}
 	if id == actor.UserID {
 		return ErrSelfAction
 	}
-	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		q := s.q.WithTx(tx)
 		if err := q.DisableTOTP(ctx, id); err != nil {
 			return err
 		}
-		return q.DeleteRecoveryCodes(ctx, id)
+		if err := q.DeleteRecoveryCodes(ctx, id); err != nil {
+			return err
+		}
+		return recordTx(ctx, tx, actor, userEntry(t, audit.EventUpdated, "user.reset_totp", "Đặt lại xác thực hai bước (người dùng phải bật lại)",
+			audit.Changes{"totp_enabled": {Old: t.user.TotpEnabledAt != nil, New: false}}))
 	})
 	if err != nil {
 		return err
@@ -906,7 +1116,8 @@ func (s *Service) GetUserPermissions(ctx context.Context, actor *Access, id uuid
 
 // SetUserOverrides thay toàn bộ phân quyền cá nhân phạm vi "all" của một người.
 func (s *Service) SetUserOverrides(ctx context.Context, actor *Access, id uuid.UUID, list []Override) (UserPermissions, error) {
-	if _, err := s.overrideTarget(ctx, actor, id); err != nil {
+	t, err := s.overrideTarget(ctx, actor, id)
+	if err != nil {
 		return UserPermissions{}, err
 	}
 	c := GetCatalog()
@@ -922,8 +1133,18 @@ func (s *Service) SetUserOverrides(ctx context.Context, actor *Access, id uuid.U
 			return UserPermissions{}, err
 		}
 	}
-	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		q := s.q.WithTx(tx)
+		old, err := q.ListUserOverrides(ctx, id)
+		if err != nil {
+			return err
+		}
+		prev := map[string]bool{}
+		for _, o := range old {
+			if o.ScopeType == "all" {
+				prev[o.Permission] = o.Allow
+			}
+		}
 		if err := q.DeleteUserOverridesAll(ctx, id); err != nil {
 			return err
 		}
@@ -935,7 +1156,12 @@ func (s *Service) SetUserOverrides(ctx context.Context, actor *Access, id uuid.U
 				return err
 			}
 		}
-		return nil
+		before, after := overrideList(prev), overrideList(next)
+		added, removed := setDiff(before, after)
+		e := userEntry(t, audit.EventUpdated, "user.overrides", "Cập nhật phân quyền chi tiết cá nhân",
+			audit.Changes{"overrides": {Old: before, New: after}})
+		e.Properties = map[string]any{"added": added, "removed": removed}
+		return recordTx(ctx, tx, actor, e)
 	})
 	if err != nil {
 		return UserPermissions{}, err

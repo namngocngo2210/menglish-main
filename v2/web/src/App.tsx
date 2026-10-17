@@ -4,15 +4,21 @@ import { Shell } from './components/Shell'
 import { Alert, Card, GuestShell } from './components/ui'
 import { can, navItemFor } from './nav'
 import { AccountPage } from './pages/AccountPage'
-import { BranchesPage } from './pages/admin/BranchesPage'
-import { RolesPage } from './pages/admin/RolesPage'
-import { UsersPage } from './pages/admin/UsersPage'
 import { FirstPasswordPage } from './pages/FirstPasswordPage'
 import { LoginPage } from './pages/LoginPage'
 import { TotpRequiredPage } from './pages/TotpRequiredPage'
+import { PAGES } from './routes'
 import { usePath } from './router'
+import { PublicTestPage, publicToken } from './features/placement/PublicTestPage'
 
 export function App() {
+  // Trang làm bài test đầu vào qua link mời: công khai, không cần đăng nhập.
+  const token = publicToken(usePath())
+  if (token) return <PublicTestPage token={token} />
+  return <AuthedApp />
+}
+
+function AuthedApp() {
   const me = useQuery({ queryKey: ['me'], queryFn: api.me })
 
   if (me.isPending) {
@@ -46,14 +52,6 @@ function Page({ me }: { me: Me }) {
   if (item.perms && !can(me, ...item.perms)) {
     return <Card title="Không có quyền">Bạn không có quyền xem trang này.</Card>
   }
-  switch (item.path) {
-    case '/users':
-      return <UsersPage me={me} />
-    case '/roles':
-      return <RolesPage me={me} />
-    case '/branches':
-      return <BranchesPage me={me} />
-    default:
-      return <AccountPage me={me} />
-  }
+  const page = PAGES[item.path]
+  return page ? page(me) : <AccountPage me={me} />
 }

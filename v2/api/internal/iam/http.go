@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/geo"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam/iamdb"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/httpx"
 )
@@ -63,9 +64,16 @@ func AccessFrom(ctx context.Context) *Access {
 type Handler struct {
 	svc *Service
 	log *slog.Logger
+	geo *geo.Searcher
 }
 
 func NewHandler(svc *Service, log *slog.Logger) *Handler { return &Handler{svc: svc, log: log} }
+
+// WithAddressSearch bật tìm địa chỉ cho bản đồ chấm công chi nhánh (không bật → API trả 502).
+func (h *Handler) WithAddressSearch(s *geo.Searcher) *Handler {
+	h.geo = s
+	return h
+}
 
 // LoadSession đọc cookie phiên (nếu có) và gắn người dùng vào context. Không chặn request.
 func (h *Handler) LoadSession(next http.Handler) http.Handler {
@@ -433,6 +441,19 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 	}
 	httpx.InternalError(w, r, h.log, err)
 }
+
+// Fail trả lỗi cho module khác: *Error (kể cả bọc) → đúng mã và thông báo; lỗi khác → 500 và ghi log.
+func Fail(w http.ResponseWriter, r *http.Request, log *slog.Logger, err error) {
+	var e *Error
+	if errors.As(err, &e) {
+		writeErr(w, e)
+		return
+	}
+	httpx.InternalError(w, r, log, err)
+}
+
+// Invalid: lỗi 422 "invalid" với thông báo tiếng Việt cho người dùng.
+func Invalid(msg string) *Error { return invalid(msg) }
 
 func writeErr(w http.ResponseWriter, e *Error) {
 	httpx.Error(w, e.Status, e.Code, e.Message)

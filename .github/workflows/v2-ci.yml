@@ -1,9 +1,10 @@
-# CI cho hệ thống mới trong v2/ (Go API + React). Chỉ chạy khi v2/ thay đổi; không đụng CI / deploy của Laravel.
+# CI cho hệ thống mới trong v2/ (Go API + React). Chạy khi v2/ hoặc migration Laravel thay đổi; không đụng CI / deploy của Laravel.
 name: v2 CI
 
 on:
   pull_request:
-    paths: ['v2/**', '.github/workflows/v2-ci.yml']
+    # database/migrations: bảng Laravel đổi thì chạy lại test import-legacy của v2.
+    paths: ['v2/**', '.github/workflows/v2-ci.yml', 'database/migrations/**']
   push:
     branches: [main]
     paths: ['v2/**', '.github/workflows/v2-ci.yml']
@@ -36,9 +37,19 @@ jobs:
         ports: ['6379:6379']
         options: >-
           --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 10
+      # DB của Laravel (chạy migration thật) để test import-legacy: bảng cũ đổi cột thì test đỏ.
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: test
+          MARIADB_DATABASE: legacy
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd "healthcheck.sh --connect --innodb_initialized" --health-interval 5s --health-timeout 5s --health-retries 20
     env:
       TEST_DATABASE_URL: postgres://test:test@localhost:5432/test?sslmode=disable
       TEST_REDIS_URL: redis://localhost:6379/15
+      TEST_LEGACY_MYSQL_DSN: root:test@tcp(127.0.0.1:3306)/legacy
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -56,6 +67,26 @@ jobs:
       # Danh mục quyền xuất từ config Laravel; lệch thì chạy lại lệnh export (xem catalog/export.php).
       - name: Danh mục quyền khớp config Laravel
         run: php internal/iam/catalog/export.php | diff -u internal/iam/catalog/catalog.json -
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_mysql, intl, gd, zip, bcmath
+      - name: Migration Laravel lên MariaDB (cho test import-legacy)
+        working-directory: .
+        env:
+          APP_ENV: testing
+          DB_CONNECTION: mariadb
+          DB_HOST: 127.0.0.1
+          DB_PORT: '3306'
+          DB_DATABASE: legacy
+          DB_USERNAME: root
+          DB_PASSWORD: test
+          CACHE_STORE: array
+          SESSION_DRIVER: array
+          QUEUE_CONNECTION: sync
+        run: |
+          composer install --no-dev --no-interaction --no-progress --prefer-dist --no-scripts
+          APP_KEY="base64:$(openssl rand -base64 32)" php artisan migrate --force
       # -p 1: các gói test dùng chung một database (test migration xóa sạch schema)
       - run: go test -race -p 1 ./...
 

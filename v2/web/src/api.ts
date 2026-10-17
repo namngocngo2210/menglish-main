@@ -34,8 +34,28 @@ export type Branch = {
   phone: string | null
   is_active: boolean
   created_at: string
+  checkin: BranchCheckin
 }
 export type BranchInput = { code: string; name: string; address: string; phone: string }
+// Cài đặt chấm công: configured = đã có tọa độ; work_start / work_end dạng "HH:MM".
+export type BranchCheckin = {
+  latitude: number | null
+  longitude: number | null
+  radius: number
+  work_start: string | null
+  work_end: string | null
+  grace: number
+  configured: boolean
+}
+export type BranchCheckinInput = {
+  latitude: number | null
+  longitude: number | null
+  checkin_radius: number | null
+  work_start_time: string
+  work_end_time: string
+  late_grace_minutes: number | null
+}
+export type AddressPlace = { id: string; label: string; lat: number; lng: number }
 
 export type RoleView = RoleRef & { super_admin: boolean; user_count: number; permissions: string[] }
 
@@ -120,7 +140,7 @@ export class ApiError extends Error {
 
 let csrfToken = ''
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+export async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const headers: Record<string, string> = {}
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   if (method !== 'GET' && csrfToken) headers['X-CSRF-Token'] = csrfToken
@@ -166,6 +186,9 @@ export const api = {
   branches: () => request<{ branches: Branch[] }>('GET', '/branches'),
   createBranch: (b: BranchInput) => request<Branch>('POST', '/branches', b),
   updateBranch: (id: string, b: BranchInput) => request<Branch>('PATCH', `/branches/${id}`, b),
+  updateBranchCheckin: (id: string, c: BranchCheckinInput) => request<Branch>('PUT', `/branches/${id}/checkin`, c),
+  addressSearch: (q: string) =>
+    request<{ results: AddressPlace[]; matched: string | null }>('GET', `/branches/address-search?${new URLSearchParams({ q })}`),
   setBranchActive: (id: string, active: boolean) =>
     request<Branch>('POST', `/branches/${id}/${active ? 'activate' : 'deactivate'}`),
 
@@ -189,6 +212,8 @@ export const api = {
   setUserLocked: (id: string, locked: boolean) => request<void>('POST', `/users/${id}/${locked ? 'lock' : 'unlock'}`),
   resetUserPassword: (id: string) => request<{ temporary_password: string }>('POST', `/users/${id}/reset-password`),
   resetUserTotp: (id: string) => request<void>('POST', `/users/${id}/reset-totp`),
+  staffProfile: (id: string) => request<StaffProfile>('GET', `/users/${id}/profile`),
+  updateStaffProfile: (id: string, p: StaffProfileInput) => request<StaffProfile>('PUT', `/users/${id}/profile`, p),
   userPermissions: (id: string) => request<UserPermissions>('GET', `/users/${id}/permissions`),
   setUserPermissions: (id: string, overrides: Override[]) =>
     request<UserPermissions>('PUT', `/users/${id}/permissions`, { overrides }),
@@ -197,4 +222,43 @@ export const api = {
 export function errorMessage(e: unknown): string {
   if (e instanceof ApiError) return e.message
   return 'Không kết nối được máy chủ, vui lòng thử lại.'
+}
+
+// Hồ sơ nhân sự (tab "Hồ sơ" và "Hợp đồng & Lương" của Laravel). Trường nhạy cảm là null khi không được xem.
+export type StaffBadge = { label: string; tone: 'success' | 'warning' | 'error' | 'neutral' }
+export type StaffProfile = {
+  can_view_sensitive: boolean
+  id_card_number: string | null
+  hometown: string | null
+  current_address: string | null
+  emergency_contact: string | null
+  graduation_school: string | null
+  certificates: string | null
+  teaching_level: string | null
+  contract_type: string | null
+  contract_start_date: string | null
+  contract_end_date: string | null
+  base_salary: number | null
+  hourly_rate: number | null
+  academic_teaching: boolean
+  academic_lead: boolean
+  contract_status: StaffBadge
+  contract_remaining: StaffBadge | null
+  contract_types: string[]
+  updated_at: string | null
+}
+export type StaffProfileInput = {
+  id_card_number: string
+  hometown: string
+  current_address: string
+  emergency_contact: string
+  graduation_school: string
+  certificates: string
+  teaching_level: string
+  contract_type: string
+  contract_start_date: string
+  contract_end_date: string
+  base_salary: number | null
+  hourly_rate: number | null
+  academic_teaching: boolean
 }

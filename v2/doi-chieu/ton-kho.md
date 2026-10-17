@@ -1,0 +1,56 @@
+# Đối chiếu: Kho vật phẩm và Order học liệu
+
+Phần này gồm Hàng hóa & Vật phẩm, Tồn kho theo chi nhánh (nhóm menu **Kho vật phẩm**) và Order học liệu (nhóm **Danh sách đầu việc**).
+
+- Laravel: `MerchandiseItemController`, `MerchandiseStockController`, `MaterialOrderController`, `App\Services\Merchandise\StockService`, `RestockTaskService`, `MaterialOrderService`, lệnh `material-orders:mark-overdue`, các trang Vue `Merchandise/*` và `MaterialOrders/*`.
+- v2: package `v2/api/internal/inventory`, migration `00070_ops_inventory.sql` và `00071_ops_material_orders.sql`, màn `v2/web/src/features/inventory`.
+
+## Màn và route
+
+| Laravel (route / method) | v2 (API + màn) | Trạng thái | Ghi chú |
+| --- | --- | --- | --- |
+| `merchandise.index` GET `/merchandise` | `GET /api/v1/inventory/items`, màn `/inventory/items` | Đã làm | Có thẻ số liệu, lọc nhóm / trạng thái, tìm kiếm, 15 dòng/trang, cột "Tồn (mọi chi nhánh)" (tồn chi nhánh cộng tồn cũ chưa phân). Hàng nút chọn nhanh nhóm hàng đổi thành ô chọn. Bỏ thẻ "Tích hợp Hoá đơn" vì thẻ này chỉ hiện chữ cố định. Quyền: `system_category.manage`. |
+| `merchandise.create` GET | hộp thoại "Thêm Hàng hóa mới" trên màn danh sách | Đã làm | Chưa có trang form riêng khi mở thẳng URL. Danh sách chi nhánh lấy theo `branches` của API danh sách. |
+| `merchandise.store` POST | `POST /inventory/items` | Đã làm | Kiểm dữ liệu và thông báo như Laravel. Tồn ban đầu vào kho chi nhánh đã chọn (ghi một dòng "Tồn đầu kỳ"); không chọn chi nhánh thì vào "tồn cũ chưa phân chi nhánh". Khác Laravel ở 3 điểm: giá là số nguyên đồng; mã chỉ cần không trùng với mặt hàng chưa xóa (Laravel tính cả mặt hàng đã xóa); tồn ban đầu tối đa 100.000. |
+| `merchandise.edit` GET | `GET /inventory/items/{id}`, hộp thoại Sửa | Đã làm | |
+| `merchandise.update` PUT | `PUT /inventory/items/{id}` | Đã làm | Không sửa số tồn ở đây, giống Laravel. |
+| `merchandise.destroy` DELETE | `DELETE /inventory/items/{id}` | Đã làm | Xóa mềm (`deleted_at`), có hộp xác nhận. Nhật ký kho của mặt hàng vẫn giữ. Laravel cũng không có màn khôi phục. |
+| `merchandise.toggle` POST | `POST /inventory/items/{id}/toggle` | Đã làm | Bấm nhãn trạng thái trên bảng. Thông báo "Đã Kích hoạt / Tạm ngừng kinh doanh mặt hàng …". |
+| `merchandise.api` GET `/merchandise/api/items` | `GET /inventory/items/active` | Đã làm | Danh sách mặt hàng đang bán, để module tài chính / CRM dùng sau. Quyền `system_category.manage` như Laravel. |
+| `merchandise.stock.index` GET | `GET /inventory/stock`, màn `/inventory/stock` | Đã làm | Chọn chi nhánh trong phạm vi `merchandise_stock` (mặc định là chi nhánh chính). Có chip Âm kho / Hết hàng / Sắp hết kèm số lượng, lọc nhóm, tìm kiếm. Mặt hàng ngừng bán chỉ hiện khi tồn khác 0. Có cảnh báo tồn cũ chưa phân chi nhánh và bảng 15 lần xuất nhập gần đây. Người chưa gán chi nhánh thấy thông báo "Tài khoản chưa được gán chi nhánh". |
+| `merchandise.stock.history` GET | `GET /inventory/stock/items/{id}/history?branch_id=`, hộp thoại khi bấm dòng | Đã làm | Hiện 100 dòng gần nhất, kể cả mặt hàng đã xóa. |
+| `merchandise.stock.create` GET | `GET /inventory/stock/form-options`, hộp thoại Nhập kho / Kiểm kê | Đã làm | Gồm mặt hàng đang bán, chi nhánh trong phạm vi, tồn hiện tại theo chi nhánh. Người chưa có chi nhánh nhận 403 `no_branch`. |
+| `merchandise.stock.store` POST (`import` / `count`, `from_legacy`) | `POST /inventory/stock/movements` (`type: import / count`) | Đã làm | Nhập kho: số lượng phải ≥ 1. "Lấy từ tồn cũ chưa phân chi nhánh" không được vượt số còn lại. Kiểm kê: ghi phần chênh lệch, số tồn đã khớp thì không ghi gì. Ngoài chi nhánh của mình → 403 `outside_branch`. Giao dịch khóa dòng tồn (`SELECT … FOR UPDATE`). |
+| (không có ở Laravel) | `POST /inventory/stock/movements` `type: issue` | Mới ở v2 | Xuất kho tay: cấp cho học viên (`student_id`, tùy chọn; học viên phải tồn tại → "Học viên đã chọn không tồn tại.") hoặc dùng cho lớp. Không cho xuất quá số tồn. |
+| (không có ở Laravel) | `POST /inventory/stock/movements` `type: transfer` | Mới ở v2 | Chuyển kho: chi nhánh chuyển phải trong phạm vi; chi nhánh nhận là bất kỳ chi nhánh đang hoạt động nào. Ghi 2 dòng `transfer_out` / `transfer_in` cùng `transfer_id`. Không cho chuyển quá số tồn. Khóa dòng theo thứ tự cố định để tránh khóa chéo. |
+| `StockService::syncReceipt` (xuất khi duyệt phiếu thu, hoàn khi hủy hóa đơn) | `inventory.Service.Record(ctx, tx, RecordInput)` (`sale` / `return`) | Làm một phần | Hàm ghi đã có, chạy trong giao dịch của module gọi. Xuất bán được làm âm kho như Laravel. Module tài chính chưa có nên chưa nối. Việc tính phần chưa xuất (`pendingLines`, xuất 1 lần cho mỗi hợp đồng) sẽ làm cùng module tài chính. |
+| `StockService::previewForReceipt` (cảnh báo tồn ở màn duyệt phiếu) | — | Chưa làm | Cần module tài chính. |
+| `RestockTaskService` (tồn ≤ 0 sau một lần xuất thì giao Admin việc "Nhập bù sách"; nhập đủ thì việc tự xong) | `inventory.Restocker` (cài bằng `tasks.Service.Restocker`, gọi trong giao dịch của `apply`) | Đã làm | Một việc mở cho mỗi chi nhánh + mặt hàng (mô tả cập nhật theo tồn mới), giao Admin đầu tiên, hạn theo SLA `stock.restock_task` (mặc định 2 ngày) lúc 17:00, mọi Admin nhận "Việc mới: …"; tồn lên trên 0 thì việc tự hoàn thành kèm ghi chú. |
+| `material-orders.index` GET | `GET /material-orders`, màn `/material-orders` | Đã làm | Phạm vi như `MaterialOrder::scopeVisibleTo`: chưa có `view_all` thì chỉ thấy order của mình; mức chi nhánh thấy order của chi nhánh mình cộng order của mình; mức toàn hệ thống thấy tất cả. Lọc trạng thái / loại / chi nhánh, tìm theo mã hoặc tên. Thứ tự: Quá hạn → Chờ / Đang xử lý → còn lại, rồi theo hạn. Có nhãn hạn (Còn hạn / Sắp hết hạn / Quá hạn) và nhãn "Tạo trễ". Cố định 15 dòng/trang, chưa có tham số `per_page`. |
+| `material-orders.create` GET | `GET /material-orders/form-options`, hộp thoại "Tạo order" | Làm một phần | Chi nhánh: chi nhánh của mình (mức toàn hệ thống thì mọi chi nhánh đang hoạt động). Form báo trước hạn xử lý và cảnh báo tạo trễ. Ô "Lớp (nếu có)": lớp mình thấy thuộc chi nhánh đã chọn (`inventory.ClassLookup` do phân hệ Lớp học cài); danh sách order chưa hiện tên lớp. Hạn dùng giá trị mặc định của Laravel (ngày 5, 15:00), chưa đọc trang Cấu hình SLA (`TODO(sla)`). |
+| `material-orders.store` POST | `POST /material-orders` | Đã làm | Mã `OH-YYYY-NNNN` lấy từ bộ đếm theo năm (`ops.material_order_counters`); năm mới bắt đầu sau số lớn nhất đã có. Hạn xử lý giống `computeDueAt`, tính theo giờ Việt Nam. Tạo trễ vẫn nhận và trả kèm `warning` với câu chữ như Laravel. API nhận `class_id` nhưng chưa kiểm lớp có tồn tại không (`TODO(classes)`). Có thêm cột `work_task_id` để sau này tạo order từ đầu việc. |
+| `material-orders.show` GET | `GET /material-orders/{id}`, hộp thoại mở theo đường dẫn `/material-orders/<id>` | Đã làm | Nút Nhận xử lý / Hoàn thành / Từ chối chỉ hiện với đúng người xử lý. Ngoài phạm vi xem → 403. |
+| `material-orders.claim` POST | `POST /material-orders/{id}/claim` | Đã làm | Chỉ nhận được order Chờ xử lý hoặc Quá hạn; trạng thái khác → 409 `invalid_status`. Quyền xử lý theo loại: `process_ops` (Học vụ, chỉ chi nhánh trong phạm vi) cho đạo cụ / in ấn / GVNN, `process_academic` cho học liệu học thuật. Admin xử lý được mọi loại. |
+| `material-orders.complete` POST | `POST /material-orders/{id}/complete` | Đã làm | Order Quá hạn vẫn hoàn thành được; ghi người xử lý, giờ xử lý và cờ "Xử lý trễ". |
+| `material-orders.reject` POST | `POST /material-orders/{id}/reject` | Đã làm | Bắt buộc nhập lý do ("Vui lòng nhập lý do từ chối."). |
+| Lệnh `material-orders:mark-overdue` (15 phút) | `Service.MarkOverdue` + `RunOverdueLoop` chạy trong `menglish api` mỗi 15 phút | Đã làm | Chạy lại nhiều lần vẫn đúng. Khi có bộ lập lịch chung thì chuyển sang (`TODO(jobs)`). Hiện chạy trong mỗi tiến trình API: bản beta chỉ có 1 tiến trình nên ổn. |
+| Thông báo `material_order_new` / `material_order_overdue` cho người xử lý | `notifyProcessors` (`inventory/audit.go`) | Đã làm | Người xử lý tính gần đúng: người có quyền xử lý loại order thuộc chi nhánh của order + Admin. |
+| `activity('merchandise_item')` (nhật ký tạo / sửa hàng hóa) | `audit.Record` trong giao dịch + log `slog` | Đã làm | Tạo / sửa / xóa hàng hóa ghi nhật ký (kèm trường đã đổi). |
+| Sidebar "Kho vật phẩm", "Danh sách đầu việc → Order học liệu" | `NAV` trong `v2/web/src/nav.ts` | Đã làm | Quyền giống menu Laravel: `system_category.manage`, `merchandise_stock.view`, và 4 quyền `material_order.*`. |
+| Báo cáo dùng dữ liệu kho / order (`DailyReportMetrics`, `WeeklyReportMetrics`, `StaffReportController`, `KpiAutoCounter` nguồn `material_stock`) | — | Chưa làm | Thuộc module báo cáo / KPI. Dữ liệu đã có sẵn trong `ops.material_orders` và `ops.stock_movements`. |
+| Ô chọn hàng hóa và cảnh báo hết hàng ở bước Chốt & Xếp lớp của CRM (`merchandiseStock`) | `GET /inventory/stock/form-options` có `stock_by_branch` | Chưa làm | Thuộc module CRM / tài chính. |
+| Xuất Excel / báo cáo kho | — | Không có ở Laravel | Laravel không có màn xuất cho kho hay order học liệu. |
+| Dữ liệu cũ: `merchandise_items`, `merchandise_stocks`, `merchandise_stock_movements`, `material_orders` | cột `legacy_id` trên `ops.inventory_items`, `ops.material_orders` | Chưa làm | Phần đọc dữ liệu cũ của `import-legacy` chưa viết. Migration Laravel chuyển tồn chung về chi nhánh khi chỉ có 1 chi nhánh: làm trong `import-legacy`. |
+
+## Dữ liệu
+
+- `ops.inventory_items` có `unallocated_quantity`: chính là `stock_quantity` của Laravel ("tồn cũ chưa phân chi nhánh"). Giá lưu `bigint` đồng. Xóa mềm; mã không trùng trong các mặt hàng chưa xóa.
+- `ops.stock` có khóa `(branch_id, item_id)`. Số tồn **được âm** như Laravel (đã giao sách theo phiếu thu khi kho chưa nhập). Thao tác tay (xuất kho, chuyển kho) thì không được làm âm.
+- `ops.stock_movements` không sửa, không xóa được: trigger chặn `UPDATE` / `DELETE`. Ghi sai thì ghi thêm một dòng kiểm kê. Ràng buộc dấu số lượng theo loại: nhập / hoàn / nhận chuyển phải dương, xuất bán / xuất / chuyển đi phải âm. Các cột `receipt_id`, `tuition_id` là uuid trơn (FK thêm khi gộp với tài chính); `student_id` có FK tới `academic.students` (`00110_academic_links_fk`). `document_number` giữ số phiếu thu để hiện trong nhật ký.
+- `ops.material_orders` có `class_id` và `work_task_id` là uuid trơn (`class_id` được kiểm lớp tồn tại qua phân hệ Lớp học; `work_task_id` chưa thêm khóa ngoại vì API chưa kiểm id gửi lên). Có ràng buộc: đã từ chối thì phải có lý do.
+- Bản giao việc có nhắc "material orders (+ lines)", nhưng order học liệu ở Laravel chỉ có một dòng (tiêu đề và số lượng). v2 giữ đúng như vậy, không tạo bảng dòng order.
+
+## Test
+
+- Go (Postgres và Redis thật, qua HTTP): CRUD hàng hóa kèm thông báo lỗi; người không có quyền nhận 403; nhập kho / kiểm kê / phạm vi chi nhánh; phân bổ tồn cũ; xuất kho / chuyển kho không làm âm; 10 lần xuất đồng thời không làm âm kho; trigger chặn sửa nhật ký; xuất bán qua `Record` được làm âm; luồng order học liệu (mã, hạn, tạo trễ, phạm vi xem, quyền xử lý theo loại và chi nhánh, từ chối cần lý do, quá hạn chạy lại vẫn đúng, xử lý trễ, mã sang năm mới).
+- Vitest: hàm định dạng và hạn dự kiến (khớp server); màn Tồn kho (mức tồn, nhập kho gửi đúng dữ liệu); màn Order học liệu (mở chi tiết theo đường dẫn, nhận xử lý).

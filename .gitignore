@@ -40,3 +40,6 @@ yarn-error.log
 /.env.staging
 /backups/
 /.ci-deploy.lock
+
+# v2: file chạy build tại chỗ (go build ./cmd/menglish)
+/v2/api/menglish

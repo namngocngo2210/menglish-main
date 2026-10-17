@@ -15,6 +15,7 @@ import (
 	"unicode/utf8"
 
 	"golang.org/x/crypto/argon2"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // Tham số argon2id theo tài liệu thiết kế: 64 MB, 3 vòng, 2 luồng.
@@ -59,8 +60,25 @@ func HashPassword(ctx context.Context, password string) (string, error) {
 		argon2.Version, argonMemory, argonTime, argonThreads, b64.EncodeToString(salt), b64.EncodeToString(key)), nil
 }
 
+// IsLegacyHash: chuỗi băm bcrypt mang từ Laravel sang ($2y$…); đăng nhập đúng thì băm lại bằng argon2id.
+func IsLegacyHash(encoded string) bool {
+	return strings.HasPrefix(encoded, "$2y$") || strings.HasPrefix(encoded, "$2a$") || strings.HasPrefix(encoded, "$2b$")
+}
+
 // VerifyPassword so mật khẩu với chuỗi băm (thời gian so sánh không phụ thuộc nội dung).
 func VerifyPassword(ctx context.Context, password, encoded string) (bool, error) {
+	if IsLegacyHash(encoded) {
+		if err := acquireHashSlot(ctx); err != nil {
+			return false, err
+		}
+		defer releaseHashSlot()
+		// Laravel ghi $2y$, thư viện Go đọc $2a$ (cùng thuật toán).
+		err := bcrypt.CompareHashAndPassword([]byte("$2a$"+encoded[4:]), []byte(password))
+		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
+			return false, nil
+		}
+		return err == nil, err
+	}
 	var version int
 	var memory uint32
 	var time uint32

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const addUserBranch = `-- name: AddUserBranch :exec
@@ -91,7 +92,7 @@ func (q *Queries) CountUnusedRecoveryCodes(ctx context.Context, userID uuid.UUID
 
 const createBranch = `-- name: CreateBranch :one
 INSERT INTO core.branches (code, name, address, phone, created_by) VALUES ($1, $2, $3, $4, $5)
-RETURNING id, code, name, address, phone, is_active, created_by, created_at, updated_at
+RETURNING id, code, name, address, phone, is_active, created_by, created_at, updated_at, latitude, longitude, checkin_radius, work_start_time, work_end_time, late_grace_minutes
 `
 
 type CreateBranchParams struct {
@@ -121,6 +122,12 @@ func (q *Queries) CreateBranch(ctx context.Context, arg CreateBranchParams) (Cor
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Latitude,
+		&i.Longitude,
+		&i.CheckinRadius,
+		&i.WorkStartTime,
+		&i.WorkEndTime,
+		&i.LateGraceMinutes,
 	)
 	return i, err
 }
@@ -251,7 +258,7 @@ func (q *Queries) EnableTOTP(ctx context.Context, arg EnableTOTPParams) error {
 }
 
 const getBranch = `-- name: GetBranch :one
-SELECT id, code, name, address, phone, is_active, created_by, created_at, updated_at FROM core.branches WHERE id = $1
+SELECT id, code, name, address, phone, is_active, created_by, created_at, updated_at, latitude, longitude, checkin_radius, work_start_time, work_end_time, late_grace_minutes FROM core.branches WHERE id = $1
 `
 
 func (q *Queries) GetBranch(ctx context.Context, id uuid.UUID) (CoreBranch, error) {
@@ -267,6 +274,12 @@ func (q *Queries) GetBranch(ctx context.Context, id uuid.UUID) (CoreBranch, erro
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Latitude,
+		&i.Longitude,
+		&i.CheckinRadius,
+		&i.WorkStartTime,
+		&i.WorkEndTime,
+		&i.LateGraceMinutes,
 	)
 	return i, err
 }
@@ -315,6 +328,46 @@ func (q *Queries) GetRole(ctx context.Context, name string) (IamRole, error) {
 		&i.Sort,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getSlaValue = `-- name: GetSlaValue :one
+SELECT COALESCE(value, default_value)::integer AS value FROM hr.sla_rules WHERE key = $1
+`
+
+// Giá trị SLA (bảng của phân hệ danh mục); không có dòng thì dùng mặc định ở code.
+func (q *Queries) GetSlaValue(ctx context.Context, key string) (int32, error) {
+	row := q.db.QueryRow(ctx, getSlaValue, key)
+	var value int32
+	err := row.Scan(&value)
+	return value, err
+}
+
+const getStaffProfile = `-- name: GetStaffProfile :one
+SELECT user_id, id_card_number, hometown, current_address, emergency_contact, graduation_school, certificates, teaching_level, contract_type, contract_start_date, contract_end_date, base_salary, hourly_rate, academic_teaching, updated_at, updated_by FROM iam.staff_profiles WHERE user_id = $1
+`
+
+func (q *Queries) GetStaffProfile(ctx context.Context, userID uuid.UUID) (IamStaffProfile, error) {
+	row := q.db.QueryRow(ctx, getStaffProfile, userID)
+	var i IamStaffProfile
+	err := row.Scan(
+		&i.UserID,
+		&i.IDCardNumber,
+		&i.Hometown,
+		&i.CurrentAddress,
+		&i.EmergencyContact,
+		&i.GraduationSchool,
+		&i.Certificates,
+		&i.TeachingLevel,
+		&i.ContractType,
+		&i.ContractStartDate,
+		&i.ContractEndDate,
+		&i.BaseSalary,
+		&i.HourlyRate,
+		&i.AcademicTeaching,
+		&i.UpdatedAt,
+		&i.UpdatedBy,
 	)
 	return i, err
 }
@@ -463,7 +516,7 @@ func (q *Queries) InsertRoleIfMissing(ctx context.Context, arg InsertRoleIfMissi
 }
 
 const listBranches = `-- name: ListBranches :many
-SELECT id, code, name, address, phone, is_active, created_by, created_at, updated_at FROM core.branches ORDER BY is_active DESC, name
+SELECT id, code, name, address, phone, is_active, created_by, created_at, updated_at, latitude, longitude, checkin_radius, work_start_time, work_end_time, late_grace_minutes FROM core.branches ORDER BY is_active DESC, name
 `
 
 func (q *Queries) ListBranches(ctx context.Context) ([]CoreBranch, error) {
@@ -485,6 +538,12 @@ func (q *Queries) ListBranches(ctx context.Context) ([]CoreBranch, error) {
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Latitude,
+			&i.Longitude,
+			&i.CheckinRadius,
+			&i.WorkStartTime,
+			&i.WorkEndTime,
+			&i.LateGraceMinutes,
 		); err != nil {
 			return nil, err
 		}
@@ -644,6 +703,95 @@ func (q *Queries) ListUserBranches(ctx context.Context, userID uuid.UUID) ([]Lis
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUserIDsWithPermission = `-- name: ListUserIDsWithPermission :many
+SELECT u.id
+FROM iam.users u
+WHERE u.status = 'active'
+  AND ($1::uuid IS NULL
+       OR EXISTS (SELECT 1 FROM iam.user_branches ub WHERE ub.user_id = u.id AND ub.branch_id = $1::uuid))
+  AND (($2::boolean
+        AND EXISTS (SELECT 1 FROM iam.user_roles ur WHERE ur.user_id = u.id AND ur.role = $3::text))
+       OR ($4::boolean AND coalesce(
+             (SELECT o.allow FROM iam.permission_overrides o
+              WHERE o.user_id = u.id AND o.permission = $5::text AND o.scope_type = 'all' LIMIT 1),
+             EXISTS (SELECT 1 FROM iam.user_roles ur JOIN iam.role_permissions rp ON rp.role = ur.role
+                     WHERE ur.user_id = u.id AND rp.permission = $5::text))))
+ORDER BY u.id
+`
+
+type ListUserIDsWithPermissionParams struct {
+	BranchID    *uuid.UUID
+	AdminAll    bool
+	AdminRole   string
+	RoleAllowed bool
+	Perm        string
+}
+
+// Người dùng đang hoạt động có quyền @perm, cùng thứ tự quyết định với Access.Can (bỏ qua phân quyền theo chi nhánh /
+// lớp). admin_all: Admin được quyền này mặc định; role_allowed: quyền không thuộc nhóm chỉ Admin. branch_id NULL = mọi
+// chi nhánh, ngược lại chỉ người thuộc chi nhánh đó.
+func (q *Queries) ListUserIDsWithPermission(ctx context.Context, arg ListUserIDsWithPermissionParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, listUserIDsWithPermission,
+		arg.BranchID,
+		arg.AdminAll,
+		arg.AdminRole,
+		arg.RoleAllowed,
+		arg.Perm,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUserIDsWithRole = `-- name: ListUserIDsWithRole :many
+SELECT u.id
+FROM iam.users u
+WHERE u.status = 'active'
+  AND EXISTS (SELECT 1 FROM iam.user_roles ur WHERE ur.user_id = u.id AND ur.role = $1::text)
+  AND ($2::uuid IS NULL
+       OR EXISTS (SELECT 1 FROM iam.user_branches ub WHERE ub.user_id = u.id AND ub.branch_id = $2::uuid))
+ORDER BY u.id
+`
+
+type ListUserIDsWithRoleParams struct {
+	Role     string
+	BranchID *uuid.UUID
+}
+
+// Người dùng đang hoạt động có vai trò @role; branch_id NULL = mọi chi nhánh, ngược lại chỉ người thuộc chi nhánh đó.
+func (q *Queries) ListUserIDsWithRole(ctx context.Context, arg ListUserIDsWithRoleParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, listUserIDsWithRole, arg.Role, arg.BranchID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -867,8 +1015,22 @@ func (q *Queries) RecordLoginSuccess(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const rehashPassword = `-- name: RehashPassword :exec
+UPDATE iam.users SET password_hash = $2, updated_at = now() WHERE id = $1
+`
+
+type RehashPasswordParams struct {
+	ID           uuid.UUID
+	PasswordHash string
+}
+
+func (q *Queries) RehashPassword(ctx context.Context, arg RehashPasswordParams) error {
+	_, err := q.db.Exec(ctx, rehashPassword, arg.ID, arg.PasswordHash)
+	return err
+}
+
 const setBranchActive = `-- name: SetBranchActive :one
-UPDATE core.branches SET is_active = $2, updated_at = now() WHERE id = $1 RETURNING id, code, name, address, phone, is_active, created_by, created_at, updated_at
+UPDATE core.branches SET is_active = $2, updated_at = now() WHERE id = $1 RETURNING id, code, name, address, phone, is_active, created_by, created_at, updated_at, latitude, longitude, checkin_radius, work_start_time, work_end_time, late_grace_minutes
 `
 
 type SetBranchActiveParams struct {
@@ -889,6 +1051,12 @@ func (q *Queries) SetBranchActive(ctx context.Context, arg SetBranchActiveParams
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Latitude,
+		&i.Longitude,
+		&i.CheckinRadius,
+		&i.WorkStartTime,
+		&i.WorkEndTime,
+		&i.LateGraceMinutes,
 	)
 	return i, err
 }
@@ -963,7 +1131,7 @@ func (q *Queries) UnlockUser(ctx context.Context, id uuid.UUID) error {
 
 const updateBranch = `-- name: UpdateBranch :one
 UPDATE core.branches SET code = $2, name = $3, address = $4, phone = $5, updated_at = now()
-WHERE id = $1 RETURNING id, code, name, address, phone, is_active, created_by, created_at, updated_at
+WHERE id = $1 RETURNING id, code, name, address, phone, is_active, created_by, created_at, updated_at, latitude, longitude, checkin_radius, work_start_time, work_end_time, late_grace_minutes
 `
 
 type UpdateBranchParams struct {
@@ -993,6 +1161,59 @@ func (q *Queries) UpdateBranch(ctx context.Context, arg UpdateBranchParams) (Cor
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Latitude,
+		&i.Longitude,
+		&i.CheckinRadius,
+		&i.WorkStartTime,
+		&i.WorkEndTime,
+		&i.LateGraceMinutes,
+	)
+	return i, err
+}
+
+const updateBranchCheckin = `-- name: UpdateBranchCheckin :one
+UPDATE core.branches SET latitude = $2, longitude = $3, checkin_radius = $4, work_start_time = $5, work_end_time = $6,
+    late_grace_minutes = $7, updated_at = now()
+WHERE id = $1 RETURNING id, code, name, address, phone, is_active, created_by, created_at, updated_at, latitude, longitude, checkin_radius, work_start_time, work_end_time, late_grace_minutes
+`
+
+type UpdateBranchCheckinParams struct {
+	ID               uuid.UUID
+	Latitude         *float64
+	Longitude        *float64
+	CheckinRadius    int32
+	WorkStartTime    pgtype.Time
+	WorkEndTime      pgtype.Time
+	LateGraceMinutes int16
+}
+
+func (q *Queries) UpdateBranchCheckin(ctx context.Context, arg UpdateBranchCheckinParams) (CoreBranch, error) {
+	row := q.db.QueryRow(ctx, updateBranchCheckin,
+		arg.ID,
+		arg.Latitude,
+		arg.Longitude,
+		arg.CheckinRadius,
+		arg.WorkStartTime,
+		arg.WorkEndTime,
+		arg.LateGraceMinutes,
+	)
+	var i CoreBranch
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Name,
+		&i.Address,
+		&i.Phone,
+		&i.IsActive,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Latitude,
+		&i.Longitude,
+		&i.CheckinRadius,
+		&i.WorkStartTime,
+		&i.WorkEndTime,
+		&i.LateGraceMinutes,
 	)
 	return i, err
 }
@@ -1071,6 +1292,79 @@ type UpsertPermissionParams struct {
 func (q *Queries) UpsertPermission(ctx context.Context, arg UpsertPermissionParams) error {
 	_, err := q.db.Exec(ctx, upsertPermission, arg.Name, arg.Module, arg.Kind)
 	return err
+}
+
+const upsertStaffProfile = `-- name: UpsertStaffProfile :one
+INSERT INTO iam.staff_profiles (user_id, id_card_number, hometown, current_address, emergency_contact, graduation_school,
+    certificates, teaching_level, contract_type, contract_start_date, contract_end_date, base_salary, hourly_rate,
+    academic_teaching, updated_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+ON CONFLICT (user_id) DO UPDATE SET
+    id_card_number = EXCLUDED.id_card_number, hometown = EXCLUDED.hometown, current_address = EXCLUDED.current_address,
+    emergency_contact = EXCLUDED.emergency_contact, graduation_school = EXCLUDED.graduation_school,
+    certificates = EXCLUDED.certificates, teaching_level = EXCLUDED.teaching_level, contract_type = EXCLUDED.contract_type,
+    contract_start_date = EXCLUDED.contract_start_date, contract_end_date = EXCLUDED.contract_end_date,
+    base_salary = EXCLUDED.base_salary, hourly_rate = EXCLUDED.hourly_rate, academic_teaching = EXCLUDED.academic_teaching,
+    updated_by = EXCLUDED.updated_by, updated_at = now()
+RETURNING user_id, id_card_number, hometown, current_address, emergency_contact, graduation_school, certificates, teaching_level, contract_type, contract_start_date, contract_end_date, base_salary, hourly_rate, academic_teaching, updated_at, updated_by
+`
+
+type UpsertStaffProfileParams struct {
+	UserID            uuid.UUID
+	IDCardNumber      *string
+	Hometown          *string
+	CurrentAddress    *string
+	EmergencyContact  *string
+	GraduationSchool  *string
+	Certificates      *string
+	TeachingLevel     *string
+	ContractType      *string
+	ContractStartDate pgtype.Date
+	ContractEndDate   pgtype.Date
+	BaseSalary        int64
+	HourlyRate        int64
+	AcademicTeaching  bool
+	UpdatedBy         *uuid.UUID
+}
+
+func (q *Queries) UpsertStaffProfile(ctx context.Context, arg UpsertStaffProfileParams) (IamStaffProfile, error) {
+	row := q.db.QueryRow(ctx, upsertStaffProfile,
+		arg.UserID,
+		arg.IDCardNumber,
+		arg.Hometown,
+		arg.CurrentAddress,
+		arg.EmergencyContact,
+		arg.GraduationSchool,
+		arg.Certificates,
+		arg.TeachingLevel,
+		arg.ContractType,
+		arg.ContractStartDate,
+		arg.ContractEndDate,
+		arg.BaseSalary,
+		arg.HourlyRate,
+		arg.AcademicTeaching,
+		arg.UpdatedBy,
+	)
+	var i IamStaffProfile
+	err := row.Scan(
+		&i.UserID,
+		&i.IDCardNumber,
+		&i.Hometown,
+		&i.CurrentAddress,
+		&i.EmergencyContact,
+		&i.GraduationSchool,
+		&i.Certificates,
+		&i.TeachingLevel,
+		&i.ContractType,
+		&i.ContractStartDate,
+		&i.ContractEndDate,
+		&i.BaseSalary,
+		&i.HourlyRate,
+		&i.AcademicTeaching,
+		&i.UpdatedAt,
+		&i.UpdatedBy,
+	)
+	return i, err
 }
 
 const useRecoveryCode = `-- name: UseRecoveryCode :execrows

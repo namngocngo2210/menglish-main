@@ -5,6 +5,8 @@
 #   v2/deploy/beta.sh migrate [lệnh] chạy migration (mặc định up; vd. status, down)
 #   v2/deploy/beta.sh user create --code MES001 --email ... --name "..."   tạo tài khoản, in mật khẩu tạm
 #   v2/deploy/beta.sh user reset-password <mã|email|SĐT>                  cấp lại mật khẩu tạm
+#   v2/deploy/beta.sh import-legacy <production|staging> [--dry-run] [--only branches,users]
+#                                    nhập dữ liệu từ DB Laravel (chỉ đọc), chạy lại bao nhiêu lần cũng được
 #   v2/deploy/beta.sh psql           mở psql vào database beta
 #   v2/deploy/beta.sh backup-db      → backups/beta-<thời gian>.sql.gz, xóa bản cũ hơn 14 ngày
 #   v2/deploy/beta.sh <lệnh docker compose khác>   (ps, logs -f api, stop, down, ...)
@@ -76,6 +78,16 @@ case "$cmd" in
         ;;
     user)
         compose exec api /menglish user "$@"
+        ;;
+    import-legacy)
+        src="${1:-}"
+        case "$src" in production|staging) shift ;; *) echo "Dùng: $0 import-legacy <production|staging> [--dry-run] [--only ...]" >&2; exit 1 ;; esac
+        lenv="$ROOT/.env.$src"
+        [ -f "$lenv" ] || { echo "Thiếu $lenv" >&2; exit 1; }
+        lval() { grep -E "^$1=" "$lenv" | tail -1 | cut -d= -f2- | sed -E 's/^"(.*)"$/\1/'; }
+        export LEGACY_NETWORK="menglish-$(lval DEPLOY_ENV)_default"
+        export LEGACY_MYSQL_DSN="$(lval DB_USERNAME):$(lval DB_PASSWORD)@tcp(db:3306)/$(lval DB_DATABASE)"
+        compose --profile tools run --rm import-legacy import-legacy "$@"
         ;;
     psql)
         compose exec postgres psql -U "$(env_value POSTGRES_USER)" -d "$(env_value POSTGRES_DB)"

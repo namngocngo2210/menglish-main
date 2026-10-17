@@ -217,3 +217,64 @@ func TestBranchAdmin(t *testing.T) {
 	// Chi nhánh đã ngừng không chọn được cho tài khoản mới
 	expect(t, admin.do("POST", "/users", map[string]any{"code": "GV009", "full_name": "GV", "roles": []string{RoleTeacherFulltime}, "primary_branch_id": id}), 422, "invalid")
 }
+
+func TestBranchCheckin(t *testing.T) {
+	e := setup(t)
+	a := e.branch(t, "CN-A")
+	admin := e.as(t, e.member(t, "MES001", true, nil, RoleAdmin))
+	path := "/branches/" + a.String() + "/checkin"
+
+	r := admin.do("GET", "/branches", nil)
+	ck := r.body["branches"].([]any)[0].(map[string]any)["checkin"].(map[string]any)
+	if ck["configured"] != false || ck["radius"] != float64(100) || ck["work_start"] != nil {
+		t.Fatalf("chi nhánh mới chưa cài chấm công: %v", ck)
+	}
+
+	in := map[string]any{"latitude": 21.028511123, "longitude": 105.8542, "checkin_radius": 80,
+		"work_start_time": "08:00", "work_end_time": "17:30", "late_grace_minutes": 10}
+	bad := func(k string, v any, msg string) {
+		t.Helper()
+		body := map[string]any{}
+		for kk, vv := range in {
+			body[kk] = vv
+		}
+		body[k] = v
+		r := admin.do("PUT", path, body)
+		expect(t, r, 422, "invalid")
+		if r.body["message"] != msg {
+			t.Fatalf("%s=%v: %v", k, v, r.body["message"])
+		}
+	}
+	bad("latitude", nil, `Nhập vĩ độ của chi nhánh (hoặc bấm "Lấy vị trí hiện tại" khi đang đứng ở chi nhánh).`)
+	bad("longitude", 181, "Kinh độ phải nằm trong khoảng -180 đến 180.")
+	bad("checkin_radius", 10, "Bán kính tối thiểu 20 m (GPS điện thoại thường lệch 5–20 m).")
+	bad("work_end_time", "08:00", "Giờ ra phải sau giờ vào.")
+	bad("work_start_time", "8h", "Giờ vào phải theo dạng HH:MM.")
+	bad("late_grace_minutes", 241, "Số phút cho phép muộn từ 0 đến 240.")
+
+	r = admin.do("PUT", path, in)
+	expect(t, r, 200, "")
+	ck = r.body["checkin"].(map[string]any)
+	if ck["configured"] != true || ck["latitude"] != 21.0285111 || ck["radius"] != float64(80) ||
+		ck["work_start"] != "08:00" || ck["work_end"] != "17:30" || ck["grace"] != float64(10) {
+		t.Fatalf("cài đặt chấm công: %v", ck)
+	}
+	expect(t, admin.do("PUT", "/branches/"+uuid.NewString()+"/checkin", in), 404, "branch_not_found")
+
+	// Tìm địa chỉ: số nhà / ngõ không khớp thì trả kết quả gần nhất kèm câu đã khớp
+	r = admin.do("GET", "/branches/address-search?q=S%E1%BB%91+23+ng%C3%B5+209+%C4%90%E1%BB%99i+C%E1%BA%A5n%2C+Ba+%C4%90%C3%ACnh", nil)
+	expect(t, r, 200, "")
+	if res := r.body["results"].([]any); len(res) != 1 || res[0].(map[string]any)["label"] != "Đội Cấn, Hà Nội" || r.body["matched"] != nil {
+		t.Fatalf("tìm địa chỉ: %v", r.body)
+	}
+	expect(t, admin.do("GET", "/branches/address-search?q=", nil), 422, "invalid")
+	for range addressSearchPerMinute - 1 { // câu rỗng bị chặn trước khi đếm
+		expect(t, admin.do("GET", "/branches/address-search?q=Ba+%C4%90%C3%ACnh", nil), 200, "")
+	}
+	expect(t, admin.do("GET", "/branches/address-search?q=Ba+%C4%90%C3%ACnh", nil), 429, "too_many_requests")
+
+	// Quản lý cơ sở không có quyền sửa chi nhánh (như Laravel)
+	manager := e.as(t, e.member(t, "QL001", true, []uuid.UUID{a}, RoleManager))
+	expect(t, manager.do("PUT", path, in), 403, "forbidden")
+	expect(t, manager.do("GET", "/branches/address-search?q=x", nil), 403, "forbidden")
+}
