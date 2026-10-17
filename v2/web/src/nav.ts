@@ -78,14 +78,6 @@ export const NAV: NavItem[] = [
   { path: '/system-config/ticket-emails', label: 'Email nhận Ticket', perms: ['support_ticket.update'], group: 'Hệ thống' },
   { path: '/system-config/sla', label: 'Cấu hình SLA', perms: ['sla.configure'], group: 'Hệ thống' },
   { path: '/system-config/mail-outbox', label: 'Hàng đợi email', perms: ['mail_config.manage'], group: 'Hệ thống' },
-  // Công việc (WorkTaskController). Cần duyệt → "Hoàn thành công việc": chỉ Admin, neo work_task.create.
-  {
-    path: '/tasks/approvals',
-    label: 'Hoàn thành công việc',
-    group: 'Cần duyệt',
-    perms: ['work_task.view'],
-    menu: (me) => isAdmin(me) && can(me, 'work_task.create'),
-  },
   { path: '/tasks/new', label: 'Tạo đầu việc', group: 'Tạo đầu việc', perms: ['work_task.create', 'work_task.request'] },
   { path: '/tasks', label: 'Danh sách đầu việc', group: 'Danh sách đầu việc', perms: ['work_task.view'] },
   // Nút "Giao việc cho Trợ giảng" trên danh sách đầu việc (không phải mục menu riêng như Laravel)
@@ -173,6 +165,15 @@ export const NAV: NavItem[] = [
     perms: ['tuition.view'],
     group: 'Cần duyệt',
     menu: (me) => isAdmin(me) && can(me, ...TUITION_ANCHORS),
+  },
+  // Công việc (WorkTaskController). Cần duyệt → "Hoàn thành công việc" (sau các tab học phí như SidebarMenu): chỉ Admin,
+  // neo work_task.create.
+  {
+    path: '/tasks/approvals',
+    label: 'Hoàn thành công việc',
+    group: 'Cần duyệt',
+    perms: ['work_task.view'],
+    menu: (me) => isAdmin(me) && can(me, 'work_task.create'),
   },
 ]
 

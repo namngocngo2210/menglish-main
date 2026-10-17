@@ -54,7 +54,7 @@ Trạng thái: **Đã làm** · **Khác** (đã làm, khác có chủ đích, xe
 | Laravel | v2 | Trạng thái | Ghi chú |
 |---|---|---|---|
 | Phạm vi: Admin toàn hệ thống (`dashboard.scope_all`), Quản lý theo chi nhánh của mình; nhãn phạm vi | `BranchLimit("dashboard")` | Đã làm | |
-| Thẻ "Doanh thu tháng", "Phiếu thu chờ duyệt" | `Finance` (mặc định không có) | Chưa làm | Hiện "Chờ phân hệ Học phí"; `TODO(gộp)` trong `main.go` / `sources.go` nối `internal/tuition` khi gộp. |
+| Thẻ "Doanh thu tháng", "Phiếu thu chờ duyệt" | `Finance` = `tuition.Service.DashboardFinance()` | Đã làm | Doanh thu tháng và phiếu chờ duyệt đọc từ phiếu thu của Học phí. |
 | Thẻ học viên đang học, lead mới trong tháng, lớp đang chạy, việc quá hạn | `Students`, `Leads`, `Classes`, `Tasks` | Đã làm | Việc gắn chi nhánh hoặc người nhận có chi nhánh chính thuộc phạm vi; nhiệm vụ hằng ngày của TA không tính quá hạn. |
 | Hàng chờ: việc chờ xác nhận, hẹn test hôm nay (khi xem được khách) | `Tasks.Operations`, `Leads.Summary` | Đã làm | |
 | Hàng chờ: báo cáo trực lớp chờ Admin xác nhận | — | Chưa làm | "Chờ phân hệ Báo cáo trực lớp". |
