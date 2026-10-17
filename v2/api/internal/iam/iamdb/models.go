@@ -1209,3 +1209,216 @@ type PlacementTest struct {
 	DeletedAt       *time.Time
 	Version         int32
 }
+
+type SyllabusAssignment struct {
+	ID                    uuid.UUID
+	No                    *int64
+	UserID                uuid.UUID
+	CurriculumID          uuid.UUID
+	StageID               *uuid.UUID
+	ClassID               *uuid.UUID
+	AssignedChapters      string
+	StageName             *string
+	Deadline              pgtype.Date
+	ExpectedBigTestDate   pgtype.Date
+	BigTestRemindedFor    pgtype.Date
+	ProgressPercent       int32
+	Status                string
+	OpenedAt              *time.Time
+	OpenedBy              *uuid.UUID
+	OpenReason            *string
+	ClosedAt              *time.Time
+	ClosedBy              *uuid.UUID
+	CloseReason           *string
+	ClosedByBigTestID     *uuid.UUID
+	CurriculumCompletedAt *time.Time
+	ExtraSessions         int32
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
+}
+
+type SyllabusBigTest struct {
+	ID                 uuid.UUID
+	Code               string
+	Title              string
+	ClassID            *uuid.UUID
+	StageID            *uuid.UUID
+	TestType           string
+	ScheduledAt        *time.Time
+	Room               *string
+	ProctorID          *uuid.UUID
+	Passcode           *string
+	ContentUrl         *string
+	SpeakingUrl        *string
+	IsDistributed      bool
+	Status             string
+	ApprovedBy         *uuid.UUID
+	ApprovedAt         *time.Time
+	DistributedAt      *time.Time
+	TeacherRemindedAt  *time.Time
+	ResultsCompletedAt *time.Time
+	CreatedBy          *uuid.UUID
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+}
+
+type SyllabusBigTestOrder struct {
+	ID              uuid.UUID
+	Code            string
+	ClassID         uuid.UUID
+	StageID         *uuid.UUID
+	TeacherID       *uuid.UUID
+	StageName       string
+	TestType        string
+	ExamDate        pgtype.Date
+	DueDate         pgtype.Date
+	Note            *string
+	Status          string
+	TestLink        *string
+	SpeakingLink    *string
+	BigTestID       *uuid.UUID
+	ReviewedBy      *uuid.UUID
+	ReviewedAt      *time.Time
+	RejectionReason *string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+type SyllabusBigTestResult struct {
+	ID             uuid.UUID
+	BigTestID      uuid.UUID
+	StudentID      uuid.UUID
+	ListeningScore *float64
+	ReadingScore   *float64
+	WritingScore   *float64
+	SpeakingScore  *float64
+	OverallScore   *float64
+	IsAbsent       bool
+	ProgressNote   *string
+	VideoUrl       *string
+	Status         string
+	GradedBy       *uuid.UUID
+	ApprovedBy     *uuid.UUID
+	ApprovedAt     *time.Time
+	ParentNotified bool
+	NotifiedAt     *time.Time
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+type SyllabusChangeProposal struct {
+	ID               uuid.UUID
+	CurriculumID     uuid.UUID
+	UnitID           *uuid.UUID
+	LessonID         *uuid.UUID
+	UserID           uuid.UUID
+	ProposalType     *string
+	OldContent       *string
+	NewContent       string
+	Reason           *string
+	AttachmentFileID *uuid.UUID
+	Status           string
+	ReviewerID       *uuid.UUID
+	ReviewedAt       *time.Time
+	ReviewNote       *string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
+type SyllabusCurricula struct {
+	ID          uuid.UUID
+	Code        string
+	Title       string
+	CourseID    *uuid.UUID
+	Version     string
+	Description *string
+	CreatedBy   *uuid.UUID
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	DeletedAt   *time.Time
+}
+
+type SyllabusDocument struct {
+	ID                  uuid.UUID
+	CurriculumID        uuid.UUID
+	StageID             *uuid.UUID
+	Title               string
+	StageName           *string
+	FileID              uuid.UUID
+	VisibleToTeachers   bool
+	VisibleToAssistants bool
+	Downloadable        bool
+	UploadedBy          *uuid.UUID
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
+	DeletedAt           *time.Time
+}
+
+type SyllabusDocumentView struct {
+	DocumentID uuid.UUID
+	UserID     uuid.UUID
+	ViewedAt   time.Time
+}
+
+type SyllabusLesson struct {
+	ID              uuid.UUID
+	CurriculumID    uuid.UUID
+	UnitID          uuid.UUID
+	SessionNo       int32
+	Title           string
+	Objectives      *string
+	Content         *string
+	VocabularyFocus *string
+	GrammarFocus    *string
+	HomeworkGuide   *string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	DeletedAt       *time.Time
+}
+
+type SyllabusPacingRequest struct {
+	ID              uuid.UUID
+	ClassID         uuid.UUID
+	AssignmentID    *uuid.UUID
+	UserID          uuid.UUID
+	RequestType     string
+	Reason          string
+	ExtraSessions   *int16
+	ApproverID      *uuid.UUID
+	Status          string
+	RejectionReason *string
+	ReviewedAt      *time.Time
+	SlaNotifiedAt   *time.Time
+	AppliedNote     *string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+type SyllabusStage struct {
+	ID           uuid.UUID
+	CurriculumID uuid.UUID
+	Position     int16
+	Name         string
+	Description  *string
+	OverviewLink *string
+	BigTestTitle *string
+	BigTestNote  *string
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	DeletedAt    *time.Time
+}
+
+type SyllabusUnit struct {
+	ID              uuid.UUID
+	CurriculumID    uuid.UUID
+	StageID         *uuid.UUID
+	UnitNumber      int32
+	Title           string
+	Objectives      *string
+	VocabularyFocus *string
+	GrammarFocus    *string
+	HomeworkGuide   *string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	DeletedAt       *time.Time
+}
