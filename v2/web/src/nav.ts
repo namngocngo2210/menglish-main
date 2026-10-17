@@ -43,6 +43,9 @@ export const NAV: NavItem[] = [
   },
   { path: '/inventory/items', label: 'Hàng hóa & Vật phẩm', perms: ['system_category.manage'], group: 'Kho vật phẩm' },
   { path: '/inventory/stock', label: 'Tồn kho theo chi nhánh', perms: ['merchandise_stock.view'], group: 'Kho vật phẩm' },
+  // Thu - Chi (FinanceController) — features/finance
+  { path: '/finance/expenses', label: 'Khoản chi vận hành', perms: ['finance.view'], group: 'Thu - Chi' },
+  { path: '/finance/reports/provisional-revenue', label: 'Doanh thu tạm tính', perms: ['finance.view'], group: 'Doanh thu' },
   // Danh mục & tổ chức (features/catalogs)
   { path: '/courses', label: 'Khóa học & Bảng giá', perms: ['course.view'], group: 'Tổ chức & Đào tạo' },
   { path: '/course-levels', label: 'Trình độ (CEFR)', perms: ['level.view'], group: 'Tổ chức & Đào tạo' },

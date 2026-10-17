@@ -503,6 +503,21 @@ type FinanceDebtReminderRule struct {
 	UpdatedAt       time.Time
 }
 
+type FinanceExpense struct {
+	ID            uuid.UUID
+	ExpenseDate   pgtype.Date
+	Title         string
+	Amount        int64
+	PaymentMethod string
+	BranchID      *uuid.UUID
+	Category      string
+	Notes         *string
+	CreatedBy     *uuid.UUID
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	DeletedAt     *time.Time
+}
+
 type HrSlaRule struct {
 	Key            string
 	GroupKey       string

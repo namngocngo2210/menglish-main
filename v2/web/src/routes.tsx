@@ -6,6 +6,8 @@ import { ScheduleConfigPage } from './features/classes/ScheduleConfigPage'
 import { ItemsPage } from './features/inventory/ItemsPage'
 import { MaterialOrdersPage } from './features/inventory/MaterialOrdersPage'
 import { StockPage } from './features/inventory/StockPage'
+import { ExpensesPage } from './features/finance/ExpensesPage'
+import { RevenuePage } from './features/finance/RevenuePage'
 import { ApprovalsPage } from './features/tasks/ApprovalsPage'
 import { CreateTaskPage } from './features/tasks/CreateTaskPage'
 import { TAAssignPage } from './features/tasks/TAAssignPage'
@@ -53,6 +55,8 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/material-orders': () => <MaterialOrdersPage />,
   '/inventory/items': (me) => <ItemsPage me={me} />,
   '/inventory/stock': (me) => <StockPage me={me} />,
+  '/finance/expenses': (me) => <ExpensesPage me={me} />,
+  '/finance/reports/provisional-revenue': () => <RevenuePage />,
   '/courses': (me) => <CoursesPage me={me} />,
   '/course-levels': (me) => <LevelsPage me={me} />,
   '/holidays': (me) => <HolidaysPage me={me} />,

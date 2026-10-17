@@ -21,6 +21,7 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/classes"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/config"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/crm"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/finance"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/geo"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/inventory"
@@ -148,6 +149,8 @@ func runAPI(ctx context.Context) error {
 	})
 	// Nhắc hạn báo cáo ngày / tháng và tổng hợp cho Admin (lệnh reports:remind-* / reports:daily-digest ở bản Laravel).
 	go reportSvc.RunReminderLoop(ctx, time.Minute)
+	// Thu chi: sổ khoản chi + doanh thu tạm tính. TODO(gộp): WithRevenue(phiếu thu Học phí), WithPayroll(kỳ lương).
+	finSvc := finance.NewService(d.pool, log)
 	checks := map[string]server.Pinger{
 		"postgres": d.pool,
 		"redis":    server.PingFunc(func(ctx context.Context) error { return d.rdb.Ping(ctx).Err() }),
@@ -171,6 +174,7 @@ func runAPI(ctx context.Context) error {
 				place,
 				reports.NewHandler(reportSvc, log),
 				crm.NewHandler(crmSvc, log),
+				finance.NewHandler(finSvc, log),
 			),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
