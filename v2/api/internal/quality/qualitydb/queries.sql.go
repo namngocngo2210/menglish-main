@@ -835,12 +835,13 @@ func (q *Queries) MeetingsByAuthor(ctx context.Context, arg MeetingsByAuthorPara
 
 const observationsBetween = `-- name: ObservationsBetween :many
 
-SELECT o.kind, o.observed_on, o.rating, o.overall, c.name AS class_name, t.full_name AS teacher_name
+SELECT o.id, o.kind, o.class_id, o.observed_on, o.rating, o.overall, c.name AS class_name, t.full_name AS teacher_name
 FROM academic.class_observations o
-JOIN academic.classes c ON c.id = o.class_id
+JOIN academic.classes c ON c.id = o.class_id AND c.deleted_at IS NULL
 LEFT JOIN iam.users t ON t.id = o.teacher_id
 WHERE o.deleted_at IS NULL AND o.observed_on BETWEEN $1::date AND $2::date
   AND ($3::bool OR o.class_id = ANY ($4::uuid[]))
+  AND (cardinality($5::uuid[]) = 0 OR c.branch_id = ANY ($5::uuid[]))
 ORDER BY o.kind DESC, o.observed_on, o.id
 `
 
@@ -849,10 +850,13 @@ type ObservationsBetweenParams struct {
 	ToDate     time.Time
 	AllClasses bool
 	Ids        []uuid.UUID
+	BranchIds  []uuid.UUID
 }
 
 type ObservationsBetweenRow struct {
+	ID          uuid.UUID
 	Kind        string
+	ClassID     uuid.UUID
 	ObservedOn  *time.Time
 	Rating      *string
 	Overall     *string
@@ -861,13 +865,15 @@ type ObservationsBetweenRow struct {
 }
 
 // ───────────────────────── Số liệu cho báo cáo ─────────────────────────
-// Phiếu dự giờ (vận hành + học thuật) có ngày dự trong khoảng, của các lớp trong phạm vi.
+// Phiếu dự giờ (vận hành + học thuật) có ngày dự trong khoảng, của các lớp người viết thấy, chỉ trong các chi nhánh
+// của người viết (rỗng = không lọc) — BuildsReportItems::classIds. Vận hành trước như Laravel.
 func (q *Queries) ObservationsBetween(ctx context.Context, arg ObservationsBetweenParams) ([]ObservationsBetweenRow, error) {
 	rows, err := q.db.Query(ctx, observationsBetween,
 		arg.FromDate,
 		arg.ToDate,
 		arg.AllClasses,
 		arg.Ids,
+		arg.BranchIds,
 	)
 	if err != nil {
 		return nil, err
@@ -877,7 +883,66 @@ func (q *Queries) ObservationsBetween(ctx context.Context, arg ObservationsBetwe
 	for rows.Next() {
 		var i ObservationsBetweenRow
 		if err := rows.Scan(
+			&i.ID,
 			&i.Kind,
+			&i.ClassID,
+			&i.ObservedOn,
+			&i.Rating,
+			&i.Overall,
+			&i.ClassName,
+			&i.TeacherName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const observationsByObserver = `-- name: ObservationsByObserver :many
+SELECT o.id, o.kind, o.class_id, o.observed_on, o.rating, o.overall, c.name AS class_name, t.full_name AS teacher_name
+FROM academic.class_observations o
+JOIN academic.classes c ON c.id = o.class_id
+LEFT JOIN iam.users t ON t.id = o.teacher_id
+WHERE o.deleted_at IS NULL AND o.observer_id = $1
+  AND o.observed_on BETWEEN $2::date AND $3::date
+ORDER BY o.kind DESC, o.observed_on, o.id
+`
+
+type ObservationsByObserverParams struct {
+	ObserverID *uuid.UUID
+	FromDate   time.Time
+	ToDate     time.Time
+}
+
+type ObservationsByObserverRow struct {
+	ID          uuid.UUID
+	Kind        string
+	ClassID     uuid.UUID
+	ObservedOn  *time.Time
+	Rating      *string
+	Overall     *string
+	ClassName   string
+	TeacherName *string
+}
+
+// Phiếu dự giờ người này dự trong khoảng (dòng gợi ý "đã làm" của báo cáo tuần Học thuật).
+func (q *Queries) ObservationsByObserver(ctx context.Context, arg ObservationsByObserverParams) ([]ObservationsByObserverRow, error) {
+	rows, err := q.db.Query(ctx, observationsByObserver, arg.ObserverID, arg.FromDate, arg.ToDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ObservationsByObserverRow
+	for rows.Next() {
+		var i ObservationsByObserverRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.ClassID,
 			&i.ObservedOn,
 			&i.Rating,
 			&i.Overall,

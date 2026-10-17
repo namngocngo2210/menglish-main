@@ -15,6 +15,7 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam/iamtest"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/secretbox"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/quality"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/reports"
 )
 
 // "Hôm nay": Thứ Bảy 17/10/2026 09:00 giờ Việt Nam.
@@ -326,4 +327,67 @@ func TestTeacherMeetings(t *testing.T) {
 	hcmID := iamtest.List(t, r, "reports")[0]["id"].(string)
 	msg(t, mgr.Do("DELETE", "/class-quality/teacher-meetings/"+hcmID, nil), 404, "")
 	msg(t, lead.Do("DELETE", "/class-quality/teacher-meetings/"+id, nil), 200, "Đã xóa báo cáo họp giáo viên.")
+}
+
+func TestReportMetrics(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	hn, hcm := e.Branch("HN01"), e.Branch("HCM01")
+	gv := e.User("GV01", "Nguyễn Thị Hoa", []uuid.UUID{hn}, "teacher_fulltime")
+	gv2 := e.User("GV02", "Phạm Văn Nam", []uuid.UUID{hcm}, "teacher_fulltime")
+	c1 := e.class("IELTS-A1", hn, &gv.ID, nil, "active", str("2026-09-01"), nil)
+	c2 := e.class("TOEIC-B1", hcm, &gv2.ID, nil, "active", nil, nil)
+	staff, sc := e.Member("HV01", "Lê Học Vụ", []uuid.UUID{hn}, "academic_staff")
+	lead, lc := e.Member("HT01", "Trần Học Thuật", []uuid.UUID{hn}, "academic_lead")
+	msg(t, sc.Do("POST", "/class-quality/operations", op(c1, gv.ID, "2026-10-16", "good")), 201, "")
+	msg(t, sc.Do("POST", "/class-quality/operations", op(c2, gv2.ID, "2026-10-16", "pass")), 201, "")
+	msg(t, lc.Do("PUT", "/class-quality/academic", map[string]any{"class_id": c1.String(), "month": "2026-10", "observed": true,
+		"observed_on": "2026-10-14", "observer_id": lead.ID.String(), "overall": "Lớp tiến bộ tốt"}), 200, "")
+	msg(t, lc.Do("POST", "/class-quality/teacher-meetings", map[string]any{"week_start": "2026-10-12", "teacher_id": gv.ID.String(),
+		"class_note": "Lớp ổn", "status": "in_progress"}), 201, "")
+
+	m := e.svc.ReportMetrics(reports.Skeleton(), e.IAM.LoadAccess)
+	if m.Pending("meetings") || !m.Pending("classes") {
+		t.Fatal("họp giáo viên đã có nguồn, lớp của giáo viên theo provider gốc")
+	}
+	find := func(secs []reports.Section, key string) reports.Item {
+		for _, s := range secs {
+			for _, it := range s.Items {
+				if it.Key == key {
+					return it
+				}
+			}
+		}
+		t.Fatalf("không có mục %s", key)
+		return reports.Item{}
+	}
+	day := func(d int) time.Time { return time.Date(2026, 10, d, 0, 0, 0, 0, now.Location()) }
+	// Báo cáo ngày 16/10 của Học thuật (chi nhánh HN): chỉ lớp HN
+	secs, _, err := m.Daily(ctx, reports.Writer{ID: lead.ID, BranchIDs: []uuid.UUID{hn}}, day(16), reports.AudienceAcademic)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if it := find(secs, "observations"); *it.Count != 1 || it.Details[0].Text != "Lớp IELTS-A1 · GV Nguyễn Thị Hoa · Tốt" {
+		t.Fatalf("dự giờ ngày: %+v", it)
+	}
+	// Báo cáo tuần 12–18/10: phiếu vận hành + phiếu học thuật; dòng gợi ý "đã làm" của người dự
+	sum, sug, err := m.WeeklyAcademic(ctx, reports.Writer{ID: lead.ID, BranchIDs: []uuid.UUID{hn}}, day(12), day(18))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if it := find([]reports.Section{sum}, "observations"); *it.Count != 2 || it.Details[1].Text != "Lớp IELTS-A1 · 14/10" {
+		t.Fatalf("dự giờ tuần: %+v", it)
+	}
+	if d := sug["done"]; len(d) != 1 || *d[0].Content != "Dự giờ đánh giá Lớp IELTS-A1" || *d[0].Detail != "Lớp tiến bộ tốt" || *d[0].Source == "" {
+		t.Fatalf("gợi ý đã làm: %+v", d)
+	}
+	_, sug, _ = m.WeeklyAcademic(ctx, reports.Writer{ID: staff.ID}, day(12), day(18))
+	if d := sug["done"]; len(d) != 2 || *d[0].Detail != "Đánh giá: Tốt" {
+		t.Fatalf("gợi ý của học vụ: %+v", d)
+	}
+	// Báo cáo tháng: buổi họp người viết đã ghi
+	mt, err := m.TeacherMeetings(ctx, lead.ID, day(12), day(31))
+	if err != nil || len(mt) != 1 || mt[0].Teacher != "Nguyễn Thị Hoa" || mt[0].StatusLabel != "Đang xử lý" || mt[0].WeekStart != "2026-10-12" {
+		t.Fatalf("họp giáo viên: %+v %v", mt, err)
+	}
 }

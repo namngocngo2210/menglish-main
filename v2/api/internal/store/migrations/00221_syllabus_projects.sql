@@ -53,6 +53,8 @@ CREATE TABLE syllabus.milestones (
     completed_at    timestamptz,
     -- Đã nhắc sắp tới hạn (SLA academic.milestone_remind); đổi hạn thì nhắc lại
     reminded_at     timestamptz,
+    -- Đã lập biên bản trễ deadline (SLA academic.milestone_late) — thay sổ sla_events của Laravel cho mốc này
+    breached_at     timestamptz,
     sort_order      integer NOT NULL DEFAULT 0,
     created_at      timestamptz NOT NULL DEFAULT now(),
     updated_at      timestamptz NOT NULL DEFAULT now(),

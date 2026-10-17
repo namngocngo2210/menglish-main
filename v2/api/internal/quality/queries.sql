@@ -266,11 +266,23 @@ ORDER BY m.week_start DESC, m.id DESC;
 -- ───────────────────────── Số liệu cho báo cáo ─────────────────────────
 
 -- name: ObservationsBetween :many
--- Phiếu dự giờ (vận hành + học thuật) có ngày dự trong khoảng, của các lớp trong phạm vi.
-SELECT o.kind, o.observed_on, o.rating, o.overall, c.name AS class_name, t.full_name AS teacher_name
+-- Phiếu dự giờ (vận hành + học thuật) có ngày dự trong khoảng, của các lớp người viết thấy, chỉ trong các chi nhánh
+-- của người viết (rỗng = không lọc) — BuildsReportItems::classIds. Vận hành trước như Laravel.
+SELECT o.id, o.kind, o.class_id, o.observed_on, o.rating, o.overall, c.name AS class_name, t.full_name AS teacher_name
 FROM academic.class_observations o
-JOIN academic.classes c ON c.id = o.class_id
+JOIN academic.classes c ON c.id = o.class_id AND c.deleted_at IS NULL
 LEFT JOIN iam.users t ON t.id = o.teacher_id
 WHERE o.deleted_at IS NULL AND o.observed_on BETWEEN sqlc.arg(from_date)::date AND sqlc.arg(to_date)::date
   AND (sqlc.arg(all_classes)::bool OR o.class_id = ANY (sqlc.arg(ids)::uuid[]))
+  AND (cardinality(sqlc.arg(branch_ids)::uuid[]) = 0 OR c.branch_id = ANY (sqlc.arg(branch_ids)::uuid[]))
+ORDER BY o.kind DESC, o.observed_on, o.id;
+
+-- name: ObservationsByObserver :many
+-- Phiếu dự giờ người này dự trong khoảng (dòng gợi ý "đã làm" của báo cáo tuần Học thuật).
+SELECT o.id, o.kind, o.class_id, o.observed_on, o.rating, o.overall, c.name AS class_name, t.full_name AS teacher_name
+FROM academic.class_observations o
+JOIN academic.classes c ON c.id = o.class_id
+LEFT JOIN iam.users t ON t.id = o.teacher_id
+WHERE o.deleted_at IS NULL AND o.observer_id = sqlc.arg(observer_id)
+  AND o.observed_on BETWEEN sqlc.arg(from_date)::date AND sqlc.arg(to_date)::date
 ORDER BY o.kind DESC, o.observed_on, o.id;

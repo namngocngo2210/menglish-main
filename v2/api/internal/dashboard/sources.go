@@ -255,6 +255,14 @@ type Finance interface {
 	OverdueTuitions(ctx context.Context, a *iam.Access) (*int64, error)
 }
 
+// Projects: hạn mốc dự án học thuật trên lịch "Việc của bạn" (projects.Service.DashboardMilestones). nil = chưa nối.
+type Projects interface {
+	// Sees: có mốc để hiện — người quản lý dự án, hoặc đang nhận mốc chưa xong của dự án đang mở.
+	Sees(ctx context.Context, a *iam.Access) (bool, error)
+	// Agenda: mốc chưa xong có hạn trong [from, to] (MyWorkBoard::agenda, kind "project").
+	Agenda(ctx context.Context, a *iam.Access, from, to time.Time) ([]AgendaItem, error)
+}
+
 type noFinance struct{}
 
 func (noFinance) Revenue(context.Context, []uuid.UUID, time.Time, time.Time) (*int64, error) {

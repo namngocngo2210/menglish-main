@@ -34,6 +34,8 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/placement"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/filestore"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/secretbox"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/projects"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/quality"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/reports"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/search"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/server"
@@ -171,8 +173,15 @@ func runAPI(ctx context.Context) error {
 	// qua Công việc, ngày nghỉ từ danh mục; "Số lượng thu phí" từ Học phí.
 	// KPI: mục KPI của báo cáo tuần lấy từ bộ tiêu chí đang áp dụng (bọc MetricsProvider của báo cáo).
 	kpiSvc := kpi.NewService(d.pool, log)
+	// Chất lượng lớp (dự giờ / checklist / họp giáo viên) theo phạm vi lớp của phân hệ Lớp học; Dự án học thuật đọc SLA
+	// trễ / nhắc mốc từ danh mục. TODO(gộp): WithPenalties(biên bản trễ mốc) khi phân hệ Lương & biên bản có ở v2.
+	qualitySvc := quality.NewService(d.pool, cls, log)
+	projectSvc := projects.NewService(d.pool, log).WithSla(catalogSvc)
+	// Lệnh sla:run (academic.milestone_late / milestone_remind) ở bản Laravel.
+	go projectSvc.RunSlaLoop(ctx, 5*time.Minute)
 	reportSvc := reports.NewService(d.pool, log, reports.Deps{
-		Metrics: kpiSvc.ReportMetrics(tuitionSvc.ReportMetrics(cls.ReportMetrics(reports.NewMetrics(crmSvc.ReportSource()), d.iam.LoadAccess))),
+		Metrics: kpiSvc.ReportMetrics(projectSvc.ReportMetrics(qualitySvc.ReportMetrics(tuitionSvc.ReportMetrics(
+			cls.ReportMetrics(reports.NewMetrics(crmSvc.ReportSource()), d.iam.LoadAccess)), d.iam.LoadAccess), d.iam.LoadAccess)),
 		Classes: cls.ReportClasses(), Tasks: taskSvc.ReportTasks(), Calendar: catalogSvc.ReportCalendar(),
 	})
 	// Nhắc hạn báo cáo ngày / tháng và tổng hợp cho Admin (lệnh reports:remind-* / reports:daily-digest ở bản Laravel).
@@ -181,7 +190,7 @@ func runAPI(ctx context.Context) error {
 	finSvc := finance.NewService(d.pool, log).WithRevenue(tuitionSvc.RevenueSource())
 	// Số liệu KPI tự động từ báo cáo / công việc / kho / lớp học; tạo phiếu đầu kỳ hằng ngày (kpi:create-sheets).
 	// TODO(gộp): nguồn Học phí / SLA CRM / Cổng giáo viên / Chấm công / Big Test, WithPayrollLock(kỳ lương) khi có ở v2.
-	kpiSvc.AddSources(reportSvc.KpiSources(), taskSvc.KpiSources(), inv.KpiSources(), cls.KpiSources()).
+	kpiSvc.AddSources(reportSvc.KpiSources(), taskSvc.KpiSources(), inv.KpiSources(), cls.KpiSources(), projectSvc.KpiSources()).
 		WithJournal(reportSvc).WithAttendance(cls.KpiAttendance()).WithBoard(cls.KpiBoard(), taskSvc.KpiBoard())
 	go kpiSvc.RunSheetLoop(ctx, time.Hour)
 	// Tổng quan + Báo cáo & sự vụ lớp: đọc số liệu các phân hệ qua adapter (Finance: doanh thu / phiếu chờ duyệt / quá hạn
@@ -189,7 +198,7 @@ func runAPI(ctx context.Context) error {
 	dash := dashboard.NewService(dashboard.Deps{
 		Leads: crmSvc.DashboardLeads(), Tasks: taskSvc.DashboardTasks(), Classes: cls.DashboardClasses(),
 		Students: studentSvc.DashboardStudents(), Reports: reportSvc.DashboardReports(), Orders: inv.DashboardOrders(),
-		Branches: d.iam, Finance: tuitionSvc.DashboardFinance(),
+		Branches: d.iam, Finance: tuitionSvc.DashboardFinance(), Projects: projectSvc.DashboardMilestones(),
 	}, log)
 	checks := map[string]server.Pinger{
 		"postgres": d.pool,
@@ -222,6 +231,8 @@ func runAPI(ctx context.Context) error {
 				mailapi.NewHandler(mailSvc, log),
 				dashboard.NewHandler(dash, log),
 				files.NewHandler(fileSvc, log),
+				quality.NewHandler(qualitySvc, log),
+				projects.NewHandler(projectSvc, log),
 			),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,

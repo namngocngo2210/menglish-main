@@ -50,6 +50,8 @@ type Deps struct {
 	// Finance, Work: phân hệ đang làm song song; nil = chưa có.
 	Finance Finance
 	Work    StaffWork
+	// Projects: hạn mốc dự án học thuật; nil = lịch ghi "Chờ phân hệ Dự án học thuật".
+	Projects Projects
 }
 
 type Service struct {

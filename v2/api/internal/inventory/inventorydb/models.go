@@ -1286,6 +1286,7 @@ type SyllabusMilestone struct {
 	Status         string
 	CompletedAt    *time.Time
 	RemindedAt     *time.Time
+	BreachedAt     *time.Time
 	SortOrder      int32
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
