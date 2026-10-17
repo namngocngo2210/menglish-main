@@ -110,6 +110,7 @@ func (s *Service) WithFiles(x *files.Service) *Service {
 	if x != nil {
 		x.RegisterReader(refundProofSubject, s.readRefundProof)
 		x.RegisterReader(cancellationProofSubject, s.readCancellationProof)
+		x.RegisterReader(receiptProofSubject, s.readReceiptProof)
 	}
 	return s
 }

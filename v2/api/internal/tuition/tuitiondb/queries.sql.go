@@ -5466,6 +5466,23 @@ func (q *Queries) SetRangeCurrent(ctx context.Context, arg SetRangeCurrentParams
 	return err
 }
 
+const setReceiptProofFile = `-- name: SetReceiptProofFile :exec
+UPDATE finance.receipts SET proof_file_id = $1, proof_url = $2, updated_at = now()
+WHERE id = $3
+`
+
+type SetReceiptProofFileParams struct {
+	ProofFileID *uuid.UUID
+	ProofUrl    *string
+	ID          uuid.UUID
+}
+
+// Ảnh minh chứng ở kho file (proof_url = link mở file); NULL cả hai = gỡ minh chứng.
+func (q *Queries) SetReceiptProofFile(ctx context.Context, arg SetReceiptProofFileParams) error {
+	_, err := q.db.Exec(ctx, setReceiptProofFile, arg.ProofFileID, arg.ProofUrl, arg.ID)
+	return err
+}
+
 const setTransferMemo = `-- name: SetTransferMemo :exec
 UPDATE finance.tuitions SET transfer_memo = $2, updated_at = now() WHERE id = $1
 `

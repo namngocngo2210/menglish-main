@@ -1135,3 +1135,8 @@ LEFT JOIN finance.tuitions t ON t.id = r.tuition_id
 LEFT JOIN academic.students st ON st.id = COALESCE(r.student_id, t.student_id)
 WHERE r.status = 'pending'
   AND (sqlc.narg(branch_ids)::uuid[] IS NULL OR st.branch_id = ANY (sqlc.narg(branch_ids)::uuid[]));
+
+-- name: SetReceiptProofFile :exec
+-- Ảnh minh chứng ở kho file (proof_url = link mở file); NULL cả hai = gỡ minh chứng.
+UPDATE finance.receipts SET proof_file_id = sqlc.narg(proof_file_id), proof_url = sqlc.narg(proof_url), updated_at = now()
+WHERE id = sqlc.arg(id);

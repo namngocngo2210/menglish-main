@@ -511,6 +511,13 @@ export type Bill = {
   today: string
 }
 
+function receiptForm(body: ReceiptInput, proof: File) {
+  const f = new FormData()
+  f.append('payload', JSON.stringify(body))
+  f.append('proof_image', proof)
+  return f
+}
+
 export const tuitionApi = {
   bill: (id: string) => request<Bill>('GET', `/tuition/bill/${id}`),
   students: (p: { search?: string; status?: string; branch_id?: string; class_id?: string; page?: number; type?: string; upcoming_page?: number }) =>
@@ -518,8 +525,11 @@ export const tuitionApi = {
   payments: (studentId: string) => request<StudentPayments>('GET', `/tuition/students/${studentId}/payments`),
   studentOptions: (q: string) => request<{ students: StudentOption[] }>('GET', `/tuition/student-options${query({ q })}`),
   form: (p: { student_id?: string; tuition_id?: string; receipt_id?: string }) => request<ReceiptForm>('GET', `/tuition/receipts/form${query(p)}`),
-  create: (body: ReceiptInput) => request<Saved>('POST', '/tuition/receipts', body),
-  update: (id: string, body: ReceiptInput) => request<Saved>('PUT', `/tuition/receipts/${id}`, body),
+  // Kèm ảnh minh chứng: multipart payload (JSON) + proof_image; sửa phiếu kèm file đi POST /receipts/<id>.
+  create: (body: ReceiptInput, proof?: File | null) =>
+    proof ? upload<Saved>('/tuition/receipts', receiptForm(body, proof)) : request<Saved>('POST', '/tuition/receipts', body),
+  update: (id: string, body: ReceiptInput, proof?: File | null) =>
+    proof ? upload<Saved>(`/tuition/receipts/${id}`, receiptForm(body, proof)) : request<Saved>('PUT', `/tuition/receipts/${id}`, body),
   receipt: (id: string) => request<ReceiptDetail>('GET', `/tuition/receipts/${id}`),
   approveScreen: (p: { status?: string; branch_id?: string; payment_method?: string; q?: string; selected_id?: string }) =>
     request<ApproveScreen>('GET', `/tuition/receipts/approve${query(p)}`),

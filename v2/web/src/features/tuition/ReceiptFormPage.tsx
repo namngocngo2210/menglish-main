@@ -11,6 +11,14 @@ import { navigate, usePath, useQueryParam } from '../../router'
 import { tuitionApi, type ReceiptDetail, type ReceiptForm, type ReceiptInput } from './api'
 import { Tag } from './components'
 import { calculate, formatMoney, promotionApplies, promotionDiscount, promotionLabel, toInt, vietQrUrl } from './logic'
+import { acceptOf, checkFile, type FileRule } from '../../lib/files'
+
+// proof_image của Laravel: jpeg, png, jpg, pdf, webp, tối đa 5120 kB.
+const RECEIPT_PROOF_RULE: FileRule = {
+  types: ['jpg', 'jpeg', 'png', 'webp', 'pdf'],
+  maxBytes: 5 * 1024 * 1024,
+  tooLarge: 'Dung lượng tập tin ảnh minh chứng không được vượt quá 5120 kB.',
+}
 
 export function ReceiptsRoute({ me }: { me: Me }) {
   const path = usePath()
@@ -119,7 +127,9 @@ function ReceiptFields({ me, data, receiptId }: { me: Me; data: ReceiptForm; rec
   const [payerPhone, setPayerPhone] = useState(editing?.payer_phone ?? student.parent_phone)
   const [isVat, setIsVat] = useState(!!editing?.is_vat_invoice)
   const [notes, setNotes] = useState(editing?.notes ?? '')
-  const [proofUrl, setProofUrl] = useState(editing?.proof_url ?? '')
+  // Minh chứng: ảnh / PDF tải lên kho file; phiếu đang sửa giữ minh chứng cũ trừ khi gỡ.
+  const [proofFile, setProofFile] = useState<File | null>(null)
+  const [removeProof, setRemoveProof] = useState(false)
   const [error, setError] = useState('')
 
   const tuition = data.tuitions.find((t) => t.id === tuitionId) ?? null
@@ -186,15 +196,15 @@ function ReceiptFields({ me, data, receiptId }: { me: Me; data: ReceiptForm; rec
         is_vat_invoice: isVat,
         notes,
         collected_items: lines.map((l) => ({ id: l.id, quantity: Math.max(1, toInt(l.quantity)) })),
-        proof_url: proofUrl.trim() || null,
-        remove_proof: !!editing?.proof_url && !proofUrl.trim(),
+        proof_url: null,
+        remove_proof: !!editing?.proof_url && removeProof && !proofFile,
         submit_action: action,
       }
       if (receiptId) {
         delete body.student_id
         delete body.student_tuition_id
       }
-      return receiptId ? tuitionApi.update(receiptId, body) : tuitionApi.create(body)
+      return receiptId ? tuitionApi.update(receiptId, body, proofFile) : tuitionApi.create(body, proofFile)
     },
     onSuccess: (r) => {
       qc.invalidateQueries({ queryKey: ['tuition'] })
@@ -497,13 +507,33 @@ function ReceiptFields({ me, data, receiptId }: { me: Me; data: ReceiptForm; rec
             <Field label="Người nộp tiền" value={payerName} onChange={(e) => setPayerName(e.target.value)} />
             <Field label="Số điện thoại" type="tel" value={payerPhone} onChange={(e) => setPayerPhone(e.target.value)} />
             <div className="sm:col-span-2">
-              {/* TODO(files): tải ảnh minh chứng lên phân hệ tệp; tạm nhập đường dẫn ảnh (Drive / Zalo...) hoặc ghi chú. */}
-              <Field
-                label={proofRequired ? 'Minh chứng (bắt buộc khi gửi duyệt)' : 'Minh chứng'}
-                hint="Đường dẫn ảnh ủy nhiệm chi / ảnh hóa đơn giấy (tải tệp trực tiếp sẽ có khi phân hệ tệp sẵn sàng)."
-                value={proofUrl}
-                onChange={(e) => setProofUrl(e.target.value)}
-              />
+              <label className="block space-y-1.5 text-sm font-medium">
+                <span>{proofRequired ? 'Ảnh minh chứng (bắt buộc khi gửi duyệt)' : 'Ảnh minh chứng'}</span>
+                <input
+                  type="file"
+                  accept={acceptOf(RECEIPT_PROOF_RULE)}
+                  className="block text-sm font-normal"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] ?? null
+                    const msg = f ? checkFile(f, RECEIPT_PROOF_RULE) : null
+                    setError(msg ?? '')
+                    setProofFile(msg ? null : f)
+                  }}
+                />
+              </label>
+              <p className="mt-1 text-xs text-on-surface-variant">
+                Ủy nhiệm chi / ảnh chuyển khoản / ảnh hóa đơn giấy (JPG, PNG, WEBP, PDF; tối đa 5MB).
+              </p>
+              {editing?.proof_url && !proofFile && (
+                <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
+                  {!removeProof && (
+                    <a className="font-medium text-primary-hover hover:underline" href={editing.proof_url} target="_blank" rel="noreferrer">
+                      Xem minh chứng đã tải
+                    </a>
+                  )}
+                  <Checkbox label="Gỡ minh chứng đã tải" checked={removeProof} onChange={(e) => setRemoveProof(e.target.checked)} />
+                </div>
+              )}
             </div>
             <Checkbox label="Yêu cầu xuất hóa đơn đỏ (VAT)" checked={isVat} onChange={(e) => setIsVat(e.target.checked)} />
             <div className="sm:col-span-2">

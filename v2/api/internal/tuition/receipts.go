@@ -12,9 +12,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/audit"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/crm"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/crm/crmdb"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/files"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/filestore"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/tuition/tuitiondb"
 )
 
@@ -53,10 +56,47 @@ type ReceiptInput struct {
 	Notes                      *string    `json:"notes"`
 	// nil = giữ hàng hóa đã chọn của phiếu (khi sửa)
 	CollectedItems *[]ItemQty `json:"collected_items"`
-	// TODO(files): ảnh minh chứng lưu ở phân hệ tệp; tạm nhận đường dẫn / ghi chú minh chứng
+	// ProofURL: đường dẫn minh chứng nhập tay (dữ liệu cũ); ProofFile: ảnh / PDF tải lên kho file (proof_image).
 	ProofURL     *string `json:"proof_url"`
 	RemoveProof  bool    `json:"remove_proof"`
 	SubmitAction string  `json:"submit_action"`
+	// ProofFile: file multipart proof_image (handler gắn; đã qua ReceiptProofPolicy trong service)
+	ProofFile *filestore.Upload `json:"-"`
+}
+
+const receiptProofSubject = "tuition_receipt_proof"
+
+// ReceiptProofPolicy: proof_image của Laravel (nullable|file|mimes:jpeg,png,jpg,pdf,webp|max:5120).
+var ReceiptProofPolicy = filestore.Policy{Types: []string{"jpg", "jpeg", "png", "webp", "pdf"}, MaxBytes: 5 << 20,
+	TooLarge: "Dung lượng tập tin ảnh minh chứng không được vượt quá 5120 kB."}
+
+// saveReceiptProof lưu ảnh minh chứng vào kho file, gắn với phiếu (proof_url = link mở file, kiểm quyền khi mở).
+func (s *Service) saveReceiptProof(ctx context.Context, tx pgx.Tx, q *tuitiondb.Queries, actor *iam.Access, r tuitiondb.FinanceReceipt,
+	student string, branch *uuid.UUID, proof *filestore.Upload) error {
+	if s.files == nil {
+		return iam.Invalid("Kho file chưa sẵn sàng: chưa tải được ảnh minh chứng.")
+	}
+	f, err := s.files.Save(ctx, tx, proof, files.SaveInput{
+		Owner: files.Owner{Module: "tuition", SubjectType: receiptProofSubject, SubjectID: &r.ID, BranchID: branch},
+		By:    &actor.UserID,
+		Audit: audit.Entry{Module: audit.ModuleTuition, SubjectType: "tuition_receipt", SubjectID: r.ID.String(),
+			SubjectLabel: receiptLabel(r.Code, student), Description: "Tải ảnh minh chứng phiếu thu"},
+	})
+	if err != nil {
+		return err
+	}
+	return q.SetReceiptProofFile(ctx, tuitiondb.SetReceiptProofFileParams{ID: r.ID, ProofFileID: &f.ID, ProofUrl: ptr(files.URL(f.ID))})
+}
+
+// readReceiptProof: quyền mở ảnh minh chứng — người xem được phiếu thu (tuition.view + phạm vi chi nhánh).
+func (s *Service) readReceiptProof(ctx context.Context, a *iam.Access, f files.File) (string, error) {
+	if f.SubjectID == nil || !a.Can("tuition.view") {
+		return "", forbidden("Bạn không có quyền xem ảnh minh chứng này.")
+	}
+	if _, err := s.loadReceiptScoped(ctx, a, *f.SubjectID); err != nil {
+		return "", err
+	}
+	return "", nil
 }
 
 func (in *ReceiptInput) clean() error {
@@ -497,6 +537,11 @@ func (s *Service) CreateReceipt(ctx context.Context, actor *iam.Access, in Recei
 			return nil, err
 		}
 	}
+	if in.ProofFile != nil {
+		if err := uploadErr(in.ProofFile.Check(ReceiptProofPolicy)); err != nil {
+			return nil, err
+		}
+	}
 	var out *Saved
 	var studentName string
 	err := s.inTx(ctx, func(tx pgx.Tx, q *tuitiondb.Queries) error {
@@ -525,7 +570,7 @@ func (s *Service) CreateReceipt(ctx context.Context, actor *iam.Access, in Recei
 				return err
 			}
 		}
-		hasProof := in.ProofURL != nil
+		hasProof := in.ProofURL != nil || in.ProofFile != nil
 		if !isDraft {
 			if err := s.receiptSubmitError(ctx, q, in.PaymentMethod, in.TransactionCode, hasProof, nil, in.PaperInvoiceNumber, paperRange); err != nil {
 				return err
@@ -600,6 +645,11 @@ func (s *Service) CreateReceipt(ctx context.Context, actor *iam.Access, in Recei
 		if err != nil {
 			return err
 		}
+		if in.ProofFile != nil {
+			if err := s.saveReceiptProof(ctx, tx, q, actor, r, studentName, sb.branch, in.ProofFile); err != nil {
+				return err
+			}
+		}
 		if err := s.recordReceipt(ctx, tx, actor, r, studentName, "tuition.receipt.create", "Lập phiếu thu", sb.branch); err != nil {
 			return err
 		}
@@ -642,6 +692,11 @@ func hasIssuedPaper(r tuitiondb.FinanceReceipt) bool {
 func (s *Service) UpdateReceipt(ctx context.Context, actor *iam.Access, id uuid.UUID, in ReceiptInput) (*Saved, error) {
 	if err := in.clean(); err != nil {
 		return nil, err
+	}
+	if in.ProofFile != nil {
+		if err := uploadErr(in.ProofFile.Check(ReceiptProofPolicy)); err != nil {
+			return nil, err
+		}
 	}
 	var out *Saved
 	err := s.inTx(ctx, func(tx pgx.Tx, q *tuitiondb.Queries) error {
@@ -729,7 +784,7 @@ func (s *Service) UpdateReceipt(ctx context.Context, actor *iam.Access, id uuid.
 			paperNo = optText(in.PaperInvoiceNumber)
 		}
 		if !isDraft {
-			if err := s.receiptSubmitError(ctx, q, in.PaymentMethod, code, proof != nil, &cur.ID, paperNo, paperRange); err != nil {
+			if err := s.receiptSubmitError(ctx, q, in.PaymentMethod, code, proof != nil || in.ProofFile != nil, &cur.ID, paperNo, paperRange); err != nil {
 				return err
 			}
 			if p.tuition != nil {
@@ -786,6 +841,17 @@ func (s *Service) UpdateReceipt(ctx context.Context, actor *iam.Access, id uuid.
 		}
 		if err != nil {
 			return err
+		}
+		switch {
+		case in.ProofFile != nil:
+			if err := s.saveReceiptProof(ctx, tx, q, actor, r, sb.student.FullName, sb.branch, in.ProofFile); err != nil {
+				return err
+			}
+		case cur.ProofFileID != nil && (proof == nil || *proof != files.URL(*cur.ProofFileID)):
+			// Gỡ / thay minh chứng: bỏ liên kết file cũ (file còn trong kho, theo quy tắc lưu trữ của phân hệ tệp).
+			if err := q.SetReceiptProofFile(ctx, tuitiondb.SetReceiptProofFileParams{ID: r.ID, ProofUrl: proof}); err != nil {
+				return err
+			}
 		}
 		if err := s.recordReceipt(ctx, tx, actor, r, sb.student.FullName, "tuition.receipt.update", "Sửa phiếu thu", sb.branch); err != nil {
 			return err

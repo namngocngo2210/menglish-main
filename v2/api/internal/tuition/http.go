@@ -1,6 +1,7 @@
 package tuition
 
 import (
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"mime"
@@ -37,6 +38,8 @@ func (h *Handler) Routes(r chi.Router) {
 		r.With(view).Get("/receipts/approve", h.approveScreen)
 		r.With(view).Get("/receipts/{id}", h.receipt)
 		r.With(view, create).Put("/receipts/{id}", h.updateReceipt)
+		// Sửa phiếu kèm ảnh minh chứng (multipart) như form Laravel gửi POST.
+		r.With(view, create).Post("/receipts/{id}", h.updateReceipt)
 		r.With(view, iam.Require("tuition.approve")).Post("/receipts/{id}/approve", h.approveReceipt)
 		r.With(view, iam.Require("tuition.reject")).Post("/receipts/{id}/reject", h.rejectReceipt)
 		r.With(view, iam.Require("tuition.confirm_deposit")).Post("/receipts/{id}/confirm-deposit", h.confirmDeposit)
@@ -161,11 +164,35 @@ func (h *Handler) receiptForm(w http.ResponseWriter, r *http.Request) {
 	h.reply(w, r, out, err)
 }
 
-func (h *Handler) createReceipt(w http.ResponseWriter, r *http.Request) {
+// receiptInput: JSON, hoặc multipart gồm trường payload (JSON như trên) + file proof_image (ảnh / PDF minh chứng).
+// done() xóa file tạm sau khi xử lý.
+func (h *Handler) receiptInput(w http.ResponseWriter, r *http.Request) (ReceiptInput, func(), bool) {
 	var in ReceiptInput
-	if !httpx.Decode(w, r, &in) {
+	if mt, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type")); mt != "multipart/form-data" {
+		return in, func() {}, httpx.Decode(w, r, &in)
+	}
+	form, err := filestore.ReadMultipart(w, r, ReceiptProofPolicy.MaxBytes, ReceiptProofPolicy.TooLarge)
+	if err != nil {
+		h.fail(w, r, uploadErr(err))
+		return in, nil, false
+	}
+	if err := json.Unmarshal([]byte(form.Value("payload")), &in); err != nil {
+		form.Close()
+		h.fail(w, r, iam.Invalid("Dữ liệu phiếu thu không hợp lệ."))
+		return in, nil, false
+	}
+	if in.ProofFile = form.File("proof_image"); in.ProofFile == nil {
+		in.ProofFile = form.File("file")
+	}
+	return in, form.Close, true
+}
+
+func (h *Handler) createReceipt(w http.ResponseWriter, r *http.Request) {
+	in, done, ok := h.receiptInput(w, r)
+	if !ok {
 		return
 	}
+	defer done()
 	out, err := h.svc.CreateReceipt(r.Context(), actorOf(r), in)
 	if err != nil {
 		h.fail(w, r, err)
@@ -179,10 +206,11 @@ func (h *Handler) updateReceipt(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	var in ReceiptInput
-	if !httpx.Decode(w, r, &in) {
+	in, done, ok := h.receiptInput(w, r)
+	if !ok {
 		return
 	}
+	defer done()
 	out, err := h.svc.UpdateReceipt(r.Context(), actorOf(r), id, in)
 	h.reply(w, r, out, err)
 }
