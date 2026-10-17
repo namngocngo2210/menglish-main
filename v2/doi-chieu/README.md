@@ -28,6 +28,7 @@ Số dòng theo trạng thái tính tới lần gộp cuối của PR #152.
 | Thu - Chi | [thu-chi.md](thu-chi.md) | 7 | 1 | 2 | 1 | Dòng chi lương tự động (chờ phân hệ Lương) |
 | KPI nhân sự | [kpi.md](kpi.md) | 17 | 7 | 0 | 8 | Nguồn tự đếm của Học phí / CRM SLA / cổng giáo viên / chấm công / Big Test / bài tập / dự án học thuật (hiện điền tay), khóa phiếu theo kỳ lương |
 | Học phí (hồ sơ, phiếu thu, công nợ, hoàn phí, hủy hóa đơn, SePay, nhập Excel) | [hoc-phi.md](hoc-phi.md) | 31 | 10 | 0 | 4 | Cổng học viên báo chuyển khoản, thu hồi hoa hồng (chờ Lương), nguồn KPI tự đếm, nhập dữ liệu học phí cũ |
+| Lương & Phạt (bảng lương, phiếu lương, Lương của tôi, xếp hạng KPI, cấu hình lương, vi phạm & phạt) | [luong.md](luong.md) | 26 | 10 | 4 | 1 | Ca dạy hợp lệ / chấm công (chờ phân hệ Chấm công), adapter teacher.Work, biên bản tự động của phân hệ khác, xuất xlsx / bản in Blade |
 
 ## Phần dùng chung chưa có ở v2
 

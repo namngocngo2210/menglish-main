@@ -560,6 +560,12 @@ func TestPayrollConfig(t *testing.T) {
 	expectMsg(t, mgr.Do("POST", "/payroll/config/teacher-rates/personal", rate(nil)), 422,
 		"Giáo viên đã có đơn giá hiệu lực từ ngày này — chọn ngày hiệu lực khác để tạo phiên bản mới.")
 	iamtest.Expect(t, mgr.Do("GET", "/payroll/config/teacher-rates?teacher_id="+teacher.ID.String(), nil), 200, "")
+	if rate, unit, err := e.svc.RateOn(context.Background(), teacher.ID, time.Date(2026, 10, 20, 0, 0, 0, 0, vn)); err != nil || rate == nil || *rate != 220000 || unit != "hour" {
+		t.Fatalf("đơn giá hiệu lực: %v %s %v", rate, unit, err)
+	}
+	if rate, _, _ := e.svc.RateOn(context.Background(), teacher.ID, time.Date(2026, 9, 30, 0, 0, 0, 0, vn)); rate != nil {
+		t.Fatalf("trước ngày hiệu lực: %v", *rate)
+	}
 	expectMsg(t, mgr.Do("POST", "/payroll/config/teacher-rates", map[string]any{"rates": []map[string]any{{"rank_title": " "}}}), 422,
 		"Vui lòng nhập tên cấp bậc.")
 	expectMsg(t, mgr.Do("POST", "/payroll/config/teacher-rates", map[string]any{"rates": []map[string]any{
@@ -688,5 +694,11 @@ func TestPenaltyFlow(t *testing.T) {
 	}
 	if n, _ := e.svc.RemindPenaltiesDue(context.Background()); n != 0 {
 		t.Fatalf("nhắc trùng: %d", n)
+	}
+
+	// Thẻ "Vi phạm tháng này" của cổng giáo viên
+	n, latest, err := e.svc.Violations(context.Background(), teacher.ID, time.Date(2026, 10, 1, 0, 0, 0, 0, vn), time.Date(2026, 10, 31, 0, 0, 0, 0, vn))
+	if err != nil || n != 3 || latest == nil || latest.Type == "" {
+		t.Fatalf("vi phạm tháng: %d %+v %v", n, latest, err)
 	}
 }
