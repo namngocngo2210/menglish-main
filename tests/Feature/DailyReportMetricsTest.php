@@ -133,7 +133,7 @@ class DailyReportMetricsTest extends TestCase
 
         $this->actingAs($staff)->get(route('reports.periodic.daily', ['date' => $today]))->assertOk()
             ->assertInertia(function (AssertableInertia $page) {
-                $page->component('Reports/DailyOps')->where('live', true)->has('sections', 3)->where('notes', [])
+                $page->component('Reports/DailyOps')->where('live', true)->has('sections', 4)->where('notes', [])
                     ->where('sections', function ($sections) {
                         $items = self::items(collect($sections)->all());
                         $this->assertSame(['2', '1', '1', '1'], [$items['classes_planned']['value'], $items['classes_actual']['value'], $items['teachers']['value'], $items['assistants']['value']]);

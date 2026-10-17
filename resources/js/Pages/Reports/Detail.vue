@@ -2,7 +2,7 @@
 /**
  * Chi tiết báo cáo cho Admin (StaffReportController::reportDetail, mở trong modal từ màn Tổng hợp — chủ dự án 15/10/2026):
  * hiện như màn người viết nhập, đủ mọi ô (ô trống hiện "—"). Báo cáo ngày: số liệu tự động (đủ mọi dòng chi tiết) + ghi chú từng khối
- * + Task follow-up; báo cáo ngày nhập tay bản cũ: số liệu hệ thống tính lại cho ngày đó (như màn Học vụ đang thấy) + đủ các ô của
+ * + Task follow-up (từ 17/10/2026: task theo khối, việc tồn kỳ trước, góp ý từng buổi của Học vụ); báo cáo ngày nhập tay bản cũ: số liệu hệ thống tính lại cho ngày đó (như màn Học vụ đang thấy) + đủ các ô của
  * form cũ trong từng khối, cùng bố cục (ô số + ghi chú chia 4/8); báo cáo tuần Học vụ:
  * bảng KPI + chỉ số quy mô + ghi chú (bản cũ: số đã nhập ở mọi mục, kể cả 0); báo cáo tuần Học thuật: 3 bảng; loại khác: nội dung chữ.
  */
@@ -12,6 +12,7 @@ import { openRemoteModal } from '@/lib/remoteModal';
 import DailyMetric from './DailyMetric.vue';
 import WeeklyKpiTable from './WeeklyKpiTable.vue';
 import ReadonlyField from './ReadonlyField.vue';
+import SectionTasks from './SectionTasks.vue';
 
 const props = defineProps({
     report: { type: Object, required: true },
@@ -21,6 +22,9 @@ const props = defineProps({
     noteLabels: { type: Object, default: () => ({}) },
     note: { type: String, default: null },
     tasks: { type: Array, default: () => [] },
+    sectionTasks: { type: Object, default: () => ({}) },
+    sessionFeedback: { type: Array, default: () => [] },
+    verdicts: { type: Object, default: () => ({}) },
     canReview: { type: Boolean, default: false },
     nextId: { type: Number, default: null },
     legacy: { type: Object, default: null },
@@ -29,6 +33,7 @@ const props = defineProps({
     columns: { type: Object, default: () => ({}) },
 });
 
+const VERDICT_COLOR = { good: 'success', attention: 'warning', problem: 'error' };
 const hasValue = (item) => item.value !== null && item.value !== undefined;
 const sectionClass = 'space-y-lg rounded-xl border border-surface-variant bg-surface-container-lowest p-lg shadow-sm';
 // Bố cục hàng của form báo cáo ngày bản cũ (như DailyOps.vue trước 15/10): 2 ô số chia đôi; ô số + ghi chú chia 4/8; ô ghi chú đứng riêng thì cả hàng.
@@ -92,6 +97,17 @@ const cellClass = (row, name) => (paired(row) ? (field(name).type === 'text' ? '
                     <div v-if="section.items.length" class="grid grid-cols-1 gap-md md:grid-cols-2 xl:grid-cols-3">
                         <DailyMetric v-for="item in section.items" :key="item.key" :item="item" full :class="hasValue(item) ? '' : 'md:col-span-2 xl:col-span-3'" />
                     </div>
+                    <div v-if="view === 'daily' && key === 'sessions' && sessionFeedback.length" class="space-y-xs" data-detail-session-feedback>
+                        <p class="font-label text-label uppercase text-on-surface-variant">Góp ý từng buổi</p>
+                        <ul class="space-y-xs">
+                            <li v-for="f in sessionFeedback" :key="f.session_id" class="rounded-lg bg-surface-container-low px-md py-sm font-body-small text-body-small text-on-surface">
+                                <strong>{{ f.session }}</strong><span v-if="f.teacher" class="text-on-surface-variant"> · GV {{ f.teacher }}</span>
+                                <UiBadge v-if="f.verdict" :color="VERDICT_COLOR[f.verdict] ?? 'neutral'" class="ml-xs">{{ verdicts[f.verdict] ?? f.verdict }}</UiBadge>
+                                <UiBadge v-if="f.escalated" color="error" class="ml-xs">Đã báo Admin</UiBadge>
+                                <span v-if="f.content" class="block whitespace-pre-line text-on-surface-variant">{{ f.content }}</span>
+                            </li>
+                        </ul>
+                    </div>
                     <ReadonlyField v-if="view === 'daily'" :label="noteLabels[key] ?? 'Ghi chú'" :value="notes[key]" multiline data-detail-note />
                     <div v-else-if="legacy.sections[key]" class="space-y-lg rounded-lg border border-dashed border-outline-variant p-md" data-legacy-block>
                         <p class="font-label text-label uppercase text-on-surface-variant">Nhập tay lúc nộp</p>
@@ -101,6 +117,7 @@ const cellClass = (row, name) => (paired(row) ? (field(name).type === 'text' ? '
                             </div>
                         </div>
                     </div>
+                    <SectionTasks v-if="view === 'daily' && sectionTasks[key]?.length" readonly :section="key" :title="`Task follow-up · ${section.title}`" :tasks="sectionTasks[key]" />
                 </section>
 
                 <!-- Khối của form cũ không có trong số liệu tự động (vd. người viết đổi chức danh) -->
@@ -117,7 +134,7 @@ const cellClass = (row, name) => (paired(row) ? (field(name).type === 'text' ? '
 
                 <section class="space-y-md rounded-xl border border-primary-container/30 bg-surface-container-low p-lg shadow-sm" data-detail-task>
                     <h3 class="flex items-center gap-xs font-h3 text-h3 text-on-surface">
-                        <span class="material-symbols-outlined text-primary-container" aria-hidden="true">assignment_turned_in</span>Task follow-up
+                        <span class="material-symbols-outlined text-primary-container" aria-hidden="true">assignment_turned_in</span>{{ view === 'daily' ? 'Task chung' : 'Task follow-up' }}
                     </h3>
                     <div v-for="task in tasks" :key="task.id" class="grid grid-cols-1 gap-lg md:grid-cols-4">
                         <ReadonlyField label="Việc đã tạo" :value="task.title" />
@@ -135,10 +152,14 @@ const cellClass = (row, name) => (paired(row) ? (field(name).type === 'text' ? '
                     <section class="min-w-0 rounded-xl border border-surface-variant bg-surface-container-lowest shadow-sm">
                         <h3 class="border-b border-surface-variant px-md py-sm font-semibold text-on-surface">Số lần phát sinh theo mục KPI</h3>
                         <WeeklyKpiTable :groups="auto.groups" />
+                        <div v-if="sectionTasks.kpi?.length" class="px-md pb-md">
+                            <SectionTasks readonly section="kpi" title="Task follow-up · Mục KPI" :tasks="sectionTasks.kpi" />
+                        </div>
                     </section>
                     <section class="min-w-0 space-y-sm">
                         <h3 class="font-semibold text-on-surface">Thông tin theo dõi</h3>
                         <DailyMetric v-for="item in auto.metrics.items" :key="item.key" :item="item" full />
+                        <SectionTasks v-if="sectionTasks.metrics?.length" readonly section="metrics" title="Task follow-up" :tasks="sectionTasks.metrics" />
                     </section>
                 </div>
                 <section :class="sectionClass">
@@ -155,6 +176,7 @@ const cellClass = (row, name) => (paired(row) ? (field(name).type === 'text' ? '
                         </div>
                     </div>
                     <ReadonlyField label="Ghi chú tuần" :value="note" multiline />
+                    <SectionTasks v-if="sectionTasks.week?.length" readonly section="week" title="Task follow-up tuần tới" :tasks="sectionTasks.week" />
                 </section>
             </template>
 

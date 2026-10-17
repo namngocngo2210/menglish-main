@@ -336,6 +336,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/student-homework/submit', [StudentPortalController::class, 'submitHomework'])->name('student.homework.submit');
         Route::post('/student-homework/{id}/update', [StudentPortalController::class, 'updateHomework'])->name('student.homework.update');
         Route::delete('/student-homework/{id}/destroy', [StudentPortalController::class, 'deleteHomework'])->name('student.homework.destroy');
+        // Phụ huynh chấm từng buổi học ngay dưới nhận xét của giáo viên
+        Route::post('/session-feedback', [StudentPortalController::class, 'submitSessionFeedback'])->name('student.session-feedback.store');
 
         // Step 4: Luyện phát âm & Thu âm giọng nói AI
         Route::get('/pronunciation/{studentId?}', [StudentPortalController::class, 'studentPronunciation'])->name('student.pronunciation');
@@ -779,6 +781,7 @@ Route::middleware('auth')->group(function () {
         // Báo cáo có cấu trúc theo vai trò (StaffType::structuredReports — controller kiểm tra).
         Route::get('/daily', 'daily')->name('periodic.daily');
         Route::post('/daily', 'dailyStore')->name('periodic.daily.store');
+        Route::post('/daily/sessions/{session}/escalate', 'dailyEscalate')->whereNumber('session')->name('periodic.daily.escalate');
         Route::get('/academic-weekly', 'academicWeekly')->name('periodic.academic-weekly');
         Route::post('/academic-weekly', 'academicWeeklyStore')->name('periodic.academic-weekly.store');
         Route::get('/weekly-kpi', 'weeklyKpi')->name('periodic.weekly-kpi');

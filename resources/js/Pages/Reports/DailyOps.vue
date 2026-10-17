@@ -5,6 +5,8 @@
  * Ngày chưa nộp: số liệu tính trực tiếp. Đã nộp: hiện số đã chụp lúc nộp; sửa ghi chú giữ nguyên số đó, "Cập nhật số liệu"
  * tính lại và Lưu thì ghi số mới. Rà soát 16/10/2026: ghi chú giữ trên máy khi tải lại số liệu / đổi ngày (useNoteDraft),
  * băng nhắc ngày còn thiếu, trạng thái Admin kiểm tra / yêu cầu bổ sung, nhiều task (mỗi task có tiêu đề, hạn, người phụ trách).
+ * Chủ dự án 17/10/2026: task tạo ngay trong từng khối (việc chưa xong kỳ trước hiện lại đúng khối đó), khối "Chất lượng buổi học"
+ * có góp ý từng buổi của Học vụ + "Báo Admin gấp" (SessionFeedbackRow). Task không thuộc khối nào nằm ở "Task chung" cuối form.
  */
 import { computed, ref } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
@@ -14,6 +16,8 @@ import ReportHistory from './ReportHistory.vue';
 import ReportReviewState from './ReportReviewState.vue';
 import LegacyReports from './LegacyReports.vue';
 import DailyMetric from './DailyMetric.vue';
+import SectionTasks from './SectionTasks.vue';
+import SessionFeedbackRow from './SessionFeedbackRow.vue';
 import { useNoteDraft } from './useNoteDraft';
 
 defineOptions({ layout: { title: 'Báo cáo ngày' } });
@@ -33,6 +37,9 @@ const props = defineProps({
     draftKey: { type: String, default: 'report-draft:daily' },
     legacyFields: { type: Array, default: () => [] },
     tasks: { type: Array, default: () => [] },
+    sectionTasks: { type: Object, default: () => ({}) },
+    sessionRows: { type: Array, default: () => [] },
+    verdicts: { type: Object, default: () => ({}) },
     assignees: { type: Array, default: () => [] },
     submittedAt: { type: String, default: null },
     firstSubmittedAt: { type: String, default: null },
@@ -58,9 +65,13 @@ const refresh = () => router.get(route('reports.periodic.daily'), { date: props.
 const hasValue = (item) => item.value !== null && item.value !== undefined;
 
 let uid = 0;
+// Mọi dòng task mới của cả form chung một danh sách để `tasks[i]` không trùng chỉ số giữa các khối.
 const newTasks = ref([]);
-const addTask = () => newTasks.value.push({ uid: ++uid });
+const addTask = (section = '', preset = {}) => newTasks.value.push({ uid: ++uid, section, ...preset });
 const removeTask = (t) => (newTasks.value = newTasks.value.filter((x) => x.uid !== t.uid));
+const rowsIn = (section) => newTasks.value.filter((t) => t.section === section);
+const indexOf = (t) => newTasks.value.indexOf(t);
+const taskFromSession = (row) => addTask('sessions', { class_id: row.class_id, title: `Theo dõi buổi ${row.class} ${row.time}` });
 const onSaved = () => {
     clear();
     newTasks.value = [];
@@ -154,6 +165,15 @@ const onSaved = () => {
                         :class="hasValue(item) ? '' : 'md:col-span-2 xl:col-span-3'"
                     />
                 </div>
+                <div v-if="key === 'sessions' && sessionRows.length" class="space-y-sm" data-session-feedback>
+                    <div class="flex flex-wrap items-baseline justify-between gap-sm">
+                        <h3 class="font-body-medium text-body-medium font-semibold text-on-surface">Góp ý từng buổi</h3>
+                        <p class="font-body-small text-body-small text-on-surface-variant">Không cần dự giờ. Chỉ Học vụ, Học thuật và Admin xem được, giáo viên không thấy.</p>
+                    </div>
+                    <ul class="space-y-sm">
+                        <SessionFeedbackRow v-for="row in sessionRows" :key="row.id" :row="row" :verdicts="verdicts" @task="taskFromSession" />
+                    </ul>
+                </div>
                 <UiTextarea
                     v-model="draft[key]"
                     :name="`notes[${key}]`"
@@ -161,15 +181,23 @@ const onSaved = () => {
                     :rows="3"
                     :placeholder="key === 'media' ? 'Nhập nội dung kèm link bài viết...' : 'Ghi chú thêm (nếu có)...'"
                 />
+                <SectionTasks
+                    :section="key"
+                    :title="`Task follow-up · ${section.title}`"
+                    :tasks="sectionTasks[key] ?? []"
+                    :rows="rowsIn(key)"
+                    :index-of="indexOf"
+                    :assignees="assignees"
+                    :today="today"
+                    @add="addTask(key)"
+                    @remove="removeTask"
+                />
             </section>
 
-            <section class="space-y-lg rounded-xl border border-primary-container/30 bg-surface-container-low p-lg shadow-sm" data-daily-task>
-                <div class="flex flex-wrap items-center justify-between gap-md">
-                    <h2 class="flex items-center gap-xs font-h3 text-h3 text-on-surface">
-                        <span class="material-symbols-outlined text-primary-container" aria-hidden="true">assignment_turned_in</span>Task follow-up
-                    </h2>
-                    <UiButton type="button" variant="secondary" size="sm" icon="add" data-daily-task-add @click="addTask">Thêm task</UiButton>
-                </div>
+            <section class="space-y-md rounded-xl border border-primary-container/30 bg-surface-container-low p-lg shadow-sm" data-daily-task>
+                <h2 class="flex items-center gap-xs font-h3 text-h3 text-on-surface">
+                    <span class="material-symbols-outlined text-primary-container" aria-hidden="true">assignment_turned_in</span>Task chung
+                </h2>
                 <ul v-if="tasks.length" class="space-y-xs" data-daily-task-created>
                     <li v-for="t in tasks" :key="t.id" class="flex flex-wrap items-center gap-x-sm gap-y-0.5 rounded-lg bg-surface-container-lowest px-md py-sm font-body-small text-body-small text-on-surface">
                         <strong>{{ t.title }}</strong>
@@ -177,20 +205,16 @@ const onSaved = () => {
                         <UiBadge color="neutral">{{ t.status_label }}</UiBadge>
                     </li>
                 </ul>
-                <p v-else-if="!newTasks.length" class="font-body-small text-body-small text-on-surface-variant">Cần ai xử lý tiếp việc gì thì bấm "Thêm task". Mỗi task có tiêu đề, hạn và người phụ trách riêng.</p>
-                <div v-for="(t, i) in newTasks" :key="t.uid" class="space-y-md rounded-lg border border-surface-variant bg-surface-container-lowest p-md" data-daily-task-row>
-                    <div class="flex items-start gap-md">
-                        <div class="min-w-0 flex-1">
-                            <UiInput :name="`tasks[${i}][title]`" label="Tiêu đề task" required placeholder="Vd: Gọi lại phụ huynh bé An về học bù" />
-                        </div>
-                        <UiButton type="button" variant="ghost" size="sm" icon="close" class="mt-lg" :aria-label="`Bỏ task ${i + 1}`" @click="removeTask(t)" />
-                    </div>
-                    <UiTextarea :name="`tasks[${i}][content]`" label="Nội dung (tùy chọn)" :rows="2" />
-                    <div class="grid grid-cols-1 gap-md md:grid-cols-2">
-                        <UiDate :name="`tasks[${i}][due_date]`" label="Hạn xử lý" required icon="calendar_today" :value="today" :min="today" />
-                        <UiSelect :name="`tasks[${i}][assignee_id]`" label="Người phụ trách (PIC)" :options="assignees" :value="assignees[0]?.value" :searchable="assignees.length > 8" />
-                    </div>
-                </div>
+                <SectionTasks
+                    title="Việc không thuộc khối nào"
+                    :rows="rowsIn('')"
+                    :index-of="indexOf"
+                    :assignees="assignees"
+                    :today="today"
+                    hint="Việc gắn với một khối thì thêm ngay trong khối đó, chưa xong sẽ hiện lại ở báo cáo hôm sau."
+                    @add="addTask('')"
+                    @remove="removeTask"
+                />
             </section>
 
             <div class="flex justify-end pt-md">

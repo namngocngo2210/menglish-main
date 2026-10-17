@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Support\DataScope;
 use App\Models\AcademicRecord;
 use App\Models\BigTestResult;
 use App\Models\ClassModel;
 use App\Models\ClassSession;
+use App\Models\ClassSessionFeedback;
 use App\Models\Homework;
 use App\Models\MiniTestScore;
 use App\Models\Student;
@@ -14,15 +14,17 @@ use App\Models\StudentAttendance;
 use App\Models\Survey;
 use App\Models\SyllabusAssignment;
 use App\Services\SafeUploadService;
+use App\Services\SessionLessonService;
 use App\Services\Tuition\PaymentReportService;
+use App\Support\DataScope;
 use App\Support\Money;
 use App\Support\Portal\PortalNotifications;
 use App\Support\TuitionPaymentHistory;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class StudentPortalController extends Controller
@@ -407,32 +409,14 @@ class StudentPortalController extends Controller
 
         $completedCount = count($submissionsByType);
 
-        // Nhận xét buổi học, bảng điểm, bài tập mới nhất — dữ liệu thật của (các) lớp học viên.
-        $remarks = collect();
+        // Buổi học gần đây (nhận xét của GV + phụ huynh chấm buổi), bảng điểm, bài tập mới nhất — dữ liệu thật của (các) lớp học viên.
+        $remarks = [];
         $miniTests = collect();
         $bigTestResults = collect();
         $latestHomework = null;
         if ($student) {
             $classIds = $student->activeClassIds();
-            $remarks = AcademicRecord::where('module', 'teacher_remarks')
-                ->where('status', '!=', 'draft') // nhận xét GV "Lưu nháp" chưa hiển thị cho học viên
-                ->where(function ($q) use ($classIds) {
-                    foreach ($classIds as $classId) {
-                        $q->orWhere('record_code', 'like', $classId.'-%');
-                    }
-                })
-                ->when($classIds === [], fn ($q) => $q->whereRaw('1 = 0'))
-                ->latest()
-                ->limit(20)
-                ->get()
-                ->filter(fn (AcademicRecord $record) => ! empty(array_filter((array) data_get($record->data, (string) $student->id, []))))
-                ->take(3)
-                ->map(fn (AcademicRecord $record) => [
-                    // Mã {lớp}-{ngày} (cũ) hoặc {lớp}-{ngày}-s{buổi} (theo buổi học).
-                    'date' => preg_match('/-(\d{4}-\d{2}-\d{2})(?:-s\d+)?$/', (string) $record->record_code, $m) ? Carbon::parse($m[1]) : $record->created_at,
-                    'remark' => self::normalizeRemark((array) data_get($record->data, (string) $student->id, [])),
-                ])
-                ->values();
+            $remarks = $this->recentSessionCards($student, $classIds);
             $miniTests = MiniTestScore::where('student_id', $student->id)->latest('test_date')->limit(10)->get();
             $bigTestResults = BigTestResult::with('bigTest')->where('student_id', $student->id)
                 ->whereIn('status', ['approved', 'sent'])->latest('approved_at')->limit(5)->get();
@@ -453,10 +437,8 @@ class StudentPortalController extends Controller
                 'feedback' => $sub->data['feedback'] ?? null,
             ])->all(),
             'completedCount' => $completedCount,
-            'remarks' => $remarks->map(fn (array $item) => [
-                'date' => $item['date']?->format('d/m/Y'),
-                'remark' => collect($item['remark'])->only(['monsters', 'grammar', 'attitude', 'result', 'comment'])->all(),
-            ])->values()->all(),
+            'remarks' => $remarks,
+            'feedbackCategories' => ClassSessionFeedback::PARENT_CATEGORIES,
             'miniTests' => $miniTests->map(fn (MiniTestScore $mt) => [
                 'id' => $mt->id,
                 'name' => $mt->name,
@@ -480,6 +462,123 @@ class StudentPortalController extends Controller
             // Chỉ tô cam mục chưa nộp đầu tiên khi bài GV giao sắp/đã tới hạn (≤ 2 ngày).
             'homeworkUrgent' => (bool) ($latestHomework?->due_date && $latestHomework->due_date->lte(now()->addDays(2)->endOfDay())),
         ]);
+    }
+
+    /** Số buổi gần nhất hiện ở mục "Nhận xét buổi học"; phụ huynh chấm được buổi trong khoảng RATE_DAYS ngày. */
+    private const RECENT_SESSIONS = 5;
+
+    private const RATE_DAYS = 14;
+
+    /**
+     * Các buổi học gần đây của học viên (chủ dự án 17/10/2026): nhận xét GV đã gửi (nếu có) và phiếu phụ huynh chấm buổi.
+     * Buổi GV chưa nhận xét vẫn hiện để phụ huynh chấm được (vd. GV vào muộn). Buổi học viên vắng không chấm.
+     *
+     * @param  list<int>  $classIds
+     * @return list<array<string, mixed>>
+     */
+    private function recentSessionCards(Student $student, array $classIds): array
+    {
+        if ($classIds === []) {
+            return [];
+        }
+        $sessions = ClassSession::with(['classModel:id,name', 'teacher:id,name'])
+            ->whereIn('class_id', $classIds)
+            ->whereNotIn('type', [ClassSession::TYPE_SUPPORT])
+            ->where('status', '!=', 'cancelled')
+            ->whereDate('date', '>=', now()->subDays(30)->toDateString())
+            ->whereDate('date', '<=', now()->toDateString())
+            ->orderByDesc('date')->orderByDesc('start_time')
+            ->get();
+        if ($sessions->isEmpty()) {
+            return [];
+        }
+
+        $codes = $sessions->flatMap(fn (ClassSession $s) => [TeacherPortalController::remarkRecordCode($s), $s->class_id.'-'.$s->date->toDateString()]);
+        $records = AcademicRecord::where('module', 'teacher_remarks')->where('status', '!=', 'draft') // nhận xét "Lưu nháp" chưa hiện cho học viên
+            ->whereIn('record_code', $codes->all())->get()->keyBy('record_code');
+        // Buổi hôm nay chỉ hiện khi đã bắt đầu, đã điểm danh xong hoặc GV đã gửi nhận xét.
+        $sessions = $sessions->filter(fn (ClassSession $s) => ! $s->date->isToday() || ! $s->start_time || $s->status === 'completed'
+            || $s->date->copy()->setTimeFrom($s->start_time)->isPast()
+            || $records->has(TeacherPortalController::remarkRecordCode($s)) || $records->has($s->class_id.'-'.$s->date->toDateString()))
+            ->take(self::RECENT_SESSIONS)
+            ->values();
+        $attendance = StudentAttendance::where('student_id', $student->id)->whereIn('class_session_id', $sessions->pluck('id'))
+            ->pluck('status', 'class_session_id');
+        $feedback = ClassSessionFeedback::where('source', ClassSessionFeedback::SOURCE_PARENT)->where('student_id', $student->id)
+            ->whereIn('class_session_id', $sessions->pluck('id'))->get()->keyBy('class_session_id');
+        $linked = $student->isLinkedTo(Auth::user());
+        $sessionNumbers = app(SessionLessonService::class)->sessionNumbers($sessions->pluck('class_id')->unique()->values()->all());
+
+        return $sessions->map(function (ClassSession $s) use ($records, $attendance, $feedback, $linked, $student, $sessionNumbers) {
+            $record = $records->get(TeacherPortalController::remarkRecordCode($s)) ?? $records->get($s->class_id.'-'.$s->date->toDateString());
+            $remark = array_filter((array) data_get($record?->data, (string) $student->id, []), fn ($v) => filled($v));
+            $mine = $feedback->get($s->id);
+            $absent = in_array($attendance->get($s->id), ['absent', 'excused'], true);
+            $no = $sessionNumbers[$s->id] ?? null;
+
+            return [
+                'session_id' => $s->id,
+                'date' => $s->date->format('d/m/Y'),
+                'label' => trim(($no ? 'Buổi '.$no.' · ' : '').$s->date->format('d/m').($s->start_time ? ' · '.$s->start_time->format('H:i') : '')),
+                'class_name' => $s->classModel?->name,
+                'teacher' => $s->teacher?->name,
+                'remark' => $remark === [] ? null : collect(self::normalizeRemark($remark))->only(['monsters', 'grammar', 'attitude', 'result', 'comment'])->all(),
+                'absent' => $absent,
+                'feedback' => $mine ? [
+                    'rating' => $mine->rating,
+                    'categories' => $mine->categories ?? [],
+                    'content' => $mine->content,
+                    'editable' => $mine->parentEditable(),
+                ] : null,
+                'can_rate' => $linked && ! $absent && $s->date->gte(today()->subDays(self::RATE_DAYS)) && (! $mine || $mine->parentEditable()),
+            ];
+        })->all();
+    }
+
+    /**
+     * Phụ huynh / học viên chấm một buổi học (1–5 sao, góp ý về…, nội dung). Mỗi học sinh một phiếu / buổi, sửa được trong 48 giờ.
+     * Chỉ tài khoản liên kết với học viên gửi được (nhân sự xem hộ không chấm thay phụ huynh).
+     */
+    public function submitSessionFeedback(Request $request)
+    {
+        $data = $request->validate([
+            'student_id' => ['required', 'integer'],
+            'class_session_id' => ['required', 'integer'],
+            'rating' => ['required', 'integer', 'min:1', 'max:5'],
+            'categories' => ['nullable', 'array'],
+            'categories.*' => [Rule::in(array_keys(ClassSessionFeedback::PARENT_CATEGORIES))],
+            'content' => ['nullable', 'string', 'max:2000'],
+        ], ['rating.required' => 'Vui lòng chọn số sao cho buổi học.']);
+
+        $student = Student::findOrFail($data['student_id']);
+        abort_unless($student->isLinkedTo(Auth::user()), 403, 'Chỉ phụ huynh / học viên của hồ sơ này mới đánh giá được buổi học.');
+        $session = ClassSession::whereIn('class_id', $student->activeClassIds())->where('status', '!=', 'cancelled')
+            ->where('type', '!=', ClassSession::TYPE_SUPPORT)->findOrFail($data['class_session_id']);
+        $notStarted = $session->date->isToday() && $session->start_time && $session->date->copy()->setTimeFrom($session->start_time)->isFuture();
+        abort_if($session->date->gt(today()) || $notStarted, 422, 'Buổi học chưa diễn ra.');
+        abort_if($session->date->lt(today()->subDays(self::RATE_DAYS)), 422, 'Buổi học này không còn nhận đánh giá.');
+        $absent = StudentAttendance::where('student_id', $student->id)->where('class_session_id', $session->id)
+            ->whereIn('status', ['absent', 'excused'])->exists();
+        abort_if($absent, 422, 'Học viên vắng buổi này nên không đánh giá được.');
+
+        $existing = ClassSessionFeedback::where('source', ClassSessionFeedback::SOURCE_PARENT)->where('student_id', $student->id)
+            ->where('class_session_id', $session->id)->first();
+        if ($existing && ! $existing->parentEditable()) {
+            return back()->withErrors(['rating' => 'Đánh giá chỉ sửa được trong '.ClassSessionFeedback::PARENT_EDIT_HOURS.' giờ sau khi gửi.']);
+        }
+
+        ClassSessionFeedback::updateOrCreate(
+            ['source' => ClassSessionFeedback::SOURCE_PARENT, 'student_id' => $student->id, 'class_session_id' => $session->id],
+            [
+                'class_id' => $session->class_id,
+                'author_id' => Auth::id(),
+                'rating' => $data['rating'],
+                'categories' => array_values(array_unique($data['categories'] ?? [])),
+                'content' => filled($data['content'] ?? null) ? trim($data['content']) : null,
+            ],
+        );
+
+        return back()->with('success', $existing ? 'Đã cập nhật đánh giá buổi học.' : 'Cảm ơn anh/chị đã đánh giá buổi học!');
     }
 
     /** Nhận xét theo buổi lưu Monsters (Nhóm) / (Thưởng) riêng; bản cũ chỉ có "monsters". */
