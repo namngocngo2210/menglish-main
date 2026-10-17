@@ -85,6 +85,8 @@ Deploy bằng GitHub Actions: *Deploy server* → *Run workflow* → chọn **be
 - Sai 5 lần mỗi tài khoản + IP hoặc 30 lần mỗi IP trong 10 phút thì chặn; sai 10 lần liên tiếp thì khóa tài khoản 15 phút. Thông báo lỗi không cho biết tài khoản có tồn tại hay không.
 - 2FA bằng TOTP (ứng dụng xác thực), 10 mã dự phòng dùng một lần; khóa TOTP mã hóa AES-256-GCM bằng `APP_ENCRYPTION_KEY`.
 - Đổi mật khẩu thì đăng xuất các thiết bị khác; người dùng xem và đăng xuất từng thiết bị.
+- Quên mật khẩu (`/forgot-password`): gửi link qua email, luôn cùng một thông báo; link dùng một lần, hạn 30 phút, token
+  lưu dạng băm trong Redis; đặt lại xong thì đăng xuất mọi thiết bị.
 - Thao tác ghi trên `/auth` (đổi mật khẩu, bật / tắt 2FA, đăng xuất thiết bị) ghi một dòng chung vào nhật ký vận hành, không kèm dữ liệu gửi lên. Chưa có: cảnh báo Admin.
 
 ## Vai trò và quyền (giai đoạn 0, bước 2)
@@ -185,6 +187,21 @@ search.Builtin(d.iam).Add(search.Searcher{
 ### Test tích hợp dùng chung (`api/internal/iam/iamtest`)
 
 `iamtest.Setup(t, "<bảng của module cần xóa>")` migrate DB test, xóa dữ liệu, đồng bộ quyền; `e.Serve(handler.Routes)`; `e.Branch`, `e.Member(code, tên, chi nhánh, vai trò...)` (tạo tài khoản + đăng nhập, tự bật 2FA khi vai trò bắt buộc), `e.Grant / e.Revoke` quyền của vai trò, `e.Anon()`; `c.Do(method, path, body)`, `iamtest.Expect(t, r, status, code)`.
+
+## Gửi email (`api/internal/notify/mail`)
+
+Module không gửi thư trực tiếp: xếp thư vào `core.mail_outbox` trong transaction nghiệp vụ, vòng gửi nền gửi sau khi
+commit (thử lại 1, 2, 4… phút, tối đa 1 giờ). Hòm thư SMTP lấy từ màn Email nhận Ticket (mật khẩu mã hóa bằng
+`APP_ENCRYPTION_KEY`). Màn **Hàng đợi email** (`/system-config/mail-outbox`, quyền `mail_config.manage`) xem thư lỗi và
+gửi lại.
+
+```go
+_, err := mail.Enqueue(ctx, tx, mail.ParentNotice(email, "Xác nhận …", body, "/duong-dan", "Xem chi tiết"))
+_, err = mail.OperationalAlert(ctx, tx, mail.EventTransaction, subject, content, mail.Alert{Code: "PT-0001"})
+```
+
+- `MAIL_BLOCK_OUTGOING=true` chặn mọi thư ra ngoài (thư chuyển "Bị chặn"); mặc định bật trừ khi `MENGLISH_ENV=production`.
+- Test: `mail.FakeTransport` + `mail.NewService(...).ProcessDue(ctx)` để gửi thử trong test mà không cần SMTP.
 
 ## Bám theo Laravel trong lúc làm v2
 

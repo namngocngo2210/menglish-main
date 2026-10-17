@@ -175,6 +175,10 @@ export const api = {
   loginTotp: (challenge: string, code: string) =>
     request<LoginResponse>('POST', '/auth/login/totp', { challenge, code }),
   logout: () => request<void>('POST', '/auth/logout'),
+  // Quên mật khẩu: gửi link qua email; đặt lại bằng token trong link (công khai, không cần đăng nhập).
+  forgotPassword: (email: string) => request<{ message: string }>('POST', '/auth/forgot-password', { email }),
+  resetPassword: (token: string, email: string, password: string, password_confirmation: string) =>
+    request<{ message: string }>('POST', '/auth/reset-password', { token, email, password, password_confirmation }),
   changePassword: (current_password: string, new_password: string) =>
     request<void>('POST', '/auth/password', { current_password, new_password }),
   totpSetup: () => request<{ secret: string; otpauth_url: string }>('POST', '/auth/totp/setup'),

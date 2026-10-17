@@ -24,6 +24,8 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/geo"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/inventory"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/notify/mail"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/notify/mail/mailapi"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/notify/notifyapi"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/placement"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/secretbox"
@@ -118,7 +120,11 @@ func runAPI(ctx context.Context) error {
 	defer d.close()
 	cfg, log := d.cfg, d.log
 
+	// Email: nghiệp vụ xếp thư bằng mail.Enqueue trong transaction; vòng nền gửi qua SMTP lưu ở màn Email nhận Ticket.
+	mailSvc := mail.NewService(d.pool, d.box, log, mail.Options{BlockOutgoing: cfg.MailBlockOutgoing, PublicURL: cfg.PublicURL})
+	go mailSvc.RunLoop(ctx, 5*time.Second)
 	catalogSvc := catalogs.NewService(d.pool, d.box, log)
+	catalogSvc.Mail = mailSvc
 	studentSvc := students.NewService(d.pool, d.iam, log)
 	// Phân hệ Lớp học làm phần việc lớp cho Học viên, Danh mục (khóa / trình độ / phòng / nghỉ lễ / ca dạy) và Order học liệu.
 	cls := classes.NewService(d.pool, catalogSvc, log)
@@ -171,6 +177,7 @@ func runAPI(ctx context.Context) error {
 				place,
 				reports.NewHandler(reportSvc, log),
 				crm.NewHandler(crmSvc, log),
+				mailapi.NewHandler(mailSvc, log),
 			),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,

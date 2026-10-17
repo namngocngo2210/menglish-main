@@ -2,6 +2,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { api, ApiError, errorMessage, type LoginResponse } from '../api'
 import { Alert, Button, Card, Field, GuestShell, PasswordField } from '../components/ui'
+import { navigate } from '../router'
+import { FORGOT_PATH } from './PasswordResetPages'
 
 export function LoginPage() {
   const qc = useQueryClient()
@@ -75,7 +77,13 @@ function PasswordStep({ onDone }: { onDone: (r: LoginResponse) => void }) {
         <Button type="submit" className="w-full" disabled={login.isPending}>
           {login.isPending ? 'Đang đăng nhập…' : 'Đăng nhập'}
         </Button>
-        <p className="text-center text-xs text-on-surface-variant">Quên mật khẩu? Liên hệ quản lý cơ sở để được cấp lại.</p>
+        <button
+          type="button"
+          onClick={() => navigate(FORGOT_PATH)}
+          className="w-full text-center text-xs text-on-surface-variant underline hover:text-on-surface"
+        >
+          Quên mật khẩu?
+        </button>
       </form>
     </Card>
   )

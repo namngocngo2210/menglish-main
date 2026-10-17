@@ -225,6 +225,9 @@ func (h *Handler) Routes(r chi.Router) {
 	r.Route("/auth", func(r chi.Router) {
 		r.Post("/login", h.login)
 		r.Post("/login/totp", h.loginTOTP)
+		// Quên mật khẩu: gửi link qua email, đặt mật khẩu mới bằng link (không cần đăng nhập).
+		r.Post("/forgot-password", h.forgotPassword)
+		r.Post("/reset-password", h.resetPassword)
 
 		r.Group(func(r chi.Router) {
 			r.Use(RequireAuth)

@@ -47,7 +47,7 @@
 | `dropdown` / `AppShell::notificationMenu` (số chưa đọc + tin mới nhất) | `GET /notifications/summary` | Đã làm | 6 tin như chuông của Laravel; giao diện hỏi lại mỗi phút. |
 | `markAsRead`, `markAllAsRead` | `POST /notifications/{id}/read`, `POST /notifications/read-all` | Đã làm | Thông báo của người khác trả 404. |
 | `scan` + lệnh `crm:scan-stale-leads` (quyền `notification.manage`) | — | Chưa làm | Thuộc module CRM (gọi `notify.Send` với loại `stale_lead_24h` / `stale_lead_care`). |
-| Các hàm `notifyTicket*`, `notifyTransactionReceipt`, `notifyDebtReminderByMilestone`, `notifyTrial*`, `sendOperationalAlertEmail`… | — | Chưa làm | Mỗi module tự gọi `notify.Send` khi chuyển; email thuộc phần gửi mail chung. |
+| Các hàm `notifyTicket*`, `notifyTransactionReceipt`, `notifyDebtReminderByMilestone`, `notifyTrial*`, `sendOperationalAlertEmail`… | `internal/notify/mail` (`mail.Enqueue`, `mail.OperationalAlert`) | Làm một phần | Mỗi module tự gọi `notify.Send` khi chuyển. Đã có hàng đợi email và email vận hành; đã nối nộp bài test và xác nhận học thử. Ticket, học phí, khách tồn đọng chờ phân hệ: xem [email.md](email.md). |
 | `Layouts/Shell/NotificationMenu.vue` (chuông) | `web/src/features/platform/NotificationBell.tsx` | Đã làm | Số "9+", "Đã đọc tất cả", "Xử lý ngay", "Xem tất cả thông báo"; mở tin thì đánh dấu đã đọc. Chỉ hiện khi có `notification.view`. |
 | `Pages/Notifications/Index.vue` | `web/src/features/platform/NotificationsPage.tsx` | Đã làm | Thẻ thống kê, lọc nhanh (Tất cả / Lead tồn đọng >24h / Chưa đọc), thêm lọc theo loại, thẻ thông tin lead, sao chép nội dung, đánh dấu đã đọc. Nút "Quét lại hệ thống" chưa có (xem dòng `scan`). |
 | Màn gửi thông báo hàng loạt của Admin | — | — | Laravel không có. |

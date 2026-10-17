@@ -7,10 +7,62 @@ import { catalogsApi, type TicketEmailConfig, type TicketEmailInput } from './ap
 import { TextArea } from './common'
 import { splitEmails } from './format'
 
-export function TicketEmailsPage(_: { me: Me }) {
+export function TicketEmailsPage({ me }: { me: Me }) {
   const cfg = useQuery({ queryKey: ['ticket-emails'], queryFn: catalogsApi.ticketEmails })
   if (cfg.isError) return <Alert>{errorMessage(cfg.error)}</Alert>
-  return cfg.data ? <TicketEmailsForm cfg={cfg.data} /> : null
+  return cfg.data ? (
+    <div className="space-y-4">
+      <TicketEmailsForm cfg={cfg.data} />
+      <TestEmailCard blocked={cfg.data.mail_blocked} defaultEmail={me.user.email ?? ''} />
+    </div>
+  ) : null
+}
+
+// Gửi thử ngay qua SMTP đang lưu (route system-config.ticket-emails.test). Lưu cấu hình trước rồi mới gửi thử.
+function TestEmailCard({ blocked, defaultEmail }: { blocked: boolean; defaultEmail: string }) {
+  const [email, setEmail] = useState(defaultEmail)
+  const test = useMutation({ mutationFn: () => catalogsApi.testTicketEmail(email.trim()) })
+  const r = test.data
+  return (
+    <Card title="Gửi thử nghiệm (Test Email)">
+      <form
+        className="space-y-3"
+        onSubmit={(e) => {
+          e.preventDefault()
+          test.mutate()
+        }}
+      >
+        <p className="-mt-2 text-sm text-on-surface-variant">Bắn email thử để kiểm tra kết nối SMTP và tài khoản vừa cấu hình (đã lưu).</p>
+        {blocked && <Alert tone="info">Môi trường này đang chặn gửi email ra ngoài (MAIL_BLOCK_OUTGOING), không gửi thử được.</Alert>}
+        <Field
+          label="Gửi tới địa chỉ email kiểm tra"
+          type="email"
+          placeholder="Nhập email nhận thư test..."
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          hint="Để trống nếu muốn bắn đồng loạt tới tất cả email đã cấu hình ở trên."
+        />
+        <Button type="submit" variant="secondary" disabled={blocked || test.isPending}>
+          {test.isPending ? 'Đang gửi…' : 'Bắn thử email ngay'}
+        </Button>
+        {test.isError && <Alert>{errorMessage(test.error)}</Alert>}
+        {r && (
+          <div data-testid="test-mail-result">
+            <Alert tone={r.ok ? 'success' : 'error'}>
+              <p className="font-semibold">{r.ok ? 'Kết quả gửi thử: thành công' : 'Kết quả gửi thử: thất bại'}</p>
+              <p className="mt-1">{r.message}</p>
+              {r.detail && <p className="mt-1 font-mono text-xs break-all">Chi tiết: {r.detail}</p>}
+              {r.hints.map((h) => (
+                <p key={h} className="mt-1 text-xs">
+                  {h}
+                </p>
+              ))}
+            </Alert>
+          </div>
+        )}
+      </form>
+    </Card>
+  )
 }
 
 function TicketEmailsForm({ cfg }: { cfg: TicketEmailConfig }) {
