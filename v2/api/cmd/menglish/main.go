@@ -33,6 +33,7 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/notify/mail"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/notify/mail/mailapi"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/notify/notifyapi"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/payroll"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/placement"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/filestore"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/secretbox"
@@ -166,8 +167,11 @@ func runAPI(ctx context.Context) error {
 	// khách Chờ xếp lớp bên CRM.
 	crmSvc := crm.NewService(d.pool, d.iam, log).WithStudents(tuitionSvc.Closing(cls.CRMStudents(studentSvc))).WithTuition(tuitionSvc)
 	cls.CRM, cls.Tuition, studentSvc.Tuition = crmSvc, tuitionSvc, tuitionSvc
-	// Ảnh bằng chứng hoàn tiền lưu ở kho file. TODO(gộp): WithCommissions(hoa hồng tư vấn) khi phân hệ Lương có ở v2.
-	tuitionSvc.WithLeads(crmSvc).WithStudents(studentSvc).WithAccess(d.iam.LoadAccess).WithFiles(fileSvc).
+	// Lương & Phạt: bằng chứng vi phạm ở kho file. TODO(gộp): WithAttendance(ca dạy hợp lệ / chấm công) khi phân hệ Chấm công có ở v2.
+	payrollSvc := payroll.NewService(d.pool, log).WithFiles(fileSvc)
+	go payrollSvc.RunReminderLoop(ctx, time.Minute)
+	// Ảnh bằng chứng hoàn tiền lưu ở kho file; hoa hồng tư vấn (thu hồi khi hoàn phí / hủy hóa đơn) của phân hệ Lương.
+	tuitionSvc.WithLeads(crmSvc).WithStudents(studentSvc).WithAccess(d.iam.LoadAccess).WithFiles(fileSvc).WithCommissions(payrollSvc.Commissions()).
 		WithSepay(tuition.SepaySettings{WebhookEnabled: cfg.Sepay.WebhookEnabled, WebhookSecret: cfg.Sepay.WebhookSecret})
 	// Nhắc nợ theo mốc, SLA tiền mặt / hoàn phí, bảo lưu bắt đầu / hết hạn (lệnh tuition:* / students:*-deferrals ở bản Laravel).
 	go tuitionSvc.RunReminderLoop(ctx, time.Minute)
@@ -199,15 +203,16 @@ func runAPI(ctx context.Context) error {
 	})
 	// Nhắc hạn báo cáo ngày / tháng và tổng hợp cho Admin (lệnh reports:remind-* / reports:daily-digest ở bản Laravel).
 	go reportSvc.RunReminderLoop(ctx, time.Minute)
-	// Thu chi: sổ khoản chi + doanh thu tạm tính từ phiếu thu đã duyệt của Học phí. TODO(gộp): WithPayroll(kỳ lương).
-	finSvc := finance.NewService(d.pool, log).WithRevenue(tuitionSvc.RevenueSource())
+	// Thu chi: sổ khoản chi + doanh thu tạm tính từ phiếu thu đã duyệt của Học phí, chi lương tự động từ kỳ lương.
+	finSvc := finance.NewService(d.pool, log).WithRevenue(tuitionSvc.RevenueSource()).WithPayroll(payrollSvc.Finance())
 	// Số liệu KPI tự động từ báo cáo / công việc / kho / lớp học / chấm công; tạo phiếu đầu kỳ hằng ngày (kpi:create-sheets).
-	// TODO(gộp): nguồn Học phí / SLA CRM / Big Test, WithPayrollLock(kỳ lương) khi có ở v2.
+	// TODO(gộp): nguồn Học phí / SLA CRM / Big Test khi có ở v2. Kỳ lương đã chốt khóa phiếu KPI.
 	// Chấm công: ảnh khuôn mặt ở kho file, phạm vi lớp của giờ dạy từ Lớp học. TODO(gộp): WithPayrollLock(kỳ lương đã
 	// duyệt / chi trả), WithPenalties(biên bản đi muộn) của phân hệ Lương & Phạt.
 	attSvc := attendance.NewService(d.pool, d.iam, log).WithFiles(fileSvc).WithClasses(cls)
 	kpiSvc.AddSources(reportSvc.KpiSources(), taskSvc.KpiSources(), inv.KpiSources(), cls.KpiSources(), attSvc.KpiSources(), projectSvc.KpiSources()).
-		WithJournal(reportSvc).WithAttendance(cls.KpiAttendance()).WithBoard(cls.KpiBoard(), taskSvc.KpiBoard())
+		WithJournal(reportSvc).WithAttendance(cls.KpiAttendance()).WithBoard(cls.KpiBoard(), taskSvc.KpiBoard()).
+		WithPayrollLock(payrollSvc)
 	kpiSvc.AddSources(teacherSvc.KpiSources()).WithHomework(teacherSvc.KpiBoard())
 	go kpiSvc.RunSheetLoop(ctx, time.Hour)
 	// Ticket hỗ trợ: file đính kèm ở kho file; hàng chờ "Ticket đang mở" / ticket khẩn ở Tổng quan và Nhật ký sự vụ.
@@ -222,7 +227,7 @@ func runAPI(ctx context.Context) error {
 	dash := dashboard.NewService(dashboard.Deps{
 		Leads: crmSvc.DashboardLeads(), Tasks: taskSvc.DashboardTasks(), Classes: cls.DashboardClasses(),
 		Students: studentSvc.DashboardStudents(), Reports: reportSvc.DashboardReports(), Orders: inv.DashboardOrders(),
-		Branches: d.iam, Finance: tuitionSvc.DashboardFinance(), Homework: teacherSvc.Dashboard(), Work: attSvc.DashboardWork(), Tickets: ticketSvc.DashboardTickets(), Projects: projectSvc.DashboardMilestones(),
+		Branches: d.iam, Finance: tuitionSvc.DashboardFinance(), Homework: teacherSvc.Dashboard(), Work: attSvc.DashboardWork(), Tickets: ticketSvc.DashboardTickets(), Projects: projectSvc.DashboardMilestones(), Payroll: payrollSvc,
 	}, log)
 	// Cổng Phụ huynh & Học sinh: học phí đọc qua adapter của Học phí; bài tập / bài nộp / nhận xét / mini test qua Cổng
 	// giáo viên, tab Phát âm của màn chấm bài đọc bản ghi âm của cổng học viên (portal_teacher.go).
@@ -269,6 +274,7 @@ func runAPI(ctx context.Context) error {
 				surveys.NewHandler(surveys.NewService(d.pool, log), log),
 				quality.NewHandler(qualitySvc, log),
 				projects.NewHandler(projectSvc, log),
+				payroll.NewHandler(payrollSvc, log),
 			),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,

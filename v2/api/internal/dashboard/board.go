@@ -162,7 +162,15 @@ func (s *Service) personalQueues(ctx context.Context, a *iam.Access, leads LeadS
 		qs = append(qs, q)
 	}
 	if a.Can("payroll.calculate") || a.Can("payroll.approve") {
-		qs = append(qs, pendingQueue("Kỳ lương chưa chốt", "payments", pendingPayroll))
+		n, err := s.d.Payroll.OpenPeriods(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if n == nil {
+			qs = append(qs, pendingQueue("Kỳ lương chưa chốt", "payments", pendingPayroll))
+		} else if a.Can("payroll.view") {
+			qs = append(qs, Queue{Label: "Kỳ lương chưa chốt", Value: n, Icon: "payments", Href: ptr("/payroll/periods")})
+		}
 	}
 	// Mục còn việc lên trước (giữ thứ tự trong từng nhóm).
 	sort.SliceStable(qs, func(i, j int) bool { return hasWork(qs[i]) && !hasWork(qs[j]) })

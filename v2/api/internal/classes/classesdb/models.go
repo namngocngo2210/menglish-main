@@ -963,6 +963,56 @@ type FinanceTuitionImportBatch struct {
 	CommittedAt *time.Time
 }
 
+type HrCommissionAdjustment struct {
+	ID              uuid.UUID
+	UserID          uuid.UUID
+	RefundRequestID *uuid.UUID
+	StudentID       *uuid.UUID
+	Amount          int64
+	Reason          string
+	PayrollRecordID *uuid.UUID
+	SettledAt       *time.Time
+	CreatedBy       *uuid.UUID
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+type HrCommissionItem struct {
+	ID                uuid.UUID
+	UserID            uuid.UUID
+	ReceiptID         uuid.UUID
+	StudentID         *uuid.UUID
+	LeadID            *uuid.UUID
+	BaseAmount        int64
+	Percent           pgtype.Numeric
+	Amount            int64
+	ClosedCount       int32
+	ClosingRank       int32
+	EarnedPeriodStart time.Time
+	EarnedPeriodEnd   time.Time
+	ClosedAt          *time.Time
+	Status            string
+	DeferredReason    *string
+	PayrollRecordID   *uuid.UUID
+	SettledAt         *time.Time
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
+type HrCommissionTier struct {
+	ID             uuid.UUID
+	TierName       string
+	MinStudents    int32
+	MaxStudents    *int32
+	NewSalePercent pgtype.Numeric
+	EffectiveFrom  *time.Time
+	EffectiveTo    *time.Time
+	ReplacesID     *uuid.UUID
+	CreatedBy      *uuid.UUID
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
 type HrKpiCriterium struct {
 	ID            uuid.UUID
 	Role          string
@@ -1023,6 +1073,111 @@ type HrKpiSheet struct {
 	DecidedAt    *time.Time
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
+}
+
+type HrPayrollPeriod struct {
+	ID           uuid.UUID
+	Code         string
+	Title        string
+	Month        int16
+	Year         int16
+	StartDate    time.Time
+	EndDate      time.Time
+	Status       string
+	TotalStaff   int32
+	TotalHours   pgtype.Numeric
+	TotalAmount  int64
+	CalculatedAt *time.Time
+	ApprovedAt   *time.Time
+	ApprovedBy   *uuid.UUID
+	PaidAt       *time.Time
+	PaidBy       *uuid.UUID
+	LegacyID     *int64
+	CreatedBy    *uuid.UUID
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
+type HrPayrollRecord struct {
+	ID                          uuid.UUID
+	PeriodID                    uuid.UUID
+	UserID                      uuid.UUID
+	Department                  *string
+	EmployeeType                *string
+	SalaryRole                  *string
+	BaseSalary                  int64
+	ActualHours                 pgtype.Numeric
+	TeachingSessions            int32
+	TeachingSalary              int64
+	TeachingConcurrent          bool
+	TeachingKpiBonus            int64
+	RetentionBaseStudents       int32
+	RetentionStudents           int32
+	RetentionTier               *int64
+	KpiSource                   *string
+	KpiManualAmount             *int64
+	KpiScore                    *float64
+	KpiBonus                    int64
+	ForeignSessionPay           int64
+	ForeignTeacherSessionsCount int32
+	RenewBonus                  int64
+	CommissionBonus             int64
+	CommissionBase              int64
+	CommissionClawback          int64
+	CommissionDeferred          int64
+	CommissionPercent           *float64
+	CommissionClosedCount       int32
+	Allowance                   int64
+	OtherBonus                  int64
+	OtherDeduction              int64
+	InsuranceDeduction          int64
+	UnionDeduction              int64
+	TaxDeduction                int64
+	PenaltyDeduction            int64
+	ForeignTeacherDeduction     int64
+	NetSalary                   int64
+	Status                      string
+	Notes                       *string
+	AdjustmentNotes             *string
+	ManualLines                 []byte
+	CalculationDetails          []byte
+	LegacyID                    *int64
+	CreatedAt                   time.Time
+	UpdatedAt                   time.Time
+}
+
+type HrPenalty struct {
+	ID              uuid.UUID
+	Code            string
+	UserID          uuid.UUID
+	ClassID         *uuid.UUID
+	WorkTaskID      *uuid.UUID
+	BigTestID       *uuid.UUID
+	AutoSource      *string
+	AutoKey         *string
+	ViolationType   string
+	ErrorCategory   *string
+	ViolationDate   time.Time
+	ViolationAt     *time.Time
+	Amount          int64
+	ReporterID      *uuid.UUID
+	Status          string
+	PayrollRecordID *uuid.UUID
+	Notes           *string
+	EvidenceFileID  *uuid.UUID
+	Explanation     *string
+	ExplainedAt     *time.Time
+	DecidedBy       *uuid.UUID
+	DecidedAt       *time.Time
+	DecisionNote    *string
+	DueDate         *time.Time
+	PaidAt          *time.Time
+	RemediedAt      *time.Time
+	RemediedBy      *uuid.UUID
+	RemedyNote      *string
+	LegacyID        *int64
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
 
 type HrSlaRule struct {
@@ -1096,6 +1251,30 @@ type HrStaffAttendanceRequest struct {
 	RejectionReason *string
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+}
+
+type HrTeacherHourlyRate struct {
+	ID            uuid.UUID
+	UserID        uuid.UUID
+	Rate          pgtype.Numeric
+	RateUnit      string
+	TeacherType   *string
+	EffectiveFrom time.Time
+	Note          *string
+	CreatedBy     *uuid.UUID
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
+type HrTeacherRate struct {
+	ID                uuid.UUID
+	RankTitle         string
+	Criteria          *string
+	CommunicationRate int64
+	IeltsRate         int64
+	SortOrder         int32
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
 }
 
 type HrTeacherTimesheet struct {

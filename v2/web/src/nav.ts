@@ -41,6 +41,8 @@ export const APPROVAL_ANCHORS = [
   'work_task.create',
   'work_task.approve',
 ]
+// Quyền neo khu Lương (SidebarMenu::PAYROLL).
+const PAYROLL_ANCHORS = ['payroll.view', 'payroll.view_own']
 
 export const NAV: NavItem[] = [
   // Tổng quan (DashboardController) cho nhân sự; học viên / phụ huynh thấy "Tài khoản của tôi" thay chỗ (routes.tsx).
@@ -292,6 +294,40 @@ export const NAV: NavItem[] = [
   { path: '/surveys', label: 'Đợt khảo sát', perms: ['survey.manage'], group: 'Khảo sát' },
   // Hướng dẫn sử dụng (features/guide): mọi người đã đăng nhập; ?vai-tro=<bộ hướng dẫn>.
   { path: '/huong-dan', label: 'Hướng dẫn sử dụng', group: 'Hướng dẫn sử dụng', icon: 'help' },
+  // Lương & Phạt (PayrollController, PenaltyController) — features/payroll. Menu neo payroll.view / payroll.view_own
+  // (SidebarMenu::PAYROLL); phiếu lương /payroll/records/<id> mở từ bảng lương.
+  { path: '/payroll/periods', label: 'Bảng lương theo kỳ', perms: ['payroll.view'], group: 'Lương & Phạt', menu: (me) => can(me, ...PAYROLL_ANCHORS) },
+  { path: '/payroll/records', label: 'Phiếu lương', perms: ['payroll.view'], group: 'Lương & Phạt', hidden: true },
+  {
+    path: '/penalties',
+    label: 'Vi phạm & Phạt',
+    perms: ['violation.view', 'portal.staff'],
+    group: 'Lương & Phạt',
+    menu: (me) => can(me, ...PAYROLL_ANCHORS),
+  },
+  {
+    path: '/payroll/kpi-leaderboard',
+    label: 'Xếp hạng KPI & Thưởng',
+    perms: ['kpi.view'],
+    group: 'Nhân sự & KPI',
+    menu: (me) => can(me, ...PAYROLL_ANCHORS),
+  },
+  { path: '/portal/my-salary', label: 'Lương của tôi', perms: ['payroll.view_own'], group: 'Của tôi' },
+  { path: '/payroll/config/settings', label: 'Tham số lương', perms: ['teacher_rate.manage'], group: 'Lương', menu: (me) => can(me, ...PAYROLL_ANCHORS) },
+  {
+    path: '/payroll/config/teacher-rates',
+    label: 'Đơn giá giáo viên',
+    perms: ['teacher_rate.manage'],
+    group: 'Lương',
+    menu: (me) => can(me, ...PAYROLL_ANCHORS),
+  },
+  {
+    path: '/payroll/config/commission-tiers',
+    label: 'Mốc hoa hồng / Thưởng',
+    perms: ['commission_config.manage'],
+    group: 'Lương',
+    menu: (me) => can(me, ...PAYROLL_ANCHORS),
+  },
 ]
 
 // Workspace của sidebar theo đúng thứ tự SidebarMenu::definition(): khu (section) → workspace (label, icon).

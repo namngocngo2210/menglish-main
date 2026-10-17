@@ -56,6 +56,7 @@ type Deps struct {
 	Homework ClassHomework
 	// Projects: hạn mốc dự án học thuật; nil = lịch ghi "Chờ phân hệ Dự án học thuật".
 	Projects Projects
+	Payroll  Payroll
 }
 
 type Service struct {
@@ -73,6 +74,9 @@ func NewService(d Deps, log *slog.Logger) *Service {
 	}
 	if d.Tickets == nil {
 		d.Tickets = noTickets{}
+	}
+	if d.Payroll == nil {
+		d.Payroll = noPayroll{}
 	}
 	return &Service{d: d, log: log, now: time.Now}
 }

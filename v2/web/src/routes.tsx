@@ -93,6 +93,11 @@ import { RequestsPage as AttendanceRequestsPage } from './features/attendance/Re
 import { AppSheetPage, SyncHistoryPage } from './features/attendance/SyncPages'
 import { TeacherTimesheetsPage } from './features/attendance/TeacherTimesheetsPage'
 import { TicketsPage } from './features/tickets/TicketsPage'
+import { RatesPage as PayrollRatesPage, SettingsPage as PayrollSettingsPage, TiersPage as PayrollTiersPage } from './features/payroll/ConfigPages'
+import { PenaltiesPage } from './features/payroll/PenaltiesPage'
+import { PeriodsRoute as PayrollPeriodsRoute } from './features/payroll/PeriodsPage'
+import { LeaderboardPage as PayrollLeaderboardPage, MySalaryPage } from './features/payroll/PortalPages'
+import { RecordRoute as PayrollRecordRoute } from './features/payroll/RecordPage'
 
 // Trang theo đường dẫn mục menu (NAV trong nav.ts). Trang con (vd. /students/<id>) dùng chung mục cha và tự đọc
 // phần còn lại của đường dẫn bằng usePath(). Module mới: thêm mục vào NAV và một dòng ở đây.
@@ -205,6 +210,14 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/approvals': (me) => <ApprovalInboxPage me={me} />,
   '/surveys': (me) => <SurveysPage me={me} />,
   '/huong-dan': (me) => <GuidePage me={me} />,
+  '/payroll/periods': (me) => <PayrollPeriodsRoute me={me} />,
+  '/payroll/records': (me) => <PayrollRecordRoute me={me} />,
+  '/penalties': () => <PenaltiesPage />,
+  '/payroll/kpi-leaderboard': () => <PayrollLeaderboardPage />,
+  '/portal/my-salary': () => <MySalaryPage />,
+  '/payroll/config/settings': () => <PayrollSettingsPage />,
+  '/payroll/config/teacher-rates': () => <PayrollRatesPage />,
+  '/payroll/config/commission-tiers': () => <PayrollTiersPage />,
 }
 
 // Trang "/": nhân sự → Tổng quan; tài khoản cổng (học viên / phụ huynh) → Trang chủ cổng học viên như Laravel

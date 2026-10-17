@@ -35,6 +35,7 @@ Số dòng theo trạng thái tính tới lần gộp cuối của PR #152 (hai 
 | Hộp "Việc cần duyệt" + badge sidebar | [can-duyet.md](can-duyet.md) | 9 | 2 | 1 | 4 | Nguồn báo đóng học phí, giáo trình / Big Test, báo cáo trực lớp, đơn chấm công (chờ các phân hệ đó) |
 | Khảo sát & Hướng dẫn sử dụng | [khao-sat.md](khao-sat.md) | 7 | 3 | 1 | 1 | Màn "Khảo sát 5 sao" ở Cổng PH/HS (API đã có), nút "Mở màn hình" cho màn chưa chuyển, nhập khảo sát cũ |
 | Chất lượng lớp (dự giờ, đánh giá dự giờ, checklist, họp giáo viên) & Dự án học thuật | [chat-luong-lop.md](chat-luong-lop.md) | 22 | 8 | 3 | 1 | Biên bản trễ mốc dự án (chờ Lương & biên bản), nhập dữ liệu cũ |
+| Lương & Phạt (bảng lương, phiếu lương, Lương của tôi, xếp hạng KPI, cấu hình lương, vi phạm & phạt) | [luong.md](luong.md) | 26 | 10 | 4 | 1 | Ca dạy hợp lệ / chấm công (chờ phân hệ Chấm công), adapter teacher.Work, biên bản tự động của phân hệ khác, xuất xlsx / bản in Blade |
 
 ## Phần dùng chung chưa có ở v2
 
