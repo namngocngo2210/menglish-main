@@ -1378,16 +1378,17 @@ FROM hr.teacher_timesheets t
 LEFT JOIN academic.classes c ON c.id = t.class_id
 WHERE ($1::bool OR t.user_id = ANY($2::uuid[]))
   AND t.teaching_date BETWEEN $3 AND $4
-  AND (CASE WHEN $5::bool THEN t.status = 'valid' ELSE t.status <> 'invalid' END)
+  AND (CASE WHEN $5::bool THEN t.status = 'valid' ELSE ($6::bool OR t.status <> 'invalid') END)
 ORDER BY t.teaching_date, t.id
 `
 
 type RangeTimesheetsParams struct {
-	AllUsers  bool
-	UserIds   []uuid.UUID
-	FromDate  time.Time
-	ToDate    time.Time
-	OnlyValid bool
+	AllUsers    bool
+	UserIds     []uuid.UUID
+	FromDate    time.Time
+	ToDate      time.Time
+	OnlyValid   bool
+	WithInvalid bool
 }
 
 type RangeTimesheetsRow struct {
@@ -1422,7 +1423,8 @@ type RangeTimesheetsRow struct {
 }
 
 // ═════════════ Đọc cho phân hệ khác (Lương, KPI, Tổng quan) ═════════════
-// Ca dạy của nhiều người trong khoảng; only_valid = chỉ ca hợp lệ (tính lương), không thì mọi ca chưa bị từ chối.
+// Ca dạy của nhiều người trong khoảng; only_valid = chỉ ca hợp lệ (tính lương), không thì mọi ca chưa bị từ chối
+// (with_invalid = cả ca bị từ chối).
 func (q *Queries) RangeTimesheets(ctx context.Context, arg RangeTimesheetsParams) ([]RangeTimesheetsRow, error) {
 	rows, err := q.db.Query(ctx, rangeTimesheets,
 		arg.AllUsers,
@@ -1430,6 +1432,7 @@ func (q *Queries) RangeTimesheets(ctx context.Context, arg RangeTimesheetsParams
 		arg.FromDate,
 		arg.ToDate,
 		arg.OnlyValid,
+		arg.WithInvalid,
 	)
 	if err != nil {
 		return nil, err
@@ -1688,6 +1691,43 @@ func (q *Queries) ScopeClasses(ctx context.Context, arg ScopeClassesParams) ([]S
 			&i.BranchID,
 			&i.BranchName,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const sessionCheckins = `-- name: SessionCheckins :many
+SELECT class_session_id::uuid AS session_id, checkin_time, status FROM hr.teacher_timesheets
+WHERE user_id = $1 AND class_session_id = ANY($2::uuid[])
+`
+
+type SessionCheckinsParams struct {
+	UserID     uuid.UUID
+	SessionIds []uuid.UUID
+}
+
+type SessionCheckinsRow struct {
+	SessionID   uuid.UUID
+	CheckinTime pgtype.Time
+	Status      string
+}
+
+// Ca dạy của một người theo buổi, mọi trạng thái (cổng giáo viên tự bỏ ca "không hợp lệ" ở lịch tuần).
+func (q *Queries) SessionCheckins(ctx context.Context, arg SessionCheckinsParams) ([]SessionCheckinsRow, error) {
+	rows, err := q.db.Query(ctx, sessionCheckins, arg.UserID, arg.SessionIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SessionCheckinsRow
+	for rows.Next() {
+		var i SessionCheckinsRow
+		if err := rows.Scan(&i.SessionID, &i.CheckinTime, &i.Status); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

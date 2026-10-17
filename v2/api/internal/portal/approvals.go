@@ -17,10 +17,12 @@ func (s *Service) ApprovalSource() approvals.Source { return reportSource{s} }
 
 type reportSource struct{ s *Service }
 
-func (reportSource) Key() string      { return "payment_report" }
-func (reportSource) Label() string    { return "Học viên báo đã đóng học phí" }
-func (reportSource) Group() string    { return approvals.GroupTuition }
-func (reportSource) IndexURL() string { return "/approvals?group=" + approvals.GroupSlug(approvals.GroupTuition) }
+func (reportSource) Key() string   { return "payment_report" }
+func (reportSource) Label() string { return "Học viên báo đã đóng học phí" }
+func (reportSource) Group() string { return approvals.GroupTuition }
+func (reportSource) IndexURL() string {
+	return "/approvals?group=" + approvals.GroupSlug(approvals.GroupTuition)
+}
 func (reportSource) CanView(a *iam.Access) bool {
 	return a.Can("tuition.view") && a.Can("tuition.approve")
 }

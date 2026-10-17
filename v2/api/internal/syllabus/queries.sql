@@ -816,3 +816,16 @@ JOIN syllabus.big_tests bt ON bt.id = r.big_test_id
 WHERE r.student_id = sqlc.arg(student_id) AND r.status IN ('approved', 'sent')
 ORDER BY r.approved_at DESC NULLS LAST, r.id DESC
 LIMIT sqlc.arg(max_rows);
+
+-- ───────────── Hộp "Việc cần duyệt" (approvals.go) ─────────────
+
+-- name: InboxPacing :many
+-- Yêu cầu giãn tiến độ chờ duyệt của lớp chưa xóa (AdjustmentApprovalSource), mới nhất trước.
+SELECT r.id, r.class_id, c.name AS class_name, a.stage_name AS assignment_stage, t.full_name AS teacher_name,
+       r.request_type, r.reason, r.extra_sessions, r.created_at
+FROM syllabus.pacing_requests r
+JOIN academic.classes c ON c.id = r.class_id AND c.deleted_at IS NULL
+LEFT JOIN syllabus.assignments a ON a.id = r.assignment_id
+LEFT JOIN iam.users t ON t.id = r.user_id
+WHERE r.status = 'pending'
+ORDER BY r.created_at DESC, r.id DESC;

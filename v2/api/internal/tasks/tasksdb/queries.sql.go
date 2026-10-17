@@ -29,6 +29,25 @@ func (q *Queries) AutoCompleteRestockTask(ctx context.Context, arg AutoCompleteR
 	return err
 }
 
+const closeBigTestTasks = `-- name: CloseBigTestTasks :execrows
+UPDATE ops.work_tasks
+SET status = 'completed', completed_at = now(), completion_note = 'Đề Big Test đã được duyệt & phân phối (hệ thống tự đóng).',
+    updated_at = now(), version = version + 1
+WHERE big_test_id IS NOT NULL
+  AND status IN ('new', 'in_progress', 'overdue', 'blocked', 'pending_confirmation')
+  AND big_test_id IN (SELECT b.id FROM syllabus.big_tests b
+                      WHERE b.is_distributed AND ($1::uuid IS NULL OR b.id = $1::uuid))
+`
+
+// Đề đã phân phối → hoàn thành việc duyệt đề còn mở của đợt thi (big_test_id NULL = mọi đợt thi).
+func (q *Queries) CloseBigTestTasks(ctx context.Context, bigTestID *uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, closeBigTestTasks, bigTestID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const countAwaitingConfirmation = `-- name: CountAwaitingConfirmation :one
 SELECT count(*) FROM ops.work_tasks t
 WHERE t.status = 'pending_confirmation' AND (t.assignee_id IS NULL OR t.assignee_id <> $1::uuid)
@@ -183,6 +202,58 @@ func (q *Queries) GetVisibleTask(ctx context.Context, arg GetVisibleTaskParams) 
 		&i.BranchName,
 	)
 	return i, err
+}
+
+const insertBigTestTask = `-- name: InsertBigTestTask :many
+
+INSERT INTO ops.work_tasks (title, description, creator_id, assignee_id, branch_id, class_id, big_test_id, task_type,
+                            due_date, status)
+SELECT $1::text, $2::text, $3::uuid, $4::uuid, $5::uuid,
+       $6::uuid, $7::uuid, 'one_time', $8::date, 'new'
+WHERE NOT EXISTS (SELECT 1 FROM ops.work_tasks WHERE big_test_id = $7::uuid)
+RETURNING id
+`
+
+type InsertBigTestTaskParams struct {
+	Title       string
+	Description string
+	CreatorID   uuid.UUID
+	AssigneeID  uuid.UUID
+	BranchID    *uuid.UUID
+	ClassID     *uuid.UUID
+	BigTestID   uuid.UUID
+	DueDate     time.Time
+}
+
+// ───────────── Việc "Duyệt & phân phối đề Big Test" (phân hệ Giáo trình, BigTestSlaService) ─────────────
+// Một việc / đợt thi (kể cả việc đã đóng): đã có thì không tạo lại (không trả dòng nào).
+func (q *Queries) InsertBigTestTask(ctx context.Context, arg InsertBigTestTaskParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, insertBigTestTask,
+		arg.Title,
+		arg.Description,
+		arg.CreatorID,
+		arg.AssigneeID,
+		arg.BranchID,
+		arg.ClassID,
+		arg.BigTestID,
+		arg.DueDate,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const insertFeeReminderTask = `-- name: InsertFeeReminderTask :one

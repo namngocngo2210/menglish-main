@@ -2,16 +2,21 @@ package payroll
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/audit"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/notify"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/payroll/payrolldb"
 )
 
 // Hàm cho phân hệ khác (adapter ở cmd/menglish): kỳ lương khóa chấm công, biên bản đi muộn tự động của Chấm công
-// (StaffAttendanceService::syncLatePenalty), biên bản trễ mốc của Dự án học thuật (SlaBreachService::breach).
+// (StaffAttendanceService::syncLatePenalty), biên bản trễ mốc của Dự án học thuật (SlaBreachService::breach), biên bản
+// trả kết quả Big Test trễ của Giáo trình (BigTestSlaService::enforceLateResults).
 
 // LockedPeriod: khoảng ngày của một kỳ lương đã duyệt / đã chi trả.
 type LockedPeriod struct {
@@ -169,4 +174,164 @@ func (s *Service) AutoPenalties(ctx context.Context, source string, keys []strin
 			Status: r.Status, StatusLabel: labelOf(labels, r.Status), Amount: r.Amount, CreatedAt: r.CreatedAt})
 	}
 	return out, nil
+}
+
+// ───── Big Test trả kết quả trễ (BigTestSlaService::enforceLateResults) ─────
+
+// AutoBigTestLate: nguồn biên bản trả kết quả Big Test trễ hạn (BigTestSlaService::AUTO_LATE_RESULTS).
+const AutoBigTestLate = "big_test_late_results"
+
+// BigTestLate: số liệu trễ hôm nay của một đợt thi.
+type BigTestLate struct {
+	BigTestID   uuid.UUID
+	ClassID     *uuid.UUID
+	UserID      uuid.UUID // người chịu trách nhiệm; uuid.Nil = không ai (đã nhập đủ, chờ duyệt)
+	Violation   string
+	DueDate     time.Time // hạn trả kết quả
+	Amount      int64
+	Notes       string
+	EnteredOnly bool   // GV đã nhập đủ, chỉ còn chờ duyệt: dừng tăng mức phạt
+	Message     string // nội dung thông báo khi lập mới
+}
+
+// SyncBigTestLate: đã có biên bản → còn chờ / đã giải trình và chưa nhập đủ thì cập nhật số ngày trễ + mức gợi ý (còn chờ
+// thì chuyển cho người đang chịu trách nhiệm); chưa có và có người chịu trách nhiệm → lập mới (Học thuật) và báo người đó.
+// created = vừa lập mới. Chạy trong tx của Giáo trình.
+func (s *Service) SyncBigTestLate(ctx context.Context, tx pgxTx, in BigTestLate) (created bool, err error) {
+	q := s.q.WithTx(tx)
+	src := AutoBigTestLate
+	p, err := q.LockBigTestAutoPenalty(ctx, payrolldb.LockBigTestAutoPenaltyParams{BigTestID: &in.BigTestID, AutoSource: &src})
+	if err == nil {
+		if (p.Status == "pending" || p.Status == "explained") && !in.EnteredOnly {
+			var user *uuid.UUID
+			if p.Status == "pending" && in.UserID != uuid.Nil {
+				user = &in.UserID
+			}
+			return false, q.UpdateLateResultPenalty(ctx, payrolldb.UpdateLateResultPenaltyParams{ViolationType: in.Violation,
+				Amount: max(0, in.Amount), UserID: user, ID: p.ID})
+		}
+		return false, nil
+	}
+	if !isNoRows(err) {
+		return false, err
+	}
+	if in.UserID == uuid.Nil {
+		return false, nil
+	}
+	pen, err := s.CreateAutoPenalty(ctx, tx, AutoPenalty{UserID: in.UserID, Source: src, Key: in.BigTestID.String(),
+		ViolationType: in.Violation, Category: "academic", ViolationAt: in.DueDate, Amount: in.Amount, ClassID: in.ClassID,
+		BigTestID: &in.BigTestID, Notes: in.Notes, Subject: "trả kết quả Big Test trễ hạn", Body: in.Message,
+		Data: map[string]any{"big_test_id": in.BigTestID.String()}})
+	return pen != nil, err
+}
+
+// ───── Biên bản SLA quá hạn (SlaBreachService::breach) ─────
+
+// SlaBreach: một đối tượng quá hạn SLA. Rule* là cấu hình SLA hiệu lực (catalogs.SlaRule) do phân hệ gọi truyền vào.
+type SlaBreach struct {
+	RuleKey     string
+	RuleLabel   string
+	Violation   string // tên lỗi của SLA
+	Category    string
+	Penalize    bool    // SLA bật "Tự lập biên bản"
+	Amount      int64   // mức phạt khi không có bậc
+	Ladder      []int64 // bậc phạt theo lần tái phạm
+	ResetMonths int     // số tháng cộng dồn lần tái phạm
+	Key         string  // khóa đối tượng (mỗi đối tượng một biên bản)
+	OwnerID     *uuid.UUID
+	Subject     string // nhãn đối tượng
+	DueAt       time.Time
+	Now         time.Time // lúc phát hiện quá hạn
+	Link        string    // màn của đối tượng (thông báo khi không lập biên bản)
+}
+
+// amountFor: Sla::amountForOccurrence.
+func amountFor(in SlaBreach, occurrence int) int64 {
+	if len(in.Ladder) == 0 {
+		return in.Amount
+	}
+	return in.Ladder[min(occurrence, len(in.Ladder))-1]
+}
+
+// BreachSla: quá hạn → biên bản chờ giải trình cho người phụ trách (bậc phạt theo lần tái phạm trong N tháng, không tính
+// biên bản đã hủy) + báo người phụ trách và Admin; SLA tắt phạt hoặc không có người phụ trách → chỉ báo "Quá hạn SLA".
+// Đối tượng đã có biên bản (cùng RuleKey + Key) thì không lập / báo lại. Trả biên bản vừa lập (nil khi không lập).
+func (s *Service) BreachSla(ctx context.Context, in SlaBreach) (*PenaltyRef, error) {
+	var ref *PenaltyRef
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		q := s.q.WithTx(tx)
+		ownerName := ""
+		if in.OwnerID != nil {
+			n, err := q.UserFullName(ctx, *in.OwnerID)
+			if err != nil && !isNoRows(err) {
+				return err
+			}
+			ownerName = n
+		}
+		due := in.DueAt.In(vnZone).Format("15:04 02/01/2006")
+		typ, title, body, link := "sla_breach", "Quá hạn SLA: "+in.RuleLabel+" — "+in.Subject, "Hạn "+due+" đã qua.", in.Link
+		if in.Penalize && in.OwnerID != nil {
+			n, err := s.AutoOccurrences(ctx, tx, *in.OwnerID, in.RuleKey, in.Now.AddDate(0, -max(1, in.ResetMonths), 0))
+			if err != nil {
+				return err
+			}
+			occurrence := n + 1
+			amount := amountFor(in, occurrence)
+			ladderNote := ""
+			if len(in.Ladder) > 0 {
+				ladderNote = fmt.Sprintf(" Lần thứ %d trong %d tháng", occurrence, max(1, in.ResetMonths))
+				if amount > 0 {
+					ladderNote += "."
+				} else {
+					ladderNote += " (mức nhắc nhở, không phạt tiền)."
+				}
+			}
+			cat := in.Category
+			if cat == "" {
+				cat = "operations"
+			}
+			violation := in.Violation + ": " + in.Subject
+			// Người phụ trách nhận thông báo ở CreateAutoPenalty; Admin nhận bên dưới.
+			p, err := s.CreateAutoPenalty(ctx, tx, AutoPenalty{UserID: *in.OwnerID, Source: in.RuleKey, Key: in.Key,
+				ViolationType: violation, Category: cat, ViolationAt: in.DueAt, Amount: amount,
+				Notes:   in.RuleLabel + ": hạn " + due + ", quá hạn lúc phát hiện " + in.Now.In(vnZone).Format("15:04 02/01/2006") + "." + ladderNote,
+				Subject: in.Violation + " — " + in.Subject})
+			if err != nil || p == nil {
+				return err // p == nil: đối tượng đã có biên bản
+			}
+			ref = &PenaltyRef{ID: p.ID, Code: p.Code, Status: p.Status}
+			typ, title = "penalty_created", "Biên bản "+p.Code+": "+in.Violation+" — "+in.Subject
+			body = "Hãy xử lý và gửi giải trình; biên bản chờ CM / Học thuật / Admin xác nhận trước khi tính vào lương."
+			link = "/penalties?search=" + p.Code
+		}
+		admins, err := iam.AdminIDs(ctx, tx)
+		if err != nil {
+			return err
+		}
+		send := func(ids []uuid.UUID, prefix string) error {
+			if len(ids) == 0 {
+				return nil
+			}
+			_, err := notify.Send(ctx, tx, ids, notify.Notification{Type: typ, Title: title, Body: prefix + body, Link: link,
+				Data: map[string]any{"sla_rule": in.RuleKey}})
+			return err
+		}
+		if in.OwnerID != nil && ref == nil {
+			if err := send([]uuid.UUID{*in.OwnerID}, "Bạn là người phụ trách. "); err != nil {
+				return err
+			}
+		}
+		others := make([]uuid.UUID, 0, len(admins))
+		for _, id := range admins {
+			if in.OwnerID == nil || id != *in.OwnerID {
+				others = append(others, id)
+			}
+		}
+		prefix := "Chưa có người phụ trách. "
+		if in.OwnerID != nil {
+			prefix = "Người phụ trách: " + ownerName + ". "
+		}
+		return send(others, prefix)
+	})
+	return ref, err
 }

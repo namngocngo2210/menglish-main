@@ -402,13 +402,14 @@ SELECT * FROM hr.timesheet_sync_logs WHERE id = sqlc.arg(id);
 -- ═════════════ Đọc cho phân hệ khác (Lương, KPI, Tổng quan) ═════════════
 
 -- name: RangeTimesheets :many
--- Ca dạy của nhiều người trong khoảng; only_valid = chỉ ca hợp lệ (tính lương), không thì mọi ca chưa bị từ chối.
+-- Ca dạy của nhiều người trong khoảng; only_valid = chỉ ca hợp lệ (tính lương), không thì mọi ca chưa bị từ chối
+-- (with_invalid = cả ca bị từ chối).
 SELECT t.*, COALESCE(c.code::text, '')::text AS class_code, COALESCE(c.name, '')::text AS class_name
 FROM hr.teacher_timesheets t
 LEFT JOIN academic.classes c ON c.id = t.class_id
 WHERE (sqlc.arg(all_users)::bool OR t.user_id = ANY(sqlc.arg(user_ids)::uuid[]))
   AND t.teaching_date BETWEEN sqlc.arg(from_date) AND sqlc.arg(to_date)
-  AND (CASE WHEN sqlc.arg(only_valid)::bool THEN t.status = 'valid' ELSE t.status <> 'invalid' END)
+  AND (CASE WHEN sqlc.arg(only_valid)::bool THEN t.status = 'valid' ELSE (sqlc.arg(with_invalid)::bool OR t.status <> 'invalid') END)
 ORDER BY t.teaching_date, t.id;
 
 -- name: StaffSessionsRange :many
@@ -433,3 +434,8 @@ SELECT (EXISTS (SELECT 1 FROM hr.teacher_timesheets t
 UPDATE hr.staff_attendances
 SET check_in_photo_id = sqlc.narg(check_in_photo_id), check_out_photo_id = sqlc.narg(check_out_photo_id), updated_at = now()
 WHERE id = sqlc.arg(id);
+
+-- name: SessionCheckins :many
+-- Ca dạy của một người theo buổi, mọi trạng thái (cổng giáo viên tự bỏ ca "không hợp lệ" ở lịch tuần).
+SELECT class_session_id::uuid AS session_id, checkin_time, status FROM hr.teacher_timesheets
+WHERE user_id = sqlc.arg(user_id) AND class_session_id = ANY(sqlc.arg(session_ids)::uuid[]);

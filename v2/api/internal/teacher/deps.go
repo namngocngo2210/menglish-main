@@ -20,7 +20,7 @@ import (
 type Work interface {
 	// Available: phân hệ đã có ở v2 (false → màn hiện "Chờ phân hệ…", nút check-in báo chưa dùng được).
 	Available() bool
-	// Checkins: lượt chấm công (khác "không hợp lệ") của người dùng theo buổi; buổi chưa check-in không có trong map.
+	// Checkins: lượt chấm công (mọi trạng thái) của người dùng theo buổi; buổi chưa check-in không có trong map.
 	Checkins(ctx context.Context, userID uuid.UUID, sessionIDs []uuid.UUID) (map[uuid.UUID]Checkin, error)
 	// CheckIn: ghi chấm công các buổi đã qua kiểm phân công + cửa sổ check-in (TeacherPortalController::checkin): bỏ qua
 	// buổi đã chấm công tay / đã check-in (chỉ ca bị từ chối được check-in lại), kỳ lương đã khóa theo ngày dạy.
@@ -32,7 +32,7 @@ type Work interface {
 // Checkin: chấm công của một buổi.
 type Checkin struct {
 	Time   string // HH:MM
-	Status string // pending_review | valid | invalid | rejected
+	Status string // pending_review | valid | invalid
 }
 
 // CheckinSession: buổi được check-in (đã kiểm phân công và cửa sổ check-in).

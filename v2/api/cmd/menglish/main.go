@@ -168,9 +168,21 @@ func runAPI(ctx context.Context) error {
 	// khách Chờ xếp lớp bên CRM.
 	crmSvc := crm.NewService(d.pool, d.iam, log).WithStudents(tuitionSvc.Closing(cls.CRMStudents(studentSvc))).WithTuition(tuitionSvc)
 	cls.CRM, cls.Tuition, studentSvc.Tuition = crmSvc, tuitionSvc, tuitionSvc
-	// Lương & Phạt: bằng chứng vi phạm ở kho file. TODO(gộp): WithAttendance(ca dạy hợp lệ / chấm công) khi phân hệ Chấm công có ở v2.
+	// Lương & Phạt: bằng chứng vi phạm ở kho file.
 	payrollSvc := payroll.NewService(d.pool, log).WithFiles(fileSvc)
 	go payrollSvc.RunReminderLoop(ctx, time.Minute)
+	// Chấm công: ảnh khuôn mặt ở kho file, phạm vi lớp của giờ dạy từ Lớp học; kỳ lương đã duyệt / chi trả khóa dữ liệu,
+	// đi muộn tính lỗi tự lập biên bản (Lương & Phạt). Bảng lương đọc ca dạy hợp lệ + ngày công của Chấm công (wiring.go).
+	attSvc := attendance.NewService(d.pool, d.iam, log).WithFiles(fileSvc).WithClasses(cls).
+		WithPayrollLock(attendancePayroll{payrollSvc}).WithPenalties(attendancePayroll{payrollSvc})
+	payrollSvc.WithAttendance(payrollAttendance{attSvc})
+	// Giáo trình & Big Test: lớp được xem + giãn tiến độ (thêm buổi theo TKB) qua phân hệ Lớp học, tài liệu / file đính kèm
+	// ở kho file, luật SLA ở Danh mục; biên bản trả kết quả trễ (Lương & Phạt), việc "Duyệt & phân phối đề" (Công việc).
+	// Chưa có ở v2: danh sách bổ trợ sau Big Test (SupportListService thuộc báo cáo trực lớp), Zalo ZNS thật.
+	sylSvc := syllabus.NewService(d.pool, log, syllabus.Deps{Classes: cls.SyllabusClasses(), Files: fileSvc, SLA: catalogSvc,
+		Penalties: syllabusPenalties{payrollSvc}, Tasks: syllabusTasks{taskSvc}})
+	// Nhắc lịch Big Test, SLA đề / kết quả, SLA duyệt giãn tiến độ (bigtests:* / syllabus:notify-adjustment-sla ở bản Laravel).
+	go sylSvc.RunLoop(ctx, time.Minute)
 	// Ảnh bằng chứng hoàn tiền lưu ở kho file; hoa hồng tư vấn (thu hồi khi hoàn phí / hủy hóa đơn) của phân hệ Lương.
 	tuitionSvc.WithLeads(crmSvc).WithStudents(studentSvc).WithAccess(d.iam.LoadAccess).WithFiles(fileSvc).WithCommissions(payrollSvc.Commissions()).
 		WithSepay(tuition.SepaySettings{WebhookEnabled: cfg.Sepay.WebhookEnabled, WebhookSecret: cfg.Sepay.WebhookSecret})
@@ -181,20 +193,22 @@ func runAPI(ctx context.Context) error {
 		Leads: crmSvc.PlacementLeads(), Sessions: cls.PlacementSessions(), Files: fileSvc,
 	})
 	place := placement.NewHandler(placeSvc, log)
-	// Cổng giáo viên: lớp / buổi / điểm danh của Lớp học, khách học thử của Test đầu vào, file bài tập / bài nộp ở kho file.
-	// Bài phát âm (tab chấm bài) của Cổng học viên gắn ở wirePortalTeacher bên dưới.
-	// TODO(gộp): Work (chấm công giờ dạy / lương), Syllabus, SupportList khi các phân hệ có ở v2.
+	// Cổng giáo viên: lớp / buổi / điểm danh của Lớp học, khách học thử của Test đầu vào, file bài tập / bài nộp ở kho file,
+	// check-in ca dạy / bảng công / lương tạm tính / vi phạm (Chấm công + Lương), Unit / bài học của giáo trình lớp.
+	// Bài phát âm (tab chấm bài) của Cổng học viên gắn ở wirePortalTeacher bên dưới. Chưa có ở v2: danh sách bổ trợ
+	// (SupportListService::syncMiniTest thuộc báo cáo trực lớp).
 	teacherSvc := teacher.NewService(d.pool, log, teacher.Deps{
 		Classes: cls.TeacherPortal(), SLA: catalogSvc, Files: fileSvc, Trials: teacher.PlacementTrials(placeSvc),
+		Work: teacherWork{att: attSvc, pay: payrollSvc}, Syllabus: teacherSyllabus{sylSvc},
 	})
 	// Báo cáo: số liệu tuyển sinh từ CRM / test đầu vào, bọc thêm số liệu lớp / buổi / điểm danh của Lớp học; việc follow-up
 	// qua Công việc, ngày nghỉ từ danh mục; "Số lượng thu phí" từ Học phí.
 	// KPI: mục KPI của báo cáo tuần lấy từ bộ tiêu chí đang áp dụng (bọc MetricsProvider của báo cáo).
 	kpiSvc := kpi.NewService(d.pool, log)
 	// Chất lượng lớp (dự giờ / checklist / họp giáo viên) theo phạm vi lớp của phân hệ Lớp học; Dự án học thuật đọc SLA
-	// trễ / nhắc mốc từ danh mục. TODO(gộp): WithPenalties(biên bản trễ mốc) khi phân hệ Lương & biên bản có ở v2.
+	// trễ / nhắc mốc từ danh mục, mốc trễ lập biên bản qua Lương & Phạt.
 	qualitySvc := quality.NewService(d.pool, cls, log)
-	projectSvc := projects.NewService(d.pool, log).WithSla(catalogSvc)
+	projectSvc := projects.NewService(d.pool, log).WithSla(catalogSvc).WithPenalties(projectPenalties{p: payrollSvc, sla: catalogSvc})
 	// Lệnh sla:run (academic.milestone_late / milestone_remind) ở bản Laravel.
 	go projectSvc.RunSlaLoop(ctx, 5*time.Minute)
 	reportSvc := reports.NewService(d.pool, log, reports.Deps{
@@ -208,9 +222,6 @@ func runAPI(ctx context.Context) error {
 	finSvc := finance.NewService(d.pool, log).WithRevenue(tuitionSvc.RevenueSource()).WithPayroll(payrollSvc.Finance())
 	// Số liệu KPI tự động từ báo cáo / công việc / kho / lớp học / chấm công; tạo phiếu đầu kỳ hằng ngày (kpi:create-sheets).
 	// TODO(gộp): nguồn Học phí / SLA CRM / Big Test khi có ở v2. Kỳ lương đã chốt khóa phiếu KPI.
-	// Chấm công: ảnh khuôn mặt ở kho file, phạm vi lớp của giờ dạy từ Lớp học. TODO(gộp): WithPayrollLock(kỳ lương đã
-	// duyệt / chi trả), WithPenalties(biên bản đi muộn) của phân hệ Lương & Phạt.
-	attSvc := attendance.NewService(d.pool, d.iam, log).WithFiles(fileSvc).WithClasses(cls)
 	kpiSvc.AddSources(reportSvc.KpiSources(), taskSvc.KpiSources(), inv.KpiSources(), cls.KpiSources(), attSvc.KpiSources(), projectSvc.KpiSources()).
 		WithJournal(reportSvc).WithAttendance(cls.KpiAttendance()).WithBoard(cls.KpiBoard(), taskSvc.KpiBoard()).
 		WithPayrollLock(payrollSvc)
@@ -218,11 +229,20 @@ func runAPI(ctx context.Context) error {
 	go kpiSvc.RunSheetLoop(ctx, time.Hour)
 	// Ticket hỗ trợ: file đính kèm ở kho file; hàng chờ "Ticket đang mở" / ticket khẩn ở Tổng quan và Nhật ký sự vụ.
 	ticketSvc := tickets.NewService(d.pool, log).WithFiles(fileSvc)
-	// Hộp "Việc cần duyệt" (chỉ Admin): nguồn của Học phí, CRM, Lớp học, Công việc. TODO(gộp): báo nộp học phí (Cổng
-	// PH/HS), đề xuất giáo trình / giãn tiến độ / order đề Big Test (Giáo trình), báo cáo trực lớp (Chất lượng lớp), đơn
-	// chấm công (Chấm công) — mỗi phân hệ thêm một approvals.Source.
-	approvalSvc := approvals.NewService(d.rdb, log).Add(tuitionSvc.ApprovalSources()...).Add(crmSvc.ApprovalSources()...).
-		Add(cls.ApprovalSource(), taskSvc.ApprovalSource())
+	// Cổng Phụ huynh & Học sinh: học phí đọc qua adapter của Học phí; bài tập / bài nộp / nhận xét / mini test qua Cổng
+	// giáo viên, tab Phát âm của màn chấm bài đọc bản ghi âm của cổng học viên (portal_teacher.go); khảo sát 5 sao của
+	// phân hệ Khảo sát, kết quả Big Test / chặng đang học của Giáo trình (wiring.go).
+	surveySvc := surveys.NewService(d.pool, log)
+	portalSvc := portal.NewService(d.pool, fileSvc, studentSvc, log).WithTuition(tuitionSvc.PortalTuition()).
+		WithSurveys(portalSurveys{surveySvc}).WithSyllabus(portalSyllabus{sylSvc})
+	wirePortalTeacher(portalSvc, teacherSvc)
+	// Hộp "Việc cần duyệt" (chỉ Admin), thứ tự nguồn như ApprovalRegistry của Laravel: Học phí (phiếu thu / hủy / hoàn),
+	// học viên báo đã đóng học phí (Cổng PH/HS), ghi danh (Lớp học), xác nhận chính thức / chuyển cơ sở (CRM), đề xuất
+	// giáo trình / giãn tiến độ / order đề Big Test (Giáo trình), Công việc, đơn chấm công (Chấm công). Chưa có ở v2: báo
+	// cáo trực lớp (ClassReportApprovalSource).
+	approvalSvc := approvals.NewService(d.rdb, log).Add(tuitionSvc.ApprovalSources()...).Add(portalSvc.ApprovalSource()).
+		Add(cls.ApprovalSource()).Add(crmSvc.ApprovalSources()...).Add(sylSvc.ApprovalSources()...).
+		Add(taskSvc.ApprovalSource(), attSvc.ApprovalSource())
 	// Tổng quan + Báo cáo & sự vụ lớp: đọc số liệu các phân hệ qua adapter (Finance: doanh thu / phiếu chờ duyệt / quá hạn
 	// của Học phí; Work: ngày công / đi muộn / phép của Chấm công, biên bản lỗi khi gắn phân hệ Lương & Phạt).
 	dash := dashboard.NewService(dashboard.Deps{
@@ -230,17 +250,6 @@ func runAPI(ctx context.Context) error {
 		Students: studentSvc.DashboardStudents(), Reports: reportSvc.DashboardReports(), Orders: inv.DashboardOrders(),
 		Branches: d.iam, Finance: tuitionSvc.DashboardFinance(), Homework: teacherSvc.Dashboard(), Work: attSvc.DashboardWork(), Tickets: ticketSvc.DashboardTickets(), Projects: projectSvc.DashboardMilestones(), Payroll: payrollSvc,
 	}, log)
-	// Cổng Phụ huynh & Học sinh: học phí đọc qua adapter của Học phí; bài tập / bài nộp / nhận xét / mini test qua Cổng
-	// giáo viên, tab Phát âm của màn chấm bài đọc bản ghi âm của cổng học viên (portal_teacher.go).
-	// TODO(gộp): WithSurveys (khảo sát 5 sao), WithSyllabus (Big Test, chặng học) khi các phân hệ đó có ở v2.
-	portalSvc := portal.NewService(d.pool, fileSvc, studentSvc, log).WithTuition(tuitionSvc.PortalTuition())
-	wirePortalTeacher(portalSvc, teacherSvc)
-	// Giáo trình & Big Test: lớp được xem + giãn tiến độ (thêm buổi theo TKB) qua phân hệ Lớp học, tài liệu / file đính kèm
-	// ở kho file, luật SLA ở Danh mục. TODO(gộp): Penalties (biên bản trả kết quả trễ), Tasks (việc duyệt đề), Support
-	// (danh sách bổ trợ), Zalo ZNS thật khi các phân hệ có ở v2.
-	sylSvc := syllabus.NewService(d.pool, log, syllabus.Deps{Classes: cls.SyllabusClasses(), Files: fileSvc, SLA: catalogSvc})
-	// Nhắc lịch Big Test, SLA đề / kết quả, SLA duyệt giãn tiến độ (bigtests:* / syllabus:notify-adjustment-sla ở bản Laravel).
-	go sylSvc.RunLoop(ctx, time.Minute)
 	checks := map[string]server.Pinger{
 		"postgres": d.pool,
 		"redis":    server.PingFunc(func(ctx context.Context) error { return d.rdb.Ping(ctx).Err() }),
@@ -277,8 +286,8 @@ func runAPI(ctx context.Context) error {
 				attendance.NewHandler(attSvc, log),
 				tickets.NewHandler(ticketSvc, log),
 				approvals.NewHandler(approvalSvc, log),
-				// Khảo sát: đợt khảo sát (survey.manage) + API Cổng PH/HS. TODO(gộp): WithStudents(bộ chọn học viên của cổng).
-				surveys.NewHandler(surveys.NewService(d.pool, log), log),
+				// Khảo sát: đợt khảo sát (survey.manage); học viên gửi / xóa khảo sát qua API Cổng PH/HS.
+				surveys.NewHandler(surveySvc, log),
 				quality.NewHandler(qualitySvc, log),
 				projects.NewHandler(projectSvc, log),
 				payroll.NewHandler(payrollSvc, log),

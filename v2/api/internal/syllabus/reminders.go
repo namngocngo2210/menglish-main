@@ -365,6 +365,7 @@ func (s *Service) enforceLateResults(ctx context.Context) (int, error) {
 				Violation: fmt.Sprintf("Trả kết quả Big Test trễ %d ngày (hạn %d ngày)", days, deadline),
 				Notes: fmt.Sprintf("Big Test %s (%s) thi ngày %s, hạn trả kết quả %s. Mức phạt gợi ý %sđ/ngày trễ, cập nhật mỗi ngày tới khi trả đủ kết quả.",
 					t.Code, t.Title, fmtDay(dateOf(*t.ScheduledAt)), fmtDay(due), formatMoney(r.Amount)),
+				Message: fmt.Sprintf("%s — trễ %d ngày so với hạn %s. Hãy hoàn tất kết quả và gửi giải trình.", t.Title, days, fmtDay(due)),
 			}
 			err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 				ok, err := s.penalties.SyncLateResults(ctx, tx, in)

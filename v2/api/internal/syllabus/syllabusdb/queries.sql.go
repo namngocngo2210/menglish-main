@@ -1756,6 +1756,62 @@ func (q *Queries) GetUnit(ctx context.Context, id uuid.UUID) (GetUnitRow, error)
 	return i, err
 }
 
+const inboxPacing = `-- name: InboxPacing :many
+
+SELECT r.id, r.class_id, c.name AS class_name, a.stage_name AS assignment_stage, t.full_name AS teacher_name,
+       r.request_type, r.reason, r.extra_sessions, r.created_at
+FROM syllabus.pacing_requests r
+JOIN academic.classes c ON c.id = r.class_id AND c.deleted_at IS NULL
+LEFT JOIN syllabus.assignments a ON a.id = r.assignment_id
+LEFT JOIN iam.users t ON t.id = r.user_id
+WHERE r.status = 'pending'
+ORDER BY r.created_at DESC, r.id DESC
+`
+
+type InboxPacingRow struct {
+	ID              uuid.UUID
+	ClassID         uuid.UUID
+	ClassName       string
+	AssignmentStage *string
+	TeacherName     *string
+	RequestType     string
+	Reason          string
+	ExtraSessions   *int16
+	CreatedAt       time.Time
+}
+
+// ───────────── Hộp "Việc cần duyệt" (approvals.go) ─────────────
+// Yêu cầu giãn tiến độ chờ duyệt của lớp chưa xóa (AdjustmentApprovalSource), mới nhất trước.
+func (q *Queries) InboxPacing(ctx context.Context) ([]InboxPacingRow, error) {
+	rows, err := q.db.Query(ctx, inboxPacing)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []InboxPacingRow
+	for rows.Next() {
+		var i InboxPacingRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ClassID,
+			&i.ClassName,
+			&i.AssignmentStage,
+			&i.TeacherName,
+			&i.RequestType,
+			&i.Reason,
+			&i.ExtraSessions,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const insertAssignment = `-- name: InsertAssignment :one
 INSERT INTO syllabus.assignments (user_id, curriculum_id, stage_id, class_id, assigned_chapters, stage_name, deadline,
                                   progress_percent, status, opened_at, opened_by, open_reason)

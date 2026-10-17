@@ -14,7 +14,8 @@ import (
 // Anchors: quyền neo của các nguồn duyệt (người không có quyền nào bị chặn ngay ở route). Hộp còn kiểm Admin trong
 // service (ApprovalInboxService::allowsModule).
 var Anchors = []string{"tuition.approve", "tuition.reject", "invoice.approve_cancel", "refund_transfer.reject",
-	"lead.approve_transfer", "student.assign_class", "work_task.create", "work_task.approve"}
+	"lead.approve_transfer", "student.assign_class", "work_task.create", "work_task.approve", "syllabus.approve_adjustment",
+	"big_test.approve", "staff_checkin.approve"}
 
 type Handler struct {
 	svc *Service

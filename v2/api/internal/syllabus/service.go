@@ -49,9 +49,8 @@ type SLA interface {
 	SlaRule(ctx context.Context, key string) (catalogs.SlaRule, error)
 }
 
-// Penalties: biên bản vi phạm tự lập của SLA Big Test (Penalty của Laravel).
-// TODO(gộp): phân hệ Lương & biên bản (đang làm song song) cài interface này; chưa gắn thì chỉ gửi thông báo sla_breach
-// như khi tắt "Tự lập biên bản".
+// Penalties: biên bản vi phạm tự lập của SLA Big Test (Penalty của Laravel) — phân hệ Lương & biên bản, adapter ở
+// cmd/menglish. Chưa gắn thì chỉ gửi thông báo sla_breach như khi tắt "Tự lập biên bản".
 type Penalties interface {
 	// SyncLateResults lập (hoặc cập nhật số ngày trễ / mức gợi ý của) biên bản trả kết quả Big Test trễ hạn.
 	SyncLateResults(ctx context.Context, tx pgx.Tx, in LatePenalty) (created bool, err error)
@@ -66,11 +65,12 @@ type LatePenalty struct {
 	Date        time.Time // hạn trả kết quả
 	Amount      int64
 	Notes       string
-	EnteredOnly bool // GV đã nhập đủ, chỉ còn chờ duyệt: dừng tăng mức phạt
+	EnteredOnly bool   // GV đã nhập đủ, chỉ còn chờ duyệt: dừng tăng mức phạt
+	Message     string // nội dung thông báo "Biên bản …: trả kết quả Big Test trễ hạn" khi lập mới
 }
 
-// ApprovalTasks: việc "Duyệt & phân phối đề Big Test" của phân hệ Công việc (work_tasks.big_test_id).
-// TODO(gộp): phân hệ Công việc cài interface này; chưa gắn thì không tạo việc (thông báo nhắc duyệt đề vẫn gửi).
+// ApprovalTasks: việc "Duyệt & phân phối đề Big Test" của phân hệ Công việc (work_tasks.big_test_id), adapter ở
+// cmd/menglish. Chưa gắn thì không tạo việc (thông báo nhắc duyệt đề vẫn gửi).
 type ApprovalTasks interface {
 	EnsureBigTestTask(ctx context.Context, tx pgx.Tx, in BigTestTask) (created bool, err error)
 	// CloseBigTestTasks đóng việc duyệt đề của các đợt thi đã phân phối (bigTestID nil = mọi đợt thi).

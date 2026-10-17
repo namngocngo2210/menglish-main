@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/approvals"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/catalogs"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/classes"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/files"
@@ -42,8 +43,11 @@ func setup(t *testing.T) *env {
 	fsvc := files.NewService(e.Pool, store, e.Log, 0)
 	svc := syllabus.NewService(e.Pool, e.Log, syllabus.Deps{Classes: cls.SyllabusClasses(), Files: fsvc, SLA: cat})
 	fh := files.NewHandler(fsvc, e.Log)
+	// Đề xuất / giãn tiến độ / order đề còn duyệt được ở hộp "Việc cần duyệt" chung như Laravel.
+	inbox := approvals.NewHandler(approvals.NewService(e.RDB, e.Log).Add(svc.ApprovalSources()...), e.Log)
 	e.Serve(func(r chi.Router) {
 		syllabus.NewHandler(svc, e.Log).Routes(r)
+		inbox.Routes(r)
 		fh.Routes(r)
 		fh.PublicRoutes(r)
 	})

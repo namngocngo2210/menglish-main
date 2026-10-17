@@ -1,6 +1,6 @@
-// Package surveys: khảo sát chất lượng đào tạo (SurveyController + màn #6 "Khảo sát 5 sao" của Cổng PH/HS).
-// Học vụ (survey.manage) tạo / sửa / đóng / xóa đợt khảo sát; học viên / phụ huynh (portal.student) chấm sao và góp ý
-// cho đợt đang mở, xem và xóa bài đã nộp của mình.
+// Package surveys: khảo sát chất lượng đào tạo (SurveyController + dữ liệu màn #6 "Khảo sát 5 sao" của Cổng PH/HS).
+// Học vụ (survey.manage) tạo / sửa / đóng / xóa đợt khảo sát; học viên / phụ huynh chấm sao và góp ý cho đợt đang mở
+// qua API của Cổng PH/HS (/portal/survey, adapter portal.Surveys ở cmd/menglish gọi portal.go).
 package surveys
 
 import (
@@ -20,68 +20,24 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/surveys/surveysdb"
 )
 
-const (
-	PermManage = "survey.manage"
-	PermPortal = "portal.student"
-)
+const PermManage = "survey.manage"
 
 var (
-	ErrNotFound         = &iam.Error{Status: 404, Code: "survey_not_found", Message: "Không tìm thấy đợt khảo sát."}
-	ErrResponseNotFound = &iam.Error{Status: 404, Code: "survey_response_not_found", Message: "Không tìm thấy bài khảo sát."}
-	ErrStudentForbidden = &iam.Error{Status: 403, Code: "forbidden", Message: "Bạn không được phép truy cập hồ sơ học viên này."}
-	ErrNotLinked        = &iam.Error{Status: 403, Code: "forbidden", Message: "Tài khoản chưa được liên kết với hồ sơ học viên."}
+	ErrNotFound = &iam.Error{Status: 404, Code: "survey_not_found", Message: "Không tìm thấy đợt khảo sát."}
 )
 
 // vnZone: ngày nghiệp vụ theo giờ Việt Nam.
 var vnZone = time.FixedZone("Asia/Ho_Chi_Minh", 7*3600)
 
-// PortalStudent: học viên tài khoản được thao tác ở cổng.
-type PortalStudent struct {
-	ID   uuid.UUID `json:"id"`
-	Name string    `json:"name"`
-	Code string    `json:"code"`
-}
-
-// Students: bộ chọn học viên của Cổng PH/HS (getActiveStudent). Mặc định: học viên liên kết tài khoản (chính học viên
-// hoặc con của phụ huynh). TODO(gộp): phân hệ Cổng PH/HS cung cấp bộ chọn chung (kể cả nhân sự student.update xem thử
-// học viên trong phạm vi) thì truyền vào WithStudents.
-type Students interface {
-	Portal(ctx context.Context, a *iam.Access) ([]PortalStudent, error)
-}
-
-type linkedStudents struct{ q *surveysdb.Queries }
-
-func (l linkedStudents) Portal(ctx context.Context, a *iam.Access) ([]PortalStudent, error) {
-	rows, err := l.q.PortalStudents(ctx, a.UserID)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]PortalStudent, len(rows))
-	for i, r := range rows {
-		out[i] = PortalStudent{ID: r.ID, Name: r.FullName, Code: r.Code}
-	}
-	return out, nil
-}
-
 type Service struct {
-	pool     *pgxpool.Pool
-	q        *surveysdb.Queries
-	log      *slog.Logger
-	students Students
-	now      func() time.Time
+	pool *pgxpool.Pool
+	q    *surveysdb.Queries
+	log  *slog.Logger
+	now  func() time.Time
 }
 
 func NewService(pool *pgxpool.Pool, log *slog.Logger) *Service {
-	q := surveysdb.New(pool)
-	return &Service{pool: pool, q: q, log: log, students: linkedStudents{q}, now: time.Now}
-}
-
-// WithStudents thay bộ chọn học viên của cổng (nil giữ mặc định).
-func (s *Service) WithStudents(st Students) *Service {
-	if st != nil {
-		s.students = st
-	}
-	return s
+	return &Service{pool: pool, q: surveysdb.New(pool), log: log, now: time.Now}
 }
 
 func (s *Service) tx(ctx context.Context, fn func(tx pgx.Tx, q *surveysdb.Queries) error) error {
@@ -304,178 +260,4 @@ func (s *Service) Responses(ctx context.Context, a *iam.Access, id uuid.UUID) (*
 		page.Average = &avg
 	}
 	return page, nil
-}
-
-// ───────────── Cổng PH/HS: Khảo sát 5 sao ─────────────
-
-type OpenSurvey struct {
-	ID          uuid.UUID `json:"id"`
-	Title       string    `json:"title"`
-	Description *string   `json:"description"`
-	Deadline    string    `json:"deadline"` // dd/mm/yyyy hoặc "Chưa đặt hạn"
-	IsUrgent    bool      `json:"is_urgent"`
-	StatusText  string    `json:"status_text"`
-}
-
-type PastResponse struct {
-	ID          uuid.UUID  `json:"id"`
-	SurveyID    *uuid.UUID `json:"survey_id"`
-	Title       string     `json:"title"` // "Khảo sát: <đợt> - <học viên>" như AcademicRecord.title
-	SurveyTitle string     `json:"survey_title"`
-	Rating      int16      `json:"rating"`
-	Feedback    string     `json:"feedback"`
-	SubmittedAt string     `json:"submitted_at"` // dd/mm/yyyy HH:ii
-}
-
-type PortalPage struct {
-	Student  *PortalStudent  `json:"student"`
-	Students []PortalStudent `json:"students"`
-	Surveys  []OpenSurvey    `json:"surveys"`
-	Past     []PastResponse  `json:"past_surveys"`
-}
-
-// active: học viên đang chọn (studentID nil = học viên đầu), như getActiveStudent.
-func (s *Service) active(ctx context.Context, a *iam.Access, studentID *uuid.UUID) ([]PortalStudent, *PortalStudent, error) {
-	list, err := s.students.Portal(ctx, a)
-	if err != nil {
-		return nil, nil, err
-	}
-	if studentID != nil {
-		for i := range list {
-			if list[i].ID == *studentID {
-				return list, &list[i], nil
-			}
-		}
-		return nil, nil, ErrStudentForbidden
-	}
-	if len(list) == 0 {
-		return nil, nil, ErrNotLinked
-	}
-	return list, &list[0], nil
-}
-
-func (s *Service) Portal(ctx context.Context, a *iam.Access, studentID *uuid.UUID) (*PortalPage, error) {
-	list, st, err := s.active(ctx, a, studentID)
-	if err != nil {
-		return nil, err
-	}
-	open, err := s.q.OpenSurveys(ctx)
-	if err != nil {
-		return nil, err
-	}
-	page := &PortalPage{Student: st, Students: list, Surveys: make([]OpenSurvey, len(open)), Past: []PastResponse{}}
-	for i, sv := range open {
-		text, urgent := "Chưa đặt hạn", false
-		if sv.Deadline != nil {
-			text, urgent = sv.Deadline.Format("02/01/2006"), sv.Deadline.Equal(s.today())
-		}
-		status := "Hạn: " + text
-		if urgent {
-			status = "Hạn: Hôm nay"
-		}
-		page.Surveys[i] = OpenSurvey{ID: sv.ID, Title: sv.Title, Description: sv.Description, Deadline: text, IsUrgent: urgent, StatusText: status}
-	}
-	past, err := s.q.StudentResponses(ctx, st.ID)
-	if err != nil {
-		return nil, err
-	}
-	for _, r := range past {
-		page.Past = append(page.Past, PastResponse{ID: r.ID, SurveyID: r.SurveyID, Title: "Khảo sát: " + r.SurveyTitle + " - " + st.Name,
-			SurveyTitle: r.SurveyTitle, Rating: r.Rating, Feedback: r.Feedback, SubmittedAt: r.CreatedAt.In(vnZone).Format("02/01/2006 15:04")})
-	}
-	return page, nil
-}
-
-// SubmitInput: bài khảo sát (submitSurvey). v2 gửi survey_id thay cho survey_title (đợt phải đang mở).
-type SubmitInput struct {
-	StudentID string `json:"student_id"`
-	SurveyID  string `json:"survey_id"`
-	Rating    *int   `json:"rating"`
-	Feedback  string `json:"feedback"`
-}
-
-func (s *Service) Submit(ctx context.Context, a *iam.Access, in SubmitInput) (*Result, error) {
-	if strings.TrimSpace(in.StudentID) == "" {
-		return nil, iam.Invalid("Vui lòng nhập Học viên.")
-	}
-	sid, err := uuid.Parse(strings.TrimSpace(in.StudentID))
-	if err != nil {
-		return nil, iam.Invalid("Giá trị đã chọn trong trường Học viên không tồn tại.")
-	}
-	if strings.TrimSpace(in.SurveyID) == "" {
-		return nil, iam.Invalid("Vui lòng chọn đợt khảo sát.")
-	}
-	svID, err := uuid.Parse(strings.TrimSpace(in.SurveyID))
-	if err != nil {
-		return nil, iam.Invalid("Đợt khảo sát đã đóng hoặc không còn tồn tại.")
-	}
-	in.Feedback = strings.TrimSpace(in.Feedback)
-	if in.Feedback == "" {
-		return nil, iam.Invalid("Vui lòng nhập Góp ý.")
-	}
-	if runes(in.Feedback) < 5 {
-		return nil, iam.Invalid("Trường Góp ý phải có tối thiểu 5 ký tự.")
-	}
-	if runes(in.Feedback) > 5000 {
-		return nil, iam.Invalid("Trường Góp ý không được vượt quá 5000 ký tự.")
-	}
-	rating := 5
-	if in.Rating != nil {
-		rating = *in.Rating
-	}
-	if rating < 1 {
-		return nil, iam.Invalid("Trường Số sao phải tối thiểu là 1.")
-	}
-	if rating > 5 {
-		return nil, iam.Invalid("Trường Số sao không được lớn hơn 5.")
-	}
-	_, st, err := s.active(ctx, a, &sid)
-	if err != nil {
-		return nil, err
-	}
-	sv, err := s.q.GetSurvey(ctx, svID)
-	if errors.Is(err, pgx.ErrNoRows) || (err == nil && !sv.IsActive) {
-		return nil, iam.Invalid("Đợt khảo sát đã đóng hoặc không còn tồn tại.")
-	} else if err != nil {
-		return nil, err
-	}
-	var out *Result
-	err = s.tx(ctx, func(tx pgx.Tx, q *surveysdb.Queries) error {
-		r, err := q.InsertResponse(ctx, surveysdb.InsertResponseParams{SurveyID: &sv.ID, SurveyTitle: sv.Title, StudentID: st.ID,
-			UserID: &a.UserID, Rating: int16(rating), Feedback: in.Feedback})
-		if err != nil {
-			return err
-		}
-		out = &Result{ID: r.ID, Message: "Cảm ơn bạn đã gửi khảo sát! Trung tâm sẽ tiếp nhận và cải thiện chất lượng dịch vụ."}
-		return audit.Record(ctx, tx, audit.Entry{ActorID: &a.UserID, Module: audit.ModuleTests, Event: audit.EventCreated,
-			Action: "survey.submit", SubjectType: "survey_response", SubjectID: r.ID.String(), SubjectLabel: st.Name,
-			Description: "Gửi khảo sát: " + sv.Title + " - " + st.Name, Properties: map[string]any{"rating": rating, "survey_id": sv.ID}})
-	})
-	return out, err
-}
-
-// DeleteResponse: xóa bài của học viên mình được thao tác (deleteSurvey) để làm lại.
-func (s *Service) DeleteResponse(ctx context.Context, a *iam.Access, id uuid.UUID) (*Result, error) {
-	r, err := s.q.GetResponse(ctx, id)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrResponseNotFound
-	} else if err != nil {
-		return nil, err
-	}
-	_, st, err := s.active(ctx, a, &r.StudentID)
-	if err != nil {
-		return nil, err
-	}
-	err = s.tx(ctx, func(tx pgx.Tx, q *surveysdb.Queries) error {
-		if err := q.DeleteResponse(ctx, id); err != nil {
-			return err
-		}
-		return audit.Record(ctx, tx, audit.Entry{ActorID: &a.UserID, Module: audit.ModuleTests, Event: audit.EventDeleted,
-			Action: "survey.response_delete", SubjectType: "survey_response", SubjectID: id.String(), SubjectLabel: st.Name,
-			Description: "Xóa bài khảo sát: " + r.SurveyTitle + " - " + st.Name})
-	})
-	if err != nil {
-		return nil, err
-	}
-	return &Result{ID: id, Message: "Đã xóa bài khảo sát thành công! Bạn có thể thực hiện lại."}, nil
 }

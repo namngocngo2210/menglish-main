@@ -320,4 +320,3 @@ func (h *Handler) deleteFeedback(w http.ResponseWriter, r *http.Request) {
 	}
 	h.message(w, r, "Đã xóa feedback thành công! Trạng thái đã được đặt lại ban đầu.", h.svc.DeleteFeedback(r.Context(), actorOf(r), id))
 }
-

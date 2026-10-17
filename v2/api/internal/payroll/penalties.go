@@ -615,7 +615,10 @@ type AutoPenalty struct {
 	WorkTaskID    *uuid.UUID
 	BigTestID     *uuid.UUID
 	Notes         string
-	Title         string // tiêu đề thông báo; trống = "Biên bản <mã>: <lỗi>"
+	Title         string // tiêu đề thông báo; trống = "Biên bản <mã>: <Subject>" (Subject trống = lỗi)
+	Subject       string
+	Body          string         // nội dung thông báo; trống = lời nhắc giải trình mặc định
+	Data          map[string]any // thêm vào dữ liệu thông báo
 }
 
 // CreateAutoPenalty lập biên bản tự động trong tx của phân hệ gọi và báo người vi phạm (penalty_created).
@@ -643,11 +646,22 @@ func (s *Service) CreateAutoPenalty(ctx context.Context, tx pgxTx, in AutoPenalt
 	}
 	title := in.Title
 	if title == "" {
-		title = "Biên bản " + p.Code + ": " + in.ViolationType
+		subject := in.Subject
+		if subject == "" {
+			subject = in.ViolationType
+		}
+		title = "Biên bản " + p.Code + ": " + subject
+	}
+	body := in.Body
+	if body == "" {
+		body = "Bạn là người phụ trách. Hãy xử lý và gửi giải trình; biên bản chờ CM / Học thuật / Admin xác nhận trước khi tính vào lương."
+	}
+	data := map[string]any{"penalty_id": p.ID, "sla_rule": src}
+	for k, v := range in.Data {
+		data[k] = v
 	}
 	if _, err := notify.Send(ctx, tx, []uuid.UUID{in.UserID}, notify.Notification{Type: "penalty_created", Title: title,
-		Body: "Bạn là người phụ trách. Hãy xử lý và gửi giải trình; biên bản chờ CM / Học thuật / Admin xác nhận trước khi tính vào lương.",
-		Link: "/penalties?search=" + p.Code, Data: map[string]any{"penalty_id": p.ID, "sla_rule": src}}); err != nil {
+		Body: body, Link: "/penalties?search=" + p.Code, Data: data}); err != nil {
 		return nil, err
 	}
 	if err := audit.Record(ctx, tx, audit.Entry{Module: audit.ModulePayroll, Event: audit.EventCreated, Action: "penalty.auto",

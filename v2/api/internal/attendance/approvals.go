@@ -17,10 +17,12 @@ func (s *Service) ApprovalSource() approvals.Source { return requestSource{s} }
 
 type requestSource struct{ s *Service }
 
-func (requestSource) Key() string                { return "staff_attendance_request" }
-func (requestSource) Label() string              { return "Đơn chấm công & nghỉ" }
-func (requestSource) Group() string              { return approvals.GroupHR }
-func (requestSource) IndexURL() string           { return "/approvals?group=" + approvals.GroupSlug(approvals.GroupHR) }
+func (requestSource) Key() string   { return "staff_attendance_request" }
+func (requestSource) Label() string { return "Đơn chấm công & nghỉ" }
+func (requestSource) Group() string { return approvals.GroupHR }
+func (requestSource) IndexURL() string {
+	return "/approvals?group=" + approvals.GroupSlug(approvals.GroupHR)
+}
 func (requestSource) CanView(a *iam.Access) bool { return a.Can(PermCheckinApprove) }
 
 func (x requestSource) items(ctx context.Context, a *iam.Access) ([]approvals.Item, error) {

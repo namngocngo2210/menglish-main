@@ -248,45 +248,6 @@ func (q *Queries) OpenSurveys(ctx context.Context) ([]OpsSurvey, error) {
 	return items, nil
 }
 
-const portalStudents = `-- name: PortalStudents :many
-SELECT st.id, st.full_name, st.code::text AS code
-FROM academic.students st
-WHERE st.deleted_at IS NULL
-  -- Học viên vừa chốt (Chờ khai giảng) / nghỉ hè vẫn dùng cổng (getActiveStudent).
-  AND st.status IN ('waiting_start', 'studying', 'summer_break')
-  AND (st.user_id = $1::uuid
-       OR EXISTS (SELECT 1 FROM academic.student_guardians g WHERE g.student_id = st.id AND g.guardian_id = $1::uuid))
-ORDER BY st.full_name, st.id
-`
-
-type PortalStudentsRow struct {
-	ID       uuid.UUID
-	FullName string
-	Code     string
-}
-
-// Học viên tài khoản này được thao tác ở cổng PH/HS: chính học viên (tài khoản cổng) hoặc con của phụ huynh.
-// TODO(gộp): thay bằng bộ chọn học viên của phân hệ Cổng PH/HS khi gộp.
-func (q *Queries) PortalStudents(ctx context.Context, userID uuid.UUID) ([]PortalStudentsRow, error) {
-	rows, err := q.db.Query(ctx, portalStudents, userID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []PortalStudentsRow
-	for rows.Next() {
-		var i PortalStudentsRow
-		if err := rows.Scan(&i.ID, &i.FullName, &i.Code); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const softDeleteSurvey = `-- name: SoftDeleteSurvey :one
 UPDATE ops.surveys SET deleted_at = now(), updated_at = now() WHERE id = $1 AND deleted_at IS NULL RETURNING id, title, description, deadline, is_active, created_by, legacy_id, created_at, updated_at, deleted_at
 `
@@ -310,19 +271,36 @@ func (q *Queries) SoftDeleteSurvey(ctx context.Context, id uuid.UUID) (OpsSurvey
 }
 
 const studentResponses = `-- name: StudentResponses :many
-SELECT id, survey_id, survey_title, student_id, user_id, rating, feedback, legacy_id, created_at FROM ops.survey_responses WHERE student_id = $1 ORDER BY created_at DESC, id DESC
+SELECT r.id, r.survey_id, r.survey_title, r.student_id, r.user_id, r.rating, r.feedback, r.legacy_id, r.created_at, st.full_name AS student_name
+FROM ops.survey_responses r
+JOIN academic.students st ON st.id = r.student_id
+WHERE r.student_id = $1
+ORDER BY r.created_at DESC, r.id DESC
 `
 
+type StudentResponsesRow struct {
+	ID          uuid.UUID
+	SurveyID    *uuid.UUID
+	SurveyTitle string
+	StudentID   uuid.UUID
+	UserID      *uuid.UUID
+	Rating      int16
+	Feedback    string
+	LegacyID    *int64
+	CreatedAt   time.Time
+	StudentName string
+}
+
 // Lịch sử khảo sát của một học viên (cổng PH/HS), mới trước.
-func (q *Queries) StudentResponses(ctx context.Context, studentID uuid.UUID) ([]OpsSurveyResponse, error) {
+func (q *Queries) StudentResponses(ctx context.Context, studentID uuid.UUID) ([]StudentResponsesRow, error) {
 	rows, err := q.db.Query(ctx, studentResponses, studentID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []OpsSurveyResponse
+	var items []StudentResponsesRow
 	for rows.Next() {
-		var i OpsSurveyResponse
+		var i StudentResponsesRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.SurveyID,
@@ -333,6 +311,7 @@ func (q *Queries) StudentResponses(ctx context.Context, studentID uuid.UUID) ([]
 			&i.Feedback,
 			&i.LegacyID,
 			&i.CreatedAt,
+			&i.StudentName,
 		); err != nil {
 			return nil, err
 		}

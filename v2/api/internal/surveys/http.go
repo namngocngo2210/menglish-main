@@ -3,7 +3,6 @@ package surveys
 import (
 	"log/slog"
 	"net/http"
-	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -22,15 +21,11 @@ func NewHandler(svc *Service, log *slog.Logger) *Handler { return &Handler{svc: 
 // Routes:
 //   - Quản lý (survey.manage, như middleware can:survey.manage): GET/POST /surveys, PUT/DELETE /surveys/{id},
 //     GET /surveys/{id}/responses.
-//   - Cổng PH/HS (portal.student): GET /surveys/portal?student_id=, POST /surveys/portal,
-//     DELETE /surveys/portal/responses/{id}. TODO(gộp): Cổng PH/HS gọi các API này cho màn "Khảo sát 5 sao".
+//
+// Học viên / phụ huynh gửi / xóa khảo sát qua API của Cổng PH/HS (/portal/survey).
 func (h *Handler) Routes(r chi.Router) {
 	manage := iam.Require(PermManage)
-	portal := iam.Require(PermPortal)
 	r.Route("/surveys", func(r chi.Router) {
-		r.With(portal).Get("/portal", h.portal)
-		r.With(portal).Post("/portal", h.submit)
-		r.With(portal).Delete("/portal/responses/{id}", h.deleteResponse)
 		r.With(manage).Get("/", h.list)
 		r.With(manage).Post("/", h.create)
 		r.With(manage).Put("/{id}", h.update)
@@ -102,37 +97,5 @@ func (h *Handler) responses(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	res, err := h.svc.Responses(r.Context(), actor(r), id)
-	h.reply(w, r, http.StatusOK, res, err)
-}
-
-func (h *Handler) portal(w http.ResponseWriter, r *http.Request) {
-	var sid *uuid.UUID
-	if v := strings.TrimSpace(r.URL.Query().Get("student_id")); v != "" {
-		id, err := uuid.Parse(v)
-		if err != nil {
-			h.fail(w, r, ErrStudentForbidden)
-			return
-		}
-		sid = &id
-	}
-	res, err := h.svc.Portal(r.Context(), actor(r), sid)
-	h.reply(w, r, http.StatusOK, res, err)
-}
-
-func (h *Handler) submit(w http.ResponseWriter, r *http.Request) {
-	var in SubmitInput
-	if !httpx.Decode(w, r, &in) {
-		return
-	}
-	res, err := h.svc.Submit(r.Context(), actor(r), in)
-	h.reply(w, r, http.StatusCreated, res, err)
-}
-
-func (h *Handler) deleteResponse(w http.ResponseWriter, r *http.Request) {
-	id, ok := h.id(w, r, ErrResponseNotFound)
-	if !ok {
-		return
-	}
-	res, err := h.svc.DeleteResponse(r.Context(), actor(r), id)
 	h.reply(w, r, http.StatusOK, res, err)
 }

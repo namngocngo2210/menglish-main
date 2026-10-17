@@ -790,3 +790,16 @@ SELECT x.id, x.code, x.user_id, u.full_name AS user_name, coalesce(x.auto_key, '
 FROM hr.penalties x JOIN iam.users u ON u.id = x.user_id
 WHERE x.auto_source = @auto_source AND x.auto_key = ANY (@keys::text[])
 ORDER BY x.created_at DESC, x.id DESC;
+
+-- name: LockBigTestAutoPenalty :one
+-- Biên bản tự động của một đợt Big Test theo nguồn (trả kết quả trễ), khóa để cập nhật.
+SELECT * FROM hr.penalties WHERE big_test_id = @big_test_id AND auto_source = @auto_source
+ORDER BY created_at, id LIMIT 1 FOR UPDATE;
+
+-- name: UpdateLateResultPenalty :exec
+UPDATE hr.penalties
+SET violation_type = @violation_type, amount = @amount, user_id = coalesce(sqlc.narg(user_id), user_id), updated_at = now()
+WHERE id = @id;
+
+-- name: UserFullName :one
+SELECT full_name FROM iam.users WHERE id = $1;

@@ -45,7 +45,11 @@ LIMIT 500;
 
 -- name: StudentResponses :many
 -- Lịch sử khảo sát của một học viên (cổng PH/HS), mới trước.
-SELECT * FROM ops.survey_responses WHERE student_id = $1 ORDER BY created_at DESC, id DESC;
+SELECT r.*, st.full_name AS student_name
+FROM ops.survey_responses r
+JOIN academic.students st ON st.id = r.student_id
+WHERE r.student_id = $1
+ORDER BY r.created_at DESC, r.id DESC;
 
 -- name: CountStudentResponses :one
 SELECT count(*) FROM ops.survey_responses WHERE student_id = $1;
@@ -60,15 +64,3 @@ SELECT * FROM ops.survey_responses WHERE id = $1;
 
 -- name: DeleteResponse :exec
 DELETE FROM ops.survey_responses WHERE id = $1;
-
--- name: PortalStudents :many
--- Học viên tài khoản này được thao tác ở cổng PH/HS: chính học viên (tài khoản cổng) hoặc con của phụ huynh.
--- TODO(gộp): thay bằng bộ chọn học viên của phân hệ Cổng PH/HS khi gộp.
-SELECT st.id, st.full_name, st.code::text AS code
-FROM academic.students st
-WHERE st.deleted_at IS NULL
-  -- Học viên vừa chốt (Chờ khai giảng) / nghỉ hè vẫn dùng cổng (getActiveStudent).
-  AND st.status IN ('waiting_start', 'studying', 'summer_break')
-  AND (st.user_id = @user_id::uuid
-       OR EXISTS (SELECT 1 FROM academic.student_guardians g WHERE g.student_id = st.id AND g.guardian_id = @user_id::uuid))
-ORDER BY st.full_name, st.id;

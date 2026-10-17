@@ -42,12 +42,14 @@ type Timesheet struct {
 	Status       string
 }
 
-// TimesheetQuery: UserIDs rỗng + All = mọi người; OnlyValid = chỉ ca hợp lệ (tính lương), không thì mọi ca chưa bị từ chối.
+// TimesheetQuery: UserIDs rỗng + All = mọi người; OnlyValid = chỉ ca hợp lệ (tính lương), không thì mọi ca chưa bị từ chối
+// (WithInvalid = cả ca bị từ chối).
 type TimesheetQuery struct {
-	UserIDs   []uuid.UUID
-	All       bool
-	From, To  time.Time
-	OnlyValid bool
+	UserIDs     []uuid.UUID
+	All         bool
+	From, To    time.Time
+	OnlyValid   bool
+	WithInvalid bool
 }
 
 // Timesheets: ca dạy trong khoảng, theo ngày.
@@ -57,7 +59,7 @@ func (s *Service) Timesheets(ctx context.Context, in TimesheetQuery) ([]Timeshee
 		ids = []uuid.UUID{}
 	}
 	rows, err := s.q.RangeTimesheets(ctx, attendancedb.RangeTimesheetsParams{AllUsers: in.All, UserIds: ids,
-		FromDate: sqlDate(in.From), ToDate: sqlDate(in.To), OnlyValid: in.OnlyValid})
+		FromDate: sqlDate(in.From), ToDate: sqlDate(in.To), OnlyValid: in.OnlyValid, WithInvalid: in.WithInvalid})
 	if err != nil {
 		return nil, err
 	}
@@ -93,6 +95,28 @@ func (s *Service) ChangedSince(ctx context.Context, from, to, since time.Time) (
 }
 
 // ───────────── Check-in ca dạy (cổng giáo viên) ─────────────
+
+// SessionCheckin: ca dạy của một buổi (giờ check-in HH:MM, rỗng khi chấm tay không có giờ).
+type SessionCheckin struct {
+	Time   string
+	Status string
+}
+
+// SessionCheckins: ca dạy (mọi trạng thái) của người dùng theo buổi; buổi chưa có ca không có trong map.
+func (s *Service) SessionCheckins(ctx context.Context, userID uuid.UUID, sessionIDs []uuid.UUID) (map[uuid.UUID]SessionCheckin, error) {
+	out := map[uuid.UUID]SessionCheckin{}
+	if len(sessionIDs) == 0 {
+		return out, nil
+	}
+	rows, err := s.q.SessionCheckins(ctx, attendancedb.SessionCheckinsParams{UserID: userID, SessionIds: sessionIDs})
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range rows {
+		out[r.SessionID] = SessionCheckin{Time: deref(hm(r.CheckinTime)), Status: r.Status}
+	}
+	return out, nil
+}
 
 // CheckinInput: giáo viên / trợ giảng check-in một buổi học (cổng giáo viên đã kiểm buổi được phân công, hạn check-in).
 type CheckinInput struct {

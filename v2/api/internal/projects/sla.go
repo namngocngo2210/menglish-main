@@ -50,10 +50,10 @@ type Breach struct {
 	Facts       []Fact
 	Link        string
 	ResolvedAt  *time.Time // mốc đã hoàn thành (trễ)
+	DetectedAt  time.Time  // lúc lần quét phát hiện quá hạn
 }
 
-// Penalties là phân hệ Lương & biên bản (penalties / sla_events của Laravel).
-// TODO(gộp): phân hệ Lương & biên bản đang chuyển song song; khi gộp thì viết adapter và gắn bằng WithPenalties ở
+// Penalties là phân hệ Lương & biên bản (penalties / sla_events của Laravel), adapter gắn bằng WithPenalties ở
 // cmd/menglish. Breach phải bỏ qua mốc đã có biên bản (mỗi mốc một biên bản).
 type Penalties interface {
 	// Enabled: đã có nguồn biên bản (false: màn hình ghi "Chờ phân hệ Lương & biên bản").
@@ -182,7 +182,7 @@ func (s *Service) breachLate(ctx context.Context, since, now time.Time, grace in
 				{"Khối lượng", FormatQuantity(m.DoneQuantity) + " / " + FormatQuantity(m.TargetQuantity) + " " + m.Unit},
 				{"Hoàn thành lúc", doneAt},
 			},
-			Link: projectLink(m.ProjectID), ResolvedAt: m.CompletedAt,
+			Link: projectLink(m.ProjectID), ResolvedAt: m.CompletedAt, DetectedAt: now,
 		})
 		if err != nil {
 			return n, err

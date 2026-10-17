@@ -14,9 +14,15 @@ import (
 )
 
 func setup(t *testing.T) *iamtest.Env {
-	e := iamtest.Setup(t, "ops.surveys", "ops.survey_responses", "academic.student_guardians", "academic.students", "core.audit_log")
-	e.Serve(surveys.NewHandler(surveys.NewService(e.Pool, e.Log), e.Log).Routes)
+	e, _ := setupSvc(t)
 	return e
+}
+
+func setupSvc(t *testing.T) (*iamtest.Env, *surveys.Service) {
+	e := iamtest.Setup(t, "ops.surveys", "ops.survey_responses", "academic.student_guardians", "academic.students", "core.audit_log")
+	svc := surveys.NewService(e.Pool, e.Log)
+	e.Serve(surveys.NewHandler(svc, e.Log).Routes)
+	return e, svc
 }
 
 func expectMsg(t *testing.T, r iamtest.Resp, status int, msg string) {
@@ -46,11 +52,6 @@ func TestSurveyPermissions(t *testing.T) {
 		iamtest.Expect(t, c.Do("PUT", "/surveys/"+uuid.NewString(), map[string]any{"title": "X"}), 403, "forbidden")
 		iamtest.Expect(t, c.Do("DELETE", "/surveys/"+uuid.NewString(), nil), 403, "forbidden")
 	}
-	// Cổng PH/HS: quyền đối tượng portal.student, Admin / nhân sự không có
-	iamtest.Expect(t, admin.Do("GET", "/surveys/portal", nil), 403, "forbidden")
-	iamtest.Expect(t, staff.Do("POST", "/surveys/portal", map[string]any{}), 403, "forbidden")
-	// Học viên chưa liên kết hồ sơ
-	expectMsg(t, stu.Do("GET", "/surveys/portal", nil), 403, "Tài khoản chưa được liên kết với hồ sơ học viên.")
 	iamtest.Expect(t, staff.Do("PUT", "/surveys/"+uuid.NewString(), map[string]any{"title": "X"}), 404, "survey_not_found")
 	iamtest.Expect(t, staff.Do("DELETE", "/surveys/abc", nil), 404, "survey_not_found")
 }
@@ -80,31 +81,24 @@ func TestSurveyValidation(t *testing.T) {
 	expectMsg(t, staff.Do("PUT", "/surveys/"+str(r.Body["id"]), map[string]any{"title": ""}), 422, "Vui lòng nhập Tiêu đề.")
 }
 
-func TestSurveyManageAndPortalFlow(t *testing.T) {
-	e := setup(t)
+func TestSurveyManageAndResponses(t *testing.T) {
+	e, svc := setupSvc(t)
 	ctx := context.Background()
 	hn, hcm := e.Branch("HN"), e.Branch("HCM")
 	staffU, staff := e.Member("HV01", "Học vụ", []uuid.UUID{hn}, iam.RoleAcademicStaff)
-	stuU, stu := e.Member("ST01", "Học viên A", []uuid.UUID{hn}, iam.RoleStudent)
-	parentU, parent := e.Member("PH01", "Phụ huynh B", []uuid.UUID{hcm}, iam.RoleStudent)
-	newStudent := func(code, name string, branch uuid.UUID, user *uuid.UUID, status string) uuid.UUID {
+	stuU, _ := e.Member("ST01", "Học viên A", []uuid.UUID{hn}, iam.RoleStudent)
+	parentU, _ := e.Member("PH01", "Phụ huynh B", []uuid.UUID{hcm}, iam.RoleStudent)
+	newStudent := func(code, name string, branch uuid.UUID, user *uuid.UUID) uuid.UUID {
 		var id uuid.UUID
 		err := e.Pool.QueryRow(ctx, `INSERT INTO academic.students (code, full_name, phone, branch_id, status, user_id)
-			VALUES ($1, $2, '0900000000', $3, $4, $5) RETURNING id`, code, name, branch, status, user).Scan(&id)
+			VALUES ($1, $2, '0900000000', $3, 'studying', $4) RETURNING id`, code, name, branch, user).Scan(&id)
 		if err != nil {
 			t.Fatal(err)
 		}
 		return id
 	}
-	a := newStudent("HS01", "Học viên A", hn, &stuU.ID, "studying")
-	b := newStudent("HS02", "Bé B", hcm, nil, "waiting_start")
-	newStudent("HS03", "Bé C đã nghỉ", hcm, nil, "dropped")
-	for _, s := range []string{"HS02", "HS03"} {
-		if _, err := e.Pool.Exec(ctx, `INSERT INTO academic.student_guardians (student_id, guardian_id) SELECT id, $1 FROM academic.students WHERE code = $2`,
-			parentU.ID, s); err != nil {
-			t.Fatal(err)
-		}
-	}
+	a := newStudent("HS01", "Học viên A", hn, &stuU.ID)
+	b := newStudent("HS02", "Bé B", hcm, nil)
 
 	// Học vụ tạo 2 đợt, đóng 1 đợt
 	r := staff.Do("POST", "/surveys", map[string]any{"title": "Cơ sở vật chất tháng 10", "description": " Phòng học ", "deadline": today})
@@ -124,45 +118,34 @@ func TestSurveyManageAndPortalFlow(t *testing.T) {
 		t.Fatalf("danh sách: %v", list)
 	}
 
-	// Học viên: thấy đợt đang mở, nộp bài
-	p := stu.Do("GET", "/surveys/portal", nil)
-	iamtest.Expect(t, p, 200, "")
-	svs := iamtest.List(t, p, "surveys")
-	if len(svs) != 1 || svs[0]["status_text"] != "Hạn: Hôm nay" || svs[0]["is_urgent"] != true || str(p.Body["student"].(map[string]any)["id"]) != a.String() {
-		t.Fatalf("cổng: %s", p.Raw)
+	// Dữ liệu cho Cổng PH/HS: chỉ đợt đang mở; đợt đã đóng không nhận bài
+	openList, err := svc.OpenSurveys(ctx)
+	if err != nil || len(openList) != 1 || openList[0].ID.String() != open || openList[0].Deadline == nil {
+		t.Fatalf("đợt đang mở: %v %v", openList, err)
 	}
-	for _, c := range []struct {
-		body map[string]any
-		msg  string
-	}{
-		{map[string]any{"survey_id": open, "feedback": "Rất tốt ạ"}, "Vui lòng nhập Học viên."},
-		{map[string]any{"student_id": a.String(), "feedback": "Rất tốt ạ"}, "Vui lòng chọn đợt khảo sát."},
-		{map[string]any{"student_id": a.String(), "survey_id": open, "feedback": " "}, "Vui lòng nhập Góp ý."},
-		{map[string]any{"student_id": a.String(), "survey_id": open, "feedback": "Tốt"}, "Trường Góp ý phải có tối thiểu 5 ký tự."},
-		{map[string]any{"student_id": a.String(), "survey_id": open, "feedback": "Rất tốt ạ", "rating": 0}, "Trường Số sao phải tối thiểu là 1."},
-		{map[string]any{"student_id": a.String(), "survey_id": open, "feedback": "Rất tốt ạ", "rating": 6}, "Trường Số sao không được lớn hơn 5."},
-		{map[string]any{"student_id": a.String(), "survey_id": closed, "feedback": "Rất tốt ạ"}, "Đợt khảo sát đã đóng hoặc không còn tồn tại."},
-	} {
-		expectMsg(t, stu.Do("POST", "/surveys/portal", c.body), 422, c.msg)
+	respond := func(survey string, student, by uuid.UUID, rating int, fb string) error {
+		tx, err := e.Pool.Begin(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer tx.Rollback(ctx) //nolint:errcheck
+		if err := svc.Respond(ctx, tx, surveys.Answer{SurveyID: uuid.MustParse(survey), StudentID: student, By: by, Rating: rating, Feedback: fb}); err != nil {
+			return err
+		}
+		return tx.Commit(ctx)
 	}
-	// Không nộp hộ học viên không liên kết
-	expectMsg(t, stu.Do("POST", "/surveys/portal", map[string]any{"student_id": b.String(), "survey_id": open, "feedback": "Rất tốt ạ"}), 403,
-		"Bạn không được phép truy cập hồ sơ học viên này.")
-	r = stu.Do("POST", "/surveys/portal", map[string]any{"student_id": a.String(), "survey_id": open, "rating": 4, "feedback": "Phòng học sạch"})
-	iamtest.Expect(t, r, 201, "")
-	if r.Body["message"] != "Cảm ơn bạn đã gửi khảo sát! Trung tâm sẽ tiếp nhận và cải thiện chất lượng dịch vụ." {
-		t.Fatalf("nộp: %s", r.Raw)
+	if err := respond(closed, a, stuU.ID, 5, "Rất tốt ạ"); err != surveys.ErrClosed {
+		t.Fatalf("đợt đã đóng: %v", err)
 	}
-	mine := str(r.Body["id"])
-
-	// Phụ huynh: chỉ thấy con đang học (bỏ học viên đã nghỉ), mặc định chọn con đầu; không xem được học viên khác
-	p = parent.Do("GET", "/surveys/portal", nil)
-	if sts := iamtest.List(t, p, "students"); len(sts) != 1 || sts[0]["id"] != b.String() || len(iamtest.List(t, p, "past_surveys")) != 0 {
-		t.Fatalf("phụ huynh: %s", p.Raw)
+	if err := respond(uuid.NewString(), a, stuU.ID, 5, "Rất tốt ạ"); err != surveys.ErrClosed {
+		t.Fatalf("đợt không tồn tại: %v", err)
 	}
-	expectMsg(t, parent.Do("GET", "/surveys/portal?student_id="+a.String(), nil), 403, "Bạn không được phép truy cập hồ sơ học viên này.")
-	expectMsg(t, parent.Do("DELETE", "/surveys/portal/responses/"+mine, nil), 403, "Bạn không được phép truy cập hồ sơ học viên này.")
-	iamtest.Expect(t, parent.Do("POST", "/surveys/portal", map[string]any{"student_id": b.String(), "survey_id": open, "feedback": "Con thích lớp"}), 201, "")
+	if err := respond(open, a, stuU.ID, 4, "Phòng học sạch"); err != nil {
+		t.Fatal(err)
+	}
+	if err := respond(open, b, parentU.ID, 5, "Con thích lớp"); err != nil {
+		t.Fatal(err)
+	}
 
 	// Học vụ xem bài đã nộp
 	res := staff.Do("GET", "/surveys/"+open+"/responses", nil)
@@ -174,22 +157,21 @@ func TestSurveyManageAndPortalFlow(t *testing.T) {
 	// Xóa đợt: lịch sử học viên vẫn giữ tên đợt
 	expectMsg(t, staff.Do("DELETE", "/surveys/"+open, nil), 200, `Đã xóa khảo sát "Cơ sở vật chất tháng 10".`)
 	iamtest.Expect(t, staff.Do("DELETE", "/surveys/"+open, nil), 404, "survey_not_found")
-	p = stu.Do("GET", "/surveys/portal", nil)
-	past := iamtest.List(t, p, "past_surveys")
-	if len(iamtest.List(t, p, "surveys")) != 0 || len(past) != 1 || past[0]["title"] != "Khảo sát: Cơ sở vật chất tháng 10 - Học viên A" ||
-		past[0]["rating"] != float64(4) || past[0]["feedback"] != "Phòng học sạch" {
-		t.Fatalf("lịch sử: %s", p.Raw)
+	past, err := svc.StudentResponses(ctx, a)
+	if err != nil || len(past) != 1 || past[0].Title != "Khảo sát: Cơ sở vật chất tháng 10 - Học viên A" || past[0].Rating != 4 ||
+		past[0].Feedback != "Phòng học sạch" {
+		t.Fatalf("lịch sử: %+v %v", past, err)
 	}
-	// Học viên xóa bài của mình để làm lại
-	expectMsg(t, stu.Do("DELETE", "/surveys/portal/responses/"+mine, nil), 200, "Đã xóa bài khảo sát thành công! Bạn có thể thực hiện lại.")
-	iamtest.Expect(t, stu.Do("DELETE", "/surveys/portal/responses/"+mine, nil), 404, "survey_response_not_found")
+	if owner, err := svc.ResponseStudent(ctx, past[0].ID); err != nil || owner != a {
+		t.Fatalf("chủ bài: %v %v", owner, err)
+	}
 
 	var logs int
-	if err := e.Pool.QueryRow(ctx, `SELECT count(*) FROM core.audit_log WHERE action LIKE 'survey.%' AND actor_id IN ($1, $2, $3)`,
-		staffU.ID, stuU.ID, parentU.ID).Scan(&logs); err != nil {
+	if err := e.Pool.QueryRow(ctx, `SELECT count(*) FROM core.audit_log WHERE action LIKE 'survey.%' AND actor_id = $1`,
+		staffU.ID).Scan(&logs); err != nil {
 		t.Fatal(err)
 	}
-	if logs != 7 {
+	if logs != 4 {
 		t.Fatalf("nhật ký: %d", logs)
 	}
 }

@@ -2191,6 +2191,56 @@ func (q *Queries) ListTeacherRates(ctx context.Context) ([]HrTeacherRate, error)
 	return items, nil
 }
 
+const lockBigTestAutoPenalty = `-- name: LockBigTestAutoPenalty :one
+SELECT id, code, user_id, class_id, work_task_id, big_test_id, auto_source, auto_key, violation_type, error_category, violation_date, violation_at, amount, reporter_id, status, payroll_record_id, notes, evidence_file_id, explanation, explained_at, decided_by, decided_at, decision_note, due_date, paid_at, remedied_at, remedied_by, remedy_note, legacy_id, created_at, updated_at FROM hr.penalties WHERE big_test_id = $1 AND auto_source = $2
+ORDER BY created_at, id LIMIT 1 FOR UPDATE
+`
+
+type LockBigTestAutoPenaltyParams struct {
+	BigTestID  *uuid.UUID
+	AutoSource *string
+}
+
+// Biên bản tự động của một đợt Big Test theo nguồn (trả kết quả trễ), khóa để cập nhật.
+func (q *Queries) LockBigTestAutoPenalty(ctx context.Context, arg LockBigTestAutoPenaltyParams) (HrPenalty, error) {
+	row := q.db.QueryRow(ctx, lockBigTestAutoPenalty, arg.BigTestID, arg.AutoSource)
+	var i HrPenalty
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.UserID,
+		&i.ClassID,
+		&i.WorkTaskID,
+		&i.BigTestID,
+		&i.AutoSource,
+		&i.AutoKey,
+		&i.ViolationType,
+		&i.ErrorCategory,
+		&i.ViolationDate,
+		&i.ViolationAt,
+		&i.Amount,
+		&i.ReporterID,
+		&i.Status,
+		&i.PayrollRecordID,
+		&i.Notes,
+		&i.EvidenceFileID,
+		&i.Explanation,
+		&i.ExplainedAt,
+		&i.DecidedBy,
+		&i.DecidedAt,
+		&i.DecisionNote,
+		&i.DueDate,
+		&i.PaidAt,
+		&i.RemediedAt,
+		&i.RemediedBy,
+		&i.RemedyNote,
+		&i.LegacyID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const lockPenalty = `-- name: LockPenalty :one
 SELECT id, code, user_id, class_id, work_task_id, big_test_id, auto_source, auto_key, violation_type, error_category, violation_date, violation_at, amount, reporter_id, status, payroll_record_id, notes, evidence_file_id, explanation, explained_at, decided_by, decided_at, decision_note, due_date, paid_at, remedied_at, remedied_by, remedy_note, legacy_id, created_at, updated_at FROM hr.penalties WHERE id = $1 FOR UPDATE
 `
@@ -4079,6 +4129,29 @@ func (q *Queries) UpdateCommissionItem(ctx context.Context, arg UpdateCommission
 	return err
 }
 
+const updateLateResultPenalty = `-- name: UpdateLateResultPenalty :exec
+UPDATE hr.penalties
+SET violation_type = $1, amount = $2, user_id = coalesce($3, user_id), updated_at = now()
+WHERE id = $4
+`
+
+type UpdateLateResultPenaltyParams struct {
+	ViolationType string
+	Amount        int64
+	UserID        *uuid.UUID
+	ID            uuid.UUID
+}
+
+func (q *Queries) UpdateLateResultPenalty(ctx context.Context, arg UpdateLateResultPenaltyParams) error {
+	_, err := q.db.Exec(ctx, updateLateResultPenalty,
+		arg.ViolationType,
+		arg.Amount,
+		arg.UserID,
+		arg.ID,
+	)
+	return err
+}
+
 const updateRecordInputs = `-- name: UpdateRecordInputs :one
 UPDATE hr.payroll_records SET retention_tier = $1, kpi_manual_amount = $2,
     foreign_session_pay = $3, tax_deduction = $4, manual_lines = $5,
@@ -4441,6 +4514,17 @@ func (q *Queries) UserBranchIDs(ctx context.Context, ids []uuid.UUID) ([]UserBra
 		return nil, err
 	}
 	return items, nil
+}
+
+const userFullName = `-- name: UserFullName :one
+SELECT full_name FROM iam.users WHERE id = $1
+`
+
+func (q *Queries) UserFullName(ctx context.Context, id uuid.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, userFullName, id)
+	var full_name string
+	err := row.Scan(&full_name)
+	return full_name, err
 }
 
 const usersBrief = `-- name: UsersBrief :many
