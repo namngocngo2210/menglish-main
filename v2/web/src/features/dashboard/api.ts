@@ -182,13 +182,28 @@ export type Journal = {
   followup: string | null
   status: string
 }
+export type IncidentTicket = {
+  id: string
+  code: string
+  can_open: boolean
+  branch: string | null
+  category_label: string
+  title: string
+  excerpt: string
+  priority: string
+  assignee: string | null
+  creator: string
+  status: string
+  status_label: string
+}
 export type IncidentFilter = { severity: string; status: string; branch_id: string; class_id: string }
 export type Incidents = IncidentFilter & {
   branches: Option[]
   classes: Option[]
   journals: Journal[]
-  tickets: unknown[]
-  tickets_pending: string
+  tickets: IncidentTicket[]
+  // Phân hệ Ticket chưa nối: lý do (màn hiện "Chờ phân hệ…")
+  tickets_pending: string | null
   total_incidents: number
   resolved_count: number
   open_count: number

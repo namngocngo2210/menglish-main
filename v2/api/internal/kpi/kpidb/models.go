@@ -1311,6 +1311,64 @@ type OpsStockMovement struct {
 	CreatedAt           time.Time
 }
 
+type OpsSurvey struct {
+	ID          uuid.UUID
+	Title       string
+	Description *string
+	Deadline    *time.Time
+	IsActive    bool
+	CreatedBy   *uuid.UUID
+	LegacyID    *int64
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	DeletedAt   *time.Time
+}
+
+type OpsSurveyResponse struct {
+	ID          uuid.UUID
+	SurveyID    *uuid.UUID
+	SurveyTitle string
+	StudentID   uuid.UUID
+	UserID      *uuid.UUID
+	Rating      int16
+	Feedback    string
+	LegacyID    *int64
+	CreatedAt   time.Time
+}
+
+type OpsTicket struct {
+	ID              uuid.UUID
+	Code            string
+	SubmissionToken *string
+	Title           string
+	Category        string
+	Priority        string
+	Status          string
+	CreatorID       uuid.UUID
+	AssigneeID      *uuid.UUID
+	Description     string
+	ResolvedAt      *time.Time
+	LegacyID        *int64
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+type OpsTicketCounter struct {
+	Year       int16
+	LastNumber int32
+}
+
+type OpsTicketMessage struct {
+	ID             uuid.UUID
+	TicketID       uuid.UUID
+	UserID         *uuid.UUID
+	Message        string
+	IsInternalNote bool
+	LegacyID       *int64
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
 type OpsWorkTask struct {
 	ID                    uuid.UUID
 	No                    int64

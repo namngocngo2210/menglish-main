@@ -47,6 +47,8 @@ type Deps struct {
 	Reports  Reports
 	Orders   Orders
 	Branches Branches
+	// Tickets: nil = chưa có (màn hiện "Chờ phân hệ Ticket hỗ trợ").
+	Tickets Tickets
 	// Finance, Work: phân hệ đang làm song song; nil = chưa có.
 	Finance Finance
 	Work    StaffWork
@@ -66,6 +68,9 @@ func NewService(d Deps, log *slog.Logger) *Service {
 	}
 	if d.Work == nil {
 		d.Work = noStaffWork{}
+	}
+	if d.Tickets == nil {
+		d.Tickets = noTickets{}
 	}
 	return &Service{d: d, log: log, now: time.Now}
 }

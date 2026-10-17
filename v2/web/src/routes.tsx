@@ -40,6 +40,9 @@ import { AcademicPage } from './features/dashboard/AcademicPage'
 import { DashboardPage } from './features/dashboard/DashboardPage'
 import { seesDashboard } from './features/dashboard/logic'
 import { AccountPage } from './pages/AccountPage'
+import { ApprovalsPage as ApprovalInboxPage } from './features/approvals/ApprovalsPage'
+import { SurveysPage } from './features/surveys/SurveysPage'
+import { GuidePage } from './features/guide/GuidePage'
 import { BranchesPage } from './pages/admin/BranchesPage'
 import { RolesPage } from './pages/admin/RolesPage'
 import { UsersPage } from './pages/admin/UsersPage'
@@ -84,6 +87,7 @@ import { legacyMobileTarget, Redirect } from './features/attendance/parts'
 import { RequestsPage as AttendanceRequestsPage } from './features/attendance/RequestsPage'
 import { AppSheetPage, SyncHistoryPage } from './features/attendance/SyncPages'
 import { TeacherTimesheetsPage } from './features/attendance/TeacherTimesheetsPage'
+import { TicketsPage } from './features/tickets/TicketsPage'
 
 // Trang theo đường dẫn mục menu (NAV trong nav.ts). Trang con (vd. /students/<id>) dùng chung mục cha và tự đọc
 // phần còn lại của đường dẫn bằng usePath(). Module mới: thêm mục vào NAV và một dòng ở đây.
@@ -182,6 +186,10 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/payroll/timesheets/appsheet': () => <AppSheetPage />,
   '/payroll/timesheets/sync-history': () => <SyncHistoryPage />,
   '/m': () => <Redirect to={legacyMobileTarget(window.location.pathname)} />,
+  '/tickets': (me) => <TicketsPage me={me} />,
+  '/approvals': (me) => <ApprovalInboxPage me={me} />,
+  '/surveys': (me) => <SurveysPage me={me} />,
+  '/huong-dan': (me) => <GuidePage me={me} />,
 }
 
 // Trang "/": nhân sự → Tổng quan; tài khoản cổng (học viên / phụ huynh) → Trang chủ cổng học viên như Laravel

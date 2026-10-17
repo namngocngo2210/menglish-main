@@ -243,6 +243,50 @@ type Orders interface {
 	Academic(ctx context.Context, requesters []uuid.UUID, from, to time.Time, limit int) ([]AcademicOrder, error)
 }
 
+// TicketCounts: ticket đang mở (Mới + Đang xử lý) và ticket Mới chưa có người xử lý.
+type TicketCounts struct {
+	Open       int64
+	Unassigned int64
+}
+
+// IncidentTicket: ticket hỗ trợ nổi cộm trên màn Nhật ký sự vụ.
+type IncidentTicket struct {
+	ID            uuid.UUID `json:"id"`
+	Code          string    `json:"code"`
+	CanOpen       bool      `json:"can_open"`
+	Branch        *string   `json:"branch"`
+	CategoryLabel string    `json:"category_label"`
+	Title         string    `json:"title"`
+	Excerpt       string    `json:"excerpt"`
+	Priority      string    `json:"priority"`
+	Assignee      *string   `json:"assignee"`
+	Creator       string    `json:"creator"`
+	Status        string    `json:"status"`
+	StatusLabel   string    `json:"status_label"`
+}
+
+// TicketIncidentFilter: mức ưu tiên cần lấy, chi nhánh chính của người tạo, trạng thái (open | resolved | rỗng = mọi).
+type TicketIncidentFilter struct {
+	Priorities []string
+	BranchID   *uuid.UUID
+	Status     string
+}
+
+// Tickets: ticket hỗ trợ (adapter tickets.Service.DashboardTickets). Counts trả nil = phân hệ chưa có.
+type Tickets interface {
+	// Counts: lọc theo chi nhánh chính của người tạo ticket.
+	Counts(ctx context.Context, branches []uuid.UUID) (*TicketCounts, error)
+	// Incidents: mới trước, tối đa limit; ok = false khi phân hệ chưa có.
+	Incidents(ctx context.Context, a *iam.Access, f TicketIncidentFilter, limit int) (rows []IncidentTicket, ok bool, err error)
+}
+
+type noTickets struct{}
+
+func (noTickets) Counts(context.Context, []uuid.UUID) (*TicketCounts, error) { return nil, nil }
+func (noTickets) Incidents(context.Context, *iam.Access, TicketIncidentFilter, int) ([]IncidentTicket, bool, error) {
+	return nil, false, nil
+}
+
 // ───────────── Phân hệ đang làm song song: mặc định "chưa có" ─────────────
 
 // Finance: số liệu học phí. Trả nil = phân hệ chưa có (màn hiện "Chờ phân hệ Học phí").

@@ -27,7 +27,7 @@ Trạng thái: **Đã làm** · **Khác** (đã làm, khác có chủ đích, xe
 | `isPortalStudentOnly()` → chuyển sang `portal.student.home` | `/` của học viên / phụ huynh là "Tài khoản của tôi" | Khác | v2 chưa có cổng học viên; khi có thì đổi `PAGES['/']` trong `routes.tsx`. |
 | Trang tài khoản (trước đây ở `/` của v2) | Màn `/profile` | Khác | Menu "Tài khoản" trên topbar mở `/profile`; sidebar của học viên / phụ huynh có mục "Tài khoản của tôi". |
 | `GET /academic/dashboards/reports` `academic.dashboards.reports` → `reports` | `GET /api/v1/academic/dashboards/reports?tab=` · màn `/academic/dashboards` (+ `/reports`) | Làm một phần | `iam.Require(class.update)` như `can:class.update`. Thiếu báo cáo trực lớp, đề xuất giãn tiến độ, Big Test (xem bảng dưới). |
-| `GET /academic/dashboards/incidents` `academic.dashboards.incidents` → `incidents` | `GET /api/v1/academic/dashboards/incidents?severity=&status=&branch_id=&class_id=` · màn `/academic/dashboards/incidents` | Làm một phần | `class.update`. Thiếu ticket hỗ trợ và nhật ký học vụ cũ (`academic_records`). |
+| `GET /academic/dashboards/incidents` `academic.dashboards.incidents` → `incidents` | `GET /api/v1/academic/dashboards/incidents?severity=&status=&branch_id=&class_id=` · màn `/academic/dashboards/incidents` | Làm một phần | `class.update`. Có ticket hỗ trợ khẩn / cao (xem `ticket.md`); thiếu nhật ký học vụ cũ (`academic_records`). |
 | `GET /academic/reports` `academic.reports`, `GET /academic/incidents` `academic.incidents` (URL cũ) | Màn `/academic/reports`, `/academic/incidents` | Đã làm | Mở cùng màn, không có mục menu riêng. |
 | SidebarMenu: link "Tổng quan" đầu sidebar | `NAV` `/` "Tổng quan" (icon `dashboard`) | Đã làm | Chỉ hiện với người mở được Tổng quan; người khác thấy "Tài khoản của tôi". |
 | SidebarMenu: "Báo cáo & sự vụ lớp" (khu Báo cáo › Đào tạo & Chất lượng lớp, neo `class.update`) | `NAV` `/academic/dashboards` | Đã làm | Các mục còn lại của workspace (dự giờ, checklist, họp giáo viên, dự án học thuật) chờ phân hệ Chất lượng lớp. |
@@ -58,7 +58,7 @@ Trạng thái: **Đã làm** · **Khác** (đã làm, khác có chủ đích, xe
 | Thẻ học viên đang học, lead mới trong tháng, lớp đang chạy, việc quá hạn | `Students`, `Leads`, `Classes`, `Tasks` | Đã làm | Việc gắn chi nhánh hoặc người nhận có chi nhánh chính thuộc phạm vi; nhiệm vụ hằng ngày của TA không tính quá hạn. |
 | Hàng chờ: việc chờ xác nhận, hẹn test hôm nay (khi xem được khách) | `Tasks.Operations`, `Leads.Summary` | Đã làm | |
 | Hàng chờ: báo cáo trực lớp chờ Admin xác nhận | — | Chưa làm | "Chờ phân hệ Báo cáo trực lớp". |
-| Hàng chờ: ticket hỗ trợ đang mở | — | Chưa làm | "Chờ phân hệ Ticket hỗ trợ". |
+| Hàng chờ: ticket hỗ trợ đang mở | `dashboard.Tickets` ← `tickets.DashboardTickets()` | Đã làm | "Ticket đang mở", gợi ý "%d ticket chưa có người xử lý", link `/tickets`. |
 | "Việc quá hạn cần xử lý" (5 việc), link danh sách `tasks.index?tab=assigned&status=overdue` | `overdue_tasks`, link `/tasks?tab=assigned&status=overdue` | Đã làm | Danh sách đầu việc đọc `?tab=` và `?status=` từ URL. Mỗi việc mở `/tasks/<id>`. |
 
 ## Bảng Học thuật (`academicDashboard`)
@@ -111,15 +111,15 @@ Trạng thái: **Đã làm** · **Khác** (đã làm, khác có chủ đích, xe
 |---|---|---|---|
 | Lọc cơ sở, lớp, mức độ (khẩn / cao / trung bình / thấp), trạng thái (đang xử lý / đã giải quyết) | `IncidentFilter`, bộ lọc giữ trên URL | Đã làm | Mức nhật ký: khẩn ↔ khẩn, quan trọng ↔ cao, bình thường ↔ trung bình; "thấp" không có nhật ký nào. Cơ sở theo lớp, sự việc không gắn lớp theo chi nhánh chính của người ghi. |
 | Nhật ký sự vụ (30 dòng): mã, cơ sở, lớp (link lớp), mức độ, người ghi, follow-up mới nhất, trạng thái | `Reports.Journals` | Đã làm | Link lớp mở `/classes/<id>` (tab Sự vụ của lớp chưa có). |
-| Thẻ tổng, khẩn cấp, đang theo dõi, đã giải quyết | `total_incidents`, `urgent_count`, `open_count`, `resolved_count` | Làm một phần | Laravel đếm thêm ticket khẩn cấp (chờ phân hệ Ticket). |
-| Ticket hỗ trợ khẩn / cao | `tickets_pending` | Chưa làm | "Chờ phân hệ Ticket hỗ trợ". |
+| Thẻ tổng, khẩn cấp, đang theo dõi, đã giải quyết | `total_incidents`, `urgent_count`, `open_count`, `resolved_count` | Đã làm | Đếm cả ticket khẩn cấp / đã giải quyết như Laravel. |
+| Ticket hỗ trợ khẩn / cao | `tickets` (`tickets_pending` = null) | Đã làm | Theo mức độ đang lọc, chi nhánh chính của người tạo; lọc theo lớp thì không có ticket. |
 | Nhật ký học vụ cũ (`academic_records`) | — | Chưa làm | Dữ liệu cũ chưa import sang v2. |
 | Nút "Ghi sự vụ" (`staff_report.submit`) | `can_submit_journal` → `/reports/journal` | Đã làm | |
 
 ## Khác biệt có chủ đích
 
 - Gói `dashboard` chỉ đọc qua interface; số liệu của phân hệ chưa chuyển (học phí, lương, chấm công & KPI, giáo trình &
-  Big Test, ticket, báo cáo trực lớp, dự án học thuật, bài tập / mini test) trả `pending` kèm câu "Chờ phân hệ …" thay vì
+  Big Test, báo cáo trực lớp, dự án học thuật, bài tập / mini test) trả `pending` kèm câu "Chờ phân hệ …" thay vì
   số 0, để không nhầm là không có việc.
 - `/` là Tổng quan cho nhân sự, trang tài khoản ở `/profile`.
 - Không có lệnh ghi nên không cần nhật ký thao tác / thông báo riêng.

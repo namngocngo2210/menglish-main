@@ -1,7 +1,10 @@
+import { useQuery } from '@tanstack/react-query'
 import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type SyntheticEvent } from 'react'
 import type { Me } from '../../api'
 import { isPortalOnly } from '../../features/portal/logic'
-import { buildSidebar, type SidebarLink } from '../../nav'
+import { approvalsApi } from '../../features/approvals/api'
+import { badgeText } from '../../features/approvals/logic'
+import { APPROVAL_ANCHORS, buildSidebar, can, isAdmin, type SidebarLink } from '../../nav'
 import { navigate } from '../../router'
 import { Icon } from '../ui'
 
@@ -11,6 +14,7 @@ import { Icon } from '../ui'
 // dưới logo cạnh nút đóng). Dạng icon: rê chuột / focus vào mục hiện tooltip tên mục.
 
 const SCROLL_KEY = 'sidebar_scroll_top'
+const APPROVAL_GROUP = 'Cần duyệt'
 
 type Tip = { text: string; top: number; left: number }
 
@@ -32,6 +36,10 @@ export function Sidebar({
   onLogout: () => void
 }) {
   const sidebar = buildSidebar(me, path)
+  // Badge "Cần duyệt" = tổng việc chờ duyệt (máy chủ cache 60s), chỉ Admin có quyền neo.
+  const showBadge = isAdmin(me) && can(me, ...APPROVAL_ANCHORS) && sidebar.sections.some((s) => s.links.some((l) => l.key === APPROVAL_GROUP))
+  const badge = useQuery({ queryKey: ['approvals', 'badge'], queryFn: approvalsApi.badge, enabled: showBadge, staleTime: 60_000, retry: false })
+  const approvalBadge = showBadge ? badgeText(badge.data?.count) : null
   const root = useRef<HTMLElement>(null)
   const nav = useRef<HTMLElement>(null)
   const saveTimer = useRef<number | undefined>(undefined)
@@ -162,7 +170,14 @@ export function Sidebar({
                 <div className={`px-4 pt-4 pb-1 text-xs font-semibold tracking-widest text-slate-400 uppercase ${block}`}>{section.label}</div>
                 <div aria-hidden="true" className={`mx-auto my-2 hidden h-px w-8 bg-white/10 ${iconOnly}`} />
                 {section.links.map((link) => (
-                  <SideLink key={link.key} link={link} text={text} center={center} onNavigate={onClose} />
+                  <SideLink
+                    key={link.key}
+                    link={link}
+                    text={text}
+                    center={center}
+                    onNavigate={onClose}
+                    badge={link.key === APPROVAL_GROUP ? approvalBadge : null}
+                  />
                 ))}
               </div>
             ))}
@@ -237,20 +252,37 @@ function go(e: MouseEvent, path: string, after: () => void) {
   after()
 }
 
-function SideLink({ link, text, center, onNavigate }: { link: SidebarLink; text: string; center: string; onNavigate: () => void }) {
+function SideLink({
+  link,
+  text,
+  center,
+  onNavigate,
+  badge = null,
+}: {
+  link: SidebarLink
+  text: string
+  center: string
+  onNavigate: () => void
+  badge?: string | null
+}) {
   return (
     <a
       href={link.path}
       onClick={(e) => go(e, link.path, onNavigate)}
       aria-current={link.active ? 'page' : undefined}
-      aria-label={link.label}
-      data-tooltip={link.label}
+      aria-label={link.label + (badge ? `, ${badge} việc chờ duyệt` : '')}
+      data-tooltip={link.label + (badge ? ` (${badge})` : '')}
       className={`relative flex items-center gap-4 rounded-lg px-4 py-2 text-sm font-medium transition-colors duration-150 active:scale-95 max-md:min-h-11 ${center} ${
         link.active ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'hover:bg-white/10 hover:text-white'
       }`}
     >
       <Icon name={link.icon} fill={link.active} className="shrink-0" />
       <span className={`truncate ${text}`}>{link.label}</span>
+      {badge && (
+        <span className="ml-auto min-w-5 rounded-full bg-error px-1.5 text-center text-xs leading-5 font-semibold text-white tabular-nums md:absolute md:top-1 md:right-2 md:ml-0 md:min-w-4 md:px-1 md:leading-4 desktop:static desktop:ml-auto desktop:min-w-5 desktop:px-1.5 desktop:leading-5">
+          {badge}
+        </span>
+      )}
     </a>
   )
 }

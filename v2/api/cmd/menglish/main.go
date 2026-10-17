@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/approvals"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/attendance"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/audit"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/audit/auditapi"
@@ -41,8 +42,10 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/server"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/store"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/students"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/surveys"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/tasks"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/teacher"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/tickets"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/tuition"
 )
 
@@ -197,12 +200,19 @@ func runAPI(ctx context.Context) error {
 		WithJournal(reportSvc).WithAttendance(cls.KpiAttendance()).WithBoard(cls.KpiBoard(), taskSvc.KpiBoard())
 	kpiSvc.AddSources(teacherSvc.KpiSources()).WithHomework(teacherSvc.KpiBoard())
 	go kpiSvc.RunSheetLoop(ctx, time.Hour)
+	// Ticket hỗ trợ: file đính kèm ở kho file; hàng chờ "Ticket đang mở" / ticket khẩn ở Tổng quan và Nhật ký sự vụ.
+	ticketSvc := tickets.NewService(d.pool, log).WithFiles(fileSvc)
+	// Hộp "Việc cần duyệt" (chỉ Admin): nguồn của Học phí, CRM, Lớp học, Công việc. TODO(gộp): báo nộp học phí (Cổng
+	// PH/HS), đề xuất giáo trình / giãn tiến độ / order đề Big Test (Giáo trình), báo cáo trực lớp (Chất lượng lớp), đơn
+	// chấm công (Chấm công) — mỗi phân hệ thêm một approvals.Source.
+	approvalSvc := approvals.NewService(d.rdb, log).Add(tuitionSvc.ApprovalSources()...).Add(crmSvc.ApprovalSources()...).
+		Add(cls.ApprovalSource(), taskSvc.ApprovalSource())
 	// Tổng quan + Báo cáo & sự vụ lớp: đọc số liệu các phân hệ qua adapter (Finance: doanh thu / phiếu chờ duyệt / quá hạn
 	// của Học phí; Work: ngày công / đi muộn / phép của Chấm công, biên bản lỗi khi gắn phân hệ Lương & Phạt).
 	dash := dashboard.NewService(dashboard.Deps{
 		Leads: crmSvc.DashboardLeads(), Tasks: taskSvc.DashboardTasks(), Classes: cls.DashboardClasses(),
 		Students: studentSvc.DashboardStudents(), Reports: reportSvc.DashboardReports(), Orders: inv.DashboardOrders(),
-		Branches: d.iam, Finance: tuitionSvc.DashboardFinance(), Homework: teacherSvc.Dashboard(), Work: attSvc.DashboardWork(),
+		Branches: d.iam, Finance: tuitionSvc.DashboardFinance(), Homework: teacherSvc.Dashboard(), Work: attSvc.DashboardWork(), Tickets: ticketSvc.DashboardTickets(),
 	}, log)
 	// Cổng Phụ huynh & Học sinh: học phí đọc qua adapter của Học phí. TODO(gộp): WithTeacherPortal (bài tập / bài nộp),
 	// WithSurveys (khảo sát 5 sao), WithSyllabus (Big Test, chặng học) khi các phân hệ đó có ở v2.
@@ -241,6 +251,10 @@ func runAPI(ctx context.Context) error {
 				portal.NewHandler(portalSvc, log),
 				teacher.NewHandler(teacherSvc, log),
 				attendance.NewHandler(attSvc, log),
+				tickets.NewHandler(ticketSvc, log),
+				approvals.NewHandler(approvalSvc, log),
+				// Khảo sát: đợt khảo sát (survey.manage) + API Cổng PH/HS. TODO(gộp): WithStudents(bộ chọn học viên của cổng).
+				surveys.NewHandler(surveys.NewService(d.pool, log), log),
 			),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,

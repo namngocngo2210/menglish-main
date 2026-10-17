@@ -30,6 +30,17 @@ const PORTAL = 'Cổng Phụ huynh & Học sinh'
 const PORTAL_PERMS = ['portal.student', 'student.view']
 // Quyền neo khu Học phí (SidebarMenu::TUITION): người xử lý nghiệp vụ kế toán.
 const TUITION_ANCHORS = ['tuition.approve', 'tuition.reject', 'invoice.request_cancel', 'refund_transfer.request']
+// Quyền neo hộp "Việc cần duyệt" (approvals.Anchors).
+export const APPROVAL_ANCHORS = [
+  'tuition.approve',
+  'tuition.reject',
+  'invoice.approve_cancel',
+  'refund_transfer.reject',
+  'lead.approve_transfer',
+  'student.assign_class',
+  'work_task.create',
+  'work_task.approve',
+]
 
 export const NAV: NavItem[] = [
   // Tổng quan (DashboardController) cho nhân sự; học viên / phụ huynh thấy "Tài khoản của tôi" thay chỗ (routes.tsx).
@@ -196,6 +207,8 @@ export const NAV: NavItem[] = [
   { path: '/tuition/import', label: 'Nhập học phí từ Excel', perms: ['tuition.view'], group: 'Học phí', hidden: true },
   // Bill "Thông báo nộp học phí" (/tuition/bill/<id>): mở từ Chốt khách (CRM) hoặc Lịch sử thu.
   { path: '/tuition/bill', label: 'Thông báo nộp học phí', perms: ['lead.view', 'tuition.view'], group: 'Học phí', hidden: true },
+  // Việc cần duyệt (features/approvals): tab đầu của "Cần duyệt", chỉ Admin; quyền neo = approvals.Anchors của Go.
+  { path: '/approvals', label: 'Việc cần duyệt', perms: APPROVAL_ANCHORS, group: 'Cần duyệt', icon: 'fact_check', menu: isAdmin },
   {
     path: '/tuition/receipts/approve',
     label: 'Phiếu thu',
@@ -260,6 +273,13 @@ export const NAV: NavItem[] = [
   },
   // URL giao diện điện thoại cũ /m (Laravel chuyển hướng sang trang tương ứng).
   { path: '/m', label: 'Chấm công của tôi', hidden: true },
+  // Ticket hỗ trợ (features/tickets): trang con /tickets/new, /tickets/<id> do TicketsPage tự đọc. Menu neo portal.staff
+  // như SidebarMenu (học viên vẫn mở được ticket của mình qua link thông báo).
+  { path: '/tickets', label: 'Ticket hỗ trợ', perms: ['support_ticket.view'], group: 'Ticket hỗ trợ', menu: (me) => can(me, 'portal.staff') },
+  // Khảo sát (features/surveys): /surveys/<id> = bài đã nộp của đợt.
+  { path: '/surveys', label: 'Đợt khảo sát', perms: ['survey.manage'], group: 'Khảo sát' },
+  // Hướng dẫn sử dụng (features/guide): mọi người đã đăng nhập; ?vai-tro=<bộ hướng dẫn>.
+  { path: '/huong-dan', label: 'Hướng dẫn sử dụng', group: 'Hướng dẫn sử dụng', icon: 'help' },
 ]
 
 // Workspace của sidebar theo đúng thứ tự SidebarMenu::definition(): khu (section) → workspace (label, icon).
