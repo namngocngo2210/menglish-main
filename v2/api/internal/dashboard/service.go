@@ -50,6 +50,7 @@ type Deps struct {
 	// Finance, Work: phân hệ đang làm song song; nil = chưa có.
 	Finance Finance
 	Work    StaffWork
+	Payroll Payroll
 }
 
 type Service struct {
@@ -64,6 +65,9 @@ func NewService(d Deps, log *slog.Logger) *Service {
 	}
 	if d.Work == nil {
 		d.Work = noStaffWork{}
+	}
+	if d.Payroll == nil {
+		d.Payroll = noPayroll{}
 	}
 	return &Service{d: d, log: log, now: time.Now}
 }

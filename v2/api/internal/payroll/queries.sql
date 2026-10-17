@@ -161,7 +161,7 @@ SELECT * FROM hr.payroll_periods WHERE end_date >= @since ORDER BY start_date;
 -- ───────────── Phiếu lương ─────────────
 
 -- name: PeriodRecords :many
-SELECT r.*, u.full_name, coalesce(u.code::text, '')::text AS user_code, coalesce(u.email::text, '')::text AS user_email,
+SELECT sqlc.embed(r), u.full_name, coalesce(u.code::text, '')::text AS user_code, coalesce(u.email::text, '')::text AS user_email,
     coalesce((SELECT b.name FROM iam.user_branches ub JOIN core.branches b ON b.id = ub.branch_id
      WHERE ub.user_id = r.user_id ORDER BY ub.is_primary DESC, b.name LIMIT 1), '')::text AS branch_name,
     (SELECT ub.branch_id FROM iam.user_branches ub WHERE ub.user_id = r.user_id ORDER BY ub.is_primary DESC, ub.branch_id LIMIT 1) AS branch_id
@@ -172,7 +172,7 @@ WHERE r.period_id = @period_id
 ORDER BY u.full_name, r.id;
 
 -- name: GetRecord :one
-SELECT r.*, u.full_name, coalesce(u.code::text, '')::text AS user_code, coalesce(u.email::text, '')::text AS user_email,
+SELECT sqlc.embed(r), u.full_name, coalesce(u.code::text, '')::text AS user_code, coalesce(u.email::text, '')::text AS user_email,
     coalesce((SELECT b.name FROM iam.user_branches ub JOIN core.branches b ON b.id = ub.branch_id
      WHERE ub.user_id = r.user_id ORDER BY ub.is_primary DESC, b.name LIMIT 1), '')::text AS branch_name
 FROM hr.payroll_records r JOIN iam.users u ON u.id = r.user_id
@@ -236,7 +236,7 @@ DELETE FROM hr.payroll_records WHERE period_id = @period_id AND NOT (user_id = A
 UPDATE hr.payroll_records SET status = @status, updated_at = now() WHERE period_id = @period_id;
 
 -- name: MyLockedRecords :many
-SELECT r.*, p.code AS period_code, p.title AS period_title, p.month, p.year, p.start_date, p.end_date, p.status AS period_status
+SELECT sqlc.embed(r), p.code AS period_code, p.title AS period_title, p.month, p.year, p.start_date, p.end_date, p.status AS period_status
 FROM hr.payroll_records r JOIN hr.payroll_periods p ON p.id = r.period_id
 WHERE r.user_id = $1 AND p.status IN ('approved', 'paid')
 ORDER BY p.year DESC, p.month DESC, p.id DESC;
@@ -278,8 +278,8 @@ SELECT (
                AND x8.created_at <= @end_at AND x8.created_at > @since)
     OR EXISTS (SELECT 1 FROM hr.commission_items x9 WHERE x9.settled_at IS NULL AND x9.updated_at > @since AND x9.earned_period_end <= @end_day)
     OR EXISTS (SELECT 1 FROM hr.commission_items x10 WHERE x10.settled_at IS NULL AND x10.status <> 'void' AND x10.payroll_record_id IS NULL
-               AND (EXISTS (SELECT 1 FROM crm.leads l WHERE l.id = x11.lead_id AND l.updated_at > @since)
-                    OR EXISTS (SELECT 1 FROM ops.work_tasks t WHERE t.student_id = x12.student_id AND t.care_milestone IS NOT NULL
+               AND (EXISTS (SELECT 1 FROM crm.leads l WHERE l.id = x10.lead_id AND l.updated_at > @since)
+                    OR EXISTS (SELECT 1 FROM ops.work_tasks t WHERE t.student_id = x10.student_id AND t.care_milestone IS NOT NULL
                                AND t.updated_at > @since)))
     OR EXISTS (SELECT 1 FROM hr.kpi_sheets x13 WHERE x13.month = @month AND x13.year = @year AND x13.updated_at > @since)
     OR (EXISTS (SELECT 1 FROM hr.payroll_records r WHERE r.period_id = @period_id AND r.teaching_concurrent)
@@ -404,6 +404,16 @@ WHERE x.status = 'fined'
   AND (x.payroll_record_id IS NULL
        OR x.payroll_record_id IN (SELECT r.id FROM hr.payroll_records r WHERE r.period_id = @period_id))
 ORDER BY x.user_id, x.id;
+
+-- name: UnlinkedDeductibleExists :one
+-- Biên bản vừa quá hạn nộp mà chưa trừ, của người đã có phiếu trong kỳ.
+SELECT EXISTS (
+    SELECT 1 FROM hr.penalties x
+    WHERE x.status = 'fined' AND x.payroll_record_id IS NULL
+      AND ((x.due_date IS NOT NULL AND x.due_date <= @end_day AND x.due_date < @today)
+           OR (x.due_date IS NULL AND x.violation_date BETWEEN @start_day AND @end_day))
+      AND x.user_id IN (SELECT r.user_id FROM hr.payroll_records r WHERE r.period_id = @period_id)
+)::bool;
 
 -- name: UnlinkPeriodPenalties :exec
 UPDATE hr.penalties SET payroll_record_id = NULL

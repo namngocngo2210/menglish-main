@@ -31,6 +31,7 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/notify/mail"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/notify/mail/mailapi"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/notify/notifyapi"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/payroll"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/placement"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/filestore"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/secretbox"
@@ -158,8 +159,11 @@ func runAPI(ctx context.Context) error {
 	// khách Chờ xếp lớp bên CRM.
 	crmSvc := crm.NewService(d.pool, d.iam, log).WithStudents(tuitionSvc.Closing(cls.CRMStudents(studentSvc))).WithTuition(tuitionSvc)
 	cls.CRM, cls.Tuition, studentSvc.Tuition = crmSvc, tuitionSvc, tuitionSvc
-	// Ảnh bằng chứng hoàn tiền lưu ở kho file. TODO(gộp): WithCommissions(hoa hồng tư vấn) khi phân hệ Lương có ở v2.
-	tuitionSvc.WithLeads(crmSvc).WithStudents(studentSvc).WithAccess(d.iam.LoadAccess).WithFiles(fileSvc).
+	// Lương & Phạt: bằng chứng vi phạm ở kho file. TODO(gộp): WithAttendance(ca dạy hợp lệ / chấm công) khi phân hệ Chấm công có ở v2.
+	payrollSvc := payroll.NewService(d.pool, log).WithFiles(fileSvc)
+	go payrollSvc.RunReminderLoop(ctx, time.Minute)
+	// Ảnh bằng chứng hoàn tiền lưu ở kho file; hoa hồng tư vấn (thu hồi khi hoàn phí / hủy hóa đơn) của phân hệ Lương.
+	tuitionSvc.WithLeads(crmSvc).WithStudents(studentSvc).WithAccess(d.iam.LoadAccess).WithFiles(fileSvc).WithCommissions(payrollSvc.Commissions()).
 		WithSepay(tuition.SepaySettings{WebhookEnabled: cfg.Sepay.WebhookEnabled, WebhookSecret: cfg.Sepay.WebhookSecret})
 	// Nhắc nợ theo mốc, SLA tiền mặt / hoàn phí, bảo lưu bắt đầu / hết hạn (lệnh tuition:* / students:*-deferrals ở bản Laravel).
 	go tuitionSvc.RunReminderLoop(ctx, time.Minute)
@@ -177,19 +181,20 @@ func runAPI(ctx context.Context) error {
 	})
 	// Nhắc hạn báo cáo ngày / tháng và tổng hợp cho Admin (lệnh reports:remind-* / reports:daily-digest ở bản Laravel).
 	go reportSvc.RunReminderLoop(ctx, time.Minute)
-	// Thu chi: sổ khoản chi + doanh thu tạm tính từ phiếu thu đã duyệt của Học phí. TODO(gộp): WithPayroll(kỳ lương).
-	finSvc := finance.NewService(d.pool, log).WithRevenue(tuitionSvc.RevenueSource())
+	// Thu chi: sổ khoản chi + doanh thu tạm tính từ phiếu thu đã duyệt của Học phí, chi lương tự động từ kỳ lương.
+	finSvc := finance.NewService(d.pool, log).WithRevenue(tuitionSvc.RevenueSource()).WithPayroll(payrollSvc.Finance())
 	// Số liệu KPI tự động từ báo cáo / công việc / kho / lớp học; tạo phiếu đầu kỳ hằng ngày (kpi:create-sheets).
-	// TODO(gộp): nguồn Học phí / SLA CRM / Cổng giáo viên / Chấm công / Big Test, WithPayrollLock(kỳ lương) khi có ở v2.
+	// TODO(gộp): nguồn Học phí / SLA CRM / Cổng giáo viên / Chấm công / Big Test khi có ở v2. Kỳ lương đã chốt khóa phiếu KPI.
 	kpiSvc.AddSources(reportSvc.KpiSources(), taskSvc.KpiSources(), inv.KpiSources(), cls.KpiSources()).
-		WithJournal(reportSvc).WithAttendance(cls.KpiAttendance()).WithBoard(cls.KpiBoard(), taskSvc.KpiBoard())
+		WithJournal(reportSvc).WithAttendance(cls.KpiAttendance()).WithBoard(cls.KpiBoard(), taskSvc.KpiBoard()).
+		WithPayrollLock(payrollSvc)
 	go kpiSvc.RunSheetLoop(ctx, time.Hour)
 	// Tổng quan + Báo cáo & sự vụ lớp: đọc số liệu các phân hệ qua adapter (Finance: doanh thu / phiếu chờ duyệt / quá hạn
 	// của Học phí). TODO(gộp): Work = chấm công / biên bản lỗi (KPI) khi có ở v2 (để nil: màn hiện "Chờ phân hệ…").
 	dash := dashboard.NewService(dashboard.Deps{
 		Leads: crmSvc.DashboardLeads(), Tasks: taskSvc.DashboardTasks(), Classes: cls.DashboardClasses(),
 		Students: studentSvc.DashboardStudents(), Reports: reportSvc.DashboardReports(), Orders: inv.DashboardOrders(),
-		Branches: d.iam, Finance: tuitionSvc.DashboardFinance(),
+		Branches: d.iam, Finance: tuitionSvc.DashboardFinance(), Payroll: payrollSvc,
 	}, log)
 	checks := map[string]server.Pinger{
 		"postgres": d.pool,
@@ -222,6 +227,7 @@ func runAPI(ctx context.Context) error {
 				mailapi.NewHandler(mailSvc, log),
 				dashboard.NewHandler(dash, log),
 				files.NewHandler(fileSvc, log),
+				payroll.NewHandler(payrollSvc, log),
 			),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,

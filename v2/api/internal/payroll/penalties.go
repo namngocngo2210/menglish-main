@@ -574,7 +574,7 @@ func (s *Service) CreatePenalty(ctx context.Context, a *iam.Access, in PenaltyIn
 		return audit.Record(ctx, tx, audit.Entry{ActorID: actorPtr(a), Module: audit.ModulePayroll, Event: audit.EventCreated,
 			Action: "penalty.create", SubjectType: "penalty", SubjectID: p.ID.String(), SubjectLabel: p.Code + " (" + name + ")",
 			Description: "Ghi nhận vi phạm " + p.Code + ": " + violation,
-			Properties: map[string]any{"user_id": uid, "violation_type": violation, "error_category": cat}})
+			Properties:  map[string]any{"user_id": uid, "violation_type": violation, "error_category": cat}})
 	})
 	if err != nil {
 		return "", err

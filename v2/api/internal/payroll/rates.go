@@ -194,12 +194,12 @@ func (s *Service) RatesPage(ctx context.Context, teacherID *uuid.UUID, page int)
 
 // PersonalRateInput: thêm phiên bản đơn giá riêng của một GV.
 type PersonalRateInput struct {
-	UserID        string  `json:"user_id"`
+	UserID        string   `json:"user_id"`
 	Rate          *float64 `json:"hourly_rate"`
-	RateUnit      string  `json:"rate_unit"`
-	TeacherType   string  `json:"teacher_type"`
-	EffectiveFrom string  `json:"effective_from"`
-	Note          *string `json:"note"`
+	RateUnit      string   `json:"rate_unit"`
+	TeacherType   string   `json:"teacher_type"`
+	EffectiveFrom string   `json:"effective_from"`
+	Note          *string  `json:"note"`
 }
 
 func (s *Service) lockedMessage(day time.Time) string {
@@ -286,7 +286,7 @@ func (s *Service) AddPersonalRate(ctx context.Context, a *iam.Access, in Persona
 		return audit.Record(ctx, tx, audit.Entry{ActorID: actorPtr(a), Module: audit.ModulePayroll, Event: audit.EventCreated,
 			Action: "teacher_rate.personal", SubjectType: "teacher_rate", SubjectID: r.ID.String(), SubjectLabel: u.FullName,
 			Description: "Thêm đơn giá riêng (" + rateUnitLabels[unit] + ") cho GV " + u.FullName,
-			Properties: map[string]any{"rate": *in.Rate, "rate_unit": unit, "effective_from": dmy(*from), "teacher_type": typ}})
+			Properties:  map[string]any{"rate": *in.Rate, "rate_unit": unit, "effective_from": dmy(*from), "teacher_type": typ}})
 	})
 	if err != nil {
 		return "", err

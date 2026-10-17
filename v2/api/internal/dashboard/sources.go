@@ -263,6 +263,15 @@ func (noFinance) Revenue(context.Context, []uuid.UUID, time.Time, time.Time) (*i
 func (noFinance) PendingReceipts(context.Context, []uuid.UUID) (*int64, error) { return nil, nil }
 func (noFinance) OverdueTuitions(context.Context, *iam.Access) (*int64, error) { return nil, nil }
 
+// Payroll: số kỳ lương chưa chốt (draft / reviewing) của phân hệ Lương; nil = chưa có.
+type Payroll interface {
+	OpenPeriods(ctx context.Context) (*int64, error)
+}
+
+type noPayroll struct{}
+
+func (noPayroll) OpenPeriods(context.Context) (*int64, error) { return nil, nil }
+
 // WorkStats: ngày công, buổi đi muộn, ngày phép, lỗi vi phạm trong tháng của một người.
 type WorkStats struct {
 	WorkDays   int `json:"work_days"`

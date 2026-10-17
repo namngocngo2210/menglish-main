@@ -249,8 +249,8 @@ SELECT (
                AND x8.created_at <= $6 AND x8.created_at > $3)
     OR EXISTS (SELECT 1 FROM hr.commission_items x9 WHERE x9.settled_at IS NULL AND x9.updated_at > $3 AND x9.earned_period_end <= $2)
     OR EXISTS (SELECT 1 FROM hr.commission_items x10 WHERE x10.settled_at IS NULL AND x10.status <> 'void' AND x10.payroll_record_id IS NULL
-               AND (EXISTS (SELECT 1 FROM crm.leads l WHERE l.id = x11.lead_id AND l.updated_at > $3)
-                    OR EXISTS (SELECT 1 FROM ops.work_tasks t WHERE t.student_id = x12.student_id AND t.care_milestone IS NOT NULL
+               AND (EXISTS (SELECT 1 FROM crm.leads l WHERE l.id = x10.lead_id AND l.updated_at > $3)
+                    OR EXISTS (SELECT 1 FROM ops.work_tasks t WHERE t.student_id = x10.student_id AND t.care_milestone IS NOT NULL
                                AND t.updated_at > $3)))
     OR EXISTS (SELECT 1 FROM hr.kpi_sheets x13 WHERE x13.month = $7 AND x13.year = $8 AND x13.updated_at > $3)
     OR (EXISTS (SELECT 1 FROM hr.payroll_records r WHERE r.period_id = $4 AND r.teaching_concurrent)
@@ -1167,106 +1167,62 @@ WHERE r.id = $1
 `
 
 type GetRecordRow struct {
-	ID                          uuid.UUID
-	PeriodID                    uuid.UUID
-	UserID                      uuid.UUID
-	Department                  *string
-	EmployeeType                *string
-	SalaryRole                  *string
-	BaseSalary                  int64
-	ActualHours                 float64
-	TeachingSessions            int32
-	TeachingSalary              int64
-	TeachingConcurrent          bool
-	TeachingKpiBonus            int64
-	RetentionBaseStudents       int32
-	RetentionStudents           int32
-	RetentionTier               *int64
-	KpiSource                   *string
-	KpiManualAmount             *int64
-	KpiScore                    *float64
-	KpiBonus                    int64
-	ForeignSessionPay           int64
-	ForeignTeacherSessionsCount int32
-	RenewBonus                  int64
-	CommissionBonus             int64
-	CommissionBase              int64
-	CommissionClawback          int64
-	CommissionDeferred          int64
-	CommissionPercent           *float64
-	CommissionClosedCount       int32
-	Allowance                   int64
-	OtherBonus                  int64
-	OtherDeduction              int64
-	InsuranceDeduction          int64
-	UnionDeduction              int64
-	TaxDeduction                int64
-	PenaltyDeduction            int64
-	ForeignTeacherDeduction     int64
-	NetSalary                   int64
-	Status                      string
-	Notes                       *string
-	AdjustmentNotes             *string
-	ManualLines                 []byte
-	CalculationDetails          []byte
-	LegacyID                    *int64
-	CreatedAt                   time.Time
-	UpdatedAt                   time.Time
-	FullName                    string
-	UserCode                    string
-	UserEmail                   string
-	BranchName                  string
+	HrPayrollRecord HrPayrollRecord
+	FullName        string
+	UserCode        string
+	UserEmail       string
+	BranchName      string
 }
 
 func (q *Queries) GetRecord(ctx context.Context, id uuid.UUID) (GetRecordRow, error) {
 	row := q.db.QueryRow(ctx, getRecord, id)
 	var i GetRecordRow
 	err := row.Scan(
-		&i.ID,
-		&i.PeriodID,
-		&i.UserID,
-		&i.Department,
-		&i.EmployeeType,
-		&i.SalaryRole,
-		&i.BaseSalary,
-		&i.ActualHours,
-		&i.TeachingSessions,
-		&i.TeachingSalary,
-		&i.TeachingConcurrent,
-		&i.TeachingKpiBonus,
-		&i.RetentionBaseStudents,
-		&i.RetentionStudents,
-		&i.RetentionTier,
-		&i.KpiSource,
-		&i.KpiManualAmount,
-		&i.KpiScore,
-		&i.KpiBonus,
-		&i.ForeignSessionPay,
-		&i.ForeignTeacherSessionsCount,
-		&i.RenewBonus,
-		&i.CommissionBonus,
-		&i.CommissionBase,
-		&i.CommissionClawback,
-		&i.CommissionDeferred,
-		&i.CommissionPercent,
-		&i.CommissionClosedCount,
-		&i.Allowance,
-		&i.OtherBonus,
-		&i.OtherDeduction,
-		&i.InsuranceDeduction,
-		&i.UnionDeduction,
-		&i.TaxDeduction,
-		&i.PenaltyDeduction,
-		&i.ForeignTeacherDeduction,
-		&i.NetSalary,
-		&i.Status,
-		&i.Notes,
-		&i.AdjustmentNotes,
-		&i.ManualLines,
-		&i.CalculationDetails,
-		&i.LegacyID,
-		&i.CreatedAt,
-		&i.UpdatedAt,
+		&i.HrPayrollRecord.ID,
+		&i.HrPayrollRecord.PeriodID,
+		&i.HrPayrollRecord.UserID,
+		&i.HrPayrollRecord.Department,
+		&i.HrPayrollRecord.EmployeeType,
+		&i.HrPayrollRecord.SalaryRole,
+		&i.HrPayrollRecord.BaseSalary,
+		&i.HrPayrollRecord.ActualHours,
+		&i.HrPayrollRecord.TeachingSessions,
+		&i.HrPayrollRecord.TeachingSalary,
+		&i.HrPayrollRecord.TeachingConcurrent,
+		&i.HrPayrollRecord.TeachingKpiBonus,
+		&i.HrPayrollRecord.RetentionBaseStudents,
+		&i.HrPayrollRecord.RetentionStudents,
+		&i.HrPayrollRecord.RetentionTier,
+		&i.HrPayrollRecord.KpiSource,
+		&i.HrPayrollRecord.KpiManualAmount,
+		&i.HrPayrollRecord.KpiScore,
+		&i.HrPayrollRecord.KpiBonus,
+		&i.HrPayrollRecord.ForeignSessionPay,
+		&i.HrPayrollRecord.ForeignTeacherSessionsCount,
+		&i.HrPayrollRecord.RenewBonus,
+		&i.HrPayrollRecord.CommissionBonus,
+		&i.HrPayrollRecord.CommissionBase,
+		&i.HrPayrollRecord.CommissionClawback,
+		&i.HrPayrollRecord.CommissionDeferred,
+		&i.HrPayrollRecord.CommissionPercent,
+		&i.HrPayrollRecord.CommissionClosedCount,
+		&i.HrPayrollRecord.Allowance,
+		&i.HrPayrollRecord.OtherBonus,
+		&i.HrPayrollRecord.OtherDeduction,
+		&i.HrPayrollRecord.InsuranceDeduction,
+		&i.HrPayrollRecord.UnionDeduction,
+		&i.HrPayrollRecord.TaxDeduction,
+		&i.HrPayrollRecord.PenaltyDeduction,
+		&i.HrPayrollRecord.ForeignTeacherDeduction,
+		&i.HrPayrollRecord.NetSalary,
+		&i.HrPayrollRecord.Status,
+		&i.HrPayrollRecord.Notes,
+		&i.HrPayrollRecord.AdjustmentNotes,
+		&i.HrPayrollRecord.ManualLines,
+		&i.HrPayrollRecord.CalculationDetails,
+		&i.HrPayrollRecord.LegacyID,
+		&i.HrPayrollRecord.CreatedAt,
+		&i.HrPayrollRecord.UpdatedAt,
 		&i.FullName,
 		&i.UserCode,
 		&i.UserEmail,
@@ -2500,58 +2456,14 @@ ORDER BY p.year DESC, p.month DESC, p.id DESC
 `
 
 type MyLockedRecordsRow struct {
-	ID                          uuid.UUID
-	PeriodID                    uuid.UUID
-	UserID                      uuid.UUID
-	Department                  *string
-	EmployeeType                *string
-	SalaryRole                  *string
-	BaseSalary                  int64
-	ActualHours                 float64
-	TeachingSessions            int32
-	TeachingSalary              int64
-	TeachingConcurrent          bool
-	TeachingKpiBonus            int64
-	RetentionBaseStudents       int32
-	RetentionStudents           int32
-	RetentionTier               *int64
-	KpiSource                   *string
-	KpiManualAmount             *int64
-	KpiScore                    *float64
-	KpiBonus                    int64
-	ForeignSessionPay           int64
-	ForeignTeacherSessionsCount int32
-	RenewBonus                  int64
-	CommissionBonus             int64
-	CommissionBase              int64
-	CommissionClawback          int64
-	CommissionDeferred          int64
-	CommissionPercent           *float64
-	CommissionClosedCount       int32
-	Allowance                   int64
-	OtherBonus                  int64
-	OtherDeduction              int64
-	InsuranceDeduction          int64
-	UnionDeduction              int64
-	TaxDeduction                int64
-	PenaltyDeduction            int64
-	ForeignTeacherDeduction     int64
-	NetSalary                   int64
-	Status                      string
-	Notes                       *string
-	AdjustmentNotes             *string
-	ManualLines                 []byte
-	CalculationDetails          []byte
-	LegacyID                    *int64
-	CreatedAt                   time.Time
-	UpdatedAt                   time.Time
-	PeriodCode                  string
-	PeriodTitle                 string
-	Month                       int16
-	Year                        int16
-	StartDate                   time.Time
-	EndDate                     time.Time
-	PeriodStatus                string
+	HrPayrollRecord HrPayrollRecord
+	PeriodCode      string
+	PeriodTitle     string
+	Month           int16
+	Year            int16
+	StartDate       time.Time
+	EndDate         time.Time
+	PeriodStatus    string
 }
 
 func (q *Queries) MyLockedRecords(ctx context.Context, userID uuid.UUID) ([]MyLockedRecordsRow, error) {
@@ -2564,51 +2476,51 @@ func (q *Queries) MyLockedRecords(ctx context.Context, userID uuid.UUID) ([]MyLo
 	for rows.Next() {
 		var i MyLockedRecordsRow
 		if err := rows.Scan(
-			&i.ID,
-			&i.PeriodID,
-			&i.UserID,
-			&i.Department,
-			&i.EmployeeType,
-			&i.SalaryRole,
-			&i.BaseSalary,
-			&i.ActualHours,
-			&i.TeachingSessions,
-			&i.TeachingSalary,
-			&i.TeachingConcurrent,
-			&i.TeachingKpiBonus,
-			&i.RetentionBaseStudents,
-			&i.RetentionStudents,
-			&i.RetentionTier,
-			&i.KpiSource,
-			&i.KpiManualAmount,
-			&i.KpiScore,
-			&i.KpiBonus,
-			&i.ForeignSessionPay,
-			&i.ForeignTeacherSessionsCount,
-			&i.RenewBonus,
-			&i.CommissionBonus,
-			&i.CommissionBase,
-			&i.CommissionClawback,
-			&i.CommissionDeferred,
-			&i.CommissionPercent,
-			&i.CommissionClosedCount,
-			&i.Allowance,
-			&i.OtherBonus,
-			&i.OtherDeduction,
-			&i.InsuranceDeduction,
-			&i.UnionDeduction,
-			&i.TaxDeduction,
-			&i.PenaltyDeduction,
-			&i.ForeignTeacherDeduction,
-			&i.NetSalary,
-			&i.Status,
-			&i.Notes,
-			&i.AdjustmentNotes,
-			&i.ManualLines,
-			&i.CalculationDetails,
-			&i.LegacyID,
-			&i.CreatedAt,
-			&i.UpdatedAt,
+			&i.HrPayrollRecord.ID,
+			&i.HrPayrollRecord.PeriodID,
+			&i.HrPayrollRecord.UserID,
+			&i.HrPayrollRecord.Department,
+			&i.HrPayrollRecord.EmployeeType,
+			&i.HrPayrollRecord.SalaryRole,
+			&i.HrPayrollRecord.BaseSalary,
+			&i.HrPayrollRecord.ActualHours,
+			&i.HrPayrollRecord.TeachingSessions,
+			&i.HrPayrollRecord.TeachingSalary,
+			&i.HrPayrollRecord.TeachingConcurrent,
+			&i.HrPayrollRecord.TeachingKpiBonus,
+			&i.HrPayrollRecord.RetentionBaseStudents,
+			&i.HrPayrollRecord.RetentionStudents,
+			&i.HrPayrollRecord.RetentionTier,
+			&i.HrPayrollRecord.KpiSource,
+			&i.HrPayrollRecord.KpiManualAmount,
+			&i.HrPayrollRecord.KpiScore,
+			&i.HrPayrollRecord.KpiBonus,
+			&i.HrPayrollRecord.ForeignSessionPay,
+			&i.HrPayrollRecord.ForeignTeacherSessionsCount,
+			&i.HrPayrollRecord.RenewBonus,
+			&i.HrPayrollRecord.CommissionBonus,
+			&i.HrPayrollRecord.CommissionBase,
+			&i.HrPayrollRecord.CommissionClawback,
+			&i.HrPayrollRecord.CommissionDeferred,
+			&i.HrPayrollRecord.CommissionPercent,
+			&i.HrPayrollRecord.CommissionClosedCount,
+			&i.HrPayrollRecord.Allowance,
+			&i.HrPayrollRecord.OtherBonus,
+			&i.HrPayrollRecord.OtherDeduction,
+			&i.HrPayrollRecord.InsuranceDeduction,
+			&i.HrPayrollRecord.UnionDeduction,
+			&i.HrPayrollRecord.TaxDeduction,
+			&i.HrPayrollRecord.PenaltyDeduction,
+			&i.HrPayrollRecord.ForeignTeacherDeduction,
+			&i.HrPayrollRecord.NetSalary,
+			&i.HrPayrollRecord.Status,
+			&i.HrPayrollRecord.Notes,
+			&i.HrPayrollRecord.AdjustmentNotes,
+			&i.HrPayrollRecord.ManualLines,
+			&i.HrPayrollRecord.CalculationDetails,
+			&i.HrPayrollRecord.LegacyID,
+			&i.HrPayrollRecord.CreatedAt,
+			&i.HrPayrollRecord.UpdatedAt,
 			&i.PeriodCode,
 			&i.PeriodTitle,
 			&i.Month,
@@ -2848,56 +2760,12 @@ type PeriodRecordsParams struct {
 }
 
 type PeriodRecordsRow struct {
-	ID                          uuid.UUID
-	PeriodID                    uuid.UUID
-	UserID                      uuid.UUID
-	Department                  *string
-	EmployeeType                *string
-	SalaryRole                  *string
-	BaseSalary                  int64
-	ActualHours                 float64
-	TeachingSessions            int32
-	TeachingSalary              int64
-	TeachingConcurrent          bool
-	TeachingKpiBonus            int64
-	RetentionBaseStudents       int32
-	RetentionStudents           int32
-	RetentionTier               *int64
-	KpiSource                   *string
-	KpiManualAmount             *int64
-	KpiScore                    *float64
-	KpiBonus                    int64
-	ForeignSessionPay           int64
-	ForeignTeacherSessionsCount int32
-	RenewBonus                  int64
-	CommissionBonus             int64
-	CommissionBase              int64
-	CommissionClawback          int64
-	CommissionDeferred          int64
-	CommissionPercent           *float64
-	CommissionClosedCount       int32
-	Allowance                   int64
-	OtherBonus                  int64
-	OtherDeduction              int64
-	InsuranceDeduction          int64
-	UnionDeduction              int64
-	TaxDeduction                int64
-	PenaltyDeduction            int64
-	ForeignTeacherDeduction     int64
-	NetSalary                   int64
-	Status                      string
-	Notes                       *string
-	AdjustmentNotes             *string
-	ManualLines                 []byte
-	CalculationDetails          []byte
-	LegacyID                    *int64
-	CreatedAt                   time.Time
-	UpdatedAt                   time.Time
-	FullName                    string
-	UserCode                    string
-	UserEmail                   string
-	BranchName                  string
-	BranchID                    uuid.UUID
+	HrPayrollRecord HrPayrollRecord
+	FullName        string
+	UserCode        string
+	UserEmail       string
+	BranchName      string
+	BranchID        uuid.UUID
 }
 
 // ───────────── Phiếu lương ─────────────
@@ -2916,51 +2784,51 @@ func (q *Queries) PeriodRecords(ctx context.Context, arg PeriodRecordsParams) ([
 	for rows.Next() {
 		var i PeriodRecordsRow
 		if err := rows.Scan(
-			&i.ID,
-			&i.PeriodID,
-			&i.UserID,
-			&i.Department,
-			&i.EmployeeType,
-			&i.SalaryRole,
-			&i.BaseSalary,
-			&i.ActualHours,
-			&i.TeachingSessions,
-			&i.TeachingSalary,
-			&i.TeachingConcurrent,
-			&i.TeachingKpiBonus,
-			&i.RetentionBaseStudents,
-			&i.RetentionStudents,
-			&i.RetentionTier,
-			&i.KpiSource,
-			&i.KpiManualAmount,
-			&i.KpiScore,
-			&i.KpiBonus,
-			&i.ForeignSessionPay,
-			&i.ForeignTeacherSessionsCount,
-			&i.RenewBonus,
-			&i.CommissionBonus,
-			&i.CommissionBase,
-			&i.CommissionClawback,
-			&i.CommissionDeferred,
-			&i.CommissionPercent,
-			&i.CommissionClosedCount,
-			&i.Allowance,
-			&i.OtherBonus,
-			&i.OtherDeduction,
-			&i.InsuranceDeduction,
-			&i.UnionDeduction,
-			&i.TaxDeduction,
-			&i.PenaltyDeduction,
-			&i.ForeignTeacherDeduction,
-			&i.NetSalary,
-			&i.Status,
-			&i.Notes,
-			&i.AdjustmentNotes,
-			&i.ManualLines,
-			&i.CalculationDetails,
-			&i.LegacyID,
-			&i.CreatedAt,
-			&i.UpdatedAt,
+			&i.HrPayrollRecord.ID,
+			&i.HrPayrollRecord.PeriodID,
+			&i.HrPayrollRecord.UserID,
+			&i.HrPayrollRecord.Department,
+			&i.HrPayrollRecord.EmployeeType,
+			&i.HrPayrollRecord.SalaryRole,
+			&i.HrPayrollRecord.BaseSalary,
+			&i.HrPayrollRecord.ActualHours,
+			&i.HrPayrollRecord.TeachingSessions,
+			&i.HrPayrollRecord.TeachingSalary,
+			&i.HrPayrollRecord.TeachingConcurrent,
+			&i.HrPayrollRecord.TeachingKpiBonus,
+			&i.HrPayrollRecord.RetentionBaseStudents,
+			&i.HrPayrollRecord.RetentionStudents,
+			&i.HrPayrollRecord.RetentionTier,
+			&i.HrPayrollRecord.KpiSource,
+			&i.HrPayrollRecord.KpiManualAmount,
+			&i.HrPayrollRecord.KpiScore,
+			&i.HrPayrollRecord.KpiBonus,
+			&i.HrPayrollRecord.ForeignSessionPay,
+			&i.HrPayrollRecord.ForeignTeacherSessionsCount,
+			&i.HrPayrollRecord.RenewBonus,
+			&i.HrPayrollRecord.CommissionBonus,
+			&i.HrPayrollRecord.CommissionBase,
+			&i.HrPayrollRecord.CommissionClawback,
+			&i.HrPayrollRecord.CommissionDeferred,
+			&i.HrPayrollRecord.CommissionPercent,
+			&i.HrPayrollRecord.CommissionClosedCount,
+			&i.HrPayrollRecord.Allowance,
+			&i.HrPayrollRecord.OtherBonus,
+			&i.HrPayrollRecord.OtherDeduction,
+			&i.HrPayrollRecord.InsuranceDeduction,
+			&i.HrPayrollRecord.UnionDeduction,
+			&i.HrPayrollRecord.TaxDeduction,
+			&i.HrPayrollRecord.PenaltyDeduction,
+			&i.HrPayrollRecord.ForeignTeacherDeduction,
+			&i.HrPayrollRecord.NetSalary,
+			&i.HrPayrollRecord.Status,
+			&i.HrPayrollRecord.Notes,
+			&i.HrPayrollRecord.AdjustmentNotes,
+			&i.HrPayrollRecord.ManualLines,
+			&i.HrPayrollRecord.CalculationDetails,
+			&i.HrPayrollRecord.LegacyID,
+			&i.HrPayrollRecord.CreatedAt,
+			&i.HrPayrollRecord.UpdatedAt,
 			&i.FullName,
 			&i.UserCode,
 			&i.UserEmail,
@@ -3996,6 +3864,36 @@ WHERE payroll_record_id IN (SELECT r.id FROM hr.payroll_records r WHERE r.period
 func (q *Queries) UnlinkPeriodPenalties(ctx context.Context, periodID uuid.UUID) error {
 	_, err := q.db.Exec(ctx, unlinkPeriodPenalties, periodID)
 	return err
+}
+
+const unlinkedDeductibleExists = `-- name: UnlinkedDeductibleExists :one
+SELECT EXISTS (
+    SELECT 1 FROM hr.penalties x
+    WHERE x.status = 'fined' AND x.payroll_record_id IS NULL
+      AND ((x.due_date IS NOT NULL AND x.due_date <= $1 AND x.due_date < $2)
+           OR (x.due_date IS NULL AND x.violation_date BETWEEN $3 AND $1))
+      AND x.user_id IN (SELECT r.user_id FROM hr.payroll_records r WHERE r.period_id = $4)
+)::bool
+`
+
+type UnlinkedDeductibleExistsParams struct {
+	EndDay   *time.Time
+	Today    *time.Time
+	StartDay time.Time
+	PeriodID uuid.UUID
+}
+
+// Biên bản vừa quá hạn nộp mà chưa trừ, của người đã có phiếu trong kỳ.
+func (q *Queries) UnlinkedDeductibleExists(ctx context.Context, arg UnlinkedDeductibleExistsParams) (bool, error) {
+	row := q.db.QueryRow(ctx, unlinkedDeductibleExists,
+		arg.EndDay,
+		arg.Today,
+		arg.StartDay,
+		arg.PeriodID,
+	)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const unsettledAdjustments = `-- name: UnsettledAdjustments :many
