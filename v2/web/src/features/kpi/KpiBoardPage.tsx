@@ -91,7 +91,7 @@ export function KpiBoardPage() {
                             {v === null ? (
                               <span
                                 className="text-xs text-on-surface-variant italic"
-                                title={key === 'homework' ? d.homework_pending : 'Không có dữ liệu trong kỳ'}
+                                title={(key === 'homework' && d.homework_pending) || 'Không có dữ liệu trong kỳ'}
                               >
                                 Chưa có dữ liệu
                               </span>
