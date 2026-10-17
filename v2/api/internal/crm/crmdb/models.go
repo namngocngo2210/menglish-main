@@ -863,6 +863,82 @@ type HrSlaRule struct {
 	UpdatedAt      *time.Time
 }
 
+type HrStaffAttendance struct {
+	ID               uuid.UUID
+	UserID           uuid.UUID
+	BranchID         *uuid.UUID
+	WorkDate         time.Time
+	Source           string
+	ExpectedStart    pgtype.Time
+	ExpectedEnd      pgtype.Time
+	CheckInAt        *time.Time
+	CheckInPhotoID   *uuid.UUID
+	CheckInLat       *float64
+	CheckInLng       *float64
+	CheckInDistance  *int32
+	CheckInAccuracy  *int32
+	CheckOutAt       *time.Time
+	CheckOutPhotoID  *uuid.UUID
+	CheckOutLat      *float64
+	CheckOutLng      *float64
+	CheckOutDistance *int32
+	CheckOutAccuracy *int32
+	LateMinutes      int32
+	EarlyMinutes     int32
+	LateExcused      bool
+	PenaltyID        *uuid.UUID
+	Note             *string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
+type HrStaffAttendanceRequest struct {
+	ID              uuid.UUID
+	UserID          uuid.UUID
+	BranchID        *uuid.UUID
+	Type            string
+	DateFrom        time.Time
+	DateTo          time.Time
+	CheckInTime     pgtype.Time
+	CheckOutTime    pgtype.Time
+	Reason          string
+	Status          string
+	ReviewedBy      *uuid.UUID
+	ReviewedAt      *time.Time
+	RejectionReason *string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+type HrTeacherTimesheet struct {
+	ID                uuid.UUID
+	UserID            uuid.UUID
+	ClassID           *uuid.UUID
+	ClassSessionID    *uuid.UUID
+	TeachingDate      time.Time
+	ScheduledTime     *string
+	CheckinTime       pgtype.Time
+	CheckoutTime      pgtype.Time
+	Hours             float64
+	LateMinutes       int32
+	EarlyLeaveMinutes int32
+	LateNotified      bool
+	HourlyRate        *int64
+	Type              string
+	Source            string
+	Status            string
+	ReviewedBy        *uuid.UUID
+	ReviewedAt        *time.Time
+	RejectionReason   *string
+	AdjustedAt        *time.Time
+	AdjustedBy        *uuid.UUID
+	AdjustmentReason  *string
+	Notes             *string
+	CreatedBy         *uuid.UUID
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
 type HrTeachingShift struct {
 	ID           uuid.UUID
 	DayType      string
@@ -878,6 +954,24 @@ type HrTeachingShift struct {
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 	DeletedAt    *time.Time
+}
+
+type HrTimesheetSyncLog struct {
+	ID           uuid.UUID
+	BranchID     *uuid.UUID
+	DeviceName   string
+	DeviceIp     *string
+	Source       *string
+	RecordsCount int32
+	MatchedCount int32
+	FailedCount  int32
+	SkippedCount int32
+	Status       string
+	ErrorCode    *string
+	ErrorMessage *string
+	ErrorRows    []byte
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 }
 
 type IamPermission struct {
