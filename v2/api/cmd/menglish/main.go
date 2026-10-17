@@ -34,6 +34,7 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/placement"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/filestore"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/secretbox"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/portal"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/reports"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/search"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/server"
@@ -191,6 +192,9 @@ func runAPI(ctx context.Context) error {
 		Students: studentSvc.DashboardStudents(), Reports: reportSvc.DashboardReports(), Orders: inv.DashboardOrders(),
 		Branches: d.iam, Finance: tuitionSvc.DashboardFinance(),
 	}, log)
+	// Cổng Phụ huynh & Học sinh: học phí đọc qua adapter của Học phí. TODO(gộp): WithTeacherPortal (bài tập / bài nộp),
+	// WithSurveys (khảo sát 5 sao), WithSyllabus (Big Test, chặng học) khi các phân hệ đó có ở v2.
+	portalSvc := portal.NewService(d.pool, fileSvc, studentSvc, log).WithTuition(tuitionSvc.PortalTuition())
 	checks := map[string]server.Pinger{
 		"postgres": d.pool,
 		"redis":    server.PingFunc(func(ctx context.Context) error { return d.rdb.Ping(ctx).Err() }),
@@ -222,6 +226,7 @@ func runAPI(ctx context.Context) error {
 				mailapi.NewHandler(mailSvc, log),
 				dashboard.NewHandler(dash, log),
 				files.NewHandler(fileSvc, log),
+				portal.NewHandler(portalSvc, log),
 			),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,

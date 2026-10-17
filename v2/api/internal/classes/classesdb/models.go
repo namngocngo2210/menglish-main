@@ -129,6 +129,40 @@ type AcademicEnrollment struct {
 	UpdatedAt           time.Time
 }
 
+type AcademicPronunciationRecord struct {
+	ID          uuid.UUID
+	Code        string
+	StudentID   uuid.UUID
+	UnitTitle   string
+	Duration    *string
+	AudioFileID *uuid.UUID
+	Status      string
+	Score       *string
+	Feedback    *string
+	ReviewedBy  *uuid.UUID
+	ReviewedAt  *time.Time
+	CreatedBy   *uuid.UUID
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type AcademicStageFeedback struct {
+	ID         uuid.UUID
+	Code       string
+	StudentID  uuid.UUID
+	StageName  string
+	ClassID    *uuid.UUID
+	ClassName  *string
+	Rating     int16
+	FbAcademic bool
+	FbTeacher  bool
+	FbOther    bool
+	Content    string
+	CreatedBy  *uuid.UUID
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+}
+
 type AcademicStudent struct {
 	ID             uuid.UUID
 	Code           string
@@ -646,6 +680,22 @@ type FinancePaymentProvider struct {
 	WebhookUrl      *string
 	DataFormat      string
 	AutoRetry       bool
+}
+
+type FinancePaymentReport struct {
+	ID              uuid.UUID
+	Code            string
+	StudentID       uuid.UUID
+	BranchID        *uuid.UUID
+	Amount          int64
+	Content         string
+	Status          string
+	RejectionReason *string
+	ResolvedBy      *uuid.UUID
+	ResolvedAt      *time.Time
+	CreatedBy       *uuid.UUID
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
 
 type FinanceReceipt struct {
