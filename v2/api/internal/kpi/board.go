@@ -174,14 +174,27 @@ func (s *Service) Board(ctx context.Context, a *iam.Access, f BoardFilter, all b
 	if len(pending) > 0 {
 		out.Pending = ptr("Chờ phân hệ " + strings.Join(pending, " / ") + " chuyển sang hệ thống mới.")
 	}
+	homework := map[uuid.UUID]kpisrc.HomeworkStats{}
+	if s.homework != nil {
+		out.HomeworkPending = ""
+		if len(ids) > 0 {
+			if homework, err = s.homework.KpiBoardHomework(ctx, ids, from, to); err != nil {
+				return nil, err
+			}
+		}
+	}
 	for _, r := range rows {
-		c, t := classes[r.ID], tasks[r.ID]
+		c, t, h := classes[r.ID], tasks[r.ID], homework[r.ID]
+		hw := rate(h.Submitted, h.Expected)
+		if hw != nil && *hw > 100 {
+			hw = ptr(100.0)
+		}
 		out.Staff = append(out.Staff, BoardRow{ID: r.ID, Name: r.FullName, Code: r.Code, Classes: c.Classes,
 			Retention: rate(c.Retained, c.Students), RetentionDetail: strconv.Itoa(c.Retained) + "/" + strconv.Itoa(c.Students) + " học viên",
 			Attendance:       rate(c.AttendancePresent, c.AttendanceTotal),
 			AttendanceDetail: strconv.Itoa(c.AttendancePresent) + "/" + strconv.Itoa(c.AttendanceTotal) + " lượt",
-			HomeworkDetail:   "0/0 bài",
-			Tasks:            rate(t.Done, t.Total), TasksDetail: strconv.Itoa(t.Done) + "/" + strconv.Itoa(t.Total) + " việc"})
+			Homework:         hw, HomeworkDetail: strconv.Itoa(h.Submitted) + "/" + strconv.Itoa(h.Expected) + " bài",
+			Tasks: rate(t.Done, t.Total), TasksDetail: strconv.Itoa(t.Done) + "/" + strconv.Itoa(t.Total) + " việc"})
 	}
 	return out, nil
 }

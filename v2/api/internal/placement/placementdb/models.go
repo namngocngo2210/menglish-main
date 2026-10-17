@@ -40,6 +40,51 @@ type AcademicClass struct {
 	Version          int32
 }
 
+type AcademicClassChecklist struct {
+	ID                      uuid.UUID
+	ClassID                 uuid.UUID
+	Month                   string
+	TuitionDue              *string
+	TuitionReminded         *string
+	TuitionCollected        *string
+	TuitionNote             *string
+	BigTestDue              *string
+	FeedbackOnTime          *string
+	NegativeFeedbackHandled *string
+	UpdatedBy               *uuid.UUID
+	CreatedAt               time.Time
+	UpdatedAt               time.Time
+}
+
+type AcademicClassObservation struct {
+	ID              uuid.UUID
+	Kind            string
+	ClassID         uuid.UUID
+	ObservedOn      pgtype.Date
+	ObserverID      *uuid.UUID
+	TeacherID       *uuid.UUID
+	Rating          *string
+	Month           *string
+	AttendanceRate  *float64
+	PassRate        *float64
+	Observed        bool
+	LessonContent   *string
+	Attitude        *string
+	Preparation     *string
+	Technique       *string
+	Suggestions     *string
+	TeachingQuality *string
+	Interaction     *string
+	Effectiveness   *string
+	Overall         *string
+	ActionNotes     *string
+	CreatedBy       *uuid.UUID
+	UpdatedBy       *uuid.UUID
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	DeletedAt       *time.Time
+}
+
 type AcademicClassRoster struct {
 	ClassID   *uuid.UUID
 	StudentID uuid.UUID
@@ -129,6 +174,116 @@ type AcademicEnrollment struct {
 	UpdatedAt           time.Time
 }
 
+type AcademicHomework struct {
+	ID          uuid.UUID
+	ClassID     uuid.UUID
+	SessionID   *uuid.UUID
+	TeacherID   *uuid.UUID
+	Title       string
+	Description *string
+	ClassNote   *string
+	YoutubeUrl  *string
+	QuizizzUrl  *string
+	AudioFileID *uuid.UUID
+	Items       []byte
+	DueDate     pgtype.Date
+	DueAt       *time.Time
+	CreatedBy   *uuid.UUID
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	DeletedAt   *time.Time
+}
+
+type AcademicHomeworkSubmission struct {
+	ID               uuid.UUID
+	StudentID        uuid.UUID
+	HomeworkID       *uuid.UUID
+	HomeworkType     string
+	Notes            *string
+	AttachmentFileID *uuid.UUID
+	AttachmentName   *string
+	Status           string
+	Score            *string
+	Feedback         *string
+	ReviewedBy       *uuid.UUID
+	ReviewedAt       *time.Time
+	SubmittedBy      *uuid.UUID
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
+type AcademicMiniTestScore struct {
+	ID             uuid.UUID
+	ClassID        uuid.UUID
+	StudentID      uuid.UUID
+	TeacherID      *uuid.UUID
+	SyllabusUnitID *uuid.UUID
+	Name           string
+	Score          *float64
+	MaxScore       pgtype.Numeric
+	SkillScores    []byte
+	TestDate       time.Time
+	Note           *string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+type AcademicPronunciationRecord struct {
+	ID          uuid.UUID
+	Code        string
+	StudentID   uuid.UUID
+	UnitTitle   string
+	Duration    *string
+	AudioFileID *uuid.UUID
+	Status      string
+	Score       *string
+	Feedback    *string
+	ReviewedBy  *uuid.UUID
+	ReviewedAt  *time.Time
+	CreatedBy   *uuid.UUID
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type AcademicRemark struct {
+	SheetID       uuid.UUID
+	StudentID     uuid.UUID
+	MonstersGroup *string
+	MonstersBonus *string
+	Grammar       *string
+	Attitude      *string
+	Result        *string
+	Comment       *string
+}
+
+type AcademicRemarkSheet struct {
+	ID        uuid.UUID
+	SessionID uuid.UUID
+	ClassID   uuid.UUID
+	Status    string
+	CreatedBy *uuid.UUID
+	UpdatedBy *uuid.UUID
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+type AcademicStageFeedback struct {
+	ID         uuid.UUID
+	Code       string
+	StudentID  uuid.UUID
+	StageName  string
+	ClassID    *uuid.UUID
+	ClassName  *string
+	Rating     int16
+	FbAcademic bool
+	FbTeacher  bool
+	FbOther    bool
+	Content    string
+	CreatedBy  *uuid.UUID
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+}
+
 type AcademicStudent struct {
 	ID             uuid.UUID
 	Code           string
@@ -193,6 +348,23 @@ type AcademicStudentGuardian struct {
 	Relationship *string
 	CreatedBy    *uuid.UUID
 	CreatedAt    time.Time
+}
+
+type AcademicTeacherMeetingReport struct {
+	ID             uuid.UUID
+	WeekStart      time.Time
+	TeacherID      uuid.UUID
+	ClassID        *uuid.UUID
+	AuthorID       uuid.UUID
+	SyllabusNote   *string
+	ScoresNote     *string
+	ClassNote      string
+	AcademicOrder  *string
+	Recommendation *string
+	Status         string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	DeletedAt      *time.Time
 }
 
 type CoreAuditLog struct {
@@ -648,6 +820,22 @@ type FinancePaymentProvider struct {
 	AutoRetry       bool
 }
 
+type FinancePaymentReport struct {
+	ID              uuid.UUID
+	Code            string
+	StudentID       uuid.UUID
+	BranchID        *uuid.UUID
+	Amount          int64
+	Content         string
+	Status          string
+	RejectionReason *string
+	ResolvedBy      *uuid.UUID
+	ResolvedAt      *time.Time
+	CreatedBy       *uuid.UUID
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
 type FinanceReceipt struct {
 	ID                 uuid.UUID
 	Code               string
@@ -775,6 +963,56 @@ type FinanceTuitionImportBatch struct {
 	CommittedAt *time.Time
 }
 
+type HrCommissionAdjustment struct {
+	ID              uuid.UUID
+	UserID          uuid.UUID
+	RefundRequestID *uuid.UUID
+	StudentID       *uuid.UUID
+	Amount          int64
+	Reason          string
+	PayrollRecordID *uuid.UUID
+	SettledAt       *time.Time
+	CreatedBy       *uuid.UUID
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+type HrCommissionItem struct {
+	ID                uuid.UUID
+	UserID            uuid.UUID
+	ReceiptID         uuid.UUID
+	StudentID         *uuid.UUID
+	LeadID            *uuid.UUID
+	BaseAmount        int64
+	Percent           pgtype.Numeric
+	Amount            int64
+	ClosedCount       int32
+	ClosingRank       int32
+	EarnedPeriodStart time.Time
+	EarnedPeriodEnd   time.Time
+	ClosedAt          pgtype.Date
+	Status            string
+	DeferredReason    *string
+	PayrollRecordID   *uuid.UUID
+	SettledAt         *time.Time
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
+type HrCommissionTier struct {
+	ID             uuid.UUID
+	TierName       string
+	MinStudents    int32
+	MaxStudents    *int32
+	NewSalePercent pgtype.Numeric
+	EffectiveFrom  pgtype.Date
+	EffectiveTo    pgtype.Date
+	ReplacesID     *uuid.UUID
+	CreatedBy      *uuid.UUID
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
 type HrKpiCriterium struct {
 	ID            uuid.UUID
 	Role          string
@@ -837,6 +1075,111 @@ type HrKpiSheet struct {
 	UpdatedAt    time.Time
 }
 
+type HrPayrollPeriod struct {
+	ID           uuid.UUID
+	Code         string
+	Title        string
+	Month        int16
+	Year         int16
+	StartDate    time.Time
+	EndDate      time.Time
+	Status       string
+	TotalStaff   int32
+	TotalHours   pgtype.Numeric
+	TotalAmount  int64
+	CalculatedAt *time.Time
+	ApprovedAt   *time.Time
+	ApprovedBy   *uuid.UUID
+	PaidAt       *time.Time
+	PaidBy       *uuid.UUID
+	LegacyID     *int64
+	CreatedBy    *uuid.UUID
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
+type HrPayrollRecord struct {
+	ID                          uuid.UUID
+	PeriodID                    uuid.UUID
+	UserID                      uuid.UUID
+	Department                  *string
+	EmployeeType                *string
+	SalaryRole                  *string
+	BaseSalary                  int64
+	ActualHours                 pgtype.Numeric
+	TeachingSessions            int32
+	TeachingSalary              int64
+	TeachingConcurrent          bool
+	TeachingKpiBonus            int64
+	RetentionBaseStudents       int32
+	RetentionStudents           int32
+	RetentionTier               *int64
+	KpiSource                   *string
+	KpiManualAmount             *int64
+	KpiScore                    *float64
+	KpiBonus                    int64
+	ForeignSessionPay           int64
+	ForeignTeacherSessionsCount int32
+	RenewBonus                  int64
+	CommissionBonus             int64
+	CommissionBase              int64
+	CommissionClawback          int64
+	CommissionDeferred          int64
+	CommissionPercent           *float64
+	CommissionClosedCount       int32
+	Allowance                   int64
+	OtherBonus                  int64
+	OtherDeduction              int64
+	InsuranceDeduction          int64
+	UnionDeduction              int64
+	TaxDeduction                int64
+	PenaltyDeduction            int64
+	ForeignTeacherDeduction     int64
+	NetSalary                   int64
+	Status                      string
+	Notes                       *string
+	AdjustmentNotes             *string
+	ManualLines                 []byte
+	CalculationDetails          []byte
+	LegacyID                    *int64
+	CreatedAt                   time.Time
+	UpdatedAt                   time.Time
+}
+
+type HrPenalty struct {
+	ID              uuid.UUID
+	Code            string
+	UserID          uuid.UUID
+	ClassID         *uuid.UUID
+	WorkTaskID      *uuid.UUID
+	BigTestID       *uuid.UUID
+	AutoSource      *string
+	AutoKey         *string
+	ViolationType   string
+	ErrorCategory   *string
+	ViolationDate   time.Time
+	ViolationAt     *time.Time
+	Amount          int64
+	ReporterID      *uuid.UUID
+	Status          string
+	PayrollRecordID *uuid.UUID
+	Notes           *string
+	EvidenceFileID  *uuid.UUID
+	Explanation     *string
+	ExplainedAt     *time.Time
+	DecidedBy       *uuid.UUID
+	DecidedAt       *time.Time
+	DecisionNote    *string
+	DueDate         pgtype.Date
+	PaidAt          *time.Time
+	RemediedAt      *time.Time
+	RemediedBy      *uuid.UUID
+	RemedyNote      *string
+	LegacyID        *int64
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
 type HrSlaRule struct {
 	Key            string
 	GroupKey       string
@@ -863,6 +1206,106 @@ type HrSlaRule struct {
 	UpdatedAt      *time.Time
 }
 
+type HrStaffAttendance struct {
+	ID               uuid.UUID
+	UserID           uuid.UUID
+	BranchID         *uuid.UUID
+	WorkDate         time.Time
+	Source           string
+	ExpectedStart    pgtype.Time
+	ExpectedEnd      pgtype.Time
+	CheckInAt        *time.Time
+	CheckInPhotoID   *uuid.UUID
+	CheckInLat       *float64
+	CheckInLng       *float64
+	CheckInDistance  *int32
+	CheckInAccuracy  *int32
+	CheckOutAt       *time.Time
+	CheckOutPhotoID  *uuid.UUID
+	CheckOutLat      *float64
+	CheckOutLng      *float64
+	CheckOutDistance *int32
+	CheckOutAccuracy *int32
+	LateMinutes      int32
+	EarlyMinutes     int32
+	LateExcused      bool
+	PenaltyID        *uuid.UUID
+	Note             *string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
+type HrStaffAttendanceRequest struct {
+	ID              uuid.UUID
+	UserID          uuid.UUID
+	BranchID        *uuid.UUID
+	Type            string
+	DateFrom        time.Time
+	DateTo          time.Time
+	CheckInTime     pgtype.Time
+	CheckOutTime    pgtype.Time
+	Reason          string
+	Status          string
+	ReviewedBy      *uuid.UUID
+	ReviewedAt      *time.Time
+	RejectionReason *string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+type HrTeacherHourlyRate struct {
+	ID            uuid.UUID
+	UserID        uuid.UUID
+	Rate          pgtype.Numeric
+	RateUnit      string
+	TeacherType   *string
+	EffectiveFrom time.Time
+	Note          *string
+	CreatedBy     *uuid.UUID
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
+type HrTeacherRate struct {
+	ID                uuid.UUID
+	RankTitle         string
+	Criteria          *string
+	CommunicationRate int64
+	IeltsRate         int64
+	SortOrder         int32
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
+type HrTeacherTimesheet struct {
+	ID                uuid.UUID
+	UserID            uuid.UUID
+	ClassID           *uuid.UUID
+	ClassSessionID    *uuid.UUID
+	TeachingDate      time.Time
+	ScheduledTime     *string
+	CheckinTime       pgtype.Time
+	CheckoutTime      pgtype.Time
+	Hours             pgtype.Numeric
+	LateMinutes       int32
+	EarlyLeaveMinutes int32
+	LateNotified      bool
+	HourlyRate        *int64
+	Type              string
+	Source            string
+	Status            string
+	ReviewedBy        *uuid.UUID
+	ReviewedAt        *time.Time
+	RejectionReason   *string
+	AdjustedAt        *time.Time
+	AdjustedBy        *uuid.UUID
+	AdjustmentReason  *string
+	Notes             *string
+	CreatedBy         *uuid.UUID
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
 type HrTeachingShift struct {
 	ID           uuid.UUID
 	DayType      string
@@ -878,6 +1321,24 @@ type HrTeachingShift struct {
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 	DeletedAt    *time.Time
+}
+
+type HrTimesheetSyncLog struct {
+	ID           uuid.UUID
+	BranchID     *uuid.UUID
+	DeviceName   string
+	DeviceIp     *string
+	Source       *string
+	RecordsCount int32
+	MatchedCount int32
+	FailedCount  int32
+	SkippedCount int32
+	Status       string
+	ErrorCode    *string
+	ErrorMessage *string
+	ErrorRows    []byte
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 }
 
 type IamPermission struct {
@@ -1091,6 +1552,64 @@ type OpsStockMovement struct {
 	CreatedAt           time.Time
 }
 
+type OpsSurvey struct {
+	ID          uuid.UUID
+	Title       string
+	Description *string
+	Deadline    pgtype.Date
+	IsActive    bool
+	CreatedBy   *uuid.UUID
+	LegacyID    *int64
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	DeletedAt   *time.Time
+}
+
+type OpsSurveyResponse struct {
+	ID          uuid.UUID
+	SurveyID    *uuid.UUID
+	SurveyTitle string
+	StudentID   uuid.UUID
+	UserID      *uuid.UUID
+	Rating      int16
+	Feedback    string
+	LegacyID    *int64
+	CreatedAt   time.Time
+}
+
+type OpsTicket struct {
+	ID              uuid.UUID
+	Code            string
+	SubmissionToken *string
+	Title           string
+	Category        string
+	Priority        string
+	Status          string
+	CreatorID       uuid.UUID
+	AssigneeID      *uuid.UUID
+	Description     string
+	ResolvedAt      *time.Time
+	LegacyID        *int64
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+type OpsTicketCounter struct {
+	Year       int16
+	LastNumber int32
+}
+
+type OpsTicketMessage struct {
+	ID             uuid.UUID
+	TicketID       uuid.UUID
+	UserID         *uuid.UUID
+	Message        string
+	IsInternalNote bool
+	LegacyID       *int64
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
 type OpsWorkTask struct {
 	ID                    uuid.UUID
 	No                    int64
@@ -1208,4 +1727,282 @@ type PlacementTest struct {
 	UpdatedAt       time.Time
 	DeletedAt       *time.Time
 	Version         int32
+}
+
+type SyllabusAssignment struct {
+	ID                    uuid.UUID
+	No                    *int64
+	UserID                uuid.UUID
+	CurriculumID          uuid.UUID
+	StageID               *uuid.UUID
+	ClassID               *uuid.UUID
+	AssignedChapters      string
+	StageName             *string
+	Deadline              pgtype.Date
+	ExpectedBigTestDate   pgtype.Date
+	BigTestRemindedFor    pgtype.Date
+	ProgressPercent       int32
+	Status                string
+	OpenedAt              *time.Time
+	OpenedBy              *uuid.UUID
+	OpenReason            *string
+	ClosedAt              *time.Time
+	ClosedBy              *uuid.UUID
+	CloseReason           *string
+	ClosedByBigTestID     *uuid.UUID
+	CurriculumCompletedAt *time.Time
+	ExtraSessions         int32
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
+}
+
+type SyllabusBigTest struct {
+	ID                 uuid.UUID
+	Code               string
+	Title              string
+	ClassID            *uuid.UUID
+	StageID            *uuid.UUID
+	TestType           string
+	ScheduledAt        *time.Time
+	Room               *string
+	ProctorID          *uuid.UUID
+	Passcode           *string
+	ContentUrl         *string
+	SpeakingUrl        *string
+	IsDistributed      bool
+	Status             string
+	ApprovedBy         *uuid.UUID
+	ApprovedAt         *time.Time
+	DistributedAt      *time.Time
+	TeacherRemindedAt  *time.Time
+	ResultsCompletedAt *time.Time
+	CreatedBy          *uuid.UUID
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+}
+
+type SyllabusBigTestOrder struct {
+	ID              uuid.UUID
+	Code            string
+	ClassID         uuid.UUID
+	StageID         *uuid.UUID
+	TeacherID       *uuid.UUID
+	StageName       string
+	TestType        string
+	ExamDate        pgtype.Date
+	DueDate         pgtype.Date
+	Note            *string
+	Status          string
+	TestLink        *string
+	SpeakingLink    *string
+	BigTestID       *uuid.UUID
+	ReviewedBy      *uuid.UUID
+	ReviewedAt      *time.Time
+	RejectionReason *string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+type SyllabusBigTestResult struct {
+	ID             uuid.UUID
+	BigTestID      uuid.UUID
+	StudentID      uuid.UUID
+	ListeningScore *float64
+	ReadingScore   *float64
+	WritingScore   *float64
+	SpeakingScore  *float64
+	OverallScore   *float64
+	IsAbsent       bool
+	ProgressNote   *string
+	VideoUrl       *string
+	Status         string
+	GradedBy       *uuid.UUID
+	ApprovedBy     *uuid.UUID
+	ApprovedAt     *time.Time
+	ParentNotified bool
+	NotifiedAt     *time.Time
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+type SyllabusChangeProposal struct {
+	ID               uuid.UUID
+	CurriculumID     uuid.UUID
+	UnitID           *uuid.UUID
+	LessonID         *uuid.UUID
+	UserID           uuid.UUID
+	ProposalType     *string
+	OldContent       *string
+	NewContent       string
+	Reason           *string
+	AttachmentFileID *uuid.UUID
+	Status           string
+	ReviewerID       *uuid.UUID
+	ReviewedAt       *time.Time
+	ReviewNote       *string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
+type SyllabusCurricula struct {
+	ID          uuid.UUID
+	Code        string
+	Title       string
+	CourseID    *uuid.UUID
+	Version     string
+	Description *string
+	CreatedBy   *uuid.UUID
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	DeletedAt   *time.Time
+}
+
+type SyllabusDocument struct {
+	ID                  uuid.UUID
+	CurriculumID        uuid.UUID
+	StageID             *uuid.UUID
+	Title               string
+	StageName           *string
+	FileID              uuid.UUID
+	VisibleToTeachers   bool
+	VisibleToAssistants bool
+	Downloadable        bool
+	UploadedBy          *uuid.UUID
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
+	DeletedAt           *time.Time
+}
+
+type SyllabusDocumentView struct {
+	DocumentID uuid.UUID
+	UserID     uuid.UUID
+	ViewedAt   time.Time
+}
+
+type SyllabusLesson struct {
+	ID              uuid.UUID
+	CurriculumID    uuid.UUID
+	UnitID          uuid.UUID
+	SessionNo       int32
+	Title           string
+	Objectives      *string
+	Content         *string
+	VocabularyFocus *string
+	GrammarFocus    *string
+	HomeworkGuide   *string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	DeletedAt       *time.Time
+}
+
+type SyllabusMilestone struct {
+	ID             uuid.UUID
+	ProjectID      uuid.UUID
+	Title          string
+	Description    *string
+	AssigneeID     *uuid.UUID
+	StartDate      pgtype.Date
+	DueDate        time.Time
+	TargetQuantity pgtype.Numeric
+	Unit           string
+	DoneQuantity   pgtype.Numeric
+	Status         string
+	CompletedAt    *time.Time
+	RemindedAt     *time.Time
+	BreachedAt     *time.Time
+	SortOrder      int32
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	DeletedAt      *time.Time
+}
+
+type SyllabusPacingRequest struct {
+	ID              uuid.UUID
+	ClassID         uuid.UUID
+	AssignmentID    *uuid.UUID
+	UserID          uuid.UUID
+	RequestType     string
+	Reason          string
+	ExtraSessions   *int16
+	ApproverID      *uuid.UUID
+	Status          string
+	RejectionReason *string
+	ReviewedAt      *time.Time
+	SlaNotifiedAt   *time.Time
+	AppliedNote     *string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+type SyllabusProject struct {
+	ID           uuid.UUID
+	Code         string
+	Name         string
+	Type         string
+	Description  *string
+	OwnerID      *uuid.UUID
+	StartDate    pgtype.Date
+	Deadline     pgtype.Date
+	Status       string
+	KickoffNotes *string
+	KickoffLink  *string
+	PlanLockedAt *time.Time
+	PlanLockedBy *uuid.UUID
+	CompletedAt  *time.Time
+	CreatedBy    *uuid.UUID
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	DeletedAt    *time.Time
+}
+
+type SyllabusProjectMember struct {
+	ProjectID uuid.UUID
+	UserID    uuid.UUID
+	CreatedAt time.Time
+}
+
+type SyllabusProjectUpdate struct {
+	ID            uuid.UUID
+	ProjectID     uuid.UUID
+	MilestoneID   *uuid.UUID
+	UserID        *uuid.UUID
+	QuantityDone  *float64
+	Content       string
+	Difficulties  *string
+	Links         []string
+	MarksComplete bool
+	Response      *string
+	RespondedBy   *uuid.UUID
+	RespondedAt   *time.Time
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
+type SyllabusStage struct {
+	ID           uuid.UUID
+	CurriculumID uuid.UUID
+	Position     int16
+	Name         string
+	Description  *string
+	OverviewLink *string
+	BigTestTitle *string
+	BigTestNote  *string
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	DeletedAt    *time.Time
+}
+
+type SyllabusUnit struct {
+	ID              uuid.UUID
+	CurriculumID    uuid.UUID
+	StageID         *uuid.UUID
+	UnitNumber      int32
+	Title           string
+	Objectives      *string
+	VocabularyFocus *string
+	GrammarFocus    *string
+	HomeworkGuide   *string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	DeletedAt       *time.Time
 }

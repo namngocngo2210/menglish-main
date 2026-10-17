@@ -25,8 +25,29 @@ const KPI_ROLES = ['academic_staff', 'academic_lead', 'manager', 'sales_consulta
 export const hasKpiRole = (me: Me) => me.roles.some((r) => KPI_ROLES.includes(r.name))
 
 const CRM = 'Khách hàng (CRM)'
+const PORTAL = 'Cổng Phụ huynh & Học sinh'
+// Màn cổng học viên: tài khoản cổng, hoặc nhân sự xem hộ học viên trong phạm vi.
+const PORTAL_PERMS = ['portal.student', 'student.view']
 // Quyền neo khu Học phí (SidebarMenu::TUITION): người xử lý nghiệp vụ kế toán.
 const TUITION_ANCHORS = ['tuition.approve', 'tuition.reject', 'invoice.request_cancel', 'refund_transfer.request']
+// Quyền neo hộp "Việc cần duyệt" (approvals.Anchors).
+export const APPROVAL_ANCHORS = [
+  'tuition.approve',
+  'tuition.reject',
+  'invoice.approve_cancel',
+  'refund_transfer.reject',
+  'lead.approve_transfer',
+  'student.assign_class',
+  'work_task.create',
+  'work_task.approve',
+  'syllabus.approve_adjustment',
+  'big_test.approve',
+  'staff_checkin.approve',
+]
+// Quyền neo khu Lương (SidebarMenu::PAYROLL).
+const PAYROLL_ANCHORS = ['payroll.view', 'payroll.view_own']
+// Quyền neo khu Giáo trình (SidebarMenu::SYLLABUS_MANAGER); giáo viên dùng các mục phía giáo viên.
+const SYLLABUS_MANAGER = 'syllabus.manage'
 
 export const NAV: NavItem[] = [
   // Tổng quan (DashboardController) cho nhân sự; học viên / phụ huynh thấy "Tài khoản của tôi" thay chỗ (routes.tsx).
@@ -82,6 +103,29 @@ export const NAV: NavItem[] = [
   { path: '/tasks', label: 'Danh sách đầu việc', group: 'Danh sách đầu việc', perms: ['work_task.view'] },
   // Nút "Giao việc cho Trợ giảng" trên danh sách đầu việc (không phải mục menu riêng như Laravel)
   { path: '/tasks/ta-assign', label: 'Giao việc cho Trợ giảng', group: 'Danh sách đầu việc', perms: ['work_task.assign'], hidden: true },
+  // Cổng Giáo viên (features/teacher): trang mở cho người điểm danh lớp mình hoặc làm thay (record_any); menu neo quyền
+  // đối tượng cổng giáo viên / trợ giảng như SidebarMenu::TEACHING_PORTAL. Trang lớp /teacher/classes/<id>/… mở từ ca dạy.
+  {
+    path: '/teacher/home',
+    label: 'Check-in & Điểm danh hôm nay',
+    group: 'Cổng Giáo viên',
+    perms: ['attendance_student.record', 'attendance_student.record_any'],
+    menu: (me) => can(me, 'attendance_student.record') && can(me, 'portal.teacher', 'portal.assistant'),
+  },
+  {
+    path: '/teacher/submissions',
+    label: 'Chấm bài nộp của lớp',
+    group: 'Cổng Giáo viên',
+    perms: ['homework.grade'],
+    menu: (me) => can(me, 'portal.teacher', 'portal.assistant'),
+  },
+  {
+    path: '/teacher/classes',
+    label: 'Lớp của tôi',
+    group: 'Cổng Giáo viên',
+    perms: ['attendance_student.record', 'attendance_student.record_any'],
+    hidden: true,
+  },
   // Cổng Giáo viên: neo quyền đối tượng cổng giáo viên / trợ giảng; người giao / duyệt việc mở từ danh sách đầu việc.
   {
     path: '/portal/ta-tasks',
@@ -90,6 +134,23 @@ export const NAV: NavItem[] = [
     perms: ['work_task.view'],
     menu: (me) => can(me, 'portal.teacher', 'portal.assistant'),
   },
+  // Đường dẫn cũ của màn chấm bài (route portal.teacher.submissions): chuyển sang /teacher/submissions.
+  {
+    path: '/portal/teacher-submissions',
+    label: 'Chấm bài nộp của lớp',
+    group: 'Cổng Giáo viên',
+    perms: ['homework.grade'],
+    hidden: true,
+  },
+  // Cổng Phụ huynh & Học sinh (StudentPortalController) — features/portal. Menu cho tài khoản cổng (portal.student);
+  // nhân sự có student.view mở được để xem hộ học viên trong phạm vi.
+  { path: '/portal/home', label: 'Trang chủ', perms: PORTAL_PERMS, group: PORTAL, menu: (me) => can(me, 'portal.student') },
+  { path: '/portal/student-homework', label: 'Học tập & Nộp bài tập', perms: PORTAL_PERMS, group: PORTAL, menu: (me) => can(me, 'portal.student') },
+  { path: '/portal/pronunciation', label: 'Luyện phát âm AI', perms: PORTAL_PERMS, group: PORTAL, menu: (me) => can(me, 'portal.student') },
+  { path: '/portal/notifications', label: 'Hộp thư thông báo', perms: PORTAL_PERMS, group: PORTAL, menu: (me) => can(me, 'portal.student') },
+  { path: '/portal/survey', label: 'Khảo sát 5 sao', perms: PORTAL_PERMS, group: PORTAL, menu: (me) => can(me, 'portal.student') },
+  { path: '/portal/feedback', label: 'Gửi góp ý', perms: PORTAL_PERMS, group: PORTAL, menu: (me) => can(me, 'portal.student') },
+  { path: '/portal/app-shell', label: 'Ứng dụng di động', perms: PORTAL_PERMS, group: PORTAL, menu: (me) => can(me, 'portal.student') },
   // Test đầu vào & học thử (Laravel: "Lịch học thử" gắn quyền sửa lớp; "(AI)" chỉ là nhãn menu, không gọi AI)
   { path: '/trial-bookings', label: 'Lịch học thử', group: 'Test đầu vào & học thử', perms: ['class.update'] },
   { path: '/placement-tests', label: 'Đề test đầu vào (AI)', group: 'Test đầu vào & học thử', perms: ['placement_test.view'] },
@@ -102,6 +163,14 @@ export const NAV: NavItem[] = [
   { path: '/teacher/trial-guests', label: 'Khách học thử', group: 'Cổng Giáo viên', perms: ['portal.teacher', 'portal.assistant'] },
   // Báo cáo ngày / tuần / tháng theo vai trò (StaffReportController)
   { path: '/reports', label: 'Báo cáo định kỳ', perms: ['staff_report.submit'], group: 'Báo cáo của tôi' },
+  // Báo cáo giảng dạy tháng của giáo viên (cổng giáo viên) — features/teacher
+  {
+    path: '/teacher/general-report',
+    label: 'Báo cáo giảng dạy',
+    group: 'Báo cáo của tôi',
+    perms: ['attendance_student.record', 'attendance_student.record_any'],
+    menu: (me) => can(me, 'attendance_student.record') && can(me, 'portal.teacher', 'portal.assistant'),
+  },
   { path: '/reports/all', label: 'Tổng hợp báo cáo & nhật ký', perms: ['staff_report.view_all'], group: 'Nhân sự & KPI' },
   // Laravel: @can staff_report.submit và thêm user.view hoặc kpi.view
   {
@@ -122,6 +191,18 @@ export const NAV: NavItem[] = [
   // URL cũ academic.reports / academic.incidents của Laravel.
   { path: '/academic/reports', label: 'Báo cáo & sự vụ lớp', perms: ['class.update'], group: 'Đào tạo & Chất lượng lớp', hidden: true },
   { path: '/academic/incidents', label: 'Báo cáo & sự vụ lớp', perms: ['class.update'], group: 'Đào tạo & Chất lượng lớp', hidden: true },
+  // Chất lượng lớp (ObservationController, ClassChecklistController, TeacherMeetingReportController) — features/quality.
+  { path: '/class-quality/operations', label: 'Dự giờ vận hành', perms: ['class_quality.view'], group: 'Đào tạo & Chất lượng lớp' },
+  { path: '/class-quality/academic', label: 'Đánh giá dự giờ', perms: ['class_quality.view'], group: 'Đào tạo & Chất lượng lớp' },
+  { path: '/class-quality/checklist', label: 'Checklist học phí & feedback', perms: ['class_quality.view'], group: 'Đào tạo & Chất lượng lớp' },
+  { path: '/class-quality/teacher-meetings', label: 'Họp giáo viên', perms: ['class_quality.view'], group: 'Đào tạo & Chất lượng lớp' },
+  { path: '/academic-projects/report', label: 'Dự án học thuật', perms: ['academic_project.view_all'], group: 'Đào tạo & Chất lượng lớp' },
+  // URL cũ classes.qa-observation / checklist / evaluate-observation của Laravel → chuyển sang màn Chất lượng lớp.
+  { path: '/classes/qa-observation', label: 'Dự giờ vận hành', perms: ['class_quality.view'], group: 'Đào tạo & Chất lượng lớp', hidden: true },
+  { path: '/classes/checklist', label: 'Checklist học phí & feedback', perms: ['class_quality.view'], group: 'Đào tạo & Chất lượng lớp', hidden: true },
+  { path: '/classes/evaluate-observation', label: 'Đánh giá dự giờ', perms: ['class_quality.view'], group: 'Đào tạo & Chất lượng lớp', hidden: true },
+  // Dự án học thuật (AcademicProjectController); chi tiết /academic-projects/<id> do ProjectsPage tự đọc đường dẫn.
+  { path: '/academic-projects', label: 'Dự án soạn sách & chương trình', perms: ['academic_project.view'], group: 'Giáo trình' },
   // Khách hàng (CRM) — features/crm. Danh sách phụ (chốt, thất bại, chờ xếp lớp, đã xóa, duyệt chuyển cơ sở) mở từ chip.
   { path: '/crm/pipeline', label: 'Kanban', perms: ['lead.view'], group: CRM },
   { path: '/crm/customers', label: 'Danh sách khách', perms: ['lead.view'], group: CRM },
@@ -145,6 +226,8 @@ export const NAV: NavItem[] = [
   { path: '/tuition/import', label: 'Nhập học phí từ Excel', perms: ['tuition.view'], group: 'Học phí', hidden: true },
   // Bill "Thông báo nộp học phí" (/tuition/bill/<id>): mở từ Chốt khách (CRM) hoặc Lịch sử thu.
   { path: '/tuition/bill', label: 'Thông báo nộp học phí', perms: ['lead.view', 'tuition.view'], group: 'Học phí', hidden: true },
+  // Việc cần duyệt (features/approvals): tab đầu của "Cần duyệt", chỉ Admin; quyền neo = approvals.Anchors của Go.
+  { path: '/approvals', label: 'Việc cần duyệt', perms: APPROVAL_ANCHORS, group: 'Cần duyệt', icon: 'fact_check', menu: isAdmin },
   {
     path: '/tuition/receipts/approve',
     label: 'Phiếu thu',
@@ -166,6 +249,24 @@ export const NAV: NavItem[] = [
     group: 'Cần duyệt',
     menu: (me) => isAdmin(me) && can(me, ...TUITION_ANCHORS),
   },
+  // Học viên / phụ huynh báo đã đóng học phí (PaymentReportApprovalSource) duyệt trong hộp Việc cần duyệt, nhóm Học phí;
+  // URL cũ của v2 chuyển hướng sang đó.
+  { path: '/payment-reports', label: 'Học viên báo đóng học phí', perms: ['tuition.approve'], group: 'Cần duyệt', hidden: true },
+  // Giáo trình (features/syllabus). Cần duyệt: chỉ Admin thấy, neo syllabus.approve_adjustment (người duyệt Học thuật).
+  {
+    path: '/syllabus/versions',
+    label: 'Đề xuất sửa giáo trình',
+    perms: ['syllabus.view'],
+    group: 'Cần duyệt',
+    menu: (me) => isAdmin(me) && can(me, 'syllabus.approve_adjustment'),
+  },
+  {
+    path: '/syllabus/adjustment-requests',
+    label: 'Điều chỉnh tiến độ',
+    perms: ['syllabus.view'],
+    group: 'Cần duyệt',
+    menu: (me) => isAdmin(me) && can(me, 'syllabus.approve_adjustment'),
+  },
   // Công việc (WorkTaskController). Cần duyệt → "Hoàn thành công việc" (sau các tab học phí như SidebarMenu): chỉ Admin,
   // neo work_task.create.
   {
@@ -175,6 +276,118 @@ export const NAV: NavItem[] = [
     perms: ['work_task.view'],
     menu: (me) => isAdmin(me) && can(me, 'work_task.create'),
   },
+  // Chấm công (MyAttendanceController, StaffAttendanceController, phần chấm công của PayrollController) — features/attendance.
+  { path: '/cham-cong', label: 'Chấm công của tôi', perms: ['portal.staff'], group: 'Chấm công' },
+  { path: '/cham-cong/lich-su', label: 'Lịch sử công của tôi', perms: ['portal.staff'], group: 'Chấm công' },
+  { path: '/staff-attendance', label: 'Chấm công hằng ngày', perms: ['staff_checkin.view'], group: 'Chấm công' },
+  {
+    path: '/payroll/timesheets/teachers',
+    label: 'Giờ dạy giáo viên',
+    perms: ['attendance_staff.view', 'payroll.view_own'],
+    group: 'Chấm công',
+    menu: (me) => can(me, 'attendance_staff.view', 'portal.teacher', 'portal.assistant'),
+  },
+  { path: '/payroll/timesheets/manual', label: 'Chấm công đơn lẻ', perms: ['attendance_staff.manual_record'], group: 'Chấm công' },
+  { path: '/payroll/timesheets/appsheet', label: 'AppSheet', perms: ['attendance_staff.view'], group: 'Chấm công' },
+  { path: '/payroll/timesheets/sync-history', label: 'Lịch sử đồng bộ', perms: ['attendance_staff.sync'], group: 'Chấm công' },
+  { path: '/cham-cong/don', label: 'Đơn chấm công & nghỉ', perms: ['portal.staff'], group: 'Xin duyệt' },
+  // Đơn chấm công & nghỉ duyệt trong hộp "Cần duyệt" chung (approvals.index, nhóm Nhân sự) như Laravel; URL cũ của v2
+  // chuyển hướng sang đó.
+  { path: '/approvals/staff-attendance', label: 'Đơn chấm công & nghỉ', perms: ['staff_checkin.approve'], group: 'Cần duyệt', hidden: true },
+  // URL giao diện điện thoại cũ /m (Laravel chuyển hướng sang trang tương ứng).
+  { path: '/m', label: 'Chấm công của tôi', hidden: true },
+  // Ticket hỗ trợ (features/tickets): trang con /tickets/new, /tickets/<id> do TicketsPage tự đọc. Menu neo portal.staff
+  // như SidebarMenu (học viên vẫn mở được ticket của mình qua link thông báo).
+  { path: '/tickets', label: 'Ticket hỗ trợ', perms: ['support_ticket.view'], group: 'Ticket hỗ trợ', menu: (me) => can(me, 'portal.staff') },
+  // Khảo sát (features/surveys): /surveys/<id> = bài đã nộp của đợt.
+  { path: '/surveys', label: 'Đợt khảo sát', perms: ['survey.manage'], group: 'Khảo sát' },
+  // Hướng dẫn sử dụng (features/guide): mọi người đã đăng nhập; ?vai-tro=<bộ hướng dẫn>.
+  { path: '/huong-dan', label: 'Hướng dẫn sử dụng', group: 'Hướng dẫn sử dụng', icon: 'help' },
+  // Lương & Phạt (PayrollController, PenaltyController) — features/payroll. Menu neo payroll.view / payroll.view_own
+  // (SidebarMenu::PAYROLL); phiếu lương /payroll/records/<id> mở từ bảng lương.
+  { path: '/payroll/periods', label: 'Bảng lương theo kỳ', perms: ['payroll.view'], group: 'Lương & Phạt', menu: (me) => can(me, ...PAYROLL_ANCHORS) },
+  { path: '/payroll/records', label: 'Phiếu lương', perms: ['payroll.view'], group: 'Lương & Phạt', hidden: true },
+  {
+    path: '/penalties',
+    label: 'Vi phạm & Phạt',
+    perms: ['violation.view', 'portal.staff'],
+    group: 'Lương & Phạt',
+    menu: (me) => can(me, ...PAYROLL_ANCHORS),
+  },
+  {
+    path: '/payroll/kpi-leaderboard',
+    label: 'Xếp hạng KPI & Thưởng',
+    perms: ['kpi.view'],
+    group: 'Nhân sự & KPI',
+    menu: (me) => can(me, ...PAYROLL_ANCHORS),
+  },
+  // Lương của tôi: như route Go (payroll.view_own / payroll.view / portal.staff); menu chỉ người có lương riêng.
+  {
+    path: '/portal/my-salary',
+    label: 'Lương của tôi',
+    perms: ['payroll.view_own', 'payroll.view'],
+    group: 'Của tôi',
+    menu: (me) => can(me, 'payroll.view_own'),
+  },
+  { path: '/payroll/config/settings', label: 'Tham số lương', perms: ['teacher_rate.manage'], group: 'Lương', menu: (me) => can(me, ...PAYROLL_ANCHORS) },
+  {
+    path: '/payroll/config/teacher-rates',
+    label: 'Đơn giá giáo viên',
+    perms: ['teacher_rate.manage'],
+    group: 'Lương',
+    menu: (me) => can(me, ...PAYROLL_ANCHORS),
+  },
+  {
+    path: '/payroll/config/commission-tiers',
+    label: 'Mốc hoa hồng / Thưởng',
+    perms: ['commission_config.manage'],
+    group: 'Lương',
+    menu: (me) => can(me, ...PAYROLL_ANCHORS),
+  },
+  // Giáo trình & Big Test (features/syllabus). Như SidebarMenu: Tài liệu / Soạn / Giao chặng / Nhắc lịch neo syllabus.manage;
+  // phía giáo viên (Chặng đang dạy, Xem bài giảng, Bảng điểm) ai xem được giáo trình đều thấy.
+  { path: '/syllabus/documents', label: 'Tài liệu', perms: ['syllabus.view'], group: 'Giáo trình', menu: (me) => can(me, SYLLABUS_MANAGER) },
+  { path: '/syllabus/builder', label: 'Soạn syllabus', perms: ['syllabus.view'], group: 'Giáo trình', menu: (me) => can(me, SYLLABUS_MANAGER) },
+  { path: '/syllabus/assignments', label: 'Giao chặng', perms: ['syllabus.view'], group: 'Giáo trình', menu: (me) => can(me, SYLLABUS_MANAGER) },
+  { path: '/syllabus/teaching-stages', label: 'Chặng đang dạy & Order Test', perms: ['syllabus.view'], group: 'Giáo trình' },
+  { path: '/syllabus/teacher-view', label: 'Xem bài giảng', perms: ['syllabus.view'], group: 'Giáo trình' },
+  // URL syllabus.index của Laravel (/syllabus → Tài liệu).
+  { path: '/syllabus', label: 'Tài liệu', perms: ['syllabus.view'], group: 'Giáo trình', hidden: true },
+  // Order đề test của một lớp (/teacher/order-test/<lớp>): mở từ thẻ Chặng đang dạy.
+  {
+    path: '/teacher/order-test',
+    label: 'Order đề test',
+    perms: ['attendance_student.record', 'attendance_student.record_any'],
+    group: 'Giáo trình',
+    hidden: true,
+  },
+  // Bảng điểm Big Test các lớp phụ trách (teacher.big-test-report): Laravel không có mục sidebar, mở bằng URL.
+  {
+    path: '/teacher/big-test-report',
+    label: 'Bảng điểm Big Test',
+    perms: ['attendance_student.record', 'attendance_student.record_any'],
+    group: 'Cổng Giáo viên',
+    hidden: true,
+  },
+  { path: '/syllabus/big-tests/schedules', label: 'Nhắc lịch', perms: ['syllabus.view'], group: 'Big Test', menu: (me) => can(me, SYLLABUS_MANAGER) },
+  {
+    path: '/syllabus/big-tests/distribution',
+    label: 'Phân phối đề',
+    perms: ['syllabus.view'],
+    group: 'Big Test',
+    menu: (me) => can(me, SYLLABUS_MANAGER, 'big_test.approve'),
+  },
+  // /syllabus/big-tests/results/<đợt thi> do ResultsPage tự đọc đường dẫn.
+  {
+    path: '/syllabus/big-tests/results',
+    label: 'Bảng điểm & Kết quả',
+    perms: ['syllabus.view'],
+    group: 'Big Test',
+    menu: (me) => can(me, 'syllabus.update', 'big_test.approve'),
+  },
+  // Xin duyệt: ai xem được giáo trình đều thấy (như Laravel).
+  { path: '/syllabus/teacher-propose', label: 'Đề xuất sửa giáo trình', perms: ['syllabus.view'], group: 'Xin duyệt' },
+  { path: '/syllabus/teacher-adjust', label: 'Xin điều chỉnh tiến độ', perms: ['syllabus.view'], group: 'Xin duyệt' },
 ]
 
 // Workspace của sidebar theo đúng thứ tự SidebarMenu::definition(): khu (section) → workspace (label, icon).

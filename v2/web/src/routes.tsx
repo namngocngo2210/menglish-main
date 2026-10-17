@@ -7,6 +7,12 @@ import { ItemsPage } from './features/inventory/ItemsPage'
 import { MaterialOrdersPage } from './features/inventory/MaterialOrdersPage'
 import { StockPage } from './features/inventory/StockPage'
 import { ExpensesPage } from './features/finance/ExpensesPage'
+import { AcademicPage as QualityAcademicPage } from './features/quality/AcademicPage'
+import { ChecklistPage as QualityChecklistPage } from './features/quality/ChecklistPage'
+import { OperationsPage as QualityOperationsPage } from './features/quality/OperationsPage'
+import { ProjectReportPage } from './features/quality/ProjectReportPage'
+import { ProjectsPage } from './features/quality/ProjectsPage'
+import { TeacherMeetingsPage } from './features/quality/TeacherMeetingsPage'
 import { RevenuePage } from './features/finance/RevenuePage'
 import { AttendanceReviewPage } from './features/kpi/AttendanceReviewPage'
 import { CriteriaPage as KpiCriteriaPage } from './features/kpi/CriteriaPage'
@@ -20,6 +26,10 @@ import { TAPortalPage } from './features/tasks/TAPortalPage'
 import { TasksPage } from './features/tasks/TasksPage'
 import { PlacementTestsPage } from './features/placement/TestsPage'
 import { TeacherTrialsPage, TrialSchedulePage } from './features/placement/TrialPages'
+import { TeacherClassPage } from './features/teacher/ClassPage'
+import { GeneralReportPage as TeacherReportPage } from './features/teacher/GeneralReportPage'
+import { HomePage as TeacherHomePage } from './features/teacher/HomePage'
+import { LegacySubmissionsRedirect, SubmissionsPage as TeacherSubmissionsPage } from './features/teacher/SubmissionsPage'
 import { ActivityLogsPage } from './features/platform/ActivityLogsPage'
 import { NotificationsPage } from './features/platform/NotificationsPage'
 import { SearchPage } from './features/platform/SearchPage'
@@ -36,6 +46,9 @@ import { AcademicPage } from './features/dashboard/AcademicPage'
 import { DashboardPage } from './features/dashboard/DashboardPage'
 import { seesDashboard } from './features/dashboard/logic'
 import { AccountPage } from './pages/AccountPage'
+import { ApprovalsPage as ApprovalInboxPage } from './features/approvals/ApprovalsPage'
+import { SurveysPage } from './features/surveys/SurveysPage'
+import { GuidePage } from './features/guide/GuidePage'
 import { BranchesPage } from './pages/admin/BranchesPage'
 import { RolesPage } from './pages/admin/RolesPage'
 import { UsersPage } from './pages/admin/UsersPage'
@@ -61,16 +74,58 @@ import { OverduePage as TuitionOverduePage } from './features/tuition/OverduePag
 import { ReceiptsRoute } from './features/tuition/ReceiptFormPage'
 import { RefundsPage as TuitionRefundsPage } from './features/tuition/RefundsPage'
 import { StudentsPage as TuitionStudentsPage } from './features/tuition/StudentsPage'
+import { AppShellPage as PortalAppShellPage } from './features/portal/AppShellPage'
+import { FeedbackPage as PortalFeedbackPage } from './features/portal/FeedbackPage'
+import { HomePage as PortalHomePage } from './features/portal/HomePage'
+import { HomeworkPage as PortalHomeworkPage } from './features/portal/HomeworkPage'
+import { isPortalOnly } from './features/portal/logic'
+import { PortalNotificationsPage } from './features/portal/NotificationsPage'
+import { PronunciationPage as PortalPronunciationPage } from './features/portal/PronunciationPage'
+import { SurveyPage as PortalSurveyPage } from './features/portal/SurveyPage'
+import { DailyPage as StaffAttendancePage } from './features/attendance/DailyPage'
+import { HistoryPage as AttendanceHistoryPage } from './features/attendance/HistoryPage'
+import { ManualPage as TimesheetManualPage } from './features/attendance/ManualPage'
+import { MyAttendancePage } from './features/attendance/MyAttendancePage'
+import { legacyMobileTarget, Redirect } from './features/attendance/parts'
+import { RequestsPage as AttendanceRequestsPage } from './features/attendance/RequestsPage'
+import { AppSheetPage, SyncHistoryPage } from './features/attendance/SyncPages'
+import { TeacherTimesheetsPage } from './features/attendance/TeacherTimesheetsPage'
+import { TicketsPage } from './features/tickets/TicketsPage'
+import { RatesPage as PayrollRatesPage, SettingsPage as PayrollSettingsPage, TiersPage as PayrollTiersPage } from './features/payroll/ConfigPages'
+import { PenaltiesPage } from './features/payroll/PenaltiesPage'
+import { PeriodsRoute as PayrollPeriodsRoute } from './features/payroll/PeriodsPage'
+import { LeaderboardPage as PayrollLeaderboardPage, MySalaryPage } from './features/payroll/PortalPages'
+import { RecordRoute as PayrollRecordRoute } from './features/payroll/RecordPage'
+import { AssignmentsPage as SyllabusAssignmentsPage } from './features/syllabus/AssignmentsPage'
+import { BuilderPage as SyllabusBuilderPage } from './features/syllabus/BuilderPage'
+import { DistributionPage as BigTestDistributionPage } from './features/syllabus/DistributionPage'
+import { DocumentsPage as SyllabusDocumentsPage } from './features/syllabus/DocumentsPage'
+import { AdjustmentRequestsPage, TeacherAdjustPage } from './features/syllabus/PacingPages'
+import { TeacherProposePage, VersionsPage as SyllabusVersionsPage } from './features/syllabus/ProposalsPages'
+import { ResultsPage as BigTestResultsPage } from './features/syllabus/ResultsPage'
+import { SchedulesPage as BigTestSchedulesPage } from './features/syllabus/SchedulesPage'
+import { OrderTestPage, TeachingStagesPage } from './features/syllabus/TeachingStagesPage'
+import { TeacherBigTestReportPage } from './features/syllabus/TeacherBigTestReportPage'
+import { TeacherViewPage as SyllabusTeacherViewPage } from './features/syllabus/TeacherViewPage'
 
 // Trang theo đường dẫn mục menu (NAV trong nav.ts). Trang con (vd. /students/<id>) dùng chung mục cha và tự đọc
 // phần còn lại của đường dẫn bằng usePath(). Module mới: thêm mục vào NAV và một dòng ở đây.
 export const PAGES: Record<string, (me: Me) => ReactNode> = {
-  '/': (me) => (seesDashboard(me) ? <DashboardPage me={me} /> : <AccountPage me={me} />),
-  '/dashboard': (me) => (seesDashboard(me) ? <DashboardPage me={me} /> : <AccountPage me={me} />),
+  '/': (me) => home(me),
+  '/dashboard': (me) => home(me),
   '/profile': (me) => <AccountPage me={me} />,
   '/academic/dashboards': () => <AcademicPage />,
   '/academic/reports': () => <AcademicPage />,
   '/academic/incidents': () => <AcademicPage />,
+  '/class-quality/operations': (me) => <QualityOperationsPage me={me} />,
+  '/class-quality/academic': (me) => <QualityAcademicPage me={me} />,
+  '/class-quality/checklist': (me) => <QualityChecklistPage me={me} />,
+  '/class-quality/teacher-meetings': (me) => <TeacherMeetingsPage me={me} />,
+  '/academic-projects': (me) => <ProjectsPage me={me} />,
+  '/academic-projects/report': (me) => <ProjectReportPage me={me} />,
+  '/classes/qa-observation': () => <Redirect to="/class-quality/operations" />,
+  '/classes/checklist': () => <Redirect to="/class-quality/checklist" />,
+  '/classes/evaluate-observation': () => <Redirect to="/class-quality/academic" />,
   '/users': (me) => <UsersPage me={me} />,
   '/roles': (me) => <RolesPage me={me} />,
   '/branches': (me) => <BranchesPage me={me} />,
@@ -107,6 +162,10 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/placement-tests': (me) => <PlacementTestsPage me={me} />,
   '/placement-tests/rubric-guide': (me) => <PlacementTestsPage me={me} />,
   '/teacher/trial-guests': () => <TeacherTrialsPage />,
+  '/teacher/home': () => <TeacherHomePage />,
+  '/teacher/classes': () => <TeacherClassPage />,
+  '/teacher/submissions': (me) => <TeacherSubmissionsPage me={me} />,
+  '/teacher/general-report': () => <TeacherReportPage />,
   '/activity-logs': () => <ActivityLogsPage />,
   '/notifications': (me) => <NotificationsPage me={me} />,
   '/search': (me) => <SearchPage me={me} />,
@@ -136,4 +195,59 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/tuition/refunds': (me) => <TuitionRefundsPage me={me} />,
   '/tuition/sepay': (me) => <TuitionSepayPage me={me} />,
   '/tuition/import': (me) => <TuitionImportPage me={me} />,
+  '/payment-reports': () => <Redirect to="/approvals?group=hoc-phi" />,
+  '/portal/home': () => <PortalHomePage />,
+  '/portal/student-homework': (me) => <PortalHomeworkPage me={me} />,
+  '/portal/pronunciation': () => <PortalPronunciationPage />,
+  '/portal/notifications': () => <PortalNotificationsPage />,
+  '/portal/survey': () => <PortalSurveyPage />,
+  '/portal/feedback': () => <PortalFeedbackPage />,
+  '/portal/app-shell': () => <PortalAppShellPage />,
+  // Đường dẫn cũ của màn chấm bài → /teacher/submissions
+  '/portal/teacher-submissions': () => <LegacySubmissionsRedirect />,
+  '/cham-cong': () => <MyAttendancePage />,
+  '/cham-cong/lich-su': () => <AttendanceHistoryPage />,
+  '/cham-cong/don': (me) => <AttendanceRequestsPage me={me} />,
+  '/approvals/staff-attendance': () => <Redirect to="/approvals?group=nhan-su" />,
+  '/staff-attendance': () => <StaffAttendancePage />,
+  '/payroll/timesheets/teachers': () => <TeacherTimesheetsPage />,
+  '/payroll/timesheets/manual': () => <TimesheetManualPage />,
+  '/payroll/timesheets/appsheet': () => <AppSheetPage />,
+  '/payroll/timesheets/sync-history': () => <SyncHistoryPage />,
+  '/m': () => <Redirect to={legacyMobileTarget(window.location.pathname)} />,
+  '/tickets': (me) => <TicketsPage me={me} />,
+  '/approvals': (me) => <ApprovalInboxPage me={me} />,
+  '/surveys': (me) => <SurveysPage me={me} />,
+  '/huong-dan': (me) => <GuidePage me={me} />,
+  '/payroll/periods': (me) => <PayrollPeriodsRoute me={me} />,
+  '/payroll/records': (me) => <PayrollRecordRoute me={me} />,
+  '/penalties': () => <PenaltiesPage />,
+  '/payroll/kpi-leaderboard': () => <PayrollLeaderboardPage />,
+  '/portal/my-salary': () => <MySalaryPage />,
+  '/payroll/config/settings': () => <PayrollSettingsPage />,
+  '/payroll/config/teacher-rates': () => <PayrollRatesPage />,
+  '/payroll/config/commission-tiers': () => <PayrollTiersPage />,
+  '/syllabus': () => <SyllabusDocumentsPage />,
+  '/syllabus/documents': () => <SyllabusDocumentsPage />,
+  '/syllabus/builder': () => <SyllabusBuilderPage />,
+  '/syllabus/assignments': () => <SyllabusAssignmentsPage />,
+  '/syllabus/teaching-stages': () => <TeachingStagesPage />,
+  '/syllabus/teacher-view': (me) => <SyllabusTeacherViewPage me={me} />,
+  '/teacher/order-test': () => <OrderTestPage />,
+  '/teacher/big-test-report': () => <TeacherBigTestReportPage />,
+  '/syllabus/versions': () => <SyllabusVersionsPage />,
+  '/syllabus/teacher-propose': () => <TeacherProposePage />,
+  '/syllabus/teacher-adjust': () => <TeacherAdjustPage />,
+  '/syllabus/adjustment-requests': () => <AdjustmentRequestsPage />,
+  '/syllabus/big-tests/schedules': () => <BigTestSchedulesPage />,
+  '/syllabus/big-tests/distribution': () => <BigTestDistributionPage />,
+  '/syllabus/big-tests/results': () => <BigTestResultsPage />,
+}
+
+// Trang "/": nhân sự → Tổng quan; tài khoản cổng (học viên / phụ huynh) → Trang chủ cổng học viên như Laravel
+// (DashboardController chuyển sang portal.student.home); còn lại → Tài khoản của tôi.
+function home(me: Me) {
+  if (seesDashboard(me)) return <DashboardPage me={me} />
+  if (isPortalOnly(me)) return <PortalHomePage />
+  return <AccountPage me={me} />
 }

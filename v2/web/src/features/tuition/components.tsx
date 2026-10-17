@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { errorMessage } from '../../api'
 import { Alert, Button, Icon } from '../../components/ui'
-import { tuitionApi, type Page, type ReceiptDetail, type Tone } from './api'
+import { tuitionApi, type Page, type ReceiptDetail, type StudentPayments, type Tone } from './api'
 import { DEPOSIT, formatMoney } from './logic'
 
 export function Tag({ tone = 'neutral', children }: { tone?: Tone; children: ReactNode }) {
@@ -70,8 +70,20 @@ export function Modal({ title, subtitle, onClose, children }: { title: string; s
 }
 
 // Lịch sử thu học phí của học viên (Tuition/StudentPayments.vue): mọi đợt nộp, còn nợ sau từng đợt.
-export function StudentPaymentsDialog({ studentId, onClose }: { studentId: string; onClose: () => void }) {
-  const q = useQuery({ queryKey: ['tuition', 'payments', studentId], queryFn: () => tuitionApi.payments(studentId) })
+// load: nguồn dữ liệu khác (Cổng học viên đọc bản học viên xem qua /portal/tuition); mặc định API của Học phí.
+export function StudentPaymentsDialog({
+  studentId,
+  onClose,
+  load,
+}: {
+  studentId: string
+  onClose: () => void
+  load?: (studentId: string) => Promise<StudentPayments>
+}) {
+  const q = useQuery({
+    queryKey: ['tuition', 'payments', studentId, load ? 'portal' : 'staff'],
+    queryFn: () => (load ?? tuitionApi.payments)(studentId),
+  })
   const d = q.data
   return (
     <Modal title="Lịch sử thu học phí" subtitle={d ? `${d.student.name} · ${d.student.code}` : undefined} onClose={onClose}>

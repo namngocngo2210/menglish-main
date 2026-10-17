@@ -773,6 +773,37 @@ SELECT c.id FROM academic.classes c
 WHERE c.deleted_at IS NULL AND (sqlc.arg(all_classes)::bool OR c.id = ANY (sqlc.arg(ids)::uuid[]))
   AND (cardinality(sqlc.arg(branch_ids)::uuid[]) = 0 OR c.branch_id = ANY (sqlc.arg(branch_ids)::uuid[]));
 
+-- name: ReportMiniTests :many
+-- Điểm mini test có ngày test trong khoảng của các lớp tính vào báo cáo (mục "Kết quả mini test").
+SELECT m.id, m.name, (m.score IS NOT NULL)::bool AS has_score, coalesce(m.score, 0)::float8 AS score, m.max_score::float8 AS max_score, c.name AS class_name,
+       coalesce(s.full_name, 'Học sinh')::text AS student_name
+FROM academic.mini_test_scores m
+JOIN academic.classes c ON c.id = m.class_id
+LEFT JOIN academic.students s ON s.id = m.student_id AND s.deleted_at IS NULL
+WHERE m.class_id = ANY (sqlc.arg(class_ids)::uuid[]) AND m.test_date BETWEEN sqlc.arg(from_date)::date AND sqlc.arg(to_date)::date
+ORDER BY m.test_date, m.id;
+
+-- name: ReportCareDue :many
+-- Việc chăm sóc tháng đầu còn mở có hạn tới to_date (Công việc), theo lớp của việc (hoặc lớp hiện tại của học viên) trong các
+-- lớp tính vào báo cáo — "Lớp đến hạn chăm sóc" của báo cáo tuần Học vụ.
+SELECT t.id, c.id AS class_id, c.name AS class_name, coalesce(s.full_name, t.title)::text AS name, t.due_date
+FROM ops.work_tasks t
+LEFT JOIN academic.students s ON s.id = t.student_id AND s.deleted_at IS NULL
+JOIN academic.classes c ON c.id = coalesce(t.class_id, s.current_class_id)
+WHERE t.care_milestone IS NOT NULL AND t.status IN ('new', 'in_progress') AND t.due_date <= sqlc.arg(to_date)::date
+  AND c.id = ANY (sqlc.arg(class_ids)::uuid[])
+ORDER BY c.name, c.id, t.due_date, t.id;
+
+-- name: ReportUnmarkedSessions :many
+-- Buổi chưa điểm danh (không tính phụ đạo, buổi hủy / đã xong) có ngày trong [from_date, before_date) của các lớp tính vào
+-- báo cáo — dòng tham khảo của mục KPI 5.1 ở báo cáo tuần Học vụ.
+SELECT s.id, s.class_id, c.name AS class_name, s.date
+FROM academic.class_sessions s
+JOIN academic.classes c ON c.id = s.class_id
+WHERE s.class_id = ANY (sqlc.arg(class_ids)::uuid[]) AND s.date >= sqlc.arg(from_date)::date AND s.date < sqlc.arg(before_date)::date
+  AND s.type <> 'support' AND s.status NOT IN ('cancelled', 'completed')
+ORDER BY s.date, s.start_time, s.id;
+
 -- name: ReportDaySessions :many
 -- Buổi học trong ngày (không tính phụ đạo) của các lớp tính vào báo cáo ngày.
 SELECT s.id, s.class_id, c.name AS class_name, c.branch_id AS class_branch_id, c.teacher_id AS class_teacher_id,
@@ -995,6 +1026,26 @@ WHERE a.session_date = @day::date AND c.deleted_at IS NULL
   AND (sqlc.arg(all_classes)::bool OR a.class_id = ANY (sqlc.arg(ids)::uuid[]))
   AND (sqlc.narg('class_id')::uuid IS NULL OR a.class_id = sqlc.narg('class_id')::uuid)
 ORDER BY a.id DESC;
+
+-- name: KpiTestScores :many
+-- Điểm test của học sinh các lớp trong khoảng, quy về thang 10 (KpiAutoCounter::testScores): Big Test đã duyệt / đã gửi,
+-- không vắng, có điểm tổng (theo ngày thi) và mini test (theo ngày test; điểm trống tính 0 như bản Laravel).
+SELECT c.id AS class_id, c.code::text AS code, c.name, x.day, x.score
+FROM (
+    SELECT b.class_id, (b.scheduled_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date AS day, least(10, r.overall_score)::float8 AS score
+    FROM syllabus.big_test_results r
+    JOIN syllabus.big_tests b ON b.id = r.big_test_id
+    WHERE b.class_id = ANY (sqlc.arg(class_ids)::uuid[]) AND b.scheduled_at BETWEEN sqlc.arg(from_at)::timestamptz AND sqlc.arg(to_at)::timestamptz
+      AND NOT r.is_absent AND r.overall_score IS NOT NULL AND r.status IN ('approved', 'sent')
+    UNION ALL
+    SELECT m.class_id, m.test_date, least(10, coalesce(m.score, 0) / m.max_score * 10)::float8
+    FROM academic.mini_test_scores m
+    WHERE m.class_id = ANY (sqlc.arg(class_ids)::uuid[]) AND m.max_score > 0
+      AND m.test_date BETWEEN (sqlc.arg(from_at)::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::date
+                          AND (sqlc.arg(to_at)::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::date
+) x
+JOIN academic.classes c ON c.id = x.class_id
+ORDER BY c.name, c.id, x.day;
 
 -- name: KpiVisibleClasses :many
 SELECT c.id, c.name FROM academic.classes c

@@ -23,7 +23,7 @@ Ký hiệu: **Đã làm** = đủ hành vi như Laravel; **Làm một phần** =
 | `classes.show` GET /classes/{id}?tab= | GET /classes/{id}?tab= · màn `/classes/{id}` | Làm một phần | Thanh bước vòng đời, việc tiếp theo, sĩ số, tiến độ, buổi kế tiếp. Tab Tổng quan (GVNN 7 ngày tới), Học viên (lớp chính + liên kết), Lịch & buổi học, Điểm danh & báo cáo buổi (trạng thái điểm danh từng buổi). Trợ giảng 7 ngày tới và trợ giảng của từng buổi = người được giao việc gắn lớp (`ops.work_tasks`, như Laravel). Chưa có: báo cáo buổi, tab Học thuật (Big Test, giáo trình) — TODO(academic); tab Sự vụ — TODO(incidents). |
 | `classes.trial-booking` GET | — | Chưa làm | Lịch học thử thuộc CRM: TODO(crm). |
 | `classes.profile`, `academic-overview`, `academic-list`, `academic-detail` | — | Chưa làm | Ở Laravel chỉ là chuyển hướng sang `classes.index` / `classes.show`; v2 dùng thẳng `/classes`, `/classes/{id}?tab=academic`. |
-| `classes.qa-observation`, `checklist`, `evaluate-observation` | — | Chưa làm | Chuyển hướng sang phân hệ Dự giờ & chất lượng lớp (chưa có ở v2). |
+| `classes.qa-observation`, `checklist`, `evaluate-observation` | NAV ẩn `/classes/qa-observation`, `/classes/checklist`, `/classes/evaluate-observation` | Đã làm | Chuyển sang màn Chất lượng lớp (xem [chat-luong-lop.md](chat-luong-lop.md)). |
 
 ## Lịch & TKB lớp (`WorkTaskController::scheduleConfig`, `SessionScheduleService`)
 
@@ -69,7 +69,7 @@ Ký hiệu: **Đã làm** = đủ hành vi như Laravel; **Làm một phần** =
 |---|---|---|---|
 | `teacher.attendance` GET /teacher/attendance/{classId} | GET /class-attendance/{id}?session=&date= · màn `/classes/{id}/attendance` | Làm một phần | Chọn buổi theo id / ngày (ưu tiên buổi mình được phân công), mặc định buổi gần nhất chưa điểm danh trong 30 ngày; danh sách lớp thật (lớp chính + liên kết, giữ học viên đã có điểm danh); điểm danh thay (Học vụ / Quản lý). Khách học thử của buổi: TODO(crm); học viên buổi phụ đạo: TODO(tasks). |
 | `teacher.attendance.store` POST | POST /class-attendance/{id} | Đã làm | GV trong khung ±N giờ (SLA `gv.attendance_window`, mặc định 24h), Học vụ chặn buổi chưa tới ngày, buổi đã hủy chặn; "Vắng" / "Vắng có phép" bắt buộc lý do; học viên ngoài lớp bị chặn; ghi ngày bắt đầu học khi có mặt lần đầu; buổi chuyển "đã điểm danh". |
-| `teacher.home`, `teacher.checkin`, homework / scores / reports | — | Chưa làm | Cổng giáo viên khác (chấm công, bài tập, điểm, báo cáo) thuộc phân hệ khác. |
+| `teacher.home`, `teacher.checkin`, homework / scores / reports | Cổng giáo viên (`internal/teacher`) | Đã làm | Xem [cong-giao-vien.md](cong-giao-vien.md): check-in ghi ca dạy qua Chấm công, bài tập, mini test (Unit của giáo trình), nhận xét, báo cáo giảng dạy, bảng điểm Big Test. |
 
 ## Tích hợp với phân hệ khác
 
@@ -78,8 +78,8 @@ Ký hiệu: **Đã làm** = đủ hành vi như Laravel; **Làm một phần** =
 | Order học liệu: chọn lớp, kiểm lớp tồn tại | `inventory.ClassLookup` (`ClassOptions`, `ClassExists`) | Làm một phần | Danh sách order chưa hiện tên lớp. |
 | CRM Chốt & Xếp lớp / Gán lớp (`processClosingWizard`, `assignClass`) | `crm.StudentCreator` = `classes.CRMStudents` (+ `crm.ClassStarts`, `crm.ClosingChoiceSource`) | Làm một phần | Xem `crm.md`. Học phí / phiếu thu / task nhắc thu chờ phân hệ Học phí. |
 | Học thử (`placement.Sessions`) | `classes.PlacementSessions` (Get, Lookup, TeachingScope) | Đã làm | Buổi học thật cho xếp học thử; phạm vi giáo viên = buổi mình dạy / dạy thay + lớp mình phụ trách. |
-| Báo cáo (`reports.ClassDirectory`, `MetricsProvider`) | `classes.ReportClasses`, `classes.ReportMetrics` (bọc provider gốc) | Làm một phần | Xem `bao-cao.md`: vận hành lớp học của báo cáo ngày, chỉ số quy mô lớp của báo cáo tuần, lớp của giáo viên trong báo cáo tháng (chuyên cần, số buổi đã dạy). |
+| Báo cáo (`reports.ClassDirectory`, `MetricsProvider`) | `classes.ReportClasses`, `classes.ReportMetrics` (bọc provider gốc) | Đã làm | Xem `bao-cao.md`: vận hành lớp học của báo cáo ngày, chỉ số quy mô lớp + lớp đến hạn chăm sóc của báo cáo tuần, lớp của giáo viên trong báo cáo tháng (chuyên cần, số buổi đã dạy), kết quả mini test, buổi chưa điểm danh (dòng tham khảo KPI 5.1). Điểm Big Test + mini test cho KPI: `classes.KpiTestSources`. |
 | Công việc (`tasks.Classes`) | `classes.TaskClasses` | Đã làm | Lớp gắn vào việc, buổi học để giao việc trợ giảng, lớp trực trong ngày ở portal trợ giảng. Xem `cong-viec.md`. |
 | FK sang `academic.*` | `00110_academic_links_fk` | Đã làm | `crm.leads` (khóa chờ xếp lớp, học viên đã chốt), `crm.promotions.course_id`, `crm.enrollment_confirmations`, `crm.trial_bookings`, `academic.enrollments.lead_id`, `academic.students.lead_id`, `placement.submissions.student_id`, `ops.work_tasks` (`class_id`, `student_id`), `ops.staff_reports.class_id`, `ops.stock_movements.student_id`. |
 | Nhật ký nghiệp vụ / thông báo | `audit.Record` khi tạo / sửa / xóa lớp, gán / gỡ GVNN; `notify.Send` báo GVNN được xếp dạy | Đã làm | Thông báo "Bạn được xếp dạy GVNN lớp <mã>", nội dung các ngày buổi (tối đa 6), link tab Lịch & buổi học; không báo người vừa thao tác. |
-| Giãn tiến độ lớp (`ScheduleExtensionService`, dùng ở `SyllabusController`) | — | Chưa làm | Thuộc phân hệ Giáo trình. |
+| Giãn tiến độ lớp (`ScheduleExtensionService`, dùng ở `SyllabusController`) | `classes.SyllabusClasses.ExtendSessions` (`classes/extension.go`), gọi khi duyệt yêu cầu điều chỉnh tiến độ | Đã làm | Thêm N buổi chính khóa theo ca lặp tuần (bỏ ngày lễ, chặn trùng phòng / nhân sự), lùi ngày kết thúc lớp; xem [giao-trinh.md](giao-trinh.md). |

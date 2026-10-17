@@ -38,7 +38,7 @@ type env struct {
 	seq int
 }
 
-func setup(t *testing.T) *env {
+func setup(t *testing.T, opts ...func(*dashboard.Deps)) *env {
 	t.Helper()
 	e := iamtest.Setup(t, "crm.leads", "crm.trial_bookings", "ops.work_tasks", "ops.staff_reports", "ops.material_orders",
 		"academic.students", "academic.classes")
@@ -57,11 +57,15 @@ func setup(t *testing.T) *env {
 		Metrics: cls.ReportMetrics(reports.NewMetrics(crmSvc.ReportSource()), e.IAM.LoadAccess),
 		Classes: cls.ReportClasses(), Tasks: taskSvc.ReportTasks(), Calendar: cat.ReportCalendar(),
 	})
-	svc := dashboard.NewService(dashboard.Deps{
+	deps := dashboard.Deps{
 		Leads: crmSvc.DashboardLeads(), Tasks: taskSvc.DashboardTasks(), Classes: cls.DashboardClasses(),
 		Students: studentSvc.DashboardStudents(), Reports: reportSvc.DashboardReports(), Orders: inv.DashboardOrders(),
 		Branches: e.IAM,
-	}, e.Log)
+	}
+	for _, o := range opts {
+		o(&deps)
+	}
+	svc := dashboard.NewService(deps, e.Log)
 	e.Serve(dashboard.NewHandler(svc, e.Log).Routes)
 	return &env{Env: e, t: t, ctx: context.Background()}
 }
@@ -87,6 +91,15 @@ func (e *env) next() int { e.seq++; return e.seq }
 func today() time.Time {
 	n := time.Now().In(vn)
 	return time.Date(n.Year(), n.Month(), n.Day(), 0, 0, 0, 0, vn)
+}
+
+// laterToday: now+d nhưng không qua nửa đêm giờ VN (test chạy sau ~22h vẫn có lịch hẹn "hôm nay").
+func laterToday(d time.Duration) time.Time {
+	t, end := time.Now().Add(d), today().Add(24*time.Hour-time.Second)
+	if t.After(end) {
+		return end
+	}
+	return t
 }
 
 func (e *env) lead(name string, branch uuid.UUID, owner *uuid.UUID, cols map[string]any) uuid.UUID {
@@ -205,7 +218,7 @@ func TestOperationsScope(t *testing.T) {
 	e.lead("Khách B", b, nil, nil)
 	e.lead("Khách cũ", a, nil, map[string]any{"created_at": today().AddDate(0, -2, 0)})
 	// Hẹn test hôm nay ở chi nhánh A (một khách chưa làm bài)
-	e.lead("Hẹn test", a, nil, map[string]any{"stage": "test_scheduled", "appointment_at": time.Now().Add(time.Hour)})
+	e.lead("Hẹn test", a, nil, map[string]any{"stage": "test_scheduled", "appointment_at": laterToday(time.Hour)})
 
 	yesterday := today().AddDate(0, 0, -1)
 	e.task("Quá hạn A", admin.ID, &mgr.ID, &a, "new", &yesterday)
@@ -269,8 +282,8 @@ func TestPersonalBoardScope(t *testing.T) {
 	boss := e.User("AD001", "Admin", []uuid.UUID{a}, iam.RoleAdmin)
 
 	now := time.Now()
-	e.lead("Khách hẹn test", a, &sales.ID, map[string]any{"stage": "test_scheduled", "appointment_at": now.Add(2 * time.Hour), "appointment_type": "online"})
-	e.lead("Khách người khác", a, &other.ID, map[string]any{"stage": "test_scheduled", "appointment_at": now.Add(2 * time.Hour)})
+	e.lead("Khách hẹn test", a, &sales.ID, map[string]any{"stage": "test_scheduled", "appointment_at": laterToday(2 * time.Hour), "appointment_type": "online"})
+	e.lead("Khách người khác", a, &other.ID, map[string]any{"stage": "test_scheduled", "appointment_at": laterToday(2 * time.Hour)})
 	e.lead("Gọi lại quá hạn", a, &sales.ID, map[string]any{"stage": "consulting", "next_follow_up_at": now.Add(-time.Hour)})
 	e.lead("Gọi lại ngày mai", a, &sales.ID, map[string]any{"stage": "consulting", "next_follow_up_at": today().AddDate(0, 0, 1).Add(10 * time.Hour)})
 	e.lead("Khách mới chưa gọi", a, &sales.ID, map[string]any{"created_at": now.Add(-30 * time.Hour)})

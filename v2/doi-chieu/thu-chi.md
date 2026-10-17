@@ -29,4 +29,4 @@ Trạng thái: **Đã làm** · **Khác** (đã làm, có khác biệt có chủ
 | Model `OperatingExpense` (activity log) | Đã làm | `audit.RegisterSubject("operating_expense")`; đường dẫn `/finance` thuộc phân hệ Học phí & Thu chi của nhật ký. |
 | Phạm vi dữ liệu `TuitionBranchScope::FINANCE` | Đã làm | Mức phạm vi của module `finance` trong danh mục quyền (`iam.Access.Level("finance")`). |
 | Số liệu phiếu thu (`revenueReceiptQuery`) | Đã làm | Phiếu thu đã duyệt của Học phí qua `finance.RevenueSource` (`tuition.Service.RevenueSource`, nối trong `main.go`). |
-| Chi lương tự động (`PayrollPeriod` approved / paid) | Chưa làm | Chờ phân hệ Lương (`finance.PayrollSource`). |
+| Chi lương tự động (`PayrollPeriod` approved / paid) | Đã làm | `finance.PayrollSource` = `payroll.Service.Finance()` (`WithPayroll` trong `main.go`): dòng chi lương của kỳ lương đã duyệt / chi trả trong tháng. |

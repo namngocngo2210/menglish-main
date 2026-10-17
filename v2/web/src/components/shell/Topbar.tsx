@@ -9,6 +9,7 @@ export function Topbar({
   me,
   title,
   bell,
+  search = true,
   onOpenMenu,
   onOpenSearch,
   onLogout,
@@ -16,6 +17,8 @@ export function Topbar({
   me: Me
   title: string
   bell: ReactNode
+  // false: không có ô tìm kiếm chung (tài khoản cổng học viên như AppShell của Laravel)
+  search?: boolean
   onOpenMenu: () => void
   onOpenSearch: () => void
   onLogout: () => void
@@ -33,23 +36,27 @@ export function Topbar({
           <Icon name="menu" />
         </button>
         <div className="min-w-0 truncate text-lg font-semibold text-on-surface">{title}</div>
-        <button
-          type="button"
-          onClick={onOpenSearch}
-          className="hidden w-[300px] shrink-0 items-center gap-2 rounded-full bg-surface-container-low py-2 pr-3 pl-3 text-left text-sm text-on-surface-variant hover:bg-surface-container-high lg:flex"
-        >
-          <Icon name="search" className="text-[20px]" />
-          <span className="flex-1 truncate">Tìm màn hình, người dùng, chi nhánh...</span>
-          <kbd className="rounded border border-outline-variant px-1.5 font-mono text-[11px]">Ctrl K</kbd>
-        </button>
-        <button
-          type="button"
-          onClick={onOpenSearch}
-          aria-label="Tìm kiếm"
-          className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high lg:hidden"
-        >
-          <Icon name="search" />
-        </button>
+        {search && (
+          <>
+            <button
+              type="button"
+              onClick={onOpenSearch}
+              className="hidden w-[300px] shrink-0 items-center gap-2 rounded-full bg-surface-container-low py-2 pr-3 pl-3 text-left text-sm text-on-surface-variant hover:bg-surface-container-high lg:flex"
+            >
+              <Icon name="search" className="text-[20px]" />
+              <span className="flex-1 truncate">Tìm màn hình, người dùng, chi nhánh...</span>
+              <kbd className="rounded border border-outline-variant px-1.5 font-mono text-[11px]">Ctrl K</kbd>
+            </button>
+            <button
+              type="button"
+              onClick={onOpenSearch}
+              aria-label="Tìm kiếm"
+              className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high lg:hidden"
+            >
+              <Icon name="search" />
+            </button>
+          </>
+        )}
       </div>
 
       <div className="flex shrink-0 items-center gap-1 sm:gap-3">

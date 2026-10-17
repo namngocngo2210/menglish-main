@@ -243,6 +243,50 @@ type Orders interface {
 	Academic(ctx context.Context, requesters []uuid.UUID, from, to time.Time, limit int) ([]AcademicOrder, error)
 }
 
+// TicketCounts: ticket đang mở (Mới + Đang xử lý) và ticket Mới chưa có người xử lý.
+type TicketCounts struct {
+	Open       int64
+	Unassigned int64
+}
+
+// IncidentTicket: ticket hỗ trợ nổi cộm trên màn Nhật ký sự vụ.
+type IncidentTicket struct {
+	ID            uuid.UUID `json:"id"`
+	Code          string    `json:"code"`
+	CanOpen       bool      `json:"can_open"`
+	Branch        *string   `json:"branch"`
+	CategoryLabel string    `json:"category_label"`
+	Title         string    `json:"title"`
+	Excerpt       string    `json:"excerpt"`
+	Priority      string    `json:"priority"`
+	Assignee      *string   `json:"assignee"`
+	Creator       string    `json:"creator"`
+	Status        string    `json:"status"`
+	StatusLabel   string    `json:"status_label"`
+}
+
+// TicketIncidentFilter: mức ưu tiên cần lấy, chi nhánh chính của người tạo, trạng thái (open | resolved | rỗng = mọi).
+type TicketIncidentFilter struct {
+	Priorities []string
+	BranchID   *uuid.UUID
+	Status     string
+}
+
+// Tickets: ticket hỗ trợ (adapter tickets.Service.DashboardTickets). Counts trả nil = phân hệ chưa có.
+type Tickets interface {
+	// Counts: lọc theo chi nhánh chính của người tạo ticket.
+	Counts(ctx context.Context, branches []uuid.UUID) (*TicketCounts, error)
+	// Incidents: mới trước, tối đa limit; ok = false khi phân hệ chưa có.
+	Incidents(ctx context.Context, a *iam.Access, f TicketIncidentFilter, limit int) (rows []IncidentTicket, ok bool, err error)
+}
+
+type noTickets struct{}
+
+func (noTickets) Counts(context.Context, []uuid.UUID) (*TicketCounts, error) { return nil, nil }
+func (noTickets) Incidents(context.Context, *iam.Access, TicketIncidentFilter, int) ([]IncidentTicket, bool, error) {
+	return nil, false, nil
+}
+
 // ───────────── Phân hệ đang làm song song: mặc định "chưa có" ─────────────
 
 // Finance: số liệu học phí. Trả nil = phân hệ chưa có (màn hiện "Chờ phân hệ Học phí").
@@ -255,6 +299,56 @@ type Finance interface {
 	OverdueTuitions(ctx context.Context, a *iam.Access) (*int64, error)
 }
 
+// Projects: hạn mốc dự án học thuật trên lịch "Việc của bạn" (projects.Service.DashboardMilestones). nil = chưa nối.
+type Projects interface {
+	// Sees: có mốc để hiện — người quản lý dự án, hoặc đang nhận mốc chưa xong của dự án đang mở.
+	Sees(ctx context.Context, a *iam.Access) (bool, error)
+	// Agenda: mốc chưa xong có hạn trong [from, to] (MyWorkBoard::agenda, kind "project").
+	Agenda(ctx context.Context, a *iam.Access, from, to time.Time) ([]AgendaItem, error)
+}
+
+// Syllabus: số liệu Giáo trình & Big Test (syllabus.Service.Dashboard). nil = chưa nối (màn ghi "Chờ phân hệ Giáo trình").
+type Syllabus interface {
+	// Board: hàng chờ chuyên môn của bảng Học thuật (DashboardController::academicDashboard).
+	Board(ctx context.Context, now time.Time) (SyllabusBoard, error)
+	// Week: số liệu tuần của màn Báo cáo đào tạo (AcademicDashboardController::reports, weeklyStats).
+	Week(ctx context.Context, now time.Time) (SyllabusWeek, error)
+	// Agenda: đợt Big Test lên lịch trong [from, to] (MyWorkBoard::agenda, kind "bigtest").
+	Agenda(ctx context.Context, from, to time.Time) ([]AgendaItem, error)
+}
+
+// SyllabusBoard: đề xuất / giãn tiến độ / order đề / kết quả Big Test chờ duyệt và Big Test 14 ngày tới.
+type SyllabusBoard struct {
+	PendingProposals   int64
+	PendingOrders      int64
+	PendingResults     int64 // số đợt Big Test có kết quả chờ duyệt
+	PendingAdjustments int64
+	Adjustments        []PendingAdjustment // 5 yêu cầu giãn tiến độ mới nhất
+	UpcomingBigTests   []UpcomingBigTest   // tối đa 8 đợt
+}
+
+type PendingAdjustment struct {
+	ID      uuid.UUID `json:"id"`
+	Class   *string   `json:"class"`
+	Teacher *string   `json:"teacher"`
+	Reason  string    `json:"reason"`
+}
+
+type UpcomingBigTest struct {
+	ID          uuid.UUID  `json:"id"`
+	Title       string     `json:"title"`
+	Class       *string    `json:"class"`
+	ScheduledAt *time.Time `json:"scheduled_at"`
+}
+
+// SyllabusWeek: giãn tiến độ chờ duyệt / gửi trong tuần, Big Test 7 ngày tới, đề đã phân phối trong tuần.
+type SyllabusWeek struct {
+	AdjustmentsPending  int64
+	AdjustmentsWeek     int64
+	BigTestsUpcoming    int64
+	BigTestsDistributed int64
+}
+
 type noFinance struct{}
 
 func (noFinance) Revenue(context.Context, []uuid.UUID, time.Time, time.Time) (*int64, error) {
@@ -262,6 +356,15 @@ func (noFinance) Revenue(context.Context, []uuid.UUID, time.Time, time.Time) (*i
 }
 func (noFinance) PendingReceipts(context.Context, []uuid.UUID) (*int64, error) { return nil, nil }
 func (noFinance) OverdueTuitions(context.Context, *iam.Access) (*int64, error) { return nil, nil }
+
+// Payroll: số kỳ lương chưa chốt (draft / reviewing) của phân hệ Lương; nil = chưa có.
+type Payroll interface {
+	OpenPeriods(ctx context.Context) (*int64, error)
+}
+
+type noPayroll struct{}
+
+func (noPayroll) OpenPeriods(context.Context) (*int64, error) { return nil, nil }
 
 // WorkStats: ngày công, buổi đi muộn, ngày phép, lỗi vi phạm trong tháng của một người.
 type WorkStats struct {
@@ -271,10 +374,21 @@ type WorkStats struct {
 	Violations int `json:"violations"`
 }
 
-// StaffWork: chấm công / nghỉ phép / biên bản lỗi. ok = false khi phân hệ chưa có.
-// TODO(gộp): adapter của phân hệ chấm công & KPI (teacher_timesheets, staff_attendances, đơn nghỉ phép, penalties).
+// StaffWork: chấm công / nghỉ phép / biên bản lỗi (attendance.Service.DashboardWork, biên bản qua Lương & Phạt). ok = false
+// khi phân hệ chưa có.
 type StaffWork interface {
 	Stats(ctx context.Context, ids []uuid.UUID, from, to time.Time) (stats map[uuid.UUID]WorkStats, ok bool, err error)
+}
+
+// ClassHomework: tỷ lệ làm bài về nhà + điểm mini test trung bình (thang 10) theo lớp trong tháng (cổng Giáo viên).
+type ClassHomework interface {
+	ClassQuality(ctx context.Context, classIDs []uuid.UUID, from, to time.Time) (map[uuid.UUID]ClassQuality, error)
+}
+
+// ClassQuality: nil = lớp không giao bài / không có điểm trong tháng.
+type ClassQuality struct {
+	Homework *float64
+	Score    *float64
 }
 
 type noStaffWork struct{}

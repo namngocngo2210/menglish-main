@@ -47,7 +47,7 @@ hủy thì không có thư; vòng gửi nền (`mail.Service.RunLoop`, 5 giây m
 | `AppointmentConfirmation::forTest` (`crm.customers.schedule-test`) | — | Chưa làm | Hẹn test trên hồ sơ khách chưa chuyển (xem `test-dau-vao.md`). Gọi `mail.ParentNotice` khi chuyển. |
 | `NotificationService::notifyHomeworkOrTestSubmission` (email vận hành khi nộp bài) | `placement/notify.go` `notifySubmission` → `mail.OperationalAlert(EventHomework, …)` | Đã làm | Gửi tới danh sách email nhận Ticket khi bật sự kiện "homework"; cùng tiêu đề, nội dung, mã `TEST-<số>`, nút "Xem Báo cáo Điểm số". |
 | `sendOperationalAlertEmail` (danh sách nhận, bật / tắt từng sự kiện) | `mail.OperationalAlert`, `mail.TicketRecipients`, `mail.EventEnabled` | Đã làm | Dùng cho mọi email vận hành. |
-| `notifyTicketCreated` / `notifyTicketMessage` / `notifyTicketStatusChanged` (email ticket) / `notifyTicketAssigned` (`Mail::raw`) | — | Chưa làm | v2 chưa có phân hệ Ticket. Mẫu `ticket`, `TicketRecipients`, `EventEnabled` đã sẵn. |
+| `notifyTicketCreated` / `notifyTicketMessage` / `notifyTicketStatusChanged` (email ticket) / `notifyTicketAssigned` (`Mail::raw`) | `tickets/notify.go` (`notifyCreated`, `notifyMessage`, `notifyStatus`, `notifyAssigned`) | Đã làm | Mẫu `ticket` tới `mail.TicketRecipients` khi bật `EventTicketCreated` / `EventTicketComment` / `EventTicketStatus`, xếp thư trong transaction ticket. Thư phân công dùng mẫu HTML `ticket` (Laravel `Mail::raw`). Chi tiết ở `ticket.md`. |
 | `scanAndSyncStaleLeads` (email khách tồn đọng) | — | Chưa làm | Lệnh `crm:scan-stale-leads` chưa chuyển; gọi `mail.OperationalAlert(EventStaleLead, …)`. |
 | `notifyTransactionReceipt` (email phiếu thu) | — | Chưa làm | Thuộc phân hệ học phí: `mail.OperationalAlert(mail.EventTransaction, …)`. |
 | `notifyDebtReminderByMilestone` (email nhắc nợ) | — | Chưa làm | Thuộc phân hệ học phí: `mail.OperationalAlert(mail.EventOverdueDebt, …)`. |
@@ -69,8 +69,7 @@ hủy thì không có thư; vòng gửi nền (`mail.Service.RunLoop`, 5 giây m
 - **Học phí** (`internal/tuition`): gọi `mail.Enqueue(ctx, tx, …)` trong transaction lập phiếu / nhắc nợ. Thư cho phụ huynh
   dùng `mail.ParentNotice` + `MaxAttempts: 3` + `Fallback`; email vận hành dùng `mail.OperationalAlert` với
   `EventTransaction` / `EventOverdueDebt`. Tài liệu ở đầu `internal/notify/mail/mail.go`.
-- **Ticket**: khi có phân hệ, dùng mẫu `mail.TemplateTicket` + `mail.Ticket`, người nhận `mail.TicketRecipients`, kiểm sự
-  kiện bằng `mail.EventEnabled(EventTicketCreated / EventTicketComment / EventTicketStatus)`.
+- **Ticket**: đã nối (`internal/tickets/notify.go`, xem `ticket.md`).
 - **Import dữ liệu cũ**: `import-legacy` chưa chép cấu hình SMTP (`system_settings.mail_*`); nhập lại trên màn Email
   nhận Ticket (mật khẩu phải nhập lại vì cách mã hóa khác).
 - `*/models.go` của mọi gói sqlc được sinh lại vì có bảng mới. Khi gộp nhiều nhánh thì chạy lại `sqlc generate`.

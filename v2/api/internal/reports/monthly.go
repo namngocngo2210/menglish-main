@@ -350,7 +350,10 @@ func (s *Service) TeacherMonthly(ctx context.Context, a *iam.Access, monthParam 
 		AcademicChecks: teacherAcademicChecks, OperationChecks: teacherOperationChecks, QualityChecks: teacherQualityChecks,
 		ClassTexts: teacherClassTexts, Choices: teacherChoices, General: map[string]*string{},
 		ClassValues: map[string]map[string]any{}, SubmittedAt: submittedAt(report)}
-	// TODO(gộp): link "Đề xuất điều chỉnh giáo trình" (syllabus.teacher-propose) khi phân hệ Giáo trình có ở v2.
+	// Link "Gửi đề xuất sửa giáo trình" cạnh mục "Syllabus cần điều chỉnh" (StaffReportController::teacherMonthly).
+	if a.Can("syllabus.propose_adjustment") {
+		f.ProposeURL = ptr("/syllabus/teacher-propose")
+	}
 	if report != nil {
 		var d teacherMonthlyData
 		_ = json.Unmarshal(report.Data, &d)

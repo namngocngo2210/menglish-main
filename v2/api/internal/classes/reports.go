@@ -167,11 +167,17 @@ func (m *ReportMetrics) branchSplit(ctx context.Context, w reports.Writer, count
 	return out, nil
 }
 
-// Daily: khối "Vận hành lớp học" của báo cáo ngày Học vụ.
+// Daily: khối "Vận hành lớp học" của báo cáo ngày Học vụ; mục "Kết quả mini test" của báo cáo ngày Học thuật.
 func (m *ReportMetrics) Daily(ctx context.Context, w reports.Writer, date time.Time, audience string) ([]reports.Section, map[string]any, error) {
 	sections, fields, err := m.MetricsProvider.Daily(ctx, w, date, audience)
-	if err != nil || audience == reports.AudienceAcademic {
+	if err != nil {
 		return sections, fields, err
+	}
+	if audience == reports.AudienceAcademic {
+		if err := m.fillMiniTests(ctx, sections, w, date, date); err != nil {
+			return nil, nil, err
+		}
+		return sections, fields, nil
 	}
 	idx := slices.IndexFunc(sections, func(s reports.Section) bool { return s.Key == "operations" })
 	if idx < 0 {
@@ -373,11 +379,51 @@ func (m *ReportMetrics) WeeklyScale(ctx context.Context, w reports.Writer, from,
 	fill(&sec, "transfers", v, c, transferDetails)
 	v, c = num(len(makeupDetails))
 	fill(&sec, "makeups", v, c, makeupDetails)
+	care, err := m.careDue(ctx, ids, from, to)
+	if err != nil {
+		return sec, err
+	}
+	v, c = num(len(care))
+	fill(&sec, "care_due_classes", v, c, care)
 	return sec, nil
 }
 
+// careDue: lớp có học sinh đến mốc chăm sóc tháng đầu (việc chăm sóc còn mở có hạn tới cuối tuần), 3 tên đầu + số còn lại;
+// lớp có việc quá hạn trước tuần tô cảnh báo.
+func (m *ReportMetrics) careDue(ctx context.Context, ids []uuid.UUID, from, to time.Time) ([]reports.Detail, error) {
+	if len(ids) == 0 {
+		return []reports.Detail{}, nil
+	}
+	rows, err := m.cls.q.ReportCareDue(ctx, classesdb.ReportCareDueParams{ToDate: to, ClassIds: ids})
+	if err != nil {
+		return nil, err
+	}
+	out := []reports.Detail{}
+	fromDay := dateOf(from)
+	for i := 0; i < len(rows); {
+		j, names, late := i, []string{}, false
+		for ; j < len(rows) && rows[j].ClassID == rows[i].ClassID; j++ {
+			if !slices.Contains(names, rows[j].Name) {
+				names = append(names, rows[j].Name)
+			}
+			late = late || (rows[j].DueDate != nil && rows[j].DueDate.Before(fromDay))
+		}
+		text := strings.Join(names[:min(3, len(names))], ", ")
+		if len(names) > 3 {
+			text += fmt.Sprintf(" +%d", len(names)-3)
+		}
+		d := reports.Detail{Text: rows[i].ClassName + ": " + text, URL: classLink(rows[i].ClassID)}
+		if late {
+			d.Tone = "warning"
+		}
+		out = append(out, d)
+		i = j
+	}
+	return out, nil
+}
+
 // TeacherClasses: lớp giáo viên giữ trong tháng, chuyên cần (%) của tháng và số buổi đã đứng lớp (tới hôm nay).
-// Bài tập chưa có nguồn ở v2 (để trống).
+// Tỷ lệ bài tập do Cổng giáo viên điền (teacher.ReportMetrics bọc ngoài).
 func (m *ReportMetrics) TeacherClasses(ctx context.Context, w reports.Writer, month string) ([]reports.TeacherClass, error) {
 	from, err := time.Parse("2006-01", month)
 	if err != nil {

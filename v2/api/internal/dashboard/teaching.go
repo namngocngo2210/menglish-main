@@ -17,7 +17,7 @@ import (
 //   - Giáo viên / trợ giảng: số liệu của mình + từng lớp đang giữ.
 //   - Người theo dõi giáo viên (kpi.view, bảng điều hành, Học thuật): bảng theo giáo viên (GV chính) trong phạm vi lớp.
 //   - Học thuật / Admin / Quản lý: thêm báo cáo tháng của giáo viên và order học thuật trong tháng.
-// Chuyên cần = (Có mặt + Đi muộn) / lượt điểm danh trong tháng. Bài về nhà, điểm mini test, ngày công / đi muộn / phép /
+// Chuyên cần = (Có mặt + Đi muộn) / lượt điểm danh trong tháng. Bài về nhà, điểm mini test: cổng Giáo viên (Deps.Homework). Ngày công / đi muộn / phép /
 // vi phạm chờ các phân hệ nguồn (để trống).
 
 var monthPattern = regexp.MustCompile(`^\d{4}-(0[1-9]|1[0-2])$`)
@@ -131,7 +131,9 @@ func (s *Service) teaching(ctx context.Context, a *iam.Access, c Clock, month st
 	from, to := pickMonth(month, c)
 	key := from.Format("2006-01")
 	out := &Teaching{Month: key, MonthLabel: monthLabel(from), Months: monthOptions(c), Pending: []string{}}
-	out.Pending = append(out.Pending, "Bài về nhà, điểm trung bình: "+pendingHomework)
+	if s.d.Homework == nil {
+		out.Pending = append(out.Pending, "Bài về nhà, điểm trung bình: "+pendingHomework)
+	}
 	workPending := false
 
 	if isTeaching {
@@ -140,6 +142,9 @@ func (s *Service) teaching(ctx context.Context, a *iam.Access, c Clock, month st
 			return nil, err
 		}
 		classes := classMetrics(stats)
+		if err := s.fillQuality(ctx, classes, from, to); err != nil {
+			return nil, err
+		}
 		work, ok, err := s.d.Work.Stats(ctx, []uuid.UUID{a.UserID}, from, to)
 		if err != nil {
 			return nil, err
@@ -160,7 +165,11 @@ func (s *Service) teaching(ctx context.Context, a *iam.Access, c Clock, month st
 		if err != nil {
 			return nil, err
 		}
-		rows, ids := teamRows(classMetrics(stats), names)
+		team := classMetrics(stats)
+		if err := s.fillQuality(ctx, team, from, to); err != nil {
+			return nil, err
+		}
+		rows, ids := teamRows(team, names)
 		work, ok, err := s.d.Work.Stats(ctx, ids, from, to)
 		if err != nil {
 			return nil, err
@@ -207,6 +216,27 @@ func classMetrics(stats []ClassStats) []ClassMetric {
 		out = append(out, m)
 	}
 	return out
+}
+
+// fillQuality: bài về nhà + điểm mini test từng lớp (khi đã có cổng Giáo viên).
+func (s *Service) fillQuality(ctx context.Context, classes []ClassMetric, from, to time.Time) error {
+	if s.d.Homework == nil || len(classes) == 0 {
+		return nil
+	}
+	ids := make([]uuid.UUID, len(classes))
+	for i, c := range classes {
+		ids[i] = c.ID
+	}
+	q, err := s.d.Homework.ClassQuality(ctx, ids, from, to)
+	if err != nil {
+		return err
+	}
+	for i := range classes {
+		if v, ok := q[classes[i].ID]; ok {
+			classes[i].Homework, classes[i].Score = v.Homework, v.Score
+		}
+	}
+	return nil
 }
 
 func round1(v float64) float64 { return math.Round(v*10) / 10 }

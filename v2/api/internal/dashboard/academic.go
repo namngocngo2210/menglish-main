@@ -42,8 +42,13 @@ type DailyRow struct {
 	UpdatedAt  string    `json:"updated_at"`
 }
 
+// WeeklyStats: số liệu tuần học thuật (weeklyStats); Pending khi chưa nối phân hệ Giáo trình.
 type WeeklyStats struct {
-	Pending string `json:"pending"` // đề xuất giãn tiến độ, Big Test: chờ phân hệ Giáo trình
+	Pending             string `json:"pending,omitempty"`
+	AdjustmentsPending  *int64 `json:"adjustments_pending"`
+	AdjustmentsWeek     *int64 `json:"adjustments_week"`
+	BigTestsUpcoming    *int64 `json:"big_tests_upcoming"`
+	BigTestsDistributed *int64 `json:"big_tests_distributed"`
 }
 
 type AcademicReports struct {
@@ -145,6 +150,14 @@ func (s *Service) AcademicReports(ctx context.Context, a *iam.Access, tab string
 	out := &AcademicReports{Tab: tab, Today: c.Now.Format("02/01/2006"), ClassReports: []any{}, ClassReportsPending: pendingClassReports,
 		StaffDailyReports: []DailyRow{}, WeeklyReports: []RecordRow{}, WeeklyKpiReports: []RecordRow{}, MonthlyReports: []RecordRow{},
 		WeeklyStats: WeeklyStats{Pending: pendingSyllabus}}
+	if s.d.Syllabus != nil {
+		wk, err := s.d.Syllabus.Week(ctx, c.Now)
+		if err != nil {
+			return nil, err
+		}
+		out.WeeklyStats = WeeklyStats{AdjustmentsPending: &wk.AdjustmentsPending, AdjustmentsWeek: &wk.AdjustmentsWeek,
+			BigTestsUpcoming: &wk.BigTestsUpcoming, BigTestsDistributed: &wk.BigTestsDistributed}
+	}
 	switch tab {
 	case "daily":
 		rows, err := s.d.Reports.Submitted(ctx, "daily", 15)
@@ -202,20 +215,20 @@ type JournalOut struct {
 }
 
 type Incidents struct {
-	Severity         string       `json:"severity"`
-	Status           string       `json:"status"`
-	BranchID         string       `json:"branch_id"`
-	ClassID          string       `json:"class_id"`
-	Branches         []Option     `json:"branches"`
-	Classes          []Option     `json:"classes"`
-	Journals         []JournalOut `json:"journals"`
-	Tickets          []any        `json:"tickets"`
-	TicketsPending   string       `json:"tickets_pending"`
-	TotalIncidents   int          `json:"total_incidents"`
-	ResolvedCount    int          `json:"resolved_count"`
-	OpenCount        int          `json:"open_count"`
-	UrgentCount      int          `json:"urgent_count"`
-	CanSubmitJournal bool         `json:"can_submit_journal"`
+	Severity         string           `json:"severity"`
+	Status           string           `json:"status"`
+	BranchID         string           `json:"branch_id"`
+	ClassID          string           `json:"class_id"`
+	Branches         []Option         `json:"branches"`
+	Classes          []Option         `json:"classes"`
+	Journals         []JournalOut     `json:"journals"`
+	Tickets          []IncidentTicket `json:"tickets"`
+	TicketsPending   *string          `json:"tickets_pending"`
+	TotalIncidents   int              `json:"total_incidents"`
+	ResolvedCount    int              `json:"resolved_count"`
+	OpenCount        int              `json:"open_count"`
+	UrgentCount      int              `json:"urgent_count"`
+	CanSubmitJournal bool             `json:"can_submit_journal"`
 }
 
 type IncidentFilter struct {
@@ -230,7 +243,8 @@ var journalSeverityOf = map[string]string{"urgent": "urgent", "high": "important
 var priorityOfJournal = map[string]string{"urgent": "urgent", "important": "high", "normal": "medium"}
 
 // Incidents: màn Nhật ký sự vụ (academic.dashboards.incidents): sự việc trong Nhật ký Học vụ (gắn lớp thì lọc cơ sở theo
-// lớp, không thì theo người ghi). Ticket hỗ trợ khẩn / cao chờ phân hệ Ticket; nhật ký cũ academic_records không chuyển.
+// lớp, không thì theo người ghi) và ticket hỗ trợ khẩn / cao (hoặc đúng mức đang lọc; ticket không gắn lớp nên lọc theo lớp
+// thì không có). Nhật ký cũ academic_records không chuyển.
 func (s *Service) Incidents(ctx context.Context, a *iam.Access, f IncidentFilter) (*Incidents, error) {
 	severity := "all"
 	switch f.Severity {
@@ -241,8 +255,8 @@ func (s *Service) Incidents(ctx context.Context, a *iam.Access, f IncidentFilter
 	if f.Status == "open" || f.Status == "resolved" {
 		status = f.Status
 	}
-	out := &Incidents{Severity: severity, Status: status, Branches: []Option{}, Journals: []JournalOut{}, Tickets: []any{},
-		TicketsPending: pendingTickets, CanSubmitJournal: a.Can("staff_report.submit")}
+	out := &Incidents{Severity: severity, Status: status, Branches: []Option{}, Journals: []JournalOut{}, Tickets: []IncidentTicket{},
+		CanSubmitJournal: a.Can("staff_report.submit")}
 	jf := JournalFilter{}
 	if id, err := uuid.Parse(f.BranchID); err == nil {
 		jf.BranchID, out.BranchID = &id, id.String()
@@ -291,7 +305,29 @@ func (s *Service) Incidents(ctx context.Context, a *iam.Access, f IncidentFilter
 			}
 		}
 	}
-	out.TotalIncidents = len(out.Journals)
+	if jf.ClassID == nil {
+		tf := TicketIncidentFilter{Priorities: []string{"urgent", "high"}, BranchID: jf.BranchID, Status: jf.Status}
+		if severity != "all" {
+			tf.Priorities = []string{severity}
+		}
+		rows, ok, err := s.d.Tickets.Incidents(ctx, a, tf, 20)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			out.TicketsPending = ptr(pendingTickets)
+		}
+		for _, t := range rows {
+			out.Tickets = append(out.Tickets, t)
+			switch {
+			case t.Status == "resolved" || t.Status == "closed":
+				out.ResolvedCount++
+			case t.Priority == "urgent":
+				out.UrgentCount++
+			}
+		}
+	}
+	out.TotalIncidents = len(out.Journals) + len(out.Tickets)
 	out.OpenCount = max(0, out.TotalIncidents-out.ResolvedCount)
 	return out, nil
 }

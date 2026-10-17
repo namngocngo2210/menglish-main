@@ -47,9 +47,18 @@ type Deps struct {
 	Reports  Reports
 	Orders   Orders
 	Branches Branches
+	// Tickets: nil = chưa có (màn hiện "Chờ phân hệ Ticket hỗ trợ").
+	Tickets Tickets
 	// Finance, Work: phân hệ đang làm song song; nil = chưa có.
 	Finance Finance
 	Work    StaffWork
+	// Homework: bài về nhà / điểm mini test theo lớp (cổng Giáo viên); nil = chờ phân hệ.
+	Homework ClassHomework
+	// Projects: hạn mốc dự án học thuật; nil = lịch ghi "Chờ phân hệ Dự án học thuật".
+	Projects Projects
+	Payroll  Payroll
+	// Syllabus: hàng chờ chuyên môn / Big Test của Giáo trình; nil = "Chờ phân hệ Giáo trình & Big Test".
+	Syllabus Syllabus
 }
 
 type Service struct {
@@ -64,6 +73,12 @@ func NewService(d Deps, log *slog.Logger) *Service {
 	}
 	if d.Work == nil {
 		d.Work = noStaffWork{}
+	}
+	if d.Tickets == nil {
+		d.Tickets = noTickets{}
+	}
+	if d.Payroll == nil {
+		d.Payroll = noPayroll{}
 	}
 	return &Service{d: d, log: log, now: time.Now}
 }
@@ -152,12 +167,12 @@ type RoleDashboard struct {
 	Queues    []Queue `json:"queues"`
 	// Bảng điều hành
 	OverdueTasks []OverdueTask `json:"overdue_tasks,omitempty"`
-	// Học thuật: đề xuất giãn tiến độ / Big Test chờ phân hệ Giáo trình
-	PendingAdjustments []any    `json:"pending_adjustments,omitempty"`
-	UpcomingBigTests   []any    `json:"upcoming_big_tests,omitempty"`
-	AcademicPending    *string  `json:"academic_pending,omitempty"`
-	Agenda             *Agenda  `json:"agenda,omitempty"`
-	MyTasks            *MyTasks `json:"my_tasks,omitempty"`
+	// Học thuật: yêu cầu giãn tiến độ chờ duyệt / Big Test 14 ngày tới (AcademicPending khi chưa nối Giáo trình)
+	PendingAdjustments []PendingAdjustment `json:"pending_adjustments,omitempty"`
+	UpcomingBigTests   []UpcomingBigTest   `json:"upcoming_big_tests,omitempty"`
+	AcademicPending    *string             `json:"academic_pending,omitempty"`
+	Agenda             *Agenda             `json:"agenda,omitempty"`
+	MyTasks            *MyTasks            `json:"my_tasks,omitempty"`
 }
 
 type MissingDay struct {

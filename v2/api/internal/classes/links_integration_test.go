@@ -169,6 +169,57 @@ func TestReportClassesAndMetrics(t *testing.T) {
 		t.Fatalf("chỉ số quy mô: %+v", scale.Items)
 	}
 
+	// Lớp đến hạn chăm sóc: việc chăm sóc còn mở theo lớp hiện tại của học viên (việc quá hạn trước tuần tô cảnh báo)
+	for _, r := range []struct {
+		student, class *uuid.UUID
+		due            string
+	}{{&st, nil, "2026-10-12"}, {nil, &c2, "2026-10-21"}, {nil, &cb, "2026-10-21"}} {
+		e.exec(`INSERT INTO ops.work_tasks (title, creator_id, assignee_id, status, due_date, care_milestone, student_id, class_id)
+			VALUES ('Chăm sóc tháng đầu', $1, $1, 'new', $2::date, 1, $3, $4)`, hv.id, r.due, r.student, r.class)
+	}
+	scale, err = m.WeeklyScale(ctx, w, day, day.AddDate(0, 0, 6))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if it := item(t, []reports.Section{scale}, "metrics", "care_due_classes"); count(it) != 2 || len(it.Details) != 2 ||
+		it.Details[0].Text != "Lớp Hai: Chăm sóc tháng đầu" || it.Details[1].Text != "Lớp Một: Bé An" || it.Details[1].Tone != "warning" {
+		t.Fatalf("lớp đến hạn chăm sóc: %+v", it)
+	}
+	// Dòng tham khảo mục KPI 5.1: buổi chưa điểm danh tới hôm qua
+	e.svc.now = func() time.Time { return time.Date(2026, 10, 20, 9, 0, 0, 0, vnZone) }
+	hints, err := m.KpiHints(ctx, reports.KpiCriterion{Code: "5.1"}, w, day, day.AddDate(0, 0, 6))
+	if err != nil || len(hints) != 1 || hints[0].Text != "Buổi chưa điểm danh · Lớp Hai · 19/10" || hints[0].Tag != "Tham khảo" {
+		t.Fatalf("buổi chưa điểm danh: %+v %v", hints, err)
+	}
+
+	// Kết quả mini test (báo cáo Học thuật): bài dưới 7 quy thang 10 hiện chi tiết; lớp chi nhánh B không tính
+	stB := e.student("HV-00002", "Bé Bình", &b)
+	for i, r := range []struct {
+		class, student uuid.UUID
+		score          *float64
+		maxScore       float64
+		day            string
+	}{{c1, st, ptr(12.5), 20, "2026-10-19"}, {c1, st, ptr(8.0), 10, "2026-10-19"}, {c1, st, nil, 10, "2026-10-19"},
+		{c1, st, ptr(3.0), 10, "2026-10-21"}, {cb, stB, ptr(1.0), 10, "2026-10-19"}} {
+		e.exec(`INSERT INTO academic.mini_test_scores (class_id, student_id, name, score, max_score, test_date)
+			VALUES ($1, $2, 'Unit ' || $6::int, $3, $4, $5)`, r.class, r.student, r.score, r.maxScore, r.day, i+2)
+	}
+	secs, _, err = m.Daily(ctx, w, day, reports.AudienceAcademic)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if it := item(t, secs, "quality", "mini_tests"); it.Unavailable != "" || *it.Value != "3 bài · 1 dưới 7" || count(it) != 3 ||
+		len(it.Details) != 1 || it.Details[0].Text != "Bé An · Lớp Một · Unit 2 · 12.5/20" {
+		t.Fatalf("mini test ngày: %+v", it)
+	}
+	sum, _, err := m.WeeklyAcademic(ctx, w, day, day.AddDate(0, 0, 6))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if it := item(t, []reports.Section{sum}, "summary", "mini_tests"); *it.Value != "4 bài · 2 dưới 7" || len(it.Details) != 2 {
+		t.Fatalf("mini test tuần: %+v", it)
+	}
+
 	tc, err := m.TeacherClasses(ctx, reports.Writer{ID: gv.id}, "2026-10")
 	if err != nil || len(tc) != 1 || tc[0].ID != c1 || tc[0].Attendance == nil || *tc[0].Attendance != 0 || tc[0].SessionsDone != 1 {
 		t.Fatalf("lớp của giáo viên trong tháng: %+v %v", tc, err)

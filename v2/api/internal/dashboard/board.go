@@ -2,6 +2,7 @@ package dashboard
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"time"
 
@@ -32,7 +33,8 @@ func seesLeads(a *iam.Access) bool { return a.Can("lead.view") }
 func seesTasks(a *iam.Access) bool { return a.Can("work_task.view") }
 
 // seesBigTests: Học thuật xem lịch Big Test (phân hệ Giáo trình chưa có ở v2 → chỉ ghi chú trên lịch hẹn).
-func seesBigTests(a *iam.Access) bool { return a.Can(PermAcademic) }
+// seesBigTests: lịch có Big Test — quyền bảng Học thuật và mở được Lịch Big Test (MyWorkBoard::seesBigTests).
+func seesBigTests(a *iam.Access) bool { return a.Can(PermAcademic) && a.Can("syllabus.view") }
 
 func agendaEnd(c Clock) time.Time { return endOfDay(c.Today.AddDate(0, 0, agendaDays-1)) }
 
@@ -56,8 +58,12 @@ func (s *Service) personal(ctx context.Context, a *iam.Access, c Clock) (*RoleDa
 		return nil, err
 	}
 	// Vai trò không có nguồn lịch hẹn nào (vd. Kế toán) thì không có khối lịch. Mốc dự án học thuật: người quản lý dự án
-	// (người nhận mốc chưa xét được vì phân hệ Dự án học thuật chưa có ở v2).
-	if seesLeads(a) || seesBigTests(a) || a.Can("academic_project.manage") {
+	// hoặc người đang nhận mốc chưa xong.
+	projects, err := s.seesProjects(ctx, a)
+	if err != nil {
+		return nil, err
+	}
+	if seesLeads(a) || seesBigTests(a) || projects {
 		if out.Agenda, err = s.agenda(ctx, a, c, true); err != nil {
 			return nil, err
 		}
@@ -158,7 +164,15 @@ func (s *Service) personalQueues(ctx context.Context, a *iam.Access, leads LeadS
 		qs = append(qs, q)
 	}
 	if a.Can("payroll.calculate") || a.Can("payroll.approve") {
-		qs = append(qs, pendingQueue("Kỳ lương chưa chốt", "payments", pendingPayroll))
+		n, err := s.d.Payroll.OpenPeriods(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if n == nil {
+			qs = append(qs, pendingQueue("Kỳ lương chưa chốt", "payments", pendingPayroll))
+		} else if a.Can("payroll.view") {
+			qs = append(qs, Queue{Label: "Kỳ lương chưa chốt", Value: n, Icon: "payments", Href: ptr("/payroll/periods")})
+		}
 	}
 	// Mục còn việc lên trước (giữ thứ tự trong từng nhóm).
 	sort.SliceStable(qs, func(i, j int) bool { return hasWork(qs[i]) && !hasWork(qs[j]) })
@@ -192,14 +206,39 @@ func (s *Service) agenda(ctx context.Context, a *iam.Access, c Clock, withCrmCar
 		}
 		items = append(items, got...)
 	}
+	if s.d.Projects != nil && a.Can("academic_project.view") {
+		got, err := s.d.Projects.Agenda(ctx, a, c.Today, end)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, got...)
+	}
+	if s.d.Syllabus != nil && seesBigTests(a) {
+		got, err := s.d.Syllabus.Agenda(ctx, c.Today, end)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, got...)
+	}
 	out := buildAgenda(items, c, end)
-	if seesBigTests(a) {
+	if s.d.Syllabus == nil && a.Can(PermAcademic) {
 		out.Pending = append(out.Pending, "Big Test: "+pendingSyllabus)
 	}
-	if a.Can("academic_project.manage") {
+	if s.d.Projects == nil && a.Can("academic_project.manage") {
 		out.Pending = append(out.Pending, "Hạn mốc dự án học thuật: "+pendingProjects)
 	}
 	return out, nil
+}
+
+// seesProjects: lịch có hạn mốc dự án học thuật (MyWorkBoard::seesProjects).
+func (s *Service) seesProjects(ctx context.Context, a *iam.Access) (bool, error) {
+	if s.d.Projects == nil {
+		return a.Can("academic_project.manage"), nil
+	}
+	if !a.Can("academic_project.view") {
+		return false, nil
+	}
+	return s.d.Projects.Sees(ctx, a)
 }
 
 // buildAgenda nhóm lịch theo ngày (tối đa agendaLimit mục, phần dư đếm vào More).
@@ -284,13 +323,22 @@ func (s *Service) operations(ctx context.Context, a *iam.Access, c Clock) (*Role
 	if receipts != nil {
 		receiptQueue = Queue{Label: "Phiếu thu chờ duyệt", Value: receipts, Icon: "receipt_long", Href: ptr("/tuition/receipts/approve")}
 	}
+	tickets, err := s.d.Tickets.Counts(ctx, branches)
+	if err != nil {
+		return nil, err
+	}
+	ticketQueue := pendingQueue("Ticket đang mở", "support_agent", pendingTickets)
+	if tickets != nil {
+		ticketQueue = Queue{Label: "Ticket đang mở", Value: &tickets.Open, Icon: "support_agent", Href: ptr("/tickets"),
+			Hint: hintIf(tickets.Unassigned > 0, "%d ticket chưa có người xử lý", tickets.Unassigned)}
+	}
 	reports := pendingQueue("Báo cáo trực lớp chờ xác nhận", "fact_check", pendingClassReports)
 	reports.Hint = ptr("Admin xác nhận")
 	out.Queues = []Queue{
 		queue("Việc chờ xác nhận", tasks.PendingConfirmation, "pending_actions", pathApprovals, nil),
 		reports,
 		receiptQueue,
-		pendingQueue("Ticket đang mở", "support_agent", pendingTickets),
+		ticketQueue,
 	}
 	// Lịch hẹn test hôm nay: cùng phạm vi khách CRM với danh sách mà link mở ra.
 	if seesLeads(a) {
@@ -325,7 +373,33 @@ func (s *Service) academic(ctx context.Context, a *iam.Access, c Clock) (*RoleDa
 			pendingQueue("Order đề Big Test chờ duyệt", "assignment", pendingSyllabus),
 			pendingQueue("Đợt Big Test có kết quả chờ duyệt", "grading", pendingSyllabus),
 		},
-		PendingAdjustments: []any{}, UpcomingBigTests: []any{}, AcademicPending: ptr(pendingSyllabus),
+		PendingAdjustments: []PendingAdjustment{}, UpcomingBigTests: []UpcomingBigTest{}, AcademicPending: ptr(pendingSyllabus),
+	}
+	if s.d.Syllabus != nil {
+		b, err := s.d.Syllabus.Board(ctx, c.Now)
+		if err != nil {
+			return nil, err
+		}
+		waiting := b.PendingAdjustments + b.PendingProposals
+		tone := "default"
+		if waiting > 0 {
+			tone = "warning"
+		}
+		out.Stats[1] = numStat("Đề xuất giáo trình / giãn tiến độ chờ duyệt", waiting, "pending_actions", tone,
+			ptr(fmt.Sprintf("%d đề xuất sửa giáo trình · %d giãn tiến độ", b.PendingProposals, b.PendingAdjustments)), nil)
+		out.Stats[2] = numStat("Big Test trong 14 ngày tới", int64(len(b.UpcomingBigTests)), "quiz", "secondary", nil, nil)
+		out.Queues = []Queue{
+			queue("Đề xuất sửa giáo trình", b.PendingProposals, "edit_note", "/syllabus/versions?status=pending", nil),
+			queue("Order đề Big Test chờ duyệt", b.PendingOrders, "assignment", "/syllabus/big-tests/distribution", nil),
+			queue("Đợt Big Test có kết quả chờ duyệt", b.PendingResults, "grading", "/syllabus/big-tests/results", nil),
+		}
+		out.PendingAdjustments, out.UpcomingBigTests, out.AcademicPending = b.Adjustments, b.UpcomingBigTests, nil
+		if out.PendingAdjustments == nil {
+			out.PendingAdjustments = []PendingAdjustment{}
+		}
+		if out.UpcomingBigTests == nil {
+			out.UpcomingBigTests = []UpcomingBigTest{}
+		}
 	}
 	// Lịch hẹn 7 ngày tới (Big Test + hẹn test, không gồm gọi lại / học thử của CRM) + việc của tôi.
 	if out.Agenda, err = s.agenda(ctx, a, c, false); err != nil {

@@ -281,3 +281,34 @@ SELECT assignee_id::uuid AS user_id, count(*)::int AS total, count(*) FILTER (WH
 FROM ops.work_tasks
 WHERE assignee_id = ANY(@user_ids::uuid[]) AND due_date BETWEEN @from_date::date AND @to_date::date
 GROUP BY assignee_id;
+
+-- ───────────── Việc "Duyệt & phân phối đề Big Test" (phân hệ Giáo trình, BigTestSlaService) ─────────────
+
+-- name: InsertBigTestTask :many
+-- Một việc / đợt thi (kể cả việc đã đóng): đã có thì không tạo lại (không trả dòng nào).
+INSERT INTO ops.work_tasks (title, description, creator_id, assignee_id, branch_id, class_id, big_test_id, task_type,
+                            due_date, status)
+SELECT @title::text, @description::text, @creator_id::uuid, @assignee_id::uuid, sqlc.narg(branch_id)::uuid,
+       sqlc.narg(class_id)::uuid, @big_test_id::uuid, 'one_time', @due_date::date, 'new'
+WHERE NOT EXISTS (SELECT 1 FROM ops.work_tasks WHERE big_test_id = @big_test_id::uuid)
+RETURNING id;
+
+-- name: CloseBigTestTasks :execrows
+-- Đề đã phân phối → hoàn thành việc duyệt đề còn mở của đợt thi (big_test_id NULL = mọi đợt thi).
+UPDATE ops.work_tasks
+SET status = 'completed', completed_at = now(), completion_note = 'Đề Big Test đã được duyệt & phân phối (hệ thống tự đóng).',
+    updated_at = now(), version = version + 1
+WHERE big_test_id IS NOT NULL
+  AND status IN ('new', 'in_progress', 'overdue', 'blocked', 'pending_confirmation')
+  AND big_test_id IN (SELECT b.id FROM syllabus.big_tests b
+                      WHERE b.is_distributed AND (sqlc.narg(big_test_id)::uuid IS NULL OR b.id = sqlc.narg(big_test_id)::uuid));
+
+-- name: ReportWeekTasks :many
+-- Dòng gợi ý của báo cáo tuần Học thuật (WeeklyReportMetrics::academicSuggestions): việc được giao cho người viết (không
+-- phải việc chăm sóc) hoàn thành trong [from_at, to_at], hoặc còn mở có hạn tới planned_to.
+SELECT id, title, description, completion_note, due_date, status, completed_at
+FROM ops.work_tasks
+WHERE assignee_id = sqlc.arg(user_id) AND care_milestone IS NULL
+  AND ((status = 'completed' AND completed_at BETWEEN sqlc.arg(from_at)::timestamptz AND sqlc.arg(to_at)::timestamptz)
+       OR (status IN ('new', 'in_progress') AND due_date IS NOT NULL AND due_date <= sqlc.arg(planned_to)::date))
+ORDER BY completed_at, due_date, id;

@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import type { Me } from '../../api'
-import { bannerOf, barWidth, formatCount, formatDate, formatPercent, formatScore, kindClass, reportSummary, seesDashboard, welcomeOf } from './logic'
+import { bannerOf, barWidth, formatCount, formatDate, formatHourDay, formatPercent, formatScore, kindClass, reportSummary, seesDashboard, welcomeOf } from './logic'
 
 const me = (extra: Partial<Me> = {}): Me => ({
   user: { id: 'u1', kind: 'staff', code: 'GV01', email: null, phone: null, full_name: 'Cô Lan', must_change_password: false, totp_enabled: true },
@@ -28,6 +28,8 @@ test('định dạng điểm, phần trăm, số đếm, ngày', () => {
   expect(formatDate('2026-10-05')).toBe('05/10/2026')
   expect(formatDate('2026-10-05T02:30:00Z', true)).toBe('09:30 05/10/2026')
   expect(formatDate(null)).toBe('')
+  expect(formatHourDay('2026-10-05T02:30:00Z')).toBe('09:30 05/10')
+  expect(formatHourDay(null)).toBe('')
 })
 
 test('màu nhãn lịch hẹn theo loại, loại lạ dùng màu trung tính', () => {
@@ -47,7 +49,9 @@ test('lời chào: vai trò rút gọn, chi nhánh chính, nút nhiệm vụ hô
     }),
   )
   expect(w).toEqual({ name: 'Cô Lan', roles: 'GV FT', branch: 'Cầu Giấy', salaryUrl: null, tasksUrl: '/portal/ta-tasks' })
-  expect(welcomeOf(me())).toMatchObject({ roles: 'Nhân viên', branch: 'Trung tâm', tasksUrl: null })
+  expect(welcomeOf(me())).toMatchObject({ roles: 'Nhân viên', branch: 'Trung tâm', salaryUrl: null, tasksUrl: null })
+  expect(welcomeOf(me({ permissions: ['payroll.view_own'] })).salaryUrl).toBe('/portal/my-salary')
+  expect(welcomeOf(me({ permissions: ['payroll.view'] })).salaryUrl).toBe('/portal/my-salary')
 })
 
 test('băng báo cáo ngày: tối đa 5 ngày thiếu, hạn ngày gần nhất, nút nộp', () => {

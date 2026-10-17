@@ -85,6 +85,12 @@ type ClassStats struct {
 	AttendancePresent int
 }
 
+// HomeworkStats: bài nộp của học viên trong kỳ / (số bài giao trong kỳ × sĩ số lớp chính) — cột Bài tập của bảng KPI.
+type HomeworkStats struct {
+	Expected  int
+	Submitted int
+}
+
 // TaskStats: việc được giao có hạn trong kỳ.
 type TaskStats struct {
 	Total int

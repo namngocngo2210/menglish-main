@@ -240,3 +240,36 @@ FROM ops.material_orders o LEFT JOIN academic.classes c ON c.id = o.class_id
 WHERE o.category = 'academic' AND o.deleted_at IS NULL AND o.status <> 'rejected'
   AND o.use_date BETWEEN @from_date::date AND @to_date::date
 ORDER BY o.use_date, o.id;
+
+-- name: ReportDayOrders :many
+-- Báo cáo ngày (DailyReportMetrics): order trong phạm vi xem của người viết, thuộc các loại categories.
+-- by_use = false (học liệu học thuật): tạo hoặc xử lý trong ngày, hoặc còn mở đã quá hạn (tạo trước cuối ngày).
+-- by_use = true (đạo cụ / in ấn): dùng trong ngày, hoặc còn mở đã quá hạn (tạo trước cuối ngày).
+SELECT o.id, o.code, o.title, o.category, o.status, c.name AS class_name
+FROM ops.material_orders o LEFT JOIN academic.classes c ON c.id = o.class_id
+WHERE o.deleted_at IS NULL
+  AND (sqlc.arg(all_scope)::boolean OR o.requester_id = sqlc.arg(user_id)
+       OR o.branch_id = ANY(COALESCE(sqlc.narg(branch_ids)::uuid[], '{}')))
+  AND o.category = ANY(sqlc.arg(categories)::text[])
+  AND ((NOT sqlc.arg(by_use)::bool AND o.created_at <= sqlc.arg(day_end)::timestamptz
+        AND (o.created_at >= sqlc.arg(day_start)::timestamptz
+             OR o.processed_at BETWEEN sqlc.arg(day_start)::timestamptz AND sqlc.arg(day_end)::timestamptz
+             OR (o.status IN ('pending', 'processing', 'overdue') AND o.due_at < sqlc.arg(day_end)::timestamptz)))
+    OR (sqlc.arg(by_use)::bool AND (o.use_date = sqlc.arg(day)::date
+        OR (o.status IN ('pending', 'processing', 'overdue') AND o.due_at < sqlc.arg(day_end)::timestamptz
+            AND o.created_at <= sqlc.arg(day_end)::timestamptz))))
+ORDER BY o.due_at, o.id;
+
+-- name: ReportWeekOrders :many
+-- Báo cáo tuần Học thuật (WeeklyReportMetrics): order học liệu học thuật trong phạm vi xem — tạo trong tuần (mục số liệu),
+-- hoàn thành trong tuần (dòng "đã làm") và đang mở (dòng "đề xuất / yêu cầu").
+SELECT o.id, o.code, o.title, o.status, o.due_at, o.created_at, o.processed_at
+FROM ops.material_orders o
+WHERE o.deleted_at IS NULL
+  AND (sqlc.arg(all_scope)::boolean OR o.requester_id = sqlc.arg(user_id)
+       OR o.branch_id = ANY(COALESCE(sqlc.narg(branch_ids)::uuid[], '{}')))
+  AND o.category = 'academic'
+  AND (o.created_at BETWEEN sqlc.arg(from_at)::timestamptz AND sqlc.arg(to_at)::timestamptz
+       OR (o.status = 'done' AND o.processed_at BETWEEN sqlc.arg(from_at)::timestamptz AND sqlc.arg(to_at)::timestamptz)
+       OR o.status IN ('pending', 'processing', 'overdue'))
+ORDER BY o.due_at, o.id;

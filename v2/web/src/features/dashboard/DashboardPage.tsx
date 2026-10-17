@@ -8,7 +8,7 @@ import { Alert, Button, Icon } from '../../components/ui'
 import { navigate } from '../../router'
 import { dashboardApi, type Agenda, type DailyReport, type MyTasks, type Queue, type RoleDashboard } from './api'
 import { Empty, Link, Panel, PanelLink, Pending, StatCard } from './components'
-import { bannerOf, formatCount, formatDate, kindClass, statGridClass, welcomeOf } from './logic'
+import { bannerOf, formatCount, formatDate, formatHourDay, kindClass, statGridClass, welcomeOf } from './logic'
 import { TeachingQuality } from './TeachingQuality'
 
 // Việc quá hạn của bảng điều hành mở danh sách "Tôi giao" lọc Quá hạn (tasks.index tab=assigned status=overdue).
@@ -268,15 +268,44 @@ function RoleWidgets({ dashboard }: { dashboard: RoleDashboard }) {
       )}
       {dashboard.type === 'academic' && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <Panel title="Đề xuất chờ duyệt">
-            <div className="px-4 py-4">
-              <Pending>{dashboard.academic_pending}</Pending>
-            </div>
+          <Panel title="Đề xuất chờ duyệt" action={<PanelLink href="/syllabus/adjustment-requests">Duyệt đề xuất</PanelLink>}>
+            {dashboard.academic_pending ? (
+              <div className="px-4 py-4">
+                <Pending>{dashboard.academic_pending}</Pending>
+              </div>
+            ) : (
+              <>
+                {(dashboard.pending_adjustments ?? []).map((r) => (
+                  <div key={r.id} className="border-b border-surface-container-highest/60 px-4 py-2.5 last:border-0">
+                    <p className="text-sm text-on-surface">
+                      {r.class ?? 'Lớp'} — {r.teacher ?? 'Giáo viên'}
+                    </p>
+                    <p className="truncate text-xs text-on-surface-variant">{r.reason}</p>
+                  </div>
+                ))}
+                {!dashboard.pending_adjustments?.length && <Empty icon="inbox" title="Không có đề xuất chờ duyệt" />}
+              </>
+            )}
           </Panel>
-          <Panel title="Big Test sắp tới">
-            <div className="px-4 py-4">
-              <Pending>{dashboard.academic_pending}</Pending>
-            </div>
+          <Panel title="Big Test sắp tới" action={<PanelLink href="/syllabus/big-tests/schedules">Lịch Big Test</PanelLink>}>
+            {dashboard.academic_pending ? (
+              <div className="px-4 py-4">
+                <Pending>{dashboard.academic_pending}</Pending>
+              </div>
+            ) : (
+              <>
+                {(dashboard.upcoming_big_tests ?? []).map((t) => (
+                  <div key={t.id} className="flex items-center justify-between gap-3 border-b border-surface-container-highest/60 px-4 py-2.5 last:border-0">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm text-on-surface">{t.title}</p>
+                      <p className="text-xs text-on-surface-variant">{t.class ?? '—'}</p>
+                    </div>
+                    <span className="shrink-0 text-xs text-on-surface-variant">{formatHourDay(t.scheduled_at)}</span>
+                  </div>
+                ))}
+                {!dashboard.upcoming_big_tests?.length && <Empty icon="event_available" title="Không có Big Test trong 14 ngày tới" />}
+              </>
+            )}
           </Panel>
         </div>
       )}

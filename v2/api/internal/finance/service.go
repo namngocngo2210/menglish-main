@@ -60,8 +60,8 @@ type Salary struct {
 	StaffCount int
 }
 
-// PayrollSource: chi lương tự động (PayrollPeriod trạng thái approved / paid của tháng).
-// TODO(gộp): nối phân hệ Lương khi chuyển sang v2; hiện dùng noPayroll.
+// PayrollSource: chi lương tự động (PayrollPeriod trạng thái approved / paid của tháng) — payroll.Service.Finance();
+// chưa gắn thì dùng noPayroll.
 type PayrollSource interface {
 	// Salary: kỳ lương tháng month; branch != nil → chỉ phiếu lương của nhân sự có chi nhánh chính là branch.
 	// nil = tháng chưa có kỳ lương đã chốt / đã trả.

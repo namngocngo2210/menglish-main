@@ -85,8 +85,8 @@ type StudentStatus interface {
 }
 
 // Commissions: hoa hồng tư vấn (SalesCommissionService) — gợi ý số thu hồi khi duyệt hoàn phí và ghi quyết định thu hồi
-// (hủy khoản còn hoãn, tạo khoản điều chỉnh âm). TODO(gộp): phân hệ Lương / hoa hồng chưa có ở v2; nil = không có khoản
-// hoa hồng nào (gợi ý 0 đ, chỉ lưu quyết định trên hồ sơ).
+// (hủy khoản còn hoãn, tạo khoản điều chỉnh âm) — payroll.Service.Commissions(); nil = không có khoản hoa hồng nào
+// (gợi ý 0 đ, chỉ lưu quyết định trên hồ sơ).
 type Commissions interface {
 	SuggestedClawback(ctx context.Context, studentID, ownerID uuid.UUID, refundAmount int64) (int64, error)
 	RecordClawback(ctx context.Context, tx pgx.Tx, refundID, studentID, ownerID uuid.UUID, amount int64, approver uuid.UUID) error
