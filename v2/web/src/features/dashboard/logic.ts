@@ -3,7 +3,7 @@ import type { Me } from '../../api'
 import type { ClassMetric, DailyReport, TeamRow, TeacherReport } from './api'
 
 // Quyền mở Tổng quan (route GET /dashboard): mọi nhân sự (portal.staff) hoặc người có bảng điều hành / học thuật.
-// Học viên, phụ huynh không có → trang "/" là Tài khoản của tôi (Laravel chuyển sang cổng học viên, v2 chưa có cổng).
+// Học viên, phụ huynh không có → trang "/" là Trang chủ cổng học viên (routes.tsx, như Laravel).
 export const DASHBOARD_PERMS = ['portal.staff', 'dashboard.operations', 'dashboard.academic']
 
 export function seesDashboard(me: Me) {

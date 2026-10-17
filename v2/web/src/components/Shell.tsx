@@ -3,6 +3,8 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { api, type Me } from '../api'
 import { CommandPalette } from '../features/platform/CommandPalette'
 import { NotificationBell } from '../features/platform/NotificationBell'
+import { PortalBell } from '../features/portal/components'
+import { isPortalOnly } from '../features/portal/logic'
 import { can, pageTitle, settingsNav, workspaceTabs } from '../nav'
 import { usePath } from '../router'
 import { Sidebar } from './shell/Sidebar'
@@ -32,6 +34,8 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
   const [open, setOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(loadCollapsed)
   const [searching, setSearching] = useState(false)
+  // Tài khoản chỉ dùng cổng học viên: không tìm kiếm chung, chuông mở Hộp thư thông báo của cổng.
+  const portal = isPortalOnly(me)
 
   // Chuyển trang thì đóng ngăn kéo menu trên điện thoại.
   useEffect(() => setOpen(false), [path])
@@ -39,14 +43,14 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
   // Ctrl K / ⌘ K mở bảng tìm nhanh ở mọi trang.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      if (!portal && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
         setSearching(true)
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [portal])
 
   function toggleCollapsed() {
     setCollapsed((v) => {
@@ -84,8 +88,9 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
       <div className={`flex min-h-dvh min-w-0 flex-col transition-[padding] duration-200 ${collapsed ? 'md:pl-18' : 'md:pl-18 desktop:pl-60'}`}>
         <Topbar
           me={me}
-          title={pageTitle(path)}
-          bell={can(me, 'notification.view') ? <NotificationBell /> : null}
+          title={portal && path === '/' ? 'Trang chủ' : pageTitle(path)}
+          bell={portal ? <PortalBell /> : can(me, 'notification.view') ? <NotificationBell /> : null}
+          search={!portal}
           onOpenMenu={() => setOpen(true)}
           onOpenSearch={() => setSearching(true)}
           onLogout={() => logout.mutate()}

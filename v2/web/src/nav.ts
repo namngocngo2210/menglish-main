@@ -25,6 +25,9 @@ const KPI_ROLES = ['academic_staff', 'academic_lead', 'manager', 'sales_consulta
 export const hasKpiRole = (me: Me) => me.roles.some((r) => KPI_ROLES.includes(r.name))
 
 const CRM = 'Khách hàng (CRM)'
+const PORTAL = 'Cổng Phụ huynh & Học sinh'
+// Màn cổng học viên: tài khoản cổng, hoặc nhân sự xem hộ học viên trong phạm vi.
+const PORTAL_PERMS = ['portal.student', 'student.view']
 // Quyền neo khu Học phí (SidebarMenu::TUITION): người xử lý nghiệp vụ kế toán.
 const TUITION_ANCHORS = ['tuition.approve', 'tuition.reject', 'invoice.request_cancel', 'refund_transfer.request']
 
@@ -90,6 +93,23 @@ export const NAV: NavItem[] = [
     perms: ['work_task.view'],
     menu: (me) => can(me, 'portal.teacher', 'portal.assistant'),
   },
+  // Chấm bài nộp của lớp (StudentPortalController::teacherSubmissions) — features/portal.
+  {
+    path: '/portal/teacher-submissions',
+    label: 'Chấm bài nộp của lớp',
+    group: 'Cổng Giáo viên',
+    perms: ['homework.grade'],
+    menu: (me) => can(me, 'portal.teacher', 'portal.assistant'),
+  },
+  // Cổng Phụ huynh & Học sinh (StudentPortalController) — features/portal. Menu cho tài khoản cổng (portal.student);
+  // nhân sự có student.view mở được để xem hộ học viên trong phạm vi.
+  { path: '/portal/home', label: 'Trang chủ', perms: PORTAL_PERMS, group: PORTAL, menu: (me) => can(me, 'portal.student') },
+  { path: '/portal/student-homework', label: 'Học tập & Nộp bài tập', perms: PORTAL_PERMS, group: PORTAL, menu: (me) => can(me, 'portal.student') },
+  { path: '/portal/pronunciation', label: 'Luyện phát âm AI', perms: PORTAL_PERMS, group: PORTAL, menu: (me) => can(me, 'portal.student') },
+  { path: '/portal/notifications', label: 'Hộp thư thông báo', perms: PORTAL_PERMS, group: PORTAL, menu: (me) => can(me, 'portal.student') },
+  { path: '/portal/survey', label: 'Khảo sát 5 sao', perms: PORTAL_PERMS, group: PORTAL, menu: (me) => can(me, 'portal.student') },
+  { path: '/portal/feedback', label: 'Gửi góp ý', perms: PORTAL_PERMS, group: PORTAL, menu: (me) => can(me, 'portal.student') },
+  { path: '/portal/app-shell', label: 'Ứng dụng di động', perms: PORTAL_PERMS, group: PORTAL, menu: (me) => can(me, 'portal.student') },
   // Test đầu vào & học thử (Laravel: "Lịch học thử" gắn quyền sửa lớp; "(AI)" chỉ là nhãn menu, không gọi AI)
   { path: '/trial-bookings', label: 'Lịch học thử', group: 'Test đầu vào & học thử', perms: ['class.update'] },
   { path: '/placement-tests', label: 'Đề test đầu vào (AI)', group: 'Test đầu vào & học thử', perms: ['placement_test.view'] },
@@ -165,6 +185,14 @@ export const NAV: NavItem[] = [
     perms: ['tuition.view'],
     group: 'Cần duyệt',
     menu: (me) => isAdmin(me) && can(me, ...TUITION_ANCHORS),
+  },
+  // Học viên / phụ huynh báo đã đóng học phí ở Cổng học viên (PaymentReportApprovalSource) — features/portal.
+  {
+    path: '/payment-reports',
+    label: 'Học viên báo đóng học phí',
+    perms: ['tuition.approve'],
+    group: 'Cần duyệt',
+    menu: (me) => isAdmin(me) && can(me, 'tuition.view'),
   },
   // Công việc (WorkTaskController). Cần duyệt → "Hoàn thành công việc" (sau các tab học phí như SidebarMenu): chỉ Admin,
   // neo work_task.create.
