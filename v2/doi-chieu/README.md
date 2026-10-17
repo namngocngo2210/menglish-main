@@ -12,14 +12,15 @@ Số dòng theo trạng thái tính tới lần gộp cuối của PR #152.
 | Phân hệ | Bảng | Đã làm | Khác | Một phần | Chưa làm | Còn thiếu chính |
 | --- | --- | ---: | ---: | ---: | ---: | --- |
 | Chấm công chi nhánh | `../doi-chieu-laravel.txt` (`core.branch_checkin`) | toàn bộ | | | | Không còn (vị trí trên bản đồ, tìm địa chỉ, dán tọa độ như `BranchController`) |
-| Nền tảng (khung giao diện, nhật ký, thông báo, tìm kiếm) | [nen-tang.md](nen-tang.md) | 26 | 0 | 7 | 7 | Dashboard "Tổng quan", toast chung, hoàn tác nhật ký |
+| Nền tảng (khung giao diện, nhật ký, thông báo, tìm kiếm) | [nen-tang.md](nen-tang.md) | 27 | 0 | 7 | 6 | Toast chung, hoàn tác nhật ký |
+| Tổng quan (Dashboard) & Báo cáo & sự vụ lớp | [tong-quan.md](tong-quan.md) | 29 | 5 | 9 | 10 | Số liệu học phí, lương, chấm công & KPI, giáo trình & Big Test, ticket, báo cáo trực lớp (chờ các phân hệ đó) |
 | Danh mục & cấu hình | [danh-muc.md](danh-muc.md) | 46 | 0 | 14 | 3 | Tra phòng trống, cấu hình SePay |
 | Học viên | [hoc-vien.md](hoc-vien.md) | 9 | 0 | 7 | 3 | Lệnh nền bảo lưu / khai giảng / sinh nhật (cần học phí), ghi ngày bắt đầu học từ điểm danh |
 | Lớp học | [lop-hoc.md](lop-hoc.md) | 26 | 0 | 8 | 7 | Dự giờ & chất lượng lớp, cổng giáo viên (chấm công, bài tập, điểm), giãn tiến độ theo giáo trình |
 | Tồn kho & Order học liệu | [ton-kho.md](ton-kho.md) | 23 | 0 | 2 | 4 | Cảnh báo tồn ở màn duyệt phiếu thu, import dữ liệu kho cũ, số liệu kho trong báo cáo |
-| Công việc | [cong-viec.md](cong-viec.md) | 11 | 5 | 1 | 14 | Báo cáo trực lớp, cấu hình lịch trực, buổi phụ đạo, nhu cầu nhân sự, bảng KPI, hộp duyệt chung |
+| Công việc | [cong-viec.md](cong-viec.md) | 11 | 5 | 2 | 13 | Báo cáo trực lớp, cấu hình lịch trực, buổi phụ đạo, nhu cầu nhân sự, bảng KPI, hộp duyệt chung |
 | Test đầu vào & học thử | [test-dau-vao.md](test-dau-vao.md) | 20 | 0 | 6 | 8 | Tải file nghe / PDF đề (chưa có kho file), hẹn test / chấm điểm trên hồ sơ khách CRM, khách học thử ở màn điểm danh |
-| Báo cáo ngày / tuần / tháng | [bao-cao.md](bao-cao.md) | 18 | 0 | 7 | 7 | Băng nhắc ở Dashboard, KPI tự đếm, tổng quan Học vụ, import báo cáo cũ |
+| Báo cáo ngày / tuần / tháng | [bao-cao.md](bao-cao.md) | 19 | 0 | 8 | 5 | KPI tự đếm, báo cáo trực lớp, import báo cáo cũ |
 | CRM | [crm.md](crm.md) | 21 | 0 | 15 | 6 | Phiếu thu / học phí khi chốt, in hồ sơ, lệnh quét khách quá hạn (`crm:scan-stale-leads`) |
 | Hồ sơ nhân sự | [ho-so-nhan-su.md](ho-so-nhan-su.md) | 8 | 0 | 1 | 3 | File hợp đồng (chưa có kho file), thông báo hợp đồng sắp hết hạn |
 | Gửi email (hàng đợi, mẫu thư, quên mật khẩu) | [email.md](email.md) | 10 | 5 | 0 | 8 | Email ticket (chưa có phân hệ Ticket), email học phí / nhắc nợ / SePay (phân hệ học phí), khách tồn đọng, Zalo ZNS (ngoài phạm vi) |
@@ -32,5 +33,5 @@ Các dòng "Chưa làm" / "Làm một phần" phần lớn chờ những phân h
 - **Kho file**: file hợp đồng, file nghe / PDF đề test, ảnh.
 - **Gửi email**: đã có hàng đợi email (`internal/notify/mail`), xác nhận lịch học thử, email vận hành khi nộp bài, quên
   mật khẩu. Còn email ticket (chưa có phân hệ Ticket), email học phí (phân hệ học phí gọi `mail.Enqueue`), Zalo ZNS.
-- **Dashboard, KPI, cổng giáo viên, cổng học viên, giáo trình**.
+- **KPI, cổng giáo viên, cổng học viên, giáo trình**. Tổng quan đã có, các ô của những phân hệ này hiện "Chờ phân hệ …".
 - **Import dữ liệu nghiệp vụ cũ**: `import-legacy` mới chép chi nhánh, tài khoản, vai trò, quyền và hồ sơ nhân sự.

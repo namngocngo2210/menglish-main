@@ -11,8 +11,8 @@
 | `Sidebar.vue`, `SidebarLink.vue`: thu gọn, mục đang mở tô sáng, ngăn kéo trên điện thoại | `components/shell/Sidebar.tsx` | Đã làm | Thu gọn cả sidebar (nhớ `sidebar_collapsed`) và từng khu (nhớ `nav_collapsed_sections`); `aria-current` cho mục đang mở; md = chỉ biểu tượng, lg = đầy đủ. |
 | `WorkspaceTabs.vue` (tab của workspace) | `WorkspaceTabs` trong `PageNav.tsx` | Làm một phần | Có tab; chưa có nút hành động (`actions`) của workspace vì các màn đó thuộc module khác. |
 | `Topbar.vue`: nút menu, tiêu đề, ô tìm kiếm, chuông, menu tài khoản | `components/shell/Topbar.tsx` | Đã làm | Ô tìm kiếm mở bảng Ctrl K thay vì form GET. |
-| Menu tài khoản: hồ sơ, hướng dẫn, chấm công, đăng xuất (`AppShell::for`) | Menu "Tài khoản": Tài khoản của tôi, Đăng xuất | Làm một phần | Hướng dẫn sử dụng và Chấm công thuộc module khác, thêm khi có màn. |
-| Link "Tổng quan" (dashboard) đầu sidebar | Mục `/` "Tài khoản của tôi" | Chưa làm | Chưa có bảng điều khiển ở v2. |
+| Menu tài khoản: hồ sơ, hướng dẫn, chấm công, đăng xuất (`AppShell::for`) | Menu "Tài khoản": Tài khoản của tôi (`/profile`), Đăng xuất | Làm một phần | Hướng dẫn sử dụng và Chấm công thuộc module khác, thêm khi có màn. |
+| Link "Tổng quan" (dashboard) đầu sidebar | Mục `/` "Tổng quan" (`features/dashboard`) | Đã làm | Nhân sự mở `/` là Tổng quan (xem [tong-quan.md](tong-quan.md)); "Tài khoản của tôi" chuyển sang `/profile` (menu tài khoản trên topbar; học viên / phụ huynh thấy mục này ở sidebar). |
 | `AppLayout.vue`: chân trang, nhảy tới nội dung | `components/Shell.tsx` | Đã làm | Chân trang kèm môi trường + phiên bản. |
 | `ToastHost.vue`, `ConfirmDialogHost.vue`, `RemoteModalHost.vue` | `Alert`, `Dialog` trong `components/ui.tsx` | Chưa làm | v2 báo lỗi / xác nhận tại chỗ; chưa có toast chung. |
 | `SidebarMenu::quickCreateDefinition()` | — | Chưa làm | Laravel không còn dùng trên giao diện. |

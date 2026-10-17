@@ -21,6 +21,7 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/classes"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/config"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/crm"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/dashboard"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/geo"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/inventory"
@@ -154,6 +155,13 @@ func runAPI(ctx context.Context) error {
 	})
 	// Nhắc hạn báo cáo ngày / tháng và tổng hợp cho Admin (lệnh reports:remind-* / reports:daily-digest ở bản Laravel).
 	go reportSvc.RunReminderLoop(ctx, time.Minute)
+	// Tổng quan + Báo cáo & sự vụ lớp: đọc số liệu các phân hệ qua adapter. TODO(gộp): Finance = adapter của internal/tuition,
+	// Work = chấm công / biên bản lỗi (KPI) khi các phân hệ đó có ở v2 (để nil: màn hiện "Chờ phân hệ…").
+	dash := dashboard.NewService(dashboard.Deps{
+		Leads: crmSvc.DashboardLeads(), Tasks: taskSvc.DashboardTasks(), Classes: cls.DashboardClasses(),
+		Students: studentSvc.DashboardStudents(), Reports: reportSvc.DashboardReports(), Orders: inv.DashboardOrders(),
+		Branches: d.iam,
+	}, log)
 	checks := map[string]server.Pinger{
 		"postgres": d.pool,
 		"redis":    server.PingFunc(func(ctx context.Context) error { return d.rdb.Ping(ctx).Err() }),
@@ -178,6 +186,7 @@ func runAPI(ctx context.Context) error {
 				reports.NewHandler(reportSvc, log),
 				crm.NewHandler(crmSvc, log),
 				mailapi.NewHandler(mailSvc, log),
+				dashboard.NewHandler(dash, log),
 			),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
