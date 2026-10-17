@@ -7,7 +7,7 @@ báo mảng nào lệch khi Laravel có commit mới.
 Trạng thái: **Đã làm** (giống Laravel) · **Khác** (đã làm, khác có chủ đích, có ghi chú) · **Làm một phần** (thiếu phần ghi
 trong cột ghi chú) · **Chưa làm** (lý do kèm theo, thường là chờ phân hệ chưa chuyển).
 
-Số dòng theo trạng thái tính tới lần gộp cuối của PR #152.
+Số dòng theo trạng thái tính tới lần gộp cuối của PR #152 (hai cổng học viên / giáo viên: sau khi nối hai phân hệ, đếm mọi bảng trong file).
 
 | Phân hệ | Bảng | Đã làm | Khác | Một phần | Chưa làm | Còn thiếu chính |
 | --- | --- | ---: | ---: | ---: | ---: | --- |
@@ -28,8 +28,8 @@ Số dòng theo trạng thái tính tới lần gộp cuối của PR #152.
 | Thu - Chi | [thu-chi.md](thu-chi.md) | 7 | 1 | 2 | 1 | Dòng chi lương tự động (chờ phân hệ Lương) |
 | KPI nhân sự | [kpi.md](kpi.md) | 18 | 7 | 0 | 7 | Nguồn tự đếm của Học phí / CRM SLA / cổng giáo viên / chấm công / Big Test / dự án học thuật (hiện điền tay), khóa phiếu theo kỳ lương |
 | Học phí (hồ sơ, phiếu thu, công nợ, hoàn phí, hủy hóa đơn, SePay, nhập Excel) | [hoc-phi.md](hoc-phi.md) | 31 | 11 | 0 | 3 | Thu hồi hoa hồng (chờ Lương), nguồn KPI tự đếm, nhập dữ liệu học phí cũ |
-| Cổng Phụ huynh & Học sinh (trang chủ, học phí, nộp bài, phát âm, hộp thư, khảo sát, góp ý, App Shell) | [cong-hoc-vien.md](cong-hoc-vien.md) | 9 | 8 | 6 | 0 | Bài tập / bài nộp / nhận xét (chờ Cổng giáo viên), khảo sát (chờ Khảo sát), Big Test & chặng học (chờ Giáo trình), buổi phụ đạo |
-| Cổng giáo viên (check-in, bài tập, mini test, nhận xét, chấm bài, báo cáo giảng dạy) | [cong-giao-vien.md](cong-giao-vien.md) | 11 | 2 | 5 | 2 | Ghi công check-in / giờ dạy / lương (chờ Lương & chấm công), unit giáo trình, order test & Big Test, tab Phát âm (chờ cổng học viên) |
+| Cổng Phụ huynh & Học sinh (trang chủ, học phí, nộp bài, phát âm, hộp thư, khảo sát, góp ý, App Shell) | [cong-hoc-vien.md](cong-hoc-vien.md) | 15 | 7 | 3 | 0 | Khảo sát (chờ Khảo sát), Big Test & chặng học (chờ Giáo trình), buổi phụ đạo (đã nối Cổng giáo viên: bài tập, bài nộp, nhận xét, mini test) |
+| Cổng giáo viên (check-in, bài tập, mini test, nhận xét, chấm bài, báo cáo giảng dạy) | [cong-giao-vien.md](cong-giao-vien.md) | 13 | 1 | 4 | 2 | Ghi công check-in / giờ dạy / lương (chờ Lương & chấm công), unit giáo trình, order test & Big Test (đã nối cổng học viên: chấm bài một màn, tab Phát âm) |
 
 ## Phần dùng chung chưa có ở v2
 
@@ -40,6 +40,7 @@ Các dòng "Chưa làm" / "Làm một phần" phần lớn chờ những phân h
 - **Kho file**: đã có (`kho-file.md`); còn nhập file cũ từ Laravel và nối vào các phân hệ chưa chuyển.
 - **Gửi email**: đã có hàng đợi email (`internal/notify/mail`), xác nhận lịch học thử, email vận hành khi nộp bài, quên
   mật khẩu. Còn email ticket (chưa có phân hệ Ticket), email học phí (phân hệ học phí gọi `mail.Enqueue`), Zalo ZNS.
-- **Cổng giáo viên, giáo trình, Lương** (cổng học viên đã có: `cong-hoc-vien.md`, phần dữ liệu của các phân hệ này để no-op). Tổng quan và KPI đã có: các ô của những phân hệ này hiện "Chờ phân hệ …",
+- **Giáo trình, Lương** (cổng học viên và cổng giáo viên đã có và đã nối nhau: `cong-hoc-vien.md`, `cong-giao-vien.md`; phần
+  dữ liệu của giáo trình / lương trong hai cổng còn để no-op). Tổng quan và KPI đã có: các ô của những phân hệ này hiện "Chờ phân hệ …",
   tiêu chí KPI dùng nguồn của chúng do người chấm điền tay.
 - **Import dữ liệu nghiệp vụ cũ**: `import-legacy` mới chép chi nhánh, tài khoản, vai trò, quyền và hồ sơ nhân sự.

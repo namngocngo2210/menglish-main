@@ -14,8 +14,10 @@ v2:
 - Giao diện: `web/src/features/teacher` (màn `/teacher/home`, `/teacher/classes/<id>/homework|scores|remarks`,
   `/teacher/submissions`, `/teacher/general-report`).
 - Phân hệ chưa chuyển nối qua interface trong `teacher/deps.go` (mặc định "chưa có", `TODO(gộp)`): `Work` (Lương &
-  chấm công: check-in, giờ dạy, bảng công), `Syllabus` (unit / bài học), `SupportList` (danh sách hỗ trợ khi mini test thấp),
-  `Pronunciation` (bài phát âm của cổng học viên).
+  chấm công: check-in, giờ dạy, bảng công), `Syllabus` (unit / bài học), `SupportList` (danh sách hỗ trợ khi mini test thấp).
+- Đã nối với Cổng Phụ huynh & Học sinh (`cmd/menglish/portal_teacher.go`): `Pronunciation` = bản ghi âm của cổng học viên
+  (tab Phát âm), `StudentPortal` = nguồn bài tập / bài nộp / nhận xét / mini test của cổng học viên, `SetFileAccess` = học
+  viên / phụ huynh mở file bài nộp / file nghe. Test tích hợp `cmd/menglish/portal_teacher_test.go`.
 
 ## Thay đổi so với Laravel
 
@@ -23,8 +25,8 @@ v2:
   `/api/v1/files/<id>` có kiểm quyền: người nộp, giáo viên chấm của lớp, hoặc cổng học viên). Laravel lưu đường dẫn trên
   disk `public`.
 - **Học viên nộp bài qua API xuất ra** `teacher.Service.StudentPortal()` (Submit / Update / Delete / danh sách bài, nhận
-  xét, mini test) để cổng học viên gọi. Khác Laravel: không tự điền ghi chú / tên file mặc định; bài đã chấm không sửa / xóa
-  được (409).
+  xét, mini test, bài nghe mẫu) để cổng học viên gọi (`portal.TeacherPortal`). Như Laravel bài đã chấm vẫn sửa / hủy được
+  (giữ điểm); ghi chú mặc định "Con đã hoàn thành bài tập…" do cổng học viên điền, không tự đặt tên file khi không đính kèm.
 - **Nhận xét theo buổi học** (`remark_sheets` theo `session_id`), có trạng thái nháp / đã lưu; học viên chỉ thấy bản đã lưu.
   Laravel lưu nhận xét theo lớp + ngày. Dữ liệu nhận xét cũ chưa nhập.
 - **Mini test lưu một dòng / học sinh / bài test** (upsert), điểm 4 kỹ năng Nghe / Nói / Đọc / Viết, có điểm tối đa;
@@ -51,9 +53,9 @@ v2:
 | `teacher.order-test` / `teacher.order-test.submit` | — | Chưa làm | Chờ Giáo trình & Big Test. |
 | `teacher.big-test-report` | — | Chưa làm | Chờ Big Test. |
 | `teacher.general-report` | `GET /teacher/general-report?period=` · màn `/teacher/general-report` (Báo cáo của tôi → Báo cáo giảng dạy) | Làm một phần | Lớp đang dạy, số buổi điểm danh, số điểm đã nhập. Giờ dạy / bảng công chờ Lương & chấm công. |
-| `portal.teacher.submissions` (+ alias) | `GET /teacher/submissions?class=&type=` · màn `/teacher/submissions` | Làm một phần | Tab 6 loại bài đã làm; tab Phát âm chờ cổng học viên (`Pronunciation`). |
-| `portal.teacher.submissions.mark` | `POST /teacher/submissions/{id}/mark` | Đã làm | Điểm ≤ 20 ký tự, phản hồi ≤ 1000 ký tự, chỉ giáo viên chấm của lớp (`homework.grade`). |
-| `submitHomework` / `updateHomework` / `deleteHomework` (cổng học viên) | `teacher.Service.StudentPortal()` | Khác | API Go cho cổng học viên gọi; xem mục thay đổi. |
+| `portal.teacher.submissions` (+ alias) | `GET /teacher/submissions?class_id=&type=` · màn `/teacher/submissions` (`/portal/teacher-submissions` cũ tự chuyển sang) | Đã làm | Màn duy nhất cho chấm bài (bản trùng của cổng học viên đã bỏ khi gộp). 6 tab bài nộp + tab Phát âm (bản ghi âm của cổng học viên). Giao diện như `Portal/TeacherSubmissions.vue`: chọn lớp dạy, tab có biểu tượng, "Danh sách đã nộp bài (n)", chấm ngay trên dòng (bài nộp: "Đánh dấu đã xem", điểm tùy chọn; phát âm: "Chấm", điểm /100 bắt buộc), bài đã chấm hiện "Đã chấm: …" / "Đã xem", nút "Xem giao diện Học sinh nộp bài" khi có `student.view`. Nhãn hạng mục và giờ nộp (dd/mm/YYYY HH:MM) như dữ liệu Laravel. |
+| `portal.teacher.submissions.mark` | `POST /teacher/submissions/{id}/mark` | Đã làm | Điểm ≤ 20 ký tự, phản hồi ≤ 1000 ký tự, chỉ giáo viên chấm của lớp (`homework.grade`, ngoài lớp → 404). Bản ghi âm: điểm bắt buộc ("Vui lòng nhập điểm bài phát âm."), học viên nhận thông báo `pronunciation_reviewed` ở hộp thư cổng (thêm so với Laravel). |
+| `submitHomework` / `updateHomework` / `deleteHomework` (cổng học viên) | `teacher.Service.StudentPortal()` ← `POST/DELETE /portal/homework*` | Đã làm | Cổng học viên kiểm quyền ghi (`authorizeStudent`) rồi gọi qua adapter; bài nộp + file + nhật ký trong một transaction; xem mục thay đổi. |
 | KPI `homework_rate` | `teacher.Service.KpiSources` | Đã làm | Bài nộp ÷ (bài giao có hạn trong kỳ × sĩ số), trung bình theo sĩ số. |
 | Bảng KPI tự động: cột tỉ lệ bài tập | `teacher.Service.KpiBoard` → `kpi.WithHomework` | Đã làm | |
 | Tổng quan: bài về nhà, điểm TB mini test theo lớp | `teacher.Service.Dashboard` → `dashboard.Deps.Homework` | Đã làm | |
