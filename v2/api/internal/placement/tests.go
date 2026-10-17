@@ -132,6 +132,7 @@ type TestDetail struct {
 	QuestionsCount  int32      `json:"questions_count"`
 	Questions       []Question `json:"questions"`
 	PdfPath         string     `json:"pdf_path"`
+	PdfURL          string     `json:"pdf_url"` // link mở file đề cho người soạn / chấm
 	AudioURL        string     `json:"audio_url"`
 	IsActive        bool       `json:"is_active"`
 	IsPreset        bool       `json:"is_preset"`
@@ -145,7 +146,7 @@ func toDetail(t placementdb.PlacementTest) TestDetail {
 		ID: t.ID, Code: t.Code, Title: t.Title, Description: deref(t.Description), TargetLevel: t.TargetLevel,
 		GradeLevel: deref(t.GradeLevel), GradeGroup: g, GradeGroupLabel: GroupLabel(g), DurationMinutes: t.DurationMinutes,
 		QuestionsCount: t.QuestionsCount, Questions: parseQuestions(t.Questions), PdfPath: deref(t.PdfPath),
-		AudioURL: deref(t.AudioUrl), IsActive: t.IsActive, IsPreset: t.IsPreset, CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
+		PdfURL: staffPdfURL(t.PdfPath), AudioURL: deref(t.AudioUrl), IsActive: t.IsActive, IsPreset: t.IsPreset, CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt,
 	}
 }
 
@@ -177,8 +178,10 @@ type TestInput struct {
 	IsActive        *bool           `json:"is_active"` // sửa đề
 }
 
-// pdfUnsupported: v2 chưa có kho file chung nên chưa tải được đề PDF mới (đề PDF cũ nhập từ Laravel vẫn dùng được).
-var pdfUnsupported = errInvalid(`Hệ thống mới chưa hỗ trợ tải đề PDF — hãy chọn cách "Soạn từng câu".`)
+var (
+	errPdfRequired = errInvalid("Vui lòng tải file đề PDF.")
+	errEmptySheet  = errInvalid("Phiếu trả lời chưa có câu nào — tạo phiếu theo số câu của đề rồi điền đáp án.")
+)
 
 func validateCommon(in *TestInput, requireTarget bool) error {
 	in.Title = strings.TrimSpace(in.Title)
@@ -244,8 +247,16 @@ func (s *Service) CreateTest(ctx context.Context, a *iam.Access, in TestInput) (
 	if err := validateCommon(&in, gradeLevel == "" && in.GradeGroup == ""); err != nil {
 		return nil, "", err
 	}
-	if in.Mode == "pdf" || (in.PdfPath != nil && strings.TrimSpace(*in.PdfPath) != "") {
-		return nil, "", pdfUnsupported
+	// Cách "Tải đề PDF": chỉ nhận file tải lên qua /placement-tests/pdf, không còn trang đáp án.
+	var pdf *string
+	if in.PdfPath != nil {
+		var err error
+		if pdf, err = s.validatedPdf(ctx, *in.PdfPath, ""); err != nil {
+			return nil, "", err
+		}
+	}
+	if in.Mode == "pdf" && pdf == nil {
+		return nil, "", errPdfRequired
 	}
 	group := in.GradeGroup
 	if gradeLevel != "" {
@@ -266,6 +277,13 @@ func (s *Service) CreateTest(ctx context.Context, a *iam.Access, in TestInput) (
 	if err != nil {
 		return nil, "", err
 	}
+	if pdf != nil && len(qs) == 0 {
+		return nil, "", errEmptySheet
+	}
+	audio := (*string)(nil)
+	if pdf != nil && in.AudioURL != nil {
+		audio = strOrNil(*in.AudioURL)
+	}
 	if taken, err := s.q.TestCodeTaken(ctx, in.Code); err != nil {
 		return nil, "", err
 	} else if taken {
@@ -280,7 +298,7 @@ func (s *Service) CreateTest(ctx context.Context, a *iam.Access, in TestInput) (
 	t, err := s.q.CreateTest(ctx, placementdb.CreateTestParams{
 		Code: in.Code, Title: in.Title, Description: desc, TargetLevel: target, GradeLevel: strOrNil(gradeLevel),
 		DurationMinutes: int32(*in.DurationMinutes), QuestionsCount: questionsCount(qs, in.QuestionsCount, def),
-		Questions: qb, IsActive: in.SaveMode != "draft", CreatedBy: &a.UserID,
+		Questions: qb, PdfPath: pdf, AudioUrl: audio, IsActive: in.SaveMode != "draft", CreatedBy: &a.UserID,
 	})
 	if err != nil {
 		var pe *pgconn.PgError
@@ -289,6 +307,7 @@ func (s *Service) CreateTest(ctx context.Context, a *iam.Access, in TestInput) (
 		}
 		return nil, "", err
 	}
+	s.attachPdf(ctx, pdf, t.ID)
 	s.log.Info("placement: tạo đề", "test", t.ID, "code", t.Code, "by", a.UserID)
 	d := toDetail(t)
 	if t.IsActive {
@@ -309,18 +328,18 @@ func (s *Service) UpdateTest(ctx context.Context, a *iam.Access, id uuid.UUID, i
 	if err := validateCommon(&in, true); err != nil {
 		return nil, "", err
 	}
-	// Không gửi pdf_path → giữ file PDF; gửi rỗng → chuyển về đề soạn từng câu; file mới → chưa hỗ trợ.
+	// Không gửi pdf_path → giữ file PDF; gửi rỗng → chuyển về đề soạn từng câu; file mới → kiểm như lúc tạo.
 	pdf := cur.PdfPath
 	if in.PdfPath != nil {
-		switch p := strings.TrimSpace(*in.PdfPath); {
-		case p == "":
-			pdf = nil
-		case p != deref(cur.PdfPath):
-			return nil, "", pdfUnsupported
+		if pdf, err = s.validatedPdf(ctx, *in.PdfPath, deref(cur.PdfPath)); err != nil {
+			return nil, "", err
 		}
 	}
 	if in.Mode == "manual" {
 		pdf = nil
+	}
+	if in.Mode == "pdf" && pdf == nil {
+		return nil, "", errPdfRequired
 	}
 	qb := cur.Questions
 	qs := parseQuestions(cur.Questions)
@@ -331,7 +350,7 @@ func (s *Service) UpdateTest(ctx context.Context, a *iam.Access, id uuid.UUID, i
 		qb, _ = json.Marshal(qs)
 	}
 	if pdf != nil && len(qs) == 0 {
-		return nil, "", errInvalid("Phiếu trả lời chưa có câu nào — tạo phiếu theo số câu của đề rồi điền đáp án.")
+		return nil, "", errEmptySheet
 	}
 	desc := cur.Description
 	if in.Description != nil {
@@ -360,6 +379,7 @@ func (s *Service) UpdateTest(ctx context.Context, a *iam.Access, id uuid.UUID, i
 	if err != nil {
 		return nil, "", notFound(err, errTestNotFound)
 	}
+	s.attachPdf(ctx, pdf, t.ID)
 	s.log.Info("placement: sửa đề", "test", t.ID, "by", a.UserID)
 	d := toDetail(t)
 	return &d, fmt.Sprintf("Đã cập nhật đề thi %s (%s) thành công!", t.Title, t.Code), nil

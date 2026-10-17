@@ -153,6 +153,19 @@ func RequireAny(perms ...string) func(http.Handler) http.Handler {
 	}
 }
 
+// RequireSignedIn: như Require nhưng không đòi một quyền cố định — kiểm đăng nhập, CSRF, đổi mật khẩu lần đầu, 2FA
+// bắt buộc và nạp tập quyền (AccessFrom). Chỉ dùng cho route tự kiểm quyền theo từng bản ghi (tải file: phân hệ sở
+// hữu file quyết định); route dùng nó phải liệt kê trong publicRoutes của cmd/menglish/routes_test.go.
+//
+//go:noinline
+func RequireSignedIn(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if authorize(w, r) {
+			next.ServeHTTP(w, r)
+		}
+	})
+}
+
 // mustExist dừng chương trình ngay lúc gắn route nếu tên quyền gõ sai (không ai vào được route đó).
 func mustExist(perms ...string) {
 	if len(perms) == 0 {
@@ -183,7 +196,8 @@ func authorize(w http.ResponseWriter, r *http.Request, perms ...string) bool {
 		writeErr(w, ErrTOTPSetupRequired)
 		return false
 	}
-	if !acc.CanAny(perms...) {
+	// Không truyền quyền (RequireSignedIn): chỉ cần đăng nhập hợp lệ.
+	if len(perms) > 0 && !acc.CanAny(perms...) {
 		writeErr(w, ErrForbidden)
 		return false
 	}
