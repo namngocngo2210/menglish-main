@@ -561,6 +561,87 @@ export const tuitionApi = {
     return upload<Saved>(`/tuition/refunds/${id}/approve`, f)
   },
   rejectRefund: (id: string, rejection_reason: string) => request<Saved>('POST', `/tuition/refunds/${id}/reject`, { rejection_reason }),
+  cancellations: (p: CancellationFilter) => request<CancellationsPage>('GET', `/tuition/invoices/cancellations${query(p)}`),
+  cancellationsExportUrl: (p: CancellationFilter) =>
+    `/api/v1/tuition/invoices/cancellations/export${query({ ...p, selected_id: undefined, cancel_invoice: undefined })}`,
+  createCancellation: (d: { invoice_number: string; amount: number | null; reason: string }, proof?: File | null) => {
+    if (!proof) return request<Saved>('POST', '/tuition/invoices/cancellations', d)
+    const f = new FormData()
+    f.append('invoice_number', d.invoice_number)
+    if (d.amount !== null) f.append('amount', String(d.amount))
+    f.append('reason', d.reason)
+    f.append('proof_image', proof)
+    return upload<Saved>('/tuition/invoices/cancellations', f)
+  },
+  approveCancellation: (id: string) => request<Saved>('POST', `/tuition/invoices/cancellations/${id}/approve`),
+  rejectCancellation: (id: string, rejection_reason: string) =>
+    request<Saved>('POST', `/tuition/invoices/cancellations/${id}/reject`, { rejection_reason }),
+}
+
+export type CancellationFilter = { status?: string; branch_id?: string; q?: string; selected_id?: string; cancel_invoice?: string }
+
+export type CancellationStatus = 'pending' | 'approved' | 'rejected'
+
+export type CancellationRow = {
+  id: string
+  invoice_number: string
+  receipt_number: string | null
+  student_name: string | null
+  student_code: string | null
+  amount: number
+  reason: string
+  requester_name: string | null
+  created_at: string
+  created_ago: string
+  status: CancellationStatus
+}
+
+export type CancellationDetail = {
+  id: string
+  invoice_number: string
+  status: CancellationStatus
+  amount: number
+  reason: string
+  rejection_reason: string | null
+  requester_name: string | null
+  approver_name: string | null
+  created_date: string
+  created_at: string
+  updated_at: string
+  proof_url: string | null
+  student_name: string | null
+  student_code: string | null
+  class_name: string
+  branch_name: string
+  receipt: {
+    receipt_number: string
+    status_color: string
+    status_label: string
+    payer_name: string | null
+    payer_phone: string | null
+    payment_method: string
+    method_label: string
+    is_vat_invoice: boolean
+    paper_invoice_number: string | null
+    tuition_amount: number
+    discount_amount: number
+    surcharge_amount: number
+    surcharge_reason: string | null
+  } | null
+  payer_name: string | null
+  payer_phone: string | null
+}
+
+export type CancellationsPage = {
+  filters: { status: string; branch_id: string; q: string }
+  branches: Option[]
+  pending_count: number
+  approved_month_count: number
+  rejected_count: number
+  can_approve_cancel: boolean
+  prefill: { invoice_number: string; amount: number } | null
+  cancellations: CancellationRow[]
+  selected: CancellationDetail | null
 }
 
 export type RefundType = 'refund' | 'transfer' | 'extension' | 'deferral'

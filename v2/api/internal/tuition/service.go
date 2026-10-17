@@ -88,6 +88,15 @@ type StudentStatus interface {
 type Commissions interface {
 	SuggestedClawback(ctx context.Context, studentID, ownerID uuid.UUID, refundAmount int64) (int64, error)
 	RecordClawback(ctx context.Context, tx pgx.Tx, refundID, studentID, ownerID uuid.UUID, amount int64, approver uuid.UUID) error
+	// CancellationClawback: duyệt hủy hóa đơn của phiếu đã chi hoa hồng trong kỳ lương đã duyệt → khoản thu hồi ở kỳ kế
+	// tiếp (recordCancellationClawback); nil = không có khoản nào.
+	CancellationClawback(ctx context.Context, tx pgx.Tx, receiptID uuid.UUID, invoice string, approver uuid.UUID) (*Clawback, error)
+}
+
+// Clawback: khoản hoa hồng bị thu hồi (số âm) và người hưởng.
+type Clawback struct {
+	Amount   int64
+	UserName string
 }
 
 // WithCommissions gắn phân hệ hoa hồng (cmd/menglish).
@@ -98,6 +107,7 @@ func (s *Service) WithFiles(x *files.Service) *Service {
 	s.files = x
 	if x != nil {
 		x.RegisterReader(refundProofSubject, s.readRefundProof)
+		x.RegisterReader(cancellationProofSubject, s.readCancellationProof)
 	}
 	return s
 }

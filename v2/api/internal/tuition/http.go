@@ -51,6 +51,14 @@ func (h *Handler) Routes(r chi.Router) {
 		r.With(view, contact).Post("/overdue/{id}/contacted", h.markContacted)
 		r.With(view, iam.Require("tuition.report_overdue")).Post("/overdue/{id}/report-admin", h.reportOverdue)
 
+		// Hủy hóa đơn: duyệt / từ chối theo invoice.approve_cancel (mặc định chỉ Admin).
+		approveCancel := iam.Require("invoice.approve_cancel")
+		r.With(view).Get("/invoices/cancellations", h.invoiceCancellations)
+		r.With(view).Get("/invoices/cancellations/export", h.exportInvoiceCancellations)
+		r.With(view, iam.Require("invoice.request_cancel")).Post("/invoices/cancellations", h.createInvoiceCancellation)
+		r.With(view, approveCancel).Post("/invoices/cancellations/{id}/approve", h.approveInvoiceCancellation)
+		r.With(view, approveCancel).Post("/invoices/cancellations/{id}/reject", h.rejectInvoiceCancellation)
+
 		// Hoàn tiền & Khất nợ: quyền duyệt theo loại hồ sơ kiểm trong service (TuitionRefundRequest::approvePermission).
 		r.With(view).Get("/refunds", h.refunds)
 		r.With(view, iam.Require("refund_transfer.request")).Post("/refunds", h.createRefund)

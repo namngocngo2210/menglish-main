@@ -150,6 +150,13 @@ export const NAV: NavItem[] = [
     menu: (me) => isAdmin(me) && can(me, ...TUITION_ANCHORS),
   },
   {
+    path: '/tuition/invoices/cancellations',
+    label: 'Hủy hóa đơn',
+    perms: ['tuition.view'],
+    group: 'Cần duyệt',
+    menu: (me) => isAdmin(me) && can(me, ...TUITION_ANCHORS),
+  },
+  {
     path: '/tuition/refunds',
     label: 'Hoàn tiền & Khất nợ',
     perms: ['tuition.view'],

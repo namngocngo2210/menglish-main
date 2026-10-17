@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { errorMessage, type Me } from '../../api'
 import { Alert, Button, Card, Checkbox, Field, Select } from '../../components/ui'
+import { can } from '../../nav'
 import { navigate, usePath, useQueryParam } from '../../router'
 import { tuitionApi, type ReceiptDetail, type ReceiptForm, type ReceiptInput } from './api'
 import { Tag } from './components'
@@ -18,7 +19,7 @@ export function ReceiptsRoute({ me }: { me: Me }) {
   return <ReceiptFormPage me={me} />
 }
 
-function ReceiptFormPage({ receiptId }: { me: Me; receiptId?: string }) {
+function ReceiptFormPage({ me, receiptId }: { me: Me; receiptId?: string }) {
   const studentParam = useQueryParam('student_id')
   const tuitionParam = useQueryParam('tuition_id')
   const form = useQuery({
@@ -36,7 +37,7 @@ function ReceiptFormPage({ receiptId }: { me: Me; receiptId?: string }) {
       </div>
       {form.isError && <Alert>{errorMessage(form.error)}</Alert>}
       {form.data && !form.data.student && <StudentPicker />}
-      {form.data?.student && <ReceiptFields key={`${form.data.student.id}-${receiptId ?? ''}`} data={form.data} receiptId={receiptId} />}
+      {form.data?.student && <ReceiptFields key={`${form.data.student.id}-${receiptId ?? ''}`} me={me} data={form.data} receiptId={receiptId} />}
     </div>
   )
 }
@@ -91,7 +92,7 @@ function initialLines(editing: ReceiptDetail | null): Line[] {
   return (editing?.surcharge_items ?? []).map((l) => ({ id: l.id, quantity: String(l.quantity) }))
 }
 
-function ReceiptFields({ data, receiptId }: { data: ReceiptForm; receiptId?: string }) {
+function ReceiptFields({ me, data, receiptId }: { me: Me; data: ReceiptForm; receiptId?: string }) {
   const qc = useQueryClient()
   const student = data.student!
   const editing = data.editing
@@ -135,13 +136,23 @@ function ReceiptFields({ data, receiptId }: { data: ReceiptForm; receiptId?: str
 
   const scope = tuition ? { branch: tuition.branch_id, course: tuition.course_id } : { branch: student.branch_id, course: student.course_id }
   const promotions = useMemo(
-    () => (skipTuition || sessions <= 0 ? [] : data.promotions.filter((p) => promotionApplies(p, scope.branch, scope.course) || p.id === editing?.promotion_id)),
+    () =>
+      skipTuition || sessions <= 0
+        ? []
+        : data.promotions.filter((p) => promotionApplies(p, scope.branch, scope.course) || p.id === editing?.promotion_id),
     [skipTuition, sessions, data.promotions, scope.branch, scope.course, editing?.promotion_id],
   )
   const promotion = promotions.find((p) => p.id === promotionId) ?? null
   const discount = sessions <= 0 ? 0 : Math.min(base, promotion ? promotionDiscount(promotion, base) : Math.max(0, toInt(discountAmount)))
   const needsDiscountReason = !promotion && discount > 0
-  const calc = calculate(quote, { sessions, itemsTotal: linesTotal, examFee: toInt(examFee), otherFee: toInt(otherFee), extra: toInt(extra), discount })
+  const calc = calculate(quote, {
+    sessions,
+    itemsTotal: linesTotal,
+    examFee: toInt(examFee),
+    otherFee: toInt(otherFee),
+    extra: toInt(extra),
+    discount,
+  })
 
   const branchId = tuition?.branch_id ?? student.branch_id
   const paperMode = method === 'cash' && (!!editing?.issued_paper_invoice || !!data.paper_invoice_next)
@@ -214,7 +225,11 @@ function ReceiptFields({ data, receiptId }: { data: ReceiptForm; receiptId?: str
             {data.recent_rejection.can_edit && !receiptId && (
               <>
                 {' '}
-                <button type="button" className="font-semibold underline" onClick={() => navigate(`/tuition/receipts/${data.recent_rejection!.id}/edit`)}>
+                <button
+                  type="button"
+                  className="font-semibold underline"
+                  onClick={() => navigate(`/tuition/receipts/${data.recent_rejection!.id}/edit`)}
+                >
                   Sửa và gửi lại phiếu này
                 </button>
               </>
@@ -324,7 +339,13 @@ function ReceiptFields({ data, receiptId }: { data: ReceiptForm; receiptId?: str
                 </Select>
               )}
               {sessions > 0 && !promotion && (
-                <Field label="Giảm trừ nhập tay (VNĐ)" type="number" min={0} value={discountAmount} onChange={(e) => setDiscountAmount(e.target.value)} />
+                <Field
+                  label="Giảm trừ nhập tay (VNĐ)"
+                  type="number"
+                  min={0}
+                  value={discountAmount}
+                  onChange={(e) => setDiscountAmount(e.target.value)}
+                />
               )}
               {sessions > 0 && (
                 <Field
@@ -356,7 +377,11 @@ function ReceiptFields({ data, receiptId }: { data: ReceiptForm; receiptId?: str
               variant="secondary"
               disabled={!pick}
               onClick={() => {
-                setLines((ls) => (ls.some((l) => l.id === pick) ? ls.map((l) => (l.id === pick ? { ...l, quantity: String(toInt(l.quantity) + 1) } : l)) : [...ls, { id: pick, quantity: '1' }]))
+                setLines((ls) =>
+                  ls.some((l) => l.id === pick)
+                    ? ls.map((l) => (l.id === pick ? { ...l, quantity: String(toInt(l.quantity) + 1) } : l))
+                    : [...ls, { id: pick, quantity: '1' }],
+                )
                 setPick('')
               }}
             >
@@ -390,8 +415,20 @@ function ReceiptFields({ data, receiptId }: { data: ReceiptForm; receiptId?: str
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <Field label="Phí thi (VNĐ)" type="number" min={0} value={examFee} onChange={(e) => setExamFee(e.target.value)} />
             <Field label="Khoản thu khác (VNĐ)" type="number" min={0} value={otherFee} onChange={(e) => setOtherFee(e.target.value)} />
-            <Field label="Nội dung khoản khác" value={otherFeeReason} required={toInt(otherFee) > 0} onChange={(e) => setOtherFeeReason(e.target.value)} />
-            <Field label="Phụ thu (VNĐ)" type="number" min={0} value={extra} hint="Cộng sau giảm trừ, ngoài tổng phải thu." onChange={(e) => setExtra(e.target.value)} />
+            <Field
+              label="Nội dung khoản khác"
+              value={otherFeeReason}
+              required={toInt(otherFee) > 0}
+              onChange={(e) => setOtherFeeReason(e.target.value)}
+            />
+            <Field
+              label="Phụ thu (VNĐ)"
+              type="number"
+              min={0}
+              value={extra}
+              hint="Cộng sau giảm trừ, ngoài tổng phải thu."
+              onChange={(e) => setExtra(e.target.value)}
+            />
             <div className="sm:col-span-2">
               <Field label="Lý do phụ thu" value={surchargeReason} required={toInt(extra) > 0} onChange={(e) => setSurchargeReason(e.target.value)} />
             </div>
@@ -431,8 +468,23 @@ function ReceiptFields({ data, receiptId }: { data: ReceiptForm; receiptId?: str
             {method === 'cash' &&
               (paperMode ? (
                 <Alert tone="info">
-                  Chi nhánh dùng cuốn hóa đơn giấy: ghi số <strong className="font-mono">{paperNo}</strong> lên hóa đơn giấy cùng nội dung thu, chụp ảnh tải
-                  lên làm minh chứng rồi gửi duyệt.
+                  Chi nhánh dùng cuốn hóa đơn giấy: ghi số <strong className="font-mono">{paperNo}</strong> lên hóa đơn giấy cùng nội dung thu, chụp
+                  ảnh tải lên làm minh chứng rồi gửi duyệt. Ghi sai số trên giấy? Không sửa số: tạo yêu cầu Hủy hóa đơn số đó, phiếu lập mới nhận số
+                  kế tiếp.
+                  {editing?.issued_paper_invoice && can(me, 'invoice.request_cancel') && (
+                    <>
+                      {' '}
+                      <button
+                        type="button"
+                        className="font-semibold text-error underline"
+                        onClick={() =>
+                          navigate(`/tuition/invoices/cancellations?cancel_invoice=${encodeURIComponent(editing.issued_paper_invoice!)}`)
+                        }
+                      >
+                        Hủy số hóa đơn này
+                      </button>
+                    </>
+                  )}
                 </Alert>
               ) : (
                 <Field

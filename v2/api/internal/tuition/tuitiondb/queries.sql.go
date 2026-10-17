@@ -230,6 +230,22 @@ func (q *Queries) ApplyTuitionExtension(ctx context.Context, arg ApplyTuitionExt
 	return err
 }
 
+const approveInvoiceCancellation = `-- name: ApproveInvoiceCancellation :exec
+UPDATE finance.invoice_cancellations SET status = 'approved', approver_id = $2, approved_at = now(), rejection_reason = NULL,
+    updated_at = now()
+WHERE id = $1
+`
+
+type ApproveInvoiceCancellationParams struct {
+	ID         uuid.UUID
+	ApproverID *uuid.UUID
+}
+
+func (q *Queries) ApproveInvoiceCancellation(ctx context.Context, arg ApproveInvoiceCancellationParams) error {
+	_, err := q.db.Exec(ctx, approveInvoiceCancellation, arg.ID, arg.ApproverID)
+	return err
+}
+
 const approveReceipt = `-- name: ApproveReceipt :one
 UPDATE finance.receipts SET invoice_number = $2, status = 'approved', approver_id = $3, approved_at = now(),
     rejection_reason = NULL, tuition_id = $4, updated_at = now()
@@ -686,6 +702,65 @@ func (q *Queries) CancelReceipt(ctx context.Context, arg CancelReceiptParams) (F
 	return i, err
 }
 
+const cancelReceiptForInvoice = `-- name: CancelReceiptForInvoice :one
+UPDATE finance.receipts SET status = 'cancelled', rejection_reason = $2, updated_at = now() WHERE id = $1 RETURNING id, code, source, invoice_number, tuition_id, student_id, amount, tuition_amount, session_count, session_unit_price, material_fee, exam_fee, other_fee, other_fee_reason, surcharge_amount, surcharge_reason, discount_amount, promotion_id, discount_reason, payment_method, transaction_code, transfer_reference, payer_name, payer_phone, is_vat_invoice, paper_invoice_number, proof_url, proof_file_id, payment_date, collected_items, status, notes, rejection_reason, creator_id, approver_id, approved_at, deposited_at, deposited_by, legacy_id, created_at, updated_at
+`
+
+type CancelReceiptForInvoiceParams struct {
+	ID              uuid.UUID
+	RejectionReason *string
+}
+
+// Vô hiệu phiếu, giữ nguyên số hóa đơn (không tái sử dụng số).
+func (q *Queries) CancelReceiptForInvoice(ctx context.Context, arg CancelReceiptForInvoiceParams) (FinanceReceipt, error) {
+	row := q.db.QueryRow(ctx, cancelReceiptForInvoice, arg.ID, arg.RejectionReason)
+	var i FinanceReceipt
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Source,
+		&i.InvoiceNumber,
+		&i.TuitionID,
+		&i.StudentID,
+		&i.Amount,
+		&i.TuitionAmount,
+		&i.SessionCount,
+		&i.SessionUnitPrice,
+		&i.MaterialFee,
+		&i.ExamFee,
+		&i.OtherFee,
+		&i.OtherFeeReason,
+		&i.SurchargeAmount,
+		&i.SurchargeReason,
+		&i.DiscountAmount,
+		&i.PromotionID,
+		&i.DiscountReason,
+		&i.PaymentMethod,
+		&i.TransactionCode,
+		&i.TransferReference,
+		&i.PayerName,
+		&i.PayerPhone,
+		&i.IsVatInvoice,
+		&i.PaperInvoiceNumber,
+		&i.ProofUrl,
+		&i.ProofFileID,
+		&i.PaymentDate,
+		&i.CollectedItems,
+		&i.Status,
+		&i.Notes,
+		&i.RejectionReason,
+		&i.CreatorID,
+		&i.ApproverID,
+		&i.ApprovedAt,
+		&i.DepositedAt,
+		&i.DepositedBy,
+		&i.LegacyID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const centerBranches = `-- name: CenterBranches :many
 SELECT name, address::text AS address FROM core.branches
 WHERE is_active AND address IS NOT NULL AND address <> ''
@@ -970,6 +1045,55 @@ func (q *Queries) CountedSessions(ctx context.Context, arg CountedSessionsParams
 		return nil, err
 	}
 	return items, nil
+}
+
+const createInvoiceCancellation = `-- name: CreateInvoiceCancellation :one
+INSERT INTO finance.invoice_cancellations (invoice_number, receipt_id, student_id, amount, reason, proof_file_id, requester_id, status)
+VALUES ($1, $2, $3, $4, $5,
+    $6, $7, 'pending')
+RETURNING id, invoice_number, receipt_id, student_id, amount, reason, rejection_reason, proof_url, proof_file_id, status, requester_id, approver_id, approved_at, legacy_id, created_at, updated_at
+`
+
+type CreateInvoiceCancellationParams struct {
+	InvoiceNumber string
+	ReceiptID     *uuid.UUID
+	StudentID     *uuid.UUID
+	Amount        int64
+	Reason        string
+	ProofFileID   *uuid.UUID
+	RequesterID   *uuid.UUID
+}
+
+func (q *Queries) CreateInvoiceCancellation(ctx context.Context, arg CreateInvoiceCancellationParams) (FinanceInvoiceCancellation, error) {
+	row := q.db.QueryRow(ctx, createInvoiceCancellation,
+		arg.InvoiceNumber,
+		arg.ReceiptID,
+		arg.StudentID,
+		arg.Amount,
+		arg.Reason,
+		arg.ProofFileID,
+		arg.RequesterID,
+	)
+	var i FinanceInvoiceCancellation
+	err := row.Scan(
+		&i.ID,
+		&i.InvoiceNumber,
+		&i.ReceiptID,
+		&i.StudentID,
+		&i.Amount,
+		&i.Reason,
+		&i.RejectionReason,
+		&i.ProofUrl,
+		&i.ProofFileID,
+		&i.Status,
+		&i.RequesterID,
+		&i.ApproverID,
+		&i.ApprovedAt,
+		&i.LegacyID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const createInvoiceRange = `-- name: CreateInvoiceRange :one
@@ -1687,6 +1811,111 @@ func (q *Queries) GetCourse(ctx context.Context, id uuid.UUID) (GetCourseRow, er
 	return i, err
 }
 
+const getInvoiceCancellation = `-- name: GetInvoiceCancellation :one
+SELECT c.id, c.invoice_number, c.receipt_id, c.student_id, c.amount, c.reason, c.rejection_reason, c.proof_url, c.proof_file_id, c.status, c.requester_id, c.approver_id, c.approved_at, c.legacy_id, c.created_at, c.updated_at, r.code AS receipt_code, r.status AS receipt_status, r.payer_name, r.payer_phone, r.payment_method,
+    r.is_vat_invoice, r.tuition_amount, r.discount_amount, r.surcharge_amount, r.surcharge_reason, r.paper_invoice_number,
+    st.full_name AS student_name, st.code AS student_code, st.phone AS student_phone, st.parent_name, st.parent_phone,
+    COALESCE(tc.name, cc.name, '') AS class_name, sb.name AS branch_name,
+    COALESCE(t.branch_id, st.branch_id, cc.branch_id) AS scope_branch_id,
+    ru.full_name AS requester_name, au.full_name AS approver_name
+FROM finance.invoice_cancellations c
+LEFT JOIN finance.receipts r ON r.id = c.receipt_id
+LEFT JOIN finance.tuitions t ON t.id = r.tuition_id
+LEFT JOIN academic.classes tc ON tc.id = t.class_id
+LEFT JOIN academic.students st ON st.id = COALESCE(c.student_id, t.student_id, r.student_id)
+LEFT JOIN academic.classes cc ON cc.id = st.current_class_id
+LEFT JOIN core.branches sb ON sb.id = st.branch_id
+LEFT JOIN iam.users ru ON ru.id = c.requester_id
+LEFT JOIN iam.users au ON au.id = c.approver_id
+WHERE c.id = $1
+`
+
+type GetInvoiceCancellationRow struct {
+	ID                 uuid.UUID
+	InvoiceNumber      string
+	ReceiptID          *uuid.UUID
+	StudentID          *uuid.UUID
+	Amount             int64
+	Reason             string
+	RejectionReason    *string
+	ProofUrl           *string
+	ProofFileID        *uuid.UUID
+	Status             string
+	RequesterID        *uuid.UUID
+	ApproverID         *uuid.UUID
+	ApprovedAt         *time.Time
+	LegacyID           *int64
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+	ReceiptCode        *string
+	ReceiptStatus      *string
+	PayerName          *string
+	PayerPhone         *string
+	PaymentMethod      *string
+	IsVatInvoice       *bool
+	TuitionAmount      *int64
+	DiscountAmount     *int64
+	SurchargeAmount    *int64
+	SurchargeReason    *string
+	PaperInvoiceNumber *string
+	StudentName        *string
+	StudentCode        *string
+	StudentPhone       *string
+	ParentName         *string
+	ParentPhone        *string
+	ClassName          string
+	BranchName         *string
+	ScopeBranchID      uuid.UUID
+	RequesterName      *string
+	ApproverName       *string
+}
+
+// Chi tiết yêu cầu hủy kèm phiếu thu gốc, học viên, lớp, chi nhánh hiệu lực.
+func (q *Queries) GetInvoiceCancellation(ctx context.Context, id uuid.UUID) (GetInvoiceCancellationRow, error) {
+	row := q.db.QueryRow(ctx, getInvoiceCancellation, id)
+	var i GetInvoiceCancellationRow
+	err := row.Scan(
+		&i.ID,
+		&i.InvoiceNumber,
+		&i.ReceiptID,
+		&i.StudentID,
+		&i.Amount,
+		&i.Reason,
+		&i.RejectionReason,
+		&i.ProofUrl,
+		&i.ProofFileID,
+		&i.Status,
+		&i.RequesterID,
+		&i.ApproverID,
+		&i.ApprovedAt,
+		&i.LegacyID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ReceiptCode,
+		&i.ReceiptStatus,
+		&i.PayerName,
+		&i.PayerPhone,
+		&i.PaymentMethod,
+		&i.IsVatInvoice,
+		&i.TuitionAmount,
+		&i.DiscountAmount,
+		&i.SurchargeAmount,
+		&i.SurchargeReason,
+		&i.PaperInvoiceNumber,
+		&i.StudentName,
+		&i.StudentCode,
+		&i.StudentPhone,
+		&i.ParentName,
+		&i.ParentPhone,
+		&i.ClassName,
+		&i.BranchName,
+		&i.ScopeBranchID,
+		&i.RequesterName,
+		&i.ApproverName,
+	)
+	return i, err
+}
+
 const getInvoiceRange = `-- name: GetInvoiceRange :one
 SELECT r.id, r.branch_id, r.kind, r.template_code, r.series_code, r.start_number, r.end_number, r.current_number, r.provider, r.auto_issue, r.is_active, r.created_by, r.created_at, r.updated_at, b.name AS branch_name FROM finance.invoice_ranges r LEFT JOIN core.branches b ON b.id = r.branch_id WHERE r.id = $1
 `
@@ -2192,6 +2421,38 @@ func (q *Queries) InsertDebtReminderLog(ctx context.Context, arg InsertDebtRemin
 	return result.RowsAffected(), nil
 }
 
+const invoiceCancellationCounts = `-- name: InvoiceCancellationCounts :one
+SELECT count(*) FILTER (WHERE c.status = 'pending') AS pending,
+    count(*) FILTER (WHERE c.status = 'approved' AND c.updated_at >= $1 AND c.updated_at < $2) AS approved_month,
+    count(*) FILTER (WHERE c.status = 'rejected') AS rejected
+FROM finance.invoice_cancellations c
+LEFT JOIN finance.receipts r ON r.id = c.receipt_id
+LEFT JOIN finance.tuitions t ON t.id = r.tuition_id
+LEFT JOIN academic.students st ON st.id = COALESCE(c.student_id, t.student_id, r.student_id)
+LEFT JOIN academic.classes cc ON cc.id = st.current_class_id
+WHERE $3::uuid[] IS NULL OR COALESCE(t.branch_id, st.branch_id, cc.branch_id) = ANY ($3::uuid[])
+   OR (c.receipt_id IS NULL AND c.student_id IS NULL)
+`
+
+type InvoiceCancellationCountsParams struct {
+	MonthStart time.Time
+	MonthEnd   time.Time
+	BranchIds  []uuid.UUID
+}
+
+type InvoiceCancellationCountsRow struct {
+	Pending       int64
+	ApprovedMonth int64
+	Rejected      int64
+}
+
+func (q *Queries) InvoiceCancellationCounts(ctx context.Context, arg InvoiceCancellationCountsParams) (InvoiceCancellationCountsRow, error) {
+	row := q.db.QueryRow(ctx, invoiceCancellationCounts, arg.MonthStart, arg.MonthEnd, arg.BranchIds)
+	var i InvoiceCancellationCountsRow
+	err := row.Scan(&i.Pending, &i.ApprovedMonth, &i.Rejected)
+	return i, err
+}
+
 const invoiceNumberTaken = `-- name: InvoiceNumberTaken :one
 SELECT EXISTS (SELECT 1 FROM finance.receipts WHERE invoice_number = $1)
 `
@@ -2604,6 +2865,107 @@ func (q *Queries) LinkUnappliedBankTransactions(ctx context.Context, arg LinkUna
 		arg.Reference,
 	)
 	return err
+}
+
+const listInvoiceCancellations = `-- name: ListInvoiceCancellations :many
+
+SELECT c.id, c.invoice_number, c.receipt_id, c.student_id, c.amount, c.reason, c.rejection_reason, c.proof_url, c.proof_file_id, c.status, c.requester_id, c.approver_id, c.approved_at, c.legacy_id, c.created_at, c.updated_at, r.code AS receipt_code, st.full_name AS student_name, st.code AS student_code,
+    ru.full_name AS requester_name, au.full_name AS approver_name
+FROM finance.invoice_cancellations c
+LEFT JOIN finance.receipts r ON r.id = c.receipt_id
+LEFT JOIN finance.tuitions t ON t.id = r.tuition_id
+LEFT JOIN academic.students st ON st.id = COALESCE(c.student_id, t.student_id, r.student_id)
+LEFT JOIN academic.classes cc ON cc.id = st.current_class_id
+LEFT JOIN iam.users ru ON ru.id = c.requester_id
+LEFT JOIN iam.users au ON au.id = c.approver_id
+WHERE ($1::uuid[] IS NULL OR COALESCE(t.branch_id, st.branch_id, cc.branch_id) = ANY ($1::uuid[])
+       OR (c.receipt_id IS NULL AND c.student_id IS NULL))
+  AND ($2::text IS NULL OR c.status = $2)
+  AND ($3::uuid IS NULL OR st.branch_id = $3)
+  AND ($4::text IS NULL OR c.invoice_number ILIKE $4 OR c.reason ILIKE $4
+       OR r.code ILIKE $4 OR st.full_name ILIKE $4 OR st.code ILIKE $4)
+ORDER BY c.created_at DESC, c.id DESC
+`
+
+type ListInvoiceCancellationsParams struct {
+	BranchIds []uuid.UUID
+	Status    *string
+	BranchID  *uuid.UUID
+	Search    *string
+}
+
+type ListInvoiceCancellationsRow struct {
+	ID              uuid.UUID
+	InvoiceNumber   string
+	ReceiptID       *uuid.UUID
+	StudentID       *uuid.UUID
+	Amount          int64
+	Reason          string
+	RejectionReason *string
+	ProofUrl        *string
+	ProofFileID     *uuid.UUID
+	Status          string
+	RequesterID     *uuid.UUID
+	ApproverID      *uuid.UUID
+	ApprovedAt      *time.Time
+	LegacyID        *int64
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	ReceiptCode     *string
+	StudentName     *string
+	StudentCode     *string
+	RequesterName   *string
+	ApproverName    *string
+}
+
+// ───────────────────────── Hủy hóa đơn ─────────────────────────
+// Yêu cầu hủy trong phạm vi (TuitionBranchScope::cancellations): theo chi nhánh của phiếu (khoản học phí → học viên →
+// lớp hiện tại), không có phiếu thì theo học viên, không có cả hai thì ai cũng thấy. Mới gửi xếp trước.
+func (q *Queries) ListInvoiceCancellations(ctx context.Context, arg ListInvoiceCancellationsParams) ([]ListInvoiceCancellationsRow, error) {
+	rows, err := q.db.Query(ctx, listInvoiceCancellations,
+		arg.BranchIds,
+		arg.Status,
+		arg.BranchID,
+		arg.Search,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListInvoiceCancellationsRow
+	for rows.Next() {
+		var i ListInvoiceCancellationsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.InvoiceNumber,
+			&i.ReceiptID,
+			&i.StudentID,
+			&i.Amount,
+			&i.Reason,
+			&i.RejectionReason,
+			&i.ProofUrl,
+			&i.ProofFileID,
+			&i.Status,
+			&i.RequesterID,
+			&i.ApproverID,
+			&i.ApprovedAt,
+			&i.LegacyID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ReceiptCode,
+			&i.StudentName,
+			&i.StudentCode,
+			&i.RequesterName,
+			&i.ApproverName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listInvoiceRanges = `-- name: ListInvoiceRanges :many
@@ -3111,6 +3473,34 @@ func (q *Queries) ListTuitions(ctx context.Context, arg ListTuitionsParams) ([]L
 	return items, nil
 }
 
+const lockInvoiceCancellation = `-- name: LockInvoiceCancellation :one
+SELECT id, invoice_number, receipt_id, student_id, amount, reason, rejection_reason, proof_url, proof_file_id, status, requester_id, approver_id, approved_at, legacy_id, created_at, updated_at FROM finance.invoice_cancellations WHERE id = $1 FOR UPDATE
+`
+
+func (q *Queries) LockInvoiceCancellation(ctx context.Context, id uuid.UUID) (FinanceInvoiceCancellation, error) {
+	row := q.db.QueryRow(ctx, lockInvoiceCancellation, id)
+	var i FinanceInvoiceCancellation
+	err := row.Scan(
+		&i.ID,
+		&i.InvoiceNumber,
+		&i.ReceiptID,
+		&i.StudentID,
+		&i.Amount,
+		&i.Reason,
+		&i.RejectionReason,
+		&i.ProofUrl,
+		&i.ProofFileID,
+		&i.Status,
+		&i.RequesterID,
+		&i.ApproverID,
+		&i.ApprovedAt,
+		&i.LegacyID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const lockInvoiceRange = `-- name: LockInvoiceRange :one
 SELECT id, branch_id, kind, template_code, series_code, start_number, end_number, current_number, provider, auto_issue, is_active, created_by, created_at, updated_at FROM finance.invoice_ranges WHERE id = $1 FOR UPDATE
 `
@@ -3598,6 +3988,17 @@ func (q *Queries) ReceiptByTransferReference(ctx context.Context, arg ReceiptByT
 	return i, err
 }
 
+const receiptIDByInvoice = `-- name: ReceiptIDByInvoice :one
+SELECT id FROM finance.receipts WHERE invoice_number = $1
+`
+
+func (q *Queries) ReceiptIDByInvoice(ctx context.Context, invoiceNumber *string) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, receiptIDByInvoice, invoiceNumber)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const receiptMetrics = `-- name: ReceiptMetrics :one
 SELECT count(*) FILTER (WHERE r.status = 'pending') AS pending_count,
     COALESCE(sum(r.amount) FILTER (WHERE r.status = 'pending'), 0)::bigint AS pending_total,
@@ -3817,6 +4218,22 @@ func (q *Queries) RefundStudents(ctx context.Context, arg RefundStudentsParams) 
 		return nil, err
 	}
 	return items, nil
+}
+
+const rejectInvoiceCancellation = `-- name: RejectInvoiceCancellation :exec
+UPDATE finance.invoice_cancellations SET status = 'rejected', approver_id = $2, rejection_reason = $3, updated_at = now()
+WHERE id = $1
+`
+
+type RejectInvoiceCancellationParams struct {
+	ID              uuid.UUID
+	ApproverID      *uuid.UUID
+	RejectionReason *string
+}
+
+func (q *Queries) RejectInvoiceCancellation(ctx context.Context, arg RejectInvoiceCancellationParams) error {
+	_, err := q.db.Exec(ctx, rejectInvoiceCancellation, arg.ID, arg.ApproverID, arg.RejectionReason)
+	return err
 }
 
 const rejectReceipt = `-- name: RejectReceipt :one
@@ -4221,6 +4638,20 @@ func (q *Queries) SeriesRanges(ctx context.Context, arg SeriesRangesParams) ([]F
 		return nil, err
 	}
 	return items, nil
+}
+
+const setCancellationProof = `-- name: SetCancellationProof :exec
+UPDATE finance.invoice_cancellations SET proof_file_id = $2, updated_at = now() WHERE id = $1
+`
+
+type SetCancellationProofParams struct {
+	ID          uuid.UUID
+	ProofFileID *uuid.UUID
+}
+
+func (q *Queries) SetCancellationProof(ctx context.Context, arg SetCancellationProofParams) error {
+	_, err := q.db.Exec(ctx, setCancellationProof, arg.ID, arg.ProofFileID)
+	return err
 }
 
 const setRangeCurrent = `-- name: SetRangeCurrent :exec

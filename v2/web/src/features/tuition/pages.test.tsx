@@ -7,6 +7,7 @@ import type { Me } from '../../api'
 import { buildSidebar, workspaceTabs } from '../../nav'
 import { ApprovePage } from './ApprovePage'
 import { BillPage } from './BillPage'
+import { CancellationsPage } from './CancellationsPage'
 import { OverduePage } from './OverduePage'
 import { RefundsPage } from './RefundsPage'
 import { StudentsPage } from './StudentsPage'
@@ -465,6 +466,88 @@ test('Hoàn tiền & Khất nợ: căn cứ hoàn, lập hồ sơ, bắt buộc 
 
 test('Sidebar: Hoàn tiền & Khất nợ chỉ Admin thấy ở Cần duyệt', () => {
   const tabs = (m: Me) => workspaceTabs(m, '/tuition/refunds')?.tabs.map((t) => t.label) ?? []
-  expect(tabs(me(['tuition.view', 'refund_transfer.request'], true))).toEqual(['Phiếu thu', 'Hoàn tiền & Khất nợ'])
+  expect(tabs(me(['tuition.view', 'refund_transfer.request'], true))).toEqual(['Phiếu thu', 'Hủy hóa đơn', 'Hoàn tiền & Khất nợ'])
   expect(tabs(me(['tuition.view', 'refund_transfer.request']))).not.toContain('Hoàn tiền & Khất nợ')
+})
+
+test('Hủy hóa đơn: điền sẵn từ phiếu, gửi yêu cầu, xem chi tiết và duyệt hủy', async () => {
+  const row = {
+    id: 'c1',
+    invoice_number: 'C26MEN-0001001',
+    receipt_number: 'PT-2026-000001',
+    student_name: 'Nguyễn Văn An',
+    student_code: 'HV0001',
+    amount: 1000000,
+    reason: 'Viết sai tên phụ huynh',
+    requester_name: 'Quản lý',
+    created_at: '09:00 17/10/2026',
+    created_ago: '2 giờ trước',
+    status: 'pending',
+  }
+  const selected = {
+    ...row,
+    rejection_reason: null,
+    approver_name: null,
+    created_date: '17/10/2026',
+    updated_at: '17/10/2026 09:00',
+    proof_url: null,
+    class_name: 'IELTS 1',
+    branch_name: 'Cầu Giấy',
+    receipt: {
+      receipt_number: 'PT-2026-000001',
+      status_color: 'success',
+      status_label: 'Đã duyệt',
+      payer_name: 'Phụ huynh An',
+      payer_phone: '0912',
+      payment_method: 'cash',
+      method_label: 'Tiền mặt',
+      is_vat_invoice: false,
+      paper_invoice_number: null,
+      tuition_amount: 1000000,
+      discount_amount: 0,
+      surcharge_amount: 0,
+      surcharge_reason: null,
+    },
+    payer_name: 'Phụ huynh An',
+    payer_phone: '0912',
+  }
+  const page = (withSelected: boolean) => ({
+    filters: { status: 'pending', branch_id: 'all', q: '' },
+    branches: [{ value: 'b1', label: 'Cầu Giấy' }],
+    pending_count: 1,
+    approved_month_count: 0,
+    rejected_count: 0,
+    can_approve_cancel: true,
+    prefill: withSelected ? null : { invoice_number: 'C26MEN-0001001', amount: 1000000 },
+    cancellations: [row],
+    selected: withSelected ? selected : null,
+  })
+  const calls = mockApi({
+    'GET /tuition/invoices/cancellations': () => [200, page(window.location.search.includes('selected_id'))],
+    'POST /tuition/invoices/cancellations': () => [201, { message: 'Đã gửi yêu cầu hủy hóa đơn GTGT lên cấp quản lý phê duyệt!' }],
+    'POST /tuition/invoices/cancellations/c1/approve': () => [200, { message: 'Đã duyệt hủy hóa đơn C26MEN-0001001 và hoàn tác công nợ học viên!' }],
+  })
+  window.history.pushState(null, '', '/tuition/invoices/cancellations?cancel_invoice=C26MEN-0001001')
+  wrap(<CancellationsPage me={me(['tuition.view', 'invoice.request_cancel', 'invoice.approve_cancel'], true)} />)
+  expect(await screen.findByLabelText('Số Hóa đơn / Biên lai cần hủy')).toHaveValue('C26MEN-0001001')
+  expect(screen.getByLabelText('Số tiền trên hóa đơn (VNĐ)')).toHaveValue('1000000')
+  await userEvent.type(screen.getByLabelText('Lý do giải trình hủy hóa đơn'), 'Viết sai tên phụ huynh')
+  await userEvent.click(screen.getByRole('button', { name: 'Gửi yêu cầu hủy' }))
+  expect(await screen.findByText('Đã gửi yêu cầu hủy hóa đơn GTGT lên cấp quản lý phê duyệt!')).toBeInTheDocument()
+  expect(calls.find((c) => c.key === 'POST /tuition/invoices/cancellations')?.body).toEqual({
+    invoice_number: 'C26MEN-0001001',
+    amount: 1000000,
+    reason: 'Viết sai tên phụ huynh',
+  })
+
+  await userEvent.click(screen.getByRole('button', { name: 'Xem' }))
+  expect(await screen.findByText('Yêu cầu hủy hóa đơn C26MEN-0001001')).toBeInTheDocument()
+  expect(screen.getByText('Phụ huynh An · 0912')).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Duyệt hủy hóa đơn' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Xác nhận duyệt hủy ngay' }))
+  expect(await screen.findByText('Đã duyệt hủy hóa đơn C26MEN-0001001 và hoàn tác công nợ học viên!')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Xuất danh sách' })).toHaveAttribute(
+    'href',
+    '/api/v1/tuition/invoices/cancellations/export?status=pending&branch_id=all',
+  )
 })

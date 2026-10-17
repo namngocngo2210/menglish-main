@@ -881,3 +881,84 @@ SELECT x.student_id, min(x.d)::date AS start_date FROM (
     UNION ALL
     SELECT e.student_id, min(e.enrolled_at) FROM academic.enrollments e WHERE e.student_id = ANY (sqlc.arg(ids)::uuid[]) GROUP BY e.student_id
 ) x GROUP BY x.student_id;
+
+-- ───────────────────────── Hủy hóa đơn ─────────────────────────
+
+-- name: ListInvoiceCancellations :many
+-- Yêu cầu hủy trong phạm vi (TuitionBranchScope::cancellations): theo chi nhánh của phiếu (khoản học phí → học viên →
+-- lớp hiện tại), không có phiếu thì theo học viên, không có cả hai thì ai cũng thấy. Mới gửi xếp trước.
+SELECT c.*, r.code AS receipt_code, st.full_name AS student_name, st.code AS student_code,
+    ru.full_name AS requester_name, au.full_name AS approver_name
+FROM finance.invoice_cancellations c
+LEFT JOIN finance.receipts r ON r.id = c.receipt_id
+LEFT JOIN finance.tuitions t ON t.id = r.tuition_id
+LEFT JOIN academic.students st ON st.id = COALESCE(c.student_id, t.student_id, r.student_id)
+LEFT JOIN academic.classes cc ON cc.id = st.current_class_id
+LEFT JOIN iam.users ru ON ru.id = c.requester_id
+LEFT JOIN iam.users au ON au.id = c.approver_id
+WHERE (sqlc.narg(branch_ids)::uuid[] IS NULL OR COALESCE(t.branch_id, st.branch_id, cc.branch_id) = ANY (sqlc.narg(branch_ids)::uuid[])
+       OR (c.receipt_id IS NULL AND c.student_id IS NULL))
+  AND (sqlc.narg(status)::text IS NULL OR c.status = sqlc.narg(status))
+  AND (sqlc.narg(branch_id)::uuid IS NULL OR st.branch_id = sqlc.narg(branch_id))
+  AND (sqlc.narg(search)::text IS NULL OR c.invoice_number ILIKE sqlc.narg(search) OR c.reason ILIKE sqlc.narg(search)
+       OR r.code ILIKE sqlc.narg(search) OR st.full_name ILIKE sqlc.narg(search) OR st.code ILIKE sqlc.narg(search))
+ORDER BY c.created_at DESC, c.id DESC;
+
+-- name: InvoiceCancellationCounts :one
+SELECT count(*) FILTER (WHERE c.status = 'pending') AS pending,
+    count(*) FILTER (WHERE c.status = 'approved' AND c.updated_at >= sqlc.arg(month_start) AND c.updated_at < sqlc.arg(month_end)) AS approved_month,
+    count(*) FILTER (WHERE c.status = 'rejected') AS rejected
+FROM finance.invoice_cancellations c
+LEFT JOIN finance.receipts r ON r.id = c.receipt_id
+LEFT JOIN finance.tuitions t ON t.id = r.tuition_id
+LEFT JOIN academic.students st ON st.id = COALESCE(c.student_id, t.student_id, r.student_id)
+LEFT JOIN academic.classes cc ON cc.id = st.current_class_id
+WHERE sqlc.narg(branch_ids)::uuid[] IS NULL OR COALESCE(t.branch_id, st.branch_id, cc.branch_id) = ANY (sqlc.narg(branch_ids)::uuid[])
+   OR (c.receipt_id IS NULL AND c.student_id IS NULL);
+
+-- name: GetInvoiceCancellation :one
+-- Chi tiết yêu cầu hủy kèm phiếu thu gốc, học viên, lớp, chi nhánh hiệu lực.
+SELECT c.*, r.code AS receipt_code, r.status AS receipt_status, r.payer_name, r.payer_phone, r.payment_method,
+    r.is_vat_invoice, r.tuition_amount, r.discount_amount, r.surcharge_amount, r.surcharge_reason, r.paper_invoice_number,
+    st.full_name AS student_name, st.code AS student_code, st.phone AS student_phone, st.parent_name, st.parent_phone,
+    COALESCE(tc.name, cc.name, '') AS class_name, sb.name AS branch_name,
+    COALESCE(t.branch_id, st.branch_id, cc.branch_id) AS scope_branch_id,
+    ru.full_name AS requester_name, au.full_name AS approver_name
+FROM finance.invoice_cancellations c
+LEFT JOIN finance.receipts r ON r.id = c.receipt_id
+LEFT JOIN finance.tuitions t ON t.id = r.tuition_id
+LEFT JOIN academic.classes tc ON tc.id = t.class_id
+LEFT JOIN academic.students st ON st.id = COALESCE(c.student_id, t.student_id, r.student_id)
+LEFT JOIN academic.classes cc ON cc.id = st.current_class_id
+LEFT JOIN core.branches sb ON sb.id = st.branch_id
+LEFT JOIN iam.users ru ON ru.id = c.requester_id
+LEFT JOIN iam.users au ON au.id = c.approver_id
+WHERE c.id = $1;
+
+-- name: ReceiptIDByInvoice :one
+SELECT id FROM finance.receipts WHERE invoice_number = $1;
+
+-- name: CreateInvoiceCancellation :one
+INSERT INTO finance.invoice_cancellations (invoice_number, receipt_id, student_id, amount, reason, proof_file_id, requester_id, status)
+VALUES (sqlc.arg(invoice_number), sqlc.narg(receipt_id), sqlc.narg(student_id), sqlc.arg(amount), sqlc.arg(reason),
+    sqlc.narg(proof_file_id), sqlc.narg(requester_id), 'pending')
+RETURNING *;
+
+-- name: SetCancellationProof :exec
+UPDATE finance.invoice_cancellations SET proof_file_id = $2, updated_at = now() WHERE id = $1;
+
+-- name: LockInvoiceCancellation :one
+SELECT * FROM finance.invoice_cancellations WHERE id = $1 FOR UPDATE;
+
+-- name: ApproveInvoiceCancellation :exec
+UPDATE finance.invoice_cancellations SET status = 'approved', approver_id = $2, approved_at = now(), rejection_reason = NULL,
+    updated_at = now()
+WHERE id = $1;
+
+-- name: RejectInvoiceCancellation :exec
+UPDATE finance.invoice_cancellations SET status = 'rejected', approver_id = $2, rejection_reason = $3, updated_at = now()
+WHERE id = $1;
+
+-- name: CancelReceiptForInvoice :one
+-- Vô hiệu phiếu, giữ nguyên số hóa đơn (không tái sử dụng số).
+UPDATE finance.receipts SET status = 'cancelled', rejection_reason = $2, updated_at = now() WHERE id = $1 RETURNING *;
