@@ -42,6 +42,7 @@ import { TicketEmailsPage } from './features/catalogs/TicketEmailsPage'
 import { ApprovePage as TuitionApprovePage } from './features/tuition/ApprovePage'
 import { BillPage as TuitionBillPage } from './features/tuition/BillPage'
 import { HistoryPage as TuitionHistoryPage } from './features/tuition/HistoryPage'
+import { OverduePage as TuitionOverduePage } from './features/tuition/OverduePage'
 import { ReceiptsRoute } from './features/tuition/ReceiptFormPage'
 import { StudentsPage as TuitionStudentsPage } from './features/tuition/StudentsPage'
 
@@ -97,6 +98,7 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/crm/import': (me) => <ImportPage me={me} />,
   '/tuition/students': (me) => <TuitionStudentsPage me={me} />,
   '/tuition/history': (me) => <TuitionHistoryPage me={me} />,
+  '/tuition/overdue': (me) => <TuitionOverduePage me={me} />,
   '/tuition/receipts': (me) => <ReceiptsRoute me={me} />,
   '/tuition/receipts/approve': (me) => <TuitionApprovePage me={me} />,
   '/tuition/bill': (me) => <TuitionBillPage me={me} />,

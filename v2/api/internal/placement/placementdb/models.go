@@ -513,6 +513,18 @@ type FinanceBankTransaction struct {
 	UpdatedAt        time.Time
 }
 
+type FinanceDebtReminderLog struct {
+	ID        uuid.UUID
+	TuitionID uuid.UUID
+	Milestone string
+	SentOn    time.Time
+	Title     string
+	Content   string
+	Channels  []string
+	SentBy    *uuid.UUID
+	CreatedAt time.Time
+}
+
 type FinanceDebtReminderRule struct {
 	ID              uuid.UUID
 	MilestoneKey    string
@@ -620,30 +632,33 @@ type FinanceReceipt struct {
 }
 
 type FinanceRefundRequest struct {
-	ID               uuid.UUID
-	StudentID        uuid.UUID
-	TuitionID        *uuid.UUID
-	Type             string
-	TotalPaid        int64
-	AttendedLessons  int32
-	AdminFee         int64
-	RefundAmount     int64
-	TargetStudentID  *uuid.UUID
-	ExtendedDueDate  pgtype.Date
-	DeferFrom        pgtype.Date
-	DeferTo          pgtype.Date
-	Reason           string
-	NoTransferReason *string
-	ProofUrl         *string
-	ProofFileID      *uuid.UUID
-	RejectionReason  *string
-	Status           string
-	RequesterID      *uuid.UUID
-	ApproverID       *uuid.UUID
-	ApprovedAt       *time.Time
-	LegacyID         *int64
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
+	ID                 uuid.UUID
+	StudentID          uuid.UUID
+	TuitionID          *uuid.UUID
+	Type               string
+	TotalPaid          int64
+	AttendedLessons    int32
+	AdminFee           int64
+	RefundAmount       int64
+	TargetStudentID    *uuid.UUID
+	ExtendedDueDate    pgtype.Date
+	DeferFrom          pgtype.Date
+	DeferTo            pgtype.Date
+	Reason             string
+	NoTransferReason   *string
+	ProofUrl           *string
+	ProofFileID        *uuid.UUID
+	RejectionReason    *string
+	Status             string
+	RequesterID        *uuid.UUID
+	ApproverID         *uuid.UUID
+	ApprovedAt         *time.Time
+	LegacyID           *int64
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+	ClawbackCommission *bool
+	ClawbackAmount     *int64
+	ClawbackUserID     *uuid.UUID
 }
 
 type FinanceTuition struct {

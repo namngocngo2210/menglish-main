@@ -41,6 +41,13 @@ func (h *Handler) Routes(r chi.Router) {
 		r.With(view).Get("/history", h.history)
 		r.With(view).Get("/history/export", h.exportHistory)
 
+		contact := iam.Require("tuition.mark_contacted")
+		r.With(view).Get("/overdue", h.overdue)
+		r.With(view, contact).Post("/overdue/{id}/remind", h.remind)
+		r.With(view, contact).Post("/overdue/{id}/upcoming-remind", h.remind)
+		r.With(view, contact).Post("/overdue/{id}/contacted", h.markContacted)
+		r.With(view, iam.Require("tuition.report_overdue")).Post("/overdue/{id}/report-admin", h.reportOverdue)
+
 		// Bill "Thông báo nộp học phí" (crm.tuition-bill): tư vấn viên (lead.view) hoặc người xem học phí.
 		r.With(iam.RequireAny("lead.view", "tuition.view")).Get("/bill/{id}", h.bill)
 	})
@@ -225,6 +232,56 @@ func (h *Handler) bill(w http.ResponseWriter, r *http.Request) {
 	}
 	out, err := h.svc.Bill(r.Context(), actorOf(r), id)
 	h.reply(w, r, out, err)
+}
+
+func (h *Handler) overdue(w http.ResponseWriter, r *http.Request) {
+	out, err := h.svc.Overdue(r.Context(), actorOf(r), tuitionFilter(r))
+	h.reply(w, r, out, err)
+}
+
+type messageReply struct {
+	Message string `json:"message"`
+}
+
+func (h *Handler) remind(w http.ResponseWriter, r *http.Request) {
+	id, ok := idParam(w, r)
+	if !ok {
+		return
+	}
+	res, msg, err := h.svc.SendDebtReminder(r.Context(), actorOf(r), id)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"message": msg, "result": res})
+}
+
+func (h *Handler) markContacted(w http.ResponseWriter, r *http.Request) {
+	id, ok := idParam(w, r)
+	if !ok {
+		return
+	}
+	var in ContactInput
+	if r.ContentLength > 0 && !httpx.Decode(w, r, &in) {
+		return
+	}
+	msg, err := h.svc.MarkContacted(r.Context(), actorOf(r), id, in)
+	h.reply(w, r, messageReply{msg}, err)
+}
+
+func (h *Handler) reportOverdue(w http.ResponseWriter, r *http.Request) {
+	id, ok := idParam(w, r)
+	if !ok {
+		return
+	}
+	var in struct {
+		Note *string `json:"note"`
+	}
+	if r.ContentLength > 0 && !httpx.Decode(w, r, &in) {
+		return
+	}
+	msg, err := h.svc.ReportOverdue(r.Context(), actorOf(r), id, in.Note)
+	h.reply(w, r, messageReply{msg}, err)
 }
 
 func csvFile(w http.ResponseWriter, name string, b []byte) {

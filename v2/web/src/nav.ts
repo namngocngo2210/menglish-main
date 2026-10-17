@@ -114,6 +114,7 @@ export const NAV: NavItem[] = [
   // thu" chỉ Admin thấy. Lập / sửa phiếu (/tuition/receipts/new, /tuition/receipts/<id>/edit) mở từ nút trên trang.
   { path: '/tuition/students', label: 'Công nợ học viên', perms: ['tuition.view'], group: 'Học phí', menu: (me) => can(me, ...TUITION_ANCHORS) },
   { path: '/tuition/history', label: 'Lịch sử thu', perms: ['tuition.view'], group: 'Học phí', menu: (me) => can(me, ...TUITION_ANCHORS) },
+  { path: '/tuition/overdue', label: 'Quá hạn & Nhắc phí', perms: ['tuition.view'], group: 'Học phí', menu: (me) => can(me, ...TUITION_ANCHORS) },
   { path: '/tuition/receipts', label: 'Lập phiếu thu', perms: ['tuition.create'], group: 'Học phí', hidden: true },
   // Bill "Thông báo nộp học phí" (/tuition/bill/<id>): mở từ Chốt khách (CRM) hoặc Lịch sử thu.
   { path: '/tuition/bill', label: 'Thông báo nộp học phí', perms: ['lead.view', 'tuition.view'], group: 'Học phí', hidden: true },

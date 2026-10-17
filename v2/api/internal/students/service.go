@@ -815,7 +815,7 @@ func (s *Service) EndDeferral(ctx context.Context, actor *iam.Access, id uuid.UU
 				return err
 			}
 		}
-		if err := notifyDeferralEnded(ctx, tx, actor, st, next); err != nil {
+		if err := notifyDeferralEnded(ctx, tx, &actor.UserID, st, next); err != nil {
 			return err
 		}
 		text := "Kết thúc bảo lưu → " + StatusLabel(next) + "."

@@ -51,6 +51,7 @@ type Service struct {
 	tasks    FeeTasks
 	students StudentStatus
 	leads    LeadVisibility
+	access   AccessLoader
 }
 
 func NewService(pool *pgxpool.Pool, box *secretbox.Box, cat *catalogs.Service, log *slog.Logger) *Service {
@@ -68,15 +69,23 @@ type FeeTasks interface {
 	CreateFeeReminder(ctx context.Context, tx pgx.Tx, in tasks.FeeReminder) (uuid.UUID, error)
 }
 
-// StudentStatus: phân hệ Học viên đổi trạng thái khi bảo lưu bắt đầu / kết thúc theo yêu cầu đã duyệt.
+// StudentStatus: phân hệ Học viên đổi trạng thái khi bảo lưu bắt đầu / kết thúc theo lịch (students.Service).
 type StudentStatus interface {
-	SetDeferred(ctx context.Context, tx pgx.Tx, studentID uuid.UUID, actor uuid.UUID, deferred bool, note string) error
+	// StartScheduledDeferral: chuyển "Bảo lưu" trong giao dịch của Học phí; false = không đổi (đã bảo lưu / không học).
+	StartScheduledDeferral(ctx context.Context, tx pgx.Tx, studentID uuid.UUID, until time.Time) (bool, error)
+	// EndExpiredDeferral: hết bảo lưu → học lại (gọi lại ReleaseDeferral của Học phí); false = không ở trạng thái Bảo lưu.
+	EndExpiredDeferral(ctx context.Context, studentID uuid.UUID) (bool, error)
 }
 
-// WithStock / WithTasks / WithStudents gắn phân hệ khác (cmd/menglish).
+// AccessLoader: quyền + phạm vi của một người dùng (iam.Service.LoadAccess) — lọc người nhận nhắc SLA theo phạm vi
+// chi nhánh học phí như TuitionSlaService::holders. nil: lọc theo chi nhánh của người dùng.
+type AccessLoader func(ctx context.Context, userID uuid.UUID) (*iam.Access, error)
+
+// WithStock / WithTasks / WithStudents / WithAccess gắn phân hệ khác (cmd/menglish).
 func (s *Service) WithStock(x StockRecorder) *Service    { s.stock = x; return s }
 func (s *Service) WithTasks(x FeeTasks) *Service         { s.tasks = x; return s }
 func (s *Service) WithStudents(x StudentStatus) *Service { s.students = x; return s }
+func (s *Service) WithAccess(x AccessLoader) *Service    { s.access = x; return s }
 
 const outOfScope = "Khoản học phí này thuộc chi nhánh ngoài phạm vi bạn được quản lý."
 

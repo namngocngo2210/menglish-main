@@ -7,6 +7,7 @@ import type { Me } from '../../api'
 import { buildSidebar } from '../../nav'
 import { ApprovePage } from './ApprovePage'
 import { BillPage } from './BillPage'
+import { OverduePage } from './OverduePage'
 import { StudentsPage } from './StudentsPage'
 
 afterEach(() => {
@@ -303,4 +304,51 @@ test('Bill thông báo nộp học phí: còn phải nộp, đợt thu, VietQR',
   expect(screen.getByText('Chờ đối soát')).toBeInTheDocument()
   expect(screen.getByAltText('QR thanh toán VietQR')).toHaveAttribute('src', expect.stringContaining('amount=3400000'))
   expect(screen.getByText('← Quay lại CRM Pipeline')).toBeInTheDocument()
+})
+
+test('Quá hạn & nhắc phí: thống kê, gửi nhắc, ghi nhận liên hệ', async () => {
+  const row = {
+    id: 't1',
+    student: { id: 's1', name: 'Nguyễn Văn An', code: 'HV0001', phone: '0912' },
+    class_label: 'IE-01',
+    class_name: 'IELTS 1',
+    branch_name: 'Cầu Giấy',
+    fee_label: 'Học phí IELTS',
+    debt_amount: 2400000,
+    due_date: '07/10/2026',
+    days_overdue: 10,
+    session_lines: [],
+    last_contact: null,
+    last_report_date: null,
+    reminder_paused_until: null,
+    deferred_until: null,
+  }
+  const calls = mockApi({
+    'GET /tuition/overdue': () => [
+      200,
+      {
+        due: { ...students.due, serious_overdue: [row], overdue_count: 1 },
+        stats_by_branch: [{ branch_name: 'Cầu Giấy', total_debt: 2400000, count: 1, overdue_count: 1 }],
+        stats_by_class: [{ class_name: 'IELTS 1', class_code: 'IE-01', total_debt: 2400000, count: 1, overdue_count: 1 }],
+        branches: [],
+        classes: [],
+      },
+    ],
+    'POST /tuition/overdue/t1/remind': () => [
+      200,
+      { message: 'Đã gửi nhắc mốc T+3 cho học viên Nguyễn Văn An (0912): Đã gửi theo mốc Cảnh báo quá hạn.' },
+    ],
+    'POST /tuition/overdue/t1/contacted': () => [200, { message: 'Đã ghi nhận liên hệ với phụ huynh học viên Nguyễn Văn An — chờ thu.' }],
+  })
+  wrap(<OverduePage me={me(['tuition.view', 'tuition.mark_contacted'])} />)
+  expect(await screen.findByText('Nguyễn Văn An')).toBeInTheDocument()
+  expect(screen.getByText('IELTS 1 (IE-01)')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Báo cáo Admin' })).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Gửi nhắc' }))
+  expect(await screen.findByText(/Đã gửi nhắc mốc T\+3/)).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Đã liên hệ' }))
+  await userEvent.type(screen.getByLabelText('Ghi chú'), 'Hẹn thứ 6')
+  await userEvent.click(screen.getByRole('button', { name: 'Lưu liên hệ' }))
+  expect(await screen.findByText('Đã ghi nhận liên hệ với phụ huynh học viên Nguyễn Văn An — chờ thu.')).toBeInTheDocument()
+  expect(calls.find((c) => c.key === 'POST /tuition/overdue/t1/contacted')?.body).toEqual({ note: 'Hẹn thứ 6' })
 })

@@ -702,3 +702,86 @@ VALUES (sqlc.arg(student_id), sqlc.narg(tuition_id), sqlc.arg(type), sqlc.arg(to
     sqlc.narg(defer_from), sqlc.narg(defer_to), sqlc.arg(reason), sqlc.narg(no_transfer_reason), sqlc.narg(proof_url),
     sqlc.narg(requester_id), 'pending')
 RETURNING *;
+
+-- name: InsertContactLog :exec
+INSERT INTO finance.tuition_contact_logs (tuition_id, user_id, action, note, contacted_at)
+VALUES (sqlc.arg(tuition_id), sqlc.narg(user_id), sqlc.arg(action), sqlc.narg(note), sqlc.arg(contacted_at));
+
+-- name: ReminderTarget :one
+-- Khoản học phí cho nhắc nợ: học viên (tài khoản cổng), lớp, chi nhánh hiệu lực.
+SELECT t.id, t.student_id, t.debt_amount, t.due_date, t.reminder_paused_until, s.code AS student_code, s.full_name AS student_name,
+    s.phone AS student_phone, s.user_id AS student_user_id, c.name AS class_name,
+    COALESCE(t.branch_id, s.branch_id, cc.branch_id) AS scope_branch_id
+FROM finance.tuitions t
+JOIN academic.students s ON s.id = t.student_id AND s.deleted_at IS NULL
+LEFT JOIN academic.classes cc ON cc.id = s.current_class_id
+LEFT JOIN academic.classes c ON c.id = t.class_id
+WHERE t.id = $1;
+
+-- name: RemindableTuitionsDue :many
+-- Lệnh nhắc nợ hằng ngày: khoản còn nợ có hạn đóng đúng ngày due, không đang khất nợ / bảo lưu (remindable).
+SELECT t.id FROM finance.tuitions t
+JOIN academic.students s ON s.id = t.student_id AND s.deleted_at IS NULL
+WHERE t.due_date = sqlc.arg(due)::date AND t.debt_amount > 0
+  AND (t.reminder_paused_until IS NULL OR t.reminder_paused_until <= sqlc.arg(today)::date)
+ORDER BY t.id;
+
+-- name: InsertDebtReminderLog :execrows
+INSERT INTO finance.debt_reminder_logs (tuition_id, milestone, sent_on, title, content, channels, sent_by)
+VALUES (sqlc.arg(tuition_id), sqlc.arg(milestone), sqlc.arg(sent_on), sqlc.arg(title), sqlc.arg(content), sqlc.arg(channels),
+    sqlc.narg(sent_by))
+ON CONFLICT (tuition_id, milestone, sent_on) DO NOTHING;
+
+-- name: LateCashReceipts :many
+-- SLA tiền mặt: phiếu tiền mặt thu ngày day (chờ duyệt / đã duyệt, > 0) chưa xác nhận nộp về TK công ty.
+SELECT r.id, r.code, r.amount, r.payment_date, r.creator_id, s.full_name AS student_name, s.branch_id AS student_branch_id
+FROM finance.receipts r
+LEFT JOIN finance.tuitions t ON t.id = r.tuition_id
+LEFT JOIN academic.students s ON s.id = COALESCE(t.student_id, r.student_id)
+WHERE r.payment_method = 'cash' AND r.status IN ('pending', 'approved') AND r.amount > 0
+  AND r.payment_date = sqlc.arg(day)::date AND r.deposited_at IS NULL
+ORDER BY r.created_at, r.id;
+
+-- name: PendingDeadlineRefunds :many
+-- SLA hoàn phí: hồ sơ hoàn tiền / chuyển nhượng còn chờ duyệt.
+SELECT q.id, q.type, q.created_at, s.full_name AS student_name, s.branch_id AS student_branch_id
+FROM finance.refund_requests q
+JOIN academic.students s ON s.id = q.student_id
+WHERE q.status = 'pending' AND q.type IN ('refund', 'transfer')
+ORDER BY q.created_at, q.id;
+
+-- name: DueDeferralStudents :many
+-- Hết bảo lưu: học viên đang Bảo lưu có khoản học phí mới nhất với ngày cuối bảo lưu trước hôm nay.
+SELECT s.id FROM academic.students s
+JOIN LATERAL (SELECT t.deferred_until FROM finance.tuitions t WHERE t.student_id = s.id ORDER BY t.created_at DESC, t.id DESC LIMIT 1) lt ON true
+WHERE s.deleted_at IS NULL AND s.status = 'deferred' AND lt.deferred_until IS NOT NULL AND lt.deferred_until < sqlc.arg(today)::date
+ORDER BY s.id;
+
+-- name: StartingDeferralStudents :many
+-- Bắt đầu bảo lưu đã duyệt trước: học viên đang học có khoảng bảo lưu bao hôm nay.
+SELECT s.id FROM academic.students s
+JOIN LATERAL (SELECT t.deferred_from, t.deferred_until FROM finance.tuitions t WHERE t.student_id = s.id
+              ORDER BY t.created_at DESC, t.id DESC LIMIT 1) lt ON true
+WHERE s.deleted_at IS NULL AND s.status IN ('waiting_start', 'studying', 'summer_break')
+  AND lt.deferred_from IS NOT NULL AND lt.deferred_from <= sqlc.arg(today)::date AND lt.deferred_until >= sqlc.arg(today)::date
+ORDER BY s.id;
+
+-- name: FreezeTuitionDeferral :exec
+UPDATE finance.tuitions SET frozen_remaining_sessions = sqlc.narg(frozen_remaining_sessions), frozen_debt_amount = sqlc.narg(frozen_debt_amount),
+    notes = sqlc.narg(notes), updated_at = now()
+WHERE id = sqlc.arg(id);
+
+-- name: TuitionSessionStats :one
+-- Số buổi của một khoản (như DueTuitions): đóng băng số buổi còn lại khi bắt đầu bảo lưu.
+SELECT COALESCE(sco.total_lessons, 0)::int AS course_lessons,
+    (SELECT count(*) FROM academic.class_sessions x
+     WHERE x.class_id = COALESCE(t.class_id, s.current_class_id) AND x.status <> 'cancelled')::int AS scheduled_sessions,
+    (SELECT count(*) FROM academic.student_attendance a
+     WHERE a.student_id = t.student_id AND a.status IN ('present', 'late')
+       AND (COALESCE(t.class_id, s.current_class_id) IS NULL OR a.class_id = COALESCE(t.class_id, s.current_class_id)))::int AS attended_sessions,
+    COALESCE(t.class_id, s.current_class_id) AS stats_class_id
+FROM finance.tuitions t
+JOIN academic.students s ON s.id = t.student_id
+LEFT JOIN academic.classes sc ON sc.id = COALESCE(t.class_id, s.current_class_id)
+LEFT JOIN academic.courses sco ON sco.id = sc.course_id
+WHERE t.id = $1;

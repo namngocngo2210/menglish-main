@@ -54,19 +54,24 @@ func deferralRecipients(ctx context.Context, tx pgx.Tx, branch *uuid.UUID) ([]uu
 	return iam.AdminIDs(ctx, tx)
 }
 
-// notifyDeferralEnded báo kết thúc bảo lưu sớm (thủ công) cho người sắp xếp lớp, trừ người thao tác.
-func notifyDeferralEnded(ctx context.Context, tx pgx.Tx, actor *iam.Access, st studentsdb.AcademicStudent, next string) error {
+// notifyDeferralEnded báo kết thúc bảo lưu (sớm bằng tay, hoặc hết thời gian khi by = nil) cho người sắp xếp lớp, trừ
+// người thao tác.
+func notifyDeferralEnded(ctx context.Context, tx pgx.Tx, by *uuid.UUID, st studentsdb.AcademicStudent, next string) error {
 	ids, err := deferralRecipients(ctx, tx, st.BranchID)
 	if err != nil {
 		return err
 	}
+	why := "Bảo lưu được kết thúc sớm"
+	if by == nil {
+		why = "Hết thời gian bảo lưu"
+	}
 	_, err = notify.Send(ctx, tx, ids, notify.Notification{
 		Type:  "deferral_ended",
 		Title: fmt.Sprintf("Học viên %s kết thúc bảo lưu", st.FullName),
-		Body: fmt.Sprintf("Bảo lưu được kết thúc sớm — học viên %s (%s) đã chuyển sang \"%s\". Vui lòng sắp xếp lớp / lịch học lại.",
-			st.FullName, st.Code, StatusLabel(next)),
+		Body: fmt.Sprintf("%s — học viên %s (%s) đã chuyển sang \"%s\". Vui lòng sắp xếp lớp / lịch học lại.",
+			why, st.FullName, st.Code, StatusLabel(next)),
 		Link: "/students/" + st.Code, Data: map[string]any{"student_id": st.ID},
-		CreatedBy: &actor.UserID, Except: &actor.UserID,
+		CreatedBy: by, Except: by,
 	})
 	return err
 }

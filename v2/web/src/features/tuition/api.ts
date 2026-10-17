@@ -543,4 +543,21 @@ export const tuitionApi = {
     page?: number
   }) => request<HistoryPage>('GET', `/tuition/history${query(p)}`),
   exportUrl: (p: Record<string, string>) => `/api/v1/tuition/history/export${query(p)}`,
+  overdue: (p: { search?: string; branch_id?: string; class_id?: string; type?: string; upcoming_page?: number }) =>
+    request<OverduePage>('GET', `/tuition/overdue${query(p)}`),
+  remind: (id: string, upcoming: boolean) =>
+    request<{ message: string }>('POST', `/tuition/overdue/${id}/${upcoming ? 'upcoming-remind' : 'remind'}`),
+  contacted: (id: string, body: { note?: string; contacted_at?: string }) =>
+    request<{ message: string }>('POST', `/tuition/overdue/${id}/contacted`, body),
+  reportAdmin: (id: string, note: string) => request<{ message: string }>('POST', `/tuition/overdue/${id}/report-admin`, { note }),
+}
+
+export type DebtStat = { total_debt: number; count: number; overdue_count: number }
+
+export type OverduePage = {
+  due: DueGroups
+  stats_by_branch: (DebtStat & { branch_name: string })[]
+  stats_by_class: (DebtStat & { class_name: string; class_code: string })[]
+  branches: Option[]
+  classes: Option[]
 }
