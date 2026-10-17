@@ -426,7 +426,9 @@ class Phase2AcceptanceTest extends TestCase
         $this->actingAs($studentUser)->get(route('portal.student.homework'))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->component('Portal/Homework')
                 ->where('miniTests', fn ($scores) => collect($scores)->count() === 1)
-                ->where('remarks', fn ($remarks) => collect($remarks)->count() === 1 && collect($remarks)->first()['remark']['grammar'] === 'Tốt'));
+                // Mục "Nhận xét buổi học" liệt kê các buổi gần đây; buổi đã có nhận xét GV mang nhận xét đó.
+                ->where('remarks', fn ($remarks) => collect($remarks)->whereNotNull('remark')->count() === 1
+                    && collect($remarks)->whereNotNull('remark')->first()['remark']['grammar'] === 'Tốt'));
 
         // Chấm công tay: Quản lý cơ sở không chấm cho lớp ngoài chi nhánh mình (Học vụ hiện xem mọi lớp — chờ BA).
         $manager = $this->userWithRole('manager');

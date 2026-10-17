@@ -7,6 +7,7 @@ use App\Models\AdminNotification;
 use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\ClassSession;
+use App\Models\ClassSessionFeedback;
 use App\Models\KpiCriterion;
 use App\Models\MaterialOrder;
 use App\Models\StaffReport;
@@ -175,6 +176,9 @@ class StaffReportController extends Controller
         'attendance_level' => ['label' => 'Chuyên cần học sinh', 'options' => ['high' => '95%-100%', 'low' => '< 95%']],
         'homework_level' => ['label' => 'Tỉ lệ hoàn thành bài tập', 'options' => ['high' => 'Cao (>80%)', 'low' => 'Thấp']],
     ];
+
+    /** Khối của báo cáo tuần Học vụ có task follow-up: bảng KPI, chỉ số theo dõi, ghi chú tuần. */
+    private const WEEKLY_TASK_SECTIONS = ['kpi', 'metrics', 'week'];
 
     /** Chỉ số quy mô trong báo cáo tuần Học vụ (theo dõi, không tính KPI). Số tính tự động ở WeeklyReportMetrics; nhãn giữ để đọc báo cáo nhập tay cũ. */
     public const WEEKLY_METRICS = [
@@ -378,16 +382,7 @@ class StaffReportController extends Controller
         ]);
         // Sự việc mức "Khẩn" báo ngay Admin và Quản lý cơ sở của người ghi.
         if ($entry->severity === 'urgent') {
-            $author = Auth::user();
-            AdminNotification::notifyUsers(
-                BranchStaff::admins()->pluck('id')->concat(BranchStaff::withRoles(Roles::MANAGER, $author->branch_id)->pluck('id')),
-                'staff_journal_urgent',
-                'Sự việc khẩn: '.$entry->title,
-                "{$author->name} vừa ghi sự việc mức Khẩn".($entry->classModel ? ' ở lớp '.$entry->classModel->name : '').'.',
-                route('reports.all', ['open' => $entry->id]),
-                ['staff_report_id' => $entry->id],
-                $author->id,
-            );
+            self::notifyUrgent($entry, Auth::user());
         }
 
         return back()->with('success', 'Đã thêm nhật ký!');
@@ -602,8 +597,11 @@ class StaffReportController extends Controller
             'notes' => (object) ($report?->data['notes'] ?? []),
             'draftKey' => "report-draft:daily:{$user->id}:{$date}",
             'legacyFields' => $legacyFields,
-            'tasks' => $this->reportTasks($report?->data ?? []),
+            'tasks' => $this->reportTasks($report?->data ?? [], true),
+            'sectionTasks' => (object) $this->sectionTasks($report, 'daily_ops', $date),
             'assignees' => $this->taskAssignees(),
+            'sessionRows' => $audience === DailyReportMetrics::AUDIENCE_ACADEMIC ? [] : DailyReportMetrics::sessionRows($user, $date),
+            'verdicts' => ClassSessionFeedback::VERDICTS,
             'submittedAt' => $report?->updated_at?->toIso8601String(),
             'firstSubmittedAt' => $report?->created_at?->toIso8601String(),
             'late' => $report ? DailyReportDue::isLate($report) : false,
@@ -626,11 +624,10 @@ class StaffReportController extends Controller
             'refresh' => ['nullable', 'boolean'],
             'notes' => ['nullable', 'array'],
             'notes.*' => ['nullable', 'string', 'max:5000'],
-            'tasks' => ['nullable', 'array', 'max:10'],
-            'tasks.*.title' => ['required', 'string', 'max:255'],
-            'tasks.*.content' => ['nullable', 'string', 'max:5000'],
-            'tasks.*.due_date' => ['required', 'date', 'after_or_equal:today'],
-            'tasks.*.assignee_id' => ['nullable', 'integer'],
+            ...self::TASK_RULES,
+            'feedback' => ['nullable', 'array'],
+            'feedback.*.verdict' => ['nullable', Rule::in(array_keys(ClassSessionFeedback::VERDICTS))],
+            'feedback.*.content' => ['nullable', 'string', 'max:2000'],
         ], [
             'date.before_or_equal' => 'Không nộp báo cáo cho ngày chưa tới.',
             'tasks.*.due_date.after_or_equal' => 'Hạn xử lý phải từ hôm nay trở đi.',
@@ -643,38 +640,52 @@ class StaffReportController extends Controller
 
         $user = Auth::user();
         $date = Carbon::parse($data['date']);
+        $audience = StaffType::dailyReportAudience($user);
         $existing = $this->structuredReport('daily_ops', $data['date']);
         // Sửa ghi chú báo cáo đã nộp giữ nguyên số liệu đã chụp (số Admin đã kiểm tra); chỉ tính lại khi người viết bấm
         // "Cập nhật số liệu" (form gửi refresh=1). Số liệu luôn tính ở máy chủ, không nhận số từ trình duyệt.
         $kept = $existing?->data['auto'] ?? null;
         $snapshot = $kept && ! $request->boolean('refresh')
             ? $kept + ['fields' => $existing->data['fields'] ?? []]
-            : DailyReportMetrics::compute($user, $data['date'], StaffType::dailyReportAudience($user));
+            : DailyReportMetrics::compute($user, $data['date'], $audience);
         $notes = collect($data['notes'] ?? [])->only(array_keys($snapshot['sections']))
             ->map(fn ($v) => filled($v) ? trim((string) $v) : null)->filter()->all();
-        $text = DailyReportMetrics::text($snapshot, $notes);
 
-        $assignees = collect($this->taskAssignees())->pluck('value');
-        foreach ($data['tasks'] ?? [] as $i => $task) {
-            if (filled($task['assignee_id'] ?? null) && ! $assignees->contains((int) $task['assignee_id'])) {
-                throw ValidationException::withMessages(["tasks.{$i}.assignee_id" => 'Bạn không giao việc được cho người này.']);
-            }
-        }
+        $this->checkTasks($data['tasks'] ?? [], array_keys($snapshot['sections']));
+        // Góp ý từng buổi: chỉ nhận buổi trong ngày báo cáo thuộc phạm vi người viết (Học vụ).
+        $rows = $audience === DailyReportMetrics::AUDIENCE_ACADEMIC ? collect() : collect(DailyReportMetrics::sessionRows($user, $data['date']))->keyBy('id');
+        $feedback = collect($data['feedback'] ?? [])->filter(fn ($f, $id) => $rows->has((int) $id));
 
-        DB::transaction(function () use ($data, $existing, $snapshot, $notes, $text, $date) {
-            $taskIds = $this->reportTaskIds($existing?->data ?? []);
-            foreach ($data['tasks'] ?? [] as $task) {
-                $taskIds[] = $this->createFollowUpTask($task, $data['date'])->id;
-            }
-
-            $this->saveStructured('daily_ops', $data['date'], 'Báo cáo ngày '.$date->format('d/m/Y'), $data['date'], [
+        DB::transaction(function () use ($data, $existing, $snapshot, $notes, $date, $feedback, $rows) {
+            $report = $this->saveStructured('daily_ops', $data['date'], 'Báo cáo ngày '.$date->format('d/m/Y'), $data['date'], [
+                ...($existing?->data ?? []),
                 'auto' => ['audience' => $snapshot['audience'], 'sections' => $snapshot['sections'], 'computed_at' => $snapshot['computed_at']],
                 'fields' => $snapshot['fields'],
                 'notes' => $notes,
-                'task_ids' => $taskIds,
-                // Khóa cũ (một task / báo cáo) giữ cho màn Báo cáo Admin đọc báo cáo trước 16/10.
-                'task_id' => $taskIds[0] ?? null,
-            ], $text.($taskIds ? "\n\nTask follow-up: #".implode(', #', $taskIds) : ''));
+            ], '');
+
+            $taskIds = $this->reportTaskIds($existing?->data ?? []);
+            foreach ($data['tasks'] ?? [] as $task) {
+                $taskIds[] = $this->createFollowUpTask($task, $data['date'], $report)->id;
+            }
+            $sessionFeedback = $this->saveSessionFeedback($report, $feedback, $rows);
+
+            $text = DailyReportMetrics::text($snapshot, $notes);
+            if ($sessionFeedback !== []) {
+                $text .= "\n\nGóp ý từng buổi:\n".collect($sessionFeedback)->map(fn (array $f) => '- '.$f['session'].': '
+                    .($f['verdict'] ? ClassSessionFeedback::VERDICTS[$f['verdict']] : '').($f['content'] ? ($f['verdict'] ? ' — ' : '').$f['content'] : '')
+                    .($f['escalated'] ? ' [Đã báo Admin]' : ''))->implode("\n");
+            }
+            $report->update([
+                'data' => [
+                    ...$report->data,
+                    'task_ids' => $taskIds,
+                    // Khóa cũ (một task / báo cáo) giữ cho màn Báo cáo Admin đọc báo cáo trước 16/10.
+                    'task_id' => $taskIds[0] ?? null,
+                    'session_feedback' => $sessionFeedback,
+                ],
+                'content' => $text.($taskIds ? "\n\nTask follow-up: #".implode(', #', $taskIds) : ''),
+            ]);
         });
 
         return redirect()->route('reports.periodic.daily', ['date' => $data['date']])
@@ -682,20 +693,161 @@ class StaffReportController extends Controller
     }
 
     /**
-     * Việc follow-up tạo từ báo cáo ngày (rà soát 16/10/2026: mỗi báo cáo nhiều task, mỗi task có tiêu đề, nội dung, hạn từ hôm nay
+     * Lưu góp ý của người viết cho từng buổi (một phiếu / người / buổi). Bỏ trống cả đánh giá lẫn nội dung thì xóa phiếu, trừ phiếu
+     * đã "Báo Admin gấp". Trả về bản chụp góp ý để Admin đọc trong chi tiết báo cáo.
+     *
+     * @param  Collection<int|string, array>  $feedback  [session_id => {verdict, content}]
+     * @param  Collection<int, array>  $rows  buổi trong ngày (DailyReportMetrics::sessionRows), theo id
+     * @return list<array<string, mixed>>
+     */
+    private function saveSessionFeedback(StaffReport $report, Collection $feedback, Collection $rows): array
+    {
+        foreach ($feedback as $sessionId => $input) {
+            $verdict = $input['verdict'] ?? null;
+            $content = filled($input['content'] ?? null) ? trim((string) $input['content']) : null;
+            $match = ['class_session_id' => (int) $sessionId, 'source' => ClassSessionFeedback::SOURCE_STAFF, 'author_id' => Auth::id()];
+            if (! $verdict && ! $content) {
+                ClassSessionFeedback::where($match)->whereNull('escalation_id')->delete();
+
+                continue;
+            }
+            ClassSessionFeedback::updateOrCreate($match, [
+                'class_id' => $rows->get((int) $sessionId)['class_id'],
+                'verdict' => $verdict,
+                'content' => $content,
+                'staff_report_id' => $report->id,
+            ]);
+        }
+
+        return ClassSessionFeedback::where('source', ClassSessionFeedback::SOURCE_STAFF)->where('author_id', Auth::id())
+            ->whereIn('class_session_id', $rows->keys())->orderBy('class_session_id')->get()
+            ->map(fn (ClassSessionFeedback $f) => [
+                'session_id' => $f->class_session_id,
+                'session' => trim(($rows->get($f->class_session_id)['class'] ?? 'Buổi').' · '.($rows->get($f->class_session_id)['time'] ?? ''), ' ·'),
+                'teacher' => $rows->get($f->class_session_id)['teacher'] ?? null,
+                'verdict' => $f->verdict,
+                'content' => $f->content,
+                'escalated' => $f->escalation_id !== null,
+            ])->values()->all();
+    }
+
+    /**
+     * "Báo Admin gấp" ngay trên một buổi của báo cáo ngày (chủ dự án 17/10/2026): tạo sự việc mức "Khẩn" trong Nhật ký sự vụ gắn lớp /
+     * buổi đó (Admin và Quản lý cơ sở nhận thông báo ngay, xử lý và trao đổi ở Nhật ký), đánh dấu góp ý của buổi là "Có vấn đề".
+     */
+    public function dailyEscalate(Request $request, int $session): RedirectResponse
+    {
+        $this->guardStructured('daily_ops');
+        $data = $request->validate([
+            'content' => ['required', 'string', 'max:2000'],
+        ], ['content.required' => 'Nhập nội dung cần Admin xử lý.']);
+        $user = Auth::user();
+        abort_if(StaffType::dailyReportAudience($user) === DailyReportMetrics::AUDIENCE_ACADEMIC, 403);
+        $classSession = ClassSession::with('classModel:id,name')->findOrFail($session);
+        $row = collect(DailyReportMetrics::sessionRows($user, $classSession->date->toDateString()))->firstWhere('id', $classSession->id);
+        abort_unless($row, 403, 'Buổi học này nằm ngoài phạm vi báo cáo của bạn.');
+
+        $match = ['class_session_id' => $classSession->id, 'source' => ClassSessionFeedback::SOURCE_STAFF, 'author_id' => $user->id];
+        $feedback = ClassSessionFeedback::firstOrNew($match);
+        if ($feedback->escalation_id) {
+            return back()->withErrors(['escalate' => 'Buổi này đã được báo Admin. Theo dõi xử lý trong Nhật ký sự vụ.']);
+        }
+        $content = trim($data['content']);
+        DB::transaction(function () use ($feedback, $classSession, $row, $content, $user) {
+            $entry = StaffReport::create([
+                'user_id' => $user->id,
+                'class_id' => $classSession->class_id,
+                'type' => 'journal',
+                'title' => Str::limit('Khẩn: '.$row['class'].' buổi '.$classSession->date->format('d/m').' '.$row['time'], 120, ''),
+                'content' => $content,
+                'severity' => 'urgent',
+                'report_date' => $classSession->date->toDateString(),
+                'status' => 'open',
+                'data' => ['class_session_id' => $classSession->id, 'source' => 'daily_report'],
+            ]);
+            $feedback->fill([
+                'class_id' => $classSession->class_id,
+                'verdict' => 'problem',
+                'content' => $feedback->content ?: $content,
+                'escalation_id' => $entry->id,
+                'staff_report_id' => $feedback->staff_report_id ?? $this->structuredReport('daily_ops', $classSession->date->toDateString())?->id,
+            ])->save();
+            self::notifyUrgent($entry, $user);
+        });
+
+        return back()->with('success', 'Đã báo Admin. Vấn đề được ghi vào Nhật ký sự vụ ở mức Khẩn.');
+    }
+
+    /** Sự việc mức "Khẩn" báo ngay Admin và Quản lý cơ sở của người ghi. */
+    private static function notifyUrgent(StaffReport $entry, User $author): void
+    {
+        $entry->loadMissing('classModel:id,name');
+        AdminNotification::notifyUsers(
+            BranchStaff::admins()->pluck('id')->concat(BranchStaff::withRoles(Roles::MANAGER, $author->branch_id)->pluck('id')),
+            'staff_journal_urgent',
+            'Sự việc khẩn: '.$entry->title,
+            "{$author->name} vừa ghi sự việc mức Khẩn".($entry->classModel ? ' ở lớp '.$entry->classModel->name : '').'.',
+            route('reports.all', ['open' => $entry->id]),
+            ['staff_report_id' => $entry->id],
+            $author->id,
+        );
+    }
+
+    /** Task follow-up gửi kèm báo cáo: tiêu đề, nội dung, hạn, người phụ trách, khối báo cáo và lớp (tạo từ một buổi học). */
+    private const TASK_RULES = [
+        'tasks' => ['nullable', 'array', 'max:20'],
+        'tasks.*.title' => ['required', 'string', 'max:255'],
+        'tasks.*.content' => ['nullable', 'string', 'max:5000'],
+        'tasks.*.due_date' => ['required', 'date', 'after_or_equal:today'],
+        'tasks.*.assignee_id' => ['nullable', 'integer'],
+        'tasks.*.section' => ['nullable', 'string', 'max:40'],
+        'tasks.*.class_id' => ['nullable', 'integer'],
+    ];
+
+    /**
+     * Người phụ trách phải là người mình được giao việc, khối phải có trong báo cáo, lớp phải nằm trong phạm vi mình được xem.
+     *
+     * @param  list<string>  $sectionKeys
+     */
+    private function checkTasks(array $tasks, array $sectionKeys): void
+    {
+        if ($tasks === []) {
+            return;
+        }
+        $assignees = collect($this->taskAssignees())->pluck('value');
+        $classIds = ClassModel::query()->visibleTo(Auth::user())->pluck('id')->map(fn ($id) => (int) $id);
+        foreach ($tasks as $i => $task) {
+            if (filled($task['assignee_id'] ?? null) && ! $assignees->contains((int) $task['assignee_id'])) {
+                throw ValidationException::withMessages(["tasks.{$i}.assignee_id" => 'Bạn không giao việc được cho người này.']);
+            }
+            if (filled($task['section'] ?? null) && ! in_array($task['section'], $sectionKeys, true)) {
+                throw ValidationException::withMessages(["tasks.{$i}.section" => 'Khối báo cáo không hợp lệ.']);
+            }
+            if (filled($task['class_id'] ?? null) && ! $classIds->contains((int) $task['class_id'])) {
+                throw ValidationException::withMessages(["tasks.{$i}.class_id" => 'Lớp này nằm ngoài phạm vi bạn được xem.']);
+            }
+        }
+    }
+
+    /**
+     * Việc follow-up tạo từ báo cáo ngày / tuần (rà soát 16/10/2026: mỗi báo cáo nhiều task, mỗi task có tiêu đề, nội dung, hạn từ hôm nay
      * và người phụ trách). Người phụ trách để trống là mình, hoặc người mình được giao việc (như màn Giao việc).
      */
-    private function createFollowUpTask(array $input, string $reportDate): WorkTask
+    private function createFollowUpTask(array $input, string $reportDate, ?StaffReport $report = null): WorkTask
     {
         $user = Auth::user();
         $assigneeId = (int) ($input['assignee_id'] ?? 0) ?: (int) $user->id;
-        $label = Carbon::parse($reportDate)->format('d/m/Y');
+        $source = $report ? Str::lcfirst($report->title) : 'báo cáo ngày '.Carbon::parse($reportDate)->format('d/m/Y');
         $task = WorkTask::create([
             'title' => trim($input['title']),
-            'description' => trim(($input['content'] ?? '')."\n\nTạo từ báo cáo ngày {$label} của {$user->name}."),
+            'description' => trim(($input['content'] ?? '')."\n\nTạo từ {$source} của {$user->name}."),
             'creator_id' => $user->id,
             'assignee_id' => $assigneeId,
             'branch_id' => $user->branch_id,
+            'class_id' => filled($input['class_id'] ?? null) ? (int) $input['class_id'] : null,
+            // Task gắn khối báo cáo: chưa xong thì hiện lại đúng khối đó ở báo cáo kỳ sau (sectionTasks).
+            'staff_report_id' => $report?->id,
+            'report_section' => filled($input['section'] ?? null) ? $input['section'] : null,
             'due_date' => $input['due_date'],
             'due_time' => '18:00',
             'task_type' => 'one_time',
@@ -717,12 +869,12 @@ class StaffReportController extends Controller
         return collect($data['task_ids'] ?? [])->push($data['task_id'] ?? null)->filter()->map(fn ($id) => (int) $id)->unique()->values()->all();
     }
 
-    /** @return list<array<string, mixed>> */
-    private function reportTasks(array $data): array
+    /** @return list<array<string, mixed>> task follow-up của báo cáo; `$unsectioned` = chỉ task không gắn khối (báo cáo trước 17/10) */
+    private function reportTasks(array $data, bool $unsectioned = false): array
     {
         $ids = $this->reportTaskIds($data);
 
-        return $ids === [] ? [] : WorkTask::with('assignee:id,name')->whereIn('id', $ids)->orderBy('id')->get()
+        return $ids === [] ? [] : WorkTask::with('assignee:id,name')->whereIn('id', $ids)->when($unsectioned, fn ($q) => $q->whereNull('report_section'))->orderBy('id')->get()
             ->map(fn (WorkTask $task) => [
                 'id' => $task->id,
                 'title' => $task->title,
@@ -731,6 +883,40 @@ class StaffReportController extends Controller
                 'status' => $task->status,
                 'status_label' => $task->status_label,
             ])->all();
+    }
+
+    /**
+     * Task follow-up theo khối của báo cáo (chủ dự án 17/10/2026): task tạo ở chính báo cáo này, cộng task chưa xong tạo từ báo cáo
+     * cùng loại của cùng người viết ở kỳ trước (`carried` = ngày của báo cáo gốc) — việc tồn hiện lại cho tới khi hoàn thành / hủy.
+     *
+     * @return array<string, list<array<string, mixed>>> khóa khối => task
+     */
+    private function sectionTasks(?StaffReport $report, string $kind, string $period, ?int $userId = null): array
+    {
+        $userId ??= $report?->user_id ?? Auth::id();
+
+        return WorkTask::with(['assignee:id,name', 'staffReport:id,period_key,report_date'])
+            ->whereNotNull('report_section')
+            ->whereHas('staffReport', fn ($q) => $q->where('user_id', $userId)->where('kind', $kind))
+            ->where(fn ($q) => $q->when($report, fn ($q) => $q->where('staff_report_id', $report->id))
+                ->orWhere(fn ($q) => $q->whereNotIn('status', ['completed', 'canceled'])
+                    ->whereHas('staffReport', fn ($r) => $r->where('period_key', '<', $period))))
+            ->orderBy('id')
+            ->get()
+            ->map(fn (WorkTask $task) => [
+                'id' => $task->id,
+                'section' => $task->report_section,
+                'title' => $task->title,
+                'due_date' => $task->due_date?->toDateString(),
+                'assignee' => $task->assignee?->name,
+                'status' => $task->status,
+                'status_label' => $task->status_label,
+                'overdue' => $task->status === 'overdue' || (in_array($task->status, WorkTask::OPEN_STATUSES, true) && $task->lateHours() > 0),
+                'carried' => $report && (int) $task->staff_report_id === (int) $report->id ? null : $task->staffReport?->report_date?->format('d/m'),
+            ])
+            ->groupBy('section')
+            ->map(fn ($tasks) => $tasks->values()->all())
+            ->all();
     }
 
     /** Trạng thái kiểm tra hiện cho người viết: đã kiểm tra / Admin yêu cầu bổ sung (kèm nhận xét). */
@@ -886,6 +1072,9 @@ class StaffReportController extends Controller
             'live' => $live,
             'note' => $report?->data['note'] ?? null,
             'draftKey' => 'report-draft:weekly-kpi:'.Auth::id().":{$week}",
+            'sectionTasks' => (object) $this->sectionTasks($report, 'weekly_kpi', $week),
+            'assignees' => $this->taskAssignees(),
+            'today' => today()->toDateString(),
             'legacy' => $report && ! $snapshot ? $this->legacyWeeklyKpi($report) : [],
             'submittedAt' => $report?->updated_at?->toIso8601String(),
             'review' => $this->reviewState($report),
@@ -911,11 +1100,14 @@ class StaffReportController extends Controller
             'week' => ['required', 'regex:'.ReportPeriod::WEEK_PATTERN, $this->notFutureWeek()],
             'note' => ['nullable', 'string', 'max:5000'],
             'refresh' => ['nullable', 'boolean'],
-        ]);
+            ...self::TASK_RULES,
+        ], ['tasks.*.due_date.after_or_equal' => 'Hạn xử lý phải từ hôm nay trở đi.']);
+        $this->checkTasks($data['tasks'] ?? [], self::WEEKLY_TASK_SECTIONS);
 
         // Số liệu tính trên server (không nhận số từ form) và lưu kèm tên / nhóm mục KPI để báo cáo cũ vẫn đọc được khi Admin
         // đổi cấu hình KPI. Sửa ghi chú tuần đã nộp giữ số đã chụp; chỉ tính lại khi người viết bấm "Cập nhật số liệu" (refresh=1).
-        $kept = $this->structuredReport('weekly_kpi', $data['week'])?->data['auto'] ?? null;
+        $existing = $this->structuredReport('weekly_kpi', $data['week']);
+        $kept = $existing?->data['auto'] ?? null;
         $snapshot = $kept && ! $request->boolean('refresh') ? $kept : WeeklyReportMetrics::operations(Auth::user(), $data['week']);
         $counts = collect($snapshot['groups'])->flatMap(fn (array $g) => collect($g['items'])->map(fn (array $i) => [
             'id' => $i['id'], 'code' => $i['code'], 'name' => $i['name'], 'group' => $g['name'], 'count' => $i['count'],
@@ -924,9 +1116,18 @@ class StaffReportController extends Controller
         $note = filled($data['note'] ?? null) ? trim($data['note']) : null;
         [$start] = ReportPeriod::weekRange($data['week']);
 
-        $this->saveStructured('weekly_kpi', $data['week'], 'Báo cáo tuần '.ReportPeriod::weekLabel($data['week']), $start->toDateString(),
-            ['auto' => $snapshot, 'counts' => $counts, 'metrics' => $metrics, 'note' => $note],
-            WeeklyReportMetrics::operationsText($snapshot, $note));
+        DB::transaction(function () use ($data, $existing, $snapshot, $counts, $metrics, $note, $start) {
+            $taskIds = $this->reportTaskIds($existing?->data ?? []);
+            $text = WeeklyReportMetrics::operationsText($snapshot, $note);
+            $report = $this->saveStructured('weekly_kpi', $data['week'], 'Báo cáo tuần '.ReportPeriod::weekLabel($data['week']), $start->toDateString(),
+                ['auto' => $snapshot, 'counts' => $counts, 'metrics' => $metrics, 'note' => $note, 'task_ids' => $taskIds], $text);
+            if (filled($data['tasks'] ?? null)) {
+                foreach ($data['tasks'] as $task) {
+                    $taskIds[] = $this->createFollowUpTask($task, $start->toDateString(), $report)->id;
+                }
+                $report->update(['data' => [...$report->data, 'task_ids' => $taskIds], 'content' => $text."\n\nTask follow-up: #".implode(', #', $taskIds)]);
+            }
+        });
 
         return back()->with('success', 'Đã lưu báo cáo '.Str::lcfirst(ReportPeriod::weekLabel($data['week'])).'.');
     }
@@ -1716,7 +1917,11 @@ class StaffReportController extends Controller
             'notes' => (object) ($data['notes'] ?? []),
             'noteLabels' => DailyReportMetrics::NOTE_LABELS,
             'note' => $data['note'] ?? null,
-            'tasks' => $this->reportTasks($data),
+            'tasks' => $this->reportTasks($data, $view === 'daily'),
+            // Báo cáo ngày / tuần Học vụ từ 17/10/2026: task theo khối (kể cả việc tồn kỳ trước của người viết) + góp ý từng buổi đã chụp lúc lưu.
+            'sectionTasks' => (object) (in_array($view, ['daily', 'weekly_kpi'], true) ? $this->sectionTasks($r, $r->kind, $r->period_key, $r->user_id) : []),
+            'sessionFeedback' => $view === 'daily' ? ($data['session_feedback'] ?? []) : [],
+            'verdicts' => ClassSessionFeedback::VERDICTS,
             'canReview' => (bool) Auth::user()?->can(AdminOnlyApprovals::ABILITY),
             'nextId' => $nextId,
             'legacy' => $legacy,

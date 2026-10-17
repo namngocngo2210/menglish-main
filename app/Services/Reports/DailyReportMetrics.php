@@ -2,18 +2,22 @@
 
 namespace App\Services\Reports;
 
+use App\Http\Controllers\TeacherPortalController;
 use App\Models\AcademicObservation;
 use App\Models\AcademicProjectMilestone;
+use App\Models\AcademicRecord;
 use App\Models\BigTestOrder;
 use App\Models\ClassReport;
 use App\Models\ClassReportStudentSupport;
 use App\Models\ClassSession;
+use App\Models\ClassSessionFeedback;
 use App\Models\CrmCustomer;
 use App\Models\CrmCustomerHistory;
 use App\Models\MaterialOrder;
 use App\Models\MiniTestScore;
 use App\Models\PlacementTestSubmission;
 use App\Models\QaObservation;
+use App\Models\SlaEvent;
 use App\Models\StaffAttendance;
 use App\Models\StaffReport;
 use App\Models\StudentAttendance;
@@ -51,6 +55,7 @@ class DailyReportMetrics
     /** Ô ghi chú nhập tay của từng khối. */
     public const NOTE_LABELS = [
         'operations' => 'Ghi chú vận hành lớp học',
+        'sessions' => 'Ghi chú chất lượng buổi học',
         'enrollment' => 'Ghi chú tuyển sinh / học viên',
         'media' => 'Ghi chú truyền thông',
         'projects' => 'Ghi chú dự án',
@@ -167,6 +172,7 @@ class DailyReportMetrics
                     'Ticket hỗ trợ loại "Cơ sở vật chất" đang mở trong ngày, order đạo cụ / in ấn cần dùng hôm nay hoặc đang quá hạn.',
                     $this->facilityDetails()),
             ]),
+            'sessions' => $this->section('Chất lượng buổi học', 'rate_review', $this->sessionQualityItems($running)),
             'enrollment' => $this->section('Tuyển sinh / Học viên', 'group_add', [
                 $this->item('support_students', 'Số học sinh bổ trợ', $support->isEmpty() ? '0' : "{$supportDone}/{$support->count()}",
                     'Buổi bổ trợ trong ngày: đã học / đã xếp (không tính buổi hủy).',
@@ -212,6 +218,143 @@ class DailyReportMetrics
             ->all();
 
         return [$sections, $fields];
+    }
+
+    /**
+     * Khối "Chất lượng buổi học" (chủ dự án 17/10/2026): GV đã gửi nhận xét buổi chưa, nhận xét trễ hạn SLA, báo cáo trực lớp,
+     * phụ huynh chấm buổi trên cổng học viên. Góp ý của chính Học vụ cho từng buổi nhập ở các dòng bên dưới khối (sessionRows).
+     *
+     * @param  Collection<int, ClassSession>  $running
+     */
+    private function sessionQualityItems(Collection $running): array
+    {
+        $ended = $running->filter(fn (ClassSession $s) => $s->teacher_id && $this->hasEnded($s));
+        $remarked = $this->remarkedSessionIds($ended);
+        $late = $ended->isEmpty() ? collect() : SlaEvent::where('rule_key', 'gv.remarks_late')->where('subject_type', 'class_session')
+            ->whereIn('subject_id', $ended->pluck('id'))->whereNotNull('breached_at')->pluck('subject_id')->map(fn ($id) => (int) $id);
+        $withTa = $running->filter(fn (ClassSession $s) => $s->assistant_id);
+        $taReports = $withTa->isEmpty() ? collect() : ClassReport::whereIn('class_id', $withTa->pluck('class_id')->unique())
+            ->whereDate('session_date', $this->date)->get(['class_id', 'class_session_id']);
+        $taDone = $withTa->filter(fn (ClassSession $s) => $taReports->contains(fn ($r) => (int) $r->class_session_id === (int) $s->id
+            || (! $r->class_session_id && (int) $r->class_id === (int) $s->class_id)))->count();
+        $ratings = ClassSessionFeedback::with('student:id,name')->where('source', ClassSessionFeedback::SOURCE_PARENT)
+            ->whereIn('class_session_id', $running->pluck('id'))->whereNotNull('rating')->get();
+        $low = $ratings->filter(fn (ClassSessionFeedback $f) => $f->rating <= ClassSessionFeedback::LOW_RATING);
+        $label = fn (ClassSession $s) => $this->className($s).' · '.$this->sessionTime($s);
+
+        return [
+            $this->item('remarks_sent', 'Nhận xét buổi học của GV', $ended->isEmpty() ? '0' : $remarked->count().' / '.$ended->count(),
+                'Buổi đã kết thúc trong ngày mà giáo viên đã gửi nhận xét cho học viên (không tính bản lưu nháp).',
+                $ended->reject(fn (ClassSession $s) => $remarked->contains($s->id))->map(fn (ClassSession $s) => [
+                    'text' => $label($s).' · GV '.($s->teacher?->name ?? '—'),
+                    'tag' => 'Chưa nhận xét',
+                    'tone' => 'warning',
+                    'url' => $this->link('teacher.remarks', ['classId' => $s->class_id, 'session' => $s->id]),
+                ])->values()->all(), $remarked->count()),
+            $this->item('remarks_late', 'Nhận xét trễ hạn', $late->count(),
+                'Buổi giáo viên gửi nhận xét quá hạn SLA "Nhận xét sau buổi học" (hệ thống tự lập biên bản).',
+                $ended->filter(fn (ClassSession $s) => $late->contains($s->id))->map(fn (ClassSession $s) => [
+                    'text' => $label($s).' · GV '.($s->teacher?->name ?? '—'), 'tag' => 'Trễ hạn', 'tone' => 'error',
+                ])->values()->all()),
+            $this->item('ta_reports', 'Báo cáo trực lớp', $withTa->isEmpty() ? '0' : $taDone.' / '.$withTa->count(),
+                'Buổi có trợ giảng đã có báo cáo trực lớp. Buổi còn thiếu xem ở mục "Số trợ giảng".', [], $taDone),
+            $this->item('parent_ratings', 'Phụ huynh chấm buổi',
+                $ratings->isEmpty() ? '0' : number_format($ratings->avg('rating'), 1, ',', '.').'★ · '.$ratings->count().' phiếu',
+                'Phụ huynh chấm 1–5 sao trên cổng học viên cho các buổi trong ngày. Danh sách là các phiếu từ '.ClassSessionFeedback::LOW_RATING.' sao trở xuống.',
+                $low->map(function (ClassSessionFeedback $f) use ($running, $label) {
+                    $session = $running->firstWhere('id', $f->class_session_id);
+
+                    return [
+                        'text' => 'PH bé '.($f->student?->name ?? '—').($session ? ' · '.$label($session) : '')
+                            .($f->categoryLabels() ? ' · '.implode(', ', $f->categoryLabels()) : '').($f->content ? ' · "'.Str::limit($f->content, 120).'"' : ''),
+                        'tag' => $f->rating.' sao',
+                        'tone' => 'error',
+                    ];
+                })->values()->all(), $ratings->count()),
+        ];
+    }
+
+    /**
+     * Các buổi trong ngày để Học vụ góp ý từng buổi ngay trên báo cáo ngày (không cần dự giờ): GV / TA, GV đã nhận xét chưa,
+     * phụ huynh chấm mấy sao, góp ý Học vụ đã lưu và trạng thái "Báo Admin gấp". Luôn tính trực tiếp (không chụp lúc nộp).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function sessionRows(User $user, string $date): array
+    {
+        $metrics = new self($user, $date);
+        $sessions = ClassSession::with(['classModel' => fn ($q) => $q->withTrashed()->select('id', 'name'), 'teacher:id,name', 'foreignTeacher:id,name', 'assistant:id,name'])
+            ->whereDate('date', $metrics->date)
+            ->where('type', '!=', ClassSession::TYPE_SUPPORT)
+            ->where('status', '!=', 'cancelled')
+            ->whereIn('class_id', $metrics->classIds())
+            ->orderBy('start_time')
+            ->get();
+        if ($sessions->isEmpty()) {
+            return [];
+        }
+        $remarked = $metrics->remarkedSessionIds($sessions);
+        $feedback = ClassSessionFeedback::with(['student:id,name', 'escalation:id,status,created_at'])->whereIn('class_session_id', $sessions->pluck('id'))
+            ->where(fn (Builder $q) => $q->where('source', ClassSessionFeedback::SOURCE_PARENT)
+                ->orWhere(fn (Builder $mine) => $mine->where('source', ClassSessionFeedback::SOURCE_STAFF)->where('author_id', $user->id)))
+            ->get()->groupBy('class_session_id');
+
+        return $sessions->map(function (ClassSession $s) use ($metrics, $remarked, $feedback) {
+            $rows = $feedback->get($s->id, collect());
+            $parents = $rows->where('source', ClassSessionFeedback::SOURCE_PARENT)->whereNotNull('rating');
+            $mine = $rows->firstWhere('source', ClassSessionFeedback::SOURCE_STAFF);
+
+            return [
+                'id' => $s->id,
+                'class_id' => $s->class_id,
+                'class' => $metrics->className($s),
+                'time' => $metrics->sessionTime($s),
+                'teacher' => $s->teacher?->name,
+                'foreign_teacher' => $s->foreignTeacher?->name,
+                'assistant' => $s->assistant?->name,
+                'remark' => $remarked->contains($s->id) ? 'sent' : ($metrics->hasEnded($s) ? 'missing' : 'pending'),
+                'parents' => [
+                    'count' => $parents->count(),
+                    'avg' => $parents->isEmpty() ? null : round($parents->avg('rating'), 1),
+                    'items' => $parents->sortBy('rating')->map(fn (ClassSessionFeedback $f) => [
+                        'student' => $f->student?->name,
+                        'rating' => $f->rating,
+                        'categories' => $f->categoryLabels(),
+                        'content' => $f->content,
+                    ])->values()->all(),
+                ],
+                'verdict' => $mine?->verdict,
+                'content' => $mine?->content,
+                'escalation' => $mine?->escalation ? [
+                    'id' => $mine->escalation->id,
+                    'status' => $mine->escalation->status,
+                    'at' => $mine->escalation->created_at?->toIso8601String(),
+                ] : null,
+            ];
+        })->values()->all();
+    }
+
+    /** @return Collection<int, int> buổi GV đã gửi nhận xét (bản hoàn tất; mã theo buổi, hoặc mã cũ theo lớp + ngày) */
+    private function remarkedSessionIds(Collection $sessions): Collection
+    {
+        if ($sessions->isEmpty()) {
+            return collect();
+        }
+        $codes = AcademicRecord::where('module', 'teacher_remarks')->where('status', 'completed')
+            ->whereIn('record_code', $sessions->flatMap(fn (ClassSession $s) => [TeacherPortalController::remarkRecordCode($s), $s->class_id.'-'.$this->date->toDateString()])->all())
+            ->pluck('record_code')->flip();
+
+        return $sessions->filter(fn (ClassSession $s) => $codes->has(TeacherPortalController::remarkRecordCode($s)) || $codes->has($s->class_id.'-'.$this->date->toDateString()))
+            ->pluck('id')->map(fn ($id) => (int) $id)->values();
+    }
+
+    private function hasEnded(ClassSession $s): bool
+    {
+        if (! $this->date->isToday()) {
+            return $this->date->isPast();
+        }
+
+        return ! $s->end_time || $this->date->copy()->setTimeFrom($s->end_time)->isPast();
     }
 
     /** @param Collection<int, ClassSession> $sessions */

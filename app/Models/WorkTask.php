@@ -23,6 +23,8 @@ class WorkTask extends Model
         'handed_back_at',
         'branch_id',
         'class_id',
+        'staff_report_id',
+        'report_section',
         'student_id',
         'care_milestone',
         'lesson_session',
@@ -97,6 +99,12 @@ class WorkTask extends Model
     public function classModel()
     {
         return $this->belongsTo(ClassModel::class, 'class_id');
+    }
+
+    /** Báo cáo tạo ra việc này (task follow-up của một khối báo cáo, `report_section`). */
+    public function staffReport()
+    {
+        return $this->belongsTo(StaffReport::class, 'staff_report_id');
     }
 
     public function confirmedBy()

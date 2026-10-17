@@ -3,7 +3,9 @@
  * Báo cáo tuần Học vụ (mockup 02/07 + chủ dự án 15/10/2026): số lần phát sinh theo từng mục KPI và chỉ số quy mô đều do hệ thống
  * tính cho cả tuần (StaffReportController::weeklyKpi → WeeklyReportMetrics), người viết chỉ nhập ghi chú tuần. Mục KPI có nguồn
  * tự động đếm như phiếu KPI tháng, còn lại đếm sự vụ trong Nhật ký Học vụ gắn mã KPI. Ghi chú các báo cáo ngày trong tuần hiện kèm.
+ * Chủ dự án 17/10/2026: mỗi khối có task follow-up riêng, việc chưa xong tuần trước hiện lại đúng khối đó (SectionTasks).
  */
+import { ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { route } from '@/lib/route';
 import ReportTabs from './ReportTabs.vue';
@@ -12,6 +14,7 @@ import ReportReviewState from './ReportReviewState.vue';
 import { useNoteDraft } from './useNoteDraft';
 import DailyMetric from './DailyMetric.vue';
 import WeeklyKpiTable from './WeeklyKpiTable.vue';
+import SectionTasks from './SectionTasks.vue';
 
 defineOptions({ layout: { title: 'Báo cáo tuần Học vụ' } });
 
@@ -30,12 +33,27 @@ const props = defineProps({
     legacy: { type: Array, default: () => [] },
     submittedAt: { type: String, default: null },
     history: { type: Array, default: () => [] },
+    sectionTasks: { type: Object, default: () => ({}) },
+    assignees: { type: Array, default: () => [] },
+    today: { type: String, required: true },
 });
 
 const pickWeek = (value) => value && value !== props.week && router.get(route('reports.periodic.weekly-kpi'), { week: value });
 // Giữ nguyên ghi chú đang gõ, chỉ thay số liệu (rà soát 16/10/2026 B5); ghi chú còn lưu nháp trên máy khi đổi tuần.
 const refresh = () => router.get(route('reports.periodic.weekly-kpi'), { week: props.week, refresh: 1 }, { preserveScroll: true, preserveState: true });
 const { notes: draft, restored, discard, clear } = useNoteDraft(props.draftKey, { note: props.note ?? '' });
+
+let uid = 0;
+const newTasks = ref([]);
+const addTask = (section) => newTasks.value.push({ uid: ++uid, section });
+const removeTask = (t) => (newTasks.value = newTasks.value.filter((x) => x.uid !== t.uid));
+const rowsIn = (section) => newTasks.value.filter((t) => t.section === section);
+const indexOf = (t) => newTasks.value.indexOf(t);
+const taskProps = (section) => ({ section, tasks: props.sectionTasks[section] ?? [], rows: rowsIn(section), indexOf, assignees: props.assignees, today: props.today });
+const onSaved = () => {
+    clear();
+    newTasks.value = [];
+};
 </script>
 
 <template>
@@ -60,7 +78,7 @@ const { notes: draft, restored, discard, clear } = useNoteDraft(props.draftKey, 
 
     <ReportTabs :tabs="tabs" />
 
-    <UiForm id="weekly-kpi-form" :action="route('reports.periodic.weekly-kpi.store')" method="post" class="space-y-lg" @success="clear">
+    <UiForm id="weekly-kpi-form" :action="route('reports.periodic.weekly-kpi.store')" method="post" class="space-y-lg" @success="onSaved">
         <input type="hidden" name="week" :value="week" />
         <input type="hidden" name="refresh" :value="live && submittedAt ? 1 : 0" />
         <ReportReviewState :review="review" />
@@ -99,6 +117,9 @@ const { notes: draft, restored, discard, clear } = useNoteDraft(props.draftKey, 
                     <span class="material-symbols-outlined text-[20px] text-primary-container" aria-hidden="true">assignment_turned_in</span>Số lần phát sinh theo mục KPI
                 </h2>
                 <WeeklyKpiTable :groups="groups" />
+                <div class="px-lg pb-lg">
+                    <SectionTasks v-bind="taskProps('kpi')" title="Task follow-up · Mục KPI" @add="addTask('kpi')" @remove="removeTask" />
+                </div>
             </section>
 
             <div class="min-w-0 space-y-lg">
@@ -110,6 +131,7 @@ const { notes: draft, restored, discard, clear } = useNoteDraft(props.draftKey, 
                     <div class="space-y-sm">
                         <DailyMetric v-for="item in metrics.items" :key="item.key" :item="item" />
                     </div>
+                    <SectionTasks v-bind="taskProps('metrics')" title="Task follow-up" @add="addTask('metrics')" @remove="removeTask" />
                 </section>
             </div>
         </div>
@@ -130,6 +152,7 @@ const { notes: draft, restored, discard, clear } = useNoteDraft(props.draftKey, 
                 </div>
             </div>
             <UiTextarea v-model="draft.note" name="note" label="Ghi chú tuần" :rows="3" placeholder="Tổng kết tuần, việc cần lưu ý tuần tới..." />
+            <SectionTasks v-bind="taskProps('week')" title="Task follow-up tuần tới" hint="Việc cần làm tiếp tuần tới thì thêm ở đây, chưa xong sẽ hiện lại ở báo cáo tuần sau." @add="addTask('week')" @remove="removeTask" />
         </section>
 
         <div class="flex justify-end">

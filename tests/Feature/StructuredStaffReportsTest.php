@@ -50,7 +50,7 @@ class StructuredStaffReportsTest extends TestCase
         // Số liệu lấy từ hệ thống (DailyReportMetricsTest); người viết chỉ nhập ghi chú từng khối.
         $this->actingAs($staff)->get(route('reports.periodic.daily', ['date' => $today]))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->component('Reports/DailyOps')->where('date', $today)
-                ->has('sections', 3)->where('live', true)->where('assignees.0.value', $staff->id)->where('tasks', []));
+                ->has('sections', 4)->where('live', true)->where('assignees.0.value', $staff->id)->where('tasks', []));
 
         // Task thiếu tiêu đề / hạn đã qua → báo lỗi; ngày chưa tới không nộp được.
         $this->actingAs($staff)->post(route('reports.periodic.daily.store'), ['date' => $today, 'tasks' => [['title' => '', 'due_date' => now()->subDay()->toDateString()]]])

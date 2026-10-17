@@ -347,7 +347,7 @@ class Phase2AttendanceTest extends TestCase
             ->assertDontSee('Cô Huyền')->assertDontSee('123 Đường ABC');
 
         $this->actingAs($user)->get(route('portal.student.homework'))
-            ->assertOk()->assertDontSee('Unit 4: Present Continuous')->assertDontSee('Mini Test 1')->assertSee('Chưa có nhận xét buổi học nào.');
+            ->assertOk()->assertDontSee('Unit 4: Present Continuous')->assertDontSee('Mini Test 1')->assertDontSee('Đã nhận xét');
     }
 
     public function test_teacher_submissions_show_only_real_submissions_of_the_selected_class(): void

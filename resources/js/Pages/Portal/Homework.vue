@@ -1,6 +1,7 @@
 <script setup>
 /**
- * Học tập của tôi — Nộp bài tập (MH #3): 6 hạng mục bài tập (nộp / sửa / hủy nộp), nhận xét buổi học, bảng điểm, lộ trình.
+ * Học tập của tôi — Nộp bài tập (MH #3): 6 hạng mục bài tập (nộp / sửa / hủy nộp), nhận xét buổi học (kèm phụ huynh chấm từng buổi),
+ * bảng điểm, lộ trình.
  * Nhân sự xem hộ thì quay về danh sách học viên; học viên quay về trang chủ cổng. Trên điện thoại dùng thanh điều hướng đáy.
  */
 import { computed, ref } from 'vue';
@@ -9,6 +10,7 @@ import { can } from '@/lib/can';
 import { route } from '@/lib/route';
 import PortalBottomNav from './PortalBottomNav.vue';
 import PortalPageHeader from './PortalPageHeader.vue';
+import SessionRating from './SessionRating.vue';
 
 defineOptions({ layout: { title: 'Học tập & Nộp bài tập', workspaceTabs: false } });
 
@@ -19,6 +21,7 @@ const props = defineProps({
     submissionsByType: { type: [Object, Array], default: () => ({}) },
     completedCount: { type: Number, default: 0 },
     remarks: { type: Array, default: () => [] },
+    feedbackCategories: { type: Object, default: () => ({}) },
     miniTests: { type: Array, default: () => [] },
     bigTestResults: { type: Array, default: () => [] },
     latestHomework: { type: Object, default: null },
@@ -203,31 +206,39 @@ function switchStudent(event) {
                         <h2 class="text-base font-bold text-on-surface">Nhận xét buổi học</h2>
                     </div>
 
-                    <div v-for="(item, i) in remarks" :key="i" class="flex flex-col gap-3 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-4 shadow-2xs">
-                        <div class="flex items-start justify-between">
-                            <p class="text-xs font-medium text-on-surface-subtle">Ngày {{ item.date }}</p>
-                            <UiBadge color="success" pill>Đã nhận xét</UiBadge>
+                    <div v-for="item in remarks" :key="item.session_id" class="flex flex-col gap-3 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-4 shadow-2xs" :data-portal-session="item.session_id">
+                        <div class="flex items-start justify-between gap-2">
+                            <div>
+                                <p class="text-sm font-bold text-on-surface">{{ item.label }}</p>
+                                <p class="text-xs text-on-surface-subtle">{{ item.class_name }}<template v-if="item.teacher"> · GV {{ item.teacher }}</template></p>
+                            </div>
+                            <UiBadge v-if="item.remark" color="success" pill>Đã nhận xét</UiBadge>
+                            <UiBadge v-else color="neutral" pill>Chưa có nhận xét</UiBadge>
                         </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <template v-for="(field, fieldKey) in REMARK_FIELDS" :key="fieldKey">
-                                <div v-if="filled(item.remark[fieldKey])" class="flex items-center gap-2 rounded-xl border border-surface-container-highest bg-surface-container-low p-2.5">
-                                    <span :class="['material-symbols-outlined text-lg', field[2]]">{{ field[1] }}</span>
-                                    <div>
-                                        <p class="text-xs font-medium text-on-surface-subtle">{{ field[0] }}</p>
-                                        <p class="text-xs font-bold text-on-surface">{{ item.remark[fieldKey] }}</p>
+                        <template v-if="item.remark">
+                            <div class="grid grid-cols-2 gap-2">
+                                <template v-for="(field, fieldKey) in REMARK_FIELDS" :key="fieldKey">
+                                    <div v-if="filled(item.remark[fieldKey])" class="flex items-center gap-2 rounded-xl border border-surface-container-highest bg-surface-container-low p-2.5">
+                                        <span :class="['material-symbols-outlined text-lg', field[2]]">{{ field[1] }}</span>
+                                        <div>
+                                            <p class="text-xs font-medium text-on-surface-subtle">{{ field[0] }}</p>
+                                            <p class="text-xs font-bold text-on-surface">{{ item.remark[fieldKey] }}</p>
+                                        </div>
                                     </div>
-                                </div>
-                            </template>
-                        </div>
-                        <div v-if="filled(item.remark.comment)" class="border-t border-surface-container-highest pt-3">
-                            <p class="mb-1 flex items-center gap-1 text-xs font-bold text-on-surface-variant">
-                                <span class="material-symbols-outlined text-[15px] text-primary">edit_note</span>
-                                Nhận xét chi tiết từ giáo viên
-                            </p>
-                            <p class="rounded-xl border border-primary-container/30 bg-primary-container/10 p-2.5 text-xs leading-relaxed text-on-surface-variant">{{ item.remark.comment }}</p>
-                        </div>
+                                </template>
+                            </div>
+                            <div v-if="filled(item.remark.comment)" class="border-t border-surface-container-highest pt-3">
+                                <p class="mb-1 flex items-center gap-1 text-xs font-bold text-on-surface-variant">
+                                    <span class="material-symbols-outlined text-[15px] text-primary">edit_note</span>
+                                    Nhận xét chi tiết từ giáo viên
+                                </p>
+                                <p class="rounded-xl border border-primary-container/30 bg-primary-container/10 p-2.5 text-xs leading-relaxed text-on-surface-variant">{{ item.remark.comment }}</p>
+                            </div>
+                        </template>
+                        <p v-else class="text-xs text-on-surface-subtle">Giáo viên chưa gửi nhận xét cho buổi này.</p>
+                        <SessionRating v-if="student && (item.can_rate || item.feedback || item.absent)" :student-id="student.id" :card="item" :categories="feedbackCategories" />
                     </div>
-                    <UiEmptyState v-if="!remarks.length" class="rounded-2xl border border-dashed border-surface-container-highest bg-surface-container-low" icon="insights" title="Chưa có nhận xét buổi học nào." />
+                    <UiEmptyState v-if="!remarks.length" class="rounded-2xl border border-dashed border-surface-container-highest bg-surface-container-low" icon="insights" title="Chưa có buổi học nào gần đây." />
                 </section>
 
                 <!-- 3. BẢNG ĐIỂM -->
