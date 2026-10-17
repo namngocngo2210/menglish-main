@@ -806,3 +806,13 @@ ORDER BY bt.id;
 
 -- name: ResultStatuses :many
 SELECT student_id, status, is_absent FROM syllabus.big_test_results WHERE big_test_id = $1;
+
+-- name: StudentBigTestResults :many
+-- Kết quả Big Test đã duyệt / đã gửi phụ huynh của học viên (Cổng PH/HS), mới nhất trước.
+SELECT r.id, bt.title, bt.scheduled_at, r.is_absent, r.overall_score, r.listening_score, r.reading_score, r.writing_score,
+       r.speaking_score, r.progress_note
+FROM syllabus.big_test_results r
+JOIN syllabus.big_tests bt ON bt.id = r.big_test_id
+WHERE r.student_id = sqlc.arg(student_id) AND r.status IN ('approved', 'sent')
+ORDER BY r.approved_at DESC NULLS LAST, r.id DESC
+LIMIT sqlc.arg(max_rows);

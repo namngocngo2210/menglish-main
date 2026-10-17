@@ -105,7 +105,8 @@ func TestStageProgressionByBigTest(t *testing.T) {
 		res(s1, ptrf(8), ptrf(7), nil, nil, true)}, "action": "draft"}), 422, "Vắng thi")
 	expectMsg(t, teacher.Do("POST", "/syllabus/big-tests/"+testID+"/results", map[string]any{"results": []any{
 		res(s1, ptrf(11), ptrf(7), ptrf(7), ptrf(7), false)}}), 422, "từ 0 đến 10")
-	outsider := e.student("HV009", "Người ngoài", a, e.class("ST-02", a, nil, ""), "0900")
+	class2 := e.class("ST-02", a, nil, "")
+	outsider := e.student("HV009", "Người ngoài", a, class2, "0900")
 	expectMsg(t, teacher.Do("POST", "/syllabus/big-tests/"+testID+"/results", map[string]any{"results": []any{
 		res(outsider, ptrf(8), ptrf(8), ptrf(8), ptrf(8), false)}}), 422, "Học viên không thuộc lớp thi.")
 	expectMsg(t, teacher.Do("POST", "/syllabus/big-tests/"+testID+"/results", map[string]any{"results": []any{}}), 422,
@@ -148,6 +149,27 @@ func TestStageProgressionByBigTest(t *testing.T) {
 	// Nhật ký
 	if e.count(`SELECT count(*) FROM core.audit_log WHERE module = 'Giáo trình & Syllabus' AND action = 'big_test.distribute'`) != 1 {
 		t.Fatal("thiếu nhật ký phân phối đề")
+	}
+
+	// Dữ liệu cho Cổng GV / Cổng PH-HS.
+	ctx := t.Context()
+	units, err := e.svc.ClassUnits(ctx, class)
+	if err != nil || len(units) != 2 || units[0].Number != 1 {
+		t.Fatalf("Unit của lớp: %v %v", units, err)
+	}
+	lessons, err := e.svc.ClassLessons(ctx, class, []int{1, 3, 99})
+	if err != nil || len(lessons) != 2 || lessons[3].Unit != "Unit 2: Unit B" {
+		t.Fatalf("bài theo buổi: %v %v", lessons, err)
+	}
+	if st, err := e.svc.CurrentStage(ctx, class); err != nil || st == nil || !strings.HasPrefix(*st, "Chặng 2") {
+		t.Fatalf("chặng đang học: %v %v", st, err)
+	}
+	rs, err := e.svc.StudentBigTestResults(ctx, s1, 0)
+	if err != nil || len(rs) != 1 || rs[0].Overall == nil || *rs[0].Overall != 7.6 {
+		t.Fatalf("kết quả Big Test của học viên: %v %v", rs, err)
+	}
+	if none, _ := e.svc.ClassUnits(ctx, class2); len(none) != 0 {
+		t.Fatalf("lớp chưa gắn giáo trình: %v", none)
 	}
 }
 

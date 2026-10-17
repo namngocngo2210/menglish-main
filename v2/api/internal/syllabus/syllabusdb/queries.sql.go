@@ -3762,6 +3762,66 @@ func (q *Queries) StageUsage(ctx context.Context, id uuid.UUID) (StageUsageRow, 
 	return i, err
 }
 
+const studentBigTestResults = `-- name: StudentBigTestResults :many
+SELECT r.id, bt.title, bt.scheduled_at, r.is_absent, r.overall_score, r.listening_score, r.reading_score, r.writing_score,
+       r.speaking_score, r.progress_note
+FROM syllabus.big_test_results r
+JOIN syllabus.big_tests bt ON bt.id = r.big_test_id
+WHERE r.student_id = $1 AND r.status IN ('approved', 'sent')
+ORDER BY r.approved_at DESC NULLS LAST, r.id DESC
+LIMIT $2
+`
+
+type StudentBigTestResultsParams struct {
+	StudentID uuid.UUID
+	MaxRows   int32
+}
+
+type StudentBigTestResultsRow struct {
+	ID             uuid.UUID
+	Title          string
+	ScheduledAt    *time.Time
+	IsAbsent       bool
+	OverallScore   *float64
+	ListeningScore *float64
+	ReadingScore   *float64
+	WritingScore   *float64
+	SpeakingScore  *float64
+	ProgressNote   *string
+}
+
+// Kết quả Big Test đã duyệt / đã gửi phụ huynh của học viên (Cổng PH/HS), mới nhất trước.
+func (q *Queries) StudentBigTestResults(ctx context.Context, arg StudentBigTestResultsParams) ([]StudentBigTestResultsRow, error) {
+	rows, err := q.db.Query(ctx, studentBigTestResults, arg.StudentID, arg.MaxRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StudentBigTestResultsRow
+	for rows.Next() {
+		var i StudentBigTestResultsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.ScheduledAt,
+			&i.IsAbsent,
+			&i.OverallScore,
+			&i.ListeningScore,
+			&i.ReadingScore,
+			&i.WritingScore,
+			&i.SpeakingScore,
+			&i.ProgressNote,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const studentsExist = `-- name: StudentsExist :one
 SELECT count(*) FROM academic.students WHERE id = ANY ($1::uuid[])
 `
