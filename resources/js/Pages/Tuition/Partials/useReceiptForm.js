@@ -1,6 +1,6 @@
 /**
  * Trạng thái form Lập / Sửa phiếu thu học phí (chuyển từ Alpine createReceiptManager).
- * Tham số: danh sách khoản học phí, học viên, id chọn sẵn, TK ngân hàng mặc định, phiếu đang sửa (props của Tuition/ReceiptForm).
+ * Tham số: danh sách khoản học phí, học viên, id chọn sẵn, TK ngân hàng mặc định / theo cơ sở, phiếu đang sửa (props của Tuition/ReceiptForm).
  * Nội dung CK và mã VietQR giữ nguyên cách tính cũ (nội dung CK do server sinh theo App\Support\TransferMemo).
  * Giảm trừ: chọn ưu đãi có sẵn (số tiền giảm tự tính, server tính lại) hoặc nhập tay kèm lý do (ca đặc biệt).
  * Tiền phiếu tính theo sổ buổi (quote của khoản học phí / học viên, xem App\Services\Tuition\SessionLedger):
@@ -17,6 +17,7 @@ export function useReceiptForm({
     initialTuitionId = '',
     initialStudentId = '',
     defaultBank = null,
+    bankByBranch = {},
     editing = null,
     merchandiseItems = [],
     stockByBranch = {},
@@ -63,10 +64,15 @@ export function useReceiptForm({
     // Ưu đãi áp dụng được cho khoản học phí (ưu đãi phiếu đang sửa đã chọn vẫn giữ được dù đã hết hạn).
     const promotionFits = (p, t) => !!t && (promotionApplies(p, t.branch_id, t.course_id) || String(p.id) === String(editing?.promotion_id ?? ''));
 
-    const bank = computed(() => (state.currentTuition && state.currentTuition.bank ? state.currentTuition.bank : defaultBank));
-
     // Chi nhánh ghi nhận phiếu (như TuitionReceipt::resolveBranchId): theo hợp đồng, fallback học viên.
     const branchId = computed(() => (state.selectedTuitionId && state.currentTuition?.branch_id) || state.currentStudent?.branch_id || null);
+
+    // TK nhận tiền: theo hợp đồng → theo cơ sở (TK gắn cơ sở, rồi TK dùng chung; không lấy TK của cơ sở khác) → mặc định khi chưa rõ cơ sở.
+    const bank = computed(() => {
+        if (state.currentTuition?.bank) return state.currentTuition.bank;
+        if (branchId.value && branchId.value in bankByBranch) return bankByBranch[branchId.value];
+        return defaultBank;
+    });
     const stockOf = (itemId) => (branchId.value ? (stockByBranch[branchId.value]?.[itemId] ?? 0) : null);
 
     // Tiền mặt ở chi nhánh có dải hóa đơn giấy: hệ thống cấp số, người lập ghi đúng nội dung thu lên tờ hóa đơn mang số đó + tải ảnh.

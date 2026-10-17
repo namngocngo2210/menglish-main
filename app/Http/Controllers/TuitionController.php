@@ -397,25 +397,27 @@ class TuitionController extends Controller
             $selectedStudent = $selectedTuition->student;
         }
 
-        // Mỗi khoản học phí dùng tài khoản của hợp đồng / chi nhánh (fallback mặc định) để tạo QR; số buổi lấy từ dữ liệu thật.
+        // Mỗi khoản học phí dùng tài khoản của hợp đồng / cơ sở (fallback tài khoản dùng chung) để tạo QR; số buổi lấy từ dữ liệu thật.
         $activeAccounts = BankAccount::activeForResolve();
         StudentTuition::preloadSessionStats($tuitions);
-        $tuitionMeta = $tuitions->mapWithKeys(function (StudentTuition $t) use ($activeAccounts) {
+        $bankPayload = fn (?BankAccount $bank, ?string $scope = null) => $bank ? [
+            'bank_code' => $bank->bank_code,
+            'bank_name' => $bank->bank_name,
+            'account_number' => $bank->account_number,
+            'account_holder' => $bank->account_holder,
+            'scope' => $scope ?? ($bank->isShared() ? 'Tài khoản dùng chung các cơ sở' : 'Tài khoản cơ sở '.$bank->branches->pluck('name')->implode(', ')),
+        ] : null;
+        $tuitionMeta = $tuitions->mapWithKeys(function (StudentTuition $t) use ($activeAccounts, $bankPayload) {
             $bank = $t->resolveBankAccount($activeAccounts);
 
             return [$t->id => [
                 'sessions' => $t->sessionStats(),
-                'bank' => $bank ? [
-                    'bank_code' => $bank->bank_code,
-                    'bank_name' => $bank->bank_name,
-                    'account_number' => $bank->account_number,
-                    'account_holder' => $bank->account_holder,
-                    'scope' => $t->bank_account_id && (int) $t->bank_account_id === (int) $bank->id
-                        ? 'Tài khoản gắn với hợp đồng'
-                        : ($bank->branch_id ? 'Tài khoản chi nhánh '.($bank->branch?->name ?? '') : 'Tài khoản mặc định hệ thống'),
-                ] : null,
+                'bank' => $bankPayload($bank, $bank && $t->bank_account_id && (int) $t->bank_account_id === (int) $bank->id ? 'Tài khoản gắn với hợp đồng' : null),
             ]];
         });
+        // Học viên chưa có khoản học phí: QR lấy tài khoản theo cơ sở của học viên (cơ sở không có tài khoản dùng được → null).
+        $bankByBranch = Branch::query()->pluck('id')
+            ->mapWithKeys(fn ($branchId) => [$branchId => $bankPayload(BankAccount::resolveFor((int) $branchId, null, $activeAccounts))]);
 
         // Sổ buổi + gợi ý số buổi cần thu cho từng khoản học phí / học viên (SessionLedger, gộp truy vấn).
         $openByStudent = SessionLedger::openTuitionsFor($students->pluck('id')->merge($tuitions->pluck('student_id')));
@@ -431,7 +433,7 @@ class TuitionController extends Controller
         $quotes = app(SessionLedger::class)->quoteMany($quotePairs);
 
         // Chỉ dùng tài khoản đang hoạt động; không có thì view cảnh báo và ẩn QR (không fallback số TK giả).
-        $defaultBank = $selectedTuition?->resolveBankAccount() ?? BankAccount::defaultAccount();
+        $defaultBank = $selectedTuition?->resolveBankAccount($activeAccounts) ?? BankAccount::resolveFor(null, null, $activeAccounts);
 
         $nextReceiptNumber = $editingReceipt?->receipt_number ?? TuitionReceipt::generateReceiptNumber();
         $recentRejection = null;
@@ -525,13 +527,8 @@ class TuitionController extends Controller
                 ->map(fn (Promotion $p) => PromotionController::props($p))->values(),
             'initialTuitionId' => (string) $initialTuitionId,
             'initialStudentId' => (string) $initialStudentId,
-            'defaultBank' => $defaultBank ? [
-                'bank_code' => $defaultBank->bank_code,
-                'bank_name' => $defaultBank->bank_name,
-                'account_number' => $defaultBank->account_number,
-                'account_holder' => $defaultBank->account_holder,
-                'scope' => 'Tài khoản mặc định hệ thống',
-            ] : null,
+            'defaultBank' => $bankPayload($defaultBank),
+            'bankByBranch' => $bankByBranch,
             'editing' => $editingReceipt ? [
                 'id' => $editingReceipt->id,
                 'status' => $editingReceipt->status,

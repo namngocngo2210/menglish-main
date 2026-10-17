@@ -205,7 +205,7 @@ return [
                 'Bấm **Cài đặt** ở cuối menu trái. Menu con hiện thành 4 nhóm: **Tổ chức & Đào tạo**, **Lương**, **Học phí**, **Hệ thống**.',
                 'Đầu kỳ học: kiểm tra **Khóa học & Bảng giá**, **Phòng học**, **Ngày nghỉ lễ** và **Khung giờ ca dạy**.',
                 'Về lương: chỉnh **Tham số lương** (BHXH, công đoàn, quỹ KPI), **Đơn giá giáo viên** và **Mốc hoa hồng / Thưởng**, rồi bấm lưu ở từng trang.',
-                'Về thu tiền: cấu hình **Tài khoản ngân hàng** (tài khoản mặc định hiện mã QR trên phiếu thu), **Dải số hóa đơn** và **Nhắc nợ học phí**.',
+                'Về thu tiền: cấu hình **Tài khoản ngân hàng** (mỗi tài khoản gắn một hoặc nhiều cơ sở, để trống là dùng chung; mã QR trên phiếu thu lấy tài khoản của cơ sở học viên), **Dải số hóa đơn** và **Nhắc nợ học phí**.',
                 'Trong **Cấu hình SLA**, chọn nhóm rồi bấm vào từng mục để sửa thời hạn, việc tự giao và mức tự lập biên bản.',
             ],
             'tips' => [

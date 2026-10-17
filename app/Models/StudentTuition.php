@@ -281,66 +281,15 @@ class StudentTuition extends Model
     }
 
     /**
-     * Tài khoản nhận tiền cho mã QR của khoản học phí: tài khoản gắn với hợp đồng → tài khoản của chi nhánh
-     * (ưu tiên mặc định VietQR) → tài khoản mặc định toàn hệ thống. Chỉ dùng tài khoản đang hoạt động.
+     * Tài khoản nhận tiền cho mã QR của khoản học phí: tài khoản gắn với hợp đồng (nếu còn dùng được cho cơ sở)
+     * → tài khoản gắn cơ sở → tài khoản dùng chung (xem BankAccount::resolveFor()). Chỉ dùng tài khoản đang hoạt động.
+     * Truyền sẵn BankAccount::activeForResolve() khi hiển thị nhiều khoản học phí trên một trang.
      */
     public function resolveBankAccount(?Collection $activeAccounts = null): ?BankAccount
     {
-        if ($activeAccounts !== null) {
-            return $this->resolveBankAccountFrom($activeAccounts);
-        }
-
-        if ($this->bank_account_id) {
-            $own = BankAccount::query()->whereKey($this->bank_account_id)->where('is_active', true)->first();
-            if ($own) {
-                return $own;
-            }
-        }
-
         $branchId = $this->branch_id ?? $this->student?->branch_id;
-        if ($branchId) {
-            $branchAccount = BankAccount::query()
-                ->where('branch_id', $branchId)
-                ->where('is_active', true)
-                ->orderByDesc('is_default_vietqr')
-                ->orderBy('id')
-                ->first();
-            if ($branchAccount) {
-                return $branchAccount;
-            }
-        }
 
-        return BankAccount::defaultAccount();
-    }
-
-    /**
-     * Cùng thứ tự ưu tiên như resolveBankAccount() nhưng chọn trong danh sách tài khoản đang hoạt động đã nạp sẵn
-     * (BankAccount::activeForResolve()) — dùng khi hiển thị nhiều khoản học phí trên một trang.
-     */
-    private function resolveBankAccountFrom(Collection $activeAccounts): ?BankAccount
-    {
-        if ($this->bank_account_id && ($own = $activeAccounts->firstWhere('id', (int) $this->bank_account_id))) {
-            return $own;
-        }
-
-        $branchId = $this->branch_id ?? $this->student?->branch_id;
-        if ($branchId) {
-            $branchAccount = $activeAccounts
-                ->filter(fn (BankAccount $a) => (int) $a->branch_id === (int) $branchId)
-                ->sortBy([fn ($a, $b) => (int) $b->is_default_vietqr <=> (int) $a->is_default_vietqr, fn ($a, $b) => $a->id <=> $b->id])
-                ->first();
-            if ($branchAccount) {
-                return $branchAccount;
-            }
-        }
-
-        return $activeAccounts
-            ->sortBy([
-                fn ($a, $b) => (int) $b->is_default_vietqr <=> (int) $a->is_default_vietqr,
-                fn ($a, $b) => ($a->branch_id === null ? 0 : 1) <=> ($b->branch_id === null ? 0 : 1),
-                fn ($a, $b) => $a->id <=> $b->id,
-            ])
-            ->first();
+        return BankAccount::resolveFor($branchId ? (int) $branchId : null, $this->bank_account_id ? (int) $this->bank_account_id : null, $activeAccounts);
     }
 
     /**

@@ -55,8 +55,9 @@ class PlacementLevelMatchingTest extends TestCase
         $this->course = Course::create(['code' => 'FAM1', 'name' => 'Starters FAM 1', 'course_level_id' => $this->starters->id, 'tuition_fee' => 10000000, 'is_active' => true]);
         $this->bank = BankAccount::create([
             'bank_code' => 'VCB', 'bank_name' => 'Vietcombank', 'account_number' => '123456',
-            'account_holder' => 'MENGLISH', 'branch_id' => $this->branch->id, 'is_default_vietqr' => true, 'is_active' => true,
+            'account_holder' => 'MENGLISH', 'is_default_vietqr' => true, 'is_active' => true,
         ]);
+        $this->bank->branches()->attach($this->branch->id);
     }
 
     public function test_waiting_list_offers_classes_of_the_closed_course_level_even_with_another_course(): void

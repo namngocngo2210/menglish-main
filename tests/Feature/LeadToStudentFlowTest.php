@@ -48,8 +48,8 @@ class LeadToStudentFlowTest extends TestCase
         $this->course = Course::create(['code' => 'FAM1', 'name' => 'Starters FAM 1', 'tuition_fee' => 10000000, 'total_lessons' => 48, 'is_active' => true]);
         BankAccount::create([
             'bank_code' => 'VCB', 'bank_name' => 'Vietcombank', 'account_number' => '123456',
-            'account_holder' => 'MENGLISH', 'branch_id' => $this->branch->id, 'is_active' => true,
-        ]);
+            'account_holder' => 'MENGLISH', 'is_active' => true,
+        ])->branches()->attach($this->branch->id);
     }
 
     public function test_linking_class_from_student_screen_places_waiting_lead(): void

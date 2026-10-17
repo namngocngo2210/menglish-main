@@ -452,7 +452,7 @@ class Phase4FinanceParityTest extends TestCase
         ])->assertSessionHasNoErrors();
         $this->actingAs($this->accountant)->post(route('system-config.bank-accounts.store'), [
             'account_type' => 'other', 'bank_code' => 'TCB', 'bank_name' => 'Techcombank', 'account_number' => '190345678910',
-            'account_holder' => 'Nguyen Van Dai Dien', 'branch_id' => $this->branch->id,
+            'account_holder' => 'Nguyen Van Dai Dien', 'branch_ids' => [$this->branch->id],
         ])->assertSessionHasNoErrors();
 
         $default = BankAccount::where('account_number', '0071001234567')->firstOrFail();

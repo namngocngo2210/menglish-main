@@ -289,7 +289,7 @@ class DemoPhase4Seeder extends Seeder
             $this->asUser($branchAccountant, SystemConfigController::class, 'storeBankAccount', [
                 'bank_code' => $bankCode, 'bank_name' => $bankName, 'account_number' => $number,
                 'account_holder' => 'CONG TY CO PHAN GIAO DUC MENGLISH', 'branch_location' => $location.' '.self::MARKER,
-                'branch_id' => $this->branches[$code],
+                'branch_ids' => [$this->branches[$code]],
             ]);
             $this->asUser($branchAccountant, TuitionController::class, 'storeInvoiceRange', [
                 'branch_id' => $this->branches[$code], 'template_code' => '1/001', 'series_code' => 'C26M'.$code,
@@ -659,7 +659,7 @@ class DemoPhase4Seeder extends Seeder
         $seriousDays = 7;
         $overdue = $demoTuitions->filter(fn (StudentTuition $t) => (float) $t->debt_amount > 0 && ! $t->remindersPausedOn() && ($t->daysOverdue() ?? 0) >= 1);
         $rows = [
-            ['bank_accounts theo chi nhánh', BankAccount::with('branch')->get()->map(fn ($b) => ($b->branch?->code ?? 'chung').' '.$b->bank_code)->implode(', ')],
+            ['bank_accounts theo chi nhánh', BankAccount::with('branches')->get()->map(fn ($b) => ($b->branches->pluck('code')->implode('+') ?: 'chung').' '.$b->bank_code)->implode(', ')],
             ['invoice_configurations (dải số)', InvoiceConfiguration::with('branch')->get()->map(fn ($c) => $c->series_code.' ('.($c->branch?->code ?? 'mặc định').')')->implode(', ')],
             ['student_tuitions demo P4 theo trạng thái', $countBy(StudentTuition::whereIn('id', $demoTuitions->pluck('id')), 'status')],
             ['tuition_receipts theo trạng thái (toàn DB)', $countBy(TuitionReceipt::query(), 'status')],

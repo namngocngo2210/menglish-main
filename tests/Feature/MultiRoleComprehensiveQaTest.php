@@ -58,9 +58,9 @@ class MultiRoleComprehensiveQaTest extends TestCase
         ]);
         BankAccount::create([
             'bank_code' => 'VCB', 'bank_name' => 'Vietcombank', 'account_number' => '123456789',
-            'account_holder' => 'MENGLISH', 'branch_id' => $this->branch->id,
+            'account_holder' => 'MENGLISH',
             'is_default_vietqr' => true, 'is_active' => true,
-        ]);
+        ])->branches()->attach($this->branch->id);
 
         // 3. Khởi tạo 6 vai trò (7 tài khoản) với mật khẩu Password123!
         // Role 1: Admin (admin@menglish.edu.vn & lequelcm@gmail.com)

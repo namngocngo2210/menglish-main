@@ -22,14 +22,14 @@ class SystemConfigController extends Controller
 {
     public function bankAccounts(Request $request): InertiaResponse
     {
-        // Mockup cau-hinh-tai-khoan-ngan-hang: bảng tài khoản có tìm kiếm (ngân hàng / số TK / chủ TK / chi nhánh).
+        // Mockup cau-hinh-tai-khoan-ngan-hang: bảng tài khoản có tìm kiếm (ngân hàng / số TK / chủ TK / cơ sở).
         $search = trim((string) $request->input('q', ''));
-        $accounts = BankAccount::with('branch')
+        $accounts = BankAccount::with('branches')
             ->when($search !== '', fn ($q) => $q->where(fn ($q) => $q->where('bank_name', 'like', "%{$search}%")
                 ->orWhere('bank_code', 'like', "%{$search}%")
                 ->orWhere('account_number', 'like', "%{$search}%")
                 ->orWhere('account_holder', 'like', "%{$search}%")
-                ->orWhereHas('branch', fn ($b) => $b->where('name', 'like', "%{$search}%"))))
+                ->orWhereHas('branches', fn ($b) => $b->where('name', 'like', "%{$search}%"))))
             ->orderByDesc('is_default_vietqr')
             ->orderByDesc('is_active')
             ->orderBy('bank_name')
@@ -37,6 +37,10 @@ class SystemConfigController extends Controller
         $totalAccounts = BankAccount::count();
         $defaultAccount = BankAccount::defaultAccount();
         $branches = Branch::orderBy('name')->get();
+        // Cơ sở không có tài khoản nào dùng được (không có TK riêng đang hoạt động và không có TK dùng chung) → QR học phí không tạo được.
+        $activeAccounts = BankAccount::activeForResolve();
+        $uncoveredBranches = $branches->filter(fn (Branch $branch) => $branch->is_active && ! BankAccount::resolveFor($branch->id, null, $activeAccounts))
+            ->pluck('name')->values()->all();
         // Không dùng getActiveConfig() trực tiếp: hàm đó tự tạo row khi bảng trống và từng gây 500
         // khi thiếu SEPAY_WEBHOOK_SECRET. Tab SePay chỉ hiện khi webhook được bật qua env.
         $sepayEnabled = (bool) config('services.sepay.webhook_enabled', false);
@@ -51,11 +55,12 @@ class SystemConfigController extends Controller
 
         return Inertia::render('SystemConfig/BankAccounts', [
             'accounts' => $accounts->map(fn (BankAccount $acc) => [
-                ...$acc->only(['id', 'account_type', 'bank_code', 'bank_name', 'account_number', 'account_holder', 'branch_id', 'branch_location']),
+                ...$acc->only(['id', 'account_type', 'bank_code', 'bank_name', 'account_number', 'account_holder', 'branch_location']),
                 'is_default_vietqr' => (bool) $acc->is_default_vietqr,
                 'is_active' => (bool) $acc->is_active,
                 'type_label' => mb_strtoupper($acc->type_label),
-                'branch_name' => $acc->branch?->name,
+                'branch_ids' => $acc->branches->pluck('id')->all(),
+                'branch_names' => $acc->branches->pluck('name')->all(),
             ])->values()->all(),
             'totalAccounts' => $totalAccounts,
             'defaultAccount' => $defaultAccount ? [
@@ -65,6 +70,7 @@ class SystemConfigController extends Controller
             ] : null,
             'search' => $search,
             'branches' => Ui::options($branches, 'name'),
+            'uncoveredBranches' => $uncoveredBranches,
             'sepayEnabled' => $sepayEnabled,
             'sepay' => $sepayConfig ? [
                 // Khóa bí mật không gửi xuống trình duyệt (ai mở được trang là giả được webhook thanh toán): chỉ báo đã đặt.
@@ -101,7 +107,8 @@ class SystemConfigController extends Controller
             'account_number' => 'required|string|max:50',
             'account_holder' => 'required|string|max:255',
             'branch_location' => 'nullable|string|max:255',
-            'branch_id' => 'nullable|exists:branches,id',
+            'branch_ids' => 'nullable|array',
+            'branch_ids.*' => 'integer|distinct|exists:branches,id',
             'is_default_vietqr' => 'nullable|boolean',
         ]);
 
@@ -117,10 +124,11 @@ class SystemConfigController extends Controller
             'account_number' => $validated['account_number'],
             'account_holder' => strtoupper($validated['account_holder']),
             'branch_location' => $validated['branch_location'] ?? null,
-            'branch_id' => ! empty($validated['branch_id']) ? $validated['branch_id'] : null,
             'is_default_vietqr' => $isDefault || BankAccount::count() === 0,
             'is_active' => true,
         ]);
+        // Không chọn cơ sở nào = tài khoản dùng chung cho mọi cơ sở.
+        $acc->branches()->sync($validated['branch_ids'] ?? []);
 
         return redirect()->route('system-config.bank-accounts')
             ->with('status', "Đã thêm tài khoản ngân hàng {$acc->bank_name} ({$acc->account_number}) thành công!");
@@ -137,7 +145,8 @@ class SystemConfigController extends Controller
             'account_number' => 'required|string|max:50',
             'account_holder' => 'required|string|max:255',
             'branch_location' => 'nullable|string|max:255',
-            'branch_id' => 'nullable|exists:branches,id',
+            'branch_ids' => 'nullable|array',
+            'branch_ids.*' => 'integer|distinct|exists:branches,id',
             'is_default_vietqr' => 'nullable|boolean',
             'is_active' => 'nullable|boolean',
         ]);
@@ -160,10 +169,10 @@ class SystemConfigController extends Controller
             'account_number' => $validated['account_number'],
             'account_holder' => strtoupper($validated['account_holder']),
             'branch_location' => $validated['branch_location'] ?? null,
-            'branch_id' => ! empty($validated['branch_id']) ? $validated['branch_id'] : null,
             'is_default_vietqr' => $isDefault ? true : $acc->is_default_vietqr,
             'is_active' => $request->has('is_active') ? $request->boolean('is_active') : true,
         ]);
+        $acc->branches()->sync($validated['branch_ids'] ?? []);
 
         return redirect()->route('system-config.bank-accounts')
             ->with('status', "Đã cập nhật thông tin tài khoản ngân hàng {$acc->bank_name} ({$acc->account_number}) thành công!");

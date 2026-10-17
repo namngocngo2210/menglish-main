@@ -2379,10 +2379,9 @@ class CrmController extends Controller
         $defaultCourseId = $defaultClass?->course_id
             ?? ($levelKeys ? Course::where('is_active', true)->get()->first(fn (Course $course) => collect($levelKeys)
                 ->contains(fn (string $key) => str_contains(Str::upper($course->name.' '.$course->code), $key)))?->id : null);
-        $bankAccounts = BankAccount::where('is_active', true)
-            ->when($selectedCustomer?->branch_id, fn (Builder $query, int $branchId) => $query
-                ->where(fn (Builder $accountQuery) => $accountQuery->where('branch_id', $branchId)->orWhereNull('branch_id')))
-            ->get();
+        // Gửi mọi tài khoản đang hoạt động kèm cơ sở gắn: màn chốt lọc theo cơ sở của lớp đang chọn
+        // (lớp có thể ở cơ sở khác cơ sở của khách) và tự chọn tài khoản của cơ sở đó.
+        $bankAccounts = BankAccount::activeForResolve()->sortBy('id')->values();
         // Chỉ ưu đãi dùng lại được (danh mục); ưu đãi riêng ca đặc biệt tạo ngay trong màn này.
         $promotions = Promotion::available()->catalog()->orderByDesc('is_default')->orderBy('name')->get();
         $merchandiseItems = MerchandiseItem::active()->orderBy('category')->orderBy('name')->get();
@@ -2390,7 +2389,8 @@ class CrmController extends Controller
         // Mã học viên cấp sẵn khi mở màn chốt để nội dung CK / VietQR xem trước đúng với mã thật sau khi chốt.
         $studentCodePreview = self::newStudentCode();
 
-        $defaultBank = $bankAccounts->firstWhere('is_default_vietqr', true) ?? $bankAccounts->first();
+        $defaultBranchId = $defaultClass?->branch_id ?? $selectedCustomer?->branch_id;
+        $defaultBank = BankAccount::resolveFor($defaultBranchId ? (int) $defaultBranchId : null, null, $bankAccounts);
 
         return Inertia::render('Crm/ClosingWizard', [
             'customers' => $customers->map(fn (CrmCustomer $c) => [
@@ -2443,6 +2443,8 @@ class CrmController extends Controller
                 'bank_name' => $bank->bank_name,
                 'account_number' => $bank->account_number,
                 'account_holder' => $bank->account_holder,
+                'is_default_vietqr' => (bool) $bank->is_default_vietqr,
+                'branch_ids' => $bank->branches->pluck('id')->all(),
             ])->values()->all(),
             'defaultBankAccountId' => $defaultBank?->id,
             'promotions' => $promotions->map(fn (Promotion $promotion) => PromotionController::props($promotion))->values()->all(),
@@ -2595,8 +2597,8 @@ class CrmController extends Controller
             if ($needsBankAccount && ! $bankAccount) {
                 throw ValidationException::withMessages(['bank_account_id' => 'Chuyển khoản cần một tài khoản ngân hàng đang hoạt động.']);
             }
-            if ($bankAccount?->branch_id && $branchId && $bankAccount->branch_id !== $branchId) {
-                throw ValidationException::withMessages(['bank_account_id' => 'Tài khoản thu tiền không thuộc chi nhánh của lớp.']);
+            if ($bankAccount && ! $bankAccount->appliesToBranch($branchId ? (int) $branchId : null)) {
+                throw ValidationException::withMessages(['bank_account_id' => 'Tài khoản thu tiền không dùng cho cơ sở của lớp.']);
             }
 
             $promotion = null;
@@ -3004,24 +3006,8 @@ class CrmController extends Controller
             $remainingDebt,
             (float) $tuition->receipts->where('status', 'pending')->sum('amount')
         );
-        $bankAccount = $tuition->bank_account_id
-            ? BankAccount::whereKey($tuition->bank_account_id)->where('is_active', true)->first()
-            : null;
-        if ($bankAccount && $tuition->branch_id && $bankAccount->branch_id && $bankAccount->branch_id !== $tuition->branch_id) {
-            $bankAccount = null;
-        }
-        if (! $bankAccount && $tuition->branch_id) {
-            $bankAccount = BankAccount::query()
-                ->where('is_active', true)
-                ->where('is_default_vietqr', true)
-                ->where('branch_id', $tuition->branch_id)
-                ->first();
-        }
-        $bankAccount ??= BankAccount::query()
-            ->where('is_active', true)
-            ->where('is_default_vietqr', true)
-            ->whereNull('branch_id')
-            ->first();
+        // Cùng thứ tự với QR ở màn học phí: TK của hợp đồng → TK gắn cơ sở → TK dùng chung.
+        $bankAccount = $tuition->resolveBankAccount();
 
         // Luôn sinh theo mẫu hiện hành (tên + mã + lớp) để nội dung cũ / lớp vừa xếp được cập nhật.
         // Phụ huynh đã CK theo nội dung cũ vẫn được SePay khớp nhờ mã học sinh trong nội dung.

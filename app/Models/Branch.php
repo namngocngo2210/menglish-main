@@ -80,6 +80,11 @@ class Branch extends Model
         return $this->belongsToMany(User::class, 'user_branches');
     }
 
+    public function bankAccounts(): BelongsToMany
+    {
+        return $this->belongsToMany(BankAccount::class, 'bank_account_branch')->withTimestamps();
+    }
+
     public function holidays(): BelongsToMany
     {
         return $this->belongsToMany(Holiday::class, 'holiday_branches');

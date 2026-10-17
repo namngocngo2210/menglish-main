@@ -149,8 +149,9 @@ class PromotionReuseTest extends TestCase
         $lead = $this->lead();
         $bank = BankAccount::create([
             'bank_code' => 'VCB', 'bank_name' => 'Vietcombank', 'account_number' => '123456',
-            'account_holder' => 'MENGLISH', 'branch_id' => $this->branch->id, 'is_default_vietqr' => true, 'is_active' => true,
+            'account_holder' => 'MENGLISH', 'is_default_vietqr' => true, 'is_active' => true,
         ]);
+        $bank->branches()->attach($this->branch->id);
 
         $this->actingAs($this->academic)->post(route('crm.closing-wizard.store'), [
             'customer_id' => $lead->id,

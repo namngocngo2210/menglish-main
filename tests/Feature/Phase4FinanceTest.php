@@ -348,8 +348,8 @@ class Phase4FinanceTest extends TestCase
         ]);
         BankAccount::create([
             'bank_code' => 'TCB', 'bank_name' => 'Techcombank', 'account_number' => '9999888877',
-            'account_holder' => 'MENGLISH CAU GIAY', 'branch_id' => $this->branch->id, 'is_active' => true,
-        ]);
+            'account_holder' => 'MENGLISH CAU GIAY', 'is_active' => true,
+        ])->branches()->attach($this->branch->id);
 
         $this->assertSame(['total' => 24, 'attended' => 2, 'remaining' => 22, 'source' => 'course'], $this->tuition->fresh()->sessionStats());
         $this->assertSame('9999888877', $this->tuition->fresh()->resolveBankAccount()->account_number);
@@ -374,6 +374,56 @@ class Phase4FinanceTest extends TestCase
         ]);
         $this->tuition->update(['bank_account_id' => $contractAccount->id]);
         $this->assertSame('5555666677', $this->tuition->fresh()->resolveBankAccount()->account_number);
+    }
+
+    public function test_bank_account_can_serve_several_branches_and_never_another_branch(): void
+    {
+        $branch3 = Branch::create(['name' => 'CN Hà Đông', 'code' => 'HD', 'is_active' => true]);
+        $student2 = Student::create(['code' => 'HV-P4-DD3', 'name' => 'HV Đống Đa', 'phone' => '0900000078', 'branch_id' => $this->branch2->id, 'status' => 'studying']);
+        $student3 = Student::create(['code' => 'HV-P4-HD1', 'name' => 'HV Hà Đông', 'phone' => '0900000079', 'branch_id' => $branch3->id, 'status' => 'studying']);
+
+        // Kế toán tạo 1 tài khoản dùng cho 2 cơ sở (Cầu Giấy + Đống Đa).
+        $this->actingAs($this->accountant)->post(route('system-config.bank-accounts.store'), [
+            'bank_code' => 'TCB', 'bank_name' => 'Techcombank', 'account_number' => '7777000011',
+            'account_holder' => 'Menglish CG DD', 'branch_ids' => [$this->branch->id, $this->branch2->id],
+        ])->assertSessionHasNoErrors();
+        $shared2 = BankAccount::where('account_number', '7777000011')->firstOrFail();
+        $this->assertEqualsCanonicalizing([$this->branch->id, $this->branch2->id], $shared2->branches->pluck('id')->all());
+
+        $this->assertSame('7777000011', $this->tuition->fresh()->resolveBankAccount()?->account_number);
+        $this->assertSame('7777000011', $this->makeTuition($student2, 1000000)->resolveBankAccount()?->account_number);
+        // Hà Đông chưa có tài khoản riêng, chưa có tài khoản dùng chung: không lấy tài khoản của cơ sở khác.
+        $tuition3 = $this->makeTuition($student3, 1000000);
+        $this->assertNull($tuition3->resolveBankAccount());
+        // Tài khoản trên hợp đồng nhưng không dùng cho cơ sở của hợp đồng thì bỏ qua.
+        $tuition3->update(['bank_account_id' => $shared2->id]);
+        $this->assertNull($tuition3->fresh()->resolveBankAccount());
+
+        $this->actingAs($this->accountant)->get(route('system-config.bank-accounts'))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('uncoveredBranches', ['CN Hà Đông'])
+                ->where('accounts.0.branch_names', fn ($names) => collect($names)->sort()->values()->all() === ['CN Cầu Giấy', 'CN Đống Đa']));
+
+        // Tài khoản không gắn cơ sở nào = dùng chung: Hà Đông dùng được, cơ sở có tài khoản riêng vẫn ưu tiên tài khoản riêng.
+        $this->actingAs($this->accountant)->post(route('system-config.bank-accounts.store'), [
+            'bank_code' => 'VCB', 'bank_name' => 'Vietcombank', 'account_number' => '1111000022', 'account_holder' => 'Menglish HQ',
+        ])->assertSessionHasNoErrors();
+        $this->assertSame('1111000022', $tuition3->fresh()->resolveBankAccount()?->account_number);
+        $this->assertSame('7777000011', $this->makeTuition($student2, 1000000)->resolveBankAccount()?->account_number);
+
+        // Bỏ Đống Đa khỏi tài khoản → Đống Đa chuyển sang tài khoản dùng chung.
+        $payload = ['bank_code' => 'TCB', 'bank_name' => 'Techcombank', 'account_number' => '7777000011', 'account_holder' => 'Menglish CG DD', 'is_active' => 1];
+        $this->actingAs($this->accountant)->put(route('system-config.bank-accounts.update', $shared2->id), $payload + ['branch_ids' => [$this->branch->id]])
+            ->assertSessionHasNoErrors();
+        $this->assertSame([$this->branch->id], $shared2->fresh()->branches->pluck('id')->all());
+        $this->assertSame('1111000022', $this->makeTuition($student2, 1000000)->resolveBankAccount()?->account_number);
+
+        // Màn lập phiếu thu: học viên chưa có khoản học phí lấy tài khoản theo cơ sở của học viên.
+        $this->actingAs($this->staff)->get(route('tuition.receipts.create'))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where("bankByBranch.{$this->branch->id}.account_number", '7777000011')
+                ->where("bankByBranch.{$this->branch2->id}.account_number", '1111000022')
+                ->where("bankByBranch.{$branch3->id}.scope", 'Tài khoản dùng chung các cơ sở'));
     }
 
     public function test_session_block_is_hidden_without_data(): void

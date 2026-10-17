@@ -77,9 +77,10 @@ class CrmBusinessTest extends TestCase
 
         $this->bankAccount = BankAccount::create([
             'bank_code' => 'VCB', 'bank_name' => 'Vietcombank', 'account_number' => '123456789',
-            'account_holder' => 'MENGLISH', 'branch_id' => $this->branch->id,
+            'account_holder' => 'MENGLISH',
             'is_default_vietqr' => true, 'is_active' => true,
         ]);
+        $this->bankAccount->branches()->attach($this->branch->id);
     }
 
     // =========================================================================

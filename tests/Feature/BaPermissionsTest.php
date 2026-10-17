@@ -85,8 +85,8 @@ class BaPermissionsTest extends TestCase
         ]);
         BankAccount::create([
             'bank_code' => 'VCB', 'bank_name' => 'Vietcombank', 'account_number' => '0011223344', 'account_holder' => 'MENGLISH',
-            'branch_id' => $this->branch->id, 'is_default_vietqr' => true, 'is_active' => true,
-        ]);
+            'is_default_vietqr' => true, 'is_active' => true,
+        ])->branches()->attach($this->branch->id);
     }
 
     // ── Quyết định 1: Kế toán phân quyền linh hoạt ────────────────────────────────────────────
