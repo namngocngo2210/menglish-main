@@ -490,6 +490,29 @@ type FinanceBankAccount struct {
 	DeletedAt       *time.Time
 }
 
+type FinanceBankTransaction struct {
+	ID               uuid.UUID
+	Provider         string
+	ProviderTxnID    string
+	Gateway          *string
+	TransactionDate  *time.Time
+	AccountNumber    *string
+	SubAccount       *string
+	TransferType     string
+	TransferAmount   int64
+	Accumulated      int64
+	Content          *string
+	ReferenceCode    *string
+	RawPayload       []byte
+	Status           string
+	MatchedStudentID *uuid.UUID
+	MatchedTuitionID *uuid.UUID
+	MatchedReceiptID *uuid.UUID
+	ResponseMessage  *string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
 type FinanceDebtReminderRule struct {
 	ID              uuid.UUID
 	MilestoneKey    string
@@ -501,6 +524,167 @@ type FinanceDebtReminderRule struct {
 	CreatedBy       *uuid.UUID
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+}
+
+type FinanceInvoiceCancellation struct {
+	ID              uuid.UUID
+	InvoiceNumber   string
+	ReceiptID       *uuid.UUID
+	StudentID       *uuid.UUID
+	Amount          int64
+	Reason          string
+	RejectionReason *string
+	ProofUrl        *string
+	ProofFileID     *uuid.UUID
+	Status          string
+	RequesterID     *uuid.UUID
+	ApproverID      *uuid.UUID
+	ApprovedAt      *time.Time
+	LegacyID        *int64
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+type FinanceInvoiceRange struct {
+	ID            uuid.UUID
+	BranchID      *uuid.UUID
+	Kind          string
+	TemplateCode  string
+	SeriesCode    string
+	StartNumber   int64
+	EndNumber     *int64
+	CurrentNumber int64
+	Provider      string
+	AutoIssue     bool
+	IsActive      bool
+	CreatedBy     *uuid.UUID
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
+type FinancePaymentProvider struct {
+	Provider        string
+	WebhookName     string
+	TransactionType string
+	AuthMethod      string
+	ApiKeyEnc       []byte
+	SecretKeyEnc    []byte
+	IsActive        bool
+	UpdatedBy       *uuid.UUID
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+type FinanceReceipt struct {
+	ID                 uuid.UUID
+	Code               string
+	Source             string
+	InvoiceNumber      *string
+	TuitionID          *uuid.UUID
+	StudentID          *uuid.UUID
+	Amount             int64
+	TuitionAmount      int64
+	SessionCount       *int32
+	SessionUnitPrice   *int64
+	MaterialFee        int64
+	ExamFee            int64
+	OtherFee           int64
+	OtherFeeReason     *string
+	SurchargeAmount    int64
+	SurchargeReason    *string
+	DiscountAmount     int64
+	PromotionID        *uuid.UUID
+	DiscountReason     *string
+	PaymentMethod      string
+	TransactionCode    *string
+	TransferReference  *string
+	PayerName          *string
+	PayerPhone         *string
+	IsVatInvoice       bool
+	PaperInvoiceNumber *string
+	ProofUrl           *string
+	ProofFileID        *uuid.UUID
+	PaymentDate        pgtype.Date
+	CollectedItems     []byte
+	Status             string
+	Notes              *string
+	RejectionReason    *string
+	CreatorID          *uuid.UUID
+	ApproverID         *uuid.UUID
+	ApprovedAt         *time.Time
+	DepositedAt        *time.Time
+	DepositedBy        *uuid.UUID
+	LegacyID           *int64
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+}
+
+type FinanceRefundRequest struct {
+	ID               uuid.UUID
+	StudentID        uuid.UUID
+	TuitionID        *uuid.UUID
+	Type             string
+	TotalPaid        int64
+	AttendedLessons  int32
+	AdminFee         int64
+	RefundAmount     int64
+	TargetStudentID  *uuid.UUID
+	ExtendedDueDate  pgtype.Date
+	DeferFrom        pgtype.Date
+	DeferTo          pgtype.Date
+	Reason           string
+	NoTransferReason *string
+	ProofUrl         *string
+	ProofFileID      *uuid.UUID
+	RejectionReason  *string
+	Status           string
+	RequesterID      *uuid.UUID
+	ApproverID       *uuid.UUID
+	ApprovedAt       *time.Time
+	LegacyID         *int64
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
+type FinanceTuition struct {
+	ID                      uuid.UUID
+	StudentID               uuid.UUID
+	ClassID                 *uuid.UUID
+	BranchID                *uuid.UUID
+	BankAccountID           *uuid.UUID
+	PromotionID             *uuid.UUID
+	TotalAmount             int64
+	SessionCount            *int32
+	DiscountAmount          int64
+	OtherFees               int64
+	FeeItems                []byte
+	PrepaidAmount           int64
+	FinalAmount             int64
+	PaidAmount              int64
+	DebtAmount              int64
+	DueDate                 pgtype.Date
+	ReminderPausedUntil     pgtype.Date
+	DeferredFrom            pgtype.Date
+	DeferredUntil           pgtype.Date
+	FrozenRemainingSessions *int32
+	FrozenDebtAmount        *int64
+	Status                  string
+	Notes                   *string
+	TransferMemo            *string
+	LegacyID                *int64
+	CreatedBy               *uuid.UUID
+	CreatedAt               time.Time
+	UpdatedAt               time.Time
+}
+
+type FinanceTuitionContactLog struct {
+	ID          uuid.UUID
+	TuitionID   uuid.UUID
+	UserID      *uuid.UUID
+	Action      string
+	Note        *string
+	ContactedAt time.Time
+	CreatedAt   time.Time
 }
 
 type HrSlaRule struct {
