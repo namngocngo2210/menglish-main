@@ -59,6 +59,13 @@ func (h *Handler) Routes(r chi.Router) {
 		r.With(view, approveCancel).Post("/invoices/cancellations/{id}/approve", h.approveInvoiceCancellation)
 		r.With(view, approveCancel).Post("/invoices/cancellations/{id}/reject", h.rejectInvoiceCancellation)
 
+		// Cấu hình dải số hóa đơn: dải mặc định cần thêm invoice_range.manage_default (kiểm trong service).
+		ranges := iam.Require("invoice_range.manage")
+		r.With(view).Get("/config", h.invoiceConfig)
+		r.With(view, ranges).Post("/config", h.updateInvoiceConfig)
+		r.With(view, ranges).Post("/config/ranges", h.createInvoiceRange)
+		r.With(view, ranges).Post("/config/ranges/{id}/toggle", h.toggleInvoiceRange)
+
 		// Hoàn tiền & Khất nợ: quyền duyệt theo loại hồ sơ kiểm trong service (TuitionRefundRequest::approvePermission).
 		r.With(view).Get("/refunds", h.refunds)
 		r.With(view, iam.Require("refund_transfer.request")).Post("/refunds", h.createRefund)

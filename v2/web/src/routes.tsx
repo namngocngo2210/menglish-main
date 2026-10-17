@@ -53,6 +53,7 @@ import { OutboxPage } from './features/mail/OutboxPage'
 import { ApprovePage as TuitionApprovePage } from './features/tuition/ApprovePage'
 import { BillPage as TuitionBillPage } from './features/tuition/BillPage'
 import { CancellationsPage as TuitionCancellationsPage } from './features/tuition/CancellationsPage'
+import { ConfigPage as TuitionConfigPage } from './features/tuition/ConfigPage'
 import { HistoryPage as TuitionHistoryPage } from './features/tuition/HistoryPage'
 import { OverduePage as TuitionOverduePage } from './features/tuition/OverduePage'
 import { ReceiptsRoute } from './features/tuition/ReceiptFormPage'
@@ -129,5 +130,6 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/tuition/receipts/approve': (me) => <TuitionApprovePage me={me} />,
   '/tuition/bill': (me) => <TuitionBillPage me={me} />,
   '/tuition/invoices/cancellations': (me) => <TuitionCancellationsPage me={me} />,
+  '/tuition/config': (me) => <TuitionConfigPage me={me} />,
   '/tuition/refunds': (me) => <TuitionRefundsPage me={me} />,
 }

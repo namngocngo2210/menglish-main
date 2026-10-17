@@ -517,8 +517,21 @@ SELECT * FROM finance.invoice_ranges WHERE series_code = $1 AND id <> sqlc.arg(i
 
 -- name: MaxIssuedInvoice :one
 -- Số lớn nhất đã cấp trong dải (số đệm đủ 7 chữ số nên so chuỗi đúng thứ tự).
-SELECT max(invoice_number)::text FROM finance.receipts
+SELECT COALESCE(max(invoice_number), '')::text FROM finance.receipts
 WHERE invoice_number LIKE sqlc.arg(series)::text || '-_______' AND invoice_number BETWEEN sqlc.arg(low)::text AND sqlc.arg(high)::text;
+
+-- name: RecentIssuedInvoices :many
+-- 5 số hóa đơn lớn nhất đã cấp trong dải (kể cả phiếu đã hủy hóa đơn).
+SELECT invoice_number::text AS invoice_number, status, updated_at FROM finance.receipts
+WHERE invoice_number LIKE sqlc.arg(series)::text || '-_______' AND invoice_number BETWEEN sqlc.arg(low)::text AND sqlc.arg(high)::text
+ORDER BY invoice_number DESC LIMIT 5;
+
+-- name: FirstDefaultRange :one
+SELECT * FROM finance.invoice_ranges WHERE branch_id IS NULL ORDER BY created_at, id LIMIT 1;
+
+-- name: LockSeries :exec
+-- Khóa theo ký hiệu trong giao dịch: kiểm chồng lấn rồi ghi dải không bị chen ngang.
+SELECT pg_advisory_xact_lock(hashtext('finance.invoice_ranges:' || sqlc.arg(series)::text));
 
 -- name: CountIssuedInvoices :one
 SELECT count(*) FROM finance.receipts

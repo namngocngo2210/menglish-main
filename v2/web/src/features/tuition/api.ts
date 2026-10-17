@@ -574,6 +574,10 @@ export const tuitionApi = {
     return upload<Saved>('/tuition/invoices/cancellations', f)
   },
   approveCancellation: (id: string) => request<Saved>('POST', `/tuition/invoices/cancellations/${id}/approve`),
+  config: () => request<ConfigPage>('GET', '/tuition/config'),
+  updateRange: (d: RangeInput & { config_id?: string; current_number: number | null }) => request<Saved>('POST', '/tuition/config', d),
+  createRange: (d: RangeInput & { kind: 'electronic' | 'paper'; branch_id: string | null }) => request<Saved>('POST', '/tuition/config/ranges', d),
+  toggleRange: (id: string) => request<Saved>('POST', `/tuition/config/ranges/${id}/toggle`),
   rejectCancellation: (id: string, rejection_reason: string) =>
     request<Saved>('POST', `/tuition/invoices/cancellations/${id}/reject`, { rejection_reason }),
 }
@@ -736,3 +740,31 @@ export type OverduePage = {
   branches: Option[]
   classes: Option[]
 }
+
+export type InvoiceRange = {
+  id: string
+  branch_id: string | null
+  branch_name: string | null
+  kind: 'electronic' | 'paper'
+  kind_label: string
+  series_code: string
+  template_code: string
+  provider: string
+  start_number: number
+  end_number: number | null
+  current_number: number
+  range_label: string
+  current_label: string
+  max_issued: number | null
+  max_issued_label: string | null
+  remaining: number | null
+  remaining_label: string | null
+  low: boolean
+  is_active: boolean
+  can_manage: boolean
+  recent: { invoice_number: string; label: string }[]
+}
+
+export type ConfigPage = { ranges: InvoiceRange[]; branches: Option[]; can_manage: boolean; can_manage_default: boolean }
+
+export type RangeInput = { template_code: string; series_code: string; start_number: number | null; end_number: number | null }

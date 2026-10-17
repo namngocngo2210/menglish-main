@@ -65,6 +65,13 @@ export const NAV: NavItem[] = [
   { path: '/teaching-shifts', label: 'Khung giờ ca dạy', perms: ['class.update'], group: 'Tổ chức & Đào tạo' },
   { path: '/rooms', label: 'Phòng học', perms: ['room.view'], group: 'Tổ chức & Đào tạo' },
   { path: '/system-config/debt-reminders', label: 'Nhắc nợ học phí', perms: ['fee_reminder_config.manage'], group: 'Cài đặt › Học phí' },
+  {
+    path: '/tuition/config',
+    label: 'Dải số hóa đơn',
+    perms: ['tuition.view'],
+    group: 'Cài đặt › Học phí',
+    menu: (me) => can(me, ...TUITION_ANCHORS),
+  },
   { path: '/system-config/bank-accounts', label: 'Tài khoản ngân hàng', perms: ['bank_account.manage'], group: 'Cài đặt › Học phí' },
   { path: '/system-config/ticket-emails', label: 'Email nhận Ticket', perms: ['support_ticket.update'], group: 'Hệ thống' },
   { path: '/system-config/sla', label: 'Cấu hình SLA', perms: ['sla.configure'], group: 'Hệ thống' },

@@ -8,6 +8,7 @@ import { buildSidebar, workspaceTabs } from '../../nav'
 import { ApprovePage } from './ApprovePage'
 import { BillPage } from './BillPage'
 import { CancellationsPage } from './CancellationsPage'
+import { ConfigPage } from './ConfigPage'
 import { OverduePage } from './OverduePage'
 import { RefundsPage } from './RefundsPage'
 import { StudentsPage } from './StudentsPage'
@@ -550,4 +551,81 @@ test('Hủy hóa đơn: điền sẵn từ phiếu, gửi yêu cầu, xem chi ti
     'href',
     '/api/v1/tuition/invoices/cancellations/export?status=pending&branch_id=all',
   )
+})
+
+test('Cấu hình dải số hóa đơn: bảng dải, sửa số kế tiếp, thêm dải giấy, ngừng dùng', async () => {
+  const range = {
+    id: 'g1',
+    branch_id: 'b1',
+    branch_name: 'Cầu Giấy',
+    kind: 'electronic',
+    kind_label: 'Hóa đơn điện tử',
+    series_code: 'C26CG',
+    template_code: '1/001',
+    provider: 'vnpt',
+    start_number: 1,
+    end_number: 100,
+    current_number: 96,
+    range_label: '0000001 – 0000100',
+    current_label: '0000096',
+    max_issued: 95,
+    max_issued_label: '0000095',
+    remaining: 5,
+    remaining_label: '5',
+    low: true,
+    is_active: true,
+    can_manage: true,
+    recent: [{ invoice_number: 'C26CG-0000095', label: '17/10/2026 09:00' }],
+  }
+  const calls = mockApi({
+    'GET /tuition/config': () => [
+      200,
+      { ranges: [range], branches: [{ value: 'b1', label: 'Cầu Giấy' }], can_manage: true, can_manage_default: false },
+    ],
+    'POST /tuition/config': () => [200, { message: 'Đã lưu cấu hình dải số hóa đơn điện tử thành công!' }],
+    'POST /tuition/config/ranges': () => [201, { message: 'Đã thêm dải số hóa đơn giấy (tiền mặt) C26HDG 0000001 – 0000050 cho Cầu Giấy.' }],
+    'POST /tuition/config/ranges/g1/toggle': () => [200, { message: 'Đã ngừng dùng dải số C26CG.' }],
+  })
+  wrap(<ConfigPage me={me(['tuition.view', 'invoice_range.manage', 'invoice.request_cancel'])} />)
+  expect(await screen.findByText('Còn 5 — Sắp hết số')).toBeInTheDocument()
+
+  await userEvent.click(screen.getByRole('button', { name: 'Lịch sử cấp số' }))
+  expect(screen.getByText('C26CG-0000095')).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: /Đóng/ }))
+
+  await userEvent.click(screen.getByRole('button', { name: 'Sửa' }))
+  expect(screen.getByText('Đã cấp tới 95 — chỉ được đặt từ 96 trở lên.')).toBeInTheDocument()
+  await userEvent.clear(screen.getByLabelText('Số hiện tại (số kế tiếp sẽ cấp)'))
+  await userEvent.type(screen.getByLabelText('Số hiện tại (số kế tiếp sẽ cấp)'), '97')
+  await userEvent.click(screen.getByRole('button', { name: 'Lưu dải số' }))
+  expect(await screen.findByText('Đã lưu cấu hình dải số hóa đơn điện tử thành công!')).toBeInTheDocument()
+  expect(calls.find((c) => c.key === 'POST /tuition/config')?.body).toEqual({
+    config_id: 'g1',
+    template_code: '1/001',
+    series_code: 'C26CG',
+    start_number: 1,
+    end_number: 100,
+    current_number: 97,
+  })
+
+  await userEvent.click(screen.getByRole('button', { name: 'Thêm cấu hình mới' }))
+  await userEvent.selectOptions(screen.getByLabelText('Loại hóa đơn'), 'paper')
+  await userEvent.selectOptions(screen.getByLabelText('Chọn chi nhánh'), 'b1')
+  await userEvent.clear(screen.getByLabelText('Ký hiệu'))
+  await userEvent.type(screen.getByLabelText('Ký hiệu'), 'C26HDG')
+  await userEvent.type(screen.getByLabelText('Số bắt đầu'), '1')
+  await userEvent.type(screen.getByLabelText('Số kết thúc'), '50')
+  await userEvent.click(screen.getByRole('button', { name: 'Thêm dải số' }))
+  expect(await screen.findByText(/Đã thêm dải số hóa đơn giấy/)).toBeInTheDocument()
+  expect(calls.find((c) => c.key === 'POST /tuition/config/ranges')?.body).toEqual({
+    kind: 'paper',
+    branch_id: 'b1',
+    template_code: '1/001',
+    series_code: 'C26HDG',
+    start_number: 1,
+    end_number: 50,
+  })
+
+  await userEvent.click(screen.getByRole('button', { name: 'Ngừng dùng' }))
+  expect(await screen.findByText('Đã ngừng dùng dải số C26CG.')).toBeInTheDocument()
 })

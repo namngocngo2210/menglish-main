@@ -1724,6 +1724,32 @@ func (q *Queries) ElectronicRangeCandidates(ctx context.Context, branchID *uuid.
 	return items, nil
 }
 
+const firstDefaultRange = `-- name: FirstDefaultRange :one
+SELECT id, branch_id, kind, template_code, series_code, start_number, end_number, current_number, provider, auto_issue, is_active, created_by, created_at, updated_at FROM finance.invoice_ranges WHERE branch_id IS NULL ORDER BY created_at, id LIMIT 1
+`
+
+func (q *Queries) FirstDefaultRange(ctx context.Context) (FinanceInvoiceRange, error) {
+	row := q.db.QueryRow(ctx, firstDefaultRange)
+	var i FinanceInvoiceRange
+	err := row.Scan(
+		&i.ID,
+		&i.BranchID,
+		&i.Kind,
+		&i.TemplateCode,
+		&i.SeriesCode,
+		&i.StartNumber,
+		&i.EndNumber,
+		&i.CurrentNumber,
+		&i.Provider,
+		&i.AutoIssue,
+		&i.IsActive,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const freezeTuitionDeferral = `-- name: FreezeTuitionDeferral :exec
 UPDATE finance.tuitions SET frozen_remaining_sessions = $1, frozen_debt_amount = $2,
     notes = $3, updated_at = now()
@@ -3651,6 +3677,16 @@ func (q *Queries) LockRefundRequest(ctx context.Context, id uuid.UUID) (FinanceR
 	return i, err
 }
 
+const lockSeries = `-- name: LockSeries :exec
+SELECT pg_advisory_xact_lock(hashtext('finance.invoice_ranges:' || $1::text))
+`
+
+// Khóa theo ký hiệu trong giao dịch: kiểm chồng lấn rồi ghi dải không bị chen ngang.
+func (q *Queries) LockSeries(ctx context.Context, series string) error {
+	_, err := q.db.Exec(ctx, lockSeries, series)
+	return err
+}
+
 const lockTuition = `-- name: LockTuition :one
 SELECT id, student_id, class_id, branch_id, bank_account_id, promotion_id, total_amount, session_count, discount_amount, other_fees, fee_items, prepaid_amount, final_amount, paid_amount, debt_amount, due_date, reminder_paused_until, deferred_from, deferred_until, frozen_remaining_sessions, frozen_debt_amount, status, notes, transfer_memo, legacy_id, created_by, created_at, updated_at FROM finance.tuitions WHERE id = $1 FOR UPDATE
 `
@@ -3692,7 +3728,7 @@ func (q *Queries) LockTuition(ctx context.Context, id uuid.UUID) (FinanceTuition
 }
 
 const maxIssuedInvoice = `-- name: MaxIssuedInvoice :one
-SELECT max(invoice_number)::text FROM finance.receipts
+SELECT COALESCE(max(invoice_number), '')::text FROM finance.receipts
 WHERE invoice_number LIKE $1::text || '-_______' AND invoice_number BETWEEN $2::text AND $3::text
 `
 
@@ -4048,6 +4084,45 @@ func (q *Queries) ReceiptTuitionID(ctx context.Context, id uuid.UUID) (*uuid.UUI
 	var tuition_id *uuid.UUID
 	err := row.Scan(&tuition_id)
 	return tuition_id, err
+}
+
+const recentIssuedInvoices = `-- name: RecentIssuedInvoices :many
+SELECT invoice_number::text AS invoice_number, status, updated_at FROM finance.receipts
+WHERE invoice_number LIKE $1::text || '-_______' AND invoice_number BETWEEN $2::text AND $3::text
+ORDER BY invoice_number DESC LIMIT 5
+`
+
+type RecentIssuedInvoicesParams struct {
+	Series string
+	Low    string
+	High   string
+}
+
+type RecentIssuedInvoicesRow struct {
+	InvoiceNumber string
+	Status        string
+	UpdatedAt     time.Time
+}
+
+// 5 số hóa đơn lớn nhất đã cấp trong dải (kể cả phiếu đã hủy hóa đơn).
+func (q *Queries) RecentIssuedInvoices(ctx context.Context, arg RecentIssuedInvoicesParams) ([]RecentIssuedInvoicesRow, error) {
+	rows, err := q.db.Query(ctx, recentIssuedInvoices, arg.Series, arg.Low, arg.High)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []RecentIssuedInvoicesRow
+	for rows.Next() {
+		var i RecentIssuedInvoicesRow
+		if err := rows.Scan(&i.InvoiceNumber, &i.Status, &i.UpdatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const refundScope = `-- name: RefundScope :one
