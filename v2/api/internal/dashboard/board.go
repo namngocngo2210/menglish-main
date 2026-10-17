@@ -56,8 +56,12 @@ func (s *Service) personal(ctx context.Context, a *iam.Access, c Clock) (*RoleDa
 		return nil, err
 	}
 	// Vai trò không có nguồn lịch hẹn nào (vd. Kế toán) thì không có khối lịch. Mốc dự án học thuật: người quản lý dự án
-	// (người nhận mốc chưa xét được vì phân hệ Dự án học thuật chưa có ở v2).
-	if seesLeads(a) || seesBigTests(a) || a.Can("academic_project.manage") {
+	// hoặc người đang nhận mốc chưa xong.
+	projects, err := s.seesProjects(ctx, a)
+	if err != nil {
+		return nil, err
+	}
+	if seesLeads(a) || seesBigTests(a) || projects {
 		if out.Agenda, err = s.agenda(ctx, a, c, true); err != nil {
 			return nil, err
 		}
@@ -192,14 +196,32 @@ func (s *Service) agenda(ctx context.Context, a *iam.Access, c Clock, withCrmCar
 		}
 		items = append(items, got...)
 	}
+	if s.d.Projects != nil && a.Can("academic_project.view") {
+		got, err := s.d.Projects.Agenda(ctx, a, c.Today, end)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, got...)
+	}
 	out := buildAgenda(items, c, end)
 	if seesBigTests(a) {
 		out.Pending = append(out.Pending, "Big Test: "+pendingSyllabus)
 	}
-	if a.Can("academic_project.manage") {
+	if s.d.Projects == nil && a.Can("academic_project.manage") {
 		out.Pending = append(out.Pending, "Hạn mốc dự án học thuật: "+pendingProjects)
 	}
 	return out, nil
+}
+
+// seesProjects: lịch có hạn mốc dự án học thuật (MyWorkBoard::seesProjects).
+func (s *Service) seesProjects(ctx context.Context, a *iam.Access) (bool, error) {
+	if s.d.Projects == nil {
+		return a.Can("academic_project.manage"), nil
+	}
+	if !a.Can("academic_project.view") {
+		return false, nil
+	}
+	return s.d.Projects.Sees(ctx, a)
 }
 
 // buildAgenda nhóm lịch theo ngày (tối đa agendaLimit mục, phần dư đếm vào More).

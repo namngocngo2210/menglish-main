@@ -7,6 +7,12 @@ import { ItemsPage } from './features/inventory/ItemsPage'
 import { MaterialOrdersPage } from './features/inventory/MaterialOrdersPage'
 import { StockPage } from './features/inventory/StockPage'
 import { ExpensesPage } from './features/finance/ExpensesPage'
+import { AcademicPage as QualityAcademicPage } from './features/quality/AcademicPage'
+import { ChecklistPage as QualityChecklistPage } from './features/quality/ChecklistPage'
+import { OperationsPage as QualityOperationsPage } from './features/quality/OperationsPage'
+import { ProjectReportPage } from './features/quality/ProjectReportPage'
+import { ProjectsPage } from './features/quality/ProjectsPage'
+import { TeacherMeetingsPage } from './features/quality/TeacherMeetingsPage'
 import { RevenuePage } from './features/finance/RevenuePage'
 import { AttendanceReviewPage } from './features/kpi/AttendanceReviewPage'
 import { CriteriaPage as KpiCriteriaPage } from './features/kpi/CriteriaPage'
@@ -98,6 +104,15 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/academic/dashboards': () => <AcademicPage />,
   '/academic/reports': () => <AcademicPage />,
   '/academic/incidents': () => <AcademicPage />,
+  '/class-quality/operations': (me) => <QualityOperationsPage me={me} />,
+  '/class-quality/academic': (me) => <QualityAcademicPage me={me} />,
+  '/class-quality/checklist': (me) => <QualityChecklistPage me={me} />,
+  '/class-quality/teacher-meetings': (me) => <TeacherMeetingsPage me={me} />,
+  '/academic-projects': (me) => <ProjectsPage me={me} />,
+  '/academic-projects/report': (me) => <ProjectReportPage me={me} />,
+  '/classes/qa-observation': () => <Redirect to="/class-quality/operations" />,
+  '/classes/checklist': () => <Redirect to="/class-quality/checklist" />,
+  '/classes/evaluate-observation': () => <Redirect to="/class-quality/academic" />,
   '/users': (me) => <UsersPage me={me} />,
   '/roles': (me) => <RolesPage me={me} />,
   '/branches': (me) => <BranchesPage me={me} />,

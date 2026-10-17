@@ -32,18 +32,17 @@ const MinUnits = 3
 
 // Nguồn chưa có ở v2: tiêu chí dùng nguồn này do người chấm điền tay trên phiếu.
 var pendingSources = map[string]string{
-	"tuition_no_reminder":          "Học phí",
-	"receipt_rejected":             "Học phí",
-	"crm_sla_late":                 "SLA / phạt CRM",
-	"teacher_absent_unexcused":     "Cổng giáo viên / giờ dạy",
-	"teacher_leave":                "Cổng giáo viên / đơn nghỉ",
-	"teacher_late":                 "Cổng giáo viên / giờ dạy",
-	"staff_late":                   "Chấm công",
-	"test_result":                  "Big Test / mini test",
-	"test_progress":                "Big Test / mini test",
-	"student_pass_rate":            "Big Test / mini test",
-	"homework_rate":                "Bài tập",
-	"academic_deliverable_on_time": "Dự án học thuật",
+	"tuition_no_reminder":      "Học phí",
+	"receipt_rejected":         "Học phí",
+	"crm_sla_late":             "SLA / phạt CRM",
+	"teacher_absent_unexcused": "Cổng giáo viên / giờ dạy",
+	"teacher_leave":            "Cổng giáo viên / đơn nghỉ",
+	"teacher_late":             "Cổng giáo viên / giờ dạy",
+	"staff_late":               "Chấm công",
+	"test_result":              "Big Test / mini test",
+	"test_progress":            "Big Test / mini test",
+	"student_pass_rate":        "Big Test / mini test",
+	"homework_rate":            "Bài tập",
 }
 
 // PendingLabel: lý do nguồn chưa đếm được ở v2.

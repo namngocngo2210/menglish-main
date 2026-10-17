@@ -25,7 +25,7 @@ v2:
 | `reports.periodic.weekly-kpi.store` POST | POST `/api/v1/reports/weekly-kpi` | Đã làm | Lưu ghi chú + chụp bảng KPI lúc nộp. |
 | `reports.periodic.academic-weekly` GET (`academicWeekly`) | GET `/api/v1/reports/academic-weekly?week=` · `/reports/academic-weekly` | Làm một phần | 3 bảng (đã làm / dự kiến / yêu cầu đang quản lý), 9 tuần gần nhất, dòng gợi ý "Thêm từ hệ thống". Số liệu tuần và dòng gợi ý qua `MetricsProvider.WeeklyAcademic` — hiện trống. Ticket CSVC / buổi chưa điểm danh (mục 5.1): TODO(gộp). |
 | `reports.periodic.academic-weekly.store` POST | POST `/api/v1/reports/academic-weekly` | Đã làm | Kiểm tra từng dòng (nội dung bắt buộc, tiến độ 0/25/50/75/100, link https, deadline), thông báo lỗi "Mục, dòng N: …" như Laravel; dựng nội dung chữ. |
-| `reports.periodic.academic-monthly` GET / POST (`academicMonthly*`) | GET/POST `/api/v1/reports/academic-monthly` · `/reports/academic-monthly` | Làm một phần | Các ô đánh giá (tối đa 10000 ký tự), báo cáo tuần trong tháng. Họp giáo viên (`TeacherMeetings`) chờ phân hệ Chất lượng lớp: hiện ghi chú "Chờ phân hệ…". |
+| `reports.periodic.academic-monthly` GET / POST (`academicMonthly*`) | GET/POST `/api/v1/reports/academic-monthly` · `/reports/academic-monthly` | Làm một phần | Các ô đánh giá (tối đa 10000 ký tự), báo cáo tuần trong tháng. Họp giáo viên (`TeacherMeetings`) lấy từ phân hệ Chất lượng lớp (`quality.ReportMetrics`). |
 | `reports.periodic.academic-quarterly` GET / POST (`academicQuarterly*`) | GET/POST `/api/v1/reports/academic-quarterly` · `/reports/academic-quarterly` | Đã làm | Quý "2026-Q4", các ô đánh giá. |
 | `reports.periodic.teacher-monthly` GET / POST (`teacherMonthly*`) | GET/POST `/api/v1/reports/teacher-monthly` · `/reports/teacher-monthly` | Làm một phần | Nháp / nộp, phần chung, từng lớp (số buổi, tiến độ, chuyên cần / bài tập gợi ý từ số liệu, checklist học thuật, cần hỗ trợ), hạn Chủ nhật cuối tháng, báo cáo chấm công trong cùng màn. Danh sách lớp giáo viên giữ trong tháng (lớp đang học mình là GV / trợ giảng / GVNN, hoặc có buổi mình đứng), chuyên cần (%) của tháng và số buổi đã đứng lớp qua `MetricsProvider.TeacherClasses` = `classes.ReportMetrics`; tỉ lệ bài tập chờ phân hệ Bài tập (trống). Link "Đề xuất điều chỉnh giáo trình" (`syllabus.teacher-propose`): TODO(gộp). |
 | `reports.periodic.teacher-attendance.store` POST | POST `/api/v1/reports/teacher-attendance` | Đã làm | Ghi chú chấm công tháng. |
@@ -50,12 +50,12 @@ v2:
 
 | Interface | Phân hệ nguồn | Dùng cho | Hiện tại |
 |---|---|---|---|
-| `MetricsProvider.Daily` | Lớp học / buổi học, CRM, Học phí, Test đầu vào, Ticket / Order, Dự án | khối số liệu báo cáo ngày (Học vụ / Học thuật) | "Data mới nhận", "Số học sinh test" có số (CRM + test đầu vào, `crm.Service.ReportSource`); mục khác "Chờ phân hệ …" |
+| `MetricsProvider.Daily` | Lớp học / buổi học, CRM, Học phí, Test đầu vào, Ticket / Order, Dự án | khối số liệu báo cáo ngày (Học vụ / Học thuật) | "Data mới nhận", "Số học sinh test" có số (CRM + test đầu vào, `crm.Service.ReportSource`); buổi dự giờ, mốc dự án đến hạn / quá hạn / xong có số (`quality` / `projects.ReportMetrics`); mục khác "Chờ phân hệ …" |
 | `MetricsProvider.WeeklyScale` | Lớp học, CRM, Học phí | 9 chỉ số quy mô báo cáo tuần Học vụ | "Data mới nhận", "HV mới chốt" có số (CRM); mục lớp học "Chờ phân hệ …" |
-| `MetricsProvider.WeeklyAcademic` | Lớp học, Giáo trình, Ticket | số liệu + dòng gợi ý báo cáo tuần Học thuật | trống |
+| `MetricsProvider.WeeklyAcademic` | Lớp học, Giáo trình, Ticket, Chất lượng lớp, Dự án học thuật | số liệu + dòng gợi ý báo cáo tuần Học thuật | buổi dự giờ và mốc dự án có số + gợi ý (`quality` / `projects.ReportMetrics`); mục khác trống |
 | `MetricsProvider.KpiCriteria` / `KpiEvidence` | KPI (`kpi.ReportMetrics`, nối trong `cmd/menglish`) | bảng KPI tuần, mã KPI của nhật ký | có số: tiêu chí đang áp dụng; mục tự động đếm bằng nguồn KPI đã có ở v2 |
 | `MetricsProvider.TeacherClasses` | Lớp học / điểm danh / bài tập | lớp trong báo cáo tháng GV | trống + ghi chú |
-| `MetricsProvider.TeacherMeetings` | Chất lượng lớp (họp GV) | báo cáo tháng Học thuật | trống + ghi chú |
+| `MetricsProvider.TeacherMeetings` | Chất lượng lớp (họp GV) | báo cáo tháng Học thuật | đã nối (`quality.Service.ReportMetrics`, xem [chat-luong-lop.md](chat-luong-lop.md)) |
 | `TaskService` | Công việc (`ops.work_tasks`) | tạo việc follow-up từ báo cáo ngày, người nhận việc | đã nối (`tasks.Service.ReportTasks`) |
 | `ClassDirectory` | Lớp học (`academic.classes`) | "Lớp liên quan" ở nhật ký / báo cáo chữ, kiểm tra lớp trong phạm vi | không có lớp |
 | `Calendar` | Ngày lễ (`core.holidays`), nghỉ phép (HR) | ngày không phải nộp báo cáo ngày | ngày nghỉ đã nối (`catalogs.Service.ReportCalendar`); nghỉ phép chờ phân hệ HR |

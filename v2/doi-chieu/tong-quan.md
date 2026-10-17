@@ -30,7 +30,7 @@ Trạng thái: **Đã làm** · **Khác** (đã làm, khác có chủ đích, xe
 | `GET /academic/dashboards/incidents` `academic.dashboards.incidents` → `incidents` | `GET /api/v1/academic/dashboards/incidents?severity=&status=&branch_id=&class_id=` · màn `/academic/dashboards/incidents` | Làm một phần | `class.update`. Có ticket hỗ trợ khẩn / cao (xem `ticket.md`); thiếu nhật ký học vụ cũ (`academic_records`). |
 | `GET /academic/reports` `academic.reports`, `GET /academic/incidents` `academic.incidents` (URL cũ) | Màn `/academic/reports`, `/academic/incidents` | Đã làm | Mở cùng màn, không có mục menu riêng. |
 | SidebarMenu: link "Tổng quan" đầu sidebar | `NAV` `/` "Tổng quan" (icon `dashboard`) | Đã làm | Chỉ hiện với người mở được Tổng quan; người khác thấy "Tài khoản của tôi". |
-| SidebarMenu: "Báo cáo & sự vụ lớp" (khu Báo cáo › Đào tạo & Chất lượng lớp, neo `class.update`) | `NAV` `/academic/dashboards` | Đã làm | Các mục còn lại của workspace (dự giờ, checklist, họp giáo viên, dự án học thuật) chờ phân hệ Chất lượng lớp. |
+| SidebarMenu: "Báo cáo & sự vụ lớp" (khu Báo cáo › Đào tạo & Chất lượng lớp, neo `class.update`) | `NAV` `/academic/dashboards` | Đã làm | Các mục còn lại của workspace (dự giờ, checklist, họp giáo viên, dự án học thuật) ở [chat-luong-lop.md](chat-luong-lop.md). |
 
 ## Tổng quan (`Dashboard.vue`)
 
@@ -75,7 +75,7 @@ Trạng thái: **Đã làm** · **Khác** (đã làm, khác có chủ đích, xe
 |---|---|---|---|
 | Phạm vi: khách và việc mình phụ trách / chi nhánh / toàn hệ thống (theo `lead.scope_*`) | `crm.scopeOf` | Đã làm | Nhãn "Khách và việc bạn phụ trách", tên chi nhánh, "Chi nhánh của bạn", "Toàn hệ thống". |
 | Thẻ số liệu (tối đa 5): hẹn test hôm nay, học thử 7 ngày tới, gọi lại hôm nay, việc của tôi đến hạn tuần này (kèm số quá hạn), khách chốt trong tháng, học phí quá hạn | `personal` trong `board.go` | Làm một phần | Học phí quá hạn chờ phân hệ Học phí (`Finance.OverdueTuitions`). |
-| Lịch hẹn 7 ngày tới: test đầu vào, học thử, gọi lại, support sau chốt (buổi 1, buổi 4–5, ngày 30; ẩn khi đã tick checklist), Big Test, mốc dự án học thuật | `Leads.Agenda`, `buildAgenda` | Làm một phần | Tối đa 40 lịch, nhóm theo ngày ("Hôm nay", "Ngày mai", "Thứ …"), lịch đã qua làm mờ. Big Test và dự án học thuật chờ phân hệ (ghi chú trong thẻ). |
+| Lịch hẹn 7 ngày tới: test đầu vào, học thử, gọi lại, support sau chốt (buổi 1, buổi 4–5, ngày 30; ẩn khi đã tick checklist), Big Test, mốc dự án học thuật | `Leads.Agenda`, `buildAgenda` | Làm một phần | Tối đa 40 lịch, nhóm theo ngày ("Hôm nay", "Ngày mai", "Thứ …"), lịch đã qua làm mờ. Hạn mốc dự án học thuật lấy từ `projects.DashboardMilestones` (xem [chat-luong-lop.md](chat-luong-lop.md)); Big Test chờ phân hệ (ghi chú trong thẻ). |
 | Hàng chờ "Cần xử lý" (có số > 0 lên trước): khách chưa liên hệ >24h, khách chờ xếp lớp (`class.update`), học phí quá hạn, kỳ lương chưa chốt | `personalQueues` | Làm một phần | Học phí, kỳ lương: "Chờ phân hệ Học phí / Lương", không bấm được. |
 | Hàng chờ duyệt (`ApprovalInboxService`) | — | Khác | Ở Laravel chỉ Admin có mục duyệt, mà Admin luôn thấy bảng điều hành, nên bảng cá nhân không bao giờ hiện; v2 bỏ. Hộp duyệt chung chưa có ở v2. |
 | "Việc của tôi trong tuần" (6 việc, hạn trong tuần hoặc quá hạn), "Xem tất cả (N)" | `Tasks.Mine`, `my_tasks` | Đã làm | Link `/tasks?tab=mine`; mỗi việc mở `/tasks/<id>`. |

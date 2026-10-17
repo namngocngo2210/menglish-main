@@ -54,6 +54,8 @@ type Deps struct {
 	Work    StaffWork
 	// Homework: bài về nhà / điểm mini test theo lớp (cổng Giáo viên); nil = chờ phân hệ.
 	Homework ClassHomework
+	// Projects: hạn mốc dự án học thuật; nil = lịch ghi "Chờ phân hệ Dự án học thuật".
+	Projects Projects
 }
 
 type Service struct {

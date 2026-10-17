@@ -40,6 +40,51 @@ type AcademicClass struct {
 	Version          int32
 }
 
+type AcademicClassChecklist struct {
+	ID                      uuid.UUID
+	ClassID                 uuid.UUID
+	Month                   string
+	TuitionDue              *string
+	TuitionReminded         *string
+	TuitionCollected        *string
+	TuitionNote             *string
+	BigTestDue              *string
+	FeedbackOnTime          *string
+	NegativeFeedbackHandled *string
+	UpdatedBy               *uuid.UUID
+	CreatedAt               time.Time
+	UpdatedAt               time.Time
+}
+
+type AcademicClassObservation struct {
+	ID              uuid.UUID
+	Kind            string
+	ClassID         uuid.UUID
+	ObservedOn      pgtype.Date
+	ObserverID      *uuid.UUID
+	TeacherID       *uuid.UUID
+	Rating          *string
+	Month           *string
+	AttendanceRate  *float64
+	PassRate        *float64
+	Observed        bool
+	LessonContent   *string
+	Attitude        *string
+	Preparation     *string
+	Technique       *string
+	Suggestions     *string
+	TeachingQuality *string
+	Interaction     *string
+	Effectiveness   *string
+	Overall         *string
+	ActionNotes     *string
+	CreatedBy       *uuid.UUID
+	UpdatedBy       *uuid.UUID
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	DeletedAt       *time.Time
+}
+
 type AcademicClassRoster struct {
 	ClassID   *uuid.UUID
 	StudentID uuid.UUID
@@ -303,6 +348,23 @@ type AcademicStudentGuardian struct {
 	Relationship *string
 	CreatedBy    *uuid.UUID
 	CreatedAt    time.Time
+}
+
+type AcademicTeacherMeetingReport struct {
+	ID             uuid.UUID
+	WeekStart      time.Time
+	TeacherID      uuid.UUID
+	ClassID        *uuid.UUID
+	AuthorID       uuid.UUID
+	SyllabusNote   *string
+	ScoresNote     *string
+	ClassNote      string
+	AcademicOrder  *string
+	Recommendation *string
+	Status         string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	DeletedAt      *time.Time
 }
 
 type CoreAuditLog struct {
@@ -1486,4 +1548,69 @@ type PlacementTest struct {
 	UpdatedAt       time.Time
 	DeletedAt       *time.Time
 	Version         int32
+}
+
+type SyllabusMilestone struct {
+	ID             uuid.UUID
+	ProjectID      uuid.UUID
+	Title          string
+	Description    *string
+	AssigneeID     *uuid.UUID
+	StartDate      pgtype.Date
+	DueDate        time.Time
+	TargetQuantity pgtype.Numeric
+	Unit           string
+	DoneQuantity   pgtype.Numeric
+	Status         string
+	CompletedAt    *time.Time
+	RemindedAt     *time.Time
+	BreachedAt     *time.Time
+	SortOrder      int32
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	DeletedAt      *time.Time
+}
+
+type SyllabusProject struct {
+	ID           uuid.UUID
+	Code         string
+	Name         string
+	Type         string
+	Description  *string
+	OwnerID      *uuid.UUID
+	StartDate    pgtype.Date
+	Deadline     pgtype.Date
+	Status       string
+	KickoffNotes *string
+	KickoffLink  *string
+	PlanLockedAt *time.Time
+	PlanLockedBy *uuid.UUID
+	CompletedAt  *time.Time
+	CreatedBy    *uuid.UUID
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	DeletedAt    *time.Time
+}
+
+type SyllabusProjectMember struct {
+	ProjectID uuid.UUID
+	UserID    uuid.UUID
+	CreatedAt time.Time
+}
+
+type SyllabusProjectUpdate struct {
+	ID            uuid.UUID
+	ProjectID     uuid.UUID
+	MilestoneID   *uuid.UUID
+	UserID        *uuid.UUID
+	QuantityDone  *float64
+	Content       string
+	Difficulties  *string
+	Links         []string
+	MarksComplete bool
+	Response      *string
+	RespondedBy   *uuid.UUID
+	RespondedAt   *time.Time
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }
