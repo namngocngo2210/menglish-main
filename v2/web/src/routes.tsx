@@ -98,6 +98,16 @@ import { PenaltiesPage } from './features/payroll/PenaltiesPage'
 import { PeriodsRoute as PayrollPeriodsRoute } from './features/payroll/PeriodsPage'
 import { LeaderboardPage as PayrollLeaderboardPage, MySalaryPage } from './features/payroll/PortalPages'
 import { RecordRoute as PayrollRecordRoute } from './features/payroll/RecordPage'
+import { AssignmentsPage as SyllabusAssignmentsPage } from './features/syllabus/AssignmentsPage'
+import { BuilderPage as SyllabusBuilderPage } from './features/syllabus/BuilderPage'
+import { DistributionPage as BigTestDistributionPage } from './features/syllabus/DistributionPage'
+import { DocumentsPage as SyllabusDocumentsPage } from './features/syllabus/DocumentsPage'
+import { AdjustmentRequestsPage, TeacherAdjustPage } from './features/syllabus/PacingPages'
+import { TeacherProposePage, VersionsPage as SyllabusVersionsPage } from './features/syllabus/ProposalsPages'
+import { ResultsPage as BigTestResultsPage } from './features/syllabus/ResultsPage'
+import { SchedulesPage as BigTestSchedulesPage } from './features/syllabus/SchedulesPage'
+import { OrderTestPage, TeachingStagesPage } from './features/syllabus/TeachingStagesPage'
+import { TeacherViewPage as SyllabusTeacherViewPage } from './features/syllabus/TeacherViewPage'
 
 // Trang theo đường dẫn mục menu (NAV trong nav.ts). Trang con (vd. /students/<id>) dùng chung mục cha và tự đọc
 // phần còn lại của đường dẫn bằng usePath(). Module mới: thêm mục vào NAV và một dòng ở đây.
@@ -218,6 +228,20 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/payroll/config/settings': () => <PayrollSettingsPage />,
   '/payroll/config/teacher-rates': () => <PayrollRatesPage />,
   '/payroll/config/commission-tiers': () => <PayrollTiersPage />,
+  '/syllabus': () => <SyllabusDocumentsPage />,
+  '/syllabus/documents': () => <SyllabusDocumentsPage />,
+  '/syllabus/builder': () => <SyllabusBuilderPage />,
+  '/syllabus/assignments': () => <SyllabusAssignmentsPage />,
+  '/syllabus/teaching-stages': () => <TeachingStagesPage />,
+  '/syllabus/teacher-view': (me) => <SyllabusTeacherViewPage me={me} />,
+  '/teacher/order-test': () => <OrderTestPage />,
+  '/syllabus/versions': () => <SyllabusVersionsPage />,
+  '/syllabus/teacher-propose': () => <TeacherProposePage />,
+  '/syllabus/teacher-adjust': () => <TeacherAdjustPage />,
+  '/syllabus/adjustment-requests': () => <AdjustmentRequestsPage />,
+  '/syllabus/big-tests/schedules': () => <BigTestSchedulesPage />,
+  '/syllabus/big-tests/distribution': () => <BigTestDistributionPage />,
+  '/syllabus/big-tests/results': () => <BigTestResultsPage />,
 }
 
 // Trang "/": nhân sự → Tổng quan; tài khoản cổng (học viên / phụ huynh) → Trang chủ cổng học viên như Laravel

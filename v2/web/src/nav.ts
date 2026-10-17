@@ -43,6 +43,8 @@ export const APPROVAL_ANCHORS = [
 ]
 // Quyền neo khu Lương (SidebarMenu::PAYROLL).
 const PAYROLL_ANCHORS = ['payroll.view', 'payroll.view_own']
+// Quyền neo khu Giáo trình (SidebarMenu::SYLLABUS_MANAGER); giáo viên dùng các mục phía giáo viên.
+const SYLLABUS_MANAGER = 'syllabus.manage'
 
 export const NAV: NavItem[] = [
   // Tổng quan (DashboardController) cho nhân sự; học viên / phụ huynh thấy "Tài khoản của tôi" thay chỗ (routes.tsx).
@@ -252,6 +254,21 @@ export const NAV: NavItem[] = [
     group: 'Cần duyệt',
     menu: (me) => isAdmin(me) && can(me, 'tuition.view'),
   },
+  // Giáo trình (features/syllabus). Cần duyệt: chỉ Admin thấy, neo syllabus.approve_adjustment (người duyệt Học thuật).
+  {
+    path: '/syllabus/versions',
+    label: 'Đề xuất sửa giáo trình',
+    perms: ['syllabus.view'],
+    group: 'Cần duyệt',
+    menu: (me) => isAdmin(me) && can(me, 'syllabus.approve_adjustment'),
+  },
+  {
+    path: '/syllabus/adjustment-requests',
+    label: 'Điều chỉnh tiến độ',
+    perms: ['syllabus.view'],
+    group: 'Cần duyệt',
+    menu: (me) => isAdmin(me) && can(me, 'syllabus.approve_adjustment'),
+  },
   // Công việc (WorkTaskController). Cần duyệt → "Hoàn thành công việc" (sau các tab học phí như SidebarMenu): chỉ Admin,
   // neo work_task.create.
   {
@@ -328,6 +345,42 @@ export const NAV: NavItem[] = [
     group: 'Lương',
     menu: (me) => can(me, ...PAYROLL_ANCHORS),
   },
+  // Giáo trình & Big Test (features/syllabus). Như SidebarMenu: Tài liệu / Soạn / Giao chặng / Nhắc lịch neo syllabus.manage;
+  // phía giáo viên (Chặng đang dạy, Xem bài giảng, Bảng điểm) ai xem được giáo trình đều thấy.
+  { path: '/syllabus/documents', label: 'Tài liệu', perms: ['syllabus.view'], group: 'Giáo trình', menu: (me) => can(me, SYLLABUS_MANAGER) },
+  { path: '/syllabus/builder', label: 'Soạn syllabus', perms: ['syllabus.view'], group: 'Giáo trình', menu: (me) => can(me, SYLLABUS_MANAGER) },
+  { path: '/syllabus/assignments', label: 'Giao chặng', perms: ['syllabus.view'], group: 'Giáo trình', menu: (me) => can(me, SYLLABUS_MANAGER) },
+  { path: '/syllabus/teaching-stages', label: 'Chặng đang dạy & Order Test', perms: ['syllabus.view'], group: 'Giáo trình' },
+  { path: '/syllabus/teacher-view', label: 'Xem bài giảng', perms: ['syllabus.view'], group: 'Giáo trình' },
+  // URL syllabus.index của Laravel (/syllabus → Tài liệu).
+  { path: '/syllabus', label: 'Tài liệu', perms: ['syllabus.view'], group: 'Giáo trình', hidden: true },
+  // Order đề test của một lớp (/teacher/order-test/<lớp>): mở từ thẻ Chặng đang dạy.
+  {
+    path: '/teacher/order-test',
+    label: 'Order đề test',
+    perms: ['attendance_student.record', 'attendance_student.record_any'],
+    group: 'Giáo trình',
+    hidden: true,
+  },
+  { path: '/syllabus/big-tests/schedules', label: 'Nhắc lịch', perms: ['syllabus.view'], group: 'Big Test', menu: (me) => can(me, SYLLABUS_MANAGER) },
+  {
+    path: '/syllabus/big-tests/distribution',
+    label: 'Phân phối đề',
+    perms: ['syllabus.view'],
+    group: 'Big Test',
+    menu: (me) => can(me, SYLLABUS_MANAGER, 'big_test.approve'),
+  },
+  // /syllabus/big-tests/results/<đợt thi> do ResultsPage tự đọc đường dẫn.
+  {
+    path: '/syllabus/big-tests/results',
+    label: 'Bảng điểm & Kết quả',
+    perms: ['syllabus.view'],
+    group: 'Big Test',
+    menu: (me) => can(me, 'syllabus.update', 'big_test.approve'),
+  },
+  // Xin duyệt: ai xem được giáo trình đều thấy (như Laravel).
+  { path: '/syllabus/teacher-propose', label: 'Đề xuất sửa giáo trình', perms: ['syllabus.view'], group: 'Xin duyệt' },
+  { path: '/syllabus/teacher-adjust', label: 'Xin điều chỉnh tiến độ', perms: ['syllabus.view'], group: 'Xin duyệt' },
 ]
 
 // Workspace của sidebar theo đúng thứ tự SidebarMenu::definition(): khu (section) → workspace (label, icon).
