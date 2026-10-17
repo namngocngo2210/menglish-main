@@ -518,6 +518,68 @@ type FinanceExpense struct {
 	DeletedAt     *time.Time
 }
 
+type HrKpiCriterium struct {
+	ID            uuid.UUID
+	Role          string
+	GroupName     *string
+	Code          *string
+	Name          string
+	Weight        pgtype.Numeric
+	ThresholdFull *string
+	ThresholdHalf *string
+	MaxFull       *int32
+	MaxHalf       *int32
+	Unit          *string
+	Measure       string
+	Tiers         []byte
+	Linear        bool
+	FullAt        pgtype.Numeric
+	PerMonth      bool
+	Knockout      bool
+	AllowNa       bool
+	AutoSource    *string
+	Description   *string
+	IsActive      bool
+	SortOrder     int32
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	DeletedAt     *time.Time
+}
+
+type HrKpiItem struct {
+	ID            uuid.UUID
+	SheetID       uuid.UUID
+	CriterionID   uuid.UUID
+	Score         pgtype.Numeric
+	Actual        *string
+	CriticalError bool
+	NotApplicable bool
+	Note          *string
+	Evidence      []byte
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
+type HrKpiSheet struct {
+	ID           uuid.UUID
+	UserID       uuid.UUID
+	EvaluatorID  *uuid.UUID
+	Month        int16
+	Year         int16
+	Track        string
+	PeriodMonths int16
+	TotalScore   pgtype.Numeric
+	Comment      *string
+	Strengths    *string
+	Improvements *string
+	NextActions  *string
+	Status       string
+	RejectReason *string
+	DecidedAt    *time.Time
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
 type HrSlaRule struct {
 	Key            string
 	GroupKey       string

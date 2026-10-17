@@ -8,6 +8,11 @@ import { MaterialOrdersPage } from './features/inventory/MaterialOrdersPage'
 import { StockPage } from './features/inventory/StockPage'
 import { ExpensesPage } from './features/finance/ExpensesPage'
 import { RevenuePage } from './features/finance/RevenuePage'
+import { AttendanceReviewPage } from './features/kpi/AttendanceReviewPage'
+import { CriteriaPage as KpiCriteriaPage } from './features/kpi/CriteriaPage'
+import { KpiBoardPage } from './features/kpi/KpiBoardPage'
+import { MinePage as KpiMinePage } from './features/kpi/MinePage'
+import { MonthlyPage as KpiMonthlyPage } from './features/kpi/MonthlyPage'
 import { ApprovalsPage } from './features/tasks/ApprovalsPage'
 import { CreateTaskPage } from './features/tasks/CreateTaskPage'
 import { TAAssignPage } from './features/tasks/TAAssignPage'
@@ -57,6 +62,11 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/inventory/stock': (me) => <StockPage me={me} />,
   '/finance/expenses': (me) => <ExpensesPage me={me} />,
   '/finance/reports/provisional-revenue': () => <RevenuePage />,
+  '/kpi/criteria': () => <KpiCriteriaPage />,
+  '/kpi/monthly': () => <KpiMonthlyPage />,
+  '/kpi/mine': () => <KpiMinePage />,
+  '/kpi/attendance-review': (me) => <AttendanceReviewPage me={me} />,
+  '/tasks/kpi-dashboard': () => <KpiBoardPage />,
   '/courses': (me) => <CoursesPage me={me} />,
   '/course-levels': (me) => <LevelsPage me={me} />,
   '/holidays': (me) => <HolidaysPage me={me} />,

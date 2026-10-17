@@ -25,6 +25,7 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/geo"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/inventory"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/kpi"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/notify/notifyapi"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/placement"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/secretbox"
@@ -143,14 +144,21 @@ func runAPI(ctx context.Context) error {
 	}), log)
 	// Báo cáo: số liệu tuyển sinh từ CRM / test đầu vào, bọc thêm số liệu lớp / buổi / điểm danh của Lớp học; việc follow-up
 	// qua Công việc, ngày nghỉ từ danh mục. TODO(gộp): số liệu học phí khi phân hệ đó có ở v2.
+	// KPI: mục KPI của báo cáo tuần lấy từ bộ tiêu chí đang áp dụng (bọc MetricsProvider của báo cáo).
+	kpiSvc := kpi.NewService(d.pool, log)
 	reportSvc := reports.NewService(d.pool, log, reports.Deps{
-		Metrics: cls.ReportMetrics(reports.NewMetrics(crmSvc.ReportSource()), d.iam.LoadAccess),
+		Metrics: kpiSvc.ReportMetrics(cls.ReportMetrics(reports.NewMetrics(crmSvc.ReportSource()), d.iam.LoadAccess)),
 		Classes: cls.ReportClasses(), Tasks: taskSvc.ReportTasks(), Calendar: catalogSvc.ReportCalendar(),
 	})
 	// Nhắc hạn báo cáo ngày / tháng và tổng hợp cho Admin (lệnh reports:remind-* / reports:daily-digest ở bản Laravel).
 	go reportSvc.RunReminderLoop(ctx, time.Minute)
 	// Thu chi: sổ khoản chi + doanh thu tạm tính. TODO(gộp): WithRevenue(phiếu thu Học phí), WithPayroll(kỳ lương).
 	finSvc := finance.NewService(d.pool, log)
+	// Số liệu KPI tự động từ báo cáo / công việc / kho / lớp học; tạo phiếu đầu kỳ hằng ngày (kpi:create-sheets).
+	// TODO(gộp): nguồn Học phí / SLA CRM / Cổng giáo viên / Chấm công / Big Test, WithPayrollLock(kỳ lương) khi có ở v2.
+	kpiSvc.AddSources(reportSvc.KpiSources(), taskSvc.KpiSources(), inv.KpiSources(), cls.KpiSources()).
+		WithJournal(reportSvc).WithAttendance(cls.KpiAttendance()).WithBoard(cls.KpiBoard(), taskSvc.KpiBoard())
+	go kpiSvc.RunSheetLoop(ctx, time.Hour)
 	checks := map[string]server.Pinger{
 		"postgres": d.pool,
 		"redis":    server.PingFunc(func(ctx context.Context) error { return d.rdb.Ping(ctx).Err() }),
@@ -175,6 +183,7 @@ func runAPI(ctx context.Context) error {
 				reports.NewHandler(reportSvc, log),
 				crm.NewHandler(crmSvc, log),
 				finance.NewHandler(finSvc, log),
+				kpi.NewHandler(kpiSvc, log),
 			),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,

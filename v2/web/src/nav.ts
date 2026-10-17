@@ -19,6 +19,10 @@ export type NavItem = {
 
 export const isAdmin = (me: Me) => me.roles.some((r) => r.name === 'admin')
 
+// Vai trò chấm KPI (Roles::KPI_ROLES); trang KPI của tôi tự báo khi vai trò chưa có tiêu chí.
+const KPI_ROLES = ['academic_staff', 'academic_lead', 'manager', 'sales_consultant', 'teacher_fulltime', 'teacher_parttime', 'assistant']
+export const hasKpiRole = (me: Me) => me.roles.some((r) => KPI_ROLES.includes(r.name))
+
 const CRM = 'Khách hàng (CRM)'
 
 export const NAV: NavItem[] = [
@@ -98,6 +102,12 @@ export const NAV: NavItem[] = [
     group: 'Nhân sự & KPI',
     menu: (me) => can(me, 'user.view', 'kpi.view'),
   },
+  // KPI nhân sự (KpiController) — features/kpi. Menu neo user.view / kpi.view; "KPI tự động" neo work_task.create.
+  { path: '/kpi/monthly', label: 'Phiếu KPI tháng', perms: ['kpi.view'], group: 'Nhân sự & KPI', menu: (me) => can(me, 'user.view', 'kpi.view') },
+  { path: '/kpi/attendance-review', label: 'Rà soát điểm danh', perms: ['kpi.view'], group: 'Nhân sự & KPI', menu: (me) => can(me, 'user.view', 'kpi.view') },
+  { path: '/tasks/kpi-dashboard', label: 'KPI tự động', perms: ['work_task.view'], group: 'Nhân sự & KPI', menu: (me) => can(me, 'work_task.create') },
+  { path: '/kpi/criteria', label: 'Tiêu chí KPI', perms: ['kpi.view'], group: 'Tổ chức & Đào tạo', menu: (me) => can(me, 'user.view', 'kpi.view') },
+  { path: '/kpi/mine', label: 'KPI của tôi', perms: ['notification.view', 'kpi.view'], group: 'Của tôi', menu: (me) => hasKpiRole(me) },
   // Khách hàng (CRM) — features/crm. Danh sách phụ (chốt, thất bại, chờ xếp lớp, đã xóa, duyệt chuyển cơ sở) mở từ chip.
   { path: '/crm/pipeline', label: 'Kanban', perms: ['lead.view'], group: CRM },
   { path: '/crm/customers', label: 'Danh sách khách', perms: ['lead.view'], group: CRM },
