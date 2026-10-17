@@ -16,7 +16,7 @@ Số dòng theo trạng thái tính tới lần gộp cuối của PR #152.
 | Tổng quan (Dashboard) & Báo cáo & sự vụ lớp | [tong-quan.md](tong-quan.md) | 30 | 5 | 9 | 9 | Số liệu lương, chấm công & KPI, giáo trình & Big Test, ticket, báo cáo trực lớp (chờ các phân hệ đó) |
 | Danh mục & cấu hình | [danh-muc.md](danh-muc.md) | 46 | 0 | 14 | 3 | Tra phòng trống, cấu hình SePay |
 | Học viên | [hoc-vien.md](hoc-vien.md) | 9 | 0 | 7 | 3 | Lệnh nền bảo lưu / khai giảng / sinh nhật (cần học phí), ghi ngày bắt đầu học từ điểm danh |
-| Lớp học | [lop-hoc.md](lop-hoc.md) | 26 | 0 | 8 | 7 | Dự giờ & chất lượng lớp, cổng giáo viên (chấm công, bài tập, điểm), giãn tiến độ theo giáo trình |
+| Lớp học | [lop-hoc.md](lop-hoc.md) | 27 | 0 | 8 | 6 | Dự giờ & chất lượng lớp, cổng giáo viên (chấm công, bài tập, điểm) |
 | Tồn kho & Order học liệu | [ton-kho.md](ton-kho.md) | 23 | 0 | 2 | 4 | Cảnh báo tồn ở màn duyệt phiếu thu, import dữ liệu kho cũ, số liệu kho trong báo cáo |
 | Công việc | [cong-viec.md](cong-viec.md) | 11 | 6 | 2 | 12 | Báo cáo trực lớp, cấu hình lịch trực, buổi phụ đạo, nhu cầu nhân sự, hộp duyệt chung |
 | Test đầu vào & học thử | [test-dau-vao.md](test-dau-vao.md) | 24 | 0 | 5 | 5 | Hẹn test / chấm điểm trên hồ sơ khách CRM, khách học thử ở màn điểm danh, nhập file đề cũ |
@@ -28,6 +28,7 @@ Số dòng theo trạng thái tính tới lần gộp cuối của PR #152.
 | Thu - Chi | [thu-chi.md](thu-chi.md) | 7 | 1 | 2 | 1 | Dòng chi lương tự động (chờ phân hệ Lương) |
 | KPI nhân sự | [kpi.md](kpi.md) | 17 | 7 | 0 | 8 | Nguồn tự đếm của Học phí / CRM SLA / cổng giáo viên / chấm công / Big Test / bài tập / dự án học thuật (hiện điền tay), khóa phiếu theo kỳ lương |
 | Học phí (hồ sơ, phiếu thu, công nợ, hoàn phí, hủy hóa đơn, SePay, nhập Excel) | [hoc-phi.md](hoc-phi.md) | 31 | 10 | 0 | 4 | Cổng học viên báo chuyển khoản, thu hồi hoa hồng (chờ Lương), nguồn KPI tự đếm, nhập dữ liệu học phí cũ |
+| Giáo trình & Big Test (tài liệu, soạn syllabus, giao chặng, order đề, bài giảng, Big Test, đề xuất / giãn tiến độ) | [giao-trinh.md](giao-trinh.md) | 38 | 6 | 7 | 8 | Biên bản phạt trả kết quả trễ và việc duyệt đề (chờ Lương & biên bản, Công việc), Zalo ZNS thật, hộp duyệt chung, danh sách bổ trợ, adapter Cổng GV / Cổng PH-HS, số liệu dashboard / báo cáo / KPI |
 
 ## Phần dùng chung chưa có ở v2
 
@@ -38,6 +39,6 @@ Các dòng "Chưa làm" / "Làm một phần" phần lớn chờ những phân h
 - **Kho file**: đã có (`kho-file.md`); còn nhập file cũ từ Laravel và nối vào các phân hệ chưa chuyển.
 - **Gửi email**: đã có hàng đợi email (`internal/notify/mail`), xác nhận lịch học thử, email vận hành khi nộp bài, quên
   mật khẩu. Còn email ticket (chưa có phân hệ Ticket), email học phí (phân hệ học phí gọi `mail.Enqueue`), Zalo ZNS.
-- **Cổng giáo viên, cổng học viên, giáo trình, Lương**. Tổng quan và KPI đã có: các ô của những phân hệ này hiện "Chờ phân hệ …",
+- **Cổng giáo viên, cổng học viên, Lương** (giáo trình đã có: `giao-trinh.md`). Tổng quan và KPI đã có: các ô của những phân hệ này hiện "Chờ phân hệ …",
   tiêu chí KPI dùng nguồn của chúng do người chấm điền tay.
 - **Import dữ liệu nghiệp vụ cũ**: `import-legacy` mới chép chi nhánh, tài khoản, vai trò, quyền và hồ sơ nhân sự.
