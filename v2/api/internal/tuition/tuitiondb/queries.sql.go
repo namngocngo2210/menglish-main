@@ -1000,9 +1000,7 @@ SELECT t.id, t.student_id, t.class_id, t.branch_id, t.bank_account_id, t.promoti
     (SELECT count(*) FROM academic.student_attendance a
      WHERE a.student_id = t.student_id AND a.status IN ('present', 'late')
        AND (COALESCE(t.class_id, s.current_class_id) IS NULL OR a.class_id = COALESCE(t.class_id, s.current_class_id)))::int AS attended_sessions,
-    COALESCE(t.class_id, s.current_class_id) AS stats_class_id,
-    lc.contacted_at AS last_contact_at, lc.note AS last_contact_note, lcu.full_name AS last_contact_user,
-    lr.contacted_at AS last_report_at
+    COALESCE(t.class_id, s.current_class_id) AS stats_class_id
 FROM finance.tuitions t
 JOIN academic.students s ON s.id = t.student_id AND s.deleted_at IS NULL
 LEFT JOIN academic.classes cc ON cc.id = s.current_class_id
@@ -1011,11 +1009,6 @@ LEFT JOIN academic.courses co ON co.id = c.course_id
 LEFT JOIN academic.classes sc ON sc.id = COALESCE(t.class_id, s.current_class_id)
 LEFT JOIN academic.courses sco ON sco.id = sc.course_id
 LEFT JOIN core.branches b ON b.id = t.branch_id
-LEFT JOIN LATERAL (SELECT l.contacted_at, l.note, l.user_id FROM finance.tuition_contact_logs l
-                   WHERE l.tuition_id = t.id AND l.action = 'contacted' ORDER BY l.contacted_at DESC, l.id DESC LIMIT 1) lc ON true
-LEFT JOIN iam.users lcu ON lcu.id = lc.user_id
-LEFT JOIN LATERAL (SELECT l.contacted_at FROM finance.tuition_contact_logs l
-                   WHERE l.tuition_id = t.id AND l.action = 'reported_admin' ORDER BY l.contacted_at DESC, l.id DESC LIMIT 1) lr ON true
 WHERE t.debt_amount > 0 AND t.due_date IS NOT NULL
   AND (t.due_date <= $1::date OR t.reminder_paused_until > $2::date)
   AND ($3::uuid[] IS NULL OR COALESCE(t.branch_id, s.branch_id, cc.branch_id) = ANY ($3::uuid[]))
@@ -1075,10 +1068,6 @@ type DueTuitionsRow struct {
 	ScheduledSessions       int32
 	AttendedSessions        int32
 	StatsClassID            *uuid.UUID
-	LastContactAt           time.Time
-	LastContactNote         *string
-	LastContactUser         *string
-	LastReportAt            time.Time
 }
 
 // Khoản còn nợ đến hạn trong upcoming_days ngày tới hoặc đang tạm dừng nhắc (dueGroups), kèm số buổi và liên hệ gần nhất.
@@ -1138,10 +1127,6 @@ func (q *Queries) DueTuitions(ctx context.Context, arg DueTuitionsParams) ([]Due
 			&i.ScheduledSessions,
 			&i.AttendedSessions,
 			&i.StatsClassID,
-			&i.LastContactAt,
-			&i.LastContactNote,
-			&i.LastContactUser,
-			&i.LastReportAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1301,8 +1286,8 @@ func (q *Queries) GetPromotion(ctx context.Context, id uuid.UUID) (CrmPromotion,
 const getReceipt = `-- name: GetReceipt :one
 SELECT r.id, r.code, r.source, r.invoice_number, r.tuition_id, r.student_id, r.amount, r.tuition_amount, r.session_count, r.session_unit_price, r.material_fee, r.exam_fee, r.other_fee, r.other_fee_reason, r.surcharge_amount, r.surcharge_reason, r.discount_amount, r.promotion_id, r.discount_reason, r.payment_method, r.transaction_code, r.transfer_reference, r.payer_name, r.payer_phone, r.is_vat_invoice, r.paper_invoice_number, r.proof_url, r.proof_file_id, r.payment_date, r.collected_items, r.status, r.notes, r.rejection_reason, r.creator_id, r.approver_id, r.approved_at, r.deposited_at, r.deposited_by, r.legacy_id, r.created_at, r.updated_at, st.code AS student_code, st.full_name AS student_name, st.phone AS student_phone, st.email AS student_email,
     st.parent_name AS student_parent_name, st.parent_phone AS student_parent_phone, st.lead_id AS student_lead_id,
-    COALESCE(t.student_id, r.student_id) AS owner_student_id,
-    COALESCE(tc.name, cc.name) AS class_name, COALESCE(tco.name, tc.name) AS course_name,
+    st.id AS owner_student_id,
+    tc.name AS tuition_class_name, cc.name AS current_class_name, tco.name AS course_name,
     sb.name AS branch_name, COALESCE(t.branch_id, st.branch_id, cc.branch_id) AS scope_branch_id,
     t.due_date AS tuition_due_date, t.final_amount AS tuition_final, t.debt_amount AS tuition_debt,
     jsonb_array_length(COALESCE(t.fee_items, '[]')) AS tuition_fee_item_count, t.bank_account_id AS tuition_bank_account_id,
@@ -1372,9 +1357,10 @@ type GetReceiptRow struct {
 	StudentParentName       *string
 	StudentParentPhone      *string
 	StudentLeadID           *uuid.UUID
-	OwnerStudentID          uuid.UUID
-	ClassName               string
-	CourseName              string
+	OwnerStudentID          *uuid.UUID
+	TuitionClassName        *string
+	CurrentClassName        *string
+	CourseName              *string
 	BranchName              *string
 	ScopeBranchID           uuid.UUID
 	TuitionDueDate          *time.Time
@@ -1445,7 +1431,8 @@ func (q *Queries) GetReceipt(ctx context.Context, id uuid.UUID) (GetReceiptRow, 
 		&i.StudentParentPhone,
 		&i.StudentLeadID,
 		&i.OwnerStudentID,
-		&i.ClassName,
+		&i.TuitionClassName,
+		&i.CurrentClassName,
 		&i.CourseName,
 		&i.BranchName,
 		&i.ScopeBranchID,
@@ -1674,6 +1661,150 @@ func (q *Queries) InvoiceNumberTaken(ctx context.Context, invoiceNumber *string)
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
+}
+
+const issuedByReceipt = `-- name: IssuedByReceipt :many
+
+SELECT item_id, branch_id, source, sum(quantity_change)::int AS net
+FROM ops.stock_movements WHERE receipt_id = $1
+GROUP BY item_id, branch_id, source
+`
+
+type IssuedByReceiptRow struct {
+	ItemID   uuid.UUID
+	BranchID uuid.UUID
+	Source   *string
+	Net      int32
+}
+
+// ───────────────────────── Kho (xuất / hoàn theo phiếu thu) ─────────────────────────
+func (q *Queries) IssuedByReceipt(ctx context.Context, receiptID *uuid.UUID) ([]IssuedByReceiptRow, error) {
+	rows, err := q.db.Query(ctx, issuedByReceipt, receiptID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []IssuedByReceiptRow
+	for rows.Next() {
+		var i IssuedByReceiptRow
+		if err := rows.Scan(
+			&i.ItemID,
+			&i.BranchID,
+			&i.Source,
+			&i.Net,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const issuedByTuitionContract = `-- name: IssuedByTuitionContract :many
+SELECT item_id, sum(quantity_change)::int AS net
+FROM ops.stock_movements WHERE tuition_id = $1 AND source = 'contract'
+GROUP BY item_id
+`
+
+type IssuedByTuitionContractRow struct {
+	ItemID uuid.UUID
+	Net    int32
+}
+
+func (q *Queries) IssuedByTuitionContract(ctx context.Context, tuitionID *uuid.UUID) ([]IssuedByTuitionContractRow, error) {
+	rows, err := q.db.Query(ctx, issuedByTuitionContract, tuitionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []IssuedByTuitionContractRow
+	for rows.Next() {
+		var i IssuedByTuitionContractRow
+		if err := rows.Scan(&i.ItemID, &i.Net); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const itemsByIDs = `-- name: ItemsByIDs :many
+SELECT id, name, unit FROM ops.inventory_items WHERE id = ANY ($1::uuid[])
+`
+
+type ItemsByIDsRow struct {
+	ID   uuid.UUID
+	Name string
+	Unit string
+}
+
+func (q *Queries) ItemsByIDs(ctx context.Context, ids []uuid.UUID) ([]ItemsByIDsRow, error) {
+	rows, err := q.db.Query(ctx, itemsByIDs, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ItemsByIDsRow
+	for rows.Next() {
+		var i ItemsByIDsRow
+		if err := rows.Scan(&i.ID, &i.Name, &i.Unit); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const lastContactLogs = `-- name: LastContactLogs :many
+SELECT DISTINCT ON (l.tuition_id, l.action) l.tuition_id, l.action, l.note, l.contacted_at, u.full_name AS user_name
+FROM finance.tuition_contact_logs l
+LEFT JOIN iam.users u ON u.id = l.user_id
+WHERE l.tuition_id = ANY ($1::uuid[])
+ORDER BY l.tuition_id, l.action, l.contacted_at DESC, l.id DESC
+`
+
+type LastContactLogsRow struct {
+	TuitionID   uuid.UUID
+	Action      string
+	Note        *string
+	ContactedAt time.Time
+	UserName    *string
+}
+
+// Liên hệ / báo cáo Admin gần nhất của từng khoản.
+func (q *Queries) LastContactLogs(ctx context.Context, ids []uuid.UUID) ([]LastContactLogsRow, error) {
+	rows, err := q.db.Query(ctx, lastContactLogs, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []LastContactLogsRow
+	for rows.Next() {
+		var i LastContactLogsRow
+		if err := rows.Scan(
+			&i.TuitionID,
+			&i.Action,
+			&i.Note,
+			&i.ContactedAt,
+			&i.UserName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const latestRejection = `-- name: LatestRejection :one
@@ -1926,9 +2057,9 @@ func (q *Queries) ListInvoiceRanges(ctx context.Context, branchIds []uuid.UUID) 
 }
 
 const listReceipts = `-- name: ListReceipts :many
-SELECT r.id, r.code, r.source, r.invoice_number, r.tuition_id, r.student_id, r.amount, r.tuition_amount, r.session_count, r.session_unit_price, r.material_fee, r.exam_fee, r.other_fee, r.other_fee_reason, r.surcharge_amount, r.surcharge_reason, r.discount_amount, r.promotion_id, r.discount_reason, r.payment_method, r.transaction_code, r.transfer_reference, r.payer_name, r.payer_phone, r.is_vat_invoice, r.paper_invoice_number, r.proof_url, r.proof_file_id, r.payment_date, r.collected_items, r.status, r.notes, r.rejection_reason, r.creator_id, r.approver_id, r.approved_at, r.deposited_at, r.deposited_by, r.legacy_id, r.created_at, r.updated_at, st.code AS student_code, st.full_name AS student_name, COALESCE(tc.name, cc.name) AS class_name,
-    COALESCE(tco.name, tc.name) AS course_name, sb.name AS branch_name,
-    jsonb_array_length(COALESCE(t.fee_items, '[]')) AS tuition_fee_item_count, r.tuition_id IS NOT NULL AS has_tuition,
+SELECT r.id, r.code, r.source, r.invoice_number, r.tuition_id, r.student_id, r.amount, r.tuition_amount, r.session_count, r.session_unit_price, r.material_fee, r.exam_fee, r.other_fee, r.other_fee_reason, r.surcharge_amount, r.surcharge_reason, r.discount_amount, r.promotion_id, r.discount_reason, r.payment_method, r.transaction_code, r.transfer_reference, r.payer_name, r.payer_phone, r.is_vat_invoice, r.paper_invoice_number, r.proof_url, r.proof_file_id, r.payment_date, r.collected_items, r.status, r.notes, r.rejection_reason, r.creator_id, r.approver_id, r.approved_at, r.deposited_at, r.deposited_by, r.legacy_id, r.created_at, r.updated_at, st.code AS student_code, st.full_name AS student_name, tc.name AS tuition_class_name, cc.name AS current_class_name,
+    tco.name AS course_name, sb.name AS branch_name,
+    jsonb_array_length(COALESCE(t.fee_items, '[]')) AS tuition_fee_item_count,
     cu.full_name AS creator_name, au.full_name AS approver_name, du.full_name AS depositor_name
 FROM finance.receipts r
 LEFT JOIN finance.tuitions t ON t.id = r.tuition_id
@@ -2015,11 +2146,11 @@ type ListReceiptsRow struct {
 	UpdatedAt           time.Time
 	StudentCode         *string
 	StudentName         *string
-	ClassName           string
-	CourseName          string
+	TuitionClassName    *string
+	CurrentClassName    *string
+	CourseName          *string
 	BranchName          *string
 	TuitionFeeItemCount int32
-	HasTuition          interface{}
 	CreatorName         *string
 	ApproverName        *string
 	DepositorName       *string
@@ -2091,11 +2222,11 @@ func (q *Queries) ListReceipts(ctx context.Context, arg ListReceiptsParams) ([]L
 			&i.UpdatedAt,
 			&i.StudentCode,
 			&i.StudentName,
-			&i.ClassName,
+			&i.TuitionClassName,
+			&i.CurrentClassName,
 			&i.CourseName,
 			&i.BranchName,
 			&i.TuitionFeeItemCount,
-			&i.HasTuition,
 			&i.CreatorName,
 			&i.ApproverName,
 			&i.DepositorName,
@@ -2540,6 +2671,42 @@ func (q *Queries) PaperRanges(ctx context.Context, branchID *uuid.UUID) ([]Finan
 		return nil, err
 	}
 	return items, nil
+}
+
+const paymentConfirmTarget = `-- name: PaymentConfirmTarget :one
+SELECT s.id, s.full_name, s.phone, s.parent_phone, s.email, s.user_id, l.assigned_user_id AS owner_id, l.email AS lead_email
+FROM academic.students s
+LEFT JOIN LATERAL (SELECT x.assigned_user_id, x.email FROM crm.leads x WHERE x.converted_student_id = s.id
+                   ORDER BY x.converted_at DESC NULLS LAST, x.id DESC LIMIT 1) l ON true
+WHERE s.id = $1
+`
+
+type PaymentConfirmTargetRow struct {
+	ID          uuid.UUID
+	FullName    string
+	Phone       string
+	ParentPhone *string
+	Email       *string
+	UserID      *uuid.UUID
+	OwnerID     *uuid.UUID
+	LeadEmail   *string
+}
+
+// Học viên nhận xác nhận đã nộp học phí + người phụ trách khách CRM đã chốt ra học viên.
+func (q *Queries) PaymentConfirmTarget(ctx context.Context, id uuid.UUID) (PaymentConfirmTargetRow, error) {
+	row := q.db.QueryRow(ctx, paymentConfirmTarget, id)
+	var i PaymentConfirmTargetRow
+	err := row.Scan(
+		&i.ID,
+		&i.FullName,
+		&i.Phone,
+		&i.ParentPhone,
+		&i.Email,
+		&i.UserID,
+		&i.OwnerID,
+		&i.LeadEmail,
+	)
+	return i, err
 }
 
 const pendingCancellationExists = `-- name: PendingCancellationExists :one
@@ -3304,6 +3471,17 @@ func (q *Queries) ToggleInvoiceRange(ctx context.Context, id uuid.UUID) (Finance
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const tuitionFeeItems = `-- name: TuitionFeeItems :one
+SELECT fee_items FROM finance.tuitions WHERE id = $1
+`
+
+func (q *Queries) TuitionFeeItems(ctx context.Context, id uuid.UUID) ([]byte, error) {
+	row := q.db.QueryRow(ctx, tuitionFeeItems, id)
+	var fee_items []byte
+	err := row.Scan(&fee_items)
+	return fee_items, err
 }
 
 const tuitionStats = `-- name: TuitionStats :one

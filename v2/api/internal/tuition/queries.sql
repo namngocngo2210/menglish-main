@@ -63,9 +63,7 @@ SELECT t.*, s.code AS student_code, s.full_name AS student_name, s.phone AS stud
     (SELECT count(*) FROM academic.student_attendance a
      WHERE a.student_id = t.student_id AND a.status IN ('present', 'late')
        AND (COALESCE(t.class_id, s.current_class_id) IS NULL OR a.class_id = COALESCE(t.class_id, s.current_class_id)))::int AS attended_sessions,
-    COALESCE(t.class_id, s.current_class_id) AS stats_class_id,
-    lc.contacted_at AS last_contact_at, lc.note AS last_contact_note, lcu.full_name AS last_contact_user,
-    lr.contacted_at AS last_report_at
+    COALESCE(t.class_id, s.current_class_id) AS stats_class_id
 FROM finance.tuitions t
 JOIN academic.students s ON s.id = t.student_id AND s.deleted_at IS NULL
 LEFT JOIN academic.classes cc ON cc.id = s.current_class_id
@@ -74,11 +72,6 @@ LEFT JOIN academic.courses co ON co.id = c.course_id
 LEFT JOIN academic.classes sc ON sc.id = COALESCE(t.class_id, s.current_class_id)
 LEFT JOIN academic.courses sco ON sco.id = sc.course_id
 LEFT JOIN core.branches b ON b.id = t.branch_id
-LEFT JOIN LATERAL (SELECT l.contacted_at, l.note, l.user_id FROM finance.tuition_contact_logs l
-                   WHERE l.tuition_id = t.id AND l.action = 'contacted' ORDER BY l.contacted_at DESC, l.id DESC LIMIT 1) lc ON true
-LEFT JOIN iam.users lcu ON lcu.id = lc.user_id
-LEFT JOIN LATERAL (SELECT l.contacted_at FROM finance.tuition_contact_logs l
-                   WHERE l.tuition_id = t.id AND l.action = 'reported_admin' ORDER BY l.contacted_at DESC, l.id DESC LIMIT 1) lr ON true
 WHERE t.debt_amount > 0 AND t.due_date IS NOT NULL
   AND (t.due_date <= sqlc.arg(until)::date OR t.reminder_paused_until > sqlc.arg(today)::date)
   AND (sqlc.narg(branch_ids)::uuid[] IS NULL OR COALESCE(t.branch_id, s.branch_id, cc.branch_id) = ANY (sqlc.narg(branch_ids)::uuid[]))
@@ -87,6 +80,14 @@ WHERE t.debt_amount > 0 AND t.due_date IS NOT NULL
   AND (sqlc.narg(branch_id)::uuid IS NULL OR t.branch_id = sqlc.narg(branch_id))
   AND (sqlc.narg(class_id)::uuid IS NULL OR t.class_id = sqlc.narg(class_id))
 ORDER BY t.due_date, t.id;
+
+-- name: LastContactLogs :many
+-- Liên hệ / báo cáo Admin gần nhất của từng khoản.
+SELECT DISTINCT ON (l.tuition_id, l.action) l.tuition_id, l.action, l.note, l.contacted_at, u.full_name AS user_name
+FROM finance.tuition_contact_logs l
+LEFT JOIN iam.users u ON u.id = l.user_id
+WHERE l.tuition_id = ANY (sqlc.arg(ids)::uuid[])
+ORDER BY l.tuition_id, l.action, l.contacted_at DESC, l.id DESC;
 
 -- name: DebtSummaryRows :many
 -- Màn Quá hạn: toàn bộ khoản đang nợ trong phạm vi (thống kê theo chi nhánh / lớp).
@@ -279,8 +280,8 @@ RETURNING *;
 -- Phiếu thu kèm học viên (của khoản học phí, không có thì của phiếu), lớp, chi nhánh hiệu lực, người lập / duyệt / nộp.
 SELECT r.*, st.code AS student_code, st.full_name AS student_name, st.phone AS student_phone, st.email AS student_email,
     st.parent_name AS student_parent_name, st.parent_phone AS student_parent_phone, st.lead_id AS student_lead_id,
-    COALESCE(t.student_id, r.student_id) AS owner_student_id,
-    COALESCE(tc.name, cc.name) AS class_name, COALESCE(tco.name, tc.name) AS course_name,
+    st.id AS owner_student_id,
+    tc.name AS tuition_class_name, cc.name AS current_class_name, tco.name AS course_name,
     sb.name AS branch_name, COALESCE(t.branch_id, st.branch_id, cc.branch_id) AS scope_branch_id,
     t.due_date AS tuition_due_date, t.final_amount AS tuition_final, t.debt_amount AS tuition_debt,
     jsonb_array_length(COALESCE(t.fee_items, '[]')) AS tuition_fee_item_count, t.bank_account_id AS tuition_bank_account_id,
@@ -364,9 +365,9 @@ WHERE sqlc.narg(branch_ids)::uuid[] IS NULL OR COALESCE(t.branch_id, st.branch_i
 
 -- name: ListReceipts :many
 -- Màn Duyệt phiếu thu và Lịch sử thu (lọc theo trạng thái / hình thức / chi nhánh / học viên / ngày thu / tái tục).
-SELECT r.*, st.code AS student_code, st.full_name AS student_name, COALESCE(tc.name, cc.name) AS class_name,
-    COALESCE(tco.name, tc.name) AS course_name, sb.name AS branch_name,
-    jsonb_array_length(COALESCE(t.fee_items, '[]')) AS tuition_fee_item_count, r.tuition_id IS NOT NULL AS has_tuition,
+SELECT r.*, st.code AS student_code, st.full_name AS student_name, tc.name AS tuition_class_name, cc.name AS current_class_name,
+    tco.name AS course_name, sb.name AS branch_name,
+    jsonb_array_length(COALESCE(t.fee_items, '[]')) AS tuition_fee_item_count,
     cu.full_name AS creator_name, au.full_name AS approver_name, du.full_name AS depositor_name
 FROM finance.receipts r
 LEFT JOIN finance.tuitions t ON t.id = r.tuition_id
@@ -561,3 +562,29 @@ UPDATE finance.bank_transactions SET status = 'manual_matched', matched_receipt_
     response_message = sqlc.arg(message), updated_at = now()
 WHERE matched_receipt_id IS NULL
   AND (upper(provider_txn_id) = sqlc.arg(reference)::text OR upper(reference_code) = sqlc.arg(reference)::text);
+
+-- name: PaymentConfirmTarget :one
+-- Học viên nhận xác nhận đã nộp học phí + người phụ trách khách CRM đã chốt ra học viên.
+SELECT s.id, s.full_name, s.phone, s.parent_phone, s.email, s.user_id, l.assigned_user_id AS owner_id, l.email AS lead_email
+FROM academic.students s
+LEFT JOIN LATERAL (SELECT x.assigned_user_id, x.email FROM crm.leads x WHERE x.converted_student_id = s.id
+                   ORDER BY x.converted_at DESC NULLS LAST, x.id DESC LIMIT 1) l ON true
+WHERE s.id = $1;
+
+-- ───────────────────────── Kho (xuất / hoàn theo phiếu thu) ─────────────────────────
+
+-- name: IssuedByReceipt :many
+SELECT item_id, branch_id, source, sum(quantity_change)::int AS net
+FROM ops.stock_movements WHERE receipt_id = $1
+GROUP BY item_id, branch_id, source;
+
+-- name: IssuedByTuitionContract :many
+SELECT item_id, sum(quantity_change)::int AS net
+FROM ops.stock_movements WHERE tuition_id = $1 AND source = 'contract'
+GROUP BY item_id;
+
+-- name: TuitionFeeItems :one
+SELECT fee_items FROM finance.tuitions WHERE id = $1;
+
+-- name: ItemsByIDs :many
+SELECT id, name, unit FROM ops.inventory_items WHERE id = ANY (sqlc.arg(ids)::uuid[]);

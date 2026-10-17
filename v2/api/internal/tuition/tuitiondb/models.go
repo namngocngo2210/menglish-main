@@ -433,7 +433,7 @@ type CrmPromotion struct {
 	Code              string
 	Name              string
 	Type              string
-	Value             pgtype.Numeric
+	Value             float64
 	MaxDiscountAmount *int64
 	Description       *string
 	Reason            *string

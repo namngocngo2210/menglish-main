@@ -33,6 +33,7 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/store"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/students"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/tasks"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/tuition"
 )
 
 // Gắn lúc build: -ldflags "-X main.version=<commit>".
@@ -132,6 +133,8 @@ func runAPI(ctx context.Context) error {
 	inv := inventory.NewService(d.pool, log, inventory.DefaultConfig()).WithRestocker(taskSvc.Restocker())
 	go inv.RunOverdueLoop(ctx, 15*time.Minute)
 	studentSvc.Classes, catalogSvc.Classes, inv.Classes = cls, cls, cls
+	// Học phí: phiếu thu duyệt thì xuất bán / hủy thì hoàn kho vật phẩm qua phân hệ Kho.
+	tuitionSvc := tuition.NewService(d.pool, d.box, catalogSvc, log).WithStock(inv)
 	// Chốt & Xếp lớp: Lớp học tạo hồ sơ học viên và ghi danh trong giao dịch của CRM; xếp lớp từ màn Học viên hoàn tất
 	// khách Chờ xếp lớp bên CRM.
 	crmSvc := crm.NewService(d.pool, d.iam, log).WithStudents(cls.CRMStudents(studentSvc))
@@ -171,6 +174,7 @@ func runAPI(ctx context.Context) error {
 				place,
 				reports.NewHandler(reportSvc, log),
 				crm.NewHandler(crmSvc, log),
+				tuition.NewHandler(tuitionSvc, log),
 			),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,

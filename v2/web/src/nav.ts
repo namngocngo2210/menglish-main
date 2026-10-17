@@ -20,6 +20,8 @@ export type NavItem = {
 export const isAdmin = (me: Me) => me.roles.some((r) => r.name === 'admin')
 
 const CRM = 'Khách hàng (CRM)'
+// Quyền neo khu Học phí (SidebarMenu::TUITION): người xử lý nghiệp vụ kế toán.
+const TUITION_ANCHORS = ['tuition.approve', 'tuition.reject', 'invoice.request_cancel', 'refund_transfer.request']
 
 export const NAV: NavItem[] = [
   { path: '/', label: 'Tài khoản của tôi', icon: 'account_circle' },
@@ -108,6 +110,18 @@ export const NAV: NavItem[] = [
   { path: '/crm/waiting', label: 'Chờ xếp lớp', perms: ['lead.view'], group: CRM, hidden: true },
   { path: '/crm/deleted', label: 'Khách đã xóa', perms: ['lead.delete'], group: CRM, hidden: true },
   { path: '/crm/transfers', label: 'Duyệt chuyển cơ sở', perms: ['lead.approve_transfer'], group: CRM, hidden: true },
+  // Học phí (features/tuition). Như SidebarMenu: mục workspace neo quyền kế toán (TUITION_ANCHORS); "Cần duyệt › Phiếu
+  // thu" chỉ Admin thấy. Lập / sửa phiếu (/tuition/receipts/new, /tuition/receipts/<id>/edit) mở từ nút trên trang.
+  { path: '/tuition/students', label: 'Công nợ học viên', perms: ['tuition.view'], group: 'Học phí', menu: (me) => can(me, ...TUITION_ANCHORS) },
+  { path: '/tuition/history', label: 'Lịch sử thu', perms: ['tuition.view'], group: 'Học phí', menu: (me) => can(me, ...TUITION_ANCHORS) },
+  { path: '/tuition/receipts', label: 'Lập phiếu thu', perms: ['tuition.create'], group: 'Học phí', hidden: true },
+  {
+    path: '/tuition/receipts/approve',
+    label: 'Phiếu thu',
+    perms: ['tuition.view'],
+    group: 'Cần duyệt',
+    menu: (me) => isAdmin(me) && can(me, ...TUITION_ANCHORS),
+  },
 ]
 
 // Workspace của sidebar theo đúng thứ tự SidebarMenu::definition(): khu (section) → workspace (label, icon).

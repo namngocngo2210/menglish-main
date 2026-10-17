@@ -20,6 +20,7 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/search"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/students"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/tasks"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/tuition"
 )
 
 // publicRoutes: route không cần quyền (đăng nhập và tự quản lý tài khoản của chính mình; đã có RequireAuth).
@@ -63,7 +64,7 @@ func unguarded(t *testing.T, r chi.Routes) ([]string, int) {
 // Thêm module mới mà quên gắn quyền thì test này đỏ.
 func TestEveryRouteHasPermission(t *testing.T) {
 	r := chi.NewRouter()
-	apiRoutes(iam.NewHandler(nil, nil), platform{audit: auditapi.NewHandler(nil, nil), notify: notifyapi.NewHandler(nil, nil), search: search.NewHandler(search.Builtin(nil), nil)}, students.NewHandler(nil, nil), inventory.NewHandler(nil, nil), catalogs.NewHandler(nil, nil), classes.NewHandler(nil, nil), tasks.NewHandler(nil, nil), placement.NewHandler(nil, nil), reports.NewHandler(nil, nil), crm.NewHandler(nil, nil))(r)
+	apiRoutes(iam.NewHandler(nil, nil), platform{audit: auditapi.NewHandler(nil, nil), notify: notifyapi.NewHandler(nil, nil), search: search.NewHandler(search.Builtin(nil), nil)}, students.NewHandler(nil, nil), inventory.NewHandler(nil, nil), catalogs.NewHandler(nil, nil), classes.NewHandler(nil, nil), tasks.NewHandler(nil, nil), placement.NewHandler(nil, nil), reports.NewHandler(nil, nil), crm.NewHandler(nil, nil), tuition.NewHandler(nil, nil))(r)
 	bad, count := unguarded(t, r)
 	for _, b := range bad {
 		t.Errorf("%s không gắn iam.Require / iam.RequireAny", b)
