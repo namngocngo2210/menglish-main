@@ -234,6 +234,25 @@ type CoreBranch struct {
 	LateGraceMinutes int16
 }
 
+type CoreFile struct {
+	ID           uuid.UUID
+	OwnerModule  string
+	SubjectType  string
+	SubjectID    *uuid.UUID
+	BranchID     *uuid.UUID
+	StorageKey   string
+	OriginalName string
+	Extension    string
+	MimeType     string
+	SizeBytes    int64
+	Sha256       []byte
+	LegacyPath   *string
+	UploadedBy   *uuid.UUID
+	CreatedAt    time.Time
+	DeletedAt    *time.Time
+	DeletedBy    *uuid.UUID
+}
+
 type CoreHoliday struct {
 	ID           uuid.UUID
 	Code         string
@@ -250,6 +269,30 @@ type CoreHoliday struct {
 type CoreHolidayBranch struct {
 	HolidayID uuid.UUID
 	BranchID  uuid.UUID
+}
+
+type CoreMailOutbox struct {
+	ID            uuid.UUID
+	Kind          string
+	ToAddress     string
+	ToName        string
+	Subject       string
+	Template      string
+	Data          []byte
+	Sensitive     bool
+	Status        string
+	Attempts      int32
+	MaxAttempts   int32
+	NextAttemptAt time.Time
+	LockedUntil   *time.Time
+	LastError     *string
+	Fallback      []byte
+	RefType       *string
+	RefID         *string
+	CreatedBy     *uuid.UUID
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	SentAt        *time.Time
 }
 
 type CoreNotification struct {
@@ -490,6 +533,41 @@ type FinanceBankAccount struct {
 	DeletedAt       *time.Time
 }
 
+type FinanceBankTransaction struct {
+	ID               uuid.UUID
+	Provider         string
+	ProviderTxnID    string
+	Gateway          *string
+	TransactionDate  *time.Time
+	AccountNumber    *string
+	SubAccount       *string
+	TransferType     string
+	TransferAmount   int64
+	Accumulated      int64
+	Content          *string
+	ReferenceCode    *string
+	RawPayload       []byte
+	Status           string
+	MatchedStudentID *uuid.UUID
+	MatchedTuitionID *uuid.UUID
+	MatchedReceiptID *uuid.UUID
+	ResponseMessage  *string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
+type FinanceDebtReminderLog struct {
+	ID        uuid.UUID
+	TuitionID uuid.UUID
+	Milestone string
+	SentOn    time.Time
+	Title     string
+	Content   string
+	Channels  []string
+	SentBy    *uuid.UUID
+	CreatedAt time.Time
+}
+
 type FinanceDebtReminderRule struct {
 	ID              uuid.UUID
 	MilestoneKey    string
@@ -501,6 +579,262 @@ type FinanceDebtReminderRule struct {
 	CreatedBy       *uuid.UUID
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+}
+
+type FinanceExpense struct {
+	ID            uuid.UUID
+	ExpenseDate   time.Time
+	Title         string
+	Amount        int64
+	PaymentMethod string
+	BranchID      *uuid.UUID
+	Category      string
+	Notes         *string
+	CreatedBy     *uuid.UUID
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	DeletedAt     *time.Time
+}
+
+type FinanceInvoiceCancellation struct {
+	ID              uuid.UUID
+	InvoiceNumber   string
+	ReceiptID       *uuid.UUID
+	StudentID       *uuid.UUID
+	Amount          int64
+	Reason          string
+	RejectionReason *string
+	ProofUrl        *string
+	ProofFileID     *uuid.UUID
+	Status          string
+	RequesterID     *uuid.UUID
+	ApproverID      *uuid.UUID
+	ApprovedAt      *time.Time
+	LegacyID        *int64
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+type FinanceInvoiceRange struct {
+	ID            uuid.UUID
+	BranchID      *uuid.UUID
+	Kind          string
+	TemplateCode  string
+	SeriesCode    string
+	StartNumber   int64
+	EndNumber     *int64
+	CurrentNumber int64
+	Provider      string
+	AutoIssue     bool
+	IsActive      bool
+	CreatedBy     *uuid.UUID
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
+type FinancePaymentProvider struct {
+	Provider        string
+	WebhookName     string
+	TransactionType string
+	AuthMethod      string
+	ApiKeyEnc       []byte
+	SecretKeyEnc    []byte
+	IsActive        bool
+	UpdatedBy       *uuid.UUID
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	WebhookUrl      *string
+	DataFormat      string
+	AutoRetry       bool
+}
+
+type FinanceReceipt struct {
+	ID                 uuid.UUID
+	Code               string
+	Source             string
+	InvoiceNumber      *string
+	TuitionID          *uuid.UUID
+	StudentID          *uuid.UUID
+	Amount             int64
+	TuitionAmount      int64
+	SessionCount       *int32
+	SessionUnitPrice   *int64
+	MaterialFee        int64
+	ExamFee            int64
+	OtherFee           int64
+	OtherFeeReason     *string
+	SurchargeAmount    int64
+	SurchargeReason    *string
+	DiscountAmount     int64
+	PromotionID        *uuid.UUID
+	DiscountReason     *string
+	PaymentMethod      string
+	TransactionCode    *string
+	TransferReference  *string
+	PayerName          *string
+	PayerPhone         *string
+	IsVatInvoice       bool
+	PaperInvoiceNumber *string
+	ProofUrl           *string
+	ProofFileID        *uuid.UUID
+	PaymentDate        pgtype.Date
+	CollectedItems     []byte
+	Status             string
+	Notes              *string
+	RejectionReason    *string
+	CreatorID          *uuid.UUID
+	ApproverID         *uuid.UUID
+	ApprovedAt         *time.Time
+	DepositedAt        *time.Time
+	DepositedBy        *uuid.UUID
+	LegacyID           *int64
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+}
+
+type FinanceRefundRequest struct {
+	ID                 uuid.UUID
+	StudentID          uuid.UUID
+	TuitionID          *uuid.UUID
+	Type               string
+	TotalPaid          int64
+	AttendedLessons    int32
+	AdminFee           int64
+	RefundAmount       int64
+	TargetStudentID    *uuid.UUID
+	ExtendedDueDate    pgtype.Date
+	DeferFrom          pgtype.Date
+	DeferTo            pgtype.Date
+	Reason             string
+	NoTransferReason   *string
+	ProofUrl           *string
+	ProofFileID        *uuid.UUID
+	RejectionReason    *string
+	Status             string
+	RequesterID        *uuid.UUID
+	ApproverID         *uuid.UUID
+	ApprovedAt         *time.Time
+	LegacyID           *int64
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+	ClawbackCommission *bool
+	ClawbackAmount     *int64
+	ClawbackUserID     *uuid.UUID
+}
+
+type FinanceTuition struct {
+	ID                      uuid.UUID
+	StudentID               uuid.UUID
+	ClassID                 *uuid.UUID
+	BranchID                *uuid.UUID
+	BankAccountID           *uuid.UUID
+	PromotionID             *uuid.UUID
+	TotalAmount             int64
+	SessionCount            *int32
+	DiscountAmount          int64
+	OtherFees               int64
+	FeeItems                []byte
+	PrepaidAmount           int64
+	FinalAmount             int64
+	PaidAmount              int64
+	DebtAmount              int64
+	DueDate                 pgtype.Date
+	ReminderPausedUntil     pgtype.Date
+	DeferredFrom            pgtype.Date
+	DeferredUntil           pgtype.Date
+	FrozenRemainingSessions *int32
+	FrozenDebtAmount        *int64
+	Status                  string
+	Notes                   *string
+	TransferMemo            *string
+	LegacyID                *int64
+	CreatedBy               *uuid.UUID
+	CreatedAt               time.Time
+	UpdatedAt               time.Time
+}
+
+type FinanceTuitionContactLog struct {
+	ID          uuid.UUID
+	TuitionID   uuid.UUID
+	UserID      *uuid.UUID
+	Action      string
+	Note        *string
+	ContactedAt time.Time
+	CreatedAt   time.Time
+}
+
+type FinanceTuitionImportBatch struct {
+	ID          uuid.UUID
+	CreatedBy   uuid.UUID
+	BranchID    uuid.UUID
+	FileName    string
+	Rows        []byte
+	Status      string
+	Result      []byte
+	CreatedAt   time.Time
+	CommittedAt *time.Time
+}
+
+type HrKpiCriterium struct {
+	ID            uuid.UUID
+	Role          string
+	GroupName     *string
+	Code          *string
+	Name          string
+	Weight        pgtype.Numeric
+	ThresholdFull *string
+	ThresholdHalf *string
+	MaxFull       *int32
+	MaxHalf       *int32
+	Unit          *string
+	Measure       string
+	Tiers         []byte
+	Linear        bool
+	FullAt        *float64
+	PerMonth      bool
+	Knockout      bool
+	AllowNa       bool
+	AutoSource    *string
+	Description   *string
+	IsActive      bool
+	SortOrder     int32
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	DeletedAt     *time.Time
+}
+
+type HrKpiItem struct {
+	ID            uuid.UUID
+	SheetID       uuid.UUID
+	CriterionID   uuid.UUID
+	Score         pgtype.Numeric
+	Actual        *string
+	CriticalError bool
+	NotApplicable bool
+	Note          *string
+	Evidence      []byte
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
+type HrKpiSheet struct {
+	ID           uuid.UUID
+	UserID       uuid.UUID
+	EvaluatorID  *uuid.UUID
+	Month        int16
+	Year         int16
+	Track        string
+	PeriodMonths int16
+	TotalScore   pgtype.Numeric
+	Comment      *string
+	Strengths    *string
+	Improvements *string
+	NextActions  *string
+	Status       string
+	RejectReason *string
+	DecidedAt    *time.Time
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 }
 
 type HrSlaRule struct {

@@ -175,6 +175,25 @@ test('menu chỉ hiện mục có quyền, mở thẳng đường dẫn không c
   expect(screen.queryByRole('button', { name: 'Thêm tài khoản' })).not.toBeInTheDocument()
 })
 
+test('nhân sự mở "/" là Tổng quan; Tài khoản của tôi chuyển sang /profile', async () => {
+  mockApi({
+    'GET /auth/me': () => [200, meOf({ ...staff, totp_enabled: true }, { permissions: ['portal.staff'] })],
+    'GET /meta': () => [200, { version: 'v', env: 'beta' }],
+    'GET /auth/sessions': () => [200, { sessions: [] }],
+    'GET /dashboard': () => [200, { is_operations: false, role_dashboard: null, daily_report: null, teaching: null }],
+  })
+  const user = userEvent.setup()
+  renderApp()
+  expect(await screen.findByText('Xin chào, Quản trị!')).toBeInTheDocument()
+  expect(screen.getByRole('heading', { level: 1, name: 'Tổng quan' })).toBeInTheDocument()
+  expect(await screen.findByRole('navigation', { name: 'Menu chính' })).toHaveTextContent('Tổng quan')
+
+  await user.click(screen.getByRole('button', { name: 'Tài khoản' }))
+  await user.click(screen.getByRole('menuitem', { name: /Tài khoản của tôi/ }))
+  expect(window.location.pathname).toBe('/profile')
+  expect(await screen.findByText('Tài khoản', { selector: 'h2' })).toBeInTheDocument()
+})
+
 test('mô tả thiết bị từ User-Agent', () => {
   expect(
     describeAgent(

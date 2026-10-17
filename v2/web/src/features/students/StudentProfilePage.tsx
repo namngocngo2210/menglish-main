@@ -3,6 +3,7 @@ import { useState, type ChangeEvent, type ReactNode, type TextareaHTMLAttributes
 import { ApiError, errorMessage, type Me } from '../../api'
 import { Alert, Button, Card, Dialog, Field, Select } from '../../components/ui'
 import { navigate } from '../../router'
+import { StudentTuitionPanel } from '../tuition/StudentTuitionPanel'
 import { StudentClasses } from './EnrollmentsPage'
 import { studentsApi, type StudentInput, type StudentProfile, type StudentStatus } from './api'
 import { NotYet, PageHeader, StatusBadge, TempAccount } from './components'
@@ -94,9 +95,10 @@ export function StudentProfilePage({ me, id, scoped }: { me: Me; id: string; sco
           {tab === 'guardians' && <GuardiansTab st={st} onDone={setFlash} />}
           {tab === 'classes' && <ClassesTab st={st} />}
           {tab === 'tuition' && st.view.can_view_tuition && (
-            <NotYet title="Thông tin học phí">
-              Sổ học phí, phiếu thu và sổ buổi thuộc phân hệ Học phí, chưa chuyển sang hệ thống mới. Tra cứu trên bản cũ.
-            </NotYet>
+            <section className="space-y-3">
+              <h3 className="font-semibold">Thông tin học phí</h3>
+              <StudentTuitionPanel me={me} studentId={st.id} />
+            </section>
           )}
           {tab === 'history' && !scoped && <HistoryTab st={st} />}
         </div>

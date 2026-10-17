@@ -50,6 +50,18 @@ type CloseInput struct {
 	PaymentMethod    *string    `json:"payment_method"`
 	StudentCode      *string    `json:"student_code"`
 	BillNotes        *string    `json:"bill_notes"`
+	// Phần học phí (phân hệ Học phí đọc): hàng hóa thu thêm trong hợp đồng, tài khoản nhận chuyển khoản, hóa đơn giấy
+	// của khoản thu tiền mặt. TODO(files): ảnh hóa đơn giấy tạm là đường dẫn.
+	FeeItems                   []FeeItemRef `json:"fee_items"`
+	BankAccountID              *uuid.UUID   `json:"bank_account_id"`
+	PaperInvoiceNumber         *string      `json:"paper_invoice_number"`
+	ExpectedPaperInvoiceNumber *string      `json:"expected_paper_invoice_number"`
+	PaperInvoiceProof          *string      `json:"paper_invoice_proof_url"`
+}
+
+// FeeItemRef: hàng hóa (sách, đồng phục...) chọn từ danh mục, thu thêm trong hợp đồng.
+type FeeItemRef struct {
+	ID uuid.UUID `json:"id"`
 }
 
 // ClosedStudent: kết quả phân hệ học viên trả về sau khi tạo hồ sơ.
@@ -64,6 +76,7 @@ type ClosedStudent struct {
 	BranchID      *uuid.UUID  // cơ sở của lớp / khóa
 	Enrollment    *Enrollment // lượt ghi danh khi có lớp
 	Message       string      // phần thông báo của phân hệ học viên (vd "Khoản thu đang chờ Kế toán/Admin duyệt.")
+	BillURL       string      // trang "Thông báo nộp học phí" của khoản học phí vừa tạo (crm.tuition-bill)
 }
 
 // StudentCreator: phân hệ học viên / lớp học / học phí. Chạy trong cùng giao dịch với CRM.
@@ -72,6 +85,13 @@ type StudentCreator interface {
 	CreateFromLead(ctx context.Context, tx pgx.Tx, actor *iam.Access, lead LeadSnapshot, in CloseInput) (*ClosedStudent, error)
 	// EnrollWaiting xếp lớp cho học viên đang Chờ xếp lớp.
 	EnrollWaiting(ctx context.Context, tx pgx.Tx, actor *iam.Access, lead LeadSnapshot, studentID, classID uuid.UUID) (*Enrollment, error)
+}
+
+// ClosingCanceller: phần hủy chốt của phân hệ học viên / học phí (StudentCreator có thì gọi, cùng giao dịch): học viên
+// chuyển Thôi học, hủy phiếu thu chưa duyệt, bỏ phần còn nợ, lập hồ sơ hoàn phí chờ duyệt cho phần đã thu. Trả số tiền
+// hoàn đã lập (0 = không có).
+type ClosingCanceller interface {
+	CancelClosing(ctx context.Context, tx pgx.Tx, actor *iam.Access, studentID uuid.UUID, reason string) (int64, error)
 }
 
 var errStudentsNotReady = &iam.Error{Status: http.StatusNotImplemented, Code: "students_not_ready",
@@ -180,7 +200,7 @@ func (s *Service) Close(ctx context.Context, a *iam.Access, idOrCode string, in 
 		if st.Message != "" {
 			msg += " " + st.Message
 		}
-		out = &Saved{ID: l.ID, Message: msg}
+		out = &Saved{ID: l.ID, Message: msg, BillURL: st.BillURL}
 		return nil
 	})
 	if err != nil {

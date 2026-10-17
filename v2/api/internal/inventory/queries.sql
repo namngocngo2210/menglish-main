@@ -213,3 +213,30 @@ RETURNING id, code, title, category, branch_id, due_at;
 -- name: StudentExists :one
 -- Học viên (chưa xóa) nhận hàng khi xuất kho tay.
 SELECT EXISTS (SELECT 1 FROM academic.students WHERE id = $1 AND deleted_at IS NULL);
+
+-- ───────────── Số liệu KPI tự động (internal/kpi) ─────────────
+
+-- name: KpiLateOrders :many
+-- Order học liệu người này xử lý trễ hạn trong khoảng.
+SELECT code, title, processed_at::timestamptz AS processed_at FROM ops.material_orders
+WHERE processed_by = @user_id AND processed_late AND deleted_at IS NULL
+  AND processed_at BETWEEN @from_at::timestamptz AND @to_at::timestamptz
+ORDER BY processed_at, id;
+
+-- name: KpiStockCounts :many
+-- Phiếu kiểm kê lệch người này ghi trong khoảng.
+SELECT m.created_at, m.quantity_change, i.name AS item_name
+FROM ops.stock_movements m JOIN ops.inventory_items i ON i.id = m.item_id
+WHERE m.created_by = @user_id AND m.type = 'count' AND m.created_at BETWEEN @from_at::timestamptz AND @to_at::timestamptz
+ORDER BY m.created_at, m.id;
+
+-- name: KpiAcademicOrders :many
+-- Order "Học liệu học thuật" có ngày sử dụng trong khoảng (trừ bị từ chối), kèm giờ bắt đầu buổi học đầu tiên của lớp trong ngày.
+SELECT o.code, o.title, o.use_date, o.status, o.processed_at, o.updated_at, o.created_at,
+       coalesce(c.code::text, '')::text AS class_code, coalesce(c.name, '')::text AS class_name,
+       coalesce((SELECT to_char(min(s.start_time), 'HH24:MI') FROM academic.class_sessions s
+        WHERE s.class_id = o.class_id AND s.date = o.use_date AND s.status <> 'cancelled'), '')::text AS start_time
+FROM ops.material_orders o LEFT JOIN academic.classes c ON c.id = o.class_id
+WHERE o.category = 'academic' AND o.deleted_at IS NULL AND o.status <> 'rejected'
+  AND o.use_date BETWEEN @from_date::date AND @to_date::date
+ORDER BY o.use_date, o.id;

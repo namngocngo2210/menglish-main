@@ -479,6 +479,149 @@ func (q *Queries) ItemMetrics(ctx context.Context) (ItemMetricsRow, error) {
 	return i, err
 }
 
+const kpiAcademicOrders = `-- name: KpiAcademicOrders :many
+SELECT o.code, o.title, o.use_date, o.status, o.processed_at, o.updated_at, o.created_at,
+       coalesce(c.code::text, '')::text AS class_code, coalesce(c.name, '')::text AS class_name,
+       coalesce((SELECT to_char(min(s.start_time), 'HH24:MI') FROM academic.class_sessions s
+        WHERE s.class_id = o.class_id AND s.date = o.use_date AND s.status <> 'cancelled'), '')::text AS start_time
+FROM ops.material_orders o LEFT JOIN academic.classes c ON c.id = o.class_id
+WHERE o.category = 'academic' AND o.deleted_at IS NULL AND o.status <> 'rejected'
+  AND o.use_date BETWEEN $1::date AND $2::date
+ORDER BY o.use_date, o.id
+`
+
+type KpiAcademicOrdersParams struct {
+	FromDate time.Time
+	ToDate   time.Time
+}
+
+type KpiAcademicOrdersRow struct {
+	Code        string
+	Title       string
+	UseDate     time.Time
+	Status      string
+	ProcessedAt *time.Time
+	UpdatedAt   time.Time
+	CreatedAt   time.Time
+	ClassCode   string
+	ClassName   string
+	StartTime   string
+}
+
+// Order "Học liệu học thuật" có ngày sử dụng trong khoảng (trừ bị từ chối), kèm giờ bắt đầu buổi học đầu tiên của lớp trong ngày.
+func (q *Queries) KpiAcademicOrders(ctx context.Context, arg KpiAcademicOrdersParams) ([]KpiAcademicOrdersRow, error) {
+	rows, err := q.db.Query(ctx, kpiAcademicOrders, arg.FromDate, arg.ToDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []KpiAcademicOrdersRow
+	for rows.Next() {
+		var i KpiAcademicOrdersRow
+		if err := rows.Scan(
+			&i.Code,
+			&i.Title,
+			&i.UseDate,
+			&i.Status,
+			&i.ProcessedAt,
+			&i.UpdatedAt,
+			&i.CreatedAt,
+			&i.ClassCode,
+			&i.ClassName,
+			&i.StartTime,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const kpiLateOrders = `-- name: KpiLateOrders :many
+
+SELECT code, title, processed_at::timestamptz AS processed_at FROM ops.material_orders
+WHERE processed_by = $1 AND processed_late AND deleted_at IS NULL
+  AND processed_at BETWEEN $2::timestamptz AND $3::timestamptz
+ORDER BY processed_at, id
+`
+
+type KpiLateOrdersParams struct {
+	UserID *uuid.UUID
+	FromAt time.Time
+	ToAt   time.Time
+}
+
+type KpiLateOrdersRow struct {
+	Code        string
+	Title       string
+	ProcessedAt time.Time
+}
+
+// ───────────── Số liệu KPI tự động (internal/kpi) ─────────────
+// Order học liệu người này xử lý trễ hạn trong khoảng.
+func (q *Queries) KpiLateOrders(ctx context.Context, arg KpiLateOrdersParams) ([]KpiLateOrdersRow, error) {
+	rows, err := q.db.Query(ctx, kpiLateOrders, arg.UserID, arg.FromAt, arg.ToAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []KpiLateOrdersRow
+	for rows.Next() {
+		var i KpiLateOrdersRow
+		if err := rows.Scan(&i.Code, &i.Title, &i.ProcessedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const kpiStockCounts = `-- name: KpiStockCounts :many
+SELECT m.created_at, m.quantity_change, i.name AS item_name
+FROM ops.stock_movements m JOIN ops.inventory_items i ON i.id = m.item_id
+WHERE m.created_by = $1 AND m.type = 'count' AND m.created_at BETWEEN $2::timestamptz AND $3::timestamptz
+ORDER BY m.created_at, m.id
+`
+
+type KpiStockCountsParams struct {
+	UserID *uuid.UUID
+	FromAt time.Time
+	ToAt   time.Time
+}
+
+type KpiStockCountsRow struct {
+	CreatedAt      time.Time
+	QuantityChange int32
+	ItemName       string
+}
+
+// Phiếu kiểm kê lệch người này ghi trong khoảng.
+func (q *Queries) KpiStockCounts(ctx context.Context, arg KpiStockCountsParams) ([]KpiStockCountsRow, error) {
+	rows, err := q.db.Query(ctx, kpiStockCounts, arg.UserID, arg.FromAt, arg.ToAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []KpiStockCountsRow
+	for rows.Next() {
+		var i KpiStockCountsRow
+		if err := rows.Scan(&i.CreatedAt, &i.QuantityChange, &i.ItemName); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listActiveBranches = `-- name: ListActiveBranches :many
 SELECT id, code, name, is_active FROM core.branches
 WHERE is_active AND ($1::uuid[] IS NULL OR id = ANY($1::uuid[]))

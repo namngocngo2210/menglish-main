@@ -161,3 +161,9 @@ WHERE s.deleted_at IS NULL
        OR (sqlc.arg(phone)::text <> '' AND s.phone ILIKE sqlc.arg(phone)::text))
 ORDER BY s.full_name, s.id
 LIMIT sqlc.arg(lim);
+
+-- name: AppendStudentNote :exec
+-- Ghi thêm một dòng vào ghi chú hồ sơ (giữ 5000 ký tự cuối).
+UPDATE academic.students
+SET notes = right(btrim(coalesce(notes || E'\n', '') || sqlc.arg(line)::text), 5000), updated_at = now(), version = version + 1
+WHERE id = sqlc.arg(id);

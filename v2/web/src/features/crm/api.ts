@@ -60,6 +60,8 @@ export type LeadRow = {
   updated_at: string
   sla: SLA | null
   test_today_at: string | null
+  /** Học phí của học viên (chỉ màn Khách chốt thành công). */
+  tuition?: { paid_amount: number; debt_amount: number; label: string; tone: 'neutral' | 'success' | 'error' | 'warning' }
 }
 
 export type LeadList = Page<LeadRow> & { counts: ChipCounts }
@@ -227,7 +229,7 @@ export type LeadInput = {
   notes?: string
 }
 
-export type Saved = { id: string; message: string }
+export type Saved = { id: string; message: string; bill_url?: string }
 export type StageResult = { stage: string; stage_label: string; message: string }
 
 export type ClassChoice = { id: string; label: string; course_id: string | null }

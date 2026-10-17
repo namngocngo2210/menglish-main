@@ -81,7 +81,7 @@ export function Shell({ me, children }: { me: Me; children: ReactNode }) {
         onToggleCollapsed={toggleCollapsed}
         onLogout={() => logout.mutate()}
       />
-      <div className={`flex min-h-dvh min-w-0 flex-col transition-[padding] duration-200 ${collapsed ? 'md:pl-16' : 'md:pl-16 lg:pl-64'}`}>
+      <div className={`flex min-h-dvh min-w-0 flex-col transition-[padding] duration-200 ${collapsed ? 'md:pl-18' : 'md:pl-18 desktop:pl-60'}`}>
         <Topbar
           me={me}
           title={pageTitle(path)}

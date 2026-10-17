@@ -2673,7 +2673,7 @@ func (q *Queries) PipelineLeads(ctx context.Context, arg PipelineLeadsParams) ([
 
 const placementLeads = `-- name: PlacementLeads :many
 SELECT l.id, l.code, l.name, l.parent_name, l.phone, l.email, l.stage, l.branch_id, l.assigned_user_id, l.test_score,
-       coalesce(u.full_name, '')::text AS assigned_user_name
+       coalesce(u.full_name, '')::text AS assigned_user_name, l.parent_phone
 FROM crm.leads l
 LEFT JOIN iam.users u ON u.id = l.assigned_user_id
 WHERE l.deleted_at IS NULL AND l.id = ANY ($1::uuid[])
@@ -2691,6 +2691,7 @@ type PlacementLeadsRow struct {
 	AssignedUserID   *uuid.UUID
 	TestScore        *string
 	AssignedUserName string
+	ParentPhone      *string
 }
 
 // Khách (kèm tên người phụ trách) theo danh sách id, không lọc phạm vi.
@@ -2715,6 +2716,7 @@ func (q *Queries) PlacementLeads(ctx context.Context, ids []uuid.UUID) ([]Placem
 			&i.AssignedUserID,
 			&i.TestScore,
 			&i.AssignedUserName,
+			&i.ParentPhone,
 		); err != nil {
 			return nil, err
 		}
@@ -3591,6 +3593,67 @@ func (q *Queries) WaitingLeads(ctx context.Context, arg WaitingLeadsParams) ([]W
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const wonStudentIDs = `-- name: WonStudentIDs :many
+SELECT l.converted_student_id::uuid AS student_id
+FROM crm.leads l
+WHERE l.deleted_at IS NULL AND l.stage = $1::text AND l.converted_student_id IS NOT NULL
+  AND ($2::uuid IS NULL OR l.assigned_user_id = $2::uuid)
+  AND ($3::uuid[] IS NULL OR l.branch_id = ANY ($3::uuid[]))
+  AND ($4::text IS NULL OR l.name ILIKE $4::text OR l.phone ILIKE $4::text
+       OR l.code ILIKE $4::text OR l.email::text ILIKE $4::text OR l.parent_name ILIKE $4::text
+       OR ($5::text IS NOT NULL AND l.phone_normalized LIKE $5::text))
+  AND ($6::uuid IS NULL OR l.branch_id = $6::uuid)
+  AND ($7::uuid IS NULL OR l.assigned_user_id = $7::uuid)
+  AND ($8::text IS NULL OR l.source = $8::text)
+  AND ($9::timestamptz IS NULL OR l.converted_at >= $9::timestamptz)
+  AND ($10::timestamptz IS NULL OR l.converted_at <= $10::timestamptz)
+`
+
+type WonStudentIDsParams struct {
+	Stage          string
+	ScopeOwner     *uuid.UUID
+	ScopeBranches  []uuid.UUID
+	Q              *string
+	QDigits        *string
+	BranchID       *uuid.UUID
+	AssignedUserID *uuid.UUID
+	Source         *string
+	DateFrom       *time.Time
+	DateTo         *time.Time
+}
+
+// Học viên của khách Đã chốt theo cùng bộ lọc LeadTotals (không phân trang) — tổng Đã thu / Còn nợ từ phân hệ Học phí.
+func (q *Queries) WonStudentIDs(ctx context.Context, arg WonStudentIDsParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, wonStudentIDs,
+		arg.Stage,
+		arg.ScopeOwner,
+		arg.ScopeBranches,
+		arg.Q,
+		arg.QDigits,
+		arg.BranchID,
+		arg.AssignedUserID,
+		arg.Source,
+		arg.DateFrom,
+		arg.DateTo,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var student_id uuid.UUID
+		if err := rows.Scan(&student_id); err != nil {
+			return nil, err
+		}
+		items = append(items, student_id)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

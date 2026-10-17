@@ -25,6 +25,9 @@
   --font-sans: 'Be Vietnam Pro', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
+  /* Sidebar như Laravel: ≥1200px (desktop) đầy đủ 240px, thu gọn / màn 768–1199px là cột icon 72px. */
+  --breakpoint-desktop: 75rem;
+
   --color-primary: #c2410c;
   --color-primary-hover: #a23f00;
   --color-primary-light: #fff3eb;
@@ -74,6 +77,25 @@
   vertical-align: middle;
   user-select: none;
 }
+/* Thanh cuộn mảnh trên nền tối của sidebar (sidebar-scrollbar của Laravel). */
+.sidebar-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 0.14) transparent;
+}
+.sidebar-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.sidebar-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-scrollbar::-webkit-scrollbar-thumb {
+  background: rgb(255 255 255 / 0.14);
+  border-radius: 9999px;
+}
+.sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgb(255 255 255 / 0.28);
+}
+
 .material-symbols-outlined.fill {
   font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }

@@ -11,19 +11,25 @@
 :8080 {
 	encode zstd gzip
 
-	header {
+	# Nội dung file (link ký sẵn) do API tự đặt header (CSP sandbox, cho nhúng PDF trong trang cùng gốc).
+	@not_blob not path /api/v1/files/blob/*
+	header @not_blob {
 		X-Content-Type-Options nosniff
 		X-Frame-Options DENY
 		Referrer-Policy strict-origin-when-cross-origin
 		Permissions-Policy "camera=(self), geolocation=(self), microphone=()"
 		Content-Security-Policy "default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
-		-Server
 	}
+	header -Server
 
 	handle /api/* {
 		reverse_proxy api:8080
 	}
 	handle /readyz {
+		reverse_proxy api:8080
+	}
+	# Webhook SePay giữ đường dẫn cũ đã khai trên cổng SePay (/hook/sepay-gateway/v1/add-payment).
+	handle /hook/* {
 		reverse_proxy api:8080
 	}
 

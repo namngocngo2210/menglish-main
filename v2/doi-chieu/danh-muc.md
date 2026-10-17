@@ -114,7 +114,7 @@ Ký hiệu: **Đã làm** = đủ hành vi như Laravel; **Làm một phần** =
 |---|---|---|---|
 | `system-config.ticket-emails` GET | GET /system-config/ticket-emails · màn `/system-config/ticket-emails` | Đã làm | Khối SMTP chỉ hiện với quyền `mail_config.manage`; không bao giờ trả mật khẩu. |
 | `system-config.ticket-emails.update` POST | POST /system-config/ticket-emails | Đã làm | Mật khẩu SMTP mã hóa (`secretbox`) trong `core.settings.secret`; đổi máy chủ / tài khoản phải nhập lại mật khẩu. |
-| `system-config.ticket-emails.test` POST /ticket-emails/test | — | Chưa làm | v2 chưa có bộ gửi thư (mailer). |
+| `system-config.ticket-emails.test` POST /ticket-emails/test | POST /system-config/ticket-emails/test · khối "Gửi thử nghiệm (Test Email)" | Đã làm | Gửi ngay qua SMTP đang lưu, cùng thông báo kết quả và gợi ý lỗi; xem [email.md](email.md). |
 
 ## Khác
 

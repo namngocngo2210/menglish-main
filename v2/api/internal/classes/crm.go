@@ -18,7 +18,8 @@ import (
 
 // CRMStudents: phần Chốt & Xếp lớp của CRM (crm.StudentCreator) — CrmController::processClosingWizard (tạo hồ sơ học viên,
 // tài khoản cổng học viên, ghi danh lớp) và assignClass (xếp lớp khách Chờ xếp lớp). Chạy trong giao dịch của CRM.
-// Học phí / phiếu thu / task nhắc thu chưa có ở v2 (phân hệ Học phí): giá trị hợp đồng = học phí niêm yết của khóa trừ ưu đãi.
+// Giá trị hợp đồng ở đây = học phí niêm yết của khóa trừ ưu đãi; học phí / phiếu thu / task nhắc thu do tuition.Closing
+// (bọc CRMStudents) lập.
 type CRMStudents struct {
 	cls *Service
 	stu *students.Service
@@ -31,7 +32,9 @@ func (s *Service) CRMStudents(stu *students.Service) *CRMStudents {
 
 var _ crm.StudentCreator = (*CRMStudents)(nil)
 
-const msgTuitionPending = "Học phí, phiếu thu và task nhắc thu sẽ lập khi phân hệ Học phí chuyển sang hệ thống mới."
+// MsgTuitionPending: phần thông báo khi chưa gắn phân hệ Học phí; tuition.Closing bọc CRMStudents thì thay bằng kết quả
+// lập học phí / phiếu thu / task nhắc thu.
+const MsgTuitionPending = "Học phí, phiếu thu và task nhắc thu sẽ lập khi phân hệ Học phí chuyển sang hệ thống mới."
 
 // enrollableForClosing: lớp nhận ghi danh khi chốt — đang học, hoặc sắp khai giảng chưa tới ngày bắt đầu.
 func enrollableForClosing(status string, start *time.Time, today time.Time) bool {
@@ -158,7 +161,7 @@ func (b *CRMStudents) CreateFromLead(ctx context.Context, tx pgx.Tx, actor *iam.
 	}
 	out := &crm.ClosedStudent{
 		StudentID: st.ID, StudentCode: st.Code, StudentName: lead.Name, ContractTotal: total, CourseName: courseName, BranchID: branch,
-		Message: msgTuitionPending,
+		Message: MsgTuitionPending,
 	}
 	if st.TemporaryPassword != "" {
 		out.Message += fmt.Sprintf(" Tài khoản cổng học viên: %s, mật khẩu tạm %s (đổi khi đăng nhập lần đầu).", st.Login, st.TemporaryPassword)
@@ -177,6 +180,12 @@ func (b *CRMStudents) CreateFromLead(ctx context.Context, tx pgx.Tx, actor *iam.
 	out.Enrollment = toCRMEnrollment(id, *st, lead.Name, *class)
 	b.cls.log.Info("crm lead enrolled", "lead_id", lead.ID, "student_id", st.ID, "class_id", class.ID, "by", actor.UserID)
 	return out, nil
+}
+
+// CancelClosing: hủy chốt khách Chờ xếp lớp → học viên chuyển Thôi học (crm.ClosingCanceller; học phí do
+// tuition.Closing xử lý).
+func (b *CRMStudents) CancelClosing(ctx context.Context, tx pgx.Tx, actor *iam.Access, studentID uuid.UUID, reason string) (int64, error) {
+	return 0, b.stu.DropForCancelledClosing(ctx, tx, actor, studentID, reason)
 }
 
 // EnrollWaiting: Học vụ gán lớp cho học viên Chờ xếp lớp (assignClass + WaitingLeadPlacement): lớp đúng chi nhánh của

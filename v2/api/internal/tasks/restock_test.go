@@ -31,9 +31,15 @@ func TestRestockTasks(t *testing.T) {
 	}
 	record := func(typ string, qty int32, doc string) {
 		t.Helper()
+		// Phiếu thu thật (ops.stock_movements.receipt_id có khóa ngoại tới finance.receipts).
+		var receipt uuid.UUID
+		if err := e.pg.QueryRow(ctx, `INSERT INTO finance.receipts (code, amount) VALUES ($1, 0) RETURNING id`, "PT-"+uuid.NewString()).
+			Scan(&receipt); err != nil {
+			t.Fatal(err)
+		}
 		err := pgx.BeginFunc(ctx, e.pg, func(tx pgx.Tx) error {
 			_, err := inv.Record(ctx, tx, inventory.RecordInput{ItemID: item, BranchID: a, Type: typ, Quantity: qty, Source: "contract",
-				ReceiptID: ptrUUID(uuid.New()), DocumentNumber: doc})
+				ReceiptID: &receipt, DocumentNumber: doc})
 			return err
 		})
 		if err != nil {
@@ -93,5 +99,3 @@ func TestRestockTasks(t *testing.T) {
 		t.Fatalf("việc nhập bù lần 2: %+v", list)
 	}
 }
-
-func ptrUUID(id uuid.UUID) *uuid.UUID { return &id }

@@ -26,6 +26,8 @@ type Service struct {
 	log  *slog.Logger
 	// Classes: phân hệ Lớp học (đếm lớp, phòng đang dùng, xếp lại lịch theo ngày nghỉ); nil = chưa có lớp nào.
 	Classes ClassHooks
+	// Mail: bộ gửi email cho nút "Gửi thử" của màn Email nhận Ticket; nil = chưa có bộ gửi.
+	Mail MailTester
 }
 
 func NewService(pool *pgxpool.Pool, box *secretbox.Box, log *slog.Logger) *Service {

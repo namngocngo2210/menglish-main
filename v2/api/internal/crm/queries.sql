@@ -614,7 +614,7 @@ WHERE l.deleted_at IS NULL
 -- name: PlacementLeads :many
 -- Khách (kèm tên người phụ trách) theo danh sách id, không lọc phạm vi.
 SELECT l.id, l.code, l.name, l.parent_name, l.phone, l.email, l.stage, l.branch_id, l.assigned_user_id, l.test_score,
-       coalesce(u.full_name, '')::text AS assigned_user_name
+       coalesce(u.full_name, '')::text AS assigned_user_name, l.parent_phone
 FROM crm.leads l
 LEFT JOIN iam.users u ON u.id = l.assigned_user_id
 WHERE l.deleted_at IS NULL AND l.id = ANY (sqlc.arg(ids)::uuid[]);
@@ -714,3 +714,19 @@ ORDER BY sort_order, name;
 -- name: GetCourseName :one
 -- Tên khóa học (danh mục academic.courses) chưa xóa.
 SELECT name FROM academic.courses WHERE id = $1 AND deleted_at IS NULL;
+
+-- name: WonStudentIDs :many
+-- Học viên của khách Đã chốt theo cùng bộ lọc LeadTotals (không phân trang) — tổng Đã thu / Còn nợ từ phân hệ Học phí.
+SELECT l.converted_student_id::uuid AS student_id
+FROM crm.leads l
+WHERE l.deleted_at IS NULL AND l.stage = sqlc.arg(stage)::text AND l.converted_student_id IS NOT NULL
+  AND (sqlc.narg(scope_owner)::uuid IS NULL OR l.assigned_user_id = sqlc.narg(scope_owner)::uuid)
+  AND (sqlc.narg(scope_branches)::uuid[] IS NULL OR l.branch_id = ANY (sqlc.narg(scope_branches)::uuid[]))
+  AND (sqlc.narg(q)::text IS NULL OR l.name ILIKE sqlc.narg(q)::text OR l.phone ILIKE sqlc.narg(q)::text
+       OR l.code ILIKE sqlc.narg(q)::text OR l.email::text ILIKE sqlc.narg(q)::text OR l.parent_name ILIKE sqlc.narg(q)::text
+       OR (sqlc.narg(q_digits)::text IS NOT NULL AND l.phone_normalized LIKE sqlc.narg(q_digits)::text))
+  AND (sqlc.narg(branch_id)::uuid IS NULL OR l.branch_id = sqlc.narg(branch_id)::uuid)
+  AND (sqlc.narg(assigned_user_id)::uuid IS NULL OR l.assigned_user_id = sqlc.narg(assigned_user_id)::uuid)
+  AND (sqlc.narg(source)::text IS NULL OR l.source = sqlc.narg(source)::text)
+  AND (sqlc.narg(date_from)::timestamptz IS NULL OR l.converted_at >= sqlc.narg(date_from)::timestamptz)
+  AND (sqlc.narg(date_to)::timestamptz IS NULL OR l.converted_at <= sqlc.narg(date_to)::timestamptz);

@@ -5,6 +5,7 @@ import { useState, type ReactNode } from 'react'
 import { errorMessage, type Me } from '../../api'
 import { Alert, Badge, Button, Card, Checkbox, Dialog, Field, Select } from '../../components/ui'
 import { can } from '../../nav'
+import { navigate } from '../../router'
 import { crmApi, type LeadDetail, type Options } from './api'
 import { LeadFields, leadFormFrom, toInput, type LeadForm } from './CustomerForm'
 import { Link, PATHS, ReasonDialog, SlaBadge, Textarea, useFlash } from './components'
@@ -489,7 +490,11 @@ function CloseDialog({ d, onClose, onDone }: { d: LeadDetail; onClose: () => voi
     payment_method: '',
     student_code: '',
     bill_notes: '',
+    paper_invoice_number: '',
+    paper_invoice_proof_url: '',
   })
+  // Chốt xong: hiện kết quả kèm nút mở bill "Thông báo nộp học phí" (closing.bill_url của Laravel).
+  const [result, setResult] = useState<{ message: string; bill_url?: string } | null>(null)
   const num = (s: string) => Number(s.replace(/\D/g, '') || 0)
   const m = useMutation({
     mutationFn: () =>
@@ -503,10 +508,30 @@ function CloseDialog({ d, onClose, onDone }: { d: LeadDetail; onClose: () => voi
         payment_method: f.payment_method || null,
         student_code: f.student_code || null,
         bill_notes: f.bill_notes || null,
+        paper_invoice_number: f.paper_invoice_number || null,
+        paper_invoice_proof_url: f.paper_invoice_proof_url || null,
       }),
-    onSuccess: (r) => (onDone(r.message), onClose()),
+    onSuccess: (r) => (r.bill_url ? setResult(r) : (onDone(r.message), onClose())),
   })
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value })
+  if (result) {
+    const finish = () => (onDone(result.message), onClose())
+    return (
+      <Dialog title={`Chốt & Xếp lớp: ${d.name}`} onClose={finish}>
+        <div className="space-y-3">
+          <Alert tone="success">{result.message}</Alert>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={finish}>
+              Đóng
+            </Button>
+            <Button type="button" onClick={() => navigate(result.bill_url!)}>
+              Xem thông báo nộp học phí
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+    )
+  }
   return (
     <Dialog title={`Chốt & Xếp lớp: ${d.name}`} onClose={onClose}>
       <form
@@ -558,6 +583,17 @@ function CloseDialog({ d, onClose, onDone }: { d: LeadDetail; onClose: () => voi
               <option value="cash">Tiền mặt</option>
               <option value="transfer">Chuyển khoản</option>
             </Select>
+            {f.payment_method === 'cash' && (
+              <>
+                <Field label="Số hóa đơn giấy" value={f.paper_invoice_number} onChange={set('paper_invoice_number')} />
+                <Field
+                  label="Ảnh hóa đơn giấy (đường dẫn)"
+                  value={f.paper_invoice_proof_url}
+                  onChange={set('paper_invoice_proof_url')}
+                  placeholder="https://…"
+                />
+              </>
+            )}
           </div>
         )}
         <Textarea label="Ghi chú phiếu thu" value={f.bill_notes} onChange={set('bill_notes')} maxLength={1000} />

@@ -281,7 +281,12 @@ func TestRecordSaleMayGoNegative(t *testing.T) {
 	admin := e.as(e.member("MES001", []uuid.UUID{a}, iam.RoleAdmin))
 	book := uuid.MustParse(str(admin.do("POST", "/inventory/items", item("KB1", "Sách Kids Box 1", map[string]any{"stock_quantity": 2, "stock_branch_id": a})).body["item"].(map[string]any)["id"]))
 
-	receipt := uuid.New()
+	// Phiếu thu thật (ops.stock_movements.receipt_id có khóa ngoại tới finance.receipts).
+	var receipt uuid.UUID
+	if err := e.pool.QueryRow(context.Background(), `INSERT INTO finance.receipts (code, amount) VALUES ($1, 0) RETURNING id`, "PT-"+uuid.NewString()).
+		Scan(&receipt); err != nil {
+		t.Fatal(err)
+	}
 	err := pgx.BeginFunc(context.Background(), e.pool, func(tx pgx.Tx) error {
 		_, err := e.svc.Record(context.Background(), tx, RecordInput{
 			ItemID: book, BranchID: a, Type: TypeSale, Quantity: 5, Source: "surcharge", ReceiptID: &receipt, DocumentNumber: "PT-2026-000001",

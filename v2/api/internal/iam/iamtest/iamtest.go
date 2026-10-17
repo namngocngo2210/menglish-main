@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -241,6 +242,39 @@ func (c *Client) Do(method, path string, body any) Resp {
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
+	return c.send(req, true)
+}
+
+// Upload gửi form multipart tới /api/v1 + path: các trường chữ + một file ở trường "file" (filename rỗng = không file).
+func (c *Client) Upload(path string, fields map[string]string, filename string, content []byte) Resp {
+	c.e.T.Helper()
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	for k, v := range fields {
+		_ = mw.WriteField(k, v)
+	}
+	if filename != "" {
+		fw, _ := mw.CreateFormFile("file", filename)
+		_, _ = fw.Write(content)
+	}
+	_ = mw.Close()
+	req, _ := http.NewRequest("POST", c.e.srv.URL+"/api/v1"+path, &buf)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	return c.send(req, true)
+}
+
+// Get gửi GET tới đường dẫn tuyệt đối trên máy chủ test (vd. "/api/v1/files/<id>"), không đi theo chuyển hướng
+// (xem Header Location của 302).
+func (c *Client) Get(path string) Resp {
+	c.e.T.Helper()
+	req, _ := http.NewRequest("GET", c.e.srv.URL+path, nil)
+	return c.send(req, false)
+}
+
+var noRedirect = &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+
+func (c *Client) send(req *http.Request, follow bool) Resp {
+	c.e.T.Helper()
 	req.Header.Set("Origin", c.e.srv.URL)
 	req.Header.Set("X-Forwarded-For", c.ip)
 	req.Header.Set("User-Agent", "iamtest")
@@ -250,7 +284,11 @@ func (c *Client) Do(method, path string, body any) Resp {
 	if c.csrf != "" {
 		req.Header.Set("X-CSRF-Token", c.csrf)
 	}
-	res, err := http.DefaultClient.Do(req)
+	client := http.DefaultClient
+	if !follow {
+		client = noRedirect
+	}
+	res, err := client.Do(req)
 	if err != nil {
 		c.e.T.Fatal(err)
 	}

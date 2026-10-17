@@ -6,9 +6,12 @@ RUN go mod download
 COPY api/ ./
 ARG VERSION=dev
 RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/menglish ./cmd/menglish
+# Thư mục kho file (driver local): volume mới gắn vào sẽ nhận chủ sở hữu nonroot từ image.
+RUN mkdir -p /out/data/files
 
 FROM gcr.io/distroless/static-debian12:nonroot
 COPY --from=build /out/menglish /menglish
+COPY --from=build --chown=nonroot:nonroot /out/data /data
 USER nonroot:nonroot
 EXPOSE 8080
 HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 CMD ["/menglish", "healthcheck"]

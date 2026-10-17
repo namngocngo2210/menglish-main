@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/crm/crmdb"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
@@ -256,7 +257,8 @@ func (s *Service) AdvanceTo(ctx context.Context, q *crmdb.Queries, leadID uuid.U
 // CancelClosing: hủy chốt khách Chờ xếp lớp (gia đình hủy trước khi có lớp) — chỉ lead.stage_back.
 func (s *Service) CancelClosing(ctx context.Context, a *iam.Access, idOrCode, reason string) (*Saved, error) {
 	var out *Saved
-	err := s.tx(ctx, func(q *crmdb.Queries) error {
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		q := s.q.WithTx(tx)
 		l, err := s.lead(ctx, q, a, idOrCode)
 		if err != nil {
 			return err
@@ -281,13 +283,23 @@ func (s *Service) CancelClosing(ctx context.Context, a *iam.Access, idOrCode, re
 		if err := applyStage(ctx, q, locked, StageLost, &a.UserID, "Huỷ chốt: "+r, "set", true); err != nil {
 			return err
 		}
-		// TODO(merge): học viên chuyển Thôi học, hủy phiếu thu chưa duyệt, bỏ phần học phí còn nợ và lập hồ sơ hoàn
-		// phí chờ duyệt cho phần đã thu (phân hệ học viên / tài chính) — Laravel CrmController::cancelClosing.
+		// Học viên chuyển Thôi học, hủy phiếu thu chưa duyệt, bỏ phần học phí còn nợ và lập hồ sơ hoàn phí chờ duyệt
+		// cho phần đã thu (phân hệ học viên / học phí) — Laravel CrmController::cancelClosing.
+		var refund int64
+		if c, ok := s.students.(ClosingCanceller); ok && locked.ConvertedStudentID != nil {
+			if refund, err = c.CancelClosing(ctx, tx, a, *locked.ConvertedStudentID, r); err != nil {
+				return err
+			}
+		}
 		msg := "Đã huỷ chốt " + l.Name + ": khách chuyển Thất bại"
 		if l.ConvertedStudentID != nil {
 			msg += ", học viên chuyển Thôi học"
 		}
-		out = &Saved{ID: l.ID, Message: msg + "."}
+		msg += "."
+		if refund > 0 {
+			msg += " Đã lập hồ sơ hoàn " + formatMoney(refund) + " chờ duyệt ở mục Hoàn phí."
+		}
+		out = &Saved{ID: l.ID, Message: msg}
 		return nil
 	})
 	if err != nil {

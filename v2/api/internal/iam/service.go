@@ -58,6 +58,8 @@ type Service struct {
 	box      *secretbox.Box
 	log      *slog.Logger
 	now      func() time.Time
+	// File hợp đồng lao động trong kho file chung (gói files; nil = chưa nối, API tải lên báo chưa cấu hình)
+	contracts ContractFiles
 }
 
 func NewService(pool *pgxpool.Pool, rdb *redis.Client, box *secretbox.Box, log *slog.Logger) *Service {
