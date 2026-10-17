@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/approvals"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/files"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam/iamtest"
@@ -44,8 +45,11 @@ func setup(t *testing.T) *env {
 	fsvc := files.NewService(e.Pool, store, e.Log, 0)
 	svc := NewService(e.Pool, fsvc, students.NewService(e.Pool, e.IAM, e.Log), e.Log).WithTuition(fakeTuition{})
 	fh := files.NewHandler(fsvc, e.Log)
+	// Báo đóng học phí duyệt ở hộp "Việc cần duyệt" chung (PaymentReportApprovalSource).
+	inbox := approvals.NewHandler(approvals.NewService(e.RDB, e.Log).Add(svc.ApprovalSource()), e.Log)
 	e.Serve(func(r chi.Router) {
 		NewHandler(svc, e.Log).Routes(r)
+		inbox.Routes(r)
 		fh.Routes(r)
 		fh.PublicRoutes(r)
 	})
@@ -227,21 +231,45 @@ func TestPortalContactAndPaymentReport(t *testing.T) {
 		t.Fatalf("trang chủ chưa có yêu cầu: %s", r.Raw)
 	}
 
-	// Kế toán: học vụ không có tuition.approve → 403; Admin xác nhận / từ chối
-	iamtest.Expect(t, staffB.Do("GET", "/payment-reports", nil), 403, "forbidden")
+	// Kế toán: học vụ không vào được hộp duyệt → 403; Admin xác nhận / từ chối ngay trong hộp "Việc cần duyệt"
+	iamtest.Expect(t, staffB.Do("GET", "/approvals", nil), 403, "")
 	_, admin := e.Member("AD001", "Quản trị", []uuid.UUID{a}, iam.RoleAdmin)
-	list := iamtest.List(t, admin.Do("GET", "/payment-reports", nil), "data")
-	if len(list) != 1 || list[0]["student_code"] != "HS001" {
+	decide := func(action, id, reason string) iamtest.Resp {
+		body := map[string]any{"action": action, "items": []string{"payment_report:" + id}}
+		if reason != "" {
+			body["reason"] = reason
+		}
+		return admin.Do("POST", "/approvals/bulk", body)
+	}
+	var list []any
+	for _, s := range iamtest.List(t, admin.Do("GET", "/approvals?group=hoc-phi", nil), "sections") {
+		if s["key"] == "payment_report" {
+			list = s["items"].([]any)
+		}
+	}
+	if len(list) != 1 {
 		t.Fatalf("hộp duyệt: %v", list)
 	}
-	id := list[0]["id"].(string)
-	msg(t, admin.Do("POST", "/payment-reports/"+id+"/reject", map[string]any{"reason": " "}), 422, "Vui lòng nhập lý do từ chối.")
-	msg(t, admin.Do("POST", "/payment-reports/"+id+"/reject", map[string]any{"reason": "Chưa thấy tiền về"}), 200,
-		"Đã từ chối, học viên được báo qua hộp thư.")
-	msg(t, admin.Do("POST", "/payment-reports/"+id+"/confirm", nil), 409, "Yêu cầu không còn chờ xác nhận hoặc ngoài phạm vi của bạn.")
+	it := list[0].(map[string]any)
+	if it["title"] != "Báo đóng học phí · Nguyễn An" || it["amount"] != float64(1500000) || it["url"] != "/tuition/receipts/new" ||
+		it["subtitle"] != "CK HS001 đợt 2" {
+		t.Fatalf("mục báo đóng: %v", it)
+	}
+	id := it["id"].(string)
+	d := admin.Do("GET", "/approvals/payment_report/"+id, nil)
+	if meta := d.Body["item"].(map[string]any)["meta"].([]any); len(meta) != 3 || meta[0].(map[string]any)["value"] != "Nguyễn An (HS001)" ||
+		d.Body["can_approve"] != true || d.Body["can_reject"] != true {
+		t.Fatalf("chi tiết báo đóng: %s", d.Raw)
+	}
+	msg(t, decide("reject", id, " "), 422, "Vui lòng nhập lý do từ chối.")
+	msg(t, decide("reject", id, "Chưa thấy tiền về"), 200, "Đã từ chối, học viên được báo qua hộp thư.")
+	msg(t, decide("approve", id, ""), 200, "Mục này không còn chờ duyệt hoặc ngoài phạm vi của bạn.")
 	r = c.Do("POST", "/portal/payment-reports", map[string]any{"student_id": sid, "amount": 2000000, "content": "CK lần 2"})
 	id2 := obj(t, r, "report")["id"].(string)
-	msg(t, admin.Do("POST", "/payment-reports/"+id2+"/confirm", nil), 200, "Đã xác nhận, học viên được báo qua hộp thư.")
+	if b := admin.Do("GET", "/approvals/badge", nil); b.Body["count"] != float64(1) {
+		t.Fatalf("badge: %s", b.Raw)
+	}
+	msg(t, decide("approve", id2, ""), 200, "Đã xác nhận, học viên được báo qua hộp thư.")
 
 	inbox := iamtest.List(t, c.Do("GET", "/portal/notifications", nil), "notifications")
 	if len(inbox) != 2 || inbox[0]["title"] != "Kế toán đã xác nhận khoản đóng 2.000.000đ" ||
@@ -249,8 +277,9 @@ func TestPortalContactAndPaymentReport(t *testing.T) {
 		!strings.Contains(inbox[1]["content"].(string), "Lý do: Chưa thấy tiền về.") {
 		t.Fatalf("hộp thư: %v", inbox)
 	}
-	if l := iamtest.List(t, admin.Do("GET", "/payment-reports?status=rejected", nil), "data"); len(l) != 1 || l[0]["rejection_reason"] != "Chưa thấy tiền về" {
-		t.Fatalf("lọc đã từ chối: %v", l)
+	var reason string
+	if err := e.Pool.QueryRow(context.Background(), "SELECT rejection_reason FROM finance.payment_reports WHERE id = $1 AND status = 'rejected'", id).Scan(&reason); err != nil || reason != "Chưa thấy tiền về" {
+		t.Fatalf("đã từ chối: %v %q", err, reason)
 	}
 }
 

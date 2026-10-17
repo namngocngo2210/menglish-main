@@ -763,3 +763,30 @@ SELECT id, code::text AS code, full_name FROM academic.students WHERE id = ANY (
 
 -- name: RoleLabels :many
 SELECT name, label, short_label FROM iam.roles ORDER BY sort, name;
+
+-- ───────────── Cho phân hệ khác (chấm công, dự án học thuật) ─────────────
+
+-- name: SetPendingViolation :exec
+-- Biên bản đi muộn còn chờ giải trình: cập nhật nội dung vi phạm theo số phút muộn mới.
+UPDATE hr.penalties SET violation_type = @violation_type, updated_at = now() WHERE id = @id AND status = 'pending';
+
+-- name: AutoCancelPenalty :exec
+-- Biên bản tự hủy (không còn đi muộn / đã duyệt đơn): chỉ khi còn chờ / đã giải trình.
+UPDATE hr.penalties SET status = 'cancelled', decided_at = now(), decision_note = @note, updated_at = now()
+WHERE id = @id AND status IN ('pending', 'explained');
+
+-- name: PenaltyRefs :many
+SELECT id, code, status FROM hr.penalties WHERE id = ANY (@ids::uuid[]);
+
+-- name: ViolationCountsByUser :many
+-- Số biên bản chưa hủy có ngày vi phạm trong khoảng của từng người.
+SELECT user_id, count(*)::int AS n FROM hr.penalties
+WHERE user_id = ANY (@user_ids::uuid[]) AND status <> 'cancelled' AND violation_date BETWEEN @from_day AND @to_day
+GROUP BY user_id;
+
+-- name: AutoPenaltiesByKeys :many
+-- Biên bản tự động của một nguồn theo khóa (vd. mốc dự án), mới nhất trước.
+SELECT x.id, x.code, x.user_id, u.full_name AS user_name, coalesce(x.auto_key, '')::text AS auto_key, x.status, x.amount, x.created_at
+FROM hr.penalties x JOIN iam.users u ON u.id = x.user_id
+WHERE x.auto_source = @auto_source AND x.auto_key = ANY (@keys::text[])
+ORDER BY x.created_at DESC, x.id DESC;

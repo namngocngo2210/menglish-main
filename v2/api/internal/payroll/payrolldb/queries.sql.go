@@ -153,6 +153,75 @@ func (q *Queries) ApprovePeriod(ctx context.Context, arg ApprovePeriodParams) er
 	return err
 }
 
+const autoCancelPenalty = `-- name: AutoCancelPenalty :exec
+UPDATE hr.penalties SET status = 'cancelled', decided_at = now(), decision_note = $1, updated_at = now()
+WHERE id = $2 AND status IN ('pending', 'explained')
+`
+
+type AutoCancelPenaltyParams struct {
+	Note *string
+	ID   uuid.UUID
+}
+
+// Biên bản tự hủy (không còn đi muộn / đã duyệt đơn): chỉ khi còn chờ / đã giải trình.
+func (q *Queries) AutoCancelPenalty(ctx context.Context, arg AutoCancelPenaltyParams) error {
+	_, err := q.db.Exec(ctx, autoCancelPenalty, arg.Note, arg.ID)
+	return err
+}
+
+const autoPenaltiesByKeys = `-- name: AutoPenaltiesByKeys :many
+SELECT x.id, x.code, x.user_id, u.full_name AS user_name, coalesce(x.auto_key, '')::text AS auto_key, x.status, x.amount, x.created_at
+FROM hr.penalties x JOIN iam.users u ON u.id = x.user_id
+WHERE x.auto_source = $1 AND x.auto_key = ANY ($2::text[])
+ORDER BY x.created_at DESC, x.id DESC
+`
+
+type AutoPenaltiesByKeysParams struct {
+	AutoSource *string
+	Keys       []string
+}
+
+type AutoPenaltiesByKeysRow struct {
+	ID        uuid.UUID
+	Code      string
+	UserID    uuid.UUID
+	UserName  string
+	AutoKey   string
+	Status    string
+	Amount    int64
+	CreatedAt time.Time
+}
+
+// Biên bản tự động của một nguồn theo khóa (vd. mốc dự án), mới nhất trước.
+func (q *Queries) AutoPenaltiesByKeys(ctx context.Context, arg AutoPenaltiesByKeysParams) ([]AutoPenaltiesByKeysRow, error) {
+	rows, err := q.db.Query(ctx, autoPenaltiesByKeys, arg.AutoSource, arg.Keys)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AutoPenaltiesByKeysRow
+	for rows.Next() {
+		var i AutoPenaltiesByKeysRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.UserID,
+			&i.UserName,
+			&i.AutoKey,
+			&i.Status,
+			&i.Amount,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const branchOptions = `-- name: BranchOptions :many
 SELECT id, name FROM core.branches WHERE is_active ORDER BY name, id
 `
@@ -2698,6 +2767,36 @@ func (q *Queries) PenaltyCounts(ctx context.Context, arg PenaltyCountsParams) (P
 	return i, err
 }
 
+const penaltyRefs = `-- name: PenaltyRefs :many
+SELECT id, code, status FROM hr.penalties WHERE id = ANY ($1::uuid[])
+`
+
+type PenaltyRefsRow struct {
+	ID     uuid.UUID
+	Code   string
+	Status string
+}
+
+func (q *Queries) PenaltyRefs(ctx context.Context, ids []uuid.UUID) ([]PenaltyRefsRow, error) {
+	rows, err := q.db.Query(ctx, penaltyRefs, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PenaltyRefsRow
+	for rows.Next() {
+		var i PenaltyRefsRow
+		if err := rows.Scan(&i.ID, &i.Code, &i.Status); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const periodByMonth = `-- name: PeriodByMonth :one
 SELECT id, code, title, month, year, start_date, end_date, status, total_staff, total_hours, total_amount, calculated_at, approved_at, approved_by, paid_at, paid_by, legacy_id, created_by, created_at, updated_at FROM hr.payroll_periods WHERE year = $1 AND month = $2
 `
@@ -3316,6 +3415,23 @@ type SetPenaltyEvidenceParams struct {
 
 func (q *Queries) SetPenaltyEvidence(ctx context.Context, arg SetPenaltyEvidenceParams) error {
 	_, err := q.db.Exec(ctx, setPenaltyEvidence, arg.FileID, arg.ID)
+	return err
+}
+
+const setPendingViolation = `-- name: SetPendingViolation :exec
+
+UPDATE hr.penalties SET violation_type = $1, updated_at = now() WHERE id = $2 AND status = 'pending'
+`
+
+type SetPendingViolationParams struct {
+	ViolationType string
+	ID            uuid.UUID
+}
+
+// ───────────── Cho phân hệ khác (chấm công, dự án học thuật) ─────────────
+// Biên bản đi muộn còn chờ giải trình: cập nhật nội dung vi phạm theo số phút muộn mới.
+func (q *Queries) SetPendingViolation(ctx context.Context, arg SetPendingViolationParams) error {
+	_, err := q.db.Exec(ctx, setPendingViolation, arg.ViolationType, arg.ID)
 	return err
 }
 
@@ -4361,6 +4477,44 @@ func (q *Queries) UsersBrief(ctx context.Context, ids []uuid.UUID) ([]UsersBrief
 			&i.Roles,
 			&i.BranchName,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const violationCountsByUser = `-- name: ViolationCountsByUser :many
+SELECT user_id, count(*)::int AS n FROM hr.penalties
+WHERE user_id = ANY ($1::uuid[]) AND status <> 'cancelled' AND violation_date BETWEEN $2 AND $3
+GROUP BY user_id
+`
+
+type ViolationCountsByUserParams struct {
+	UserIds []uuid.UUID
+	FromDay time.Time
+	ToDay   time.Time
+}
+
+type ViolationCountsByUserRow struct {
+	UserID uuid.UUID
+	N      int32
+}
+
+// Số biên bản chưa hủy có ngày vi phạm trong khoảng của từng người.
+func (q *Queries) ViolationCountsByUser(ctx context.Context, arg ViolationCountsByUserParams) ([]ViolationCountsByUserRow, error) {
+	rows, err := q.db.Query(ctx, violationCountsByUser, arg.UserIds, arg.FromDay, arg.ToDay)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ViolationCountsByUserRow
+	for rows.Next() {
+		var i ViolationCountsByUserRow
+		if err := rows.Scan(&i.UserID, &i.N); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

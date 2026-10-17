@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/approvals"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/attendance"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/files"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
@@ -110,8 +111,11 @@ func setup(t *testing.T, lock attendance.PayrollLock) *env {
 	e.svc = attendance.NewService(ie.Pool, ie.IAM, ie.Log).WithFiles(fsvc).WithClasses(fakeClasses{ie}).WithPayrollLock(lock)
 	e.svc.SetClock(func() time.Time { return e.now })
 	fh := files.NewHandler(fsvc, ie.Log)
+	// Đơn chấm công duyệt ở hộp "Việc cần duyệt" chung như Laravel (StaffAttendanceRequestApprovalSource).
+	inbox := approvals.NewHandler(approvals.NewService(ie.RDB, ie.Log).Add(e.svc.ApprovalSource()), ie.Log)
 	ie.Serve(func(r chi.Router) {
 		attendance.NewHandler(e.svc, ie.Log).Routes(r)
+		inbox.Routes(r)
 		fh.Routes(r)
 		fh.PublicRoutes(r)
 	})
@@ -176,14 +180,49 @@ func message(t *testing.T, r iamtest.Resp, status int, want string) {
 	}
 }
 
+// decide: duyệt / từ chối một đơn qua hộp "Việc cần duyệt" (POST /approvals/bulk một mục → thông báo của phân hệ gốc).
+func decide(c *iamtest.Client, action, id, reason string) iamtest.Resp {
+	body := map[string]any{"action": action, "items": []string{"staff_attendance_request:" + id}}
+	if reason != "" {
+		body["reason"] = reason
+	}
+	return c.Do("POST", "/approvals/bulk", body)
+}
+
+// inboxRequests: đơn chờ duyệt ở nhóm Nhân sự của hộp, kèm thông tin chi tiết (meta) của từng đơn.
+func inboxRequests(t *testing.T, c *iamtest.Client) []map[string]any {
+	t.Helper()
+	r := c.Do("GET", "/approvals?group=nhan-su", nil)
+	iamtest.Expect(t, r, 200, "")
+	var out []map[string]any
+	for _, s := range iamtest.List(t, r, "sections") {
+		if s["key"] != "staff_attendance_request" {
+			continue
+		}
+		for _, raw := range s["items"].([]any) {
+			it := raw.(map[string]any)
+			d := c.Do("GET", "/approvals/staff_attendance_request/"+it["id"].(string), nil)
+			iamtest.Expect(t, d, 200, "")
+			meta := map[string]any{}
+			for _, m := range d.Body["item"].(map[string]any)["meta"].([]any) {
+				mm := m.(map[string]any)
+				meta[mm["label"].(string)] = mm["value"]
+			}
+			it["meta"] = meta
+			out = append(out, it)
+		}
+	}
+	return out
+}
+
 func TestAttendancePermissions(t *testing.T) {
 	e := setup(t, nil)
 	f := newFixture(e)
 	iamtest.Expect(t, e.Anon().Do("GET", "/attendance/me", nil), 401, "")
 	// Đơn chấm công chỉ Admin duyệt (staff_checkin.approve admin-only, cấp cho vai trò khác không có tác dụng)
 	e.Grant("manager", "staff_checkin.approve")
-	iamtest.Expect(t, f.cMgr.Do("GET", "/attendance/approvals", nil), 403, "")
-	iamtest.Expect(t, f.cAdmin.Do("GET", "/attendance/approvals", nil), 200, "")
+	iamtest.Expect(t, f.cMgr.Do("GET", "/approvals", nil), 403, "")
+	iamtest.Expect(t, f.cAdmin.Do("GET", "/approvals", nil), 200, "")
 	iamtest.Expect(t, f.cSales.Do("GET", "/attendance/daily", nil), 403, "")
 	iamtest.Expect(t, f.cTeacher.Do("GET", "/attendance/daily/"+uuid.NewString(), nil), 403, "")
 	iamtest.Expect(t, f.cTeacher.Do("GET", "/timesheets/manual", nil), 403, "")
@@ -346,40 +385,49 @@ func TestRequests(t *testing.T) {
 		mine[0]["status_label"] != "Chờ duyệt" {
 		t.Fatalf("đơn của tôi: %v", mine)
 	}
-	items := iamtest.List(t, f.cAdmin.Do("GET", "/attendance/approvals", nil), "items")
+	items := inboxRequests(t, f.cAdmin)
 	if len(items) != 3 {
 		t.Fatalf("đơn chờ duyệt: %v", items)
 	}
 	byType := map[string]map[string]any{}
+	types := map[string]string{"Xin đi muộn / về sớm": "late_early", "Bổ sung công": "correction", "Xin nghỉ": "leave"}
 	for _, it := range items {
-		byType[it["type"].(string)] = it
+		meta := it["meta"].(map[string]any)
+		byType[types[meta["Loại đơn"].(string)]] = it
 	}
-	if byType["late_early"]["current_punch"] != "Vào 08:12, ra — · Đi muộn 12 phút" || byType["correction"]["current_punch"] != "Chưa chấm" ||
-		byType["leave"]["current_punch"] != nil {
+	if byType["late_early"]["meta"].(map[string]any)["Chấm công ngày này"] != "Vào 08:12, ra — · Đi muộn 12 phút" ||
+		byType["correction"]["meta"].(map[string]any)["Chấm công ngày này"] != "Chưa chấm" ||
+		byType["leave"]["meta"].(map[string]any)["Chấm công ngày này"] != nil ||
+		byType["leave"]["title"] != "Tư vấn HN: Xin nghỉ 20/10/2026 → 21/10/2026 (2 ngày)" ||
+		byType["late_early"]["url"] != "/staff-attendance?date=2026-10-17&search=SA01" {
 		t.Fatalf("giờ đã chấm để đối chiếu: %v", items)
+	}
+	// Badge sidebar = tổng mục chờ duyệt của hộp (đơn của chính Admin không tính).
+	if b := f.cAdmin.Do("GET", "/approvals/badge", nil); b.Body["count"] != float64(3) {
+		t.Fatalf("badge: %s", b.Raw)
 	}
 	var adminReq string
 	if err := e.Pool.QueryRow(context.Background(), `SELECT id::text FROM hr.staff_attendance_requests WHERE user_id = $1`, f.admin.ID).Scan(&adminReq); err != nil {
 		t.Fatal(err)
 	}
-	message(t, f.cAdmin.Do("POST", "/attendance/approvals/"+adminReq+"/approve", nil), 422, "Đơn không còn chờ duyệt hoặc ngoài phạm vi duyệt của bạn.")
+	message(t, decide(f.cAdmin, "approve", adminReq, ""), 200, "Mục này không còn chờ duyệt hoặc ngoài phạm vi của bạn.")
 
 	late := byType["late_early"]["id"].(string)
-	message(t, f.cAdmin.Do("POST", "/attendance/approvals/"+late+"/approve", nil), 200, "Đã duyệt đơn Xin đi muộn / về sớm của Tư vấn HN.")
-	message(t, f.cAdmin.Do("POST", "/attendance/approvals/"+late+"/approve", nil), 422, "Đơn không còn chờ duyệt hoặc ngoài phạm vi duyệt của bạn.")
+	message(t, decide(f.cAdmin, "approve", late, ""), 200, "Đã duyệt đơn Xin đi muộn / về sớm của Tư vấn HN.")
+	message(t, decide(f.cAdmin, "approve", late, ""), 200, "Mục này không còn chờ duyệt hoặc ngoài phạm vi của bạn.")
 	home := f.cSales.Do("GET", "/attendance/me", nil)
 	if d := home.Body["today"].(map[string]any); d["late_excused"] != true || d["status_label"] != "Muộn có phép" {
 		t.Fatalf("muộn có phép: %s", home.Raw)
 	}
 	corr := byType["correction"]["id"].(string)
-	message(t, f.cAdmin.Do("POST", "/attendance/approvals/"+corr+"/approve", nil), 200, "Đã duyệt đơn Bổ sung công của Tư vấn HN.")
+	message(t, decide(f.cAdmin, "approve", corr, ""), 200, "Đã duyệt đơn Bổ sung công của Tư vấn HN.")
 	if src := e.scalar(`SELECT source || ' ' || to_char(check_in_at AT TIME ZONE 'Asia/Ho_Chi_Minh', 'HH24:MI') FROM hr.staff_attendances
 		WHERE user_id = $1 AND work_date = '2026-10-16'`, f.sales.ID); src != "request 08:00" {
 		t.Errorf("bổ sung công: %v", src)
 	}
 	leave := byType["leave"]["id"].(string)
-	message(t, f.cAdmin.Do("POST", "/attendance/approvals/"+leave+"/reject", map[string]any{"reason": " "}), 422, "Vui lòng nhập lý do từ chối.")
-	message(t, f.cAdmin.Do("POST", "/attendance/approvals/"+leave+"/reject", map[string]any{"reason": "Trùng lịch thi"}), 200,
+	message(t, decide(f.cAdmin, "reject", leave, " "), 422, "Vui lòng nhập lý do từ chối.")
+	message(t, decide(f.cAdmin, "reject", leave, "Trùng lịch thi"), 200,
 		"Đã từ chối đơn Xin nghỉ của Tư vấn HN.")
 	mine = iamtest.List(t, f.cSales.Do("GET", "/attendance/me/requests", nil), "requests")
 	if mine[0]["status"] != "rejected" || mine[0]["rejection_reason"] != "Trùng lịch thi" || mine[0]["reviewer"] != "Quản trị" {

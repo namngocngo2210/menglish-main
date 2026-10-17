@@ -29,7 +29,7 @@ func NewHandler(svc *Service, log *slog.Logger) *Handler {
 
 // Routes:
 //   - /attendance/me/*: chấm công của tôi, lịch sử công, đơn chấm công & nghỉ (my-attendance.*, can:portal.staff).
-//   - /attendance/approvals/*: duyệt đơn (Xin duyệt → Đơn chấm công & nghỉ, staff_checkin.approve).
+//   - Duyệt đơn chấm công & nghỉ: ở hộp "Việc cần duyệt" chung (/approvals, nguồn ApprovalSource) như Laravel.
 //   - /attendance/daily/*: chấm công hằng ngày (staff-attendance.*, can:staff_checkin.view).
 //   - /timesheets/*: giờ dạy giáo viên, chấm tay, lịch sử đồng bộ (payroll.timesheets.*).
 func (h *Handler) Routes(r chi.Router) {
@@ -42,12 +42,6 @@ func (h *Handler) Routes(r chi.Router) {
 			r.Get("/requests", h.myRequests)
 			r.Post("/requests", h.submit)
 			r.Post("/requests/{id}/cancel", h.cancel)
-		})
-		r.Route("/approvals", func(r chi.Router) {
-			r.Use(iam.Require(PermCheckinApprove))
-			r.Get("/", h.pending)
-			r.Post("/{id}/approve", h.approve)
-			r.Post("/{id}/reject", h.reject)
 		})
 		r.Route("/daily", func(r chi.Router) {
 			r.Use(iam.Require(PermCheckinView))
@@ -177,35 +171,6 @@ func (h *Handler) cancel(w http.ResponseWriter, r *http.Request) {
 }
 
 // ───────────── Duyệt đơn ─────────────
-
-func (h *Handler) pending(w http.ResponseWriter, r *http.Request) {
-	out, err := h.svc.Pending(r.Context(), access(r))
-	h.reply(w, r, map[string]any{"items": out}, err)
-}
-
-func (h *Handler) approve(w http.ResponseWriter, r *http.Request) {
-	id, ok := idParam(w, r, h, ErrRequestNotFound)
-	if !ok {
-		return
-	}
-	msg, err := h.svc.Approve(r.Context(), access(r), id)
-	h.message(w, r, msg, err)
-}
-
-func (h *Handler) reject(w http.ResponseWriter, r *http.Request) {
-	id, ok := idParam(w, r, h, ErrRequestNotFound)
-	if !ok {
-		return
-	}
-	var in struct {
-		Reason string `json:"reason"`
-	}
-	if !httpx.Decode(w, r, &in) {
-		return
-	}
-	msg, err := h.svc.Reject(r.Context(), access(r), id, in.Reason)
-	h.message(w, r, msg, err)
-}
 
 // ───────────── Chấm công hằng ngày ─────────────
 

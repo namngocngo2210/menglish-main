@@ -21,7 +21,8 @@ type Handler struct {
 func NewHandler(svc *Service, log *slog.Logger) *Handler { return &Handler{svc: svc, log: log} }
 
 // Routes gắn /portal (cổng học viên: tài khoản cổng portal.student hoặc nhân sự student.view xem hộ; màn chấm bài nộp
-// của lớp ở phân hệ Cổng giáo viên /teacher/submissions) và /payment-reports (kế toán xác nhận "Học viên báo đã đóng học phí": tuition.view + tuition.approve).
+// của lớp ở phân hệ Cổng giáo viên /teacher/submissions). Kế toán xác nhận "Học viên báo đã đóng học phí" ở hộp "Việc cần
+// duyệt" chung (ApprovalSource) như Laravel.
 func (h *Handler) Routes(r chi.Router) {
 	r.Route("/portal", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
@@ -50,13 +51,6 @@ func (h *Handler) Routes(r chi.Router) {
 			r.Post("/feedback", h.submitFeedback)
 			r.Delete("/feedback/{id}", h.deleteFeedback)
 		})
-	})
-	r.Route("/payment-reports", func(r chi.Router) {
-		r.Use(iam.Require("tuition.view"), iam.Require("tuition.approve"))
-		r.Get("/", h.paymentReports)
-		r.Get("/pending-count", h.pendingReports)
-		r.Post("/{id}/confirm", h.confirmReport)
-		r.Post("/{id}/reject", h.rejectReport)
 	})
 }
 
@@ -327,33 +321,3 @@ func (h *Handler) deleteFeedback(w http.ResponseWriter, r *http.Request) {
 	h.message(w, r, "Đã xóa feedback thành công! Trạng thái đã được đặt lại ban đầu.", h.svc.DeleteFeedback(r.Context(), actorOf(r), id))
 }
 
-// ───── Kế toán: Học viên báo đã đóng học phí ─────
-
-func (h *Handler) paymentReports(w http.ResponseWriter, r *http.Request) {
-	out, err := h.svc.PaymentReports(r.Context(), actorOf(r), r.URL.Query().Get("status"))
-	h.reply(w, r, map[string]any{"data": out}, err)
-}
-
-func (h *Handler) pendingReports(w http.ResponseWriter, r *http.Request) {
-	n, err := h.svc.PendingReports(r.Context(), actorOf(r))
-	h.reply(w, r, map[string]int{"count": n}, err)
-}
-
-func (h *Handler) confirmReport(w http.ResponseWriter, r *http.Request) {
-	id, ok := idParam(w, r)
-	if !ok {
-		return
-	}
-	h.message(w, r, "Đã xác nhận, học viên được báo qua hộp thư.", h.svc.ConfirmReport(r.Context(), actorOf(r), id))
-}
-
-func (h *Handler) rejectReport(w http.ResponseWriter, r *http.Request) {
-	id, ok := idParam(w, r)
-	var in struct {
-		Reason string `json:"reason"`
-	}
-	if !ok || !httpx.Decode(w, r, &in) {
-		return
-	}
-	h.message(w, r, "Đã từ chối, học viên được báo qua hộp thư.", h.svc.RejectReport(r.Context(), actorOf(r), id, in.Reason))
-}
