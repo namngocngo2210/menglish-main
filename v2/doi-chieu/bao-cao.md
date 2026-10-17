@@ -74,9 +74,9 @@ nộp ngày / tháng, tổng hợp 09:05); nhật ký thao tác ghi khi xác nh�
 
 | Laravel | Trạng thái | Ghi chú |
 |---|---|---|
-| Dashboard: băng "báo cáo ngày cần bổ sung", bảng báo cáo tháng GV (`DashboardController`) | Chưa làm | Thuộc màn Dashboard; dữ liệu có sẵn trong `ops.staff_reports` (kind / status). |
+| Dashboard: băng "báo cáo ngày cần bổ sung", bảng báo cáo tháng GV (`DashboardController`) | Đã làm | Màn Tổng quan (`internal/dashboard`, xem [tong-quan.md](tong-quan.md)) đọc qua `reports.DashboardReports()`: ngày còn thiếu dùng chung `missingDays`, báo cáo bị yêu cầu bổ sung, hôm nay đã nộp chưa; báo cáo tháng giáo viên đã nộp theo tháng. |
 | Hồ sơ: "đã nộp báo cáo kỳ này" (`ProfileController` → `submittedCurrentPeriod`) | Chưa làm | Đã có `Service.SubmittedCurrentPeriod` cho màn Hồ sơ dùng. |
-| `academic.reports` / `/reports` (`AcademicDashboardController::reports`) | Chưa làm | Màn tổng quan Học vụ (phân hệ dashboard học vụ); dùng `ops.staff_reports`. `WriterPath` đã export để dựng link. |
+| `academic.reports` / `/reports` (`AcademicDashboardController::reports`) | Làm một phần | Màn `/academic/dashboards` "Báo cáo & sự vụ lớp" (xem [tong-quan.md](tong-quan.md)): báo cáo ngày Học vụ, tuần Học thuật, tuần KPI, tháng / quý, nhật ký sự vụ. Báo cáo trực lớp, đề xuất giãn tiến độ / Big Test và ticket chờ phân hệ nguồn. |
 | Tab "Sự vụ" của lớp (`ClassManagementController`, `IncidentsTab.vue`) | Chưa làm | Phân hệ Lớp học; đọc nhật ký theo `class_id`. |
 | KPI tự đếm "nộp báo cáo ngày trễ" / "nộp báo cáo tháng" (`KpiAutoCounter`) | Đã làm | `reports.Service.KpiSources`: `daily_report_late` (nộp sau 09:00 hôm sau theo `isLate` + ngày phải nộp mà không nộp), `monthly_report_on_time` (trước 12:00 ngày mùng 2); `KpiJournal` gợi ý số lần từ nhật ký gắn mã KPI. Xem [kpi.md](kpi.md). |
 | `teacher.general-report` | Chưa làm | Thuộc phân hệ Giáo viên. |

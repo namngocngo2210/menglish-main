@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { errorMessage, type Me } from '../../api'
+import { FileUpload } from '../../components/FileUpload'
 import { Alert, Button, Card, Checkbox, Field, Select } from '../../components/ui'
+import { AUDIO_RULE, IMAGE_RULE } from '../../lib/files'
 import { navigate } from '../../router'
 import { placementApi, type FormOptions, type Question, type TestDetail, type TestInput } from './api'
-import { PageHeader, Textarea } from './components'
+import { PageHeader, Tabs, Textarea } from './components'
 import {
   changeType,
   codeMatchesGroup,
@@ -16,9 +18,10 @@ import {
   QUESTION_TYPES,
   questionIssues,
 } from './logic'
+import { PdfSheetEditor, type PdfState } from './PdfSheetEditor'
 import { BASE } from './TestsPage'
 
-// Tạo / sửa đề (cách "Soạn từng câu"). Đề PDF cũ nhập từ Laravel vẫn sửa được phiếu trả lời; tải PDF mới chưa hỗ trợ.
+// Tạo / sửa đề: cách "Soạn từng câu" hoặc "Tải đề PDF" (file đề + phiếu trả lời, xem PdfSheetEditor).
 export function TestEditor({ me, id }: { me: Me; id?: string }) {
   const options = useQuery({ queryKey: ['placement', 'options'], queryFn: placementApi.options })
   const test = useQuery({ queryKey: ['placement', 'test', id], queryFn: () => placementApi.test(id!), enabled: !!id })
@@ -38,12 +41,17 @@ function EditorForm({ options, test }: { me: Me; options: FormOptions; test?: Te
     grade_level: test?.grade_level ?? 'lop_3',
     target_level: test?.target_level ?? '',
     duration_minutes: String(test?.duration_minutes ?? 45),
-    audio_url: test?.audio_url ?? '',
     is_active: test?.is_active ?? true,
   })
-  const [questions, setQuestions] = useState<Question[]>(() => test?.questions ?? [newQuestion([], 'reading')])
+  // Cách soạn: đề đã có file PDF thì giữ cách "Tải đề PDF"; tạo mới chọn ở tab.
+  const [mode, setMode] = useState<'manual' | 'pdf'>(test?.pdf_path ? 'pdf' : 'manual')
+  const pdfMode = mode === 'pdf'
+  const [manualQs, setManualQs] = useState<Question[]>(() => (test && !test.pdf_path ? test.questions : [newQuestion([], 'reading')]))
+  const [sheetQs, setSheetQs] = useState<Question[]>(() => (test?.pdf_path ? test.questions : []))
+  const [pdf, setPdf] = useState<PdfState>({ pdfPath: test?.pdf_path ?? '', pdfUrl: test?.pdf_url ?? '', audioUrl: test?.audio_url ?? '' })
+  const questions = pdfMode ? sheetQs : manualQs
+  const setQuestions = pdfMode ? setSheetQs : setManualQs
   const [current, setCurrent] = useState(0)
-  const pdfMode = !!test?.pdf_path
   const group = options.level_rubric_groups[form.grade_level] ?? 'khac'
   const token = options.grade_code_tokens[group]
 
@@ -64,9 +72,10 @@ function EditorForm({ options, test }: { me: Me; options: FormOptions; test?: Te
         grade_level: form.grade_level || null,
         duration_minutes: form.duration_minutes === '' ? null : Number(form.duration_minutes),
         questions,
-        audio_url: pdfMode ? form.audio_url : null,
+        mode,
+        audio_url: pdfMode ? pdf.audioUrl : null,
       }
-      if (!pdfMode) input.mode = 'manual'
+      if (pdfMode) input.pdf_path = pdf.pdfPath
       if (editing) return placementApi.updateTest(test.id, { ...input, is_active: form.is_active })
       return placementApi.createTest({ ...input, code, save_mode: saveMode })
     },
@@ -86,13 +95,32 @@ function EditorForm({ options, test }: { me: Me; options: FormOptions; test?: Te
       <PageHeader
         title={editing ? `Sửa đề: ${test.title}` : 'Tạo đề thi mới'}
         back={editing ? `${BASE}/${test.id}` : BASE}
-        description={pdfMode ? 'Đề PDF (nhập từ hệ thống cũ): sửa phiếu trả lời và đáp án; thay file PDF mới chưa hỗ trợ.' : 'Soạn từng câu: nhập câu hỏi, phương án, đáp án; thí sinh làm từng câu trên màn hình.'}
+        description={
+          pdfMode
+            ? 'Tải đề PDF: thí sinh xem nguyên file PDF và trả lời trên phiếu; hệ thống tự chấm theo đáp án trên phiếu.'
+            : 'Soạn từng câu: nhập câu hỏi, phương án, đáp án; thí sinh làm từng câu trên màn hình.'
+        }
       />
+      {!editing && (
+        <div className="mb-4">
+          <Tabs
+            value={mode}
+            onChange={(m) => {
+              setMode(m)
+              setCurrent(0)
+            }}
+            items={[
+              { value: 'manual', label: 'Soạn từng câu' },
+              { value: 'pdf', label: 'Tải đề PDF' },
+            ]}
+          />
+        </div>
+      )}
       {save.isError && <Alert>{errorMessage(save.error)}</Alert>}
-      <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
+      <div className={pdfMode ? 'space-y-6' : 'grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]'}>
         <div className="space-y-6">
           <Card title="Thông tin chung">
-            <div className="space-y-4">
+            <div className={pdfMode ? 'grid gap-4 sm:grid-cols-2 xl:grid-cols-3' : 'space-y-4'}>
               <Field label="Tên đề thi" required maxLength={255} value={form.title} onChange={set('title')} placeholder="VD: Đề test đầu vào lớp 3" />
               <Select label="Cấp độ (khối lớp)" value={form.grade_level} onChange={set('grade_level')} disabled={editing && test.is_preset}>
                 <option value="">— Chọn cấp độ —</option>
@@ -123,49 +151,52 @@ function EditorForm({ options, test }: { me: Me; options: FormOptions; test?: Te
               <Field label="Cấp độ mục tiêu" maxLength={255} value={form.target_level} onChange={set('target_level')} placeholder="Để trống = theo cấp độ" />
               <Field label="Thời gian làm bài (phút)" type="number" min={10} max={600} required value={form.duration_minutes} onChange={set('duration_minutes')} />
               <Textarea label="Mô tả" rows={2} maxLength={1000} value={form.description} onChange={set('description')} />
-              {pdfMode && <Field label="File nghe chung (URL)" maxLength={500} value={form.audio_url} onChange={set('audio_url')} />}
               {editing && (
                 <Checkbox label="Đang hoạt động (cho phép làm bài)" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} />
               )}
             </div>
           </Card>
-          <Card
-            title={
-              <span className="flex items-center justify-between">
-                Danh sách câu hỏi ({questions.length})
-                <Button
-                  variant="secondary"
-                  className="h-8"
-                  onClick={() => {
-                    setQuestions([...questions, newQuestion(questions, q?.skill ?? 'reading', q?.type ?? 'multiple_choice')])
-                    setCurrent(questions.length)
-                  }}
-                >
-                  Thêm câu
-                </Button>
-              </span>
-            }
-          >
-            <ol className="max-h-[420px] space-y-1 overflow-y-auto text-sm">
-              {questions.map((x, i) => (
-                <li key={x.id}>
-                  <button
-                    type="button"
-                    onClick={() => setCurrent(i)}
-                    className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left ${i === current ? 'bg-primary-light text-primary' : 'hover:bg-surface-container-low'}`}
+          {!pdfMode && (
+            <Card
+              title={
+                <span className="flex items-center justify-between">
+                  Danh sách câu hỏi ({questions.length})
+                  <Button
+                    variant="secondary"
+                    className="h-8"
+                    onClick={() => {
+                      setQuestions([...questions, newQuestion(questions, q?.skill ?? 'reading', q?.type ?? 'multiple_choice')])
+                      setCurrent(questions.length)
+                    }}
                   >
-                    <span className="w-12 shrink-0 font-mono text-xs">Câu {x.number || i + 1}</span>
-                    <span className="truncate">{x.title || <em className="text-on-surface-subtle">(chưa có nội dung)</em>}</span>
-                    <span className="ml-auto shrink-0 text-xs text-on-surface-variant">{QUESTION_SKILLS.find((s) => s.value === x.skill)?.label.split(' ')[0]}</span>
-                  </button>
-                </li>
-              ))}
-            </ol>
-          </Card>
+                    Thêm câu
+                  </Button>
+                </span>
+              }
+            >
+              <ol className="max-h-[420px] space-y-1 overflow-y-auto text-sm">
+                {questions.map((x, i) => (
+                  <li key={x.id}>
+                    <button
+                      type="button"
+                      onClick={() => setCurrent(i)}
+                      className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left ${i === current ? 'bg-primary-light text-primary' : 'hover:bg-surface-container-low'}`}
+                    >
+                      <span className="w-12 shrink-0 font-mono text-xs">Câu {x.number || i + 1}</span>
+                      <span className="truncate">{x.title || <em className="text-on-surface-subtle">(chưa có nội dung)</em>}</span>
+                      <span className="ml-auto shrink-0 text-xs text-on-surface-variant">{QUESTION_SKILLS.find((s) => s.value === x.skill)?.label.split(' ')[0]}</span>
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            </Card>
+          )}
         </div>
 
         <div className="space-y-4">
-          {q ? (
+          {pdfMode ? (
+            <PdfSheetEditor questions={sheetQs} onQuestions={setSheetQs} pdf={pdf} onPdf={setPdf} />
+          ) : q ? (
             <Card
               title={
                 <span className="flex flex-wrap items-center justify-between gap-2">
@@ -196,14 +227,14 @@ function EditorForm({ options, test }: { me: Me; options: FormOptions; test?: Te
                 </span>
               }
             >
-              <QuestionForm q={q} pdfMode={pdfMode} onChange={setQ} />
+              <QuestionForm q={q} onChange={setQ} />
             </Card>
           ) : (
             <Card>
               <p className="text-sm text-on-surface-variant">Đề chưa có câu hỏi nào. Bấm “Thêm câu” để soạn.</p>
             </Card>
           )}
-          {issues.length > 0 && (
+          {!pdfMode && issues.length > 0 && (
             <Alert tone="info">
               <ul className="list-inside list-disc">
                 {issues.slice(0, 6).map((m) => (
@@ -234,7 +265,7 @@ function EditorForm({ options, test }: { me: Me; options: FormOptions; test?: Te
   )
 }
 
-function QuestionForm({ q, pdfMode, onChange }: { q: Question; pdfMode: boolean; onChange: (p: Partial<Question>) => void }) {
+function QuestionForm({ q, onChange }: { q: Question; onChange: (p: Partial<Question>) => void }) {
   const opts = q.options ?? []
   const setOpt = (i: number, text: string) => onChange({ options: opts.map((o, j) => (j === i ? { ...o, text } : o)) })
   return (
@@ -256,21 +287,36 @@ function QuestionForm({ q, pdfMode, onChange }: { q: Question; pdfMode: boolean;
         </Select>
         <Field label="Điểm" type="number" min={0} step={0.5} value={q.points ?? 1} onChange={(e) => onChange({ points: e.target.value === '' ? null : Number(e.target.value) })} />
       </div>
-      {pdfMode && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Số câu in trong PDF" maxLength={20} value={q.number ?? ''} onChange={(e) => onChange({ number: e.target.value })} />
-          <Field label="Phần (section)" maxLength={255} value={q.section ?? ''} onChange={(e) => onChange({ section: e.target.value })} />
-        </div>
-      )}
       <Textarea label="Nội dung câu hỏi" rows={2} maxLength={5000} value={q.title} onChange={(e) => onChange({ title: e.target.value })} />
       {(q.skill === 'reading' || q.passage) && (
         <Textarea label="Đoạn văn / ngữ cảnh" rows={3} maxLength={20000} value={q.passage ?? ''} onChange={(e) => onChange({ passage: e.target.value })} />
       )}
       <div className="grid gap-3 sm:grid-cols-2">
         {(q.skill === 'listening' || q.audio_url) && (
-          <Field label="File nghe (URL)" maxLength={500} value={q.audio_url ?? ''} onChange={(e) => onChange({ audio_url: e.target.value })} hint="Dán đường dẫn file mp3 (tải file lên chưa hỗ trợ)." />
+          <div className="space-y-2">
+            <Field label="File nghe (URL)" maxLength={500} value={q.audio_url ?? ''} onChange={(e) => onChange({ audio_url: e.target.value })} hint="Tải file lên hoặc dán đường dẫn file mp3." />
+            <FileUpload
+              key={`audio-${q.id}`}
+              rule={AUDIO_RULE}
+              accept="audio/*"
+              label="Tải file nghe"
+              onUpload={async (file) => onChange({ audio_url: (await placementApi.uploadMedia('audio', file)).url })}
+            />
+            {q.audio_url && <audio controls className="h-9 w-full" src={q.audio_url} />}
+          </div>
         )}
-        <Field label="Ảnh minh họa (URL)" maxLength={500} value={q.image_url ?? ''} onChange={(e) => onChange({ image_url: e.target.value })} />
+        <div className="space-y-2">
+          <Field label="Ảnh minh họa (URL)" maxLength={500} value={q.image_url ?? ''} onChange={(e) => onChange({ image_url: e.target.value })} />
+          <FileUpload
+            key={`image-${q.id}`}
+            rule={IMAGE_RULE}
+            accept="image/*"
+            label="Tải ảnh lên"
+            hint="Ảnh tối đa 5 MB, file nghe tối đa 20 MB."
+            onUpload={async (file) => onChange({ image_url: (await placementApi.uploadMedia('image', file)).url })}
+          />
+          {q.image_url && <img src={q.image_url} alt="Ảnh minh họa câu hỏi" className="max-h-40 rounded-lg border border-surface-container-highest object-contain" />}
+        </div>
       </div>
       {hasOptions(q.type) && (
         <fieldset className="space-y-2">

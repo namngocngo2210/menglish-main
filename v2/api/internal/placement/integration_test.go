@@ -22,7 +22,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/files"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/filestore"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/secretbox"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/store"
 )
@@ -136,6 +138,7 @@ type env struct {
 	srv      *httptest.Server
 	leads    *fakeLeads
 	sessions *fakeSessions
+	files    *files.Service
 	mu       sync.Mutex
 	clock    time.Time
 	branch   uuid.UUID
@@ -168,8 +171,8 @@ func setup(t *testing.T) *env {
 	if err := store.Migrate(ctx, pool, "up"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := pool.Exec(ctx, `TRUNCATE placement.submissions, placement.invitations, placement.tests, crm.trial_bookings,
-		iam.users, iam.roles, iam.role_permissions, core.branches CASCADE`); err != nil {
+	if _, err := pool.Exec(ctx, `TRUNCATE placement.submissions, placement.invitations, placement.tests, crm.trial_bookings, core.files,
+		core.mail_outbox, core.settings, iam.users, iam.roles, iam.role_permissions, core.branches CASCADE`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := iam.SyncCatalog(ctx, pool); err != nil {
@@ -192,15 +195,23 @@ func setup(t *testing.T) *env {
 		sessions: &fakeSessions{sessions: map[uuid.UUID]Session{}, teaching: map[uuid.UUID][]uuid.UUID{}},
 		clock:    time.Now().Truncate(time.Second)}
 	e.iam = iam.NewService(pool, rdb, box, log)
-	e.svc = NewService(pool, rdb, log, Options{Leads: e.leads, Sessions: e.sessions, Now: e.now})
+	fstore, err := filestore.NewLocal(t.TempDir(), files.APIBase+files.BlobPrefix, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.files = files.NewService(pool, fstore, log, 0)
+	e.svc = NewService(pool, rdb, log, Options{Leads: e.leads, Sessions: e.sessions, Now: e.now, Files: e.files})
 	auth := iam.NewHandler(e.iam, log)
 	h := NewHandler(e.svc, log)
+	fh := files.NewHandler(e.files, log)
 	r := chi.NewRouter()
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(iam.SameOrigin, auth.LoadSession)
 		auth.Routes(r)
 		h.Routes(r)
 		h.PublicRoutes(r)
+		fh.Routes(r)
+		fh.PublicRoutes(r)
 	})
 	e.srv = httptest.NewServer(r)
 	t.Cleanup(e.srv.Close)
@@ -396,7 +407,7 @@ func TestTestBank(t *testing.T) {
 	expectMsg(t, author.do("POST", "/placement-tests", with("duration_minutes", 5)), "Thời gian làm bài tối thiểu 10 phút.")
 	expectMsg(t, author.do("POST", "/placement-tests", base), `Mã đề phải chứa "G3-G4" để hệ thống chấm theo thang điểm Khối 3 lên 4.`)
 	expectMsg(t, author.do("POST", "/placement-tests", map[string]any{"code": "TEST-G3-G4-PDF", "title": "PDF", "grade_level": "lop_3", "duration_minutes": 45, "mode": "pdf"}),
-		`Hệ thống mới chưa hỗ trợ tải đề PDF — hãy chọn cách "Soạn từng câu".`)
+		"Vui lòng tải file đề PDF.")
 	expectMsg(t, author.do("POST", "/placement-tests", map[string]any{"code": "TEST-G3-G4-Q", "title": "Q", "grade_level": "lop_3", "duration_minutes": 45,
 		"questions": []map[string]any{{"skill": "math"}}}), "Câu 1: kỹ năng không hợp lệ.")
 
@@ -752,7 +763,7 @@ func TestTrialBooking(t *testing.T) {
 	if r.body["class_name"] != "Movers A" || r.body["customer_name"] != "Bé Mai" || r.body["start"] != "17:30" {
 		t.Fatalf("xếp học thử: %s", r.raw)
 	}
-	if ev := e.leads.lastEvent(t, lead.ID); !strings.Contains(ev.Content, "Đặt lịch học thử: Movers A") || !strings.Contains(ev.Content, "Ghi chú cho giáo viên: Bé nhút nhát") {
+	if ev := e.leads.event(t, lead.ID, "Đặt lịch học thử: Movers A"); !strings.Contains(ev.Content, "Ghi chú cho giáo viên: Bé nhút nhát") {
 		t.Fatalf("nhật ký xếp học thử: %+v", ev)
 	}
 	expectMsg(t, staff.do("POST", "/trial-bookings", map[string]any{"lead_id": lead.ID, "class_session_id": s2.ID}),

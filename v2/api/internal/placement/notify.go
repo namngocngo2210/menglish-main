@@ -10,6 +10,7 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/audit"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/notify"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/notify/mail"
 )
 
 // Thông báo của test đầu vào & học thử (NotificationService::notifyTrialBooked / notifyTrialFeedback, phát hành đề).
@@ -96,8 +97,9 @@ func (s *Service) notifyTrialFeedback(ctx context.Context, a *iam.Access, bookin
 	s.send(ctx, idList(bookedBy, owner), n)
 }
 
-// notifySubmission: thí sinh nộp bài → báo người chấm bài test (Laravel gửi email vận hành "homework" cho Học vụ).
-func (s *Service) notifySubmission(ctx context.Context, subID uuid.UUID, candidate, phone, testTitle string, branch *uuid.UUID, at time.Time) {
+// notifySubmission: thí sinh nộp bài → báo người chấm bài test trong ứng dụng, và email vận hành "homework" cho danh
+// sách Email nhận Ticket như Laravel (NotificationService::notifyHomeworkOrTestSubmission).
+func (s *Service) notifySubmission(ctx context.Context, subID uuid.UUID, number int64, candidate, phone, testTitle string, branch *uuid.UUID, at time.Time) {
 	list, err := iam.UserIDsWithPermission(ctx, s.pool, "placement_test.grade", branch)
 	if err != nil {
 		s.log.Error("placement: người chấm bài", "err", err)
@@ -106,9 +108,29 @@ func (s *Service) notifySubmission(ctx context.Context, subID uuid.UUID, candida
 	if phone == "" {
 		phone = "---"
 	}
+	if candidate == "" {
+		candidate = "Học viên"
+	}
+	when := at.In(vnZone).Format("15:04 02/01/2006")
+	link := "/placement-tests/submissions/" + subID.String()
 	s.send(ctx, list, notify.Notification{
 		Type: "placement_submitted", Title: "[Học vụ] Học viên nộp bài: " + candidate + " - " + testTitle,
-		Body: fmt.Sprintf("%s (SĐT: %s) vừa nộp bài %s lúc %s, chờ Học vụ chấm.", candidate, phone, testTitle, at.In(vnZone).Format("15:04 02/01/2006")),
-		Link: "/placement-tests/submissions/" + subID.String(), Data: map[string]any{"submission_id": subID},
+		Body: fmt.Sprintf("%s (SĐT: %s) vừa nộp bài %s lúc %s, chờ Học vụ chấm.", candidate, phone, testTitle, when),
+		Link: link, Data: map[string]any{"submission_id": subID},
 	})
+	// Lúc nộp bài chưa có điểm chấm tay / lớp đề xuất: "Chờ Học vụ chấm", "Đang tư vấn" như Laravel.
+	const score = "Chờ Học vụ chấm"
+	content := "Học viên vừa hoàn thành và nộp bài trực tuyến trên hệ thống Portal:\n\n" +
+		"• Học viên: " + candidate + " (SĐT: " + phone + ")\n" +
+		"• Bài thi / Đề kiểm tra: " + testTitle + "\n" +
+		"• Điểm đánh giá: " + score + "\n" +
+		"• Khóa học đề xuất: Đang tư vấn\n" +
+		"• Thời gian nộp: " + when
+	if _, err := mail.OperationalAlert(ctx, s.pool, mail.EventHomework, "[Học vụ] Học viên nộp bài: "+candidate+" - "+testTitle, content, mail.Alert{
+		Code: fmt.Sprintf("TEST-%d", number), Title: "[Học vụ] Nộp bài thi: " + candidate, Status: "completed", StatusLabel: score,
+		Priority: "medium", PriorityLabel: "Học vụ", CategoryLabel: "Học vụ & Đào tạo", SenderName: "Cổng Portal Khảo thí",
+		ActionURL: link, ActionText: "Xem Báo cáo Điểm số", RefType: "placement_submission", RefID: subID.String(),
+	}); err != nil {
+		s.log.Error("placement: email nộp bài", "err", err)
+	}
 }

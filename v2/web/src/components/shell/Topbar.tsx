@@ -77,7 +77,7 @@ export function Topbar({
                 role="menuitem"
                 onClick={() => {
                   close()
-                  navigate('/')
+                  navigate('/profile')
                 }}
                 className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-on-surface hover:bg-surface-container-low"
               >

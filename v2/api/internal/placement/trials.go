@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -135,6 +136,8 @@ type TrialRow struct {
 	FeedbackBy     string            `json:"feedback_by"`
 	FeedbackAt     *time.Time        `json:"feedback_at"`
 	Started        bool              `json:"started"`
+	// Chỉ có khi vừa xếp lịch: kết quả gửi xác nhận cho phụ huynh (chưa gửi email được thì hiện popup sao chép Zalo)
+	Confirmation *Confirmation `json:"confirmation,omitempty"`
 }
 
 // TrialPage: một trang danh sách buổi học thử.
@@ -358,7 +361,10 @@ func (s *Service) BookTrial(ctx context.Context, a *iam.Access, in BookTrialInpu
 	}
 	var b placementdb.CrmTrialBooking
 	var sess *Session
-	err = s.tx(ctx, func(q *placementdb.Queries) error {
+	var conf *Confirmation
+	var confLog string
+	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		q := s.q.WithTx(tx)
 		if err := q.LockLeadTrials(ctx, lead.ID); err != nil {
 			return err
 		}
@@ -397,6 +403,19 @@ func (s *Service) BookTrial(ctx context.Context, a *iam.Access, in BookTrialInpu
 		if errors.As(err, &pe) && pe.Code == "23505" {
 			return errInvalid("Khách đã được xếp vào buổi học này.")
 		}
+		if err != nil {
+			return err
+		}
+		// Xác nhận lịch học thử cho phụ huynh (email hoặc nhắc người phụ trách gửi Zalo), cùng transaction.
+		branchID := sess.BranchID
+		if branchID == nil {
+			branchID = lead.BranchID
+		}
+		br, err := s.branchInfo(ctx, tx, branchID)
+		if err != nil {
+			return err
+		}
+		conf, confLog, err = s.deliverConfirmation(ctx, tx, a, lead, trialConfirmation(lead, sess, br), "trial_booking", b.ID)
 		return err
 	})
 	if err != nil {
@@ -411,11 +430,12 @@ func (s *Service) BookTrial(ctx context.Context, a *iam.Access, in BookTrialInpu
 	}
 	s.record(ctx, LeadEvent{LeadID: lead.ID, ActorID: &a.UserID, Type: "trial", Content: content})
 	s.notifyTrialBooked(ctx, a, b.ID, lead, sess, hhmm(b.StartTime), strings.TrimSpace(in.Notes))
-	// TODO(email): AppointmentConfirmation::forTrial — gửi xác nhận lịch học thử cho khách (email / mẫu Zalo) khi có kênh gửi.
+	s.record(ctx, LeadEvent{LeadID: lead.ID, ActorID: &a.UserID, Type: "trial", Content: confLog})
 	rows, err := s.trialRows(ctx, []placementdb.CrmTrialBooking{b}, nil)
 	if err != nil {
 		return nil, err
 	}
+	rows[0].Confirmation = conf
 	return &rows[0], nil
 }
 

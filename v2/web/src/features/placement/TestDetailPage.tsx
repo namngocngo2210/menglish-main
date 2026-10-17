@@ -149,7 +149,7 @@ export function TestDetailPage({ me, id }: { me: Me; id: string }) {
       {t.pdf_path && (
         <Card title="Đề PDF (thí sinh xem khi làm bài)">
           {t.audio_url && <audio controls className="mb-3 h-9 w-full" src={t.audio_url} />}
-          <a href={`/storage/${t.pdf_path.replace(/^\/+/, '')}`} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-primary underline">
+          <a href={t.pdf_url} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-primary underline">
             Mở file PDF
           </a>
         </Card>

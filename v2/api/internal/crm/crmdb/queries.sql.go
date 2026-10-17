@@ -2673,7 +2673,7 @@ func (q *Queries) PipelineLeads(ctx context.Context, arg PipelineLeadsParams) ([
 
 const placementLeads = `-- name: PlacementLeads :many
 SELECT l.id, l.code, l.name, l.parent_name, l.phone, l.email, l.stage, l.branch_id, l.assigned_user_id, l.test_score,
-       coalesce(u.full_name, '')::text AS assigned_user_name
+       coalesce(u.full_name, '')::text AS assigned_user_name, l.parent_phone
 FROM crm.leads l
 LEFT JOIN iam.users u ON u.id = l.assigned_user_id
 WHERE l.deleted_at IS NULL AND l.id = ANY ($1::uuid[])
@@ -2691,6 +2691,7 @@ type PlacementLeadsRow struct {
 	AssignedUserID   *uuid.UUID
 	TestScore        *string
 	AssignedUserName string
+	ParentPhone      *string
 }
 
 // Khách (kèm tên người phụ trách) theo danh sách id, không lọc phạm vi.
@@ -2715,6 +2716,7 @@ func (q *Queries) PlacementLeads(ctx context.Context, ids []uuid.UUID) ([]Placem
 			&i.AssignedUserID,
 			&i.TestScore,
 			&i.AssignedUserName,
+			&i.ParentPhone,
 		); err != nil {
 			return nil, err
 		}

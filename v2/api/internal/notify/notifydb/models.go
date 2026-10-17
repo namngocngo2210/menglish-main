@@ -234,6 +234,25 @@ type CoreBranch struct {
 	LateGraceMinutes int16
 }
 
+type CoreFile struct {
+	ID           uuid.UUID
+	OwnerModule  string
+	SubjectType  string
+	SubjectID    *uuid.UUID
+	BranchID     *uuid.UUID
+	StorageKey   string
+	OriginalName string
+	Extension    string
+	MimeType     string
+	SizeBytes    int64
+	Sha256       []byte
+	LegacyPath   *string
+	UploadedBy   *uuid.UUID
+	CreatedAt    time.Time
+	DeletedAt    *time.Time
+	DeletedBy    *uuid.UUID
+}
+
 type CoreHoliday struct {
 	ID           uuid.UUID
 	Code         string
@@ -250,6 +269,30 @@ type CoreHoliday struct {
 type CoreHolidayBranch struct {
 	HolidayID uuid.UUID
 	BranchID  uuid.UUID
+}
+
+type CoreMailOutbox struct {
+	ID            uuid.UUID
+	Kind          string
+	ToAddress     string
+	ToName        string
+	Subject       string
+	Template      string
+	Data          []byte
+	Sensitive     bool
+	Status        string
+	Attempts      int32
+	MaxAttempts   int32
+	NextAttemptAt time.Time
+	LockedUntil   *time.Time
+	LastError     *string
+	Fallback      []byte
+	RefType       *string
+	RefID         *string
+	CreatedBy     *uuid.UUID
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	SentAt        *time.Time
 }
 
 type CoreNotification struct {

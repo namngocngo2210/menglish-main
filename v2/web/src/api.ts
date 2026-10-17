@@ -150,6 +150,18 @@ export async function request<T>(method: string, path: string, body?: unknown): 
     credentials: 'same-origin',
     body: body === undefined ? undefined : JSON.stringify(body),
   })
+  return finish<T>(res)
+}
+
+// upload gửi form multipart (file + trường chữ) tới /api/v1 + path, kèm CSRF như request.
+export async function upload<T>(path: string, form: FormData): Promise<T> {
+  const headers: Record<string, string> = {}
+  if (csrfToken) headers['X-CSRF-Token'] = csrfToken
+  const res = await fetch(`/api/v1${path}`, { method: 'POST', headers, credentials: 'same-origin', body: form })
+  return finish<T>(res)
+}
+
+async function finish<T>(res: Response): Promise<T> {
   if (res.status === 204) return undefined as T
   const data = await res.json().catch(() => ({}))
   if (!res.ok) {
@@ -175,6 +187,10 @@ export const api = {
   loginTotp: (challenge: string, code: string) =>
     request<LoginResponse>('POST', '/auth/login/totp', { challenge, code }),
   logout: () => request<void>('POST', '/auth/logout'),
+  // Quên mật khẩu: gửi link qua email; đặt lại bằng token trong link (công khai, không cần đăng nhập).
+  forgotPassword: (email: string) => request<{ message: string }>('POST', '/auth/forgot-password', { email }),
+  resetPassword: (token: string, email: string, password: string, password_confirmation: string) =>
+    request<{ message: string }>('POST', '/auth/reset-password', { token, email, password, password_confirmation }),
   changePassword: (current_password: string, new_password: string) =>
     request<void>('POST', '/auth/password', { current_password, new_password }),
   totpSetup: () => request<{ secret: string; otpauth_url: string }>('POST', '/auth/totp/setup'),
@@ -214,6 +230,11 @@ export const api = {
   resetUserTotp: (id: string) => request<void>('POST', `/users/${id}/reset-totp`),
   staffProfile: (id: string) => request<StaffProfile>('GET', `/users/${id}/profile`),
   updateStaffProfile: (id: string, p: StaffProfileInput) => request<StaffProfile>('PUT', `/users/${id}/profile`, p),
+  uploadContract: (id: string, file: File) => {
+    const f = new FormData()
+    f.append('file', file)
+    return upload<{ contract_file: ContractFile; message: string }>(`/users/${id}/contract`, f)
+  },
   userPermissions: (id: string) => request<UserPermissions>('GET', `/users/${id}/permissions`),
   setUserPermissions: (id: string, overrides: Override[]) =>
     request<UserPermissions>('PUT', `/users/${id}/permissions`, { overrides }),
@@ -245,8 +266,12 @@ export type StaffProfile = {
   contract_status: StaffBadge
   contract_remaining: StaffBadge | null
   contract_types: string[]
+  // File hợp đồng lao động hiện tại (null = chưa tải lên)
+  contract_file: ContractFile | null
   updated_at: string | null
 }
+// File trong kho file: url là /api/v1/files/<id> (máy chủ kiểm quyền rồi chuyển sang link tải có hạn).
+export type ContractFile = { id: string; name: string; size: number; mime_type: string; uploaded_at: string; url: string }
 export type StaffProfileInput = {
   id_card_number: string
   hometown: string

@@ -32,6 +32,9 @@ import { PipelinePage } from './features/crm/PipelinePage'
 import { PromotionsPage } from './features/crm/PromotionsPage'
 import { ReportsPage as CrmReportsPage } from './features/crm/ReportsPage'
 import { ConfirmationsPage, TransfersPage } from './features/crm/WorkflowPages'
+import { AcademicPage } from './features/dashboard/AcademicPage'
+import { DashboardPage } from './features/dashboard/DashboardPage'
+import { seesDashboard } from './features/dashboard/logic'
 import { AccountPage } from './pages/AccountPage'
 import { BranchesPage } from './pages/admin/BranchesPage'
 import { RolesPage } from './pages/admin/RolesPage'
@@ -46,11 +49,17 @@ import { RoomsPage } from './features/catalogs/RoomsPage'
 import { ShiftsPage } from './features/catalogs/ShiftsPage'
 import { SlaPage } from './features/catalogs/SlaPage'
 import { TicketEmailsPage } from './features/catalogs/TicketEmailsPage'
+import { OutboxPage } from './features/mail/OutboxPage'
 
 // Trang theo đường dẫn mục menu (NAV trong nav.ts). Trang con (vd. /students/<id>) dùng chung mục cha và tự đọc
 // phần còn lại của đường dẫn bằng usePath(). Module mới: thêm mục vào NAV và một dòng ở đây.
 export const PAGES: Record<string, (me: Me) => ReactNode> = {
-  '/': (me) => <AccountPage me={me} />,
+  '/': (me) => (seesDashboard(me) ? <DashboardPage me={me} /> : <AccountPage me={me} />),
+  '/dashboard': (me) => (seesDashboard(me) ? <DashboardPage me={me} /> : <AccountPage me={me} />),
+  '/profile': (me) => <AccountPage me={me} />,
+  '/academic/dashboards': () => <AcademicPage />,
+  '/academic/reports': () => <AcademicPage />,
+  '/academic/incidents': () => <AcademicPage />,
   '/users': (me) => <UsersPage me={me} />,
   '/roles': (me) => <RolesPage me={me} />,
   '/branches': (me) => <BranchesPage me={me} />,
@@ -77,6 +86,7 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/system-config/bank-accounts': (me) => <BankAccountsPage me={me} />,
   '/system-config/ticket-emails': (me) => <TicketEmailsPage me={me} />,
   '/system-config/sla': (me) => <SlaPage me={me} />,
+  '/system-config/mail-outbox': () => <OutboxPage />,
   '/tasks': (me) => <TasksPage me={me} />,
   '/tasks/new': (me) => <CreateTaskPage me={me} />,
   '/tasks/ta-assign': (me) => <TAAssignPage me={me} />,
