@@ -85,6 +85,29 @@ export const NAV: NavItem[] = [
   { path: '/tasks', label: 'Danh sách đầu việc', group: 'Danh sách đầu việc', perms: ['work_task.view'] },
   // Nút "Giao việc cho Trợ giảng" trên danh sách đầu việc (không phải mục menu riêng như Laravel)
   { path: '/tasks/ta-assign', label: 'Giao việc cho Trợ giảng', group: 'Danh sách đầu việc', perms: ['work_task.assign'], hidden: true },
+  // Cổng Giáo viên (features/teacher): trang mở cho người điểm danh lớp mình hoặc làm thay (record_any); menu neo quyền
+  // đối tượng cổng giáo viên / trợ giảng như SidebarMenu::TEACHING_PORTAL. Trang lớp /teacher/classes/<id>/… mở từ ca dạy.
+  {
+    path: '/teacher/home',
+    label: 'Check-in & Điểm danh hôm nay',
+    group: 'Cổng Giáo viên',
+    perms: ['attendance_student.record', 'attendance_student.record_any'],
+    menu: (me) => can(me, 'attendance_student.record') && can(me, 'portal.teacher', 'portal.assistant'),
+  },
+  {
+    path: '/teacher/submissions',
+    label: 'Chấm bài nộp của lớp',
+    group: 'Cổng Giáo viên',
+    perms: ['homework.grade'],
+    menu: (me) => can(me, 'portal.teacher', 'portal.assistant'),
+  },
+  {
+    path: '/teacher/classes',
+    label: 'Lớp của tôi',
+    group: 'Cổng Giáo viên',
+    perms: ['attendance_student.record', 'attendance_student.record_any'],
+    hidden: true,
+  },
   // Cổng Giáo viên: neo quyền đối tượng cổng giáo viên / trợ giảng; người giao / duyệt việc mở từ danh sách đầu việc.
   {
     path: '/portal/ta-tasks',
@@ -93,13 +116,13 @@ export const NAV: NavItem[] = [
     perms: ['work_task.view'],
     menu: (me) => can(me, 'portal.teacher', 'portal.assistant'),
   },
-  // Chấm bài nộp của lớp (StudentPortalController::teacherSubmissions) — features/portal.
+  // Bản chấm bài của features/portal (trùng /teacher/submissions, chờ gộp làm một màn).
   {
     path: '/portal/teacher-submissions',
     label: 'Chấm bài nộp của lớp',
     group: 'Cổng Giáo viên',
     perms: ['homework.grade'],
-    menu: (me) => can(me, 'portal.teacher', 'portal.assistant'),
+    hidden: true,
   },
   // Cổng Phụ huynh & Học sinh (StudentPortalController) — features/portal. Menu cho tài khoản cổng (portal.student);
   // nhân sự có student.view mở được để xem hộ học viên trong phạm vi.
@@ -122,6 +145,14 @@ export const NAV: NavItem[] = [
   { path: '/teacher/trial-guests', label: 'Khách học thử', group: 'Cổng Giáo viên', perms: ['portal.teacher', 'portal.assistant'] },
   // Báo cáo ngày / tuần / tháng theo vai trò (StaffReportController)
   { path: '/reports', label: 'Báo cáo định kỳ', perms: ['staff_report.submit'], group: 'Báo cáo của tôi' },
+  // Báo cáo giảng dạy tháng của giáo viên (cổng giáo viên) — features/teacher
+  {
+    path: '/teacher/general-report',
+    label: 'Báo cáo giảng dạy',
+    group: 'Báo cáo của tôi',
+    perms: ['attendance_student.record', 'attendance_student.record_any'],
+    menu: (me) => can(me, 'attendance_student.record') && can(me, 'portal.teacher', 'portal.assistant'),
+  },
   { path: '/reports/all', label: 'Tổng hợp báo cáo & nhật ký', perms: ['staff_report.view_all'], group: 'Nhân sự & KPI' },
   // Laravel: @can staff_report.submit và thêm user.view hoặc kpi.view
   {

@@ -207,6 +207,12 @@ ORDER BY
   b.id
 LIMIT @lim OFFSET @off;
 
+-- name: SessionTrialBookings :many
+-- Khách học thử (chưa hủy) của các buổi: số khách trên ca dạy và khối "Khách học thử buổi này" của Cổng giáo viên.
+SELECT * FROM crm.trial_bookings b
+WHERE b.status <> 'cancelled' AND b.class_session_id = ANY(@session_ids::uuid[])
+ORDER BY b.session_date, b.start_time, b.id;
+
 -- name: CountTeacherTrials :one
 SELECT count(*)::int FROM crm.trial_bookings b
 WHERE b.status <> 'cancelled'

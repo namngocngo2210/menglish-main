@@ -41,6 +41,7 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/store"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/students"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/tasks"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/teacher"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/tuition"
 )
 
@@ -165,9 +166,15 @@ func runAPI(ctx context.Context) error {
 	// Nhắc nợ theo mốc, SLA tiền mặt / hoàn phí, bảo lưu bắt đầu / hết hạn (lệnh tuition:* / students:*-deferrals ở bản Laravel).
 	go tuitionSvc.RunReminderLoop(ctx, time.Minute)
 	// Leads: khách CRM. Sessions: buổi học thật của phân hệ Lớp học cho học thử.
-	place := placement.NewHandler(placement.NewService(d.pool, d.rdb, log, placement.Options{
+	placeSvc := placement.NewService(d.pool, d.rdb, log, placement.Options{
 		Leads: crmSvc.PlacementLeads(), Sessions: cls.PlacementSessions(), Files: fileSvc,
-	}), log)
+	})
+	place := placement.NewHandler(placeSvc, log)
+	// Cổng giáo viên: lớp / buổi / điểm danh của Lớp học, khách học thử của Test đầu vào, file bài tập / bài nộp ở kho file.
+	// TODO(gộp): Work (chấm công giờ dạy / lương), Syllabus, SupportList, Pronunciation khi các phân hệ có ở v2.
+	teacherSvc := teacher.NewService(d.pool, log, teacher.Deps{
+		Classes: cls.TeacherPortal(), SLA: catalogSvc, Files: fileSvc, Trials: teacher.PlacementTrials(placeSvc),
+	})
 	// Báo cáo: số liệu tuyển sinh từ CRM / test đầu vào, bọc thêm số liệu lớp / buổi / điểm danh của Lớp học; việc follow-up
 	// qua Công việc, ngày nghỉ từ danh mục; "Số lượng thu phí" từ Học phí.
 	// KPI: mục KPI của báo cáo tuần lấy từ bộ tiêu chí đang áp dụng (bọc MetricsProvider của báo cáo).
@@ -184,13 +191,14 @@ func runAPI(ctx context.Context) error {
 	// TODO(gộp): nguồn Học phí / SLA CRM / Cổng giáo viên / Chấm công / Big Test, WithPayrollLock(kỳ lương) khi có ở v2.
 	kpiSvc.AddSources(reportSvc.KpiSources(), taskSvc.KpiSources(), inv.KpiSources(), cls.KpiSources()).
 		WithJournal(reportSvc).WithAttendance(cls.KpiAttendance()).WithBoard(cls.KpiBoard(), taskSvc.KpiBoard())
+	kpiSvc.AddSources(teacherSvc.KpiSources()).WithHomework(teacherSvc.KpiBoard())
 	go kpiSvc.RunSheetLoop(ctx, time.Hour)
 	// Tổng quan + Báo cáo & sự vụ lớp: đọc số liệu các phân hệ qua adapter (Finance: doanh thu / phiếu chờ duyệt / quá hạn
 	// của Học phí). TODO(gộp): Work = chấm công / biên bản lỗi (KPI) khi có ở v2 (để nil: màn hiện "Chờ phân hệ…").
 	dash := dashboard.NewService(dashboard.Deps{
 		Leads: crmSvc.DashboardLeads(), Tasks: taskSvc.DashboardTasks(), Classes: cls.DashboardClasses(),
 		Students: studentSvc.DashboardStudents(), Reports: reportSvc.DashboardReports(), Orders: inv.DashboardOrders(),
-		Branches: d.iam, Finance: tuitionSvc.DashboardFinance(),
+		Branches: d.iam, Finance: tuitionSvc.DashboardFinance(), Homework: teacherSvc.Dashboard(),
 	}, log)
 	// Cổng Phụ huynh & Học sinh: học phí đọc qua adapter của Học phí. TODO(gộp): WithTeacherPortal (bài tập / bài nộp),
 	// WithSurveys (khảo sát 5 sao), WithSyllabus (Big Test, chặng học) khi các phân hệ đó có ở v2.
@@ -227,6 +235,7 @@ func runAPI(ctx context.Context) error {
 				dashboard.NewHandler(dash, log),
 				files.NewHandler(fileSvc, log),
 				portal.NewHandler(portalSvc, log),
+				teacher.NewHandler(teacherSvc, log),
 			),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,

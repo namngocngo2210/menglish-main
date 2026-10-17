@@ -293,6 +293,30 @@ func (s *Service) TeacherTrials(ctx context.Context, a *iam.Access, f TrialFilte
 	return &TrialPage{Bookings: out, Total: total, Page: f.Page, PerPage: f.PerPage}, nil
 }
 
+// SessionGuests: khách học thử (chưa hủy, khách còn hồ sơ) theo buổi — Cổng giáo viên (số khách trên ca dạy, khối
+// "Khách học thử buổi này" ở trang nhận xét / điểm danh). Không lọc phạm vi: người gọi đã kiểm quyền với buổi.
+func (s *Service) SessionGuests(ctx context.Context, sessionIDs []uuid.UUID) (map[uuid.UUID][]TrialRow, error) {
+	out := map[uuid.UUID][]TrialRow{}
+	if len(sessionIDs) == 0 {
+		return out, nil
+	}
+	bs, err := s.q.SessionTrialBookings(ctx, sessionIDs)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.trialRows(ctx, bs, nil)
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range rows {
+		if r.CustomerName == "" {
+			continue
+		}
+		out[r.ClassSessionID] = append(out[r.ClassSessionID], r)
+	}
+	return out, nil
+}
+
 // LeadTrials: buổi học thử và tình trạng lượt học thử của một khách (hồ sơ khách CRM).
 type LeadTrials struct {
 	Bookings []TrialRow `json:"bookings"`

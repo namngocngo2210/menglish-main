@@ -13,7 +13,7 @@ Số dòng theo trạng thái tính tới lần gộp cuối của PR #152.
 | --- | --- | ---: | ---: | ---: | ---: | --- |
 | Chấm công chi nhánh | `../doi-chieu-laravel.txt` (`core.branch_checkin`) | toàn bộ | | | | Không còn (vị trí trên bản đồ, tìm địa chỉ, dán tọa độ như `BranchController`) |
 | Nền tảng (khung giao diện, nhật ký, thông báo, tìm kiếm) | [nen-tang.md](nen-tang.md) | 27 | 0 | 7 | 6 | Toast chung, hoàn tác nhật ký |
-| Tổng quan (Dashboard) & Báo cáo & sự vụ lớp | [tong-quan.md](tong-quan.md) | 30 | 5 | 9 | 9 | Số liệu lương, chấm công & KPI, giáo trình & Big Test, ticket, báo cáo trực lớp (chờ các phân hệ đó) |
+| Tổng quan (Dashboard) & Báo cáo & sự vụ lớp | [tong-quan.md](tong-quan.md) | 31 | 5 | 9 | 8 | Số liệu lương, chấm công & KPI, giáo trình & Big Test, ticket, báo cáo trực lớp (chờ các phân hệ đó) |
 | Danh mục & cấu hình | [danh-muc.md](danh-muc.md) | 46 | 0 | 14 | 3 | Tra phòng trống, cấu hình SePay |
 | Học viên | [hoc-vien.md](hoc-vien.md) | 9 | 0 | 7 | 3 | Lệnh nền bảo lưu / khai giảng / sinh nhật (cần học phí), ghi ngày bắt đầu học từ điểm danh |
 | Lớp học | [lop-hoc.md](lop-hoc.md) | 26 | 0 | 8 | 7 | Dự giờ & chất lượng lớp, cổng giáo viên (chấm công, bài tập, điểm), giãn tiến độ theo giáo trình |
@@ -26,9 +26,10 @@ Số dòng theo trạng thái tính tới lần gộp cuối của PR #152.
 | Gửi email (hàng đợi, mẫu thư, quên mật khẩu) | [email.md](email.md) | 10 | 5 | 0 | 8 | Email ticket (chưa có phân hệ Ticket), email học phí / nhắc nợ / SePay (phân hệ học phí), khách tồn đọng, Zalo ZNS (ngoài phạm vi) |
 | Kho file | [kho-file.md](kho-file.md) | 10 | 2 | 0 | 1 | Nhập file cũ từ Laravel, file của phân hệ chưa chuyển (minh chứng, CV, file nghe bài tập…) |
 | Thu - Chi | [thu-chi.md](thu-chi.md) | 7 | 1 | 2 | 1 | Dòng chi lương tự động (chờ phân hệ Lương) |
-| KPI nhân sự | [kpi.md](kpi.md) | 17 | 7 | 0 | 8 | Nguồn tự đếm của Học phí / CRM SLA / cổng giáo viên / chấm công / Big Test / bài tập / dự án học thuật (hiện điền tay), khóa phiếu theo kỳ lương |
+| KPI nhân sự | [kpi.md](kpi.md) | 18 | 7 | 0 | 7 | Nguồn tự đếm của Học phí / CRM SLA / cổng giáo viên / chấm công / Big Test / dự án học thuật (hiện điền tay), khóa phiếu theo kỳ lương |
 | Học phí (hồ sơ, phiếu thu, công nợ, hoàn phí, hủy hóa đơn, SePay, nhập Excel) | [hoc-phi.md](hoc-phi.md) | 31 | 11 | 0 | 3 | Thu hồi hoa hồng (chờ Lương), nguồn KPI tự đếm, nhập dữ liệu học phí cũ |
 | Cổng Phụ huynh & Học sinh (trang chủ, học phí, nộp bài, phát âm, hộp thư, khảo sát, góp ý, App Shell) | [cong-hoc-vien.md](cong-hoc-vien.md) | 9 | 8 | 6 | 0 | Bài tập / bài nộp / nhận xét (chờ Cổng giáo viên), khảo sát (chờ Khảo sát), Big Test & chặng học (chờ Giáo trình), buổi phụ đạo |
+| Cổng giáo viên (check-in, bài tập, mini test, nhận xét, chấm bài, báo cáo giảng dạy) | [cong-giao-vien.md](cong-giao-vien.md) | 11 | 2 | 5 | 2 | Ghi công check-in / giờ dạy / lương (chờ Lương & chấm công), unit giáo trình, order test & Big Test, tab Phát âm (chờ cổng học viên) |
 
 ## Phần dùng chung chưa có ở v2
 

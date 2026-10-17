@@ -93,6 +93,11 @@ type BoardTasks interface {
 	KpiBoardTasks(ctx context.Context, userIDs []uuid.UUID, from, to time.Time) (map[uuid.UUID]kpisrc.TaskStats, error)
 }
 
+// BoardHomework: cột Bài tập của bảng KPI tự động (cổng Giáo viên: bài giao / bài nộp); nil = chờ phân hệ.
+type BoardHomework interface {
+	KpiBoardHomework(ctx context.Context, userIDs []uuid.UUID, from, to time.Time) (map[uuid.UUID]kpisrc.HomeworkStats, error)
+}
+
 // ───────────── Service ─────────────
 
 type Service struct {
@@ -106,6 +111,7 @@ type Service struct {
 	attendance AttendanceReview
 	classes    BoardClasses
 	tasks      BoardTasks
+	homework   BoardHomework
 }
 
 func NewService(pool *pgxpool.Pool, log *slog.Logger) *Service {
@@ -144,6 +150,11 @@ func (s *Service) WithAttendance(a AttendanceReview) *Service {
 
 func (s *Service) WithBoard(c BoardClasses, t BoardTasks) *Service {
 	s.classes, s.tasks = c, t
+	return s
+}
+
+func (s *Service) WithHomework(h BoardHomework) *Service {
+	s.homework = h
 	return s
 }
 

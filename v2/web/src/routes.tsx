@@ -20,6 +20,10 @@ import { TAPortalPage } from './features/tasks/TAPortalPage'
 import { TasksPage } from './features/tasks/TasksPage'
 import { PlacementTestsPage } from './features/placement/TestsPage'
 import { TeacherTrialsPage, TrialSchedulePage } from './features/placement/TrialPages'
+import { TeacherClassPage } from './features/teacher/ClassPage'
+import { GeneralReportPage as TeacherReportPage } from './features/teacher/GeneralReportPage'
+import { HomePage as TeacherHomePage } from './features/teacher/HomePage'
+import { SubmissionsPage as TeacherSubmissionsPage } from './features/teacher/SubmissionsPage'
 import { ActivityLogsPage } from './features/platform/ActivityLogsPage'
 import { NotificationsPage } from './features/platform/NotificationsPage'
 import { SearchPage } from './features/platform/SearchPage'
@@ -70,7 +74,7 @@ import { PortalNotificationsPage } from './features/portal/NotificationsPage'
 import { PaymentReportsPage } from './features/portal/PaymentReportsPage'
 import { PronunciationPage as PortalPronunciationPage } from './features/portal/PronunciationPage'
 import { SurveyPage as PortalSurveyPage } from './features/portal/SurveyPage'
-import { TeacherSubmissionsPage } from './features/portal/TeacherSubmissionsPage'
+import { TeacherSubmissionsPage as PortalTeacherSubmissionsPage } from './features/portal/TeacherSubmissionsPage'
 
 // Trang theo đường dẫn mục menu (NAV trong nav.ts). Trang con (vd. /students/<id>) dùng chung mục cha và tự đọc
 // phần còn lại của đường dẫn bằng usePath(). Module mới: thêm mục vào NAV và một dòng ở đây.
@@ -117,6 +121,10 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/placement-tests': (me) => <PlacementTestsPage me={me} />,
   '/placement-tests/rubric-guide': (me) => <PlacementTestsPage me={me} />,
   '/teacher/trial-guests': () => <TeacherTrialsPage />,
+  '/teacher/home': () => <TeacherHomePage />,
+  '/teacher/classes': () => <TeacherClassPage />,
+  '/teacher/submissions': () => <TeacherSubmissionsPage />,
+  '/teacher/general-report': () => <TeacherReportPage />,
   '/activity-logs': () => <ActivityLogsPage />,
   '/notifications': (me) => <NotificationsPage me={me} />,
   '/search': (me) => <SearchPage me={me} />,
@@ -154,7 +162,7 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/portal/survey': () => <PortalSurveyPage />,
   '/portal/feedback': () => <PortalFeedbackPage />,
   '/portal/app-shell': () => <PortalAppShellPage />,
-  '/portal/teacher-submissions': (me) => <TeacherSubmissionsPage me={me} />,
+  '/portal/teacher-submissions': (me) => <PortalTeacherSubmissionsPage me={me} />,
 }
 
 // Trang "/": nhân sự → Tổng quan; tài khoản cổng (học viên / phụ huynh) → Trang chủ cổng học viên như Laravel

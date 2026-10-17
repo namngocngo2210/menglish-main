@@ -50,6 +50,8 @@ type Deps struct {
 	// Finance, Work: phân hệ đang làm song song; nil = chưa có.
 	Finance Finance
 	Work    StaffWork
+	// Homework: bài về nhà / điểm mini test theo lớp (cổng Giáo viên); nil = chờ phân hệ.
+	Homework ClassHomework
 }
 
 type Service struct {
