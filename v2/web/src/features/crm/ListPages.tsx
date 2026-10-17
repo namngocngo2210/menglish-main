@@ -60,7 +60,7 @@ export function WonPage({ me }: { me: Me }) {
       {list.isError && <Alert>{errorMessage(list.error)}</Alert>}
       {d && d.data.length === 0 && <Empty>Chưa có khách chốt trong khoảng này.</Empty>}
       {d && d.data.length > 0 && (
-        <Table head={['Khách hàng', 'Cơ sở', 'Khóa đăng ký', 'Lớp', 'Giá trị HĐ', 'Phụ trách', 'Ngày chốt', 'Xác nhận']}>
+        <Table head={['Khách hàng', 'Cơ sở', 'Khóa đăng ký', 'Lớp', 'Giá trị HĐ', 'Học phí', 'Phụ trách', 'Ngày chốt', 'Xác nhận']}>
           {d.data.map((r) => (
             <tr key={r.id}>
               <Td>
@@ -73,6 +73,7 @@ export function WonPage({ me }: { me: Me }) {
               <Td>{r.course_interest ?? '—'}</Td>
               <Td>{r.class_name ?? <span className="text-on-surface-variant">Chưa xếp lớp</span>}</Td>
               <Td className="whitespace-nowrap">{formatMoney(r.deal_value)}</Td>
+              <Td>{r.tuition ? <Badge tone={r.tuition.tone}>{r.tuition.label}</Badge> : '—'}</Td>
               <Td>{r.assigned_user ?? '—'}</Td>
               <Td className="whitespace-nowrap">{formatDateTime(r.converted_at)}</Td>
               <Td>

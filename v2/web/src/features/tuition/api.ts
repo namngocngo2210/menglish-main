@@ -4,8 +4,18 @@ import { request } from '../../api'
 
 export type Option = { value: string; label: string }
 export type Tone = 'neutral' | 'success' | 'error' | 'info' | 'warning'
-export type Page = { page: number; per_page: number; total: number; last_page: number }
-export type StudentBrief = { id: string; name: string; code: string; phone: string }
+export type Page = {
+  page: number
+  per_page: number
+  total: number
+  last_page: number
+}
+export type StudentBrief = {
+  id: string
+  name: string
+  code: string
+  phone: string
+}
 
 export type TuitionRow = {
   id: string
@@ -34,7 +44,12 @@ export type DueRow = {
   due_date: string | null
   days_overdue: number
   session_lines: { label: string; value: number }[]
-  last_contact: { at: string | null; user_name: string | null; note: string | null; note_short: string | null } | null
+  last_contact: {
+    at: string | null
+    user_name: string | null
+    note: string | null
+    note_short: string | null
+  } | null
   last_report_date: string | null
   reminder_paused_until: string | null
   deferred_until: string | null
@@ -143,8 +158,24 @@ export type Quote = {
   suggested: number
 }
 
-export type Bank = { id: string; bank_code: string; bank_name: string; account_number: string; account_holder: string; scope: string }
-export type ItemLine = { id: string; code?: string; name: string; unit?: string; quantity: number; unit_price?: number; amount: number; source?: string }
+export type Bank = {
+  id: string
+  bank_code: string
+  bank_name: string
+  account_number: string
+  account_holder: string
+  scope: string
+}
+export type ItemLine = {
+  id: string
+  code?: string
+  name: string
+  unit?: string
+  quantity: number
+  unit_price?: number
+  amount: number
+  source?: string
+}
 
 export type FormTuition = {
   id: string
@@ -199,7 +230,14 @@ export type Promotion = {
   is_default: boolean
 }
 
-export type FormItem = { id: string; code: string; name: string; unit: string; price: number; stock: number }
+export type FormItem = {
+  id: string
+  code: string
+  name: string
+  unit: string
+  price: number
+  stock: number
+}
 
 export type SessionBreakdown = {
   session_count: number
@@ -217,7 +255,15 @@ export type SessionBreakdown = {
   amount: number
 }
 
-export type StockLine = { item_id: string; name: string; unit: string; quantity: number; source: string; stock: number; stock_after: number }
+export type StockLine = {
+  item_id: string
+  name: string
+  unit: string
+  quantity: number
+  source: string
+  stock: number
+  stock_after: number
+}
 
 export type ReceiptDetail = {
   id: string
@@ -271,7 +317,12 @@ export type ReceiptDetail = {
   beneficiary: string | null
   stock_out: StockLine[]
   reconciliation: { tone: Tone; label: string; detail: string } | null
-  sepay_warnings: { sepay_id: string; amount: number; date: string | null; receipt_number: string | null }[]
+  sepay_warnings: {
+    sepay_id: string
+    amount: number
+    date: string | null
+    receipt_number: string | null
+  }[]
 }
 
 export type ReceiptForm = {
@@ -283,12 +334,24 @@ export type ReceiptForm = {
   paper_invoice_next: string | null
   default_bank: Bank | null
   editing: ReceiptDetail | null
-  recent_rejection: { id: string; code: string; rejection_reason: string | null; can_edit: boolean } | null
+  recent_rejection: {
+    id: string
+    code: string
+    rejection_reason: string | null
+    can_edit: boolean
+  } | null
   can_request_cancel: boolean
   methods: Option[]
 }
 
-export type StudentOption = { id: string; code: string; name: string; phone: string; class_name: string | null; branch_name: string | null }
+export type StudentOption = {
+  id: string
+  code: string
+  name: string
+  phone: string
+  class_name: string | null
+  branch_name: string | null
+}
 
 export type ReceiptRow = {
   id: string
@@ -322,7 +385,12 @@ export type ReceiptRow = {
 }
 
 export type ApproveScreen = {
-  filters: { status: string; branch_id: string | null; payment_method: string; q: string }
+  filters: {
+    status: string
+    branch_id: string | null
+    payment_method: string
+    q: string
+  }
   branches: Option[]
   statuses: Option[]
   pending_count: number
@@ -371,7 +439,12 @@ export type ReceiptInput = {
   submit_action: 'draft' | 'submit'
 }
 
-export type Saved = { id: string; code: string; status: string; message: string }
+export type Saved = {
+  id: string
+  code: string
+  status: string
+  message: string
+}
 
 export function query(params: Record<string, string | number | null | undefined>) {
   const qs = new URLSearchParams()
@@ -380,7 +453,66 @@ export function query(params: Record<string, string | number | null | undefined>
   return s ? `?${s}` : ''
 }
 
+// Bill "Thông báo nộp học phí" (crm.tuition-bill).
+export type Bill = {
+  tuition: {
+    id: string
+    total_amount: number
+    discount_amount: number
+    other_fees: number
+    prepaid_amount: number
+    final_amount: number
+    paid_amount: number
+    debt_amount: number
+    notes: string | null
+  }
+  student: {
+    id: string
+    code: string
+    name: string
+    phone: string
+    parent_name: string | null
+    parent_phone: string | null
+  }
+  class_name: string | null
+  course_name: string | null
+  branch_name: string | null
+  customer: { id: string; code: string; name: string } | null
+  promotion_name: string | null
+  bank_account: {
+    bank_name: string
+    account_number: string
+    account_holder: string
+  } | null
+  transfer_memo: string
+  amount_to_pay: number
+  pending_amount: number
+  vietqr_url: string | null
+  qr_warning: string | null
+  total_sessions: number
+  schedule: {
+    text: string | null
+    start_date: string | null
+    end_date: string | null
+  } | null
+  receipts: {
+    installment: number
+    code: string
+    invoice_number: string | null
+    paper_invoice_number: string | null
+    status: string
+    method: string
+    method_label: string
+    date: string
+    content: string
+    amount: number
+  }[]
+  center: { name: string; branches: string[]; phone: string | null }
+  today: string
+}
+
 export const tuitionApi = {
+  bill: (id: string) => request<Bill>('GET', `/tuition/bill/${id}`),
   students: (p: { search?: string; status?: string; branch_id?: string; class_id?: string; page?: number; type?: string; upcoming_page?: number }) =>
     request<StudentsPage>('GET', `/tuition/students${query(p)}`),
   payments: (studentId: string) => request<StudentPayments>('GET', `/tuition/students/${studentId}/payments`),
@@ -391,10 +523,24 @@ export const tuitionApi = {
   receipt: (id: string) => request<ReceiptDetail>('GET', `/tuition/receipts/${id}`),
   approveScreen: (p: { status?: string; branch_id?: string; payment_method?: string; q?: string; selected_id?: string }) =>
     request<ApproveScreen>('GET', `/tuition/receipts/approve${query(p)}`),
-  approve: (id: string, confirm_not_duplicate: boolean) => request<Saved>('POST', `/tuition/receipts/${id}/approve`, { confirm_not_duplicate }),
-  reject: (id: string, rejection_reason: string) => request<Saved>('POST', `/tuition/receipts/${id}/reject`, { rejection_reason }),
+  approve: (id: string, confirm_not_duplicate: boolean) =>
+    request<Saved>('POST', `/tuition/receipts/${id}/approve`, {
+      confirm_not_duplicate,
+    }),
+  reject: (id: string, rejection_reason: string) =>
+    request<Saved>('POST', `/tuition/receipts/${id}/reject`, {
+      rejection_reason,
+    }),
   confirmDeposit: (id: string) => request<Saved>('POST', `/tuition/receipts/${id}/confirm-deposit`),
-  history: (p: { search?: string; student_id?: string; status?: string; method?: string; from?: string; to?: string; kind?: string; page?: number }) =>
-    request<HistoryPage>('GET', `/tuition/history${query(p)}`),
+  history: (p: {
+    search?: string
+    student_id?: string
+    status?: string
+    method?: string
+    from?: string
+    to?: string
+    kind?: string
+    page?: number
+  }) => request<HistoryPage>('GET', `/tuition/history${query(p)}`),
   exportUrl: (p: Record<string, string>) => `/api/v1/tuition/history/export${query(p)}`,
 }

@@ -133,20 +133,22 @@ func runAPI(ctx context.Context) error {
 	inv := inventory.NewService(d.pool, log, inventory.DefaultConfig()).WithRestocker(taskSvc.Restocker())
 	go inv.RunOverdueLoop(ctx, 15*time.Minute)
 	studentSvc.Classes, catalogSvc.Classes, inv.Classes = cls, cls, cls
-	// Học phí: phiếu thu duyệt thì xuất bán / hủy thì hoàn kho vật phẩm qua phân hệ Kho.
-	tuitionSvc := tuition.NewService(d.pool, d.box, catalogSvc, log).WithStock(inv)
+	// Học phí: phiếu thu duyệt thì xuất bán / hủy thì hoàn kho vật phẩm qua phân hệ Kho; chốt khách chưa đóng học phí
+	// → task "Nhắc thu học phí" (phân hệ Công việc). tuitionSvc.Closing bọc phần chốt của Lớp học để lập học phí / phiếu thu.
+	tuitionSvc := tuition.NewService(d.pool, d.box, catalogSvc, log).WithStock(inv).WithTasks(taskSvc)
 	// Chốt & Xếp lớp: Lớp học tạo hồ sơ học viên và ghi danh trong giao dịch của CRM; xếp lớp từ màn Học viên hoàn tất
 	// khách Chờ xếp lớp bên CRM.
-	crmSvc := crm.NewService(d.pool, d.iam, log).WithStudents(cls.CRMStudents(studentSvc))
-	cls.CRM = crmSvc
+	crmSvc := crm.NewService(d.pool, d.iam, log).WithStudents(tuitionSvc.Closing(cls.CRMStudents(studentSvc))).WithTuition(tuitionSvc)
+	cls.CRM, cls.Tuition, studentSvc.Tuition = crmSvc, tuitionSvc, tuitionSvc
+	tuitionSvc.WithLeads(crmSvc)
 	// Leads: khách CRM. Sessions: buổi học thật của phân hệ Lớp học cho học thử.
 	place := placement.NewHandler(placement.NewService(d.pool, d.rdb, log, placement.Options{
 		Leads: crmSvc.PlacementLeads(), Sessions: cls.PlacementSessions(),
 	}), log)
 	// Báo cáo: số liệu tuyển sinh từ CRM / test đầu vào, bọc thêm số liệu lớp / buổi / điểm danh của Lớp học; việc follow-up
-	// qua Công việc, ngày nghỉ từ danh mục. TODO(gộp): số liệu học phí khi phân hệ đó có ở v2.
+	// qua Công việc, ngày nghỉ từ danh mục; "Số lượng thu phí" từ Học phí.
 	reportSvc := reports.NewService(d.pool, log, reports.Deps{
-		Metrics: cls.ReportMetrics(reports.NewMetrics(crmSvc.ReportSource()), d.iam.LoadAccess),
+		Metrics: tuitionSvc.ReportMetrics(cls.ReportMetrics(reports.NewMetrics(crmSvc.ReportSource()), d.iam.LoadAccess)),
 		Classes: cls.ReportClasses(), Tasks: taskSvc.ReportTasks(), Calendar: catalogSvc.ReportCalendar(),
 	})
 	// Nhắc hạn báo cáo ngày / tháng và tổng hợp cho Admin (lệnh reports:remind-* / reports:daily-digest ở bản Laravel).

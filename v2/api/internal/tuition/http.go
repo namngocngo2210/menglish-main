@@ -40,6 +40,9 @@ func (h *Handler) Routes(r chi.Router) {
 
 		r.With(view).Get("/history", h.history)
 		r.With(view).Get("/history/export", h.exportHistory)
+
+		// Bill "Thông báo nộp học phí" (crm.tuition-bill): tư vấn viên (lead.view) hoặc người xem học phí.
+		r.With(iam.RequireAny("lead.view", "tuition.view")).Get("/bill/{id}", h.bill)
 	})
 }
 
@@ -213,6 +216,15 @@ func (h *Handler) exportHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	csvFile(w, "lich-su-thu-hoc-phi.csv", b)
+}
+
+func (h *Handler) bill(w http.ResponseWriter, r *http.Request) {
+	id, ok := idParam(w, r)
+	if !ok {
+		return
+	}
+	out, err := h.svc.Bill(r.Context(), actorOf(r), id)
+	h.reply(w, r, out, err)
 }
 
 func csvFile(w http.ResponseWriter, name string, b []byte) {

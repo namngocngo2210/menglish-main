@@ -246,3 +246,11 @@ WHERE id = @id;
 -- name: RestockDueDays :one
 -- Số ngày Admin có để nhập bù (SLA stock.restock_task; Admin ghi đè ở Cấu hình SLA).
 SELECT coalesce((SELECT coalesce(value, default_value) FROM hr.sla_rules WHERE key = 'stock.restock_task'), 2)::int;
+
+-- name: InsertFeeReminderTask :one
+-- Việc "Nhắc thu học phí" khi chốt khách chưa đóng học phí (phân hệ Học phí, CrmController::createFeeReminderTask).
+INSERT INTO ops.work_tasks (title, description, creator_id, assignee_id, branch_id, student_id, time_slot_category, task_type,
+                            due_date, due_time, status)
+VALUES (@title, @description, @creator_id, @assignee_id, sqlc.narg(branch_id), sqlc.narg(student_id), 'during', 'one_time',
+        @due_date, '17:00', 'new')
+RETURNING id;

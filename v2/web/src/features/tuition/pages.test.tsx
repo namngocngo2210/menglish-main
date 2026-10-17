@@ -6,6 +6,7 @@ import { afterEach, expect, test, vi } from 'vitest'
 import type { Me } from '../../api'
 import { buildSidebar } from '../../nav'
 import { ApprovePage } from './ApprovePage'
+import { BillPage } from './BillPage'
 import { StudentsPage } from './StudentsPage'
 
 afterEach(() => {
@@ -30,13 +31,24 @@ function mockApi(routes: Record<string, Route>) {
 }
 
 function wrap(node: ReactNode) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
   return render(<QueryClientProvider client={client}>{node}</QueryClientProvider>)
 }
 
 const me = (perms: string[], admin = false) =>
   ({
-    user: { id: 'u1', kind: 'staff', code: 'QL1', email: null, phone: null, full_name: 'Quản lý', must_change_password: false, totp_enabled: true },
+    user: {
+      id: 'u1',
+      kind: 'staff',
+      code: 'QL1',
+      email: null,
+      phone: null,
+      full_name: 'Quản lý',
+      must_change_password: false,
+      totp_enabled: true,
+    },
     csrf_token: 'c',
     totp_required: true,
     roles: admin ? [{ name: 'admin', label: 'Admin', short_label: 'Admin' }] : [],
@@ -50,7 +62,12 @@ const students = {
   tuitions: [
     {
       id: 't1',
-      student: { id: 's1', name: 'Nguyễn Văn An', code: 'HV0001', phone: '0912' },
+      student: {
+        id: 's1',
+        name: 'Nguyễn Văn An',
+        code: 'HV0001',
+        phone: '0912',
+      },
       class_name: 'IELTS 1',
       branch_name: 'Cầu Giấy',
       fee_label: 'Học phí IELTS',
@@ -69,7 +86,17 @@ const students = {
   branches: [{ value: 'b1', label: 'Cầu Giấy' }],
   classes: [],
   statuses: [{ value: 'paid', label: 'Đã hoàn thành' }],
-  due: { serious_overdue: [], new_overdue: [], upcoming: [], upcoming_page: { ...page, total: 0 }, paused: [], overdue_count: 1, type: 'all', serious_days: 7, upcoming_days: 14 },
+  due: {
+    serious_overdue: [],
+    new_overdue: [],
+    upcoming: [],
+    upcoming_page: { ...page, total: 0 },
+    paused: [],
+    overdue_count: 1,
+    type: 'all',
+    serious_days: 7,
+    upcoming_days: 14,
+  },
 }
 
 test('Công nợ học viên: số liệu, quá hạn nghiêm trọng, lập phiếu từ dòng còn nợ', async () => {
@@ -141,7 +168,11 @@ const detail = {
   can_resubmit: false,
   beneficiary: null,
   stock_out: [],
-  reconciliation: { tone: 'warning', label: 'Cần đối chiếu thủ công', detail: 'Chưa tìm thấy giao dịch.' },
+  reconciliation: {
+    tone: 'warning',
+    label: 'Cần đối chiếu thủ công',
+    detail: 'Chưa tìm thấy giao dịch.',
+  },
   sepay_warnings: [],
 }
 
@@ -150,7 +181,12 @@ test('Duyệt phiếu thu: gửi xác nhận không trùng và hiện thông bá
     'GET /tuition/receipts/approve': () => [
       200,
       {
-        filters: { status: 'pending', branch_id: null, payment_method: 'all', q: '' },
+        filters: {
+          status: 'pending',
+          branch_id: null,
+          payment_method: 'all',
+          q: '',
+        },
         branches: [],
         statuses: [{ value: 'pending', label: 'Chờ duyệt' }],
         pending_count: 1,
@@ -163,7 +199,15 @@ test('Duyệt phiếu thu: gửi xác nhận không trùng và hiện thông bá
         can_reject: true,
       },
     ],
-    'POST /tuition/receipts/r1/approve': () => [200, { id: 'r1', code: 'PT-2026-000001', status: 'approved', message: 'Đã phê duyệt phiếu thu PT-2026-000001 và phát hành HĐĐT số C26MEN-0001001!' }],
+    'POST /tuition/receipts/r1/approve': () => [
+      200,
+      {
+        id: 'r1',
+        code: 'PT-2026-000001',
+        status: 'approved',
+        message: 'Đã phê duyệt phiếu thu PT-2026-000001 và phát hành HĐĐT số C26MEN-0001001!',
+      },
+    ],
   })
   window.history.pushState(null, '', '/tuition/receipts/approve?selected_id=r1')
   wrap(<ApprovePage me={me(['tuition.view'], true)} />)
@@ -180,4 +224,83 @@ test('Menu Học phí neo quyền kế toán; Cần duyệt › Phiếu thu ch�
   expect(links(me(['tuition.view', 'invoice.request_cancel']))).toContain('Học phí')
   expect(links(me(['tuition.view', 'invoice.request_cancel']))).not.toContain('Cần duyệt')
   expect(links(me(['tuition.view', 'tuition.approve'], true))).toContain('Cần duyệt')
+})
+
+test('Bill thông báo nộp học phí: còn phải nộp, đợt thu, VietQR', async () => {
+  const id = '0190a000-0000-7000-8000-000000000001'
+  mockApi({
+    [`GET /tuition/bill/${id}`]: () => [
+      200,
+      {
+        tuition: {
+          id,
+          total_amount: 6000000,
+          discount_amount: 600000,
+          other_fees: 0,
+          prepaid_amount: 0,
+          final_amount: 5400000,
+          paid_amount: 0,
+          debt_amount: 5400000,
+          notes: null,
+        },
+        student: {
+          id: 's1',
+          code: 'HV0001',
+          name: 'Nguyễn Văn Đức',
+          phone: '0912',
+          parent_name: 'Phụ huynh Đức',
+          parent_phone: null,
+        },
+        class_name: 'IELTS 1',
+        course_name: 'IELTS',
+        branch_name: 'Cầu Giấy',
+        customer: { id: 'l1', code: 'KH-0001', name: 'Nguyễn Văn Đức' },
+        promotion_name: 'Giảm 10%',
+        bank_account: {
+          bank_name: 'Vietcombank',
+          account_number: '00110022',
+          account_holder: 'CONG TY MENGLISH',
+        },
+        transfer_memo: 'NGUYENVANDUC HV0001 IELTS1',
+        amount_to_pay: 3400000,
+        pending_amount: 2000000,
+        vietqr_url: 'https://img.vietqr.io/image/VCB-00110022-compact2.png?amount=3400000',
+        qr_warning: null,
+        total_sessions: 24,
+        schedule: {
+          text: 'T2-T4 18:00',
+          start_date: '19/10/2026',
+          end_date: '19/01/2027',
+        },
+        receipts: [
+          {
+            installment: 1,
+            code: 'PT-2026-000001',
+            invoice_number: null,
+            paper_invoice_number: null,
+            status: 'pending',
+            method: 'transfer',
+            method_label: 'Chuyển khoản VietQR',
+            date: '17/10/2026',
+            content: 'Thanh toán học phí đợt 1',
+            amount: 2000000,
+          },
+        ],
+        center: {
+          name: 'MENGLISH',
+          branches: ['Cầu Giấy: 1 Xuân Thủy'],
+          phone: null,
+        },
+        today: '17/10/2026',
+      },
+    ],
+  })
+  window.history.pushState(null, '', `/tuition/bill/${id}`)
+  wrap(<BillPage me={me(['lead.view'])} />)
+  expect(await screen.findByText('THÔNG BÁO NỘP HỌC PHÍ')).toBeInTheDocument()
+  expect(screen.getByText('Ngày 17 tháng 10 năm 2026')).toBeInTheDocument()
+  expect(screen.getByText('PT-2026-000001')).toBeInTheDocument()
+  expect(screen.getByText('Chờ đối soát')).toBeInTheDocument()
+  expect(screen.getByAltText('QR thanh toán VietQR')).toHaveAttribute('src', expect.stringContaining('amount=3400000'))
+  expect(screen.getByText('← Quay lại CRM Pipeline')).toBeInTheDocument()
 })

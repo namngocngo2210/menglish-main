@@ -129,14 +129,21 @@ func (s *Service) ExportLeads(ctx context.Context, a *iam.Access, f ListFilter, 
 	case listWon:
 		t := Table{Name: "khach-chot-thanh-cong", Headings: []string{"Mã KH", "Họ tên", "SĐT", "Phụ huynh", "Cơ sở", "Nguồn",
 			"Khóa đăng ký", "Lớp", "Giá trị HĐ", "Đã thu (duyệt)", "Còn nợ", "Người phụ trách", "Ngày chốt"}}
+		if err := s.fillTuition(ctx, rows); err != nil {
+			return Table{}, err
+		}
 		for _, r := range rows {
 			class := "Chưa xếp lớp"
 			if r.ClassName != nil {
 				class = *r.ClassName
 			}
-			// TODO(merge): Đã thu / Còn nợ lấy từ học phí của học viên (phân hệ tài chính).
+			// Đã thu / Còn nợ: khoản học phí của học viên (phân hệ Học phí).
+			var paid, debt int64
+			if r.Tuition != nil {
+				paid, debt = r.Tuition.Paid, r.Tuition.Debt
+			}
 			t.Rows = append(t.Rows, []any{r.Code, r.Name, r.Phone, nz(r.ParentName), nz(r.Branch), nz(r.Source), nz(r.CourseInterest),
-				class, r.DealValue, 0, 0, nz(r.AssignedUser), fmtPtrDateTime(r.ConvertedAt)})
+				class, r.DealValue, paid, debt, nz(r.AssignedUser), fmtPtrDateTime(r.ConvertedAt)})
 		}
 		return t, nil
 	case listLost:

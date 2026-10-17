@@ -301,13 +301,18 @@ func (s *Service) Enroll(ctx context.Context, actor *iam.Access, in EnrollInput,
 			return err
 		}
 		if lead != nil {
-			// Lead → Đã chốt, lượt ghi danh vào hàng xác nhận chính thức (học phí gắn lớp: chờ phân hệ Học phí).
+			// Lead → Đã chốt, lượt ghi danh vào hàng xác nhận chính thức; khoản học phí lập lúc chốt nhận lớp.
 			code := class.Code
 			if err := s.CRM.CompleteWaiting(ctx, tx, actor, lead.ID, crm.Enrollment{
 				EnrollmentID: &eid, StudentID: st.ID, StudentCode: st.Code, StudentName: st.FullName, ClassID: class.ID,
 				ClassName: class.Name, ClassCode: &code, ClassBranchID: &class.BranchID, ClassStartDate: class.StartDate,
 			}); err != nil {
 				return err
+			}
+			if s.Tuition != nil {
+				if err := s.Tuition.AttachWaitingClass(ctx, tx, st.ID, class.ID); err != nil {
+					return err
+				}
 			}
 		}
 		if main {

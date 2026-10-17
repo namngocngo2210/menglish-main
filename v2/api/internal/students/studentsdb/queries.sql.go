@@ -39,6 +39,23 @@ func (q *Queries) AddEvent(ctx context.Context, arg AddEventParams) error {
 	return err
 }
 
+const appendStudentNote = `-- name: AppendStudentNote :exec
+UPDATE academic.students
+SET notes = right(btrim(coalesce(notes || E'\n', '') || $1::text), 5000), updated_at = now(), version = version + 1
+WHERE id = $2
+`
+
+type AppendStudentNoteParams struct {
+	Line string
+	ID   uuid.UUID
+}
+
+// Ghi thêm một dòng vào ghi chú hồ sơ (giữ 5000 ký tự cuối).
+func (q *Queries) AppendStudentNote(ctx context.Context, arg AppendStudentNoteParams) error {
+	_, err := q.db.Exec(ctx, appendStudentNote, arg.Line, arg.ID)
+	return err
+}
+
 const branchExists = `-- name: BranchExists :one
 SELECT EXISTS (SELECT 1 FROM core.branches WHERE id = $1)
 `

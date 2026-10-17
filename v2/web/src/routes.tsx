@@ -40,6 +40,7 @@ import { ShiftsPage } from './features/catalogs/ShiftsPage'
 import { SlaPage } from './features/catalogs/SlaPage'
 import { TicketEmailsPage } from './features/catalogs/TicketEmailsPage'
 import { ApprovePage as TuitionApprovePage } from './features/tuition/ApprovePage'
+import { BillPage as TuitionBillPage } from './features/tuition/BillPage'
 import { HistoryPage as TuitionHistoryPage } from './features/tuition/HistoryPage'
 import { ReceiptsRoute } from './features/tuition/ReceiptFormPage'
 import { StudentsPage as TuitionStudentsPage } from './features/tuition/StudentsPage'
@@ -98,4 +99,5 @@ export const PAGES: Record<string, (me: Me) => ReactNode> = {
   '/tuition/history': (me) => <TuitionHistoryPage me={me} />,
   '/tuition/receipts': (me) => <ReceiptsRoute me={me} />,
   '/tuition/receipts/approve': (me) => <TuitionApprovePage me={me} />,
+  '/tuition/bill': (me) => <TuitionBillPage me={me} />,
 }

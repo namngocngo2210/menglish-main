@@ -33,6 +33,8 @@ type Service struct {
 	now    func() time.Time
 	// students: tạo hồ sơ học viên khi chốt khách (phân hệ học viên); nil = chưa gộp, chốt khách trả 501.
 	students StudentCreator
+	// tuition: học phí của học viên đã chốt (phân hệ Học phí); nil = tổng Đã thu / Còn nợ bằng 0.
+	tuition TuitionLookup
 }
 
 func NewService(pool *pgxpool.Pool, access AccessLoader, log *slog.Logger) *Service {
@@ -225,6 +227,8 @@ type LeadRow struct {
 	UpdatedAt          time.Time  `json:"updated_at"`
 	SLA                *SLA       `json:"sla"`
 	TestTodayAt        *time.Time `json:"test_today_at"`
+	// Tuition: học phí của học viên (chỉ màn Khách chốt thành công; null = chưa có học viên).
+	Tuition *TuitionSummary `json:"tuition,omitempty"`
 }
 
 // Page: dữ liệu phân trang.
@@ -370,14 +374,17 @@ type WonList struct {
 	Page[LeadRow]
 	TotalCount     int64      `json:"total_count"`
 	TotalContract  int64      `json:"total_contract_amount"`
-	TotalCollected int64      `json:"total_collected_amount"` // TODO(merge): học phí đã thu (phân hệ tài chính)
-	TotalDebt      int64      `json:"total_debt_amount"`      // TODO(merge): học phí còn nợ (phân hệ tài chính)
+	TotalCollected int64      `json:"total_collected_amount"` // học phí đã thu (đã duyệt) của các học viên
+	TotalDebt      int64      `json:"total_debt_amount"`      // học phí còn nợ của các học viên
 	Counts         ChipCounts `json:"counts"`
 }
 
 func (s *Service) ListWon(ctx context.Context, a *iam.Access, f ListFilter) (*WonList, error) {
 	rows, total, err := s.listLeads(ctx, a, f, listWon, false)
 	if err != nil {
+		return nil, err
+	}
+	if err := s.fillTuition(ctx, rows); err != nil {
 		return nil, err
 	}
 	sc := scopeOf(a)
@@ -389,15 +396,26 @@ func (s *Service) ListWon(ctx context.Context, a *iam.Access, f ListFilter) (*Wo
 	if err != nil {
 		return nil, err
 	}
+	out := &WonList{TotalCount: tot.Total, TotalContract: tot.DealTotal}
+	if s.tuition != nil {
+		ids, err := s.q.WonStudentIDs(ctx, crmdb.WonStudentIDsParams{
+			Stage: StageWon, ScopeOwner: sc.owner, ScopeBranches: sc.branches, Q: p.q, QDigits: p.qDigits,
+			BranchID: p.branchID, AssignedUserID: p.assignedUserID, Source: p.source, DateFrom: p.from, DateTo: p.to,
+		})
+		if err != nil {
+			return nil, err
+		}
+		if out.TotalCollected, out.TotalDebt, err = s.tuition.StudentTotals(ctx, ids); err != nil {
+			return nil, err
+		}
+	}
 	counts, err := s.chipCounts(ctx, a)
 	if err != nil {
 		return nil, err
 	}
 	page, per, _, _ := pageArgs(f.Page, f.PerPage, 20)
-	return &WonList{
-		Page: Page[LeadRow]{Data: rows, Meta: Meta{page, per, total}}, TotalCount: tot.Total, TotalContract: tot.DealTotal,
-		Counts: counts,
-	}, nil
+	out.Page, out.Counts = Page[LeadRow]{Data: rows, Meta: Meta{page, per, total}}, counts
+	return out, nil
 }
 
 func (s *Service) ListLost(ctx context.Context, a *iam.Access, f ListFilter) (*LeadList, error) {
@@ -726,6 +744,8 @@ func (s *Service) assertUniqueLead(ctx context.Context, q *crmdb.Queries, phone 
 type Saved struct {
 	ID      uuid.UUID `json:"id"`
 	Message string    `json:"message"`
+	// Chốt khách: link "Thông báo nộp học phí" (bill_url của processClosingWizard)
+	BillURL string `json:"bill_url,omitempty"`
 }
 
 func (s *Service) CreateLead(ctx context.Context, a *iam.Access, in LeadInput) (*Saved, error) {

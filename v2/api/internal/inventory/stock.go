@@ -130,7 +130,7 @@ type RecordInput struct {
 
 // Record ghi xuất bán / hoàn kho trong giao dịch của module gọi. Kho được phép âm khi xuất bán (đã giao sách mà
 // chưa nhập kho): màn lập / duyệt phiếu cảnh báo thay vì chặn thu tiền.
-// TODO(finance): module tài chính gọi khi phiếu thu được duyệt / hủy hóa đơn (StockService::syncReceipt).
+// Phân hệ Học phí (tuition) gọi khi phiếu thu được duyệt / hủy hóa đơn (StockService::syncReceipt).
 func (s *Service) Record(ctx context.Context, tx pgx.Tx, in RecordInput) (inventorydb.OpsStockMovement, error) {
 	if in.Quantity <= 0 || (in.Type != TypeSale && in.Type != TypeReturn) {
 		return inventorydb.OpsStockMovement{}, fmt.Errorf("inventory.Record: dữ liệu không hợp lệ %+v", in)

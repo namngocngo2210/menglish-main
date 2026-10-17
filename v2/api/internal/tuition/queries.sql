@@ -588,3 +588,117 @@ SELECT fee_items FROM finance.tuitions WHERE id = $1;
 
 -- name: ItemsByIDs :many
 SELECT id, name, unit FROM ops.inventory_items WHERE id = ANY (sqlc.arg(ids)::uuid[]);
+
+-- ───────────────────────── Chốt khách (CRM) ─────────────────────────
+
+-- name: GetCourse :one
+SELECT id, name, tuition_fee, total_lessons, is_active FROM academic.courses WHERE id = $1 AND deleted_at IS NULL;
+
+-- name: SetWaitingTuitionClass :exec
+-- Xếp lớp cho học viên Chờ xếp lớp: khoản học phí chưa gắn lớp nhận lớp vừa xếp (WaitingLeadPlacement::complete).
+UPDATE finance.tuitions SET class_id = sqlc.arg(class_id), updated_at = now() WHERE student_id = sqlc.arg(student_id) AND class_id IS NULL;
+
+-- name: LeadOfStudent :one
+-- Khách CRM đã chốt ra học viên (mới nhất).
+SELECT id FROM crm.leads WHERE converted_student_id = $1 ORDER BY converted_at DESC NULLS LAST, id DESC LIMIT 1;
+
+-- name: PendingReceiptTotal :one
+-- Tiền của phiếu đang chờ duyệt của khoản học phí (bill "Thông báo nộp học phí").
+SELECT COALESCE(sum(amount), 0)::bigint FROM finance.receipts WHERE tuition_id = $1 AND status = 'pending';
+
+-- name: BillBankAccounts :many
+-- Tài khoản nhận tiền cho bill: tài khoản của hợp đồng, rồi tài khoản VietQR mặc định của chi nhánh / hệ thống.
+SELECT id, bank_code, bank_name, account_number, account_holder, branch_id, is_default_vietqr
+FROM finance.bank_accounts WHERE deleted_at IS NULL AND is_active ORDER BY created_at, id;
+
+-- name: BillLead :one
+SELECT id, code, name FROM crm.leads WHERE id = $1;
+
+-- name: StudentTotalLessons :one
+SELECT total_lessons FROM academic.students WHERE id = $1;
+
+-- name: StudentsTuitionTotals :one
+-- Tổng đã thu / còn nợ của các học viên (màn Khách chốt thành công của CRM).
+SELECT coalesce(sum(paid_amount), 0)::bigint AS paid, coalesce(sum(debt_amount), 0)::bigint AS debt
+FROM finance.tuitions WHERE student_id = ANY (sqlc.arg(student_ids)::uuid[]);
+
+-- name: StudentsLatestTuition :many
+-- Khoản học phí mới nhất của mỗi học viên kèm tổng phiếu thu đang chờ duyệt.
+SELECT DISTINCT ON (t.student_id) t.student_id, t.id, t.status, t.paid_amount, t.debt_amount,
+       coalesce((SELECT sum(r.amount) FROM finance.receipts r WHERE r.tuition_id = t.id AND r.status = 'pending'), 0)::bigint AS pending
+FROM finance.tuitions t
+WHERE t.student_id = ANY (sqlc.arg(student_ids)::uuid[])
+ORDER BY t.student_id, t.created_at DESC, t.id DESC;
+
+-- name: BillReceipts :many
+-- Các đợt thu của khoản học phí (bảng "Lịch sử thanh toán các đợt" trên bill).
+SELECT id, code, invoice_number, paper_invoice_number, status, payment_method, payment_date, amount, notes, created_at
+FROM finance.receipts WHERE tuition_id = $1
+ORDER BY created_at, id;
+
+-- name: BillClass :one
+SELECT schedule_text, start_date, end_date FROM academic.classes WHERE id = $1;
+
+-- name: CenterSettings :many
+-- Thông tin trung tâm in trên bill (CenterInfo của Laravel).
+SELECT key, coalesce(value #>> '{}', '')::text AS value FROM core.settings
+WHERE key IN ('center_name', 'center_phone');
+
+-- name: CenterBranches :many
+SELECT name, address::text AS address FROM core.branches
+WHERE is_active AND address IS NOT NULL AND address <> ''
+ORDER BY created_at, id;
+
+-- name: LockLatestTuitionDeferral :one
+-- Khoản học phí mới nhất của học viên (khoảng bảo lưu / đóng băng) — StudentDeferralService.
+SELECT id, deferred_from, deferred_until, frozen_remaining_sessions, frozen_debt_amount, reminder_paused_until, notes
+FROM finance.tuitions WHERE student_id = $1
+ORDER BY created_at DESC, id DESC LIMIT 1 FOR UPDATE;
+
+-- name: LatestTuitionDeferredUntil :one
+SELECT deferred_until FROM finance.tuitions WHERE student_id = $1 ORDER BY created_at DESC, id DESC LIMIT 1;
+
+-- name: ShortenActiveDeferrals :exec
+-- Kết thúc bảo lưu sớm: khoảng bảo lưu đã duyệt đang chạy kết thúc hôm qua (không trước ngày bắt đầu).
+UPDATE finance.refund_requests SET defer_to = greatest(defer_from, sqlc.arg(today)::date - 1), updated_at = now()
+WHERE student_id = sqlc.arg(student_id) AND type = 'deferral' AND status = 'approved'
+  AND defer_from <= sqlc.arg(today)::date AND defer_to >= sqlc.arg(today)::date;
+
+-- name: ReleaseTuitionDeferral :exec
+UPDATE finance.tuitions SET deferred_from = NULL, deferred_until = NULL, frozen_remaining_sessions = NULL,
+    frozen_debt_amount = NULL, reminder_paused_until = sqlc.narg(reminder_paused_until), notes = sqlc.narg(notes), updated_at = now()
+WHERE id = sqlc.arg(id);
+
+-- name: UserFullName :one
+SELECT full_name FROM iam.users WHERE id = $1;
+
+-- name: ReportDayReceipts :many
+-- Báo cáo ngày Học vụ "Số lượng thu phí": phiếu thu có ngày thu là ngày báo cáo, đang chờ duyệt hoặc đã duyệt, của học
+-- viên thuộc chi nhánh người viết (DailyReportMetrics).
+SELECT r.id, r.amount, r.payment_method, r.status, s.full_name AS student_name, s.branch_id AS student_branch_id
+FROM finance.receipts r
+LEFT JOIN finance.tuitions t ON t.id = r.tuition_id
+JOIN academic.students s ON s.id = coalesce(r.student_id, t.student_id)
+WHERE r.payment_date = sqlc.arg(day)::date AND r.status IN ('pending', 'approved') AND s.deleted_at IS NULL
+  AND (sqlc.narg(branch_ids)::uuid[] IS NULL OR s.branch_id = ANY (sqlc.narg(branch_ids)::uuid[]))
+ORDER BY r.created_at, r.id;
+
+-- name: BranchNames :many
+SELECT id, name FROM core.branches WHERE id = ANY (sqlc.arg(ids)::uuid[]);
+
+-- name: CancelOpenTuitionReceipts :execrows
+-- Hủy chốt khách: phiếu nháp / chờ duyệt của khoản học phí chuyển Đã hủy (chưa xuất kho, chưa gạch nợ).
+UPDATE finance.receipts SET status = 'cancelled', updated_at = now()
+WHERE tuition_id = $1 AND status IN ('draft', 'pending');
+
+-- name: SetTuitionFinalAndNotes :exec
+UPDATE finance.tuitions SET final_amount = sqlc.arg(final_amount), notes = sqlc.narg(notes), updated_at = now() WHERE id = sqlc.arg(id);
+
+-- name: CreateRefundRequest :one
+INSERT INTO finance.refund_requests (student_id, tuition_id, type, total_paid, attended_lessons, admin_fee, refund_amount,
+    target_student_id, extended_due_date, defer_from, defer_to, reason, no_transfer_reason, proof_url, requester_id, status)
+VALUES (sqlc.arg(student_id), sqlc.narg(tuition_id), sqlc.arg(type), sqlc.arg(total_paid), sqlc.arg(attended_lessons),
+    sqlc.arg(admin_fee), sqlc.arg(refund_amount), sqlc.narg(target_student_id), sqlc.narg(extended_due_date),
+    sqlc.narg(defer_from), sqlc.narg(defer_to), sqlc.arg(reason), sqlc.narg(no_transfer_reason), sqlc.narg(proof_url),
+    sqlc.narg(requester_id), 'pending')
+RETURNING *;

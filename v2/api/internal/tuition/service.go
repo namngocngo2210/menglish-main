@@ -27,6 +27,7 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/inventory"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/inventory/inventorydb"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/platform/secretbox"
+	"github.com/namngocngo2210/menglish-main/v2/api/internal/tasks"
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/tuition/tuitiondb"
 )
 
@@ -49,6 +50,7 @@ type Service struct {
 	stock    StockRecorder
 	tasks    FeeTasks
 	students StudentStatus
+	leads    LeadVisibility
 }
 
 func NewService(pool *pgxpool.Pool, box *secretbox.Box, cat *catalogs.Service, log *slog.Logger) *Service {
@@ -60,22 +62,10 @@ type StockRecorder interface {
 	Record(ctx context.Context, tx pgx.Tx, in inventory.RecordInput) (inventorydb.OpsStockMovement, error)
 }
 
-// FeeTasks: phân hệ Công việc tạo task "Nhắc thu học phí" cho người phụ trách khi chốt khách còn nợ.
+// FeeTasks: phân hệ Công việc tạo task "Nhắc thu học phí" cho người phụ trách khi chốt khách còn nợ
+// (tasks.Service.CreateFeeReminder).
 type FeeTasks interface {
-	CreateFeeReminder(ctx context.Context, tx pgx.Tx, t FeeReminderTask) error
-}
-
-// FeeReminderTask: task nhắc thu học phí (CrmController::processClosingWizard).
-type FeeReminderTask struct {
-	Title      string
-	Body       string
-	AssigneeID uuid.UUID
-	BranchID   *uuid.UUID
-	ClassID    *uuid.UUID
-	StudentID  uuid.UUID
-	DueDate    time.Time
-	DueTime    string
-	By         uuid.UUID
+	CreateFeeReminder(ctx context.Context, tx pgx.Tx, in tasks.FeeReminder) (uuid.UUID, error)
 }
 
 // StudentStatus: phân hệ Học viên đổi trạng thái khi bảo lưu bắt đầu / kết thúc theo yêu cầu đã duyệt.

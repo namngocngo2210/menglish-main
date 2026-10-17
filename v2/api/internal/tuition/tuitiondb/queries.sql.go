@@ -349,6 +349,164 @@ func (q *Queries) AvailablePromotions(ctx context.Context, keepID *uuid.UUID) ([
 	return items, nil
 }
 
+const billBankAccounts = `-- name: BillBankAccounts :many
+SELECT id, bank_code, bank_name, account_number, account_holder, branch_id, is_default_vietqr
+FROM finance.bank_accounts WHERE deleted_at IS NULL AND is_active ORDER BY created_at, id
+`
+
+type BillBankAccountsRow struct {
+	ID              uuid.UUID
+	BankCode        string
+	BankName        string
+	AccountNumber   string
+	AccountHolder   string
+	BranchID        *uuid.UUID
+	IsDefaultVietqr bool
+}
+
+// Tài khoản nhận tiền cho bill: tài khoản của hợp đồng, rồi tài khoản VietQR mặc định của chi nhánh / hệ thống.
+func (q *Queries) BillBankAccounts(ctx context.Context) ([]BillBankAccountsRow, error) {
+	rows, err := q.db.Query(ctx, billBankAccounts)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []BillBankAccountsRow
+	for rows.Next() {
+		var i BillBankAccountsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.BankCode,
+			&i.BankName,
+			&i.AccountNumber,
+			&i.AccountHolder,
+			&i.BranchID,
+			&i.IsDefaultVietqr,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const billClass = `-- name: BillClass :one
+SELECT schedule_text, start_date, end_date FROM academic.classes WHERE id = $1
+`
+
+type BillClassRow struct {
+	ScheduleText *string
+	StartDate    *time.Time
+	EndDate      *time.Time
+}
+
+func (q *Queries) BillClass(ctx context.Context, id uuid.UUID) (BillClassRow, error) {
+	row := q.db.QueryRow(ctx, billClass, id)
+	var i BillClassRow
+	err := row.Scan(&i.ScheduleText, &i.StartDate, &i.EndDate)
+	return i, err
+}
+
+const billLead = `-- name: BillLead :one
+SELECT id, code, name FROM crm.leads WHERE id = $1
+`
+
+type BillLeadRow struct {
+	ID   uuid.UUID
+	Code string
+	Name string
+}
+
+func (q *Queries) BillLead(ctx context.Context, id uuid.UUID) (BillLeadRow, error) {
+	row := q.db.QueryRow(ctx, billLead, id)
+	var i BillLeadRow
+	err := row.Scan(&i.ID, &i.Code, &i.Name)
+	return i, err
+}
+
+const billReceipts = `-- name: BillReceipts :many
+SELECT id, code, invoice_number, paper_invoice_number, status, payment_method, payment_date, amount, notes, created_at
+FROM finance.receipts WHERE tuition_id = $1
+ORDER BY created_at, id
+`
+
+type BillReceiptsRow struct {
+	ID                 uuid.UUID
+	Code               string
+	InvoiceNumber      *string
+	PaperInvoiceNumber *string
+	Status             string
+	PaymentMethod      string
+	PaymentDate        *time.Time
+	Amount             int64
+	Notes              *string
+	CreatedAt          time.Time
+}
+
+// Các đợt thu của khoản học phí (bảng "Lịch sử thanh toán các đợt" trên bill).
+func (q *Queries) BillReceipts(ctx context.Context, tuitionID *uuid.UUID) ([]BillReceiptsRow, error) {
+	rows, err := q.db.Query(ctx, billReceipts, tuitionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []BillReceiptsRow
+	for rows.Next() {
+		var i BillReceiptsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.InvoiceNumber,
+			&i.PaperInvoiceNumber,
+			&i.Status,
+			&i.PaymentMethod,
+			&i.PaymentDate,
+			&i.Amount,
+			&i.Notes,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const branchNames = `-- name: BranchNames :many
+SELECT id, name FROM core.branches WHERE id = ANY ($1::uuid[])
+`
+
+type BranchNamesRow struct {
+	ID   uuid.UUID
+	Name string
+}
+
+func (q *Queries) BranchNames(ctx context.Context, ids []uuid.UUID) ([]BranchNamesRow, error) {
+	rows, err := q.db.Query(ctx, branchNames, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []BranchNamesRow
+	for rows.Next() {
+		var i BranchNamesRow
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const branchStock = `-- name: BranchStock :many
 SELECT item_id, quantity FROM ops.stock WHERE branch_id = $1
 `
@@ -376,6 +534,20 @@ func (q *Queries) BranchStock(ctx context.Context, branchID uuid.UUID) ([]Branch
 		return nil, err
 	}
 	return items, nil
+}
+
+const cancelOpenTuitionReceipts = `-- name: CancelOpenTuitionReceipts :execrows
+UPDATE finance.receipts SET status = 'cancelled', updated_at = now()
+WHERE tuition_id = $1 AND status IN ('draft', 'pending')
+`
+
+// Hủy chốt khách: phiếu nháp / chờ duyệt của khoản học phí chuyển Đã hủy (chưa xuất kho, chưa gạch nợ).
+func (q *Queries) CancelOpenTuitionReceipts(ctx context.Context, tuitionID *uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, cancelOpenTuitionReceipts, tuitionID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const cancelReceipt = `-- name: CancelReceipt :one
@@ -434,6 +606,68 @@ func (q *Queries) CancelReceipt(ctx context.Context, arg CancelReceiptParams) (F
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const centerBranches = `-- name: CenterBranches :many
+SELECT name, address::text AS address FROM core.branches
+WHERE is_active AND address IS NOT NULL AND address <> ''
+ORDER BY created_at, id
+`
+
+type CenterBranchesRow struct {
+	Name    string
+	Address string
+}
+
+func (q *Queries) CenterBranches(ctx context.Context) ([]CenterBranchesRow, error) {
+	rows, err := q.db.Query(ctx, centerBranches)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CenterBranchesRow
+	for rows.Next() {
+		var i CenterBranchesRow
+		if err := rows.Scan(&i.Name, &i.Address); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const centerSettings = `-- name: CenterSettings :many
+SELECT key, coalesce(value #>> '{}', '')::text AS value FROM core.settings
+WHERE key IN ('center_name', 'center_phone')
+`
+
+type CenterSettingsRow struct {
+	Key   string
+	Value string
+}
+
+// Thông tin trung tâm in trên bill (CenterInfo của Laravel).
+func (q *Queries) CenterSettings(ctx context.Context) ([]CenterSettingsRow, error) {
+	rows, err := q.db.Query(ctx, centerSettings)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CenterSettingsRow
+	for rows.Next() {
+		var i CenterSettingsRow
+		if err := rows.Scan(&i.Key, &i.Value); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const confirmDeposit = `-- name: ConfirmDeposit :one
@@ -837,6 +1071,82 @@ func (q *Queries) CreateReceipt(ctx context.Context, arg CreateReceiptParams) (F
 	return i, err
 }
 
+const createRefundRequest = `-- name: CreateRefundRequest :one
+INSERT INTO finance.refund_requests (student_id, tuition_id, type, total_paid, attended_lessons, admin_fee, refund_amount,
+    target_student_id, extended_due_date, defer_from, defer_to, reason, no_transfer_reason, proof_url, requester_id, status)
+VALUES ($1, $2, $3, $4, $5,
+    $6, $7, $8, $9,
+    $10, $11, $12, $13, $14,
+    $15, 'pending')
+RETURNING id, student_id, tuition_id, type, total_paid, attended_lessons, admin_fee, refund_amount, target_student_id, extended_due_date, defer_from, defer_to, reason, no_transfer_reason, proof_url, proof_file_id, rejection_reason, status, requester_id, approver_id, approved_at, legacy_id, created_at, updated_at
+`
+
+type CreateRefundRequestParams struct {
+	StudentID        uuid.UUID
+	TuitionID        *uuid.UUID
+	Type             string
+	TotalPaid        int64
+	AttendedLessons  int32
+	AdminFee         int64
+	RefundAmount     int64
+	TargetStudentID  *uuid.UUID
+	ExtendedDueDate  *time.Time
+	DeferFrom        *time.Time
+	DeferTo          *time.Time
+	Reason           string
+	NoTransferReason *string
+	ProofUrl         *string
+	RequesterID      *uuid.UUID
+}
+
+func (q *Queries) CreateRefundRequest(ctx context.Context, arg CreateRefundRequestParams) (FinanceRefundRequest, error) {
+	row := q.db.QueryRow(ctx, createRefundRequest,
+		arg.StudentID,
+		arg.TuitionID,
+		arg.Type,
+		arg.TotalPaid,
+		arg.AttendedLessons,
+		arg.AdminFee,
+		arg.RefundAmount,
+		arg.TargetStudentID,
+		arg.ExtendedDueDate,
+		arg.DeferFrom,
+		arg.DeferTo,
+		arg.Reason,
+		arg.NoTransferReason,
+		arg.ProofUrl,
+		arg.RequesterID,
+	)
+	var i FinanceRefundRequest
+	err := row.Scan(
+		&i.ID,
+		&i.StudentID,
+		&i.TuitionID,
+		&i.Type,
+		&i.TotalPaid,
+		&i.AttendedLessons,
+		&i.AdminFee,
+		&i.RefundAmount,
+		&i.TargetStudentID,
+		&i.ExtendedDueDate,
+		&i.DeferFrom,
+		&i.DeferTo,
+		&i.Reason,
+		&i.NoTransferReason,
+		&i.ProofUrl,
+		&i.ProofFileID,
+		&i.RejectionReason,
+		&i.Status,
+		&i.RequesterID,
+		&i.ApproverID,
+		&i.ApprovedAt,
+		&i.LegacyID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const createTuition = `-- name: CreateTuition :one
 INSERT INTO finance.tuitions (student_id, class_id, branch_id, bank_account_id, promotion_id, total_amount, session_count,
     discount_amount, other_fees, fee_items, prepaid_amount, final_amount, paid_amount, debt_amount, due_date, status, notes,
@@ -1200,6 +1510,33 @@ func (q *Queries) GetClass(ctx context.Context, id uuid.UUID) (GetClassRow, erro
 		&i.CourseTuitionFee,
 		&i.CourseLessons,
 		&i.CourseName,
+	)
+	return i, err
+}
+
+const getCourse = `-- name: GetCourse :one
+
+SELECT id, name, tuition_fee, total_lessons, is_active FROM academic.courses WHERE id = $1 AND deleted_at IS NULL
+`
+
+type GetCourseRow struct {
+	ID           uuid.UUID
+	Name         string
+	TuitionFee   int64
+	TotalLessons int32
+	IsActive     bool
+}
+
+// ───────────────────────── Chốt khách (CRM) ─────────────────────────
+func (q *Queries) GetCourse(ctx context.Context, id uuid.UUID) (GetCourseRow, error) {
+	row := q.db.QueryRow(ctx, getCourse, id)
+	var i GetCourseRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.TuitionFee,
+		&i.TotalLessons,
+		&i.IsActive,
 	)
 	return i, err
 }
@@ -1875,6 +2212,29 @@ func (q *Queries) LatestStudentTuition(ctx context.Context, studentID uuid.UUID)
 	return i, err
 }
 
+const latestTuitionDeferredUntil = `-- name: LatestTuitionDeferredUntil :one
+SELECT deferred_until FROM finance.tuitions WHERE student_id = $1 ORDER BY created_at DESC, id DESC LIMIT 1
+`
+
+func (q *Queries) LatestTuitionDeferredUntil(ctx context.Context, studentID uuid.UUID) (*time.Time, error) {
+	row := q.db.QueryRow(ctx, latestTuitionDeferredUntil, studentID)
+	var deferred_until *time.Time
+	err := row.Scan(&deferred_until)
+	return deferred_until, err
+}
+
+const leadOfStudent = `-- name: LeadOfStudent :one
+SELECT id FROM crm.leads WHERE converted_student_id = $1 ORDER BY converted_at DESC NULLS LAST, id DESC LIMIT 1
+`
+
+// Khách CRM đã chốt ra học viên (mới nhất).
+func (q *Queries) LeadOfStudent(ctx context.Context, convertedStudentID *uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, leadOfStudent, convertedStudentID)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const ledgerPeriods = `-- name: LedgerPeriods :many
 SELECT e.student_id, e.class_id, e.enrolled_at AS from_day,
     COALESCE(e.left_at, CASE WHEN e.status = 'dropped' THEN (e.updated_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date END) AS until_day
@@ -2410,6 +2770,38 @@ func (q *Queries) LockInvoiceRange(ctx context.Context, id uuid.UUID) (FinanceIn
 	return i, err
 }
 
+const lockLatestTuitionDeferral = `-- name: LockLatestTuitionDeferral :one
+SELECT id, deferred_from, deferred_until, frozen_remaining_sessions, frozen_debt_amount, reminder_paused_until, notes
+FROM finance.tuitions WHERE student_id = $1
+ORDER BY created_at DESC, id DESC LIMIT 1 FOR UPDATE
+`
+
+type LockLatestTuitionDeferralRow struct {
+	ID                      uuid.UUID
+	DeferredFrom            *time.Time
+	DeferredUntil           *time.Time
+	FrozenRemainingSessions *int32
+	FrozenDebtAmount        *int64
+	ReminderPausedUntil     *time.Time
+	Notes                   *string
+}
+
+// Khoản học phí mới nhất của học viên (khoảng bảo lưu / đóng băng) — StudentDeferralService.
+func (q *Queries) LockLatestTuitionDeferral(ctx context.Context, studentID uuid.UUID) (LockLatestTuitionDeferralRow, error) {
+	row := q.db.QueryRow(ctx, lockLatestTuitionDeferral, studentID)
+	var i LockLatestTuitionDeferralRow
+	err := row.Scan(
+		&i.ID,
+		&i.DeferredFrom,
+		&i.DeferredUntil,
+		&i.FrozenRemainingSessions,
+		&i.FrozenDebtAmount,
+		&i.ReminderPausedUntil,
+		&i.Notes,
+	)
+	return i, err
+}
+
 const lockReceipt = `-- name: LockReceipt :one
 SELECT id, code, source, invoice_number, tuition_id, student_id, amount, tuition_amount, session_count, session_unit_price, material_fee, exam_fee, other_fee, other_fee_reason, surcharge_amount, surcharge_reason, discount_amount, promotion_id, discount_reason, payment_method, transaction_code, transfer_reference, payer_name, payer_phone, is_vat_invoice, paper_invoice_number, proof_url, proof_file_id, payment_date, collected_items, status, notes, rejection_reason, creator_id, approver_id, approved_at, deposited_at, deposited_by, legacy_id, created_at, updated_at FROM finance.receipts WHERE id = $1 FOR UPDATE
 `
@@ -2720,6 +3112,18 @@ func (q *Queries) PendingCancellationExists(ctx context.Context, receiptID *uuid
 	return exists, err
 }
 
+const pendingReceiptTotal = `-- name: PendingReceiptTotal :one
+SELECT COALESCE(sum(amount), 0)::bigint FROM finance.receipts WHERE tuition_id = $1 AND status = 'pending'
+`
+
+// Tiền của phiếu đang chờ duyệt của khoản học phí (bill "Thông báo nộp học phí").
+func (q *Queries) PendingReceiptTotal(ctx context.Context, tuitionID *uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, pendingReceiptTotal, tuitionID)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const receiptByTransferReference = `-- name: ReceiptByTransferReference :one
 SELECT id, code, status FROM finance.receipts
 WHERE transfer_reference = $1::text AND ($2::uuid IS NULL OR id <> $2)
@@ -2855,6 +3259,76 @@ func (q *Queries) RejectReceipt(ctx context.Context, arg RejectReceiptParams) (F
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const releaseTuitionDeferral = `-- name: ReleaseTuitionDeferral :exec
+UPDATE finance.tuitions SET deferred_from = NULL, deferred_until = NULL, frozen_remaining_sessions = NULL,
+    frozen_debt_amount = NULL, reminder_paused_until = $1, notes = $2, updated_at = now()
+WHERE id = $3
+`
+
+type ReleaseTuitionDeferralParams struct {
+	ReminderPausedUntil *time.Time
+	Notes               *string
+	ID                  uuid.UUID
+}
+
+func (q *Queries) ReleaseTuitionDeferral(ctx context.Context, arg ReleaseTuitionDeferralParams) error {
+	_, err := q.db.Exec(ctx, releaseTuitionDeferral, arg.ReminderPausedUntil, arg.Notes, arg.ID)
+	return err
+}
+
+const reportDayReceipts = `-- name: ReportDayReceipts :many
+SELECT r.id, r.amount, r.payment_method, r.status, s.full_name AS student_name, s.branch_id AS student_branch_id
+FROM finance.receipts r
+LEFT JOIN finance.tuitions t ON t.id = r.tuition_id
+JOIN academic.students s ON s.id = coalesce(r.student_id, t.student_id)
+WHERE r.payment_date = $1::date AND r.status IN ('pending', 'approved') AND s.deleted_at IS NULL
+  AND ($2::uuid[] IS NULL OR s.branch_id = ANY ($2::uuid[]))
+ORDER BY r.created_at, r.id
+`
+
+type ReportDayReceiptsParams struct {
+	Day       time.Time
+	BranchIds []uuid.UUID
+}
+
+type ReportDayReceiptsRow struct {
+	ID              uuid.UUID
+	Amount          int64
+	PaymentMethod   string
+	Status          string
+	StudentName     string
+	StudentBranchID *uuid.UUID
+}
+
+// Báo cáo ngày Học vụ "Số lượng thu phí": phiếu thu có ngày thu là ngày báo cáo, đang chờ duyệt hoặc đã duyệt, của học
+// viên thuộc chi nhánh người viết (DailyReportMetrics).
+func (q *Queries) ReportDayReceipts(ctx context.Context, arg ReportDayReceiptsParams) ([]ReportDayReceiptsRow, error) {
+	rows, err := q.db.Query(ctx, reportDayReceipts, arg.Day, arg.BranchIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ReportDayReceiptsRow
+	for rows.Next() {
+		var i ReportDayReceiptsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Amount,
+			&i.PaymentMethod,
+			&i.Status,
+			&i.StudentName,
+			&i.StudentBranchID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const scopeBranches = `-- name: ScopeBranches :many
@@ -3142,6 +3616,53 @@ func (q *Queries) SetTuitionFinal(ctx context.Context, arg SetTuitionFinalParams
 	return err
 }
 
+const setTuitionFinalAndNotes = `-- name: SetTuitionFinalAndNotes :exec
+UPDATE finance.tuitions SET final_amount = $1, notes = $2, updated_at = now() WHERE id = $3
+`
+
+type SetTuitionFinalAndNotesParams struct {
+	FinalAmount int64
+	Notes       *string
+	ID          uuid.UUID
+}
+
+func (q *Queries) SetTuitionFinalAndNotes(ctx context.Context, arg SetTuitionFinalAndNotesParams) error {
+	_, err := q.db.Exec(ctx, setTuitionFinalAndNotes, arg.FinalAmount, arg.Notes, arg.ID)
+	return err
+}
+
+const setWaitingTuitionClass = `-- name: SetWaitingTuitionClass :exec
+UPDATE finance.tuitions SET class_id = $1, updated_at = now() WHERE student_id = $2 AND class_id IS NULL
+`
+
+type SetWaitingTuitionClassParams struct {
+	ClassID   *uuid.UUID
+	StudentID uuid.UUID
+}
+
+// Xếp lớp cho học viên Chờ xếp lớp: khoản học phí chưa gắn lớp nhận lớp vừa xếp (WaitingLeadPlacement::complete).
+func (q *Queries) SetWaitingTuitionClass(ctx context.Context, arg SetWaitingTuitionClassParams) error {
+	_, err := q.db.Exec(ctx, setWaitingTuitionClass, arg.ClassID, arg.StudentID)
+	return err
+}
+
+const shortenActiveDeferrals = `-- name: ShortenActiveDeferrals :exec
+UPDATE finance.refund_requests SET defer_to = greatest(defer_from, $1::date - 1), updated_at = now()
+WHERE student_id = $2 AND type = 'deferral' AND status = 'approved'
+  AND defer_from <= $1::date AND defer_to >= $1::date
+`
+
+type ShortenActiveDeferralsParams struct {
+	Today     time.Time
+	StudentID uuid.UUID
+}
+
+// Kết thúc bảo lưu sớm: khoảng bảo lưu đã duyệt đang chạy kết thúc hôm qua (không trước ngày bắt đầu).
+func (q *Queries) ShortenActiveDeferrals(ctx context.Context, arg ShortenActiveDeferralsParams) error {
+	_, err := q.db.Exec(ctx, shortenActiveDeferrals, arg.Today, arg.StudentID)
+	return err
+}
+
 const similarBankTransactions = `-- name: SimilarBankTransactions :many
 SELECT bt.id, bt.provider_txn_id, bt.transfer_amount, bt.transaction_date, r.code AS receipt_code, r.amount AS receipt_amount
 FROM finance.bank_transactions bt
@@ -3353,6 +3874,17 @@ func (q *Queries) StudentReceipts(ctx context.Context, studentID uuid.UUID) ([]S
 	return items, nil
 }
 
+const studentTotalLessons = `-- name: StudentTotalLessons :one
+SELECT total_lessons FROM academic.students WHERE id = $1
+`
+
+func (q *Queries) StudentTotalLessons(ctx context.Context, id uuid.UUID) (*int32, error) {
+	row := q.db.QueryRow(ctx, studentTotalLessons, id)
+	var total_lessons *int32
+	err := row.Scan(&total_lessons)
+	return total_lessons, err
+}
+
 const studentTuitions = `-- name: StudentTuitions :many
 SELECT t.id, t.student_id, t.class_id, t.branch_id, t.bank_account_id, t.promotion_id, t.total_amount, t.session_count, t.discount_amount, t.other_fees, t.fee_items, t.prepaid_amount, t.final_amount, t.paid_amount, t.debt_amount, t.due_date, t.reminder_paused_until, t.deferred_from, t.deferred_until, t.frozen_remaining_sessions, t.frozen_debt_amount, t.status, t.notes, t.transfer_memo, t.legacy_id, t.created_by, t.created_at, t.updated_at, c.name AS class_name, co.name AS course_name
 FROM finance.tuitions t
@@ -3445,6 +3977,69 @@ func (q *Queries) StudentTuitions(ctx context.Context, studentID uuid.UUID) ([]S
 		return nil, err
 	}
 	return items, nil
+}
+
+const studentsLatestTuition = `-- name: StudentsLatestTuition :many
+SELECT DISTINCT ON (t.student_id) t.student_id, t.id, t.status, t.paid_amount, t.debt_amount,
+       coalesce((SELECT sum(r.amount) FROM finance.receipts r WHERE r.tuition_id = t.id AND r.status = 'pending'), 0)::bigint AS pending
+FROM finance.tuitions t
+WHERE t.student_id = ANY ($1::uuid[])
+ORDER BY t.student_id, t.created_at DESC, t.id DESC
+`
+
+type StudentsLatestTuitionRow struct {
+	StudentID  uuid.UUID
+	ID         uuid.UUID
+	Status     string
+	PaidAmount int64
+	DebtAmount int64
+	Pending    int64
+}
+
+// Khoản học phí mới nhất của mỗi học viên kèm tổng phiếu thu đang chờ duyệt.
+func (q *Queries) StudentsLatestTuition(ctx context.Context, studentIds []uuid.UUID) ([]StudentsLatestTuitionRow, error) {
+	rows, err := q.db.Query(ctx, studentsLatestTuition, studentIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StudentsLatestTuitionRow
+	for rows.Next() {
+		var i StudentsLatestTuitionRow
+		if err := rows.Scan(
+			&i.StudentID,
+			&i.ID,
+			&i.Status,
+			&i.PaidAmount,
+			&i.DebtAmount,
+			&i.Pending,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const studentsTuitionTotals = `-- name: StudentsTuitionTotals :one
+SELECT coalesce(sum(paid_amount), 0)::bigint AS paid, coalesce(sum(debt_amount), 0)::bigint AS debt
+FROM finance.tuitions WHERE student_id = ANY ($1::uuid[])
+`
+
+type StudentsTuitionTotalsRow struct {
+	Paid int64
+	Debt int64
+}
+
+// Tổng đã thu / còn nợ của các học viên (màn Khách chốt thành công của CRM).
+func (q *Queries) StudentsTuitionTotals(ctx context.Context, studentIds []uuid.UUID) (StudentsTuitionTotalsRow, error) {
+	row := q.db.QueryRow(ctx, studentsTuitionTotals, studentIds)
+	var i StudentsTuitionTotalsRow
+	err := row.Scan(&i.Paid, &i.Debt)
+	return i, err
 }
 
 const toggleInvoiceRange = `-- name: ToggleInvoiceRange :one
@@ -3700,4 +4295,15 @@ func (q *Queries) UpdateReceipt(ctx context.Context, arg UpdateReceiptParams) (F
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const userFullName = `-- name: UserFullName :one
+SELECT full_name FROM iam.users WHERE id = $1
+`
+
+func (q *Queries) UserFullName(ctx context.Context, id uuid.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, userFullName, id)
+	var full_name string
+	err := row.Scan(&full_name)
+	return full_name, err
 }
