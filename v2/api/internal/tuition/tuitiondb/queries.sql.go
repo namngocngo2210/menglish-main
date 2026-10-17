@@ -1559,6 +1559,45 @@ func (q *Queries) CreateTuitionImport(ctx context.Context, arg CreateTuitionImpo
 	return i, err
 }
 
+const dashboardPendingReceipts = `-- name: DashboardPendingReceipts :one
+SELECT count(*)
+FROM finance.receipts r
+LEFT JOIN finance.tuitions t ON t.id = r.tuition_id
+LEFT JOIN academic.students st ON st.id = COALESCE(r.student_id, t.student_id)
+WHERE r.status = 'pending'
+  AND ($1::uuid[] IS NULL OR st.branch_id = ANY ($1::uuid[]))
+`
+
+func (q *Queries) DashboardPendingReceipts(ctx context.Context, branchIds []uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, dashboardPendingReceipts, branchIds)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const dashboardRevenue = `-- name: DashboardRevenue :one
+SELECT COALESCE(sum(r.amount), 0)::bigint
+FROM finance.receipts r
+LEFT JOIN finance.tuitions t ON t.id = r.tuition_id
+LEFT JOIN academic.students st ON st.id = COALESCE(r.student_id, t.student_id)
+WHERE r.status = 'approved' AND r.payment_date BETWEEN $1::date AND $2::date
+  AND ($3::uuid[] IS NULL OR st.branch_id = ANY ($3::uuid[]))
+`
+
+type DashboardRevenueParams struct {
+	FromDay   time.Time
+	ToDay     time.Time
+	BranchIds []uuid.UUID
+}
+
+// Tổng quan: tổng phiếu đã duyệt có ngày thu trong khoảng, của học viên thuộc chi nhánh (DashboardController).
+func (q *Queries) DashboardRevenue(ctx context.Context, arg DashboardRevenueParams) (int64, error) {
+	row := q.db.QueryRow(ctx, dashboardRevenue, arg.FromDay, arg.ToDay, arg.BranchIds)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const debtSummaryRows = `-- name: DebtSummaryRows :many
 SELECT t.id, t.branch_id, t.class_id, t.debt_amount, t.due_date, t.reminder_paused_until,
     b.name AS branch_name, c.name AS class_name, c.code AS class_code
@@ -5128,6 +5167,61 @@ func (q *Queries) ReportDayReceipts(ctx context.Context, arg ReportDayReceiptsPa
 			&i.Status,
 			&i.StudentName,
 			&i.StudentBranchID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const revenueByBranchMethod = `-- name: RevenueByBranchMethod :many
+
+SELECT COALESCE(t.branch_id, st.branch_id, cc.branch_id) AS branch_id, r.payment_method, count(*)::int AS receipts,
+    COALESCE(sum(r.amount), 0)::bigint AS amount, COALESCE(sum(r.surcharge_amount), 0)::bigint AS surcharge
+FROM finance.receipts r
+LEFT JOIN finance.tuitions t ON t.id = r.tuition_id
+LEFT JOIN academic.students st ON st.id = COALESCE(t.student_id, r.student_id)
+LEFT JOIN academic.classes cc ON cc.id = st.current_class_id
+WHERE r.status = 'approved' AND r.payment_date BETWEEN $1::date AND $2::date
+GROUP BY 1, 2
+ORDER BY 1, 2
+`
+
+type RevenueByBranchMethodParams struct {
+	FromDay time.Time
+	ToDay   time.Time
+}
+
+type RevenueByBranchMethodRow struct {
+	BranchID      uuid.UUID
+	PaymentMethod string
+	Receipts      int32
+	Amount        int64
+	Surcharge     int64
+}
+
+// ───────────────────────── Nguồn số liệu cho Thu chi / Tổng quan ─────────────────────────
+// Thu chi (revenueReceiptQuery): phiếu đã duyệt có ngày thu trong khoảng, gộp theo chi nhánh ghi nhận (chi nhánh hợp
+// đồng, chưa gán thì theo học viên — TuitionBranchScope) và hình thức thanh toán.
+func (q *Queries) RevenueByBranchMethod(ctx context.Context, arg RevenueByBranchMethodParams) ([]RevenueByBranchMethodRow, error) {
+	rows, err := q.db.Query(ctx, revenueByBranchMethod, arg.FromDay, arg.ToDay)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []RevenueByBranchMethodRow
+	for rows.Next() {
+		var i RevenueByBranchMethodRow
+		if err := rows.Scan(
+			&i.BranchID,
+			&i.PaymentMethod,
+			&i.Receipts,
+			&i.Amount,
+			&i.Surcharge,
 		); err != nil {
 			return nil, err
 		}

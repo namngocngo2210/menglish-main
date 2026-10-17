@@ -1103,3 +1103,35 @@ SELECT * FROM finance.tuition_import_batches WHERE id = sqlc.arg(id) AND created
 
 -- name: CommitTuitionImport :exec
 UPDATE finance.tuition_import_batches SET status = 'committed', result = sqlc.arg(result), committed_at = now() WHERE id = sqlc.arg(id);
+
+-- ───────────────────────── Nguồn số liệu cho Thu chi / Tổng quan ─────────────────────────
+
+-- name: RevenueByBranchMethod :many
+-- Thu chi (revenueReceiptQuery): phiếu đã duyệt có ngày thu trong khoảng, gộp theo chi nhánh ghi nhận (chi nhánh hợp
+-- đồng, chưa gán thì theo học viên — TuitionBranchScope) và hình thức thanh toán.
+SELECT COALESCE(t.branch_id, st.branch_id, cc.branch_id) AS branch_id, r.payment_method, count(*)::int AS receipts,
+    COALESCE(sum(r.amount), 0)::bigint AS amount, COALESCE(sum(r.surcharge_amount), 0)::bigint AS surcharge
+FROM finance.receipts r
+LEFT JOIN finance.tuitions t ON t.id = r.tuition_id
+LEFT JOIN academic.students st ON st.id = COALESCE(t.student_id, r.student_id)
+LEFT JOIN academic.classes cc ON cc.id = st.current_class_id
+WHERE r.status = 'approved' AND r.payment_date BETWEEN sqlc.arg(from_day)::date AND sqlc.arg(to_day)::date
+GROUP BY 1, 2
+ORDER BY 1, 2;
+
+-- name: DashboardRevenue :one
+-- Tổng quan: tổng phiếu đã duyệt có ngày thu trong khoảng, của học viên thuộc chi nhánh (DashboardController).
+SELECT COALESCE(sum(r.amount), 0)::bigint
+FROM finance.receipts r
+LEFT JOIN finance.tuitions t ON t.id = r.tuition_id
+LEFT JOIN academic.students st ON st.id = COALESCE(r.student_id, t.student_id)
+WHERE r.status = 'approved' AND r.payment_date BETWEEN sqlc.arg(from_day)::date AND sqlc.arg(to_day)::date
+  AND (sqlc.narg(branch_ids)::uuid[] IS NULL OR st.branch_id = ANY (sqlc.narg(branch_ids)::uuid[]));
+
+-- name: DashboardPendingReceipts :one
+SELECT count(*)
+FROM finance.receipts r
+LEFT JOIN finance.tuitions t ON t.id = r.tuition_id
+LEFT JOIN academic.students st ON st.id = COALESCE(r.student_id, t.student_id)
+WHERE r.status = 'pending'
+  AND (sqlc.narg(branch_ids)::uuid[] IS NULL OR st.branch_id = ANY (sqlc.narg(branch_ids)::uuid[]));

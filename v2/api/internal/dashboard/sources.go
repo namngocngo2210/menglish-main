@@ -246,7 +246,7 @@ type Orders interface {
 // ───────────── Phân hệ đang làm song song: mặc định "chưa có" ─────────────
 
 // Finance: số liệu học phí. Trả nil = phân hệ chưa có (màn hiện "Chờ phân hệ Học phí").
-// TODO(gộp): adapter của internal/tuition (phiếu thu đã duyệt / chờ duyệt, học phí quá hạn theo TuitionBranchScope).
+// Adapter: tuition.Service.DashboardFinance (phiếu thu đã duyệt / chờ duyệt, học phí quá hạn theo TuitionBranchScope).
 type Finance interface {
 	// Revenue: tổng phiếu thu đã duyệt có ngày thu trong khoảng, của học viên thuộc chi nhánh.
 	Revenue(ctx context.Context, branches []uuid.UUID, from, to time.Time) (*int64, error)

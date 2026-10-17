@@ -131,8 +131,7 @@ func (s *Service) overdueTuitionStat(ctx context.Context, a *iam.Access) (Stat, 
 	if err != nil || n == nil {
 		return pendingStat("Học phí quá hạn", "receipt_long", pendingTuition), err
 	}
-	// TODO(gộp): href màn Học phí quá hạn khi phân hệ Học phí có ở v2.
-	return numStat("Học phí quá hạn", *n, "receipt_long", toneIf(*n > 0, "error", "default"), nil, nil), nil
+	return numStat("Học phí quá hạn", *n, "receipt_long", toneIf(*n > 0, "error", "default"), nil, ptr("/tuition/overdue")), nil
 }
 
 func (s *Service) overdueTuitionQueue(ctx context.Context, a *iam.Access) (Queue, error) {
@@ -140,7 +139,7 @@ func (s *Service) overdueTuitionQueue(ctx context.Context, a *iam.Access) (Queue
 	if err != nil || n == nil {
 		return pendingQueue("Học phí quá hạn", "receipt_long", pendingTuition), err
 	}
-	return Queue{Label: "Học phí quá hạn", Value: n, Icon: "receipt_long"}, nil
+	return Queue{Label: "Học phí quá hạn", Value: n, Icon: "receipt_long", Href: ptr("/tuition/overdue")}, nil
 }
 
 func (s *Service) personalQueues(ctx context.Context, a *iam.Access, leads LeadSummary) ([]Queue, error) {
@@ -283,8 +282,7 @@ func (s *Service) operations(ctx context.Context, a *iam.Access, c Clock) (*Role
 	}
 	receiptQueue := pendingQueue("Phiếu thu chờ duyệt", "receipt_long", pendingTuition)
 	if receipts != nil {
-		// TODO(gộp): href màn duyệt phiếu thu của phân hệ Học phí.
-		receiptQueue = Queue{Label: "Phiếu thu chờ duyệt", Value: receipts, Icon: "receipt_long"}
+		receiptQueue = Queue{Label: "Phiếu thu chờ duyệt", Value: receipts, Icon: "receipt_long", Href: ptr("/tuition/receipts/approve")}
 	}
 	reports := pendingQueue("Báo cáo trực lớp chờ xác nhận", "fact_check", pendingClassReports)
 	reports.Hint = ptr("Admin xác nhận")
