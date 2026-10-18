@@ -168,12 +168,19 @@ class DashboardController extends Controller
     {
         $reports = StaffReport::query()->whereIn('user_id', array_keys($teachers))->where('kind', 'teacher_monthly')
             ->where('period_key', $quality->monthKey())->where('status', 'submitted')->get()->keyBy('user_id');
+        // Task follow-up theo lớp (từ 17/10/2026 thay ô "Đề xuất hỗ trợ từ quản lý"): report_section = class_{id}.
+        $tasks = WorkTask::with('assignee:id,name')->whereIn('staff_report_id', $reports->pluck('id'))->where('report_section', 'like', 'class_%')
+            ->orderBy('id')->get()->groupBy(fn (WorkTask $t) => $t->staff_report_id.':'.substr($t->report_section, 6));
         $classNames = ClassModel::query()
-            ->whereIn('id', $reports->flatMap(fn (StaffReport $r) => array_keys($r->data['classes'] ?? []))->unique()->all())
+            ->whereIn('id', $reports->flatMap(fn (StaffReport $r) => array_keys($r->data['classes'] ?? []))
+                ->merge($tasks->keys()->map(fn (string $key) => (int) explode(':', $key)[1]))->unique()->all())
             ->pluck('name', 'id');
 
-        return collect($teachers)->map(function (string $name, int $id) use ($reports, $classNames) {
+        return collect($teachers)->map(function (string $name, int $id) use ($reports, $classNames, $tasks) {
             $report = $reports->get($id);
+            $classIds = collect(array_keys($report?->data['classes'] ?? []))
+                ->merge($tasks->keys()->filter(fn (string $key) => $report && str_starts_with($key, $report->id.':'))->map(fn (string $key) => explode(':', $key)[1]))
+                ->map(fn ($classId) => (int) $classId)->unique()->values();
             $general = $report?->data['general'] ?? [];
 
             return [
@@ -184,14 +191,21 @@ class DashboardController extends Controller
                 'progress' => $general['progress'] ?? null,
                 'difficulties' => $general['difficulties'] ?? null,
                 'proposals' => $general['proposals'] ?? null,
-                'classes' => collect($report?->data['classes'] ?? [])->map(fn (array $row, $classId) => [
-                    'class' => $classNames[(int) $classId] ?? 'Lớp',
-                    'situation' => $row['situation'] ?? null,
-                    'attention' => $row['attention'] ?? null,
-                    'solution' => $row['solution'] ?? null,
-                    'need_support' => (bool) ($row['need_support'] ?? false),
-                    'support_note' => $row['support_note'] ?? null,
-                ])->values()->all(),
+                'classes' => $classIds->map(function (int $classId) use ($report, $classNames, $tasks, $id) {
+                    $row = $report->data['classes'][$classId] ?? [];
+                    $own = $tasks->get($report->id.':'.$classId, collect());
+
+                    return [
+                        'class' => $classNames[$classId] ?? 'Lớp',
+                        'situation' => $row['situation'] ?? null,
+                        'attention' => $row['attention'] ?? null,
+                        'solution' => $row['solution'] ?? null,
+                        // Cần hỗ trợ: ô đề xuất của báo cáo cũ, hoặc task giáo viên giao cho người khác.
+                        'need_support' => (bool) ($row['need_support'] ?? false) || $own->contains(fn (WorkTask $t) => (int) $t->assignee_id !== $id),
+                        'support_note' => $row['support_note'] ?? null,
+                        'tasks' => $own->map(fn (WorkTask $t) => ['id' => $t->id, 'title' => $t->title, 'assignee' => $t->assignee?->name, 'status_label' => $t->status_label])->values()->all(),
+                    ];
+                })->all(),
             ];
         })->sortBy([['submitted', 'desc'], ['teacher', 'asc']])->values()->all();
     }

@@ -6,12 +6,17 @@
  *    (mục và nhãn theo StaffReportController::TEACHER_*), cộng nhận xét chung tháng (tiến độ, khó khăn, đề xuất — 04/10/2026).
  *    Chuyên cần / tỉ lệ làm bài gợi ý sẵn từ số liệu lớp. Lưu nháp hoặc nộp; mọi lớp gửi cùng một lần nên đổi lớp không mất
  *    phần đã nhập. Nhãn ô viết hoa nhỏ như mockup; lịch sử các tháng nằm dưới cùng.
+ *  - Từ 17/10/2026 (chủ dự án): số liệu tự động của tháng (chấm công + từng lớp: buổi, chuyên cần, BTVN, điểm, nhận xét buổi),
+ *    "Học sinh cần chú ý" do hệ thống gợi ý (bấm để tạo task) và task follow-up theo lớp thay cho ô "Đề xuất hỗ trợ từ quản lý".
+ *    Việc chưa xong tháng trước hiện lại đúng lớp. Số liệu chụp lại lúc lưu, "Cập nhật số liệu" tính lại.
  */
 import { reactive, ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { route } from '@/lib/route';
 import { formatDate } from '@/lib/format';
 import ReportHistory from './ReportHistory.vue';
+import DailyMetric from './DailyMetric.vue';
+import SectionTasks from './SectionTasks.vue';
 import ReportReviewState from './ReportReviewState.vue';
 import LegacyReports from './LegacyReports.vue';
 
@@ -37,6 +42,11 @@ const props = defineProps({
     review: { type: Object, default: null },
     attendance: { type: Object, default: () => ({}) },
     proposeUrl: { type: String, default: null },
+    auto: { type: Object, default: () => ({ work: null, classes: {} }) },
+    live: { type: Boolean, default: true },
+    sectionTasks: { type: Object, default: () => ({}) },
+    assignees: { type: Array, default: () => [] },
+    today: { type: String, required: true },
     history: { type: Array, default: () => [] },
     legacy: { type: Array, default: () => [] },
 });
@@ -70,6 +80,17 @@ const statusPill = {
     warning: 'border-warning/20 bg-warning-container text-on-warning-container',
     success: 'border-tertiary/20 bg-tertiary-container/10 text-tertiary',
 };
+// Số liệu tự động + task theo lớp (khóa khối "class_{id}", như TeacherMonthlyMetrics::classKey).
+const keyOf = (c) => `class_${c.id}`;
+const autoOf = (c) => props.auto?.classes?.[keyOf(c)] ?? null;
+const carriedIn = (c) => (props.sectionTasks[keyOf(c)] ?? []).filter((t) => t.carried).length;
+const refresh = () => router.get(route('reports.periodic.teacher-monthly'), { month: props.month, refresh: 1 }, { preserveScroll: true, preserveState: true });
+let uid = 0;
+const newTasks = ref([]);
+const addTask = (section, title = null, classId = null) => newTasks.value.push({ uid: ++uid, section, title, class_id: classId });
+const removeTask = (t) => (newTasks.value = newTasks.value.filter((x) => x.uid !== t.uid));
+const rowsIn = (section) => newTasks.value.filter((t) => t.section === section);
+const indexOf = (t) => newTasks.value.indexOf(t);
 const box = 'rounded-xl border border-surface-variant bg-surface p-md transition-shadow hover:shadow-sm';
 const boxTitle = 'mb-md flex items-center gap-sm border-b border-surface-variant pb-sm font-h3 text-h3 text-on-surface';
 </script>
@@ -99,6 +120,9 @@ const boxTitle = 'mb-md flex items-center gap-sm border-b border-surface-variant
                 <template v-if="attendance.submitted_at">Đã nộp báo cáo chấm công {{ monthLabel.toLowerCase() }} lúc {{ formatDate(attendance.submitted_at, 'H:i d/m') }}</template>
                 <template v-else>Chưa nộp báo cáo chấm công {{ monthLabel.toLowerCase() }}</template>
             </p>
+            <div v-if="auto?.work" class="mt-md grid grid-cols-2 gap-md md:grid-cols-5" data-teacher-work>
+                <DailyMetric v-for="item in auto.work.items" :key="item.key" :item="item" />
+            </div>
             <div class="mt-md space-y-md">
                 <UiTextarea name="note" label="Nội dung mô tả (tùy chọn)" :rows="3" placeholder="Nhập ghi chú thêm về chấm công nếu có..." :value="attendance.note" />
                 <div class="flex justify-end">
@@ -108,8 +132,9 @@ const boxTitle = 'mb-md flex items-center gap-sm border-b border-surface-variant
         </UiForm>
 
         <!-- 2. Báo cáo giảng dạy hàng tháng -->
-        <UiForm id="teacher-monthly-form" :action="route('reports.periodic.teacher-monthly.store')" method="post" :transform="(data) => ({ ...data, intent })" class="flex flex-col overflow-hidden rounded-xl border border-surface-variant bg-surface-container-lowest shadow-sm" #default="{ errors }">
+        <UiForm id="teacher-monthly-form" :action="route('reports.periodic.teacher-monthly.store')" method="post" :transform="(data) => ({ ...data, intent })" class="flex flex-col overflow-hidden rounded-xl border border-surface-variant bg-surface-container-lowest shadow-sm" #default="{ errors }" @success="newTasks = []">
             <input type="hidden" name="month" :value="month" />
+            <input type="hidden" name="refresh" :value="live && status ? 1 : 0" />
             <div class="border-b border-surface-variant bg-surface-container-low/50 p-lg">
                 <div class="mb-xs flex flex-wrap items-center gap-sm">
                     <h2 class="flex items-center gap-sm font-h2 text-h2 text-on-surface">
@@ -127,6 +152,18 @@ const boxTitle = 'mb-md flex items-center gap-sm border-b border-surface-variant
                     <span class="material-symbols-outlined text-[18px]" aria-hidden="true">warning</span>Chưa nộp báo cáo giảng dạy {{ monthLabel.toLowerCase() }} — hạn {{ dueLabel }}
                 </p>
                 <UiAlert v-if="errors.general" type="error" class="mt-md">{{ errors.general }}</UiAlert>
+                <div class="mt-md flex flex-wrap items-center justify-between gap-sm" data-computed-at>
+                    <div class="inline-flex items-center gap-xs font-body-small text-body-small text-on-surface-variant">
+                        <span class="material-symbols-outlined text-[16px]" aria-hidden="true">sync</span>
+                        Số liệu tính lúc {{ auto?.computed_at ? formatDate(auto.computed_at, 'H:i d/m/Y') : '—' }}
+                        <template v-if="!live">(số lúc lưu báo cáo)</template>
+                        <UiInfo title="Số liệu báo cáo">
+                            <p>Số buổi, chuyên cần, BTVN, điểm, nhận xét buổi và học sinh cần chú ý được hệ thống tính từ dữ liệu bạn nhập hằng ngày (điểm danh, bài tập, điểm, nhận xét).</p>
+                            <p>Số sai thì sửa ở màn gốc rồi bấm <strong class="text-on-surface">Cập nhật số liệu</strong>. Khi lưu, số lúc đó được lưu vào báo cáo để quản lý xem đúng số bạn đã thấy.</p>
+                        </UiInfo>
+                    </div>
+                    <UiButton type="button" variant="ghost" size="sm" icon="refresh" data-refresh-metrics @click="refresh">Cập nhật số liệu</UiButton>
+                </div>
 
                 <div class="mt-lg grid grid-cols-1 gap-md rounded-lg border border-surface-variant bg-surface p-md md:grid-cols-3">
                     <UiSelect v-model="selected" label="Chọn lớp học" :options="classOptions" placeholder="-- Chọn lớp học --" :searchable="false" />
@@ -138,7 +175,24 @@ const boxTitle = 'mb-md flex items-center gap-sm border-b border-surface-variant
                 <p v-if="!classes.length" class="mt-sm font-body-small text-body-small italic text-on-surface-variant">Không có lớp nào bạn dạy trong tháng này.</p>
             </div>
 
-            <div v-for="c in classes" v-show="selected === c.id" :key="c.id" class="p-lg" :data-teacher-class="c.id">
+            <div v-for="c in classes" v-show="selected === c.id" :key="c.id" class="space-y-lg p-lg" :data-teacher-class="c.id">
+                <section v-if="autoOf(c)" :class="[box, 'space-y-md']" data-class-auto>
+                    <h3 class="flex items-center gap-sm font-h3 text-h3 text-on-surface">
+                        <span class="material-symbols-outlined text-primary-container" aria-hidden="true">monitoring</span>Số liệu lớp trong tháng
+                        <UiBadge v-if="carriedIn(c)" color="warning" class="ml-xs">{{ carriedIn(c) }} việc tồn</UiBadge>
+                    </h3>
+                    <div class="grid grid-cols-1 gap-md sm:grid-cols-2 lg:grid-cols-5">
+                        <DailyMetric v-for="item in autoOf(c).items" :key="item.key" :item="item" />
+                    </div>
+                    <div v-if="autoOf(c).attention?.length" class="space-y-xs" data-class-attention>
+                        <p class="font-label text-label uppercase text-on-surface-variant">Học sinh cần chú ý (hệ thống gợi ý)</p>
+                        <div v-for="(a, i) in autoOf(c).attention" :key="i" class="flex flex-wrap items-center gap-sm rounded-lg bg-warning-container/40 px-md py-sm font-body-small text-body-small">
+                            <UiBadge color="warning" :dot="false">{{ a.tag }}</UiBadge>
+                            <span class="min-w-0 flex-1 text-on-surface">{{ a.text }}</span>
+                            <UiButton type="button" variant="ghost" size="sm" icon="add_task" data-attention-task @click="addTask(keyOf(c), a.task, c.id)">Tạo task</UiButton>
+                        </div>
+                    </div>
+                </section>
                 <div class="grid grid-cols-1 gap-lg xl:grid-cols-12">
                     <div class="flex flex-col gap-lg xl:col-span-5">
                         <!-- A. Học thuật -->
@@ -215,9 +269,22 @@ const boxTitle = 'mb-md flex items-center gap-sm border-b border-surface-variant
                                     <UiTextarea :name="`classes[${c.id}][situation]`" :label="classTexts.situation" :rows="3" placeholder="Mô tả vấn đề..." :value="value(c.id, 'situation')" />
                                     <UiTextarea :name="`classes[${c.id}][solution]`" :label="classTexts.solution" :rows="3" placeholder="Cách xử lý của GV..." :value="value(c.id, 'solution')" />
                                 </div>
-                                <div class="rounded-lg border border-primary-container/20 bg-primary-container/5 p-sm [&_[data-field-label]]:text-primary-container">
-                                    <UiTextarea :name="`classes[${c.id}][support_note]`" :label="classTexts.support_note" :rows="2" placeholder="Ghi chú yêu cầu hỗ trợ nếu cần..." :value="value(c.id, 'support_note')" />
-                                </div>
+                                <!-- Thay ô "Đề xuất hỗ trợ từ quản lý" (17/10/2026): cần ai giúp thì giao task thẳng cho người đó. -->
+                                <p v-if="value(c.id, 'support_note')" class="rounded-lg border border-dashed border-outline-variant p-sm font-body-small text-body-small text-on-surface" data-legacy-support>
+                                    <span class="font-semibold">{{ classTexts.support_note }} (bản cũ):</span> {{ value(c.id, 'support_note') }}
+                                </p>
+                                <SectionTasks
+                                    :section="keyOf(c)"
+                                    title="Task follow-up của lớp"
+                                    hint="Cần Học vụ, Học thuật hay ai hỗ trợ thì tạo task giao thẳng cho người đó."
+                                    :tasks="sectionTasks[keyOf(c)] ?? []"
+                                    :rows="rowsIn(keyOf(c))"
+                                    :index-of="indexOf"
+                                    :assignees="assignees"
+                                    :today="today"
+                                    @add="addTask(keyOf(c), null, c.id)"
+                                    @remove="removeTask"
+                                />
                             </div>
                         </div>
                     </section>

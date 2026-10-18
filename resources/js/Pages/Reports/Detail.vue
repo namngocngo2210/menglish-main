@@ -5,7 +5,8 @@
  * + Task follow-up (từ 17/10/2026: task theo khối, việc tồn kỳ trước, góp ý từng buổi của Học vụ); báo cáo ngày nhập tay bản cũ: số liệu hệ thống tính lại cho ngày đó (như màn Học vụ đang thấy) + đủ các ô của
  * form cũ trong từng khối, cùng bố cục (ô số + ghi chú chia 4/8); báo cáo tuần Học vụ:
  * bảng KPI + chỉ số quy mô + ghi chú (bản cũ: số đã nhập ở mọi mục, kể cả 0); báo cáo tuần Học thuật: 3 bảng; báo cáo tháng / quý
- * Học thuật (từ 17/10/2026): khối số liệu + ghi chú + task theo khối và đánh giá chung; loại khác: nội dung chữ.
+ * Học thuật (từ 17/10/2026): khối số liệu + ghi chú + task theo khối và đánh giá chung; báo cáo tháng GV (cùng bố cục): chấm công +
+ * từng lớp (số liệu, học sinh cần chú ý, phần GV nhập, task của lớp) và nhận xét chung tháng; loại khác: nội dung chữ.
  */
 import { computed, ref } from 'vue';
 import { route } from '@/lib/route';
@@ -27,6 +28,7 @@ const props = defineProps({
     sessionFeedback: { type: Array, default: () => [] },
     verdicts: { type: Object, default: () => ({}) },
     narrative: { type: Array, default: () => [] },
+    overallTitle: { type: String, default: 'Đánh giá chung' },
     canReview: { type: Boolean, default: false },
     nextId: { type: Number, default: null },
     legacy: { type: Object, default: null },
@@ -254,7 +256,7 @@ const cellClass = (row, name) => (paired(row) ? (field(name).type === 'text' ? '
             </template>
 
             <!-- Báo cáo tháng / quý Học thuật (từ 17/10/2026): số liệu từng khối + ghi chú + task theo khối, đánh giá chung -->
-            <template v-else-if="view === 'academic_period'">
+            <template v-else-if="view === 'academic_period' || view === 'teacher_monthly'">
                 <section v-for="(section, key) in auto?.sections ?? {}" :key="key" :class="sectionClass" :data-detail-section="key">
                     <h3 class="flex items-center gap-xs font-h3 text-h3 text-on-surface">
                         <span class="material-symbols-outlined text-primary-container" style="font-variation-settings: 'FILL' 1" aria-hidden="true">{{ section.icon }}</span>{{ section.title }}
@@ -267,7 +269,7 @@ const cellClass = (row, name) => (paired(row) ? (field(name).type === 'text' ? '
                     <SectionTasks v-if="sectionTasks[key]?.length" readonly :section="key" :title="`Task follow-up · ${section.title}`" :tasks="sectionTasks[key]" />
                 </section>
                 <section :class="sectionClass" data-detail-overall>
-                    <h3 class="font-h3 text-h3 text-on-surface">Đánh giá chung</h3>
+                    <h3 class="font-h3 text-h3 text-on-surface">{{ overallTitle }}</h3>
                     <ReadonlyField v-for="f in narrative" :key="f.label" :label="f.label" :value="f.value" multiline />
                 </section>
                 <section v-if="tasks.length" class="space-y-md rounded-xl border border-primary-container/30 bg-surface-container-low p-lg shadow-sm" data-detail-task>
