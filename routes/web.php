@@ -9,6 +9,7 @@ use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\BranchController;
 use App\Http\Controllers\ClassChecklistController;
 use App\Http\Controllers\ClassManagementController;
+use App\Http\Controllers\ClassRosterImportController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\CourseLevelController;
 use App\Http\Controllers\CrmController;
@@ -301,6 +302,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/trial-booking', [ClassManagementController::class, 'trialBooking'])->name('trial-booking');
         Route::get('/create', [ClassManagementController::class, 'create'])->middleware('can:class.create')->name('create');
         Route::post('/', [ClassManagementController::class, 'store'])->middleware('can:class.create')->name('store');
+        Route::get('/import', [ClassRosterImportController::class, 'index'])->middleware('can:class.create')->name('import');
+        Route::post('/import', [ClassRosterImportController::class, 'preview'])->middleware('can:class.create')->name('import.store');
+        Route::post('/import/confirm', [ClassRosterImportController::class, 'confirm'])->middleware('can:class.create')->name('import.confirm');
+        Route::get('/import/template', [ClassRosterImportController::class, 'template'])->middleware('can:class.create')->name('import.template');
         Route::get('/profile/{id?}', [ClassManagementController::class, 'profile'])->name('profile');
         Route::post('/check-availability', [ClassManagementController::class, 'checkAvailability'])->name('check-availability');
         Route::get('/academic-overview', [ClassManagementController::class, 'academicOverview'])->name('academic-overview');
