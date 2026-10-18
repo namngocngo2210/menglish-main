@@ -16,6 +16,7 @@ use App\Models\TeacherMeetingReport;
 use App\Models\User;
 use App\Models\WorkTask;
 use App\Services\BranchStaff;
+use App\Services\Reports\AcademicPeriodMetrics;
 use App\Services\Reports\DailyReportMetrics;
 use App\Services\Reports\WeeklyReportMetrics;
 use App\Support\Approvals\AdminOnlyApprovals;
@@ -193,26 +194,31 @@ class StaffReportController extends Controller
         'upcoming_test_classes' => 'Số lớp sắp lịch test',
     ];
 
-    /** Phần tường thuật báo cáo tháng Học thuật. */
+    /**
+     * Báo cáo tháng Học thuật: số liệu từng khối tự động (AcademicPeriodMetrics), phần tự viết chỉ còn "Đánh giá chung tháng"
+     * (chủ dự án 17/10/2026). Các mục tường thuật cũ vẫn đọc lại được ở báo cáo đã nộp trước đó.
+     */
     public const MONTHLY_FIELDS = [
-        'test_syllabus_review' => 'Rà soát test & syllabus',
-        'materials_transfers' => 'Chuẩn bị giáo trình & chuyển lớp',
         'overall' => 'Đánh giá chung tháng',
-        'teacher_notes' => 'Nhận xét riêng theo từng giáo viên (tùy chọn)',
     ];
 
-    /** Báo cáo quý Học thuật: nhóm "Nội dung báo cáo" và "Đánh giá chung". */
-    public const QUARTERLY_SECTIONS = [
-        'Nội dung báo cáo' => [
-            'academic_work' => 'Công việc học thuật',
-            'teacher_staffing' => 'Nhân sự giáo viên',
-            'next_plan' => 'Kế hoạch công việc kỳ sau',
-        ],
-        'Đánh giá chung' => [
-            'program_progress' => 'Tiến độ chương trình',
-            'implementation_quality' => 'Chất lượng triển khai',
-            'improvement_priorities' => 'Ưu tiên cải thiện',
-        ],
+    public const MONTHLY_LEGACY_FIELDS = [
+        'test_syllabus_review' => 'Rà soát test & syllabus',
+        'materials_transfers' => 'Chuẩn bị giáo trình & chuyển lớp',
+        'teacher_notes' => 'Nhận xét riêng theo từng giáo viên',
+    ];
+
+    /** Báo cáo quý Học thuật: số liệu từng khối tự động, phần tự viết là "Đánh giá chung" và kế hoạch kỳ sau. */
+    public const QUARTERLY_FIELDS = [
+        'program_progress' => 'Tiến độ chương trình',
+        'implementation_quality' => 'Chất lượng triển khai',
+        'improvement_priorities' => 'Ưu tiên cải thiện',
+        'next_plan' => 'Kế hoạch công việc kỳ sau',
+    ];
+
+    public const QUARTERLY_LEGACY_FIELDS = [
+        'academic_work' => 'Công việc học thuật',
+        'teacher_staffing' => 'Nhân sự giáo viên',
     ];
 
     private function guard(): void
@@ -1132,7 +1138,10 @@ class StaffReportController extends Controller
         return back()->with('success', 'Đã lưu báo cáo '.Str::lcfirst(ReportPeriod::weekLabel($data['week'])).'.');
     }
 
-    /** Báo cáo tháng Học thuật (mockup 02/19): tường thuật + bảng báo cáo tuần trong tháng và họp giáo viên. */
+    /**
+     * Báo cáo tháng Học thuật (mockup 02/19 + chủ dự án 17/10/2026): khối số liệu tự động của tháng (ghi chú + task follow-up từng khối,
+     * việc chưa xong tháng trước hiện lại), "Đánh giá chung tháng", bảng báo cáo tuần trong tháng và họp giáo viên.
+     */
     public function academicMonthly(Request $request): Response|RedirectResponse
     {
         if ($redirect = $this->redirectUnlessStructured('academic_monthly')) {
@@ -1148,6 +1157,7 @@ class StaffReportController extends Controller
             'months' => ReportPeriod::monthOptions(),
             'fields' => self::MONTHLY_FIELDS,
             'values' => $report?->data['narrative'] ?? [],
+            ...$this->academicPeriodProps($request, $report, 'academic_monthly', $month, $from, $to, 'Tháng trước', self::MONTHLY_LEGACY_FIELDS),
             'submittedAt' => $report?->updated_at?->toIso8601String(),
             'review' => $this->reviewState($report),
             'weeklyReports' => $this->weeksOfMonth($from, $to),
@@ -1204,13 +1214,12 @@ class StaffReportController extends Controller
     public function academicMonthlyStore(Request $request): RedirectResponse
     {
         $this->guardStructured('academic_monthly');
-        $data = $this->validatedNarrative($request, 'month', ReportPeriod::MONTH_PATTERN, self::MONTHLY_FIELDS);
-        [$from] = ReportPeriod::monthRange($data['month']);
+        $month = $request->validate(['month' => ['required', 'regex:'.ReportPeriod::MONTH_PATTERN]])['month'];
+        [$from, $to] = ReportPeriod::monthRange($month);
+        $this->storeAcademicPeriod($request, 'academic_monthly', $month, $from, $to, 'Tháng trước', self::MONTHLY_FIELDS,
+            'Báo cáo tháng Học thuật — '.ReportPeriod::monthLabel($month));
 
-        $this->saveStructured('academic_monthly', $data['month'], 'Báo cáo tháng Học thuật — '.ReportPeriod::monthLabel($data['month']),
-            $from->toDateString(), ['narrative' => $data['narrative']], $this->narrativeText($data['narrative'], self::MONTHLY_FIELDS));
-
-        return back()->with('success', 'Đã lưu báo cáo '.mb_strtolower(ReportPeriod::monthLabel($data['month'])).'.');
+        return back()->with('success', 'Đã lưu báo cáo '.mb_strtolower(ReportPeriod::monthLabel($month)).'.');
     }
 
     /**
@@ -1392,7 +1401,7 @@ class StaffReportController extends Controller
             ])->values()->all();
     }
 
-    /** Báo cáo quý Học thuật: tường thuật + 3 báo cáo tháng trong quý. */
+    /** Báo cáo quý Học thuật: khối số liệu tự động của quý (ghi chú + task từng khối), "Đánh giá chung" và 3 báo cáo tháng trong quý. */
     public function academicQuarterly(Request $request): Response|RedirectResponse
     {
         if ($redirect = $this->redirectUnlessStructured('academic_quarterly')) {
@@ -1400,6 +1409,7 @@ class StaffReportController extends Controller
         }
         $quarter = ReportPeriod::pick($request->input('quarter'), ReportPeriod::QUARTER_PATTERN, ReportPeriod::currentQuarter());
         $report = $this->structuredReport('academic_quarterly', $quarter);
+        [$from, $to] = ReportPeriod::quarterRange($quarter);
         $monthly = StaffReport::where('user_id', Auth::id())->where('kind', 'academic_monthly')
             ->whereIn('period_key', ReportPeriod::quarterMonths($quarter))->get()->keyBy('period_key');
 
@@ -1408,8 +1418,9 @@ class StaffReportController extends Controller
             'quarter' => $quarter,
             'quarterLabel' => ReportPeriod::quarterLabel($quarter),
             'quarters' => ReportPeriod::quarterOptions(),
-            'sections' => self::QUARTERLY_SECTIONS,
+            'fields' => self::QUARTERLY_FIELDS,
             'values' => $report?->data['narrative'] ?? [],
+            ...$this->academicPeriodProps($request, $report, 'academic_quarterly', $quarter, $from, $to, 'Quý trước', self::QUARTERLY_LEGACY_FIELDS),
             'submittedAt' => $report?->updated_at?->toIso8601String(),
             'review' => $this->reviewState($report),
             'monthlyReports' => collect(ReportPeriod::quarterMonths($quarter))->map(fn (string $m) => [
@@ -1425,14 +1436,89 @@ class StaffReportController extends Controller
     public function academicQuarterlyStore(Request $request): RedirectResponse
     {
         $this->guardStructured('academic_quarterly');
-        $fields = array_merge(...array_values(self::QUARTERLY_SECTIONS));
-        $data = $this->validatedNarrative($request, 'quarter', ReportPeriod::QUARTER_PATTERN, $fields);
-        [$from] = ReportPeriod::quarterRange($data['quarter']);
+        $quarter = $request->validate(['quarter' => ['required', 'regex:'.ReportPeriod::QUARTER_PATTERN]])['quarter'];
+        [$from, $to] = ReportPeriod::quarterRange($quarter);
+        $this->storeAcademicPeriod($request, 'academic_quarterly', $quarter, $from, $to, 'Quý trước', self::QUARTERLY_FIELDS,
+            'Báo cáo quý Học thuật — '.ReportPeriod::quarterLabel($quarter));
 
-        $this->saveStructured('academic_quarterly', $data['quarter'], 'Báo cáo quý Học thuật — '.ReportPeriod::quarterLabel($data['quarter']),
-            $from->toDateString(), ['narrative' => $data['narrative']], $this->narrativeText($data['narrative'], $fields));
+        return back()->with('success', 'Đã lưu báo cáo quý '.$quarter.'.');
+    }
 
-        return back()->with('success', 'Đã lưu báo cáo quý '.$data['quarter'].'.');
+    /**
+     * Phần chung của báo cáo tháng / quý Học thuật: số liệu từng khối (kỳ chưa nộp tính trực tiếp; đã nộp hiện số lúc nộp, "Cập nhật
+     * số liệu" tính lại), ghi chú, task theo khối (kể cả việc chưa xong kỳ trước) và các mục tường thuật cũ đã nhập (chỉ đọc).
+     *
+     * @param  array<string, string>  $legacyFields
+     * @return array<string, mixed>
+     */
+    private function academicPeriodProps(Request $request, ?StaffReport $report, string $kind, string $period, Carbon $from, Carbon $to, string $prevLabel, array $legacyFields): array
+    {
+        $snapshot = $report?->data['auto'] ?? null;
+        $live = ! $snapshot || $request->boolean('refresh');
+        $metrics = $live ? AcademicPeriodMetrics::compute(Auth::user(), $from, $to, $prevLabel) : $snapshot;
+        $narrative = $report?->data['narrative'] ?? [];
+
+        return [
+            'sections' => $metrics['sections'],
+            'computedAt' => $metrics['computed_at'] ?? null,
+            'live' => $live,
+            'noteLabels' => AcademicPeriodMetrics::NOTE_LABELS,
+            'notes' => (object) ($report?->data['notes'] ?? []),
+            'draftKey' => "report-draft:{$kind}:".Auth::id().":{$period}",
+            'sectionTasks' => (object) $this->sectionTasks($report, $kind, $period),
+            'assignees' => $this->taskAssignees(),
+            'today' => today()->toDateString(),
+            'legacyFields' => collect($legacyFields)->filter(fn ($label, $key) => filled($narrative[$key] ?? null))
+                ->map(fn ($label, $key) => ['label' => $label, 'value' => $narrative[$key]])->values()->all(),
+        ];
+    }
+
+    /**
+     * Lưu báo cáo tháng / quý Học thuật: phải có ít nhất một mục đánh giá chung; số liệu tính ở máy chủ (giữ số đã chụp khi sửa,
+     * trừ khi người viết bấm "Cập nhật số liệu"); mục tường thuật cũ không còn trên form được giữ nguyên.
+     *
+     * @param  array<string, string>  $fields  mục tự viết
+     */
+    private function storeAcademicPeriod(Request $request, string $kind, string $period, Carbon $from, Carbon $to, string $prevLabel, array $fields, string $title): void
+    {
+        $data = $request->validate([
+            'refresh' => ['nullable', 'boolean'],
+            'notes' => ['nullable', 'array'],
+            'notes.*' => ['nullable', 'string', 'max:5000'],
+            'narrative' => ['nullable', 'array'],
+            ...collect($fields)->keys()->mapWithKeys(fn ($f) => ["narrative.{$f}" => ['nullable', 'string', 'max:10000']])->all(),
+            ...self::TASK_RULES,
+        ], ['tasks.*.due_date.after_or_equal' => 'Hạn xử lý phải từ hôm nay trở đi.']);
+        $narrative = collect($fields)->keys()->mapWithKeys(fn ($f) => [$f => filled($data['narrative'][$f] ?? null) ? trim($data['narrative'][$f]) : null])->all();
+        if (collect($narrative)->filter()->isEmpty()) {
+            throw ValidationException::withMessages(['narrative' => 'Nhập '.Str::lcfirst(reset($fields)).' (ít nhất một mục đánh giá chung).']);
+        }
+
+        $existing = $this->structuredReport($kind, $period);
+        $kept = $existing?->data['auto'] ?? null;
+        $snapshot = $kept && ! $request->boolean('refresh') ? $kept : AcademicPeriodMetrics::compute(Auth::user(), $from, $to, $prevLabel);
+        $notes = collect($data['notes'] ?? [])->only(array_keys($snapshot['sections']))
+            ->map(fn ($v) => filled($v) ? trim((string) $v) : null)->filter()->all();
+        $this->checkTasks($data['tasks'] ?? [], array_keys($snapshot['sections']));
+
+        DB::transaction(function () use ($data, $kind, $period, $from, $title, $existing, $snapshot, $notes, $narrative, $fields) {
+            $taskIds = $this->reportTaskIds($existing?->data ?? []);
+            $text = trim(DailyReportMetrics::text($snapshot, $notes)."\n\n".$this->narrativeText($narrative, $fields));
+            $report = $this->saveStructured($kind, $period, $title, $from->toDateString(), [
+                ...($existing?->data ?? []),
+                'auto' => ['sections' => $snapshot['sections'], 'computed_at' => $snapshot['computed_at']],
+                'notes' => $notes,
+                // Mục tường thuật cũ (đã bỏ khỏi form) giữ nguyên để báo cáo cũ vẫn đọc được.
+                'narrative' => [...($existing?->data['narrative'] ?? []), ...$narrative],
+                'task_ids' => $taskIds,
+            ], $text);
+            if (filled($data['tasks'] ?? null)) {
+                foreach ($data['tasks'] as $task) {
+                    $taskIds[] = $this->createFollowUpTask($task, $from->toDateString(), $report)->id;
+                }
+                $report->update(['data' => [...$report->data, 'task_ids' => $taskIds], 'content' => $text."\n\nTask follow-up: #".implode(', #', $taskIds)]);
+            }
+        });
     }
 
     /** Mở màn báo cáo không thuộc vai trò mình (link cũ / mockup): quay về báo cáo định kỳ chính thay vì báo lỗi. */
@@ -1652,23 +1738,16 @@ class StaffReportController extends Controller
     }
 
     /**
-     * @param  array<string, string>  $fields
-     * @return array{narrative: array<string, string|null>}
+     * Mục tự viết của báo cáo tháng / quý Học thuật để Admin đọc: mục hiện có trên form (kể cả trống) + mục tường thuật cũ đã nhập.
+     *
+     * @return list<array{label: string, value: ?string}>
      */
-    private function validatedNarrative(Request $request, string $periodField, string $pattern, array $fields): array
+    private function narrativeRows(string $kind, array $narrative): array
     {
-        $data = $request->validate([
-            $periodField => ['required', 'regex:'.$pattern],
-            'narrative' => ['required', 'array'],
-            ...collect($fields)->keys()->mapWithKeys(fn ($f) => ["narrative.{$f}" => ['nullable', 'string', 'max:10000']])->all(),
-        ], ['narrative.required' => 'Nhập ít nhất một mục của báo cáo.']);
+        [$fields, $legacy] = $kind === 'academic_monthly' ? [self::MONTHLY_FIELDS, self::MONTHLY_LEGACY_FIELDS] : [self::QUARTERLY_FIELDS, self::QUARTERLY_LEGACY_FIELDS];
 
-        $narrative = collect($fields)->keys()->mapWithKeys(fn ($f) => [$f => filled($data['narrative'][$f] ?? null) ? $data['narrative'][$f] : null])->all();
-        if (collect($narrative)->filter()->isEmpty()) {
-            throw ValidationException::withMessages(['narrative' => 'Nhập ít nhất một mục của báo cáo.']);
-        }
-
-        return [$periodField => $data[$periodField], 'narrative' => $narrative];
+        return collect($fields + $legacy)->filter(fn ($label, $key) => isset($fields[$key]) || filled($narrative[$key] ?? null))
+            ->map(fn ($label, $key) => ['label' => $label, 'value' => $narrative[$key] ?? null])->values()->all();
     }
 
     /** @param array<string, string> $fields */
@@ -1866,6 +1945,7 @@ class StaffReportController extends Controller
             $r->kind === 'weekly_kpi' && isset($data['auto']) => 'weekly_kpi',
             $r->kind === 'weekly_kpi' => 'weekly_legacy',
             $r->kind === 'academic_weekly' && isset($data['rows']) => 'academic_weekly',
+            in_array($r->kind, ['academic_monthly', 'academic_quarterly'], true) && isset($data['auto']) => 'academic_period',
             default => 'text',
         };
         // Báo cáo nhập tay bản cũ: hiện đủ mọi ô như màn nhập lúc đó (ô trống hiện "—"), không lọc bớt ô chưa nhập.
@@ -1909,17 +1989,19 @@ class StaffReportController extends Controller
             ],
             'view' => $view,
             'auto' => match (true) {
-                in_array($view, ['daily', 'weekly_kpi'], true) => $data['auto'],
+                in_array($view, ['daily', 'weekly_kpi', 'academic_period'], true) => $data['auto'],
                 // Báo cáo ngày nhập tay cũ chỉ lưu con số: tính lại số liệu + chi tiết của ngày đó theo phạm vi người viết, như màn Học vụ đang thấy.
                 $view === 'daily_legacy' && $r->user !== null => DailyReportMetrics::compute($r->user, $r->report_date->toDateString(), StaffType::dailyReportAudience($r->user)),
                 default => null,
             },
             'notes' => (object) ($data['notes'] ?? []),
-            'noteLabels' => DailyReportMetrics::NOTE_LABELS,
+            'noteLabels' => $view === 'academic_period' ? AcademicPeriodMetrics::NOTE_LABELS : DailyReportMetrics::NOTE_LABELS,
+            // Báo cáo tháng / quý Học thuật: đánh giá chung (kể cả mục tường thuật cũ đã nhập).
+            'narrative' => $view === 'academic_period' ? $this->narrativeRows($r->kind, $data['narrative'] ?? []) : [],
             'note' => $data['note'] ?? null,
-            'tasks' => $this->reportTasks($data, $view === 'daily'),
+            'tasks' => $this->reportTasks($data, in_array($view, ['daily', 'academic_period'], true)),
             // Báo cáo ngày / tuần Học vụ từ 17/10/2026: task theo khối (kể cả việc tồn kỳ trước của người viết) + góp ý từng buổi đã chụp lúc lưu.
-            'sectionTasks' => (object) (in_array($view, ['daily', 'weekly_kpi'], true) ? $this->sectionTasks($r, $r->kind, $r->period_key, $r->user_id) : []),
+            'sectionTasks' => (object) (in_array($view, ['daily', 'weekly_kpi', 'academic_period'], true) ? $this->sectionTasks($r, $r->kind, $r->period_key, $r->user_id) : []),
             'sessionFeedback' => $view === 'daily' ? ($data['session_feedback'] ?? []) : [],
             'verdicts' => ClassSessionFeedback::VERDICTS,
             'canReview' => (bool) Auth::user()?->can(AdminOnlyApprovals::ABILITY),

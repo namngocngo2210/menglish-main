@@ -1,6 +1,7 @@
 <script setup>
 /**
- * Báo cáo tháng Học thuật (mockup 02/19 "Báo cáo tháng — Học thuật"): trái là tường thuật công việc (4 mục); phải là bảng
+ * Báo cáo tháng Học thuật (mockup 02/19 "Báo cáo tháng — Học thuật"): trái là các khối số liệu tự động của tháng, mỗi khối có ghi chú
+ * và task follow-up, cuối là "Đánh giá chung tháng" (chủ dự án 17/10/2026 bỏ các ô tường thuật, AcademicPeriodForm); phải là bảng
  * báo cáo tuần trong tháng (Tuần / Khoảng ngày / PIC, bấm để xem) và các buổi họp giáo viên đã ghi. Mỗi tháng 1 báo cáo, lưu lại là cập nhật.
  */
 import { ref } from 'vue';
@@ -9,6 +10,7 @@ import { route } from '@/lib/route';
 import ReportTabs from './ReportTabs.vue';
 import ReportReviewState from './ReportReviewState.vue';
 import ReportHistory from './ReportHistory.vue';
+import AcademicPeriodForm from './AcademicPeriodForm.vue';
 
 defineOptions({ layout: { title: 'Báo cáo tháng Học thuật' } });
 
@@ -23,15 +25,20 @@ const props = defineProps({
     weeklyReports: { type: Array, default: () => [] },
     meetings: { type: Array, default: () => [] },
     history: { type: Array, default: () => [] },
+    sections: { type: Object, default: () => ({}) },
+    computedAt: { type: String, default: null },
+    live: { type: Boolean, default: true },
+    noteLabels: { type: Object, default: () => ({}) },
+    notes: { type: Object, default: () => ({}) },
+    draftKey: { type: String, default: 'report-draft:academic-monthly' },
+    sectionTasks: { type: Object, default: () => ({}) },
+    assignees: { type: Array, default: () => [] },
+    today: { type: String, required: true },
+    legacyFields: { type: Array, default: () => [] },
 });
 
 const viewing = ref(null);
-const placeholders = {
-    test_syllabus_review: 'Nhập nội dung rà soát bài kiểm tra và chương trình học...',
-    materials_transfers: 'Nhập nội dung chuẩn bị tài liệu và kế hoạch chuyển lớp...',
-    overall: 'Nhập nhận xét tổng quan về hoạt động học thuật trong tháng...',
-    teacher_notes: 'Nhập nhận xét cụ thể cho các giáo viên cần lưu ý...',
-};
+const placeholders = { overall: 'Nhận xét tổng quan về hoạt động học thuật trong tháng, việc cần ưu tiên tháng tới...' };
 const pickMonth = (value) => value && value !== props.month && router.get(route('reports.periodic.academic-monthly'), { month: value });
 </script>
 
@@ -48,16 +55,31 @@ const pickMonth = (value) => value && value !== props.month && router.get(route(
     <ReportTabs :tabs="tabs" />
     <div v-if="review?.status === 'returned' || review?.status === 'reviewed'" class="mb-lg"><ReportReviewState :review="review" /></div>
 
-    <div class="grid grid-cols-1 gap-lg lg:grid-cols-[1fr_400px]">
-        <UiForm id="academic-monthly-form" :action="route('reports.periodic.academic-monthly.store')" method="post" class="h-fit space-y-md rounded-2xl border border-primary-container/30 bg-surface-container-lowest p-lg shadow-sm">
-            <input type="hidden" name="month" :value="month" />
-            <h2 class="border-b border-primary-container/30 pb-sm font-h2 text-h2 text-on-surface">Tường thuật công việc</h2>
-            <UiAlert v-if="submittedAt" type="info">Đã nộp báo cáo tháng này lúc {{ formatDate(submittedAt, 'H:i d/m/Y') }}. Lưu lại để cập nhật.</UiAlert>
-            <UiTextarea v-for="(label, key) in fields" :key="key" :name="`narrative[${key}]`" :label="label" :rows="4" :placeholder="placeholders[key]" :value="values[key]" />
-            <div class="flex justify-end">
-                <UiButton type="submit" icon="save">Lưu phần tường thuật</UiButton>
-            </div>
-        </UiForm>
+    <div class="grid grid-cols-1 gap-lg xl:grid-cols-[1fr_360px]">
+        <AcademicPeriodForm
+            id="academic-monthly-form"
+            :action="route('reports.periodic.academic-monthly.store')"
+            period-field="month"
+            :period="month"
+            :refresh-url="route('reports.periodic.academic-monthly')"
+            overall-title="Đánh giá chung tháng"
+            :fields="fields"
+            :values="values"
+            :placeholders="placeholders"
+            :sections="sections"
+            :computed-at="computedAt"
+            :live="live"
+            :note-labels="noteLabels"
+            :notes="notes"
+            :draft-key="draftKey"
+            :section-tasks="sectionTasks"
+            :assignees="assignees"
+            :today="today"
+            :legacy-fields="legacyFields"
+            :submitted-at="submittedAt"
+            submit-label="Lưu báo cáo tháng"
+            class="min-w-0"
+        />
 
         <div class="space-y-lg">
             <section class="overflow-hidden rounded-2xl border border-surface-container-highest bg-surface-container-lowest shadow-sm" data-weekly-in-month>
