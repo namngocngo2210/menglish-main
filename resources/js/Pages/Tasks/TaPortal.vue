@@ -7,7 +7,7 @@
  * Hoàn thành: có ảnh → hoàn thành ngay; không ảnh → chờ Admin xác nhận (quyết định ở server).
  */
 import { computed, reactive, ref } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import { openRemoteModal } from '@/lib/remoteModal';
 import { urlWith } from '@/lib/url';
 import { route } from '@/lib/route';
@@ -222,6 +222,7 @@ function openReport(event) {
                     </p>
                 </div>
                 <UiBadge v-if="s.makeup" color="warning">Học bù</UiBadge>
+                <Link v-else-if="s.support" :href="route('tasks.support-sessions', { mine: 1 })" class="shrink-0 font-caption text-caption font-semibold text-primary hover:underline">Buổi bổ trợ · Hoàn thành</Link>
             </div>
             <p v-if="!sessions.length" class="font-body-small text-body-small italic text-on-surface-variant">Không có buổi học nào trong ngày.</p>
         </section>

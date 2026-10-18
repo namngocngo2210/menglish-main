@@ -17,12 +17,14 @@ class SupportSession extends Model
         'teacher_id',
         'scheduled_by',
         'class_session_id',
+        'missed_class_session_id',
         'session_date',
         'start_time',
         'end_time',
         'room',
         'status',
         'reason',
+        'lesson_content',
         'completion_note',
         'completed_at',
     ];
@@ -71,5 +73,11 @@ class SupportSession extends Model
     public function classSession(): BelongsTo
     {
         return $this->belongsTo(ClassSession::class);
+    }
+
+    /** Buổi học sinh vắng mà buổi bổ trợ này dạy lại. */
+    public function missedSession(): BelongsTo
+    {
+        return $this->belongsTo(ClassSession::class, 'missed_class_session_id');
     }
 }
