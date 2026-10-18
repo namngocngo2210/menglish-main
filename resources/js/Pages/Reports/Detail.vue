@@ -4,7 +4,8 @@
  * hiện như màn người viết nhập, đủ mọi ô (ô trống hiện "—"). Báo cáo ngày: số liệu tự động (đủ mọi dòng chi tiết) + ghi chú từng khối
  * + Task follow-up (từ 17/10/2026: task theo khối, việc tồn kỳ trước, góp ý từng buổi của Học vụ); báo cáo ngày nhập tay bản cũ: số liệu hệ thống tính lại cho ngày đó (như màn Học vụ đang thấy) + đủ các ô của
  * form cũ trong từng khối, cùng bố cục (ô số + ghi chú chia 4/8); báo cáo tuần Học vụ:
- * bảng KPI + chỉ số quy mô + ghi chú (bản cũ: số đã nhập ở mọi mục, kể cả 0); báo cáo tuần Học thuật: 3 bảng; loại khác: nội dung chữ.
+ * bảng KPI + chỉ số quy mô + ghi chú (bản cũ: số đã nhập ở mọi mục, kể cả 0); báo cáo tuần Học thuật: 3 bảng; báo cáo tháng / quý
+ * Học thuật (từ 17/10/2026): khối số liệu + ghi chú + task theo khối và đánh giá chung; loại khác: nội dung chữ.
  */
 import { computed, ref } from 'vue';
 import { route } from '@/lib/route';
@@ -25,6 +26,7 @@ const props = defineProps({
     sectionTasks: { type: Object, default: () => ({}) },
     sessionFeedback: { type: Array, default: () => [] },
     verdicts: { type: Object, default: () => ({}) },
+    narrative: { type: Array, default: () => [] },
     canReview: { type: Boolean, default: false },
     nextId: { type: Number, default: null },
     legacy: { type: Object, default: null },
@@ -251,6 +253,33 @@ const cellClass = (row, name) => (paired(row) ? (field(name).type === 'text' ? '
                 </section>
             </template>
 
+            <!-- Báo cáo tháng / quý Học thuật (từ 17/10/2026): số liệu từng khối + ghi chú + task theo khối, đánh giá chung -->
+            <template v-else-if="view === 'academic_period'">
+                <section v-for="(section, key) in auto?.sections ?? {}" :key="key" :class="sectionClass" :data-detail-section="key">
+                    <h3 class="flex items-center gap-xs font-h3 text-h3 text-on-surface">
+                        <span class="material-symbols-outlined text-primary-container" style="font-variation-settings: 'FILL' 1" aria-hidden="true">{{ section.icon }}</span>{{ section.title }}
+                    </h3>
+                    <p v-if="!section.items.length && section.empty" class="font-body-small text-body-small text-on-surface-variant">{{ section.empty }}</p>
+                    <div v-if="section.items.length" class="grid grid-cols-1 gap-md md:grid-cols-2 xl:grid-cols-4">
+                        <DailyMetric v-for="item in section.items" :key="item.key" :item="item" full :class="hasValue(item) ? '' : 'md:col-span-2 xl:col-span-4'" />
+                    </div>
+                    <ReadonlyField :label="noteLabels[key] ?? 'Ghi chú'" :value="notes[key]" multiline data-detail-note />
+                    <SectionTasks v-if="sectionTasks[key]?.length" readonly :section="key" :title="`Task follow-up · ${section.title}`" :tasks="sectionTasks[key]" />
+                </section>
+                <section :class="sectionClass" data-detail-overall>
+                    <h3 class="font-h3 text-h3 text-on-surface">Đánh giá chung</h3>
+                    <ReadonlyField v-for="f in narrative" :key="f.label" :label="f.label" :value="f.value" multiline />
+                </section>
+                <section v-if="tasks.length" class="space-y-md rounded-xl border border-primary-container/30 bg-surface-container-low p-lg shadow-sm" data-detail-task>
+                    <h3 class="font-h3 text-h3 text-on-surface">Task chung</h3>
+                    <div v-for="task in tasks" :key="task.id" class="grid grid-cols-1 gap-lg md:grid-cols-4">
+                        <ReadonlyField label="Việc đã tạo" :value="task.title" />
+                        <ReadonlyField label="Người phụ trách (PIC)" :value="task.assignee" />
+                        <ReadonlyField label="Hạn xử lý" :value="task.due_date ? formatDate(task.due_date, 'd/m/Y') : null" />
+                        <ReadonlyField label="Trạng thái" :value="task.status_label" />
+                    </div>
+                </section>
+            </template>
             <!-- Nhật ký / báo cáo chữ -->
             <template v-else>
                 <dl v-if="view === 'journal' && (report.class || report.kpi_code)" class="grid grid-cols-2 gap-md">
