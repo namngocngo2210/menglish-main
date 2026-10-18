@@ -28,7 +28,11 @@ const progress = (c) => (c.total_sessions > 0 ? Math.round((c.done_sessions * 10
 </script>
 
 <template>
-    <UiPageHeader title="Danh sách lớp" icon="co_present" description="Tìm lớp theo trạng thái, chương trình, cấp độ; bấm vào lớp để làm mọi việc của lớp đó." />
+    <UiPageHeader title="Danh sách lớp" icon="co_present" description="Tìm lớp theo trạng thái, chương trình, cấp độ; bấm vào lớp để làm mọi việc của lớp đó.">
+        <template v-if="can('class.create') && can('student.assign_class')" #actions>
+            <UiButton variant="secondary" icon="upload_file" :href="route('classes.import')">Nhập danh sách lớp</UiButton>
+        </template>
+    </UiPageHeader>
 
     <div class="space-y-5">
         <!-- Việc cần chú ý -->

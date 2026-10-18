@@ -126,6 +126,12 @@ const openPayments = () => openRemoteModal(paymentsUrl.value, { size: '2xl' });
                         <UiInput name="target" label="Mục tiêu học tập" :value="student.target" placeholder="VD: IELTS 6.5, Cambridge Starters..." />
                         <UiInput name="parent_name" label="Họ tên phụ huynh" :value="student.parent_name" placeholder="VD: Nguyễn Thị Hoa" />
                         <UiInput name="parent_phone" type="tel" label="SĐT phụ huynh (nhận kết quả Zalo)" :value="student.parent_phone" placeholder="VD: 0987 654 321" />
+                        <UiInput name="parent_email" type="email" label="Email phụ huynh" :value="student.parent_email" />
+                        <UiInput name="parent_facebook" label="Facebook phụ huynh" :value="student.parent_facebook" placeholder="Link hoặc tên Facebook" />
+                        <UiInput name="parent2_name" label="Họ tên phụ huynh 2" :value="student.parent2_name" />
+                        <UiInput name="parent2_phone" type="tel" label="SĐT phụ huynh 2" :value="student.parent2_phone" />
+                        <UiInput name="facebook" label="Facebook học viên" :value="student.facebook" placeholder="Link hoặc tên Facebook" />
+                        <UiInput name="id_card_number" label="Số CCCD / mã định danh" :value="student.id_card_number" />
                     </div>
                     <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
                         <UiInput name="school" label="Trường học" :value="student.school" placeholder="VD: Trường THCS Đoàn Thị Điểm" />
@@ -154,6 +160,14 @@ const openPayments = () => openRemoteModal(paymentsUrl.value, { size: '2xl' });
                         <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
                             <UiInput id="ro_parent_name" label="Họ tên phụ huynh" :value="student.parent_name" disabled />
                             <UiInput id="ro_parent_phone" label="SĐT phụ huynh" :value="student.parent_phone" disabled />
+                            <template v-if="student.parent2_name || student.parent2_phone">
+                                <UiInput id="ro_parent2_name" label="Họ tên phụ huynh 2" :value="student.parent2_name" disabled />
+                                <UiInput id="ro_parent2_phone" label="SĐT phụ huynh 2" :value="student.parent2_phone" disabled />
+                            </template>
+                            <UiInput v-if="student.parent_email" id="ro_parent_email" label="Email phụ huynh" :value="student.parent_email" disabled />
+                            <UiInput v-if="student.parent_facebook" id="ro_parent_facebook" label="Facebook phụ huynh" :value="student.parent_facebook" disabled />
+                            <UiInput v-if="student.facebook" id="ro_facebook" label="Facebook học viên" :value="student.facebook" disabled />
+                            <UiInput v-if="student.id_card_number" id="ro_id_card" label="Số CCCD / mã định danh" :value="student.id_card_number" disabled />
                         </div>
                         <UiTextarea id="ro_address" label="Địa chỉ liên hệ" rows="2" :value="student.address" disabled />
                     </template>
