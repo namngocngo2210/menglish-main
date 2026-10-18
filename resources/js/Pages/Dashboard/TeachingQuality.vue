@@ -174,6 +174,9 @@ const supportCount = (report) => report.classes.filter((c) => c.need_support).le
                     <p v-if="c.attention" class="mt-xs whitespace-pre-line font-body-small text-body-small"><span class="font-semibold">Học sinh cần chú ý:</span> {{ c.attention }}</p>
                     <p v-if="c.solution" class="mt-xs whitespace-pre-line font-body-small text-body-small"><span class="font-semibold">Giải pháp:</span> {{ c.solution }}</p>
                     <p v-if="c.support_note" class="mt-xs whitespace-pre-line font-body-small text-body-small"><span class="font-semibold">Cần hỗ trợ:</span> {{ c.support_note }}</p>
+                    <ul v-if="c.tasks?.length" class="mt-xs space-y-xs font-body-small text-body-small" data-class-tasks>
+                        <li v-for="t in c.tasks" :key="t.id"><span class="font-semibold">Task:</span> {{ t.title }} · {{ t.assignee ?? '—' }} · {{ t.status_label }}</li>
+                    </ul>
                 </div>
             </div>
             <template #footer><UiButton variant="secondary" @click="opened = null">Đóng</UiButton></template>
