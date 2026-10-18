@@ -64,6 +64,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -2297,8 +2298,8 @@ class CrmController extends Controller
         try {
             return $work();
         } catch (\Throwable $e) {
-            if ($publicPath && is_file(public_path($publicPath))) {
-                @unlink(public_path($publicPath));
+            if ($publicPath && str_starts_with($publicPath, '/uploads/')) {
+                rescue(fn () => Storage::disk('uploads')->delete(substr($publicPath, strlen('/uploads/'))), report: false);
             }
             throw $e;
         }
@@ -2540,7 +2541,7 @@ class CrmController extends Controller
             throw ValidationException::withMessages(['paper_invoice_number' => 'Thu tiền mặt cần nhập số hóa đơn giấy đã xuất cho khách.']);
         }
         $paperPhoto = $paperRange
-            ? '/uploads/tuition/receipts/'.SafeUploadService::moveTo($request->file('paper_invoice_photo'), public_path('uploads/tuition/receipts'), ['jpg', 'jpeg', 'png', 'webp', 'pdf'], 'paper_invoice_photo')
+            ? '/uploads/'.SafeUploadService::store($request->file('paper_invoice_photo'), 'tuition/receipts', ['jpg', 'jpeg', 'png', 'webp', 'pdf'], 'paper_invoice_photo', 'uploads')
             : null;
 
         $result = $this->cleanUploadOnFailure($paperPhoto, fn () => DB::transaction(function () use ($request, $validated, $paidAmount, $prepaidAmount, $feePaid, $paymentMethod, $paperInvoiceNumber, $paperRange, $paperPhoto): array {

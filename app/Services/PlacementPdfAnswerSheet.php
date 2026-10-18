@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Smalot\PdfParser\Config;
 use Smalot\PdfParser\Parser;
@@ -22,6 +23,32 @@ class PlacementPdfAnswerSheet
 
     /** Số phương án mặc định khi PDF không ghi chữ phương án (câu chọn tranh A/B/C). */
     private const DEFAULT_OPTION_COUNT = 3;
+
+    /**
+     * Như extractPages() cho file đã lưu trên disk (có thể là R2): chép ra file tạm rồi đọc.
+     *
+     * @return list<string>
+     */
+    public static function extractPagesFromDisk(string $disk, string $path): array
+    {
+        $stream = Storage::disk($disk)->readStream($path);
+        if (! $stream) {
+            return [];
+        }
+        $tmp = tempnam(sys_get_temp_dir(), 'placement-pdf-');
+        try {
+            $out = fopen($tmp, 'wb');
+            stream_copy_to_stream($stream, $out);
+            fclose($out);
+
+            return self::extractPages($tmp);
+        } finally {
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
+            @unlink($tmp);
+        }
+    }
 
     /**
      * Chữ của từng trang PDF. PDF scan (chỉ có ảnh) hoặc file hỏng → mảng rỗng / trang rỗng.

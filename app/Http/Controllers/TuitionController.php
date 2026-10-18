@@ -1176,9 +1176,7 @@ class TuitionController extends Controller
     private function storeProof(Request $request): ?string
     {
         if ($request->hasFile('proof_image')) {
-            $fileName = SafeUploadService::moveTo($request->file('proof_image'), public_path('uploads/tuition/receipts'), self::PROOF_EXTENSIONS, 'proof_image');
-
-            return '/uploads/tuition/receipts/'.$fileName;
+            return '/uploads/'.SafeUploadService::store($request->file('proof_image'), 'tuition/receipts', self::PROOF_EXTENSIONS, 'proof_image', 'uploads');
         }
 
         if ($request->filled('proof_image_preview') && $this->isSafeProofReference((string) $request->input('proof_image_preview'))) {
@@ -2255,8 +2253,7 @@ class TuitionController extends Controller
 
         $proofPath = null;
         if ($request->hasFile('proof_image')) {
-            $fileName = SafeUploadService::moveTo($request->file('proof_image'), public_path('uploads/tuition/cancellations'), self::PROOF_EXTENSIONS, 'proof_image');
-            $proofPath = '/uploads/tuition/cancellations/'.$fileName;
+            $proofPath = '/uploads/'.SafeUploadService::store($request->file('proof_image'), 'tuition/cancellations', self::PROOF_EXTENSIONS, 'proof_image', 'uploads');
         }
 
         InvoiceCancellation::create([

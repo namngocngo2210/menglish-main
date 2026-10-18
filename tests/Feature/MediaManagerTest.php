@@ -36,6 +36,12 @@ class MediaManagerTest extends TestCase
         }
     }
 
+    /** Id file của Media Manager: base64 đường dẫn trên disk 'uploads' (vd. media/test_media_suite/a.png). */
+    protected function mediaId(string $absolutePath): string
+    {
+        return base64_encode(substr($absolutePath, strlen(public_path('uploads')) + 1));
+    }
+
     protected function tearDown(): void
     {
         if (File::isDirectory($this->testDir)) {
@@ -84,7 +90,7 @@ class MediaManagerTest extends TestCase
 
         $this->assertTrue(File::exists($filePath), 'File must exist before deletion.');
 
-        $encodedId = base64_encode($filePath);
+        $encodedId = $this->mediaId($filePath);
 
         $response = $this->actingAs($this->admin)->delete(route('media.destroy', $encodedId));
         $response->assertRedirect();
@@ -109,8 +115,8 @@ class MediaManagerTest extends TestCase
         $this->assertTrue(File::exists($fileKeep));
 
         $idsToDelete = [
-            base64_encode($file1),
-            base64_encode($file2),
+            $this->mediaId($file1),
+            $this->mediaId($file2),
         ];
 
         $response = $this->actingAs($this->admin)->delete(route('media.bulk-destroy'), [
@@ -202,7 +208,7 @@ class MediaManagerTest extends TestCase
         $this->assertTrue(File::exists($fileToMove));
 
         $response = $this->actingAs($this->admin)->post(route('media.move-files'), [
-            'selected_files' => [base64_encode($fileToMove)],
+            'selected_files' => [$this->mediaId($fileToMove)],
             'target_folder' => 'test_media_suite/destination_folder',
         ]);
 
@@ -212,5 +218,15 @@ class MediaManagerTest extends TestCase
         $newPath = $targetSubDir . '/file_to_move.png';
         $this->assertTrue(File::exists($newPath), 'File must exist at destination path.');
         $this->assertFalse(File::exists($fileToMove), 'File must no longer exist at original path.');
+    }
+
+    public function test_ids_outside_media_folder_are_rejected(): void
+    {
+        File::put($this->testDir.'/giu_lai.png', 'data');
+
+        foreach ([base64_encode($this->testDir.'/giu_lai.png'), base64_encode('media/../../.env'), base64_encode('tuition/receipts/a.jpg')] as $id) {
+            $this->actingAs($this->admin)->get(route('media.download', $id))->assertNotFound();
+        }
+        $this->actingAs($this->admin)->get(route('media.download', $this->mediaId($this->testDir.'/giu_lai.png')))->assertOk();
     }
 }

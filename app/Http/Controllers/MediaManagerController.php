@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\MediaManagerService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 
@@ -243,13 +244,13 @@ class MediaManagerController extends Controller
      */
     public function download(Request $request, $id)
     {
-        $realPath = $this->mediaService->resolveManagedFile($id);
+        $path = $this->mediaService->resolveManagedFile($id);
 
-        if (! $realPath) {
+        if (! $path) {
             abort(404, 'Tệp tin không tồn tại.');
         }
 
-        return response()->download($realPath);
+        return Storage::disk(MediaManagerService::DISK)->download($path);
     }
 
     /**
