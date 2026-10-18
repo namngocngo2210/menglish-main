@@ -862,7 +862,7 @@ class StaffReportController extends Controller
         ]);
         if ($assigneeId !== (int) $user->id) {
             AdminNotification::notifyUser($assigneeId, 'task_assigned', "Bạn được giao việc: {$task->title}",
-                "{$user->name} đã giao việc từ báo cáo ngày {$label}, hạn ".$task->due_date?->format('d/m/Y').'.',
+                "{$user->name} đã giao việc từ {$source}, hạn ".$task->due_date?->format('d/m/Y').'.',
                 route('tasks.index', ['tab' => 'mine']), ['task_id' => $task->id]);
         }
 

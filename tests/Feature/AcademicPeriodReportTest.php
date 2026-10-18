@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\AcademicProject;
+use App\Models\AdminNotification;
 use App\Models\AcademicProjectMilestone;
 use App\Models\Branch;
 use App\Models\ClassModel;
@@ -166,12 +167,15 @@ class AcademicPeriodReportTest extends TestCase
             ->assertSessionHasErrors('narrative');
         $this->actingAs($this->lead)->post(route('reports.periodic.academic-quarterly.store'), [
             'quarter' => $quarter, 'narrative' => ['next_plan' => 'Mở 2 lớp Flyers', 'improvement_priorities' => 'Nhận xét buổi đúng hạn'],
-            'tasks' => [['title' => 'Lên kế hoạch tuyển GV', 'due_date' => today()->addWeek()->toDateString(), 'section' => 'quality']],
+            'tasks' => [['title' => 'Soạn đề Unit 6', 'due_date' => today()->addWeek()->toDateString(), 'section' => 'quality', 'assignee_id' => $this->teacher->id]],
         ])->assertSessionHasNoErrors();
 
         $report = StaffReport::where('kind', 'academic_quarterly')->sole();
         $this->assertSame('Mở 2 lớp Flyers', $report->data['narrative']['next_plan']);
-        $this->assertSame('quality', WorkTask::sole()->report_section);
+        $this->assertSame(['quality', $this->teacher->id], [WorkTask::sole()->report_section, (int) WorkTask::sole()->assignee_id]);
+        // Giao cho người khác: người nhận được báo, nội dung nêu đúng báo cáo gốc.
+        $notice = AdminNotification::where('user_id', $this->teacher->id)->where('type', 'task_assigned')->sole();
+        $this->assertStringContainsString('báo cáo quý', $notice->message);
         $this->actingAs($this->lead)->get(route('reports.periodic.academic-quarterly', ['quarter' => $quarter]))
             ->assertInertia(fn (AssertableInertia $page) => $page->where('live', false)->where('values.next_plan', 'Mở 2 lớp Flyers')->has('sectionTasks.quality', 1));
 
