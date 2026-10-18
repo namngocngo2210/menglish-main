@@ -139,6 +139,12 @@ function showReject() {
                                 <li v-for="sup in selected.supports" :key="sup.id">{{ sup.name }} — {{ sup.reason }}</li>
                             </ul>
                         </div>
+                        <div v-if="selected.tasks?.length" data-approval-tasks>
+                            <p class="font-semibold">Task follow-up ({{ selected.tasks.length }}):</p>
+                            <ul class="ml-md list-disc">
+                                <li v-for="t in selected.tasks" :key="t.id">{{ t.title }} — {{ t.assignee ?? '—' }} · {{ t.status_label }}</li>
+                            </ul>
+                        </div>
                     </template>
                     <p v-else class="whitespace-pre-line">{{ selected.note || 'Trợ giảng không ghi chú khi báo hoàn thành.' }}</p>
                     <a

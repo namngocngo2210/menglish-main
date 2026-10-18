@@ -25,6 +25,7 @@ class WorkTask extends Model
         'class_id',
         'staff_report_id',
         'report_section',
+        'class_report_id',
         'student_id',
         'care_milestone',
         'lesson_session',
@@ -105,6 +106,12 @@ class WorkTask extends Model
     public function staffReport()
     {
         return $this->belongsTo(StaffReport::class, 'staff_report_id');
+    }
+
+    /** Báo cáo trực lớp tạo ra việc này (task follow-up của trợ giảng, khác `classReport()` là báo cáo nộp cho việc "Trực lớp"). */
+    public function sourceClassReport()
+    {
+        return $this->belongsTo(ClassReport::class, 'class_report_id');
     }
 
     public function confirmedBy()
