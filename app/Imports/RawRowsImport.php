@@ -43,6 +43,29 @@ class RawRowsImport extends StringValueBinder implements SkipsEmptyRows, WithCal
     }
 
     /**
+     * Mọi sheet của file (theo thứ tự trong file), mỗi sheet là mảng dòng như firstSheet(): dòng trống bị bỏ.
+     * Dùng cho file nhập nhiều sheet (ClassRosterImportService: sheet Lớp + sheet Học viên).
+     *
+     * @return list<array>
+     */
+    public static function allSheets(UploadedFile $file): array
+    {
+        try {
+            return array_values(self::ignoringOpenBasedirWarnings(fn () => Excel::toArray(new self, $file)));
+        } catch (\Throwable $e) {
+            Log::warning('Laravel Excel không đọc được file nhập, thử đọc trực tiếp.', self::logContext($file, $e));
+        }
+
+        try {
+            return self::ignoringOpenBasedirWarnings(fn () => self::readDirectSheets($file));
+        } catch (\Throwable $e) {
+            Log::error('Không đọc được file nhập Excel/CSV.', self::logContext($file, $e));
+
+            throw $e;
+        }
+    }
+
+    /**
      * Như firstSheet() nhưng giữ đúng số dòng trong file: khoá = số dòng Excel (bắt đầu từ 1), dòng trống bị bỏ
      * mà không đánh lại số — để thông báo "Dòng N" trỏ đúng dòng người dùng thấy trong Excel.
      *
@@ -98,6 +121,12 @@ class RawRowsImport extends StringValueBinder implements SkipsEmptyRows, WithCal
 
     private static function readDirect(UploadedFile $file, bool $skipEmpty = true): array
     {
+        return self::readDirectSheets($file, $skipEmpty, 0)[0] ?? [];
+    }
+
+    /** Đọc thẳng bằng PhpSpreadsheet: một sheet ($only) hoặc mọi sheet (null). */
+    private static function readDirectSheets(UploadedFile $file, bool $skipEmpty = true, ?int $only = null): array
+    {
         $extension = strtolower($file->getClientOriginalExtension());
         $reader = IOFactory::createReader(match ($extension) {
             'xlsx' => IOFactory::READER_XLSX,
@@ -113,17 +142,20 @@ class RawRowsImport extends StringValueBinder implements SkipsEmptyRows, WithCal
         Cell::setValueBinder(new StringValueBinder);
         try {
             $spreadsheet = $reader->load($file->getRealPath() ?: $file->getPathname());
-            $rows = $spreadsheet->getSheet(0)->toArray(null, true, false, false);
+            $sheets = [];
+            foreach ($only === null ? range(0, $spreadsheet->getSheetCount() - 1) : [$only] as $index) {
+                $sheets[] = $spreadsheet->getSheet($index)->toArray(null, true, false, false);
+            }
             $spreadsheet->disconnectWorksheets();
         } finally {
             Cell::setValueBinder($previousBinder);
         }
 
         if (! $skipEmpty) {
-            return $rows;
+            return $sheets;
         }
 
-        return array_values(array_filter($rows, fn (array $row) => collect($row)->contains(fn ($v) => $v !== null && $v !== '')));
+        return array_map(fn (array $rows) => array_values(array_filter($rows, fn (array $row) => collect($row)->contains(fn ($v) => $v !== null && $v !== ''))), $sheets);
     }
 
     private static function logContext(UploadedFile $file, \Throwable $e): array
