@@ -11,6 +11,7 @@ use App\Models\ClassSession;
 use App\Models\Room;
 use App\Models\Student;
 use App\Models\User;
+use App\Services\Concerns\ReadsImportRows;
 use App\Services\TeachingShifts\TeachingShiftRules;
 use App\Support\DataScope;
 use App\Support\Roles;
@@ -19,7 +20,6 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
 /**
  * Nhập danh sách lớp học viên từ hệ thống cũ (Excel):
@@ -33,6 +33,8 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
  */
 class ClassRosterImportService
 {
+    use ReadsImportRows;
+
     public const MAX_ROWS = 3000;
 
     public const DEFAULT_CAPACITY = 15;
@@ -163,7 +165,7 @@ class ClassRosterImportService
 
         $existingClasses = ClassModel::withTrashed()->get(['id', 'code', 'name', 'branch_id', 'status', 'deleted_at'])
             ->keyBy(fn (ClassModel $c) => self::classKey((string) $c->code));
-        $teachers = User::query()->role([...Roles::TEACHING, Roles::ACADEMIC_LEAD])->where('is_active', true)->get(['id', 'name']);
+        $teachers = User::query()->role([...Roles::TEACHING, Roles::ACADEMIC_LEAD])->where('is_active', true)->with('roles')->get(['id', 'name']);
         $rooms = Room::query()->get(['id', 'branch_id', 'name']);
 
         // ── Lớp ──
@@ -547,44 +549,6 @@ class ClassRosterImportService
         return [$class, count($sessions)];
     }
 
-    /**
-     * Tìm dòng tiêu đề (trong 5 dòng đầu, bỏ dòng tên bảng) và đổi các dòng sau thành mảng key => giá trị.
-     *
-     * @return array{columns: array<int, string>, rows: array<int, array<string, mixed>>}|null rows theo số dòng Excel
-     */
-    private function locate(array $rows, array $aliases, array $required): ?array
-    {
-        $rows = array_values($rows);
-        foreach (array_slice($rows, 0, 5, true) as $headerIndex => $header) {
-            $columns = [];
-            foreach ($header as $index => $heading) {
-                $key = $aliases[Str::slug(Str::ascii(preg_replace('/^\xEF\xBB\xBF/', '', (string) $heading)), '_')] ?? null;
-                if ($key && ! in_array($key, $columns, true)) {
-                    $columns[$index] = $key;
-                }
-            }
-            if (array_diff($required, $columns) !== [] || count($columns) < 2) {
-                continue;
-            }
-
-            $data = [];
-            foreach (array_slice($rows, $headerIndex + 1, null, true) as $offset => $cells) {
-                $row = [];
-                foreach ($columns as $index => $key) {
-                    $value = $cells[$index] ?? null;
-                    $row[$key] = is_string($value) ? trim($value) : $value;
-                }
-                if (collect($row)->filter(fn ($v) => trim((string) $v) !== '')->isNotEmpty()) {
-                    $data[$offset + 1] = $row;
-                }
-            }
-
-            return ['columns' => $columns, 'rows' => $data];
-        }
-
-        return null;
-    }
-
     /** @return list<array{day: string, start: string, end: string, room: ?string}> */
     private function slots(array $data, array &$warnings): array
     {
@@ -631,44 +595,17 @@ class ClassRosterImportService
     {
         $needle = preg_replace('/^(ms|mr|mrs|co|thay|teacher)\s+/', '', self::fold($label));
         $matches = $teachers->filter(fn (User $t) => ($name = self::fold($t->name)) === $needle || str_ends_with($name, ' '.$needle));
+        // Trùng tên với trợ giảng (vd. GV "Lưu Đức Anh" và TG "Hoàng Đức Anh"): ưu tiên người có vai trò giáo viên.
+        if ($matches->count() > 1) {
+            $teaching = $matches->filter(fn (User $t) => $t->hasAnyRole([...Roles::TEACHERS, Roles::ACADEMIC_LEAD]));
+            $matches = $teaching->count() === 1 ? $teaching : $matches;
+        }
 
         return match ($matches->count()) {
             1 => [$matches->first(), null],
             0 => [null, "Chưa tìm thấy giáo viên \"{$label}\": lớp tạo chưa có giáo viên, gán sau trên màn lớp."],
             default => [null, "Có {$matches->count()} giáo viên tên \"{$label}\": lớp tạo chưa có giáo viên, gán sau trên màn lớp."],
         };
-    }
-
-    private function findBranch(Collection $branches, string $value): ?Branch
-    {
-        $needle = preg_replace('/^(me|co so|chi nhanh|cn)\s+/', '', self::fold($value));
-
-        return $branches->first(fn (Branch $b) => self::fold((string) $b->code) === $needle || self::fold($b->name) === $needle)
-            ?? (($found = $branches->filter(fn (Branch $b) => str_contains(self::fold($b->name), $needle)))->count() === 1 ? $found->first() : null);
-    }
-
-    private function date(mixed $value, string $label, array &$warnings): ?string
-    {
-        if ($value === null || trim((string) $value) === '') {
-            return null;
-        }
-        try {
-            if (is_numeric($value)) {
-                return Carbon::instance(ExcelDate::excelToDateTimeObject((float) $value))->toDateString();
-            }
-            foreach (['d/m/Y', 'd-m-Y', 'Y-m-d', 'd/m/y', 'Y-m-d H:i:s'] as $format) {
-                $parsed = \DateTime::createFromFormat('!'.$format, trim((string) $value));
-                $problems = \DateTime::getLastErrors();
-                if ($parsed && (! $problems || ($problems['warning_count'] === 0 && $problems['error_count'] === 0))) {
-                    return Carbon::instance($parsed)->toDateString();
-                }
-            }
-        } catch (\Throwable) {
-            // rơi xuống cảnh báo
-        }
-        $warnings[] = "{$label} \"{$value}\" không đúng dạng dd/mm/yyyy: bỏ trống.";
-
-        return null;
     }
 
     /** "3.600.000", "3600000", "3600k" → số tiền; ô ghi diễn giải ("3600k=3480k+120k học vụ") → bỏ trống + cảnh báo. */
@@ -739,23 +676,6 @@ class ClassRosterImportService
         return null;
     }
 
-    /** Tách "0934671389 / 0978990288 (bố)" thành các số; số 9 chữ số bị mất số 0 đầu (Excel) được thêm lại. */
-    private static function phones(mixed $value): array
-    {
-        $phones = [];
-        foreach (preg_split('/[\/;,]|\s-\s/u', preg_replace('/\.0$/', '', trim((string) $value))) as $part) {
-            $digits = preg_replace('/\D/', '', $part);
-            if (strlen($digits) === 9 && $digits[0] !== '0') {
-                $digits = '0'.$digits;
-            }
-            if (strlen($digits) >= 8 && strlen($digits) <= 15) {
-                $phones[] = $digits;
-            }
-        }
-
-        return array_values(array_unique($phones));
-    }
-
     private static function splitNames(mixed $value): array
     {
         return array_values(array_filter(array_map(fn ($n) => mb_substr(trim($n), 0, 255), preg_split('/\//u', (string) $value)), fn ($n) => $n !== ''));
@@ -783,17 +703,5 @@ class ClassRosterImportService
             '' => null,
             default => 'Khác',
         };
-    }
-
-    private static function text(mixed $value): ?string
-    {
-        $value = trim((string) $value);
-
-        return $value !== '' ? mb_substr($value, 0, 255) : null;
-    }
-
-    private static function fold(string $value): string
-    {
-        return trim(preg_replace('/\s+/', ' ', Str::lower(Str::ascii($value))));
     }
 }

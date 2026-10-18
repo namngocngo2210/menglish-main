@@ -211,13 +211,22 @@ class UserController extends Controller
                 'hourly_rate' => $canViewSensitive ? $user->hourly_rate : null,
                 // [nhãn, giá trị (false = không có quyền xem), font mã]
                 'profile' => [
+                    ['Ngày sinh', $user->date_of_birth?->format('d/m/Y'), false],
+                    ['Email cá nhân', $user->personal_email, false],
+                    ['Facebook', $user->facebook, false],
+                    ['Kênh liên lạc', $user->contact_channel, false],
                     ['Số CCCD (12 số)', $sensitive($user->id_card_number), true],
+                    ['Ngày cấp CCCD', $sensitive($user->id_card_issued_on?->format('d/m/Y')), false],
                     ['Liên lạc khẩn cấp', $sensitive($user->emergency_contact), false],
                     ['Quê quán', $sensitive($user->hometown), false],
                     ['Nơi ở hiện tại', $sensitive($user->current_address), false],
                     ['Tốt nghiệp', $user->graduation_school, false],
+                    ['Chuyên ngành', $user->major, false],
                     ['Chứng chỉ', $user->certificates, false],
                     ['Level giảng dạy / Chuyên môn', $user->teaching_level, false],
+                    ['Ngày bắt đầu làm việc', $user->joined_on?->format('d/m/Y'), false],
+                    ['TK ngân hàng nhận lương', $sensitive($user->bank_account), true],
+                    ['Ghi chú', $user->staff_note, false],
                 ],
                 'contract_type' => $user->contract_type,
                 'contract_start_date' => $user->contract_start_date?->format('d/m/Y'),
@@ -303,9 +312,12 @@ class UserController extends Controller
                 ...$user->only([
                     'name', 'employee_code', 'email', 'phone', 'branch_id',
                     'emergency_contact', 'hometown', 'current_address', 'graduation_school', 'certificates', 'teaching_level',
-                    'contract_type', 'academic_teaching',
+                    'contract_type', 'academic_teaching', 'personal_email', 'facebook', 'major', 'contact_channel', 'staff_note',
                 ]),
+                'date_of_birth' => $user->date_of_birth?->format('Y-m-d'),
+                'joined_on' => $user->joined_on?->format('Y-m-d'),
                 ...($canEditSensitive ? $user->only(self::SENSITIVE_FIELDS) : []),
+                'id_card_issued_on' => $canEditSensitive ? $user->id_card_issued_on?->format('Y-m-d') : null,
                 'contract_start_date' => $user->contract_start_date?->format('Y-m-d'),
                 'contract_end_date' => $user->contract_end_date?->format('Y-m-d'),
                 'has_contract_file' => (bool) $user->contract_file_path,
@@ -321,7 +333,7 @@ class UserController extends Controller
     }
 
     /** Trường nhạy cảm trên form nhân sự: chỉ người có payroll.view đọc / sửa (canViewSensitive). */
-    private const SENSITIVE_FIELDS = ['id_card_number', 'base_salary', 'hourly_rate'];
+    private const SENSITIVE_FIELDS = ['id_card_number', 'id_card_issued_on', 'bank_account', 'base_salary', 'hourly_rate'];
 
     public function update(UserRequest $request, User $user): Response|RedirectResponse
     {
@@ -612,6 +624,13 @@ class UserController extends Controller
             'certificates' => $user->certificates,
             'graduation_school' => $user->graduation_school,
             'teaching_level' => $user->teaching_level,
+            'major' => $user->major,
+            'personal_email' => $user->personal_email,
+            'facebook' => $user->facebook,
+            'contact_channel' => $user->contact_channel,
+            'date_of_birth' => $user->date_of_birth?->format('d/m/Y'),
+            'joined_on' => $user->joined_on?->format('d/m/Y'),
+            'staff_note' => $user->staff_note,
             'contract_type' => $user->contract_type,
             'contract_start_date' => $user->contract_start_date?->format('d/m/Y'),
             'contract_end_date' => $user->contract_end_date?->format('d/m/Y'),
@@ -627,7 +646,8 @@ class UserController extends Controller
         ];
 
         if (self::canViewSensitive($viewer)) {
-            $payload += $user->only(['id_card_number', 'base_salary', 'hourly_rate', 'hometown', 'current_address', 'emergency_contact']);
+            $payload += $user->only(['id_card_number', 'base_salary', 'hourly_rate', 'hometown', 'current_address', 'emergency_contact', 'bank_account'])
+                + ['id_card_issued_on' => $user->id_card_issued_on?->format('d/m/Y')];
         }
 
         return $payload;
