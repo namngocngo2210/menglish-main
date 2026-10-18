@@ -100,6 +100,8 @@ class ClassRosterImportTest extends TestCase
 
     public function test_preview_reports_errors_and_import_creates_classes_schedule_students(): void
     {
+        // Trợ giảng trùng đuôi tên với giáo viên: lớp vẫn gán đúng giáo viên.
+        User::factory()->create(['name' => 'Hoàng Thanh Mai', 'branch_id' => $this->branch->id, 'is_active' => true])->assignRole('assistant');
         $token = $this->previewToken($this->normalizedFile());
 
         $this->actingAs($this->admin)->get(route('classes.import', ['token' => $token]))

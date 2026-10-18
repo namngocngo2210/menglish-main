@@ -58,6 +58,15 @@ class UserRequest extends FormRequest
             'graduation_school' => ['nullable', 'string', 'max:255'],
             'certificates' => ['nullable', 'string', 'max:255'],
             'teaching_level' => ['nullable', 'string', 'max:255'],
+            'personal_email' => ['nullable', 'string', 'email', 'max:255'],
+            'facebook' => ['nullable', 'string', 'max:255'],
+            'date_of_birth' => ['nullable', 'date', 'before:today'],
+            'id_card_issued_on' => ['nullable', 'date', 'before_or_equal:today'],
+            'major' => ['nullable', 'string', 'max:255'],
+            'joined_on' => ['nullable', 'date'],
+            'bank_account' => ['nullable', 'string', 'max:255'],
+            'contact_channel' => ['nullable', 'string', 'max:50'],
+            'staff_note' => ['nullable', 'string', 'max:2000'],
             'contract_type' => ['nullable', 'string', 'max:50'],
             'contract_start_date' => ['nullable', 'date'],
             'contract_end_date' => ['nullable', 'date'],
@@ -74,6 +83,8 @@ class UserRequest extends FormRequest
             'email.unique' => 'Email này đã được sử dụng bởi tài khoản khác.',
             'branch_id.required' => 'Vui lòng chọn chi nhánh.',
             'role.required' => 'Vui lòng chọn vai trò.',
+            'personal_email.email' => 'Email cá nhân không hợp lệ.',
+            'date_of_birth.before' => 'Ngày sinh phải trước hôm nay.',
         ];
     }
 }

@@ -35,6 +35,7 @@ function openProfile(profile) {
 <template>
     <UiPageHeader title="Quản lý Tài khoản & Vai trò" description="Danh sách người dùng, vai trò chính và kiêm nhiệm, hợp đồng lao động.">
         <template v-if="can('user.create')" #actions>
+            <UiButton variant="secondary" icon="upload_file" :href="route('users.import')">Nhập nhân sự từ Excel</UiButton>
             <UiButton icon="person_add" :href="route('users.create')" modal="3xl">Thêm người dùng mới</UiButton>
         </template>
     </UiPageHeader>
