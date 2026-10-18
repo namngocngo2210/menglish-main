@@ -25,6 +25,7 @@ use App\Models\WorkTask;
 use App\Services\BranchStaff;
 use App\Services\ClassDashboardService;
 use App\Services\KpiBoardService;
+use App\Services\MissedLessonService;
 use App\Services\Reports\ClassReportSessionMetrics;
 use App\Services\RoomService;
 use App\Services\SafeUploadService;
@@ -873,6 +874,7 @@ class WorkTaskController extends Controller
                 'room' => $s->room,
                 'branch' => $s->branch?->name,
                 'makeup' => $s->type === ClassSession::TYPE_MAKEUP,
+                'support' => $s->type === ClassSession::TYPE_SUPPORT,
             ])->values()->all(),
         ]);
     }
@@ -2235,32 +2237,44 @@ class WorkTaskController extends Controller
     }
 
     /**
-     * Danh sách bổ trợ + xếp buổi phụ đạo. Danh sách gồm học viên vắng học, điểm mini test /
-     * Big Test dưới 7 (tự thêm — SupportListService) và học viên ghi trong báo cáo trực lớp;
-     * chỉ lớp người dùng được xem.
+     * Học bù & bổ trợ: danh sách bổ trợ + xếp buổi phụ đạo. Danh sách gồm học viên vắng học, điểm mini test /
+     * Big Test dưới 7 (tự thêm — SupportListService) và học viên ghi trong báo cáo trực lớp; chỉ lớp người dùng được xem.
+     * Học sinh vắng: kèm thông tin buổi đã dạy (MissedLessonService) để Học vụ chuyển cho trợ giảng bổ trợ.
+     * Người không xếp lịch (trợ giảng / GV) chỉ thấy buổi bổ trợ được giao cho mình hoặc của lớp mình.
      */
-    public function supportSessions(Request $request)
+    public function supportSessions(Request $request, MissedLessonService $missedLessons)
     {
         $user = $request->user();
+        $canAssign = $user->can('work_task.assign');
         $visibleClassIds = ClassModel::query()->visibleTo($user)->pluck('id')->all();
         $source = $request->query('source');
         $sources = SupportListService::SOURCE_LABELS;
+        $mine = $request->boolean('mine') || ! $canAssign;
 
-        $pendingSupports = ClassReportStudentSupport::with(['student', 'classModel', 'classReport.classModel'])
-            ->whereDoesntHave('supportSession')
-            ->where(fn ($q) => $q->whereIn('class_id', $visibleClassIds)
-                ->orWhere(fn ($q) => $q->whereNull('class_id')
-                    ->whereHas('classReport', fn ($r) => $r->whereIn('class_id', $visibleClassIds))))
-            ->when($source && isset($sources[$source]), fn ($q) => $q->where('source', $source))
-            ->latest()
-            ->paginate(20, ['*'], 'list_page')
-            ->withQueryString();
+        $pendingSupports = $canAssign
+            ? ClassReportStudentSupport::with(['student', 'classModel', 'classReport.classModel'])
+                ->whereDoesntHave('supportSession')
+                ->where(fn ($q) => $q->whereIn('class_id', $visibleClassIds)
+                    ->orWhere(fn ($q) => $q->whereNull('class_id')
+                        ->whereHas('classReport', fn ($r) => $r->whereIn('class_id', $visibleClassIds))))
+                ->when($source && isset($sources[$source]), fn ($q) => $q->where('source', $source))
+                ->latest()
+                ->paginate(20, ['*'], 'list_page')
+                ->withQueryString()
+            : null;
+        $pendingLessons = $pendingSupports ? $missedLessons->forSupports(collect($pendingSupports->items())) : [];
 
+        // Trợ giảng được giao buổi bổ trợ của lớp mình không phụ trách vẫn thấy buổi đó.
         $sessions = SupportSession::with(['student', 'classModel', 'teacher', 'supportItem'])
-            ->whereIn('class_id', $visibleClassIds)
+            ->where(fn ($q) => $q->where('teacher_id', $user->id)
+                ->when(! $request->boolean('mine'), fn ($q) => $q->orWhereIn('class_id', $visibleClassIds)))
+            ->orderByRaw("CASE WHEN status = 'scheduled' THEN 0 ELSE 1 END")
             ->latest('session_date')
             ->paginate(20, ['*'], 'session_page')
             ->withQueryString();
+        $missedLabels = $missedLessons->forSessions(
+            ClassSession::whereIn('id', collect($sessions->items())->pluck('missed_class_session_id')->filter()->unique())->get()
+        );
 
         $classes = ClassModel::whereIn('id', $visibleClassIds)
             ->whereNotIn('status', ['completed', 'cancelled'])
@@ -2268,24 +2282,36 @@ class WorkTaskController extends Controller
             ->get();
         $classRosters = ClassModel::rosterStudentsFor($classes);
 
-        // Theo flow BA, buổi bổ trợ do CM/Học vụ hoặc TA đảm nhận (không nhất thiết GV chính),
-        // nên picker bao gồm cả trợ giảng và học vụ bên cạnh các vai trò giáo viên.
+        // Buổi bổ trợ do trợ giảng đảm nhận (chủ dự án 18/10/2026); vẫn chọn được GV / Học vụ / Học thuật khi cần.
+        // Picker nhóm theo vai trò, Trợ giảng lên đầu; người nhiều vai trò nằm ở nhóm đầu tiên khớp.
         $teachers = User::where('is_active', true)
+            ->with('roles:id,name')
             ->whereHas('roles', fn ($query) => $query->whereIn('name', Roles::ACADEMIC))
             ->orderBy('name')
             ->get();
+        $pickerGroups = [
+            'Trợ giảng' => [Roles::ASSISTANT],
+            'Giáo viên' => [Roles::TEACHER_FULLTIME, Roles::TEACHER_PARTTIME],
+            'Học vụ / Học thuật' => [Roles::ACADEMIC_STAFF, Roles::ACADEMIC_LEAD],
+        ];
+        $groupOf = fn (User $u) => collect($pickerGroups)->search(fn ($roles) => $u->roles->pluck('name')->intersect($roles)->isNotEmpty());
+        $teacherGroups = collect($pickerGroups)->keys()
+            ->map(fn (string $label) => ['label' => $label, 'options' => Ui::options($teachers->filter(fn (User $u) => $groupOf($u) === $label)->values(), 'name')])
+            ->filter(fn ($g) => count($g['options']) > 0)
+            ->values();
 
-        $selectedSupport = $request->filled('support')
+        $selectedSupport = $canAssign && $request->filled('support')
             ? ClassReportStudentSupport::with('classReport')->whereDoesntHave('supportSession')->find($request->query('support'))
             : null;
         if ($selectedSupport && ! in_array($selectedSupport->resolvedClassId(), $visibleClassIds, true)) {
             $selectedSupport = null;
         }
+        $selectedLesson = $selectedSupport ? ($missedLessons->forSupports(collect([$selectedSupport]))[$selectedSupport->id] ?? null) : null;
 
         $canApprove = $user->can('work_task.approve');
 
         return Inertia::render('Tasks/SupportSessions', [
-            'pendingSupports' => $pendingSupports->through(fn (ClassReportStudentSupport $item) => [
+            'pendingSupports' => $pendingSupports?->through(fn (ClassReportStudentSupport $item) => [
                 'id' => $item->id,
                 'student' => $item->student?->name,
                 'class_name' => $item->classModel?->name ?? $item->classReport?->classModel?->name,
@@ -2293,6 +2319,7 @@ class WorkTaskController extends Controller
                 'source_label' => $item->source_label,
                 'reason' => $item->reason,
                 'action_plan' => $item->action_plan,
+                'missed' => $pendingLessons[$item->id] ?? null,
                 'date' => $item->created_at?->format('d/m/Y'),
             ]),
             'sessions' => $sessions->through(fn (SupportSession $session) => [
@@ -2302,14 +2329,21 @@ class WorkTaskController extends Controller
                 'source' => $session->supportItem?->source,
                 'source_label' => $session->supportItem?->source_label,
                 'reason' => $session->reason,
+                'missed_label' => $missedLabels[$session->missed_class_session_id]['label'] ?? null,
+                'lesson_content' => $session->lesson_content,
                 'date' => $session->session_date->format('d/m/Y'),
                 'time' => substr((string) $session->start_time, 0, 5).'-'.substr((string) $session->end_time, 0, 5),
                 'room' => $session->room,
                 'teacher' => $session->teacher?->name,
+                'is_mine' => (int) $session->teacher_id === (int) $user->id,
                 'status' => $session->status,
                 'status_label' => $session->status_label,
-                'can_complete' => $session->status !== 'completed' && ((int) $session->teacher_id === (int) $user->id || $canApprove),
+                'completion_note' => $session->completion_note,
+                'completed_at' => $session->completed_at?->format('H:i d/m/Y'),
+                'can_complete' => $session->status === 'scheduled' && ((int) $session->teacher_id === (int) $user->id || $canApprove),
             ]),
+            'canAssign' => $canAssign,
+            'mine' => $mine,
             'sources' => collect($sources)->map(fn ($label, $key) => ['key' => $key, 'label' => $label])->values(),
             'source' => $source,
             'classes' => Ui::options($classes, 'name'),
@@ -2319,7 +2353,7 @@ class WorkTaskController extends Controller
                 'class_id' => $c->id,
                 'options' => Ui::options($classRosters[$c->id], fn ($st) => "{$st->name} ({$st->code})"),
             ])->values(),
-            'teachers' => Ui::options($teachers, 'name'),
+            'teacherGroups' => $teacherGroups,
             'selectedSupport' => $selectedSupport ? [
                 'id' => $selectedSupport->id,
                 'student' => $selectedSupport->loadMissing('student')->student?->name,
@@ -2327,6 +2361,7 @@ class WorkTaskController extends Controller
                 'reason' => $selectedSupport->reason,
                 'class_id' => $selectedSupport->resolvedClassId(),
                 'student_id' => $selectedSupport->student_id,
+                'missed' => $selectedLesson,
             ] : null,
             'defaultDate' => now()->addDay()->format('Y-m-d'),
         ]);
@@ -2344,6 +2379,7 @@ class WorkTaskController extends Controller
             'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
             'room' => ['nullable', 'string', 'max:100'],
             'reason' => ['nullable', 'string', 'max:2000'],
+            'lesson_content' => ['nullable', 'string', 'max:5000'],
         ]);
         $class = ClassModel::findOrFail($validated['class_id']);
         abort_unless(ClassModel::query()->visibleTo($request->user())->whereKey($class->id)->exists(), 403, 'Lớp này nằm ngoài phạm vi bạn được quản lý.');
@@ -2357,6 +2393,10 @@ class WorkTaskController extends Controller
             if (empty($validated['reason'])) {
                 $validated['reason'] = $item->reason;
             }
+            // Học sinh vắng: gắn buổi gốc để người bổ trợ biết dạy lại buổi nào.
+            $validated['missed_class_session_id'] = $item->source === SupportListService::SOURCE_ATTENDANCE
+                ? StudentAttendance::whereKey($item->source_id)->value('class_session_id')
+                : null;
         }
 
         // Trùng lịch: bỏ qua buổi đã hủy; người dạy trùng nếu là GV / GVNN / trợ giảng của buổi khác.
@@ -2375,7 +2415,7 @@ class WorkTaskController extends Controller
             return redirect()->back()->withInput()->withErrors(['start_time' => 'Người dạy hoặc phòng học bị trùng lịch với buổi khác trong khung giờ này.']);
         }
 
-        DB::transaction(function () use ($validated, $class) {
+        $support = DB::transaction(function () use ($validated, $class) {
             $classSession = ClassSession::create([
                 'class_id' => $class->id,
                 'branch_id' => $class->branch_id,
@@ -2389,14 +2429,24 @@ class WorkTaskController extends Controller
                 'status' => 'scheduled',
                 'notes' => 'Buổi phụ đạo cho học viên #'.$validated['student_id'],
             ]);
-            SupportSession::create($validated + [
+
+            return SupportSession::create($validated + [
                 'scheduled_by' => Auth::id(),
                 'class_session_id' => $classSession->id,
                 'status' => 'scheduled',
             ]);
         });
 
-        return redirect()->route('tasks.support-sessions')->with('success', 'Đã xếp lịch phụ đạo và giữ chỗ giáo viên/phòng học.');
+        // Báo người bổ trợ (thường là trợ giảng) có buổi mới; tự xếp cho mình thì không cần báo.
+        if ((int) $support->teacher_id !== (int) Auth::id()) {
+            $support->loadMissing('student:id,name');
+            $this->notifyUser($support->teacher_id, 'support_session_assigned', 'Bạn được giao buổi bổ trợ',
+                ($support->student?->name ?? 'Học sinh').' · '.$class->name.' · '.$support->session_date->format('d/m/Y')
+                    .' '.substr((string) $support->start_time, 0, 5).'-'.substr((string) $support->end_time, 0, 5),
+                route('tasks.support-sessions', ['mine' => 1]), ['support_session_id' => $support->id]);
+        }
+
+        return redirect()->route('tasks.support-sessions')->with('success', 'Đã xếp buổi bổ trợ, giữ chỗ người dạy / phòng học và báo cho người bổ trợ.');
     }
 
     public function completeSupportSession(Request $request, int $id)
@@ -2404,7 +2454,11 @@ class WorkTaskController extends Controller
         $session = SupportSession::with('classSession')->findOrFail($id);
         abort_unless((int) $session->teacher_id === (int) Auth::id() || $request->user()->can('work_task.approve'), 403);
         abort_if($session->status === 'completed', 422, 'Buổi phụ đạo đã hoàn thành.');
-        $validated = $request->validate(['completion_note' => ['nullable', 'string', 'max:2000']]);
+        // Tick hoàn thành phải kèm nhận xét buổi bổ trợ (chủ dự án 18/10/2026).
+        $validated = $request->validate(
+            ['completion_note' => ['required', 'string', 'max:2000']],
+            ['completion_note.required' => 'Nhập nhận xét buổi bổ trợ trước khi hoàn thành.'],
+        );
         if (PayrollPeriod::isLockedFor($session->session_date)) {
             $message = PayrollPeriod::lockedMessage($session->session_date);
 
@@ -2429,7 +2483,14 @@ class WorkTaskController extends Controller
             );
         });
 
-        return redirect()->back()->with('success', 'Đã hoàn thành buổi phụ đạo; bảng công được chuyển sang chờ duyệt.');
+        if ($session->scheduled_by && (int) $session->scheduled_by !== (int) Auth::id()) {
+            $session->loadMissing(['student:id,name', 'classModel:id,name']);
+            $this->notifyUser($session->scheduled_by, 'support_session_done', 'Đã bổ trợ xong',
+                ($session->student?->name ?? 'Học sinh').' · '.($session->classModel?->name ?? '').': '.Str::limit($validated['completion_note'], 120),
+                route('tasks.support-sessions'), ['support_session_id' => $session->id]);
+        }
+
+        return redirect()->back()->with('success', 'Đã hoàn thành buổi bổ trợ và lưu nhận xét; bảng công được chuyển sang chờ duyệt.');
     }
 
     /**

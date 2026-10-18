@@ -36,7 +36,7 @@ class InlineFormModalTest extends TestCase
     public function test_support_session_form_lives_in_a_closed_modal(): void
     {
         $this->actingAs($this->admin)->get(route('tasks.support-sessions'))->assertOk()
-            ->assertSee('Xếp buổi phụ đạo')
+            ->assertSee('Xếp buổi bổ trợ')
             ->assertSee('id="new-support-session-form"', false)
             ->assertInertia(fn ($page) => $page->component('Tasks/SupportSessions')->where('selectedSupport', null));
 

@@ -175,7 +175,7 @@ class BpmnWorkflowIntegrationTest extends TestCase
         $support = SupportSession::firstOrFail();
         $this->assertSame($assistant->id, $support->teacher_id);
 
-        $this->actingAs($assistant)->post(route('tasks.support-sessions.complete', $support->id))->assertRedirect();
+        $this->actingAs($assistant)->post(route('tasks.support-sessions.complete', $support->id), ['completion_note' => 'HS đã nắm bài'])->assertRedirect();
         $this->assertDatabaseHas('teacher_timesheets', ['user_id' => $assistant->id, 'type' => '1on1', 'status' => 'pending_review']);
     }
 
@@ -441,7 +441,7 @@ class BpmnWorkflowIntegrationTest extends TestCase
             'room' => 'P102', 'reason' => 'Bù buổi vắng',
         ])->assertRedirect();
         $support = SupportSession::firstOrFail();
-        $this->actingAs($this->teacher)->post(route('tasks.support-sessions.complete', $support->id))->assertRedirect();
+        $this->actingAs($this->teacher)->post(route('tasks.support-sessions.complete', $support->id), ['completion_note' => 'HS đã nắm bài'])->assertRedirect();
         $this->assertDatabaseHas('teacher_timesheets', ['class_session_id' => $support->class_session_id, 'type' => '1on1', 'status' => 'pending_review']);
         $this->assertSame('completed', ClassSession::find($support->class_session_id)->status);
 

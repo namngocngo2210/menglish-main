@@ -212,6 +212,8 @@ final class SidebarMenu
                     ['label' => 'Danh sách lớp', 'route' => 'classes.index', 'active' => ['classes.index', 'classes.show', 'classes.create', 'classes.edit', 'classes.profile', 'classes.academic-*']],
                     // Tên tab = tiêu đề trang; tránh trùng với tab "Lịch & buổi học" / "Điểm danh" bên trong Trang lớp.
                     ['label' => 'Lịch học các lớp', 'route' => 'tasks.classes-dashboard'],
+                    // Học bù (chủ dự án 18/10/2026): học sinh nghỉ hiện ở đây để Học vụ xếp buổi bổ trợ, chuyển trợ giảng.
+                    ['label' => 'Học bù & bổ trợ', 'route' => 'tasks.support-sessions'],
                 ]),
                 // Nút chung mọi tab Lớp học (trước nằm ở menu "Tạo mới" trên topbar); quyền theo middleware can:class.create.
                 'actions' => [
@@ -432,6 +434,8 @@ final class SidebarMenu
                     ['label' => 'Chấm bài nộp của lớp', 'route' => 'portal.teacher.submissions', 'active' => ['portal.teacher.submissions*']],
                     ['label' => 'Khách học thử', 'route' => 'teacher.trial-guests', 'active' => ['teacher.trial-guests*']],
                     ['label' => 'Nhiệm vụ hôm nay của TA', 'route' => 'portal.ta-tasks', 'can' => ['work_task.view']],
+                    // Trợ giảng / GV được giao buổi bổ trợ: tick hoàn thành và nhận xét buổi.
+                    ['label' => 'Buổi bổ trợ của tôi', 'route' => 'tasks.support-sessions', 'query' => ['mine' => 1]],
                 ]),
             ],
             [

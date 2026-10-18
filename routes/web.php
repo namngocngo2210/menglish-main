@@ -36,6 +36,7 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\RoomController;
 use App\Http\Controllers\RoomTypeController;
 use App\Http\Controllers\SepayWebhookController;
+use App\Http\Controllers\StaffImportController;
 use App\Http\Controllers\StaffReportController;
 use App\Http\Controllers\StudentPortalController;
 use App\Http\Controllers\StudentProfileController;
@@ -563,6 +564,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/', 'index')->middleware('can:user.view')->name('index');
         Route::get('/create', 'create')->middleware('can:user.create')->name('create');
         Route::post('/', 'store')->middleware('can:user.create')->name('store');
+        // Nhập nhân sự từ Excel (đặt trước /{user} để không bị hiểu là mã người dùng).
+        Route::get('/import', [StaffImportController::class, 'index'])->middleware('can:user.create')->name('import');
+        Route::post('/import', [StaffImportController::class, 'preview'])->middleware('can:user.create')->name('import.store');
+        Route::post('/import/confirm', [StaffImportController::class, 'confirm'])->middleware('can:user.create')->name('import.confirm');
+        Route::get('/import/template', [StaffImportController::class, 'template'])->middleware('can:user.create')->name('import.template');
         Route::get('/{user}', 'show')->middleware('can:user.view')->name('show');
         Route::get('/{user}/edit', 'edit')->middleware('can:user.update')->name('edit');
         Route::put('/{user}', 'update')->middleware('can:user.update')->name('update');
