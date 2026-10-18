@@ -388,11 +388,11 @@ class SupportTicketController extends Controller
         abort_if(str_contains($path, '..'), 404);
 
         if (str_starts_with($path, 'uploads/')) {
-            // Tương thích dữ liệu cũ lưu trong public/uploads.
-            $absolute = public_path($path);
-            abort_unless(is_file($absolute), 404);
+            // Tương thích dữ liệu cũ lưu trong public/uploads (disk 'uploads').
+            $legacyPath = substr($path, strlen('uploads/'));
+            abort_unless(Storage::disk('uploads')->exists($legacyPath), 404);
 
-            return response()->file($absolute, ['X-Content-Type-Options' => 'nosniff']);
+            return Storage::disk('uploads')->response($legacyPath, basename($legacyPath), ['X-Content-Type-Options' => 'nosniff']);
         }
 
         abort_unless(Storage::disk(self::ATTACHMENT_DISK)->exists($path), 404);

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DeployHookController;
+use App\Http\Controllers\UploadedFileController;
 use App\Http\Middleware\AuditOperationMiddleware;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -21,6 +22,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // mà chính hook là thứ chạy migrate tạo ra các bảng đó.
         then: function () {
             Route::post('_deploy/hook', DeployHookController::class)->name('deploy.hook');
+            // File công khai trên R2 (UPLOAD_STORAGE=r2). Ngoài nhóm "web": mỗi ảnh/audio không mở phiên DB.
+            Route::get('storage/{path}', [UploadedFileController::class, 'storage'])->where('path', '.*')->name('uploaded-files.storage');
+            Route::get('uploads/{path}', [UploadedFileController::class, 'uploads'])->where('path', '.*')->name('uploaded-files.uploads');
         },
     )
     ->withMiddleware(function (Middleware $middleware) {

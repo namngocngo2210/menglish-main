@@ -254,14 +254,15 @@ class PlacementTestController extends Controller
     {
         abort_unless($request->user()->can('placement_test.create') || $request->user()->can('placement_test.update'), 403);
         $request->validate(['file' => 'required|file|max:20480'], ['file.max' => 'File PDF tối đa 20 MB.']);
-        $path = SafeUploadService::store($request->file('file'), 'placement_tests/pdf/'.now()->format('Y/m'), ['pdf'], 'file');
-        $pages = PlacementPdfAnswerSheet::extractPages(Storage::disk('public')->path($path));
+        $file = $request->file('file');
+        SafeUploadService::extensionFor($file, ['pdf'], 'file');
+        // Đọc chữ từ file tạm của request (disk có thể là R2, không có đường dẫn trên máy).
+        $pages = PlacementPdfAnswerSheet::extractPages($file->getRealPath());
         if ($request->boolean('answers_only')) {
-            // File đáp án riêng: chỉ đọc đáp án, không giữ file trên disk công khai.
-            Storage::disk('public')->delete($path);
-
+            // File đáp án riêng: chỉ đọc đáp án, không lưu lên disk công khai.
             return response()->json(['answers' => PlacementPdfAnswerSheet::parseKey(PlacementPdfAnswerSheet::keyText(implode("\n", $pages)))]);
         }
+        $path = SafeUploadService::store($file, 'placement_tests/pdf/'.now()->format('Y/m'), ['pdf'], 'file');
 
         return response()->json([
             'pdf_path' => $path,
@@ -294,7 +295,7 @@ class PlacementTestController extends Controller
         if (! preg_match('#^placement_tests/pdf/[\w/-]+\.pdf$#', $path) || ! Storage::disk('public')->exists($path)) {
             throw ValidationException::withMessages(['pdf_path' => 'File đề PDF không hợp lệ hoặc đã bị xoá — hãy tải lại file PDF.']);
         }
-        if ($path !== $currentPath && ($page = PlacementPdfAnswerSheet::answerKeyPage(PlacementPdfAnswerSheet::extractPages(Storage::disk('public')->path($path))))) {
+        if ($path !== $currentPath && ($page = PlacementPdfAnswerSheet::answerKeyPage(PlacementPdfAnswerSheet::extractPagesFromDisk('public', $path)))) {
             throw ValidationException::withMessages(['pdf_path' => "File đề PDF còn phần đáp án (trang {$page}) — thí sinh sẽ thấy đáp án. Hãy bấm \"Đổi file\" và tải file đề không có trang đáp án; phiếu và đáp án đã đọc được vẫn giữ nguyên."]);
         }
 

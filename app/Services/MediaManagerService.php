@@ -3,12 +3,13 @@
 namespace App\Services;
 
 use Carbon\Carbon;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Symfony\Component\Finder\SplFileInfo;
+use League\Flysystem\FileAttributes;
 
 class MediaManagerService
 {
@@ -30,22 +31,21 @@ class MediaManagerService
      */
     public const MEDIA_DIRECTORY = 'uploads/media';
 
-    /**
-     * Danh sách các thư mục gốc được phép quản lý file (whitelist).
-     */
-    protected array $managedRoots = [];
+    /** Disk chứa thư mục /uploads (máy chủ hoặc R2 khi UPLOAD_STORAGE=r2). */
+    public const DISK = 'uploads';
 
-    public function __construct()
+    /** Thư mục gốc của Media Manager trên disk 'uploads'. */
+    public const DISK_ROOT = 'media';
+
+    protected function disk(): Filesystem
     {
-        $this->managedRoots = [
-            'media' => public_path(self::MEDIA_DIRECTORY),
-        ];
+        return Storage::disk(self::DISK);
     }
 
-    /** Đường dẫn tuyệt đối tới thư mục gốc của Media Manager (có thể kèm thư mục con đã chuẩn hóa). */
+    /** Đường dẫn trên disk tới thư mục gốc Media Manager (có thể kèm thư mục con đã chuẩn hóa). */
     public function mediaRootPath(string $relative = ''): string
     {
-        return public_path(self::MEDIA_DIRECTORY.($relative !== '' ? '/'.$relative : ''));
+        return self::DISK_ROOT.($relative !== '' ? '/'.$relative : '');
     }
 
     /**
@@ -64,52 +64,33 @@ class MediaManagerService
     }
 
     /**
-     * Quét và lấy toàn bộ danh sách file từ đĩa vật lý
+     * Lấy toàn bộ danh sách file trong thư mục Media (một lần liệt kê, kèm dung lượng và thời gian).
      */
     public function getAllFiles(): Collection
     {
-        $files = collect();
+        return $this->listFiles(self::DISK_ROOT)
+            ->map(fn (FileAttributes $file) => $this->buildFileMetadata($file->path(), $file->fileSize() ?? 0, $file->lastModified() ?? time()))
+            ->values();
+    }
 
-        foreach ($this->managedRoots as $rootKey => $rootPath) {
-            if (! File::isDirectory($rootPath)) {
-                continue;
-            }
-
-            $allFiles = File::allFiles($rootPath);
-            foreach ($allFiles as $file) {
-                if ($file->getFilename() === '.gitignore' || $file->getFilename() === '.DS_Store') {
-                    continue;
-                }
-
-                $meta = $this->buildFileMetadata($file, $rootKey, $rootPath);
-                if ($meta) {
-                    $files->push($meta);
-                }
-            }
-        }
-
-        return $files;
+    /** @return Collection<int, FileAttributes> */
+    protected function listFiles(string $directory): Collection
+    {
+        return collect($this->disk()->listContents($directory, true))
+            ->filter(fn ($item) => $item instanceof FileAttributes
+                && ! in_array(basename($item->path()), ['.gitignore', '.DS_Store'], true));
     }
 
     /**
-     * Xây dựng metadata cho từng file
+     * Xây dựng metadata cho từng file ($path tính từ gốc disk 'uploads', vd. media/2026/10/a.png)
      */
-    protected function buildFileMetadata(SplFileInfo $file, string $rootKey, string $rootPath): ?array
+    protected function buildFileMetadata(string $path, int $size, int $mtime): array
     {
-        $absPath = $file->getRealPath();
-        if (! $absPath || ! File::exists($absPath)) {
-            return null;
-        }
-
-        $extension = strtolower($file->getExtension());
-        $size = $file->getSize();
-        $mtime = $file->getMTime();
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
         $createdAt = Carbon::createFromTimestamp($mtime);
 
-        // Tính toán URL (tính từ public/) và thư mục (tính từ gốc Media Manager)
-        $realRoot = realpath($rootPath) ?: $rootPath;
-        $relFromRoot = str_replace('\\', '/', ltrim(substr($absPath, strlen($realRoot)), DIRECTORY_SEPARATOR));
-        $url = asset(self::MEDIA_DIRECTORY.'/'.$relFromRoot);
+        // Thư mục tính từ gốc Media Manager
+        $relFromRoot = Str::after($path, self::DISK_ROOT.'/');
         $folder = trim(dirname($relFromRoot), '/');
         if ($folder === '.') {
             $folder = '';
@@ -118,16 +99,16 @@ class MediaManagerService
         $type = $this->classifyFileType($extension);
 
         return [
-            'id' => base64_encode($absPath),
-            'filename' => $file->getFilename(),
+            'id' => base64_encode($path),
+            'filename' => basename($path),
             'extension' => $extension ?: 'file',
             'type' => $type,
             'size' => $size,
             'size_human' => $this->formatBytes($size),
             'directory' => $folder,
-            'absolute_path' => $absPath,
-            'relative_path' => str_replace('\\', '/', str_replace(base_path().DIRECTORY_SEPARATOR, '', $absPath)),
-            'url' => $url,
+            'path' => $path,
+            'relative_path' => 'uploads/'.$path,
+            'url' => $this->disk()->url($path),
             'created_at' => $createdAt,
             'created_at_human' => $createdAt->format('d/m/Y H:i'),
             'is_image' => $type === 'image',
@@ -283,47 +264,36 @@ class MediaManagerService
     }
 
     /**
-     * Xóa vật lý 1 file trên đĩa
+     * Xóa vĩnh viễn 1 file
      */
     public function deletePhysicalFile(string $encodedId): array
     {
-        $realPath = base64_decode($encodedId);
+        $path = $this->resolveManagedFile($encodedId);
 
-        if (! $realPath || ! File::exists($realPath)) {
+        if (! $path) {
             return [
                 'success' => false,
-                'message' => 'Tệp tin không tồn tại hoặc đã bị xóa trước đó!',
+                'message' => 'Tệp tin không tồn tại, đã bị xóa trước đó hoặc nằm ngoài thư mục được phép quản lý!',
             ];
         }
 
-        // Bảo mật: Kiểm tra path có nằm trong các thư mục được phép quản lý không
-        if (! $this->isPathAllowed($realPath)) {
-            return [
-                'success' => false,
-                'message' => 'Từ chối truy cập: Đường dẫn tệp tin không nằm trong thư mục cho phép quản lý!',
-            ];
-        }
+        $filename = basename($path);
+        $size = $this->disk()->size($path);
 
-        $filename = basename($realPath);
-        $size = File::size($realPath);
-
-        // XÓA VẬT LÝ TRÊN ĐĨA CỨNG
-        $deleted = File::delete($realPath);
-
-        if ($deleted) {
+        if ($this->disk()->delete($path)) {
             // Tự động dọn dẹp thư mục cha nếu rỗng
-            $this->cleanEmptyDirectory(dirname($realPath));
+            $this->cleanEmptyDirectory(dirname($path));
 
             return [
                 'success' => true,
-                'message' => "Đã xóa vĩnh viễn tệp '{$filename}' ({$this->formatBytes($size)}) khỏi đĩa cứng!",
+                'message' => "Đã xóa vĩnh viễn tệp '{$filename}' ({$this->formatBytes($size)})!",
                 'freed_bytes' => $size,
             ];
         }
 
         return [
             'success' => false,
-            'message' => "Không thể xóa tệp tin '{$filename}' do quyền truy cập file hệ thống!",
+            'message' => "Không thể xóa tệp tin '{$filename}'!",
         ];
     }
 
@@ -357,36 +327,25 @@ class MediaManagerService
     }
 
     /**
-     * Kiểm tra tính an toàn của đường dẫn file (Tránh Directory Traversal)
+     * Kiểm tra đường dẫn (tính từ gốc disk) nằm trong thư mục Media (tránh Directory Traversal)
      */
-    public function isPathAllowed(string $realPath): bool
+    public function isPathAllowed(string $path): bool
     {
-        $realPath = realpath($realPath) ?: $realPath;
-
-        foreach ($this->managedRoots as $rootPath) {
-            $realRoot = realpath($rootPath) ?: $rootPath;
-            if ($realPath === $realRoot || str_starts_with($realPath, $realRoot.DIRECTORY_SEPARATOR)) {
-                return true;
-            }
-        }
-
-        return false;
+        return str_starts_with($path, self::DISK_ROOT.'/')
+            && ! str_contains($path, "\0")
+            && ! in_array('..', explode('/', $path), true)
+            && ! in_array('.', explode('/', $path), true);
     }
 
-    /** Resolve an encoded media id only when it points to a managed file. */
+    /** Đổi id (base64 của đường dẫn trên disk) thành đường dẫn, chỉ khi là file trong thư mục Media. */
     public function resolveManagedFile(string $encodedId): ?string
     {
         $decoded = base64_decode($encodedId, true);
-        if ($decoded === false || str_contains($decoded, "\0")) {
+        if ($decoded === false || ! $this->isPathAllowed($decoded) || ! $this->disk()->fileExists($decoded)) {
             return null;
         }
 
-        $realPath = realpath($decoded);
-        if ($realPath === false || ! File::isFile($realPath) || ! $this->isPathAllowed($realPath)) {
-            return null;
-        }
-
-        return $realPath;
+        return $decoded;
     }
 
     /** Chuẩn hóa đường dẫn người dùng nhập, tính từ thư mục gốc Media Manager (public/uploads/media). */
@@ -411,23 +370,16 @@ class MediaManagerService
     }
 
     /**
-     * Dọn dẹp thư mục rỗng
+     * Dọn dẹp thư mục rỗng (không xóa thư mục gốc Media)
      */
     protected function cleanEmptyDirectory(string $dirPath): void
     {
-        if (! File::isDirectory($dirPath)) {
+        if (! $this->isPathAllowed($dirPath)) {
             return;
         }
 
-        // Không xóa thư mục gốc
-        foreach ($this->managedRoots as $rootPath) {
-            if ($dirPath === $rootPath) {
-                return;
-            }
-        }
-
-        if (count(File::allFiles($dirPath)) === 0 && count(File::directories($dirPath)) === 0) {
-            @rmdir($dirPath);
+        if ($this->disk()->allFiles($dirPath) === [] && $this->disk()->directories($dirPath) === []) {
+            $this->disk()->deleteDirectory($dirPath);
         }
     }
 
@@ -442,17 +394,15 @@ class MediaManagerService
         // Xác định thư mục lưu trữ: uploads/media/YYYY/MM hoặc uploads/media/custom_folder
         $now = Carbon::now();
         if (! $targetFolder || $targetFolder === 'auto_date' || $targetFolder === 'all') {
-            $relDir = self::MEDIA_DIRECTORY.'/'.$now->format('Y').'/'.$now->format('m');
+            $cleanFolder = $now->format('Y').'/'.$now->format('m');
         } else {
             $cleanFolder = $this->normalizeUploadDirectory($targetFolder);
             if ($cleanFolder === null) {
                 return ['success' => false, 'uploaded' => [], 'count' => 0, 'errors' => ['Thư mục đích không hợp lệ.'], 'message' => 'Thư mục đích không hợp lệ.'];
             }
-            $relDir = self::MEDIA_DIRECTORY.($cleanFolder !== '' ? '/'.$cleanFolder : '');
         }
-
-        $destDir = public_path($relDir);
-        File::ensureDirectoryExists($destDir);
+        $relDir = self::MEDIA_DIRECTORY.($cleanFolder !== '' ? '/'.$cleanFolder : '');
+        $destDir = $this->mediaRootPath($cleanFolder);
 
         foreach ($uploadedFiles as $file) {
             if (! $file instanceof UploadedFile || ! $file->isValid()) {
@@ -477,14 +427,11 @@ class MediaManagerService
             }
 
             $fileName = $slugName.'-'.$now->format('YmdHis').'-'.Str::random(5).($ext ? '.'.$ext : '');
-            $filePath = $file->move($destDir, $fileName);
+            $size = (int) $file->getSize();
+            $path = $this->disk()->putFileAs($destDir, $file, $fileName);
 
-            $absPath = $filePath->getRealPath();
-            $fileInfo = new SplFileInfo($absPath, $relDir, $relDir.'/'.$fileName);
-            $meta = $this->buildFileMetadata($fileInfo, 'media', $this->mediaRootPath());
-
-            if ($meta) {
-                $savedFiles[] = $meta;
+            if ($path) {
+                $savedFiles[] = $this->buildFileMetadata($path, $size, $now->getTimestamp());
             }
         }
 
@@ -509,31 +456,19 @@ class MediaManagerService
             return collect();
         }
         $baseUploads = $this->mediaRootPath($cleanRel);
-
-        if (! File::isDirectory($baseUploads)) {
-            return collect();
-        }
-
-        $directories = File::directories($baseUploads);
         $folders = collect();
 
-        foreach ($directories as $dir) {
+        foreach ($this->disk()->directories($baseUploads) as $dir) {
             $dirName = basename($dir);
             $dirRel = ($cleanRel ? $cleanRel.'/' : '').$dirName;
-            $allFiles = File::allFiles($dir);
-            $totalSize = 0;
-            foreach ($allFiles as $f) {
-                $totalSize += $f->getSize();
-            }
+            $allFiles = $this->listFiles($dir);
 
             $folders->push([
                 'name' => $dirName,
                 'path' => $dirRel,
-                'full_path' => $dir,
-                'files_count' => count($allFiles),
-                'total_size' => $totalSize,
+                'files_count' => $allFiles->count(),
+                'total_size' => $totalSize = $allFiles->sum(fn (FileAttributes $f) => $f->fileSize() ?? 0),
                 'total_size_human' => $this->formatBytes($totalSize),
-                'mtime' => Carbon::createFromTimestamp(filemtime($dir))->format('d/m/Y H:i'),
             ]);
         }
 
@@ -557,13 +492,13 @@ class MediaManagerService
             return ['success' => false, 'message' => 'Thư mục cha không hợp lệ!'];
         }
         $relPath = self::MEDIA_DIRECTORY.($cleanParent ? '/'.$cleanParent : '').'/'.$cleanName;
-        $targetDir = public_path($relPath);
+        $targetDir = $this->mediaRootPath(($cleanParent ? $cleanParent.'/' : '').$cleanName);
 
-        if (File::isDirectory($targetDir)) {
+        if ($this->disk()->directoryExists($targetDir)) {
             return ['success' => false, 'message' => "Thư mục '{$cleanName}' đã tồn tại!"];
         }
 
-        File::makeDirectory($targetDir, 0755, true, true);
+        $this->disk()->makeDirectory($targetDir);
 
         return [
             'success' => true,
@@ -587,12 +522,12 @@ class MediaManagerService
         }
 
         $targetDir = $this->mediaRootPath($cleanRel);
-        if (! File::isDirectory($targetDir)) {
+        if (! $this->disk()->directoryExists($targetDir)) {
             return ['success' => false, 'message' => 'Thư mục không tồn tại hoặc đã bị xóa trước đó.'];
         }
 
-        $filesCount = count(File::allFiles($targetDir));
-        File::deleteDirectory($targetDir);
+        $filesCount = count($this->disk()->allFiles($targetDir));
+        $this->disk()->deleteDirectory($targetDir);
 
         return [
             'success' => true,
@@ -610,16 +545,14 @@ class MediaManagerService
             return ['success' => false, 'moved_count' => 0, 'message' => 'Thư mục đích không hợp lệ!'];
         }
         $destDir = $this->mediaRootPath($cleanTarget);
-        File::ensureDirectoryExists($destDir);
 
         $movedCount = 0;
         foreach ($encodedIds as $id) {
-            $realPath = $this->resolveManagedFile($id);
-            if ($realPath) {
-                $filename = basename($realPath);
-                $newPath = $destDir.'/'.$filename;
-                if ($realPath !== $newPath) {
-                    File::move($realPath, $newPath);
+            $path = $this->resolveManagedFile($id);
+            if ($path) {
+                $newPath = $destDir.'/'.basename($path);
+                if ($path !== $newPath) {
+                    $this->disk()->move($path, $newPath);
                     $movedCount++;
                 }
             }

@@ -23,7 +23,8 @@ class SafeUploadService
     public const VIDEO = ['mp4', 'mov', 'webm', 'm4v', '3gp'];
 
     /**
-     * Lưu file vào thư mục $directory trên disk $disk. Trả về đường dẫn tương đối trên disk.
+     * Lưu file vào thư mục $directory trên disk $disk ('public', 'local' hoặc 'uploads'; trên R2 khi
+     * UPLOAD_STORAGE=r2). Trả về đường dẫn tương đối trên disk.
      *
      * @param  string[]  $allowed  đuôi file cho phép (theo nội dung)
      *
@@ -34,20 +35,6 @@ class SafeUploadService
         $extension = self::extensionFor($file, $allowed, $field);
 
         return $file->storeAs($directory, self::randomName($extension), $disk);
-    }
-
-    /**
-     * Chuyển file vào một thư mục vật lý (vd. public/uploads/...). Trả về tên file đã lưu.
-     *
-     * @throws ValidationException
-     */
-    public static function moveTo(UploadedFile $file, string $absoluteDirectory, array $allowed, string $field = 'file'): string
-    {
-        $extension = self::extensionFor($file, $allowed, $field);
-        $name = self::randomName($extension);
-        $file->move($absoluteDirectory, $name);
-
-        return $name;
     }
 
     /**
