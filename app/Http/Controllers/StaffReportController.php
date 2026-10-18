@@ -18,6 +18,7 @@ use App\Models\WorkTask;
 use App\Services\BranchStaff;
 use App\Services\Reports\AcademicPeriodMetrics;
 use App\Services\Reports\DailyReportMetrics;
+use App\Services\Reports\TeacherMonthlyMetrics;
 use App\Services\Reports\WeeklyReportMetrics;
 use App\Support\Approvals\AdminOnlyApprovals;
 use App\Support\DailyReportDue;
@@ -1226,6 +1227,8 @@ class StaffReportController extends Controller
      * Báo cáo tháng của giáo viên (mockup 03/17 "Báo cáo chung của giáo viên"): báo cáo chấm công tháng (ghi chú) + báo cáo giảng dạy
      * theo từng lớp (A. Học thuật, B. Vận hành lớp, C. Chất lượng lớp) và nhận xét chung tháng (tiến độ, khó khăn, đề xuất — 04/10/2026).
      * Chuyên cần / bài tập gợi ý sẵn từ số liệu lớp trong tháng. Lưu nháp được; nộp rồi thì lưu lại là cập nhật.
+     * Từ 17/10/2026: số liệu tự động của tháng (TeacherMonthlyMetrics, chụp lại lúc lưu), học sinh cần chú ý và task follow-up theo
+     * từng lớp thay cho ô "Đề xuất hỗ trợ từ quản lý" — cần ai giúp thì giao task thẳng cho người đó.
      */
     public function teacherMonthly(Request $request): Response|RedirectResponse
     {
@@ -1241,6 +1244,8 @@ class StaffReportController extends Controller
             ->selectRaw('class_id, count(*) as total')->groupBy('class_id')->pluck('total', 'class_id');
         $classes = collect($quality->classMetrics($quality->classesOf(Auth::user())))
             ->map(fn (array $c) => [...$c, 'sessions_done' => (int) ($sessions[$c['id']] ?? 0)])->all();
+        $kept = $report?->data['auto'] ?? null;
+        $live = ! $kept || $request->boolean('refresh');
 
         return Inertia::render('Reports/TeacherMonthly', [
             'tabs' => $this->reportTabs(Auth::user(), 'teacher_monthly'),
@@ -1266,6 +1271,11 @@ class StaffReportController extends Controller
             ],
             'proposeUrl' => Route::has('syllabus.teacher-propose') && Auth::user()->can('syllabus.propose_adjustment')
                 ? route('syllabus.teacher-propose') : null,
+            'auto' => $live ? TeacherMonthlyMetrics::compute(Auth::user(), $month) : $kept,
+            'live' => $live,
+            'sectionTasks' => (object) $this->sectionTasks($report, 'teacher_monthly', $month),
+            'assignees' => $this->taskAssignees(),
+            'today' => today()->toDateString(),
             'history' => $this->structuredHistory('teacher_monthly', fn (string $key) => ReportPeriod::monthLabel($key), 'month'),
             'legacy' => $this->legacyReports('monthly'),
         ]);
@@ -1288,16 +1298,23 @@ class StaffReportController extends Controller
             'classes.*.notes' => ['nullable', 'array'],
             'classes.*.notes.*' => ['nullable', 'string', 'max:1000'],
             ...collect(self::TEACHER_CLASS_TEXTS)->keys()->mapWithKeys(fn ($f) => ["classes.*.{$f}" => ['nullable', 'string', 'max:5000']])->all(),
-        ], ['classes.*.sessions.min' => 'Số buổi không âm.']);
+            'refresh' => ['nullable', 'boolean'],
+            ...self::TASK_RULES,
+        ], ['classes.*.sessions.min' => 'Số buổi không âm.', 'tasks.*.due_date.after_or_equal' => 'Hạn xử lý phải từ hôm nay trở đi.']);
 
         // Chỉ nhận lớp giáo viên đang giữ trong tháng báo cáo.
         $quality = new TeachingQuality($data['month']);
         $classes = $quality->classesOf(Auth::user())->keyBy('id');
+        $existing = $this->structuredReport('teacher_monthly', $data['month']);
+        // Task theo lớp: khối là lớp mình giữ, lớp của task lấy theo khối.
+        $tasks = collect($data['tasks'] ?? [])->map(fn (array $t) => [...$t,
+            'class_id' => preg_match('/^class_(\d+)$/', (string) ($t['section'] ?? ''), $m) ? (int) $m[1] : ($t['class_id'] ?? null)])->all();
+        $this->checkTasks($tasks, $classes->keys()->map(fn ($id) => TeacherMonthlyMetrics::classKey((int) $id))->all());
         $general = collect(self::TEACHER_GENERAL_FIELDS)->keys()
             ->mapWithKeys(fn ($f) => [$f => filled($data['general'][$f] ?? null) ? $data['general'][$f] : null])->all();
         $classData = collect($data['classes'] ?? [])
             ->filter(fn ($row, $id) => $classes->has((int) $id))
-            ->map(function (array $row) use ($checks) {
+            ->map(function (array $row, $id) use ($checks, $existing) {
                 $clean = [
                     'sessions' => is_numeric($row['sessions'] ?? null) ? (int) $row['sessions'] : null,
                     ...collect(self::TEACHER_CHOICES)->keys()->mapWithKeys(fn ($f) => [$f => filled($row[$f] ?? null) ? $row[$f] : null])->all(),
@@ -1306,6 +1323,8 @@ class StaffReportController extends Controller
                         ->mapWithKeys(fn ($k) => [$k => filled($row['notes'][$k] ?? null) ? trim($row['notes'][$k]) : null])->all(),
                     ...collect(self::TEACHER_CLASS_TEXTS)->keys()->mapWithKeys(fn ($f) => [$f => filled($row[$f] ?? null) ? $row[$f] : null])->all(),
                 ];
+                // "Đề xuất hỗ trợ từ quản lý" đã thay bằng task; báo cáo cũ có ô này thì giữ nguyên.
+                $clean['support_note'] ??= $existing?->data['classes'][$id]['support_note'] ?? null;
                 $clean['need_support'] = $clean['support_note'] !== null;
 
                 return $clean;
@@ -1313,20 +1332,41 @@ class StaffReportController extends Controller
             ->reject(fn (array $row) => collect($row)->except(['checks', 'notes', 'need_support'])->filter(fn ($v) => $v !== null)->isEmpty()
                 && ! in_array(true, $row['checks'], true) && collect($row['notes'])->filter()->isEmpty())
             ->all();
-        if (collect($general)->filter()->isEmpty() && $classData === []) {
+        if (collect($general)->filter()->isEmpty() && $classData === [] && $tasks === []) {
             throw ValidationException::withMessages(['general' => 'Nhập ít nhất một mục của báo cáo.']);
         }
 
-        $lines = [$this->narrativeText($general, self::TEACHER_GENERAL_FIELDS)];
-        foreach ($classData as $id => $row) {
-            $lines[] = 'Lớp '.$classes->get((int) $id)->name.":\n".$this->teacherClassText($row, $checks);
+        $kept = $existing?->data['auto'] ?? null;
+        $snapshot = $kept && ! $request->boolean('refresh') ? $kept : TeacherMonthlyMetrics::compute(Auth::user(), $data['month']);
+        $lines = [DailyReportMetrics::text(['sections' => ['work' => $snapshot['work']]]), $this->narrativeText($general, self::TEACHER_GENERAL_FIELDS)];
+        foreach ($classes as $id => $class) {
+            $auto = $snapshot['classes'][TeacherMonthlyMetrics::classKey((int) $id)] ?? null;
+            $text = trim(($auto ? collect(explode("\n", DailyReportMetrics::text(['sections' => ['class' => $auto]])))->slice(1)->implode("\n") : '')
+                ."\n".(isset($classData[$id]) ? $this->teacherClassText($classData[$id], $checks) : ''));
+            if ($text !== '') {
+                $lines[] = 'Lớp '.$class->name.":\n".$text;
+            }
         }
-        $existing = $this->structuredReport('teacher_monthly', $data['month']);
         // Đã nộp thì "Lưu nháp" không kéo báo cáo về nháp.
         $status = ($data['intent'] ?? 'submit') === 'draft' && $existing?->status !== 'submitted' ? 'draft' : 'submitted';
         [$from] = ReportPeriod::monthRange($data['month']);
-        $this->saveStructured('teacher_monthly', $data['month'], 'Báo cáo giảng dạy tháng — '.ReportPeriod::monthLabel($data['month']),
-            $from->toDateString(), ['general' => $general, 'classes' => $classData], trim(implode("\n\n", array_filter($lines))), $status);
+        $content = trim(implode("\n\n", array_filter($lines)));
+        DB::transaction(function () use ($data, $from, $existing, $general, $classData, $snapshot, $content, $status, $tasks) {
+            $taskIds = $this->reportTaskIds($existing?->data ?? []);
+            $report = $this->saveStructured('teacher_monthly', $data['month'], 'Báo cáo giảng dạy tháng — '.ReportPeriod::monthLabel($data['month']),
+                $from->toDateString(), [
+                    'general' => $general,
+                    'classes' => $classData,
+                    'auto' => ['work' => $snapshot['work'], 'classes' => $snapshot['classes'], 'computed_at' => $snapshot['computed_at']],
+                    'task_ids' => $taskIds,
+                ], $content, $status);
+            foreach ($tasks as $task) {
+                $taskIds[] = $this->createFollowUpTask($task, $from->toDateString(), $report)->id;
+            }
+            if ($tasks !== []) {
+                $report->update(['data' => [...$report->data, 'task_ids' => $taskIds], 'content' => $content."\n\nTask follow-up: #".implode(', #', $taskIds)]);
+            }
+        });
 
         return back()->with('success', ($status === 'draft' ? 'Đã lưu nháp báo cáo ' : 'Đã nộp báo cáo giảng dạy ').mb_strtolower(ReportPeriod::monthLabel($data['month'])).'.');
     }
@@ -1742,6 +1782,40 @@ class StaffReportController extends Controller
      *
      * @return list<array{label: string, value: ?string}>
      */
+    /**
+     * Màn chi tiết báo cáo tháng GV (từ 17/10/2026): khối chấm công + mỗi lớp một khối (số liệu lúc nộp, học sinh cần chú ý),
+     * "ghi chú" của khối là phần giáo viên tự nhập (ghi chú chấm công / A–B–C của lớp), cuối là nhận xét chung tháng.
+     *
+     * @return array{auto: array, notes: array<string, string>, noteLabels: array<string, string>, narrative: list<array{label: string, value: ?string}>}
+     */
+    private function teacherMonthlyDetail(StaffReport $r, array $data): array
+    {
+        $checks = self::TEACHER_ACADEMIC_CHECKS + self::TEACHER_OPERATION_CHECKS + self::TEACHER_QUALITY_CHECKS;
+        $classes = collect($data['auto']['classes'] ?? [])->map(function (array $section) {
+            $attention = $section['attention'] ?? [];
+            unset($section['attention']);
+            $section['items'][] = [
+                'key' => 'attention', 'label' => 'Học sinh cần chú ý (hệ thống gợi ý)', 'value' => null, 'count' => count($attention),
+                'info' => 'Bài mini test dưới 7 điểm và học sinh vắng từ 2 buổi trong tháng, tính lúc giáo viên nộp.',
+                'details' => array_map(fn (array $a) => ['text' => $a['text'], 'tag' => $a['tag'], 'tone' => 'warning'], $attention),
+            ];
+
+            return $section;
+        });
+        $attendance = StaffReport::where('user_id', $r->user_id)->where('kind', 'teacher_attendance')->where('period_key', $r->period_key)->first();
+        $notes = ['work' => $attendance?->data['note'] ?? null];
+        foreach ($data['classes'] ?? [] as $classId => $row) {
+            $notes[TeacherMonthlyMetrics::classKey((int) $classId)] = $this->teacherClassText($row, $checks) ?: null;
+        }
+
+        return [
+            'auto' => ['sections' => ['work' => $data['auto']['work'], ...$classes->all()], 'computed_at' => $data['auto']['computed_at'] ?? null],
+            'notes' => array_filter($notes),
+            'noteLabels' => ['work' => 'Ghi chú chấm công', ...$classes->map(fn () => 'Báo cáo của giáo viên (A. Học thuật · B. Vận hành · C. Chất lượng)')->all()],
+            'narrative' => collect(self::TEACHER_GENERAL_FIELDS)->map(fn ($label, $key) => ['label' => $label, 'value' => $data['general'][$key] ?? null])->values()->all(),
+        ];
+    }
+
     private function narrativeRows(string $kind, array $narrative): array
     {
         [$fields, $legacy] = $kind === 'academic_monthly' ? [self::MONTHLY_FIELDS, self::MONTHLY_LEGACY_FIELDS] : [self::QUARTERLY_FIELDS, self::QUARTERLY_LEGACY_FIELDS];
@@ -1946,8 +2020,10 @@ class StaffReportController extends Controller
             $r->kind === 'weekly_kpi' => 'weekly_legacy',
             $r->kind === 'academic_weekly' && isset($data['rows']) => 'academic_weekly',
             in_array($r->kind, ['academic_monthly', 'academic_quarterly'], true) && isset($data['auto']) => 'academic_period',
+            $r->kind === 'teacher_monthly' && isset($data['auto']) => 'teacher_monthly',
             default => 'text',
         };
+        $teacher = $view === 'teacher_monthly' ? $this->teacherMonthlyDetail($r, $data) : null;
         // Báo cáo nhập tay bản cũ: hiện đủ mọi ô như màn nhập lúc đó (ô trống hiện "—"), không lọc bớt ô chưa nhập.
         $legacy = match ($view) {
             'daily_legacy' => ['sections' => self::DAILY_SECTIONS, 'fields' => self::DAILY_FIELDS, 'values' => (object) ($data['fields'] ?? [])],
@@ -1990,18 +2066,20 @@ class StaffReportController extends Controller
             'view' => $view,
             'auto' => match (true) {
                 in_array($view, ['daily', 'weekly_kpi', 'academic_period'], true) => $data['auto'],
+                $view === 'teacher_monthly' => $teacher['auto'],
                 // Báo cáo ngày nhập tay cũ chỉ lưu con số: tính lại số liệu + chi tiết của ngày đó theo phạm vi người viết, như màn Học vụ đang thấy.
                 $view === 'daily_legacy' && $r->user !== null => DailyReportMetrics::compute($r->user, $r->report_date->toDateString(), StaffType::dailyReportAudience($r->user)),
                 default => null,
             },
-            'notes' => (object) ($data['notes'] ?? []),
-            'noteLabels' => $view === 'academic_period' ? AcademicPeriodMetrics::NOTE_LABELS : DailyReportMetrics::NOTE_LABELS,
-            // Báo cáo tháng / quý Học thuật: đánh giá chung (kể cả mục tường thuật cũ đã nhập).
-            'narrative' => $view === 'academic_period' ? $this->narrativeRows($r->kind, $data['narrative'] ?? []) : [],
+            'notes' => (object) ($teacher['notes'] ?? $data['notes'] ?? []),
+            'noteLabels' => $teacher['noteLabels'] ?? ($view === 'academic_period' ? AcademicPeriodMetrics::NOTE_LABELS : DailyReportMetrics::NOTE_LABELS),
+            // Báo cáo tháng / quý Học thuật: đánh giá chung (kể cả mục tường thuật cũ đã nhập); báo cáo tháng GV: nhận xét chung tháng.
+            'narrative' => $teacher['narrative'] ?? ($view === 'academic_period' ? $this->narrativeRows($r->kind, $data['narrative'] ?? []) : []),
+            'overallTitle' => $view === 'teacher_monthly' ? 'Nhận xét chung tháng' : 'Đánh giá chung',
             'note' => $data['note'] ?? null,
-            'tasks' => $this->reportTasks($data, in_array($view, ['daily', 'academic_period'], true)),
+            'tasks' => $this->reportTasks($data, in_array($view, ['daily', 'academic_period', 'teacher_monthly'], true)),
             // Báo cáo ngày / tuần Học vụ từ 17/10/2026: task theo khối (kể cả việc tồn kỳ trước của người viết) + góp ý từng buổi đã chụp lúc lưu.
-            'sectionTasks' => (object) (in_array($view, ['daily', 'weekly_kpi', 'academic_period'], true) ? $this->sectionTasks($r, $r->kind, $r->period_key, $r->user_id) : []),
+            'sectionTasks' => (object) (in_array($view, ['daily', 'weekly_kpi', 'academic_period', 'teacher_monthly'], true) ? $this->sectionTasks($r, $r->kind, $r->period_key, $r->user_id) : []),
             'sessionFeedback' => $view === 'daily' ? ($data['session_feedback'] ?? []) : [],
             'verdicts' => ClassSessionFeedback::VERDICTS,
             'canReview' => (bool) Auth::user()?->can(AdminOnlyApprovals::ABILITY),
