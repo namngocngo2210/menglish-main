@@ -9,9 +9,11 @@ use App\Models\BigTestResult;
 use App\Models\Branch;
 use App\Models\ClassEnrollment;
 use App\Models\ClassModel;
+use App\Models\ClassReport;
 use App\Models\ClassReportStudentSupport;
 use App\Models\ClassSession;
 use App\Models\CrmCustomer;
+use App\Models\Homework;
 use App\Models\MiniTestScore;
 use App\Models\Student;
 use App\Models\StudentAttendance;
@@ -318,6 +320,63 @@ class Phase2AttendanceTest extends TestCase
         $this->assertSame($item->id, (int) $support->class_report_student_support_id);
         $this->assertSame('Vắng học buổi 05/10', $support->reason);
         $this->actingAs($this->manager)->get(route('tasks.support-sessions'))->assertSee('Không có học viên nào đang chờ xếp buổi bổ trợ.');
+    }
+
+    public function test_makeup_flow_absence_to_assistant_with_lesson_info_and_required_comment(): void
+    {
+        // Học bù (chủ dự án 18/10/2026): HS nghỉ → Học vụ xếp, lấy thông tin buổi đã dạy, chuyển trợ giảng → TA tick + nhận xét.
+        $assistant = $this->makeUser('assistant');
+        $session = $this->makeSession('2026-10-06');
+        ClassReport::create(['class_id' => $this->classModel->id, 'class_session_id' => $session->id, 'reporter_id' => $this->teacher->id,
+            'session_name' => 'Buổi 5', 'session_date' => '2026-10-06', 'topics_learned' => 'Unit 3: Animals',
+            'teaching_log' => 'Lớp làm bài nghe trang 12', 'status' => ClassReport::STATUS_APPROVED]);
+        Homework::create(['class_id' => $this->classModel->id, 'class_session_id' => $session->id, 'user_id' => $this->teacher->id,
+            'title' => 'Workbook trang 14']);
+        $this->actingAs($this->teacher)->post(route('teacher.attendance.store', $this->classModel->id), [
+            'class_session_id' => $session->id, 'status' => [$this->student->id => 'absent'], 'note' => [$this->student->id => 'Ốm'],
+        ])->assertSessionHasNoErrors();
+        $item = ClassReportStudentSupport::where('source', SupportListService::SOURCE_ATTENDANCE)->sole();
+
+        $this->actingAs($this->academicStaff)->get(route('tasks.support-sessions', ['support' => $item->id]))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Tasks/SupportSessions')
+                ->where('canAssign', true)
+                ->where('pendingSupports.data.0.missed.session_id', $session->id)
+                ->where('selectedSupport.missed.content', fn ($content) => str_contains($content, 'Lớp đã học: Unit 3: Animals')
+                    && str_contains($content, 'Nhật ký dạy: Lớp làm bài nghe trang 12') && str_contains($content, 'BTVN: Workbook trang 14'))
+                ->where('teacherGroups.0.label', 'Trợ giảng')
+                ->where('teacherGroups.0.options.0.value', $assistant->id));
+
+        $this->actingAs($this->academicStaff)->post(route('tasks.support-sessions.store'), [
+            'class_report_student_support_id' => $item->id, 'class_id' => $this->classModel->id, 'student_id' => $this->student->id,
+            'teacher_id' => $assistant->id, 'session_date' => '2026-10-08', 'start_time' => '14:00', 'end_time' => '15:00',
+            'lesson_content' => 'Dạy lại Unit 3: Animals, chữa Workbook trang 14',
+        ])->assertSessionHasNoErrors();
+        $support = SupportSession::sole();
+        $this->assertSame($session->id, (int) $support->missed_class_session_id);
+        $this->assertSame('Dạy lại Unit 3: Animals, chữa Workbook trang 14', $support->lesson_content);
+        $this->assertDatabaseHas('admin_notifications', ['user_id' => $assistant->id, 'type' => 'support_session_assigned']);
+
+        // Trợ giảng không phụ trách lớp vẫn thấy buổi được giao, không thấy danh sách chờ xếp.
+        $this->actingAs($assistant)->get(route('tasks.support-sessions', ['mine' => 1]))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('canAssign', false)
+                ->where('pendingSupports', null)
+                ->where('sessions.data.0.id', $support->id)
+                ->where('sessions.data.0.can_complete', true)
+                ->where('sessions.data.0.lesson_content', 'Dạy lại Unit 3: Animals, chữa Workbook trang 14')
+                ->where('sessions.data.0.missed_label', fn ($label) => str_contains($label, '06/10/2026')));
+
+        // Tick hoàn thành bắt buộc kèm nhận xét buổi.
+        $this->actingAs($assistant)->post(route('tasks.support-sessions.complete', $support->id))->assertSessionHasErrors('completion_note');
+        $this->assertSame('scheduled', $support->fresh()->status);
+        $this->actingAs($assistant)->post(route('tasks.support-sessions.complete', $support->id), [
+            'completion_note' => 'Bé nắm được từ vựng con vật, cần luyện thêm phần nghe.',
+        ])->assertSessionHasNoErrors();
+        $this->assertSame('completed', $support->fresh()->status);
+        $this->assertSame('Bé nắm được từ vựng con vật, cần luyện thêm phần nghe.', $support->fresh()->completion_note);
+        $this->assertDatabaseHas('admin_notifications', ['user_id' => $this->academicStaff->id, 'type' => 'support_session_done']);
     }
 
     // ── 5. Cổng học viên ──────────────────────────────────────────────────
