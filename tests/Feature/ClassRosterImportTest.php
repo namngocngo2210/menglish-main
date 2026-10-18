@@ -109,7 +109,8 @@ class ClassRosterImportTest extends TestCase
                 ->where('preview.classes.0.teacher_matched', true)
                 ->where('preview.classes.0.student_count', 2)
                 ->where('preview.classes.2.errors.0', 'Chưa có cơ sở "Hoàng Hoa Thám" trong hệ thống — tạo cơ sở trước khi nhập.')
-                ->where('preview.students.2.errors.0', 'Thiếu số điện thoại (cả học viên lẫn phụ huynh) — hệ thống bắt buộc SĐT.')
+                ->where('preview.students.2.errors', [])
+                ->where('preview.students.2.warnings.0', 'Không có SĐT (cả học viên lẫn phụ huynh): vẫn nhập, bổ sung SĐT trên hồ sơ sau.')
                 ->where('preview.students.3.errors.0', 'Không có lớp XYZ9: thêm lớp vào sheet Lớp hoặc tạo lớp trước.')
                 ->has('preview.students', 5)); // dòng chỉ có ghi chú bị bỏ
 
@@ -152,7 +153,8 @@ class ClassRosterImportTest extends TestCase
         $this->assertSame(['completed', '2026-06-19'], [$enrollment->status, $enrollment->enrolled_at->toDateString()]);
         $this->assertNotNull($enrollment->confirmed_at);
 
-        $this->assertFalse(Student::whereIn('code', ['HS003000', 'HS003001'])->exists());
+        $this->assertSame('', Student::where('code', 'HS003000')->value('phone'));
+        $this->assertFalse(Student::where('code', 'HS003001')->exists());
         $this->assertTrue(Student::where('code', 'HS003002')->where('current_class_id', $fiveM2->id)->exists());
 
         // Chạy lại cùng file: không tạo trùng lớp / học viên / lượt xếp lớp.
@@ -161,8 +163,8 @@ class ClassRosterImportTest extends TestCase
         $this->assertSame(1, ClassModel::where('code', 'CAM37')->count());
         $this->assertSame(1, ClassScheduleConfig::where('class_id', $cam->id)->count());
         $this->assertSame($sessions->count(), ClassSession::where('class_id', $cam->id)->count());
-        $this->assertSame(3, Student::count());
-        $this->assertSame(3, ClassEnrollment::count());
+        $this->assertSame(4, Student::count());
+        $this->assertSame(4, ClassEnrollment::count());
     }
 
     public function test_accepts_original_export_sheets_with_default_branch(): void

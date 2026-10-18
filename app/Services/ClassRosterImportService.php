@@ -301,7 +301,7 @@ class ClassRosterImportService
             $parentNames = self::splitNames($data['parent_name'] ?? null);
             $phone = $studentPhones[0] ?? $parentPhones[0] ?? null;
             if ($action === 'create' && ! $phone) {
-                $errors[] = 'Thiếu số điện thoại (cả học viên lẫn phụ huynh) — hệ thống bắt buộc SĐT.';
+                $warnings[] = 'Không có SĐT (cả học viên lẫn phụ huynh): vẫn nhập, bổ sung SĐT trên hồ sơ sau.';
             } elseif ($action === 'create' && ! $studentPhones) {
                 $warnings[] = 'Không có SĐT học viên: dùng SĐT phụ huynh.';
             }
@@ -428,7 +428,7 @@ class ClassRosterImportService
                         $student = Student::create([
                             'code' => $row['code'] ?? 'HV-'.Str::upper((string) Str::ulid()),
                             'name' => $row['name'],
-                            'phone' => $row['phone'],
+                            'phone' => $row['phone'] ?? '', // cột bắt buộc: để trống, bổ sung trên hồ sơ
                             'parent_name' => $row['parent_name'],
                             'parent_phone' => $row['parent_phone'],
                             'parent_email' => $row['parent_email'],
