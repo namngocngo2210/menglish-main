@@ -24,6 +24,9 @@ const props = defineProps({
     sessionDetails: { type: Object, default: () => ({}) },
     reporter: { type: String, default: null },
     testSuggestions: { type: Array, default: () => [] },
+    followUps: { type: Array, default: () => [] },
+    assignees: { type: Array, default: () => [] },
+    today: { type: String, default: null },
 });
 const back = useBackLink(() => route('portal.ta-tasks'));
 </script>

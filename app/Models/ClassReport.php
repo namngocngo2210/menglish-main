@@ -65,6 +65,12 @@ class ClassReport extends Model
         return $this->belongsTo(ClassModel::class, 'class_id');
     }
 
+    /** Task follow-up người nộp tạo kèm báo cáo (chủ dự án 17/10/2026). */
+    public function followUpTasks()
+    {
+        return $this->hasMany(WorkTask::class, 'class_report_id');
+    }
+
     public function classSession()
     {
         return $this->belongsTo(ClassSession::class, 'class_session_id');

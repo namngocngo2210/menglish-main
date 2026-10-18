@@ -26,6 +26,7 @@ use App\Services\BranchStaff;
 use App\Services\ClassDashboardService;
 use App\Services\KpiBoardService;
 use App\Services\MissedLessonService;
+use App\Services\Reports\ClassReportSessionMetrics;
 use App\Services\RoomService;
 use App\Services\SafeUploadService;
 use App\Services\SessionLessonService;
@@ -962,6 +963,7 @@ class WorkTaskController extends Controller
         $task?->loadMissing('creator:id,name');
         $attendance = $sessions->isEmpty() ? collect() : StudentAttendance::with('student:id,name')
             ->whereIn('class_session_id', $sessions->pluck('id'))->get()->groupBy('class_session_id');
+        $metrics = ClassReportSessionMetrics::forSessions($sessions, $students);
 
         return $this->modalPage('Tasks/ClassReportCreate', [
             'classes' => Ui::options($classes, fn (ClassModel $c) => "{$c->name} ({$c->code})".($c->schedule_text ? ' - '.$c->schedule_text : '')),
@@ -993,6 +995,8 @@ class WorkTaskController extends Controller
                 // Điền sẵn "Hôm nay học gì" từ giáo trình của buổi; sĩ số / học sinh vắng từ điểm danh của GV (chủ dự án 15/10/2026).
                 'lesson_text' => $lessons[$s->id]['summary'] ?? null,
                 'attendance' => self::attendanceSummary($attendance->get($s->id, collect())),
+                // Khối "Sĩ số & nề nếp" (17/10/2026): sĩ số, đi muộn, BTVN đã nộp, nhận xét GV của buổi.
+                'metrics' => $metrics[$s->id] ?? [],
                 'suggested' => $attendance->get($s->id, collect())
                     ->filter(fn (StudentAttendance $a) => in_array($a->status, ['absent', 'excused'], true) && $students->contains('id', $a->student_id))
                     ->map(fn (StudentAttendance $a) => [
@@ -1008,7 +1012,49 @@ class WorkTaskController extends Controller
             'reporter' => $user->name.(($role = $user->roles->first()?->name) ? ' ('.AclHelper::shortRoleLabel($role).')' : ''),
             // Gợi ý danh sách bổ trợ theo lớp: mini test gần nhất (30 ngày) dưới 7 điểm thang 10 — cùng ngưỡng danh sách bổ trợ.
             'testSuggestions' => $selectedClass ? self::lowMiniTestSuggestions($selectedClass, $students) : [],
+            // Task follow-up (17/10/2026): việc chưa xong tạo từ báo cáo trực lớp trước của lớp này + người nhận việc.
+            'followUps' => $selectedClass ? self::openFollowUps($selectedClass, $user) : [],
+            'assignees' => self::followUpAssignees($user),
+            'today' => today()->toDateString(),
         ]);
+    }
+
+    /**
+     * Task follow-up người nộp đã tạo từ báo cáo trực lớp trước của lớp này mà chưa xong (`carried` = ngày buổi của báo cáo gốc).
+     *
+     * @return list<array<string, mixed>>
+     */
+    private static function openFollowUps(ClassModel $class, User $user): array
+    {
+        return WorkTask::with(['assignee:id,name', 'sourceClassReport:id,session_date'])
+            ->where('creator_id', $user->id)->where('class_id', $class->id)->whereNotNull('class_report_id')
+            ->whereNotIn('status', ['completed', 'canceled'])->orderBy('id')->get()
+            ->map(fn (WorkTask $t) => self::followUpRow($t, $t->sourceClassReport?->session_date?->format('d/m')))->all();
+    }
+
+    /** @return array<string, mixed> một task follow-up hiển thị trong báo cáo trực lớp */
+    private static function followUpRow(WorkTask $t, ?string $carried = null): array
+    {
+        return [
+            'id' => $t->id,
+            'title' => $t->title,
+            'due_date' => $t->due_date?->toDateString(),
+            'assignee' => $t->assignee?->name,
+            'status' => $t->status,
+            'status_label' => $t->status_label,
+            'overdue' => $t->status === 'overdue' || (in_array($t->status, WorkTask::OPEN_STATUSES, true) && $t->lateHours() > 0),
+            'carried' => $carried,
+        ];
+    }
+
+    /** @return list<array{value: int, label: string}> người nhận task follow-up: "Tôi" + người mình giao / đề xuất việc được */
+    private static function followUpAssignees(User $user): array
+    {
+        return [
+            ['value' => (int) $user->id, 'label' => $user->name.' (Tôi)'],
+            ...self::assignableUsers($user)->reject(fn (User $u) => (int) $u->id === (int) $user->id)
+                ->map(fn (User $u) => ['value' => (int) $u->id, 'label' => $u->name])->values()->all(),
+        ];
     }
 
     /** "Sĩ số 8/10 · Vắng: An, Bình" từ điểm danh của buổi; null khi GV chưa điểm danh. */
@@ -1099,12 +1145,25 @@ class WorkTaskController extends Controller
             'board_images.*' => 'file|max:10240|mimes:'.implode(',', SafeUploadService::IMAGES),
             'board_image' => 'nullable|file|max:10240|mimes:'.implode(',', SafeUploadService::IMAGES),
             'board_image_url' => 'nullable|url:http,https|max:2048',
+            'tasks' => 'nullable|array|max:10',
+            'tasks.*.title' => 'required|string|max:255',
+            'tasks.*.content' => 'nullable|string|max:5000',
+            'tasks.*.due_date' => 'required|date|after_or_equal:today',
+            'tasks.*.assignee_id' => 'nullable|integer',
         ], [
             'session_name.required_without' => 'Vui lòng chọn hoặc nhập buổi học.',
             'hom_nay_hoc_gi.required' => 'Vui lòng nhập "Hôm nay học gì".',
+            'tasks.*.title.required' => 'Nhập tiêu đề task.',
+            'tasks.*.due_date.after_or_equal' => 'Hạn xử lý phải từ hôm nay trở đi.',
         ]);
 
         $user = $request->user();
+        $assignees = collect(self::followUpAssignees($user))->pluck('value');
+        foreach ($validated['tasks'] ?? [] as $i => $t) {
+            if (filled($t['assignee_id'] ?? null) && ! $assignees->contains((int) $t['assignee_id'])) {
+                throw ValidationException::withMessages(["tasks.{$i}.assignee_id" => 'Bạn không giao việc được cho người này.']);
+            }
+        }
         $class = ClassModel::findOrFail($validated['class_id']);
         abort_unless(
             $user->can('work_task.approve')
@@ -1202,6 +1261,30 @@ class WorkTaskController extends Controller
                 }
             }
 
+            // Task follow-up gửi kèm (17/10/2026): gắn báo cáo + lớp, chưa xong thì hiện lại ở báo cáo trực lớp sau của lớp.
+            foreach ($validated['tasks'] ?? [] as $t) {
+                $assigneeId = (int) ($t['assignee_id'] ?? 0) ?: (int) $user->id;
+                $followUp = WorkTask::create([
+                    'title' => trim($t['title']),
+                    'description' => trim(($t['content'] ?? '')."\n\nTạo từ báo cáo trực lớp {$class->name} · {$sessionName} của {$user->name}."),
+                    'creator_id' => $user->id,
+                    'assignee_id' => $assigneeId,
+                    'branch_id' => $class->branch_id ?? $user->branch_id,
+                    'class_id' => $class->id,
+                    'class_report_id' => $report->id,
+                    'due_date' => $t['due_date'],
+                    'due_time' => '18:00',
+                    'task_type' => 'one_time',
+                    'time_slot_category' => 'during',
+                    'status' => 'new',
+                ]);
+                if ($assigneeId !== (int) $user->id) {
+                    AdminNotification::notifyUser($assigneeId, 'task_assigned', "Bạn được giao việc: {$followUp->title}",
+                        "{$user->name} đã giao việc từ báo cáo trực lớp {$class->name}, hạn ".$followUp->due_date?->format('d/m/Y').'.',
+                        route('tasks.index', ['tab' => 'mine']), ['task_id' => $followUp->id]);
+                }
+            }
+
             // Đầu việc "Trực lớp": có ảnh → tự Hoàn thành; không ảnh → Chờ xác nhận.
             if ($task) {
                 $task->update([
@@ -1256,7 +1339,7 @@ class WorkTaskController extends Controller
             ->get();
 
         // Báo cáo trực lớp chờ xác nhận: chỉ người xác nhận theo Q8 (GV chính / người giao việc).
-        $pendingReports = $kind === 'task' ? collect() : ClassReport::with(['classModel', 'reporter', 'task.creator', 'studentSupports.student'])
+        $pendingReports = $kind === 'task' ? collect() : ClassReport::with(['classModel', 'reporter', 'task.creator', 'studentSupports.student', 'followUpTasks.assignee:id,name'])
             ->where('status', ClassReport::STATUS_PENDING)
             ->when($search !== '', fn ($q) => $q->where(fn ($s) => $s->where('session_name', 'like', "%{$search}%")
                 ->orWhere('topics_learned', 'like', "%{$search}%")
@@ -1331,6 +1414,7 @@ class WorkTaskController extends Controller
             'topics' => $isReport ? $m->topics_learned : null,
             'teaching_log' => $isReport ? $m->teaching_log : null,
             'supports' => $isReport ? $m->studentSupports->map(fn ($s) => ['id' => $s->id, 'name' => $s->student?->name ?? 'Học sinh', 'reason' => $s->reason])->values()->all() : [],
+            'tasks' => $isReport ? $m->followUpTasks->map(fn (WorkTask $t) => self::followUpRow($t))->values()->all() : [],
             'note' => $note,
             'links' => array_values(array_unique($noteLinks[0] ?? [])),
             'approve_url' => $isReport ? route('tasks.class-reports.approve', $m->id) : route('tasks.approve', $m->id),

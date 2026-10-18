@@ -7,11 +7,15 @@
  * Đổi lớp: tải lại form theo lớp mới (buổi / học sinh / người xác nhận của lớp). Ảnh: gửi multipart, xem trước và bỏ bớt ảnh đã chọn.
  * Lấy từ hệ thống (chủ dự án 15/10/2026): "Hôm nay học gì" điền sẵn theo giáo trình của buổi, sĩ số theo điểm danh của GV,
  * danh sách bổ trợ gợi ý sẵn học sinh vắng buổi này + mini test gần nhất dưới 7 (người nộp xóa / sửa được, chỉ "Kế hoạch xử lý" là nhập tay).
+ * Thiết kế lại theo khối (chủ dự án 17/10/2026): khối 2 hiện số liệu tự động của buổi (sĩ số, đi muộn, BTVN đã nộp, nhận xét GV)
+ * cạnh ô ghi chú; khối 5 là task follow-up giao thẳng cho người xử lý — việc chưa xong của lớp hiện lại ở báo cáo sau ("Từ dd/mm").
  */
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { openRemoteModal } from '@/lib/remoteModal';
 import { route } from '@/lib/route';
+import DailyMetric from '../../Reports/DailyMetric.vue';
+import SectionTasks from '../../Reports/SectionTasks.vue';
 
 const props = defineProps({
     formId: { type: String, required: true },
@@ -29,6 +33,9 @@ const props = defineProps({
     reporter: { type: String, default: null },
     cancelHref: { type: String, default: null },
     testSuggestions: { type: Array, default: () => [] },
+    followUps: { type: Array, default: () => [] },
+    assignees: { type: Array, default: () => [] },
+    today: { type: String, default: null },
 });
 
 const p = props.asModal ? 'modal-' : 'f_';
@@ -61,6 +68,13 @@ watch(session, (next) => {
     const have = new Set(kept.map((s) => s.student_id));
     supports.value = [...(next?.suggested ?? []).filter((s) => !have.has(String(s.student_id))).map((s) => row(s, 'session')), ...kept];
 });
+
+// Task follow-up: dòng mới gửi cùng form theo `tasks[i][…]`.
+let uid = 0;
+const newTasks = ref([]);
+const addTask = () => newTasks.value.push({ uid: ++uid, title: null });
+const removeTask = (t) => (newTasks.value = newTasks.value.filter((x) => x.uid !== t.uid));
+const indexOf = (t) => newTasks.value.indexOf(t);
 
 // Ảnh bảng / lớp: xem trước + bỏ từng ảnh
 const photos = ref(null);
@@ -171,12 +185,16 @@ const labelCls = 'mb-xs block font-label text-label uppercase text-on-surface-va
                     :hint="session?.lesson_text ? 'Điền sẵn theo giáo trình của buổi. Sửa lại nếu buổi thực tế dạy khác.' : null"
                     placeholder="VD: Tên bài học, dạng bài, kiến thức ngữ pháp / từ vựng cốt lõi đã dạy trên lớp..."
                 />
-                <div class="rounded-xl border border-outline-variant bg-surface-container-low p-sm" data-report-attendance>
-                    <p class="font-label text-label uppercase text-on-surface-variant">Sĩ số (lấy từ điểm danh)</p>
-                    <p v-if="session?.attendance" class="mt-xs font-body-small text-body-small text-on-surface">{{ session.attendance.text.replace('Sĩ số (theo điểm danh): ', '') }}</p>
-                    <p v-else class="mt-xs font-body-small text-body-small italic text-on-surface-variant">GV chưa điểm danh buổi này. Sĩ số sẽ tự thêm vào báo cáo khi có điểm danh lúc nộp.</p>
+                <div data-report-metrics>
+                    <p class="mb-xs flex items-center gap-xs font-label text-label uppercase text-on-surface-variant">
+                        <span class="material-symbols-outlined text-[16px]" aria-hidden="true">insights</span>Số liệu buổi học (lấy từ hệ thống)
+                    </p>
+                    <div v-if="session?.metrics?.length" class="grid grid-cols-1 gap-sm sm:grid-cols-2 lg:grid-cols-4">
+                        <DailyMetric v-for="item in session.metrics" :key="item.key" :item="item" />
+                    </div>
+                    <p v-else class="rounded-xl border border-outline-variant bg-surface-container-low p-sm font-body-small text-body-small italic text-on-surface-variant">Chọn buổi học để xem sĩ số, đi muộn, BTVN và nhận xét của GV.</p>
                 </div>
-                <UiTextarea :id="p + 'nhat_ky_day'" name="nhat_ky_day" label="Ghi chú nề nếp lớp học (tùy chọn)" :rows="3" placeholder="Không khí lớp, nề nếp, thiết bị phòng học..." />
+                <UiTextarea :id="p + 'nhat_ky_day'" name="nhat_ky_day" label="Ghi chú thêm (tùy chọn)" :rows="3" placeholder="Không khí lớp, nề nếp, thiết bị phòng học, điều số liệu chưa thể hiện..." />
             </section>
 
             <!-- 3. Ảnh minh chứng ca trực -->
@@ -248,6 +266,26 @@ const labelCls = 'mb-xs block font-label text-label uppercase text-on-surface-va
                         <textarea v-model="sup.action_plan" :name="`supports[${idx}][action_plan]`" rows="2" placeholder="VD: Dành 15 phút đầu giờ buổi tới để hướng dẫn lại..." class="w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-sm py-xs font-body-small text-body-small"></textarea>
                     </label>
                 </div>
+            </section>
+
+            <!-- 5. Task follow-up -->
+            <section class="space-y-md rounded-2xl border border-outline-variant bg-surface-container-lowest p-md shadow-sm" data-report-section="tasks">
+                <div>
+                    <h2 class="flex items-center gap-sm font-h3 text-h3 text-on-surface"><span class="h-2 w-2 rounded-full bg-primary-container" aria-hidden="true"></span>5. Task follow-up (tùy chọn)</h2>
+                    <p class="font-caption text-caption text-on-surface-variant">Việc cần người khác xử lý sau buổi. Việc chưa xong của lớp sẽ hiện lại ở báo cáo sau.</p>
+                </div>
+                <SectionTasks
+                    title="Task của lớp"
+                    :tasks="followUps"
+                    :rows="newTasks"
+                    :index-of="indexOf"
+                    :assignees="assignees"
+                    :today="today"
+                    hint="Cần Học vụ kiểm tra thiết bị, xếp buổi bù hay gọi phụ huynh thì tạo task giao thẳng cho người đó."
+                    @add="addTask"
+                    @remove="removeTask"
+                />
+                <UiErrors :messages="pick(errors, 'tasks')" />
             </section>
 
             <!-- Kết quả dự kiến + nút nộp -->
