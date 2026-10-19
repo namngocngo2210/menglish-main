@@ -3,7 +3,7 @@
  * Task follow-up trong một khối báo cáo (chủ dự án 17/10/2026): task đã tạo ở khối này, việc chưa xong từ báo cáo kỳ trước
  * (nhãn "Từ dd/mm", hiện lại cho tới khi hoàn thành / hủy) và các dòng task mới. Dòng mới gửi cùng form báo cáo theo
  * `tasks[i][…]` với `i` là thứ tự chung của cả form, kèm khối (`section`) và lớp (`class_id`, khi tạo từ một buổi học).
- * `section` rỗng = task chung, không thuộc khối nào. `readonly` = chỉ xem (chi tiết báo cáo của Admin).
+ * `section` rỗng = task chung, không thuộc khối nào. `readonly` = chỉ xem. Task Admin giao ngay trên báo cáo ghi "giao bởi …" (`by`).
  */
 defineProps({
     section: { type: String, default: '' },
@@ -15,6 +15,7 @@ defineProps({
     today: { type: String, default: null },
     hint: { type: String, default: null },
     readonly: { type: Boolean, default: false },
+    addLabel: { type: String, default: 'Thêm task' },
 });
 const emit = defineEmits(['add', 'remove']);
 
@@ -28,7 +29,7 @@ const statusColor = (t) => (t.overdue ? 'error' : t.status === 'completed' ? 'su
                 <span class="material-symbols-outlined text-[18px]" aria-hidden="true">assignment_turned_in</span>{{ title }}
                 <span v-if="tasks.length" class="normal-case">· {{ tasks.length }}</span>
             </p>
-            <UiButton v-if="!readonly" type="button" variant="ghost" size="sm" icon="add" data-section-task-add @click="emit('add')">Thêm task</UiButton>
+            <UiButton v-if="!readonly" type="button" variant="ghost" size="sm" icon="add" data-section-task-add @click="emit('add')">{{ addLabel }}</UiButton>
         </div>
         <ul v-if="tasks.length" class="space-y-xs" data-section-task-list>
             <li
@@ -39,7 +40,7 @@ const statusColor = (t) => (t.overdue ? 'error' : t.status === 'completed' ? 'su
             >
                 <UiBadge v-if="t.carried" color="warning" :dot="false" data-task-carried>Từ {{ t.carried }}</UiBadge>
                 <strong>{{ t.title }}</strong>
-                <span class="text-on-surface-variant">· {{ t.assignee ?? '—' }} · hạn {{ formatDate(t.due_date, 'd/m/Y') }}</span>
+                <span class="text-on-surface-variant">· {{ t.assignee ?? '—' }} · hạn {{ formatDate(t.due_date, 'd/m/Y') }}<template v-if="t.by"> · giao bởi {{ t.by }}</template></span>
                 <UiBadge :color="statusColor(t)">{{ t.overdue && t.status !== 'overdue' ? 'Quá hạn' : t.status_label }}</UiBadge>
             </li>
         </ul>

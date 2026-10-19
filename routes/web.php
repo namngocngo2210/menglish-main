@@ -788,6 +788,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/{id}/detail', 'reportDetail')->whereNumber('id')->middleware('can:staff_report.view_all')->name('detail');
         Route::post('/{id}/review', 'review')->whereNumber('id')->middleware('can:'.AdminOnlyApprovals::ABILITY)->name('review');
         Route::post('/{id}/request-changes', 'requestChanges')->whereNumber('id')->middleware('can:'.AdminOnlyApprovals::ABILITY)->name('request-changes');
+        Route::post('/{id}/tasks', 'reportTaskStore')->whereNumber('id')->middleware('can:'.AdminOnlyApprovals::ABILITY)->name('tasks.store');
         Route::post('/review-bulk', 'reviewBulk')->middleware('can:'.AdminOnlyApprovals::ABILITY)->name('review-bulk');
         // Báo cáo có cấu trúc theo vai trò (StaffType::structuredReports — controller kiểm tra).
         Route::get('/daily', 'daily')->name('periodic.daily');

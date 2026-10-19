@@ -844,13 +844,15 @@ class StaffReportController extends Controller
     {
         $user = Auth::user();
         $assigneeId = (int) ($input['assignee_id'] ?? 0) ?: (int) $user->id;
-        $source = $report ? Str::lcfirst($report->title) : 'báo cáo ngày '.Carbon::parse($reportDate)->format('d/m/Y');
+        // Admin giao việc ngay trên báo cáo của người khác (chủ dự án 17/10/2026): ghi rõ báo cáo của ai, chi nhánh theo người viết.
+        $author = $report && (int) $report->user_id !== (int) $user->id ? $report->user : null;
+        $source = ($report ? Str::lcfirst($report->title) : 'báo cáo ngày '.Carbon::parse($reportDate)->format('d/m/Y')).($author ? " của {$author->name}" : '');
         $task = WorkTask::create([
             'title' => trim($input['title']),
-            'description' => trim(($input['content'] ?? '')."\n\nTạo từ {$source} của {$user->name}."),
+            'description' => trim(($input['content'] ?? '')."\n\nTạo từ {$source}".($author ? ", {$user->name} giao." : " của {$user->name}.")),
             'creator_id' => $user->id,
             'assignee_id' => $assigneeId,
-            'branch_id' => $user->branch_id,
+            'branch_id' => $author?->branch_id ?? $user->branch_id,
             'class_id' => filled($input['class_id'] ?? null) ? (int) $input['class_id'] : null,
             // Task gắn khối báo cáo: chưa xong thì hiện lại đúng khối đó ở báo cáo kỳ sau (sectionTasks).
             'staff_report_id' => $report?->id,
@@ -902,7 +904,7 @@ class StaffReportController extends Controller
     {
         $userId ??= $report?->user_id ?? Auth::id();
 
-        return WorkTask::with(['assignee:id,name', 'staffReport:id,period_key,report_date'])
+        return WorkTask::with(['assignee:id,name', 'creator:id,name', 'staffReport:id,user_id,period_key,report_date'])
             ->whereNotNull('report_section')
             ->whereHas('staffReport', fn ($q) => $q->where('user_id', $userId)->where('kind', $kind))
             ->where(fn ($q) => $q->when($report, fn ($q) => $q->where('staff_report_id', $report->id))
@@ -920,6 +922,8 @@ class StaffReportController extends Controller
                 'status_label' => $task->status_label,
                 'overdue' => $task->status === 'overdue' || (in_array($task->status, WorkTask::OPEN_STATUSES, true) && $task->lateHours() > 0),
                 'carried' => $report && (int) $task->staff_report_id === (int) $report->id ? null : $task->staffReport?->report_date?->format('d/m'),
+                // Task Admin giao ngay trên báo cáo: hiện "giao bởi …" ở cả màn người viết lẫn chi tiết của Admin.
+                'by' => (int) $task->creator_id !== (int) $task->staffReport?->user_id ? $task->creator?->name : null,
             ])
             ->groupBy('section')
             ->map(fn ($tasks) => $tasks->values()->all())
@@ -1861,7 +1865,7 @@ class StaffReportController extends Controller
         $this->guard();
         abort_unless($this->isPrivileged(), 403, 'Chỉ Admin / Manager mới xem tổng hợp.');
 
-        $view = $request->input('view') === 'missing' ? 'missing' : 'list';
+        $view = in_array($request->input('view'), ['missing', 'followups'], true) ? $request->input('view') : 'list';
         $staffIds = $this->viewerStaffIds();
         // `date` (link cũ) = lọc đúng một ngày.
         $from = $this->filterDate($request->input('from') ?? $request->input('date'));
@@ -1937,6 +1941,7 @@ class StaffReportController extends Controller
             'view' => $view,
             'reports' => $reports,
             'missing' => $view === 'missing' ? $this->missingReports($writers, $from ?? today()->subDays(7), $to ?? $yesterday, $userId, $branchId) : null,
+            'followUps' => $view === 'followups' ? $this->followUpSummary($staffIds, $from ?? today()->startOfMonth(), $to ?? today(), $userId, $branchId) : null,
             'stats' => $stats,
             'filters' => [
                 'type' => $request->input('type'),
@@ -1967,6 +1972,117 @@ class StaffReportController extends Controller
      * @param  Collection<int, User>  $writers
      * @return array{from: string, to: string, rows: list<array<string, mixed>>}
      */
+    /**
+     * Bảng "Việc follow-up từ báo cáo" ở màn Tổng hợp (chủ dự án 17/10/2026): task tạo từ báo cáo định kỳ (kể cả Admin giao ngay trên
+     * báo cáo) và từ báo cáo trực lớp, gom theo người viết báo cáo — đã tạo / đã xong / đang mở / quá hạn trong khoảng ngày tạo, kèm danh sách việc.
+     *
+     * @param  list<int>|null  $staffIds
+     */
+    private function followUpSummary(?array $staffIds, Carbon $from, Carbon $to, ?int $userId, ?int $branchId): array
+    {
+        $tasks = WorkTask::with(['assignee:id,name', 'creator:id,name', 'staffReport:id,user_id,title', 'sourceClassReport:id,reporter_id,class_id,session_date', 'sourceClassReport.classModel:id,name'])
+            ->where(fn ($q) => $q->whereNotNull('staff_report_id')->orWhereNotNull('class_report_id'))
+            ->whereBetween('created_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
+            ->orderBy('id')->get()
+            ->map(function (WorkTask $t) {
+                $t->setAttribute('author_id', (int) ($t->staffReport?->user_id ?? $t->sourceClassReport?->reporter_id ?? 0));
+
+                return $t;
+            })
+            ->filter(fn (WorkTask $t) => $t->author_id && ($staffIds === null || in_array($t->author_id, $staffIds, true)) && (! $userId || $t->author_id === $userId));
+        $authors = User::with(['roles', 'branch:id,name', 'branches:id'])->whereIn('id', $tasks->pluck('author_id')->unique())->get()
+            ->when($branchId, fn ($c) => $c->filter(fn (User $u) => in_array($branchId, array_map('intval', $u->branchIds()), true)))->keyBy('id');
+        $overdue = fn (WorkTask $t) => $t->status === 'overdue' || (in_array($t->status, WorkTask::OPEN_STATUSES, true) && $t->lateHours() > 0);
+        $rank = fn (WorkTask $t) => $overdue($t) ? 0 : (in_array($t->status, ['completed', 'canceled'], true) ? 2 : 1);
+
+        $rows = $tasks->filter(fn (WorkTask $t) => $authors->has($t->author_id))->groupBy('author_id')
+            ->map(function (Collection $items, $authorId) use ($authors, $overdue, $rank) {
+                $u = $authors->get($authorId);
+
+                return [
+                    'user_id' => (int) $authorId,
+                    'user' => $u->name,
+                    'role' => ($role = $u->roles->first()?->name) ? AclHelper::shortRoleLabel($role) : null,
+                    'branch' => $u->branch?->name,
+                    'total' => $items->count(),
+                    'done' => $items->where('status', 'completed')->count(),
+                    'open' => $items->reject(fn (WorkTask $t) => in_array($t->status, ['completed', 'canceled'], true))->count(),
+                    'overdue' => $items->filter($overdue)->count(),
+                    'tasks' => $items->sortBy(fn (WorkTask $t) => [$rank($t), $t->due_date?->toDateString()])->take(30)->map(fn (WorkTask $t) => [
+                        'id' => $t->id,
+                        'title' => $t->title,
+                        'assignee' => $t->assignee?->name,
+                        'due_date' => $t->due_date?->toDateString(),
+                        'status' => $t->status,
+                        'status_label' => $t->status_label,
+                        'overdue' => $overdue($t),
+                        'source' => $t->staffReport?->title ?? ('Báo cáo trực lớp '.($t->sourceClassReport?->classModel?->name ?? '').($t->sourceClassReport?->session_date ? ' · '.$t->sourceClassReport->session_date->format('d/m') : '')),
+                        'by' => (int) $t->creator_id !== (int) $authorId ? $t->creator?->name : null,
+                    ])->values()->all(),
+                ];
+            })
+            ->sortBy(fn (array $r) => [-$r['overdue'], -$r['open'], -$r['total']])->values()->all();
+
+        return ['from' => $from->toDateString(), 'to' => $to->toDateString(), 'rows' => $rows];
+    }
+
+    /** Khối báo cáo Admin giao task được: các khối số liệu đã chụp lúc nộp (báo cáo cũ không có khối thì không giao theo khối). */
+    private function reportSectionKeys(StaffReport $report): array
+    {
+        $auto = $report->data['auto'] ?? null;
+        if (! is_array($auto)) {
+            return [];
+        }
+
+        return match ($report->kind) {
+            'daily_ops', 'academic_monthly', 'academic_quarterly' => array_keys($auto['sections'] ?? []),
+            'weekly_kpi' => self::WEEKLY_TASK_SECTIONS,
+            'teacher_monthly' => ['work', ...array_keys($auto['classes'] ?? [])],
+            default => [],
+        };
+    }
+
+    /**
+     * Admin tạo task ngay trong một khối khi xem báo cáo (chủ dự án 17/10/2026): task gắn báo cáo + khối, mặc định giao người viết,
+     * chưa xong thì hiện lại đúng khối ở báo cáo kỳ sau của người viết như task họ tự tạo.
+     */
+    public function reportTaskStore(Request $request, int $id): RedirectResponse
+    {
+        $report = $this->reviewableReport($id);
+        $report->loadMissing('user:id,name,branch_id');
+        $data = $request->validate(['tasks' => ['required', 'array', 'min:1', 'max:20'], 'tasks.*.section' => ['required', 'string', 'max:40']] + self::TASK_RULES, [
+            'tasks.required' => 'Thêm ít nhất một task.',
+            'tasks.*.title.required' => 'Nhập tiêu đề task.',
+            'tasks.*.due_date.after_or_equal' => 'Hạn xử lý phải từ hôm nay trở đi.',
+        ]);
+        $keys = $this->reportSectionKeys($report);
+        if ($keys === []) {
+            throw ValidationException::withMessages(['tasks' => 'Báo cáo này chưa chia khối nên không giao task theo khối được.']);
+        }
+        $this->checkTasks($data['tasks'], $keys);
+
+        DB::transaction(function () use ($data, $report) {
+            foreach ($data['tasks'] as $task) {
+                // Khối của một lớp (báo cáo tháng GV): task gắn luôn lớp đó.
+                if ($report->kind === 'teacher_monthly' && str_starts_with($task['section'], 'class_') && blank($task['class_id'] ?? null)) {
+                    $task['class_id'] = (int) substr($task['section'], 6);
+                }
+                $this->createFollowUpTask($task, $report->report_date->toDateString(), $report);
+            }
+        });
+
+        return back()->with('success', 'Đã giao '.count($data['tasks']).' task từ báo cáo của '.($report->user?->name ?? 'người viết').'.');
+    }
+
+    /** @return list<array{value: int, label: string}> người nhận task Admin giao trên báo cáo: người viết trước, rồi "Tôi" và người khác */
+    private function reportTaskAssignees(StaffReport $report): array
+    {
+        $all = collect($this->taskAssignees());
+        $author = $all->firstWhere('value', (int) $report->user_id);
+
+        return $author ? [['value' => $author['value'], 'label' => $author['label'].' (người viết)'], ...$all->where('value', '!=', (int) $report->user_id)->values()->all()] : $all->all();
+    }
+
     private function missingReports(Collection $writers, Carbon $from, Carbon $to, ?int $userId, ?int $branchId): array
     {
         $rows = $writers
@@ -2083,6 +2199,10 @@ class StaffReportController extends Controller
             'sessionFeedback' => $view === 'daily' ? ($data['session_feedback'] ?? []) : [],
             'verdicts' => ClassSessionFeedback::VERDICTS,
             'canReview' => (bool) Auth::user()?->can(AdminOnlyApprovals::ABILITY),
+            // Admin tạo task ngay trong từng khối (báo cáo đã chia khối).
+            'canAddTasks' => $canAdd = Auth::user()?->can(AdminOnlyApprovals::ABILITY) && $r->type !== 'journal' && $this->reportSectionKeys($r) !== [],
+            'assignees' => $canAdd ? $this->reportTaskAssignees($r) : [],
+            'today' => today()->toDateString(),
             'nextId' => $nextId,
             'legacy' => $legacy,
             'rows' => (object) ($view === 'academic_weekly' ? $data['rows'] : []),
