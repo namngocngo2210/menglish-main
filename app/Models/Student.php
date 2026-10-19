@@ -47,6 +47,9 @@ class Student extends Model
     /** Trạng thái xếp lớp khi học viên thôi học (không tính sĩ số, giữ lịch sử). */
     public const ENROLLMENT_DROPPED = 'dropped';
 
+    /** Trạng thái xếp lớp của lớp chính cũ khi chuyển lớp (rời lớp từ left_at, không tính sĩ số, giữ lịch sử). */
+    public const ENROLLMENT_TRANSFERRED = 'transferred';
+
     protected $fillable = [
         'code',
         'user_id',
@@ -241,6 +244,34 @@ class Student extends Model
     public static function branchIdsFor(User $user): array
     {
         return $user->branchIds();
+    }
+
+    /**
+     * Chuyển lớp: lớp chính hiện tại thành "Đã chuyển lớp" từ ngày $leftOn (sổ buổi ngừng trừ buổi của lớp cũ từ
+     * ngày này, học viên ra khỏi danh sách lớp cũ). Học viên cũ chưa có lượt xếp lớp chính thì ghi lại một lượt
+     * (từ ngày tạo hồ sơ như sổ buổi đang tính) để buổi đã học ở lớp cũ vẫn được trừ. Không đổi current_class_id.
+     */
+    public function leaveMainClass(string $leftOn): void
+    {
+        if (! $this->current_class_id) {
+            return;
+        }
+
+        $closed = $this->enrollments()
+            ->where('class_id', $this->current_class_id)
+            ->whereIn('status', self::ACTIVE_ENROLLMENT_STATUSES)
+            ->update(['status' => self::ENROLLMENT_TRANSFERRED, 'left_at' => $leftOn]);
+
+        if ($closed === 0 && ! $this->enrollments()->where('class_id', $this->current_class_id)->exists()) {
+            $this->enrollments()->create([
+                'class_id' => $this->current_class_id,
+                'enrolled_at' => $this->created_at?->toDateString() ?? $leftOn,
+                'left_at' => $leftOn,
+                'curriculum_delivered' => false,
+                'zalo_group_added' => false,
+                'status' => self::ENROLLMENT_TRANSFERRED,
+            ]);
+        }
     }
 
     /**

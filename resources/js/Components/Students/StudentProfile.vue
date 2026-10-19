@@ -33,6 +33,7 @@ const props = defineProps({
     attendanceStats: { type: Object, default: null },
     attendances: { type: Array, default: () => [] },
     linkableClasses: { type: Array, default: () => [] },
+    mainClass: { type: Object, default: null },
     care: { type: Object, default: null },
     tuition: { type: Object, default: null },
 });
@@ -59,6 +60,8 @@ const receiptUrl = computed(() => route('tuition.receipts.create', { student_id:
 // Lịch sử thu học phí đầy đủ (mọi đợt nộp, còn nợ sau từng đợt) — modal Tuition/StudentPayments.
 const paymentsUrl = computed(() => route('tuition.students.payments', props.student.id));
 const openPayments = () => openRemoteModal(paymentsUrl.value, { size: '2xl' });
+// "Chuyển lớp": đổi lớp chính từ ngày chuyển (được chọn ngày đã qua khi cập nhật trễ), buổi tồn giữ nguyên.
+const transferOpen = ref(false);
 </script>
 
 <template>
@@ -361,6 +364,7 @@ const openPayments = () => openRemoteModal(paymentsUrl.value, { size: '2xl' });
                             <UiSelect id="link_class_id" label="Liên kết lớp khác" name="class_id" required placeholder="-- Chọn lớp --" :options="linkableClasses" />
                             <UiButton type="submit" variant="secondary" icon="add_link" class="w-full">Liên kết lớp</UiButton>
                         </UiForm>
+                        <UiButton v-if="!student.dropped && mainClass && linkableClasses.length" variant="secondary" icon="swap_horiz" class="w-full" data-testid="open-transfer-class" @click="transferOpen = true">Chuyển lớp</UiButton>
                     </template>
                 </div>
 
@@ -532,5 +536,32 @@ const openPayments = () => openRemoteModal(paymentsUrl.value, { size: '2xl' });
                 </table>
             </div>
         </UiDataTable>
+        <!-- Popup "Chuyển lớp": lớp chính cũ ngừng trừ buổi và ra khỏi danh sách lớp từ ngày chuyển, buổi tồn giữ nguyên -->
+        <UiModal v-if="!scopedView && canAssignClass && mainClass" :show="transferOpen" title="Chuyển lớp" max-width="md" @close="transferOpen = false">
+            <UiForm id="transfer-class-form" :action="route('students.transfer-class', student.id)" method="post" class="space-y-md" data-testid="transfer-class-form" @success="transferOpen = false">
+                <p class="font-body-small text-body-small text-on-surface-variant">
+                    Chuyển <strong>{{ student.name }}</strong> khỏi lớp <strong>{{ mainClass.name }}</strong>. Từ ngày chuyển, lớp cũ ngừng trừ buổi và học viên ra khỏi danh sách lớp cũ; lớp mới bắt đầu trừ buổi.
+                </p>
+                <UiSelect id="transfer_class_id" name="class_id" label="Lớp mới" required placeholder="-- Chọn lớp cùng chi nhánh --" :options="linkableClasses" value="" />
+                <UiInput
+                    id="transfer_on"
+                    name="transferred_on"
+                    type="date"
+                    label="Ngày chuyển lớp"
+                    required
+                    :value="mainClass.today"
+                    :max="mainClass.today"
+                    :min="mainClass.joined_on"
+                    hint="Ngày học buổi đầu ở lớp mới. Cập nhật trễ thì chọn đúng ngày đã chuyển."
+                />
+                <p v-if="tuition?.sessions" class="rounded-lg bg-surface-container-low p-sm font-caption text-caption text-on-surface-variant">
+                    Buổi tồn hiện tại: <strong class="font-code text-on-surface">{{ tuition.sessions.balance }}</strong> buổi (đã đóng {{ tuition.sessions.paid }}, đã trừ {{ tuition.sessions.used }}). Số buổi tồn được giữ nguyên khi chuyển lớp.
+                </p>
+            </UiForm>
+            <template #footer>
+                <UiButton variant="secondary" @click="transferOpen = false">Hủy</UiButton>
+                <UiButton type="submit" form="transfer-class-form" icon="swap_horiz">Chuyển lớp</UiButton>
+            </template>
+        </UiModal>
     </div>
 </template>

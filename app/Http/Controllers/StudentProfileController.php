@@ -186,6 +186,7 @@ class StudentProfileController extends Controller
                 'enrolled_at' => $en->enrolled_at?->format('d/m/Y'),
                 'status' => $en->status,
                 'dropped' => $en->status === Student::ENROLLMENT_DROPPED,
+                'transferred' => $en->status === Student::ENROLLMENT_TRANSFERRED,
                 'from_crm' => (bool) $en->customer_id,
                 'confirmed' => (bool) $en->confirmed_at,
             ]),
@@ -236,8 +237,7 @@ class StudentProfileController extends Controller
 
             // Đổi lớp chính (chuyển lớp): lớp chính cũ hết tính buổi vào sổ buổi từ hôm nay, buổi tồn mang sang lớp mới.
             if ($student->current_class_id && (int) $student->current_class_id !== (int) $class->id) {
-                ClassEnrollment::where('student_id', $student->id)->where('class_id', $student->current_class_id)
-                    ->whereNull('left_at')->update(['left_at' => today()->toDateString()]);
+                $student->leaveMainClass(today()->toDateString());
             }
             // Cập nhật lớp hiện tại của học sinh
             $student->update(['current_class_id' => $class->id]);
@@ -249,6 +249,58 @@ class StudentProfileController extends Controller
 
         return redirect()->route('students.enrollments')
             ->with('status', 'Đã xếp lớp. Học vụ cần hoàn tất checklist giáo trình và nhóm lớp.');
+    }
+
+    /**
+     * "Chuyển lớp" trên hồ sơ: đổi lớp chính từ ngày chuyển (cho chọn ngày đã qua khi cập nhật trễ). Lớp cũ thành
+     * "Đã chuyển lớp" từ ngày đó (ra khỏi danh sách lớp, ngừng trừ buổi), lớp mới trừ buổi từ ngày đó; buổi tồn giữ nguyên.
+     */
+    public function transferClass(Request $request, $id)
+    {
+        $student = $this->findVisibleStudent($request->user(), $id);
+        $validated = $request->validate([
+            'class_id' => 'required|exists:classes,id',
+            'transferred_on' => 'required|date|before_or_equal:today',
+        ], [
+            'transferred_on.before_or_equal' => 'Ngày chuyển lớp không được sau hôm nay.',
+        ]);
+
+        if (! $student->current_class_id) {
+            throw ValidationException::withMessages(['class_id' => 'Học viên chưa có lớp chính: dùng Xếp lớp hoặc Liên kết lớp.']);
+        }
+        if ((int) $student->current_class_id === (int) $validated['class_id']) {
+            throw ValidationException::withMessages(['class_id' => 'Học viên đang học lớp này.']);
+        }
+        $class = $this->visibleClasses($request->user())->find($validated['class_id']);
+        if (! $class) {
+            throw ValidationException::withMessages(['class_id' => 'Lớp không thuộc phạm vi bạn quản lý.']);
+        }
+        $this->assertCanJoinClass($student, $class);
+
+        $transferredOn = Carbon::parse($validated['transferred_on'])->toDateString();
+        $oldClass = $student->currentClass;
+        $joinedOld = ClassEnrollment::where('student_id', $student->id)->where('class_id', $student->current_class_id)
+            ->whereIn('status', Student::ACTIVE_ENROLLMENT_STATUSES)->min('enrolled_at');
+        if ($joinedOld && $transferredOn < substr((string) $joinedOld, 0, 10)) {
+            throw ValidationException::withMessages(['transferred_on' => 'Ngày chuyển lớp phải từ ngày vào lớp '.$oldClass?->name.' ('.Carbon::parse($joinedOld)->format('d/m/Y').').']);
+        }
+
+        DB::transaction(function () use ($student, $class, $transferredOn) {
+            $this->assertClassHasSeat($class);
+            $student->leaveMainClass($transferredOn);
+            ClassEnrollment::create([
+                'student_id' => $student->id,
+                'class_id' => $class->id,
+                'enrolled_at' => $transferredOn,
+                'curriculum_delivered' => false,
+                'zalo_group_added' => false,
+                'status' => 'pending',
+            ]);
+            $student->update(['current_class_id' => $class->id]);
+        });
+
+        return redirect()->route('students.show', $student->id)
+            ->with('status', "Đã chuyển {$student->name} từ lớp {$oldClass?->name} sang lớp {$class->name} từ ngày ".Carbon::parse($transferredOn)->format('d/m/Y').'. Số buổi tồn giữ nguyên.');
     }
 
     /**
@@ -306,6 +358,10 @@ class StudentProfileController extends Controller
         if ($enrollment->status === Student::ENROLLMENT_DROPPED) {
             return redirect()->route('students.enrollments')
                 ->with('error', 'Học viên đã thôi học, không cập nhật bàn giao cho lượt xếp lớp này.');
+        }
+        if ($enrollment->status === Student::ENROLLMENT_TRANSFERRED) {
+            return redirect()->route('students.enrollments')
+                ->with('error', 'Học viên đã chuyển sang lớp khác, không cập nhật bàn giao cho lượt xếp lớp này.');
         }
 
         $curriculumDelivered = $request->boolean('curriculum_delivered');
@@ -549,6 +605,15 @@ class StudentProfileController extends Controller
                 'tone' => $attendanceTones[$att->status] ?? '',
                 'note' => $att->note,
             ])->values()->all();
+            // "Chuyển lớp": lớp chính hiện tại + ngày vào lớp (ngày chuyển sớm nhất chọn được).
+            $props['mainClass'] = $student->currentClass ? [
+                'name' => $student->currentClass->name,
+                'joined_on' => $student->enrollments
+                    ->where('class_id', $student->current_class_id)
+                    ->whereIn('status', Student::ACTIVE_ENROLLMENT_STATUSES)
+                    ->min('enrolled_at')?->toDateString(),
+                'today' => today()->toDateString(),
+            ] : null;
             $props['linkableClasses'] = $data['linkableClasses']->map(function (ClassModel $lc) {
                 $full = $lc->max_capacity > 0 && $lc->active_enrollments_count >= $lc->max_capacity;
 

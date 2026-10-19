@@ -49,7 +49,7 @@ const checklist = [
     { field: 'curriculum_delivered', done: 'Đã phát', pending: 'Chờ phát', short: 'Giáo trình' },
     { field: 'zalo_group_added', done: 'Đã thêm', pending: 'Chờ thêm', short: 'Zalo' },
 ];
-const editable = (en) => canHandoff.value && !en.dropped && !en.from_crm;
+const editable = (en) => canHandoff.value && !en.dropped && !en.transferred && !en.from_crm;
 </script>
 
 <template>
@@ -102,6 +102,7 @@ const editable = (en) => canHandoff.value && !en.dropped && !en.from_crm;
                         <td class="font-code text-on-surface-variant">{{ en.enrolled_at ?? '—' }}</td>
                         <td class="text-right">
                             <UiBadge v-if="en.dropped" color="error" pill>Thôi học</UiBadge>
+                            <UiBadge v-else-if="en.transferred" color="neutral" pill>Đã chuyển lớp</UiBadge>
                             <UiForm v-else-if="editable(en)" :id="'handoff-' + en.id" :action="route('students.enrollments.update', en.id)" method="put" class="inline-flex items-center justify-end gap-2">
                                 <UiBadge :color="en.status === 'completed' ? 'success' : 'warning'" pill>{{ en.status === 'completed' ? 'Hoàn tất' : 'Chờ bàn giao' }}</UiBadge>
                                 <UiButton type="submit" variant="secondary" size="sm">Lưu</UiButton>

@@ -181,6 +181,34 @@ class ClassRosterImportTest extends TestCase
         $this->assertSame($p201->id, $cam->fresh()->room_id);
     }
 
+    public function test_existing_student_imported_into_other_class_is_transferred_from_old_main_class(): void
+    {
+        $kindy8 = ClassModel::create(['code' => 'KINDY8', 'name' => 'Kindy 8', 'branch_id' => $this->branch->id, 'status' => 'active', 'max_capacity' => 0]);
+        $kindy10 = ClassModel::create(['code' => 'KINDY10', 'name' => 'Kindy 10', 'branch_id' => $this->branch->id, 'status' => 'active', 'max_capacity' => 0]);
+        $minhAnh = Student::create(['code' => 'HS009001', 'name' => 'Nguyễn Minh Anh', 'phone' => '0911000009',
+            'branch_id' => $this->branch->id, 'current_class_id' => $kindy8->id, 'status' => 'studying']);
+        ClassEnrollment::create(['student_id' => $minhAnh->id, 'class_id' => $kindy8->id, 'enrolled_at' => '2026-06-01', 'status' => 'completed']);
+        $transferredOn = today()->subDays(2)->format('d/m/Y');
+
+        $token = $this->previewToken($this->workbook([
+            'Lớp' => [['Cơ sở', 'Mã lớp', 'Tên lớp'], ['Đội Cấn', 'KINDY10', 'Kindy 10']],
+            'Học viên' => [
+                ['Cơ sở', 'Mã lớp', 'Mã học viên', 'Họ tên', 'Ngày nhập học'],
+                ['Đội Cấn', 'KINDY10', 'HS009001', 'Nguyễn Minh Anh', $transferredOn],
+            ],
+        ]));
+        $row = session()->get('class_roster_import.'.$token)['students'][0];
+        $this->assertStringContainsString('Học viên đang học lớp Kindy 8', implode(' ', $row['warnings']));
+
+        $this->actingAs($this->admin)->post(route('classes.import.confirm'), ['token' => $token]);
+
+        $this->assertSame($kindy10->id, $minhAnh->fresh()->current_class_id);
+        $old = ClassEnrollment::where('class_id', $kindy8->id)->firstOrFail();
+        $this->assertSame([Student::ENROLLMENT_TRANSFERRED, today()->subDays(2)->toDateString()], [$old->status, $old->left_at->toDateString()]);
+        $this->assertFalse($kindy8->hasOnRoster($minhAnh->id));
+        $this->assertTrue($kindy10->hasOnRoster($minhAnh->id));
+    }
+
     public function test_accepts_original_export_sheets_with_default_branch(): void
     {
         // Bảng "DS lớp - lịch" gốc (dòng tên bảng, ô LỊCH HỌC nhiều dòng) + file xuất gốc một lớp.
