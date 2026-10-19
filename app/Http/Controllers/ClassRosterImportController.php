@@ -41,6 +41,7 @@ class ClassRosterImportController extends Controller
                     'exists' => (bool) $c['class_id'],
                     'teacher' => $c['teacher_label'],
                     'teacher_matched' => (bool) $c['teacher_id'],
+                    'link_room' => $c['link_room'],
                     'schedule' => collect($c['slots'])->map(fn ($s) => "{$s['day']} {$s['start']}–{$s['end']}".($s['room'] ? " · {$s['room']}" : ''))->values(),
                     'student_count' => $c['student_count'],
                     'errors' => $c['errors'],
@@ -123,7 +124,7 @@ class ClassRosterImportController extends Controller
 
         return redirect()->route('classes.import')
             ->with('class_roster_import_result', $result)
-            ->with('status', "Đã tạo {$result['classes']} lớp, {$result['students']} học viên và xếp {$result['enrollments']} lượt vào lớp.");
+            ->with('status', "Đã tạo {$result['classes']} lớp, {$result['rooms']} phòng học, {$result['students']} học viên và xếp {$result['enrollments']} lượt vào lớp.");
     }
 
     public function template()
