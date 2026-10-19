@@ -36,6 +36,7 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\RoomController;
 use App\Http\Controllers\RoomTypeController;
 use App\Http\Controllers\SepayWebhookController;
+use App\Http\Controllers\SessionFeedbackController;
 use App\Http\Controllers\StaffImportController;
 use App\Http\Controllers\StaffReportController;
 use App\Http\Controllers\StudentPortalController;
@@ -818,6 +819,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/operations/{id}', [ObservationController::class, 'destroyOperations'])->whereNumber('id')->middleware('can:class_quality.observe_operations')->name('operations.destroy');
         Route::get('/academic', [ObservationController::class, 'academic'])->name('academic');
         Route::put('/academic', [ObservationController::class, 'saveAcademic'])->middleware('can:class_quality.observe_academic')->name('academic.save');
+        Route::get('/session-feedback', [SessionFeedbackController::class, 'index'])->name('session-feedback');
         Route::get('/checklist', [ClassChecklistController::class, 'index'])->name('checklist');
         Route::put('/checklist', [ClassChecklistController::class, 'save'])->middleware('can:class_quality.checklist')->name('checklist.save');
         Route::get('/teacher-meetings', [TeacherMeetingReportController::class, 'index'])->name('teacher-meetings');
