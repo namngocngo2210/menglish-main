@@ -123,7 +123,7 @@ class ClassRosterImportController extends Controller
 
         return redirect()->route('classes.import')
             ->with('class_roster_import_result', $result)
-            ->with('status', "Đã tạo {$result['classes']} lớp, {$result['students']} học viên và xếp {$result['enrollments']} lượt vào lớp.");
+            ->with('status', "Đã tạo {$result['classes']} lớp, {$result['rooms']} phòng học, {$result['students']} học viên và xếp {$result['enrollments']} lượt vào lớp.");
     }
 
     public function template()

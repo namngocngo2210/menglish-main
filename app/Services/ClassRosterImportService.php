@@ -9,6 +9,7 @@ use App\Models\ClassModel;
 use App\Models\ClassScheduleConfig;
 use App\Models\ClassSession;
 use App\Models\Room;
+use App\Models\RoomType;
 use App\Models\Student;
 use App\Models\User;
 use App\Services\Concerns\ReadsImportRows;
@@ -38,6 +39,12 @@ class ClassRosterImportService
     public const MAX_ROWS = 3000;
 
     public const DEFAULT_CAPACITY = 15;
+
+    /** Loại phòng gán cho phòng học tạo tự động khi nhập (giống migration chuyển phòng cũ sang bảng rooms). */
+    public const DEFAULT_ROOM_TYPE = 'Phòng tiêu chuẩn';
+
+    /** @var array<string, Room> phòng đã tìm / tạo trong lượt nhập, theo "chi nhánh|tên đã bỏ dấu" */
+    private array $roomCache = [];
 
     public const CLASS_HEADINGS = [
         'branch' => 'Cơ sở',
@@ -210,6 +217,9 @@ class ClassRosterImportService
 
             $roomName = $slots[0]['room'] ?? null;
             $room = $roomName && $branch ? $rooms->first(fn (Room $r) => $r->branch_id === $branch->id && self::fold($r->name) === self::fold($roomName)) : null;
+            $newRooms = $branch ? collect($slots)->pluck('room')->filter()->unique(fn ($name) => self::fold($name))
+                ->reject(fn ($name) => $rooms->contains(fn (Room $r) => $r->branch_id === $branch->id && self::fold($r->name) === self::fold($name)))->values()->all() : [];
+            $roomNote = $newRooms ? 'Phòng '.implode(', ', $newRooms).' chưa có ở cơ sở: tạo mới khi nhập (loại "'.self::DEFAULT_ROOM_TYPE.'", sửa sức chứa trên màn Phòng học).' : null;
 
             $classes[$key] = [
                 'line' => $line,
@@ -231,7 +241,9 @@ class ClassRosterImportService
                 'student_count' => 0,
                 'first_enrolled' => null,
                 'errors' => $errors,
-                'warnings' => $existing ? ['Lớp đã có trong hệ thống: giữ nguyên, chỉ xếp học viên vào.'] : $warnings,
+                'warnings' => array_values(array_filter($existing
+                    ? ['Lớp đã có trong hệ thống: giữ nguyên, chỉ xếp học viên vào (và gắn phòng nếu lớp chưa có phòng).', $roomNote]
+                    : [...$warnings, $roomNote])),
             ];
         }
 
@@ -384,8 +396,10 @@ class ClassRosterImportService
      */
     public function import(array $preview, User $user, Carbon $sessionsFrom, Carbon $sessionsTo): array
     {
-        $result = ['classes' => 0, 'sessions' => 0, 'students' => 0, 'enrollments' => 0, 'failed' => []];
+        $result = ['classes' => 0, 'sessions' => 0, 'rooms' => 0, 'students' => 0, 'enrollments' => 0, 'failed' => []];
         $classIds = [];
+        $this->roomCache = [];
+        $roomsBefore = Room::query()->count();
 
         foreach ($preview['classes'] as $row) {
             if ($row['errors'] !== []) {
@@ -393,6 +407,26 @@ class ClassRosterImportService
             }
             if ($row['class_id']) {
                 $classIds[$row['key']] = $row['class_id'];
+                // Lớp đã có (vd. nhập lần trước khi chưa tự tạo phòng) mà chưa gắn phòng: tạo / gắn phòng theo file.
+                if ($row['room'] && $row['branch_id']) {
+                    try {
+                        DB::transaction(function () use ($row) {
+                            $class = ClassModel::query()->lockForUpdate()->find($row['class_id']);
+                            if ($class && ! $class->room_id) {
+                                foreach ($row['slots'] as $slot) {
+                                    if ($slot['room']) {
+                                        $this->room((int) $row['branch_id'], $slot['room']);
+                                    }
+                                }
+                                $room = $this->room((int) $row['branch_id'], $row['room']);
+                                $class->update(['room_id' => $room->id, 'room' => $class->room ?: $room->name]);
+                            }
+                        });
+                    } catch (\Throwable $e) {
+                        $this->roomCache = []; // phòng tạo trong giao dịch vừa hủy không còn
+                        $result['failed'][] = ['line' => 'Phòng lớp '.$row['code'], 'error' => $e->getMessage()];
+                    }
+                }
 
                 continue;
             }
@@ -403,9 +437,11 @@ class ClassRosterImportService
                 $result['classes']++;
                 $result['sessions'] += $sessions;
             } catch (\Throwable $e) {
+                $this->roomCache = [];
                 $result['failed'][] = ['line' => 'Lớp '.$row['code'], 'error' => $e->getMessage()];
             }
         }
+        $result['rooms'] = Room::query()->count() - $roomsBefore;
 
         $createdByCode = [];
         foreach ($preview['students'] as $row) {
@@ -492,14 +528,17 @@ class ClassRosterImportService
             throw new \RuntimeException("Mã lớp {$row['code']} vừa được tạo ở nơi khác.");
         }
 
-        $slots = array_map(fn (array $slot) => $slot + ['name' => $this->shiftRules->nameFor($slot['day'], $slot['start'], $slot['end'])], $row['slots']);
+        // Phòng ghi trong lịch mà cơ sở chưa có → tạo phòng; buổi học + lớp dùng đúng tên phòng trong danh mục.
+        $slots = array_map(fn (array $slot) => ['room' => $slot['room'] ? $this->room((int) $row['branch_id'], $slot['room'])->name : null] + $slot
+            + ['name' => $this->shiftRules->nameFor($slot['day'], $slot['start'], $slot['end'])], $row['slots']);
+        $room = $row['room'] ? $this->room((int) $row['branch_id'], $row['room']) : null;
         $class = ClassModel::create([
             'code' => $row['code'],
             'name' => $row['name'],
             'branch_id' => $row['branch_id'],
             'teacher_id' => $row['teacher_id'],
-            'room' => $row['room'],
-            'room_id' => $row['room_id'],
+            'room' => $room?->name,
+            'room_id' => $room?->id,
             'max_capacity' => max(self::DEFAULT_CAPACITY, (int) $row['student_count']),
             'min_students' => ClassModel::DEFAULT_MIN_STUDENTS,
             'tuition_fee' => $row['tuition_fee'],
@@ -588,6 +627,24 @@ class ClassRosterImportService
         }
 
         return $slots;
+    }
+
+    /** Phòng theo tên trong một cơ sở (không phân biệt hoa thường / dấu); chưa có thì tạo với loại mặc định. */
+    private function room(int $branchId, string $name): Room
+    {
+        $key = $branchId.'|'.self::fold($name);
+        if (isset($this->roomCache[$key])) {
+            return $this->roomCache[$key];
+        }
+
+        $room = Room::query()->where('branch_id', $branchId)->get()->first(fn (Room $r) => self::fold($r->name) === self::fold($name));
+        if (! $room) {
+            $type = RoomType::query()->where('name', self::DEFAULT_ROOM_TYPE)->first()
+                ?? RoomType::create(['name' => self::DEFAULT_ROOM_TYPE, 'is_active' => true]);
+            $room = Room::create(['branch_id' => $branchId, 'room_type_id' => $type->id, 'name' => mb_substr(trim($name), 0, 100)]);
+        }
+
+        return $this->roomCache[$key] = $room;
     }
 
     /** @return array{0: ?User, 1: ?string} giáo viên khớp tên + cảnh báo nếu không khớp được */

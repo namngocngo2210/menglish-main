@@ -7,6 +7,7 @@ use App\Models\ClassEnrollment;
 use App\Models\ClassModel;
 use App\Models\ClassScheduleConfig;
 use App\Models\ClassSession;
+use App\Models\Room;
 use App\Models\Student;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
@@ -102,6 +103,7 @@ class ClassRosterImportTest extends TestCase
     {
         // Trợ giảng trùng đuôi tên với giáo viên: lớp vẫn gán đúng giáo viên.
         User::factory()->create(['name' => 'Hoàng Thanh Mai', 'branch_id' => $this->branch->id, 'is_active' => true])->assignRole('assistant');
+        $p201 = $this->makeRoom($this->branch->id, 'p201'); // phòng đã có (khác hoa thường) → dùng lại; P401 chưa có → tạo
         $token = $this->previewToken($this->normalizedFile());
 
         $this->actingAs($this->admin)->get(route('classes.import', ['token' => $token]))
@@ -109,6 +111,7 @@ class ClassRosterImportTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page->component('Classes/Import')
                 ->where('preview.classes.0.code', 'CAM37')
                 ->where('preview.classes.0.teacher_matched', true)
+                ->where('preview.classes.0.warnings', ['Phòng P401 chưa có ở cơ sở: tạo mới khi nhập (loại "Phòng tiêu chuẩn", sửa sức chứa trên màn Phòng học).'])
                 ->where('preview.classes.0.student_count', 2)
                 ->where('preview.classes.2.errors.0', 'Chưa có cơ sở "Hoàng Hoa Thám" trong hệ thống — tạo cơ sở trước khi nhập.')
                 ->where('preview.students.2.errors', [])
@@ -122,7 +125,11 @@ class ClassRosterImportTest extends TestCase
         $this->assertSame($this->branch->id, $cam->branch_id);
         $this->assertSame($this->teacher->id, $cam->teacher_id);
         $this->assertSame('active', $cam->status);
-        $this->assertSame('P201', $cam->room);
+        $this->assertSame('p201', $cam->room);
+        $this->assertSame($p201->id, $cam->room_id);
+        $this->assertSame(1, session('class_roster_import_result')['rooms']);
+        $p401 = Room::where('branch_id', $this->branch->id)->where('name', 'P401')->firstOrFail();
+        $this->assertSame('Phòng tiêu chuẩn', $p401->type->name);
         $config = ClassScheduleConfig::where('class_id', $cam->id)->firstOrFail();
         $this->assertSame(['Thứ 3', '19:30', '21:00', 'Thứ 6'], [$config->slot1_day, $config->slot1_start, $config->slot1_end, $config->slot2_day]);
         $sessions = ClassSession::where('class_id', $cam->id)->orderBy('date')->get();
@@ -159,7 +166,8 @@ class ClassRosterImportTest extends TestCase
         $this->assertFalse(Student::where('code', 'HS003001')->exists());
         $this->assertTrue(Student::where('code', 'HS003002')->where('current_class_id', $fiveM2->id)->exists());
 
-        // Chạy lại cùng file: không tạo trùng lớp / học viên / lượt xếp lớp.
+        // Chạy lại cùng file: không tạo trùng lớp / học viên / lượt xếp lớp / phòng; lớp đã có mà chưa gắn phòng thì được gắn.
+        $cam->update(['room_id' => null]);
         $again = $this->previewToken($this->normalizedFile());
         $this->actingAs($this->admin)->post(route('classes.import.confirm'), ['token' => $again]);
         $this->assertSame(1, ClassModel::where('code', 'CAM37')->count());
@@ -167,6 +175,8 @@ class ClassRosterImportTest extends TestCase
         $this->assertSame($sessions->count(), ClassSession::where('class_id', $cam->id)->count());
         $this->assertSame(4, Student::count());
         $this->assertSame(4, ClassEnrollment::count());
+        $this->assertSame(2, Room::count());
+        $this->assertSame($p201->id, $cam->fresh()->room_id);
     }
 
     public function test_accepts_original_export_sheets_with_default_branch(): void
