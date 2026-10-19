@@ -170,7 +170,7 @@ class ClassRosterImportService
             return $branch;
         };
 
-        $existingClasses = ClassModel::withTrashed()->get(['id', 'code', 'name', 'branch_id', 'status', 'deleted_at'])
+        $existingClasses = ClassModel::withTrashed()->get(['id', 'code', 'name', 'branch_id', 'room_id', 'status', 'deleted_at'])
             ->keyBy(fn (ClassModel $c) => self::classKey((string) $c->code));
         $teachers = User::query()->role([...Roles::TEACHING, Roles::ACADEMIC_LEAD])->where('is_active', true)->with('roles')->get(['id', 'name']);
         $rooms = Room::query()->get(['id', 'branch_id', 'name']);
@@ -219,6 +219,11 @@ class ClassRosterImportService
             $room = $roomName && $branch ? $rooms->first(fn (Room $r) => $r->branch_id === $branch->id && self::fold($r->name) === self::fold($roomName)) : null;
             $newRooms = $branch ? collect($slots)->pluck('room')->filter()->unique(fn ($name) => self::fold($name))
                 ->reject(fn ($name) => $rooms->contains(fn (Room $r) => $r->branch_id === $branch->id && self::fold($r->name) === self::fold($name)))->values()->all() : [];
+            // Lớp đã có mà chưa gắn phòng: lúc nhập sẽ tạo / gắn phòng theo file.
+            $linkRoom = $existing && ! $existing->room_id && $roomName && $branch;
+            if ($existing && ! $linkRoom) {
+                $newRooms = [];
+            }
             $roomNote = $newRooms ? 'Phòng '.implode(', ', $newRooms).' chưa có ở cơ sở: tạo mới khi nhập (loại "'.self::DEFAULT_ROOM_TYPE.'", sửa sức chứa trên màn Phòng học).' : null;
 
             $classes[$key] = [
@@ -234,6 +239,7 @@ class ClassRosterImportService
                 'slots' => $slots,
                 'room' => $roomName,
                 'room_id' => $room?->id,
+                'link_room' => (bool) $linkRoom,
                 'start_date' => $this->date($data['start_date'] ?? null, 'Ngày bắt đầu khóa', $warnings),
                 'end_date' => $this->date($data['end_date'] ?? null, 'Ngày kết thúc khóa', $warnings),
                 'tuition_fee' => $this->money($data['tuition_fee'] ?? null, $warnings),
@@ -242,7 +248,7 @@ class ClassRosterImportService
                 'first_enrolled' => null,
                 'errors' => $errors,
                 'warnings' => array_values(array_filter($existing
-                    ? ['Lớp đã có trong hệ thống: giữ nguyên, chỉ xếp học viên vào (và gắn phòng nếu lớp chưa có phòng).', $roomNote]
+                    ? [$linkRoom ? 'Lớp đã có trong hệ thống: giữ nguyên, chỉ xếp học viên vào và gắn phòng '.$roomName.'.' : 'Lớp đã có trong hệ thống: giữ nguyên, chỉ xếp học viên vào.', $roomNote]
                     : [...$warnings, $roomNote])),
             ];
         }
@@ -408,7 +414,7 @@ class ClassRosterImportService
             if ($row['class_id']) {
                 $classIds[$row['key']] = $row['class_id'];
                 // Lớp đã có (vd. nhập lần trước khi chưa tự tạo phòng) mà chưa gắn phòng: tạo / gắn phòng theo file.
-                if ($row['room'] && $row['branch_id']) {
+                if (($row['link_room'] ?? false) && $row['room'] && $row['branch_id']) {
                     try {
                         DB::transaction(function () use ($row) {
                             $class = ClassModel::query()->lockForUpdate()->find($row['class_id']);

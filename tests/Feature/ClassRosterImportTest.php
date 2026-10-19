@@ -169,6 +169,8 @@ class ClassRosterImportTest extends TestCase
         // Chạy lại cùng file: không tạo trùng lớp / học viên / lượt xếp lớp / phòng; lớp đã có mà chưa gắn phòng thì được gắn.
         $cam->update(['room_id' => null]);
         $again = $this->previewToken($this->normalizedFile());
+        $linked = collect(session()->get('class_roster_import.'.$again)['classes'])->firstWhere('code', 'CAM37');
+        $this->assertTrue($linked['link_room']); // nút xác nhận vẫn bấm được dù không còn lớp / học viên mới
         $this->actingAs($this->admin)->post(route('classes.import.confirm'), ['token' => $again]);
         $this->assertSame(1, ClassModel::where('code', 'CAM37')->count());
         $this->assertSame(1, ClassScheduleConfig::where('class_id', $cam->id)->count());
