@@ -17,10 +17,12 @@ class PenaltyModuleTest extends TestCase
     {
         $this->seed(PermissionSeeder::class);
         $this->seed(RoleSeeder::class);
-        $user = User::factory()->create();
+        // Quản lý cơ sở chỉ lập biên bản cho nhân sự chi nhánh mình → cùng chi nhánh.
+        $branch = \App\Models\Branch::create(['name' => 'CN Biên bản', 'code' => 'PEN-MOD', 'is_active' => true]);
+        $user = User::factory()->create(['branch_id' => $branch->id]);
         $user->assignRole('manager');
         // Phase 3: người chốt không được tự chốt biên bản của chính mình → vi phạm là nhân sự khác
-        $violator = User::factory()->create();
+        $violator = User::factory()->create(['branch_id' => $branch->id]);
         $violator->assignRole('teacher');
 
         $response = $this->actingAs($user)->post('/penalties', [

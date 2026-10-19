@@ -259,7 +259,8 @@ class BigTestResultsSecurityTest extends TestCase
     public function test_only_admin_approves_results_and_academic_lead_only_sends(): void
     {
         $result = $this->makeResult($this->testA, $this->studentA, 'pending_review');
-        $staff = User::factory()->create(['is_active' => true]);
+        // Học vụ chỉ thấy Big Test của chi nhánh mình → cùng chi nhánh với lớp của đợt thi.
+        $staff = User::factory()->create(['is_active' => true, 'branch_id' => $this->manager->branch_id]);
         $staff->assignRole('academic_staff');
 
         foreach ([$this->manager, $staff] as $user) {

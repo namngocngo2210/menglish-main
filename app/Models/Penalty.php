@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\DataScope;
 use App\Support\Roles;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -258,6 +259,43 @@ class Penalty extends Model
     public function remedier(): BelongsTo
     {
         return $this->belongsTo(User::class, 'remedied_by');
+    }
+
+    /**
+     * Biên bản người dùng được thấy. Không có violation.view → chỉ biên bản của chính mình (màn "của tôi").
+     * Có violation.view → theo phạm vi "violation.scope_*": Của tôi → biên bản mình vi phạm hoặc mình lập; Chi nhánh →
+     * + biên bản của nhân sự thuộc chi nhánh mình (chi nhánh chính hoặc được cấp thêm của người vi phạm); Toàn hệ thống.
+     */
+    public function scopeVisibleTo(Builder $query, ?User $user): Builder
+    {
+        if ($user && ! $user->can('violation.view')) {
+            return $query->where('user_id', $user->id);
+        }
+
+        return DataScope::apply(
+            $query, $user, 'violation',
+            fn (Builder $q) => $q->where(fn (Builder $o) => $o->where('user_id', $user->id)->orWhere('reporter_id', $user->id)),
+            fn (Builder $q, array $branchIds) => $q->whereIn('user_id', self::staffInBranches(User::withTrashed(), $branchIds)->select('id')),
+            branchIncludesOwn: true,
+        );
+    }
+
+    /**
+     * Nhân sự lập được biên bản / có trong ô chọn người vi phạm: Toàn hệ thống → mọi người; mức khác → nhân sự thuộc
+     * chi nhánh của người lập (DataScope::branchIds trả chi nhánh của mình cho cả mức "Của tôi").
+     */
+    public static function staffVisibleTo(Builder $users, ?User $viewer): Builder
+    {
+        $branchIds = DataScope::branchIds($viewer, 'violation');
+
+        return $branchIds === null ? $users : self::staffInBranches($users, $branchIds);
+    }
+
+    /** @param  list<int>  $branchIds */
+    private static function staffInBranches(Builder $users, array $branchIds): Builder
+    {
+        return $users->where(fn (Builder $u) => $u->whereIn('branch_id', $branchIds)
+            ->orWhereHas('branches', fn (Builder $b) => $b->whereIn('branches.id', $branchIds)));
     }
 
     /**
