@@ -1862,6 +1862,7 @@ class SyllabusController extends Controller
     public function sendBigTestReminder(Request $request, int $id)
     {
         $test = BigTest::with('classModel')->findOrFail($id);
+        abort_unless($test->isAccessibleBy($request->user()), 404);
         abort_unless($test->classModel, 422, 'Đợt thi chưa gắn lớp học.');
         abort_unless($test->scheduled_at, 422, 'Đợt thi chưa có lịch giờ thi.');
 

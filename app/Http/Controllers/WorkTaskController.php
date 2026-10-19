@@ -199,7 +199,8 @@ class WorkTaskController extends Controller
     {
         $this->ensureCanCreateTask();
         $users = $this->assignableUsers(Auth::user());
-        $branches = Branch::where('is_active', true)->get();
+        $branches = Branch::where('is_active', true)->get()
+            ->filter(fn (Branch $b) => DataScope::coversBranch(Auth::user(), 'work_task', $b->id))->values();
         $classes = ClassModel::query()->visibleTo(Auth::user())->where('status', 'active')->get();
 
         // Nút "Giao cho: Trợ giảng" trong form chuyển sang luồng giao việc theo ca (tasks.ta-assign — luật riêng).
@@ -286,6 +287,13 @@ class WorkTaskController extends Controller
             throw ValidationException::withMessages([
                 'assignee' => 'Bạn chỉ được giao việc cho Admin, Quản lý cơ sở, Học vụ hoặc Học thuật.',
             ]);
+        }
+        // Chi nhánh / lớp gắn với việc phải nằm trong phạm vi người giao.
+        if (! empty($validated['branch_id']) && ! DataScope::coversBranch(Auth::user(), 'work_task', (int) $validated['branch_id'])) {
+            throw ValidationException::withMessages(['branch_id' => 'Bạn chỉ được giao việc cho chi nhánh mình quản lý.']);
+        }
+        if (! empty($validated['class_id']) && ! ClassModel::query()->visibleTo(Auth::user())->whereKey($validated['class_id'])->exists()) {
+            throw ValidationException::withMessages(['class_id' => 'Bạn không phụ trách lớp này.']);
         }
 
         $task = WorkTask::create([
@@ -427,7 +435,15 @@ class WorkTaskController extends Controller
         $date = $day->toDateString();
         $week = $weekStart->format('o-\WW');
 
-        $branches = Branch::where('is_active', true)->orderBy('name')->get();
+        // Phạm vi Lớp học: chỉ toàn hệ thống mới chọn được mọi chi nhánh; còn lại chỉ chi nhánh của mình
+        // (chi nhánh ngoài phạm vi trên URL bị bỏ qua).
+        $scopeBranchIds = DataScope::branchIds($viewer, 'class');
+        if ($branchId && ! DataScope::coversBranch($viewer, 'class', $branchId)) {
+            $branchId = null;
+        }
+        $branches = Branch::where('is_active', true)
+            ->when($scopeBranchIds !== null, fn ($q) => $q->whereIn('id', $scopeBranchIds))
+            ->orderBy('name')->get();
         $selectedBranch = $branchId ? $branches->firstWhere('id', $branchId) : null;
 
         // Theo ngày: buổi học thật của ngày được chọn (kể cả buổi đã hủy/nghỉ lễ để học vụ nắm được).
@@ -450,6 +466,7 @@ class WorkTaskController extends Controller
             ->mapWithKeys(fn (ClassModel $class) => [$class->id => $class->occupiedSeats()]);
         // Trợ giảng không cố định theo lớp: ai có việc giao theo ca trong ngày là trợ giảng làm việc hôm đó.
         $shiftTasks = WorkTask::with('assignee:id,name')
+            ->visibleTo($viewer)
             ->whereIn('assignee_id', Rbac::scopeUsersWithPermission(User::query(), 'portal.assistant')->where('is_active', true)->select('id'))
             ->whereDate('due_date', $date)
             ->when($branchId, fn ($q) => $q->where(fn ($q) => $q->where('branch_id', $branchId)->orWhereNull('branch_id')))
@@ -885,7 +902,8 @@ class WorkTaskController extends Controller
     public function completeTask(Request $request, $id)
     {
         $task = WorkTask::findOrFail($id);
-        abort_unless((int) $task->assignee_id === (int) Auth::id() || $request->user()->can('work_task.approve'), 403);
+        abort_unless((int) $task->assignee_id === (int) Auth::id()
+            || ($request->user()->can('work_task.approve') && WorkTask::query()->visibleTo($request->user())->whereKey($task->id)->exists()), 403);
         abort_if(in_array($task->status, ['completed', 'canceled', 'pending_confirmation'], true), 422, 'Nhiệm vụ đã hoàn thành, đã hủy hoặc đang chờ xác nhận.');
         $request->validate([
             'proof_image' => 'nullable|file|max:10240|mimes:'.implode(',', SafeUploadService::IMAGES),
@@ -1124,7 +1142,10 @@ class WorkTaskController extends Controller
             return null;
         }
 
-        return (int) $task->assignee_id === (int) $user->id || $user->can('work_task.approve') ? $task : null;
+        // Người duyệt nộp thay chỉ trong phạm vi công việc được thấy (không mở việc của chi nhánh khác).
+        return (int) $task->assignee_id === (int) $user->id
+            || ($user->can('work_task.approve') && WorkTask::query()->visibleTo($user)->whereKey($task->id)->exists())
+            ? $task : null;
     }
 
     public function storeClassReport(Request $request)
@@ -1165,9 +1186,9 @@ class WorkTaskController extends Controller
             }
         }
         $class = ClassModel::findOrFail($validated['class_id']);
+        // Chỉ lớp người nộp phụ trách / trong phạm vi Lớp học (work_task.approve không mở lớp ngoài phạm vi).
         abort_unless(
-            $user->can('work_task.approve')
-            || in_array((int) $user->id, array_map('intval', [$class->teacher_id, $class->assistant_id, $class->foreign_teacher_id]), true)
+            in_array((int) $user->id, array_map('intval', [$class->teacher_id, $class->assistant_id, $class->foreign_teacher_id]), true)
             || ClassModel::query()->visibleTo($user)->whereKey($class->id)->exists(),
             403
         );
@@ -1802,7 +1823,11 @@ class WorkTaskController extends Controller
             ->with(['teacher:id,name', 'assistant:id,name', 'foreignTeacher:id,name', 'branch:id,name', 'scheduleConfig'])
             ->orderBy('name')
             ->get();
-        $branches = Branch::where('is_active', true)->orderBy('name')->get();
+        // Báo cáo phòng / nhân sự chỉ cho chi nhánh trong phạm vi Lớp học của người xem.
+        $scopeBranchIds = DataScope::branchIds($viewer, 'class');
+        $branches = Branch::where('is_active', true)
+            ->when($scopeBranchIds !== null, fn ($q) => $q->whereIn('id', $scopeBranchIds))
+            ->orderBy('name')->get();
 
         // Bảng "Danh sách lớp hiện tại": tìm phía server theo tên / mã lớp (form chọn lớp vẫn dùng toàn bộ danh sách).
         $needle = mb_strtolower($classSearch);
@@ -1833,7 +1858,12 @@ class WorkTaskController extends Controller
         ]]);
 
         // Báo cáo phòng / nhân sự: 7 ngày từ ngày chọn, theo chi nhánh, số liệu từ buổi học thật.
-        $reportBranchId = (int) ($validated['report_branch_id'] ?? $viewer->branch_id ?? $branches->first()?->id);
+        $requestedBranchId = isset($validated['report_branch_id']) ? (int) $validated['report_branch_id'] : null;
+        if ($requestedBranchId && ! DataScope::coversBranch($viewer, 'class', $requestedBranchId)) {
+            $requestedBranchId = null; // chi nhánh ngoài phạm vi → về chi nhánh của người xem
+        }
+        $ownBranchId = $viewer->branch_id && DataScope::coversBranch($viewer, 'class', (int) $viewer->branch_id) ? (int) $viewer->branch_id : null;
+        $reportBranchId = (int) ($requestedBranchId ?? $ownBranchId ?? $branches->first()?->id);
         $reportStart = CarbonImmutable::parse($validated['report_date'] ?? now())->startOfDay();
         $reportEnd = $reportStart->addDays(6);
         $visibleClassIds = $classes->modelKeys();
@@ -1985,6 +2015,7 @@ class WorkTaskController extends Controller
         if ($request->has('toggle_class_id')) {
             abort_unless($request->user()->can('class.update'), 403, 'Bạn không có quyền đổi trạng thái lớp học.');
             $cls = ClassModel::findOrFail($request->input('toggle_class_id'));
+            abort_unless(ClassModel::visibleTo($request->user())->whereKey($cls->id)->exists(), 403, 'Bạn không phụ trách lớp này.');
             // Chỉ chuyển qua lại Đang học ↔ Đã kết thúc; lớp đã hủy/chưa xếp lịch không được "mở lại" từ đây.
             if (! in_array($cls->status, ['active', 'completed'], true)) {
                 throw ValidationException::withMessages([
@@ -2212,6 +2243,7 @@ class WorkTaskController extends Controller
             'demands' => ['required', 'array', 'max:31'],
             'demands.*' => ['nullable', 'integer', 'min:0', 'max:50'],
         ]);
+        abort_unless(DataScope::coversBranch($request->user(), 'class', (int) $validated['branch_id']), 403, 'Bạn chỉ được lưu nhu cầu nhân sự cho chi nhánh mình quản lý.');
 
         foreach ($validated['demands'] as $date => $staffNeeded) {
             if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $date) || $staffNeeded === null) {
@@ -2452,7 +2484,10 @@ class WorkTaskController extends Controller
     public function completeSupportSession(Request $request, int $id)
     {
         $session = SupportSession::with('classSession')->findOrFail($id);
-        abort_unless((int) $session->teacher_id === (int) Auth::id() || $request->user()->can('work_task.approve'), 403);
+        // Người duyệt chỉ hoàn thành thay buổi bổ trợ của lớp trong phạm vi (như danh sách supportSessions).
+        abort_unless((int) $session->teacher_id === (int) Auth::id()
+            || ($request->user()->can('work_task.approve') && $session->class_id
+                && ClassModel::query()->visibleTo($request->user())->whereKey($session->class_id)->exists()), 403);
         abort_if($session->status === 'completed', 422, 'Buổi phụ đạo đã hoàn thành.');
         // Tick hoàn thành phải kèm nhận xét buổi bổ trợ (chủ dự án 18/10/2026).
         $validated = $request->validate(

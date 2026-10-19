@@ -75,7 +75,10 @@ class ObservationController extends Controller
                 'value' => $t->id,
                 'label' => $t->name.' ('.$classes->filter(fn (ClassModel $c) => in_array($t->id, [$c->teacher_id, $c->foreign_teacher_id], true))->count().' lớp đang dạy)',
             ])->values(),
-            'filterTeachers' => Ui::options(User::whereIn('id', QaObservation::query()->select('teacher_id'))->orderBy('name')->get(['id', 'name']), 'name'),
+            // Bộ lọc giáo viên: chỉ GV có lượt dự giờ ở lớp trong phạm vi (không lộ GV chi nhánh khác).
+            'filterTeachers' => Ui::options(User::whereIn('id', QaObservation::query()
+                ->whereHas('classModel', fn ($q) => $q->visibleTo($user))->select('teacher_id'))
+                ->orderBy('name')->get(['id', 'name']), 'name'),
             'ratings' => Ui::options(QaObservation::RATINGS),
             'noteFields' => QaObservation::NOTE_FIELDS,
             'canRecord' => $user->can('class_quality.observe_operations'),
