@@ -229,9 +229,10 @@ function submit(event) {
             <!-- Bước 3: kết quả -->
             <div v-else class="space-y-md rounded-xl border border-outline-variant bg-surface-container-lowest p-lg">
                 <h2 class="font-h3 text-h3">Kết quả nhập file {{ result.file_name }}</h2>
-                <div class="grid grid-cols-2 gap-md lg:grid-cols-5">
+                <div class="grid grid-cols-2 gap-md lg:grid-cols-6">
                     <UiStatCard label="Lớp tạo mới" :value="result.classes" tone="success" />
                     <UiStatCard label="Buổi học đã sinh" :value="result.sessions" tone="primary" />
+                    <UiStatCard label="Phòng học tạo mới" :value="result.rooms ?? 0" tone="primary" />
                     <UiStatCard label="Học viên tạo mới" :value="result.students" tone="success" />
                     <UiStatCard label="Lượt xếp lớp" :value="result.enrollments" tone="primary" />
                     <UiStatCard label="Dòng bỏ qua" :value="result.skipped" tone="warning" />
