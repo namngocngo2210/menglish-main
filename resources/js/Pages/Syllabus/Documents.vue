@@ -28,6 +28,8 @@ const downloadable = ref(false);
 const fileName = ref('');
 const dragging = ref(false);
 const fileInput = ref(null);
+// File mẫu cho người soạn tài liệu (public/files): bố cục Giáo trình → Chặng → Unit → Buổi như màn Soạn syllabus.
+const SAMPLE_PDF = '/files/mau-tai-lieu-giao-trinh.pdf';
 const stages = computed(() => props.curriculums.find((c) => String(c.id) === String(curriculum.value))?.stages ?? []);
 
 function drop(event) {
@@ -51,6 +53,7 @@ function uploaded() {
         <template #actions>
             <UiButton variant="secondary" icon="edit_document" :href="route('syllabus.builder')">Soạn syllabus</UiButton>
             <UiButton variant="secondary" icon="menu_book" :href="route('syllabus.teacher-view')">Xem như giáo viên</UiButton>
+            <UiButton variant="secondary" icon="download" :href="SAMPLE_PDF" download native>Tải file mẫu (.pdf)</UiButton>
             <UiButton v-if="canUpload" icon="upload_file" @click="uploading = true">Tải lên tài liệu</UiButton>
         </template>
     </UiPageHeader>
@@ -161,6 +164,7 @@ function uploaded() {
             </UiField>
 
             <UiField label="Tài liệu đính kèm" name="file" required>
+
                 <label
                     :class="['flex cursor-pointer flex-col items-center justify-center gap-xs rounded-xl border-2 border-dashed px-md py-lg text-center transition-colors', dragging ? 'border-primary-container bg-primary-fixed/30' : 'border-outline-variant bg-surface-container-low hover:border-primary/50']"
                     @dragover.prevent="dragging = true"
@@ -182,6 +186,9 @@ function uploaded() {
                         @change="fileName = $event.target.files[0]?.name || ''"
                     />
                 </label>
+                <p class="mt-xs font-caption text-caption text-on-surface-variant">
+                    Soạn theo <a :href="SAMPLE_PDF" download class="font-medium text-primary underline">file mẫu tài liệu giáo trình (.pdf)</a>: một file cho một chặng, số buổi khớp màn Soạn syllabus.
+                </p>
             </UiField>
 
             <UiAlert v-show="(teachers || assistants) && !downloadable" type="warning">
