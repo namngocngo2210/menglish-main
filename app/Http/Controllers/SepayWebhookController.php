@@ -490,9 +490,14 @@ class SepayWebhookController extends Controller
 
     /**
      * API: Lấy danh sách giao dịch SePay gần đây nhất (hỗ trợ màn hình cài đặt)
+     * Trả nguyên giao dịch (số TK, số dư tài khoản công ty, payload gốc) của mọi chi nhánh → chỉ người quản lý tài khoản
+     * ngân hàng & SePay (bank_account.manage, mặc định Admin); route chỉ chặn tuition.view nên kiểm tra thêm ở đây.
+     * Không màn hình nào ngoài cài đặt SePay gọi API này.
      */
     public function getRecentTransactions(): JsonResponse
     {
+        abort_unless(request()->user()?->can('bank_account.manage'), 403);
+
         if (! config('services.sepay.webhook_enabled', false)) {
             return response()->json([
                 'success' => false,
