@@ -550,9 +550,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/debt-reminders', [SystemConfigController::class, 'debtReminders'])->middleware('can:fee_reminder_config.manage')->name('debt-reminders');
         Route::post('/debt-reminders', [SystemConfigController::class, 'storeDebtReminder'])->middleware('can:fee_reminder_config.manage')->name('debt-reminders.store');
         Route::post('/debt-reminders/settings', [SystemConfigController::class, 'updateDebtReminderSettings'])->middleware('can:fee_reminder_config.manage')->name('debt-reminders.settings');
-        Route::get('/ticket-emails', [SystemConfigController::class, 'ticketEmails'])->middleware('can:support_ticket.update')->name('ticket-emails');
-        Route::post('/ticket-emails', [SystemConfigController::class, 'updateTicketEmails'])->middleware('can:support_ticket.update')->name('ticket-emails.update');
-        Route::post('/ticket-emails/test', [SystemConfigController::class, 'sendTestTicketEmail'])->middleware('can:support_ticket.update')->name('ticket-emails.test');
+        // Email nhận thông báo vận hành toàn hệ thống (phiếu thu, công nợ… mọi chi nhánh) + SMTP: chỉ mail_config.manage (mặc định Admin).
+        Route::get('/ticket-emails', [SystemConfigController::class, 'ticketEmails'])->middleware('can:mail_config.manage')->name('ticket-emails');
+        Route::post('/ticket-emails', [SystemConfigController::class, 'updateTicketEmails'])->middleware('can:mail_config.manage')->name('ticket-emails.update');
+        Route::post('/ticket-emails/test', [SystemConfigController::class, 'sendTestTicketEmail'])->middleware('can:mail_config.manage')->name('ticket-emails.test');
         Route::get('/sla', [SystemConfigController::class, 'sla'])->middleware('can:sla.configure')->name('sla');
         Route::post('/sla/settings', [SystemConfigController::class, 'updateSlaSettings'])->middleware('can:sla.configure')->name('sla.settings');
         Route::put('/sla/{key}', [SystemConfigController::class, 'updateSla'])->where('key', '[a-z_.]+')->middleware('can:sla.configure')->name('sla.update');

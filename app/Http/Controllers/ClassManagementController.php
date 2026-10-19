@@ -1110,6 +1110,10 @@ class ClassManagementController extends Controller
             'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
             'exclude_class_id' => ['nullable', 'integer'],
         ]);
+        // Chỉ người tạo / sửa lớp mới cần kiểm tra trùng lịch; phòng chỉ xem được ở chi nhánh trong phạm vi.
+        $user = $request->user();
+        abort_unless($user->can('class.create') || $user->can('class.update'), 403);
+        abort_if(! empty($validated['branch_id']) && ! DataScope::coversBranch($user, 'class', (int) $validated['branch_id']), 403, 'Bạn chỉ được quản lý lớp thuộc chi nhánh của mình.');
         // Cột time lưu dạng H:i:s — so sánh chuỗi với H:i sẽ coi hai ca nối tiếp (kết thúc 18:00, bắt đầu 18:00) là trùng.
         $startTime = $validated['start_time'].':00';
         $endTime = $validated['end_time'].':00';

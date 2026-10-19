@@ -6,10 +6,12 @@ use App\Models\Branch;
 use App\Models\CandidateCv;
 use App\Models\JobPosting;
 use App\Services\SafeUploadService;
+use App\Support\DataScope;
 use App\Support\Ui;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 
@@ -25,23 +27,44 @@ class RecruitmentController extends Controller
     ];
 
     /**
+     * Chi nhánh người dùng quản lý tuyển dụng: không có module phạm vi riêng → dùng phạm vi nhân sự "user.scope_*" (DataScope)
+     * như các màn nhân sự khác. null = mọi chi nhánh (Admin); Quản lý cơ sở chỉ chi nhánh mình (rà soát 19/10/2026).
+     *
+     * @return list<int>|null
+     */
+    private static function branchScope(): ?array
+    {
+        return DataScope::branchIds(Auth::user(), 'user');
+    }
+
+    /** Tin / CV trong phạm vi: theo chi nhánh; tin / CV chưa gắn chi nhánh (toàn hệ thống) chỉ người phạm vi "all" thấy ($withGlobal: chỉ xem). */
+    private static function scoped($query, bool $withGlobal = false)
+    {
+        $ids = self::branchScope();
+
+        return $ids === null ? $query : $query->where(fn ($q) => $q->whereIn('branch_id', $ids)
+            ->when($withGlobal, fn ($q) => $q->orWhereNull('branch_id')));
+    }
+
+    /**
      * Màn hình quản lý tuyển dụng & hồ sơ ứng viên trong Web Admin
      */
     public function index(Request $request): InertiaResponse
     {
-        $branches = Branch::where('is_active', true)->get();
+        $branchIds = self::branchScope();
+        $branches = Branch::where('is_active', true)->when($branchIds !== null, fn ($q) => $q->whereIn('id', $branchIds))->get();
         $tab = $request->get('tab', 'candidates'); // 'candidates', 'jobs'
         $status = $request->get('status', 'all');
         $branchId = $request->get('branch_id');
 
-        // Danh sách tin tuyển dụng
-        $jobs = JobPosting::with(['branch', 'creator'])
-            ->withCount('candidateCvs')
+        // Danh sách tin tuyển dụng (tin toàn hệ thống vẫn hiện để xem; số CV chỉ đếm CV trong phạm vi).
+        $jobs = self::scoped(JobPosting::with(['branch', 'creator']), withGlobal: true)
+            ->withCount(['candidateCvs' => fn ($q) => self::scoped($q)])
             ->latest()
             ->get();
 
         // Danh sách CV ứng tuyển
-        $cvsQuery = CandidateCv::with(['jobPosting', 'branch', 'reviewer'])->latest();
+        $cvsQuery = self::scoped(CandidateCv::with(['jobPosting', 'branch', 'reviewer']))->latest();
 
         if ($status !== 'all' && ! empty($status)) {
             $cvsQuery->where('status', $status);
@@ -54,10 +77,10 @@ class RecruitmentController extends Controller
         $candidates = $cvsQuery->paginate(15)->withQueryString();
 
         // Thống kê
-        $totalJobs = JobPosting::where('is_active', true)->count();
-        $totalCvs = CandidateCv::count();
-        $interviewedCount = CandidateCv::where('status', 'interviewed')->count();
-        $acceptedCount = CandidateCv::where('status', 'accepted')->count();
+        $totalJobs = self::scoped(JobPosting::where('is_active', true), withGlobal: true)->count();
+        $totalCvs = self::scoped(CandidateCv::query())->count();
+        $interviewedCount = self::scoped(CandidateCv::where('status', 'interviewed'))->count();
+        $acceptedCount = self::scoped(CandidateCv::where('status', 'accepted'))->count();
 
         return Inertia::render('Recruitment/Index', [
             'tab' => $tab,
@@ -113,6 +136,10 @@ class RecruitmentController extends Controller
             'benefits' => 'nullable|string',
             'deadline' => 'nullable|date',
         ]);
+        // Tin toàn hệ thống (không chọn chi nhánh) chỉ người phạm vi "all"; còn lại phải là chi nhánh của mình.
+        if (! DataScope::coversBranch(Auth::user(), 'user', isset($validated['branch_id']) ? (int) $validated['branch_id'] : null)) {
+            throw ValidationException::withMessages(['branch_id' => 'Chỉ đăng tin cho chi nhánh bạn quản lý.']);
+        }
 
         JobPosting::create([
             'title' => $validated['title'],
@@ -137,7 +164,7 @@ class RecruitmentController extends Controller
      */
     public function toggleJobStatus($id): RedirectResponse
     {
-        $job = JobPosting::findOrFail($id);
+        $job = self::scoped(JobPosting::query())->findOrFail($id);
         $job->update(['is_active' => ! $job->is_active]);
 
         $statusText = $job->is_active ? 'mở lại' : 'đóng tạm thời';
@@ -150,7 +177,7 @@ class RecruitmentController extends Controller
      */
     public function updateCvStatus(Request $request, $id): RedirectResponse
     {
-        $cv = CandidateCv::findOrFail($id);
+        $cv = self::scoped(CandidateCv::query())->findOrFail($id);
 
         $validated = $request->validate([
             'status' => 'required|in:pending,reviewing,interviewed,accepted,rejected',
@@ -159,7 +186,7 @@ class RecruitmentController extends Controller
 
         $cv->update([
             'status' => $validated['status'],
-            'notes' => $validated['notes'] ? ($cv->notes ? $cv->notes."\n[".now()->format('d/m/Y H:i').']: '.$validated['notes'] : $validated['notes']) : $cv->notes,
+            'notes' => ($validated['notes'] ?? null) ? ($cv->notes ? $cv->notes."\n[".now()->format('d/m/Y H:i').']: '.$validated['notes'] : $validated['notes']) : $cv->notes,
             'reviewed_by' => Auth::id(),
             'reviewed_at' => now(),
         ]);

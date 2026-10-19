@@ -311,11 +311,11 @@ return [
             ],
         ],
         'mail_config' => [
-            'label' => 'Hòm thư gửi (SMTP)',
+            'label' => 'Hòm thư gửi (SMTP) & email nhận thông báo',
             'group' => 'system',
             'icon' => 'outbox',
             'actions' => [
-                'manage' => ['Cấu hình hòm thư gửi', 'Đổi máy chủ / tài khoản SMTP dùng gửi mọi email của hệ thống (kể cả email đặt lại mật khẩu).'],
+                'manage' => ['Cấu hình hòm thư & email nhận', 'Mở màn "Email nhận Ticket": danh sách email nhận và sự kiện gửi thông báo vận hành toàn hệ thống (ticket, phiếu thu, công nợ…), gửi thử, đổi máy chủ / tài khoản SMTP dùng gửi mọi email (kể cả email đặt lại mật khẩu). Mặc định chỉ Admin.'],
             ],
         ],
         'sla' => [
@@ -478,7 +478,7 @@ return [
             'group' => 'hr',
             'icon' => 'gavel',
             'actions' => [
-                'view' => ['Xem mọi biên bản', 'Xem biên bản của mọi nhân sự (người khác chỉ xem biên bản của mình).'],
+                'view' => ['Xem biên bản của người khác', 'Xem biên bản của nhân sự trong phạm vi dữ liệu (người không có quyền này chỉ xem biên bản của mình).'],
                 'create' => ['Lập biên bản', 'Lập biên bản vi phạm.'],
                 'confirm_error' => ['Xác nhận lỗi', 'Xác nhận lỗi vi phạm.'],
                 'confirm_fine' => ['Quyết định mức phạt', 'Chốt biên bản và mức phạt (theo loại lỗi được phép chốt).'],
@@ -487,6 +487,12 @@ return [
                 'cancel' => ['Hủy biên bản', 'Hủy biên bản.'],
                 'mark_paid' => ['Ghi nhận đã nộp phạt', 'Đánh dấu đã nộp phạt.'],
                 'mark_resolved' => ['Ghi nhận khắc phục', 'Đánh dấu đã khắc phục / giải quyết.'],
+            ],
+            'scope' => [
+                'levels' => ['own', 'branch', 'all'],
+                'own' => 'Biên bản của tôi (tôi vi phạm hoặc tôi lập)',
+                'branch' => 'Biên bản của tôi + biên bản nhân sự thuộc chi nhánh của tôi',
+                'all' => 'Biên bản mọi nhân sự, mọi chi nhánh',
             ],
         ],
         'staff_report' => [
@@ -543,7 +549,7 @@ return [
             'actions' => [
                 'view' => ['Xem ticket', 'Xem ticket trong phạm vi dữ liệu, trao đổi trong ticket.'],
                 'create' => ['Tạo ticket', 'Tạo ticket hỗ trợ.'],
-                'update' => ['Xử lý ticket', 'Được nhận xử lý ticket, cấu hình email nhận ticket.'],
+                'update' => ['Xử lý ticket', 'Được nhận xử lý ticket (trong phạm vi dữ liệu).'],
                 'assign' => ['Phân công ticket', 'Phân công người xử lý ticket.'],
                 'close' => ['Đổi trạng thái / đóng', 'Đổi trạng thái, đóng ticket.'],
             ],

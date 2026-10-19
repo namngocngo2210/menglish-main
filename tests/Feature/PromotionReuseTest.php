@@ -79,9 +79,11 @@ class PromotionReuseTest extends TestCase
 
     public function test_update_and_toggle_promotion(): void
     {
-        $promotion = $this->promotion(['name' => 'Cũ']);
+        // Học vụ (lead.scope_branch) chỉ sửa / bật tắt ưu đãi của chi nhánh mình; ưu đãi chung chỉ phạm vi "all" (rà soát 19/10/2026).
+        $promotion = $this->promotion(['name' => 'Cũ', 'branch_id' => $this->branch->id]);
 
         $this->actingAs($this->academic)->put(route('crm.promotions.update', $promotion), [
+            'branch_id' => $this->branch->id,
             'name' => 'Ưu đãi học viên cũ',
             'type' => 'fixed',
             'value' => 300000,
@@ -117,6 +119,8 @@ class PromotionReuseTest extends TestCase
             'is_default' => true,
             'usage_limit' => 50,
             'reason' => 'Hai con cùng học',
+            // Ưu đãi riêng gắn cơ sở của khách; không gắn cơ sở chỉ người phạm vi "all" (rà soát 19/10/2026).
+            'branch_id' => $this->branch->id,
         ])->assertOk()->assertJsonPath('promotion.is_special', true);
 
         $promotion = Promotion::where('name', 'Giảm thêm')->firstOrFail();

@@ -21,7 +21,7 @@ const statusOptions = [
 <template>
     <UiPageHeader title="Yêu cầu hỗ trợ" icon="confirmation_number">
         <template #actions>
-            <UiButton v-if="can('support_ticket.update')" variant="secondary" icon="settings" :href="route('system-config.ticket-emails')">Cấu hình Email nhận</UiButton>
+            <UiButton v-if="can('mail_config.manage')" variant="secondary" icon="settings" :href="route('system-config.ticket-emails')">Cấu hình Email nhận</UiButton>
             <UiButton icon="add_circle" :href="route('tickets.create')" modal="2xl">Tạo Ticket Mới</UiButton>
         </template>
     </UiPageHeader>

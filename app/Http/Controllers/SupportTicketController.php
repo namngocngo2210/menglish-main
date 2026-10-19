@@ -8,6 +8,8 @@ use App\Models\TicketMessage;
 use App\Models\User;
 use App\Services\MediaManagerService;
 use App\Services\NotificationService;
+use App\Support\DataScope;
+use App\Support\Rbac;
 use App\Support\Ui;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
@@ -35,14 +37,8 @@ class SupportTicketController extends Controller
     /** Danh sách ticket: "Tạo Ticket Mới" mở modal 2xl, "Trao đổi" mở modal 3xl (hội thoại + trả lời). */
     public function index(Request $request): Response
     {
-        $query = SupportTicket::with(['creator', 'assignee'])->latest();
-
-        if (! $this->canManageTickets()) {
-            $query->where(function ($query) {
-                $query->where('creator_id', Auth::id())
-                    ->orWhere('assignee_id', Auth::id());
-            });
-        }
+        // Phạm vi support_ticket.scope_*: Của tôi / Chi nhánh (ticket do nhân sự chi nhánh tạo) / Toàn hệ thống.
+        $query = SupportTicket::visibleTo(Auth::user())->with(['creator', 'assignee'])->latest();
 
         if ($status = $request->input('status')) {
             $query->where('status', $status);
@@ -75,13 +71,7 @@ class SupportTicketController extends Controller
                 'created_at' => $ticket->created_at->toIso8601String(),
             ]);
 
-        $statsQuery = SupportTicket::query();
-        if (! $this->canManageTickets()) {
-            $statsQuery->where(function ($query) {
-                $query->where('creator_id', Auth::id())
-                    ->orWhere('assignee_id', Auth::id());
-            });
-        }
+        $statsQuery = SupportTicket::visibleTo(Auth::user());
 
         $stats = [
             'total' => (clone $statsQuery)->count(),
@@ -209,8 +199,7 @@ class SupportTicketController extends Controller
     /** Chi tiết ticket: mở từ danh sách → modal (hội thoại + ô trả lời); mở thẳng URL → trang đầy đủ. */
     public function show($id): Response
     {
-        $ticket = SupportTicket::with(['creator', 'assignee', 'messages.user'])->where('id', $id)->orWhere('code', $id)->firstOrFail();
-        $this->authorizeTicketParticipant($ticket);
+        $ticket = $this->findVisibleTicket($id, ['creator', 'assignee', 'messages.user']);
 
         $canSeeInternal = $ticket->userCanSeeInternalNotes(Auth::user());
         if (! $canSeeInternal) {
@@ -260,8 +249,7 @@ class SupportTicketController extends Controller
 
     public function storeMessage(Request $request, $id)
     {
-        $ticket = SupportTicket::where('id', $id)->orWhere('code', $id)->firstOrFail();
-        $this->authorizeTicketParticipant($ticket);
+        $ticket = $this->findVisibleTicket($id);
 
         $validated = $request->validate([
             'message' => 'required|string',
@@ -297,7 +285,7 @@ class SupportTicketController extends Controller
 
     public function updateStatus(Request $request, $id)
     {
-        $ticket = SupportTicket::where('id', $id)->orWhere('code', $id)->firstOrFail();
+        $ticket = $this->findVisibleTicket($id);
 
         $validated = $request->validate([
             'status' => 'required|string|in:open,in_progress,resolved,closed',
@@ -321,8 +309,7 @@ class SupportTicketController extends Controller
      */
     public function reopen($id)
     {
-        $ticket = SupportTicket::where('id', $id)->orWhere('code', $id)->firstOrFail();
-        $this->authorizeTicketParticipant($ticket);
+        $ticket = $this->findVisibleTicket($id);
         abort_unless($ticket->userCanReopen(Auth::user()), 403);
 
         if (! $ticket->isFinished()) {
@@ -345,7 +332,7 @@ class SupportTicketController extends Controller
 
     public function assign(Request $request, $id)
     {
-        $ticket = SupportTicket::where('id', $id)->orWhere('code', $id)->firstOrFail();
+        $ticket = $this->findVisibleTicket($id);
 
         $validated = $request->validate([
             'assignee_id' => 'required|exists:users,id',
@@ -373,8 +360,7 @@ class SupportTicketController extends Controller
      */
     public function attachment(Request $request, $id)
     {
-        $ticket = SupportTicket::with('messages')->where('id', $id)->orWhere('code', $id)->firstOrFail();
-        $this->authorizeTicketParticipant($ticket);
+        $ticket = $this->findVisibleTicket($id, ['messages']);
 
         $path = (string) $request->query('path', '');
         $canSeeInternal = $ticket->userCanSeeInternalNotes(Auth::user());
@@ -489,9 +475,7 @@ class SupportTicketController extends Controller
      */
     private function ticketHandlers()
     {
-        return User::query()
-            ->where('is_active', true)
-            ->whereNull('locked_at')
+        return $this->handlerCandidates()
             ->orderBy('name')
             ->with(['permissionOverrides', 'roles', 'permissions'])
             ->get()
@@ -499,9 +483,26 @@ class SupportTicketController extends Controller
             ->values();
     }
 
+    /**
+     * Tài khoản đang hoạt động có thể nhận phân công. Người phân công chưa ở mức Toàn hệ thống chỉ chọn được nhân sự
+     * thuộc chi nhánh của mình (chi nhánh chính + được cấp thêm); Super Admin luôn có trong danh sách (người xử lý cuối).
+     */
+    private function handlerCandidates()
+    {
+        $branchIds = DataScope::branchIds(Auth::user(), 'support_ticket');
+
+        return User::query()
+            ->where('is_active', true)
+            ->whereNull('locked_at')
+            ->when($branchIds !== null, fn ($query) => $query->where(fn ($q) => $q
+                ->whereIn('branch_id', $branchIds)
+                ->orWhereHas('branches', fn ($b) => $b->whereIn('branches.id', $branchIds))
+                ->orWhereHas('roles', fn ($r) => $r->where('name', Rbac::SUPER_ADMIN))));
+    }
+
     private function ensureValidHandler(int $userId): void
     {
-        $handler = User::query()->where('is_active', true)->whereNull('locked_at')->find($userId);
+        $handler = $this->handlerCandidates()->find($userId);
 
         if (! $handler || ! $handler->can('support_ticket.update')) {
             throw ValidationException::withMessages([
@@ -515,13 +516,17 @@ class SupportTicketController extends Controller
         return SupportTicket::userCanManage(Auth::user());
     }
 
-    private function authorizeTicketParticipant(SupportTicket $ticket): void
+    /**
+     * Ticket theo id / mã, chỉ khi người xem thấy được theo phạm vi support_ticket.scope_* (Của tôi: mình tạo / được giao;
+     * Chi nhánh: + ticket do nhân sự chi nhánh mình tạo; Toàn hệ thống). Ticket ngoài phạm vi → 403 như kiểm tra cũ.
+     *
+     * @param  list<string>  $with
+     */
+    private function findVisibleTicket($id, array $with = []): SupportTicket
     {
-        abort_unless(
-            $this->canManageTickets()
-                || (int) $ticket->creator_id === (int) Auth::id()
-                || (int) $ticket->assignee_id === (int) Auth::id(),
-            403
-        );
+        $ticket = SupportTicket::with($with)->where(fn ($q) => $q->where('id', $id)->orWhere('code', $id))->firstOrFail();
+        abort_unless(SupportTicket::visibleTo(Auth::user())->whereKey($ticket->id)->exists(), 403);
+
+        return $ticket;
     }
 }

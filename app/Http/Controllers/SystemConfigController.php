@@ -545,7 +545,8 @@ class SystemConfigController extends Controller
         );
 
         // 2. Hòm thư gửi SMTP: mọi email của hệ thống (kể cả email đặt lại mật khẩu) đi qua đây, nên chỉ người có
-        //    mail_config.manage (mặc định Admin) được đổi; người chỉ quản lý danh sách nhận ticket thì bỏ qua phần này.
+        //    mail_config.manage (mặc định Admin) được đổi. Route đã chặn bằng mail_config.manage (danh sách nhận nhận cả
+        //    email vận hành mọi chi nhánh); kiểm tra lại ở đây phòng route bị nới quyền.
         //    Đổi máy chủ / tài khoản phải nhập lại mật khẩu SMTP, không cho dùng mật khẩu đã lưu với máy chủ khác.
         if (! $request->user()?->can('mail_config.manage')) {
             return redirect()->route('system-config.ticket-emails')

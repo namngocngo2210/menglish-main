@@ -113,13 +113,17 @@ func TestCanDecisionOrder(t *testing.T) {
 func TestScopeLevels(t *testing.T) {
 	b1, b2 := uuid.New(), uuid.New()
 	m := accessFor(t, []uuid.UUID{b1}, RoleManager)
-	if m.Level("lead") != ScopeBranch || m.Level("kpi") != ScopeAll || m.Level("payroll") != ScopeOwn {
+	// Quản lý cơ sở chỉ thấy dữ liệu chi nhánh mình (cả KPI, Big Test, ticket, nhật ký); lương chỉ của mình.
+	if m.Level("lead") != ScopeBranch || m.Level("kpi") != ScopeBranch || m.Level("payroll") != ScopeOwn {
 		t.Errorf("Quản lý cơ sở: lead=%s kpi=%s payroll=%s", m.Level("lead"), m.Level("kpi"), m.Level("payroll"))
 	}
 	if !m.CoversBranch("lead", &b1) || m.CoversBranch("lead", &b2) || m.CoversBranch("lead", nil) {
 		t.Error("mức chi nhánh chỉ thấy chi nhánh của mình")
 	}
-	if m.BranchLimit("kpi") != nil {
+	if limit := m.BranchLimit("kpi"); len(limit) != 1 || limit[0] != b1 {
+		t.Errorf("mức chi nhánh giới hạn theo chi nhánh của mình: %v", limit)
+	}
+	if accessFor(t, []uuid.UUID{b1}, RoleAcademicLead).BranchLimit("kpi") != nil {
 		t.Error("mức toàn hệ thống không giới hạn chi nhánh")
 	}
 	sales := accessFor(t, nil, RoleSalesConsultant)

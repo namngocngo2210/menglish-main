@@ -6,6 +6,7 @@ use App\Http\Concerns\RendersModals;
 use App\Models\Branch;
 use App\Models\Course;
 use App\Models\Promotion;
+use App\Support\DataScope;
 use App\Support\Ui;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -27,13 +28,30 @@ class PromotionController extends Controller
 {
     use RendersModals;
 
+    /**
+     * Phạm vi ưu đãi theo "lead.scope_*" (DataScope, cùng phạm vi khách CRM): null = mọi chi nhánh. Người phạm vi Chi nhánh
+     * (Quản lý cơ sở, Học vụ) thấy ưu đãi chung (không gắn cơ sở, chỉ xem) + ưu đãi của chi nhánh mình (rà soát 19/10/2026).
+     */
+    public static function scopeVisible(Builder $query): Builder
+    {
+        $ids = DataScope::branchIds(Auth::user(), 'lead');
+
+        return $ids === null ? $query : $query->where(fn (Builder $q) => $q->whereNull('branch_id')->orWhereIn('branch_id', $ids));
+    }
+
+    /** Sửa / bật tắt: ưu đãi thuộc chi nhánh trong phạm vi; ưu đãi chung chỉ người phạm vi "all". Ngoài phạm vi → 404. */
+    private function authorizeManage(Promotion $promotion): void
+    {
+        abort_unless(DataScope::coversBranch(Auth::user(), 'lead', $promotion->branch_id !== null ? (int) $promotion->branch_id : null), 404);
+    }
+
     public function index(Request $request): InertiaResponse
     {
         $tab = $request->query('tab') === 'special' ? 'special' : 'catalog';
         $status = $request->query('status');
         $search = trim((string) $request->query('q', ''));
 
-        $promotions = Promotion::query()
+        $promotions = self::scopeVisible(Promotion::query())
             ->with(['branch:id,name', 'course:id,name', 'creator:id,name'])
             ->where('is_special', $tab === 'special')
             ->when($search !== '', fn (Builder $q) => $q->where(fn (Builder $w) => $w
@@ -69,8 +87,8 @@ class PromotionController extends Controller
             ]),
             'tab' => $tab,
             'counts' => [
-                'catalog' => Promotion::catalog()->count(),
-                'special' => Promotion::where('is_special', true)->count(),
+                'catalog' => self::scopeVisible(Promotion::catalog())->count(),
+                'special' => self::scopeVisible(Promotion::where('is_special', true))->count(),
             ],
             'filters' => ['q' => $search, 'status' => $status],
         ]);
@@ -128,11 +146,14 @@ class PromotionController extends Controller
 
     public function edit(Promotion $promotion): InertiaResponse
     {
+        $this->authorizeManage($promotion);
+
         return $this->formPage($promotion);
     }
 
     public function update(Request $request, Promotion $promotion): RedirectResponse
     {
+        $this->authorizeManage($promotion);
         $validated = $this->validatePromotion($request, $promotion);
 
         $promotion->update([
@@ -149,6 +170,7 @@ class PromotionController extends Controller
     /** Bật / ngừng áp dụng (không xóa: hợp đồng, phiếu thu cũ vẫn trỏ tới ưu đãi). */
     public function toggle(Promotion $promotion): RedirectResponse
     {
+        $this->authorizeManage($promotion);
         $promotion->update(['is_active' => ! $promotion->is_active]);
 
         return back()->with('status', $promotion->is_active
@@ -215,12 +237,18 @@ class PromotionController extends Controller
         if ($validated['type'] !== 'percent') {
             $validated['max_discount_amount'] = null;
         }
+        // Cơ sở áp dụng phải trong phạm vi; ưu đãi chung (không gắn cơ sở) chỉ người phạm vi "all" tạo / gán.
+        if (! DataScope::coversBranch(Auth::user(), 'lead', $validated['branch_id'] !== null ? (int) $validated['branch_id'] : null)) {
+            throw ValidationException::withMessages(['branch_id' => 'Chọn cơ sở áp dụng thuộc chi nhánh bạn quản lý.']);
+        }
 
         return $validated;
     }
 
     private function formPage(Promotion $promotion): InertiaResponse
     {
+        $branchIds = DataScope::branchIds(Auth::user(), 'lead');
+
         return $this->modalPage('Promotions/Form', [
             'promotion' => [
                 'id' => $promotion->id,
@@ -241,7 +269,7 @@ class PromotionController extends Controller
                 'is_default' => (bool) $promotion->is_default,
                 'is_special' => (bool) $promotion->is_special,
             ],
-            'branches' => Ui::options(Branch::where('is_active', true)->orderBy('name')->get(), 'name'),
+            'branches' => Ui::options(Branch::where('is_active', true)->when($branchIds !== null, fn ($q) => $q->whereIn('id', $branchIds))->orderBy('name')->get(), 'name'),
             'courses' => Ui::options(Course::where('is_active', true)->orderBy('name')->get(), 'name'),
             'isEdit' => $promotion->exists,
         ]);

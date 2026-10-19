@@ -234,20 +234,38 @@ class StaffReportController extends Controller
 
     /**
      * Người xem tổng hợp không phải Admin (Quản lý cơ sở): chỉ thấy báo cáo / nhật ký của nhân sự chi nhánh mình (rà soát 16/10/2026).
-     * null = không giới hạn (Admin, hoặc người xem chưa gán chi nhánh).
+     * null = không giới hạn (Admin). Chưa gán chi nhánh → chỉ báo cáo của chính mình (docs/rbac.md: "Chi nhánh" mà chưa có chi nhánh
+     * thì không thấy dữ liệu của người khác).
      *
      * @return list<int>|null
      */
     private function viewerStaffIds(): ?array
     {
         $viewer = Auth::user();
-        if (! $viewer || $viewer->can(AdminOnlyApprovals::ABILITY) || $viewer->branchIds() === []) {
+        if (! $viewer) {
+            return [];
+        }
+        if ($viewer->can(AdminOnlyApprovals::ABILITY)) {
             return null;
         }
 
-        return User::query()->where(fn ($q) => $q->whereIn('branch_id', $viewer->branchIds())
-            ->orWhereHas('branches', fn ($b) => $b->whereIn('branches.id', $viewer->branchIds())))
-            ->pluck('id')->map(fn ($id) => (int) $id)->push((int) $viewer->id)->unique()->values()->all();
+        return self::staffIdsInBranches($viewer->branchIds(), (int) $viewer->id);
+    }
+
+    /**
+     * Id nhân sự thuộc các chi nhánh (chi nhánh chính hoặc chi nhánh được cấp thêm), kèm $plus (thường là người xem).
+     * Dùng chung cho màn tổng hợp báo cáo và dashboard Báo cáo / Nhật ký sự vụ (AcademicDashboardController).
+     *
+     * @param  list<int>  $branchIds
+     * @return list<int>
+     */
+    public static function staffIdsInBranches(array $branchIds, ?int $plus = null): array
+    {
+        $ids = $branchIds === [] ? collect() : User::query()->where(fn ($q) => $q->whereIn('branch_id', $branchIds)
+            ->orWhereHas('branches', fn ($b) => $b->whereIn('branches.id', $branchIds)))
+            ->pluck('id')->map(fn ($id) => (int) $id);
+
+        return $ids->when($plus, fn ($c) => $c->push($plus))->unique()->values()->all();
     }
 
     /** Giới hạn truy vấn báo cáo theo phạm vi người xem (viewerStaffIds). */

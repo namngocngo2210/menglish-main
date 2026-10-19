@@ -8,8 +8,10 @@ use App\Models\ClassModel;
 use App\Models\Penalty;
 use App\Models\User;
 use App\Services\SafeUploadService;
+use App\Support\DataScope;
 use App\Support\Money;
 use App\Support\Ui;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -42,8 +44,8 @@ class PenaltyController extends Controller
             'to' => ['nullable', 'date'],
         ]);
 
-        $penalties = Penalty::with(['user', 'classModel', 'reporter', 'decider', 'remedier', 'payrollRecord.period'])
-            ->when(! $canViewAll, fn ($query) => $query->where('user_id', $user->id))
+        // Không có violation.view → chỉ biên bản của mình; có → theo phạm vi violation.scope_* (Penalty::scopeVisibleTo).
+        $penalties = Penalty::visibleTo($user)->with(['user', 'classModel', 'reporter', 'decider', 'remedier', 'payrollRecord.period'])
             ->when($validated['search'] ?? null, function ($query, string $search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('code', 'like', "%{$search}%")
@@ -67,16 +69,15 @@ class PenaltyController extends Controller
             ->paginate($request->perPage(15))
             ->withQueryString();
 
+        // Ô chọn nhân sự / lớp khi lập biên bản: chỉ trong chi nhánh của người lập (trừ mức Toàn hệ thống).
         $users = $canViewAll
-            ? User::with('roles:id,name')->where('is_active', true)->whereNotIn('id', \App\Support\Rbac::scopeUsersWithPermission(User::query(), 'portal.student')->select('id'))->orderBy('name')->get()
+            ? Penalty::staffVisibleTo(User::with('roles:id,name'), $user)->where('is_active', true)->whereNotIn('id', \App\Support\Rbac::scopeUsersWithPermission(User::query(), 'portal.student')->select('id'))->orderBy('name')->get()
             : collect();
-        $classes = $canViewAll ? ClassModel::orderBy('name')->get() : collect();
+        $classes = $canViewAll ? $this->classesFor($user)->orderBy('name')->get() : collect();
 
-        $counts = Penalty::query()
-            ->when(! $canViewAll, fn ($query) => $query->where('user_id', $user->id))
+        $counts = Penalty::visibleTo($user)
             ->selectRaw('status, COUNT(*) as total')->groupBy('status')->pluck('total', 'status');
-        $overdueCount = Penalty::query()
-            ->when(! $canViewAll, fn ($query) => $query->where('user_id', $user->id))
+        $overdueCount = Penalty::visibleTo($user)
             ->where('status', 'fined')->whereDate('due_date', '<', today()->toDateString())->count();
 
         // Ngày thuộc kỳ lương đã khóa: nút "Chốt mức phạt" bị khóa trên dòng tương ứng.
@@ -166,14 +167,20 @@ class PenaltyController extends Controller
      */
     public function storePenalty(Request $request)
     {
+        // Chỉ lập biên bản cho nhân sự / lớp thuộc chi nhánh của mình (trừ mức Toàn hệ thống — violation.scope_all).
+        $inScope = fn (Builder $query, string $message) => function (string $attribute, $value, \Closure $fail) use ($query, $message) {
+            if (! (clone $query)->whereKey($value)->exists()) {
+                $fail($message);
+            }
+        };
         $validated = $request->validate([
-            'user_id' => 'required|exists:users,id',
+            'user_id' => ['bail', 'required', 'exists:users,id', $inScope(Penalty::staffVisibleTo(User::query(), $request->user()), 'Nhân sự này không thuộc chi nhánh của bạn.')],
             'error_category' => ['nullable', Rule::in(array_keys(Penalty::CATEGORIES))],
             'violation_type' => 'required|string|max:255',
             'violation_at' => 'required|date',
             // Mức phạt đề xuất (không bắt buộc) — mức chính thức do người chốt quyết định.
             'amount' => 'nullable|numeric|min:0',
-            'class_id' => 'nullable|exists:classes,id',
+            'class_id' => ['bail', 'nullable', 'exists:classes,id', $inScope($this->classesFor($request->user()), 'Lớp này không thuộc chi nhánh của bạn.')],
             'notes' => 'nullable|string|max:500',
             'evidence' => 'required|file|max:'.Penalty::EVIDENCE_MAX_KB.'|mimes:'.implode(',', Penalty::EVIDENCE_EXTENSIONS),
         ], [
@@ -223,8 +230,7 @@ class PenaltyController extends Controller
      */
     public function evidence(Request $request, $id)
     {
-        $penalty = Penalty::findOrFail($id);
-        abort_unless($request->user()->can('violation.view') || $penalty->user_id === $request->user()->id, 403);
+        $penalty = Penalty::visibleTo($request->user())->findOrFail($id);
         abort_unless($penalty->evidence_path && Storage::disk(Penalty::EVIDENCE_DISK)->exists($penalty->evidence_path), 404);
 
         return Storage::disk(Penalty::EVIDENCE_DISK)->response($penalty->evidence_path);
@@ -265,7 +271,7 @@ class PenaltyController extends Controller
         $decision = $request->input('decision') === 'fine' ? 'fine' : 'error';
         abort_unless($request->user()->can("violation.confirm_{$decision}"), 403);
 
-        $penalty = Penalty::findOrFail($id);
+        $penalty = Penalty::visibleTo($request->user())->findOrFail($id);
         abort_unless($penalty->canBeDecidedBy($request->user()), 403, "Biên bản {$penalty->category_label} do {$penalty->confirmer_label} chốt.");
 
         $validated = $request->validate([
@@ -321,7 +327,7 @@ class PenaltyController extends Controller
      */
     public function markPaidPenalty(Request $request, $id)
     {
-        $penalty = Penalty::with('payrollRecord.period')->findOrFail($id);
+        $penalty = Penalty::visibleTo($request->user())->with('payrollRecord.period')->findOrFail($id);
         abort_unless($penalty->status === 'fined', 422, 'Chỉ biên bản đã quyết phạt mới ghi nhận nộp phạt.');
         if ($response = $this->rejectIfPayrollLocked($penalty)) {
             return $response;
@@ -348,7 +354,7 @@ class PenaltyController extends Controller
      */
     public function resolvePenalty(Request $request, $id)
     {
-        $penalty = Penalty::with('payrollRecord.period')->findOrFail($id);
+        $penalty = Penalty::visibleTo($request->user())->with('payrollRecord.period')->findOrFail($id);
         abort_unless(in_array($penalty->status, Penalty::OPEN_STATUSES, true), 422, 'Biên bản đã đóng.');
         if ($response = $this->rejectIfPayrollLocked($penalty)) {
             return $response;
@@ -365,7 +371,7 @@ class PenaltyController extends Controller
      */
     public function remedyPenalty(Request $request, $id)
     {
-        $penalty = Penalty::findOrFail($id);
+        $penalty = Penalty::visibleTo($request->user())->findOrFail($id);
         abort_unless(in_array($penalty->status, ['paid', 'deducted'], true) && $penalty->remedied_at === null, 422, 'Chỉ biên bản đã nộp / đã trừ lương mới ghi nhận khắc phục.');
         $validated = $request->validate(['remedy_note' => ['nullable', 'string', 'max:1000']]);
 
@@ -378,9 +384,9 @@ class PenaltyController extends Controller
         return redirect()->back()->with('status', "Đã ghi nhận khắc phục biên bản {$penalty->code}.");
     }
 
-    public function cancelPenalty($id)
+    public function cancelPenalty(Request $request, $id)
     {
-        $penalty = Penalty::with('payrollRecord.period')->findOrFail($id);
+        $penalty = Penalty::visibleTo($request->user())->with('payrollRecord.period')->findOrFail($id);
         abort_unless(in_array($penalty->status, ['pending', 'explained', 'confirmed'], true), 422, 'Biên bản đã vào vòng phạt không thể hủy — dùng Đóng vụ nếu cần miễn.');
         if ($response = $this->rejectIfPayrollLocked($penalty)) {
             return $response;
@@ -400,6 +406,14 @@ class PenaltyController extends Controller
         $roles = User::find($userId)?->getRoleNames() ?? [];
 
         return Penalty::commonViolationsFor($roles)[$violationType] ?? $chosen ?? 'operations';
+    }
+
+    /** Lớp gắn được vào biên bản: Toàn hệ thống → mọi lớp; mức khác → lớp thuộc chi nhánh của người lập. */
+    private function classesFor(?User $user): Builder
+    {
+        $branchIds = DataScope::branchIds($user, 'violation');
+
+        return ClassModel::query()->when($branchIds !== null, fn (Builder $q) => $q->whereIn('branch_id', $branchIds));
     }
 
     /** Biên bản đã nằm trong kỳ lương đã duyệt/chi trả thì không được đổi trạng thái nữa. */

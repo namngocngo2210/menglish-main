@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\DataScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -37,10 +38,28 @@ class TeacherMeetingReport extends Model
         'week_start' => 'date',
     ];
 
-    /** Báo cáo không gắn lớp, hoặc gắn lớp nằm trong phạm vi Lớp học của người xem. */
+    /**
+     * Theo phạm vi Lớp học: Toàn hệ thống → mọi báo cáo; còn lại → báo cáo gắn lớp trong phạm vi, hoặc báo cáo
+     * không gắn lớp do mình ghi / (mức Chi nhánh) về giáo viên thuộc chi nhánh của mình (chi nhánh chính hoặc
+     * chi nhánh được cấp thêm).
+     */
     public function scopeVisibleTo(Builder $query, User $user): Builder
     {
-        return $query->where(fn (Builder $q) => $q->whereNull('class_id')
+        $level = DataScope::level($user, 'class');
+        if ($level === DataScope::ALL) {
+            return $query;
+        }
+        $branchIds = $level === DataScope::BRANCH ? $user->branchIds() : [];
+
+        return $query->where(fn (Builder $q) => $q
+            ->where(fn (Builder $noClass) => $noClass->whereNull('class_id')
+                ->where(function (Builder $owned) use ($user, $branchIds) {
+                    $owned->where('author_id', $user->id);
+                    if ($branchIds !== []) {
+                        $owned->orWhereHas('teacher', fn (Builder $t) => $t->whereIn('branch_id', $branchIds)
+                            ->orWhereHas('branches', fn (Builder $b) => $b->whereIn('branches.id', $branchIds)));
+                    }
+                }))
             ->orWhereHas('classModel', fn (Builder $c) => $c->visibleTo($user)));
     }
 
