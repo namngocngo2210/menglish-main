@@ -372,6 +372,7 @@ final class SidebarMenu
                     // Dự giờ & chất lượng lớp (mockup Học vụ / Học thuật): quyền class_quality.view đọc từ middleware route.
                     ['label' => 'Dự giờ vận hành', 'route' => 'class-quality.operations'],
                     ['label' => 'Đánh giá dự giờ', 'route' => 'class-quality.academic'],
+                    ['label' => 'Feedback buổi học', 'route' => 'class-quality.session-feedback'],
                     ['label' => 'Checklist học phí & feedback', 'route' => 'class-quality.checklist'],
                     ['label' => 'Họp giáo viên', 'route' => 'class-quality.teacher-meetings'],
                     ['label' => 'Dự án học thuật', 'route' => 'academic-projects.report'],
