@@ -11,7 +11,10 @@ use App\Models\StaffReport;
 use App\Models\StudentAttendance;
 use App\Models\SupportTicket;
 use App\Models\SyllabusAdjustmentRequest;
+use App\Models\User;
+use App\Support\DataScope;
 use App\Support\Ui;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
@@ -21,21 +24,45 @@ use Inertia\Response;
 class AcademicDashboardController extends Controller
 {
     /**
+     * Phạm vi dữ liệu của hai dashboard theo "class.scope_*" (DataScope): Toàn hệ thống (Admin, Học thuật, Học vụ) thấy mọi
+     * cơ sở; Chi nhánh (Quản lý cơ sở) chỉ thấy lớp trong phạm vi (ClassModel::visibleTo) và báo cáo / nhật ký do nhân sự
+     * chi nhánh mình viết; Của tôi → lớp mình + báo cáo của chính mình (rà soát 19/10/2026).
+     *
+     * @return array{branchIds: list<int>|null, staffIds: list<int>|null, classIds: \Closure(): Builder}
+     */
+    private function scope(User $user): array
+    {
+        $branchIds = DataScope::branchIds($user, 'class');
+
+        return [
+            'branchIds' => $branchIds,
+            'staffIds' => match (DataScope::level($user, 'class')) {
+                DataScope::ALL => null,
+                DataScope::BRANCH => StaffReportController::staffIdsInBranches($branchIds, (int) $user->id),
+                default => [(int) $user->id],
+            },
+            'classIds' => fn () => ClassModel::visibleTo($user)->select('id'),
+        ];
+    }
+
+    /**
      * Dashboard Báo cáo Admin:
      * Tổng hợp báo cáo ngày của Học vụ (+ báo cáo trực lớp), tuần của Học thuật (+ tuần KPI Học vụ), tháng / quý của Giáo viên và Học thuật.
      */
     public function reports(Request $request): Response
     {
-        $currentBranchId = $request->get('branch_id');
         $tab = $request->get('tab', 'daily'); // 'daily', 'weekly', 'monthly'
-        $branches = Branch::where('is_active', true)->get();
+        ['branchIds' => $branchIds, 'staffIds' => $staffIds, 'classIds' => $classIds] = $this->scope($request->user());
+        $scoped = $branchIds !== null;
+        $byClass = fn ($q) => $q->when($scoped, fn ($q) => $q->whereIn('class_id', $classIds()));
+        $byAuthor = fn ($q) => $q->when($staffIds !== null, fn ($q) => $q->whereIn('user_id', $staffIds));
 
         // Báo cáo trực lớp theo buổi (GV / TA), hiện cùng tab báo cáo ngày.
-        $classReports = ClassReport::with(['classModel', 'reporter'])->withCount('studentSupports')->latest()->take(10)->get();
+        $classReports = $byClass(ClassReport::with(['classModel', 'reporter'])->withCount('studentSupports'))->latest()->take(10)->get();
 
         // Báo cáo nhân sự đã nộp (staff_reports, bỏ bản nháp): 1. báo cáo ngày của Học vụ, 2. báo cáo tuần của Học thuật
         // (+ báo cáo tuần KPI của Học vụ, bảng riêng), 3. báo cáo tháng / quý (giáo viên, Học thuật).
-        $submitted = fn () => StaffReport::with('user:id,name')->where('status', '!=', 'draft')->latest('report_date')->latest('id');
+        $submitted = fn () => $byAuthor(StaffReport::with('user:id,name'))->where('status', '!=', 'draft')->latest('report_date')->latest('id');
         $staffDailyReports = $tab === 'daily' ? $submitted()->where('type', 'daily')->take(15)->get() : collect();
         $weeklyReports = $tab === 'weekly' ? $submitted()->where('type', 'weekly')
             ->where(fn ($q) => $q->where('kind', 'academic_weekly')->orWhereNull('kind'))->take(10)->get() : collect();
@@ -43,12 +70,12 @@ class AcademicDashboardController extends Controller
         $monthlyReports = $tab === 'monthly' ? $submitted()->whereIn('type', ['monthly', 'quarterly'])->take(15)->get() : collect();
 
         // Thống kê tổng hợp (số liệu thật; không có dữ liệu thì view hiện "Chưa có dữ liệu")
-        $totalClasses = ClassModel::count();
-        $activeClasses = ClassModel::where('status', 'active')->count();
-        $totalDailyReportsToday = ClassReport::whereDate('created_at', today())->count()
-            + StaffReport::where('type', 'daily')->whereDate('report_date', today())->count();
+        $totalClasses = ClassModel::visibleTo($request->user())->count();
+        $activeClasses = ClassModel::visibleTo($request->user())->where('status', 'active')->count();
+        $totalDailyReportsToday = $byClass(ClassReport::whereDate('created_at', today()))->count()
+            + $byAuthor(StaffReport::where('type', 'daily')->whereDate('report_date', today()))->count();
 
-        $todayAttendance = StudentAttendance::whereDate('session_date', today())->get(['status']);
+        $todayAttendance = $byClass(StudentAttendance::whereDate('session_date', today()))->get(['status']);
         $attendanceRateToday = $todayAttendance->isEmpty()
             ? null
             : round($todayAttendance->whereIn('status', ['present', 'late'])->count() * 100 / $todayAttendance->count(), 1);
@@ -78,10 +105,10 @@ class AcademicDashboardController extends Controller
         // Tuần này: số liệu học thuật thật
         $weekStart = now()->startOfWeek();
         $weeklyStats = [
-            'adjustments_pending' => SyllabusAdjustmentRequest::where('status', 'pending')->count(),
-            'adjustments_week' => SyllabusAdjustmentRequest::where('created_at', '>=', $weekStart)->count(),
-            'big_tests_upcoming' => BigTest::whereBetween('scheduled_at', [now(), now()->addDays(7)])->count(),
-            'big_tests_distributed' => BigTest::where('is_distributed', true)->where('distributed_at', '>=', $weekStart)->count(),
+            'adjustments_pending' => $byClass(SyllabusAdjustmentRequest::where('status', 'pending'))->count(),
+            'adjustments_week' => $byClass(SyllabusAdjustmentRequest::where('created_at', '>=', $weekStart))->count(),
+            'big_tests_upcoming' => $byClass(BigTest::whereBetween('scheduled_at', [now(), now()->addDays(7)]))->count(),
+            'big_tests_distributed' => $byClass(BigTest::where('is_distributed', true)->where('distributed_at', '>=', $weekStart))->count(),
         ];
 
         $recordRow = fn (StaffReport $report) => [
@@ -147,13 +174,20 @@ class AcademicDashboardController extends Controller
     {
         $severity = in_array($request->get('severity'), ['urgent', 'high', 'medium', 'low'], true) ? $request->get('severity') : 'all';
         $status = in_array($request->get('status'), ['open', 'resolved'], true) ? $request->get('status') : 'all';
-        $branchId = $request->get('branch_id');
+        $user = $request->user();
+        ['branchIds' => $branchIds, 'staffIds' => $staffIds, 'classIds' => $classIds] = $this->scope($user);
+        // Lọc cơ sở ngoài phạm vi → bỏ qua (không tin tham số branch_id).
+        $branchId = $request->integer('branch_id') ?: null;
+        if ($branchId && ! DataScope::coversBranch($user, 'class', $branchId)) {
+            $branchId = null;
+        }
 
-        $branches = Branch::where('is_active', true)->get();
+        $branches = Branch::where('is_active', true)->when($branchIds !== null, fn ($q) => $q->whereIn('id', $branchIds))->get();
 
-        // Dữ liệu nhật ký sự vụ từ academic_records (05_nhat_ky_hoc_vu) — bỏ bản ghi seed demo.
+        // Dữ liệu nhật ký sự vụ từ academic_records (05_nhat_ky_hoc_vu) — bỏ bản ghi seed demo; theo người ghi trong phạm vi.
         $incidentsQuery = AcademicRecord::forScreen('05_nhat_ky_hoc_vu')
             ->where('is_seed', false)
+            ->when($staffIds !== null, fn ($q) => $q->whereIn('user_id', $staffIds))
             ->with('user.branch')
             ->latest();
         if ($branchId) {
@@ -172,6 +206,10 @@ class AcademicDashboardController extends Controller
         $journals = ($severity === 'all' || $journalSeverity)
             ? StaffReport::with(['user.branch', 'classModel.branch', 'followups'])
                 ->where('type', 'journal')
+                // Phạm vi: nhật ký gắn lớp → lớp trong phạm vi; không gắn lớp → người ghi thuộc chi nhánh mình.
+                ->when($branchIds !== null, fn ($q) => $q->where(fn ($q) => $q
+                    ->whereIn('class_id', $classIds())
+                    ->orWhere(fn ($q) => $q->whereNull('class_id')->whereIn('user_id', $staffIds))))
                 ->when($journalSeverity, fn ($q) => $q->where('severity', $journalSeverity))
                 ->when($classId, fn ($q) => $q->where('class_id', $classId))
                 ->when($branchId, fn ($q) => $q->where(fn ($q) => $q
@@ -181,10 +219,11 @@ class AcademicDashboardController extends Controller
                 ->when($status === 'open', fn ($q) => $q->where('status', '!=', 'resolved'))
                 ->latest('report_date')->latest('id')->take(30)->get()
             : collect();
-        $classes = ClassModel::visibleTo($request->user())->where('status', '!=', 'cancelled')->orderBy('code')->get(['id', 'code', 'name']);
+        $classes = ClassModel::visibleTo($user)->where('status', '!=', 'cancelled')->orderBy('code')->get(['id', 'code', 'name']);
 
-        // Support tickets nổi cộm (model có creator/assignee, không có relation user)
-        $ticketsQuery = SupportTicket::with(['creator.branch', 'assignee'])
+        // Support tickets nổi cộm (model có creator/assignee, không có relation user): cùng phạm vi màn Ticket — chỉ ticket
+        // người xem được mở (SupportTicket::visibleTo).
+        $ticketsQuery = SupportTicket::visibleTo($user)->with(['creator.branch', 'assignee'])
             ->whereIn('priority', $severity === 'all' ? ['urgent', 'high'] : [$severity])
             ->latest();
         if ($branchId) {
@@ -212,7 +251,6 @@ class AcademicDashboardController extends Controller
         $urgentCount = $urgentTickets->where('priority', 'urgent')->whereIn('status', ['open', 'in_progress'])->count()
             + $journals->where('severity', 'urgent')->where('status', '!=', 'resolved')->count();
 
-        $user = $request->user();
         $canManageTickets = SupportTicket::userCanManage($user);
         $journalSeverityMap = ['urgent' => 'urgent', 'important' => 'high', 'normal' => 'medium'];
 
