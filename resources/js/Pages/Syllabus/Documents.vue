@@ -164,7 +164,6 @@ function uploaded() {
             </UiField>
 
             <UiField label="Tài liệu đính kèm" name="file" required>
-
                 <label
                     :class="['flex cursor-pointer flex-col items-center justify-center gap-xs rounded-xl border-2 border-dashed px-md py-lg text-center transition-colors', dragging ? 'border-primary-container bg-primary-fixed/30' : 'border-outline-variant bg-surface-container-low hover:border-primary/50']"
                     @dragover.prevent="dragging = true"
