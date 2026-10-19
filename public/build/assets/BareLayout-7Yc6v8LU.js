@@ -1,1 +1,0 @@
-import{o as r,c as t,U as l,a,V as n,W as o,F as c}from"./app-C78sOyAV.js";const m={__name:"BareLayout",props:{flash:{type:Array,default:()=>[]}},setup(e){return(s,f)=>(r(),t(c,null,[l(s.$slots,"default"),a(n,{flash:e.flash},null,8,["flash"]),a(o)],64))}};export{m as _};

@@ -99,13 +99,103 @@ class SessionLedgerTest extends TestCase
             'class_id' => $classB->id,
         ])->assertSessionHasNoErrors();
 
-        $this->assertSame(today()->toDateString(), ClassEnrollment::where('class_id', $this->classA->id)->first()->left_at->toDateString());
+        $old = ClassEnrollment::where('class_id', $this->classA->id)->first();
+        $this->assertSame([Student::ENROLLMENT_TRANSFERRED, today()->toDateString()], [$old->status, $old->left_at->toDateString()]);
+        // Ra khỏi danh sách + sĩ số lớp cũ, vào danh sách lớp mới.
+        $this->assertFalse($this->classA->hasOnRoster($student->id));
+        $this->assertTrue($classB->hasOnRoster($student->id));
 
         Carbon::setTestNow('2026-10-07 10:00:00');
         $ledger = app(SessionLedger::class)->forStudent($student->fresh());
 
         // Lớp A: 2 buổi trước khi chuyển; lớp B: chỉ buổi 05/10 (buổi 10/09 trước ngày vào lớp). Tồn 24 − 3 mang sang.
         $this->assertSame(['paid' => 24, 'used' => 3, 'balance' => 21], $ledger);
+    }
+
+    public function test_transfer_class_from_profile_with_backdated_date(): void
+    {
+        // Chuyển lớp từ thứ 7 (03/10) nhưng Học vụ cập nhật ngày 04/10: chọn ngày chuyển 03/10.
+        $student = $this->makeStudent($this->classA, '2026-09-01');
+        $classB = $this->makeClass('SB-B');
+        $this->sessions($this->classA, ['2026-09-07', '2026-09-14', '2026-10-03']);
+        $this->sessions($classB, ['2026-09-26', '2026-10-03']);
+        $this->paidTuition($student, 2800000); // 14 buổi
+
+        $this->actingAs($this->academic)->get(route('students.show', $student->id))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('mainClass', ['name' => 'Lớp SB-A', 'joined_on' => '2026-09-01', 'today' => '2026-10-04'])
+                ->where('linkableClasses.0.value', $classB->id));
+
+        $this->actingAs($this->academic)->post(route('students.transfer-class', $student->id), [
+            'class_id' => $classB->id,
+            'transferred_on' => '2026-10-03',
+        ])->assertRedirect(route('students.show', $student->id))->assertSessionHasNoErrors();
+
+        $student->refresh();
+        $this->assertSame($classB->id, $student->current_class_id);
+        $old = ClassEnrollment::where('class_id', $this->classA->id)->first();
+        $this->assertSame([Student::ENROLLMENT_TRANSFERRED, '2026-10-03'], [$old->status, $old->left_at->toDateString()]);
+        $this->assertSame('2026-10-03', ClassEnrollment::where('class_id', $classB->id)->first()->enrolled_at->toDateString());
+        $this->assertFalse($this->classA->hasOnRoster($student->id));
+        $this->assertTrue($classB->hasOnRoster($student->id));
+        $this->assertSame([$classB->id], $student->activeClassIds());
+
+        // Lớp A: 07/09, 14/09 (buổi 03/10 đã chuyển); lớp B: 03/10 (buổi 26/09 trước khi vào lớp). Tồn 14 − 3.
+        $this->assertSame(['paid' => 14, 'used' => 3, 'balance' => 11], app(SessionLedger::class)->forStudent($student));
+    }
+
+    public function test_transfer_class_rejects_future_date_and_date_before_joining_old_class(): void
+    {
+        $student = $this->makeStudent($this->classA, '2026-09-01');
+        $classB = $this->makeClass('SB-B');
+
+        $this->actingAs($this->academic)->post(route('students.transfer-class', $student->id), [
+            'class_id' => $classB->id, 'transferred_on' => '2026-10-05',
+        ])->assertSessionHasErrors('transferred_on');
+        $this->actingAs($this->academic)->post(route('students.transfer-class', $student->id), [
+            'class_id' => $classB->id, 'transferred_on' => '2026-08-31',
+        ])->assertSessionHasErrors('transferred_on');
+        $this->actingAs($this->academic)->post(route('students.transfer-class', $student->id), [
+            'class_id' => $this->classA->id, 'transferred_on' => '2026-10-04',
+        ])->assertSessionHasErrors('class_id');
+
+        $this->assertSame($this->classA->id, $student->fresh()->current_class_id);
+        $this->assertSame(1, ClassEnrollment::count());
+    }
+
+    public function test_transfer_keeps_legacy_main_class_sessions_without_enrollment_row(): void
+    {
+        // Học viên cũ chưa có lượt xếp lớp chính (sổ buổi tính từ ngày tạo hồ sơ): chuyển lớp vẫn trừ buổi đã học ở lớp cũ.
+        Carbon::setTestNow('2026-09-01 08:00:00');
+        $student = Student::create(['code' => 'HV-SB-LEGACY', 'name' => 'Học viên cũ', 'phone' => '0900000999',
+            'branch_id' => $this->branch->id, 'current_class_id' => $this->classA->id, 'status' => 'studying']);
+        Carbon::setTestNow('2026-10-04 10:00:00');
+        $classB = $this->makeClass('SB-B');
+        $this->sessions($this->classA, ['2026-09-07', '2026-09-14']);
+
+        $this->actingAs($this->academic)->post(route('students.transfer-class', $student->id), [
+            'class_id' => $classB->id, 'transferred_on' => '2026-10-01',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame(2, app(SessionLedger::class)->forStudent($student->fresh())['used']);
+        $this->assertFalse($this->classA->hasOnRoster($student->id));
+    }
+
+    public function test_migration_marks_earlier_transfers_so_student_leaves_old_roster(): void
+    {
+        // Chuyển lớp kiểu cũ: lớp chính cũ chỉ có ngày rời lớp, trạng thái vẫn "completed".
+        $student = $this->makeStudent($this->classA, '2026-09-01');
+        $classB = $this->makeClass('SB-B');
+        ClassEnrollment::where('student_id', $student->id)->update(['left_at' => '2026-10-01']);
+        ClassEnrollment::create(['student_id' => $student->id, 'class_id' => $classB->id, 'enrolled_at' => '2026-10-01', 'status' => 'completed']);
+        $student->update(['current_class_id' => $classB->id]);
+        $this->assertTrue($this->classA->hasOnRoster($student->id));
+
+        (require database_path('migrations/2026_11_16_100000_mark_transferred_class_enrollments.php'))->up();
+
+        $this->assertSame(Student::ENROLLMENT_TRANSFERRED, ClassEnrollment::where('class_id', $this->classA->id)->value('status'));
+        $this->assertSame('completed', ClassEnrollment::where('class_id', $classB->id)->value('status'));
+        $this->assertFalse($this->classA->hasOnRoster($student->id));
     }
 
     public function test_approved_deferral_period_is_not_deducted(): void

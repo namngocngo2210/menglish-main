@@ -104,7 +104,8 @@ class WeeklyReportMetrics
 
         $enrollments = ClassEnrollment::with('student:id,name')
             ->whereIn('class_id', $runningIds)
-            ->whereIn('status', Student::ACTIVE_ENROLLMENT_STATUSES)
+            // Lượt đã chuyển lớp vẫn thuộc lớp tới trước ngày rời lớp (tuần đã qua).
+            ->whereIn('status', [...Student::ACTIVE_ENROLLMENT_STATUSES, Student::ENROLLMENT_TRANSFERRED])
             ->whereDate('enrolled_at', '<=', $this->to)
             ->where(fn (Builder $q) => $q->whereNull('left_at')->orWhereDate('left_at', '>', $this->to))
             ->get(['id', 'class_id', 'student_id']);

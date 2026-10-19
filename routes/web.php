@@ -293,6 +293,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/{id}/status', [StudentProfileController::class, 'updateStudentStatus'])->middleware('can:student.change_status')->name('status.update');
         Route::post('/{id}/end-deferral', [StudentProfileController::class, 'endDeferral'])->middleware('can:student.change_status')->name('end-deferral');
         Route::post('/{id}/link-class', [StudentProfileController::class, 'linkClass'])->middleware('can:student.assign_class')->name('link-class');
+        Route::post('/{id}/transfer-class', [StudentProfileController::class, 'transferClass'])->middleware('can:student.assign_class')->name('transfer-class');
         Route::delete('/{id}', [StudentProfileController::class, 'destroyStudent'])->middleware('can:student.delete')->name('destroy');
         Route::get('/{id}/scoped', [StudentProfileController::class, 'scoped'])->name('scoped');
     });
