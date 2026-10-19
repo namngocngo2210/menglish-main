@@ -216,8 +216,9 @@ class ClassQualityTest extends TestCase
         $this->assertSame($this->class->id, $checklist->class_id);
         $this->assertSame(['tuition_reminded', 'tuition_collected'], $checklist->gaps());
 
+        // Học vụ chỉ thấy lớp chi nhánh mình (class.scope_branch): 2 lớp Cơ sở A, không có lớp Cơ sở B.
         $this->actingAs($staff)->get(route('class-quality.checklist', ['month' => $month]))->assertOk()->assertSee('PH hẹn tuần sau')
-            ->assertInertia(fn (AssertableInertia $page) => $page->component('ClassQuality/Checklist')->has('classes.data', 3));
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('ClassQuality/Checklist')->has('classes.data', 2));
 
         $this->actingAs($staff)->put(route('class-quality.checklist.save'), ['month' => $month, 'rows' => [
             ['class_id' => $this->makeClass($this->branch, ['status' => 'pending', 'start_date' => now()->addMonths(2)])->id, 'tuition_due' => 'yes'],
