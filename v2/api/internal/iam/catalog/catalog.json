@@ -715,14 +715,14 @@
         },
         {
             "key": "mail_config",
-            "label": "Hòm thư gửi (SMTP)",
+            "label": "Hòm thư gửi (SMTP) & email nhận thông báo",
             "group": "system",
             "icon": "outbox",
             "actions": [
                 {
                     "key": "manage",
-                    "label": "Cấu hình hòm thư gửi",
-                    "description": "Đổi máy chủ / tài khoản SMTP dùng gửi mọi email của hệ thống (kể cả email đặt lại mật khẩu)."
+                    "label": "Cấu hình hòm thư & email nhận",
+                    "description": "Mở màn \"Email nhận Ticket\": danh sách email nhận và sự kiện gửi thông báo vận hành toàn hệ thống (ticket, phiếu thu, công nợ…), gửi thử, đổi máy chủ / tài khoản SMTP dùng gửi mọi email (kể cả email đặt lại mật khẩu). Mặc định chỉ Admin."
                 }
             ],
             "audience": []
@@ -1068,8 +1068,8 @@
             "actions": [
                 {
                     "key": "view",
-                    "label": "Xem mọi biên bản",
-                    "description": "Xem biên bản của mọi nhân sự (người khác chỉ xem biên bản của mình)."
+                    "label": "Xem biên bản của người khác",
+                    "description": "Xem biên bản của nhân sự trong phạm vi dữ liệu (người không có quyền này chỉ xem biên bản của mình)."
                 },
                 {
                     "key": "create",
@@ -1112,7 +1112,19 @@
                     "description": "Đánh dấu đã khắc phục / giải quyết."
                 }
             ],
-            "audience": []
+            "audience": [],
+            "scope": {
+                "levels": [
+                    "own",
+                    "branch",
+                    "all"
+                ],
+                "descriptions": {
+                    "own": "Biên bản của tôi (tôi vi phạm hoặc tôi lập)",
+                    "branch": "Biên bản của tôi + biên bản nhân sự thuộc chi nhánh của tôi",
+                    "all": "Biên bản mọi nhân sự, mọi chi nhánh"
+                }
+            }
         },
         {
             "key": "staff_report",
@@ -1244,7 +1256,7 @@
                 {
                     "key": "update",
                     "label": "Xử lý ticket",
-                    "description": "Được nhận xử lý ticket, cấu hình email nhận ticket."
+                    "description": "Được nhận xử lý ticket (trong phạm vi dữ liệu)."
                 },
                 {
                     "key": "assign",
@@ -1688,6 +1700,7 @@
                 "violation.mark_paid",
                 "violation.mark_resolved",
                 "violation.decide_operations",
+                "violation.scope_branch",
                 "work_task.*",
                 "support_ticket.*",
                 "notification.*",
@@ -1714,17 +1727,17 @@
                 "student.scope_branch",
                 "class.scope_branch",
                 "room.scope_branch",
-                "big_test.scope_all",
+                "big_test.scope_branch",
                 "tuition.scope_branch",
                 "finance.scope_branch",
                 "attendance_staff.scope_branch",
                 "payroll.scope_own",
-                "kpi.scope_all",
+                "kpi.scope_branch",
                 "work_task.scope_branch",
                 "merchandise_stock.scope_branch",
-                "support_ticket.scope_all",
+                "support_ticket.scope_branch",
                 "user.scope_branch",
-                "activity_log.scope_all",
+                "activity_log.scope_branch",
                 "dashboard.scope_branch",
                 "material_order.view_all",
                 "material_order.process_ops",
@@ -1759,6 +1772,7 @@
                 "violation.confirm_error",
                 "violation.confirm_fine",
                 "violation.decide_academic",
+                "violation.scope_all",
                 "work_task.*",
                 "support_ticket.create",
                 "support_ticket.view",
@@ -1840,6 +1854,7 @@
                 "violation.confirm_error",
                 "violation.confirm_fine",
                 "violation.decide_operations",
+                "violation.scope_branch",
                 "tuition.view",
                 "tuition.create",
                 "tuition.mark_contacted",
@@ -1867,12 +1882,12 @@
                 "invoice.request_cancel",
                 "lead.scope_branch",
                 "student.scope_branch",
-                "class.scope_all",
-                "big_test.scope_all",
+                "class.scope_branch",
+                "big_test.scope_branch",
                 "tuition.scope_branch",
-                "attendance_staff.scope_all",
-                "kpi.scope_all",
-                "work_task.scope_all",
+                "attendance_staff.scope_branch",
+                "kpi.scope_branch",
+                "work_task.scope_branch",
                 "user.scope_branch",
                 "support_ticket.scope_own",
                 "material_order.view_all",

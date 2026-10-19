@@ -102,7 +102,8 @@ func TestOperations(t *testing.T) {
 	c1 := e.class("IELTS-A1", hn, &gv.ID, &gvnn.ID, "active", nil, nil)
 	c2 := e.class("TOEIC-B1", hcm, &other.ID, nil, "active", nil, nil)
 	done := e.class("KIDS-C1", hn, &gv.ID, nil, "completed", nil, str("2026-09-30"))
-	_, staff := e.Member("HV01", "Lê Học Vụ", []uuid.UUID{hn}, "academic_staff")
+	// Học vụ phạm vi lớp theo chi nhánh: phụ trách cả HN và HCM để dự giờ lớp hai chi nhánh
+	_, staff := e.Member("HV01", "Lê Học Vụ", []uuid.UUID{hn, hcm}, "academic_staff")
 
 	// Kiểm tra form
 	in := op(c1, gv.ID, "2026-10-18", "good")
@@ -337,7 +338,8 @@ func TestReportMetrics(t *testing.T) {
 	gv2 := e.User("GV02", "Phạm Văn Nam", []uuid.UUID{hcm}, "teacher_fulltime")
 	c1 := e.class("IELTS-A1", hn, &gv.ID, nil, "active", str("2026-09-01"), nil)
 	c2 := e.class("TOEIC-B1", hcm, &gv2.ID, nil, "active", nil, nil)
-	staff, sc := e.Member("HV01", "Lê Học Vụ", []uuid.UUID{hn}, "academic_staff")
+	// Học vụ phạm vi lớp theo chi nhánh: phụ trách cả HN và HCM để dự giờ lớp hai chi nhánh
+	staff, sc := e.Member("HV01", "Lê Học Vụ", []uuid.UUID{hn, hcm}, "academic_staff")
 	lead, lc := e.Member("HT01", "Trần Học Thuật", []uuid.UUID{hn}, "academic_lead")
 	msg(t, sc.Do("POST", "/class-quality/operations", op(c1, gv.ID, "2026-10-16", "good")), 201, "")
 	msg(t, sc.Do("POST", "/class-quality/operations", op(c2, gv2.ID, "2026-10-16", "pass")), 201, "")
