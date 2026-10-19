@@ -186,7 +186,8 @@ class StaffAttendanceService
      */
     public function syncLatePenalty(StaffAttendance $attendance): void
     {
-        $penalty = $attendance->penalty;
+        // Biên bản tự động của ngày công, bất kể người đang thao tác (duyệt đơn, sửa giờ) có thấy biên bản đó hay không.
+        $penalty = $attendance->penalty()->withoutViewerScope()->first();
         $violation = 'Đi muộn '.$attendance->late_minutes.' phút (chấm công ngày '.$attendance->work_date->format('d/m/Y').')';
 
         if ($attendance->isLate()) {

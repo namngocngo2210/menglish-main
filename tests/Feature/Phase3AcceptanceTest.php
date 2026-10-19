@@ -215,7 +215,7 @@ class Phase3AcceptanceTest extends TestCase
         $this->assertEquals(0, $late->amount);                                        // chưa cần số tiền khi ghi nhận
         $this->actingAs($this->partTime)->get(route('penalties.index'))->assertOk()->assertSee($late->code);
         $this->actingAs($this->otherTeacher)->get(route('penalties.index'))->assertOk()->assertDontSee($late->code);
-        $this->actingAs($this->otherTeacher)->post(route('penalties.explain', $late->id), ['explanation' => 'Tôi giải trình thay người khác.'])->assertForbidden();
+        $this->actingAs($this->otherTeacher)->post(route('penalties.explain', $late->id), ['explanation' => 'Tôi giải trình thay người khác.'])->assertNotFound();
         $this->actingAs($this->partTime)->post(route('penalties.explain', $late->id), ['explanation' => 'Ngắn'])->assertSessionHasErrors('explanation');
         $this->actingAs($this->partTime)->post(route('penalties.explain', $late->id), ['explanation' => 'Em bị hỏng xe trên đường, đã báo TA.'])->assertSessionHasNoErrors();
         $this->assertSame('explained', $late->fresh()->status);

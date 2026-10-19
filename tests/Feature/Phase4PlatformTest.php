@@ -495,7 +495,7 @@ class Phase4PlatformTest extends TestCase
 
             // File cũ (public/uploads) vẫn xem được qua route có kiểm tra quyền; người ngoài bị chặn.
             $this->actingAs($creator)->get(route('tickets.attachment', ['id' => $ticket->id, 'path' => $legacy]))->assertOk();
-            $this->actingAs($teacher)->get(route('tickets.attachment', ['id' => $ticket->id, 'path' => $legacy]))->assertForbidden();
+            $this->actingAs($teacher)->get(route('tickets.attachment', ['id' => $ticket->id, 'path' => $legacy]))->assertNotFound();
             auth()->logout();
             $this->get(route('tickets.attachment', ['id' => $ticket->id, 'path' => $legacy]))->assertRedirect(route('login'));
         } finally {

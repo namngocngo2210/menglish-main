@@ -6,6 +6,7 @@ use App\Services\PayrollFormulaService;
 use App\Services\SalesCommissionService;
 use App\Services\StaffAttendance\StaffAttendanceService;
 use App\Services\TeachingShareService;
+use App\Support\DataScopeGuard;
 use App\Support\Money;
 use App\Support\RequestMemo;
 use App\Support\Roles;
@@ -172,6 +173,12 @@ class PayrollPeriod extends Model
             return true;
         }
 
+        // Tính lương dựa trên toàn bộ dữ liệu của kỳ, không theo phạm vi của người đang xem / bấm tính.
+        return DataScopeGuard::bypass(fn () => $this->changedSinceCalculation());
+    }
+
+    private function changedSinceCalculation(): bool
+    {
         $range = [$this->start_date, $this->end_date];
 
         return TeacherTimesheet::whereBetween('teaching_date', $range)->where('updated_at', '>', $this->calculated_at)->exists()
@@ -330,7 +337,7 @@ class PayrollPeriod extends Model
     {
         // Khoá theo kỳ để 2 lần bấm "Tính lại" song song không ghi đè lẫn nhau;
         // transaction đảm bảo bản ghi lương, liên kết phạt và tổng kỳ nhất quán.
-        Cache::lock("payroll:period:{$this->id}", 120)->block(10, function () {
+        Cache::lock("payroll:period:{$this->id}", 120)->block(10, fn () => DataScopeGuard::bypass(function () {
             DB::transaction(function () {
                 // Khóa dòng kỳ lương và kiểm lại trong transaction: tính lại không được chạy chồng lên Duyệt / Chi trả
                 // (Duyệt cũng khóa dòng này) — nếu không, khoản phạt / hoa hồng bị gắn lại vào kỳ vừa duyệt.
@@ -338,7 +345,7 @@ class PayrollPeriod extends Model
                 abort_if(! $locked || $locked->isLocked(), 422, 'Không thể tính lại kỳ lương đã duyệt hoặc đã chi trả.');
                 $this->runCalculation();
             });
-        });
+        }));
     }
 
     private function runCalculation(): void

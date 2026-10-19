@@ -141,7 +141,7 @@ class BigTestSlaService
             $violation = "Trả kết quả Big Test trễ {$days} ngày (hạn {$deadlineDays} ngày)";
             $amount = $finePerDay * $days;
 
-            $penalty = Penalty::where('big_test_id', $test->id)->where('auto_source', self::AUTO_LATE_RESULTS)->first();
+            $penalty = Penalty::withoutViewerScope()->where('big_test_id', $test->id)->where('auto_source', self::AUTO_LATE_RESULTS)->first();
             if ($penalty) {
                 // Biên bản đã chốt / đóng → không đụng; còn chờ giải trình → cập nhật số ngày trễ và mức gợi ý.
                 // GV đã nhập đủ, chỉ còn chờ Admin duyệt → dừng tăng (Admin không bị phạt, GV không chịu phần chờ duyệt).
@@ -379,7 +379,7 @@ class BigTestSlaService
 
                     continue;
                 }
-                $exists = Penalty::where('big_test_id', $test->id)->where('user_id', $user->id)
+                $exists = Penalty::withoutViewerScope()->where('big_test_id', $test->id)->where('user_id', $user->id)
                     ->where('auto_source', self::AUTO_PAPER_MISSING)->exists();
                 if ($exists) {
                     continue;

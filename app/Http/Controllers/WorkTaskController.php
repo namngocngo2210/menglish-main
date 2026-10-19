@@ -2317,6 +2317,7 @@ class WorkTaskController extends Controller
         // Buổi bổ trợ do trợ giảng đảm nhận (chủ dự án 18/10/2026); vẫn chọn được GV / Học vụ / Học thuật khi cần.
         // Picker nhóm theo vai trò, Trợ giảng lên đầu; người nhiều vai trò nằm ở nhóm đầu tiên khớp.
         $teachers = User::where('is_active', true)
+            ->pickableBy($request->user(), 'class')
             ->with('roles:id,name')
             ->whereHas('roles', fn ($query) => $query->whereIn('name', Roles::ACADEMIC))
             ->orderBy('name')

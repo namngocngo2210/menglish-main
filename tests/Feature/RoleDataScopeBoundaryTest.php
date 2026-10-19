@@ -75,11 +75,11 @@ class RoleDataScopeBoundaryTest extends TestCase
         $this->assertNotContains('TK-B', $codes);
 
         $this->actingAs($this->managerA)->get(route('tickets.show', $ticketA->id))->assertOk();
-        $this->actingAs($this->managerA)->get(route('tickets.show', $ticketB->id))->assertForbidden();
-        $this->actingAs($this->managerA)->get(route('tickets.show', 'TK-B'))->assertForbidden();
-        $this->actingAs($this->managerA)->post(route('tickets.messages.store', $ticketB->id), ['message' => 'x'])->assertForbidden();
-        $this->actingAs($this->managerA)->post(route('tickets.status.update', $ticketB->id), ['status' => 'closed'])->assertForbidden();
-        $this->actingAs($this->managerA)->post(route('tickets.assign', $ticketB->id), ['assignee_id' => $this->managerA->id])->assertForbidden();
+        $this->actingAs($this->managerA)->get(route('tickets.show', $ticketB->id))->assertNotFound();
+        $this->actingAs($this->managerA)->get(route('tickets.show', 'TK-B'))->assertNotFound();
+        $this->actingAs($this->managerA)->post(route('tickets.messages.store', $ticketB->id), ['message' => 'x'])->assertNotFound();
+        $this->actingAs($this->managerA)->post(route('tickets.status.update', $ticketB->id), ['status' => 'closed'])->assertNotFound();
+        $this->actingAs($this->managerA)->post(route('tickets.assign', $ticketB->id), ['assignee_id' => $this->managerA->id])->assertNotFound();
         $this->assertSame('open', $ticketB->fresh()->status);
         $this->assertNull($ticketB->fresh()->assignee_id);
     }
@@ -108,7 +108,7 @@ class RoleDataScopeBoundaryTest extends TestCase
 
         $this->assertSame(['TK-MINE'], $this->ticketCodes($this->actingAs($teacher)->get(route('tickets.index'))));
         $this->actingAs($teacher)->get(route('tickets.show', $own->id))->assertOk();
-        $this->actingAs($teacher)->get(route('tickets.show', $other->id))->assertForbidden();
+        $this->actingAs($teacher)->get(route('tickets.show', $other->id))->assertNotFound();
     }
 
     // ── Biên bản vi phạm ─────────────────────────────────────────────────────────────────────
