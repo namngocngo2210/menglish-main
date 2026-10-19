@@ -357,7 +357,7 @@ class PayrollController extends Controller
             $locked->records()->update(['status' => 'confirmed']);
 
             // Chỉ đóng dấu "deducted" các biên bản thực sự đã trừ vào bản ghi lương của kỳ này
-            Penalty::whereIn('payroll_record_id', $locked->records()->select('id'))
+            Penalty::withoutViewerScope()->whereIn('payroll_record_id', $locked->records()->select('id'))
                 ->whereIn('status', Penalty::payableStatuses())
                 ->update(['status' => 'deducted']);
 
@@ -471,7 +471,8 @@ class PayrollController extends Controller
             ->where('status', 'valid')
             ->orderBy('teaching_date')
             ->get();
-        $penalties = Penalty::where('payroll_record_id', $record->id)->orderBy('due_date')->get();
+        // Phiếu lương đã qua kiểm tra phạm vi bảng lương: hiện đủ các biên bản đã trừ trên phiếu.
+        $penalties = Penalty::withoutViewerScope()->where('payroll_record_id', $record->id)->orderBy('due_date')->get();
         $clawbacks = CommissionAdjustment::with('student')->where('payroll_record_id', $record->id)->get();
         $paidCommission = CommissionItem::with(['student', 'receipt'])->where('payroll_record_id', $record->id)->orderBy('id')->get();
         $deferredCommission = CommissionItem::with(['student', 'receipt'])
@@ -2013,7 +2014,7 @@ class PayrollController extends Controller
                 ->whereBetween('teaching_date', [$period->start_date, $period->end_date])
                 ->where('status', 'valid')
                 ->orderBy('teaching_date')->get();
-            $penalties = Penalty::with('classModel')->where('payroll_record_id', $record->id)->orderBy('violation_date')->get();
+            $penalties = Penalty::withoutViewerScope()->with('classModel')->where('payroll_record_id', $record->id)->orderBy('violation_date')->get();
             $previous = $records->first(fn (PayrollRecord $r) => $r->period->start_date->lt($period->start_date));
         }
         $variant = $record ? self::payslipVariant($record) : null;

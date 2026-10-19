@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\ScopedToViewer;
 use App\Support\DataScope;
 use App\Support\Roles;
 use Illuminate\Database\Eloquent\Builder;
@@ -18,7 +19,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class Penalty extends Model
 {
-    use HasFactory;
+    use HasFactory, ScopedToViewer;
 
     /** Số ngày nhân sự phải nộp phạt kể từ khi được quyết phạt (SLA penalty.payment_due); quá hạn không ghi nhận nộp trực tiếp nữa (trừ lương). */
     public static function paymentDueDays(): int
@@ -265,14 +266,17 @@ class Penalty extends Model
      * Biên bản người dùng được thấy. Không có violation.view → chỉ biên bản của chính mình (màn "của tôi").
      * Có violation.view → theo phạm vi "violation.scope_*": Của tôi → biên bản mình vi phạm hoặc mình lập; Chi nhánh →
      * + biên bản của nhân sự thuộc chi nhánh mình (chi nhánh chính hoặc được cấp thêm của người vi phạm); Toàn hệ thống.
+     * Tự áp dụng trong request web (ScopedToViewer).
      */
-    public function scopeVisibleTo(Builder $query, ?User $user): Builder
+    public static function constrainToViewer(Builder $query, User $user): void
     {
-        if ($user && ! $user->can('violation.view')) {
-            return $query->where('user_id', $user->id);
+        if (! $user->can('violation.view')) {
+            $query->where('user_id', $user->id);
+
+            return;
         }
 
-        return DataScope::apply(
+        DataScope::apply(
             $query, $user, 'violation',
             fn (Builder $q) => $q->where(fn (Builder $o) => $o->where('user_id', $user->id)->orWhere('reporter_id', $user->id)),
             fn (Builder $q, array $branchIds) => $q->whereIn('user_id', self::staffInBranches(User::withTrashed(), $branchIds)->select('id')),

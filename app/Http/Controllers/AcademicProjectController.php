@@ -63,7 +63,7 @@ class AcademicProjectController extends Controller
             'projects' => $projects,
             'types' => Ui::options(AcademicProject::TYPES),
             'statuses' => Ui::options(AcademicProject::STATUSES),
-            'owners' => Ui::options($this->staff()->get(['id', 'name']), 'name'),
+            'owners' => $this->staffOptions(),
             'canManage' => $user->can('academic_project.manage'),
         ]);
     }
@@ -132,7 +132,7 @@ class AcademicProjectController extends Controller
                 'responded_at' => $u->responded_at?->toIso8601String(),
             ])->values(),
             'penalties' => $this->penalties($project->milestones->pluck('id')->all())->values(),
-            'staff' => Ui::options($this->staff()->get(['id', 'name']), 'name'),
+            'staff' => $this->staffOptions($project),
             'milestoneStatuses' => Ui::options(AcademicProjectMilestone::STATUSES),
             'canManage' => $canManage,
             'canUpdate' => $canUpdate,
@@ -146,7 +146,7 @@ class AcademicProjectController extends Controller
     {
         $project = AcademicProject::with('members:id')->findOrFail($id);
 
-        return $this->modalPage('AcademicProjects/Form', $this->formProps() + ['project' => [
+        return $this->modalPage('AcademicProjects/Form', $this->formProps($project) + ['project' => [
             'id' => $project->id,
             'code' => $project->code,
             'name' => $project->name,
@@ -449,12 +449,20 @@ class AcademicProjectController extends Controller
     }
 
     /** @return array<string, mixed> */
-    private function formProps(): array
+    private function formProps(?AcademicProject $project = null): array
     {
         return [
             'types' => Ui::options(AcademicProject::TYPES),
-            'staff' => Ui::options($this->staff()->get(['id', 'name']), 'name'),
+            'staff' => $this->staffOptions($project),
         ];
+    }
+
+    /** Ô chọn nhân sự: nhân sự thuộc chi nhánh của người xem (User::scopePickableBy) + người đang tham gia dự án. */
+    private function staffOptions(?AcademicProject $project = null): array
+    {
+        $keep = $project ? $this->participantIds($project) : [];
+
+        return Ui::options($this->staff()->pickableBy(auth()->user(), 'user', $keep)->get(['id', 'name']), 'name');
     }
 
     /** @return array<string, mixed> */

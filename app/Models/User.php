@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\AuditsChanges;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Support\DataScope;
 use App\Support\Roles;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -298,6 +299,27 @@ class User extends Authenticatable
         return $query->where(fn (Builder $staff) => $staff
             ->whereDoesntHave('roles', fn (Builder $role) => $role->where('name', Roles::STUDENT))
             ->orWhereHas('roles', fn (Builder $role) => $role->where('name', '!=', Roles::STUDENT)));
+    }
+
+    /**
+     * Nhân sự hiện trong ô chọn (giáo viên, trợ giảng, thành viên...) của người xem: phạm vi module ở mức Toàn hệ thống →
+     * mọi người; mức khác → nhân sự thuộc chi nhánh của người xem (chi nhánh chính hoặc được cấp thêm của nhân sự) và
+     * nhân sự dùng chung chưa gắn chi nhánh. $keep: người đang được gán, luôn giữ trong danh sách.
+     *
+     * @param  list<int|null>  $keep
+     */
+    public function scopePickableBy(Builder $query, ?User $viewer, string $module, array $keep = []): Builder
+    {
+        $branchIds = DataScope::branchIds($viewer, $module);
+        if ($branchIds === null) {
+            return $query;
+        }
+        $keep = array_values(array_filter($keep));
+
+        return $query->where(fn (Builder $u) => $u->whereNull('branch_id')
+            ->orWhereIn('branch_id', $branchIds)
+            ->orWhereHas('branches', fn (Builder $b) => $b->whereIn('branches.id', $branchIds))
+            ->when($keep !== [], fn (Builder $k) => $k->orWhereIn('id', $keep)));
     }
 
     public function branchIds(): array

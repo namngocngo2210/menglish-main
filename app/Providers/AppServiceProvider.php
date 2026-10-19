@@ -42,6 +42,9 @@ class AppServiceProvider extends ServiceProvider
 
         // Bộ nhớ tạm theo request (App\Support\RequestMemo): scoped để hàng đợi làm mới sau mỗi job.
         $this->app->scoped(\App\Support\RequestMemo::class);
+
+        // Lọc dữ liệu tự động theo người xem (App\Models\Concerns\ScopedToViewer): bật / tắt theo từng request.
+        $this->app->scoped(\App\Support\DataScopeGuard::class);
     }
 
     /**
@@ -65,6 +68,13 @@ class AppServiceProvider extends ServiceProvider
 
         // Mỗi request bắt đầu với bộ nhớ tạm trống (test gọi nhiều request trên cùng một app).
         \Illuminate\Support\Facades\Event::listen(\Illuminate\Routing\Events\Routing::class, fn () => \App\Support\RequestMemo::flush());
+
+        // Job hàng đợi chạy trên toàn bộ dữ liệu, kể cả job chạy đồng bộ ngay trong request (QUEUE_CONNECTION=sync).
+        \Illuminate\Support\Facades\Event::listen(\Illuminate\Queue\Events\JobProcessing::class, fn () => \App\Support\DataScopeGuard::current()->suspend());
+        \Illuminate\Support\Facades\Event::listen(
+            [\Illuminate\Queue\Events\JobProcessed::class, \Illuminate\Queue\Events\JobExceptionOccurred::class],
+            fn () => \App\Support\DataScopeGuard::current()->resume(),
+        );
     }
 
     /**

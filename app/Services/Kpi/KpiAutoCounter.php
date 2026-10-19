@@ -141,7 +141,8 @@ class KpiAutoCounter
 
     private function crmSlaLate(User $user, CarbonInterface $from, CarbonInterface $to): Collection
     {
-        $events = SlaEvent::with('penalty')
+        // KPI tính trên toàn bộ biên bản, không theo phạm vi của người đang xem.
+        $events = SlaEvent::with(['penalty' => fn ($q) => $q->withoutViewerScope()])
             ->where('user_id', $user->id)->whereIn('rule_key', self::CRM_RULES)
             ->whereBetween('breached_at', [$from, $to])->get();
         $customers = CrmCustomer::withTrashed()->whereIn('id', $events->where('subject_type', 'crm_customer')->pluck('subject_id'))->get()->keyBy('id');
@@ -163,7 +164,7 @@ class KpiAutoCounter
     {
         $tasks = WorkTask::with('student')->whereNotNull('care_milestone')
             ->where('assignee_id', $user->id)->whereBetween('sla_breached_at', [$from, $to])->get();
-        $penalties = Penalty::whereIn('work_task_id', $tasks->pluck('id'))->where('status', '!=', 'cancelled')->get()->keyBy('work_task_id');
+        $penalties = Penalty::withoutViewerScope()->whereIn('work_task_id', $tasks->pluck('id'))->where('status', '!=', 'cancelled')->get()->keyBy('work_task_id');
 
         return $tasks->map(function (WorkTask $t) use ($penalties) {
             $note = $this->finedNote($penalties->get($t->id));

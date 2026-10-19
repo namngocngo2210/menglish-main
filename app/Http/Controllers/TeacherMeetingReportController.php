@@ -66,7 +66,7 @@ class TeacherMeetingReportController extends Controller
 
         return Inertia::render('ClassQuality/TeacherMeetings', [
             'reports' => $reports,
-            'teachers' => Ui::options(Rbac::scopeUsersWithPermission(User::where('is_active', true), 'class.teach')->orderBy('name')->get(['id', 'name']), 'name'),
+            'teachers' => Ui::options(Rbac::scopeUsersWithPermission(User::where('is_active', true)->pickableBy($user, 'class'), 'class.teach')->orderBy('name')->get(['id', 'name']), 'name'),
             'classes' => $classes->map(fn (ClassModel $c) => [
                 'value' => $c->id,
                 'label' => $c->code.' · '.$c->name,

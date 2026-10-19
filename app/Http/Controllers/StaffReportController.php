@@ -1184,7 +1184,8 @@ class StaffReportController extends Controller
             'submittedAt' => $report?->updated_at?->toIso8601String(),
             'review' => $this->reviewState($report),
             'weeklyReports' => $this->weeksOfMonth($from, $to),
-            'meetings' => TeacherMeetingReport::with('teacher:id,name')
+            // Báo cáo họp do chính người lập báo cáo tháng ghi (kể cả về lớp đã ra khỏi phạm vi của họ).
+            'meetings' => TeacherMeetingReport::withoutViewerScope()->with('teacher:id,name')
                 ->where('author_id', Auth::id())
                 ->whereDate('week_start', '>=', $from->copy()->startOfWeek()->toDateString())
                 ->whereDate('week_start', '<=', $to->toDateString())

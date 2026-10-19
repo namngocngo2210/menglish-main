@@ -517,16 +517,13 @@ class SupportTicketController extends Controller
     }
 
     /**
-     * Ticket theo id / mã, chỉ khi người xem thấy được theo phạm vi support_ticket.scope_* (Của tôi: mình tạo / được giao;
-     * Chi nhánh: + ticket do nhân sự chi nhánh mình tạo; Toàn hệ thống). Ticket ngoài phạm vi → 403 như kiểm tra cũ.
+     * Ticket theo id / mã. SupportTicket tự lọc theo phạm vi support_ticket.scope_* của người xem (Của tôi: mình tạo /
+     * được giao; Chi nhánh: + ticket do nhân sự chi nhánh mình tạo; Toàn hệ thống), nên ticket ngoài phạm vi → 404.
      *
      * @param  list<string>  $with
      */
     private function findVisibleTicket($id, array $with = []): SupportTicket
     {
-        $ticket = SupportTicket::with($with)->where(fn ($q) => $q->where('id', $id)->orWhere('code', $id))->firstOrFail();
-        abort_unless(SupportTicket::visibleTo(Auth::user())->whereKey($ticket->id)->exists(), 403);
-
-        return $ticket;
+        return SupportTicket::with($with)->where(fn ($q) => $q->where('id', $id)->orWhere('code', $id))->firstOrFail();
     }
 }

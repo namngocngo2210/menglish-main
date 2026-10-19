@@ -291,7 +291,8 @@ class WeeklyReportMetrics
 
     private function facilityTickets(): Collection
     {
-        return SupportTicket::where('category', 'facilities')
+        // Báo cáo liệt kê sự cố cơ sở vật chất của chi nhánh người lập báo cáo (reportBranchIds), không theo phạm vi ticket của người xem.
+        return SupportTicket::withoutViewerScope()->where('category', 'facilities')
             ->whereBetween('created_at', [$this->from, $this->to])
             ->when($this->reportBranchIds() !== [], fn (Builder $q) => $q->whereHas('creator', fn (Builder $u) => $u->whereIn('branch_id', $this->reportBranchIds())))
             ->orderBy('created_at')->get(['id', 'code', 'title']);

@@ -242,7 +242,8 @@ class AcademicPeriodMetrics
             ->whereBetween('observed_on', $range)->orderBy('observed_on')->get();
         $classObservations = AcademicObservation::with('classModel:id,name')->whereIn('class_id', $this->classIds())
             ->whereBetween('observed_on', $range)->orderBy('observed_on')->get();
-        $meetings = TeacherMeetingReport::with('teacher:id,name')->where('author_id', $this->user->id)
+        // Báo cáo họp do chính người lập báo cáo ghi, không theo phạm vi của người đang xem báo cáo.
+        $meetings = TeacherMeetingReport::withoutViewerScope()->with('teacher:id,name')->where('author_id', $this->user->id)
             ->whereBetween('week_start', [$this->from->copy()->startOfWeek()->toDateString(), $this->to->toDateString()])->get();
 
         return $this->section('Dự giờ & họp giáo viên', 'groups', [

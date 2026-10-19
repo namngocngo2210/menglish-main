@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\ScopedToViewer;
 use App\Services\DocumentCodeGenerator;
 use App\Support\DataScope;
 use Illuminate\Database\Eloquent\Builder;
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SupportTicket extends Model
 {
-    use HasFactory;
+    use HasFactory, ScopedToViewer;
 
     protected $table = 'support_tickets';
 
@@ -49,11 +50,11 @@ class SupportTicket extends Model
     /**
      * Ticket người dùng được thấy theo phạm vi "support_ticket.scope_*": Của tôi → ticket mình tạo hoặc được giao xử lý;
      * Chi nhánh → + ticket do nhân sự thuộc chi nhánh mình tạo (chi nhánh chính hoặc chi nhánh được cấp thêm của người
-     * tạo); Toàn hệ thống → mọi ticket.
+     * tạo); Toàn hệ thống → mọi ticket. Tự áp dụng trong request web (ScopedToViewer).
      */
-    public function scopeVisibleTo(Builder $query, ?User $user): Builder
+    public static function constrainToViewer(Builder $query, User $user): void
     {
-        return DataScope::apply(
+        DataScope::apply(
             $query, $user, 'support_ticket',
             fn (Builder $q) => $q->where(fn (Builder $o) => $o->where('creator_id', $user->id)->orWhere('assignee_id', $user->id)),
             fn (Builder $q, array $branchIds) => $q->whereIn('creator_id', User::withTrashed()

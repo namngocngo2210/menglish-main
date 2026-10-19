@@ -284,11 +284,14 @@ class ClassManagementController extends Controller
      *
      * @return array{0: Collection, 1: Collection}
      */
-    private function teachingStaffOptions(): array
+    private function teachingStaffOptions(array $keep = []): array
     {
+        // Chỉ nhân sự thuộc chi nhánh trong phạm vi Lớp học của người xem (User::scopePickableBy) + người đang được gán.
+        $staff = fn () => User::where('is_active', true)->pickableBy(auth()->user(), 'class', $keep);
+
         return [
-            Rbac::scopeUsersWithPermission(User::where('is_active', true), 'class.teach')->orderBy('name')->get(),
-            Rbac::scopeUsersWithPermission(User::where('is_active', true), 'class.assist')->orderBy('name')->get(),
+            Rbac::scopeUsersWithPermission($staff(), 'class.teach')->orderBy('name')->get(),
+            Rbac::scopeUsersWithPermission($staff(), 'class.assist')->orderBy('name')->get(),
         ];
     }
 
@@ -705,7 +708,8 @@ class ClassManagementController extends Controller
                     'editable' => in_array((int) $s->id, $foreignEditableIds, true),
                 ])->values()->all();
                 $data['upcomingCount'] = $sessions->filter(fn ($s) => $s->date->gte($today) && $s->status !== 'cancelled')->count();
-                $data['foreignTeacherOptions'] = $canManage && $foreignEditableIds ? Ui::options($this->teachingStaffOptions()[0], 'name') : [];
+                $data['foreignTeacherOptions'] = $canManage && $foreignEditableIds
+                    ? Ui::options($this->teachingStaffOptions($sessions->pluck('foreign_teacher_id')->all())[0], 'name') : [];
             } else {
                 $classReports = ClassReport::with('reporter:id,name')->where('class_id', $class->id)
                     // Báo cáo mới nhất của mỗi buổi (keyBy giữ bản cuối cùng = bản cũ nhất); báo cáo không gắn buổi giữ riêng.
@@ -809,7 +813,7 @@ class ClassManagementController extends Controller
         $branches = Branch::where('is_active', true)->get();
         $courses = Course::where('is_active', true)->get();
         $levels = CourseLevel::where('is_active', true)->get();
-        [$teachers, $assistants] = $this->teachingStaffOptions();
+        [$teachers, $assistants] = $this->teachingStaffOptions([$class->teacher_id, $class->assistant_id, $class->foreign_teacher_id]);
 
         return Inertia::render('Classes/Edit', [
             'klass' => [
