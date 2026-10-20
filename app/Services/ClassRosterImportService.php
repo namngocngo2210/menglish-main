@@ -170,7 +170,7 @@ class ClassRosterImportService
             return $branch;
         };
 
-        $existingClasses = ClassModel::withTrashed()->get(['id', 'code', 'name', 'branch_id', 'room_id', 'status', 'deleted_at'])
+        $existingClasses = ClassModel::withTrashed()->get(['id', 'code', 'name', 'branch_id', 'teacher_id', 'room_id', 'status', 'deleted_at'])
             ->keyBy(fn (ClassModel $c) => self::classKey((string) $c->code));
         $teachers = User::query()->role([...Roles::TEACHING, Roles::ACADEMIC_LEAD])->where('is_active', true)->with('roles')->get(['id', 'name']);
         $rooms = Room::query()->get(['id', 'branch_id', 'name']);
@@ -207,7 +207,7 @@ class ClassRosterImportService
                 }
             }
 
-            $teacher = null;
+            $teacher = $teacherWarning = null;
             if (filled($data['teacher'] ?? null)) {
                 [$teacher, $teacherWarning] = $this->findTeacher($teachers, (string) $data['teacher']);
                 if ($teacherWarning) {
@@ -224,6 +224,8 @@ class ClassRosterImportService
             if ($existing && ! $linkRoom) {
                 $newRooms = [];
             }
+            // Lớp đã có mà chưa có giáo viên (vd. nhập lớp trước khi tạo tài khoản giáo viên): gán giáo viên khớp được.
+            $linkTeacher = $existing && ! $existing->teacher_id && $teacher;
             $roomNote = $newRooms ? 'Phòng '.implode(', ', $newRooms).' chưa có ở cơ sở: tạo mới khi nhập (loại "'.self::DEFAULT_ROOM_TYPE.'", sửa sức chứa trên màn Phòng học).' : null;
 
             $classes[$key] = [
@@ -240,6 +242,7 @@ class ClassRosterImportService
                 'room' => $roomName,
                 'room_id' => $room?->id,
                 'link_room' => (bool) $linkRoom,
+                'link_teacher' => (bool) $linkTeacher,
                 'start_date' => $this->date($data['start_date'] ?? null, 'Ngày bắt đầu khóa', $warnings),
                 'end_date' => $this->date($data['end_date'] ?? null, 'Ngày kết thúc khóa', $warnings),
                 'tuition_fee' => $this->money($data['tuition_fee'] ?? null, $warnings),
@@ -248,7 +251,7 @@ class ClassRosterImportService
                 'first_enrolled' => null,
                 'errors' => $errors,
                 'warnings' => array_values(array_filter($existing
-                    ? [$linkRoom ? 'Lớp đã có trong hệ thống: giữ nguyên, chỉ xếp học viên vào và gắn phòng '.$roomName.'.' : 'Lớp đã có trong hệ thống: giữ nguyên, chỉ xếp học viên vào.', $roomNote]
+                    ? ['Lớp đã có trong hệ thống: giữ nguyên, chỉ xếp học viên vào'.collect([$linkTeacher ? 'gán giáo viên '.$teacher->name : null, $linkRoom ? 'gắn phòng '.$roomName : null])->filter()->map(fn ($s) => ', '.$s)->implode('').'.', $existing->teacher_id ? null : $teacherWarning, $roomNote]
                     : [...$warnings, $roomNote])),
             ];
         }
@@ -398,11 +401,11 @@ class ClassRosterImportService
      * Ghi lớp rồi học viên (chỉ các dòng không lỗi). Buổi học sinh từ $sessionsFrom (không trước hôm nay)
      * đến ngày kết thúc khóa của lớp, hoặc $sessionsTo nếu lớp không ghi ngày kết thúc.
      *
-     * @return array{classes: int, sessions: int, students: int, enrollments: int, failed: list<array{line: string, error: string}>}
+     * @return array{classes: int, sessions: int, rooms: int, teachers: int, students: int, enrollments: int, failed: list<array{line: string, error: string}>}
      */
     public function import(array $preview, User $user, Carbon $sessionsFrom, Carbon $sessionsTo): array
     {
-        $result = ['classes' => 0, 'sessions' => 0, 'rooms' => 0, 'students' => 0, 'enrollments' => 0, 'failed' => []];
+        $result = ['classes' => 0, 'sessions' => 0, 'rooms' => 0, 'teachers' => 0, 'students' => 0, 'enrollments' => 0, 'failed' => []];
         $classIds = [];
         $this->roomCache = [];
         $roomsBefore = Room::query()->count();
@@ -431,6 +434,24 @@ class ClassRosterImportService
                     } catch (\Throwable $e) {
                         $this->roomCache = []; // phòng tạo trong giao dịch vừa hủy không còn
                         $result['failed'][] = ['line' => 'Phòng lớp '.$row['code'], 'error' => $e->getMessage()];
+                    }
+                }
+
+                if (($row['link_teacher'] ?? false) && $row['teacher_id']) {
+                    try {
+                        $result['teachers'] += DB::transaction(function () use ($row) {
+                            $class = ClassModel::query()->lockForUpdate()->find($row['class_id']);
+                            if (! $class || $class->teacher_id) {
+                                return 0;
+                            }
+                            $class->update(['teacher_id' => $row['teacher_id']]);
+                            ClassSession::query()->where('class_id', $class->id)->whereNull('teacher_id')->where('status', 'scheduled')
+                                ->update(['teacher_id' => $row['teacher_id']]);
+
+                            return 1;
+                        });
+                    } catch (\Throwable $e) {
+                        $result['failed'][] = ['line' => 'Giáo viên lớp '.$row['code'], 'error' => $e->getMessage()];
                     }
                 }
 
