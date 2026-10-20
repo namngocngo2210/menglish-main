@@ -279,12 +279,18 @@ func staffLabel(u classesdb.UsersWithPermissionRow) string {
 	return u.FullName
 }
 
-// staffOptions: nhân sự đang hoạt động có quyền đối tượng perm (class.teach / class.assist).
-func (s *Service) staffOptions(ctx context.Context, perm string, withContact bool) ([]Option, error) {
+// staffOptions: nhân sự đang hoạt động có quyền đối tượng perm (class.teach / class.assist), chỉ người thuộc chi nhánh
+// trong phạm vi Lớp học của người xem (User::scopePickableBy) + người đang được gán (keep).
+func (s *Service) staffOptions(ctx context.Context, actor *iam.Access, perm string, withContact bool, keep ...uuid.UUID) ([]Option, error) {
 	rows, err := s.q.UsersWithPermission(ctx, perm)
 	if err != nil {
 		return nil, err
 	}
+	pickable, err := iam.PickableUsers(ctx, s.pool, actor, "class", keep...)
+	if err != nil {
+		return nil, err
+	}
+	rows = iam.FilterUsers(pickable, rows, func(u classesdb.UsersWithPermissionRow) uuid.UUID { return u.ID })
 	out := make([]Option, 0, len(rows))
 	for _, u := range rows {
 		label := u.FullName
@@ -383,14 +389,22 @@ func (s *Service) FormOptions(ctx context.Context, actor *iam.Access, classID *u
 	if out.Rooms, err = s.roomOptions(ctx, branchIDs, classID); err != nil {
 		return nil, err
 	}
-	if out.Teachers, err = s.staffOptions(ctx, "class.teach", true); err != nil {
+	var keep []uuid.UUID
+	if current != nil {
+		for _, id := range []*uuid.UUID{current.TeacherID, current.AssistantID, current.ForeignTeacherID} {
+			if id != nil {
+				keep = append(keep, *id)
+			}
+		}
+	}
+	if out.Teachers, err = s.staffOptions(ctx, actor, "class.teach", true, keep...); err != nil {
 		return nil, err
 	}
-	if out.ForeignTeachers, err = s.staffOptions(ctx, "class.teach", false); err != nil {
+	if out.ForeignTeachers, err = s.staffOptions(ctx, actor, "class.teach", false, keep...); err != nil {
 		return nil, err
 	}
 	if current != nil && current.AssistantID != nil {
-		if out.Assistants, err = s.staffOptions(ctx, "class.assist", false); err != nil {
+		if out.Assistants, err = s.staffOptions(ctx, actor, "class.assist", false, keep...); err != nil {
 			return nil, err
 		}
 	}

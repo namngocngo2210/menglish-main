@@ -32,6 +32,16 @@ func TestStageProgressionByBigTest(t *testing.T) {
 	// Mở chặng: chỉ syllabus.manage; Quản lý chi nhánh khác không thấy lớp.
 	iamtest.Expect(t, teacher.Do("POST", "/syllabus/assignments", map[string]any{"class_id": classID}), 403, "")
 	iamtest.Expect(t, mgrB.Do("POST", "/syllabus/assignments", map[string]any{"class_id": classID}), 404, "class_not_found")
+	// Ô chọn giáo viên của màn Giao chặng: chỉ nhân sự chi nhánh của người xem (User::scopePickableBy 'class').
+	ga := mgrB.Do("GET", "/syllabus/assignments", nil)
+	iamtest.Expect(t, ga, 200, "")
+	pick := map[string]bool{}
+	for _, o := range list(ga.Body["teachers"]) {
+		pick[str(o["value"])] = true
+	}
+	if pick[gv.ID.String()] || len(pick) == 0 {
+		t.Fatalf("ô chọn giáo viên của quản lý B: %s", ga.Raw)
+	}
 	expectMsg(t, lead.Do("POST", "/syllabus/assignments", map[string]any{"class_id": classID, "start_date": "2099-01-01"}), 422,
 		"Ngày bắt đầu không được quá 60 ngày kể từ hôm nay.")
 	r := lead.Do("POST", "/syllabus/assignments", map[string]any{"class_id": classID})

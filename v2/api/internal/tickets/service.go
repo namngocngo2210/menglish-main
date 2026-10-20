@@ -129,10 +129,6 @@ type ticketRef struct {
 
 func (t ticketRef) assignedTo(id uuid.UUID) bool { return t.AssigneeID != nil && *t.AssigneeID == id }
 
-func participant(a *iam.Access, t ticketRef) bool {
-	return CanManage(a) || t.CreatorID == a.UserID || t.assignedTo(a.UserID)
-}
-
 func canSeeInternal(a *iam.Access, t ticketRef) bool { return CanManage(a) || t.assignedTo(a.UserID) }
 
 func canReopen(a *iam.Access, t ticketRef) bool { return a.Can(PermClose) || t.CreatorID == a.UserID }
@@ -209,9 +205,10 @@ func validOption(list []Option, v string) bool {
 	return slices.ContainsFunc(list, func(o Option) bool { return o.Value == v })
 }
 
-// ensureHandler: người được phân công phải là nhân sự đang hoạt động có quyền support_ticket.update.
-func (s *Service) ensureHandler(ctx context.Context, id uuid.UUID) error {
-	ids, err := iam.UserIDsWithPermission(ctx, s.pool, PermUpdate, nil)
+// ensureHandler: người được phân công phải là nhân sự đang hoạt động có quyền support_ticket.update, trong phạm vi
+// chi nhánh của người phân công (handlerCandidates).
+func (s *Service) ensureHandler(ctx context.Context, a *iam.Access, id uuid.UUID) error {
+	ids, err := s.handlerCandidates(ctx, a)
 	if err != nil {
 		return err
 	}
@@ -228,9 +225,10 @@ func (s *Service) ensureHandler(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-// Handlers: người được phân công xử lý ticket (đang hoạt động, có support_ticket.update), theo tên.
-func (s *Service) Handlers(ctx context.Context) ([]Option, error) {
-	ids, err := iam.UserIDsWithPermission(ctx, s.pool, PermUpdate, nil)
+// Handlers: người được phân công xử lý ticket (đang hoạt động, có support_ticket.update, trong phạm vi chi nhánh của
+// người phân công), theo tên.
+func (s *Service) Handlers(ctx context.Context, a *iam.Access) ([]Option, error) {
+	ids, err := s.handlerCandidates(ctx, a)
 	if err != nil {
 		return nil, err
 	}
@@ -293,7 +291,7 @@ func likePattern(s string) *string {
 	return &s
 }
 
-// List: danh sách ticket mới trước, 15 / trang; người không xử lý ticket chỉ thấy ticket mình tạo / được giao.
+// List: danh sách ticket mới trước, 15 / trang, theo phạm vi support_ticket (scopeOf).
 func (s *Service) List(ctx context.Context, a *iam.Access, f ListFilter) (*ListPage, error) {
 	manage := CanManage(a)
 	per := f.PerPage
@@ -302,7 +300,11 @@ func (s *Service) List(ctx context.Context, a *iam.Access, f ListFilter) (*ListP
 	}
 	per = min(per, maxPerPge)
 	page := max(f.Page, 1)
-	p := ticketsdb.ListTicketsParams{Manage: manage, Me: a.UserID, Search: likePattern(f.Search),
+	sc, err := s.scopeOf(ctx, a)
+	if err != nil {
+		return nil, err
+	}
+	p := ticketsdb.ListTicketsParams{AllScope: sc.all, Me: a.UserID, Branches: sc.branches, Search: likePattern(f.Search),
 		Lim: int32(per), Off: int32((page - 1) * per)}
 	if validOption(Statuses, f.Status) {
 		p.Status = &f.Status
@@ -314,7 +316,7 @@ func (s *Service) List(ctx context.Context, a *iam.Access, f ListFilter) (*ListP
 	if err != nil {
 		return nil, err
 	}
-	st, err := s.q.TicketStats(ctx, ticketsdb.TicketStatsParams{Manage: manage, Me: a.UserID})
+	st, err := s.q.TicketStats(ctx, ticketsdb.TicketStatsParams{AllScope: sc.all, Me: a.UserID, Branches: sc.branches})
 	if err != nil {
 		return nil, err
 	}
@@ -342,7 +344,7 @@ func (s *Service) FormOptions(ctx context.Context, a *iam.Access) (*FormOptions,
 	out := &FormOptions{Categories: Categories, Priorities: Priorities, Staffs: []Option{}, CanAssign: a.Can(PermAssign)}
 	if out.CanAssign {
 		var err error
-		if out.Staffs, err = s.Handlers(ctx); err != nil {
+		if out.Staffs, err = s.Handlers(ctx, a); err != nil {
 			return nil, err
 		}
 	}
@@ -436,7 +438,9 @@ func (s *Service) Show(ctx context.Context, a *iam.Access, idOrCode string) (*Sh
 		return nil, err
 	}
 	ref := refOf(t)
-	if !participant(a, ref) {
+	if ok, err := s.visible(ctx, a, ref); err != nil {
+		return nil, err
+	} else if !ok {
 		return nil, errForbidden
 	}
 	internal := canSeeInternal(a, ref)
@@ -458,7 +462,7 @@ func (s *Service) Show(ctx context.Context, a *iam.Access, idOrCode string) (*Sh
 			IsInternalNote: m.IsInternalNote, CreatedAt: m.CreatedAt, Attachments: att})
 	}
 	if out.CanAssign {
-		if out.Staffs, err = s.Handlers(ctx); err != nil {
+		if out.Staffs, err = s.Handlers(ctx, a); err != nil {
 			return nil, err
 		}
 	}
@@ -483,7 +487,9 @@ func (s *Service) readAttachment(ctx context.Context, a *iam.Access, f files.Fil
 		return "", err
 	}
 	ref := refOf(t)
-	if !participant(a, ref) || (m.IsInternalNote && !canSeeInternal(a, ref)) {
+	if ok, err := s.visible(ctx, a, ref); err != nil {
+		return "", err
+	} else if !ok || (m.IsInternalNote && !canSeeInternal(a, ref)) {
 		return "", errForbidden
 	}
 	return "", nil
@@ -652,7 +658,7 @@ func (s *Service) Create(ctx context.Context, a *iam.Access, in CreateInput, ups
 		if !a.Can(PermAssign) {
 			return nil, iam.ErrForbidden
 		}
-		if err := s.ensureHandler(ctx, *assignee); err != nil {
+		if err := s.ensureHandler(ctx, a, *assignee); err != nil {
 			return nil, err
 		}
 	}
@@ -735,7 +741,9 @@ func (s *Service) AddMessage(ctx context.Context, a *iam.Access, idOrCode string
 	if err != nil {
 		return nil, err
 	}
-	if !participant(a, refOf(cur)) {
+	if ok, err := s.visible(ctx, a, refOf(cur)); err != nil {
+		return nil, err
+	} else if !ok {
 		return nil, errForbidden
 	}
 	in.Message = strings.TrimSpace(in.Message)
@@ -809,6 +817,11 @@ func (s *Service) SetStatus(ctx context.Context, a *iam.Access, idOrCode, status
 	if err != nil {
 		return nil, err
 	}
+	if ok, err := s.visible(ctx, a, refOf(cur)); err != nil {
+		return nil, err
+	} else if !ok {
+		return nil, errForbidden
+	}
 	err = s.inTx(ctx, func(tx pgx.Tx, q *ticketsdb.Queries) error {
 		t, err := q.LockTicket(ctx, cur.ID)
 		if err != nil {
@@ -847,7 +860,9 @@ func (s *Service) Reopen(ctx context.Context, a *iam.Access, idOrCode string) (*
 		return nil, err
 	}
 	ref := refOf(cur)
-	if !participant(a, ref) || !canReopen(a, ref) {
+	if ok, err := s.visible(ctx, a, ref); err != nil {
+		return nil, err
+	} else if !ok || !canReopen(a, ref) {
 		return nil, errForbidden
 	}
 	err = s.inTx(ctx, func(tx pgx.Tx, q *ticketsdb.Queries) error {
@@ -891,12 +906,17 @@ func (s *Service) Assign(ctx context.Context, a *iam.Access, idOrCode string, as
 	if err != nil {
 		return nil, iam.Invalid("Giá trị đã chọn trong trường Người xử lý không tồn tại trong hệ thống.")
 	}
-	if err := s.ensureHandler(ctx, id); err != nil {
+	if err := s.ensureHandler(ctx, a, id); err != nil {
 		return nil, err
 	}
 	cur, err := s.load(ctx, s.q, idOrCode)
 	if err != nil {
 		return nil, err
+	}
+	if ok, err := s.visible(ctx, a, refOf(cur)); err != nil {
+		return nil, err
+	} else if !ok {
+		return nil, errForbidden
 	}
 	var name string
 	err = s.inTx(ctx, func(tx pgx.Tx, q *ticketsdb.Queries) error {

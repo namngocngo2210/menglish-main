@@ -314,6 +314,7 @@ JOIN academic.classes c ON c.id = s.class_id
 WHERE (s.teacher_id = sqlc.arg(user_id) OR s.foreign_teacher_id = sqlc.arg(user_id) OR s.assistant_id = sqlc.arg(user_id))
   AND s.status <> 'cancelled' AND s.date BETWEEN sqlc.arg(from_date) AND sqlc.arg(to_date)
   AND (sqlc.narg(class_id)::uuid IS NULL OR s.class_id = sqlc.narg(class_id))
+  AND (sqlc.arg(all_classes)::bool OR s.class_id = ANY(sqlc.arg(class_ids)::uuid[]))
   AND NOT EXISTS (SELECT 1 FROM hr.teacher_timesheets t
       WHERE t.user_id = sqlc.arg(user_id) AND t.status <> 'invalid'
         AND (t.class_session_id = s.id OR (t.class_session_id IS NULL AND t.class_id = s.class_id AND t.teaching_date = s.date)))

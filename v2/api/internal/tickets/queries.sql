@@ -1,5 +1,5 @@
--- Ticket hỗ trợ (ops.tickets, ops.ticket_messages). Người xử lý ticket (manage = có support_ticket.update / assign /
--- close) thấy mọi ticket; người khác chỉ thấy ticket mình tạo hoặc được giao (SupportTicketController::index).
+-- Ticket hỗ trợ (ops.tickets, ops.ticket_messages). Phạm vi support_ticket.scope_* (SupportTicket::scopeVisibleTo):
+-- all_scope = Toàn hệ thống; còn lại ticket mình tạo / được giao, cộng ticket do nhân sự thuộc branches (mức Chi nhánh) tạo.
 
 -- name: ListTickets :many
 SELECT t.id, t.code, t.title, t.category, t.priority, t.status, t.created_at,
@@ -8,7 +8,8 @@ SELECT t.id, t.code, t.title, t.category, t.priority, t.status, t.created_at,
 FROM ops.tickets t
 JOIN iam.users c ON c.id = t.creator_id
 LEFT JOIN iam.users a ON a.id = t.assignee_id
-WHERE (@manage::boolean OR t.creator_id = @me::uuid OR t.assignee_id = @me::uuid)
+WHERE (@all_scope::boolean OR t.creator_id = @me::uuid OR t.assignee_id = @me::uuid
+       OR EXISTS (SELECT 1 FROM iam.user_branches ub WHERE ub.user_id = t.creator_id AND ub.branch_id = ANY (@branches::uuid[])))
   AND (sqlc.narg(status)::text IS NULL OR t.status = sqlc.narg(status)::text)
   AND (sqlc.narg(category)::text IS NULL OR t.category = sqlc.narg(category)::text)
   AND (sqlc.narg(search)::text IS NULL OR t.code ILIKE sqlc.narg(search)::text
@@ -23,7 +24,8 @@ SELECT count(*) AS total,
        count(*) FILTER (WHERE t.status = 'in_progress') AS in_progress,
        count(*) FILTER (WHERE t.status = 'resolved') AS resolved
 FROM ops.tickets t
-WHERE @manage::boolean OR t.creator_id = @me::uuid OR t.assignee_id = @me::uuid;
+WHERE @all_scope::boolean OR t.creator_id = @me::uuid OR t.assignee_id = @me::uuid
+       OR EXISTS (SELECT 1 FROM iam.user_branches ub WHERE ub.user_id = t.creator_id AND ub.branch_id = ANY (@branches::uuid[]));
 
 -- name: GetTicket :one
 -- Theo id hoặc mã (link cũ dạng /tickets/TK-2026-0001).

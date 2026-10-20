@@ -529,6 +529,8 @@ func TestTimesheets(t *testing.T) {
 	yesterday := e.session(cls, f.hn, "2026-10-16", "18:00", "19:30", &f.teacher.ID)
 	e.session(cls, f.hn, "2026-10-15", "18:00", "19:30", &f.teacher.ID)
 	future := e.session(cls, f.hn, "2026-10-20", "18:00", "19:30", &f.teacher.ID)
+	// Buổi của GV HN ở lớp HCM: ngoài phạm vi Học vụ HN nên không tính vào "Buổi thiếu chấm công" của họ.
+	e.session(clsB, f.hcm, "2026-10-14", "18:00", "19:30", &f.teacher.ID)
 
 	manual := func(c *iamtest.Client, patch map[string]any) iamtest.Resp {
 		body := map[string]any{"user_id": f.teacher.ID.String(), "branch_id": f.hn.String(), "class_id": cls.String(),
@@ -628,6 +630,26 @@ func TestTimesheets(t *testing.T) {
 	// Quản lý HCM không thấy ca của lớp HN
 	if b := f.cMgrB.Do("GET", "/timesheets/teachers?month=2026-10", nil); len(iamtest.List(t, b, "timesheets")) != 0 {
 		t.Fatalf("quản lý HCM: %s", b.Raw)
+	}
+	// Quản lý HCM (attendance_staff mức chi nhánh): ?user_id= của GV HN không lộ thẻ giáo viên / buổi thiếu; ô lọc giáo viên
+	// và form chấm tay chỉ có nhân sự trong phạm vi (PayrollController::staffInScope, teachingStaff).
+	b := f.cMgrB.Do("GET", "/timesheets/teachers?month=2026-10&user_id="+f.teacher.ID.String(), nil)
+	iamtest.Expect(t, b, 200, "")
+	if b.Body["teacher"] != nil || len(iamtest.List(t, b, "missing_sessions")) != 0 {
+		t.Fatalf("thẻ GV chi nhánh khác: %s", b.Raw)
+	}
+	for _, o := range iamtest.List(t, b, "filter_teachers") {
+		if o["value"] == f.teacher.ID.String() {
+			t.Fatalf("ô lọc giáo viên lộ GV chi nhánh khác: %s", b.Raw)
+		}
+	}
+	for _, o := range iamtest.List(t, f.cMgrB.Do("GET", "/timesheets/manual", nil), "teachers") {
+		if o["id"] == f.teacher.ID.String() {
+			t.Fatal("form chấm tay lộ GV chi nhánh khác")
+		}
+	}
+	if hv := iamtest.List(t, f.cHV.Do("GET", "/timesheets/teachers?month=2026-10", nil), "filter_teachers"); len(hv) == 0 {
+		t.Fatal("Học vụ HN phải thấy GV chi nhánh mình")
 	}
 
 	// Đối soát

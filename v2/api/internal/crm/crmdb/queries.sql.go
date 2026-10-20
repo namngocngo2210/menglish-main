@@ -12,6 +12,36 @@ import (
 	"github.com/google/uuid"
 )
 
+const activeCourseOptions = `-- name: ActiveCourseOptions :many
+SELECT id, name FROM academic.courses WHERE is_active AND deleted_at IS NULL ORDER BY name, id
+`
+
+type ActiveCourseOptionsRow struct {
+	ID   uuid.UUID
+	Name string
+}
+
+// Khóa học đang mở (ô "Khóa học áp dụng" của form ưu đãi).
+func (q *Queries) ActiveCourseOptions(ctx context.Context) ([]ActiveCourseOptionsRow, error) {
+	rows, err := q.db.Query(ctx, activeCourseOptions)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ActiveCourseOptionsRow
+	for rows.Next() {
+		var i ActiveCourseOptionsRow
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const availablePromotions = `-- name: AvailablePromotions :many
 SELECT id, code, name, type, value, max_discount_amount, description, reason, branch_id, course_id, starts_at, ends_at, usage_limit, used_count, is_active, is_default, is_special, created_by, created_at, updated_at FROM crm.promotions
 WHERE NOT is_special AND is_active AND (starts_at IS NULL OR starts_at <= now()) AND (ends_at IS NULL OR ends_at >= now())
@@ -247,6 +277,7 @@ func (q *Queries) ContactStreak(ctx context.Context, leadID uuid.UUID) ([]*strin
 const countPromotions = `-- name: CountPromotions :one
 SELECT count(*) FILTER (WHERE NOT is_special) AS catalog, count(*) FILTER (WHERE is_special) AS special
 FROM crm.promotions
+WHERE $1::uuid[] IS NULL OR branch_id IS NULL OR branch_id = ANY ($1::uuid[])
 `
 
 type CountPromotionsRow struct {
@@ -254,8 +285,9 @@ type CountPromotionsRow struct {
 	Special int64
 }
 
-func (q *Queries) CountPromotions(ctx context.Context) (CountPromotionsRow, error) {
-	row := q.db.QueryRow(ctx, countPromotions)
+// scope_branches NULL = mọi chi nhánh; ngược lại ưu đãi chung + ưu đãi của các chi nhánh đó (PromotionController::scopeVisible).
+func (q *Queries) CountPromotions(ctx context.Context, scopeBranches []uuid.UUID) (CountPromotionsRow, error) {
+	row := q.db.QueryRow(ctx, countPromotions, scopeBranches)
 	var i CountPromotionsRow
 	err := row.Scan(&i.Catalog, &i.Special)
 	return i, err
@@ -1862,23 +1894,25 @@ LEFT JOIN core.branches b ON b.id = p.branch_id
 LEFT JOIN iam.users u ON u.id = p.created_by
 LEFT JOIN academic.courses c ON c.id = p.course_id AND c.deleted_at IS NULL
 WHERE p.is_special = $1::bool
-  AND ($2::text IS NULL OR p.name ILIKE $2::text OR p.code ILIKE $2::text
-       OR p.reason ILIKE $2::text)
-  AND ($3::text = ''
-       OR ($3::text = 'active' AND p.is_active AND (p.starts_at IS NULL OR p.starts_at <= now())
+  AND ($2::uuid[] IS NULL OR p.branch_id IS NULL OR p.branch_id = ANY ($2::uuid[]))
+  AND ($3::text IS NULL OR p.name ILIKE $3::text OR p.code ILIKE $3::text
+       OR p.reason ILIKE $3::text)
+  AND ($4::text = ''
+       OR ($4::text = 'active' AND p.is_active AND (p.starts_at IS NULL OR p.starts_at <= now())
            AND (p.ends_at IS NULL OR p.ends_at >= now()) AND (p.usage_limit IS NULL OR p.used_count < p.usage_limit))
-       OR ($3::text = 'inactive' AND NOT p.is_active)
-       OR ($3::text = 'default' AND p.is_default))
+       OR ($4::text = 'inactive' AND NOT p.is_active)
+       OR ($4::text = 'default' AND p.is_default))
 ORDER BY p.is_active DESC, p.is_default DESC, p.created_at DESC, p.id DESC
-LIMIT $5 OFFSET $4
+LIMIT $6 OFFSET $5
 `
 
 type ListPromotionsParams struct {
-	Special bool
-	Q       *string
-	Status  string
-	Off     int32
-	Lim     int32
+	Special       bool
+	ScopeBranches []uuid.UUID
+	Q             *string
+	Status        string
+	Off           int32
+	Lim           int32
 }
 
 type ListPromotionsRow struct {
@@ -1912,6 +1946,7 @@ type ListPromotionsRow struct {
 func (q *Queries) ListPromotions(ctx context.Context, arg ListPromotionsParams) ([]ListPromotionsRow, error) {
 	rows, err := q.db.Query(ctx, listPromotions,
 		arg.Special,
+		arg.ScopeBranches,
 		arg.Q,
 		arg.Status,
 		arg.Off,

@@ -119,7 +119,7 @@ func (c *Closing) bank(ctx context.Context, q *tuitiondb.Queries, id, branch *uu
 		for _, a := range accounts {
 			if a.ID == *id {
 				if a.BranchID != nil && branch != nil && *a.BranchID != *branch {
-					return nil, iam.Invalid("Tài khoản thu tiền không thuộc chi nhánh của lớp.")
+					return nil, iam.Invalid("Tài khoản thu tiền không dùng cho cơ sở của lớp.")
 				}
 				return &a.ID, nil
 			}

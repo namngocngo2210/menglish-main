@@ -80,11 +80,18 @@ func localDate(t *time.Time) *time.Time {
 	return ptr(dateOf(*t))
 }
 
-func (s *Service) teacherOptions(ctx context.Context) ([]Option, error) {
+// teacherOptions: giáo viên chọn khi giao chặng — chỉ nhân sự thuộc chi nhánh trong phạm vi Lớp học của người xem
+// (User::scopePickableBy, SyllabusController::assignments).
+func (s *Service) teacherOptions(ctx context.Context, actor *iam.Access) ([]Option, error) {
 	rows, err := s.q.TeacherOptions(ctx)
 	if err != nil {
 		return nil, err
 	}
+	pickable, err := iam.PickableUsers(ctx, s.pool, actor, "class")
+	if err != nil {
+		return nil, err
+	}
+	rows = iam.FilterUsers(pickable, rows, func(r syllabusdb.TeacherOptionsRow) uuid.UUID { return r.ID })
 	out := make([]Option, 0, len(rows))
 	for _, t := range rows {
 		label := t.FullName
@@ -139,7 +146,7 @@ func (s *Service) Assignments(ctx context.Context, actor *iam.Access, f Assignme
 			ClosingBigTest: r.ClosingBigTest,
 		})
 	}
-	if out.Teachers, err = s.teacherOptions(ctx); err != nil {
+	if out.Teachers, err = s.teacherOptions(ctx, actor); err != nil {
 		return nil, err
 	}
 	if out.Curriculums, err = s.curriculumRefs(ctx); err != nil {

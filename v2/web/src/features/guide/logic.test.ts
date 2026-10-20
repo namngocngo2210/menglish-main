@@ -30,8 +30,10 @@ test('bộ của mình trước, học viên chỉ thấy bộ Học viên + ph�
 })
 
 test('nút "Mở màn hình" chỉ khi mở được', () => {
-  const sales = me(['sales_consultant'], ['lead.view', 'class.view'])
+  const sales = me(['sales_consultant'], ['lead.view', 'lead.create', 'lead.update', 'class.view'])
   expect(openUrl(sales, 'crm.pipeline')).toBe('/crm/pipeline')
+  // Khu CRM neo lead.create / lead.update (SidebarMenu::CRM): chỉ có lead.view thì không có nút mở.
+  expect(openUrl(me(['teacher_fulltime'], ['lead.view']), 'crm.pipeline')).toBeNull()
   expect(openUrl(sales, 'users.index')).toBeNull()
   expect(openUrl(sales, 'classes.create')).toBeNull()
   expect(openUrl(me(['manager'], ['class.update', 'class.create']), 'classes.create')).toBe('/classes/new')

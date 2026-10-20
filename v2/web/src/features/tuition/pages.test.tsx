@@ -11,6 +11,7 @@ import { CancellationsPage } from './CancellationsPage'
 import { ConfigPage } from './ConfigPage'
 import { ImportPage } from './ImportPage'
 import { OverduePage } from './OverduePage'
+import { ReceiptsRoute } from './ReceiptFormPage'
 import { RefundsPage } from './RefundsPage'
 import { SepayPage } from './SepayPage'
 import { StudentsPage } from './StudentsPage'
@@ -777,4 +778,43 @@ test('Nhập Excel: chỉ có quyền xem thì không tải file lên được',
   wrap(<ImportPage me={me(['tuition.view'])} />)
   expect(await screen.findByText(/cần quyền lập phiếu thu để nhập từ Excel/)).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Xem trước' })).not.toBeInTheDocument()
+})
+
+test('Lập phiếu thu: hộp tài khoản nhận học phí theo khoản / cơ sở, không có tài khoản thì cảnh báo', async () => {
+  const quote = {
+    paid: 0, used: 0, balance: 0, class_name: 'IELTS 1', course_sessions: 24, held: 0, remaining: 24, needed: 24, carry_over: 0,
+    mode: 'new', tuition_id: null, unit_price: 100000, max_sessions: 24, contract_remaining_sessions: null, tuition_remaining: null,
+    fee_due: 0, suggested: 24,
+  }
+  const bankA = { id: 'k1', bank_code: 'VCB', bank_name: 'Vietcombank', account_number: '0011', account_holder: 'CS CAU GIAY', scope: 'Tài khoản cơ sở Cầu Giấy' }
+  const student = {
+    id: 's1', branch_id: 'b1', name: 'Nguyễn Văn An', code: 'HV0001', phone: '0912', parent_name: 'Phụ huynh', parent_phone: '0913',
+    class_name: 'IELTS 1', branch_name: 'Cầu Giấy', status: 'studying', is_deferred: false, transfer_memo: 'HV0001 AN', course_id: null, quote,
+  }
+  const tuition = {
+    id: 't1', student_id: 's1', branch_id: 'b2', fee_label: 'Học phí IELTS', class_name: 'IELTS 1', course_id: null, total_amount: 2400000,
+    discount_amount: 0, other_fees: 0, paid_amount: 0, debt_amount: 2400000, final_amount: 2400000, due_date: null, fee_items: [],
+    class_changed: false, current_class_name: 'IELTS 1', transfer_memo: 'HV0001 AN IELTS1', bank: null, status: 'unpaid', status_label: 'Chưa đóng', quote,
+  }
+  const form = (tuitions: unknown[], selected: string | null) => ({
+    student, tuitions, selected_tuition_id: selected, promotions: [], items: [], paper_invoice_next: null, default_bank: bankA, editing: null,
+    recent_rejection: null, can_request_cancel: false, methods: [{ value: 'transfer', label: 'Chuyển khoản' }, { value: 'cash', label: 'Tiền mặt' }],
+  })
+  // Chưa có khoản học phí: tài khoản theo cơ sở của học viên.
+  mockApi({ 'GET /tuition/receipts/form': () => [200, form([], null)] })
+  window.history.pushState(null, '', '/tuition/receipts/new?student_id=s1')
+  const view = wrap(<ReceiptsRoute me={me(['tuition.view', 'tuition.create'])} />)
+  expect(await screen.findByText('Tài khoản ngân hàng nhận học phí')).toBeInTheDocument()
+  expect(screen.getByText('Tài khoản cơ sở Cầu Giấy')).toBeInTheDocument()
+  expect(screen.getByText('0011')).toBeInTheDocument()
+  view.unmount()
+  vi.restoreAllMocks()
+
+  // Khoản học phí ở cơ sở khác không có tài khoản: không lấy tài khoản cơ sở của học viên, hiện cảnh báo.
+  mockApi({ 'GET /tuition/receipts/form': () => [200, form([tuition], 't1')] })
+  window.history.pushState(null, '', '/tuition/receipts/new?student_id=s1&tuition_id=t1')
+  wrap(<ReceiptsRoute me={me(['tuition.view', 'tuition.create'])} />)
+  expect(await screen.findByText('Chưa cấu hình tài khoản ngân hàng')).toBeInTheDocument()
+  expect(screen.queryByText('Tài khoản ngân hàng nhận học phí')).not.toBeInTheDocument()
+  expect(screen.queryByAltText('Mã VietQR chuyển khoản')).not.toBeInTheDocument()
 })

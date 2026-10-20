@@ -84,9 +84,10 @@ export function PasswordField({ label, ...props }: InputHTMLAttributes<HTMLInput
   )
 }
 
-export function Alert({ tone = 'error', children }: { tone?: 'error' | 'info' | 'success'; children: ReactNode }) {
+export function Alert({ tone = 'error', children }: { tone?: 'error' | 'info' | 'success' | 'warning'; children: ReactNode }) {
   const styles = {
     error: 'border-error/20 bg-error-container text-on-error-container',
+    warning: 'border-warning/20 bg-warning-container text-warning',
     info: 'border-info/20 bg-info-container text-on-info-container',
     success: 'border-success/20 bg-success-container text-on-success-container',
   }[tone]

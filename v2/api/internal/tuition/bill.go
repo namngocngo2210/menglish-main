@@ -144,33 +144,6 @@ func (s *Service) billCenter(ctx context.Context) (BillCenter, error) {
 
 var errBillNotFound = &iam.Error{Status: 404, Code: "not_found", Message: "Không tìm thấy thông tin công nợ / học phí của học viên."}
 
-// billBank: tài khoản của hợp đồng (đúng chi nhánh), rồi tài khoản VietQR mặc định của chi nhánh, rồi của hệ thống.
-func billBank(rows []tuitiondb.BillBankAccountsRow, own, branch *uuid.UUID) *Bank {
-	conv := func(a tuitiondb.BillBankAccountsRow) *Bank {
-		return &Bank{ID: a.ID, BankCode: a.BankCode, BankName: a.BankName, AccountNumber: a.AccountNumber, AccountHolder: a.AccountHolder}
-	}
-	if own != nil {
-		for _, a := range rows {
-			if a.ID == *own && (branch == nil || a.BranchID == nil || *a.BranchID == *branch) {
-				return conv(a)
-			}
-		}
-	}
-	if branch != nil {
-		for _, a := range rows {
-			if a.IsDefaultVietqr && a.BranchID != nil && *a.BranchID == *branch {
-				return conv(a)
-			}
-		}
-	}
-	for _, a := range rows {
-		if a.IsDefaultVietqr && a.BranchID == nil {
-			return conv(a)
-		}
-	}
-	return nil
-}
-
 func (s *Service) Bill(ctx context.Context, actor *iam.Access, id uuid.UUID) (*Bill, error) {
 	t, err := s.q.GetTuition(ctx, id)
 	if isNoRows(err) {
@@ -245,11 +218,12 @@ func (s *Service) Bill(ctx context.Context, actor *iam.Access, id uuid.UUID) (*B
 	debt := max(0, t.DebtAmount)
 	out.PendingAmount = min(debt, pending)
 	out.AmountToPay = max(0, debt-out.PendingAmount)
-	banks, err := s.q.BillBankAccounts(ctx)
+	// Cùng thứ tự với QR ở màn học phí (StudentTuition::resolveBankAccount): TK của hợp đồng → TK gắn cơ sở → TK dùng chung.
+	banks, err := s.q.ActiveBankAccounts(ctx)
 	if err != nil {
 		return nil, err
 	}
-	out.Bank = billBank(banks, t.BankAccountID, t.BranchID)
+	out.Bank = resolveBank(banks, t.BankAccountID, nonZero(t.ScopeBranchID))
 	if out.Bank == nil && out.AmountToPay > 0 {
 		out.QRWarning = ptr("Chưa cấu hình tài khoản ngân hàng hoạt động để tạo mã VietQR. Vui lòng liên hệ Kế toán/Admin bổ sung trước khi thu tiền.")
 	}

@@ -104,6 +104,7 @@ export function PromotionsPage(_: { me: Me }) {
           row={open === 'new' ? null : open}
           special={tab === 'special'}
           branches={d?.branches ?? []}
+          courses={d?.courses ?? []}
           onClose={() => setOpen(null)}
           onDone={flash.ok}
         />
@@ -116,12 +117,14 @@ function PromotionDialog({
   row,
   special,
   branches,
+  courses,
   onClose,
   onDone,
 }: {
   row: PromotionRow | null
   special: boolean
   branches: Option[]
+  courses: Option[]
   onClose: () => void
   onDone: (m: string) => void
 }) {
@@ -134,6 +137,7 @@ function PromotionDialog({
     description: row?.description ?? '',
     reason: row?.reason ?? '',
     branch_id: row?.branch_id ?? '',
+    course_id: row?.course_id ?? '',
     starts_at: toDateTimeLocal(row?.starts_at),
     ends_at: toDateTimeLocal(row?.ends_at),
     usage_limit: row?.usage_limit ? String(row.usage_limit) : '',
@@ -151,6 +155,7 @@ function PromotionDialog({
         description: f.description,
         reason: f.reason,
         branch_id: f.branch_id || null,
+        course_id: f.course_id || null,
         starts_at: f.starts_at,
         ends_at: f.ends_at,
         usage_limit: f.usage_limit ? Number(f.usage_limit) : null,
@@ -191,6 +196,14 @@ function PromotionDialog({
             {branches.map((b) => (
               <option key={b.value} value={b.value}>
                 {b.label}
+              </option>
+            ))}
+          </Select>
+          <Select label="Khóa học áp dụng" value={f.course_id} onChange={set('course_id')}>
+            <option value="">Mọi khóa học</option>
+            {courses.map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.label}
               </option>
             ))}
           </Select>

@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import type { Me } from './api'
-import { buildSidebar, normalize, searchScreens, settingsNav, workspaceTabs, type NavItem } from './nav'
+import { buildSidebar, navItemFor, normalize, searchScreens, settingsNav, workspaceTabs, type NavItem } from './nav'
 
 function meWith(...permissions: string[]): Me {
   return {
@@ -73,4 +73,21 @@ test('tìm màn hình không phân biệt dấu, chỉ màn được mở', () =
   expect(searchScreens(me, 'nhật ký', nav)).toEqual([{ title: 'Cài đặt › Nhật ký vận hành', path: '/activity-logs' }])
   expect(searchScreens(me, 'kanban', nav)).toEqual([])
   expect(searchScreens(me, 'h', nav)).toEqual([])
+})
+
+test('quyền mở trang và quyền neo menu như Laravel (routes/web.php, SidebarMenu)', () => {
+  // Email nhận Ticket: chỉ mail_config.manage mở được; menu neo portal.staff.
+  expect(navItemFor('/system-config/ticket-emails')?.perms).toEqual(['mail_config.manage'])
+  // Lịch học thử: trang theo class.view; Lịch & TKB lớp: trang theo work_task.view; cả hai neo class.update trên menu.
+  expect(navItemFor('/trial-bookings')?.perms).toEqual(['class.view'])
+  expect(navItemFor('/schedule-config')?.perms).toEqual(['work_task.view'])
+  const viewer = meWith('class.view', 'work_task.view')
+  expect(navItemFor('/trial-bookings')?.menu?.(viewer)).toBe(false)
+  expect(navItemFor('/trial-bookings')?.menu?.(meWith('class.view', 'class.update'))).toBe(true)
+  expect(navItemFor('/schedule-config')?.menu?.(viewer)).toBe(false)
+  // Khu CRM neo lead.create / lead.update: chỉ có lead.view không thấy menu CRM (vẫn mở được trang).
+  const crm = (m: Me) => buildSidebar(m, '/').sections.flatMap((x) => x.links.map((l) => l.label)).includes('Khách hàng (CRM)')
+  expect(crm(meWith('lead.view'))).toBe(false)
+  expect(crm(meWith('lead.view', 'lead.update'))).toBe(true)
+  expect(navItemFor('/crm/pipeline')?.perms).toEqual(['lead.view'])
 })

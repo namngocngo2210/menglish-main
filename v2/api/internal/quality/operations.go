@@ -176,7 +176,7 @@ func (s *Service) Operations(ctx context.Context, actor *iam.Access, f Operation
 	for _, u := range names {
 		out.Teachers = append(out.Teachers, Option{Value: u.ID.String(), Label: fmt.Sprintf("%s (%d lớp đang dạy)", u.FullName, count[u.ID])})
 	}
-	observed, err := s.q.ObservedTeachers(ctx)
+	observed, err := s.q.ObservedTeachers(ctx, qualitydb.ObservedTeachersParams{AllClasses: sc.all, Ids: sc.ids})
 	if err != nil {
 		return nil, err
 	}

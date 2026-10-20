@@ -38,10 +38,14 @@ func (d dashboardTickets) Incidents(ctx context.Context, a *iam.Access, f dashbo
 	if err != nil {
 		return nil, true, err
 	}
+	sc, err := d.s.scopeOf(ctx, a)
+	if err != nil {
+		return nil, true, err
+	}
 	out := make([]dashboard.IncidentTicket, 0, len(rows))
 	for _, r := range rows {
 		out = append(out, dashboard.IncidentTicket{ID: r.ID, Code: r.Code,
-			CanOpen: a.Can(PermView) && participant(a, ticketRef{r.CreatorID, r.AssigneeID}),
+			CanOpen: a.Can(PermView) && sc.sees(ticketRef{r.CreatorID, r.AssigneeID}),
 			Branch:  r.BranchName, CategoryLabel: CategoryLabel(r.Category), Title: r.Title, Excerpt: preview(r.Description, 140),
 			Priority: r.Priority, Assignee: r.AssigneeName, Creator: r.CreatorName, Status: r.Status,
 			StatusLabel: StatusLabel(r.Status)})

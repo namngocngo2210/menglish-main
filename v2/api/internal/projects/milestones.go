@@ -80,7 +80,7 @@ func (s *Service) validateMilestone(ctx context.Context, in MilestoneInput) (mil
 		if id == nil {
 			return d, iam.Invalid(msg)
 		}
-		_, staff, err := s.staff(ctx)
+		_, staff, err := s.staff(ctx, nil)
 		if err != nil {
 			return d, err
 		}

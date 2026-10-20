@@ -423,14 +423,18 @@ func TestTicketEmails(t *testing.T) {
 	admin := e.as(nil, "admin")
 	manager := e.as([]uuid.UUID{b}, "manager") // support_ticket.update, không có mail_config.manage
 
-	expectMsg(t, manager.do("POST", "/system-config/ticket-emails", map[string]any{
+	// Email nhận thông báo toàn hệ thống + SMTP chỉ dành cho mail_config.manage (Laravel can:mail_config.manage).
+	expect(t, manager.do("GET", "/system-config/ticket-emails", nil), 403, "")
+	expect(t, manager.do("POST", "/system-config/ticket-emails", map[string]any{"emails": "it@meducation.vn"}), 403, "")
+	expect(t, manager.do("POST", "/system-config/ticket-emails/test", map[string]any{}), 403, "")
+
+	expectMsg(t, admin.do("POST", "/system-config/ticket-emails", map[string]any{
 		"emails": "IT@Meducation.vn; sai-dinh-dang\nit@meducation.vn, ops@meducation.vn", "events": map[string]bool{"created": true},
-		"mail": map[string]any{"host": "smtp.evil.com"},
 	}), 200, "Đã lưu danh sách email nhận và các sự kiện gửi thông báo.")
-	r := manager.do("GET", "/system-config/ticket-emails", nil)
+	r := admin.do("GET", "/system-config/ticket-emails", nil)
 	emails := r.body["emails"].([]any)
 	events := r.body["events"].(map[string]any)
-	if len(emails) != 2 || emails[0] != "it@meducation.vn" || events["created"] != true || events["comment"] != false || r.body["mail"] != nil {
+	if len(emails) != 2 || emails[0] != "it@meducation.vn" || events["created"] != true || events["comment"] != false {
 		t.Fatalf("email nhận ticket: %v", r.body)
 	}
 

@@ -228,15 +228,19 @@ const countMeetings = `-- name: CountMeetings :one
 SELECT count(*)::bigint
 FROM academic.teacher_meeting_reports m
 WHERE m.deleted_at IS NULL
-  AND (m.class_id IS NULL OR $1::bool OR m.class_id = ANY ($2::uuid[]))
-  AND ($3::date IS NULL OR m.week_start = $3)
-  AND ($4::uuid IS NULL OR m.teacher_id = $4)
-  AND ($5::text IS NULL OR m.status = $5)
+  AND ($1::bool OR m.class_id = ANY ($2::uuid[])
+       OR (m.class_id IS NULL AND (m.author_id = $3::uuid
+           OR EXISTS (SELECT 1 FROM iam.user_branches ub WHERE ub.user_id = m.teacher_id AND ub.branch_id = ANY ($4::uuid[])))))
+  AND ($5::date IS NULL OR m.week_start = $5)
+  AND ($6::uuid IS NULL OR m.teacher_id = $6)
+  AND ($7::text IS NULL OR m.status = $7)
 `
 
 type CountMeetingsParams struct {
 	AllClasses bool
 	Ids        []uuid.UUID
+	Me         uuid.UUID
+	Branches   []uuid.UUID
 	Week       *time.Time
 	TeacherID  *uuid.UUID
 	Status     *string
@@ -247,6 +251,8 @@ func (q *Queries) CountMeetings(ctx context.Context, arg CountMeetingsParams) (i
 	row := q.db.QueryRow(ctx, countMeetings,
 		arg.AllClasses,
 		arg.Ids,
+		arg.Me,
+		arg.Branches,
 		arg.Week,
 		arg.TeacherID,
 		arg.Status,
@@ -542,7 +548,7 @@ func (q *Queries) GetClass(ctx context.Context, id uuid.UUID) (GetClassRow, erro
 }
 
 const getMeeting = `-- name: GetMeeting :one
-SELECT m.id, m.week_start, m.teacher_id, m.class_id, m.status, t.full_name AS teacher_name
+SELECT m.id, m.week_start, m.teacher_id, m.class_id, m.author_id, m.status, t.full_name AS teacher_name
 FROM academic.teacher_meeting_reports m
 LEFT JOIN iam.users t ON t.id = m.teacher_id
 WHERE m.id = $1 AND m.deleted_at IS NULL
@@ -553,6 +559,7 @@ type GetMeetingRow struct {
 	WeekStart   time.Time
 	TeacherID   uuid.UUID
 	ClassID     *uuid.UUID
+	AuthorID    uuid.UUID
 	Status      string
 	TeacherName *string
 }
@@ -565,6 +572,7 @@ func (q *Queries) GetMeeting(ctx context.Context, id uuid.UUID) (GetMeetingRow, 
 		&i.WeekStart,
 		&i.TeacherID,
 		&i.ClassID,
+		&i.AuthorID,
 		&i.Status,
 		&i.TeacherName,
 	)
@@ -614,17 +622,21 @@ LEFT JOIN iam.users a ON a.id = m.author_id
 LEFT JOIN academic.classes c ON c.id = m.class_id
 LEFT JOIN academic.courses co ON co.id = c.course_id
 WHERE m.deleted_at IS NULL
-  AND (m.class_id IS NULL OR $1::bool OR m.class_id = ANY ($2::uuid[]))
-  AND ($3::date IS NULL OR m.week_start = $3)
-  AND ($4::uuid IS NULL OR m.teacher_id = $4)
-  AND ($5::text IS NULL OR m.status = $5)
+  AND ($1::bool OR m.class_id = ANY ($2::uuid[])
+       OR (m.class_id IS NULL AND (m.author_id = $3::uuid
+           OR EXISTS (SELECT 1 FROM iam.user_branches ub WHERE ub.user_id = m.teacher_id AND ub.branch_id = ANY ($4::uuid[])))))
+  AND ($5::date IS NULL OR m.week_start = $5)
+  AND ($6::uuid IS NULL OR m.teacher_id = $6)
+  AND ($7::text IS NULL OR m.status = $7)
 ORDER BY m.week_start DESC, m.id DESC
-LIMIT $7 OFFSET $6
+LIMIT $9 OFFSET $8
 `
 
 type ListMeetingsParams struct {
 	AllClasses bool
 	Ids        []uuid.UUID
+	Me         uuid.UUID
+	Branches   []uuid.UUID
 	Week       *time.Time
 	TeacherID  *uuid.UUID
 	Status     *string
@@ -654,6 +666,8 @@ func (q *Queries) ListMeetings(ctx context.Context, arg ListMeetingsParams) ([]L
 	rows, err := q.db.Query(ctx, listMeetings,
 		arg.AllClasses,
 		arg.Ids,
+		arg.Me,
+		arg.Branches,
 		arg.Week,
 		arg.TeacherID,
 		arg.Status,
@@ -964,17 +978,23 @@ SELECT DISTINCT u.id, u.full_name
 FROM academic.class_observations o
 JOIN iam.users u ON u.id = o.teacher_id
 WHERE o.kind = 'operations' AND o.deleted_at IS NULL
+  AND ($1::bool OR o.class_id = ANY ($2::uuid[]))
 ORDER BY u.full_name, u.id
 `
+
+type ObservedTeachersParams struct {
+	AllClasses bool
+	Ids        []uuid.UUID
+}
 
 type ObservedTeachersRow struct {
 	ID       uuid.UUID
 	FullName string
 }
 
-// Giáo viên đã có lượt dự giờ vận hành (bộ lọc "Giáo viên").
-func (q *Queries) ObservedTeachers(ctx context.Context) ([]ObservedTeachersRow, error) {
-	rows, err := q.db.Query(ctx, observedTeachers)
+// Giáo viên đã có lượt dự giờ vận hành ở lớp trong phạm vi (bộ lọc "Giáo viên", không lộ GV chi nhánh khác).
+func (q *Queries) ObservedTeachers(ctx context.Context, arg ObservedTeachersParams) ([]ObservedTeachersRow, error) {
+	rows, err := q.db.Query(ctx, observedTeachers, arg.AllClasses, arg.Ids)
 	if err != nil {
 		return nil, err
 	}

@@ -367,6 +367,23 @@ func (q *Queries) ClassExists(ctx context.Context, id uuid.UUID) (bool, error) {
 	return column_1, err
 }
 
+const classInBranches = `-- name: ClassInBranches :one
+SELECT EXISTS (SELECT 1 FROM academic.classes WHERE id = $1 AND deleted_at IS NULL AND branch_id = ANY ($2::uuid[]))::bool
+`
+
+type ClassInBranchesParams struct {
+	ID        uuid.UUID
+	BranchIds []uuid.UUID
+}
+
+// Lớp (chưa xóa) thuộc các chi nhánh (ô chọn lớp của biên bản theo phạm vi violation).
+func (q *Queries) ClassInBranches(ctx context.Context, arg ClassInBranchesParams) (bool, error) {
+	row := q.db.QueryRow(ctx, classInBranches, arg.ID, arg.BranchIds)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const classInfo = `-- name: ClassInfo :many
 SELECT c.id, c.code::text AS code, c.name, c.foreign_teacher_id,
     coalesce(nullif(c.tuition_fee, 0), co.tuition_fee, 0)::bigint AS fee, coalesce(co.total_lessons, 0)::int AS course_sessions
@@ -451,7 +468,9 @@ func (q *Queries) ClassMembers(ctx context.Context, classIds []uuid.UUID) ([]Cla
 }
 
 const classOptions = `-- name: ClassOptions :many
-SELECT id, code::text AS code, name FROM academic.classes WHERE deleted_at IS NULL ORDER BY name, id
+SELECT id, code::text AS code, name FROM academic.classes
+WHERE deleted_at IS NULL AND ($1::uuid[] IS NULL OR branch_id = ANY ($1::uuid[]))
+ORDER BY name, id
 `
 
 type ClassOptionsRow struct {
@@ -460,8 +479,9 @@ type ClassOptionsRow struct {
 	Name string
 }
 
-func (q *Queries) ClassOptions(ctx context.Context) ([]ClassOptionsRow, error) {
-	rows, err := q.db.Query(ctx, classOptions)
+// branch_ids NULL = mọi lớp; ngược lại chỉ lớp thuộc các chi nhánh đó.
+func (q *Queries) ClassOptions(ctx context.Context, branchIds []uuid.UUID) ([]ClassOptionsRow, error) {
+	rows, err := q.db.Query(ctx, classOptions, branchIds)
 	if err != nil {
 		return nil, err
 	}
@@ -798,11 +818,18 @@ func (q *Queries) CountAutoPenalties(ctx context.Context, arg CountAutoPenalties
 }
 
 const countHourlyRates = `-- name: CountHourlyRates :one
-SELECT count(*) FROM hr.teacher_hourly_rates WHERE $1::uuid IS NULL OR user_id = $1::uuid
+SELECT count(*) FROM hr.teacher_hourly_rates
+WHERE ($1::uuid IS NULL OR user_id = $1::uuid)
+  AND ($2::uuid[] IS NULL OR user_id = ANY ($2::uuid[]))
 `
 
-func (q *Queries) CountHourlyRates(ctx context.Context, userID *uuid.UUID) (int64, error) {
-	row := q.db.QueryRow(ctx, countHourlyRates, userID)
+type CountHourlyRatesParams struct {
+	UserID  *uuid.UUID
+	UserIds []uuid.UUID
+}
+
+func (q *Queries) CountHourlyRates(ctx context.Context, arg CountHourlyRatesParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countHourlyRates, arg.UserID, arg.UserIds)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -811,39 +838,49 @@ func (q *Queries) CountHourlyRates(ctx context.Context, userID *uuid.UUID) (int6
 const countPenalties = `-- name: CountPenalties :one
 SELECT count(*) FROM hr.penalties x JOIN iam.users u ON u.id = x.user_id
 WHERE ($1::uuid IS NULL OR x.user_id = $1::uuid)
-  AND ($2::text = '' OR x.code ILIKE '%' || $2 || '%' OR x.violation_type ILIKE '%' || $2 || '%'
-       OR u.full_name ILIKE '%' || $2 || '%' OR u.code::text ILIKE '%' || $2 || '%')
-  AND ($3::text = ''
-       OR ($3 = 'overdue' AND x.status = 'fined' AND x.due_date < $4)
-       OR ($3 = 'open' AND x.status IN ('pending', 'explained', 'confirmed', 'fined'))
-       OR x.status = $3)
-  AND ($5::text = '' OR x.error_category = $5)
-  AND ($6::text = ''
-       OR ($6 = 'recorded' AND x.status IN ('pending', 'explained'))
-       OR ($6 = 'confirmed' AND x.status = 'confirmed')
-       OR ($6 = 'fined' AND x.status = 'fined')
-       OR ($6 = 'paid' AND x.status IN ('paid', 'deducted') AND x.remedied_at IS NULL)
-       OR ($6 = 'remedied' AND x.status IN ('paid', 'deducted') AND x.remedied_at IS NOT NULL)
-       OR ($6 = 'resolved' AND x.status = 'resolved')
-       OR ($6 = 'cancelled' AND x.status = 'cancelled'))
-  AND ($7::date IS NULL OR x.violation_date >= $7::date)
-  AND ($8::date IS NULL OR x.violation_date <= $8::date)
+  AND (NOT $2::bool OR x.user_id = $3::uuid OR ($4::bool AND x.reporter_id = $3::uuid)
+       OR EXISTS (SELECT 1 FROM iam.user_branches sb WHERE sb.user_id = x.user_id AND sb.branch_id = ANY ($5::uuid[])))
+  AND ($6::text = '' OR x.code ILIKE '%' || $6 || '%' OR x.violation_type ILIKE '%' || $6 || '%'
+       OR u.full_name ILIKE '%' || $6 || '%' OR u.code::text ILIKE '%' || $6 || '%')
+  AND ($7::text = ''
+       OR ($7 = 'overdue' AND x.status = 'fined' AND x.due_date < $8)
+       OR ($7 = 'open' AND x.status IN ('pending', 'explained', 'confirmed', 'fined'))
+       OR x.status = $7)
+  AND ($9::text = '' OR x.error_category = $9)
+  AND ($10::text = ''
+       OR ($10 = 'recorded' AND x.status IN ('pending', 'explained'))
+       OR ($10 = 'confirmed' AND x.status = 'confirmed')
+       OR ($10 = 'fined' AND x.status = 'fined')
+       OR ($10 = 'paid' AND x.status IN ('paid', 'deducted') AND x.remedied_at IS NULL)
+       OR ($10 = 'remedied' AND x.status IN ('paid', 'deducted') AND x.remedied_at IS NOT NULL)
+       OR ($10 = 'resolved' AND x.status = 'resolved')
+       OR ($10 = 'cancelled' AND x.status = 'cancelled'))
+  AND ($11::date IS NULL OR x.violation_date >= $11::date)
+  AND ($12::date IS NULL OR x.violation_date <= $12::date)
 `
 
 type CountPenaltiesParams struct {
-	Owner    *uuid.UUID
-	Search   string
-	Status   string
-	Today    *time.Time
-	Category string
-	Step     string
-	FromDay  *time.Time
-	ToDay    *time.Time
+	Owner         *uuid.UUID
+	Scoped        bool
+	Me            uuid.UUID
+	WithReporter  bool
+	ScopeBranches []uuid.UUID
+	Search        string
+	Status        string
+	Today         *time.Time
+	Category      string
+	Step          string
+	FromDay       *time.Time
+	ToDay         *time.Time
 }
 
 func (q *Queries) CountPenalties(ctx context.Context, arg CountPenaltiesParams) (int64, error) {
 	row := q.db.QueryRow(ctx, countPenalties,
 		arg.Owner,
+		arg.Scoped,
+		arg.Me,
+		arg.WithReporter,
+		arg.ScopeBranches,
 		arg.Search,
 		arg.Status,
 		arg.Today,
@@ -1353,14 +1390,16 @@ FROM hr.teacher_hourly_rates h JOIN iam.users u ON u.id = h.user_id LEFT JOIN ia
 LEFT JOIN LATERAL (SELECT n.effective_from AS next_from FROM hr.teacher_hourly_rates n
                    WHERE n.user_id = h.user_id AND n.effective_from > h.effective_from ORDER BY n.effective_from LIMIT 1) nx ON true
 WHERE ($1::uuid IS NULL OR h.user_id = $1::uuid)
+  AND ($2::uuid[] IS NULL OR h.user_id = ANY ($2::uuid[]))
 ORDER BY h.effective_from DESC, h.created_at DESC, h.id DESC
-LIMIT $3 OFFSET $2
+LIMIT $4 OFFSET $3
 `
 
 type HourlyRateHistoryParams struct {
-	UserID *uuid.UUID
-	Off    int32
-	Lim    int32
+	UserID  *uuid.UUID
+	UserIds []uuid.UUID
+	Off     int32
+	Lim     int32
 }
 
 type HourlyRateHistoryRow struct {
@@ -1380,7 +1419,12 @@ type HourlyRateHistoryRow struct {
 }
 
 func (q *Queries) HourlyRateHistory(ctx context.Context, arg HourlyRateHistoryParams) ([]HourlyRateHistoryRow, error) {
-	rows, err := q.db.Query(ctx, hourlyRateHistory, arg.UserID, arg.Off, arg.Lim)
+	rows, err := q.db.Query(ctx, hourlyRateHistory,
+		arg.UserID,
+		arg.UserIds,
+		arg.Off,
+		arg.Lim,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -1947,38 +1991,44 @@ LEFT JOIN iam.users rp ON rp.id = x.reporter_id
 LEFT JOIN iam.users dc ON dc.id = x.decided_by
 LEFT JOIN iam.users rm ON rm.id = x.remedied_by
 WHERE ($1::uuid IS NULL OR x.user_id = $1::uuid)
-  AND ($2::text = '' OR x.code ILIKE '%' || $2 || '%' OR x.violation_type ILIKE '%' || $2 || '%'
-       OR u.full_name ILIKE '%' || $2 || '%' OR u.code::text ILIKE '%' || $2 || '%')
-  AND ($3::text = ''
-       OR ($3 = 'overdue' AND x.status = 'fined' AND x.due_date < $4)
-       OR ($3 = 'open' AND x.status IN ('pending', 'explained', 'confirmed', 'fined'))
-       OR x.status = $3)
-  AND ($5::text = '' OR x.error_category = $5)
-  AND ($6::text = ''
-       OR ($6 = 'recorded' AND x.status IN ('pending', 'explained'))
-       OR ($6 = 'confirmed' AND x.status = 'confirmed')
-       OR ($6 = 'fined' AND x.status = 'fined')
-       OR ($6 = 'paid' AND x.status IN ('paid', 'deducted') AND x.remedied_at IS NULL)
-       OR ($6 = 'remedied' AND x.status IN ('paid', 'deducted') AND x.remedied_at IS NOT NULL)
-       OR ($6 = 'resolved' AND x.status = 'resolved')
-       OR ($6 = 'cancelled' AND x.status = 'cancelled'))
-  AND ($7::date IS NULL OR x.violation_date >= $7::date)
-  AND ($8::date IS NULL OR x.violation_date <= $8::date)
+  AND (NOT $2::bool OR x.user_id = $3::uuid OR ($4::bool AND x.reporter_id = $3::uuid)
+       OR EXISTS (SELECT 1 FROM iam.user_branches sb WHERE sb.user_id = x.user_id AND sb.branch_id = ANY ($5::uuid[])))
+  AND ($6::text = '' OR x.code ILIKE '%' || $6 || '%' OR x.violation_type ILIKE '%' || $6 || '%'
+       OR u.full_name ILIKE '%' || $6 || '%' OR u.code::text ILIKE '%' || $6 || '%')
+  AND ($7::text = ''
+       OR ($7 = 'overdue' AND x.status = 'fined' AND x.due_date < $8)
+       OR ($7 = 'open' AND x.status IN ('pending', 'explained', 'confirmed', 'fined'))
+       OR x.status = $7)
+  AND ($9::text = '' OR x.error_category = $9)
+  AND ($10::text = ''
+       OR ($10 = 'recorded' AND x.status IN ('pending', 'explained'))
+       OR ($10 = 'confirmed' AND x.status = 'confirmed')
+       OR ($10 = 'fined' AND x.status = 'fined')
+       OR ($10 = 'paid' AND x.status IN ('paid', 'deducted') AND x.remedied_at IS NULL)
+       OR ($10 = 'remedied' AND x.status IN ('paid', 'deducted') AND x.remedied_at IS NOT NULL)
+       OR ($10 = 'resolved' AND x.status = 'resolved')
+       OR ($10 = 'cancelled' AND x.status = 'cancelled'))
+  AND ($11::date IS NULL OR x.violation_date >= $11::date)
+  AND ($12::date IS NULL OR x.violation_date <= $12::date)
 ORDER BY x.created_at DESC, x.id DESC
-LIMIT $10 OFFSET $9
+LIMIT $14 OFFSET $13
 `
 
 type ListPenaltiesParams struct {
-	Owner    *uuid.UUID
-	Search   string
-	Status   string
-	Today    *time.Time
-	Category string
-	Step     string
-	FromDay  *time.Time
-	ToDay    *time.Time
-	Off      int32
-	Lim      int32
+	Owner         *uuid.UUID
+	Scoped        bool
+	Me            uuid.UUID
+	WithReporter  bool
+	ScopeBranches []uuid.UUID
+	Search        string
+	Status        string
+	Today         *time.Time
+	Category      string
+	Step          string
+	FromDay       *time.Time
+	ToDay         *time.Time
+	Off           int32
+	Lim           int32
 }
 
 type ListPenaltiesRow struct {
@@ -2025,6 +2075,10 @@ type ListPenaltiesRow struct {
 func (q *Queries) ListPenalties(ctx context.Context, arg ListPenaltiesParams) ([]ListPenaltiesRow, error) {
 	rows, err := q.db.Query(ctx, listPenalties,
 		arg.Owner,
+		arg.Scoped,
+		arg.Me,
+		arg.WithReporter,
+		arg.ScopeBranches,
 		arg.Search,
 		arg.Status,
 		arg.Today,
@@ -2790,12 +2844,18 @@ SELECT count(*) FILTER (WHERE status = 'pending')::int AS pending,
     count(*) FILTER (WHERE status IN ('explained', 'confirmed'))::int AS deciding,
     count(*) FILTER (WHERE status = 'fined')::int AS fined,
     count(*) FILTER (WHERE status = 'fined' AND due_date < $1)::int AS overdue
-FROM hr.penalties WHERE $2::uuid IS NULL OR user_id = $2::uuid
+FROM hr.penalties x WHERE ($2::uuid IS NULL OR x.user_id = $2::uuid)
+  AND (NOT $3::bool OR x.user_id = $4::uuid OR ($5::bool AND x.reporter_id = $4::uuid)
+       OR EXISTS (SELECT 1 FROM iam.user_branches sb WHERE sb.user_id = x.user_id AND sb.branch_id = ANY ($6::uuid[])))
 `
 
 type PenaltyCountsParams struct {
-	Today *time.Time
-	Owner *uuid.UUID
+	Today         *time.Time
+	Owner         *uuid.UUID
+	Scoped        bool
+	Me            uuid.UUID
+	WithReporter  bool
+	ScopeBranches []uuid.UUID
 }
 
 type PenaltyCountsRow struct {
@@ -2806,7 +2866,14 @@ type PenaltyCountsRow struct {
 }
 
 func (q *Queries) PenaltyCounts(ctx context.Context, arg PenaltyCountsParams) (PenaltyCountsRow, error) {
-	row := q.db.QueryRow(ctx, penaltyCounts, arg.Today, arg.Owner)
+	row := q.db.QueryRow(ctx, penaltyCounts,
+		arg.Today,
+		arg.Owner,
+		arg.Scoped,
+		arg.Me,
+		arg.WithReporter,
+		arg.ScopeBranches,
+	)
 	var i PenaltyCountsRow
 	err := row.Scan(
 		&i.Pending,
@@ -2845,6 +2912,37 @@ func (q *Queries) PenaltyRefs(ctx context.Context, ids []uuid.UUID) ([]PenaltyRe
 		return nil, err
 	}
 	return items, nil
+}
+
+const penaltyVisible = `-- name: PenaltyVisible :one
+SELECT EXISTS (SELECT 1 FROM hr.penalties x WHERE x.id = $1
+  AND ($2::uuid IS NULL OR x.user_id = $2::uuid)
+  AND (NOT $3::bool OR x.user_id = $4::uuid OR ($5::bool AND x.reporter_id = $4::uuid)
+       OR EXISTS (SELECT 1 FROM iam.user_branches sb WHERE sb.user_id = x.user_id AND sb.branch_id = ANY ($6::uuid[]))))::bool
+`
+
+type PenaltyVisibleParams struct {
+	ID            uuid.UUID
+	Owner         *uuid.UUID
+	Scoped        bool
+	Me            uuid.UUID
+	WithReporter  bool
+	ScopeBranches []uuid.UUID
+}
+
+// Biên bản người xem được thấy (Penalty::constrainToViewer): cùng điều kiện phạm vi với ListPenalties.
+func (q *Queries) PenaltyVisible(ctx context.Context, arg PenaltyVisibleParams) (bool, error) {
+	row := q.db.QueryRow(ctx, penaltyVisible,
+		arg.ID,
+		arg.Owner,
+		arg.Scoped,
+		arg.Me,
+		arg.WithReporter,
+		arg.ScopeBranches,
+	)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const periodByMonth = `-- name: PeriodByMonth :one

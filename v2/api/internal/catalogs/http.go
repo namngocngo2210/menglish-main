@@ -96,9 +96,10 @@ func (h *Handler) Routes(r chi.Router) {
 		r.With(iam.Require("fee_reminder_config.manage")).Post("/debt-reminders", h.saveDebtRule)
 		r.With(iam.Require("fee_reminder_config.manage")).Post("/debt-reminders/settings", h.updateDebtSettings)
 
-		r.With(iam.Require("support_ticket.update")).Get("/ticket-emails", h.ticketEmails)
-		r.With(iam.Require("support_ticket.update")).Post("/ticket-emails", h.updateTicketEmails)
-		r.With(iam.Require("support_ticket.update")).Post("/ticket-emails/test", h.testTicketEmail)
+		// Email nhận thông báo vận hành toàn hệ thống + SMTP: chỉ mail_config.manage (routes/web.php system-config.ticket-emails).
+		r.With(iam.Require("mail_config.manage")).Get("/ticket-emails", h.ticketEmails)
+		r.With(iam.Require("mail_config.manage")).Post("/ticket-emails", h.updateTicketEmails)
+		r.With(iam.Require("mail_config.manage")).Post("/ticket-emails/test", h.testTicketEmail)
 	})
 }
 

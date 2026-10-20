@@ -172,6 +172,20 @@ func TestPermissions(t *testing.T) {
 	iamtest.Expect(t, mgr.Do("POST", "/academic-projects", map[string]any{}), 403, "")
 	iamtest.Expect(t, mgr.Do("POST", "/academic-projects/"+uuid.NewString()+"/lock", nil), 403, "")
 	iamtest.Expect(t, mgr.Do("DELETE", "/academic-projects/milestones/"+uuid.NewString(), nil), 403, "")
+
+	// Ô lọc người phụ trách: chỉ nhân sự chi nhánh của người xem (user.scope_branch, User::scopePickableBy 'user').
+	hcm := e.Branch("HCM01")
+	gvHCM := e.User("GV02", "Lê Văn HCM", []uuid.UUID{hcm}, "teacher_fulltime")
+	gvHN := e.User("GV03", "Trần Văn HN", []uuid.UUID{hn}, "teacher_fulltime")
+	r = mgr.Do("GET", "/academic-projects", nil)
+	iamtest.Expect(t, r, 200, "")
+	owners := map[string]bool{}
+	for _, o := range iamtest.List(t, r, "owners") {
+		owners[o["value"].(string)] = true
+	}
+	if owners[gvHCM.ID.String()] || !owners[gvHN.ID.String()] {
+		t.Fatalf("ô người phụ trách của quản lý HN: %s", r.Raw)
+	}
 }
 
 func TestProjectLifecycle(t *testing.T) {

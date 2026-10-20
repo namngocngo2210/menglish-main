@@ -1,6 +1,7 @@
 package payroll
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"math"
@@ -144,7 +145,8 @@ type RetentionRow struct {
 	RetentionStudents int32     `json:"retention_students"`
 	RetentionBase     int32     `json:"retention_base_students"`
 	RetentionTier     *int64    `json:"retention_tier"`
-	KpiBonus          int64     `json:"kpi_bonus"`
+	KpiBonus          *int64    `json:"kpi_bonus"`
+	kpi               int64
 }
 
 type SalesRow struct {
@@ -157,9 +159,11 @@ type SalesRow struct {
 	Percent     float64   `json:"percent"`
 	NextPercent *float64  `json:"next_percent"`
 	ToNext      *int      `json:"to_next"`
-	Revenue     int64     `json:"revenue"`
-	Base        int64     `json:"base"`
-	Commission  int64     `json:"commission"`
+	Revenue     *int64    `json:"revenue"`
+	Base        *int64    `json:"base"`
+	Commission  *int64    `json:"commission"`
+	revenue     int64
+	commission  int64
 }
 
 type LeaderboardPage struct {
@@ -174,6 +178,8 @@ type LeaderboardPage struct {
 	BranchID        *uuid.UUID     `json:"branch_id"`
 	PeriodOptions   []Option       `json:"period_options"`
 	Branches        []Option       `json:"branches"`
+	// Số tiền (KPI đ, đơn giá bậc, doanh thu, hoa hồng) chỉ người xem bảng lương (payroll.view) thấy.
+	ShowMoney bool `json:"show_money"`
 }
 
 type LeaderboardFilter struct {
@@ -184,6 +190,9 @@ type LeaderboardFilter struct {
 }
 
 const systemBranch = "Hệ thống MEnglish"
+
+// scopeKpi: phạm vi dữ liệu của Xếp hạng KPI (kpi.scope_*).
+const scopeKpi = "kpi"
 
 func pageSlice[T any](rows []T, page, per int) ([]T, Paging) {
 	page = pageOf(page)
@@ -208,8 +217,18 @@ func (s *Service) Leaderboard(ctx context.Context, a *iam.Access, f LeaderboardF
 	month, year = min(12, max(1, month)), min(2100, max(2020, year))
 	start := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, vnZone)
 	end := start.AddDate(0, 1, -1)
+	// Phạm vi: dòng của nhân sự trong phạm vi "kpi" (của tôi / chi nhánh của tôi / mọi nhân sự, như KpiController);
+	// chi nhánh lọc ngoài phạm vi thì bỏ lọc (vẫn chỉ thấy dữ liệu trong phạm vi).
+	showMoney := a.Can(PermView)
+	staffSet, err := iam.ScopedStaff(ctx, s.pool, a, scopeKpi)
+	if err != nil {
+		return nil, err
+	}
+	if f.BranchID != nil && !a.CoversBranch(scopeKpi, f.BranchID) {
+		f.BranchID = nil
+	}
 	out := &LeaderboardPage{Month: month, Year: year, SelectedPeriod: fmt.Sprintf("%04d-%02d", year, month), BranchID: f.BranchID,
-		Retention: []RetentionRow{}, Sales: []SalesRow{}, PeriodOptions: []Option{}, Branches: []Option{}}
+		Retention: []RetentionRow{}, Sales: []SalesRow{}, PeriodOptions: []Option{}, Branches: []Option{}, ShowMoney: showMoney}
 
 	// 1. KPI giữ học sinh từ phiếu lương của kỳ.
 	var retention []RetentionRow
@@ -223,7 +242,7 @@ func (s *Service) Leaderboard(ctx context.Context, a *iam.Access, f LeaderboardF
 		}
 		for _, row := range rows {
 			r := row.HrPayrollRecord
-			if deref(r.KpiSource) != kpiRetention || (f.BranchID != nil && row.BranchID != *f.BranchID) {
+			if deref(r.KpiSource) != kpiRetention || !staffSet.Has(r.UserID) || (f.BranchID != nil && row.BranchID != *f.BranchID) {
 				continue
 			}
 			b := row.BranchName
@@ -231,11 +250,12 @@ func (s *Service) Leaderboard(ctx context.Context, a *iam.Access, f LeaderboardF
 				b = systemBranch
 			}
 			retention = append(retention, RetentionRow{ID: r.ID, UserID: r.UserID, Name: row.FullName, Branch: b,
-				RetentionStudents: r.RetentionStudents, RetentionBase: r.RetentionBaseStudents, RetentionTier: r.RetentionTier, KpiBonus: r.KpiBonus})
+				RetentionStudents: r.RetentionStudents, RetentionBase: r.RetentionBaseStudents, RetentionTier: r.RetentionTier,
+				KpiBonus: ptr(r.KpiBonus), kpi: r.KpiBonus})
 		}
 		slices.SortStableFunc(retention, func(x, y RetentionRow) int {
-			if x.KpiBonus != y.KpiBonus {
-				return int(y.KpiBonus - x.KpiBonus)
+			if x.kpi != y.kpi {
+				return cmp.Compare(y.kpi, x.kpi)
 			}
 			return int(y.RetentionStudents - x.RetentionStudents)
 		})
@@ -243,6 +263,11 @@ func (s *Service) Leaderboard(ctx context.Context, a *iam.Access, f LeaderboardF
 		return nil, err
 	}
 	out.Retention, out.RetentionPaging = pageSlice(retention, f.KpiPage, 20)
+	if !showMoney {
+		for i := range out.Retention {
+			out.Retention[i].RetentionTier, out.Retention[i].KpiBonus = nil, nil
+		}
+	}
 
 	// 2. Hoa hồng tuyển sinh (trước gate kép): người có HS chốt / học phí thu trong tháng + Tư vấn & Học vụ đang hoạt động.
 	summary, tiers, err := s.summaryByOwner(ctx, s.q, start, end, nil)
@@ -288,7 +313,7 @@ func (s *Service) Leaderboard(ctx context.Context, a *iam.Access, f LeaderboardF
 	}
 	var sales []SalesRow
 	for id, pp := range people {
-		if f.BranchID != nil && pp.branchID != *f.BranchID {
+		if !staffSet.Has(id) || (f.BranchID != nil && pp.branchID != *f.BranchID) {
 			continue
 		}
 		row, ok := summary[id]
@@ -300,18 +325,24 @@ func (s *Service) Leaderboard(ctx context.Context, a *iam.Access, f LeaderboardF
 			b = systemBranch
 		}
 		sales = append(sales, SalesRow{ID: id, Name: pp.name, TierName: row.TierName, Deals: row.Students, Branch: b, Closed: row.Closed,
-			Percent: row.Percent, NextPercent: row.NextPercent, ToNext: row.ToNext, Revenue: row.Collected, Base: row.Base, Commission: row.Amount})
+			Percent: row.Percent, NextPercent: row.NextPercent, ToNext: row.ToNext, Revenue: ptr(row.Collected), Base: ptr(row.Base),
+			Commission: ptr(row.Amount), revenue: row.Collected, commission: row.Amount})
 	}
 	slices.SortStableFunc(sales, func(x, y SalesRow) int {
 		switch {
-		case x.Commission != y.Commission:
-			return int(y.Commission - x.Commission)
-		case x.Revenue != y.Revenue:
-			return int(y.Revenue - x.Revenue)
+		case x.commission != y.commission:
+			return cmp.Compare(y.commission, x.commission)
+		case x.revenue != y.revenue:
+			return cmp.Compare(y.revenue, x.revenue)
 		}
 		return strings.Compare(x.Name, y.Name)
 	})
 	out.Sales, out.SalesPaging = pageSlice(sales, f.SalesPage, 20)
+	if !showMoney {
+		for i := range out.Sales {
+			out.Sales[i].Revenue, out.Sales[i].Base, out.Sales[i].Commission = nil, nil, nil
+		}
+	}
 
 	opts := map[string]string{now.Format("2006-01"): "Tháng " + now.Format("01/2006"), out.SelectedPeriod: fmt.Sprintf("Tháng %02d/%04d", month, year)}
 	all, err := s.q.AllPeriods(ctx)
@@ -335,7 +366,9 @@ func (s *Service) Leaderboard(ctx context.Context, a *iam.Access, f LeaderboardF
 		return nil, err
 	}
 	for _, b := range branches {
-		out.Branches = append(out.Branches, Option{b.ID.String(), b.Name})
+		if a.CoversBranch(scopeKpi, &b.ID) {
+			out.Branches = append(out.Branches, Option{b.ID.String(), b.Name})
+		}
 	}
 	return out, nil
 }

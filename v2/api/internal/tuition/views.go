@@ -24,31 +24,44 @@ type Bank struct {
 	Scope         string    `json:"scope"`
 }
 
-// resolveBank: tài khoản của hợp đồng → tài khoản chi nhánh (mặc định VietQR trước) → tài khoản mặc định hệ thống.
+// resolveBank: tài khoản nhận tiền cho một cơ sở (Laravel BankAccount::resolveFor) — tài khoản chỉ định (nếu dùng được
+// cho cơ sở: tài khoản dùng chung hoặc của chính cơ sở đó) → tài khoản gắn cơ sở → tài khoản dùng chung; trong mỗi nhóm
+// ưu tiên cờ mặc định VietQR rồi tài khoản tạo trước. Không bao giờ lấy tài khoản của cơ sở khác. Chưa rõ cơ sở thì lấy
+// tài khoản mặc định toàn hệ thống (cờ mặc định → tài khoản dùng chung → tạo trước). accounts theo thứ tự
+// ActiveBankAccounts (mặc định VietQR trước, dùng chung trước, tạo trước). Không có tài khoản dùng được → nil (màn hình
+// cảnh báo, không tạo VietQR).
 func resolveBank(accounts []tuitiondb.ActiveBankAccountsRow, own, branch *uuid.UUID) *Bank {
 	conv := func(a tuitiondb.ActiveBankAccountsRow, scope string) *Bank {
+		if scope == "" {
+			scope = "Tài khoản dùng chung các cơ sở"
+			if a.BranchID != nil {
+				scope = "Tài khoản cơ sở " + textOf(a.BranchName)
+			}
+		}
 		return &Bank{ID: a.ID, BankCode: a.BankCode, BankName: a.BankName, AccountNumber: a.AccountNumber, AccountHolder: a.AccountHolder, Scope: scope}
 	}
 	if own != nil {
 		for _, a := range accounts {
-			if a.ID == *own {
+			if a.ID == *own && (branch == nil || a.BranchID == nil || *a.BranchID == *branch) {
 				return conv(a, "Tài khoản gắn với hợp đồng")
 			}
 		}
 	}
-	if branch != nil {
-		for _, a := range accounts {
-			if a.BranchID != nil && *a.BranchID == *branch {
-				return conv(a, "Tài khoản chi nhánh "+textOf(a.BranchName))
-			}
+	if branch == nil {
+		if len(accounts) > 0 {
+			return conv(accounts[0], "")
+		}
+		return nil
+	}
+	for _, a := range accounts {
+		if a.BranchID != nil && *a.BranchID == *branch {
+			return conv(a, "")
 		}
 	}
-	if len(accounts) > 0 {
-		a := accounts[0]
-		if a.BranchID != nil {
-			return conv(a, "Tài khoản chi nhánh "+textOf(a.BranchName))
+	for _, a := range accounts {
+		if a.BranchID == nil {
+			return conv(a, "")
 		}
-		return conv(a, "Tài khoản mặc định hệ thống")
 	}
 	return nil
 }
@@ -291,13 +304,9 @@ func (s *Service) ReceiptForm(ctx context.Context, actor *iam.Access, studentID,
 	case len(out.Tuitions) > 0:
 		out.SelectedTuition = &out.Tuitions[len(out.Tuitions)-1].ID
 	}
-	if out.DefaultBank = resolveBank(accounts, nil, branch); out.SelectedTuition != nil {
-		for _, t := range out.Tuitions {
-			if t.ID == *out.SelectedTuition && t.Bank != nil {
-				out.DefaultBank = t.Bank
-			}
-		}
-	}
+	// Chưa chọn khoản học phí: tài khoản theo cơ sở của học viên (TuitionController bankByBranch; cơ sở không có tài
+	// khoản riêng / dùng chung → nil, không lấy tài khoản cơ sở khác). Đã chọn khoản thì màn hình dùng tuitions[].bank.
+	out.DefaultBank = resolveBank(accounts, nil, branch)
 	if receiptID == nil && out.SelectedTuition != nil {
 		if r, err := s.q.LatestRejection(ctx, out.SelectedTuition); err == nil {
 			out.RecentRejection = &Rejection{ID: r.ID, Code: r.Code, RejectionReason: r.RejectionReason,

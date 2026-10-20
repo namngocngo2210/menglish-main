@@ -548,10 +548,12 @@ func TestPayrollConfig(t *testing.T) {
 		{map[string]any{"rate_unit": "tuition", "hourly_rate": 120}, "% học phí phải từ 0,1 đến 100."},
 		{map[string]any{"teacher_type": "robot"}, "Loại giáo viên không hợp lệ."},
 		{map[string]any{"effective_from": ""}, "Vui lòng chọn ngày hiệu lực."},
-		{map[string]any{"user_id": uuid.NewString()}, "Giáo viên không tồn tại."},
 	} {
 		expectMsg(t, mgr.Do("POST", "/payroll/config/teacher-rates/personal", rate(c.patch)), 422, c.msg)
 	}
+	// Quản lý cơ sở (attendance_staff mức chi nhánh): nhân sự ngoài phạm vi / không tồn tại → 404 (PayrollController
+	// storePersonalTeacherRate, staffInScope).
+	iamtest.Expect(t, mgr.Do("POST", "/payroll/config/teacher-rates/personal", rate(map[string]any{"user_id": uuid.NewString()})), 404, "")
 	r = mgr.Do("POST", "/payroll/config/teacher-rates/personal", rate(nil))
 	iamtest.Expect(t, r, 200, "")
 	if !strings.HasPrefix(r.Body["message"].(string), "Đã thêm đơn giá") || !strings.HasSuffix(r.Body["message"].(string), "hiệu lực từ 01/10/2026.") {

@@ -168,7 +168,9 @@ function ReceiptFields({ me, data, receiptId }: { me: Me; data: ReceiptForm; rec
   const paperMode = method === 'cash' && (!!editing?.issued_paper_invoice || !!data.paper_invoice_next)
   const paperNo = paperMode ? (editing?.issued_paper_invoice ?? data.paper_invoice_next) : null
   const proofRequired = method === 'transfer' || paperMode
-  const bank = tuition?.bank ?? data.default_bank
+  // Đã chọn khoản học phí: tài khoản của khoản (hợp đồng → cơ sở → dùng chung); chưa chọn: tài khoản theo cơ sở của học viên.
+  // Không có tài khoản dùng được thì cảnh báo, không lấy tài khoản cơ sở khác (useReceiptForm.js, BankAccount::resolveFor).
+  const bank = tuition ? tuition.bank : data.default_bank
   const memo = tuition?.transfer_memo || student.transfer_memo
 
   const save = useMutation({
@@ -473,6 +475,29 @@ function ReceiptFields({ me, data, receiptId }: { me: Me; data: ReceiptForm; rec
                   <span className="block font-medium">Nội dung chuyển khoản</span>
                   <div className="flex h-10 items-center font-mono">{memo || '—'}</div>
                 </div>
+                <div className="sm:col-span-2">
+                  {bank ? (
+                    <div className="space-y-2 rounded-xl border border-surface-container-highest bg-surface-container-low/50 p-3.5 text-xs">
+                      <div className="flex items-center justify-between border-b border-surface-container-highest/80 pb-2">
+                        <h5 className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Tài khoản ngân hàng nhận học phí</h5>
+                        <span className="text-xs italic text-on-surface-variant">{bank.scope}</span>
+                      </div>
+                      <BankLine label="Ngân hàng" value={bank.bank_name} />
+                      <BankLine label="Số tài khoản" value={bank.account_number} mono />
+                      <BankLine label="Chủ tài khoản" value={bank.account_holder} />
+                      <BankLine label="Nội dung CK" value={memo || '—'} mono />
+                      <p className="text-xs italic text-on-surface-variant">
+                        Tài khoản lấy theo hợp đồng / cơ sở của học viên; CM không đổi được trên màn hình này.
+                      </p>
+                    </div>
+                  ) : (
+                    <Alert tone="warning">
+                      <strong>Chưa cấu hình tài khoản ngân hàng</strong> đang hoạt động cho cơ sở này (tài khoản riêng của cơ sở hoặc tài khoản dùng
+                      chung). Mã VietQR sẽ không được tạo — vui lòng liên hệ Kế toán/Admin cấu hình tài khoản trước khi hướng dẫn phụ huynh chuyển
+                      khoản.
+                    </Alert>
+                  )}
+                </div>
               </>
             )}
             {method === 'cash' &&
@@ -593,6 +618,15 @@ function ReceiptFields({ me, data, receiptId }: { me: Me; data: ReceiptForm; rec
         </div>
       </aside>
     </form>
+  )
+}
+
+function BankLine({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="flex justify-between gap-3 border-b border-dashed border-surface-container-highest pb-1">
+      <span className="text-on-surface-variant">{label}</span>
+      <span className={`text-right font-bold ${mono ? 'font-mono text-primary' : 'text-on-surface'}`}>{value}</span>
+    </div>
   )
 }
 

@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -818,7 +819,8 @@ func TestDeletedAndRestore(t *testing.T) {
 func TestPromotions(t *testing.T) {
 	e := setup(t)
 	tm := newTeam(e)
-	c := tm.managerC
+	// Ưu đãi chung (không gắn cơ sở) chỉ người phạm vi Toàn hệ thống tạo / sửa (PromotionController::authorizeManage).
+	c := tm.adminC
 	invalid(t, c.do("POST", "/crm/promotions", map[string]any{"name": "", "type": "percent", "value": 10}), "Vui lòng nhập tên ưu đãi.")
 	invalid(t, c.do("POST", "/crm/promotions", map[string]any{"name": "Hè", "type": "percent", "value": 120}), "Ưu đãi phần trăm không được vượt quá 100%.")
 	invalid(t, c.do("POST", "/crm/promotions", map[string]any{"name": "Hè", "type": "fixed", "value": 0}), "Giá trị ưu đãi phải lớn hơn 0.")
@@ -852,7 +854,7 @@ func TestPromotions(t *testing.T) {
 	}
 	expect(t, c.do("GET", "/crm/promotions/"+uuid.NewString(), nil), 404, "")
 
-	// Ưu đãi theo khóa học: khóa phải có trong danh mục, phạm vi hiện tên khóa.
+	// Ưu đãi theo khóa học: khóa phải có trong danh mục, phạm vi hiện tên khóa; form có ô "Khóa học áp dụng" (khóa đang mở).
 	invalid(t, c.do("POST", "/crm/promotions", map[string]any{"name": "Khóa lạ", "type": "fixed", "value": 100000, "course_id": uuid.New()}),
 		"Khóa học không hợp lệ.")
 	var course uuid.UUID
@@ -860,10 +862,64 @@ func TestPromotions(t *testing.T) {
 		VALUES ('CS-CRM-1', 'IELTS Foundation', 6000000, 48) RETURNING id`).Scan(&course); err != nil {
 		t.Fatal(err)
 	}
-	r = c.do("POST", "/crm/promotions", map[string]any{"name": "Ưu đãi IELTS", "type": "fixed", "value": 200000, "course_id": course, "branch_id": tm.a})
+	courses, _ := c.do("GET", "/crm/promotions", nil).body["courses"].([]any)
+	if len(courses) != 1 || field(courses[0], "value") != course.String() || field(courses[0], "label") != "IELTS Foundation" {
+		t.Fatalf("ô Khóa học áp dụng: %v", courses)
+	}
+	m := tm.managerC
+	in := map[string]any{"name": "Ưu đãi IELTS", "type": "fixed", "value": 200000, "course_id": course, "branch_id": tm.a}
+	r = m.do("POST", "/crm/promotions", in)
 	expect(t, r, 201, "")
-	if p := c.do("GET", "/crm/promotions/"+r.body["id"].(string), nil); p.body["scope_label"] != "Cơ sở CN-A · IELTS Foundation" {
+	cid := r.body["id"].(string)
+	if p := m.do("GET", "/crm/promotions/"+cid, nil); p.body["scope_label"] != "Cơ sở CN-A · IELTS Foundation" || p.body["course_id"] != course.String() {
 		t.Fatalf("phạm vi ưu đãi theo khóa: %s", p.raw)
+	}
+	// Sửa ưu đãi (form gửi lại ô khóa học) giữ nguyên giới hạn khóa, không thành "mọi khóa".
+	in["name"], in["value"] = "Ưu đãi IELTS mới", 250000
+	r = m.do("PUT", "/crm/promotions/"+cid, in)
+	if message(r) != "Đã cập nhật ưu đãi 'Ưu đãi IELTS mới'." {
+		t.Fatalf("sửa ưu đãi theo khóa: %s", r.raw)
+	}
+	if p := m.do("GET", "/crm/promotions/"+cid, nil); p.body["course_id"] != course.String() || p.body["scope_label"] != "Cơ sở CN-A · IELTS Foundation" {
+		t.Fatalf("sửa ưu đãi làm mất giới hạn khóa: %s", p.raw)
+	}
+
+	// Phạm vi chi nhánh (lead.scope_*): quản lý CN-A thấy ưu đãi chung (chỉ xem) + ưu đãi CN-A, không thấy CN-B; không tạo
+	// được ưu đãi chung / ưu đãi CN-B; sửa / bật tắt ưu đãi chung hoặc ưu đãi CN-B → 404.
+	r = c.do("POST", "/crm/promotions", map[string]any{"name": "Ưu đãi CN-B", "type": "fixed", "value": 100000, "branch_id": tm.b})
+	expect(t, r, 201, "")
+	bid := r.body["id"].(string)
+	list = m.do("GET", "/crm/promotions", nil)
+	if got := ids(list); len(got) != 2 || slices.Contains(got, bid) || !slices.Contains(got, pid) || !slices.Contains(got, cid) {
+		t.Fatalf("phạm vi ưu đãi của quản lý CN-A: %s", list.raw)
+	}
+	if list.body["counts"].(map[string]any)["catalog"] != float64(2) {
+		t.Fatalf("đếm ưu đãi trong phạm vi: %s", list.raw)
+	}
+	if br, _ := list.body["branches"].([]any); len(br) != 1 || field(br[0], "value") != tm.a.String() {
+		t.Fatalf("ô cơ sở áp dụng chỉ có chi nhánh trong phạm vi: %v", br)
+	}
+	invalid(t, m.do("POST", "/crm/promotions", map[string]any{"name": "Chung", "type": "fixed", "value": 100000}),
+		"Chọn cơ sở áp dụng thuộc chi nhánh bạn quản lý.")
+	invalid(t, m.do("POST", "/crm/promotions", map[string]any{"name": "Sang CN-B", "type": "fixed", "value": 100000, "branch_id": tm.b}),
+		"Chọn cơ sở áp dụng thuộc chi nhánh bạn quản lý.")
+	invalid(t, m.do("PUT", "/crm/promotions/"+cid, map[string]any{"name": "Bỏ cơ sở", "type": "fixed", "value": 100000}),
+		"Chọn cơ sở áp dụng thuộc chi nhánh bạn quản lý.")
+	// Chốt khách: ưu đãi chung + ưu đãi chi nhánh trong phạm vi (CrmController::closingWizard), không có ưu đãi CN-B.
+	lead := tm.staffAC.create(t, newLead("Khách chốt", "0912777888", tm.a))
+	co := tm.staffAC.do("GET", "/crm/leads/"+lead+"/closing-options", nil)
+	expect(t, co, 200, "")
+	var promos []string
+	for _, o := range co.body["promotions"].([]any) {
+		promos = append(promos, field(o, "value").(string))
+	}
+	if len(promos) != 2 || slices.Contains(promos, bid) || !slices.Contains(promos, pid) || !slices.Contains(promos, cid) {
+		t.Fatalf("ưu đãi khi chốt khách CN-A: %s", co.raw)
+	}
+	for _, id := range []string{pid, bid} {
+		expect(t, m.do("GET", "/crm/promotions/"+id, nil), 404, "")
+		expect(t, m.do("PUT", "/crm/promotions/"+id, map[string]any{"name": "X", "type": "fixed", "value": 100000, "branch_id": tm.a}), 404, "")
+		expect(t, m.do("POST", "/crm/promotions/"+id+"/toggle", nil), 404, "")
 	}
 }
 

@@ -421,7 +421,13 @@ func (s *Service) TeacherTimesheets(ctx context.Context, a *iam.Access, f Timesh
 		}
 		out.Timesheets = append(out.Timesheets, row)
 	}
-	if teacherID != nil {
+	// Thẻ giáo viên chỉ hiện nhân sự trong phạm vi (Quản lý cơ sở: nhân sự chi nhánh mình) — ?user_id= của chi nhánh
+	// khác không lộ tên / mã; buổi thiếu chấm công chỉ tính lớp trong phạm vi.
+	staffScope, err := iam.StaffInScope(ctx, s.pool, a, scopeTimesheet)
+	if err != nil {
+		return nil, err
+	}
+	if teacherID != nil && staffScope.Has(*teacherID) {
 		c, err := s.q.StaffContext(ctx, *teacherID)
 		if err != nil && !isNoRows(err) {
 			return nil, err
@@ -433,7 +439,7 @@ func (s *Service) TeacherTimesheets(ctx context.Context, a *iam.Access, f Timesh
 				upTo = today
 			}
 			ms, err := s.q.MissingSessions(ctx, attendancedb.MissingSessionsParams{UserID: teacherID, FromDate: sqlDate(start),
-				ToDate: sqlDate(upTo), ClassID: classID})
+				ToDate: sqlDate(upTo), ClassID: classID, AllClasses: scope.all, ClassIds: scope.list()})
 			if err != nil {
 				return nil, err
 			}
@@ -503,7 +509,7 @@ func (s *Service) TeacherTimesheets(ctx context.Context, a *iam.Access, f Timesh
 		}
 	}
 	slices.SortStableFunc(out.FilterBranches, func(x, y Option) int { return strings.Compare(x.Label, y.Label) })
-	staff, err := s.q.TeachingStaff(ctx, teachingRoles)
+	staff, err := s.teachingStaff(ctx, a)
 	if err != nil {
 		return nil, err
 	}
@@ -511,6 +517,20 @@ func (s *Service) TeacherTimesheets(ctx context.Context, a *iam.Access, f Timesh
 		out.FilterTeachers = append(out.FilterTeachers, Option{t.ID.String(), t.FullName})
 	}
 	return out, nil
+}
+
+// teachingStaff: nhân sự giảng dạy đang hoạt động trong phạm vi người xem (PayrollController::teachingStaff → staffInScope):
+// ô chọn chấm tay, bộ lọc Giáo viên.
+func (s *Service) teachingStaff(ctx context.Context, a *iam.Access) ([]attendancedb.TeachingStaffRow, error) {
+	staff, err := s.q.TeachingStaff(ctx, teachingRoles)
+	if err != nil {
+		return nil, err
+	}
+	set, err := iam.StaffInScope(ctx, s.pool, a, scopeTimesheet)
+	if err != nil {
+		return nil, err
+	}
+	return iam.FilterUsers(set, staff, func(r attendancedb.TeachingStaffRow) uuid.UUID { return r.ID }), nil
 }
 
 // ───────────── Chấm công tay ─────────────
@@ -567,7 +587,7 @@ func (s *Service) Manual(ctx context.Context, a *iam.Access) (*ManualForm, error
 		}
 	}
 	slices.SortStableFunc(out.Branches, func(x, y Option) int { return strings.Compare(x.Label, y.Label) })
-	staff, err := s.q.TeachingStaff(ctx, teachingRoles)
+	staff, err := s.teachingStaff(ctx, a)
 	if err != nil {
 		return nil, err
 	}

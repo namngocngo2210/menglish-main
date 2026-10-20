@@ -5,7 +5,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { errorMessage, type Me } from '../../api'
 import { Alert, Button, Card, Dialog, Field, Select } from '../../components/ui'
-import { can, isAdmin } from '../../nav'
+import { can } from '../../nav'
 import { navigate, usePath } from '../../router'
 import { tasksApi, type ListParams, type Task, type Transition } from './api'
 import { Chip, PageHeader, StatCard, StatusBadge, StatusForm, flash } from './components'
@@ -57,7 +57,7 @@ function TaskListPage({ me }: { me: Me }) {
         description="Quản lý, phân công và theo dõi tiến độ công việc — giao việc hai chiều."
         actions={
           <>
-            {isAdmin(me) && (
+            {can(me, 'work_task.approve') && (
               <Button variant="secondary" onClick={() => navigate('/tasks/approvals')}>
                 Chờ xác nhận
                 {data && data.counts.approvals > 0 && (

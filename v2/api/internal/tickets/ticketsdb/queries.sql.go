@@ -406,18 +406,20 @@ SELECT t.id, t.code, t.title, t.category, t.priority, t.status, t.created_at,
 FROM ops.tickets t
 JOIN iam.users c ON c.id = t.creator_id
 LEFT JOIN iam.users a ON a.id = t.assignee_id
-WHERE ($1::boolean OR t.creator_id = $2::uuid OR t.assignee_id = $2::uuid)
-  AND ($3::text IS NULL OR t.status = $3::text)
-  AND ($4::text IS NULL OR t.category = $4::text)
-  AND ($5::text IS NULL OR t.code ILIKE $5::text
-       OR t.title ILIKE $5::text OR t.description ILIKE $5::text)
+WHERE ($1::boolean OR t.creator_id = $2::uuid OR t.assignee_id = $2::uuid
+       OR EXISTS (SELECT 1 FROM iam.user_branches ub WHERE ub.user_id = t.creator_id AND ub.branch_id = ANY ($3::uuid[])))
+  AND ($4::text IS NULL OR t.status = $4::text)
+  AND ($5::text IS NULL OR t.category = $5::text)
+  AND ($6::text IS NULL OR t.code ILIKE $6::text
+       OR t.title ILIKE $6::text OR t.description ILIKE $6::text)
 ORDER BY t.created_at DESC, t.id DESC
-LIMIT $7::int OFFSET $6::int
+LIMIT $8::int OFFSET $7::int
 `
 
 type ListTicketsParams struct {
-	Manage   bool
+	AllScope bool
 	Me       uuid.UUID
+	Branches []uuid.UUID
 	Status   *string
 	Category *string
 	Search   *string
@@ -438,12 +440,13 @@ type ListTicketsRow struct {
 	Total        int64
 }
 
-// Ticket hỗ trợ (ops.tickets, ops.ticket_messages). Người xử lý ticket (manage = có support_ticket.update / assign /
-// close) thấy mọi ticket; người khác chỉ thấy ticket mình tạo hoặc được giao (SupportTicketController::index).
+// Ticket hỗ trợ (ops.tickets, ops.ticket_messages). Phạm vi support_ticket.scope_* (SupportTicket::scopeVisibleTo):
+// all_scope = Toàn hệ thống; còn lại ticket mình tạo / được giao, cộng ticket do nhân sự thuộc branches (mức Chi nhánh) tạo.
 func (q *Queries) ListTickets(ctx context.Context, arg ListTicketsParams) ([]ListTicketsRow, error) {
 	rows, err := q.db.Query(ctx, listTickets,
-		arg.Manage,
+		arg.AllScope,
 		arg.Me,
+		arg.Branches,
 		arg.Status,
 		arg.Category,
 		arg.Search,
@@ -770,11 +773,13 @@ SELECT count(*) AS total,
        count(*) FILTER (WHERE t.status = 'resolved') AS resolved
 FROM ops.tickets t
 WHERE $1::boolean OR t.creator_id = $2::uuid OR t.assignee_id = $2::uuid
+       OR EXISTS (SELECT 1 FROM iam.user_branches ub WHERE ub.user_id = t.creator_id AND ub.branch_id = ANY ($3::uuid[]))
 `
 
 type TicketStatsParams struct {
-	Manage bool
-	Me     uuid.UUID
+	AllScope bool
+	Me       uuid.UUID
+	Branches []uuid.UUID
 }
 
 type TicketStatsRow struct {
@@ -786,7 +791,7 @@ type TicketStatsRow struct {
 
 // Thẻ số liệu đầu danh sách (cùng phạm vi, không theo bộ lọc).
 func (q *Queries) TicketStats(ctx context.Context, arg TicketStatsParams) (TicketStatsRow, error) {
-	row := q.db.QueryRow(ctx, ticketStats, arg.Manage, arg.Me)
+	row := q.db.QueryRow(ctx, ticketStats, arg.AllScope, arg.Me, arg.Branches)
 	var i TicketStatsRow
 	err := row.Scan(
 		&i.Total,
