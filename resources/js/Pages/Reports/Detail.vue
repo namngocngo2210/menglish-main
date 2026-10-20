@@ -7,6 +7,7 @@
  * bảng KPI + chỉ số quy mô + ghi chú (bản cũ: số đã nhập ở mọi mục, kể cả 0); báo cáo tuần Học thuật: 3 bảng; báo cáo tháng / quý
  * Học thuật (từ 17/10/2026): khối số liệu + ghi chú + task theo khối và đánh giá chung; báo cáo tháng GV (cùng bố cục): chấm công +
  * từng lớp (số liệu, học sinh cần chú ý, phần GV nhập, task của lớp) và nhận xét chung tháng; loại khác: nội dung chữ.
+ * Admin tạo task ngay trong từng khối (DetailSectionTasks, chủ dự án 17/10/2026): mặc định giao người viết, hiện lại ở báo cáo kỳ sau.
  */
 import { computed, ref } from 'vue';
 import { route } from '@/lib/route';
@@ -14,7 +15,7 @@ import { openRemoteModal } from '@/lib/remoteModal';
 import DailyMetric from './DailyMetric.vue';
 import WeeklyKpiTable from './WeeklyKpiTable.vue';
 import ReadonlyField from './ReadonlyField.vue';
-import SectionTasks from './SectionTasks.vue';
+import DetailSectionTasks from './DetailSectionTasks.vue';
 
 const props = defineProps({
     report: { type: Object, required: true },
@@ -30,6 +31,9 @@ const props = defineProps({
     narrative: { type: Array, default: () => [] },
     overallTitle: { type: String, default: 'Đánh giá chung' },
     canReview: { type: Boolean, default: false },
+    canAddTasks: { type: Boolean, default: false },
+    assignees: { type: Array, default: () => [] },
+    today: { type: String, default: null },
     nextId: { type: Number, default: null },
     legacy: { type: Object, default: null },
     rows: { type: Object, default: () => ({}) },
@@ -51,6 +55,10 @@ const extraLegacy = computed(() =>
 const asking = ref(false);
 const openNext = () => props.nextId && openRemoteModal(route('reports.detail', props.nextId), { size: '5xl', history: true });
 const onReviewed = () => openNext();
+// Task theo khối: Admin thêm được ngay trong khối, người xem khác chỉ thấy khi khối có task.
+const taskProps = (section, title) => ({
+    reportId: props.report.id, section, title, tasks: props.sectionTasks[section] ?? [], canAdd: props.canAddTasks, assignees: props.assignees, today: props.today,
+});
 const cellClass = (row, name) => (paired(row) ? (field(name).type === 'text' ? 'md:col-span-8' : 'md:col-span-4') : '');
 </script>
 
@@ -121,7 +129,7 @@ const cellClass = (row, name) => (paired(row) ? (field(name).type === 'text' ? '
                             </div>
                         </div>
                     </div>
-                    <SectionTasks v-if="view === 'daily' && sectionTasks[key]?.length" readonly :section="key" :title="`Task follow-up · ${section.title}`" :tasks="sectionTasks[key]" />
+                    <DetailSectionTasks v-if="view === 'daily'" v-bind="taskProps(key, `Task follow-up · ${section.title}`)" />
                 </section>
 
                 <!-- Khối của form cũ không có trong số liệu tự động (vd. người viết đổi chức danh) -->
@@ -156,14 +164,14 @@ const cellClass = (row, name) => (paired(row) ? (field(name).type === 'text' ? '
                     <section class="min-w-0 rounded-xl border border-surface-variant bg-surface-container-lowest shadow-sm">
                         <h3 class="border-b border-surface-variant px-md py-sm font-semibold text-on-surface">Số lần phát sinh theo mục KPI</h3>
                         <WeeklyKpiTable :groups="auto.groups" />
-                        <div v-if="sectionTasks.kpi?.length" class="px-md pb-md">
-                            <SectionTasks readonly section="kpi" title="Task follow-up · Mục KPI" :tasks="sectionTasks.kpi" />
+                        <div v-if="canAddTasks || sectionTasks.kpi?.length" class="px-md pb-md">
+                            <DetailSectionTasks v-bind="taskProps('kpi', 'Task follow-up · Mục KPI')" />
                         </div>
                     </section>
                     <section class="min-w-0 space-y-sm">
                         <h3 class="font-semibold text-on-surface">Thông tin theo dõi</h3>
                         <DailyMetric v-for="item in auto.metrics.items" :key="item.key" :item="item" full />
-                        <SectionTasks v-if="sectionTasks.metrics?.length" readonly section="metrics" title="Task follow-up" :tasks="sectionTasks.metrics" />
+                        <DetailSectionTasks v-bind="taskProps('metrics', 'Task follow-up')" />
                     </section>
                 </div>
                 <section :class="sectionClass">
@@ -180,7 +188,7 @@ const cellClass = (row, name) => (paired(row) ? (field(name).type === 'text' ? '
                         </div>
                     </div>
                     <ReadonlyField label="Ghi chú tuần" :value="note" multiline />
-                    <SectionTasks v-if="sectionTasks.week?.length" readonly section="week" title="Task follow-up tuần tới" :tasks="sectionTasks.week" />
+                    <DetailSectionTasks v-bind="taskProps('week', 'Task follow-up tuần tới')" />
                 </section>
             </template>
 
@@ -266,7 +274,7 @@ const cellClass = (row, name) => (paired(row) ? (field(name).type === 'text' ? '
                         <DailyMetric v-for="item in section.items" :key="item.key" :item="item" full :class="hasValue(item) ? '' : 'md:col-span-2 xl:col-span-4'" />
                     </div>
                     <ReadonlyField :label="noteLabels[key] ?? 'Ghi chú'" :value="notes[key]" multiline data-detail-note />
-                    <SectionTasks v-if="sectionTasks[key]?.length" readonly :section="key" :title="`Task follow-up · ${section.title}`" :tasks="sectionTasks[key]" />
+                    <DetailSectionTasks v-bind="taskProps(key, `Task follow-up · ${section.title}`)" />
                 </section>
                 <section :class="sectionClass" data-detail-overall>
                     <h3 class="font-h3 text-h3 text-on-surface">{{ overallTitle }}</h3>

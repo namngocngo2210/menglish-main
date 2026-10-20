@@ -492,7 +492,8 @@ class DailyReportMetrics
     private function facilityDetails(): array
     {
         $end = $this->date->copy()->endOfDay();
-        $tickets = SupportTicket::where('category', 'facilities')
+        // Báo cáo liệt kê sự cố cơ sở vật chất của chi nhánh người lập báo cáo (reportBranchIds), không theo phạm vi ticket của người xem.
+        $tickets = SupportTicket::withoutViewerScope()->where('category', 'facilities')
             ->where('created_at', '<=', $end)
             ->where(fn (Builder $q) => $q->whereNull('resolved_at')->orWhere('resolved_at', '>=', $this->date))
             ->whereNotIn('status', $this->date->isToday() ? ['resolved', 'closed'] : [])

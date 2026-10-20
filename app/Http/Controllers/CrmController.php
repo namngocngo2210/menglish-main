@@ -2348,10 +2348,19 @@ class CrmController extends Controller
         }
         $pickedCustomer = $selectedCustomer ? $customers->firstWhere('id', $selectedCustomer->id) : null;
         $levelKeys = $pickedCustomer?->level_keys ?? [];
-        $branches = Branch::all();
+        // Phạm vi chi nhánh theo "lead.scope_*" (rà soát 19/10/2026): null = mọi chi nhánh (Admin). Quản lý cơ sở / Học vụ → chi
+        // nhánh của mình; Sale (Của tôi) → chi nhánh của mình + chi nhánh của các khách đang chốt mình thấy. Lớp (GV, lịch, chỗ,
+        // học phí), số hóa đơn giấy kế tiếp, tồn kho sách và ưu đãi chỉ lấy trong các chi nhánh này.
+        $scopeBranchIds = DataScope::branchIds($request->user(), 'lead');
+        if ($scopeBranchIds !== null) {
+            $scopeBranchIds = collect($scopeBranchIds)->merge($customers->pluck('branch_id')->filter())
+                ->map(fn ($id) => (int) $id)->unique()->values()->all();
+        }
+        $branches = Branch::query()->when($scopeBranchIds !== null, fn (Builder $query) => $query->whereIn('id', $scopeBranchIds))->get();
         $courses = Course::where('is_active', true)->get();
         // Lớp đang học + lớp sắp khai giảng (chưa bắt đầu), còn chỗ.
         $classes = $this->withRosterSeats($this->enrollableClassesQuery()
+            ->when($scopeBranchIds !== null, fn (Builder $query) => $query->whereIn('branch_id', $scopeBranchIds))
             ->when($selectedCustomer?->branch_id, fn (Builder $query, int $branchId) => $query->where('branch_id', $branchId))
             ->with(['course.level', 'branch', 'teacher'])
             ->orderByRaw("CASE WHEN status = 'upcoming' THEN 0 ELSE 1 END")
@@ -2384,7 +2393,9 @@ class CrmController extends Controller
         // (lớp có thể ở cơ sở khác cơ sở của khách) và tự chọn tài khoản của cơ sở đó.
         $bankAccounts = BankAccount::activeForResolve()->sortBy('id')->values();
         // Chỉ ưu đãi dùng lại được (danh mục); ưu đãi riêng ca đặc biệt tạo ngay trong màn này.
-        $promotions = Promotion::available()->catalog()->orderByDesc('is_default')->orderBy('name')->get();
+        $promotions = Promotion::available()->catalog()
+            ->when($scopeBranchIds !== null, fn (Builder $query) => $query->where(fn (Builder $q) => $q->whereNull('branch_id')->orWhereIn('branch_id', $scopeBranchIds)))
+            ->orderByDesc('is_default')->orderBy('name')->get();
         $merchandiseItems = MerchandiseItem::active()->orderBy('category')->orderBy('name')->get();
 
         // Mã học viên cấp sẵn khi mở màn chốt để nội dung CK / VietQR xem trước đúng với mã thật sau khi chốt.

@@ -382,7 +382,7 @@ class Phase4AcceptanceTest extends TestCase
         $this->actingAs($studentUser)->get(route('tickets.show', $ticket->id))->assertOk()
             ->assertSee('Đã gửi hóa đơn vào email phụ huynh.')->assertDontSee('NỘI BỘ: kiểm tra phiếu');
         $this->actingAs($this->managerA)->get(route('tickets.show', $ticket->id))->assertOk()->assertSee('NỘI BỘ: kiểm tra phiếu');
-        $this->actingAs($this->teacher)->get(route('tickets.show', $ticket->id))->assertForbidden();
+        $this->actingAs($this->teacher)->get(route('tickets.show', $ticket->id))->assertNotFound();
 
         // Tài khoản mới do Admin tạo: lần đầu đăng nhập bị chuyển sang đổi mật khẩu cho tới khi đổi xong.
         $this->actingAs($this->admin)->post(route('users.store'), [

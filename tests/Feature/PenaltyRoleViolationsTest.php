@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Branch;
 use App\Models\Penalty;
 use App\Models\User;
 use App\Support\Roles;
@@ -23,10 +24,14 @@ class PenaltyRoleViolationsTest extends TestCase
 
     private User $manager;
 
+    private Branch $branch;
+
     protected function setUp(): void
     {
         parent::setUp();
         Storage::fake(Penalty::EVIDENCE_DISK);
+        // Quản lý cơ sở chỉ thấy / lập biên bản cho nhân sự chi nhánh mình → mọi người trong test cùng chi nhánh.
+        $this->branch = Branch::create(['name' => 'CN Biên bản', 'code' => 'PEN-ROLE', 'is_active' => true]);
         $this->seed(PermissionSeeder::class);
         $this->seed(RoleSeeder::class);
         $this->manager = $this->userWithRole(Roles::MANAGER);
@@ -34,7 +39,7 @@ class PenaltyRoleViolationsTest extends TestCase
 
     private function userWithRole(string ...$roles): User
     {
-        $user = User::factory()->create(['is_active' => true]);
+        $user = User::factory()->create(['is_active' => true, 'branch_id' => $this->branch->id]);
         $user->assignRole($roles);
 
         return $user;

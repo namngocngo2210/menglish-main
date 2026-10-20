@@ -36,20 +36,21 @@ class AuditRound2SecurityTest extends TestCase
         return $user;
     }
 
-    public function test_manager_saves_ticket_recipients_but_cannot_change_smtp_server(): void
+    public function test_manager_cannot_open_ticket_email_settings_or_change_smtp_server(): void
     {
         SystemSetting::set('mail_host', 'smtp.gmail.com');
         SystemSetting::set('mail_password', 'app-password');
+        SystemSetting::set('ticket_notification_emails', ['tech@meducation.vn']);
         $manager = $this->userWithRole(Roles::MANAGER);
 
-        $this->actingAs($manager)->get(route('system-config.ticket-emails'))->assertOk()
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('canManageMail', false));
+        // Người nhận / sự kiện email vận hành gửi số liệu mọi chi nhánh → chỉ Admin (mail_config.manage) cấu hình.
+        $this->actingAs($manager)->get(route('system-config.ticket-emails'))->assertForbidden();
         $this->actingAs($manager)->post(route('system-config.ticket-emails.update'), [
-            'emails' => ['ops@meducation.vn'],
+            'emails' => ['ops@attacker.example'],
             'mail_host' => 'smtp.attacker.example', 'mail_username' => 'x@attacker.example',
-        ])->assertRedirect();
+        ])->assertForbidden();
 
-        $this->assertSame(['ops@meducation.vn'], SystemSetting::getTicketEmails());
+        $this->assertSame(['tech@meducation.vn'], SystemSetting::getTicketEmails());
         $this->assertSame('smtp.gmail.com', SystemSetting::get('mail_host'));
     }
 

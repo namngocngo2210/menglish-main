@@ -156,7 +156,7 @@ class SupportTicketTest extends TestCase
         $this->actingAs($this->staff)->get(route('tickets.attachment', ['id' => $ticket->id, 'path' => $path]))->assertOk();
         $outsider = User::factory()->create(['branch_id' => $this->branch->id]);
         $outsider->assignRole('sales_consultant');
-        $this->actingAs($outsider)->get(route('tickets.attachment', ['id' => $ticket->id, 'path' => $path]))->assertForbidden();
+        $this->actingAs($outsider)->get(route('tickets.attachment', ['id' => $ticket->id, 'path' => $path]))->assertNotFound();
         $this->actingAs($this->staff)->get(route('tickets.attachment', ['id' => $ticket->id, 'path' => 'tickets/khac.png']))->assertNotFound();
     }
 }

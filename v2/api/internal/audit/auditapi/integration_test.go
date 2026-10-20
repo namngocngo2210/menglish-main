@@ -176,9 +176,14 @@ func TestPermissionAndScope(t *testing.T) {
 
 	iamtest.Expect(t, e.Login(teacher).Do("GET", "/activity-logs", nil), 403, "forbidden")
 
-	// Quản lý cơ sở: activity_log.scope_all → thấy mọi dòng kể cả hệ thống
+	// Quản lý cơ sở: activity_log.scope_branch → dòng của mình + nhân sự chi nhánh mình, không thấy chi nhánh khác / hệ thống
 	mc := e.Login(manager)
-	if n := len(logs(t, mc, "group=crm")); n != 5 {
+	if got := descriptions(logs(t, mc, "group=crm")); strings.Join(got, "|") != "của giáo viên A|của học vụ A|của quản lý" {
+		t.Fatalf("quản lý cơ sở theo chi nhánh: %v", got)
+	}
+	// Admin: toàn hệ thống → mọi dòng kể cả hệ thống
+	admin := e.User("AD001", "Quản trị", nil, iam.RoleAdmin)
+	if n := len(logs(t, e.Login(admin), "group=crm")); n != 5 {
 		t.Fatalf("toàn hệ thống thấy %d/5 dòng", n)
 	}
 	// Học vụ được cấp quyền xem phạm vi chi nhánh: dòng của mình + nhân sự chi nhánh mình

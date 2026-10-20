@@ -677,7 +677,20 @@ class PayrollBusinessTest extends TestCase
         $this->actingAs($this->hrManager)->get(route('payroll.kpi-leaderboard'))
             ->assertOk()
             ->assertSee('Sales Chốt Đơn')
-            ->assertSee('20.000.000')
-            ->assertDontSee('Học Viên Không Rank');
+            ->assertDontSee('Học Viên Không Rank')
+            // Số tiền (doanh thu / hoa hồng) chỉ người xem bảng lương (Admin) thấy.
+            ->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page
+                ->where('salesPage.data', fn ($rows) => collect($rows)->every(fn ($r) => $r['revenue'] === null && $r['commission'] === null))
+                ->etc());
+
+        $admin = User::factory()->create(['branch_id' => $this->branch->id, 'is_active' => true]);
+        $admin->assignRole('admin');
+        $this->actingAs($admin)->get(route('payroll.kpi-leaderboard'))
+            ->assertOk()
+            ->assertSee('Sales Chốt Đơn')
+            ->assertDontSee('Học Viên Không Rank')
+            ->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page
+                ->where('salesPage.data', fn ($rows) => collect($rows)->contains(fn ($r) => $r['name'] === 'Sales Chốt Đơn' && (float) $r['revenue'] === 20000000.0))
+                ->etc());
     }
 }

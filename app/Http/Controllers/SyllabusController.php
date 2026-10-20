@@ -645,7 +645,8 @@ class SyllabusController extends Controller
             ->latest('id')
             ->paginate($request->perPage(20))
             ->withQueryString();
-        $teachers = User::whereHas('roles', fn ($query) => $query->whereIn('name', [...Roles::TEACHERS, Roles::ACADEMIC_LEAD]))->orderBy('name')->get();
+        $teachers = User::whereHas('roles', fn ($query) => $query->whereIn('name', [...Roles::TEACHERS, Roles::ACADEMIC_LEAD]))
+            ->pickableBy($request->user(), 'class')->orderBy('name')->get();
         $curriculums = SyllabusCurriculum::with('stages')->orderBy('title')->get();
         $classes = ClassModel::visibleTo($request->user())->where('status', '!=', 'cancelled')->orderBy('name')->get();
         $levelCurriculum = CourseLevel::whereNotNull('syllabus_curriculum_id')->pluck('syllabus_curriculum_id', 'code');
@@ -1862,6 +1863,7 @@ class SyllabusController extends Controller
     public function sendBigTestReminder(Request $request, int $id)
     {
         $test = BigTest::with('classModel')->findOrFail($id);
+        abort_unless($test->isAccessibleBy($request->user()), 404);
         abort_unless($test->classModel, 422, 'Đợt thi chưa gắn lớp học.');
         abort_unless($test->scheduled_at, 422, 'Đợt thi chưa có lịch giờ thi.');
 

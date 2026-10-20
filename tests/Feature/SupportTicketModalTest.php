@@ -131,8 +131,8 @@ class SupportTicketModalTest extends TestCase
         // Người ngoài luồng ticket vẫn bị chặn.
         $outsider = User::factory()->create(['is_active' => true, 'branch_id' => $this->branch->id]);
         $outsider->syncRoles(['teacher']);
-        $this->actingAs($outsider)->get(route('tickets.show', $ticket->id), self::MODAL)->assertForbidden();
-        $this->actingAs($outsider)->post(route('tickets.messages.store', $ticket->id), ['message' => 'x'], self::MODAL)->assertForbidden();
+        $this->actingAs($outsider)->get(route('tickets.show', $ticket->id), self::MODAL)->assertNotFound();
+        $this->actingAs($outsider)->post(route('tickets.messages.store', $ticket->id), ['message' => 'x'], self::MODAL)->assertNotFound();
     }
 
     private function ticket(): SupportTicket

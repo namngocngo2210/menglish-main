@@ -36,6 +36,7 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\RoomController;
 use App\Http\Controllers\RoomTypeController;
 use App\Http\Controllers\SepayWebhookController;
+use App\Http\Controllers\SessionFeedbackController;
 use App\Http\Controllers\StaffImportController;
 use App\Http\Controllers\StaffReportController;
 use App\Http\Controllers\StudentPortalController;
@@ -292,6 +293,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/{id}/status', [StudentProfileController::class, 'updateStudentStatus'])->middleware('can:student.change_status')->name('status.update');
         Route::post('/{id}/end-deferral', [StudentProfileController::class, 'endDeferral'])->middleware('can:student.change_status')->name('end-deferral');
         Route::post('/{id}/link-class', [StudentProfileController::class, 'linkClass'])->middleware('can:student.assign_class')->name('link-class');
+        Route::post('/{id}/transfer-class', [StudentProfileController::class, 'transferClass'])->middleware('can:student.assign_class')->name('transfer-class');
         Route::delete('/{id}', [StudentProfileController::class, 'destroyStudent'])->middleware('can:student.delete')->name('destroy');
         Route::get('/{id}/scoped', [StudentProfileController::class, 'scoped'])->name('scoped');
     });
@@ -548,9 +550,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/debt-reminders', [SystemConfigController::class, 'debtReminders'])->middleware('can:fee_reminder_config.manage')->name('debt-reminders');
         Route::post('/debt-reminders', [SystemConfigController::class, 'storeDebtReminder'])->middleware('can:fee_reminder_config.manage')->name('debt-reminders.store');
         Route::post('/debt-reminders/settings', [SystemConfigController::class, 'updateDebtReminderSettings'])->middleware('can:fee_reminder_config.manage')->name('debt-reminders.settings');
-        Route::get('/ticket-emails', [SystemConfigController::class, 'ticketEmails'])->middleware('can:support_ticket.update')->name('ticket-emails');
-        Route::post('/ticket-emails', [SystemConfigController::class, 'updateTicketEmails'])->middleware('can:support_ticket.update')->name('ticket-emails.update');
-        Route::post('/ticket-emails/test', [SystemConfigController::class, 'sendTestTicketEmail'])->middleware('can:support_ticket.update')->name('ticket-emails.test');
+        // Email nhận thông báo vận hành toàn hệ thống (phiếu thu, công nợ… mọi chi nhánh) + SMTP: chỉ mail_config.manage (mặc định Admin).
+        Route::get('/ticket-emails', [SystemConfigController::class, 'ticketEmails'])->middleware('can:mail_config.manage')->name('ticket-emails');
+        Route::post('/ticket-emails', [SystemConfigController::class, 'updateTicketEmails'])->middleware('can:mail_config.manage')->name('ticket-emails.update');
+        Route::post('/ticket-emails/test', [SystemConfigController::class, 'sendTestTicketEmail'])->middleware('can:mail_config.manage')->name('ticket-emails.test');
         Route::get('/sla', [SystemConfigController::class, 'sla'])->middleware('can:sla.configure')->name('sla');
         Route::post('/sla/settings', [SystemConfigController::class, 'updateSlaSettings'])->middleware('can:sla.configure')->name('sla.settings');
         Route::put('/sla/{key}', [SystemConfigController::class, 'updateSla'])->where('key', '[a-z_.]+')->middleware('can:sla.configure')->name('sla.update');
@@ -788,6 +791,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/{id}/detail', 'reportDetail')->whereNumber('id')->middleware('can:staff_report.view_all')->name('detail');
         Route::post('/{id}/review', 'review')->whereNumber('id')->middleware('can:'.AdminOnlyApprovals::ABILITY)->name('review');
         Route::post('/{id}/request-changes', 'requestChanges')->whereNumber('id')->middleware('can:'.AdminOnlyApprovals::ABILITY)->name('request-changes');
+        Route::post('/{id}/tasks', 'reportTaskStore')->whereNumber('id')->middleware('can:'.AdminOnlyApprovals::ABILITY)->name('tasks.store');
         Route::post('/review-bulk', 'reviewBulk')->middleware('can:'.AdminOnlyApprovals::ABILITY)->name('review-bulk');
         // Báo cáo có cấu trúc theo vai trò (StaffType::structuredReports — controller kiểm tra).
         Route::get('/daily', 'daily')->name('periodic.daily');
@@ -816,6 +820,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/operations/{id}', [ObservationController::class, 'destroyOperations'])->whereNumber('id')->middleware('can:class_quality.observe_operations')->name('operations.destroy');
         Route::get('/academic', [ObservationController::class, 'academic'])->name('academic');
         Route::put('/academic', [ObservationController::class, 'saveAcademic'])->middleware('can:class_quality.observe_academic')->name('academic.save');
+        Route::get('/session-feedback', [SessionFeedbackController::class, 'index'])->name('session-feedback');
         Route::get('/checklist', [ClassChecklistController::class, 'index'])->name('checklist');
         Route::put('/checklist', [ClassChecklistController::class, 'save'])->middleware('can:class_quality.checklist')->name('checklist.save');
         Route::get('/teacher-meetings', [TeacherMeetingReportController::class, 'index'])->name('teacher-meetings');

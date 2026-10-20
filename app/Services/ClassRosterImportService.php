@@ -258,7 +258,8 @@ class ClassRosterImportService
 
         // ── Học viên ──
         $codes = collect($studentSheet['rows'])->map(fn ($r) => mb_strtoupper(trim((string) ($r['code'] ?? ''))))->filter()->unique()->values();
-        $existingStudents = Student::withTrashed()->whereIn('code', $codes)->get(['id', 'code', 'name', 'branch_id', 'deleted_at'])
+        $existingStudents = Student::withTrashed()->with('currentClass:id,name')->whereIn('code', $codes)
+            ->get(['id', 'code', 'name', 'branch_id', 'current_class_id', 'deleted_at'])
             ->keyBy(fn (Student $s) => mb_strtoupper($s->code));
         $enrolled = ClassEnrollment::query()->whereIn('student_id', $existingStudents->pluck('id'))
             ->whereIn('status', Student::ACTIVE_ENROLLMENT_STATUSES)->get(['student_id', 'class_id'])
@@ -309,6 +310,9 @@ class ClassRosterImportService
                 $warnings[] = 'Học viên đã có trong lớp này: bỏ qua.';
             } elseif ($student) {
                 $warnings[] = 'Học viên đã có hồ sơ: không sửa hồ sơ, chỉ xếp vào lớp.';
+                if ($student->current_class_id && (int) $student->current_class_id !== (int) $classId) {
+                    $warnings[] = "Học viên đang học lớp {$student->currentClass?->name}: nhập sẽ chuyển lớp chính sang lớp này, lớp {$student->currentClass?->name} ngừng trừ buổi và bỏ học viên khỏi danh sách (học song song thì thêm cả lớp {$student->currentClass?->name} vào file).";
+                }
             }
             if ($code !== '' && isset($seen[$code][$classKey])) {
                 $errors[] = "Mã học viên {$code} lặp lại trong cùng lớp (dòng {$seen[$code][$classKey]}).";
@@ -470,6 +474,14 @@ class ClassRosterImportService
         }
         $result['rooms'] = Room::query()->count() - $roomsBefore;
 
+        // Các lớp file xếp cho từng học viên đã có hồ sơ: lớp chính cũ không có trong file → chuyển lớp (đóng lớp cũ).
+        $fileClassIds = [];
+        foreach ($preview['students'] as $row) {
+            if ($row['errors'] === [] && $row['student_id'] && ($id = $classIds[$row['class_key']] ?? $row['class_id'])) {
+                $fileClassIds[$row['student_id']][] = (int) $id;
+            }
+        }
+
         $createdByCode = [];
         foreach ($preview['students'] as $row) {
             if ($row['errors'] !== [] || $row['action'] === 'skip') {
@@ -483,7 +495,7 @@ class ClassRosterImportService
             }
 
             try {
-                DB::transaction(function () use ($row, $classId, $user, &$createdByCode, &$result) {
+                DB::transaction(function () use ($row, $classId, $user, $fileClassIds, &$createdByCode, &$result) {
                     $studentId = $row['student_id'] ?? ($row['code'] ? ($createdByCode[$row['code']] ?? null) : null);
                     $student = $studentId ? Student::query()->lockForUpdate()->findOrFail($studentId) : null;
                     if (! $student) {
@@ -524,11 +536,24 @@ class ClassRosterImportService
                     $alreadyIn = ClassEnrollment::query()->where('student_id', $student->id)->where('class_id', $classId)
                         ->whereIn('status', Student::ACTIVE_ENROLLMENT_STATUSES)->exists();
                     if (! $alreadyIn) {
+                        // Học viên đã có lớp chính khác (không có trong file): chuyển lớp, lớp cũ ngừng trừ buổi từ ngày
+                        // nhập học ở lớp mới (ngày đó trước khi vào lớp cũ hoặc sau hôm nay → hôm nay).
+                        $enrolledAt = $row['enrolled_at'] ?? today()->toDateString();
+                        $oldClassId = (int) $student->current_class_id;
+                        if ($oldClassId && $oldClassId !== (int) $classId && ! in_array($oldClassId, $fileClassIds[$student->id] ?? [], true)) {
+                            $joinedOld = ClassEnrollment::query()->where('student_id', $student->id)->where('class_id', $oldClassId)
+                                ->whereIn('status', Student::ACTIVE_ENROLLMENT_STATUSES)->min('enrolled_at');
+                            $leftOn = $row['enrolled_at'] && $row['enrolled_at'] <= today()->toDateString()
+                                && (! $joinedOld || $row['enrolled_at'] >= substr((string) $joinedOld, 0, 10))
+                                ? $row['enrolled_at'] : today()->toDateString();
+                            $student->leaveMainClass($leftOn);
+                            $enrolledAt = $leftOn; // lớp mới trừ buổi từ ngày chuyển, không trùng thời gian ở lớp cũ
+                        }
                         // Học viên đang học từ hệ thống cũ: lượt xếp lớp đã xác nhận (không chờ bàn giao).
                         ClassEnrollment::create([
                             'student_id' => $student->id,
                             'class_id' => $classId,
-                            'enrolled_at' => $row['enrolled_at'] ?? today()->toDateString(),
+                            'enrolled_at' => $enrolledAt,
                             'curriculum_delivered' => false,
                             'zalo_group_added' => false,
                             'account_sent' => false,

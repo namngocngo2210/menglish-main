@@ -324,7 +324,8 @@ class DemoPhase3Seeder extends Seeder
         ]);
 
         // Đơn giá buổi riêng (Quản lý cơ sở — teacher_rate.manage): mỗi lần đổi giá là 1 phiên bản theo ngày hiệu lực.
-        $manager = $this->staff['manager_cg'];
+        // Quản lý chỉ đặt giá cho nhân sự chi nhánh mình → chọn Quản lý cùng chi nhánh người được đặt giá, không có thì Admin.
+        $managers = collect([$this->staff['manager_cg'], $this->staff['manager_bd']]);
         $since = $this->lastMonth->copy()->subMonthNoOverflow()->startOfMonth();
         $rates = [
             ['teacher_cg', 220000, $since, 'Đơn giá buổi GV part-time (phiên bản cũ) '.self::MARKER],
@@ -334,6 +335,8 @@ class DemoPhase3Seeder extends Seeder
             ['foreign', 450000, $since, 'Đơn giá buổi GVNN '.self::MARKER],
         ];
         foreach ($rates as [$key, $amount, $from, $note]) {
+            $branchIds = $this->staff[$key]->branchIds();
+            $manager = $managers->first(fn (User $m) => array_intersect($m->branchIds(), $branchIds) !== []) ?? $admin;
             $this->asUser($manager, PayrollController::class, 'storePersonalTeacherRate', [
                 'user_id' => $this->staff[$key]->id, 'hourly_rate' => $amount, 'rate_unit' => TeacherHourlyRate::UNIT_SESSION,
                 'effective_from' => $from->toDateString(), 'note' => $note,

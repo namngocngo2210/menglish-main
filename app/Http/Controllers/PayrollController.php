@@ -357,7 +357,7 @@ class PayrollController extends Controller
             $locked->records()->update(['status' => 'confirmed']);
 
             // Chỉ đóng dấu "deducted" các biên bản thực sự đã trừ vào bản ghi lương của kỳ này
-            Penalty::whereIn('payroll_record_id', $locked->records()->select('id'))
+            Penalty::withoutViewerScope()->whereIn('payroll_record_id', $locked->records()->select('id'))
                 ->whereIn('status', Penalty::payableStatuses())
                 ->update(['status' => 'deducted']);
 
@@ -471,7 +471,8 @@ class PayrollController extends Controller
             ->where('status', 'valid')
             ->orderBy('teaching_date')
             ->get();
-        $penalties = Penalty::where('payroll_record_id', $record->id)->orderBy('due_date')->get();
+        // Phiếu lương đã qua kiểm tra phạm vi bảng lương: hiện đủ các biên bản đã trừ trên phiếu.
+        $penalties = Penalty::withoutViewerScope()->where('payroll_record_id', $record->id)->orderBy('due_date')->get();
         $clawbacks = CommissionAdjustment::with('student')->where('payroll_record_id', $record->id)->get();
         $paidCommission = CommissionItem::with(['student', 'receipt'])->where('payroll_record_id', $record->id)->orderBy('id')->get();
         $deferredCommission = CommissionItem::with(['student', 'receipt'])
@@ -989,11 +990,13 @@ class PayrollController extends Controller
         $periodLocked = $period?->isLocked() || PayrollPeriod::isLockedFor($monthStart);
 
         // Thẻ giáo viên: số buổi được phân công đã diễn ra trong tháng mà chưa có ca chấm công (không tính ca bị từ chối).
-        $teacher = $teacherId ? User::with('branch')->find($teacherId) : null;
+        // Chỉ hiện thẻ GV trong phạm vi (Quản lý cơ sở: nhân sự chi nhánh mình) — ?user_id= của chi nhánh khác không lộ tên / mã.
+        $teacher = $teacherId ? $this->staffInScope(User::with('branch'), $user)->find($teacherId) : null;
         $missingSessions = collect();
         if ($teacher) {
             $missingSessions = \App\Models\ClassSession::with('classModel')
                 ->forStaff($teacher->id)
+                ->when($canViewAll, fn ($q) => $q->whereIn('class_id', $this->timesheetClasses($user)->select('id')))
                 ->where('status', '!=', 'cancelled')
                 ->whereBetween('date', [$monthStart->toDateString(), min($monthEnd, today())->toDateString()])
                 ->whereDoesntHave('timesheets', fn ($t) => $t->where('user_id', $teacher->id)->where('status', '!=', 'invalid'))
@@ -1361,9 +1364,16 @@ class PayrollController extends Controller
      * 2. Hoa hồng tuyển sinh của người phụ trách: học phí thu của khách mới trong tháng (không gồm sách / Thu khác)
      *    × % mốc theo thứ tự chốt của từng HS (SalesCommissionService).
      * Lọc kỳ lương (tháng) + chi nhánh, phân trang.
+     * Phạm vi: dòng của nhân sự trong phạm vi "kpi" (của tôi / chi nhánh của tôi / mọi nhân sự, như KpiController);
+     * số tiền (KPI đ, đơn giá bậc, doanh thu, hoa hồng) chỉ người xem bảng lương (payroll.view — Admin, quy tắc 06/10)
+     * mới thấy, người khác chỉ thấy số HS / mốc / thứ hạng.
      */
     public function kpiLeaderboard(Request $request)
     {
+        $viewer = $request->user();
+        $showMoney = $viewer->can('payroll.view');
+        $staffIds = DataScope::isAll($viewer, 'kpi') ? null : $this->kpiScopedStaff(User::withTrashed(), $viewer)->pluck('id');
+
         if (preg_match('/^(\d{4})-(\d{2})$/', (string) $request->query('period'), $m)) {
             [$year, $month] = [(int) $m[1], (int) $m[2]];
         } else {
@@ -1373,6 +1383,10 @@ class PayrollController extends Controller
         $month = min(12, max(1, $month));
         $year = min(2100, max(2020, $year));
         $branchId = $request->integer('branch_id') ?: null;
+        // Chỉ nhận chi nhánh trong phạm vi KPI của người xem (chi nhánh khác → bỏ lọc, vẫn chỉ thấy dữ liệu trong phạm vi).
+        if ($branchId && ! DataScope::coversBranch($viewer, 'kpi', $branchId)) {
+            $branchId = null;
+        }
         $start = Carbon::create($year, $month, 1)->startOfMonth();
         $end = $start->copy()->endOfMonth();
 
@@ -1381,6 +1395,7 @@ class PayrollController extends Controller
         $retention = $period
             ? PayrollRecord::with('user.branch')->where('payroll_period_id', $period->id)
                 ->where('kpi_source', PayrollRecord::KPI_RETENTION)
+                ->when($staffIds !== null, fn ($q) => $q->whereIn('user_id', $staffIds))
                 ->when($branchId, fn ($q) => $q->whereHas('user', fn ($u) => $u->where('branch_id', $branchId)))
                 ->get()
                 ->sortByDesc(fn (PayrollRecord $r) => [(float) $r->kpi_bonus, (int) $r->retention_students])
@@ -1395,6 +1410,7 @@ class PayrollController extends Controller
             ->where(fn ($q) => $q->whereIn('id', $summary->keys())
                 ->orWhere(fn ($active) => $active->whereNull('deleted_at')->where('is_active', true)
                     ->whereHas('roles', fn ($r) => $r->whereIn('name', [Roles::SALES_CONSULTANT, Roles::ACADEMIC_STAFF]))))
+            ->when($staffIds !== null, fn ($q) => $q->whereIn('id', $staffIds))
             ->get()
             ->when($branchId, fn ($users) => $users->where('branch_id', $branchId));
         $emptyRow = ['collected' => 0.0, 'base' => 0.0, 'amount' => 0.0, 'students' => 0, 'closed' => 0, ...$service->milestoneFor(0, $end)];
@@ -1431,7 +1447,10 @@ class PayrollController extends Controller
             ->prepend('Tháng '.now()->format('m/Y'), now()->format('Y-m'))
             ->put(sprintf('%04d-%02d', $year, $month), 'Tháng '.sprintf('%02d/%04d', $month, $year))
             ->sortKeysDesc();
-        $branches = \App\Models\Branch::orderBy('name')->get(['id', 'name']);
+        $scopeBranchIds = DataScope::branchIds($viewer, 'kpi');
+        $branches = \App\Models\Branch::when($scopeBranchIds !== null, fn ($q) => $q->whereIn('id', $scopeBranchIds))
+            ->orderBy('name')->get(['id', 'name']);
+        $money = fn ($value) => $showMoney ? (float) $value : null;
 
         return Inertia::render('Payroll/KpiLeaderboard', [
             'retentionPage' => $retentionPage->through(fn (PayrollRecord $r) => [
@@ -1441,8 +1460,9 @@ class PayrollController extends Controller
                 'branch' => $r->user?->branch?->name ?? 'Hệ thống MEnglish',
                 'retention_students' => (int) $r->retention_students,
                 'retention_base_students' => (int) $r->retention_base_students,
-                'retention_tier' => $r->retention_tier,
-                'kpi_bonus' => (float) $r->kpi_bonus,
+                // Đơn giá bậc × số HS = KPI (đ) → cùng là số tiền phiếu lương, ẩn với người không xem bảng lương.
+                'retention_tier' => $showMoney ? $r->retention_tier : null,
+                'kpi_bonus' => $money($r->kpi_bonus),
             ]),
             'salesPage' => $salesPage->through(fn (array $item) => [
                 'id' => $item['user']->id,
@@ -1454,9 +1474,9 @@ class PayrollController extends Controller
                 'percent' => (float) $item['percent'],
                 'next_percent' => $item['next_percent'],
                 'to_next' => $item['to_next'],
-                'revenue' => $item['revenue'],
-                'base' => (float) $item['base'],
-                'commission' => (float) $item['commission'],
+                'revenue' => $money($item['revenue']),
+                'base' => $money($item['base']),
+                'commission' => $money($item['commission']),
             ]),
             'period' => $period ? ['locked' => $period->isLocked()] : null,
             'month' => $month,
@@ -1466,6 +1486,18 @@ class PayrollController extends Controller
             'periodOptions' => Ui::options($periodOptions),
             'branches' => Ui::options($branches, 'name'),
         ]);
+    }
+
+    /** Nhân sự trong phạm vi "kpi" của người xem — cùng quy tắc KpiController::scopedStaff (của tôi / chi nhánh + của tôi / tất cả). */
+    private function kpiScopedStaff(\Illuminate\Database\Eloquent\Builder $query, User $viewer): \Illuminate\Database\Eloquent\Builder
+    {
+        return DataScope::apply(
+            $query, $viewer, 'kpi',
+            fn ($q) => $q->whereKey($viewer->id),
+            fn ($q, array $branchIds) => $q->whereIn('branch_id', $branchIds)
+                ->orWhereHas('branches', fn ($b) => $b->whereIn('branches.id', $branchIds)),
+            branchIncludesOwn: true,
+        );
     }
 
     public function configSettings()
@@ -1552,9 +1584,15 @@ class PayrollController extends Controller
         $rates = TeacherRate::all();
         $teachers = $this->teachingStaff();
         $teacherId = $request->integer('teacher_id') ?: null;
+        // Quản lý cơ sở chỉ thấy đơn giá riêng của nhân sự thuộc chi nhánh mình (xem staffInScope()).
+        $viewer = $request->user();
+        $scoped = ! DataScope::isAll($viewer, 'attendance_staff');
+        $scopedIds = $scoped ? $this->staffInScope(User::withTrashed(), $viewer)->select('id') : null;
+        abort_if($teacherId && $scoped && ! $this->staffInScope(User::withTrashed(), $viewer)->whereKey($teacherId)->exists(), 404);
 
         // Lịch sử chung của mọi GV (danh sách trên trang); lịch sử riêng GV đang xem nằm trong modal chi tiết (?teacher_id=).
         $history = TeacherHourlyRate::with(['user', 'creator'])
+            ->when($scoped, fn ($q) => $q->whereIn('user_id', $scopedIds))
             ->orderByDesc('effective_from')
             ->orderByDesc('id')
             ->paginate($request->perPage(15))
@@ -1577,6 +1615,7 @@ class PayrollController extends Controller
 
         // Đơn giá đang hiệu lực hôm nay của từng GV (dòng effective_from gần nhất ≤ hôm nay).
         $currentRates = TeacherHourlyRate::whereDate('effective_from', '<=', now()->toDateString())
+            ->when($scoped, fn ($q) => $q->whereIn('user_id', $scopedIds))
             ->orderBy('effective_from')
             ->get()
             ->keyBy('user_id');
@@ -1664,6 +1703,13 @@ class PayrollController extends Controller
      */
     public function storePersonalTeacherRate(Request $request)
     {
+        // Chỉ tạo đơn giá cho nhân sự trong phạm vi (Quản lý cơ sở: chi nhánh của mình) — xem staffInScope().
+        abort_if(
+            filled($request->input('user_id'))
+                && ! DataScope::isAll($request->user(), 'attendance_staff')
+                && ! $this->staffInScope(User::query(), $request->user())->whereKey((int) $request->input('user_id'))->exists(),
+            404
+        );
         $validated = $request->validate([
             'user_id' => ['required', 'exists:users,id'],
             // Tiền (đ/buổi, đ/giờ) từ 1.000đ; "% học phí" (Học thuật kiêm nhiệm giảng dạy) từ 0,1 tới 100.
@@ -1702,12 +1748,27 @@ class PayrollController extends Controller
                 .Carbon::parse($validated['effective_from'])->format('d/m/Y').'.');
     }
 
-    /** Nhân sự giảng dạy đang hoạt động (dùng cho chấm công tay và đơn giá GV). */
+    /** Nhân sự giảng dạy đang hoạt động trong phạm vi người xem (dùng cho chấm công tay, lọc chấm công và đơn giá GV). */
     private function teachingStaff()
     {
-        return User::where('is_active', true)
+        return $this->staffInScope(User::query(), Auth::user())
+            ->where('is_active', true)
             ->whereHas('roles', fn ($query) => $query->whereIn('name', [...Roles::TEACHING, Roles::ACADEMIC_LEAD, Roles::MANAGER]))
             ->orderBy('name')->get();
+    }
+
+    /**
+     * Nhân sự người xem được thấy trên chấm công GV / đơn giá GV — theo phạm vi "attendance_staff" (Chấm công nhân sự:
+     * đơn giá là giá của chính các ca chấm công đó, nên dùng chung phạm vi để màn đơn giá và màn chấm công khớp nhau):
+     * toàn hệ thống → mọi người; mức khác → nhân sự có chi nhánh chính / chi nhánh được cấp thêm thuộc chi nhánh của tôi + chính tôi.
+     */
+    private function staffInScope(\Illuminate\Database\Eloquent\Builder $query, User $viewer): \Illuminate\Database\Eloquent\Builder
+    {
+        $branchIds = DataScope::branchIds($viewer, 'attendance_staff');
+
+        return $query->when($branchIds !== null, fn ($q) => $q->where(fn ($s) => $s->whereKey($viewer->id)
+            ->orWhereIn('branch_id', $branchIds)
+            ->orWhereHas('branches', fn ($b) => $b->whereIn('branches.id', $branchIds))));
     }
 
     public function storeTeacherRate(Request $request)
@@ -1953,7 +2014,7 @@ class PayrollController extends Controller
                 ->whereBetween('teaching_date', [$period->start_date, $period->end_date])
                 ->where('status', 'valid')
                 ->orderBy('teaching_date')->get();
-            $penalties = Penalty::with('classModel')->where('payroll_record_id', $record->id)->orderBy('violation_date')->get();
+            $penalties = Penalty::withoutViewerScope()->with('classModel')->where('payroll_record_id', $record->id)->orderBy('violation_date')->get();
             $previous = $records->first(fn (PayrollRecord $r) => $r->period->start_date->lt($period->start_date));
         }
         $variant = $record ? self::payslipVariant($record) : null;

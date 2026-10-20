@@ -199,7 +199,7 @@ class TicketReplyInstantTest extends TestCase
         $outsider = User::factory()->create(['is_active' => true]);
         $outsider->assignRole('sales_consultant');
 
-        $this->actingAs($outsider)->post(route('tickets.reopen', $this->ticket->id))->assertForbidden();
+        $this->actingAs($outsider)->post(route('tickets.reopen', $this->ticket->id))->assertNotFound();
         $this->assertSame('resolved', $this->ticket->fresh()->status);
     }
 }

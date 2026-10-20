@@ -2,7 +2,10 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\ScopedToViewer;
 use App\Services\DocumentCodeGenerator;
+use App\Support\DataScope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SupportTicket extends Model
 {
-    use HasFactory;
+    use HasFactory, ScopedToViewer;
 
     protected $table = 'support_tickets';
 
@@ -41,6 +44,24 @@ class SupportTicket extends Model
             $user->can('support_ticket.update')
             || $user->can('support_ticket.assign')
             || $user->can('support_ticket.close')
+        );
+    }
+
+    /**
+     * Ticket người dùng được thấy theo phạm vi "support_ticket.scope_*": Của tôi → ticket mình tạo hoặc được giao xử lý;
+     * Chi nhánh → + ticket do nhân sự thuộc chi nhánh mình tạo (chi nhánh chính hoặc chi nhánh được cấp thêm của người
+     * tạo); Toàn hệ thống → mọi ticket. Tự áp dụng trong request web (ScopedToViewer).
+     */
+    public static function constrainToViewer(Builder $query, User $user): void
+    {
+        DataScope::apply(
+            $query, $user, 'support_ticket',
+            fn (Builder $q) => $q->where(fn (Builder $o) => $o->where('creator_id', $user->id)->orWhere('assignee_id', $user->id)),
+            fn (Builder $q, array $branchIds) => $q->whereIn('creator_id', User::withTrashed()
+                ->where(fn (Builder $u) => $u->whereIn('branch_id', $branchIds)
+                    ->orWhereHas('branches', fn (Builder $b) => $b->whereIn('branches.id', $branchIds)))
+                ->select('id')),
+            branchIncludesOwn: true,
         );
     }
 

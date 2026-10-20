@@ -5,6 +5,8 @@
  * Admin bấm "Đã kiểm tra" từng dòng, chọn nhiều dòng để kiểm tra hàng loạt, hoặc mở "Chi tiết" (Reports/Detail) để kiểm tra,
  * yêu cầu bổ sung và sang báo cáo kế tiếp. Xem trước là ghi chú người viết; giờ nộp là lần nộp đầu, kèm nhãn Trễ.
  * Tab "Chưa nộp": Học vụ / Học thuật còn thiếu báo cáo ngày nào (rà soát 16/10/2026 B3, B8, B11).
+ * Tab "Việc follow-up" (chủ dự án 17/10/2026): task tạo từ báo cáo (cả báo cáo trực lớp, cả task Admin giao trên báo cáo) theo người viết:
+ * đã tạo / đã xong / đang mở / quá hạn trong khoảng ngày tạo (mặc định tháng này), bấm "Xem việc" mở danh sách việc của người đó.
  */
 import { computed, onMounted, ref } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
@@ -18,6 +20,7 @@ const props = defineProps({
     view: { type: String, default: 'list' },
     reports: { type: Object, required: true },
     missing: { type: Object, default: null },
+    followUps: { type: Object, default: null },
     stats: { type: Object, required: true },
     filters: { type: Object, default: () => ({}) },
     types: { type: Array, default: () => [] },
@@ -44,12 +47,18 @@ const toggleAll = () => (selected.value = allSelected.value ? [] : [...selectabl
 const reviewSelected = () =>
     router.post(route('reports.review-bulk'), { ids: selected.value }, { preserveScroll: true, onSuccess: () => (selected.value = []) });
 
-const tabHref = (view) => route('reports.all', compactQuery({ view: view === 'missing' ? 'missing' : null, user_id: props.filters.user_id, branch_id: props.filters.branch_id }));
+const tabHref = (view) => route('reports.all', compactQuery({ view: view === 'list' ? null : view, user_id: props.filters.user_id, branch_id: props.filters.branch_id }));
+const range = computed(() => props.missing ?? props.followUps);
 
 function onFilter(event) {
     const data = Object.fromEntries(new FormData(event.target));
-    router.get(route('reports.all'), compactQuery({ ...data, view: props.view === 'missing' ? 'missing' : null }), { preserveScroll: true });
+    router.get(route('reports.all'), compactQuery({ ...data, view: props.view === 'list' ? null : props.view }), { preserveScroll: true });
 }
+
+// Việc follow-up: mở danh sách việc của từng người viết.
+const opened = ref(null);
+const toggleWriter = (id) => (opened.value = opened.value === id ? null : id);
+const taskColor = (t) => (t.overdue ? 'error' : t.status === 'completed' ? 'success' : t.status === 'canceled' ? 'neutral' : 'info');
 </script>
 
 <template>
@@ -75,7 +84,7 @@ function onFilter(event) {
 
         <nav class="flex gap-2 border-b border-surface-container-highest" aria-label="Chế độ xem">
             <Link
-                v-for="t in [{ key: 'list', label: 'Báo cáo đã nộp' }, { key: 'missing', label: 'Chưa nộp báo cáo ngày' }]"
+                v-for="t in [{ key: 'list', label: 'Báo cáo đã nộp' }, { key: 'missing', label: 'Chưa nộp báo cáo ngày' }, { key: 'followups', label: 'Việc follow-up từ báo cáo' }]"
                 :key="t.key"
                 :href="tabHref(t.key)"
                 :class="['-mb-px border-b-2 px-3 py-2 text-sm font-semibold', view === t.key ? 'border-primary text-primary' : 'border-transparent text-on-surface-variant hover:text-on-surface']"
@@ -90,8 +99,8 @@ function onFilter(event) {
             </template>
             <UiSelect name="user_id" :options="users" :value="filters.user_id" placeholder="Mọi người viết" aria-label="Người viết" :searchable="users.length > 8" />
             <UiSelect v-if="branches.length > 1" name="branch_id" :options="branches" :value="filters.branch_id" placeholder="Mọi chi nhánh" aria-label="Chi nhánh" />
-            <UiDate name="from" :value="filters.from ?? missing?.from" aria-label="Từ ngày" inline-label="Từ" />
-            <UiDate name="to" :value="filters.to ?? missing?.to" aria-label="Đến ngày" inline-label="Đến" />
+            <UiDate name="from" :value="filters.from ?? range?.from" aria-label="Từ ngày" inline-label="Từ" />
+            <UiDate name="to" :value="filters.to ?? range?.to" aria-label="Đến ngày" inline-label="Đến" />
             <div class="flex gap-2 sm:col-span-2 lg:col-span-2">
                 <UiButton type="submit">Lọc</UiButton>
                 <UiButton variant="secondary" :href="tabHref(view)">Xóa lọc</UiButton>
@@ -115,6 +124,59 @@ function onFilter(event) {
                 </li>
             </ul>
             <UiEmptyState v-if="!missing.rows.length" icon="task_alt" title="Mọi người đã nộp đủ báo cáo ngày trong khoảng này." />
+        </section>
+
+        <!-- Việc follow-up từ báo cáo: theo người viết -->
+        <section v-else-if="view === 'followups'" class="rounded-2xl border border-surface-container-highest bg-surface-container-lowest shadow-sm" data-follow-up-summary>
+            <p class="border-b border-surface-container-highest px-4 py-3 text-xs text-on-surface-variant">
+                Task tạo từ báo cáo ngày / tuần / tháng / quý và báo cáo trực lớp, kể cả task Admin giao ngay trên báo cáo, tạo từ {{ formatDate(followUps.from) }} đến {{ formatDate(followUps.to) }}.
+                Quá hạn: đã qua hạn xử lý mà chưa xong.
+            </p>
+            <UiDataTable v-if="followUps.rows.length">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Người viết</th>
+                            <th class="w-28 text-right">Việc đã tạo</th>
+                            <th class="w-24 text-right">Đã xong</th>
+                            <th class="w-24 text-right">Đang mở</th>
+                            <th class="w-24 text-right">Quá hạn</th>
+                            <th class="w-32"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template v-for="row in followUps.rows" :key="row.user_id">
+                            <tr :data-follow-up-writer="row.user_id">
+                                <td>
+                                    <span class="font-semibold text-on-surface">{{ row.user }}</span>
+                                    <span class="text-on-surface-variant"><template v-if="row.role"> · {{ row.role }}</template><template v-if="row.branch"> · {{ row.branch }}</template></span>
+                                </td>
+                                <td class="text-right" data-follow-up-total>{{ row.total }}</td>
+                                <td class="text-right">{{ row.done }}</td>
+                                <td class="text-right">{{ row.open }}</td>
+                                <td class="text-right"><UiBadge :color="row.overdue ? 'error' : 'success'" :dot="false" data-follow-up-overdue>{{ row.overdue }}</UiBadge></td>
+                                <td class="text-right">
+                                    <UiButton size="sm" variant="ghost" :icon="opened === row.user_id ? 'expand_less' : 'expand_more'" :aria-expanded="opened === row.user_id" @click="toggleWriter(row.user_id)">Xem việc</UiButton>
+                                </td>
+                            </tr>
+                            <tr v-if="opened === row.user_id" class="bg-surface-container-low">
+                                <td colspan="6">
+                                    <ul class="space-y-xs" :data-follow-up-tasks="row.user_id">
+                                        <li v-for="t in row.tasks" :key="t.id" class="flex flex-wrap items-center gap-x-sm gap-y-0.5 text-sm">
+                                            <strong class="text-on-surface">{{ t.title }}</strong>
+                                            <span class="text-on-surface-variant">· {{ t.assignee ?? '—' }} · hạn {{ t.due_date ? formatDate(t.due_date, 'd/m/Y') : '—' }}<template v-if="t.by"> · giao bởi {{ t.by }}</template></span>
+                                            <UiBadge :color="taskColor(t)">{{ t.overdue && t.status !== 'overdue' ? 'Quá hạn' : t.status_label }}</UiBadge>
+                                            <span class="basis-full text-xs text-on-surface-subtle">{{ t.source }}</span>
+                                        </li>
+                                    </ul>
+                                    <p v-if="row.total > row.tasks.length" class="mt-xs text-xs text-on-surface-variant">Hiện {{ row.tasks.length }} / {{ row.total }} việc, quá hạn và đang mở trước.</p>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </UiDataTable>
+            <UiEmptyState v-else icon="task_alt" title="Chưa có task nào tạo từ báo cáo trong khoảng này." />
         </section>
 
         <template v-else>

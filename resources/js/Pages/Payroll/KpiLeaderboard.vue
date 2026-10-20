@@ -73,8 +73,9 @@ function filter(event) {
                         <th>Nhân viên</th>
                         <th>Chi nhánh</th>
                         <th class="text-right">Số HS Giữ</th>
-                        <th class="text-right">Đơn giá (VNĐ/hs)</th>
-                        <th class="text-right">Tổng KPI (VNĐ)</th>
+                        <!-- Số tiền (đơn giá, KPI, hoa hồng) chỉ người xem được bảng lương thấy; server trả null cho người khác. -->
+                        <th v-if="can('payroll.view')" class="text-right">Đơn giá (VNĐ/hs)</th>
+                        <th v-if="can('payroll.view')" class="text-right">Tổng KPI (VNĐ)</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -94,11 +95,11 @@ function filter(event) {
                         </td>
                         <td>{{ r.branch }}</td>
                         <td class="text-right font-mono">{{ money(r.retention_students) }} <span class="font-caption text-caption text-on-surface-variant">/ {{ r.retention_base_students }}</span></td>
-                        <td class="text-right font-mono">{{ r.retention_tier !== null ? money(r.retention_tier) : 'Chưa chọn bậc' }}</td>
-                        <td class="text-right font-mono font-bold text-primary">{{ money(r.kpi_bonus) }}</td>
+                        <td v-if="can('payroll.view')" class="text-right font-mono">{{ r.retention_tier !== null ? money(r.retention_tier) : 'Chưa chọn bậc' }}</td>
+                        <td v-if="can('payroll.view')" class="text-right font-mono font-bold text-primary">{{ money(r.kpi_bonus) }}</td>
                     </tr>
                     <tr v-if="!retentionPage.data.length">
-                        <td colspan="6">
+                        <td :colspan="can('payroll.view') ? 6 : 4">
                             <UiEmptyState icon="leaderboard" title="Chưa có KPI giữ học sinh" :description="period ? 'Kỳ này chưa có giáo viên Part-time được tính KPI giữ học sinh.' : `Chưa khởi tạo bảng lương tháng ${monthLabel}.`" />
                         </td>
                     </tr>
@@ -126,9 +127,9 @@ function filter(event) {
                         <th>Chi nhánh</th>
                         <th class="text-right">Số HS chốt</th>
                         <th class="text-right">Mốc hiện tại</th>
-                        <th class="text-right">Thực thu khách mới</th>
-                        <th class="text-right">Học phí tính HH</th>
-                        <th class="text-right">Tổng hoa hồng (VNĐ)</th>
+                        <th v-if="can('payroll.view')" class="text-right">Thực thu khách mới</th>
+                        <th v-if="can('payroll.view')" class="text-right">Học phí tính HH</th>
+                        <th v-if="can('payroll.view')" class="text-right">Tổng hoa hồng (VNĐ)</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -152,12 +153,12 @@ function filter(event) {
                             <span class="font-mono">{{ trimNumber(item.percent, 2, '.', ',') }}%</span>
                             <span v-if="item.to_next" class="block font-caption text-caption text-on-surface-variant">còn {{ item.to_next }} HS → {{ trimNumber(item.next_percent, 2, '.', ',') }}%</span>
                         </td>
-                        <td class="text-right font-mono">{{ money(item.revenue) }}</td>
-                        <td class="text-right font-mono">{{ money(item.base) }}</td>
-                        <td class="text-right font-mono font-bold text-primary">{{ money(item.commission) }}</td>
+                        <td v-if="can('payroll.view')" class="text-right font-mono">{{ money(item.revenue) }}</td>
+                        <td v-if="can('payroll.view')" class="text-right font-mono">{{ money(item.base) }}</td>
+                        <td v-if="can('payroll.view')" class="text-right font-mono font-bold text-primary">{{ money(item.commission) }}</td>
                     </tr>
                     <tr v-if="!salesPage.data.length">
-                        <td colspan="8"><UiEmptyState icon="leaderboard" title="Chưa có người phụ trách nào trong phạm vi lọc" /></td>
+                        <td :colspan="can('payroll.view') ? 8 : 5"><UiEmptyState icon="leaderboard" title="Chưa có người phụ trách nào trong phạm vi lọc" /></td>
                     </tr>
                 </tbody>
             </table>

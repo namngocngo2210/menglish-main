@@ -49,12 +49,15 @@ class RbacFlexibleTest extends TestCase
     public function test_default_data_scopes_per_role_match_previous_behaviour(): void
     {
         $expected = [
-            'manager' => ['lead' => 'branch', 'student' => 'branch', 'class' => 'branch', 'big_test' => 'all', 'tuition' => 'branch', 'finance' => 'branch',
-                'attendance_staff' => 'branch', 'payroll' => 'own', 'kpi' => 'all', 'work_task' => 'branch', 'support_ticket' => 'all', 'user' => 'branch',
-                'activity_log' => 'all', 'dashboard' => 'branch'],
-            'academic_staff' => ['lead' => 'branch', 'student' => 'branch', 'class' => 'all', 'big_test' => 'all', 'tuition' => 'branch',
-                'attendance_staff' => 'all', 'kpi' => 'all', 'work_task' => 'all', 'support_ticket' => 'own', 'user' => 'branch'],
-            'academic_lead' => ['lead' => 'branch', 'student' => 'branch', 'class' => 'all', 'big_test' => 'all', 'kpi' => 'all', 'work_task' => 'all', 'user' => 'all'],
+            // Quản lý cơ sở chỉ thấy chi nhánh của mình (cả Big Test, KPI, ticket, nhật ký, biên bản).
+            'manager' => ['lead' => 'branch', 'student' => 'branch', 'class' => 'branch', 'big_test' => 'branch', 'tuition' => 'branch', 'finance' => 'branch',
+                'attendance_staff' => 'branch', 'payroll' => 'own', 'kpi' => 'branch', 'work_task' => 'branch', 'support_ticket' => 'branch', 'user' => 'branch',
+                'activity_log' => 'branch', 'dashboard' => 'branch', 'violation' => 'branch'],
+            // Học vụ giới hạn chi nhánh của mình (lớp, Big Test, chấm công, KPI, việc, biên bản).
+            'academic_staff' => ['lead' => 'branch', 'student' => 'branch', 'class' => 'branch', 'big_test' => 'branch', 'tuition' => 'branch',
+                'attendance_staff' => 'branch', 'kpi' => 'branch', 'work_task' => 'branch', 'support_ticket' => 'own', 'user' => 'branch', 'violation' => 'branch'],
+            'academic_lead' => ['lead' => 'branch', 'student' => 'branch', 'class' => 'all', 'big_test' => 'all', 'kpi' => 'all', 'work_task' => 'all', 'user' => 'all',
+                'violation' => 'all'],
             'accountant' => ['student' => 'branch', 'tuition' => 'branch', 'finance' => 'branch', 'attendance_staff' => 'branch', 'payroll' => 'all', 'work_task' => 'own'],
             'sales_consultant' => ['lead' => 'own', 'student' => 'own', 'work_task' => 'own', 'support_ticket' => 'own'],
             'teacher' => ['class' => 'own', 'student' => 'own', 'big_test' => 'own', 'payroll' => 'own', 'work_task' => 'own'],

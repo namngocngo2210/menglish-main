@@ -3,6 +3,7 @@
 use App\Http\Controllers\DeployHookController;
 use App\Http\Controllers\UploadedFileController;
 use App\Http\Middleware\AuditOperationMiddleware;
+use App\Http\Middleware\EnforceDataScope;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RequireInitialPasswordChange;
@@ -35,6 +36,8 @@ return Application::configure(basePath: dirname(__DIR__))
         if ($trustedProxies = getenv('TRUSTED_PROXIES')) {
             $middleware->trustProxies(at: $trustedProxies === '*' ? '*' : array_map('trim', explode(',', $trustedProxies)));
         }
+        // Lọc dữ liệu tự động theo người xem: đứng đầu nhóm để route model binding cũng bị lọc (404 ngoài phạm vi).
+        $middleware->prependToGroup('web', EnforceDataScope::class);
         $middleware->appendToGroup('web', [
             EnsureAccountIsActive::class,
             RequireInitialPasswordChange::class,

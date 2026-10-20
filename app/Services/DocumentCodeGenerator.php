@@ -10,6 +10,7 @@ use App\Models\MaterialOrder;
 use App\Models\Penalty;
 use App\Models\Student;
 use App\Models\SupportTicket;
+use App\Support\DataScopeGuard;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 
@@ -88,14 +89,17 @@ class DocumentCodeGenerator
      */
     public function generate(string $key, string $period, callable $formatter, ?callable $seed = null, ?callable $exists = null): string
     {
-        for ($i = 0; $i < self::MAX_ATTEMPTS; $i++) {
-            $code = $formatter($this->next($key, $period, $seed));
-            if (! $exists || ! $exists($code)) {
-                return $code;
+        // Mã là duy nhất trên toàn hệ thống: dò mã đã dùng trên mọi bản ghi, không theo phạm vi của người đang tạo.
+        return DataScopeGuard::bypass(function () use ($key, $period, $formatter, $seed, $exists) {
+            for ($i = 0; $i < self::MAX_ATTEMPTS; $i++) {
+                $code = $formatter($this->next($key, $period, $seed));
+                if (! $exists || ! $exists($code)) {
+                    return $code;
+                }
             }
-        }
 
-        throw new \RuntimeException("Không sinh được mã chứng từ mới cho dãy {$key} {$period}.");
+            throw new \RuntimeException("Không sinh được mã chứng từ mới cho dãy {$key} {$period}.");
+        });
     }
 
     public function studentCode(): string

@@ -560,9 +560,10 @@ func TestTimesheets(t *testing.T) {
 	r := manual(f.cMgr, map[string]any{"class_id": clsB.String(), "branch_id": ""})
 	iamtest.Expect(t, r, 403, "outside_scope")
 
+	// Học vụ HN (attendance_staff.scope_branch): chỉ lớp chi nhánh mình
 	form := f.cHV.Do("GET", "/timesheets/manual", nil)
 	iamtest.Expect(t, form, 200, "")
-	if len(iamtest.List(t, form, "classes")) != 2 || len(iamtest.List(t, form, "teachers")) < 2 {
+	if len(iamtest.List(t, form, "classes")) != 1 || len(iamtest.List(t, form, "teachers")) < 2 {
 		t.Fatalf("form chấm tay: %s", form.Raw)
 	}
 	if mf := f.cMgr.Do("GET", "/timesheets/manual", nil); len(iamtest.List(t, mf, "classes")) != 1 || mf.Body["default_branch"] != f.hn.String() {

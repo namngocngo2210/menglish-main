@@ -13,6 +13,7 @@ use App\Support\Ui;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 
@@ -97,6 +98,10 @@ class MaterialOrderController extends Controller
             'quantity' => ['nullable', 'integer', 'min:1', 'max:100000'],
             'use_date' => ['required', 'date'],
         ]);
+        // Lớp gắn order phải nằm trong phạm vi Lớp học của người tạo (như danh sách lớp trên form).
+        if (! empty($data['class_id']) && ! ClassModel::query()->visibleTo($user)->whereKey($data['class_id'])->exists()) {
+            throw ValidationException::withMessages(['class_id' => 'Lớp học không nằm trong phạm vi của bạn.']);
+        }
 
         $order = $this->service->create($user, $data);
 

@@ -121,21 +121,67 @@ Quy tắc chung:
 | `payroll` | own/branch/all | phiếu lương của mình | phiếu của nhân sự chi nhánh | kỳ lương, phiếu lương, xuất |
 | `kpi` | own/branch/all | KPI của mình | KPI nhân sự chi nhánh | tổng hợp / chấm KPI tháng |
 | `work_task` | own/branch/all | việc mình giao / được giao; KPI của mình | + việc / KPI của chi nhánh | danh sách việc, giao TA, KPI tự động |
-| `support_ticket` | own/branch/all | ticket mình tạo / được giao | + ticket do nhân sự chi nhánh tạo | danh sách & chi tiết ticket |
+| `support_ticket` | own/branch/all | ticket mình tạo / được giao | + ticket do nhân sự chi nhánh tạo (chi nhánh chính / được cấp thêm của người tạo) | `SupportTicket` (lọc tự động, mục 3.1): danh sách, thống kê, chi tiết, trả lời, đổi trạng thái, mở lại, phân công, file đính kèm; người nhận phân công chỉ trong chi nhánh mình (+ Super Admin) khi chưa ở mức all |
+| `violation` | own/branch/all | biên bản mình vi phạm / mình lập | + biên bản của nhân sự thuộc chi nhánh (chi nhánh chính / được cấp thêm của người vi phạm) | `Penalty` (lọc tự động, mục 3.1; cần `violation.view`; không có quyền này chỉ thấy biên bản của mình): danh sách, đếm, bằng chứng, chốt, nộp phạt, đóng vụ, khắc phục, hủy; ô chọn nhân sự / lớp và kiểm tra khi lập biên bản theo chi nhánh của người lập |
 | `user` | own/branch/all | tài khoản do mình tạo | nhân sự thuộc chi nhánh | danh sách / quản lý nhân sự |
 | `activity_log` | own/branch/all | thao tác của mình | thao tác của nhân sự chi nhánh | nhật ký vận hành, xuất, hoàn tác |
 | `dashboard` | branch/all | — | số liệu chi nhánh | bảng điều hành |
 
 Điểm danh học viên theo phạm vi Lớp học; giáo trình theo quyền `syllabus.*` + đối tượng cổng GV / TA.
 
+### 3.1. Lọc tự động (`App\Models\Concerns\ScopedToViewer`)
+
+Model dùng trait `ScopedToViewer` tự lọc **mọi** truy vấn theo người đang đăng nhập trong request web: danh sách, đếm,
+`find` / `findOrFail`, route model binding, quan hệ và `whereHas`. Quên gọi `visibleTo()` vẫn an toàn; mở bản ghi ngoài
+phạm vi theo id trả **404**. Hiện áp dụng cho `SupportTicket`, `Penalty`, `TeacherMeetingReport`.
+
+```php
+class SupportTicket extends Model
+{
+    use ScopedToViewer;
+
+    public static function constrainToViewer(Builder $query, User $user): void
+    {
+        DataScope::apply($query, $user, 'support_ticket', $own, $branch, branchIncludesOwn: true);
+    }
+}
+
+SupportTicket::query()->latest()->get();             // đã lọc theo người đang đăng nhập
+SupportTicket::visibleTo($otherUser)->get();         // lọc theo một người cụ thể (thay cho lọc tự động)
+Penalty::withoutViewerScope()->where(...)->exists(); // bỏ lọc cho một truy vấn tính toán nội bộ
+DataScopeGuard::bypass(fn () => $period->calculatePayrollForPeriod()); // bỏ lọc cho cả một đoạn
+```
+
+- Bật bằng middleware `EnforceDataScope` (đầu nhóm `web`). Lệnh console, scheduler và job hàng đợi (kể cả job chạy
+  đồng bộ trong request) chạy trên toàn bộ dữ liệu. Request web chưa đăng nhập không thấy bản ghi nào.
+- Admin (mức Toàn hệ thống) và Super Admin không bị lọc.
+- Chỉ bỏ lọc cho **tính toán nội bộ cần đủ dữ liệu** và không trả thẳng bản ghi ra cho người xem: sinh mã chứng từ
+  (`DocumentCodeGenerator`), tính / duyệt lương, chống tạo trùng biên bản tự động (SLA, chấm công), KPI tự động, số liệu
+  báo cáo theo chi nhánh của người lập. Mỗi chỗ bỏ lọc ghi chú lý do ngay cạnh.
+- `save()` / `update()` / `delete()` / `refresh()` trên một model đã tải không bị lọc; `Model::where(...)->update()` thì có.
+
+Chuyển một model sang lọc tự động: thêm trait, đổi `scopeVisibleTo` thành `constrainToViewer`, rà mọi chỗ dùng model
+(`grep "Model::"`, quan hệ trỏ tới model) và bỏ lọc ở chỗ tính toán nội bộ như trên.
+
+### 3.2. Ô chọn nhân sự
+
+Ô chọn giáo viên / trợ giảng / thành viên dùng `User::pickableBy($viewer, $module, $keep)`: ở mức dưới Toàn hệ thống chỉ
+hiện nhân sự thuộc chi nhánh của người xem và nhân sự dùng chung chưa gắn chi nhánh; `$keep` giữ người đang được gán.
+
+### 3.3. Test quét route
+
+`tests/Feature/BranchIsolationRouteSweepTest` dựng dữ liệu hai chi nhánh có mã nhận diện, đăng nhập Quản lý cơ sở và
+Học vụ chi nhánh A rồi gọi **mọi route GET** (route có tham số được gọi với bản ghi chi nhánh B). Trang nào trả dữ liệu
+chi nhánh B (props Inertia, JSON, HTML) thì test đỏ. Route mới tự được quét; thêm loại dữ liệu mới vào `seedBranch()`.
+
 ## 4. Mặc định theo vai trò (`config/access.php`, chỉ dùng khi vai trò được tạo lần đầu)
 
 | Vai trò | Thao tác chính | Phạm vi mặc định |
 |---|---|---|
 | Super Admin `admin` | Mọi quyền (bất biến) + đối tượng `lead.be_assigned`, `entrance_test.examine`, `portal.staff` | Toàn hệ thống mọi module |
-| Quản lý cơ sở `manager` | Nhân sự (xem / khóa / reset MK / gán mọi vai trò trừ Admin); CRM mọi thao tác **trừ lùi bước**; học viên, lớp, điểm danh, giáo trình (không duyệt đề xuất); học phí (tạo / duyệt / từ chối), yêu cầu hủy HĐ, hoàn phí (khất nợ / bảo lưu, duyệt chuyển nhượng, từ chối — **không** duyệt hoàn tiền); lương **chỉ xem**; KPI; chấm công tay; biên bản lỗi vận hành; việc, ticket, thông báo, báo cáo | Chi nhánh: CRM, học viên, lớp, học phí, thu chi, chấm công, việc, nhân sự, dashboard · Toàn hệ thống: Big Test, lương, KPI, ticket, nhật ký |
-| Học vụ `academic_staff` | **BA 26/09: toàn quyền CRM / test đầu vào / đề test trừ xóa**, chuyển bước tiến (không lùi); học viên, lớp; giáo trình (không duyệt); KPI xem / xác nhận; biên bản lỗi vận hành; học phí (tạo phiếu, liên hệ, báo quá hạn); việc; gán TA / GV (3 loại) / học viên | Chi nhánh: CRM, học viên, học phí · Toàn hệ thống: lớp, Big Test, chấm công, KPI, việc · Của tôi: nhân sự (tài khoản mình tạo), ticket |
-| Học thuật `academic_lead` | CRM xem; lớp, giáo trình **gồm duyệt đề xuất**, **Big Test gồm duyệt**; test / đề test; KPI; biên bản lỗi chuyên môn; dashboard học thuật; gán GV (3 loại) | Chi nhánh: CRM (xem), học viên · Toàn hệ thống: lớp, Big Test, KPI, việc · Của tôi: nhân sự, ticket |
+| Quản lý cơ sở `manager` | Nhân sự (xem / khóa / reset MK / gán mọi vai trò trừ Admin); CRM mọi thao tác **trừ lùi bước**; học viên, lớp, điểm danh, giáo trình (không duyệt đề xuất); học phí (tạo / duyệt / từ chối), yêu cầu hủy HĐ, hoàn phí (khất nợ / bảo lưu, duyệt chuyển nhượng, từ chối — **không** duyệt hoàn tiền); lương **chỉ xem**; KPI; chấm công tay; biên bản lỗi vận hành; việc, ticket, thông báo, báo cáo | Chi nhánh (chỉ chi nhánh của mình): CRM, học viên, lớp, phòng, Big Test, học phí, thu chi, chấm công, KPI, việc, ticket, nhân sự, nhật ký, biên bản, dashboard · Của tôi: lương |
+| Học vụ `academic_staff` | **BA 26/09: toàn quyền CRM / test đầu vào / đề test trừ xóa**, chuyển bước tiến (không lùi); học viên, lớp; giáo trình (không duyệt); KPI xem / xác nhận; biên bản lỗi vận hành; học phí (tạo phiếu, liên hệ, báo quá hạn); việc; gán TA / GV (3 loại) / học viên | Chi nhánh: CRM, học viên, học phí, lớp, Big Test, chấm công, KPI, việc, biên bản, nhân sự · Của tôi: ticket |
+| Học thuật `academic_lead` | CRM xem; lớp, giáo trình **gồm duyệt đề xuất**, **Big Test gồm duyệt**; test / đề test; KPI; biên bản lỗi chuyên môn; dashboard học thuật; gán GV (3 loại) | Chi nhánh: CRM (xem), học viên · Toàn hệ thống: lớp, Big Test, KPI, việc, nhân sự, biên bản (chốt lỗi chuyên môn mọi chi nhánh) · Của tôi: ticket |
 | Sale `sales_consultant` | CRM xem / thêm / sửa / chốt / thất bại, gửi test, báo cáo | Của tôi |
 | Giáo viên (Full-time / Part-time), Trợ giảng | Lớp mình, điểm danh, chấm bài nộp, giáo trình (xem / sửa / đề xuất), lương của mình; `portal.teacher` / `portal.assistant` | Của tôi |
 | Học viên `student` | Cổng học viên, ticket | Của tôi (`portal.student`) |
@@ -243,6 +289,7 @@ cá nhân. Không cần build lại asset.
 
 Module mới cần phạm vi dữ liệu: thêm `scope` (levels + mô tả từng mức) vào module trong danh mục, lọc truy vấn bằng
 `DataScope::apply()` / `DataScope::branchIds()`, cấp `<module>.scope_<level>` mặc định cho vai trò (config + migration).
+Bảng mới có dữ liệu theo chi nhánh / theo người: dùng lọc tự động `ScopedToViewer` (mục 3.1) thay vì lọc tay ở từng màn.
 
 ## 9. Tên vai trò còn xuất hiện trong code (không phải phân quyền)
 

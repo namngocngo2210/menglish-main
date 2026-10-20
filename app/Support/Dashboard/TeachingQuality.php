@@ -198,7 +198,8 @@ final class TeachingQuality
             ->whereNotNull('check_in_at')->get(['user_id', 'work_date', 'late_minutes', 'late_excused'])->groupBy('user_id');
         $leaves = StaffAttendanceRequest::query()->approved()->where('type', StaffAttendanceRequest::TYPE_LEAVE)
             ->whereIn('user_id', $userIds)->overlapping($from, $to)->get(['user_id', 'date_from', 'date_to'])->groupBy('user_id');
-        $violations = Penalty::query()->whereIn('user_id', $userIds)->whereBetween('violation_date', [$from, $to])
+        // $userIds đã theo phạm vi người xem: đếm đủ vi phạm của từng người, kể cả khi người xem không có quyền xem biên bản.
+        $violations = Penalty::withoutViewerScope()->whereIn('user_id', $userIds)->whereBetween('violation_date', [$from, $to])
             ->where('status', '!=', 'cancelled')->selectRaw('user_id, count(*) as total')->groupBy('user_id')->pluck('total', 'user_id');
 
         $day = fn ($date) => Carbon::parse($date)->toDateString();

@@ -53,9 +53,9 @@ return [
             'attendance_staff.view', 'attendance_staff.manual_record',
             // Chấm công hằng ngày (điện thoại): xem công nhân sự chi nhánh mình; duyệt đơn chỉ Admin (06/10/2026).
             'staff_checkin.view', 'staff_checkin.scope_branch',
-            // Chốt biên bản lỗi vận hành (CM); lỗi chuyên môn do Học thuật chốt.
+            // Chốt biên bản lỗi vận hành (CM); lỗi chuyên môn do Học thuật chốt. Chỉ biên bản nhân sự chi nhánh mình.
             'violation.view', 'violation.create', 'violation.confirm_error', 'violation.confirm_fine', 'violation.cancel',
-            'violation.mark_paid', 'violation.mark_resolved', 'violation.decide_operations',
+            'violation.mark_paid', 'violation.mark_resolved', 'violation.decide_operations', 'violation.scope_branch',
             'work_task.*', 'support_ticket.*', 'notification.*', 'survey.manage',
             'course.view', 'recruitment.view', 'recruitment.manage',
             'media.*', 'activity_log.view', 'finance.view',
@@ -65,11 +65,11 @@ return [
             'class_quality.*',
             'academic_project.view', 'academic_project.view_all',
             'merchandise_stock.view', 'merchandise_stock.manage',
-            // Phạm vi dữ liệu (A6 Q7: Quản lý cơ sở chỉ thấy chi nhánh mình).
-            'lead.scope_branch', 'student.scope_branch', 'class.scope_branch', 'room.scope_branch', 'big_test.scope_all', 'tuition.scope_branch',
-            'finance.scope_branch', 'attendance_staff.scope_branch', 'payroll.scope_own', 'kpi.scope_all', 'work_task.scope_branch',
+            // Phạm vi dữ liệu (A6 Q7: Quản lý cơ sở chỉ thấy chi nhánh mình — kể cả Big Test, KPI, ticket, nhật ký).
+            'lead.scope_branch', 'student.scope_branch', 'class.scope_branch', 'room.scope_branch', 'big_test.scope_branch', 'tuition.scope_branch',
+            'finance.scope_branch', 'attendance_staff.scope_branch', 'payroll.scope_own', 'kpi.scope_branch', 'work_task.scope_branch',
             'merchandise_stock.scope_branch',
-            'support_ticket.scope_all', 'user.scope_branch', 'activity_log.scope_all', 'dashboard.scope_branch',
+            'support_ticket.scope_branch', 'user.scope_branch', 'activity_log.scope_branch', 'dashboard.scope_branch',
             // Order học liệu: xử lý đạo cụ / in ấn / GVNN theo chi nhánh.
             'material_order.view_all', 'material_order.process_ops', 'material_order.scope_branch',
         ],
@@ -93,8 +93,9 @@ return [
             'entrance_test.*', 'entrance_test.examine',
             'placement_test.view', 'placement_test.create', 'placement_test.update', 'placement_test.send', 'placement_test.grade', 'placement_test.distribute',
             'kpi.view', 'kpi.confirm',
-            // CM chốt biên bản lỗi vận hành (Phase 3)
+            // CM chốt biên bản lỗi vận hành (Phase 3) — biên bản nhân sự chi nhánh mình.
             'violation.view', 'violation.create', 'violation.confirm_error', 'violation.confirm_fine', 'violation.decide_operations',
+            'violation.scope_branch',
             'tuition.view', 'tuition.create', 'tuition.mark_contacted', 'tuition.report_overdue',
             'work_task.*', 'support_ticket.create', 'support_ticket.view', 'notification.view', 'survey.manage', 'course.view',
             'staff_report.submit', 'portal.staff',
@@ -107,8 +108,9 @@ return [
             'academic_project.view',
             // Tồn kho sách chi nhánh mình; ghi sai số hóa đơn giấy tiền mặt thì lập yêu cầu hủy hóa đơn.
             'merchandise_stock.view', 'merchandise_stock.manage', 'merchandise_stock.scope_branch', 'invoice.request_cancel',
-            'lead.scope_branch', 'student.scope_branch', 'class.scope_all', 'big_test.scope_all', 'tuition.scope_branch',
-            'attendance_staff.scope_all', 'kpi.scope_all', 'work_task.scope_all', 'user.scope_branch', 'support_ticket.scope_own',
+            // Học vụ chỉ làm việc trên chi nhánh của mình (lớp, Big Test, chấm công, KPI, việc).
+            'lead.scope_branch', 'student.scope_branch', 'class.scope_branch', 'big_test.scope_branch', 'tuition.scope_branch',
+            'attendance_staff.scope_branch', 'kpi.scope_branch', 'work_task.scope_branch', 'user.scope_branch', 'support_ticket.scope_own',
             // Order học liệu: CM xử lý đạo cụ / in ấn / GVNN của chi nhánh mình.
             'material_order.view_all', 'material_order.process_ops', 'material_order.scope_branch',
         ],
@@ -124,6 +126,8 @@ return [
             'kpi.view', 'kpi.confirm',
             // HT chốt biên bản lỗi chuyên môn / giảng dạy (Phase 3). Lập biên bản chỉ CM (Học vụ) / Admin — chủ dự án chốt.
             'violation.view', 'violation.confirm_error', 'violation.confirm_fine', 'violation.decide_academic',
+            // Lỗi chuyên môn do Học thuật chốt cho mọi chi nhánh.
+            'violation.scope_all',
             'work_task.*', 'support_ticket.create', 'support_ticket.view', 'notification.view', 'survey.manage', 'course.view',
             'staff_report.submit', 'dashboard.academic', 'portal.staff',
             'payroll.view_own', 'payroll.scope_own',

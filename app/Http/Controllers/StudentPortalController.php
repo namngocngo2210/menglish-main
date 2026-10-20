@@ -392,9 +392,10 @@ class StudentPortalController extends Controller
 
         // Lấy tất cả bài nộp thực tế từ DB của học viên này
         $submissions = AcademicRecord::where('screen_key', '04_Cong_Phu_Huynh_Hoc_Sinh/03_hoc_tap_cua_toi_nop_bai_tap')
+            // Không có học viên trong phạm vi → không trả bản ghi nào (không lộ dữ liệu học viên khác).
             ->when($student, function ($q) use ($student) {
                 $q->where('data->student_id', (string) $student->id);
-            })
+            }, fn ($q) => $q->whereRaw('1 = 0'))
             ->latest()
             ->get();
 
@@ -703,9 +704,10 @@ class StudentPortalController extends Controller
 
         // Lấy lịch sử luyện tập thực tế từ CSDL
         $history = AcademicRecord::where('screen_key', '04_Cong_Phu_Huynh_Hoc_Sinh/04_luyen_phat_am')
+            // Không có học viên trong phạm vi → không trả bản ghi nào (không lộ dữ liệu học viên khác).
             ->when($student, function ($q) use ($student) {
                 $q->where('data->student_id', (string) $student->id);
-            })
+            }, fn ($q) => $q->whereRaw('1 = 0'))
             ->latest()
             ->get();
 
@@ -806,9 +808,10 @@ class StudentPortalController extends Controller
 
         // Lấy danh sách thông báo thật từ CSDL (không tự tạo thông báo mẫu).
         $notifications = AcademicRecord::where('screen_key', PortalNotifications::SCREEN_KEY)
+            // Không có học viên trong phạm vi → không trả bản ghi nào (không lộ dữ liệu học viên khác).
             ->when($student, function ($q) use ($student) {
                 $q->where('data->student_id', (string) $student->id);
-            })
+            }, fn ($q) => $q->whereRaw('1 = 0'))
             ->latest()
             ->get();
 
@@ -909,9 +912,10 @@ class StudentPortalController extends Controller
 
         // Lịch sử các bài khảo sát đã làm từ CSDL
         $pastSurveys = AcademicRecord::where('screen_key', '04_Cong_Phu_Huynh_Hoc_Sinh/06_khao_sat')
+            // Không có học viên trong phạm vi → không trả bản ghi nào (không lộ dữ liệu học viên khác).
             ->when($student, function ($q) use ($student) {
                 $q->where('data->student_id', (string) $student->id);
-            })
+            }, fn ($q) => $q->whereRaw('1 = 0'))
             ->latest()
             ->get();
 
@@ -995,17 +999,19 @@ class StudentPortalController extends Controller
 
         // Lấy feedback đã gửi của chặng này từ CSDL
         $lastFeedback = AcademicRecord::where('screen_key', '04_Cong_Phu_Huynh_Hoc_Sinh/07_phu_huynh_gui_feedback')
+            // Không có học viên trong phạm vi → không trả bản ghi nào (không lộ dữ liệu học viên khác).
             ->when($student, function ($q) use ($student) {
                 $q->where('data->student_id', (string) $student->id);
-            })
+            }, fn ($q) => $q->whereRaw('1 = 0'))
             ->latest()
             ->first();
 
         // Danh sách tất cả feedback trước đây của học viên này
         $historyFeedbacks = AcademicRecord::where('screen_key', '04_Cong_Phu_Huynh_Hoc_Sinh/07_phu_huynh_gui_feedback')
+            // Không có học viên trong phạm vi → không trả bản ghi nào (không lộ dữ liệu học viên khác).
             ->when($student, function ($q) use ($student) {
                 $q->where('data->student_id', (string) $student->id);
-            })
+            }, fn ($q) => $q->whereRaw('1 = 0'))
             ->latest()
             ->get();
 

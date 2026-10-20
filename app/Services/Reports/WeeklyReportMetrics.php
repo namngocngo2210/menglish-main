@@ -104,7 +104,8 @@ class WeeklyReportMetrics
 
         $enrollments = ClassEnrollment::with('student:id,name')
             ->whereIn('class_id', $runningIds)
-            ->whereIn('status', Student::ACTIVE_ENROLLMENT_STATUSES)
+            // Lượt đã chuyển lớp vẫn thuộc lớp tới trước ngày rời lớp (tuần đã qua).
+            ->whereIn('status', [...Student::ACTIVE_ENROLLMENT_STATUSES, Student::ENROLLMENT_TRANSFERRED])
             ->whereDate('enrolled_at', '<=', $this->to)
             ->where(fn (Builder $q) => $q->whereNull('left_at')->orWhereDate('left_at', '>', $this->to))
             ->get(['id', 'class_id', 'student_id']);
@@ -290,7 +291,8 @@ class WeeklyReportMetrics
 
     private function facilityTickets(): Collection
     {
-        return SupportTicket::where('category', 'facilities')
+        // Báo cáo liệt kê sự cố cơ sở vật chất của chi nhánh người lập báo cáo (reportBranchIds), không theo phạm vi ticket của người xem.
+        return SupportTicket::withoutViewerScope()->where('category', 'facilities')
             ->whereBetween('created_at', [$this->from, $this->to])
             ->when($this->reportBranchIds() !== [], fn (Builder $q) => $q->whereHas('creator', fn (Builder $u) => $u->whereIn('branch_id', $this->reportBranchIds())))
             ->orderBy('created_at')->get(['id', 'code', 'title']);

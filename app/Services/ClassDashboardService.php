@@ -5,13 +5,15 @@ namespace App\Services;
 use App\Models\ClassModel;
 use App\Models\ClassSession;
 use App\Models\User;
+use App\Support\DataScope;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 /**
  * Dữ liệu Dashboard lớp học (theo ngày / ma trận tuần) lấy từ buổi học thật (class_sessions).
- * Nhân sự quản lý lớp thấy mọi buổi; GV/GVNN/TA chỉ thấy buổi của lớp mình hoặc buổi mình dạy.
+ * Theo phạm vi Lớp học: toàn hệ thống thấy mọi buổi, Quản lý cơ sở thấy buổi của chi nhánh mình;
+ * GV/GVNN/TA chỉ thấy buổi của lớp mình hoặc buổi mình dạy.
  */
 class ClassDashboardService
 {
@@ -30,14 +32,38 @@ class ClassDashboardService
             ])
             ->withCount('attendances')
             ->when($branchId, fn (Builder $q) => $q->where('branch_id', $branchId))
-            ->when(! ClassModel::userManagesAll($viewer), fn (Builder $q) => $q->where(function (Builder $q) use ($viewer) {
-                $q->forStaff($viewer->id)
-                    ->orWhereHas('classModel', fn (Builder $class) => $class->where('teacher_id', $viewer->id)
-                        ->orWhere('foreign_teacher_id', $viewer->id)
-                        ->orWhere('assistant_id', $viewer->id));
-            }))
+            ->tap(fn (Builder $q) => $this->applyViewerScope($q, $viewer))
             ->orderBy('date')
             ->orderBy('start_time');
+    }
+
+    /**
+     * Phạm vi Lớp học (class.scope_*): Toàn hệ thống → mọi buổi; Chi nhánh → buổi mình dạy, buổi của lớp mình được
+     * thấy (ClassModel::visibleTo) và buổi không gắn lớp (phụ đạo) thuộc chi nhánh mình; Của tôi → buổi mình dạy /
+     * buổi của lớp mình phụ trách.
+     */
+    private function applyViewerScope(Builder $query, User $viewer): void
+    {
+        $level = DataScope::level($viewer, 'class');
+        if ($level === DataScope::ALL) {
+            return;
+        }
+
+        $query->where(function (Builder $q) use ($viewer, $level) {
+            $q->forStaff($viewer->id);
+            if ($level === DataScope::BRANCH) {
+                $q->orWhereHas('classModel', fn (Builder $class) => $class->withTrashed()->visibleTo($viewer));
+                $branchIds = $viewer->branchIds();
+                if ($branchIds !== []) {
+                    $q->orWhere(fn (Builder $support) => $support->whereNull('class_id')->whereIn('branch_id', $branchIds));
+                }
+
+                return;
+            }
+            $q->orWhereHas('classModel', fn (Builder $class) => $class->where('teacher_id', $viewer->id)
+                ->orWhere('foreign_teacher_id', $viewer->id)
+                ->orWhere('assistant_id', $viewer->id));
+        });
     }
 
     /**
