@@ -150,6 +150,35 @@ class StaffMultiBranchTest extends TestCase
         $this->assertSame([$this->c->id], $this->extraIds($teacher));
     }
 
+    public function test_assistant_does_not_require_primary_branch_but_teacher_does(): void
+    {
+        $form = ['name' => 'Trợ Giảng', 'email' => 'tg@gmail.com', 'branch_id' => '', 'password' => 'Password123!'];
+
+        $this->actingAs($this->admin)->post(route('users.store'), ['role' => 'teacher_parttime'] + $form)
+            ->assertSessionHasErrors('branch_id');
+
+        $this->actingAs($this->admin)->post(route('users.store'), ['role' => 'assistant'] + $form)
+            ->assertRedirect(route('users.index'))->assertSessionHasNoErrors();
+        $assistant = User::where('email', 'tg@gmail.com')->sole();
+        $this->assertNull($assistant->branch_id);
+
+        // Trợ giảng nhập từ file không có cơ sở: sửa hồ sơ không bị bắt chọn cơ sở.
+        $this->actingAs($this->admin)->put(route('users.update', $assistant), ['phone' => '0912345678'] + $this->form($assistant, []))
+            ->assertSessionHasNoErrors();
+        $this->assertNull($assistant->fresh()->branch_id);
+        $this->assertSame('0912345678', $assistant->fresh()->phone);
+    }
+
+    public function test_branch_scoped_editor_still_needs_branch_for_assistant(): void
+    {
+        $staffB = $this->user('academic_staff', $this->b);
+
+        $this->actingAs($staffB)->post(route('users.store'), [
+            'name' => 'Trợ Giảng', 'email' => 'tg@gmail.com', 'branch_id' => '', 'role' => 'assistant', 'password' => 'Password123!',
+        ])->assertSessionHasErrors('branch_id');
+        $this->assertFalse(User::where('email', 'tg@gmail.com')->exists());
+    }
+
     public function test_branch_scoped_editor_edits_staff_whose_primary_branch_is_elsewhere(): void
     {
         $staffB = $this->user('academic_staff', $this->b);
