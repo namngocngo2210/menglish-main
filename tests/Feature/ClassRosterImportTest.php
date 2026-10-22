@@ -166,11 +166,12 @@ class ClassRosterImportTest extends TestCase
         $this->assertFalse(Student::where('code', 'HS003001')->exists());
         $this->assertTrue(Student::where('code', 'HS003002')->where('current_class_id', $fiveM2->id)->exists());
 
-        // Chạy lại cùng file: không tạo trùng lớp / học viên / lượt xếp lớp / phòng; lớp đã có mà chưa gắn phòng thì được gắn.
-        $cam->update(['room_id' => null]);
+        // Chạy lại cùng file: không tạo trùng lớp / học viên / lượt xếp lớp / phòng; lớp đã có mà chưa có phòng / giáo viên thì được gắn.
+        $cam->update(['room_id' => null, 'teacher_id' => null]);
+        ClassSession::where('class_id', $cam->id)->update(['teacher_id' => null]);
         $again = $this->previewToken($this->normalizedFile());
         $linked = collect(session()->get('class_roster_import.'.$again)['classes'])->firstWhere('code', 'CAM37');
-        $this->assertTrue($linked['link_room']); // nút xác nhận vẫn bấm được dù không còn lớp / học viên mới
+        $this->assertTrue($linked['link_room'] && $linked['link_teacher']); // nút xác nhận vẫn bấm được dù không còn lớp / học viên mới
         $this->actingAs($this->admin)->post(route('classes.import.confirm'), ['token' => $again]);
         $this->assertSame(1, ClassModel::where('code', 'CAM37')->count());
         $this->assertSame(1, ClassScheduleConfig::where('class_id', $cam->id)->count());
@@ -179,6 +180,9 @@ class ClassRosterImportTest extends TestCase
         $this->assertSame(4, ClassEnrollment::count());
         $this->assertSame(2, Room::count());
         $this->assertSame($p201->id, $cam->fresh()->room_id);
+        $this->assertSame($this->teacher->id, $cam->fresh()->teacher_id);
+        $this->assertSame(1, session('class_roster_import_result')['teachers']);
+        $this->assertFalse(ClassSession::where('class_id', $cam->id)->whereNull('teacher_id')->exists());
     }
 
     public function test_existing_student_imported_into_other_class_is_transferred_from_old_main_class(): void

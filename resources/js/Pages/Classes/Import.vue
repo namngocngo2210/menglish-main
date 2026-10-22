@@ -29,7 +29,7 @@ const actionLabels = { create: ['Tạo mới', 'info'], enroll: ['Xếp lớp', 
 
 const newClasses = computed(() => (props.preview ? props.preview.classes.filter((c) => !c.errors.length && !c.exists).length : 0));
 const classErrors = computed(() => (props.preview ? props.preview.classes.filter((c) => c.errors.length).length : 0));
-const roomLinks = computed(() => (props.preview ? props.preview.classes.filter((c) => !c.errors.length && c.exists && c.link_room).length : 0));
+const classLinks = computed(() => (props.preview ? props.preview.classes.filter((c) => !c.errors.length && c.exists && (c.link_room || c.link_teacher)).length : 0));
 const validStudents = computed(() => (props.preview ? props.preview.students.filter((s) => !s.errors.length && s.action !== 'skip').length : 0));
 const studentErrors = computed(() => (props.preview ? props.preview.students.filter((s) => s.errors.length).length : 0));
 const studentFilter = ref('all');
@@ -222,8 +222,8 @@ function submit(event) {
                     <p class="font-body-small text-body-small text-on-surface-variant">Dòng lỗi bị bỏ qua — sửa file rồi tải lên lại, dòng đã nhập sẽ không bị nhân đôi.</p>
                     <div class="flex gap-sm">
                         <UiButton variant="secondary" :href="route('classes.import')">Chọn file khác</UiButton>
-                        <UiButton type="submit" icon="cloud_done" :disabled="(newClasses === 0 && validStudents === 0 && roomLinks === 0) || processing">
-                            Nhập {{ newClasses }} lớp, {{ validStudents }} học viên<template v-if="roomLinks">, gắn phòng cho {{ roomLinks }} lớp</template>
+                        <UiButton type="submit" icon="cloud_done" :disabled="(newClasses === 0 && validStudents === 0 && classLinks === 0) || processing">
+                            Nhập {{ newClasses }} lớp, {{ validStudents }} học viên<template v-if="classLinks">, cập nhật {{ classLinks }} lớp đã có</template>
                         </UiButton>
                     </div>
                 </form>
