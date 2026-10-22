@@ -148,6 +148,6 @@ Một nhánh `feat/pdf-annotator`, mỗi sprint một commit, một PR.
 
 | Sprint | Nội dung | Trạng thái |
 |---|---|---|
-| 1 | Siết định dạng tài liệu + test; tách `lib/pdf.js`, `PdfViewer` dùng lại | Chưa làm |
+| 1 | Siết định dạng tài liệu + test; tách `lib/pdf.js`, `PdfViewer` dùng lại | Xong |
 | 2 | `annotations.js` + `node --test`; `PdfAnnotator` (lớp vẽ, Xem / Bút / Highlight / Tẩy, hoàn tác / làm lại, xoá trang / tất cả, watermark trong trang); thay iframe ở TeacherView | Chưa làm |
 | 3 | Hình, Chữ, Laser, phím tắt, toàn màn hình, hỏi khi đóng (`UiModal.dirtyConfirm`); chặn in / chuột phải / phím tắt; test | Chưa làm |

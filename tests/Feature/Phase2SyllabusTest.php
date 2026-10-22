@@ -221,6 +221,50 @@ class Phase2SyllabusTest extends TestCase
         return new UploadedFile($path, $name, null, null, true);
     }
 
+    /** File Office thật (OOXML) để đuôi suy ra từ nội dung là docx / pptx / xlsx. */
+    private function officeFile(string $name, string $mainPart): UploadedFile
+    {
+        $path = tempnam(sys_get_temp_dir(), 'p2ox');
+        $zip = new \ZipArchive;
+        $zip->open($path, \ZipArchive::OVERWRITE);
+        $zip->addFromString('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>');
+        $zip->addFromString('_rels/.rels', '<?xml version="1.0" encoding="UTF-8"?><Relationships/>');
+        $zip->addFromString($mainPart, '<?xml version="1.0" encoding="UTF-8"?><root/>');
+        $zip->close();
+
+        return new UploadedFile($path, $name, null, null, true);
+    }
+
+    public function test_document_upload_accepts_only_pdf_image_audio_video(): void
+    {
+        Storage::fake('local');
+        $cur = $this->curriculum();
+
+        foreach ([['bai.docx', 'word/document.xml'], ['slide.pptx', 'ppt/presentation.xml'], ['tong.xlsx', 'xl/workbook.xml']] as [$name, $part]) {
+            $this->actingAs($this->academic)->post(route('syllabus.documents.store'), [
+                'curriculum_id' => $cur->id, 'title' => $name, 'file' => $this->officeFile($name, $part), 'visible_to_teachers' => '1',
+            ])->assertSessionHasErrors('file');
+        }
+
+        $this->actingAs($this->academic)->post(route('syllabus.documents.store'), [
+            'curriculum_id' => $cur->id, 'title' => 'Bản PDF', 'file' => $this->pdf(), 'visible_to_teachers' => '1',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame(['pdf'], SyllabusDocument::pluck('extension')->all());
+    }
+
+    public function test_legacy_office_document_still_listed_and_downloadable(): void
+    {
+        Storage::fake('local')->put('syllabus_documents/old.pptx', 'x');
+        $doc = SyllabusDocument::create([
+            'curriculum_id' => $this->curriculum()->id, 'title' => 'Slide cũ', 'file_path' => 'syllabus_documents/old.pptx',
+            'original_name' => 'old.pptx', 'extension' => 'pptx', 'size_bytes' => 1, 'visible_to_teachers' => true, 'downloadable' => true,
+        ]);
+
+        $this->actingAs($this->teacher)->get(route('syllabus.teacher-view'))->assertOk()->assertSee('Slide cũ');
+        $this->actingAs($this->teacher)->get(route('syllabus.documents.file', ['id' => $doc->id, 'download' => 1]))->assertOk();
+    }
+
     public function test_document_upload_rejects_disguised_executable_and_requires_file(): void
     {
         Storage::fake('local');
