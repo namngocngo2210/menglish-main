@@ -46,6 +46,10 @@ class UserRequest extends FormRequest
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
             'phone' => ['nullable', 'string', 'max:20'],
             'branch_id' => ['required', 'exists:branches,id'],
+            // Cơ sở làm việc thêm ngoài cơ sở chính (user_branches): nhân sự dạy / làm việc ở nhiều cơ sở.
+            'extra_branch_ids_present' => ['nullable', 'boolean'],
+            'extra_branch_ids' => ['nullable', 'array'],
+            'extra_branch_ids.*' => ['integer', 'distinct', 'exists:branches,id'],
             'role' => ['required', 'string', 'exists:roles,name'],
             'password' => [$userId ? 'nullable' : 'required', 'string', 'min:8'],
             'base_salary' => ['nullable', 'numeric', 'min:0'],
@@ -82,6 +86,7 @@ class UserRequest extends FormRequest
         return [
             'email.unique' => 'Email này đã được sử dụng bởi tài khoản khác.',
             'branch_id.required' => 'Vui lòng chọn chi nhánh.',
+            'extra_branch_ids.*.exists' => 'Cơ sở làm việc thêm không tồn tại.',
             'role.required' => 'Vui lòng chọn vai trò.',
             'personal_email.email' => 'Email cá nhân không hợp lệ.',
             'date_of_birth.before' => 'Ngày sinh phải trước hôm nay.',

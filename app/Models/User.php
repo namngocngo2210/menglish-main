@@ -287,18 +287,23 @@ class User extends Authenticatable
         return $this->hasRole(\App\Support\Rbac::SUPER_ADMIN);
     }
 
-    /**
-     * Chi nhánh của người dùng: chi nhánh chính (branch_id) + chi nhánh được cấp thêm (user_branches).
-     * Mức phạm vi dữ liệu "Chi nhánh" (DataScope) dùng danh sách này.
-     *
-     * @return list<int>
-     */
     /** Tài khoản nhân sự: bỏ tài khoản chỉ mang vai trò Học viên (vẫn giữ người không có vai trò nào). */
     public function scopeStaffAccounts(Builder $query): Builder
     {
         return $query->where(fn (Builder $staff) => $staff
             ->whereDoesntHave('roles', fn (Builder $role) => $role->where('name', Roles::STUDENT))
             ->orWhereHas('roles', fn (Builder $role) => $role->where('name', '!=', Roles::STUDENT)));
+    }
+
+    /**
+     * Nhân sự làm việc ở một trong các chi nhánh: chi nhánh chính (branch_id) hoặc chi nhánh được cấp thêm (user_branches).
+     *
+     * @param  list<int>  $branchIds
+     */
+    public function scopeInBranches(Builder $query, array $branchIds): Builder
+    {
+        return $query->where(fn (Builder $u) => $u->whereIn('branch_id', $branchIds)
+            ->orWhereHas('branches', fn (Builder $b) => $b->whereIn('branches.id', $branchIds)));
     }
 
     /**
@@ -322,6 +327,12 @@ class User extends Authenticatable
             ->when($keep !== [], fn (Builder $k) => $k->orWhereIn('id', $keep)));
     }
 
+    /**
+     * Chi nhánh của người dùng: chi nhánh chính (branch_id) + chi nhánh được cấp thêm (user_branches).
+     * Mức phạm vi dữ liệu "Chi nhánh" (DataScope) dùng danh sách này.
+     *
+     * @return list<int>
+     */
     public function branchIds(): array
     {
         // Nạp 1 lần rồi giữ trên model: DataScope gọi hàm này nhiều lần trong một request (mỗi truy vấn có lọc phạm vi).

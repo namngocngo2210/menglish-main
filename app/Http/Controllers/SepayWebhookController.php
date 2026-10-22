@@ -417,7 +417,7 @@ class SepayWebhookController extends Controller
                 $recipients = $recipients->merge($adminEmails);
 
                 if ($matchedTuition->branch_id) {
-                    $branchStaffEmails = User::where('branch_id', $matchedTuition->branch_id)
+                    $branchStaffEmails = User::query()->inBranches([(int) $matchedTuition->branch_id])
                         ->whereHas('roles', fn ($q) => $q->whereIn('name', Roles::BRANCH_OPERATORS))
                         ->pluck('email')
                         ->filter();
@@ -525,7 +525,7 @@ class SepayWebhookController extends Controller
     {
         $userIds = NotificationService::userIdsWithPermission('bank_account.manage');
         if ($branchId) {
-            $userIds = $userIds->merge(User::query()->where('branch_id', $branchId)
+            $userIds = $userIds->merge(User::query()->inBranches([$branchId])
                 ->where('is_active', true)->whereNull('locked_at')
                 ->whereHas('roles', fn ($q) => $q->whereIn('name', Roles::BRANCH_OPERATORS))
                 ->pluck('id'));

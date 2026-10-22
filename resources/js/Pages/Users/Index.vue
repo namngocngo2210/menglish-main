@@ -89,7 +89,10 @@ function openProfile(profile) {
                                 <UiBadge v-for="(role, i) in user.roles" :key="role" :color="i === 0 ? 'primary' : 'neutral'" :dot="false" :title="i === 0 ? 'Vai trò chính' : 'Kiêm nhiệm'">{{ role }}{{ i > 0 ? ' (kiêm nhiệm)' : '' }}</UiBadge>
                             </div>
                         </td>
-                        <td>{{ user.branch_name ?? 'Chưa gán chi nhánh' }}</td>
+                        <td>
+                            {{ user.branch_name ?? 'Chưa gán chi nhánh' }}
+                            <p v-if="user.extra_branches?.length" class="font-caption text-caption text-on-surface-variant" title="Cơ sở làm việc thêm">+ {{ user.extra_branches.join(', ') }}</p>
+                        </td>
                         <td>
                             <div class="flex flex-col items-start gap-xs">
                                 <UiBadge v-if="user.locked" color="error">Vô hiệu hóa</UiBadge>

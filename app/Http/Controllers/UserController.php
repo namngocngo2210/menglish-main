@@ -42,15 +42,15 @@ class UserController extends Controller
 
         // Chỉ thấy cấp dưới trong cây vai trò (Rbac::scopeSubordinates: mọi vai trò của người đó đều nằm trong vai trò
         // mình được gán), rồi lọc theo phạm vi "user.scope_*" (DataScope): Toàn hệ thống (Admin, Học thuật) không giới
-        // hạn chi nhánh; Chi nhánh (Quản lý cơ sở, Học vụ) chỉ nhân sự thuộc chi nhánh mình; Của tôi chỉ tài khoản do
-        // chính mình tạo.
+        // hạn chi nhánh; Chi nhánh (Quản lý cơ sở, Học vụ) chỉ nhân sự làm việc ở chi nhánh mình (chính hoặc cấp thêm);
+        // Của tôi chỉ tài khoản do chính mình tạo.
         $scope = fn ($q) => DataScope::apply(
             Rbac::scopeSubordinates($q, $currentUser), $currentUser, 'user',
             fn ($own) => $own->where('created_by', $currentUser->id),
-            fn ($branch, array $branchIds) => $branch->whereIn('branch_id', $branchIds),
+            fn ($branch, array $branchIds) => $branch->inBranches($branchIds),
         );
 
-        $query = User::query()->with(['branch', 'roles'])->orderBy('name');
+        $query = User::query()->with(['branch', 'branches', 'roles'])->orderBy('name');
         $scope($query);
 
         if ($search = $request->input('search')) {
@@ -63,7 +63,7 @@ class UserController extends Controller
         }
 
         if ($branchId = $request->input('branch_id')) {
-            $query->where('branch_id', $branchId);
+            $query->inBranches([(int) $branchId]);
         }
 
         if ($role = $request->input('role')) {
@@ -133,6 +133,7 @@ class UserController extends Controller
                     'employee_code' => $payload['employee_code'],
                     'roles' => $user->roles->map(fn ($role) => AclHelper::shortRoleLabel($role->name))->values()->all(),
                     'branch_name' => $user->branch?->name,
+                    'extra_branches' => self::extraBranchNames($user),
                     'locked' => $user->isLocked(),
                     'contract_status' => $user->contractExpiryStatus(),
                     'contract_end_date' => $user->contract_end_date?->format('d/m/Y'),
@@ -160,7 +161,7 @@ class UserController extends Controller
     public function show(User $user, Request $request)
     {
         $this->ensureCanManageTarget($user);
-        $user->load(['branch', 'roles']);
+        $user->load(['branch', 'branches', 'roles']);
 
         // JSON cho gọi AJAX cũ; request Inertia (cũng mang X-Requested-With) nhận trang.
         if (! $request->header('X-Inertia') && ($request->wantsJson() || $request->ajax())) {
@@ -202,6 +203,7 @@ class UserController extends Controller
                 'phone' => $user->phone,
                 'employee_code' => $user->employee_code,
                 'branch_name' => $user->branch?->name,
+                'extra_branches' => self::extraBranchNames($user),
                 'locked' => $user->isLocked(),
                 'primary_role_label' => $primaryRole ? AclHelper::roleLabel($primaryRole) : null,
                 'primary_role_short' => $primaryRole ? AclHelper::shortRoleLabel($primaryRole) : null,
@@ -268,13 +270,16 @@ class UserController extends Controller
     {
         $this->ensureCanAssignRole($request->validated('role'));
         $this->ensureBranchInScope((int) $request->validated('branch_id'));
+        $extraBranchIds = $this->extraBranchIds($request, new User);
 
         Audit::describe('Tạo tài khoản nhân viên mới');
 
         // Tài khoản mới luôn phải đổi mật khẩu ở lần đăng nhập đầu tiên. Mã nhân viên tự cấp (MES kế tiếp); hai người tạo
         // cùng lúc có thể lấy trùng số → ràng buộc unique chặn, tạo lại để lấy số sau.
         $user = retry(3, fn () => User::create([
-            ...$request->safe()->except(['role', 'password', 'contract_file', 'concurrent_roles', 'concurrent_roles_present']),
+            ...$request->safe()->except([
+                'role', 'password', 'contract_file', 'concurrent_roles', 'concurrent_roles_present', 'extra_branch_ids', 'extra_branch_ids_present',
+            ]),
             'password' => Hash::make($request->validated('password')),
             'must_change_password' => true,
             'is_active' => true,
@@ -282,6 +287,7 @@ class UserController extends Controller
         ]), when: fn (\Throwable $e) => $e instanceof UniqueConstraintViolationException);
 
         $user->syncRoles($this->rolesWithConcurrent($request, $request->validated('role'), []));
+        $user->branches()->sync($extraBranchIds);
         $this->storeContractFile($request, $user);
 
         return $this->modalSaved("Đã tạo tài khoản. Mã nhân viên (dùng để đăng nhập): {$user->employee_code}.", route('users.index'));
@@ -321,10 +327,11 @@ class UserController extends Controller
                 'contract_start_date' => $user->contract_start_date?->format('Y-m-d'),
                 'contract_end_date' => $user->contract_end_date?->format('Y-m-d'),
                 'has_contract_file' => (bool) $user->contract_file_path,
+                'extra_branch_ids' => $user->branches()->pluck('branches.id')->map(fn ($id) => (int) $id)->all(),
             ] : null,
             'currentRole' => $currentRole,
             'currentConcurrent' => $user->exists ? $user->getRoleNames()->slice(1)->values()->all() : [],
-            'branches' => Ui::options($this->assignableBranches(), 'name'),
+            'branches' => Ui::options($this->assignableBranches($user->branch_id), 'name'),
             'roleOptions' => Ui::options(AclHelper::primaryRoleOptions($assignable, $currentRole)),
             'concurrentOptions' => Ui::options(collect($assignable)->mapWithKeys(fn (string $role) => [$role => AclHelper::shortRoleLabel($role)])),
             'initialTab' => in_array($request->query('tab'), $tabs, true) ? $request->query('tab') : 'account',
@@ -339,12 +346,13 @@ class UserController extends Controller
     {
         $this->ensureCanManageTarget($user);
         $this->ensureCanAssignRole($request->validated('role'));
-        $this->ensureBranchInScope((int) $request->validated('branch_id'));
+        $this->ensureBranchInScope((int) $request->validated('branch_id'), $user);
+        $extraBranchIds = $this->extraBranchIds($request, $user);
 
         Audit::describe('Cập nhật tài khoản nhân viên');
 
         $user->fill($request->safe()->except([
-            'role', 'password', 'contract_file', 'concurrent_roles', 'concurrent_roles_present',
+            'role', 'password', 'contract_file', 'concurrent_roles', 'concurrent_roles_present', 'extra_branch_ids', 'extra_branch_ids_present',
             ...(self::canViewSensitive(auth()->user()) ? [] : self::SENSITIVE_FIELDS),
         ]));
 
@@ -360,6 +368,8 @@ class UserController extends Controller
         $primaryRole = $currentRoles->first();
         $keptConcurrent = $currentRoles->reject(fn (string $role) => $role === $primaryRole)->values()->all();
         $user->syncRoles($this->rolesWithConcurrent($request, $request->validated('role'), $keptConcurrent));
+        $user->branches()->sync($extraBranchIds);
+        $user->unsetRelation('branches');
 
         $this->storeContractFile($request, $user);
 
@@ -544,21 +554,67 @@ class UserController extends Controller
     }
 
     /**
-     * Chi nhánh được chọn khi tạo/sửa tài khoản: phạm vi "Chi nhánh" (Quản lý cơ sở) chỉ chọn chi nhánh mình.
+     * Chi nhánh được chọn khi tạo/sửa tài khoản: phạm vi "Chi nhánh" (Quản lý cơ sở) chỉ chọn chi nhánh mình, kèm cơ sở
+     * chính hiện tại của nhân sự đang sửa (nhân sự làm thêm ở chi nhánh mình, cơ sở chính ở nơi khác).
      */
-    private function assignableBranches()
+    private function assignableBranches(?int $keep = null)
     {
         $managed = self::branchLimit(auth()->user());
 
         return Branch::query()->active()
-            ->when($managed !== null, fn ($q) => $q->whereIn('id', $managed))
+            ->when($managed !== null, fn ($q) => $q->where(fn ($w) => $w->whereIn('id', $managed)->when($keep, fn ($k) => $k->orWhere('id', $keep))))
             ->orderBy('name')
             ->get();
     }
 
-    private function ensureBranchInScope(int $branchId): void
+    /**
+     * Cơ sở làm việc thêm (user_branches) sau khi lưu. Form gửi "extra_branch_ids_present" thì dùng danh sách được chọn,
+     * không gửi thì giữ nguyên. Phạm vi "Chi nhánh" chỉ thêm / bớt được chi nhánh mình quản lý; chi nhánh khác nhân sự
+     * đang có giữ nguyên. Cơ sở chính không lặp lại trong danh sách này.
+     *
+     * @return list<int>
+     */
+    private function extraBranchIds(UserRequest $request, User $user): array
+    {
+        $current = $user->exists ? $user->branches()->pluck('branches.id')->map(fn ($id) => (int) $id)->all() : [];
+        if (! $request->boolean('extra_branch_ids_present')) {
+            $selected = $current;
+        } else {
+            $selected = array_map('intval', (array) $request->validated('extra_branch_ids', []));
+            $managed = self::branchLimit(auth()->user());
+            if ($managed !== null) {
+                if (array_diff($selected, $current, $managed) !== []) {
+                    throw ValidationException::withMessages([
+                        'extra_branch_ids' => 'Bạn chỉ được thêm cơ sở làm việc thuộc chi nhánh mình quản lý.',
+                    ]);
+                }
+                $selected = [...$selected, ...array_diff($current, $managed)];
+            }
+        }
+
+        $primary = (int) $request->validated('branch_id');
+
+        return array_values(array_unique(array_filter($selected, fn (int $id) => $id !== $primary)));
+    }
+
+    /** @return list<string> */
+    private static function extraBranchNames(User $user): array
+    {
+        return $user->branches
+            ->reject(fn (Branch $branch) => (int) $branch->id === (int) $user->branch_id)
+            ->sortBy('name')
+            ->pluck('name')
+            ->values()
+            ->all();
+    }
+
+    /** $target: tài khoản đang sửa — giữ nguyên cơ sở chính ngoài phạm vi thì vẫn lưu được. */
+    private function ensureBranchInScope(int $branchId, ?User $target = null): void
     {
         $managed = self::branchLimit(auth()->user());
+        if ($target && (int) $target->branch_id === $branchId) {
+            return;
+        }
 
         if ($managed !== null && ! in_array($branchId, $managed, true)) {
             throw ValidationException::withMessages([
@@ -571,7 +627,8 @@ class UserController extends Controller
      * Chặn thao tác lên tài khoản vượt phân cấp của người thực hiện (ví dụ Học vụ/Quản lý đổi mật khẩu, hạ quyền hoặc
      * khóa tài khoản Admin). Super Admin quản lý được mọi tài khoản; người khác chỉ quản lý được cấp dưới của mình
      * (Rbac::isSubordinate: MỌI vai trò hiện có đều nằm trong các vai trò mình được gán, user.assign_role.<vai trò>) —
-     * tài khoản Super Admin chỉ Super Admin thao tác. Phạm vi "Chi nhánh" chỉ thao tác trên nhân sự thuộc chi nhánh mình.
+     * tài khoản Super Admin chỉ Super Admin thao tác. Phạm vi "Chi nhánh" chỉ thao tác trên nhân sự làm việc ở chi nhánh
+     * mình (chi nhánh chính hoặc cơ sở làm việc thêm).
      */
     private function ensureCanManageTarget(User $target): void
     {
@@ -584,7 +641,7 @@ class UserController extends Controller
 
         $managed = self::branchLimit($actor);
         abort_if(
-            $managed !== null && ! in_array((int) $target->branch_id, $managed, true),
+            $managed !== null && array_intersect($target->branchIds(), $managed) === [],
             403,
             'Nhân sự này không thuộc chi nhánh bạn quản lý.'
         );
@@ -617,6 +674,7 @@ class UserController extends Controller
             'phone' => $user->phone,
             'employee_code' => $user->employee_code,
             'branch' => $user->branch ? ['name' => $user->branch->name] : null,
+            'extra_branches' => self::extraBranchNames($user),
             'primary_role' => $roles->first() ? AclHelper::shortRoleLabel($roles->first()) : null,
             // Kiêm nhiệm: vai trò phụ ngoài vai trò chính + lớp đang phụ trách.
             'concurrent_roles' => $roles->slice(1)->map(fn ($r) => AclHelper::shortRoleLabel($r))->values()->all(),

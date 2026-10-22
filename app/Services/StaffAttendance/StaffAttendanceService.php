@@ -15,6 +15,7 @@ use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
@@ -24,7 +25,8 @@ use Illuminate\Validation\ValidationException;
  *
  * Quy tắc:
  *  - Giờ vào / ra = giờ máy chủ lúc bấm (không nhận giờ từ điện thoại).
- *  - Chỉ chấm tại cơ sở làm việc chính của nhân sự (users.branch_id), GPS phải nằm trong bán kính cơ sở đã cài.
+ *  - Chấm tại một trong các cơ sở làm việc của nhân sự (cơ sở chính users.branch_id + cơ sở làm việc thêm user_branches):
+ *    lấy cơ sở đã cài toạ độ gần GPS nhất, GPS phải nằm trong bán kính cơ sở đó. Bản ghi công lưu cơ sở đã chấm.
  *  - Giờ phải có mặt: GV / TA / GVNN theo giờ lớp được phân công trong ngày — buổi đầu tiên (Ca 1 18:00 hay lớp lệch
  *    18:10…, khung giờ ca dạy), không theo một giờ chung cố định; không có buổi → không tính muộn;
  *    nhân sự khác theo giờ làm việc của cơ sở. Muộn quá số phút cho phép của cơ sở → tự lập biên bản "chờ giải trình",
@@ -48,7 +50,9 @@ class StaffAttendanceService
     public function punch(User $user, string $kind, float $latitude, float $longitude, ?float $accuracy, UploadedFile $photo): StaffAttendance
     {
         $now = now();
-        $branch = $this->ensureCanPunchAt($user, $now);
+        $branch = $this->ensureCanPunchAt($user, $now)
+            ->sortBy(fn (Branch $b) => $b->distanceTo($latitude, $longitude))
+            ->first();
         $distance = $branch->distanceTo($latitude, $longitude);
         $radius = $branch->checkin_radius ?: Branch::DEFAULT_CHECKIN_RADIUS;
         if ($distance > $radius) {
@@ -69,14 +73,17 @@ class StaffAttendanceService
         $prefix = $kind === self::IN ? 'check_in' : 'check_out';
         $oldPhoto = $existing?->{$prefix.'_photo'};
 
-        $attendance = DB::transaction(function () use ($user, $branch, $now, $existing, $prefix, $path, $latitude, $longitude, $distance, $accuracy) {
+        // Ngày làm ở nhiều cơ sở (vào ở A, ra ở B): bản ghi công giữ cơ sở chấm vào, giờ làm / muộn tính theo cơ sở đó.
+        $dayBranch = ($existing?->branch_id ? $existing->branch : null) ?? $branch;
+
+        $attendance = DB::transaction(function () use ($user, $dayBranch, $now, $existing, $prefix, $path, $latitude, $longitude, $distance, $accuracy) {
             $attendance = $existing ?? new StaffAttendance([
                 'user_id' => $user->id,
                 'work_date' => $now->toDateString(),
                 'source' => StaffAttendance::SOURCE_MOBILE,
             ]);
             $attendance->fill([
-                'branch_id' => $branch->id,
+                'branch_id' => $dayBranch->id,
                 $prefix.'_at' => $now,
                 $prefix.'_photo' => $path,
                 $prefix.'_lat' => $latitude,
@@ -84,7 +91,7 @@ class StaffAttendanceService
                 $prefix.'_distance' => $distance,
                 $prefix.'_accuracy' => $accuracy !== null ? (int) round($accuracy) : null,
             ]);
-            $this->recalculate($attendance, $user, $branch);
+            $this->recalculate($attendance, $user, $dayBranch);
             $attendance->save();
             $this->syncLatePenalty($attendance);
 
@@ -100,24 +107,44 @@ class StaffAttendanceService
     }
 
     /**
-     * Cơ sở nhân sự được chấm công hôm nay (đã cài toạ độ, ngày chưa chốt lương).
+     * Cơ sở làm việc của nhân sự: cơ sở chính trước, rồi cơ sở làm việc thêm (theo tên).
+     *
+     * @return Collection<int, Branch>
+     */
+    public function workBranches(User $user): Collection
+    {
+        $user->loadMissing(['branch', 'branches']);
+
+        return collect([$user->branch])
+            ->merge($user->branches->sortBy('name'))
+            ->filter()
+            ->unique('id')
+            ->values();
+    }
+
+    /**
+     * Các cơ sở nhân sự được chấm công hôm nay (đã cài toạ độ, ngày chưa chốt lương).
+     *
+     * @return Collection<int, Branch>
      *
      * @throws ValidationException
      */
-    public function ensureCanPunchAt(User $user, CarbonInterface $now): Branch
+    public function ensureCanPunchAt(User $user, CarbonInterface $now): Collection
     {
-        $branch = $user->branch;
-        if (! $branch) {
+        $branches = $this->workBranches($user);
+        if ($branches->isEmpty()) {
             throw ValidationException::withMessages(['location' => 'Tài khoản của bạn chưa được gán cơ sở làm việc. Hãy báo Admin / Quản lý cơ sở.']);
         }
-        if (! $branch->hasCheckinLocation()) {
-            throw ValidationException::withMessages(['location' => "Cơ sở {$branch->name} chưa cài toạ độ chấm công. Hãy báo Admin vào Cài đặt → Cơ sở & chi nhánh → Chấm công."]);
+        $located = $branches->filter(fn (Branch $b) => $b->hasCheckinLocation())->values();
+        if ($located->isEmpty()) {
+            $names = $branches->pluck('name')->implode(', ');
+            throw ValidationException::withMessages(['location' => "Cơ sở {$names} chưa cài toạ độ chấm công. Hãy báo Admin vào Cài đặt → Cơ sở & chi nhánh → Chấm công."]);
         }
         if (PayrollPeriod::isLockedFor($now)) {
             throw ValidationException::withMessages(['kind' => PayrollPeriod::lockedMessage($now)]);
         }
 
-        return $branch;
+        return $located;
     }
 
     /**
