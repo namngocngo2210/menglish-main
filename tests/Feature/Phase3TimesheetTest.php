@@ -269,4 +269,79 @@ class Phase3TimesheetTest extends TestCase
             'user_id' => $this->teacher->id, 'hourly_rate' => 1000000, 'effective_from' => '2026-10-01',
         ])->assertForbidden();
     }
+
+    public function test_bulk_confirm_creates_valid_schedule_timesheets_for_selected_sessions(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-23 10:00:00'));
+        $evening = $this->classSession('2026-10-20');
+        $morning = $this->classSession('2026-10-21', '08:00', '09:30');
+        $future = $this->classSession('2026-10-25');
+        PayrollPeriod::create([
+            'code' => 'PR-2026-08', 'title' => 'Bảng lương Tháng 8/2026', 'month' => 8, 'year' => 2026,
+            'start_date' => '2026-08-01', 'end_date' => '2026-08-31', 'status' => 'approved',
+        ]);
+        $locked = $this->classSession('2026-08-20');
+        $notMine = $this->classSession('2026-10-22', teacherId: $this->manager->id);
+
+        $this->actingAs($this->academicStaff)->post(route('payroll.timesheets.sessions.bulk-confirm'), [
+            'user_id' => $this->teacher->id, 'session_ids' => [$evening->id, $morning->id, $future->id, $locked->id, $notMine->id],
+        ])->assertSessionHasNoErrors()->assertSessionHas('status', fn (string $message) => str_contains($message, 'Đã xác nhận 2 buổi theo lịch')
+            && str_contains($message, '25/10/2026') && str_contains($message, '20/08/2026') && str_contains($message, '22/10/2026'));
+
+        $rows = TeacherTimesheet::orderBy('teaching_date')->get();
+        $this->assertSame([$evening->id, $morning->id], $rows->pluck('class_session_id')->all());
+        foreach ($rows as $row) {
+            $this->assertSame([$this->teacher->id, TeacherTimesheet::SOURCE_SCHEDULE, 'valid', $this->academicStaff->id],
+                [(int) $row->user_id, $row->source, $row->status, (int) $row->reviewed_by]);
+        }
+        $this->assertEquals([2.0, 1.5], $rows->pluck('hours')->map(fn ($h) => (float) $h)->all());
+
+        // Chọn lại các buổi đã có công: không ghi thêm, báo lỗi vì không còn buổi nào để xác nhận.
+        $this->actingAs($this->academicStaff)->post(route('payroll.timesheets.sessions.bulk-confirm'), [
+            'user_id' => $this->teacher->id, 'session_ids' => [$future->id],
+        ])->assertSessionHasErrors('session_ids');
+        $this->assertSame(2, TeacherTimesheet::count());
+    }
+
+    public function test_missing_sessions_list_offers_bulk_confirm_to_manual_recorders(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-23 10:00:00'));
+        $this->classSession('2026-10-20');
+        $page = route('payroll.timesheets.teachers', ['user_id' => $this->teacher->id, 'month' => '2026-10']);
+
+        $this->actingAs($this->academicStaff)->get($page)->assertOk()
+            ->assertSee('Buổi thiếu chấm công (1)')->assertSee('data-bulk-confirm', false)->assertSee('Xác nhận theo lịch');
+    }
+
+    public function test_bulk_confirm_approves_pending_checkin_instead_of_duplicating(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-23 10:00:00'));
+        $session = $this->classSession('2026-10-20');
+        $checkin = TeacherTimesheet::create([
+            'user_id' => $this->teacher->id, 'class_id' => $this->classModel->id, 'class_session_id' => $session->id,
+            'teaching_date' => '2026-10-20', 'scheduled_time' => '18:00-20:00', 'checkin_time' => '18:05', 'hours' => 2,
+            'type' => 'regular', 'source' => TeacherTimesheet::SOURCE_CHECKIN, 'status' => 'pending_review',
+        ]);
+
+        $this->actingAs($this->academicStaff)->post(route('payroll.timesheets.sessions.bulk-confirm'), [
+            'user_id' => $this->teacher->id, 'session_ids' => [$session->id],
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame(1, TeacherTimesheet::count());
+        $this->assertSame(['valid', TeacherTimesheet::SOURCE_CHECKIN, '18:05'], [$checkin->fresh()->status, $checkin->fresh()->source, substr((string) $checkin->fresh()->checkin_time, 0, 5)]);
+    }
+
+    public function test_bulk_confirm_requires_manual_record_permission_and_branch_scope(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-23 10:00:00'));
+        $session = $this->classSession('2026-10-20');
+        $payload = ['user_id' => $this->teacher->id, 'session_ids' => [$session->id]];
+        $this->actingAs($this->teacher)->post(route('payroll.timesheets.sessions.bulk-confirm'), $payload)->assertForbidden();
+
+        $otherBranch = Branch::create(['name' => 'Cơ sở khác', 'code' => 'P3-X', 'is_active' => true]);
+        $this->classModel->update(['branch_id' => $otherBranch->id]);
+        $session->update(['branch_id' => $otherBranch->id]);
+        $this->actingAs($this->academicStaff)->post(route('payroll.timesheets.sessions.bulk-confirm'), $payload)->assertForbidden();
+        $this->assertSame(0, TeacherTimesheet::count());
+    }
 }

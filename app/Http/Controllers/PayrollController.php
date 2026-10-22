@@ -21,6 +21,7 @@ use App\Models\User;
 use App\Services\Kpi\KpiSheetService;
 use App\Services\PayrollFormulaService;
 use App\Services\SalesCommissionService;
+use App\Services\TeachingShifts\ScheduleConfirmation;
 use App\Support\DataScope;
 use App\Support\Money;
 use App\Support\ReportPeriod;
@@ -1141,7 +1142,7 @@ class PayrollController extends Controller
      * với giờ theo lịch. Ca GV đã check-in hoặc đã chấm tay → duyệt ca đó; chưa có → tạo ca "Xác nhận theo lịch" hợp lệ.
      * Chỉ buổi thật, đã tới ngày, chưa hủy, ngoài kỳ lương đã khóa.
      */
-    public function confirmScheduledSession(Request $request, int $sessionId)
+    public function confirmScheduledSession(Request $request, int $sessionId, ScheduleConfirmation $confirmation)
     {
         abort_unless($request->user()->can('attendance_staff.view'), 403);
         $session = \App\Models\ClassSession::with('classModel')->findOrFail($sessionId);
@@ -1154,32 +1155,54 @@ class PayrollController extends Controller
             return $this->rejectLockedDate('session', $session->date);
         }
 
-        $review = ['status' => 'valid', 'reviewed_by' => $request->user()->id, 'reviewed_at' => now(), 'rejection_reason' => null];
-        $existing = TeacherTimesheet::where('user_id', $session->teacher_id)->where('class_session_id', $session->id)->first()
-            ?? TeacherTimesheet::findDuplicate((int) $session->teacher_id, (int) $session->class_id, $session->date->toDateString(), $session->id);
-
-        if ($existing && $existing->status !== 'invalid') {
-            $existing->update($review);
-        } else {
-            $start = $session->start_time?->format('H:i');
-            $end = $session->end_time?->format('H:i');
-            $attributes = $review + [
-                'user_id' => $session->teacher_id,
-                'class_id' => $session->class_id,
-                'class_session_id' => $session->id,
-                'teaching_date' => $session->date->toDateString(),
-                'scheduled_time' => $start && $end ? $start.'-'.$end : null,
-                'checkin_time' => $start,
-                'checkout_time' => $end,
-                'hours' => $start && $end ? max(0.5, round(abs(Carbon::parse($start)->diffInMinutes(Carbon::parse($end))) / 60, 2)) : 0,
-                'type' => $session->type === \App\Models\ClassSession::TYPE_SUPPORT ? '1on1' : 'regular',
-                'source' => TeacherTimesheet::SOURCE_SCHEDULE,
-                'notes' => 'Học vụ xác nhận theo lịch buổi học',
-            ];
-            $existing ? $existing->update($attributes) : TeacherTimesheet::create($attributes);
-        }
+        $confirmation->confirm($session, $session->teacher, $request->user());
 
         return redirect()->back()->with('status', 'Đã xác nhận chấm công buổi '.($session->classModel?->code ?? '').' ngày '.$session->date->format('d/m/Y').'.');
+    }
+
+    /**
+     * Xác nhận theo lịch hàng loạt (chủ dự án 22/10/2026): Học vụ chọn các buổi thiếu công của một nhân sự trên Bảng giờ dạy
+     * → mỗi buổi đi qua đúng quy tắc xác nhận từng buổi, ca hợp lệ được tính lương. Buổi không xác nhận được thì bỏ qua và báo lại.
+     */
+    public function bulkConfirmSessions(Request $request, ScheduleConfirmation $confirmation)
+    {
+        $validated = $request->validate([
+            'user_id' => 'required|integer|exists:users,id',
+            'session_ids' => 'required|array|min:1|max:100',
+            'session_ids.*' => 'integer|distinct',
+        ], ['session_ids.required' => 'Chọn ít nhất 1 buổi cần xác nhận.']);
+        $staff = User::findOrFail($validated['user_id']);
+        $sessions = \App\Models\ClassSession::with('classModel')->whereIn('id', $validated['session_ids'])->orderBy('date')->orderBy('start_time')->get();
+        abort_if($sessions->count() !== count($validated['session_ids']), 404);
+        $allowedClasses = $this->timesheetClasses($request->user())->whereIn('id', $sessions->pluck('class_id'))->pluck('id');
+        abort_unless($sessions->every(fn ($s) => $allowedClasses->contains($s->class_id)), 403, 'Có buổi học nằm ngoài phạm vi bạn được chấm công.');
+
+        $label = fn ($s) => $s->date->format('d/m/Y').' '.($s->classModel?->code ?? '');
+        $skipped = [];
+        $confirmed = DB::transaction(function () use ($sessions, $staff, $request, $confirmation, $label, &$skipped) {
+            $count = 0;
+            foreach ($sessions as $session) {
+                if ($reason = $confirmation->skipReason($session, $staff)) {
+                    $skipped[] = $label($session).' — '.$reason;
+
+                    continue;
+                }
+                $confirmation->confirm($session, $staff, $request->user());
+                $count++;
+            }
+
+            return $count;
+        });
+
+        if ($confirmed === 0) {
+            return back()->withErrors(['session_ids' => 'Không xác nhận được buổi nào: '.implode('; ', $skipped).'.']);
+        }
+        activity('teacher_timesheet')->causedBy($request->user())->performedOn($staff)
+            ->withProperties(['session_ids' => $sessions->pluck('id')->all(), 'confirmed' => $confirmed])
+            ->log("Xác nhận theo lịch hàng loạt {$confirmed} buổi cho {$staff->name}");
+
+        return back()->with('status', "Đã xác nhận {$confirmed} buổi theo lịch cho {$staff->name}."
+            .($skipped ? ' Bỏ qua: '.implode('; ', $skipped).'.' : ''));
     }
 
     public function reviewTimesheet(Request $request, int $id)

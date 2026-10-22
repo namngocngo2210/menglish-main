@@ -1,6 +1,6 @@
 # Chấm công theo lịch dạy
 
-Trạng thái: **Đang triển khai** — duyệt 23/10/2026
+Trạng thái: **Hoàn thành** — duyệt và triển khai 23/10/2026
 
 ## 1. Bối cảnh
 
@@ -159,4 +159,4 @@ Thực hiện trực tiếp trong phiên (chủ dự án yêu cầu "làm tiếp
 | Sprint | Nội dung | Trạng thái |
 |---|---|---|
 | 1 | `punchBlockReason` + áp vào chấm công / đơn Bổ sung công + khóa nút trên màn Chấm công, kèm test | **Xong** (23/10) |
-| 2 | `ScheduleConfirmation` service + refactor `confirmScheduledSession` + route / UI xác nhận hàng loạt, kèm test | Chưa làm |
+| 2 | `ScheduleConfirmation` service + refactor `confirmScheduledSession` + route / UI xác nhận hàng loạt, kèm test | **Xong** (23/10) |

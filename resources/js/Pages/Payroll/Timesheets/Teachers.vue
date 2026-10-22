@@ -50,6 +50,13 @@ const canAdjust = computed(() => can('attendance_staff.manual_record'));
 const selectable = computed(() => canReview.value && !props.periodLocked);
 const pendingIds = computed(() => props.timesheets.data.filter((ts) => ts.status === 'pending_review').map((ts) => ts.id));
 const selected = ref([]);
+// Buổi thiếu công: chọn nhiều buổi → "Xác nhận theo lịch" (ca hợp lệ, tính lương), quyền chấm công tay.
+const canBulkConfirm = computed(() => canAdjust.value && !props.periodLocked && !!props.teacher);
+const pickedSessions = ref([]);
+const allSessionsPicked = computed(() => props.missingSessions.length > 0 && pickedSessions.value.length === props.missingSessions.length);
+function toggleAllSessions(event) {
+    pickedSessions.value = event.target.checked ? props.missingSessions.map((s) => s.id) : [];
+}
 const allSelected = computed(() => pendingIds.value.length > 0 && selected.value.length === pendingIds.value.length);
 const columns = computed(() => 10 + (selectable.value ? 1 : 0) - (props.teacher ? 1 : 0));
 
@@ -264,11 +271,19 @@ function changeDay(event) {
         <UiDataTable v-if="teacher && missingSessions.length" class="mt-lg" min-width="720px">
             <template #header>
                 <h3 class="font-h3 text-h3 text-error">Buổi thiếu chấm công ({{ missingSessions.length }})</h3>
+                <UiForm v-if="canBulkConfirm" :action="route('payroll.timesheets.sessions.bulk-confirm')" method="post" class="flex items-center gap-sm" @success="pickedSessions = []">
+                    <input type="hidden" name="user_id" :value="teacher.id" />
+                    <input v-for="id in pickedSessions" :key="id" type="hidden" name="session_ids[]" :value="id" />
+                    <UiButton type="submit" icon="event_available" data-bulk-confirm v-bind="pickedSessions.length === 0 ? { disabled: true } : {}">
+                        Xác nhận theo lịch<span v-show="pickedSessions.length > 0">&nbsp;({{ pickedSessions.length }} buổi)</span>
+                    </UiButton>
+                </UiForm>
             </template>
             <table>
-                <thead><tr><th>Ngày</th><th>Ca học</th><th>Lớp</th><th>Giờ vào</th><th>Giờ ra</th><th>Tình trạng</th><th class="text-right">Thao tác</th></tr></thead>
+                <thead><tr><th v-if="canBulkConfirm" class="w-10"><input type="checkbox" aria-label="Chọn tất cả buổi thiếu chấm công" :checked="allSessionsPicked" class="rounded border-outline-variant text-primary-container" @change="toggleAllSessions" /></th><th>Ngày</th><th>Ca học</th><th>Lớp</th><th>Giờ vào</th><th>Giờ ra</th><th>Tình trạng</th><th class="text-right">Thao tác</th></tr></thead>
                 <tbody>
                     <tr v-for="session in missingSessions" :key="session.id">
+                        <td v-if="canBulkConfirm"><input v-model="pickedSessions" type="checkbox" :value="session.id" :aria-label="`Chọn buổi ${formatDate(session.date)} ${session.class_label}`" class="rounded border-outline-variant text-primary-container" /></td>
                         <td class="font-mono">{{ formatDate(session.date) }}</td>
                         <td>Ca {{ session.start_time }} - {{ session.end_time }}</td>
                         <td class="font-semibold text-primary">{{ session.class_label }}</td>
