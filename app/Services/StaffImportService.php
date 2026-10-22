@@ -129,8 +129,8 @@ class StaffImportService
             }
 
             $branch = filled($data['branch'] ?? null) ? $this->findBranch($branches, (string) $data['branch']) : $branches->firstWhere('id', $defaultBranchId);
-            // Trợ giảng không bắt buộc cơ sở; người chỉ quản lý cơ sở mình thì vẫn phải ghi cơ sở (nếu không sẽ không thấy tài khoản vừa tạo).
-            $branchOptional = $role === Roles::ASSISTANT && $managed === null && blank($data['branch'] ?? null);
+            // Giáo viên, trợ giảng không bắt buộc cơ sở; người chỉ quản lý cơ sở mình thì vẫn phải ghi cơ sở (nếu không sẽ không thấy tài khoản vừa tạo).
+            $branchOptional = in_array($role, Roles::BRANCH_OPTIONAL, true) && $managed === null && blank($data['branch'] ?? null);
             if (! $branch && ! $branchOptional) {
                 $errors[] = filled($data['branch'] ?? null) ? "Không tìm thấy cơ sở \"{$data['branch']}\"." : 'Chưa có cơ sở: ghi cột Cơ sở hoặc chọn cơ sở mặc định.';
             } elseif ($managed !== null && ! in_array($branch->id, $managed, true)) {

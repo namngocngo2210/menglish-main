@@ -54,6 +54,12 @@ final class Roles
     /** Nhân sự trực tiếp đứng lớp: giáo viên + trợ giảng. */
     public const TEACHING = [self::TEACHER_FULLTIME, self::TEACHER_PARTTIME, self::ASSISTANT];
 
+    /**
+     * Vai trò không bắt buộc cơ sở chính: giáo viên, trợ giảng dạy được ở mọi cơ sở. Chưa gắn cơ sở thì dùng chung
+     * (hiện ở ô chọn giáo viên mọi chi nhánh, chấm công ở cơ sở bất kỳ).
+     */
+    public const BRANCH_OPTIONAL = self::TEACHING;
+
     /** Khối đào tạo: giáo viên, trợ giảng, Học vụ, Học thuật. */
     public const ACADEMIC = [self::TEACHER_FULLTIME, self::TEACHER_PARTTIME, self::ASSISTANT, self::ACADEMIC_STAFF, self::ACADEMIC_LEAD];
 

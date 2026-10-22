@@ -336,6 +336,7 @@ class UserController extends Controller
             'concurrentOptions' => Ui::options(collect($assignable)->mapWithKeys(fn (string $role) => [$role => AclHelper::shortRoleLabel($role)])),
             'initialTab' => in_array($request->query('tab'), $tabs, true) ? $request->query('tab') : 'account',
             'canEditSensitive' => $canEditSensitive,
+            'branchOptionalRoles' => Roles::BRANCH_OPTIONAL,
         ]);
     }
 

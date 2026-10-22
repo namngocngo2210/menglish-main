@@ -17,6 +17,8 @@ const props = defineProps({
     initialTab: { type: String, default: 'account' },
     idPrefix: { type: String, default: '' },
     canEditSensitive: { type: Boolean, default: true },
+    // Giáo viên, trợ giảng: không bắt buộc cơ sở chính (dạy ở mọi cơ sở).
+    branchOptionalRoles: { type: Array, default: () => [] },
 });
 
 const form = useFormContext();
@@ -44,6 +46,7 @@ const firstErrorTab = () => Object.keys(tabs).find((key) => tabHasError(key)) ??
 
 // Học thuật: option "Kiêm nhiệm giảng dạy" hiện ngay dưới ô vai trò khi chọn vai trò chính Học thuật.
 const role = ref(props.currentRole ?? '');
+const branchOptional = computed(() => props.branchOptionalRoles.includes(role.value));
 
 // Nhân sự làm việc ở nhiều cơ sở: 1 cơ sở chính (chấm công mặc định, lương, báo cáo) + các cơ sở làm việc thêm.
 const primaryBranch = ref(props.user?.branch_id ?? '');
@@ -104,7 +107,7 @@ onMounted(() => {
                 <UiInput :id="fid('employee_code')" label="Mã nhân viên (dùng để đăng nhập)" :value="user?.employee_code ?? 'Tự cấp khi lưu'" hint="Hệ thống tự cấp theo dạng MESxxx" disabled class="font-code" />
                 <UiInput name="email" :id="fid('email')" type="email" label="Email công việc" required :value="user?.email" placeholder="VD: nva@menglish.edu.vn" />
                 <UiInput name="phone" :id="fid('phone')" label="Số điện thoại" :value="user?.phone" placeholder="10 số, bắt đầu bằng 0" class="font-code" />
-                <UiSelect v-model="primaryBranch" name="branch_id" :id="fid('branch_id')" label="Cơ sở chính" :required="role !== 'assistant'" :hint="role === 'assistant' ? 'Trợ giảng không bắt buộc cơ sở' : null" placeholder="-- Chọn cơ sở --" :options="branches" />
+                <UiSelect v-model="primaryBranch" name="branch_id" :id="fid('branch_id')" label="Cơ sở chính" :required="!branchOptional" :hint="branchOptional ? 'Giáo viên, trợ giảng không bắt buộc cơ sở: để trống thì dạy được ở mọi cơ sở' : null" placeholder="-- Chọn cơ sở --" :options="branches" />
                 <UiSelect v-model="role" name="role" :id="fid('role')" label="Vai trò & Chức vụ" required placeholder="-- Chọn vai trò --" :options="roleOptions" />
             </div>
 
