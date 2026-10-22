@@ -6,6 +6,7 @@ use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\ClassSession;
 use App\Models\Course;
+use App\Models\Holiday;
 use App\Models\PayrollPeriod;
 use App\Models\PayrollRecord;
 use App\Models\Penalty;
@@ -89,6 +90,78 @@ class MyAttendanceTest extends TestCase
     private function punch(User $user, string $kind = 'in', float $latOffset = 0.0002)
     {
         return $this->actingAs($user)->from(route('my-attendance.home'))->post(route('my-attendance.punch'), $this->punchData($kind, $latOffset));
+    }
+
+    /** Buổi học ở cơ sở Cầu Giấy ngày $date (người dạy / trợ giảng / loại buổi qua $attributes). */
+    private function sessionFor(string $date, array $attributes = []): ClassSession
+    {
+        $course = Course::firstOrCreate(['code' => 'SCH-ATT'], ['name' => 'Lịch ATT', 'total_lessons' => 24, 'is_active' => true]);
+        $class = ClassModel::firstOrCreate(['code' => 'SCH-1'], [
+            'name' => 'Lớp lịch', 'course_id' => $course->id, 'program' => $course->name, 'level' => 'B1',
+            'branch_id' => $this->branch->id, 'status' => 'active', 'max_capacity' => 12, 'start_date' => '2026-09-01',
+        ]);
+
+        return ClassSession::create($attributes + [
+            'class_id' => $class->id, 'branch_id' => $this->branch->id, 'date' => $date,
+            'start_time' => '18:00', 'end_time' => '19:30', 'status' => 'scheduled',
+        ]);
+    }
+
+    public function test_part_time_teacher_can_only_check_in_on_days_with_sessions(): void
+    {
+        $teacher = $this->user('teacher_parttime', $this->branch);
+        $this->punch($teacher)->assertSessionHasErrors(['kind' => 'Hôm nay bạn không có buổi dạy / dạy thay / học bù nên không cần chấm công.']);
+
+        // Buổi đã hủy không tính.
+        $cancelled = $this->sessionFor('2026-10-05', ['teacher_id' => $teacher->id, 'status' => 'cancelled']);
+        $this->punch($teacher)->assertSessionHasErrors('kind');
+        $this->assertSame(0, StaffAttendance::count());
+
+        // Dạy thay: GV của buổi là người này (lớp của người khác) → chấm được.
+        $cancelled->update(['status' => 'scheduled']);
+        $this->punch($teacher)->assertSessionHasNoErrors();
+        $this->assertSame(1, StaffAttendance::count());
+
+        // Trợ giảng của buổi học bù cũng chấm được.
+        $assistant = $this->user('assistant', $this->branch);
+        $this->punch($assistant)->assertSessionHasErrors('kind');
+        $this->sessionFor('2026-10-05', ['assistant_id' => $assistant->id, 'type' => ClassSession::TYPE_MAKEUP]);
+        $this->punch($assistant)->assertSessionHasNoErrors();
+    }
+
+    public function test_full_time_staff_cannot_check_in_on_holidays(): void
+    {
+        $holiday = Holiday::create(['code' => 'HOL-ATT-1', 'name' => 'Nghỉ bù', 'start_date' => '2026-10-05', 'end_date' => '2026-10-05', 'is_system_wide' => true]);
+        $this->punch($this->staff)->assertSessionHasErrors(['kind' => 'Hôm nay là ngày nghỉ (Nghỉ bù), không chấm công.']);
+
+        // Nghỉ riêng của cơ sở khác: cơ sở mình vẫn làm việc.
+        $holiday->update(['is_system_wide' => false]);
+        $holiday->branches()->sync([$this->otherBranch->id]);
+        $this->punch($this->staff)->assertSessionHasNoErrors();
+
+        $holiday->branches()->sync([$this->branch->id]);
+        $this->actingAs($this->staff)->get(route('my-attendance.home'))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('blocked', 'Hôm nay là ngày nghỉ (Nghỉ bù), không chấm công.'));
+    }
+
+    public function test_check_in_page_shows_why_punching_is_blocked(): void
+    {
+        $teacher = $this->user('teacher_parttime', $this->branch);
+        $this->actingAs($teacher)->get(route('my-attendance.home'))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('blocked', 'Hôm nay bạn không có buổi dạy / dạy thay / học bù nên không cần chấm công.'));
+        $this->actingAs($this->staff)->get(route('my-attendance.home'))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('blocked', null));
+    }
+
+    public function test_correction_request_is_blocked_on_days_without_work(): void
+    {
+        $teacher = $this->user('teacher_parttime', $this->branch);
+        $this->travelTo(Carbon::parse('2026-10-06 09:00:00'));
+        $payload = ['type' => StaffAttendanceRequest::TYPE_CORRECTION, 'date_from' => '2026-10-05', 'check_in_time' => '17:50', 'reason' => 'Quên chấm'];
+
+        $this->actingAs($teacher)->post(route('my-attendance.requests.store'), $payload)->assertSessionHasErrors('date_from');
+        $this->sessionFor('2026-10-05', ['teacher_id' => $teacher->id]);
+        $this->actingAs($teacher)->post(route('my-attendance.requests.store'), $payload)->assertSessionHasNoErrors();
     }
 
     public function test_admin_sets_branch_coordinates_radius_and_working_hours(): void
@@ -202,6 +275,7 @@ class MyAttendanceTest extends TestCase
     public function test_teacher_without_branch_checks_in_at_any_branch(): void
     {
         $teacher = $this->user('teacher_parttime', null);
+        $this->sessionFor('2026-10-05', ['teacher_id' => $teacher->id]); // part-time chỉ chấm công ngày có buổi dạy
 
         $this->actingAs($teacher)->get(route('my-attendance.home'))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->where('branch', null)
