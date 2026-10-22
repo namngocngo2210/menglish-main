@@ -34,6 +34,7 @@ const props = defineProps({
     cancelHref: { type: String, default: null },
     testSuggestions: { type: Array, default: () => [] },
     followUps: { type: Array, default: () => [] },
+    followUpActions: { type: Array, default: () => [] },
     assignees: { type: Array, default: () => [] },
     today: { type: String, default: null },
 });
@@ -72,7 +73,7 @@ watch(session, (next) => {
 // Task follow-up: dòng mới gửi cùng form theo `tasks[i][…]`.
 let uid = 0;
 const newTasks = ref([]);
-const addTask = () => newTasks.value.push({ uid: ++uid, title: null });
+const addTask = () => newTasks.value.push({ uid: ++uid, title: null, action: '' });
 const removeTask = (t) => (newTasks.value = newTasks.value.filter((x) => x.uid !== t.uid));
 const indexOf = (t) => newTasks.value.indexOf(t);
 
@@ -278,6 +279,8 @@ const labelCls = 'mb-xs block font-label text-label uppercase text-on-surface-va
                     title="Task của lớp"
                     :tasks="followUps"
                     :rows="newTasks"
+                    :action-options="followUpActions"
+                    :quick-actions="!asModal"
                     :index-of="indexOf"
                     :assignees="assignees"
                     :today="today"

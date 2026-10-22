@@ -100,27 +100,29 @@ class ClassReportFollowUpTest extends TestCase
         // Người nhận phải nằm trong danh sách được giao việc.
         $outsider = $this->makeUser('teacher_fulltime', ['name' => 'GV khác']);
         $this->actingAs($this->ta)->post(route('tasks.class-reports.store'), $payload + [
-            'tasks' => [['title' => 'Việc', 'due_date' => today()->toDateString(), 'assignee_id' => $outsider->id]],
+            'tasks' => [['action' => 'other', 'title' => 'Việc', 'due_date' => today()->toDateString(), 'assignee_id' => $outsider->id]],
         ])->assertSessionHasErrors('tasks.0.assignee_id');
         $this->actingAs($this->ta)->post(route('tasks.class-reports.store'), $payload + [
-            'tasks' => [['title' => 'Việc', 'due_date' => today()->subDay()->toDateString()]],
+            'tasks' => [['action' => 'other', 'title' => 'Việc', 'due_date' => today()->subDay()->toDateString()]],
         ])->assertSessionHasErrors('tasks.0.due_date');
         $this->assertSame(0, ClassReport::count());
 
         $this->actingAs($this->ta)->post(route('tasks.class-reports.store'), $payload + [
-            'tasks' => [['title' => 'Kiểm tra máy chiếu phòng 302', 'content' => 'Hình bị nháy', 'due_date' => today()->addDay()->toDateString(), 'assignee_id' => $this->admin->id]],
+            'tasks' => [['action' => 'check_equipment', 'title' => 'Kiểm tra máy chiếu phòng 302', 'content' => 'Hình bị nháy', 'due_date' => today()->addDay()->toDateString(), 'assignee_id' => $this->admin->id]],
         ])->assertSessionHasNoErrors();
 
         $report = ClassReport::sole();
         $task = WorkTask::where('title', 'Kiểm tra máy chiếu phòng 302')->sole();
         $this->assertSame([$report->id, $this->class->id, $this->admin->id, $this->ta->id], [(int) $task->class_report_id, (int) $task->class_id, (int) $task->assignee_id, (int) $task->creator_id]);
         $this->assertStringContainsString('Hình bị nháy', $task->description);
+        $this->assertSame('check_equipment', $task->follow_up_action);
         $this->assertDatabaseHas('admin_notifications', ['user_id' => $this->admin->id, 'type' => 'task_assigned']);
 
         // Báo cáo sau của lớp: việc chưa xong hiện lại, kèm ngày buổi của báo cáo gốc.
         $this->actingAs($this->ta)->get(route('tasks.class-reports.create', ['class_id' => $this->class->id]))
             ->assertInertia(fn (AssertableInertia $page) => $page->where('followUps.0.title', 'Kiểm tra máy chiếu phòng 302')
-                ->where('followUps.0.carried', $session->date->format('d/m'))->where('followUps.0.assignee', 'Admin Trung tâm'));
+                ->where('followUps.0.carried', $session->date->format('d/m'))->where('followUps.0.assignee', 'Admin Trung tâm')
+                ->where('followUps.0.action_label', 'Kiểm tra thiết bị / phòng'));
 
         // Màn xác nhận báo cáo (không ảnh → chờ Admin): hiện task follow-up đã tạo.
         $this->actingAs($this->admin)->get(route('tasks.manual-approvals', ['report' => $report->id]))->assertOk()
@@ -130,5 +132,48 @@ class ClassReportFollowUpTest extends TestCase
         $task->update(['status' => 'completed']);
         $this->actingAs($this->ta)->get(route('tasks.class-reports.create', ['class_id' => $this->class->id]))
             ->assertInertia(fn (AssertableInertia $page) => $page->where('followUps', []));
+    }
+
+    public function test_follow_up_task_needs_an_action_and_can_be_updated_from_the_next_report(): void
+    {
+        $session = ClassSession::create(['class_id' => $this->class->id, 'branch_id' => $this->branch->id, 'date' => today()->subDay()->toDateString(),
+            'start_time' => '08:00', 'end_time' => '09:30', 'type' => ClassSession::TYPE_REGULAR, 'status' => 'completed', 'teacher_id' => $this->admin->id]);
+        $create = route('tasks.class-reports.create', ['class_id' => $this->class->id]);
+        $this->actingAs($this->ta)->get($create)->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('followUpActions', fn ($list) => collect($list)->pluck('label', 'value')->all() === WorkTask::FOLLOW_UP_ACTIONS));
+
+        $payload = ['class_id' => $this->class->id, 'class_session_id' => $session->id, 'hom_nay_hoc_gi' => 'Unit 3', 'nhat_ky_day' => 'Ổn'];
+        $due = today()->addDay()->toDateString();
+        // Bắt buộc chọn hành động; "Khác" thì phải có tiêu đề.
+        $this->actingAs($this->ta)->post(route('tasks.class-reports.store'), $payload + ['tasks' => [['title' => 'Việc', 'due_date' => $due]]])
+            ->assertSessionHasErrors('tasks.0.action');
+        $this->actingAs($this->ta)->post(route('tasks.class-reports.store'), $payload + ['tasks' => [['action' => 'other', 'due_date' => $due]]])
+            ->assertSessionHasErrors('tasks.0.title');
+        $this->assertSame(0, ClassReport::count());
+
+        // Bỏ trống tiêu đề → lấy tên hành động. Giao cho chính mình.
+        $this->actingAs($this->ta)->post(route('tasks.class-reports.store'), $payload + [
+            'tasks' => [['action' => 'call_parent', 'due_date' => $due, 'assignee_id' => $this->ta->id]],
+        ])->assertSessionHasNoErrors();
+        $task = WorkTask::whereNotNull('class_report_id')->sole();
+        $this->assertSame(['Gọi phụ huynh', 'call_parent'], [$task->title, $task->follow_up_action]);
+
+        // Báo cáo sau: dòng việc cũ có thao tác nhanh theo quyền người xem (người nhận việc: làm / gửi chờ xác nhận).
+        $this->actingAs($this->ta)->get($create)->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('followUps.0.id', $task->id)
+            ->where('followUps.0.action_label', 'Gọi phụ huynh')
+            ->where('followUps.0.actions', [
+                ['value' => 'in_progress', 'label' => 'Đang thực hiện'],
+                ['value' => 'pending_confirmation', 'label' => 'Gửi chờ xác nhận'],
+            ]));
+        $this->actingAs($this->ta)->from($create)->post(route('tasks.status.update', $task->id), ['status' => 'in_progress'])
+            ->assertSessionHasNoErrors()->assertRedirect($create);
+        $this->assertSame('in_progress', $task->fresh()->status);
+
+        // Người giao (không nhận việc, không phải Admin) không có thao tác nhanh nào — chỉ mở chi tiết.
+        $other = WorkTask::create(['title' => 'Xếp buổi bù', 'creator_id' => $this->ta->id, 'assignee_id' => $this->admin->id, 'class_id' => $this->class->id,
+            'class_report_id' => $task->class_report_id, 'follow_up_action' => 'makeup', 'due_date' => $due, 'task_type' => 'one_time', 'status' => 'new']);
+        $this->actingAs($this->ta)->get($create)->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('followUps.1.id', $other->id)->where('followUps.1.actions', []));
     }
 }

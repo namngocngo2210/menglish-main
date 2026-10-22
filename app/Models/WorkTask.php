@@ -26,6 +26,7 @@ class WorkTask extends Model
         'staff_report_id',
         'report_section',
         'class_report_id',
+        'follow_up_action',
         'student_id',
         'care_milestone',
         'lesson_session',
@@ -147,6 +148,16 @@ class WorkTask extends Model
 
     /** Việc "Nhập bù sách" hệ thống tự giao Admin khi tồn kho một mặt hàng ở chi nhánh về 0 / âm (App\Services\Merchandise\RestockTaskService). */
     public const KIND_MERCHANDISE_RESTOCK = 'merchandise_restock';
+
+    /** Hành động của task follow-up từ báo cáo trực lớp (`follow_up_action`); "Khác" bắt buộc nhập tiêu đề. */
+    public const FOLLOW_UP_ACTIONS = [
+        'call_parent' => 'Gọi phụ huynh',
+        'makeup' => 'Xếp buổi bù / bù bài',
+        'check_equipment' => 'Kiểm tra thiết bị / phòng',
+        'learning_support' => 'Kèm / hỗ trợ học viên',
+        'materials' => 'Tài liệu / học liệu',
+        'other' => 'Khác',
+    ];
 
     /** Trạng thái còn phải làm (sẽ thành "Quá hạn" khi qua hạn). */
     public const OPEN_STATUSES = ['new', 'in_progress'];

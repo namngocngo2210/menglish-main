@@ -240,6 +240,7 @@ class WorkTaskController extends Controller
             'description' => $task->description,
             'status' => $task->status,
             'status_label' => $task->status_label,
+            'follow_up_action_label' => WorkTask::FOLLOW_UP_ACTIONS[$task->follow_up_action] ?? null,
             'creator' => $task->creator?->name,
             'creator_is_me' => (int) $task->creator_id === (int) Auth::id(),
             'slot_label' => $task->time_slot_category && $task->lesson_session ? $task->time_slot_category_label : null,
@@ -1032,6 +1033,7 @@ class WorkTaskController extends Controller
             'testSuggestions' => $selectedClass ? self::lowMiniTestSuggestions($selectedClass, $students) : [],
             // Task follow-up (17/10/2026): việc chưa xong tạo từ báo cáo trực lớp trước của lớp này + người nhận việc.
             'followUps' => $selectedClass ? self::openFollowUps($selectedClass, $user) : [],
+            'followUpActions' => collect(WorkTask::FOLLOW_UP_ACTIONS)->map(fn (string $label, string $value) => ['value' => $value, 'label' => $label])->values()->all(),
             'assignees' => self::followUpAssignees($user),
             'today' => today()->toDateString(),
         ]);
@@ -1047,15 +1049,26 @@ class WorkTaskController extends Controller
         return WorkTask::with(['assignee:id,name', 'sourceClassReport:id,session_date'])
             ->where('creator_id', $user->id)->where('class_id', $class->id)->whereNotNull('class_report_id')
             ->whereNotIn('status', ['completed', 'canceled'])->orderBy('id')->get()
-            ->map(fn (WorkTask $t) => self::followUpRow($t, $t->sourceClassReport?->session_date?->format('d/m')))->all();
+            ->map(fn (WorkTask $t) => self::followUpRow($t, $t->sourceClassReport?->session_date?->format('d/m'), $user))->all();
     }
 
-    /** @return array<string, mixed> một task follow-up hiển thị trong báo cáo trực lớp */
-    private static function followUpRow(WorkTask $t, ?string $carried = null): array
+    /** Chuyển trạng thái bấm nhanh ngay trên báo cáo (không cần lý do); Bị chặn / Hủy / Chuyển lại làm trong chi tiết việc. */
+    private const QUICK_TRANSITIONS = ['in_progress', 'pending_confirmation', 'completed'];
+
+    /**
+     * Một task follow-up hiển thị trong báo cáo trực lớp. Có `$viewer` → kèm thao tác nhanh người đó được làm (theo allowedTransitions).
+     *
+     * @return array<string, mixed>
+     */
+    private static function followUpRow(WorkTask $t, ?string $carried = null, ?User $viewer = null): array
     {
         return [
             'id' => $t->id,
             'title' => $t->title,
+            'action_label' => WorkTask::FOLLOW_UP_ACTIONS[$t->follow_up_action] ?? null,
+            'actions' => $viewer
+                ? self::transitionOptions($t, array_values(array_intersect(self::allowedTransitions($t, $viewer), self::QUICK_TRANSITIONS)), $viewer)
+                : [],
             'due_date' => $t->due_date?->toDateString(),
             'assignee' => $t->assignee?->name,
             'status' => $t->status,
@@ -1167,14 +1180,16 @@ class WorkTaskController extends Controller
             'board_image' => 'nullable|file|max:10240|mimes:'.implode(',', SafeUploadService::IMAGES),
             'board_image_url' => 'nullable|url:http,https|max:2048',
             'tasks' => 'nullable|array|max:10',
-            'tasks.*.title' => 'required|string|max:255',
+            'tasks.*.action' => 'required|in:'.implode(',', array_keys(WorkTask::FOLLOW_UP_ACTIONS)),
+            'tasks.*.title' => 'nullable|required_if:tasks.*.action,other|string|max:255',
             'tasks.*.content' => 'nullable|string|max:5000',
             'tasks.*.due_date' => 'required|date|after_or_equal:today',
             'tasks.*.assignee_id' => 'nullable|integer',
         ], [
             'session_name.required_without' => 'Vui lòng chọn hoặc nhập buổi học.',
             'hom_nay_hoc_gi.required' => 'Vui lòng nhập "Hôm nay học gì".',
-            'tasks.*.title.required' => 'Nhập tiêu đề task.',
+            'tasks.*.action.required' => 'Chọn hành động cần làm.',
+            'tasks.*.title.required_if' => 'Hành động "Khác": nhập tiêu đề task.',
             'tasks.*.due_date.after_or_equal' => 'Hạn xử lý phải từ hôm nay trở đi.',
         ]);
 
@@ -1286,7 +1301,9 @@ class WorkTaskController extends Controller
             foreach ($validated['tasks'] ?? [] as $t) {
                 $assigneeId = (int) ($t['assignee_id'] ?? 0) ?: (int) $user->id;
                 $followUp = WorkTask::create([
-                    'title' => trim($t['title']),
+                    // Bỏ trống tiêu đề → lấy tên hành động (Gọi phụ huynh, Xếp buổi bù…).
+                    'title' => trim($t['title'] ?? '') ?: WorkTask::FOLLOW_UP_ACTIONS[$t['action']],
+                    'follow_up_action' => $t['action'],
                     'description' => trim(($t['content'] ?? '')."\n\nTạo từ báo cáo trực lớp {$class->name} · {$sessionName} của {$user->name}."),
                     'creator_id' => $user->id,
                     'assignee_id' => $assigneeId,
