@@ -1,6 +1,6 @@
 # Quản lý tài khoản học viên
 
-Trạng thái: **Đang triển khai** — duyệt 23/10/2026
+Trạng thái: **Hoàn thành** — duyệt và triển khai 23/10/2026
 
 ## 1. Bối cảnh
 
@@ -123,7 +123,8 @@ Thực hiện trực tiếp trong phiên (chủ dự án yêu cầu "làm tiếp
 - `skipReason(Student $student): ?string` — "đã có tài khoản" / "mã học viên trùng tên đăng nhập của tài khoản khác" /
   "email … đã thuộc tài khoản khác". (Mã `HV-<ULID>` là định dạng chuẩn của bước chốt CRM, dùng làm tên đăng nhập được —
   sửa lại giả định ban đầu của thiết kế.)
-- `create(Student $student, ?string $email = null): string` (mật khẩu tạm) — `employee_code` = mã HV, email = `$email` ??
+- `create(Student $student, ?string $email = null): string` (mật khẩu tạm) — `employee_code` = mã HV (đăng nhập được bằng mã hoặc email;
+  file / màn hình hiện `User::loginIdentifier()` giống bước chốt CRM — email tự sinh `student{id}@…`), email = `$email` ??
   email riêng của hồ sơ (nếu chưa ai dùng) ?? `User::generatedStudentEmail()`, role `student`, `must_change_password`,
   ghi `students.user_id` + `students.email`. Gọi `skipReason()` trước, có lý do → `ValidationException` (`student`).
 - `resetPassword(User $account): string` — chỉ tài khoản có đúng role `student`, ngược lại `ValidationException` (`student`).
@@ -148,4 +149,4 @@ Thực hiện trực tiếp trong phiên (chủ dự án yêu cầu "làm tiếp
 | Sprint | Nội dung | Trạng thái |
 |---|---|---|
 | 1 | `StudentAccountService` + refactor `CrmController` dùng service, kèm test hồi quy | **Xong** (23/10) |
-| 2 | Quyền mới + migration, màn danh sách, tạo / cấp lại theo lô, tải Excel một lần, sidebar, kèm test | Chưa làm |
+| 2 | Quyền mới + migration, màn danh sách, tạo / cấp lại theo lô, tải Excel một lần, sidebar, kèm test | **Xong** (23/10) |

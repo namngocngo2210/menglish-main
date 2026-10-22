@@ -40,6 +40,7 @@ use App\Http\Controllers\SessionFeedbackController;
 use App\Http\Controllers\StaffImportController;
 use App\Http\Controllers\StaffReportController;
 use App\Http\Controllers\StudentPortalController;
+use App\Http\Controllers\StudentAccountController;
 use App\Http\Controllers\StudentProfileController;
 use App\Http\Controllers\StaffAttendanceController;
 use App\Http\Controllers\SupportTicketController;
@@ -285,6 +286,12 @@ Route::middleware('auth')->group(function () {
     // ─────────────────────────────────────────────
     Route::prefix('students')->name('students.')->middleware('can:student.view')->group(function () {
         Route::get('/', [StudentProfileController::class, 'index'])->name('index');
+        // Tài khoản cổng học viên theo lô (docs/tai-khoan-hoc-vien.md) — khai báo trước /{id}.
+        Route::controller(StudentAccountController::class)->prefix('accounts')->name('accounts.')->middleware('can:student.manage_account')->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->name('store');
+            Route::get('/download', 'download')->name('download');
+        });
         Route::get('/enrollments', [StudentProfileController::class, 'enrollments'])->name('enrollments');
         Route::post('/enrollments', [StudentProfileController::class, 'storeEnrollment'])->middleware('can:student.assign_class')->name('enrollments.store');
         Route::put('/enrollments/{id}', [StudentProfileController::class, 'updateEnrollmentHandoff'])->middleware('can:student.assign_class')->name('enrollments.update');
