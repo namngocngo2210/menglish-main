@@ -21,6 +21,7 @@
 - Phiên kiểm tra hết hạn sau 2 giờ, gắn với người upload; file tạm quá 1 ngày bị job hằng ngày xoá.
 - File tạm ghi bằng `storage_path('app/private/syllabus-imports')` (không dùng `Storage::disk('local')` — disk này là R2 khi `UPLOAD_STORAGE=r2`). Tài liệu chính thức lưu qua `SafeUploadService::store(..., SyllabusDocument::DIRECTORY, SyllabusDocument::ALLOWED_EXTENSIONS, 'file', SyllabusDocument::DISK)`.
 - Mã trùng kiểm tra bằng `SyllabusCurriculum::withTrashed()` (unique index tính cả bản đã xoá).
+- Cả tính năng nằm trong **một PR** duy nhất (nhánh `feat/syllabus-import`).
 - Sau khi sửa `routes/web.php`: chạy `php artisan ziggy:generate resources/js/ziggy.js`.
 
 **Chạy lệnh (không có PHP trên host).** Worktree `../wt-syllabus-import`: `cp -al ../wt-session-syllabus-link/vendor vendor` và `node_modules` (chỉ khi `composer.lock` / `package-lock.json` giống hệt), `cp ../wt-session-syllabus-link/.env .env`. Chạy test:
@@ -177,7 +178,7 @@ Gọi tắt bên dưới là `phpunit tests/Feature/XTest.php`. Artisan: cùng l
 - [ ] **Step 2: Chạy để thấy thất bại** — `phpunit tests/Feature/SyllabusImportPageTest.php` → FAIL.
 - [ ] **Step 3: Implement** controller (quyền chỉ qua middleware `can:syllabus.manage` của nhóm route), route, `artisan ziggy:generate resources/js/ziggy.js`. `Import.vue` theo bố cục `Pages/Classes/Import.vue` (thanh 3 bước, `router.post` với `FormData`, nút "Tải file mẫu (.zip)" ở `#actions`); bước ②: tóm tắt, `UiAlert type="error"` liệt kê lỗi, `UiAlert type="warning"` cảnh báo, cây chặng → unit → buổi + tài liệu, nút "Tải file khác" (GET `syllabus.import` không token). Nút "Xác nhận import" chưa có ở Sprint 1 (Task 7 thêm cùng route). Builder: `<UiButton v-if="canManage" variant="secondary" icon="upload_file" :href="route('syllabus.import')">Import từ file</UiButton>`.
 - [ ] **Step 4: Chạy test** — `phpunit tests/Feature/SyllabusImportPageTest.php` → PASS; sau đó các test bảo vệ: `AllRoutesSmokeTest`, `RbacNoHardcodedRolesTest`, `BranchIsolationRouteSweepTest`, `NavigationPermissionTest`, `Phase2SyllabusTest`, `Phase2MockupSyllabusTest` → PASS.
-- [ ] **Step 5: Commit + kết thúc Sprint 1** — commit `feat: add syllabus import preview page`; cập nhật bảng Sprint trong `docs/import-syllabus.md` (Sprint 1 → **Xong**), commit `docs: mark syllabus import sprint 1 done`; push và mở PR (base `main`).
+- [ ] **Step 5: Commit + kết thúc Sprint 1** — commit `feat: add syllabus import preview page`; cập nhật bảng Sprint trong `docs/import-syllabus.md` (Sprint 1 → **Xong**), commit `docs: mark syllabus import sprint 1 done`. Chưa push — toàn bộ tính năng là **một PR** mở ở cuối Task 8.
 
 ---
 
@@ -235,4 +236,4 @@ Gọi tắt bên dưới là `phpunit tests/Feature/XTest.php`. Artisan: cùng l
 - [ ] **Step 2: Chạy để thấy thất bại** → FAIL.
 - [ ] **Step 3: Sửa `Documents.vue`, xoá file PDF.**
 - [ ] **Step 4: Chạy test** — `SyllabusImportPageTest`, `SyllabusImporterTest`, rồi test bảo vệ: `AllRoutesSmokeTest`, `RbacNoHardcodedRolesTest`, `BranchIsolationRouteSweepTest`, `NavigationPermissionTest`, `Phase2SyllabusTest`, `Phase2MockupSyllabusTest`, `SyllabusStageProgressionTest` → PASS.
-- [ ] **Step 5: Commit + kết thúc** — commit `feat: remove sample pdf from syllabus documents`; cập nhật `docs/import-syllabus.md` (trạng thái **Hoàn thành**, Sprint 2 → **Xong**), commit `docs: mark syllabus import done`; push, mở PR.
+- [ ] **Step 5: Commit + kết thúc** — commit `feat: remove sample pdf from syllabus documents`; cập nhật `docs/import-syllabus.md` (trạng thái **Hoàn thành**, Sprint 2 → **Xong**), commit `docs: mark syllabus import done`; push nhánh `feat/syllabus-import`, mở **một PR** (base `main`) cho cả 2 sprint.
