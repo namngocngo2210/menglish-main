@@ -38,6 +38,7 @@ const formId = computed(() => (props.asModal ? 'modal-task-status-form' : 'task-
             <div class="flex flex-wrap items-center gap-sm">
                 <UiBadge :color="statusColors[task.status] ?? 'neutral'">{{ task.status_label }}</UiBadge>
                 <span v-if="task.slot_label" class="rounded bg-surface-container-high px-sm font-caption text-caption text-on-surface-variant">{{ task.slot_label }}</span>
+                <UiBadge v-if="task.follow_up_action_label" color="neutral" :dot="false">{{ task.follow_up_action_label }}</UiBadge>
             </div>
 
             <dl class="grid grid-cols-1 gap-md sm:grid-cols-2">

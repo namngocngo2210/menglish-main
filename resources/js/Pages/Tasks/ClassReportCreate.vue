@@ -25,6 +25,7 @@ const props = defineProps({
     reporter: { type: String, default: null },
     testSuggestions: { type: Array, default: () => [] },
     followUps: { type: Array, default: () => [] },
+    followUpActions: { type: Array, default: () => [] },
     assignees: { type: Array, default: () => [] },
     today: { type: String, default: null },
 });
