@@ -577,7 +577,7 @@ class Phase1AcceptanceTest extends TestCase
         return [
             'status' => 'attended',
             'rating' => 4,
-            'remarks' => ['grammar' => 'Khá', 'attitude' => 'Hăng hái', 'result' => 'Theo kịp lớp'],
+            'remarks' => ['grammar' => 'Khá', 'attitude' => 'Tốt', 'result' => 'Đạt'],
             'feedback' => 'Con phát âm rõ, mạnh dạn phát biểu.',
         ];
     }

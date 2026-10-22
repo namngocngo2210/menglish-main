@@ -9,6 +9,7 @@ use App\Services\NotificationService;
 use App\Support\DataScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 
@@ -43,8 +44,10 @@ class TrialGuestController extends Controller
 
         return Inertia::render('TrialGuests/Index', [
             'scope' => $scope,
+            // Cột chọn dùng chung danh sách với nhận xét buổi học của học sinh (Tốt / Khá / Cần cố gắng, Đạt / Không đạt).
             'remarkFields' => collect(CrmTrialBooking::REMARK_FIELDS)
-                ->map(fn (string $label, string $key) => ['key' => $key, 'label' => $label])->values()->all(),
+                ->map(fn (string $label, string $key) => ['key' => $key, 'label' => $label, 'options' => TeacherPortalController::REMARK_OPTIONS[$key] ?? []])
+                ->values()->all(),
             'bookings' => $bookings->through(fn (CrmTrialBooking $booking) => [
                 'id' => $booking->id,
                 'class_name' => $booking->classModel?->name,
@@ -77,13 +80,16 @@ class TrialGuestController extends Controller
             'status' => 'required|in:attended,no_show',
             'rating' => 'required_if:status,attended|nullable|integer|min:1|max:5',
             'remarks' => 'nullable|array',
-            'remarks.grammar' => 'nullable|string|max:255',
-            'remarks.attitude' => 'nullable|string|max:255',
-            'remarks.result' => 'nullable|string|max:255',
+            // Chọn trong danh sách; nhận xét gõ tay trước đây của chính lượt học thử này vẫn lưu lại được.
+            ...collect(array_keys(CrmTrialBooking::REMARK_FIELDS))->mapWithKeys(fn (string $key) => ["remarks.{$key}" => [
+                'nullable', 'string', 'max:255',
+                Rule::in(array_filter([...TeacherPortalController::REMARK_OPTIONS[$key] ?? [], $booking->remarks[$key] ?? null])),
+            ]])->all(),
             'feedback' => 'required_if:status,attended|nullable|string|max:3000',
         ], [
             'feedback.required_if' => 'Vui lòng nhập nhận xét chi tiết cho khách học thử.',
             'rating.required_if' => 'Vui lòng chọn mức đánh giá.',
+            'remarks.*.in' => 'Chọn một giá trị trong danh sách.',
         ]);
         if ($booking->status === 'cancelled') {
             return back()->withErrors(['feedback' => 'Buổi học thử đã bị hủy.']);
