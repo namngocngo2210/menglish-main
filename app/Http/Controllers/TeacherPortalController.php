@@ -615,7 +615,7 @@ class TeacherPortalController extends Controller
     }
 
     /**
-     * Link "Mở giáo trình" của buổi dạy → màn GV xem bài giảng (tab nội dung buổi) của lớp. Chỉ lớp đang có
+     * Link "Mở giáo trình" của buổi dạy → tài liệu của chặng lớp đang học (màn GV xem bài giảng). Chỉ lớp đang có
      * chặng mở mới có link (màn đó chỉ liệt kê các lớp này) và chỉ khi người dùng xem được giáo trình.
      *
      * @return array<int, string> class_id => url
@@ -628,7 +628,7 @@ class TeacherPortalController extends Controller
         }
 
         return SyllabusAssignment::open()->whereIn('class_id', $classIds)->distinct()->pluck('class_id')
-            ->mapWithKeys(fn ($id) => [(int) $id => route('syllabus.teacher-view', ['class' => $id, 'tab' => 'lessons'])])
+            ->mapWithKeys(fn ($id) => [(int) $id => route('syllabus.teacher-view', ['class' => $id, 'scope' => 'stage'])])
             ->all();
     }
 
