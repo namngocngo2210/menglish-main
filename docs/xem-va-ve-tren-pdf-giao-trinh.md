@@ -116,7 +116,7 @@ Yêu cầu:
   thái (đơn giản; hỏi thừa một lần là chấp nhận được).
 - **Watermark trong trang** (tài liệu "Chỉ xem"): sau khi vẽ trang PDF, vẽ thêm lên **cùng canvas PDF** lưới chữ xoay
   −20°: dòng `MENGLISH INTERNAL ONLY` + dòng `selected.watermark`, màu `#1f2937` alpha 0.12, cỡ theo bề rộng trang,
-  ô lưới ~ 1/3 bề rộng trang. Nằm dưới nét vẽ giáo viên, có trong mọi ảnh chụp, xoá phần tử HTML không mất.
+  ô lưới 1/2 × 1/4 bề rộng trang, hàng so le. Nằm dưới nét vẽ giáo viên, có trong mọi ảnh chụp, xoá phần tử HTML không mất.
 - **Chặn sao chép** (tài liệu "Chỉ xem"): `contextmenu.prevent` trên khung xem; khi đang mở, `keydown` trên `window`
   chặn `Ctrl/⌘+P`, `Ctrl/⌘+S`; class `print:hidden` cho khung xem (in trang ra giấy trắng phần tài liệu). Áp cho cả
   ảnh / video "Chỉ xem" (trên khung xem hiện có).
@@ -149,5 +149,5 @@ Một nhánh `feat/pdf-annotator`, mỗi sprint một commit, một PR.
 | Sprint | Nội dung | Trạng thái |
 |---|---|---|
 | 1 | Siết định dạng tài liệu + test; tách `lib/pdf.js`, `PdfViewer` dùng lại | Xong |
-| 2 | `annotations.js` + `node --test`; `PdfAnnotator` (lớp vẽ, Xem / Bút / Highlight / Tẩy, hoàn tác / làm lại, xoá trang / tất cả, watermark trong trang); thay iframe ở TeacherView | Chưa làm |
+| 2 | `annotations.js` + `node --test`; `PdfAnnotator` (lớp vẽ, Xem / Bút / Highlight / Tẩy, hoàn tác / làm lại, xoá trang / tất cả, watermark trong trang); thay iframe ở TeacherView | Xong |
 | 3 | Hình, Chữ, Laser, phím tắt, toàn màn hình, hỏi khi đóng (`UiModal.dirtyConfirm`); chặn in / chuột phải / phím tắt; test | Chưa làm |

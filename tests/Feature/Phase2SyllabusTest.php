@@ -24,6 +24,7 @@ use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Inertia\Testing\AssertableInertia;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -263,6 +264,19 @@ class Phase2SyllabusTest extends TestCase
 
         $this->actingAs($this->teacher)->get(route('syllabus.teacher-view'))->assertOk()->assertSee('Slide cũ');
         $this->actingAs($this->teacher)->get(route('syllabus.documents.file', ['id' => $doc->id, 'download' => 1]))->assertOk();
+    }
+
+    public function test_downloadable_document_has_no_watermark(): void
+    {
+        Storage::fake('local');
+        $this->actingAs($this->academic)->post(route('syllabus.documents.store'), [
+            'curriculum_id' => $this->curriculum()->id, 'title' => 'Tải được', 'file' => $this->pdf(),
+            'visible_to_teachers' => '1', 'downloadable' => '1',
+        ])->assertSessionHasNoErrors();
+        $doc = SyllabusDocument::firstOrFail();
+
+        $this->actingAs($this->teacher)->get(route('syllabus.teacher-view', ['document' => $doc->id]))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('selected.id', $doc->id)->where('selected.watermark', null));
     }
 
     public function test_document_upload_rejects_disguised_executable_and_requires_file(): void
