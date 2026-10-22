@@ -1,7 +1,7 @@
 <script setup>
 /**
  * Import syllabus từ file mẫu (.zip / .xlsx) — 3 bước: Tải file → Kiểm tra (xem trước, chưa ghi DB) → Hoàn tất.
- * Bước ③ (xác nhận) được thêm ở sprint 2.
+ * Bước ③: nút "Xác nhận import" ghi vào hệ thống rồi chuyển sang trang Giáo trình.
  */
 import { computed, ref } from 'vue';
 import { router } from '@inertiajs/vue3';
@@ -27,6 +27,13 @@ const processing = ref(false);
 function submit(event) {
     router.post(event.target.action, new FormData(event.target), {
         preserveScroll: true,
+        onStart: () => (processing.value = true),
+        onFinish: () => (processing.value = false),
+    });
+}
+
+function confirmImport() {
+    router.post(route('syllabus.import.confirm'), { token: props.preview.token }, {
         onStart: () => (processing.value = true),
         onFinish: () => (processing.value = false),
     });
@@ -159,8 +166,11 @@ function formatSize(bytes) {
                     </ul>
                 </section>
 
+                <p v-if="errors.file" class="font-body-small text-body-small text-error" role="alert">{{ errors.file }}</p>
+
                 <div class="flex justify-end gap-sm">
                     <UiButton variant="secondary" icon="upload_file" :href="route('syllabus.import')">Tải file khác</UiButton>
+                    <UiButton icon="check" :disabled="processing || preview.errors.length > 0" @click="confirmImport">{{ processing ? 'Đang import…' : 'Xác nhận import' }}</UiButton>
                 </div>
             </template>
         </div>

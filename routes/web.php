@@ -502,6 +502,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/', [SyllabusImportController::class, 'index'])->name('import');
             Route::get('/template', [SyllabusImportController::class, 'template'])->name('import.template');
             Route::post('/preview', [SyllabusImportController::class, 'preview'])->name('import.preview');
+            Route::post('/confirm', [SyllabusImportController::class, 'confirm'])->name('import.confirm');
         });
         Route::post('/curriculums', [SyllabusController::class, 'storeCurriculum'])->middleware('can:syllabus.manage')->name('curriculums.store');
         Route::put('/curriculums/{id}', [SyllabusController::class, 'updateCurriculum'])->whereNumber('id')->middleware('can:syllabus.manage')->name('curriculums.update');

@@ -2,16 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Syllabus\Import\SyllabusImporter;
+use App\Services\Syllabus\Import\SyllabusImportException;
+use App\Services\Syllabus\Import\SyllabusImportPlan;
 use App\Services\Syllabus\Import\SyllabusImportStore;
 use App\Services\Syllabus\Import\SyllabusImportTemplate;
 use App\Services\Syllabus\Import\SyllabusPackageException;
 use App\Services\Syllabus\Import\SyllabusPackageReader;
 use App\Services\Syllabus\Import\SyllabusPackageValidator;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 /**
- * Import syllabus từ file mẫu (.zip / .xlsx): ① Tải file → ② Xem trước (không ghi DB) → ③ Xác nhận (Task 7).
+ * Import syllabus từ file mẫu (.zip / .xlsx): ① Tải file → ② Xem trước (không ghi DB) → ③ Xác nhận (ghi DB).
  * Quyền: middleware `can:syllabus.manage` của nhóm route; gói có tài liệu cần thêm `syllabus.upload` (validator).
  */
 class SyllabusImportController extends Controller
@@ -20,6 +24,7 @@ class SyllabusImportController extends Controller
         private readonly SyllabusImportStore $store,
         private readonly SyllabusPackageReader $reader,
         private readonly SyllabusPackageValidator $validator,
+        private readonly SyllabusImporter $importer,
     ) {}
 
     public function index(Request $request)
@@ -29,18 +34,11 @@ class SyllabusImportController extends Controller
 
         if ($request->filled('token')) {
             $token = (string) $request->input('token');
-            $meta = $this->store->get($token, $request->user());
-            if ($meta === null) {
-                return redirect()->route('syllabus.import')->withErrors(['file' => 'Phiên kiểm tra đã hết hạn, vui lòng tải file lên lại.']);
+            $loaded = $this->loadPlan($token, $request);
+            if ($loaded instanceof RedirectResponse) {
+                return $loaded;
             }
-
-            try {
-                $plan = $this->validator->validate($this->reader->read($meta['path'], $meta['work_dir']), $canUpload);
-            } catch (SyllabusPackageException $e) {
-                $this->store->forget($token);
-
-                return redirect()->route('syllabus.import')->withErrors(['file' => $e->getMessage()]);
-            }
+            [$meta, $plan] = $loaded;
 
             // Chỉ gửi những gì cây xem trước hiển thị (không gửi nội dung chi tiết buổi, không gửi đường dẫn file tạm).
             $document = fn (array $d) => ['title' => $d['title'], 'extension' => $d['extension'], 'size' => $d['size']];
@@ -113,5 +111,57 @@ class SyllabusImportController extends Controller
         }
 
         return redirect()->route('syllabus.import', ['token' => $token]);
+    }
+
+    public function confirm(Request $request)
+    {
+        $token = (string) $request->input('token');
+        $loaded = $this->loadPlan($token, $request);
+        if ($loaded instanceof RedirectResponse) {
+            return $loaded;
+        }
+        [$meta, $plan] = $loaded;
+
+        $back = fn (string $message) => redirect()->route('syllabus.import', ['token' => $token])->withErrors(['file' => $message]);
+        if (! $plan->ok()) {
+            return $back('File còn lỗi, hãy sửa file rồi tải lên lại.');
+        }
+
+        try {
+            $curriculum = $this->importer->import($plan, $request->user(), $meta['visibility']);
+        } catch (SyllabusImportException $e) {
+            return $back($e->getMessage());
+        }
+
+        $this->store->forget($token);
+        $s = $plan->summary();
+
+        return redirect()->route('syllabus.builder', ['curriculum' => $curriculum->id])->with(
+            'status',
+            "Đã import giáo trình {$plan->curriculum['code']}: {$s['stages']} chặng, {$s['lessons']} buổi, {$s['documents']} tài liệu. Gán cấp độ khoá học để lớp dùng được giáo trình."
+        );
+    }
+
+    /**
+     * Đọc lại gói từ phiên kiểm tra và validate lại (quyền upload tính tại thời điểm này).
+     *
+     * @return array{0: array<string, mixed>, 1: SyllabusImportPlan}|RedirectResponse redirect khi phiên hết hạn / gói hỏng
+     */
+    private function loadPlan(string $token, Request $request): array|RedirectResponse
+    {
+        $meta = $token === '' ? null : $this->store->get($token, $request->user());
+        if ($meta === null) {
+            return redirect()->route('syllabus.import')->withErrors(['file' => 'Phiên kiểm tra đã hết hạn, vui lòng tải file lên lại.']);
+        }
+
+        try {
+            $plan = $this->validator->validate($this->reader->read($meta['path'], $meta['work_dir']), $request->user()->can('syllabus.upload'));
+        } catch (SyllabusPackageException $e) {
+            $this->store->forget($token);
+
+            return redirect()->route('syllabus.import')->withErrors(['file' => $e->getMessage()]);
+        }
+
+        return [$meta, $plan];
     }
 }
