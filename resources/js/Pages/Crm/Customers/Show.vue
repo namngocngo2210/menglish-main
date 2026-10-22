@@ -475,7 +475,7 @@ const trialTitle = computed(() => (props.trial.pending ? 'Xếp học thử' : `
                         <div>Ngày chốt: <span class="text-on-surface">{{ customer.converted_at ?? '—' }}</span></div>
                     </dl>
                     <!-- Sửa trực tiếp mọi thông tin khách ngay trong hồ sơ (không còn trang / modal sửa riêng) -->
-                    <CustomerEditForm v-if="editForm" :customer="customer" :options="editForm" />
+                    <CustomerEditForm v-if="editForm" :customer="customer" :options="editForm" :can-reassign="canReassign" />
                     <div v-else class="p-lg">
                         <dl class="grid grid-cols-1 gap-md font-body-base text-body-base sm:grid-cols-2">
                             <div

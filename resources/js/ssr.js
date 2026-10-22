@@ -13,11 +13,22 @@ import GuestLayout from '@/Layouts/GuestLayout.vue';
 
 const pages = import.meta.glob('./Pages/**/*.vue');
 
+/**
+ * Vue SSR để nội dung <Teleport> (menu UiDropdown đưa ra <body>…) riêng trong ctx.teleports, không nằm trong HTML chính.
+ * Ghép vào cuối để HTML giống DOM thật trên trình duyệt (menu có sẵn, ẩn bằng v-show) — test assertSee thấy được mục menu.
+ */
+async function renderWithTeleports(app) {
+    const ctx = {};
+    const html = await renderToString(app, ctx);
+
+    return html + Object.values(ctx.teleports ?? {}).join('');
+}
+
 createServer(
     (page) =>
         createInertiaApp({
             page,
-            render: renderToString,
+            render: renderWithTeleports,
             title: (title) => (title ? `${title} · MEnglish` : 'MEnglish'),
             resolve: (name) => pages[`./Pages/${name}.vue`](),
             layout: (name) => (name.startsWith('Auth/') ? GuestLayout : AppLayout),

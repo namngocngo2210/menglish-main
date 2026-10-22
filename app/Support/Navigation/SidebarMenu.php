@@ -423,6 +423,9 @@ final class SidebarMenu
                     ['label' => 'Lương của tôi', 'route' => 'portal.my-salary', 'can' => ['payroll.view_own']],
                     // Phiếu KPI tháng của chính mình (mọi nhân sự có tiêu chí KPI theo vai trò).
                     ['label' => 'KPI của tôi', 'route' => 'kpi.mine', 'can' => [\App\Models\KpiCriterion::OWN_ABILITY]],
+                    // Hướng dẫn sử dụng theo vai trò: mọi người dùng (route chỉ cần đăng nhập), xem App\Support\Guide\UserGuide.
+                    // Nằm trong "Của tôi" thay vì nhóm riêng để sidebar Admin không quá 25 mục (WorkspaceNavigationTest).
+                    ['label' => 'Hướng dẫn sử dụng', 'route' => 'guide.index'],
                 ],
             ],
             [
@@ -453,16 +456,6 @@ final class SidebarMenu
                     ['label' => 'Khảo sát 5 sao', 'route' => 'portal.student.survey', 'active' => ['portal.student.survey*']],
                     ['label' => 'Gửi góp ý', 'route' => 'portal.student.feedback', 'active' => ['portal.student.feedback*']],
                     ['label' => 'Ứng dụng di động', 'route' => 'portal.app-shell'],
-                ],
-            ],
-            [
-                // Hướng dẫn sử dụng theo vai trò: mọi người dùng (route chỉ cần đăng nhập), xem App\Support\Guide\UserGuide.
-                'id' => 'guide',
-                'section' => 'Cá nhân',
-                'label' => 'Hướng dẫn sử dụng',
-                'icon' => 'help',
-                'items' => [
-                    ['label' => 'Hướng dẫn sử dụng', 'route' => 'guide.index'],
                 ],
             ],
         ];

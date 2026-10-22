@@ -10,6 +10,8 @@ import { computed } from 'vue';
 const props = defineProps({
     customer: { type: Object, required: true },
     options: { type: Object, required: true },
+    // Có quyền phân công lại (lead.assign) — chỉ khi đó mới hướng dẫn bấm "Phân công lại" ở đầu trang.
+    canReassign: { type: Boolean, default: false },
 });
 const locked = computed(() => props.customer.contract_locked);
 const genders = [{ value: 'Nam', label: 'Nam' }, { value: 'Nữ', label: 'Nữ' }, { value: 'Khác', label: 'Khác' }];
@@ -35,7 +37,8 @@ const lockedInput = 'w-full rounded-lg border border-outline-variant px-md py-sm
                     <UiField label="Chi nhánh">
                         <div class="rounded-lg border border-outline-variant bg-surface-container-low px-md py-sm font-body-medium text-body-medium text-on-surface-variant">{{ customer.branch ?? '—' }}</div>
                     </UiField>
-                    <p class="font-caption text-caption italic text-on-surface-variant">Đổi chi nhánh: bấm "Phân công lại" ở đầu trang (sang cơ sở khác cần Admin duyệt).</p>
+                    <p v-if="canReassign" class="font-caption text-caption italic text-on-surface-variant">Đổi chi nhánh: bấm "Phân công lại" ở đầu trang (sang cơ sở khác cần Admin duyệt).</p>
+                    <p v-else class="font-caption text-caption italic text-on-surface-variant">Đổi chi nhánh: liên hệ Học vụ cơ sở / Admin.</p>
                 </template>
                 <UiSelect v-else id="f_branch_id" name="branch_id" label="Chi nhánh" required placeholder="Chọn chi nhánh" :options="options.branches" />
             </div>

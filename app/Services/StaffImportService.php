@@ -289,12 +289,9 @@ class StaffImportService
         };
     }
 
+    /** Super Admin: isSubordinate luôn đúng, phạm vi user = all ($managed null) nên không cần nhánh riêng. */
     private function canManage(User $actor, User $target, ?array $managed): bool
     {
-        if ($actor->isSuperAdmin()) {
-            return true;
-        }
-
         return Rbac::isSubordinate($actor, $target)
             && ($managed === null || in_array((int) $target->branch_id, $managed, true))
             && (DataScope::level($actor, 'user') !== DataScope::OWN || (int) $target->created_by === (int) $actor->id);

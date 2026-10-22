@@ -563,46 +563,8 @@ class Phase3MockupParityTest extends TestCase
         $this->actingAs($this->admin)->get(route('payroll.kpi-leaderboard', ['period' => '2026-09', 'branch_id' => $other->id]))
             ->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->where('retentionPage.total', 1)->where('retentionPage.data.0.user_id', $teacherB->id));
 
-        // KPI Học vụ: bảng 6 nhóm / 15 mục, Lỗi nghiêm trọng → 0%, lưu nháp không dùng cho lương, chốt thì dùng.
-        $lead = $this->userWithRole('academic_lead', ['name' => 'Học thuật Chấm']);
-        $criteria = \App\Models\KpiCriterion::forRole('academic_staff')->active()->ordered()->get();
-        $this->assertCount(15, $criteria);
-        $scores = $criteria->mapWithKeys(fn ($c) => [$c->id => 100])->all();
-        $first = $criteria->first();
-
-        $this->actingAs($lead)->get(route('kpi.evaluate', ['userId' => $this->academicStaff->id, 'period' => '2026-09']))
-            ->assertOk()
-            ->assertSee('KPI tháng — Học vụ P3')
-            ->assertSeeInOrder(['Mã', 'Tiêu chí', 'Quỹ (VNĐ)', 'Ngưỡng 100', 'Ngưỡng 50', 'Thực tế', '% Đạt', 'Tiền KPI'])
-            ->assertSee('1. Học phí & dữ liệu')
-            ->assertSee('Lỗi nghiêm trọng')
-            ->assertSee('Tổng tiền KPI dự tính:')
-            ->assertSee('Chi tiết điểm KPI theo nhóm')->assertSee('Xếp loại tháng')->assertSee('Cảnh báo hiệu suất')
-            ->assertSee('Điểm tốt')->assertSee('Điểm cần cải thiện')->assertSee('Hành động tháng sau')
-            ->assertSee('Lưu nháp')->assertSee('Chốt KPI tháng');
-
-        $this->actingAs($lead)->post(route('kpi.evaluate.store', $this->academicStaff->id), [
-            'month' => 9, 'year' => 2026, 'score' => $scores, 'critical' => [$first->id => 1], 'actual' => [$first->id => '60%'],
-            'strengths' => 'Chăm sóc tốt', 'action' => 'draft',
-        ])->assertRedirect();
-        $evaluation = \App\Models\KpiEvaluation::where('user_id', $this->academicStaff->id)->firstOrFail();
-        $this->assertSame('draft', $evaluation->status);
-        $item = $evaluation->items()->where('kpi_criterion_id', $first->id)->first();
-        $this->assertEquals(0, (float) $item->score);
-        $this->assertTrue($item->critical_error);
-        $this->assertSame('60%', $item->actual);
-        $this->assertLessThan(100, (float) $evaluation->total_score);
-
-        $this->actingAs($this->admin)->get(route('kpi.monthly', ['period' => '2026-09']))
-            ->assertOk()->assertSee('Tổng hợp KPI &amp; Đánh giá tháng 09/2026', false)->assertSee('Bản nháp')->assertSee('Xếp loại');
-
-        $this->actingAs($lead)->post(route('kpi.evaluate.store', $this->academicStaff->id), [
-            'month' => 9, 'year' => 2026, 'score' => $scores, 'action' => 'confirm',
-        ])->assertRedirect();
-        $this->assertSame('confirmed', $evaluation->fresh()->status);
-        $this->assertEquals(100, (float) $evaluation->fresh()->total_score);
-        [$grade] = \App\Models\KpiEvaluation::gradeFor(100);
-        $this->assertSame('A', $grade);
+        // Phiếu KPI tháng (Duyệt / Không duyệt, số liệu tự động) thay màn mockup cũ ở 689bb4b1: xem KpiMonthlySheetTest,
+        // KpiAcademicLeadTest, KpiParttimeTeacherTest.
     }
 
     /** Màn "Lương của tôi" (epic-7/luong-cua-toi-teacher-portal): chỉ kỳ đã duyệt, so sánh tháng trước, trừ, buổi dạy, tải phiếu. */
