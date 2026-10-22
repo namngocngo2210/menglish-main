@@ -15,6 +15,8 @@ const props = defineProps({
     selected: { type: Object, default: null },
     listUrl: { type: String, required: true },
     search: { type: String, default: '' },
+    // Mở từ buổi dạy: chỉ tài liệu của chặng lớp đang học ({ label, class_name, all_url }); null = mọi tài liệu.
+    stageScope: { type: Object, default: null },
     initialTab: { type: String, default: 'docs' },
     classes: { type: Array, default: () => [] },
     classId: { type: Number, default: null },
@@ -64,6 +66,7 @@ const chipIcon = { open: 'play_circle', done: 'check_circle', todo: 'lock' };
         <template #actions>
             <GetForm :action="route('syllabus.teacher-view')" class="flex items-center gap-2">
                 <input v-if="classId" type="hidden" name="class" :value="classId" />
+                <input v-if="stageScope" type="hidden" name="scope" value="stage" />
                 <UiInput name="q" icon="search" :value="search" placeholder="Tìm kiếm tài liệu..." />
                 <UiButton type="submit" variant="secondary" icon="filter_list">Lọc</UiButton>
             </GetForm>
@@ -87,7 +90,11 @@ const chipIcon = { open: 'play_circle', done: 'check_circle', todo: 'lock' };
         </nav>
 
         <!-- Tab 1: Tài liệu -->
-        <div v-show="tab === 'docs'">
+        <div v-show="tab === 'docs'" class="space-y-md">
+            <UiAlert v-if="stageScope" type="info" :title="`Tài liệu ${stageScope.label ?? 'chặng đang học'} — ${stageScope.class_name}`">
+                Chỉ hiện tài liệu của chặng lớp đang học và tài liệu chung của giáo trình.
+                <Link :href="stageScope.all_url" class="font-semibold text-primary hover:underline">Xem tất cả tài liệu</Link>
+            </UiAlert>
             <UiDataTable min-width="760px">
                 <template #header>
                     <h2 class="font-h3 text-h3 text-on-surface">Danh sách tài liệu</h2>
@@ -125,7 +132,7 @@ const chipIcon = { open: 'play_circle', done: 'check_circle', todo: 'lock' };
                             <td class="text-right"><UiButton variant="secondary" size="sm" icon="visibility" :href="doc.url">Xem</UiButton></td>
                         </tr>
                         <tr v-if="!documents.length">
-                            <td colspan="6"><UiEmptyState icon="folder_off" :title="search !== '' ? 'Không tìm thấy tài liệu phù hợp' : 'Chưa có tài liệu nào'" description="Học thuật chưa chia sẻ tài liệu nào cho vai trò của bạn." /></td>
+                            <td colspan="6"><UiEmptyState icon="folder_off" :title="search !== '' ? 'Không tìm thấy tài liệu phù hợp' : stageScope ? 'Chặng này chưa có tài liệu' : 'Chưa có tài liệu nào'" :description="stageScope ? 'Học thuật chưa chia sẻ tài liệu nào cho chặng lớp đang học.' : 'Học thuật chưa chia sẻ tài liệu nào cho vai trò của bạn.'" /></td>
                         </tr>
                     </tbody>
                 </table>
@@ -163,6 +170,7 @@ const chipIcon = { open: 'play_circle', done: 'check_circle', todo: 'lock' };
                 <GetForm v-if="classes.length" :action="route('syllabus.teacher-view')">
                     <input v-if="selected" type="hidden" name="document" :value="selected.id" />
                     <input type="hidden" name="tab" value="lessons" />
+                    <input v-if="stageScope" type="hidden" name="scope" value="stage" />
                     <UiSelect name="class" inline-label="Lớp" :value="classId" :options="classes" />
                 </GetForm>
             </div>

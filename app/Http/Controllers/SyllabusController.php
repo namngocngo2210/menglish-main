@@ -1042,6 +1042,12 @@ class SyllabusController extends Controller
         abort_if($request->filled('class') && ! $class, 404);
 
         $assignment = $class ? $progression->openAssignment($class) : null;
+        // Mở từ buổi dạy (?scope=stage): chỉ tài liệu của chặng lớp đang học + tài liệu chung (chưa gắn chặng) của giáo trình.
+        $stageScope = $request->query('scope') === 'stage' && $assignment;
+        if ($stageScope) {
+            $documents = $documents->filter(fn (SyllabusDocument $d) => (int) $d->curriculum_id === (int) $assignment->curriculum_id
+                && ($d->stage_id === null || $assignment->stage_id === null || (int) $d->stage_id === (int) $assignment->stage_id))->values();
+        }
         $position = $assignment ? $progression->position($assignment) : null;
         $stages = $assignment?->curriculum ? $assignment->curriculum->stages()->with('units.lessons')->get() : collect();
         $closedStageIds = $class
@@ -1054,7 +1060,7 @@ class SyllabusController extends Controller
 
         $stageUnits = $assignment?->stage?->units()->with('lessons')->get() ?? collect();
         $stageState = fn (SyllabusStage $s) => $assignment && $s->id === $assignment->stage_id ? 'open' : ($closedStageIds->contains($s->id) ? 'done' : 'todo');
-        $listQuery = array_filter(['class' => $class?->id, 'q' => $search]);
+        $listQuery = array_filter(['class' => $class?->id, 'q' => $search, 'scope' => $stageScope ? 'stage' : null]);
         $current = $position['current'] ?? null;
 
         return Inertia::render('Syllabus/TeacherView', [
@@ -1081,6 +1087,11 @@ class SyllabusController extends Controller
             ] : null,
             'listUrl' => route('syllabus.teacher-view', $listQuery),
             'search' => $search,
+            'stageScope' => $stageScope ? [
+                'label' => $assignment->stage?->label ?? $assignment->stage_name,
+                'class_name' => $class->name,
+                'all_url' => route('syllabus.teacher-view', array_filter(['class' => $class->id, 'q' => $search])),
+            ] : null,
             'initialTab' => in_array($request->query('tab'), ['docs', 'overview', 'lessons'], true) ? $request->query('tab') : ($class && ! $documents->count() ? 'lessons' : 'docs'),
             'classes' => Ui::options($classes, 'name'),
             'classId' => $class?->id,
