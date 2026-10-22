@@ -26,6 +26,8 @@ const props = defineProps({
     trialGuests: { type: Object, default: () => ({ scope: 'upcoming', items: [] }) },
     // Khung điểm danh của GV (giờ, SLA gv.attendance_window trên trang Cấu hình SLA).
     windowHours: { type: Number, default: 24 },
+    // Màn GV xem bài giảng của lớp (null khi lớp chưa có chặng mở / không có quyền xem giáo trình).
+    syllabusUrl: { type: String, default: null },
 });
 
 const OPTIONS = {
@@ -73,6 +75,9 @@ function pickSession(event) {
                     <UiBadge v-if="session.type === 'makeup'" color="warning">Buổi học bù</UiBadge>
                     <UiBadge v-if="session.type === 'support'" color="secondary">Buổi phụ đạo</UiBadge>
                 </div>
+            </template>
+            <template v-if="syllabusUrl" #actions>
+                <UiButton variant="secondary" icon="menu_book" :href="syllabusUrl">Mở giáo trình</UiButton>
             </template>
         </UiPageHeader>
 
