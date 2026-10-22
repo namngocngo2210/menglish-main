@@ -1231,6 +1231,13 @@ class TeacherPortalController extends Controller
     /** Trường nhận xét từng học sinh (mockup 05_nhan_xet_buoi_hoc_cho_tung_hoc_sinh). */
     private const REMARK_FIELDS = ['monsters_group', 'monsters_bonus', 'grammar', 'attitude', 'result', 'comment'];
 
+    /** Cột nhận xét chọn từ danh sách (không gõ tự do). Giá trị gõ tay trước đây vẫn giữ được khi lưu lại. */
+    public const REMARK_OPTIONS = [
+        'grammar' => ['Tốt', 'Khá', 'Cần cố gắng'],
+        'attitude' => ['Tốt', 'Khá', 'Cần cố gắng'],
+        'result' => ['Đạt', 'Không đạt'],
+    ];
+
     /** Mã bản ghi nhận xét theo buổi học: {lớp}-{ngày}-s{buổi}. Bản cũ (theo lớp + ngày) là {lớp}-{ngày}. */
     public static function remarkRecordCode(ClassSession $session): string
     {
@@ -1269,15 +1276,8 @@ class TeacherPortalController extends Controller
                     ->orWhere(fn ($q) => $q->whereNull('class_session_id')->whereDate('session_date', $session->date->toDateString())))
                 ->get()
                 ->keyBy('student_id');
-            $record = AcademicRecord::where('module', 'teacher_remarks')->where('record_code', self::remarkRecordCode($session))->first()
-                // Nhận xét cũ lưu theo lớp + ngày: điền sẵn để GV lưu lại vào đúng buổi.
-                ?? AcademicRecord::where('module', 'teacher_remarks')->where('record_code', $class->id.'-'.$session->date->toDateString())->first();
-            $existing = collect($record?->data ?? [])->map(function ($remark) {
-                $remark = (array) $remark;
-                $remark['monsters_group'] ??= $remark['monsters'] ?? null;
-
-                return $remark;
-            });
+            $record = $this->remarkRecord($class, $session);
+            $existing = self::remarkData($record);
             $sessionNo = app(\App\Services\SessionLessonService::class)->sessionNumbers([(int) $class->id])[$session->id] ?? null;
         }
         // Buổi đang xem cũ hơn cửa sổ vẫn phải có trong ô chọn, nếu không ô chọn hiện nhầm buổi khác.
@@ -1306,8 +1306,52 @@ class TeacherPortalController extends Controller
                 ];
             })->values()->all(),
             'recentSessions' => $this->sessionOptions($recentSessions),
+            'remarkOptions' => self::REMARK_OPTIONS,
             'trialGuests' => $this->trialGuestsProps($this->sessionTrialGuests($session)),
         ]);
+    }
+
+    /** Bản ghi nhận xét của buổi; nhận xét cũ lưu theo lớp + ngày được điền sẵn để GV lưu lại vào đúng buổi. */
+    private function remarkRecord(ClassModel $class, ClassSession $session): ?AcademicRecord
+    {
+        return AcademicRecord::where('module', 'teacher_remarks')->where('record_code', self::remarkRecordCode($session))->first()
+            ?? AcademicRecord::where('module', 'teacher_remarks')->where('record_code', $class->id.'-'.$session->date->toDateString())->first();
+    }
+
+    /** @return Collection<int|string, array<string, mixed>> nhận xét đã lưu theo mã học sinh */
+    private static function remarkData(?AcademicRecord $record): Collection
+    {
+        return collect($record?->data ?? [])->map(function ($remark) {
+            $remark = (array) $remark;
+            $remark['monsters_group'] ??= $remark['monsters'] ?? null;
+
+            return $remark;
+        });
+    }
+
+    /**
+     * Cột chọn (REMARK_OPTIONS) chỉ nhận giá trị trong danh sách, hoặc đúng giá trị đã lưu trước đây của học sinh đó.
+     *
+     * @param  array<int|string, array<string, mixed>>  $remarks
+     *
+     * @throws \Illuminate\Validation\ValidationException
+     */
+    private static function ensureRemarkOptions(array $remarks, Collection $existing): void
+    {
+        $errors = [];
+        foreach ($remarks as $studentId => $remark) {
+            $saved = (array) ($existing->get($studentId) ?? $existing->get((string) $studentId) ?? []);
+            foreach (self::REMARK_OPTIONS as $field => $options) {
+                $value = $remark[$field] ?? null;
+                if (blank($value) || in_array($value, $options, true) || $value === ($saved[$field] ?? null)) {
+                    continue;
+                }
+                $errors["remarks.{$studentId}.{$field}"] = 'Chọn '.implode(' / ', $options).'.';
+            }
+        }
+        if ($errors) {
+            throw \Illuminate\Validation\ValidationException::withMessages($errors);
+        }
     }
 
     /** Khách học thử được xếp vào đúng buổi này (không thuộc danh sách lớp, không ghi danh). */
@@ -1352,6 +1396,7 @@ class TeacherPortalController extends Controller
             ->filter(fn ($remark, $studentId) => $rosterIds->contains((string) $studentId))
             ->map(fn ($remark) => array_intersect_key((array) $remark, array_flip(self::REMARK_FIELDS)))
             ->all();
+        self::ensureRemarkOptions($remarks, self::remarkData($this->remarkRecord($class, $session)));
         $isDraft = ($validated['action'] ?? 'final') === 'draft';
 
         AcademicRecord::updateOrCreate(

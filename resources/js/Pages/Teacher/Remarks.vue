@@ -1,7 +1,8 @@
 <script setup>
 /**
  * Nhận xét buổi học cho từng học sinh (mockup 03_Cong_Giao_Vien/05): theo từng BUỔI học, cột Monsters (Nhóm) / (Thưởng),
- * Thực hành ngữ pháp, Tinh thần học tập, Kết quả, Nhận xét chi tiết; học sinh vắng bị khóa; "Lưu nháp" chưa hiện cho học viên.
+ * Thực hành ngữ pháp, Tinh thần học tập, Kết quả (chọn từ danh sách remarkOptions), Nhận xét chi tiết; học sinh vắng bị khóa;
+ * "Lưu nháp" chưa hiện cho học viên.
  */
 import { computed } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
@@ -18,6 +19,7 @@ const props = defineProps({
     blockReason: { type: String, default: null },
     students: { type: Array, default: () => [] },
     recentSessions: { type: Array, default: () => [] },
+    remarkOptions: { type: Object, default: () => ({}) },
     trialGuests: { type: Object, default: () => ({ scope: 'upcoming', items: [] }) },
 });
 
@@ -30,7 +32,13 @@ const FIELDS = [
     ['result', 'Kết quả', 'Đạt mục tiêu bài học'],
 ];
 // Màn nhỏ: mỗi học sinh một thẻ xếp dọc (như trang điểm danh); từ md trở lên: dạng bảng, cuộn ngang khi hẹp.
-const grid = 'md:grid md:grid-cols-[200px_130px_110px_110px_160px_160px_160px_minmax(260px,1fr)] md:items-start md:gap-md';
+const grid = 'md:grid md:grid-cols-[200px_130px_110px_110px_140px_140px_130px_minmax(360px,1fr)] md:items-start md:gap-md';
+
+// Lựa chọn của một cột chọn; nhận xét gõ tay trước đây (ngoài danh sách) vẫn hiện để lưu lại không mất.
+function choicesFor(key, current) {
+    const options = props.remarkOptions[key] ?? [];
+    return current && !options.includes(current) ? [...options, current] : options;
+}
 
 const page = usePage();
 const firstError = computed(() => Object.values(page.props.errors ?? {}).find((v) => typeof v === 'string') ?? null);
@@ -103,7 +111,20 @@ function pickSession(event) {
                                 <div class="grid grid-cols-2 gap-sm md:contents">
                                     <label v-for="([key, label, placeholder], index) in FIELDS" :key="key" :class="['block', index >= 2 ? 'col-span-2' : '']">
                                         <span class="mb-[2px] block font-caption text-caption text-on-surface-variant md:hidden">{{ label }}</span>
+                                        <select
+                                            v-if="remarkOptions[key]"
+                                            :name="`remarks[${student.id}][${key}]`"
+                                            :aria-label="`${label} — ${student.name}`"
+                                            :disabled="student.absent"
+                                            :class="cell"
+                                        >
+                                            <option value="" :selected="!student.remark[key]">{{ student.absent ? '-' : '— Chọn —' }}</option>
+                                            <option v-for="choice in choicesFor(key, student.remark[key])" :key="choice" :value="choice" :selected="student.remark[key] === choice">
+                                                {{ remarkOptions[key].includes(choice) ? choice : `${choice} (cũ)` }}
+                                            </option>
+                                        </select>
                                         <input
+                                            v-else
                                             type="text"
                                             :name="`remarks[${student.id}][${key}]`"
                                             :value="student.remark[key]"
@@ -118,11 +139,11 @@ function pickSession(event) {
                                     <span class="mb-[2px] block font-caption text-caption text-on-surface-variant md:hidden">Nhận xét chi tiết</span>
                                     <textarea
                                         :name="`remarks[${student.id}][comment]`"
-                                        rows="2"
+                                        rows="5"
                                         :aria-label="`Nhận xét chi tiết — ${student.name}`"
                                         :disabled="student.absent"
                                         :placeholder="student.absent ? 'Học sinh vắng mặt...' : 'Nhận xét chi tiết về quá trình học tập trong buổi học này...'"
-                                        :class="cell"
+                                        :class="[cell, 'min-h-[7.5rem] resize-y']"
                                         :value="student.remark.comment"
                                     ></textarea>
                                 </label>
