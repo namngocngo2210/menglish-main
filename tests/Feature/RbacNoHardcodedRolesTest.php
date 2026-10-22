@@ -43,7 +43,8 @@ class RbacNoHardcodedRolesTest extends TestCase
         'app/Http/Controllers/TuitionController.php' => 6, // người lập phiếu sửa / không tự duyệt phiếu (Super Admin miễn); cờ "được sửa" cho form / lịch sử / duyệt phiếu (Vue)
         'app/Models/Penalty.php' => 1,                     // người vi phạm không tự chốt biên bản (Super Admin miễn)
         'app/Http/Controllers/WorkTaskController.php' => 1, // tab mặc định "Tất cả" (giao diện)
-        'app/Services/NotificationService.php' => 1,       // không tìm được người phân công ticket → báo Super Admin
+        'app/Services/NotificationService.php' => 2,       // không tìm được người phân công ticket → báo Super Admin (người tạo là Super Admin thì không tự báo)
+        'app/Models/AdminNotification.php' => 1,           // chuông thông báo: Super Admin thấy mọi thông báo hệ thống, người khác chỉ loại phát theo chi nhánh
         'resources/views/users/permissions.blade.php' => 1, // cảnh báo "Super Admin luôn toàn quyền"
     ];
 
