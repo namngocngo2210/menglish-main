@@ -33,7 +33,7 @@ const money = computed(() => [
                 <UiBadge v-if="user.locked" color="error">Vô hiệu hóa</UiBadge>
                 <UiBadge v-else color="success">Đang hoạt động</UiBadge>
             </template>
-            <template #meta><span class="break-all font-code">{{ user.employee_code }} · {{ user.email }} · {{ user.branch_name ?? 'Chưa gán chi nhánh' }}</span></template>
+            <template #meta><span class="break-all font-code">{{ user.employee_code }} · {{ user.email }} · {{ user.branch_name ?? 'Chưa gán chi nhánh' }}<template v-if="user.extra_branches?.length"> (+ {{ user.extra_branches.join(', ') }})</template></span></template>
             <template v-if="canAny('user.update', 'permission.override')" #actions>
                 <UiButton v-if="can('user.update')" variant="secondary" icon="edit" :href="route('users.edit', user.id)" modal="3xl">Sửa thông tin</UiButton>
                 <UiButton v-if="can('permission.override')" icon="admin_panel_settings" :href="route('users.permissions.edit', user.id)" modal="7xl">Phân quyền chi tiết</UiButton>
@@ -52,7 +52,7 @@ const money = computed(() => [
                         <div class="flex flex-wrap items-center gap-x-md gap-y-xs font-body-small text-body-small text-on-surface-variant">
                             <span class="inline-flex min-w-0 items-center gap-xs"><span class="material-symbols-outlined shrink-0 text-[16px]" aria-hidden="true">mail</span><span class="break-all">{{ user.email }}</span></span>
                             <span class="inline-flex items-center gap-xs"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">call</span><span :class="user.phone ? 'font-code' : 'italic'">{{ user.phone ?? empty }}</span></span>
-                            <span class="inline-flex items-center gap-xs"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">apartment</span>{{ user.branch_name ?? 'Chưa gán chi nhánh' }}</span>
+                            <span class="inline-flex items-center gap-xs"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">apartment</span>{{ user.branch_name ?? 'Chưa gán chi nhánh' }}<template v-if="user.extra_branches?.length"> + {{ user.extra_branches.join(', ') }}</template></span>
                         </div>
                     </div>
                 </div>

@@ -41,7 +41,7 @@ function openModal(url, size) {
                         <span class="flex h-14 w-14 items-center justify-center rounded-full bg-primary-container font-h2 text-h2 text-white">{{ user.name.charAt(0) }}</span>
                         <div class="min-w-0">
                             <p class="font-h3 text-h3 text-on-surface">{{ user.name }}</p>
-                            <p class="text-on-surface-variant">{{ (user.primary_role || 'Người dùng') + ' · ' + (user.branch ? user.branch.name : 'Chưa gán chi nhánh') }}</p>
+                            <p class="text-on-surface-variant">{{ (user.primary_role || 'Người dùng') + ' · ' + (user.branch ? user.branch.name : 'Chưa gán chi nhánh') + (user.extra_branches?.length ? ' + ' + user.extra_branches.join(', ') : '') }}</p>
                             <p class="font-code text-caption text-on-surface-variant">{{ user.email + ' · ' + user.employee_code }}</p>
                         </div>
                     </div>

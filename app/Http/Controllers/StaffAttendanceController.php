@@ -86,7 +86,7 @@ class StaffAttendanceController extends Controller
                 ->with('penalty:id,code,status')->get()->keyBy('user_id');
             $leaves = StaffAttendanceRequest::query()->approved()->whereIn('user_id', $ids)
                 ->where('type', StaffAttendanceRequest::TYPE_LEAVE)->overlapping($day, $day)->get()->keyBy('user_id');
-            $rows = $page->through(function (User $u) use ($records, $leaves) {
+            $rows = $page->through(function (User $u) use ($records, $leaves, $viewer) {
                 $a = $records->get($u->id);
 
                 return [
@@ -95,7 +95,8 @@ class StaffAttendanceController extends Controller
                         'id' => $a->id,
                         'check_in' => $a->check_in_at?->format('H:i'),
                         'check_out' => $a->check_out_at?->format('H:i'),
-                        'check_in_photo' => $a->check_in_photo ? route('staff-attendance.photo', [$a->id, 'in']) : null,
+                        // Nhân sự làm nhiều cơ sở có thể chấm ở cơ sở ngoài phạm vi người xem: ảnh chỉ hiện khi được xem.
+                        'check_in_photo' => $a->check_in_photo && self::canSee($viewer, $a) ? route('staff-attendance.photo', [$a->id, 'in']) : null,
                         'check_in_distance' => $a->check_in_distance,
                         'expected' => trim(substr((string) $a->expected_start, 0, 5).' – '.substr((string) $a->expected_end, 0, 5), ' –'),
                         'status_label' => $a->statusLabel(),
@@ -166,15 +167,15 @@ class StaffAttendanceController extends Controller
         ]);
     }
 
-    /** Nhân sự (có cổng nhân sự, đang hoạt động) trong phạm vi chi nhánh của người xem. */
+    /** Nhân sự (có cổng nhân sự, đang hoạt động) làm việc ở chi nhánh trong phạm vi người xem (chi nhánh chính hoặc làm thêm). */
     private function staffQuery(User $viewer, ?int $branchId, ?string $search): Builder
     {
         $query = User::query()->where('is_active', true);
         Rbac::scopeUsersWithPermission($query, 'portal.staff');
-        DataScope::apply($query, $viewer, 'staff_checkin', null, fn (Builder $q, array $ids) => $q->whereIn('branch_id', $ids));
+        DataScope::apply($query, $viewer, 'staff_checkin', null, fn (Builder $q, array $ids) => $q->inBranches($ids));
 
         return $query
-            ->when($branchId, fn (Builder $q) => $q->where('branch_id', $branchId))
+            ->when($branchId, fn (Builder $q) => $q->inBranches([$branchId]))
             ->when($search, fn (Builder $q, string $s) => $q->where(fn (Builder $w) => $w->where('name', 'like', "%{$s}%")
                 ->orWhere('employee_code', 'like', "%{$s}%")));
     }

@@ -24,7 +24,7 @@ const page = usePage();
 const fid = (field) => props.idPrefix + field;
 
 const tabs = {
-    account: ['Tài khoản', 'manage_accounts', ['name', 'email', 'phone', 'branch_id', 'role', 'academic_teaching', 'concurrent_roles', 'password']],
+    account: ['Tài khoản', 'manage_accounts', ['name', 'email', 'phone', 'branch_id', 'extra_branch_ids', 'role', 'academic_teaching', 'concurrent_roles', 'password']],
     profile: ['Hồ sơ', 'badge', ['date_of_birth', 'personal_email', 'facebook', 'contact_channel', 'id_card_number', 'id_card_issued_on', 'emergency_contact', 'hometown', 'current_address', 'graduation_school', 'major', 'certificates', 'teaching_level', 'staff_note']],
     salary: ['Hợp đồng & Lương', 'payments', ['contract_type', 'base_salary', 'hourly_rate', 'joined_on', 'bank_account', 'contract_start_date', 'contract_end_date', 'contract_file']],
 };
@@ -44,6 +44,14 @@ const firstErrorTab = () => Object.keys(tabs).find((key) => tabHasError(key)) ??
 
 // Học thuật: option "Kiêm nhiệm giảng dạy" hiện ngay dưới ô vai trò khi chọn vai trò chính Học thuật.
 const role = ref(props.currentRole ?? '');
+
+// Nhân sự làm việc ở nhiều cơ sở: 1 cơ sở chính (chấm công mặc định, lương, báo cáo) + các cơ sở làm việc thêm.
+const primaryBranch = ref(props.user?.branch_id ?? '');
+const extraBranches = ref((props.user?.extra_branch_ids ?? []).map(Number));
+const extraBranchOptions = computed(() => props.branches.filter((b) => String(b.value) !== String(primaryBranch.value)));
+const extraBranchErrors = computed(() => Object.entries(errors.value)
+    .filter(([key]) => key === 'extra_branch_ids' || key.startsWith('extra_branch_ids.'))
+    .map(([, message]) => message));
 const teaching = ref(!!props.user?.academic_teaching);
 
 const tab = ref(firstErrorTab() ?? (tabs[props.initialTab] ? props.initialTab : 'account'));
@@ -96,9 +104,23 @@ onMounted(() => {
                 <UiInput :id="fid('employee_code')" label="Mã nhân viên (dùng để đăng nhập)" :value="user?.employee_code ?? 'Tự cấp khi lưu'" hint="Hệ thống tự cấp theo dạng MESxxx" disabled class="font-code" />
                 <UiInput name="email" :id="fid('email')" type="email" label="Email công việc" required :value="user?.email" placeholder="VD: nva@menglish.edu.vn" />
                 <UiInput name="phone" :id="fid('phone')" label="Số điện thoại" :value="user?.phone" placeholder="10 số, bắt đầu bằng 0" class="font-code" />
-                <UiSelect name="branch_id" :id="fid('branch_id')" label="Cơ sở / Chi nhánh" required placeholder="-- Chọn cơ sở --" :value="user?.branch_id" :options="branches" />
+                <UiSelect v-model="primaryBranch" name="branch_id" :id="fid('branch_id')" label="Cơ sở chính" required placeholder="-- Chọn cơ sở --" :options="branches" />
                 <UiSelect v-model="role" name="role" :id="fid('role')" label="Vai trò & Chức vụ" required placeholder="-- Chọn vai trò --" :options="roleOptions" />
             </div>
+
+            <!-- Cơ sở làm việc thêm (user_branches): nhân sự dạy / làm việc ở nhiều cơ sở. -->
+            <fieldset v-if="branches.length > 1" class="rounded-lg border border-outline-variant p-md" data-extra-branches>
+                <input type="hidden" name="extra_branch_ids_present" value="1" />
+                <legend class="px-xs font-label text-label uppercase text-on-surface-variant">Cơ sở làm việc thêm</legend>
+                <p class="mb-sm font-caption text-caption text-on-surface-variant">Nhân sự còn làm việc ở các cơ sở này ngoài cơ sở chính: được chọn làm giáo viên / thành viên, chấm công tại cơ sở gần nhất và được quản lý cơ sở đó nhìn thấy.</p>
+                <div class="grid grid-cols-1 gap-xs sm:grid-cols-2">
+                    <label v-for="option in extraBranchOptions" :key="option.value" class="flex items-center gap-sm font-body-small text-body-small">
+                        <input v-model="extraBranches" type="checkbox" name="extra_branch_ids[]" :value="Number(option.value)" :id="fid('extra_branch_' + option.value)" class="rounded border-outline-variant text-primary-container focus:ring-primary-container" />
+                        <span>{{ option.label }}</span>
+                    </label>
+                </div>
+                <UiErrors class="mt-1" :messages="extraBranchErrors" />
+            </fieldset>
 
             <!-- Học thuật kiêm nhiệm giảng dạy: phiếu lương mở thêm lương đứng lớp (% học phí theo buổi) + KPI kiêm nhiệm. -->
             <div v-if="role === 'academic_lead'" class="rounded-lg border border-outline-variant p-md" data-academic-teaching>

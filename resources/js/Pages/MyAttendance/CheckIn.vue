@@ -3,6 +3,7 @@
  * Chấm công của tôi (tab đầu khu "Chấm công", cũng mở từ menu tài khoản): chụp ảnh khuôn mặt (camera trước) + lấy GPS,
  * giờ chấm = giờ máy chủ. Dùng được trên điện thoại lẫn máy tính có camera (trước ở giao diện điện thoại riêng /m).
  * Chỉ bấm "Xác nhận" được khi đã có ảnh và GPS nằm trong bán kính cơ sở (máy chủ kiểm tra lại lần cuối).
+ * Nhân sự làm ở nhiều cơ sở: so GPS với cơ sở gần nhất trong các cơ sở làm việc (chính + làm thêm).
  * Không mở được camera trực tiếp → dự phòng bằng ô chụp ảnh của điện thoại (capture="user").
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
@@ -14,6 +15,7 @@ import { route } from '@/lib/route';
 const props = defineProps({
     me: { type: Object, required: true },
     branch: { type: Object, default: null },
+    branches: { type: Array, default: () => [] },
     expected: { type: Object, required: true },
     today: { type: Object, default: null },
     serverTime: { type: String, required: true },
@@ -34,9 +36,10 @@ onMounted(() => {
 const clock = computed(() => formatDate(new Date(nowMs.value), 'H:i:s'));
 const dateLabel = computed(() => formatDate(new Date(nowMs.value), 'l, d/m/Y'));
 
+const located = computed(() => props.branches.filter((b) => b.has_location));
 const blocker = computed(() => {
-    if (!props.branch) return 'Tài khoản của bạn chưa được gán cơ sở làm việc. Hãy báo Admin / Quản lý cơ sở.';
-    if (!props.branch.has_location) return `Cơ sở ${props.branch.name} chưa cài toạ độ chấm công. Hãy báo Admin vào Cài đặt → Cơ sở & chi nhánh → Chấm công.`;
+    if (!props.branches.length) return 'Tài khoản của bạn chưa được gán cơ sở làm việc. Hãy báo Admin / Quản lý cơ sở.';
+    if (!located.value.length) return `Cơ sở ${props.branches.map((b) => b.name).join(', ')} chưa cài toạ độ chấm công. Hãy báo Admin vào Cài đặt → Cơ sở & chi nhánh → Chấm công.`;
     return props.locked;
 });
 const nextKind = computed(() => (props.today?.check_in ? 'out' : 'in'));
@@ -54,11 +57,16 @@ const video = ref(null);
 const fileInput = ref(null);
 let stream = null;
 
-const distance = computed(() => {
+// Cơ sở gần GPS nhất trong các cơ sở đã cài toạ độ.
+const nearest = computed(() => {
     const p = geo.value.pos;
-    return p && props.branch?.has_location ? Math.round(distanceMeters(p.latitude, p.longitude, props.branch.latitude, props.branch.longitude)) : null;
+    if (!p) return null;
+    return located.value
+        .map((b) => ({ ...b, distance: Math.round(distanceMeters(p.latitude, p.longitude, b.latitude, b.longitude)) }))
+        .reduce((best, b) => (!best || b.distance < best.distance ? b : best), null);
 });
-const inRange = computed(() => distance.value !== null && distance.value <= props.branch.radius);
+const distance = computed(() => nearest.value?.distance ?? null);
+const inRange = computed(() => distance.value !== null && distance.value <= nearest.value.radius);
 const serverErrors = computed(() => ['location', 'kind', 'photo', 'latitude', 'longitude', 'accuracy'].map((k) => page.props.errors?.[k]).filter(Boolean));
 const canSubmit = computed(() => !!photo.value && inRange.value && !submitting.value);
 
@@ -163,7 +171,10 @@ onBeforeUnmount(() => {
     if (photoUrl.value) URL.revokeObjectURL(photoUrl.value);
 });
 
-const radiusText = computed(() => (props.branch ? `${formatNumber(props.branch.radius)} m` : ''));
+const radiusText = computed(() => {
+    const radius = (nearest.value ?? located.value[0] ?? props.branch)?.radius;
+    return radius ? `${formatNumber(radius)} m` : '';
+});
 </script>
 
 <template>
@@ -182,6 +193,9 @@ const radiusText = computed(() => (props.branch ? `${formatNumber(props.branch.r
                 <div class="min-w-0">
                     <p class="font-body-semibold text-body-semibold">{{ branch?.name ?? 'Chưa gán cơ sở' }}</p>
                     <p v-if="branch?.address" class="truncate font-caption text-caption text-white/85">{{ branch.address }}</p>
+                    <p v-if="branches.length > 1" class="font-caption text-caption text-white/85" data-work-branches>
+                        Chấm được tại: {{ branches.map((b) => b.name).join(', ') }}
+                    </p>
                     <p class="font-caption text-caption text-white/85">
                         <template v-if="expected.start">Giờ vào {{ expected.start }}<template v-if="expected.end"> · giờ ra {{ expected.end }}</template> ({{ expected.basis.toLocaleLowerCase('vi') }})</template>
                         <template v-else>{{ expected.basis }} hôm nay, không tính đi muộn</template>
@@ -248,7 +262,7 @@ const radiusText = computed(() => (props.branch ? `${formatNumber(props.branch.r
                     <p v-if="geo.status === 'loading'">Đang lấy vị trí GPS…</p>
                     <template v-else-if="geo.status === 'ok'">
                         <p class="font-body-semibold text-body-semibold" :class="inRange ? 'text-tertiary' : 'text-error'">
-                            {{ inRange ? 'Trong bán kính cơ sở' : 'Ngoài bán kính cơ sở' }}: cách {{ branch.name }} {{ formatNumber(distance) }} m
+                            {{ inRange ? 'Trong bán kính cơ sở' : 'Ngoài bán kính cơ sở' }}: cách {{ nearest?.name }} {{ formatNumber(distance) }} m
                         </p>
                         <p class="text-on-surface-variant">Cho phép {{ radiusText }} · sai số GPS khoảng {{ formatNumber(geo.pos.accuracy) }} m</p>
                     </template>

@@ -52,15 +52,9 @@ class MyAttendanceController extends Controller
                 'code' => $user->employee_code,
                 'role' => ($role = $user->getRoleNames()->first()) ? AclHelper::shortRoleLabel($role) : null,
             ],
-            'branch' => $branch ? [
-                'name' => $branch->name,
-                'address' => $branch->address,
-                'latitude' => $branch->latitude,
-                'longitude' => $branch->longitude,
-                'radius' => $branch->checkin_radius ?: Branch::DEFAULT_CHECKIN_RADIUS,
-                'grace' => (int) $branch->late_grace_minutes,
-                'has_location' => $branch->hasCheckinLocation(),
-            ] : null,
+            'branch' => $branch ? $this->branchData($branch) : null,
+            // Mọi cơ sở làm việc (chính + làm thêm): trang chọn cơ sở gần GPS nhất, máy chủ kiểm tra lại khi chấm.
+            'branches' => $this->attendance->workBranches($user)->map(fn (Branch $b) => $this->branchData($b))->values()->all(),
             'expected' => $expected,
             'today' => $today ? $this->attendanceData($today) : null,
             'serverTime' => $now->toIso8601String(),
@@ -200,6 +194,21 @@ class MyAttendanceController extends Controller
     }
 
     /** @return array<string, mixed> dữ liệu 1 ngày công cho màn Chấm công / Lịch sử công */
+    /** @return array<string, mixed> */
+    private function branchData(Branch $branch): array
+    {
+        return [
+            'id' => $branch->id,
+            'name' => $branch->name,
+            'address' => $branch->address,
+            'latitude' => $branch->latitude,
+            'longitude' => $branch->longitude,
+            'radius' => $branch->checkin_radius ?: Branch::DEFAULT_CHECKIN_RADIUS,
+            'grace' => (int) $branch->late_grace_minutes,
+            'has_location' => $branch->hasCheckinLocation(),
+        ];
+    }
+
     private function attendanceData(StaffAttendance $a): array
     {
         return [

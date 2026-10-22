@@ -169,6 +169,36 @@ class MyAttendanceTest extends TestCase
         $this->assertSame(0, StaffAttendance::count());
     }
 
+    public function test_staff_working_at_several_branches_checks_in_at_the_nearest_one(): void
+    {
+        // CN Hà Đông cách Cầu Giấy ~8 km, giờ vào 07:30 (đến 07:55 là muộn).
+        $this->otherBranch->update([
+            'latitude' => 20.9710, 'longitude' => 105.7788, 'checkin_radius' => 100,
+            'work_start_time' => '07:30', 'work_end_time' => '17:00', 'late_grace_minutes' => 5,
+        ]);
+        $this->staff->branches()->sync([$this->otherBranch->id]);
+
+        $this->actingAs($this->staff)->get(route('my-attendance.home'))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('branch.name', 'CN Cầu Giấy')
+                ->where('branches', fn ($branches) => collect($branches)->pluck('name')->all() === ['CN Cầu Giấy', 'CN Hà Đông']));
+
+        $this->actingAs($this->staff)->post(route('my-attendance.punch'), ['latitude' => 20.9711, 'longitude' => 105.7788] + $this->punchData())
+            ->assertSessionHasNoErrors();
+        $row = StaffAttendance::sole();
+        $this->assertSame($this->otherBranch->id, $row->branch_id);
+        $this->assertSame(25, $row->late_minutes);
+
+        // Chấm ra ở cơ sở khác: bản ghi giữ cơ sở chấm vào.
+        $this->travelTo(Carbon::parse('2026-10-05 17:30:00'));
+        $this->punch($this->staff, 'out')->assertSessionHasNoErrors();
+        $this->assertSame($this->otherBranch->id, $row->fresh()->branch_id);
+
+        // Cơ sở làm thêm hiện trên bảng chấm công của quản lý cơ sở đó.
+        $managerHd = $this->user('manager', $this->otherBranch);
+        $this->actingAs($managerHd)->get(route('staff-attendance.index'))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('rows.data', fn ($rows) => collect($rows)->pluck('user.id')->contains($this->staff->id)));
+    }
+
     public function test_locked_payroll_period_blocks_check_in(): void
     {
         PayrollPeriod::create([
