@@ -1,6 +1,6 @@
 # Xem và vẽ trên PDF giáo trình
 
-Trạng thái: **Chờ duyệt thiết kế** — 23/10/2026
+Trạng thái: **Đã duyệt** — 23/10/2026, đang triển khai
 
 ## 1. Bối cảnh
 
@@ -17,6 +17,8 @@ Yêu cầu:
 1. Trang Tài liệu chỉ nhận PDF, ảnh, audio, video.
 2. Khi xem PDF, giáo viên **vẽ / highlight lên trang** như phần mềm đọc PDF để giảng bài (chiếu lên TV / máy chiếu,
    dùng chuột, ngón tay hoặc bút cảm ứng). **Không lưu vào giáo trình.**
+3. Hạn chế chụp / sao chép bài giảng. Web **không chặn được** chụp / quay màn hình (PrintScreen, Snipping Tool, phần
+   mềm quay, điện thoại chụp TV) — chỉ răn đe và truy vết được.
 
 ## 2. Quyết định
 
@@ -25,9 +27,12 @@ Yêu cầu:
 2. **Công cụ**: Xem (cuộn), Bút, Highlight, Hình (đường thẳng, mũi tên, chữ nhật, ellipse), Chữ, Tẩy, Laser; 5 màu,
    3 độ dày; Hoàn tác / Làm lại; Xoá nét một trang; Xoá tất cả; Toàn màn hình.
 3. **Tự dựng lớp vẽ trên pdf.js sẵn có** (phương án A), không thêm thư viện.
-4. **Siết định dạng tài liệu** ở `SyllabusDocument::ALLOWED_EXTENSIONS` (Laravel) và `DocumentPolicy` (v2). Tài liệu
-   Office đã tải lên trước đây giữ nguyên.
+4. **Siết định dạng tài liệu** ở `SyllabusDocument::ALLOWED_EXTENSIONS`. Tài liệu Office đã tải lên trước đây giữ
+   nguyên. **Không sửa v2** trong đợt này (cảnh báo `v2-parity` không chặn).
 5. Test logic thuần của lớp vẽ bằng **`node --test`** (có sẵn trong Node ≥ 20, không thêm dependency).
+6. **Chống sao chép tài liệu "Chỉ xem"** (`downloadable = false`): watermark định danh **vẽ thẳng vào ảnh trang PDF**
+   (tên · mã nhân viên · thời điểm mở, lặp kín trang) để truy vết ảnh chụp; chặn in, menu chuột phải, `Ctrl/⌘+P`,
+   `Ctrl/⌘+S` trên khung xem. Tài liệu được phép tải về không bật.
 
 ### Phương án đã cân nhắc
 
@@ -38,6 +43,11 @@ Yêu cầu:
 - **Lưu nét vẽ trên máy (localStorage) hoặc trên server theo giáo viên**: không cần — nét vẽ chỉ phục vụ buổi giảng
   đang diễn ra.
 - **Chọn rồi kéo / đổi kích thước đối tượng đã vẽ**: để sau nếu giáo viên cần; hiện sửa bằng Hoàn tác / Tẩy.
+- **Che nội dung khi cửa sổ mất focus** (mở công cụ chụp / chuyển app): bắt được Snipping Tool nhưng che luôn khi giáo
+  viên bấm sang cửa sổ khác lúc đang giảng → không làm.
+- **Server chuyển PDF thành ảnh từng trang có watermark in sẵn** (trình duyệt không nhận file PDF gốc — hiện người biết
+  DevTools vẫn lưu được file PDF sạch từ tab Network): cần `poppler-utils` trong Docker image, endpoint ảnh theo trang,
+  cache → để PR riêng nếu cần.
 
 ## 3. Thiết kế chi tiết
 
@@ -49,8 +59,6 @@ Yêu cầu:
   video (tối đa 100MB). Slide / Word hãy xuất sang PDF trước khi tải lên."
 - Tài liệu Office cũ: không xoá, không đổi. `getKindAttribute` / `inline_viewable` / `documentFile` giữ nguyên nên vẫn
   hiện trong danh sách và tải được nếu `downloadable`.
-- v2: `v2/api/internal/syllabus/documents.go` `DocumentPolicy.Types` bỏ các đuôi Office; bump commit nhóm
-  `giao-trinh` trong `v2/doi-chieu-laravel.txt`.
 
 ### 3.2. Thành phần giao diện
 
@@ -60,9 +68,11 @@ Yêu cầu:
 | `Components/PlacementTests/PdfViewer.vue` | Dùng `openPdf`; hành vi giữ nguyên. |
 | `resources/js/lib/annotations.js` (mới) | Logic thuần (không Vue / DOM): hằng màu & độ dày, `drawShape(ctx, shape, w, h)`, `hitShape(shape, point, w, h, tolerance)`, `createHistory()` (thêm / xoá / xoá trang, hoàn tác / làm lại). |
 | `resources/js/lib/annotations.test.js` (mới) | `node --test`; script `"test:js": "node --test resources/js/lib/"` trong `package.json`. |
-| `Components/Pdf/PdfAnnotator.vue` (mới) | Vẽ trang PDF + lớp vẽ, Pointer Events, ô chữ, laser, phím tắt; giữ trạng thái nét vẽ. |
+| `Components/Pdf/PdfAnnotator.vue` (mới) | Mở PDF, giữ trạng thái nét vẽ + lịch sử, đổi kích thước, toàn màn hình, phím tắt; prop `watermark` (khác null → vẽ watermark + chặn in / chuột phải / phím tắt). |
+| `Components/Pdf/AnnotatorPage.vue` (mới) | Một trang: canvas PDF + canvas nét vẽ + lớp tạm; Pointer Events, ô chữ, laser, tẩy; vẽ trễ theo `IntersectionObserver`. |
 | `Components/Pdf/AnnotatorToolbar.vue` (mới) | Thanh công cụ (công cụ, màu, độ dày, hoàn tác / làm lại, xoá tất cả, toàn màn hình). |
-| `Pages/Syllabus/TeacherView.vue` | `kind === 'pdf'` → `<PdfAnnotator>` thay `<iframe>`. Ảnh / audio / video không đổi. |
+| `Pages/Syllabus/TeacherView.vue` | `kind === 'pdf'` → `<PdfAnnotator :watermark="selected.watermark">` thay `<iframe>` và lớp watermark HTML. Ảnh / audio / video giữ watermark HTML, thêm chặn in / chuột phải khi "Chỉ xem". |
+| `SyllabusController::teacherView` | `selected.watermark`: `null` khi được tải về; ngược lại `"<tên> · <mã NV hoặc email> · <d/m/Y H:i>"` (giờ server lúc mở). |
 | `Components/ui/UiModal.vue` | Prop tuỳ chọn `dirtyConfirm` (`{ title, message, confirmLabel, cancelLabel }`) thay lời hỏi mặc định "Đóng biểu mẫu?". Không truyền → như cũ. |
 
 ### 3.3. Mô hình nét vẽ
@@ -87,6 +97,9 @@ Yêu cầu:
 - Mỗi trang: khung `relative` chứa canvas PDF + canvas vẽ (`absolute inset-0`) + lớp tạm (xem trước hình / laser).
   Trang vẽ theo bề rộng khung như `PdfViewer`; `ResizeObserver` trên khung → vẽ lại PDF và nét vẽ (debounce) khi vào /
   thoát toàn màn hình, xoay máy.
+- **Chỉ vẽ trang gần màn hình** (`IntersectionObserver`, lề 1 màn hình): trang ở xa là khung giữ chỗ đúng tỉ lệ, trang
+  đã ra xa thì giải phóng canvas. Sách 100+ trang vẽ hết một lúc ở độ nét ×2 tốn hơn 1 GB RAM, làm sập trình duyệt
+  trên iPad / máy yếu.
 - Thanh công cụ `sticky top-0` trong khung xem. Phần tử toàn màn hình (`requestFullscreen`) là khung bao thanh công cụ
   + các trang + watermark; ở chế độ này khung cuộn dọc được.
 - **Chế độ Xem (mặc định)**: lớp vẽ `pointer-events: none` → cuộn / vuốt bình thường. **Công cụ vẽ**: lớp vẽ nhận
@@ -101,24 +114,31 @@ Yêu cầu:
 - **Đóng khi có nét vẽ**: `PdfAnnotator` phát sự kiện `input` (bubble) khi nét vẽ thay đổi → `UiModal` coi là đã sửa;
   `TeacherView` truyền `dirtyConfirm`: "Đóng tài liệu? Nét vẽ trên tài liệu sẽ bị xoá." Xoá hết nét không đặt lại trạng
   thái (đơn giản; hỏi thừa một lần là chấp nhận được).
-- Watermark "Chỉ xem" giữ nguyên, nằm trên cùng, `pointer-events-none`. Nút Tải về / Đánh dấu đã xem không đổi.
+- **Watermark trong trang** (tài liệu "Chỉ xem"): sau khi vẽ trang PDF, vẽ thêm lên **cùng canvas PDF** lưới chữ xoay
+  −20°: dòng `MENGLISH INTERNAL ONLY` + dòng `selected.watermark`, màu `#1f2937` alpha 0.12, cỡ theo bề rộng trang,
+  ô lưới ~ 1/3 bề rộng trang. Nằm dưới nét vẽ giáo viên, có trong mọi ảnh chụp, xoá phần tử HTML không mất.
+- **Chặn sao chép** (tài liệu "Chỉ xem"): `contextmenu.prevent` trên khung xem; khi đang mở, `keydown` trên `window`
+  chặn `Ctrl/⌘+P`, `Ctrl/⌘+S`; class `print:hidden` cho khung xem (in trang ra giấy trắng phần tài liệu). Áp cho cả
+  ảnh / video "Chỉ xem" (trên khung xem hiện có).
+- Nút Tải về / Đánh dấu đã xem không đổi.
 - Lỗi tải PDF → thông báo như `PdfViewer` ("Không hiển thị được file PDF trên trình duyệt này.").
 
 ### 3.5. Phạm vi không làm
 
 - Không lưu / xuất nét vẽ, không in kèm nét vẽ.
 - Không chọn / kéo / đổi kích thước đối tượng đã vẽ.
-- Không thêm công cụ vẽ cho ảnh, không port lớp vẽ sang v2 (chỉ đồng bộ định dạng).
+- Không thêm công cụ vẽ cho ảnh. Không sửa v2 (cả định dạng tài liệu lẫn lớp vẽ).
+- Không cam kết chặn chụp / quay màn hình; không che khi mất focus; không render ảnh trang phía server (xem 2).
 
 ## 4. Test
 
 - PHPUnit (`tests/Feature/Phase2SyllabusTest.php`):
   - upload `.pptx` / `.docx` / `.xlsx` → lỗi validation; `.pdf` vẫn nhận;
   - tài liệu Office cũ (tạo thẳng trong DB) vẫn hiện ở TeacherView và tải được khi `downloadable`;
-  - TeacherView mở tài liệu PDF → HTML (SSR) có khung annotator, không còn `<iframe>`.
+  - TeacherView mở tài liệu PDF → HTML (SSR) có khung annotator, không còn `<iframe>`;
+  - `selected.watermark` chứa tên giáo viên khi "Chỉ xem", `null` khi được tải về.
 - `node --test` (`resources/js/lib/annotations.test.js`): hit-test từng loại hình (trúng / trượt theo dung sai), lịch sử
   thêm / xoá / xoá trang / hoàn tác / làm lại / nhánh làm lại bị cắt, quy đổi toạ độ tỉ lệ ↔ pixel.
-- Go: test `DocumentPolicy` từ chối `.pptx`.
 - Thử tay trên trình duyệt: từng công cụ; đổi kích thước & toàn màn hình (nét giữ đúng chỗ); giả lập cảm ứng trong
   DevTools (Xem cuộn được, Bút vẽ không trôi trang); đóng có nét → hỏi; Placement Test vẫn xem PDF bình thường.
 
@@ -128,6 +148,6 @@ Một nhánh `feat/pdf-annotator`, mỗi sprint một commit, một PR.
 
 | Sprint | Nội dung | Trạng thái |
 |---|---|---|
-| 1 | Siết định dạng tài liệu (Laravel + v2) + test; tách `lib/pdf.js`, `PdfViewer` dùng lại | Chưa làm |
-| 2 | `annotations.js` + `node --test`; `PdfAnnotator` (lớp vẽ, Xem / Bút / Highlight / Tẩy, hoàn tác / làm lại, xoá trang / tất cả); thay iframe ở TeacherView | Chưa làm |
-| 3 | Hình, Chữ, Laser, phím tắt, toàn màn hình, hỏi khi đóng (`UiModal.dirtyConfirm`); test SSR | Chưa làm |
+| 1 | Siết định dạng tài liệu + test; tách `lib/pdf.js`, `PdfViewer` dùng lại | Chưa làm |
+| 2 | `annotations.js` + `node --test`; `PdfAnnotator` (lớp vẽ, Xem / Bút / Highlight / Tẩy, hoàn tác / làm lại, xoá trang / tất cả, watermark trong trang); thay iframe ở TeacherView | Chưa làm |
+| 3 | Hình, Chữ, Laser, phím tắt, toàn màn hình, hỏi khi đóng (`UiModal.dirtyConfirm`); chặn in / chuột phải / phím tắt; test | Chưa làm |
