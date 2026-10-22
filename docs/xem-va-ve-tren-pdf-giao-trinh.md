@@ -98,7 +98,7 @@ Yêu cầu:
   Trang vẽ theo bề rộng khung như `PdfViewer`; `ResizeObserver` trên khung → vẽ lại PDF và nét vẽ (debounce) khi vào /
   thoát toàn màn hình, xoay máy.
 - **Chỉ vẽ trang gần màn hình** (`IntersectionObserver`, lề 1 màn hình): trang ở xa là khung giữ chỗ đúng tỉ lệ, trang
-  đã ra xa thì giải phóng canvas. Sách 100+ trang vẽ hết một lúc ở độ nét ×2 tốn hơn 1 GB RAM, làm sập trình duyệt
+  đã ra xa (lề 1,5 màn hình) thì giải phóng canvas và bộ nhớ đệm pdf.js của trang (`page.cleanup()`). Sách 100+ trang vẽ hết một lúc ở độ nét ×2 tốn hơn 1 GB RAM, làm sập trình duyệt
   trên iPad / máy yếu.
 - Thanh công cụ `sticky top-0` trong khung xem. Phần tử toàn màn hình (`requestFullscreen`) là khung bao thanh công cụ
   + các trang + watermark; ở chế độ này khung cuộn dọc được.
@@ -110,7 +110,9 @@ Yêu cầu:
 - Phím tắt khi khung xem có focus: `Ctrl/⌘+Z` hoàn tác, `Ctrl/⌘+Shift+Z` / `Ctrl+Y` làm lại. Esc khi đang gõ chữ chỉ
   huỷ ô chữ (`preventDefault` để `UiModal` không đóng).
 - Nút "Xoá nét trang này" ở góc mỗi trang (chỉ hiện khi trang có nét); "Xoá tất cả" trên thanh công cụ hỏi xác nhận
-  (`confirmDialog`). Cả hai hoàn tác được.
+  (`confirmDialog`) — khi toàn màn hình xoá luôn (hộp xác nhận nằm ngoài vùng toàn màn hình nên không thấy). Cả hai
+  hoàn tác được.
+- Một con trỏ vẽ cho cả tài liệu (không chỉ từng trang): lòng bàn tay chạm sang trang khác cũng bị bỏ qua.
 - **Đóng khi có nét vẽ**: `PdfAnnotator` phát sự kiện `input` (bubble) khi nét vẽ thay đổi → `UiModal` coi là đã sửa;
   `TeacherView` truyền `dirtyConfirm`: "Đóng tài liệu? Nét vẽ trên tài liệu sẽ bị xoá." Xoá hết nét không đặt lại trạng
   thái (đơn giản; hỏi thừa một lần là chấp nhận được).

@@ -7,7 +7,7 @@
  * watermark khác null (tài liệu "Chỉ xem") → vẽ watermark định danh vào từng trang, chặn chuột phải, Ctrl/⌘+P / S, in.
  * Mỗi lần nét vẽ thay đổi phát sự kiện DOM `input` (bubble) để UiModal hỏi trước khi đóng.
  */
-import { computed, markRaw, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
+import { computed, markRaw, onBeforeUnmount, onMounted, provide, ref, shallowRef, watch } from 'vue';
 import { COLORS, createHistory } from '@/lib/annotations';
 import { confirmDialog } from '@/lib/confirm';
 import { useCopyGuard } from '@/lib/copyGuard';
@@ -19,6 +19,8 @@ const props = defineProps({
     src: { type: String, default: null },
     title: { type: String, default: '' },
     watermark: { type: String, default: null },
+    // false khi hộp thoại chứa khung đã đóng (UiModal giữ nội dung bằng v-show) → tắt chặn phím in / lưu.
+    active: { type: Boolean, default: true },
 });
 
 const root = ref(null);
@@ -49,7 +51,10 @@ const canRedo = computed(() => (rev.value, history.canRedo()));
 const hasAny = computed(() => (rev.value, !history.isEmpty()));
 
 const isProtected = computed(() => !!props.watermark);
-useCopyGuard(isProtected);
+useCopyGuard(computed(() => isProtected.value && props.active));
+
+// Một con trỏ vẽ cho cả tài liệu: lòng bàn tay / ngón thứ hai chạm sang trang khác cũng bị bỏ qua.
+provide('annotatorPointer', { id: null });
 
 function onKeydown(event) {
     if (!(event.ctrlKey || event.metaKey) || event.target.tagName === 'INPUT') return;
@@ -83,7 +88,8 @@ function clearPage(number) {
     changed();
 }
 async function clearAll() {
-    if (!(await confirmDialog({ title: 'Xoá tất cả nét vẽ?', message: 'Có thể hoàn tác.', confirmLabel: 'Xoá', danger: true }))) return;
+    // Hộp xác nhận nằm ngoài khung toàn màn hình (không thấy được) → khi toàn màn hình xoá luôn, vẫn hoàn tác được.
+    if (!fullscreen.value && !(await confirmDialog({ title: 'Xoá tất cả nét vẽ?', message: 'Có thể hoàn tác.', confirmLabel: 'Xoá', danger: true }))) return;
     history.clearAll();
     changed();
 }

@@ -254,7 +254,7 @@ const chipIcon = { open: 'play_circle', done: 'check_circle', todo: 'lock' };
                     <UiButton v-if="selected.can_download" variant="secondary" size="sm" icon="download" :href="route('syllabus.documents.file', { id: selected.id, download: 1 })" native>Tải về</UiButton>
                 </div>
             </div>
-            <PdfAnnotator v-if="selected.kind === 'pdf'" :src="fileUrl" :title="selected.title" :watermark="selected.watermark" />
+            <PdfAnnotator v-if="selected.kind === 'pdf'" :src="fileUrl" :title="selected.title" :watermark="selected.watermark" :active="viewerOpen" />
             <div
                 v-else
                 ref="viewer"

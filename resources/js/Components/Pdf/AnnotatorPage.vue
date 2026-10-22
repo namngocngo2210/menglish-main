@@ -4,7 +4,7 @@
  * tẩy, laser). Chỉ vẽ khi trang ở gần vùng nhìn thấy, ra xa thì giải phóng canvas (sách 100+ trang không làm sập
  * trình duyệt). Nét vẽ do PdfAnnotator giữ; trang chỉ báo add / erase / clear.
  */
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { drawShape, drawWatermark, FONT_FAMILY, fontPx, hitShape, SHAPE_TOOLS, toRatio, unit } from '@/lib/annotations';
 
 const props = defineProps({
@@ -36,6 +36,8 @@ let renderTask = null;
 let observers = [];
 // Thao tác đang kéo: một con trỏ duy nhất (ngón tay thứ hai / lòng bàn tay chạm vào bị bỏ qua).
 let active = null;
+// Con trỏ đang vẽ của cả tài liệu (PdfAnnotator cung cấp).
+const sharedPointer = inject('annotatorPointer', { id: null });
 let laser = [];
 let laserFrame = null;
 
@@ -77,6 +79,8 @@ function release() {
     visible = false;
     renderTask?.cancel();
     renderTask = null;
+    // Bỏ ảnh / font pdf.js đã giải mã của trang (không tự dọn với intent hiển thị).
+    props.page.cleanup();
     for (const canvas of [pdfCanvas.value, inkCanvas.value, tempCanvas.value]) {
         if (canvas) canvas.width = canvas.height = 0;
     }
@@ -172,6 +176,11 @@ function openText(point) {
     nextTick(() => textInput.value?.focus());
 }
 
+// Sau Enter / Esc ô chữ biến mất: trả focus về khung để Ctrl+Z vẫn chạy.
+function focusAnnotator() {
+    pdfCanvas.value?.closest('[data-pdf-annotator]')?.focus({ preventScroll: true });
+}
+
 function commitText() {
     const box = textBox.value;
     textBox.value = null;
@@ -190,18 +199,20 @@ function cancelText(event) {
     event.preventDefault();
     event.stopPropagation();
     textBox.value = null;
+    focusAnnotator();
 }
 
 // ---- Con trỏ ----
 
 function onDown(event) {
-    if (!drawing.value || active || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    if (!drawing.value || active || sharedPointer.id !== null || (event.pointerType === 'mouse' && event.button !== 0)) return;
     event.preventDefault();
     if (textBox.value) {
         commitText();
         return;
     }
     event.currentTarget.setPointerCapture(event.pointerId);
+    sharedPointer.id = event.pointerId;
     active = { id: event.pointerId, points: [pointAt(event)], erased: new Set() };
     if (props.tool === 'eraser') eraseAt(active.points[0]);
     if (props.tool === 'laser') pushLaser(active.points[0]);
@@ -233,6 +244,7 @@ function onUp(event) {
     const done = active;
     const shape = stroke();
     active = null;
+    sharedPointer.id = null;
     if (props.tool === 'laser') return;
     clearTemp();
     const moved = done.points.length > 1 && distancePx(done.points[0], done.points.at(-1)) > 4;
@@ -258,6 +270,7 @@ function onLeave() {
 function onCancel(event) {
     if (!active || event.pointerId !== active.id) return;
     active = null;
+    sharedPointer.id = null;
     clearTemp();
     redraw();
 }
@@ -276,19 +289,22 @@ watch(
 
 onMounted(() => {
     const options = (margin) => ({ root: props.root, rootMargin: `${margin} 0px` });
-    const near = new IntersectionObserver(([entry]) => {
-        if (entry.isIntersecting && !visible) {
+    // Có thể nhận nhiều entry cùng trang (cũ trước) khi luồng chính bận → lấy entry mới nhất.
+    const near = new IntersectionObserver((entries) => {
+        if (entries.at(-1).isIntersecting && !visible) {
             visible = true;
             renderPdf();
         }
     }, options('100%'));
-    const far = new IntersectionObserver(([entry]) => entry.isIntersecting || release(), options('300%'));
+    // Lề giải phóng nhỏ (150%): mỗi trang giữ 3 canvas độ nét ×2, iPad giới hạn tổng bộ nhớ canvas.
+    const far = new IntersectionObserver((entries) => entries.at(-1).isIntersecting || release(), options('150%'));
     near.observe(pdfCanvas.value.parentElement);
     far.observe(pdfCanvas.value.parentElement);
     observers = [near, far];
 });
 
 onBeforeUnmount(() => {
+    if (active) sharedPointer.id = null;
     observers.forEach((observer) => observer.disconnect());
     if (laserFrame) cancelAnimationFrame(laserFrame);
     release();
@@ -316,7 +332,7 @@ onBeforeUnmount(() => {
             class="absolute m-0 min-w-[8ch] border border-dashed border-primary bg-white/70 p-0 leading-tight outline-none"
             :style="textStyle"
             aria-label="Nhập chữ lên trang"
-            @keydown.enter.prevent="commitText"
+            @keydown.enter.prevent="commitText(), focusAnnotator()"
             @keydown.esc="cancelText"
             @blur="commitText"
         />
