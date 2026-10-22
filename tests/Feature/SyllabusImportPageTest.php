@@ -217,4 +217,12 @@ class SyllabusImportPageTest extends TestCase
 
         $this->assertSame(0, SyllabusCurriculum::count());
     }
+
+    public function test_documents_page_has_no_sample_pdf(): void
+    {
+        $this->actingAs($this->academic)->get(route('syllabus.documents'))
+            ->assertOk()
+            ->assertDontSee('Tải file mẫu (.pdf)')
+            ->assertDontSee('mau-tai-lieu-giao-trinh.pdf');
+    }
 }
