@@ -123,6 +123,7 @@ return [
                 'delete' => ['Xóa học viên', 'Xóa hồ sơ học viên.'],
                 'change_status' => ['Đổi trạng thái học tập', 'Đổi trạng thái (bảo lưu, nghỉ hè, thôi học…), kết thúc bảo lưu.'],
                 'assign_class' => ['Xếp lớp / xác nhận nhập học', 'Xếp lớp, liên kết lớp, xác nhận chính thức, bàn giao nhập học.'],
+                'manage_account' => ['Quản lý tài khoản học viên', 'Tạo tài khoản cổng học viên / cấp lại mật khẩu tạm theo lô và tải file đăng nhập (trong phạm vi dữ liệu).'],
             ],
             'scope' => [
                 'levels' => ['own', 'branch', 'all'],

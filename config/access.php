@@ -120,7 +120,7 @@ return [
             'user.view', 'user.create', 'user.update', 'user.assign_role',
             'user.assign_role.teacher_fulltime', 'user.assign_role.teacher_parttime',
             'lead.view',
-            'student.view', 'class.*', 'class.teach', 'attendance_student.*',
+            'student.view', 'student.manage_account', 'class.*', 'class.teach', 'attendance_student.*',
             'level.*', 'syllabus.*', 'big_test.*',
             'entrance_test.*', 'entrance_test.examine', 'placement_test.*',
             'kpi.view', 'kpi.confirm',

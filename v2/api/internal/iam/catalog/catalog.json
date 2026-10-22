@@ -266,6 +266,11 @@
                     "key": "assign_class",
                     "label": "Xếp lớp / xác nhận nhập học",
                     "description": "Xếp lớp, liên kết lớp, xác nhận chính thức, bàn giao nhập học."
+                },
+                {
+                    "key": "manage_account",
+                    "label": "Quản lý tài khoản học viên",
+                    "description": "Tạo tài khoản cổng học viên / cấp lại mật khẩu tạm theo lô và tải file đăng nhập (trong phạm vi dữ liệu)."
                 }
             ],
             "audience": [],
@@ -1757,6 +1762,7 @@
                 "user.assign_role.teacher_parttime",
                 "lead.view",
                 "student.view",
+                "student.manage_account",
                 "class.*",
                 "class.teach",
                 "attendance_student.*",
