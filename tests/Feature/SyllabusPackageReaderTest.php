@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Services\Syllabus\Import\SyllabusPackageException;
 use App\Services\Syllabus\Import\SyllabusPackageReader;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Support\BuildsSyllabusPackages;
 use Tests\TestCase;
@@ -43,6 +45,55 @@ class SyllabusPackageReaderTest extends TestCase
         $this->assertSame([], $package->files);
         $this->assertFalse($package->isZip);
         $this->assertSame([], $package->missing);
+    }
+
+    public function test_office_lock_files_are_ignored(): void
+    {
+        $xlsx = file_get_contents($this->makeXlsx($this->validSheets()));
+        $zip = $this->makeZip([
+            'syllabus.xlsx' => $xlsx,
+            '~$syllabus.xlsx' => 'lock',
+            'tai-lieu/Chung.pdf' => $this->pdfBytes(),
+            'tai-lieu/~$Slide.pptx' => 'lock',
+        ]);
+
+        $package = $this->reader()->read($zip, $this->newPackageDir());
+
+        $this->assertCount(4, $package->lessonRows);
+        $this->assertSame(['tai-lieu/Chung.pdf'], array_map(fn ($f) => $f->path, $package->files));
+    }
+
+    public function test_formula_cells_use_cached_value_without_evaluating(): void
+    {
+        // PhpSpreadsheet không ghi được công thức lỗi kèm giá trị cache dạng chuỗi, nên sửa thẳng XML để có <f> kèm <v> như file do Excel lưu.
+        $sheets = $this->validSheets();
+        $sheets['Giáo trình'][1][1] = 'placeholder';
+        $path = $this->makeXlsx($sheets);
+        $zip = new ZipArchive;
+        $zip->open($path);
+        $xml = $zip->getFromName('xl/worksheets/sheet1.xml');
+        $patched = preg_replace('#<c r="B2"[^>]*>.*?</c>#s', '<c r="B2" t="str"><f>SUM(1,</f><v>Tên từ cache</v></c>', $xml, 1, $count);
+        $this->assertSame(1, $count);
+        $zip->addFromString('xl/worksheets/sheet1.xml', $patched);
+        $zip->close();
+
+        $package = $this->reader()->read($path, $this->newPackageDir());
+
+        $this->assertSame('Tên từ cache', $package->curriculumRows[2]['title']);
+    }
+
+    public function test_sheet_with_stray_far_row_is_rejected_before_iterating(): void
+    {
+        $sheets = $this->validSheets();
+        $path = $this->makeXlsx($sheets);
+        $book = IOFactory::load($path);
+        $book->getSheetByName('Buổi')->setCellValue('A5000', 'x');
+        (new Xlsx($book))->save($path);
+        $book->disconnectWorksheets();
+
+        $this->expectException(SyllabusPackageException::class);
+        $this->expectExceptionMessage('Sheet Buổi: quá nhiều dòng (tối đa 1000 buổi).');
+        $this->reader()->read($path, $this->newPackageDir());
     }
 
     public function test_headers_match_case_and_space_insensitively(): void

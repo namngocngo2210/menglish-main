@@ -20,6 +20,8 @@ use Inertia\Inertia;
  */
 class SyllabusImportController extends Controller
 {
+    private const UNREADABLE = 'Không đọc được file. Vui lòng dùng file mẫu (.zip/.xlsx).';
+
     public function __construct(
         private readonly SyllabusImportStore $store,
         private readonly SyllabusPackageReader $reader,
@@ -33,7 +35,7 @@ class SyllabusImportController extends Controller
         $preview = null;
 
         if ($request->filled('token')) {
-            $token = (string) $request->input('token');
+            $token = $this->token($request);
             $loaded = $this->loadPlan($token, $request);
             if ($loaded instanceof RedirectResponse) {
                 return $loaded;
@@ -108,6 +110,11 @@ class SyllabusImportController extends Controller
             $this->store->forget($token);
 
             return back()->withErrors(['file' => $e->getMessage()]);
+        } catch (\Throwable $e) {
+            report($e);
+            $this->store->forget($token);
+
+            return back()->withErrors(['file' => self::UNREADABLE]);
         }
 
         return redirect()->route('syllabus.import', ['token' => $token]);
@@ -115,7 +122,7 @@ class SyllabusImportController extends Controller
 
     public function confirm(Request $request)
     {
-        $token = (string) $request->input('token');
+        $token = $this->token($request);
         $loaded = $this->loadPlan($token, $request);
         if ($loaded instanceof RedirectResponse) {
             return $loaded;
@@ -160,8 +167,21 @@ class SyllabusImportController extends Controller
             $this->store->forget($token);
 
             return redirect()->route('syllabus.import')->withErrors(['file' => $e->getMessage()]);
+        } catch (\Throwable $e) {
+            report($e);
+            $this->store->forget($token);
+
+            return redirect()->route('syllabus.import')->withErrors(['file' => self::UNREADABLE]);
         }
 
         return [$meta, $plan];
+    }
+
+    /** Token dạng chuỗi; `token[]=x` hoặc thiếu token coi như rỗng (phiên hết hạn). */
+    private function token(Request $request): string
+    {
+        $token = $request->input('token');
+
+        return is_string($token) ? $token : '';
     }
 }

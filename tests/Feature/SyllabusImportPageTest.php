@@ -7,6 +7,8 @@ use App\Models\SyllabusDocument;
 use App\Models\User;
 use App\Models\UserPermissionOverride;
 use App\Services\Syllabus\Import\SyllabusImportStore;
+use App\Services\Syllabus\Import\SyllabusPackage;
+use App\Services\Syllabus\Import\SyllabusPackageReader;
 use App\Support\Roles;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -19,7 +21,9 @@ use Tests\TestCase;
 /** Trang import syllabus từ file: tải mẫu, tải file lên, xem trước (không ghi DB). */
 class SyllabusImportPageTest extends TestCase
 {
-    use BuildsSyllabusPackages;
+    use BuildsSyllabusPackages {
+        tearDown as cleanUpSyllabusPackages;
+    }
     use RefreshDatabase;
 
     private User $academic;
@@ -39,7 +43,7 @@ class SyllabusImportPageTest extends TestCase
     protected function tearDown(): void
     {
         File::deleteDirectory(SyllabusImportStore::root());
-        parent::tearDown();
+        $this->cleanUpSyllabusPackages();
     }
 
     private function upload(string $path): UploadedFile
@@ -113,6 +117,49 @@ class SyllabusImportPageTest extends TestCase
             ->assertSessionHasErrors('file');
 
         $this->assertSame([], File::glob(SyllabusImportStore::root().'/*'));
+    }
+
+    public function test_unexpected_reader_error_returns_generic_message_and_cleans_up(): void
+    {
+        $this->app->bind(SyllabusPackageReader::class, fn () => new class extends SyllabusPackageReader
+        {
+            public function read(string $path, string $workDir): SyllabusPackage
+            {
+                throw new \RuntimeException('boom');
+            }
+        });
+
+        $this->actingAs($this->academic)->post(route('syllabus.import.preview'), ['file' => $this->upload($this->makeXlsx($this->validSheets()))])
+            ->assertSessionHasErrors(['file' => 'Không đọc được file. Vui lòng dùng file mẫu (.zip/.xlsx).']);
+
+        $this->assertSame([], File::glob(SyllabusImportStore::root().'/*'));
+    }
+
+    public function test_unexpected_reader_error_on_reload_redirects_and_forgets_token(): void
+    {
+        $token = $this->previewToken($this->academic);
+        $this->app->bind(SyllabusPackageReader::class, fn () => new class extends SyllabusPackageReader
+        {
+            public function read(string $path, string $workDir): SyllabusPackage
+            {
+                throw new \RuntimeException('boom');
+            }
+        });
+
+        $this->actingAs($this->academic)->get(route('syllabus.import', ['token' => $token]))
+            ->assertRedirect(route('syllabus.import'))
+            ->assertSessionHasErrors(['file' => 'Không đọc được file. Vui lòng dùng file mẫu (.zip/.xlsx).']);
+
+        $this->assertSame([], File::glob(SyllabusImportStore::root()."/{$token}*"));
+    }
+
+    public function test_array_token_is_treated_as_expired(): void
+    {
+        $this->actingAs($this->academic)->post(route('syllabus.import.confirm'), ['token' => ['x']])
+            ->assertRedirect(route('syllabus.import'))
+            ->assertSessionHasErrors('file');
+        $this->actingAs($this->academic)->get(route('syllabus.import', ['token' => ['x']]))
+            ->assertRedirect(route('syllabus.import'));
     }
 
     public function test_builder_shows_import_button_for_managers(): void

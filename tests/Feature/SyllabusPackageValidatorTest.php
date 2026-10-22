@@ -186,6 +186,24 @@ class SyllabusPackageValidatorTest extends TestCase
         $this->assertContains('Sheet Buổi: tối đa 1000 buổi.', $this->validate($sheets)->errors);
     }
 
+    public function test_long_lesson_text_is_valid(): void
+    {
+        $sheets = $this->validSheets();
+        $sheets['Buổi'][1][6] = str_repeat('a', 6000);
+
+        $plan = $this->validate($sheets);
+
+        $this->assertTrue($plan->ok(), implode(' | ', $plan->errors));
+    }
+
+    public function test_document_without_base_name_falls_back_to_original_name(): void
+    {
+        $plan = $this->validate($this->validSheets(), ['tai-lieu/.pdf' => $this->pdfBytes()]);
+
+        $this->assertTrue($plan->ok(), implode(' | ', $plan->errors));
+        $this->assertSame('.pdf', $plan->sharedDocuments[0]['title']);
+    }
+
     public function test_documents_are_attached_by_stage_folder(): void
     {
         $plan = $this->validate($this->validSheets(), [

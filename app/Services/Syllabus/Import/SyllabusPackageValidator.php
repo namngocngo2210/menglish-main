@@ -187,9 +187,6 @@ class SyllabusPackageValidator
             $this->required($row['title'], 'Buổi', $line, 'Tên buổi');
             $this->maxLength($row['unit_title'], 255, 'Buổi', $line, 'Tên unit');
             $this->maxLength($row['title'], 255, 'Buổi', $line, 'Tên buổi');
-            foreach (['objectives' => 'Mục tiêu', 'content' => 'Hoạt động', 'vocabulary_focus' => 'Từ vựng', 'grammar_focus' => 'Ngữ pháp', 'homework_guide' => 'BTVN'] as $key => $label) {
-                $this->maxLength($row[$key], 5000, 'Buổi', $line, $label);
-            }
             if ($unitNo !== null && ($unitNo < 1 || $unitNo > self::MAX_UNIT_NUMBER)) {
                 $this->errors[] = 'Sheet Buổi, dòng '.$line.': Unit số phải từ 1 đến '.self::MAX_UNIT_NUMBER.'.';
                 $unitNo = null;
@@ -345,8 +342,11 @@ class SyllabusPackageValidator
             return null;
         }
 
+        // File tên ".pdf" không có phần tên: dùng cả tên file làm tiêu đề.
+        $title = pathinfo($name, PATHINFO_FILENAME);
+
         return [
-            'title' => mb_substr(pathinfo($name, PATHINFO_FILENAME), 0, 255),
+            'title' => mb_substr(trim($title) !== '' ? $title : $name, 0, 255),
             'original_name' => $name,
             'extension' => $extension,
             'size' => $file->size,

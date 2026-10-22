@@ -116,6 +116,10 @@ class SyllabusPackageReader
     {
         $maxCol = Coordinate::columnIndexFromString($sheet->getHighestDataColumn());
         $maxRow = $sheet->getHighestDataRow();
+        // Một ô lạc ở cuối sheet (dòng ~1 triệu) sẽ buộc dựng hàng triệu ô: chặn trước khi duyệt.
+        if ($maxRow > SyllabusPackageValidator::MAX_LESSONS + 10) {
+            throw new SyllabusPackageException('Sheet '.$sheet->getTitle().': quá nhiều dòng (tối đa '.SyllabusPackageValidator::MAX_LESSONS.' buổi).');
+        }
 
         $byHeader = [];
         foreach ($columns as $key => $label) {
@@ -146,7 +150,9 @@ class SyllabusPackageReader
             foreach ($columns as $key => $label) {
                 $value = null;
                 if (isset($colOf[$key])) {
-                    $value = trim((string) $sheet->getCell([$colOf[$key], $r])->getFormattedValue());
+                    $cell = $sheet->getCell([$colOf[$key], $r]);
+                    // Công thức: dùng giá trị Excel đã lưu, không tính lại (công thức lỗi sẽ ném exception).
+                    $value = trim((string) ($cell->isFormula() ? $cell->getOldCalculatedValue() : $cell->getFormattedValue()));
                     $value = $value === '' ? null : $value;
                 }
                 $any = $any || $value !== null;
@@ -326,7 +332,8 @@ class SyllabusPackageReader
         }
         $base = end($segments);
 
-        return $base === '.DS_Store' || strcasecmp($base, 'Thumbs.db') === 0 || str_starts_with($base, '._');
+        return $base === '.DS_Store' || strcasecmp($base, 'Thumbs.db') === 0 || str_starts_with($base, '._')
+            || str_starts_with($base, '~$'); // file khoá của Office khi đang mở
     }
 
     /**

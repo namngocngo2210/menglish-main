@@ -93,7 +93,11 @@ class SyllabusImporter
             });
         } catch (\Throwable $e) {
             foreach ($storedPaths as $path) {
-                Storage::disk(SyllabusDocument::DISK)->delete($path);
+                try {
+                    Storage::disk(SyllabusDocument::DISK)->delete($path);
+                } catch (\Throwable $cleanupError) {
+                    report($cleanupError); // không để lỗi dọn dẹp che lỗi gốc
+                }
             }
 
             if ($e instanceof UniqueConstraintViolationException) {
