@@ -276,6 +276,7 @@ class Phase2SyllabusTest extends TestCase
         $doc = SyllabusDocument::firstOrFail();
 
         $this->actingAs($this->teacher)->get(route('syllabus.teacher-view', ['document' => $doc->id]))->assertOk()
+            ->assertDontSee('print:hidden', false)
             ->assertInertia(fn (AssertableInertia $page) => $page->where('selected.id', $doc->id)->where('selected.watermark', null));
     }
 

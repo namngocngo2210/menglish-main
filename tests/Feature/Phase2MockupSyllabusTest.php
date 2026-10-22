@@ -197,6 +197,11 @@ class Phase2MockupSyllabusTest extends TestCase
             ->assertSee('data-pdf-annotator', false)
             ->assertDontSee('<iframe', false)
             ->assertSee('Highlight')
+            ->assertSee('Mũi tên')
+            ->assertSee('title="Laser"', false)
+            ->assertSee('title="Chữ"', false)
+            // Tài liệu "Chỉ xem": khung xem không in ra giấy
+            ->assertSee('print:hidden', false)
             ->assertInertia(fn (AssertableInertia $page) => $page->where('selected.watermark', fn ($w) => str_contains($w, $this->teacher->name)))
             ->assertSee('Xem mục lục chặng')
             ->assertSee('Thực hành giao tiếp hằng ngày')

@@ -1,14 +1,16 @@
 <script setup>
 /**
- * Xem PDF và vẽ lên trang để giảng bài (bút, highlight, tẩy, hoàn tác / làm lại, toàn màn hình).
+ * Xem PDF và vẽ lên trang để giảng bài (bút, highlight, hình, chữ, tẩy, laser, hoàn tác / làm lại, toàn màn hình).
+ * Phím tắt khi khung đang focus: Ctrl/⌘+Z hoàn tác, Ctrl/⌘+Shift+Z hoặc Ctrl+Y làm lại.
  *   <PdfAnnotator :src="fileUrl" :title="doc.title" :watermark="doc.watermark" />
  * Nét vẽ chỉ nằm trong bộ nhớ: đóng / đổi tài liệu / tải lại trang là mất, không lưu vào giáo trình.
- * watermark khác null (tài liệu "Chỉ xem") → vẽ watermark định danh vào từng trang.
+ * watermark khác null (tài liệu "Chỉ xem") → vẽ watermark định danh vào từng trang, chặn chuột phải, Ctrl/⌘+P / S, in.
  * Mỗi lần nét vẽ thay đổi phát sự kiện DOM `input` (bubble) để UiModal hỏi trước khi đóng.
  */
 import { computed, markRaw, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { COLORS, createHistory } from '@/lib/annotations';
 import { confirmDialog } from '@/lib/confirm';
+import { useCopyGuard } from '@/lib/copyGuard';
 import { openPdf } from '@/lib/pdf';
 import AnnotatorPage from './AnnotatorPage.vue';
 import AnnotatorToolbar from './AnnotatorToolbar.vue';
@@ -18,8 +20,6 @@ const props = defineProps({
     title: { type: String, default: '' },
     watermark: { type: String, default: null },
 });
-
-const TOOLS = ['view', 'pen', 'highlighter', 'eraser'];
 
 const root = ref(null);
 const scroller = ref(null);
@@ -47,6 +47,23 @@ const shapesOn = (number) => (rev.value, history.shapesOn(number));
 const canUndo = computed(() => (rev.value, history.canUndo()));
 const canRedo = computed(() => (rev.value, history.canRedo()));
 const hasAny = computed(() => (rev.value, !history.isEmpty()));
+
+const isProtected = computed(() => !!props.watermark);
+useCopyGuard(isProtected);
+
+function onKeydown(event) {
+    if (!(event.ctrlKey || event.metaKey) || event.target.tagName === 'INPUT') return;
+    const key = event.key.toLowerCase();
+    if (key === 'z' && !event.shiftKey) undo();
+    else if ((key === 'z' && event.shiftKey) || (key === 'y' && event.ctrlKey)) redo();
+    else return;
+    event.preventDefault();
+}
+
+// Bấm vào khung (trừ ô chữ / nút) → focus khung để nhận phím tắt.
+function focusRoot(event) {
+    if (!event.target.closest('input, button')) root.value?.focus({ preventScroll: true });
+}
 
 function changed() {
     rev.value++;
@@ -142,13 +159,20 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <div ref="root" data-pdf-annotator :class="['flex flex-col overflow-hidden rounded-lg border border-surface-container-highest bg-surface-container', { 'h-full': fullscreen }]">
+    <div
+        ref="root"
+        data-pdf-annotator
+        tabindex="-1"
+        :class="['flex flex-col overflow-hidden rounded-lg border border-surface-container-highest bg-surface-container outline-none', { 'h-full': fullscreen, 'select-none print:hidden': isProtected }]"
+        @keydown="onKeydown"
+        @pointerdown="focusRoot"
+        @contextmenu="isProtected && $event.preventDefault()"
+    >
         <AnnotatorToolbar
             v-model:tool="tool"
             v-model:color="color"
             v-model:size="size"
             class="shrink-0 border-b border-surface-container-highest"
-            :tools="TOOLS"
             :can-undo="canUndo"
             :can-redo="canRedo"
             :has-any="hasAny"
