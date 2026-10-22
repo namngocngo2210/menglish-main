@@ -150,12 +150,21 @@ class StaffMultiBranchTest extends TestCase
         $this->assertSame([$this->c->id], $this->extraIds($teacher));
     }
 
-    public function test_assistant_does_not_require_primary_branch_but_teacher_does(): void
+    public function test_teachers_and_assistants_do_not_require_primary_branch_but_other_staff_do(): void
     {
         $form = ['name' => 'Trợ Giảng', 'email' => 'tg@gmail.com', 'branch_id' => '', 'password' => 'Password123!'];
 
-        $this->actingAs($this->admin)->post(route('users.store'), ['role' => 'teacher_parttime'] + $form)
+        $this->actingAs($this->admin)->post(route('users.store'), ['role' => 'sales_consultant'] + $form)
             ->assertSessionHasErrors('branch_id');
+
+        foreach (['teacher_fulltime', 'teacher_parttime'] as $i => $role) {
+            $this->actingAs($this->admin)->post(route('users.store'), ['role' => $role, 'email' => "gv{$i}@gmail.com"] + $form)
+                ->assertRedirect(route('users.index'))->assertSessionHasNoErrors();
+            $this->assertNull(User::where('email', "gv{$i}@gmail.com")->sole()->branch_id);
+        }
+
+        $this->actingAs($this->admin)->get(route('users.create'))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('branchOptionalRoles', ['teacher_fulltime', 'teacher_parttime', 'assistant']));
 
         $this->actingAs($this->admin)->post(route('users.store'), ['role' => 'assistant'] + $form)
             ->assertRedirect(route('users.index'))->assertSessionHasNoErrors();

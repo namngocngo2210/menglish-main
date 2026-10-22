@@ -11,6 +11,7 @@ use App\Models\StaffAttendance;
 use App\Models\StaffAttendanceRequest;
 use App\Models\User;
 use App\Support\DataScope;
+use App\Support\Roles;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -27,6 +28,7 @@ use Illuminate\Validation\ValidationException;
  *  - Giờ vào / ra = giờ máy chủ lúc bấm (không nhận giờ từ điện thoại).
  *  - Chấm tại một trong các cơ sở làm việc của nhân sự (cơ sở chính users.branch_id + cơ sở làm việc thêm user_branches):
  *    lấy cơ sở đã cài toạ độ gần GPS nhất, GPS phải nằm trong bán kính cơ sở đó. Bản ghi công lưu cơ sở đã chấm.
+ *    Giáo viên / trợ giảng chưa gắn cơ sở chấm được ở mọi cơ sở.
  *  - Giờ phải có mặt: GV / TA / GVNN theo giờ lớp được phân công trong ngày — buổi đầu tiên (Ca 1 18:00 hay lớp lệch
  *    18:10…, khung giờ ca dạy), không theo một giờ chung cố định; không có buổi → không tính muộn;
  *    nhân sự khác theo giờ làm việc của cơ sở. Muộn quá số phút cho phép của cơ sở → tự lập biên bản "chờ giải trình",
@@ -107,7 +109,8 @@ class StaffAttendanceService
     }
 
     /**
-     * Cơ sở làm việc của nhân sự: cơ sở chính trước, rồi cơ sở làm việc thêm (theo tên).
+     * Cơ sở làm việc của nhân sự: cơ sở chính trước, rồi cơ sở làm việc thêm (theo tên). Giáo viên / trợ giảng chưa gắn
+     * cơ sở nào (dùng chung, Roles::BRANCH_OPTIONAL) làm được ở mọi cơ sở đang hoạt động.
      *
      * @return Collection<int, Branch>
      */
@@ -115,11 +118,16 @@ class StaffAttendanceService
     {
         $user->loadMissing(['branch', 'branches']);
 
-        return collect([$user->branch])
+        $branches = collect([$user->branch])
             ->merge($user->branches->sortBy('name'))
             ->filter()
             ->unique('id')
             ->values();
+        if ($branches->isEmpty() && $user->hasAnyRole(Roles::BRANCH_OPTIONAL)) {
+            return Branch::query()->active()->orderBy('name')->get();
+        }
+
+        return $branches;
     }
 
     /**

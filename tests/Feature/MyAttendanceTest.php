@@ -199,6 +199,18 @@ class MyAttendanceTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page->where('rows.data', fn ($rows) => collect($rows)->pluck('user.id')->contains($this->staff->id)));
     }
 
+    public function test_teacher_without_branch_checks_in_at_any_branch(): void
+    {
+        $teacher = $this->user('teacher_parttime', null);
+
+        $this->actingAs($teacher)->get(route('my-attendance.home'))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('branch', null)
+                ->where('branches', fn ($branches) => collect($branches)->pluck('name')->all() === ['CN Cầu Giấy', 'CN Hà Đông']));
+
+        $this->punch($teacher)->assertSessionHasNoErrors();
+        $this->assertSame($this->branch->id, StaffAttendance::sole()->branch_id);
+    }
+
     public function test_locked_payroll_period_blocks_check_in(): void
     {
         PayrollPeriod::create([

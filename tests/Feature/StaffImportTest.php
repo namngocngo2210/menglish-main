@@ -179,12 +179,13 @@ class StaffImportTest extends TestCase
         $this->assertSame('Zalo', $user->contact_channel);
     }
 
-    public function test_assistant_does_not_require_branch_but_teacher_does(): void
+    public function test_teachers_and_assistants_do_not_require_branch_but_other_staff_do(): void
     {
         $file = $this->file([
             ['Họ tên', 'Vai trò', 'Email'],
             ['Trợ Giảng Không Cơ Sở', 'Trợ giảng', 'trogiang@gmail.com'],
             ['Giáo Viên Không Cơ Sở', 'Giáo viên', 'giaovien@gmail.com'],
+            ['Tư Vấn Không Cơ Sở', 'sales_consultant', 'tuvan@gmail.com'],
         ]);
 
         $this->actingAs($this->admin)
@@ -195,14 +196,19 @@ class StaffImportTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('preview.rows.0.errors', [])
                 ->where('preview.rows.0.branch', null)
-                ->where('preview.rows.1.errors', ['Chưa có cơ sở: ghi cột Cơ sở hoặc chọn cơ sở mặc định.']));
+                ->where('preview.rows.1.errors', [])
+                ->where('preview.rows.1.branch', null)
+                ->where('preview.rows.2.errors', ['Chưa có cơ sở: ghi cột Cơ sở hoặc chọn cơ sở mặc định.']));
 
         $this->actingAs($this->admin)->post(route('users.import.confirm'), ['token' => $token])->assertRedirect(route('users.import'));
 
         $assistant = User::where('email', 'trogiang@gmail.com')->firstOrFail();
         $this->assertTrue($assistant->hasRole('assistant'));
         $this->assertNull($assistant->branch_id);
-        $this->assertFalse(User::where('email', 'giaovien@gmail.com')->exists());
+        $teacher = User::where('email', 'giaovien@gmail.com')->firstOrFail();
+        $this->assertTrue($teacher->hasRole('teacher_parttime'));
+        $this->assertNull($teacher->branch_id);
+        $this->assertFalse(User::where('email', 'tuvan@gmail.com')->exists());
     }
 
     public function test_branch_scoped_importer_still_needs_branch_for_assistant(): void
