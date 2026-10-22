@@ -23,7 +23,10 @@ const statusOptions = [
     { value: 'no_show', label: 'Vắng mặt' },
 ];
 const ratingOptions = [5, 4, 3, 2, 1].map((rating) => ({ value: rating, label: `${rating}/5` }));
-const remarkPlaceholders = { grammar: 'Khá', attitude: 'Hăng hái', result: 'Đạt mục tiêu' };
+// Lựa chọn của một cột; nhận xét gõ tay trước đây (ngoài danh sách) vẫn hiện để lưu lại không mất.
+function choicesFor(field, current) {
+    return current && !field.options.includes(current) ? [...field.options, current] : field.options;
+}
 const statusColor = (status) => (status === 'attended' ? 'success' : status === 'no_show' ? 'error' : 'info');
 </script>
 
@@ -84,14 +87,15 @@ const statusColor = (status) => (status === 'attended' ? 'success' : status === 
                                 <div class="grid grid-cols-3 gap-2">
                                     <label v-for="field in remarkFields" :key="field.key" class="block">
                                         <span class="text-xs font-semibold uppercase text-on-surface-variant">{{ field.label }}</span>
-                                        <input
-                                            type="text"
+                                        <select
                                             :name="`remarks[${field.key}]`"
-                                            :value="booking.remarks[field.key] ?? ''"
-                                            maxlength="255"
                                             class="w-full rounded-lg border-outline-variant bg-surface-container-lowest text-xs text-on-surface focus:border-primary-container focus:ring-primary-container/50"
-                                            :placeholder="remarkPlaceholders[field.key]"
-                                        />
+                                        >
+                                            <option value="" :selected="!booking.remarks[field.key]">— Chọn —</option>
+                                            <option v-for="choice in choicesFor(field, booking.remarks[field.key])" :key="choice" :value="choice" :selected="booking.remarks[field.key] === choice">
+                                                {{ field.options.includes(choice) ? choice : `${choice} (cũ)` }}
+                                            </option>
+                                        </select>
                                     </label>
                                 </div>
                                 <textarea

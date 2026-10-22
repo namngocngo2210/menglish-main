@@ -523,7 +523,7 @@ class DemoPhase1Seeder extends Seeder
         $this->asUser($this->staff['teacher'], TrialGuestController::class, 'feedback', [
             'status' => 'attended',
             'rating' => 4,
-            'remarks' => ['grammar' => 'Khá', 'attitude' => 'Hăng hái, mạnh dạn phát biểu', 'result' => 'Theo kịp bài, làm đúng 8/10 câu'],
+            'remarks' => ['grammar' => 'Khá', 'attitude' => 'Tốt', 'result' => 'Đạt'],
             'feedback' => 'Con hòa nhập nhanh, phát âm rõ; cần luyện thêm từ vựng chủ đề trường học. Phù hợp lớp FAM 1.',
         ], ['booking' => $booking]);
 

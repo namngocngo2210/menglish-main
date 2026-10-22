@@ -562,7 +562,7 @@ class CrmPipelineTest extends TestCase
         ]);
         $payload = [
             'status' => 'attended', 'rating' => 5,
-            'remarks' => ['grammar' => 'Khá', 'attitude' => 'Hăng hái', 'result' => 'Đạt mục tiêu', 'monsters' => 'bỏ qua'],
+            'remarks' => ['grammar' => 'Khá', 'attitude' => 'Tốt', 'result' => 'Đạt', 'monsters' => 'bỏ qua'],
             'feedback' => 'Bé hòa nhập nhanh, hợp lớp Starters.',
         ];
 
@@ -578,7 +578,7 @@ class CrmPipelineTest extends TestCase
         $this->actingAs($teacher)->post(route('teacher.trial-guests.feedback', $booking), $payload)->assertSessionHasNoErrors();
 
         $booking->refresh();
-        $this->assertSame(['grammar' => 'Khá', 'attitude' => 'Hăng hái', 'result' => 'Đạt mục tiêu'], $booking->remarks);
+        $this->assertSame(['grammar' => 'Khá', 'attitude' => 'Tốt', 'result' => 'Đạt'], $booking->remarks);
         $this->assertSame($lead->id, $booking->customer_id);
         $history = $lead->histories()->where('type', 'trial')->latest('id')->firstOrFail();
         $this->assertSame($teacher->id, $history->user_id);
@@ -586,7 +586,7 @@ class CrmPipelineTest extends TestCase
         $this->assertStringContainsString('Bé hòa nhập nhanh', $history->content);
 
         $this->actingAs($this->academic)->get(route('crm.customers.show', $lead))->assertOk()
-            ->assertSee('Tinh thần học tập: Hăng hái')->assertSee('Bé hòa nhập nhanh, hợp lớp Starters.');
+            ->assertSee('Tinh thần học tập: Tốt')->assertSee('Bé hòa nhập nhanh, hợp lớp Starters.');
         $this->assertDatabaseMissing('students', ['name' => $lead->name]);
     }
 
@@ -705,5 +705,32 @@ class CrmPipelineTest extends TestCase
         $user->assignRole($role);
 
         return $user;
+    }
+
+    public function test_trial_guest_ratings_are_chosen_from_options_and_keep_legacy_free_text(): void
+    {
+        [, $sessions, $teacher] = $this->classWithSessions(1);
+        $sessions[0]->update(['date' => now()->subDay()->toDateString()]);
+        $booking = CrmTrialBooking::create([
+            'customer_id' => $this->lead('consulting')->id, 'class_id' => $sessions[0]->class_id, 'class_session_id' => $sessions[0]->id,
+            'booked_by' => $this->academic->id, 'status' => 'scheduled',
+        ]);
+        $url = route('teacher.trial-guests.feedback', $booking);
+        $payload = ['status' => 'attended', 'rating' => 4, 'feedback' => 'Hợp lớp.'];
+
+        $this->actingAs($teacher)->get(route('teacher.trial-guests', ['scope' => 'past']))->assertOk()
+            ->assertInertia(fn ($page) => $page->where('remarkFields.0.options', ['Tốt', 'Khá', 'Cần cố gắng'])
+                ->where('remarkFields.2.options', ['Đạt', 'Không đạt']));
+
+        $this->actingAs($teacher)->post($url, $payload + ['remarks' => ['grammar' => 'Xuất sắc', 'result' => 'Theo kịp lớp']])
+            ->assertSessionHasErrors(['remarks.grammar', 'remarks.result']);
+        $this->assertNull($booking->fresh()->feedback_at);
+
+        // Nhận xét gõ tay trước đây: lưu lại nguyên giá trị cũ được, chữ tự do mới thì không.
+        $booking->update(['remarks' => ['attitude' => 'Hăng hái']]);
+        $this->actingAs($teacher)->post($url, $payload + ['remarks' => ['attitude' => 'Rất hăng hái']])->assertSessionHasErrors('remarks.attitude');
+        $this->actingAs($teacher)->post($url, $payload + ['remarks' => ['grammar' => 'Cần cố gắng', 'attitude' => 'Hăng hái', 'result' => 'Không đạt']])
+            ->assertSessionHasNoErrors();
+        $this->assertSame(['grammar' => 'Cần cố gắng', 'attitude' => 'Hăng hái', 'result' => 'Không đạt'], $booking->fresh()->remarks);
     }
 }
