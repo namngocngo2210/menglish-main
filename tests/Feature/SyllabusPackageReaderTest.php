@@ -189,4 +189,49 @@ class SyllabusPackageReaderTest extends TestCase
         $this->expectExceptionMessage('quá 200 MB sau giải nén');
         $this->reader()->read($zip, $this->newPackageDir());
     }
+
+    public function test_rejects_entries_that_collide_after_normalising(): void
+    {
+        $zip = $this->makeZip([
+            'syllabus.xlsx' => file_get_contents($this->makeXlsx($this->validSheets())),
+            'tai-lieu//a.pdf' => $this->pdfBytes(),
+            'tai-lieu/./a.pdf' => $this->pdfBytes().'different',
+        ]);
+
+        $this->expectException(SyllabusPackageException::class);
+        $this->expectExceptionMessage('hai file trùng đường dẫn');
+        $this->reader()->read($zip, $this->newPackageDir());
+    }
+
+    public function test_rejects_when_real_bytes_exceed_limit_despite_lying_headers(): void
+    {
+        // Giả lập header khai gian: declaredSize() luôn 0 nên chỉ phép đếm byte thực mới chặn được.
+        $reader = new class extends SyllabusPackageReader
+        {
+            protected function maxUncompressedBytes(): int
+            {
+                return 1024 * 1024;
+            }
+
+            protected function declaredSize(array $stat): int
+            {
+                return 0;
+            }
+        };
+        $zip = $this->makeZip([
+            'syllabus.xlsx' => file_get_contents($this->makeXlsx($this->validSheets())),
+            'tai-lieu/a.txt' => str_repeat('a', 600 * 1024),
+            'tai-lieu/b.txt' => str_repeat('b', 600 * 1024),
+        ]);
+        $dir = $this->newPackageDir();
+
+        try {
+            $reader->read($zip, $dir);
+            $this->fail('Expected SyllabusPackageException');
+        } catch (SyllabusPackageException $e) {
+            $this->assertStringContainsString('quá 1 MB sau giải nén', $e->getMessage());
+        }
+        $this->assertFileDoesNotExist($dir.'/tai-lieu/a.txt');
+        $this->assertFileDoesNotExist($dir.'/tai-lieu/b.txt');
+    }
 }

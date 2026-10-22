@@ -208,8 +208,8 @@ class SyllabusPackageReader
                     continue; // thư mục
                 }
 
-                $total += (int) $stat['size'];
-                if ($total > self::MAX_UNCOMPRESSED_BYTES) {
+                $total += $this->declaredSize($stat);
+                if ($total > $this->maxUncompressedBytes()) {
                     throw $this->tooLarge();
                 }
 
@@ -223,6 +223,16 @@ class SyllabusPackageReader
             }
 
             $entries = $this->stripWrappingFolder($entries);
+
+            // Hai entry chuẩn hoá về cùng một đường dẫn sẽ đè lên nhau trên đĩa.
+            $seen = [];
+            foreach ($entries as [$segments]) {
+                $relative = implode('/', $segments);
+                if (isset($seen[$relative])) {
+                    throw new SyllabusPackageException('File zip có hai file trùng đường dẫn: '.mb_substr($relative, 0, 100));
+                }
+                $seen[$relative] = true;
+            }
 
             $xlsx = [];
             foreach ($entries as $i => [$segments]) {
@@ -240,22 +250,32 @@ class SyllabusPackageReader
             $files = [];
             $xlsxPath = '';
             $extract = $this->workDirIsEmpty($workDir);
-            foreach ($entries as $i => [$segments, $renamed]) {
-                $relative = implode('/', $segments);
-                $isXlsx = $i === $xlsx[0];
-                $isDoc = $segments[0] === self::DOCS_DIR && count($segments) > 1;
-                if (! $isXlsx && ! $isDoc) {
-                    $ignored[] = $relative;
+            $written = [];
+            $realTotal = 0;
+            try {
+                foreach ($entries as $i => [$segments, $renamed]) {
+                    $relative = implode('/', $segments);
+                    $isXlsx = $i === $xlsx[0];
+                    $isDoc = $segments[0] === self::DOCS_DIR && count($segments) > 1;
+                    if (! $isXlsx && ! $isDoc) {
+                        $ignored[] = $relative;
 
-                    continue;
+                        continue;
+                    }
+                    $local = rtrim($workDir, '/').'/'.$relative;
+                    $size = $extract ? $this->extractEntry($zip, $i, $local, $realTotal, $written) : (is_file($local) ? (int) filesize($local) : 0);
+                    if ($isXlsx) {
+                        $xlsxPath = $local;
+                    } else {
+                        $files[] = new PackageFile($relative, $local, $size, $renamed);
+                    }
                 }
-                $local = rtrim($workDir, '/').'/'.$relative;
-                $size = $extract ? $this->extractEntry($zip, $i, $local) : (is_file($local) ? (int) filesize($local) : 0);
-                if ($isXlsx) {
-                    $xlsxPath = $local;
-                } else {
-                    $files[] = new PackageFile($relative, $local, $size, $renamed);
+            } catch (SyllabusPackageException $e) {
+                // Không để lại file dở dang của lần đọc lỗi.
+                foreach ($written as $file) {
+                    @unlink($file);
                 }
+                throw $e;
             }
         } finally {
             $zip->close();
@@ -272,9 +292,21 @@ class SyllabusPackageReader
         return $converted !== false && $converted !== '' ? $converted : mb_convert_encoding($name, 'UTF-8', 'ISO-8859-1');
     }
 
+    /** Giới hạn dung lượng giải nén; tách ra để test hạ thấp được. */
+    protected function maxUncompressedBytes(): int
+    {
+        return self::MAX_UNCOMPRESSED_BYTES;
+    }
+
+    /** Dung lượng entry theo header zip (header có thể khai gian: extractEntry đếm lại byte thực). */
+    protected function declaredSize(array $stat): int
+    {
+        return (int) $stat['size'];
+    }
+
     private function tooLarge(): SyllabusPackageException
     {
-        return new SyllabusPackageException('File zip quá '.(int) (self::MAX_UNCOMPRESSED_BYTES / 1048576).' MB sau giải nén.');
+        return new SyllabusPackageException('File zip quá '.(int) ($this->maxUncompressedBytes() / 1048576).' MB sau giải nén.');
     }
 
     private function isUnsafeName(string $name): bool
@@ -337,7 +369,7 @@ class SyllabusPackageReader
     }
 
     /** Ghi một entry ra đĩa; đếm lại dung lượng thực tế phòng header khai gian. */
-    private function extractEntry(ZipArchive $zip, int $index, string $local): int
+    private function extractEntry(ZipArchive $zip, int $index, string $local, int &$realTotal, array &$written): int
     {
         $dir = dirname($local);
         if (! is_dir($dir) && ! mkdir($dir, 0755, true) && ! is_dir($dir)) {
@@ -349,15 +381,17 @@ class SyllabusPackageReader
             throw new SyllabusPackageException('Không giải nén được file zip.');
         }
 
-        $written = 0;
+        $written[] = $local;
+        $size = 0;
         try {
             while (! feof($in)) {
                 $chunk = fread($in, 1048576);
                 if ($chunk === false) {
                     throw new SyllabusPackageException('Không giải nén được file zip.');
                 }
-                $written += strlen($chunk);
-                if ($written > self::MAX_UNCOMPRESSED_BYTES) {
+                $size += strlen($chunk);
+                $realTotal += strlen($chunk);
+                if ($realTotal > $this->maxUncompressedBytes()) {
                     throw $this->tooLarge();
                 }
                 fwrite($out, $chunk);
@@ -367,6 +401,6 @@ class SyllabusPackageReader
             fclose($out);
         }
 
-        return $written;
+        return $size;
     }
 }
