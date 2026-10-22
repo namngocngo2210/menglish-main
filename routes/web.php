@@ -46,6 +46,7 @@ use App\Http\Controllers\StaffAttendanceController;
 use App\Http\Controllers\SupportTicketController;
 use App\Http\Controllers\SurveyController;
 use App\Http\Controllers\SyllabusController;
+use App\Http\Controllers\SyllabusImportController;
 use App\Http\Controllers\SystemCategoryController;
 use App\Http\Controllers\SystemConfigController;
 use App\Http\Controllers\TeacherMeetingReportController;
@@ -497,6 +498,11 @@ Route::middleware('auth')->group(function () {
         Route::post('/documents/{id}/viewed', [SyllabusController::class, 'markDocumentViewed'])->whereNumber('id')->name('documents.viewed');
         Route::delete('/documents/{id}', [SyllabusController::class, 'destroyDocument'])->whereNumber('id')->middleware('can:syllabus.upload')->name('documents.destroy');
         Route::get('/builder', [SyllabusController::class, 'builder'])->name('builder');
+        Route::middleware('can:syllabus.manage')->prefix('import')->group(function () {
+            Route::get('/', [SyllabusImportController::class, 'index'])->name('import');
+            Route::get('/template', [SyllabusImportController::class, 'template'])->name('import.template');
+            Route::post('/preview', [SyllabusImportController::class, 'preview'])->name('import.preview');
+        });
         Route::post('/curriculums', [SyllabusController::class, 'storeCurriculum'])->middleware('can:syllabus.manage')->name('curriculums.store');
         Route::put('/curriculums/{id}', [SyllabusController::class, 'updateCurriculum'])->whereNumber('id')->middleware('can:syllabus.manage')->name('curriculums.update');
         Route::delete('/curriculums/{id}', [SyllabusController::class, 'destroyCurriculum'])->whereNumber('id')->middleware('can:syllabus.manage')->name('curriculums.destroy');
