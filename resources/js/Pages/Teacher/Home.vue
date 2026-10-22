@@ -122,6 +122,7 @@ const hasUnchecked = computed(() => props.shifts.some((s) => !s.checked_in && !c
                         </div>
                         <div class="mt-md flex flex-wrap gap-xs border-t border-outline-variant/60 pt-sm">
                             <UiButton size="sm" :variant="shift.attendance_done ? 'ghost' : 'secondary'" icon="fact_check" :href="route('teacher.attendance', { classId: shift.class_id, session: shift.session_id })">{{ shift.attendance_done ? 'Đã điểm danh' : 'Điểm danh' }}</UiButton>
+                            <UiButton v-if="shift.syllabus_url" size="sm" variant="secondary" icon="menu_book" :href="shift.syllabus_url">Mở giáo trình</UiButton>
                             <template v-if="!shift.is_support">
                                 <UiButton size="sm" variant="secondary" icon="rate_review" :href="route('teacher.remarks', { classId: shift.class_id, session: shift.session_id })">Nhận xét</UiButton>
                                 <UiButton size="sm" variant="secondary" icon="assignment" :href="route('teacher.homework', { classId: shift.class_id, session: shift.session_id })">Giao bài</UiButton>

@@ -15,6 +15,7 @@ use App\Models\PayrollPeriod;
 use App\Models\Student;
 use App\Models\StudentAttendance;
 use App\Models\SupportSession;
+use App\Models\SyllabusAssignment;
 use App\Models\TeacherTimesheet;
 use App\Models\User;
 use App\Services\BigTestSlaService;
@@ -173,6 +174,7 @@ class TeacherPortalController extends Controller
         ClassModel::loadRosterCounts($todaySessions->pluck('classModel')->filter()->unique('id'));
         $trialCounts = CrmTrialBooking::whereIn('class_session_id', $sessionIds)->where('status', '!=', 'cancelled')->whereHas('customer')
             ->selectRaw('class_session_id, count(*) as total')->groupBy('class_session_id')->pluck('total', 'class_session_id');
+        $syllabusUrls = $this->syllabusUrls($todaySessions->pluck('class_id'));
 
         $shifts = $todaySessions->map(function (ClassSession $session) use ($checkins, $attendanceDone, $trialCounts) {
             $ts = $checkins->get($session->id);
@@ -233,6 +235,7 @@ class TeacherPortalController extends Controller
             'shifts' => $shifts->map(fn (array $shift) => [
                 'session_id' => $shift['session']->id,
                 'class_id' => $shift['class']?->id,
+                'syllabus_url' => $syllabusUrls[$shift['session']->class_id] ?? null,
                 'class_name' => $shift['class']?->name,
                 'class_code' => $shift['class']?->code,
                 'branch_name' => $shift['class']?->branch?->name,
@@ -607,7 +610,26 @@ class TeacherPortalController extends Controller
             'attendanceWindow' => $window,
             'rosterSize' => $rosterSize,
             'trialGuests' => $this->trialGuestsProps($this->sessionTrialGuests($session)),
+            'syllabusUrl' => $this->syllabusUrls(collect([$class->id]))[$class->id] ?? null,
         ]);
+    }
+
+    /**
+     * Link "Mở giáo trình" của buổi dạy → màn GV xem bài giảng (tab nội dung buổi) của lớp. Chỉ lớp đang có
+     * chặng mở mới có link (màn đó chỉ liệt kê các lớp này) và chỉ khi người dùng xem được giáo trình.
+     *
+     * @return array<int, string> class_id => url
+     */
+    private function syllabusUrls(Collection $classIds): array
+    {
+        $classIds = $classIds->filter()->unique()->values();
+        if ($classIds->isEmpty() || ! Auth::user()->can('syllabus.view')) {
+            return [];
+        }
+
+        return SyllabusAssignment::open()->whereIn('class_id', $classIds)->distinct()->pluck('class_id')
+            ->mapWithKeys(fn ($id) => [(int) $id => route('syllabus.teacher-view', ['class' => $id, 'tab' => 'lessons'])])
+            ->all();
     }
 
     /**
