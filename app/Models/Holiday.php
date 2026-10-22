@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -34,5 +35,13 @@ class Holiday extends Model
     public function branches(): BelongsToMany
     {
         return $this->belongsToMany(Branch::class, 'holiday_branches');
+    }
+
+    /** Ngày nghỉ rơi vào $date, áp dụng toàn hệ thống hoặc riêng cho chi nhánh $branchId. */
+    public function scopeCoveringBranch(Builder $query, string $date, ?int $branchId): Builder
+    {
+        return $query->whereDate('start_date', '<=', $date)->whereDate('end_date', '>=', $date)
+            ->where(fn (Builder $q) => $q->where('is_system_wide', true)
+                ->when($branchId, fn (Builder $q) => $q->orWhereHas('branches', fn (Builder $b) => $b->where('branches.id', $branchId))));
     }
 }

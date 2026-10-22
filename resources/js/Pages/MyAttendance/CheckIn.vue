@@ -20,6 +20,7 @@ const props = defineProps({
     today: { type: Object, default: null },
     serverTime: { type: String, required: true },
     locked: { type: String, default: null },
+    blocked: { type: String, default: null },
 });
 
 const page = usePage();
@@ -40,7 +41,7 @@ const located = computed(() => props.branches.filter((b) => b.has_location));
 const blocker = computed(() => {
     if (!props.branches.length) return 'Tài khoản của bạn chưa được gán cơ sở làm việc. Hãy báo Admin / Quản lý cơ sở.';
     if (!located.value.length) return `Cơ sở ${props.branches.map((b) => b.name).join(', ')} chưa cài toạ độ chấm công. Hãy báo Admin vào Cài đặt → Cơ sở & chi nhánh → Chấm công.`;
-    return props.locked;
+    return props.locked ?? props.blocked;
 });
 const nextKind = computed(() => (props.today?.check_in ? 'out' : 'in'));
 const actionLabel = computed(() => (nextKind.value === 'in' ? 'Chấm công vào' : props.today?.check_out ? 'Chấm công ra lại' : 'Chấm công ra'));

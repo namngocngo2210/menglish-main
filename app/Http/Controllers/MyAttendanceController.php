@@ -45,6 +45,10 @@ class MyAttendanceController extends Controller
         $now = now();
         $today = StaffAttendance::forDay($user->id, $now);
         $expected = $this->attendance->expectedTimes($user, $branch, $now);
+        $workBranches = $this->attendance->workBranches($user);
+        // Nhiều cơ sở: chỉ khóa khi mọi cơ sở đều không chấm được (máy chủ kiểm tra lại theo cơ sở thực tế lúc bấm).
+        $blocks = ($workBranches->isEmpty() ? collect([null]) : $workBranches)
+            ->map(fn (?Branch $b) => $this->attendance->punchBlockReason($user, $b, $now));
 
         return Inertia::render('MyAttendance/CheckIn', [
             'me' => [
@@ -54,11 +58,13 @@ class MyAttendanceController extends Controller
             ],
             'branch' => $branch ? $this->branchData($branch) : null,
             // Mọi cơ sở làm việc (chính + làm thêm): trang chọn cơ sở gần GPS nhất, máy chủ kiểm tra lại khi chấm.
-            'branches' => $this->attendance->workBranches($user)->map(fn (Branch $b) => $this->branchData($b))->values()->all(),
+            'branches' => $workBranches->map(fn (Branch $b) => $this->branchData($b))->values()->all(),
             'expected' => $expected,
             'today' => $today ? $this->attendanceData($today) : null,
             'serverTime' => $now->toIso8601String(),
             'locked' => PayrollPeriod::isLockedFor($now) ? PayrollPeriod::lockedMessage($now) : null,
+            // Lý do hôm nay không chấm công (part-time không có buổi dạy / ngày nghỉ), null = chấm được.
+            'blocked' => $blocks->contains(null) ? null : $blocks->first(),
         ]);
     }
 

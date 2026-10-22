@@ -5,11 +5,14 @@ namespace App\Services\StaffAttendance;
 use App\Models\AdminNotification;
 use App\Models\Branch;
 use App\Models\ClassSession;
+use App\Models\Holiday;
 use App\Models\PayrollPeriod;
+use App\Models\PayrollRecord;
 use App\Models\Penalty;
 use App\Models\StaffAttendance;
 use App\Models\StaffAttendanceRequest;
 use App\Models\User;
+use App\Services\PayrollFormulaService;
 use App\Support\DataScope;
 use App\Support\Roles;
 use Carbon\Carbon;
@@ -34,6 +37,8 @@ use Illuminate\Validation\ValidationException;
  *    nhân sự khác theo giờ làm việc của cơ sở. Muộn quá số phút cho phép của cơ sở → tự lập biên bản "chờ giải trình",
  *    0đ (người chốt quyết mức phạt, giống biên bản SLA); đơn xin đi muộn được duyệt → không tính lỗi, biên bản tự hủy.
  *  - Ngày thuộc kỳ lương đã chốt thì không chấm / không sửa được nữa.
+ *  - Ngày được chấm (22/10/2026, punchBlockReason): part-time (xếp loại như bảng lương) chỉ ngày có buổi dạy / dạy thay /
+ *    học bù chưa hủy; nhân sự khác mọi ngày trừ ngày nghỉ của cơ sở. Áp cả khi bấm chấm công và đơn "Bổ sung công".
  */
 class StaffAttendanceService
 {
@@ -43,6 +48,8 @@ class StaffAttendanceService
 
     /** Đơn xin nghỉ tối đa bao nhiêu ngày một lần. */
     public const MAX_LEAVE_DAYS = 31;
+
+    public function __construct(private readonly PayrollFormulaService $payroll) {}
 
     /**
      * Chấm công vào / ra cho chính mình.
@@ -55,6 +62,9 @@ class StaffAttendanceService
         $branch = $this->ensureCanPunchAt($user, $now)
             ->sortBy(fn (Branch $b) => $b->distanceTo($latitude, $longitude))
             ->first();
+        if ($reason = $this->punchBlockReason($user, $branch, $now)) {
+            throw ValidationException::withMessages(['kind' => $reason]);
+        }
         $distance = $branch->distanceTo($latitude, $longitude);
         $radius = $branch->checkin_radius ?: Branch::DEFAULT_CHECKIN_RADIUS;
         if ($distance > $radius) {
@@ -153,6 +163,21 @@ class StaffAttendanceService
         }
 
         return $located;
+    }
+
+    /** Lý do không được chấm công ngày $date ở cơ sở $branch (null = được chấm). */
+    public function punchBlockReason(User $user, ?Branch $branch, CarbonInterface $date): ?string
+    {
+        if ($this->payroll->profile($user)['employee_type'] === PayrollRecord::TYPE_PARTTIME) {
+            $teaches = ClassSession::query()->forStaff($user->id)
+                ->whereDate('date', $date->toDateString())->where('status', '!=', 'cancelled')->exists();
+
+            return $teaches ? null : 'Hôm nay bạn không có buổi dạy / dạy thay / học bù nên không cần chấm công.';
+        }
+
+        $holiday = Holiday::query()->coveringBranch($date->toDateString(), $branch?->id)->value('name');
+
+        return $holiday !== null ? "Hôm nay là ngày nghỉ ({$holiday}), không chấm công." : null;
     }
 
     /**
@@ -300,6 +325,9 @@ class StaffAttendanceService
         if ($type === StaffAttendanceRequest::TYPE_CORRECTION) {
             if ($from->isAfter(today())) {
                 throw ValidationException::withMessages(['date_from' => 'Chỉ bổ sung công cho hôm nay hoặc ngày đã qua.']);
+            }
+            if ($reason = $this->punchBlockReason($user, $user->branch, $from)) {
+                throw ValidationException::withMessages(['date_from' => str_replace('Hôm nay', 'Ngày '.$from->format('d/m/Y'), $reason)]);
             }
             if (empty($data['check_in_time']) && empty($data['check_out_time'])) {
                 throw ValidationException::withMessages(['check_in_time' => 'Nhập giờ vào hoặc giờ ra cần bổ sung.']);

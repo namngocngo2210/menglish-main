@@ -1,6 +1,6 @@
 # Chấm công theo lịch dạy
 
-Trạng thái: **Thiết kế — chờ duyệt** (22/10/2026)
+Trạng thái: **Đang triển khai** — duyệt 23/10/2026
 
 ## 1. Bối cảnh
 
@@ -119,9 +119,44 @@ body: user_id, session_ids[] (tối đa 100)
   quy tắc lương hiện tại).
 - **Buổi kèm 1-1 (`SupportSession`) không được tính là có giờ dạy** (chốt 22/10/2026).
 
-## 6. Sprint
+## 6. Kế hoạch triển khai
+
+Thực hiện trực tiếp trong phiên (chủ dự án yêu cầu "làm tiếp" 23/10/2026), TDD từng task, review cả nhánh ở cuối.
+
+**Sprint 1 — quy tắc ngày chấm công**
+
+1. Test `MyAttendanceTest` (viết trước, phải fail):
+   - `test_part_time_teacher_can_only_check_in_on_days_with_sessions`: part-time không buổi → lỗi `kind` chứa "không có buổi dạy";
+     có buổi dạy thay (`teacher_id` của buổi) / học bù (`TYPE_MAKEUP`) / là TA của buổi → chấm được; buổi `cancelled` → vẫn chặn.
+   - `test_full_time_staff_cannot_check_in_on_holidays`: nghỉ toàn hệ thống → chặn ("ngày nghỉ"); nghỉ riêng cơ sở khác → chấm được.
+   - `test_check_in_page_shows_why_punching_is_blocked`: prop `blocked` có lý do; ngày bình thường `blocked` = null.
+   - `test_correction_request_is_blocked_on_days_without_work`: đơn Bổ sung công của part-time cho ngày không buổi → lỗi `date_from`.
+   - Sửa `test_teacher_without_branch_checks_in_at_any_branch`: thêm một buổi dạy hôm đó cho GV part-time.
+2. `StaffAttendanceService::punchBlockReason(User $user, ?Branch $branch, CarbonInterface $date): ?string`
+   (inject `PayrollFormulaService`, `SessionScheduleService`). Part-time = `profile($user)['employee_type'] === PayrollRecord::TYPE_PARTTIME`.
+   Gọi trong `punch()` (cơ sở gần nhất) và `submit()` cho `TYPE_CORRECTION` (cơ sở chính).
+3. `MyAttendanceController::home()` thêm prop `blocked` (full-time nhiều cơ sở: chỉ khóa khi mọi cơ sở làm việc đều nghỉ);
+   `CheckIn.vue`: `blocker` trả về `props.blocked` sau các lý do sẵn có.
+4. Chạy `MyAttendanceTest`, `TeachingShiftTest`, `DemoPayrollSeederTest` (nếu có) → pass → commit.
+
+**Sprint 2 — xác nhận theo lịch hàng loạt**
+
+1. Test `Phase3TimesheetTest`:
+   - `test_bulk_confirm_creates_valid_schedule_timesheets_for_selected_sessions`: tạo ca `SOURCE_SCHEDULE` `valid` cho
+     buổi đã chọn, `user_id` = GV đang xem (kể cả buổi dạy thay); bỏ qua buổi tương lai / kỳ lương khóa / đã có công (thông báo liệt kê).
+   - `test_bulk_confirm_approves_pending_checkin_instead_of_duplicating`.
+   - `test_bulk_confirm_requires_manual_record_permission_and_branch_scope`: thiếu quyền → 403; buổi lớp chi nhánh khác → 403.
+2. `App\Services\TeachingShifts\ScheduleConfirmation::confirm(ClassSession $session, User $staff, User $reviewer): ?string`
+   (trả lý do bỏ qua). `PayrollController::confirmScheduledSession` gọi service với `$staff` = GV của buổi.
+3. Route `POST payroll/timesheets/sessions/bulk-confirm` → `PayrollController::bulkConfirmSessions`
+   (`can:attendance_staff.manual_record`, `user_id`, `session_ids` tối đa 100), transaction, 1 dòng `activity` cho cả lô;
+   `ziggy:generate`.
+4. `Pages/Payroll/Timesheets/Teachers.vue` khối "buổi thiếu công": ô chọn + chọn tất cả + nút "Xác nhận theo lịch (N buổi)".
+5. Chạy `Phase3TimesheetTest`, `AllRoutesSmokeTest`, `BranchIsolationRouteSweepTest` → pass → commit, push, MR.
+
+## 7. Sprint
 
 | Sprint | Nội dung | Trạng thái |
 |---|---|---|
-| 1 | `punchBlockReason` + áp vào chấm công / đơn Bổ sung công + khóa nút trên màn Chấm công, kèm test | Chưa làm |
+| 1 | `punchBlockReason` + áp vào chấm công / đơn Bổ sung công + khóa nút trên màn Chấm công, kèm test | **Xong** (23/10) |
 | 2 | `ScheduleConfirmation` service + refactor `confirmScheduledSession` + route / UI xác nhận hàng loạt, kèm test | Chưa làm |
