@@ -63,8 +63,8 @@ trait BuildsSyllabusPackages
                 array_values(Reader::LESSON_COLUMNS),
                 ['Chặng 1', 1, 'Hello', 1, 'Chào hỏi', 'Biết chào', 'Hát', 'hello', 'to be', 'Làm bài 1'],
                 ['Chặng 1', 1, 'Hello', 2, 'Giới thiệu', null, null, null, null, null],
-                ['Chặng 2', 2, 'Animals', 1, 'Con vật', null, null, 'cat, dog', null, null],
-                ['Chặng 2', 2, 'Animals', 2, 'Ôn tập', null, null, null, null, null],
+                ['Chặng 2', 2, 'Animals', 3, 'Con vật', null, null, 'cat, dog', null, null],
+                ['Chặng 2', 2, 'Animals', 4, 'Ôn tập', null, null, null, null, null],
             ],
         ];
     }
