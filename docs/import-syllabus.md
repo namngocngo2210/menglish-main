@@ -64,7 +64,7 @@ mau-import-syllabus.zip
 | Sheet | Cột | Quy tắc |
 |---|---|---|
 | Hướng dẫn | Mô tả cách điền | Không import |
-| Giáo trình (1 dòng) | Mã · Tên · Phiên bản · Mô tả | Mã, Tên bắt buộc; mã ≤ 50 ký tự, chưa tồn tại |
+| Giáo trình (1 dòng) | Mã · Tên · Phiên bản · Mô tả | Mã, Tên bắt buộc; mã ≤ 50 ký tự, chưa tồn tại (kể cả giáo trình đã xoá); Phiên bản ≤ 20 ký tự, trống → `v1` |
 | Chặng | Thứ tự · Tên chặng · Mô tả · Tên Big Test · Ghi chú Big Test · Link mục lục | Thứ tự liên tục 1, 2, 3…; Tên bắt buộc |
 | Buổi | Chặng (thứ tự) · Unit số · Tên unit · Buổi số · Tên buổi · Mục tiêu · Hoạt động · Từ vựng · Ngữ pháp · BTVN | Buổi số liên tục 1…N, không trùng; một unit chỉ thuộc một chặng; các dòng cùng unit cùng tên unit; mỗi chặng ≥ 1 buổi |
 
@@ -76,7 +76,9 @@ Thư mục `tai-lieu/`:
 - Bỏ qua file hệ thống: `.DS_Store`, `__MACOSX/`, `Thumbs.db`, file bắt đầu bằng `._`.
 - File nằm sâu hơn một cấp (`chang-1/abc/x.pdf`) → lỗi.
 
-Cột đọc **theo tên tiêu đề** (không theo vị trí); thiếu sheet / cột bắt buộc → lỗi.
+Sheet tìm theo tên (`Giáo trình`, `Chặng`, `Buổi`); cột đọc **theo tên tiêu đề** ở dòng 1 (không theo vị trí, không
+phân biệt hoa thường / khoảng trắng); thiếu sheet / cột bắt buộc → lỗi. Zip nén cả thư mục (mọi file nằm trong một
+thư mục gốc duy nhất, vd. `mau-import-syllabus/syllabus.xlsx`) được chấp nhận như zip phẳng.
 
 ### 3.2. Luồng màn hình
 
@@ -97,7 +99,7 @@ Cột đọc **theo tên tiêu đề** (không theo vị trí); thiếu sheet / 
 ### 3.3. Kiểm tra và an toàn
 
 - Báo **mọi lỗi một lượt**, không dừng ở lỗi đầu. Bỏ dòng trống, trim khoảng trắng; độ dài theo cột DB (tên ≤ 255).
-- Tối đa **2.000 dòng** buổi.
+- Tối đa **1.000 buổi** (giới hạn `session_no` của màn Soạn syllabus); unit số 1…500.
 - Zip: đúng **1 file `.xlsx` ở gốc**; từ chối cả file khi có đường dẫn `../` / tuyệt đối (zip slip), zip mã hoá,
   > **500 entry**, hoặc tổng dung lượng giải nén > **200 MB** (zip bomb). Mỗi tài liệu ≤ `SyllabusDocument::MAX_KB`.
 - Mã trùng: kiểm tra ở bước ②, kiểm tra lại khi xác nhận; unique index trên `code` chặn trường hợp hai người import
@@ -105,7 +107,8 @@ Cột đọc **theo tên tiêu đề** (không theo vị trí); thiếu sheet / 
 - Xác nhận: cập nhật Chặng 1 do `booted()` tạo bằng dòng đầu sheet Chặng (không tạo thêm), tạo các chặng / unit / buổi
   còn lại + tài liệu trong `DB::transaction`. Lỗi giữa chừng → rollback và xoá các file đã lưu trong lần import đó.
   Audit log như tạo tay.
-- File tạm: `storage/app/private/syllabus-imports/<uuid>.<ext>`; session lưu token → đường dẫn, user id, quyền tài liệu,
+- File tạm: `storage/app/private/syllabus-imports/<uuid>.<ext>` (ghi thẳng bằng `storage_path()`, không qua disk
+  `local` vì disk này chuyển sang R2 khi `UPLOAD_STORAGE=r2`), giải nén vào `syllabus-imports/<uuid>/`; session lưu token → đường dẫn, user id, quyền tài liệu,
   thời điểm. Chỉ người upload xác nhận được. Xác nhận xong xoá file tạm; job hằng ngày trong `routes/console.php` xoá file
   tạm quá 1 ngày.
 
