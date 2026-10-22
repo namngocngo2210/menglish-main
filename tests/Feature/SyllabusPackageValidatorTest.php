@@ -88,6 +88,33 @@ class SyllabusPackageValidatorTest extends TestCase
         $this->assertContains('Chặng 2 chưa có buổi nào.', $errors);
     }
 
+    public function test_stage_position_must_be_within_range(): void
+    {
+        foreach ([999999999, 0, 1001] as $bad) {
+            $sheets = $this->validSheets();
+            $sheets['Chặng'][2][0] = $bad;
+            $errors = $this->validate($sheets)->errors;
+            $this->assertContains('Sheet Chặng, dòng 3: Thứ tự phải từ 1 đến 1000.', $errors);
+        }
+
+        $sheets = $this->validSheets();
+        $sheets['Chặng'] = [$sheets['Chặng'][0], [0, 'Chặng 0', null, null, null, null]];
+        $this->assertContains('Sheet Chặng, dòng 2: Thứ tự phải từ 1 đến 1000.', $this->validate($sheets)->errors);
+    }
+
+    public function test_overview_link_only_accepts_http_and_https(): void
+    {
+        foreach (['javascript://host/%0Aalert(1)', 'ftp://x.y/z'] as $bad) {
+            $sheets = $this->validSheets();
+            $sheets['Chặng'][2][5] = $bad;
+            $this->assertContains('Sheet Chặng, dòng 3: Link mục lục không phải URL hợp lệ.', $this->validate($sheets)->errors);
+        }
+
+        $sheets = $this->validSheets();
+        $sheets['Chặng'][2][5] = 'HTTPS://example.com/a';
+        $this->assertTrue($this->validate($sheets)->ok());
+    }
+
     public function test_reports_every_rule_violation(): void
     {
         $sheets = $this->validSheets();

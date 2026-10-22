@@ -121,9 +121,14 @@ class SyllabusPackageValidator
             if ($row['overview_link'] !== null) {
                 if (mb_strlen($row['overview_link']) > 500) {
                     $this->errors[] = 'Sheet Chặng, dòng '.$line.': Link mục lục tối đa 500 ký tự.';
-                } elseif (filter_var($row['overview_link'], FILTER_VALIDATE_URL) === false) {
+                } elseif (filter_var($row['overview_link'], FILTER_VALIDATE_URL) === false
+                    || ! in_array(strtolower((string) parse_url($row['overview_link'], PHP_URL_SCHEME)), ['http', 'https'], true)) {
                     $this->errors[] = 'Sheet Chặng, dòng '.$line.': Link mục lục không phải URL hợp lệ.';
                 }
+            }
+            if ($position !== null && ($position < 1 || $position > self::MAX_LESSONS)) {
+                $this->errors[] = 'Sheet Chặng, dòng '.$line.': Thứ tự phải từ 1 đến '.self::MAX_LESSONS.'.';
+                $position = null;
             }
             if ($position === null) {
                 continue;
