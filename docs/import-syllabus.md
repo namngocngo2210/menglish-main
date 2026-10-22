@@ -1,6 +1,6 @@
 # Import syllabus từ file mẫu
 
-Trạng thái: **Đã duyệt** — 23/10/2026, chưa triển khai
+Trạng thái: **Hoàn thành** — 23/10/2026
 
 ## 1. Bối cảnh
 
@@ -161,4 +161,4 @@ Không đổi schema → không có migration.
 | Sprint | Nội dung | Trạng thái |
 |---|---|---|
 | 1 — File mẫu + kiểm tra | Template zip, `SyllabusPackageReader`, `SyllabusPackageValidator`, trang Import bước ① ② (chưa ghi DB), route, test | **Xong** |
-| 2 — Import + dọn dẹp | Bước xác nhận (`SyllabusImporter`), lưu tài liệu, job dọn file tạm, bỏ file mẫu PDF ở trang Tài liệu, test | Chưa làm |
+| 2 — Import + dọn dẹp | Bước xác nhận (`SyllabusImporter`), lưu tài liệu, job dọn file tạm, bỏ file mẫu PDF ở trang Tài liệu, test | **Xong** |
