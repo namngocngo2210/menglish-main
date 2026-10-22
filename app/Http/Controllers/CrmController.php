@@ -44,6 +44,7 @@ use App\Services\PlacementSubmissionLinker;
 use App\Services\SafeUploadService;
 use App\Services\SalesCommissionService;
 use App\Services\Students\ClassStartActivation;
+use App\Services\Students\StudentAccountService;
 use App\Services\Tuition\SessionLedger;
 use App\Support\Approvals\ApprovableSource;
 use App\Support\Approvals\ApprovalInboxService;
@@ -52,7 +53,6 @@ use App\Support\DataScope;
 use App\Support\Money;
 use App\Support\Rbac;
 use App\Support\Roles;
-use App\Support\TemporaryPassword;
 use App\Support\TransferMemo;
 use App\Support\TuitionBranchScope;
 use App\Support\Ui;
@@ -63,7 +63,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
@@ -73,7 +72,6 @@ use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use Maatwebsite\Excel\Excel as ExcelFormat;
 use Maatwebsite\Excel\Facades\Excel;
-use Spatie\Permission\Models\Role;
 
 class CrmController extends Controller
 {
@@ -2125,12 +2123,7 @@ class CrmController extends Controller
             throw ValidationException::withMessages(['enrollment' => 'Học viên chưa có tài khoản cổng học viên riêng, liên hệ Admin để cấp tài khoản.']);
         }
 
-        $temporaryPassword = TemporaryPassword::generate();
-        $account->forceFill([
-            'password' => Hash::make($temporaryPassword),
-            'must_change_password' => true,
-            'is_active' => true,
-        ])->saveQuietly();
+        $temporaryPassword = app(StudentAccountService::class)->resetPassword($account);
 
         activity('Người dùng & Phân quyền')->causedBy($request->user())->performedOn($account)
             ->event('updated')
@@ -2694,21 +2687,9 @@ class CrmController extends Controller
                 if (User::withTrashed()->whereRaw('LOWER(email) = ?', [Str::lower($studentEmail)])->exists()) {
                     throw ValidationException::withMessages(['customer_id' => "Email {$studentEmail} đã thuộc một tài khoản khác, liên hệ Admin để xử lý trước khi chốt."]);
                 }
-                $temporaryPassword = TemporaryPassword::generate();
-                $studentUser = User::create([
-                    'employee_code' => $studentCode,
-                    'name' => $customer->name,
-                    'email' => $studentEmail,
-                    'phone' => $customer->phone,
-                    'branch_id' => $branchId,
-                    'password' => Hash::make($temporaryPassword),
-                    'must_change_password' => true,
-                    'is_active' => true,
-                    'email_verified_at' => null,
-                ]);
-                Role::findOrCreate(Roles::STUDENT, 'web');
-                $studentUser->assignRole(Roles::STUDENT);
-                $student->update(['user_id' => $studentUser->id, 'email' => $studentEmail]);
+                // Tên đăng nhập = mã học viên, mật khẩu tạm bắt buộc đổi (dùng chung với màn "Tài khoản học viên").
+                $temporaryPassword = app(StudentAccountService::class)->create($student, $studentEmail);
+                $studentUser = $student->user;
             }
 
             if ($class) {

@@ -1,6 +1,6 @@
 # Quản lý tài khoản học viên
 
-Trạng thái: **Thiết kế — chờ duyệt** (22/10/2026)
+Trạng thái: **Đang triển khai** — duyệt 23/10/2026
 
 ## 1. Bối cảnh
 
@@ -47,7 +47,7 @@ public function resetPassword(Student $student, User $actor): string
 ```
 
 - **Tên đăng nhập:** `employee_code` = mã học viên.
-  - Nếu mã đã bị một user khác dùng, hoặc là mã tạm `HV-<ULID>` do import sinh ra, thì bỏ qua và báo "Cần sửa mã học viên trước".
+  - Nếu mã đã bị một user khác dùng thì bỏ qua và báo lý do. Mã `HV-<ULID>` là định dạng chuẩn (bước chốt CRM cũng dùng), dùng được.
   - Không tự đổi mã: mã đang khớp VietQR / học phí.
 - **Email:** `User::generatedStudentEmail($student->id)`, trừ khi hồ sơ có email riêng chưa ai dùng (giống luồng CRM).
 - **Mật khẩu:** `TemporaryPassword::generate()`, kèm `must_change_password = true` và `is_active = true`.
@@ -111,12 +111,41 @@ GET  /students/accounts/download   students.accounts.download   can:student.mana
 - **Mật khẩu tạm trong session:**
   - Session lưu ở DB/Redis dạng mã hoá, chỉ tồn tại đến lần tải đầu tiên.
   - Không ghi mật khẩu vào log hay activity; `SensitiveData` đã che trường `password`.
-- **Mã học viên tạm `HV-<ULID>`** của học viên import thiếu mã: không dùng làm tên đăng nhập được. Học vụ cần sửa mã trước, màn danh sách sẽ đánh dấu những em này.
+- **Tên đăng nhập dài:** học viên có mã `HV-<ULID>` (26 ký tự sau "HV-") sẽ đăng nhập bằng mã dài này, giống tài khoản tạo từ bước chốt CRM hiện nay.
 - **Lô lớn:** giới hạn 200 học viên mỗi lần. Hash mật khẩu bcrypt mất khoảng 50–100 ms mỗi lần, nên một lô 200 mất khoảng 10–20 giây, vẫn chấp nhận được với request đồng bộ.
 
-## 6. Sprint
+## 6. Kế hoạch triển khai
+
+Thực hiện trực tiếp trong phiên (chủ dự án yêu cầu "làm tiếp" 23/10/2026), TDD, review cả nhánh ở cuối.
+
+**Sprint 1 — `App\Services\Students\StudentAccountService`**
+
+- `skipReason(Student $student): ?string` — "đã có tài khoản" / "mã học viên trùng tên đăng nhập của tài khoản khác" /
+  "email … đã thuộc tài khoản khác". (Mã `HV-<ULID>` là định dạng chuẩn của bước chốt CRM, dùng làm tên đăng nhập được —
+  sửa lại giả định ban đầu của thiết kế.)
+- `create(Student $student, ?string $email = null): string` (mật khẩu tạm) — `employee_code` = mã HV, email = `$email` ??
+  email riêng của hồ sơ (nếu chưa ai dùng) ?? `User::generatedStudentEmail()`, role `student`, `must_change_password`,
+  ghi `students.user_id` + `students.email`. Gọi `skipReason()` trước, có lý do → `ValidationException` (`student`).
+- `resetPassword(User $account): string` — chỉ tài khoản có đúng role `student`, ngược lại `ValidationException` (`student`).
+- `CrmController`: bước chốt gọi `create($student, $studentEmail)`; `resetStudentAccount` gọi `resetPassword()`
+  (giữ nguyên kiểm tra / thông báo / nhật ký hiện có).
+- Test `tests/Feature/StudentAccountServiceTest.php` + hồi quy `LeadToStudentFlowTest`, `CrmPipelineTest`, `Phase1AcceptanceTest`.
+
+**Sprint 2 — màn "Tài khoản học viên"**
+
+- Catalog: `student.manage_account`; `config/access.php` thêm cho `academic_lead` (manager / academic_staff có `student.*`);
+  migration `add_student_manage_account_permission` cấp cho `manager`, `academic_staff`, `academic_lead`; export catalog v2.
+- `StudentAccountController` (`index`, `store`, `download`), route trong nhóm `students.` trước `/{id}`, middleware
+  `can:student.manage_account`; sidebar nhóm Học viên thêm "Tài khoản học viên"; `ziggy:generate`.
+- `Pages/Students/Accounts.vue`: lọc (cơ sở, lớp, tài khoản: chưa có / đã có, trạng thái mặc định đang học), bảng chọn nhiều,
+  nút "Tạo tài khoản" / "Cấp lại mật khẩu tạm", khối "Tải file đăng nhập" khi session có kết quả.
+- Test `tests/Feature/StudentAccountManagementTest.php`: phạm vi chi nhánh, lọc, tạo theo lô (kết quả từng phần),
+  tải một lần + `account_sent`, 403 thiếu quyền, 404 học viên ngoài phạm vi; guard-rail `RbacNoHardcodedRolesTest`,
+  `AllRoutesSmokeTest`, `BranchIsolationRouteSweepTest`, `NavigationPermissionTest`, `WorkspaceNavigationTest`.
+
+## 7. Sprint
 
 | Sprint | Nội dung | Trạng thái |
 |---|---|---|
-| 1 | `StudentAccountService` + refactor `CrmController` dùng service, kèm test hồi quy | Chưa làm |
+| 1 | `StudentAccountService` + refactor `CrmController` dùng service, kèm test hồi quy | **Xong** (23/10) |
 | 2 | Quyền mới + migration, màn danh sách, tạo / cấp lại theo lô, tải Excel một lần, sidebar, kèm test | Chưa làm |
