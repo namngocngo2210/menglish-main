@@ -1384,3 +1384,53 @@ func (q *Queries) UseRecoveryCode(ctx context.Context, arg UseRecoveryCodeParams
 	}
 	return result.RowsAffected(), nil
 }
+
+const userIDsInBranches = `-- name: UserIDsInBranches :many
+SELECT DISTINCT ub.user_id FROM iam.user_branches ub WHERE ub.branch_id = ANY ($1::uuid[]) ORDER BY ub.user_id
+`
+
+// Người dùng có chi nhánh chính / chi nhánh được cấp thêm thuộc @branch_ids (kể cả tài khoản đã khóa).
+func (q *Queries) UserIDsInBranches(ctx context.Context, branchIds []uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, userIDsInBranches, branchIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var user_id uuid.UUID
+		if err := rows.Scan(&user_id); err != nil {
+			return nil, err
+		}
+		items = append(items, user_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const userIDsWithoutBranch = `-- name: UserIDsWithoutBranch :many
+SELECT u.id FROM iam.users u WHERE NOT EXISTS (SELECT 1 FROM iam.user_branches ub WHERE ub.user_id = u.id) ORDER BY u.id
+`
+
+// Người dùng chưa gắn chi nhánh nào (nhân sự dùng chung).
+func (q *Queries) UserIDsWithoutBranch(ctx context.Context) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, userIDsWithoutBranch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

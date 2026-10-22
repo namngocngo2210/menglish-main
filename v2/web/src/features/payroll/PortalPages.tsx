@@ -221,8 +221,9 @@ export function LeaderboardPage() {
                     <th className={th}>#</th>
                     <th className={th}>Giáo viên</th>
                     <th className={`${th} text-right`}>Giữ HS</th>
-                    <th className={`${th} text-right`}>Bậc</th>
-                    <th className={`${th} text-right`}>Thưởng KPI</th>
+                    {/* Số tiền chỉ người xem được bảng lương thấy; API trả null cho người khác. */}
+                    {d.show_money && <th className={`${th} text-right`}>Bậc</th>}
+                    {d.show_money && <th className={`${th} text-right`}>Thưởng KPI</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -236,13 +237,13 @@ export function LeaderboardPage() {
                       <td className={`${td} text-right`}>
                         {r.retention_students}/{r.retention_base_students}
                       </td>
-                      <td className={`${td} text-right`}>{r.retention_tier !== null ? `${vnd(r.retention_tier)}đ` : '—'}</td>
-                      <td className={`${td} text-right font-mono font-semibold text-primary`}>{money(r.kpi_bonus)}</td>
+                      {d.show_money && <td className={`${td} text-right`}>{r.retention_tier !== null ? `${vnd(r.retention_tier)}đ` : '—'}</td>}
+                      {d.show_money && <td className={`${td} text-right font-mono font-semibold text-primary`}>{money(r.kpi_bonus ?? 0)}</td>}
                     </tr>
                   ))}
                   {d.retention.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="py-4 text-center text-on-surface-variant">
+                      <td colSpan={d.show_money ? 5 : 3} className="py-4 text-center text-on-surface-variant">
                         Chưa có phiếu lương Part-time trong tháng.
                       </td>
                     </tr>
@@ -262,8 +263,8 @@ export function LeaderboardPage() {
                     <th className={th}>Mốc</th>
                     <th className={`${th} text-right`}>HS chốt</th>
                     <th className={`${th} text-right`}>Phiếu thu</th>
-                    <th className={`${th} text-right`}>Thực thu</th>
-                    <th className={`${th} text-right`}>Hoa hồng</th>
+                    {d.show_money && <th className={`${th} text-right`}>Thực thu</th>}
+                    {d.show_money && <th className={`${th} text-right`}>Hoa hồng</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -286,13 +287,13 @@ export function LeaderboardPage() {
                       </td>
                       <td className={`${td} text-right`}>{s.closed}</td>
                       <td className={`${td} text-right`}>{s.deals}</td>
-                      <td className={`${td} text-right font-mono`}>{money(s.revenue)}</td>
-                      <td className={`${td} text-right font-mono font-semibold text-primary`}>{money(s.commission)}</td>
+                      {d.show_money && <td className={`${td} text-right font-mono`}>{money(s.revenue ?? 0)}</td>}
+                      {d.show_money && <td className={`${td} text-right font-mono font-semibold text-primary`}>{money(s.commission ?? 0)}</td>}
                     </tr>
                   ))}
                   {d.sales.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="py-4 text-center text-on-surface-variant">
+                      <td colSpan={d.show_money ? 7 : 5} className="py-4 text-center text-on-surface-variant">
                         Chưa có phiếu thu tính hoa hồng trong tháng.
                       </td>
                     </tr>

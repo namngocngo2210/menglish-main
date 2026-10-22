@@ -984,6 +984,7 @@ JOIN academic.classes c ON c.id = s.class_id
 WHERE (s.teacher_id = $1 OR s.foreign_teacher_id = $1 OR s.assistant_id = $1)
   AND s.status <> 'cancelled' AND s.date BETWEEN $2 AND $3
   AND ($4::uuid IS NULL OR s.class_id = $4)
+  AND ($5::bool OR s.class_id = ANY($6::uuid[]))
   AND NOT EXISTS (SELECT 1 FROM hr.teacher_timesheets t
       WHERE t.user_id = $1 AND t.status <> 'invalid'
         AND (t.class_session_id = s.id OR (t.class_session_id IS NULL AND t.class_id = s.class_id AND t.teaching_date = s.date)))
@@ -991,10 +992,12 @@ ORDER BY s.date, s.start_time
 `
 
 type MissingSessionsParams struct {
-	UserID   *uuid.UUID
-	FromDate time.Time
-	ToDate   time.Time
-	ClassID  *uuid.UUID
+	UserID     *uuid.UUID
+	FromDate   time.Time
+	ToDate     time.Time
+	ClassID    *uuid.UUID
+	AllClasses bool
+	ClassIds   []uuid.UUID
 }
 
 type MissingSessionsRow struct {
@@ -1016,6 +1019,8 @@ func (q *Queries) MissingSessions(ctx context.Context, arg MissingSessionsParams
 		arg.FromDate,
 		arg.ToDate,
 		arg.ClassID,
+		arg.AllClasses,
+		arg.ClassIds,
 	)
 	if err != nil {
 		return nil, err

@@ -37,7 +37,7 @@ trình, điều chỉnh tiến độ) và màn order đề của Cổng GV (`tea
 
 | Laravel (route / method) | v2 (API + màn) | Trạng thái | Ghi chú |
 | --- | --- | --- | --- |
-| `syllabus.assignments` GET (`assignments`) | `GET /syllabus/assignments` · màn `/syllabus/assignments` | Đã làm | Lớp trong phạm vi xem (`Classes.VisibleClassIDs` do phân hệ Lớp học cài), chặng đang mở / đã đóng, tiến độ buổi. |
+| `syllabus.assignments` GET (`assignments`) | `GET /syllabus/assignments` · màn `/syllabus/assignments` | Đã làm | Lớp trong phạm vi xem (`Classes.VisibleClassIDs` do phân hệ Lớp học cài), chặng đang mở / đã đóng, tiến độ buổi. Ô chọn giáo viên theo `User::scopePickableBy` (`class`, `SyllabusController::assignments`, rà soát 19/10/2026). |
 | `syllabus.assignments.store` POST (`storeAssignment`) | `POST /syllabus/assignments` | Đã làm | Mở chặng cho lớp (giáo trình mặc định theo trình độ của lớp); lớp đang có chặng mở thì chuyển chặng, bắt buộc lý do; ngày bắt đầu không quá 60 ngày tới. |
 | `syllabus.assignments.update` PUT | `PUT /syllabus/assignments/{id}` | Đã làm | |
 | `syllabus.assignments.close` POST (`closeAssignment`) | `POST /syllabus/assignments/{id}/close` | Đã làm | Đóng tay, bắt buộc lý do, quyền `syllabus.approve_adjustment`. Đóng tự động khi kết quả Big Test của chặng được duyệt và gửi PH (`progression.go` = `SyllabusProgressionService`, mở chặng kế tiếp). |

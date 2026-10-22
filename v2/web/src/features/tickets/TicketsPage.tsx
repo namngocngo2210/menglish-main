@@ -56,7 +56,7 @@ function ListPage({ me }: { me: Me }) {
         description="Báo lỗi hệ thống, cơ sở vật chất, học vụ… và trao đổi với bộ phận xử lý."
         actions={
           <>
-            {can(me, 'support_ticket.update') && (
+            {can(me, 'mail_config.manage') && (
               <Button variant="secondary" onClick={() => navigate('/system-config/ticket-emails')}>
                 <Icon name="settings" className="mr-1.5 text-[20px]" /> Cấu hình Email nhận
               </Button>

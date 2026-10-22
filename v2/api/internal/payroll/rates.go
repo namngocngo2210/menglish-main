@@ -114,16 +114,39 @@ func memberOf(r payrolldb.StaffWithRolesRow) staffMember {
 		HourlyRate: r.HourlyRate, AcademicTeaching: r.AcademicTeaching}
 }
 
-func (s *Service) RatesPage(ctx context.Context, teacherID *uuid.UUID, page int) (*RatesPage, error) {
+// scopeStaffAttendance: phạm vi "Chấm công nhân sự" — đơn giá là giá của chính các ca chấm công nên màn Đơn giá GV
+// dùng chung phạm vi với màn chấm công (PayrollController::staffInScope).
+const scopeStaffAttendance = "attendance_staff"
+
+// teachingStaff: nhân sự giảng dạy đang hoạt động trong phạm vi người xem (chấm tay, lọc chấm công, đơn giá GV).
+func (s *Service) teachingStaff(ctx context.Context, a *iam.Access) ([]payrolldb.StaffWithRolesRow, iam.UserSet, error) {
+	staff, err := s.q.StaffWithRoles(ctx, teachingRoles)
+	if err != nil {
+		return nil, nil, err
+	}
+	set, err := iam.StaffInScope(ctx, s.pool, a, scopeStaffAttendance)
+	if err != nil {
+		return nil, nil, err
+	}
+	return iam.FilterUsers(set, staff, func(r payrolldb.StaffWithRolesRow) uuid.UUID { return r.ID }), set, nil
+}
+
+// RatesPage: màn Đơn giá giáo viên. Quản lý cơ sở chỉ thấy đơn giá riêng của nhân sự thuộc chi nhánh mình; ?teacher_id=
+// ngoài phạm vi → không tìm thấy.
+func (s *Service) RatesPage(ctx context.Context, a *iam.Access, teacherID *uuid.UUID, page int) (*RatesPage, error) {
 	today := s.today()
 	ranks, err := s.q.ListTeacherRates(ctx)
 	if err != nil {
 		return nil, err
 	}
-	staff, err := s.q.StaffWithRoles(ctx, teachingRoles)
+	staff, scope, err := s.teachingStaff(ctx, a)
 	if err != nil {
 		return nil, err
 	}
+	if teacherID != nil && !scope.Has(*teacherID) {
+		return nil, notFound("Không tìm thấy giáo viên.")
+	}
+	scopeIDs := scope.IDs()
 	ids := make([]uuid.UUID, 0, len(staff))
 	for _, t := range staff {
 		ids = append(ids, t.ID)
@@ -135,11 +158,11 @@ func (s *Service) RatesPage(ctx context.Context, teacherID *uuid.UUID, page int)
 	book := newRateBook(versions)
 	page = pageOf(page)
 	const per = 15
-	hist, err := s.q.HourlyRateHistory(ctx, payrolldb.HourlyRateHistoryParams{Lim: per, Off: int32((page - 1) * per)})
+	hist, err := s.q.HourlyRateHistory(ctx, payrolldb.HourlyRateHistoryParams{UserIds: scopeIDs, Lim: per, Off: int32((page - 1) * per)})
 	if err != nil {
 		return nil, err
 	}
-	total, err := s.q.CountHourlyRates(ctx, nil)
+	total, err := s.q.CountHourlyRates(ctx, payrolldb.CountHourlyRatesParams{UserIds: scopeIDs})
 	if err != nil {
 		return nil, err
 	}
@@ -210,6 +233,12 @@ func (s *Service) AddPersonalRate(ctx context.Context, a *iam.Access, in Persona
 	uid, err := uuid.Parse(strings.TrimSpace(in.UserID))
 	if err != nil {
 		return "", iam.Invalid("Vui lòng chọn giáo viên.")
+	}
+	// Chỉ tạo đơn giá cho nhân sự trong phạm vi (Quản lý cơ sở: chi nhánh của mình).
+	if scope, err := iam.StaffInScope(ctx, s.pool, a, scopeStaffAttendance); err != nil {
+		return "", err
+	} else if !scope.Has(uid) {
+		return "", notFound("Không tìm thấy giáo viên.")
 	}
 	unit := in.RateUnit
 	if unit == "" {

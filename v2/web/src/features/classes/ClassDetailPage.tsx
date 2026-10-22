@@ -66,7 +66,7 @@ export function ClassDetailPage({ me, id }: { me: Me; id: string }) {
               Danh sách lớp
             </Button>
             {p.can_record_attendance && <Button onClick={() => navigate(`/classes/${id}/attendance`)}>Điểm danh</Button>}
-            {p.can_manage && can(me, 'work_task.assign') && (
+            {p.can_manage && can(me, 'work_task.view') && (
               <Button variant="secondary" onClick={() => navigate(`/schedule-config?class_id=${id}`)}>
                 Lịch & TKB
               </Button>

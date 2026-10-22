@@ -338,7 +338,7 @@ export type PromotionRow = {
   creator_name: string | null
   created_at: string
 }
-export type PromotionList = Page<PromotionRow> & { tab: string; counts: Record<string, number>; branches: Option[] }
+export type PromotionList = Page<PromotionRow> & { tab: string; counts: Record<string, number>; branches: Option[]; courses: Option[] }
 export type PromotionInput = {
   name: string
   type: 'fixed' | 'percent'
@@ -347,6 +347,7 @@ export type PromotionInput = {
   description?: string
   reason?: string
   branch_id?: string | null
+  course_id?: string | null
   starts_at?: string
   ends_at?: string
   usage_limit?: number | null

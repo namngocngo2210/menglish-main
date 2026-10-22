@@ -402,6 +402,9 @@ func TestTicketEmailSendTest(t *testing.T) {
 	_, manager := e.Member("MES002", "Quản lý", []uuid.UUID{b}, "manager") // support_ticket.update
 
 	iamtest.Expect(t, teacher.Do("POST", "/system-config/ticket-emails/test", map[string]any{}), 403, "forbidden")
+	// Cấu hình / gửi thử email nhận thông báo chỉ dành cho mail_config.manage (routes/web.php system-config.ticket-emails.test).
+	iamtest.Expect(t, manager.Do("POST", "/system-config/ticket-emails/test", map[string]any{}), 403, "forbidden")
+	e.Grant("manager", "mail_config.manage")
 	msg := func(r iamtest.Resp) string { return r.Body["message"].(string) }
 	r := manager.Do("POST", "/system-config/ticket-emails/test", map[string]any{"test_email": "sai@"})
 	if r.Status != 422 || msg(r) != `Địa chỉ email kiểm tra "sai@" không đúng định dạng!` {
@@ -448,6 +451,7 @@ func TestTicketEmailSendTest(t *testing.T) {
 
 	// Môi trường chặn gửi: báo lỗi như Laravel.
 	e2 := setup(t, mail.Options{BlockOutgoing: true})
+	e2.Grant("manager", "mail_config.manage")
 	_, m2 := e2.Member("MES002", "Quản lý", []uuid.UUID{e2.Branch("HN01")}, "manager")
 	r = m2.Do("POST", "/system-config/ticket-emails/test", map[string]any{"test_email": "a@x.vn"})
 	if r.Status != 422 || msg(r) != "Môi trường này đang chặn gửi email ra ngoài (MAIL_BLOCK_OUTGOING), không gửi thử được." {

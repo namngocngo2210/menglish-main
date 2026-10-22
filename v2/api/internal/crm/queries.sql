@@ -402,6 +402,7 @@ LEFT JOIN core.branches b ON b.id = p.branch_id
 LEFT JOIN iam.users u ON u.id = p.created_by
 LEFT JOIN academic.courses c ON c.id = p.course_id AND c.deleted_at IS NULL
 WHERE p.is_special = sqlc.arg(special)::bool
+  AND (sqlc.narg(scope_branches)::uuid[] IS NULL OR p.branch_id IS NULL OR p.branch_id = ANY (sqlc.narg(scope_branches)::uuid[]))
   AND (sqlc.narg(q)::text IS NULL OR p.name ILIKE sqlc.narg(q)::text OR p.code ILIKE sqlc.narg(q)::text
        OR p.reason ILIKE sqlc.narg(q)::text)
   AND (sqlc.arg(status)::text = ''
@@ -413,8 +414,14 @@ ORDER BY p.is_active DESC, p.is_default DESC, p.created_at DESC, p.id DESC
 LIMIT sqlc.arg(lim) OFFSET sqlc.arg(off);
 
 -- name: CountPromotions :one
+-- scope_branches NULL = mọi chi nhánh; ngược lại ưu đãi chung + ưu đãi của các chi nhánh đó (PromotionController::scopeVisible).
 SELECT count(*) FILTER (WHERE NOT is_special) AS catalog, count(*) FILTER (WHERE is_special) AS special
-FROM crm.promotions;
+FROM crm.promotions
+WHERE sqlc.narg(scope_branches)::uuid[] IS NULL OR branch_id IS NULL OR branch_id = ANY (sqlc.narg(scope_branches)::uuid[]);
+
+-- name: ActiveCourseOptions :many
+-- Khóa học đang mở (ô "Khóa học áp dụng" của form ưu đãi).
+SELECT id, name FROM academic.courses WHERE is_active AND deleted_at IS NULL ORDER BY name, id;
 
 -- name: GetPromotion :one
 SELECT * FROM crm.promotions WHERE id = $1;

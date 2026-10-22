@@ -475,50 +475,6 @@ func (q *Queries) BankTransactionByProviderID(ctx context.Context, providerTxnID
 	return i, err
 }
 
-const billBankAccounts = `-- name: BillBankAccounts :many
-SELECT id, bank_code, bank_name, account_number, account_holder, branch_id, is_default_vietqr
-FROM finance.bank_accounts WHERE deleted_at IS NULL AND is_active ORDER BY created_at, id
-`
-
-type BillBankAccountsRow struct {
-	ID              uuid.UUID
-	BankCode        string
-	BankName        string
-	AccountNumber   string
-	AccountHolder   string
-	BranchID        *uuid.UUID
-	IsDefaultVietqr bool
-}
-
-// Tài khoản nhận tiền cho bill: tài khoản của hợp đồng, rồi tài khoản VietQR mặc định của chi nhánh / hệ thống.
-func (q *Queries) BillBankAccounts(ctx context.Context) ([]BillBankAccountsRow, error) {
-	rows, err := q.db.Query(ctx, billBankAccounts)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []BillBankAccountsRow
-	for rows.Next() {
-		var i BillBankAccountsRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.BankCode,
-			&i.BankName,
-			&i.AccountNumber,
-			&i.AccountHolder,
-			&i.BranchID,
-			&i.IsDefaultVietqr,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const billClass = `-- name: BillClass :one
 SELECT schedule_text, start_date, end_date FROM academic.classes WHERE id = $1
 `

@@ -179,6 +179,31 @@ func TestBranchScope(t *testing.T) {
 	expectMessage(t, ma.do("PUT", "/classes/"+inA.String(), map[string]any{"name": "Lớp A", "branch_id": b, "program": "P", "level": "L", "max_capacity": 5}),
 		403, "Bạn chỉ được quản lý lớp thuộc chi nhánh của mình.")
 
+	// Ô chọn giáo viên (User::scopePickableBy 'class'): nhân sự chi nhánh của người xem + nhân sự chưa gắn chi nhánh +
+	// người đang được gán cho lớp; không có giáo viên chi nhánh khác.
+	gvB := e.member("GV003", []uuid.UUID{b}, iam.RoleTeacherFulltime)
+	gvFree := e.member("GV004", nil, iam.RoleTeacherFulltime)
+	values := func(r resp, key string) map[string]bool {
+		out := map[string]bool{}
+		for _, o := range list(r, key) {
+			out[o["value"].(string)] = true
+		}
+		return out
+	}
+	opts := ma.do("GET", "/classes/form-options", nil)
+	expect(t, opts, 200, "")
+	if v := values(opts, "teachers"); !v[gv1.id.String()] || !v[gvFree.id.String()] || v[gvB.id.String()] {
+		t.Fatalf("ô chọn giáo viên của quản lý A: %v", opts.body)
+	}
+	if v := values(admin.do("GET", "/classes/form-options", nil), "teachers"); !v[gvB.id.String()] {
+		t.Fatal("Admin (phạm vi toàn hệ thống) chọn được mọi giáo viên")
+	}
+	e.exec("UPDATE academic.classes SET teacher_id = $2 WHERE id = $1", inA, gvB.id)
+	if v := values(ma.do("GET", "/classes/form-options?class_id="+inA.String(), nil), "teachers"); !v[gvB.id.String()] {
+		t.Fatal("giáo viên đang gán cho lớp vẫn hiện trong ô chọn khi sửa")
+	}
+	e.exec("UPDATE academic.classes SET teacher_id = $2 WHERE id = $1", inA, gv1.id)
+
 	// Giáo viên chỉ thấy lớp mình dạy
 	t1, t2 := e.as(gv1), e.as(gv2)
 	if got := list(t1.do("GET", "/classes", nil), "classes"); len(got) != 1 || got[0]["code"] != "LA" {

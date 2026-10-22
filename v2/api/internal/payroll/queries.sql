@@ -49,7 +49,10 @@ FROM iam.users u WHERE u.kind = 'staff' AND u.status = 'active' ORDER BY u.full_
 SELECT EXISTS (SELECT 1 FROM iam.users WHERE id = $1 AND kind = 'staff')::bool;
 
 -- name: ClassOptions :many
-SELECT id, code::text AS code, name FROM academic.classes WHERE deleted_at IS NULL ORDER BY name, id;
+-- branch_ids NULL = mọi lớp; ngược lại chỉ lớp thuộc các chi nhánh đó.
+SELECT id, code::text AS code, name FROM academic.classes
+WHERE deleted_at IS NULL AND (sqlc.narg(branch_ids)::uuid[] IS NULL OR branch_id = ANY (sqlc.narg(branch_ids)::uuid[]))
+ORDER BY name, id;
 
 -- name: ClassExists :one
 SELECT EXISTS (SELECT 1 FROM academic.classes WHERE id = $1 AND deleted_at IS NULL)::bool;
@@ -300,6 +303,8 @@ LEFT JOIN iam.users rp ON rp.id = x.reporter_id
 LEFT JOIN iam.users dc ON dc.id = x.decided_by
 LEFT JOIN iam.users rm ON rm.id = x.remedied_by
 WHERE (sqlc.narg(owner)::uuid IS NULL OR x.user_id = sqlc.narg(owner)::uuid)
+  AND (NOT @scoped::bool OR x.user_id = @me::uuid OR (@with_reporter::bool AND x.reporter_id = @me::uuid)
+       OR EXISTS (SELECT 1 FROM iam.user_branches sb WHERE sb.user_id = x.user_id AND sb.branch_id = ANY (@scope_branches::uuid[])))
   AND (@search::text = '' OR x.code ILIKE '%' || @search || '%' OR x.violation_type ILIKE '%' || @search || '%'
        OR u.full_name ILIKE '%' || @search || '%' OR u.code::text ILIKE '%' || @search || '%')
   AND (@status::text = ''
@@ -323,6 +328,8 @@ LIMIT @lim OFFSET @off;
 -- name: CountPenalties :one
 SELECT count(*) FROM hr.penalties x JOIN iam.users u ON u.id = x.user_id
 WHERE (sqlc.narg(owner)::uuid IS NULL OR x.user_id = sqlc.narg(owner)::uuid)
+  AND (NOT @scoped::bool OR x.user_id = @me::uuid OR (@with_reporter::bool AND x.reporter_id = @me::uuid)
+       OR EXISTS (SELECT 1 FROM iam.user_branches sb WHERE sb.user_id = x.user_id AND sb.branch_id = ANY (@scope_branches::uuid[])))
   AND (@search::text = '' OR x.code ILIKE '%' || @search || '%' OR x.violation_type ILIKE '%' || @search || '%'
        OR u.full_name ILIKE '%' || @search || '%' OR u.code::text ILIKE '%' || @search || '%')
   AND (@status::text = ''
@@ -346,7 +353,9 @@ SELECT count(*) FILTER (WHERE status = 'pending')::int AS pending,
     count(*) FILTER (WHERE status IN ('explained', 'confirmed'))::int AS deciding,
     count(*) FILTER (WHERE status = 'fined')::int AS fined,
     count(*) FILTER (WHERE status = 'fined' AND due_date < @today)::int AS overdue
-FROM hr.penalties WHERE sqlc.narg(owner)::uuid IS NULL OR user_id = sqlc.narg(owner)::uuid;
+FROM hr.penalties x WHERE (sqlc.narg(owner)::uuid IS NULL OR x.user_id = sqlc.narg(owner)::uuid)
+  AND (NOT @scoped::bool OR x.user_id = @me::uuid OR (@with_reporter::bool AND x.reporter_id = @me::uuid)
+       OR EXISTS (SELECT 1 FROM iam.user_branches sb WHERE sb.user_id = x.user_id AND sb.branch_id = ANY (@scope_branches::uuid[])));
 
 -- name: GetPenalty :one
 SELECT x.*, u.full_name AS user_name,
@@ -355,6 +364,17 @@ FROM hr.penalties x JOIN iam.users u ON u.id = x.user_id WHERE x.id = $1;
 
 -- name: LockPenalty :one
 SELECT * FROM hr.penalties WHERE id = $1 FOR UPDATE;
+
+-- name: PenaltyVisible :one
+-- Biên bản người xem được thấy (Penalty::constrainToViewer): cùng điều kiện phạm vi với ListPenalties.
+SELECT EXISTS (SELECT 1 FROM hr.penalties x WHERE x.id = @id
+  AND (sqlc.narg(owner)::uuid IS NULL OR x.user_id = sqlc.narg(owner)::uuid)
+  AND (NOT @scoped::bool OR x.user_id = @me::uuid OR (@with_reporter::bool AND x.reporter_id = @me::uuid)
+       OR EXISTS (SELECT 1 FROM iam.user_branches sb WHERE sb.user_id = x.user_id AND sb.branch_id = ANY (@scope_branches::uuid[]))))::bool;
+
+-- name: ClassInBranches :one
+-- Lớp (chưa xóa) thuộc các chi nhánh (ô chọn lớp của biên bản theo phạm vi violation).
+SELECT EXISTS (SELECT 1 FROM academic.classes WHERE id = @id AND deleted_at IS NULL AND branch_id = ANY (@branch_ids::uuid[]))::bool;
 
 -- name: NextPenaltyNumber :one
 -- Số kế tiếp của mã BB-YYYY-NNN (khóa theo năm để không trùng mã).
@@ -463,11 +483,14 @@ FROM hr.teacher_hourly_rates h JOIN iam.users u ON u.id = h.user_id LEFT JOIN ia
 LEFT JOIN LATERAL (SELECT n.effective_from AS next_from FROM hr.teacher_hourly_rates n
                    WHERE n.user_id = h.user_id AND n.effective_from > h.effective_from ORDER BY n.effective_from LIMIT 1) nx ON true
 WHERE (sqlc.narg(user_id)::uuid IS NULL OR h.user_id = sqlc.narg(user_id)::uuid)
+  AND (sqlc.narg(user_ids)::uuid[] IS NULL OR h.user_id = ANY (sqlc.narg(user_ids)::uuid[]))
 ORDER BY h.effective_from DESC, h.created_at DESC, h.id DESC
 LIMIT @lim OFFSET @off;
 
 -- name: CountHourlyRates :one
-SELECT count(*) FROM hr.teacher_hourly_rates WHERE sqlc.narg(user_id)::uuid IS NULL OR user_id = sqlc.narg(user_id)::uuid;
+SELECT count(*) FROM hr.teacher_hourly_rates
+WHERE (sqlc.narg(user_id)::uuid IS NULL OR user_id = sqlc.narg(user_id)::uuid)
+  AND (sqlc.narg(user_ids)::uuid[] IS NULL OR user_id = ANY (sqlc.narg(user_ids)::uuid[]));
 
 -- name: HourlyRateExists :one
 SELECT EXISTS (SELECT 1 FROM hr.teacher_hourly_rates WHERE user_id = @user_id AND effective_from = @effective_from)::bool;

@@ -102,11 +102,12 @@ ORDER BY o.observed_on DESC, o.id DESC
 LIMIT sqlc.arg(lim) OFFSET sqlc.arg(off);
 
 -- name: ObservedTeachers :many
--- Giáo viên đã có lượt dự giờ vận hành (bộ lọc "Giáo viên").
+-- Giáo viên đã có lượt dự giờ vận hành ở lớp trong phạm vi (bộ lọc "Giáo viên", không lộ GV chi nhánh khác).
 SELECT DISTINCT u.id, u.full_name
 FROM academic.class_observations o
 JOIN iam.users u ON u.id = o.teacher_id
 WHERE o.kind = 'operations' AND o.deleted_at IS NULL
+  AND (sqlc.arg(all_classes)::bool OR o.class_id = ANY (sqlc.arg(ids)::uuid[]))
 ORDER BY u.full_name, u.id;
 
 -- name: GetOperation :one
@@ -207,7 +208,9 @@ ON CONFLICT (class_id, month) DO UPDATE SET
 SELECT count(*)::bigint
 FROM academic.teacher_meeting_reports m
 WHERE m.deleted_at IS NULL
-  AND (m.class_id IS NULL OR sqlc.arg(all_classes)::bool OR m.class_id = ANY (sqlc.arg(ids)::uuid[]))
+  AND (sqlc.arg(all_classes)::bool OR m.class_id = ANY (sqlc.arg(ids)::uuid[])
+       OR (m.class_id IS NULL AND (m.author_id = sqlc.arg(me)::uuid
+           OR EXISTS (SELECT 1 FROM iam.user_branches ub WHERE ub.user_id = m.teacher_id AND ub.branch_id = ANY (sqlc.arg(branches)::uuid[])))))
   AND (sqlc.narg(week)::date IS NULL OR m.week_start = sqlc.narg(week))
   AND (sqlc.narg(teacher_id)::uuid IS NULL OR m.teacher_id = sqlc.narg(teacher_id))
   AND (sqlc.narg(status)::text IS NULL OR m.status = sqlc.narg(status));
@@ -222,7 +225,9 @@ LEFT JOIN iam.users a ON a.id = m.author_id
 LEFT JOIN academic.classes c ON c.id = m.class_id
 LEFT JOIN academic.courses co ON co.id = c.course_id
 WHERE m.deleted_at IS NULL
-  AND (m.class_id IS NULL OR sqlc.arg(all_classes)::bool OR m.class_id = ANY (sqlc.arg(ids)::uuid[]))
+  AND (sqlc.arg(all_classes)::bool OR m.class_id = ANY (sqlc.arg(ids)::uuid[])
+       OR (m.class_id IS NULL AND (m.author_id = sqlc.arg(me)::uuid
+           OR EXISTS (SELECT 1 FROM iam.user_branches ub WHERE ub.user_id = m.teacher_id AND ub.branch_id = ANY (sqlc.arg(branches)::uuid[])))))
   AND (sqlc.narg(week)::date IS NULL OR m.week_start = sqlc.narg(week))
   AND (sqlc.narg(teacher_id)::uuid IS NULL OR m.teacher_id = sqlc.narg(teacher_id))
   AND (sqlc.narg(status)::text IS NULL OR m.status = sqlc.narg(status))
@@ -230,7 +235,7 @@ ORDER BY m.week_start DESC, m.id DESC
 LIMIT sqlc.arg(lim) OFFSET sqlc.arg(off);
 
 -- name: GetMeeting :one
-SELECT m.id, m.week_start, m.teacher_id, m.class_id, m.status, t.full_name AS teacher_name
+SELECT m.id, m.week_start, m.teacher_id, m.class_id, m.author_id, m.status, t.full_name AS teacher_name
 FROM academic.teacher_meeting_reports m
 LEFT JOIN iam.users t ON t.id = m.teacher_id
 WHERE m.id = $1 AND m.deleted_at IS NULL;

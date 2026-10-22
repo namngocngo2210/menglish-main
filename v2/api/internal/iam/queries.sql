@@ -245,3 +245,11 @@ RETURNING *;
 -- name: GetSlaValue :one
 -- Giá trị SLA (bảng của phân hệ danh mục); không có dòng thì dùng mặc định ở code.
 SELECT COALESCE(value, default_value)::integer AS value FROM hr.sla_rules WHERE key = $1;
+
+-- name: UserIDsInBranches :many
+-- Người dùng có chi nhánh chính / chi nhánh được cấp thêm thuộc @branch_ids (kể cả tài khoản đã khóa).
+SELECT DISTINCT ub.user_id FROM iam.user_branches ub WHERE ub.branch_id = ANY (sqlc.arg(branch_ids)::uuid[]) ORDER BY ub.user_id;
+
+-- name: UserIDsWithoutBranch :many
+-- Người dùng chưa gắn chi nhánh nào (nhân sự dùng chung).
+SELECT u.id FROM iam.users u WHERE NOT EXISTS (SELECT 1 FROM iam.user_branches ub WHERE ub.user_id = u.id) ORDER BY u.id;

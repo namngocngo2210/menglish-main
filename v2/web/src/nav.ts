@@ -25,6 +25,8 @@ const KPI_ROLES = ['academic_staff', 'academic_lead', 'manager', 'sales_consulta
 export const hasKpiRole = (me: Me) => me.roles.some((r) => KPI_ROLES.includes(r.name))
 
 const CRM = 'Khách hàng (CRM)'
+// Quyền neo của khu CRM (SidebarMenu::CRM): mục CRM chỉ hiện trên menu với người tạo / sửa khách (Học vụ là actor chính).
+const crmMenu = (me: Me) => can(me, 'lead.create', 'lead.update')
 const PORTAL = 'Cổng Phụ huynh & Học sinh'
 // Màn cổng học viên: tài khoản cổng, hoặc nhân sự xem hộ học viên trong phạm vi.
 const PORTAL_PERMS = ['portal.student', 'student.view']
@@ -66,7 +68,8 @@ export const NAV: NavItem[] = [
   { path: '/students', label: 'Danh sách học viên', perms: ['student.view'], group: 'Học viên' },
   // Trang con /classes/new, /classes/<id>[/edit|/attendance] do ClassesPage tự đọc đường dẫn
   { path: '/classes', label: 'Danh sách lớp', perms: ['class.update', 'class.teach', 'class.assist', 'attendance_student.record_any'], group: 'Lớp học' },
-  { path: '/schedule-config', label: 'Lịch & TKB lớp', perms: ['work_task.assign'], group: 'Tổ chức & Đào tạo' },
+  // Như SidebarMenu: mục neo quyền quản lý lớp (CLASS_MANAGER = class.update); trang chặn theo work_task.view (route tasks.*).
+  { path: '/schedule-config', label: 'Lịch & TKB lớp', perms: ['work_task.view'], group: 'Tổ chức & Đào tạo', menu: (me) => can(me, 'class.update') },
   {
     path: '/material-orders',
     label: 'Order học liệu',
@@ -96,7 +99,8 @@ export const NAV: NavItem[] = [
   { path: '/system-config/bank-accounts', label: 'Tài khoản ngân hàng', perms: ['bank_account.manage'], group: 'Cài đặt › Học phí' },
   // Tab "Webhook SePay" / "Nhật ký giao dịch SePay" của màn Tài khoản ngân hàng (Laravel) — features/tuition
   { path: '/tuition/sepay', label: 'Webhook SePay', perms: ['bank_account.manage'], group: 'Cài đặt › Học phí' },
-  { path: '/system-config/ticket-emails', label: 'Email nhận Ticket', perms: ['support_ticket.update'], group: 'Hệ thống' },
+  // Email nhận thông báo vận hành toàn hệ thống + SMTP: chỉ mail_config.manage; menu neo portal.staff (SidebarMenu STAFF).
+  { path: '/system-config/ticket-emails', label: 'Email nhận Ticket', perms: ['mail_config.manage'], group: 'Hệ thống', menu: (me) => can(me, 'portal.staff') },
   { path: '/system-config/sla', label: 'Cấu hình SLA', perms: ['sla.configure'], group: 'Hệ thống' },
   { path: '/system-config/mail-outbox', label: 'Hàng đợi email', perms: ['mail_config.manage'], group: 'Hệ thống' },
   { path: '/tasks/new', label: 'Tạo đầu việc', group: 'Tạo đầu việc', perms: ['work_task.create', 'work_task.request'] },
@@ -152,7 +156,8 @@ export const NAV: NavItem[] = [
   { path: '/portal/feedback', label: 'Gửi góp ý', perms: PORTAL_PERMS, group: PORTAL, menu: (me) => can(me, 'portal.student') },
   { path: '/portal/app-shell', label: 'Ứng dụng di động', perms: PORTAL_PERMS, group: PORTAL, menu: (me) => can(me, 'portal.student') },
   // Test đầu vào & học thử (Laravel: "Lịch học thử" gắn quyền sửa lớp; "(AI)" chỉ là nhãn menu, không gọi AI)
-  { path: '/trial-bookings', label: 'Lịch học thử', group: 'Test đầu vào & học thử', perms: ['class.update'] },
+  // Trang chặn theo class.view (routes classes.* can:class.view); menu neo quyền quản lý lớp (CLASS_MANAGER).
+  { path: '/trial-bookings', label: 'Lịch học thử', group: 'Test đầu vào & học thử', perms: ['class.view'], menu: (me) => can(me, 'class.update') },
   { path: '/placement-tests', label: 'Đề test đầu vào (AI)', group: 'Test đầu vào & học thử', perms: ['placement_test.view'] },
   {
     path: '/placement-tests/rubric-guide',
@@ -204,13 +209,13 @@ export const NAV: NavItem[] = [
   // Dự án học thuật (AcademicProjectController); chi tiết /academic-projects/<id> do ProjectsPage tự đọc đường dẫn.
   { path: '/academic-projects', label: 'Dự án soạn sách & chương trình', perms: ['academic_project.view'], group: 'Giáo trình' },
   // Khách hàng (CRM) — features/crm. Danh sách phụ (chốt, thất bại, chờ xếp lớp, đã xóa, duyệt chuyển cơ sở) mở từ chip.
-  { path: '/crm/pipeline', label: 'Kanban', perms: ['lead.view'], group: CRM },
-  { path: '/crm/customers', label: 'Danh sách khách', perms: ['lead.view'], group: CRM },
-  { path: '/crm/reports', label: 'Báo cáo', perms: ['report.view'], group: CRM },
-  { path: '/crm/promotions', label: 'Ưu đãi', perms: ['promotion.manage'], group: CRM },
-  { path: '/crm/import', label: 'Nhập Excel', perms: ['lead.create'], group: CRM },
-  { path: '/crm/customers/new', label: 'Thêm khách mới', perms: ['lead.create'], group: CRM },
-  { path: '/crm/confirmations', label: 'Xác nhận chính thức', perms: ['student.assign_class'], group: CRM },
+  { path: '/crm/pipeline', label: 'Kanban', perms: ['lead.view'], group: CRM, menu: crmMenu },
+  { path: '/crm/customers', label: 'Danh sách khách', perms: ['lead.view'], group: CRM, menu: crmMenu },
+  { path: '/crm/reports', label: 'Báo cáo', perms: ['report.view'], group: CRM, menu: crmMenu },
+  { path: '/crm/promotions', label: 'Ưu đãi', perms: ['promotion.manage'], group: CRM, menu: crmMenu },
+  { path: '/crm/import', label: 'Nhập Excel', perms: ['lead.create'], group: CRM, menu: crmMenu },
+  { path: '/crm/customers/new', label: 'Thêm khách mới', perms: ['lead.create'], group: CRM, menu: crmMenu },
+  { path: '/crm/confirmations', label: 'Xác nhận chính thức', perms: ['student.assign_class'], group: CRM, menu: crmMenu },
   { path: '/crm/won', label: 'Khách chốt thành công', perms: ['lead.view'], group: CRM, hidden: true },
   { path: '/crm/lost', label: 'Khách thất bại', perms: ['lead.view'], group: CRM, hidden: true },
   { path: '/crm/waiting', label: 'Chờ xếp lớp', perms: ['lead.view'], group: CRM, hidden: true },

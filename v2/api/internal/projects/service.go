@@ -238,7 +238,9 @@ func FormatQuantity(v float64) string {
 // ───────────────────────── Nhân sự ─────────────────────────
 
 // staff: người chọn làm phụ trách / thành viên / người nhận mốc — tài khoản đang hoạt động có quyền academic_project.view.
-func (s *Service) staff(ctx context.Context) ([]Option, map[uuid.UUID]bool, error) {
+// Ô chọn (actor khác nil) chỉ gồm nhân sự thuộc chi nhánh của người xem theo phạm vi Người dùng (User::scopePickableBy
+// 'user') + người đang tham gia dự án (keep); tập kiểm tra khi lưu (map) không lọc chi nhánh, như Laravel staff().
+func (s *Service) staff(ctx context.Context, actor *iam.Access, keep ...uuid.UUID) ([]Option, map[uuid.UUID]bool, error) {
 	ids, err := iam.UserIDsWithPermission(ctx, s.pool, PermView, nil)
 	if err != nil {
 		return nil, nil, err
@@ -251,9 +253,17 @@ func (s *Service) staff(ctx context.Context) ([]Option, map[uuid.UUID]bool, erro
 	if err != nil {
 		return nil, nil, err
 	}
+	var pickable iam.UserSet
+	if actor != nil {
+		if pickable, err = iam.PickableUsers(ctx, s.pool, actor, "user", keep...); err != nil {
+			return nil, nil, err
+		}
+	}
 	out := make([]Option, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, Option{Value: r.ID.String(), Label: r.FullName})
+		if pickable.Has(r.ID) {
+			out = append(out, Option{Value: r.ID.String(), Label: r.FullName})
+		}
 	}
 	return out, set, nil
 }

@@ -263,7 +263,7 @@ func (h *Handler) saveRenewal(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) rates(w http.ResponseWriter, r *http.Request) {
-	out, err := h.svc.RatesPage(r.Context(), uuidParam(r, "teacher_id"), intParam(r, "page"))
+	out, err := h.svc.RatesPage(r.Context(), access(r), uuidParam(r, "teacher_id"), intParam(r, "page"))
 	h.send(w, r, out, err)
 }
 

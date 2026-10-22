@@ -166,9 +166,15 @@ type PromotionList struct {
 	Tab      string           `json:"tab"`
 	Counts   map[string]int64 `json:"counts"`
 	Branches []Option         `json:"branches"`
+	Courses  []Option         `json:"courses"`
 }
 
-func (s *Service) ListPromotions(ctx context.Context, tab, status, search string, page int) (*PromotionList, error) {
+// scopeLead: ưu đãi theo phạm vi khách CRM "lead.scope_*" (PromotionController::scopeVisible): phạm vi Chi nhánh thấy
+// ưu đãi chung (chỉ xem) + ưu đãi của chi nhánh mình; sửa / bật tắt chỉ ưu đãi thuộc chi nhánh trong phạm vi (ưu đãi
+// chung chỉ người phạm vi Toàn hệ thống), ngoài phạm vi → 404.
+const scopeLead = "lead"
+
+func (s *Service) ListPromotions(ctx context.Context, a *iam.Access, tab, status, search string, page int) (*PromotionList, error) {
 	if tab != "special" {
 		tab = "catalog"
 	}
@@ -182,7 +188,7 @@ func (s *Service) ListPromotions(ctx context.Context, tab, status, search string
 		q = ptr("%" + escapeLike(t) + "%")
 	}
 	page, per, lim, off := pageArgs(page, 20, 20)
-	rows, err := s.q.ListPromotions(ctx, crmdb.ListPromotionsParams{Special: tab == "special", Q: q, Status: status, Lim: lim, Off: off})
+	rows, err := s.q.ListPromotions(ctx, crmdb.ListPromotionsParams{Special: tab == "special", ScopeBranches: a.BranchLimit(scopeLead), Q: q, Status: status, Lim: lim, Off: off})
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +204,7 @@ func (s *Service) ListPromotions(ctx context.Context, tab, status, search string
 		}
 		out.Data = append(out.Data, promotionRow(p, r.BranchName, r.CourseName, r.CreatorName, now))
 	}
-	c, err := s.q.CountPromotions(ctx)
+	c, err := s.q.CountPromotions(ctx, a.BranchLimit(scopeLead))
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +215,17 @@ func (s *Service) ListPromotions(ctx context.Context, tab, status, search string
 	}
 	out.Branches = []Option{}
 	for _, b := range branches {
-		out.Branches = append(out.Branches, Option{b.ID.String(), b.Name})
+		if a.CoversBranch(scopeLead, &b.ID) {
+			out.Branches = append(out.Branches, Option{b.ID.String(), b.Name})
+		}
+	}
+	courses, err := s.q.ActiveCourseOptions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out.Courses = []Option{}
+	for _, c := range courses {
+		out.Courses = append(out.Courses, Option{c.ID.String(), c.Name})
 	}
 	return out, nil
 }
@@ -243,7 +259,7 @@ type promoClean struct {
 	active, def, special bool
 }
 
-func (s *Service) cleanPromotion(ctx context.Context, q *crmdb.Queries, in PromotionInput, special bool, existing *crmdb.CrmPromotion) (*promoClean, error) {
+func (s *Service) cleanPromotion(ctx context.Context, q *crmdb.Queries, a *iam.Access, in PromotionInput, special bool, existing *crmdb.CrmPromotion) (*promoClean, error) {
 	c := &promoClean{name: strings.TrimSpace(in.Name), typ: in.Type, value: in.Value, special: special}
 	if c.name == "" {
 		return nil, iam.Invalid("Vui lòng nhập tên ưu đãi.")
@@ -316,6 +332,10 @@ func (s *Service) cleanPromotion(ctx context.Context, q *crmdb.Queries, in Promo
 	if existing != nil && c.usageLimit != nil && *c.usageLimit < existing.UsedCount {
 		return nil, iam.Invalid("Ưu đãi đã dùng " + strconv.Itoa(int(existing.UsedCount)) + " lượt, giới hạn không được nhỏ hơn số này.")
 	}
+	// Cơ sở áp dụng phải trong phạm vi; ưu đãi chung (không gắn cơ sở) chỉ người phạm vi Toàn hệ thống tạo / gán.
+	if !a.CoversBranch(scopeLead, c.branch) {
+		return nil, iam.Invalid("Chọn cơ sở áp dụng thuộc chi nhánh bạn quản lý.")
+	}
 	if c.typ == "percent" {
 		c.maxDiscount = in.MaxDiscountAmount
 	}
@@ -330,7 +350,7 @@ func (s *Service) cleanPromotion(ctx context.Context, q *crmdb.Queries, in Promo
 func (s *Service) CreatePromotion(ctx context.Context, a *iam.Access, in PromotionInput) (*Saved, error) {
 	var out *Saved
 	err := s.tx(ctx, func(q *crmdb.Queries) error {
-		c, err := s.cleanPromotion(ctx, q, in, in.IsSpecial, nil)
+		c, err := s.cleanPromotion(ctx, q, a, in, in.IsSpecial, nil)
 		if err != nil {
 			return err
 		}
@@ -372,9 +392,9 @@ func (s *Service) CreatePromotion(ctx context.Context, a *iam.Access, in Promoti
 	return out, nil
 }
 
-func (s *Service) GetPromotion(ctx context.Context, id uuid.UUID) (*PromotionRow, error) {
+func (s *Service) GetPromotion(ctx context.Context, a *iam.Access, id uuid.UUID) (*PromotionRow, error) {
 	p, err := s.q.GetPromotion(ctx, id)
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, pgx.ErrNoRows) || (err == nil && !a.CoversBranch(scopeLead, p.BranchID)) {
 		return nil, errNotFound
 	}
 	if err != nil {
@@ -396,13 +416,13 @@ func (s *Service) UpdatePromotion(ctx context.Context, a *iam.Access, id uuid.UU
 	var out *Saved
 	err := s.tx(ctx, func(q *crmdb.Queries) error {
 		p, err := q.LockPromotion(ctx, id)
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) || (err == nil && !a.CoversBranch(scopeLead, p.BranchID)) {
 			return errNotFound
 		}
 		if err != nil {
 			return err
 		}
-		c, err := s.cleanPromotion(ctx, q, in, p.IsSpecial, &p)
+		c, err := s.cleanPromotion(ctx, q, a, in, p.IsSpecial, &p)
 		if err != nil {
 			return err
 		}
@@ -430,6 +450,13 @@ func (s *Service) UpdatePromotion(ctx context.Context, a *iam.Access, id uuid.UU
 }
 
 func (s *Service) TogglePromotion(ctx context.Context, a *iam.Access, id uuid.UUID) (*Saved, error) {
+	cur, err := s.q.GetPromotion(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) || (err == nil && !a.CoversBranch(scopeLead, cur.BranchID)) {
+		return nil, errNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
 	p, err := s.q.TogglePromotion(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, errNotFound

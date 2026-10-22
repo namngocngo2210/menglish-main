@@ -299,6 +299,45 @@ func parseDayParam(s string) (*time.Time, error) {
 	return &d, nil
 }
 
+// scopeViolation: module phạm vi dữ liệu của biên bản vi phạm (violation.scope_*).
+const scopeViolation = "violation"
+
+// penaltyScope: biên bản người xem được thấy (Penalty::constrainToViewer). Không có violation.view → chỉ biên bản của mình;
+// có → theo violation.scope_*: Của tôi → biên bản mình vi phạm hoặc mình lập; Chi nhánh → thêm biên bản của nhân sự thuộc
+// chi nhánh mình (chi nhánh chính hoặc được cấp thêm của người vi phạm); Toàn hệ thống → mọi biên bản.
+type penaltyScope struct {
+	owner    *uuid.UUID
+	scoped   bool
+	branches []uuid.UUID
+}
+
+func penaltyScopeOf(a *iam.Access) penaltyScope {
+	if !a.Can(PermViolationView) {
+		return penaltyScope{owner: actorPtr(a)}
+	}
+	switch a.Level(scopeViolation) {
+	case iam.ScopeAll:
+		return penaltyScope{}
+	case iam.ScopeBranch:
+		return penaltyScope{scoped: true, branches: a.BranchIDs()}
+	}
+	return penaltyScope{scoped: true, branches: []uuid.UUID{}}
+}
+
+// visiblePenalty: biên bản ngoài phạm vi người xem → không tìm thấy (Penalty::visibleTo(...)->findOrFail).
+func (s *Service) visiblePenalty(ctx context.Context, q *payrolldb.Queries, a *iam.Access, id uuid.UUID) error {
+	sc := penaltyScopeOf(a)
+	ok, err := q.PenaltyVisible(ctx, payrolldb.PenaltyVisibleParams{ID: id, Owner: sc.owner, Scoped: sc.scoped, Me: a.UserID,
+		WithReporter: sc.scoped, ScopeBranches: sc.branches})
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return errPenaltyNotFound
+	}
+	return nil
+}
+
 func (s *Service) Penalties(ctx context.Context, a *iam.Access, f PenaltyFilter) (*PenaltiesPage, error) {
 	// Tài khoản cổng học viên không có hồ sơ kỷ luật nhân sự.
 	if a.Can(PermPortalStudent) && !a.Can(PermViolationView) {
@@ -327,26 +366,26 @@ func (s *Service) Penalties(ctx context.Context, a *iam.Access, f PenaltyFilter)
 		return nil, err
 	}
 	canAll := a.Can(PermViolationView)
-	var owner *uuid.UUID
-	if !canAll {
-		owner = actorPtr(a)
-	}
+	sc := penaltyScopeOf(a)
 	today := s.today()
 	todayDB := dbDay(today)
 	page := pageOf(f.Page)
 	const per = 15
 	search := strings.TrimSpace(f.Search)
-	rows, err := s.q.ListPenalties(ctx, payrolldb.ListPenaltiesParams{Owner: owner, Search: search, Status: f.Status, Today: &todayDB,
+	rows, err := s.q.ListPenalties(ctx, payrolldb.ListPenaltiesParams{Owner: sc.owner, Scoped: sc.scoped, Me: a.UserID,
+		WithReporter: sc.scoped, ScopeBranches: sc.branches, Search: search, Status: f.Status, Today: &todayDB,
 		Category: f.Category, Step: f.Step, FromDay: from, ToDay: to, Lim: per, Off: int32((page - 1) * per)})
 	if err != nil {
 		return nil, err
 	}
-	total, err := s.q.CountPenalties(ctx, payrolldb.CountPenaltiesParams{Owner: owner, Search: search, Status: f.Status, Today: &todayDB,
+	total, err := s.q.CountPenalties(ctx, payrolldb.CountPenaltiesParams{Owner: sc.owner, Scoped: sc.scoped, Me: a.UserID,
+		WithReporter: sc.scoped, ScopeBranches: sc.branches, Search: search, Status: f.Status, Today: &todayDB,
 		Category: f.Category, Step: f.Step, FromDay: from, ToDay: to})
 	if err != nil {
 		return nil, err
 	}
-	counts, err := s.q.PenaltyCounts(ctx, payrolldb.PenaltyCountsParams{Owner: owner, Today: &todayDB})
+	counts, err := s.q.PenaltyCounts(ctx, payrolldb.PenaltyCountsParams{Owner: sc.owner, Scoped: sc.scoped, Me: a.UserID,
+		WithReporter: sc.scoped, ScopeBranches: sc.branches, Today: &todayDB})
 	if err != nil {
 		return nil, err
 	}
@@ -379,10 +418,16 @@ func (s *Service) Penalties(ctx context.Context, a *iam.Access, f PenaltyFilter)
 	out.Window = map[string]any{"hours": hours, "min": now.Add(-time.Duration(hours) * time.Hour).Format("2006-01-02T15:04"),
 		"max": now.Format("2006-01-02T15:04")}
 	if canAll {
+		// Ô chọn nhân sự / lớp khi lập biên bản: chỉ trong chi nhánh của người lập (trừ mức Toàn hệ thống).
 		staff, err := s.q.ActiveStaffOptions(ctx)
 		if err != nil {
 			return nil, err
 		}
+		inScope, err := iam.StaffInBranches(ctx, s.pool, a, scopeViolation)
+		if err != nil {
+			return nil, err
+		}
+		staff = iam.FilterUsers(inScope, staff, func(u payrolldb.ActiveStaffOptionsRow) uuid.UUID { return u.ID })
 		for _, u := range staff {
 			label := u.FullName
 			if u.Code != "" {
@@ -393,7 +438,7 @@ func (s *Service) Penalties(ctx context.Context, a *iam.Access, f PenaltyFilter)
 			}
 			out.Users = append(out.Users, StaffOption{Value: u.ID.String(), Label: label, Roles: u.Roles})
 		}
-		cls, err := s.q.ClassOptions(ctx)
+		cls, err := s.q.ClassOptions(ctx, a.BranchLimit(scopeViolation))
 		if err != nil {
 			return nil, err
 		}
@@ -494,6 +539,12 @@ func (s *Service) CreatePenalty(ctx context.Context, a *iam.Access, in PenaltyIn
 	} else if !ok {
 		return "", iam.Invalid("Nhân sự vi phạm không tồn tại.")
 	}
+	// Chỉ lập biên bản cho nhân sự / lớp thuộc chi nhánh của mình (trừ mức Toàn hệ thống — violation.scope_all).
+	if inScope, err := iam.StaffInBranches(ctx, s.pool, a, scopeViolation); err != nil {
+		return "", err
+	} else if !inScope.Has(uid) {
+		return "", iam.Invalid("Nhân sự này không thuộc chi nhánh của bạn.")
+	}
 	if _, ok := categories[in.ErrorCategory]; in.ErrorCategory != "" && !ok {
 		return "", iam.Invalid("Loại lỗi không hợp lệ.")
 	}
@@ -521,6 +572,13 @@ func (s *Service) CreatePenalty(ctx context.Context, a *iam.Access, in PenaltyIn
 			return "", err
 		} else if !ok {
 			return "", iam.Invalid("Lớp học không tồn tại.")
+		}
+		if limit := a.BranchLimit(scopeViolation); limit != nil {
+			if ok, err := s.q.ClassInBranches(ctx, payrolldb.ClassInBranchesParams{ID: id, BranchIds: limit}); err != nil {
+				return "", err
+			} else if !ok {
+				return "", iam.Invalid("Lớp này không thuộc chi nhánh của bạn.")
+			}
 		}
 		classID = &id
 	}
@@ -690,15 +748,18 @@ func (s *Service) readEvidence(ctx context.Context, a *iam.Access, f files.File)
 	if err != nil {
 		return "", err
 	}
-	if !a.Can(PermViolationView) && p.UserID != a.UserID {
-		return "", forbidden("Bạn không có quyền xem bằng chứng này.")
+	if err := s.visiblePenalty(ctx, s.q, a, p.ID); err != nil {
+		return "", err
 	}
 	return "", nil
 }
 
 // ───────────── Xử lý biên bản ─────────────
 
-func (s *Service) lockPenalty(ctx context.Context, q *payrolldb.Queries, id uuid.UUID) (payrolldb.HrPenalty, error) {
+func (s *Service) lockPenalty(ctx context.Context, q *payrolldb.Queries, a *iam.Access, id uuid.UUID) (payrolldb.HrPenalty, error) {
+	if err := s.visiblePenalty(ctx, q, a, id); err != nil {
+		return payrolldb.HrPenalty{}, err
+	}
 	p, err := q.LockPenalty(ctx, id)
 	if isNoRows(err) {
 		return p, errPenaltyNotFound
@@ -734,7 +795,7 @@ func statusChange(from, to string) audit.Changes {
 func (s *Service) ExplainPenalty(ctx context.Context, a *iam.Access, id uuid.UUID, explanation string) (string, error) {
 	var msg string
 	err := s.tx(ctx, func(tx pgxTx, q *payrolldb.Queries) error {
-		p, err := s.lockPenalty(ctx, q, id)
+		p, err := s.lockPenalty(ctx, q, a, id)
 		if err != nil {
 			return err
 		}
@@ -782,7 +843,7 @@ func (s *Service) DecidePenalty(ctx context.Context, a *iam.Access, id uuid.UUID
 	}
 	var msg string
 	err := s.tx(ctx, func(tx pgxTx, q *payrolldb.Queries) error {
-		p, err := s.lockPenalty(ctx, q, id)
+		p, err := s.lockPenalty(ctx, q, a, id)
 		if err != nil {
 			return err
 		}
@@ -843,7 +904,7 @@ func (s *Service) DecidePenalty(ctx context.Context, a *iam.Access, id uuid.UUID
 func (s *Service) MarkPenaltyPaid(ctx context.Context, a *iam.Access, id uuid.UUID) (string, error) {
 	var msg string
 	err := s.tx(ctx, func(tx pgxTx, q *payrolldb.Queries) error {
-		p, err := s.lockPenalty(ctx, q, id)
+		p, err := s.lockPenalty(ctx, q, a, id)
 		if err != nil {
 			return err
 		}
@@ -882,7 +943,7 @@ func (s *Service) MarkPenaltyPaid(ctx context.Context, a *iam.Access, id uuid.UU
 func (s *Service) ResolvePenalty(ctx context.Context, a *iam.Access, id uuid.UUID) (string, error) {
 	var msg string
 	err := s.tx(ctx, func(tx pgxTx, q *payrolldb.Queries) error {
-		p, err := s.lockPenalty(ctx, q, id)
+		p, err := s.lockPenalty(ctx, q, a, id)
 		if err != nil {
 			return err
 		}
@@ -907,7 +968,7 @@ func (s *Service) ResolvePenalty(ctx context.Context, a *iam.Access, id uuid.UUI
 func (s *Service) RemedyPenalty(ctx context.Context, a *iam.Access, id uuid.UUID, note *string) (string, error) {
 	var msg string
 	err := s.tx(ctx, func(tx pgxTx, q *payrolldb.Queries) error {
-		p, err := s.lockPenalty(ctx, q, id)
+		p, err := s.lockPenalty(ctx, q, a, id)
 		if err != nil {
 			return err
 		}
@@ -934,7 +995,7 @@ func (s *Service) RemedyPenalty(ctx context.Context, a *iam.Access, id uuid.UUID
 func (s *Service) CancelPenalty(ctx context.Context, a *iam.Access, id uuid.UUID) (string, error) {
 	var msg string
 	err := s.tx(ctx, func(tx pgxTx, q *payrolldb.Queries) error {
-		p, err := s.lockPenalty(ctx, q, id)
+		p, err := s.lockPenalty(ctx, q, a, id)
 		if err != nil {
 			return err
 		}

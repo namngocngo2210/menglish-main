@@ -244,7 +244,13 @@ func (s *Service) Show(ctx context.Context, actor *iam.Access, id uuid.UUID, tab
 			}
 			s.fillSchedule(page, c, rows, today, assistants)
 			if page.CanManage && slices.ContainsFunc(page.Sessions, func(r SessionRow) bool { return r.Editable }) {
-				if page.ForeignTeacherOptions, err = s.staffOptions(ctx, "class.teach", false); err != nil {
+				var keep []uuid.UUID
+				for _, r := range rows {
+					if r.ForeignTeacherID != nil {
+						keep = append(keep, *r.ForeignTeacherID)
+					}
+				}
+				if page.ForeignTeacherOptions, err = s.staffOptions(ctx, actor, "class.teach", false, keep...); err != nil {
 					return nil, err
 				}
 			}

@@ -404,7 +404,7 @@ func (h *Handler) confirm(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) listPromotions(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	l, err := h.svc.ListPromotions(r.Context(), q.Get("tab"), q.Get("status"), q.Get("q"), qInt(r, "page"))
+	l, err := h.svc.ListPromotions(r.Context(), actor(r), q.Get("tab"), q.Get("status"), q.Get("q"), qInt(r, "page"))
 	h.ok(w, r, l, err)
 }
 
@@ -426,7 +426,7 @@ func (h *Handler) getPromotion(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	p, err := h.svc.GetPromotion(r.Context(), id)
+	p, err := h.svc.GetPromotion(r.Context(), actor(r), id)
 	h.ok(w, r, p, err)
 }
 

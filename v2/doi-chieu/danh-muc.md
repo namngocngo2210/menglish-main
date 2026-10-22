@@ -112,7 +112,7 @@ Ký hiệu: **Đã làm** = đủ hành vi như Laravel; **Làm một phần** =
 
 | Laravel (route name / method) | v2 (API + màn) | Trạng thái | Ghi chú |
 |---|---|---|---|
-| `system-config.ticket-emails` GET | GET /system-config/ticket-emails · màn `/system-config/ticket-emails` | Đã làm | Khối SMTP chỉ hiện với quyền `mail_config.manage`; không bao giờ trả mật khẩu. |
+| `system-config.ticket-emails` GET (`can:mail_config.manage`) | GET /system-config/ticket-emails (`mail_config.manage`) · màn `/system-config/ticket-emails` | Đã làm | Cả màn (email nhận thông báo vận hành toàn hệ thống + SMTP) và 3 API chỉ dành cho `mail_config.manage` như routes/web.php; menu neo `portal.staff` (SidebarMenu STAFF); nút "Cấu hình Email nhận" ở màn Ticket theo `mail_config.manage`. Không bao giờ trả mật khẩu. |
 | `system-config.ticket-emails.update` POST | POST /system-config/ticket-emails | Đã làm | Mật khẩu SMTP mã hóa (`secretbox`) trong `core.settings.secret`; đổi máy chủ / tài khoản phải nhập lại mật khẩu. |
 | `system-config.ticket-emails.test` POST /ticket-emails/test | POST /system-config/ticket-emails/test · khối "Gửi thử nghiệm (Test Email)" | Đã làm | Gửi ngay qua SMTP đang lưu, cùng thông báo kết quả và gợi ý lỗi; xem [email.md](email.md). |
 

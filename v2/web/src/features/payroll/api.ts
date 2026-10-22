@@ -332,7 +332,8 @@ export type RetentionRow = {
   retention_students: number
   retention_base_students: number
   retention_tier: number | null
-  kpi_bonus: number
+  // null khi người xem không có payroll.view (ẩn số tiền)
+  kpi_bonus: number | null
 }
 
 export type SalesRow = {
@@ -345,9 +346,10 @@ export type SalesRow = {
   percent: number
   next_percent: number | null
   to_next: number | null
-  revenue: number
-  base: number
-  commission: number
+  // null khi người xem không có payroll.view (ẩn số tiền)
+  revenue: number | null
+  base: number | null
+  commission: number | null
 }
 
 export type LeaderboardPage = {
@@ -362,6 +364,7 @@ export type LeaderboardPage = {
   branch_id: string | null
   period_options: Option[]
   branches: Option[]
+  show_money: boolean
 }
 
 export type LeaderboardFilter = {

@@ -168,6 +168,12 @@ func TestOperations(t *testing.T) {
 			t.Fatalf("Quản lý HN thấy dự giờ lớp HCM: %s", r.Raw)
 		}
 	}
+	// Ô lọc giáo viên: chỉ giáo viên có biên bản thuộc lớp người xem thấy (ObservationController::operations).
+	for _, o := range iamtest.List(t, r, "filter_teachers") {
+		if o["value"] == other.ID.String() {
+			t.Fatalf("ô lọc giáo viên lộ giáo viên lớp HCM: %s", r.Raw)
+		}
+	}
 	msg(t, mgr.Do("POST", "/class-quality/operations", op(c2, other.ID, "2026-10-16", "good")), 422,
 		"Lớp không còn hoạt động hoặc nằm ngoài phạm vi bạn được xem.")
 	var hcmID string
@@ -318,15 +324,40 @@ func TestTeacherMeetings(t *testing.T) {
 	in["status"] = "handled"
 	msg(t, lead.Do("PUT", "/class-quality/teacher-meetings/"+id, in), 200, "Đã cập nhật báo cáo họp giáo viên.")
 
-	// Quản lý HN: thấy báo cáo không gắn lớp và lớp HN, không thấy lớp HCM
+	// Quản lý HN (phạm vi chi nhánh): thấy báo cáo lớp HN; không thấy lớp HCM, cũng không thấy báo cáo không gắn lớp về giáo
+	// viên HCM do người khác lập (TeacherMeetingReport::constrainToViewer, rà soát 19/10/2026).
 	_, mgr := e.Member("QL01", "Quản Lý HN", []uuid.UUID{hn}, "manager")
 	r = mgr.Do("GET", "/class-quality/teacher-meetings", nil)
-	if l := iamtest.List(t, r, "reports"); len(l) != 2 {
+	if l := iamtest.List(t, r, "reports"); len(l) != 1 || l[0]["class_id"] != c1.String() {
 		t.Fatalf("phạm vi báo cáo họp: %s", r.Raw)
+	}
+	// Ô chọn giáo viên chỉ có người thuộc chi nhánh của người xem (User::scopePickableBy).
+	for _, o := range iamtest.List(t, r, "teachers") {
+		if o["value"] == gv2.ID.String() {
+			t.Fatalf("ô chọn giáo viên lộ giáo viên chi nhánh khác: %s", r.Raw)
+		}
 	}
 	r = lead.Do("GET", "/class-quality/teacher-meetings?status=sketchy", nil)
 	hcmID := iamtest.List(t, r, "reports")[0]["id"].(string)
 	msg(t, mgr.Do("DELETE", "/class-quality/teacher-meetings/"+hcmID, nil), 404, "")
+	r = lead.Do("GET", "/class-quality/teacher-meetings?week=2026-10-05", nil)
+	var noClassHCM string
+	for _, x := range iamtest.List(t, r, "reports") {
+		if x["class_id"] == nil {
+			noClassHCM = x["id"].(string)
+		}
+	}
+	msg(t, mgr.Do("PUT", "/class-quality/teacher-meetings/"+noClassHCM, map[string]any{"week_start": "2026-10-05", "teacher_id": gv2.ID.String(),
+		"class_note": "Sửa", "status": "handled"}), 404, "")
+	// Báo cáo không gắn lớp về giáo viên HN: quản lý HN thấy; báo cáo do chính quản lý lập thì luôn thấy.
+	msg(t, lead.Do("POST", "/class-quality/teacher-meetings", map[string]any{"week_start": "2026-10-05", "teacher_id": gv.ID.String(),
+		"class_note": "Họp riêng GV HN", "status": "handled"}), 201, "")
+	msg(t, mgr.Do("POST", "/class-quality/teacher-meetings", map[string]any{"week_start": "2026-10-05", "teacher_id": gv.ID.String(),
+		"class_note": "Quản lý tự lập", "status": "handled"}), 201, "")
+	r = mgr.Do("GET", "/class-quality/teacher-meetings", nil)
+	if l := iamtest.List(t, r, "reports"); len(l) != 3 {
+		t.Fatalf("báo cáo không gắn lớp về GV chi nhánh mình: %s", r.Raw)
+	}
 	msg(t, lead.Do("DELETE", "/class-quality/teacher-meetings/"+id, nil), 200, "Đã xóa báo cáo họp giáo viên.")
 }
 

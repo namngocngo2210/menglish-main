@@ -619,11 +619,6 @@ SELECT id FROM crm.leads WHERE converted_student_id = $1 ORDER BY converted_at D
 -- Tiền của phiếu đang chờ duyệt của khoản học phí (bill "Thông báo nộp học phí").
 SELECT COALESCE(sum(amount), 0)::bigint FROM finance.receipts WHERE tuition_id = $1 AND status = 'pending';
 
--- name: BillBankAccounts :many
--- Tài khoản nhận tiền cho bill: tài khoản của hợp đồng, rồi tài khoản VietQR mặc định của chi nhánh / hệ thống.
-SELECT id, bank_code, bank_name, account_number, account_holder, branch_id, is_default_vietqr
-FROM finance.bank_accounts WHERE deleted_at IS NULL AND is_active ORDER BY created_at, id;
-
 -- name: BillLead :one
 SELECT id, code, name FROM crm.leads WHERE id = $1;
 

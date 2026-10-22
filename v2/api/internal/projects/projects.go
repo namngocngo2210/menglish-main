@@ -172,7 +172,7 @@ func (s *Service) List(ctx context.Context, actor *iam.Access, f ProjectsFilter)
 		out.Data = append(out.Data, summarize(projectRow{ID: r.ID, Code: r.Code, Name: r.Name, Type: r.Type, Status: r.Status,
 			OwnerName: r.OwnerName, StartDate: r.StartDate, Deadline: r.Deadline, MembersCount: r.MembersCount}, ms[r.ID], now))
 	}
-	if out.Owners, _, err = s.staff(ctx); err != nil {
+	if out.Owners, _, err = s.staff(ctx, actor); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -351,7 +351,20 @@ func (s *Service) Get(ctx context.Context, actor *iam.Access, id uuid.UUID) (*De
 	}
 	out.Penalties = withTitles(penalties, titles)
 	out.PenaltiesPending = !s.penalties.Enabled()
-	if out.Staff, _, err = s.staff(ctx); err != nil {
+	// Người đang tham gia dự án (phụ trách, thành viên, người nhận mốc) luôn giữ trong ô chọn.
+	keep := make([]uuid.UUID, 0, len(members)+len(ms)+1)
+	if p.OwnerID != nil {
+		keep = append(keep, *p.OwnerID)
+	}
+	for _, m := range members {
+		keep = append(keep, m.ID)
+	}
+	for _, m := range ms {
+		if m.AssigneeID != nil {
+			keep = append(keep, *m.AssigneeID)
+		}
+	}
+	if out.Staff, _, err = s.staff(ctx, actor, keep...); err != nil {
 		return nil, err
 	}
 	late := s.rule(ctx, SlaLate, 1)
@@ -445,7 +458,7 @@ func (s *Service) validateProject(ctx context.Context, in ProjectInput) (project
 			d.members = append(d.members, *id)
 		}
 	}
-	_, staff, err := s.staff(ctx)
+	_, staff, err := s.staff(ctx, nil)
 	if err != nil {
 		return d, err
 	}

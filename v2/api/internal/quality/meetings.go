@@ -104,13 +104,16 @@ func (s *Service) Meetings(ctx context.Context, actor *iam.Access, f MeetingsFil
 	if err != nil {
 		return nil, err
 	}
-	total, err := s.q.CountMeetings(ctx, qualitydb.CountMeetingsParams{AllClasses: sc.all, Ids: sc.ids, Week: week, TeacherID: teacher, Status: status})
+	branches := meetingBranches(actor)
+	total, err := s.q.CountMeetings(ctx, qualitydb.CountMeetingsParams{AllClasses: sc.all, Ids: sc.ids, Me: actor.UserID, Branches: branches,
+		Week: week, TeacherID: teacher, Status: status})
 	if err != nil {
 		return nil, err
 	}
 	meta, off := pageOf(f.Page, meetingsPerPage, total)
 	rows, err := s.q.ListMeetings(ctx, qualitydb.ListMeetingsParams{
-		AllClasses: sc.all, Ids: sc.ids, Week: week, TeacherID: teacher, Status: status, Lim: meetingsPerPage, Off: off,
+		AllClasses: sc.all, Ids: sc.ids, Me: actor.UserID, Branches: branches, Week: week, TeacherID: teacher, Status: status,
+		Lim: meetingsPerPage, Off: off,
 	})
 	if err != nil {
 		return nil, err
@@ -133,9 +136,15 @@ func (s *Service) Meetings(ctx context.Context, actor *iam.Access, f MeetingsFil
 		}
 		out.Reports = append(out.Reports, m)
 	}
+	// Ô chọn giáo viên: chỉ nhân sự thuộc chi nhánh trong phạm vi Lớp học của người xem (User::scopePickableBy).
 	if out.Teachers, _, err = s.usersWithPermission(ctx, "class.teach"); err != nil {
 		return nil, err
 	}
+	pickable, err := iam.PickableUsers(ctx, s.pool, actor, "class")
+	if err != nil {
+		return nil, err
+	}
+	out.Teachers = iam.FilterUsers(pickable, out.Teachers, func(o Option) uuid.UUID { return uuid.MustParse(o.Value) })
 	classes, err := s.q.ActiveClasses(ctx, qualitydb.ActiveClassesParams{AllClasses: sc.all, Ids: sc.ids})
 	if err != nil {
 		return nil, err
@@ -263,7 +272,18 @@ func (s *Service) CreateMeeting(ctx context.Context, actor *iam.Access, in Meeti
 	return "Đã lưu báo cáo họp giáo viên.", nil
 }
 
-// meetingFor: báo cáo (chưa xóa) không gắn lớp, hoặc gắn lớp trong phạm vi.
+// meetingBranches: chi nhánh xét cho báo cáo không gắn lớp — chỉ mức Chi nhánh của Lớp học (TeacherMeetingReport::
+// constrainToViewer); mức Của tôi chỉ thấy báo cáo mình ghi.
+func meetingBranches(actor *iam.Access) []uuid.UUID {
+	if actor.Level("class") == iam.ScopeBranch {
+		return actor.BranchIDs()
+	}
+	return []uuid.UUID{}
+}
+
+// meetingFor: báo cáo (chưa xóa) người xem được thấy (TeacherMeetingReport::visibleTo): Toàn hệ thống → mọi báo cáo;
+// còn lại → báo cáo gắn lớp trong phạm vi, hoặc báo cáo không gắn lớp do mình ghi / (mức Chi nhánh) về giáo viên thuộc
+// chi nhánh của mình.
 func (s *Service) meetingFor(ctx context.Context, actor *iam.Access, id uuid.UUID) (qualitydb.GetMeetingRow, error) {
 	m, err := s.q.GetMeeting(ctx, id)
 	if isNoRows(err) {
@@ -272,16 +292,32 @@ func (s *Service) meetingFor(ctx context.Context, actor *iam.Access, id uuid.UUI
 	if err != nil {
 		return m, err
 	}
+	sc, err := s.visible(ctx, actor)
+	if err != nil {
+		return m, err
+	}
+	if sc.all {
+		return m, nil
+	}
 	if m.ClassID != nil {
-		sc, err := s.visible(ctx, actor)
-		if err != nil {
-			return m, err
-		}
 		if !sc.has(*m.ClassID) {
 			return m, errMeetingNotFound
 		}
+		return m, nil
 	}
-	return m, nil
+	if m.AuthorID == actor.UserID {
+		return m, nil
+	}
+	if branches := meetingBranches(actor); len(branches) > 0 {
+		inBranch, err := iam.StaffInBranches(ctx, s.pool, actor, "class")
+		if err != nil {
+			return m, err
+		}
+		if inBranch.Has(m.TeacherID) {
+			return m, nil
+		}
+	}
+	return m, errMeetingNotFound
 }
 
 func (s *Service) UpdateMeeting(ctx context.Context, actor *iam.Access, id uuid.UUID, in MeetingInput) (string, error) {

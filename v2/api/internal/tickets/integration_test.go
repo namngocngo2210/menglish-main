@@ -204,12 +204,26 @@ func TestTicketFlow(t *testing.T) {
 		t.Fatal("thiếu email ticket mới cho danh sách kỹ thuật")
 	}
 
-	// Người xử lý thấy mọi ticket; số liệu
-	list := ql2.Do("GET", "/tickets?status=open", nil)
-	if rows := iamtest.List(t, list, "tickets"); len(rows) != 1 || list.Body["can_manage"] != true {
+	// Phạm vi support_ticket.scope_branch (Quản lý cơ sở): thấy ticket do nhân sự chi nhánh mình tạo; quản lý HCM không
+	// thấy ticket của giáo viên HN (SupportTicket::scopeVisibleTo, rà soát 19/10/2026) → danh sách trống, mở / thao tác → 403.
+	list := ql.Do("GET", "/tickets?status=open", nil)
+	if rows := iamtest.List(t, list, "tickets"); len(rows) != 1 || list.Body["can_manage"] != true || list.Body["stats"].(map[string]any)["total"] != float64(1) {
 		t.Fatalf("danh sách của quản lý: %s", list.Raw)
 	}
-	if n := len(iamtest.List(t, ql2.Do("GET", "/tickets?q=khong-co", nil), "tickets")); n != 0 {
+	if other := ql2.Do("GET", "/tickets", nil); len(iamtest.List(t, other, "tickets")) != 0 || other.Body["stats"].(map[string]any)["total"] != float64(0) {
+		t.Fatalf("quản lý HCM thấy ticket chi nhánh HN: %s", other.Raw)
+	}
+	iamtest.Expect(t, ql2.Do("GET", "/tickets/"+id, nil), 403, "")
+	iamtest.Expect(t, ql2.Do("POST", "/tickets/"+id+"/status", map[string]any{"status": "in_progress"}), 403, "")
+	iamtest.Expect(t, ql2.Do("POST", "/tickets/"+id+"/messages", map[string]any{"message": "Xem hộ"}), 403, "")
+	// Người phân công chi nhánh HN không giao được cho nhân sự chi nhánh khác (handlerCandidates).
+	for _, o := range iamtest.List(t, ql.Do("GET", "/tickets/"+id, nil), "staffs") {
+		if o["value"] == ql2U.ID.String() {
+			t.Fatal("ô người xử lý lộ nhân sự chi nhánh khác")
+		}
+	}
+	iamtest.Expect(t, ql.Do("POST", "/tickets/"+id+"/assign", map[string]any{"assignee_id": ql2U.ID.String()}), 422, "")
+	if n := len(iamtest.List(t, ql.Do("GET", "/tickets?q=khong-co", nil), "tickets")); n != 0 {
 		t.Fatalf("tìm kiếm: %d", n)
 	}
 
@@ -250,8 +264,9 @@ func TestTicketFlow(t *testing.T) {
 		t.Fatalf("email phản hồi cho người tạo: %d", e.mails("gv01@x.vn"))
 	}
 
-	// Phân công: người được giao nhận thông báo + email
-	r = ql.Do("POST", "/tickets/"+id+"/assign", map[string]any{"assignee_id": ql2U.ID.String()})
+	// Phân công (Admin, phạm vi toàn hệ thống): người được giao nhận thông báo + email, rồi thấy ticket được giao.
+	_, admin := e.Member("AD01", "Quản trị", nil, "admin")
+	r = admin.Do("POST", "/tickets/"+id+"/assign", map[string]any{"assignee_id": ql2U.ID.String()})
 	iamtest.Expect(t, r, 200, "")
 	if r.Body["message"] != "Đã phân công xử lý ticket cho Quản lý HCM!" {
 		t.Fatalf("phân công: %s", r.Raw)
@@ -259,6 +274,7 @@ func TestTicketFlow(t *testing.T) {
 	if e.notes(ql2U.ID, "ticket_assigned") != 1 || e.mails("ql02@x.vn") != 1 {
 		t.Fatal("người được giao phải nhận thông báo + email")
 	}
+	iamtest.Expect(t, ql2.Do("GET", "/tickets/"+id, nil), 200, "")
 
 	// Đã giải quyết: ghi thời điểm, báo người tạo + người được giao (email kỹ thuật tắt cho sự kiện này)
 	itBefore := e.mails("it@x.vn")

@@ -17,9 +17,9 @@ Việc cần duyệt, số liệu Tổng quan / báo cáo / KPI; đếm mọi b�
 | Tổng quan (Dashboard) & Báo cáo & sự vụ lớp | [tong-quan.md](tong-quan.md) | 42 | 5 | 3 | 3 | Báo cáo trực lớp (chưa có ở v2) |
 | Danh mục & cấu hình | [danh-muc.md](danh-muc.md) | 46 | 0 | 14 | 3 | Tra phòng trống, cấu hình SePay |
 | Học viên | [hoc-vien.md](hoc-vien.md) | 9 | 0 | 7 | 3 | Lệnh nền bảo lưu / khai giảng / sinh nhật (cần học phí), ghi ngày bắt đầu học từ điểm danh |
-| Lớp học | [lop-hoc.md](lop-hoc.md) | 30 | 0 | 7 | 4 | Lịch học thử của lớp (CRM), buổi phụ đạo, tên lớp ở danh sách order học liệu |
+| Lớp học | [lop-hoc.md](lop-hoc.md) | 31 | 0 | 7 | 3 | Buổi phụ đạo, tên lớp ở danh sách order học liệu |
 | Tồn kho & Order học liệu | [ton-kho.md](ton-kho.md) | 24 | 0 | 2 | 3 | Cảnh báo tồn ở màn duyệt phiếu thu, import dữ liệu kho cũ |
-| Công việc | [cong-viec.md](cong-viec.md) | 13 | 6 | 1 | 11 | Báo cáo trực lớp, cấu hình lịch trực, buổi phụ đạo, nhu cầu nhân sự, việc chăm sóc tháng đầu / SLA CRM |
+| Công việc | [cong-viec.md](cong-viec.md) | 15 | 6 | 1 | 9 | Báo cáo trực lớp, buổi phụ đạo, nhu cầu nhân sự, việc chăm sóc tháng đầu / SLA CRM |
 | Test đầu vào & học thử | [test-dau-vao.md](test-dau-vao.md) | 24 | 0 | 5 | 5 | Hẹn test / chấm điểm trên hồ sơ khách CRM, khách học thử ở màn điểm danh, nhập file đề cũ |
 | Báo cáo ngày / tuần / tháng | [bao-cao.md](bao-cao.md) | 24 | 0 | 5 | 3 | Báo cáo trực lớp, buổi bổ trợ, import báo cáo cũ |
 | CRM | [crm.md](crm.md) | 21 | 0 | 15 | 6 | Phiếu thu / học phí khi chốt, in hồ sơ, lệnh quét khách quá hạn (`crm:scan-stale-leads`) |

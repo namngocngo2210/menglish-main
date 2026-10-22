@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"slices"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -81,7 +82,16 @@ func (s *Service) ClosingChoices(ctx context.Context, a *iam.Access, idOrCode st
 	if err != nil {
 		return nil, err
 	}
+	// Ưu đãi chung + ưu đãi của chi nhánh trong phạm vi khách CRM, cộng chi nhánh của khách đang chốt
+	// (CrmController::closingWizard, rà soát 19/10/2026).
+	limit := a.BranchLimit(scopeLead)
+	if limit != nil && l.BranchID != nil {
+		limit = append(slices.Clone(limit), *l.BranchID)
+	}
 	for _, p := range promos {
+		if limit != nil && p.BranchID != nil && !slices.Contains(limit, *p.BranchID) {
+			continue
+		}
 		out.Promotions = append(out.Promotions, Option{Value: p.ID.String(), Label: p.Name + " (" + valueLabel(p.Type, p.Value) + ")"})
 	}
 	return out, nil
