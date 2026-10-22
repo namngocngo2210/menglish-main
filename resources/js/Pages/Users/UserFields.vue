@@ -104,7 +104,7 @@ onMounted(() => {
                 <UiInput :id="fid('employee_code')" label="Mã nhân viên (dùng để đăng nhập)" :value="user?.employee_code ?? 'Tự cấp khi lưu'" hint="Hệ thống tự cấp theo dạng MESxxx" disabled class="font-code" />
                 <UiInput name="email" :id="fid('email')" type="email" label="Email công việc" required :value="user?.email" placeholder="VD: nva@menglish.edu.vn" />
                 <UiInput name="phone" :id="fid('phone')" label="Số điện thoại" :value="user?.phone" placeholder="10 số, bắt đầu bằng 0" class="font-code" />
-                <UiSelect v-model="primaryBranch" name="branch_id" :id="fid('branch_id')" label="Cơ sở chính" required placeholder="-- Chọn cơ sở --" :options="branches" />
+                <UiSelect v-model="primaryBranch" name="branch_id" :id="fid('branch_id')" label="Cơ sở chính" :required="role !== 'assistant'" :hint="role === 'assistant' ? 'Trợ giảng không bắt buộc cơ sở' : null" placeholder="-- Chọn cơ sở --" :options="branches" />
                 <UiSelect v-model="role" name="role" :id="fid('role')" label="Vai trò & Chức vụ" required placeholder="-- Chọn vai trò --" :options="roleOptions" />
             </div>
 

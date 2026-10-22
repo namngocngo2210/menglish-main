@@ -45,7 +45,8 @@ class UserRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
             'phone' => ['nullable', 'string', 'max:20'],
-            'branch_id' => ['required', 'exists:branches,id'],
+            // Trợ giảng không bắt buộc cơ sở chính (người phạm vi "Chi nhánh" vẫn bị chặn ở UserController::ensureBranchInScope).
+            'branch_id' => [Rule::requiredIf($this->input('role') !== Roles::ASSISTANT), 'nullable', 'exists:branches,id'],
             // Cơ sở làm việc thêm ngoài cơ sở chính (user_branches): nhân sự dạy / làm việc ở nhiều cơ sở.
             'extra_branch_ids_present' => ['nullable', 'boolean'],
             'extra_branch_ids' => ['nullable', 'array'],
