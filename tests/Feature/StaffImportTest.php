@@ -179,6 +179,48 @@ class StaffImportTest extends TestCase
         $this->assertSame('Zalo', $user->contact_channel);
     }
 
+    public function test_assistant_does_not_require_branch_but_teacher_does(): void
+    {
+        $file = $this->file([
+            ['Họ tên', 'Vai trò', 'Email'],
+            ['Trợ Giảng Không Cơ Sở', 'Trợ giảng', 'trogiang@gmail.com'],
+            ['Giáo Viên Không Cơ Sở', 'Giáo viên', 'giaovien@gmail.com'],
+        ]);
+
+        $this->actingAs($this->admin)
+            ->post(route('users.import.store'), ['password' => 'staff@123', 'excel_file' => $file])
+            ->assertRedirect();
+        $token = array_key_first(session('staff_import'));
+        $this->actingAs($this->admin)->get(route('users.import', ['token' => $token]))
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('preview.rows.0.errors', [])
+                ->where('preview.rows.0.branch', null)
+                ->where('preview.rows.1.errors', ['Chưa có cơ sở: ghi cột Cơ sở hoặc chọn cơ sở mặc định.']));
+
+        $this->actingAs($this->admin)->post(route('users.import.confirm'), ['token' => $token])->assertRedirect(route('users.import'));
+
+        $assistant = User::where('email', 'trogiang@gmail.com')->firstOrFail();
+        $this->assertTrue($assistant->hasRole('assistant'));
+        $this->assertNull($assistant->branch_id);
+        $this->assertFalse(User::where('email', 'giaovien@gmail.com')->exists());
+    }
+
+    public function test_branch_scoped_importer_still_needs_branch_for_assistant(): void
+    {
+        $manager = User::factory()->create(['branch_id' => $this->branch->id, 'is_active' => true]);
+        $manager->assignRole('manager');
+        $manager->givePermissionTo('user.create', 'user.assign_role.assistant');
+
+        $file = $this->file([['Họ tên', 'Vai trò', 'Email'], ['Trợ Giảng Không Cơ Sở', 'Trợ giảng', 'trogiang@gmail.com']]);
+        $this->actingAs($manager)
+            ->post(route('users.import.store'), ['password' => 'staff@123', 'excel_file' => $file])
+            ->assertRedirect();
+        $token = array_key_first(session('staff_import'));
+        $this->actingAs($manager)->get(route('users.import', ['token' => $token]))
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('preview.rows.0.errors', ['Chưa có cơ sở: ghi cột Cơ sở hoặc chọn cơ sở mặc định.']));
+    }
+
     public function test_requires_user_create_permission_and_template_downloads(): void
     {
         $teacher = User::factory()->create(['branch_id' => $this->branch->id]);

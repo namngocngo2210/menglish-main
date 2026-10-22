@@ -197,8 +197,8 @@ function submit(event) {
                         <li>{{ headings }}.</li>
                         <li>
                             Bắt buộc: Họ tên, Email; Vai trò và Cơ sở lấy theo
-                            cột hoặc giá trị mặc định ở trên. Ngày ghi dạng
-                            dd/mm/yyyy.
+                            cột hoặc giá trị mặc định ở trên (trợ giảng không
+                            bắt buộc Cơ sở). Ngày ghi dạng dd/mm/yyyy.
                         </li>
                         <li>
                             Email công việc là email tài khoản; chỉ có email cá
