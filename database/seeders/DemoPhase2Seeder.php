@@ -300,8 +300,8 @@ class DemoPhase2Seeder extends Seeder
         $remark = fn (int $k) => $roster->mapWithKeys(fn (Student $s, int $j) => [$s->id => [
             'monsters' => '+'.(($j + $k) % 4 + 2),
             'grammar' => ['Tốt', 'Khá', 'Cần cố gắng'][($j + $k) % 3],
-            'attitude' => ['Hăng hái', 'Tập trung', 'Hơi mất tập trung'][($j * 2 + $k) % 3],
-            'result' => ['Đạt mục tiêu buổi', 'Đạt 8/10 bài tập', 'Cần ôn lại từ vựng'][($j + 2 * $k) % 3],
+            'attitude' => ['Tốt', 'Khá', 'Cần cố gắng'][($j * 2 + $k) % 3],
+            'result' => ['Đạt', 'Đạt', 'Không đạt'][($j + 2 * $k) % 3],
             'comment' => 'Nhận xét buổi '.($k + 1).' cho '.trim(str_replace('#', '', $s->name)).'.',
         ]])->all();
         foreach ($toMark->take(-2) as $k => $session) {

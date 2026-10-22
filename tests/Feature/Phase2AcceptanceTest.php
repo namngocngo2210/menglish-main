@@ -273,7 +273,7 @@ class Phase2AcceptanceTest extends TestCase
         ])->assertSessionHasErrors('session');
 
         $this->actingAs($this->teacher)->post(route('teacher.remarks.store', $class->id), [
-            'remarks' => [$s1->id => ['grammar' => 'Tốt', 'attitude' => 'Hăng hái', 'result' => 'Đạt', 'comment' => 'Phát âm rõ.']],
+            'remarks' => [$s1->id => ['grammar' => 'Tốt', 'attitude' => 'Khá', 'result' => 'Đạt', 'comment' => 'Phát âm rõ.']],
         ])->assertSessionHasNoErrors()->assertRedirect(route('teacher.remarks', ['classId' => $class->id, 'session' => $today->id]));
 
         $this->actingAs($this->teacher)->post(route('teacher.scores.store', $class->id), [

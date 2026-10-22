@@ -422,7 +422,7 @@ class Phase2MockupClassesTest extends TestCase
         ])->assertRedirect(route('teacher.remarks', ['classId' => $this->classModel->id, 'session' => $morning->id]));
         $this->actingAs($this->teacher)->post(route('teacher.remarks.store', $this->classModel->id), [
             'class_session_id' => $afternoon->id, 'action' => 'final',
-            'remarks' => [$present->id => ['result' => 'Đạt mục tiêu bài học']],
+            'remarks' => [$present->id => ['result' => 'Đạt']],
         ])->assertSessionHasNoErrors();
 
         $records = AcademicRecord::where('module', 'teacher_remarks')->orderBy('id')->get();
@@ -434,6 +434,45 @@ class Phase2MockupClassesTest extends TestCase
 
         $this->actingAs($this->teacher)->get(route('teacher.remarks', ['classId' => $this->classModel->id, 'session' => $morning->id]))
             ->assertSee('Bản nháp')->assertSee('value="+5"', false)->assertSee('Tiến bộ');
+    }
+
+    public function test_teacher_remark_ratings_are_chosen_from_options_and_keep_legacy_free_text(): void
+    {
+        $session = $this->makeSession('2026-10-07', '07:00', '08:00');
+        $student = $this->student('Trần Thị B');
+        $page = route('teacher.remarks', ['classId' => $this->classModel->id, 'session' => $session->id]);
+        $store = route('teacher.remarks.store', $this->classModel->id);
+
+        $this->actingAs($this->teacher)->get($page)->assertOk()->assertInertia(fn (Assert $p) => $p
+            ->where('remarkOptions.grammar', ['Tốt', 'Khá', 'Cần cố gắng'])
+            ->where('remarkOptions.attitude', ['Tốt', 'Khá', 'Cần cố gắng'])
+            ->where('remarkOptions.result', ['Đạt', 'Không đạt']));
+
+        // Giá trị ngoài danh sách bị từ chối, không lưu gì.
+        $this->actingAs($this->teacher)->post($store, [
+            'class_session_id' => $session->id,
+            'remarks' => [$student->id => ['grammar' => 'Xuất sắc', 'result' => 'Đạt mục tiêu bài học']],
+        ])->assertSessionHasErrors(["remarks.{$student->id}.grammar", "remarks.{$student->id}.result"]);
+        $this->assertSame(0, AcademicRecord::where('module', 'teacher_remarks')->count());
+
+        $this->actingAs($this->teacher)->post($store, [
+            'class_session_id' => $session->id,
+            'remarks' => [$student->id => ['grammar' => 'Tốt', 'attitude' => 'Cần cố gắng', 'result' => 'Không đạt', 'comment' => 'Cần ôn từ vựng.']],
+        ])->assertSessionHasNoErrors();
+        $record = AcademicRecord::where('module', 'teacher_remarks')->sole();
+        $this->assertSame(['grammar' => 'Tốt', 'attitude' => 'Cần cố gắng', 'result' => 'Không đạt', 'comment' => 'Cần ôn từ vựng.'], $record->data[$student->id]);
+
+        // Nhận xét gõ tay trước đây: lưu lại nguyên giá trị cũ được, đổi sang chữ tự do khác thì không.
+        $record->update(['data' => [$student->id => ['attitude' => 'Hăng hái', 'result' => 'Đạt']]]);
+        $this->actingAs($this->teacher)->post($store, [
+            'class_session_id' => $session->id,
+            'remarks' => [$student->id => ['attitude' => 'Hăng hái', 'result' => 'Đạt']],
+        ])->assertSessionHasNoErrors();
+        $this->actingAs($this->teacher)->post($store, [
+            'class_session_id' => $session->id,
+            'remarks' => [$student->id => ['attitude' => 'Rất hăng hái']],
+        ])->assertSessionHasErrors("remarks.{$student->id}.attitude");
+        $this->assertSame('Hăng hái', $record->fresh()->data[$student->id]['attitude']);
     }
 
     public function test_teacher_homework_form_matches_mockup_with_session_categories_and_locked_submitted_category(): void
