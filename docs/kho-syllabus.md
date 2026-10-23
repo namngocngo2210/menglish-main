@@ -132,13 +132,13 @@ Hiện trạng (khảo sát 23/10/2026):
   Tab **Tài liệu** giữ tới Sprint 2 (lúc upload chuyển vào trang chi tiết).
 - [x] Test: quyền theo vai trò, redirect, CRUD buổi đủ trường, guard-rail (Navigation, AllRoutesSmoke, BranchIsolation).
 
-### Sprint 2 — Tài liệu theo buổi / chặng / chung & lịch sử
+### Sprint 2 — Tài liệu theo buổi / chặng / chung & lịch sử (xong)
 
-- [ ] `syllabus_lesson_id` cho tài liệu; modal upload dùng chung; tab Tài liệu chung; bỏ `Documents.vue` và tab
+- [x] `syllabus_lesson_id` cho tài liệu; modal upload dùng chung; tab Tài liệu chung; bỏ `Documents.vue` và tab
   **Tài liệu** trên sidebar.
-- [ ] Giới hạn tài liệu của GV / TA theo chặng đang mở của lớp (teacher-view + file).
-- [ ] `AuditsChanges` + tab Lịch sử.
-- [ ] Test: phạm vi tài liệu, GV ngoài lớp bị 404, lịch sử ghi đúng.
+- [x] Giới hạn tài liệu của GV / TA theo chặng đang mở của lớp (teacher-view + file).
+- [x] `AuditsChanges` + tab Lịch sử.
+- [x] Test: phạm vi tài liệu, GV ngoài lớp bị 404, lịch sử ghi đúng.
 
 ### Sprint 3 — Import chặng theo form Sheet 1
 

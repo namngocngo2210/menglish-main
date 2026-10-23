@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SyllabusCurriculum extends Model
 {
-    use AuditsChanges, LogsCurriculumId, HasFactory, SoftDeletes;
+    use AuditsChanges, HasFactory, LogsCurriculumId, SoftDeletes;
 
     protected $table = 'syllabus_curriculums';
 
