@@ -57,6 +57,7 @@ class AdminNotificationController extends Controller
                 // Tin cần gửi phụ huynh thủ công (khách chưa có email): nút sao chép nội dung + mở hồ sơ liên quan.
                 'copy_text' => $notif->data['copy_text'] ?? null,
                 'link' => $notif->data['link'] ?? null,
+                'action' => $notif->action,
                 'created_at' => $notif->created_at->toIso8601String(),
                 'created_ago' => $notif->created_at->diffForHumans(),
             ]);

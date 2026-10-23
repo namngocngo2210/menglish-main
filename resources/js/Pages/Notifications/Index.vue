@@ -8,6 +8,7 @@ import { Link } from '@inertiajs/vue3';
 import { can } from '@/lib/can';
 import { shortenCodesIn } from '@/lib/format';
 import { copyText } from '@/lib/clipboard';
+import NotificationAction from '@/Components/NotificationAction.vue';
 
 defineOptions({ layout: { title: 'Thông báo', workspaceTabs: false } });
 
@@ -77,6 +78,7 @@ defineProps({
                     </div>
 
                     <div class="flex shrink-0 flex-wrap items-center justify-end gap-2 self-end sm:self-center">
+                        <NotificationAction v-if="notif.action" :action="notif.action" :notification-id="notif.id" :is-read="notif.is_read" />
                         <UiButton v-if="notif.lead" variant="info" size="sm" icon="call" :href="route('crm.customers.show', notif.lead.customer_id)">Xử lý Lead ngay</UiButton>
                         <UiButton v-if="notif.copy_text" size="sm" icon="content_copy" @click="copyText(notif.copy_text, 'Đã sao chép nội dung — dán vào Zalo để gửi phụ huynh.')">Sao chép nội dung</UiButton>
                         <UiButton v-if="notif.copy_text && notif.link && !notif.lead" variant="secondary" size="sm" icon="open_in_new" :href="notif.link">Mở hồ sơ</UiButton>

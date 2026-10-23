@@ -2,6 +2,7 @@
 /** Chuông thông báo trên topbar: cổng học viên → link hộp thư của cổng; còn lại → menu 6 thông báo mới nhất. */
 import { computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
+import NotificationAction from '@/Components/NotificationAction.vue';
 
 const props = defineProps({ notifications: { type: Object, required: true } });
 const n = computed(() => props.notifications);
@@ -42,7 +43,8 @@ const unreadText = computed(() => (n.value.unread > 9 ? '9+' : String(n.value.un
                         <p class="line-clamp-2 font-caption text-caption text-on-surface-variant">{{ item.message }}</p>
                         <div class="flex items-center justify-between">
                             <span class="font-code text-xs text-on-surface-subtle">{{ item.ago }}</span>
-                            <a v-if="item.link" :href="item.link" class="inline-flex items-center gap-0.5 font-caption text-caption font-semibold text-secondary hover:underline">
+                            <NotificationAction v-if="item.action" :action="item.action" :notification-id="item.id" :is-read="item.is_read" size="sm" />
+                            <a v-else-if="item.link" :href="item.link" class="inline-flex items-center gap-0.5 font-caption text-caption font-semibold text-secondary hover:underline">
                                 <span>Xử lý ngay</span>
                                 <span class="material-symbols-outlined text-[14px]" aria-hidden="true">arrow_forward</span>
                             </a>
