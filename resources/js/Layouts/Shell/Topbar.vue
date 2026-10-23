@@ -1,13 +1,18 @@
 <script setup>
-/** Topbar: tiêu đề trang (chữ thuần) · tìm kiếm chung · thông báo · tài khoản. */
-import { Link, router } from '@inertiajs/vue3';
+/** Topbar: tiêu đề trang (chữ thuần) · tìm kiếm chung · đổi vai trò (bản thử nghiệm) · thông báo · tài khoản. */
+import { computed } from 'vue';
+import { Link, router, usePage } from '@inertiajs/vue3';
 import NotificationMenu from './NotificationMenu.vue';
+import RoleSwitcherMenu from './RoleSwitcherMenu.vue';
 
 defineProps({
     shell: { type: Object, required: true },
     title: { type: String, default: null },
 });
 defineEmits(['open-menu']);
+
+const page = usePage();
+const roleSwitcher = computed(() => (page.props.roleSwitcher?.unlocked ? page.props.roleSwitcher : null));
 
 function search(event) {
     const q = new FormData(event.target).get('q');
@@ -44,6 +49,7 @@ function search(event) {
         </div>
 
         <div class="flex shrink-0 items-center gap-xs sm:gap-md">
+            <RoleSwitcherMenu v-if="roleSwitcher" :switcher="roleSwitcher" />
             <NotificationMenu :notifications="shell.notifications" />
 
             <UiDropdown align="right" width="56">

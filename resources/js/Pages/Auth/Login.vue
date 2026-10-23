@@ -1,7 +1,11 @@
 <script setup>
-/** Đăng nhập (layout GuestLayout). Đăng nhập xong server trả về tải lại hẳn trang đích (phiên mới). */
-import { ref } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+/**
+ * Đăng nhập (layout GuestLayout). Đăng nhập xong server trả về tải lại hẳn trang đích (phiên mới).
+ * Bản thử nghiệm (prop chung `roleSwitcher`): khung "Xem thử theo vai trò" — nhập mã truy cập, rồi chọn vai trò không cần mật khẩu.
+ */
+import { computed, ref } from 'vue';
+import { Head, Link, usePage } from '@inertiajs/vue3';
+import RoleSwitcherAccounts from '@/Layouts/Shell/RoleSwitcherAccounts.vue';
 
 defineProps({
     status: { type: String, default: null },
@@ -10,6 +14,9 @@ defineProps({
 
 // Mã / email giữ bằng v-model: trường có lỗi vẽ lại sẽ không bị xoá chữ đã nhập (như old('email') của Blade).
 const email = ref('');
+
+const page = usePage();
+const roleSwitcher = computed(() => page.props.roleSwitcher);
 </script>
 
 <template>
@@ -20,6 +27,20 @@ const email = ref('');
     </div>
 
     <UiAlert v-if="status" type="success" class="mb-4">{{ status }}</UiAlert>
+
+    <section v-if="roleSwitcher" class="mb-lg overflow-hidden rounded-lg border border-warning/30 bg-warning-container/40" data-role-switcher-login>
+        <div class="px-md pt-sm">
+            <h2 class="font-body-semibold text-body-medium text-on-warning-container">Xem thử theo vai trò</h2>
+            <p class="font-caption text-caption text-on-warning-container">Bản thử nghiệm: chọn vai trò để vào thẳng màn hình của vai trò đó, không cần mật khẩu.</p>
+        </div>
+        <RoleSwitcherAccounts v-if="roleSwitcher.unlocked" :groups="roleSwitcher.groups" class="mt-xs bg-surface-container-lowest" />
+        <UiForm v-else :action="route('role-switcher.unlock')" method="post" class="flex items-end gap-sm px-md pb-md pt-sm">
+            <div class="min-w-0 flex-1">
+                <UiInput name="code" type="password" label="Mã truy cập" required autocomplete="off" />
+            </div>
+            <UiButton type="submit" variant="secondary">Mở</UiButton>
+        </UiForm>
+    </section>
 
     <UiForm :action="route('login')" method="post" :reset-on-success="['password']">
         <div>

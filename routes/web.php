@@ -33,6 +33,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PromotionController;
 use App\Http\Controllers\RecruitmentController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\RoleSwitcherController;
 use App\Http\Controllers\RoomController;
 use App\Http\Controllers\RoomTypeController;
 use App\Http\Controllers\SepayWebhookController;
@@ -922,5 +923,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/portal/student/survey', [StudentPortalController::class, 'studentSurvey'])->name('portal.student.survey2');
     Route::get('/portal/student/feedback', [StudentPortalController::class, 'studentFeedback'])->name('portal.student.feedback2');
 });
+
+// Đổi vai trò trên bản thử nghiệm (dungthu): khách hay người đã đăng nhập đều dùng được; tắt → 404 (App\Support\RoleSwitcher).
+Route::post('/doi-vai-tro/mo-khoa', [RoleSwitcherController::class, 'unlock'])->name('role-switcher.unlock');
+Route::post('/doi-vai-tro/{user}', [RoleSwitcherController::class, 'switch'])->whereNumber('user')->name('role-switcher.switch');
 
 require __DIR__.'/auth.php';

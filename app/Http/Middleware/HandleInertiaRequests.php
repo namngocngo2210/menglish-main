@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Http\Concerns\RendersModals;
 use App\Support\Navigation\AppShell;
 use App\Support\PermissionCatalog;
+use App\Support\RoleSwitcher;
 use Closure;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -19,6 +20,7 @@ use Symfony\Component\HttpFoundation\Response;
  *   can    — quyền của user dạng { 'lead.create': true, ... } (chỉ gồm quyền được cấp) — Vue dùng can('lead.create')
  *   flash  — thông báo sau khi chuyển trang: [{ type: success|error|warning|info, message }] — layout hiện thành toast
  *   csrf   — token cho form HTML thường (<UiNativeForm>: tải file, xuất Excel bằng POST)
+ *   roleSwitcher — đổi vai trò trên bản thử nghiệm (null khi tắt), xem App\Support\RoleSwitcher
  *   errors — lỗi validate (Inertia tự thêm)
  * Quyền trên đối tượng cụ thể (policy, vd. sửa đúng khách này) do controller tính và truyền vào props của trang.
  */
@@ -59,6 +61,7 @@ class HandleInertiaRequests extends Middleware
             'can' => fn () => $this->abilities($request),
             'flash' => fn () => $this->flash($request),
             'csrf' => fn () => $request->hasSession() ? $request->session()->token() : null,
+            'roleSwitcher' => fn () => app(RoleSwitcher::class)->menu($request),
         ];
     }
 
