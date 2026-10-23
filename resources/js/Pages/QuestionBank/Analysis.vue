@@ -5,6 +5,7 @@
  * chỉ tính lượt bắt đầu sau lần sửa cuối (`edited_at`) — hiện "Tính từ lần sửa …" để biết số liệu đã đặt lại.
  */
 import { computed } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 import { route } from '@/lib/route';
 import { formatDate, formatNumber, formatPercent } from '@/lib/format';
 import UnderlinedText from '@/Components/Practice/UnderlinedText.vue';
@@ -21,6 +22,9 @@ const props = defineProps({
 
 const termLabels = computed(() => Object.fromEntries(props.filterOptions.terms.map((t) => [t.value, t.label])));
 const rate = (value) => formatPercent(value * 100);
+// mở sửa câu ở trang đầy đủ (tab mới / không JS): lưu xong quay về trang phân tích này, giữ bộ lọc
+const page = usePage();
+const editUrl = (id) => route('question-bank.questions.edit', { question: id, return: page.url });
 </script>
 
 <template>
@@ -66,7 +70,7 @@ const rate = (value) => formatPercent(value * 100);
                     <td class="text-center font-code">{{ q.answer }}</td>
                     <td class="text-center font-code">{{ q.top_wrong_choice ?? '—' }}</td>
                     <td v-if="canManage" class="text-right">
-                        <UiButton variant="ghost" icon="edit" :href="route('question-bank.questions.edit', q.question_id)" modal="2xl" title="Sửa câu hỏi" :aria-label="`Sửa câu #${q.question_id}`" />
+                        <UiButton variant="ghost" icon="edit" :href="editUrl(q.question_id)" modal="2xl" title="Sửa câu hỏi" :aria-label="`Sửa câu #${q.question_id}`" />
                     </td>
                 </tr>
                 <tr v-if="!questions.data.length">

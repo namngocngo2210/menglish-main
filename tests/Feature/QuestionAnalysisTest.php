@@ -203,6 +203,10 @@ class QuestionAnalysisTest extends TestCase
                 ->where('questions.data.0.question_id', $q->id)
                 ->where('questions.data.0.wrong_rate', 1));
         $this->assertStringEndsWith("/question-bank/questions/{$q->id}", route('question-bank.questions.edit', $q->id));
+
+        // Link sửa mang `return` = trang phân tích đang xem (kể cả bộ lọc) → mở trang đầy đủ, lưu xong quay về đây.
+        $this->actingAs($this->lead)->get(route('question-bank.analysis', ['grade' => 7]))
+            ->assertSee('/question-bank/questions/'.$q->id.'?return='.e(rawurlencode('/question-bank/analysis?grade=7')), false);
     }
 
     public function test_teacher_is_forbidden(): void

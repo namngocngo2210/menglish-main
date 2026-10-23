@@ -274,6 +274,30 @@ class QuestionBankControllerTest extends TestCase
         $this->assertNull($question->fresh()->approved_at);
     }
 
+    public function test_full_page_edit_returns_to_a_safe_question_bank_url(): void
+    {
+        $question = $this->question();
+        $payload = [
+            'stem' => 'Stem', 'options' => ['A' => 'a', 'B' => 'b', 'C' => 'c', 'D' => 'd'], 'answer' => 'A', 'status' => 'draft',
+        ];
+        $analysis = '/question-bank/analysis?grade=7&page=2';
+
+        $this->actingAs($this->lead)->get(route('question-bank.questions.edit', ['question' => $question, 'return' => $analysis]))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('returnUrl', $analysis));
+
+        $this->actingAs($this->lead)->put(route('question-bank.questions.update', $question), [...$payload, 'return' => $analysis])
+            ->assertRedirect($analysis);
+
+        // Không phải URL nội bộ của ngân hàng câu hỏi → về danh sách.
+        foreach (['https://evil.example/question-bank', '//evil.example/question-bank', '/\\evil.example', '/students', '/question-banking'] as $unsafe) {
+            $this->actingAs($this->lead)->get(route('question-bank.questions.edit', ['question' => $question, 'return' => $unsafe]))
+                ->assertInertia(fn (AssertableInertia $page) => $page->where('returnUrl', null));
+            $this->actingAs($this->lead)->put(route('question-bank.questions.update', $question), [...$payload, 'return' => $unsafe])
+                ->assertRedirect(route('question-bank.index'));
+        }
+    }
+
     public function test_update_passage_marks_its_questions_edited(): void
     {
         $passage = $this->passage();

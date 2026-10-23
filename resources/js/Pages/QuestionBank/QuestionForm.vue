@@ -2,6 +2,7 @@
 /**
  * Sửa một câu trong ngân hàng: mở từ danh sách → modal; mở thẳng URL → trang đầy đủ (UiModalFrame).
  * Lưu → câu được đánh dấu "Đã sửa" (import lại không ghi đè). Ngữ liệu dùng chung sửa ở modal riêng (PassageForm).
+ * `returnUrl` (từ query `return`, server đã kiểm tra) → trang đầy đủ lưu xong / quay lại về màn đã mở.
  */
 import { computed, ref } from 'vue';
 import { route } from '@/lib/route';
@@ -13,6 +14,8 @@ const props = defineProps({
     asModal: { type: Boolean, default: false },
     question: { type: Object, required: true },
     statuses: { type: Array, default: () => [] },
+    // trang đầy đủ mở từ màn khác của ngân hàng (vd. Phân tích câu hỏi): lưu / quay lại về màn đó
+    returnUrl: { type: String, default: null },
 });
 
 const OPTION_KEYS = ['A', 'B', 'C', 'D'];
@@ -22,8 +25,9 @@ const description = computed(() => [props.question.source_key, `Khối ${props.q
 </script>
 
 <template>
-    <UiModalFrame title="Sửa câu hỏi" :description="description" :action="route('question-bank.questions.update', question.id)" method="put" :back="route('question-bank.index')" submit-icon="save">
+    <UiModalFrame title="Sửa câu hỏi" :description="description" :action="route('question-bank.questions.update', question.id)" method="put" :back="returnUrl || route('question-bank.index')" submit-icon="save">
         <div class="space-y-md">
+            <input v-if="returnUrl" type="hidden" name="return" :value="returnUrl" />
             <div v-if="question.passage" class="rounded-lg border border-outline-variant bg-surface-container-low p-sm">
                 <div class="flex items-center justify-between gap-sm">
                     <span class="font-body-small text-body-small font-semibold text-on-surface">Ngữ liệu #{{ question.passage.id }} (dùng chung)</span>

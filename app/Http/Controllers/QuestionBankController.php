@@ -124,13 +124,15 @@ class QuestionBankController extends Controller
         return back()->with('status', str_replace(':n', (string) $count, $action['done']));
     }
 
-    public function editQuestion(QuestionBankQuestion $question): InertiaResponse
+    public function editQuestion(Request $request, QuestionBankQuestion $question): InertiaResponse
     {
         $question->load('passage:id,instruction,content,image_path');
 
         return $this->modalPage('QuestionBank/QuestionForm', [
             'question' => $this->questionRow($question),
             'statuses' => $this->options(QuestionBankQuestion::STATUSES),
+            // mở trang đầy đủ từ màn khác của ngân hàng (vd. Phân tích câu hỏi): lưu / quay lại về đúng màn đó
+            'returnUrl' => $this->safeReturnUrl($request->query('return')),
         ]);
     }
 
@@ -168,7 +170,7 @@ class QuestionBankController extends Controller
         }
         $question->save();
 
-        return $this->modalSaved('Đã lưu câu hỏi.', route('question-bank.index'));
+        return $this->modalSaved('Đã lưu câu hỏi.', $this->safeReturnUrl($request->input('return')) ?? route('question-bank.index'));
     }
 
     public function editPassage(QuestionBankPassage $passage): InertiaResponse
@@ -358,6 +360,14 @@ class QuestionBankController extends Controller
                 'image_url' => $this->imageUrl($passage->image_path),
             ] : null,
         ];
+    }
+
+    /** Chỉ nhận đường dẫn tương đối trong ngân hàng câu hỏi (`/question-bank`, `/question-bank/…`, `/question-bank?…`). */
+    private function safeReturnUrl(mixed $url): ?string
+    {
+        return is_string($url) && strlen($url) <= 2000 && preg_match('#^/question-bank(?:[/?]|$)#', $url) === 1 && ! str_contains($url, '\\')
+            ? $url
+            : null;
     }
 
     private function imageUrl(?string $path): ?string
