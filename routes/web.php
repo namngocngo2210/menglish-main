@@ -52,6 +52,7 @@ use App\Http\Controllers\SyllabusImportController;
 use App\Http\Controllers\SyllabusStageImportController;
 use App\Http\Controllers\SystemCategoryController;
 use App\Http\Controllers\SystemConfigController;
+use App\Http\Controllers\TeacherHomeworkController;
 use App\Http\Controllers\TeacherMeetingReportController;
 use App\Http\Controllers\TeacherLessonController;
 use App\Http\Controllers\TeacherOrderController;
@@ -803,6 +804,9 @@ Route::middleware('auth')->group(function () {
     Route::prefix('teacher')->name('teacher.')->group(function () {
         Route::get('/lesson-today', [TeacherLessonController::class, 'show'])->name('lesson-today');
         Route::post('/lesson-today/{class}/taught', [TeacherLessonController::class, 'markTaught'])->whereNumber('class')->name('lesson-today.taught');
+        // Homework 3 giỏ: bài nộp + tỉ lệ nộp của lớp (docs/kho-syllabus.md §10.2; homework.grade, lớp kiểm tra trong controller).
+        Route::get('/homework-submissions/{class}', [TeacherHomeworkController::class, 'index'])->whereNumber('class')->name('homework-submissions');
+        Route::post('/homework-submissions/review/{submission}', [TeacherHomeworkController::class, 'review'])->whereNumber('submission')->name('homework-submissions.review');
         // ORDER theo mốc syllabus (docs/kho-syllabus.md §9.3; lớp GV dạy — kiểm tra trong controller).
         Route::get('/orders', [TeacherOrderController::class, 'index'])->name('orders');
         Route::post('/orders/{class}', [TeacherOrderController::class, 'store'])->whereNumber('class')->name('orders.store');

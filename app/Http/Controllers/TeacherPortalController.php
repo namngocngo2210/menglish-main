@@ -20,6 +20,7 @@ use App\Models\TeacherTimesheet;
 use App\Models\User;
 use App\Services\BigTestSlaService;
 use Carbon\Carbon;
+use App\Services\Syllabus\ClassSyllabus;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -909,6 +910,7 @@ class TeacherPortalController extends Controller
             'selectedSessionId' => $selectedSessionId !== null ? (string) $selectedSessionId : null,
             'dueDefault' => $editing?->due_at?->format('Y-m-d\TH:i')
                 ?? ($editing?->due_date ? $editing->due_date->format('Y-m-d').'T23:59' : now()->addDays(3)->format('Y-m-d').'T20:00'),
+            'prefill' => $editing ? null : $this->homeworkPrefill($class, $request->integer('lesson')),
             'editing' => $editing ? [
                 'id' => $editing->id,
                 'class_note' => $editing->class_note,
@@ -938,6 +940,28 @@ class TeacherPortalController extends Controller
                 'deletable' => ($lockedTypes[$hw->id] ?? []) === [],
             ])->values()->all(),
         ]);
+    }
+
+    /**
+     * Giao bài tập theo syllabus (docs/kho-syllabus.md §10.2): điền sẵn 3 giỏ (giấy / Quizizz / video) + link Quizizz từ buổi của
+     * chặng lớp đang học (đã ghép bản sửa riêng của lớp).
+     *
+     * @return array{title: string, items: array<string, string>, quizizz_url: ?string}|null
+     */
+    private function homeworkPrefill(ClassModel $class, int $lessonId): ?array
+    {
+        $assignment = $lessonId ? SyllabusAssignment::open()->where('class_id', $class->id)->first() : null;
+        $row = $assignment ? app(ClassSyllabus::class)->lessons($assignment)->first(fn (array $r) => $r['lesson']->id === $lessonId) : null;
+        if (! $row) {
+            return null;
+        }
+        $data = $row['data'];
+
+        return [
+            'title' => 'Bài tập buổi '.$row['lesson']->session_no.': '.$data['title'],
+            'items' => array_filter(['workbook' => $data['homework_guide'] ?? null, 'quiz' => $data['homework_quizizz'] ?? null, 'video' => $data['homework_video'] ?? null], fn ($v) => filled($v)),
+            'quizizz_url' => $data['quizizz_url'] ?? null,
+        ];
     }
 
     public function homeworkStore(Request $request, int $classId)

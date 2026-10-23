@@ -17,6 +17,7 @@ const props = defineProps({
     selectedSessionId: { type: String, default: null },
     dueDefault: { type: String, default: null },
     editing: { type: Object, default: null },
+    prefill: { type: Object, default: null },
     homeworks: { type: Array, default: () => [] },
 });
 
@@ -29,9 +30,11 @@ const firstError = computed(() => Object.values(errors.value).find((v) => typeof
 const locked = computed(() => props.editing?.locked ?? []);
 const picked = ref([]);
 const itemTexts = ref({});
+// Sửa bài: nội dung đã giao; giao mới từ "Bài giảng hôm nay": điền sẵn 3 giỏ của buổi syllabus.
 function init() {
-    picked.value = [...new Set([...Object.keys(props.editing?.items ?? {}), ...locked.value])];
-    itemTexts.value = { ...(props.editing?.items ?? {}) };
+    const items = props.editing?.items ?? props.prefill?.items ?? {};
+    picked.value = [...new Set([...Object.keys(items), ...locked.value])];
+    itemTexts.value = { ...items };
 }
 init();
 watch(() => props.editing?.id, init);
@@ -56,12 +59,16 @@ function onSaved() {
                     <span class="material-symbols-outlined text-[16px]" aria-hidden="true">info</span> Lớp {{ classroom.name }} <span class="font-code">({{ classroom.code }})</span>
                 </span>
             </template>
+            <template #actions>
+                <UiButton variant="secondary" icon="assignment_turned_in" :href="route('teacher.homework-submissions', classroom.id)">Bài nộp &amp; tỉ lệ nộp</UiButton>
+            </template>
         </UiPageHeader>
 
         <UiAlert v-if="firstError" type="error">{{ firstError }}</UiAlert>
 
         <UiForm :key="editing?.id ?? 'new'" :action="action" method="post" class="space-y-lg" :reset-on-success="!editing" @success="onSaved">
             <input v-if="editing" type="hidden" name="_method" value="PUT" />
+            <input v-if="!editing && prefill" type="hidden" name="title" :value="prefill.title" />
 
             <!-- 1. Thông tin chung -->
             <section class="space-y-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md shadow-sm md:p-lg">
@@ -78,7 +85,7 @@ function onSaved() {
                         <UiField label="File nghe đính kèm" name="audio" for="hw_audio" :hint="editing?.has_audio ? 'Đã có file — chọn file mới để thay' : null">
                             <input id="hw_audio" type="file" name="audio" accept="audio/*" class="block w-full font-body-small text-body-small text-on-surface-variant file:mr-sm file:rounded-lg file:border-0 file:bg-primary-container/10 file:px-md file:py-xs file:font-semibold file:text-primary" />
                         </UiField>
-                        <UiInput name="quizizz_url" type="url" label="Link Quizizz luyện thêm" icon="quiz" :value="editing?.quizizz_url" placeholder="https://quizizz.com/..." />
+                        <UiInput name="quizizz_url" type="url" label="Link Quizizz luyện thêm" icon="quiz" :value="editing?.quizizz_url ?? prefill?.quizizz_url" placeholder="https://quizizz.com/..." />
                     </div>
                 </div>
             </section>
