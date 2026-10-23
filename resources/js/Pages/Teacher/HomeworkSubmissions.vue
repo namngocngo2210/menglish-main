@@ -12,7 +12,6 @@ defineOptions({ layout: { title: 'Bài nộp homework' } });
 
 defineProps({
     classroom: { type: Object, required: true },
-    classes: { type: Array, default: () => [] },
     from: { type: String, required: true },
     to: { type: String, required: true },
     baskets: { type: Array, default: () => [] },
@@ -27,6 +26,7 @@ defineProps({
             <GetForm :action="route('teacher.homework-submissions', classroom.id)" class="flex flex-wrap items-end gap-2">
                 <UiInput type="date" name="from" label="Từ ngày" :value="from" />
                 <UiInput type="date" name="to" label="Đến ngày" :value="to" />
+                <UiButton type="submit" variant="secondary" icon="filter_alt" data-testid="homework-filter-submit">Lọc</UiButton>
             </GetForm>
         </template>
     </UiPageHeader>
@@ -50,7 +50,7 @@ defineProps({
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="row in hw.rows" :key="row.student">
+                    <tr v-for="row in hw.rows" :key="row.id">
                         <td class="font-semibold">{{ row.student }}</td>
                         <td v-for="key in hw.baskets" :key="key" class="text-xs">
                             <template v-if="row.baskets[key]">

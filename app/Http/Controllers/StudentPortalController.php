@@ -21,6 +21,7 @@ use App\Support\DataScope;
 use App\Support\Money;
 use App\Support\Portal\PortalNotifications;
 use App\Support\TuitionPaymentHistory;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -677,14 +678,21 @@ class StudentPortalController extends Controller
             $name = $request->file('file')->getClientOriginalName();
         }
 
-        $existing = HomeworkSubmission::where(['homework_id' => $hw->id, 'student_id' => $student->id, 'basket' => $basket])->first();
-        if ($existing?->file_path && $existing->file_path !== $path) {
-            Storage::disk('local')->delete($existing->file_path);
+        $key = ['homework_id' => $hw->id, 'student_id' => $student->id, 'basket' => $basket];
+        $oldFile = HomeworkSubmission::where($key)->value('file_path');
+        $values = ['file_path' => $path, 'original_name' => $name, 'note' => $validated['note'] ?? null,
+            'status' => HomeworkSubmission::STATUS_SUBMITTED, 'submitted_at' => now(), 'reviewed_by' => null, 'reviewed_at' => null];
+        try {
+            HomeworkSubmission::updateOrCreate($key, $values);
+        } catch (UniqueConstraintViolationException) {
+            // Bấm nộp 2 lần cùng lúc: lượt sau ghi đè bài của lượt trước.
+            $oldFile = HomeworkSubmission::where($key)->value('file_path');
+            HomeworkSubmission::where($key)->update($values);
         }
-        HomeworkSubmission::updateOrCreate(['homework_id' => $hw->id, 'student_id' => $student->id, 'basket' => $basket], [
-            'file_path' => $path, 'original_name' => $name, 'note' => $validated['note'] ?? null,
-            'status' => HomeworkSubmission::STATUS_SUBMITTED, 'submitted_at' => now(), 'reviewed_by' => null, 'reviewed_at' => null,
-        ]);
+        // Xoá file cũ sau khi đã lưu bài mới (lưu lỗi thì bài cũ vẫn mở được).
+        if ($oldFile && $oldFile !== $path) {
+            Storage::disk('local')->delete($oldFile);
+        }
 
         return back()->with('success', $allowed ? 'Đã nộp '.mb_strtolower(HomeworkSubmission::BASKETS[$basket][0]).'.' : 'Đã ghi nhận làm bài Quizizz.');
     }
@@ -699,9 +707,17 @@ class StudentPortalController extends Controller
             || ($user->can('homework.grade') && $class && ClassModel::whereKey($class)->where(fn ($q) => $q->where('teacher_id', $user->id)
                 ->orWhere('assistant_id', $user->id)->orWhere('foreign_teacher_id', $user->id))->exists())
             || ($user->can('student.view') && Student::query()->visibleTo($user)->whereKey($row->student_id)->exists()));
-        abort_unless($allowed, 404);
+        $disk = Storage::disk('local');
+        abort_unless($allowed && $disk->exists($row->file_path), 404);
 
-        return Storage::disk('local')->response($row->file_path, $row->original_name, ['X-Content-Type-Options' => 'nosniff', 'Cache-Control' => 'private, max-age=3600']);
+        // Ổ đĩa máy chủ: trả file hỗ trợ Range (video tua / phát được trên iPhone); R2: chuyển sang link tạm thời của R2.
+        if (config('filesystems.disks.local.driver') !== 'local') {
+            return redirect()->away($disk->temporaryUrl($row->file_path, now()->addMinutes(30), [
+                'ResponseContentDisposition' => 'inline; filename="'.addslashes((string) $row->original_name).'"',
+            ]));
+        }
+
+        return response()->file($disk->path($row->file_path), ['X-Content-Type-Options' => 'nosniff', 'Cache-Control' => 'private, max-age=3600']);
     }
 
     /**
@@ -713,7 +729,7 @@ class StudentPortalController extends Controller
     {
         return Homework::with(['classModel:id,name', 'submissions' => fn ($q) => $q->where('student_id', $student->id)])
             ->whereIn('class_id', $student->activeClassIds())->where('created_at', '>=', now()->subDays(30))
-            ->latest()->limit(10)->get()
+            ->latest()->get()
             ->filter(fn (Homework $hw) => $hw->baskets() !== [])
             ->map(fn (Homework $hw) => [
                 'id' => $hw->id,
@@ -1239,6 +1255,8 @@ class StudentPortalController extends Controller
 
         return Inertia::render('Portal/TeacherSubmissions', [
             'currentClass' => $class ? ['id' => $class->id, 'name' => $class->name] : null,
+            // Bài tập GV giao nộp theo giỏ (giai đoạn 5 syllabus) xem ở màn "Bài nộp homework".
+            'basketUrl' => $class ? route('teacher.homework-submissions', $class->id) : null,
             'classes' => $classes->map(fn (ClassModel $c) => ['id' => $c->id, 'name' => $c->name, 'code' => $c->code])->values()->all(),
             'activeTab' => $activeTab,
             'submissions' => $submissions->map(fn (AcademicRecord $sub) => [

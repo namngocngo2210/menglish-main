@@ -9,6 +9,7 @@ defineOptions({ layout: { title: 'Bài nộp của lớp' } });
 
 const props = defineProps({
     currentClass: { type: Object, default: null },
+    basketUrl: { type: String, default: null },
     classes: { type: Array, default: () => [] },
     activeTab: { type: String, default: 'video' },
     submissions: { type: Array, default: () => [] },
@@ -42,6 +43,13 @@ const filled = (v) => v !== null && v !== undefined && String(v).trim() !== '';
             <UiButton variant="secondary" icon="upload_file" :href="route('portal.student.homework')">Xem giao diện Học sinh nộp bài</UiButton>
         </template>
     </UiPageHeader>
+
+    <UiAlert v-if="basketUrl" type="info" class="mb-md">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+            <span>Bài tập giao theo syllabus học viên nộp theo 3 giỏ (giấy / Quizizz / video) — xem và đánh dấu đã xem ở màn Bài nộp homework.</span>
+            <UiButton size="sm" variant="secondary" icon="assignment_turned_in" :href="basketUrl">Bài nộp homework</UiButton>
+        </div>
+    </UiAlert>
 
     <div class="mx-auto max-w-5xl space-y-6">
         <!-- Chọn lớp -->

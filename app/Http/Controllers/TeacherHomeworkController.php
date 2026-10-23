@@ -7,7 +7,6 @@ use App\Models\Homework;
 use App\Models\HomeworkSubmission;
 use App\Services\Homework\HomeworkStats;
 use App\Support\DataScope;
-use App\Support\Ui;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -24,18 +23,17 @@ class TeacherHomeworkController extends Controller
     public function index(Request $request, int $class)
     {
         abort_unless($request->user()->can('homework.grade'), 403);
-        $classes = $this->classes($request)->orderBy('name')->get(['id', 'name']);
-        $classModel = $classes->firstWhere('id', $class);
+        $classModel = $this->classes($request)->find($class, ['id', 'name']);
         abort_unless($classModel, 404);
-        $to = $request->filled('to') ? Carbon::parse($request->query('to')) : today();
-        $from = $request->filled('from') ? Carbon::parse($request->query('from')) : $to->copy()->subDays(30);
+        $range = $request->validate(['from' => ['nullable', 'date'], 'to' => ['nullable', 'date', 'after_or_equal:from']]);
+        $to = isset($range['to']) ? Carbon::parse($range['to']) : today();
+        $from = isset($range['from']) ? Carbon::parse($range['from']) : $to->copy()->subDays(30);
 
         $homeworks = $this->stats->homeworks($classModel, $from, $to)->load('submissions');
         $students = $classModel->rosterStudents();
 
         return Inertia::render('Teacher/HomeworkSubmissions', [
             'classroom' => ['id' => $classModel->id, 'name' => $classModel->name],
-            'classes' => Ui::options($classes, fn (ClassModel $c) => $c->name),
             'from' => $from->toDateString(),
             'to' => $to->toDateString(),
             'baskets' => collect(HomeworkSubmission::BASKETS)->map(fn (array $b, string $key) => ['key' => $key, 'label' => $b[0], 'icon' => $b[1]])->values(),
@@ -47,9 +45,10 @@ class TeacherHomeworkController extends Controller
                 'due_date' => $hw->due_date?->toDateString(),
                 'baskets' => $hw->baskets(),
                 'rows' => $students->map(fn ($student) => [
+                    'id' => $student->id,
                     'student' => $student->name,
                     'baskets' => collect($hw->baskets())->mapWithKeys(function (string $basket) use ($hw, $student) {
-                        $sub = $hw->submissions->first(fn (HomeworkSubmission $s) => $s->student_id === $student->id && $s->basket === $basket);
+                        $sub = $hw->submissions->firstWhere(fn (HomeworkSubmission $s) => $s->student_id === $student->id && $s->basket === $basket);
 
                         return [$basket => $sub ? [
                             'id' => $sub->id,

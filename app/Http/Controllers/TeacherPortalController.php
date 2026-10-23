@@ -10,6 +10,7 @@ use App\Models\ClassModel;
 use App\Models\ClassSession;
 use App\Models\CrmTrialBooking;
 use App\Models\Homework;
+use App\Models\HomeworkSubmission;
 use App\Models\MiniTestScore;
 use App\Models\PayrollPeriod;
 use App\Models\Student;
@@ -19,8 +20,8 @@ use App\Models\SyllabusAssignment;
 use App\Models\TeacherTimesheet;
 use App\Models\User;
 use App\Services\BigTestSlaService;
-use Carbon\Carbon;
 use App\Services\Syllabus\ClassSyllabus;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -958,7 +959,7 @@ class TeacherPortalController extends Controller
         $data = $row['data'];
 
         return [
-            'title' => 'Bài tập buổi '.$row['lesson']->session_no.': '.$data['title'],
+            'title' => trim('Bài tập buổi '.$row['lesson']->session_no.': '.($data['title'] ?? ''), ': '),
             'items' => array_filter(['workbook' => $data['homework_guide'] ?? null, 'quiz' => $data['homework_quizizz'] ?? null, 'video' => $data['homework_video'] ?? null], fn ($v) => filled($v)),
             'quizizz_url' => $data['quizizz_url'] ?? null,
         ];
@@ -1093,10 +1094,14 @@ class TeacherPortalController extends Controller
             ->get(['id', 'data', 'created_at'])
             ->filter(fn (AcademicRecord $r) => in_array((string) data_get($r->data, 'student_id'), $rosterIds, true));
 
+        // Bài nộp theo giỏ (giai đoạn 5 syllabus): khoá mọi hạng mục thuộc giỏ đã có bài nộp.
+        $baskets = HomeworkSubmission::whereIn('homework_id', $withItems->pluck('id'))->get(['homework_id', 'basket'])->groupBy('homework_id');
+
         return $withItems->mapWithKeys(fn (Homework $h) => [$h->id => $submissions
             ->filter(fn (AcademicRecord $r) => $r->created_at >= $h->created_at)
             ->pluck('data.homework_type')
             ->intersect(array_keys($h->items))
+            ->merge(collect(array_keys($h->items))->filter(fn (string $category) => $baskets->get($h->id, collect())->contains('basket', Homework::basketOf($category))))
             ->unique()->values()->all()])->all();
     }
 

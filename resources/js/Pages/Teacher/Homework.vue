@@ -30,9 +30,12 @@ const firstError = computed(() => Object.values(errors.value).find((v) => typeof
 const locked = computed(() => props.editing?.locked ?? []);
 const picked = ref([]);
 const itemTexts = ref({});
-// Sửa bài: nội dung đã giao; giao mới từ "Bài giảng hôm nay": điền sẵn 3 giỏ của buổi syllabus.
+// Sửa bài: nội dung đã giao; giao mới từ "Bài giảng hôm nay": điền sẵn 3 giỏ của buổi syllabus (chỉ lần đầu — đã lưu thì
+// form trống để không giao trùng).
+const prefillUsed = ref(false);
+const prefill = computed(() => (props.editing || prefillUsed.value ? null : props.prefill));
 function init() {
-    const items = props.editing?.items ?? props.prefill?.items ?? {};
+    const items = props.editing?.items ?? prefill.value?.items ?? {};
     picked.value = [...new Set([...Object.keys(items), ...locked.value])];
     itemTexts.value = { ...items };
 }
@@ -47,6 +50,7 @@ function toggle(key) {
 
 const action = computed(() => (props.editing ? route('teacher.homework.update', [props.classroom.id, props.editing.id]) : route('teacher.homework.store', props.classroom.id)));
 function onSaved() {
+    if (props.prefill) prefillUsed.value = true;
     if (!props.editing) init();
 }
 </script>

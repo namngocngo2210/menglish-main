@@ -264,7 +264,7 @@ class DemoSyllabusLibrarySeeder extends Seeder
         $assignment = $class ? SyllabusAssignment::open()->where('class_id', $class->id)->first() : null;
         $teacher = User::where('email', 'nguyenvanan@menglish.edu.vn')->first();
         $admin = User::where('email', 'admin@menglish.edu.vn')->first();
-        if (! $assignment || ! $teacher || ! $admin || Homework::where('class_id', $class->id)->where('title', 'like', 'Bài tập buổi%')->whereHas('submissions')->exists()) {
+        if (! $assignment || ! $teacher || ! $admin || Homework::where('class_id', $class->id)->where('title', 'like', 'Bài tập buổi%')->exists()) {
             return;
         }
         $rows = app(ClassSyllabus::class)->timeline($assignment)['rows']->values();

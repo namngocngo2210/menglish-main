@@ -64,6 +64,15 @@ const filled = (value) => value !== null && value !== undefined && String(value)
 const basketOpen = ref(null);
 function openBasket(hw, basket) {
     basketOpen.value = { hw, basket };
+    fileError.value = null;
+}
+// Máy chủ nhận tối đa 100MB / lần nộp: báo ngay trên máy thay vì để lỗi tải lên.
+const MAX_UPLOAD = 100 * 1024 * 1024;
+const fileError = ref(null);
+function checkSize(event) {
+    const file = event.target.files?.[0];
+    fileError.value = file && file.size > MAX_UPLOAD ? 'Tệp quá lớn (tối đa 100MB) — quay video ngắn hơn hoặc giảm độ phân giải.' : null;
+    if (fileError.value) event.target.value = '';
 }
 
 const uploadOpen = ref(false);
@@ -359,8 +368,8 @@ function switchStudent(event) {
         <UiModal :show="!!basketOpen" :title="basketOpen ? `${basketOpen.basket.label} — ${basketOpen.hw.title}` : ''" max-width="md" @close="basketOpen = null">
             <UiForm v-if="basketOpen" id="homework-basket-form" :key="`${basketOpen.hw.id}-${basketOpen.basket.key}`" :action="route('portal.student.homework.basket', [basketOpen.hw.id, basketOpen.basket.key])" method="post" class="space-y-4 text-xs" @success="basketOpen = null">
                 <input type="hidden" name="student_id" :value="student?.id" />
-                <UiField :label="basketOpen.basket.key === 'video' ? 'Chọn video bài làm' : 'Chụp / chọn ảnh bài làm'" name="file" for="homework-basket-file">
-                    <input id="homework-basket-file" type="file" name="file" :accept="basketOpen.basket.accept" :capture="basketOpen.basket.key === 'video' ? null : 'environment'" class="w-full rounded-lg border border-outline-variant bg-surface-container-low p-2 text-xs" />
+                <UiField :label="basketOpen.basket.key === 'video' ? 'Chọn video bài làm' : 'Chụp / chọn ảnh bài làm'" name="file" for="homework-basket-file" :error="fileError">
+                    <input id="homework-basket-file" type="file" name="file" :accept="basketOpen.basket.accept" @change="checkSize" class="w-full rounded-lg border border-outline-variant bg-surface-container-low p-2 text-xs" />
                 </UiField>
                 <UiTextarea name="note" label="Ghi chú gửi thầy cô (Tùy chọn)" :rows="2" />
             </UiForm>

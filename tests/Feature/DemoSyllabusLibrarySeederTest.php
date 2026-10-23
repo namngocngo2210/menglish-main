@@ -112,8 +112,8 @@ class DemoSyllabusLibrarySeederTest extends TestCase
         File::deleteDirectory($dir);
 
         // Chạy lại không nhân bản.
-        $counts = [SyllabusDocument::count(), SyllabusChangeProposal::count(), SyllabusCurriculum::count(), SyllabusDocumentView::count()];
+        $counts = [SyllabusDocument::count(), SyllabusChangeProposal::count(), SyllabusCurriculum::count(), SyllabusDocumentView::count(), Homework::count(), HomeworkSubmission::count()];
         $this->seed(DemoSyllabusLibrarySeeder::class);
-        $this->assertSame($counts, [SyllabusDocument::count(), SyllabusChangeProposal::count(), SyllabusCurriculum::count(), SyllabusDocumentView::count()]);
+        $this->assertSame($counts, [SyllabusDocument::count(), SyllabusChangeProposal::count(), SyllabusCurriculum::count(), SyllabusDocumentView::count(), Homework::count(), HomeworkSubmission::count()]);
     }
 }
