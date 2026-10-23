@@ -346,6 +346,10 @@ class SyllabusController extends Controller
                 'big_test_title' => $stage->big_test_title,
                 'big_test_note' => $stage->big_test_note,
                 'open_classes' => $openClassesByStage->get($stage->id, collect())->map(fn ($a) => $a->classModel?->name)->filter()->implode(', '),
+                // Sheet 2 tự tính: tổng số buổi của chặng + buổi hệ thống báo Học thuật (tổng − báo trước, tối thiểu buổi 1).
+                'session_count' => $count = $stage->units->sum(fn (SyllabusUnit $u) => $u->lessons->count()),
+                'alert_at' => $count > 0 ? max(1, $count - (int) ($stage->notice_before_sessions ?? 6)) : null,
+                'notice_before_sessions' => (int) ($stage->notice_before_sessions ?? 6),
                 'units' => $stage->units->map(fn (SyllabusUnit $u) => [
                     'id' => $u->id,
                     'unit_number' => $u->unit_number,
@@ -746,6 +750,7 @@ class SyllabusController extends Controller
         $this->ensureUniqueSessionNo($unit->curriculum_id, (int) $validated['session_no']);
 
         $lesson = SyllabusLesson::create($this->withDefaults($validated) + ['curriculum_id' => $unit->curriculum_id]);
+        $this->notifyStageContentUpdated($unit->stage_id);
 
         return redirect()->route('syllabus.curriculums.show', $unit->curriculum_id)
             ->with('status', "Đã lưu Buổi {$lesson->session_no}: {$lesson->title} (Unit {$unit->unit_number}).");
@@ -768,6 +773,7 @@ class SyllabusController extends Controller
             $stage = SyllabusStage::find(SyllabusUnit::whereKey($lesson->unit_id)->value('stage_id'));
             $lesson->documents()->update(['stage_id' => $stage?->id, 'stage_name' => $stage?->label]);
         }
+        $this->notifyStageContentUpdated(SyllabusUnit::whereKey($lesson->unit_id)->value('stage_id'));
 
         return redirect()->route('syllabus.curriculums.show', $lesson->curriculum_id)
             ->with('status', "Đã cập nhật Buổi {$lesson->session_no}: {$lesson->title}.");
@@ -777,13 +783,22 @@ class SyllabusController extends Controller
     {
         $lesson = SyllabusLesson::findOrFail($id);
         $lesson->delete();
+        $this->notifyStageContentUpdated(SyllabusUnit::whereKey($lesson->unit_id)->value('stage_id'));
 
         return redirect()->route('syllabus.curriculums.show', $lesson->curriculum_id)
             ->with('status', "Đã xóa Buổi {$lesson->session_no}: {$lesson->title}.");
     }
 
+    /** Sửa syllabus gốc → báo GV các lớp đang học chặng đó (Sheet 4 câu 8, docs/kho-syllabus.md §7.3 bước 6). */
+    private function notifyStageContentUpdated(?int $stageId): void
+    {
+        if ($stageId && ($stage = SyllabusStage::find($stageId))) {
+            app(SyllabusNotifier::class)->stageContentUpdated($stage);
+        }
+    }
+
     // ─────────────────────────────────────────────
-    // 3. Chặng của lớp: mỗi lớp chỉ 1 chặng đang mở; đóng khi Big Test duyệt & gửi → tự mở chặng kế
+    // 3. Chặng của lớp: mỗi lớp chỉ 1 chặng đang mở; đóng khi Big Test duyệt & gửi PH; Học thuật giao chặng kế
     // ─────────────────────────────────────────────
 
     public function assignments(Request $request)

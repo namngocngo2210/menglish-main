@@ -29,6 +29,7 @@ final class ClassLifecycle
         'schedule' => ['label' => 'Lịch & buổi học', 'icon' => 'calendar_month'],
         'attendance' => ['label' => 'Điểm danh & báo cáo buổi', 'icon' => 'fact_check'],
         'academic' => ['label' => 'Học thuật', 'icon' => 'school'],
+        'syllabus' => ['label' => 'Syllabus', 'icon' => 'menu_book'],
         'incidents' => ['label' => 'Sự vụ', 'icon' => 'report'],
     ];
 

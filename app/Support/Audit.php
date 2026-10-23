@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Branch;
+use App\Models\ClassLessonOverride;
 use App\Models\ClassModel;
 use App\Models\CrmCustomer;
 use App\Models\Room;
@@ -64,6 +65,7 @@ class Audit
         SyllabusUnit::class => ['log' => 'Giáo trình & Syllabus', 'label' => 'unit', 'undo' => []],
         SyllabusLesson::class => ['log' => 'Giáo trình & Syllabus', 'label' => 'buổi học', 'undo' => []],
         SyllabusDocument::class => ['log' => 'Giáo trình & Syllabus', 'label' => 'tài liệu giáo trình', 'undo' => []],
+        ClassLessonOverride::class => ['log' => 'Giáo trình & Syllabus', 'label' => 'syllabus riêng của lớp', 'undo' => []],
         TuitionReceipt::class => [
             'log' => 'Học phí & Thu chi',
             'label' => 'phiếu thu',

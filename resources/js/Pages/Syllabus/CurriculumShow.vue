@@ -326,6 +326,7 @@ const milestoneLabel = (value) => props.milestones.find((m) => m.value === value
                             </h3>
                             <p class="text-xs text-on-surface-variant">
                                 {{ stage.units.length }} unit · {{ lessonCount(stage) }} buổi
+                                <template v-if="stage.alert_at"> · Báo Học thuật ở buổi {{ stage.alert_at }} (trước {{ stage.notice_before_sessions }} buổi)</template>
                                 <template v-if="stage.open_classes"> · Đang học: {{ stage.open_classes }}</template>
                             </p>
                             <p v-if="stage.description" class="mt-1 whitespace-pre-line text-xs text-on-surface-variant">{{ stage.description }}</p>

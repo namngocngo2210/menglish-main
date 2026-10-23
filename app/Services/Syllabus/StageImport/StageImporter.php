@@ -7,6 +7,7 @@ use App\Models\SyllabusLesson;
 use App\Models\SyllabusStage;
 use App\Models\SyllabusUnit;
 use App\Models\User;
+use App\Services\Syllabus\SyllabusNotifier;
 use App\Support\Audit;
 use Illuminate\Support\Facades\DB;
 
@@ -30,6 +31,9 @@ class StageImporter
             ->event('imported')
             ->withProperties(['curriculum_id' => $curriculum->id] + $s)
             ->log("Import chặng từ file: {$stage->label} — {$s['create']} thêm, {$s['update']} sửa, {$s['delete']} xóa");
+
+        // Sửa syllabus gốc → báo GV các lớp đang học chặng (Sheet 4 câu 8).
+        app(SyllabusNotifier::class)->stageContentUpdated($stage);
 
         return $stage;
     }

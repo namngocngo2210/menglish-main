@@ -46,6 +46,7 @@ use App\Http\Controllers\StudentProfileController;
 use App\Http\Controllers\StaffAttendanceController;
 use App\Http\Controllers\SupportTicketController;
 use App\Http\Controllers\SurveyController;
+use App\Http\Controllers\SyllabusClassController;
 use App\Http\Controllers\SyllabusController;
 use App\Http\Controllers\SyllabusImportController;
 use App\Http\Controllers\SyllabusStageImportController;
@@ -333,6 +334,9 @@ Route::middleware('auth')->group(function () {
         Route::put('/{id}', [ClassManagementController::class, 'update'])->middleware('can:class.update')->name('update');
         Route::post('/{id}/foreign-teacher', [ClassManagementController::class, 'assignForeignTeacher'])->whereNumber('id')->middleware('can:class.update')->name('foreign-teacher');
         Route::delete('/{id}', [ClassManagementController::class, 'destroy'])->middleware('can:class.delete')->name('destroy');
+        // Syllabus của lớp: Học thuật chỉnh sửa thủ công từng buổi (bản đè, docs/kho-syllabus.md §7.3).
+        Route::put('/{class}/syllabus/lessons/{lesson}', [SyllabusClassController::class, 'override'])->whereNumber(['class', 'lesson'])->middleware('can:syllabus.class_edit')->name('syllabus.override');
+        Route::delete('/{class}/syllabus/lessons/{lesson}', [SyllabusClassController::class, 'destroyOverride'])->whereNumber(['class', 'lesson'])->middleware('can:syllabus.class_edit')->name('syllabus.override.destroy');
         // Trang lớp (tab con qua ?tab=): đặt cuối nhóm để không nuốt các đường dẫn cố định phía trên.
         Route::get('/{id}', [ClassManagementController::class, 'show'])->whereNumber('id')->name('show');
     });
