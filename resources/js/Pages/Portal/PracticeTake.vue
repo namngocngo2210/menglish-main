@@ -6,6 +6,8 @@
  * - Đồng hồ đếm ngược theo số giây còn lại server gửi; về 0 → tự nộp.
  * - Chọn đáp án → lưu ngay (POST answer, gộp các lần bấm nhanh); lỗi mạng → báo "Thử lại", lựa chọn vẫn giữ trên trang.
  * - Mỗi lần rời bài → POST violation; server đếm, tới lần thứ maxViolations thì tự nộp → chuyển sang trang kết quả.
+ * - Nộp bài lỗi (mất mạng / lỗi máy chủ) → bỏ màn "Đang nộp bài…", báo lỗi kèm nút "Thử nộp lại"; bài còn làm được
+ *   (chưa hết giờ / chưa đủ lượt rời bài) thì mở lại chọn đáp án và bật lại khoá màn hình.
  * Props không có đáp án (PracticeController::renderTake).
  */
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
@@ -140,27 +142,53 @@ onBeforeUnmount(() => {
 });
 
 // ── Nộp bài ──
-function leaveToResult() {
-    if (submitting.value) return;
+// submitError: { message, retry } khi lần nộp / chuyển sang trang kết quả không tới được server.
+const submitError = ref(null);
+
+/**
+ * Bắt đầu rời trang làm bài (nộp / sang trang kết quả): khoá chọn đáp án, tắt khoá màn hình, hiện "Đang nộp bài…".
+ * Trả về tuỳ chọn Inertia: lỗi → fail(). attemptOver: server đã chốt bài (sang trang kết quả) — lỗi thì không mở lại bài.
+ */
+function startLeaving(retry, { attemptOver = false } = {}) {
+    submitError.value = null;
     submitting.value = true;
     finishing.value = true;
     lock.stop();
-    router.visit(attemptUrl.value, { replace: true });
+    const fail = (message) => {
+        submitting.value = false;
+        submitError.value = { message, retry };
+        // còn giờ, chưa tới giới hạn rời bài: làm tiếp được → mở lại chọn đáp án và khoá màn hình
+        if (!attemptOver && remaining.value > 0 && !limitReached.value) {
+            finishing.value = false;
+            if (started.value) lock.resume();
+        }
+    };
+    return {
+        replace: true,
+        onError: (errors) => fail(Object.values(errors)[0] || 'Chưa nộp được bài.'),
+        // false: không hiện hộp lỗi mặc định của Inertia, trang tự báo lỗi
+        onHttpException: () => {
+            fail('Máy chủ đang lỗi — chưa nộp được bài.');
+            return false;
+        },
+        onNetworkError: () => {
+            fail('Mất kết nối — chưa nộp được bài.');
+            return false;
+        },
+    };
+}
+
+function leaveToResult() {
+    if (submitting.value) return;
+    router.visit(attemptUrl.value, startLeaving(leaveToResult, { attemptOver: true }));
 }
 
 /** timeout: đồng hồ về 0 — server ghi nhận "hết giờ" (PracticeController::submit). */
 async function submit({ timeout = false } = {}) {
     if (submitting.value) return;
-    submitting.value = true;
-    finishing.value = true;
-    lock.stop();
+    const options = startLeaving(() => submit({ timeout }));
     await flushAnswers();
-    router.post(route('portal.student.practice.submit', props.attempt.id), timeout ? { timeout: true } : {}, {
-        replace: true,
-        onError: () => {
-            submitting.value = false;
-        },
-    });
+    router.post(route('portal.student.practice.submit', props.attempt.id), timeout ? { timeout: true } : {}, options);
 }
 
 async function confirmSubmit() {
@@ -275,8 +303,12 @@ function begin() {
         </main>
 
         <!-- Thanh nộp bài -->
-        <div v-if="started" class="fixed bottom-0 left-0 right-0 z-40 border-t border-surface-container-highest bg-surface-container-lowest/95 backdrop-blur-md">
-            <div class="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-3">
+        <div v-if="started || submitError" class="fixed bottom-0 left-0 right-0 z-40 border-t border-surface-container-highest bg-surface-container-lowest/95 backdrop-blur-md">
+            <div v-if="submitError" class="mx-auto flex max-w-2xl items-center justify-between gap-3 border-b border-error/20 bg-error/10 px-4 py-2 text-sm font-semibold text-error" role="alert">
+                <span>{{ submitError.message }}</span>
+                <UiButton type="button" icon="refresh" size="sm" variant="danger" :disabled="submitting" @click="submitError.retry()">Thử nộp lại</UiButton>
+            </div>
+            <div v-if="started" class="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-3">
                 <span class="text-sm text-on-surface-variant">Đã làm <strong class="text-on-surface">{{ answeredCount }}/{{ items.length }}</strong> câu</span>
                 <UiButton type="button" icon="send" :disabled="submitting" @click="confirmSubmit">Nộp bài</UiButton>
             </div>
