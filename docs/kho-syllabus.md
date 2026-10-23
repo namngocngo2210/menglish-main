@@ -53,7 +53,7 @@ Hiện trạng (khảo sát 23/10/2026):
 - **Chi tiết giáo trình** (`syllabus.curriculums.show`), tab qua query `?tab=`:
   - **Thông tin** — tên, mã, phiên bản, khóa, trình độ áp dụng, mô tả (form đang ở đầu Builder); Xóa giáo trình.
   - **Chặng & buổi** (mặc định) — cây Chặng → Unit → Buổi, sửa trong modal (cơ chế PR #195).
-    - Buổi: số buổi, tên, nhãn loại (Học / Mini test / Big test), mở rộng xem đủ trường; tài liệu của buổi + tải lên.
+    - Buổi: số buổi, tên, nhãn loại (Học / Ôn tập / Grammar Basic / Mini test / Big test), mở rộng xem đủ trường; tài liệu của buổi + tải lên.
     - Chặng: tên, Big Test cuối chặng, **Báo trước N buổi**, tổng số buổi / số mini test; tài liệu chặng + tải lên;
       **Import chặng từ file** (3.3).
   - **Tài liệu chung** — tài liệu không gắn chặng / buổi; tải lên, xem, xóa.
@@ -65,7 +65,7 @@ Hiện trạng (khảo sát 23/10/2026):
 
 | Bảng | Cột mới | Ghi chú |
 |---|---|---|
-| `syllabus_lessons` | `lesson_type` string(20) default `lesson` (`lesson` / `mini_test` / `big_test`) | Sheet 1 "Loại buổi"; Sheet 4 câu 6 |
+| `syllabus_lessons` | `lesson_type` string(20) default `lesson` (`lesson` / `review` / `grammar` / `mini_test` / `big_test`) | Sheet 1 "Loại buổi"; Sheet 4 câu 6; Ôn tập / Grammar Basic theo syllabus FAM 2 |
 | | `procedure` text | "Quy trình tiết học chung" |
 | | `activity_1`, `activity_2` text | "Hoạt động gợi ý" (tối đa 2) |
 | | `homework_quizizz`, `homework_video` text | Homework giỏ Quizizz / Video; `homework_guide` có sẵn = **Bài tập giấy** (đổi nhãn) |
@@ -84,11 +84,14 @@ Hiện trạng (khảo sát 23/10/2026):
 ### 3.3. Import chặng từ file (form Sheet 1)
 
 - Mỗi file `.xlsx` = **1 chặng** của giáo trình đang mở. Đọc đầu sheet: Giáo trình (D3, đối chiếu tên / mã, lệch → cảnh
-  báo), Chặng (D4 → tên chặng), Phiên bản (D6). Bảng từ dòng 11, cột A–R như Sheet 1; bỏ dòng trống (chỉ có số buổi)
-  và dòng ví dụ của file mẫu.
-- Cột → trường: Buổi (thứ tự trong chặng) · Loại buổi → `lesson_type` · UNIT (ô có giá trị mở unit mới; ô trống =
-  unit trên) · Objectives của UNIT → `units.objectives` · Content · Quy trình · Hoạt động 1/2 · Homework giấy /
-  Quizizz / Video · Link PPT · Link Quizizz · Sản phẩm đầu ra · Mốc thông báo · Ghi chú. Cột "Chỉnh sửa thủ công" bỏ qua.
+  báo), Chặng (D4 → tên chặng), Phiên bản (D6). Dòng tiêu đề A = "Chặng", B = "Buổi…"; **cột nhận theo chữ tiêu đề**,
+  không theo vị trí (form Học thuật thêm cột theo thời gian); có hoặc không dòng tiêu đề phụ đều được. Bỏ dòng trống
+  (chỉ có số buổi) và dòng ví dụ của file mẫu.
+- Cột → trường: Buổi (thứ tự trong chặng) · Loại buổi → `lesson_type` · UNIT ("Unit N: Tên" mở unit mới; ô trống =
+  unit trên; chữ khác như "GRAMMAR BASIC 1 – TOPIC 1", "ÔN TẬP CHẶNG", "BIG TEST" là tiêu đề riêng của buổi, buổi vẫn
+  thuộc unit đang mở) · Objectives của UNIT → `units.objectives` · Content · Quy trình · Hoạt động 1/2 · Homework giấy /
+  Quizizz / Video · Link PPT · Link PPT GVNN → `ppt_foreign_url` · Link Quizizz · Link Mini test / Kiểm tra từ →
+  `test_url` · Sản phẩm đầu ra · Mốc thông báo · Ghi chú. Cột "Chỉnh sửa thủ công" bỏ qua.
 - Luồng: upload → **xem trước** (số unit / buổi, buổi sẽ thêm / sửa / xóa, lỗi theo dòng) → **xác nhận**; cùng cơ chế
   token / session của import hiện tại.
 - Chặng **mới** (thêm cuối giáo trình) hoặc **cập nhật chặng đã có**: buổi thứ i của file ghi đè buổi thứ i của chặng
@@ -96,7 +99,8 @@ Hiện trạng (khảo sát 23/10/2026):
   chặng.
 - Nút **Tải file mẫu** = file Sheet 1 (sinh từ code, cùng cấu trúc).
 - Import **cả giáo trình mới** (cách cũ, zip) giữ cách làm cũ, nhưng sheet Buổi / Chặng **thêm các cột Sheet 1**
-  (không bắt buộc: Loại buổi, Quy trình, Hoạt động gợi ý 1–2, Bài tập Quizizz / Video, Link PPT / Quizizz, Sản phẩm
+  (không bắt buộc: Loại buổi, Quy trình, Hoạt động gợi ý 1–2, Bài tập Quizizz / Video, Link PPT / PPT GVNN / Quizizz /
+  Mini test – Kiểm tra từ, Sản phẩm
   đầu ra, Mốc thông báo, Ghi chú; chặng: Báo trước (buổi)). Cột "Hoạt động" đổi tên "Content (nội dung từng tiết)",
   tên cũ vẫn nhận. Đọc ô dùng chung `App\Services\Syllabus\LessonSheetCells` với import chặng.
 
@@ -156,6 +160,8 @@ Hiện trạng (khảo sát 23/10/2026):
 
 - [x] Học vụ xem Kho syllabus chỉ đọc + mọi tài liệu (`syllabus.library_view`).
 - [x] File mẫu zip (import cả giáo trình) thêm cột Sheet 1; file cũ vẫn import được.
+- [x] Đọc file chặng theo form mới của Học thuật (syllabus FAM 2): cột theo tiêu đề, 1 dòng tiêu đề, loại Ôn tập /
+  Grammar Basic, ô UNIT là tiêu đề riêng của buổi, 2 cột link mới (`ppt_foreign_url`, `test_url`) cho cả import zip.
 
 ## 5. Ngoài phạm vi giai đoạn 1
 

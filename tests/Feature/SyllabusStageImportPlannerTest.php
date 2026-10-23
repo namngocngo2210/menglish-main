@@ -57,6 +57,43 @@ class SyllabusStageImportPlannerTest extends TestCase
         $this->assertSame(['create' => 3, 'update' => 0, 'delete' => 0, 'units' => 2], $plan->summary());
     }
 
+    public function test_review_grammar_types_and_heading_rows_stay_in_current_unit(): void
+    {
+        $plan = $this->planner->plan($this->sheet([
+            $this->row(9, type: 'Học', unit: "UNIT 7 : LET'S BUY PRESENT", content: "Lesson 1,2\nNew words"),
+            $this->row(10, type: 'Ôn tập', content: 'Review words + Grammar'),
+            $this->row(11, type: 'Grammar Basic', unit: "GRAMMAR BASIC 1\nTOPIC 1: NOUNS", content: "Nouns\nSingular"),
+            $this->row(12, type: 'Grammar Basic', unit: "GRAMMAR BASIC 1\nTOPIC 2: PLURAL", content: 'Plural Nouns'),
+            $this->row(13, type: 'Học', unit: "Unit 8 : WHAT'S THE TIME ?", content: 'Lesson 1,2'),
+            $this->row(14, type: 'Ôn tập', unit: 'ÔN TẬP CHẶNG', content: 'Review Unit 7,8,9'),
+            $this->row(15, type: 'Big test', unit: 'BIG TEST', content: 'BIG TEST Unit 7 - 9'),
+        ]), $this->curriculum, null);
+
+        $this->assertTrue($plan->ok(), json_encode($plan->errors, JSON_UNESCAPED_UNICODE));
+        $this->assertSame(['lesson', 'review', 'grammar', 'grammar', 'lesson', 'review', 'big_test'], array_map(fn ($l) => $l['attributes']['lesson_type'], $plan->lessons));
+        $this->assertSame([7, 7, 7, 7, 8, 8, 8], array_column($plan->lessons, 'unit_number'));
+        $this->assertSame(["LET'S BUY PRESENT", "WHAT'S THE TIME ?"], array_column($plan->units, 'title'));
+        $this->assertSame([
+            'Lesson 1,2', 'Review words + Grammar', 'GRAMMAR BASIC 1 – TOPIC 1: NOUNS', 'GRAMMAR BASIC 1 – TOPIC 2: PLURAL · Plural Nouns',
+            'Lesson 1,2', 'ÔN TẬP CHẶNG · Review Unit 7,8,9', 'BIG TEST Unit 7 - 9',
+        ], array_map(fn ($l) => $l['attributes']['title'], $plan->lessons));
+    }
+
+    public function test_foreign_ppt_and_test_links(): void
+    {
+        $ok = new StageSheetRow(11, 'Học', 'Unit 1: A', null, 'Bài 1', null, null, null, null, null, null, null, null, null, null, null,
+            pptForeignUrl: 'https://docs.google.com/presentation/d/gvnn', testUrl: 'link đề');
+        $bad = new StageSheetRow(12, 'Học', null, null, 'Bài 2', null, null, null, null, null, null, null, null, null, null, null,
+            pptForeignUrl: 'FF2 foreign.pptx', testUrl: 'KIỂM TRA TỪ.docx');
+
+        $plan = $this->planner->plan($this->sheet([$ok, $bad]), $this->curriculum, null);
+
+        $this->assertSame('https://docs.google.com/presentation/d/gvnn', $plan->lessons[0]['attributes']['ppt_foreign_url']);
+        $this->assertNull($plan->lessons[0]['attributes']['test_url'], 'Chữ giữ chỗ "link đề" coi như trống.');
+        $this->assertSame(['Link PPT GVNN không phải đường dẫn hợp lệ.', 'Link Mini test / Kiểm tra từ không phải đường dẫn hợp lệ.'],
+            array_column($plan->errors, 'message'));
+    }
+
     public function test_row_errors(): void
     {
         $plan = $this->planner->plan($this->sheet([

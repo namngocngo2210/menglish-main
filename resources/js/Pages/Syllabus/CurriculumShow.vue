@@ -85,6 +85,13 @@ const lessonFields = [
     ['grammar_focus', 'Ngữ pháp:', '—'],
     ['note', 'Ghi chú:', '—'],
 ];
+const lessonLinks = [
+    ['ppt_url', 'Link PPT', 'slideshow'],
+    ['ppt_foreign_url', 'Link PPT GVNN', 'slideshow'],
+    ['quizizz_url', 'Link Quizizz', 'quiz'],
+    ['test_url', 'Link Mini test / Kiểm tra từ', 'assignment'],
+];
+const typeColors = { review: 'info', grammar: 'primary', mini_test: 'warning', big_test: 'error' };
 const milestoneLabel = (value) => props.milestones.find((m) => m.value === value)?.label;
 </script>
 
@@ -217,7 +224,9 @@ const milestoneLabel = (value) => props.milestones.find((m) => m.value === value
                     </div>
                     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <UiInput type="url" name="ppt_url" label="Link PPT" :value="editor.model?.ppt_url" placeholder="https://..." />
+                        <UiInput type="url" name="ppt_foreign_url" label="Link PPT GVNN" :value="editor.model?.ppt_foreign_url" placeholder="https://..." />
                         <UiInput type="url" name="quizizz_url" label="Link Quizizz" :value="editor.model?.quizizz_url" placeholder="https://quizizz.com/..." />
+                        <UiInput type="url" name="test_url" label="Link Mini test / Kiểm tra từ" :value="editor.model?.test_url" placeholder="https://..." />
                     </div>
                     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <UiTextarea name="output_product" label="Sản phẩm đầu ra" :rows="2" :value="editor.model?.output_product" />
@@ -373,7 +382,7 @@ const milestoneLabel = (value) => props.milestones.find((m) => m.value === value
                                     <span class="flex min-w-0 items-center gap-2">
                                         <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary-container/10 text-xs font-bold text-primary">{{ lesson.session_no }}</span>
                                         <span class="truncate font-semibold text-on-surface">Buổi {{ lesson.session_no }}: {{ lesson.title }}</span>
-                                        <UiBadge v-if="lesson.lesson_type !== 'lesson'" :color="lesson.lesson_type === 'big_test' ? 'error' : 'warning'">{{ lesson.type_label }}</UiBadge>
+                                        <UiBadge v-if="lesson.lesson_type !== 'lesson'" :color="typeColors[lesson.lesson_type] ?? 'neutral'">{{ lesson.type_label }}</UiBadge>
                                         <UiBadge v-if="lesson.notice_milestone" color="info">{{ milestoneLabel(lesson.notice_milestone) }}</UiBadge>
                                     </span>
                                     <span class="material-symbols-outlined text-[18px] text-on-surface-subtle transition group-open:rotate-180">expand_more</span>
@@ -381,9 +390,10 @@ const milestoneLabel = (value) => props.milestones.find((m) => m.value === value
                                 <div class="mt-3 grid grid-cols-1 gap-3 text-on-surface-variant md:grid-cols-2">
                                     <p v-for="[field, label, empty] in lessonFields" :key="field" class="whitespace-pre-line"><span class="font-semibold">{{ label }}</span> {{ lesson[field] || empty }}</p>
                                 </div>
-                                <p v-if="lesson.ppt_url || lesson.quizizz_url" class="mt-2 flex flex-wrap gap-3">
-                                    <a v-if="lesson.ppt_url" :href="lesson.ppt_url" target="_blank" rel="noopener" class="inline-flex items-center gap-1 font-semibold text-primary hover:underline"><span class="material-symbols-outlined text-[14px]">slideshow</span>Link PPT</a>
-                                    <a v-if="lesson.quizizz_url" :href="lesson.quizizz_url" target="_blank" rel="noopener" class="inline-flex items-center gap-1 font-semibold text-primary hover:underline"><span class="material-symbols-outlined text-[14px]">quiz</span>Link Quizizz</a>
+                                <p v-if="lessonLinks.some(([field]) => lesson[field])" class="mt-2 flex flex-wrap gap-3">
+                                    <template v-for="[field, label, icon] in lessonLinks" :key="field">
+                                        <a v-if="lesson[field]" :href="lesson[field]" target="_blank" rel="noopener" class="inline-flex items-center gap-1 font-semibold text-primary hover:underline"><span class="material-symbols-outlined text-[14px]">{{ icon }}</span>{{ label }}</a>
+                                    </template>
                                 </p>
                                 <div class="mt-3 space-y-2">
                                     <p class="font-semibold text-on-surface">Tài liệu buổi</p>

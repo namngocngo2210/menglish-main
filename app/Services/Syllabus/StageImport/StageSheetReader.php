@@ -2,6 +2,8 @@
 
 namespace App\Services\Syllabus\StageImport;
 
+use Illuminate\Support\Str;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\RichText\RichText;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
@@ -11,22 +13,52 @@ use Throwable;
 /**
  * Đọc file syllabus 1 chặng theo form Sheet 1 (docs/kho-syllabus.md §3.3). Không ghi DB.
  *
- * Sheet được nhận diện bằng dòng tiêu đề có A = "Chặng" và B bắt đầu bằng "Buổi" (trong 20 dòng đầu); sau tiêu đề có
- * 1 dòng tiêu đề phụ, dữ liệu bắt đầu ngay sau. Dòng ví dụ (cột A cùng màu nền với ô chú thích "Dòng ví dụ") và dòng
- * trống (chỉ có số buổi) được bỏ qua.
+ * Sheet được nhận diện bằng dòng tiêu đề có A = "Chặng" và B bắt đầu bằng "Buổi" (trong 20 dòng đầu). Cột được nhận
+ * theo chữ tiêu đề, không theo vị trí — form của Học thuật thêm / bớt cột theo thời gian (vd. Link PPT GVNN). Dòng tiêu
+ * đề phụ (Hoạt động gợi ý 1, Bài tập giấy...) có thể có hoặc không. Dòng ví dụ (cột A cùng màu nền với ô chú thích
+ * "Dòng ví dụ") và dòng trống (chỉ có số buổi) được bỏ qua.
  */
 class StageSheetReader
 {
     private const HEADER_SCAN_ROWS = 20;
 
-    /** Cột link PPT / Quizizz: ô có hyperlink → lấy URL của hyperlink (chữ hiển thị thường là "Link PPT"). */
-    private const LINK_COLUMNS = ['M', 'N'];
+    /** Mọi thuộc tính dòng = null (cột không có trong file). */
+    private const EMPTY_ROW = [
+        'type' => null, 'unitCell' => null, 'unitObjectives' => null, 'content' => null, 'procedure' => null,
+        'activity1' => null, 'activity2' => null, 'homeworkPaper' => null, 'homeworkQuizizz' => null, 'homeworkVideo' => null,
+        'pptUrl' => null, 'quizizzUrl' => null, 'outputProduct' => null, 'milestone' => null, 'note' => null,
+        'pptForeignUrl' => null, 'testUrl' => null,
+    ];
 
-    /** Cột dữ liệu Sheet 1 → thuộc tính StageSheetRow (cột A Chặng, B Buổi, Q Chỉnh sửa thủ công: bỏ qua). */
-    private const COLUMNS = [
-        'C' => 'type', 'D' => 'unitCell', 'E' => 'unitObjectives', 'F' => 'content', 'G' => 'procedure',
-        'H' => 'activity1', 'I' => 'activity2', 'J' => 'homeworkPaper', 'K' => 'homeworkQuizizz', 'L' => 'homeworkVideo',
-        'M' => 'pptUrl', 'N' => 'quizizzUrl', 'O' => 'outputProduct', 'P' => 'milestone', 'R' => 'note',
+    /** Cột chỉ có ở dòng tiêu đề phụ — nhận diện dòng đó (ô dữ liệu thường không bắt đầu bằng các tên này). */
+    private const SUB_HEADER_FIELDS = ['activity1', 'activity2', 'homeworkPaper', 'homeworkQuizizz', 'homeworkVideo'];
+
+    /** Cột link: ô có hyperlink → lấy URL của hyperlink (chữ hiển thị thường là tên file / "Link PPT"). */
+    private const LINK_FIELDS = ['pptUrl', 'pptForeignUrl', 'quizizzUrl', 'testUrl'];
+
+    /**
+     * Tiêu đề cột (chữ thường, gộp khoảng trắng) → thuộc tính StageSheetRow; khớp tiền tố dài nhất ("link ppt gvnn"
+     * trước "link ppt"). Cột không có trong danh sách (Chặng, Buổi, Chỉnh sửa thủ công...) bị bỏ qua.
+     */
+    private const HEADERS = [
+        'loại buổi' => 'type',
+        'unit' => 'unitCell',
+        'objectives' => 'unitObjectives',
+        'content' => 'content',
+        'quy trình' => 'procedure',
+        'hoạt động gợi ý 1' => 'activity1',
+        'hoạt động gợi ý 2' => 'activity2',
+        'bài tập giấy' => 'homeworkPaper',
+        'bài tập quizizz' => 'homeworkQuizizz',
+        'bài tập video' => 'homeworkVideo',
+        'link ppt gvnn' => 'pptForeignUrl',
+        'link ppt' => 'pptUrl',
+        'link quizizz' => 'quizizzUrl',
+        'link mini test' => 'testUrl',
+        'link đề' => 'testUrl',
+        'sản phẩm đầu ra' => 'outputProduct',
+        'mốc thông báo' => 'milestone',
+        'ghi chú' => 'note',
     ];
 
     public function read(string $path): StageSheet
@@ -60,14 +92,18 @@ class StageSheetReader
 
     private function readSheet(Worksheet $sheet, int $headerRow): StageSheet
     {
+        [$columns, $firstLine] = $this->columns($sheet, $headerRow);
+        if (! in_array('content', $columns, true) || ! in_array('unitCell', $columns, true)) {
+            throw new StageImportException('File thiếu cột UNIT hoặc Content (nội dung từng tiết) ở dòng tiêu đề — hãy dùng form Syllabus mẫu.');
+        }
         $exampleColor = $this->exampleColor($sheet, $headerRow);
         $rows = [];
         $skipped = 0;
 
-        for ($line = $headerRow + 2, $last = $sheet->getHighestDataRow(); $line <= $last; $line++) {
+        for ($line = $firstLine, $last = $sheet->getHighestDataRow(); $line <= $last; $line++) {
             $values = [];
-            foreach (self::COLUMNS as $column => $field) {
-                $values[$field] = in_array($column, self::LINK_COLUMNS, true) ? $this->link($sheet, $column.$line) : $this->text($sheet, $column.$line);
+            foreach ($columns as $column => $field) {
+                $values[$field] = in_array($field, self::LINK_FIELDS, true) ? $this->link($sheet, $column.$line) : $this->text($sheet, $column.$line);
             }
             if (array_filter($values, fn ($v) => $v !== null) === []) {
                 continue;
@@ -77,7 +113,7 @@ class StageSheetReader
 
                 continue;
             }
-            $rows[] = new StageSheetRow($line, ...$values);
+            $rows[] = new StageSheetRow(...array_merge(self::EMPTY_ROW, $values, ['line' => $line]));
         }
 
         return new StageSheet(
@@ -87,6 +123,52 @@ class StageSheetReader
             rows: $rows,
             skippedExamples: $skipped,
         );
+    }
+
+    /**
+     * Cột dữ liệu theo chữ tiêu đề; dòng ngay dưới là tiêu đề phụ khi có ô khớp tên cột (form cũ gộp ô "HOẠT ĐỘNG GỢI Ý"
+     * và "HOMEWORK", tên cột con nằm ở dòng dưới) — khi đó dữ liệu bắt đầu sau dòng tiêu đề phụ.
+     *
+     * @return array{0: array<string, string>, 1: int} [cột => thuộc tính, dòng dữ liệu đầu tiên]
+     */
+    private function columns(Worksheet $sheet, int $headerRow): array
+    {
+        $lastColumn = Coordinate::columnIndexFromString($sheet->getHighestDataColumn());
+        $header = [];
+        $sub = [];
+        for ($i = 1; $i <= $lastColumn; $i++) {
+            $column = Coordinate::stringFromColumnIndex($i);
+            $header[$column] = $this->field($this->text($sheet, $column.$headerRow));
+            $sub[$column] = $this->field($this->text($sheet, $column.($headerRow + 1)));
+        }
+        $hasSubHeader = array_intersect($sub, self::SUB_HEADER_FIELDS) !== [] && $this->text($sheet, 'B'.($headerRow + 1)) === null;
+
+        $columns = [];
+        foreach ($header as $column => $field) {
+            $field = ($hasSubHeader ? $sub[$column] : null) ?? $field;
+            // Hai cột cùng nghĩa: giữ cột đầu tiên.
+            if ($field !== null && ! in_array($field, $columns, true)) {
+                $columns[$column] = $field;
+            }
+        }
+
+        return [$columns, $headerRow + ($hasSubHeader ? 2 : 1)];
+    }
+
+    private function field(?string $title): ?string
+    {
+        if ($title === null) {
+            return null;
+        }
+        $title = Str::lower(trim(preg_replace('/\s+/u', ' ', $title)));
+        $best = null;
+        foreach (self::HEADERS as $prefix => $field) {
+            if (str_starts_with($title, $prefix) && ($best === null || mb_strlen($prefix) > mb_strlen($best))) {
+                $best = $prefix;
+            }
+        }
+
+        return $best === null ? null : self::HEADERS[$best];
     }
 
     /** Giá trị của ô nhãn đầu sheet (cột A bắt đầu bằng $label): ô có giá trị đầu tiên từ B đến G. */
