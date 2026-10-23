@@ -1,6 +1,6 @@
 # Kho syllabus & quy trình xử lý syllabus
 
-Trạng thái: **Giai đoạn 1 — chưa làm** — 23/10/2026
+Trạng thái: **Giai đoạn 1 — Sprint 1 xong, Sprint 2–3 đang làm** — 23/10/2026
 
 Nguồn yêu cầu: `docs/Syllabus_Quy_trinh_xu_ly.xlsx` (Sheet 1 form syllabus mẫu, Sheet 2 chia chặng & test,
 Sheet 3 quy trình 11 bước, Sheet 4 câu hỏi đã trả lời). Tiếp nối `docs/giao-trinh-don-giao-dien.md` (PR #195).
