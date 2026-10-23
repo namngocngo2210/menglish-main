@@ -37,6 +37,10 @@ class StageImporter
     /** Đánh lại session_no 1..N theo thứ tự chặng, rồi thứ tự hiện có trong chặng (2 lượt để không vướng UNIQUE). */
     public function renumberSessions(int $curriculumId): void
     {
+        // Buổi xóa mềm trước bản sửa MariaDB (8c782125) có thể còn giữ số dương → nhả số (-id) để không chặn UNIQUE.
+        SyllabusLesson::onlyTrashed()->where('curriculum_id', $curriculumId)->where('session_no', '>', 0)
+            ->update(['session_no' => DB::raw('-id')]);
+
         $ids = SyllabusLesson::query()
             ->join('syllabus_units', 'syllabus_units.id', '=', 'syllabus_lessons.unit_id')
             ->join('syllabus_stages', 'syllabus_stages.id', '=', 'syllabus_units.stage_id')

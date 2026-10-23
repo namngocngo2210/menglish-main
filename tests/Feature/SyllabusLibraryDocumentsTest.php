@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Branch;
 use App\Models\ClassModel;
+use App\Models\ClassSession;
 use App\Models\SyllabusAssignment;
 use App\Models\SyllabusCurriculum;
 use App\Models\SyllabusDocument;
@@ -148,6 +149,27 @@ class SyllabusLibraryDocumentsTest extends TestCase
 
         $this->assertSame($this->stage2->id, $lessonDoc->fresh()->stage_id);
         $this->assertFalse($lessonDoc->fresh()->isVisibleTo($teacher));
+    }
+
+    public function test_unit_moved_to_another_stage_moves_its_lesson_documents(): void
+    {
+        $lessonDoc = $this->document('Buổi 1', lesson: $this->lesson);
+
+        $this->actingAs($this->lead)->put(route('syllabus.units.update', $this->lesson->unit_id), ['unit_number' => 1, 'title' => 'Unit 1', 'stage_id' => $this->stage2->id])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame($this->stage2->id, $lessonDoc->fresh()->stage_id);
+    }
+
+    public function test_substitute_teacher_of_a_session_sees_open_stage_documents(): void
+    {
+        $assignment = $this->openStage($this->stage1, $this->userWithRole(Roles::TEACHER_FULLTIME));
+        $substitute = $this->userWithRole(Roles::TEACHER_FULLTIME);
+        ClassSession::create(['class_id' => $assignment->class_id, 'branch_id' => $this->branch->id, 'date' => now()->toDateString(),
+            'start_time' => '18:00', 'end_time' => '19:30', 'teacher_id' => $substitute->id, 'status' => 'scheduled']);
+        $doc = $this->document('Chặng 1', stage: $this->stage1);
+
+        $this->assertTrue($doc->isVisibleTo($substitute));
     }
 
     /** @return array{0: SyllabusCurriculum, 1: SyllabusStage, 2: SyllabusStage, 3: SyllabusLesson} */

@@ -103,6 +103,19 @@ class SyllabusStageImporterTest extends TestCase
         $this->assertSame(['create' => 0, 'update' => 3, 'delete' => 0, 'units' => 0], $plan->summary());
     }
 
+    public function test_ghost_soft_deleted_lesson_with_positive_number_does_not_block_import(): void
+    {
+        // Buổi xóa mềm trước bản sửa MariaDB (8c782125) còn giữ số buổi dương.
+        $ghost = SyllabusLesson::create(['unit_id' => SyllabusUnit::where('unit_number', 1)->value('id'), 'session_no' => 6, 'title' => 'Ma']);
+        $ghost->delete();
+        SyllabusLesson::withTrashed()->whereKey($ghost->id)->update(['session_no' => 6]);
+
+        $stage = $this->import([$this->row(11, unit: 'Unit 3: Friends', content: 'Bài 1')], null, 'Chặng 3');
+
+        $this->assertSame([6], $this->sessionNumbers($stage));
+        $this->assertSame(-$ghost->id, SyllabusLesson::withTrashed()->find($ghost->id)->session_no);
+    }
+
     /** @param  list<StageSheetRow>  $rows */
     private function import(array $rows, ?SyllabusStage $stage, string $stageName = ''): SyllabusStage
     {

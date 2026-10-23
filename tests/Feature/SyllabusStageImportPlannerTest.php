@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\SyllabusAssignment;
+use App\Models\SyllabusChangeProposal;
 use App\Models\SyllabusCurriculum;
 use App\Models\SyllabusLesson;
 use App\Models\SyllabusStage;
@@ -119,6 +120,33 @@ class SyllabusStageImportPlannerTest extends TestCase
 
         $this->assertFalse($plan->ok());
         $this->assertStringContainsString('File chưa có buổi nào', $plan->errors[0]['message']);
+    }
+
+    public function test_warns_about_skipped_example_rows(): void
+    {
+        $plan = $this->planner->plan(new StageSheet('Global Success 6', 'Chặng 1', 'v1', [$this->row(11, unit: 'Unit 1: A', content: 'x')], 2), $this->curriculum, null);
+
+        $this->assertTrue(collect($plan->warnings)->contains(fn ($w) => str_contains($w, '2 dòng ví dụ')));
+    }
+
+    public function test_warns_when_updated_lessons_have_documents_or_pending_proposals(): void
+    {
+        $stage = $this->curriculum->stages()->firstOrFail();
+        $unit = SyllabusUnit::create(['curriculum_id' => $this->curriculum->id, 'stage_id' => $stage->id, 'unit_number' => 1, 'title' => 'U1']);
+        $lesson = SyllabusLesson::create(['unit_id' => $unit->id, 'session_no' => 1, 'title' => 'B1']);
+        SyllabusChangeProposal::create(['curriculum_id' => $this->curriculum->id, 'lesson_id' => $lesson->id, 'user_id' => User::factory()->create()->id,
+            'new_content' => 'x', 'reason' => 'y', 'status' => 'pending']);
+
+        $plan = $this->planner->plan($this->sheet([$this->row(11, unit: 'Unit 1: U1', content: 'B1 mới')]), $this->curriculum, $stage);
+
+        $this->assertTrue(collect($plan->warnings)->contains(fn ($w) => str_contains($w, 'đề xuất sửa')));
+    }
+
+    public function test_strips_stage_number_prefix_from_file_stage_name(): void
+    {
+        $plan = $this->planner->plan($this->sheet([$this->row(11, unit: 'Unit 1: A', content: 'x')], stage: 'Chặng 1 – Unit 1 → Unit 3'), $this->curriculum, null);
+
+        $this->assertSame('Unit 1 → Unit 3', $plan->stageName);
     }
 
     /** @param  list<StageSheetRow>  $rows */

@@ -1,6 +1,6 @@
 # Kho syllabus & quy trình xử lý syllabus
 
-Trạng thái: **Giai đoạn 1 — Sprint 1 xong, Sprint 2–3 đang làm** — 23/10/2026
+Trạng thái: **Giai đoạn 1 — Hoàn thành** (giai đoạn 2–5 chưa làm) — 23/10/2026
 
 Nguồn yêu cầu: `docs/Syllabus_Quy_trinh_xu_ly.xlsx` (Sheet 1 form syllabus mẫu, Sheet 2 chia chặng & test,
 Sheet 3 quy trình 11 bước, Sheet 4 câu hỏi đã trả lời). Tiếp nối `docs/giao-trinh-don-giao-dien.md` (PR #195).
@@ -140,11 +140,11 @@ Hiện trạng (khảo sát 23/10/2026):
 - [x] `AuditsChanges` + tab Lịch sử.
 - [x] Test: phạm vi tài liệu, GV ngoài lớp bị 404, lịch sử ghi đúng.
 
-### Sprint 3 — Import chặng theo form Sheet 1
+### Sprint 3 — Import chặng theo form Sheet 1 (xong)
 
-- [ ] Đọc / kiểm tra file Sheet 1, xem trước, xác nhận; tạo chặng mới / cập nhật chặng đã có; đánh lại `session_no`.
-- [ ] File mẫu Sheet 1; cập nhật `docs/import-syllabus.md`.
-- [ ] Test: file mẫu, chặng mới, cập nhật (thêm / sửa / xóa buổi, giữ id), file lỗi, dòng ví dụ bị bỏ.
+- [x] Đọc / kiểm tra file Sheet 1, xem trước, xác nhận; tạo chặng mới / cập nhật chặng đã có; đánh lại `session_no`.
+- [x] File mẫu Sheet 1; cập nhật `docs/import-syllabus.md`.
+- [x] Test: file mẫu, chặng mới, cập nhật (thêm / sửa / xóa buổi, giữ id), file lỗi, dòng ví dụ bị bỏ.
 
 ## 5. Ngoài phạm vi giai đoạn 1
 

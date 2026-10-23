@@ -3,6 +3,7 @@
  * Import 1 chặng từ file Sheet 1 — bước Xem trước (docs/kho-syllabus.md §3.3): cảnh báo, lỗi theo dòng, buổi sẽ thêm /
  * sửa / xóa. Chưa ghi gì vào hệ thống cho tới khi bấm Xác nhận.
  */
+import { ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { route } from '@/lib/route';
 
@@ -15,8 +16,12 @@ const props = defineProps({
     plan: { type: Object, required: true },
 });
 
+// Khóa nút khi đang gửi: bấm đúp không tạo 2 chặng.
+const confirming = ref(false);
 function confirmImport() {
-    router.post(route('syllabus.stage-import.confirm', props.curriculum.id), { token: props.token });
+    if (confirming.value) return;
+    confirming.value = true;
+    router.post(route('syllabus.stage-import.confirm', props.curriculum.id), { token: props.token }, { onFinish: () => (confirming.value = false) });
 }
 </script>
 
@@ -92,7 +97,7 @@ function confirmImport() {
 
         <div class="flex flex-wrap justify-end gap-2">
             <UiButton variant="secondary" icon="upload_file" :href="route('syllabus.curriculums.show', { id: curriculum.id, tab: 'stages' })">Tải file khác</UiButton>
-            <UiButton icon="check_circle" :disabled="!plan.ok" @click="confirmImport">Xác nhận import</UiButton>
+            <UiButton icon="check_circle" :disabled="!plan.ok || confirming" @click="confirmImport">Xác nhận import</UiButton>
         </div>
     </div>
 </template>

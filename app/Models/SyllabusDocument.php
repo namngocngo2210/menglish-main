@@ -138,7 +138,13 @@ class SyllabusDocument extends Model
             ->where(fn ($who) => $who->where('classes.teacher_id', $user->id)
                 ->orWhere('classes.assistant_id', $user->id)
                 ->orWhere('classes.foreign_teacher_id', $user->id)
-                ->orWhere('syllabus_assignments.user_id', $user->id));
+                ->orWhere('syllabus_assignments.user_id', $user->id)
+                // GV / TG dạy thay một buổi của lớp (như ClassModel::visibleTo).
+                ->orWhereExists(fn (QueryBuilder $session) => $session->selectRaw('1')->from('class_sessions')
+                    ->whereColumn('class_sessions.class_id', 'classes.id')
+                    ->where(fn ($staff) => $staff->where('class_sessions.teacher_id', $user->id)
+                        ->orWhere('class_sessions.foreign_teacher_id', $user->id)
+                        ->orWhere('class_sessions.assistant_id', $user->id))));
     }
 
     public function isVisibleTo(User $user): bool

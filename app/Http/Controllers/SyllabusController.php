@@ -633,6 +633,11 @@ class SyllabusController extends Controller
         }
 
         $unit->update($validated);
+        // Unit chuyển chặng → tài liệu các buổi của unit theo chặng mới (lọc theo chặng đang mở của lớp).
+        if ($unit->wasChanged('stage_id')) {
+            SyllabusDocument::whereIn('syllabus_lesson_id', $unit->lessons()->select('id'))
+                ->update(['stage_id' => $unit->stage_id, 'stage_name' => SyllabusStage::find($unit->stage_id)?->label]);
+        }
 
         return redirect()->route('syllabus.curriculums.show', $unit->curriculum_id)
             ->with('status', "Đã cập nhật Unit {$unit->unit_number}: {$unit->title}.");

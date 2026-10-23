@@ -66,6 +66,16 @@ class SyllabusStageImportReaderTest extends TestCase
         app(StageSheetReader::class)->read(self::save($book));
     }
 
+    public function test_hyperlink_cell_uses_link_url(): void
+    {
+        $book = IOFactory::load(self::filledTemplate([['B' => 1, 'D' => 'Unit 1: A', 'F' => 'Bài 1', 'M' => 'Link PPT']]));
+        $book->getSheet(0)->getCell('M11')->getHyperlink()->setUrl('https://docs.google.com/presentation/d/abc');
+
+        $row = app(StageSheetReader::class)->read(self::save($book))->rows[0];
+
+        $this->assertSame('https://docs.google.com/presentation/d/abc', $row->pptUrl);
+    }
+
     /**
      * File mẫu (StageImportTemplate) điền sẵn ô đầu sheet và các dòng từ dòng 11.
      *

@@ -3,7 +3,9 @@
 namespace App\Services\Syllabus\StageImport;
 
 use App\Models\SyllabusAssignment;
+use App\Models\SyllabusChangeProposal;
 use App\Models\SyllabusCurriculum;
+use App\Models\SyllabusDocument;
 use App\Models\SyllabusLesson;
 use App\Models\SyllabusStage;
 use App\Models\SyllabusUnit;
@@ -111,6 +113,16 @@ class StageImportPlanner
         if ($label !== '' && ! Str::contains(Str::lower($label), [Str::lower($curriculum->title), Str::lower($curriculum->code)])) {
             $warnings[] = "Ô Giáo trình trong file là “{$label}”, khác giáo trình đang mở ({$curriculum->title}).";
         }
+        if ($sheet->skippedExamples > 0) {
+            $warnings[] = "Đã bỏ qua {$sheet->skippedExamples} dòng ví dụ (nền xám) — nếu đó là buổi thật, hãy bỏ màu nền rồi tải lên lại.";
+        }
+        $updatedIds = array_values(array_filter(array_column($lessons, 'lesson_id')));
+        $withDocuments = $updatedIds ? SyllabusDocument::whereIn('syllabus_lesson_id', $updatedIds)->distinct()->count('syllabus_lesson_id') : 0;
+        $withProposals = $updatedIds ? SyllabusChangeProposal::whereIn('lesson_id', $updatedIds)->where('status', 'pending')->distinct()->count('lesson_id') : 0;
+        if ($withDocuments > 0 || $withProposals > 0) {
+            $warnings[] = "Buổi được ghi đè theo thứ tự: {$withDocuments} buổi có tài liệu buổi, {$withProposals} buổi có đề xuất sửa đang chờ — "
+                .'tài liệu / đề xuất giữ theo vị trí buổi, kiểm tra lại nếu file chèn hoặc bớt buổi ở giữa chặng.';
+        }
         $openClasses = $stage ? SyllabusAssignment::open()->where('stage_id', $stage->id)->count() : 0;
         if ($openClasses > 0) {
             $warnings[] = "{$openClasses} lớp đang học chặng này — nội dung mới áp dụng ngay cho các lớp.";
@@ -118,7 +130,7 @@ class StageImportPlanner
 
         return new StageImportPlan(
             stageId: $stage?->id,
-            stageName: $sheet->stageName !== '' ? $sheet->stageName : ($stage?->name ?? 'Chặng mới'),
+            stageName: $this->stageName($sheet->stageName) ?? ($stage?->name ?? 'Chặng mới'),
             lessons: $lessons,
             deleteLessonIds: $deleteIds,
             units: array_values($units),
@@ -126,6 +138,14 @@ class StageImportPlanner
             warnings: $warnings,
             openClasses: $openClasses,
         );
+    }
+
+    /** Tên chặng trong ô D4 bỏ tiền tố "Chặng N" (nhãn tự thêm "Chặng {vị trí}: "); null khi trống. */
+    private function stageName(string $text): ?string
+    {
+        $name = trim(preg_replace('/^chặng\s*\d+\s*[:\-–—]?\s*/iu', '', trim($text)));
+
+        return $name !== '' ? $name : (trim($text) !== '' ? trim($text) : null);
     }
 
     private function normalize(string $text): string

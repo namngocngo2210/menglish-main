@@ -19,6 +19,9 @@ class StageSheetReader
 {
     private const HEADER_SCAN_ROWS = 20;
 
+    /** Cột link PPT / Quizizz: ô có hyperlink → lấy URL của hyperlink (chữ hiển thị thường là "Link PPT"). */
+    private const LINK_COLUMNS = ['M', 'N'];
+
     /** Cột dữ liệu Sheet 1 → thuộc tính StageSheetRow (cột A Chặng, B Buổi, Q Chỉnh sửa thủ công: bỏ qua). */
     private const COLUMNS = [
         'C' => 'type', 'D' => 'unitCell', 'E' => 'unitObjectives', 'F' => 'content', 'G' => 'procedure',
@@ -64,7 +67,7 @@ class StageSheetReader
         for ($line = $headerRow + 2, $last = $sheet->getHighestDataRow(); $line <= $last; $line++) {
             $values = [];
             foreach (self::COLUMNS as $column => $field) {
-                $values[$field] = $this->text($sheet, $column.$line);
+                $values[$field] = in_array($column, self::LINK_COLUMNS, true) ? $this->link($sheet, $column.$line) : $this->text($sheet, $column.$line);
             }
             if (array_filter($values, fn ($v) => $v !== null) === []) {
                 continue;
@@ -125,6 +128,15 @@ class StageSheetReader
         $fill = $sheet->getStyle($coordinate)->getFill();
 
         return $fill->getFillType() === Fill::FILL_SOLID ? strtoupper($fill->getStartColor()->getRGB()) : null;
+    }
+
+    private function link(Worksheet $sheet, string $coordinate): ?string
+    {
+        if ($sheet->cellExists($coordinate) && ($url = trim($sheet->getCell($coordinate)->getHyperlink()->getUrl())) !== '') {
+            return $url;
+        }
+
+        return $this->text($sheet, $coordinate);
     }
 
     private function text(Worksheet $sheet, string $coordinate): ?string
