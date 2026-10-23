@@ -1,7 +1,8 @@
 <script setup>
 /**
- * Mockup 01_Web_Admin/03: "Lịch sử phân quyền chặng học"; form "Thiết lập chặng mới" (lớp, GV, chặng, ngày bắt đầu, lưu ý R19)
- * mở bằng nút trên đầu trang (hộp thoại). Chỉnh sửa / đóng tay chặng đang hiệu lực cũng bằng hộp thoại.
+ * Giao chặng (Học thuật — Bước 3 quy trình syllabus, docs/kho-syllabus.md §7.3): lớp → giáo trình → chặng → ngày bắt đầu →
+ * số buổi (ngày dự kiến kết thúc tự tính theo TKB). GV phải XÁC NHẬN; cột trạng thái + nút Nhắc lại. Chặng không tự mở
+ * chặng kế: Big Test xong → Học thuật giao chặng tiếp theo. Chỉnh sửa / đóng tay chặng đang hiệu lực bằng hộp thoại.
  */
 import { computed, reactive, ref } from 'vue';
 import { Link } from '@inertiajs/vue3';
@@ -38,6 +39,7 @@ const curriculumId = ref('');
 const stageId = ref('');
 const replace = ref(false);
 const stages = computed(() => props.curriculums.find((c) => String(c.id) === curriculumId.value)?.stages ?? []);
+const plannedSessions = computed(() => stages.value.find((s) => String(s.id) === stageId.value)?.lessons ?? '');
 function pickClass() {
     const c = props.classCurriculum[classId.value];
     if (c) curriculumId.value = String(c);
@@ -51,9 +53,9 @@ function created() {
 
 // Hộp thoại chỉnh sửa / đóng tay
 const editing = ref(null);
-const edit = reactive({ user_id: '', start_date: '', deadline: '' });
+const edit = reactive({ user_id: '', start_date: '', planned_sessions: '' });
 function openEdit(as) {
-    Object.assign(edit, { user_id: as.user_id, start_date: as.start_date ?? '', deadline: as.deadline ?? '' });
+    Object.assign(edit, { user_id: as.user_id, start_date: as.start_date ?? '', planned_sessions: as.planned_sessions ?? '' });
     editing.value = as;
 }
 const closing = ref(null);
@@ -123,12 +125,16 @@ const label = (as) => `${as.stage_label} — lớp ${as.class_name ?? ''}`;
                                     <p v-if="as.close_reason" class="max-w-[200px] whitespace-normal text-on-surface-variant">{{ as.close_reason }}</p>
                                 </template>
                                 <template v-else>
-                                    <p class="flex items-center gap-1 text-on-surface-variant"><span class="material-symbols-outlined text-[14px]">event_repeat</span>Tự động đóng theo sự kiện</p>
-                                    <p v-if="as.deadline" class="text-on-surface-variant">Dự kiến xong: {{ formatDate(as.deadline) }}</p>
+                                    <p v-if="as.planned_sessions" class="text-on-surface-variant">{{ as.planned_sessions }} buổi</p>
+                                    <p class="text-on-surface-variant">Dự kiến kết thúc: {{ as.deadline ? formatDate(as.deadline) : 'TKB chưa đủ buổi' }}</p>
                                 </template>
                             </td>
                             <td class="whitespace-nowrap">
-                                <UiBadge v-if="as.is_open" color="success">Đang hiệu lực</UiBadge>
+                                <template v-if="as.is_open">
+                                    <UiBadge color="success">Đang hiệu lực</UiBadge>
+                                    <p v-if="as.confirmed_at" class="mt-1 font-caption text-caption text-tertiary">GV đã xác nhận {{ formatDate(as.confirmed_at, 'd/m/Y H:i') }}</p>
+                                    <p v-else class="mt-1 font-caption text-caption text-warning">Chờ GV xác nhận</p>
+                                </template>
                                 <template v-else>
                                     <UiBadge>Đã đóng</UiBadge>
                                     <p v-if="as.curriculum_completed" class="mt-1 font-caption text-caption text-tertiary">Hoàn thành giáo trình</p>
@@ -136,6 +142,9 @@ const label = (as) => `${as.stage_label} — lớp ${as.class_name ?? ''}`;
                             </td>
                             <td class="whitespace-nowrap text-right">
                                 <div v-if="as.is_open" class="flex items-center justify-end gap-1">
+                                    <UiForm v-if="canManage && !as.confirmed_at" :action="route('syllabus.assignments.remind', as.id)" method="post" class="inline">
+                                        <UiButton type="submit" variant="ghost" size="sm" icon="notifications_active" title="Nhắc GV xác nhận">Nhắc lại</UiButton>
+                                    </UiForm>
                                     <UiButton v-if="canManage" variant="ghost" size="sm" icon="edit" title="Chỉnh sửa" @click="openEdit(as)" />
                                     <UiButton v-if="canOverride" variant="secondary" size="sm" icon="lock" @click="closing = as">Đóng tay</UiButton>
                                 </div>
@@ -180,12 +189,12 @@ const label = (as) => `${as.stage_label} — lớp ${as.class_name ?? ''}`;
                 </UiSelect>
 
                 <UiSelect v-model="stageId" label="Chọn chặng học" name="stage_id" hint="Để trống: chặng đầu tiên lớp chưa học xong." placeholder="Chọn chặng giáo trình... (chặng kế tiếp của lớp)">
-                    <option v-for="s in stages" :key="s.id" :value="String(s.id)" :selected="String(s.id) === stageId">{{ s.label }}</option>
+                    <option v-for="s in stages" :key="s.id" :value="String(s.id)" :selected="String(s.id) === stageId">{{ s.label }} ({{ s.lessons }} buổi)</option>
                 </UiSelect>
 
                 <div class="grid grid-cols-2 gap-md">
-                    <UiInput type="date" name="start_date" label="Ngày bắt đầu" :value="today" />
-                    <UiInput type="date" name="deadline" label="Dự kiến hoàn thành" />
+                    <UiInput type="date" name="start_date" label="Ngày bắt đầu" required :value="today" />
+                    <UiInput :key="stageId" type="number" name="planned_sessions" label="Số buổi" min="1" max="200" :value="plannedSessions" hint="Mặc định = số buổi syllabus của chặng. Ngày dự kiến kết thúc tự tính theo lịch học của lớp." />
                 </div>
 
                 <div v-if="canOverride" class="space-y-2 border-t border-outline-variant pt-sm">
@@ -198,7 +207,7 @@ const label = (as) => `${as.stage_label} — lớp ${as.class_name ?? ''}`;
                     </div>
                 </div>
 
-                <UiAlert type="info" class="font-body-small text-body-small">Mỗi LỚP HỌC chỉ được giao duy nhất 1 chặng học có hiệu lực tại một thời điểm. Hệ thống sẽ tự động đóng chặng hiện tại của lớp và mở chặng kế tiếp khi kết quả Big Test được duyệt gửi.</UiAlert>
+                <UiAlert type="info" class="font-body-small text-body-small">Mỗi lớp chỉ có 1 chặng hiệu lực. GV nhận thông báo và phải bấm XÁC NHẬN (quá 24 giờ chưa xác nhận hệ thống nhắc lại). Chặng tự đóng khi Big Test được duyệt và gửi phụ huynh; Học thuật giao chặng tiếp theo.</UiAlert>
             </UiForm>
             <template #footer>
                 <UiButton variant="secondary" @click="creating = false">Hủy</UiButton>
@@ -212,7 +221,7 @@ const label = (as) => `${as.stage_label} — lớp ${as.class_name ?? ''}`;
                 <UiSelect id="edit_user_id" v-model="edit.user_id" label="Giáo viên phụ trách" name="user_id" required :options="teachers" />
                 <div class="grid grid-cols-2 gap-md">
                     <UiDate id="edit_start_date" v-model="edit.start_date" label="Ngày bắt đầu" name="start_date" />
-                    <UiDate id="edit_deadline" v-model="edit.deadline" label="Dự kiến hoàn thành" name="deadline" />
+                    <UiInput id="edit_planned_sessions" v-model="edit.planned_sessions" type="number" min="1" max="200" label="Số buổi" name="planned_sessions" />
                 </div>
             </UiForm>
             <template #footer>
@@ -226,10 +235,7 @@ const label = (as) => `${as.stage_label} — lớp ${as.class_name ?? ''}`;
         <UiForm v-if="closing" id="close-stage-form" :key="closing.id" :action="route('syllabus.assignments.close', closing.id)" method="post" class="space-y-3 p-md" @success="closing = null">
             <p class="font-body-small text-body-small text-on-surface-variant">Chặng: <strong>{{ label(closing) }}</strong>. Thông thường chặng tự đóng khi Big Test được duyệt và gửi phụ huynh — chỉ đóng tay khi có ngoại lệ.</p>
             <UiTextarea name="reason" label="Lý do" required rows="3" />
-            <label class="flex items-center gap-2 font-body-small text-body-small text-on-surface">
-                <input type="checkbox" name="open_next" value="1" checked class="rounded border-outline-variant text-primary focus:ring-primary-container" />
-                Mở luôn chặng kế tiếp của giáo trình
-            </label>
+            <p class="font-caption text-caption text-on-surface-variant">Đóng chặng không tự mở chặng kế tiếp — giao chặng tiếp theo bằng "Thiết lập chặng mới".</p>
         </UiForm>
         <template #footer>
             <UiButton variant="secondary" @click="closing = null">Hủy</UiButton>

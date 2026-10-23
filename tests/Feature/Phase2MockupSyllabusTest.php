@@ -100,7 +100,7 @@ class Phase2MockupSyllabusTest extends TestCase
 
     private function openStage(?SyllabusStage $stage = null): SyllabusAssignment
     {
-        $this->actingAs($this->academic)->post(route('syllabus.assignments.store'), array_filter(['class_id' => $this->class->id, 'stage_id' => $stage?->id]))
+        $this->actingAs($this->academic)->post(route('syllabus.assignments.store'), array_filter(['class_id' => $this->class->id, 'stage_id' => $stage?->id, 'start_date' => today()->toDateString()]))
             ->assertSessionHasNoErrors();
 
         return SyllabusAssignment::open()->where('class_id', $this->class->id)->firstOrFail();
@@ -312,7 +312,8 @@ class Phase2MockupSyllabusTest extends TestCase
         $this->actingAs($this->academic)->get(route('syllabus.assignments'))->assertOk()
             ->assertSee('Cơ sở Mockup - Phòng 402')
             ->assertSee('ID: GV-MK-01')
-            ->assertSee('Tự động đóng theo sự kiện')
+            ->assertSee('Dự kiến kết thúc')
+            ->assertSee('Chờ GV xác nhận')
             ->assertSee('Đang hiệu lực')
             ->assertSee('title="Chỉnh sửa"', false);
 
@@ -565,14 +566,14 @@ class Phase2MockupSyllabusTest extends TestCase
         $this->actingAs($this->teacher)->post(route('syllabus.big-tests.results.approve-send', $scored->id))->assertForbidden();
         $this->actingAs($this->academic)->post(route('syllabus.big-tests.results.approve-send', $scored->id))->assertForbidden();
 
-        // Học viên vắng thi: chỉ duyệt; học viên có điểm: duyệt + gửi PH → Big Test hoàn tất, chặng đóng và chặng 2 tự mở
+        // Học viên vắng thi: chỉ duyệt; học viên có điểm: duyệt + gửi PH → Big Test hoàn tất, chặng đóng (không tự mở chặng 2)
         $this->actingAs($this->admin)->post(route('syllabus.big-tests.results.approve-send', $away->id))->assertSessionHasNoErrors();
         $this->assertSame('approved', $away->fresh()->status);
         $this->actingAs($this->admin)->post(route('syllabus.big-tests.results.approve-send', $scored->id))->assertSessionHasNoErrors();
         $this->assertSame('sent', $scored->fresh()->status);
         $this->assertTrue($scored->fresh()->parent_notified);
         $this->assertSame(SyllabusAssignment::STATUS_CLOSED, $assignment->fresh()->status);
-        $this->assertSame($this->stages[1]->id, SyllabusAssignment::open()->where('class_id', $this->class->id)->value('stage_id'));
+        $this->assertSame(0, SyllabusAssignment::open()->where('class_id', $this->class->id)->count());
 
         $this->actingAs($this->academic)->get($page)->assertOk()->assertSee('Đã gửi phụ huynh')->assertDontSee('Duyệt &amp; Gửi phụ huynh', false);
     }

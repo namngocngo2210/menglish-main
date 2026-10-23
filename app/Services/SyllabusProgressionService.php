@@ -12,6 +12,7 @@ use App\Models\SyllabusCurriculum;
 use App\Models\SyllabusLesson;
 use App\Models\SyllabusStage;
 use App\Models\User;
+use App\Services\Syllabus\SyllabusNotifier;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -25,8 +26,8 @@ use Illuminate\Validation\ValidationException;
  *  2. Chặng đóng khi Big Test của chặng (big_tests.syllabus_stage_id + class_id) đã được duyệt VÀ gửi phụ huynh:
  *     mọi kết quả đều "Đã gửi PH", học viên vắng thi chỉ cần "Đã duyệt" (không có điểm để gửi);
  *     không còn kết quả nháp / chờ duyệt.
- *  3. Đóng chặng → tự mở chặng kế tiếp (position lớn hơn) của cùng giáo trình, cùng GV, và báo GV.
- *     Không còn chặng kế tiếp → đánh dấu lớp đã học xong giáo trình (curriculum_completed_at).
+ *  3. Đóng chặng **không** tự mở chặng kế tiếp (quy trình syllabus Bước 11, docs/kho-syllabus.md §7.3): còn chặng kế →
+ *     báo Học thuật giao chặng tiếp; không còn chặng kế → đánh dấu lớp đã học xong giáo trình (curriculum_completed_at).
  *  4. Học thuật được mở/đóng tay (bắt buộc lý do) để xử lý ngoại lệ.
  */
 class SyllabusProgressionService
@@ -107,20 +108,21 @@ class SyllabusProgressionService
     }
 
     /**
-     * Đóng chặng đang mở. $openNext = true thì tự mở chặng kế tiếp và báo GV.
+     * Đóng chặng đang mở. Không tự mở chặng kế: còn chặng kế thì báo Học thuật giao tiếp ($notifyNext = false khi chính
+     * Học thuật chuyển chặng), hết chặng thì đánh dấu lớp đã học xong giáo trình.
      *
-     * @return array{closed: SyllabusAssignment, next: ?SyllabusAssignment, finished: bool}
+     * @return array{closed: SyllabusAssignment, next: null, finished: bool}
      */
-    public function close(SyllabusAssignment $assignment, ?User $actor, string $reason, ?BigTest $bigTest = null, bool $openNext = true): array
+    public function close(SyllabusAssignment $assignment, ?User $actor, string $reason, ?BigTest $bigTest = null, bool $notifyNext = true): array
     {
-        return DB::transaction(function () use ($assignment, $actor, $reason, $bigTest, $openNext) {
+        return DB::transaction(function () use ($assignment, $actor, $reason, $bigTest, $notifyNext) {
             $assignment = SyllabusAssignment::with(['stage', 'classModel'])->lockForUpdate()->findOrFail($assignment->id);
             if (! $assignment->isOpen()) {
                 throw ValidationException::withMessages(['status' => 'Chặng này đã đóng trước đó.']);
             }
 
-            $next = $openNext ? $assignment->stage?->next() : null;
-            $finished = $openNext && $assignment->stage && ! $next;
+            $next = $assignment->stage?->next();
+            $finished = $assignment->stage && ! $next;
 
             $assignment->update([
                 'status' => SyllabusAssignment::STATUS_CLOSED,
@@ -132,26 +134,15 @@ class SyllabusProgressionService
                 'curriculum_completed_at' => $finished ? now() : null,
             ]);
 
-            $nextAssignment = null;
             $class = $assignment->classModel;
-            if ($next && $class) {
-                $nextAssignment = $this->open(
-                    $class,
-                    $next,
-                    $assignment->user_id,
-                    $actor,
-                    $bigTest
-                        ? "Tự mở sau khi Big Test {$bigTest->code} của {$assignment->stage_name} được duyệt và gửi phụ huynh."
-                        : "Mở tiếp sau khi đóng {$assignment->stage_name}: {$reason}"
-                );
-                $this->notifyTeachers($class, $nextAssignment->user_id, 'Lớp '.$class->name.' đã chuyển sang '.$nextAssignment->stage_name,
-                    "{$assignment->stage_name} đã đóng".($bigTest ? " (Big Test {$bigTest->code} đã duyệt và gửi PH)" : '').'. Nội dung chặng mới đã mở trong màn Xem giáo trình.');
+            if ($next && $notifyNext) {
+                app(SyllabusNotifier::class)->stageFinished($assignment);
             } elseif ($finished && $class) {
                 $this->notifyTeachers($class, $assignment->user_id, 'Lớp '.$class->name.' đã hoàn thành giáo trình',
                     "{$assignment->stage_name} là chặng cuối của giáo trình {$assignment->curriculum?->title}.");
             }
 
-            return ['closed' => $assignment->fresh(), 'next' => $nextAssignment, 'finished' => $finished];
+            return ['closed' => $assignment->fresh(), 'next' => null, 'finished' => $finished];
         });
     }
 
@@ -162,7 +153,7 @@ class SyllabusProgressionService
     {
         return DB::transaction(function () use ($class, $stage, $teacherId, $actor, $reason, $attributes) {
             if ($current = $this->openAssignment($class)) {
-                $this->close($current, $actor, 'Học thuật chuyển chặng: '.$reason, null, false);
+                $this->close($current, $actor, 'Học thuật chuyển chặng: '.$reason, null, notifyNext: false);
             }
 
             return $this->open($class, $stage, $teacherId, $actor, $reason, $attributes);
@@ -225,11 +216,9 @@ class SyllabusProgressionService
         }
         $closed = $outcome['closed'];
 
-        return match (true) {
-            $outcome['next'] !== null => " Đã đóng {$closed->stage_name} và tự mở {$outcome['next']->stage_name} cho lớp.",
-            $outcome['finished'] => " Đã đóng {$closed->stage_name} — lớp đã hoàn thành giáo trình.",
-            default => " Đã đóng {$closed->stage_name}.",
-        };
+        return $outcome['finished']
+            ? " Đã đóng {$closed->stage_name} — lớp đã hoàn thành giáo trình."
+            : " Đã đóng {$closed->stage_name} — Học thuật giao chặng tiếp theo cho lớp.";
     }
 
     /**

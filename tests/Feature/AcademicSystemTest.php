@@ -413,7 +413,7 @@ class AcademicSystemTest extends TestCase
             'class_id' => $this->classModel->id,
             'assigned_chapters' => 'Soạn thảo Unit 1 đến Unit 5',
             'stage_name' => 'Chặng 1 · Foundation',
-            'deadline' => '2026-09-15',
+            'start_date' => today()->toDateString(),
         ];
 
         $responseAssign = $this->actingAs($this->academicHead)->post(route('syllabus.assignments.store'), $assignPayload);

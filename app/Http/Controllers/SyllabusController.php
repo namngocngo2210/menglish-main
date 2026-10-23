@@ -27,6 +27,8 @@ use App\Services\DocumentCodeGenerator;
 use App\Services\NotificationService;
 use App\Services\SafeUploadService;
 use App\Services\ScheduleExtensionService;
+use App\Services\Syllabus\StageSchedule;
+use App\Services\Syllabus\SyllabusNotifier;
 use App\Services\SyllabusProgressionService;
 use App\Services\ZaloZnsService;
 use App\Support\Approvals\AdminOnlyApprovals;
@@ -804,7 +806,7 @@ class SyllabusController extends Controller
             ->withQueryString();
         $teachers = User::whereHas('roles', fn ($query) => $query->whereIn('name', [...Roles::TEACHERS, Roles::ACADEMIC_LEAD]))
             ->pickableBy($request->user(), 'class')->orderBy('name')->get();
-        $curriculums = SyllabusCurriculum::with('stages')->orderBy('title')->get();
+        $curriculums = SyllabusCurriculum::with(['stages' => fn ($q) => $q->withCount('lessons')])->orderBy('title')->get();
         $classes = ClassModel::visibleTo($request->user())->where('status', '!=', 'cancelled')->orderBy('name')->get();
         $levelCurriculum = CourseLevel::whereNotNull('syllabus_curriculum_id')->pluck('syllabus_curriculum_id', 'code');
         $openByClass = SyllabusAssignment::open()->whereIn('class_id', $visibleClassIds)->with('stage')->get()->keyBy('class_id');
@@ -823,7 +825,9 @@ class SyllabusController extends Controller
                 'stage_label' => $as->stage?->label ?? $as->stage_name,
                 'assigned_chapters' => $as->assigned_chapters,
                 'extra_sessions' => (int) $as->extra_sessions,
-                'start_date' => ($as->opened_at ?? $as->created_at)?->toDateString(),
+                'start_date' => ($as->start_date ?? $as->opened_at ?? $as->created_at)?->toDateString(),
+                'planned_sessions' => $as->planned_sessions,
+                'confirmed_at' => $as->confirmed_at?->toIso8601String(),
                 'closed_at' => $as->closed_at?->toDateString(),
                 'close_reason' => $as->close_reason,
                 'deadline' => $as->deadline?->toDateString(),
@@ -836,7 +840,7 @@ class SyllabusController extends Controller
                 'id' => $c->id,
                 'title' => $c->title,
                 'code' => $c->code,
-                'stages' => $c->stages->map(fn ($s) => ['id' => $s->id, 'label' => $s->label])->values(),
+                'stages' => $c->stages->map(fn ($s) => ['id' => $s->id, 'label' => $s->label, 'lessons' => (int) $s->lessons_count])->values(),
             ])->values(),
             'classes' => $classes->map(fn (ClassModel $c) => ['id' => $c->id, 'name' => $c->name, 'code' => $c->code])->values(),
             'classCurriculum' => $classes->mapWithKeys(fn ($c) => [$c->id => $levelCurriculum[$c->level] ?? null]),
@@ -849,10 +853,11 @@ class SyllabusController extends Controller
     }
 
     /**
-     * Mở chặng cho lớp. Mặc định: giáo trình theo Trình độ của lớp, chặng = chặng đầu tiên lớp chưa học xong,
-     * GV = GV chính của lớp. Lớp đang mở chặng khác thì từ chối, trừ khi Học thuật chọn "chuyển chặng" kèm lý do.
+     * Học thuật giao chặng cho lớp (Bước 3): ngày bắt đầu + số buổi (mặc định = số buổi syllabus của chặng) → ngày dự kiến
+     * kết thúc tự tính theo TKB. Mặc định: giáo trình theo Trình độ của lớp, chặng = chặng đầu tiên lớp chưa học xong,
+     * GV = GV chính của lớp. Lớp đang mở chặng khác thì từ chối, trừ khi chọn "chuyển chặng" kèm lý do. GV nhận thông báo XÁC NHẬN.
      */
-    public function storeAssignment(Request $request, SyllabusProgressionService $progression)
+    public function storeAssignment(Request $request, SyllabusProgressionService $progression, StageSchedule $schedule, SyllabusNotifier $notifier)
     {
         $validated = $request->validate([
             'class_id' => ['required', 'exists:classes,id'],
@@ -861,8 +866,8 @@ class SyllabusController extends Controller
             'user_id' => ['nullable', 'exists:users,id'],
             'assigned_chapters' => ['nullable', 'string', 'max:255'],
             'stage_name' => ['nullable', 'string', 'max:255'],
-            'deadline' => ['nullable', 'date'],
-            'start_date' => ['nullable', 'date', 'before_or_equal:'.today()->addDays(60)->toDateString()],
+            'start_date' => ['required', 'date', 'before_or_equal:'.today()->addDays(60)->toDateString()],
+            'planned_sessions' => ['nullable', 'integer', 'min:1', 'max:200'],
             'replace_current' => ['nullable', 'boolean'],
             'reason' => ['nullable', 'string', 'max:2000'],
         ]);
@@ -885,11 +890,15 @@ class SyllabusController extends Controller
             throw ValidationException::withMessages(['stage_id' => 'Lớp đã học hết các chặng của giáo trình này.']);
         }
 
+        $start = Carbon::parse($validated['start_date'])->startOfDay();
+        $planned = (int) ($validated['planned_sessions'] ?? 0) ?: max(1, $stage->lessons()->count());
         $attributes = array_filter([
             'assigned_chapters' => $validated['assigned_chapters'] ?? null,
-            'deadline' => $validated['deadline'] ?? null,
-            // "Ngày bắt đầu" (mockup): tiến độ buổi của chặng tính từ ngày này; mặc định hôm nay.
-            'opened_at' => ! empty($validated['start_date']) ? Carbon::parse($validated['start_date'])->startOfDay() : null,
+            // Tiến độ buổi của chặng tính từ ngày bắt đầu.
+            'opened_at' => $start,
+            'start_date' => $start,
+            'planned_sessions' => $planned,
+            'deadline' => $schedule->endDate($class, $start, $planned),
         ]);
         $reason = trim((string) ($validated['reason'] ?? '')) ?: null;
 
@@ -903,24 +912,49 @@ class SyllabusController extends Controller
             $assignment = $progression->open($class, $stage, $validated['user_id'] ?? null, $request->user(), $reason, $attributes);
         }
 
-        AdminNotification::create([
-            'user_id' => $assignment->user_id,
-            'type' => 'syllabus_stage',
-            'title' => "Lớp {$class->name} mở {$assignment->stage_name}",
-            'message' => 'Nội dung chặng đã mở trong màn Xem giáo trình.',
-            'data' => ['link' => route('syllabus.teacher-view', ['class' => $class->id])],
-            'is_read' => false,
-        ]);
+        $notifier->stageAssigned($assignment);
 
-        return redirect()->route('syllabus.assignments')
-            ->with('status', "Đã mở {$assignment->stage_name} cho lớp {$class->name}.");
+        $status = "Đã giao {$assignment->stage_name} cho lớp {$class->name} — chờ GV xác nhận.";
+        if (! $assignment->deadline) {
+            $count = $schedule->sessionDates($class, $start)->count();
+
+            return redirect()->route('syllabus.assignments')->with('status', $status)
+                ->with('warning', "TKB lớp mới có {$count} buổi từ ngày bắt đầu (cần {$planned}) — chưa tính được ngày dự kiến kết thúc.");
+        }
+
+        return redirect()->route('syllabus.assignments')->with('status', $status);
+    }
+
+    /** GV bấm XÁC NHẬN nhận syllabus của chặng (Bước 4). */
+    public function confirmAssignment(Request $request, int $id)
+    {
+        $assignment = SyllabusAssignment::with('classModel')->open()->findOrFail($id);
+        abort_unless($assignment->canConfirm($request->user()), 403, 'Chỉ GV của lớp được xác nhận syllabus.');
+        if (! $assignment->isConfirmed()) {
+            $assignment->update(['confirmed_at' => now(), 'confirmed_by' => $request->user()->id]);
+        }
+
+        return redirect()->back()->with('status', "Đã xác nhận nhận syllabus {$assignment->stage_name} — lớp {$assignment->classModel?->name}.");
+    }
+
+    /** Học thuật bấm NHẮC LẠI: gửi lại thông báo XÁC NHẬN cho GV. */
+    public function remindAssignment(int $id, SyllabusNotifier $notifier)
+    {
+        $assignment = SyllabusAssignment::with('classModel')->open()->findOrFail($id);
+        if (! $assignment->isConfirmed()) {
+            $notifier->stageAssigned($assignment);
+        }
+
+        return redirect()->back()->with('status', $assignment->isConfirmed()
+            ? 'GV đã xác nhận syllabus, không cần nhắc lại.'
+            : "Đã nhắc GV xác nhận syllabus {$assignment->stage_name}.");
     }
 
     /**
-     * Chỉnh sửa chặng đang hiệu lực (mockup "Chỉnh sửa"): đổi GV phụ trách / ngày bắt đầu / dự kiến hoàn thành.
+     * Chỉnh sửa chặng đang hiệu lực: đổi GV phụ trách / ngày bắt đầu / số buổi (ngày dự kiến kết thúc tính lại theo TKB).
      * Không đổi chặng ở đây — đổi chặng đi qua "Chuyển chặng" (Học thuật, bắt buộc lý do).
      */
-    public function updateAssignment(Request $request, int $id)
+    public function updateAssignment(Request $request, int $id, StageSchedule $schedule, SyllabusNotifier $notifier)
     {
         $assignment = SyllabusAssignment::with('classModel')->whereIn('class_id', ClassModel::visibleTo($request->user())->select('id'))->findOrFail($id);
         if (! $assignment->isOpen()) {
@@ -930,28 +964,34 @@ class SyllabusController extends Controller
         $validator = Validator::make($request->all(), [
             'user_id' => ['required', 'exists:users,id'],
             'start_date' => ['nullable', 'date', 'before_or_equal:'.today()->addDays(60)->toDateString()],
-            'deadline' => ['nullable', 'date'],
-        ], [], ['user_id' => 'giáo viên phụ trách', 'start_date' => 'ngày bắt đầu', 'deadline' => 'dự kiến hoàn thành']);
+            'planned_sessions' => ['nullable', 'integer', 'min:1', 'max:200'],
+        ], [], ['user_id' => 'giáo viên phụ trách', 'start_date' => 'ngày bắt đầu', 'planned_sessions' => 'số buổi']);
         if ($validator->fails()) {
             return redirect()->back()->with('error', 'Chưa lưu chỉnh sửa chặng: '.implode(' ', $validator->errors()->all()));
         }
         $validated = $validator->validated();
 
         $previousTeacher = $assignment->user_id;
+        $start = ! empty($validated['start_date']) ? Carbon::parse($validated['start_date'])->startOfDay() : ($assignment->start_date ?? $assignment->opened_at)?->copy()->startOfDay();
+        $planned = (int) ($validated['planned_sessions'] ?? 0) ?: $assignment->planned_sessions;
         $assignment->update([
             'user_id' => $validated['user_id'],
-            'deadline' => $validated['deadline'] ?? null,
-            'opened_at' => ! empty($validated['start_date']) ? Carbon::parse($validated['start_date'])->startOfDay() : $assignment->opened_at,
+            'opened_at' => $start ?? $assignment->opened_at,
+            'start_date' => $start,
+            'planned_sessions' => $planned,
+            'deadline' => $start && $planned && $assignment->classModel ? $schedule->endDate($assignment->classModel, $start, $planned) : $assignment->deadline,
         ]);
+        // Đổi GV phụ trách → GV mới phải xác nhận lại.
         if ((int) $previousTeacher !== (int) $assignment->user_id) {
-            $this->notifyUser($assignment->user_id, "Bạn được giao {$assignment->stage_name}", 'Lớp '.$assignment->classModel?->name.': nội dung chặng đã mở trong màn Xem giáo trình.', route('syllabus.teacher-view', ['class' => $assignment->class_id]));
+            $assignment->update(['confirmed_at' => null, 'confirmed_by' => null, 'confirm_reminded_at' => null]);
+            $notifier->stageAssigned($assignment);
         }
 
         return redirect()->route('syllabus.assignments')
             ->with('status', "Đã cập nhật {$assignment->stage_name} của lớp {$assignment->classModel?->name}.");
     }
 
-    /** Học thuật đóng tay chặng đang mở (bắt buộc lý do); mặc định tự mở chặng kế tiếp. */
+    /** Học thuật đóng tay chặng đang mở (bắt buộc lý do); không tự mở chặng kế — Học thuật giao tiếp (Bước 11). */
     public function closeAssignment(Request $request, int $id, SyllabusProgressionService $progression)
     {
         $assignment = SyllabusAssignment::whereIn('class_id', ClassModel::visibleTo($request->user())->select('id'))->findOrFail($id);
@@ -959,7 +999,7 @@ class SyllabusController extends Controller
             'reason.required' => 'Vui lòng nhập lý do đóng chặng.',
         ]);
 
-        $outcome = $progression->close($assignment, $request->user(), 'Học thuật đóng tay: '.$validated['reason'], null, $request->boolean('open_next'));
+        $outcome = $progression->close($assignment, $request->user(), 'Học thuật đóng tay: '.$validated['reason']);
 
         return redirect()->back()->with('status', trim($progression->describe($outcome)));
     }
@@ -1272,6 +1312,8 @@ class SyllabusController extends Controller
                 'extra_sessions' => (int) $assignment->extra_sessions,
                 'big_test_title' => $assignment->stage?->big_test_title ?: 'Big Test cuối chặng',
                 'has_stage' => (bool) $assignment->stage,
+                // Bước 4: GV của lớp chưa xác nhận nhận syllabus → banner XÁC NHẬN.
+                'confirm_url' => ! $assignment->isConfirmed() && $assignment->canConfirm($user) ? route('syllabus.assignments.confirm', $assignment->id) : null,
             ] : null,
             'position' => $position ? [
                 'taught' => $position['taught'],

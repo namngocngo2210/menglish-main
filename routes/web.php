@@ -534,6 +534,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/assignments', [SyllabusController::class, 'assignments'])->name('assignments');
         Route::post('/assignments', [SyllabusController::class, 'storeAssignment'])->middleware('can:syllabus.assign')->name('assignments.store');
         Route::put('/assignments/{id}', [SyllabusController::class, 'updateAssignment'])->whereNumber('id')->middleware('can:syllabus.assign')->name('assignments.update');
+        // GV xác nhận nhận syllabus (kiểm tra GV của lớp trong controller); Học thuật nhắc lại.
+        Route::post('/assignments/{id}/confirm', [SyllabusController::class, 'confirmAssignment'])->whereNumber('id')->name('assignments.confirm');
+        Route::post('/assignments/{id}/remind', [SyllabusController::class, 'remindAssignment'])->whereNumber('id')->middleware('can:syllabus.assign')->name('assignments.remind');
         // Giao / sửa / đóng tay chặng: chỉ Học thuật (syllabus.assign — Bước 3 quy trình). Đóng tự động khi Big Test của chặng
         // được duyệt và gửi PH (không tự mở chặng kế — Học thuật giao tiếp).
         Route::post('/assignments/{id}/close', [SyllabusController::class, 'closeAssignment'])->whereNumber('id')->middleware('can:syllabus.assign')->name('assignments.close');

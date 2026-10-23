@@ -29,6 +29,9 @@ Schedule::command('bigtests:enforce-sla')->dailyAt('07:55');
 Schedule::command('bigtests:enforce-sla --paper-only')->hourlyAt(55);
 // Yêu cầu giãn tiến độ giáo trình chờ duyệt quá hạn (Cấu hình SLA, mặc định 3 ngày) → báo người duyệt 1 lần (idempotent).
 Schedule::command('syllabus:notify-adjustment-sla')->hourlyAt(20);
+// Quy trình syllabus (docs/kho-syllabus.md §7.3): GV chưa xác nhận syllabus sau 24h → nhắc 1 lần; ngày dự kiến kết thúc chặng theo TKB.
+Schedule::command('syllabus:remind-unconfirmed')->hourlyAt(25);
+Schedule::command('syllabus:refresh-stage-deadlines')->hourlyAt(5);
 // Cảnh báo hợp đồng nhân sự hết hạn trong N ngày (Cấu hình SLA, mặc định 30; idempotent, chạy lại không tạo trùng).
 Schedule::command('hr:notify-expiring-contracts')->dailyAt('07:50');
 // Hết thời gian bảo lưu → học viên về Đang học / Chờ khai giảng, báo Học vụ (idempotent). Chạy trước nhắc nợ 08:30.
