@@ -1,6 +1,6 @@
 # Dọn giao diện mục Giáo trình
 
-Trạng thái: **Chưa làm** — 23/10/2026
+Trạng thái: **Hoàn thành** — 23/10/2026
 
 ## 1. Bối cảnh
 
@@ -76,12 +76,19 @@ Phê duyệt / Xin duyệt cũng giữ nguyên.
 
 ## 5. Sprint
 
-### Sprint 1 — Điều hướng & soạn trong modal
+### Sprint 1 — Điều hướng & soạn trong modal (xong)
 
-- [ ] `/syllabus` redirect theo quyền (3.2), test 2 trường hợp.
-- [ ] Bỏ nút chéo / back theo bảng 3.3.
-- [ ] Builder: ô soạn thành modal, `preserve-scroll` (3.4); test prop `editor` với `?edit_lesson=`.
-- [ ] Cập nhật test cũ; chạy test Syllabus + `NavigationPermissionTest`, `AllRoutesSmokeTest`, `ZiggyRoutesTest`.
+- [x] `/syllabus` redirect theo quyền (3.2), test 2 trường hợp.
+- [x] Bỏ nút chéo / back theo bảng 3.3.
+- [x] Builder: ô soạn thành modal, `preserve-scroll` (3.4); test prop `editor` với `?edit_lesson=`.
+- [x] Cập nhật test cũ; chạy test Syllabus + `NavigationPermissionTest`, `AllRoutesSmokeTest`, `ZiggyRoutesTest`.
+
+Ghi chú khi làm:
+
+- `AdjustmentRequests` cũng có `:back` về Tài liệu → bỏ theo quy tắc 3.3.
+- Nút "Tạo giáo trình mới" thứ hai trong Builder thực ra là nút ở empty state → giữ.
+- Prop `canReview` của `TeacherAdjust` không còn dùng → bỏ khỏi controller.
+- v2 (`v2/doi-chieu-laravel.txt`) theo dõi các màn Syllabus: thay đổi chỉ là giao diện + 1 redirect, port sang v2 khi đồng bộ đợt sau.
 
 ## 6. Để sau (ngoài phạm vi)
 
