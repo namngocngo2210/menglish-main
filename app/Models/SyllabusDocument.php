@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AuditsChanges;
+use App\Models\Concerns\LogsCurriculumId;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,7 +17,7 @@ use Illuminate\Database\Query\Builder as QueryBuilder;
  */
 class SyllabusDocument extends Model
 {
-    use SoftDeletes;
+    use AuditsChanges, LogsCurriculumId, SoftDeletes;
 
     public const DISK = 'local';
 

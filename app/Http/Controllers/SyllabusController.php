@@ -30,6 +30,7 @@ use App\Services\ScheduleExtensionService;
 use App\Services\SyllabusProgressionService;
 use App\Services\ZaloZnsService;
 use App\Support\Approvals\AdminOnlyApprovals;
+use App\Support\Audit;
 use App\Support\Roles;
 use App\Support\Ui;
 use Carbon\Carbon;
@@ -45,6 +46,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
+use Spatie\Activitylog\Models\Activity;
 
 class SyllabusController extends Controller
 {
@@ -52,7 +54,7 @@ class SyllabusController extends Controller
     public const MISSING_PARENT_PHONE = 'Thiếu SĐT phụ huynh';
 
     /** Tab của trang chi tiết giáo trình (Kho syllabus). */
-    private const CURRICULUM_TABS = ['info', 'stages', 'documents'];
+    private const CURRICULUM_TABS = ['info', 'stages', 'documents', 'history'];
 
     /** /syllabus: người có Kho syllabus (Học thuật, Quản lý) vào Kho syllabus; còn lại vào Chặng đang dạy. */
     public function index(Request $request)
@@ -226,6 +228,39 @@ class SyllabusController extends Controller
         return $groups;
     }
 
+    /** Nhật ký thay đổi của giáo trình (giáo trình, chặng, unit, buổi, tài liệu) — ghi bởi AuditsChanges + LogsCurriculumId. */
+    private function curriculumHistory(SyllabusCurriculum $curriculum, Request $request)
+    {
+        $events = ['created' => 'Tạo', 'updated' => 'Sửa', 'deleted' => 'Xóa'];
+
+        return Activity::query()
+            ->where('log_name', Audit::logNameFor(SyllabusCurriculum::class))
+            ->where('properties->curriculum_id', $curriculum->id)
+            ->with(['causer:id,name', 'subject' => fn ($q) => method_exists($q, 'withTrashed') ? $q->withTrashed() : $q])
+            ->latest('id')
+            ->paginate(20)
+            ->withQueryString()
+            ->through(function (Activity $log) use ($events) {
+                $old = (array) ($log->properties['old'] ?? []);
+                $new = (array) ($log->properties['attributes'] ?? []);
+                $subject = $log->subject;
+                $name = $subject?->getAttribute('title') ?? $subject?->getAttribute('name') ?? $subject?->getAttribute('label');
+
+                return [
+                    'id' => $log->id,
+                    'at' => $log->created_at?->format('Y-m-d H:i'),
+                    'causer' => $log->causer?->name,
+                    'event' => $events[$log->event] ?? ($log->description ?: $log->event),
+                    'subject' => trim((Audit::config((string) $log->subject_type)['label'] ?? '').' '.($name ?? '#'.$log->subject_id)),
+                    'description' => $log->description,
+                    'changes' => collect(array_keys($old + $new))
+                        ->reject(fn (string $field) => in_array($field, Audit::NEVER_LOG, true) || $field === 'curriculum_id')
+                        ->map(fn (string $field) => ['field' => $field, 'old' => $old[$field] ?? null, 'new' => $new[$field] ?? null])
+                        ->values()->all(),
+                ];
+            });
+    }
+
     /** Một dòng tài liệu cho trang chi tiết giáo trình. */
     private function documentRow(SyllabusDocument $doc): array
     {
@@ -286,6 +321,8 @@ class SyllabusController extends Controller
         return Inertia::render('Syllabus/CurriculumShow', [
             'tab' => $tab,
             'documents' => $this->curriculumDocuments($curriculum, $lessons->pluck('id')->all()),
+            // Chỉ nạp nhật ký khi mở tab Lịch sử.
+            'history' => $tab === 'history' ? $this->curriculumHistory($curriculum, $request) : null,
             'curriculum' => [
                 'id' => $curriculum->id,
                 'title' => $curriculum->title,

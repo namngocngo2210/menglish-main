@@ -26,12 +26,14 @@ const props = defineProps({
     lessonTypes: { type: Array, default: () => [] },
     milestones: { type: Array, default: () => [] },
     documents: { type: Object, default: () => ({ shared: [], stages: {}, lessons: {} }) },
+    history: { type: Object, default: null },
 });
 
 const stageOptions = computed(() => props.stages.map((s) => ({ value: s.id, label: s.label })));
 const lessonCount = (stage) => stage.units.reduce((sum, u) => sum + u.lessons.length, 0);
 const showUrl = (params = {}) => route('syllabus.curriculums.show', { id: props.curriculum.id, ...params });
-const tabs = { stages: 'Chặng & buổi', documents: 'Tài liệu chung', info: 'Thông tin' };
+const tabs = { stages: 'Chặng & buổi', documents: 'Tài liệu chung', info: 'Thông tin', history: 'Lịch sử' };
+const shortValue = (v) => (v === null || v === undefined || v === '' ? '—' : String(v).length > 80 ? String(v).slice(0, 80) + '…' : String(v));
 
 // Tải tài liệu: phạm vi theo chỗ bấm (buổi / chặng / chung).
 const upload = ref(null);
@@ -241,6 +243,40 @@ const milestoneLabel = (value) => props.milestones.find((m) => m.value === value
             </div>
             <DocumentList :documents="documents.shared" :can-manage="canManage" empty-text="Chưa có tài liệu chung." />
         </section>
+
+        <!-- Tab Lịch sử: ai sửa gì, lúc nào (giáo trình, chặng, unit, buổi, tài liệu) -->
+        <UiDataTable v-if="tab === 'history' && history" min-width="760px">
+            <template #header>
+                <h2 class="font-h3 text-h3 text-on-surface">Lịch sử thay đổi</h2>
+            </template>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Thời gian</th>
+                        <th>Người sửa</th>
+                        <th>Thao tác</th>
+                        <th>Đối tượng</th>
+                        <th>Thay đổi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="row in history.data" :key="row.id" class="align-top">
+                        <td class="whitespace-nowrap">{{ formatDate(row.at, 'd/m/Y H:i') }}</td>
+                        <td>{{ row.causer || 'Hệ thống' }}</td>
+                        <td><UiBadge :color="row.event === 'Xóa' ? 'error' : row.event === 'Tạo' ? 'success' : 'info'">{{ row.event }}</UiBadge></td>
+                        <td>{{ row.subject }}</td>
+                        <td class="text-body-small">
+                            <p v-for="c in row.changes" :key="c.field"><span class="font-code">{{ c.field }}</span>: {{ shortValue(c.old) }} → {{ shortValue(c.new) }}</p>
+                            <p v-if="!row.changes.length" class="text-on-surface-variant">{{ row.description }}</p>
+                        </td>
+                    </tr>
+                    <tr v-if="!history.data.length">
+                        <td colspan="5"><UiEmptyState icon="history" title="Chưa có thay đổi nào được ghi lại" /></td>
+                    </tr>
+                </tbody>
+            </table>
+            <template #footer><UiPagination :paginator="history" unit="thay đổi" /></template>
+        </UiDataTable>
 
         <DocumentUploadModal
             v-if="canManage"

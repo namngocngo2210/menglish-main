@@ -8,6 +8,11 @@ use App\Models\CrmCustomer;
 use App\Models\Room;
 use App\Models\RoomType;
 use App\Models\Student;
+use App\Models\SyllabusCurriculum;
+use App\Models\SyllabusDocument;
+use App\Models\SyllabusLesson;
+use App\Models\SyllabusStage;
+use App\Models\SyllabusUnit;
 use App\Models\SystemCategory;
 use App\Models\TuitionReceipt;
 use App\Models\User;
@@ -53,6 +58,12 @@ class Audit
             'label' => 'khách hàng',
             'undo' => ['name', 'parent_name', 'email', 'dob', 'gender', 'address', 'school', 'course_interest', 'source'],
         ],
+        // Kho syllabus (docs/kho-syllabus.md): tab Lịch sử của trang chi tiết giáo trình lọc theo properties.curriculum_id.
+        SyllabusCurriculum::class => ['log' => 'Giáo trình & Syllabus', 'label' => 'giáo trình', 'undo' => []],
+        SyllabusStage::class => ['log' => 'Giáo trình & Syllabus', 'label' => 'chặng', 'undo' => []],
+        SyllabusUnit::class => ['log' => 'Giáo trình & Syllabus', 'label' => 'unit', 'undo' => []],
+        SyllabusLesson::class => ['log' => 'Giáo trình & Syllabus', 'label' => 'buổi học', 'undo' => []],
+        SyllabusDocument::class => ['log' => 'Giáo trình & Syllabus', 'label' => 'tài liệu giáo trình', 'undo' => []],
         TuitionReceipt::class => [
             'log' => 'Học phí & Thu chi',
             'label' => 'phiếu thu',
