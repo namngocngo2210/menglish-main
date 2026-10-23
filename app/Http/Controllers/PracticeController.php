@@ -11,7 +11,7 @@ use App\Models\User;
 use App\Services\Practice\PracticeAttemptProps;
 use App\Services\Practice\PracticeAttemptService;
 use App\Services\Practice\PracticeException;
-use App\Services\Practice\PracticeTestGenerator;
+use App\Services\Practice\QuestionAvailability;
 use App\Support\ExamViolations;
 use App\Support\Practice\PracticeCatalog;
 use App\Support\Practice\SchoolGrade;
@@ -37,8 +37,8 @@ class PracticeController extends Controller
 
     public function __construct(
         private PracticeAttemptService $attempts,
-        private PracticeTestGenerator $generator,
         private PracticeAttemptProps $attemptProps,
+        private QuestionAvailability $availability,
     ) {}
 
     public function index(Request $request, $studentId = null): Response
@@ -59,15 +59,18 @@ class PracticeController extends Controller
                 ->pluck('id', 'term')
             : collect();
 
-        $terms = collect(PracticeCatalog::TERMS)->map(function (string $label, string $term) use ($grade, $gradeSupported, $inProgress) {
+        // Số câu bốc được thật (khung đề ∩ câu đã duyệt), không phải tổng khung: một truy vấn GROUP BY cho cả 4 kỳ.
+        $approved = $gradeSupported ? $this->availability->all() : [];
+        $terms = collect(PracticeCatalog::TERMS)->map(function (string $label, string $term) use ($grade, $gradeSupported, $inProgress, $approved) {
             $blueprint = $gradeSupported ? PracticeBlueprint::forGradeTerm($grade, $term) : null;
+            $drawable = $blueprint ? $this->availability->drawable($blueprint->items ?? [], $approved["{$grade}|{$term}"] ?? []) : null;
 
             return [
                 'key' => $term,
                 'label' => $label,
-                'questionCount' => $blueprint ? (int) collect($blueprint->items)->sum('count') : null,
+                'questionCount' => $drawable,
                 'duration' => $blueprint?->duration_minutes,
-                'available' => $gradeSupported && $this->generator->hasQuestions($grade, $term),
+                'available' => $drawable > 0,
                 'inProgressAttemptId' => $inProgress->get($term),
             ];
         })->values()->all();

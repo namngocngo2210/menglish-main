@@ -152,17 +152,4 @@ class PracticeTestGeneratorTest extends TestCase
         $this->assertCount(3, $result);
         $this->assertSame(2, $result->where('passage_id', $p->id)->count());
     }
-
-    public function test_has_questions(): void
-    {
-        $generator = new PracticeTestGenerator;
-        $this->assertFalse($generator->hasQuestions(9, 'gk1'));
-
-        $this->q(self::PH, ['status' => 'draft', 'grade' => 9]);
-        $this->assertFalse($generator->hasQuestions(9, 'gk1'));
-
-        $this->q(self::PH, ['grade' => 9]);
-        $this->assertTrue($generator->hasQuestions(9, 'gk1'));
-        $this->assertFalse($generator->hasQuestions(9, 'ck1'));
-    }
 }

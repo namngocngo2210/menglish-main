@@ -47,12 +47,6 @@ class PracticeTestGenerator
         return $result->values();
     }
 
-    public function hasQuestions(int $grade, string $term): bool
-    {
-        return QuestionBankQuestion::query()->approved()
-            ->where('grade', $grade)->where('term', $term)->exists();
-    }
-
     /**
      * Passages are units (all approved questions, by position); standalone questions are single units.
      * Never exceeds $count, except one smallest unit when every unit is bigger than $count.

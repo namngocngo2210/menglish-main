@@ -68,7 +68,7 @@ const scoreText = (score) => Number(score).toLocaleString('vi-VN', { maximumFrac
                 >
                     <div>
                         <h3 class="text-sm font-bold text-on-surface">{{ term.label }}</h3>
-                        <p v-if="term.questionCount" class="mt-0.5 text-xs text-on-surface-variant">{{ term.questionCount }} câu · {{ term.duration }} phút</p>
+                        <p v-if="term.questionCount" class="mt-0.5 text-xs text-on-surface-variant">~{{ term.questionCount }} câu · {{ term.duration }} phút</p>
                     </div>
                     <template v-if="term.available">
                         <template v-if="canStart">

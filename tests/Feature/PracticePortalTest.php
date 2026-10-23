@@ -126,6 +126,34 @@ class PracticePortalTest extends TestCase
                 ->where('history.total', 0));
     }
 
+    public function test_term_card_counts_only_drawable_questions(): void
+    {
+        // gk2: khung mặc định 40 câu nhưng chỉ có 12 câu "Chọn đáp án đúng" (khung cần 12) + 3 câu "Phát âm" (khung cần 2).
+        // ck2: chỉ có câu dạng không nằm trong khung → không bốc được câu nào.
+        foreach ([['gk2', 'Từ vựng & Ngữ pháp', 'Chọn đáp án đúng', 12], ['gk2', 'Ngữ âm', 'Phát âm', 3], ['ck2', 'Viết', 'Dạng lạ', 5]] as [$term, $skill, $type, $count]) {
+            for ($i = 1; $i <= $count; $i++) {
+                QuestionBankQuestion::create([
+                    'position' => $i, 'grade' => 7, 'term' => $term, 'skill' => $skill, 'type' => $type,
+                    'stem' => "{$term} {$type} {$i}", 'options' => ['A' => 'a', 'B' => 'b', 'C' => 'c', 'D' => 'd'],
+                    'answer' => 'A', 'status' => 'approved', 'source_key' => "drawable-{$term}-{$type}-{$i}",
+                ]);
+            }
+        }
+
+        $this->actingAs($this->user)
+            ->get(route('portal.student.practice', ['studentId' => $this->student->id]))
+            ->assertOk()
+            ->assertSee('~14 câu')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('terms.1.questionCount', 40)
+                ->where('terms.2.key', 'gk2')
+                ->where('terms.2.questionCount', 14)
+                ->where('terms.2.available', true)
+                ->where('terms.3.key', 'ck2')
+                ->where('terms.3.questionCount', 0)
+                ->where('terms.3.available', false));
+    }
+
     public function test_student_without_dob_sees_friendly_message_and_cannot_start(): void
     {
         $user = $this->portalUser();
