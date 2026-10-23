@@ -64,7 +64,8 @@ class SyllabusPackageValidatorTest extends TestCase
         $sheets['Buổi'][1] = $this->lessonCells(['stage' => 1, 'unit_number' => 1, 'unit_title' => 'Hello', 'session_no' => 1, 'title' => 'Chào hỏi',
             'lesson_type' => 'Mini test', 'procedure' => 'Warm-up', 'activity_1' => 'HĐ 1', 'activity_2' => 'HĐ 2',
             'homework_quizizz' => 'Quiz 1', 'homework_video' => 'Video 1', 'ppt_url' => 'https://example.com/ppt',
-            'quizizz_url' => 'Link Quizizz', 'output_product' => 'Đoạn hội thoại', 'notice_milestone' => 'Order in ấn', 'note' => 'Ghi chú']);
+            'quizizz_url' => 'Link Quizizz', 'output_product' => 'Đoạn hội thoại', 'notice_milestone' => 'Order in ấn', 'note' => 'Ghi chú',
+            'ppt_foreign_url' => 'https://example.com/ppt-gvnn', 'test_url' => 'https://example.com/de']);
 
         $plan = $this->validate($sheets);
 
@@ -75,9 +76,10 @@ class SyllabusPackageValidatorTest extends TestCase
         $this->assertSame([
             'lesson_type' => 'mini_test', 'procedure' => 'Warm-up', 'activity_1' => 'HĐ 1', 'activity_2' => 'HĐ 2',
             'homework_quizizz' => 'Quiz 1', 'homework_video' => 'Video 1', 'ppt_url' => 'https://example.com/ppt',
-            'quizizz_url' => null, 'output_product' => 'Đoạn hội thoại', 'notice_milestone' => 'order_print', 'note' => 'Ghi chú',
+            'ppt_foreign_url' => 'https://example.com/ppt-gvnn', 'quizizz_url' => null, 'test_url' => 'https://example.com/de',
+            'output_product' => 'Đoạn hội thoại', 'notice_milestone' => 'order_print', 'note' => 'Ghi chú',
         ], array_intersect_key($lesson, array_flip(['lesson_type', 'procedure', 'activity_1', 'activity_2', 'homework_quizizz',
-            'homework_video', 'ppt_url', 'quizizz_url', 'output_product', 'notice_milestone', 'note'])));
+            'homework_video', 'ppt_url', 'quizizz_url', 'output_product', 'notice_milestone', 'note', 'ppt_foreign_url', 'test_url'])));
         $this->assertSame('lesson', $plan->stages[0]['units'][0]['lessons'][1]['lesson_type']);
     }
 
@@ -87,13 +89,15 @@ class SyllabusPackageValidatorTest extends TestCase
         $sheets['Chặng'][0][] = 'Báo trước (buổi)';
         $sheets['Chặng'][1][6] = 0;
         $sheets['Buổi'][1] = $this->lessonCells(['stage' => 1, 'unit_number' => 1, 'unit_title' => 'Hello', 'session_no' => 1, 'title' => 'Chào hỏi',
-            'lesson_type' => 'Ôn tập', 'ppt_url' => 'ftp://example.com/ppt', 'notice_milestone' => 'Gọi phụ huynh']);
+            'lesson_type' => 'Thi cuối kỳ', 'ppt_url' => 'ftp://example.com/ppt', 'notice_milestone' => 'Gọi phụ huynh',
+            'test_url' => 'KIỂM TRA TỪ Unit 1.docx']);
 
         $errors = $this->validate($sheets)->errors;
 
         $this->assertContains('Sheet Chặng, dòng 2: Báo trước (buổi) phải từ 1 đến 50.', $errors);
-        $this->assertContains('Sheet Buổi, dòng 2: Loại buổi “Ôn tập” không hợp lệ (Học / Mini test / Big test).', $errors);
+        $this->assertContains('Sheet Buổi, dòng 2: Loại buổi “Thi cuối kỳ” không hợp lệ (Học / Ôn tập / Grammar Basic / Mini test / Big test).', $errors);
         $this->assertContains('Sheet Buổi, dòng 2: Link PPT không phải đường dẫn hợp lệ.', $errors);
+        $this->assertContains('Sheet Buổi, dòng 2: Link Mini test / Kiểm tra từ không phải đường dẫn hợp lệ.', $errors);
         $this->assertContains('Sheet Buổi, dòng 2: Mốc thông báo “Gọi phụ huynh” không hợp lệ (Order in ấn / Order mini test / Order Big Test).', $errors);
     }
 

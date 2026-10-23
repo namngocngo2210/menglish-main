@@ -208,8 +208,9 @@ class SyllabusPackageValidator
             if ($milestone === false) {
                 $this->errors[] = 'Sheet Buổi, dòng '.$line.': Mốc thông báo “'.$row['notice_milestone'].'” '.LessonSheetCells::MILESTONE_ERROR;
             }
-            $links = ['ppt_url' => LessonSheetCells::link($row['ppt_url']), 'quizizz_url' => LessonSheetCells::link($row['quizizz_url'])];
-            foreach (['ppt_url' => 'Link PPT', 'quizizz_url' => 'Link Quizizz'] as $key => $label) {
+            $links = [];
+            foreach (['ppt_url' => 'Link PPT', 'ppt_foreign_url' => 'Link PPT GVNN', 'quizizz_url' => 'Link Quizizz', 'test_url' => 'Link Mini test / Kiểm tra từ'] as $key => $label) {
+                $links[$key] = LessonSheetCells::link($row[$key]);
                 if ($links[$key] === false) {
                     $this->errors[] = 'Sheet Buổi, dòng '.$line.': '.$label.' không phải đường dẫn hợp lệ.';
                 }
@@ -250,7 +251,9 @@ class SyllabusPackageValidator
                 'homework_quizizz' => $row['homework_quizizz'],
                 'homework_video' => $row['homework_video'],
                 'ppt_url' => $links['ppt_url'] ?: null,
+                'ppt_foreign_url' => $links['ppt_foreign_url'] ?: null,
                 'quizizz_url' => $links['quizizz_url'] ?: null,
+                'test_url' => $links['test_url'] ?: null,
                 'output_product' => $row['output_product'],
                 'notice_milestone' => $milestone ?: null,
                 'note' => $row['note'],

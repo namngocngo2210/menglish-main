@@ -10,11 +10,11 @@ use Illuminate\Support\Str;
  */
 class LessonSheetCells
 {
-    public const TYPE_ERROR = 'không hợp lệ (Học / Mini test / Big test).';
+    public const TYPE_ERROR = 'không hợp lệ (Học / Ôn tập / Grammar Basic / Mini test / Big test).';
 
     public const MILESTONE_ERROR = 'không hợp lệ (Order in ấn / Order mini test / Order Big Test).';
 
-    private const TYPES = ['học' => 'lesson', 'mini test' => 'mini_test', 'big test' => 'big_test'];
+    private const TYPES = ['học' => 'lesson', 'ôn tập' => 'review', 'grammar basic' => 'grammar', 'mini test' => 'mini_test', 'big test' => 'big_test'];
 
     /** Chữ giữ chỗ của file mẫu ("link PPT"...) coi như ô trống. */
     private const PLACEHOLDERS = ['link ppt', 'link quizizz', 'link đề', 'link quizizz (nếu test online)'];
