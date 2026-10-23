@@ -24,25 +24,26 @@ class SyllabusClassController extends Controller
     {
         [$classModel, $lessonModel] = $this->resolve($request, $class, $lesson);
         $validated = $request->validate([
-            'title' => ['nullable', 'string', 'max:255'],
+            // Như form sửa buổi gốc (lessonRules): tên bắt buộc, nội dung không giới hạn độ dài.
+            'title' => ['required', 'string', 'max:255'],
             'lesson_type' => ['nullable', Rule::in(array_keys(SyllabusLesson::TYPES))],
-            'objectives' => ['nullable', 'string', 'max:10000'],
-            'content' => ['nullable', 'string', 'max:10000'],
-            'procedure' => ['nullable', 'string', 'max:10000'],
-            'activity_1' => ['nullable', 'string', 'max:5000'],
-            'activity_2' => ['nullable', 'string', 'max:5000'],
-            'homework_guide' => ['nullable', 'string', 'max:5000'],
-            'homework_quizizz' => ['nullable', 'string', 'max:5000'],
-            'homework_video' => ['nullable', 'string', 'max:5000'],
+            'objectives' => ['nullable', 'string'],
+            'content' => ['nullable', 'string'],
+            'procedure' => ['nullable', 'string'],
+            'activity_1' => ['nullable', 'string'],
+            'activity_2' => ['nullable', 'string'],
+            'homework_guide' => ['nullable', 'string'],
+            'homework_quizizz' => ['nullable', 'string'],
+            'homework_video' => ['nullable', 'string'],
             'ppt_url' => ['nullable', 'url', 'max:500'],
             'ppt_foreign_url' => ['nullable', 'url', 'max:500'],
             'quizizz_url' => ['nullable', 'url', 'max:500'],
             'test_url' => ['nullable', 'url', 'max:500'],
-            'output_product' => ['nullable', 'string', 'max:5000'],
+            'output_product' => ['nullable', 'string'],
             'notice_milestone' => ['nullable', Rule::in(array_keys(SyllabusLesson::MILESTONES))],
-            'note' => ['nullable', 'string', 'max:5000'],
+            'note' => ['nullable', 'string'],
             'reason' => ['required', 'string', 'max:2000'],
-        ], ['reason.required' => 'Vui lòng nhập lý do chỉnh sửa riêng cho lớp.']);
+        ], ['reason.required' => 'Vui lòng nhập lý do chỉnh sửa riêng cho lớp.', 'title.required' => 'Vui lòng nhập tên buổi.']);
 
         // Chỉ lưu trường khác bản gốc: trường giữ nguyên vẫn nhận thay đổi của bản gốc sau này (Sheet 4 câu 3).
         $data = [];
@@ -51,7 +52,8 @@ class SyllabusClassController extends Controller
                 continue;
             }
             $value = $validated[$field] === '' ? null : $validated[$field];
-            if ($value !== $lessonModel->{$field}) {
+            // So sau khi chuẩn hóa (form bị trim / đổi xuống dòng): trường giữ nguyên không bị coi là sửa riêng.
+            if ($this->normalize($value) !== $this->normalize($lessonModel->{$field})) {
                 $data[$field] = $value;
             }
         }
@@ -89,9 +91,19 @@ class SyllabusClassController extends Controller
             return redirect()->back()->with('error', 'Chưa kết nối Google Drive (thiếu khóa service account trên server).');
         }
         $result = $sync->syncAssignment($assignment);
+        if (isset($result['error'])) {
+            return redirect()->back()->with('error', 'Không kết nối được Google Drive: '.$result['error']);
+        }
 
         return redirect()->back()->with($result['failed'] ? 'warning' : 'status',
             "Đồng bộ Google Drive: mở {$result['granted']} quyền".($result['failed'] ? ", lỗi {$result['failed']} — xem cột Lỗi." : '.'));
+    }
+
+    private function normalize(mixed $value): ?string
+    {
+        $value = $value === null ? '' : trim(str_replace("\r\n", "\n", (string) $value));
+
+        return $value === '' ? null : $value;
     }
 
     /** @return array{0: ClassModel, 1: SyllabusLesson} lớp trong phạm vi + buổi thuộc chặng lớp đang học */

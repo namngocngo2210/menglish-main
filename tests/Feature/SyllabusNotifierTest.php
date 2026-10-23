@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\AdminNotification;
+use App\Models\ClassModel;
+use App\Models\SyllabusAssignment;
 use App\Services\Syllabus\SyllabusNotifier;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\BuildsSyllabusWorkflow;
@@ -41,7 +43,7 @@ class SyllabusNotifierTest extends TestCase
         app(SyllabusNotifier::class)->stageContentUpdated($this->stage2);
 
         $notification = AdminNotification::where('user_id', $this->teacher->id)->sole();
-        $this->assertSame('Syllabus Chặng 1: Làm quen (giáo trình Family and Friends) đã được Học thuật cập nhật.', $notification->title);
+        $this->assertSame('Syllabus lớp Lớp QT 01 – Chặng 1: Làm quen (giáo trình Family and Friends) đã được Học thuật cập nhật.', $notification->title);
         $this->assertSame('read', $notification->data['action']['method']);
     }
 
@@ -56,6 +58,18 @@ class SyllabusNotifierTest extends TestCase
 
         AdminNotification::where('user_id', $this->teacher->id)->update(['is_read' => true]);
         $notifier->stageContentUpdated($this->stage1);
+        $this->assertSame(2, AdminNotification::where('user_id', $this->teacher->id)->count());
+    }
+
+    public function test_stage_content_update_notices_each_class_separately(): void
+    {
+        $this->openStage($this->stage1);
+        $other = ClassModel::create(['code' => 'QT-02', 'name' => 'Lớp QT 02', 'branch_id' => $this->branch->id, 'status' => 'active', 'teacher_id' => $this->teacher->id]);
+        SyllabusAssignment::create(['class_id' => $other->id, 'curriculum_id' => $this->curriculum->id, 'stage_id' => $this->stage1->id, 'stage_name' => $this->stage1->label,
+            'assigned_chapters' => $this->stage1->label, 'user_id' => $this->teacher->id, 'status' => 'in_progress', 'opened_at' => now()]);
+
+        app(SyllabusNotifier::class)->stageContentUpdated($this->stage1);
+
         $this->assertSame(2, AdminNotification::where('user_id', $this->teacher->id)->count());
     }
 

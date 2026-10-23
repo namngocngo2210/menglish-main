@@ -2,6 +2,7 @@
 
 namespace App\Services\GoogleDrive;
 
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
@@ -28,12 +29,18 @@ class DriveClient
         return $this->key() !== null;
     }
 
+    /** Lấy access token (lỗi khóa / mạng / Google từ chối → DriveException) — gọi đầu mỗi lượt đồng bộ. */
+    public function ensureToken(): void
+    {
+        $this->token();
+    }
+
     /** @return list<array{id: string, emailAddress: ?string, role: string}> */
     public function permissions(string $fileId): array
     {
-        $response = $this->api()->get(self::API."/files/{$fileId}/permissions", [
+        $response = $this->send(fn () => $this->api()->get(self::API."/files/{$fileId}/permissions", [
             'supportsAllDrives' => 'true', 'fields' => 'permissions(id,emailAddress,role,type)',
-        ]);
+        ]));
 
         return array_map(fn (array $p) => ['id' => (string) $p['id'], 'emailAddress' => $p['emailAddress'] ?? null, 'role' => (string) ($p['role'] ?? '')],
             $this->json($response)['permissions'] ?? []);
@@ -42,9 +49,9 @@ class DriveClient
     /** Cấp quyền xem (reader) cho email, không gửi email thông báo. Trả về permission id. */
     public function grantReader(string $fileId, string $email): string
     {
-        $response = $this->api()->post(self::API."/files/{$fileId}/permissions?sendNotificationEmail=false&supportsAllDrives=true", [
+        $response = $this->send(fn () => $this->api()->post(self::API."/files/{$fileId}/permissions?sendNotificationEmail=false&supportsAllDrives=true", [
             'type' => 'user', 'role' => 'reader', 'emailAddress' => $email,
-        ]);
+        ]));
 
         return (string) ($this->json($response)['id'] ?? '');
     }
@@ -52,13 +59,13 @@ class DriveClient
     /** Người xem / bình luận không tải, in, sao chép được file. */
     public function restrictCopy(string $fileId): void
     {
-        $this->json($this->api()->patch(self::API."/files/{$fileId}?supportsAllDrives=true", ['copyRequiresWriterPermission' => true]));
+        $this->json($this->send(fn () => $this->api()->patch(self::API."/files/{$fileId}?supportsAllDrives=true", ['copyRequiresWriterPermission' => true])));
     }
 
     /** Thu hồi quyền; quyền / file không còn (404) coi như đã thu hồi. */
     public function revoke(string $fileId, string $permissionId): void
     {
-        $response = $this->api()->delete(self::API."/files/{$fileId}/permissions/{$permissionId}?supportsAllDrives=true");
+        $response = $this->send(fn () => $this->api()->delete(self::API."/files/{$fileId}/permissions/{$permissionId}?supportsAllDrives=true"));
         if ($response->status() !== 404) {
             $this->json($response);
         }
@@ -78,13 +85,14 @@ class DriveClient
                 $this->base64(json_encode(['alg' => 'RS256', 'typ' => 'JWT'])),
                 $this->base64(json_encode(['iss' => $key['client_email'], 'scope' => self::SCOPE, 'aud' => self::TOKEN_URL, 'iat' => $now, 'exp' => $now + 3600])),
             ];
-            if (! openssl_sign(implode('.', $segments), $signature, $key['private_key'], OPENSSL_ALGO_SHA256)) {
+            $privateKey = openssl_pkey_get_private($key['private_key']);
+            if ($privateKey === false || ! openssl_sign(implode('.', $segments), $signature, $privateKey, OPENSSL_ALGO_SHA256)) {
                 throw new DriveException('Khóa service account Google Drive không hợp lệ.');
             }
-            $response = Http::asForm()->timeout(15)->connectTimeout(5)->post(self::TOKEN_URL, [
+            $response = $this->send(fn () => Http::asForm()->timeout(15)->connectTimeout(5)->post(self::TOKEN_URL, [
                 'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
                 'assertion' => implode('.', [...$segments, $this->base64($signature)]),
-            ]);
+            ]));
 
             return (string) ($this->json($response)['access_token'] ?? throw new DriveException('Google không trả access token.'));
         });
@@ -102,6 +110,16 @@ class DriveClient
         return is_array($key) && is_string($key['client_email'] ?? null) && is_string($key['private_key'] ?? null)
             ? ['client_email' => $key['client_email'], 'private_key' => $key['private_key']]
             : null;
+    }
+
+    /** Lỗi mạng (timeout, DNS…) → DriveException để lượt đồng bộ ghi lỗi rồi chạy tiếp. */
+    private function send(callable $request): Response
+    {
+        try {
+            return $request();
+        } catch (ConnectionException $e) {
+            throw new DriveException('Không kết nối được Google Drive: '.$e->getMessage(), previous: $e);
+        }
     }
 
     /** @return array<string, mixed> */

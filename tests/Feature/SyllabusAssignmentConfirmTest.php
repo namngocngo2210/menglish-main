@@ -9,6 +9,7 @@ use App\Models\ClassSession;
 use App\Models\Student;
 use App\Models\SyllabusAssignment;
 use App\Services\SyllabusProgressionService;
+use App\Support\Roles;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\BuildsSyllabusWorkflow;
 use Tests\TestCase;
@@ -75,11 +76,11 @@ class SyllabusAssignmentConfirmTest extends TestCase
 
     public function test_reminder_after_24h_once_to_teacher_lead_and_manager(): void
     {
-        $fresh = $this->openStage($this->stage1, ['opened_at' => now()->subHours(23)]);
+        $fresh = $this->openStage($this->stage1, ['opened_at' => now()->subHours(23), 'assigned_at' => now()->subHours(23)]);
         $this->artisan('syllabus:remind-unconfirmed')->assertSuccessful();
         $this->assertSame(0, AdminNotification::count());
 
-        $fresh->update(['opened_at' => now()->subHours(25)]);
+        $fresh->update(['assigned_at' => now()->subHours(25)]);
         $this->artisan('syllabus:remind-unconfirmed')->assertSuccessful();
         $this->artisan('syllabus:remind-unconfirmed')->assertSuccessful();
 
@@ -92,9 +93,61 @@ class SyllabusAssignmentConfirmTest extends TestCase
         $this->assertSame(0, AdminNotification::where('user_id', $this->staff->id)->count());
     }
 
+    public function test_reminder_counts_24h_from_assignment_not_start_date(): void
+    {
+        $this->actingAs($this->lead)->post(route('syllabus.assignments.store'), [
+            'class_id' => $this->class->id, 'stage_id' => $this->stage1->id, 'start_date' => today()->subDays(10)->toDateString(),
+        ])->assertSessionHasNoErrors();
+        AdminNotification::query()->delete();
+
+        $this->artisan('syllabus:remind-unconfirmed')->assertSuccessful();
+        $this->assertSame(0, AdminNotification::count(), 'Ngày bắt đầu lùi về quá khứ không làm nhắc ngay.');
+
+        $this->travel(25)->hours();
+        $this->artisan('syllabus:remind-unconfirmed')->assertSuccessful();
+        $this->assertSame(1, AdminNotification::where('user_id', $this->teacher->id)->count());
+    }
+
+    public function test_manager_reminder_has_read_only_action(): void
+    {
+        $this->openStage($this->stage1, ['opened_at' => now()->subDays(2), 'assigned_at' => now()->subDays(2)]);
+
+        $this->artisan('syllabus:remind-unconfirmed')->assertSuccessful();
+
+        $this->assertSame('read', AdminNotification::where('user_id', $this->manager->id)->sole()->action['method']);
+        $this->assertSame('post', AdminNotification::where('user_id', $this->lead->id)->sole()->action['method']);
+    }
+
+    public function test_changing_class_main_teacher_moves_assignment_and_requires_new_confirmation(): void
+    {
+        $assignment = $this->openStage($this->stage1, ['confirmed_at' => now(), 'confirmed_by' => $this->teacher->id]);
+        $newTeacher = $this->userWithRole(Roles::TEACHER_FULLTIME, 'GV Mới');
+
+        $this->class->update(['teacher_id' => $newTeacher->id]);
+
+        $assignment->refresh();
+        $this->assertSame($newTeacher->id, $assignment->user_id);
+        $this->assertFalse($assignment->isConfirmed());
+        $this->assertSame('XÁC NHẬN', AdminNotification::where('user_id', $newTeacher->id)->sole()->action['label']);
+        $this->actingAs($this->teacher)->post(route('syllabus.assignments.confirm', $assignment->id))->assertForbidden();
+        $this->actingAs($newTeacher)->post(route('syllabus.assignments.confirm', $assignment->id))->assertRedirect();
+    }
+
+    public function test_switching_from_last_stage_does_not_mark_curriculum_finished(): void
+    {
+        $last = $this->openStage($this->stage2);
+
+        $this->actingAs($this->lead)->post(route('syllabus.assignments.store'), [
+            'class_id' => $this->class->id, 'stage_id' => $this->stage1->id, 'start_date' => today()->toDateString(), 'replace_current' => '1', 'reason' => 'Học lại chặng 1',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertNull($last->fresh()->curriculum_completed_at);
+        $this->assertSame(0, AdminNotification::where('title', 'like', '%hoàn thành giáo trình%')->count());
+    }
+
     public function test_confirmed_or_closed_stage_is_not_reminded(): void
     {
-        $this->openStage($this->stage1, ['opened_at' => now()->subDays(2), 'confirmed_at' => now(), 'confirmed_by' => $this->teacher->id]);
+        $this->openStage($this->stage1, ['assigned_at' => now()->subDays(2), 'confirmed_at' => now(), 'confirmed_by' => $this->teacher->id]);
 
         $this->artisan('syllabus:remind-unconfirmed')->assertSuccessful();
 

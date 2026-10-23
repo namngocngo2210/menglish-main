@@ -27,7 +27,7 @@ class SyllabusDriveGrant extends Model
 
     protected $fillable = [
         'email', 'file_id', 'file_kind', 'permission_id', 'status', 'pre_existing', 'error', 'attempts',
-        'granted_at', 'revoked_at', 'failure_notified_at',
+        'granted_at', 'revoked_at', 'failure_notified_at', 'grant_requested_at',
     ];
 
     protected $casts = [
@@ -36,6 +36,7 @@ class SyllabusDriveGrant extends Model
         'granted_at' => 'datetime',
         'revoked_at' => 'datetime',
         'failure_notified_at' => 'datetime',
+        'grant_requested_at' => 'datetime',
     ];
 
     public static function key(string $email, string $fileId): string

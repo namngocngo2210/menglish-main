@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\AuditsChanges;
+use App\Services\Syllabus\SyllabusNotifier;
 use App\Support\DataScope;
 use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -17,6 +18,16 @@ use Illuminate\Support\Carbon;
 class ClassModel extends Model
 {
     use AuditsChanges, HasFactory, SoftDeletes;
+
+    protected static function booted(): void
+    {
+        // Đổi GV chính → chặng đang mở chuyển sang GV mới, chờ GV mới xác nhận (quy trình syllabus Bước 4).
+        static::updated(function (self $class) {
+            if ($class->wasChanged('teacher_id')) {
+                app(SyllabusNotifier::class)->classTeacherChanged($class, $class->getOriginal('teacher_id') ? (int) $class->getOriginal('teacher_id') : null);
+            }
+        });
+    }
 
     protected $table = 'classes';
 

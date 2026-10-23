@@ -185,6 +185,7 @@ class DemoSyllabusLibrarySeeder extends Seeder
             return;
         }
         $this->asUser($this->lead, SyllabusClassController::class, 'override', [
+            'title' => $lesson->title,
             'content' => "{$lesson->title} — rút gọn phần đọc, thêm 10 phút luyện nghe theo cặp.",
             'activity_2' => 'Nghe – chép chính tả 5 từ vựng mới',
             'reason' => 'Lớp FAM 0 nghe yếu, cần thêm hoạt động nghe (demo chỉnh sửa thủ công).',

@@ -22,6 +22,8 @@ return new class extends Migration
             $table->boolean('pre_existing')->default(false);
             $table->text('error')->nullable();
             $table->unsignedSmallInteger('attempts')->default(0);
+            // Đã gửi yêu cầu tạo quyền (kể cả khi phản hồi lỗi / timeout): quyền tìm thấy sau đó là của hệ thống, không phải có từ trước.
+            $table->timestamp('grant_requested_at')->nullable();
             $table->timestamp('granted_at')->nullable();
             $table->timestamp('revoked_at')->nullable();
             $table->timestamp('failure_notified_at')->nullable();

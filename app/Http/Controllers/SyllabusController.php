@@ -998,7 +998,7 @@ class SyllabusController extends Controller
         ]);
         // Đổi GV phụ trách → GV mới phải xác nhận lại.
         if ((int) $previousTeacher !== (int) $assignment->user_id) {
-            $assignment->update(['confirmed_at' => null, 'confirmed_by' => null, 'confirm_reminded_at' => null]);
+            $assignment->update(['assigned_at' => now(), 'confirmed_at' => null, 'confirmed_by' => null, 'confirm_reminded_at' => null]);
             $notifier->stageAssigned($assignment);
         }
 

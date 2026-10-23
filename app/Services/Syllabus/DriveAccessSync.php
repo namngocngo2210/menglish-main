@@ -11,6 +11,7 @@ use App\Services\GoogleDrive\DriveException;
 use App\Services\GoogleDrive\DriveLinks;
 use App\Services\NotificationService;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * Đồng bộ quyền xem Google Drive theo chặng lớp đang học (docs/kho-syllabus.md §7.4) kiểu đối chiếu: tập (email, file) cần
@@ -24,6 +25,9 @@ class DriveAccessSync
 
     /** @var array<string, true> file đã chặn tải / in / sao chép trong lần chạy này */
     private array $restricted = [];
+
+    /** @var list<array{0: SyllabusDriveGrant, 1: array}> quyền lỗi lần đầu trong lượt chạy (báo gộp) */
+    private array $failures = [];
 
     public function __construct(private readonly DriveClient $drive, private readonly ClassSyllabus $syllabus) {}
 
@@ -69,44 +73,75 @@ class DriveAccessSync
     /** @return array{granted: int, revoked: int, failed: int} */
     public function sync(): array
     {
-        $result = ['granted' => 0, 'revoked' => 0, 'failed' => 0];
-        if (! $this->configured()) {
-            return $result;
-        }
-        $desired = $this->desired();
-        $existing = SyllabusDriveGrant::all()->keyBy(fn (SyllabusDriveGrant $g) => SyllabusDriveGrant::key($g->email, $g->file_id));
+        return $this->locked(function () {
+            $result = ['granted' => 0, 'revoked' => 0, 'failed' => 0];
+            $desired = $this->desired();
+            $existing = SyllabusDriveGrant::where('status', '!=', SyllabusDriveGrant::STATUS_REVOKED)
+                ->orWhereIn('file_id', $desired->pluck('file_id')->unique())->get()
+                ->keyBy(fn (SyllabusDriveGrant $g) => SyllabusDriveGrant::key($g->email, $g->file_id));
 
-        foreach ($desired as $key => $row) {
-            $this->grant($existing->get($key), $row, $result);
-        }
-        foreach ($existing as $key => $grant) {
-            if (! $desired->has($key)) {
-                $this->release($grant, $result);
+            foreach ($desired as $key => $row) {
+                $this->grant($existing->get($key), $row, $result);
             }
-        }
+            foreach ($existing as $key => $grant) {
+                if (! $desired->has($key)) {
+                    $this->release($grant, $result);
+                }
+            }
 
-        return $result;
+            return $result;
+        });
     }
 
     /** "Đồng bộ lại" của 1 lớp: thử lại ngay các quyền của chặng lớp đang học (kể cả quyền đã lỗi đủ số lần). */
     public function syncAssignment(SyllabusAssignment $assignment): array
     {
-        $result = ['granted' => 0, 'revoked' => 0, 'failed' => 0];
-        if (! $this->configured()) {
-            return $result;
-        }
-        $desired = $this->desiredFor($assignment);
-        $existing = SyllabusDriveGrant::whereIn('file_id', $desired->pluck('file_id')->unique())->get()
-            ->keyBy(fn (SyllabusDriveGrant $g) => SyllabusDriveGrant::key($g->email, $g->file_id));
-        foreach ($desired as $key => $row) {
-            $grant = $existing->get($key);
-            if ($grant?->status === SyllabusDriveGrant::STATUS_FAILED) {
-                $grant->update(['attempts' => 0]);
+        return $this->locked(function () use ($assignment) {
+            $result = ['granted' => 0, 'revoked' => 0, 'failed' => 0];
+            $desired = $this->desiredFor($assignment);
+            $existing = SyllabusDriveGrant::whereIn('file_id', $desired->pluck('file_id')->unique())->get()
+                ->keyBy(fn (SyllabusDriveGrant $g) => SyllabusDriveGrant::key($g->email, $g->file_id));
+            foreach ($desired as $key => $row) {
+                $grant = $existing->get($key);
+                if ($grant?->status === SyllabusDriveGrant::STATUS_FAILED) {
+                    $grant->update(['attempts' => 0]);
+                }
+                $this->grant($grant, $row, $result);
             }
-            $this->grant($grant, $row, $result);
+
+            return $result;
+        });
+    }
+
+    /**
+     * Một lượt đồng bộ tại một thời điểm (lệnh mỗi phút và nút "Đồng bộ lại" không giẫm nhau). Lấy token trước: khóa / mạng /
+     * Google lỗi thì dừng lượt, báo Học thuật 1 lần mỗi 6 giờ thay vì báo theo từng quyền.
+     */
+    private function locked(callable $run): array
+    {
+        $empty = ['granted' => 0, 'revoked' => 0, 'failed' => 0];
+        if (! $this->configured()) {
+            return $empty;
         }
 
-        return $result;
+        return Cache::lock('syllabus:drive-sync:lock', 300)->get(function () use ($run, $empty) {
+            try {
+                $this->drive->ensureToken();
+            } catch (DriveException $e) {
+                if (Cache::add('syllabus:drive-sync:token-alert', true, now()->addHours(6))) {
+                    AdminNotification::notifyUsers(NotificationService::userIdsWithPermission('syllabus.assign'), SyllabusNotifier::TYPE,
+                        'Không kết nối được Google Drive — chưa mở / đóng được quyền xem file syllabus',
+                        $e->getMessage().' Kiểm tra khóa service account (GOOGLE_DRIVE_SA_KEY_PATH) và Drive API.');
+                }
+
+                return $empty + ['error' => $e->getMessage()];
+            }
+            $this->failures = [];
+            $result = $run();
+            $this->notifyFailures();
+
+            return $result;
+        }) ?? $empty;
     }
 
     private function grant(?SyllabusDriveGrant $grant, array $row, array &$result): void
@@ -121,50 +156,77 @@ class DriveAccessSync
         $grant->file_kind = $row['kind'];
 
         try {
-            $existing = collect($this->drive->permissions($row['file_id']))
-                ->first(fn (array $p) => mb_strtolower((string) $p['emailAddress']) === $row['email']);
-            if ($existing) {
-                $grant->fill(['pre_existing' => true, 'permission_id' => $existing['id']]);
-            } else {
-                $grant->fill(['pre_existing' => false, 'permission_id' => $this->drive->grantReader($row['file_id'], $row['email'])]);
-                if ($row['kind'] === 'file' && ! isset($this->restricted[$row['file_id']])) {
-                    $this->drive->restrictCopy($row['file_id']);
-                    $this->restricted[$row['file_id']] = true;
+            if (! $grant->permission_id) {
+                $found = collect($this->drive->permissions($row['file_id']))
+                    ->first(fn (array $p) => mb_strtolower((string) $p['emailAddress']) === $row['email']);
+                if ($found) {
+                    // Chưa từng gửi yêu cầu tạo quyền → quyền có từ trước (không bao giờ thu hồi); đã gửi (phản hồi lỗi /
+                    // timeout) → chính hệ thống đã tạo.
+                    $grant->fill(['pre_existing' => $grant->grant_requested_at === null, 'permission_id' => $found['id']]);
+                } else {
+                    $grant->fill(['pre_existing' => false, 'grant_requested_at' => now()])->save();
+                    $grant->permission_id = $this->drive->grantReader($row['file_id'], $row['email']);
                 }
             }
-            $grant->fill(['status' => SyllabusDriveGrant::STATUS_GRANTED, 'error' => null, 'attempts' => 0, 'granted_at' => now(), 'revoked_at' => null])->save();
+            $grant->fill(['status' => SyllabusDriveGrant::STATUS_GRANTED, 'error' => null, 'attempts' => 0, 'granted_at' => now(),
+                'revoked_at' => null, 'failure_notified_at' => null])->save();
             $result['granted']++;
         } catch (DriveException $e) {
             $grant->fill(['status' => SyllabusDriveGrant::STATUS_FAILED, 'error' => $e->getMessage(), 'attempts' => $grant->attempts + 1])->save();
             $result['failed']++;
             if (! $grant->failure_notified_at) {
-                $grant->update(['failure_notified_at' => now()]);
-                AdminNotification::notifyUsers(NotificationService::userIdsWithPermission('syllabus.assign'), SyllabusNotifier::TYPE,
-                    "Không mở được quyền xem Google Drive cho {$row['user']}",
-                    "{$row['email']} · {$row['url']} — {$e->getMessage()} Kiểm tra file đã chia sẻ quyền Chỉnh sửa cho service account và email là tài khoản Google.");
-            }
-        }
-    }
-
-    private function release(SyllabusDriveGrant $grant, array &$result): void
-    {
-        if ($grant->status !== SyllabusDriveGrant::STATUS_GRANTED || $grant->pre_existing) {
-            // Quyền có từ trước / chưa từng mở được: chỉ xoá theo dõi, không đụng tới Drive.
-            if ($grant->status !== SyllabusDriveGrant::STATUS_REVOKED) {
-                $grant->delete();
+                $this->failures[] = [$grant, $row];
             }
 
             return;
         }
-        try {
-            if ($grant->permission_id) {
-                $this->drive->revoke($grant->file_id, $grant->permission_id);
+
+        // Chặn tải / in / sao chép: lỗi không làm mất quyền đã mở (quyền vẫn được theo dõi để thu hồi).
+        if ($grant->file_kind === 'file' && ! $grant->pre_existing && ! isset($this->restricted[$row['file_id']])) {
+            try {
+                $this->drive->restrictCopy($row['file_id']);
+                $this->restricted[$row['file_id']] = true;
+            } catch (DriveException $e) {
+                $grant->update(['error' => 'Chưa chặn tải / in / sao chép: '.$e->getMessage()]);
             }
-            $grant->update(['status' => SyllabusDriveGrant::STATUS_REVOKED, 'permission_id' => null, 'revoked_at' => now(), 'error' => null]);
+        }
+    }
+
+    /** Thu hồi quyền hệ thống đã tạo (mọi trạng thái); quyền có từ trước / chưa từng tạo được: chỉ bỏ theo dõi. */
+    private function release(SyllabusDriveGrant $grant, array &$result): void
+    {
+        if ($grant->status === SyllabusDriveGrant::STATUS_REVOKED) {
+            return;
+        }
+        if ($grant->pre_existing || ! $grant->permission_id) {
+            $grant->delete();
+
+            return;
+        }
+        try {
+            $this->drive->revoke($grant->file_id, $grant->permission_id);
+            $grant->update(['status' => SyllabusDriveGrant::STATUS_REVOKED, 'permission_id' => null, 'grant_requested_at' => null,
+                'revoked_at' => now(), 'error' => null]);
             $result['revoked']++;
         } catch (DriveException $e) {
             $grant->update(['error' => 'Chưa thu hồi được: '.$e->getMessage()]);
             $result['failed']++;
         }
+    }
+
+    /** Gộp các quyền lỗi lần đầu trong lượt chạy thành 1 thông báo cho Học thuật. */
+    private function notifyFailures(): void
+    {
+        if ($this->failures === []) {
+            return;
+        }
+        $lines = collect($this->failures)->take(5)
+            ->map(fn (array $f) => "{$f[1]['user']} ({$f[1]['email']}) · {$f[1]['url']} — {$f[0]->error}")->implode("\n");
+        $more = count($this->failures) > 5 ? "\n… và ".(count($this->failures) - 5).' quyền khác.' : '';
+        AdminNotification::notifyUsers(NotificationService::userIdsWithPermission('syllabus.assign'), SyllabusNotifier::TYPE,
+            'Không mở được '.count($this->failures).' quyền xem Google Drive',
+            $lines.$more."\nKiểm tra file đã chia sẻ quyền Chỉnh sửa cho service account và email GV là tài khoản Google.");
+        SyllabusDriveGrant::whereKey(collect($this->failures)->map(fn (array $f) => $f[0]->id))->update(['failure_notified_at' => now()]);
+        $this->failures = [];
     }
 }

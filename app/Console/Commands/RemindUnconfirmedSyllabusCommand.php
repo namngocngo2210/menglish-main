@@ -7,7 +7,7 @@ use App\Services\Syllabus\SyllabusNotifier;
 use Illuminate\Console\Command;
 
 /**
- * Chặng đang mở mà GV chưa XÁC NHẬN sau 24h kể từ khi giao → nhắc GV + báo Học thuật và Quản lý chi nhánh (Bước 4, câu 4
+ * Chặng đang mở mà GV chưa XÁC NHẬN sau 24h kể từ khi giao (assigned_at — lúc giao / đổi GV, không phải ngày bắt đầu) → nhắc GV + báo Học thuật và Quản lý chi nhánh (Bước 4, câu 4
  * — docs/kho-syllabus.md §7.3). Chỉ nhắc 1 lần (confirm_reminded_at), chạy lại không nhắc lặp.
  */
 class RemindUnconfirmedSyllabusCommand extends Command
@@ -21,8 +21,9 @@ class RemindUnconfirmedSyllabusCommand extends Command
         $count = 0;
         SyllabusAssignment::open()->with('classModel')
             ->whereNull('confirmed_at')->whereNull('confirm_reminded_at')
-            ->where('opened_at', '<=', now()->subDay())
-            ->orderBy('id')
+            ->where(fn ($q) => $q->where('assigned_at', '<=', now()->subDay())
+                ->orWhere(fn ($legacy) => $legacy->whereNull('assigned_at')->where('created_at', '<=', now()->subDay())))
+            ->lazyById()
             ->each(function (SyllabusAssignment $assignment) use ($notifier, &$count) {
                 $assignment->update(['confirm_reminded_at' => now()]);
                 $notifier->unconfirmedReminder($assignment);

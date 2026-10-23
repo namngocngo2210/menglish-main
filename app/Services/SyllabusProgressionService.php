@@ -97,6 +97,7 @@ class SyllabusProgressionService
                     'progress_percent' => 0,
                     'status' => SyllabusAssignment::STATUS_OPEN,
                     'opened_at' => now(),
+                    'assigned_at' => now(),
                     'opened_by' => $actor?->id,
                     'open_reason' => $reason,
                 ]);
@@ -122,7 +123,8 @@ class SyllabusProgressionService
             }
 
             $next = $assignment->stage?->next();
-            $finished = $assignment->stage && ! $next;
+            // Chuyển chặng (Học thuật chọn chặng khác) không phải học xong giáo trình.
+            $finished = $notifyNext && $assignment->stage && ! $next;
 
             $assignment->update([
                 'status' => SyllabusAssignment::STATUS_CLOSED,

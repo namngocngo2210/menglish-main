@@ -7,7 +7,9 @@ use App\Models\ClassModel;
 use App\Models\SyllabusAssignment;
 use App\Models\SyllabusDriveGrant;
 use App\Models\SyllabusLesson;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -28,6 +30,12 @@ class SyllabusDriveAccessTest extends TestCase
     private array $permissions = [];
 
     private ?string $failFor = null;
+
+    private ?string $restrictFailFor = null;
+
+    private ?string $timeoutFor = null;
+
+    private bool $tokenError = false;
 
     private int $nextPermission = 1;
 
@@ -128,7 +136,7 @@ class SyllabusDriveAccessTest extends TestCase
         $this->assertCount(2, $failed);
         $this->assertTrue($failed->every(fn ($g) => $g->status === 'failed' && $g->attempts === 5 && str_contains($g->error, 'không đủ quyền')));
         $this->assertSame(10, Http::recorded(fn (Request $r) => $r->method() === 'GET' && str_contains($r->url(), self::FILE_TEST))->count());
-        $this->assertSame(2, AdminNotification::where('user_id', $this->lead->id)->count(), 'Báo Học thuật 1 lần cho mỗi quyền lỗi.');
+        $this->assertSame(1, AdminNotification::where('user_id', $this->lead->id)->count(), 'Báo Học thuật 1 lần (gộp các quyền lỗi của lượt chạy).');
     }
 
     public function test_class_tab_shows_grant_status_and_lead_can_resync(): void
@@ -152,6 +160,93 @@ class SyllabusDriveAccessTest extends TestCase
         $this->assertSame(4, SyllabusDriveGrant::where('status', 'granted')->count());
     }
 
+    public function test_restrict_copy_failure_keeps_system_grant_revocable(): void
+    {
+        $this->fakeDrive();
+        $this->restrictFailFor = self::FILE_PPT;
+
+        $this->artisan('syllabus:sync-drive-access')->assertSuccessful();
+        $this->artisan('syllabus:sync-drive-access')->assertSuccessful();
+
+        $rows = SyllabusDriveGrant::where('file_id', self::FILE_PPT)->get();
+        $this->assertCount(2, $rows);
+        $this->assertTrue($rows->every(fn ($g) => $g->status === 'granted' && ! $g->pre_existing && $g->permission_id && str_contains((string) $g->error, 'chặn tải')));
+
+        $this->assignment->update(['status' => SyllabusAssignment::STATUS_CLOSED, 'closed_at' => now()]);
+        $this->artisan('syllabus:sync-drive-access')->assertSuccessful();
+
+        $this->assertSame(4, Http::recorded(fn (Request $r) => $r->method() === 'DELETE')->count(), 'Quyền hệ thống tạo luôn được thu hồi.');
+    }
+
+    public function test_failed_grant_that_created_a_permission_is_revoked_when_stage_closes(): void
+    {
+        $this->fakeDrive();
+        $this->artisan('syllabus:sync-drive-access')->assertSuccessful();
+        SyllabusDriveGrant::query()->update(['status' => 'failed', 'error' => 'lỗi cũ']);
+
+        $this->assignment->update(['status' => SyllabusAssignment::STATUS_CLOSED, 'closed_at' => now()]);
+        $this->artisan('syllabus:sync-drive-access')->assertSuccessful();
+
+        $this->assertSame(4, Http::recorded(fn (Request $r) => $r->method() === 'DELETE')->count());
+    }
+
+    public function test_connection_timeout_is_recorded_and_does_not_block_revocations(): void
+    {
+        $this->fakeDrive();
+        $this->artisan('syllabus:sync-drive-access')->assertSuccessful();
+        $slow = '1SlowFileCCCCCCCCCCCCCCCCCCCC';
+        SyllabusLesson::where('curriculum_id', $this->curriculum->id)->where('session_no', 7)->update(['ppt_url' => "https://drive.google.com/file/d/{$slow}/view"]);
+        $other = ClassModel::create(['code' => 'QT-03', 'name' => 'Lớp QT 03', 'branch_id' => $this->branch->id, 'status' => 'active', 'teacher_id' => $this->teacher->id]);
+        SyllabusAssignment::create(['class_id' => $other->id, 'curriculum_id' => $this->curriculum->id, 'stage_id' => $this->stage2->id, 'stage_name' => $this->stage2->label,
+            'assigned_chapters' => $this->stage2->label, 'user_id' => $this->teacher->id, 'status' => SyllabusAssignment::STATUS_OPEN, 'opened_at' => now()]);
+        $this->timeoutFor = $slow;
+        $this->assignment->update(['status' => SyllabusAssignment::STATUS_CLOSED, 'closed_at' => now()]);
+
+        $this->artisan('syllabus:sync-drive-access')->assertSuccessful();
+
+        $this->assertSame(4, Http::recorded(fn (Request $r) => $r->method() === 'DELETE')->count());
+        $row = SyllabusDriveGrant::where('file_id', $slow)->sole();
+        $this->assertSame('failed', $row->status);
+        $this->assertStringContainsString('Không kết nối được Google Drive', $row->error);
+    }
+
+    public function test_token_failure_aborts_run_with_single_notification(): void
+    {
+        $this->fakeDrive();
+        $this->tokenError = true;
+
+        $this->artisan('syllabus:sync-drive-access')->assertSuccessful();
+        $this->artisan('syllabus:sync-drive-access')->assertSuccessful();
+
+        $this->assertSame(0, Http::recorded(fn (Request $r) => str_contains($r->url(), 'googleapis.com/drive'))->count());
+        $this->assertSame(0, SyllabusDriveGrant::count());
+        $notification = AdminNotification::where('user_id', $this->lead->id)->sole();
+        $this->assertStringContainsString('Không kết nối được Google Drive', $notification->title);
+    }
+
+    public function test_many_failures_in_one_run_send_one_grouped_notification(): void
+    {
+        $this->fakeDrive();
+        $this->failFor = self::FILE_TEST;
+        $this->restrictFailFor = null;
+        SyllabusLesson::where('curriculum_id', $this->curriculum->id)->where('session_no', 5)->update(['ppt_url' => 'https://drive.google.com/file/d/'.self::FILE_TEST.'/view?x=1']);
+
+        $this->artisan('syllabus:sync-drive-access')->assertSuccessful();
+
+        $this->assertSame(1, AdminNotification::where('user_id', $this->lead->id)->count());
+        $this->assertStringContainsString('2 quyền', AdminNotification::where('user_id', $this->lead->id)->sole()->title);
+    }
+
+    public function test_sync_command_overlap_lock_expires_quickly(): void
+    {
+        $event = collect(app(Schedule::class)->events())
+            ->first(fn ($e) => str_contains((string) $e->command, 'syllabus:sync-drive-access'));
+
+        $this->assertNotNull($event);
+        $this->assertTrue($event->withoutOverlapping);
+        $this->assertSame(10, $event->expiresAt);
+    }
+
     /** Khóa service account sinh trong test + Drive API giả lập (quyền theo file, lỗi 403 cho $failFor). */
     private function fakeDrive(): void
     {
@@ -163,10 +258,18 @@ class SyllabusDriveAccessTest extends TestCase
 
         Http::fake(function (Request $request) {
             if (str_starts_with($request->url(), 'https://oauth2.googleapis.com/token')) {
-                return Http::response(['access_token' => 'token-demo', 'expires_in' => 3600]);
+                return $this->tokenError
+                    ? Http::response(['error' => 'invalid_grant', 'error_description' => 'Invalid JWT Signature.'], 400)
+                    : Http::response(['access_token' => 'token-demo', 'expires_in' => 3600]);
             }
             preg_match('#/files/([^/?]+)(/permissions(?:/([^/?]+))?)?#', $request->url(), $m);
             $file = $m[1] ?? '';
+            if ($file === $this->timeoutFor) {
+                throw new ConnectionException('cURL error 28: Operation timed out');
+            }
+            if ($file === $this->restrictFailFor && $request->method() === 'PATCH') {
+                return Http::response(['error' => ['code' => 403, 'message' => 'Không đổi được cài đặt file.']], 403);
+            }
             if ($file === $this->failFor && $request->method() !== 'DELETE') {
                 return Http::response(['error' => ['code' => 403, 'message' => 'Service account không đủ quyền trên file.']], 403);
             }

@@ -28,7 +28,8 @@ function run() {
     const done = () => (busy.value = false);
     const { method, url } = props.action;
     if (method === 'post') {
-        router.post(url, {}, { preserveScroll: true, onSuccess: () => markRead(done), onError: done, onCancel: done });
+        let ok = false;
+        router.post(url, {}, { preserveScroll: true, onSuccess: () => (ok = true), onFinish: () => (ok ? markRead(done) : done()) });
     } else if (method === 'get') {
         markRead(() => router.visit(url, { onFinish: done }));
     } else {

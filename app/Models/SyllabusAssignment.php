@@ -52,6 +52,7 @@ class SyllabusAssignment extends Model
         'closed_by_big_test_id',
         'curriculum_completed_at',
         'extra_sessions',
+        'assigned_at',
         'confirmed_at',
         'confirmed_by',
         'confirm_reminded_at',
@@ -60,6 +61,7 @@ class SyllabusAssignment extends Model
     protected $casts = [
         'start_date' => 'date',
         'planned_sessions' => 'integer',
+        'assigned_at' => 'datetime',
         'confirmed_at' => 'datetime',
         'confirm_reminded_at' => 'datetime',
         'deadline' => 'date',

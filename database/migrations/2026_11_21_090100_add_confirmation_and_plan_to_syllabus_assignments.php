@@ -17,11 +17,14 @@ return new class extends Migration
         Schema::table('syllabus_assignments', function (Blueprint $table) {
             $table->date('start_date')->nullable()->after('stage_name');
             $table->unsignedSmallInteger('planned_sessions')->nullable()->after('start_date');
+            // Mốc tính "quá 24h chưa xác nhận" (lúc giao / đổi GV), không phải ngày bắt đầu học.
+            $table->timestamp('assigned_at')->nullable();
             $table->timestamp('confirmed_at')->nullable();
             $table->foreignId('confirmed_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamp('confirm_reminded_at')->nullable();
         });
 
+        DB::table('syllabus_assignments')->whereNull('assigned_at')->update(['assigned_at' => DB::raw('created_at')]);
         DB::table('syllabus_assignments')->whereNull('start_date')->whereNotNull('opened_at')
             ->update(['start_date' => DB::raw('DATE(opened_at)')]);
         $counts = DB::table('syllabus_lessons')
@@ -43,7 +46,7 @@ return new class extends Migration
     {
         Schema::table('syllabus_assignments', function (Blueprint $table) {
             $table->dropConstrainedForeignId('confirmed_by');
-            $table->dropColumn(['start_date', 'planned_sessions', 'confirmed_at', 'confirm_reminded_at']);
+            $table->dropColumn(['start_date', 'planned_sessions', 'assigned_at', 'confirmed_at', 'confirm_reminded_at']);
         });
     }
 };

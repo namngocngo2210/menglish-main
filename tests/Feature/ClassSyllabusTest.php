@@ -38,7 +38,7 @@ class ClassSyllabusTest extends TestCase
             'stage_name' => $this->stage1->label, 'assigned_chapters' => $this->stage1->label, 'user_id' => $this->teacher->id, 'status' => SyllabusAssignment::STATUS_OPEN, 'opened_at' => now()]);
 
         $this->actingAs($this->lead)->put(route('classes.syllabus.override', [$this->class->id, $this->lesson3->id]), [
-            'content' => 'Nội dung riêng lớp 01', 'reason' => 'Lớp yếu phần nghe',
+            'title' => 'Bài 3', 'content' => 'Nội dung riêng lớp 01', 'reason' => 'Lớp yếu phần nghe',
         ])->assertSessionHasNoErrors()->assertRedirect();
 
         $mine = app(ClassSyllabus::class)->lessons($this->assignment)->firstWhere('lesson.id', $this->lesson3->id);
@@ -55,7 +55,7 @@ class ClassSyllabusTest extends TestCase
     public function test_original_edit_reaches_classes_without_override_for_that_field(): void
     {
         $this->actingAs($this->lead)->put(route('classes.syllabus.override', [$this->class->id, $this->lesson3->id]), [
-            'content' => 'Nội dung riêng', 'reason' => 'Lý do',
+            'title' => 'Bài 3', 'content' => 'Nội dung riêng', 'reason' => 'Lý do',
         ])->assertSessionHasNoErrors();
 
         $this->lesson3->update(['content' => 'Gốc mới', 'ppt_url' => 'https://example.com/goc-moi']);
@@ -68,11 +68,11 @@ class ClassSyllabusTest extends TestCase
     public function test_override_requires_reason_and_notifies_teachers(): void
     {
         $url = route('classes.syllabus.override', [$this->class->id, $this->lesson3->id]);
-        $this->actingAs($this->lead)->put($url, ['content' => 'x'])->assertSessionHasErrors('reason');
-        $this->actingAs($this->lead)->put($url, ['content' => 'x', 'reason' => 'y', 'ppt_url' => 'không phải link'])->assertSessionHasErrors('ppt_url');
+        $this->actingAs($this->lead)->put($url, ['title' => 'Bài 3', 'content' => 'x'])->assertSessionHasErrors('reason');
+        $this->actingAs($this->lead)->put($url, ['title' => 'Bài 3', 'content' => 'x', 'reason' => 'y', 'ppt_url' => 'không phải link'])->assertSessionHasErrors('ppt_url');
         $this->assertSame(0, ClassLessonOverride::count());
 
-        $this->actingAs($this->lead)->put($url, ['content' => 'x', 'reason' => 'y'])->assertSessionHasNoErrors();
+        $this->actingAs($this->lead)->put($url, ['title' => 'Bài 3', 'content' => 'x', 'reason' => 'y'])->assertSessionHasNoErrors();
 
         foreach ([$this->teacher, $this->foreignTeacher] as $user) {
             $notification = AdminNotification::where('user_id', $user->id)->sole();
@@ -81,9 +81,21 @@ class ClassSyllabusTest extends TestCase
         }
     }
 
+    public function test_override_title_required_and_long_original_text_does_not_block_saving(): void
+    {
+        $long = str_repeat('Hoạt động rất dài. ', 800);
+        $this->lesson3->update(['activity_1' => $long]);
+        $url = route('classes.syllabus.override', [$this->class->id, $this->lesson3->id]);
+
+        $this->actingAs($this->lead)->put($url, ['title' => '', 'reason' => 'y'])->assertSessionHasErrors('title');
+        $this->actingAs($this->lead)->put($url, ['title' => 'Bài 3', 'activity_1' => $long, 'content' => 'Mới', 'reason' => 'y'])->assertSessionHasNoErrors();
+
+        $this->assertSame(['content' => 'Mới'], ClassLessonOverride::sole()->data);
+    }
+
     public function test_remove_override_restores_original(): void
     {
-        $this->actingAs($this->lead)->put(route('classes.syllabus.override', [$this->class->id, $this->lesson3->id]), ['content' => 'x', 'reason' => 'y']);
+        $this->actingAs($this->lead)->put(route('classes.syllabus.override', [$this->class->id, $this->lesson3->id]), ['title' => 'Bài 3', 'content' => 'x', 'reason' => 'y']);
 
         $this->actingAs($this->lead)->delete(route('classes.syllabus.override.destroy', [$this->class->id, $this->lesson3->id]))->assertRedirect();
 
@@ -94,7 +106,7 @@ class ClassSyllabusTest extends TestCase
 
     public function test_staff_and_teacher_can_view_tab_but_not_edit(): void
     {
-        $this->actingAs($this->lead)->put(route('classes.syllabus.override', [$this->class->id, $this->lesson3->id]), ['content' => 'Riêng', 'reason' => 'Lý do riêng']);
+        $this->actingAs($this->lead)->put(route('classes.syllabus.override', [$this->class->id, $this->lesson3->id]), ['title' => 'Bài 3', 'content' => 'Riêng', 'reason' => 'Lý do riêng']);
 
         foreach ([$this->staff, $this->teacher] as $user) {
             $this->actingAs($user)->get(route('classes.show', ['id' => $this->class->id, 'tab' => 'syllabus']))
@@ -108,7 +120,7 @@ class ClassSyllabusTest extends TestCase
                     ->where('syllabus.lessons.2.data.content', 'Riêng')
                     ->where('syllabus.can_edit', false)
                     ->etc());
-            $this->actingAs($user)->put(route('classes.syllabus.override', [$this->class->id, $this->lesson3->id]), ['content' => 'z', 'reason' => 'z'])->assertForbidden();
+            $this->actingAs($user)->put(route('classes.syllabus.override', [$this->class->id, $this->lesson3->id]), ['title' => 'Bài 3', 'content' => 'z', 'reason' => 'z'])->assertForbidden();
         }
         $this->actingAs($this->lead)->get(route('classes.show', ['id' => $this->class->id, 'tab' => 'syllabus']))
             ->assertInertia(fn (AssertableInertia $page) => $page->where('syllabus.can_edit', true)->etc());
@@ -121,7 +133,7 @@ class ClassSyllabusTest extends TestCase
         $this->actingAs($this->lead)->get(route('classes.show', ['id' => $this->class->id, 'tab' => 'syllabus']))
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->where('syllabus.stage_label', null)->where('syllabus.lessons', [])->etc());
-        $this->actingAs($this->lead)->put(route('classes.syllabus.override', [$this->class->id, $this->lesson3->id]), ['content' => 'x', 'reason' => 'y'])
+        $this->actingAs($this->lead)->put(route('classes.syllabus.override', [$this->class->id, $this->lesson3->id]), ['title' => 'Bài 3', 'content' => 'x', 'reason' => 'y'])
             ->assertSessionHasErrors('lesson');
     }
 
@@ -132,7 +144,7 @@ class ClassSyllabusTest extends TestCase
         ])->assertSessionHasNoErrors();
 
         $notification = AdminNotification::where('user_id', $this->teacher->id)->sole();
-        $this->assertSame('Syllabus Chặng 1: Làm quen (giáo trình Family and Friends) đã được Học thuật cập nhật.', $notification->title);
+        $this->assertSame('Syllabus lớp Lớp QT 01 – Chặng 1: Làm quen (giáo trình Family and Friends) đã được Học thuật cập nhật.', $notification->title);
     }
 
     public function test_curriculum_show_lists_stage_session_count_and_alert_session(): void
