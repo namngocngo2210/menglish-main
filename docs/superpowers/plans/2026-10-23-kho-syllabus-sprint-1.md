@@ -250,4 +250,4 @@ public function test_syllabus_index_sends_library_users_to_library(): void
 - [ ] `v2/tools/parity.sh origin/main` — note tracked areas in the PR body; confirm `catalog.json` diff only adds `syllabus.library`.
 - [ ] `vendor/bin/pint` on new/changed PHP files only (not whole legacy files).
 - [ ] Update `docs/kho-syllabus.md` status line to "Giai đoạn 1 — Sprint 1 xong"; commit `docs: mark syllabus library sprint 1 done`.
-- [ ] Push branch, open PR to `main`, send the link.
+- [ ] No push yet: Sprints 2–3 continue on this branch; the PR opens at the end of Sprint 3.
