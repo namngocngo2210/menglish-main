@@ -30,6 +30,7 @@ use App\Http\Controllers\PenaltyController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\PlacementTestController;
 use App\Http\Controllers\PracticeBlueprintController;
+use App\Http\Controllers\PracticeController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PromotionController;
 use App\Http\Controllers\QuestionBankController;
@@ -379,6 +380,14 @@ Route::middleware('auth')->group(function () {
         Route::get('/feedback/{studentId?}', [StudentPortalController::class, 'studentFeedback'])->name('student.feedback');
         Route::post('/feedback/submit', [StudentPortalController::class, 'submitFeedback'])->name('student.feedback.store');
         Route::delete('/feedback/{id}/destroy', [StudentPortalController::class, 'deleteFeedback'])->name('student.feedback.destroy');
+
+        // Luyện tập (ngân hàng câu hỏi): quyền theo học viên kiểm tra trong controller. Route lượt làm đặt trước /practice/{studentId?}.
+        Route::post('/practice/start', [PracticeController::class, 'start'])->name('student.practice.start');
+        Route::get('/practice/attempts/{attempt}', [PracticeController::class, 'show'])->whereNumber('attempt')->name('student.practice.attempt');
+        Route::post('/practice/attempts/{attempt}/answer', [PracticeController::class, 'answer'])->whereNumber('attempt')->middleware('throttle:120,1')->name('student.practice.answer');
+        Route::post('/practice/attempts/{attempt}/violation', [PracticeController::class, 'violation'])->whereNumber('attempt')->middleware('throttle:30,1')->name('student.practice.violation');
+        Route::post('/practice/attempts/{attempt}/submit', [PracticeController::class, 'submit'])->whereNumber('attempt')->name('student.practice.submit');
+        Route::get('/practice/{studentId?}', [PracticeController::class, 'index'])->whereNumber('studentId')->name('student.practice');
 
         // Cổng Giáo viên chấm bài nộp của lớp (homework.grade; lớp kiểm tra trong controller)
         Route::get('/teacher-submissions/{classId?}', [StudentPortalController::class, 'teacherSubmissions'])->middleware('can:homework.grade')->name('teacher.submissions');
