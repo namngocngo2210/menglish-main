@@ -7,7 +7,7 @@ import { route } from '@/lib/route';
 
 defineOptions({ layout: { title: 'Kết quả luyện tập' } });
 
-defineProps({
+const props = defineProps({
     student: { type: Object, required: true },
     filters: { type: Object, required: true },
     filterOptions: { type: Object, required: true },
@@ -15,6 +15,7 @@ defineProps({
     attempts: { type: Object, required: true },
     backUrl: { type: String, required: true },
     keepFilters: { type: Array, default: () => [] },
+    returnQuery: { type: Object, default: () => ({}) },
 });
 
 const REASONS = { timeout: 'Hết giờ — tự nộp', violations: 'Rời bài quá số lần — tự nộp' };
@@ -25,7 +26,8 @@ const duration = (seconds) => {
     const s = seconds % 60;
     return m > 0 ? `${m} phút ${s} giây` : `${s} giây`;
 };
-const attemptUrl = (attempt) => route('practice-results.attempt', attempt.id);
+// mang theo bộ lọc + trang hiện tại → nút quay lại của trang xem bài về đúng danh sách này
+const attemptUrl = (attempt) => route('practice-results.attempt', { ...props.returnQuery, attempt: attempt.id });
 </script>
 
 <template>

@@ -318,6 +318,27 @@ class PracticeResultsReportTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page->where('backUrl', route('practice-results.index')));
     }
 
+    public function test_attempt_page_back_link_keeps_student_page_filters(): void
+    {
+        $attempt = $this->attempt($this->an, ['Ngữ âm' => [3, 5]], '2026-10-20 10:00');
+        $query = ['term' => 'ck1', 'class_id' => $this->classA->id, 'q' => 'An', 'mine' => 1, 'page' => 2];
+
+        // Trang học viên gửi bộ lọc (đã kiểm tra lại) để link xem lại bài mang theo.
+        $this->actingAs($this->teacherA)
+            ->get(route('practice-results.student', ['student' => $this->an->id, ...$query, 'grade' => 'x', 'evil' => '1']))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('returnQuery', $query));
+
+        $this->actingAs($this->teacherA)
+            ->get(route('practice-results.attempt', ['attempt' => $attempt->id, ...$query, 'grade' => 'x', 'evil' => '1']))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('backUrl', route('practice-results.student', ['student' => $this->an->id, ...$query])));
+
+        $this->actingAs($this->teacherA)
+            ->get(route('practice-results.attempt', $attempt->id))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('backUrl', route('practice-results.student', $this->an->id)));
+    }
+
     public function test_in_progress_attempts_are_excluded(): void
     {
         $this->attempt($this->an, ['Ngữ âm' => [3, 5]], '2026-10-20 10:00');

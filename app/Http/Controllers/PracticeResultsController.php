@@ -68,6 +68,8 @@ class PracticeResultsController extends Controller
             'filters' => array_intersect_key($filters, array_flip(self::STUDENT_FILTERS)),
             'backUrl' => route('practice-results.index', $this->indexQuery($viewer, $request)),
             'keepFilters' => self::INDEX_ONLY_FILTERS,
+            // link xem lại bài mang theo để nút quay lại về đúng trang học viên đang xem (bộ lọc + trang)
+            'returnQuery' => $this->studentPageQuery($viewer, $request),
             'filterOptions' => $this->gradeTermOptions(),
             'summary' => $this->report->summary($viewer, $filters),
             'attempts' => $this->report->attemptList($viewer, $filters)->withQueryString()
@@ -98,6 +100,7 @@ class PracticeResultsController extends Controller
 
         return Inertia::render('PracticeResults/Attempt', [
             'student' => ['id' => $student->id, 'name' => $student->name, 'code' => $student->code],
+            'backUrl' => route('practice-results.student', ['student' => $student->id, ...$this->studentPageQuery($viewer, $request)]),
             'attempt' => $this->attemptProps->result($attempt),
             'items' => $this->attemptProps->reviewItems($attempt),
         ]);
@@ -122,6 +125,17 @@ class PracticeResultsController extends Controller
         unset($filters['student_id']);
 
         return array_filter($filters, fn ($value) => $value !== null);
+    }
+
+    /** Bộ lọc + trang của trang một học viên (đã kiểm tra lại), để từ trang xem lại bài quay về đúng chỗ. */
+    private function studentPageQuery(User $viewer, Request $request): array
+    {
+        $page = $request->query('page');
+
+        return [
+            ...$this->indexQuery($viewer, $request),
+            ...(is_string($page) && ctype_digit($page) && (int) $page > 1 ? ['page' => (int) $page] : []),
+        ];
     }
 
     private function gradeTermOptions(): array

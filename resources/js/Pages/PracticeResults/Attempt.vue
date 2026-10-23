@@ -5,7 +5,6 @@
  */
 import { computed } from 'vue';
 import AttemptReview from '@/Components/Practice/AttemptReview.vue';
-import { route } from '@/lib/route';
 
 defineOptions({ layout: { title: 'Kết quả luyện tập' } });
 
@@ -13,6 +12,7 @@ const props = defineProps({
     student: { type: Object, required: true },
     attempt: { type: Object, required: true },
     items: { type: Array, default: () => [] },
+    backUrl: { type: String, required: true },
 });
 
 const REASONS = { timeout: 'Hết giờ — bài được tự nộp.', violations: 'Rời bài quá số lần cho phép — bài được tự nộp.' };
@@ -29,7 +29,7 @@ const percent = (s) => (s.total > 0 ? Math.round((s.correct / s.total) * 100) : 
     <UiPageHeader
         :title="`${student.name} · Khối ${attempt.grade} · ${attempt.term_label}`"
         :description="`Bắt đầu ${formatDate(attempt.started_at, 'd/m/Y H:i')} · làm trong ${durationText}`"
-        :back="route('practice-results.student', student.id)"
+        :back="backUrl"
     />
 
     <div class="grid gap-lg lg:grid-cols-[minmax(0,1fr)_320px]">
