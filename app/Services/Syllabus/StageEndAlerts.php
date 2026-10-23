@@ -6,7 +6,8 @@ use App\Models\SyllabusAssignment;
 use App\Models\User;
 use App\Models\WorkTask;
 use App\Services\NotificationService;
-use App\Support\DataScope;
+use App\Support\Rbac;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * Sắp hết chặng → việc cho Học thuật (docs/kho-syllabus.md §9.2, Bước 8–9): chặng đang mở còn ≤ N buổi syllabus chưa dạy (N =
@@ -20,6 +21,20 @@ class StageEndAlerts
     public function __construct(private readonly ClassSyllabus $syllabus, private readonly SyllabusNotifier $notifier) {}
 
     public function run(): int
+    {
+        // Lần chạy tay chồng lên lịch chạy (kiểm tra rồi mới tạo) có thể tạo 2 việc cho 1 chặng.
+        $lock = Cache::lock('syllabus:stage-end-alerts', 600);
+        if (! $lock->get()) {
+            return 0;
+        }
+        try {
+            return $this->createDueTasks();
+        } finally {
+            $lock->release();
+        }
+    }
+
+    private function createDueTasks(): int
     {
         $created = 0;
         SyllabusAssignment::open()->with(['classModel', 'stage', 'curriculum:id,title'])
@@ -78,7 +93,10 @@ class StageEndAlerts
         ]);
     }
 
-    /** Người giao chặng (còn quyền), không thì Học thuật phụ trách chi nhánh lớp, không thì Học thuật / Admin bất kỳ (câu 10). */
+    /**
+     * Người giao chặng (còn quyền), không thì người có quyền giao chặng gắn chi nhánh lớp (không tính Super Admin — ai cũng "phủ"
+     * mọi chi nhánh), không thì người có quyền bất kỳ ngoài Super Admin, cuối cùng mới tới Super Admin (câu 10).
+     */
     private function assignee(SyllabusAssignment $assignment): ?User
     {
         $opener = $assignment->opened_by ? User::where('is_active', true)->find($assignment->opened_by) : null;
@@ -87,6 +105,9 @@ class StageEndAlerts
         }
         $candidates = User::whereIn('id', NotificationService::userIdsWithPermission('syllabus.assign'))->orderBy('id')->get();
 
-        return $candidates->first(fn (User $u) => DataScope::coversBranch($u, 'class', $assignment->classModel?->branch_id)) ?? $candidates->first();
+        [$admins, $others] = $candidates->partition(fn (User $u) => $u->hasRole(Rbac::SUPER_ADMIN));
+        $branchId = (int) $assignment->classModel?->branch_id;
+
+        return $others->first(fn (User $u) => in_array($branchId, $u->branchIds(), true)) ?? $others->first() ?? $admins->first();
     }
 }

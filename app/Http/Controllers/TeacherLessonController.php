@@ -10,6 +10,7 @@ use App\Models\SyllabusDocument;
 use App\Models\SyllabusLesson;
 use App\Models\User;
 use App\Services\Syllabus\ClassSyllabus;
+use App\Services\Syllabus\SyllabusOrders;
 use App\Support\Ui;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -124,6 +125,8 @@ class TeacherLessonController extends Controller
             }
             throw ValidationException::withMessages(['class_session_id' => 'Buổi này đã được đánh dấu Đã dạy.']);
         }
+        // Tiến độ chạy → mốc ORDER có thể vừa đến hạn: nút ORDER của GV lớp đếm lại ngay.
+        SyllabusOrders::forget([$assignment->user_id, $classModel->teacher_id, $classModel->foreign_teacher_id]);
 
         return redirect()->back()->with('status', "Đã đánh dấu Đã dạy {$label} ({$session->date->format('d/m')}).");
     }

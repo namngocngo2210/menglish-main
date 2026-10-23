@@ -52,11 +52,18 @@ class SyllabusOrders
         $timeline = $this->syllabus->timeline($assignment);
         $rows = $timeline['rows']->values();
         $currentIndex = $timeline['current'] ? $rows->search(fn ($r) => $r['lesson']->id === $timeline['current']['lesson']->id) : $rows->count();
-        $ordered = MaterialOrder::where('syllabus_assignment_id', $assignment->id)->get(['code', 'syllabus_lesson_id'])->keyBy('syllabus_lesson_id')
-            ->union(BigTestOrder::where('syllabus_assignment_id', $assignment->id)->get(['code', 'syllabus_lesson_id'])->keyBy('syllabus_lesson_id'));
+        // Order bị từ chối không tính: GV order lại được.
+        $ordered = MaterialOrder::where('syllabus_assignment_id', $assignment->id)->where('status', '!=', MaterialOrder::STATUS_REJECTED)
+            ->get(['code', 'syllabus_lesson_id'])->keyBy('syllabus_lesson_id')
+            ->union(BigTestOrder::where('syllabus_assignment_id', $assignment->id)->where('status', '!=', 'rejected')
+                ->get(['code', 'syllabus_lesson_id'])->keyBy('syllabus_lesson_id'));
+        // Order đề gửi từ màn "Order test" cũ (không gắn buổi) cùng lớp / chặng / loại đề: lần lượt tính cho mốc chưa order.
+        $unlinked = BigTestOrder::where('class_id', $assignment->class_id)->whereNull('syllabus_lesson_id')->where('status', '!=', 'rejected')
+            ->when($assignment->stage_id, fn ($q) => $q->where('syllabus_stage_id', $assignment->stage_id), fn ($q) => $q->where('stage_name', $assignment->stage_name))
+            ->orderBy('id')->get(['code', 'test_type'])->groupBy('test_type');
         $branch = $assignment->classModel?->branch?->name;
 
-        return $rows->map(function (array $row, int $i) use ($rows, $currentIndex, $ordered, $branch) {
+        return $rows->map(function (array $row, int $i) use ($rows, $currentIndex, $ordered, $unlinked, $branch) {
             $kind = $row['data']['notice_milestone'] ?? null;
             if (! in_array($kind, self::ORDER_MILESTONES, true)) {
                 return null;
@@ -70,15 +77,21 @@ class SyllabusOrders
             $examIndex = $rows->keys()->first(fn (int $k) => $k >= $i && in_array($rows[$k]['data']['lesson_type'] ?? null, $types, true));
             $dateOf = fn (?int $k) => $k === null || ! isset($rows[$k]) ? null : ($rows[$k]['planned_date'] ?? $rows[$k]['taught_at']?->copy()->startOfDay());
             $examDate = $dateOf($examIndex);
+            $useDate = $examDate ?? $dateOf($i);
+            $code = $ordered->get($row['lesson']->id)?->code;
+            if (! $code && $kind !== 'order_print') {
+                $code = $unlinked->get($kind === 'order_big_test' ? 'big' : 'mini')?->shift()?->code;
+            }
 
             return [
                 'lesson' => $row['lesson'],
                 'kind' => $kind,
                 'label' => SyllabusLesson::MILESTONES[$kind],
-                'due' => $i <= $currentIndex,
-                'ordered' => $ordered->get($row['lesson']->id)?->code,
+                // Đến hạn khi lớp đã tới buổi có mốc, đến khi buổi dùng / buổi test đã qua.
+                'due' => $i <= $currentIndex && ($useDate === null || $useDate->gte(today())),
+                'ordered' => $code,
                 'target' => $kind === 'order_print' ? 'Vận hành cơ sở'.($branch ? " {$branch}" : '') : 'Học thuật',
-                'use_date' => $examDate ?? $dateOf($i),
+                'use_date' => $useDate,
                 'exam_date' => $examDate,
                 // Học thuật xử lý xong đề trước buổi test ít nhất 3 buổi.
                 'due_date' => $examIndex !== null ? ($dateOf($examIndex - self::TEST_LEAD_SESSIONS) ?? $examDate?->copy()->subDays(7)) : null,
@@ -89,7 +102,7 @@ class SyllabusOrders
     /** Số mốc đến hạn chưa order của các lớp GV dạy (nút ORDER nhấp nháy); cache 5 phút / người. */
     public function dueCount(User $user): int
     {
-        return Cache::remember(self::cacheKey($user->id), now()->addMinutes(5), fn () => $this->classesOf($user)->sum(function (ClassModel $class) {
+        return Cache::remember(self::cacheKey($user->id), now()->addSeconds(random_int(270, 330)), fn () => $this->classesOf($user)->sum(function (ClassModel $class) {
             $assignment = SyllabusAssignment::with('classModel.branch')->open()->where('class_id', $class->id)->first();
 
             return $assignment ? $this->milestones($assignment)->filter(fn ($m) => $m['due'] && ! $m['ordered'])->count() : 0;
@@ -138,13 +151,19 @@ class SyllabusOrders
 
             return $order->code;
         });
-        foreach ([$assignment->user_id, $assignment->classModel?->teacher_id, $assignment->classModel?->foreign_teacher_id, $user->id] as $id) {
+        self::forget([$assignment->user_id, $assignment->classModel?->teacher_id, $assignment->classModel?->foreign_teacher_id, $user->id]);
+
+        return $code;
+    }
+
+    /** Xoá số đếm nút ORDER đã cache (sau khi order / bấm Đã dạy / đổi GV lớp). */
+    public static function forget(iterable $userIds): void
+    {
+        foreach ($userIds as $id) {
             if ($id) {
                 Cache::forget(self::cacheKey((int) $id));
             }
         }
-
-        return $code;
     }
 
     public static function cacheKey(int $userId): string

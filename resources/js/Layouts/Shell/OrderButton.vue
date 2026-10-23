@@ -13,7 +13,7 @@ defineProps({ order: { type: Object, required: true } });
         :href="order.url"
         :class="[
             'fixed bottom-24 right-md z-40 inline-flex items-center gap-xs rounded-full px-md py-sm font-body-semibold text-body-small shadow-level-3 transition md:bottom-lg md:right-lg',
-            order.count > 0 ? 'animate-pulse bg-error text-white' : 'bg-primary-container text-white',
+            order.count > 0 ? 'motion-safe:animate-pulse bg-error text-white' : 'bg-primary-container text-white',
         ]"
         :aria-label="order.count > 0 ? `ORDER — ${order.count} mốc đến hạn` : 'ORDER'"
         data-testid="order-button"

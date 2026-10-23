@@ -23,15 +23,14 @@ class TeacherOrderController extends Controller
         $classes = $this->orders->classesOf($user);
         $assignments = SyllabusAssignment::with(['classModel.branch', 'stage'])->open()->whereIn('class_id', $classes->modelKeys())->get()->keyBy('class_id');
         $milestones = $assignments->map(fn (SyllabusAssignment $a) => $this->orders->milestones($a));
-        // Mặc định: lớp có mốc đến hạn chưa order.
-        $class = $request->filled('class') ? $classes->firstWhere('id', $request->integer('class'))
-            : ($classes->first(fn (ClassModel $c) => ($milestones[$c->id] ?? collect())->contains(fn ($m) => $m['due'] && ! $m['ordered'])) ?? $classes->first());
-        abort_if($request->filled('class') && ! $class, 404);
+        // Lớp chọn (link thông báo cũ: lớp đã hết chặng / đổi GV thì về mặc định), mặc định: lớp có mốc đến hạn chưa order.
+        $class = ($request->filled('class') ? $classes->firstWhere('id', $request->integer('class')) : null)
+            ?? $classes->first(fn (ClassModel $c) => ($milestones[$c->id] ?? collect())->contains(fn ($m) => $m['due'] && ! $m['ordered'])) ?? $classes->first();
 
         return Inertia::render('Teacher/Orders', [
             'classes' => Ui::options($classes, fn (ClassModel $c) => $c->name.' ('.($milestones[$c->id] ?? collect())->filter(fn ($m) => $m['due'] && ! $m['ordered'])->count().' mốc đến hạn)'),
             'classId' => $class?->id,
-            'stage' => $class ? ($assignments[$class->id]?->stage?->label ?? $assignments[$class->id]?->stage_name) : null,
+            'stage' => $class ? ($assignments->get($class->id)?->stage?->label ?? $assignments->get($class->id)?->stage_name) : null,
             'milestones' => $class ? ($milestones[$class->id] ?? collect())->map(fn (array $m) => [
                 'lesson_id' => $m['lesson']->id,
                 'lesson' => 'Buổi '.$m['lesson']->session_no.': '.$m['lesson']->title,

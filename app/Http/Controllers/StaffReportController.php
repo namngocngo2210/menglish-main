@@ -2137,11 +2137,6 @@ class StaffReportController extends Controller
         return $text === null ? null : Str::limit(preg_replace('/\s+/u', ' ', $text), 280);
     }
 
-    /**
-     * Chi tiết một báo cáo cho Admin (modal "Chi tiết" ở màn Tổng hợp, chủ dự án 15/10/2026): hiện như màn người viết nhập —
-     * số liệu tự động + ghi chú theo khối (báo cáo ngày), bảng KPI + chỉ số (báo cáo tuần Học vụ), 3 bảng (báo cáo tuần Học thuật).
-     * Báo cáo ngày / tuần nhập tay bản cũ → đủ mọi ô của form cũ (`legacy`); báo cáo ngày cũ kèm số liệu hệ thống tính lại cho ngày đó. Loại chưa có màn có cấu trúc → nội dung chữ.
-     */
     /** Ghi chú báo cáo tuần Học thuật (Sheet 4 câu 9): chính người làm báo cáo hoặc Quản lý / Admin trong phạm vi xem. */
     public function noteStore(Request $request, int $id): RedirectResponse
     {
@@ -2155,7 +2150,7 @@ class StaffReportController extends Controller
 
     private function canNote(StaffReport $report): bool
     {
-        return $report->kind === 'academic_weekly' && ((int) $report->user_id === (int) Auth::id()
+        return $report->kind === 'academic_weekly' && $report->status !== 'draft' && ((int) $report->user_id === (int) Auth::id()
             || ($this->isPrivileged() && $this->scopeViewer(StaffReport::query())->whereKey($report->id)->exists()));
     }
 
@@ -2166,6 +2161,11 @@ class StaffReportController extends Controller
             ->map(fn (StaffReportNote $n) => ['user' => $n->user?->name, 'note' => $n->note, 'created_at' => $n->created_at->toIso8601String()])->all() : [];
     }
 
+    /**
+     * Chi tiết một báo cáo cho Admin (modal "Chi tiết" ở màn Tổng hợp, chủ dự án 15/10/2026): hiện như màn người viết nhập —
+     * số liệu tự động + ghi chú theo khối (báo cáo ngày), bảng KPI + chỉ số (báo cáo tuần Học vụ), 3 bảng (báo cáo tuần Học thuật).
+     * Báo cáo ngày / tuần nhập tay bản cũ → đủ mọi ô của form cũ (`legacy`); báo cáo ngày cũ kèm số liệu hệ thống tính lại cho ngày đó. Loại chưa có màn có cấu trúc → nội dung chữ.
+     */
     public function reportDetail(int $id): Response
     {
         $this->guard();

@@ -92,6 +92,7 @@ class SyllabusNotifier
         if (! $assignment || ! $class->teacher_id || ($previousTeacherId && (int) $assignment->user_id !== $previousTeacherId)) {
             return;
         }
+        SyllabusOrders::forget([$assignment->user_id, $class->teacher_id]);
         $assignment->update(['user_id' => $class->teacher_id, 'assigned_at' => now(), 'confirmed_at' => null, 'confirmed_by' => null, 'confirm_reminded_at' => null]);
         $assignment->setRelation('classModel', $class);
         $this->stageAssigned($assignment);

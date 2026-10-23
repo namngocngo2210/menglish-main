@@ -373,7 +373,7 @@ class WeeklyReportMetrics
         $low = $scores->filter(fn (MiniTestScore $s) => $s->score !== null && (float) $s->score / max((float) ($s->max_score ?: 10), 1) * 10 < KpiAutoCounter::PASS_SCORE);
 
         // Quy trình syllabus (Sheet 4 câu 9): việc cuối chặng hoàn thành / quá hạn, lớp đã giao syllabus trong tuần.
-        $stageTasks = WorkTask::query()->with('classModel:id,name')->where('assignee_id', $this->user->id)->where('kind', WorkTask::KIND_SYLLABUS_STAGE_END);
+        $stageTasks = WorkTask::query()->where('assignee_id', $this->user->id)->where('kind', WorkTask::KIND_SYLLABUS_STAGE_END);
         $tasksDone = (clone $stageTasks)->where('status', 'completed')->whereBetween('completed_at', [$this->from, $this->to])->get();
         $tasksOverdue = (clone $stageTasks)->whereIn('status', [...WorkTask::OPEN_STATUSES, 'overdue'])->whereDate('due_date', '<', $this->reference())->get();
         $assigned = SyllabusAssignment::with(['classModel:id,name', 'stage'])->where('opened_by', $this->user->id)

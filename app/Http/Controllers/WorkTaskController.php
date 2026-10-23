@@ -897,15 +897,12 @@ class WorkTaskController extends Controller
         ]);
     }
 
-    /**
-     * Cập nhật tiến độ hoàn thành từ TA Portal (Hoàn thành / Hoàn thành gấp)
-     */
-    /** NHẬN VIỆC (quy trình syllabus Bước 9): người được giao chuyển việc Mới → Đang làm. */
+    /** NHẬN VIỆC (quy trình syllabus Bước 9): người được giao chuyển việc Mới / Quá hạn → Đang làm. */
     public function accept(Request $request, int $id)
     {
         $task = WorkTask::findOrFail($id);
         abort_unless((int) $task->assignee_id === (int) $request->user()->id, 403);
-        if ($task->status !== 'new') {
+        if (! in_array($task->status, ['new', 'overdue'], true)) {
             throw ValidationException::withMessages(['status' => 'Việc này đã được nhận hoặc đã xử lý.']);
         }
         $task->update(['status' => 'in_progress']);
@@ -913,6 +910,9 @@ class WorkTaskController extends Controller
         return redirect()->back()->with('success', "Đã nhận việc '{$task->title}' — chuyển sang Đang làm.");
     }
 
+    /**
+     * Cập nhật tiến độ hoàn thành từ TA Portal (Hoàn thành / Hoàn thành gấp)
+     */
     public function completeTask(Request $request, $id)
     {
         $task = WorkTask::findOrFail($id);
@@ -1515,7 +1515,8 @@ class WorkTaskController extends Controller
 
         return array_values(array_filter($next, function (string $status) use ($isAssignee, $isApprover, $isAdmin, $isCreator, $task) {
             return match ($status) {
-                'completed' => $isApprover,
+                // Việc cuối chặng của Học thuật: người được giao bấm HOÀN THÀNH là xong (Bước 10 quy trình syllabus).
+                'completed' => $isApprover || ($isAssignee && $task->kind === WorkTask::KIND_SYLLABUS_STAGE_END),
                 'canceled' => $isCreator || $isAdmin,
                 'pending_confirmation' => $isAssignee,
                 'in_progress' => $isAssignee || ($isApprover && $task->status === 'pending_confirmation'),
