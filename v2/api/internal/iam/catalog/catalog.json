@@ -567,6 +567,39 @@
             "audience": []
         },
         {
+            "key": "question_bank",
+            "label": "Ngân hàng câu hỏi",
+            "group": "academic",
+            "icon": "quiz",
+            "actions": [
+                {
+                    "key": "view",
+                    "label": "Xem ngân hàng câu hỏi",
+                    "description": "Xem ngân hàng câu hỏi và phân tích câu hỏi."
+                },
+                {
+                    "key": "manage",
+                    "label": "Quản lý ngân hàng câu hỏi",
+                    "description": "Import, sửa, duyệt / ẩn câu hỏi và cấu hình khung đề luyện tập."
+                }
+            ],
+            "audience": []
+        },
+        {
+            "key": "practice",
+            "label": "Luyện tập (học viên)",
+            "group": "academic",
+            "icon": "fact_check",
+            "actions": [
+                {
+                    "key": "view_results",
+                    "label": "Xem kết quả luyện tập",
+                    "description": "Xem kết quả luyện tập của học viên trong phạm vi được xem (giáo viên: học viên lớp mình)."
+                }
+            ],
+            "audience": []
+        },
+        {
             "key": "big_test",
             "label": "Big Test (Học thuật)",
             "group": "academic",
@@ -1781,6 +1814,8 @@
                 "level.*",
                 "syllabus.*",
                 "big_test.*",
+                "question_bank.*",
+                "practice.view_results",
                 "entrance_test.*",
                 "entrance_test.examine",
                 "placement_test.*",
@@ -1956,6 +1991,7 @@
                 "syllabus.view",
                 "syllabus.update",
                 "syllabus.propose_adjustment",
+                "practice.view_results",
                 "staff_report.submit",
                 "portal.teacher",
                 "portal.staff",
@@ -1990,6 +2026,7 @@
                 "syllabus.view",
                 "syllabus.update",
                 "syllabus.propose_adjustment",
+                "practice.view_results",
                 "staff_report.submit",
                 "portal.teacher",
                 "portal.staff",
