@@ -176,10 +176,14 @@ Hiện trạng (khảo sát 23/10/2026):
 | Bước 5, câu 3, câu 8 | Sửa riêng cho lớp (cờ Chỉnh sửa thủ công + lý do) → báo GV (ĐÃ XEM); sửa gốc áp cho mọi lớp đang chạy, bản sửa riêng không lan sang lớp khác; Học thuật sửa → GV nhận thông báo | 2 |
 | Bước 6, câu 2, câu 12 | GV xem buổi hôm nay, bấm **Đã dạy** (ghi chú chậm / nhanh); lớp hủy buổi → lịch tự dời; GV muốn đổi tiến độ → **Customize syllabus** (xin giãn / dời), Học thuật duyệt; link PPT / Quizizz chỉ GV lớp được giao thấy | 3 |
 | Bước 7, câu 5 | Nút ORDER luôn ở góc màn GV, sáng / nhấp nháy khi tới mốc; in ấn → vận hành cơ sở, đề test → Học thuật; xử lý trước ≥ 3 buổi trước test | 4 |
-| Bước 8–10, câu 1, 9, 10 | Còn N buổi đến buổi cuối chặng → thông báo + việc cho Học thuật (NHẬN VIỆC → Đang làm, hạn = buổi cuối chặng, quá hạn đỏ + nhắc hằng ngày, HOÀN THÀNH → báo cáo tuần; Quản lý + người làm xem & ghi chú); việc giao theo cơ sở và lớp | 4 |
+| Bước 8–10, câu 1, 9, 10 | Còn N buổi đến buổi cuối chặng **hoặc tới mốc "Báo chuẩn bị" đã đánh dấu trong syllabus** → thông báo + việc cho Học thuật (NHẬN VIỆC → Đang làm, hạn = buổi cuối chặng, quá hạn đỏ + nhắc hằng ngày, HOÀN THÀNH → báo cáo tuần; Quản lý + người làm xem & ghi chú); việc giao theo cơ sở và lớp | 4 |
 | Câu 6, câu 11 | Mini test ở buổi đầu Unit sau, Big Test là buổi riêng (đã có trong form Sheet 1); sản phẩm đầu ra của buổi test = điểm → nút nhập điểm từ buổi test | 3 |
 | Câu 7 | Homework 3 giỏ: HS nộp ảnh (bài giấy) / video; Quizizz GV đánh dấu; thống kê tỉ lệ nộp theo HS / lớp | 5 |
 | Quy tắc thông báo (Sheet 3) | 6 loại thông báo, mỗi loại có nút hành động (XÁC NHẬN, ĐÃ XEM, NHẮC LẠI, NHẬN VIỆC, ORDER, XỬ LÝ) | 2 (khung) + 2–4 |
+
+Khác quy trình có chủ đích (chủ dự án đã chốt): Bước 1 ghi "chỉ Học thuật & Quản lý được xem" Kho syllabus — Học vụ
+**xem chỉ đọc** để order in ấn (chốt 23/10/2026). Câu 12 "mở quyền truy cập trên Drive" là thao tác của Học thuật trên Google
+Drive, ngoài hệ thống; hệ thống chỉ giới hạn ai thấy link (GV lớp được giao, buổi hôm nay).
 
 ## 6. Nền chung cho giai đoạn 2–5
 
@@ -263,7 +267,9 @@ Không sao chép syllabus: buổi hiệu lực = gốc + `data` của bản đè
 - Nút **Đã dạy** (GV / GVNN của lớp): ô ghi chú tiến độ (chậm / nhanh — đề xuất Bước 6). Ghi dòng `lesson` gắn buổi học
   hôm nay. Lớp còn buổi giãn đã duyệt → thêm lựa chọn "Dạy chưa xong — dùng 1 buổi giãn" (ghi dòng `extra`, buổi syllabus
   giữ nguyên). Buổi học đã qua chưa bấm → banner "Buổi dd/mm chưa đánh dấu Đã dạy" (bấm được cho buổi đó).
-- Buổi Mini test / Big test: nút **Nhập điểm** (màn điểm mini test / kết quả Big Test hiện có) — câu 11.
+- Buổi Mini test / Big test: nút **Nhập điểm** (màn điểm mini test / kết quả Big Test hiện có) — câu 11. Vận hành kiểm
+  soát sản phẩm đầu ra (câu 11): tab Syllabus của lớp đánh dấu **"Chưa nhập điểm"** ở buổi test đã dạy mà lớp chưa có điểm
+  mini test (unit tương ứng) / kết quả Big Test của chặng; Học vụ (vận hành) xem được tab này.
 - Tab Tài liệu giữ nguyên (tài liệu chặng đang mở). Tab "Tổng quan syllabus" chỉ còn danh sách chặng + trạng thái.
 
 ### 8.4. Customize syllabus (câu 2)
@@ -283,23 +289,33 @@ Không sao chép syllabus: buổi hiệu lực = gốc + `data` của bản đè
 
 ### 9.2. Sắp hết chặng → việc cho Học thuật (Bước 8–10)
 
-- Lệnh `syllabus:stage-end-alerts` (mỗi giờ, idempotent): chặng mở có **số buổi syllabus chưa dạy ≤ báo trước của chặng**
-  (mặc định 6) và chưa có việc → tạo `WorkTask` kind `syllabus_stage_end`: tiêu đề "Chuẩn bị test chặng X – giáo trình Y và
+- Mốc mới trong cột "Mốc thông báo": **`notify_academic` — "Báo chuẩn bị Big test / syllabus chặng mới"** (đọc từ ô có
+  chữ "báo chuẩn bị", như syllabus FAM 2; hiện đang bị hiểu nhầm là Order Big Test). Thêm vào `SyllabusLesson::MILESTONES`,
+  `LessonSheetCells::milestone`, file mẫu, form sửa buổi.
+- Lệnh `syllabus:stage-end-alerts` (mỗi giờ, idempotent): chặng mở **(a) có số buổi syllabus chưa dạy ≤ báo trước của chặng**
+  (mặc định 6) **hoặc (b) buổi hiện tại đã tới / qua buổi có mốc `notify_academic`** (Bước 8 "hoặc tới mốc đã đánh dấu"), và
+  chưa có việc → tạo `WorkTask` kind `syllabus_stage_end`: tiêu đề "Chuẩn bị test chặng X – giáo trình Y và
   syllabus mới cho lớp ABC", chi nhánh + lớp của lớp, **người nhận** = người giao chặng nếu còn quyền `syllabus.assign`,
   không thì người có `syllabus.assign` phụ trách chi nhánh lớp (câu 10), hạn = ngày dự kiến buổi cuối chặng, trạng thái Mới.
   Thông báo kèm nút **NHẬN VIỆC**.
 - **NHẬN VIỆC** (`POST tasks.accept`): Mới → Đang làm. **HOÀN THÀNH**: việc kind này hoàn thành ngay (không cần ảnh /
   xác nhận), ghi `completed_at` → tự vào bảng "Công việc đã làm trong tuần" của **Báo cáo tuần Học thuật** (đã có — gợi ý từ
-  `WorkTask` hoàn thành); Quản lý xem & ghi chú báo cáo tuần (đã có).
+  `WorkTask` hoàn thành).
+- **Báo cáo tuần Học thuật** (câu 9): phần tóm tắt thêm 3 số — **việc hoàn thành**, **việc quá hạn**, **lớp đã giao
+  syllabus** trong tuần (kèm danh sách). **Quản lý** (`staff_report.view_all`) và **chính người làm** xem và **ghi chú**
+  vào báo cáo: thêm ghi chú dạng bình luận (`staff_report_notes`: `staff_report_id`, `user_id`, `note`, timestamps) —
+  hiện chỉ Admin duyệt / trả lại được, Quản lý chưa ghi chú được.
 - **Quá hạn**: `tasks:mark-overdue` (đã có) chuyển Quá hạn; việc kind này hiện **đỏ** trong danh sách; lệnh
   `syllabus:remind-overdue-tasks` (mỗi ngày 08:00, idempotent theo `last_reminded_on`) nhắc người nhận + Quản lý chi nhánh:
   "Việc … của lớp ABC đã quá hạn." nút **XỬ LÝ** (mở việc).
 
 ### 9.3. Nút ORDER (Bước 7, câu 5)
 
-- Màn Bài giảng hôm nay có nút **ORDER** cố định góc màn; **nhấp nháy** khi lớp có mốc đến hạn chưa order: buổi có
+- Nút **ORDER** cố định ở góc **mọi màn của cổng Giáo viên** (layout cổng GV, không chỉ màn Bài giảng hôm nay — Bước 7
+  "góc màn hình luôn có nút ORDER"); **nhấp nháy** khi một lớp GV dạy có mốc đến hạn chưa order: buổi có
   `notice_milestone` thuộc chặng đang mở, buổi đó là buổi hiện tại hoặc đã dạy, chưa có order gắn buổi đó.
-- Bấm ORDER → màn order của lớp: danh sách mốc (đến hạn / đã order) + form:
+- Bấm ORDER → màn order (chọn lớp nếu GV có nhiều lớp đến hạn): danh sách mốc (đến hạn / đã order) + form; mỗi loại
+  order hiện rõ **bộ phận đích** (câu 5): "Gửi tới: Vận hành cơ sở <tên cơ sở>" / "Gửi tới: Học thuật":
   - **Order in ấn** (`order_print`) → tạo `MaterialOrder` loại In ấn (vận hành cơ sở xử lý — có sẵn), ngày dùng = ngày dự kiến
     buổi test kế tiếp.
   - **Order mini test / Big Test** (`order_mini_test` / `order_big_test`) → tạo `BigTestOrder` (Học thuật duyệt — có sẵn), ngày
@@ -345,12 +361,14 @@ Giỏ của bài tập: `Homework::CATEGORIES` → giỏ (`video` → video; `qu
 
 ### Giai đoạn 3
 - [ ] S3.1 `class_lesson_progress` + backfill + tiến độ / lịch dự kiến trong `ClassSyllabus`; `SessionLessonService` dùng lịch mới.
-- [ ] S3.2 Màn Bài giảng hôm nay + Đã dạy (ghi chú tiến độ, buổi giãn, banner buổi chưa đánh dấu) + Nhập điểm buổi test.
+- [ ] S3.2 Màn Bài giảng hôm nay + Đã dạy (ghi chú tiến độ, buổi giãn, banner buổi chưa đánh dấu) + Nhập điểm buổi test
+  + cờ "Chưa nhập điểm" cho vận hành.
 - [ ] S3.3 Customize syllabus (Giãn / Dời).
 
 ### Giai đoạn 4
-- [ ] S4.1 Việc cuối chặng cho Học thuật (lệnh, NHẬN VIỆC, hoàn thành ngay, quá hạn đỏ + nhắc hằng ngày).
-- [ ] S4.2 Nút ORDER + màn order theo mốc + thông báo đến hạn order.
+- [ ] S4.1 Mốc `notify_academic` + việc cuối chặng cho Học thuật (lệnh, NHẬN VIỆC, hoàn thành ngay, quá hạn đỏ + nhắc hằng ngày).
+- [ ] S4.2 Báo cáo tuần Học thuật: 3 số tóm tắt + Quản lý / người làm ghi chú.
+- [ ] S4.3 Nút ORDER trên mọi màn cổng GV + màn order theo mốc (bộ phận đích) + thông báo đến hạn order.
 
 ### Giai đoạn 5
 - [ ] S5.1 `homework_submissions` + giao bài tập theo syllabus + HS nộp theo giỏ.
