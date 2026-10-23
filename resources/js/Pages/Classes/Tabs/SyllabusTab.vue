@@ -124,6 +124,47 @@ const linkFields = [
                 </tbody>
             </table>
         </UiDataTable>
+
+        <UiDataTable v-if="syllabus.stage_label" min-width="760px">
+            <template #header>
+                <h2 class="font-h3 text-h3 text-on-surface">Quyền xem Google Drive</h2>
+                <UiForm v-if="syllabus.drive.sync_url && syllabus.drive.configured" :action="syllabus.drive.sync_url" method="post" class="inline">
+                    <UiButton type="submit" size="sm" variant="secondary" icon="sync">Đồng bộ lại</UiButton>
+                </UiForm>
+            </template>
+            <UiAlert v-if="!syllabus.drive.configured" type="info" class="m-md text-xs">Chưa kết nối Google Drive — quyền xem file chưa được mở tự động (xem docs/google-drive-syllabus.md).</UiAlert>
+            <table v-else>
+                <thead>
+                    <tr>
+                        <th>Giáo viên</th>
+                        <th>File / thư mục</th>
+                        <th>Trạng thái</th>
+                        <th>Lỗi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="row in syllabus.drive.rows" :key="row.key">
+                        <td>
+                            <p class="font-semibold text-on-surface">{{ row.user }}</p>
+                            <p class="text-xs text-on-surface-variant">{{ row.email }}</p>
+                        </td>
+                        <td class="max-w-[320px]">
+                            <a :href="row.url" target="_blank" rel="noopener" class="inline-flex items-center gap-1 break-all text-xs text-primary hover:underline">
+                                <span class="material-symbols-outlined text-[14px]" aria-hidden="true">{{ row.kind === 'folder' ? 'folder' : 'description' }}</span>{{ row.url }}
+                            </a>
+                        </td>
+                        <td class="whitespace-nowrap">
+                            <UiBadge :color="{ granted: 'success', failed: 'error', revoked: 'neutral' }[row.status] ?? 'warning'">{{ row.status_label }}</UiBadge>
+                            <p v-if="row.pre_existing" class="mt-1 text-xs text-on-surface-variant">Đã có quyền từ trước</p>
+                        </td>
+                        <td class="max-w-[260px] text-xs text-error">{{ row.error }}</td>
+                    </tr>
+                    <tr v-if="!syllabus.drive.rows.length">
+                        <td colspan="4"><UiEmptyState icon="add_to_drive" title="Syllabus chặng chưa có link Google Drive" /></td>
+                    </tr>
+                </tbody>
+            </table>
+        </UiDataTable>
     </div>
 
     <UiModal v-if="syllabus.can_edit" :show="!!editing" :title="editing ? `Sửa Buổi ${editing.session_no} cho lớp ${klass.name}` : ''" max-width="3xl" @close="editing = null">

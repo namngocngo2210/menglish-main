@@ -337,6 +337,7 @@ Route::middleware('auth')->group(function () {
         // Syllabus của lớp: Học thuật chỉnh sửa thủ công từng buổi (bản đè, docs/kho-syllabus.md §7.3).
         Route::put('/{class}/syllabus/lessons/{lesson}', [SyllabusClassController::class, 'override'])->whereNumber(['class', 'lesson'])->middleware('can:syllabus.class_edit')->name('syllabus.override');
         Route::delete('/{class}/syllabus/lessons/{lesson}', [SyllabusClassController::class, 'destroyOverride'])->whereNumber(['class', 'lesson'])->middleware('can:syllabus.class_edit')->name('syllabus.override.destroy');
+        Route::post('/{class}/syllabus/drive-sync', [SyllabusClassController::class, 'syncDrive'])->whereNumber('class')->middleware('can:syllabus.assign')->name('syllabus.drive-sync');
         // Trang lớp (tab con qua ?tab=): đặt cuối nhóm để không nuốt các đường dẫn cố định phía trên.
         Route::get('/{id}', [ClassManagementController::class, 'show'])->whereNumber('id')->name('show');
     });
