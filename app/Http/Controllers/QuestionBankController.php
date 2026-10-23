@@ -21,7 +21,7 @@ use InvalidArgumentException;
 
 /**
  * Ngân hàng câu hỏi (docs/luyen-tap-ngan-hang-cau-hoi.md §5.2): danh sách / lọc, duyệt – ẩn hàng loạt, sửa câu / ngữ liệu
- * (modal RendersModals), import ZIP. Mọi thao tác sửa tay đặt `edited_at` cho câu bị ảnh hưởng để import lại không ghi đè.
+ * (modal RendersModals), import ZIP. Sửa câu / ngữ liệu và chuyển về Chưa duyệt đặt `edited_at` để import lại không ghi đè.
  */
 class QuestionBankController extends Controller
 {
@@ -94,12 +94,14 @@ class QuestionBankController extends Controller
             ? $this->filtered($filters)
             : QuestionBankQuestion::query()->whereIn('id', $data['ids']);
 
+        // Chỉ "về Chưa duyệt" đặt `edited_at` (import lại không đưa câu về bản gốc); duyệt / ẩn không sửa nội dung và
+        // import vốn đã giữ mọi câu khác draft, nên không gắn nhãn "Đã sửa".
         $now = now();
-        $changes = ['status' => $action['status'], 'edited_at' => $now];
+        $changes = ['status' => $action['status']];
         if ($action['status'] === 'approved') {
             $changes += ['approved_by' => $request->user()->id, 'approved_at' => $now];
         } elseif ($action['status'] === 'draft') {
-            $changes += ['approved_by' => null, 'approved_at' => null];
+            $changes += ['approved_by' => null, 'approved_at' => null, 'edited_at' => $now];
         }
 
         // Câu đã ở trạng thái đích giữ nguyên (không đổi người / lúc duyệt).

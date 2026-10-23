@@ -162,7 +162,7 @@ class QuestionBankControllerTest extends TestCase
             $this->assertSame('approved', $question->status);
             $this->assertSame($this->lead->id, $question->approved_by);
             $this->assertNotNull($question->approved_at);
-            $this->assertNotNull($question->edited_at);
+            $this->assertNull($question->edited_at, 'Duyệt không phải sửa nội dung: không gắn "Đã sửa".');
         }
         foreach ($grade8 as $question) {
             $question->refresh();
@@ -187,7 +187,7 @@ class QuestionBankControllerTest extends TestCase
 
         $this->assertSame('hidden', $a->fresh()->status);
         $this->assertSame('hidden', $b->fresh()->status);
-        $this->assertNotNull($b->fresh()->edited_at);
+        $this->assertNull($b->fresh()->edited_at, 'Ẩn không phải sửa nội dung: không gắn "Đã sửa".');
         $this->assertSame('draft', $c->fresh()->status);
         $this->assertNull($c->fresh()->edited_at);
     }
