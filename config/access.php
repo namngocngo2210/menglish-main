@@ -42,7 +42,7 @@ return [
             'entrance_test.*', 'entrance_test.examine', 'student.*', 'class.*', 'class.teach', 'attendance_student.*',
             'placement_test.view', 'placement_test.grade',
             // Duyệt đề xuất sửa giáo trình / giãn tiến độ / Big Test là việc của Học thuật (academic_lead) — BPMN.
-            'level.*', 'syllabus.view', 'syllabus.update', 'syllabus.manage', 'syllabus.upload', 'syllabus.propose_adjustment',
+            'level.*', 'syllabus.view', 'syllabus.update', 'syllabus.manage', 'syllabus.upload', 'syllabus.library', 'syllabus.propose_adjustment',
             // Kế toán / Học phí: liệt kê từng quyền để các quyền chỉ Admin (mọi quyền duyệt / trả về: phiếu thu, hoàn tiền,
             // khất nợ, hủy HĐ — AdminOnlyApprovals, 06/10/2026; dải số mặc định, phạm vi mọi chi nhánh) không lan sang vai trò này.
             'tuition.view', 'tuition.create', 'tuition.mark_contacted', 'tuition.report_overdue',

@@ -94,7 +94,7 @@ class SyllabusController extends Controller
                 'version' => $c->version,
                 'stages' => $c->stages->map(fn (SyllabusStage $st) => ['id' => $st->id, 'label' => $st->label])->values()->all(),
             ])->values()->all(),
-            'canUpload' => $user->can('syllabus.upload'),
+            'canUpload' => $user->can('syllabus.library'),
         ]);
     }
 
@@ -212,7 +212,7 @@ class SyllabusController extends Controller
         $lessons = $units->flatMap->lessons;
 
         $editor = null;
-        if ($curriculum && $request->user()->can('syllabus.manage')) {
+        if ($curriculum && $request->user()->can('syllabus.library')) {
             $editor = match (true) {
                 $request->boolean('new_stage') => ['type' => 'stage', 'model' => null, 'parent' => $curriculum],
                 $request->filled('edit_stage') => ['type' => 'stage', 'model' => $stages->firstWhere('id', $request->integer('edit_stage')), 'parent' => $curriculum],
@@ -279,7 +279,7 @@ class SyllabusController extends Controller
                 'other' => $curriculum && $level->syllabus_curriculum_id && $level->syllabus_curriculum_id !== $curriculum->id,
             ])->values()->all(),
             'newCode' => 'CUR-'.strtoupper(Str::random(4)),
-            'canManage' => $request->user()->can('syllabus.manage'),
+            'canManage' => $request->user()->can('syllabus.library'),
             'lessonTypes' => self::optionList(SyllabusLesson::TYPES),
             'milestones' => self::optionList(SyllabusLesson::MILESTONES),
         ]);
@@ -928,7 +928,7 @@ class SyllabusController extends Controller
             'statusOptions' => Ui::options(SyllabusChangeProposal::STATUS_LABELS),
             'listUrl' => route('syllabus.versions', $listQuery),
             'canReview' => $user->can(AdminOnlyApprovals::ABILITY), // chỉ Admin duyệt (06/10/2026)
-            'canManage' => $user->can('syllabus.manage'),
+            'canManage' => $user->can('syllabus.library'),
         ]);
     }
 

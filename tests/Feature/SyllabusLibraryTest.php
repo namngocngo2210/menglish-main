@@ -92,6 +92,33 @@ class SyllabusLibraryTest extends TestCase
             ->assertSee('Link PPT')->assertSee('Mốc thông báo')->assertSee('Order in ấn');
     }
 
+    public function test_library_permission_granted_to_lead_and_manager_only(): void
+    {
+        $this->assertTrue($this->userWithRole(Roles::ACADEMIC_LEAD)->can('syllabus.library'));
+        $this->assertTrue($this->userWithRole(Roles::MANAGER)->can('syllabus.library'));
+        $this->assertFalse($this->userWithRole(Roles::ACADEMIC_STAFF)->can('syllabus.library'));
+        $this->assertFalse($this->userWithRole(Roles::TEACHER_FULLTIME)->can('syllabus.library'));
+    }
+
+    public function test_academic_staff_cannot_edit_original_syllabus_but_keeps_assignments(): void
+    {
+        $staff = $this->userWithRole(Roles::ACADEMIC_STAFF);
+
+        $this->actingAs($staff)->post(route('syllabus.curriculums.store'), ['code' => 'X1', 'title' => 'X', 'version' => 'v1'])->assertForbidden();
+        $this->actingAs($staff)->post(route('syllabus.lessons.store'), ['unit_id' => $this->unit->id, 'session_no' => 9, 'title' => 'X'])->assertForbidden();
+        $this->actingAs($staff)->get(route('syllabus.import'))->assertForbidden();
+        $this->actingAs($staff)->get(route('syllabus.builder'))->assertForbidden();
+        $this->actingAs($staff)->get(route('syllabus.assignments'))->assertOk();
+    }
+
+    public function test_manager_can_edit_original_syllabus(): void
+    {
+        $this->actingAs($this->userWithRole(Roles::MANAGER))
+            ->put(route('syllabus.lessons.update', $this->lesson->id), ['session_no' => 1, 'title' => 'Quản lý sửa'])
+            ->assertSessionHasNoErrors();
+        $this->assertSame('Quản lý sửa', $this->lesson->fresh()->title);
+    }
+
     private function userWithRole(string $role): User
     {
         $user = User::factory()->create(['is_active' => true, 'branch_id' => $this->branch->id]);

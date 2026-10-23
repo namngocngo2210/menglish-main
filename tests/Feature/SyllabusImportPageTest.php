@@ -243,24 +243,20 @@ class SyllabusImportPageTest extends TestCase
         $this->assertSame(1, SyllabusCurriculum::count());
     }
 
-    public function test_confirm_with_documents_requires_upload_permission(): void
+    public function test_import_requires_library_permission(): void
     {
-        $zip = $this->makeZip([
-            'syllabus.xlsx' => file_get_contents($this->makeXlsx($this->validSheets())),
-            'tai-lieu/chang-1/bai-1.pdf' => $this->pdfBytes(),
-        ]);
+        // Bị gỡ quyền Kho syllabus (syllabus.library) → không xem trước / xác nhận import được.
         UserPermissionOverride::create([
             'user_id' => $this->academic->id,
             'module' => 'syllabus',
-            'action' => 'upload',
+            'action' => 'library',
             'scope_type' => UserPermissionOverride::SCOPE_ALL,
             'allow' => false,
         ]);
-        $token = $this->previewToken($this->academic, $zip);
 
-        $this->actingAs($this->academic)->post(route('syllabus.import.confirm'), ['token' => $token])
-            ->assertRedirect(route('syllabus.import', ['token' => $token]))
-            ->assertSessionHasErrors('file');
+        $this->actingAs($this->academic)->post(route('syllabus.import.preview'), ['file' => $this->upload($this->makeXlsx($this->validSheets()))])
+            ->assertForbidden();
+        $this->actingAs($this->academic)->post(route('syllabus.import.confirm'), ['token' => 'x'])->assertForbidden();
 
         $this->assertSame(0, SyllabusCurriculum::count());
     }

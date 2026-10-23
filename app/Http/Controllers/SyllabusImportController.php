@@ -16,7 +16,7 @@ use Inertia\Inertia;
 
 /**
  * Import syllabus từ file mẫu (.zip / .xlsx): ① Tải file → ② Xem trước (không ghi DB) → ③ Xác nhận (ghi DB).
- * Quyền: middleware `can:syllabus.manage` của nhóm route; gói có tài liệu cần thêm `syllabus.upload` (validator).
+ * Quyền: middleware `can:syllabus.library` (Kho syllabus) của nhóm route; người có quyền này cũng được nhập tài liệu (validator).
  */
 class SyllabusImportController extends Controller
 {
@@ -31,7 +31,7 @@ class SyllabusImportController extends Controller
 
     public function index(Request $request)
     {
-        $canUpload = $request->user()->can('syllabus.upload');
+        $canUpload = $request->user()->can('syllabus.library');
         $preview = null;
 
         if ($request->filled('token')) {
@@ -162,7 +162,7 @@ class SyllabusImportController extends Controller
         }
 
         try {
-            $plan = $this->validator->validate($this->reader->read($meta['path'], $meta['work_dir']), $request->user()->can('syllabus.upload'));
+            $plan = $this->validator->validate($this->reader->read($meta['path'], $meta['work_dir']), $request->user()->can('syllabus.library'));
         } catch (SyllabusPackageException $e) {
             $this->store->forget($token);
 

@@ -85,10 +85,10 @@ class SyllabusDocument extends Model
         return $this->belongsTo(User::class, 'uploaded_by');
     }
 
-    /** Người quản lý kho tài liệu (upload/quản lý giáo trình) luôn xem được mọi tài liệu. */
+    /** Người có quyền Kho syllabus (syllabus.library) luôn xem được mọi tài liệu. */
     public static function userManages(User $user): bool
     {
-        return $user->can('syllabus.upload') || $user->can('syllabus.manage');
+        return $user->can('syllabus.library');
     }
 
     public function scopeVisibleTo(Builder $query, User $user): Builder

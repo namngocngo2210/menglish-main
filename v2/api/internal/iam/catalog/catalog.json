@@ -536,7 +536,12 @@
                 {
                     "key": "manage",
                     "label": "Quản lý giáo trình",
-                    "description": "Soạn giáo trình / chặng / unit / buổi, giao chặng, tạo đợt Big Test, nhắc lịch."
+                    "description": "Giao chặng cho lớp, tạo đợt Big Test, nhắc lịch."
+                },
+                {
+                    "key": "library",
+                    "label": "Kho syllabus",
+                    "description": "Xem & sửa syllabus gốc: giáo trình, chặng, unit, buổi, tài liệu, import."
                 },
                 {
                     "key": "upload",
@@ -1682,6 +1687,7 @@
                 "syllabus.update",
                 "syllabus.manage",
                 "syllabus.upload",
+                "syllabus.library",
                 "syllabus.propose_adjustment",
                 "tuition.view",
                 "tuition.create",

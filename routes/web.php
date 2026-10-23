@@ -494,30 +494,30 @@ Route::middleware('auth')->group(function () {
     // ─────────────────────────────────────────────
     Route::prefix('syllabus')->name('syllabus.')->middleware('can:syllabus.view')->group(function () {
         Route::get('/documents', [SyllabusController::class, 'documents'])->name('documents');
-        Route::post('/documents', [SyllabusController::class, 'storeDocument'])->middleware('can:syllabus.upload')->name('documents.store');
+        Route::post('/documents', [SyllabusController::class, 'storeDocument'])->middleware('can:syllabus.library')->name('documents.store');
         Route::get('/documents/{id}/file', [SyllabusController::class, 'documentFile'])->whereNumber('id')->name('documents.file');
         Route::post('/documents/{id}/viewed', [SyllabusController::class, 'markDocumentViewed'])->whereNumber('id')->name('documents.viewed');
-        Route::delete('/documents/{id}', [SyllabusController::class, 'destroyDocument'])->whereNumber('id')->middleware('can:syllabus.upload')->name('documents.destroy');
-        Route::get('/builder', [SyllabusController::class, 'builder'])->name('builder');
-        Route::middleware('can:syllabus.manage')->prefix('import')->group(function () {
+        Route::delete('/documents/{id}', [SyllabusController::class, 'destroyDocument'])->whereNumber('id')->middleware('can:syllabus.library')->name('documents.destroy');
+        Route::get('/builder', [SyllabusController::class, 'builder'])->middleware('can:syllabus.library')->name('builder');
+        Route::middleware('can:syllabus.library')->prefix('import')->group(function () {
             Route::get('/', [SyllabusImportController::class, 'index'])->name('import');
             Route::get('/template', [SyllabusImportController::class, 'template'])->name('import.template');
             Route::post('/preview', [SyllabusImportController::class, 'preview'])->name('import.preview');
             Route::post('/confirm', [SyllabusImportController::class, 'confirm'])->name('import.confirm');
         });
-        Route::post('/curriculums', [SyllabusController::class, 'storeCurriculum'])->middleware('can:syllabus.manage')->name('curriculums.store');
-        Route::put('/curriculums/{id}', [SyllabusController::class, 'updateCurriculum'])->whereNumber('id')->middleware('can:syllabus.manage')->name('curriculums.update');
-        Route::delete('/curriculums/{id}', [SyllabusController::class, 'destroyCurriculum'])->whereNumber('id')->middleware('can:syllabus.manage')->name('curriculums.destroy');
-        Route::post('/units', [SyllabusController::class, 'storeUnit'])->middleware('can:syllabus.manage')->name('units.store');
-        Route::put('/units/{id}', [SyllabusController::class, 'updateUnit'])->whereNumber('id')->middleware('can:syllabus.manage')->name('units.update');
-        Route::delete('/units/{id}', [SyllabusController::class, 'destroyUnit'])->whereNumber('id')->middleware('can:syllabus.manage')->name('units.destroy');
-        Route::post('/stages', [SyllabusController::class, 'storeStage'])->middleware('can:syllabus.manage')->name('stages.store');
-        Route::put('/stages/{id}', [SyllabusController::class, 'updateStage'])->whereNumber('id')->middleware('can:syllabus.manage')->name('stages.update');
-        Route::delete('/stages/{id}', [SyllabusController::class, 'destroyStage'])->whereNumber('id')->middleware('can:syllabus.manage')->name('stages.destroy');
-        Route::post('/stages/{id}/move', [SyllabusController::class, 'moveStage'])->whereNumber('id')->middleware('can:syllabus.manage')->name('stages.move');
-        Route::post('/lessons', [SyllabusController::class, 'storeLesson'])->middleware('can:syllabus.manage')->name('lessons.store');
-        Route::put('/lessons/{id}', [SyllabusController::class, 'updateLesson'])->whereNumber('id')->middleware('can:syllabus.manage')->name('lessons.update');
-        Route::delete('/lessons/{id}', [SyllabusController::class, 'destroyLesson'])->whereNumber('id')->middleware('can:syllabus.manage')->name('lessons.destroy');
+        Route::post('/curriculums', [SyllabusController::class, 'storeCurriculum'])->middleware('can:syllabus.library')->name('curriculums.store');
+        Route::put('/curriculums/{id}', [SyllabusController::class, 'updateCurriculum'])->whereNumber('id')->middleware('can:syllabus.library')->name('curriculums.update');
+        Route::delete('/curriculums/{id}', [SyllabusController::class, 'destroyCurriculum'])->whereNumber('id')->middleware('can:syllabus.library')->name('curriculums.destroy');
+        Route::post('/units', [SyllabusController::class, 'storeUnit'])->middleware('can:syllabus.library')->name('units.store');
+        Route::put('/units/{id}', [SyllabusController::class, 'updateUnit'])->whereNumber('id')->middleware('can:syllabus.library')->name('units.update');
+        Route::delete('/units/{id}', [SyllabusController::class, 'destroyUnit'])->whereNumber('id')->middleware('can:syllabus.library')->name('units.destroy');
+        Route::post('/stages', [SyllabusController::class, 'storeStage'])->middleware('can:syllabus.library')->name('stages.store');
+        Route::put('/stages/{id}', [SyllabusController::class, 'updateStage'])->whereNumber('id')->middleware('can:syllabus.library')->name('stages.update');
+        Route::delete('/stages/{id}', [SyllabusController::class, 'destroyStage'])->whereNumber('id')->middleware('can:syllabus.library')->name('stages.destroy');
+        Route::post('/stages/{id}/move', [SyllabusController::class, 'moveStage'])->whereNumber('id')->middleware('can:syllabus.library')->name('stages.move');
+        Route::post('/lessons', [SyllabusController::class, 'storeLesson'])->middleware('can:syllabus.library')->name('lessons.store');
+        Route::put('/lessons/{id}', [SyllabusController::class, 'updateLesson'])->whereNumber('id')->middleware('can:syllabus.library')->name('lessons.update');
+        Route::delete('/lessons/{id}', [SyllabusController::class, 'destroyLesson'])->whereNumber('id')->middleware('can:syllabus.library')->name('lessons.destroy');
         Route::get('/assignments', [SyllabusController::class, 'assignments'])->name('assignments');
         Route::post('/assignments', [SyllabusController::class, 'storeAssignment'])->middleware('can:syllabus.manage')->name('assignments.store');
         Route::put('/assignments/{id}', [SyllabusController::class, 'updateAssignment'])->whereNumber('id')->middleware('can:syllabus.manage')->name('assignments.update');

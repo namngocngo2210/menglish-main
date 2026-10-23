@@ -235,7 +235,8 @@ return [
             'actions' => [
                 'view' => ['Xem giáo trình', 'Xem tài liệu, giáo trình, chặng, bài giảng.'],
                 'update' => ['Nhập kết quả / cập nhật', 'Nhập kết quả Big Test, cập nhật nội dung buổi học.'],
-                'manage' => ['Quản lý giáo trình', 'Soạn giáo trình / chặng / unit / buổi, giao chặng, tạo đợt Big Test, nhắc lịch.'],
+                'manage' => ['Quản lý giáo trình', 'Giao chặng cho lớp, tạo đợt Big Test, nhắc lịch.'],
+                'library' => ['Kho syllabus', 'Xem & sửa syllabus gốc: giáo trình, chặng, unit, buổi, tài liệu, import.'],
                 'upload' => ['Tải tài liệu', 'Tải lên / xóa tài liệu giáo trình.'],
                 'propose_adjustment' => ['Đề xuất sửa / giãn tiến độ', 'Gửi đề xuất sửa giáo trình, xin điều chỉnh tiến độ.'],
                 'approve_adjustment' => ['Duyệt đề xuất & tiến độ', 'Duyệt / từ chối đề xuất sửa giáo trình, điều chỉnh tiến độ; đóng chặng. Nút duyệt / từ chối chỉ Admin (06/10/2026).'],

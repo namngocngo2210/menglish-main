@@ -145,8 +145,8 @@ class Phase2MockupSyllabusTest extends TestCase
         ])->assertSessionHasNoErrors();
         $this->assertSame('Thực hành theo cặp', $this->lessons[0]->fresh()->content);
 
-        // Giáo viên xem được nhưng không có nút soạn
-        $this->actingAs($this->teacher)->get($url)->assertOk()->assertDontSee('Thêm buổi học mới vào chặng');
+        // Kho syllabus (syllabus.library) chỉ Học thuật / Quản lý — giáo viên không vào được màn soạn (docs/kho-syllabus.md).
+        $this->actingAs($this->teacher)->get($url)->assertForbidden();
     }
 
     // ---- 01_Web_Admin/01 — Quản lý tài liệu giáo trình; 03_Cong_Giao_Vien/08 — Xem tài liệu giáo trình ----
