@@ -51,6 +51,14 @@ class SyllabusController extends Controller
     /** Trạng thái khi không gửi được kết quả Big Test: hồ sơ HV và khách CRM đều không có SĐT phụ huynh. */
     public const MISSING_PARENT_PHONE = 'Thiếu SĐT phụ huynh';
 
+    /** /syllabus: Học thuật (quản lý giáo trình) vào màn Tài liệu; giáo viên vào Chặng đang dạy. */
+    public function index(Request $request)
+    {
+        return $request->user()->can('syllabus.manage')
+            ? redirect()->route('syllabus.documents')
+            : redirect()->route('syllabus.teaching-stages');
+    }
+
     // ─────────────────────────────────────────────
     // 1. Kho tài liệu giáo trình (file thật, phân quyền xem)
     // ─────────────────────────────────────────────

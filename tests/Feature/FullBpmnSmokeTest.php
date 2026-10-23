@@ -72,7 +72,7 @@ class FullBpmnSmokeTest extends TestCase
         $this->actingAs($academic)->get(route('students.show', $student->id))->assertOk();
 
         // BPMN 7–8 — Giáo trình theo chặng, giáo viên dạy + điểm danh buổi.
-        $this->actingAs($lead)->get(route('syllabus.index'))->assertOk();
+        $this->actingAs($lead)->get(route('syllabus.index'))->assertRedirect(route('syllabus.documents'));
         $this->actingAs($lead)->get(route('syllabus.assignments'))->assertOk();
         $this->actingAs($teacher)->get(route('syllabus.teacher-view'))->assertOk();
         $this->actingAs($teacher)->get(route('teacher.attendance', $class->id))->assertOk();
