@@ -7,6 +7,7 @@ use App\Models\QuestionBankQuestion;
 use App\Services\QuestionBank\ImportSummary;
 use App\Services\QuestionBank\QuestionBankImporter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
 use Tests\Support\QuestionBankZip as Zip;
@@ -329,9 +330,19 @@ class QuestionBankImporterTest extends TestCase
     {
         $path = Zip::write($this->standardEntries());
 
+        $before = DB::table('activity_log')->count();
+
         $this->artisan('question-bank:import', ['zip' => $path])
             ->expectsOutputToContain('Thêm 4')
             ->assertSuccessful();
+
+        // Như import qua web: một dòng nhật ký tổng, không ghi từng câu / ngữ liệu.
+        $this->assertSame($before + 1, DB::table('activity_log')->count());
+        $log = DB::table('activity_log')->latest('id')->first();
+        $this->assertSame('Ngân hàng câu hỏi', $log->log_name);
+        $this->assertStringStartsWith('Import ngân hàng câu hỏi: Thêm 4', $log->description);
+        $this->assertSame(basename($path), json_decode($log->properties, true)['file']);
+        $this->assertSame(4, json_decode($log->properties, true)['created']);
     }
 
     public function test_command_fails_for_unsafe_zip(): void
