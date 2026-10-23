@@ -39,15 +39,13 @@ const link = ref(overviewLink(props.editor));
 const preview = ref(link.value);
 
 const editorOpen = ref(!!props.editor);
-watch(
-    () => props.editor,
-    (editor) => {
-        editorOpen.value = !!editor;
-        link.value = overviewLink(editor);
-        preview.value = link.value;
-    },
-);
 const editorKey = computed(() => (props.editor ? `${props.editor.type}-${props.editor.model?.id ?? 'new'}-${props.editor.parent?.id ?? ''}` : ''));
+// Theo dõi theo định danh ô soạn (như Versions theo selected?.id): lưu lỗi validate trả về cùng ô → giữ link đang nhập.
+watch(editorKey, () => {
+    editorOpen.value = !!props.editor;
+    link.value = overviewLink(props.editor);
+    preview.value = link.value;
+});
 const editorTitle = computed(() => {
     const e = props.editor;
     if (!e) return '';
