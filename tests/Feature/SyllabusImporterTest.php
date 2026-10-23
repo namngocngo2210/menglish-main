@@ -106,7 +106,7 @@ class SyllabusImporterTest extends TestCase
     public function test_duplicate_code_throws(): void
     {
         $plan = $this->plan();
-        SyllabusCurriculum::create(['code' => 'KIDS-Q4', 'title' => 'Cũ', 'version' => 'v1'])->delete();
+        SyllabusCurriculum::create(['code' => 'KIDS-Q4', 'title' => 'Cũ', 'version' => 'v1']);
         $before = SyllabusCurriculum::withTrashed()->count();
 
         try {

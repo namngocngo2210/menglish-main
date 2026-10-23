@@ -164,14 +164,15 @@ class SyllabusPackageValidatorTest extends TestCase
         }
     }
 
-    public function test_existing_code_is_rejected_including_trashed(): void
+    public function test_existing_code_is_rejected_but_deleted_code_is_reusable(): void
     {
         $existing = SyllabusCurriculum::create(['code' => 'KIDS-Q4', 'title' => 'Cũ', 'version' => 'v1']);
+
+        $this->assertContains('Mã KIDS-Q4 đã tồn tại — đổi mã khác.', $this->validate($this->validSheets())->errors);
+
         $existing->delete();
 
-        $plan = $this->validate($this->validSheets());
-
-        $this->assertContains('Mã KIDS-Q4 đã tồn tại — đổi mã khác.', $plan->errors);
+        $this->assertTrue($this->validate($this->validSheets())->ok());
     }
 
     public function test_more_than_1000_lessons_is_rejected(): void

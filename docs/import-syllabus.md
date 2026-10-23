@@ -67,7 +67,7 @@ thấy các định dạng được nhận; Học thuật thay bằng tài liệ
 | Sheet | Cột | Quy tắc |
 |---|---|---|
 | Hướng dẫn | Mô tả cách điền | Không import |
-| Giáo trình (1 dòng) | Mã · Tên · Phiên bản · Mô tả | Mã, Tên bắt buộc; mã ≤ 50 ký tự, chưa tồn tại (kể cả giáo trình đã xoá); Phiên bản ≤ 20 ký tự, trống → `v1` |
+| Giáo trình (1 dòng) | Mã · Tên · Phiên bản · Mô tả | Mã, Tên bắt buộc; mã ≤ 50 ký tự, chưa có giáo trình đang dùng (xoá giáo trình nhả mã: `code#deleted-id`); Phiên bản ≤ 20 ký tự, trống → `v1` |
 | Chặng | Thứ tự · Tên chặng · Mô tả · Tên Big Test · Ghi chú Big Test · Link mục lục | Thứ tự liên tục 1, 2, 3…; Tên bắt buộc |
 | Buổi | Chặng (thứ tự) · Unit số · Tên unit · Buổi số · Tên buổi · Mục tiêu · Hoạt động · Từ vựng · Ngữ pháp · BTVN | Buổi số liên tục 1…N, không trùng; một unit chỉ thuộc một chặng; các dòng cùng unit cùng tên unit; mỗi chặng ≥ 1 buổi |
 
