@@ -54,14 +54,20 @@ class SyllabusNotifier
         $this->send($ids, "Syllabus lớp {$class->name} đã được cập nhật (buổi {$numbers}).", 'Học thuật đã chỉnh sửa syllabus riêng của lớp.', $this->readAction());
     }
 
-    /** Học thuật sửa syllabus gốc của chặng → GV các lớp đang học chặng đó, nút ĐÃ XEM. */
+    /**
+     * Học thuật sửa syllabus gốc của chặng → GV các lớp đang học chặng đó, nút ĐÃ XEM. Sửa nhiều buổi liên tiếp → gộp: GV
+     * còn thông báo cùng nội dung chưa đọc thì không gửi thêm.
+     */
     public function stageContentUpdated(SyllabusStage $stage): void
     {
         $stage->loadMissing('curriculum');
         $title = "Syllabus {$stage->label} (giáo trình {$stage->curriculum?->title}) đã được Học thuật cập nhật.";
         SyllabusAssignment::open()->with('classModel')->where('stage_id', $stage->id)->get()
-            ->each(fn (SyllabusAssignment $assignment) => $this->send($this->teacherIds($assignment), $title,
-                "Lớp {$assignment->classModel?->name}: xem lại nội dung các buổi sắp dạy.", $this->readAction()));
+            ->each(function (SyllabusAssignment $assignment) use ($title) {
+                $unread = AdminNotification::where('type', self::TYPE)->where('title', $title)->where('is_read', false)->pluck('user_id');
+                $this->send($this->teacherIds($assignment)->diff($unread), $title,
+                    "Lớp {$assignment->classModel?->name}: xem lại nội dung các buổi sắp dạy.", $this->readAction());
+            });
     }
 
     /** Chặng của lớp đã xong (Big Test duyệt & gửi PH) → Học thuật giao chặng tiếp theo (Bước 11). */

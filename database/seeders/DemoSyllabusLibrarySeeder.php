@@ -2,7 +2,11 @@
 
 namespace Database\Seeders;
 
+use App\Http\Controllers\SyllabusClassController;
 use App\Http\Controllers\SyllabusController;
+use App\Models\ClassLessonOverride;
+use App\Models\ClassModel;
+use App\Models\SyllabusAssignment;
 use App\Models\SyllabusChangeProposal;
 use App\Models\SyllabusCurriculum;
 use App\Models\SyllabusDocument;
@@ -79,6 +83,7 @@ class DemoSyllabusLibrarySeeder extends Seeder
                 $this->uploadDocuments($curriculum, self::DOCUMENTS[$code]);
             }
             $this->markViewed();
+            $this->overrideClassLesson();
             $this->seedProposals($curricula['DEMO-SYL-STARTERS']);
             $this->importFlyers();
         } finally {
@@ -168,6 +173,22 @@ class DemoSyllabusLibrarySeeder extends Seeder
         if ($document && ! $document->viewedBy($teacher)) {
             $this->asUser($teacher, SyllabusController::class, 'markDocumentViewed', [], ['id' => $document->id]);
         }
+    }
+
+    /** Syllabus riêng của lớp: Học thuật chỉnh sửa thủ công 1 buổi cho lớp Starters CG FAM 0 (kèm lý do, GV được báo). */
+    private function overrideClassLesson(): void
+    {
+        $class = ClassModel::where('code', 'DEMO-CG-FAM0')->first();
+        $assignment = $class ? SyllabusAssignment::open()->where('class_id', $class->id)->first() : null;
+        $lesson = $assignment ? SyllabusLesson::whereHas('unit', fn ($q) => $q->where('stage_id', $assignment->stage_id))->orderBy('session_no')->skip(1)->first() : null;
+        if (! $lesson || ClassLessonOverride::where('class_id', $class->id)->exists()) {
+            return;
+        }
+        $this->asUser($this->lead, SyllabusClassController::class, 'override', [
+            'content' => "{$lesson->title} — rút gọn phần đọc, thêm 10 phút luyện nghe theo cặp.",
+            'activity_2' => 'Nghe – chép chính tả 5 từ vựng mới',
+            'reason' => 'Lớp FAM 0 nghe yếu, cần thêm hoạt động nghe (demo chỉnh sửa thủ công).',
+        ], ['class' => $class->id, 'lesson' => $lesson->id]);
     }
 
     private function sampleFile(string $name): UploadedFile

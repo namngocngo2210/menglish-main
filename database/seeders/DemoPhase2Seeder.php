@@ -253,11 +253,18 @@ class DemoPhase2Seeder extends Seeder
         ClassSession::whereIn('id', $future->modelKeys())->update(['foreign_teacher_id' => $foreign->id]);
     }
 
-    /** Học thuật mở chặng đầu cho lớp (giáo trình theo trình độ của khóa), lùi ngày mở về ngày khai giảng. */
+    /**
+     * Học thuật giao chặng đầu cho lớp từ ngày khai giảng (giáo trình theo trình độ của khóa). GV cơ sở CG đã XÁC NHẬN nhận
+     * syllabus; lớp cơ sở BD để "Chờ GV xác nhận" (thử nút XÁC NHẬN / Nhắc lại — docs/kho-syllabus.md §7.3).
+     */
     private function openStage(ClassModel $class): void
     {
         $this->asUser($this->lead, SyllabusController::class, 'storeAssignment', ['class_id' => $class->id, 'start_date' => $class->start_date->toDateString()]);
-        SyllabusAssignment::open()->where('class_id', $class->id)->update(['opened_at' => $class->start_date->copy()->setTime(8, 0)]);
+        $assignment = SyllabusAssignment::open()->where('class_id', $class->id)->firstOrFail();
+        $assignment->update(['opened_at' => $class->start_date->copy()->setTime(8, 0)]);
+        if ($this->branchCode === 'CG') {
+            $this->asUser($this->staff['teacher'], SyllabusController::class, 'confirmAssignment', [], ['id' => $assignment->id]);
+        }
     }
 
     /** Buổi đã dạy: điểm danh (vắng → bổ trợ), nhận xét, mini test, bài tập + bài nộp. */

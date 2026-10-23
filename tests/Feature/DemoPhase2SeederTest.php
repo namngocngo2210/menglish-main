@@ -57,6 +57,9 @@ class DemoPhase2SeederTest extends TestCase
                 $this->assertTrue(BigTest::where('class_id', $class->id)->whereNotNull('syllabus_stage_id')->where('is_distributed', true)->exists());
             }
             $this->assertSame(0, SyllabusAssignment::where('class_id', $classes["DEMO-{$code}-FAM2"]->id)->count(), 'Lớp sắp khai giảng chưa giao chặng.');
+            // GV cơ sở CG đã xác nhận nhận syllabus; BD chờ xác nhận (docs/kho-syllabus.md §7.3).
+            $confirmed = SyllabusAssignment::open()->whereIn('class_id', [$classes["DEMO-{$code}-FAM0"]->id, $classes["DEMO-{$code}-FAM1"]->id])->get()->map->isConfirmed()->unique()->values()->all();
+            $this->assertSame([$code === 'CG'], $confirmed, "{$code}: trạng thái xác nhận syllabus.");
             // Ngày nghỉ thêm sau: buổi bị hủy có buổi học bù.
             $cancelled = ClassSession::where('class_id', $classes["DEMO-{$code}-FAM1"]->id)->whereNotNull('holiday_id')->firstOrFail();
             $this->assertSame('cancelled', $cancelled->status);

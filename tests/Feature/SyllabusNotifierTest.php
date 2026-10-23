@@ -45,6 +45,20 @@ class SyllabusNotifierTest extends TestCase
         $this->assertSame('read', $notification->data['action']['method']);
     }
 
+    public function test_repeated_stage_content_updates_are_merged_while_unread(): void
+    {
+        $this->openStage($this->stage1);
+        $notifier = app(SyllabusNotifier::class);
+
+        $notifier->stageContentUpdated($this->stage1);
+        $notifier->stageContentUpdated($this->stage1);
+        $this->assertSame(1, AdminNotification::where('user_id', $this->teacher->id)->count());
+
+        AdminNotification::where('user_id', $this->teacher->id)->update(['is_read' => true]);
+        $notifier->stageContentUpdated($this->stage1);
+        $this->assertSame(2, AdminNotification::where('user_id', $this->teacher->id)->count());
+    }
+
     public function test_stage_finished_goes_to_academic_leads_with_assign_link(): void
     {
         $assignment = $this->openStage($this->stage1);

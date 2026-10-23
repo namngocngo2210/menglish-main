@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\ClassLessonOverride;
+use App\Models\ClassModel;
 use App\Models\SyllabusChangeProposal;
 use App\Models\SyllabusCurriculum;
 use App\Models\SyllabusDocument;
@@ -53,6 +55,11 @@ class DemoSyllabusLibrarySeederTest extends TestCase
         $staff = User::where('email', 'nva@menglish.edu.vn')->firstOrFail();
         $this->assertCount(8, SyllabusDocument::visibleTo($staff)->where('curriculum_id', $starters->id)->get());
         $this->assertTrue(SyllabusDocumentView::where('user_id', $teacher->id)->exists());
+
+        // Syllabus riêng của lớp: 1 buổi chỉnh sửa thủ công có lý do (lớp Starters CG FAM 0).
+        $override = ClassLessonOverride::where('class_id', ClassModel::where('code', 'DEMO-CG-FAM0')->value('id'))->sole();
+        $this->assertStringContainsString('nghe yếu', $override->reason);
+        $this->assertArrayHasKey('content', $override->data);
 
         // Đề xuất sửa đủ 3 trạng thái.
         $this->assertEqualsCanonicalizing(['pending', 'approved', 'rejected'],

@@ -1,6 +1,6 @@
 # Kho syllabus & quy trình xử lý syllabus
 
-Trạng thái: **Giai đoạn 1 — Hoàn thành**; giai đoạn 2–5 — **thiết kế chờ duyệt** (mục 5–12) — 23/10/2026
+Trạng thái: **Giai đoạn 1, 2 — Hoàn thành**; giai đoạn 3–5 — đang làm (mục 5–12, duyệt 23/10/2026)
 
 Nguồn yêu cầu: `docs/Syllabus_Quy_trinh_xu_ly.xlsx` (Sheet 1 form syllabus mẫu, Sheet 2 chia chặng & test,
 Sheet 3 quy trình 11 bước, Sheet 4 câu hỏi đã trả lời). Tiếp nối `docs/giao-trinh-don-giao-dien.md` (PR #195).
@@ -384,13 +384,13 @@ Giỏ của bài tập: `Homework::CATEGORIES` → giỏ (`video` → video; `qu
 
 ## 12. Sprint giai đoạn 2–5 (mỗi giai đoạn 1 PR)
 
-### Giai đoạn 2
-- [ ] S2.1 Thông báo có nút hành động (data.action, chuông + trang Thông báo) + `SyllabusNotifier`.
-- [ ] S2.2 Quyền `syllabus.assign` / `syllabus.class_edit` + migration; giao chặng chỉ Học thuật; ngày bắt đầu bắt buộc.
-- [ ] S2.3 GV xác nhận + nhắc 24h; bỏ tự mở chặng kế, báo Học thuật giao chặng tiếp.
-- [ ] S2.4 `ClassSyllabus` + bản đè + tab Syllabus trong trang lớp + báo GV khi sửa riêng / sửa gốc; Sheet 2 tự tính.
-- [ ] S2.5 Giao chặng: số buổi → ngày dự kiến kết thúc tự tính theo TKB.
-- [ ] S2.6 Google Drive: `DriveClient`, `syllabus_drive_grants`, lệnh đồng bộ mở / đóng quyền xem, bảng trạng thái, tài liệu cài đặt.
+### Giai đoạn 2 (xong 24/10/2026)
+- [x] S2.1 Thông báo có nút hành động (data.action, chuông + trang Thông báo) + `SyllabusNotifier`.
+- [x] S2.2 Quyền `syllabus.assign` / `syllabus.class_edit` + migration; giao chặng chỉ Học thuật; ngày bắt đầu bắt buộc.
+- [x] S2.3 GV xác nhận + nhắc 24h; bỏ tự mở chặng kế, báo Học thuật giao chặng tiếp.
+- [x] S2.4 `ClassSyllabus` + bản đè + tab Syllabus trong trang lớp + báo GV khi sửa riêng / sửa gốc; Sheet 2 tự tính.
+- [x] S2.5 Giao chặng: số buổi → ngày dự kiến kết thúc tự tính theo TKB.
+- [x] S2.6 Google Drive: `DriveClient`, `syllabus_drive_grants`, lệnh đồng bộ mở / đóng quyền xem, bảng trạng thái, tài liệu cài đặt.
 
 ### Giai đoạn 3
 - [ ] S3.1 `class_lesson_progress` + backfill + tiến độ / lịch dự kiến trong `ClassSyllabus`; `SessionLessonService` dùng lịch mới.
