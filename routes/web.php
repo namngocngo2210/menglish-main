@@ -898,6 +898,7 @@ Route::middleware('auth')->group(function () {
     Route::controller(QuestionBankController::class)->prefix('question-bank')->name('question-bank.')
         ->middleware('can:question_bank.view')->group(function () {
             Route::get('/', 'index')->name('index');
+            Route::get('/analysis', 'analysis')->name('analysis');
             Route::middleware('can:question_bank.manage')->group(function () {
                 Route::post('/bulk', 'bulk')->name('bulk');
                 Route::post('/import', 'import')->name('import');

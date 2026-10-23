@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Báo cáo Kết quả luyện tập (docs/luyen-tap-ngan-hang-cau-hoi.md §7). Chỉ tính lượt đã nộp của học viên trong phạm vi
@@ -23,6 +24,10 @@ use Illuminate\Support\Collection;
 class PracticeReport
 {
     public const PER_PAGE = 20;
+
+    public const QUESTION_PER_PAGE = 30;
+
+    public const MIN_QUESTION_ATTEMPTS = 10;
 
     private const FILTER_KEYS = ['grade', 'term', 'class_id', 'student_id', 'q', 'from', 'to', 'mine'];
 
@@ -134,6 +139,102 @@ class PracticeReport
                 'violation_attempts' => (int) $row->violation_attempts,
             ];
         });
+    }
+
+    /**
+     * Bộ lọc phân tích câu hỏi (không phụ thuộc người xem): grade, term, skill (trong danh mục), type (chuỗi).
+     *
+     * @param  array<string, mixed>  $input
+     * @return array{grade: ?int, term: ?string, skill: ?string, type: ?string}
+     */
+    public function questionFilters(array $input): array
+    {
+        $grade = is_scalar($input['grade'] ?? null) && ctype_digit((string) $input['grade']) ? (int) $input['grade'] : null;
+        $term = is_string($input['term'] ?? null) ? $input['term'] : null;
+        $skill = is_string($input['skill'] ?? null) ? $input['skill'] : null;
+        $type = is_string($input['type'] ?? null) ? mb_substr(trim($input['type']), 0, self::SEARCH_MAX_LENGTH) : '';
+
+        return [
+            'grade' => in_array($grade, PracticeCatalog::GRADES, true) ? $grade : null,
+            'term' => array_key_exists((string) $term, PracticeCatalog::TERMS) ? $term : null,
+            'skill' => in_array($skill, PracticeCatalog::SKILLS, true) ? $skill : null,
+            'type' => $type !== '' ? $type : null,
+        ];
+    }
+
+    /**
+     * Phân tích câu hỏi: câu có tỉ lệ sai cao nhất trước (rồi nhiều lượt làm hơn), chỉ tính câu của lượt đã nộp và có
+     * ít nhất $minAttempts lượt làm; câu bỏ trống tính là sai. Mọi học viên (công cụ chất lượng câu hỏi, không theo
+     * phạm vi người xem). Số truy vấn cố định: đếm + trang, đáp án sai nhiều nhất của các câu trong trang.
+     *
+     * @param  array<string, mixed>  $filters  từ `questionFilters()`
+     * @return LengthAwarePaginator<int, array{question_id: int, stem: string, grade: int, term: string, skill: string, type: string, answer: string, attempts: int, wrong: int, wrong_rate: float, top_wrong_choice: ?string}>
+     */
+    public function questionStats(array $filters, int $minAttempts = self::MIN_QUESTION_ATTEMPTS): LengthAwarePaginator
+    {
+        $f = array_merge(['grade' => null, 'term' => null, 'skill' => null, 'type' => null], $filters);
+        $wrongSql = 'sum(case when practice_attempt_items.is_correct = 1 then 0 else 1 end)';
+
+        $stats = DB::table('practice_attempt_items')
+            ->join('practice_attempts', 'practice_attempts.id', '=', 'practice_attempt_items.attempt_id')
+            ->where('practice_attempts.status', PracticeAttempt::SUBMITTED)
+            ->whereNotNull('practice_attempt_items.question_id')
+            ->groupBy('practice_attempt_items.question_id')
+            ->havingRaw('count(*) >= ?', [max(1, $minAttempts)])
+            ->selectRaw("practice_attempt_items.question_id as stat_question_id, count(*) as attempts, {$wrongSql} as wrong");
+
+        $page = DB::table('question_bank_questions as q')
+            ->joinSub($stats, 'stats', 'stats.stat_question_id', '=', 'q.id')
+            ->when($f['grade'], fn ($query, int $grade) => $query->where('q.grade', $grade))
+            ->when($f['term'], fn ($query, string $term) => $query->where('q.term', $term))
+            ->when($f['skill'], fn ($query, string $skill) => $query->where('q.skill', $skill))
+            ->when($f['type'], fn ($query, string $type) => $query->where('q.type', $type))
+            ->orderByRaw('(stats.wrong * 1.0 / stats.attempts) desc')
+            ->orderByDesc('stats.attempts')
+            ->orderBy('q.id')
+            ->select('q.id', 'q.stem', 'q.grade', 'q.term', 'q.skill', 'q.type', 'q.answer', 'stats.attempts', 'stats.wrong')
+            ->paginate(self::QUESTION_PER_PAGE);
+
+        $ids = collect($page->items())->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $topWrong = $ids === [] ? [] : $this->topWrongChoices($ids);
+
+        return $page->through(fn ($row) => [
+            'question_id' => (int) $row->id,
+            'stem' => (string) $row->stem,
+            'grade' => (int) $row->grade,
+            'term' => $row->term,
+            'skill' => $row->skill,
+            'type' => $row->type,
+            'answer' => $row->answer,
+            'attempts' => (int) $row->attempts,
+            'wrong' => (int) $row->wrong,
+            'wrong_rate' => round($row->wrong / $row->attempts, 4),
+            'top_wrong_choice' => $topWrong[(int) $row->id] ?? null,
+        ]);
+    }
+
+    /**
+     * Đáp án chọn sai nhiều nhất của từng câu (bỏ trống không tính; bằng nhau → theo thứ tự chữ cái).
+     *
+     * @param  list<int>  $questionIds
+     * @return array<int, string>
+     */
+    private function topWrongChoices(array $questionIds): array
+    {
+        $rows = DB::table('practice_attempt_items')
+            ->join('practice_attempts', 'practice_attempts.id', '=', 'practice_attempt_items.attempt_id')
+            ->where('practice_attempts.status', PracticeAttempt::SUBMITTED)
+            ->whereIn('practice_attempt_items.question_id', $questionIds)
+            ->whereNotNull('practice_attempt_items.chosen')
+            ->where(fn ($q) => $q->where('practice_attempt_items.is_correct', 0)->orWhereNull('practice_attempt_items.is_correct'))
+            ->groupBy('practice_attempt_items.question_id', 'practice_attempt_items.chosen')
+            ->selectRaw('practice_attempt_items.question_id, practice_attempt_items.chosen, count(*) as picks')
+            ->get();
+
+        return $rows->groupBy('question_id')
+            ->map(fn (Collection $choices) => $choices->sortBy(fn ($c) => [-$c->picks, $c->chosen])->first()->chosen)
+            ->mapWithKeys(fn (string $choice, $questionId) => [(int) $questionId => $choice])
+            ->all();
     }
 
     /** Danh sách lượt đã nộp (đã lọc), nộp gần nhất trước — trang một học viên. */

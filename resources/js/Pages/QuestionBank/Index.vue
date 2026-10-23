@@ -78,6 +78,7 @@ function onImported() {
     <UiTabs class="mb-lg">
         <UiTab :href="route('question-bank.index')" active>Câu hỏi</UiTab>
         <UiTab :href="route('question-bank.blueprints.index')">Khung đề</UiTab>
+        <UiTab :href="route('question-bank.analysis')">Phân tích câu hỏi</UiTab>
     </UiTabs>
 
     <UiAlert v-if="importErrors.length" type="warning" title="Một số câu / file chưa import được" class="mb-lg">

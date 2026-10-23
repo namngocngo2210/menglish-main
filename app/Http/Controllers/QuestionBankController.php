@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Concerns\RendersModals;
 use App\Models\QuestionBankPassage;
 use App\Models\QuestionBankQuestion;
+use App\Services\Practice\PracticeReport;
 use App\Services\QuestionBank\QuestionBankImporter;
 use App\Support\Audit;
 use App\Support\Practice\PracticeCatalog;
@@ -57,6 +58,20 @@ class QuestionBankController extends Controller
             'statusCounts' => collect(QuestionBankQuestion::STATUSES)->map(fn ($label, string $status) => (int) ($counts[$status] ?? 0)),
             'canManage' => $request->user()->can('question_bank.manage'),
             'importErrors' => session('import_errors', []),
+        ]);
+    }
+
+    /** Phân tích câu hỏi (§7): câu có tỉ lệ sai cao, từ 10 lượt làm trở lên. */
+    public function analysis(Request $request, PracticeReport $report): InertiaResponse
+    {
+        $filters = $report->questionFilters($request->query());
+
+        return Inertia::render('QuestionBank/Analysis', [
+            'questions' => $report->questionStats($filters)->withQueryString(),
+            'filters' => $filters,
+            'filterOptions' => $this->filterOptions(),
+            'minAttempts' => PracticeReport::MIN_QUESTION_ATTEMPTS,
+            'canManage' => $request->user()->can('question_bank.manage'),
         ]);
     }
 
