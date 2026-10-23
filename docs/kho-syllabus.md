@@ -162,6 +162,7 @@ Hiện trạng (khảo sát 23/10/2026):
 - [x] File mẫu zip (import cả giáo trình) thêm cột Sheet 1; file cũ vẫn import được.
 - [x] Đọc file chặng theo form mới của Học thuật (syllabus FAM 2): cột theo tiêu đề, 1 dòng tiêu đề, loại Ôn tập /
   Grammar Basic, ô UNIT là tiêu đề riêng của buổi, 2 cột link mới (`ppt_foreign_url`, `test_url`) cho cả import zip.
+- [x] Dữ liệu test: `DemoSyllabusLibrarySeeder` (buổi đủ cột Sheet 1, tài liệu theo đối tượng, đề xuất sửa, giáo trình import zip) và bộ file thử import `docs/mau-test-kho-syllabus/` (giữ đúng bằng `SyllabusSampleFilesTest`).
 
 ## 5. Ngoài phạm vi giai đoạn 1
 
