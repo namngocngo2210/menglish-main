@@ -1,6 +1,6 @@
 # Ngân hàng câu hỏi & Luyện tập theo khối
 
-Trạng thái: **Sprint 1–3 — Hoàn thành** (Sprint 4 chưa làm) — 24/10/2026
+Trạng thái: **Sprint 1–4 — Hoàn thành** (mọi sprint đã xong) — 24/10/2026
 
 Nguồn dữ liệu: thư mục Drive "FILE TỔNG HỢP ĐỀ CƯƠNG CÁC NĂM" (đề / đề cương THCS khối 6–9, năm học 2025–2026 và
 2026–2027, 4 kỳ). Câu hỏi đã được tách ra từng câu theo kỹ năng (JSON + ảnh) ngoài repo; tính năng này đưa chúng vào
@@ -54,14 +54,15 @@ hệ thống và cho học viên luyện tập.
 | Bảng | Cột | Ràng buộc / index |
 |---|---|---|
 | `question_bank_passages` | `id`, `grade` tinyint, `term` varchar(3), `skill`, `type`, `instruction` text null, `content` text, `image_path` null, `source_school` null, `source_year` null, `source_file` null, `source_key` | unique `source_key`; index `(grade, term, type)` |
-| `question_bank_questions` | `id`, `passage_id` FK null (cascade), `position` smallint, `grade`, `term`, `skill`, `type`, `knowledge` null, `instruction` text null, `stem` text, `options` json (A–D), `answer` char(1), `image_path` null, `status` (`draft`/`approved`/`hidden`), `approved_by` FK users null, `approved_at` null, `edited_at` null, `source_*`, `source_key` | unique `source_key`; index `(grade, term, status, type)`, `passage_id`; CHECK `answer IN ('A','B','C','D')` |
+| `question_bank_questions` | `id`, `passage_id` FK null (cascade), `position` smallint, `grade`, `term`, `skill`, `type`, `knowledge` null, `instruction` text null, `stem` text, `options` json (A–D), `answer` char(1), `image_path` null, `status` (`draft`/`approved`/`hidden`), `approved_by` FK users null, `approved_at` null, `edited_at` null, `source_*`, `source_key` | unique `source_key`; index `(grade, term, status, type)`, `passage_id`; `answer ∈ {A,B,C,D}` kiểm tra ở tầng ứng dụng (importer + form sửa câu), **không** CHECK trong CSDL (giữ migration tương thích SQLite / MariaDB) |
 | `practice_blueprints` | `id`, `grade`, `term`, `duration_minutes`, `items` json `[{skill, type, count}]` | unique `(grade, term)` |
 | `practice_attempts` | `id`, `student_id` FK, `user_id` FK, `grade`, `term`, `status` (`in_progress`/`submitted`), `started_at`, `deadline_at`, `submitted_at` null, `auto_submitted` bool, `submit_reason` null (`timeout`/`violations`), `total`, `correct`, `score` decimal(4,2) null, `skill_scores` json null, `violation_count`, `violation_log` json null | index `(student_id, created_at)`, `(grade, term, submitted_at)`, `(status, deadline_at)` |
-| `practice_attempt_items` | `id`, `attempt_id` FK (cascade), `question_id` FK null (null on delete), `position`, `skill`, `type`, `snapshot` json (instruction, passage, image, stem, options, answer), `chosen` char(1) null, `is_correct` bool null | unique `(attempt_id, position)`; index `(question_id, is_correct)` |
+| `practice_attempt_items` | `id`, `attempt_id` FK (cascade), `question_id` FK null (null on delete), `position`, `skill`, `type`, `snapshot` json (instruction, passage {content, image_path}, image_path, stem, options, answer, knowledge), `chosen` char(1) null, `is_correct` bool null | unique `(attempt_id, position)`; index `(question_id, is_correct)` |
 
 Ghi chú:
 
-- **Snapshot** câu hỏi trong `practice_attempt_items` để sửa / ẩn câu trong ngân hàng không làm đổi bài đã làm.
+- **Snapshot** câu hỏi trong `practice_attempt_items` để sửa / ẩn câu trong ngân hàng không làm đổi bài đã làm. Ảnh lưu
+  đường dẫn trong kho (`image_path`), URL dựng lúc trả props (`PracticeAttemptProps`); snapshot cũ có `image_url` vẫn đọc được.
 - **Gạch chân** lưu dạng `[x]` trong `stem` / `options` / `content`; Vue vẽ thành gạch chân (component `UnderlinedText`,
   tách chuỗi, không `v-html`).
 - **Ảnh** lưu qua `SafeUploadService` (disk theo `UPLOAD_STORAGE`: local hoặc R2), thư mục `question_bank/Y/m`.
@@ -101,8 +102,9 @@ trò đang có (theo `docs/rbac.md`):
 Học viên dùng quyền có sẵn `portal.student`. Sau khi sửa catalog: chạy
 `php v2/api/internal/iam/catalog/export.php > v2/api/internal/iam/catalog/catalog.json` (quyết định 9).
 
-Sidebar (`SidebarMenu`): nhóm Học thuật thêm **Ngân hàng câu hỏi**, **Kết quả luyện tập**; cổng giáo viên thêm
-**Kết quả luyện tập**; cổng học viên thêm **Luyện tập** (cả `PortalBottomNav`).
+Điều hướng (`SidebarMenu`): workspace **Giáo trình** thêm hai tab **Ngân hàng câu hỏi** (gồm Khung đề, Phân tích câu
+hỏi) và **Kết quả luyện tập**; **Cổng Giáo viên** thêm **Kết quả luyện tập** (cùng màn, lọc sẵn `?mine=1` — học viên lớp
+mình dạy); **Cổng Phụ huynh & Học sinh** thêm **Luyện tập** (cả thanh điều hướng dưới trên di động).
 
 ## 5. Import & duyệt (Sprint 2)
 
@@ -116,15 +118,22 @@ Sidebar (`SidebarMenu`): nhóm Học thuật thêm **Ngân hàng câu hỏi**, *
   - Chỉ nhận câu có đủ A–D và `answer ∈ {A,B,C,D}`, không `thieu`; còn lại → `skipped` kèm lý do.
   - `source_key` = `F{file_no}-{no}` (câu) / `F{file_no}-NL{n}` (ngữ liệu). Đã có và còn `draft` + chưa sửa
     (`edited_at` null) → cập nhật; đã duyệt / ẩn / đã sửa → giữ nguyên.
+  - Vì khoá chỉ dựa trên `file_no`, **đợt dữ liệu mới phải dùng `file_no` mới** (không bao giờ dùng lại số đã import),
+    nếu không câu mới sẽ ghi đè / bị nhầm với câu cũ cùng khoá.
+  - Màn import và lệnh artisan đều tắt nhật ký từng câu, ghi **một dòng nhật ký tổng** (tên file, số thêm / cập nhật /
+    giữ / bỏ qua / lỗi).
   - Bảo mật ZIP: chặn `..` và đường dẫn tuyệt đối, chỉ `.json` / `.png` / `.jpg` / `.jpeg`, tối đa 100 MB, tối đa
     5.000 mục; ảnh đi qua `SafeUploadService` (kiểm tra theo nội dung).
 
 ### 5.2 Màn Ngân hàng câu hỏi
 
 - Lọc: khối, kỳ, kỹ năng, dạng bài, trạng thái, tìm nội dung. Danh sách phân trang, hiển thị gạch chân và ảnh.
-- **Duyệt / Ẩn các câu đã chọn** và **Duyệt / Ẩn tất cả câu đang lọc** (một câu lệnh `UPDATE`, ghi audit).
-- Sửa câu: modal theo `RendersModals` (mẫu Holidays) — câu hỏi, A–D, đáp án, kiến thức, trạng thái; sửa → `edited_at`.
-  Sửa ngữ liệu dùng chung: modal riêng.
+- **Duyệt / Ẩn các câu đã chọn** và **Duyệt / Ẩn tất cả câu đang lọc** (một câu lệnh `UPDATE`, ghi audit). Duyệt / ẩn
+  không đặt `edited_at` (không phải sửa nội dung; import vốn giữ mọi câu khác `draft`); **chuyển về Chưa duyệt** thì đặt
+  `edited_at` để import lại không đưa câu về bản gốc.
+- Sửa câu: modal theo `RendersModals` (mẫu Holidays) — câu hỏi, A–D, đáp án, kiến thức, trạng thái; sửa → `edited_at`
+  (nhãn "Đã sửa"). Sửa ngữ liệu dùng chung: modal riêng, đặt `edited_at` cho mọi câu của ngữ liệu. Mở trang đầy đủ từ
+  Phân tích câu hỏi (`?return=` — chỉ nhận đường dẫn `/question-bank…`) → lưu xong quay về đúng trang phân tích.
 - Không có "thêm câu bằng tay" ở bản đầu.
 
 ### 5.3 Màn Khung đề
@@ -140,7 +149,8 @@ Lưới khối × kỳ; mỗi ô: thời gian + danh sách {kỹ năng, dạng b
 service dùng chung nếu cần):
 
 - Đầu trang: "Khối 7 — năm học 2026–2027" (hoặc thông báo chưa xác định khối).
-- 4 thẻ kỳ: số câu, thời gian; kỳ không có câu đã duyệt → mờ, "Chưa có đề". Kỳ có lượt đang làm → nút **Làm tiếp**.
+- 4 thẻ kỳ: số câu bốc được "~N câu" = Σ min(số câu khung cần, số câu đã duyệt) theo (kỹ năng, dạng bài) — một truy vấn
+  `GROUP BY` (`QuestionAvailability`), thời gian; N = 0 → mờ, "Chưa có đề". Kỳ có lượt đang làm → nút **Làm tiếp**.
 - Lịch sử (phân trang): ngày, kỳ, điểm, thời gian làm, nhãn "Tự nộp" / "Vi phạm" → mở trang kết quả.
 - Nhân sự xem cổng (quyền quản lý học viên) chỉ xem lịch sử, không bắt đầu bài.
 
@@ -148,8 +158,10 @@ service dùng chung nếu cần):
 
 1. Lấy khung đề `(grade, term)`; không có → dùng mặc định mục 3.3.
 2. Duyệt các dòng theo thứ tự kỹ năng (Ngữ âm → Từ vựng & Ngữ pháp → Giao tiếp & Biển báo → Đọc hiểu → Viết).
-3. Dạng có ngữ liệu chung: bốc ngẫu nhiên **nguyên ngữ liệu** (mọi câu `approved` của ngữ liệu, theo `position`),
-   ưu tiên ngữ liệu có số câu ≤ số còn thiếu, dừng khi đủ hoặc hết. Dạng khác: bốc ngẫu nhiên từng câu.
+3. Mỗi dòng khung đề: đơn vị bốc là **nguyên ngữ liệu** (mọi câu `approved` của ngữ liệu, theo `position`) hoặc một câu
+   lẻ. Lặp tới khi đủ số câu: chỉ xét đơn vị **vừa với số câu còn thiếu**, lấy đơn vị **lớn nhất** (ngẫu nhiên giữa các
+   đơn vị cùng cỡ). Không đơn vị nào vừa: nếu dòng chưa lấy được câu nào → lấy **một đơn vị nhỏ nhất** (có thể vượt số câu
+   của dòng); đã lấy được một phần → dừng (dòng thiếu câu).
 4. Ưu tiên câu học viên **chưa gặp trong 3 lượt gần nhất** cùng khối × kỳ; thiếu mới lấy câu đã gặp.
 5. Không đảo A–D. Thiếu câu → sinh với số câu có được; 0 câu → không cho bắt đầu.
 6. Tạo `practice_attempts` + `practice_attempt_items` (snapshot) trong 1 transaction; `deadline_at = started_at + duration`.
@@ -162,6 +174,8 @@ service dùng chung nếu cần):
 - Chọn đáp án → `POST …/answer` (tự lưu, debounce). Server từ chối sau `deadline_at + 30 giây`.
 - Hết giờ trên trình duyệt → gửi nộp kèm `timeout: true`; server ghi là "Tự nộp – hết giờ" khi đã quá hạn hoặc cờ đến trong
   5 giây cuối (sớm hơn thì tính là nộp tay).
+- Nộp lỗi (mất mạng / lỗi máy chủ): bỏ màn "Đang nộp bài…", báo lỗi kèm nút **Thử nộp lại**; còn giờ và chưa đủ lượt rời
+  bài thì mở lại chọn đáp án và bật lại khoá màn hình.
 - `PracticeAttemptService::finalize()` (idempotent): chấm, ghi `total` / `correct` / `score` / `skill_scores`,
   `status = submitted`. Gọi khi: học viên nộp; mở lại lượt đã quá hạn; vi phạm lần 3; lệnh định kỳ
   `practice:close-expired` (mỗi 5 phút, `routes/console.php`, chốt lượt `in_progress` quá hạn).
@@ -189,7 +203,9 @@ dùng chung cho cổng học viên và màn báo cáo (chế độ chỉ xem).
   điểm TB, số học viên đã luyện, điểm TB theo kỹ năng); bảng theo học viên (số lượt, điểm TB, điểm gần nhất, kỹ năng
   yếu nhất, số lượt có vi phạm) → danh sách lượt → xem lại bài. Phạm vi: `whereIn('student_id',
   Student::visibleTo($user)->select('id'))`.
-- **Phân tích câu hỏi** (`question_bank.view`): câu có tỉ lệ sai cao (≥ 10 lượt làm), link sửa câu.
+- **Phân tích câu hỏi** (`question_bank.view`): câu có tỉ lệ sai cao (≥ 10 lượt làm), đáp án sai nhiều nhất, link sửa
+  câu. Câu đã sửa (`edited_at`) chỉ tính lượt bắt đầu **sau lần sửa cuối** (lượt cũ chấm theo snapshot trước khi sửa, vd.
+  khoá đáp án sai) — dòng ghi "Tính từ lần sửa dd/mm/yyyy".
 - Tổng hợp bằng `GROUP BY` trên index; phân trang mọi danh sách; không N+1.
 
 ## 8. Kiểm thử
@@ -197,11 +213,19 @@ dùng chung cho cổng học viên và màn báo cáo (chế độ chỉ xem).
 | File | Nội dung |
 |---|---|
 | `tests/Unit/SchoolGradeTest` | mốc 1/8, `grade_adjust` ±, thiếu `dob`, ngoài 1–12 |
-| `tests/Feature/QuestionBankImporterTest` | import ZIP, chạy lại không trùng, bỏ câu không hợp lệ, không ghi đè câu đã duyệt / đã sửa, chặn path traversal |
-| `tests/Feature/QuestionBankControllerTest` | quyền (chỉ Admin + Học thuật), duyệt / ẩn hàng loạt theo bộ lọc, sửa câu, khung đề |
+| `tests/Feature/StudentSchoolGradeTest` | ô "Khối hiện tại" trong hồ sơ học viên ↔ `grade_adjust` |
+| `tests/Unit/ExamViolationsTest` | loại vi phạm, giới hạn, làm sạch nhật ký (dùng chung test đầu vào) |
+| `tests/Feature/QuestionBankPermissionTest` | quyền mới + migration cấp quyền (up / down) |
+| `tests/Feature/PracticeSchemaTest` | bảng, khung đề mặc định, snapshot giữ khi xoá câu |
+| `tests/Feature/QuestionBankImporterTest` | import ZIP + lệnh artisan (một dòng nhật ký tổng), chạy lại không trùng, bỏ câu không hợp lệ, không ghi đè câu đã duyệt / đã sửa, chặn path traversal |
+| `tests/Feature/QuestionBankControllerTest` | quyền (chỉ Admin + Học thuật), duyệt / ẩn hàng loạt theo bộ lọc, sửa câu / ngữ liệu, quay về trang đã mở |
+| `tests/Feature/PracticeBlueprintControllerTest` | màn khung đề (16 ô), số câu đã duyệt theo dòng, sửa khung, quyền |
 | `tests/Feature/PracticeTestGeneratorTest` | đúng số câu, nguyên ngữ liệu, chỉ `approved`, tránh lặp, thiếu câu |
-| `tests/Feature/PracticeAttemptFlowTest` | bắt đầu / làm tiếp, tự lưu, props không lộ đáp án, từ chối sau hạn, tự chốt quá hạn, vi phạm lần 3, chấm điểm |
-| `tests/Feature/PracticeResultsReportTest` | GV chỉ thấy lớp mình, Học thuật / Admin, phân tích câu hỏi |
+| `tests/Feature/PracticeAttemptServiceTest` | bắt đầu / làm tiếp, snapshot (đường dẫn ảnh), từ chối sau hạn, tự chốt quá hạn, vi phạm lần 3, chấm điểm |
+| `tests/Feature/PracticePortalTest` | màn Luyện tập (số câu bốc được), props không lộ đáp án, nộp / hết giờ, IDOR → 404, nhân sự chỉ xem |
+| `tests/Feature/PracticeResultsReportTest` | GV chỉ thấy lớp mình, Học thuật / Admin, bộ lọc, nút quay lại giữ bộ lọc, số truy vấn cố định |
+| `tests/Feature/QuestionAnalysisTest` | tỉ lệ sai, đáp án sai nhiều nhất, ≥ 10 lượt, chỉ tính sau lần sửa cuối, số truy vấn cố định |
+| `resources/js/lib/*.test.js` (`npm run test:js`) | gạch chân `[x]`, nhóm câu theo kỹ năng / ngữ liệu, `useExamLock` |
 | Test test đầu vào hiện có | hồi quy sau khi tách `useExamLock` / `ExamViolations` |
 | Guard-rail | `RbacNoHardcodedRolesTest`, `AllRoutesSmokeTest`, `BranchIsolationRouteSweepTest`, `NavigationPermissionTest`, `ZiggyRoutesTest` |
 
@@ -227,12 +251,14 @@ Sau khi đổi `routes/web.php`: `php artisan ziggy:generate resources/js/ziggy.
 
 - Generator, attempt service, `PracticeController`, trang Luyện tập / làm bài / kết quả, lịch sử.
 - `useExamLock()` + `ExamViolations` (refactor test đầu vào), lệnh `practice:close-expired`.
-- Test: `PracticeTestGeneratorTest`, `PracticeAttemptFlowTest`, hồi quy test đầu vào.
+- Test: `PracticeTestGeneratorTest`, `PracticeAttemptServiceTest`, `PracticePortalTest`, hồi quy test đầu vào.
 
-### Sprint 4 — Báo cáo (chưa làm)
+### Sprint 4 — Báo cáo (xong, 24/10/2026)
 
 - Màn Kết quả luyện tập (Học thuật / Admin, GV), phân tích câu hỏi.
-- Test: `PracticeResultsReportTest`.
+- Đợt sửa sau review cuối: phân tích chỉ tính sau lần sửa, số câu bốc được trên thẻ kỳ, snapshot lưu đường dẫn ảnh,
+  nhật ký tổng cho import CLI, nộp lỗi có "Thử nộp lại", nút quay lại giữ bộ lọc.
+- Test: `PracticeResultsReportTest`, `QuestionAnalysisTest`.
 
 Một nhánh `feat/practice-question-bank`, một MR mở sau Sprint 1 và cập nhật sau mỗi sprint (cập nhật mục này done / not
 done); chạy test liên quan + guard-rail trước mỗi lần push.
