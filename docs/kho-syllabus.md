@@ -1,6 +1,6 @@
 # Kho syllabus & quy trình xử lý syllabus
 
-Trạng thái: **Giai đoạn 1–4 — Hoàn thành**; giai đoạn 5 — đang làm (mục 5–12, duyệt 23/10/2026)
+Trạng thái: **Giai đoạn 1–5 — Hoàn thành** (mục 5–12, duyệt 23/10/2026)
 
 Nguồn yêu cầu: `docs/Syllabus_Quy_trinh_xu_ly.xlsx` (Sheet 1 form syllabus mẫu, Sheet 2 chia chặng & test,
 Sheet 3 quy trình 11 bước, Sheet 4 câu hỏi đã trả lời). Tiếp nối `docs/giao-trinh-don-giao-dien.md` (PR #195).
@@ -179,7 +179,7 @@ Hiện trạng (khảo sát 23/10/2026):
 | Bước 8–10, câu 1, 9, 10 | Còn N buổi đến buổi cuối chặng **hoặc tới mốc "Báo chuẩn bị" đã đánh dấu trong syllabus** → thông báo + việc cho Học thuật (NHẬN VIỆC → Đang làm, hạn = buổi cuối chặng, quá hạn đỏ + nhắc hằng ngày, HOÀN THÀNH → báo cáo tuần; Quản lý + người làm xem & ghi chú); việc giao theo cơ sở và lớp | 4 |
 | Câu 6, câu 11 | Mini test ở buổi đầu Unit sau, Big Test là buổi riêng (đã có trong form Sheet 1); sản phẩm đầu ra của buổi test = điểm → nút nhập điểm từ buổi test | 3 |
 | Câu 12 | Giao chặng → tự mở quyền **xem** file Google Drive (link trong syllabus chặng) cho GV chính + GVNN; chặng đóng → tự đóng | 2 |
-| Câu 7 | Homework 3 giỏ: HS nộp ảnh (bài giấy) / video; Quizizz GV đánh dấu; thống kê tỉ lệ nộp theo HS / lớp | 5 |
+| Câu 7 | Homework 3 giỏ: HS nộp ảnh (bài giấy) / video; Quizizz HS tự bấm "Đã làm" (thống kê Quizizz "tùy chọn IT"); thống kê tỉ lệ nộp theo HS / lớp | 5 |
 | Quy tắc thông báo (Sheet 3) | 6 loại thông báo, mỗi loại có nút hành động (XÁC NHẬN, ĐÃ XEM, NHẮC LẠI, NHẬN VIỆC, ORDER, XỬ LÝ) | 2 (khung) + 2–4 |
 
 Khác quy trình có chủ đích (chủ dự án đã chốt): Bước 1 ghi "chỉ Học thuật & Quản lý được xem" Kho syllabus — Học vụ
@@ -368,7 +368,9 @@ Giỏ của bài tập: `Homework::CATEGORIES` → giỏ (`video` → video; `qu
   buổi hiện tại (Bài tập giấy / Quizizz / Video + link Quizizz).
 - HS nộp (cổng học viên): theo từng bài tập & giỏ — **giấy = ảnh**, **video = video**; Quizizz: HS bấm "Đã làm" (tự khai) —
   không tích hợp API Quizizz (câu 7 "tùy chọn IT").
-- GV xem bài nộp theo bài tập, đánh dấu "Đã xem" / chấm.
+- GV xem bài nộp theo bài tập, đánh dấu "Đã xem" (màn **Bài nộp homework** của Cổng GV). File bài nộp lưu riêng tư, chỉ học
+  viên / phụ huynh, GV lớp và nhân sự xem được học viên mở được.
+- Cổng học viên: có bài GV giao trong 30 ngày thì hiện mục nộp theo giỏ; chưa có thì giữ 6 hạng mục nộp tự do cũ.
 - **Thống kê**: tab Homework trong trang lớp + màn GV: tỉ lệ nộp theo **giỏ × học sinh** và theo **lớp** (số bài nộp / số
   bài được giao trong khoảng ngày).
 
@@ -405,9 +407,9 @@ Giỏ của bài tập: `Homework::CATEGORIES` → giỏ (`video` → video; `qu
 - [x] S4.2 Báo cáo tuần Học thuật: 3 số tóm tắt + Quản lý / người làm ghi chú.
 - [x] S4.3 Nút ORDER trên mọi màn cổng GV + màn order theo mốc (bộ phận đích) + thông báo đến hạn order.
 
-### Giai đoạn 5
-- [ ] S5.1 `homework_submissions` + giao bài tập theo syllabus + HS nộp theo giỏ.
-- [ ] S5.2 GV xem bài nộp + thống kê tỉ lệ nộp theo HS / lớp.
+### Giai đoạn 5 (xong 24/10/2026)
+- [x] S5.1 `homework_submissions` + giao bài tập theo syllabus + HS nộp theo giỏ.
+- [x] S5.2 GV xem bài nộp + thống kê tỉ lệ nộp theo HS / lớp.
 
 Mỗi sprint: test feature (TDD), cập nhật seeder demo (`DemoSyllabusLibrarySeeder` / `DemoPhase2Seeder`) khi luồng đổi,
 `ZiggyRoutesTest` khi đổi route / .vue, guard-rail tests; cập nhật mục này (xong / chưa xong).

@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\ClassLessonOverride;
 use App\Models\ClassLessonProgress;
 use App\Models\ClassModel;
+use App\Models\Homework;
+use App\Models\HomeworkSubmission;
 use App\Models\SyllabusAdjustmentRequest;
 use App\Models\SyllabusAssignment;
 use App\Models\SyllabusChangeProposal;
@@ -80,6 +82,12 @@ class DemoSyllabusLibrarySeederTest extends TestCase
         $this->assertTrue(WorkTask::where('kind', WorkTask::KIND_SYLLABUS_STAGE_END)->where('status', 'in_progress')
             ->where('class_id', ClassModel::where('code', 'DEMO-CG-FAM1')->value('id'))->exists());
         $this->assertGreaterThan(0, app(SyllabusOrders::class)->dueCount($teacher));
+
+        // Giai đoạn 5: CG FAM 1 có bài tập theo syllabus, học viên nộp theo giỏ, GV đã xem 1 bài.
+        $cg = ClassModel::where('code', 'DEMO-CG-FAM1')->firstOrFail();
+        $this->assertGreaterThanOrEqual(1, Homework::where('class_id', $cg->id)->where('title', 'like', 'Bài tập buổi%')->count());
+        $this->assertEqualsCanonicalizing(['paper', 'quizizz', 'video'], HomeworkSubmission::distinct()->pluck('basket')->all());
+        $this->assertSame(1, HomeworkSubmission::where('status', 'reviewed')->count());
 
         // Đề xuất sửa đủ 3 trạng thái.
         $this->assertEqualsCanonicalizing(['pending', 'approved', 'rejected'],
