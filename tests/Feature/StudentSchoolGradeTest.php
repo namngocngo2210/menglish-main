@@ -85,6 +85,26 @@ class StudentSchoolGradeTest extends TestCase
         $this->assertSame(0, $s->fresh()->grade_adjust);
     }
 
+    public function test_correcting_dob_with_unchanged_displayed_grade_follows_new_dob(): void
+    {
+        $s = $this->student('2014-03-10', -1);
+        $displayed = 6;
+        $this->actingAs($this->admin)->put(route('students.update', $s->id), $this->payload($s, ['dob' => '2015-03-10', 'school_grade' => $displayed]))
+            ->assertSessionHasNoErrors();
+        $s->refresh();
+        $this->assertSame(-1, $s->grade_adjust);
+        $this->assertSame(5, \App\Support\Practice\SchoolGrade::forStudent($s));
+    }
+
+    public function test_grade_out_of_range_is_rejected(): void
+    {
+        $s = $this->student('2014-03-10');
+        foreach ([0, 13] as $g) {
+            $this->actingAs($this->admin)->put(route('students.update', $s->id), $this->payload($s, ['school_grade' => $g]))
+                ->assertSessionHasErrors('school_grade');
+        }
+    }
+
     public function test_show_exposes_school_grade_and_year(): void
     {
         $s = $this->student('2014-03-10');

@@ -746,17 +746,19 @@ class StudentProfileController extends Controller
             unset($validated['status']);
         }
 
-        // Khối hiện tại: tính sau khi áp ngày sinh mới của cùng request; lưu dưới dạng chênh lệch so với khối theo năm sinh.
+        // Khối hiện tại: form luôn gửi lại khối đang hiển thị, nên chỉ coi là ghi đè khi khác khối hiển thị (theo dob + chênh lệch cũ).
+        // Ghi đè được tính theo ngày sinh mới của cùng request, lưu dưới dạng chênh lệch so với khối theo năm sinh.
         $schoolGrade = $validated['school_grade'] ?? null;
         unset($validated['school_grade']);
 
-        if ($schoolGrade !== null) {
+        if ($schoolGrade !== null && (int) $schoolGrade !== SchoolGrade::forStudent($student)) {
             $effectiveDob = array_key_exists('dob', $validated) ? $validated['dob'] : $student->dob;
             if (empty($effectiveDob)) {
                 throw ValidationException::withMessages(['school_grade' => 'Cần ngày sinh để đặt khối.']);
             }
-            $student->dob = Carbon::parse($effectiveDob);
-            $validated['grade_adjust'] = SchoolGrade::adjustFor($student, (int) $schoolGrade);
+            $probe = $student->replicate();
+            $probe->dob = Carbon::parse($effectiveDob);
+            $validated['grade_adjust'] = SchoolGrade::adjustFor($probe, (int) $schoolGrade);
         }
 
         $student->update($validated);
