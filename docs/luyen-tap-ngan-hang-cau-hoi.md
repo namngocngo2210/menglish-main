@@ -54,7 +54,6 @@ hệ thống và cho học viên luyện tập.
 |---|---|---|
 | `question_bank_passages` | `id`, `grade` tinyint, `term` varchar(3), `skill`, `type`, `instruction` text null, `content` text, `image_path` null, `source_school` null, `source_year` null, `source_file` null, `source_key` | unique `source_key`; index `(grade, term, type)` |
 | `question_bank_questions` | `id`, `passage_id` FK null (cascade), `position` smallint, `grade`, `term`, `skill`, `type`, `knowledge` null, `instruction` text null, `stem` text, `options` json (A–D), `answer` char(1), `image_path` null, `status` (`draft`/`approved`/`hidden`), `approved_by` FK users null, `approved_at` null, `edited_at` null, `source_*`, `source_key` | unique `source_key`; index `(grade, term, status, type)`, `passage_id`; CHECK `answer IN ('A','B','C','D')` |
-| `question_bank_imports` | `id`, `user_id`, `file_name`, `status` (`queued`/`running`/`done`/`failed`), `created_count`, `updated_count`, `skipped_count`, `errors` json null | index `created_at` |
 | `practice_blueprints` | `id`, `grade`, `term`, `duration_minutes`, `items` json `[{skill, type, count}]` | unique `(grade, term)` |
 | `practice_attempts` | `id`, `student_id` FK, `user_id` FK, `grade`, `term`, `status` (`in_progress`/`submitted`), `started_at`, `deadline_at`, `submitted_at` null, `auto_submitted` bool, `submit_reason` null (`timeout`/`violations`), `total`, `correct`, `score` decimal(4,2) null, `skill_scores` json null, `violation_count`, `violation_log` json null | index `(student_id, created_at)`, `(grade, term, submitted_at)`, `(status, deadline_at)` |
 | `practice_attempt_items` | `id`, `attempt_id` FK (cascade), `question_id` FK null (null on delete), `position`, `skill`, `type`, `snapshot` json (instruction, passage, image, stem, options, answer), `chosen` char(1) null, `is_correct` bool null | unique `(attempt_id, position)`; index `(question_id, is_correct)` |
@@ -109,9 +108,9 @@ Sidebar (`SidebarMenu`): nhóm Học thuật thêm **Ngân hàng câu hỏi**, *
 ### 5.1 Import ZIP
 
 - Màn Ngân hàng câu hỏi → **Import**: tải ZIP gồm `data/*.json` (định dạng file tách câu) + `hinh/*`.
-- `QuestionBankController@import` lưu file, tạo `question_bank_imports` (`queued`), dispatch `ImportQuestionBankJob`
-  (`afterCommit`, timeout, 1 lần thử lại). Màn hiển thị trạng thái + tổng kết của lần import gần nhất.
-- `App\Services\QuestionBank\QuestionBankImporter` (dùng chung cho job và lệnh `question-bank:import {zip}`):
+- **Chạy đồng bộ trong request** (repo không có queue worker — không có `ShouldQueue`, `docker-compose` không chạy
+  `queue:work`), nên dữ liệu được đóng gói **mỗi khối một ZIP** cho nhẹ; xong hiển thị tổng kết (flash).
+- `App\Services\QuestionBank\QuestionBankImporter` (dùng chung cho màn import và lệnh `question-bank:import {zip}`):
   - Kỳ: "Giữa kì I" → `gk1`, "Cuối kì I" → `ck1`, "Giữa kì II" → `gk2`, "Cuối kì II" → `ck2`; khối = `source.khoi`.
   - Chỉ nhận câu có đủ A–D và `answer ∈ {A,B,C,D}`, không `thieu`; còn lại → `skipped` kèm lý do.
   - `source_key` = `F{file_no}-{no}` (câu) / `F{file_no}-NL{n}` (ngữ liệu). Đã có và còn `draft` + chưa sửa
@@ -209,14 +208,14 @@ Sau khi đổi `routes/web.php`: `php artisan ziggy:generate resources/js/ziggy.
 
 ### Sprint 1 — Nền dữ liệu & quyền (chưa làm)
 
-- Migration 6 bảng + `students.grade_adjust` + khung đề mặc định; model + quan hệ.
+- Migration 5 bảng + `students.grade_adjust` + khung đề mặc định; model + quan hệ.
 - `SchoolGrade`; ô "Khối hiện tại" trong form hồ sơ học viên.
 - Quyền mới (catalog + `access.php` + migration cấp quyền) + export `catalog.json`.
 - Test: `SchoolGradeTest`, phần quyền.
 
 ### Sprint 2 — Ngân hàng câu hỏi (chưa làm)
 
-- Importer + job + lệnh artisan; màn danh sách / duyệt / sửa; màn khung đề; sidebar.
+- Importer (đồng bộ) + lệnh artisan; màn danh sách / duyệt / sửa; màn khung đề; sidebar.
 - Đóng gói dữ liệu đã tách (khối 6–9) thành ZIP, import thử trên staging, duyệt hàng loạt.
 - Test: `QuestionBankImporterTest`, `QuestionBankControllerTest`.
 
@@ -231,7 +230,8 @@ Sau khi đổi `routes/web.php`: `php artisan ziggy:generate resources/js/ziggy.
 - Màn Kết quả luyện tập (Học thuật / Admin, GV), phân tích câu hỏi.
 - Test: `PracticeResultsReportTest`.
 
-Mỗi sprint: một MR riêng từ worktree; chạy test liên quan + guard-rail trước khi push.
+Một nhánh `feat/practice-question-bank`, một MR mở sau Sprint 1 và cập nhật sau mỗi sprint (cập nhật mục này done / not
+done); chạy test liên quan + guard-rail trước mỗi lần push.
 
 ## 10. Ngoài phạm vi / rủi ro
 
