@@ -1,6 +1,6 @@
 # Ngân hàng câu hỏi & Luyện tập theo khối
 
-Trạng thái: **Sprint 1 — Hoàn thành** (Sprint 2–4 chưa làm) — 24/10/2026
+Trạng thái: **Sprint 1–2 — Hoàn thành** (Sprint 3–4 chưa làm) — 24/10/2026
 
 Nguồn dữ liệu: thư mục Drive "FILE TỔNG HỢP ĐỀ CƯƠNG CÁC NĂM" (đề / đề cương THCS khối 6–9, năm học 2025–2026 và
 2026–2027, 4 kỳ). Câu hỏi đã được tách ra từng câu theo kỹ năng (JSON + ảnh) ngoài repo; tính năng này đưa chúng vào
@@ -214,10 +214,11 @@ Sau khi đổi `routes/web.php`: `php artisan ziggy:generate resources/js/ziggy.
 - Quyền mới (catalog + `access.php` + migration cấp quyền) + export `catalog.json`.
 - Test: `SchoolGradeTest`, phần quyền.
 
-### Sprint 2 — Ngân hàng câu hỏi (chưa làm)
+### Sprint 2 — Ngân hàng câu hỏi (xong)
 
 - Importer (đồng bộ) + lệnh artisan; màn danh sách / duyệt / sửa; màn khung đề; sidebar.
-- Đóng gói dữ liệu đã tách (khối 6–9) thành ZIP, import thử trên staging, duyệt hàng loạt.
+- Đóng gói dữ liệu đã tách (khối 6–9) thành 4 ZIP (`Ngan_hang_cau_hoi_K6..K9.zip`); import thử vào CSDL tạm: 5.088 câu, 0 lỗi.
+  Import trên staging + duyệt hàng loạt: làm sau khi deploy nhánh lên staging (cần chủ dự án chạy deploy).
 - Test: `QuestionBankImporterTest`, `QuestionBankControllerTest`.
 
 ### Sprint 3 — Luyện tập ở cổng học viên (chưa làm)
