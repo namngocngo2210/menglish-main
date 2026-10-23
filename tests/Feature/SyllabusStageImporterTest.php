@@ -55,7 +55,8 @@ class SyllabusStageImporterTest extends TestCase
         ], null, 'Chặng 3: Unit 3');
 
         $this->assertSame(3, $stage->position);
-        $this->assertSame('Chặng 3: Unit 3', $stage->name);
+        $this->assertSame('Unit 3', $stage->name); // tiền tố "Chặng 3" bỏ khỏi tên — nhãn tự thêm
+        $this->assertSame('Chặng 3: Unit 3', $stage->label);
         $this->assertSame([6, 7, 8], $this->sessionNumbers($stage));
         $this->assertSame($stage->id, SyllabusUnit::where('curriculum_id', $this->curriculum->id)->where('unit_number', 3)->value('stage_id'));
         $this->assertSame('mini_test', SyllabusLesson::where('title', 'Mini test Unit 3')->value('lesson_type'));
