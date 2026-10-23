@@ -14,8 +14,10 @@ use Illuminate\Support\Str;
 
 /**
  * Kiểm tra file chặng (Sheet 1) và so với chặng hiện có (docs/kho-syllabus.md §3.3):
- * - Loại buổi Học / Mini test / Big test; Mốc thông báo Order in ấn / mini test / Big Test; link phải là URL (ô giữ chỗ
- *   "link PPT"... coi như trống); ô UNIT "Unit 1: Tên" mở unit mới, ô trống = unit của dòng trên.
+ * - Loại buổi Học / Ôn tập / Grammar Basic / Mini test / Big test; Mốc thông báo Order in ấn / mini test / Big Test; link
+ *   phải là URL (ô giữ chỗ "link PPT"... coi như trống).
+ * - Ô UNIT "Unit 1: Tên" mở unit mới, ô trống = unit của dòng trên; chữ khác ("GRAMMAR BASIC 1 – TOPIC 1", "ÔN TẬP CHẶNG",
+ *   "BIG TEST") là tiêu đề riêng của buổi đó, buổi vẫn thuộc unit đang mở.
  * - Cập nhật chặng đã có: buổi thứ i của file ghi đè buổi thứ i của chặng (giữ id), thừa → tạo, thiếu → xóa mềm.
  */
 class StageImportPlanner
@@ -39,20 +41,22 @@ class StageImportPlanner
                 $errors[] = ['line' => $row->line, 'message' => $message];
             };
 
+            $heading = null;
             if ($row->unitCell !== null) {
-                if (preg_match('/^unit\s*(\d+)\s*[:\-–]\s*(.+)$/iu', $row->unitCell, $m)) {
+                if (preg_match('/^unit\s*(\d+)\s*[:\-–]\s*(.+)$/isu', $row->unitCell, $m)) {
                     $currentUnit = (int) $m[1];
                     $existing = $existingUnits->get($currentUnit);
                     if ($existing && $existing->stage_id !== $stage?->id) {
                         $error("Unit {$currentUnit} đã thuộc chặng khác của giáo trình — mỗi unit chỉ thuộc 1 chặng.");
                     }
-                    $units[$currentUnit] ??= ['unit_number' => $currentUnit, 'title' => trim($m[2]), 'objectives' => null, 'unit_id' => $existing?->stage_id === $stage?->id ? $existing?->id : null];
+                    $units[$currentUnit] ??= ['unit_number' => $currentUnit, 'title' => $this->oneLine($m[2]), 'objectives' => null, 'unit_id' => $existing?->stage_id === $stage?->id ? $existing?->id : null];
                     $units[$currentUnit]['objectives'] = $row->unitObjectives ?? $units[$currentUnit]['objectives'];
                 } else {
-                    $error('Ô UNIT phải có dạng “Unit 1: Tên unit”.');
+                    $heading = $this->oneLine($row->unitCell);
                 }
-            } elseif ($currentUnit === null) {
-                $error('Chưa có UNIT — ghi “Unit 1: Tên unit” ở buổi đầu tiên của unit.');
+            }
+            if ($currentUnit === null) {
+                $error('Chưa có UNIT — buổi đầu tiên của file phải ghi ô UNIT dạng “Unit 1: Tên unit”.');
             }
 
             $type = LessonSheetCells::type($row->type) ?? 'lesson';
@@ -63,13 +67,13 @@ class StageImportPlanner
             if ($milestone === false) {
                 $error("Mốc thông báo “{$row->milestone}” ".LessonSheetCells::MILESTONE_ERROR);
             }
-            $ppt = LessonSheetCells::link($row->pptUrl);
-            $quizizz = LessonSheetCells::link($row->quizizzUrl);
-            if ($ppt === false) {
-                $error('Link PPT không phải đường dẫn hợp lệ.');
-            }
-            if ($quizizz === false) {
-                $error('Link Quizizz không phải đường dẫn hợp lệ.');
+            $links = [];
+            foreach (['ppt_url' => [$row->pptUrl, 'Link PPT'], 'ppt_foreign_url' => [$row->pptForeignUrl, 'Link PPT GVNN'],
+                'quizizz_url' => [$row->quizizzUrl, 'Link Quizizz'], 'test_url' => [$row->testUrl, 'Link Mini test / Kiểm tra từ']] as $key => [$cell, $label]) {
+                $links[$key] = LessonSheetCells::link($cell);
+                if ($links[$key] === false) {
+                    $error("{$label} không phải đường dẫn hợp lệ.");
+                }
             }
 
             $lessons[] = [
@@ -77,7 +81,7 @@ class StageImportPlanner
                 'unit_number' => (int) $currentUnit,
                 'lesson_id' => null,
                 'attributes' => [
-                    'title' => $this->title($row->content, $type ?: 'lesson', $index + 1),
+                    'title' => $this->title($heading, $row->content, $type ?: 'lesson', $index + 1),
                     'lesson_type' => $type ?: 'lesson',
                     'content' => $row->content,
                     'procedure' => $row->procedure,
@@ -86,8 +90,10 @@ class StageImportPlanner
                     'homework_guide' => $row->homeworkPaper,
                     'homework_quizizz' => $row->homeworkQuizizz,
                     'homework_video' => $row->homeworkVideo,
-                    'ppt_url' => $ppt ?: null,
-                    'quizizz_url' => $quizizz ?: null,
+                    'ppt_url' => $links['ppt_url'] ?: null,
+                    'ppt_foreign_url' => $links['ppt_foreign_url'] ?: null,
+                    'quizizz_url' => $links['quizizz_url'] ?: null,
+                    'test_url' => $links['test_url'] ?: null,
                     'output_product' => $row->outputProduct,
                     'notice_milestone' => $milestone ?: null,
                     'note' => $row->note,
@@ -145,17 +151,25 @@ class StageImportPlanner
         return $name !== '' ? $name : (trim($text) !== '' ? trim($text) : null);
     }
 
-    private function title(?string $content, string $type, int $number): string
+    /** Ô nhiều dòng thành 1 dòng: "GRAMMAR BASIC 1⏎TOPIC 1: NOUNS" → "GRAMMAR BASIC 1 – TOPIC 1: NOUNS". */
+    private function oneLine(string $text): string
+    {
+        return implode(' – ', array_filter(array_map('trim', preg_split('/\R/u', trim($text))), fn (string $part) => $part !== ''));
+    }
+
+    /** Tên buổi: tiêu đề ô UNIT (nếu có) + dòng đầu của nội dung, bỏ phần trùng; trống cả hai → theo loại buổi. */
+    private function title(?string $heading, ?string $content, string $type, int $number): string
     {
         $first = $content === null ? '' : trim(strtok($content, "\n"));
-        if ($first !== '') {
-            return Str::limit($first, self::TITLE_MAX, '…');
+        $title = match (true) {
+            $heading === null || Str::contains($first, $heading, true) => $first,
+            $first === '' || Str::contains($heading, $first, true) => $heading,
+            default => "{$heading} · {$first}",
+        };
+        if ($title !== '') {
+            return Str::limit($title, self::TITLE_MAX, '…');
         }
 
-        return match ($type) {
-            'mini_test' => 'Mini test',
-            'big_test' => 'Big test',
-            default => "Buổi {$number}",
-        };
+        return $type === 'lesson' ? "Buổi {$number}" : SyllabusLesson::TYPES[$type];
     }
 }

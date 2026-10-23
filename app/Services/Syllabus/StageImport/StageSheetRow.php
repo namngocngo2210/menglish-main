@@ -22,5 +22,7 @@ final readonly class StageSheetRow
         public ?string $outputProduct,
         public ?string $milestone,
         public ?string $note,
+        public ?string $pptForeignUrl = null,
+        public ?string $testUrl = null,
     ) {}
 }

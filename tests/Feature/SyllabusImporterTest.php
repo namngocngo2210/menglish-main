@@ -80,6 +80,7 @@ class SyllabusImporterTest extends TestCase
         $sheets['Buổi'][4] = array_map(fn (string $key) => [
             'stage' => 2, 'unit_number' => 2, 'unit_title' => 'Animals', 'session_no' => 4, 'title' => 'Ôn tập',
             'lesson_type' => 'Big test', 'ppt_url' => 'https://example.com/ppt', 'notice_milestone' => 'Order Big Test', 'note' => 'In 30 đề',
+            'test_url' => 'https://example.com/de',
         ][$key] ?? null, $columns);
 
         $curriculum = (new SyllabusImporter)->import($this->plan([], $sheets), User::factory()->create(), self::VISIBILITY);
@@ -87,8 +88,8 @@ class SyllabusImporterTest extends TestCase
         $stages = SyllabusStage::where('curriculum_id', $curriculum->id)->orderBy('position')->get();
         $this->assertSame([3, 6], $stages->pluck('notice_before_sessions')->all());
         $lesson = SyllabusLesson::where('curriculum_id', $curriculum->id)->where('session_no', 4)->firstOrFail();
-        $this->assertSame(['big_test', 'https://example.com/ppt', 'order_big_test', 'In 30 đề'],
-            [$lesson->lesson_type, $lesson->ppt_url, $lesson->notice_milestone, $lesson->note]);
+        $this->assertSame(['big_test', 'https://example.com/ppt', 'https://example.com/de', 'order_big_test', 'In 30 đề'],
+            [$lesson->lesson_type, $lesson->ppt_url, $lesson->test_url, $lesson->notice_milestone, $lesson->note]);
         $this->assertSame('lesson', SyllabusLesson::where('curriculum_id', $curriculum->id)->where('session_no', 1)->value('lesson_type'));
     }
 

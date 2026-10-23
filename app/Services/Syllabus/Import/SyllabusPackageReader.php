@@ -37,6 +37,7 @@ class SyllabusPackageReader
         'activity_2' => 'Hoạt động gợi ý 2', 'homework_quizizz' => 'Bài tập Quizizz', 'homework_video' => 'Bài tập Video',
         'ppt_url' => 'Link PPT', 'quizizz_url' => 'Link Quizizz', 'output_product' => 'Sản phẩm đầu ra',
         'notice_milestone' => 'Mốc thông báo', 'note' => 'Ghi chú',
+        'ppt_foreign_url' => 'Link PPT GVNN', 'test_url' => 'Link Mini test / Kiểm tra từ',
     ];
 
     /** Tiêu đề cột cũ vẫn nhận (file đã điền trước khi đổi tên cột). */
