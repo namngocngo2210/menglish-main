@@ -23,6 +23,9 @@ class PracticeResultsController extends Controller
     /** Bộ lọc của trang một học viên (lớp / học viên đã cố định). */
     private const STUDENT_FILTERS = ['grade', 'term', 'from', 'to'];
 
+    /** Bộ lọc màn tổng hợp chỉ mang theo để nút quay lại giữ nguyên (trang học viên không áp dụng). */
+    private const INDEX_ONLY_FILTERS = ['class_id', 'q', 'mine'];
+
     public function __construct(
         private PracticeReport $report,
         private PracticeAttemptProps $attemptProps,
@@ -63,6 +66,8 @@ class PracticeResultsController extends Controller
                 'class_name' => $student->currentClass?->name,
             ],
             'filters' => array_intersect_key($filters, array_flip(self::STUDENT_FILTERS)),
+            'backUrl' => route('practice-results.index', $this->indexQuery($viewer, $request)),
+            'keepFilters' => self::INDEX_ONLY_FILTERS,
             'filterOptions' => $this->gradeTermOptions(),
             'summary' => $this->report->summary($viewer, $filters),
             'attempts' => $this->report->attemptList($viewer, $filters)->withQueryString()
@@ -107,6 +112,16 @@ class PracticeResultsController extends Controller
         abort_unless($student, 404);
 
         return $student;
+    }
+
+    /** Bộ lọc màn tổng hợp mà trang học viên được mở kèm (đã kiểm tra lại), để quay về đúng danh sách đang xem. */
+    private function indexQuery(User $viewer, Request $request): array
+    {
+        $filters = $this->report->filters($viewer, $request->only([...self::STUDENT_FILTERS, ...self::INDEX_ONLY_FILTERS]));
+        $filters['mine'] = $filters['mine'] ? 1 : null;
+        unset($filters['student_id']);
+
+        return array_filter($filters, fn ($value) => $value !== null);
     }
 
     private function gradeTermOptions(): array

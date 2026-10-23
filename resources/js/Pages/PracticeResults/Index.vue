@@ -18,17 +18,17 @@ const props = defineProps({
 
 const score = (value) => (value === null || value === undefined ? '—' : formatNumber(value, 2));
 
-/** Trang học viên giữ bộ lọc khối / kỳ / ngày đang xem. */
+/** Trang học viên mang theo bộ lọc đang xem (khối / kỳ / ngày áp dụng ở đó; lớp / tìm kiếm giữ cho nút quay lại). */
 function studentUrl(row) {
-    const { grade, term, from, to } = props.filters;
-    return route('practice-results.student', { student: row.student_id, ...compactQuery({ grade, term, from, to }) });
+    const { grade, term, from, to, class_id, q, mine } = props.filters;
+    return route('practice-results.student', { student: row.student_id, ...compactQuery({ grade, term, from, to, class_id, q, mine: mine ? 1 : null }) });
 }
 </script>
 
 <template>
     <UiPageHeader title="Kết quả luyện tập" description="Lượt luyện tập đã nộp của học viên trong phạm vi bạn phụ trách." />
 
-    <UiFilterBar :search="false" aria-label="Lọc kết quả luyện tập">
+    <UiFilterBar search="q" placeholder="Tìm tên / mã học viên…" aria-label="Lọc kết quả luyện tập">
         <UiSelect name="grade" label="Khối" :options="filterOptions.grades" placeholder="Tất cả khối" />
         <UiSelect name="term" label="Kỳ" :options="filterOptions.terms" placeholder="Tất cả kỳ" />
         <UiSelect name="class_id" label="Lớp" :options="filterOptions.classes" placeholder="Tất cả lớp" />

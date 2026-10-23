@@ -266,6 +266,58 @@ class PracticeResultsReportTest extends TestCase
                 ->where('rows.total', 3));
     }
 
+    public function test_search_by_name_or_code_narrows_rows_and_summary_within_scope(): void
+    {
+        $this->attempt($this->an, ['Ngữ âm' => [3, 5]], '2026-10-20 10:00');
+        $this->attempt($this->binh, ['Ngữ âm' => [4, 5]], '2026-10-21 10:00');
+        $this->attempt($this->binh, ['Ngữ âm' => [2, 5]], '2026-10-21 11:00');
+        $this->attempt($this->cuong, ['Ngữ âm' => [5, 5]], '2026-10-22 10:00');
+        $lead = $this->staff(Roles::ACADEMIC_LEAD);
+
+        $this->actingAs($lead)
+            ->get(route('practice-results.index', ['q' => 'Trần Bì']))
+            ->assertOk()
+            ->assertInertia(function (AssertableInertia $page) {
+                $page->where('filters.q', 'Trần Bì')->where('summary.attempts', 2)->where('summary.students', 1)->where('rows.total', 1);
+                $this->assertSame([$this->binh->id], $this->rowStudentIds($page));
+            });
+        // theo mã học viên
+        $this->actingAs($lead)
+            ->get(route('practice-results.index', ['q' => $this->cuong->code]))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('summary.attempts', 1)->where('rows.data.0.student_id', $this->cuong->id));
+        // khoảng trắng → không lọc
+        $this->actingAs($lead)
+            ->get(route('practice-results.index', ['q' => '  ']))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('filters.q', null)->where('rows.total', 3));
+
+        // tìm học viên ngoài phạm vi (lớp B) không nới phạm vi của giáo viên lớp A
+        $this->actingAs($this->teacherA)
+            ->get(route('practice-results.index', ['q' => 'Lê Cường']))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('summary.attempts', 0)->where('summary.students', 0)->where('rows.total', 0));
+        $this->actingAs($this->teacherA)
+            ->get(route('practice-results.index', ['q' => $this->cuong->code]))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('summary.attempts', 0)->where('rows.total', 0));
+    }
+
+    public function test_student_page_back_link_keeps_index_filters(): void
+    {
+        $this->attempt($this->an, ['Ngữ âm' => [3, 5]], '2026-10-20 10:00');
+
+        $this->actingAs($this->teacherA)
+            ->get(route('practice-results.student', [
+                'student' => $this->an->id, 'term' => 'ck1', 'class_id' => $this->classA->id, 'q' => 'An', 'mine' => 1, 'grade' => 'x',
+            ]))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('backUrl', route('practice-results.index', ['term' => 'ck1', 'class_id' => $this->classA->id, 'q' => 'An', 'mine' => 1]))
+                ->where('summary.attempts', 1));
+
+        $this->actingAs($this->teacherA)
+            ->get(route('practice-results.student', $this->an->id))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('backUrl', route('practice-results.index')));
+    }
+
     public function test_in_progress_attempts_are_excluded(): void
     {
         $this->attempt($this->an, ['Ngữ âm' => [3, 5]], '2026-10-20 10:00');

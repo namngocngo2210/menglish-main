@@ -13,6 +13,8 @@ defineProps({
     filterOptions: { type: Object, required: true },
     summary: { type: Object, required: true },
     attempts: { type: Object, required: true },
+    backUrl: { type: String, required: true },
+    keepFilters: { type: Array, default: () => [] },
 });
 
 const REASONS = { timeout: 'Hết giờ — tự nộp', violations: 'Rời bài quá số lần — tự nộp' };
@@ -27,9 +29,10 @@ const attemptUrl = (attempt) => route('practice-results.attempt', attempt.id);
 </script>
 
 <template>
-    <UiPageHeader :title="student.name" :description="[student.code, student.class_name].filter(Boolean).join(' · ')" :back="route('practice-results.index')" />
+    <UiPageHeader :title="student.name" :description="[student.code, student.class_name].filter(Boolean).join(' · ')" :back="backUrl" />
 
-    <UiFilterBar :search="false" aria-label="Lọc lượt luyện tập">
+    <!-- keep: giữ bộ lọc lớp / tìm kiếm của màn tổng hợp cho nút quay lại -->
+    <UiFilterBar :search="false" :keep="keepFilters" aria-label="Lọc lượt luyện tập">
         <UiSelect name="grade" label="Khối" :options="filterOptions.grades" placeholder="Tất cả khối" />
         <UiSelect name="term" label="Kỳ" :options="filterOptions.terms" placeholder="Tất cả kỳ" />
         <UiDateRange label="Ngày nộp" />

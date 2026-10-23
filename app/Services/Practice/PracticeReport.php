@@ -18,19 +18,21 @@ use Illuminate\Support\Collection;
  * người xem (`Student::visibleTo`); tổng hợp bằng GROUP BY, số câu truy vấn không phụ thuộc số dòng.
  *
  * Bộ lọc (đã chuẩn hoá bằng `filters()`): grade, term, class_id, student_id, from, to (Y-m-d, tính cả ngày, theo submitted_at),
- * mine (chỉ học viên các lớp người xem là giáo viên / trợ giảng / GVNN — mục "Kết quả luyện tập" ở Cổng Giáo viên).
+ * q (tìm theo tên / mã học viên, trong phạm vi người xem), mine (chỉ học viên các lớp người xem là giáo viên / trợ giảng / GVNN — mục "Kết quả luyện tập" ở Cổng Giáo viên).
  */
 class PracticeReport
 {
     public const PER_PAGE = 20;
 
-    private const FILTER_KEYS = ['grade', 'term', 'class_id', 'student_id', 'from', 'to', 'mine'];
+    private const FILTER_KEYS = ['grade', 'term', 'class_id', 'student_id', 'q', 'from', 'to', 'mine'];
+
+    private const SEARCH_MAX_LENGTH = 100;
 
     /**
      * Bộ lọc từ input người dùng: giá trị ngoài danh sách / sai định dạng / lớp ngoài phạm vi người xem → null (bỏ qua).
      *
      * @param  array<string, mixed>  $input
-     * @return array{grade: ?int, term: ?string, class_id: ?int, student_id: ?int, from: ?string, to: ?string, mine: bool}
+     * @return array{grade: ?int, term: ?string, class_id: ?int, student_id: ?int, q: ?string, from: ?string, to: ?string, mine: bool}
      */
     public function filters(User $viewer, array $input): array
     {
@@ -38,12 +40,14 @@ class PracticeReport
         $grade = $int('grade');
         $term = is_string($input['term'] ?? null) ? $input['term'] : null;
         $classId = $int('class_id');
+        $search = is_string($input['q'] ?? null) ? mb_substr(trim($input['q']), 0, self::SEARCH_MAX_LENGTH) : '';
 
         return [
             'grade' => in_array($grade, PracticeCatalog::GRADES, true) ? $grade : null,
             'term' => array_key_exists((string) $term, PracticeCatalog::TERMS) ? $term : null,
             'class_id' => $classId !== null && ClassModel::query()->visibleTo($viewer)->whereKey($classId)->exists() ? $classId : null,
             'student_id' => $int('student_id'),
+            'q' => $search !== '' ? $search : null,
             'from' => $this->date($input['from'] ?? null),
             'to' => $this->date($input['to'] ?? null),
             'mine' => filter_var($input['mine'] ?? false, FILTER_VALIDATE_BOOLEAN),
@@ -151,6 +155,10 @@ class PracticeReport
         $students = Student::query()->visibleTo($viewer)
             ->when($f['class_id'], fn (Builder $q, int $classId) => $q->inClasses([$classId]))
             ->when($f['mine'], fn (Builder $q) => $q->inClasses($this->ownClassIds($viewer)))
+            // Tìm tên / mã: thêm điều kiện AND vào tập học viên đã giới hạn phạm vi, không bao giờ nới phạm vi.
+            ->when($f['q'], fn (Builder $q, string $search) => $q->where(fn (Builder $w) => $w
+                ->where('students.name', 'like', "%{$search}%")
+                ->orWhere('students.code', 'like', "%{$search}%")))
             ->select('students.id');
 
         return PracticeAttempt::query()
