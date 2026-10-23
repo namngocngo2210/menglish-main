@@ -241,6 +241,8 @@ final class SidebarMenu
                     // Ngân hàng câu hỏi luyện tập (Học thuật, docs/luyen-tap-ngan-hang-cau-hoi.md): quyền question_bank.view
                     // đọc từ middleware route. Tab trong workspace Giáo trình (menu trái tối đa 25 mục).
                     ['label' => 'Ngân hàng câu hỏi', 'route' => 'question-bank.index', 'active' => ['question-bank.*']],
+                    // Kết quả luyện tập (Học thuật / Admin / giáo viên): quyền practice.view_results đọc từ middleware route.
+                    ['label' => 'Kết quả luyện tập', 'route' => 'practice-results.index', 'active' => ['practice-results.*']],
                     // Phía giáo viên (mockup 03_Cong_Giao_Vien/07–11, 14): ai xem được giáo trình đều thấy.
                     ['label' => 'Chặng đang dạy & Order Test', 'route' => 'syllabus.teaching-stages', 'active' => ['syllabus.teaching-stages', 'teacher.order-test*']],
                     // Dự án soạn sách / xây chương trình của Học thuật (04/10/2026); quyền academic_project.* đọc từ middleware route.
@@ -445,6 +447,8 @@ final class SidebarMenu
                     ['label' => 'Check-in & Điểm danh hôm nay', 'route' => 'teacher.home', 'active' => ['teacher.home', 'teacher.attendance*'], 'can' => ['attendance_student.record']],
                     ['label' => 'Chấm bài nộp của lớp', 'route' => 'portal.teacher.submissions', 'active' => ['portal.teacher.submissions*']],
                     ['label' => 'Khách học thử', 'route' => 'teacher.trial-guests', 'active' => ['teacher.trial-guests*']],
+                    // Cùng màn với tab Giáo trình, lọc sẵn học viên lớp mình dạy (quyền practice.view_results đọc từ middleware route).
+                    ['label' => 'Kết quả luyện tập', 'route' => 'practice-results.index', 'query' => ['mine' => 1]],
                     ['label' => 'Nhiệm vụ hôm nay của TA', 'route' => 'portal.ta-tasks', 'can' => ['work_task.view']],
                     // Trợ giảng / GV được giao buổi bổ trợ: tick hoàn thành và nhận xét buổi.
                     ['label' => 'Buổi bổ trợ của tôi', 'route' => 'tasks.support-sessions', 'query' => ['mine' => 1]],

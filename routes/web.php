@@ -31,6 +31,7 @@ use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\PlacementTestController;
 use App\Http\Controllers\PracticeBlueprintController;
 use App\Http\Controllers\PracticeController;
+use App\Http\Controllers\PracticeResultsController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PromotionController;
 use App\Http\Controllers\QuestionBankController;
@@ -914,6 +915,13 @@ Route::middleware('auth')->group(function () {
                 Route::get('/{grade}/{term}', 'edit')->whereNumber('grade')->name('edit');
                 Route::put('/{grade}/{term}', 'update')->whereNumber('grade')->name('update');
             });
+        });
+    // Kết quả luyện tập (Học thuật / Admin / giáo viên): phạm vi học viên theo Student::visibleTo, kiểm tra trong controller.
+    Route::controller(PracticeResultsController::class)->prefix('practice-results')->name('practice-results.')
+        ->middleware('can:practice.view_results')->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::get('/students/{student}', 'student')->whereNumber('student')->name('student');
+            Route::get('/attempts/{attempt}', 'attempt')->whereNumber('attempt')->name('attempt');
         });
 
     // ──────────────────────────────────────
