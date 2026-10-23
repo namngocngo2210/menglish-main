@@ -31,8 +31,9 @@ class DemoSyllabusLibrarySeederTest extends TestCase
         // Buổi theo form Sheet 1.
         $starters = SyllabusCurriculum::where('code', 'DEMO-SYL-STARTERS')->firstOrFail();
         $this->assertSame(18, $starters->lessons()->whereNotNull('ppt_url')->whereNotNull('quizizz_url')->count());
-        // "Ôn tập Unit…" cuối chặng 1, 2 → Mini test; buổi cuối chặng cuối → Big test.
-        $this->assertSame(['big_test' => 1, 'lesson' => 15, 'mini_test' => 2],
+        $this->assertSame([15, 3], [$starters->lessons()->whereNotNull('ppt_foreign_url')->count(), $starters->lessons()->whereNotNull('test_url')->count()]);
+        // "Ôn tập Unit…" cuối chặng 1, 2 → Ôn tập; buổi cuối chặng cuối → Big test.
+        $this->assertSame(['big_test' => 1, 'lesson' => 15, 'review' => 2],
             $starters->lessons()->reorder()->selectRaw('lesson_type, count(*) as total')->groupBy('lesson_type')->orderBy('lesson_type')
                 ->pluck('total', 'lesson_type')->map(fn ($total) => (int) $total)->all());
         foreach (array_keys(SyllabusLesson::MILESTONES) as $milestone) {

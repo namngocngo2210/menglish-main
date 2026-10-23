@@ -51,21 +51,25 @@ class SyllabusSampleFilesTest extends TestCase
         }
     }
 
-    public function test_new_stage_file_adds_six_lessons_and_skips_example_row(): void
+    public function test_new_stage_file_follows_new_sheet1_form(): void
     {
         $plan = $this->stagePlan('chang-moi-starters.xlsx', null);
 
         $this->assertTrue($plan->ok(), json_encode($plan->errors, JSON_UNESCAPED_UNICODE));
-        $this->assertSame(['create' => 6, 'update' => 0, 'delete' => 0, 'units' => 2], $plan->summary());
+        $this->assertSame(['create' => 8, 'update' => 0, 'delete' => 0, 'units' => 2], $plan->summary());
         $this->assertSame('Ôn thi Starters', $plan->stageName);
         $this->assertStringContainsString('bỏ qua 1 dòng ví dụ', implode(' ', $plan->warnings));
 
         $lessons = array_column($plan->lessons, 'attributes');
-        $this->assertSame(['lesson', 'lesson', 'mini_test', 'lesson', 'lesson', 'big_test'], array_column($lessons, 'lesson_type'));
-        $this->assertSame('https://example.com/starters/ppt-unit-7-1', $lessons[0]['ppt_url'], 'Ô hyperlink lấy URL, không lấy chữ hiển thị.');
+        $this->assertSame(['lesson', 'lesson', 'review', 'grammar', 'lesson', 'lesson', 'review', 'big_test'], array_column($lessons, 'lesson_type'));
+        $this->assertSame([7, 7, 7, 7, 8, 8, 8, 8], array_column($plan->lessons, 'unit_number'), 'Dòng GRAMMAR / ÔN TẬP CHẶNG / BIG TEST thuộc unit đang mở.');
+        $this->assertSame(['Đồ chơi', 'GRAMMAR BASIC 1 – TOPIC 1: NOUNS', 'ÔN TẬP CHẶNG · Review Unit 7, 8', 'BIG TEST Unit 7 - 8'],
+            [$lessons[0]['title'], $lessons[3]['title'], $lessons[6]['title'], $lessons[7]['title']]);
+        $this->assertSame(['https://example.com/starters/ppt-unit-7-1', 'https://example.com/starters/ppt-gvnn-unit-7-1'],
+            [$lessons[0]['ppt_url'], $lessons[0]['ppt_foreign_url']], 'Ô hyperlink lấy URL, không lấy tên file hiển thị.');
+        $this->assertSame('https://example.com/starters/kiem-tra-tu-unit-7', $lessons[1]['test_url']);
         $this->assertNull($lessons[2]['ppt_url'], 'Chữ giữ chỗ "link PPT" coi như trống.');
-        $this->assertSame(['order_print', null, 'order_mini_test', 'order_big_test', null, null], array_column($lessons, 'notice_milestone'));
-        $this->assertSame('Đồ chơi', $lessons[0]['title']);
+        $this->assertSame(['order_print', 'order_mini_test', null, null, 'order_big_test', null, null, null], array_column($lessons, 'notice_milestone'));
     }
 
     public function test_update_stage_file_updates_five_and_deletes_one(): void
@@ -82,7 +86,8 @@ class SyllabusSampleFilesTest extends TestCase
 
         $this->assertFalse($plan->ok());
         $messages = implode(' | ', array_column($plan->errors, 'message'));
-        foreach (['Chưa có UNIT', 'Ô UNIT phải có dạng', 'Loại buổi “Thi cuối kỳ”', 'Link PPT không phải đường dẫn hợp lệ', 'Mốc thông báo “Gửi phụ huynh”'] as $expected) {
+        foreach (['Chưa có UNIT', 'Loại buổi “Thi cuối kỳ”', 'Link PPT không phải đường dẫn hợp lệ', 'Link PPT GVNN không phải đường dẫn hợp lệ',
+            'Mốc thông báo “Gửi phụ huynh”'] as $expected) {
             $this->assertStringContainsString($expected, $messages);
         }
     }
@@ -95,7 +100,9 @@ class SyllabusSampleFilesTest extends TestCase
         $this->assertSame(['stages' => 2, 'units' => 3, 'lessons' => 8, 'documents' => 4], $plan->summary());
         $this->assertSame(3, $plan->stages[0]['notice_before_sessions']);
         $last = $plan->stages[1]['units'][0]['lessons'][2];
-        $this->assertSame(['big_test', 'https://example.com/flyers/ppt-buoi-8'], [$last['lesson_type'], $last['ppt_url']]);
+        $this->assertSame(['big_test', 'https://example.com/flyers/ppt-buoi-8', 'https://example.com/flyers/ppt-gvnn-buoi-8', 'https://example.com/flyers/de-buoi-8'],
+            [$last['lesson_type'], $last['ppt_url'], $last['ppt_foreign_url'], $last['test_url']]);
+        $this->assertSame(['review', 'grammar'], [$plan->stages[0]['units'][1]['lessons'][1]['lesson_type'], $plan->stages[1]['units'][0]['lessons'][1]['lesson_type']]);
     }
 
     public function test_old_format_file_is_still_valid(): void
