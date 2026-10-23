@@ -41,7 +41,6 @@ class SyllabusInPageModalTest extends TestCase
     {
         return [
             'giao chặng' => ['syllabus.assignments', 'Syllabus/Assignments', 'canManage', 'Thiết lập chặng mới', 'new-assignment-form'],
-            'tài liệu giáo trình' => ['syllabus.documents', 'Syllabus/Documents', 'canUpload', 'Tải lên tài liệu', 'upload-document-form'],
         ];
     }
 

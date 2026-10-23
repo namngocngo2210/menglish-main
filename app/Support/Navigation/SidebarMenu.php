@@ -38,6 +38,8 @@ final class SidebarMenu
 
     private const SYLLABUS_MANAGER = ['syllabus.manage']; // Giáo viên dùng mục giáo trình trong Cổng giáo viên.
 
+    private const SYLLABUS_LIBRARY = ['syllabus.library_view']; // Kho syllabus gốc: Học thuật, Quản lý sửa; Học vụ xem (docs/kho-syllabus.md).
+
     private const TUITION = ['tuition.approve', 'tuition.reject', 'invoice.request_cancel', 'refund_transfer.request'];
 
     private const HR = ['user.view', 'kpi.view'];
@@ -228,14 +230,16 @@ final class SidebarMenu
                 'label' => 'Giáo trình',
                 'icon' => 'menu_book',
                 'items' => [
+                    // Kho syllabus: danh sách → trang chi tiết (tài liệu theo buổi / chặng / chung nằm trong trang chi tiết);
+                    // /builder, /documents cũ và Import thuộc tab này.
+                    ...self::anchored(self::SYLLABUS_LIBRARY, [
+                        ['label' => 'Kho syllabus', 'route' => 'syllabus.curriculums.index', 'active' => ['syllabus.curriculums.*', 'syllabus.builder', 'syllabus.documents', 'syllabus.import*']],
+                    ]),
                     ...self::anchored(self::SYLLABUS_MANAGER, [
-                        ['label' => 'Tài liệu', 'route' => 'syllabus.documents'],
-                        ['label' => 'Soạn syllabus', 'route' => 'syllabus.builder'],
                         ['label' => 'Giao chặng', 'route' => 'syllabus.assignments'],
                     ]),
                     // Phía giáo viên (mockup 03_Cong_Giao_Vien/07–11, 14): ai xem được giáo trình đều thấy.
                     ['label' => 'Chặng đang dạy & Order Test', 'route' => 'syllabus.teaching-stages', 'active' => ['syllabus.teaching-stages', 'teacher.order-test*']],
-                    ['label' => 'Xem bài giảng', 'route' => 'syllabus.teacher-view'],
                     // Dự án soạn sách / xây chương trình của Học thuật (04/10/2026); quyền academic_project.* đọc từ middleware route.
                     ['label' => 'Dự án soạn sách & chương trình', 'route' => 'academic-projects.index', 'active' => ['academic-projects.index', 'academic-projects.show', 'academic-projects.create', 'academic-projects.edit']],
                 ],

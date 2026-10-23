@@ -244,8 +244,11 @@ class CrmImportController extends Controller
         if (! $assignee?->is_active || ($assignee->id !== $user->id && ! $assignee->can('lead.be_assigned'))) {
             return $this->backToImport()->withErrors(['assigned_user_id' => 'Người phụ trách đã chọn không còn hoạt động. Vui lòng chọn lại và kiểm tra dữ liệu lần nữa.']);
         }
-        // File lớn (tới 1.000 dòng) trên hosting có giới hạn thời gian chạy ngắn.
-        @set_time_limit(300);
+        // File lớn (tới 1.000 dòng) trên hosting có giới hạn thời gian chạy ngắn. Chỉ đặt khi chạy qua web:
+        // set_time_limit() trong CLI (test) giết cả tiến trình PHPUnit 300 giây sau lần gọi cuối (như DeployHookController).
+        if (! app()->runningInConsole()) {
+            @set_time_limit(300);
+        }
 
         $created = 0;
         $skipped = [];

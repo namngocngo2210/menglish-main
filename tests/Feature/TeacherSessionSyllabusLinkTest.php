@@ -116,10 +116,10 @@ class TeacherSessionSyllabusLinkTest extends TestCase
                 ->where('stageScope.class_name', $this->class->name)
                 ->where('stageScope.all_url', route('syllabus.teacher-view', ['class' => $this->class->id])));
 
-        // Không có scope=stage → vẫn liệt kê mọi tài liệu được xem như trước.
+        // Không có scope=stage → GV vẫn chỉ thấy tài liệu chặng đang mở của lớp mình (Kho syllabus, docs/kho-syllabus.md §3.4).
         $this->actingAs($this->teacher)->get(route('syllabus.teacher-view', ['class' => $this->class->id]))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->has('documents', 4)
+                ->has('documents', 2)
                 ->where('stageScope', null));
     }
 

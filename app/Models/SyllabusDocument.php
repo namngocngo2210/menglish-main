@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AuditsChanges;
+use App\Models\Concerns\LogsCurriculumId;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 
 /**
  * Tài liệu giáo trình (file thật). File nằm trên disk private, chỉ đọc qua
@@ -14,7 +17,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class SyllabusDocument extends Model
 {
-    use SoftDeletes;
+    use AuditsChanges, LogsCurriculumId, SoftDeletes;
 
     public const DISK = 'local';
 
@@ -33,6 +36,7 @@ class SyllabusDocument extends Model
     protected $fillable = [
         'curriculum_id',
         'stage_id',
+        'syllabus_lesson_id',
         'title',
         'stage_name',
         'file_path',
@@ -63,6 +67,12 @@ class SyllabusDocument extends Model
         return $this->belongsTo(SyllabusStage::class, 'stage_id');
     }
 
+    /** Buổi học của tài liệu buổi (stage_id luôn = chặng của buổi, xem SyllabusController::storeDocument / updateLesson). */
+    public function lesson(): BelongsTo
+    {
+        return $this->belongsTo(SyllabusLesson::class, 'syllabus_lesson_id');
+    }
+
     /** Lượt "Đánh dấu đã xem" của giáo viên / trợ giảng. */
     public function views(): HasMany
     {
@@ -85,15 +95,15 @@ class SyllabusDocument extends Model
         return $this->belongsTo(User::class, 'uploaded_by');
     }
 
-    /** Người quản lý kho tài liệu (upload/quản lý giáo trình) luôn xem được mọi tài liệu. */
-    public static function userManages(User $user): bool
+    /** Người xem được Kho syllabus (syllabus.library_view — Học thuật, Quản lý, Học vụ) xem & tải được mọi tài liệu. */
+    public static function userSeesAll(User $user): bool
     {
-        return $user->can('syllabus.upload') || $user->can('syllabus.manage');
+        return $user->can('syllabus.library_view') || $user->can('syllabus.library');
     }
 
     public function scopeVisibleTo(Builder $query, User $user): Builder
     {
-        if (self::userManages($user)) {
+        if (self::userSeesAll($user)) {
             return $query;
         }
 
@@ -109,7 +119,32 @@ class SyllabusDocument extends Model
             if ($isAssistant) {
                 $q->orWhere('visible_to_assistants', true);
             }
-        });
+        })->whereExists(fn (QueryBuilder $open) => self::openStageOfUser($open, $user));
+    }
+
+    /**
+     * Kho syllabus (docs/kho-syllabus.md §3.4): GV / TA chỉ thấy tài liệu chung + tài liệu chặng (gồm tài liệu buổi, có
+     * stage_id = chặng của buổi) của chặng ĐANG MỞ thuộc lớp mình dạy / trợ giảng / GVNN, hoặc chặng được giao cho mình.
+     */
+    private static function openStageOfUser(QueryBuilder $open, User $user): void
+    {
+        $open->selectRaw('1')
+            ->from('syllabus_assignments')
+            ->join('classes', 'classes.id', '=', 'syllabus_assignments.class_id')
+            ->where('syllabus_assignments.status', SyllabusAssignment::STATUS_OPEN)
+            ->whereColumn('syllabus_assignments.curriculum_id', 'syllabus_documents.curriculum_id')
+            ->where(fn ($stage) => $stage->whereNull('syllabus_documents.stage_id')
+                ->orWhereColumn('syllabus_assignments.stage_id', 'syllabus_documents.stage_id'))
+            ->where(fn ($who) => $who->where('classes.teacher_id', $user->id)
+                ->orWhere('classes.assistant_id', $user->id)
+                ->orWhere('classes.foreign_teacher_id', $user->id)
+                ->orWhere('syllabus_assignments.user_id', $user->id)
+                // GV / TG dạy thay một buổi của lớp (như ClassModel::visibleTo).
+                ->orWhereExists(fn (QueryBuilder $session) => $session->selectRaw('1')->from('class_sessions')
+                    ->whereColumn('class_sessions.class_id', 'classes.id')
+                    ->where(fn ($staff) => $staff->where('class_sessions.teacher_id', $user->id)
+                        ->orWhere('class_sessions.foreign_teacher_id', $user->id)
+                        ->orWhere('class_sessions.assistant_id', $user->id))));
     }
 
     public function isVisibleTo(User $user): bool
@@ -119,7 +154,7 @@ class SyllabusDocument extends Model
 
     public function canDownload(User $user): bool
     {
-        return self::userManages($user) || ($this->downloadable && $this->isVisibleTo($user));
+        return self::userSeesAll($user) || ($this->downloadable && $this->isVisibleTo($user));
     }
 
     public function getKindAttribute(): string
@@ -163,13 +198,14 @@ class SyllabusDocument extends Model
         return round($bytes / 1048576, 1).' MB';
     }
 
-    /** Nhãn đối tượng được xem (Admin / Học vụ / Học thuật luôn xem được). */
+    /** Nhãn đối tượng được xem (Admin / Quản lý / Học thuật / Học vụ luôn xem được). */
     public function getAudienceLabelsAttribute(): array
     {
         return array_values(array_filter([
             'Admin',
-            'Học vụ',
+            'Quản lý',
             'Học thuật',
+            'Học vụ',
             $this->visible_to_teachers ? 'Giáo viên' : null,
             $this->visible_to_assistants ? 'Trợ giảng' : null,
         ]));

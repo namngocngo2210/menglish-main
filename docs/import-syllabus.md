@@ -68,8 +68,8 @@ thấy các định dạng được nhận; Học thuật thay bằng tài liệ
 |---|---|---|
 | Hướng dẫn | Mô tả cách điền | Không import |
 | Giáo trình (1 dòng) | Mã · Tên · Phiên bản · Mô tả | Mã, Tên bắt buộc; mã ≤ 50 ký tự, chưa có giáo trình đang dùng (xoá giáo trình nhả mã: `code#deleted-id`); Phiên bản ≤ 20 ký tự, trống → `v1` |
-| Chặng | Thứ tự · Tên chặng · Mô tả · Tên Big Test · Ghi chú Big Test · Link mục lục | Thứ tự liên tục 1, 2, 3…; Tên bắt buộc |
-| Buổi | Chặng (thứ tự) · Unit số · Tên unit · Buổi số · Tên buổi · Mục tiêu · Hoạt động · Từ vựng · Ngữ pháp · BTVN | Buổi số liên tục 1…N, không trùng; một unit chỉ thuộc một chặng; các dòng cùng unit cùng tên unit; mỗi chặng ≥ 1 buổi |
+| Chặng | Thứ tự · Tên chặng · Mô tả · Tên Big Test · Ghi chú Big Test · Link mục lục · Báo trước (buổi) | Thứ tự liên tục 1, 2, 3…; Tên bắt buộc; Báo trước 1–50, trống = 6 |
+| Buổi | Chặng (thứ tự) · Unit số · Tên unit · Buổi số · Tên buổi · Mục tiêu · Content (nội dung từng tiết) · Từ vựng · Ngữ pháp · BTVN · Loại buổi · Quy trình tiết học · Hoạt động gợi ý 1 · Hoạt động gợi ý 2 · Bài tập Quizizz · Bài tập Video · Link PPT · Link Quizizz · Sản phẩm đầu ra · Mốc thông báo · Ghi chú | Buổi số liên tục 1…N, không trùng; một unit chỉ thuộc một chặng; các dòng cùng unit cùng tên unit; mỗi chặng ≥ 1 buổi. Cột từ Loại buổi trở đi theo form Sheet 1, không bắt buộc (file cũ thiếu vẫn import được; cột "Hoạt động" cũ vẫn được hiểu là Content). Loại buổi Học / Mini test / Big test; Mốc thông báo Order in ấn / Order mini test / Order Big Test; link phải là http(s) |
 
 Thư mục `tai-lieu/`:
 
@@ -165,3 +165,22 @@ Không đổi schema → không có migration.
 |---|---|---|
 | 1 — File mẫu + kiểm tra | Template zip, `SyllabusPackageReader`, `SyllabusPackageValidator`, trang Import bước ① ② (chưa ghi DB), route, test | **Xong** |
 | 2 — Import + dọn dẹp | Bước xác nhận (`SyllabusImporter`), lưu tài liệu, job dọn file tạm, bỏ file mẫu PDF ở trang Tài liệu, test | **Xong** |
+
+## Import từng chặng (form Sheet 1) — Kho syllabus, 23/10/2026
+
+Thiết kế: `docs/kho-syllabus.md` §3.3. Trang chi tiết giáo trình → tab Chặng & buổi: **Thêm chặng từ file** (chặng mới cuối
+giáo trình) hoặc **Import từ file** trên từng chặng (cập nhật chặng đó); **File mẫu chặng** tải form Sheet 1.
+
+- File `.xlsx` (tối đa 20 MB) theo form "Syllabus mẫu" của Học thuật (`docs/Syllabus_Quy_trinh_xu_ly.xlsx`, sheet 1). Sheet
+  được nhận diện bằng dòng tiêu đề A = "Chặng", B = "Buổi / Lesson"; dữ liệu từ sau dòng tiêu đề phụ. Ô D3 Giáo trình (lệch →
+  cảnh báo), D4 Chặng (tên chặng), D6 Phiên bản.
+- Cột: Loại buổi (Học / Mini test / Big test), UNIT ("Unit 1: Tên" ở buổi đầu unit, ô trống = unit dòng trên), Objectives của
+  UNIT, Content (dòng đầu = tên buổi), Quy trình, Hoạt động gợi ý 1/2, Bài tập giấy / Quizizz / Video, Link PPT / Quizizz
+  (URL; ô giữ chỗ "link PPT"… coi như trống), Sản phẩm đầu ra, Mốc thông báo (Order in ấn / mini test / Big Test), Ghi chú.
+  "Chỉnh sửa thủ công" bỏ qua.
+- Dòng ví dụ (cột A cùng màu nền ô chú thích "Dòng ví dụ") và dòng chỉ có số buổi bị bỏ qua.
+- Cập nhật chặng: buổi thứ i của file ghi đè buổi thứ i của chặng (giữ id → đề xuất sửa, tài liệu buổi vẫn gắn), thừa → tạo,
+  thiếu → xóa mềm; unit khớp theo số unit (unit của chặng khác → lỗi). Sau đó đánh lại số buổi liên tục cả giáo trình.
+- Xem trước liệt kê lỗi theo dòng, cảnh báo (số lớp đang học chặng), buổi thêm / sửa / xóa; còn lỗi thì không xác nhận được.
+  Lịch sử ghi 1 dòng "Import chặng từ file".
+- Code: `app/Services/Syllabus/StageImport/*`, `SyllabusStageImportController`, `Pages/Syllabus/StageImport.vue`.

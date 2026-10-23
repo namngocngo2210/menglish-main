@@ -42,6 +42,18 @@ class SyllabusImportTemplateTest extends TestCase
         $this->assertSame(['Hướng dẫn', 'Giáo trình', 'Chặng', 'Buổi'], $names);
     }
 
+    public function test_template_has_sheet1_columns_with_examples(): void
+    {
+        $package = (new SyllabusPackageReader)->read($this->buildTemplate(), $this->newPackageDir());
+        $plan = (new SyllabusPackageValidator)->validate($package, true);
+
+        $lessons = collect($plan->stages)->flatMap(fn ($stage) => collect($stage['units'])->flatMap(fn ($unit) => $unit['lessons']));
+        $this->assertContains('mini_test', $lessons->pluck('lesson_type')->all());
+        $this->assertNotEmpty($lessons->pluck('ppt_url')->filter()->all());
+        $this->assertNotEmpty($lessons->pluck('notice_milestone')->filter()->all());
+        $this->assertSame(6, $plan->stages[0]['notice_before_sessions']);
+    }
+
     public function test_template_passes_validation(): void
     {
         $package = (new SyllabusPackageReader)->read($this->buildTemplate(), $this->newPackageDir());

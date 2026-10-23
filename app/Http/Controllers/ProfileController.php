@@ -80,7 +80,7 @@ class ProfileController extends Controller
             ['label' => 'Chấm công & xin duyệt', 'route' => 'my-attendance.home', 'icon' => 'fingerprint'],
             ['label' => 'Tổng quan Học thuật', 'route' => 'dashboard', 'icon' => 'dashboard'],
             ['label' => 'Việc cần duyệt', 'route' => 'approvals.index', 'icon' => 'approval', 'can' => [\App\Providers\ApprovalServiceProvider::INBOX_ABILITY]],
-            ['label' => 'Giáo trình', 'route' => 'syllabus.documents', 'icon' => 'menu_book'],
+            ['label' => 'Kho syllabus', 'route' => 'syllabus.curriculums.index', 'icon' => 'menu_book'],
             ['label' => 'Big Test: Bảng điểm & Kết quả', 'route' => 'syllabus.big-tests.results', 'icon' => 'quiz'],
             ['label' => 'Lớp học', 'route' => 'classes.index', 'icon' => 'meeting_room'],
             ['label' => 'Báo cáo & sự vụ lớp', 'route' => 'academic.dashboards.reports', 'icon' => 'monitoring'],

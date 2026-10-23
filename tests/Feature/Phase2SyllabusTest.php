@@ -87,6 +87,19 @@ class Phase2SyllabusTest extends TestCase
         return SyllabusCurriculum::create(['code' => $code, 'title' => $title, 'version' => 'v1.0']);
     }
 
+    /** Lớp của GV / TG đang học chặng 1 của giáo trình — GV chỉ thấy tài liệu chặng đang mở (docs/kho-syllabus.md §3.4). */
+    private function openFirstStage(SyllabusCurriculum $curriculum): SyllabusCurriculum
+    {
+        $stage = $curriculum->stages()->firstOrFail();
+        SyllabusAssignment::create([
+            'class_id' => $this->class->id, 'curriculum_id' => $curriculum->id, 'stage_id' => $stage->id, 'stage_name' => $stage->label,
+            'user_id' => $this->teacher->id, 'assigned_chapters' => $stage->label, 'status' => SyllabusAssignment::STATUS_OPEN,
+            'open_class_id' => $this->class->id, 'opened_at' => now(),
+        ]);
+
+        return $curriculum;
+    }
+
     // ---- 1. Builder ----
 
     public function test_builder_can_select_and_edit_any_curriculum_and_manage_lessons(): void
@@ -95,16 +108,16 @@ class Phase2SyllabusTest extends TestCase
         $second = $this->curriculum('CUR-B', 'Giáo trình B');
         SyllabusUnit::create(['curriculum_id' => $first->id, 'unit_number' => 1, 'title' => 'Bài của A']);
 
-        $page = $this->actingAs($this->academic)->get(route('syllabus.builder', ['curriculum' => $second->id]));
+        $page = $this->actingAs($this->academic)->get(route('syllabus.curriculums.show', ['id' => $second->id]));
         $page->assertOk()
-            ->assertSee('value="'.$second->id.'"', false)
+            ->assertSee('Giáo trình B')
             ->assertDontSee('Bài của A')
             ->assertDontSee('tự động đồng bộ');
 
         // Tạo bài cho giáo trình thứ hai (không còn bị ép vào giáo trình đầu tiên)
         $this->actingAs($this->academic)->post(route('syllabus.units.store'), [
             'curriculum_id' => $second->id, 'unit_number' => 1, 'title' => 'Bài 1 của B',
-        ])->assertRedirect(route('syllabus.builder', ['curriculum' => $second->id]));
+        ])->assertRedirect(route('syllabus.curriculums.show', ['id' => $second->id]));
         $unit = SyllabusUnit::where('curriculum_id', $second->id)->firstOrFail();
 
         // Trùng số buổi trong cùng giáo trình bị chặn
@@ -184,12 +197,13 @@ class Phase2SyllabusTest extends TestCase
     public function test_document_upload_stores_real_file_type_size_and_visibility(): void
     {
         Storage::fake('local');
-        $cur = $this->curriculum();
+        $cur = $this->openFirstStage($this->curriculum());
 
-        $this->actingAs($this->academic)->post(route('syllabus.documents.store'), [
+        $detail = route('syllabus.curriculums.show', $cur->id);
+        $this->actingAs($this->academic)->from($detail)->post(route('syllabus.documents.store'), [
             'curriculum_id' => $cur->id, 'title' => 'Student Book', 'stage_name' => 'Chặng 1',
             'file' => $this->pdf(), 'visible_to_teachers' => '1',
-        ])->assertRedirect(route('syllabus.documents'))->assertSessionHasNoErrors();
+        ])->assertRedirect($detail)->assertSessionHasNoErrors();
 
         $doc = SyllabusDocument::firstOrFail();
         $this->assertSame('pdf', $doc->extension);
@@ -210,9 +224,9 @@ class Phase2SyllabusTest extends TestCase
         // Học thuật tải về được
         $this->actingAs($this->academic)->get(route('syllabus.documents.file', ['id' => $doc->id, 'download' => 1]))->assertOk();
 
-        // Danh sách hiển thị thông tin thật
-        $this->actingAs($this->academic)->get(route('syllabus.documents'))->assertOk()
-            ->assertSee('Student Book')->assertSee('Chặng 1')->assertSee('Chỉ xem online');
+        // Trang chi tiết giáo trình hiển thị tài liệu (tab Tài liệu chung: tài liệu không gắn chặng)
+        $this->actingAs($this->academic)->get(route('syllabus.curriculums.show', ['id' => $cur->id, 'tab' => 'documents']))->assertOk()
+            ->assertSee('Student Book');
     }
 
     private function realUpload(string $name, string $content): UploadedFile
@@ -259,7 +273,7 @@ class Phase2SyllabusTest extends TestCase
     {
         Storage::fake('local')->put('syllabus_documents/old.pptx', 'x');
         $doc = SyllabusDocument::create([
-            'curriculum_id' => $this->curriculum()->id, 'title' => 'Slide cũ', 'file_path' => 'syllabus_documents/old.pptx',
+            'curriculum_id' => $this->openFirstStage($this->curriculum())->id, 'title' => 'Slide cũ', 'file_path' => 'syllabus_documents/old.pptx',
             'original_name' => 'old.pptx', 'extension' => 'pptx', 'size_bytes' => 1, 'visible_to_teachers' => true, 'downloadable' => true,
         ]);
 
@@ -271,7 +285,7 @@ class Phase2SyllabusTest extends TestCase
     {
         Storage::fake('local');
         $this->actingAs($this->academic)->post(route('syllabus.documents.store'), [
-            'curriculum_id' => $this->curriculum()->id, 'title' => 'Tải được', 'file' => $this->pdf(),
+            'curriculum_id' => $this->openFirstStage($this->curriculum())->id, 'title' => 'Tải được', 'file' => $this->pdf(),
             'visible_to_teachers' => '1', 'downloadable' => '1',
         ])->assertSessionHasNoErrors();
         $doc = SyllabusDocument::firstOrFail();

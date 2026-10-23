@@ -626,8 +626,8 @@ class AcademicSystemController extends Controller
             '02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu/14_danh_sach_lop_chi_tiet_hoc_thuat' => route('classes.academic-list'),
             '02_Quan_Ly_Hoc_Thuat_Va_Hoc_Vu/15_chi_tiet_lop_hoc_hoc_thuat' => route('classes.academic-detail'),
             // Flow 2: Quản lý Giáo trình & Phân bổ Syllabus (8 bước)
-            '01_Web_Admin/01_quan_ly_tai_lieu_giao_trinh' => route('syllabus.documents'),
-            '01_Web_Admin/02_soan_syllabus_theo_chang' => route('syllabus.builder'),
+            '01_Web_Admin/01_quan_ly_tai_lieu_giao_trinh' => route('syllabus.curriculums.index'),
+            '01_Web_Admin/02_soan_syllabus_theo_chang' => route('syllabus.curriculums.index'),
             '01_Web_Admin/03_giao_chang_cho_giao_vien' => route('syllabus.assignments'),
             '03_Cong_Giao_Vien/08_xem_tai_lieu_giao_trinh' => route('syllabus.teacher-view'),
             '03_Cong_Giao_Vien/09_de_xuat_sua_giao_trinh' => route('syllabus.teacher-propose'),
@@ -665,8 +665,8 @@ class AcademicSystemController extends Controller
         $firstClassId = ClassModel::first()->id ?? 1;
 
         $nativeRouteMap = [
-            '01_Web_Admin/01_quan_ly_tai_lieu_giao_trinh' => route('syllabus.documents'),
-            '01_Web_Admin/02_soan_syllabus_theo_chang' => route('syllabus.builder'),
+            '01_Web_Admin/01_quan_ly_tai_lieu_giao_trinh' => route('syllabus.curriculums.index'),
+            '01_Web_Admin/02_soan_syllabus_theo_chang' => route('syllabus.curriculums.index'),
             '01_Web_Admin/03_giao_chang_cho_giao_vien' => route('syllabus.assignments'),
             '03_Cong_Giao_Vien/08_xem_tai_lieu_giao_trinh' => route('syllabus.teacher-view'),
             '03_Cong_Giao_Vien/09_de_xuat_sua_giao_trinh' => route('syllabus.teacher-propose'),

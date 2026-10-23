@@ -47,7 +47,7 @@ function formatSize(bytes) {
 
 <template>
     <div>
-        <UiPageHeader title="Import syllabus từ file" icon="upload_file" description="Tạo giáo trình cùng chặng, unit, buổi học và tài liệu từ một file .zip (hoặc .xlsx). Kiểm tra trước, chưa ghi gì vào hệ thống." :back="route('syllabus.builder')">
+        <UiPageHeader title="Import syllabus từ file" icon="upload_file" description="Tạo giáo trình cùng chặng, unit, buổi học và tài liệu từ một file .zip (hoặc .xlsx). Kiểm tra trước, chưa ghi gì vào hệ thống." :back="route('syllabus.curriculums.index')">
             <template #actions>
                 <UiButton variant="secondary" icon="download" :href="route('syllabus.import.template')" native>Tải file mẫu (.zip)</UiButton>
             </template>
@@ -109,7 +109,7 @@ function formatSize(bytes) {
                 <p v-if="errors.file" class="font-body-small text-body-small text-error" role="alert">{{ errors.file }}</p>
 
                 <div class="flex justify-end gap-sm">
-                    <UiButton variant="secondary" :href="route('syllabus.builder')">Hủy</UiButton>
+                    <UiButton variant="secondary" :href="route('syllabus.curriculums.index')">Hủy</UiButton>
                     <UiButton type="submit" icon="preview" :disabled="processing">Kiểm tra file</UiButton>
                 </div>
             </form>

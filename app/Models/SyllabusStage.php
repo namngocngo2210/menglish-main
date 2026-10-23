@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AuditsChanges;
+use App\Models\Concerns\LogsCurriculumId;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -17,7 +19,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class SyllabusStage extends Model
 {
-    use SoftDeletes;
+    use AuditsChanges, LogsCurriculumId, SoftDeletes;
 
     protected $table = 'syllabus_stages';
 
@@ -29,10 +31,12 @@ class SyllabusStage extends Model
         'overview_link',
         'big_test_title',
         'big_test_note',
+        'notice_before_sessions',
     ];
 
     protected $casts = [
         'position' => 'integer',
+        'notice_before_sessions' => 'integer',
     ];
 
     public function curriculum(): BelongsTo

@@ -41,6 +41,9 @@ class SyllabusStageMigrationTest extends TestCase
             '2026_09_30_120200_add_lesson_to_syllabus_change_proposals',
             '2026_09_30_120300_add_stage_to_big_test_orders',
             '2026_10_09_100000_add_soft_deletes_to_remaining_tables',
+            // Kho syllabus (docs/kho-syllabus.md): cột Sheet 1 của buổi / chặng, tài liệu gắn buổi.
+            '2026_11_20_090000_add_sheet1_fields_to_syllabus_lessons_and_stages',
+            '2026_11_20_090200_add_lesson_to_syllabus_documents',
         ])->map(fn ($name) => require base_path("database/migrations/{$name}.php"));
         $dependents->reverse()->each->down();
         $migration->down();

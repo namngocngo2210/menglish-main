@@ -36,7 +36,7 @@ class SyllabusModuleTest extends TestCase
         ]);
 
         $cur = SyllabusCurriculum::where('code', 'CUR-TEST')->first();
-        $response->assertRedirect(route('syllabus.builder', ['curriculum' => $cur->id]));
+        $response->assertRedirect(route('syllabus.curriculums.show', ['id' => $cur->id]));
         $this->assertDatabaseHas('syllabus_curriculums', ['code' => 'CUR-TEST']);
 
         $unitResponse = $this->actingAs($user)->post('/syllabus/units', [

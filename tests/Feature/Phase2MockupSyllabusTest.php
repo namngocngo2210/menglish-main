@@ -98,9 +98,9 @@ class Phase2MockupSyllabusTest extends TestCase
         ]);
     }
 
-    private function openStage(): SyllabusAssignment
+    private function openStage(?SyllabusStage $stage = null): SyllabusAssignment
     {
-        $this->actingAs($this->academic)->post(route('syllabus.assignments.store'), ['class_id' => $this->class->id])
+        $this->actingAs($this->academic)->post(route('syllabus.assignments.store'), array_filter(['class_id' => $this->class->id, 'stage_id' => $stage?->id]))
             ->assertSessionHasNoErrors();
 
         return SyllabusAssignment::open()->where('class_id', $this->class->id)->firstOrFail();
@@ -115,18 +115,18 @@ class Phase2MockupSyllabusTest extends TestCase
 
     public function test_builder_matches_mockup_stage_info_and_lesson_cards(): void
     {
-        $url = route('syllabus.builder', ['curriculum' => $this->curriculum->id]);
+        $url = route('syllabus.curriculums.show', ['id' => $this->curriculum->id]);
 
         $this->actingAs($this->academic)->get($url)->assertOk()
-            ->assertSee('Soạn syllabus theo chặng')
-            ->assertSee('Thiết lập cấu trúc chương trình học và nội dung chi tiết từng buổi')
+            ->assertSee($this->curriculum->title)
+            ->assertSee('Chặng &amp; buổi', false)
             ->assertSee('Tổng số: 02 buổi')
             ->assertSee('Thêm buổi học mới vào chặng')
             ->assertSee('Hoạt động đóng vai 1')
             ->assertDontSee('tự động lưu');
 
         // Ô soạn chặng: thông tin chung, chính sách mở khóa theo A6, xem thử link tổng quan, thanh Lưu chặng học
-        $this->actingAs($this->academic)->get($url.'&edit_stage='.$this->stages[1]->id)->assertOk()
+        $this->actingAs($this->academic)->get($url.'?edit_stage='.$this->stages[1]->id)->assertOk()
             ->assertSee('Thông tin chung chặng học')
             ->assertSee('Chính sách mở khóa')
             ->assertSee('Hoàn thành Big Test chặng trước')
@@ -134,19 +134,19 @@ class Phase2MockupSyllabusTest extends TestCase
             ->assertSee('Khu vực hiển thị preview ảnh mục lục tổng quan')
             ->assertSee('Lưu chặng học');
 
-        // Ô soạn buổi: Mục tiêu (Target) / Nội dung bài học chính / Bài tập về nhà (Homework), lưu được nội dung chính
-        $this->actingAs($this->academic)->get($url.'&edit_lesson='.$this->lessons[0]->id)->assertOk()
+        // Ô soạn buổi theo form Sheet 1 (docs/kho-syllabus.md): Mục tiêu (Target) / Content / Bài tập giấy, lưu được nội dung chính
+        $this->actingAs($this->academic)->get($url.'?edit_lesson='.$this->lessons[0]->id)->assertOk()
             ->assertSee('Mục tiêu buổi học (Target)')
-            ->assertSee('Nội dung bài học chính')
-            ->assertSee('Bài tập về nhà (Homework)');
+            ->assertSee('Content (nội dung từng tiết)')
+            ->assertSee('Bài tập giấy');
 
         $this->actingAs($this->academic)->put(route('syllabus.lessons.update', $this->lessons[0]->id), [
             'session_no' => 1, 'title' => 'Introduction', 'objectives' => 'Tự giới thiệu', 'content' => 'Thực hành theo cặp', 'homework_guide' => 'Viết 5 câu',
         ])->assertSessionHasNoErrors();
         $this->assertSame('Thực hành theo cặp', $this->lessons[0]->fresh()->content);
 
-        // Giáo viên xem được nhưng không có nút soạn
-        $this->actingAs($this->teacher)->get($url)->assertOk()->assertDontSee('Thêm buổi học mới vào chặng');
+        // Kho syllabus (syllabus.library) chỉ Học thuật / Quản lý — giáo viên không vào được màn soạn (docs/kho-syllabus.md).
+        $this->actingAs($this->teacher)->get($url)->assertForbidden();
     }
 
     // ---- 01_Web_Admin/01 — Quản lý tài liệu giáo trình; 03_Cong_Giao_Vien/08 — Xem tài liệu giáo trình ----
@@ -156,11 +156,10 @@ class Phase2MockupSyllabusTest extends TestCase
         Storage::fake('local');
         $pdf = UploadedFile::fake()->createWithContent('starter.pdf', "%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF\n".str_repeat('x', 2048));
 
-        $this->actingAs($this->academic)->get(route('syllabus.documents'))->assertOk()
-            ->assertSee('Quản lý tài liệu giáo trình')
-            ->assertSee('Chọn chặng học')
+        // Tài liệu quản lý trong trang chi tiết giáo trình (Kho syllabus): tải theo chặng / buổi / chung.
+        $this->actingAs($this->academic)->get(route('syllabus.curriculums.show', $this->curriculum->id))->assertOk()
+            ->assertSee('Tài liệu chặng')
             ->assertSee('Chọn đối tượng xem')
-            ->assertSee('Học vụ')
             ->assertSee('Kéo thả file vào đây hoặc')
             ->assertSee('Chọn file từ máy tính')
             ->assertSee('Khóa tải xuống — Giáo viên chỉ được phép xem trực tuyến để bảo vệ tài liệu.');
@@ -179,12 +178,12 @@ class Phase2MockupSyllabusTest extends TestCase
         $this->assertSame($this->stages[1]->id, $doc->stage_id);
         $this->assertSame('Chặng 2: Giao tiếp cơ bản', $doc->stage_name);
 
-        $this->actingAs($this->academic)->get(route('syllabus.documents'))->assertOk()
-            ->assertSee('Danh sách tài liệu đã tải lên')->assertSee('Trạng thái')->assertSee('Chỉ xem online')
+        $this->actingAs($this->academic)->get(route('syllabus.curriculums.show', $this->curriculum->id))->assertOk()
             ->assertSee('Giáo trình Starter - Bài 3');
 
-        // Màn GV: tab, nhóm theo chặng, watermark bảo mật, đánh dấu đã xem, tìm kiếm
-        $this->openStage();
+        // Màn GV: tab, nhóm theo chặng, watermark bảo mật, đánh dấu đã xem, tìm kiếm — lớp đang học Chặng 2 (GV chỉ thấy
+        // tài liệu chặng đang mở, docs/kho-syllabus.md §3.4)
+        $this->openStage($this->stages[1]);
         $this->actingAs($this->teacher)->get(route('syllabus.teacher-view'))->assertOk()
             ->assertSee('Giáo trình Starter - Bài 3')->assertSee('Chỉ xem')
             ->assertDontSee('MENGLISH INTERNAL ONLY');
@@ -206,7 +205,7 @@ class Phase2MockupSyllabusTest extends TestCase
             ->assertSee('Xem mục lục chặng')
             ->assertSee('Thực hành giao tiếp hằng ngày')
             ->assertSee('Hoạt động:')
-            ->assertSee('Hoạt động đóng vai 1')
+            ->assertSee('Hoạt động đóng vai 3') // buổi đầu của Chặng 2 (chặng lớp đang học)
             ->assertSee('Đánh dấu đã xem');
 
         $this->actingAs($this->teacher)->post(route('syllabus.documents.viewed', $doc->id))->assertRedirect();

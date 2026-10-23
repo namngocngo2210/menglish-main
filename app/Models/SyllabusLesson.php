@@ -2,8 +2,11 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AuditsChanges;
+use App\Models\Concerns\LogsCurriculumId;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -15,9 +18,15 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class SyllabusLesson extends Model
 {
-    use SoftDeletes;
+    use AuditsChanges, LogsCurriculumId, SoftDeletes;
 
     protected $table = 'syllabus_lessons';
+
+    /** Loại buổi theo form syllabus mẫu (Sheet 1 "Loại buổi"). */
+    public const TYPES = ['lesson' => 'Học', 'mini_test' => 'Mini test', 'big_test' => 'Big test'];
+
+    /** Mốc thông báo của buổi (Sheet 1 "Mốc thông báo") — giai đoạn 4 dùng để nhắc order. */
+    public const MILESTONES = ['order_print' => 'Order in ấn', 'order_mini_test' => 'Order mini test', 'order_big_test' => 'Order Big Test'];
 
     protected $fillable = [
         'curriculum_id',
@@ -29,6 +38,21 @@ class SyllabusLesson extends Model
         'vocabulary_focus',
         'grammar_focus',
         'homework_guide',
+        'lesson_type',
+        'procedure',
+        'activity_1',
+        'activity_2',
+        'homework_quizizz',
+        'homework_video',
+        'ppt_url',
+        'quizizz_url',
+        'output_product',
+        'notice_milestone',
+        'note',
+    ];
+
+    protected $attributes = [
+        'lesson_type' => 'lesson',
     ];
 
     protected $casts = [
@@ -53,6 +77,12 @@ class SyllabusLesson extends Model
     public function unit(): BelongsTo
     {
         return $this->belongsTo(SyllabusUnit::class, 'unit_id');
+    }
+
+    /** Tài liệu gắn riêng buổi này (Kho syllabus). */
+    public function documents(): HasMany
+    {
+        return $this->hasMany(SyllabusDocument::class, 'syllabus_lesson_id');
     }
 
     public function curriculum(): BelongsTo

@@ -58,7 +58,7 @@ class SyllabusImporter
                         'big_test_title' => $row['big_test_title'],
                         'big_test_note' => $row['big_test_note'],
                         'overview_link' => $row['overview_link'],
-                    ];
+                    ] + array_intersect_key($row, ['notice_before_sessions' => true]);
                     if ($row['position'] === 1) {
                         $stage = SyllabusStage::where('curriculum_id', $curriculum->id)->where('position', 1)->firstOrFail();
                         $stage->update($fields);

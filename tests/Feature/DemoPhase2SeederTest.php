@@ -118,7 +118,7 @@ class DemoPhase2SeederTest extends TestCase
         $this->actingAs($academic)->get(route('tasks.classes-dashboard'))->assertOk();
         $this->actingAs($lead)->get(route('syllabus.assignments'))->assertOk();
         $this->actingAs($lead)->get(route('syllabus.big-tests.distribution'))->assertOk();
-        $this->actingAs($lead)->get(route('syllabus.builder', ['curriculum' => $starters->id]))->assertOk();
+        $this->actingAs($lead)->get(route('syllabus.curriculums.show', ['id' => $starters->id]))->assertOk();
         $this->actingAs($assistant)->get(route('portal.ta-tasks'))->assertOk();
         $this->actingAs($studentUser)->get(route('portal.student.home'))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->component('Portal/Home')

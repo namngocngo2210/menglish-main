@@ -5,6 +5,7 @@ namespace App\Services\Syllabus\Import;
 use App\Models\SyllabusCurriculum;
 use App\Models\SyllabusDocument;
 use App\Services\SafeUploadService;
+use App\Services\Syllabus\LessonSheetCells;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\ValidationException;
 
@@ -126,6 +127,10 @@ class SyllabusPackageValidator
                     $this->errors[] = 'Sheet Chặng, dòng '.$line.': Link mục lục không phải URL hợp lệ.';
                 }
             }
+            $notice = $row['notice_before_sessions'] === null ? null : $this->integer($row['notice_before_sessions'], 'Chặng', $line, 'Báo trước (buổi)');
+            if ($notice !== null && ($notice < 1 || $notice > 50)) {
+                $this->errors[] = 'Sheet Chặng, dòng '.$line.': Báo trước (buổi) phải từ 1 đến 50.';
+            }
             if ($position !== null && ($position < 1 || $position > self::MAX_LESSONS)) {
                 $this->errors[] = 'Sheet Chặng, dòng '.$line.': Thứ tự phải từ 1 đến '.self::MAX_LESSONS.'.';
                 $position = null;
@@ -143,7 +148,7 @@ class SyllabusPackageValidator
                 'overview_link' => $row['overview_link'],
                 'units' => [],
                 'documents' => [],
-            ];
+            ] + ($notice !== null ? ['notice_before_sessions' => $notice] : []); // trống → mặc định của chặng (6)
         }
 
         foreach ($linesByPosition as $position => $lines) {
@@ -195,6 +200,20 @@ class SyllabusPackageValidator
                 $this->errors[] = 'Sheet Buổi, dòng '.$line.': Buổi số phải từ 1 đến '.self::MAX_LESSONS.'.';
                 $sessionNo = null;
             }
+            $type = LessonSheetCells::type($row['lesson_type']);
+            if ($type === false) {
+                $this->errors[] = 'Sheet Buổi, dòng '.$line.': Loại buổi “'.$row['lesson_type'].'” '.LessonSheetCells::TYPE_ERROR;
+            }
+            $milestone = LessonSheetCells::milestone($row['notice_milestone']);
+            if ($milestone === false) {
+                $this->errors[] = 'Sheet Buổi, dòng '.$line.': Mốc thông báo “'.$row['notice_milestone'].'” '.LessonSheetCells::MILESTONE_ERROR;
+            }
+            $links = ['ppt_url' => LessonSheetCells::link($row['ppt_url']), 'quizizz_url' => LessonSheetCells::link($row['quizizz_url'])];
+            foreach (['ppt_url' => 'Link PPT', 'quizizz_url' => 'Link Quizizz'] as $key => $label) {
+                if ($links[$key] === false) {
+                    $this->errors[] = 'Sheet Buổi, dòng '.$line.': '.$label.' không phải đường dẫn hợp lệ.';
+                }
+            }
             if ($stageNo !== null && ! isset($stages[$stageNo])) {
                 $this->errors[] = 'Sheet Buổi, dòng '.$line.': Chặng '.$stageNo.' không có trong sheet Chặng.';
                 $stageNo = null;
@@ -224,6 +243,17 @@ class SyllabusPackageValidator
                 'vocabulary_focus' => $row['vocabulary_focus'],
                 'grammar_focus' => $row['grammar_focus'],
                 'homework_guide' => $row['homework_guide'],
+                'lesson_type' => $type ?: 'lesson',
+                'procedure' => $row['procedure'],
+                'activity_1' => $row['activity_1'],
+                'activity_2' => $row['activity_2'],
+                'homework_quizizz' => $row['homework_quizizz'],
+                'homework_video' => $row['homework_video'],
+                'ppt_url' => $links['ppt_url'] ?: null,
+                'quizizz_url' => $links['quizizz_url'] ?: null,
+                'output_product' => $row['output_product'],
+                'notice_milestone' => $milestone ?: null,
+                'note' => $row['note'],
             ];
             unset($unit);
         }
