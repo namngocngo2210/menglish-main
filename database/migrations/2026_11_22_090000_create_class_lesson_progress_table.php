@@ -1,13 +1,12 @@
 <?php
 
-use App\Services\Syllabus\ProgressBackfill;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
  * Tiến độ chặng theo nút "Đã dạy" của GV (docs/kho-syllabus.md §8.1): `lesson` = đã dạy xong buổi syllabus, `extra` = dùng 1
- * buổi giãn đã duyệt. Lớp đang chạy được đánh dấu sẵn các buổi đã học (cách đếm cũ) để không quay về buổi 1.
+ * buổi giãn đã duyệt (hoặc buổi ôn / Big Test sau khi dạy hết chặng). Backfill lớp đang chạy: migration kế tiếp.
  */
 return new class extends Migration
 {
@@ -24,12 +23,11 @@ return new class extends Migration
             $table->foreignId('taught_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamp('taught_at');
             $table->timestamps();
-            $table->unique(['syllabus_assignment_id', 'syllabus_lesson_id']);
-            $table->unique(['syllabus_assignment_id', 'class_session_id']);
+            // Tên ngắn: tên mặc định dài hơn 64 ký tự (giới hạn MariaDB).
+            $table->unique(['syllabus_assignment_id', 'syllabus_lesson_id'], 'clp_assignment_lesson_unique');
+            $table->unique(['syllabus_assignment_id', 'class_session_id'], 'clp_assignment_session_unique');
             $table->index(['class_id', 'taught_at']);
         });
-
-        app(ProgressBackfill::class)->run();
     }
 
     public function down(): void

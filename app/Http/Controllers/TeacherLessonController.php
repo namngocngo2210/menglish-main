@@ -29,7 +29,9 @@ class TeacherLessonController extends Controller
     {
         $user = $request->user();
         $classes = $this->classesOf($user);
-        $class = $request->filled('class') ? $classes->firstWhere('id', $request->integer('class')) : $classes->first();
+        // Mặc định: lớp có buổi học hôm nay.
+        $class = $request->filled('class') ? $classes->firstWhere('id', $request->integer('class'))
+            : ($classes->first(fn (ClassModel $c) => $this->todaySession($c) !== null) ?? $classes->first());
         abort_if($request->filled('class') && ! $class, 404);
 
         $assignment = $class ? SyllabusAssignment::with(['stage', 'curriculum:id,title'])->open()->where('class_id', $class->id)->first() : null;
@@ -55,7 +57,8 @@ class TeacherLessonController extends Controller
             'taught_today' => $todayMarked,
             'finished' => $timeline && $timeline['current'] === null,
             'unmarked' => $timeline ? $timeline['unmarked_sessions']->map(fn (ClassSession $s) => ['id' => $s->id, 'date' => $s->date->toDateString()])->values() : [],
-            'can_mark' => $canMark && $today !== null && ! $todayMarked && $timeline['current'] !== null,
+            // Dạy hết buổi của chặng: buổi còn lại ghi là buổi ôn / Big Test (không cần buổi giãn).
+            'can_mark' => $canMark && $today !== null && ! $todayMarked,
             'can_mark_past' => $assignment && $this->canMark($user, $class, $assignment, null),
             'mark_url' => $class ? route('teacher.lesson-today.taught', $class->id) : null,
         ]);
@@ -81,13 +84,26 @@ class TeacherLessonController extends Controller
 
         try {
             $label = DB::transaction(function () use ($assignment, $session, $validated, $user) {
-                SyllabusAssignment::whereKey($assignment->id)->lockForUpdate()->first();
+                $assignment = SyllabusAssignment::whereKey($assignment->id)->lockForUpdate()->firstOrFail();
                 if (ClassLessonProgress::where('syllabus_assignment_id', $assignment->id)->where('class_session_id', $session->id)->exists()) {
                     throw ValidationException::withMessages(['class_session_id' => 'Buổi này đã được đánh dấu Đã dạy.']);
                 }
                 $timeline = $this->syllabus->timeline($assignment);
+                // Đánh dấu theo thứ tự buổi học: buổi cũ chưa đánh dấu phải làm trước (lịch sử buổi ↔ bài không bị đảo).
+                $older = $timeline['unmarked_sessions']->first(fn (ClassSession $s) => $s->id !== $session->id
+                    && ($s->date->lt($session->date) || ($s->date->eq($session->date) && $s->start_time < $session->start_time)));
+                if ($older) {
+                    throw ValidationException::withMessages(['class_session_id' => 'Đánh dấu buổi '.$older->date->format('d/m').' trước (theo thứ tự buổi học).']);
+                }
                 $base = ['syllabus_assignment_id' => $assignment->id, 'class_id' => $assignment->class_id, 'class_session_id' => $session->id,
-                    'pace_note' => $validated['pace_note'] ?? null, 'taught_by' => $user->id, 'taught_at' => now()];
+                    'pace_note' => $validated['pace_note'] ?? null, 'taught_by' => $user->id,
+                    // Ngày Đã dạy = ngày buổi học (bấm bù cho buổi đã qua vẫn đúng ngày).
+                    'taught_at' => $session->date->copy()->setTimeFromTimeString($session->start_time?->format('H:i:s') ?? '12:00:00')];
+                if ($timeline['current'] === null) {
+                    ClassLessonProgress::create($base + ['kind' => ClassLessonProgress::KIND_EXTRA]);
+
+                    return 'buổi ôn / Big Test (đã dạy hết buổi của chặng)';
+                }
                 if (! empty($validated['use_extra'])) {
                     if ($timeline['extra_left'] < 1) {
                         throw ValidationException::withMessages(['use_extra' => 'Lớp chưa có buổi giãn được duyệt — gửi "Customize syllabus" để Học thuật duyệt.']);
@@ -96,12 +112,16 @@ class TeacherLessonController extends Controller
 
                     return 'buổi giãn tiến độ';
                 }
-                $current = $timeline['current'] ?? throw ValidationException::withMessages(['class_session_id' => 'Lớp đã dạy hết các buổi của chặng.']);
+                $current = $timeline['current'];
                 ClassLessonProgress::create($base + ['kind' => ClassLessonProgress::KIND_LESSON, 'syllabus_lesson_id' => $current['lesson']->id]);
 
                 return 'Buổi '.$current['lesson']->session_no.': '.$current['data']['title'];
             });
-        } catch (QueryException) {
+        } catch (QueryException $e) {
+            // Chỉ lỗi trùng khóa (bấm đúp / 2 tab) là "đã đánh dấu"; lỗi khác báo đúng.
+            if (($e->errorInfo[0] ?? null) !== '23000') {
+                throw $e;
+            }
             throw ValidationException::withMessages(['class_session_id' => 'Buổi này đã được đánh dấu Đã dạy.']);
         }
 

@@ -35,7 +35,7 @@ async function startReject() {
 </script>
 
 <template>
-    <UiPageHeader title="Duyệt yêu cầu xin điều chỉnh tiến độ" description="Quản lý các yêu cầu giãn tiến độ từ giáo viên. Duyệt sẽ thêm buổi vào cuối lịch của lớp; từ chối bắt buộc nhập lý do.">
+    <UiPageHeader title="Duyệt yêu cầu Customize syllabus" description="Yêu cầu của GV: Giãn thêm buổi (duyệt sẽ thêm buổi vào cuối lịch của lớp) hoặc Dời tiến độ (không thêm buổi vào TKB, lớp được dùng buổi sẵn có để dạy chậm lại). Từ chối bắt buộc nhập lý do.">
         <template #actions>
             <GetForm class="flex items-center gap-2">
                 <span class="material-symbols-outlined text-[18px] text-on-surface-variant">filter_list</span>
@@ -69,7 +69,7 @@ async function startReject() {
                             <span class="truncate">{{ req.teacher ?? '—' }}</span>
                         </Link>
                     </td>
-                    <td>{{ req.class_stage_label }}</td>
+                    <td>{{ req.class_stage_label }}<p class="text-xs text-on-surface-variant">{{ req.kind_label }}</p></td>
                     <td class="whitespace-nowrap text-right font-semibold">{{ req.extra_sessions || 0 }} buổi</td>
                     <td class="max-w-[280px]"><p class="line-clamp-1 text-on-surface-variant" :title="req.reason">{{ req.reason }}</p></td>
                     <td class="whitespace-nowrap font-code text-body-small">{{ req.created_at }}</td>
@@ -146,11 +146,13 @@ async function startReject() {
                     <UiInput
                         type="number"
                         name="extra_sessions"
-                        label="Số buổi thêm vào lịch khi duyệt"
+                        :label="selected.kind === 'postpone' ? 'Số buổi dời tiến độ khi duyệt' : 'Số buổi thêm vào lịch khi duyệt'"
                         min="0"
                         :max="maxExtraSessions"
                         :value="String(selected.extra_sessions ?? 0)"
-                        hint="Buổi mới nối tiếp sau buổi cuối của lớp, theo TKB, bỏ qua ngày nghỉ lễ; 0 = chỉ ghi nhận, không đổi lịch."
+                        :hint="selected.kind === 'postpone'
+                            ? 'Dời tiến độ: không thêm buổi vào TKB — lớp được dùng N buổi sẵn có để dạy chậm lại; 0 = chỉ ghi nhận.'
+                            : 'Buổi mới nối tiếp sau buổi cuối của lớp, theo TKB, bỏ qua ngày nghỉ lễ; 0 = chỉ ghi nhận, không đổi lịch.'"
                     />
                 </UiForm>
             </template>

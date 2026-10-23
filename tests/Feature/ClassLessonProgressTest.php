@@ -57,7 +57,7 @@ class ClassLessonProgressTest extends TestCase
             $rows->map(fn ($r) => $r['planned_date']?->toDateString())->all());
     }
 
-    public function test_extra_sessions_are_planned_before_remaining_lessons(): void
+    public function test_remaining_lessons_are_planned_before_extra_sessions(): void
     {
         $this->assignment->update(['extra_sessions' => 1]);
         foreach ([1, 3, 4] as $d) {
@@ -67,7 +67,7 @@ class ClassLessonProgressTest extends TestCase
         $timeline = app(ClassSyllabus::class)->timeline($this->assignment);
 
         $this->assertSame(1, $timeline['extra_left']);
-        $this->assertSame([today()->addDays(3)->toDateString(), today()->addDays(4)->toDateString()],
+        $this->assertSame([today()->addDays(1)->toDateString(), today()->addDays(3)->toDateString()],
             $timeline['rows']->take(2)->map(fn ($r) => $r['planned_date']?->toDateString())->all());
     }
 
@@ -105,8 +105,10 @@ class ClassLessonProgressTest extends TestCase
         app(ProgressBackfill::class)->run();
 
         $rows = ClassLessonProgress::where('syllabus_assignment_id', $this->assignment->id)->get();
-        $this->assertCount(6, $rows, 'Không vượt số buổi của chặng.');
-        $this->assertSame(6, $rows->pluck('class_session_id')->unique()->count());
+        $this->assertCount(6, $rows->where('kind', 'lesson'), 'Không vượt số buổi của chặng.');
+        $this->assertCount(2, $rows->where('kind', 'extra'), 'Buổi đã qua vượt số buổi của chặng = buổi ôn.');
+        $this->assertSame(8, $rows->pluck('class_session_id')->unique()->count());
+        $this->assertCount(0, app(ClassSyllabus::class)->timeline($this->assignment)['unmarked_sessions']);
         $this->assertNull(app(ClassSyllabus::class)->timeline($this->assignment)['current']);
     }
 

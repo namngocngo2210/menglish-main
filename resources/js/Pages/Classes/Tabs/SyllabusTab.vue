@@ -96,11 +96,11 @@ const linkFields = [
                         <td class="whitespace-nowrap font-semibold">Buổi {{ l.session_no }}</td>
                         <td class="text-on-surface-variant">{{ l.unit_number ? `Unit ${l.unit_number}` : '—' }}</td>
                         <td>
-                            <p class="font-semibold text-on-surface">{{ l.data.title }}</p>
-                            <p v-if="l.data.content" class="line-clamp-2 whitespace-pre-line text-xs text-on-surface-variant">{{ l.data.content }}</p>
+                            <p class="font-semibold text-on-surface">{{ l.title }}</p>
+                            <p v-if="l.data?.content" class="line-clamp-2 whitespace-pre-line text-xs text-on-surface-variant">{{ l.data.content }}</p>
                         </td>
                         <td class="space-y-1">
-                            <UiBadge v-if="l.data.lesson_type !== 'lesson'">{{ l.type_label }}</UiBadge>
+                            <UiBadge v-if="l.type_label !== 'Học'">{{ l.type_label }}</UiBadge>
                             <UiBadge v-if="l.milestone_label" color="info">{{ l.milestone_label }}</UiBadge>
                         </td>
                         <td class="whitespace-nowrap text-xs">
@@ -121,7 +121,7 @@ const linkFields = [
                             <span v-else class="text-xs text-on-surface-subtle">Không</span>
                         </td>
                         <td class="whitespace-nowrap text-right">
-                            <template v-if="syllabus.can_edit">
+                            <template v-if="syllabus.can_edit && l.data">
                                 <UiButton variant="ghost" size="sm" icon="edit" @click="editing = l">Sửa cho lớp</UiButton>
                                 <UiForm v-if="l.overridden" :action="route('classes.syllabus.override.destroy', [klass.id, l.id])" method="delete" class="inline" confirm="Bỏ chỉnh sửa riêng, buổi này quay về bản gốc?">
                                     <UiButton type="submit" variant="ghost" size="sm" icon="undo">Về bản gốc</UiButton>

@@ -9,6 +9,7 @@ use App\Models\SyllabusAssignment;
 use App\Models\SyllabusLesson;
 use App\Models\SyllabusUnit;
 use App\Services\Syllabus\ClassSyllabus;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 /**
@@ -45,12 +46,14 @@ class SessionLessonService
         $result = [];
         foreach ($sessions as $session) {
             $no = $numbers[$session->id] ?? null;
-            $byPlan = array_key_exists((int) $session->class_id, $planned);
-            if (! $no && ! isset($planned[(int) $session->class_id][$session->id])) {
+            $plan = $planned[(int) $session->class_id] ?? null;
+            // Buổi trong chặng đang mở → theo Đã dạy / lịch dự kiến; buổi trước chặng đang mở (chặng cũ) → cách đánh số cũ.
+            $byPlan = $plan && Carbon::parse($session->date)->gte($plan['start']);
+            if (! $no && ! isset($plan['sessions'][$session->id])) {
                 continue;
             }
             $lesson = $byPlan
-                ? ($planned[(int) $session->class_id][$session->id] ?? null)
+                ? ($plan['sessions'][$session->id] ?? null)
                 : $lessons->get(($curricula[$session->class_id] ?? 0).'-'.$no);
             $result[$session->id] = [
                 'no' => $no ?? $lesson?->session_no,
@@ -70,25 +73,11 @@ class SessionLessonService
 
     /**
      * @param  array<int>  $classIds
-     * @return array<int, array<int, SyllabusLesson>> class_id => [session_id => buổi syllabus] cho lớp có chặng đang mở
+     * @return array<int, array{start: Carbon, sessions: array<int, SyllabusLesson>}> lớp có chặng đang mở
      */
     private function plannedLessons(array $classIds): array
     {
-        $result = [];
-        $timeline = app(ClassSyllabus::class);
-        SyllabusAssignment::open()->whereIn('class_id', $classIds)->whereNotNull('stage_id')->get()
-            ->each(function (SyllabusAssignment $assignment) use ($timeline, &$result) {
-                $map = [];
-                foreach ($timeline->timeline($assignment)['rows'] as $row) {
-                    $sessionId = $row['taught_session_id'] ?? $row['planned_session_id'];
-                    if ($sessionId) {
-                        $map[$sessionId] = $row['lesson'];
-                    }
-                }
-                $result[(int) $assignment->class_id] = $map;
-            });
-
-        return $result;
+        return app(ClassSyllabus::class)->sessionLessonMap(SyllabusAssignment::open()->whereIn('class_id', $classIds)->whereNotNull('stage_id')->get());
     }
 
     /**

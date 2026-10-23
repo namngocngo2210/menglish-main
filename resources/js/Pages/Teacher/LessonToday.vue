@@ -72,7 +72,15 @@ const hasLinks = computed(() => props.lesson && links.some(([f]) => props.lesson
 
         <template v-if="classes.length">
             <UiAlert v-if="!session" type="info">Hôm nay lớp không có buổi học — GV chỉ xem bài giảng của buổi học hôm nay.</UiAlert>
-            <UiAlert v-else-if="finished && !lesson" type="success">Lớp đã dạy hết các buổi của chặng — ôn tập và tổ chức Big Test cuối chặng.</UiAlert>
+            <UiAlert v-else-if="finished && !lesson" type="success">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <span>Lớp đã dạy hết các buổi của chặng — ôn tập và tổ chức Big Test cuối chặng.</span>
+                    <UiForm v-if="can_mark" :action="mark_url" method="post" class="inline">
+                        <input type="hidden" name="class_session_id" :value="session.id" />
+                        <UiButton type="submit" size="sm" icon="task_alt">Đã dạy (buổi ôn / Big Test)</UiButton>
+                    </UiForm>
+                </div>
+            </UiAlert>
             <UiAlert v-else-if="taught_today && !lesson" type="success">Đã đánh dấu Đã dạy (buổi giãn tiến độ) cho buổi hôm nay.</UiAlert>
 
             <section v-if="lesson" class="space-y-4 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-5 shadow-sm">

@@ -22,6 +22,7 @@ class ClassSyllabusTab
         $assignment = SyllabusAssignment::with(['stage', 'curriculum:id,title', 'confirmer:id,name', 'teacher:id,name'])
             ->open()->where('class_id', $class->id)->first();
         $timeline = $assignment ? $this->syllabus->timeline($assignment) : null;
+        $seesContent = $viewer->can('syllabus.class_edit') || $viewer->can('syllabus.manage') || $viewer->can('syllabus.library_view');
 
         return [
             'assignment_id' => $assignment?->id,
@@ -40,13 +41,15 @@ class ClassSyllabusTab
             'extra_left' => $timeline['extra_left'] ?? 0,
             'unmarked' => $timeline ? $timeline['unmarked_sessions']->map(fn ($s) => $s->date->toDateString())->values() : [],
             'lessons' => $assignment ? $timeline['rows']->map(fn (array $row) => [
+                'title' => $row['data']['title'],
                 'id' => $row['lesson']->id,
                 'session_no' => $row['lesson']->session_no,
                 'unit_number' => $row['unit_number'],
                 'unit_title' => $row['unit_title'],
                 'type_label' => SyllabusLesson::TYPES[$row['data']['lesson_type']] ?? SyllabusLesson::TYPES['lesson'],
                 'milestone_label' => SyllabusLesson::MILESTONES[$row['data']['notice_milestone']] ?? null,
-                'data' => $row['data'],
+                // GV chỉ xem bài giảng buổi hôm nay (quyết định 7): nội dung / link các buổi chỉ cho Học thuật, Học vụ, Quản lý.
+                'data' => $seesContent ? $row['data'] : null,
                 'overridden' => $row['overridden'],
                 'override_reason' => $row['override_reason'],
                 'override_by' => $row['override']?->editor?->name,

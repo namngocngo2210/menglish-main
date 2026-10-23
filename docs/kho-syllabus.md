@@ -282,7 +282,9 @@ Không sao chép syllabus: buổi hiệu lực = gốc + `data` của bản đè
 - **Buổi hiện tại** của lớp = buổi đầu tiên của chặng (theo `session_no`) chưa có dòng `lesson` trong `class_lesson_progress`.
   Tiến độ chỉ chạy khi GV bấm **Đã dạy** (quyết định 4).
 - **Ngày dự kiến** các buổi còn lại = các buổi học sắp tới của lớp (chính khóa + học bù, không hủy, từ hôm nay, sau
-  `start_date`) xếp lần lượt cho: buổi giãn còn lại (`extra_sessions` − số dòng `extra`) rồi các buổi syllabus chưa dạy.
+  `start_date`) xếp lần lượt cho các buổi syllabus chưa dạy; buổi giãn đã duyệt (`extra_sessions`) dùng khi GV bấm "Dạy chưa
+  xong" (đổi 24/10/2026 sau review: không giữ chỗ buổi giãn ở đầu lịch, để TKB / giao bài tập hiện đúng bài của buổi gần
+  nhất). Dạy hết buổi của chặng → buổi còn lại ghi là buổi ôn / Big Test.
   Lớp hủy / nghỉ buổi → buổi đó biến mất khỏi TKB → lịch dự kiến tự dời (câu 2 "tự link báo cáo vận hành khi lớp cancel").
 - `SessionLessonService` (TKB, giao bài tập, báo cáo trực lớp): buổi đã qua lấy theo `class_lesson_progress.class_session_id`,
   buổi sắp tới theo lịch dự kiến. Bỏ cách đếm "buổi chính khóa thứ N ↔ session_no N".
