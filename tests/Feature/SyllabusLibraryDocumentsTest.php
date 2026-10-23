@@ -103,6 +103,22 @@ class SyllabusLibraryDocumentsTest extends TestCase
         $this->actingAs($this->lead)->get(route('syllabus.documents'))->assertRedirect(route('syllabus.curriculums.index'));
     }
 
+    public function test_academic_staff_sees_and_downloads_every_document_but_cannot_upload(): void
+    {
+        $staff = $this->userWithRole(Roles::ACADEMIC_STAFF);
+        $stage2Doc = $this->document('Chặng 2', stage: $this->stage2); // chặng chưa lớp nào học
+        $stage2Doc->update(['downloadable' => false, 'visible_to_teachers' => false]);
+
+        $this->assertContains($stage2Doc->id, SyllabusDocument::visibleTo($staff)->pluck('id')->all());
+        $this->assertTrue($stage2Doc->canDownload($staff));
+        Storage::disk(SyllabusDocument::DISK)->put($stage2Doc->file_path, '%PDF-1.4');
+        $this->actingAs($staff)->get(route('syllabus.documents.file', ['id' => $stage2Doc->id, 'download' => 1]))->assertOk();
+        $this->actingAs($staff)->post(route('syllabus.documents.store'), [
+            'curriculum_id' => $this->curriculum->id, 'title' => 'X', 'file' => UploadedFile::fake()->create('x.pdf', 10, 'application/pdf'),
+        ])->assertForbidden();
+        $this->actingAs($staff)->delete(route('syllabus.documents.destroy', $stage2Doc->id))->assertForbidden();
+    }
+
     // ---- Phạm vi tài liệu của giáo viên (Task 2) ----
 
     public function test_teacher_sees_only_documents_of_open_stage_of_own_class(): void

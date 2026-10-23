@@ -495,15 +495,16 @@ Route::middleware('auth')->group(function () {
     // ─────────────────────────────────────────────
     Route::prefix('syllabus')->name('syllabus.')->middleware('can:syllabus.view')->group(function () {
         // Màn Tài liệu cũ → Kho syllabus (tài liệu quản lý trong trang chi tiết giáo trình).
-        Route::get('/documents', fn () => redirect()->route('syllabus.curriculums.index'))->middleware('can:syllabus.library')->name('documents');
+        Route::get('/documents', fn () => redirect()->route('syllabus.curriculums.index'))->middleware('can:syllabus.library_view')->name('documents');
         Route::post('/documents', [SyllabusController::class, 'storeDocument'])->middleware('can:syllabus.library')->name('documents.store');
         Route::get('/documents/{id}/file', [SyllabusController::class, 'documentFile'])->whereNumber('id')->name('documents.file');
         Route::post('/documents/{id}/viewed', [SyllabusController::class, 'markDocumentViewed'])->whereNumber('id')->name('documents.viewed');
         Route::delete('/documents/{id}', [SyllabusController::class, 'destroyDocument'])->whereNumber('id')->middleware('can:syllabus.library')->name('documents.destroy');
-        // Kho syllabus (docs/kho-syllabus.md): danh sách → trang chi tiết; /builder cũ chuyển hướng.
+        // Kho syllabus (docs/kho-syllabus.md): danh sách → trang chi tiết; /builder cũ chuyển hướng. Xem: library_view (Học vụ
+        // xem chỉ đọc để order in ấn); mọi thao tác sửa: library.
         Route::get('/builder', [SyllabusController::class, 'builderRedirect'])->middleware('can:syllabus.library')->name('builder');
-        Route::get('/curriculums', [SyllabusController::class, 'curriculums'])->middleware('can:syllabus.library')->name('curriculums.index');
-        Route::get('/curriculums/{id}', [SyllabusController::class, 'show'])->whereNumber('id')->middleware('can:syllabus.library')->name('curriculums.show');
+        Route::get('/curriculums', [SyllabusController::class, 'curriculums'])->middleware('can:syllabus.library_view')->name('curriculums.index');
+        Route::get('/curriculums/{id}', [SyllabusController::class, 'show'])->whereNumber('id')->middleware('can:syllabus.library_view')->name('curriculums.show');
         // Import 1 chặng từ file Sheet 1 (tải lên → xem trước → xác nhận).
         Route::middleware('can:syllabus.library')->group(function () {
             Route::get('/stage-import/template', [SyllabusStageImportController::class, 'template'])->name('stage-import.template');

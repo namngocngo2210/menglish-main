@@ -34,7 +34,7 @@ Hiện trạng (khảo sát 23/10/2026):
    (giai đoạn 3).
 5. **Tài liệu** gắn được theo **Buổi**, **Chặng** hoặc **Chung** cả giáo trình.
 6. **Kho syllabus** (xem & sửa bản gốc) chỉ **Học thuật + Quản lý + Admin**. Học vụ giữ giao chặng, Big Test, order;
-   không sửa bản gốc.
+   không sửa bản gốc nhưng **xem được** Kho syllabus và mọi tài liệu (chỉ đọc) để order in ấn (chốt 23/10/2026).
 7. GV chỉ xem bài giảng **buổi hôm nay**, của chặng lớp đang học (giai đoạn 3).
 
 ## 3. Giai đoạn 1 — Kho syllabus
@@ -46,7 +46,7 @@ Hiện trạng (khảo sát 23/10/2026):
   - `syllabus.documents` → redirect Kho syllabus. `syllabus.builder?curriculum=X` → redirect trang chi tiết X.
   - Trang `syllabus.teacher-view` **giữ** (đích của nút "Mở giáo trình" ở Trang chủ GV / Điểm danh) cho tới khi giai
     đoạn 3 thay bằng màn bài giảng hôm nay; bỏ khỏi sidebar.
-  - `/syllabus` (`syllabus.index`): có `syllabus.library` → Kho syllabus; còn lại → Chặng đang dạy.
+  - `/syllabus` (`syllabus.index`): có `syllabus.library_view` → Kho syllabus; còn lại → Chặng đang dạy.
 - **Kho syllabus** (`syllabus.curriculums.index`): bảng Mã · Tên · Phiên bản · Khóa · Trình độ áp dụng ·
   Số chặng / buổi · Số lớp đang học · Cập nhật lần cuối; tìm theo mã / tên; phân trang. Nút **Tạo giáo trình** (modal)
   và **Import giáo trình mới** (import cả giáo trình như cũ). Bấm dòng → trang chi tiết.
@@ -95,7 +95,10 @@ Hiện trạng (khảo sát 23/10/2026):
   (giữ `id`), thừa → tạo, thiếu → xóa mềm; unit khớp theo số unit. Xong thì **đánh lại `session_no` liên tục** theo thứ tự
   chặng.
 - Nút **Tải file mẫu** = file Sheet 1 (sinh từ code, cùng cấu trúc).
-- Import **cả giáo trình mới** (cách cũ, zip) giữ nguyên.
+- Import **cả giáo trình mới** (cách cũ, zip) giữ cách làm cũ, nhưng sheet Buổi / Chặng **thêm các cột Sheet 1**
+  (không bắt buộc: Loại buổi, Quy trình, Hoạt động gợi ý 1–2, Bài tập Quizizz / Video, Link PPT / Quizizz, Sản phẩm
+  đầu ra, Mốc thông báo, Ghi chú; chặng: Báo trước (buổi)). Cột "Hoạt động" đổi tên "Content (nội dung từng tiết)",
+  tên cũ vẫn nhận. Đọc ô dùng chung `App\Services\Syllabus\LessonSheetCells` với import chặng.
 
 ### 3.4. Quyền & lịch sử
 
@@ -103,8 +106,11 @@ Hiện trạng (khảo sát 23/10/2026):
   mặc định cho `manager`, `academic_lead` (`syllabus.*`), Admin (Super Admin). Migration cấp cho các vai trò này đang
   có trong DB. Xuất lại catalog v2.
 - Route Kho syllabus, chi tiết, CRUD giáo trình / chặng / unit / buổi, import, upload / xóa tài liệu:
-  `can:syllabus.library` (thay `syllabus.manage` / `syllabus.upload`). Học vụ mất các route này; giữ giao chặng, Big Test.
-- GV / TA (không có `syllabus.library`): chỉ xem / tải tài liệu thuộc **chặng đang mở của lớp mình** (tài liệu chung
+  `can:syllabus.library` (thay `syllabus.manage` / `syllabus.upload`). Học vụ mất các route sửa; giữ giao chặng, Big Test (xem: `library_view` bên dưới).
+- Quyền **`syllabus.library_view`** ("Xem Kho syllabus", chỉ đọc): danh sách + trang chi tiết + xem / tải mọi tài liệu,
+  không ô soạn thảo, không nút sửa / import / tải lên. Cấp cho `academic_staff` (Học vụ), `manager`, `academic_lead`
+  (migration `2026_11_20_090400`). Route xem dùng `can:syllabus.library_view`; mọi thao tác sửa vẫn `can:syllabus.library`.
+- GV / TA (không có `syllabus.library_view`): chỉ xem / tải tài liệu thuộc **chặng đang mở của lớp mình** (tài liệu chung
   của giáo trình + tài liệu chặng + tài liệu buổi trong chặng), vẫn theo cờ GV / TA xem. Áp dụng ở `teacher-view` và
   `documents/{id}/file`; ngoài phạm vi → 404.
 - **Lịch sử**: thêm `AuditsChanges` cho `SyllabusCurriculum`, `SyllabusStage`, `SyllabusUnit`, `SyllabusLesson`,
@@ -117,7 +123,7 @@ Hiện trạng (khảo sát 23/10/2026):
 - Đánh lại `session_no` khi import chặng làm đổi ánh xạ "buổi thứ N của lớp ↔ bài" trong `SessionLessonService`
   (đang ánh xạ theo số buổi toàn giáo trình). Chấp nhận ở giai đoạn 1 (sửa bản gốc vốn áp dụng cho mọi lớp — câu 3);
   giai đoạn 3 chuyển ánh xạ sang **vị trí trong chặng đang mở**.
-- Học vụ mất quyền sửa giáo trình gốc → báo trước cho người dùng.
+- Học vụ mất quyền sửa giáo trình gốc (vẫn xem được) → báo trước cho người dùng.
 - v2: migration mới chạy trong v2 CI; catalog quyền phải xuất lại; các màn Syllabus v2 lệch thêm (ghi ở
   `v2/doi-chieu-laravel.txt` khi đồng bộ).
 
@@ -145,6 +151,11 @@ Hiện trạng (khảo sát 23/10/2026):
 - [x] Đọc / kiểm tra file Sheet 1, xem trước, xác nhận; tạo chặng mới / cập nhật chặng đã có; đánh lại `session_no`.
 - [x] File mẫu Sheet 1; cập nhật `docs/import-syllabus.md`.
 - [x] Test: file mẫu, chặng mới, cập nhật (thêm / sửa / xóa buổi, giữ id), file lỗi, dòng ví dụ bị bỏ.
+
+### Bổ sung sau review (23/10/2026, xong)
+
+- [x] Học vụ xem Kho syllabus chỉ đọc + mọi tài liệu (`syllabus.library_view`).
+- [x] File mẫu zip (import cả giáo trình) thêm cột Sheet 1; file cũ vẫn import được.
 
 ## 5. Ngoài phạm vi giai đoạn 1
 

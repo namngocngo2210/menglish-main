@@ -183,25 +183,67 @@ class SyllabusLibraryTest extends TestCase
             ->assertInertia(fn (AssertableInertia $p) => $p->where('selected.edit_lesson_url', route('syllabus.curriculums.show', ['id' => $this->curriculum->id, 'edit_lesson' => $this->lesson->id])));
     }
 
-    public function test_sidebar_shows_library_for_lead_but_not_academic_staff(): void
+    public function test_sidebar_shows_library_for_lead_and_academic_staff_but_not_teacher(): void
     {
-        $labels = fn (User $user) => collect(app(SidebarMenu::class)->groupsFor($user))
-            ->firstWhere('id', 'syllabus')['items'] ?? [];
+        $labels = fn (User $user) => collect(collect(app(SidebarMenu::class)->groupsFor($user))
+            ->firstWhere('id', 'syllabus')['items'] ?? [])->pluck('label')->all();
 
-        $lead = collect($labels($this->lead))->pluck('label')->all();
+        $lead = $labels($this->lead);
         $this->assertContains('Kho syllabus', $lead);
         $this->assertNotContains('Soạn syllabus', $lead);
         $this->assertNotContains('Xem bài giảng', $lead);
 
-        $staff = collect($labels($this->userWithRole(Roles::ACADEMIC_STAFF)))->pluck('label')->all();
-        $this->assertNotContains('Kho syllabus', $staff);
+        $staff = $labels($this->userWithRole(Roles::ACADEMIC_STAFF));
+        $this->assertContains('Kho syllabus', $staff);
         $this->assertContains('Giao chặng', $staff);
+
+        $this->assertNotContains('Kho syllabus', $labels($this->userWithRole(Roles::TEACHER_FULLTIME)));
     }
 
     public function test_syllabus_index_sends_library_users_to_library(): void
     {
         $this->actingAs($this->lead)->get('/syllabus')->assertRedirect(route('syllabus.curriculums.index'));
+        $this->actingAs($this->userWithRole(Roles::ACADEMIC_STAFF))->get('/syllabus')->assertRedirect(route('syllabus.curriculums.index'));
         $this->actingAs($this->userWithRole(Roles::TEACHER_FULLTIME))->get('/syllabus')->assertRedirect(route('syllabus.teaching-stages'));
+    }
+
+    // ---- Học vụ xem Kho syllabus chỉ đọc (syllabus.library_view), ví dụ để order in ấn ----
+
+    public function test_library_view_permission_granted_to_staff_lead_and_manager(): void
+    {
+        foreach ([Roles::ACADEMIC_STAFF, Roles::ACADEMIC_LEAD, Roles::MANAGER] as $role) {
+            $this->assertTrue($this->userWithRole($role)->can('syllabus.library_view'), $role);
+        }
+        $this->assertFalse($this->userWithRole(Roles::TEACHER_FULLTIME)->can('syllabus.library_view'));
+    }
+
+    public function test_academic_staff_sees_library_list_read_only(): void
+    {
+        $this->actingAs($this->userWithRole(Roles::ACADEMIC_STAFF))->get(route('syllabus.curriculums.index'))
+            ->assertOk()
+            ->assertSee('Global Success 6')
+            ->assertDontSee('Tạo giáo trình')
+            ->assertDontSee('Import giáo trình mới')
+            ->assertInertia(fn (AssertableInertia $p) => $p->where('canManage', false));
+    }
+
+    public function test_academic_staff_sees_detail_read_only_without_editor(): void
+    {
+        $this->actingAs($this->userWithRole(Roles::ACADEMIC_STAFF))
+            ->get(route('syllabus.curriculums.show', ['id' => $this->curriculum->id, 'edit_lesson' => $this->lesson->id]))
+            ->assertOk()
+            ->assertSee('Getting started')
+            ->assertDontSee('Thêm chặng từ file')
+            ->assertDontSee('Sửa buổi')
+            ->assertInertia(fn (AssertableInertia $p) => $p->where('canManage', false)->where('editor', null));
+    }
+
+    public function test_teacher_cannot_open_library(): void
+    {
+        $teacher = $this->userWithRole(Roles::TEACHER_FULLTIME);
+
+        $this->actingAs($teacher)->get(route('syllabus.curriculums.index'))->assertForbidden();
+        $this->actingAs($teacher)->get(route('syllabus.curriculums.show', $this->curriculum->id))->assertForbidden();
     }
 
     private function userWithRole(string $role): User

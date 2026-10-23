@@ -38,7 +38,7 @@ final class SidebarMenu
 
     private const SYLLABUS_MANAGER = ['syllabus.manage']; // Giáo viên dùng mục giáo trình trong Cổng giáo viên.
 
-    private const SYLLABUS_LIBRARY = ['syllabus.library']; // Kho syllabus gốc: Học thuật, Quản lý (docs/kho-syllabus.md).
+    private const SYLLABUS_LIBRARY = ['syllabus.library_view']; // Kho syllabus gốc: Học thuật, Quản lý sửa; Học vụ xem (docs/kho-syllabus.md).
 
     private const TUITION = ['tuition.approve', 'tuition.reject', 'invoice.request_cancel', 'refund_transfer.request'];
 

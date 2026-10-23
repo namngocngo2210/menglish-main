@@ -95,15 +95,15 @@ class SyllabusDocument extends Model
         return $this->belongsTo(User::class, 'uploaded_by');
     }
 
-    /** Người có quyền Kho syllabus (syllabus.library) luôn xem được mọi tài liệu. */
-    public static function userManages(User $user): bool
+    /** Người xem được Kho syllabus (syllabus.library_view — Học thuật, Quản lý, Học vụ) xem & tải được mọi tài liệu. */
+    public static function userSeesAll(User $user): bool
     {
-        return $user->can('syllabus.library');
+        return $user->can('syllabus.library_view') || $user->can('syllabus.library');
     }
 
     public function scopeVisibleTo(Builder $query, User $user): Builder
     {
-        if (self::userManages($user)) {
+        if (self::userSeesAll($user)) {
             return $query;
         }
 
@@ -154,7 +154,7 @@ class SyllabusDocument extends Model
 
     public function canDownload(User $user): bool
     {
-        return self::userManages($user) || ($this->downloadable && $this->isVisibleTo($user));
+        return self::userSeesAll($user) || ($this->downloadable && $this->isVisibleTo($user));
     }
 
     public function getKindAttribute(): string
@@ -198,13 +198,14 @@ class SyllabusDocument extends Model
         return round($bytes / 1048576, 1).' MB';
     }
 
-    /** Nhãn đối tượng được xem (Admin / Học vụ / Học thuật luôn xem được). */
+    /** Nhãn đối tượng được xem (Admin / Quản lý / Học thuật / Học vụ luôn xem được). */
     public function getAudienceLabelsAttribute(): array
     {
         return array_values(array_filter([
             'Admin',
             'Quản lý',
             'Học thuật',
+            'Học vụ',
             $this->visible_to_teachers ? 'Giáo viên' : null,
             $this->visible_to_assistants ? 'Trợ giảng' : null,
         ]));

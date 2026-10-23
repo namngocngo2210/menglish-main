@@ -56,10 +56,10 @@ class SyllabusController extends Controller
     /** Tab của trang chi tiết giáo trình (Kho syllabus). */
     private const CURRICULUM_TABS = ['info', 'stages', 'documents', 'history'];
 
-    /** /syllabus: người có Kho syllabus (Học thuật, Quản lý) vào Kho syllabus; còn lại vào Chặng đang dạy. */
+    /** /syllabus: người xem được Kho syllabus (Học thuật, Quản lý, Học vụ) vào Kho syllabus; còn lại vào Chặng đang dạy. */
     public function index(Request $request)
     {
-        return $request->user()->can('syllabus.library')
+        return $request->user()->can('syllabus.library_view')
             ? redirect()->route('syllabus.curriculums.index')
             : redirect()->route('syllabus.teaching-stages');
     }
@@ -202,6 +202,7 @@ class SyllabusController extends Controller
             'courses' => Ui::options(Course::orderBy('name')->get(), 'name'),
             'levels' => CourseLevel::orderBy('name')->get(['id', 'code', 'name'])->map(fn (CourseLevel $l) => ['id' => $l->id, 'code' => $l->code, 'name' => $l->name])->values()->all(),
             'newCode' => 'CUR-'.strtoupper(Str::random(4)),
+            'canManage' => $request->user()->can('syllabus.library'),
         ]);
     }
 
@@ -300,7 +301,9 @@ class SyllabusController extends Controller
         $units = $stages->flatMap->units;
         $lessons = $units->flatMap->lessons;
 
+        $canManage = $request->user()->can('syllabus.library');
         $editor = match (true) {
+            ! $canManage => null, // Học vụ xem chỉ đọc: không mở ô soạn thảo
             $request->boolean('new_stage') => ['type' => 'stage', 'model' => null, 'parent' => $curriculum],
             $request->filled('edit_stage') => ['type' => 'stage', 'model' => $stages->firstWhere('id', $request->integer('edit_stage')), 'parent' => $curriculum],
             $request->filled('new_unit') => ['type' => 'unit', 'model' => null, 'parent' => $stages->firstWhere('id', $request->integer('new_unit'))],
@@ -365,7 +368,7 @@ class SyllabusController extends Controller
                 'name' => $level->name,
                 'other' => $level->syllabus_curriculum_id && $level->syllabus_curriculum_id !== $curriculum->id,
             ])->values()->all(),
-            'canManage' => $request->user()->can('syllabus.library'),
+            'canManage' => $canManage,
             'lessonTypes' => self::optionList(SyllabusLesson::TYPES),
             'milestones' => self::optionList(SyllabusLesson::MILESTONES),
         ]);
