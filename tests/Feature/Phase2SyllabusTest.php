@@ -24,6 +24,7 @@ use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia;
@@ -336,6 +337,32 @@ class Phase2SyllabusTest extends TestCase
         $this->assertSoftDeleted('syllabus_lessons', ['id' => $lesson->id]);
         $this->assertSoftDeleted($doc);
         Storage::disk('local')->assertExists($doc->file_path);
+    }
+
+    public function test_deleted_curriculum_releases_its_code(): void
+    {
+        $cur = $this->curriculum('CUR-DEL');
+
+        $this->actingAs($this->academic)->delete(route('syllabus.curriculums.destroy', $cur->id))->assertRedirect();
+
+        $this->assertSame('CUR-DEL#deleted-'.$cur->id, SyllabusCurriculum::withTrashed()->findOrFail($cur->id)->code);
+        $this->actingAs($this->academic)->post(route('syllabus.curriculums.store'), [
+            'code' => 'CUR-DEL', 'title' => 'Giáo trình mới', 'version' => 'v1',
+        ])->assertSessionHasNoErrors();
+        $this->assertSame(1, SyllabusCurriculum::where('code', 'CUR-DEL')->count());
+    }
+
+    public function test_migration_releases_codes_of_previously_deleted_curriculums(): void
+    {
+        $old = $this->curriculum('CUR-OLD');
+        DB::table('syllabus_curriculums')->where('id', $old->id)->update(['deleted_at' => now()]);
+        $released = $this->curriculum('CUR-REL');
+        $released->delete();
+
+        (require database_path('migrations/2026_11_19_090100_release_codes_of_deleted_syllabus_curriculums.php'))->up();
+
+        $this->assertSame('CUR-OLD#deleted-'.$old->id, DB::table('syllabus_curriculums')->where('id', $old->id)->value('code'));
+        $this->assertSame('CUR-REL#deleted-'.$released->id, DB::table('syllabus_curriculums')->where('id', $released->id)->value('code'));
     }
 
     // ---- 4. Đề xuất sửa giáo trình ----

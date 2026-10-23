@@ -41,6 +41,16 @@ class SyllabusCurriculum extends Model
                 'overview_link' => $curriculum->overview_link,
             ]);
         });
+
+        // Giáo trình đã xóa mềm nhả mã (code#deleted-id) để UNIQUE(code) không chặn tạo/import lại cùng mã.
+        static::softDeleted(function (self $curriculum) {
+            static::withTrashed()->whereKey($curriculum->getKey())->update(['code' => self::releasedCode($curriculum->code, $curriculum->getKey())]);
+        });
+    }
+
+    public static function releasedCode(string $code, int $id): string
+    {
+        return $code.'#deleted-'.$id;
     }
 
     public function course(): BelongsTo
