@@ -30,9 +30,9 @@ class SyllabusImporterTest extends TestCase
         Storage::fake(SyllabusDocument::DISK);
     }
 
-    private function plan(array $zipEntries = []): SyllabusImportPlan
+    private function plan(array $zipEntries = [], ?array $sheets = null): SyllabusImportPlan
     {
-        $xlsx = $this->makeXlsx($this->validSheets());
+        $xlsx = $this->makeXlsx($sheets ?? $this->validSheets());
         $path = $zipEntries === [] ? $xlsx : $this->makeZip(['syllabus.xlsx' => file_get_contents($xlsx)] + $zipEntries);
         $package = (new SyllabusPackageReader)->read($path, $this->newPackageDir());
         $plan = (new SyllabusPackageValidator)->validate($package, true);
@@ -69,6 +69,27 @@ class SyllabusImporterTest extends TestCase
         $this->assertSame('hello', $lessons[0]->vocabulary_focus);
         $this->assertSame('to be', $lessons[0]->grammar_focus);
         $this->assertSame('Làm bài 1', $lessons[0]->homework_guide);
+    }
+
+    public function test_imports_sheet1_columns(): void
+    {
+        $sheets = $this->validSheets();
+        $sheets['Chặng'][0][] = 'Báo trước (buổi)';
+        $sheets['Chặng'][1][6] = 3;
+        $columns = array_keys(SyllabusPackageReader::LESSON_COLUMNS);
+        $sheets['Buổi'][4] = array_map(fn (string $key) => [
+            'stage' => 2, 'unit_number' => 2, 'unit_title' => 'Animals', 'session_no' => 4, 'title' => 'Ôn tập',
+            'lesson_type' => 'Big test', 'ppt_url' => 'https://example.com/ppt', 'notice_milestone' => 'Order Big Test', 'note' => 'In 30 đề',
+        ][$key] ?? null, $columns);
+
+        $curriculum = (new SyllabusImporter)->import($this->plan([], $sheets), User::factory()->create(), self::VISIBILITY);
+
+        $stages = SyllabusStage::where('curriculum_id', $curriculum->id)->orderBy('position')->get();
+        $this->assertSame([3, 6], $stages->pluck('notice_before_sessions')->all());
+        $lesson = SyllabusLesson::where('curriculum_id', $curriculum->id)->where('session_no', 4)->firstOrFail();
+        $this->assertSame(['big_test', 'https://example.com/ppt', 'order_big_test', 'In 30 đề'],
+            [$lesson->lesson_type, $lesson->ppt_url, $lesson->notice_milestone, $lesson->note]);
+        $this->assertSame('lesson', SyllabusLesson::where('curriculum_id', $curriculum->id)->where('session_no', 1)->value('lesson_type'));
     }
 
     public function test_imports_documents_with_visibility(): void

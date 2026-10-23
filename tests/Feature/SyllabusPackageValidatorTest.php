@@ -50,6 +50,67 @@ class SyllabusPackageValidatorTest extends TestCase
         $this->assertSame('cat, dog', $plan->stages[1]['units'][0]['lessons'][0]['vocabulary_focus']);
     }
 
+    /** @param  array<string, scalar|null>  $values  khoá LESSON_COLUMNS => giá trị */
+    private function lessonCells(array $values): array
+    {
+        return array_map(fn (string $key) => $values[$key] ?? null, array_keys(SyllabusPackageReader::LESSON_COLUMNS));
+    }
+
+    public function test_sheet1_lesson_and_stage_columns_are_read(): void
+    {
+        $sheets = $this->validSheets();
+        $sheets['Chặng'][0][] = 'Báo trước (buổi)';
+        $sheets['Chặng'][1][6] = 4;
+        $sheets['Buổi'][1] = $this->lessonCells(['stage' => 1, 'unit_number' => 1, 'unit_title' => 'Hello', 'session_no' => 1, 'title' => 'Chào hỏi',
+            'lesson_type' => 'Mini test', 'procedure' => 'Warm-up', 'activity_1' => 'HĐ 1', 'activity_2' => 'HĐ 2',
+            'homework_quizizz' => 'Quiz 1', 'homework_video' => 'Video 1', 'ppt_url' => 'https://example.com/ppt',
+            'quizizz_url' => 'Link Quizizz', 'output_product' => 'Đoạn hội thoại', 'notice_milestone' => 'Order in ấn', 'note' => 'Ghi chú']);
+
+        $plan = $this->validate($sheets);
+
+        $this->assertTrue($plan->ok(), implode(' | ', $plan->errors));
+        $this->assertSame(4, $plan->stages[0]['notice_before_sessions']);
+        $this->assertArrayNotHasKey('notice_before_sessions', $plan->stages[1]); // trống → mặc định của hệ thống
+        $lesson = $plan->stages[0]['units'][0]['lessons'][0];
+        $this->assertSame([
+            'lesson_type' => 'mini_test', 'procedure' => 'Warm-up', 'activity_1' => 'HĐ 1', 'activity_2' => 'HĐ 2',
+            'homework_quizizz' => 'Quiz 1', 'homework_video' => 'Video 1', 'ppt_url' => 'https://example.com/ppt',
+            'quizizz_url' => null, 'output_product' => 'Đoạn hội thoại', 'notice_milestone' => 'order_print', 'note' => 'Ghi chú',
+        ], array_intersect_key($lesson, array_flip(['lesson_type', 'procedure', 'activity_1', 'activity_2', 'homework_quizizz',
+            'homework_video', 'ppt_url', 'quizizz_url', 'output_product', 'notice_milestone', 'note'])));
+        $this->assertSame('lesson', $plan->stages[0]['units'][0]['lessons'][1]['lesson_type']);
+    }
+
+    public function test_sheet1_column_errors(): void
+    {
+        $sheets = $this->validSheets();
+        $sheets['Chặng'][0][] = 'Báo trước (buổi)';
+        $sheets['Chặng'][1][6] = 0;
+        $sheets['Buổi'][1] = $this->lessonCells(['stage' => 1, 'unit_number' => 1, 'unit_title' => 'Hello', 'session_no' => 1, 'title' => 'Chào hỏi',
+            'lesson_type' => 'Ôn tập', 'ppt_url' => 'ftp://example.com/ppt', 'notice_milestone' => 'Gọi phụ huynh']);
+
+        $errors = $this->validate($sheets)->errors;
+
+        $this->assertContains('Sheet Chặng, dòng 2: Báo trước (buổi) phải từ 1 đến 50.', $errors);
+        $this->assertContains('Sheet Buổi, dòng 2: Loại buổi “Ôn tập” không hợp lệ (Học / Mini test / Big test).', $errors);
+        $this->assertContains('Sheet Buổi, dòng 2: Link PPT không phải đường dẫn hợp lệ.', $errors);
+        $this->assertContains('Sheet Buổi, dòng 2: Mốc thông báo “Gọi phụ huynh” không hợp lệ (Order in ấn / Order mini test / Order Big Test).', $errors);
+    }
+
+    public function test_old_file_without_sheet1_columns_is_still_valid(): void
+    {
+        $sheets = $this->validSheets();
+        $sheets['Buổi'][0] = array_slice($sheets['Buổi'][0], 0, 10);
+        $sheets['Buổi'][0][6] = 'Hoạt động'; // tên cột Content trước đây
+
+        $plan = $this->validate($sheets);
+
+        $this->assertTrue($plan->ok(), implode(' | ', $plan->errors));
+        $this->assertSame('Hát', $plan->stages[0]['units'][0]['lessons'][0]['content']);
+        $this->assertSame('lesson', $plan->stages[0]['units'][0]['lessons'][0]['lesson_type']);
+        $this->assertNull($plan->stages[0]['units'][0]['lessons'][0]['ppt_url']);
+    }
+
     public function test_curriculum_sheet_rules(): void
     {
         $sheets = $this->validSheets();

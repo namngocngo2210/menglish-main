@@ -25,13 +25,22 @@ class SyllabusPackageReader
     public const STAGE_COLUMNS = [
         'position' => 'Thứ tự', 'name' => 'Tên chặng', 'description' => 'Mô tả',
         'big_test_title' => 'Tên Big Test', 'big_test_note' => 'Ghi chú Big Test', 'overview_link' => 'Link mục lục',
+        'notice_before_sessions' => 'Báo trước (buổi)',
     ];
 
     public const LESSON_COLUMNS = [
         'stage' => 'Chặng', 'unit_number' => 'Unit số', 'unit_title' => 'Tên unit', 'session_no' => 'Buổi số',
-        'title' => 'Tên buổi', 'objectives' => 'Mục tiêu', 'content' => 'Hoạt động',
+        'title' => 'Tên buổi', 'objectives' => 'Mục tiêu', 'content' => 'Content (nội dung từng tiết)',
         'vocabulary_focus' => 'Từ vựng', 'grammar_focus' => 'Ngữ pháp', 'homework_guide' => 'BTVN',
+        // Cột theo form Sheet 1 (docs/kho-syllabus.md §3.3) — không bắt buộc, file cũ thiếu các cột này vẫn đọc được.
+        'lesson_type' => 'Loại buổi', 'procedure' => 'Quy trình tiết học', 'activity_1' => 'Hoạt động gợi ý 1',
+        'activity_2' => 'Hoạt động gợi ý 2', 'homework_quizizz' => 'Bài tập Quizizz', 'homework_video' => 'Bài tập Video',
+        'ppt_url' => 'Link PPT', 'quizizz_url' => 'Link Quizizz', 'output_product' => 'Sản phẩm đầu ra',
+        'notice_milestone' => 'Mốc thông báo', 'note' => 'Ghi chú',
     ];
+
+    /** Tiêu đề cột cũ vẫn nhận (file đã điền trước khi đổi tên cột). */
+    public const HEADER_ALIASES = ['hoạt động' => 'content'];
 
     public const REQUIRED = [
         'curriculum' => ['code', 'title'],
@@ -125,6 +134,7 @@ class SyllabusPackageReader
         foreach ($columns as $key => $label) {
             $byHeader[$this->normalizeHeader($label)] = $key;
         }
+        $byHeader += array_filter(self::HEADER_ALIASES, fn (string $key) => isset($columns[$key]));
         $colOf = [];
         for ($c = 1; $c <= $maxCol; $c++) {
             $key = $byHeader[$this->normalizeHeader((string) $sheet->getCell([$c, 1])->getValue())] ?? null;

@@ -68,8 +68,8 @@ thấy các định dạng được nhận; Học thuật thay bằng tài liệ
 |---|---|---|
 | Hướng dẫn | Mô tả cách điền | Không import |
 | Giáo trình (1 dòng) | Mã · Tên · Phiên bản · Mô tả | Mã, Tên bắt buộc; mã ≤ 50 ký tự, chưa có giáo trình đang dùng (xoá giáo trình nhả mã: `code#deleted-id`); Phiên bản ≤ 20 ký tự, trống → `v1` |
-| Chặng | Thứ tự · Tên chặng · Mô tả · Tên Big Test · Ghi chú Big Test · Link mục lục | Thứ tự liên tục 1, 2, 3…; Tên bắt buộc |
-| Buổi | Chặng (thứ tự) · Unit số · Tên unit · Buổi số · Tên buổi · Mục tiêu · Hoạt động · Từ vựng · Ngữ pháp · BTVN | Buổi số liên tục 1…N, không trùng; một unit chỉ thuộc một chặng; các dòng cùng unit cùng tên unit; mỗi chặng ≥ 1 buổi |
+| Chặng | Thứ tự · Tên chặng · Mô tả · Tên Big Test · Ghi chú Big Test · Link mục lục · Báo trước (buổi) | Thứ tự liên tục 1, 2, 3…; Tên bắt buộc; Báo trước 1–50, trống = 6 |
+| Buổi | Chặng (thứ tự) · Unit số · Tên unit · Buổi số · Tên buổi · Mục tiêu · Content (nội dung từng tiết) · Từ vựng · Ngữ pháp · BTVN · Loại buổi · Quy trình tiết học · Hoạt động gợi ý 1 · Hoạt động gợi ý 2 · Bài tập Quizizz · Bài tập Video · Link PPT · Link Quizizz · Sản phẩm đầu ra · Mốc thông báo · Ghi chú | Buổi số liên tục 1…N, không trùng; một unit chỉ thuộc một chặng; các dòng cùng unit cùng tên unit; mỗi chặng ≥ 1 buổi. Cột từ Loại buổi trở đi theo form Sheet 1, không bắt buộc (file cũ thiếu vẫn import được; cột "Hoạt động" cũ vẫn được hiểu là Content). Loại buổi Học / Mini test / Big test; Mốc thông báo Order in ấn / Order mini test / Order Big Test; link phải là http(s) |
 
 Thư mục `tai-lieu/`:
 

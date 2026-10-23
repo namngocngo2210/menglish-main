@@ -9,6 +9,7 @@ use App\Models\SyllabusDocument;
 use App\Models\SyllabusLesson;
 use App\Models\SyllabusStage;
 use App\Models\SyllabusUnit;
+use App\Services\Syllabus\LessonSheetCells;
 use Illuminate\Support\Str;
 
 /**
@@ -19,10 +20,6 @@ use Illuminate\Support\Str;
  */
 class StageImportPlanner
 {
-    private const TYPES = ['học' => 'lesson', 'mini test' => 'mini_test', 'big test' => 'big_test'];
-
-    private const PLACEHOLDERS = ['link ppt', 'link quizizz', 'link đề', 'link quizizz (nếu test online)'];
-
     private const TITLE_MAX = 120;
 
     public function plan(StageSheet $sheet, SyllabusCurriculum $curriculum, ?SyllabusStage $stage): StageImportPlan
@@ -58,16 +55,16 @@ class StageImportPlanner
                 $error('Chưa có UNIT — ghi “Unit 1: Tên unit” ở buổi đầu tiên của unit.');
             }
 
-            $type = $row->type === null ? 'lesson' : (self::TYPES[$this->normalize($row->type)] ?? null);
-            if ($type === null) {
-                $error("Loại buổi “{$row->type}” không hợp lệ (Học / Mini test / Big test).");
+            $type = LessonSheetCells::type($row->type) ?? 'lesson';
+            if ($type === false) {
+                $error("Loại buổi “{$row->type}” ".LessonSheetCells::TYPE_ERROR);
             }
-            $milestone = $this->milestone($row->milestone);
+            $milestone = LessonSheetCells::milestone($row->milestone);
             if ($milestone === false) {
-                $error("Mốc thông báo “{$row->milestone}” không hợp lệ (Order in ấn / Order mini test / Order Big Test).");
+                $error("Mốc thông báo “{$row->milestone}” ".LessonSheetCells::MILESTONE_ERROR);
             }
-            $ppt = $this->link($row->pptUrl);
-            $quizizz = $this->link($row->quizizzUrl);
+            $ppt = LessonSheetCells::link($row->pptUrl);
+            $quizizz = LessonSheetCells::link($row->quizizzUrl);
             if ($ppt === false) {
                 $error('Link PPT không phải đường dẫn hợp lệ.');
             }
@@ -80,8 +77,8 @@ class StageImportPlanner
                 'unit_number' => (int) $currentUnit,
                 'lesson_id' => null,
                 'attributes' => [
-                    'title' => $this->title($row->content, $type ?? 'lesson', $index + 1),
-                    'lesson_type' => $type ?? 'lesson',
+                    'title' => $this->title($row->content, $type ?: 'lesson', $index + 1),
+                    'lesson_type' => $type ?: 'lesson',
                     'content' => $row->content,
                     'procedure' => $row->procedure,
                     'activity_1' => $row->activity1,
@@ -146,37 +143,6 @@ class StageImportPlanner
         $name = trim(preg_replace('/^chặng\s*\d+\s*[:\-–—]?\s*/iu', '', trim($text)));
 
         return $name !== '' ? $name : (trim($text) !== '' ? trim($text) : null);
-    }
-
-    private function normalize(string $text): string
-    {
-        return Str::lower(trim(preg_replace('/\s+/u', ' ', $text)));
-    }
-
-    /** @return string|null|false mã mốc; null = trống; false = không hợp lệ */
-    private function milestone(?string $text): string|null|false
-    {
-        if ($text === null) {
-            return null;
-        }
-        $text = $this->normalize($text);
-
-        return match (true) {
-            str_contains($text, 'big test') => 'order_big_test',
-            str_contains($text, 'mini test') => 'order_mini_test',
-            str_contains($text, 'in ấn') => 'order_print',
-            default => false,
-        };
-    }
-
-    /** @return string|null|false URL; null = trống / ô giữ chỗ; false = không phải URL http(s) */
-    private function link(?string $text): string|null|false
-    {
-        if ($text === null || in_array($this->normalize($text), self::PLACEHOLDERS, true)) {
-            return null;
-        }
-
-        return filter_var($text, FILTER_VALIDATE_URL) && preg_match('#^https?://#i', $text) && mb_strlen($text) <= 500 ? $text : false;
     }
 
     private function title(?string $content, string $type, int $number): string
