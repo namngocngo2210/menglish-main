@@ -1,6 +1,6 @@
 # Ngân hàng câu hỏi & Luyện tập theo khối
 
-Trạng thái: **Thiết kế — chờ duyệt** (Sprint 1–4 chưa làm) — 23/10/2026
+Trạng thái: **Sprint 1 — Hoàn thành** (Sprint 2–4 chưa làm) — 24/10/2026
 
 Nguồn dữ liệu: thư mục Drive "FILE TỔNG HỢP ĐỀ CƯƠNG CÁC NĂM" (đề / đề cương THCS khối 6–9, năm học 2025–2026 và
 2026–2027, 4 kỳ). Câu hỏi đã được tách ra từng câu theo kỹ năng (JSON + ảnh) ngoài repo; tính năng này đưa chúng vào
@@ -41,12 +41,13 @@ hệ thống và cho học viên luyện tập.
 
 `students.grade_adjust` — `smallint`, mặc định `0`, NOT NULL.
 
-`App\Support\SchoolGrade`:
+`App\Support\Practice\SchoolGrade`:
 
 - `schoolYearStart(CarbonInterface $on): int` — tháng ≥ 8 → năm hiện tại, ngược lại năm trước.
 - `forStudent(Student $s, ?CarbonInterface $on = null): ?int` — `null` khi thiếu `dob`; kết quả ngoài 1–12 → `null`.
 - Form hồ sơ học viên hiển thị ô **"Khối hiện tại"** (đã tính); nhân viên sửa thành N → lưu
-  `grade_adjust = N − khối tính từ năm sinh` (năm sau tự lên lớp).
+  `grade_adjust = N − khối tính từ năm sinh` (năm sau tự lên lớp). Giữ nguyên số đang hiển thị (kể cả khi sửa ngày
+  sinh) → không đổi `grade_adjust`, khối đi theo ngày sinh mới.
 
 ### 3.2 Bảng mới
 
@@ -206,7 +207,7 @@ Sau khi đổi `routes/web.php`: `php artisan ziggy:generate resources/js/ziggy.
 
 ## 9. Sprint
 
-### Sprint 1 — Nền dữ liệu & quyền (chưa làm)
+### Sprint 1 — Nền dữ liệu & quyền (xong)
 
 - Migration 5 bảng + `students.grade_adjust` + khung đề mặc định; model + quan hệ.
 - `SchoolGrade`; ô "Khối hiện tại" trong form hồ sơ học viên.
