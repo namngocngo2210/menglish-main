@@ -330,7 +330,7 @@ class SyllabusStageProgressionTest extends TestCase
 
     public function test_builder_manages_stages_units_and_sessions_with_single_numbering(): void
     {
-        $this->actingAs($this->academic)->get(route('syllabus.builder', ['curriculum' => $this->curriculum->id]))
+        $this->actingAs($this->academic)->get(route('syllabus.curriculums.show', ['id' => $this->curriculum->id]))
             ->assertOk()->assertSee('Chặng 2: Giao tiếp')->assertSee('Unit 2: Unit 2', false)->assertSee('Buổi 4: Nội dung buổi 4');
 
         $this->actingAs($this->academic)->post(route('syllabus.stages.store'), [
@@ -363,10 +363,10 @@ class SyllabusStageProgressionTest extends TestCase
 
         // Các ô soạn thảo hiển thị đúng.
         foreach ([['new_stage' => 1], ['edit_stage' => $stage4->id], ['new_unit' => $stage4->id], ['edit_unit' => $unit4->id], ['new_lesson' => $unit4->id], ['edit_lesson' => $lesson->id]] as $params) {
-            $this->actingAs($this->academic)->get(route('syllabus.builder', ['curriculum' => $this->curriculum->id] + $params))
+            $this->actingAs($this->academic)->get(route('syllabus.curriculums.show', ['id' => $this->curriculum->id] + $params))
                 ->assertOk()->assertSee('id="editor"', false);
         }
-        $this->actingAs($this->academic)->get(route('syllabus.builder', ['curriculum' => $this->curriculum->id, 'edit_lesson' => $lesson->id]))
+        $this->actingAs($this->academic)->get(route('syllabus.curriculums.show', ['id' => $this->curriculum->id, 'edit_lesson' => $lesson->id]))
             ->assertSee('Sửa Buổi 10: Ôn tập tổng hợp');
 
         $this->actingAs($this->academic)->put(route('syllabus.lessons.update', $lesson->id), [

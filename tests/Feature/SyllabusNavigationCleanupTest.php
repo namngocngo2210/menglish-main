@@ -49,7 +49,7 @@ class SyllabusNavigationCleanupTest extends TestCase
     {
         $this->actingAs($this->academic)->get(route('syllabus.documents'))->assertOk()
             ->assertDontSee('Xem như giáo viên')->assertDontSee('data-back-link', false);
-        $this->actingAs($this->academic)->get(route('syllabus.builder'))->assertOk()
+        $this->actingAs($this->academic)->get(route('syllabus.curriculums.index'))->assertOk()
             ->assertDontSee('Tiếp tục: Chặng của lớp')->assertDontSee('data-back-link', false);
         $this->actingAs($this->academic)->get(route('syllabus.assignments'))->assertOk()
             ->assertDontSee('Màn GV xem giáo trình');
@@ -74,7 +74,7 @@ class SyllabusNavigationCleanupTest extends TestCase
     public function test_import_is_a_child_page_with_back_to_builder(): void
     {
         $this->actingAs($this->academic)->get(route('syllabus.import'))->assertOk()
-            ->assertSee('data-back-link href="'.route('syllabus.builder', [], false).'"', false);
+            ->assertSee('data-back-link href="'.route('syllabus.curriculums.index', [], false).'"', false);
     }
 
     public function test_builder_editor_opens_in_modal_from_query(): void
@@ -82,7 +82,7 @@ class SyllabusNavigationCleanupTest extends TestCase
         [$curriculum, $lesson] = $this->curriculumWithLesson('CUR-DG1');
 
         $this->actingAs($this->academic)
-            ->get(route('syllabus.builder', ['curriculum' => $curriculum->id, 'edit_lesson' => $lesson->id]))
+            ->get(route('syllabus.curriculums.show', ['id' => $curriculum->id, 'edit_lesson' => $lesson->id]))
             ->assertOk()
             ->assertSee('form="syllabus-editor-form"', false)
             ->assertSee('Sửa Buổi '.$lesson->session_no.': '.$lesson->title)
@@ -95,7 +95,7 @@ class SyllabusNavigationCleanupTest extends TestCase
         [, $otherLesson] = $this->curriculumWithLesson('CUR-DG2');
 
         $this->actingAs($this->academic)
-            ->get(route('syllabus.builder', ['curriculum' => $curriculum->id, 'edit_lesson' => $otherLesson->id]))
+            ->get(route('syllabus.curriculums.show', ['id' => $curriculum->id, 'edit_lesson' => $otherLesson->id]))
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->where('editor', null));
     }
@@ -104,7 +104,7 @@ class SyllabusNavigationCleanupTest extends TestCase
     {
         [$curriculum] = $this->curriculumWithLesson('CUR-DG1');
         $stage = $curriculum->stages()->firstOrFail();
-        $editUrl = route('syllabus.builder', ['curriculum' => $curriculum->id, 'edit_stage' => $stage->id]);
+        $editUrl = route('syllabus.curriculums.show', ['id' => $curriculum->id, 'edit_stage' => $stage->id]);
 
         $this->actingAs($this->academic)->from($editUrl)
             ->put(route('syllabus.stages.update', $stage->id), ['name' => ''])

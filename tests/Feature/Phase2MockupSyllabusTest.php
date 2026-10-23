@@ -115,18 +115,18 @@ class Phase2MockupSyllabusTest extends TestCase
 
     public function test_builder_matches_mockup_stage_info_and_lesson_cards(): void
     {
-        $url = route('syllabus.builder', ['curriculum' => $this->curriculum->id]);
+        $url = route('syllabus.curriculums.show', ['id' => $this->curriculum->id]);
 
         $this->actingAs($this->academic)->get($url)->assertOk()
-            ->assertSee('Soạn syllabus theo chặng')
-            ->assertSee('Thiết lập cấu trúc chương trình học và nội dung chi tiết từng buổi')
+            ->assertSee($this->curriculum->title)
+            ->assertSee('Chặng &amp; buổi', false)
             ->assertSee('Tổng số: 02 buổi')
             ->assertSee('Thêm buổi học mới vào chặng')
             ->assertSee('Hoạt động đóng vai 1')
             ->assertDontSee('tự động lưu');
 
         // Ô soạn chặng: thông tin chung, chính sách mở khóa theo A6, xem thử link tổng quan, thanh Lưu chặng học
-        $this->actingAs($this->academic)->get($url.'&edit_stage='.$this->stages[1]->id)->assertOk()
+        $this->actingAs($this->academic)->get($url.'?edit_stage='.$this->stages[1]->id)->assertOk()
             ->assertSee('Thông tin chung chặng học')
             ->assertSee('Chính sách mở khóa')
             ->assertSee('Hoàn thành Big Test chặng trước')
@@ -135,7 +135,7 @@ class Phase2MockupSyllabusTest extends TestCase
             ->assertSee('Lưu chặng học');
 
         // Ô soạn buổi theo form Sheet 1 (docs/kho-syllabus.md): Mục tiêu (Target) / Content / Bài tập giấy, lưu được nội dung chính
-        $this->actingAs($this->academic)->get($url.'&edit_lesson='.$this->lessons[0]->id)->assertOk()
+        $this->actingAs($this->academic)->get($url.'?edit_lesson='.$this->lessons[0]->id)->assertOk()
             ->assertSee('Mục tiêu buổi học (Target)')
             ->assertSee('Content (nội dung từng tiết)')
             ->assertSee('Bài tập giấy');

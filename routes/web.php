@@ -498,7 +498,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/documents/{id}/file', [SyllabusController::class, 'documentFile'])->whereNumber('id')->name('documents.file');
         Route::post('/documents/{id}/viewed', [SyllabusController::class, 'markDocumentViewed'])->whereNumber('id')->name('documents.viewed');
         Route::delete('/documents/{id}', [SyllabusController::class, 'destroyDocument'])->whereNumber('id')->middleware('can:syllabus.library')->name('documents.destroy');
-        Route::get('/builder', [SyllabusController::class, 'builder'])->middleware('can:syllabus.library')->name('builder');
+        // Kho syllabus (docs/kho-syllabus.md): danh sách → trang chi tiết; /builder cũ chuyển hướng.
+        Route::get('/builder', [SyllabusController::class, 'builderRedirect'])->middleware('can:syllabus.library')->name('builder');
+        Route::get('/curriculums', [SyllabusController::class, 'curriculums'])->middleware('can:syllabus.library')->name('curriculums.index');
+        Route::get('/curriculums/{id}', [SyllabusController::class, 'show'])->whereNumber('id')->middleware('can:syllabus.library')->name('curriculums.show');
         Route::middleware('can:syllabus.library')->prefix('import')->group(function () {
             Route::get('/', [SyllabusImportController::class, 'index'])->name('import');
             Route::get('/template', [SyllabusImportController::class, 'template'])->name('import.template');

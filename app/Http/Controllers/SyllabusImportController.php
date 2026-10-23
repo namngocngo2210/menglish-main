@@ -143,7 +143,7 @@ class SyllabusImportController extends Controller
         $this->store->forget($token);
         $s = $plan->summary();
 
-        return redirect()->route('syllabus.builder', ['curriculum' => $curriculum->id])->with(
+        return redirect()->route('syllabus.curriculums.show', $curriculum->id)->with(
             'status',
             "Đã import giáo trình {$plan->curriculum['code']}: {$s['stages']} chặng, {$s['lessons']} buổi, {$s['documents']} tài liệu. Gán cấp độ khoá học để lớp dùng được giáo trình."
         );

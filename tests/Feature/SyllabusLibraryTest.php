@@ -3,12 +3,14 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
+use App\Models\SyllabusChangeProposal;
 use App\Models\SyllabusCurriculum;
 use App\Models\SyllabusLesson;
 use App\Models\SyllabusUnit;
 use App\Models\User;
 use App\Support\Roles;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 /**
@@ -86,7 +88,7 @@ class SyllabusLibraryTest extends TestCase
 
     public function test_lesson_editor_shows_sheet1_fields(): void
     {
-        $this->actingAs($this->lead)->get(route('syllabus.builder', ['curriculum' => $this->curriculum->id, 'edit_lesson' => $this->lesson->id]))
+        $this->actingAs($this->lead)->get(route('syllabus.curriculums.show', ['id' => $this->curriculum->id, 'edit_lesson' => $this->lesson->id]))
             ->assertOk()
             ->assertSee('Loại buổi')->assertSee('Hoạt động gợi ý 2')->assertSee('Bài tập Quizizz')
             ->assertSee('Link PPT')->assertSee('Mốc thông báo')->assertSee('Order in ấn');
@@ -117,6 +119,67 @@ class SyllabusLibraryTest extends TestCase
             ->put(route('syllabus.lessons.update', $this->lesson->id), ['session_no' => 1, 'title' => 'Quản lý sửa'])
             ->assertSessionHasNoErrors();
         $this->assertSame('Quản lý sửa', $this->lesson->fresh()->title);
+    }
+
+    public function test_library_lists_curricula_with_counts(): void
+    {
+        SyllabusLesson::create(['unit_id' => $this->unit->id, 'session_no' => 2, 'title' => 'Sẽ xóa'])->delete();
+
+        $this->actingAs($this->lead)->get(route('syllabus.curriculums.index'))->assertOk()
+            ->assertInertia(fn (AssertableInertia $p) => $p->component('Syllabus/Curriculums')
+                ->where('curriculums.data.0.code', $this->curriculum->code)
+                ->where('curriculums.data.0.stages_count', 1)
+                ->where('curriculums.data.0.lessons_count', 1)
+                ->where('curriculums.data.0.open_classes_count', 0)
+                ->where('curriculums.data.0.url', route('syllabus.curriculums.show', $this->curriculum->id)));
+    }
+
+    public function test_library_search_filters_by_code_or_title(): void
+    {
+        SyllabusCurriculum::create(['code' => 'CUR-IELTS', 'title' => 'IELTS Foundation', 'version' => 'v1']);
+
+        $this->actingAs($this->lead)->get(route('syllabus.curriculums.index', ['search' => 'ielts']))->assertOk()
+            ->assertInertia(fn (AssertableInertia $p) => $p->has('curriculums.data', 1)->where('curriculums.data.0.code', 'CUR-IELTS'));
+    }
+
+    public function test_detail_page_renders_tabs_and_editor_from_query(): void
+    {
+        $this->actingAs($this->lead)->get(route('syllabus.curriculums.show', ['id' => $this->curriculum->id, 'edit_lesson' => $this->lesson->id]))
+            ->assertOk()->assertSee('Chặng &amp; buổi', false)->assertSee('form="syllabus-editor-form"', false);
+
+        $this->actingAs($this->lead)->get(route('syllabus.curriculums.show', ['id' => $this->curriculum->id, 'tab' => 'info']))
+            ->assertOk()->assertInertia(fn (AssertableInertia $p) => $p->component('Syllabus/CurriculumShow')->where('tab', 'info'));
+    }
+
+    public function test_old_builder_url_redirects_to_detail_keeping_editor(): void
+    {
+        $this->actingAs($this->lead)->get(route('syllabus.builder', ['curriculum' => $this->curriculum->id, 'edit_lesson' => $this->lesson->id]))
+            ->assertRedirect(route('syllabus.curriculums.show', ['id' => $this->curriculum->id, 'edit_lesson' => $this->lesson->id]));
+        $this->actingAs($this->lead)->get(route('syllabus.builder'))->assertRedirect(route('syllabus.curriculums.index'));
+    }
+
+    public function test_deleted_curriculum_detail_is_404(): void
+    {
+        $this->curriculum->delete();
+
+        $this->actingAs($this->lead)->get(route('syllabus.curriculums.show', $this->curriculum->id))->assertNotFound();
+    }
+
+    public function test_saving_a_lesson_returns_to_detail_page(): void
+    {
+        $this->actingAs($this->lead)->put(route('syllabus.lessons.update', $this->lesson->id), ['session_no' => 1, 'title' => 'Sửa'])
+            ->assertRedirect(route('syllabus.curriculums.show', $this->curriculum->id));
+    }
+
+    public function test_proposal_edit_link_opens_lesson_on_detail_page(): void
+    {
+        $proposal = SyllabusChangeProposal::create([
+            'curriculum_id' => $this->curriculum->id, 'lesson_id' => $this->lesson->id, 'user_id' => $this->lead->id,
+            'new_content' => 'Thêm bài luyện nghe', 'reason' => 'Học viên yếu nghe', 'status' => 'pending',
+        ]);
+
+        $this->actingAs($this->lead)->get(route('syllabus.versions', ['proposal' => $proposal->id]))->assertOk()
+            ->assertInertia(fn (AssertableInertia $p) => $p->where('selected.edit_lesson_url', route('syllabus.curriculums.show', ['id' => $this->curriculum->id, 'edit_lesson' => $this->lesson->id])));
     }
 
     private function userWithRole(string $role): User

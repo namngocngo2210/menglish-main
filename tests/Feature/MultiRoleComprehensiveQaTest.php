@@ -232,7 +232,7 @@ class MultiRoleComprehensiveQaTest extends TestCase
             route('tuition.students'),
             route('finance.reports.revenue'),
             route('finance.expenses.index'),
-            route('syllabus.builder'),
+            route('syllabus.curriculums.index'),
             route('academic-system.index'),
             route('mockup-hub.index'),
         ];
@@ -345,7 +345,7 @@ class MultiRoleComprehensiveQaTest extends TestCase
     public function test_academic_lead_can_access_academic_and_syllabus_routes(): void
     {
         $allowedRoutes = [
-            route('syllabus.builder'),
+            route('syllabus.curriculums.index'),
             route('syllabus.assignments'),
             route('syllabus.versions'),
             route('syllabus.big-tests.distribution'),
@@ -597,7 +597,7 @@ class MultiRoleComprehensiveQaTest extends TestCase
     public function test_academic_lead_screens_verification(): void
     {
         // 1. Soạn Syllabus chặng
-        $resSyllabusNative = $this->actingAs($this->academicLead)->get(route('syllabus.builder'));
+        $resSyllabusNative = $this->actingAs($this->academicLead)->get(route('syllabus.curriculums.index'));
         $resSyllabusNative->assertOk();
         $resSyllabusProto = $this->actingAs($this->academicLead)->followingRedirects()->get(route('academic-system.show', [
             'category' => '01_Web_Admin',

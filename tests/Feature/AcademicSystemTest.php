@@ -398,7 +398,7 @@ class AcademicSystemTest extends TestCase
         ];
 
         $responseUnit = $this->actingAs($this->academicHead)->post(route('syllabus.units.store'), $unitPayload);
-        $responseUnit->assertRedirect(route('syllabus.builder', ['curriculum' => $curriculum->id]));
+        $responseUnit->assertRedirect(route('syllabus.curriculums.show', ['id' => $curriculum->id]));
 
         $this->assertDatabaseHas('syllabus_units', [
             'curriculum_id' => $curriculum->id,

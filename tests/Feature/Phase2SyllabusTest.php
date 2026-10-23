@@ -95,16 +95,16 @@ class Phase2SyllabusTest extends TestCase
         $second = $this->curriculum('CUR-B', 'Giáo trình B');
         SyllabusUnit::create(['curriculum_id' => $first->id, 'unit_number' => 1, 'title' => 'Bài của A']);
 
-        $page = $this->actingAs($this->academic)->get(route('syllabus.builder', ['curriculum' => $second->id]));
+        $page = $this->actingAs($this->academic)->get(route('syllabus.curriculums.show', ['id' => $second->id]));
         $page->assertOk()
-            ->assertSee('value="'.$second->id.'"', false)
+            ->assertSee('Giáo trình B')
             ->assertDontSee('Bài của A')
             ->assertDontSee('tự động đồng bộ');
 
         // Tạo bài cho giáo trình thứ hai (không còn bị ép vào giáo trình đầu tiên)
         $this->actingAs($this->academic)->post(route('syllabus.units.store'), [
             'curriculum_id' => $second->id, 'unit_number' => 1, 'title' => 'Bài 1 của B',
-        ])->assertRedirect(route('syllabus.builder', ['curriculum' => $second->id]));
+        ])->assertRedirect(route('syllabus.curriculums.show', ['id' => $second->id]));
         $unit = SyllabusUnit::where('curriculum_id', $second->id)->firstOrFail();
 
         // Trùng số buổi trong cùng giáo trình bị chặn

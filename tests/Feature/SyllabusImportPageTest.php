@@ -164,7 +164,7 @@ class SyllabusImportPageTest extends TestCase
 
     public function test_builder_shows_import_button_for_managers(): void
     {
-        $this->actingAs($this->academic)->get(route('syllabus.builder'))->assertSee('Import từ file');
+        $this->actingAs($this->academic)->get(route('syllabus.curriculums.index'))->assertSee('Import giáo trình mới');
     }
 
     /** Tải gói lên + mở trang xem trước, trả về token. */
@@ -187,7 +187,7 @@ class SyllabusImportPageTest extends TestCase
         $response = $this->actingAs($this->academic)->post(route('syllabus.import.confirm'), ['token' => $token]);
 
         $curriculum = SyllabusCurriculum::where('code', 'KIDS-Q4')->firstOrFail();
-        $response->assertRedirect(route('syllabus.builder', ['curriculum' => $curriculum->id]));
+        $response->assertRedirect(route('syllabus.curriculums.show', ['id' => $curriculum->id]));
         $this->assertStringContainsString(
             'Đã import giáo trình KIDS-Q4: 2 chặng, 4 buổi, 0 tài liệu.',
             session('status')

@@ -123,7 +123,7 @@ function uploaded() {
 
     <UiModal v-if="canUpload" :show="uploading" title="Tải lên tài liệu mới" max-width="xl" @close="uploading = false">
         <UiEmptyState v-if="!curriculums.length" icon="library_add" title="Chưa có giáo trình" description="Tạo giáo trình ở màn Soạn syllabus trước khi tải tài liệu.">
-            <UiButton icon="add" :href="route('syllabus.builder')">Tạo giáo trình</UiButton>
+            <UiButton icon="add" :href="route('syllabus.curriculums.index')">Tạo giáo trình</UiButton>
         </UiEmptyState>
         <UiForm v-else id="upload-document-form" :action="route('syllabus.documents.store')" method="post" class="space-y-md" reset-on-success @success="uploaded">
             <UiSelect id="upload_curriculum_id" v-model="curriculum" label="Chọn giáo trình" name="curriculum_id" required placeholder="-- Chọn giáo trình --" @change="stage = ''">
