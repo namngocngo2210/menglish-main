@@ -57,7 +57,7 @@ class PracticeTestGeneratorTest extends TestCase
             $this->q(self::PH);
         }
         $big = $this->passage(5);
-        $this->passage(8); // too big while a fitting passage exists
+        $this->passage(3);
 
         // blueprint listed out of skill order on purpose
         $result = (new PracticeTestGenerator)->generate($this->blueprint([
@@ -70,6 +70,28 @@ class PracticeTestGeneratorTest extends TestCase
         $this->assertSame([$big->id], $rest->pluck('passage_id')->unique()->all());
         $this->assertSame([1, 2, 3, 4, 5], $rest->pluck('position')->all());
         $this->assertTrue($rest->every(fn ($q) => $q->relationLoaded('passage')));
+    }
+
+    public function test_all_passages_bigger_than_count_takes_one_smallest(): void
+    {
+        $this->passage(8);
+        $small = $this->passage(6);
+
+        $result = (new PracticeTestGenerator)->generate($this->blueprint([$this->item(self::RC, 5)]));
+
+        $this->assertSame([$small->id], $result->pluck('passage_id')->unique()->all());
+        $this->assertCount(6, $result);
+    }
+
+    public function test_only_fitting_passage_is_taken_without_overshoot(): void
+    {
+        $small = $this->passage(3);
+        $this->passage(6);
+
+        $result = (new PracticeTestGenerator)->generate($this->blueprint([$this->item(self::RC, 5)]));
+
+        $this->assertCount(3, $result);
+        $this->assertSame([$small->id], $result->pluck('passage_id')->unique()->all());
     }
 
     public function test_drafts_and_hidden_are_never_returned(): void

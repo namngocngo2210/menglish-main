@@ -55,6 +55,7 @@ class PracticeTestGenerator
 
     /**
      * Passages are units (all approved questions, by position); standalone questions are single units.
+     * Never exceeds $count, except one smallest unit when every unit is bigger than $count.
      *
      * @param  Collection<int, QuestionBankQuestion>  $candidates
      * @param  array<int, int>  $recent  question id => index
@@ -62,22 +63,34 @@ class PracticeTestGenerator
      */
     private function pick(Collection $candidates, int $count, array $recent): Collection
     {
+        $isFresh = fn (Collection $qs) => ! $qs->contains(fn ($q) => isset($recent[$q->id]));
+        // shuffled once, so "first with the wanted size" is a random pick among ties
         $units = $candidates
             ->groupBy(fn ($q) => $q->passage_id ? 'p'.$q->passage_id : 'q'.$q->id)
             ->map(fn (Collection $qs) => $qs->sortBy('position')->values())
             ->shuffle()
-            // fresh units (no recently seen question) first; sort is stable so shuffle order is kept
-            ->sortBy(fn (Collection $qs) => $qs->contains(fn ($q) => isset($recent[$q->id])) ? 1 : 0)
             ->values();
 
         $picked = collect();
         while ($picked->count() < $count && $units->isNotEmpty()) {
             $remaining = $count - $picked->count();
-            $index = $units->search(fn (Collection $qs) => $qs->count() <= $remaining);
-            // every unit is bigger than what is missing: take the first one anyway
-            $unit = $units->pull($index === false ? $units->keys()->first() : $index);
-            $picked = $picked->concat($unit);
-            $units = $units->values();
+            $fitting = $units->filter(fn (Collection $qs) => $qs->count() <= $remaining);
+
+            if ($fitting->isEmpty()) {
+                // every unit is bigger than the missing count: take one smallest unit only when the row is still empty
+                if ($picked->isEmpty()) {
+                    $smallest = $units->sortBy(fn (Collection $qs) => [$qs->count(), $isFresh($qs) ? 0 : 1])->first();
+                    $picked = $picked->concat($smallest);
+                }
+                break;
+            }
+
+            // fresh units first, then the largest fitting size, random among equal sizes
+            $pool = $fitting->filter($isFresh);
+            $pool = $pool->isNotEmpty() ? $pool : $fitting;
+            $maxSize = $pool->max(fn (Collection $qs) => $qs->count());
+            $key = $pool->search(fn (Collection $qs) => $qs->count() === $maxSize);
+            $picked = $picked->concat($units->pull($key));
         }
 
         return $picked;
