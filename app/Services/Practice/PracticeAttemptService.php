@@ -13,7 +13,6 @@ use App\Support\Practice\PracticeCatalog;
 use App\Support\Practice\SchoolGrade;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * Vòng đời một lượt luyện tập: bắt đầu / làm tiếp, lưu đáp án, ghi vi phạm, chấm (idempotent), tự nộp khi quá hạn
@@ -272,7 +271,10 @@ class PracticeAttemptService
         return $attempt;
     }
 
-    /** Bản chụp câu hỏi lúc sinh đề: sửa / ẩn câu trong ngân hàng sau đó không làm đổi bài đã làm. */
+    /**
+     * Bản chụp câu hỏi lúc sinh đề: sửa / ẩn câu trong ngân hàng sau đó không làm đổi bài đã làm. Ảnh lưu đường dẫn
+     * trong kho (không phải URL chứa APP_URL / tên miền R2); PracticeAttemptProps dựng URL khi trả props.
+     */
     private function snapshot(QuestionBankQuestion $q): array
     {
         $passage = $q->passage;
@@ -281,18 +283,13 @@ class PracticeAttemptService
             'instruction' => $q->instruction ?? $passage?->instruction,
             'passage' => $passage ? [
                 'content' => $passage->content,
-                'image_url' => $this->imageUrl($passage->image_path),
+                'image_path' => $passage->image_path,
             ] : null,
-            'image_url' => $this->imageUrl($q->image_path),
+            'image_path' => $q->image_path,
             'stem' => $q->stem,
             'options' => $q->options,
             'answer' => $q->answer,
             'knowledge' => $q->knowledge,
         ];
-    }
-
-    private function imageUrl(?string $path): ?string
-    {
-        return $path ? Storage::disk('public')->url($path) : null;
     }
 }

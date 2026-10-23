@@ -6,6 +6,7 @@ use App\Models\PracticeAttempt;
 use App\Models\PracticeAttemptItem;
 use App\Support\ExamViolations;
 use App\Support\Practice\PracticeCatalog;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Props Inertia của một lượt luyện tập, dùng chung cho cổng học viên (làm bài / kết quả) và màn báo cáo Kết quả luyện tập
@@ -26,9 +27,9 @@ class PracticeAttemptProps
             'instruction' => $s['instruction'] ?? null,
             'passage' => is_array($passage) ? [
                 'content' => $passage['content'] ?? null,
-                'image_url' => $passage['image_url'] ?? null,
+                'image_url' => $this->imageUrl($passage),
             ] : null,
-            'image_url' => $s['image_url'] ?? null,
+            'image_url' => $this->imageUrl($s),
             'stem' => $s['stem'] ?? '',
             'options' => (object) ($s['options'] ?? []),
             'chosen' => $item->chosen,
@@ -72,6 +73,14 @@ class PracticeAttemptProps
             'is_correct' => (bool) $item->is_correct,
             'knowledge' => $item->snapshot['knowledge'] ?? null,
         ])->values()->all();
+    }
+
+    /** URL ảnh từ bản chụp: `image_path` (trong kho) → URL; bản chụp cũ lưu sẵn `image_url` thì dùng nguyên. */
+    private function imageUrl(array $snapshot): ?string
+    {
+        $path = $snapshot['image_path'] ?? null;
+
+        return $path ? Storage::disk('public')->url($path) : ($snapshot['image_url'] ?? null);
     }
 
     /** Thời gian làm bài (giây); lượt chốt muộn (lệnh định kỳ) tính tới hạn nộp. */

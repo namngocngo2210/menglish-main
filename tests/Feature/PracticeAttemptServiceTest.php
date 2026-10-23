@@ -8,10 +8,12 @@ use App\Models\QuestionBankPassage;
 use App\Models\QuestionBankQuestion;
 use App\Models\Student;
 use App\Models\User;
+use App\Services\Practice\PracticeAttemptProps;
 use App\Services\Practice\PracticeAttemptService;
 use App\Services\Practice\PracticeException;
 use App\Support\Practice\PracticeCatalog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class PracticeAttemptServiceTest extends TestCase
@@ -108,7 +110,7 @@ class PracticeAttemptServiceTest extends TestCase
         $this->assertSame('Ngữ âm', $items->first()->skill);
 
         $plain = $items->first()->snapshot;
-        $this->assertSame(['instruction', 'passage', 'image_url', 'stem', 'options', 'answer', 'knowledge'], array_keys($plain));
+        $this->assertSame(['instruction', 'passage', 'image_path', 'stem', 'options', 'answer', 'knowledge'], array_keys($plain));
         $this->assertNull($plain['passage']);
         $this->assertSame('Chọn đáp án đúng', $plain['instruction']);
         $this->assertSame('B', $plain['answer']);
@@ -116,9 +118,32 @@ class PracticeAttemptServiceTest extends TestCase
 
         $withPassage = $items->firstWhere('type', 'Điền từ – đoạn văn')->snapshot;
         $this->assertSame('Passage text', $withPassage['passage']['content']);
-        $this->assertStringEndsWith('question-bank/p.png', $withPassage['passage']['image_url']);
+        // Lưu đường dẫn trong kho (không phải URL tuyệt đối chứa APP_URL); URL dựng lúc trả props.
+        $this->assertSame('question-bank/p.png', $withPassage['passage']['image_path']);
+        $this->assertArrayNotHasKey('image_url', $withPassage['passage']);
         $this->assertSame('Đọc đoạn văn', $withPassage['instruction']);
         $this->assertNotNull($items->firstWhere('type', 'Điền từ – đoạn văn')->question_id);
+
+        $props = app(PracticeAttemptProps::class)->question($items->firstWhere('type', 'Điền từ – đoạn văn'));
+        $this->assertSame(Storage::disk('public')->url('question-bank/p.png'), $props['passage']['image_url']);
+        $this->assertNull($props['image_url']);
+    }
+
+    public function test_props_still_read_legacy_snapshots_with_image_url(): void
+    {
+        $item = new PracticeAttemptItem([
+            'position' => 1, 'skill' => 'Đọc hiểu', 'type' => 'Điền từ – đoạn văn',
+            'snapshot' => [
+                'instruction' => null, 'stem' => 'S', 'options' => ['A' => 'a'], 'answer' => 'A', 'knowledge' => null,
+                'image_url' => 'https://old.example/storage/q.png',
+                'passage' => ['content' => 'P', 'image_url' => 'https://old.example/storage/p.png'],
+            ],
+        ]);
+
+        $props = app(PracticeAttemptProps::class)->question($item);
+
+        $this->assertSame('https://old.example/storage/q.png', $props['image_url']);
+        $this->assertSame('https://old.example/storage/p.png', $props['passage']['image_url']);
     }
 
     public function test_start_again_resumes_in_progress_attempt(): void
