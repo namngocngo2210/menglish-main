@@ -170,7 +170,7 @@ function uploaded() {
                     <span class="material-symbols-outlined text-[36px] text-on-surface-variant">cloud_upload</span>
                     <p class="font-body-small text-body-small text-on-surface-variant">Kéo thả file vào đây hoặc</p>
                     <span class="inline-flex items-center rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-xs font-body-medium text-body-small text-primary">Chọn file từ máy tính</span>
-                    <p v-if="!fileName" class="font-caption text-caption text-on-surface-variant">Hỗ trợ PDF, DOCX, PPTX, XLSX, ảnh, audio, video (Tối đa 100MB)</p>
+                    <p v-if="!fileName" class="font-caption text-caption text-on-surface-variant">Hỗ trợ PDF, ảnh, audio, video (tối đa 100MB). Slide / Word hãy xuất sang PDF trước khi tải lên.</p>
                     <p v-else class="font-caption text-caption font-semibold text-on-surface">{{ fileName }}</p>
                     <input
                         ref="fileInput"
@@ -178,7 +178,7 @@ function uploaded() {
                         name="file"
                         required
                         class="sr-only"
-                        accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp,.mp3,.wav,.m4a,.ogg,.mp4,.mov,.webm,.m4v"
+                        accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.mp3,.wav,.m4a,.ogg,.mp4,.mov,.webm,.m4v"
                         @change="fileName = $event.target.files[0]?.name || ''"
                     />
                 </label>

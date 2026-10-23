@@ -25,6 +25,7 @@ use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 /**
@@ -192,8 +193,16 @@ class Phase2MockupSyllabusTest extends TestCase
             ->assertSee('Tổng quan syllabus')
             ->assertSee('Nội dung buổi học')
             ->assertSee('Starter Mockup · Chặng 2: Giao tiếp cơ bản')
-            ->assertSee('MENGLISH INTERNAL ONLY')
-            ->assertSee($this->teacher->email)
+            // PDF xem bằng khung vẽ (pdf.js), watermark định danh vẽ thẳng vào trang
+            ->assertSee('data-pdf-annotator', false)
+            ->assertDontSee('<iframe', false)
+            ->assertSee('Highlight')
+            ->assertSee('Mũi tên')
+            ->assertSee('title="Laser"', false)
+            ->assertSee('title="Chữ"', false)
+            // Tài liệu "Chỉ xem": khung xem không in ra giấy
+            ->assertSee('print:hidden', false)
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('selected.watermark', fn ($w) => str_contains($w, $this->teacher->name)))
             ->assertSee('Xem mục lục chặng')
             ->assertSee('Thực hành giao tiếp hằng ngày')
             ->assertSee('Hoạt động:')

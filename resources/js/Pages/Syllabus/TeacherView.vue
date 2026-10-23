@@ -1,11 +1,14 @@
 <script setup>
 /**
  * Mockup 03_Cong_Giao_Vien/08: 3 tab Tài liệu / Tổng quan syllabus / Nội dung buổi học.
- * Tài liệu: bấm dòng → xem trong hộp thoại (?document=; đóng thì bỏ query). Buổi học: bấm dòng → hộp thoại nội dung buổi.
+ * Tài liệu: bấm dòng → xem trong hộp thoại (?document=; đóng thì bỏ query). PDF xem bằng PdfAnnotator (vẽ / highlight
+ * khi giảng, không lưu). Buổi học: bấm dòng → hộp thoại nội dung buổi.
  */
 import { computed, ref, watch } from 'vue';
 import { Link } from '@inertiajs/vue3';
+import PdfAnnotator from '@/Components/Pdf/PdfAnnotator.vue';
 import GetForm from '@/Components/Syllabus/GetForm.vue';
+import { useCopyGuard } from '@/lib/copyGuard';
 import { route } from '@/lib/route';
 
 defineOptions({ layout: { title: 'Xem tài liệu giáo trình' } });
@@ -35,6 +38,8 @@ const tab = ref(props.initialTab);
 const viewerOpen = ref(!!props.selected);
 watch(() => props.selected?.id, (id) => (viewerOpen.value = !!id));
 const viewer = ref(null);
+// Ảnh / audio / video "Chỉ xem": chặn Ctrl/⌘+P / S khi đang mở (PDF do PdfAnnotator tự chặn).
+useCopyGuard(computed(() => viewerOpen.value && !!props.selected && props.selected.kind !== 'pdf' && !props.selected.can_download));
 const fileUrl = computed(() => (props.selected ? route('syllabus.documents.file', props.selected.id) : ''));
 function fullscreen() {
     viewer.value?.requestFullscreen?.();
@@ -231,19 +236,32 @@ const chipIcon = { open: 'play_circle', done: 'check_circle', todo: 'lock' };
     </div>
 
     <!-- Xem tài liệu: mở sẵn khi URL có ?document=; đóng → bỏ document khỏi thanh địa chỉ. -->
-    <UiModal v-if="selected" :show="viewerOpen" :title="selected.title" max-width="4xl" :dismiss-url="listUrl" @close="viewerOpen = false">
+    <UiModal
+        v-if="selected"
+        :show="viewerOpen"
+        :title="selected.title"
+        max-width="4xl"
+        :dismiss-url="listUrl"
+        :dirty-confirm="{ title: 'Đóng tài liệu?', message: 'Nét vẽ trên tài liệu sẽ bị xoá.', confirmLabel: 'Đóng', cancelLabel: 'Tiếp tục xem' }"
+        @close="viewerOpen = false"
+    >
         <div class="space-y-md">
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <p class="font-caption text-caption text-on-surface-variant">{{ selected.meta }}</p>
                 <div class="flex items-center gap-2">
                     <UiBadge v-if="!selected.can_download" color="warning" :dot="false" pill><span class="material-symbols-outlined text-[14px]">shield</span>Bảo mật nội dung</UiBadge>
-                    <UiButton variant="ghost" size="sm" icon="fullscreen" title="Toàn màn hình" @click="fullscreen" />
+                    <UiButton v-if="selected.kind !== 'pdf'" variant="ghost" size="sm" icon="fullscreen" title="Toàn màn hình" @click="fullscreen" />
                     <UiButton v-if="selected.can_download" variant="secondary" size="sm" icon="download" :href="route('syllabus.documents.file', { id: selected.id, download: 1 })" native>Tải về</UiButton>
                 </div>
             </div>
-            <div ref="viewer" class="relative flex min-h-[420px] items-center justify-center overflow-hidden rounded-lg bg-surface-container p-4">
-                <iframe v-if="selected.kind === 'pdf'" :src="fileUrl + '#toolbar=0'" class="h-[65vh] w-full rounded-lg border border-surface-container-highest bg-surface-container-lowest" :title="selected.title"></iframe>
-                <img v-else-if="selected.kind === 'image'" :src="fileUrl" :alt="selected.title" class="max-h-[65vh] rounded-lg border border-surface-container-highest bg-surface-container-lowest" />
+            <PdfAnnotator v-if="selected.kind === 'pdf'" :src="fileUrl" :title="selected.title" :watermark="selected.watermark" :active="viewerOpen" />
+            <div
+                v-else
+                ref="viewer"
+                :class="['relative flex min-h-[420px] items-center justify-center overflow-hidden rounded-lg bg-surface-container p-4', { 'select-none print:hidden': !selected.can_download }]"
+                @contextmenu="!selected.can_download && $event.preventDefault()"
+            >
+                <img v-if="selected.kind === 'image'" :src="fileUrl" :alt="selected.title" class="max-h-[65vh] rounded-lg border border-surface-container-highest bg-surface-container-lowest" />
                 <audio v-else-if="selected.kind === 'audio'" controls controlsList="nodownload" :src="fileUrl" class="w-full max-w-xl"></audio>
                 <video v-else-if="selected.kind === 'video'" controls controlsList="nodownload" :src="fileUrl" class="max-h-[65vh] w-full rounded-lg bg-black"></video>
                 <UiEmptyState

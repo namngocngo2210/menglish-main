@@ -12,6 +12,7 @@
  *        dismissUrl (URL đặt lại lên thanh địa chỉ khi đóng, không tải trang — modal chi tiết mở sẵn theo ?selected_id=…)
  * Hành vi: giữ focus trong modal, đóng thì trả focus về chỗ cũ, khoá cuộn trang nền; mở chồng modal: Esc chỉ đóng modal trên cùng.
  *   Form bên trong đã sửa mà bấm nền / Esc / X → hỏi "Bỏ các thay đổi chưa lưu?" (đóng bằng code / sau khi lưu thì không hỏi).
+ *   dirtyConfirm ({ title, message, confirmLabel, cancelLabel }) thay lời hỏi đó, vd. tài liệu có nét vẽ: "Đóng tài liệu?".
  * Nội dung luôn nằm trong trang (ẩn bằng v-show) để server render đủ HTML.
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue';
@@ -26,6 +27,7 @@ const props = defineProps({
     dismissUrl: { type: String, default: null },
     closeable: { type: Boolean, default: true },
     labelledby: { type: String, default: null },
+    dirtyConfirm: { type: Object, default: null },
 });
 const emit = defineEmits(['close', 'closed']);
 
@@ -47,7 +49,7 @@ async function requestClose(force = false) {
     if (!props.show || confirming || !props.closeable) return;
     if (!force && dirty.value) {
         confirming = true;
-        const discard = await confirmDialog({ title: 'Đóng biểu mẫu?', message: 'Các thay đổi chưa lưu sẽ bị mất.', confirmLabel: 'Bỏ thay đổi', cancelLabel: 'Tiếp tục sửa', danger: true });
+        const discard = await confirmDialog({ title: 'Đóng biểu mẫu?', message: 'Các thay đổi chưa lưu sẽ bị mất.', confirmLabel: 'Bỏ thay đổi', cancelLabel: 'Tiếp tục sửa', danger: true, ...props.dirtyConfirm });
         confirming = false;
         if (!discard) return;
     }

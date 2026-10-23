@@ -20,9 +20,9 @@ class SyllabusDocument extends Model
 
     public const DIRECTORY = 'syllabus_documents';
 
-    /** Đuôi file cho phép (theo nội dung): tài liệu, slide, ảnh, audio, video. */
+    /** Đuôi file cho phép (theo nội dung): PDF, ảnh, audio, video — slide / Word xuất sang PDF trước khi tải lên. */
     public const ALLOWED_EXTENSIONS = [
-        'pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx',
+        'pdf',
         'jpg', 'jpeg', 'png', 'gif', 'webp',
         'mp3', 'wav', 'm4a', 'ogg',
         'mp4', 'mov', 'webm', 'm4v',

@@ -1084,6 +1084,9 @@ class SyllabusController extends Controller
                 'meta' => ($selected->stage_label ?: 'Chưa gắn chặng').' • '.$selected->curriculum?->title.' • '.$selected->size_human,
                 'can_download' => $selected->canDownload($user),
                 'viewed' => $viewedIds->contains($selected->id),
+                // Tài liệu "Chỉ xem": watermark định danh vẽ thẳng vào trang PDF để truy vết ảnh chụp màn hình.
+                'watermark' => $selected->canDownload($user) ? null
+                    : $user->name.' · '.($user->employee_code ?: $user->email).' · '.now()->format('d/m/Y H:i'),
             ] : null,
             'listUrl' => route('syllabus.teacher-view', $listQuery),
             'search' => $search,

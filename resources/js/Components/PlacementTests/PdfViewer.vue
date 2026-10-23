@@ -5,6 +5,7 @@
  *   <PdfViewer :src="test.pdf_url" />
  */
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { openPdf } from '@/lib/pdf';
 
 const props = defineProps({
     src: { type: String, default: null },
@@ -30,11 +31,9 @@ async function render() {
     }
     status.value = 'loading';
     try {
-        const [pdfjs, worker] = await Promise.all([import('pdfjs-dist/legacy/build/pdf.mjs'), import('pdfjs-dist/legacy/build/pdf.worker.min.mjs?worker')]);
-        // Worker do Vite đóng gói thành file .js (hosting không phải lúc nào cũng trả đúng kiểu cho file .mjs).
-        if (!pdfjs.GlobalWorkerOptions.workerPort) pdfjs.GlobalWorkerOptions.workerPort = new worker.default();
-        // isEvalSupported:false: không cho pdf.js dựng hàm bằng eval từ nội dung PDF (file đề do người dùng tải lên).
-        task = pdfjs.getDocument({ url: props.src, isEvalSupported: false });
+        const loading = await openPdf(props.src);
+        if (token !== renderToken) return loading.destroy();
+        task = loading;
         const doc = await task.promise;
         if (token !== renderToken) return;
         pageCount.value = doc.numPages;
