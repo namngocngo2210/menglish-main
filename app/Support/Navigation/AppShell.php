@@ -5,6 +5,7 @@ namespace App\Support\Navigation;
 use App\Helpers\AclHelper;
 use App\Models\User;
 use App\Services\NotificationService;
+use App\Services\Syllabus\SyllabusOrders;
 use App\Support\Approvals\ApprovalInboxService;
 use App\Support\Portal\PortalNotifications;
 use Illuminate\Http\Request;
@@ -61,6 +62,10 @@ final class AppShell
             'guide_url' => route('guide.index'),
             // Mục "Chấm công" trong menu tài khoản (bấm avatar): mọi nhân sự, cùng quyền với route.
             'checkin_url' => $user->can('portal.staff') ? route('my-attendance.home') : null,
+            // Nút ORDER nổi ở mọi màn của cổng GV, nhấp nháy khi có mốc order đến hạn (docs/kho-syllabus.md §9.3).
+            'order' => $user->can('portal.teacher') && Route::has('teacher.orders')
+                ? ['url' => route('teacher.orders'), 'count' => app(SyllabusOrders::class)->dueCount($user)]
+                : null,
         ];
     }
 

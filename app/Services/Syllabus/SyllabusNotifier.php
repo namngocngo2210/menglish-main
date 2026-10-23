@@ -115,6 +115,15 @@ class SyllabusNotifier
             ['label' => 'XỬ LÝ', 'url' => route('tasks.show', $task->id), 'method' => 'get']);
     }
 
+    /** Mốc order đến hạn → GV của lớp, nút ORDER (Sheet 3 "Đến hạn order"). */
+    public function orderDue(SyllabusAssignment $assignment, string $milestoneLabel, int $sessionNo): void
+    {
+        $assignment->loadMissing('classModel');
+        $this->send($this->teacherIds($assignment), "Đến hạn {$milestoneLabel} lớp {$assignment->classModel?->name}.",
+            "Mốc ở buổi {$sessionNo} của {$assignment->stage_name} — bấm ORDER để gửi order.",
+            ['label' => 'ORDER', 'url' => route('teacher.orders', ['class' => $assignment->class_id]), 'method' => 'get']);
+    }
+
     /** GV nhận syllabus của lớp: GV được giao chặng + GV chính + GVNN (bỏ trùng). */
     public function teacherIds(SyllabusAssignment $assignment): Collection
     {

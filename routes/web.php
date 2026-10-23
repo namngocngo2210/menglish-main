@@ -54,6 +54,7 @@ use App\Http\Controllers\SystemCategoryController;
 use App\Http\Controllers\SystemConfigController;
 use App\Http\Controllers\TeacherMeetingReportController;
 use App\Http\Controllers\TeacherLessonController;
+use App\Http\Controllers\TeacherOrderController;
 use App\Http\Controllers\TeacherPortalController;
 use App\Http\Controllers\TeachingShiftController;
 use App\Http\Controllers\TrialGuestController;
@@ -798,6 +799,9 @@ Route::middleware('auth')->group(function () {
     Route::prefix('teacher')->name('teacher.')->group(function () {
         Route::get('/lesson-today', [TeacherLessonController::class, 'show'])->name('lesson-today');
         Route::post('/lesson-today/{class}/taught', [TeacherLessonController::class, 'markTaught'])->whereNumber('class')->name('lesson-today.taught');
+        // ORDER theo mốc syllabus (docs/kho-syllabus.md §9.3; lớp GV dạy — kiểm tra trong controller).
+        Route::get('/orders', [TeacherOrderController::class, 'index'])->name('orders');
+        Route::post('/orders/{class}', [TeacherOrderController::class, 'store'])->whereNumber('class')->name('orders.store');
     });
 
     Route::controller(TeacherPortalController::class)->prefix('teacher')->name('teacher.')->group(function () {
@@ -835,6 +839,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/my', 'reportStore')->name('my.store');
         Route::get('/all', 'allReports')->middleware('can:staff_report.view_all')->name('all');
         Route::get('/{id}/detail', 'reportDetail')->whereNumber('id')->middleware('can:staff_report.view_all')->name('detail');
+        // Ghi chú báo cáo tuần Học thuật: người làm hoặc Quản lý (kiểm tra trong controller).
+        Route::post('/{id}/notes', 'noteStore')->whereNumber('id')->name('notes.store');
         Route::post('/{id}/review', 'review')->whereNumber('id')->middleware('can:'.AdminOnlyApprovals::ABILITY)->name('review');
         Route::post('/{id}/request-changes', 'requestChanges')->whereNumber('id')->middleware('can:'.AdminOnlyApprovals::ABILITY)->name('request-changes');
         Route::post('/{id}/tasks', 'reportTaskStore')->whereNumber('id')->middleware('can:'.AdminOnlyApprovals::ABILITY)->name('tasks.store');

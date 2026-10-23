@@ -69,6 +69,11 @@ class StaffReport extends Model
         return $this->belongsTo(User::class, 'reviewed_by');
     }
 
+    public function notes(): HasMany
+    {
+        return $this->hasMany(StaffReportNote::class)->orderBy('id');
+    }
+
     public function followups(): HasMany
     {
         return $this->hasMany(StaffReportFollowup::class)->latest();

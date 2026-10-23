@@ -62,7 +62,7 @@ class MaterialOrder extends Model
     protected $fillable = [
         'code', 'branch_id', 'class_id', 'requester_id', 'category', 'title', 'description', 'quantity',
         'use_date', 'due_at', 'status', 'created_late', 'processed_by', 'processed_at', 'processed_late',
-        'processor_note', 'reject_reason',
+        'processor_note', 'reject_reason', 'syllabus_assignment_id', 'syllabus_lesson_id',
     ];
 
     protected function casts(): array
