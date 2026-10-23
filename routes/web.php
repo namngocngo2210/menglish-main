@@ -493,7 +493,8 @@ Route::middleware('auth')->group(function () {
     // 8. Quản lý Syllabus & Big Test
     // ─────────────────────────────────────────────
     Route::prefix('syllabus')->name('syllabus.')->middleware('can:syllabus.view')->group(function () {
-        Route::get('/documents', [SyllabusController::class, 'documents'])->name('documents');
+        // Màn Tài liệu cũ → Kho syllabus (tài liệu quản lý trong trang chi tiết giáo trình).
+        Route::get('/documents', fn () => redirect()->route('syllabus.curriculums.index'))->middleware('can:syllabus.library')->name('documents');
         Route::post('/documents', [SyllabusController::class, 'storeDocument'])->middleware('can:syllabus.library')->name('documents.store');
         Route::get('/documents/{id}/file', [SyllabusController::class, 'documentFile'])->whereNumber('id')->name('documents.file');
         Route::post('/documents/{id}/viewed', [SyllabusController::class, 'markDocumentViewed'])->whereNumber('id')->name('documents.viewed');

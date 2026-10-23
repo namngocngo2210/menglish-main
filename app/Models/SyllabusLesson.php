@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -74,6 +75,12 @@ class SyllabusLesson extends Model
     public function unit(): BelongsTo
     {
         return $this->belongsTo(SyllabusUnit::class, 'unit_id');
+    }
+
+    /** Tài liệu gắn riêng buổi này (Kho syllabus). */
+    public function documents(): HasMany
+    {
+        return $this->hasMany(SyllabusDocument::class, 'syllabus_lesson_id');
     }
 
     public function curriculum(): BelongsTo

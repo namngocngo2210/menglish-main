@@ -209,7 +209,7 @@ class MockupHubController extends Controller
                 'icon' => 'menu_book',
                 'badge' => '8 màn',
                 'screens' => [
-                    ['num' => '49', 'name' => 'Quản lý Tài liệu & Giáo trình', 'type' => 'table', 'icon' => 'folder_shared', 'route' => 'syllabus.documents', 'src' => 'sylabuss/qu_n_l_t_i_li_u_gi_o_tr_nh_menglish_admin/code.html'],
+                    ['num' => '49', 'name' => 'Quản lý Tài liệu & Giáo trình', 'type' => 'table', 'icon' => 'folder_shared', 'route' => 'syllabus.curriculums.index', 'src' => 'sylabuss/qu_n_l_t_i_li_u_gi_o_tr_nh_menglish_admin/code.html'],
                     ['num' => '50', 'name' => 'Soạn Syllabus theo chương', 'type' => 'form', 'icon' => 'menu_book', 'route' => 'syllabus.curriculums.index', 'src' => 'sylabuss/so_n_syllabus_theo_ch_ng_c_p_nh_t_to_n_di_n_menglish_admin/code.html'],
                     ['num' => '51', 'name' => 'Giao chương cho GV', 'type' => 'form', 'icon' => 'assignment_ind', 'route' => 'syllabus.assignments', 'src' => 'sylabuss/giao_ch_ng_cho_gv_c_p_nh_t_c_ch_ng_t_ng_menglish_admin/code.html'],
                     ['num' => '52', 'name' => 'Xuất & Sửa giáo trình', 'type' => 'form', 'icon' => 'edit_document', 'route' => 'syllabus.versions', 'src' => 'sylabuss/xu_t_s_a_gi_o_tr_nh_c_p_nh_t_x_l_menglish_admin/code.html'],

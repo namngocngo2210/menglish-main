@@ -33,7 +33,7 @@ class WorkspaceNavigationTest extends TestCase
         // Nhật ký sự vụ lớp là tab thứ hai của "Báo cáo & sự vụ" (tab trong trang, không còn mục menu riêng).
         'tasks.classes-dashboard', 'academic.dashboards.reports', 'surveys.index',
         // Soạn syllabus → Kho syllabus (docs/kho-syllabus.md); Xem bài giảng mở từ ca dạy ở Trang chủ GV / Điểm danh.
-        'syllabus.documents', 'syllabus.curriculums.index', 'syllabus.assignments', 'syllabus.versions', 'syllabus.adjustment-requests',
+        'syllabus.curriculums.index', 'syllabus.assignments', 'syllabus.versions', 'syllabus.adjustment-requests',
         'syllabus.big-tests.distribution', 'syllabus.big-tests.schedules', 'syllabus.big-tests.results', 'syllabus.teaching-stages',
         'syllabus.teacher-propose', 'syllabus.teacher-adjust',
         'tuition.students', 'tuition.import', 'tuition.receipts.create', 'tuition.receipts.approve', 'tuition.history',

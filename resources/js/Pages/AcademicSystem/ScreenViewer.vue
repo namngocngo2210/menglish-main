@@ -26,7 +26,7 @@ defineProps({
                 <span class="material-symbols-outlined text-[16px]">open_in_new</span>
                 <span>Toàn màn hình (Không Menu)</span>
             </a>
-            <Link :href="route('syllabus.documents')" class="inline-flex items-center gap-1.5 rounded-xl bg-primary-container px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-primary-hover">
+            <Link :href="route('syllabus.curriculums.index')" class="inline-flex items-center gap-1.5 rounded-xl bg-primary-container px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-primary-hover">
                 <span class="material-symbols-outlined text-[16px]">menu_book</span>
                 <span>Về Giáo trình Flow 2</span>
             </Link>

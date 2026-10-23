@@ -186,10 +186,11 @@ class Phase2SyllabusTest extends TestCase
         Storage::fake('local');
         $cur = $this->curriculum();
 
-        $this->actingAs($this->academic)->post(route('syllabus.documents.store'), [
+        $detail = route('syllabus.curriculums.show', $cur->id);
+        $this->actingAs($this->academic)->from($detail)->post(route('syllabus.documents.store'), [
             'curriculum_id' => $cur->id, 'title' => 'Student Book', 'stage_name' => 'Chặng 1',
             'file' => $this->pdf(), 'visible_to_teachers' => '1',
-        ])->assertRedirect(route('syllabus.documents'))->assertSessionHasNoErrors();
+        ])->assertRedirect($detail)->assertSessionHasNoErrors();
 
         $doc = SyllabusDocument::firstOrFail();
         $this->assertSame('pdf', $doc->extension);
@@ -210,9 +211,9 @@ class Phase2SyllabusTest extends TestCase
         // Học thuật tải về được
         $this->actingAs($this->academic)->get(route('syllabus.documents.file', ['id' => $doc->id, 'download' => 1]))->assertOk();
 
-        // Danh sách hiển thị thông tin thật
-        $this->actingAs($this->academic)->get(route('syllabus.documents'))->assertOk()
-            ->assertSee('Student Book')->assertSee('Chặng 1')->assertSee('Chỉ xem online');
+        // Trang chi tiết giáo trình hiển thị tài liệu (tab Tài liệu chung: tài liệu không gắn chặng)
+        $this->actingAs($this->academic)->get(route('syllabus.curriculums.show', ['id' => $cur->id, 'tab' => 'documents']))->assertOk()
+            ->assertSee('Student Book');
     }
 
     private function realUpload(string $name, string $content): UploadedFile

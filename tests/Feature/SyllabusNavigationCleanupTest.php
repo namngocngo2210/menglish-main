@@ -47,8 +47,6 @@ class SyllabusNavigationCleanupTest extends TestCase
 
     public function test_manager_pages_have_no_cross_links_or_back_button(): void
     {
-        $this->actingAs($this->academic)->get(route('syllabus.documents'))->assertOk()
-            ->assertDontSee('Xem như giáo viên')->assertDontSee('data-back-link', false);
         $this->actingAs($this->academic)->get(route('syllabus.curriculums.index'))->assertOk()
             ->assertDontSee('Tiếp tục: Chặng của lớp')->assertDontSee('data-back-link', false);
         $this->actingAs($this->academic)->get(route('syllabus.assignments'))->assertOk()

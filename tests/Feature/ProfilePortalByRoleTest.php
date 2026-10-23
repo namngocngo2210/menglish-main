@@ -60,7 +60,7 @@ class ProfilePortalByRoleTest extends TestCase
             ->assertDontSee('Giờ dạy tháng này')
             ->assertDontSee('Việc cần duyệt')
             ->assertSee('Báo cáo tuần')
-            ->assertSee(route('syllabus.documents'), false);
+            ->assertSee(route('syllabus.curriculums.index'), false);
     }
 
     public function test_teacher_parttime_and_fulltime_see_teaching_portal(): void

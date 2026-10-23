@@ -33,6 +33,7 @@ class SyllabusDocument extends Model
     protected $fillable = [
         'curriculum_id',
         'stage_id',
+        'syllabus_lesson_id',
         'title',
         'stage_name',
         'file_path',
@@ -61,6 +62,12 @@ class SyllabusDocument extends Model
     public function stage(): BelongsTo
     {
         return $this->belongsTo(SyllabusStage::class, 'stage_id');
+    }
+
+    /** Buổi học của tài liệu buổi (stage_id luôn = chặng của buổi, xem SyllabusController::storeDocument / updateLesson). */
+    public function lesson(): BelongsTo
+    {
+        return $this->belongsTo(SyllabusLesson::class, 'syllabus_lesson_id');
     }
 
     /** Lượt "Đánh dấu đã xem" của giáo viên / trợ giảng. */
@@ -168,7 +175,7 @@ class SyllabusDocument extends Model
     {
         return array_values(array_filter([
             'Admin',
-            'Học vụ',
+            'Quản lý',
             'Học thuật',
             $this->visible_to_teachers ? 'Giáo viên' : null,
             $this->visible_to_assistants ? 'Trợ giảng' : null,

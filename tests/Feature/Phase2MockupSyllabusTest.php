@@ -156,11 +156,10 @@ class Phase2MockupSyllabusTest extends TestCase
         Storage::fake('local');
         $pdf = UploadedFile::fake()->createWithContent('starter.pdf', "%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF\n".str_repeat('x', 2048));
 
-        $this->actingAs($this->academic)->get(route('syllabus.documents'))->assertOk()
-            ->assertSee('Quản lý tài liệu giáo trình')
-            ->assertSee('Chọn chặng học')
+        // Tài liệu quản lý trong trang chi tiết giáo trình (Kho syllabus): tải theo chặng / buổi / chung.
+        $this->actingAs($this->academic)->get(route('syllabus.curriculums.show', $this->curriculum->id))->assertOk()
+            ->assertSee('Tài liệu chặng')
             ->assertSee('Chọn đối tượng xem')
-            ->assertSee('Học vụ')
             ->assertSee('Kéo thả file vào đây hoặc')
             ->assertSee('Chọn file từ máy tính')
             ->assertSee('Khóa tải xuống — Giáo viên chỉ được phép xem trực tuyến để bảo vệ tài liệu.');
@@ -179,8 +178,7 @@ class Phase2MockupSyllabusTest extends TestCase
         $this->assertSame($this->stages[1]->id, $doc->stage_id);
         $this->assertSame('Chặng 2: Giao tiếp cơ bản', $doc->stage_name);
 
-        $this->actingAs($this->academic)->get(route('syllabus.documents'))->assertOk()
-            ->assertSee('Danh sách tài liệu đã tải lên')->assertSee('Trạng thái')->assertSee('Chỉ xem online')
+        $this->actingAs($this->academic)->get(route('syllabus.curriculums.show', $this->curriculum->id))->assertOk()
             ->assertSee('Giáo trình Starter - Bài 3');
 
         // Màn GV: tab, nhóm theo chặng, watermark bảo mật, đánh dấu đã xem, tìm kiếm

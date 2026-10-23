@@ -230,10 +230,10 @@ final class SidebarMenu
                 'label' => 'Giáo trình',
                 'icon' => 'menu_book',
                 'items' => [
-                    // Kho syllabus: danh sách → trang chi tiết; /builder cũ và Import thuộc tab này. Tài liệu bỏ ở Sprint 2.
+                    // Kho syllabus: danh sách → trang chi tiết (tài liệu theo buổi / chặng / chung nằm trong trang chi tiết);
+                    // /builder, /documents cũ và Import thuộc tab này.
                     ...self::anchored(self::SYLLABUS_LIBRARY, [
-                        ['label' => 'Kho syllabus', 'route' => 'syllabus.curriculums.index', 'active' => ['syllabus.curriculums.*', 'syllabus.builder', 'syllabus.import*']],
-                        ['label' => 'Tài liệu', 'route' => 'syllabus.documents'],
+                        ['label' => 'Kho syllabus', 'route' => 'syllabus.curriculums.index', 'active' => ['syllabus.curriculums.*', 'syllabus.builder', 'syllabus.documents', 'syllabus.import*']],
                     ]),
                     ...self::anchored(self::SYLLABUS_MANAGER, [
                         ['label' => 'Giao chặng', 'route' => 'syllabus.assignments'],

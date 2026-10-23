@@ -52,7 +52,7 @@ class SyllabusController extends Controller
     public const MISSING_PARENT_PHONE = 'Thiếu SĐT phụ huynh';
 
     /** Tab của trang chi tiết giáo trình (Kho syllabus). */
-    private const CURRICULUM_TABS = ['info', 'stages'];
+    private const CURRICULUM_TABS = ['info', 'stages', 'documents'];
 
     /** /syllabus: người có Kho syllabus (Học thuật, Quản lý) vào Kho syllabus; còn lại vào Chặng đang dạy. */
     public function index(Request $request)
@@ -66,47 +66,13 @@ class SyllabusController extends Controller
     // 1. Kho tài liệu giáo trình (file thật, phân quyền xem)
     // ─────────────────────────────────────────────
 
-    public function documents(Request $request)
-    {
-        $user = $request->user();
-        $curriculums = SyllabusCurriculum::with(['course', 'stages'])->orderBy('title')->get();
-        $documents = SyllabusDocument::with(['curriculum', 'uploader', 'stage'])
-            ->visibleTo($user)
-            ->when($request->filled('curriculum_id'), fn ($q) => $q->where('curriculum_id', $request->integer('curriculum_id')))
-            ->when($request->filled('search'), fn ($q) => $q->where('title', 'like', '%'.$request->string('search').'%'))
-            ->latest()
-            ->paginate($request->perPage(15))
-            ->withQueryString();
-
-        return Inertia::render('Syllabus/Documents', [
-            'documents' => $documents->through(fn (SyllabusDocument $doc) => [
-                'id' => $doc->id,
-                'title' => $doc->title,
-                'icon' => $doc->icon,
-                'curriculum' => $doc->curriculum?->title,
-                'extension' => $doc->extension,
-                'size_human' => $doc->size_human,
-                'stage_label' => $doc->stage_label,
-                'audience_labels' => $doc->audience_labels,
-                'downloadable' => (bool) $doc->downloadable,
-            ]),
-            'curriculums' => $curriculums->map(fn (SyllabusCurriculum $c) => [
-                'id' => $c->id,
-                'title' => $c->title,
-                'code' => $c->code,
-                'version' => $c->version,
-                'stages' => $c->stages->map(fn (SyllabusStage $st) => ['id' => $st->id, 'label' => $st->label])->values()->all(),
-            ])->values()->all(),
-            'canUpload' => $user->can('syllabus.library'),
-        ]);
-    }
-
     public function storeDocument(Request $request)
     {
         $validated = $request->validate([
             'curriculum_id' => ['required', 'exists:syllabus_curriculums,id,deleted_at,NULL'],
             'title' => ['required', 'string', 'max:255'],
             'stage_id' => ['nullable', Rule::exists('syllabus_stages', 'id')->whereNull('deleted_at')->where('curriculum_id', $request->input('curriculum_id'))],
+            'syllabus_lesson_id' => ['nullable', Rule::exists('syllabus_lessons', 'id')->whereNull('deleted_at')->where('curriculum_id', $request->input('curriculum_id'))],
             'stage_name' => ['nullable', 'string', 'max:255'],
             'file' => ['required', 'file', 'max:'.SyllabusDocument::MAX_KB],
             'visible_to_teachers' => ['nullable', 'boolean'],
@@ -116,8 +82,12 @@ class SyllabusController extends Controller
             'file.required' => 'Vui lòng chọn file tài liệu.',
             'file.max' => 'Dung lượng file tối đa 100 MB.',
             'stage_id.exists' => 'Chặng không thuộc giáo trình đã chọn.',
+            'syllabus_lesson_id.exists' => 'Buổi học không thuộc giáo trình đã chọn.',
         ]);
-        $stage = ! empty($validated['stage_id']) ? SyllabusStage::find($validated['stage_id']) : null;
+        // Tài liệu buổi: chặng = chặng của buổi (để lọc tài liệu theo chặng đang mở của lớp).
+        $lesson = ! empty($validated['syllabus_lesson_id']) ? SyllabusLesson::with('unit')->find($validated['syllabus_lesson_id']) : null;
+        $stageId = $lesson?->unit?->stage_id ?? ($validated['stage_id'] ?? null);
+        $stage = $stageId ? SyllabusStage::find($stageId) : null;
 
         $file = $request->file('file');
         $size = (int) $file->getSize();
@@ -128,6 +98,7 @@ class SyllabusController extends Controller
             'curriculum_id' => $validated['curriculum_id'],
             'title' => $validated['title'],
             'stage_id' => $stage?->id,
+            'syllabus_lesson_id' => $lesson?->id,
             'stage_name' => $stage?->label ?? ($validated['stage_name'] ?? null),
             'file_path' => $path,
             'original_name' => mb_substr($file->getClientOriginalName(), 0, 255),
@@ -140,7 +111,7 @@ class SyllabusController extends Controller
             'uploaded_by' => Auth::id(),
         ]);
 
-        return redirect()->route('syllabus.documents')
+        return redirect()->back()
             ->with('status', "Đã tải lên tài liệu {$doc->title} ({$doc->size_human}).");
     }
 
@@ -232,6 +203,45 @@ class SyllabusController extends Controller
         ]);
     }
 
+    /**
+     * Tài liệu của giáo trình theo phạm vi: buổi (buổi còn tồn tại) → chặng → chung.
+     *
+     * @param  list<int>  $lessonIds  buổi đang có trong cây (buổi đã xóa → tài liệu về chặng)
+     * @return array{shared: list<array>, stages: array<int, list<array>>, lessons: array<int, list<array>>}
+     */
+    private function curriculumDocuments(SyllabusCurriculum $curriculum, array $lessonIds): array
+    {
+        $groups = ['shared' => [], 'stages' => [], 'lessons' => []];
+        foreach (SyllabusDocument::where('curriculum_id', $curriculum->id)->latest()->get() as $doc) {
+            $row = $this->documentRow($doc);
+            if ($doc->syllabus_lesson_id && in_array($doc->syllabus_lesson_id, $lessonIds, true)) {
+                $groups['lessons'][$doc->syllabus_lesson_id][] = $row;
+            } elseif ($doc->stage_id) {
+                $groups['stages'][$doc->stage_id][] = $row;
+            } else {
+                $groups['shared'][] = $row;
+            }
+        }
+
+        return $groups;
+    }
+
+    /** Một dòng tài liệu cho trang chi tiết giáo trình. */
+    private function documentRow(SyllabusDocument $doc): array
+    {
+        return [
+            'id' => $doc->id,
+            'title' => $doc->title,
+            'icon' => $doc->icon,
+            'extension' => $doc->extension,
+            'size_human' => $doc->size_human,
+            'audience_labels' => $doc->audience_labels,
+            'downloadable' => (bool) $doc->downloadable,
+            'view_url' => route('syllabus.documents.file', $doc->id),
+            'download_url' => route('syllabus.documents.file', ['id' => $doc->id, 'download' => 1]),
+        ];
+    }
+
     /** URL cũ của màn Soạn syllabus → trang chi tiết (giữ tham số ô soạn) hoặc Kho syllabus. */
     public function builderRedirect(Request $request)
     {
@@ -275,6 +285,7 @@ class SyllabusController extends Controller
 
         return Inertia::render('Syllabus/CurriculumShow', [
             'tab' => $tab,
+            'documents' => $this->curriculumDocuments($curriculum, $lessons->pluck('id')->all()),
             'curriculum' => [
                 'id' => $curriculum->id,
                 'title' => $curriculum->title,
@@ -701,6 +712,11 @@ class SyllabusController extends Controller
         }
 
         $lesson->update($this->withDefaults($validated));
+        // Buổi chuyển sang unit của chặng khác → tài liệu buổi theo chặng mới (lọc theo chặng đang mở của lớp).
+        if ($lesson->wasChanged('unit_id')) {
+            $stage = SyllabusStage::find(SyllabusUnit::whereKey($lesson->unit_id)->value('stage_id'));
+            $lesson->documents()->update(['stage_id' => $stage?->id, 'stage_name' => $stage?->label]);
+        }
 
         return redirect()->route('syllabus.curriculums.show', $lesson->curriculum_id)
             ->with('status', "Đã cập nhật Buổi {$lesson->session_no}: {$lesson->title}.");

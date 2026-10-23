@@ -263,7 +263,7 @@ class SyllabusImportPageTest extends TestCase
 
     public function test_documents_page_has_no_sample_pdf(): void
     {
-        $this->actingAs($this->academic)->get(route('syllabus.documents'))
+        $this->actingAs($this->academic)->get(route('syllabus.curriculums.index'))
             ->assertOk()
             ->assertDontSee('Tải file mẫu (.pdf)')
             ->assertDontSee('mau-tai-lieu-giao-trinh.pdf');

@@ -7,6 +7,8 @@
  */
 import { computed, ref, watch } from 'vue';
 import { Link } from '@inertiajs/vue3';
+import DocumentList from '@/Components/Syllabus/DocumentList.vue';
+import DocumentUploadModal from '@/Components/Syllabus/DocumentUploadModal.vue';
 import { route } from '@/lib/route';
 
 defineOptions({ layout: { title: 'Kho syllabus' } });
@@ -23,12 +25,17 @@ const props = defineProps({
     canManage: { type: Boolean, default: false },
     lessonTypes: { type: Array, default: () => [] },
     milestones: { type: Array, default: () => [] },
+    documents: { type: Object, default: () => ({ shared: [], stages: {}, lessons: {} }) },
 });
 
 const stageOptions = computed(() => props.stages.map((s) => ({ value: s.id, label: s.label })));
 const lessonCount = (stage) => stage.units.reduce((sum, u) => sum + u.lessons.length, 0);
 const showUrl = (params = {}) => route('syllabus.curriculums.show', { id: props.curriculum.id, ...params });
-const tabs = { stages: 'Chặng & buổi', info: 'Thông tin' };
+const tabs = { stages: 'Chặng & buổi', documents: 'Tài liệu chung', info: 'Thông tin' };
+
+// Tải tài liệu: phạm vi theo chỗ bấm (buổi / chặng / chung).
+const upload = ref(null);
+const uploadTo = (scope) => (upload.value = { stageId: null, lessonId: null, ...scope });
 const pad2 = (n) => String(n).padStart(2, '0');
 
 // Ô soạn chặng: xem trước ảnh / tài liệu tổng quan.
@@ -226,6 +233,25 @@ const milestoneLabel = (value) => props.milestones.find((m) => m.value === value
             </template>
         </UiModal>
 
+        <!-- Tab Tài liệu chung: tài liệu không gắn chặng / buổi -->
+        <section v-if="tab === 'documents'" class="space-y-3 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-6 shadow-sm">
+            <div class="flex items-center justify-between gap-2">
+                <h2 class="text-sm font-bold text-on-surface">Tài liệu dùng chung cho cả giáo trình</h2>
+                <UiButton v-if="canManage" size="sm" icon="upload_file" @click="uploadTo({ label: 'Tài liệu chung — ' + curriculum.title })">Tải tài liệu</UiButton>
+            </div>
+            <DocumentList :documents="documents.shared" :can-manage="canManage" empty-text="Chưa có tài liệu chung." />
+        </section>
+
+        <DocumentUploadModal
+            v-if="canManage"
+            :show="!!upload"
+            :curriculum-id="curriculum.id"
+            :stage-id="upload?.stageId ?? null"
+            :lesson-id="upload?.lessonId ?? null"
+            :scope-label="upload?.label ?? ''"
+            @close="upload = null"
+        />
+
         <!-- Tab Chặng & buổi: cây Chặng → Unit → Buổi -->
         <section v-if="tab === 'stages'" class="space-y-4">
             <div class="flex items-center justify-between gap-2">
@@ -276,6 +302,13 @@ const milestoneLabel = (value) => props.milestones.find((m) => m.value === value
                 </header>
 
                 <div class="space-y-3 p-4">
+                    <div class="space-y-2 rounded-xl bg-surface-container-low/60 p-3">
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-xs font-bold uppercase text-on-surface-subtle">Tài liệu chặng</p>
+                            <UiButton v-if="canManage" variant="ghost" size="sm" icon="upload_file" @click="uploadTo({ stageId: stage.id, label: stage.label })">Tải tài liệu</UiButton>
+                        </div>
+                        <DocumentList :documents="documents.stages[stage.id] ?? []" :can-manage="canManage" empty-text="Chưa có tài liệu chặng." />
+                    </div>
                     <div v-for="u in stage.units" :key="u.id" class="rounded-xl border border-surface-container-highest">
                         <div class="flex items-center justify-between gap-3 px-4 py-3">
                             <div class="min-w-0">
@@ -308,7 +341,12 @@ const milestoneLabel = (value) => props.milestones.find((m) => m.value === value
                                     <a v-if="lesson.ppt_url" :href="lesson.ppt_url" target="_blank" rel="noopener" class="inline-flex items-center gap-1 font-semibold text-primary hover:underline"><span class="material-symbols-outlined text-[14px]">slideshow</span>Link PPT</a>
                                     <a v-if="lesson.quizizz_url" :href="lesson.quizizz_url" target="_blank" rel="noopener" class="inline-flex items-center gap-1 font-semibold text-primary hover:underline"><span class="material-symbols-outlined text-[14px]">quiz</span>Link Quizizz</a>
                                 </p>
+                                <div class="mt-3 space-y-2">
+                                    <p class="font-semibold text-on-surface">Tài liệu buổi</p>
+                                    <DocumentList :documents="documents.lessons[lesson.id] ?? []" :can-manage="canManage" empty-text="Chưa có tài liệu buổi." />
+                                </div>
                                 <div v-if="canManage" class="mt-2 flex justify-end gap-1">
+                                    <UiButton variant="ghost" size="sm" icon="upload_file" @click="uploadTo({ lessonId: lesson.id, label: `Buổi ${lesson.session_no}: ${lesson.title}` })">Tải tài liệu</UiButton>
                                     <UiButton variant="ghost" size="sm" icon="edit" preserve-scroll :href="showUrl({ edit_lesson: lesson.id })">Sửa buổi</UiButton>
                                     <UiForm :action="route('syllabus.lessons.destroy', lesson.id)" method="delete" :confirm="`Xóa Buổi ${lesson.session_no}?`" confirm-label="Xóa" danger>
                                         <UiButton type="submit" variant="danger-text" size="sm" icon="delete">Xóa</UiButton>
