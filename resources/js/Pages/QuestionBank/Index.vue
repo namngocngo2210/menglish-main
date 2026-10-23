@@ -75,6 +75,11 @@ function onImported() {
         </template>
     </UiPageHeader>
 
+    <UiTabs class="mb-lg">
+        <UiTab :href="route('question-bank.index')" active>Câu hỏi</UiTab>
+        <UiTab :href="route('question-bank.blueprints.index')">Khung đề</UiTab>
+    </UiTabs>
+
     <UiAlert v-if="importErrors.length" type="warning" title="Một số câu / file chưa import được" class="mb-lg">
         <ul class="list-disc space-y-0.5 pl-md" data-import-errors>
             <li v-for="(line, i) in importErrors" :key="i">{{ line }}</li>
