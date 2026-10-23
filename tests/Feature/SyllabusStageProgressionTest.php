@@ -6,6 +6,7 @@ use App\Models\AdminNotification;
 use App\Models\BigTest;
 use App\Models\BigTestResult;
 use App\Models\Branch;
+use App\Models\ClassLessonProgress;
 use App\Models\ClassModel;
 use App\Models\ClassScheduleConfig;
 use App\Models\ClassSession;
@@ -278,12 +279,16 @@ class SyllabusStageProgressionTest extends TestCase
     public function test_teacher_sees_current_stage_and_next_session(): void
     {
         $assignment = $this->openFirstStage();
-        $assignment->update(['opened_at' => now()->subDays(10)]);
-        foreach ([8, 5] as $daysAgo) {
-            ClassSession::create([
+        $assignment->update(['opened_at' => now()->subDays(10), 'start_date' => now()->subDays(10)]);
+        // Tiến độ chạy theo nút "Đã dạy" của GV (docs/kho-syllabus.md §8.2): đã dạy 2 buổi đầu.
+        foreach ([8, 5] as $i => $daysAgo) {
+            $session = ClassSession::create([
                 'class_id' => $this->class->id, 'branch_id' => $this->class->branch_id, 'date' => now()->subDays($daysAgo)->toDateString(),
                 'shift_name' => 'Ca', 'start_time' => '18:00', 'end_time' => '19:30', 'teacher_id' => $this->teacher->id, 'status' => 'completed',
             ]);
+            ClassLessonProgress::create(['syllabus_assignment_id' => $assignment->id, 'class_id' => $this->class->id,
+                'syllabus_lesson_id' => $assignment->stage->lessons()->get()[$i]->id, 'class_session_id' => $session->id,
+                'kind' => 'lesson', 'taught_by' => $this->teacher->id, 'taught_at' => $session->date]);
         }
 
         $this->actingAs($this->teacher)->get(route('syllabus.teacher-view'))
