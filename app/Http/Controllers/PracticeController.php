@@ -31,6 +31,9 @@ class PracticeController extends Controller
 
     private const HISTORY_PER_PAGE = 10;
 
+    /** Cờ "hết giờ" do trình duyệt gửi được nhận khi tới sớm hơn deadline_at tối đa chừng này giây. */
+    private const TIMEOUT_FLAG_TOLERANCE_SECONDS = 5;
+
     public function __construct(
         private PracticeAttemptService $attempts,
         private PracticeTestGenerator $generator,
@@ -171,9 +174,14 @@ class PracticeController extends Controller
     public function submit(Request $request, $attempt): RedirectResponse
     {
         $attempt = $this->findAttemptForWrite($request->user(), $attempt);
+        $request->validate(['timeout' => ['sometimes', 'boolean']]);
 
-        // nộp sau giờ (trình duyệt tự nộp khi hết giờ, mạng chậm) → ghi nhận "hết giờ"
-        $this->attempts->finalize($attempt, now()->greaterThan($attempt->deadline_at) ? 'timeout' : null);
+        // Hết giờ: nộp sau deadline_at, hoặc đồng hồ trình duyệt về 0 (cờ timeout) sớm hơn server tối đa vài giây
+        // (lệch đồng hồ / làm tròn); cờ gửi sớm hơn thế bị bỏ qua → tính là học viên tự nộp.
+        $timedOut = now()->greaterThan($attempt->deadline_at)
+            || ($request->boolean('timeout')
+                && now()->greaterThanOrEqualTo($attempt->deadline_at->copy()->subSeconds(self::TIMEOUT_FLAG_TOLERANCE_SECONDS)));
+        $this->attempts->finalize($attempt, $timedOut ? 'timeout' : null);
 
         return redirect()->route('portal.student.practice.attempt', $attempt->id);
     }
@@ -188,7 +196,7 @@ class PracticeController extends Controller
                 'student_id' => $attempt->student_id,
                 'term_label' => PracticeCatalog::TERMS[$attempt->term] ?? $attempt->term,
                 'grade' => $attempt->grade,
-                'remainingSeconds' => (int) max(0, floor(now()->diffInSeconds($attempt->deadline_at, false))),
+                'remainingSeconds' => (int) max(0, ceil(now()->diffInSeconds($attempt->deadline_at, false))),
                 'violationCount' => (int) $attempt->violation_count,
                 'maxViolations' => ExamViolations::MAX,
             ],

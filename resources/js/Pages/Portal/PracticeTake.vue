@@ -128,7 +128,7 @@ onMounted(() => {
         remaining.value = Math.max(0, Math.ceil((deadlineAt - Date.now()) / 1000));
         if (remaining.value === 0) {
             clearInterval(timer);
-            submit();
+            submit({ timeout: true });
         }
     };
     tick();
@@ -148,13 +148,14 @@ function leaveToResult() {
     router.visit(attemptUrl.value, { replace: true });
 }
 
-async function submit() {
+/** timeout: đồng hồ về 0 — server ghi nhận "hết giờ" (PracticeController::submit). */
+async function submit({ timeout = false } = {}) {
     if (submitting.value) return;
     submitting.value = true;
     finishing.value = true;
     lock.stop();
     await flushAnswers();
-    router.post(route('portal.student.practice.submit', props.attempt.id), {}, {
+    router.post(route('portal.student.practice.submit', props.attempt.id), timeout ? { timeout: true } : {}, {
         replace: true,
         onError: () => {
             submitting.value = false;

@@ -293,6 +293,43 @@ class PracticePortalTest extends TestCase
         $this->assertSame('timeout', $attempt->fresh()->submit_reason);
     }
 
+    public function test_timer_submit_just_before_deadline_is_timeout(): void
+    {
+        $attempt = $this->startAttempt();
+        $this->travelTo($attempt->deadline_at->copy()->subSecond());
+
+        $this->actingAs($this->user)
+            ->post(route('portal.student.practice.submit', $attempt->id), ['timeout' => true])
+            ->assertRedirect(route('portal.student.practice.attempt', $attempt->id));
+
+        $attempt->refresh();
+        $this->assertSame('timeout', $attempt->submit_reason);
+        $this->assertTrue($attempt->auto_submitted);
+    }
+
+    public function test_timeout_flag_sent_too_early_is_a_manual_submit(): void
+    {
+        $attempt = $this->startAttempt();
+        $this->travelTo($attempt->deadline_at->copy()->subSeconds(60));
+
+        $this->actingAs($this->user)->post(route('portal.student.practice.submit', $attempt->id), ['timeout' => true])->assertRedirect();
+
+        $attempt->refresh();
+        $this->assertSame(PracticeAttempt::SUBMITTED, $attempt->status);
+        $this->assertNull($attempt->submit_reason);
+        $this->assertFalse($attempt->auto_submitted);
+    }
+
+    public function test_take_page_rounds_remaining_seconds_up(): void
+    {
+        $attempt = $this->startAttempt();
+        $this->travelTo($attempt->deadline_at->copy()->subSeconds(10)->addMilliseconds(400));
+
+        $this->actingAs($this->user)
+            ->get(route('portal.student.practice.attempt', $attempt->id))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('attempt.remainingSeconds', 10));
+    }
+
     public function test_opening_expired_attempt_finalizes_it_and_shows_result(): void
     {
         $attempt = $this->startAttempt();
