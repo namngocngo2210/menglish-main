@@ -9,6 +9,7 @@ import { computed, ref, watch } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import DocumentList from '@/Components/Syllabus/DocumentList.vue';
 import DocumentUploadModal from '@/Components/Syllabus/DocumentUploadModal.vue';
+import StageImportModal from '@/Components/Syllabus/StageImportModal.vue';
 import { route } from '@/lib/route';
 
 defineOptions({ layout: { title: 'Kho syllabus' } });
@@ -38,6 +39,9 @@ const shortValue = (v) => (v === null || v === undefined || v === '' ? '—' : S
 // Tải tài liệu: phạm vi theo chỗ bấm (buổi / chặng / chung).
 const upload = ref(null);
 const uploadTo = (scope) => (upload.value = { stageId: null, lessonId: null, ...scope });
+
+// Import chặng từ file Sheet 1: null = đóng; { stage: null } = thêm chặng mới; { stage } = cập nhật chặng.
+const stageImport = ref(null);
 const pad2 = (n) => String(n).padStart(2, '0');
 
 // Ô soạn chặng: xem trước ảnh / tài liệu tổng quan.
@@ -87,9 +91,6 @@ const milestoneLabel = (value) => props.milestones.find((m) => m.value === value
 <template>
     <UiPageHeader :title="curriculum.title" :back="route('syllabus.curriculums.index')">
         <template #meta>{{ curriculum.code }} · {{ curriculum.version }} · {{ stages.length }} chặng · {{ totals.units }} unit · {{ totals.lessons }} buổi</template>
-        <template #actions>
-            <UiButton v-if="canManage" variant="secondary" icon="upload_file" :href="route('syllabus.import')">Import từ file</UiButton>
-        </template>
     </UiPageHeader>
 
     <div class="space-y-6 pb-10">
@@ -278,6 +279,8 @@ const milestoneLabel = (value) => props.milestones.find((m) => m.value === value
             <template #footer><UiPagination :paginator="history" unit="thay đổi" /></template>
         </UiDataTable>
 
+        <StageImportModal v-if="canManage" :show="!!stageImport" :curriculum-id="curriculum.id" :stage="stageImport?.stage ?? null" @close="stageImport = null" />
+
         <DocumentUploadModal
             v-if="canManage"
             :show="!!upload"
@@ -295,7 +298,11 @@ const milestoneLabel = (value) => props.milestones.find((m) => m.value === value
                     <span class="material-symbols-outlined text-primary">account_tree</span>
                     <h2 class="text-sm font-bold text-on-surface">Chặng học của giáo trình</h2>
                 </div>
-                <UiButton v-if="canManage" size="sm" icon="add" preserve-scroll :href="showUrl({ new_stage: 1 })">Thêm chặng</UiButton>
+                <div v-if="canManage" class="flex flex-wrap items-center gap-1">
+                    <UiButton variant="secondary" size="sm" icon="download" :href="route('syllabus.stage-import.template')" native>File mẫu chặng</UiButton>
+                    <UiButton variant="secondary" size="sm" icon="upload_file" @click="stageImport = { stage: null }">Thêm chặng từ file</UiButton>
+                    <UiButton size="sm" icon="add" preserve-scroll :href="showUrl({ new_stage: 1 })">Thêm chặng</UiButton>
+                </div>
             </div>
             <UiAlert type="info">Mỗi lớp chỉ học 1 chặng tại một thời điểm. Khi Big Test của chặng được duyệt và gửi kết quả cho phụ huynh, chặng đóng và chặng kế tiếp (theo thứ tự dưới đây) tự mở.</UiAlert>
 
@@ -331,6 +338,7 @@ const milestoneLabel = (value) => props.milestones.find((m) => m.value === value
                         </UiForm>
                         <UiButton variant="ghost" size="sm" icon="edit" preserve-scroll :href="showUrl({ edit_stage: stage.id })">Sửa</UiButton>
                         <UiButton variant="ghost" size="sm" icon="add" preserve-scroll :href="showUrl({ new_unit: stage.id })">Unit</UiButton>
+                        <UiButton variant="ghost" size="sm" icon="upload_file" @click="stageImport = { stage: { id: stage.id, label: stage.label } }">Import từ file</UiButton>
                         <UiForm :action="route('syllabus.stages.destroy', stage.id)" method="delete" :confirm="`Xóa ${stage.label}?`" confirm-label="Xóa" danger>
                             <UiButton type="submit" variant="danger-text" size="sm" icon="delete" title="Xóa chặng" />
                         </UiForm>

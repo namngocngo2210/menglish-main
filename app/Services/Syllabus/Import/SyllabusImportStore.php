@@ -30,7 +30,8 @@ class SyllabusImportStore
      *
      * @param  array{visible_to_teachers: bool, visible_to_assistants: bool, downloadable: bool}  $visibility
      */
-    public function put(UploadedFile $file, User $user, array $visibility): string
+    /** @param  array<string, mixed>  $context  dữ liệu kèm phiên (vd. import chặng: curriculum_id, stage_id) */
+    public function put(UploadedFile $file, User $user, array $visibility, array $context = []): string
     {
         $token = (string) Str::uuid();
         $extension = strtolower($file->getClientOriginalExtension());
@@ -48,6 +49,7 @@ class SyllabusImportStore
             'user_id' => $user->id,
             'created_at' => now()->timestamp,
             'visibility' => $visibility,
+            'context' => $context,
         ]]);
 
         return $token;
@@ -72,7 +74,7 @@ class SyllabusImportStore
             return null;
         }
 
-        return ['path' => $path, 'work_dir' => self::root()."/{$token}"] + $meta;
+        return ['path' => $path, 'work_dir' => self::root()."/{$token}"] + $meta + ['context' => []];
     }
 
     /** Xoá file, thư mục giải nén và khoá phiên của token. */

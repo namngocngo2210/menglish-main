@@ -48,6 +48,7 @@ use App\Http\Controllers\SupportTicketController;
 use App\Http\Controllers\SurveyController;
 use App\Http\Controllers\SyllabusController;
 use App\Http\Controllers\SyllabusImportController;
+use App\Http\Controllers\SyllabusStageImportController;
 use App\Http\Controllers\SystemCategoryController;
 use App\Http\Controllers\SystemConfigController;
 use App\Http\Controllers\TeacherMeetingReportController;
@@ -503,6 +504,13 @@ Route::middleware('auth')->group(function () {
         Route::get('/builder', [SyllabusController::class, 'builderRedirect'])->middleware('can:syllabus.library')->name('builder');
         Route::get('/curriculums', [SyllabusController::class, 'curriculums'])->middleware('can:syllabus.library')->name('curriculums.index');
         Route::get('/curriculums/{id}', [SyllabusController::class, 'show'])->whereNumber('id')->middleware('can:syllabus.library')->name('curriculums.show');
+        // Import 1 chặng từ file Sheet 1 (tải lên → xem trước → xác nhận).
+        Route::middleware('can:syllabus.library')->group(function () {
+            Route::get('/stage-import/template', [SyllabusStageImportController::class, 'template'])->name('stage-import.template');
+            Route::post('/curriculums/{curriculum}/stage-import', [SyllabusStageImportController::class, 'preview'])->whereNumber('curriculum')->name('stage-import.preview');
+            Route::get('/curriculums/{curriculum}/stage-import', [SyllabusStageImportController::class, 'show'])->whereNumber('curriculum')->name('stage-import.show');
+            Route::post('/curriculums/{curriculum}/stage-import/confirm', [SyllabusStageImportController::class, 'confirm'])->whereNumber('curriculum')->name('stage-import.confirm');
+        });
         Route::middleware('can:syllabus.library')->prefix('import')->group(function () {
             Route::get('/', [SyllabusImportController::class, 'index'])->name('import');
             Route::get('/template', [SyllabusImportController::class, 'template'])->name('import.template');
