@@ -35,13 +35,12 @@ async function startReject() {
 </script>
 
 <template>
-    <UiPageHeader title="Duyệt yêu cầu xin điều chỉnh tiến độ" description="Quản lý các yêu cầu giãn tiến độ từ giáo viên. Duyệt sẽ thêm buổi vào cuối lịch của lớp; từ chối bắt buộc nhập lý do." :back="route('syllabus.documents')">
+    <UiPageHeader title="Duyệt yêu cầu xin điều chỉnh tiến độ" description="Quản lý các yêu cầu giãn tiến độ từ giáo viên. Duyệt sẽ thêm buổi vào cuối lịch của lớp; từ chối bắt buộc nhập lý do.">
         <template #actions>
             <GetForm class="flex items-center gap-2">
                 <span class="material-symbols-outlined text-[18px] text-on-surface-variant">filter_list</span>
                 <UiSelect name="status" :value="status" :options="statusOptions" aria-label="Lọc" />
             </GetForm>
-            <UiButton variant="secondary" icon="speed" :href="route('syllabus.teacher-adjust')">Gửi yêu cầu mới</UiButton>
         </template>
     </UiPageHeader>
 

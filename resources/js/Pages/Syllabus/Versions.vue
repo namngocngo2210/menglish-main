@@ -27,14 +27,11 @@ const reviewNote = ref('');
 </script>
 
 <template>
-    <UiPageHeader title="Đề xuất sửa giáo trình" :back="route('syllabus.documents')">
+    <UiPageHeader title="Đề xuất sửa giáo trình">
         <template #breadcrumbs>
             <span>Quản lý giáo trình</span>
             <span class="material-symbols-outlined text-[16px]">chevron_right</span>
             <span class="font-semibold text-on-surface">Đề xuất sửa giáo trình</span>
-        </template>
-        <template #actions>
-            <UiButton variant="secondary" icon="edit_attributes" :href="route('syllabus.teacher-propose')">Gửi đề xuất</UiButton>
         </template>
     </UiPageHeader>
 

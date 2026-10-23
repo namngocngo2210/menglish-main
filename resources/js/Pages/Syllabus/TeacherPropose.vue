@@ -32,10 +32,8 @@ function sent() {
 </script>
 
 <template>
-    <UiPageHeader title="Đề xuất sửa giáo trình" description="Gửi đề xuất sửa lỗi hoặc nội dung giáo trình lên Ban Học thuật." :back="route('syllabus.teacher-view')">
+    <UiPageHeader title="Đề xuất sửa giáo trình" description="Gửi đề xuất sửa lỗi hoặc nội dung giáo trình lên Ban Học thuật.">
         <template #actions>
-            <UiButton variant="secondary" icon="checklist_rtl" :href="route('syllabus.versions')">Xem trạng thái đề xuất</UiButton>
-            <UiButton variant="secondary" icon="speed" :href="route('syllabus.teacher-adjust')">Xin điều chỉnh tiến độ</UiButton>
             <UiButton v-if="canPropose" icon="edit_note" @click="proposing = true">Gửi đề xuất</UiButton>
         </template>
     </UiPageHeader>

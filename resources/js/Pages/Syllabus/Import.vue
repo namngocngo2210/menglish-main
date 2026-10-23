@@ -47,7 +47,7 @@ function formatSize(bytes) {
 
 <template>
     <div>
-        <UiPageHeader title="Import syllabus từ file" icon="upload_file" description="Tạo giáo trình cùng chặng, unit, buổi học và tài liệu từ một file .zip (hoặc .xlsx). Kiểm tra trước, chưa ghi gì vào hệ thống.">
+        <UiPageHeader title="Import syllabus từ file" icon="upload_file" description="Tạo giáo trình cùng chặng, unit, buổi học và tài liệu từ một file .zip (hoặc .xlsx). Kiểm tra trước, chưa ghi gì vào hệ thống." :back="route('syllabus.builder')">
             <template #actions>
                 <UiButton variant="secondary" icon="download" :href="route('syllabus.import.template')" native>Tải file mẫu (.zip)</UiButton>
             </template>

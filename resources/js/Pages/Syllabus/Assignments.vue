@@ -64,7 +64,6 @@ const label = (as) => `${as.stage_label} — lớp ${as.class_name ?? ''}`;
     <UiPageHeader title="Giao chặng học cho giáo viên" icon="assignment_ind" description="Thiết lập quyền truy cập giáo trình theo từng chặng học cho giáo viên của từng lớp.">
         <template #actions>
             <UiButton v-if="canViewLog" variant="secondary" icon="history" :href="route('activity-logs.index', { log_name: 'Giáo trình & Syllabus' })">Xem log hệ thống</UiButton>
-            <UiButton variant="secondary" icon="menu_book" :href="route('syllabus.teacher-view')">Màn GV xem giáo trình</UiButton>
             <UiButton v-if="canManage" icon="add_task" @click="creating = true">Thiết lập chặng mới</UiButton>
         </template>
     </UiPageHeader>

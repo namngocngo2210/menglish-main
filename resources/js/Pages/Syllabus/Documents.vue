@@ -49,8 +49,6 @@ function uploaded() {
 <template>
     <UiPageHeader title="Quản lý tài liệu giáo trình" description="Quản lý và cập nhật tài liệu cho các khóa học.">
         <template #actions>
-            <UiButton variant="secondary" icon="edit_document" :href="route('syllabus.builder')">Soạn syllabus</UiButton>
-            <UiButton variant="secondary" icon="menu_book" :href="route('syllabus.teacher-view')">Xem như giáo viên</UiButton>
             <UiButton v-if="canUpload" icon="upload_file" @click="uploading = true">Tải lên tài liệu</UiButton>
         </template>
     </UiPageHeader>

@@ -40,4 +40,36 @@ class SyllabusNavigationCleanupTest extends TestCase
     {
         $this->actingAs($this->teacher)->get('/syllabus')->assertRedirect(route('syllabus.teaching-stages'));
     }
+
+    public function test_manager_pages_have_no_cross_links_or_back_button(): void
+    {
+        $this->actingAs($this->academic)->get(route('syllabus.documents'))->assertOk()
+            ->assertDontSee('Xem như giáo viên')->assertDontSee('data-back-link', false);
+        $this->actingAs($this->academic)->get(route('syllabus.builder'))->assertOk()
+            ->assertDontSee('Tiếp tục: Chặng của lớp')->assertDontSee('data-back-link', false);
+        $this->actingAs($this->academic)->get(route('syllabus.assignments'))->assertOk()
+            ->assertDontSee('Màn GV xem giáo trình');
+        $this->actingAs($this->academic)->get(route('syllabus.versions'))->assertOk()
+            ->assertDontSee('data-back-link', false);
+        $this->actingAs($this->academic)->get(route('syllabus.adjustment-requests'))->assertOk()
+            ->assertDontSee('Gửi yêu cầu mới');
+        $this->actingAs($this->academic)->get(route('syllabus.big-tests.schedules'))->assertOk()
+            ->assertDontSee('data-back-link', false);
+    }
+
+    public function test_teacher_pages_have_no_cross_links_or_back_button(): void
+    {
+        $this->actingAs($this->teacher)->get(route('syllabus.teacher-view'))->assertOk()
+            ->assertDontSee('data-back-link', false);
+        $this->actingAs($this->teacher)->get(route('syllabus.teacher-propose'))->assertOk()
+            ->assertDontSee('Xem trạng thái đề xuất')->assertDontSee('data-back-link', false);
+        $this->actingAs($this->teacher)->get(route('syllabus.teacher-adjust'))->assertOk()
+            ->assertDontSee('Duyệt yêu cầu tiến độ')->assertDontSee('data-back-link', false);
+    }
+
+    public function test_import_is_a_child_page_with_back_to_builder(): void
+    {
+        $this->actingAs($this->academic)->get(route('syllabus.import'))->assertOk()
+            ->assertSee('data-back-link href="'.route('syllabus.builder', [], false).'"', false);
+    }
 }

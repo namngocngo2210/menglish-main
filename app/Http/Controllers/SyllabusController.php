@@ -1174,7 +1174,6 @@ class SyllabusController extends Controller
                 'label' => $cl->name.' - '.($openAssignments[$cl->id]?->stage?->label ?? $openAssignments[$cl->id]?->stage_name).' ('.$cl->code.')',
             ])->values(),
             'slaDays' => SyllabusAdjustmentRequest::slaDays(),
-            'canReview' => $user->can(AdminOnlyApprovals::ABILITY), // chỉ Admin duyệt (06/10/2026)
         ]);
     }
 
