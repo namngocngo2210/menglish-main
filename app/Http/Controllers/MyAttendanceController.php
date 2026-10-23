@@ -28,7 +28,7 @@ class MyAttendanceController extends Controller
     /** Yêu cầu khác theo vai trò (màn gốc trên máy tính), lọc theo quyền xem route như sidebar. */
     private const ROLE_REQUESTS = [
         ['label' => 'Đề xuất sửa giáo trình', 'route' => 'syllabus.teacher-propose', 'icon' => 'rate_review', 'can' => ['syllabus.propose_adjustment']],
-        ['label' => 'Xin điều chỉnh tiến độ', 'route' => 'syllabus.teacher-adjust', 'icon' => 'event_repeat', 'can' => ['syllabus.propose_adjustment']],
+        ['label' => 'Customize syllabus', 'route' => 'syllabus.teacher-adjust', 'icon' => 'event_repeat', 'can' => ['syllabus.propose_adjustment']],
         ['label' => 'Hoàn tiền & khất nợ học phí', 'route' => 'tuition.refunds', 'icon' => 'currency_exchange', 'can' => ['refund_transfer.request']],
         ['label' => 'Yêu cầu hủy hóa đơn', 'route' => 'tuition.invoices.cancellations', 'icon' => 'receipt_long', 'can' => ['invoice.request_cancel']],
         ['label' => 'Nhờ hỗ trợ / giao việc', 'route' => 'tasks.create', 'icon' => 'assignment_add', 'can' => ['work_task.request', 'work_task.create']],

@@ -1363,6 +1363,7 @@ class SyllabusController extends Controller
                 'id' => $req->id,
                 'created_at' => $req->created_at->format('d/m/Y'),
                 'class_stage_label' => $req->class_stage_label,
+                'kind_label' => SyllabusAdjustmentRequest::KINDS[$req->kind] ?? SyllabusAdjustmentRequest::KINDS['extend'],
                 'reason' => $req->reason,
                 'applied_note' => $req->applied_note,
                 'extra_sessions' => (int) $req->extra_sessions,
@@ -1445,12 +1446,19 @@ class SyllabusController extends Controller
         $validated = $request->validate([
             'class_id' => 'required|exists:classes,id',
             'request_type' => 'nullable|string|max:255',
+            'kind' => ['nullable', Rule::in(array_keys(SyllabusAdjustmentRequest::KINDS))],
             'reason' => 'required|string|max:2000',
             'extra_sessions' => 'nullable|integer|min:0|max:'.SyllabusAdjustmentRequest::MAX_EXTRA_SESSIONS,
         ]);
         $extra = (int) ($validated['extra_sessions'] ?? 0);
         // Mockup không có ô "loại điều chỉnh": mặc định là giãn tiến độ N buổi.
-        $validated['request_type'] = trim((string) ($validated['request_type'] ?? '')) ?: ($extra > 0 ? "Xin giãn tiến độ thêm {$extra} buổi" : 'Xin điều chỉnh tiến độ');
+        $kind = $validated['kind'] ?? 'extend';
+        if ($kind === 'postpone' && $extra < 1) {
+            throw ValidationException::withMessages(['extra_sessions' => 'Chọn số buổi cần dời.']);
+        }
+        $validated['request_type'] = trim((string) ($validated['request_type'] ?? '')) ?: ($extra > 0
+            ? ($kind === 'postpone' ? "Dời tiến độ {$extra} buổi" : "Xin giãn tiến độ thêm {$extra} buổi")
+            : 'Xin điều chỉnh tiến độ');
 
         $user = $request->user();
         $class = ClassModel::findOrFail($validated['class_id']);
@@ -1467,6 +1475,7 @@ class SyllabusController extends Controller
             'syllabus_assignment_id' => $openAssignmentId,
             'user_id' => $user->id,
             'request_type' => $validated['request_type'],
+            'kind' => $kind,
             'reason' => $validated['reason'],
             'extra_sessions' => $validated['extra_sessions'] ?? null,
             'status' => 'pending',
@@ -1504,7 +1513,15 @@ class SyllabusController extends Controller
 
         $appliedNote = 'Không thay đổi lịch học (yêu cầu không kèm số buổi cần thêm).';
         DB::transaction(function () use ($req, $count, $extension, $targetAssignment, &$appliedNote) {
-            if ($count > 0) {
+            if ($count > 0 && $req->kind === 'postpone') {
+                // Dời tiến độ: không thêm buổi vào TKB — cộng N buổi giãn cho chặng, GV dùng ở nút "Dạy chưa xong".
+                if (! $targetAssignment) {
+                    throw ValidationException::withMessages(['extra_sessions' => 'Lớp không có chặng đang mở để dời tiến độ.']);
+                }
+                $targetAssignment->increment('extra_sessions', $count);
+                $req->syllabus_assignment_id ??= $targetAssignment->id;
+                $appliedNote = "Dời tiến độ {$targetAssignment->stage_name}: +{$count} buổi giãn (không thêm buổi vào TKB).";
+            } elseif ($count > 0) {
                 $created = $extension->extend($req->classModel, $count, "Giãn tiến độ theo yêu cầu #{$req->id}");
                 $appliedNote = 'Đã thêm '.count($created).' buổi: '
                     .collect($created)->map(fn ($s) => $s->date->format('d/m/Y'))->implode(', ')

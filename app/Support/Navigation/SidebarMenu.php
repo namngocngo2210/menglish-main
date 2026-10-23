@@ -118,7 +118,7 @@ final class SidebarMenu
                     // Mọi nhân sự: bổ sung công, xin đi muộn / về sớm, xin nghỉ (cũng mở từ trang Chấm công của tôi).
                     ['label' => 'Đơn chấm công & nghỉ', 'route' => 'my-attendance.requests'],
                     ['label' => 'Đề xuất sửa giáo trình', 'route' => 'syllabus.teacher-propose'],
-                    ['label' => 'Xin điều chỉnh tiến độ', 'route' => 'syllabus.teacher-adjust'],
+                    ['label' => 'Customize syllabus', 'route' => 'syllabus.teacher-adjust'],
                 ],
             ],
             [

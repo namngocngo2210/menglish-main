@@ -339,7 +339,7 @@ class Phase2MockupSyllabusTest extends TestCase
     {
         // Chưa có chặng mở → trạng thái trống như mockup
         $this->actingAs($this->teacher)->get(route('syllabus.teacher-adjust'))->assertOk()
-            ->assertSee('Xin điều chỉnh tiến độ')
+            ->assertSee('Customize syllabus')
             ->assertSee('Không có chặng học nào đang mở');
 
         $this->openStage();
@@ -363,7 +363,8 @@ class Phase2MockupSyllabusTest extends TestCase
         $this->actingAs($this->teacher)->get(route('syllabus.teacher-adjust'))->assertOk()
             ->assertSee('Danh sách yêu cầu đã gửi')
             ->assertSee('Lớp / Chặng')
-            ->assertSee('Số buổi thêm')
+            ->assertSee('Giãn thêm buổi') // cột Loại (Customize syllabus)
+            ->assertSee('Số buổi')
             ->assertSee('Lớp Mockup 01 - Chặng 1: Nền tảng');
 
         // Màn duyệt: danh sách có SLA còn hạn / quá hạn, lớp - chặng, xin thêm N buổi; bấm dòng → modal chi tiết (?request=),
