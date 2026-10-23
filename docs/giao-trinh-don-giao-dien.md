@@ -9,8 +9,8 @@ Phản hồi của chủ dự án: giao diện phần giáo trình đang rối, 
 Hiện trạng (13 màn `resources/js/Pages/Syllabus/*`, rải ở 4 nhóm sidebar: Giáo trình, Big Test, Phê duyệt, Xin duyệt):
 
 - Workspace **Giáo trình** (`SidebarMenu::definition()`, id `syllabus`) có tab theo thứ tự `Tài liệu | Soạn syllabus |
-  Giao chặng | Chặng đang dạy & Order Test | Xem bài giảng | Dự án soạn sách & chương trình` — không theo trình tự
-  công việc (soạn cấu trúc → tài liệu → giao chặng → dạy).
+  Giao chặng | Chặng đang dạy & Order Test | Xem bài giảng | Dự án soạn sách & chương trình` — thanh tab này
+  đã đủ để chuyển giữa các màn (giữ nguyên).
 - `/syllabus` (`syllabus.index`) luôn mở màn **Tài liệu** (màn quản lý), kể cả với giáo viên.
 - Đầu trang mỗi màn có 2–3 nút chéo sang màn khác (Tài liệu → Soạn / Xem như GV, Soạn → Giao chặng, Đề xuất →
   Trạng thái / Tiến độ…), trùng với thanh tab của workspace.
@@ -23,37 +23,30 @@ Hiện trạng (13 màn `resources/js/Pages/Syllabus/*`, rải ở 4 nhóm sideb
 
 | | Mô tả | Kết luận |
 |---|---|---|
-| **A. Dọn, không gộp màn** | Giữ route/trang; sắp lại tab, bỏ nút chéo, sửa back, ô soạn thành modal | **Chọn** — rủi ro thấp, ~1 sprint |
+| **A. Dọn, không gộp màn** | Giữ route/trang; bỏ nút chéo, sửa back, ô soạn thành modal | **Chọn** — rủi ro thấp, ~1 sprint |
 | B. Gộp theo đối tượng | Trang chi tiết giáo trình có tab (Cấu trúc / Tài liệu / Lớp / Đề xuất) + màn "Lớp tôi dạy" cho GV | Để sau, khi A chưa đủ |
 | C. Workspace kiểu IDE | Cây bên trái, chi tiết bên phải | Loại — chi phí cao, lệch quy ước modal/Inertia của repo |
 
 ## 3. Quyết định
 
-Phạm vi: phía Học thuật + Giáo viên. **Không** đổi route, schema, quyền. **Không** đụng Big Test (trừ sửa 1 nút back
+Phạm vi: phía Học thuật + Giáo viên. **Không** đổi sidebar, route, schema, quyền. **Không** đụng Big Test (trừ sửa 1 nút back
 sai).
 
-### 3.1. Sidebar — workspace Giáo trình
+### 3.1. Sidebar — giữ nguyên
 
-| # | Nhãn | Route | Hiện với |
-|---|---|---|---|
-| 1 | Cấu trúc giáo trình | `syllabus.builder` (+ `syllabus.import` active) | `syllabus.manage` |
-| 2 | Tài liệu | `syllabus.documents` | `syllabus.manage` |
-| 3 | Giao chặng cho lớp | `syllabus.assignments` | `syllabus.manage` |
-| 4 | Lớp đang dạy | `syllabus.teaching-stages` (+ `teacher.order-test*`) | mọi người xem giáo trình |
-| 5 | Bài giảng & tài liệu | `syllabus.teacher-view` | mọi người xem giáo trình |
-| 6 | Dự án soạn sách & chương trình | giữ nguyên | giữ nguyên |
-
-Nhóm Phê duyệt / Xin duyệt giữ nguyên.
+Workspace **Giáo trình** và các tab bên trong (nhãn, thứ tự, quyền) giữ nguyên; chỉ chỉnh bên trong từng màn. Nhóm
+Phê duyệt / Xin duyệt cũng giữ nguyên.
 
 ### 3.2. Trang mặc định `/syllabus`
 
-`syllabus.index` chuyển hướng: có `syllabus.manage` → `syllabus.builder`; còn lại → `syllabus.teaching-stages`.
+`syllabus.index` chuyển hướng: có `syllabus.manage` → `syllabus.documents` (tab đầu tiên, như hiện tại); còn lại →
+`syllabus.teaching-stages` (giáo viên không còn rơi vào màn quản lý tài liệu).
 
 ### 3.3. Quy tắc đầu trang & Quay lại
 
 - Đầu trang chỉ chứa **thao tác của chính trang** (Tạo, Tải lên, Import, Gửi). Điều hướng ngang hàng do thanh tab đảm
   nhận.
-- `:back` chỉ cho **trang con** (Import → Cấu trúc giáo trình). Trang ngang hàng không có back.
+- `:back` chỉ cho **trang con** (Import → Soạn syllabus). Trang ngang hàng không có back.
 
 | Trang | Bỏ | Giữ |
 |---|---|---|
@@ -67,9 +60,8 @@ Nhóm Phê duyệt / Xin duyệt giữ nguyên.
 | `AdjustmentRequests` | "Gửi yêu cầu mới" | — |
 | `BigTestSchedules` | `:back` về Tài liệu (sai workspace) | phần còn lại |
 
-### 3.4. Cấu trúc giáo trình — soạn trong modal
+### 3.4. Soạn syllabus — soạn trong modal
 
-- Tiêu đề trang: "Cấu trúc giáo trình".
 - Khối `#editor` chuyển vào `UiModal` (`:show="!!editor"`, `dismiss-url` = `?curriculum=X`), cùng mẫu
   `selected` + `dismiss-url` của `Versions` / `AdjustmentRequests`. Server vẫn tính prop `editor` từ query như cũ.
 - Nút Sửa / Thêm (chặng, unit, buổi) bỏ `#editor`, dùng `preserve-scroll` → giữ vị trí cây khi mở / đóng / lưu.
@@ -77,16 +69,15 @@ Nhóm Phê duyệt / Xin duyệt giữ nguyên.
 
 ## 4. Rủi ro
 
-- Test đang assert nhãn / nút cũ (`SyllabusModuleTest`, `Phase2MockupSyllabusTest`, `Phase2AcceptanceTest`,
-  `AcademicSystemTest`, `SyllabusStageProgressionTest`) → cập nhật theo nhãn mới.
-- Người dùng quen nút chéo cũ → thanh tab ngay trên trang thay thế; không mất chức năng nào.
+- Test đang assert nút cũ (`SyllabusModuleTest`, `Phase2MockupSyllabusTest`, `Phase2AcceptanceTest`,
+  `AcademicSystemTest`, `SyllabusStageProgressionTest`) → cập nhật theo nút / back mới.
+- Người dùng quen nút chéo cũ → thanh tab của workspace (đã có) thay thế; không mất chức năng nào.
 - `syllabus.index` đổi từ render sang redirect → link / bookmark cũ vẫn chạy.
 
 ## 5. Sprint
 
 ### Sprint 1 — Điều hướng & soạn trong modal
 
-- [ ] Sidebar: thứ tự + nhãn tab mới (3.1), test thứ tự / nhãn theo quyền.
 - [ ] `/syllabus` redirect theo quyền (3.2), test 2 trường hợp.
 - [ ] Bỏ nút chéo / back theo bảng 3.3.
 - [ ] Builder: ô soạn thành modal, `preserve-scroll` (3.4); test prop `editor` với `?edit_lesson=`.
