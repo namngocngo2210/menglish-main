@@ -1,7 +1,8 @@
 <script setup>
 /**
- * Học tập của tôi — Nộp bài tập (MH #3): 6 hạng mục bài tập (nộp / sửa / hủy nộp), nhận xét buổi học (kèm phụ huynh chấm từng buổi),
- * bảng điểm, lộ trình.
+ * Học tập của tôi — Nộp bài tập (MH #3): bài tập GV giao nộp theo 3 giỏ (giấy = ảnh, video = video, Quizizz = bấm "Đã làm" —
+ * docs/kho-syllabus.md §10); chưa có bài GV giao thì 6 hạng mục nộp tự do (nộp / sửa / hủy nộp). Nhận xét buổi học (kèm phụ huynh
+ * chấm từng buổi), bảng điểm, lộ trình.
  * Nhân sự xem hộ thì quay về danh sách học viên; học viên quay về trang chủ cổng. Trên điện thoại dùng thanh điều hướng đáy.
  */
 import { computed, ref } from 'vue';
@@ -26,6 +27,7 @@ const props = defineProps({
     bigTestResults: { type: Array, default: () => [] },
     latestHomework: { type: Object, default: null },
     homeworkUrgent: { type: Boolean, default: false },
+    assignments: { type: Array, default: () => [] },
 });
 
 const CATEGORIES = {
@@ -57,6 +59,12 @@ const params = computed(() => ({ studentId: props.student?.id ?? null }));
 const backUrl = computed(() => (can('student.view') ? route('students.index') : route('portal.student.home', params.value)));
 const studentOptions = computed(() => props.students.map((s) => ({ value: s.id, label: `${s.name} (${s.class_name ?? 'Chưa xếp lớp'})` })));
 const filled = (value) => value !== null && value !== undefined && String(value).trim() !== '';
+
+// Nộp theo giỏ của bài tập GV giao.
+const basketOpen = ref(null);
+function openBasket(hw, basket) {
+    basketOpen.value = { hw, basket };
+}
 
 const uploadOpen = ref(false);
 const uploadType = ref('video');
@@ -134,20 +142,47 @@ function switchStudent(event) {
                         <h2 class="text-base font-bold text-on-surface">Bài tập về nhà</h2>
                     </div>
 
+                    <!-- Bài tập GV giao — nộp đúng giỏ theo loại để thống kê -->
+                    <div v-for="hw in assignments" :key="hw.id" class="flex flex-col gap-2 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-3.5 shadow-2xs" data-testid="assigned-homework">
+                        <div>
+                            <h3 class="text-sm font-bold text-on-surface">{{ hw.title }}</h3>
+                            <p class="text-xs text-on-surface-variant">{{ hw.class_name }} · Hạn nộp: {{ hw.due_date ? formatDate(hw.due_date) : 'Không giới hạn' }}</p>
+                            <p v-if="hw.note" class="mt-1 text-xs italic text-on-surface-variant">{{ hw.note }}</p>
+                        </div>
+                        <div v-for="b in hw.baskets" :key="b.key" class="rounded-xl border border-surface-container-highest bg-surface-container-low p-2.5 text-xs">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="flex items-center gap-1 font-bold text-on-surface"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">{{ b.icon }}</span>{{ b.label }}</span>
+                                <UiBadge v-if="b.submission?.status === 'reviewed'" color="success" pill>GV đã xem</UiBadge>
+                                <UiBadge v-else-if="b.submission" color="info" pill>{{ b.upload ? 'Đã nộp' : 'Đã làm' }}</UiBadge>
+                                <UiBadge v-else color="error" pill>Chưa nộp</UiBadge>
+                            </div>
+                            <p v-if="b.text" class="mt-1 whitespace-pre-line text-on-surface-variant">{{ b.text }}</p>
+                            <div class="mt-2 flex flex-wrap items-center gap-2">
+                                <a v-if="b.link" :href="b.link" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 font-bold text-secondary hover:underline">Mở Quizizz <span class="material-symbols-outlined text-[14px]" aria-hidden="true">open_in_new</span></a>
+                                <a v-if="b.submission?.file_url" :href="b.submission.file_url" target="_blank" rel="noopener" class="inline-flex items-center gap-1 font-bold text-primary hover:underline"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">attachment</span>{{ b.submission.original_name ?? 'Bài đã nộp' }}</a>
+                                <UiButton v-if="b.upload" size="sm" :variant="b.submission ? 'secondary' : 'primary'" icon="upload" class="ml-auto" @click="openBasket(hw, b)">{{ b.submission ? 'Nộp lại' : 'Nộp bài' }}</UiButton>
+                                <UiForm v-else-if="!b.submission" :action="route('portal.student.homework.basket', [hw.id, b.key])" method="post" class="ml-auto">
+                                    <input type="hidden" name="student_id" :value="student?.id" />
+                                    <UiButton type="submit" size="sm" icon="task_alt">Đã làm</UiButton>
+                                </UiForm>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Bài tập giáo viên giao gần nhất -->
-                    <UiAlert v-if="latestHomework" type="error" :title="latestHomework.title">
+                    <UiAlert v-if="!assignments.length && latestHomework" type="error" :title="latestHomework.title">
                         <p v-if="latestHomework.description" class="text-xs leading-normal">{{ latestHomework.description }}</p>
                         <p class="mt-1 text-xs">{{ latestHomework.class_name }} · Hạn nộp: {{ latestHomework.due_date ?? 'Không giới hạn' }}</p>
                     </UiAlert>
 
-                    <div class="mt-1 flex items-center justify-between">
+                    <div v-if="!assignments.length" class="mt-1 flex items-center justify-between">
                         <p class="text-xs font-bold text-on-surface">Đã hoàn thành: {{ completedCount }}/6 hạng mục</p>
                         <div class="h-2 w-1/3 overflow-hidden rounded-full bg-surface-container">
                             <div class="h-full rounded-full bg-tertiary transition-all duration-300" :style="{ width: Math.round((completedCount / 6) * 100) + '%' }"></div>
                         </div>
                     </div>
 
-                    <div class="flex flex-col gap-2.5">
+                    <div v-if="!assignments.length" class="flex flex-col gap-2.5">
                         <div v-for="{ key, cat, sub, urgent } in cards" :key="key" class="flex flex-col gap-2 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-3.5 shadow-2xs">
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-2">
@@ -317,6 +352,21 @@ function switchStudent(event) {
             <template #footer>
                 <UiButton variant="secondary" @click="uploadOpen = false">Hủy</UiButton>
                 <UiButton type="submit" form="homework-upload-form" icon="send"><span>Xác nhận nộp bài</span></UiButton>
+            </template>
+        </UiModal>
+
+        <!-- Nộp theo giỏ của bài tập GV giao -->
+        <UiModal :show="!!basketOpen" :title="basketOpen ? `${basketOpen.basket.label} — ${basketOpen.hw.title}` : ''" max-width="md" @close="basketOpen = null">
+            <UiForm v-if="basketOpen" id="homework-basket-form" :key="`${basketOpen.hw.id}-${basketOpen.basket.key}`" :action="route('portal.student.homework.basket', [basketOpen.hw.id, basketOpen.basket.key])" method="post" class="space-y-4 text-xs" @success="basketOpen = null">
+                <input type="hidden" name="student_id" :value="student?.id" />
+                <UiField :label="basketOpen.basket.key === 'video' ? 'Chọn video bài làm' : 'Chụp / chọn ảnh bài làm'" name="file" for="homework-basket-file">
+                    <input id="homework-basket-file" type="file" name="file" :accept="basketOpen.basket.accept" :capture="basketOpen.basket.key === 'video' ? null : 'environment'" class="w-full rounded-lg border border-outline-variant bg-surface-container-low p-2 text-xs" />
+                </UiField>
+                <UiTextarea name="note" label="Ghi chú gửi thầy cô (Tùy chọn)" :rows="2" />
+            </UiForm>
+            <template #footer>
+                <UiButton variant="secondary" @click="basketOpen = null">Hủy</UiButton>
+                <UiButton type="submit" form="homework-basket-form" icon="send">Nộp bài</UiButton>
             </template>
         </UiModal>
 

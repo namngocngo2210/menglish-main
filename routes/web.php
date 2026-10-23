@@ -359,6 +359,10 @@ Route::middleware('auth')->group(function () {
         // Step 3: Học tập của tôi — Nộp bài tập
         Route::get('/student-homework/{studentId?}', [StudentPortalController::class, 'studentHomework'])->name('student.homework');
         Route::post('/student-homework/submit', [StudentPortalController::class, 'submitHomework'])->name('student.homework.submit');
+        // Homework 3 giỏ: nộp theo bài tập GV giao & giỏ; file bài nộp lưu riêng tư (docs/kho-syllabus.md §10).
+        Route::post('/student-homework/{homework}/basket/{basket}', [StudentPortalController::class, 'submitBasket'])
+            ->whereNumber('homework')->whereIn('basket', ['paper', 'quizizz', 'video'])->name('student.homework.basket');
+        Route::get('/student-homework/file/{submission}', [StudentPortalController::class, 'homeworkFile'])->whereNumber('submission')->name('student.homework-file');
         Route::post('/student-homework/{id}/update', [StudentPortalController::class, 'updateHomework'])->name('student.homework.update');
         Route::delete('/student-homework/{id}/destroy', [StudentPortalController::class, 'deleteHomework'])->name('student.homework.destroy');
         // Phụ huynh chấm từng buổi học ngay dưới nhận xét của giáo viên

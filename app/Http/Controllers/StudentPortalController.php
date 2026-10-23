@@ -8,6 +8,7 @@ use App\Models\ClassModel;
 use App\Models\ClassSession;
 use App\Models\ClassSessionFeedback;
 use App\Models\Homework;
+use App\Models\HomeworkSubmission;
 use App\Models\MiniTestScore;
 use App\Models\Student;
 use App\Models\StudentAttendance;
@@ -23,6 +24,7 @@ use App\Support\TuitionPaymentHistory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -460,6 +462,8 @@ class StudentPortalController extends Controller
                 'class_name' => $latestHomework->classModel?->name,
                 'due_date' => $latestHomework->due_date?->format('d/m/Y'),
             ] : null,
+            // Bài tập GV giao theo giỏ (giai đoạn 5 syllabus); có bài thì ẩn 6 hạng mục nộp tự do cũ.
+            'assignments' => $student ? $this->assignedHomework($student) : [],
             // Chỉ tô cam mục chưa nộp đầu tiên khi bài GV giao sắp/đã tới hạn (≤ 2 ngày).
             'homeworkUrgent' => (bool) ($latestHomework?->due_date && $latestHomework->due_date->lte(now()->addDays(2)->endOfDay())),
         ]);
@@ -648,6 +652,97 @@ class StudentPortalController extends Controller
         ]);
 
         return back()->with('success', 'Đã nộp bài tập thành công! Giáo viên sẽ nhận được thông báo để kiểm tra và chấm điểm.');
+    }
+
+    /**
+     * Nộp bài theo giỏ của bài tập GV giao (docs/kho-syllabus.md §10.2): giấy = ảnh, video = video, Quizizz = tự khai "Đã làm".
+     * Nộp lại cùng giỏ thì thay bài cũ (về trạng thái chờ GV xem).
+     */
+    public function submitBasket(Request $request, int $homework, string $basket)
+    {
+        $validated = $request->validate([
+            'student_id' => ['required', 'integer'],
+            'note' => ['nullable', 'string', 'max:1000'],
+        ]);
+        $student = Student::findOrFail($validated['student_id']);
+        $this->authorizeStudent($student);
+        $hw = Homework::whereIn('class_id', $student->activeClassIds())->findOrFail($homework);
+        abort_unless(in_array($basket, $hw->baskets(), true), 404);
+
+        $allowed = HomeworkSubmission::BASKETS[$basket][2];
+        $path = $name = null;
+        if ($allowed) {
+            $request->validate(['file' => ['required', 'file', 'max:102400']], ['file.required' => 'Chọn '.($basket === 'video' ? 'video' : 'ảnh bài làm').' để nộp.']);
+            $path = SafeUploadService::store($request->file('file'), 'homework_submissions', $allowed, 'file', 'local');
+            $name = $request->file('file')->getClientOriginalName();
+        }
+
+        $existing = HomeworkSubmission::where(['homework_id' => $hw->id, 'student_id' => $student->id, 'basket' => $basket])->first();
+        if ($existing?->file_path && $existing->file_path !== $path) {
+            Storage::disk('local')->delete($existing->file_path);
+        }
+        HomeworkSubmission::updateOrCreate(['homework_id' => $hw->id, 'student_id' => $student->id, 'basket' => $basket], [
+            'file_path' => $path, 'original_name' => $name, 'note' => $validated['note'] ?? null,
+            'status' => HomeworkSubmission::STATUS_SUBMITTED, 'submitted_at' => now(), 'reviewed_by' => null, 'reviewed_at' => null,
+        ]);
+
+        return back()->with('success', $allowed ? 'Đã nộp '.mb_strtolower(HomeworkSubmission::BASKETS[$basket][0]).'.' : 'Đã ghi nhận làm bài Quizizz.');
+    }
+
+    /** File bài nộp theo giỏ (lưu riêng tư): học viên / phụ huynh của bài, GV lớp, nhân sự xem được học viên. */
+    public function homeworkFile(int $submission)
+    {
+        $row = HomeworkSubmission::with(['homework', 'student'])->whereNotNull('file_path')->findOrFail($submission);
+        $user = Auth::user();
+        $class = $row->homework?->class_id;
+        $allowed = $row->student && ($row->student->isLinkedTo($user)
+            || ($user->can('homework.grade') && $class && ClassModel::whereKey($class)->where(fn ($q) => $q->where('teacher_id', $user->id)
+                ->orWhere('assistant_id', $user->id)->orWhere('foreign_teacher_id', $user->id))->exists())
+            || ($user->can('student.view') && Student::query()->visibleTo($user)->whereKey($row->student_id)->exists()));
+        abort_unless($allowed, 404);
+
+        return Storage::disk('local')->response($row->file_path, $row->original_name, ['X-Content-Type-Options' => 'nosniff', 'Cache-Control' => 'private, max-age=3600']);
+    }
+
+    /**
+     * Bài tập GV giao 30 ngày gần nhất của (các) lớp học viên, kèm giỏ và bài đã nộp.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function assignedHomework(Student $student): array
+    {
+        return Homework::with(['classModel:id,name', 'submissions' => fn ($q) => $q->where('student_id', $student->id)])
+            ->whereIn('class_id', $student->activeClassIds())->where('created_at', '>=', now()->subDays(30))
+            ->latest()->limit(10)->get()
+            ->filter(fn (Homework $hw) => $hw->baskets() !== [])
+            ->map(fn (Homework $hw) => [
+                'id' => $hw->id,
+                'title' => $hw->title,
+                'class_name' => $hw->classModel?->name,
+                'note' => $hw->class_note,
+                'due_date' => $hw->due_date?->toDateString(),
+                'baskets' => collect($hw->baskets())->map(function (string $basket) use ($hw) {
+                    $sub = $hw->submissions->firstWhere('basket', $basket);
+
+                    return [
+                        'key' => $basket,
+                        'label' => HomeworkSubmission::BASKETS[$basket][0],
+                        'icon' => HomeworkSubmission::BASKETS[$basket][1],
+                        'upload' => HomeworkSubmission::BASKETS[$basket][2] !== null,
+                        'accept' => $basket === 'video' ? 'video/*' : 'image/*',
+                        'text' => collect($hw->items ?? [])->filter(fn ($text, $category) => filled($text) && Homework::basketOf($category) === $basket)->implode("\n"),
+                        'link' => $basket === 'quizizz' ? $hw->quizizz_url : null,
+                        'submission' => $sub ? [
+                            'id' => $sub->id,
+                            'status' => $sub->status,
+                            'submitted_at' => $sub->submitted_at->toIso8601String(),
+                            'original_name' => $sub->original_name,
+                            'note' => $sub->note,
+                            'file_url' => $sub->file_path ? route('portal.student.homework-file', $sub->id) : null,
+                        ] : null,
+                    ];
+                })->values()->all(),
+            ])->values()->all();
     }
 
     /**
