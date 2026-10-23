@@ -6,6 +6,7 @@
  */
 import { ref } from 'vue';
 import { router } from '@inertiajs/vue3';
+import { route } from '@/lib/route';
 
 defineProps({
     groups: { type: Array, required: true },
