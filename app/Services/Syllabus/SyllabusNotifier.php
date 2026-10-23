@@ -6,6 +6,7 @@ use App\Models\AdminNotification;
 use App\Models\ClassModel;
 use App\Models\SyllabusAssignment;
 use App\Models\SyllabusStage;
+use App\Models\WorkTask;
 use App\Services\BranchStaff;
 use App\Services\NotificationService;
 use App\Support\Roles;
@@ -94,6 +95,24 @@ class SyllabusNotifier
         $assignment->update(['user_id' => $class->teacher_id, 'assigned_at' => now(), 'confirmed_at' => null, 'confirmed_by' => null, 'confirm_reminded_at' => null]);
         $assignment->setRelation('classModel', $class);
         $this->stageAssigned($assignment);
+    }
+
+    /** Sắp hết chặng → Học thuật được giao việc, nút NHẬN VIỆC (Bước 8). */
+    public function stageEnding(WorkTask $task): void
+    {
+        $this->send([$task->assignee_id], $task->title,
+            'Hạn: '.$task->due_date?->format('d/m/Y').' (buổi cuối chặng dự kiến). Bấm NHẬN VIỆC để chuyển vào Công việc cần làm.',
+            ['label' => 'NHẬN VIỆC', 'url' => route('tasks.accept', $task->id), 'method' => 'post']);
+    }
+
+    /** Việc quá hạn → người làm + Quản lý chi nhánh, nút XỬ LÝ (Sheet 3 "Việc quá hạn"). */
+    public function taskOverdue(WorkTask $task): void
+    {
+        $task->loadMissing('classModel');
+        $managers = BranchStaff::withRoles(Roles::MANAGER, $task->branch_id)->pluck('id');
+        $this->send(collect([$task->assignee_id])->merge($managers), "Việc “{$task->title}” của lớp {$task->classModel?->name} đã quá hạn.",
+            'Hạn chót '.$task->due_date?->format('d/m/Y').' đã qua — xử lý và bấm HOÀN THÀNH.',
+            ['label' => 'XỬ LÝ', 'url' => route('tasks.show', $task->id), 'method' => 'get']);
     }
 
     /** GV nhận syllabus của lớp: GV được giao chặng + GV chính + GVNN (bỏ trùng). */

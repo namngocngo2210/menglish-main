@@ -34,6 +34,9 @@ Schedule::command('syllabus:remind-unconfirmed')->hourlyAt(25);
 Schedule::command('syllabus:refresh-stage-deadlines')->hourlyAt(5);
 // Quyền xem file Google Drive theo chặng lớp đang học (docs/kho-syllabus.md §7.4): mở khi giao chặng, đóng khi chặng đóng.
 Schedule::command('syllabus:sync-drive-access')->everyMinute()->withoutOverlapping(10);
+// Sắp hết chặng → việc cho Học thuật (NHẬN VIỆC); việc quá hạn nhắc người làm + Quản lý mỗi sáng (docs/kho-syllabus.md §9.2).
+Schedule::command('syllabus:stage-end-alerts')->hourlyAt(35);
+Schedule::command('syllabus:remind-overdue-tasks')->dailyAt('08:00');
 // Cảnh báo hợp đồng nhân sự hết hạn trong N ngày (Cấu hình SLA, mặc định 30; idempotent, chạy lại không tạo trùng).
 Schedule::command('hr:notify-expiring-contracts')->dailyAt('07:50');
 // Hết thời gian bảo lưu → học viên về Đang học / Chờ khai giảng, báo Học vụ (idempotent). Chạy trước nhắc nợ 08:30.

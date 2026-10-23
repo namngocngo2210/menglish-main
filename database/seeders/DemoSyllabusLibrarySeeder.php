@@ -138,6 +138,7 @@ class DemoSyllabusLibrarySeeder extends Seeder
                     'notice_milestone' => match (true) {
                         $i === 0 => 'order_print',
                         $i === $last - 2 => 'order_big_test',
+                        $i === $last - 3 => 'notify_academic',
                         str_starts_with($lessons[$i + 1]->title ?? '', 'Ôn tập') => 'order_mini_test',
                         default => null,
                     },

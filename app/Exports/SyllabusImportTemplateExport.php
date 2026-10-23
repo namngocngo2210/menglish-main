@@ -69,7 +69,7 @@ class SyllabusImportTemplateExport implements WithMultipleSheets
             'Buổi: cột Chặng điền số thứ tự của chặng (1, 2...), không điền chữ "Chặng 1". Mỗi chặng có ít nhất 1 buổi.',
             'Buổi số đánh liên tục 1...N trong cả giáo trình (không đặt lại từ 1 ở mỗi chặng), không trùng nhau.',
             'Một unit chỉ thuộc một chặng; các dòng cùng Unit số phải cùng Tên unit. Unit số từ 1 đến 500, tối đa 1000 buổi.',
-            'Cột theo form syllabus mẫu (không bắt buộc): Loại buổi (Học / Ôn tập / Grammar Basic / Mini test / Big test, để trống là Học), Quy trình tiết học, Hoạt động gợi ý 1–2, Bài tập Quizizz / Video, Link PPT / PPT GVNN / Quizizz / Mini test – Kiểm tra từ (phải bắt đầu bằng http:// hoặc https://), Sản phẩm đầu ra, Mốc thông báo (Order in ấn / Order mini test / Order Big Test), Ghi chú.',
+            'Cột theo form syllabus mẫu (không bắt buộc): Loại buổi (Học / Ôn tập / Grammar Basic / Mini test / Big test, để trống là Học), Quy trình tiết học, Hoạt động gợi ý 1–2, Bài tập Quizizz / Video, Link PPT / PPT GVNN / Quizizz / Mini test – Kiểm tra từ (phải bắt đầu bằng http:// hoặc https://), Sản phẩm đầu ra, Mốc thông báo (Order in ấn / Order mini test / Order Big Test / Báo Học thuật chuẩn bị), Ghi chú.',
             'Chặng: Báo trước (buổi) là số buổi trước buổi cuối chặng hệ thống báo Học thuật (1–50, để trống là 6).',
             'File mẫu có sẵn tài liệu ví dụ (PDF, ảnh, audio, video) trong tai-lieu/chang-1 và chang-2: thay bằng tài liệu thật hoặc xoá đi trước khi import.',
             'Tài liệu (không bắt buộc): đặt vào thư mục tai-lieu/chang-<thứ tự>/ (ví dụ tai-lieu/chang-1/). Thư mục phải khớp một chặng trong sheet "Chặng".',

@@ -900,6 +900,19 @@ class WorkTaskController extends Controller
     /**
      * Cập nhật tiến độ hoàn thành từ TA Portal (Hoàn thành / Hoàn thành gấp)
      */
+    /** NHẬN VIỆC (quy trình syllabus Bước 9): người được giao chuyển việc Mới → Đang làm. */
+    public function accept(Request $request, int $id)
+    {
+        $task = WorkTask::findOrFail($id);
+        abort_unless((int) $task->assignee_id === (int) $request->user()->id, 403);
+        if ($task->status !== 'new') {
+            throw ValidationException::withMessages(['status' => 'Việc này đã được nhận hoặc đã xử lý.']);
+        }
+        $task->update(['status' => 'in_progress']);
+
+        return redirect()->back()->with('success', "Đã nhận việc '{$task->title}' — chuyển sang Đang làm.");
+    }
+
     public function completeTask(Request $request, $id)
     {
         $task = WorkTask::findOrFail($id);
@@ -920,8 +933,9 @@ class WorkTaskController extends Controller
             $imagePath = $request->input('proof_image_url');
         }
 
-        // Quy tắc: Có ảnh đính kèm -> Hoàn thành ngay (completed); Không có ảnh -> Chờ xác nhận (pending_confirmation)
-        if ($hasImage) {
+        // Quy tắc: Có ảnh đính kèm -> Hoàn thành ngay (completed); Không có ảnh -> Chờ xác nhận (pending_confirmation).
+        // Việc cuối chặng của Học thuật: HOÀN THÀNH là xong ngay (Bước 10 quy trình syllabus).
+        if ($hasImage || $task->kind === WorkTask::KIND_SYLLABUS_STAGE_END) {
             $task->update([
                 'status' => 'completed',
                 'completion_proof_image' => $imagePath,

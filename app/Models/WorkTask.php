@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Services\FirstMonthCareService;
 use App\Support\Approvals\AdminOnlyApprovals;
 use App\Support\DataScope;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -47,6 +48,8 @@ class WorkTask extends Model
         'confirmed_at',
         'completed_at',
         'sla_breached_at',
+        'syllabus_assignment_id',
+        'last_reminded_on',
     ];
 
     protected $casts = [
@@ -54,6 +57,7 @@ class WorkTask extends Model
         'confirmed_at' => 'datetime',
         'completed_at' => 'datetime',
         'sla_breached_at' => 'datetime',
+        'last_reminded_on' => 'date',
         'handed_back_at' => 'datetime',
     ];
 
@@ -162,6 +166,9 @@ class WorkTask extends Model
     /** Trạng thái còn phải làm (sẽ thành "Quá hạn" khi qua hạn). */
     public const OPEN_STATUSES = ['new', 'in_progress'];
 
+    /** Việc cuối chặng cho Học thuật (docs/kho-syllabus.md §9.2): NHẬN VIỆC → Đang làm, HOÀN THÀNH không cần ảnh / xác nhận. */
+    public const KIND_SYLLABUS_STAGE_END = 'syllabus_stage_end';
+
     /**
      * Tạo lượt kế tiếp của việc lặp (hạn + 1 ngày / 1 tuần / 1 tháng), cùng người giao / người nhận.
      * Không tạo trùng nếu lượt kế tiếp (cùng tiêu đề, người nhận, hạn) đã có.
@@ -204,7 +211,7 @@ class WorkTask extends Model
     }
 
     /** Thời điểm hết hạn = ngày hạn + giờ hạn (không có giờ → cuối ngày). */
-    public function dueAt(): ?\Carbon\CarbonInterface
+    public function dueAt(): ?CarbonInterface
     {
         if (! $this->due_date) {
             return null;
@@ -229,7 +236,7 @@ class WorkTask extends Model
     }
 
     /** Số giờ trễ hạn (làm tròn lên), 0 nếu chưa quá hạn (nhiệm vụ hằng ngày của TA không có hạn nên luôn 0). */
-    public function lateHours(?\Carbon\CarbonInterface $now = null): int
+    public function lateHours(?CarbonInterface $now = null): int
     {
         if ($this->isTaDaily()) {
             return 0;

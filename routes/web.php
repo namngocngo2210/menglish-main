@@ -768,6 +768,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/classes-dashboard', [WorkTaskController::class, 'classesDashboard'])->name('classes-dashboard');
         Route::get('/ta-assign', [WorkTaskController::class, 'taAssignForm'])->middleware('can:work_task.assign')->name('ta-assign');
         Route::post('/ta-assign', [WorkTaskController::class, 'taAssignStore'])->middleware('can:work_task.assign')->name('ta-assign.store');
+        Route::post('/{id}/accept', [WorkTaskController::class, 'accept'])->whereNumber('id')->name('accept');
         Route::post('/{id}/complete', [WorkTaskController::class, 'completeTask'])->name('complete');
         Route::get('/class-reports/create', [WorkTaskController::class, 'createClassReport'])->name('class-reports.create');
         Route::post('/class-reports', [WorkTaskController::class, 'storeClassReport'])->name('class-reports.store');
