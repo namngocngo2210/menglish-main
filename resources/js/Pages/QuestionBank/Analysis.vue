@@ -1,11 +1,12 @@
 <script setup>
 /**
  * Phân tích câu hỏi (docs/luyen-tap-ngan-hang-cau-hoi.md §7): câu có tỉ lệ sai cao nhất trước, chỉ câu có từ
- * `minAttempts` lượt làm trở lên; mỗi dòng có đáp án đúng, đáp án sai nhiều nhất và link sửa câu (modal).
+ * `minAttempts` lượt làm trở lên; mỗi dòng có đáp án đúng, đáp án sai nhiều nhất và link sửa câu (modal). Câu đã sửa
+ * chỉ tính lượt bắt đầu sau lần sửa cuối (`edited_at`) — hiện "Tính từ lần sửa …" để biết số liệu đã đặt lại.
  */
 import { computed } from 'vue';
 import { route } from '@/lib/route';
-import { formatNumber, formatPercent } from '@/lib/format';
+import { formatDate, formatNumber, formatPercent } from '@/lib/format';
 import UnderlinedText from '@/Components/Practice/UnderlinedText.vue';
 
 defineOptions({ layout: { title: 'Phân tích câu hỏi' } });
@@ -23,7 +24,7 @@ const rate = (value) => formatPercent(value * 100);
 </script>
 
 <template>
-    <UiPageHeader title="Phân tích câu hỏi" :description="`Câu có tỉ lệ làm sai cao nhất (từ ${minAttempts} lượt làm trở lên, tính các lượt đã nộp của mọi học viên). Câu bỏ trống tính là sai.`" />
+    <UiPageHeader title="Phân tích câu hỏi" :description="`Câu có tỉ lệ làm sai cao nhất (từ ${minAttempts} lượt làm trở lên, tính các lượt đã nộp của mọi học viên). Câu bỏ trống tính là sai. Câu đã sửa chỉ tính các lượt làm sau lần sửa cuối.`" />
 
     <UiTabs class="mb-lg">
         <UiTab :href="route('question-bank.index')">Câu hỏi</UiTab>
@@ -57,6 +58,7 @@ const rate = (value) => formatPercent(value * 100);
                     <td><UnderlinedText :text="q.stem" class="block whitespace-pre-line font-body-small text-body-small text-on-surface" /></td>
                     <td class="font-body-small text-body-small text-on-surface-variant">
                         Khối {{ q.grade }} · {{ termLabels[q.term] ?? q.term }}<br />{{ q.skill }} · {{ q.type }}
+                        <span v-if="q.edited_at" class="mt-xs block italic" data-edited-since>Tính từ lần sửa {{ formatDate(q.edited_at) }}</span>
                     </td>
                     <td class="text-right tabular-nums">{{ formatNumber(q.attempts) }}</td>
                     <td class="text-right tabular-nums">{{ formatNumber(q.wrong) }}</td>

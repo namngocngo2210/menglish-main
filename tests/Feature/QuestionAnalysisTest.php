@@ -139,6 +139,35 @@ class QuestionAnalysisTest extends TestCase
         $this->assertSame(['grade' => null, 'term' => null, 'skill' => null, 'type' => 'x'], $report->questionFilters(['grade' => '5', 'term' => 'zz', 'skill' => 'Nope', 'type' => ' x ']));
     }
 
+    public function test_items_before_the_last_edit_are_not_counted(): void
+    {
+        $this->travelTo(now()->subDays(3));
+        $q = $this->question();
+        $this->answer($q, array_fill(0, 10, 'B')); // khoá đáp án sai (A) → 10 lượt "sai"
+        $this->travelBack();
+
+        $this->travelTo(now()->subDay());
+        $q->update(['answer' => 'B', 'edited_at' => now()]); // Học thuật sửa khoá A → B
+        $this->travelBack();
+
+        $report = app(PracticeReport::class);
+        $this->assertSame([], $report->questionStats([])->items());
+
+        // Lượt mới sau lần sửa được tính lại từ đầu.
+        $this->answer($q->fresh(), array_merge(['C'], array_fill(0, 9, 'B')));
+        $rows = $report->questionStats([])->items();
+
+        $this->assertCount(1, $rows);
+        $this->assertSame(10, $rows[0]['attempts']);
+        $this->assertSame(1, $rows[0]['wrong']);
+        $this->assertSame('C', $rows[0]['top_wrong_choice']);
+        $this->assertSame($q->fresh()->edited_at->toDateString(), $rows[0]['edited_at']);
+
+        $this->actingAs($this->lead)->get(route('question-bank.analysis'))
+            ->assertOk()
+            ->assertSee('Tính từ lần sửa '.$q->fresh()->edited_at->format('d/m/Y'));
+    }
+
     public function test_query_count_is_constant(): void
     {
         $report = app(PracticeReport::class);

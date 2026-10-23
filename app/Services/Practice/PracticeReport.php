@@ -9,6 +9,7 @@ use App\Models\Student;
 use App\Models\User;
 use App\Support\Practice\PracticeCatalog;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -164,21 +165,19 @@ class PracticeReport
 
     /**
      * Phân tích câu hỏi: câu có tỉ lệ sai cao nhất trước (rồi nhiều lượt làm hơn), chỉ tính câu của lượt đã nộp và có
-     * ít nhất $minAttempts lượt làm; câu bỏ trống tính là sai. Mọi học viên (công cụ chất lượng câu hỏi, không theo
-     * phạm vi người xem). Số truy vấn cố định: đếm + trang, đáp án sai nhiều nhất của các câu trong trang.
+     * ít nhất $minAttempts lượt làm; câu bỏ trống tính là sai. Câu đã sửa (`edited_at`) chỉ tính lượt bắt đầu sau lần
+     * sửa cuối — lượt cũ chấm theo bản chụp trước khi sửa (vd. khoá đáp án sai). Mọi học viên (công cụ chất lượng câu
+     * hỏi, không theo phạm vi người xem). Số truy vấn cố định: đếm + trang, đáp án sai nhiều nhất của các câu trong trang.
      *
      * @param  array<string, mixed>  $filters  từ `questionFilters()`
-     * @return LengthAwarePaginator<int, array{question_id: int, stem: string, grade: int, term: string, skill: string, type: string, answer: string, attempts: int, wrong: int, wrong_rate: float, top_wrong_choice: ?string}>
+     * @return LengthAwarePaginator<int, array{question_id: int, stem: string, grade: int, term: string, skill: string, type: string, answer: string, attempts: int, wrong: int, wrong_rate: float, top_wrong_choice: ?string, edited_at: ?string}>
      */
     public function questionStats(array $filters, int $minAttempts = self::MIN_QUESTION_ATTEMPTS): LengthAwarePaginator
     {
         $f = array_merge(['grade' => null, 'term' => null, 'skill' => null, 'type' => null], $filters);
         $wrongSql = 'sum(case when practice_attempt_items.is_correct = 1 then 0 else 1 end)';
 
-        $stats = DB::table('practice_attempt_items')
-            ->join('practice_attempts', 'practice_attempts.id', '=', 'practice_attempt_items.attempt_id')
-            ->where('practice_attempts.status', PracticeAttempt::SUBMITTED)
-            ->whereNotNull('practice_attempt_items.question_id')
+        $stats = $this->gradedItemsSinceEdit()
             ->groupBy('practice_attempt_items.question_id')
             ->havingRaw('count(*) >= ?', [max(1, $minAttempts)])
             ->selectRaw("practice_attempt_items.question_id as stat_question_id, count(*) as attempts, {$wrongSql} as wrong");
@@ -192,7 +191,7 @@ class PracticeReport
             ->orderByRaw('(stats.wrong * 1.0 / stats.attempts) desc')
             ->orderByDesc('stats.attempts')
             ->orderBy('q.id')
-            ->select('q.id', 'q.stem', 'q.grade', 'q.term', 'q.skill', 'q.type', 'q.answer', 'stats.attempts', 'stats.wrong')
+            ->select('q.id', 'q.stem', 'q.grade', 'q.term', 'q.skill', 'q.type', 'q.answer', 'q.edited_at', 'stats.attempts', 'stats.wrong')
             ->paginate(self::QUESTION_PER_PAGE);
 
         $ids = collect($page->items())->pluck('id')->map(fn ($id) => (int) $id)->all();
@@ -210,7 +209,19 @@ class PracticeReport
             'wrong' => (int) $row->wrong,
             'wrong_rate' => round($row->wrong / $row->attempts, 4),
             'top_wrong_choice' => $topWrong[(int) $row->id] ?? null,
+            'edited_at' => $row->edited_at ? Carbon::parse($row->edited_at)->toDateString() : null,
         ]);
+    }
+
+    /** Câu (có câu hỏi gốc) của lượt đã nộp; câu đã sửa chỉ tính lượt tạo sau lần sửa cuối. */
+    private function gradedItemsSinceEdit(): QueryBuilder
+    {
+        return DB::table('practice_attempt_items')
+            ->join('practice_attempts', 'practice_attempts.id', '=', 'practice_attempt_items.attempt_id')
+            ->join('question_bank_questions as edited_q', 'edited_q.id', '=', 'practice_attempt_items.question_id')
+            ->where('practice_attempts.status', PracticeAttempt::SUBMITTED)
+            ->where(fn (QueryBuilder $q) => $q->whereNull('edited_q.edited_at')
+                ->orWhereColumn('practice_attempts.created_at', '>', 'edited_q.edited_at'));
     }
 
     /**
@@ -221,9 +232,7 @@ class PracticeReport
      */
     private function topWrongChoices(array $questionIds): array
     {
-        $rows = DB::table('practice_attempt_items')
-            ->join('practice_attempts', 'practice_attempts.id', '=', 'practice_attempt_items.attempt_id')
-            ->where('practice_attempts.status', PracticeAttempt::SUBMITTED)
+        $rows = $this->gradedItemsSinceEdit()
             ->whereIn('practice_attempt_items.question_id', $questionIds)
             ->whereNotNull('practice_attempt_items.chosen')
             ->where(fn ($q) => $q->where('practice_attempt_items.is_correct', 0)->orWhereNull('practice_attempt_items.is_correct'))
