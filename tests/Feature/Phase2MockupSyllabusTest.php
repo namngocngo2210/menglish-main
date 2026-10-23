@@ -204,8 +204,9 @@ class Phase2MockupSyllabusTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page->where('selected.watermark', fn ($w) => str_contains($w, $this->teacher->name)))
             ->assertSee('Xem mục lục chặng')
             ->assertSee('Thực hành giao tiếp hằng ngày')
-            ->assertSee('Hoạt động:')
-            ->assertSee('Hoạt động đóng vai 3') // buổi đầu của Chặng 2 (chặng lớp đang học)
+            // GV chỉ xem bài giảng buổi hôm nay (docs/kho-syllabus.md quyết định 7): không liệt kê nội dung mọi buổi của chặng.
+            ->assertDontSee('Hoạt động đóng vai 3')
+            ->assertSee('Mở bài giảng hôm nay')
             ->assertSee('Đánh dấu đã xem');
 
         $this->actingAs($this->teacher)->post(route('syllabus.documents.viewed', $doc->id))->assertRedirect();

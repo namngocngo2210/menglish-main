@@ -76,8 +76,9 @@ const linkFields = [
         <UiDataTable v-if="syllabus.stage_label" min-width="760px">
             <template #header>
                 <h2 class="font-h3 text-h3 text-on-surface">Buổi học của chặng</h2>
-                <UiBadge color="primary" :dot="false" pill>{{ syllabus.lessons.length }} buổi</UiBadge>
+                <UiBadge color="primary" :dot="false" pill>Đã dạy {{ syllabus.taught }} / {{ syllabus.lessons.length }} buổi</UiBadge>
             </template>
+            <UiAlert v-if="syllabus.unmarked.length" type="warning" class="m-md text-xs">GV chưa đánh dấu Đã dạy các buổi: {{ syllabus.unmarked.map((d) => formatDate(d)).join(', ') }} — tiến độ chặng chưa chạy.</UiAlert>
             <table>
                 <thead>
                     <tr>
@@ -85,6 +86,7 @@ const linkFields = [
                         <th>Unit</th>
                         <th>Nội dung</th>
                         <th>Loại · mốc</th>
+                        <th>Đã dạy / dự kiến</th>
                         <th>Chỉnh sửa thủ công</th>
                         <th class="text-right"><span class="sr-only">Thao tác</span></th>
                     </tr>
@@ -100,6 +102,15 @@ const linkFields = [
                         <td class="space-y-1">
                             <UiBadge v-if="l.data.lesson_type !== 'lesson'">{{ l.type_label }}</UiBadge>
                             <UiBadge v-if="l.milestone_label" color="info">{{ l.milestone_label }}</UiBadge>
+                        </td>
+                        <td class="whitespace-nowrap text-xs">
+                            <template v-if="l.taught_at">
+                                <UiBadge color="success">Đã dạy {{ formatDate(l.taught_at) }}</UiBadge>
+                                <p v-if="l.pace_note" class="mt-1 max-w-[220px] whitespace-normal text-on-surface-variant">{{ l.pace_note }}</p>
+                                <UiBadge v-if="l.missing_score" color="error" class="mt-1">Chưa nhập điểm</UiBadge>
+                            </template>
+                            <span v-else-if="l.planned_date" class="text-on-surface-variant">Dự kiến {{ formatDate(l.planned_date) }}</span>
+                            <span v-else class="text-on-surface-subtle">Chưa có lịch</span>
                         </td>
                         <td>
                             <template v-if="l.overridden">
@@ -119,7 +130,7 @@ const linkFields = [
                         </td>
                     </tr>
                     <tr v-if="!syllabus.lessons.length">
-                        <td colspan="6"><UiEmptyState icon="description" title="Chặng chưa có buổi học" /></td>
+                        <td colspan="7"><UiEmptyState icon="description" title="Chặng chưa có buổi học" /></td>
                     </tr>
                 </tbody>
             </table>

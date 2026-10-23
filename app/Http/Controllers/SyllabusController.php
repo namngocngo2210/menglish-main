@@ -1270,7 +1270,6 @@ class SyllabusController extends Controller
         $overviewCurriculum = $assignment?->curriculum ?? ($selected ?? $documents->first())?->curriculum;
         $overviewStages = $stages->isNotEmpty() ? $stages : ($overviewCurriculum ? $overviewCurriculum->stages()->with('units.lessons')->get() : collect());
 
-        $stageUnits = $assignment?->stage?->units()->with('lessons')->get() ?? collect();
         $stageState = fn (SyllabusStage $s) => $assignment && $s->id === $assignment->stage_id ? 'open' : ($closedStageIds->contains($s->id) ? 'done' : 'todo');
         $listQuery = array_filter(['class' => $class?->id, 'q' => $search, 'scope' => $stageScope ? 'stage' : null]);
         $current = $position['current'] ?? null;
@@ -1336,12 +1335,8 @@ class SyllabusController extends Controller
                 'over' => $position['over'],
                 'current' => $current ? ['id' => $current->id, 'session_no' => $current->session_no, 'unit_number' => $current->unit?->unit_number, 'title' => $current->title] : null,
             ] : null,
-            'stageUnits' => $stageUnits->map(fn (SyllabusUnit $u) => [
-                'id' => $u->id,
-                'unit_number' => $u->unit_number,
-                'title' => $u->title,
-                'lessons' => $u->lessons->map(fn (SyllabusLesson $l) => $this->lessonData($l))->values(),
-            ])->values(),
+            // GV chỉ xem bài giảng buổi hôm nay (quyết định 7) — không liệt kê mọi buổi của chặng ở đây.
+            'lessonTodayUrl' => $class ? route('teacher.lesson-today', ['class' => $class->id]) : null,
         ]);
     }
 
