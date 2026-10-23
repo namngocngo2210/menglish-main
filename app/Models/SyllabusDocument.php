@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 
 /**
  * Tài liệu giáo trình (file thật). File nằm trên disk private, chỉ đọc qua
@@ -116,7 +117,26 @@ class SyllabusDocument extends Model
             if ($isAssistant) {
                 $q->orWhere('visible_to_assistants', true);
             }
-        });
+        })->whereExists(fn (QueryBuilder $open) => self::openStageOfUser($open, $user));
+    }
+
+    /**
+     * Kho syllabus (docs/kho-syllabus.md §3.4): GV / TA chỉ thấy tài liệu chung + tài liệu chặng (gồm tài liệu buổi, có
+     * stage_id = chặng của buổi) của chặng ĐANG MỞ thuộc lớp mình dạy / trợ giảng / GVNN, hoặc chặng được giao cho mình.
+     */
+    private static function openStageOfUser(QueryBuilder $open, User $user): void
+    {
+        $open->selectRaw('1')
+            ->from('syllabus_assignments')
+            ->join('classes', 'classes.id', '=', 'syllabus_assignments.class_id')
+            ->where('syllabus_assignments.status', SyllabusAssignment::STATUS_OPEN)
+            ->whereColumn('syllabus_assignments.curriculum_id', 'syllabus_documents.curriculum_id')
+            ->where(fn ($stage) => $stage->whereNull('syllabus_documents.stage_id')
+                ->orWhereColumn('syllabus_assignments.stage_id', 'syllabus_documents.stage_id'))
+            ->where(fn ($who) => $who->where('classes.teacher_id', $user->id)
+                ->orWhere('classes.assistant_id', $user->id)
+                ->orWhere('classes.foreign_teacher_id', $user->id)
+                ->orWhere('syllabus_assignments.user_id', $user->id));
     }
 
     public function isVisibleTo(User $user): bool

@@ -98,9 +98,9 @@ class Phase2MockupSyllabusTest extends TestCase
         ]);
     }
 
-    private function openStage(): SyllabusAssignment
+    private function openStage(?SyllabusStage $stage = null): SyllabusAssignment
     {
-        $this->actingAs($this->academic)->post(route('syllabus.assignments.store'), ['class_id' => $this->class->id])
+        $this->actingAs($this->academic)->post(route('syllabus.assignments.store'), array_filter(['class_id' => $this->class->id, 'stage_id' => $stage?->id]))
             ->assertSessionHasNoErrors();
 
         return SyllabusAssignment::open()->where('class_id', $this->class->id)->firstOrFail();
@@ -181,8 +181,9 @@ class Phase2MockupSyllabusTest extends TestCase
         $this->actingAs($this->academic)->get(route('syllabus.curriculums.show', $this->curriculum->id))->assertOk()
             ->assertSee('Giáo trình Starter - Bài 3');
 
-        // Màn GV: tab, nhóm theo chặng, watermark bảo mật, đánh dấu đã xem, tìm kiếm
-        $this->openStage();
+        // Màn GV: tab, nhóm theo chặng, watermark bảo mật, đánh dấu đã xem, tìm kiếm — lớp đang học Chặng 2 (GV chỉ thấy
+        // tài liệu chặng đang mở, docs/kho-syllabus.md §3.4)
+        $this->openStage($this->stages[1]);
         $this->actingAs($this->teacher)->get(route('syllabus.teacher-view'))->assertOk()
             ->assertSee('Giáo trình Starter - Bài 3')->assertSee('Chỉ xem')
             ->assertDontSee('MENGLISH INTERNAL ONLY');
@@ -204,7 +205,7 @@ class Phase2MockupSyllabusTest extends TestCase
             ->assertSee('Xem mục lục chặng')
             ->assertSee('Thực hành giao tiếp hằng ngày')
             ->assertSee('Hoạt động:')
-            ->assertSee('Hoạt động đóng vai 1')
+            ->assertSee('Hoạt động đóng vai 3') // buổi đầu của Chặng 2 (chặng lớp đang học)
             ->assertSee('Đánh dấu đã xem');
 
         $this->actingAs($this->teacher)->post(route('syllabus.documents.viewed', $doc->id))->assertRedirect();

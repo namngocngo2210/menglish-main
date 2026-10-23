@@ -87,6 +87,19 @@ class Phase2SyllabusTest extends TestCase
         return SyllabusCurriculum::create(['code' => $code, 'title' => $title, 'version' => 'v1.0']);
     }
 
+    /** Lớp của GV / TG đang học chặng 1 của giáo trình — GV chỉ thấy tài liệu chặng đang mở (docs/kho-syllabus.md §3.4). */
+    private function openFirstStage(SyllabusCurriculum $curriculum): SyllabusCurriculum
+    {
+        $stage = $curriculum->stages()->firstOrFail();
+        SyllabusAssignment::create([
+            'class_id' => $this->class->id, 'curriculum_id' => $curriculum->id, 'stage_id' => $stage->id, 'stage_name' => $stage->label,
+            'user_id' => $this->teacher->id, 'assigned_chapters' => $stage->label, 'status' => SyllabusAssignment::STATUS_OPEN,
+            'open_class_id' => $this->class->id, 'opened_at' => now(),
+        ]);
+
+        return $curriculum;
+    }
+
     // ---- 1. Builder ----
 
     public function test_builder_can_select_and_edit_any_curriculum_and_manage_lessons(): void
@@ -184,7 +197,7 @@ class Phase2SyllabusTest extends TestCase
     public function test_document_upload_stores_real_file_type_size_and_visibility(): void
     {
         Storage::fake('local');
-        $cur = $this->curriculum();
+        $cur = $this->openFirstStage($this->curriculum());
 
         $detail = route('syllabus.curriculums.show', $cur->id);
         $this->actingAs($this->academic)->from($detail)->post(route('syllabus.documents.store'), [
@@ -260,7 +273,7 @@ class Phase2SyllabusTest extends TestCase
     {
         Storage::fake('local')->put('syllabus_documents/old.pptx', 'x');
         $doc = SyllabusDocument::create([
-            'curriculum_id' => $this->curriculum()->id, 'title' => 'Slide cũ', 'file_path' => 'syllabus_documents/old.pptx',
+            'curriculum_id' => $this->openFirstStage($this->curriculum())->id, 'title' => 'Slide cũ', 'file_path' => 'syllabus_documents/old.pptx',
             'original_name' => 'old.pptx', 'extension' => 'pptx', 'size_bytes' => 1, 'visible_to_teachers' => true, 'downloadable' => true,
         ]);
 
@@ -272,7 +285,7 @@ class Phase2SyllabusTest extends TestCase
     {
         Storage::fake('local');
         $this->actingAs($this->academic)->post(route('syllabus.documents.store'), [
-            'curriculum_id' => $this->curriculum()->id, 'title' => 'Tải được', 'file' => $this->pdf(),
+            'curriculum_id' => $this->openFirstStage($this->curriculum())->id, 'title' => 'Tải được', 'file' => $this->pdf(),
             'visible_to_teachers' => '1', 'downloadable' => '1',
         ])->assertSessionHasNoErrors();
         $doc = SyllabusDocument::firstOrFail();
