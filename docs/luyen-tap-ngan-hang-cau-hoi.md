@@ -1,6 +1,6 @@
 # Ngân hàng câu hỏi & Luyện tập theo khối
 
-Trạng thái: **Sprint 1–2 — Hoàn thành** (Sprint 3–4 chưa làm) — 24/10/2026
+Trạng thái: **Sprint 1–3 — Hoàn thành** (Sprint 4 chưa làm) — 24/10/2026
 
 Nguồn dữ liệu: thư mục Drive "FILE TỔNG HỢP ĐỀ CƯƠNG CÁC NĂM" (đề / đề cương THCS khối 6–9, năm học 2025–2026 và
 2026–2027, 4 kỳ). Câu hỏi đã được tách ra từng câu theo kỹ năng (JSON + ảnh) ngoài repo; tính năng này đưa chúng vào
@@ -160,6 +160,8 @@ service dùng chung nếu cần):
 - Props trang làm bài **không chứa đáp án** (`snapshot.answer` bị loại khi `in_progress`).
 - Đồng hồ đếm ngược theo **số giây còn lại do server gửi**; hết giờ → trình duyệt gọi nộp.
 - Chọn đáp án → `POST …/answer` (tự lưu, debounce). Server từ chối sau `deadline_at + 30 giây`.
+- Hết giờ trên trình duyệt → gửi nộp kèm `timeout: true`; server ghi là "Tự nộp – hết giờ" khi đã quá hạn hoặc cờ đến trong
+  5 giây cuối (sớm hơn thì tính là nộp tay).
 - `PracticeAttemptService::finalize()` (idempotent): chấm, ghi `total` / `correct` / `score` / `skill_scores`,
   `status = submitted`. Gọi khi: học viên nộp; mở lại lượt đã quá hạn; vi phạm lần 3; lệnh định kỳ
   `practice:close-expired` (mỗi 5 phút, `routes/console.php`, chốt lượt `in_progress` quá hạn).
@@ -221,7 +223,7 @@ Sau khi đổi `routes/web.php`: `php artisan ziggy:generate resources/js/ziggy.
   Import trên staging + duyệt hàng loạt: làm sau khi deploy nhánh lên staging (cần chủ dự án chạy deploy).
 - Test: `QuestionBankImporterTest`, `QuestionBankControllerTest`.
 
-### Sprint 3 — Luyện tập ở cổng học viên (chưa làm)
+### Sprint 3 — Luyện tập ở cổng học viên (xong)
 
 - Generator, attempt service, `PracticeController`, trang Luyện tập / làm bài / kết quả, lịch sử.
 - `useExamLock()` + `ExamViolations` (refactor test đầu vào), lệnh `practice:close-expired`.
