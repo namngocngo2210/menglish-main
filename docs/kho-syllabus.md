@@ -123,17 +123,19 @@ Hiện trạng (khảo sát 23/10/2026):
 
 ## 4. Sprint giai đoạn 1
 
-### Sprint 1 — Dữ liệu, quyền, Kho syllabus & trang chi tiết
+### Sprint 1 — Dữ liệu, quyền, Kho syllabus & trang chi tiết (xong)
 
-- [ ] Migration cột mới (3.2) + model / validation các trường buổi, chặng.
-- [ ] Quyền `syllabus.library` + migration cấp quyền + catalog v2; đổi middleware route.
-- [ ] Kho syllabus (danh sách) + trang chi tiết (Thông tin, Chặng & buổi) thay Builder; form buổi đủ trường Sheet 1.
-- [ ] Sidebar: bỏ Tài liệu, Xem bài giảng; redirect URL cũ; `/syllabus` theo quyền mới.
-- [ ] Test: quyền theo vai trò, redirect, CRUD buổi đủ trường, guard-rail (Navigation, AllRoutesSmoke, BranchIsolation).
+- [x] Migration cột mới (3.2) + model / validation các trường buổi, chặng.
+- [x] Quyền `syllabus.library` + migration cấp quyền + catalog v2; đổi middleware route.
+- [x] Kho syllabus (danh sách) + trang chi tiết (Thông tin, Chặng & buổi) thay Builder; form buổi đủ trường Sheet 1.
+- [x] Sidebar: Kho syllabus thay Soạn syllabus, bỏ Xem bài giảng; redirect URL cũ; `/syllabus` theo quyền mới.
+  Tab **Tài liệu** giữ tới Sprint 2 (lúc upload chuyển vào trang chi tiết).
+- [x] Test: quyền theo vai trò, redirect, CRUD buổi đủ trường, guard-rail (Navigation, AllRoutesSmoke, BranchIsolation).
 
 ### Sprint 2 — Tài liệu theo buổi / chặng / chung & lịch sử
 
-- [ ] `syllabus_lesson_id` cho tài liệu; modal upload dùng chung; tab Tài liệu chung; bỏ `Documents.vue`.
+- [ ] `syllabus_lesson_id` cho tài liệu; modal upload dùng chung; tab Tài liệu chung; bỏ `Documents.vue` và tab
+  **Tài liệu** trên sidebar.
 - [ ] Giới hạn tài liệu của GV / TA theo chặng đang mở của lớp (teacher-view + file).
 - [ ] `AuditsChanges` + tab Lịch sử.
 - [ ] Test: phạm vi tài liệu, GV ngoài lớp bị 404, lịch sử ghi đúng.

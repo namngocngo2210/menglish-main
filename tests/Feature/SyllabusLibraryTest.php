@@ -8,6 +8,7 @@ use App\Models\SyllabusCurriculum;
 use App\Models\SyllabusLesson;
 use App\Models\SyllabusUnit;
 use App\Models\User;
+use App\Support\Navigation\SidebarMenu;
 use App\Support\Roles;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia;
@@ -180,6 +181,27 @@ class SyllabusLibraryTest extends TestCase
 
         $this->actingAs($this->lead)->get(route('syllabus.versions', ['proposal' => $proposal->id]))->assertOk()
             ->assertInertia(fn (AssertableInertia $p) => $p->where('selected.edit_lesson_url', route('syllabus.curriculums.show', ['id' => $this->curriculum->id, 'edit_lesson' => $this->lesson->id])));
+    }
+
+    public function test_sidebar_shows_library_for_lead_but_not_academic_staff(): void
+    {
+        $labels = fn (User $user) => collect(app(SidebarMenu::class)->groupsFor($user))
+            ->firstWhere('id', 'syllabus')['items'] ?? [];
+
+        $lead = collect($labels($this->lead))->pluck('label')->all();
+        $this->assertContains('Kho syllabus', $lead);
+        $this->assertNotContains('Soạn syllabus', $lead);
+        $this->assertNotContains('Xem bài giảng', $lead);
+
+        $staff = collect($labels($this->userWithRole(Roles::ACADEMIC_STAFF)))->pluck('label')->all();
+        $this->assertNotContains('Kho syllabus', $staff);
+        $this->assertContains('Giao chặng', $staff);
+    }
+
+    public function test_syllabus_index_sends_library_users_to_library(): void
+    {
+        $this->actingAs($this->lead)->get('/syllabus')->assertRedirect(route('syllabus.curriculums.index'));
+        $this->actingAs($this->userWithRole(Roles::TEACHER_FULLTIME))->get('/syllabus')->assertRedirect(route('syllabus.teaching-stages'));
     }
 
     private function userWithRole(string $role): User

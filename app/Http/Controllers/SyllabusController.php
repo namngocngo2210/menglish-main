@@ -54,11 +54,11 @@ class SyllabusController extends Controller
     /** Tab của trang chi tiết giáo trình (Kho syllabus). */
     private const CURRICULUM_TABS = ['info', 'stages'];
 
-    /** /syllabus: Học thuật (quản lý giáo trình) vào màn Tài liệu; giáo viên vào Chặng đang dạy. */
+    /** /syllabus: người có Kho syllabus (Học thuật, Quản lý) vào Kho syllabus; còn lại vào Chặng đang dạy. */
     public function index(Request $request)
     {
-        return $request->user()->can('syllabus.manage')
-            ? redirect()->route('syllabus.documents')
+        return $request->user()->can('syllabus.library')
+            ? redirect()->route('syllabus.curriculums.index')
             : redirect()->route('syllabus.teaching-stages');
     }
 

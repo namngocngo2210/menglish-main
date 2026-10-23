@@ -37,7 +37,7 @@ class SyllabusNavigationCleanupTest extends TestCase
 
     public function test_syllabus_index_sends_managers_to_documents(): void
     {
-        $this->actingAs($this->academic)->get('/syllabus')->assertRedirect(route('syllabus.documents'));
+        $this->actingAs($this->academic)->get('/syllabus')->assertRedirect(route('syllabus.curriculums.index'));
     }
 
     public function test_syllabus_index_sends_teachers_to_teaching_stages(): void
