@@ -841,8 +841,8 @@ class SyllabusController extends Controller
             'classes' => $classes->map(fn (ClassModel $c) => ['id' => $c->id, 'name' => $c->name, 'code' => $c->code])->values(),
             'classCurriculum' => $classes->mapWithKeys(fn ($c) => [$c->id => $levelCurriculum[$c->level] ?? null]),
             'classOpenStage' => $openByClass->map(fn ($a) => $a->stage_name),
-            'canManage' => $user->can('syllabus.manage'),
-            'canOverride' => $user->can('syllabus.approve_adjustment'),
+            'canManage' => $user->can('syllabus.assign'),
+            'canOverride' => $user->can('syllabus.assign'),
             'canViewLog' => $user->can('activity_log.view'),
             'hasTickets' => Route::has('tickets.create'),
         ]);
@@ -894,7 +894,7 @@ class SyllabusController extends Controller
         $reason = trim((string) ($validated['reason'] ?? '')) ?: null;
 
         if ($request->boolean('replace_current') && $progression->openAssignment($class)) {
-            abort_unless($request->user()->can('syllabus.approve_adjustment'), 403, 'Chỉ Học thuật được chuyển chặng đang mở.');
+            abort_unless($request->user()->can('syllabus.assign'), 403, 'Chỉ Học thuật được chuyển chặng đang mở.');
             if (! $reason) {
                 throw ValidationException::withMessages(['reason' => 'Vui lòng nhập lý do chuyển chặng.']);
             }
