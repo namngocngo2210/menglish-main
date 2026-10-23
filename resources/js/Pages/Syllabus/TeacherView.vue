@@ -59,7 +59,7 @@ const chipIcon = { open: 'play_circle', done: 'check_circle', todo: 'lock' };
 </script>
 
 <template>
-    <UiPageHeader title="Xem tài liệu giáo trình" :back="route('syllabus.documents')">
+    <UiPageHeader title="Xem tài liệu giáo trình">
         <template #breadcrumbs>
             <span class="material-symbols-outlined text-[16px]">menu_book</span>
             <span>Giáo trình &amp; Tài liệu</span>

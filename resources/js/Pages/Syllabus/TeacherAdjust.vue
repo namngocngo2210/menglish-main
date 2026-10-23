@@ -11,7 +11,6 @@ defineProps({
     requests: { type: Object, required: true },
     classes: { type: Array, default: () => [] },
     slaDays: { type: Number, default: 3 },
-    canReview: { type: Boolean, default: false },
 });
 
 const statusColor = { pending: 'warning', approved: 'success', rejected: 'error' };
@@ -26,9 +25,8 @@ function sent() {
 </script>
 
 <template>
-    <UiPageHeader title="Xin điều chỉnh tiến độ" description="Gửi yêu cầu điều chỉnh thời gian cho các lớp hoặc chặng học hiện tại." :back="route('syllabus.versions')">
+    <UiPageHeader title="Xin điều chỉnh tiến độ" description="Gửi yêu cầu điều chỉnh thời gian cho các lớp hoặc chặng học hiện tại.">
         <template #actions>
-            <UiButton v-if="canReview" variant="secondary" icon="rule" :href="route('syllabus.adjustment-requests')">Duyệt yêu cầu tiến độ</UiButton>
             <UiButton icon="send" @click="requesting = true">Gửi yêu cầu</UiButton>
         </template>
     </UiPageHeader>

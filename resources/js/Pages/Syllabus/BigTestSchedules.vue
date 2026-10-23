@@ -14,7 +14,7 @@ defineProps({
 </script>
 
 <template>
-    <UiPageHeader title="Nhắc lịch Big Test" description="Danh sách các chặng học sắp đến hạn thi Big Test (trong vòng 7 ngày) chưa được duyệt đề thi." :back="route('syllabus.documents')">
+    <UiPageHeader title="Nhắc lịch Big Test" description="Danh sách các chặng học sắp đến hạn thi Big Test (trong vòng 7 ngày) chưa được duyệt đề thi.">
         <template #actions>
             <UiButton variant="secondary" icon="event_note" :href="route('syllabus.teaching-stages')">Lịch dự kiến theo lớp</UiButton>
         </template>
