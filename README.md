@@ -46,7 +46,6 @@ Có gì trong dữ liệu:
 - **Chặng của lớp** (mỗi lớp 1 chặng mở): `DEMO-CG-FAM1` đã **đóng Chặng 1** nhờ Big Test đã duyệt và gửi PH (có 1 HV vắng thi) và **tự mở Chặng 2**, kèm order đề Chặng 2 **chờ duyệt**; `DEMO-CG-FAM0` Big Test **đã duyệt, chưa gửi PH**; `DEMO-BD-FAM1` Big Test GV vừa nhập điểm, **chờ Học thuật duyệt**; `DEMO-BD-FAM0` order đã duyệt kèm link đề, **đợt thi trong 5 ngày tới** (đã nhắc lịch 7 ngày) + 1 order mini test **bị từ chối**. Lớp FAM 2 (sắp khai giảng) chưa giao chặng — dùng để thử màn Giao chặng.
 - **Giảng dạy**: điểm danh theo buổi (6 buổi gần nhất; buổi gần nhất để trống để thử **điểm danh bù**; 1 buổi Học vụ điểm danh thay), vắng / vắng có phép → **danh sách bổ trợ**; nhận xét buổi học; mini test (điểm < 7 → bổ trợ); 2 bài tập + bài nộp (1 bài đã chấm); mỗi lớp 2 **buổi bổ trợ** (1 đã dạy xong, 1 ngày mai).
 - **Lịch**: GVNN `gv.native1@…` trên các buổi sắp tới của `DEMO-CG-FAM1`; ngày nghỉ thêm sau `HOL-DEMO2-<CN>` hủy 1 buổi FAM 1 và tự xếp **buổi học bù** cuối lịch.
-- **Kho syllabus** (`DemoSyllabusLibrarySeeder`, chạy cuối `DatabaseSeeder`): buổi của `DEMO-SYL-STARTERS` / `MOVERS` đủ cột form Sheet 1 (loại Học / Mini test / Big test, link PPT / Quizizz, mốc Order in ấn / mini test / Big Test; Chặng 1 Starters báo trước 3 buổi); 10 tài liệu chung / chặng / buổi với đối tượng xem khác nhau (1 tài liệu chỉ nội bộ cho Học vụ order in, 1 tài liệu chỉ xem không tải, tài liệu Chặng 3 GV chưa thấy vì chưa lớp nào học tới); 3 đề xuất sửa (chờ duyệt / đã duyệt / từ chối) của GV `nguyenvanan@…`; giáo trình `DEMO-SYL-FLYERS` import từ gói zip (2 chặng, 8 buổi, 4 tài liệu). File để tự tay thử import: `docs/mau-test-kho-syllabus/`.
 - **Việc**: việc trực ca trợ giảng hôm qua + hôm nay (1 việc hoàn thành có ảnh, 1 việc chờ xác nhận); việc **chăm sóc tháng đầu** (mốc ngày 3/7/14/30) cho Học vụ; nhắc **sinh nhật** (HV `HV-DEMO-<CN>-02` sinh nhật hôm nay).
 
 Đăng nhập để xem (mật khẩu như trên):
@@ -56,11 +55,11 @@ Có gì trong dữ liệu:
 | Giáo viên | `nguyenvanan@menglish.edu.vn` (CG: FAM 1, FAM 0) · `gv.cohuu2@menglish.edu.vn` (BD) | Lịch dạy hôm nay / tuần, điểm danh từng buổi, nhận xét, mini test, order đề, nhập kết quả Big Test, Xem giáo trình |
 | GVNN | `gv.native1@menglish.edu.vn` | Lịch dạy các buổi sắp tới của `DEMO-CG-FAM1` |
 | Trợ giảng | `ta.tuan@menglish.edu.vn` (CG) · `ta.yen@menglish.edu.vn` (BD) | Nhiệm vụ hôm nay (`/portal/ta-tasks`), buổi bổ trợ được xếp |
-| Học vụ | `nva@menglish.edu.vn` / `giaovu2@menglish.edu.vn` | Danh sách bổ trợ + xếp buổi, dashboard lớp, điểm danh thay, việc chăm sóc tháng đầu, Kho syllabus chỉ đọc (mọi tài liệu để order in) |
+| Học vụ | `nva@menglish.edu.vn` / `giaovu2@menglish.edu.vn` | Danh sách bổ trợ + xếp buổi, dashboard lớp, điểm danh thay, việc chăm sóc tháng đầu |
 | Học thuật | `academiclead@menglish.edu.vn` | Soạn syllabus, Giao chặng, Duyệt & phân phối đề, Duyệt kết quả & gửi PH |
 | Học viên | `hocvien1@menglish.edu.vn` (`HV-DEMO-CG-01`, FAM 1) · `hocvien2@menglish.edu.vn` (`HV-DEMO-CG-08`, FAM 0) · `hocvien3@menglish.edu.vn` (`HV-DEMO-BD-01`) | Cổng học viên: lịch học, điểm danh, kết quả Big Test, nhận xét, bài tập |
 
-Kiểm thử nghiệm thu Phase 2: `php artisan test --filter='Phase2AcceptanceTest|DemoPhase2SeederTest|DemoSyllabusLibrarySeederTest'`.
+Kiểm thử nghiệm thu Phase 2: `php artisan test --filter='Phase2AcceptanceTest|DemoPhase2SeederTest'`.
 
 ## MEnglish — Dữ liệu demo (Phase 3: chấm công → lương)
 

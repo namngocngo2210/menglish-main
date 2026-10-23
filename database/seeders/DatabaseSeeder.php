@@ -42,8 +42,6 @@ class DatabaseSeeder extends Seeder
             $this->call(DemoPhase2Seeder::class);
             $this->call(DemoPhase3Seeder::class);
             $this->call(DemoPhase4Seeder::class);
-            // Kho syllabus: buổi đủ cột Sheet 1, tài liệu, đề xuất sửa, giáo trình import từ zip (dựng trên giáo trình Phase 2).
-            $this->call(DemoSyllabusLibrarySeeder::class);
         }
     }
 }
