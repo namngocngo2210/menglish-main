@@ -29,10 +29,12 @@ class SyllabusStage extends Model
         'overview_link',
         'big_test_title',
         'big_test_note',
+        'notice_before_sessions',
     ];
 
     protected $casts = [
         'position' => 'integer',
+        'notice_before_sessions' => 'integer',
     ];
 
     public function curriculum(): BelongsTo

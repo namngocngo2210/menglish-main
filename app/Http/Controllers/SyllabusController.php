@@ -280,7 +280,15 @@ class SyllabusController extends Controller
             ])->values()->all(),
             'newCode' => 'CUR-'.strtoupper(Str::random(4)),
             'canManage' => $request->user()->can('syllabus.manage'),
+            'lessonTypes' => self::optionList(SyllabusLesson::TYPES),
+            'milestones' => self::optionList(SyllabusLesson::MILESTONES),
         ]);
+    }
+
+    /** @param  array<string, string>  $labels  value => nhãn → [{value, label}] cho UiSelect */
+    private static function optionList(array $labels): array
+    {
+        return collect($labels)->map(fn (string $label, string $value) => ['value' => $value, 'label' => $label])->values()->all();
     }
 
     /** Nội dung 1 buổi học cho màn soạn / màn GV xem. */
@@ -296,6 +304,18 @@ class SyllabusController extends Controller
             'homework_guide' => $lesson->homework_guide,
             'vocabulary_focus' => $lesson->vocabulary_focus,
             'grammar_focus' => $lesson->grammar_focus,
+            'lesson_type' => $lesson->lesson_type,
+            'type_label' => SyllabusLesson::TYPES[$lesson->lesson_type] ?? SyllabusLesson::TYPES['lesson'],
+            'procedure' => $lesson->procedure,
+            'activity_1' => $lesson->activity_1,
+            'activity_2' => $lesson->activity_2,
+            'homework_quizizz' => $lesson->homework_quizizz,
+            'homework_video' => $lesson->homework_video,
+            'ppt_url' => $lesson->ppt_url,
+            'quizizz_url' => $lesson->quizizz_url,
+            'output_product' => $lesson->output_product,
+            'notice_milestone' => $lesson->notice_milestone,
+            'note' => $lesson->note,
         ];
     }
 
@@ -317,6 +337,7 @@ class SyllabusController extends Controller
                 'description' => $model->description,
                 'big_test_title' => $model->big_test_title,
                 'big_test_note' => $model->big_test_note,
+                'notice_before_sessions' => $model->notice_before_sessions,
             ] : null],
             'unit' => ['type' => 'unit', 'model' => $model ? [
                 'id' => $model->id,
@@ -411,6 +432,7 @@ class SyllabusController extends Controller
             'overview_link' => ['nullable', 'url', 'max:500'],
             'big_test_title' => ['nullable', 'string', 'max:255'],
             'big_test_note' => ['nullable', 'string', 'max:5000'],
+            'notice_before_sessions' => ['nullable', 'integer', 'min:1', 'max:50'],
         ];
     }
 
@@ -420,7 +442,7 @@ class SyllabusController extends Controller
             'curriculum_id' => ['required', 'exists:syllabus_curriculums,id,deleted_at,NULL'],
         ]);
         $position = (int) SyllabusStage::where('curriculum_id', $validated['curriculum_id'])->max('position') + 1;
-        $stage = SyllabusStage::create($validated + ['position' => $position]);
+        $stage = SyllabusStage::create($this->withDefaults($validated) + ['position' => $position]);
 
         return redirect()->route('syllabus.builder', ['curriculum' => $stage->curriculum_id])
             ->with('status', "Đã thêm {$stage->label}.");
@@ -429,7 +451,7 @@ class SyllabusController extends Controller
     public function updateStage(Request $request, int $id)
     {
         $stage = SyllabusStage::findOrFail($id);
-        $stage->update($request->validate($this->stageRules()));
+        $stage->update($this->withDefaults($request->validate($this->stageRules())));
 
         return redirect()->route('syllabus.builder', ['curriculum' => $stage->curriculum_id])
             ->with('status', "Đã lưu thông tin {$stage->label}.");
@@ -577,7 +599,31 @@ class SyllabusController extends Controller
             'vocabulary_focus' => ['nullable', 'string'],
             'grammar_focus' => ['nullable', 'string'],
             'homework_guide' => ['nullable', 'string'],
+            'lesson_type' => ['nullable', Rule::in(array_keys(SyllabusLesson::TYPES))],
+            'procedure' => ['nullable', 'string'],
+            'activity_1' => ['nullable', 'string'],
+            'activity_2' => ['nullable', 'string'],
+            'homework_quizizz' => ['nullable', 'string'],
+            'homework_video' => ['nullable', 'string'],
+            'ppt_url' => ['nullable', 'url', 'max:500'],
+            'quizizz_url' => ['nullable', 'url', 'max:500'],
+            'output_product' => ['nullable', 'string'],
+            'notice_milestone' => ['nullable', Rule::in(array_keys(SyllabusLesson::MILESTONES))],
+            'note' => ['nullable', 'string'],
         ];
+    }
+
+    /** Ô trống của các trường có mặc định (loại buổi, số buổi báo trước) → giữ mặc định thay vì ghi NULL. */
+    private function withDefaults(array $validated): array
+    {
+        if (array_key_exists('lesson_type', $validated) && $validated['lesson_type'] === null) {
+            $validated['lesson_type'] = 'lesson';
+        }
+        if (array_key_exists('notice_before_sessions', $validated) && $validated['notice_before_sessions'] === null) {
+            unset($validated['notice_before_sessions']);
+        }
+
+        return $validated;
     }
 
     private function ensureUniqueSessionNo(int $curriculumId, int $number, ?int $ignoreId = null): void
@@ -599,7 +645,7 @@ class SyllabusController extends Controller
         $unit = SyllabusUnit::findOrFail($validated['unit_id']);
         $this->ensureUniqueSessionNo($unit->curriculum_id, (int) $validated['session_no']);
 
-        $lesson = SyllabusLesson::create($validated + ['curriculum_id' => $unit->curriculum_id]);
+        $lesson = SyllabusLesson::create($this->withDefaults($validated) + ['curriculum_id' => $unit->curriculum_id]);
 
         return redirect()->route('syllabus.builder', ['curriculum' => $unit->curriculum_id])
             ->with('status', "Đã lưu Buổi {$lesson->session_no}: {$lesson->title} (Unit {$unit->unit_number}).");
@@ -616,7 +662,7 @@ class SyllabusController extends Controller
             unset($validated['unit_id']);
         }
 
-        $lesson->update($validated);
+        $lesson->update($this->withDefaults($validated));
 
         return redirect()->route('syllabus.builder', ['curriculum' => $lesson->curriculum_id])
             ->with('status', "Đã cập nhật Buổi {$lesson->session_no}: {$lesson->title}.");

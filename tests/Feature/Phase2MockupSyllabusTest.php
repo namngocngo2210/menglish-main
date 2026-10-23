@@ -134,11 +134,11 @@ class Phase2MockupSyllabusTest extends TestCase
             ->assertSee('Khu vực hiển thị preview ảnh mục lục tổng quan')
             ->assertSee('Lưu chặng học');
 
-        // Ô soạn buổi: Mục tiêu (Target) / Nội dung bài học chính / Bài tập về nhà (Homework), lưu được nội dung chính
+        // Ô soạn buổi theo form Sheet 1 (docs/kho-syllabus.md): Mục tiêu (Target) / Content / Bài tập giấy, lưu được nội dung chính
         $this->actingAs($this->academic)->get($url.'&edit_lesson='.$this->lessons[0]->id)->assertOk()
             ->assertSee('Mục tiêu buổi học (Target)')
-            ->assertSee('Nội dung bài học chính')
-            ->assertSee('Bài tập về nhà (Homework)');
+            ->assertSee('Content (nội dung từng tiết)')
+            ->assertSee('Bài tập giấy');
 
         $this->actingAs($this->academic)->put(route('syllabus.lessons.update', $this->lessons[0]->id), [
             'session_no' => 1, 'title' => 'Introduction', 'objectives' => 'Tự giới thiệu', 'content' => 'Thực hành theo cặp', 'homework_guide' => 'Viết 5 câu',

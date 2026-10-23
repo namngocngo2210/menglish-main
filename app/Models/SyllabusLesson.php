@@ -19,6 +19,12 @@ class SyllabusLesson extends Model
 
     protected $table = 'syllabus_lessons';
 
+    /** Loại buổi theo form syllabus mẫu (Sheet 1 "Loại buổi"). */
+    public const TYPES = ['lesson' => 'Học', 'mini_test' => 'Mini test', 'big_test' => 'Big test'];
+
+    /** Mốc thông báo của buổi (Sheet 1 "Mốc thông báo") — giai đoạn 4 dùng để nhắc order. */
+    public const MILESTONES = ['order_print' => 'Order in ấn', 'order_mini_test' => 'Order mini test', 'order_big_test' => 'Order Big Test'];
+
     protected $fillable = [
         'curriculum_id',
         'unit_id',
@@ -29,6 +35,21 @@ class SyllabusLesson extends Model
         'vocabulary_focus',
         'grammar_focus',
         'homework_guide',
+        'lesson_type',
+        'procedure',
+        'activity_1',
+        'activity_2',
+        'homework_quizizz',
+        'homework_video',
+        'ppt_url',
+        'quizizz_url',
+        'output_product',
+        'notice_milestone',
+        'note',
+    ];
+
+    protected $attributes = [
+        'lesson_type' => 'lesson',
     ];
 
     protected $casts = [

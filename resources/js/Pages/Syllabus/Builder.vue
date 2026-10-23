@@ -21,6 +21,8 @@ const props = defineProps({
     levels: { type: Array, default: () => [] },
     newCode: { type: String, default: '' },
     canManage: { type: Boolean, default: false },
+    lessonTypes: { type: Array, default: () => [] },
+    milestones: { type: Array, default: () => [] },
 });
 
 const creating = ref(false);
@@ -59,13 +61,22 @@ const editorSubmitLabel = computed(() => {
 });
 const isImage = (u) => /\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(u || '');
 
+// Trường buổi học theo form syllabus mẫu (Sheet 1); link PPT / Quizizz hiển thị riêng thành liên kết.
 const lessonFields = [
     ['objectives', 'Mục tiêu:', 'Chưa cập nhật'],
-    ['content', 'Nội dung chính:', 'Chưa cập nhật'],
-    ['homework_guide', 'Bài tập về nhà:', 'Chưa cập nhật'],
+    ['content', 'Content:', 'Chưa cập nhật'],
+    ['procedure', 'Quy trình tiết học:', '—'],
+    ['activity_1', 'Hoạt động gợi ý 1:', '—'],
+    ['activity_2', 'Hoạt động gợi ý 2:', '—'],
+    ['homework_guide', 'Bài tập giấy:', '—'],
+    ['homework_quizizz', 'Bài tập Quizizz:', '—'],
+    ['homework_video', 'Bài tập Video:', '—'],
+    ['output_product', 'Sản phẩm đầu ra:', '—'],
     ['vocabulary_focus', 'Từ vựng:', '—'],
     ['grammar_focus', 'Ngữ pháp:', '—'],
+    ['note', 'Ghi chú:', '—'],
 ];
+const milestoneLabel = (value) => props.milestones.find((m) => m.value === value)?.label;
 </script>
 
 <template>
@@ -178,6 +189,7 @@ const lessonFields = [
                         <div class="md:col-span-2"><UiTextarea name="description" label="Mục tiêu / đầu ra của chặng" :rows="2" :value="editor.model?.description" /></div>
                         <UiInput name="big_test_title" label="Big Test cuối chặng" :value="editor.model?.big_test_title" placeholder="Big Test chặng 2 — 4 kỹ năng" />
                         <UiTextarea name="big_test_note" label="Ghi chú Big Test (dạng đề, thời lượng, đầu ra)" :rows="2" :value="editor.model?.big_test_note" />
+                        <UiInput type="number" name="notice_before_sessions" label="Báo trước (buổi)" min="1" max="50" hint="Còn bấy nhiêu buổi đến buổi cuối chặng thì hệ thống báo Học thuật." :value="editor.model?.notice_before_sessions ?? 6" />
                     </UiForm>
 
                     <UiForm v-else-if="editor.type === 'unit'" id="syllabus-editor-form" :key="editorKey" :action="editor.model ? route('syllabus.units.update', editor.model.id) : route('syllabus.units.store')" :method="editor.model ? 'put' : 'post'" class="space-y-4">
@@ -195,16 +207,37 @@ const lessonFields = [
                             <UiInput type="number" name="session_no" label="Buổi số" required min="1" hint="Đánh liên tục trong cả giáo trình" :value="editor.model?.session_no ?? totals.next_session_no" />
                             <div class="sm:col-span-3"><UiInput name="title" label="Tiêu đề buổi học" required :value="editor.model?.title" placeholder="Buổi 01: Introduction to IELTS & Greetings" /></div>
                         </div>
-                        <UiSelect name="unit_id" label="Thuộc Unit" required :value="editor.parent?.id ?? ''" :options="unitOptions" />
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <UiSelect name="unit_id" label="Thuộc Unit" required :value="editor.parent?.id ?? ''" :options="unitOptions" />
+                            <UiSelect name="lesson_type" label="Loại buổi" :value="editor.model?.lesson_type ?? 'lesson'" :options="lessonTypes" />
+                        </div>
                         <UiTextarea name="objectives" label="Mục tiêu buổi học (Target)" :rows="3" :value="editor.model?.objectives" placeholder="Người học cần đạt được điều gì sau buổi này..." />
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                            <UiTextarea name="content" label="Nội dung bài học chính" :rows="7" :value="editor.model?.content" placeholder="Nhập nội dung chi tiết (hoạt động trên lớp)..." />
-                            <UiTextarea name="homework_guide" label="Bài tập về nhà (Homework)" :rows="7" :value="editor.model?.homework_guide" placeholder="Ghi chú bài tập hoặc link bài tập..." />
+                            <UiTextarea name="content" label="Content (nội dung từng tiết)" :rows="5" :value="editor.model?.content" placeholder="Getting started: hội thoại ngày đầu đi học..." />
+                            <UiTextarea name="procedure" label="Quy trình tiết học" :rows="5" :value="editor.model?.procedure" placeholder="1. Warm-up (5’)&#10;2. Presentation (10’)..." />
+                        </div>
+                        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <UiTextarea name="activity_1" label="Hoạt động gợi ý 1" :rows="2" :value="editor.model?.activity_1" />
+                            <UiTextarea name="activity_2" label="Hoạt động gợi ý 2" :rows="2" :value="editor.model?.activity_2" />
+                        </div>
+                        <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+                            <UiTextarea name="homework_guide" label="Bài tập giấy" :rows="3" :value="editor.model?.homework_guide" />
+                            <UiTextarea name="homework_quizizz" label="Bài tập Quizizz" :rows="3" :value="editor.model?.homework_quizizz" />
+                            <UiTextarea name="homework_video" label="Bài tập Video" :rows="3" :value="editor.model?.homework_video" />
+                        </div>
+                        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <UiInput type="url" name="ppt_url" label="Link PPT" :value="editor.model?.ppt_url" placeholder="https://..." />
+                            <UiInput type="url" name="quizizz_url" label="Link Quizizz" :value="editor.model?.quizizz_url" placeholder="https://quizizz.com/..." />
+                        </div>
+                        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <UiTextarea name="output_product" label="Sản phẩm đầu ra" :rows="2" :value="editor.model?.output_product" />
+                            <UiSelect name="notice_milestone" label="Mốc thông báo" placeholder="-- Không có --" :value="editor.model?.notice_milestone ?? ''" :options="milestones" />
                         </div>
                         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <UiTextarea name="vocabulary_focus" label="Trọng tâm từ vựng" :rows="2" :value="editor.model?.vocabulary_focus" />
                             <UiTextarea name="grammar_focus" label="Trọng tâm ngữ pháp" :rows="2" :value="editor.model?.grammar_focus" />
                         </div>
+                        <UiTextarea name="note" label="Ghi chú" :rows="2" :value="editor.model?.note" />
                     </UiForm>
                 </div>
                 <template v-if="editor" #footer>
@@ -283,12 +316,18 @@ const lessonFields = [
                                         <span class="flex min-w-0 items-center gap-2">
                                             <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary-container/10 text-xs font-bold text-primary">{{ lesson.session_no }}</span>
                                             <span class="truncate font-semibold text-on-surface">Buổi {{ lesson.session_no }}: {{ lesson.title }}</span>
+                                            <UiBadge v-if="lesson.lesson_type !== 'lesson'" :color="lesson.lesson_type === 'big_test' ? 'error' : 'warning'">{{ lesson.type_label }}</UiBadge>
+                                            <UiBadge v-if="lesson.notice_milestone" color="info">{{ milestoneLabel(lesson.notice_milestone) }}</UiBadge>
                                         </span>
                                         <span class="material-symbols-outlined text-[18px] text-on-surface-subtle transition group-open:rotate-180">expand_more</span>
                                     </summary>
                                     <div class="mt-3 grid grid-cols-1 gap-3 text-on-surface-variant md:grid-cols-2">
                                         <p v-for="[field, label, empty] in lessonFields" :key="field" class="whitespace-pre-line"><span class="font-semibold">{{ label }}</span> {{ lesson[field] || empty }}</p>
                                     </div>
+                                    <p v-if="lesson.ppt_url || lesson.quizizz_url" class="mt-2 flex flex-wrap gap-3">
+                                        <a v-if="lesson.ppt_url" :href="lesson.ppt_url" target="_blank" rel="noopener" class="inline-flex items-center gap-1 font-semibold text-primary hover:underline"><span class="material-symbols-outlined text-[14px]">slideshow</span>Link PPT</a>
+                                        <a v-if="lesson.quizizz_url" :href="lesson.quizizz_url" target="_blank" rel="noopener" class="inline-flex items-center gap-1 font-semibold text-primary hover:underline"><span class="material-symbols-outlined text-[14px]">quiz</span>Link Quizizz</a>
+                                    </p>
                                     <div v-if="canManage" class="mt-2 flex justify-end gap-1">
                                         <UiButton variant="ghost" size="sm" icon="edit" preserve-scroll :href="builderUrl({ edit_lesson: lesson.id })">Sửa buổi</UiButton>
                                         <UiForm :action="route('syllabus.lessons.destroy', lesson.id)" method="delete" :confirm="`Xóa Buổi ${lesson.session_no}?`" confirm-label="Xóa" danger>
