@@ -57,7 +57,7 @@ class SyllabusImportTemplateExport implements WithMultipleSheets
     {
         return [
             'Điền 3 sheet "Giáo trình", "Chặng", "Buổi" theo đúng tiêu đề cột ở dòng 1; sheet này không được import.',
-            'Giáo trình: chỉ 1 dòng. Mã và Tên bắt buộc; mã tối đa 50 ký tự và chưa tồn tại (kể cả giáo trình đã xoá). Phiên bản tối đa 20 ký tự, để trống sẽ là v1.',
+            'Giáo trình: chỉ 1 dòng. Mã và Tên bắt buộc; mã tối đa 50 ký tự và chưa có giáo trình nào đang dùng. Phiên bản tối đa 20 ký tự, để trống sẽ là v1.',
             'Chặng: cột Thứ tự điền liên tục 1, 2, 3... không bỏ số; Tên chặng bắt buộc. Link mục lục (nếu có) phải bắt đầu bằng http:// hoặc https://.',
             'Buổi: cột Chặng điền số thứ tự của chặng (1, 2...), không điền chữ "Chặng 1". Mỗi chặng có ít nhất 1 buổi.',
             'Buổi số đánh liên tục 1...N trong cả giáo trình (không đặt lại từ 1 ở mỗi chặng), không trùng nhau.',
