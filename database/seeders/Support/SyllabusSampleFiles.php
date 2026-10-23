@@ -59,10 +59,10 @@ class SyllabusSampleFiles
             $this->lesson(1, 1, 'Weather & Seasons', 1, 'Thời tiết và các mùa', 'Học', 'Order in ấn', 'In workbook chặng 1 trước buổi 1.'),
             $this->lesson(1, 1, 'Weather & Seasons', 2, 'Will / won\'t dự đoán thời tiết', 'Học'),
             $this->lesson(1, 2, 'Jobs', 3, 'Nghề nghiệp', 'Học', 'Order mini test'),
-            $this->lesson(1, 2, 'Jobs', 4, 'Mini test Unit 1–2', 'Mini test', 'Order Big Test'),
+            $this->lesson(1, 2, 'Jobs', 4, 'Ôn tập + Mini test Unit 1–2', 'Ôn tập', 'Order Big Test'),
             $this->lesson(1, 2, 'Jobs', 5, 'Big Test chặng 1', 'Big test'),
             $this->lesson(2, 3, 'Flyers practice', 6, 'Listening & Speaking Flyers', 'Học', 'Order Big Test'),
-            $this->lesson(2, 3, 'Flyers practice', 7, 'Reading & Writing Flyers', 'Học'),
+            $this->lesson(2, 3, 'Flyers practice', 7, 'Grammar Basic: Past simple', 'Grammar Basic'),
             $this->lesson(2, 3, 'Flyers practice', 8, 'Big Test cuối khóa', 'Big test'),
         ];
 
@@ -119,16 +119,30 @@ class SyllabusSampleFiles
         $book->disconnectWorksheets();
     }
 
-    /** Chặng 4 mới cho Starters: Unit 7–8, 6 buổi gồm Mini test, Big test, link (cả ô hyperlink) và mốc thông báo. */
+    /**
+     * Chặng 4 mới cho Starters theo form Sheet 1 mới (như syllabus FAM 2): Unit 7–8, 8 buổi gồm Ôn tập, Grammar Basic,
+     * Big test; ô UNIT "GRAMMAR BASIC…", "ÔN TẬP CHẶNG", "BIG TEST" là tiêu đề riêng của buổi; link PPT / PPT GVNN / Quizizz /
+     * đề kiểm tra (cả ô hyperlink hiện tên file) và mốc thông báo.
+     */
     private function newStageRows(): array
     {
+        $url = fn (string $slug) => "https://example.com/starters/{$slug}";
+
         return [
-            $this->stageRow('Học', 'Unit 7: Toys', "Đồ chơi\nTừ vựng: ball, doll, kite, robot", 'In flashcard đồ chơi', ['Link PPT', 'https://example.com/starters/ppt-unit-7-1'], 'Order in ấn', objectives: 'Gọi tên đồ chơi, hỏi đáp What\'s this?'),
-            $this->stageRow('Học', null, 'Have got / has got', 'Phiếu bài tập have got', 'https://example.com/starters/ppt-unit-7-2', null),
-            $this->stageRow('Mini test', null, 'Mini test Unit 7', 'Đề mini test 15 phút', 'link PPT', 'Order mini test', quizizz: 'https://quizizz.com/admin/quiz/demo-unit-7'),
-            $this->stageRow('Học', 'Unit 8: My house', 'Các phòng trong nhà', 'Vẽ ngôi nhà của em', 'https://example.com/starters/ppt-unit-8-1', 'Order Big Test', objectives: 'Gọi tên phòng, đồ vật trong nhà; giới từ chỉ vị trí.'),
-            $this->stageRow('Học', null, 'In / on / under', 'Bài nói mô tả phòng ngủ', 'https://example.com/starters/ppt-unit-8-2', null),
-            $this->stageRow('Big test', null, 'Big Test chặng 4', 'Bài thi 4 kỹ năng', null, null, note: 'Thi trong giờ học, GV chấm và nhập điểm trong 3 ngày.'),
+            $this->stageRow('Học', 'Unit 7: Toys', "Đồ chơi\nTừ vựng: ball, doll, kite, robot", 'In flashcard đồ chơi', 'Order in ấn',
+                objectives: 'Gọi tên đồ chơi, hỏi đáp What\'s this?', ppt: ['ST-Unit 7-Lesson 1.pptx', $url('ppt-unit-7-1')],
+                pptForeign: ['ST-Unit 7-Lesson 1 - FOREIGN TEACHER.pptx', $url('ppt-gvnn-unit-7-1')]),
+            $this->stageRow('Học', null, 'Have got / has got', 'Phiếu bài tập have got', 'Order in ấn mini test',
+                ppt: $url('ppt-unit-7-2'), quizizz: 'https://quizizz.com/admin/quiz/demo-unit-7', test: ['KIỂM TRA TỪ Unit 7.docx', $url('kiem-tra-tu-unit-7')]),
+            $this->stageRow('Ôn tập', null, 'Review Unit 7 + Mini test', 'Điểm mini test Unit 7', null, ppt: 'link PPT', test: $url('mini-test-unit-7')),
+            $this->stageRow('Grammar Basic', "GRAMMAR BASIC 1\nTOPIC 1: NOUNS", "Nouns\nSingular", 'Hoàn thành BT sách Basic 1', null,
+                ppt: $url('grammar-topic-1'), quizizz: 'https://quizizz.com/admin/quiz/demo-grammar-1'),
+            $this->stageRow('Học', 'Unit 8: My house', 'Các phòng trong nhà', 'Vẽ ngôi nhà của em', 'Order Big Test',
+                objectives: 'Gọi tên phòng, đồ vật trong nhà; giới từ chỉ vị trí.', ppt: $url('ppt-unit-8-1'), pptForeign: $url('ppt-gvnn-unit-8-1')),
+            $this->stageRow('Học', null, 'In / on / under', 'Bài nói mô tả phòng ngủ', null, ppt: $url('ppt-unit-8-2')),
+            $this->stageRow('Ôn tập', 'ÔN TẬP CHẶNG', 'Review Unit 7, 8', 'Video speaking ôn tập', null, quizizz: 'https://quizizz.com/admin/quiz/demo-review-4'),
+            $this->stageRow('Big test', 'BIG TEST', 'BIG TEST Unit 7 - 8', 'Điểm Big test chặng 4', null, test: $url('big-test-chang-4'),
+                note: 'Thi trong giờ học, GV chấm và nhập điểm trong 3 ngày.'),
         ];
     }
 
@@ -136,29 +150,33 @@ class SyllabusSampleFiles
     private function updateStageRows(): array
     {
         return [
-            $this->stageRow('Học', 'Unit 1: Hello & Classroom', 'Chào hỏi, tên, tuổi (bản sửa)', 'Thẻ tên', 'https://example.com/starters/ppt-unit-1-1', 'Order in ấn'),
-            $this->stageRow('Học', null, 'Đồ vật lớp học (bản sửa)', 'Trò chơi tìm đồ vật', 'https://example.com/starters/ppt-unit-1-2', null),
-            $this->stageRow('Học', null, 'Màu sắc & số 1–10 (bản sửa)', 'Tô màu theo số', 'https://example.com/starters/ppt-unit-1-3', 'Order mini test'),
-            $this->stageRow('Học', 'Unit 2: My Family', 'Thành viên gia đình (bản sửa)', 'Ảnh gia đình', 'https://example.com/starters/ppt-unit-2-1', null),
-            $this->stageRow('Mini test', null, 'Mini test Unit 1–2', 'Đề mini test', null, null),
+            $this->stageRow('Học', 'Unit 1: Hello & Classroom', 'Chào hỏi, tên, tuổi (bản sửa)', 'Thẻ tên', 'Order in ấn', ppt: 'https://example.com/starters/ppt-unit-1-1'),
+            $this->stageRow('Học', null, 'Đồ vật lớp học (bản sửa)', 'Trò chơi tìm đồ vật', null, ppt: 'https://example.com/starters/ppt-unit-1-2'),
+            $this->stageRow('Học', null, 'Màu sắc & số 1–10 (bản sửa)', 'Tô màu theo số', 'Order mini test', ppt: 'https://example.com/starters/ppt-unit-1-3'),
+            $this->stageRow('Học', 'Unit 2: My Family', 'Thành viên gia đình (bản sửa)', 'Ảnh gia đình', null, ppt: 'https://example.com/starters/ppt-unit-2-1'),
+            $this->stageRow('Ôn tập', null, 'Ôn tập + Mini test Unit 1–2', 'Đề mini test', null),
         ];
     }
 
-    /** File chặng có lỗi theo dòng: thiếu UNIT, sai dạng UNIT, loại buổi / link / mốc thông báo sai. */
+    /** File chặng có lỗi theo dòng: thiếu UNIT ở buổi đầu, loại buổi / link / mốc thông báo sai. */
     private function brokenStageRows(): array
     {
         return [
-            $this->stageRow('Học', null, 'Buổi chưa có UNIT', null, null, null),
-            $this->stageRow('Học', 'Bài 1 - Không đúng dạng', 'Ô UNIT sai dạng', null, null, null),
-            $this->stageRow('Thi cuối kỳ', 'Unit 20: Lỗi', 'Loại buổi không hợp lệ', null, null, null),
-            $this->stageRow('Học', null, 'Link PPT không phải URL', null, 'slide buoi 4', null),
-            $this->stageRow('Học', null, 'Mốc thông báo sai', null, null, 'Gửi phụ huynh'),
+            $this->stageRow('Học', null, 'Buổi chưa có UNIT', null, null),
+            $this->stageRow('Học', 'Unit 20: Lỗi', 'Loại buổi không hợp lệ', null, null),
+            $this->stageRow('Thi cuối kỳ', null, 'Loại buổi không hợp lệ', null, null),
+            $this->stageRow('Học', null, 'Link PPT / PPT GVNN không phải URL', null, null, ppt: 'slide buoi 4', pptForeign: 'slide GVNN buoi 4.pptx'),
+            $this->stageRow('Học', null, 'Mốc thông báo sai', null, 'Gửi phụ huynh'),
         ];
     }
 
-    /** @return array<string, string|array{0: string, 1: string}> */
-    private function stageRow(string $type, ?string $unit, string $content, ?string $output, string|array|null $ppt, ?string $milestone,
-        ?string $objectives = null, ?string $quizizz = null, ?string $note = null): array
+    /**
+     * Một dòng file chặng theo cột của StageImportTemplate; link là URL hoặc [chữ hiển thị, URL hyperlink].
+     *
+     * @return array<string, string|array{0: string, 1: string}>
+     */
+    private function stageRow(string $type, ?string $unit, string $content, ?string $output, ?string $milestone, ?string $objectives = null,
+        string|array|null $ppt = null, string|array|null $pptForeign = null, ?string $quizizz = null, string|array|null $test = null, ?string $note = null): array
     {
         return array_filter([
             'C' => $type,
@@ -169,13 +187,16 @@ class SyllabusSampleFiles
             'H' => 'Trò chơi khởi động',
             'I' => 'Làm việc nhóm đôi',
             'J' => 'Workbook trang tương ứng',
-            'K' => $quizizz ? 'Quizizz ôn tập' : null,
+            'K' => $quizizz ? 'Quizizz ôn tập (y/c đạt 90%)' : null,
             'L' => 'Quay video đọc từ vựng',
             'M' => $ppt,
-            'N' => $quizizz,
-            'O' => $output,
-            'P' => $milestone,
-            'R' => $note,
+            'N' => $pptForeign,
+            'O' => $quizizz,
+            'P' => $test,
+            'Q' => $output,
+            'R' => $milestone,
+            'S' => 'Không',
+            'T' => $note,
         ], fn ($value) => $value !== null);
     }
 
@@ -225,6 +246,7 @@ class SyllabusSampleFiles
             $type, 'Warm-up → Presentation → Practice → Production', 'Trò chơi khởi động', 'Thảo luận nhóm',
             'Quizizz ôn tập buổi '.$session, 'Video nói 1 phút', "https://example.com/flyers/ppt-{$slug}",
             "https://quizizz.com/admin/quiz/flyers-{$slug}", 'Phiếu bài làm của HV', $milestone, $note,
+            "https://example.com/flyers/ppt-gvnn-{$slug}", in_array($type, ['Mini test', 'Big test', 'Ôn tập'], true) ? "https://example.com/flyers/de-{$slug}" : null,
         ];
     }
 

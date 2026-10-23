@@ -22,8 +22,8 @@ use RuntimeException;
 
 /**
  * Dữ liệu demo Kho syllabus (docs/kho-syllabus.md) dựng trên giáo trình DEMO-SYL-* của DemoPhase2Seeder:
- * - Buổi đủ cột form Sheet 1: loại Học / Mini test / Big test, quy trình, hoạt động gợi ý, link PPT / Quizizz, sản phẩm
- *   đầu ra, mốc thông báo; chặng 1 Starters báo trước 3 buổi.
+ * - Buổi đủ cột form Sheet 1: loại Học / Ôn tập / Big test, quy trình, hoạt động gợi ý, link PPT / PPT GVNN / Quizizz /
+ *   đề kiểm tra, sản phẩm đầu ra, mốc thông báo; chặng 1 Starters báo trước 3 buổi.
  * - Tài liệu chung / theo chặng / theo buổi với đối tượng xem khác nhau (GV, TA, chỉ nội bộ, chỉ xem không tải); tài liệu
  *   chặng 3 Starters chưa lớp nào học tới nên GV không thấy; GV CG đã đánh dấu xem 1 tài liệu.
  * - Đề xuất sửa giáo trình: chờ duyệt / đã duyệt / đã từ chối.
@@ -96,6 +96,7 @@ class DemoSyllabusLibrarySeeder extends Seeder
         }
 
         $lastStage = $curriculum->stages()->max('position');
+        $link = 'https://example.com/demo-syllabus/'.strtolower($curriculum->code);
         foreach ($curriculum->stages()->orderBy('position')->get() as $stage) {
             if ($stage->position === 1 && $curriculum->code === 'DEMO-SYL-STARTERS') {
                 $this->asUser($this->lead, SyllabusController::class, 'updateStage', $stage->only(['name', 'description', 'overview_link', 'big_test_title', 'big_test_note'])
@@ -106,7 +107,7 @@ class DemoSyllabusLibrarySeeder extends Seeder
             foreach ($lessons as $i => $lesson) {
                 $type = match (true) {
                     $i === $last && $stage->position === $lastStage => 'big_test',
-                    str_starts_with($lesson->title, 'Ôn tập') => 'mini_test',
+                    str_starts_with($lesson->title, 'Ôn tập') => 'review',
                     default => 'lesson',
                 };
                 $this->asUser($this->lead, SyllabusController::class, 'updateLesson', $lesson->only([
@@ -118,8 +119,10 @@ class DemoSyllabusLibrarySeeder extends Seeder
                     'activity_2' => $type === 'lesson' ? 'Làm việc nhóm đôi, trình bày trước lớp' : null,
                     'homework_quizizz' => 'Quizizz ôn tập buổi '.$lesson->session_no,
                     'homework_video' => $type === 'lesson' ? 'Quay video 1 phút dùng từ vựng của buổi' : null,
-                    'ppt_url' => 'https://example.com/demo-syllabus/'.strtolower($curriculum->code).'/ppt-buoi-'.$lesson->session_no,
+                    'ppt_url' => $link.'/ppt-buoi-'.$lesson->session_no,
+                    'ppt_foreign_url' => $type === 'lesson' ? $link.'/ppt-gvnn-buoi-'.$lesson->session_no : null,
                     'quizizz_url' => 'https://quizizz.com/admin/quiz/demo-'.strtolower($curriculum->code).'-'.$lesson->session_no,
+                    'test_url' => $type === 'lesson' ? null : $link.'/de-buoi-'.$lesson->session_no,
                     'output_product' => $type === 'lesson' ? 'Phiếu bài làm / sản phẩm nhóm' : 'Bài kiểm tra đã chấm',
                     'notice_milestone' => match (true) {
                         $i === 0 => 'order_print',
