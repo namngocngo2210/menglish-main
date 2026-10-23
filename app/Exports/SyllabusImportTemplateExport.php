@@ -62,6 +62,7 @@ class SyllabusImportTemplateExport implements WithMultipleSheets
             'Buổi: cột Chặng điền số thứ tự của chặng (1, 2...), không điền chữ "Chặng 1". Mỗi chặng có ít nhất 1 buổi.',
             'Buổi số đánh liên tục 1...N trong cả giáo trình (không đặt lại từ 1 ở mỗi chặng), không trùng nhau.',
             'Một unit chỉ thuộc một chặng; các dòng cùng Unit số phải cùng Tên unit. Unit số từ 1 đến 500, tối đa 1000 buổi.',
+            'File mẫu có sẵn tài liệu ví dụ (PDF, ảnh, audio, video) trong tai-lieu/chang-1 và chang-2: thay bằng tài liệu thật hoặc xoá đi trước khi import.',
             'Tài liệu (không bắt buộc): đặt vào thư mục tai-lieu/chang-<thứ tự>/ (ví dụ tai-lieu/chang-1/). Thư mục phải khớp một chặng trong sheet "Chặng".',
             'File để thẳng trong tai-lieu/ là tài liệu chung của giáo trình, không gắn chặng. Không tạo thư mục con sâu hơn một cấp.',
             'Tên tài liệu lấy từ tên file bỏ đuôi. Chỉ nhận các định dạng tài liệu được hệ thống cho phép (kiểm tra theo nội dung file).',

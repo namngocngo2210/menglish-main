@@ -55,9 +55,12 @@ mau-import-syllabus.zip
 ├── syllabus.xlsx
 └── tai-lieu/
     ├── (file để thẳng ở đây = tài liệu chung của giáo trình, không gắn chặng)
-    ├── chang-1/
-    └── chang-2/
+    ├── chang-1/   slide-buoi-1.pdf, hinh-minh-hoa.png, audio-nghe.mp3 (ví dụ)
+    └── chang-2/   video-mau.mp4 (ví dụ)
 ```
+
+Tài liệu ví dụ (nguồn: `resources/syllabus-import-samples/`, tổng ~300 KB) giúp import thử file mẫu được ngay và cho
+thấy các định dạng được nhận; Học thuật thay bằng tài liệu thật hoặc xoá đi.
 
 `syllabus.xlsx` gồm 4 sheet, có sẵn dữ liệu ví dụ (2 chặng, vài buổi):
 
