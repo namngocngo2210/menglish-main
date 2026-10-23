@@ -31,6 +31,7 @@ use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\PlacementTestController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PromotionController;
+use App\Http\Controllers\QuestionBankController;
 use App\Http\Controllers\RecruitmentController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\RoleSwitcherController;
@@ -878,6 +879,22 @@ Route::middleware('auth')->group(function () {
             Route::delete('/milestones/{milestoneId}', 'destroyMilestone')->whereNumber('milestoneId')->middleware('can:academic_project.manage')->name('milestones.destroy');
             Route::post('/{id}/updates', 'storeUpdate')->whereNumber('id')->name('updates.store');
             Route::post('/updates/{updateId}/respond', 'respond')->whereNumber('updateId')->name('updates.respond');
+        });
+
+    // ──────────────────────────────────────
+    // Ngân hàng câu hỏi luyện tập (Học thuật): danh sách / duyệt hàng loạt, sửa câu / ngữ liệu, import ZIP
+    // ──────────────────────────────────────
+    Route::controller(QuestionBankController::class)->prefix('question-bank')->name('question-bank.')
+        ->middleware('can:question_bank.view')->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::middleware('can:question_bank.manage')->group(function () {
+                Route::post('/bulk', 'bulk')->name('bulk');
+                Route::post('/import', 'import')->name('import');
+                Route::get('/questions/{question}', 'editQuestion')->whereNumber('question')->name('questions.edit');
+                Route::put('/questions/{question}', 'updateQuestion')->whereNumber('question')->name('questions.update');
+                Route::get('/passages/{passage}', 'editPassage')->whereNumber('passage')->name('passages.edit');
+                Route::put('/passages/{passage}', 'updatePassage')->whereNumber('passage')->name('passages.update');
+            });
         });
 
     // ──────────────────────────────────────

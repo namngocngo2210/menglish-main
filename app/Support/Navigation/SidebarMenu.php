@@ -238,6 +238,9 @@ final class SidebarMenu
                     ...self::anchored(self::SYLLABUS_MANAGER, [
                         ['label' => 'Giao chặng', 'route' => 'syllabus.assignments'],
                     ]),
+                    // Ngân hàng câu hỏi luyện tập (Học thuật, docs/luyen-tap-ngan-hang-cau-hoi.md): quyền question_bank.view
+                    // đọc từ middleware route. Tab trong workspace Giáo trình (menu trái tối đa 25 mục).
+                    ['label' => 'Ngân hàng câu hỏi', 'route' => 'question-bank.index', 'active' => ['question-bank.*']],
                     // Phía giáo viên (mockup 03_Cong_Giao_Vien/07–11, 14): ai xem được giáo trình đều thấy.
                     ['label' => 'Chặng đang dạy & Order Test', 'route' => 'syllabus.teaching-stages', 'active' => ['syllabus.teaching-stages', 'teacher.order-test*']],
                     // Dự án soạn sách / xây chương trình của Học thuật (04/10/2026); quyền academic_project.* đọc từ middleware route.
