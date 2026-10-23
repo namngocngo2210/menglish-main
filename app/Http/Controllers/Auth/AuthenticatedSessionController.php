@@ -44,14 +44,15 @@ class AuthenticatedSessionController extends Controller
         $request->session()->forget('url.intended');
 
         // Phiên vừa đổi (token CSRF, user) → tải lại hẳn trang đích (Inertia: 409 + X-Inertia-Location); request thường: redirect như cũ.
-        return Inertia::location(redirect($this->homeUrl($request->user())));
+        return Inertia::location(redirect(self::homeUrl($request->user())));
     }
 
     /**
      * Trang đầu sau đăng nhập: giáo viên vào Cổng Giáo viên, trợ giảng vào Nhiệm vụ trợ giảng (màn họ dùng hằng ngày);
      * chỉ áp dụng khi mọi vai trò của người dùng đều là GV / TA — người kiêm vai trò khác vẫn vào Tổng quan.
+     * Dùng chung với đổi vai trò thử nghiệm (RoleSwitcherController).
      */
-    private function homeUrl(?User $user): string
+    public static function homeUrl(?User $user): string
     {
         $roles = $user?->getRoleNames() ?? collect();
         if ($roles->isNotEmpty() && $roles->diff(self::TEACHER_ROLES)->isEmpty() && $user->can('attendance_student.record')) {
