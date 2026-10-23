@@ -13,9 +13,11 @@ use App\Models\SyllabusDocument;
 use App\Models\SyllabusDocumentView;
 use App\Models\SyllabusLesson;
 use App\Models\User;
+use App\Models\WorkTask;
 use App\Services\Syllabus\ClassSyllabus;
 use App\Services\Syllabus\StageImport\StageImportPlanner;
 use App\Services\Syllabus\StageImport\StageSheetReader;
+use App\Services\Syllabus\SyllabusOrders;
 use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\DemoSyllabusLibrarySeeder;
 use Database\Seeders\Support\SyllabusSampleFiles;
@@ -73,6 +75,11 @@ class DemoSyllabusLibrarySeederTest extends TestCase
         $this->assertCount(1, $timeline['unmarked_sessions']);
         $this->assertTrue(ClassLessonProgress::where('syllabus_assignment_id', $cg1->id)->whereNotNull('pace_note')->exists());
         $this->assertTrue(SyllabusAdjustmentRequest::where('class_id', ClassModel::where('code', 'DEMO-BD-FAM1')->value('id'))->where('kind', 'postpone')->where('status', 'pending')->exists());
+
+        // Giai đoạn 4: việc cuối chặng của CG FAM 1 Học thuật đã NHẬN VIỆC; GV CG có mốc ORDER đến hạn.
+        $this->assertTrue(WorkTask::where('kind', WorkTask::KIND_SYLLABUS_STAGE_END)->where('status', 'in_progress')
+            ->where('class_id', ClassModel::where('code', 'DEMO-CG-FAM1')->value('id'))->exists());
+        $this->assertGreaterThan(0, app(SyllabusOrders::class)->dueCount($teacher));
 
         // Đề xuất sửa đủ 3 trạng thái.
         $this->assertEqualsCanonicalizing(['pending', 'approved', 'rejected'],

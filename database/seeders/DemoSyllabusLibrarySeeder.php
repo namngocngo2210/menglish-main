@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Http\Controllers\SyllabusClassController;
 use App\Http\Controllers\SyllabusController;
 use App\Http\Controllers\TeacherLessonController;
+use App\Http\Controllers\WorkTaskController;
 use App\Models\ClassLessonOverride;
 use App\Models\ClassLessonProgress;
 use App\Models\ClassModel;
@@ -16,10 +17,12 @@ use App\Models\SyllabusDocument;
 use App\Models\SyllabusLesson;
 use App\Models\SyllabusStage;
 use App\Models\User;
+use App\Models\WorkTask;
 use App\Services\Syllabus\Import\SyllabusImporter;
 use App\Services\Syllabus\Import\SyllabusPackageReader;
 use App\Services\Syllabus\Import\SyllabusPackageValidator;
 use App\Services\Syllabus\ProgressBackfill;
+use App\Services\Syllabus\StageEndAlerts;
 use App\Services\Syllabus\StageSchedule;
 use Database\Seeders\Concerns\InvokesControllersAsUser;
 use Database\Seeders\Support\SyllabusSampleFiles;
@@ -90,6 +93,7 @@ class DemoSyllabusLibrarySeeder extends Seeder
             $this->markViewed();
             $this->overrideClassLesson();
             $this->seedProgress();
+            $this->seedStageEndTasks();
             $this->seedProposals($curricula['DEMO-SYL-STARTERS']);
             $this->importFlyers();
         } finally {
@@ -229,6 +233,17 @@ class DemoSyllabusLibrarySeeder extends Seeder
                 'class_id' => $bd->id, 'kind' => 'postpone', 'extra_sessions' => 1,
                 'reason' => 'Lớp nghỉ 1 buổi do mất điện, cần dời tiến độ 1 buổi (demo Customize syllabus).',
             ]);
+        }
+    }
+
+    /** Việc cuối chặng cho Học thuật (docs/kho-syllabus.md §9.2): tạo theo tiến độ demo, Học thuật đã NHẬN VIỆC việc của CG FAM 1. */
+    private function seedStageEndTasks(): void
+    {
+        app(StageEndAlerts::class)->run();
+        $task = WorkTask::where('kind', WorkTask::KIND_SYLLABUS_STAGE_END)->where('status', 'new')
+            ->whereHas('classModel', fn ($q) => $q->where('code', 'DEMO-CG-FAM1'))->first();
+        if ($task) {
+            $this->asUser(User::findOrFail($task->assignee_id), WorkTaskController::class, 'accept', [], ['id' => $task->id]);
         }
     }
 
