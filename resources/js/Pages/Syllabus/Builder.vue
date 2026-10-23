@@ -53,6 +53,7 @@ const lessonFields = [
         <template #meta>Giáo trình → Chặng (Big Test cuối chặng) → Unit → Buổi. Số buổi đánh liên tục trong cả giáo trình.</template>
         <template #actions>
             <UiButton variant="secondary" icon="assignment_ind" :href="route('syllabus.assignments')">Giao chặng</UiButton>
+            <UiButton v-if="canManage" variant="secondary" icon="upload_file" :href="route('syllabus.import')">Import từ file</UiButton>
             <UiButton v-if="canManage" icon="library_add" @click="creating = true">Tạo giáo trình mới</UiButton>
         </template>
     </UiPageHeader>

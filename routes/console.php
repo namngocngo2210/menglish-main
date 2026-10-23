@@ -56,3 +56,6 @@ Schedule::command('kpi:create-sheets')->dailyAt('00:20');
 
 // SLA CRM tự động (liên hệ 24h, chuyển trạng thái 36h, trả KQ test, phản hồi học thử, học phí tuần đầu): giao việc + biên bản phạt khi quá hạn (idempotent).
 Schedule::command('sla:enforce')->everyFifteenMinutes();
+
+// Dọn file tạm import giáo trình (gói upload bỏ dở, thư mục giải nén, zip mẫu) quá 1 ngày (idempotent).
+Schedule::command('syllabus:prune-imports')->dailyAt('03:10');
