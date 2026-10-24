@@ -84,6 +84,7 @@ function formatSize(bytes) {
                     </span>
                     <span class="font-h3 text-h3 text-on-surface">Nhấn để chọn file syllabus</span>
                     <span class="font-body-small text-body-small text-on-surface-variant">.zip / .xlsx (tối đa 100MB)</span>
+                    <span class="font-body-small text-body-small text-on-surface-variant">File 1 chặng (form Sheet 1 của Học thuật) không import ở đây — mở giáo trình → tab Chặng &amp; buổi → "Thêm chặng từ file".</span>
                     <input type="file" name="file" accept=".zip,.xlsx" class="sr-only" @change="fileName = $event.target.files[0]?.name || ''" />
                     <span v-if="fileName" class="rounded-lg bg-tertiary-fixed/40 px-sm py-xs font-body-small text-body-small text-on-tertiary-fixed-variant">{{ 'Đã chọn: ' + fileName }}</span>
                 </label>

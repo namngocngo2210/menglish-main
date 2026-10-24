@@ -2,6 +2,7 @@
 
 namespace App\Services\Syllabus\Import;
 
+use App\Services\Syllabus\StageImport\StageSheetReader;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -51,6 +52,10 @@ class SyllabusPackageReader
 
     private const DOCS_DIR = 'tai-lieu';
 
+    public const STAGE_FILE_HINT = 'Đây là file syllabus 1 chặng (form Sheet 1), không phải gói tạo giáo trình mới. Để thêm chặng: Kho syllabus → '
+        .'mở giáo trình → tab "Chặng & buổi" → "Thêm chặng từ file" (cập nhật chặng đã có: nút "Import từ file" của chặng đó). '
+        .'Màn này chỉ nhận gói gồm 3 sheet Giáo trình / Chặng / Buổi (xem file mẫu .zip).';
+
     /**
      * @param  string  $path  file .xlsx hoặc .zip
      * @param  string  $workDir  nơi giải nén zip (bỏ qua giải nén nếu đã có file: trang xem trước đọc lại nhiều lần)
@@ -69,6 +74,7 @@ class SyllabusPackageReader
         $workbook = $this->loadWorkbook($xlsxPath);
         $missing = [];
         $tables = [];
+        $found = 0;
         $columnSets = [
             'curriculum' => self::CURRICULUM_COLUMNS,
             'stages' => self::STAGE_COLUMNS,
@@ -83,10 +89,15 @@ class SyllabusPackageReader
 
                 continue;
             }
+            $found++;
             [$tables[$key], $absent] = $this->readSheet($sheet, $columnSets[$key], self::REQUIRED[$key]);
             foreach ($absent as $label) {
                 $missing[] = 'Sheet '.$title.': thiếu cột "'.$label.'".';
             }
+        }
+        // Cả 3 sheet đều thiếu nhưng là file 1 chặng (form Sheet 1): người dùng nhầm màn — chỉ sang import chặng.
+        if ($found === 0 && (new StageSheetReader)->hasStageSheet($workbook)) {
+            $missing = [self::STAGE_FILE_HINT];
         }
         $workbook->disconnectWorksheets();
 

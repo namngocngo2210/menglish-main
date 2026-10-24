@@ -169,7 +169,8 @@ Không đổi schema → không có migration.
 ## Import từng chặng (form Sheet 1) — Kho syllabus, 23/10/2026
 
 Thiết kế: `docs/kho-syllabus.md` §3.3. Trang chi tiết giáo trình → tab Chặng & buổi: **Thêm chặng từ file** (chặng mới cuối
-giáo trình) hoặc **Import từ file** trên từng chặng (cập nhật chặng đó); **File mẫu chặng** tải form Sheet 1.
+giáo trình) hoặc **Import từ file** trên từng chặng (cập nhật chặng đó); **File mẫu chặng** tải form Sheet 1. Tải file chặng
+vào màn **Import giáo trình mới** (gói 3 sheet) → báo một lỗi chỉ sang đúng nút này thay cho "Thiếu sheet…".
 
 - File `.xlsx` (tối đa 20 MB) theo form "Syllabus mẫu" của Học thuật (`docs/Syllabus_Quy_trinh_xu_ly.xlsx`, sheet 1). Sheet
   được nhận diện bằng dòng tiêu đề A = "Chặng", B bắt đầu bằng "Buổi"; cột nhận theo chữ tiêu đề (thứ tự cột tùy ý, cột lạ bỏ
