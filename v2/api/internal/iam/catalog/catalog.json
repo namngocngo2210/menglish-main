@@ -536,7 +536,17 @@
                 {
                     "key": "manage",
                     "label": "Quản lý giáo trình",
-                    "description": "Giao chặng cho lớp, tạo đợt Big Test, nhắc lịch."
+                    "description": "Tạo đợt Big Test, nhắc lịch Big Test."
+                },
+                {
+                    "key": "assign",
+                    "label": "Giao chặng cho lớp",
+                    "description": "Giao / chuyển / sửa / đóng chặng của lớp, nhắc GV xác nhận (Học thuật — Bước 3 quy trình syllabus)."
+                },
+                {
+                    "key": "class_edit",
+                    "label": "Sửa syllabus của lớp",
+                    "description": "Chỉnh sửa thủ công syllabus riêng của một lớp (bản đè theo buổi, kèm lý do)."
                 },
                 {
                     "key": "library_view",

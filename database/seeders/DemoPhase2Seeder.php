@@ -253,11 +253,18 @@ class DemoPhase2Seeder extends Seeder
         ClassSession::whereIn('id', $future->modelKeys())->update(['foreign_teacher_id' => $foreign->id]);
     }
 
-    /** Học thuật mở chặng đầu cho lớp (giáo trình theo trình độ của khóa), lùi ngày mở về ngày khai giảng. */
+    /**
+     * Học thuật giao chặng đầu cho lớp từ ngày khai giảng (giáo trình theo trình độ của khóa). GV cơ sở CG đã XÁC NHẬN nhận
+     * syllabus; lớp cơ sở BD để "Chờ GV xác nhận" (thử nút XÁC NHẬN / Nhắc lại — docs/kho-syllabus.md §7.3).
+     */
     private function openStage(ClassModel $class): void
     {
-        $this->asUser($this->lead, SyllabusController::class, 'storeAssignment', ['class_id' => $class->id]);
-        SyllabusAssignment::open()->where('class_id', $class->id)->update(['opened_at' => $class->start_date->copy()->setTime(8, 0)]);
+        $this->asUser($this->lead, SyllabusController::class, 'storeAssignment', ['class_id' => $class->id, 'start_date' => $class->start_date->toDateString()]);
+        $assignment = SyllabusAssignment::open()->where('class_id', $class->id)->firstOrFail();
+        $assignment->update(['opened_at' => $class->start_date->copy()->setTime(8, 0)]);
+        if ($this->branchCode === 'CG') {
+            $this->asUser($this->staff['teacher'], SyllabusController::class, 'confirmAssignment', [], ['id' => $assignment->id]);
+        }
     }
 
     /** Buổi đã dạy: điểm danh (vắng → bổ trợ), nhận xét, mini test, bài tập + bài nộp. */
@@ -353,8 +360,12 @@ class DemoPhase2Seeder extends Seeder
         $this->asUser($this->admin, SyllabusController::class, 'approveBigTestResults', [], ['id' => $test->id]);
         $this->asUser($this->lead, SyllabusController::class, 'sendZaloResults', [], ['id' => $test->id]);
 
-        // Lùi mốc đóng / mở chặng về sau ngày thi (dữ liệu demo tạo cùng lúc).
+        // Chặng không tự mở chặng kế (quy trình syllabus Bước 11): Học thuật giao chặng 2 từ ngày sau buổi thi.
         $switchAt = $examSession->date->copy()->addDay()->setTime(9, 0);
+        $this->asUser($this->lead, SyllabusController::class, 'storeAssignment', ['class_id' => $class->id, 'start_date' => $switchAt->toDateString()]);
+        SyllabusAssignment::open()->where('class_id', $class->id)->update(['confirmed_at' => $switchAt, 'confirmed_by' => $class->teacher_id]);
+
+        // Lùi mốc đóng / mở chặng về sau ngày thi (dữ liệu demo tạo cùng lúc).
         SyllabusAssignment::where('class_id', $class->id)->where('status', SyllabusAssignment::STATUS_CLOSED)->update(['closed_at' => $switchAt]);
         SyllabusAssignment::open()->where('class_id', $class->id)->update(['opened_at' => $switchAt]);
         BigTestResult::where('big_test_id', $test->id)->update(['notified_at' => $switchAt]);

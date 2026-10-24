@@ -20,6 +20,7 @@ use App\Models\User;
 use App\Models\WorkTask;
 use App\Services\ClassDashboardService;
 use App\Services\SessionScheduleService;
+use App\Services\Syllabus\ClassSyllabusTab;
 use App\Support\ClassLifecycle;
 use App\Support\DataScope;
 use App\Support\Rbac;
@@ -747,6 +748,9 @@ class ClassManagementController extends Controller
                 ];
                 $data['canRecordAttendance'] = $viewer->can('attendance_student.record') || $viewer->can('attendance_student.record_any');
             }
+        }
+        if ($tab === 'syllabus') {
+            $data['syllabus'] = app(ClassSyllabusTab::class)->data($class, $viewer);
         }
         if ($tab === 'incidents') {
             $statusLabels = ['open' => 'Mới', 'following' => 'Đang theo dõi', 'resolved' => 'Đã xử lý'];

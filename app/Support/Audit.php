@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Branch;
+use App\Models\ClassLessonOverride;
 use App\Models\ClassModel;
 use App\Models\CrmCustomer;
 use App\Models\QuestionBankQuestion;
@@ -65,6 +66,7 @@ class Audit
         SyllabusUnit::class => ['log' => 'Giáo trình & Syllabus', 'label' => 'unit', 'undo' => []],
         SyllabusLesson::class => ['log' => 'Giáo trình & Syllabus', 'label' => 'buổi học', 'undo' => []],
         SyllabusDocument::class => ['log' => 'Giáo trình & Syllabus', 'label' => 'tài liệu giáo trình', 'undo' => []],
+        ClassLessonOverride::class => ['log' => 'Giáo trình & Syllabus', 'label' => 'syllabus riêng của lớp', 'undo' => []],
         // Ngân hàng câu hỏi luyện tập: sửa câu từng câu ghi trước/sau; duyệt hàng loạt / import ghi một dòng tổng (QuestionBankController).
         QuestionBankQuestion::class => ['log' => 'Ngân hàng câu hỏi', 'label' => 'câu hỏi', 'undo' => []],
         TuitionReceipt::class => [

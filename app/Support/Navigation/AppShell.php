@@ -121,6 +121,7 @@ final class AppShell
                 'is_read' => (bool) $n->is_read,
                 'ago' => $n->created_at?->diffForHumans(),
                 'link' => is_array($n->data) ? ($n->data['link'] ?? null) : null,
+                'action' => $n->action,
             ])->values()->all(),
             'index_url' => $canView ? route('notifications.index') : null,
             'read_all_url' => $canView ? route('notifications.read-all') : null,

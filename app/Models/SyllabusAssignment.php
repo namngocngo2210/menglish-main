@@ -36,6 +36,8 @@ class SyllabusAssignment extends Model
         'class_id',
         'assigned_chapters',
         'stage_name',
+        'start_date',
+        'planned_sessions',
         'deadline',
         'expected_big_test_date',
         'big_test_reminded_for',
@@ -50,9 +52,18 @@ class SyllabusAssignment extends Model
         'closed_by_big_test_id',
         'curriculum_completed_at',
         'extra_sessions',
+        'assigned_at',
+        'confirmed_at',
+        'confirmed_by',
+        'confirm_reminded_at',
     ];
 
     protected $casts = [
+        'start_date' => 'date',
+        'planned_sessions' => 'integer',
+        'assigned_at' => 'datetime',
+        'confirmed_at' => 'datetime',
+        'confirm_reminded_at' => 'datetime',
         'deadline' => 'date',
         'expected_big_test_date' => 'date',
         'big_test_reminded_for' => 'date',
@@ -105,6 +116,25 @@ class SyllabusAssignment extends Model
     public function closingBigTest(): BelongsTo
     {
         return $this->belongsTo(BigTest::class, 'closed_by_big_test_id');
+    }
+
+    /** GV đã bấm XÁC NHẬN nhận syllabus của chặng (Bước 4 quy trình). */
+    public function isConfirmed(): bool
+    {
+        return $this->confirmed_at !== null;
+    }
+
+    /** Người được xác nhận: GV được giao chặng, GV chính hoặc GVNN của lớp. */
+    public function canConfirm(User $user): bool
+    {
+        $this->loadMissing('classModel');
+
+        return in_array($user->id, array_filter([$this->user_id, $this->classModel?->teacher_id, $this->classModel?->foreign_teacher_id]), false);
+    }
+
+    public function confirmer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'confirmed_by');
     }
 
     public function scopeOpen(Builder $query): Builder

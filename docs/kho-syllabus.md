@@ -1,6 +1,6 @@
 # Kho syllabus & quy trình xử lý syllabus
 
-Trạng thái: **Giai đoạn 1 — Hoàn thành** (giai đoạn 2–5 chưa làm) — 23/10/2026
+Trạng thái: **Giai đoạn 1, 2 — Hoàn thành**; giai đoạn 3–5 — đang làm (mục 5–12, duyệt 23/10/2026)
 
 Nguồn yêu cầu: `docs/Syllabus_Quy_trinh_xu_ly.xlsx` (Sheet 1 form syllabus mẫu, Sheet 2 chia chặng & test,
 Sheet 3 quy trình 11 bước, Sheet 4 câu hỏi đã trả lời). Tiếp nối `docs/giao-trinh-don-giao-dien.md` (PR #195).
@@ -25,16 +25,17 @@ Hiện trạng (khảo sát 23/10/2026):
 
 ## 2. Quyết định chung (chủ dự án chốt 23/10/2026)
 
-1. Làm theo 5 giai đoạn, mỗi giai đoạn một thiết kế chi tiết + PR riêng (mục 6).
+1. Làm theo 5 giai đoạn, mỗi giai đoạn một PR riêng (thiết kế giai đoạn 2–5: mục 5–12).
 2. **Chuyển chặng:** bỏ tự mở chặng kế tiếp; Big Test xong → Học thuật giao chặng tiếp theo bằng tay, GV xác nhận
    (giai đoạn 2).
 3. **Syllabus của lớp:** không sao chép cả syllabus; lớp chỉ lưu **bản đè** cho buổi được sửa riêng. Sửa bản gốc → mọi
    lớp chưa sửa riêng buổi đó nhận thay đổi (Sheet 4 câu 3) (giai đoạn 2).
-4. **Tiến độ vẫn tính theo buổi học thực tế** (buổi không hủy); GV không phải bấm "Đã dạy" để tiến độ chạy
-   (giai đoạn 3).
+4. ~~Tiến độ tính theo buổi học thực tế~~ → **đổi 23/10/2026 (làm đúng 100% quy trình Bước 6): tiến độ chỉ chạy khi
+   GV bấm "Đã dạy"**. Buổi học hủy / nghỉ không kéo tiến độ; lịch dự kiến các buổi còn lại tự dời theo TKB (giai đoạn 3).
 5. **Tài liệu** gắn được theo **Buổi**, **Chặng** hoặc **Chung** cả giáo trình.
-6. **Kho syllabus** (xem & sửa bản gốc) chỉ **Học thuật + Quản lý + Admin**. Học vụ giữ giao chặng, Big Test, order;
-   không sửa bản gốc nhưng **xem được** Kho syllabus và mọi tài liệu (chỉ đọc) để order in ấn (chốt 23/10/2026).
+6. **Kho syllabus** (xem & sửa bản gốc) chỉ **Học thuật + Quản lý + Admin**. Học vụ không sửa bản gốc nhưng **xem được**
+   Kho syllabus và mọi tài liệu (chỉ đọc) để order in ấn (chốt 23/10/2026). **Giao chặng: chỉ Học thuật** (đổi 23/10/2026
+   theo Bước 3 — Học vụ thôi giao chặng, vẫn xem danh sách chặng của lớp, giữ Big Test / order).
 7. GV chỉ xem bài giảng **buổi hôm nay**, của chặng lớp đang học (giai đoạn 3).
 
 ## 3. Giai đoạn 1 — Kho syllabus
@@ -164,15 +165,247 @@ Hiện trạng (khảo sát 23/10/2026):
   Grammar Basic, ô UNIT là tiêu đề riêng của buổi, 2 cột link mới (`ppt_foreign_url`, `test_url`) cho cả import zip.
 - [x] Dữ liệu test: `DemoSyllabusLibrarySeeder` (buổi đủ cột Sheet 1, tài liệu theo đối tượng, đề xuất sửa, giáo trình import zip) và bộ file thử import `docs/mau-test-kho-syllabus/` (giữ đúng bằng `SyllabusSampleFilesTest`).
 
-## 5. Ngoài phạm vi giai đoạn 1
+## 5. Đối chiếu quy trình (Sheet 3) & câu hỏi (Sheet 4) → giai đoạn
 
-Mọi mục ở giai đoạn 2–5 bên dưới.
-
-## 6. Lộ trình các giai đoạn sau (thiết kế chi tiết khi bắt đầu từng giai đoạn)
-
-| GĐ | Nội dung | Bước quy trình / câu hỏi |
+| Quy trình / câu hỏi | Nội dung | Giai đoạn |
 |---|---|---|
-| 2 | Giao syllabus & syllabus của lớp: bản đè theo buổi + cờ chỉnh sửa thủ công + lý do; tab "Syllabus của lớp" trong trang lớp; GV xác nhận nhận syllabus, nhắc sau 24h cho Học thuật + Quản lý; thông báo có nút (XÁC NHẬN / ĐÃ XEM); bỏ tự mở chặng, Học thuật giao chặng kế; đề xuất sửa được duyệt → báo GV | Bước 3, 4, 5, 11; câu 3, 4, 8 |
-| 3 | GV vận hành: màn **bài giảng hôm nay** (chỉ buổi hôm nay, chặng đang mở) thay teacher-view; ánh xạ buổi theo vị trí trong chặng, thống nhất buổi học bù / giãn tiến độ; hủy buổi thủ công kéo theo tiến độ; "Customize syllabus" (xin dời / giãn, Học thuật duyệt) | Bước 6; câu 2 |
-| 4 | Cảnh báo & công việc: còn N buổi đến cuối chặng → việc cho Học thuật (NHẬN VIỆC, hạn = buổi cuối chặng, quá hạn nhắc hằng ngày, vào báo cáo tuần); nút ORDER theo mốc syllabus (in ấn → vận hành cơ sở, test → Học thuật, xử lý trước ≥ 3 buổi) | Bước 7–10; câu 1, 5, 9, 10 |
-| 5 | Homework 3 giỏ: bài nộp gắn bài tập, thống kê tỉ lệ nộp theo HS / lớp (Quizizz tùy IT) | Câu 7 |
+| Bước 1 | Upload syllabus gốc theo chặng vào Kho, lịch sử phiên bản | 1 (xong) |
+| Bước 2, Sheet 2 | Báo trước N buổi / chặng (xong); **tự tính tổng số buổi chặng + buổi hệ thống báo Học thuật** | 1 + 2 |
+| Bước 3, 11 | Học thuật chọn chương trình → chặng → lớp → ngày bắt đầu; lớp có syllabus riêng xếp theo buổi; chặng kế giao tay | 2 |
+| Bước 4, câu 4 | GV XÁC NHẬN nhận syllabus; 24h chưa xác nhận → nhắc 1 lần GV + Học thuật + Quản lý | 2 |
+| Bước 5, câu 3, câu 8 | Sửa riêng cho lớp (cờ Chỉnh sửa thủ công + lý do) → báo GV (ĐÃ XEM); sửa gốc áp cho mọi lớp đang chạy, bản sửa riêng không lan sang lớp khác; Học thuật sửa → GV nhận thông báo | 2 |
+| Bước 6, câu 2, câu 12 | GV xem buổi hôm nay, bấm **Đã dạy** (ghi chú chậm / nhanh); lớp hủy buổi → lịch tự dời; GV muốn đổi tiến độ → **Customize syllabus** (xin giãn / dời), Học thuật duyệt; link PPT / Quizizz chỉ GV lớp được giao thấy | 3 |
+| Bước 7, câu 5 | Nút ORDER luôn ở góc màn GV, sáng / nhấp nháy khi tới mốc; in ấn → vận hành cơ sở, đề test → Học thuật; xử lý trước ≥ 3 buổi trước test | 4 |
+| Bước 8–10, câu 1, 9, 10 | Còn N buổi đến buổi cuối chặng **hoặc tới mốc "Báo chuẩn bị" đã đánh dấu trong syllabus** → thông báo + việc cho Học thuật (NHẬN VIỆC → Đang làm, hạn = buổi cuối chặng, quá hạn đỏ + nhắc hằng ngày, HOÀN THÀNH → báo cáo tuần; Quản lý + người làm xem & ghi chú); việc giao theo cơ sở và lớp | 4 |
+| Câu 6, câu 11 | Mini test ở buổi đầu Unit sau, Big Test là buổi riêng (đã có trong form Sheet 1); sản phẩm đầu ra của buổi test = điểm → nút nhập điểm từ buổi test | 3 |
+| Câu 12 | Giao chặng → tự mở quyền **xem** file Google Drive (link trong syllabus chặng) cho GV chính + GVNN; chặng đóng → tự đóng | 2 |
+| Câu 7 | Homework 3 giỏ: HS nộp ảnh (bài giấy) / video; Quizizz GV đánh dấu; thống kê tỉ lệ nộp theo HS / lớp | 5 |
+| Quy tắc thông báo (Sheet 3) | 6 loại thông báo, mỗi loại có nút hành động (XÁC NHẬN, ĐÃ XEM, NHẮC LẠI, NHẬN VIỆC, ORDER, XỬ LÝ) | 2 (khung) + 2–4 |
+
+Khác quy trình có chủ đích (chủ dự án đã chốt): Bước 1 ghi "chỉ Học thuật & Quản lý được xem" Kho syllabus — Học vụ
+**xem chỉ đọc** để order in ấn (chốt 23/10/2026). Câu 12 "mở quyền truy cập trên Drive": hệ thống **tự mở / đóng quyền xem
+file Google Drive** qua Drive API (mục 7.4, chốt 23/10/2026).
+
+## 6. Nền chung cho giai đoạn 2–5
+
+### 6.1. Thông báo có nút hành động
+
+- `admin_notifications.data.action = {label, url, method}` (method `post` hoặc `get`). Chuông thông báo
+  (`Layouts/Shell/NotificationMenu.vue`) và trang Thông báo hiện nút; bấm nút `post` gọi đúng hành động rồi đánh dấu đã đọc.
+- `App\Services\Syllabus\SyllabusNotifier` gom mọi thông báo của quy trình (nội dung mẫu đúng Sheet 3 "Quy tắc thông báo");
+  hàm theo sự kiện: `stageAssigned`, `classSyllabusUpdated`, `unconfirmedReminder`, `stageEnding`, `orderDue`, `taskOverdue`.
+- ĐÃ XEM = `POST notifications.read` (chỉ đánh dấu đã đọc), không cần bảng riêng.
+
+### 6.2. Bài học hiệu lực của lớp (bản gốc + bản đè)
+
+- `App\Services\Syllabus\ClassSyllabus` — một chỗ duy nhất trả về các buổi của chặng lớp đang học, mỗi buổi = buổi gốc
+  ghép bản đè của lớp (nếu có), kèm trạng thái đã dạy và ngày dự kiến. Màn lớp, màn GV, ORDER, cảnh báo cuối chặng,
+  `SessionLessonService` đều đọc qua đây.
+
+## 7. Giai đoạn 2 — Giao syllabus & syllabus của lớp
+
+### 7.1. Dữ liệu
+
+| Bảng | Cột | Ghi chú |
+|---|---|---|
+| `syllabus_assignments` | `start_date` date null, `planned_sessions` smallint null, `confirmed_at` timestamp null, `confirmed_by` FK users null, `confirm_reminded_at` timestamp null | Ngày bắt đầu + số buổi dự kiến từ form giao; backfill `start_date = date(opened_at)`, `planned_sessions` = số buổi của chặng. `deadline` (dự kiến kết thúc) **tự tính**, không nhập tay |
+| `syllabus_drive_grants` (mới) | `id`, `email`, `file_id` (ID Drive), `file_kind` (`file` / `folder`), `permission_id` null, `status` (`pending` / `granted` / `revoking` / `revoked` / `failed` / `skipped`), `pre_existing` bool, `error` text null, `attempts` smallint, `granted_at`, `revoked_at`, timestamps; unique (`email`, `file_id`) | Trạng thái quyền xem Drive theo (người, file) — mục 7.4 |
+| `class_lesson_overrides` (mới) | `id`, `class_id` FK, `syllabus_lesson_id` FK, `data` json (chỉ các trường nội dung Sheet 1 bị sửa), `reason` text, `edited_by` FK users, timestamps; unique (`class_id`, `syllabus_lesson_id`) | Bản đè = "Chỉnh sửa thủ công: Có". Xoá bản đè = quay về bản gốc |
+
+Không sao chép syllabus: buổi hiệu lực = gốc + `data` của bản đè. Sửa gốc → mọi lớp nhận ngay ở trường chưa bị đè
+(đúng câu 3); bản đè chỉ thuộc 1 lớp.
+
+### 7.2. Quyền
+
+- Quyền mới `syllabus.assign` ("Giao chặng cho lớp"): Học thuật (+ Admin). Route mở / sửa / chuyển chặng đổi từ
+  `syllabus.manage` sang `syllabus.assign`; Học vụ giữ `syllabus.manage` cho Big Test như cũ nhưng không giao chặng.
+- Quyền mới `syllabus.class_edit` ("Sửa syllabus của lớp"): Học thuật (+ Admin).
+- Migration cấp quyền; cập nhật `config/access.php`, `permission_catalog.php`, catalog v2.
+
+### 7.3. Luồng
+
+1. **Giao chặng** (màn Giao chặng hiện có, Học thuật): chương trình → chặng → lớp → **ngày bắt đầu (bắt buộc)** → **số buổi**
+   (mặc định = số buổi syllabus của chặng) → GV. **Ngày dự kiến kết thúc tự tính** = ngày của buổi học thứ N (N = số buổi) của
+   lớp tính từ ngày bắt đầu theo TKB (buổi chính khóa + học bù, bỏ buổi hủy / ngày nghỉ); TKB đổi (hủy buổi, nghỉ lễ, giãn
+   tiến độ) → tính lại. Lớp chưa đủ buổi trong TKB → báo "TKB lớp mới có M buổi từ ngày bắt đầu".
+   Tạo `SyllabusAssignment` (chưa xác nhận) → thông báo GV: "Bạn đã nhận syllabus mới: Lớp ABC – Giáo trình Y – Chặng X,
+   bắt đầu dd/mm." nút **XÁC NHẬN**.
+2. **XÁC NHẬN** (`POST syllabus.assignments.confirm`): chỉ GV được giao (hoặc GV chính / GVNN của lớp); ghi `confirmed_at`.
+   Màn Giao chặng, tab Syllabus của lớp hiện "Chờ GV xác nhận / Đã xác nhận lúc …".
+3. **Nhắc 24h** (lệnh `syllabus:remind-unconfirmed`, chạy mỗi giờ, idempotent theo `confirm_reminded_at`): chặng mở chưa
+   xác nhận quá 24h → nhắc GV (nút XÁC NHẬN) + báo Học thuật + Quản lý chi nhánh lớp: "Lớp ABC chưa xác nhận syllabus
+   chặng X." nút **NHẮC LẠI** (gửi lại thông báo cho GV). Chỉ nhắc 1 lần.
+4. **Bỏ tự mở chặng kế** (Bước 11): Big Test chặng duyệt & gửi PH → đóng chặng, **không** mở chặng kế; báo Học thuật
+   "Lớp ABC đã xong chặng X — giao chặng tiếp theo." (nút mở màn Giao chặng lọc sẵn lớp). Đóng tay chặng: bỏ ô "mở chặng kế".
+5. **Tab "Syllabus" trong trang lớp** (`classes.show?tab=syllabus`): chặng đang học, trạng thái xác nhận, danh sách buổi
+   hiệu lực (buổi, loại, nội dung rút gọn, ngày dự kiến, Đã dạy, cờ **Chỉnh sửa thủ công**). Học thuật bấm "Sửa cho lớp"
+   → form các trường Sheet 1 + **lý do (bắt buộc)** → lưu bản đè → báo GV "Syllabus lớp ABC đã được cập nhật (buổi N)."
+   nút **ĐÃ XEM**. "Bỏ chỉnh sửa riêng" xoá bản đè (cũng báo GV). Lịch sử ghi qua `AuditsChanges`.
+6. **Sửa bản gốc → báo GV** (câu 8): lưu buổi / import chặng làm đổi buổi của chặng đang mở ở lớp nào → báo GV các lớp đó
+   (gộp 1 thông báo / lớp / lần lưu) "Syllabus Chặng X (giáo trình Y) đã được Học thuật cập nhật." nút ĐÃ XEM.
+7. **Sheet 2 tự tính**: trang chi tiết giáo trình, mỗi chặng hiện "N buổi · báo Học thuật ở buổi N − báo trước".
+
+### 7.4. Quyền xem file Google Drive (câu 12)
+
+- **Kết nối**: 1 service account Google Cloud (khóa JSON trên server: `GOOGLE_DRIVE_SA_KEY_PATH`, không commit). Học thuật để
+  tài liệu syllabus trong thư mục / Shared Drive đã chia sẻ quyền **Chỉnh sửa** cho email service account. Client gọn
+  `App\Services\GoogleDrive\DriveClient` (JWT RS256 bằng `openssl_sign` + `Http`, scope `drive`) — không thêm thư viện.
+  Chưa cấu hình → tắt tính năng, tab Syllabus của lớp báo "Chưa kết nối Google Drive".
+- **File nào**: mọi link Google Drive trong syllabus hiệu lực của chặng (gốc + bản đè của lớp): Link PPT, PPT GVNN, Quizizz
+  (nếu là Drive), đề Mini test / Kiểm tra từ, Link mục lục chặng. Nhận dạng ID từ `docs.google.com/{document,presentation,
+  spreadsheets}/d/{id}`, `drive.google.com/file/d/{id}`, `drive.google.com/drive/folders/{id}`, `open?id={id}`. Link không
+  phải Drive (Quizizz, Wayground…) bỏ qua.
+- **Ai**: GV được giao chặng + GV chính + GVNN của lớp, bằng **email đăng nhập hệ thống** (chốt 23/10/2026). Trợ giảng không.
+- **Quyền**: `permissions.create` role **reader** (chỉ xem), `sendNotificationEmail=false`; đặt
+  `copyRequiresWriterPermission=true` trên file để người xem không tải / in / sao chép. Thư mục: reader trên thư mục.
+- **Mở**: khi giao chặng (và khi sửa syllabus thêm link mới, đổi GV / GVNN). **Đóng**: khi chặng đóng (Big Test xong / đóng
+  tay / chuyển chặng), GV bị đổi khỏi lớp, link bị xoá khỏi syllabus — trừ khi người đó vẫn cần file cho chặng đang mở khác.
+- **Đồng bộ kiểu đối chiếu** (lệnh `syllabus:sync-drive-access`, mỗi phút, idempotent; repo không có queue worker): tính tập
+  (email, file) cần có từ mọi chặng đang mở → so với `syllabus_drive_grants` → tạo quyền thiếu, thu hồi quyền thừa. Trước
+  khi tạo, đọc quyền hiện có của file: người đã có quyền từ trước (Học thuật tự chia sẻ) → `pre_existing`, **không bao giờ
+  thu hồi**. Lỗi (file không chia sẻ cho service account, email không phải tài khoản Google…) → `failed` + lý do, thử lại tối
+  đa 5 lần, báo Học thuật 1 lần.
+- **Hiển thị**: tab Syllabus của lớp có bảng "Quyền Google Drive" (file, người, trạng thái, lỗi) + nút "Đồng bộ lại".
+- Tài liệu cài đặt: `docs/google-drive-syllabus.md` (tạo service account, bật Drive API, chia sẻ thư mục, biến môi trường).
+
+## 8. Giai đoạn 3 — GV vận hành theo buổi
+
+### 8.1. Dữ liệu
+
+| Bảng | Cột | Ghi chú |
+|---|---|---|
+| `class_lesson_progress` (mới) | `id`, `syllabus_assignment_id` FK, `class_id` FK, `syllabus_lesson_id` FK null, `class_session_id` FK null, `kind` (`lesson` / `extra`), `pace_note` text null, `taught_by` FK users, `taught_at` timestamp, timestamps; unique (`syllabus_assignment_id`, `syllabus_lesson_id`); index (`class_id`, `taught_at`) | `lesson` = đã dạy xong buổi syllabus; `extra` = dùng 1 buổi giãn đã duyệt (không qua buổi syllabus mới) |
+| `syllabus_adjustment_requests` | `kind` (`extend` / `postpone`) default `extend` | Customize syllabus: giãn thêm buổi hoặc dời |
+
+### 8.2. Tiến độ & lịch dự kiến
+
+- **Buổi hiện tại** của lớp = buổi đầu tiên của chặng (theo `session_no`) chưa có dòng `lesson` trong `class_lesson_progress`.
+  Tiến độ chỉ chạy khi GV bấm **Đã dạy** (quyết định 4).
+- **Ngày dự kiến** các buổi còn lại = các buổi học sắp tới của lớp (chính khóa + học bù, không hủy, từ hôm nay, sau
+  `start_date`) xếp lần lượt cho: buổi giãn còn lại (`extra_sessions` − số dòng `extra`) rồi các buổi syllabus chưa dạy.
+  Lớp hủy / nghỉ buổi → buổi đó biến mất khỏi TKB → lịch dự kiến tự dời (câu 2 "tự link báo cáo vận hành khi lớp cancel").
+- `SessionLessonService` (TKB, giao bài tập, báo cáo trực lớp): buổi đã qua lấy theo `class_lesson_progress.class_session_id`,
+  buổi sắp tới theo lịch dự kiến. Bỏ cách đếm "buổi chính khóa thứ N ↔ session_no N".
+
+### 8.3. Màn "Bài giảng hôm nay" (thay tab Bài học của `syllabus.teacher-view`)
+
+- GV chọn lớp mình dạy (GV chính / GVNN / TG / dạy thay buổi hôm nay). Chỉ hiện khi lớp **có buổi học hôm nay**; hiện
+  **buổi hiện tại** (bản hiệu lực): loại buổi, unit, content, quy trình, hoạt động gợi ý 1–2, homework 3 giỏ, link PPT /
+  PPT GVNN / Quizizz / đề, sản phẩm đầu ra, ghi chú, tài liệu buổi. Không xem được buổi khác (quyết định 7, câu 12).
+- Nút **Đã dạy** (GV / GVNN của lớp): ô ghi chú tiến độ (chậm / nhanh — đề xuất Bước 6). Ghi dòng `lesson` gắn buổi học
+  hôm nay. Lớp còn buổi giãn đã duyệt → thêm lựa chọn "Dạy chưa xong — dùng 1 buổi giãn" (ghi dòng `extra`, buổi syllabus
+  giữ nguyên). Buổi học đã qua chưa bấm → banner "Buổi dd/mm chưa đánh dấu Đã dạy" (bấm được cho buổi đó).
+- Buổi Mini test / Big test: nút **Nhập điểm** (màn điểm mini test / kết quả Big Test hiện có) — câu 11. Vận hành kiểm
+  soát sản phẩm đầu ra (câu 11): tab Syllabus của lớp đánh dấu **"Chưa nhập điểm"** ở buổi test đã dạy mà lớp chưa có điểm
+  mini test (unit tương ứng) / kết quả Big Test của chặng; Học vụ (vận hành) xem được tab này.
+- Tab Tài liệu giữ nguyên (tài liệu chặng đang mở). Tab "Tổng quan syllabus" chỉ còn danh sách chặng + trạng thái.
+
+### 8.4. Customize syllabus (câu 2)
+
+- Đổi tên màn "Xin giãn tiến độ" → **Customize syllabus**; loại yêu cầu: **Giãn** (thêm N buổi vào TKB — như hiện có) hoặc
+  **Dời** (lùi N buổi: cộng N buổi giãn cho chặng, không thêm buổi vào TKB). Học thuật duyệt; duyệt xong buổi giãn mới
+  dùng được ở nút "Dạy chưa xong". GV không tự đổi tiến độ khi chưa được duyệt.
+
+## 9. Giai đoạn 4 — Cảnh báo, công việc Học thuật, ORDER
+
+### 9.1. Dữ liệu
+
+| Bảng | Cột | Ghi chú |
+|---|---|---|
+| `work_tasks` | `syllabus_assignment_id` FK null; `kind` thêm `syllabus_stage_end`; `last_reminded_on` date null | 1 việc / chặng của lớp (unique theo assignment + kind ở tầng code) |
+| `material_orders`, `big_test_orders` | `syllabus_lesson_id` FK null, `syllabus_assignment_id` FK null | Order sinh từ mốc syllabus → biết mốc nào đã order |
+
+### 9.2. Sắp hết chặng → việc cho Học thuật (Bước 8–10)
+
+- Mốc mới trong cột "Mốc thông báo": **`notify_academic` — "Báo chuẩn bị Big test / syllabus chặng mới"** (đọc từ ô có
+  chữ "báo chuẩn bị", như syllabus FAM 2; hiện đang bị hiểu nhầm là Order Big Test). Thêm vào `SyllabusLesson::MILESTONES`,
+  `LessonSheetCells::milestone`, file mẫu, form sửa buổi.
+- Lệnh `syllabus:stage-end-alerts` (mỗi giờ, idempotent): chặng mở **(a) có số buổi syllabus chưa dạy ≤ báo trước của chặng**
+  (mặc định 6) **hoặc (b) buổi hiện tại đã tới / qua buổi có mốc `notify_academic`** (Bước 8 "hoặc tới mốc đã đánh dấu"), và
+  chưa có việc → tạo `WorkTask` kind `syllabus_stage_end`: tiêu đề "Chuẩn bị test chặng X – giáo trình Y và
+  syllabus mới cho lớp ABC", chi nhánh + lớp của lớp, **người nhận** = người giao chặng nếu còn quyền `syllabus.assign`,
+  không thì người có `syllabus.assign` phụ trách chi nhánh lớp (câu 10), hạn = ngày dự kiến buổi cuối chặng, trạng thái Mới.
+  Thông báo kèm nút **NHẬN VIỆC**.
+- **NHẬN VIỆC** (`POST tasks.accept`): Mới → Đang làm. **HOÀN THÀNH**: việc kind này hoàn thành ngay (không cần ảnh /
+  xác nhận), ghi `completed_at` → tự vào bảng "Công việc đã làm trong tuần" của **Báo cáo tuần Học thuật** (đã có — gợi ý từ
+  `WorkTask` hoàn thành).
+- **Báo cáo tuần Học thuật** (câu 9): phần tóm tắt thêm 3 số — **việc hoàn thành**, **việc quá hạn**, **lớp đã giao
+  syllabus** trong tuần (kèm danh sách). **Quản lý** (`staff_report.view_all`) và **chính người làm** xem và **ghi chú**
+  vào báo cáo: thêm ghi chú dạng bình luận (`staff_report_notes`: `staff_report_id`, `user_id`, `note`, timestamps) —
+  hiện chỉ Admin duyệt / trả lại được, Quản lý chưa ghi chú được.
+- **Quá hạn**: `tasks:mark-overdue` (đã có) chuyển Quá hạn; việc kind này hiện **đỏ** trong danh sách; lệnh
+  `syllabus:remind-overdue-tasks` (mỗi ngày 08:00, idempotent theo `last_reminded_on`) nhắc người nhận + Quản lý chi nhánh:
+  "Việc … của lớp ABC đã quá hạn." nút **XỬ LÝ** (mở việc).
+
+### 9.3. Nút ORDER (Bước 7, câu 5)
+
+- Nút **ORDER** cố định ở góc **mọi màn của cổng Giáo viên** (layout cổng GV, không chỉ màn Bài giảng hôm nay — Bước 7
+  "góc màn hình luôn có nút ORDER"); **nhấp nháy** khi một lớp GV dạy có mốc đến hạn chưa order: buổi có
+  `notice_milestone` thuộc chặng đang mở, buổi đó là buổi hiện tại hoặc đã dạy, chưa có order gắn buổi đó.
+- Bấm ORDER → màn order (chọn lớp nếu GV có nhiều lớp đến hạn): danh sách mốc (đến hạn / đã order) + form; mỗi loại
+  order hiện rõ **bộ phận đích** (câu 5): "Gửi tới: Vận hành cơ sở <tên cơ sở>" / "Gửi tới: Học thuật":
+  - **Order in ấn** (`order_print`) → tạo `MaterialOrder` loại In ấn (vận hành cơ sở xử lý — có sẵn), ngày dùng = ngày dự kiến
+    buổi test kế tiếp.
+  - **Order mini test / Big Test** (`order_mini_test` / `order_big_test`) → tạo `BigTestOrder` (Học thuật duyệt — có sẵn), ngày
+    thi = ngày dự kiến buổi Mini test / Big test kế tiếp; **hạn xử lý = ngày của buổi thứ 3 trước buổi test**.
+- Mốc đến hạn → thông báo GV "Đến hạn order in ấn mini test / big test lớp ABC." nút **ORDER** (lệnh mỗi giờ, 1 lần / mốc).
+
+## 10. Giai đoạn 5 — Homework 3 giỏ (câu 7)
+
+### 10.1. Dữ liệu
+
+| Bảng | Cột | Ghi chú |
+|---|---|---|
+| `homework_submissions` (mới) | `id`, `homework_id` FK, `student_id` FK, `basket` (`paper` / `quizizz` / `video`), `file_path` null, `original_name` null, `note` null, `status` (`submitted` / `reviewed`), `submitted_at`, `reviewed_by` null, `reviewed_at` null, timestamps; unique (`homework_id`, `student_id`, `basket`); index (`student_id`) | Thay bản ghi `AcademicRecord` chung chung hiện tại |
+
+Giỏ của bài tập: `Homework::CATEGORIES` → giỏ (`video` → video; `quiz` → quizizz; còn lại → giấy).
+
+### 10.2. Luồng
+
+- GV giao bài tập: từ màn Bài giảng hôm nay bấm "Giao bài tập theo syllabus" → form giao bài (đã có) điền sẵn 3 giỏ từ
+  buổi hiện tại (Bài tập giấy / Quizizz / Video + link Quizizz).
+- HS nộp (cổng học viên): theo từng bài tập & giỏ — **giấy = ảnh**, **video = video**; Quizizz: HS bấm "Đã làm" (tự khai) —
+  không tích hợp API Quizizz (câu 7 "tùy chọn IT").
+- GV xem bài nộp theo bài tập, đánh dấu "Đã xem" / chấm.
+- **Thống kê**: tab Homework trong trang lớp + màn GV: tỉ lệ nộp theo **giỏ × học sinh** và theo **lớp** (số bài nộp / số
+  bài được giao trong khoảng ngày).
+
+## 11. Rủi ro giai đoạn 2–5
+
+- **Tiến độ chỉ chạy khi bấm Đã dạy**: GV quên bấm → lớp đứng yên, cảnh báo cuối chặng và ORDER trễ. Giảm thiểu: banner
+  buổi chưa đánh dấu, cột "Đã dạy" trong tab Syllabus của lớp để Học thuật theo dõi.
+- **Lớp đang chạy khi triển khai**: chưa có dòng `class_lesson_progress` → migration backfill: với mỗi chặng đang mở, đánh
+  dấu Đã dạy số buổi = số buổi học đã qua kể từ ngày mở chặng (cách đếm cũ), để lớp không quay về buổi 1.
+- `SessionLessonService` đổi cách đánh số buổi → các màn TKB / giao bài tập / báo cáo trực lớp đổi nhãn buổi; test hồi quy.
+- **Google Drive**: email đăng nhập của GV không phải tài khoản Google → không mở được quyền (hiện lỗi rõ trong bảng
+  trạng thái). `copyRequiresWriterPermission` đổi cài đặt của chính file (áp cho mọi người xem). Hạn mức Drive API
+  (~12.000 lượt / phút) dư cho quy mô trung tâm. Khóa service account là bí mật — chỉ đặt trên server.
+- v2 parity: `iam.rbac` (2 quyền mới), `web.menu`, các bảng mới — đồng bộ ở đợt v2 sau.
+
+## 12. Sprint giai đoạn 2–5 (mỗi giai đoạn 1 PR)
+
+### Giai đoạn 2 (xong 24/10/2026)
+- [x] S2.1 Thông báo có nút hành động (data.action, chuông + trang Thông báo) + `SyllabusNotifier`.
+- [x] S2.2 Quyền `syllabus.assign` / `syllabus.class_edit` + migration; giao chặng chỉ Học thuật; ngày bắt đầu bắt buộc.
+- [x] S2.3 GV xác nhận + nhắc 24h; bỏ tự mở chặng kế, báo Học thuật giao chặng tiếp.
+- [x] S2.4 `ClassSyllabus` + bản đè + tab Syllabus trong trang lớp + báo GV khi sửa riêng / sửa gốc; Sheet 2 tự tính.
+- [x] S2.5 Giao chặng: số buổi → ngày dự kiến kết thúc tự tính theo TKB.
+- [x] S2.6 Google Drive: `DriveClient`, `syllabus_drive_grants`, lệnh đồng bộ mở / đóng quyền xem, bảng trạng thái, tài liệu cài đặt.
+
+### Giai đoạn 3
+- [ ] S3.1 `class_lesson_progress` + backfill + tiến độ / lịch dự kiến trong `ClassSyllabus`; `SessionLessonService` dùng lịch mới.
+- [ ] S3.2 Màn Bài giảng hôm nay + Đã dạy (ghi chú tiến độ, buổi giãn, banner buổi chưa đánh dấu) + Nhập điểm buổi test
+  + cờ "Chưa nhập điểm" cho vận hành.
+- [ ] S3.3 Customize syllabus (Giãn / Dời).
+
+### Giai đoạn 4
+- [ ] S4.1 Mốc `notify_academic` + việc cuối chặng cho Học thuật (lệnh, NHẬN VIỆC, hoàn thành ngay, quá hạn đỏ + nhắc hằng ngày).
+- [ ] S4.2 Báo cáo tuần Học thuật: 3 số tóm tắt + Quản lý / người làm ghi chú.
+- [ ] S4.3 Nút ORDER trên mọi màn cổng GV + màn order theo mốc (bộ phận đích) + thông báo đến hạn order.
+
+### Giai đoạn 5
+- [ ] S5.1 `homework_submissions` + giao bài tập theo syllabus + HS nộp theo giỏ.
+- [ ] S5.2 GV xem bài nộp + thống kê tỉ lệ nộp theo HS / lớp.
+
+Mỗi sprint: test feature (TDD), cập nhật seeder demo (`DemoSyllabusLibrarySeeder` / `DemoPhase2Seeder`) khi luồng đổi,
+`ZiggyRoutesTest` khi đổi route / .vue, guard-rail tests; cập nhật mục này (xong / chưa xong).

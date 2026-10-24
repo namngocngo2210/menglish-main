@@ -106,6 +106,27 @@ class AdminNotification extends Model
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * Nút hành động của thông báo (docs/kho-syllabus.md §6.1): data.action = {label, url, method}. method `post` / `get` mở
+     * url (http(s) hoặc đường dẫn tương đối), `read` chỉ đánh dấu đã đọc (nút ĐÃ XEM). Dữ liệu sai dạng → null.
+     *
+     * @return array{label: string, url: ?string, method: string}|null
+     */
+    public function getActionAttribute(): ?array
+    {
+        $action = is_array($this->data) ? ($this->data['action'] ?? null) : null;
+        if (! is_array($action) || ! is_string($action['label'] ?? null) || ! in_array($action['method'] ?? null, ['post', 'get', 'read'], true)) {
+            return null;
+        }
+        $url = $action['url'] ?? null;
+        $validUrl = is_string($url) && preg_match('#^(https?://|/(?!/))#i', $url);
+        if ($action['method'] === 'read' ? $url !== null && ! $validUrl : ! $validUrl) {
+            return null;
+        }
+
+        return ['label' => $action['label'], 'url' => $url, 'method' => $action['method']];
+    }
+
     public function getIconAttribute(): string
     {
         return match ($this->type) {

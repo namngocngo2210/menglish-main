@@ -80,6 +80,14 @@ const chipIcon = { open: 'play_circle', done: 'check_circle', todo: 'lock' };
     </UiPageHeader>
 
     <div class="space-y-6">
+        <UiAlert v-if="assignment?.confirm_url" type="warning" title="Bạn chưa xác nhận nhận syllabus của chặng này">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <span>{{ assignment.stage_label }} · {{ assignment.curriculum }} — bấm XÁC NHẬN để báo Học thuật bạn đã nhận syllabus.</span>
+                <UiForm :action="assignment.confirm_url" method="post" class="inline">
+                    <UiButton type="submit" size="sm" icon="task_alt">XÁC NHẬN</UiButton>
+                </UiForm>
+            </div>
+        </UiAlert>
         <nav class="no-scrollbar flex items-center gap-lg overflow-x-auto border-b border-surface-container-highest" role="tablist">
             <button
                 v-for="(label, key) in tabs"

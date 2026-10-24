@@ -42,6 +42,12 @@ return [
         'webhook_secret' => env('SEPAY_WEBHOOK_SECRET'),
     ],
 
+    // Quyền xem file Google Drive của syllabus theo chặng (docs/kho-syllabus.md §7.4, docs/google-drive-syllabus.md):
+    // đường dẫn tới file khóa JSON của service account trên server (không commit).
+    'google_drive' => [
+        'key_path' => env('GOOGLE_DRIVE_SA_KEY_PATH'),
+    ],
+
     'zalo' => [
         'app_id' => env('ZALO_APP_ID'),
         'secret_key' => env('ZALO_SECRET_KEY'),

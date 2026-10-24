@@ -87,7 +87,7 @@ class SyllabusStageProgressionTest extends TestCase
 
     private function openFirstStage(): SyllabusAssignment
     {
-        $this->actingAs($this->academic)->post(route('syllabus.assignments.store'), ['class_id' => $this->class->id])
+        $this->actingAs($this->academic)->post(route('syllabus.assignments.store'), ['class_id' => $this->class->id, 'start_date' => today()->toDateString()])
             ->assertSessionHasNoErrors();
 
         return SyllabusAssignment::open()->where('class_id', $this->class->id)->firstOrFail();
@@ -128,14 +128,14 @@ class SyllabusStageProgressionTest extends TestCase
         $this->assertSame('Unit 1 · Buổi 1–3', $assignment->assigned_chapters);
         $this->assertNotNull($assignment->opened_at);
         $this->assertSame($this->class->id, $assignment->open_class_id);
-        $this->assertTrue(AdminNotification::where('user_id', $this->teacher->id)->where('type', 'syllabus_stage')->exists());
+        $this->assertTrue(AdminNotification::where('user_id', $this->teacher->id)->where('type', 'syllabus_workflow')->where('title', 'like', 'Bạn đã nhận syllabus mới%')->exists());
     }
 
     public function test_class_can_have_only_one_open_stage(): void
     {
         $this->openFirstStage();
 
-        $this->actingAs($this->academic)->post(route('syllabus.assignments.store'), ['class_id' => $this->class->id, 'stage_id' => $this->stages[1]->id])
+        $this->actingAs($this->academic)->post(route('syllabus.assignments.store'), ['class_id' => $this->class->id, 'stage_id' => $this->stages[1]->id, 'start_date' => today()->toDateString()])
             ->assertSessionHasErrors('class_id');
         $this->assertSame(1, SyllabusAssignment::open()->where('class_id', $this->class->id)->count());
 
@@ -151,7 +151,7 @@ class SyllabusStageProgressionTest extends TestCase
     {
         $other = SyllabusCurriculum::create(['code' => 'CUR-X', 'title' => 'Khác', 'version' => 'v1']);
         $this->actingAs($this->academic)->post(route('syllabus.assignments.store'), [
-            'class_id' => $this->class->id, 'curriculum_id' => $this->curriculum->id, 'stage_id' => $other->stages()->value('id'),
+            'class_id' => $this->class->id, 'curriculum_id' => $this->curriculum->id, 'stage_id' => $other->stages()->value('id'), 'start_date' => today()->toDateString(),
         ])->assertSessionHasErrors('stage_id');
     }
 
@@ -188,9 +188,9 @@ class SyllabusStageProgressionTest extends TestCase
         $this->assertTrue($resultA->fresh()->parent_notified);
         $this->assertTrue($first->fresh()->isOpen());
 
-        // Gửi phần còn lại → chặng 1 đóng, chặng 2 tự mở, GV được báo.
+        // Gửi phần còn lại → chặng 1 đóng; không tự mở chặng 2 — Học thuật được báo giao chặng tiếp (Bước 11).
         $this->actingAs($this->academic)->post(route('syllabus.big-tests.send-zalo', $test->id))
-            ->assertRedirect()->assertSessionHas('status', fn ($m) => str_contains($m, 'tự mở Chặng 2: Giao tiếp'));
+            ->assertRedirect()->assertSessionHas('status', fn ($m) => str_contains($m, 'Học thuật giao chặng tiếp theo cho lớp'));
 
         $first->refresh();
         $this->assertSame('completed', $first->status);
@@ -199,11 +199,8 @@ class SyllabusStageProgressionTest extends TestCase
         $this->assertNull($first->open_class_id);
         $this->assertNotNull($test->fresh()->results_completed_at);
 
-        $next = SyllabusAssignment::open()->where('class_id', $this->class->id)->firstOrFail();
-        $this->assertSame($this->stages[1]->id, $next->stage_id);
-        $this->assertSame($this->teacher->id, $next->user_id);
-        $this->assertStringContainsString($test->code, (string) $next->open_reason);
-        $this->assertTrue(AdminNotification::where('user_id', $this->teacher->id)->where('title', 'like', '%Chặng 2: Giao tiếp%')->exists());
+        $this->assertSame(0, SyllabusAssignment::open()->where('class_id', $this->class->id)->count());
+        $this->assertTrue(AdminNotification::where('user_id', $this->academic->id)->where('title', 'like', '%giao chặng tiếp theo%')->exists());
     }
 
     public function test_big_test_of_another_stage_does_not_close_current_stage(): void
@@ -235,7 +232,7 @@ class SyllabusStageProgressionTest extends TestCase
         $this->assertTrue($service->curriculumFinished($this->class));
 
         // Lớp đã học hết: không còn chặng kế tiếp để mở.
-        $this->actingAs($this->academic)->post(route('syllabus.assignments.store'), ['class_id' => $this->class->id])
+        $this->actingAs($this->academic)->post(route('syllabus.assignments.store'), ['class_id' => $this->class->id, 'start_date' => today()->toDateString()])
             ->assertSessionHasErrors('stage_id');
     }
 
@@ -257,13 +254,13 @@ class SyllabusStageProgressionTest extends TestCase
         $this->assertSame('completed', $first->status);
         $this->assertSame($this->academic->id, $first->closed_by);
         $this->assertStringContainsString('Thi bù ở lớp khác', $first->close_reason);
-        $this->assertSame($this->stages[1]->id, SyllabusAssignment::open()->where('class_id', $this->class->id)->value('stage_id'));
+        $this->assertSame(0, SyllabusAssignment::open()->where('class_id', $this->class->id)->count(), 'Đóng tay không tự mở chặng kế.');
     }
 
     public function test_academic_can_switch_open_stage_with_reason(): void
     {
         $first = $this->openFirstStage();
-        $payload = ['class_id' => $this->class->id, 'stage_id' => $this->stages[2]->id, 'replace_current' => '1'];
+        $payload = ['class_id' => $this->class->id, 'stage_id' => $this->stages[2]->id, 'replace_current' => '1', 'start_date' => today()->toDateString()];
 
         $this->actingAs($this->academic)->post(route('syllabus.assignments.store'), $payload)->assertSessionHasErrors('reason');
         $this->assertTrue($first->fresh()->isOpen());

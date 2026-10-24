@@ -20,7 +20,7 @@ const label = 'mb-1 block text-xs font-bold uppercase tracking-wider text-on-sur
                 <h2 class="flex items-center gap-2 text-base font-bold text-on-surface">
                     <span class="material-symbols-outlined text-[20px] text-primary" aria-hidden="true">school</span>Chương trình &amp; Tiến độ
                 </h2>
-                <Link v-if="can('syllabus.manage')" :href="route('syllabus.assignments')" class="text-xs font-semibold text-primary hover:underline">Giao chặng</Link>
+                <Link v-if="can('syllabus.assign')" :href="route('syllabus.assignments')" class="text-xs font-semibold text-primary hover:underline">Giao chặng</Link>
             </div>
             <dl class="grid grid-cols-1 gap-5 text-xs sm:grid-cols-2 lg:grid-cols-4">
                 <div>

@@ -168,7 +168,7 @@ class Phase2SyllabusTest extends TestCase
         $cur = $this->curriculum();
         $payload = [
             'user_id' => $this->teacher->id, 'curriculum_id' => $cur->id, 'class_id' => $this->class->id,
-            'assigned_chapters' => 'Buổi 1 - 10', 'stage_name' => 'Chặng 1', 'deadline' => now()->addWeeks(4)->toDateString(),
+            'assigned_chapters' => 'Buổi 1 - 10', 'stage_name' => 'Chặng 1', 'start_date' => today()->toDateString(),
         ];
         $this->actingAs($this->academic)->post(route('syllabus.assignments.store'), $payload)->assertSessionHasNoErrors();
 
