@@ -17,14 +17,15 @@ use Illuminate\Support\Collection;
 class HomeworkStats
 {
     /**
+     * @param  Collection<int, Homework>|null  $homeworks  kết quả homeworks() đã có (màn Bài nộp) — khỏi truy vấn lại
      * @return array{homeworks: int, students: list<array{id: int, name: string, baskets: array<string, array{submitted: int, assigned: int, rate: ?float}>, total: array{submitted: int, assigned: int, rate: ?float}}>, class: array<string, array{submitted: int, assigned: int, rate: ?float}>}
      */
-    public function forClass(ClassModel $class, Carbon $from, Carbon $to): array
+    public function forClass(ClassModel $class, Carbon $from, Carbon $to, ?Collection $homeworks = null): array
     {
-        $homeworks = $this->homeworks($class, $from, $to)->map(fn (Homework $hw) => ['hw' => $hw, 'baskets' => $hw->baskets()]);
+        $homeworks = ($homeworks ?? $this->homeworks($class, $from, $to))->map(fn (Homework $hw) => ['hw' => $hw, 'baskets' => $hw->baskets()]);
         $students = ClassModel::rosterStudentsFor([$class])->get($class->id, collect());
-        $done = HomeworkSubmission::whereIn('homework_id', $homeworks->pluck('hw.id'))->whereIn('student_id', $students->modelKeys())
-            ->get(['homework_id', 'student_id', 'basket'])->map(fn (HomeworkSubmission $s) => "{$s->homework_id}|{$s->student_id}|{$s->basket}")->flip();
+        $done = $homeworks->flatMap(fn (array $h) => $h['hw']->submissions)
+            ->map(fn (HomeworkSubmission $s) => "{$s->homework_id}|{$s->student_id}|{$s->basket}")->flip();
         $keys = array_keys(HomeworkSubmission::BASKETS);
 
         $rows = $students->map(function (Student $student) use ($homeworks, $done, $keys) {
@@ -49,10 +50,10 @@ class HomeworkStats
         ];
     }
 
-    /** @return Collection<int, Homework> bài tập có giỏ, giao trong khoảng ngày */
+    /** @return Collection<int, Homework> bài tập có giỏ, giao trong khoảng ngày, kèm bài nộp */
     public function homeworks(ClassModel $class, Carbon $from, Carbon $to): Collection
     {
-        return Homework::where('class_id', $class->id)->whereBetween('created_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
+        return Homework::with('submissions')->where('class_id', $class->id)->whereBetween('created_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
             ->latest()->get()->filter(fn (Homework $hw) => $hw->baskets() !== [])->values();
     }
 

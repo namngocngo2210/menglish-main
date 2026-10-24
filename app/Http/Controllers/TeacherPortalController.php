@@ -947,12 +947,12 @@ class TeacherPortalController extends Controller
      * Giao bài tập theo syllabus (docs/kho-syllabus.md §10.2): điền sẵn 3 giỏ (giấy / Quizizz / video) + link Quizizz từ buổi của
      * chặng lớp đang học (đã ghép bản sửa riêng của lớp).
      *
-     * @return array{title: string, items: array<string, string>, quizizz_url: ?string}|null
+     * @return array{title: string, items: array<string, string>, quizizz_url: ?string, session_id: ?string}|null
      */
     private function homeworkPrefill(ClassModel $class, int $lessonId): ?array
     {
         $assignment = $lessonId ? SyllabusAssignment::open()->where('class_id', $class->id)->first() : null;
-        $row = $assignment ? app(ClassSyllabus::class)->lessons($assignment)->first(fn (array $r) => $r['lesson']->id === $lessonId) : null;
+        $row = $assignment ? app(ClassSyllabus::class)->timeline($assignment)['rows']->first(fn (array $r) => $r['lesson']->id === $lessonId) : null;
         if (! $row) {
             return null;
         }
@@ -962,6 +962,8 @@ class TeacherPortalController extends Controller
             'title' => trim('Bài tập buổi '.$row['lesson']->session_no.': '.($data['title'] ?? ''), ': '),
             'items' => array_filter(['workbook' => $data['homework_guide'] ?? null, 'quiz' => $data['homework_quizizz'] ?? null, 'video' => $data['homework_video'] ?? null], fn ($v) => filled($v)),
             'quizizz_url' => $data['quizizz_url'] ?? null,
+            // Buổi học của buổi syllabus (đã dạy / dự kiến): GV đổi sang buổi khác thì không dùng tiêu đề điền sẵn.
+            'session_id' => ($id = $row['taught_session_id'] ?? $row['planned_session_id']) ? (string) $id : null,
         ];
     }
 
@@ -1070,6 +1072,11 @@ class TeacherPortalController extends Controller
             'quizizz_url' => $validated['quizizz_url'] ?? null,
             'items' => $items,
         ];
+        // Giỏ Quizizz chỉ có nhờ link Quizizz: đã có học sinh bấm "Đã làm" thì không bỏ link được (bài nộp còn tính tỉ lệ).
+        if ($homework && blank($data['quizizz_url']) && ! in_array('quizizz', array_map(Homework::basketOf(...), array_keys($data['items'] ?? $homework->items ?? [])), true)
+            && $homework->submissions()->where('basket', 'quizizz')->exists()) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['quizizz_url' => 'Đã có học sinh làm bài Quizizz — không bỏ link Quizizz được.']);
+        }
         if ($request->hasFile('audio')) {
             $data['audio_path'] = \App\Services\SafeUploadService::store($request->file('audio'), 'homework_audio', \App\Services\SafeUploadService::AUDIO, 'audio');
         }

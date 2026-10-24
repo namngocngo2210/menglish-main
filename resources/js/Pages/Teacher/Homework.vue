@@ -34,6 +34,10 @@ const itemTexts = ref({});
 // form trống để không giao trùng).
 const prefillUsed = ref(false);
 const prefill = computed(() => (props.editing || prefillUsed.value ? null : props.prefill));
+// Tiêu đề "Bài tập buổi N: …" chỉ đúng với buổi học của buổi syllabus đó — GV chọn buổi khác thì máy chủ tự đặt tiêu đề.
+const sessionId = ref(props.selectedSessionId ?? props.prefill?.session_id ?? null);
+watch(() => [props.selectedSessionId, props.editing?.id], () => (sessionId.value = props.selectedSessionId ?? props.prefill?.session_id ?? null));
+const prefillTitle = computed(() => (prefill.value && String(sessionId.value) === String(prefill.value.session_id ?? props.selectedSessionId) ? prefill.value.title : null));
 function init() {
     const items = props.editing?.items ?? prefill.value?.items ?? {};
     picked.value = [...new Set([...Object.keys(items), ...locked.value])];
@@ -72,13 +76,13 @@ function onSaved() {
 
         <UiForm :key="editing?.id ?? 'new'" :action="action" method="post" class="space-y-lg" :reset-on-success="!editing" @success="onSaved">
             <input v-if="editing" type="hidden" name="_method" value="PUT" />
-            <input v-if="!editing && prefill" type="hidden" name="title" :value="prefill.title" />
+            <input v-if="!editing && prefillTitle" type="hidden" name="title" :value="prefillTitle" />
 
             <!-- 1. Thông tin chung -->
             <section class="space-y-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md shadow-sm md:p-lg">
                 <h2 class="flex items-center gap-xs font-h3 text-h3 text-on-surface"><span class="material-symbols-outlined text-primary-container" aria-hidden="true">info</span> Thông tin chung</h2>
                 <div class="grid grid-cols-1 gap-md md:grid-cols-2">
-                    <UiSelect id="hw_session" label="Buổi học" name="class_session_id" required placeholder="Chọn buổi học..." :options="sessions" :value="selectedSessionId" />
+                    <UiSelect id="hw_session" label="Buổi học" name="class_session_id" required placeholder="Chọn buổi học..." :options="sessions" v-model="sessionId" />
                     <UiInput id="hw_due" label="Hạn nộp" type="datetime-local" name="due_at" required :value="dueDefault" />
                 </div>
                 <UiTextarea name="class_note" label="Ghi chú nhắc nhở cả lớp (Không bắt buộc)" :rows="2" :value="editing?.class_note" placeholder="Ví dụ: Các em nhớ làm bài tập trước 12h trưa chủ nhật nhé..." />

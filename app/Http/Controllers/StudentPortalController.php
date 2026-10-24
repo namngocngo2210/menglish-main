@@ -704,8 +704,7 @@ class StudentPortalController extends Controller
         $user = Auth::user();
         $class = $row->homework?->class_id;
         $allowed = $row->student && ($row->student->isLinkedTo($user)
-            || ($user->can('homework.grade') && $class && ClassModel::whereKey($class)->where(fn ($q) => $q->where('teacher_id', $user->id)
-                ->orWhere('assistant_id', $user->id)->orWhere('foreign_teacher_id', $user->id))->exists())
+            || ($user->can('homework.grade') && $class && ClassModel::homeworkGradableBy($user)->whereKey($class)->exists())
             || ($user->can('student.view') && Student::query()->visibleTo($user)->whereKey($row->student_id)->exists()));
         $disk = Storage::disk('local');
         abort_unless($allowed && $disk->exists($row->file_path), 404);

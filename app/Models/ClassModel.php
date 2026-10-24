@@ -112,6 +112,17 @@ class ClassModel extends Model
     }
 
     /**
+     * Lớp người dùng xem / chấm bài nộp homework (quyền homework.grade): lớp mình dạy / trợ giảng / GVNN; phạm vi Lớp học
+     * "Toàn hệ thống" → mọi lớp. Dùng chung màn Bài nộp và link mở file bài nộp.
+     */
+    public function scopeHomeworkGradableBy(Builder $query, User $user): Builder
+    {
+        return $query->where('status', '!=', 'cancelled')
+            ->when(! DataScope::isAll($user, 'class'), fn (Builder $q) => $q->where(fn (Builder $c) => $c->where('teacher_id', $user->id)
+                ->orWhere('assistant_id', $user->id)->orWhere('foreign_teacher_id', $user->id)));
+    }
+
+    /**
      * Lớp có học trong khoảng [from, to]: đang học (đã khai giảng trước `to`) hoặc đã kết thúc sau `from`.
      * Dùng cho các màn theo tháng (checklist học phí & feedback, đánh giá dự giờ học thuật).
      */
