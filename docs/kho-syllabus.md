@@ -165,6 +165,14 @@ Hiện trạng (khảo sát 23/10/2026):
   Grammar Basic, ô UNIT là tiêu đề riêng của buổi, 2 cột link mới (`ppt_foreign_url`, `test_url`) cho cả import zip.
 - [x] Dữ liệu test: `DemoSyllabusLibrarySeeder` (buổi đủ cột Sheet 1, tài liệu theo đối tượng, đề xuất sửa, giáo trình import zip) và bộ file thử import `docs/mau-test-kho-syllabus/` (giữ đúng bằng `SyllabusSampleFilesTest`).
 
+### Bổ sung sau giai đoạn 5 (24/10/2026, xong)
+
+- [x] Màn "Import giáo trình mới" nhận ra file 1 chặng (form Sheet 1) và chỉ sang "Thêm chặng từ file" của giáo trình thay
+  cho 3 lỗi "Thiếu sheet".
+- [x] `DemoSyllabusLibrarySeeder` đủ bước quy trình giai đoạn 2–5 cho mọi vai trò (nhắc 24h, Customize Giãn đã duyệt, order
+  theo mốc, việc cuối chặng mới / quá hạn / hoàn thành, báo cáo tuần Học thuật có ghi chú Quản lý, buổi mini test chưa nhập
+  điểm); `DemoSyllabusRoleScreensTest` mở các màn của từng vai trò trên dữ liệu demo.
+
 ## 5. Đối chiếu quy trình (Sheet 3) & câu hỏi (Sheet 4) → giai đoạn
 
 | Quy trình / câu hỏi | Nội dung | Giai đoạn |

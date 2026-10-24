@@ -2,11 +2,16 @@
 
 namespace Tests\Feature;
 
+use App\Models\AdminNotification;
+use App\Models\BigTestOrder;
 use App\Models\ClassLessonOverride;
 use App\Models\ClassLessonProgress;
 use App\Models\ClassModel;
 use App\Models\Homework;
 use App\Models\HomeworkSubmission;
+use App\Models\MaterialOrder;
+use App\Models\StaffReport;
+use App\Models\StaffReportNote;
 use App\Models\SyllabusAdjustmentRequest;
 use App\Models\SyllabusAssignment;
 use App\Models\SyllabusChangeProposal;
@@ -17,9 +22,11 @@ use App\Models\SyllabusLesson;
 use App\Models\User;
 use App\Models\WorkTask;
 use App\Services\Syllabus\ClassSyllabus;
+use App\Services\Syllabus\ClassSyllabusTab;
 use App\Services\Syllabus\StageImport\StageImportPlanner;
 use App\Services\Syllabus\StageImport\StageSheetReader;
 use App\Services\Syllabus\SyllabusOrders;
+use App\Support\ReportPeriod;
 use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\DemoSyllabusLibrarySeeder;
 use Database\Seeders\Support\SyllabusSampleFiles;
@@ -42,8 +49,8 @@ class DemoSyllabusLibrarySeederTest extends TestCase
         $starters = SyllabusCurriculum::where('code', 'DEMO-SYL-STARTERS')->firstOrFail();
         $this->assertSame(18, $starters->lessons()->whereNotNull('ppt_url')->whereNotNull('quizizz_url')->count());
         $this->assertSame([15, 3], [$starters->lessons()->whereNotNull('ppt_foreign_url')->count(), $starters->lessons()->whereNotNull('test_url')->count()]);
-        // "Ôn tập Unit…" cuối chặng 1, 2 → Ôn tập; buổi cuối chặng cuối → Big test.
-        $this->assertSame(['big_test' => 1, 'lesson' => 15, 'review' => 2],
+        // "Ôn tập Unit…" cuối chặng 1 → Mini test (có làm mini test), cuối chặng 2 → Ôn tập; buổi cuối chặng cuối → Big test.
+        $this->assertSame(['big_test' => 1, 'lesson' => 15, 'mini_test' => 1, 'review' => 1],
             $starters->lessons()->reorder()->selectRaw('lesson_type, count(*) as total')->groupBy('lesson_type')->orderBy('lesson_type')
                 ->pluck('total', 'lesson_type')->map(fn ($total) => (int) $total)->all());
         foreach (array_keys(SyllabusLesson::MILESTONES) as $milestone) {
@@ -78,8 +85,8 @@ class DemoSyllabusLibrarySeederTest extends TestCase
         $this->assertTrue(ClassLessonProgress::where('syllabus_assignment_id', $cg1->id)->whereNotNull('pace_note')->exists());
         $this->assertTrue(SyllabusAdjustmentRequest::where('class_id', ClassModel::where('code', 'DEMO-BD-FAM1')->value('id'))->where('kind', 'postpone')->where('status', 'pending')->exists());
 
-        // Giai đoạn 4: việc cuối chặng của CG FAM 1 Học thuật đã NHẬN VIỆC; GV CG có mốc ORDER đến hạn.
-        $this->assertTrue(WorkTask::where('kind', WorkTask::KIND_SYLLABUS_STAGE_END)->where('status', 'in_progress')
+        // Giai đoạn 4: việc cuối chặng của CG FAM 1 Học thuật đã NHẬN VIỆC (đã qua hạn → Quá hạn); GV CG có mốc ORDER đến hạn.
+        $this->assertTrue(WorkTask::where('kind', WorkTask::KIND_SYLLABUS_STAGE_END)->where('status', 'overdue')
             ->where('class_id', ClassModel::where('code', 'DEMO-CG-FAM1')->value('id'))->exists());
         $this->assertGreaterThan(0, app(SyllabusOrders::class)->dueCount($teacher));
 
@@ -88,6 +95,27 @@ class DemoSyllabusLibrarySeederTest extends TestCase
         $this->assertGreaterThanOrEqual(1, Homework::where('class_id', $cg->id)->where('title', 'like', 'Bài tập buổi%')->count());
         $this->assertEqualsCanonicalizing(['paper', 'quizizz', 'video'], HomeworkSubmission::distinct()->pluck('basket')->all());
         $this->assertSame(1, HomeworkSubmission::where('status', 'reviewed')->count());
+
+        // Quy trình đủ bước (docs/kho-syllabus.md §7–9): nhắc 24h chưa xác nhận, Customize "Giãn" đã duyệt, order theo mốc,
+        // việc cuối chặng quá hạn / hoàn thành, báo cáo tuần Học thuật có ghi chú của Quản lý; buổi test đã dạy chưa nhập điểm.
+        $classId = fn (string $code) => ClassModel::where('code', $code)->value('id');
+        $actions = AdminNotification::where('type', 'syllabus_workflow')->get()->pluck('data.action.label')->unique();
+        foreach (['XÁC NHẬN', 'NHẮC LẠI', 'ĐÃ XEM', 'GIAO CHẶNG', 'NHẬN VIỆC', 'XỬ LÝ', 'ORDER'] as $label) {
+            $this->assertContains($label, $actions, "Thiếu thông báo có nút {$label}.");
+        }
+        $this->assertNotNull(SyllabusAssignment::open()->where('class_id', $classId('DEMO-BD-FAM1'))->value('confirm_reminded_at'));
+        $this->assertTrue(SyllabusAdjustmentRequest::where('class_id', $classId('DEMO-CG-FAM0'))->where('kind', 'extend')->where('status', 'approved')->exists());
+        $this->assertGreaterThan(0, SyllabusAssignment::open()->where('class_id', $classId('DEMO-CG-FAM0'))->value('extra_sessions'));
+        $this->assertTrue(MaterialOrder::where('class_id', $classId('DEMO-CG-FAM0'))->whereNotNull('syllabus_lesson_id')->where('category', MaterialOrder::CATEGORY_PRINTING)->exists());
+        $this->assertTrue(BigTestOrder::where('class_id', $classId('DEMO-BD-FAM0'))->whereNotNull('syllabus_lesson_id')->where('status', 'pending')->exists());
+        $this->assertSame('overdue', WorkTask::where('kind', WorkTask::KIND_SYLLABUS_STAGE_END)->where('class_id', $classId('DEMO-BD-FAM1'))->value('status'));
+        $this->assertSame('completed', WorkTask::where('kind', WorkTask::KIND_SYLLABUS_STAGE_END)->where('class_id', $classId('DEMO-CG-FAM0'))->value('status'));
+        $lead = User::where('email', 'academiclead@menglish.edu.vn')->firstOrFail();
+        $weekly = StaffReport::where('user_id', $lead->id)->where('kind', 'academic_weekly')->where('period_key', ReportPeriod::weekKey(now()))->sole();
+        $this->assertSame(2, $weekly->notes()->count(), 'Quản lý + chính Học thuật ghi chú.');
+        $this->assertStringContainsString('Chuẩn bị test', $weekly->content);
+        $bd1 = ClassModel::findOrFail($classId('DEMO-BD-FAM1'));
+        $this->assertTrue(collect(app(ClassSyllabusTab::class)->data($bd1, $lead)['lessons'] ?? [])->contains('missing_score', true), 'Buổi mini test đã dạy chưa nhập điểm.');
 
         // Đề xuất sửa đủ 3 trạng thái.
         $this->assertEqualsCanonicalizing(['pending', 'approved', 'rejected'],
@@ -112,8 +140,11 @@ class DemoSyllabusLibrarySeederTest extends TestCase
         File::deleteDirectory($dir);
 
         // Chạy lại không nhân bản.
-        $counts = [SyllabusDocument::count(), SyllabusChangeProposal::count(), SyllabusCurriculum::count(), SyllabusDocumentView::count(), Homework::count(), HomeworkSubmission::count()];
+        $counts = fn () => [SyllabusDocument::count(), SyllabusChangeProposal::count(), SyllabusCurriculum::count(), SyllabusDocumentView::count(), Homework::count(),
+            HomeworkSubmission::count(), SyllabusAdjustmentRequest::count(), MaterialOrder::count(), BigTestOrder::count(), StaffReport::count(), StaffReportNote::count(),
+            AdminNotification::where('type', 'syllabus_workflow')->count()];
+        $before = $counts();
         $this->seed(DemoSyllabusLibrarySeeder::class);
-        $this->assertSame($counts, [SyllabusDocument::count(), SyllabusChangeProposal::count(), SyllabusCurriculum::count(), SyllabusDocumentView::count(), Homework::count(), HomeworkSubmission::count()]);
+        $this->assertSame($before, $counts());
     }
 }

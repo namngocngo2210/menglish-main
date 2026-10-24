@@ -2,11 +2,13 @@
 
 namespace Database\Seeders;
 
+use App\Http\Controllers\StaffReportController;
 use App\Http\Controllers\StudentPortalController;
 use App\Http\Controllers\SyllabusClassController;
 use App\Http\Controllers\SyllabusController;
 use App\Http\Controllers\TeacherHomeworkController;
 use App\Http\Controllers\TeacherLessonController;
+use App\Http\Controllers\TeacherOrderController;
 use App\Http\Controllers\TeacherPortalController;
 use App\Http\Controllers\WorkTaskController;
 use App\Models\ClassLessonOverride;
@@ -14,6 +16,7 @@ use App\Models\ClassLessonProgress;
 use App\Models\ClassModel;
 use App\Models\Homework;
 use App\Models\HomeworkSubmission;
+use App\Models\StaffReport;
 use App\Models\SyllabusAdjustmentRequest;
 use App\Models\SyllabusAssignment;
 use App\Models\SyllabusChangeProposal;
@@ -23,6 +26,7 @@ use App\Models\SyllabusLesson;
 use App\Models\SyllabusStage;
 use App\Models\User;
 use App\Models\WorkTask;
+use App\Services\Reports\WeeklyReportMetrics;
 use App\Services\Syllabus\ClassSyllabus;
 use App\Services\Syllabus\Import\SyllabusImporter;
 use App\Services\Syllabus\Import\SyllabusPackageReader;
@@ -30,10 +34,14 @@ use App\Services\Syllabus\Import\SyllabusPackageValidator;
 use App\Services\Syllabus\ProgressBackfill;
 use App\Services\Syllabus\StageEndAlerts;
 use App\Services\Syllabus\StageSchedule;
+use App\Services\Syllabus\SyllabusOrders;
+use App\Support\ReportPeriod;
 use Database\Seeders\Concerns\InvokesControllersAsUser;
 use Database\Seeders\Support\SyllabusSampleFiles;
 use Illuminate\Database\Seeder;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
 use RuntimeException;
@@ -46,6 +54,10 @@ use RuntimeException;
  *   chặng 3 Starters chưa lớp nào học tới nên GV không thấy; GV CG đã đánh dấu xem 1 tài liệu.
  * - Đề xuất sửa giáo trình: chờ duyệt / đã duyệt / đã từ chối.
  * - Giáo trình DEMO-SYL-FLYERS import từ gói zip mẫu (lịch sử "Import"), chưa gắn trình độ nào.
+ * - Quy trình giai đoạn 2–5 đủ bước để mỗi vai trò có dữ liệu trên màn của mình: GV đã dạy / chưa đánh dấu, bản sửa riêng,
+ *   Customize "Giãn" đã duyệt + "Dời" chờ duyệt, order theo mốc (in ấn → vận hành cơ sở, đề mini test → Học thuật) còn mốc
+ *   đến hạn để nút ORDER nhấp nháy, nhắc 24h chưa xác nhận, việc cuối chặng mới / đang làm / quá hạn / hoàn thành, báo cáo
+ *   tuần Học thuật có ghi chú của Quản lý, buổi mini test đã dạy chưa nhập điểm, homework 3 giỏ.
  *
  * Idempotent: mỗi phần chỉ chạy khi giáo trình chưa có dữ liệu phần đó. Đi qua SyllabusController / dịch vụ import thật.
  */
@@ -96,12 +108,17 @@ class DemoSyllabusLibrarySeeder extends Seeder
                 $this->enrichLessons($curriculum);
                 $this->uploadDocuments($curriculum, self::DOCUMENTS[$code]);
             }
+            $this->markMiniTests($curricula['DEMO-SYL-STARTERS']);
             $this->markViewed();
             $this->overrideClassLesson();
             $this->seedProgress();
             $this->seedStageEndTasks();
             $this->seedHomework();
+            $this->seedCustomize();
+            $this->seedOrders();
+            $this->runReminders();
             $this->seedProposals($curricula['DEMO-SYL-STARTERS']);
+            $this->seedAcademicWeekly();
             $this->importFlyers();
         } finally {
             app()->instance('request', $originalRequest);
@@ -157,6 +174,19 @@ class DemoSyllabusLibrarySeeder extends Seeder
                 ], ['id' => $lesson->id]);
             }
         }
+    }
+
+    /**
+     * Buổi "Ôn tập Unit 1–2" cuối chặng 1 Starters có làm mini test (như syllabus FAM 2): loại Mini test → mốc order mini test
+     * có ngày thi, buổi test đã dạy chưa nhập điểm hiện "Chưa nhập điểm". Sửa thẳng loại buổi (chạy cả trên dữ liệu demo cũ).
+     */
+    private function markMiniTests(SyllabusCurriculum $curriculum): void
+    {
+        if ($curriculum->lessons()->where('lesson_type', 'mini_test')->exists()) {
+            return;
+        }
+        $stage = $curriculum->stages()->where('position', 1)->first();
+        $stage?->lessons()->where('syllabus_lessons.title', 'like', 'Ôn tập%')->get()->each->update(['lesson_type' => 'mini_test']);
     }
 
     // ── Tài liệu ────────────────────────────────────────────────────────────────
@@ -308,6 +338,84 @@ class DemoSyllabusLibrarySeeder extends Seeder
         if ($paper) {
             $this->asUser($teacher, TeacherHomeworkController::class, 'review', [], ['submission' => $paper->id]);
         }
+    }
+
+    /** Customize syllabus "Giãn" (docs/kho-syllabus.md §8.4): GV CG FAM 0 xin thêm 1 buổi, Admin duyệt → lớp có buổi giãn cho nút "Dạy chưa xong". */
+    private function seedCustomize(): void
+    {
+        $class = ClassModel::where('code', 'DEMO-CG-FAM0')->first();
+        $teacher = User::where('email', 'nguyenvanan@menglish.edu.vn')->first();
+        if (! $class || ! $teacher || ! SyllabusAssignment::open()->where('class_id', $class->id)->exists()
+            || SyllabusAdjustmentRequest::where('class_id', $class->id)->where('kind', 'extend')->exists()) {
+            return;
+        }
+        $this->asUser($teacher, SyllabusController::class, 'storeAdjustmentRequest', [
+            'class_id' => $class->id, 'kind' => 'extend', 'extra_sessions' => 1,
+            'reason' => 'Lớp FAM 0 cần thêm 1 buổi luyện nghe trước mini test Unit 1–2 (demo Customize syllabus "Giãn").',
+        ]);
+        $request = SyllabusAdjustmentRequest::where('class_id', $class->id)->where('kind', 'extend')->latest('id')->firstOrFail();
+        $this->asUser($this->admin, SyllabusController::class, 'approveAdjustmentRequest', [], ['id' => $request->id]);
+    }
+
+    /**
+     * ORDER theo mốc (docs/kho-syllabus.md §9.3): GV CG FAM 0 order in ấn (→ vận hành cơ sở), GV BD FAM 0 order đề mini test
+     * (→ Học thuật duyệt). Mốc order mini test của CG FAM 0 để lại chưa order → nút ORDER của GV nhấp nháy.
+     */
+    private function seedOrders(): void
+    {
+        $place = function (string $classCode, string $email, string $kind, array $input): void {
+            $class = ClassModel::where('code', $classCode)->first();
+            $teacher = User::where('email', $email)->first();
+            $assignment = $class && $teacher ? SyllabusAssignment::open()->where('class_id', $class->id)->first() : null;
+            $milestone = $assignment ? app(SyllabusOrders::class)->milestones($assignment)->first(fn (array $m) => $m['kind'] === $kind && $m['due'] && ! $m['ordered']) : null;
+            if ($milestone) {
+                $this->asUser($teacher, TeacherOrderController::class, 'store', ['lesson_id' => $milestone['lesson']->id] + $input, ['class' => $class->id]);
+            }
+        };
+        $place('DEMO-CG-FAM0', 'nguyenvanan@menglish.edu.vn', 'order_print', ['quantity' => 8, 'note' => 'In phiếu mini test Unit 1–2: 6 học viên + 2 bản dự phòng.']);
+        $place('DEMO-BD-FAM0', 'gv.cohuu2@menglish.edu.vn', 'order_mini_test', ['note' => 'Đề mini test Unit 1–2, lớp làm đầu buổi Ôn tập.']);
+    }
+
+    /** Lệnh định kỳ của quy trình (idempotent): nhắc 24h chưa xác nhận, chuyển việc quá hạn + nhắc XỬ LÝ, báo mốc order đến hạn. */
+    private function runReminders(): void
+    {
+        // Demo giao chặng ngay lúc seed: lùi lúc giao chặng BD FAM 1 (chưa xác nhận) về ngày mở chặng để có nhắc 24h; BD FAM 0 giữ chưa nhắc.
+        SyllabusAssignment::open()->whereNull('confirmed_at')->whereNull('confirm_reminded_at')
+            ->whereHas('classModel', fn ($q) => $q->where('code', 'DEMO-BD-FAM1'))->get()
+            ->each(fn (SyllabusAssignment $a) => $a->update(['assigned_at' => $a->opened_at]));
+        foreach (['syllabus:remind-unconfirmed', 'tasks:mark-overdue', 'syllabus:remind-overdue-tasks', 'syllabus:order-due-alerts'] as $command) {
+            Artisan::call($command);
+        }
+    }
+
+    /**
+     * Báo cáo tuần Học thuật (docs/kho-syllabus.md §9.2): Học thuật HOÀN THÀNH việc chuẩn bị chặng của CG FAM 0, nộp báo cáo tuần
+     * từ dòng gợi ý của hệ thống; Quản lý ghi chú, Học thuật trả lời.
+     */
+    private function seedAcademicWeekly(): void
+    {
+        $week = ReportPeriod::weekKey(now());
+        $manager = User::where('email', 'manager@menglish.edu.vn')->first();
+        if (! $manager || StaffReport::where('user_id', $this->lead->id)->where('kind', 'academic_weekly')->where('period_key', $week)->exists()) {
+            return;
+        }
+
+        $task = WorkTask::where('kind', WorkTask::KIND_SYLLABUS_STAGE_END)->where('assignee_id', $this->lead->id)->where('status', 'new')
+            ->whereHas('classModel', fn ($q) => $q->where('code', 'DEMO-CG-FAM0'))->first();
+        if ($task) {
+            $this->asUser($this->lead, WorkTaskController::class, 'accept', [], ['id' => $task->id]);
+            $this->asUser($this->lead, WorkTaskController::class, 'completeTask', ['note' => 'Đã gửi đề Big Test chặng 1 cho Học vụ in, syllabus chặng 2 sẵn sàng giao.'], ['id' => $task->id]);
+        }
+
+        $rows = collect(WeeklyReportMetrics::academic($this->lead, $week)['suggestions'])
+            ->map(fn (array $items) => collect($items)->map(fn (array $row) => Arr::only($row, ['content', 'detail', 'deadline', 'progress', 'link', 'source']))->all())
+            ->all();
+        $rows['planned'][] = ['content' => 'Giao chặng 2 cho lớp Pre Starters FAM 0 (CG) sau Big Test chặng 1', 'deadline' => today()->addWeek()->toDateString(), 'progress' => 0];
+        $this->asUser($this->lead, StaffReportController::class, 'academicWeeklyStore', ['week' => $week, 'rows' => $rows]);
+
+        $report = StaffReport::where('user_id', $this->lead->id)->where('kind', 'academic_weekly')->where('period_key', $week)->firstOrFail();
+        $this->asUser($manager, StaffReportController::class, 'noteStore', ['note' => 'Việc chuẩn bị chặng lớp BD FAM 1 đã quá hạn — ưu tiên xử lý đầu tuần sau.'], ['id' => $report->id]);
+        $this->asUser($this->lead, StaffReportController::class, 'noteStore', ['note' => 'Đã nhận, thứ Hai sẽ chốt đề Big Test BD FAM 1 với GV.'], ['id' => $report->id]);
     }
 
     private function sampleFile(string $name): UploadedFile
