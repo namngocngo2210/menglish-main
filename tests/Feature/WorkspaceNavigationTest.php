@@ -106,14 +106,15 @@ class WorkspaceNavigationTest extends TestCase
         $this->assertSame([], $routes->countBy()->filter(fn ($n) => $n > 1)->keys()->all());
     }
 
-    public function test_admin_sidebar_has_at_most_25_top_level_entries(): void
+    public function test_admin_sidebar_has_at_most_26_top_level_entries(): void
     {
         $html = $this->actingAs($this->makeUser('admin'))->get(route('dashboard'))->assertOk()->getContent();
         $aside = substr($html, strpos($html, 'data-sidebar'), strpos($html, '</aside>') - strpos($html, 'data-sidebar'));
 
         $count = preg_match_all('/data-menu-item="/', $aside);
         $this->assertGreaterThan(10, $count);
-        $this->assertLessThanOrEqual(25, $count);
+        // 26: thêm nhóm E-learning riêng (tách khỏi Giáo trình).
+        $this->assertLessThanOrEqual(26, $count);
         // Hành động không còn nằm trên menu.
         $this->assertStringNotContainsString('>Nhập danh sách từ Excel<', $aside);
         $this->assertStringNotContainsString(route('tuition.import'), $aside);
@@ -201,6 +202,20 @@ class WorkspaceNavigationTest extends TestCase
         // Không duyệt được nguồn nào (sales): không có mục Cần duyệt, tab hộp chung ẩn.
         $sales = $this->makeUser('sales_consultant');
         $this->assertNotContains('approvals', collect($menu->groupsFor($sales))->pluck('id')->all());
+    }
+
+    public function test_elearning_has_its_own_sidebar_group_outside_syllabus(): void
+    {
+        $menu = app(SidebarMenu::class);
+        $group = fn (string $id) => collect($menu->definition())->firstWhere('id', $id);
+
+        $this->assertSame('E-learning', $group('elearning')['label']);
+        $this->assertSame(['question-bank.index', 'practice-results.index'], collect($group('elearning')['items'])->pluck('route')->all());
+        $this->assertSame([], array_intersect(collect($group('syllabus')['items'])->pluck('route')->all(), ['question-bank.index', 'practice-results.index']));
+
+        $this->actingAs($this->makeUser('admin'))->get(route('question-bank.index'))->assertOk()
+            ->assertSee('data-workspace-tabs="elearning"', false)
+            ->assertSee('data-menu-item="elearning"', false);
     }
 
     public function test_settings_redirects_to_first_accessible_item(): void
