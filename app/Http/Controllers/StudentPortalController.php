@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Concerns\ResolvesPortalStudent;
 use App\Models\AcademicRecord;
 use App\Models\BigTestResult;
 use App\Models\ClassModel;
@@ -21,7 +22,6 @@ use App\Support\Money;
 use App\Support\Portal\PortalNotifications;
 use App\Support\TuitionPaymentHistory;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -29,6 +29,8 @@ use Inertia\Inertia;
 
 class StudentPortalController extends Controller
 {
+    use ResolvesPortalStudent;
+
     /** Đuôi file được phép khi nộp bài tập (theo nội dung file). */
     private const HOMEWORK_EXTENSIONS = [
         ...SafeUploadService::IMAGES, ...SafeUploadService::DOCUMENTS, ...SafeUploadService::VIDEO, ...SafeUploadService::AUDIO,
@@ -42,13 +44,6 @@ class StudentPortalController extends Controller
 
     /** Số ngày lịch học sắp tới hiển thị ở trang chủ học viên. */
     private const UPCOMING_DAYS = 14;
-
-    protected function canManageStudents(): bool
-    {
-        $user = Auth::user();
-
-        return (bool) ($user && $user->can('student.view'));
-    }
 
     /**
      * Quyền GHI trên hồ sơ cổng học viên (cập nhật liên hệ, nộp / xóa bài, đánh dấu đã đọc, khảo sát…): chủ hồ sơ (tài khoản
@@ -88,60 +83,6 @@ class StudentPortalController extends Controller
                         ->orWhere('foreign_teacher_id', $user->id);
                 });
             });
-    }
-
-    /**
-     * Helper lấy danh sách học viên và học viên đang chọn
-     */
-    protected function getActiveStudent($studentId = null)
-    {
-        $students = Student::with(['currentClass.teacher', 'tuition.receipts'])
-            ->when(
-                $this->canManageStudents(),
-                fn ($query) => $query->visibleTo(Auth::user()),
-                fn ($query) => $query->linkedTo(Auth::user()),
-            )
-            // Học viên vừa chốt (Chờ khai giảng) / nghỉ hè vẫn dùng cổng học viên.
-            ->whereIn('status', ['active', 'waiting_start', 'studying', 'summer_break'])
-            ->get();
-
-        $student = $studentId ? $students->firstWhere('id', $studentId) : $students->first();
-        if ($studentId && ! $student) {
-            abort(403, 'Bạn không được phép truy cập hồ sơ học viên này.');
-        }
-        if (! $student && $students->isNotEmpty()) {
-            $student = $students->first();
-        }
-
-        abort_if(! $student && ! $this->canManageStudents(), 403, 'Tài khoản chưa được liên kết với hồ sơ học viên.');
-
-        return [$students, $student];
-    }
-
-    /**
-     * Props chung của các màn cổng học viên (Pages/Portal/*): học viên đang chọn, danh sách để đổi học viên (thanh trên)
-     * và số thông báo chưa đọc (thanh điều hướng đáy).
-     *
-     * @param  array<string, mixed>  $extra  trường học viên riêng của từng màn
-     * @return array{student: array<string, mixed>|null, students: list<array<string, mixed>>, unreadCount: int}
-     */
-    private function portalProps(Collection $students, ?Student $student, array $extra = []): array
-    {
-        return [
-            'student' => $student ? [
-                'id' => $student->id,
-                'name' => $student->name,
-                'code' => $student->code,
-                'class_name' => $student->currentClass?->name,
-                ...$extra,
-            ] : null,
-            'students' => $students->map(fn (Student $s) => [
-                'id' => $s->id,
-                'name' => $s->name,
-                'class_name' => $s->currentClass?->name,
-            ])->values()->all(),
-            'unreadCount' => PortalNotifications::unreadCount($student),
-        ];
     }
 
     /** Điểm dạng gọn: 8.50 → "8.5", 10.00 → "10". */

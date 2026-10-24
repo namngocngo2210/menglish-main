@@ -3,15 +3,16 @@
  * Cổng làm bài test đầu vào trực tuyến (công khai, không đăng nhập, không khung ứng dụng).
  * Chế độ thi (PR #35): bấm "Bắt đầu làm bài" → toàn màn hình; rời bài (ẩn tab / mất focus / thoát toàn màn hình) được ghi
  * lại và gửi kèm bài làm; tới MAX_VIOLATIONS lần thì tự động nộp. Khi đang làm bài: chặn quay lại / tải lại trang,
- * chuột phải, sao chép / dán, kéo thả, bôi đen và các phím tắt phổ biến.
+ * chuột phải, sao chép / dán, kéo thả, bôi đen và các phím tắt phổ biến (composable useExamLock, dùng chung với Luyện tập).
  * Đề tạo từ PDF (test.pdf_url): thí sinh xem nguyên file đề và trả lời trên phiếu (`sheet`: số câu như in trong PDF,
  * chọn A/B/C… hoặc điền từ); tên ô trả lời giống đề soạn từng câu nên chấm tự động như cũ.
  * Props không chứa đáp án (PlacementTestController::portalQuestions).
  */
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import { Head, usePage } from '@inertiajs/vue3';
 import BareLayout from '@/Layouts/BareLayout.vue';
 import PdfViewer from '@/Components/PlacementTests/PdfViewer.vue';
+import { useExamLock } from '@/lib/useExamLock';
 
 defineOptions({ layout: BareLayout });
 
@@ -32,63 +33,22 @@ const errorMessages = computed(() => Object.values(page.props.errors ?? {}));
 
 const formRef = ref(null);
 const formWrap = ref(null);
-const started = ref(false);
-const submitting = ref(false);
-const showWarning = ref(false);
 const showSubmitting = ref(false);
 const autoSubmitted = ref(false);
-const log = ref([]);
-let lastViolationAt = 0;
+
+// Khoá màn hình dùng chung với Luyện tập: tới maxViolations lần rời bài thì tự động nộp.
+const lock = useExamLock({ maxViolations: props.maxViolations, onLimit: autoSubmit });
+const { active: started, log, showWarning, resume } = lock;
 
 const violationLog = computed(() => JSON.stringify(log.value));
 
-const root = () => document.documentElement;
-const canFullscreen = () => !!(root().requestFullscreen || root().webkitRequestFullscreen);
-const isFullscreen = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
-function enterFullscreen() {
-    if (!canFullscreen() || isFullscreen()) return;
-    const req = root().requestFullscreen || root().webkitRequestFullscreen;
-    try {
-        const p = req.call(root());
-        if (p && p.catch) p.catch(() => {});
-    } catch (e) {
-        /* trình duyệt từ chối toàn màn hình: vẫn cho làm bài */
-    }
-}
-function exitFullscreen() {
-    if (!isFullscreen()) return;
-    const exit = document.exitFullscreen || document.webkitExitFullscreen;
-    try {
-        const p = exit.call(document);
-        if (p && p.catch) p.catch(() => {});
-    } catch (e) {
-        /* bỏ qua */
-    }
-}
-
 // Tự động nộp: giống form.submit() cũ — bỏ qua kiểm tra required của trình duyệt, gửi các câu đã làm.
 async function autoSubmit() {
-    submitting.value = true;
+    lock.stop();
     autoSubmitted.value = true;
-    showWarning.value = false;
     showSubmitting.value = true;
     await nextTick();
     formRef.value?.submit();
-}
-
-function recordViolation(type) {
-    if (!started.value || submitting.value) return;
-    // Chuyển tab thường bắn cùng lúc blur + visibilitychange + thoát toàn màn hình: tính là 1 lần.
-    const now = Date.now();
-    if (now - lastViolationAt < 1500) return;
-    lastViolationAt = now;
-
-    log.value.push({ type, at: new Date().toISOString() });
-    if (log.value.length >= props.maxViolations) {
-        autoSubmit();
-        return;
-    }
-    showWarning.value = true;
 }
 
 function start() {
@@ -97,108 +57,19 @@ function start() {
         const input = form?.elements[name];
         if (input && !input.reportValidity()) return;
     }
-    enterFullscreen();
-    started.value = true;
-    // Khoá nút Quay lại (xem onPopstate): mục lịch sử hiện tại thành state rỗng + thêm một mục trùng trang ở trên.
-    history.replaceState(null, '', location.href);
-    history.pushState(null, '', location.href);
+    lock.start();
     nextTick(() => window.scrollTo({ top: 0 }));
 }
 
-function resume() {
-    showWarning.value = false;
-    enterFullscreen();
-}
-
+// Đang gửi bài: ngừng ghi rời bài, cho rời trang.
 function onSubmitStart() {
-    submitting.value = true;
+    lock.stop();
 }
-// Lỗi validate (422): cho làm tiếp, bỏ lớp phủ "đang gửi bài".
+// Lỗi validate (422): cho làm tiếp (bật lại khoá), bỏ lớp phủ "đang gửi bài".
 function onError() {
-    submitting.value = false;
+    lock.resume();
     showSubmitting.value = false;
 }
-
-const onVisibility = () => {
-    if (document.visibilityState === 'hidden') recordViolation('hidden');
-};
-const onBlur = () => recordViolation('blur');
-const onFullscreenChange = () => {
-    if (canFullscreen() && !isFullscreen()) recordViolation('fullscreen_exit');
-};
-// Không cho quay lại trang trước khi đang làm bài. Bấm Quay lại chỉ về mục lịch sử state rỗng của chính trang thi:
-// với state rỗng Inertia không dựng lại trang (bài đang làm còn nguyên), chỉ ghi state trang vào mục đó và cuộn lên đầu.
-// Bộ xử lý này chạy sau Inertia: đặt lại state rỗng cho mục đó (để lần Quay lại sau vẫn vậy), đẩy lại mục trùng trang
-// và trả vị trí cuộn cũ.
-let lastScrollY = 0;
-const onScroll = () => {
-    lastScrollY = window.scrollY;
-};
-const onPopstate = () => {
-    if (!started.value || submitting.value) return;
-    const y = lastScrollY;
-    history.replaceState(null, '', location.href);
-    history.pushState(null, '', location.href);
-    requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, y)));
-};
-const onBeforeUnload = (e) => {
-    if (started.value && !submitting.value) {
-        e.preventDefault();
-        e.returnValue = '';
-    }
-};
-// Chặn chuột phải, sao chép / dán, kéo thả.
-const blockWhileStarted = (e) => {
-    if (started.value) e.preventDefault();
-};
-const BLOCKED_EVENTS = ['contextmenu', 'copy', 'cut', 'paste', 'drop', 'dragstart'];
-const onSelectStart = (e) => {
-    if (started.value && !e.target.closest?.('input, textarea')) e.preventDefault();
-};
-// Chặn phím tắt phổ biến: DevTools, xem nguồn, lưu, in, tải lại, sao chép / dán.
-const onKeydown = (e) => {
-    if (!started.value || submitting.value) return;
-    const key = (e.key || '').toLowerCase();
-    const mod = e.ctrlKey || e.metaKey;
-    const blocked =
-        key === 'f12' ||
-        key === 'f5' ||
-        (mod && e.shiftKey && ['i', 'j', 'c', 'k'].includes(key)) ||
-        (mod && ['u', 's', 'p', 'r', 'c', 'x', 'v', 'o', 'f', 'g'].includes(key)) ||
-        (e.altKey && ['arrowleft', 'arrowright'].includes(key));
-    if (blocked) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
-};
-
-onMounted(() => {
-    document.addEventListener('visibilitychange', onVisibility);
-    window.addEventListener('blur', onBlur);
-    document.addEventListener('fullscreenchange', onFullscreenChange);
-    document.addEventListener('webkitfullscreenchange', onFullscreenChange);
-    window.addEventListener('popstate', onPopstate);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('beforeunload', onBeforeUnload);
-    BLOCKED_EVENTS.forEach((evt) => document.addEventListener(evt, blockWhileStarted));
-    document.addEventListener('selectstart', onSelectStart);
-    document.addEventListener('keydown', onKeydown, true);
-});
-
-onBeforeUnmount(() => {
-    document.removeEventListener('visibilitychange', onVisibility);
-    window.removeEventListener('blur', onBlur);
-    document.removeEventListener('fullscreenchange', onFullscreenChange);
-    document.removeEventListener('webkitfullscreenchange', onFullscreenChange);
-    window.removeEventListener('popstate', onPopstate);
-    window.removeEventListener('scroll', onScroll);
-    window.removeEventListener('beforeunload', onBeforeUnload);
-    BLOCKED_EVENTS.forEach((evt) => document.removeEventListener(evt, blockWhileStarted));
-    document.removeEventListener('selectstart', onSelectStart);
-    document.removeEventListener('keydown', onKeydown, true);
-    // Nộp xong chuyển sang trang hoàn thành: thoát toàn màn hình như khi tải trang mới.
-    exitFullscreen();
-});
 
 // Phiếu trả lời đề PDF: hiện tiêu đề phần khi đổi phần.
 const showSheetSection = (index) => !!props.sheet[index].section && (index === 0 || props.sheet[index - 1].section !== props.sheet[index].section);

@@ -245,6 +245,23 @@ return [
                 'approve_adjustment' => ['Duyệt đề xuất & tiến độ', 'Duyệt / từ chối đề xuất sửa giáo trình, điều chỉnh tiến độ; đóng chặng. Nút duyệt / từ chối chỉ Admin (06/10/2026).'],
             ],
         ],
+        'question_bank' => [
+            'label' => 'Ngân hàng câu hỏi',
+            'group' => 'academic',
+            'icon' => 'quiz',
+            'actions' => [
+                'view' => ['Xem ngân hàng câu hỏi', 'Xem ngân hàng câu hỏi và phân tích câu hỏi.'],
+                'manage' => ['Quản lý ngân hàng câu hỏi', 'Import, sửa, duyệt / ẩn câu hỏi và cấu hình khung đề luyện tập.'],
+            ],
+        ],
+        'practice' => [
+            'label' => 'Luyện tập (học viên)',
+            'group' => 'academic',
+            'icon' => 'fact_check',
+            'actions' => [
+                'view_results' => ['Xem kết quả luyện tập', 'Xem kết quả luyện tập của học viên trong phạm vi được xem (giáo viên: học viên lớp mình).'],
+            ],
+        ],
         'big_test' => [
             'label' => 'Big Test (Học thuật)',
             'group' => 'academic',
