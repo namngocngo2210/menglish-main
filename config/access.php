@@ -122,6 +122,7 @@ return [
             'lead.view',
             'student.view', 'student.manage_account', 'class.*', 'class.teach', 'attendance_student.*',
             'level.*', 'syllabus.*', 'big_test.*',
+            'question_bank.*', 'practice.view_results',
             'entrance_test.*', 'entrance_test.examine', 'placement_test.*',
             'kpi.view', 'kpi.confirm',
             // HT chốt biên bản lỗi chuyên môn / giảng dạy (Phase 3). Lập biên bản chỉ CM (Học vụ) / Admin — chủ dự án chốt.
@@ -155,6 +156,7 @@ return [
             'attendance_student.view', 'attendance_student.record', 'homework.grade', 'entrance_test.examine',
             'work_task.view', 'work_task.request', 'support_ticket.create', 'support_ticket.view', 'notification.view',
             'syllabus.view', 'syllabus.update', 'syllabus.propose_adjustment',
+            'practice.view_results',
             'staff_report.submit', 'portal.teacher', 'portal.staff', 'academic_project.view',
             'class.scope_own', 'student.scope_own', 'big_test.scope_own', 'payroll.scope_own', 'work_task.scope_own', 'support_ticket.scope_own',
             // Order học liệu: giáo viên tạo order, chỉ thấy order của mình.
@@ -167,6 +169,7 @@ return [
             'attendance_student.view', 'attendance_student.record', 'homework.grade', 'entrance_test.examine',
             'work_task.view', 'work_task.request', 'support_ticket.create', 'support_ticket.view', 'notification.view',
             'syllabus.view', 'syllabus.update', 'syllabus.propose_adjustment',
+            'practice.view_results',
             'staff_report.submit', 'portal.teacher', 'portal.staff', 'academic_project.view',
             'class.scope_own', 'student.scope_own', 'big_test.scope_own', 'payroll.scope_own', 'work_task.scope_own', 'support_ticket.scope_own',
             // Order học liệu: giáo viên tạo order, chỉ thấy order của mình.
