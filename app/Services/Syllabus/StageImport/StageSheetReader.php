@@ -6,6 +6,7 @@ use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\RichText\RichText;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use Throwable;
@@ -77,6 +78,18 @@ class StageSheetReader
         }
 
         throw new StageImportException('File không đúng form Syllabus mẫu (Sheet 1).');
+    }
+
+    /** Workbook có sheet theo form Sheet 1 không (màn import cả giáo trình dùng để chỉ người dùng sang import chặng). */
+    public function hasStageSheet(Spreadsheet $book): bool
+    {
+        foreach ($book->getWorksheetIterator() as $sheet) {
+            if ($this->headerRow($sheet) !== null) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function headerRow(Worksheet $sheet): ?int

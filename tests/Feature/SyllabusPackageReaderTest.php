@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Services\Syllabus\Import\SyllabusPackageException;
 use App\Services\Syllabus\Import\SyllabusPackageReader;
+use App\Services\Syllabus\StageImport\StageImportTemplate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -122,6 +123,21 @@ class SyllabusPackageReaderTest extends TestCase
 
         $this->assertContains('Thiếu sheet "Chặng".', $package->missing);
         $this->assertContains('Sheet Buổi: thiếu cột "Tên buổi".', $package->missing);
+    }
+
+    public function test_stage_sheet_file_points_to_stage_import(): void
+    {
+        $path = (new StageImportTemplate)->build();
+
+        try {
+            $package = $this->reader()->read($path, $this->newPackageDir());
+        } finally {
+            @unlink($path);
+        }
+
+        $this->assertCount(1, $package->missing, 'File 1 chặng: một lỗi hướng dẫn thay cho 3 lỗi thiếu sheet.');
+        $this->assertStringContainsString('file syllabus 1 chặng', $package->missing[0]);
+        $this->assertStringContainsString('Thêm chặng từ file', $package->missing[0]);
     }
 
     public function test_reads_zip_with_documents_and_ignores_junk(): void
