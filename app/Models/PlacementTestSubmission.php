@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Services\PlacementRubricService;
+use App\Support\ExamViolations;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -16,15 +17,11 @@ class PlacementTestSubmission extends Model
 
     public const STATUS_GRADED = 'graded';
 
-    /** Chế độ khoá màn hình: rời bài thi tới lần thứ này thì bài tự nộp. */
-    public const MAX_VIOLATIONS = 3;
+    /** Chế độ khoá màn hình: rời bài thi tới lần thứ này thì bài tự nộp (dùng chung với Luyện tập). */
+    public const MAX_VIOLATIONS = ExamViolations::MAX;
 
     /** Các loại vi phạm trang làm bài ghi nhận được (khoá => nhãn hiển thị cho người chấm). */
-    public const VIOLATION_TYPES = [
-        'hidden' => 'Chuyển sang tab / ứng dụng khác',
-        'blur' => 'Rời khỏi cửa sổ bài thi',
-        'fullscreen_exit' => 'Thoát chế độ toàn màn hình',
-    ];
+    public const VIOLATION_TYPES = ExamViolations::TYPES;
 
     protected $table = 'placement_test_submissions';
 
