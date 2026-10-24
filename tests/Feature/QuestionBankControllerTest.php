@@ -92,14 +92,14 @@ class QuestionBankControllerTest extends TestCase
         $this->get(route('question-bank.index'))->assertRedirect(route('login'));
     }
 
-    public function test_question_bank_tab_in_syllabus_workspace_only_for_viewers(): void
+    public function test_question_bank_tab_in_elearning_workspace_only_for_viewers(): void
     {
         $html = $this->actingAs($this->lead)->get(route('question-bank.index'))->assertOk()->getContent();
-        $this->assertStringContainsString('data-workspace-tabs="syllabus"', $html);
+        $this->assertStringContainsString('data-workspace-tabs="elearning"', $html);
         $this->assertMatchesRegularExpression('#<a(?=[^>]*href="'.preg_quote(route('question-bank.index'), '#').'")[^>]*aria-current="page"#', $html);
-        $this->assertMatchesRegularExpression('/<a(?=[^>]*data-menu-item="syllabus")[^>]*aria-current="page"/', $html);
+        $this->assertMatchesRegularExpression('/<a(?=[^>]*data-menu-item="elearning")[^>]*aria-current="page"/', $html);
 
-        // Học vụ xem được workspace Giáo trình nhưng không có tab Ngân hàng câu hỏi.
+        // Học vụ xem được workspace Giáo trình nhưng không thấy Ngân hàng câu hỏi (không có nhóm E-learning).
         $html = $this->actingAs($this->userWithRole(Roles::ACADEMIC_STAFF))->get(route('syllabus.teaching-stages'))->assertOk()->getContent();
         $this->assertStringContainsString('data-workspace-tabs="syllabus"', $html);
         $this->assertStringNotContainsString('href="'.route('question-bank.index').'"', $html);

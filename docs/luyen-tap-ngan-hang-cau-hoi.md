@@ -102,8 +102,8 @@ trò đang có (theo `docs/rbac.md`):
 Học viên dùng quyền có sẵn `portal.student`. Sau khi sửa catalog: chạy
 `php v2/api/internal/iam/catalog/export.php > v2/api/internal/iam/catalog/catalog.json` (quyết định 9).
 
-Điều hướng (`SidebarMenu`): workspace **Giáo trình** thêm hai tab **Ngân hàng câu hỏi** (gồm Khung đề, Phân tích câu
-hỏi) và **Kết quả luyện tập**; **Cổng Giáo viên** thêm **Kết quả luyện tập** (cùng màn, lọc sẵn `?mine=1` — học viên lớp
+Điều hướng (`SidebarMenu`): nhóm riêng **E-learning** trên sidebar (khu Đào tạo, tách khỏi Giáo trình) gồm hai tab
+**Ngân hàng câu hỏi** (gồm Khung đề, Phân tích câu hỏi) và **Kết quả luyện tập**; **Cổng Giáo viên** thêm **Kết quả luyện tập** (cùng màn, lọc sẵn `?mine=1` — học viên lớp
 mình dạy); **Cổng Phụ huynh & Học sinh** thêm **Luyện tập** (cả thanh điều hướng dưới trên di động).
 
 ## 5. Import & duyệt (Sprint 2)

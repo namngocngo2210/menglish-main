@@ -238,15 +238,23 @@ final class SidebarMenu
                     ...self::anchored(self::SYLLABUS_MANAGER, [
                         ['label' => 'Giao chặng', 'route' => 'syllabus.assignments'],
                     ]),
-                    // Ngân hàng câu hỏi luyện tập (Học thuật, docs/luyen-tap-ngan-hang-cau-hoi.md): quyền question_bank.view
-                    // đọc từ middleware route. Tab trong workspace Giáo trình (menu trái tối đa 25 mục).
-                    ['label' => 'Ngân hàng câu hỏi', 'route' => 'question-bank.index', 'active' => ['question-bank.*']],
-                    // Kết quả luyện tập (Học thuật / Admin / giáo viên): quyền practice.view_results đọc từ middleware route.
-                    ['label' => 'Kết quả luyện tập', 'route' => 'practice-results.index', 'active' => ['practice-results.*']],
                     // Phía giáo viên (mockup 03_Cong_Giao_Vien/07–11, 14): ai xem được giáo trình đều thấy.
                     ['label' => 'Chặng đang dạy & Order Test', 'route' => 'syllabus.teaching-stages', 'active' => ['syllabus.teaching-stages', 'teacher.order-test*']],
                     // Dự án soạn sách / xây chương trình của Học thuật (04/10/2026); quyền academic_project.* đọc từ middleware route.
                     ['label' => 'Dự án soạn sách & chương trình', 'route' => 'academic-projects.index', 'active' => ['academic-projects.index', 'academic-projects.show', 'academic-projects.create', 'academic-projects.edit']],
+                ],
+            ],
+            [
+                // E-learning: ngân hàng câu hỏi luyện tập + kết quả luyện tập của học viên (docs/luyen-tap-ngan-hang-cau-hoi.md).
+                'id' => 'elearning',
+                'section' => 'Đào tạo',
+                'label' => 'E-learning',
+                'icon' => 'computer',
+                'items' => [
+                    // Học thuật: quyền question_bank.view đọc từ middleware route.
+                    ['label' => 'Ngân hàng câu hỏi', 'route' => 'question-bank.index', 'active' => ['question-bank.*']],
+                    // Học thuật / Admin / giáo viên: quyền practice.view_results đọc từ middleware route.
+                    ['label' => 'Kết quả luyện tập', 'route' => 'practice-results.index', 'active' => ['practice-results.*']],
                 ],
             ],
             [
@@ -434,7 +442,7 @@ final class SidebarMenu
                     // Phiếu KPI tháng của chính mình (mọi nhân sự có tiêu chí KPI theo vai trò).
                     ['label' => 'KPI của tôi', 'route' => 'kpi.mine', 'can' => [\App\Models\KpiCriterion::OWN_ABILITY]],
                     // Hướng dẫn sử dụng theo vai trò: mọi người dùng (route chỉ cần đăng nhập), xem App\Support\Guide\UserGuide.
-                    // Nằm trong "Của tôi" thay vì nhóm riêng để sidebar Admin không quá 25 mục (WorkspaceNavigationTest).
+                    // Nằm trong "Của tôi" thay vì nhóm riêng để sidebar Admin không quá 26 mục (WorkspaceNavigationTest).
                     ['label' => 'Hướng dẫn sử dụng', 'route' => 'guide.index'],
                 ],
             ],
@@ -447,7 +455,7 @@ final class SidebarMenu
                     ['label' => 'Check-in & Điểm danh hôm nay', 'route' => 'teacher.home', 'active' => ['teacher.home', 'teacher.attendance*'], 'can' => ['attendance_student.record']],
                     ['label' => 'Chấm bài nộp của lớp', 'route' => 'portal.teacher.submissions', 'active' => ['portal.teacher.submissions*']],
                     ['label' => 'Khách học thử', 'route' => 'teacher.trial-guests', 'active' => ['teacher.trial-guests*']],
-                    // Cùng màn với tab Giáo trình, lọc sẵn học viên lớp mình dạy (quyền practice.view_results đọc từ middleware route).
+                    // Cùng màn với tab E-learning, lọc sẵn học viên lớp mình dạy (quyền practice.view_results đọc từ middleware route).
                     ['label' => 'Kết quả luyện tập', 'route' => 'practice-results.index', 'query' => ['mine' => 1]],
                     ['label' => 'Nhiệm vụ hôm nay của TA', 'route' => 'portal.ta-tasks', 'can' => ['work_task.view']],
                     // Trợ giảng / GV được giao buổi bổ trợ: tick hoàn thành và nhận xét buổi.
