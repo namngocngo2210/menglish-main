@@ -446,10 +446,10 @@ class WeeklyReportMetrics
             ->each(fn (BigTestOrder $o) => $requests->push($this->row("bto:{$o->id}", 'Order đề '.(BigTestOrder::TYPE_LABELS[$o->test_type] ?? $o->test_type).' · '.($o->classModel?->name ?? ''),
                 'Chờ duyệt', $o->due_date, 0, $this->link('syllabus.big-tests.distribution'))));
 
-        SyllabusChangeProposal::query()->visibleTo($this->user)->with('curriculum:id,name')
+        SyllabusChangeProposal::query()->visibleTo($this->user)->with('curriculum:id,title')
             ->where(fn (Builder $q) => $q->where('status', 'pending')->orWhereBetween('reviewed_at', [$this->from, $this->to]))->latest()->get()
             ->each(function (SyllabusChangeProposal $p) use ($done, $requests) {
-                $row = $this->row("proposal:{$p->id}", 'Đề xuất sửa giáo trình · '.($p->curriculum?->name ?? ''), Str::limit((string) $p->reason, 300) ?: null,
+                $row = $this->row("proposal:{$p->id}", 'Đề xuất sửa giáo trình · '.($p->curriculum?->title ?? ''), Str::limit((string) $p->reason, 300) ?: null,
                     null, $p->status === 'pending' ? 0 : 100, null);
                 $p->status === 'pending' ? $requests->push($row) : $done->push($row);
             });
