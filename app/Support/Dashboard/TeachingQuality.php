@@ -7,6 +7,7 @@ use App\Models\ClassEnrollment;
 use App\Models\ClassModel;
 use App\Models\ClassSession;
 use App\Models\Homework;
+use App\Models\HomeworkSubmission;
 use App\Models\MiniTestScore;
 use App\Models\Penalty;
 use App\Models\StaffAttendance;
@@ -159,6 +160,9 @@ final class TeachingQuality
             ->whereBetween('created_at', [$this->from, $this->to->copy()->addDays(self::HOMEWORK_DEFAULT_DAYS + 31)])
             ->get(['data', 'created_at'])
             ->groupBy(fn (AcademicRecord $r) => (string) data_get($r->data, 'student_id'));
+        // Homework 3 giỏ (giai đoạn 5 syllabus): bài tập × học viên có nộp ít nhất 1 giỏ = đã làm.
+        $basketDone = HomeworkSubmission::whereIn('homework_id', $homeworks->modelKeys())->get(['homework_id', 'student_id'])
+            ->map(fn (HomeworkSubmission $s) => $s->homework_id.'-'.$s->student_id)->flip();
 
         $rates = [];
         foreach ($homeworks->groupBy('class_id') as $classId => $items) {
@@ -169,7 +173,7 @@ final class TeachingQuality
             $done = 0;
             foreach ($items as $hw) {
                 $deadline = $hw->due_at ?? ($hw->due_date ? Carbon::parse($hw->due_date)->endOfDay() : $hw->created_at->copy()->addDays(self::HOMEWORK_DEFAULT_DAYS));
-                $done += $roster->filter(fn (string $sid) => $submissions->get($sid, collect())
+                $done += $roster->filter(fn (string $sid) => $basketDone->has($hw->id.'-'.$sid) || $submissions->get($sid, collect())
                     ->contains(fn (AcademicRecord $r) => $r->created_at->between($hw->created_at, $deadline)))->count();
             }
             $rates[(int) $classId] = round($done / ($items->count() * $roster->count()) * 100, 1);

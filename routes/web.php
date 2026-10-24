@@ -56,6 +56,7 @@ use App\Http\Controllers\SyllabusImportController;
 use App\Http\Controllers\SyllabusStageImportController;
 use App\Http\Controllers\SystemCategoryController;
 use App\Http\Controllers\SystemConfigController;
+use App\Http\Controllers\TeacherHomeworkController;
 use App\Http\Controllers\TeacherMeetingReportController;
 use App\Http\Controllers\TeacherLessonController;
 use App\Http\Controllers\TeacherOrderController;
@@ -363,6 +364,10 @@ Route::middleware('auth')->group(function () {
         // Step 3: Học tập của tôi — Nộp bài tập
         Route::get('/student-homework/{studentId?}', [StudentPortalController::class, 'studentHomework'])->name('student.homework');
         Route::post('/student-homework/submit', [StudentPortalController::class, 'submitHomework'])->name('student.homework.submit');
+        // Homework 3 giỏ: nộp theo bài tập GV giao & giỏ; file bài nộp lưu riêng tư (docs/kho-syllabus.md §10).
+        Route::post('/student-homework/{homework}/basket/{basket}', [StudentPortalController::class, 'submitBasket'])
+            ->whereNumber('homework')->whereIn('basket', ['paper', 'quizizz', 'video'])->name('student.homework.basket');
+        Route::get('/student-homework/file/{submission}', [StudentPortalController::class, 'homeworkFile'])->whereNumber('submission')->name('student.homework-file');
         Route::post('/student-homework/{id}/update', [StudentPortalController::class, 'updateHomework'])->name('student.homework.update');
         Route::delete('/student-homework/{id}/destroy', [StudentPortalController::class, 'deleteHomework'])->name('student.homework.destroy');
         // Phụ huynh chấm từng buổi học ngay dưới nhận xét của giáo viên
@@ -811,6 +816,9 @@ Route::middleware('auth')->group(function () {
     Route::prefix('teacher')->name('teacher.')->group(function () {
         Route::get('/lesson-today', [TeacherLessonController::class, 'show'])->name('lesson-today');
         Route::post('/lesson-today/{class}/taught', [TeacherLessonController::class, 'markTaught'])->whereNumber('class')->name('lesson-today.taught');
+        // Homework 3 giỏ: bài nộp + tỉ lệ nộp của lớp (docs/kho-syllabus.md §10.2; homework.grade, lớp kiểm tra trong controller).
+        Route::get('/homework-submissions/{class}', [TeacherHomeworkController::class, 'index'])->whereNumber('class')->name('homework-submissions');
+        Route::post('/homework-submissions/review/{submission}', [TeacherHomeworkController::class, 'review'])->whereNumber('submission')->name('homework-submissions.review');
         // ORDER theo mốc syllabus (docs/kho-syllabus.md §9.3; lớp GV dạy — kiểm tra trong controller).
         Route::get('/orders', [TeacherOrderController::class, 'index'])->name('orders');
         Route::post('/orders/{class}', [TeacherOrderController::class, 'store'])->whereNumber('class')->name('orders.store');

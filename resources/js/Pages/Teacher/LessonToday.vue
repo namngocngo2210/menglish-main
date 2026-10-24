@@ -97,7 +97,7 @@ const hasLinks = computed(() => props.lesson && links.some(([f]) => props.lesson
                     </div>
                     <div class="flex flex-wrap gap-2">
                         <UiButton v-if="lesson.score_url" icon="grading" :href="lesson.score_url">Nhập điểm</UiButton>
-                        <UiButton variant="secondary" icon="assignment" :href="lesson.homework_url">Giao bài tập</UiButton>
+                        <UiButton variant="secondary" icon="assignment" :href="lesson.homework_url">Giao bài tập theo syllabus</UiButton>
                     </div>
                 </div>
 

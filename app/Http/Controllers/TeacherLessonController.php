@@ -180,7 +180,8 @@ class TeacherLessonController extends Controller
                 'big_test' => route('syllabus.big-tests.results'),
                 default => null,
             },
-            'homework_url' => route('teacher.homework', ['classId' => $class->id]),
+            // Giao bài tập theo syllabus: form giao bài điền sẵn 3 giỏ của buổi (giai đoạn 5).
+            'homework_url' => route('teacher.homework', ['classId' => $class->id, 'lesson' => $lesson->id]),
         ];
     }
 }

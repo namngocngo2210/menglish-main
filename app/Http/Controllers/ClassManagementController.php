@@ -20,6 +20,7 @@ use App\Models\User;
 use App\Models\WorkTask;
 use App\Services\ClassDashboardService;
 use App\Services\SessionScheduleService;
+use App\Services\Homework\HomeworkStats;
 use App\Services\Syllabus\ClassSyllabusTab;
 use App\Support\ClassLifecycle;
 use App\Support\DataScope;
@@ -751,6 +752,11 @@ class ClassManagementController extends Controller
         }
         if ($tab === 'syllabus') {
             $data['syllabus'] = app(ClassSyllabusTab::class)->data($class, $viewer);
+        }
+        if ($tab === 'homework') {
+            // Tỉ lệ nộp homework 3 giỏ theo HS / lớp, 30 ngày gần nhất (docs/kho-syllabus.md §10.2).
+            $data['homework'] = ['from' => today()->subDays(30)->toDateString(), 'to' => today()->toDateString()]
+                + app(HomeworkStats::class)->forClass($class, today()->subDays(30), today());
         }
         if ($tab === 'incidents') {
             $statusLabels = ['open' => 'Mới', 'following' => 'Đang theo dõi', 'resolved' => 'Đã xử lý'];

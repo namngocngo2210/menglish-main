@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AcademicRecord;
 use App\Models\ClassModel;
 use App\Models\Homework;
+use App\Models\HomeworkSubmission;
 use App\Models\Student;
 use App\Models\StudentAttendance;
 use App\Models\User;
@@ -124,7 +125,7 @@ class KpiBoardService
             return [0, 0];
         }
 
-        $homeworkByClass = Homework::whereIn('class_id', $classIds)
+        $homeworks = Homework::whereIn('class_id', $classIds)
             ->where(fn (Builder $q) => $q
                 ->where(fn (Builder $due) => $due->whereNotNull('due_date')
                     ->whereDate('due_date', '>=', $from->toDateString())
@@ -132,9 +133,8 @@ class KpiBoardService
                 ->orWhere(fn (Builder $created) => $created->whereNull('due_date')
                     ->whereDate('created_at', '>=', $from->toDateString())
                     ->whereDate('created_at', '<=', $to->toDateString())))
-            ->selectRaw('class_id, count(*) as total')
-            ->groupBy('class_id')
-            ->pluck('total', 'class_id');
+            ->get(['id', 'class_id']);
+        $homeworkByClass = $homeworks->countBy('class_id');
         if ($homeworkByClass->isEmpty()) {
             return [0, 0];
         }
@@ -152,6 +152,11 @@ class KpiBoardService
             ->whereDate('created_at', '>=', $from->toDateString())
             ->whereDate('created_at', '<=', $to->toDateString())
             ->count();
+        // Homework 3 giỏ (giai đoạn 5 syllabus): mỗi bài tập × học viên có nộp ít nhất 1 giỏ = 1 bài đã nộp.
+        if ($studentIds !== []) {
+            $submitted += HomeworkSubmission::whereIn('homework_id', $homeworks->modelKeys())->whereIn('student_id', $studentIds)
+                ->select('homework_id', 'student_id')->distinct()->get()->count();
+        }
 
         return [$expected, $submitted];
     }

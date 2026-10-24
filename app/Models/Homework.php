@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Homework extends Model
@@ -46,6 +47,36 @@ class Homework extends Model
         'due_at' => 'datetime',
         'items' => 'array',
     ];
+
+    /** Giỏ nộp bài của hạng mục (docs/kho-syllabus.md §10.1): video → video; quiz → Quizizz; còn lại → giấy. */
+    public static function basketOf(string $category): string
+    {
+        return match ($category) {
+            'video' => 'video',
+            'quiz' => 'quizizz',
+            default => 'paper',
+        };
+    }
+
+    /**
+     * Giỏ của bài tập theo thứ tự giấy / Quizizz / video: từ hạng mục đã giao, có link Quizizz thì có giỏ Quizizz.
+     *
+     * @return list<string>
+     */
+    public function baskets(): array
+    {
+        $baskets = collect(array_keys(array_filter($this->items ?? [], fn ($text) => filled($text))))->map(self::basketOf(...));
+        if (filled($this->quizizz_url)) {
+            $baskets->push('quizizz');
+        }
+
+        return array_values(array_filter(array_keys(HomeworkSubmission::BASKETS), fn (string $b) => $baskets->contains($b)));
+    }
+
+    public function submissions(): HasMany
+    {
+        return $this->hasMany(HomeworkSubmission::class);
+    }
 
     public function classModel(): BelongsTo
     {

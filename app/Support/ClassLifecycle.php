@@ -30,6 +30,7 @@ final class ClassLifecycle
         'attendance' => ['label' => 'Điểm danh & báo cáo buổi', 'icon' => 'fact_check'],
         'academic' => ['label' => 'Học thuật', 'icon' => 'school'],
         'syllabus' => ['label' => 'Syllabus', 'icon' => 'menu_book'],
+        'homework' => ['label' => 'Homework', 'icon' => 'assignment'],
         'incidents' => ['label' => 'Sự vụ', 'icon' => 'report'],
     ];
 

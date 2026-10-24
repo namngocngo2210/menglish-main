@@ -13,6 +13,7 @@ import AttendanceTab from './Tabs/AttendanceTab.vue';
 import AcademicTab from './Tabs/AcademicTab.vue';
 import IncidentsTab from './Tabs/IncidentsTab.vue';
 import SyllabusTab from './Tabs/SyllabusTab.vue';
+import HomeworkTab from './Tabs/HomeworkTab.vue';
 import { route } from '@/lib/route';
 
 defineOptions({ layout: (props) => ({ title: props.klass?.name }) });
@@ -44,6 +45,7 @@ const props = defineProps({
     canRecordAttendance: { type: Boolean, default: false },
     incidents: { type: Array, default: () => [] },
     syllabus: { type: Object, default: null },
+    homework: { type: Object, default: null },
 });
 
 const tabUrl = (key) => route('classes.show', { id: props.klass.id, tab: key });
@@ -132,6 +134,7 @@ const scheduleShortcut = computed(() => props.nextAction && props.klass.status =
         <AttendanceTab v-else-if="tab === 'attendance'" :klass="klass" :rows="attendanceRows" :stats="attendanceStats" :can-record-attendance="canRecordAttendance" />
         <AcademicTab v-else-if="tab === 'academic'" :klass="klass" :current-stage="currentStage" :session-progress="sessionProgress" :big-tests="bigTests" />
         <SyllabusTab v-else-if="tab === 'syllabus' && syllabus" :klass="klass" :syllabus="syllabus" />
+        <HomeworkTab v-else-if="tab === 'homework' && homework" :homework="homework" />
         <IncidentsTab v-else-if="tab === 'incidents'" :klass="klass" :incidents="incidents" />
     </div>
 </template>

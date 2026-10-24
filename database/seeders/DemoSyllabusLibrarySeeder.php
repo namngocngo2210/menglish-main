@@ -2,13 +2,18 @@
 
 namespace Database\Seeders;
 
+use App\Http\Controllers\StudentPortalController;
 use App\Http\Controllers\SyllabusClassController;
 use App\Http\Controllers\SyllabusController;
+use App\Http\Controllers\TeacherHomeworkController;
 use App\Http\Controllers\TeacherLessonController;
+use App\Http\Controllers\TeacherPortalController;
 use App\Http\Controllers\WorkTaskController;
 use App\Models\ClassLessonOverride;
 use App\Models\ClassLessonProgress;
 use App\Models\ClassModel;
+use App\Models\Homework;
+use App\Models\HomeworkSubmission;
 use App\Models\SyllabusAdjustmentRequest;
 use App\Models\SyllabusAssignment;
 use App\Models\SyllabusChangeProposal;
@@ -18,6 +23,7 @@ use App\Models\SyllabusLesson;
 use App\Models\SyllabusStage;
 use App\Models\User;
 use App\Models\WorkTask;
+use App\Services\Syllabus\ClassSyllabus;
 use App\Services\Syllabus\Import\SyllabusImporter;
 use App\Services\Syllabus\Import\SyllabusPackageReader;
 use App\Services\Syllabus\Import\SyllabusPackageValidator;
@@ -94,6 +100,7 @@ class DemoSyllabusLibrarySeeder extends Seeder
             $this->overrideClassLesson();
             $this->seedProgress();
             $this->seedStageEndTasks();
+            $this->seedHomework();
             $this->seedProposals($curricula['DEMO-SYL-STARTERS']);
             $this->importFlyers();
         } finally {
@@ -244,6 +251,62 @@ class DemoSyllabusLibrarySeeder extends Seeder
             ->whereHas('classModel', fn ($q) => $q->where('code', 'DEMO-CG-FAM1'))->first();
         if ($task) {
             $this->asUser(User::findOrFail($task->assignee_id), WorkTaskController::class, 'accept', [], ['id' => $task->id]);
+        }
+    }
+
+    /**
+     * Homework 3 giỏ (docs/kho-syllabus.md §10): GV CG FAM 1 giao 2 bài theo syllabus (buổi vừa dạy + buổi hiện tại); học viên nộp
+     * ảnh bài giấy / video / bấm "Đã làm" Quizizz (nhân sự nộp hộ); GV đã xem 1 bài.
+     */
+    private function seedHomework(): void
+    {
+        $class = ClassModel::where('code', 'DEMO-CG-FAM1')->first();
+        $assignment = $class ? SyllabusAssignment::open()->where('class_id', $class->id)->first() : null;
+        $teacher = User::where('email', 'nguyenvanan@menglish.edu.vn')->first();
+        $admin = User::where('email', 'admin@menglish.edu.vn')->first();
+        if (! $assignment || ! $teacher || ! $admin || Homework::where('class_id', $class->id)->where('title', 'like', 'Bài tập buổi%')->exists()) {
+            return;
+        }
+        $rows = app(ClassSyllabus::class)->timeline($assignment)['rows']->values();
+        $current = $rows->search(fn ($r) => $r['taught_at'] === null);
+        $picked = collect([$current === false ? $rows->count() - 1 : $current - 1, $current])
+            ->filter(fn ($i) => is_int($i) && $i >= 0 && isset($rows[$i]))->unique();
+
+        $homeworks = $picked->map(function (int $i) use ($rows, $class, $teacher) {
+            $row = $rows[$i];
+            $sessionId = $row['taught_session_id'] ?? $row['planned_session_id'];
+            if (! $sessionId) {
+                return null;
+            }
+            $items = array_filter([
+                'workbook' => $row['data']['homework_guide'] ?? 'Workbook trang '.(2 * $row['lesson']->session_no).'–'.(2 * $row['lesson']->session_no + 1),
+                'quiz' => $row['data']['homework_quizizz'] ?? 'Quizizz ôn từ vựng buổi '.$row['lesson']->session_no,
+                'video' => $row['data']['homework_video'] ?? 'Quay video đọc to đoạn hội thoại của bài',
+            ]);
+            $this->asUser($teacher, TeacherPortalController::class, 'homeworkStore', [
+                'class_session_id' => $sessionId, 'title' => 'Bài tập buổi '.$row['lesson']->session_no.': '.$row['data']['title'],
+                'categories' => array_keys($items), 'items' => $items, 'quizizz_url' => $row['data']['quizizz_url'] ?? 'https://quizizz.com/join?gc=123456',
+                'due_at' => ($row['taught_at'] ?? $row['planned_date'] ?? today())->copy()->addDays(3)->setTime(20, 0)->toDateTimeString(),
+            ], ['classId' => $class->id]);
+
+            return Homework::where('class_id', $class->id)->latest('id')->first();
+        })->filter()->values();
+
+        $students = $class->rosterStudents()->take(3)->values();
+        $first = $homeworks->first();
+        if (! $first || $students->isEmpty()) {
+            return;
+        }
+        $submit = fn ($student, string $basket, array $input = []) => $this->asUser($admin, StudentPortalController::class, 'submitBasket',
+            ['student_id' => $student->id] + $input, ['homework' => $first->id, 'basket' => $basket]);
+        $submit($students[0], 'paper', ['file' => $this->sampleFile('hinh-minh-hoa.png'), 'note' => 'Con làm xong Workbook rồi ạ.']);
+        $submit($students[0], 'quizizz');
+        if (isset($students[1])) {
+            $submit($students[1], 'video', ['file' => $this->sampleFile('video-mau.mp4')]);
+        }
+        $paper = HomeworkSubmission::where('homework_id', $first->id)->where('basket', 'paper')->first();
+        if ($paper) {
+            $this->asUser($teacher, TeacherHomeworkController::class, 'review', [], ['submission' => $paper->id]);
         }
     }
 
