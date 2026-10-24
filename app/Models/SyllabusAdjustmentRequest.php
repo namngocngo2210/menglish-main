@@ -2,9 +2,11 @@
 
 namespace App\Models;
 
+use App\Services\Sla\Sla;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 class SyllabusAdjustmentRequest extends Model
 {
@@ -13,6 +15,7 @@ class SyllabusAdjustmentRequest extends Model
     protected $table = 'syllabus_adjustment_requests';
 
     protected $fillable = [
+        'kind',
         'class_id',
         'syllabus_assignment_id',
         'user_id',
@@ -36,10 +39,16 @@ class SyllabusAdjustmentRequest extends Model
     /** Số buổi tối đa được giãn trong một yêu cầu. */
     public const MAX_EXTRA_SESSIONS = 10;
 
+    /** Customize syllabus (docs/kho-syllabus.md §8.4): giãn = thêm buổi vào TKB; dời = lùi tiến độ, không thêm buổi. */
+    public const KINDS = [
+        'extend' => 'Giãn thêm buổi',
+        'postpone' => 'Dời tiến độ',
+    ];
+
     /** Hạn duyệt yêu cầu giãn tiến độ: N ngày kể từ khi GV gửi (SLA syllabus.adjustment_approval, mặc định 3 — BA chốt). Học thuật hoặc Admin duyệt. */
     public static function slaDays(): int
     {
-        return \App\Services\Sla\Sla::value('syllabus.adjustment_approval');
+        return Sla::value('syllabus.adjustment_approval');
     }
 
     public static function slaHours(): int
@@ -53,7 +62,7 @@ class SyllabusAdjustmentRequest extends Model
         'sla_notified_at' => 'datetime',
     ];
 
-    public function getSlaDueAtAttribute(): ?\Illuminate\Support\Carbon
+    public function getSlaDueAtAttribute(): ?Carbon
     {
         return $this->created_at?->copy()->addHours(self::slaHours());
     }

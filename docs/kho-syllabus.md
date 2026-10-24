@@ -1,6 +1,6 @@
 # Kho syllabus & quy trình xử lý syllabus
 
-Trạng thái: **Giai đoạn 1, 2 — Hoàn thành**; giai đoạn 3–5 — đang làm (mục 5–12, duyệt 23/10/2026)
+Trạng thái: **Giai đoạn 1, 2, 3 — Hoàn thành**; giai đoạn 4–5 — đang làm (mục 5–12, duyệt 23/10/2026)
 
 Nguồn yêu cầu: `docs/Syllabus_Quy_trinh_xu_ly.xlsx` (Sheet 1 form syllabus mẫu, Sheet 2 chia chặng & test,
 Sheet 3 quy trình 11 bước, Sheet 4 câu hỏi đã trả lời). Tiếp nối `docs/giao-trinh-don-giao-dien.md` (PR #195).
@@ -282,7 +282,9 @@ Không sao chép syllabus: buổi hiệu lực = gốc + `data` của bản đè
 - **Buổi hiện tại** của lớp = buổi đầu tiên của chặng (theo `session_no`) chưa có dòng `lesson` trong `class_lesson_progress`.
   Tiến độ chỉ chạy khi GV bấm **Đã dạy** (quyết định 4).
 - **Ngày dự kiến** các buổi còn lại = các buổi học sắp tới của lớp (chính khóa + học bù, không hủy, từ hôm nay, sau
-  `start_date`) xếp lần lượt cho: buổi giãn còn lại (`extra_sessions` − số dòng `extra`) rồi các buổi syllabus chưa dạy.
+  `start_date`) xếp lần lượt cho các buổi syllabus chưa dạy; buổi giãn đã duyệt (`extra_sessions`) dùng khi GV bấm "Dạy chưa
+  xong" (đổi 24/10/2026 sau review: không giữ chỗ buổi giãn ở đầu lịch, để TKB / giao bài tập hiện đúng bài của buổi gần
+  nhất). Dạy hết buổi của chặng → buổi còn lại ghi là buổi ôn / Big Test.
   Lớp hủy / nghỉ buổi → buổi đó biến mất khỏi TKB → lịch dự kiến tự dời (câu 2 "tự link báo cáo vận hành khi lớp cancel").
 - `SessionLessonService` (TKB, giao bài tập, báo cáo trực lớp): buổi đã qua lấy theo `class_lesson_progress.class_session_id`,
   buổi sắp tới theo lịch dự kiến. Bỏ cách đếm "buổi chính khóa thứ N ↔ session_no N".
@@ -392,11 +394,11 @@ Giỏ của bài tập: `Homework::CATEGORIES` → giỏ (`video` → video; `qu
 - [x] S2.5 Giao chặng: số buổi → ngày dự kiến kết thúc tự tính theo TKB.
 - [x] S2.6 Google Drive: `DriveClient`, `syllabus_drive_grants`, lệnh đồng bộ mở / đóng quyền xem, bảng trạng thái, tài liệu cài đặt.
 
-### Giai đoạn 3
-- [ ] S3.1 `class_lesson_progress` + backfill + tiến độ / lịch dự kiến trong `ClassSyllabus`; `SessionLessonService` dùng lịch mới.
-- [ ] S3.2 Màn Bài giảng hôm nay + Đã dạy (ghi chú tiến độ, buổi giãn, banner buổi chưa đánh dấu) + Nhập điểm buổi test
+### Giai đoạn 3 (xong 24/10/2026)
+- [x] S3.1 `class_lesson_progress` + backfill + tiến độ / lịch dự kiến trong `ClassSyllabus`; `SessionLessonService` dùng lịch mới.
+- [x] S3.2 Màn Bài giảng hôm nay + Đã dạy (ghi chú tiến độ, buổi giãn, banner buổi chưa đánh dấu) + Nhập điểm buổi test
   + cờ "Chưa nhập điểm" cho vận hành.
-- [ ] S3.3 Customize syllabus (Giãn / Dời).
+- [x] S3.3 Customize syllabus (Giãn / Dời).
 
 ### Giai đoạn 4
 - [ ] S4.1 Mốc `notify_academic` + việc cuối chặng cho Học thuật (lệnh, NHẬN VIỆC, hoàn thành ngay, quá hạn đỏ + nhắc hằng ngày).

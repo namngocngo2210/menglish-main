@@ -8,11 +8,13 @@ use App\Models\CourseLevel;
 use App\Models\SyllabusAssignment;
 use App\Models\SyllabusLesson;
 use App\Models\SyllabusUnit;
+use App\Services\Syllabus\ClassSyllabus;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 /**
- * Nội dung bài học của từng buổi học trong TKB (Q4): buổi chính khóa thứ N của lớp (không tính buổi hủy /
- * học bù / phụ đạo) ↔ buổi `session_no` N của giáo trình lớp đang học. Giáo trình của lớp = chặng đang mở
+ * Nội dung bài học của từng buổi học trong TKB: lớp có chặng đang mở → buổi đã qua theo nút "Đã dạy", buổi sắp tới theo lịch
+ * dự kiến của chặng (docs/kho-syllabus.md §8.2); lớp chưa mở chặng → buổi chính khóa thứ N ↔ buổi `session_no` N (cách cũ). Giáo trình của lớp = chặng đang mở
  * (SyllabusAssignment) hoặc giáo trình gắn với trình độ của lớp.
  */
 class SessionLessonService
@@ -33,6 +35,8 @@ class SessionLessonService
         }
 
         $numbers = $this->sessionNumbers($classIds);
+        // Lớp có chặng đang mở: buổi đã qua theo dòng "Đã dạy", buổi sắp tới theo lịch dự kiến (docs/kho-syllabus.md §8.2).
+        $planned = $this->plannedLessons($classIds);
         $curricula = $this->curriculaFor($classIds);
         $lessons = SyllabusLesson::with('unit:id,unit_number,title')
             ->whereIn('curriculum_id', array_filter(array_unique(array_values($curricula))))
@@ -42,12 +46,17 @@ class SessionLessonService
         $result = [];
         foreach ($sessions as $session) {
             $no = $numbers[$session->id] ?? null;
-            if (! $no) {
+            $plan = $planned[(int) $session->class_id] ?? null;
+            // Buổi trong chặng đang mở → theo Đã dạy / lịch dự kiến; buổi trước chặng đang mở (chặng cũ) → cách đánh số cũ.
+            $byPlan = $plan && Carbon::parse($session->date)->gte($plan['start']);
+            if (! $no && ! isset($plan['sessions'][$session->id])) {
                 continue;
             }
-            $lesson = $lessons->get(($curricula[$session->class_id] ?? 0).'-'.$no);
+            $lesson = $byPlan
+                ? ($plan['sessions'][$session->id] ?? null)
+                : $lessons->get(($curricula[$session->class_id] ?? 0).'-'.$no);
             $result[$session->id] = [
-                'no' => $no,
+                'no' => $no ?? $lesson?->session_no,
                 'unit' => $lesson?->unit ? 'Unit '.$lesson->unit->unit_number.': '.$lesson->unit->title : null,
                 'title' => $lesson?->title ?: ($lesson?->grammar_focus ?: null),
                 'summary' => $lesson ? collect([
@@ -60,6 +69,15 @@ class SessionLessonService
         }
 
         return $result;
+    }
+
+    /**
+     * @param  array<int>  $classIds
+     * @return array<int, array{start: Carbon, sessions: array<int, SyllabusLesson>}> lớp có chặng đang mở
+     */
+    private function plannedLessons(array $classIds): array
+    {
+        return app(ClassSyllabus::class)->sessionLessonMap(SyllabusAssignment::open()->whereIn('class_id', $classIds)->whereNotNull('stage_id')->get());
     }
 
     /**

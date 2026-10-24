@@ -68,7 +68,7 @@ class AdjustmentApprovalSource extends QueryApprovalSource
             meta: array_filter([
                 'Lớp / chặng' => $model->class_stage_label,
                 'Yêu cầu' => $model->request_type,
-                'Số buổi cần thêm' => $model->extra_sessions ? (string) $model->extra_sessions : null,
+                ($model->kind === 'postpone' ? 'Số buổi dời tiến độ' : 'Số buổi cần thêm') => $model->extra_sessions ? (string) $model->extra_sessions : null,
                 'Lý do' => self::limit($model->reason, 400),
                 'Giáo viên' => $model->teacher?->name,
                 'Hạn SLA' => $model->sla_due_at?->format('H:i d/m/Y'),

@@ -117,7 +117,8 @@ class ClassSyllabusTest extends TestCase
                     ->has('syllabus.lessons', 6)
                     ->where('syllabus.lessons.2.overridden', true)
                     ->where('syllabus.lessons.2.override_reason', 'Lý do riêng')
-                    ->where('syllabus.lessons.2.data.content', 'Riêng')
+                    // GV chỉ xem bài giảng buổi hôm nay (quyết định 7): tab lớp không trả nội dung buổi cho GV.
+                    ->where('syllabus.lessons.2.data', $user->is($this->teacher) ? null : fn ($data) => $data['content'] === 'Riêng')
                     ->where('syllabus.can_edit', false)
                     ->etc());
             $this->actingAs($user)->put(route('classes.syllabus.override', [$this->class->id, $this->lesson3->id]), ['title' => 'Bài 3', 'content' => 'z', 'reason' => 'z'])->assertForbidden();

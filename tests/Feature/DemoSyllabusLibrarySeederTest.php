@@ -3,13 +3,17 @@
 namespace Tests\Feature;
 
 use App\Models\ClassLessonOverride;
+use App\Models\ClassLessonProgress;
 use App\Models\ClassModel;
+use App\Models\SyllabusAdjustmentRequest;
+use App\Models\SyllabusAssignment;
 use App\Models\SyllabusChangeProposal;
 use App\Models\SyllabusCurriculum;
 use App\Models\SyllabusDocument;
 use App\Models\SyllabusDocumentView;
 use App\Models\SyllabusLesson;
 use App\Models\User;
+use App\Services\Syllabus\ClassSyllabus;
 use App\Services\Syllabus\StageImport\StageImportPlanner;
 use App\Services\Syllabus\StageImport\StageSheetReader;
 use Database\Seeders\DatabaseSeeder;
@@ -60,6 +64,15 @@ class DemoSyllabusLibrarySeederTest extends TestCase
         $override = ClassLessonOverride::where('class_id', ClassModel::where('code', 'DEMO-CG-FAM0')->value('id'))->sole();
         $this->assertStringContainsString('nghe yếu', $override->reason);
         $this->assertArrayHasKey('content', $override->data);
+
+        // Tiến độ theo "Đã dạy": CG FAM 1 có buổi đã dạy (1 ghi chú tiến độ) và đúng 1 buổi đã qua chưa đánh dấu; BD FAM 1 có
+        // yêu cầu Customize syllabus "Dời tiến độ" chờ duyệt.
+        $cg1 = SyllabusAssignment::open()->where('class_id', ClassModel::where('code', 'DEMO-CG-FAM1')->value('id'))->sole();
+        $timeline = app(ClassSyllabus::class)->timeline($cg1);
+        $this->assertGreaterThan(0, $timeline['taught']);
+        $this->assertCount(1, $timeline['unmarked_sessions']);
+        $this->assertTrue(ClassLessonProgress::where('syllabus_assignment_id', $cg1->id)->whereNotNull('pace_note')->exists());
+        $this->assertTrue(SyllabusAdjustmentRequest::where('class_id', ClassModel::where('code', 'DEMO-BD-FAM1')->value('id'))->where('kind', 'postpone')->where('status', 'pending')->exists());
 
         // Đề xuất sửa đủ 3 trạng thái.
         $this->assertEqualsCanonicalizing(['pending', 'approved', 'rejected'],

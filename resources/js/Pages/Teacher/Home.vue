@@ -125,6 +125,7 @@ const hasUnchecked = computed(() => props.shifts.some((s) => !s.checked_in && !c
                             <UiButton v-if="shift.syllabus_url" size="sm" variant="secondary" icon="menu_book" :href="shift.syllabus_url">Mở giáo trình</UiButton>
                             <template v-if="!shift.is_support">
                                 <UiButton size="sm" variant="secondary" icon="rate_review" :href="route('teacher.remarks', { classId: shift.class_id, session: shift.session_id })">Nhận xét</UiButton>
+                                <UiButton size="sm" variant="secondary" icon="co_present" :href="route('teacher.lesson-today', { class: shift.class_id })">Bài giảng</UiButton>
                                 <UiButton size="sm" variant="secondary" icon="assignment" :href="route('teacher.homework', { classId: shift.class_id, session: shift.session_id })">Giao bài</UiButton>
                                 <UiButton size="sm" variant="secondary" icon="grading" :href="route('teacher.scores', shift.class_id)">Nhập điểm</UiButton>
                             </template>

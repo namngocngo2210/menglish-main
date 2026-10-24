@@ -57,6 +57,7 @@ use App\Http\Controllers\SyllabusStageImportController;
 use App\Http\Controllers\SystemCategoryController;
 use App\Http\Controllers\SystemConfigController;
 use App\Http\Controllers\TeacherMeetingReportController;
+use App\Http\Controllers\TeacherLessonController;
 use App\Http\Controllers\TeacherPortalController;
 use App\Http\Controllers\TeachingShiftController;
 use App\Http\Controllers\TrialGuestController;
@@ -804,6 +805,12 @@ Route::middleware('auth')->group(function () {
     // ──────────────────────────────────────
     // Cổng Giáo viên: Check-in nhiều ca & Điểm danh lớp
     // ──────────────────────────────────────
+    // Cổng GV — Bài giảng hôm nay + nút Đã dạy (docs/kho-syllabus.md §8.3; kiểm tra GV của lớp trong controller).
+    Route::prefix('teacher')->name('teacher.')->group(function () {
+        Route::get('/lesson-today', [TeacherLessonController::class, 'show'])->name('lesson-today');
+        Route::post('/lesson-today/{class}/taught', [TeacherLessonController::class, 'markTaught'])->whereNumber('class')->name('lesson-today.taught');
+    });
+
     Route::controller(TeacherPortalController::class)->prefix('teacher')->name('teacher.')->group(function () {
         Route::get('/home', 'home')->name('home');
         Route::post('/checkin', 'checkin')->name('checkin');

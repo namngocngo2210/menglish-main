@@ -168,7 +168,7 @@ return [
             'id' => 'xin-duyet-giao-trinh',
             'title' => 'Đề xuất sửa giáo trình, xin điều chỉnh tiến độ',
             'icon' => 'outgoing_mail',
-            'menu' => 'Phê duyệt → Xin duyệt → Đề xuất sửa giáo trình / Xin điều chỉnh tiến độ',
+            'menu' => 'Phê duyệt → Xin duyệt → Đề xuất sửa giáo trình / Customize syllabus',
             'route' => 'syllabus.teacher-propose',
             'intro' => 'Gửi Ban Học thuật đề xuất sửa lỗi hoặc nội dung giáo trình, hoặc xin thêm buổi khi lớp cần thêm thời gian cho một chặng.',
             'images' => [
@@ -178,7 +178,7 @@ return [
             'steps' => [
                 'Vào **Xin duyệt**, tab **Đề xuất sửa giáo trình**, bấm **Gửi đề xuất**.',
                 'Chọn giáo trình, chọn buổi học (bỏ trống nếu áp dụng chung), mô tả thay đổi. Mở **Thông tin bổ sung (tùy chọn)** nếu muốn ghi loại đề xuất, nội dung hiện tại, lý do hoặc đính kèm file. Bấm **Gửi đề xuất**.',
-                'Muốn xin thêm buổi: mở tab **Xin điều chỉnh tiến độ**, bấm **Gửi yêu cầu**.',
+                'Muốn xin thêm buổi: mở tab **Customize syllabus**, chọn **Giãn thêm buổi** hoặc **Dời tiến độ**, bấm **Gửi yêu cầu**.',
                 'Chọn **Lớp học / Chặng học**, ghi lý do, chọn **Số buổi cần thêm** (1 hoặc 2 buổi), rồi bấm **Gửi yêu cầu**.',
                 'Theo dõi kết quả ở bảng **Lịch sử đề xuất** hoặc **Danh sách yêu cầu đã gửi** (Chờ duyệt, Đã duyệt, Đã từ chối).',
             ],

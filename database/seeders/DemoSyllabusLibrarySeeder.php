@@ -4,8 +4,11 @@ namespace Database\Seeders;
 
 use App\Http\Controllers\SyllabusClassController;
 use App\Http\Controllers\SyllabusController;
+use App\Http\Controllers\TeacherLessonController;
 use App\Models\ClassLessonOverride;
+use App\Models\ClassLessonProgress;
 use App\Models\ClassModel;
+use App\Models\SyllabusAdjustmentRequest;
 use App\Models\SyllabusAssignment;
 use App\Models\SyllabusChangeProposal;
 use App\Models\SyllabusCurriculum;
@@ -16,6 +19,8 @@ use App\Models\User;
 use App\Services\Syllabus\Import\SyllabusImporter;
 use App\Services\Syllabus\Import\SyllabusPackageReader;
 use App\Services\Syllabus\Import\SyllabusPackageValidator;
+use App\Services\Syllabus\ProgressBackfill;
+use App\Services\Syllabus\StageSchedule;
 use Database\Seeders\Concerns\InvokesControllersAsUser;
 use Database\Seeders\Support\SyllabusSampleFiles;
 use Illuminate\Database\Seeder;
@@ -84,6 +89,7 @@ class DemoSyllabusLibrarySeeder extends Seeder
             }
             $this->markViewed();
             $this->overrideClassLesson();
+            $this->seedProgress();
             $this->seedProposals($curricula['DEMO-SYL-STARTERS']);
             $this->importFlyers();
         } finally {
@@ -190,6 +196,39 @@ class DemoSyllabusLibrarySeeder extends Seeder
             'activity_2' => 'Nghe – chép chính tả 5 từ vựng mới',
             'reason' => 'Lớp FAM 0 nghe yếu, cần thêm hoạt động nghe (demo chỉnh sửa thủ công).',
         ], ['class' => $class->id, 'lesson' => $lesson->id]);
+    }
+
+    /**
+     * Tiến độ theo "Đã dạy" (docs/kho-syllabus.md §8): CG FAM 1 — GV bấm Đã dạy các buổi đã qua của chặng 2 (1 buổi có ghi chú
+     * dạy chậm), chừa buổi gần nhất chưa đánh dấu để thử nhắc; lớp khác đánh dấu sẵn theo buổi đã học. BD FAM 1 có yêu cầu
+     * Customize syllabus "Dời tiến độ" chờ duyệt.
+     */
+    private function seedProgress(): void
+    {
+        $class = ClassModel::where('code', 'DEMO-CG-FAM1')->first();
+        $assignment = $class ? SyllabusAssignment::open()->where('class_id', $class->id)->first() : null;
+        $teacher = User::where('email', 'nguyenvanan@menglish.edu.vn')->first();
+        if ($assignment && $teacher && ! ClassLessonProgress::where('syllabus_assignment_id', $assignment->id)->exists()) {
+            $past = app(StageSchedule::class)->sessions($class, $assignment->start_date ?? $assignment->opened_at)
+                ->filter(fn ($s) => $s->date->lt(today()))->values();
+            foreach ($past->slice(0, max(0, $past->count() - 1))->values() as $i => $session) {
+                $this->asUser($teacher, TeacherLessonController::class, 'markTaught', [
+                    'class_session_id' => $session->id,
+                    'pace_note' => $i === 0 ? 'Lớp chậm phần Speaking, cần thêm 10 phút ôn ở buổi sau.' : null,
+                ], ['class' => $class->id]);
+            }
+        }
+        app(ProgressBackfill::class)->run();
+
+        $bd = ClassModel::where('code', 'DEMO-BD-FAM1')->first();
+        $bdTeacher = User::where('email', 'gv.cohuu2@menglish.edu.vn')->first();
+        if ($bd && $bdTeacher && SyllabusAssignment::open()->where('class_id', $bd->id)->exists()
+            && ! SyllabusAdjustmentRequest::where('class_id', $bd->id)->where('kind', 'postpone')->exists()) {
+            $this->asUser($bdTeacher, SyllabusController::class, 'storeAdjustmentRequest', [
+                'class_id' => $bd->id, 'kind' => 'postpone', 'extra_sessions' => 1,
+                'reason' => 'Lớp nghỉ 1 buổi do mất điện, cần dời tiến độ 1 buổi (demo Customize syllabus).',
+            ]);
+        }
     }
 
     private function sampleFile(string $name): UploadedFile

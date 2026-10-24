@@ -6,12 +6,12 @@ use App\Models\AdminNotification;
 use App\Models\BigTest;
 use App\Models\BigTestResult;
 use App\Models\ClassModel;
-use App\Models\ClassSession;
 use App\Models\SyllabusAssignment;
 use App\Models\SyllabusCurriculum;
 use App\Models\SyllabusLesson;
 use App\Models\SyllabusStage;
 use App\Models\User;
+use App\Services\Syllabus\ClassSyllabus;
 use App\Services\Syllabus\SyllabusNotifier;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Collection;
@@ -224,30 +224,20 @@ class SyllabusProgressionService
     }
 
     /**
-     * Vị trí dạy hiện tại của lớp trong chặng đang mở: số buổi đã dạy (buổi chính khóa/học bù không bị hủy,
-     * trước hôm nay, từ ngày mở chặng) → buổi tiếp theo trong danh sách buổi của chặng.
-     * Vượt quá số buổi của chặng = đang dùng buổi giãn tiến độ / ôn tập trước Big Test.
+     * Vị trí dạy hiện tại của lớp trong chặng đang mở (docs/kho-syllabus.md §8.2): chỉ chạy khi GV bấm "Đã dạy". `taught` = số
+     * buổi syllabus đã dạy, `current` = buổi đầu chưa dạy, `over` = số buổi giãn đã dùng.
      *
      * @return array{lessons: Collection<int, SyllabusLesson>, taught: int, current: ?SyllabusLesson, over: int}
      */
     public function position(SyllabusAssignment $assignment): array
     {
-        $lessons = $assignment->stage
-            ? SyllabusLesson::with('unit')->whereIn('unit_id', $assignment->stage->units()->select('id'))->orderBy('session_no')->get()
-            : collect();
-
-        $taught = ClassSession::where('class_id', $assignment->class_id)
-            ->whereIn('type', [ClassSession::TYPE_REGULAR, ClassSession::TYPE_MAKEUP])
-            ->where('status', '!=', 'cancelled')
-            ->whereDate('date', '<', today())
-            ->when($assignment->opened_at, fn ($q) => $q->whereDate('date', '>=', $assignment->opened_at->toDateString()))
-            ->count();
+        $timeline = app(ClassSyllabus::class)->timeline($assignment);
 
         return [
-            'lessons' => $lessons,
-            'taught' => $taught,
-            'current' => $lessons->get($taught),
-            'over' => max(0, $taught - $lessons->count()),
+            'lessons' => $timeline['rows']->pluck('lesson'),
+            'taught' => $timeline['taught'],
+            'current' => $timeline['current']['lesson'] ?? null,
+            'over' => max(0, (int) $assignment->extra_sessions - $timeline['extra_left']),
         ];
     }
 

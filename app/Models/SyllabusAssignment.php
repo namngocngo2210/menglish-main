@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Chặng của lớp: lớp đang học chặng nào của giáo trình, GV phụ trách, mốc mở/đóng.
@@ -130,6 +131,11 @@ class SyllabusAssignment extends Model
         $this->loadMissing('classModel');
 
         return in_array($user->id, array_filter([$this->user_id, $this->classModel?->teacher_id, $this->classModel?->foreign_teacher_id]), false);
+    }
+
+    public function progress(): HasMany
+    {
+        return $this->hasMany(ClassLessonProgress::class, 'syllabus_assignment_id');
     }
 
     public function confirmer(): BelongsTo

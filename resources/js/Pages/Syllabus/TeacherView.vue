@@ -29,7 +29,7 @@ const props = defineProps({
     stages: { type: Array, default: () => [] },
     assignment: { type: Object, default: null },
     position: { type: Object, default: null },
-    stageUnits: { type: Array, default: () => [] },
+    lessonTodayUrl: { type: String, default: null },
 });
 
 const tabs = { docs: 'Tài liệu', overview: 'Tổng quan syllabus', lessons: 'Nội dung buổi học' };
@@ -45,8 +45,6 @@ function fullscreen() {
     viewer.value?.requestFullscreen?.();
 }
 
-const lesson = ref(null);
-const lessonFields = { objectives: 'Mục tiêu', vocabulary_focus: 'Từ vựng', grammar_focus: 'Ngữ pháp', content: 'Hoạt động', homework_guide: 'Bài tập về nhà' };
 
 const badgeColor = { open: 'primary', done: 'success', todo: 'neutral' };
 const badgeLabel = { open: 'Đang học', done: 'Đã xong', todo: 'Chưa mở' };
@@ -218,26 +216,8 @@ const chipIcon = { open: 'play_circle', done: 'check_circle', todo: 'lock' };
                 <UiAlert v-if="position.current" type="info" :title="`Buổi tiếp theo: Buổi ${position.current.session_no} — Unit ${position.current.unit_number ?? ''}`">{{ position.current.title }}</UiAlert>
                 <UiAlert v-else-if="position.lessons" type="warning">Lớp đã dạy hết {{ position.lessons }} buổi của chặng{{ position.over ? ` (vượt ${position.over} buổi)` : '' }} — ôn tập và tổ chức Big Test cuối chặng, hoặc gửi yêu cầu giãn tiến độ.</UiAlert>
 
-                <div class="space-y-3">
-                    <div v-for="u in stageUnits" :key="u.id" class="overflow-hidden rounded-xl border border-outline-variant">
-                        <p class="bg-surface-container-low px-4 py-2.5 font-body-medium text-body-medium font-semibold text-on-surface">Unit {{ u.unit_number }}: {{ u.title }}</p>
-                        <div class="divide-y divide-surface-container-highest">
-                            <button
-                                v-for="l in u.lessons"
-                                :key="l.id"
-                                type="button"
-                                :class="['flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-xs font-semibold text-on-surface hover:bg-surface-container-low', { 'bg-primary-container/10': position.current?.id === l.id }]"
-                                @click="lesson = l.id"
-                            >
-                                <span>Buổi {{ l.session_no }}: {{ l.title }}
-                                    <UiBadge v-if="position.current?.id === l.id" color="primary">Buổi tiếp theo</UiBadge>
-                                </span>
-                                <span class="material-symbols-outlined text-[18px] text-on-surface-subtle" aria-hidden="true">open_in_new</span>
-                            </button>
-                            <p v-if="!u.lessons.length" class="px-4 py-2.5 text-xs text-on-surface-subtle">Unit chưa có buổi học.</p>
-                        </div>
-                    </div>
-                    <UiEmptyState v-if="!stageUnits.length" icon="description" title="Học thuật chưa soạn nội dung cho chặng này" />
+                <div v-if="lessonTodayUrl" class="flex justify-end">
+                    <UiButton icon="co_present" :href="lessonTodayUrl">Mở bài giảng hôm nay</UiButton>
                 </div>
             </template>
         </section>
@@ -299,16 +279,4 @@ const chipIcon = { open: 'play_circle', done: 'check_circle', todo: 'lock' };
         </template>
     </UiModal>
 
-    <!-- Nội dung từng buổi học: bấm dòng buổi → hộp thoại (không bung chi tiết ngay trong danh sách). -->
-    <template v-for="u in stageUnits" :key="'lessons-' + u.id">
-        <UiModal v-for="l in u.lessons" :key="l.id" :show="lesson === l.id" :title="`Buổi ${l.session_no}: ${l.title}`" max-width="2xl" @close="lesson = null">
-            <p class="mb-md font-caption text-caption text-on-surface-variant">Unit {{ u.unit_number }}: {{ u.title }}</p>
-            <dl class="space-y-md font-body-small text-body-small">
-                <div v-for="(label, field) in lessonFields" :key="field">
-                    <dt class="font-label text-label uppercase text-on-surface-variant">{{ label }}:</dt>
-                    <dd class="mt-xs whitespace-pre-line text-on-surface">{{ l[field] || '—' }}</dd>
-                </div>
-            </dl>
-        </UiModal>
-    </template>
 </template>

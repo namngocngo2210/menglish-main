@@ -1,11 +1,11 @@
 <script setup>
 /**
- * Mockup 03_Cong_Giao_Vien/14: Danh sách yêu cầu đã gửi; form Gửi yêu cầu (lớp/chặng đang mở, lý do, số buổi 1/2)
- * mở bằng nút "Gửi yêu cầu" (hộp thoại).
+ * Customize syllabus (docs/kho-syllabus.md §8.4, Sheet 4 câu 2): GV muốn đổi tiến độ phải gửi yêu cầu — Giãn thêm buổi (thêm
+ * buổi vào cuối TKB) hoặc Dời tiến độ (không thêm buổi, được dùng N buổi "dạy chưa xong") — Học thuật duyệt mới áp dụng.
  */
 import { ref } from 'vue';
 
-defineOptions({ layout: { title: 'Xin điều chỉnh tiến độ' } });
+defineOptions({ layout: { title: 'Customize syllabus' } });
 
 defineProps({
     requests: { type: Object, required: true },
@@ -18,14 +18,20 @@ const statusLabel = { pending: 'Chờ duyệt', approved: 'Đã duyệt', reject
 
 const requesting = ref(false);
 const sessions = ref('');
+const kind = ref('extend');
+const kinds = [
+    { value: 'extend', label: 'Giãn thêm buổi', hint: 'Thêm buổi học vào cuối lịch của lớp (theo TKB, bỏ ngày nghỉ).' },
+    { value: 'postpone', label: 'Dời tiến độ', hint: 'Không thêm buổi; lớp được dùng các buổi học sẵn có để dạy chậm lại (nút "Dạy chưa xong" ở Bài giảng hôm nay).' },
+];
 function sent() {
     requesting.value = false;
     sessions.value = '';
+    kind.value = 'extend';
 }
 </script>
 
 <template>
-    <UiPageHeader title="Xin điều chỉnh tiến độ" description="Gửi yêu cầu điều chỉnh thời gian cho các lớp hoặc chặng học hiện tại.">
+    <UiPageHeader title="Customize syllabus" description="Muốn đổi tiến độ syllabus của lớp: gửi yêu cầu Giãn thêm buổi hoặc Dời tiến độ — Học thuật duyệt mới áp dụng.">
         <template #actions>
             <UiButton icon="send" @click="requesting = true">Gửi yêu cầu</UiButton>
         </template>
@@ -45,8 +51,9 @@ function sent() {
                         <tr>
                             <th scope="col">Ngày gửi</th>
                             <th scope="col">Lớp / Chặng</th>
+                            <th scope="col">Loại</th>
                             <th scope="col">Lý do</th>
-                            <th scope="col" class="text-center">Số buổi thêm</th>
+                            <th scope="col" class="text-center">Số buổi</th>
                             <th scope="col">Trạng thái</th>
                         </tr>
                     </thead>
@@ -54,6 +61,7 @@ function sent() {
                         <tr v-for="req in requests.data" :key="req.id">
                             <td class="whitespace-nowrap font-mono text-on-surface-variant">{{ req.created_at }}</td>
                             <td class="font-body-medium text-body-small text-on-surface">{{ req.class_stage_label }}</td>
+                            <td class="whitespace-nowrap">{{ req.kind_label }}</td>
                             <td class="max-w-[220px]">
                                 <p class="truncate" :title="req.reason">{{ req.reason }}</p>
                                 <p v-if="req.status === 'approved' && req.applied_note" class="whitespace-normal font-caption text-caption text-tertiary">{{ req.applied_note }}</p>
@@ -65,7 +73,7 @@ function sent() {
                             </td>
                         </tr>
                         <tr v-if="!requests.data.length">
-                            <td colspan="5"><UiEmptyState icon="speed" title="Bạn chưa gửi yêu cầu xin điều chỉnh tiến độ nào" /></td>
+                            <td colspan="6"><UiEmptyState icon="speed" title="Bạn chưa gửi yêu cầu Customize syllabus nào" /></td>
                         </tr>
                     </tbody>
                 </table>
@@ -74,7 +82,7 @@ function sent() {
         </div>
     </div>
 
-    <UiModal :show="requesting" title="Gửi yêu cầu điều chỉnh tiến độ" max-width="lg" @close="requesting = false">
+    <UiModal :show="requesting" title="Gửi yêu cầu Customize syllabus" max-width="lg" @close="requesting = false">
         <div v-if="!classes.length" class="flex flex-col items-center gap-sm py-md text-center">
             <span class="flex h-14 w-14 items-center justify-center rounded-full bg-surface-container-high text-on-surface-variant"><span class="material-symbols-outlined text-[28px]">info</span></span>
             <h3 class="font-h3 text-h3 text-on-surface">Không có chặng học nào đang mở</h3>
@@ -86,9 +94,18 @@ function sent() {
                 <option v-for="cl in classes" :key="cl.value" :value="cl.value">{{ cl.label }}</option>
             </UiSelect>
 
+            <UiField label="Loại điều chỉnh" name="kind" required>
+                <div class="grid grid-cols-1 gap-sm sm:grid-cols-2">
+                    <label v-for="k in kinds" :key="k.value" :class="['flex cursor-pointer flex-col gap-1 rounded-lg border p-md text-sm', kind === k.value ? 'border-primary-container bg-surface-container-low ring-1 ring-primary-container' : 'border-outline-variant']">
+                        <span class="flex items-center gap-2 font-semibold text-on-surface"><input v-model="kind" type="radio" name="kind" :value="k.value" />{{ k.label }}</span>
+                        <span class="text-xs text-on-surface-variant">{{ k.hint }}</span>
+                    </label>
+                </div>
+            </UiField>
+
             <UiTextarea name="reason" label="Lý do xin điều chỉnh" required rows="4" placeholder="Vui lòng ghi rõ lý do (VD: Học sinh chưa nắm vững kiến thức, cháy giáo án do mất điện...)" />
 
-            <UiField label="Số buổi cần thêm" name="extra_sessions" required hint="Khi được duyệt, hệ thống thêm đúng số buổi này vào cuối lịch học của lớp (theo TKB, bỏ qua ngày nghỉ).">
+            <UiField :label="kind === 'postpone' ? 'Số buổi cần dời' : 'Số buổi cần thêm'" name="extra_sessions" required :hint="kinds.find((k) => k.value === kind).hint">
                 <div class="grid grid-cols-2 gap-md">
                     <label
                         v-for="n in ['1', '2']"

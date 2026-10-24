@@ -204,8 +204,9 @@ class Phase2MockupSyllabusTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page->where('selected.watermark', fn ($w) => str_contains($w, $this->teacher->name)))
             ->assertSee('Xem mục lục chặng')
             ->assertSee('Thực hành giao tiếp hằng ngày')
-            ->assertSee('Hoạt động:')
-            ->assertSee('Hoạt động đóng vai 3') // buổi đầu của Chặng 2 (chặng lớp đang học)
+            // GV chỉ xem bài giảng buổi hôm nay (docs/kho-syllabus.md quyết định 7): không liệt kê nội dung mọi buổi của chặng.
+            ->assertDontSee('Hoạt động đóng vai 3')
+            ->assertSee('Mở bài giảng hôm nay')
             ->assertSee('Đánh dấu đã xem');
 
         $this->actingAs($this->teacher)->post(route('syllabus.documents.viewed', $doc->id))->assertRedirect();
@@ -338,7 +339,7 @@ class Phase2MockupSyllabusTest extends TestCase
     {
         // Chưa có chặng mở → trạng thái trống như mockup
         $this->actingAs($this->teacher)->get(route('syllabus.teacher-adjust'))->assertOk()
-            ->assertSee('Xin điều chỉnh tiến độ')
+            ->assertSee('Customize syllabus')
             ->assertSee('Không có chặng học nào đang mở');
 
         $this->openStage();
@@ -362,7 +363,8 @@ class Phase2MockupSyllabusTest extends TestCase
         $this->actingAs($this->teacher)->get(route('syllabus.teacher-adjust'))->assertOk()
             ->assertSee('Danh sách yêu cầu đã gửi')
             ->assertSee('Lớp / Chặng')
-            ->assertSee('Số buổi thêm')
+            ->assertSee('Giãn thêm buổi') // cột Loại (Customize syllabus)
+            ->assertSee('Số buổi')
             ->assertSee('Lớp Mockup 01 - Chặng 1: Nền tảng');
 
         // Màn duyệt: danh sách có SLA còn hạn / quá hạn, lớp - chặng, xin thêm N buổi; bấm dòng → modal chi tiết (?request=),

@@ -14,18 +14,22 @@ use Illuminate\Support\Collection;
  */
 class StageSchedule
 {
-    /** @return Collection<int, Carbon> ngày các buổi học từ $from (theo ngày, giờ học) */
-    public function sessionDates(ClassModel $class, CarbonInterface $from): Collection
+    /** @return Collection<int, ClassSession> buổi học (chính khóa + học bù, không hủy) từ $from, theo ngày / giờ */
+    public function sessions(ClassModel|int $class, CarbonInterface $from): Collection
     {
         return ClassSession::query()
-            ->where('class_id', $class->id)
+            ->where('class_id', $class instanceof ClassModel ? $class->id : $class)
             ->whereIn('type', [ClassSession::TYPE_REGULAR, ClassSession::TYPE_MAKEUP])
             ->where('status', '!=', 'cancelled')
             ->whereDate('date', '>=', $from->toDateString())
             ->orderBy('date')->orderBy('start_time')->orderBy('id')
-            ->pluck('date')
-            ->map(fn ($date) => Carbon::parse($date)->startOfDay())
-            ->values();
+            ->get(['id', 'class_id', 'date', 'start_time', 'end_time', 'type', 'teacher_id', 'foreign_teacher_id', 'assistant_id']);
+    }
+
+    /** @return Collection<int, Carbon> ngày các buổi học từ $from (theo ngày, giờ học) */
+    public function sessionDates(ClassModel $class, CarbonInterface $from): Collection
+    {
+        return $this->sessions($class, $from)->map(fn (ClassSession $s) => Carbon::parse($s->date)->startOfDay())->values();
     }
 
     /** Ngày buổi học thứ $sessions tính từ $from; null khi TKB của lớp chưa đủ buổi. */
