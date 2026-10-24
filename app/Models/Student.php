@@ -79,12 +79,14 @@ class Student extends Model
         'homework_rate',
         'status',
         'study_started_on',
+        'grade_adjust',
         'notes',
     ];
 
     protected $casts = [
         'dob' => 'date',
         'study_started_on' => 'date',
+        'grade_adjust' => 'integer',
         'attended_lessons' => 'integer',
         'total_lessons' => 'integer',
         'homework_rate' => 'decimal:2',
@@ -290,6 +292,11 @@ class Student extends Model
             ->unique()
             ->values()
             ->all();
+    }
+
+    public function practiceAttempts(): HasMany
+    {
+        return $this->hasMany(PracticeAttempt::class, 'student_id');
     }
 
     public function attendances(): HasMany
