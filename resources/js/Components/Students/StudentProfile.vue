@@ -124,6 +124,15 @@ const transferOpen = ref(false);
                         <UiInput name="name" label="Họ và tên" required :value="student.name" />
                         <UiInput name="phone" type="tel" label="Số điện thoại" required :value="student.phone" />
                         <UiDate name="dob" label="Ngày sinh" :value="student.dob_value" :max="student.today" />
+                        <UiInput
+                            name="school_grade"
+                            type="number"
+                            min="1"
+                            max="12"
+                            label="Khối hiện tại"
+                            :value="student.school_grade"
+                            :hint="`Tự tính từ ngày sinh (năm học ${student.school_year}); chỉ sửa khi học sớm / muộn.`"
+                        />
                         <UiSelect name="gender" label="Giới tính" placeholder="-- Chọn --" :value="student.gender" :options="genderOptions" />
                         <UiInput name="email" type="email" label="Email liên hệ" :value="student.email" placeholder="hocvien@menglish.edu.vn" />
                         <UiInput name="target" label="Mục tiêu học tập" :value="student.target" placeholder="VD: IELTS 6.5, Cambridge Starters..." />

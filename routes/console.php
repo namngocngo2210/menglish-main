@@ -69,3 +69,6 @@ Schedule::command('sla:enforce')->everyFifteenMinutes();
 
 // Dọn file tạm import giáo trình (gói upload bỏ dở, thư mục giải nén, zip mẫu) quá 1 ngày (idempotent).
 Schedule::command('syllabus:prune-imports')->dailyAt('03:10');
+
+// Luyện tập: lượt đang làm đã quá giờ (+30 giây ân hạn lưu đáp án) → tự nộp, submit_reason = timeout (idempotent).
+Schedule::command('practice:close-expired')->everyFiveMinutes();
