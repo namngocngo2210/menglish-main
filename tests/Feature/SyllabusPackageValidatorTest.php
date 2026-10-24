@@ -98,7 +98,7 @@ class SyllabusPackageValidatorTest extends TestCase
         $this->assertContains('Sheet Buổi, dòng 2: Loại buổi “Thi cuối kỳ” không hợp lệ (Học / Ôn tập / Grammar Basic / Mini test / Big test).', $errors);
         $this->assertContains('Sheet Buổi, dòng 2: Link PPT không phải đường dẫn hợp lệ.', $errors);
         $this->assertContains('Sheet Buổi, dòng 2: Link Mini test / Kiểm tra từ không phải đường dẫn hợp lệ.', $errors);
-        $this->assertContains('Sheet Buổi, dòng 2: Mốc thông báo “Gọi phụ huynh” không hợp lệ (Order in ấn / Order mini test / Order Big Test).', $errors);
+        $this->assertContains('Sheet Buổi, dòng 2: Mốc thông báo “Gọi phụ huynh” không hợp lệ (Order in ấn / Order mini test / Order Big Test / Báo Học thuật chuẩn bị).', $errors);
     }
 
     public function test_old_file_without_sheet1_columns_is_still_valid(): void

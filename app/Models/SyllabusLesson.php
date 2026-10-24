@@ -26,7 +26,7 @@ class SyllabusLesson extends Model
     public const TYPES = ['lesson' => 'Học', 'review' => 'Ôn tập', 'grammar' => 'Grammar Basic', 'mini_test' => 'Mini test', 'big_test' => 'Big test'];
 
     /** Mốc thông báo của buổi (Sheet 1 "Mốc thông báo") — giai đoạn 4 dùng để nhắc order. */
-    public const MILESTONES = ['order_print' => 'Order in ấn', 'order_mini_test' => 'Order mini test', 'order_big_test' => 'Order Big Test'];
+    public const MILESTONES = ['order_print' => 'Order in ấn', 'order_mini_test' => 'Order mini test', 'order_big_test' => 'Order Big Test', 'notify_academic' => 'Báo Học thuật chuẩn bị'];
 
     protected $fillable = [
         'curriculum_id',

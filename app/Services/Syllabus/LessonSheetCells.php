@@ -12,7 +12,7 @@ class LessonSheetCells
 {
     public const TYPE_ERROR = 'không hợp lệ (Học / Ôn tập / Grammar Basic / Mini test / Big test).';
 
-    public const MILESTONE_ERROR = 'không hợp lệ (Order in ấn / Order mini test / Order Big Test).';
+    public const MILESTONE_ERROR = 'không hợp lệ (Order in ấn / Order mini test / Order Big Test / Báo Học thuật chuẩn bị).';
 
     private const TYPES = ['học' => 'lesson', 'ôn tập' => 'review', 'grammar basic' => 'grammar', 'mini test' => 'mini_test', 'big test' => 'big_test'];
 
@@ -39,6 +39,8 @@ class LessonSheetCells
         $text = self::normalize($text);
 
         return match (true) {
+            // "Báo chuẩn bị Big test / syllabus chặng mới" (syllabus FAM 2): báo Học thuật, không phải order.
+            str_contains($text, 'báo chuẩn bị'), str_contains($text, 'báo học thuật') => 'notify_academic',
             str_contains($text, 'big test') => 'order_big_test',
             str_contains($text, 'mini test') => 'order_mini_test',
             str_contains($text, 'in ấn') => 'order_print',

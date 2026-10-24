@@ -47,6 +47,8 @@ class BigTestOrder extends Model
         'reviewed_by',
         'reviewed_at',
         'rejection_reason',
+        'syllabus_assignment_id',
+        'syllabus_lesson_id',
     ];
 
     protected $casts = [

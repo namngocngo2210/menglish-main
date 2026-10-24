@@ -11,6 +11,7 @@ import { router } from '@inertiajs/vue3';
 import { route } from '@/lib/route';
 import ReportTabs from './ReportTabs.vue';
 import ReportReviewState from './ReportReviewState.vue';
+import ReportNotes from './ReportNotes.vue';
 import ReportHistory from './ReportHistory.vue';
 import LegacyReports from './LegacyReports.vue';
 import DailyMetric from './DailyMetric.vue';
@@ -30,6 +31,8 @@ const props = defineProps({
     computedAt: { type: String, default: null },
     submittedAt: { type: String, default: null },
     review: { type: Object, default: null },
+    notes: { type: Array, default: () => [] },
+    noteUrl: { type: String, default: null },
     history: { type: Array, default: () => [] },
     legacy: { type: Array, default: () => [] },
 });
@@ -73,6 +76,7 @@ const pickWeek = (value) => value && value !== props.week && router.get(route('r
 
     <ReportTabs :tabs="tabs" />
     <div v-if="review?.status === 'returned' || review?.status === 'reviewed'" class="mb-lg"><ReportReviewState :review="review" /></div>
+    <div v-if="noteUrl || notes.length" class="mb-lg"><ReportNotes :notes="notes" :url="noteUrl" /></div>
 
     <div class="mb-lg w-full max-w-xs">
         <UiSelect label="Khoảng ngày báo cáo (Tuần)" :model-value="week" :options="weeks" :searchable="false" @update:model-value="pickWeek" />

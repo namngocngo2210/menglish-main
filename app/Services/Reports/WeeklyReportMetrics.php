@@ -20,6 +20,7 @@ use App\Models\Student;
 use App\Models\StudentAttendance;
 use App\Models\SupportTicket;
 use App\Models\SyllabusAdjustmentRequest;
+use App\Models\SyllabusAssignment;
 use App\Models\SyllabusChangeProposal;
 use App\Models\User;
 use App\Models\WorkTask;
@@ -371,7 +372,21 @@ class WeeklyReportMetrics
             ->whereDate('test_date', '>=', $this->from)->whereDate('test_date', '<=', $this->to)->get();
         $low = $scores->filter(fn (MiniTestScore $s) => $s->score !== null && (float) $s->score / max((float) ($s->max_score ?: 10), 1) * 10 < KpiAutoCounter::PASS_SCORE);
 
+        // Quy trình syllabus (Sheet 4 câu 9): việc cuối chặng hoàn thành / quá hạn, lớp đã giao syllabus trong tuần.
+        $stageTasks = WorkTask::query()->where('assignee_id', $this->user->id)->where('kind', WorkTask::KIND_SYLLABUS_STAGE_END);
+        $tasksDone = (clone $stageTasks)->where('status', 'completed')->whereBetween('completed_at', [$this->from, $this->to])->get();
+        $tasksOverdue = (clone $stageTasks)->whereIn('status', [...WorkTask::OPEN_STATUSES, 'overdue'])->whereDate('due_date', '<', $this->reference())->get();
+        $assigned = SyllabusAssignment::with(['classModel:id,name', 'stage'])->where('opened_by', $this->user->id)
+            ->whereBetween('created_at', [$this->from, $this->to])->get();
+        $taskRow = fn (WorkTask $t, ?string $tone) => ['text' => $t->title.($t->due_date ? ' · hạn '.$t->due_date->format('d/m') : ''), 'tone' => $tone, 'url' => $this->link('tasks.show', $t->id)];
+
         return $this->section('Số liệu tuần', 'monitoring', [
+            $this->item('syllabus_tasks_done', 'Việc chuẩn bị chặng hoàn thành', $tasksDone->count(), 'Việc "Chuẩn bị test chặng…" bấm HOÀN THÀNH trong tuần.',
+                $tasksDone->map(fn (WorkTask $t) => $taskRow($t, 'success'))->values()->all()),
+            $this->item('syllabus_tasks_overdue', 'Việc chuẩn bị chặng quá hạn', $tasksOverdue->count(), 'Việc "Chuẩn bị test chặng…" đã qua hạn chót mà chưa hoàn thành.',
+                $tasksOverdue->map(fn (WorkTask $t) => $taskRow($t, 'error'))->values()->all()),
+            $this->item('classes_assigned', 'Lớp đã giao syllabus', $assigned->count(), 'Chặng bạn giao cho lớp trong tuần.',
+                $assigned->map(fn (SyllabusAssignment $a) => ['text' => ($a->classModel?->name ?? 'Lớp').' · '.($a->stage?->label ?? $a->stage_name)])->values()->all()),
             $this->item('milestones_due', 'Mốc đến hạn trong tuần', $dueWeek->count(), 'Mốc dự án học thuật có hạn trong tuần (mọi trạng thái).',
                 $dueWeek->map(fn ($m) => [...$row($m), 'tag' => AcademicProjectMilestone::STATUSES[$m->status] ?? $m->status, 'tone' => $m->status === 'done' ? 'success' : null])->values()->all()),
             $this->item('milestones_done', 'Mốc hoàn thành', $done->count(), 'Mốc được đánh dấu hoàn thành trong tuần.',

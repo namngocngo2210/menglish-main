@@ -1,6 +1,6 @@
 # Kho syllabus & quy trình xử lý syllabus
 
-Trạng thái: **Giai đoạn 1, 2, 3 — Hoàn thành**; giai đoạn 4–5 — đang làm (mục 5–12, duyệt 23/10/2026)
+Trạng thái: **Giai đoạn 1–4 — Hoàn thành**; giai đoạn 5 — đang làm (mục 5–12, duyệt 23/10/2026)
 
 Nguồn yêu cầu: `docs/Syllabus_Quy_trinh_xu_ly.xlsx` (Sheet 1 form syllabus mẫu, Sheet 2 chia chặng & test,
 Sheet 3 quy trình 11 bước, Sheet 4 câu hỏi đã trả lời). Tiếp nối `docs/giao-trinh-don-giao-dien.md` (PR #195).
@@ -400,10 +400,10 @@ Giỏ của bài tập: `Homework::CATEGORIES` → giỏ (`video` → video; `qu
   + cờ "Chưa nhập điểm" cho vận hành.
 - [x] S3.3 Customize syllabus (Giãn / Dời).
 
-### Giai đoạn 4
-- [ ] S4.1 Mốc `notify_academic` + việc cuối chặng cho Học thuật (lệnh, NHẬN VIỆC, hoàn thành ngay, quá hạn đỏ + nhắc hằng ngày).
-- [ ] S4.2 Báo cáo tuần Học thuật: 3 số tóm tắt + Quản lý / người làm ghi chú.
-- [ ] S4.3 Nút ORDER trên mọi màn cổng GV + màn order theo mốc (bộ phận đích) + thông báo đến hạn order.
+### Giai đoạn 4 (xong 24/10/2026)
+- [x] S4.1 Mốc `notify_academic` + việc cuối chặng cho Học thuật (lệnh, NHẬN VIỆC, hoàn thành ngay, quá hạn đỏ + nhắc hằng ngày).
+- [x] S4.2 Báo cáo tuần Học thuật: 3 số tóm tắt + Quản lý / người làm ghi chú.
+- [x] S4.3 Nút ORDER trên mọi màn cổng GV + màn order theo mốc (bộ phận đích) + thông báo đến hạn order.
 
 ### Giai đoạn 5
 - [ ] S5.1 `homework_submissions` + giao bài tập theo syllabus + HS nộp theo giỏ.

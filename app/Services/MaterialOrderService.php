@@ -43,6 +43,9 @@ class MaterialOrderService
             'status' => MaterialOrder::STATUS_PENDING,
             // Tạo khi đã quá hạn vẫn nhận, chỉ gắn cờ để cảnh báo / hiện badge "Tạo trễ".
             'created_late' => $dueAt->lt($now),
+            // Order sinh từ mốc syllabus (nút ORDER, docs/kho-syllabus.md §9.3).
+            'syllabus_assignment_id' => $data['syllabus_assignment_id'] ?? null,
+            'syllabus_lesson_id' => $data['syllabus_lesson_id'] ?? null,
         ]);
 
         $this->notifyProcessors(

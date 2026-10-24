@@ -65,7 +65,7 @@ class StageImportTemplate
         $sheet->setCellValue('A1', 'SYLLABUS MẪU – FORM CHUẨN CỦA HỌC THUẬT');
         $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
         $sheet->setCellValue('A2', 'Mỗi file = 1 chặng của 1 giáo trình. Ô nền vàng là ô cần điền. Loại buổi: Học / Ôn tập / Grammar Basic / '
-            .'Mini test / Big test. Mốc thông báo: Order in ấn / Order mini test / Order Big Test. Ô UNIT ghi "Unit 1: Tên unit" ở buổi '
+            .'Mini test / Big test. Mốc thông báo: Order in ấn / Order mini test / Order Big Test / Báo Học thuật chuẩn bị (tạo việc chuẩn bị test cho Học thuật). Ô UNIT ghi "Unit 1: Tên unit" ở buổi '
             .'đầu của unit; ghi chữ khác (vd. "GRAMMAR BASIC 1 – TOPIC 1", "ÔN TẬP CHẶNG", "BIG TEST") là tiêu đề của riêng buổi đó, '
             .'buổi vẫn thuộc unit đang học.');
 

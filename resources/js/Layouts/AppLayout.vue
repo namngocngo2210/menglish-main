@@ -18,6 +18,7 @@ import SettingsNav from './Shell/SettingsNav.vue';
 import ToastHost from './Shell/ToastHost.vue';
 import ConfirmDialogHost from './Shell/ConfirmDialogHost.vue';
 import RemoteModalHost from './Shell/RemoteModalHost.vue';
+import OrderButton from './Shell/OrderButton.vue';
 
 const props = defineProps({
     shell: { type: Object, default: null },
@@ -76,6 +77,7 @@ const settingsSections = computed(() => props.shell?.settings ?? []);
     <!-- Chưa đăng nhập (vd. trang lỗi): chỉ nội dung -->
     <main v-else id="main-content" class="min-h-screen p-md lg:p-lg"><slot /></main>
 
+    <OrderButton v-if="shell?.order" :order="shell.order" />
     <ToastHost :flash="flash" />
     <ConfirmDialogHost />
     <RemoteModalHost />

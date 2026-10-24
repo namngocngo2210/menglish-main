@@ -12,6 +12,7 @@ use App\Models\KpiCriterion;
 use App\Models\MaterialOrder;
 use App\Models\StaffReport;
 use App\Models\StaffReportFollowup;
+use App\Models\StaffReportNote;
 use App\Models\TeacherMeetingReport;
 use App\Models\User;
 use App\Models\WorkTask;
@@ -1002,6 +1003,8 @@ class StaffReportController extends Controller
             'computedAt' => $metrics['computed_at'],
             'submittedAt' => $report?->updated_at?->toIso8601String(),
             'review' => $this->reviewState($report),
+            'notes' => self::notesPayload($report),
+            'noteUrl' => $report && $report->status !== 'draft' ? route('reports.notes.store', $report->id) : null,
             'history' => $this->structuredHistory('academic_weekly', fn (string $key) => ReportPeriod::weekLabel($key), 'week'),
             'legacy' => $this->legacyReports('weekly'),
         ]);
@@ -2134,6 +2137,30 @@ class StaffReportController extends Controller
         return $text === null ? null : Str::limit(preg_replace('/\s+/u', ' ', $text), 280);
     }
 
+    /** Ghi chú báo cáo tuần Học thuật (Sheet 4 câu 9): chính người làm báo cáo hoặc Quản lý / Admin trong phạm vi xem. */
+    public function noteStore(Request $request, int $id): RedirectResponse
+    {
+        $report = StaffReport::where('kind', 'academic_weekly')->findOrFail($id);
+        abort_unless($this->canNote($report), 403);
+        $validated = $request->validate(['note' => ['required', 'string', 'max:2000']], ['note.required' => 'Nhập nội dung ghi chú.']);
+        $report->notes()->create(['user_id' => Auth::id(), 'note' => $validated['note']]);
+
+        return redirect()->back()->with('status', 'Đã thêm ghi chú vào báo cáo tuần.');
+    }
+
+    private function canNote(StaffReport $report): bool
+    {
+        return $report->kind === 'academic_weekly' && $report->status !== 'draft' && ((int) $report->user_id === (int) Auth::id()
+            || ($this->isPrivileged() && $this->scopeViewer(StaffReport::query())->whereKey($report->id)->exists()));
+    }
+
+    /** @return list<array{user: ?string, note: string, created_at: string}> */
+    private static function notesPayload(?StaffReport $report): array
+    {
+        return $report ? $report->notes()->with('user:id,name')->get()
+            ->map(fn (StaffReportNote $n) => ['user' => $n->user?->name, 'note' => $n->note, 'created_at' => $n->created_at->toIso8601String()])->all() : [];
+    }
+
     /**
      * Chi tiết một báo cáo cho Admin (modal "Chi tiết" ở màn Tổng hợp, chủ dự án 15/10/2026): hiện như màn người viết nhập —
      * số liệu tự động + ghi chú theo khối (báo cáo ngày), bảng KPI + chỉ số (báo cáo tuần Học vụ), 3 bảng (báo cáo tuần Học thuật).
@@ -2197,6 +2224,8 @@ class StaffReportController extends Controller
                 'kpi_code' => $r->kpi_code,
                 'class' => $r->classModel?->name,
                 'followups' => $r->followups->map(fn (StaffReportFollowup $f) => ['user' => $f->user?->name, 'content' => $f->content, 'created_at' => $f->created_at->toIso8601String()])->all(),
+                'notes' => self::notesPayload($r),
+                'note_url' => $this->canNote($r) ? route('reports.notes.store', $r->id) : null,
             ],
             'view' => $view,
             'auto' => match (true) {

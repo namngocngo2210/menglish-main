@@ -897,6 +897,19 @@ class WorkTaskController extends Controller
         ]);
     }
 
+    /** NHẬN VIỆC (quy trình syllabus Bước 9): người được giao chuyển việc Mới / Quá hạn → Đang làm. */
+    public function accept(Request $request, int $id)
+    {
+        $task = WorkTask::findOrFail($id);
+        abort_unless((int) $task->assignee_id === (int) $request->user()->id, 403);
+        if (! in_array($task->status, ['new', 'overdue'], true)) {
+            throw ValidationException::withMessages(['status' => 'Việc này đã được nhận hoặc đã xử lý.']);
+        }
+        $task->update(['status' => 'in_progress']);
+
+        return redirect()->back()->with('success', "Đã nhận việc '{$task->title}' — chuyển sang Đang làm.");
+    }
+
     /**
      * Cập nhật tiến độ hoàn thành từ TA Portal (Hoàn thành / Hoàn thành gấp)
      */
@@ -920,8 +933,9 @@ class WorkTaskController extends Controller
             $imagePath = $request->input('proof_image_url');
         }
 
-        // Quy tắc: Có ảnh đính kèm -> Hoàn thành ngay (completed); Không có ảnh -> Chờ xác nhận (pending_confirmation)
-        if ($hasImage) {
+        // Quy tắc: Có ảnh đính kèm -> Hoàn thành ngay (completed); Không có ảnh -> Chờ xác nhận (pending_confirmation).
+        // Việc cuối chặng của Học thuật: HOÀN THÀNH là xong ngay (Bước 10 quy trình syllabus).
+        if ($hasImage || $task->kind === WorkTask::KIND_SYLLABUS_STAGE_END) {
             $task->update([
                 'status' => 'completed',
                 'completion_proof_image' => $imagePath,
@@ -1501,7 +1515,8 @@ class WorkTaskController extends Controller
 
         return array_values(array_filter($next, function (string $status) use ($isAssignee, $isApprover, $isAdmin, $isCreator, $task) {
             return match ($status) {
-                'completed' => $isApprover,
+                // Việc cuối chặng của Học thuật: người được giao bấm HOÀN THÀNH là xong (Bước 10 quy trình syllabus).
+                'completed' => $isApprover || ($isAssignee && $task->kind === WorkTask::KIND_SYLLABUS_STAGE_END),
                 'canceled' => $isCreator || $isAdmin,
                 'pending_confirmation' => $isAssignee,
                 'in_progress' => $isAssignee || ($isApprover && $task->status === 'pending_confirmation'),

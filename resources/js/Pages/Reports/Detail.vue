@@ -16,6 +16,7 @@ import DailyMetric from './DailyMetric.vue';
 import WeeklyKpiTable from './WeeklyKpiTable.vue';
 import ReadonlyField from './ReadonlyField.vue';
 import DetailSectionTasks from './DetailSectionTasks.vue';
+import ReportNotes from './ReportNotes.vue';
 
 const props = defineProps({
     report: { type: Object, required: true },
@@ -300,6 +301,8 @@ const cellClass = (row, name) => (paired(row) ? (field(name).type === 'text' ? '
                     <p class="whitespace-pre-line font-body-medium text-body-medium text-on-surface">{{ report.content || 'Không có nội dung.' }}</p>
                 </div>
             </template>
+
+            <ReportNotes v-if="report.note_url || report.notes?.length" :notes="report.notes ?? []" :url="report.note_url" />
 
             <section v-if="report.followups.length" :class="sectionClass">
                 <h3 class="font-h3 text-h3 text-on-surface">Follow-up</h3>
