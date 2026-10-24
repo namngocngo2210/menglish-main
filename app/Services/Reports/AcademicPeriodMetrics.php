@@ -212,7 +212,7 @@ class AcademicPeriodMetrics
 
     private function syllabus(): array
     {
-        $proposals = SyllabusChangeProposal::query()->visibleTo($this->user)->with(['proposer:id,name', 'curriculum:id,name'])
+        $proposals = SyllabusChangeProposal::query()->visibleTo($this->user)->with(['proposer:id,name', 'curriculum:id,title'])
             ->where(fn (Builder $q) => $q->whereBetween('created_at', [$this->from, $this->to])->orWhere('status', 'pending'))->latest()->get();
         $adjustments = SyllabusAdjustmentRequest::with(['classModel:id,name', 'teacher:id,name'])->whereIn('class_id', $this->classIds())
             ->where(fn (Builder $q) => $q->whereBetween('created_at', [$this->from, $this->to])->orWhere('status', 'pending'))->latest()->get();
@@ -222,7 +222,7 @@ class AcademicPeriodMetrics
                 .' · '.$proposals->where('status', 'pending')->count().' chờ duyệt',
                 'Đề xuất sửa giáo trình gửi trong kỳ, kèm số đề xuất đang chờ duyệt.',
                 $proposals->map(fn (SyllabusChangeProposal $p) => [
-                    'text' => ($p->curriculum?->name ?? 'Giáo trình').' · '.Str::limit((string) $p->reason, 100).($p->proposer ? ' — '.$p->proposer->name : ''),
+                    'text' => ($p->curriculum?->title ?? 'Giáo trình').' · '.Str::limit((string) $p->reason, 100).($p->proposer ? ' — '.$p->proposer->name : ''),
                     'tag' => SyllabusChangeProposal::STATUS_LABELS[$p->status] ?? $p->status,
                 ])->values()->all(), $proposals->count()),
             $this->item('syllabus_adjustments', 'Yêu cầu điều chỉnh syllabus', $adjustments->whereBetween('created_at', [$this->from, $this->to])->count()

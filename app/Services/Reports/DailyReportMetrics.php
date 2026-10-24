@@ -555,7 +555,7 @@ class DailyReportMetrics
             ->where('status', 'pending')->where('created_at', '<=', $end)
             ->orderBy('due_date')->get();
 
-        $proposals = SyllabusChangeProposal::query()->visibleTo($this->user)->with(['proposer:id,name', 'curriculum:id,name'])
+        $proposals = SyllabusChangeProposal::query()->visibleTo($this->user)->with(['proposer:id,name', 'curriculum:id,title'])
             ->where('created_at', '<=', $end)
             ->where(fn (Builder $q) => $q->where('status', 'pending')->orWhereDate('created_at', $this->date))
             ->latest()->get();
@@ -602,7 +602,7 @@ class DailyReportMetrics
                 $this->item('syllabus_proposals', 'Đề xuất sửa giáo trình', $proposals->where('status', 'pending')->count(),
                     'Đề xuất sửa giáo trình đang chờ duyệt (kèm đề xuất mới gửi trong ngày).',
                     $proposals->map(fn (SyllabusChangeProposal $p) => [
-                        'text' => ($p->curriculum?->name ?? 'Giáo trình').' · '.Str::limit((string) $p->reason, 100).($p->proposer ? ' — '.$p->proposer->name : ''),
+                        'text' => ($p->curriculum?->title ?? 'Giáo trình').' · '.Str::limit((string) $p->reason, 100).($p->proposer ? ' — '.$p->proposer->name : ''),
                         'tag' => SyllabusChangeProposal::STATUS_LABELS[$p->status] ?? $p->status,
                     ])->values()->all()),
                 $this->item('syllabus_adjustments', 'Yêu cầu điều chỉnh syllabus', $adjustments->where('status', 'pending')->count(),
