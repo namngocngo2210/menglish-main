@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\ClassLessonOverride;
 use App\Models\ClassModel;
 use App\Models\ClassSession;
 use App\Models\CourseLevel;
@@ -42,6 +43,7 @@ class SessionLessonService
             ->whereIn('curriculum_id', array_filter(array_unique(array_values($curricula))))
             ->get()
             ->keyBy(fn (SyllabusLesson $l) => $l->curriculum_id.'-'.$l->session_no);
+        $titles = $this->overrideTitles($planned);
 
         $result = [];
         foreach ($sessions as $session) {
@@ -55,13 +57,15 @@ class SessionLessonService
             $lesson = $byPlan
                 ? ($plan['sessions'][$session->id] ?? null)
                 : $lessons->get(($curricula[$session->class_id] ?? 0).'-'.$no);
+            // Chặng đang mở: tên buổi theo bản sửa riêng của lớp (nếu có).
+            $title = ($byPlan && $lesson ? ($titles[$session->class_id.'-'.$lesson->id] ?? null) : null) ?: $lesson?->title;
             $result[$session->id] = [
                 'no' => $no ?? $lesson?->session_no,
                 'unit' => $lesson?->unit ? 'Unit '.$lesson->unit->unit_number.': '.$lesson->unit->title : null,
-                'title' => $lesson?->title ?: ($lesson?->grammar_focus ?: null),
+                'title' => $title ?: ($lesson?->grammar_focus ?: null),
                 'summary' => $lesson ? collect([
                     $lesson->unit ? 'Unit '.$lesson->unit->unit_number.': '.$lesson->unit->title : null,
-                    $lesson->title ? 'Bài: '.$lesson->title : null,
+                    $title ? 'Bài: '.$title : null,
                     filled($lesson->vocabulary_focus) ? 'Từ vựng: '.trim($lesson->vocabulary_focus) : null,
                     filled($lesson->grammar_focus) ? 'Ngữ pháp: '.trim($lesson->grammar_focus) : null,
                 ])->filter()->implode("\n") ?: null : null,
@@ -78,6 +82,25 @@ class SessionLessonService
     private function plannedLessons(array $classIds): array
     {
         return app(ClassSyllabus::class)->sessionLessonMap(SyllabusAssignment::open()->whereIn('class_id', $classIds)->whereNotNull('stage_id')->get());
+    }
+
+    /**
+     * Tên buổi lớp sửa riêng (ClassLessonOverride) cho các buổi trong lịch chặng đang mở.
+     *
+     * @param  array<int, array{start: Carbon, sessions: array<int, SyllabusLesson>}>  $planned
+     * @return array<string, string> "class_id-lesson_id" => tên
+     */
+    private function overrideTitles(array $planned): array
+    {
+        $lessonIds = collect($planned)->flatMap(fn (array $p) => collect($p['sessions'])->pluck('id'))->unique()->values();
+        if ($lessonIds->isEmpty()) {
+            return [];
+        }
+
+        return ClassLessonOverride::whereIn('class_id', array_keys($planned))->whereIn('syllabus_lesson_id', $lessonIds)
+            ->get(['class_id', 'syllabus_lesson_id', 'data'])
+            ->filter(fn (ClassLessonOverride $o) => filled($o->data['title'] ?? null))
+            ->mapWithKeys(fn (ClassLessonOverride $o) => [$o->class_id.'-'.$o->syllabus_lesson_id => $o->data['title']])->all();
     }
 
     /**
