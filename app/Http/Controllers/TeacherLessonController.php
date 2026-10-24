@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BigTest;
 use App\Models\ClassLessonProgress;
 use App\Models\ClassModel;
 use App\Models\ClassSession;
@@ -37,7 +38,7 @@ class TeacherLessonController extends Controller
 
         $assignment = $class ? SyllabusAssignment::with(['stage', 'curriculum:id,title'])->open()->where('class_id', $class->id)->first() : null;
         $timeline = $assignment ? $this->syllabus->timeline($assignment) : null;
-        $today = $class ? $this->todaySession($class) : null;
+        $today = $class ? $this->todaySession($class, $assignment) : null;
         $taughtRow = $today ? $timeline['rows']->firstWhere('taught_session_id', $today->id) : null;
         $todayMarked = $today && ClassLessonProgress::where('class_session_id', $today->id)->where('syllabus_assignment_id', $assignment?->id)->exists();
         $row = $today ? ($taughtRow ?? ($todayMarked ? null : $timeline['current'])) : null;
@@ -54,13 +55,14 @@ class TeacherLessonController extends Controller
                 'extra_left' => $timeline['extra_left'],
             ] : null,
             'session' => $today ? ['id' => $today->id, 'time' => $today->start_time?->format('H:i').' – '.$today->end_time?->format('H:i')] : null,
-            'lesson' => $row ? $this->lessonPayload($row, $class, $user) : null,
+            'lesson' => $row ? $this->lessonPayload($row, $class, $user, $assignment) : null,
             'taught_today' => $todayMarked,
             'finished' => $timeline && $timeline['current'] === null,
-            'unmarked' => $timeline ? $timeline['unmarked_sessions']->map(fn (ClassSession $s) => ['id' => $s->id, 'date' => $s->date->toDateString()])->values() : [],
+            // GV dạy thay đánh dấu bù được buổi mình dạy.
+            'unmarked' => $timeline ? $timeline['unmarked_sessions']->map(fn (ClassSession $s) => ['id' => $s->id, 'date' => $s->date->toDateString(),
+                'can_mark' => $this->canMark($user, $class, $assignment, $s)])->values() : [],
             // Dạy hết buổi của chặng: buổi còn lại ghi là buổi ôn / Big Test (không cần buổi giãn).
             'can_mark' => $canMark && $today !== null && ! $todayMarked,
-            'can_mark_past' => $assignment && $this->canMark($user, $class, $assignment, null),
             'mark_url' => $class ? route('teacher.lesson-today.taught', $class->id) : null,
         ]);
     }
@@ -143,11 +145,17 @@ class TeacherLessonController extends Controller
             ->get();
     }
 
-    private function todaySession(ClassModel $class): ?ClassSession
+    /** Buổi học hôm nay của lớp; lớp học 2 buổi / ngày: buổi đầu chưa đánh dấu Đã dạy, hết thì buổi cuối. */
+    private function todaySession(ClassModel $class, ?SyllabusAssignment $assignment = null): ?ClassSession
     {
-        return ClassSession::where('class_id', $class->id)->whereDate('date', today())
+        $sessions = ClassSession::where('class_id', $class->id)->whereDate('date', today())
             ->whereIn('type', [ClassSession::TYPE_REGULAR, ClassSession::TYPE_MAKEUP])->where('status', '!=', 'cancelled')
-            ->orderBy('start_time')->first();
+            ->orderBy('start_time')->orderBy('id')->get();
+        $marked = $assignment && $sessions->count() > 1
+            ? ClassLessonProgress::where('syllabus_assignment_id', $assignment->id)->whereIn('class_session_id', $sessions->modelKeys())->pluck('class_session_id')->flip()
+            : collect();
+
+        return $sessions->first(fn (ClassSession $s) => ! $marked->has($s->id)) ?? $sessions->last();
     }
 
     /** GV được giao chặng, GV chính, GVNN của lớp, hoặc GV / GVNN dạy thay buổi đó — không phải trợ giảng. */
@@ -157,7 +165,7 @@ class TeacherLessonController extends Controller
             $session?->teacher_id, $session?->foreign_teacher_id]), false);
     }
 
-    private function lessonPayload(array $row, ClassModel $class, User $user): array
+    private function lessonPayload(array $row, ClassModel $class, User $user, SyllabusAssignment $assignment): array
     {
         /** @var SyllabusLesson $lesson */
         $lesson = $row['lesson'];
@@ -177,7 +185,9 @@ class TeacherLessonController extends Controller
             // Sản phẩm đầu ra của buổi test = điểm (Sheet 4 câu 11).
             'score_url' => match ($type) {
                 'mini_test' => route('teacher.scores', ['classId' => $class->id, 'unit_id' => $lesson->unit_id]),
-                'big_test' => route('syllabus.big-tests.results'),
+                // Đợt Big Test của lớp cho chặng đang học (mới nhất); chưa tạo đợt thì mở màn kết quả chung.
+                'big_test' => route('syllabus.big-tests.results', BigTest::where('class_id', $class->id)
+                    ->when($assignment->stage_id, fn ($q) => $q->where('syllabus_stage_id', $assignment->stage_id))->latest('id')->value('id')),
                 default => null,
             },
             // Giao bài tập theo syllabus: form giao bài điền sẵn 3 giỏ của buổi (giai đoạn 5).

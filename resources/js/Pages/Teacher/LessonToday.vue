@@ -21,7 +21,6 @@ const props = defineProps({
     finished: { type: Boolean, default: false },
     unmarked: { type: Array, default: () => [] },
     can_mark: { type: Boolean, default: false },
-    can_mark_past: { type: Boolean, default: false },
     mark_url: { type: String, default: null },
 });
 
@@ -63,7 +62,7 @@ const hasLinks = computed(() => props.lesson && links.some(([f]) => props.lesson
         <UiAlert v-for="s in unmarked" :key="s.id" type="warning">
             <div class="flex flex-wrap items-center justify-between gap-2">
                 <span>Buổi {{ formatDate(s.date) }} chưa đánh dấu Đã dạy — tiến độ chặng chưa chạy.</span>
-                <UiForm v-if="can_mark_past && mark_url" :action="mark_url" method="post" class="inline">
+                <UiForm v-if="s.can_mark && mark_url" :action="mark_url" method="post" class="inline">
                     <input type="hidden" name="class_session_id" :value="s.id" />
                     <UiButton type="submit" size="sm" variant="secondary" icon="task_alt">Đánh dấu Đã dạy</UiButton>
                 </UiForm>
