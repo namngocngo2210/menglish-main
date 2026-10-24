@@ -25,6 +25,7 @@ function switchStudent(event) {
         .replace(/\/home(\/\d+)?$/, '/home/' + id)
         .replace(/\/student-homework(\/\d+)?$/, '/student-homework/' + id)
         .replace(/\/pronunciation(\/\d+)?$/, '/pronunciation/' + id)
+        .replace(/\/practice(\/\d+)?$/, '/practice/' + id)
         .replace(/\/notifications(\/\d+)?$/, '/notifications/' + id)
         .replace(/\/survey(\/\d+)?$/, '/survey/' + id)
         .replace(/\/feedback(\/\d+)?$/, '/feedback/' + id);

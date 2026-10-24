@@ -22,6 +22,7 @@ use App\Services\StudentDeferralService;
 use App\Services\Students\ClassStartActivation;
 use App\Services\Tuition\SessionLedger;
 use App\Support\DataScope;
+use App\Support\Practice\SchoolGrade;
 use App\Support\Ui;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -524,6 +525,8 @@ class StudentProfileController extends Controller
                 'name' => $student->name,
                 'dob_label' => $student->dob ? $student->dob->format('d/m/Y').' ('.$student->dob->age.' tuổi)' : null,
                 'dob_value' => $student->dob?->toDateString(),
+                'school_grade' => SchoolGrade::forStudent($student),
+                'school_year' => SchoolGrade::schoolYearLabel(now()),
                 'gender' => $student->gender,
                 'entrance_score' => $student->entrance_score,
                 'phone' => $contact ? $student->phone : null,
@@ -730,6 +733,7 @@ class StudentProfileController extends Controller
             'study_started_on' => 'nullable|date|before_or_equal:today|after:1990-01-01',
             'status' => ['nullable', Rule::in(array_keys(Student::STATUSES))],
             'notes' => 'nullable|string|max:500',
+            'school_grade' => 'nullable|integer|between:1,12',
         ], [
             'parent_phone.regex' => 'Số điện thoại phụ huynh không hợp lệ.',
             'parent2_phone.regex' => 'Số điện thoại phụ huynh 2 không hợp lệ.',
@@ -740,6 +744,21 @@ class StudentProfileController extends Controller
         // Form sửa hồ sơ không gửi trạng thái; đổi trạng thái cần quyền riêng (student.change_status).
         if (! $request->user()->can('student.change_status') || empty($validated['status'])) {
             unset($validated['status']);
+        }
+
+        // Khối hiện tại: form luôn gửi lại khối đang hiển thị, nên chỉ coi là ghi đè khi khác khối hiển thị (theo dob + chênh lệch cũ).
+        // Ghi đè được tính theo ngày sinh mới của cùng request, lưu dưới dạng chênh lệch so với khối theo năm sinh.
+        $schoolGrade = $validated['school_grade'] ?? null;
+        unset($validated['school_grade']);
+
+        if ($schoolGrade !== null && (int) $schoolGrade !== SchoolGrade::forStudent($student)) {
+            $effectiveDob = array_key_exists('dob', $validated) ? $validated['dob'] : $student->dob;
+            if (empty($effectiveDob)) {
+                throw ValidationException::withMessages(['school_grade' => 'Cần ngày sinh để đặt khối.']);
+            }
+            $probe = $student->replicate();
+            $probe->dob = Carbon::parse($effectiveDob);
+            $validated['grade_adjust'] = SchoolGrade::adjustFor($probe, (int) $schoolGrade);
         }
 
         $student->update($validated);

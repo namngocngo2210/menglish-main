@@ -29,8 +29,12 @@ use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\PenaltyController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\PlacementTestController;
+use App\Http\Controllers\PracticeBlueprintController;
+use App\Http\Controllers\PracticeController;
+use App\Http\Controllers\PracticeResultsController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PromotionController;
+use App\Http\Controllers\QuestionBankController;
 use App\Http\Controllers\RecruitmentController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\RoleSwitcherController;
@@ -384,6 +388,14 @@ Route::middleware('auth')->group(function () {
         Route::get('/feedback/{studentId?}', [StudentPortalController::class, 'studentFeedback'])->name('student.feedback');
         Route::post('/feedback/submit', [StudentPortalController::class, 'submitFeedback'])->name('student.feedback.store');
         Route::delete('/feedback/{id}/destroy', [StudentPortalController::class, 'deleteFeedback'])->name('student.feedback.destroy');
+
+        // Luyện tập (ngân hàng câu hỏi): quyền theo học viên kiểm tra trong controller. Route lượt làm đặt trước /practice/{studentId?}.
+        Route::post('/practice/start', [PracticeController::class, 'start'])->name('student.practice.start');
+        Route::get('/practice/attempts/{attempt}', [PracticeController::class, 'show'])->whereNumber('attempt')->name('student.practice.attempt');
+        Route::post('/practice/attempts/{attempt}/answer', [PracticeController::class, 'answer'])->whereNumber('attempt')->middleware('throttle:120,1')->name('student.practice.answer');
+        Route::post('/practice/attempts/{attempt}/violation', [PracticeController::class, 'violation'])->whereNumber('attempt')->middleware('throttle:30,1')->name('student.practice.violation');
+        Route::post('/practice/attempts/{attempt}/submit', [PracticeController::class, 'submit'])->whereNumber('attempt')->name('student.practice.submit');
+        Route::get('/practice/{studentId?}', [PracticeController::class, 'index'])->whereNumber('studentId')->name('student.practice');
 
         // Cổng Giáo viên chấm bài nộp của lớp (homework.grade; lớp kiểm tra trong controller)
         Route::get('/teacher-submissions/{classId?}', [StudentPortalController::class, 'teacherSubmissions'])->middleware('can:homework.grade')->name('teacher.submissions');
@@ -901,6 +913,39 @@ Route::middleware('auth')->group(function () {
             Route::delete('/milestones/{milestoneId}', 'destroyMilestone')->whereNumber('milestoneId')->middleware('can:academic_project.manage')->name('milestones.destroy');
             Route::post('/{id}/updates', 'storeUpdate')->whereNumber('id')->name('updates.store');
             Route::post('/updates/{updateId}/respond', 'respond')->whereNumber('updateId')->name('updates.respond');
+        });
+
+    // ──────────────────────────────────────
+    // Ngân hàng câu hỏi luyện tập (Học thuật): danh sách / duyệt hàng loạt, sửa câu / ngữ liệu, import ZIP
+    // ──────────────────────────────────────
+    Route::controller(QuestionBankController::class)->prefix('question-bank')->name('question-bank.')
+        ->middleware('can:question_bank.view')->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::get('/analysis', 'analysis')->name('analysis');
+            Route::middleware('can:question_bank.manage')->group(function () {
+                Route::post('/bulk', 'bulk')->name('bulk');
+                Route::post('/import', 'import')->name('import');
+                Route::get('/questions/{question}', 'editQuestion')->whereNumber('question')->name('questions.edit');
+                Route::put('/questions/{question}', 'updateQuestion')->whereNumber('question')->name('questions.update');
+                Route::get('/passages/{passage}', 'editPassage')->whereNumber('passage')->name('passages.edit');
+                Route::put('/passages/{passage}', 'updatePassage')->whereNumber('passage')->name('passages.update');
+            });
+        });
+    // Khung đề luyện tập khối × kỳ (cùng nhóm quyền question_bank.*)
+    Route::controller(PracticeBlueprintController::class)->prefix('question-bank/blueprints')->name('question-bank.blueprints.')
+        ->middleware('can:question_bank.view')->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::middleware('can:question_bank.manage')->group(function () {
+                Route::get('/{grade}/{term}', 'edit')->whereNumber('grade')->name('edit');
+                Route::put('/{grade}/{term}', 'update')->whereNumber('grade')->name('update');
+            });
+        });
+    // Kết quả luyện tập (Học thuật / Admin / giáo viên): phạm vi học viên theo Student::visibleTo, kiểm tra trong controller.
+    Route::controller(PracticeResultsController::class)->prefix('practice-results')->name('practice-results.')
+        ->middleware('can:practice.view_results')->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::get('/students/{student}', 'student')->whereNumber('student')->name('student');
+            Route::get('/attempts/{attempt}', 'attempt')->whereNumber('attempt')->name('attempt');
         });
 
     // ──────────────────────────────────────

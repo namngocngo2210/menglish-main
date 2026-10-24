@@ -238,6 +238,11 @@ final class SidebarMenu
                     ...self::anchored(self::SYLLABUS_MANAGER, [
                         ['label' => 'Giao chặng', 'route' => 'syllabus.assignments'],
                     ]),
+                    // Ngân hàng câu hỏi luyện tập (Học thuật, docs/luyen-tap-ngan-hang-cau-hoi.md): quyền question_bank.view
+                    // đọc từ middleware route. Tab trong workspace Giáo trình (menu trái tối đa 25 mục).
+                    ['label' => 'Ngân hàng câu hỏi', 'route' => 'question-bank.index', 'active' => ['question-bank.*']],
+                    // Kết quả luyện tập (Học thuật / Admin / giáo viên): quyền practice.view_results đọc từ middleware route.
+                    ['label' => 'Kết quả luyện tập', 'route' => 'practice-results.index', 'active' => ['practice-results.*']],
                     // Phía giáo viên (mockup 03_Cong_Giao_Vien/07–11, 14): ai xem được giáo trình đều thấy.
                     ['label' => 'Chặng đang dạy & Order Test', 'route' => 'syllabus.teaching-stages', 'active' => ['syllabus.teaching-stages', 'teacher.order-test*']],
                     // Dự án soạn sách / xây chương trình của Học thuật (04/10/2026); quyền academic_project.* đọc từ middleware route.
@@ -442,6 +447,8 @@ final class SidebarMenu
                     ['label' => 'Check-in & Điểm danh hôm nay', 'route' => 'teacher.home', 'active' => ['teacher.home', 'teacher.attendance*'], 'can' => ['attendance_student.record']],
                     ['label' => 'Chấm bài nộp của lớp', 'route' => 'portal.teacher.submissions', 'active' => ['portal.teacher.submissions*']],
                     ['label' => 'Khách học thử', 'route' => 'teacher.trial-guests', 'active' => ['teacher.trial-guests*']],
+                    // Cùng màn với tab Giáo trình, lọc sẵn học viên lớp mình dạy (quyền practice.view_results đọc từ middleware route).
+                    ['label' => 'Kết quả luyện tập', 'route' => 'practice-results.index', 'query' => ['mine' => 1]],
                     ['label' => 'Nhiệm vụ hôm nay của TA', 'route' => 'portal.ta-tasks', 'can' => ['work_task.view']],
                     // Trợ giảng / GV được giao buổi bổ trợ: tick hoàn thành và nhận xét buổi.
                     ['label' => 'Buổi bổ trợ của tôi', 'route' => 'tasks.support-sessions', 'query' => ['mine' => 1]],
@@ -457,6 +464,7 @@ final class SidebarMenu
                     ['label' => 'Trang chủ', 'route' => 'portal.student.home', 'active' => ['portal.student.home*']],
                     ['label' => 'Học tập & Nộp bài tập', 'route' => 'portal.student.homework', 'active' => ['portal.student.homework*']],
                     ['label' => 'Luyện phát âm AI', 'route' => 'portal.student.pronunciation', 'active' => ['portal.student.pronunciation*']],
+                    ['label' => 'Luyện tập', 'route' => 'portal.student.practice', 'active' => ['portal.student.practice*']],
                     ['label' => 'Hộp thư thông báo', 'route' => 'portal.student.notifications', 'active' => ['portal.student.notifications*']],
                     ['label' => 'Khảo sát 5 sao', 'route' => 'portal.student.survey', 'active' => ['portal.student.survey*']],
                     ['label' => 'Gửi góp ý', 'route' => 'portal.student.feedback', 'active' => ['portal.student.feedback*']],
