@@ -50,21 +50,26 @@ use RuntimeException;
  * - 7 nhân sự mới vào làm từ đầu tháng này (GV part-time / full-time, trợ giảng, Học vụ Đống Đa, Sale), điền hồ sơ lương còn
  *   trống của nhân sự cũ (Quản lý cơ sở, Sale, loại hợp đồng GV / TA), đơn giá buổi riêng cho GV / TA chưa có.
  * - 5 lớp khai giảng K28 đầu tháng này (Ca 1 18:00 / Ca 2 19:30 ngày thường, giờ lớp cuối tuần) cho GV / TA chưa có lịch dạy:
- *   GV / TA check-in từng buổi (vài buổi muộn), 1 buổi quên check-in → Học vụ chấm tay, 1 ca ngoài lịch bị từ chối, Học vụ
+ *   GV / TA check-in từng buổi (vài buổi muộn, vài buổi nghỉ — TEACHING_ISSUES), 1 buổi quên check-in → Học vụ chấm tay, 1 ca
+ *   ngoài lịch bị từ chối, Học vụ
  *   chi nhánh duyệt ca mỗi sáng (ca 2 ngày gần nhất còn chờ đối soát).
  * - Chấm công điện thoại (ảnh + GPS) cho mọi nhân sự từ đầu tháng trước đến hôm nay: tháng trước ghi thẳng (kỳ đã khóa),
  *   tháng này bấm qua StaffAttendanceService theo đúng giờ. Đi muộn tự lập biên bản; biên bản tháng này đi đủ các bước
  *   (giải trình, chốt lỗi, phạt + nộp, phạt quá hạn, còn chờ). Đơn Bổ sung công / Xin đi muộn / Xin nghỉ ở mọi trạng thái.
  * - Bộ tiêu chí KPI mẫu cho GV full-time, Trợ giảng, Sale (vai trò chưa có bộ). Phiếu KPI tháng trước đã duyệt (1 phiếu
  *   không duyệt), phiếu tháng này chờ duyệt, phần lớn đã điền số liệu.
+ * - Nguồn số liệu KPI tự đếm (DemoKpiSourcesSeeder): học viên lớp K27 / K28 (điểm danh, mini test, BTVN), báo cáo tháng GV, nghỉ
+ *   dạy có / không phép, SLA CRM, học phí chưa nhắc, order in ấn trễ, kiểm kê lệch, phiếu thu bị trả về.
  * - Kỳ lương tháng này: Admin "Đồng bộ & Tính lại", nhập KPI / phụ cấp cho phiếu mới, tính lại (để Đang soát).
  * - KPI Học thuật (Trưởng Học thuật): DemoAcademicKpiSeeder (dự án học thuật, việc giao, order học liệu, phiếu tháng trước / này).
  * - Kỳ lương tháng trước đủ mọi vai trò (completeLastMonth): lớp K27 cho GV / TA chưa có lịch tháng trước (có buổi đi muộn, quên
  *   check-in, vắng, ca bị từ chối), biên bản vi phạm lập tay cho mọi vai trò ở đủ các bước, KPI bộ mẫu Quản lý cơ sở và mỗi vai trò
- *   1 người tốt / 1 người kém; mở lại kỳ demo, tính lại, duyệt, từ ngày 10 ghi nhận đã chi trả.
+ *   1 người tốt / 1 người kém; chốt phiếu KPI tháng trước ngày 3 (sau khi đủ nguồn tự đếm); mở lại kỳ demo, tính lại, duyệt, từ
+ *   ngày 10 ghi nhận đã chi trả.
  *
- * Không nằm trong DatabaseSeeder: chạy tay bằng `php artisan demo:luong` sau `db:seed` (CSDL demo). Idempotent: lớp DEMO-CG-IF1
- * đã có thì bỏ qua phần chính, lớp DEMO-CG-SPK27 đã có thì bỏ qua phần tháng trước. Mỗi phần chạy trong 1 transaction.
+ * DatabaseSeeder gọi ở môi trường demo (trừ production và unit test); chạy tay bằng `php artisan demo:luong` sau `db:seed`.
+ * Idempotent: lớp DEMO-CG-IF1 đã có thì bỏ qua phần chính, lớp DEMO-CG-SPK27 đã có thì bỏ qua phần tháng trước. Mỗi phần chạy
+ * trong 1 transaction.
  */
 class DemoPayrollSeeder extends Seeder
 {
@@ -178,7 +183,8 @@ class DemoPayrollSeeder extends Seeder
         ],
         Roles::SALES_CONSULTANT => [
             ['Chăm sóc khách hàng', 'Lead trễ hạn SLA (liên hệ, follow, kết quả test)', 30, 'count', 'case', [[2, 100], [5, 50]], false, null, false, 'crm_sla_late', '≤ 2 case đủ điểm, 3–5 case một nửa, từ 6 case là 0.'],
-            ['Chăm sóc khách hàng', 'Báo cáo ngày nộp muộn', 15, 'count', 'lan', [[1, 100], [3, 50]], false, null, false, 'daily_report_late', 'Báo cáo ngày nộp sau 9h sáng hôm sau.'],
+            // Sale không nộp báo cáo ngày trên hệ thống (không có quyền staff_report.submit) → người chấm đếm theo nhóm Zalo.
+            ['Chăm sóc khách hàng', 'Báo cáo ngày nộp muộn', 15, 'count', 'lan', [[1, 100], [3, 50]], false, null, false, null, 'Báo cáo ngày (nhóm Zalo Sale) nộp sau 9h sáng hôm sau.'],
             ['Kết quả tuyển sinh', 'Tỷ lệ chốt lead → học viên', 35, 'rate', 'phan_tram', [[25, 100], [15, 50]], false, null, false, null, 'Số khách chốt ÷ số lead được giao trong tháng: ≥ 25% đủ điểm, 15–24% một nửa.'],
             ['Kết quả tuyển sinh', 'Phản ánh tư vấn sai thông tin', 20, 'count', 'lan', [[0, 100], [1, 50]], false, null, false, null, 'Số phản ánh đã xác minh của phụ huynh về tư vấn sai khóa / học phí / lịch.'],
         ],
@@ -208,13 +214,28 @@ class DemoPayrollSeeder extends Seeder
         'ta.hai@menglish.edu.vn' => 'good', 'ta.linh@menglish.edu.vn' => 'bad',
     ];
 
-    /** Sự cố buổi dạy lớp K27 (tháng trước): email => [buổi thứ n của người đó => [late | forgot | absent, số phút muộn]]. */
+    /**
+     * Sự cố buổi dạy lớp K27 (tháng trước): email => [buổi thứ n của người đó => [late | forgot | absent, số phút muộn]]. Buổi vắng
+     * sau cùng của GVNN có đơn nghỉ được duyệt (DemoKpiSourcesSeeder), các buổi vắng khác là nghỉ không phép (gv.cohuu1: loại trừ
+     * KPI tháng).
+     */
     private const LAST_MONTH_TEACHING_ISSUES = [
         'gv.banthoigian1@menglish.edu.vn' => [3 => ['late', 8], 7 => ['late', 12], 10 => ['forgot', null]],
-        'gv.native1@menglish.edu.vn' => [5 => ['late', 22], 11 => ['late', 5]],
-        'gv.cohuu1@menglish.edu.vn' => [4 => ['late', 18]],
+        'gv.native1@menglish.edu.vn' => [2 => ['absent', null], 5 => ['late', 22], 8 => ['absent', null], 11 => ['late', 5]],
+        'gv.cohuu1@menglish.edu.vn' => [4 => ['late', 18], 9 => ['absent', null]],
         'ta.tram@menglish.edu.vn' => [6 => ['late', 6]],
         'ta.hai@menglish.edu.vn' => [2 => ['absent', null]],
+    ];
+
+    /**
+     * Sự cố buổi dạy lớp K28 (tháng này, ngoài đi muộn ngẫu nhiên): email / khóa nhân sự mới => [buổi thứ n => [late | absent, số
+     * phút muộn]]. Buổi vắng của GVNN có đơn nghỉ được duyệt (DemoKpiSourcesSeeder), còn lại nghỉ không phép.
+     */
+    private const TEACHING_ISSUES = [
+        'pt_cg' => [2 => ['late', 15]],
+        'ft_dd' => [2 => ['late', 12], 3 => ['absent', null]],
+        'pt_bd' => [3 => ['absent', null]],
+        'gv.native1@menglish.edu.vn' => [4 => ['absent', null]],
     ];
 
     /**
@@ -340,6 +361,8 @@ class DemoPayrollSeeder extends Seeder
         $this->call(DemoAcademicKpiSeeder::class);
         // Kỳ lương tháng trước đủ mọi vai trò (sau KPI Học thuật để phiếu lương lấy đúng KPI đã chốt).
         $this->travel(fn () => $this->completeLastMonth());
+        // CSDL đã có dữ liệu lương từ trước (bỏ qua completeLastMonth): chỉ thêm nguồn số liệu KPI, phiếu đã chốt giữ nguyên.
+        $this->call(DemoKpiSourcesSeeder::class);
         $this->printSummary();
     }
 
@@ -774,6 +797,8 @@ class DemoPayrollSeeder extends Seeder
         $bd = $classes->firstWhere('code', 'DEMO-BD-GT1');
         $forgotten = $bd ? $sessions->where('class_id', $bd->id)->values()->get(1) : null;
 
+        $issues = collect(self::TEACHING_ISSUES)->mapWithKeys(fn (array $byNth, string $key) => [$this->user($key)?->id => $byNth])->all();
+        $nth = [];
         foreach ($sessions as $session) {
             $start = $session->date->copy()->setTimeFromTimeString($session->start_time->format('H:i'));
             if ($start->gte($this->realNow)) {
@@ -782,6 +807,13 @@ class DemoPayrollSeeder extends Seeder
             $date = $session->date->toDateString();
             foreach (array_filter([$session->teacher_id, $session->assistant_id]) as $uid) {
                 $user = User::find($uid);
+                $nth[$uid] = ($nth[$uid] ?? 0) + 1;
+                [$issue, $minutes] = $issues[$uid][$nth[$uid]] ?? [null, null];
+                if ($issue === 'absent') {
+                    $this->forced[$uid][$date] = 'off';
+
+                    continue;
+                }
                 if ($forgotten && $session->is($forgotten) && $uid === $session->teacher_id) {
                     $this->event($start->copy()->setTime(21, 15), fn () => $this->asUser($reviewers['BD'], PayrollController::class, 'storeTimesheet', [
                         'user_id' => $uid, 'class_id' => $session->class_id, 'teaching_date' => $date,
@@ -794,8 +826,12 @@ class DemoPayrollSeeder extends Seeder
                 }
                 // Buổi đầu trong ngày quyết định giờ đến; muộn 12–20 phút (~8% số ngày), còn lại đến sớm 8–25 phút.
                 $isFirst = ($this->sessionDays[$uid][$date][0] ?? null) === $session->start_time->format('H:i');
-                $late = $isFirst && $this->roll($uid, $date, 'late') < 8 && $user?->getRoleNames()->first() !== Roles::TEACHER_FULLTIME;
-                $offset = $late ? $this->between($uid, $date, 'off', 12, 20) : -$this->between($uid, $date, 'off', 8, 25);
+                $late = $issue === 'late' || ($isFirst && $this->roll($uid, $date, 'late') < 8 && $user?->getRoleNames()->first() !== Roles::TEACHER_FULLTIME);
+                $offset = match (true) {
+                    $issue === 'late' => $minutes,
+                    $late => $this->between($uid, $date, 'off', 12, 20),
+                    default => -$this->between($uid, $date, 'off', 8, 25),
+                };
                 $checkin = $start->copy()->addMinutes($offset + 1);
                 if ($isFirst) {
                     $this->teachIn[$uid][$date] = $start->copy()->addMinutes($offset)->format('H:i');
@@ -1126,9 +1162,7 @@ class DemoPayrollSeeder extends Seeder
     {
         $sheets = app(KpiSheetService::class);
 
-        // Phiếu tháng trước (kỳ lương đã khóa): duyệt cuối tháng (1 phiếu không duyệt). Phiếu đã chốt từ trước giữ nguyên.
-        $this->event($this->thisMonth->copy()->setTime(10, 0)->min($this->realNow->copy()->subMinutes(30)), fn () => $this->freezeLastMonthSheets(true));
-
+        // Phiếu tháng trước chốt ở completeLastMonth, sau khi đủ nguồn số liệu tự đếm (lớp K27, DemoKpiSourcesSeeder).
         // Phiếu tháng này: tự tạo đầu tháng (kpi:create-sheets), người chấm đã điền số liệu điền tay cho ~80% phiếu.
         $this->event($this->thisMonth->copy()->setTime(0, 10), fn () => $sheets->ensureSheets($this->thisMonth->month, $this->thisMonth->year));
         $this->event($this->realNow->copy()->subMinutes(50), function () use ($sheets) {
@@ -1287,13 +1321,32 @@ class DemoPayrollSeeder extends Seeder
             default => [],
         };
         $this->asUser($this->staff['admin'], PayrollController::class, 'adjustRecord', array_filter([
-            'retention_tier' => $record->retention_tier,
+            'retention_tier' => $record->retention_tier ?? $this->retentionTier($record),
             'foreign_session_pay' => $record->foreign_session_pay,
             'kpi_manual_amount' => $manualKpi ? ($role === Roles::MANAGER ? 1500000 : 600000) : null,
             'tax_deduction' => $base >= 11000000 ? round(($base - 11000000) * 0.05 / 1000) * 1000 + 150000 : null,
             'lines' => $lines,
             'adjustment_notes' => 'Admin nhập tay kỳ '.$month->format('m/Y').'.',
         ], fn ($v) => $v !== null && $v !== []), ['id' => $record->id]);
+    }
+
+    /**
+     * Bậc KPI giữ học sinh (GV part-time / TA / Học thuật kiêm nhiệm) khi lớp có học sinh đầu kỳ: người tốt bậc cao nhất, người kém
+     * bậc thấp nhất, còn lại bậc giữa. Không áp dụng → null.
+     */
+    private function retentionTier(PayrollRecord $record): ?float
+    {
+        if ((int) $record->retention_base_students === 0 || ($record->kpi_source !== PayrollRecord::KPI_RETENTION && ! $record->teaching_concurrent)) {
+            return null;
+        }
+        $tiers = PayrollPeriod::payrollSettings()['retention_tiers'];
+        sort($tiers);
+
+        return match (self::KPI_PROFILES[$record->user?->email] ?? null) {
+            'good' => end($tiers),
+            'bad' => $tiers[0],
+            default => $tiers[intdiv(count($tiers), 2)],
+        };
     }
 
     // ── Kỳ lương tháng trước đủ mọi vai trò ───────────────────────────────────
@@ -1311,15 +1364,23 @@ class DemoPayrollSeeder extends Seeder
             return;
         }
         $period = PayrollPeriod::where('year', $this->lastMonth->year)->where('month', $this->lastMonth->month)->first();
+        // Giờ thật lúc bắt đầu phần này (sau các seeder trước): tính lại / duyệt kỳ sau mọi thay đổi đã ghi, để "Duyệt" không
+        // báo dữ liệu đổi sau lần tính.
+        $now = Carbon::now();
+        // Chốt phiếu KPI tháng trước ngày 3 tháng này (sau hạn nộp báo cáo tháng 12h mùng 2), 1 phiếu trợ giảng không duyệt.
+        $freeze = function () use ($now) {
+            $this->at($this->thisMonth->copy()->addDays(2)->setTime(10, 0)->min($now->copy()->subMinutes(30)));
+            $this->freezeLastMonthSheets(true);
+            $this->at($now);
+        };
         if ($period && ($period->status === 'paid' || ($period->isLocked() && ! $period->records()->where('adjustment_notes', 'like', '%demo%')->exists()))) {
-            $this->command?->warn('DemoPayrollSeeder: kỳ lương tháng trước đã chi trả hoặc không phải kỳ demo — không bổ sung.');
+            $this->command?->warn('DemoPayrollSeeder: kỳ lương tháng trước đã chi trả hoặc không phải kỳ demo — không bổ sung, chỉ chốt phiếu KPI.');
+            $this->call(DemoKpiSourcesSeeder::class);
+            $freeze();
 
             return;
         }
 
-        // Giờ thật lúc bắt đầu phần này (sau các seeder trước): tính lại / duyệt kỳ sau mọi thay đổi đã ghi, để "Duyệt" không
-        // báo dữ liệu đổi sau lần tính.
-        $now = Carbon::now();
         $sessions = $this->setupLastMonthClasses();
         $hadRecord = $period ? $period->records()->pluck('user_id')->all() : [];
         if ($period?->isLocked()) {
@@ -1386,12 +1447,12 @@ class DemoPayrollSeeder extends Seeder
         $this->runEvents();
         ClassModel::whereIn('code', array_keys(self::LAST_MONTH_CLASSES))->update(['status' => 'completed']);
 
-        // KPI mọi vai trò: bộ mẫu cho vai trò còn thiếu (Quản lý cơ sở), chốt phiếu tháng trước còn thiếu; phiếu tháng này của
-        // người tốt / kém điền lại theo mức của họ, phiếu còn trống thì điền.
+        // KPI mọi vai trò: nguồn số liệu tự đếm (học viên lớp K27 / K28, báo cáo tháng, nghỉ dạy, SLA CRM, học phí…), bộ mẫu cho
+        // vai trò còn thiếu (Quản lý cơ sở), chốt phiếu tháng trước còn thiếu; phiếu tháng này của người tốt / kém điền lại theo
+        // mức của họ, phiếu còn trống thì điền.
+        $this->call(DemoKpiSourcesSeeder::class);
         $this->setupKpiCriteria();
-        $this->at($this->thisMonth->copy()->setTime(10, 0)->min($now->copy()->subMinutes(30)));
-        $this->freezeLastMonthSheets(false);
-        $this->at($now);
+        $freeze();
         app(KpiSheetService::class)->ensureSheets($this->thisMonth->month, $this->thisMonth->year);
         KpiEvaluation::with('user.roles')->where('year', $this->thisMonth->year)->where('month', $this->thisMonth->month)
             ->where('status', KpiEvaluation::STATUS_PENDING)->get()
