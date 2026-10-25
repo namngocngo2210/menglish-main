@@ -116,6 +116,20 @@ return [
             'violation' => 'Gửi nhận xét sau buổi học trễ',
         ],
 
+        'gv.syllabus_confirm' => [
+            'group' => 'teacher',
+            'label' => 'Xác nhận syllabus chặng (GV)',
+            'description' => 'GV được giao chặng phải bấm XÁC NHẬN syllabus chậm nhất số giờ này trước buổi học đầu tiên của chặng (giao sát giờ thì tính theo buổi kế tiếp); chưa xác nhận thì không bấm "Đã dạy" được. Trễ → biên bản cho GV theo bậc phạt tái phạm như nhận xét trễ, Học thuật chốt.',
+            'value' => 1,
+            'unit' => 'hours',
+            'penalty' => true,
+            'amount' => 0,
+            'ladder' => [0, 30000, 60000],
+            'task' => false,
+            'category' => 'academic',
+            'violation' => 'Xác nhận syllabus chặng muộn',
+        ],
+
         'gv.checkin_window' => [
             'group' => 'teacher',
             'label' => 'Hạn chấm công dạy (check-in)',

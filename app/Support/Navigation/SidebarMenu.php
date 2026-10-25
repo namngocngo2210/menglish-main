@@ -451,7 +451,12 @@ final class SidebarMenu
                 'section' => 'Cá nhân',
                 'label' => 'Cổng Giáo viên',
                 'icon' => 'cast_for_education',
+                // Theo thứ tự luồng GV (docs/luong-giao-vien.md): lớp của tôi → bài giảng hôm nay → syllabus & XÁC NHẬN chặng →
+                // điểm danh → chấm bài. "Lớp của tôi" = Danh sách lớp lọc lớp mình dạy (tab cha thuộc nhóm Lớp học của người quản lý).
                 'items' => self::anchored(self::TEACHING_PORTAL, [
+                    ['label' => 'Lớp của tôi', 'route' => 'classes.index', 'query' => ['mine' => 1], 'active' => ['classes.index', 'classes.show']],
+                    ['label' => 'Bài giảng hôm nay', 'route' => 'teacher.lesson-today', 'active' => ['teacher.lesson-today*']],
+                    ['label' => 'Syllabus & tài liệu', 'route' => 'syllabus.teacher-view'],
                     ['label' => 'Check-in & Điểm danh hôm nay', 'route' => 'teacher.home', 'active' => ['teacher.home', 'teacher.attendance*'], 'can' => ['attendance_student.record']],
                     ['label' => 'Chấm bài nộp của lớp', 'route' => 'portal.teacher.submissions', 'active' => ['portal.teacher.submissions*']],
                     ['label' => 'Khách học thử', 'route' => 'teacher.trial-guests', 'active' => ['teacher.trial-guests*']],
@@ -617,10 +622,24 @@ final class SidebarMenu
             return null;
         }
 
-        $definition = $id !== null
-            ? collect($this->definition())->firstWhere('id', $id)
-            : collect($this->definition())->first(fn (array $group) => $this->matchesAny($request, $group['items']));
-        if (! $definition || (! empty($definition['can']) && ! $this->allowsAny($user, $definition['can'], $request))) {
+        // Route thuộc nhiều workspace (vd. Danh sách lớp: nhóm Lớp học + "Lớp của tôi" ở Cổng GV) → workspace đầu tiên mà người
+        // xem có tab / nút (GV không có tab nào của nhóm Lớp học nên thấy tab Cổng GV).
+        $candidates = $id !== null
+            ? collect($this->definition())->where('id', $id)
+            : collect($this->definition())->filter(fn (array $group) => $this->matchesAny($request, $group['items']));
+        foreach ($candidates as $definition) {
+            if ($workspace = $this->buildWorkspace($user, $request, $definition)) {
+                return $workspace;
+            }
+        }
+
+        return null;
+    }
+
+    /** @return array<string, mixed>|null */
+    private function buildWorkspace(User $user, Request $request, array $definition): ?array
+    {
+        if (! empty($definition['can']) && ! $this->allowsAny($user, $definition['can'], $request)) {
             return null;
         }
 
