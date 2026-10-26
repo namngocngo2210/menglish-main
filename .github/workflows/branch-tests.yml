@@ -1,0 +1,23 @@
+# Tạm thời: chạy toàn bộ test Laravel khi push nhánh sửa chấm công / điểm danh (gỡ trước khi merge).
+name: Branch tests
+
+on:
+  push:
+    branches: [claude/project-thread-5ty54c]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_sqlite, intl, gd, zip, bcmath
+      - run: composer install --no-interaction --no-progress --prefer-dist
+      - run: cp .env.example .env && php artisan key:generate
+      - run: php artisan test
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci && npm run build
