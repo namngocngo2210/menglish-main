@@ -302,6 +302,11 @@ trống đề bài). `position` = số câu trong đề.
   Đọc… → Đọc hiểu; Viết… → Viết; còn lại → Từ vựng & Ngữ pháp.
 - Đề mới / đề còn Nháp → ghi (thay toàn bộ câu); đề đã mở / đã ẩn → giữ nguyên. Bảo mật ZIP: chặn `..` / đường dẫn
   tuyệt đối, chỉ lấy `.xlsx` / `.docx`, tối đa 300 mục, 50 MB.
+- Import chạy nền (hàng đợi Laravel, service `queue` trong `docker-compose.yml`): màn lưu file vào
+  `storage/app/private/exam-imports/{id}`, tạo bản ghi `practice_exam_imports` (Đang chờ → Đang import → Xong / Lỗi) và
+  đưa job `ImportPracticeExams` vào hàng đợi; job chạy importer, lưu kết quả từng đề, ghi một dòng nhật ký, xoá file.
+  Màn Đề cố định hiện 5 lần import gần nhất (lần mới nhất kèm kết quả chi tiết), tự tải lại mỗi 3 giây khi còn lần đang
+  chờ / đang chạy; chờ quá 2 phút → nhắc kiểm tra queue. Job chạy một lần, tối đa 900 giây.
 - Danh sách theo khối: kỳ, số câu / phút, trạng thái, số lượt / học viên, điểm TB (so giữa các mã đề). Trang một đề: mọi
   câu kèm đáp án, ngữ liệu một lần trên nhóm câu, sửa câu / ngữ liệu (modal, `?return=` về đề), sửa tên / thời gian,
   **Mở cho học viên** / **Ẩn** / **Về nháp** (chỉ khi chưa có lượt làm), **Xoá** (chỉ khi chưa có lượt làm).
@@ -326,5 +331,5 @@ danh sách lượt ghi mã đề.
 |---|---|
 | `tests/Feature/PracticeExamImporterTest` | ZIP Excel + Word: khối / kỳ / mã đề / thời gian, thứ tự câu, gạch chân từ Word, ngữ liệu chung, dòng "Câu N: …", ngoặc vuông, cảnh báo thiếu gạch chân / lệch đáp án, import lại (Nháp thay, đã mở giữ), sheet lỗi, path traversal |
 | `tests/Feature/PracticeExamPortalTest` | chỉ đề đã mở của khối mình, bắt đầu / làm tiếp, không lộ đáp án, chấm điểm, nhãn mã đề, độc lập với đề trộn, chặn đề nháp / ẩn / khác khối |
-| `tests/Feature/PracticeExamControllerTest` | quyền, import qua màn, xem đề, mở / ẩn / về nháp / xoá, sửa câu của đề, bộ lọc đề ở báo cáo |
+| `tests/Feature/PracticeExamControllerTest` | quyền, import qua màn (job nền: trạng thái, kết quả, xoá file, lỗi file), xem đề, mở / ẩn / về nháp / xoá, sửa câu của đề, bộ lọc đề ở báo cáo |
 | `tests/Support/PracticeExamFixture` | sinh file Excel / Word / ZIP theo mẫu file thật |

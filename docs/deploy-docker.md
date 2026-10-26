@@ -1,8 +1,8 @@
 # Deploy bằng Docker (production + staging trên cùng máy chủ)
 
 ```
-Internet ─▶ Caddy (80/443, tự cấp HTTPS) ─┬─▶ menglish-production: app + scheduler + db   portal.meducation.vn
-           docker/proxy/                  ├─▶ menglish-staging:    app + scheduler + db   dungthu.meducation.vn
+Internet ─▶ Caddy (80/443, tự cấp HTTPS) ─┬─▶ menglish-production: app + scheduler + queue + db   portal.meducation.vn
+           docker/proxy/                  ├─▶ menglish-staging:    app + scheduler + queue + db   dungthu.meducation.vn
                                           └─▶ menglish-beta:  web + api + postgres + redis  beta.meducation.vn  (v2, xem v2/README.md)
 ```
 
@@ -27,6 +27,10 @@ docker/menglish.sh production backup              # DB + file upload (public/upl
 `deploy <ref>` build image từ đúng commit / nhánh (qua `git archive`, không đổi thư mục làm việc), vd. `docker/menglish.sh staging deploy origin/feature-x`; `version` cho biết commit đang chạy. Không truyền ref thì build từ thư mục hiện tại.
 
 `deploy` giữ nguyên trạng thái scheduler: đang dừng thì vẫn dừng.
+
+`queue` chạy job hàng đợi (`php artisan queue:work`, driver `database`, bảng `jobs`), hiện dùng cho import đề cố định.
+`deploy` tự restart `queue` sau migrate. Job lỗi xem bằng `docker/menglish.sh <env> artisan queue:failed`,
+log bằng `docker/menglish.sh <env> logs -f queue`. Nếu `queue` không chạy, import đề cứ ở trạng thái "Đang chờ".
 
 ## Deploy bằng GitHub Actions (chạy tay)
 

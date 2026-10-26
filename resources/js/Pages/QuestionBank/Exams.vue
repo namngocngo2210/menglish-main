@@ -1,21 +1,23 @@
 <script setup>
 /**
  * Đề cố định (docs/luyen-tap-ngan-hang-cau-hoi.md §11.2): mỗi khối một bảng mã đề (kỳ, số câu, thời gian, trạng thái,
- * số lượt / điểm TB để so giữa các mã đề), import file Excel + Word hoặc ZIP; kết quả import hiện từng đề.
+ * số lượt / điểm TB để so giữa các mã đề), import file Excel + Word hoặc ZIP chạy nền: trang tự tải lại mỗi 3 giây
+ * khi còn lần import đang chờ / đang chạy, xong thì hiện kết quả từng đề.
  */
-import { ref } from 'vue';
-import { Link } from '@inertiajs/vue3';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { Link, router } from '@inertiajs/vue3';
 import { route } from '@/lib/route';
 
 defineOptions({ layout: { title: 'Đề cố định' } });
 
-defineProps({
+const props = defineProps({
     grades: { type: Array, required: true },
     canManage: { type: Boolean, default: false },
-    importReport: { type: Object, default: null },
+    imports: { type: Array, default: () => [] },
 });
 
 const STATUS_COLORS = { draft: 'warning', published: 'success', hidden: 'neutral' };
+const IMPORT_COLORS = { queued: 'neutral', running: 'info', done: 'success', failed: 'error' };
 const scoreText = (score) => (score === null ? '—' : Number(score).toLocaleString('vi-VN', { maximumFractionDigits: 2 }));
 
 const importOpen = ref(false);
@@ -27,6 +29,25 @@ function onImported() {
     importOpen.value = false;
     fileNames.value = '';
 }
+
+const latest = computed(() => props.imports[0] ?? null);
+const report = computed(() => latest.value?.report ?? null);
+const pending = computed(() => props.imports.some((i) => i.pending));
+
+let timer = null;
+watch(
+    pending,
+    (on) => {
+        if (on && !timer && typeof window !== 'undefined') {
+            timer = window.setInterval(() => router.reload({ only: ['imports', 'grades'] }), 3000);
+        } else if (!on && timer) {
+            window.clearInterval(timer);
+            timer = null;
+        }
+    },
+    { immediate: true },
+);
+onBeforeUnmount(() => timer && window.clearInterval(timer));
 </script>
 
 <template>
@@ -43,25 +64,43 @@ function onImported() {
         <UiTab :href="route('question-bank.analysis')">Phân tích câu hỏi</UiTab>
     </UiTabs>
 
-    <section v-if="importReport" class="mb-lg space-y-sm" data-import-report>
-        <UiAlert v-if="importReport.saved.length" type="success" title="Đã nhập (trạng thái Nháp — xem lại rồi bấm Mở cho học viên)">
+    <section v-if="imports.length" class="mb-lg space-y-sm" data-imports>
+        <div
+            v-for="imp in imports"
+            :key="imp.id"
+            class="flex flex-wrap items-center gap-sm rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm"
+            :data-import="imp.status"
+        >
+            <span v-if="imp.pending" class="material-symbols-outlined animate-spin text-[18px] text-primary" aria-hidden="true">progress_activity</span>
+            <UiBadge :color="IMPORT_COLORS[imp.status] ?? 'neutral'">{{ imp.status_label }}</UiBadge>
+            <span class="min-w-0 flex-1 truncate font-body-small text-body-small text-on-surface" :title="imp.files.join(', ')">{{ imp.files.join(', ') }}</span>
+            <span class="font-caption text-caption text-on-surface-variant">{{ imp.user }} · {{ imp.created_at }}</span>
+            <p v-if="imp.message" class="w-full font-body-small text-body-small text-on-surface-variant">{{ imp.message }}</p>
+            <p v-if="imp.stalled" class="w-full font-body-small text-body-small text-error" role="alert">
+                Chờ quá 2 phút chưa chạy: tiến trình xử lý nền (queue) có thể chưa bật. Báo quản trị kiểm tra.
+            </p>
+        </div>
+    </section>
+
+    <section v-if="report" class="mb-lg space-y-sm" data-import-report>
+        <UiAlert v-if="report.saved.length" type="success" title="Đã nhập (trạng thái Nháp — xem lại rồi bấm Mở cho học viên)">
             <ul class="list-disc space-y-0.5 pl-md">
-                <li v-for="(line, i) in importReport.saved" :key="i">{{ line }}</li>
+                <li v-for="(line, i) in report.saved" :key="i">{{ line }}</li>
             </ul>
         </UiAlert>
-        <UiAlert v-if="importReport.kept.length" type="info" title="Giữ nguyên">
+        <UiAlert v-if="report.kept.length" type="info" title="Giữ nguyên">
             <ul class="list-disc space-y-0.5 pl-md">
-                <li v-for="(line, i) in importReport.kept" :key="i">{{ line }}</li>
+                <li v-for="(line, i) in report.kept" :key="i">{{ line }}</li>
             </ul>
         </UiAlert>
-        <UiAlert v-if="importReport.warnings.length" type="warning" title="Cần kiểm tra">
+        <UiAlert v-if="report.warnings.length" type="warning" title="Cần kiểm tra">
             <ul class="list-disc space-y-0.5 pl-md">
-                <li v-for="(line, i) in importReport.warnings" :key="i">{{ line }}</li>
+                <li v-for="(line, i) in report.warnings" :key="i">{{ line }}</li>
             </ul>
         </UiAlert>
-        <UiAlert v-if="importReport.errors.length" type="error" title="Không nhập được">
+        <UiAlert v-if="report.errors.length" type="error" title="Không nhập được">
             <ul class="list-disc space-y-0.5 pl-md">
-                <li v-for="(line, i) in importReport.errors" :key="i">{{ line }}</li>
+                <li v-for="(line, i) in report.errors" :key="i">{{ line }}</li>
             </ul>
         </UiAlert>
     </section>
@@ -120,11 +159,12 @@ function onImported() {
                         <li>File Excel đề kèm đáp án: mỗi sheet một mã đề, tiêu đề dạng "ĐỀ KIỂM TRA GIỮA HỌC KÌ I … TIẾNG ANH 6 – MÃ ĐỀ 601".</li>
                         <li>Kèm file Word của đề để giữ gạch chân câu Phát âm (Excel không lưu gạch chân).</li>
                         <li>Đề mới vào trạng thái <b>Nháp</b>. Đề đã mở / đã ẩn giữ nguyên khi import lại.</li>
+                        <li>Import chạy nền: tải file lên xong là đóng được, kết quả hiện trên trang này khi xong.</li>
                     </ul>
                 </UiAlert>
                 <div class="flex justify-end gap-sm">
                     <UiButton variant="secondary" :disabled="processing" @click="importOpen = false">Hủy</UiButton>
-                    <UiButton type="submit" icon="upload_file" :disabled="processing">{{ processing ? 'Đang import…' : 'Import' }}</UiButton>
+                    <UiButton type="submit" icon="upload_file" :disabled="processing">{{ processing ? 'Đang tải file lên…' : 'Import' }}</UiButton>
                 </div>
             </template>
         </UiForm>
