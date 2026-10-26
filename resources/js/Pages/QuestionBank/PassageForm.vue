@@ -12,6 +12,8 @@ defineOptions({ layout: { title: 'Ngân hàng câu hỏi' } });
 const props = defineProps({
     asModal: { type: Boolean, default: false },
     passage: { type: Object, required: true },
+    // mở từ màn Đề cố định: lưu / quay lại về đề đó
+    returnUrl: { type: String, default: null },
 });
 
 const content = ref(props.passage.content);
@@ -19,8 +21,9 @@ const description = computed(() => [`Khối ${props.passage.grade}`, props.passa
 </script>
 
 <template>
-    <UiModalFrame :title="`Sửa ngữ liệu #${passage.id}`" :description="description" :action="route('question-bank.passages.update', passage.id)" method="put" :back="route('question-bank.index')" submit-icon="save">
+    <UiModalFrame :title="`Sửa ngữ liệu #${passage.id}`" :description="description" :action="route('question-bank.passages.update', passage.id)" method="put" :back="returnUrl || route('question-bank.index')" submit-icon="save">
         <div class="space-y-md">
+            <input v-if="returnUrl" type="hidden" name="return" :value="returnUrl" />
             <UiAlert type="info">Ngữ liệu dùng chung cho {{ passage.questions.length }} câu bên dưới. Viết <code>[x]</code> để gạch chân.</UiAlert>
             <img v-if="passage.image_url" :src="passage.image_url" alt="Ảnh ngữ liệu" class="max-h-48 rounded border border-outline-variant" />
 
@@ -37,7 +40,7 @@ const description = computed(() => [`Khối ${props.passage.grade}`, props.passa
                     <li v-for="q in passage.questions" :key="q.id" class="flex items-start gap-sm font-body-small text-body-small">
                         <span class="font-code text-on-surface-variant">{{ q.position }}.</span>
                         <UnderlinedText :text="q.stem" class="flex-1 text-on-surface" />
-                        <UiBadge :dot="false">{{ q.status_label }}</UiBadge>
+                        <UiBadge v-if="!passage.in_exam" :dot="false">{{ q.status_label }}</UiBadge>
                     </li>
                 </ol>
             </div>

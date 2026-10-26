@@ -266,6 +266,65 @@ done); chạy test liên quan + guard-rail trước mỗi lần push.
 ## 10. Ngoài phạm vi / rủi ro
 
 - Không có: câu Nghe, tự luận, đúng/sai, điền từ; thêm câu bằng tay; đảo phương án; port sang v2.
+- Đề cố định (§11): chưa có đề chỉ có PDF, giao đề theo lớp, hẹn giờ mở đề.
 - Học viên thiếu `dob` không luyện được → cần bổ sung ngày sinh trong hồ sơ.
 - Lớp 6–9 chưa có thang điểm rubric test đầu vào (không ảnh hưởng luyện tập).
 - Chất lượng đề phụ thuộc duyệt đáp án; tab Phân tích câu hỏi giúp phát hiện đáp án sai sau khi chạy.
+
+## 11. Đề cố định (26/10/2026)
+
+Bên cạnh đề trộn, học viên **chọn từng mã đề** (vd. đề GK1 khối 6 mã 601, 602, 603) để làm. Đề giữ nguyên thứ tự câu và
+phương án như đề in. Phân theo khối: học viên chỉ thấy đề đã mở của khối mình. Làm bài, chấm, chống gian lận, kết quả
+dùng lại toàn bộ §6.
+
+### 11.1 Dữ liệu
+
+| Bảng / cột | Nội dung |
+|---|---|
+| `practice_exams` | `grade`, `term`, `code` (mã đề), `title`, `duration_minutes`, `status` (`draft` Nháp / `published` Đã mở / `hidden` Đã ẩn), `source_file`, `import_warnings` json, `published_at`; unique `(grade, term, code)` |
+| `question_bank_questions.exam_id`, `question_bank_passages.exam_id` | FK null, cascade. Câu / ngữ liệu của đề nằm trong bảng ngân hàng (dùng lại form sửa câu, Phân tích câu hỏi) nhưng **không vào kho trộn**: scope `inBank()` (`exam_id` null) ở sinh đề, `QuestionAvailability`, danh sách / duyệt hàng loạt Ngân hàng câu hỏi, danh sách dạng bài của Khung đề |
+| `practice_attempts.exam_id` | FK null (null on delete); null = đề trộn. Index `(student_id, exam_id, status)` |
+
+Câu của đề có `status = approved` (mở / ẩn theo cả đề, form sửa câu ẩn ô trạng thái, câu Phát âm / Trọng âm được để
+trống đề bài). `position` = số câu trong đề.
+
+### 11.2 Import & quản lý (Ngân hàng câu hỏi → tab **Đề cố định**, quyền `question_bank.*`)
+
+- Tải lên ZIP (nén nguyên thư mục) hoặc các file `.xlsx` + `.docx` (`PracticeExamImporter`). Mỗi sheet Excel là một mã
+  đề: tiêu đề "ĐỀ KIỂM TRA GIỮA HỌC KÌ I … TIẾNG ANH 6 – MÃ ĐỀ 601" → khối, kỳ, mã đề; "Thời gian làm bài: 60 phút".
+  Dòng "Câu N" (dạng bài, câu hỏi, A–D, đáp án) → câu; dòng chỉ có cột đầu → hướng dẫn ("Mark the letter…", "Read the
+  following…"), ngữ liệu chung của các câu sau, hoặc "Câu N: …" (phần đề tách dòng, mẫu khối 8) ghép vào câu N.
+- Excel làm mất gạch chân: đọc file Word cùng mã đề ("Mã đề: 601"), lấy phương án / đề bài có gạch chân `[x]` khi bỏ
+  gạch chân thì trùng chữ trong Excel. Câu Phát âm không có gạch chân → cảnh báo. Ngoặc vuông có sẵn trong Excel đổi
+  thành ngoặc tròn (không bị hiểu là gạch chân).
+- Bảng đáp án cuối sheet khác cột Đáp án → cảnh báo (dùng cột Đáp án); thiếu số câu → cảnh báo.
+- Dạng bài → kỹ năng: Phát âm / Trọng âm → Ngữ âm; Đọc – Biển báo / Tin nhắn / Thông báo → Giao tiếp & Biển báo;
+  Đọc… → Đọc hiểu; Viết… → Viết; còn lại → Từ vựng & Ngữ pháp.
+- Đề mới / đề còn Nháp → ghi (thay toàn bộ câu); đề đã mở / đã ẩn → giữ nguyên. Bảo mật ZIP: chặn `..` / đường dẫn
+  tuyệt đối, chỉ lấy `.xlsx` / `.docx`, tối đa 300 mục, 50 MB.
+- Danh sách theo khối: kỳ, số câu / phút, trạng thái, số lượt / học viên, điểm TB (so giữa các mã đề). Trang một đề: mọi
+  câu kèm đáp án, ngữ liệu một lần trên nhóm câu, sửa câu / ngữ liệu (modal, `?return=` về đề), sửa tên / thời gian,
+  **Mở cho học viên** / **Ẩn** / **Về nháp** (chỉ khi chưa có lượt làm), **Xoá** (chỉ khi chưa có lượt làm).
+
+### 11.3 Cổng học viên
+
+- Màn Luyện tập thêm mục **Đề cố định khối N**: đề đã mở của khối, nhóm theo kỳ; mỗi đề: số câu, thời gian, số lần đã
+  làm, điểm cao nhất, nút **Làm đề / Làm lại / Làm tiếp**.
+- `POST /practice/start` nhận `exam_id` → `PracticeAttemptService::startExam()`: đề phải đã mở, cùng khối với học
+  viên; mỗi học viên × đề một lượt đang làm (bấm lại → làm tiếp); `deadline_at` theo thời gian của đề. Lượt đề trộn
+  (`exam_id` null) và lượt đề cố định cùng kỳ độc lập; cửa sổ chống lặp câu của đề trộn chỉ xét lượt đề trộn.
+- Trang làm bài / kết quả / lịch sử ghi "Đề 601" (đề trộn: "Đề trộn").
+
+### 11.4 Báo cáo
+
+Kết quả luyện tập (tổng hợp và trang một học viên) thêm bộ lọc **Đề**: Đề trộn hoặc từng đề cố định đã mở / đã ẩn;
+danh sách lượt ghi mã đề.
+
+### 11.5 Kiểm thử
+
+| File | Nội dung |
+|---|---|
+| `tests/Feature/PracticeExamImporterTest` | ZIP Excel + Word: khối / kỳ / mã đề / thời gian, thứ tự câu, gạch chân từ Word, ngữ liệu chung, dòng "Câu N: …", ngoặc vuông, cảnh báo thiếu gạch chân / lệch đáp án, import lại (Nháp thay, đã mở giữ), sheet lỗi, path traversal |
+| `tests/Feature/PracticeExamPortalTest` | chỉ đề đã mở của khối mình, bắt đầu / làm tiếp, không lộ đáp án, chấm điểm, nhãn mã đề, độc lập với đề trộn, chặn đề nháp / ẩn / khác khối |
+| `tests/Feature/PracticeExamControllerTest` | quyền, import qua màn, xem đề, mở / ẩn / về nháp / xoá, sửa câu của đề, bộ lọc đề ở báo cáo |
+| `tests/Support/PracticeExamFixture` | sinh file Excel / Word / ZIP theo mẫu file thật |

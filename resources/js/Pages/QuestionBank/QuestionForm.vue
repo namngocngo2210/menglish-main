@@ -31,7 +31,7 @@ const description = computed(() => [props.question.source_key, `Khối ${props.q
             <div v-if="question.passage" class="rounded-lg border border-outline-variant bg-surface-container-low p-sm">
                 <div class="flex items-center justify-between gap-sm">
                     <span class="font-body-small text-body-small font-semibold text-on-surface">Ngữ liệu #{{ question.passage.id }} (dùng chung)</span>
-                    <UiButton size="sm" variant="ghost" icon="edit" :href="route('question-bank.passages.edit', question.passage.id)" modal="2xl">Sửa ngữ liệu</UiButton>
+                    <UiButton size="sm" variant="ghost" icon="edit" :href="route('question-bank.passages.edit', returnUrl ? { passage: question.passage.id, return: returnUrl } : question.passage.id)" modal="2xl">Sửa ngữ liệu</UiButton>
                 </div>
                 <UnderlinedText :text="question.passage.content" class="mt-xs block max-h-40 overflow-y-auto whitespace-pre-line font-body-small text-body-small text-on-surface-variant" />
             </div>
@@ -40,7 +40,7 @@ const description = computed(() => [props.question.source_key, `Khối ${props.q
             <UiAlert type="info">Viết <code>[x]</code> để gạch chân, ví dụ <code>c[oa]st</code> → c<u>oa</u>st.</UiAlert>
 
             <UiTextarea name="instruction" label="Yêu cầu" :rows="2" :value="question.instruction" />
-            <UiTextarea v-model="stem" name="stem" label="Câu hỏi" required :rows="3" />
+            <UiTextarea v-model="stem" name="stem" label="Câu hỏi" :required="!question.in_exam" :rows="3" />
             <p class="font-body-small text-body-small text-on-surface-variant">Xem trước: <UnderlinedText :text="stem" class="whitespace-pre-line text-on-surface" /></p>
 
             <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
@@ -49,7 +49,8 @@ const description = computed(() => [props.question.source_key, `Khối ${props.q
 
             <div class="grid grid-cols-1 gap-md sm:grid-cols-3">
                 <UiSelect name="answer" label="Đáp án đúng" required :options="answers" :value="question.answer" />
-                <UiSelect name="status" label="Trạng thái" required :options="statuses" :value="question.status" />
+                <!-- câu của đề cố định: mở / ẩn theo cả đề -->
+                <UiSelect v-if="!question.in_exam" name="status" label="Trạng thái" required :options="statuses" :value="question.status" />
                 <UiInput name="knowledge" label="Kiến thức" :value="question.knowledge" />
             </div>
         </div>

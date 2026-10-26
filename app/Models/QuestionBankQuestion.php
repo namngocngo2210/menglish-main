@@ -18,7 +18,7 @@ class QuestionBankQuestion extends Model
     ];
 
     protected $fillable = [
-        'passage_id', 'position', 'grade', 'term', 'skill', 'type', 'knowledge', 'instruction', 'stem',
+        'exam_id', 'passage_id', 'position', 'grade', 'term', 'skill', 'type', 'knowledge', 'instruction', 'stem',
         'options', 'answer', 'image_path', 'status', 'approved_by', 'approved_at', 'edited_at',
         'source_school', 'source_year', 'source_file', 'source_key',
     ];
@@ -34,6 +34,17 @@ class QuestionBankQuestion extends Model
     public function scopeApproved(Builder $query): Builder
     {
         return $query->where('status', 'approved');
+    }
+
+    /** Câu của kho trộn đề (không thuộc đề cố định nào). */
+    public function scopeInBank(Builder $query): Builder
+    {
+        return $query->whereNull('exam_id');
+    }
+
+    public function exam(): BelongsTo
+    {
+        return $this->belongsTo(PracticeExam::class, 'exam_id');
     }
 
     public function passage(): BelongsTo

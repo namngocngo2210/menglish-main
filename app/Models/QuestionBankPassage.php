@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class QuestionBankPassage extends Model
 {
     protected $fillable = [
-        'grade', 'term', 'skill', 'type', 'instruction', 'content', 'image_path',
+        'exam_id', 'grade', 'term', 'skill', 'type', 'instruction', 'content', 'image_path',
         'source_school', 'source_year', 'source_file', 'source_key',
     ];
 

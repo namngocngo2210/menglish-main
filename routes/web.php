@@ -31,6 +31,7 @@ use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\PlacementTestController;
 use App\Http\Controllers\PracticeBlueprintController;
 use App\Http\Controllers\PracticeController;
+use App\Http\Controllers\PracticeExamController;
 use App\Http\Controllers\PracticeResultsController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PromotionController;
@@ -948,6 +949,18 @@ Route::middleware('auth')->group(function () {
             Route::middleware('can:question_bank.manage')->group(function () {
                 Route::get('/{grade}/{term}', 'edit')->whereNumber('grade')->name('edit');
                 Route::put('/{grade}/{term}', 'update')->whereNumber('grade')->name('update');
+            });
+        });
+    // Đề cố định khối × kỳ × mã đề (cùng nhóm quyền question_bank.*): học viên chọn đề để làm, bên cạnh đề trộn
+    Route::controller(PracticeExamController::class)->prefix('question-bank/exams')->name('question-bank.exams.')
+        ->middleware('can:question_bank.view')->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::get('/{exam}', 'show')->whereNumber('exam')->name('show');
+            Route::middleware('can:question_bank.manage')->group(function () {
+                Route::post('/import', 'import')->name('import');
+                Route::put('/{exam}', 'update')->whereNumber('exam')->name('update');
+                Route::post('/{exam}/status', 'status')->whereNumber('exam')->name('status');
+                Route::delete('/{exam}', 'destroy')->whereNumber('exam')->name('destroy');
             });
         });
     // Kết quả luyện tập (Học thuật / Admin / giáo viên): phạm vi học viên theo Student::visibleTo, kiểm tra trong controller.

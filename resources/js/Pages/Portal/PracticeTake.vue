@@ -31,6 +31,8 @@ const SAVE_DELAY_MS = 400;
 const CHOICES = ['A', 'B', 'C', 'D'];
 
 const sections = computed(() => groupPracticeItems(props.items));
+// "Đề 601 · Giữa kì 1" (đề cố định, mã đề trước để không bị cắt trên điện thoại) hoặc "Giữa kì 1" (đề trộn)
+const heading = computed(() => [props.attempt.exam_label, props.attempt.term_label].filter(Boolean).join(' · '));
 // finishing: đang nộp / đã hết lượt — khoá chọn đáp án. submitting: đang chuyển sang trang kết quả.
 const finishing = ref(false);
 const submitting = ref(false);
@@ -207,13 +209,13 @@ function begin() {
 </script>
 
 <template>
-    <Head :title="`Luyện tập — ${attempt.term_label}`" />
+    <Head :title="`Luyện tập — ${heading}`" />
     <div class="min-h-screen bg-surface-container-low font-sans text-on-surface antialiased">
         <!-- Thanh trên: đồng hồ + số lần rời bài -->
         <header class="sticky top-0 z-40 border-b border-surface-container-highest bg-surface-container-lowest/95 shadow-xs backdrop-blur-md">
             <div class="mx-auto flex max-w-2xl items-center justify-between gap-2 px-4 py-2.5">
                 <div class="min-w-0">
-                    <div class="truncate text-sm font-black text-primary">Luyện tập · {{ attempt.term_label }}</div>
+                    <div class="truncate text-sm font-black text-primary">Luyện tập · {{ heading }}</div>
                     <div class="text-xs text-on-surface-variant">Khối {{ attempt.grade }} · {{ items.length }} câu</div>
                 </div>
                 <div class="flex shrink-0 items-center gap-2">
@@ -236,7 +238,7 @@ function begin() {
         <main class="mx-auto max-w-2xl space-y-5 px-4 py-4 pb-28">
             <!-- Màn bắt đầu -->
             <section v-if="!started" class="space-y-4 rounded-2xl border border-primary-container/40 bg-surface-container-lowest p-5 shadow-sm">
-                <h1 class="text-lg font-extrabold text-on-surface">{{ attempt.term_label }} — {{ items.length }} câu</h1>
+                <h1 class="text-lg font-extrabold text-on-surface">{{ heading }} — {{ items.length }} câu</h1>
                 <ul class="list-inside list-disc space-y-1.5 text-sm leading-relaxed text-on-surface-variant">
                     <li>Bài làm mở ở chế độ <strong>toàn màn hình</strong>. Không chuyển sang tab hay ứng dụng khác cho tới khi nộp bài.</li>
                     <li>Câu trả lời được lưu ngay khi chọn. Hết giờ, bài <strong>tự nộp</strong>.</li>

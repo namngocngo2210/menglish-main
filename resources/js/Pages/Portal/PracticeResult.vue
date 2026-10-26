@@ -42,7 +42,7 @@ const percent = (s) => (s.total > 0 ? Math.round((s.correct / s.total) * 100) : 
             <section class="space-y-3 rounded-2xl bg-gradient-to-r from-primary-container to-warning p-4 text-white shadow-md">
                 <div class="flex items-start justify-between gap-3">
                     <div>
-                        <h2 class="text-base font-extrabold">Khối {{ attempt.grade }} · {{ attempt.term_label }}</h2>
+                        <h2 class="text-base font-extrabold">Khối {{ attempt.grade }} · {{ attempt.term_label }}<template v-if="attempt.exam_label"> · {{ attempt.exam_label }}</template></h2>
                         <p class="mt-0.5 text-xs text-white/90">{{ formatDate(attempt.started_at, 'd/m/Y H:i') }} · làm trong {{ durationText }}</p>
                     </div>
                     <div class="shrink-0 text-right">

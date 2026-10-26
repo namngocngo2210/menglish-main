@@ -42,6 +42,7 @@ class PracticeAttemptProps
         return [
             'id' => $attempt->id,
             'term_label' => PracticeCatalog::TERMS[$attempt->term] ?? $attempt->term,
+            'exam_label' => $attempt->exam?->label(),
             'grade' => $attempt->grade,
             'started_at' => $attempt->started_at->toIso8601String(),
             'submitted_at' => $attempt->submitted_at?->toIso8601String(),

@@ -5,6 +5,7 @@ namespace App\Services\Practice;
 use App\Models\PracticeAttempt;
 use App\Models\PracticeAttemptItem;
 use App\Models\PracticeBlueprint;
+use App\Models\PracticeExam;
 use App\Models\QuestionBankQuestion;
 use App\Models\Student;
 use App\Models\User;
@@ -49,6 +50,7 @@ class PracticeAttemptService
             $current = PracticeAttempt::query()
                 ->where('student_id', $student->id)
                 ->where('term', $term)
+                ->whereNull('exam_id')
                 ->where('status', PracticeAttempt::IN_PROGRESS)
                 ->latest('id')
                 ->first();
@@ -74,7 +76,56 @@ class PracticeAttemptService
                 return new PracticeException('Chưa có đề cho khối '.$grade.' – '.PracticeCatalog::TERMS[$term].'.');
             }
 
-            return $this->createAttempt($student, $user, $blueprint, $questions);
+            return $this->createAttempt($student, $user, $grade, $term, $blueprint->duration_minutes, $questions);
+        });
+
+        if ($result instanceof PracticeException) {
+            throw $result;
+        }
+
+        return $result;
+    }
+
+    /**
+     * Đề cố định (§11.3): làm tiếp lượt đang làm (chưa quá hạn) của học viên với đề này, hoặc tạo lượt mới đúng thứ tự
+     * câu của đề. Chỉ đề đã mở, cùng khối với học viên.
+     *
+     * @throws PracticeException
+     */
+    public function startExam(Student $student, User $user, PracticeExam $exam): PracticeAttempt
+    {
+        $result = DB::transaction(function () use ($student, $user, $exam) {
+            Student::query()->whereKey($student->id)->lockForUpdate()->first(['id']);
+
+            $current = PracticeAttempt::query()
+                ->where('student_id', $student->id)
+                ->where('exam_id', $exam->id)
+                ->where('status', PracticeAttempt::IN_PROGRESS)
+                ->latest('id')
+                ->first();
+
+            if ($current !== null) {
+                if (now()->lessThanOrEqualTo($current->deadline_at)) {
+                    return $current;
+                }
+                $this->finalize($current, 'timeout');
+            }
+
+            // khoá hàng đề: Học thuật ẩn đề cùng lúc thì không tạo lượt mới
+            $exam = PracticeExam::query()->lockForUpdate()->find($exam->id);
+            if ($exam === null || $exam->status !== PracticeExam::PUBLISHED) {
+                return new PracticeException('Đề này hiện không mở.');
+            }
+            if (SchoolGrade::forStudent($student) !== $exam->grade) {
+                return new PracticeException('Đề này dành cho khối '.$exam->grade.'.');
+            }
+
+            $questions = $exam->questions()->with('passage')->get();
+            if ($questions->isEmpty()) {
+                return new PracticeException('Đề chưa có câu hỏi.');
+            }
+
+            return $this->createAttempt($student, $user, $exam->grade, $exam->term, $exam->duration_minutes, $questions, $exam->id);
         });
 
         if ($result instanceof PracticeException) {
@@ -229,6 +280,7 @@ class PracticeAttemptService
             ->where('student_id', $student->id)
             ->where('grade', $grade)
             ->where('term', $term)
+            ->whereNull('exam_id')
             ->orderByDesc('id')
             ->limit(self::RECENT_ATTEMPTS);
 
@@ -242,17 +294,18 @@ class PracticeAttemptService
     }
 
     /** @param  Collection<int, QuestionBankQuestion>  $questions */
-    private function createAttempt(Student $student, User $user, PracticeBlueprint $blueprint, Collection $questions): PracticeAttempt
+    private function createAttempt(Student $student, User $user, int $grade, string $term, int $durationMinutes, Collection $questions, ?int $examId = null): PracticeAttempt
     {
         $now = now();
         $attempt = PracticeAttempt::create([
             'student_id' => $student->id,
             'user_id' => $user->id,
-            'grade' => $blueprint->grade,
-            'term' => $blueprint->term,
+            'exam_id' => $examId,
+            'grade' => $grade,
+            'term' => $term,
             'status' => PracticeAttempt::IN_PROGRESS,
             'started_at' => $now,
-            'deadline_at' => $now->copy()->addMinutes($blueprint->duration_minutes),
+            'deadline_at' => $now->copy()->addMinutes($durationMinutes),
             'total' => $questions->count(),
         ]);
 

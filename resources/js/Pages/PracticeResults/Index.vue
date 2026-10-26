@@ -31,6 +31,7 @@ function studentUrl(row) {
     <UiFilterBar search="q" placeholder="Tìm tên / mã học viên…" aria-label="Lọc kết quả luyện tập">
         <UiSelect name="grade" label="Khối" :options="filterOptions.grades" placeholder="Tất cả khối" />
         <UiSelect name="term" label="Kỳ" :options="filterOptions.terms" placeholder="Tất cả kỳ" />
+        <UiSelect name="exam" label="Đề" :options="filterOptions.exams" placeholder="Tất cả đề" />
         <UiSelect name="class_id" label="Lớp" :options="filterOptions.classes" placeholder="Tất cả lớp" />
         <UiDateRange label="Ngày nộp" />
         <UiCheckbox name="mine" value="1" :checked="filters.mine" label="Chỉ lớp tôi dạy" class="md:self-end md:pb-sm" />

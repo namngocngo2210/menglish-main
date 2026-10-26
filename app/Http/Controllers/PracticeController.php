@@ -6,6 +6,7 @@ use App\Http\Concerns\ResolvesPortalStudent;
 use App\Models\PracticeAttempt;
 use App\Models\PracticeAttemptItem;
 use App\Models\PracticeBlueprint;
+use App\Models\PracticeExam;
 use App\Models\Student;
 use App\Models\User;
 use App\Services\Practice\PracticeAttemptProps;
@@ -53,6 +54,7 @@ class PracticeController extends Controller
         $inProgress = $student
             ? PracticeAttempt::query()
                 ->where('student_id', $student->id)
+                ->whereNull('exam_id')
                 ->where('status', PracticeAttempt::IN_PROGRESS)
                 ->where('deadline_at', '>=', now())
                 ->orderBy('id')
@@ -76,6 +78,7 @@ class PracticeController extends Controller
         })->values()->all();
 
         $history = PracticeAttempt::query()
+            ->with('exam:id,code')
             ->where('status', PracticeAttempt::SUBMITTED)
             ->when($student, fn ($q) => $q->where('student_id', $student->id), fn ($q) => $q->whereRaw('1 = 0'))
             ->orderByDesc('id')
@@ -84,6 +87,7 @@ class PracticeController extends Controller
             ->through(fn (PracticeAttempt $a) => [
                 'id' => $a->id,
                 'term_label' => PracticeCatalog::TERMS[$a->term] ?? $a->term,
+                'exam_label' => $a->exam?->label(),
                 'started_at' => $a->started_at->toIso8601String(),
                 'duration_seconds' => $this->attemptProps->durationSeconds($a),
                 'score' => (float) $a->score,
@@ -96,6 +100,7 @@ class PracticeController extends Controller
             'grade' => $grade,
             'schoolYear' => SchoolGrade::schoolYearLabel(now()),
             'terms' => $terms,
+            'exams' => $student && $gradeSupported ? $this->examCards($student, $grade) : [],
             'history' => $history,
             'canStart' => $student !== null && $gradeSupported && $student->isLinkedTo($user),
         ]);
@@ -105,7 +110,8 @@ class PracticeController extends Controller
     {
         $data = $request->validate([
             'student_id' => ['required', 'integer'],
-            'term' => ['required', 'string'],
+            'term' => ['required_without:exam_id', 'nullable', 'string'],
+            'exam_id' => ['nullable', 'integer'],
         ]);
         $user = $request->user();
         $student = Student::query()->find($data['student_id']);
@@ -113,7 +119,13 @@ class PracticeController extends Controller
         abort_unless($student->isLinkedTo($user), 403, 'Chỉ học viên / phụ huynh của hồ sơ này mới làm bài luyện tập được.');
 
         try {
-            $attempt = $this->attempts->start($student, $user, $data['term']);
+            if (isset($data['exam_id'])) {
+                $exam = PracticeExam::query()->find($data['exam_id']);
+                abort_unless($exam, 404);
+                $attempt = $this->attempts->startExam($student, $user, $exam);
+            } else {
+                $attempt = $this->attempts->start($student, $user, (string) $data['term']);
+            }
         } catch (PracticeException $e) {
             return back()->with('error', $e->getMessage());
         }
@@ -200,6 +212,7 @@ class PracticeController extends Controller
                 'id' => $attempt->id,
                 'student_id' => $attempt->student_id,
                 'term_label' => PracticeCatalog::TERMS[$attempt->term] ?? $attempt->term,
+                'exam_label' => $attempt->exam?->label(),
                 'grade' => $attempt->grade,
                 'remainingSeconds' => (int) max(0, ceil(now()->diffInSeconds($attempt->deadline_at, false))),
                 'violationCount' => (int) $attempt->violation_count,
@@ -217,6 +230,52 @@ class PracticeController extends Controller
             'attempt' => $this->attemptProps->result($attempt),
             'items' => $this->attemptProps->reviewItems($attempt),
         ]);
+    }
+
+    /**
+     * Đề cố định đã mở của khối học viên, theo kỳ rồi mã đề: số câu, thời gian, số lượt đã nộp, điểm cao nhất, lượt đang
+     * làm còn hạn (nút "Làm tiếp"). 3 truy vấn.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function examCards(Student $student, int $grade): array
+    {
+        $exams = PracticeExam::query()->published()->where('grade', $grade)
+            ->withCount('questions')
+            ->get(['id', 'grade', 'term', 'code', 'title', 'duration_minutes'])
+            ->sortBy(fn (PracticeExam $e) => [array_search($e->term, array_keys(PracticeCatalog::TERMS), true), $e->code])
+            ->values();
+        if ($exams->isEmpty()) {
+            return [];
+        }
+
+        $stats = PracticeAttempt::query()->toBase()
+            ->where('student_id', $student->id)
+            ->whereIn('exam_id', $exams->pluck('id'))
+            ->where('status', PracticeAttempt::SUBMITTED)
+            ->groupBy('exam_id')
+            ->selectRaw('exam_id, count(*) as attempts, max(score) as best_score')
+            ->get()->keyBy('exam_id');
+        $inProgress = PracticeAttempt::query()
+            ->where('student_id', $student->id)
+            ->whereIn('exam_id', $exams->pluck('id'))
+            ->where('status', PracticeAttempt::IN_PROGRESS)
+            ->where('deadline_at', '>=', now())
+            ->orderBy('id')
+            ->pluck('id', 'exam_id');
+
+        return $exams->map(fn (PracticeExam $e) => [
+            'id' => $e->id,
+            'code' => $e->code,
+            'label' => $e->label(),
+            'term' => $e->term,
+            'term_label' => $e->termLabel(),
+            'question_count' => (int) $e->questions_count,
+            'duration' => $e->duration_minutes,
+            'attempts' => (int) ($stats[$e->id]->attempts ?? 0),
+            'best_score' => isset($stats[$e->id]) && $stats[$e->id]->best_score !== null ? (float) $stats[$e->id]->best_score : null,
+            'inProgressAttemptId' => $inProgress->get($e->id),
+        ])->all();
     }
 
     /** Chủ hồ sơ, hoặc nhân sự có student.view với học viên trong phạm vi dữ liệu. */

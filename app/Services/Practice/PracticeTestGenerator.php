@@ -28,7 +28,7 @@ class PracticeTestGenerator
         $used = [];
 
         foreach ($rows as $row) {
-            $candidates = QuestionBankQuestion::query()->approved()
+            $candidates = QuestionBankQuestion::query()->inBank()->approved()
                 ->where('grade', $blueprint->grade)
                 ->where('term', $blueprint->term)
                 ->where('skill', $row['skill'])

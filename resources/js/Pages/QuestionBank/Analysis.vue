@@ -33,6 +33,7 @@ const editUrl = (id) => route('question-bank.questions.edit', { question: id, re
     <UiTabs class="mb-lg">
         <UiTab :href="route('question-bank.index')">Câu hỏi</UiTab>
         <UiTab :href="route('question-bank.blueprints.index')">Khung đề</UiTab>
+        <UiTab :href="route('question-bank.exams.index')">Đề cố định</UiTab>
         <UiTab :href="route('question-bank.analysis')" active>Phân tích câu hỏi</UiTab>
     </UiTabs>
 
