@@ -8,18 +8,25 @@ use App\Models\ClassModel;
 use App\Models\KpiCriterion;
 use App\Models\KpiEvaluation;
 use App\Models\MaterialOrder;
+use App\Models\MiniTestScore;
 use App\Models\PayrollPeriod;
 use App\Models\Penalty;
+use App\Models\SlaEvent;
 use App\Models\StaffAttendance;
 use App\Models\StaffAttendanceRequest;
+use App\Models\StaffReport;
+use App\Models\Student;
+use App\Models\StudentAttendance;
 use App\Models\TeacherTimesheet;
 use App\Models\User;
 use App\Models\WorkTask;
+use App\Services\Kpi\KpiAutoCounter;
 use App\Services\Kpi\KpiSheetService;
 use App\Support\Roles;
 use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\DemoPayrollSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -33,6 +40,8 @@ class DemoPayrollSeederTest extends TestCase
         Storage::fake('local');
         $this->travelTo(now()->startOfMonth()->addDays(14)->setTime(12, 0));
         $this->seed(DatabaseSeeder::class);
+        // DatabaseSeeder chỉ gọi demo lương ngoài unit test (staging / local).
+        $this->assertSame(0, StaffAttendance::count());
         $this->seed(DemoPayrollSeeder::class);
 
         $month = now()->startOfMonth();
@@ -134,12 +143,70 @@ class DemoPayrollSeederTest extends TestCase
         $this->assertGreaterThan($score('gv.cohuu1@menglish.edu.vn') + 20, $score('gv.cohuu2@menglish.edu.vn'));
         $this->assertTrue(TeacherTimesheet::whereHas('classModel', fn ($q) => $q->where('code', 'DEMO-CG-SPK27'))->where('status', 'valid')->exists());
 
+        $this->assertKpiSourcesCovered($last, $month);
+
         // Chạy lại không nhân bản.
         $counts = fn () => [StaffAttendance::count(), StaffAttendanceRequest::count(), TeacherTimesheet::count(), KpiEvaluation::count(), User::count(),
-            AcademicProject::count(), WorkTask::count(), MaterialOrder::count()];
+            AcademicProject::count(), WorkTask::count(), MaterialOrder::count(), Student::count(), StudentAttendance::count(), MiniTestScore::count(),
+            StaffReport::count(), SlaEvent::count()];
         $before = $counts();
         $this->seed(DemoPayrollSeeder::class);
         $this->assertSame($before, $counts());
+    }
+
+    /**
+     * Mọi tiêu chí KPI tự đếm có số liệu thật ở tháng trước và tháng này: ít nhất 1 người có số khác rỗng / khác 0 (trừ báo cáo
+     * tháng của tháng này — chưa tới hạn — và chăm sóc tháng đầu tháng trước). Người tốt hơn người kém; phiếu tháng trước chốt
+     * theo số tự đếm.
+     */
+    private function assertKpiSourcesCovered(Carbon $last, Carbon $month): void
+    {
+        $counter = app(KpiAutoCounter::class);
+        $sheets = app(KpiSheetService::class);
+        $skip = ['this|monthly_report_on_time', 'last|care_overdue'];
+        $measure = function (string $email, string $source, Carbon $m) use ($counter) {
+            $user = User::where('email', $email)->firstOrFail();
+            $period = KpiSheetService::periodFor($user, $m->month, $m->year);
+
+            return $counter->measure($source, $user, $period['from'], $period['to'])['value'];
+        };
+
+        foreach (['last' => $last, 'this' => $month] as $label => $m) {
+            foreach (KpiCriterion::active()->whereNotNull('auto_source')->get() as $criterion) {
+                if (in_array("{$label}|{$criterion->auto_source}", $skip, true)) {
+                    continue;
+                }
+                $period = KpiSheetService::period($criterion->role, $m->month, $m->year);
+                $values = $sheets->staffQuery($criterion->role)->get()
+                    ->map(fn (User $u) => $counter->measure($criterion->auto_source, $u, $period['from'], $period['to'])['value']);
+                $this->assertTrue($values->contains(fn ($v) => $v !== null && (float) $v != 0.0),
+                    "Nguồn {$criterion->auto_source} ({$criterion->role}) {$label} không có số liệu.");
+            }
+        }
+
+        // Người tốt / kém: lớp GV part-time tốt chuyên cần, BTVN, kết quả test cao hơn lớp GV full-time kém (tháng trước lớp K27 của
+        // gv.cohuu1, tháng này lớp K28 của GV full-time mới).
+        foreach (['class_attendance_rate', 'homework_rate', 'test_result'] as $source) {
+            foreach ([$last, $month] as $m) {
+                $good = $measure('gv.banthoigian1@menglish.edu.vn', $source, $m);
+                $bad = $measure($m->eq($last) ? 'gv.cohuu1@menglish.edu.vn' : 'gv.hamy@menglish.edu.vn', $source, $m);
+                $this->assertNotNull($good, "{$source} GV tốt {$m->format('m/Y')}");
+                $this->assertNotNull($bad, "{$source} GV kém {$m->format('m/Y')}");
+                $this->assertGreaterThan($bad, $good, "{$source} {$m->format('m/Y')}: GV tốt phải cao hơn GV kém.");
+            }
+        }
+        $this->assertSame(1, $measure('gv.cohuu1@menglish.edu.vn', 'teacher_absent_unexcused', $last));
+        $this->assertSame(1, $measure('gv.native1@menglish.edu.vn', 'teacher_leave', $last));
+        $this->assertGreaterThan($measure('levanvu@menglish.edu.vn', 'crm_sla_late', $month), $measure('hoangthinh@menglish.edu.vn', 'crm_sla_late', $month));
+        $this->assertGreaterThan($measure('nva@menglish.edu.vn', 'tuition_no_reminder', $last), $measure('giaovu2@menglish.edu.vn', 'tuition_no_reminder', $last));
+
+        // Phiếu tháng trước đã chốt lấy số tự đếm (không phải số điền tay): nghỉ không phép → loại trừ, tổng 0.
+        $cohuu1 = User::where('email', 'gv.cohuu1@menglish.edu.vn')->firstOrFail();
+        $evaluation = KpiEvaluation::where('user_id', $cohuu1->id)->where('year', $last->year)->where('month', $last->month)->firstOrFail();
+        $this->assertSame(KpiEvaluation::STATUS_APPROVED, $evaluation->status);
+        $this->assertSame(0.0, (float) $evaluation->total_score);
+        $attendance = $evaluation->items()->whereHas('criterion', fn ($q) => $q->where('auto_source', 'class_attendance_rate'))->firstOrFail();
+        $this->assertNotNull($attendance->evidence);
     }
 
     public function test_command_refuses_production_without_force(): void

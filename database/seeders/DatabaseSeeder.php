@@ -15,8 +15,8 @@ class DatabaseSeeder extends Seeder
      * Branch → Permission → Role (cần permission) → SystemCategory →
      * Holiday (cần branch) → User (cần branch + role).
      *
-     * Ngoại lệ: DemoPhase1Seeder … DemoPhase4Seeder (dữ liệu nghiệp vụ mẫu) chỉ chạy ở local/testing/staging
-     * hoặc SEED_DEMO=true.
+     * Ngoại lệ: DemoPhase1Seeder … DemoPhase4Seeder, DemoPayrollSeeder (dữ liệu nghiệp vụ mẫu) chỉ chạy ở
+     * local/testing/staging hoặc SEED_DEMO=true.
      */
     public function run(): void
     {
@@ -44,6 +44,11 @@ class DatabaseSeeder extends Seeder
             $this->call(DemoPhase4Seeder::class);
             // Kho syllabus: buổi đủ cột Sheet 1, tài liệu, đề xuất sửa, giáo trình import từ zip (dựng trên giáo trình Phase 2).
             $this->call(DemoSyllabusLibrarySeeder::class);
+            // Phần lương (demo:luong): chấm công, giờ dạy, biên bản, KPI có nguồn tự đếm, bảng lương. Không chạy khi unit test (mỗi
+            // test seed DatabaseSeeder sẽ chậm thêm, DemoPayrollSeederTest tự gọi) và production (trộn vào lương thật).
+            if (! app()->runningUnitTests() && ! app()->isProduction()) {
+                $this->call(DemoPayrollSeeder::class);
+            }
         }
     }
 }
