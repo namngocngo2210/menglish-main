@@ -186,13 +186,14 @@ Hiện trạng (khảo sát 23/10/2026):
 | Bước 7, câu 5 | Nút ORDER luôn ở góc màn GV, sáng / nhấp nháy khi tới mốc; in ấn → vận hành cơ sở, đề test → Học thuật; xử lý trước ≥ 3 buổi trước test | 4 |
 | Bước 8–10, câu 1, 9, 10 | Còn N buổi đến buổi cuối chặng **hoặc tới mốc "Báo chuẩn bị" đã đánh dấu trong syllabus** → thông báo + việc cho Học thuật (NHẬN VIỆC → Đang làm, hạn = buổi cuối chặng, quá hạn đỏ + nhắc hằng ngày, HOÀN THÀNH → báo cáo tuần; Quản lý + người làm xem & ghi chú); việc giao theo cơ sở và lớp | 4 |
 | Câu 6, câu 11 | Mini test ở buổi đầu Unit sau, Big Test là buổi riêng (đã có trong form Sheet 1); sản phẩm đầu ra của buổi test = điểm → nút nhập điểm từ buổi test | 3 |
-| Câu 12 | Giao chặng → tự mở quyền **xem** file Google Drive (link trong syllabus chặng) cho GV chính + GVNN; chặng đóng → tự đóng | 2 |
+| Câu 12 | PPT / PPT GVNN của buổi **tải file lên app**, GV chặng đang mở trình chiếu trong app (iframe Office Online) — thay cho mở quyền Google Drive | 2 |
 | Câu 7 | Homework 3 giỏ: HS nộp ảnh (bài giấy) / video; Quizizz HS tự bấm "Đã làm" (thống kê Quizizz "tùy chọn IT"); thống kê tỉ lệ nộp theo HS / lớp | 5 |
 | Quy tắc thông báo (Sheet 3) | 6 loại thông báo, mỗi loại có nút hành động (XÁC NHẬN, ĐÃ XEM, NHẮC LẠI, NHẬN VIỆC, ORDER, XỬ LÝ) | 2 (khung) + 2–4 |
 
 Khác quy trình có chủ đích (chủ dự án đã chốt): Bước 1 ghi "chỉ Học thuật & Quản lý được xem" Kho syllabus — Học vụ
-**xem chỉ đọc** để order in ấn (chốt 23/10/2026). Câu 12 "mở quyền truy cập trên Drive": hệ thống **tự mở / đóng quyền xem
-file Google Drive** qua Drive API (mục 7.4, chốt 23/10/2026).
+**xem chỉ đọc** để order in ấn (chốt 23/10/2026). Câu 12 "mở quyền truy cập trên Drive": ban đầu hệ thống tự mở / đóng quyền xem
+file Google Drive qua Drive API (chốt 23/10/2026); **đã bỏ (26/10/2026)** — PPT của buổi tải lên app và trình chiếu bằng iframe
+Office Online (mục 7.4).
 
 ## 6. Nền chung cho giai đoạn 2–5
 
@@ -217,7 +218,7 @@ file Google Drive** qua Drive API (mục 7.4, chốt 23/10/2026).
 | Bảng | Cột | Ghi chú |
 |---|---|---|
 | `syllabus_assignments` | `start_date` date null, `planned_sessions` smallint null, `confirmed_at` timestamp null, `confirmed_by` FK users null, `confirm_reminded_at` timestamp null | Ngày bắt đầu + số buổi dự kiến từ form giao; backfill `start_date = date(opened_at)`, `planned_sessions` = số buổi của chặng. `deadline` (dự kiến kết thúc) **tự tính**, không nhập tay |
-| `syllabus_drive_grants` (mới) | `id`, `email`, `file_id` (ID Drive), `file_kind` (`file` / `folder`), `permission_id` null, `status` (`pending` / `granted` / `revoking` / `revoked` / `failed` / `skipped`), `pre_existing` bool, `error` text null, `attempts` smallint, `granted_at`, `revoked_at`, timestamps; unique (`email`, `file_id`) | Trạng thái quyền xem Drive theo (người, file) — mục 7.4 |
+| `syllabus_lesson_slides` (mới, 26/10/2026; thay `syllabus_drive_grants` đã xoá) | `id`, `syllabus_lesson_id` FK, `kind` (`ppt` / `ppt_foreign`), `file_path`, `original_name`, `size_bytes`, `uploaded_by` FK users null, timestamps; unique (`syllabus_lesson_id`, `kind`) | PPT tải lên của buổi — mục 7.4 |
 | `class_lesson_overrides` (mới) | `id`, `class_id` FK, `syllabus_lesson_id` FK, `data` json (chỉ các trường nội dung Sheet 1 bị sửa), `reason` text, `edited_by` FK users, timestamps; unique (`class_id`, `syllabus_lesson_id`) | Bản đè = "Chỉnh sửa thủ công: Có". Xoá bản đè = quay về bản gốc |
 
 Không sao chép syllabus: buổi hiệu lực = gốc + `data` của bản đè. Sửa gốc → mọi lớp nhận ngay ở trường chưa bị đè
@@ -265,28 +266,25 @@ Không sao chép syllabus: buổi hiệu lực = gốc + `data` của bản đè
    (gộp 1 thông báo / lớp / lần lưu) "Syllabus Chặng X (giáo trình Y) đã được Học thuật cập nhật." nút ĐÃ XEM.
 7. **Sheet 2 tự tính**: trang chi tiết giáo trình, mỗi chặng hiện "N buổi · báo Học thuật ở buổi N − báo trước".
 
-### 7.4. Quyền xem file Google Drive (câu 12)
+### 7.4. Bài giảng PowerPoint của buổi (câu 12)
 
-- **Kết nối**: 1 service account Google Cloud (khóa JSON trên server: `GOOGLE_DRIVE_SA_KEY_PATH`, không commit). Học thuật để
-  tài liệu syllabus trong thư mục / Shared Drive đã chia sẻ quyền **Chỉnh sửa** cho email service account. Client gọn
-  `App\Services\GoogleDrive\DriveClient` (JWT RS256 bằng `openssl_sign` + `Http`, scope `drive`) — không thêm thư viện.
-  Chưa cấu hình → tắt tính năng, tab Syllabus của lớp báo "Chưa kết nối Google Drive".
-- **File nào**: mọi link Google Drive trong syllabus hiệu lực của chặng (gốc + bản đè của lớp): Link PPT, PPT GVNN, Quizizz
-  (nếu là Drive), đề Mini test / Kiểm tra từ, Link mục lục chặng. Nhận dạng ID từ `docs.google.com/{document,presentation,
-  spreadsheets}/d/{id}`, `drive.google.com/file/d/{id}`, `drive.google.com/drive/folders/{id}`, `open?id={id}`. Link không
-  phải Drive (Quizizz, Wayground…) bỏ qua.
-- **Ai**: GV được giao chặng + GV chính + GVNN của lớp, bằng **email đăng nhập hệ thống** (chốt 23/10/2026). Trợ giảng không.
-- **Quyền**: `permissions.create` role **reader** (chỉ xem), `sendNotificationEmail=false`; đặt
-  `copyRequiresWriterPermission=true` trên file để người xem không tải / in / sao chép. Thư mục: reader trên thư mục.
-- **Mở**: khi giao chặng (và khi sửa syllabus thêm link mới, đổi GV / GVNN). **Đóng**: khi chặng đóng (Big Test xong / đóng
-  tay / chuyển chặng), GV bị đổi khỏi lớp, link bị xoá khỏi syllabus — trừ khi người đó vẫn cần file cho chặng đang mở khác.
-- **Đồng bộ kiểu đối chiếu** (lệnh `syllabus:sync-drive-access`, mỗi phút, idempotent; repo không có queue worker): tính tập
-  (email, file) cần có từ mọi chặng đang mở → so với `syllabus_drive_grants` → tạo quyền thiếu, thu hồi quyền thừa. Trước
-  khi tạo, đọc quyền hiện có của file: người đã có quyền từ trước (Học thuật tự chia sẻ) → `pre_existing`, **không bao giờ
-  thu hồi**. Lỗi (file không chia sẻ cho service account, email không phải tài khoản Google…) → `failed` + lý do, thử lại tối
-  đa 5 lần, báo Học thuật 1 lần.
-- **Hiển thị**: tab Syllabus của lớp có bảng "Quyền Google Drive" (file, người, trạng thái, lỗi) + nút "Đồng bộ lại".
-- Tài liệu cài đặt: `docs/google-drive-syllabus.md` (tạo service account, bật Drive API, chia sẻ thư mục, biến môi trường).
+Thay cho đồng bộ quyền xem Google Drive (bỏ 26/10/2026: bảng `syllabus_drive_grants`, lệnh `syllabus:sync-drive-access`,
+bảng "Quyền xem Google Drive" ở tab Syllabus của lớp, biến `GOOGLE_DRIVE_SA_KEY_PATH`). Quyền đã mở trên Drive trước đó không bị
+thu hồi tự động.
+
+- **Tải lên**: Kho syllabus → buổi → "Bài giảng PPT": mỗi buổi 1 file **PPT** + 1 file **PPT GVNN** (`.pptx` / `.ppt`, tối đa
+  100 MB, đuôi theo nội dung), tải lại = thay file. Chỉ `syllabus.library`. File nằm trên disk riêng tư `local`
+  (`syllabus_slides/`, lên R2 khi `UPLOAD_STORAGE=r2`). Ô "Link PPT / Link PPT GVNN" bỏ khỏi form sửa buổi và form sửa riêng cho
+  lớp; link cũ (dữ liệu trước đó, file import Sheet 1) vẫn hiện khi buổi chưa có file.
+- **Trình chiếu**: route `syllabus.slides.show` — trang `Syllabus/SlideViewer` có iframe
+  `https://view.officeapps.live.com/op/embed.aspx?src=…` (giữ hiệu ứng, liên kết nhảy slide, trigger; không chạy macro VBA) +
+  nút Toàn màn hình. Mở từ chip PPT của buổi (Kho syllabus) và "Bài giảng hôm nay" của GV.
+- **Ai xem**: người có `syllabus.library_view` / `library` / `class_edit` / `manage`; GV / GVNN / TG của lớp (kể cả dạy thay) hoặc
+  GV được giao chặng — chỉ khi chặng của buổi **đang mở** cho lớp đó (như tài liệu buổi).
+- **Link cho Microsoft**: trình xem Office tải file từ máy chủ của Microsoft nên cần link công khai: route `slides.public`
+  `/slides/{id}/{expires}/{chữ ký}/slide.pptx` (không đăng nhập, chữ ký HMAC theo `APP_KEY` gồm đường dẫn file, hạn 4 giờ, thay
+  file → link cũ hết hiệu lực, throttle 60/phút). Máy chạy thử (`APP_URL` localhost / IP nội bộ) không trình chiếu được — trang
+  báo trước.
 
 ## 8. Giai đoạn 3 — GV vận hành theo buổi
 
@@ -401,9 +399,8 @@ Giỏ của bài tập: `Homework::CATEGORIES` → giỏ (`video` → video; `qu
 - **Lớp đang chạy khi triển khai**: chưa có dòng `class_lesson_progress` → migration backfill: với mỗi chặng đang mở, đánh
   dấu Đã dạy số buổi = số buổi học đã qua kể từ ngày mở chặng (cách đếm cũ), để lớp không quay về buổi 1.
 - `SessionLessonService` đổi cách đánh số buổi → các màn TKB / giao bài tập / báo cáo trực lớp đổi nhãn buổi; test hồi quy.
-- **Google Drive**: email đăng nhập của GV không phải tài khoản Google → không mở được quyền (hiện lỗi rõ trong bảng
-  trạng thái). `copyRequiresWriterPermission` đổi cài đặt của chính file (áp cho mọi người xem). Hạn mức Drive API
-  (~12.000 lượt / phút) dư cho quy mô trung tâm. Khóa service account là bí mật — chỉ đặt trên server.
+- **PPT trình chiếu trong app**: ai có link công khai (còn hạn) đều tải được file — link chỉ nằm trong iframe của trang đã kiểm
+  quyền, hết hạn sau 4 giờ. Trình xem Office Online không chạy macro VBA.
 - v2 parity: `iam.rbac` (2 quyền mới), `web.menu`, các bảng mới — đồng bộ ở đợt v2 sau.
 
 ## 12. Sprint giai đoạn 2–5 (mỗi giai đoạn 1 PR)
@@ -414,7 +411,7 @@ Giỏ của bài tập: `Homework::CATEGORIES` → giỏ (`video` → video; `qu
 - [x] S2.3 GV xác nhận + nhắc 24h; bỏ tự mở chặng kế, báo Học thuật giao chặng tiếp.
 - [x] S2.4 `ClassSyllabus` + bản đè + tab Syllabus trong trang lớp + báo GV khi sửa riêng / sửa gốc; Sheet 2 tự tính.
 - [x] S2.5 Giao chặng: số buổi → ngày dự kiến kết thúc tự tính theo TKB.
-- [x] S2.6 Google Drive: `DriveClient`, `syllabus_drive_grants`, lệnh đồng bộ mở / đóng quyền xem, bảng trạng thái, tài liệu cài đặt.
+- [x] S2.6 Google Drive: `DriveClient`, `syllabus_drive_grants`, lệnh đồng bộ mở / đóng quyền xem, bảng trạng thái, tài liệu cài đặt (đã bỏ 26/10/2026 → PPT tải lên + iframe, mục 7.4).
 
 ### Giai đoạn 3 (xong 24/10/2026)
 - [x] S3.1 `class_lesson_progress` + backfill + tiến độ / lịch dự kiến trong `ClassSyllabus`; `SessionLessonService` dùng lịch mới.

@@ -94,7 +94,7 @@ class SyllabusNotifier
 
     /**
      * Lớp đổi GV chính (sửa lớp): chặng đang mở giao cho GV cũ chuyển sang GV mới, GV mới phải XÁC NHẬN lại; GV cũ không
-     * còn xác nhận được, quyền Drive của GV cũ được thu hồi ở lượt đồng bộ kế (docs/kho-syllabus.md §7.3–7.4).
+     * còn xác nhận được (docs/kho-syllabus.md §7.3).
      */
     public function classTeacherChanged(ClassModel $class, ?int $previousTeacherId): void
     {

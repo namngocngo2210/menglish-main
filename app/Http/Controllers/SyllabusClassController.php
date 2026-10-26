@@ -6,7 +6,6 @@ use App\Models\ClassLessonOverride;
 use App\Models\ClassModel;
 use App\Models\SyllabusAssignment;
 use App\Models\SyllabusLesson;
-use App\Services\Syllabus\DriveAccessSync;
 use App\Services\Syllabus\SyllabusNotifier;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -80,23 +79,6 @@ class SyllabusClassController extends Controller
         $this->notifier->classSyllabusUpdated($classModel, collect([$lessonModel->session_no]));
 
         return redirect()->back()->with('status', "Buổi {$lessonModel->session_no} của lớp {$classModel->name} đã quay về bản gốc.");
-    }
-
-    /** Học thuật "Đồng bộ lại" quyền xem Google Drive của chặng lớp đang học (thử lại ngay, kể cả quyền đã lỗi). */
-    public function syncDrive(Request $request, int $class, DriveAccessSync $sync)
-    {
-        $classModel = ClassModel::visibleTo($request->user())->findOrFail($class);
-        $assignment = SyllabusAssignment::with(['classModel', 'stage'])->open()->where('class_id', $classModel->id)->firstOrFail();
-        if (! $sync->configured()) {
-            return redirect()->back()->with('error', 'Chưa kết nối Google Drive (thiếu khóa service account trên server).');
-        }
-        $result = $sync->syncAssignment($assignment);
-        if (isset($result['error'])) {
-            return redirect()->back()->with('error', 'Không kết nối được Google Drive: '.$result['error']);
-        }
-
-        return redirect()->back()->with($result['failed'] ? 'warning' : 'status',
-            "Đồng bộ Google Drive: mở {$result['granted']} quyền".($result['failed'] ? ", lỗi {$result['failed']} — xem cột Lỗi." : '.'));
     }
 
     private function normalize(mixed $value): ?string

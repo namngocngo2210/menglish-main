@@ -35,7 +35,7 @@ class TeachingFlowReviewFixesTest extends TestCase
 
     public function test_index_names_fit_mariadb_limit(): void
     {
-        foreach (['class_lesson_progress', 'class_lesson_overrides', 'syllabus_drive_grants'] as $table) {
+        foreach (['class_lesson_progress', 'class_lesson_overrides', 'syllabus_lesson_slides'] as $table) {
             foreach (Schema::getIndexes($table) as $index) {
                 if (! str_starts_with($index['name'], 'sqlite_')) {
                     $this->assertLessThanOrEqual(64, strlen($index['name']), "{$table}: {$index['name']}");

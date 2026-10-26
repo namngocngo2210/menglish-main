@@ -1,7 +1,8 @@
 <script setup>
 /**
  * Chi tiết một buổi học dạng bảng (cột nhãn | cột nội dung), chia nhóm theo form syllabus mẫu.
- * Trường trống hiện "Chưa cập nhật" mờ; trên điện thoại nhãn nằm trên nội dung.
+ * Trường trống hiện "Chưa cập nhật" mờ; trên điện thoại nhãn nằm trên nội dung. PPT đã tải lên (lesson.slides) mở trang trình
+ * chiếu trong app, thay cho link PPT cũ.
  */
 const props = defineProps({
     lesson: { type: Object, required: true },
@@ -14,13 +15,15 @@ const groups = [
     ['Kiến thức trọng tâm', [['vocabulary_focus', 'Từ vựng'], ['grammar_focus', 'Ngữ pháp']]],
     ['Khác', [['note', 'Ghi chú']]],
 ];
+// [trường link, nhãn, biểu tượng, loại PPT tải lên thay cho link]
 const links = [
-    ['ppt_url', 'PPT', 'slideshow'],
-    ['ppt_foreign_url', 'PPT GVNN', 'slideshow'],
+    ['ppt_url', 'PPT', 'slideshow', 'ppt'],
+    ['ppt_foreign_url', 'PPT GVNN', 'slideshow', 'ppt_foreign'],
     ['quizizz_url', 'Quizizz', 'quiz'],
     ['test_url', 'Mini test / Kiểm tra từ', 'assignment'],
 ];
 const hasValue = (field) => String(props.lesson[field] ?? '').trim() !== '';
+const linkUrl = ([field, , , slide]) => (slide && props.lesson.slides?.[slide]?.url) || (hasValue(field) ? props.lesson[field] : null);
 </script>
 
 <template>
@@ -38,10 +41,10 @@ const hasValue = (field) => String(props.lesson[field] ?? '').trim() !== '';
         <div class="grid grid-cols-1 sm:grid-cols-[11rem_1fr]">
             <div class="px-3 pt-2 font-semibold text-on-surface sm:bg-surface-container-low/60 sm:py-2">Link học liệu</div>
             <div class="px-3 pb-2 pt-1 sm:py-2">
-                <div v-if="links.some(([f]) => hasValue(f))" class="flex flex-wrap gap-2">
-                    <template v-for="[field, label, icon] in links" :key="field">
-                        <a v-if="hasValue(field)" :href="lesson[field]" target="_blank" rel="noopener" class="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary-container/10 px-2.5 py-1 font-semibold text-primary hover:bg-primary-container/20">
-                            <span class="material-symbols-outlined text-[14px]" aria-hidden="true">{{ icon }}</span>{{ label }}
+                <div v-if="links.some(linkUrl)" class="flex flex-wrap gap-2">
+                    <template v-for="link in links" :key="link[0]">
+                        <a v-if="linkUrl(link)" :href="linkUrl(link)" target="_blank" rel="noopener" class="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary-container/10 px-2.5 py-1 font-semibold text-primary hover:bg-primary-container/20">
+                            <span class="material-symbols-outlined text-[14px]" aria-hidden="true">{{ link[2] }}</span>{{ link[1] }}
                         </a>
                     </template>
                 </div>

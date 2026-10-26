@@ -32,8 +32,6 @@ Schedule::command('syllabus:notify-adjustment-sla')->hourlyAt(20);
 // Quy trình syllabus (docs/kho-syllabus.md §7.3): GV chưa xác nhận syllabus sau 24h → nhắc 1 lần; ngày dự kiến kết thúc chặng theo TKB.
 Schedule::command('syllabus:remind-unconfirmed')->hourlyAt(25);
 Schedule::command('syllabus:refresh-stage-deadlines')->hourlyAt(5);
-// Quyền xem file Google Drive theo chặng lớp đang học (docs/kho-syllabus.md §7.4): mở khi giao chặng, đóng khi chặng đóng.
-Schedule::command('syllabus:sync-drive-access')->everyMinute()->withoutOverlapping(10);
 // Sắp hết chặng → việc cho Học thuật (NHẬN VIỆC); việc quá hạn nhắc người làm + Quản lý mỗi sáng (docs/kho-syllabus.md §9.2).
 Schedule::command('syllabus:stage-end-alerts')->hourlyAt(35);
 Schedule::command('syllabus:remind-overdue-tasks')->dailyAt('08:00');
