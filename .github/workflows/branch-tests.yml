@@ -22,18 +22,14 @@ jobs:
           extensions: mbstring, pdo_sqlite, intl, gd, zip, bcmath
       - run: composer install --no-interaction --no-progress --prefer-dist
       - run: cp .env.example .env && php artisan key:generate && touch database/testing.sqlite
-      - run: php artisan test --log-junit junit.xml || true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci && npx vite build --ssr
+      - run: php artisan test --compact > out.txt 2>&1 || true
       - name: Danh sách test lỗi
         run: |
-          python3 - <<'EOF'
-          import xml.etree.ElementTree as ET
-          bad = []
-          for case in ET.parse('junit.xml').iter('testcase'):
-              for tag in ('failure', 'error'):
-                  el = case.find(tag)
-                  if el is not None:
-                      msg = (el.text or '').strip().splitlines()
-                      bad.append(f"FAILCASE {case.get('class')}::{case.get('name')} | {(msg[1] if len(msg) > 1 else (msg[0] if msg else ''))[:220]}")
-          print(f"FAILCOUNT {len(bad)}")
-          print("\n".join(sorted(bad)))
-          EOF
+          sed -i 's/\x1b\[[0-9;]*m//g' out.txt
+          cat out.txt
+          grep -E '^\s*Tests:' out.txt || true
+          grep -E '^\s*(FAILED|ERROR)\s' out.txt | sed 's/\s\+/ /g' | sort | uniq
