@@ -133,7 +133,7 @@ class Phase1MockupParityTest extends TestCase
             ->assertSee('Đặt lịch &amp; Kết quả', false)->assertSee('Thông tin khách hàng')
             ->assertSee('Lịch hẹn Test')->assertSee('Gửi kết quả &amp; Phản hồi', false)->assertSee('Kết quả &amp; Đánh giá', false)
             ->assertSee('Nhận xét học thử')->assertSee('Chưa có nhận xét từ buổi học thử.')
-            ->assertSee('Lịch sử hoạt động')->assertSee('Tất cả hoạt động')->assertSee('Hình thức:')->assertSee('Zalo/SMS')
+            ->assertSee('Lịch sử hoạt động')->assertSee('Tất cả hoạt động')->assertSee('Hình thức:')->assertSee('Nhắn tin')
             ->assertSee('Lưu ghi chú')->assertSee('Bắt đầu tạo hồ sơ')
             // A6: CEFR bị bỏ, không Hủy chốt
             ->assertDontSee('Beginner (A1)')->assertDontSee('Hủy chốt');

@@ -15,7 +15,7 @@ class BigTestResult extends Model
         'draft' => 'Nháp',
         'pending_review' => 'Chờ duyệt',
         'approved' => 'Đã duyệt',
-        'sent' => 'Đã gửi phụ huynh',
+        'sent' => 'Đã báo phụ huynh',
     ];
 
     /** Kết quả đã duyệt/đã gửi phụ huynh thì không được chấm lại. */

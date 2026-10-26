@@ -63,7 +63,6 @@ class Phase2MockupSyllabusTest extends TestCase
         parent::setUp();
         $this->seed(PermissionSeeder::class);
         $this->seed(RoleSeeder::class);
-        config(['services.zalo.mode' => 'sandbox']);
 
         $this->branch = Branch::create(['name' => 'Cơ sở Mockup', 'code' => 'MK', 'is_active' => true]);
         $this->academic = User::factory()->create(['name' => 'Học Thuật Mockup', 'is_active' => true, 'branch_id' => $this->branch->id]);
@@ -545,7 +544,7 @@ class Phase2MockupSyllabusTest extends TestCase
 
         $page = route('syllabus.big-tests.results', ['id' => $test->id, 'result' => $scored->id]);
         $this->actingAs($this->academic)->get($page)->assertOk()
-            ->assertSee('Duyệt kết quả Big Test &amp; gửi phụ huynh', false)
+            ->assertSee('Duyệt kết quả Big Test &amp; báo phụ huynh', false)
             ->assertSee('Quản lý Big Test')
             ->assertSee('Thông tin chung')
             ->assertSee('Mã HV: HV-MK-1')
@@ -561,11 +560,11 @@ class Phase2MockupSyllabusTest extends TestCase
             ->assertSee('Trạng thái dữ liệu')
             ->assertSee('Người gửi kết quả')
             ->assertSee('Người duyệt (Hiện tại)')
-            ->assertDontSee('Duyệt &amp; Gửi phụ huynh', false) // chỉ Admin duyệt (06/10/2026)
+            ->assertDontSee('Duyệt &amp; Đã báo phụ huynh', false) // chỉ Admin duyệt (06/10/2026)
             ->assertSee('Hợp lệ');
         $this->actingAs($this->admin)->get($page)->assertOk()
             ->assertSee('Mã HV: HV-MK-1')
-            ->assertSee('Duyệt &amp; Gửi phụ huynh', false);
+            ->assertSee('Duyệt &amp; Đã báo phụ huynh', false);
         $this->actingAs($this->academic)->get(route('syllabus.big-tests.results', $test->id))->assertOk()->assertSee('Xem &amp; duyệt', false)
             ->assertDontSee('Người gửi kết quả'); // chi tiết chỉ mở trong modal khi chọn ?result=
 
@@ -582,6 +581,6 @@ class Phase2MockupSyllabusTest extends TestCase
         $this->assertSame(SyllabusAssignment::STATUS_CLOSED, $assignment->fresh()->status);
         $this->assertSame(0, SyllabusAssignment::open()->where('class_id', $this->class->id)->count());
 
-        $this->actingAs($this->academic)->get($page)->assertOk()->assertSee('Đã gửi phụ huynh')->assertDontSee('Duyệt &amp; Gửi phụ huynh', false);
+        $this->actingAs($this->academic)->get($page)->assertOk()->assertSee('Đã báo phụ huynh')->assertDontSee('Duyệt &amp; Đã báo phụ huynh', false);
     }
 }

@@ -378,7 +378,7 @@ class SepayWebhookController extends Controller
                 'response_message' => 'Đã gạch nợ thành công '.Money::format($appliedAmount)." cho học viên {$matchedStudent?->name} ({$matchedStudent?->code}). Xuất HĐĐT số {$invoiceNumber}.{$overNote}",
             ]);
 
-            // Báo phụ huynh đã nhận tiền: thông báo Cổng Học viên + email (không có email → người phụ trách gửi Zalo).
+            // Báo phụ huynh đã nhận tiền: thông báo Cổng Học viên + email (không có email → người phụ trách nhắn tin).
             try {
                 $parentNotice = app(PaymentConfirmation::class)->notify($receipt);
             } catch (\Throwable $e) {
@@ -392,7 +392,7 @@ class SepayWebhookController extends Controller
                 'message' => "Học viên {$matchedStudent?->name} ({$matchedStudent?->code}) đã thanh toán thành công qua SePay. Phiếu thu: {$receipt->receipt_number}. HĐĐT: {$invoiceNumber}."
                     .($parentNotice['emailed'] ? " Đã gửi email xác nhận tới {$parentNotice['emailed']} và báo ở Cổng Học viên."
                         : ($parentNotice['sent'] ? ($parentNotice['email_failed'] ? ' Gửi email phụ huynh không thành công' : ' Phụ huynh chưa có email')
-                            .': đã báo ở Cổng Học viên, sao chép nội dung để xác nhận qua Zalo nếu cần.' : '')),
+                            .': đã báo ở Cổng Học viên, sao chép nội dung để nhắn xác nhận nếu cần.' : '')),
                 'type' => 'success',
                 'data' => $parentNotice['text'] !== '' ? ['copy_text' => $parentNotice['text'], 'student_id' => $matchedStudent?->id] : null,
                 'is_read' => false,

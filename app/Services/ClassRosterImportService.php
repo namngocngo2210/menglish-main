@@ -555,7 +555,6 @@ class ClassRosterImportService
                             'class_id' => $classId,
                             'enrolled_at' => $enrolledAt,
                             'curriculum_delivered' => false,
-                            'zalo_group_added' => false,
                             'account_sent' => false,
                             'status' => 'completed',
                             'confirmed_at' => now(),

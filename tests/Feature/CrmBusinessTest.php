@@ -428,7 +428,6 @@ class CrmBusinessTest extends TestCase
             'class_id' => $this->classModel->id,
             'customer_id' => $customer->id,
             'curriculum_delivered' => false,
-            'zalo_group_added' => false,
             'status' => 'pending',
         ]);
 

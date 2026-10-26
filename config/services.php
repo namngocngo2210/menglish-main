@@ -42,14 +42,4 @@ return [
         'webhook_secret' => env('SEPAY_WEBHOOK_SECRET'),
     ],
 
-    'zalo' => [
-        'app_id' => env('ZALO_APP_ID'),
-        'secret_key' => env('ZALO_SECRET_KEY'),
-        'oa_id' => env('ZALO_OA_ID'),
-        'access_token' => env('ZALO_ACCESS_TOKEN'),
-        'template_id_bigtest' => env('ZALO_ZNS_TEMPLATE_BIGTEST', '342918'),
-        'template_id_debt' => env('ZALO_ZNS_TEMPLATE_DEBT', '342919'),
-        'mode' => env('ZALO_ZNS_MODE', 'sandbox'), // sandbox | live
-    ],
-
 ];

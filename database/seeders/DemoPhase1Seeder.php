@@ -279,7 +279,6 @@ class DemoPhase1Seeder extends Seeder
                     'enrolled_at' => $class->start_date,
                     'status' => 'completed',
                     'account_sent' => true,
-                    'zalo_group_added' => true,
                     'curriculum_delivered' => true,
                     'confirmed_at' => $class->start_date,
                     'confirmed_by' => $this->staff['academic']->id,
@@ -574,13 +573,13 @@ class DemoPhase1Seeder extends Seeder
         return $customer->refresh();
     }
 
-    /** Xác nhận chính thức (đủ checklist: tài khoản, nhóm Zalo, giáo trình). */
+    /** Xác nhận chính thức (đủ checklist: tài khoản, giáo trình). */
     private function confirm(CrmCustomer $customer): CrmCustomer
     {
         $enrollment = ClassEnrollment::where('customer_id', $customer->id)->whereNull('confirmed_at')->first();
         if ($enrollment) {
             $this->asUser($this->staff['academic'], CrmController::class, 'confirmEnrollment', [
-                'account_sent' => 1, 'zalo_group_added' => 1, 'curriculum_delivered' => 1, 'action' => 'confirm',
+                'account_sent' => 1, 'curriculum_delivered' => 1, 'action' => 'confirm',
             ], ['enrollment' => $enrollment]);
         }
 

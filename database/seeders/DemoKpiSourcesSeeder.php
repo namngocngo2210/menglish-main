@@ -236,7 +236,7 @@ class DemoKpiSourcesSeeder extends Seeder
                 ]);
                 ClassEnrollment::create([
                     'student_id' => $student->id, 'class_id' => $class->id, 'enrolled_at' => $start, 'status' => 'completed',
-                    'account_sent' => true, 'zalo_group_added' => true, 'curriculum_delivered' => true,
+                    'account_sent' => true, 'curriculum_delivered' => true,
                     'confirmed_at' => $start, 'confirmed_by' => $this->academicFor($class, $start)->id,
                 ]);
                 $students->push($student);

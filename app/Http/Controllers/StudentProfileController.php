@@ -183,7 +183,6 @@ class StudentProfileController extends Controller
                 'class_name' => $en->classModel?->name,
                 'teacher' => $en->classModel?->teacher?->name,
                 'curriculum_delivered' => (bool) $en->curriculum_delivered,
-                'zalo_group_added' => (bool) $en->zalo_group_added,
                 'enrolled_at' => $en->enrolled_at?->format('d/m/Y'),
                 'status' => $en->status,
                 'dropped' => $en->status === Student::ENROLLMENT_DROPPED,
@@ -232,7 +231,6 @@ class StudentProfileController extends Controller
                 'class_id' => $class->id,
                 'enrolled_at' => now(),
                 'curriculum_delivered' => false,
-                'zalo_group_added' => false,
                 'status' => 'pending',
             ]);
 
@@ -294,7 +292,6 @@ class StudentProfileController extends Controller
                 'class_id' => $class->id,
                 'enrolled_at' => $transferredOn,
                 'curriculum_delivered' => false,
-                'zalo_group_added' => false,
                 'status' => 'pending',
             ]);
             $student->update(['current_class_id' => $class->id]);
@@ -334,7 +331,6 @@ class StudentProfileController extends Controller
                 'class_id' => $class->id,
                 'enrolled_at' => now(),
                 'curriculum_delivered' => false,
-                'zalo_group_added' => false,
                 'status' => 'pending',
             ]);
 
@@ -366,12 +362,10 @@ class StudentProfileController extends Controller
         }
 
         $curriculumDelivered = $request->boolean('curriculum_delivered');
-        $zaloGroupAdded = $request->boolean('zalo_group_added');
 
         $enrollment->update([
             'curriculum_delivered' => $curriculumDelivered,
-            'zalo_group_added' => $zaloGroupAdded,
-            'status' => $curriculumDelivered && $zaloGroupAdded ? 'completed' : 'pending',
+            'status' => $curriculumDelivered ? 'completed' : 'pending',
         ]);
         // Bàn giao xong vào lớp đã khai giảng → Đang học (lớp chưa khai giảng: lệnh hằng ngày students:start-studying).
         app(ClassStartActivation::class)->forEnrollment($enrollment);

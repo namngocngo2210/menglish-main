@@ -34,7 +34,6 @@ use App\Services\Syllabus\ConfirmReading;
 use App\Services\Syllabus\StageSchedule;
 use App\Services\Syllabus\SyllabusNotifier;
 use App\Services\SyllabusProgressionService;
-use App\Services\ZaloZnsService;
 use App\Support\Approvals\AdminOnlyApprovals;
 use App\Support\Audit;
 use App\Support\Roles;
@@ -56,9 +55,6 @@ use Spatie\Activitylog\Models\Activity;
 
 class SyllabusController extends Controller
 {
-    /** Trạng thái khi không gửi được kết quả Big Test: hồ sơ HV và khách CRM đều không có SĐT phụ huynh. */
-    public const MISSING_PARENT_PHONE = 'Thiếu SĐT phụ huynh';
-
     /** Tab của trang chi tiết giáo trình (Kho syllabus). */
     private const CURRICULUM_TABS = ['info', 'stages', 'documents', 'history'];
 
@@ -818,7 +814,7 @@ class SyllabusController extends Controller
     }
 
     // ─────────────────────────────────────────────
-    // 3. Chặng của lớp: mỗi lớp chỉ 1 chặng đang mở; đóng khi Big Test duyệt & gửi PH; Học thuật giao chặng kế
+    // 3. Chặng của lớp: mỗi lớp chỉ 1 chặng đang mở; đóng khi Big Test duyệt & báo PH; Học thuật giao chặng kế
     // ─────────────────────────────────────────────
 
     public function assignments(Request $request)
@@ -2286,10 +2282,6 @@ class SyllabusController extends Controller
                 ->whereNotIn('id', $test->classModel->roster()->pluck('id'))->orderBy('name')->get())
             : collect();
 
-        // Học viên chưa gửi được kết quả vì không có SĐT phụ huynh (hồ sơ HV → khách CRM).
-        $missingParentPhone = $results->filter(fn ($r) => ! $r->parent_notified && ! $r->is_absent && $r->student && ! $r->student->parentContactPhone())
-            ->pluck('student_id')->map(fn ($id) => (int) $id)->all();
-
         $isApprover = $user->can('big_test.approve');
         $canGradeRole = $user->can('syllabus.update') && ! $isApprover;
         $taken = $results->where('is_absent', false)->whereNotNull('overall_score');
@@ -2318,7 +2310,7 @@ class SyllabusController extends Controller
                 'avg' => $taken->count() > 0 ? round($taken->avg('overall_score'), 1) : 0,
                 'highest' => $taken->count() > 0 ? $taken->max('overall_score') : 0,
             ],
-            'rows' => $students->values()->map(function (Student $student) use ($resultsByStudent, $missingParentPhone) {
+            'rows' => $students->values()->map(function (Student $student) use ($resultsByStudent) {
                 $res = $resultsByStudent->get($student->id);
 
                 return [
@@ -2340,7 +2332,6 @@ class SyllabusController extends Controller
                         'video_url' => $res->video_url,
                         'parent_notified' => (bool) $res->parent_notified,
                         'notified_at' => $res->notified_at?->format('d/m H:i'),
-                        'missing_phone' => in_array((int) $res->student_id, $missingParentPhone, true),
                     ] : null,
                 ];
             }),
@@ -2370,13 +2361,12 @@ class SyllabusController extends Controller
             'canGrade' => $test && $test->is_distributed && $canGradeRole,
             'backUrl' => $user->can('syllabus.manage') || $isApprover ? route('syllabus.big-tests.distribution') : null,
             'resultDeadlineDays' => BigTest::resultDeadlineDays(),
-            'missingPhoneLabel' => self::MISSING_PARENT_PHONE,
         ]);
     }
 
     /**
-     * "Duyệt & Gửi phụ huynh" một học viên: duyệt kết quả đang chờ duyệt rồi gửi Zalo ZNS cho phụ huynh
-     * (vắng thi: chỉ duyệt, không gửi). Sau đó kiểm tra đóng chặng (Q4).
+     * "Duyệt & Đã báo phụ huynh" một học viên: duyệt kết quả đang chờ duyệt rồi ghi nhận đã báo phụ huynh
+     * (vắng thi: chỉ duyệt). Sau đó kiểm tra đóng chặng (Q4).
      */
     public function approveAndSendResult(int $resultId, SyllabusProgressionService $progression)
     {
@@ -2386,7 +2376,7 @@ class SyllabusController extends Controller
         $studentName = $res->student?->name ?? 'Học viên';
 
         if ($res->parent_notified || $res->status === 'sent') {
-            return redirect()->back()->with('error', "Kết quả của em {$studentName} đã được gửi phụ huynh trước đó.");
+            return redirect()->back()->with('error', "Kết quả của em {$studentName} đã được báo phụ huynh trước đó.");
         }
         if (! in_array($res->status, ['pending_review', 'approved'], true)) {
             return redirect()->back()->with('error', "Kết quả của em {$studentName} chưa được giáo viên nhập / gửi duyệt.");
@@ -2396,16 +2386,14 @@ class SyllabusController extends Controller
         }
 
         if ($res->is_absent) {
-            return redirect()->back()->with('status', "Đã duyệt kết quả em {$studentName} (vắng thi — không gửi phụ huynh)."
+            return redirect()->back()->with('status', "Đã duyệt kết quả em {$studentName} (vắng thi)."
                 .$progression->describe($progression->syncBigTest($test->fresh(), Auth::user())));
         }
 
-        return match ($this->deliverZaloResult($res, $test)) {
-            'sent' => redirect()->back()->with('status', "Đã duyệt và gửi kết quả em {$studentName} cho phụ huynh qua Zalo ZNS."
-                .$progression->describe($progression->syncBigTest($test->fresh(), Auth::user()))),
-            'skipped' => redirect()->back()->with('warning', "Đã duyệt kết quả em {$studentName}, nhưng chưa gửi được: ".self::MISSING_PARENT_PHONE.' (nhập SĐT phụ huynh ở hồ sơ học viên).'),
-            default => redirect()->back()->with('warning', "Đã duyệt kết quả em {$studentName}, nhưng gửi Zalo ZNS thất bại — vui lòng bấm Gửi PH lại."),
-        };
+        $this->markNotified($res);
+
+        return redirect()->back()->with('status', "Đã duyệt và ghi nhận báo kết quả em {$studentName} cho phụ huynh."
+            .$progression->describe($progression->syncBigTest($test->fresh(), Auth::user())));
     }
 
     /**
@@ -2466,7 +2454,7 @@ class SyllabusController extends Controller
             ->whereIn('status', BigTestResult::LOCKED_STATUSES)
             ->get();
         if ($locked->isNotEmpty()) {
-            return redirect()->back()->withInput()->with('error', 'Không thể sửa điểm đã được duyệt/đã gửi phụ huynh: '
+            return redirect()->back()->withInput()->with('error', 'Không thể sửa điểm đã được duyệt/đã báo phụ huynh: '
                 .$locked->map(fn ($r) => $r->student?->name ?? '#'.$r->student_id)->implode(', ').'.');
         }
 
@@ -2527,110 +2515,59 @@ class SyllabusController extends Controller
         // Trường hợp mọi kết quả đã gửi / vắng thi: duyệt xong là đủ điều kiện đóng chặng.
         $stageNote = $progression->describe($progression->syncBigTest($test, Auth::user()));
 
-        return redirect()->back()->with('status', 'Đã duyệt kết quả Big Test; có thể gửi cho phụ huynh.'.$stageNote);
+        return redirect()->back()->with('status', 'Đã duyệt kết quả Big Test; báo phụ huynh rồi bấm Đã báo PH.'.$stageNote);
     }
 
-    public function sendZaloResults($id, SyllabusProgressionService $progression)
+    /**
+     * "Đã báo phụ huynh" cả lớp: Học thuật tự báo kết quả cho phụ huynh (kết quả đã duyệt cũng hiện ở Cổng Học viên) rồi
+     * ghi nhận ở đây — các kết quả đã duyệt, không vắng thi, chưa ghi nhận. Sau đó kiểm tra đóng chặng (Q4).
+     */
+    public function markResultsNotified($id, SyllabusProgressionService $progression)
     {
         $test = BigTest::with('classModel')->findOrFail($id);
         abort_unless($test->is_distributed, 422, 'Đề thi chưa được duyệt và phân phối.');
-        $results = BigTestResult::with('student')
-            ->where('big_test_id', $test->id)
+        $results = BigTestResult::where('big_test_id', $test->id)
             ->where('status', 'approved')
             ->where('parent_notified', false)
             ->where('is_absent', false)
             ->get();
 
         if ($results->isEmpty()) {
-            return redirect()->back()->with('error', 'Không có kết quả đã duyệt nào chưa gửi phụ huynh.');
+            return redirect()->back()->with('error', 'Không có kết quả đã duyệt nào chưa báo phụ huynh.');
         }
 
-        $sent = 0;
-        $failed = [];
-        $skipped = [];
-        foreach ($results as $res) {
-            $name = $res->student?->name ?? 'HV #'.$res->student_id;
-            $outcome = $this->deliverZaloResult($res, $test);
-            match ($outcome) {
-                'sent' => $sent++,
-                'skipped' => $skipped[] = $name,
-                default => $failed[] = $name,
-            };
-        }
+        $results->each(fn (BigTestResult $res) => $this->markNotified($res));
 
-        $message = "Kỳ thi [{$test->title}]: đã gửi Zalo ZNS {$sent} phụ huynh";
-        // Q4: Big Test của chặng đã duyệt và gửi đủ → đóng chặng, tự mở chặng kế tiếp.
-        $stageNote = $sent > 0 ? $progression->describe($progression->syncBigTest($test->fresh(), Auth::user())) : '';
-        if ($failed === [] && $skipped === []) {
-            return redirect()->back()->with('status', $message.'.'.$stageNote);
-        }
-        if ($failed !== []) {
-            $message .= '; gửi lỗi '.count($failed).' ('.implode(', ', $failed).')';
-        }
-        if ($skipped !== []) {
-            $message .= '; bỏ qua '.count($skipped).' — '.self::MISSING_PARENT_PHONE.' ('.implode(', ', $skipped).')';
-        }
-
-        return redirect()->back()->with('warning', $message.'.'.$stageNote);
+        // Q4: Big Test của chặng đã duyệt và báo đủ → đóng chặng, tự mở chặng kế tiếp.
+        return redirect()->back()->with('status', "Kỳ thi [{$test->title}]: đã ghi nhận báo kết quả cho {$results->count()} phụ huynh."
+            .$progression->describe($progression->syncBigTest($test->fresh(), Auth::user())));
     }
 
-    public function sendSingleZaloResult($resultId, SyllabusProgressionService $progression)
+    public function markResultNotified($resultId, SyllabusProgressionService $progression)
     {
         $res = BigTestResult::with(['student', 'bigTest.classModel'])->findOrFail($resultId);
         $studentName = $res->student?->name ?? 'Học viên';
 
         if ($res->parent_notified || $res->status === 'sent') {
-            return redirect()->back()->with('error', "Kết quả của em {$studentName} đã được gửi phụ huynh trước đó.");
+            return redirect()->back()->with('error', "Kết quả của em {$studentName} đã được báo phụ huynh trước đó.");
         }
         abort_unless($res->status === 'approved', 422, 'Kết quả chưa được Học thuật duyệt.');
         if ($res->is_absent) {
-            return redirect()->back()->with('error', "Học viên {$studentName} vắng thi — không có điểm để gửi phụ huynh.");
+            return redirect()->back()->with('error', "Học viên {$studentName} vắng thi — không có điểm để báo phụ huynh.");
         }
 
-        return match ($this->deliverZaloResult($res, $res->bigTest)) {
-            'sent' => redirect()->back()->with('status', "Đã gửi thông báo điểm qua Zalo ZNS đến Phụ huynh em {$studentName} thành công!"
-                .$progression->describe($progression->syncBigTest($res->bigTest, Auth::user()))),
-            'skipped' => redirect()->back()->with('error', "Không gửi được cho em {$studentName}: ".self::MISSING_PARENT_PHONE.' (nhập SĐT phụ huynh ở hồ sơ học viên).'),
-            default => redirect()->back()->with('error', "Gửi Zalo ZNS cho phụ huynh em {$studentName} thất bại, vui lòng thử lại."),
-        };
+        $this->markNotified($res);
+
+        return redirect()->back()->with('status', "Đã ghi nhận báo kết quả em {$studentName} cho phụ huynh."
+            .$progression->describe($progression->syncBigTest($res->bigTest, Auth::user())));
     }
 
-    /**
-     * Gửi 1 kết quả qua Zalo ZNS; chỉ đánh dấu đã gửi khi nhà cung cấp trả về thành công.
-     *
-     * @return 'sent'|'failed'|'skipped'
-     */
-    private function deliverZaloResult(BigTestResult $res, ?BigTest $test): string
+    private function markNotified(BigTestResult $res): void
     {
-        $student = $res->student;
-        $phone = $student ? (string) $student->parentContactPhone() : '';
-        if ($phone === '') {
-            return 'skipped';
-        }
-
-        $response = ZaloZnsService::sendBigTestResult(
-            phone: $phone,
-            studentName: $student->name ?? 'Học viên',
-            className: $test?->classModel?->name ?? 'Lớp MEnglish',
-            testTitle: $test?->title ?? 'Big Test',
-            listening: $res->listening_score ?? '-',
-            reading: $res->reading_score ?? '-',
-            writing: $res->writing_score ?? '-',
-            speaking: $res->speaking_score ?? '-',
-            overall: $res->overall_score ?? '-',
-            progressNote: $res->progress_note ?? ''
-        );
-
-        if (($response['success'] ?? false) !== true) {
-            return 'failed';
-        }
-
         $res->update([
             'status' => 'sent',
             'parent_notified' => true,
             'notified_at' => now(),
         ]);
-
-        return 'sent';
     }
 }

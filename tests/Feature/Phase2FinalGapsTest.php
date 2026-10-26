@@ -52,7 +52,6 @@ class Phase2FinalGapsTest extends TestCase
         parent::setUp();
         $this->seed(PermissionSeeder::class);
         $this->seed(RoleSeeder::class);
-        config(['services.zalo.mode' => 'sandbox']);
 
         $this->branch = Branch::create(['name' => 'Cơ sở Hoàn thiện', 'code' => 'P2F', 'is_active' => true]);
         $this->lead = $this->user(Roles::ACADEMIC_LEAD);
@@ -140,7 +139,7 @@ class Phase2FinalGapsTest extends TestCase
             'name' => $student->name, 'phone' => $student->phone, 'parent_name' => 'Nguyễn Thị Hoa', 'parent_phone' => '0987 654 321',
         ])->assertSessionHasNoErrors();
         $this->assertSame('Nguyễn Thị Hoa', $student->fresh()->parent_name);
-        $this->assertSame('0987 654 321', $student->fresh()->parentContactPhone());
+        $this->assertSame('0987 654 321', $student->fresh()->parent_phone);
 
         // Backfill: migration chép SĐT phụ huynh của khách CRM đã chốt sang hồ sơ học viên.
         $other = $this->student('HV-P2F-2', null);

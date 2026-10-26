@@ -39,7 +39,6 @@ function toggleAll(event) {
 }
 const exportUrl = (format) => urlWith({ export: format, page: null });
 const telHref = (phone) => 'tel:' + String(phone ?? '').replace(/[^\d+]/g, '');
-const zaloHref = (phone) => 'https://zalo.me/' + String(phone ?? '').replace(/\D/g, '').replace(/^84/, '0');
 function onBulkDone() {
     bulkOpen.value = false;
     selected.value = [];
@@ -80,7 +79,7 @@ function onBulkDone() {
             </div>
         </div>
 
-        <!-- Điện thoại: thẻ gọn thay bảng (SĐT bấm gọi / mở Zalo, thấy giai đoạn và hạn liên hệ). -->
+        <!-- Điện thoại: thẻ gọn thay bảng (SĐT bấm gọi, thấy giai đoạn và hạn liên hệ). -->
         <div class="space-y-sm md:hidden" data-mobile-customer-list>
             <div v-for="c in customers.data" :key="'m' + c.id" class="rounded-lg border border-outline-variant/40 bg-surface-container-lowest p-md shadow-level-1">
                 <div class="flex items-start justify-between gap-sm">
@@ -93,7 +92,6 @@ function onBulkDone() {
                 </div>
                 <div class="mt-sm flex flex-wrap items-center gap-sm">
                     <a :href="telHref(c.phone)" class="inline-flex items-center gap-1 rounded-full bg-secondary/10 px-sm py-1 font-code text-body-small text-secondary"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">call</span>{{ c.phone }}</a>
-                    <a :href="zaloHref(c.phone)" target="_blank" rel="noopener" class="inline-flex items-center gap-1 rounded-full bg-info/10 px-sm py-1 font-body-small text-body-small text-info"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">chat</span>Zalo</a>
                     <SlaCountdown v-if="c.sla" :sla="c.sla" compact />
                 </div>
                 <div v-if="c.follow_up_label" :class="['mt-xs font-caption text-caption', c.follow_up_overdue ? 'text-error' : 'text-warning']">Hạn gọi lại: {{ c.follow_up_label }}</div>
@@ -130,7 +128,6 @@ function onBulkDone() {
                             </td>
                             <td class="whitespace-nowrap font-code text-code text-on-surface-variant">
                                 <a :href="telHref(c.phone)" class="hover:text-primary" title="Gọi">{{ c.phone }}</a>
-                                <a :href="zaloHref(c.phone)" target="_blank" rel="noopener" class="ml-xs font-body-small text-caption text-info hover:underline" title="Mở Zalo">Zalo</a>
                             </td>
                             <td class="whitespace-nowrap text-on-surface-variant">{{ c.parent_name || '—' }}</td>
                             <td class="whitespace-nowrap">

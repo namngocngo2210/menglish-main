@@ -290,7 +290,7 @@ class SepayWebhookTest extends TestCase
         $this->assertSame(1, AcademicRecord::where('screen_key', PortalNotifications::SCREEN_KEY)->count());
     }
 
-    public function test_matched_payment_without_parent_email_notifies_owner_with_zalo_text(): void
+    public function test_matched_payment_without_parent_email_notifies_owner_with_copy_text(): void
     {
         $owner = User::factory()->create(['branch_id' => $this->branch->id, 'is_active' => true]);
         $this->student->update(['email' => User::generatedStudentEmail($this->student->id), 'parent_phone' => '0977111222']);

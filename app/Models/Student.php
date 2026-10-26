@@ -270,7 +270,6 @@ class Student extends Model
                 'enrolled_at' => $this->created_at?->toDateString() ?? $leftOn,
                 'left_at' => $leftOn,
                 'curriculum_delivered' => false,
-                'zalo_group_added' => false,
                 'status' => self::ENROLLMENT_TRANSFERRED,
             ]);
         }
@@ -370,21 +369,5 @@ class Student extends Model
             'dropped' => 'bg-error/10 text-error border-error/30',
             default => 'bg-surface-container-low text-on-surface-variant border-surface-container-highest',
         };
-    }
-
-    /**
-     * SĐT phụ huynh để gửi kết quả (Zalo ZNS): SĐT phụ huynh trên hồ sơ học viên → SĐT phụ huynh của khách CRM
-     * đã chốt ra học viên này (khách mới nhất) → không có (null). Không dùng SĐT của chính học viên.
-     */
-    public function parentContactPhone(): ?string
-    {
-        $phone = trim((string) $this->parent_phone);
-        if ($phone === '') {
-            $phone = trim((string) CrmCustomer::where('converted_student_id', $this->id)
-                ->whereNotNull('parent_phone')->where('parent_phone', '!=', '')
-                ->latest('id')->value('parent_phone'));
-        }
-
-        return $phone !== '' ? $phone : null;
     }
 }

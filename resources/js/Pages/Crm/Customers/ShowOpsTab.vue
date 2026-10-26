@@ -136,7 +136,7 @@ function copyLink(message) {
                 </div>
                 <p class="font-body-small text-body-small text-on-surface-variant">Cấp độ: <strong class="text-on-surface">{{ customer.assigned_test_level ?? 'Chưa chọn cấp độ' }}</strong></p>
                 <div v-if="portalTestLink" class="flex flex-wrap gap-sm">
-                    <UiButton variant="secondary" size="sm" icon="refresh" @click="copyLink(`Đã tạo và sao chép link mới (hiệu lực ${linkTtlDays} ngày) — gửi lại cho khách qua Zalo/SMS.`)">Gửi lại link</UiButton>
+                    <UiButton variant="secondary" size="sm" icon="refresh" @click="copyLink(`Đã tạo và sao chép link mới (hiệu lực ${linkTtlDays} ngày) — gửi lại cho khách qua tin nhắn.`)">Gửi lại link</UiButton>
                     <UiButton variant="secondary" size="sm" icon="open_in_new" :href="portalTestLink" target="_blank">Mở cổng test</UiButton>
                     <UiButton variant="secondary" size="sm" icon="content_copy" @click="copyLink('Đã sao chép đường dẫn bài test.')">Sao chép link test</UiButton>
                     <p class="w-full font-caption text-caption italic text-on-surface-variant">Link riêng của khách, hiệu lực {{ linkTtlDays }} ngày kể từ lúc mở trang này.</p>

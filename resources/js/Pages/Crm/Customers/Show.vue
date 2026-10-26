@@ -76,7 +76,7 @@ const open = (name) => {
 };
 const close = (name) => (modals[name] = false);
 
-// Vừa xác nhận lịch hẹn (test / học thử) mà khách chưa có email: popup nội dung xác nhận để sao chép gửi Zalo.
+// Vừa xác nhận lịch hẹn (test / học thử) mà khách chưa có email: popup nội dung xác nhận để sao chép gửi tin nhắn.
 const confirmation = ref(null);
 watch(() => props.appointmentConfirmation, (value) => (confirmation.value = value), { immediate: true });
 
@@ -319,19 +319,19 @@ const trialTitle = computed(() => (props.trial.pending ? 'Xếp học thử' : `
         </template>
     </UiModal>
 
-    <!-- Xác nhận lịch hẹn chưa gửi được email: sao chép nội dung gửi phụ huynh qua Zalo -->
-    <UiModal :show="!!confirmation" title="Gửi xác nhận lịch hẹn qua Zalo" max-width="md" @close="confirmation = null">
+    <!-- Xác nhận lịch hẹn chưa gửi được email: sao chép nội dung nhắn cho phụ huynh -->
+    <UiModal :show="!!confirmation" title="Gửi xác nhận lịch hẹn qua tin nhắn" max-width="md" @close="confirmation = null">
         <div v-if="confirmation" class="space-y-md">
             <p class="font-body-small text-body-small text-on-surface-variant">
                 {{ confirmation.email_failed ? 'Gửi email xác nhận không thành công' : 'Khách chưa có email' }}, hệ thống chưa gửi xác nhận cho phụ huynh.
-                Sao chép nội dung dưới đây và gửi qua Zalo<template v-if="confirmation.phone"> tới <strong class="font-code text-on-surface">{{ confirmation.phone }}</strong></template>.
+                Sao chép nội dung dưới đây và nhắn cho phụ huynh<template v-if="confirmation.phone"> tới <strong class="font-code text-on-surface">{{ confirmation.phone }}</strong></template>.
                 Người phụ trách cũng nhận thông báo kèm nội dung này.
             </p>
             <div class="max-h-72 select-all overflow-y-auto whitespace-pre-line break-words rounded-lg border border-surface-container-highest bg-surface-container-low p-md font-body-small text-body-small text-on-surface">{{ confirmation.text }}</div>
         </div>
         <template #footer>
             <UiButton variant="secondary" size="sm" @click="confirmation = null">Đóng</UiButton>
-            <UiButton size="sm" icon="content_copy" @click="copyText(confirmation.text, 'Đã sao chép nội dung xác nhận — dán vào Zalo để gửi phụ huynh.')">Sao chép nội dung</UiButton>
+            <UiButton size="sm" icon="content_copy" @click="copyText(confirmation.text, 'Đã sao chép nội dung xác nhận — dán vào tin nhắn gửi phụ huynh.')">Sao chép nội dung</UiButton>
         </template>
     </UiModal>
 
@@ -409,7 +409,6 @@ const trialTitle = computed(() => (props.trial.pending ? 'Xếp học thử' : `
                         <dt class="text-on-surface-variant">{{ label }}</dt>
                         <dd v-if="mono && value !== '—'" class="text-right font-code font-medium text-on-surface">
                             <a :href="'tel:' + String(value).replace(/[^\d+]/g, '')" class="hover:text-primary" title="Gọi">{{ value }}</a>
-                            <a :href="'https://zalo.me/' + String(value).replace(/\D/g, '').replace(/^84/, '0')" target="_blank" rel="noopener" class="ml-xs font-body-small text-caption text-info hover:underline" title="Mở Zalo">Zalo</a>
                         </dd>
                         <dd v-else :class="['text-right font-medium text-on-surface', mono ? 'font-code' : '']">{{ value }}</dd>
                     </div>

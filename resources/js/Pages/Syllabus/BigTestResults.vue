@@ -1,7 +1,7 @@
 <script setup>
 /**
  * Bảng điểm Big Test. Giáo viên (syllabus.update, không phải người duyệt) nhập điểm 4 kỹ năng / vắng thi / nhận xét / video
- * rồi "Lưu nháp" hoặc "Gửi duyệt"; người duyệt (big_test.approve) chỉ xem & duyệt, gửi phụ huynh — không nhập điểm.
+ * rồi "Lưu nháp" hoặc "Gửi duyệt"; người duyệt (big_test.approve) chỉ xem & duyệt, ghi nhận đã báo phụ huynh — không nhập điểm.
  * Mockup 01_Web_Admin/07: xét duyệt kết quả từng học viên trong hộp thoại (?result=; đóng thì bỏ query).
  */
 import { reactive, ref, watch } from 'vue';
@@ -18,13 +18,12 @@ const props = defineProps({
     selectedResult: { type: Object, default: null },
     userName: { type: String, default: '' },
     isApprover: { type: Boolean, default: false },
-    // Duyệt kết quả: chỉ Admin (Học thuật vẫn xem bảng điểm, gửi phụ huynh kết quả đã duyệt).
+    // Duyệt kết quả: chỉ Admin (Học thuật vẫn xem bảng điểm, ghi nhận đã báo phụ huynh kết quả đã duyệt).
     canApprove: { type: Boolean, default: false },
     canGradeRole: { type: Boolean, default: false },
     canGrade: { type: Boolean, default: false },
     backUrl: { type: String, default: null },
     resultDeadlineDays: { type: Number, default: 7 },
-    missingPhoneLabel: { type: String, default: '' },
 });
 
 const skills = { listening_score: 'Nghe', reading_score: 'Đọc', writing_score: 'Viết', speaking_score: 'Nói' };
@@ -55,8 +54,8 @@ watch(() => props.selectedResult?.id, (id) => (detailOpen.value = !!id));
 
 <template>
     <UiPageHeader
-        :title="isApprover ? 'Duyệt kết quả Big Test & gửi phụ huynh' : 'Nhập điểm Big Test'"
-        :description="isApprover ? 'Bảng điểm 4 kỹ năng, nhận xét, link video; Học thuật duyệt và gửi kết quả cho phụ huynh qua Zalo.' : 'Nhập điểm 4 kỹ năng, nhận xét, link video cho lớp mình dạy rồi gửi Học thuật duyệt.'"
+        :title="isApprover ? 'Duyệt kết quả Big Test & báo phụ huynh' : 'Nhập điểm Big Test'"
+        :description="isApprover ? 'Bảng điểm 4 kỹ năng, nhận xét, link video; kết quả đã duyệt hiện ở Cổng Học viên, Học thuật báo phụ huynh rồi bấm Đã báo PH.' : 'Nhập điểm 4 kỹ năng, nhận xét, link video cho lớp mình dạy rồi gửi Học thuật duyệt.'"
         :back="backUrl"
     >
         <template #breadcrumbs>
@@ -66,12 +65,12 @@ watch(() => props.selectedResult?.id, (id) => (detailOpen.value = !!id));
         </template>
         <template #actions>
             <template v-if="test && isApprover">
-                <!-- Việc chính của người duyệt là duyệt; gửi phụ huynh là bước sau nên để nút phụ -->
+                <!-- Việc chính của người duyệt là duyệt; báo phụ huynh là bước sau nên để nút phụ -->
                 <UiForm v-if="canApprove" :action="route('syllabus.big-tests.results.approve', test.id)" method="post">
                     <UiButton type="submit" icon="task_alt">Duyệt kết quả</UiButton>
                 </UiForm>
-                <UiForm :action="route('syllabus.big-tests.send-zalo', test.id)" method="post">
-                    <UiButton type="submit" variant="secondary" icon="send" title="Gửi các kết quả đã duyệt cho phụ huynh qua Zalo">Gửi phụ huynh</UiButton>
+                <UiForm :action="route('syllabus.big-tests.mark-notified', test.id)" method="post">
+                    <UiButton type="submit" variant="secondary" icon="mark_email_read" title="Ghi nhận đã báo phụ huynh mọi kết quả đã duyệt">Đã báo phụ huynh</UiButton>
                 </UiForm>
             </template>
             <UiButton variant="secondary" icon="print" @click="print">In bảng điểm</UiButton>
@@ -116,10 +115,10 @@ watch(() => props.selectedResult?.id, (id) => (detailOpen.value = !!id));
                  Người duyệt chỉ xem & duyệt, không thấy form nhập điểm / Lưu nháp / Gửi duyệt của giáo viên. -->
             <div v-if="test && !test.is_distributed && canGradeRole" class="border-b border-surface-container bg-warning-container/40 px-md py-sm text-xs text-on-surface">Đề thi của đợt này chưa được duyệt và phân phối, chưa nhập điểm được.</div>
 
-            <!-- Form gửi từng học viên nằm ngoài form nhập điểm (không lồng form); nút bấm tham chiếu qua thuộc tính form= -->
+            <!-- Form ghi nhận từng học viên nằm ngoài form nhập điểm (không lồng form); nút bấm tham chiếu qua thuộc tính form= -->
             <template v-if="test && isApprover">
                 <template v-for="row in rows" :key="'send-' + row.student_id">
-                    <UiForm v-if="row.result?.status === 'approved' && !row.result.parent_notified && !row.result.is_absent" :id="`send-ph-${row.result.id}`" :action="route('syllabus.big-tests.send-single-zalo', row.result.id)" method="post" class="hidden" />
+                    <UiForm v-if="row.result?.status === 'approved' && !row.result.parent_notified && !row.result.is_absent" :id="`send-ph-${row.result.id}`" :action="route('syllabus.big-tests.mark-single-notified', row.result.id)" method="post" class="hidden" />
                 </template>
             </template>
 
@@ -136,7 +135,7 @@ watch(() => props.selectedResult?.id, (id) => (detailOpen.value = !!id));
                             <th class="!px-xs text-center">Speaking</th>
                             <th class="bg-primary-container/10 text-center !text-primary">Overall</th>
                             <th>Nhận xét &amp; video</th>
-                            <th>Đã gửi PH</th>
+                            <th>Đã báo PH</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -193,11 +192,10 @@ watch(() => props.selectedResult?.id, (id) => (detailOpen.value = !!id));
                             </td>
                             <td class="whitespace-nowrap">
                                 <span v-if="row.result?.parent_notified" class="inline-flex items-center gap-1 text-xs font-semibold text-tertiary">
-                                    <span class="material-symbols-outlined text-[16px]">mark_email_read</span>{{ row.result.notified_at ?? 'Đã gửi' }}
+                                    <span class="material-symbols-outlined text-[16px]">mark_email_read</span>{{ row.result.notified_at ?? 'Đã báo' }}
                                 </span>
-                                <UiButton v-else-if="test && isApprover && row.result?.status === 'approved' && !row.result.is_absent" type="submit" :form="`send-ph-${row.result.id}`" variant="info" size="sm" icon="send">Gửi PH</UiButton>
-                                <span v-else class="text-xs text-on-surface-subtle">{{ row.result?.is_absent ? 'Vắng thi' : 'Chưa gửi' }}</span>
-                                <span v-if="row.result?.missing_phone" class="mt-1 block text-xs font-semibold text-error">{{ missingPhoneLabel }}</span>
+                                <UiButton v-else-if="test && isApprover && row.result?.status === 'approved' && !row.result.is_absent" type="submit" :form="`send-ph-${row.result.id}`" variant="info" size="sm" icon="mark_email_read">Đã báo PH</UiButton>
+                                <span v-else class="text-xs text-on-surface-subtle">{{ row.result?.is_absent ? 'Vắng thi' : 'Chưa báo' }}</span>
                             </td>
                         </tr>
                         <tr v-if="!rows.length">
@@ -208,7 +206,7 @@ watch(() => props.selectedResult?.id, (id) => (detailOpen.value = !!id));
                     </tbody>
                 </table>
                 <div v-if="canGrade && hasUnlocked()" class="flex items-center justify-between gap-3 border-t border-surface-container-highest p-4">
-                    <span class="text-xs text-on-surface-variant">Học viên vắng: tích "Vắng thi" (không nhập điểm). Dòng để trống sẽ bỏ qua. "Lưu nháp" chưa gửi Học thuật (sửa tiếp được); "Gửi duyệt" cần đủ 4 kỹ năng. Điểm đã duyệt/đã gửi phụ huynh không thể sửa.</span>
+                    <span class="text-xs text-on-surface-variant">Học viên vắng: tích "Vắng thi" (không nhập điểm). Dòng để trống sẽ bỏ qua. "Lưu nháp" chưa gửi Học thuật (sửa tiếp được); "Gửi duyệt" cần đủ 4 kỹ năng. Điểm đã duyệt/đã báo phụ huynh không thể sửa.</span>
                     <div class="flex items-center gap-2">
                         <UiButton type="submit" name="action" value="draft" variant="secondary" icon="draft">Lưu nháp</UiButton>
                         <UiButton type="submit" name="action" value="submit" icon="send">Gửi duyệt</UiButton>
@@ -297,7 +295,7 @@ watch(() => props.selectedResult?.id, (id) => (detailOpen.value = !!id));
                     </div>
                 </section>
 
-                <UiAlert v-if="selectedResult.parent_notified" type="success" title="Đã gửi phụ huynh">
+                <UiAlert v-if="selectedResult.parent_notified" type="success" title="Đã báo phụ huynh">
                     <p class="font-caption text-caption">{{ selectedResult.notified_at }} — kết quả đã ghi nhận vào hồ sơ học tập của học viên.</p>
                 </UiAlert>
                 <UiAlert v-else-if="selectedResult.status !== 'draft'" type="success" title="Hợp lệ">
@@ -308,7 +306,7 @@ watch(() => props.selectedResult?.id, (id) => (detailOpen.value = !!id));
 
         <template v-if="canApprove && ['pending_review', 'approved'].includes(selectedResult.status) && !selectedResult.parent_notified" #footer>
             <UiForm :action="route('syllabus.big-tests.results.approve-send', selectedResult.id)" method="post">
-                <UiButton type="submit" icon="send">{{ selectedResult.is_absent ? 'Duyệt (vắng thi)' : 'Duyệt & Gửi phụ huynh' }}</UiButton>
+                <UiButton type="submit" icon="send">{{ selectedResult.is_absent ? 'Duyệt (vắng thi)' : 'Duyệt & Đã báo phụ huynh' }}</UiButton>
             </UiForm>
         </template>
     </UiModal>

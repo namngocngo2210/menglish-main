@@ -54,7 +54,6 @@ class SyllabusStageProgressionTest extends TestCase
         parent::setUp();
         $this->seed(PermissionSeeder::class);
         $this->seed(RoleSeeder::class);
-        config(['services.zalo.mode' => 'sandbox']);
 
         $branch = Branch::create(['name' => 'Cơ sở GT', 'code' => 'GT', 'is_active' => true]);
         $this->academic = User::factory()->create(['is_active' => true, 'branch_id' => $branch->id]);
@@ -185,12 +184,12 @@ class SyllabusStageProgressionTest extends TestCase
 
         // Gửi PH 1 học viên: vẫn còn 1 kết quả chưa gửi.
         $resultA = BigTestResult::where('student_id', $a->id)->firstOrFail();
-        $this->actingAs($this->academic)->post(route('syllabus.big-tests.send-single-zalo', $resultA->id))->assertRedirect();
+        $this->actingAs($this->academic)->post(route('syllabus.big-tests.mark-single-notified', $resultA->id))->assertRedirect();
         $this->assertTrue($resultA->fresh()->parent_notified);
         $this->assertTrue($first->fresh()->isOpen());
 
         // Gửi phần còn lại → chặng 1 đóng; không tự mở chặng 2 — Học thuật được báo giao chặng tiếp (Bước 11).
-        $this->actingAs($this->academic)->post(route('syllabus.big-tests.send-zalo', $test->id))
+        $this->actingAs($this->academic)->post(route('syllabus.big-tests.mark-notified', $test->id))
             ->assertRedirect()->assertSessionHas('status', fn ($m) => str_contains($m, 'Học thuật giao chặng tiếp theo cho lớp'));
 
         $first->refresh();
@@ -209,7 +208,7 @@ class SyllabusStageProgressionTest extends TestCase
         $this->openFirstStage();
         $test = $this->bigTestFor($this->stages[1], 'BT-OTHER');
         $this->makeResult($test, $this->student('HV-O1'), 'approved');
-        $this->actingAs($this->academic)->post(route('syllabus.big-tests.send-zalo', $test->id))->assertRedirect();
+        $this->actingAs($this->academic)->post(route('syllabus.big-tests.mark-notified', $test->id))->assertRedirect();
 
         $open = SyllabusAssignment::open()->where('class_id', $this->class->id)->firstOrFail();
         $this->assertSame($this->stages[0]->id, $open->stage_id);

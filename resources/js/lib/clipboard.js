@@ -1,5 +1,5 @@
 /**
- * Sao chép nội dung vào clipboard rồi báo toast (vd. nội dung xác nhận lịch hẹn để dán vào Zalo).
+ * Sao chép nội dung vào clipboard rồi báo toast (vd. nội dung xác nhận lịch hẹn để dán vào tin nhắn).
  *   copyText(text, 'Đã sao chép nội dung xác nhận.')
  *   if (await copyText(text, null)) copied.value = true;   // message null: không toast khi thành công, tự hiện trạng thái "Đã chép"
  * Trả `true` khi đã sao chép, `false` khi trình duyệt chặn (đã báo toast cảnh báo).
