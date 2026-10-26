@@ -9,6 +9,7 @@ import { computed, ref, watch } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import DocumentList from '@/Components/Syllabus/DocumentList.vue';
 import DocumentUploadModal from '@/Components/Syllabus/DocumentUploadModal.vue';
+import LessonDetailTable from '@/Components/Syllabus/LessonDetailTable.vue';
 import StageImportModal from '@/Components/Syllabus/StageImportModal.vue';
 import { route } from '@/lib/route';
 
@@ -70,27 +71,6 @@ const editorSubmitLabel = computed(() => {
 });
 const isImage = (u) => /\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(u || '');
 
-// Trường buổi học theo form syllabus mẫu (Sheet 1); link PPT / Quizizz hiển thị riêng thành liên kết.
-const lessonFields = [
-    ['objectives', 'Mục tiêu:', 'Chưa cập nhật'],
-    ['content', 'Content:', 'Chưa cập nhật'],
-    ['procedure', 'Quy trình tiết học:', '—'],
-    ['activity_1', 'Hoạt động gợi ý 1:', '—'],
-    ['activity_2', 'Hoạt động gợi ý 2:', '—'],
-    ['homework_guide', 'Bài tập giấy:', '—'],
-    ['homework_quizizz', 'Bài tập Quizizz:', '—'],
-    ['homework_video', 'Bài tập Video:', '—'],
-    ['output_product', 'Sản phẩm đầu ra:', '—'],
-    ['vocabulary_focus', 'Từ vựng:', '—'],
-    ['grammar_focus', 'Ngữ pháp:', '—'],
-    ['note', 'Ghi chú:', '—'],
-];
-const lessonLinks = [
-    ['ppt_url', 'Link PPT', 'slideshow'],
-    ['ppt_foreign_url', 'Link PPT GVNN', 'slideshow'],
-    ['quizizz_url', 'Link Quizizz', 'quiz'],
-    ['test_url', 'Link Mini test / Kiểm tra từ', 'assignment'],
-];
 const typeColors = { review: 'info', grammar: 'primary', mini_test: 'warning', big_test: 'error' };
 const milestoneLabel = (value) => props.milestones.find((m) => m.value === value)?.label;
 </script>
@@ -388,14 +368,7 @@ const milestoneLabel = (value) => props.milestones.find((m) => m.value === value
                                     </span>
                                     <span class="material-symbols-outlined text-[18px] text-on-surface-subtle transition group-open:rotate-180">expand_more</span>
                                 </summary>
-                                <div class="mt-3 grid grid-cols-1 gap-3 text-on-surface-variant md:grid-cols-2">
-                                    <p v-for="[field, label, empty] in lessonFields" :key="field" class="whitespace-pre-line"><span class="font-semibold">{{ label }}</span> {{ lesson[field] || empty }}</p>
-                                </div>
-                                <p v-if="lessonLinks.some(([field]) => lesson[field])" class="mt-2 flex flex-wrap gap-3">
-                                    <template v-for="[field, label, icon] in lessonLinks" :key="field">
-                                        <a v-if="lesson[field]" :href="lesson[field]" target="_blank" rel="noopener" class="inline-flex items-center gap-1 font-semibold text-primary hover:underline"><span class="material-symbols-outlined text-[14px]">{{ icon }}</span>{{ label }}</a>
-                                    </template>
-                                </p>
+                                <LessonDetailTable :lesson="lesson" class="mt-3" />
                                 <div class="mt-3 space-y-2">
                                     <p class="font-semibold text-on-surface">Tài liệu buổi</p>
                                     <DocumentList :documents="documents.lessons[lesson.id] ?? []" :can-manage="canManage" empty-text="Chưa có tài liệu buổi." />
