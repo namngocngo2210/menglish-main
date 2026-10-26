@@ -194,7 +194,7 @@ watch(() => props.selectedResult?.id, (id) => (detailOpen.value = !!id));
                                 <span v-if="row.result?.parent_notified" class="inline-flex items-center gap-1 text-xs font-semibold text-tertiary">
                                     <span class="material-symbols-outlined text-[16px]">mark_email_read</span>{{ row.result.notified_at ?? 'Đã báo' }}
                                 </span>
-                                <UiButton v-else-if="test && isApprover && row.result?.status === 'approved' && !row.result.is_absent" type="submit" :form="`send-ph-${row.result.id}`" variant="info" size="sm" icon="mark_email_read">Đã báo PH</UiButton>
+                                <UiButton v-else-if="test && isApprover && row.result?.status === 'approved' && !row.result.is_absent" type="submit" :form="`send-ph-${row.result.id}`" variant="info" size="sm" icon="mark_email_read" title="Đánh dấu đã báo phụ huynh">Đã báo PH</UiButton>
                                 <span v-else class="text-xs text-on-surface-subtle">{{ row.result?.is_absent ? 'Vắng thi' : 'Chưa báo' }}</span>
                             </td>
                         </tr>

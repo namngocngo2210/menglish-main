@@ -282,7 +282,7 @@ class SepayWebhookTest extends TestCase
         $this->assertStringContainsString('đã nhận 3.000.000 đ', $portal->data['content']);
         $this->assertSame(1, PortalNotifications::unreadCount($this->student));
         $this->assertTrue(AdminNotification::where('title', 'like', 'SePay: Khớp thanh toán%')
-            ->where('message', 'like', '%Đã gửi email xác nhận tới ph.nguyen@example.com%')->exists());
+            ->where('message', 'like', '%Đang gửi email xác nhận tới ph.nguyen@example.com%')->exists());
 
         // Báo lại cùng phiếu thu (vd. xử lý lại) không gửi trùng.
         app(PaymentConfirmation::class)->notify($receipt);

@@ -6,6 +6,7 @@
 import { computed, ref } from "vue";
 import { router } from "@inertiajs/vue3";
 import { route } from "@/lib/route";
+import BackgroundTasks from "@/Components/BackgroundTasks/BackgroundTasks.vue";
 
 defineOptions({ layout: { title: "Nhập nhân sự" } });
 
@@ -14,12 +15,15 @@ const props = defineProps({
     roles: { type: Array, default: () => [] },
     preview: { type: Object, default: null },
     result: { type: Object, default: null },
+    // Lần nhập đang chạy nền (?task=): hiện trạng thái thay cho kết quả, tự tải lại tới khi xong.
+    backgroundTasks: { type: Array, default: () => [] },
     headings: { type: String, default: "" },
     defaultPassword: { type: String, default: "" },
     errors: { type: Object, default: () => ({}) },
 });
 
-const step = computed(() => (props.result ? 3 : props.preview ? 2 : 1));
+const running = computed(() => props.backgroundTasks.length > 0);
+const step = computed(() => (props.result || running.value ? 3 : props.preview ? 2 : 1));
 const steps = [
     [1, "Tải file"],
     [2, "Xem trước"],
@@ -428,6 +432,9 @@ function submit(event) {
                     </div>
                 </form>
             </template>
+
+            <!-- Bước 3: đang nhập ở nền -->
+            <BackgroundTasks v-else-if="running" :tasks="backgroundTasks" />
 
             <!-- Bước 3: kết quả -->
             <div

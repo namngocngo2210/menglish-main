@@ -284,7 +284,7 @@ class CrmBusinessTest extends TestCase
         ]);
 
         $schedulePayload = [
-            'appointment_date' => '2026-10-25',
+            'appointment_date' => now()->addDays(2)->toDateString(),
             'appointment_time' => '15:30',
             'appointment_type' => 'online',
             'assigned_test_id' => $test->id,
@@ -300,7 +300,7 @@ class CrmBusinessTest extends TestCase
         $this->assertEquals('online', $customer->appointment_type);
         $this->assertEquals($test->id, $customer->assigned_test_id);
         $this->assertEquals($this->examiner->id, $customer->examiner_id);
-        $this->assertEquals('2026-10-25 15:30:00', $customer->appointment_at->format('Y-m-d H:i:s'));
+        $this->assertEquals(now()->addDays(2)->toDateString().' 15:30:00', $customer->appointment_at->format('Y-m-d H:i:s'));
 
         // Verify history log for test scheduling
         $this->assertDatabaseHas('crm_customer_histories', [

@@ -11,6 +11,7 @@ import { closeRemoteModal, remoteModal } from '@/lib/remoteModal';
 import { csrfToken } from '@/lib/http';
 import { toast } from '@/lib/toast';
 import { route } from '@/lib/route';
+import BackgroundTasks from '@/Components/BackgroundTasks/BackgroundTasks.vue';
 
 defineOptions({ layout: { title: 'Nhập học phí từ Excel' } });
 
@@ -20,13 +21,16 @@ const props = defineProps({
     preview: { type: Object, default: null },
     result: { type: Object, default: null },
     templateHeadings: { type: String, default: '' },
+    // Lần nhập đang chạy nền (?task=): hiện trạng thái thay cho form, tự tải lại tới khi có kết quả.
+    backgroundTasks: { type: Array, default: () => [] },
     errors: { type: Object, default: () => ({}) },
     flash: { type: Array, default: () => [] },
 });
 
 const modal = useRemoteModal();
 const page = usePage();
-const step = computed(() => (props.result ? 3 : props.preview ? 2 : 1));
+const running = computed(() => props.backgroundTasks.length > 0);
+const step = computed(() => (props.result || running.value ? 3 : props.preview ? 2 : 1));
 const validCount = computed(() => (props.preview ? props.preview.rows.filter((r) => !r.errors.length).length : 0));
 const errorCount = computed(() => (props.preview ? props.preview.rows.length - validCount.value : 0));
 const steps = [
@@ -77,7 +81,8 @@ async function submit(event) {
             return;
         }
         const next = await response.json();
-        if (next.component === 'Tuition/Import') {
+        // Đã xác nhận nhập → việc chạy nền: mở trang đầy đủ để theo dõi (trang tự tải lại tới khi xong).
+        if (next.component === 'Tuition/Import' && !next.props.backgroundTasks?.length) {
             remoteModal.props = next.props;
             remoteModal.url = next.url;
             remoteModal.key++;
@@ -227,6 +232,9 @@ async function submit(event) {
                     </div>
                 </form>
             </template>
+
+            <!-- Bước 3: đang nhập ở nền -->
+            <BackgroundTasks v-else-if="running" :tasks="backgroundTasks" />
 
             <!-- Bước 3: kết quả -->
             <div v-else :class="['space-y-md', modal ? '' : 'rounded-xl border border-outline-variant bg-surface-container-lowest p-lg']">

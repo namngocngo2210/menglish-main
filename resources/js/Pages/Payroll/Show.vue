@@ -9,6 +9,7 @@ import { route } from '@/lib/route';
 import { currentQuery, urlWith } from '@/lib/url';
 import { money, trimNumber } from './format';
 import PeriodTabs from './PeriodTabs.vue';
+import BackgroundTasks from '@/Components/BackgroundTasks/BackgroundTasks.vue';
 
 defineOptions({ layout: { title: 'Bảng lương' } });
 
@@ -22,6 +23,7 @@ const props = defineProps({
     filtered: { type: Boolean, default: false },
     // Chỉ người xem mọi phiếu lương (Admin): nhân sự đang làm việc mà kỳ chưa có phiếu lương và lý do.
     missingStaff: { type: Object, default: null },
+    backgroundTasks: { type: Array, default: () => [] },
 });
 
 const page = usePage();
@@ -81,6 +83,8 @@ function filter(event) {
             <UiButton variant="secondary" icon="download" :href="route('payroll.periods.export', period.id)" native>Xuất Excel</UiButton>
         </template>
     </UiPageHeader>
+
+    <BackgroundTasks :tasks="backgroundTasks" />
 
     <div class="space-y-lg">
         <UiAlert v-if="periodError" type="error">{{ periodError }}</UiAlert>

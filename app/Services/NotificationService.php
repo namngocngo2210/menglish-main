@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\SendHtmlMail;
 use App\Models\AcademicRecord;
 use App\Models\AdminNotification;
 use App\Models\CrmCustomer;
@@ -20,7 +21,6 @@ use App\Support\Money;
 use App\Support\Rbac;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 class NotificationService
@@ -344,10 +344,7 @@ class NotificationService
                     ])->render();
 
                     foreach ($techEmails as $techEmail) {
-                        Mail::html($htmlBody, function ($message) use ($techEmail, $emailSubject) {
-                            $message->to($techEmail)
-                                ->subject($emailSubject);
-                        });
+                        SendHtmlMail::dispatch($techEmail, $emailSubject, $htmlBody);
                     }
                 } catch (\Throwable $e) {
                     Log::warning("Không thể gửi email thông báo ticket #{$ticket->code}: ".$e->getMessage());
@@ -444,9 +441,7 @@ class NotificationService
                 ])->render();
 
                 foreach ($recipientEmails as $email) {
-                    Mail::html($htmlBody, function ($mail) use ($email, $emailSubject) {
-                        $mail->to($email)->subject($emailSubject);
-                    });
+                    SendHtmlMail::dispatch($email, $emailSubject, $htmlBody);
                 }
             } catch (\Throwable $e) {
                 Log::warning("Không thể gửi email phản hồi ticket #{$ticket->code}: ".$e->getMessage());
@@ -561,9 +556,7 @@ class NotificationService
                 ])->render();
 
                 foreach ($recipientEmails as $email) {
-                    Mail::html($htmlBody, function ($mail) use ($email, $emailSubject) {
-                        $mail->to($email)->subject($emailSubject);
-                    });
+                    SendHtmlMail::dispatch($email, $emailSubject, $htmlBody);
                 }
             } catch (\Throwable $e) {
                 Log::warning("Không thể gửi email trạng thái ticket #{$ticket->code}: ".$e->getMessage());
@@ -606,9 +599,7 @@ class NotificationService
                         ."---\n"
                         .'MEnglish Education System Notification Engine';
 
-                    Mail::raw($emailBody, function ($mail) use ($newAssignee, $emailSubject) {
-                        $mail->to($newAssignee->email)->subject($emailSubject);
-                    });
+                    SendHtmlMail::dispatch($newAssignee->email, $emailSubject, $emailBody, plainText: true);
                 } catch (\Throwable $e) {
                     Log::warning("Không thể gửi email phân công ticket #{$ticket->code}: ".$e->getMessage());
                 }
@@ -659,6 +650,7 @@ class NotificationService
     /**
      * Bắn email cảnh báo vận hành tự động (Lead trễ, Giao dịch mới, Trễ hẹn nợ, Nộp bài...)
      * tới danh sách email cấu hình trong Quản trị hệ thống.
+     * Email đưa vào queue `notifications` (SendHtmlMail): true = đã xếp hàng gửi.
      */
     public function sendOperationalAlertEmail(
         string $eventKey,
@@ -699,9 +691,7 @@ class NotificationService
             ])->render();
 
             foreach ($recipients as $recipientEmail) {
-                Mail::html($htmlBody, function ($mail) use ($recipientEmail, $subject) {
-                    $mail->to($recipientEmail)->subject($subject);
-                });
+                SendHtmlMail::dispatch($recipientEmail, $subject, $htmlBody);
             }
 
             return true;

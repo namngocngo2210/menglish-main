@@ -135,7 +135,13 @@ class ModalFlowsTest extends TestCase
             ->post(route('crm.import.store'), [], self::MODAL)
             ->assertRedirect(route('crm.customers.index'));
         $this->assertSame(1, CrmCustomer::count());
-        $this->assertStringStartsWith('Đã nhập 1 khách hàng mới', session('status'));
+        $this->assertStringStartsWith('Đang nhập khách hàng', session('status'));
+        // Nhập chạy nền (queue sync trong test): kết quả + dòng bị bỏ qua hiện ở đầu danh sách khách.
+        $this->actingAs($this->admin)->get(route('crm.customers.index'))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('importTasks.0.status', 'done')
+                ->where('importTasks.0.message', fn (string $message) => str_starts_with($message, 'Đã nhập 1 khách hàng mới'))
+                ->has('importTasks.0.report.errors', 1));
     }
 
     public function test_crm_import_cancel_from_modal_returns_to_current_page(): void

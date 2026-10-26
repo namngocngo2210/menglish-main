@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\AclHelper;
+use App\Jobs\CalculatePayrollPeriod;
 use App\Models\AdminNotification;
+use App\Models\BackgroundTask;
 use App\Models\ClassModel;
 use App\Models\CommissionAdjustment;
 use App\Models\CommissionItem;
@@ -27,7 +29,6 @@ use App\Support\Money;
 use App\Support\ReportPeriod;
 use App\Support\Roles;
 use App\Support\Ui;
-use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -111,10 +112,10 @@ class PayrollController extends Controller
             'total_amount' => 0,
         ]);
 
-        $period->calculatePayrollForPeriod();
+        $this->queueCalculation($period);
 
         return redirect()->route('payroll.periods.show', $period->id)
-            ->with('status', "Đã khởi tạo và tự động tính toán bảng lương {$period->title} từ dữ liệu chấm công & hoa hồng!");
+            ->with('status', "Đã khởi tạo bảng lương {$period->title}, đang tính từ dữ liệu chấm công & hoa hồng ở nền.");
     }
 
     /**
@@ -210,6 +211,10 @@ class PayrollController extends Controller
             'typeOptions' => Ui::options(PayrollRecord::SALARY_ROLE_LABELS),
             'filtered' => $search !== '' || $type || $kpi,
             'missingStaff' => DataScope::isAll($user, 'payroll') && ! $period->isLocked() ? $this->staffWithoutPayslip($period) : null,
+            // Lần tính lương gần nhất của kỳ (chạy nền): người có quyền tính lương thấy trạng thái, trang tự tải lại khi đang tính.
+            'backgroundTasks' => $user->can('payroll.calculate')
+                ? BackgroundTask::recentFor(BackgroundTask::PAYROLL_CALCULATE, limit: 1, where: fn ($q) => $q->where('payload->period_id', $period->id))
+                : [],
         ]);
     }
 
@@ -419,13 +424,30 @@ class PayrollController extends Controller
         $period = PayrollPeriod::where('id', $id)->orWhere('code', $id)->firstOrFail();
         abort_if($period->isLocked(), 422, 'Không thể tính lại kỳ lương đã duyệt hoặc đã chi trả.');
 
-        try {
-            $period->calculatePayrollForPeriod();
-        } catch (LockTimeoutException) {
-            return redirect()->back()->with('error', 'Kỳ lương đang được tính bởi phiên khác — vui lòng thử lại sau ít phút.');
+        if (! $this->queueCalculation($period)) {
+            return redirect()->back()->with('error', 'Kỳ lương đang được tính — đợi lần tính hiện tại xong rồi bấm lại.');
         }
 
-        return redirect()->back()->with('status', "Đã đồng bộ và tính toán lại bảng lương {$period->title} từ Chấm công, KPI và Phạt!");
+        return redirect()->back()->with('status', "Đang đồng bộ và tính lại bảng lương {$period->title} ở nền. Trang tự cập nhật khi xong.");
+    }
+
+    /** Đưa việc tính lương kỳ vào queue (job CalculatePayrollPeriod); false khi kỳ này đang có lần tính chờ / đang chạy. */
+    private function queueCalculation(PayrollPeriod $period): bool
+    {
+        $samePeriod = fn ($q) => $q->where('payload->period_id', $period->id);
+        if (BackgroundTask::pendingExists(BackgroundTask::PAYROLL_CALCULATE, $samePeriod)) {
+            return false;
+        }
+        $task = BackgroundTask::query()->create([
+            'type' => BackgroundTask::PAYROLL_CALCULATE,
+            'user_id' => Auth::id(),
+            'status' => BackgroundTask::QUEUED,
+            'title' => "Tính lương {$period->title}",
+            'payload' => ['period_id' => $period->id],
+        ]);
+        CalculatePayrollPeriod::dispatch($task);
+
+        return true;
     }
 
     /**

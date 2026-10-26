@@ -7,6 +7,7 @@ use App\Exceptions\InvoiceRangeExhaustedException;
 use App\Exceptions\PaperInvoiceNumberChangedException;
 use App\Exports\ArrayExport;
 use App\Http\Concerns\RendersModals;
+use App\Models\BackgroundTask;
 use App\Models\BankAccount;
 use App\Models\Branch;
 use App\Models\ClassEnrollment;
@@ -416,7 +417,9 @@ class CrmController extends Controller
         return Inertia::render('Crm/Customers/Index', [
             'customers' => $dbCustomers,
             'stageOptions' => Ui::options(CrmCustomer::PIPELINE_STAGES + ['lost' => CrmCustomer::stageLabel('lost')]),
-            'importSkipped' => session('import_skipped'),
+            // Lần nhập Excel gần nhất của người xem trong 1 ngày (chạy nền): trạng thái + các dòng bị bỏ qua.
+            'importTasks' => BackgroundTask::recentFor(BackgroundTask::CRM_IMPORT, $request->user()->id, 1,
+                fn ($q) => $q->where('created_at', '>=', now()->subDay())),
             'chipCounts' => $this->chipCounts(),
             // Phân công lại hàng loạt: người nhận khác cơ sở của khách → tạo yêu cầu chuyển cơ sở như phân công lẻ.
             'bulkOwners' => $request->user()->can('lead.assign')

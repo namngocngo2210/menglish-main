@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\AdminNotification;
+use App\Models\BackgroundTask;
 use App\Models\Branch;
 use App\Models\QuestionBankPassage;
 use App\Models\QuestionBankQuestion;
@@ -327,7 +329,7 @@ class QuestionBankControllerTest extends TestCase
         $this->assertDatabaseHas('activity_log', ['log_name' => 'Ngân hàng câu hỏi', 'subject_id' => $passage->id, 'description' => 'Sửa ngữ liệu #'.$passage->id]);
     }
 
-    public function test_import_endpoint_shows_summary(): void
+    public function test_import_endpoint_runs_in_background_and_shows_summary(): void
     {
         $zip = Zip::write([
             'data/070.json' => Zip::dataFile(70, [
@@ -341,18 +343,25 @@ class QuestionBankControllerTest extends TestCase
         $this->actingAs($this->lead)->from(route('question-bank.index'))
             ->post(route('question-bank.import'), ['file' => new UploadedFile($zip, 'ngan-hang.zip', 'application/zip', null, true)])
             ->assertRedirect(route('question-bank.index'))
-            ->assertSessionHas('status', fn (string $status) => str_contains($status, 'Thêm 2'))
-            ->assertSessionHas('import_errors', fn (array $errors) => count($errors) === 1 && str_contains($errors[0], 'F070_missing.png'));
+            ->assertSessionHas('status', fn (string $status) => str_contains($status, 'import ở nền'));
+
+        // Queue sync (test): job đã chạy xong.
+        $task = BackgroundTask::query()->latest('id')->firstOrFail();
+        $this->assertSame(BackgroundTask::DONE, $task->status);
+        $this->assertStringContainsString('Thêm 2', $task->message);
+        $this->assertCount(1, $task->report['errors']);
+        $this->assertStringContainsString('F070_missing.png', $task->report['errors'][0]);
+        $this->assertSame([], Storage::disk('local')->allFiles($task->directory()), 'Xoá file tải lên sau khi import.');
+        $this->assertSame(1, AdminNotification::query()->where('user_id', $this->lead->id)->where('type', 'background_task')->count());
 
         $this->assertSame(2, QuestionBankQuestion::query()->count());
         // Một dòng nhật ký tổng cho cả lần import (không ghi từng câu).
         $this->assertSame(1, Activity::query()->where('log_name', 'Ngân hàng câu hỏi')->count());
 
-        $this->followingRedirects()->actingAs($this->lead)->from(route('question-bank.index'))
-            ->post(route('question-bank.import'), ['file' => new UploadedFile($zip, 'ngan-hang.zip', 'application/zip', null, true)])
+        $this->actingAs($this->lead)->get(route('question-bank.index'))
             ->assertOk()
             ->assertSee('F070_missing.png')
-            ->assertInertia(fn (AssertableInertia $page) => $page->has('importErrors', 1));
+            ->assertInertia(fn (AssertableInertia $page) => $page->has('backgroundTasks', 1)->where('backgroundTasks.0.status', 'done'));
     }
 
     public function test_import_rejects_unsafe_or_missing_zip(): void
@@ -361,8 +370,8 @@ class QuestionBankControllerTest extends TestCase
 
         $this->actingAs($this->lead)->from(route('question-bank.index'))
             ->post(route('question-bank.import'), ['file' => new UploadedFile($zip, 'evil.zip', 'application/zip', null, true)])
-            ->assertRedirect(route('question-bank.index'))
-            ->assertSessionHasErrors('file');
+            ->assertRedirect(route('question-bank.index'));
+        $this->assertSame(BackgroundTask::FAILED, BackgroundTask::query()->latest('id')->value('status'));
 
         $this->actingAs($this->lead)->post(route('question-bank.import'), [])->assertSessionHasErrors('file');
         $this->assertSame(0, QuestionBankQuestion::query()->count());

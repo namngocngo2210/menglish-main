@@ -11,13 +11,14 @@ import CrmHeader from '@/Components/Crm/CrmHeader.vue';
 import { currentQuery, urlWith } from '@/lib/url';
 import { can } from '@/lib/can';
 import SlaCountdown from '@/Components/Crm/SlaCountdown.vue';
+import BackgroundTasks from '@/Components/BackgroundTasks/BackgroundTasks.vue';
 
 defineOptions({ layout: { title: 'Danh sách khách hàng', workspaceTabs: false } });
 
 const props = defineProps({
     customers: { type: Object, required: true },
     stageOptions: { type: Array, default: () => [] },
-    importSkipped: { type: Array, default: null },
+    importTasks: { type: Array, default: () => [] },
     chipCounts: { type: Object, default: () => ({}) },
     filterBranches: { type: Array, default: () => [] },
     filterSales: { type: Array, default: () => [] },
@@ -49,9 +50,7 @@ function onBulkDone() {
     <CrmHeader title="Danh sách khách hàng" />
 
     <div class="flex flex-col gap-lg">
-        <UiAlert v-if="importSkipped && importSkipped.length" type="warning" title="Các dòng bị bỏ qua khi nhập Excel" dismissible>
-            <ul class="list-disc pl-5"><li v-for="(line, i) in importSkipped" :key="i">{{ line }}</li></ul>
-        </UiAlert>
+        <BackgroundTasks :tasks="importTasks" prop-name="importTasks" :reload-only="['customers', 'chipCounts']" />
 
         <!-- Bộ lọc (mockup danh-sach-khach): Từ khóa, Nguồn, Người phụ trách, Giai đoạn, Chi nhánh -->
         <UiFilterBar :action="route('crm.customers.index')" search="search" placeholder="Tìm tên hoặc SĐT..." :reset-url="route('crm.customers.index')">

@@ -272,9 +272,9 @@ class Phase2BigTestTest extends TestCase
 
         $page = $this->actingAs($this->academic)->get(route('syllabus.big-tests.results', $test->id));
         $page->assertOk()
-            ->assertSee('Đã gửi PH')
+            ->assertSee('Đã báo PH')
             ->assertSee(route('syllabus.big-tests.mark-single-notified', $pending->id, absolute: false))
-            ->assertSee('Gửi PH');
+            ->assertSee('Đánh dấu đã báo phụ huynh');
 
         // Giáo viên không có nút gửi
         $this->actingAs($this->teacherA)->get(route('syllabus.big-tests.results', $test->id))
