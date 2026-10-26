@@ -515,8 +515,8 @@ class WorkTaskController extends Controller
             $window = $dashboard->attendanceWindow($session);
             $open = $session->status !== 'cancelled' && $class && $canRecord;
             $action = match (true) {
-                // Chưa tới giờ học → nút Điểm danh khóa kèm quy định cửa sổ 24h.
-                $open && $state['key'] !== 'done' && $windowLimited && ! $session->withinTeacherAttendanceWindow() => ['kind' => 'locked', 'message' => TeacherPortalController::outsideAttendanceWindowMessage()],
+                // Ngoài khung điểm danh (chưa tới 15 phút trước giờ học / quá N giờ) → nút Điểm danh khóa kèm lý do.
+                $open && $state['key'] !== 'done' && $windowLimited && ! $session->withinTeacherAttendanceWindow() => ['kind' => 'locked', 'message' => TeacherPortalController::outsideAttendanceWindowMessage($session)],
                 $open && $state['key'] !== 'done' && $window === 'before' && ! $windowLimited => ['kind' => 'locked', 'message' => 'Chưa tới giờ học — chưa điểm danh được.'],
                 $open && ($windowLimited ? true : ! $session->date->gt($today)) => [
                     'kind' => 'link',

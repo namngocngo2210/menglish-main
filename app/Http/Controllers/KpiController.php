@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Helpers\AclHelper;
 use App\Http\Concerns\RendersModals;
+use App\Models\AdminNotification;
 use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\KpiCriterion;
@@ -863,11 +864,25 @@ class KpiController extends Controller
 
         $student = Student::find($attendance->student_id);
         if ($student) {
-            $approved = StudentAttendance::where('student_id', $student->id)->where('review_status', 'approved');
+            $counted = StudentAttendance::where('student_id', $student->id)->counted();
             $student->update([
-                'attended_lessons' => (clone $approved)->whereIn('status', ['present', 'late'])->count(),
-                'total_lessons' => max($student->total_lessons, (clone $approved)->count()),
+                'attended_lessons' => (clone $counted)->whereIn('status', ['present', 'late'])->count(),
+                'total_lessons' => max($student->total_lessons, (clone $counted)->count()),
             ]);
+        }
+        // Trả lại để sửa: báo GV của buổi (và người lưu nếu khác) — GV sửa được cả khi đã quá khung điểm danh.
+        if ($validated['decision'] === 'rejected') {
+            $attendance->loadMissing(['student:id,name', 'classModel:id,name']);
+            collect([$attendance->user_id, $attendance->recorded_by])->filter()->unique()
+                ->reject(fn ($id) => (int) $id === (int) Auth::id())
+                ->each(fn ($id) => AdminNotification::create([
+                    'user_id' => $id,
+                    'type' => 'attendance_rejected',
+                    'title' => 'Điểm danh bị trả lại: '.($attendance->student?->name ?? 'học viên').' · '.($attendance->classModel?->name ?? 'lớp').' ngày '.$attendance->session_date?->format('d/m/Y'),
+                    'message' => $validated['review_note'] ? 'Lý do: '.$validated['review_note'] : 'Học vụ trả lại điểm danh để chỉnh sửa.',
+                    'data' => ['link' => route('teacher.attendance', ['classId' => $attendance->class_id, 'session' => $attendance->class_session_id])],
+                    'is_read' => false,
+                ]));
         }
 
         return redirect()->back()->with('success', $validated['decision'] === 'approved' ? 'Đã duyệt điểm danh.' : 'Đã trả lại điểm danh để chỉnh sửa.');

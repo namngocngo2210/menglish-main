@@ -86,7 +86,7 @@ class Phase2AttendanceTest extends TestCase
     {
         $past = $this->makeSession('2026-10-06'); // trong khung ±24h (start 18:00 hôm qua + 24h = 18:00 hôm nay)
         $today = $this->makeSession('2026-10-07', '08:00', '09:30');
-        $makeup = $this->makeSession('2026-10-07', '14:00', '15:30', ClassSession::TYPE_MAKEUP);
+        $makeup = $this->makeSession('2026-10-07', '10:05', '11:30', ClassSession::TYPE_MAKEUP);
 
         $this->actingAs($this->teacher)->get(route('teacher.attendance', ['classId' => $this->classModel->id, 'session' => $past->id]))
             ->assertOk()->assertSee('Điểm danh bù')->assertSee($this->student->name);

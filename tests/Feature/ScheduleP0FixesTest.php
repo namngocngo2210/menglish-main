@@ -356,6 +356,7 @@ class ScheduleP0FixesTest extends TestCase
 
     public function test_saving_attendance_marks_today_session_completed(): void
     {
+        $this->travelTo(today()->setTime(18, 5)); // GV điểm danh khi buổi 18:00 đã bắt đầu
         $today = $this->makeSession(now());
 
         $this->actingAs($this->teacher)->post(route('teacher.attendance.store', $this->classModel->id), [

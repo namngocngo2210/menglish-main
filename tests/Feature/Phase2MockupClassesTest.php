@@ -393,7 +393,7 @@ class Phase2MockupClassesTest extends TestCase
         // Buổi ngoài khung ±24h quanh giờ bắt đầu → GV không điểm danh được (windowReason khóa nút Lưu); Học vụ vẫn điểm danh bù.
         $old = $this->makeSession('2026-10-05', '07:30', '08:45');
         $this->actingAs($this->teacher)->get(route('teacher.attendance', ['classId' => $this->classModel->id, 'session' => $old->id]))
-            ->assertOk()->assertInertia(fn ($page) => $page->where('windowReason', 'Ngoài khung ±24h so với giờ bắt đầu buổi học — liên hệ Học vụ để điểm danh.'));
+            ->assertOk()->assertInertia(fn ($page) => $page->where('windowReason', 'Quá 24h kể từ giờ bắt đầu buổi học — liên hệ Học vụ để điểm danh.'));
         $this->actingAs($this->admin)->get(route('teacher.attendance', ['classId' => $this->classModel->id, 'session' => $old->id]))
             ->assertOk()->assertInertia(fn ($page) => $page->where('windowReason', null));
     }

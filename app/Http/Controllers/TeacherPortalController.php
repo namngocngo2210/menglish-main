@@ -6,6 +6,7 @@ use App\Models\AcademicRecord;
 use App\Models\AdminNotification;
 use App\Models\BigTestOrder;
 use App\Models\BigTestResult;
+use App\Models\ClassEnrollment;
 use App\Models\ClassModel;
 use App\Models\ClassSession;
 use App\Models\CrmTrialBooking;
@@ -568,6 +569,7 @@ class TeacherPortalController extends Controller
             ? StudentAttendance::with('recorder')->where('class_session_id', $session->id)->get()->keyBy('student_id')
             : collect();
         $students = $session ? $this->sessionRoster($class, $session, $existing) : collect();
+        $joinedAfter = $session ? $this->joinedAfter($students, $class, $session) : [];
         $blockReason = $session ? $this->attendanceBlockReason($session, teacherWindow: true) : null;
         $windowReason = $session ? $this->attendanceWindowReason($session, $class) : null;
         $onBehalf = ! $this->isAssignedStaff($user, $class, $session);
@@ -591,8 +593,9 @@ class TeacherPortalController extends Controller
                 'type' => $session->type,
                 'is_past' => $session->date->isBefore(today()),
             ] : null,
-            'students' => $students->map(function (Student $student) use ($existing, $class) {
+            'students' => $students->map(function (Student $student) use ($existing, $class, $joinedAfter) {
                 $record = $existing->get($student->id);
+                $joinedOn = $joinedAfter[$student->id] ?? null;
 
                 return [
                     'id' => $student->id,
@@ -600,7 +603,9 @@ class TeacherPortalController extends Controller
                     'code' => $student->code,
                     'linked' => (int) $student->current_class_id !== (int) $class->id,
                     'recorder_name' => $record?->recorder && (int) $record->recorded_by !== (int) $record->user_id ? $record->recorder->name : null,
-                    'status' => $record?->status ?? 'present',
+                    // Vào lớp sau buổi này: để trống (không lưu) trừ khi GV / Học vụ chọn trạng thái.
+                    'status' => $record?->status ?? ($joinedOn ? '' : 'present'),
+                    'joined_on' => $joinedOn ? Carbon::parse($joinedOn)->format('d/m/Y') : null,
                     'note' => $record?->note,
                 ];
             })->values()->all(),
@@ -690,7 +695,7 @@ class TeacherPortalController extends Controller
         $validated = $request->validate([
             'class_session_id' => 'nullable|integer',
             'status' => 'required|array',
-            'status.*' => 'in:present,absent,late,excused',
+            'status.*' => 'nullable|in:present,absent,late,excused',
             'note' => 'nullable|array',
             'note.*' => 'nullable|string|max:500',
         ]);
@@ -705,6 +710,12 @@ class TeacherPortalController extends Controller
         }
 
         // Mockup điểm danh: "Nghỉ có phép" / "Nghỉ không phép" bắt buộc ghi chú lý do vắng.
+        // Ô để trống (học viên chưa vào lớp ở buổi này) thì không lưu điểm danh cho học viên đó.
+        $validated['status'] = array_filter($validated['status'], fn ($status) => filled($status));
+        if ($validated['status'] === []) {
+            return back()->withErrors(['session' => 'Chưa chọn trạng thái điểm danh cho học viên nào.']);
+        }
+
         $missingNotes = collect($validated['status'])
             ->filter(fn ($status, $studentId) => in_array($status, ['absent', 'excused'], true) && blank($validated['note'][$studentId] ?? null))
             ->keys();
@@ -725,9 +736,17 @@ class TeacherPortalController extends Controller
             ? $user->id
             : ($session->teacher_id ?? $class->teacher_id ?? $user->id);
 
-        $count = DB::transaction(function () use ($validated, $session, $class, $teacherId, $user) {
+        $count = DB::transaction(function () use ($validated, $session, $class, $teacherId, $user, $existing) {
             $count = 0;
             foreach ($validated['status'] as $studentId => $status) {
+                $note = $validated['note'][$studentId] ?? null;
+                $current = $existing->get((int) $studentId);
+                // Dòng không đổi trạng thái / ghi chú: giữ nguyên kết quả rà soát của Học vụ (không về "chờ rà soát").
+                if ($current && $current->status === $status && (string) $current->note === (string) $note) {
+                    $count++;
+
+                    continue;
+                }
                 StudentAttendance::updateOrCreate(
                     ['class_session_id' => $session->id, 'student_id' => $studentId],
                     [
@@ -740,7 +759,7 @@ class TeacherPortalController extends Controller
                         'reviewed_by' => null,
                         'reviewed_at' => null,
                         'review_note' => null,
-                        'note' => $validated['note'][$studentId] ?? null,
+                        'note' => $note,
                     ]
                 );
                 $count++;
@@ -797,21 +816,29 @@ class TeacherPortalController extends Controller
             ?? $usable->first();
     }
 
-    /** Thông báo khi GV điểm danh ngoài khung ±24h quanh giờ bắt đầu buổi (Học vụ record_any không bị chặn). */
-    public static function outsideAttendanceWindowMessage(): string
+    /** Thông báo khi GV điểm danh ngoài khung điểm danh của buổi (Học vụ record_any không bị chặn). */
+    public static function outsideAttendanceWindowMessage(?ClassSession $session = null): string
     {
-        return 'Ngoài khung ±'.ClassSession::attendanceWindowHours().'h so với giờ bắt đầu buổi học — liên hệ Học vụ để điểm danh.';
+        if ($session?->beforeTeacherAttendanceWindow()) {
+            return 'Buổi học chưa bắt đầu — mở điểm danh từ '.$session->startsAt()->subMinutes(ClassSession::ATTENDANCE_EARLY_MINUTES)->format('H:i d/m').'.';
+        }
+
+        return 'Quá '.ClassSession::attendanceWindowHours().'h kể từ giờ bắt đầu buổi học — liên hệ Học vụ để điểm danh.';
     }
 
-    /** Người này có bị giới hạn khung ±24h không (GV/TA tự điểm danh; Học vụ/Admin có record_any thì bỏ qua). */
+    /** Người này có bị giới hạn khung điểm danh không (GV/TA tự điểm danh; Học vụ/Admin có record_any thì bỏ qua). */
     private function attendanceWindowReason(ClassSession $session, ClassModel $class): ?string
     {
         $user = Auth::user();
         if ($session->status === 'cancelled' || ($user && $user->can('attendance_student.record_any'))) {
             return null;
         }
+        // Học vụ trả lại điểm danh để sửa: GV sửa được kể cả khi đã quá khung điểm danh.
+        if (StudentAttendance::where('class_session_id', $session->id)->where('review_status', 'rejected')->exists()) {
+            return null;
+        }
 
-        return $session->withinTeacherAttendanceWindow() ? null : self::outsideAttendanceWindowMessage();
+        return $session->withinTeacherAttendanceWindow() ? null : self::outsideAttendanceWindowMessage($session);
     }
 
     private function attendanceBlockReason(ClassSession $session, bool $teacherWindow = false): ?string
@@ -819,7 +846,7 @@ class TeacherPortalController extends Controller
         if ($session->status === 'cancelled') {
             return 'Buổi học này đã hủy'.($session->holiday_id ? ' (nghỉ lễ)' : '').' — không điểm danh.';
         }
-        // Điểm danh của GV: khung ±24h thay cho chặn "chưa tới ngày" (buổi sáng mai vẫn điểm danh được từ chiều nay).
+        // Điểm danh của GV: khung điểm danh của buổi (từ 15 phút trước giờ học) thay cho chặn "chưa tới ngày".
         if ($teacherWindow && ! Auth::user()?->can('attendance_student.record_any')) {
             return null;
         }
@@ -847,6 +874,29 @@ class TeacherPortalController extends Controller
         }
 
         return $students->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)->values();
+    }
+
+    /**
+     * Học viên xếp vào lớp SAU ngày của buổi (theo ngày xếp lớp enrolled_at; không có lượt xếp lớp / chưa ghi ngày thì
+     * coi như đã ở lớp): trang điểm danh để trống "Chưa vào lớp" thay vì mặc định "Có mặt" cho buổi học viên chưa học.
+     *
+     * @return array<int, string> id học viên => ngày vào lớp (Y-m-d)
+     */
+    private function joinedAfter(Collection $students, ClassModel $class, ClassSession $session): array
+    {
+        if ($students->isEmpty() || $session->type === ClassSession::TYPE_SUPPORT) {
+            return [];
+        }
+        $day = $session->date->toDateString();
+
+        return ClassEnrollment::query()->where('class_id', $class->id)
+            ->whereIn('student_id', $students->pluck('id'))
+            ->whereIn('status', Student::ACTIVE_ENROLLMENT_STATUSES)
+            ->get(['student_id', 'enrolled_at'])
+            ->groupBy('student_id')
+            ->map(fn (Collection $rows) => $rows->min(fn ($e) => $e->enrolled_at?->toDateString() ?? '0000-00-00'))
+            ->filter(fn (string $from) => $from > $day)
+            ->all();
     }
 
     private function parseDate($value): ?Carbon
