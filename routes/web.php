@@ -968,6 +968,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/{exam}', 'show')->whereNumber('exam')->name('show');
             Route::middleware('can:question_bank.manage')->group(function () {
                 Route::post('/import', 'import')->name('import');
+                Route::post('/bulk', 'bulk')->name('bulk');
                 Route::put('/{exam}', 'update')->whereNumber('exam')->name('update');
                 Route::post('/{exam}/status', 'status')->whereNumber('exam')->name('status');
                 Route::delete('/{exam}', 'destroy')->whereNumber('exam')->name('destroy');
