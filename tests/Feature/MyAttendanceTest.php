@@ -394,7 +394,8 @@ class MyAttendanceTest extends TestCase
         $row = StaffAttendance::sole();
         $this->assertSame('2026-10-05 18:20', $row->check_in_at->format('Y-m-d H:i'));
         $this->assertSame(20, $row->late_minutes);
-        $this->assertNotNull($row->penalty_id);
+        // GV: đi muộn tính trên check-in ca dạy, chấm công không lập thêm biên bản (không phạt 2 lần).
+        $this->assertNull($row->penalty_id);
 
         // Check-in ca dạy trên Cổng giáo viên cũng ghi 18:20, muộn 20 phút.
         $this->actingAs($teacher)->post(route('teacher.checkin'), ['session_ids' => [$session->id]])->assertSessionHasNoErrors();

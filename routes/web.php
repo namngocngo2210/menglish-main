@@ -174,6 +174,9 @@ Route::middleware('auth')->group(function () {
     Route::redirect('/m/can-duyet', '/approvals');
     Route::get('/staff-attendance', [StaffAttendanceController::class, 'index'])->middleware('can:staff_checkin.view')->name('staff-attendance.index');
     Route::get('/staff-attendance/{attendance}', [StaffAttendanceController::class, 'show'])->whereNumber('attendance')->middleware('can:staff_checkin.view')->name('staff-attendance.show');
+    Route::get('/staff-attendance/sua', [StaffAttendanceController::class, 'edit'])->middleware('can:staff_checkin.approve')->name('staff-attendance.edit');
+    Route::post('/staff-attendance/sua', [StaffAttendanceController::class, 'adjust'])->middleware('can:staff_checkin.approve')->name('staff-attendance.adjust');
+    Route::post('/staff-attendance/don/{attendanceRequest}/thu-hoi', [StaffAttendanceController::class, 'revoke'])->whereNumber('attendanceRequest')->middleware('can:staff_checkin.approve')->name('staff-attendance.requests.revoke');
     Route::get('/staff-attendance/{attendance}/photo/{kind}', [MyAttendanceController::class, 'photo'])->whereNumber('attendance')->whereIn('kind', ['in', 'out'])->name('staff-attendance.photo');
 
     // ─────────────────────────────────────────────

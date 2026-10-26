@@ -28,7 +28,7 @@ const fid = (field) => props.idPrefix + field;
 const tabs = {
     account: ['Tài khoản', 'manage_accounts', ['name', 'email', 'phone', 'branch_id', 'extra_branch_ids', 'role', 'academic_teaching', 'concurrent_roles', 'password']],
     profile: ['Hồ sơ', 'badge', ['date_of_birth', 'personal_email', 'facebook', 'contact_channel', 'id_card_number', 'id_card_issued_on', 'emergency_contact', 'hometown', 'current_address', 'graduation_school', 'major', 'certificates', 'teaching_level', 'staff_note']],
-    salary: ['Hợp đồng & Lương', 'payments', ['contract_type', 'base_salary', 'hourly_rate', 'joined_on', 'bank_account', 'contract_start_date', 'contract_end_date', 'contract_file']],
+    salary: ['Hợp đồng & Lương', 'payments', ['contract_type', 'base_salary', 'hourly_rate', 'joined_on', 'bank_account', 'contract_start_date', 'contract_end_date', 'contract_file', 'work_start_time', 'work_end_time', 'weekly_days_off']],
 };
 const contractTypes = [
     { value: 'Toàn thời gian', label: 'Toàn thời gian (Fulltime)' },
@@ -56,6 +56,10 @@ const extraBranchErrors = computed(() => Object.entries(errors.value)
     .filter(([key]) => key === 'extra_branch_ids' || key.startsWith('extra_branch_ids.'))
     .map(([, message]) => message));
 const teaching = ref(!!props.user?.academic_teaching);
+
+// Lịch làm việc riêng (chấm công): ngày nghỉ cố định trong tuần, 1 = Thứ 2 … 7 = Chủ nhật.
+const weekdays = [[1, 'T2'], [2, 'T3'], [3, 'T4'], [4, 'T5'], [5, 'T6'], [6, 'T7'], [7, 'CN']];
+const daysOff = ref((props.user?.weekly_days_off ?? []).map(Number));
 
 const tab = ref(firstErrorTab() ?? (tabs[props.initialTab] ? props.initialTab : 'account'));
 watch(errors, () => {
@@ -196,6 +200,24 @@ onMounted(() => {
                 <UiDate name="contract_start_date" :id="fid('contract_start_date')" label="Ngày bắt đầu hợp đồng" :value="user?.contract_start_date" />
                 <UiDate name="contract_end_date" :id="fid('contract_end_date')" label="Ngày kết thúc hợp đồng" :value="user?.contract_end_date" />
             </div>
+            <!-- Lịch làm việc riêng: giờ vào / ra thay giờ làm việc chung của cơ sở (đi muộn, về sớm) + ngày nghỉ cố định. -->
+            <fieldset class="rounded-lg border border-outline-variant p-md" data-work-schedule>
+                <input type="hidden" name="weekly_days_off_present" value="1" />
+                <legend class="px-xs font-label text-label uppercase text-on-surface-variant">Lịch làm việc (chấm công)</legend>
+                <p class="mb-sm font-caption text-caption text-on-surface-variant">Để trống giờ = theo giờ làm việc của cơ sở. Ngày nghỉ cố định không phải chấm công và không bị tính "Chưa chấm công". Giáo viên / trợ giảng tính theo buổi dạy, không dùng giờ này.</p>
+                <div class="grid grid-cols-2 gap-md">
+                    <UiInput name="work_start_time" :id="fid('work_start_time')" type="time" label="Giờ vào riêng" :value="user?.work_start_time ?? ''" />
+                    <UiInput name="work_end_time" :id="fid('work_end_time')" type="time" label="Giờ ra riêng" :value="user?.work_end_time ?? ''" />
+                </div>
+                <p class="mb-xs mt-sm font-body-small text-body-small text-on-surface">Ngày nghỉ cố định trong tuần</p>
+                <div class="flex flex-wrap gap-sm">
+                    <label v-for="[value, label] in weekdays" :key="value" class="flex items-center gap-xs font-body-small text-body-small">
+                        <input v-model="daysOff" type="checkbox" name="weekly_days_off[]" :value="value" :id="fid('day_off_' + value)" class="rounded border-outline-variant text-primary-container focus:ring-primary-container" />
+                        <span>{{ label }}</span>
+                    </label>
+                </div>
+                <UiErrors class="mt-1" :messages="Object.entries(errors).filter(([k]) => k.startsWith('weekly_days_off')).map(([, m]) => m)" />
+            </fieldset>
             <UiField label="File hợp đồng lao động (PDF, Word, ảnh — tối đa 10MB)" name="contract_file" :for="fid('contract_file')">
                 <input type="file" :id="fid('contract_file')" name="contract_file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp" class="w-full font-body-small text-body-small text-on-surface file:mr-sm file:rounded-lg file:border-0 file:bg-primary-container/10 file:px-md file:py-sm file:font-semibold file:text-primary" />
                 <p v-if="user?.has_contract_file" class="flex items-center gap-xs font-caption text-caption text-on-surface-variant">

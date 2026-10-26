@@ -73,6 +73,12 @@ class UserRequest extends FormRequest
             'contact_channel' => ['nullable', 'string', 'max:50'],
             'staff_note' => ['nullable', 'string', 'max:2000'],
             'contract_type' => ['nullable', 'string', 'max:50'],
+            // Lịch làm việc riêng (chấm công): giờ vào / ra thay giờ cơ sở, ngày nghỉ cố định trong tuần (1 = T2 … 7 = CN).
+            'work_start_time' => ['nullable', 'date_format:H:i'],
+            'work_end_time' => ['nullable', 'date_format:H:i', 'after:work_start_time'],
+            'weekly_days_off_present' => ['nullable', 'boolean'],
+            'weekly_days_off' => ['nullable', 'array', 'max:6'],
+            'weekly_days_off.*' => ['integer', 'between:1,7'],
             'contract_start_date' => ['nullable', 'date'],
             'contract_end_date' => ['nullable', 'date'],
             'contract_file' => ['nullable', 'file', 'max:10240', 'mimes:pdf,doc,docx,jpg,jpeg,png,webp'],

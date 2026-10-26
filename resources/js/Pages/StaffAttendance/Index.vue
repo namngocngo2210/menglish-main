@@ -66,7 +66,7 @@ const tabClass = (active) => [
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="row in rows.data" :key="row.user.id" :data-href="row.attendance ? route('staff-attendance.show', row.attendance.id) : null" :data-modal="row.attendance ? 'lg' : null">
+                    <tr v-for="row in rows.data" :key="row.user.id" :data-href="row.attendance ? route('staff-attendance.show', row.attendance.id) : row.edit_url" :data-modal="row.attendance ? 'lg' : row.edit_url ? 'md' : null">
                         <td>
                             <p class="font-semibold text-on-surface">{{ row.user.name }}</p>
                             <p class="text-caption text-on-surface-variant">{{ [row.user.code, row.user.branch].filter(Boolean).join(' · ') }}</p>
@@ -77,6 +77,7 @@ const tabClass = (active) => [
                                 <span>
                                     <span class="block font-mono font-semibold">{{ row.attendance.check_in }}</span>
                                     <span v-if="row.attendance.check_in_distance !== null" class="block text-caption text-on-surface-variant">cách {{ formatNumber(row.attendance.check_in_distance) }} m</span>
+                                    <span v-if="row.attendance.low_accuracy" class="block text-caption text-warning" title="Sai số GPS lớn — đối chiếu ảnh khuôn mặt">GPS kém chính xác</span>
                                     <span v-else-if="row.attendance.source === 'request'" class="block text-caption text-on-surface-variant">bổ sung công</span>
                                 </span>
                             </div>
@@ -87,7 +88,8 @@ const tabClass = (active) => [
                         <td>
                             <UiBadge v-if="row.attendance" :color="row.attendance.status_tone">{{ row.attendance.status_label }}</UiBadge>
                             <UiBadge v-else-if="row.leave !== null" color="secondary" :title="row.leave">Nghỉ có phép</UiBadge>
-                            <UiBadge v-else color="neutral">Chưa chấm công</UiBadge>
+                            <UiBadge v-else-if="row.off" color="neutral" :title="row.off">Không phải chấm</UiBadge>
+                            <UiBadge v-else color="warning">Chưa chấm công</UiBadge>
                             <span v-if="row.attendance?.penalty" class="mt-0.5 block text-caption text-error">Biên bản {{ row.attendance.penalty }}</span>
                         </td>
                     </tr>

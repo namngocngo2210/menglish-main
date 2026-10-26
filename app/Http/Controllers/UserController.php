@@ -279,7 +279,9 @@ class UserController extends Controller
         $user = retry(3, fn () => User::create([
             ...$request->safe()->except([
                 'role', 'password', 'contract_file', 'concurrent_roles', 'concurrent_roles_present', 'extra_branch_ids', 'extra_branch_ids_present',
+                'weekly_days_off', 'weekly_days_off_present',
             ]),
+            'weekly_days_off' => $this->weeklyDaysOff($request, null),
             'password' => Hash::make($request->validated('password')),
             'must_change_password' => true,
             'is_active' => true,
@@ -320,6 +322,9 @@ class UserController extends Controller
                     'emergency_contact', 'hometown', 'current_address', 'graduation_school', 'certificates', 'teaching_level',
                     'contract_type', 'academic_teaching', 'personal_email', 'facebook', 'major', 'contact_channel', 'staff_note',
                 ]),
+                'work_start_time' => $user->work_start_time ? substr((string) $user->work_start_time, 0, 5) : null,
+                'work_end_time' => $user->work_end_time ? substr((string) $user->work_end_time, 0, 5) : null,
+                'weekly_days_off' => array_map('intval', (array) $user->weekly_days_off),
                 'date_of_birth' => $user->date_of_birth?->format('Y-m-d'),
                 'joined_on' => $user->joined_on?->format('Y-m-d'),
                 ...($canEditSensitive ? $user->only(self::SENSITIVE_FIELDS) : []),
@@ -340,6 +345,17 @@ class UserController extends Controller
         ]);
     }
 
+    /** Ngày nghỉ cố định trong tuần từ form (ô tick; không gửi cờ _present thì giữ giá trị cũ). @return list<int>|null */
+    private function weeklyDaysOff(UserRequest $request, ?array $current): ?array
+    {
+        if (! $request->boolean('weekly_days_off_present') && ! $request->has('weekly_days_off')) {
+            return $current;
+        }
+        $days = collect($request->validated('weekly_days_off') ?? [])->map(fn ($d) => (int) $d)->unique()->sort()->values()->all();
+
+        return $days === [] ? null : $days;
+    }
+
     /** Trường nhạy cảm trên form nhân sự: chỉ người có payroll.view đọc / sửa (canViewSensitive). */
     private const SENSITIVE_FIELDS = ['id_card_number', 'id_card_issued_on', 'bank_account', 'base_salary', 'hourly_rate'];
 
@@ -354,8 +370,10 @@ class UserController extends Controller
 
         $user->fill($request->safe()->except([
             'role', 'password', 'contract_file', 'concurrent_roles', 'concurrent_roles_present', 'extra_branch_ids', 'extra_branch_ids_present',
+            'weekly_days_off', 'weekly_days_off_present',
             ...(self::canViewSensitive(auth()->user()) ? [] : self::SENSITIVE_FIELDS),
         ]));
+        $user->weekly_days_off = $this->weeklyDaysOff($request, $user->weekly_days_off);
 
         if ($request->filled('password')) {
             $user->password = Hash::make($request->validated('password'));

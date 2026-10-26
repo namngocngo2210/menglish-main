@@ -61,6 +61,9 @@ class User extends Authenticatable
         'bank_account',
         'contact_channel',
         'staff_note',
+        'work_start_time',
+        'work_end_time',
+        'weekly_days_off',
         'password',
         'must_change_password',
         'is_active',
@@ -100,7 +103,14 @@ class User extends Authenticatable
             'date_of_birth' => 'date',
             'id_card_issued_on' => 'date',
             'joined_on' => 'date',
+            'weekly_days_off' => 'array',
         ];
+    }
+
+    /** Hôm $date có phải ngày nghỉ cố định trong tuần của nhân sự (lịch làm việc riêng, chấm công). */
+    public function isWeeklyDayOff(\Carbon\CarbonInterface $date): bool
+    {
+        return in_array($date->isoWeekday(), array_map('intval', (array) $this->weekly_days_off), true);
     }
 
     /**
