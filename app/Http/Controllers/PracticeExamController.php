@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\ImportPracticeExams;
 use App\Models\PracticeAttempt;
 use App\Models\PracticeExam;
+use App\Models\PracticeExamImport;
 use App\Models\QuestionBankQuestion;
-use App\Services\QuestionBank\PracticeExamImporter;
 use App\Support\Audit;
 use App\Support\Practice\PracticeCatalog;
 use Illuminate\Http\RedirectResponse;
@@ -13,7 +14,6 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
-use InvalidArgumentException;
 
 /**
  * Đề cố định (docs/luyen-tap-ngan-hang-cau-hoi.md §11.2): danh sách theo khối, import Excel + Word / ZIP, xem đề kèm đáp án,
@@ -53,7 +53,7 @@ class PracticeExamController extends Controller
                     ])->all(),
             ])->all(),
             'canManage' => $request->user()->can('question_bank.manage'),
-            'importReport' => session('exam_import_report'),
+            'imports' => $this->recentImports(),
         ]);
     }
 
@@ -83,8 +83,11 @@ class PracticeExamController extends Controller
         ]);
     }
 
-    /** Import file .zip / .xlsx / .docx (nhiều file một lần); kết quả từng đề hiện lại ở danh sách. */
-    public function import(Request $request, PracticeExamImporter $importer): RedirectResponse
+    /**
+     * Import file .zip / .xlsx / .docx (nhiều file một lần) chạy nền: lưu file, đưa job ImportPracticeExams vào hàng đợi;
+     * danh sách đề tự tải lại tới khi xong và hiện kết quả từng đề.
+     */
+    public function import(Request $request): RedirectResponse
     {
         $request->validate([
             'files' => ['required', 'array', 'max:30'],
@@ -95,36 +98,20 @@ class PracticeExamController extends Controller
             }],
         ], [], ['files' => 'file đề', 'files.*' => 'file đề']);
 
-        if (! app()->runningInConsole()) {
-            @set_time_limit(300);
+        $files = $request->file('files');
+        $import = PracticeExamImport::query()->create([
+            'user_id' => $request->user()->id,
+            'status' => PracticeExamImport::QUEUED,
+            'file_names' => array_map(fn ($file) => $file->getClientOriginalName(), $files),
+        ]);
+        // Lưu theo số thứ tự (tên gốc giữ ở file_names, importer nhận dạng file theo tên gốc)
+        foreach ($files as $i => $file) {
+            $file->storeAs($import->directory(), (string) $i, 'local');
         }
 
-        try {
-            $summary = activity()->withoutLogs(fn () => $importer->import(array_map(
-                fn ($file) => ['path' => $file->getRealPath(), 'name' => $file->getClientOriginalName()],
-                $request->file('files'),
-            )));
-        } catch (InvalidArgumentException $e) {
-            return back()->withErrors(['files' => $e->getMessage()]);
-        }
+        ImportPracticeExams::dispatch($import);
 
-        activity(Audit::logNameFor(QuestionBankQuestion::class))
-            ->causedBy($request->user())
-            ->withProperties([
-                'files' => array_map(fn ($file) => $file->getClientOriginalName(), $request->file('files')),
-                'exam_ids' => $summary->examIds,
-                'errors' => count($summary->errors),
-            ])
-            ->log('Import đề cố định: '.$summary->message());
-
-        return back()
-            ->with($summary->saved === [] ? 'error' : 'status', $summary->message())
-            ->with('exam_import_report', [
-                'saved' => $summary->saved,
-                'kept' => $summary->kept,
-                'errors' => $summary->errors,
-                'warnings' => array_slice($summary->warnings, 0, 50),
-            ]);
+        return back()->with('status', 'Đã nhận file, đang import ở nền. Có thể rời trang, kết quả hiện ở đây khi xong.');
     }
 
     public function update(Request $request, PracticeExam $exam): RedirectResponse
@@ -173,6 +160,25 @@ class PracticeExamController extends Controller
         $this->log($request, $exam, "Xoá đề cố định {$label}");
 
         return redirect()->route('question-bank.exams.index')->with('status', 'Đã xoá đề.');
+    }
+
+    /** 5 lần import gần nhất: lần đầu tiên kèm kết quả chi tiết; còn lần đang chờ / đang chạy thì trang tự tải lại. */
+    private function recentImports(): array
+    {
+        return PracticeExamImport::query()->with('user:id,name')->latest('id')->limit(5)->get()
+            ->map(fn (PracticeExamImport $import, int $i) => [
+                'id' => $import->id,
+                'status' => $import->status,
+                'status_label' => PracticeExamImport::STATUSES[$import->status] ?? $import->status,
+                'pending' => $import->isPending(),
+                'files' => $import->file_names,
+                'user' => $import->user?->name,
+                'created_at' => $import->created_at?->format('d/m/Y H:i'),
+                // chờ quá 2 phút chưa chạy: thường do tiến trình xử lý nền (queue) chưa bật
+                'stalled' => $import->status === PracticeExamImport::QUEUED && $import->created_at?->lt(now()->subMinutes(2)),
+                'message' => $import->message,
+                'report' => $i === 0 ? $import->report : null,
+            ])->all();
     }
 
     private function examRow(PracticeExam $exam): array

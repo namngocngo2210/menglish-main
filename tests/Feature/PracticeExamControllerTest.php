@@ -2,15 +2,19 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\ImportPracticeExams;
 use App\Models\Branch;
 use App\Models\PracticeAttempt;
 use App\Models\PracticeExam;
+use App\Models\PracticeExamImport;
 use App\Models\QuestionBankQuestion;
 use App\Models\Student;
 use App\Models\User;
 use App\Support\Roles;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia;
 use Tests\Support\PracticeExamFixture;
 use Tests\TestCase;
@@ -27,6 +31,7 @@ class PracticeExamControllerTest extends TestCase
         parent::setUp();
         $this->travelTo(now()->setDate(2026, 10, 24)->setTime(9, 0));
         $this->lead = $this->userWithRole(Roles::ACADEMIC_LEAD);
+        Storage::fake('local');
     }
 
     protected function tearDown(): void
@@ -91,7 +96,10 @@ class PracticeExamControllerTest extends TestCase
 
         $this->get(route('question-bank.exams.index'))
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->has('importReport.saved', 1)
+                ->where('imports.0.status', PracticeExamImport::DONE)
+                ->where('imports.0.pending', false)
+                ->where('imports.0.files', ['De_GK1_Anh6.xlsx', 'De_GK1_Anh6_Ma601.docx'])
+                ->has('imports.0.report.saved', 1)
                 ->where('grades.0.exams.0.label', 'Đề 601')
                 ->where('grades.0.exams.0.question_count', 6)
                 ->where('grades.0.exams.0.status_label', 'Nháp')
@@ -190,5 +198,59 @@ class PracticeExamControllerTest extends TestCase
             ->post(route('question-bank.exams.import'), ['files' => [UploadedFile::fake()->create('de.pdf', 10, 'application/pdf')]])
             ->assertSessionHasErrors('files.0');
         $this->assertSame(0, PracticeExam::query()->count());
+    }
+
+    public function test_import_is_queued_with_stored_files_and_page_shows_pending(): void
+    {
+        Queue::fake();
+
+        $this->actingAs($this->lead)
+            ->post(route('question-bank.exams.import'), ['files' => [
+                new UploadedFile(PracticeExamFixture::xlsx(), 'De_GK1_Anh6.xlsx', null, null, true),
+            ]])
+            ->assertSessionHas('status');
+
+        $import = PracticeExamImport::query()->firstOrFail();
+        $this->assertSame([PracticeExamImport::QUEUED, $this->lead->id], [$import->status, $import->user_id]);
+        Storage::disk('local')->assertExists("exam-imports/{$import->id}/0");
+        Queue::assertPushed(ImportPracticeExams::class, fn (ImportPracticeExams $job) => $job->import->is($import));
+        $this->assertSame(0, PracticeExam::query()->count());
+
+        $this->get(route('question-bank.exams.index'))
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('imports.0.pending', true)
+                ->where('imports.0.stalled', false)
+                ->where('imports.0.status_label', 'Đang chờ'));
+        $this->travel(3)->minutes();
+        $this->get(route('question-bank.exams.index'))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('imports.0.stalled', true));
+
+        // worker chạy job: ghi đề, lưu kết quả, xoá file đã tải lên
+        app()->call([new ImportPracticeExams($import), 'handle']);
+        $import->refresh();
+        $this->assertSame(PracticeExamImport::DONE, $import->status);
+        $this->assertNotNull($import->finished_at);
+        $this->assertCount(1, $import->report['saved']);
+        $this->assertSame(1, PracticeExam::query()->count());
+        Storage::disk('local')->assertMissing("exam-imports/{$import->id}");
+    }
+
+    public function test_import_without_excel_fails_with_message(): void
+    {
+        $this->actingAs($this->lead)
+            ->post(route('question-bank.exams.import'), ['files' => [
+                new UploadedFile(PracticeExamFixture::docx(), 'De_GK1_Anh6_Ma601.docx', null, null, true),
+            ]])
+            ->assertSessionHas('status');
+
+        $import = PracticeExamImport::query()->firstOrFail();
+        $this->assertSame(PracticeExamImport::FAILED, $import->status);
+        $this->assertStringContainsString('Không tìm thấy file Excel', $import->message);
+        Storage::disk('local')->assertMissing("exam-imports/{$import->id}");
+
+        $this->get(route('question-bank.exams.index'))
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('imports.0.status_label', 'Lỗi')
+                ->where('imports.0.report', null));
     }
 }
