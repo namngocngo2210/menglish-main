@@ -149,6 +149,50 @@ class PracticeExamController extends Controller
         return back()->with('status', $message);
     }
 
+    /** Mở / ẩn nhiều đề một lần từ danh sách; đề chưa có câu thì bỏ qua khi mở. */
+    public function bulk(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'action' => ['required', Rule::in(['publish', 'hide'])],
+            'ids' => ['required', 'array', 'max:500'],
+            'ids.*' => ['integer'],
+        ]);
+        [$status, $message] = self::ACTIONS[$data['action']];
+
+        $exams = PracticeExam::query()->whereIn('id', $data['ids'])->withCount('questions')->get();
+        $skipped = 0;
+        $changed = [];
+        foreach ($exams as $exam) {
+            if ($status === PracticeExam::PUBLISHED && $exam->questions_count === 0) {
+                $skipped++;
+
+                continue;
+            }
+            if ($exam->status === $status) {
+                continue;
+            }
+            $exam->update([
+                'status' => $status,
+                'published_at' => $status === PracticeExam::PUBLISHED ? ($exam->published_at ?? now()) : $exam->published_at,
+            ]);
+            $changed[] = "khối {$exam->grade} {$exam->label()}";
+        }
+
+        if ($changed !== []) {
+            activity(Audit::logNameFor(QuestionBankQuestion::class))
+                ->causedBy($request->user())
+                ->withProperties(['exam_ids' => $exams->pluck('id')->all()])
+                ->log(PracticeExam::STATUSES[$status].' '.count($changed).' đề cố định: '.implode(', ', $changed));
+        }
+
+        $text = ($status === PracticeExam::PUBLISHED ? 'Đã mở ' : 'Đã ẩn ').count($changed).' đề.';
+        if ($skipped) {
+            $text .= " Bỏ qua {$skipped} đề chưa có câu hỏi.";
+        }
+
+        return back()->with($changed === [] && $skipped ? 'error' : 'status', $text);
+    }
+
     public function destroy(Request $request, PracticeExam $exam): RedirectResponse
     {
         if ($exam->attempts()->exists()) {

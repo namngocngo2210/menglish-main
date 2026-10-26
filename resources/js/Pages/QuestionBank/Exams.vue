@@ -7,6 +7,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import { route } from '@/lib/route';
+import { confirmDialog } from '@/lib/confirm';
 
 defineOptions({ layout: { title: 'Đề cố định' } });
 
@@ -19,6 +20,42 @@ const props = defineProps({
 const STATUS_COLORS = { draft: 'warning', published: 'success', hidden: 'neutral' };
 const IMPORT_COLORS = { queued: 'neutral', running: 'info', done: 'success', failed: 'error' };
 const scoreText = (score) => (score === null ? '—' : Number(score).toLocaleString('vi-VN', { maximumFractionDigits: 2 }));
+
+// Chọn nhiều đề (mọi khối) để mở / ẩn một lần
+const selected = ref([]);
+const allIds = computed(() => props.grades.flatMap((g) => g.exams.map((e) => e.id)));
+watch(allIds, (ids) => (selected.value = selected.value.filter((id) => ids.includes(id))));
+function gradeIds(g) {
+    return g.exams.map((e) => e.id);
+}
+function gradeAllSelected(g) {
+    const ids = gradeIds(g);
+    return ids.length > 0 && ids.every((id) => selected.value.includes(id));
+}
+function toggleGrade(g, event) {
+    const ids = gradeIds(g);
+    selected.value = event.target.checked ? [...new Set([...selected.value, ...ids])] : selected.value.filter((id) => !ids.includes(id));
+}
+const BULK = {
+    publish: { label: 'Mở cho học viên', verb: 'Mở', icon: 'visibility' },
+    hide: { label: 'Ẩn đề', verb: 'Ẩn', icon: 'visibility_off' },
+};
+const busy = ref(false);
+async function bulk(action) {
+    if (!selected.value.length) return;
+    const ok = await confirmDialog({
+        title: `${BULK[action].verb} ${selected.value.length} đề?`,
+        message: action === 'publish' ? 'Học viên của khối tương ứng sẽ thấy và làm được các đề này.' : 'Học viên không bắt đầu được lượt mới ở các đề này.',
+        confirmLabel: BULK[action].label,
+    });
+    if (!ok) return;
+    router.post(route('question-bank.exams.bulk'), { action, ids: selected.value }, {
+        preserveScroll: true,
+        onStart: () => (busy.value = true),
+        onFinish: () => (busy.value = false),
+        onSuccess: () => (selected.value = []),
+    });
+}
 
 const importOpen = ref(false);
 const fileNames = ref('');
@@ -105,12 +142,21 @@ onBeforeUnmount(() => timer && window.clearInterval(timer));
         </UiAlert>
     </section>
 
+    <div v-if="canManage" class="sticky top-0 z-10 mb-md flex flex-wrap items-center gap-sm rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm" data-bulk-actions>
+        <span class="font-body-small text-body-small text-on-surface-variant">Đã chọn {{ selected.length }} đề</span>
+        <UiButton v-for="(cfg, action) in BULK" :key="action" size="sm" variant="secondary" :icon="cfg.icon" :disabled="!selected.length || busy" @click="bulk(action)">{{ cfg.label }}</UiButton>
+        <UiButton v-if="selected.length" size="sm" variant="ghost" :disabled="busy" @click="selected = []">Bỏ chọn</UiButton>
+    </div>
+
     <section v-for="g in grades" :key="g.grade" class="mb-xl" :aria-label="`Khối ${g.grade}`" :data-grade="g.grade">
         <h2 class="mb-sm font-h3 text-h3 text-on-surface">Khối {{ g.grade }}</h2>
         <UiDataTable min-width="760px">
             <table>
                 <thead>
                     <tr>
+                        <th v-if="canManage" class="w-10">
+                            <input type="checkbox" class="rounded" :checked="gradeAllSelected(g)" :disabled="!g.exams.length" :aria-label="`Chọn tất cả đề khối ${g.grade}`" @change="toggleGrade(g, $event)" />
+                        </th>
                         <th>Đề</th>
                         <th class="w-32">Kỳ</th>
                         <th class="w-28 text-right">Câu / phút</th>
@@ -122,6 +168,9 @@ onBeforeUnmount(() => timer && window.clearInterval(timer));
                 </thead>
                 <tbody>
                     <tr v-for="exam in g.exams" :key="exam.id" :data-exam="exam.code">
+                        <td v-if="canManage">
+                            <input v-model="selected" type="checkbox" :value="exam.id" class="rounded" :aria-label="`Chọn ${exam.label}`" />
+                        </td>
                         <td>
                             <Link :href="route('question-bank.exams.show', exam.id)" class="font-semibold text-primary hover:underline">{{ exam.label }}</Link>
                             <div class="font-caption text-caption text-on-surface-variant">{{ exam.title }}</div>
@@ -137,7 +186,7 @@ onBeforeUnmount(() => timer && window.clearInterval(timer));
                         </td>
                     </tr>
                     <tr v-if="!g.exams.length">
-                        <td colspan="7" class="text-center font-body-small text-body-small text-on-surface-variant">Chưa có đề cố định cho khối {{ g.grade }}.</td>
+                        <td :colspan="canManage ? 8 : 7" class="text-center font-body-small text-body-small text-on-surface-variant">Chưa có đề cố định cho khối {{ g.grade }}.</td>
                     </tr>
                 </tbody>
             </table>
