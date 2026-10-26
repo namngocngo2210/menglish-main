@@ -66,7 +66,7 @@ class TeacherLessonController extends Controller
             'can_mark_past' => $assignment && $confirmed && $this->canMark($user, $class, $assignment, null),
             'mark_url' => $class ? route('teacher.lesson-today.taught', $class->id) : null,
             'confirmed' => $confirmed,
-            'confirm_url' => $assignment && ! $confirmed && $assignment->canConfirm($user) ? route('syllabus.assignments.confirm', $assignment->id) : null,
+            'confirm_url' => $assignment && ! $confirmed && $assignment->canConfirm($user) ? route('syllabus.assignments.read', $assignment->id) : null,
             'confirm_due' => $assignment && ! $confirmed ? app(ConfirmDeadline::class)->dueAt($assignment)?->format('H:i d/m/Y') : null,
         ]);
     }
@@ -89,7 +89,7 @@ class TeacherLessonController extends Controller
         }
         abort_unless($this->canMark($user, $classModel, $assignment, $session), 403, 'Chỉ GV / GVNN của lớp đánh dấu Đã dạy.');
         if (! $assignment->isConfirmed()) {
-            throw ValidationException::withMessages(['class_session_id' => 'Chặng chưa được XÁC NHẬN — GV bấm XÁC NHẬN nhận syllabus trước khi đánh dấu Đã dạy.']);
+            throw ValidationException::withMessages(['class_session_id' => 'Chặng chưa được XÁC NHẬN — GV bấm ĐỌC & XÁC NHẬN nhận syllabus trước khi đánh dấu Đã dạy.']);
         }
 
         try {

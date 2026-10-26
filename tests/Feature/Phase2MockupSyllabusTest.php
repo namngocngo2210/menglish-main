@@ -19,6 +19,7 @@ use App\Models\SyllabusLesson;
 use App\Models\SyllabusStage;
 use App\Models\SyllabusUnit;
 use App\Models\User;
+use App\Services\Syllabus\ConfirmReading;
 use App\Support\Roles;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
@@ -209,6 +210,10 @@ class Phase2MockupSyllabusTest extends TestCase
             ->assertSee('Mở bài giảng hôm nay')
             ->assertSee('Đánh dấu đã xem');
 
+        // "Đánh dấu đã xem" chỉ nhận sau khi đã mở xem đủ ConfirmReading::DOCUMENT_MIN_SECONDS giây.
+        $this->actingAs($this->teacher)->post(route('syllabus.documents.viewed', $doc->id))->assertSessionHas('error');
+        $this->assertDatabaseMissing('syllabus_document_views', ['document_id' => $doc->id, 'user_id' => $this->teacher->id]);
+        $this->travel(ConfirmReading::DOCUMENT_MIN_SECONDS)->seconds();
         $this->actingAs($this->teacher)->post(route('syllabus.documents.viewed', $doc->id))->assertRedirect();
         $this->assertDatabaseHas('syllabus_document_views', ['document_id' => $doc->id, 'user_id' => $this->teacher->id]);
         $this->actingAs($this->teacher)->get(route('syllabus.teacher-view', ['document' => $doc->id]))->assertOk()->assertDontSee('Đánh dấu đã xem');

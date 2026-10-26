@@ -62,7 +62,10 @@ const linkFields = [
                 </div>
                 <div>
                     <dt :class="label">Xác nhận nhận syllabus</dt>
-                    <dd v-if="syllabus.confirmed"><UiBadge color="success">Đã xác nhận</UiBadge> <span class="text-on-surface-variant">{{ syllabus.confirmed_by }} · {{ formatDate(syllabus.confirmed_at, 'd/m/Y H:i') }}</span></dd>
+                    <template v-if="syllabus.confirmed">
+                        <dd><UiBadge color="success">Đã xác nhận</UiBadge> <span class="text-on-surface-variant">{{ syllabus.confirmed_by }} · {{ formatDate(syllabus.confirmed_at, 'd/m/Y H:i') }}</span></dd>
+                        <dd v-if="syllabus.confirm_evidence" class="text-on-surface-variant">{{ syllabus.confirm_evidence }}</dd>
+                    </template>
                     <dd v-else class="flex flex-wrap items-center gap-2">
                         <UiBadge color="warning">Chờ GV xác nhận</UiBadge>
                         <UiForm v-if="syllabus.remind_url" :action="syllabus.remind_url" method="post" class="inline">

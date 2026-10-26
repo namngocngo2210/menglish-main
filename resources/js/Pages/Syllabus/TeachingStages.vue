@@ -46,9 +46,7 @@ defineProps({
                 <span class="flex items-center gap-xs font-medium">
                     <span class="material-symbols-outlined text-[18px]">pending_actions</span>Chờ GV xác nhận<template v-if="as.confirm_due"> · hạn {{ as.confirm_due }}</template>
                 </span>
-                <UiForm v-if="as.confirm_url" :action="as.confirm_url" method="post" class="inline">
-                    <UiButton type="submit" size="sm" icon="task_alt">XÁC NHẬN</UiButton>
-                </UiForm>
+                <UiButton v-if="as.confirm_url" size="sm" icon="menu_book" :href="as.confirm_url">ĐỌC &amp; XÁC NHẬN</UiButton>
             </div>
             <div v-else class="flex items-center gap-xs font-body-small text-body-small text-tertiary"><span class="material-symbols-outlined text-[18px]">verified</span>Đã xác nhận syllabus</div>
 

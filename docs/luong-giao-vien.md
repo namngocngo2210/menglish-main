@@ -20,7 +20,8 @@
    tiên mà người xem thấy tab của route đó (vd. GV ở "Buổi bổ trợ của tôi" vẫn thấy tab Cổng GV).
 2. Thẻ ở "Chặng đang dạy": nút **XÁC NHẬN** (chặng chưa xác nhận, người được xác nhận), **Bài giảng**, **Trang lớp**, kèm hạn
    xác nhận. Danh sách lớp ở "Báo cáo giảng dạy" mở Trang lớp.
-3. **Bắt buộc XÁC NHẬN trước khi "Đã dạy"** (chặn ở server; màn Bài giảng hiện cảnh báo + nút XÁC NHẬN).
+3. **Bắt buộc XÁC NHẬN trước khi "Đã dạy"** (chặn ở server; màn Bài giảng hiện cảnh báo + nút ĐỌC & XÁC NHẬN). XÁC NHẬN chỉ
+   bấm được sau khi đọc tổng quan chặng ≥ 30 giây và mở hết tài liệu chặng (docs/kho-syllabus.md §7.3 bước 2).
 4. **Hạn xác nhận = 1 giờ trước buổi học đầu tiên của chặng** (buổi thường / học bù chưa hủy, từ ngày bắt đầu chặng). Giao chặng
    sát giờ (đã qua mốc) → hạn tính theo buổi kế tiếp. SLA mới `gv.syllabus_confirm` (nhóm Giáo viên, 1 giờ, Admin đổi / tắt được
    ở Cài đặt SLA), chạy trong `sla:enforce`: quá hạn chưa xác nhận → biên bản cho GV được giao chặng (bậc tái phạm như nhận xét

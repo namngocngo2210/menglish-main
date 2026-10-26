@@ -244,6 +244,14 @@ Không sao chép syllabus: buổi hiệu lực = gốc + `data` của bản đè
    dạy được. **Hạn = 1 giờ trước buổi học đầu tiên của chặng** (giao sát giờ → buổi kế tiếp); quá hạn → SLA
    `gv.syllabus_confirm` lập biên bản cho GV (bậc tái phạm như nhận xét trễ, Học thuật chốt), báo Học thuật nút NHẮC LẠI.
    GV xác nhận ở thẻ "Chặng đang dạy", màn "Bài giảng hôm nay" hoặc "Syllabus & tài liệu" (Cổng GV).
+   **Bắt đọc trước khi xác nhận** (chủ dự án 26/10/2026): mọi nút (thông báo, thẻ chặng, Bài giảng hôm nay, Syllabus &
+   tài liệu) là **ĐỌC & XÁC NHẬN** → trang `syllabus.assignments.read`: thông tin chặng, mục tiêu chặng, các unit (tên, mục
+   tiêu, số buổi — không có nội dung buổi, giữ quyết định 7), Big Test cuối chặng, tài liệu chặng. Nút XÁC NHẬN chỉ bật khi
+   (1) mở trang đủ 30 giây (tính từ lần mở đầu, `syllabus_assignment_reads`) và cuộn tới cuối, (2) mọi tài liệu gắn chặng
+   (không tính tài liệu buổi / tài liệu chung) đã "Đánh dấu đã xem" — nút này chỉ nhận sau khi mở xem tài liệu đủ 10 giây,
+   (3) tick cam kết đã đọc. Máy chủ kiểm lại (1)(2)(3) (`ConfirmReading`); nút XÁC NHẬN cũ (POST thẳng) chuyển sang trang đọc.
+   Khi xác nhận lưu `confirm_evidence` (thời gian đọc, tài liệu đã xem lúc nào) — Học thuật thấy "Đọc tổng quan … · mở n/n tài
+   liệu chặng" ở Giao chặng và tab Syllabus của lớp; Học thuật mở trang đọc ở chế độ chỉ xem.
 3. **Nhắc 24h** (lệnh `syllabus:remind-unconfirmed`, chạy mỗi giờ, idempotent theo `confirm_reminded_at`): chặng mở chưa
    xác nhận quá 24h → nhắc GV (nút XÁC NHẬN) + báo Học thuật + Quản lý chi nhánh lớp: "Lớp ABC chưa xác nhận syllabus
    chặng X." nút **NHẮC LẠI** (gửi lại thông báo cho GV). Chỉ nhắc 1 lần.

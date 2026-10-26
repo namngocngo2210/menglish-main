@@ -10,7 +10,9 @@ use App\Models\SyllabusLesson;
 use App\Models\SyllabusStage;
 use App\Models\SyllabusUnit;
 use App\Models\User;
+use App\Services\Syllabus\ConfirmReading;
 use App\Support\Roles;
+use Illuminate\Testing\TestResponse;
 
 /**
  * Dữ liệu chung cho test quy trình syllabus (docs/kho-syllabus.md §7–10): chi nhánh, Học thuật, Quản lý, Học vụ, GV, GVNN,
@@ -66,6 +68,15 @@ trait BuildsSyllabusWorkflow
             'stage_name' => $stage->label, 'user_id' => $this->teacher->id, 'assigned_chapters' => $stage->label,
             'status' => SyllabusAssignment::STATUS_OPEN, 'opened_at' => now(), 'opened_by' => $this->lead->id,
         ]);
+    }
+
+    /** GV mở trang "Đọc & xác nhận", đọc đủ thời gian (tài liệu chặng đã mở sẵn nếu có) rồi tick cam kết và XÁC NHẬN. */
+    protected function readAndConfirm(User $user, SyllabusAssignment $assignment): TestResponse
+    {
+        $this->actingAs($user)->get(route('syllabus.assignments.read', $assignment->id));
+        $this->travel(ConfirmReading::OVERVIEW_MIN_SECONDS)->seconds();
+
+        return $this->actingAs($user)->post(route('syllabus.assignments.confirm', $assignment->id), ['acknowledged' => '1']);
     }
 
     protected function userWithRole(string $role, string $name = 'Nhân sự'): User

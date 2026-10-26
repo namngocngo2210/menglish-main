@@ -35,6 +35,7 @@ class ClassSyllabusTab
             'confirmed' => (bool) $assignment?->isConfirmed(),
             'confirmed_at' => $assignment?->confirmed_at?->toIso8601String(),
             'confirmed_by' => $assignment?->confirmer?->name,
+            'confirm_evidence' => ConfirmReading::summary($assignment?->confirm_evidence),
             'remind_url' => $assignment && ! $assignment->isConfirmed() && $viewer->can('syllabus.assign')
                 ? route('syllabus.assignments.remind', $assignment->id) : null,
             'taught' => $timeline['taught'] ?? 0,

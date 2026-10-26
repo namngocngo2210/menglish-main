@@ -4,7 +4,7 @@
  * Tài liệu: bấm dòng → xem trong hộp thoại (?document=; đóng thì bỏ query). PDF xem bằng PdfAnnotator (vẽ / highlight
  * khi giảng, không lưu). Buổi học: bấm dòng → hộp thoại nội dung buổi.
  */
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import PdfAnnotator from '@/Components/Pdf/PdfAnnotator.vue';
 import GetForm from '@/Components/Syllabus/GetForm.vue';
@@ -30,6 +30,10 @@ const props = defineProps({
     assignment: { type: Object, default: null },
     position: { type: Object, default: null },
     lessonTodayUrl: { type: String, default: null },
+    // Mở từ trang "Đọc & xác nhận": đóng hộp thoại / đánh dấu đã xem thì quay lại trang đó.
+    confirmId: { type: Number, default: null },
+    returnUrl: { type: String, default: null },
+    viewMinSeconds: { type: Number, default: 10 },
 });
 
 const tabs = { docs: 'Tài liệu', overview: 'Tổng quan syllabus', lessons: 'Nội dung buổi học' };
@@ -44,6 +48,24 @@ const fileUrl = computed(() => (props.selected ? route('syllabus.documents.file'
 function fullscreen() {
     viewer.value?.requestFullscreen?.();
 }
+
+// "Đánh dấu đã xem" mở sau viewMinSeconds giây xem tài liệu (máy chủ cũng kiểm tra).
+const waitLeft = ref(0);
+let waitTimer = null;
+watch(
+    () => (viewerOpen.value && props.selected && !props.selected.viewed ? props.selected.id : null),
+    (id) => {
+        clearInterval(waitTimer);
+        waitLeft.value = id ? props.viewMinSeconds : 0;
+        if (!id) return;
+        waitTimer = setInterval(() => {
+            waitLeft.value -= 1;
+            if (waitLeft.value <= 0) clearInterval(waitTimer);
+        }, 1000);
+    },
+    { immediate: true },
+);
+onBeforeUnmount(() => clearInterval(waitTimer));
 
 
 const badgeColor = { open: 'primary', done: 'success', todo: 'neutral' };
@@ -80,10 +102,8 @@ const chipIcon = { open: 'play_circle', done: 'check_circle', todo: 'lock' };
     <div class="space-y-6">
         <UiAlert v-if="assignment?.confirm_url" type="warning" title="Bạn chưa xác nhận nhận syllabus của chặng này">
             <div class="flex flex-wrap items-center justify-between gap-2">
-                <span>{{ assignment.stage_label }} · {{ assignment.curriculum }} — bấm XÁC NHẬN để báo Học thuật bạn đã nhận syllabus.</span>
-                <UiForm :action="assignment.confirm_url" method="post" class="inline">
-                    <UiButton type="submit" size="sm" icon="task_alt">XÁC NHẬN</UiButton>
-                </UiForm>
+                <span>{{ assignment.stage_label }} · {{ assignment.curriculum }} — đọc tổng quan và tài liệu chặng rồi XÁC NHẬN để báo Học thuật bạn đã nhận syllabus.</span>
+                <UiButton size="sm" icon="menu_book" :href="assignment.confirm_url">ĐỌC &amp; XÁC NHẬN</UiButton>
             </div>
         </UiAlert>
         <nav class="no-scrollbar flex items-center gap-lg overflow-x-auto border-b border-surface-container-highest" role="tablist">
@@ -229,7 +249,7 @@ const chipIcon = { open: 'play_circle', done: 'check_circle', todo: 'lock' };
         :show="viewerOpen"
         :title="selected.title"
         max-width="4xl"
-        :dismiss-url="listUrl"
+        :dismiss-url="returnUrl || listUrl"
         :dirty-confirm="{ title: 'Đóng tài liệu?', message: 'Nét vẽ trên tài liệu sẽ bị xoá.', confirmLabel: 'Đóng', cancelLabel: 'Tiếp tục xem' }"
         @close="viewerOpen = false"
     >
@@ -274,7 +294,9 @@ const chipIcon = { open: 'play_circle', done: 'check_circle', todo: 'lock' };
             <span v-if="selected.viewed" class="inline-flex items-center gap-1 font-body-small text-body-small font-semibold text-tertiary"><span class="material-symbols-outlined text-[18px]">task_alt</span>Đã xem</span>
             <UiForm v-else :action="route('syllabus.documents.viewed', selected.id)" method="post">
                 <input v-if="classId" type="hidden" name="class" :value="classId" />
-                <UiButton type="submit" icon="done_all">Đánh dấu đã xem</UiButton>
+                <input v-if="stageScope" type="hidden" name="scope" value="stage" />
+                <input v-if="confirmId" type="hidden" name="confirm" :value="confirmId" />
+                <UiButton type="submit" icon="done_all" :disabled="waitLeft > 0">{{ waitLeft > 0 ? `Đánh dấu đã xem (${waitLeft}s)` : 'Đánh dấu đã xem' }}</UiButton>
             </UiForm>
         </template>
     </UiModal>

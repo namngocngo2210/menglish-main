@@ -85,7 +85,7 @@ class TeacherClassFlowTest extends TestCase
         $this->actingAs($this->teacher)->get(route('syllabus.teaching-stages'))
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->where('assignments.0.confirm_url', route('syllabus.assignments.confirm', $assignment->id))
+                ->where('assignments.0.confirm_url', route('syllabus.assignments.read', $assignment->id))
                 ->where('assignments.0.confirm_due', today()->addDay()->setTime(17, 0)->format('H:i d/m/Y'))
                 ->where('assignments.0.lesson_url', route('teacher.lesson-today', ['class' => $this->class->id]))
                 ->where('assignments.0.class_url', route('classes.show', $this->class->id))
@@ -119,13 +119,13 @@ class TeacherClassFlowTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('can_mark', false)
-                ->where('confirm_url', route('syllabus.assignments.confirm', $assignment->id))
+                ->where('confirm_url', route('syllabus.assignments.read', $assignment->id))
                 ->etc());
         $this->actingAs($this->teacher)->post(route('teacher.lesson-today.taught', $this->class->id), ['class_session_id' => $today->id])
             ->assertSessionHasErrors('class_session_id');
         $this->assertFalse($assignment->progress()->exists());
 
-        $this->actingAs($this->teacher)->post(route('syllabus.assignments.confirm', $assignment->id));
+        $this->readAndConfirm($this->teacher, $assignment)->assertSessionHasNoErrors();
         $this->actingAs($this->teacher)->get(route('teacher.lesson-today', ['class' => $this->class->id]))
             ->assertInertia(fn (AssertableInertia $page) => $page->where('can_mark', true)->where('confirm_url', null)->etc());
         $this->actingAs($this->teacher)->post(route('teacher.lesson-today.taught', $this->class->id), ['class_session_id' => $today->id])

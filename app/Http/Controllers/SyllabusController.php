@@ -29,6 +29,7 @@ use App\Services\NotificationService;
 use App\Services\SafeUploadService;
 use App\Services\ScheduleExtensionService;
 use App\Services\Syllabus\ConfirmDeadline;
+use App\Services\Syllabus\ConfirmReading;
 use App\Services\Syllabus\StageSchedule;
 use App\Services\Syllabus\SyllabusNotifier;
 use App\Services\SyllabusProgressionService;
@@ -130,16 +131,31 @@ class SyllabusController extends Controller
         return redirect()->back()->with('status', "Đã xóa tài liệu {$doc->title}.");
     }
 
-    /** Giáo viên / trợ giảng "Đánh dấu đã xem" tài liệu được chia sẻ. */
+    /**
+     * Giáo viên / trợ giảng "Đánh dấu đã xem" tài liệu được chia sẻ — chỉ sau khi đã mở xem đủ ConfirmReading::DOCUMENT_MIN_SECONDS
+     * giây (đếm từ lúc mở hộp thoại xem ở teacherView). Mở từ trang "Đọc & xác nhận" (?confirm=) thì quay lại trang đó.
+     */
     public function markDocumentViewed(Request $request, int $id)
     {
         $doc = SyllabusDocument::findOrFail($id);
-        abort_unless($doc->isVisibleTo($request->user()), 404);
+        $user = $request->user();
+        abort_unless($doc->isVisibleTo($user), 404);
+        $back = array_filter(['document' => $doc->id, 'class' => $request->input('class'), 'scope' => $request->input('scope'), 'confirm' => $request->input('confirm')]);
 
-        $doc->views()->updateOrCreate(['user_id' => $request->user()->id], ['viewed_at' => now()]);
+        if (! $doc->viewedBy($user)) {
+            $seconds = ConfirmReading::documentOpenSeconds($user, $doc);
+            if ($seconds === null || $seconds < ConfirmReading::DOCUMENT_MIN_SECONDS) {
+                return redirect()->route('syllabus.teacher-view', $back)
+                    ->with('error', 'Xem tài liệu ít nhất '.ConfirmReading::DOCUMENT_MIN_SECONDS.' giây rồi mới đánh dấu đã xem.');
+            }
+            $doc->views()->create(['user_id' => $user->id, 'viewed_at' => now()]);
+        }
 
-        return redirect()->route('syllabus.teacher-view', array_filter(['document' => $doc->id, 'class' => $request->input('class')]))
-            ->with('status', "Đã đánh dấu đã xem tài liệu {$doc->title}.");
+        $redirect = $request->filled('confirm')
+            ? redirect()->route('syllabus.assignments.read', $request->integer('confirm'))
+            : redirect()->route('syllabus.teacher-view', $back);
+
+        return $redirect->with('status', "Đã đánh dấu đã xem tài liệu {$doc->title}.");
     }
 
     /**
@@ -845,6 +861,7 @@ class SyllabusController extends Controller
                 'start_date' => ($as->start_date ?? $as->opened_at ?? $as->created_at)?->toDateString(),
                 'planned_sessions' => $as->planned_sessions,
                 'confirmed_at' => $as->confirmed_at?->toIso8601String(),
+                'confirm_evidence' => ConfirmReading::summary($as->confirm_evidence),
                 'closed_at' => $as->closed_at?->toDateString(),
                 'close_reason' => $as->close_reason,
                 'deadline' => $as->deadline?->toDateString(),
@@ -942,13 +959,87 @@ class SyllabusController extends Controller
         return redirect()->route('syllabus.assignments')->with('status', $status);
     }
 
-    /** GV bấm XÁC NHẬN nhận syllabus của chặng (Bước 4). */
-    public function confirmAssignment(Request $request, int $id)
+    /**
+     * Trang "Đọc & xác nhận" (Bước 4, chủ dự án 26/10/2026): tổng quan chặng (mục tiêu, unit, Big Test) + tài liệu chặng phải
+     * mở hết; người xác nhận mở trang lần đầu thì bắt đầu tính thời gian đọc (ConfirmReading). Học thuật xem được trang này
+     * (chỉ đọc) để biết GV phải đọc gì.
+     */
+    public function readAssignment(Request $request, int $id, ConfirmReading $reading)
     {
+        $user = $request->user();
+        $assignment = SyllabusAssignment::with(['classModel', 'curriculum', 'stage.units' => fn ($q) => $q->withCount('lessons'), 'confirmer'])->open()->findOrFail($id);
+        $canConfirm = $assignment->canConfirm($user);
+        abort_unless($canConfirm || $user->can('syllabus.assign'), 403, 'Chỉ GV của lớp hoặc Học thuật xem được trang xác nhận syllabus.');
+        if ($canConfirm && ! $assignment->isConfirmed()) {
+            $reading->open($assignment, $user);
+        }
+        $status = $reading->status($assignment, $user);
+        $stage = $assignment->stage;
+
+        return Inertia::render('Syllabus/ConfirmRead', [
+            'assignment' => [
+                'id' => $assignment->id,
+                'class_name' => $assignment->classModel?->name,
+                'curriculum' => $assignment->curriculum?->title,
+                'stage_label' => $stage?->label ?? $assignment->stage_name,
+                'start_date' => ($assignment->start_date ?? $assignment->opened_at)?->format('d/m/Y'),
+                'planned_sessions' => $assignment->planned_sessions,
+                'deadline' => $assignment->deadline?->format('d/m/Y'),
+                'confirm_due' => $assignment->isConfirmed() ? null : app(ConfirmDeadline::class)->dueAt($assignment)?->format('H:i d/m/Y'),
+                'confirmed_at' => $assignment->confirmed_at?->format('H:i d/m/Y'),
+                'confirmed_by' => $assignment->confirmer?->name,
+                'evidence' => ConfirmReading::summary($assignment->confirm_evidence),
+            ],
+            'stage' => $stage ? [
+                'description' => $stage->description,
+                'big_test_title' => $stage->big_test_title ?: 'Big Test cuối chặng',
+                'big_test_note' => $stage->big_test_note,
+                'overview_link' => $stage->overview_link,
+                'units' => $stage->units->map(fn ($u) => [
+                    'id' => $u->id,
+                    'unit_number' => $u->unit_number,
+                    'title' => $u->title,
+                    'objectives' => $u->objectives,
+                    'lessons' => (int) $u->lessons_count,
+                ])->values(),
+            ] : null,
+            'documents' => $status['documents']->map(fn (array $row) => [
+                'id' => $row['document']->id,
+                'title' => $row['document']->title,
+                'icon' => $row['document']->icon,
+                'extension' => $row['document']->extension,
+                'size_human' => $row['document']->size_human,
+                'viewed_at' => $row['viewed_at']?->format('H:i d/m/Y'),
+                'url' => route('syllabus.teacher-view', ['class' => $assignment->class_id, 'scope' => 'stage', 'document' => $row['document']->id, 'confirm' => $assignment->id]),
+            ])->values(),
+            'reading' => [
+                'can_confirm' => $canConfirm && ! $assignment->isConfirmed(),
+                'read_seconds' => $status['read_seconds'],
+                'min_seconds' => ConfirmReading::OVERVIEW_MIN_SECONDS,
+                'documents_done' => $status['documents_done'],
+            ],
+            'confirmUrl' => route('syllabus.assignments.confirm', $assignment->id),
+        ]);
+    }
+
+    /** GV bấm XÁC NHẬN ở trang "Đọc & xác nhận": máy chủ kiểm lại đã đọc đủ (ConfirmReading) rồi mới ghi nhận. */
+    public function confirmAssignment(Request $request, int $id, ConfirmReading $reading)
+    {
+        $user = $request->user();
         $assignment = SyllabusAssignment::with('classModel')->open()->findOrFail($id);
-        abort_unless($assignment->canConfirm($request->user()), 403, 'Chỉ GV của lớp được xác nhận syllabus.');
+        abort_unless($assignment->canConfirm($user), 403, 'Chỉ GV của lớp được xác nhận syllabus.');
         if (! $assignment->isConfirmed()) {
-            $assignment->update(['confirmed_at' => now(), 'confirmed_by' => $request->user()->id]);
+            // Nút XÁC NHẬN cũ (thông báo gửi trước khi có bước bắt đọc) → đưa sang trang đọc thay vì báo lỗi.
+            if (! $request->has('acknowledged')) {
+                return redirect()->route('syllabus.assignments.read', $assignment->id)
+                    ->with('status', 'Đọc tổng quan chặng và mở hết tài liệu chặng rồi mới XÁC NHẬN được.');
+            }
+            $request->validate(['acknowledged' => ['accepted']], ['acknowledged.accepted' => 'Tick ô cam kết đã đọc trước khi xác nhận.']);
+            $status = $reading->status($assignment, $user);
+            if ($missing = $reading->missing($status)) {
+                throw ValidationException::withMessages(['reading' => implode(' ', $missing)]);
+            }
+            $assignment->update(['confirmed_at' => now(), 'confirmed_by' => $user->id, 'confirm_evidence' => $reading->evidence($status)]);
         }
 
         return redirect()->back()->with('status', "Đã xác nhận nhận syllabus {$assignment->stage_name} — lớp {$assignment->classModel?->name}.");
@@ -1000,7 +1091,7 @@ class SyllabusController extends Controller
         ]);
         // Đổi GV phụ trách → GV mới phải xác nhận lại.
         if ((int) $previousTeacher !== (int) $assignment->user_id) {
-            $assignment->update(['assigned_at' => now(), 'confirmed_at' => null, 'confirmed_by' => null, 'confirm_reminded_at' => null]);
+            $assignment->update(['assigned_at' => now(), 'confirmed_at' => null, 'confirmed_by' => null, 'confirm_evidence' => null, 'confirm_reminded_at' => null]);
             $notifier->stageAssigned($assignment);
         }
 
@@ -1245,6 +1336,9 @@ class SyllabusController extends Controller
         // Chỉ mở tài liệu (modal) khi URL chọn; không tự mở tài liệu đầu danh sách.
         $selected = $request->filled('document') ? $visible->firstWhere('id', $request->integer('document')) : null;
         abort_if($request->filled('document') && ! $selected, 404);
+        if ($selected) {
+            ConfirmReading::markDocumentOpened($user, $selected);
+        }
         $viewedIds = SyllabusDocumentView::where('user_id', $user->id)->pluck('document_id');
 
         // Lớp người dùng được xem và đang có chặng mở.
@@ -1302,6 +1396,10 @@ class SyllabusController extends Controller
                     : $user->name.' · '.($user->employee_code ?: $user->email).' · '.now()->format('d/m/Y H:i'),
             ] : null,
             'listUrl' => route('syllabus.teacher-view', $listQuery),
+            // Mở tài liệu từ trang "Đọc & xác nhận" (?confirm=): đóng / đánh dấu đã xem thì quay lại trang đó.
+            'confirmId' => $request->integer('confirm') ?: null,
+            'returnUrl' => $request->filled('confirm') ? route('syllabus.assignments.read', $request->integer('confirm')) : null,
+            'viewMinSeconds' => ConfirmReading::DOCUMENT_MIN_SECONDS,
             'search' => $search,
             'stageScope' => $stageScope ? [
                 'label' => $assignment->stage?->label ?? $assignment->stage_name,
@@ -1329,7 +1427,7 @@ class SyllabusController extends Controller
                 'big_test_title' => $assignment->stage?->big_test_title ?: 'Big Test cuối chặng',
                 'has_stage' => (bool) $assignment->stage,
                 // Bước 4: GV của lớp chưa xác nhận nhận syllabus → banner XÁC NHẬN.
-                'confirm_url' => ! $assignment->isConfirmed() && $assignment->canConfirm($user) ? route('syllabus.assignments.confirm', $assignment->id) : null,
+                'confirm_url' => ! $assignment->isConfirmed() && $assignment->canConfirm($user) ? route('syllabus.assignments.read', $assignment->id) : null,
             ] : null,
             'position' => $position ? [
                 'taught' => $position['taught'],
@@ -1640,7 +1738,7 @@ class SyllabusController extends Controller
                     'order_rejection' => $order?->rejection_reason,
                     // Luồng GV (docs/luong-giao-vien.md): XÁC NHẬN chặng → Bài giảng hôm nay → Trang lớp (báo cáo, thống kê).
                     'confirmed' => $as->isConfirmed(),
-                    'confirm_url' => ! $as->isConfirmed() && $as->canConfirm($user) ? route('syllabus.assignments.confirm', $as->id) : null,
+                    'confirm_url' => ! $as->isConfirmed() && $as->canConfirm($user) ? route('syllabus.assignments.read', $as->id) : null,
                     'confirm_due' => $as->isConfirmed() ? null : $deadline->dueAt($as)?->format('H:i d/m/Y'),
                     'lesson_url' => route('teacher.lesson-today', ['class' => $as->class_id]),
                     'class_url' => route('classes.show', $as->class_id),
