@@ -25,6 +25,7 @@ const props = defineProps({
     students: { type: Array, default: () => [] },
     sessionOptions: { type: Array, default: () => [] },
     defaultSessionId: { type: Number, default: null },
+    classUrl: { type: String, default: null },
     confirmMode: { type: String, default: 'none' },
     confirmer: { type: String, default: null },
     asModal: { type: Boolean, default: false },
@@ -121,6 +122,8 @@ const labelCls = 'mb-xs block font-label text-label uppercase text-on-surface-va
         <UiForm :id="formId" :action="route('tasks.class-reports.store')" method="post" class="space-y-md" #default="{ errors }">
             <input type="hidden" name="class_id" :value="selectedClassId" />
             <input v-if="task" type="hidden" name="task_id" :value="task.id" />
+            <!-- Mở từ Trang lớp: nộp xong quay về tab Điểm danh & báo cáo buổi của lớp. -->
+            <input v-if="classUrl" type="hidden" name="from_class" value="1" />
             <UiErrors :messages="[errors.class_id, errors.task_id]" />
 
             <!-- 1. Thông tin ca trực gán sẵn -->
@@ -129,8 +132,8 @@ const labelCls = 'mb-xs block font-label text-label uppercase text-on-surface-va
                     <h2 class="flex items-center gap-sm font-h3 text-h3 text-on-surface"><span class="h-2 w-2 rounded-full bg-primary-container" aria-hidden="true"></span>1. Thông tin ca trực</h2>
                     <span v-if="task?.class_id" class="font-caption text-caption italic text-on-surface-variant">Khóa theo đầu việc được giao</span>
                 </div>
-                <div v-if="!task?.class_id || sessionOptions.length" class="grid grid-cols-1 gap-sm sm:grid-cols-2">
-                    <UiSelect v-if="!task?.class_id" :id="p + 'pick_class_id'" label="Lớp học" :model-value="selectedClassId ?? ''" :options="classes" @update:model-value="pickClass" />
+                <div v-if="(!task?.class_id && !classUrl) || sessionOptions.length" class="grid grid-cols-1 gap-sm sm:grid-cols-2">
+                    <UiSelect v-if="!task?.class_id && !classUrl" :id="p + 'pick_class_id'" label="Lớp học" :model-value="selectedClassId ?? ''" :options="classes" @update:model-value="pickClass" />
                     <UiSelect v-if="sessionOptions.length" :id="p + 'class_session_id'" v-model="sessionId" name="class_session_id" label="Buổi học" placeholder="-- Nhập tên buổi bên dưới --" :options="sessionOptions" />
                 </div>
                 <div class="grid grid-cols-1 gap-sm sm:grid-cols-2 lg:grid-cols-4">

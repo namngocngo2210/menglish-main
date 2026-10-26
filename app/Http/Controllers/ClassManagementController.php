@@ -717,18 +717,22 @@ class ClassManagementController extends Controller
                 $data['foreignTeacherOptions'] = $canManage && $foreignEditableIds
                     ? Ui::options($this->teachingStaffOptions($sessions->pluck('foreign_teacher_id')->all())[0], 'name') : [];
             } else {
-                $classReports = ClassReport::with('reporter:id,name')->where('class_id', $class->id)
-                    // Báo cáo mới nhất của mỗi buổi (keyBy giữ bản cuối cùng = bản cũ nhất); báo cáo không gắn buổi giữ riêng.
-                    ->latest('session_date')->latest('id')->get()
-                    ->groupBy(fn ($report) => $report->class_session_id ?? 'none-'.$report->id)->map->first();
+                $allReports = ClassReport::with('reporter:id,name')->where('class_id', $class->id)
+                    ->latest('session_date')->latest('id')->get();
+                // Báo cáo mới nhất của mỗi buổi (keyBy giữ bản cuối cùng = bản cũ nhất); báo cáo không gắn buổi giữ riêng.
+                $classReports = $allReports->groupBy(fn ($report) => $report->class_session_id ?? 'none-'.$report->id)->map->first();
+                // Báo cáo buổi của chính người xem (nút "Nộp báo cáo buổi" / "Đã nộp" trên từng dòng); bị trả về thì nộp lại.
+                $myReports = $allReports->where('reporter_id', $viewer->id)->whereNotNull('class_session_id')
+                    ->groupBy('class_session_id')->map->first();
                 $reportColors = ['pending_approval' => 'warning', 'approved' => 'success', 'rejected' => 'error'];
                 $reportLabels = ['pending_approval' => 'Chờ duyệt', 'approved' => 'Đã duyệt', 'rejected' => 'Bị trả về'];
                 $past = $sessions->filter(fn ($s) => $s->date->lte($today))
                     ->sortByDesc(fn ($s) => $s->date->format('Ymd').$s->start_time?->format('Hi'))->values();
                 $states = $past->mapWithKeys(fn (ClassSession $s) => [$s->id => $dashboard->attendanceState($s, $today)]);
 
-                $data['attendanceRows'] = $past->map(function (ClassSession $s) use ($states, $classReports, $reportColors, $reportLabels) {
+                $data['attendanceRows'] = $past->map(function (ClassSession $s) use ($states, $classReports, $myReports, $reportColors, $reportLabels) {
                     $report = $classReports->get($s->id);
+                    $mine = $myReports->get($s->id);
 
                     return [
                         'id' => $s->id,
@@ -743,6 +747,7 @@ class ClassManagementController extends Controller
                             'label' => $reportLabels[$report->status] ?? StatusLabel::for($report->status),
                             'reporter' => $report->reporter?->name,
                         ] : null,
+                        'my_report' => $mine ? ['status' => $mine->status, 'rejected' => $mine->status === ClassReport::STATUS_REJECTED] : null,
                     ];
                 })->all();
                 $data['attendanceStats'] = [

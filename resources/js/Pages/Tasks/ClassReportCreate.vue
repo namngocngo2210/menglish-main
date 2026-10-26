@@ -28,8 +28,10 @@ const props = defineProps({
     followUpActions: { type: Array, default: () => [] },
     assignees: { type: Array, default: () => [] },
     today: { type: String, default: null },
+    reporterRole: { type: String, default: null },
+    classUrl: { type: String, default: null },
 });
-const back = useBackLink(() => route('portal.ta-tasks'));
+const back = useBackLink(() => props.classUrl ?? route('portal.ta-tasks'));
 </script>
 
 <template>
@@ -45,8 +47,8 @@ const back = useBackLink(() => route('portal.ta-tasks'));
             <UiButton variant="ghost" icon="arrow_back" :href="back.href" data-back-link aria-label="Quay lại" title="Quay lại" />
             <div class="min-w-0">
                 <h1 class="flex flex-wrap items-center gap-sm font-h2 text-h2 text-on-surface">
-                    Báo cáo trực lớp
-                    <span class="rounded-full bg-primary-fixed px-sm py-[2px] font-caption text-caption font-semibold text-primary">Trợ giảng</span>
+                    {{ classUrl ? 'Báo cáo buổi học' : 'Báo cáo trực lớp' }}
+                    <span v-if="reporterRole" class="rounded-full bg-primary-fixed px-sm py-[2px] font-caption text-caption font-semibold text-primary">{{ reporterRole }}</span>
                 </h1>
                 <p class="font-body-small text-body-small text-on-surface-variant">Tiến độ, nhật ký giảng dạy & học viên cần bổ trợ.</p>
             </div>
