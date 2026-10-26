@@ -31,7 +31,7 @@ class TeacherLessonController extends Controller
     public function show(Request $request)
     {
         $user = $request->user();
-        $classes = $this->classesOf($user);
+        $classes = $this->classesOf($user, $request->filled('class') ? $request->integer('class') : null);
         // Mặc định: lớp có buổi học hôm nay.
         $class = $request->filled('class') ? $classes->firstWhere('id', $request->integer('class'))
             : ($classes->first(fn (ClassModel $c) => $this->todaySession($c) !== null) ?? $classes->first());
@@ -141,14 +141,19 @@ class TeacherLessonController extends Controller
         return redirect()->back()->with('status', "Đã đánh dấu Đã dạy {$label} ({$session->date->format('d/m')}).");
     }
 
-    /** Lớp GV dạy (GV chính / GVNN / TG của lớp, hoặc dạy thay buổi hôm nay) đang có chặng mở. */
-    private function classesOf(User $user)
+    /**
+     * Lớp GV dạy (GV chính / GVNN / TG của lớp, hoặc dạy thay buổi hôm nay) đang có chặng mở. Lớp mở thẳng từ thẻ "Chặng đang
+     * dạy" ($requested) chỉ cần nằm trong phạm vi xem lớp — màn đó liệt kê mọi lớp xem được (dạy thay buổi trước, Học thuật,
+     * GV cũ sau khi lớp đổi GV), không thì nút "Bài giảng" của thẻ báo lỗi. Bấm "Đã dạy" vẫn kiểm tra riêng (canMark).
+     */
+    private function classesOf(User $user, ?int $requested = null)
     {
         return ClassModel::visibleTo($user)
             ->whereIn('id', SyllabusAssignment::open()->whereNotNull('class_id')->select('class_id'))
             ->where(fn ($q) => $q->where('teacher_id', $user->id)->orWhere('foreign_teacher_id', $user->id)->orWhere('assistant_id', $user->id)
                 ->orWhereHas('sessions', fn ($s) => $s->whereDate('date', today())
-                    ->where(fn ($w) => $w->where('teacher_id', $user->id)->orWhere('foreign_teacher_id', $user->id)->orWhere('assistant_id', $user->id))))
+                    ->where(fn ($w) => $w->where('teacher_id', $user->id)->orWhere('foreign_teacher_id', $user->id)->orWhere('assistant_id', $user->id)))
+                ->when($requested, fn ($q) => $q->orWhere('id', $requested)))
             ->orderBy('name')
             ->get();
     }

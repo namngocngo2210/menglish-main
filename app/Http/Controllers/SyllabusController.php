@@ -1732,6 +1732,8 @@ class SyllabusController extends Controller
                     'expected_date' => $as->expected_big_test_date?->toDateString(),
                     'can_set_date' => ($isMainTeacher || $isAcademic) && ! $plan['bigTest'],
                     'can_order' => $isMainTeacher || $canRecordAny,
+                    // Trang order đề mở cho GV / GVNN / TG của lớp hoặc người làm thay GV (TeacherPortalController::authorizeClass).
+                    'can_view_order' => $isMainTeacher || (int) $class?->assistant_id === (int) $user->id || $canRecordAny,
                     'order_status' => $order?->status,
                     'order_rejection' => $order?->rejection_reason,
                     // Luồng GV (docs/luong-giao-vien.md): XÁC NHẬN chặng → Bài giảng hôm nay → Trang lớp (báo cáo, thống kê).
