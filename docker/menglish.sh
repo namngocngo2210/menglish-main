@@ -52,6 +52,7 @@ case "$cmd" in
         compose exec app php artisan migrate --force
         compose exec app php artisan optimize
         [ -z "$scheduler_running" ] || compose restart scheduler
+        compose restart queue   # worker đã chạy trước migrate: nạp lại code + cấu hình
         compose ps
         ;;
     version)
