@@ -98,6 +98,28 @@ class TeacherPortalController extends Controller
     }
 
     /**
+     * Người dùng đứng lớp với vai trò giáo viên / GVNN của lớp hoặc của buổi (không tính trợ giảng). Trợ giảng chỉ điểm danh
+     * (chủ dự án 26/10/2026): nhận xét, giao bài, nhập điểm, order đề là việc của giáo viên.
+     */
+    private function isTeachingStaff(User $user, ClassModel $class, ?ClassSession $session = null): bool
+    {
+        $ids = [$class->teacher_id, $class->foreign_teacher_id];
+        if ($session) {
+            array_push($ids, $session->teacher_id, $session->foreign_teacher_id);
+        }
+
+        return in_array((int) $user->id, array_map('intval', array_filter($ids)), true);
+    }
+
+    /** Việc của giáo viên (nhận xét, giao bài, nhập điểm, order đề): GV / GVNN của lớp, hoặc người làm thay GV. */
+    private function authorizeTeaching(ClassModel $class, ?ClassSession $session = null): void
+    {
+        $user = Auth::user();
+        abort_unless($user && ($this->isTeachingStaff($user, $class, $session) || $this->canActOnBehalf($user, $class)),
+            403, 'Chỉ giáo viên của lớp làm được việc này; trợ giảng chỉ điểm danh.');
+    }
+
+    /**
      * Buổi học người dùng được phân công: theo nhân sự của buổi, hoặc buổi chưa gán GV thì theo
      * nhân sự của lớp.
      */
@@ -178,10 +200,11 @@ class TeacherPortalController extends Controller
             ->selectRaw('class_session_id, count(*) as total')->groupBy('class_session_id')->pluck('total', 'class_session_id');
         $syllabusUrls = $this->syllabusUrls($todaySessions->pluck('class_id'));
 
-        $shifts = $todaySessions->map(function (ClassSession $session) use ($checkins, $attendanceDone, $trialCounts) {
+        $shifts = $todaySessions->map(function (ClassSession $session) use ($checkins, $attendanceDone, $trialCounts, $teacher) {
             $ts = $checkins->get($session->id);
 
             return [
+                'can_teach' => $session->classModel !== null && $this->isTeachingStaff($teacher, $session->classModel, $session),
                 'session' => $session,
                 'class' => $session->classModel,
                 'scheduled_time' => $session->start_time?->format('H:i').' - '.$session->end_time?->format('H:i'),
@@ -244,6 +267,8 @@ class TeacherPortalController extends Controller
                 'room_label' => $shift['session']->roomLabel(),
                 'type_label' => self::sessionTypeLabel($shift['session']->type),
                 'is_support' => $shift['session']->type === ClassSession::TYPE_SUPPORT,
+                // Trợ giảng của ca: chỉ điểm danh (ẩn Nhận xét / Bài giảng / Giao bài / Nhập điểm).
+                'can_teach' => $shift['can_teach'],
                 'support_student' => $shift['session']->type === ClassSession::TYPE_SUPPORT ? $shift['session']->supportSession?->student?->name : null,
                 'scheduled_time' => $shift['scheduled_time'],
                 'shift_name' => $shift['session']->shiftLabel(),
@@ -873,7 +898,7 @@ class TeacherPortalController extends Controller
     {
         $this->guardTeacher();
         $class = ClassModel::findOrFail($classId);
-        $this->authorizeClass($class);
+        $this->authorizeTeaching($class);
         $homeworks = Homework::with(['teacher:id,name', 'classSession:id,date,start_time'])
             ->where('class_id', $classId)->latest('due_date')->latest('id')->get();
 
@@ -969,7 +994,7 @@ class TeacherPortalController extends Controller
     {
         $this->guardTeacher();
         $class = ClassModel::findOrFail($classId);
-        $this->authorizeClass($class);
+        $this->authorizeTeaching($class);
         $data = $this->validatedHomework($request, $class);
 
         Homework::create($data + ['class_id' => $classId, 'user_id' => Auth::id()]);
@@ -981,7 +1006,7 @@ class TeacherPortalController extends Controller
     {
         $this->guardTeacher();
         $class = ClassModel::findOrFail($classId);
-        $this->authorizeClass($class);
+        $this->authorizeTeaching($class);
         $homework = Homework::where('class_id', $classId)->whereKey($homeworkId)->firstOrFail();
         $data = $this->validatedHomework($request, $class, $homework);
 
@@ -1109,7 +1134,7 @@ class TeacherPortalController extends Controller
     {
         $this->guardTeacher();
         $class = ClassModel::findOrFail($classId);
-        $this->authorizeClass($class);
+        $this->authorizeTeaching($class);
         $homework = Homework::where('class_id', $classId)->where('id', $homeworkId)->firstOrFail();
         if (! empty($this->submittedHomeworkTypes($class, collect([$homework]))[$homework->id] ?? [])) {
             return back()->withErrors(['homework' => 'Bài tập đã có học sinh nộp bài, không xóa được.']);
@@ -1129,7 +1154,7 @@ class TeacherPortalController extends Controller
     {
         $this->guardTeacher();
         $class = ClassModel::findOrFail($classId);
-        $this->authorizeClass($class);
+        $this->authorizeTeaching($class);
         // Danh sách lớp thật (gồm học viên liên kết lớp khác, bỏ Thôi học/Hoàn thành/Bảo lưu).
         $class->setRelation('students', $class->rosterStudents());
         $units = app(\App\Services\SessionLessonService::class)->unitsForClass($class);
@@ -1187,7 +1212,7 @@ class TeacherPortalController extends Controller
     {
         $this->guardTeacher();
         $class = ClassModel::findOrFail($classId);
-        $this->authorizeClass($class);
+        $this->authorizeTeaching($class);
 
         // Form theo mockup: 1 học sinh + 4 kỹ năng.
         if ($request->has('skills')) {
@@ -1311,7 +1336,7 @@ class TeacherPortalController extends Controller
             ->orderByDesc('date')->orderByDesc('start_time')
             ->get();
         $session = $this->resolveSession($request, $class, $user) ?? $this->fallbackSession($request, $recentSessions);
-        $this->authorizeClass($class, $session);
+        $this->authorizeTeaching($class, $session);
 
         $students = collect();
         $attendance = collect();
@@ -1434,7 +1459,7 @@ class TeacherPortalController extends Controller
         ]);
 
         $session = $this->resolveSession($request, $class, $user);
-        $this->authorizeClass($class, $session);
+        $this->authorizeTeaching($class, $session);
         if (! $session) {
             return back()->withErrors(['session' => 'Lớp không có buổi học trong ngày này. Hãy chọn buổi cần nhận xét.']);
         }
@@ -1478,7 +1503,7 @@ class TeacherPortalController extends Controller
         $this->guardTeacher();
         $class = ClassModel::with(['course', 'syllabusAssignments' => fn ($q) => $q->with('stage')->latest('id')])
             ->findOrFail($classId);
-        $this->authorizeClass($class);
+        $this->authorizeTeaching($class);
 
         // Q4: order đề luôn gắn chặng đang mở của lớp (không nhập tên chặng tự do).
         $openAssignment = $class->syllabusAssignments->first(fn ($a) => $a->isOpen());
@@ -1531,7 +1556,7 @@ class TeacherPortalController extends Controller
     {
         $this->guardTeacher();
         $class = ClassModel::findOrFail($classId);
-        $this->authorizeClass($class);
+        $this->authorizeTeaching($class);
 
         $validated = $request->validate([
             'test_type' => 'required|in:mini,big',

@@ -566,7 +566,7 @@ class Phase2MockupSyllabusTest extends TestCase
         $this->actingAs($this->admin)->get($page)->assertOk()
             ->assertSee('Mã HV: HV-MK-1')
             ->assertSee('Duyệt &amp; Gửi phụ huynh', false);
-        $this->actingAs($this->academic)->get(route('syllabus.big-tests.results', $test->id))->assertOk()->assertSee('Xem &amp; duyệt', false)
+        $this->actingAs($this->academic)->get(route('syllabus.big-tests.results', $test->id))->assertOk()->assertSee('Xem kết quả') // nhãn "Xem & duyệt" chỉ cho người duyệt
             ->assertDontSee('Người gửi kết quả'); // chi tiết chỉ mở trong modal khi chọn ?result=
 
         // Giáo viên / Học thuật không duyệt được (chỉ Admin, 06/10/2026)

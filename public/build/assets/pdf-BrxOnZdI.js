@@ -1,1 +1,0 @@
-import{L as r}from"./app-BtFpapXc.js";async function a(e){const[o,t]=await Promise.all([r(()=>import("./pdf-q-5ow4VI.js"),[]),r(()=>import("./pdf.worker.min-CZm9dIOA.js"),[])]);return o.GlobalWorkerOptions.workerPort||(o.GlobalWorkerOptions.workerPort=new t.default),o.getDocument({url:e,isEvalSupported:!1})}export{a as o};
