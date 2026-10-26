@@ -87,6 +87,12 @@ class SyllabusLesson extends Model
         return $this->hasMany(SyllabusDocument::class, 'syllabus_lesson_id');
     }
 
+    /** Bài giảng PowerPoint tải lên của buổi (PPT GV / PPT GVNN), trình chiếu bằng iframe. */
+    public function slides(): HasMany
+    {
+        return $this->hasMany(SyllabusLessonSlide::class, 'syllabus_lesson_id');
+    }
+
     public function curriculum(): BelongsTo
     {
         return $this->belongsTo(SyllabusCurriculum::class, 'curriculum_id');

@@ -54,6 +54,7 @@ use App\Http\Controllers\SurveyController;
 use App\Http\Controllers\SyllabusClassController;
 use App\Http\Controllers\SyllabusController;
 use App\Http\Controllers\SyllabusImportController;
+use App\Http\Controllers\SyllabusSlideController;
 use App\Http\Controllers\SyllabusStageImportController;
 use App\Http\Controllers\SystemCategoryController;
 use App\Http\Controllers\SystemConfigController;
@@ -132,6 +133,11 @@ Route::prefix('api/academic-system')->name('api.academic-system.')->middleware([
     Route::delete('/records/{id}', [AcademicSystemController::class, 'apiDeleteRecord'])->middleware('can:system_category.manage')->name('records.destroy');
     Route::post('/records/{id}/action', [AcademicSystemController::class, 'apiActionRecord'])->middleware('can:system_category.manage')->name('records.action');
 });
+
+// File PPT cho trình xem Office Online của Microsoft (không đăng nhập): link có chữ ký + hạn dùng, tạo ở trang trình chiếu.
+Route::get('/slides/{slide}/{expires}/{signature}/{name}', [SyllabusSlideController::class, 'publicFile'])
+    ->whereNumber(['slide', 'expires'])->where(['signature' => '[a-f0-9]{64}', 'name' => 'slide\.pptx?'])
+    ->middleware('throttle:60,1')->name('slides.public');
 
 // SePay Webhook Endpoints (Public Callback từ SePay)
 Route::post('/hook/sepay-gateway/v1/add-payment', [SepayWebhookController::class, 'handleWebhook'])->middleware('throttle:120,1')->name('sepay.webhook.gateway');
@@ -345,7 +351,6 @@ Route::middleware('auth')->group(function () {
         // Syllabus của lớp: Học thuật chỉnh sửa thủ công từng buổi (bản đè, docs/kho-syllabus.md §7.3).
         Route::put('/{class}/syllabus/lessons/{lesson}', [SyllabusClassController::class, 'override'])->whereNumber(['class', 'lesson'])->middleware('can:syllabus.class_edit')->name('syllabus.override');
         Route::delete('/{class}/syllabus/lessons/{lesson}', [SyllabusClassController::class, 'destroyOverride'])->whereNumber(['class', 'lesson'])->middleware('can:syllabus.class_edit')->name('syllabus.override.destroy');
-        Route::post('/{class}/syllabus/drive-sync', [SyllabusClassController::class, 'syncDrive'])->whereNumber('class')->middleware('can:syllabus.assign')->name('syllabus.drive-sync');
         // Trang lớp (tab con qua ?tab=): đặt cuối nhóm để không nuốt các đường dẫn cố định phía trên.
         Route::get('/{id}', [ClassManagementController::class, 'show'])->whereNumber('id')->name('show');
     });
@@ -525,6 +530,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/documents/{id}/file', [SyllabusController::class, 'documentFile'])->whereNumber('id')->name('documents.file');
         Route::post('/documents/{id}/viewed', [SyllabusController::class, 'markDocumentViewed'])->whereNumber('id')->name('documents.viewed');
         Route::delete('/documents/{id}', [SyllabusController::class, 'destroyDocument'])->whereNumber('id')->middleware('can:syllabus.library')->name('documents.destroy');
+        // Bài giảng PowerPoint của buổi, trình chiếu bằng iframe Office Online (docs/kho-syllabus.md §7.4).
+        Route::post('/lessons/{lesson}/slides', [SyllabusSlideController::class, 'store'])->whereNumber('lesson')->middleware('can:syllabus.library')->name('slides.store');
+        Route::get('/slides/{id}', [SyllabusSlideController::class, 'show'])->whereNumber('id')->name('slides.show');
+        Route::get('/slides/{id}/download', [SyllabusSlideController::class, 'download'])->whereNumber('id')->middleware('can:syllabus.library_view')->name('slides.download');
+        Route::delete('/slides/{id}', [SyllabusSlideController::class, 'destroy'])->whereNumber('id')->middleware('can:syllabus.library')->name('slides.destroy');
         // Kho syllabus (docs/kho-syllabus.md): danh sách → trang chi tiết; /builder cũ chuyển hướng. Xem: library_view (Học vụ
         // xem chỉ đọc để order in ấn); mọi thao tác sửa: library.
         Route::get('/builder', [SyllabusController::class, 'builderRedirect'])->middleware('can:syllabus.library')->name('builder');

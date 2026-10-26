@@ -10,6 +10,7 @@ import { Link } from '@inertiajs/vue3';
 import DocumentList from '@/Components/Syllabus/DocumentList.vue';
 import DocumentUploadModal from '@/Components/Syllabus/DocumentUploadModal.vue';
 import LessonDetailTable from '@/Components/Syllabus/LessonDetailTable.vue';
+import LessonSlides from '@/Components/Syllabus/LessonSlides.vue';
 import StageImportModal from '@/Components/Syllabus/StageImportModal.vue';
 import { route } from '@/lib/route';
 
@@ -202,9 +203,8 @@ const milestoneLabel = (value) => props.milestones.find((m) => m.value === value
                         <UiTextarea name="homework_quizizz" label="Bài tập Quizizz" :rows="3" :value="editor.model?.homework_quizizz" />
                         <UiTextarea name="homework_video" label="Bài tập Video" :rows="3" :value="editor.model?.homework_video" />
                     </div>
+                    <p class="text-xs text-on-surface-variant">PPT / PPT GVNN của buổi: tải file PowerPoint lên ở mục "Bài giảng PPT" của buổi trong cây chặng (trình chiếu ngay trong app).</p>
                     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <UiInput type="url" name="ppt_url" label="Link PPT" :value="editor.model?.ppt_url" placeholder="https://..." />
-                        <UiInput type="url" name="ppt_foreign_url" label="Link PPT GVNN" :value="editor.model?.ppt_foreign_url" placeholder="https://..." />
                         <UiInput type="url" name="quizizz_url" label="Link Quizizz" :value="editor.model?.quizizz_url" placeholder="https://quizizz.com/..." />
                         <UiInput type="url" name="test_url" label="Link Mini test / Kiểm tra từ" :value="editor.model?.test_url" placeholder="https://..." />
                     </div>
@@ -369,6 +369,10 @@ const milestoneLabel = (value) => props.milestones.find((m) => m.value === value
                                     <span class="material-symbols-outlined text-[18px] text-on-surface-subtle transition group-open:rotate-180">expand_more</span>
                                 </summary>
                                 <LessonDetailTable :lesson="lesson" class="mt-3" />
+                                <div class="mt-3 space-y-2">
+                                    <p class="font-semibold text-on-surface">Bài giảng PPT</p>
+                                    <LessonSlides :lesson="lesson" :can-manage="canManage" />
+                                </div>
                                 <div class="mt-3 space-y-2">
                                     <p class="font-semibold text-on-surface">Tài liệu buổi</p>
                                     <DocumentList :documents="documents.lessons[lesson.id] ?? []" :can-manage="canManage" empty-text="Chưa có tài liệu buổi." />

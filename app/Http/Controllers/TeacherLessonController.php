@@ -8,6 +8,7 @@ use App\Models\ClassSession;
 use App\Models\SyllabusAssignment;
 use App\Models\SyllabusDocument;
 use App\Models\SyllabusLesson;
+use App\Models\SyllabusLessonSlide;
 use App\Models\User;
 use App\Services\Syllabus\ClassSyllabus;
 use App\Services\Syllabus\ConfirmDeadline;
@@ -180,6 +181,8 @@ class TeacherLessonController extends Controller
             'milestone_label' => SyllabusLesson::MILESTONES[$row['data']['notice_milestone']] ?? null,
             'data' => $row['data'],
             'overridden' => $row['overridden'],
+            // PPT tải lên của buổi (thay link PPT): mở trang trình chiếu trong app.
+            'slides' => SyllabusLessonSlide::payloadsFor($lesson),
             'documents' => SyllabusDocument::visibleTo($user)->where('syllabus_lesson_id', $lesson->id)->orderBy('title')->get()
                 ->map(fn (SyllabusDocument $d) => ['id' => $d->id, 'title' => $d->title, 'icon' => $d->icon,
                     'url' => route('syllabus.documents.file', $d->id), 'can_download' => $d->canDownload($user)])->values(),

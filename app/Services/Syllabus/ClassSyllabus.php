@@ -12,7 +12,7 @@ use Illuminate\Support\Collection;
 
 /**
  * Syllabus hiệu lực của lớp (docs/kho-syllabus.md §6.2): buổi gốc của chặng lớp đang học ghép bản đè của lớp. Một chỗ duy
- * nhất cho tab Syllabus của lớp, màn GV, ORDER, cảnh báo cuối chặng, quyền Google Drive.
+ * nhất cho tab Syllabus của lớp, màn GV, ORDER, cảnh báo cuối chặng.
  */
 class ClassSyllabus
 {

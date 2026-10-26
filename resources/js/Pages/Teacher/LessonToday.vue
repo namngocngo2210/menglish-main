@@ -1,7 +1,7 @@
 <script setup>
 /**
  * Cổng GV — Bài giảng hôm nay (docs/kho-syllabus.md §8.3): chỉ buổi syllabus hiện tại của lớp có buổi học hôm nay (content,
- * quy trình, hoạt động, homework 3 giỏ, link, tài liệu buổi). Bấm "Đã dạy" thì tiến độ chặng mới chạy; buổi đã qua chưa
+ * quy trình, hoạt động, homework 3 giỏ, link, PPT trình chiếu trong app, tài liệu buổi). Bấm "Đã dạy" thì tiến độ chặng mới chạy; buổi đã qua chưa
  * đánh dấu hiện nhắc để đánh dấu bù.
  */
 import { computed } from 'vue';
@@ -41,13 +41,15 @@ const baskets = [
     ['homework_quizizz', 'Bài tập Quizizz', 'quiz'],
     ['homework_video', 'Bài tập Video', 'videocam'],
 ];
+// [trường link, nhãn, biểu tượng, loại PPT tải lên — có file thì mở trang trình chiếu trong app thay cho link]
 const links = [
-    ['ppt_url', 'Link PPT', 'slideshow'],
-    ['ppt_foreign_url', 'Link PPT GVNN', 'slideshow'],
+    ['ppt_url', 'Trình chiếu PPT', 'co_present', 'ppt'],
+    ['ppt_foreign_url', 'Trình chiếu PPT GVNN', 'co_present', 'ppt_foreign'],
     ['quizizz_url', 'Link Quizizz', 'quiz'],
     ['test_url', 'Link Mini test / Kiểm tra từ', 'assignment'],
 ];
-const hasLinks = computed(() => props.lesson && links.some(([f]) => props.lesson.data[f]));
+const linkUrl = ([field, , , slide]) => (slide && props.lesson?.slides?.[slide]?.url) || props.lesson?.data[field] || null;
+const hasLinks = computed(() => props.lesson && links.some(linkUrl));
 </script>
 
 <template>
@@ -130,8 +132,8 @@ const hasLinks = computed(() => props.lesson && links.some(([f]) => props.lesson
                 </div>
 
                 <p v-if="hasLinks" class="flex flex-wrap gap-3 text-sm">
-                    <template v-for="[field, label, icon] in links" :key="field">
-                        <a v-if="lesson.data[field]" :href="lesson.data[field]" target="_blank" rel="noopener" class="inline-flex items-center gap-1 font-semibold text-primary hover:underline"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">{{ icon }}</span>{{ label }}</a>
+                    <template v-for="link in links" :key="link[0]">
+                        <a v-if="linkUrl(link)" :href="linkUrl(link)" target="_blank" rel="noopener" class="inline-flex items-center gap-1 font-semibold text-primary hover:underline"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">{{ link[2] }}</span>{{ link[1] }}</a>
                     </template>
                 </p>
 

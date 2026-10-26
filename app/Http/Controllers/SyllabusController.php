@@ -19,6 +19,7 @@ use App\Models\SyllabusCurriculum;
 use App\Models\SyllabusDocument;
 use App\Models\SyllabusDocumentView;
 use App\Models\SyllabusLesson;
+use App\Models\SyllabusLessonSlide;
 use App\Models\SyllabusStage;
 use App\Models\SyllabusUnit;
 use App\Models\User;
@@ -315,7 +316,7 @@ class SyllabusController extends Controller
      */
     public function show(Request $request, int $id)
     {
-        $curriculum = SyllabusCurriculum::with(['stages.units.lessons', 'levels'])->findOrFail($id);
+        $curriculum = SyllabusCurriculum::with(['stages.units.lessons.slides', 'levels'])->findOrFail($id);
         $tab = in_array($request->query('tab'), self::CURRICULUM_TABS, true) ? $request->query('tab') : 'stages';
         $stages = $curriculum->stages;
         $units = $stages->flatMap->units;
@@ -431,6 +432,7 @@ class SyllabusController extends Controller
             'output_product' => $lesson->output_product,
             'notice_milestone' => $lesson->notice_milestone,
             'note' => $lesson->note,
+            'slides' => SyllabusLessonSlide::payloadsFor($lesson),
         ];
     }
 
