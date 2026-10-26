@@ -27,7 +27,7 @@ const percent = (s) => (s.total > 0 ? Math.round((s.correct / s.total) * 100) : 
 
 <template>
     <UiPageHeader
-        :title="`${student.name} · Khối ${attempt.grade} · ${attempt.term_label}`"
+        :title="`${student.name} · Khối ${attempt.grade} · ${attempt.term_label}${attempt.exam_label ? ` · ${attempt.exam_label}` : ''}`"
         :description="`Bắt đầu ${formatDate(attempt.started_at, 'd/m/Y H:i')} · làm trong ${durationText}`"
         :back="backUrl"
     />

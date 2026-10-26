@@ -25,7 +25,7 @@ class QuestionAvailability
     public function all(): array
     {
         $result = [];
-        QuestionBankQuestion::query()->approved()
+        QuestionBankQuestion::query()->inBank()->approved()
             ->selectRaw('grade, term, skill, type, count(*) as total')
             ->groupBy('grade', 'term', 'skill', 'type')
             ->get()

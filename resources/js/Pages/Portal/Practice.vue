@@ -1,8 +1,8 @@
 <script setup>
 /**
  * Luyện tập (cổng học viên): đề luyện thi theo khối × kỳ sinh từ ngân hàng câu hỏi (docs/luyen-tap-ngan-hang-cau-hoi.md §6.1).
- * 4 thẻ kỳ (số câu, thời gian; kỳ chưa có câu đã duyệt → mờ "Chưa có đề"; có lượt đang làm → "Làm tiếp") và lịch sử
- * các lượt đã nộp. Nhân sự xem cổng (canStart = false) chỉ xem lịch sử.
+ * 4 thẻ kỳ (số câu, thời gian; kỳ chưa có câu đã duyệt → mờ "Chưa có đề"; có lượt đang làm → "Làm tiếp"), đề cố định
+ * của khối theo kỳ (§11.3: học viên chọn từng mã đề) và lịch sử các lượt đã nộp. Nhân sự xem cổng (canStart = false) chỉ xem lịch sử.
  */
 import { computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
@@ -19,6 +19,7 @@ const props = defineProps({
     grade: { type: Number, default: null },
     schoolYear: { type: String, default: '' },
     terms: { type: Array, default: () => [] },
+    exams: { type: Array, default: () => [] },
     history: { type: Object, required: true },
     canStart: { type: Boolean, default: false },
 });
@@ -31,6 +32,20 @@ function durationText(seconds) {
     const s = seconds % 60;
     return m > 0 ? `${m} phút ${s} giây` : `${s} giây`;
 }
+
+// đề cố định nhóm theo kỳ (server đã sắp theo kỳ rồi mã đề)
+const examGroups = computed(() => {
+    const groups = [];
+    for (const exam of props.exams) {
+        let group = groups[groups.length - 1];
+        if (!group || group.term !== exam.term) {
+            group = { term: exam.term, label: exam.term_label, exams: [] };
+            groups.push(group);
+        }
+        group.exams.push(exam);
+    }
+    return groups;
+});
 
 const scoreText = (score) => Number(score).toLocaleString('vi-VN', { maximumFractionDigits: 2 });
 </script>
@@ -84,6 +99,40 @@ const scoreText = (score) => Number(score).toLocaleString('vi-VN', { maximumFrac
                 </div>
             </section>
 
+            <!-- Đề cố định của khối -->
+            <section v-if="student && examGroups.length" aria-label="Đề cố định" class="space-y-3 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-4 shadow-2xs" data-fixed-exams>
+                <div>
+                    <h2 class="text-sm font-bold text-on-surface">Đề cố định khối {{ grade }}</h2>
+                    <p class="mt-0.5 text-xs text-on-surface-variant">Chọn một mã đề để làm. Đề giữ nguyên câu hỏi như đề in, làm lại bao nhiêu lần cũng được.</p>
+                </div>
+                <div v-for="group in examGroups" :key="group.term" class="space-y-2">
+                    <h3 class="text-xs font-bold uppercase tracking-wide text-primary">{{ group.label }}</h3>
+                    <div
+                        v-for="exam in group.exams"
+                        :key="exam.id"
+                        class="flex items-center justify-between gap-3 rounded-xl border border-surface-container-highest/80 bg-surface-container-low p-3"
+                        :data-exam="exam.code"
+                    >
+                        <div class="min-w-0">
+                            <p class="text-sm font-bold text-on-surface">{{ exam.label }}</p>
+                            <p class="mt-0.5 text-xs text-on-surface-variant">{{ exam.question_count }} câu · {{ exam.duration }} phút</p>
+                            <p class="mt-0.5 text-xs text-on-surface-variant">
+                                <template v-if="exam.attempts">Đã làm {{ exam.attempts }} lần · cao nhất <span class="font-bold text-primary">{{ scoreText(exam.best_score) }}</span>/10</template>
+                                <template v-else>Chưa làm</template>
+                            </p>
+                        </div>
+                        <div v-if="canStart" class="shrink-0">
+                            <UiButton v-if="exam.inProgressAttemptId" icon="play_arrow" size="sm" :href="route('portal.student.practice.attempt', exam.inProgressAttemptId)">Làm tiếp</UiButton>
+                            <UiForm v-else :action="route('portal.student.practice.start')" method="post">
+                                <input type="hidden" name="student_id" :value="student.id" />
+                                <input type="hidden" name="exam_id" :value="exam.id" />
+                                <UiButton type="submit" :icon="exam.attempts ? 'replay' : 'edit_note'" size="sm" :variant="exam.attempts ? 'secondary' : 'primary'">{{ exam.attempts ? 'Làm lại' : 'Làm đề' }}</UiButton>
+                            </UiForm>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <!-- Lịch sử -->
             <section v-if="student" class="space-y-3 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-4 shadow-2xs">
                 <h2 class="text-sm font-bold text-on-surface">Lịch sử luyện tập</h2>
@@ -95,7 +144,7 @@ const scoreText = (score) => Number(score).toLocaleString('vi-VN', { maximumFrac
                         class="flex items-center justify-between gap-3 rounded-xl border border-surface-container-highest/80 bg-surface-container-low p-3 transition hover:bg-surface-container"
                     >
                         <div class="min-w-0">
-                            <p class="text-xs font-bold text-on-surface">{{ row.term_label }}</p>
+                            <p class="text-xs font-bold text-on-surface">{{ row.term_label }} · {{ row.exam_label || 'Đề trộn' }}</p>
                             <p class="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-on-surface-variant">
                                 <span>{{ formatDate(row.started_at, 'd/m/Y H:i') }}</span>
                                 <span aria-hidden="true">•</span>

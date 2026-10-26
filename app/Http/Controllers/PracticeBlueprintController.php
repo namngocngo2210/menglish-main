@@ -121,7 +121,7 @@ class PracticeBlueprintController extends Controller
     private function typeSuggestions(): array
     {
         $suggestions = [];
-        QuestionBankQuestion::query()->select('skill', 'type')->distinct()->orderBy('type')->get()
+        QuestionBankQuestion::query()->inBank()->select('skill', 'type')->distinct()->orderBy('type')->get()
             ->each(function (QuestionBankQuestion $row) use (&$suggestions) {
                 $suggestions[$row->skill][] = $row->type;
             });

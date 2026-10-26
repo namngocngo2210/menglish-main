@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\DB;
  * Báo cáo Kết quả luyện tập (docs/luyen-tap-ngan-hang-cau-hoi.md §7). Chỉ tính lượt đã nộp của học viên trong phạm vi
  * người xem (`Student::visibleTo`); tổng hợp bằng GROUP BY, số câu truy vấn không phụ thuộc số dòng.
  *
- * Bộ lọc (đã chuẩn hoá bằng `filters()`): grade, term, class_id, student_id, from, to (Y-m-d, tính cả ngày, theo submitted_at),
+ * Bộ lọc (đã chuẩn hoá bằng `filters()`): grade, term, exam ('mixed' = đề trộn | id đề cố định), class_id, student_id, from, to (Y-m-d, tính cả ngày, theo submitted_at),
  * q (tìm theo tên / mã học viên, trong phạm vi người xem), mine (chỉ học viên các lớp người xem là giáo viên / trợ giảng / GVNN — mục "Kết quả luyện tập" ở Cổng Giáo viên).
  */
 class PracticeReport
@@ -30,7 +30,10 @@ class PracticeReport
 
     public const MIN_QUESTION_ATTEMPTS = 10;
 
-    private const FILTER_KEYS = ['grade', 'term', 'class_id', 'student_id', 'q', 'from', 'to', 'mine'];
+    /** Bộ lọc `exam`: chỉ lượt đề trộn. */
+    public const EXAM_MIXED = 'mixed';
+
+    private const FILTER_KEYS = ['grade', 'term', 'exam', 'class_id', 'student_id', 'q', 'from', 'to', 'mine'];
 
     private const SEARCH_MAX_LENGTH = 100;
 
@@ -38,7 +41,7 @@ class PracticeReport
      * Bộ lọc từ input người dùng: giá trị ngoài danh sách / sai định dạng / lớp ngoài phạm vi người xem → null (bỏ qua).
      *
      * @param  array<string, mixed>  $input
-     * @return array{grade: ?int, term: ?string, class_id: ?int, student_id: ?int, q: ?string, from: ?string, to: ?string, mine: bool}
+     * @return array{grade: ?int, term: ?string, exam: string|int|null, class_id: ?int, student_id: ?int, q: ?string, from: ?string, to: ?string, mine: bool}
      */
     public function filters(User $viewer, array $input): array
     {
@@ -46,11 +49,13 @@ class PracticeReport
         $grade = $int('grade');
         $term = is_string($input['term'] ?? null) ? $input['term'] : null;
         $classId = $int('class_id');
+        $exam = ($input['exam'] ?? null) === self::EXAM_MIXED ? self::EXAM_MIXED : $int('exam');
         $search = is_string($input['q'] ?? null) ? mb_substr(trim($input['q']), 0, self::SEARCH_MAX_LENGTH) : '';
 
         return [
             'grade' => in_array($grade, PracticeCatalog::GRADES, true) ? $grade : null,
             'term' => array_key_exists((string) $term, PracticeCatalog::TERMS) ? $term : null,
+            'exam' => $exam,
             'class_id' => $classId !== null && ClassModel::query()->visibleTo($viewer)->whereKey($classId)->exists() ? $classId : null,
             'student_id' => $int('student_id'),
             'q' => $search !== '' ? $search : null,
@@ -252,7 +257,8 @@ class PracticeReport
         return $this->attempts($viewer, $filters)
             ->orderByDesc('practice_attempts.submitted_at')
             ->orderByDesc('practice_attempts.id')
-            ->paginate(self::PER_PAGE, ['id', 'student_id', 'grade', 'term', 'started_at', 'deadline_at', 'submitted_at',
+            ->with('exam:id,code')
+            ->paginate(self::PER_PAGE, ['id', 'student_id', 'exam_id', 'grade', 'term', 'started_at', 'deadline_at', 'submitted_at',
                 'score', 'correct', 'total', 'violation_count', 'auto_submitted', 'submit_reason']);
     }
 
@@ -277,6 +283,8 @@ class PracticeReport
             ->when($f['student_id'], fn (Builder $q, int $id) => $q->where('practice_attempts.student_id', $id))
             ->when($f['grade'], fn (Builder $q, int $grade) => $q->where('practice_attempts.grade', $grade))
             ->when($f['term'], fn (Builder $q, string $term) => $q->where('practice_attempts.term', $term))
+            ->when($f['exam'] === self::EXAM_MIXED, fn (Builder $q) => $q->whereNull('practice_attempts.exam_id'))
+            ->when(is_int($f['exam']), fn (Builder $q) => $q->where('practice_attempts.exam_id', $f['exam']))
             ->when($f['from'], fn (Builder $q, string $from) => $q->where('practice_attempts.submitted_at', '>=', Carbon::parse($from)->startOfDay()))
             ->when($f['to'], fn (Builder $q, string $to) => $q->where('practice_attempts.submitted_at', '<', Carbon::parse($to)->addDay()->startOfDay()));
     }

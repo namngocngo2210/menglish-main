@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ClassModel;
 use App\Models\PracticeAttempt;
+use App\Models\PracticeExam;
 use App\Models\Student;
 use App\Models\User;
 use App\Services\Practice\PracticeAttemptProps;
@@ -21,7 +22,7 @@ use Inertia\Response;
 class PracticeResultsController extends Controller
 {
     /** Bộ lọc của trang một học viên (lớp / học viên đã cố định). */
-    private const STUDENT_FILTERS = ['grade', 'term', 'from', 'to'];
+    private const STUDENT_FILTERS = ['grade', 'term', 'exam', 'from', 'to'];
 
     /** Bộ lọc màn tổng hợp chỉ mang theo để nút quay lại giữ nguyên (trang học viên không áp dụng). */
     private const INDEX_ONLY_FILTERS = ['class_id', 'q', 'mine'];
@@ -77,6 +78,7 @@ class PracticeResultsController extends Controller
                     'id' => $a->id,
                     'grade' => $a->grade,
                     'term_label' => PracticeCatalog::TERMS[$a->term] ?? $a->term,
+                    'exam_label' => $a->exam?->label(),
                     'submitted_at' => $a->submitted_at?->toIso8601String(),
                     'duration_seconds' => $this->attemptProps->durationSeconds($a),
                     'score' => (float) $a->score,
@@ -144,6 +146,13 @@ class PracticeResultsController extends Controller
             'grades' => array_map(fn (int $grade) => ['value' => $grade, 'label' => "Khối {$grade}"], PracticeCatalog::GRADES),
             'terms' => array_map(fn (string $term, string $label) => ['value' => $term, 'label' => $label],
                 array_keys(PracticeCatalog::TERMS), PracticeCatalog::TERMS),
+            // đề trộn + đề cố định đã từng mở cho học viên (đề Nháp chưa có lượt làm)
+            'exams' => [
+                ['value' => PracticeReport::EXAM_MIXED, 'label' => 'Đề trộn'],
+                ...PracticeExam::query()->where('status', '!=', PracticeExam::DRAFT)
+                    ->orderBy('grade')->orderBy('term')->orderBy('code')->get(['id', 'grade', 'term', 'code'])
+                    ->map(fn (PracticeExam $e) => ['value' => $e->id, 'label' => "Khối {$e->grade} · {$e->termLabel()} · {$e->label()}"])->all(),
+            ],
         ];
     }
 }

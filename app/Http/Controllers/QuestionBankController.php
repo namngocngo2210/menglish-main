@@ -92,7 +92,7 @@ class QuestionBankController extends Controller
         $filters = $this->filters($request);
         $query = $allMatching
             ? $this->filtered($filters)
-            : QuestionBankQuestion::query()->whereIn('id', $data['ids']);
+            : QuestionBankQuestion::query()->inBank()->whereIn('id', $data['ids']);
 
         // Chỉ "về Chưa duyệt" đặt `edited_at` (import lại không đưa câu về bản gốc); duyệt / ẩn không sửa nội dung và
         // import vốn đã giữ mọi câu khác draft, nên không gắn nhãn "Đã sửa".
@@ -140,12 +140,14 @@ class QuestionBankController extends Controller
     {
         $data = $request->validate([
             'instruction' => ['nullable', 'string', 'max:2000'],
-            'stem' => ['required', 'string', 'max:5000'],
+            // câu Phát âm / Trọng âm của đề cố định không có đề bài riêng (chỉ yêu cầu + phương án)
+            'stem' => [$question->exam_id === null ? 'required' : 'nullable', 'string', 'max:5000'],
             'options' => ['required', 'array:'.implode(',', self::OPTION_KEYS)],
             ...collect(self::OPTION_KEYS)->mapWithKeys(fn (string $key) => ["options.{$key}" => ['required', 'string', 'max:1000']])->all(),
             'answer' => ['required', Rule::in(self::OPTION_KEYS)],
             'knowledge' => ['nullable', 'string', 'max:255'],
-            'status' => ['required', Rule::in(array_keys(QuestionBankQuestion::STATUSES))],
+            // câu của đề cố định theo trạng thái của đề, không duyệt từng câu
+            'status' => [$question->exam_id === null ? 'required' : 'nullable', Rule::in(array_keys(QuestionBankQuestion::STATUSES))],
         ], [], [
             'stem' => 'câu hỏi',
             'answer' => 'đáp án',
@@ -154,11 +156,11 @@ class QuestionBankController extends Controller
 
         $question->fill([
             'instruction' => $data['instruction'] ?? null,
-            'stem' => $data['stem'],
+            'stem' => $data['stem'] ?? '',
             'options' => collect(self::OPTION_KEYS)->mapWithKeys(fn (string $key) => [$key => $data['options'][$key]])->all(),
             'answer' => $data['answer'],
             'knowledge' => $data['knowledge'] ?? null,
-            'status' => $data['status'],
+            'status' => $data['status'] ?? $question->status,
             'edited_at' => now(),
         ]);
         if ($question->isDirty('status')) {
@@ -173,7 +175,7 @@ class QuestionBankController extends Controller
         return $this->modalSaved('Đã lưu câu hỏi.', $this->safeReturnUrl($request->input('return')) ?? route('question-bank.index'));
     }
 
-    public function editPassage(QuestionBankPassage $passage): InertiaResponse
+    public function editPassage(Request $request, QuestionBankPassage $passage): InertiaResponse
     {
         $passage->load('questions:id,passage_id,position,stem,status');
 
@@ -193,7 +195,9 @@ class QuestionBankController extends Controller
                     'stem' => $q->stem,
                     'status_label' => QuestionBankQuestion::STATUSES[$q->status] ?? $q->status,
                 ])->all(),
+                'in_exam' => $passage->exam_id !== null,
             ],
+            'returnUrl' => $this->safeReturnUrl($request->query('return')),
         ]);
     }
 
@@ -220,7 +224,7 @@ class QuestionBankController extends Controller
                 ->log("Sửa ngữ liệu #{$passage->id}");
         });
 
-        return $this->modalSaved('Đã lưu ngữ liệu.', route('question-bank.index'));
+        return $this->modalSaved('Đã lưu ngữ liệu.', $this->safeReturnUrl($request->input('return')) ?? route('question-bank.index'));
     }
 
     /** Import file ZIP (data/*.json + hinh/*) chạy đồng bộ; một dòng nhật ký tổng thay cho từng câu. */
@@ -292,7 +296,7 @@ class QuestionBankController extends Controller
     {
         $search = $filters['q'];
 
-        return QuestionBankQuestion::query()
+        return QuestionBankQuestion::query()->inBank()
             ->when($filters['grade'] !== null, fn (Builder $q) => $q->where('grade', $filters['grade']))
             ->when($filters['term'] !== null, fn (Builder $q) => $q->where('term', $filters['term']))
             ->when($filters['skill'] !== null, fn (Builder $q) => $q->where('skill', $filters['skill']))
@@ -309,7 +313,7 @@ class QuestionBankController extends Controller
     /** @return array<string, list<array{value: int|string, label: string}>> */
     private function filterOptions(): array
     {
-        $types = QuestionBankQuestion::query()->select('skill', 'type')->distinct()->get()
+        $types = QuestionBankQuestion::query()->inBank()->select('skill', 'type')->distinct()->get()
             ->sortBy(fn (QuestionBankQuestion $row) => [PracticeCatalog::skillOrder($row->skill), $row->type])
             ->pluck('type')->unique()->values();
 
@@ -351,6 +355,7 @@ class QuestionBankController extends Controller
             'status' => $question->status,
             'status_label' => QuestionBankQuestion::STATUSES[$question->status] ?? $question->status,
             'edited' => $question->edited_at !== null,
+            'in_exam' => $question->exam_id !== null,
             'source_key' => $question->source_key,
             'source' => implode(' · ', array_filter([$question->source_school, $question->source_year, $question->source_file])),
             'passage' => $passage ? [

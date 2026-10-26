@@ -37,6 +37,7 @@ const attemptUrl = (attempt) => route('practice-results.attempt', { ...props.ret
     <UiFilterBar :search="false" :keep="keepFilters" aria-label="Lọc lượt luyện tập">
         <UiSelect name="grade" label="Khối" :options="filterOptions.grades" placeholder="Tất cả khối" />
         <UiSelect name="term" label="Kỳ" :options="filterOptions.terms" placeholder="Tất cả kỳ" />
+        <UiSelect name="exam" label="Đề" :options="filterOptions.exams" placeholder="Tất cả đề" />
         <UiDateRange label="Ngày nộp" />
     </UiFilterBar>
 
@@ -72,7 +73,7 @@ const attemptUrl = (attempt) => route('practice-results.attempt', { ...props.ret
                     <td>
                         <a :href="attemptUrl(a)" class="font-semibold text-on-surface hover:underline">{{ a.submitted_at ? formatDate(a.submitted_at, 'd/m/Y H:i') : '—' }}</a>
                     </td>
-                    <td>Khối {{ a.grade }} · {{ a.term_label }}</td>
+                    <td>Khối {{ a.grade }} · {{ a.term_label }}<template v-if="a.exam_label"> · {{ a.exam_label }}</template></td>
                     <td>{{ duration(a.duration_seconds) }}</td>
                     <td class="text-right">
                         <span class="font-code font-bold">{{ score(a.score) }}</span>

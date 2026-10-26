@@ -24,6 +24,7 @@ const shortCount = (cell) => cell.items.filter((item) => item.short).length;
     <UiTabs class="mb-lg">
         <UiTab :href="route('question-bank.index')">Câu hỏi</UiTab>
         <UiTab :href="route('question-bank.blueprints.index')" active>Khung đề</UiTab>
+        <UiTab :href="route('question-bank.exams.index')">Đề cố định</UiTab>
         <UiTab :href="route('question-bank.analysis')">Phân tích câu hỏi</UiTab>
     </UiTabs>
 

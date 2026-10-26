@@ -13,7 +13,7 @@ class PracticeAttempt extends Model
     public const SUBMITTED = 'submitted';
 
     protected $fillable = [
-        'student_id', 'user_id', 'grade', 'term', 'status', 'started_at', 'deadline_at', 'submitted_at',
+        'student_id', 'user_id', 'exam_id', 'grade', 'term', 'status', 'started_at', 'deadline_at', 'submitted_at',
         'auto_submitted', 'submit_reason', 'total', 'correct', 'score', 'skill_scores',
         'violation_count', 'violation_log',
     ];
@@ -40,6 +40,12 @@ class PracticeAttempt extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /** Đề cố định đã làm; null = đề trộn. */
+    public function exam(): BelongsTo
+    {
+        return $this->belongsTo(PracticeExam::class, 'exam_id');
     }
 
     public function items(): HasMany
