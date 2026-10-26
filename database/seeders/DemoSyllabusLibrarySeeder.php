@@ -28,6 +28,7 @@ use App\Models\User;
 use App\Models\WorkTask;
 use App\Services\Reports\WeeklyReportMetrics;
 use App\Services\Syllabus\ClassSyllabus;
+use App\Services\Syllabus\ConfirmReading;
 use App\Services\Syllabus\Import\SyllabusImporter;
 use App\Services\Syllabus\Import\SyllabusPackageReader;
 use App\Services\Syllabus\Import\SyllabusPackageValidator;
@@ -43,6 +44,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use RuntimeException;
 
@@ -219,6 +221,8 @@ class DemoSyllabusLibrarySeeder extends Seeder
         $teacher = User::where('email', 'nguyenvanan@menglish.edu.vn')->first();
         $document = $teacher ? SyllabusDocument::visibleTo($teacher)->orderBy('id')->first() : null;
         if ($document && ! $document->viewedBy($teacher)) {
+            // Đã mở xem tài liệu từ 1 phút trước ("Đánh dấu đã xem" đòi mở đủ ConfirmReading::DOCUMENT_MIN_SECONDS giây).
+            Cache::put(ConfirmReading::documentOpenKey($teacher, $document), now()->subMinute()->getTimestamp(), now()->addHour());
             $this->asUser($teacher, SyllabusController::class, 'markDocumentViewed', [], ['id' => $document->id]);
         }
     }

@@ -31,6 +31,7 @@ use App\Models\WorkTask;
 use App\Services\FirstMonthCareService;
 use App\Services\SessionScheduleService;
 use App\Services\SupportListService;
+use App\Services\Syllabus\ConfirmReading;
 use Carbon\Carbon;
 use Database\Seeders\Concerns\InvokesControllersAsUser;
 use Illuminate\Database\Seeder;
@@ -263,7 +264,9 @@ class DemoPhase2Seeder extends Seeder
         $assignment = SyllabusAssignment::open()->where('class_id', $class->id)->firstOrFail();
         $assignment->update(['opened_at' => $class->start_date->copy()->setTime(8, 0)]);
         if ($this->branchCode === 'CG') {
-            $this->asUser($this->staff['teacher'], SyllabusController::class, 'confirmAssignment', [], ['id' => $assignment->id]);
+            // GV đọc tổng quan chặng đủ thời gian rồi tick cam kết và XÁC NHẬN như trên trang "Đọc & xác nhận".
+            app(ConfirmReading::class)->open($assignment, $this->staff['teacher'])->update(['opened_at' => now()->subMinutes(3)]);
+            $this->asUser($this->staff['teacher'], SyllabusController::class, 'confirmAssignment', ['acknowledged' => '1'], ['id' => $assignment->id]);
         }
     }
 

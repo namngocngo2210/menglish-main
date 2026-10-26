@@ -46,7 +46,7 @@ class SyllabusAssignmentConfirmTest extends TestCase
 
         $notification = AdminNotification::where('user_id', $this->teacher->id)->sole();
         $this->assertStringStartsWith('Bạn đã nhận syllabus mới: Lớp Lớp QT 01 – Giáo trình Family and Friends – Chặng 1: Làm quen, bắt đầu ', $notification->title);
-        $this->assertSame(['label' => 'XÁC NHẬN', 'url' => route('syllabus.assignments.confirm', $assignment->id), 'method' => 'post'], $notification->action);
+        $this->assertSame(['label' => 'ĐỌC & XÁC NHẬN', 'url' => route('syllabus.assignments.read', $assignment->id), 'method' => 'get'], $notification->action);
         $this->assertSame(1, AdminNotification::where('user_id', $this->foreignTeacher->id)->count());
     }
 
@@ -68,7 +68,7 @@ class SyllabusAssignmentConfirmTest extends TestCase
         $this->actingAs($this->staff)->post(route('syllabus.assignments.confirm', $assignment->id))->assertForbidden();
         $this->assertFalse($assignment->fresh()->isConfirmed());
 
-        $this->actingAs($this->foreignTeacher)->post(route('syllabus.assignments.confirm', $assignment->id))->assertRedirect();
+        $this->readAndConfirm($this->foreignTeacher, $assignment)->assertRedirect()->assertSessionHasNoErrors();
         $assignment->refresh();
         $this->assertTrue($assignment->isConfirmed());
         $this->assertSame($this->foreignTeacher->id, $assignment->confirmed_by);
@@ -89,7 +89,7 @@ class SyllabusAssignmentConfirmTest extends TestCase
             $this->assertSame(1, AdminNotification::where('user_id', $user->id)->where('title', $title)->count(), $user->name);
         }
         $this->assertSame('NHẮC LẠI', AdminNotification::where('user_id', $this->lead->id)->sole()->action['label']);
-        $this->assertSame('XÁC NHẬN', AdminNotification::where('user_id', $this->teacher->id)->sole()->action['label']);
+        $this->assertSame('ĐỌC & XÁC NHẬN', AdminNotification::where('user_id', $this->teacher->id)->sole()->action['label']);
         $this->assertSame(0, AdminNotification::where('user_id', $this->staff->id)->count());
     }
 
@@ -128,9 +128,10 @@ class SyllabusAssignmentConfirmTest extends TestCase
         $assignment->refresh();
         $this->assertSame($newTeacher->id, $assignment->user_id);
         $this->assertFalse($assignment->isConfirmed());
-        $this->assertSame('XÁC NHẬN', AdminNotification::where('user_id', $newTeacher->id)->sole()->action['label']);
+        $this->assertSame('ĐỌC & XÁC NHẬN', AdminNotification::where('user_id', $newTeacher->id)->sole()->action['label']);
         $this->actingAs($this->teacher)->post(route('syllabus.assignments.confirm', $assignment->id))->assertForbidden();
-        $this->actingAs($newTeacher)->post(route('syllabus.assignments.confirm', $assignment->id))->assertRedirect();
+        $this->readAndConfirm($newTeacher, $assignment)->assertRedirect()->assertSessionHasNoErrors();
+        $this->assertTrue($assignment->fresh()->isConfirmed());
     }
 
     public function test_switching_from_last_stage_does_not_mark_curriculum_finished(): void
@@ -161,7 +162,7 @@ class SyllabusAssignmentConfirmTest extends TestCase
         $this->actingAs($this->lead)->post(route('syllabus.assignments.remind', $assignment->id))->assertRedirect();
         $this->actingAs($this->staff)->post(route('syllabus.assignments.remind', $assignment->id))->assertForbidden();
 
-        $this->assertSame('XÁC NHẬN', AdminNotification::where('user_id', $this->teacher->id)->sole()->action['label']);
+        $this->assertSame('ĐỌC & XÁC NHẬN', AdminNotification::where('user_id', $this->teacher->id)->sole()->action['label']);
     }
 
     public function test_big_test_completion_closes_stage_without_opening_next_and_notifies_lead(): void

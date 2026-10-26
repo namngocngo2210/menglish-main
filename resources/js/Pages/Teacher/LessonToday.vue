@@ -70,9 +70,7 @@ const hasLinks = computed(() => props.lesson && links.some(([f]) => props.lesson
                     Chặng {{ assignment.stage_label }} chưa được XÁC NHẬN — chưa đánh dấu Đã dạy được.
                     <template v-if="confirm_due"> Hạn xác nhận: <strong>{{ confirm_due }}</strong> (quá hạn bị lập biên bản).</template>
                 </span>
-                <UiForm v-if="confirm_url" :action="confirm_url" method="post" class="inline">
-                    <UiButton type="submit" size="sm" icon="task_alt">XÁC NHẬN</UiButton>
-                </UiForm>
+                <UiButton v-if="confirm_url" size="sm" icon="menu_book" :href="confirm_url">ĐỌC &amp; XÁC NHẬN</UiButton>
             </div>
         </UiAlert>
 

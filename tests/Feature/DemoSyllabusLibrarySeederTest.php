@@ -100,7 +100,7 @@ class DemoSyllabusLibrarySeederTest extends TestCase
         // việc cuối chặng quá hạn / hoàn thành, báo cáo tuần Học thuật có ghi chú của Quản lý; buổi test đã dạy chưa nhập điểm.
         $classId = fn (string $code) => ClassModel::where('code', $code)->value('id');
         $actions = AdminNotification::where('type', 'syllabus_workflow')->get()->pluck('data.action.label')->unique();
-        foreach (['XÁC NHẬN', 'NHẮC LẠI', 'ĐÃ XEM', 'GIAO CHẶNG', 'NHẬN VIỆC', 'XỬ LÝ', 'ORDER'] as $label) {
+        foreach (['ĐỌC & XÁC NHẬN', 'NHẮC LẠI', 'ĐÃ XEM', 'GIAO CHẶNG', 'NHẬN VIỆC', 'XỬ LÝ', 'ORDER'] as $label) {
             $this->assertContains($label, $actions, "Thiếu thông báo có nút {$label}.");
         }
         $this->assertNotNull(SyllabusAssignment::open()->where('class_id', $classId('DEMO-BD-FAM1'))->value('confirm_reminded_at'));

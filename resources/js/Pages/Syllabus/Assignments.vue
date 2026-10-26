@@ -132,7 +132,10 @@ const label = (as) => `${as.stage_label} — lớp ${as.class_name ?? ''}`;
                             <td class="whitespace-nowrap">
                                 <template v-if="as.is_open">
                                     <UiBadge color="success">Đang hiệu lực</UiBadge>
-                                    <p v-if="as.confirmed_at" class="mt-1 font-caption text-caption text-tertiary">GV đã xác nhận {{ formatDate(as.confirmed_at, 'd/m/Y H:i') }}</p>
+                                    <template v-if="as.confirmed_at">
+                                        <p class="mt-1 font-caption text-caption text-tertiary">GV đã xác nhận {{ formatDate(as.confirmed_at, 'd/m/Y H:i') }}</p>
+                                        <p v-if="as.confirm_evidence" class="font-caption text-caption text-on-surface-variant">{{ as.confirm_evidence }}</p>
+                                    </template>
                                     <p v-else class="mt-1 font-caption text-caption text-warning">Chờ GV xác nhận</p>
                                 </template>
                                 <template v-else>

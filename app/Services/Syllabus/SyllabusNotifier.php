@@ -14,20 +14,20 @@ use Illuminate\Support\Collection;
 
 /**
  * Thông báo của quy trình syllabus — nội dung mẫu và nút theo Sheet 3 "Quy tắc thông báo" (docs/kho-syllabus.md §6.1).
- * Nút: XÁC NHẬN / NHẮC LẠI (post), GIAO CHẶNG / XỬ LÝ (get), ĐÃ XEM (read = chỉ đánh dấu đã đọc).
+ * Nút: NHẮC LẠI (post), ĐỌC & XÁC NHẬN / GIAO CHẶNG / XỬ LÝ (get), ĐÃ XEM (read = chỉ đánh dấu đã đọc).
  */
 class SyllabusNotifier
 {
     public const TYPE = 'syllabus_workflow';
 
-    /** Giao syllabus mới → GV của lớp, nút XÁC NHẬN. */
+    /** Giao syllabus mới → GV của lớp, nút ĐỌC & XÁC NHẬN. */
     public function stageAssigned(SyllabusAssignment $assignment): void
     {
         $assignment->loadMissing(['classModel', 'curriculum']);
         $start = ($assignment->start_date ?? $assignment->opened_at)?->format('d/m/Y');
         $this->send($this->teacherIds($assignment),
             "Bạn đã nhận syllabus mới: Lớp {$assignment->classModel?->name} – Giáo trình {$assignment->curriculum?->title} – {$assignment->stage_name}, bắt đầu {$start}.",
-            'Bấm XÁC NHẬN để xác nhận đã nhận syllabus.',
+            'Bấm ĐỌC & XÁC NHẬN, đọc tổng quan và tài liệu chặng rồi xác nhận đã nhận syllabus.',
             $this->confirmAction($assignment));
     }
 
@@ -37,7 +37,7 @@ class SyllabusNotifier
         $assignment->loadMissing('classModel');
         $class = $assignment->classModel;
         $title = "Lớp {$class?->name} chưa xác nhận syllabus {$assignment->stage_name}.";
-        $this->send($this->teacherIds($assignment), $title, 'Vui lòng bấm XÁC NHẬN để nhận syllabus của lớp.', $this->confirmAction($assignment));
+        $this->send($this->teacherIds($assignment), $title, 'Vui lòng bấm ĐỌC & XÁC NHẬN để đọc và nhận syllabus của lớp.', $this->confirmAction($assignment));
 
         $leads = NotificationService::userIdsWithPermission('syllabus.assign')->diff($this->teacherIds($assignment));
         $this->send($leads, $title, 'GV chưa xác nhận sau 24 giờ kể từ khi được giao.',
@@ -103,7 +103,7 @@ class SyllabusNotifier
             return;
         }
         SyllabusOrders::forget([$assignment->user_id, $class->teacher_id]);
-        $assignment->update(['user_id' => $class->teacher_id, 'assigned_at' => now(), 'confirmed_at' => null, 'confirmed_by' => null, 'confirm_reminded_at' => null]);
+        $assignment->update(['user_id' => $class->teacher_id, 'assigned_at' => now(), 'confirmed_at' => null, 'confirmed_by' => null, 'confirm_evidence' => null, 'confirm_reminded_at' => null]);
         $assignment->setRelation('classModel', $class);
         $this->stageAssigned($assignment);
     }
@@ -146,7 +146,8 @@ class SyllabusNotifier
 
     private function confirmAction(SyllabusAssignment $assignment): array
     {
-        return ['label' => 'XÁC NHẬN', 'url' => route('syllabus.assignments.confirm', $assignment->id), 'method' => 'post'];
+        // Mở trang "Đọc & xác nhận": GV phải đọc tổng quan + tài liệu chặng rồi mới xác nhận được (ConfirmReading).
+        return ['label' => 'ĐỌC & XÁC NHẬN', 'url' => route('syllabus.assignments.read', $assignment->id), 'method' => 'get'];
     }
 
     private function readAction(): array

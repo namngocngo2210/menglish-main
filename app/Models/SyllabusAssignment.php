@@ -56,6 +56,7 @@ class SyllabusAssignment extends Model
         'assigned_at',
         'confirmed_at',
         'confirmed_by',
+        'confirm_evidence',
         'confirm_reminded_at',
     ];
 
@@ -64,6 +65,7 @@ class SyllabusAssignment extends Model
         'planned_sessions' => 'integer',
         'assigned_at' => 'datetime',
         'confirmed_at' => 'datetime',
+        'confirm_evidence' => 'array',
         'confirm_reminded_at' => 'datetime',
         'deadline' => 'date',
         'expected_big_test_date' => 'date',
@@ -131,6 +133,11 @@ class SyllabusAssignment extends Model
         $this->loadMissing('classModel');
 
         return in_array($user->id, array_filter([$this->user_id, $this->classModel?->teacher_id, $this->classModel?->foreign_teacher_id]), false);
+    }
+
+    public function reads(): HasMany
+    {
+        return $this->hasMany(SyllabusAssignmentRead::class, 'syllabus_assignment_id');
     }
 
     public function tasks(): HasMany
