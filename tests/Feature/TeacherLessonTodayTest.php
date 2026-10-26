@@ -125,6 +125,25 @@ class TeacherLessonTodayTest extends TestCase
         $this->actingAs($other)->get(route('teacher.lesson-today', ['class' => $this->class->id]))->assertNotFound();
     }
 
+    /** Thẻ "Chặng đang dạy" liệt kê mọi lớp xem được: GV dạy thay buổi trước bấm "Bài giảng" phải mở được (không lỗi), chỉ không bấm Đã dạy. */
+    public function test_substitute_of_past_session_can_open_lesson_from_teaching_stage_card(): void
+    {
+        $substitute = $this->userWithRole(Roles::TEACHER_FULLTIME, 'GV dạy thay');
+        $this->addSession(-2)->update(['teacher_id' => $substitute->id]);
+
+        $this->actingAs($substitute)->get(route('syllabus.teaching-stages'))
+            ->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('assignments.0.class_id', $this->class->id)
+                ->where('assignments.0.role_label', 'Học thuật / Quản lý')
+                ->where('assignments.0.can_view_order', false)
+                ->etc());
+        $this->actingAs($substitute)->get(route('teacher.lesson-today', ['class' => $this->class->id]))
+            ->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('classId', $this->class->id)
+                ->where('can_mark', false)
+                ->etc());
+    }
+
     public function test_test_lesson_has_score_link_and_class_tab_flags_missing_scores(): void
     {
         $this->lesson(1)->update(['lesson_type' => 'mini_test']);
