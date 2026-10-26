@@ -213,7 +213,7 @@ final class SidebarMenu
                     ...self::anchored(self::CLASS_MANAGER, [
                         // Danh sách lớp → Trang lớp (tab con). Hồ sơ lớp / Sơ đồ khối / Danh sách chi tiết / Chi tiết học thuật
                         // cũ chuyển hướng về đây (chip lọc + tab con thay cho màn riêng).
-                        ['label' => 'Danh sách lớp', 'route' => 'classes.index', 'active' => ['classes.index', 'classes.show', 'classes.create', 'classes.edit', 'classes.profile', 'classes.academic-*']],
+                        ['label' => 'Danh sách lớp', 'route' => 'classes.index', 'active' => ['classes.index', 'classes.show', 'classes.session-report', 'classes.create', 'classes.edit', 'classes.profile', 'classes.academic-*']],
                         // Tên tab = tiêu đề trang; tránh trùng với tab "Lịch & buổi học" / "Điểm danh" bên trong Trang lớp.
                         ['label' => 'Lịch học các lớp', 'route' => 'tasks.classes-dashboard'],
                         // Học bù (chủ dự án 18/10/2026): học sinh nghỉ hiện ở đây để Học vụ xếp buổi bổ trợ, chuyển trợ giảng.
@@ -222,13 +222,13 @@ final class SidebarMenu
                     // Giáo viên / trợ giảng (docs/luong-giao-vien.md): Danh sách lớp lọc lớp mình dạy, để GV cũng thấy mục Lớp học ở
                     // khu Đào tạo. Đặt sau tab của người quản lý để link sidebar của họ vẫn là Danh sách lớp.
                     ...self::anchored(self::TEACHING_PORTAL, [
-                        ['label' => 'Lớp của tôi', 'route' => 'classes.index', 'query' => ['mine' => 1], 'active' => ['classes.index', 'classes.show']],
+                        ['label' => 'Lớp của tôi', 'route' => 'classes.index', 'query' => ['mine' => 1], 'active' => ['classes.index', 'classes.show', 'classes.session-report']],
                     ]),
                 ],
                 // Nút chung mọi tab Lớp học (trước nằm ở menu "Tạo mới" trên topbar); quyền theo middleware can:class.create.
                 'actions' => [
                     // Ẩn trên trang một lớp cụ thể: ở đó nút chính là bước tiếp theo của lớp (`hide_on` = routeIs).
-                    ['label' => 'Tạo lớp mới', 'route' => 'classes.create', 'icon' => 'add', 'hide_on' => ['classes.show', 'classes.edit']],
+                    ['label' => 'Tạo lớp mới', 'route' => 'classes.create', 'icon' => 'add', 'hide_on' => ['classes.show', 'classes.edit', 'classes.session-report']],
                 ],
             ],
             [

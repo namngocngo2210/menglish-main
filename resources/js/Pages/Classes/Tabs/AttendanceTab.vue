@@ -22,7 +22,6 @@ defineProps({
         <UiDataTable min-width="760px">
             <template #header>
                 <h2 class="text-base font-bold text-on-surface">Điểm danh & báo cáo từng buổi</h2>
-                <UiButton v-if="can('work_task.view')" variant="secondary" size="sm" icon="post_add" :href="route('tasks.class-reports.create', { class_id: klass.id })">Nộp báo cáo buổi</UiButton>
             </template>
             <table class="text-xs">
                 <thead>
@@ -52,9 +51,18 @@ defineProps({
                             <span v-else class="text-xs text-on-surface-subtle">—</span>
                         </td>
                         <td class="text-right">
-                            <UiButton v-if="canRecordAttendance && !s.cancelled" variant="ghost" size="sm" icon="fact_check" :href="route('teacher.attendance', { classId: klass.id, session: s.id })">{{
-                                s.attendances_count > 0 ? 'Xem điểm danh' : 'Điểm danh'
-                            }}</UiButton>
+                            <div class="flex flex-wrap items-center justify-end gap-xs">
+                                <UiButton v-if="canRecordAttendance && !s.cancelled" variant="ghost" size="sm" icon="fact_check" :href="route('teacher.attendance', { classId: klass.id, session: s.id })">{{
+                                    s.attendances_count > 0 ? 'Xem điểm danh' : 'Điểm danh'
+                                }}</UiButton>
+                                <!-- Báo cáo buổi của chính người xem: đã nộp → nhãn; chưa nộp / bị trả về → nút mở form với buổi chọn sẵn. -->
+                                <template v-if="can('work_task.view') && !s.cancelled">
+                                    <UiBadge v-if="s.my_report && !s.my_report.rejected" color="success">Đã nộp</UiBadge>
+                                    <UiButton v-else variant="secondary" size="sm" icon="post_add" :href="route('classes.session-report', { id: klass.id, session: s.id })">{{
+                                        s.my_report ? 'Nộp lại báo cáo' : 'Nộp báo cáo buổi'
+                                    }}</UiButton>
+                                </template>
+                            </div>
                         </td>
                     </tr>
                     <tr v-if="!rows.length">
