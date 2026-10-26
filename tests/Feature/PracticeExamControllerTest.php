@@ -253,4 +253,22 @@ class PracticeExamControllerTest extends TestCase
                 ->where('imports.0.status_label', 'Lỗi')
                 ->where('imports.0.report', null));
     }
+
+    public function test_bulk_publish_and_hide_selected_exams(): void
+    {
+        $exam = $this->importFixture();
+        $empty = PracticeExam::query()->create(['grade' => 7, 'term' => 'gk1', 'code' => '701', 'title' => 'Đề 701', 'duration_minutes' => 45, 'status' => PracticeExam::DRAFT]);
+        $bulk = fn (string $action) => $this->post(route('question-bank.exams.bulk'), ['action' => $action, 'ids' => [$exam->id, $empty->id]]);
+
+        $bulk('publish')->assertSessionHas('status', 'Đã mở 1 đề. Bỏ qua 1 đề chưa có câu hỏi.');
+        $this->assertSame([PracticeExam::PUBLISHED, PracticeExam::DRAFT], [$exam->fresh()->status, $empty->fresh()->status]);
+        $this->assertNotNull($exam->fresh()->published_at);
+
+        $bulk('hide')->assertSessionHas('status', 'Đã ẩn 2 đề.');
+        $this->assertSame([PracticeExam::HIDDEN, PracticeExam::HIDDEN], [$exam->fresh()->status, $empty->fresh()->status]);
+
+        $this->post(route('question-bank.exams.bulk'), ['action' => 'draft', 'ids' => [$exam->id]])->assertSessionHasErrors('action');
+        $this->actingAs($this->userWithRole(Roles::TEACHER_FULLTIME))
+            ->post(route('question-bank.exams.bulk'), ['action' => 'publish', 'ids' => [$exam->id]])->assertForbidden();
+    }
 }

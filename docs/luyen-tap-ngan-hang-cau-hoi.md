@@ -307,7 +307,9 @@ trống đề bài). `position` = số câu trong đề.
   đưa job `ImportPracticeExams` vào hàng đợi; job chạy importer, lưu kết quả từng đề, ghi một dòng nhật ký, xoá file.
   Màn Đề cố định hiện 5 lần import gần nhất (lần mới nhất kèm kết quả chi tiết), tự tải lại mỗi 3 giây khi còn lần đang
   chờ / đang chạy; chờ quá 2 phút → nhắc kiểm tra queue. Job chạy một lần, tối đa 900 giây.
-- Danh sách theo khối: kỳ, số câu / phút, trạng thái, số lượt / học viên, điểm TB (so giữa các mã đề). Trang một đề: mọi
+- Danh sách theo khối: kỳ, số câu / phút, trạng thái, số lượt / học viên, điểm TB (so giữa các mã đề). Tick chọn
+  nhiều đề (hoặc cả khối) rồi **Mở cho học viên** / **Ẩn đề** một lần (`POST question-bank/exams/bulk`; mở thì bỏ qua đề
+  chưa có câu). Trang một đề: mọi
   câu kèm đáp án, ngữ liệu một lần trên nhóm câu, sửa câu / ngữ liệu (modal, `?return=` về đề), sửa tên / thời gian,
   **Mở cho học viên** / **Ẩn** / **Về nháp** (chỉ khi chưa có lượt làm), **Xoá** (chỉ khi chưa có lượt làm).
 
