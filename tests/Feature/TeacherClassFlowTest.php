@@ -27,11 +27,35 @@ class TeacherClassFlowTest extends TestCase
 
     public function test_teacher_portal_menu_follows_the_teaching_flow(): void
     {
-        $portal = collect(app(SidebarMenu::class)->groupsFor($this->teacher))->firstWhere('id', 'teacher_portal');
+        $groups = collect(app(SidebarMenu::class)->groupsFor($this->teacher));
 
+        // "Lớp của tôi" nằm ở nhóm Lớp học (khu Đào tạo), cạnh Giáo trình / E-learning / Big Test.
+        $classes = $groups->firstWhere('id', 'classes');
+        $this->assertSame('Đào tạo', $classes['section']);
+        $this->assertSame(['Lớp của tôi'], collect($classes['items'])->pluck('label')->all());
+        $this->assertSame(route('classes.index', ['mine' => 1]), $classes['url']);
+
+        $portal = $groups->firstWhere('id', 'teacher_portal');
         $labels = collect($portal['items'])->pluck('label')->all();
-        $this->assertSame(['Lớp của tôi', 'Bài giảng hôm nay', 'Syllabus & tài liệu', 'Check-in & Điểm danh hôm nay'], array_slice($labels, 0, 4));
-        $this->assertSame(route('classes.index', ['mine' => 1]), $portal['items'][0]['url']);
+        $this->assertSame(['Bài giảng hôm nay', 'Syllabus & tài liệu', 'Check-in & Điểm danh hôm nay'], array_slice($labels, 0, 3));
+        $this->assertNotContains('Lớp của tôi', $labels);
+    }
+
+    public function test_class_manager_menu_still_opens_the_full_class_list(): void
+    {
+        $classes = collect(app(SidebarMenu::class)->groupsFor($this->manager))->firstWhere('id', 'classes');
+
+        $this->assertSame('Danh sách lớp', $classes['items'][0]['label']);
+        $this->assertSame(route('classes.index'), $classes['url']);
+    }
+
+    public function test_teacher_support_sessions_keep_the_teacher_portal_tabs(): void
+    {
+        $this->actingAs($this->teacher)->get(route('tasks.support-sessions', ['mine' => 1]))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('shell.workspace.tabs', fn ($tabs) => collect($tabs)->contains(fn ($t) => $t['label'] === 'Buổi bổ trợ của tôi' && $t['active']))
+                ->etc());
     }
 
     public function test_my_classes_lists_only_classes_the_viewer_teaches(): void
@@ -41,7 +65,7 @@ class TeacherClassFlowTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('classes.data', fn ($rows) => collect($rows)->pluck('code')->all() === ['QT-01'])
                 ->where('filters.mine', 1)
-                // Trên Danh sách lớp, GV thấy tab của Cổng GV (nhóm "Lớp học" không có tab nào cho GV).
+                // Trên Danh sách lớp, GV thấy tab "Lớp của tôi" của nhóm Lớp học.
                 ->where('shell.workspace.tabs', fn ($tabs) => collect($tabs)->contains(fn ($t) => $t['label'] === 'Lớp của tôi' && $t['active']))
                 ->etc());
 

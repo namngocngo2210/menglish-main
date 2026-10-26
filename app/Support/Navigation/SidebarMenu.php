@@ -209,15 +209,22 @@ final class SidebarMenu
                 'section' => 'Đào tạo',
                 'label' => 'Lớp học',
                 'icon' => 'co_present',
-                'items' => self::anchored(self::CLASS_MANAGER, [
-                    // Danh sách lớp → Trang lớp (tab con). Hồ sơ lớp / Sơ đồ khối / Danh sách chi tiết / Chi tiết học thuật
-                    // cũ chuyển hướng về đây (chip lọc + tab con thay cho màn riêng).
-                    ['label' => 'Danh sách lớp', 'route' => 'classes.index', 'active' => ['classes.index', 'classes.show', 'classes.create', 'classes.edit', 'classes.profile', 'classes.academic-*']],
-                    // Tên tab = tiêu đề trang; tránh trùng với tab "Lịch & buổi học" / "Điểm danh" bên trong Trang lớp.
-                    ['label' => 'Lịch học các lớp', 'route' => 'tasks.classes-dashboard'],
-                    // Học bù (chủ dự án 18/10/2026): học sinh nghỉ hiện ở đây để Học vụ xếp buổi bổ trợ, chuyển trợ giảng.
-                    ['label' => 'Học bù & bổ trợ', 'route' => 'tasks.support-sessions'],
-                ]),
+                'items' => [
+                    ...self::anchored(self::CLASS_MANAGER, [
+                        // Danh sách lớp → Trang lớp (tab con). Hồ sơ lớp / Sơ đồ khối / Danh sách chi tiết / Chi tiết học thuật
+                        // cũ chuyển hướng về đây (chip lọc + tab con thay cho màn riêng).
+                        ['label' => 'Danh sách lớp', 'route' => 'classes.index', 'active' => ['classes.index', 'classes.show', 'classes.create', 'classes.edit', 'classes.profile', 'classes.academic-*']],
+                        // Tên tab = tiêu đề trang; tránh trùng với tab "Lịch & buổi học" / "Điểm danh" bên trong Trang lớp.
+                        ['label' => 'Lịch học các lớp', 'route' => 'tasks.classes-dashboard'],
+                        // Học bù (chủ dự án 18/10/2026): học sinh nghỉ hiện ở đây để Học vụ xếp buổi bổ trợ, chuyển trợ giảng.
+                        ['label' => 'Học bù & bổ trợ', 'route' => 'tasks.support-sessions'],
+                    ]),
+                    // Giáo viên / trợ giảng (docs/luong-giao-vien.md): Danh sách lớp lọc lớp mình dạy, để GV cũng thấy mục Lớp học ở
+                    // khu Đào tạo. Đặt sau tab của người quản lý để link sidebar của họ vẫn là Danh sách lớp.
+                    ...self::anchored(self::TEACHING_PORTAL, [
+                        ['label' => 'Lớp của tôi', 'route' => 'classes.index', 'query' => ['mine' => 1], 'active' => ['classes.index', 'classes.show']],
+                    ]),
+                ],
                 // Nút chung mọi tab Lớp học (trước nằm ở menu "Tạo mới" trên topbar); quyền theo middleware can:class.create.
                 'actions' => [
                     // Ẩn trên trang một lớp cụ thể: ở đó nút chính là bước tiếp theo của lớp (`hide_on` = routeIs).
@@ -451,10 +458,9 @@ final class SidebarMenu
                 'section' => 'Cá nhân',
                 'label' => 'Cổng Giáo viên',
                 'icon' => 'cast_for_education',
-                // Theo thứ tự luồng GV (docs/luong-giao-vien.md): lớp của tôi → bài giảng hôm nay → syllabus & XÁC NHẬN chặng →
-                // điểm danh → chấm bài. "Lớp của tôi" = Danh sách lớp lọc lớp mình dạy (tab cha thuộc nhóm Lớp học của người quản lý).
+                // Theo thứ tự luồng GV (docs/luong-giao-vien.md): bài giảng hôm nay → syllabus & XÁC NHẬN chặng → điểm danh →
+                // chấm bài. "Lớp của tôi" nằm ở nhóm Lớp học (khu Đào tạo).
                 'items' => self::anchored(self::TEACHING_PORTAL, [
-                    ['label' => 'Lớp của tôi', 'route' => 'classes.index', 'query' => ['mine' => 1], 'active' => ['classes.index', 'classes.show']],
                     ['label' => 'Bài giảng hôm nay', 'route' => 'teacher.lesson-today', 'active' => ['teacher.lesson-today*']],
                     ['label' => 'Syllabus & tài liệu', 'route' => 'syllabus.teacher-view'],
                     ['label' => 'Check-in & Điểm danh hôm nay', 'route' => 'teacher.home', 'active' => ['teacher.home', 'teacher.attendance*'], 'can' => ['attendance_student.record']],
@@ -622,18 +628,24 @@ final class SidebarMenu
             return null;
         }
 
-        // Route thuộc nhiều workspace (vd. Danh sách lớp: nhóm Lớp học + "Lớp của tôi" ở Cổng GV) → workspace đầu tiên mà người
-        // xem có tab / nút (GV không có tab nào của nhóm Lớp học nên thấy tab Cổng GV).
+        // Route thuộc nhiều workspace (vd. Học bù & bổ trợ: nhóm Lớp học + "Buổi bổ trợ của tôi" ở Cổng GV) → workspace đầu tiên
+        // mà người xem thấy tab của route này (GV thấy "Lớp của tôi" của nhóm Lớp học nhưng không thấy tab Học bù → tab Cổng GV);
+        // không có thì workspace đầu tiên còn tab / nút.
         $candidates = $id !== null
             ? collect($this->definition())->where('id', $id)
             : collect($this->definition())->filter(fn (array $group) => $this->matchesAny($request, $group['items']));
+        $fallback = null;
         foreach ($candidates as $definition) {
             if ($workspace = $this->buildWorkspace($user, $request, $definition)) {
-                return $workspace;
+                $ownTabs = array_filter($definition['items'], fn (array $item) => $this->canSee($user, $item, $request));
+                if ($this->matchesAny($request, $ownTabs)) {
+                    return $workspace;
+                }
+                $fallback ??= $workspace;
             }
         }
 
-        return null;
+        return $fallback;
     }
 
     /** @return array<string, mixed>|null */
