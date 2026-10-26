@@ -5,6 +5,7 @@
  */
 import { reactive, ref } from 'vue';
 import { router } from '@inertiajs/vue3';
+import { route } from '@/lib/route';
 
 defineOptions({ layout: (props) => ({ title: `Sửa công ${props.staff?.name ?? ''}` }) });
 
