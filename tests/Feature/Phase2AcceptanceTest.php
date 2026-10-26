@@ -247,6 +247,7 @@ class Phase2AcceptanceTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page->component('Teacher/Home')
                 ->where('shifts', fn ($shifts) => collect($shifts)->pluck('session_id')->contains($today->id)));
 
+        $this->travelTo($today->startsAt()->addMinutes(5)); // điểm danh mở từ 15 phút trước giờ học
         $this->actingAs($this->teacher)->post(route('teacher.attendance.store', $class->id), [
             'class_session_id' => $today->id,
             'status' => [$s1->id => 'present', $s2->id => 'absent', $s3->id => 'present', $s4->id => 'late'],

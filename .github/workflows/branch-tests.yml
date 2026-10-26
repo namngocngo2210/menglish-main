@@ -11,11 +11,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ref: [main, branch]
+        ref: [base, branch]
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ matrix.ref == 'main' && 'main' || github.sha }}
+          ref: ${{ matrix.ref == 'base' && '633807adeeae4f27befc6b456bb1aedad1fee579' || github.sha }}
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'

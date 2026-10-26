@@ -613,7 +613,7 @@ class MyAttendanceTest extends TestCase
         $this->get('/m/can-duyet')->assertRedirect('/approvals');
         $this->assertSame(url('/cham-cong'), route('my-attendance.home'));
     }
-    public function test_manager_adjusts_attendance_with_reason_and_recalculates_lateness(): void
+    public function test_admin_adjusts_attendance_with_reason_and_recalculates_lateness(): void
     {
         $this->travelTo(Carbon::parse('2026-10-05 08:30:00'));
         $this->punch($this->staff);
@@ -622,14 +622,14 @@ class MyAttendanceTest extends TestCase
         $penalty = Penalty::findOrFail($row->penalty_id);
 
         // Không ghi lý do → chặn; tự sửa công của mình → chặn.
-        $this->actingAs($this->manager)->post(route('staff-attendance.adjust'), [
+        $this->actingAs($this->admin)->post(route('staff-attendance.adjust'), [
             'user_id' => $this->staff->id, 'work_date' => '2026-10-05', 'check_in_time' => '07:58',
         ])->assertSessionHasErrors('reason');
-        $this->actingAs($this->manager)->post(route('staff-attendance.adjust'), [
-            'user_id' => $this->manager->id, 'work_date' => '2026-10-05', 'check_in_time' => '07:58', 'reason' => 'x',
+        $this->actingAs($this->admin)->post(route('staff-attendance.adjust'), [
+            'user_id' => $this->admin->id, 'work_date' => '2026-10-05', 'check_in_time' => '07:58', 'reason' => 'x',
         ])->assertSessionHasErrors('user_id');
 
-        $this->actingAs($this->manager)->post(route('staff-attendance.adjust'), [
+        $this->actingAs($this->admin)->post(route('staff-attendance.adjust'), [
             'user_id' => $this->staff->id, 'work_date' => '2026-10-05', 'check_in_time' => '07:58', 'check_out_time' => '17:35', 'reason' => 'Máy chủ lỗi, đối chiếu camera',
         ])->assertSessionHasNoErrors();
         $row->refresh();
@@ -640,29 +640,29 @@ class MyAttendanceTest extends TestCase
         $this->assertSame('cancelled', $penalty->fresh()->status);
 
         // Ngày chưa có lượt chấm: quản lý tạo ngày công (nhân sự quên chấm cả ngày).
-        $this->actingAs($this->manager)->post(route('staff-attendance.adjust'), [
+        $this->actingAs($this->admin)->post(route('staff-attendance.adjust'), [
             'user_id' => $this->staff->id, 'work_date' => '2026-10-02', 'check_in_time' => '08:00', 'reason' => 'Quên chấm',
         ])->assertSessionHasNoErrors();
         $this->assertSame(StaffAttendance::SOURCE_MANUAL, StaffAttendance::forDay($this->staff->id, '2026-10-02')->source);
 
-        $this->actingAs($this->manager)->get(route('staff-attendance.edit', ['user_id' => $this->staff->id, 'date' => '2026-10-05']))
+        $this->actingAs($this->admin)->get(route('staff-attendance.edit', ['user_id' => $this->staff->id, 'date' => '2026-10-05']))
             ->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->component('StaffAttendance/Edit')->where('attendance.check_in', '07:58'));
     }
 
-    public function test_manager_revokes_approved_leave_and_late_is_counted_again(): void
+    public function test_admin_revokes_approved_leave_and_late_is_counted_again(): void
     {
         $this->actingAs($this->staff)->post(route('my-attendance.requests.store'), [
             'type' => StaffAttendanceRequest::TYPE_LATE_EARLY, 'date_from' => '2026-10-05', 'reason' => 'Đưa con đi khám',
         ])->assertSessionHasNoErrors();
         $request = StaffAttendanceRequest::sole();
-        $this->actingAs($this->manager)->post(route('approvals.bulk'), ['action' => 'approve', 'items' => ['staff_attendance_request:'.$request->id]]);
+        $this->actingAs($this->admin)->post(route('approvals.bulk'), ['action' => 'approve', 'items' => ['staff_attendance_request:'.$request->id]]);
 
         $this->travelTo(Carbon::parse('2026-10-05 08:30:00'));
         $this->punch($this->staff);
         $this->assertFalse(StaffAttendance::sole()->isLate());
         $this->assertNull(StaffAttendance::sole()->penalty_id);
 
-        $this->actingAs($this->manager)->post(route('staff-attendance.requests.revoke', $request->id), ['reason' => 'Duyệt nhầm'])
+        $this->actingAs($this->admin)->post(route('staff-attendance.requests.revoke', $request->id), ['reason' => 'Duyệt nhầm'])
             ->assertSessionHasNoErrors();
         $this->assertSame(StaffAttendanceRequest::STATUS_REVOKED, $request->fresh()->status);
         $row = StaffAttendance::sole();
@@ -671,7 +671,7 @@ class MyAttendanceTest extends TestCase
         $this->assertDatabaseHas('admin_notifications', ['user_id' => $this->staff->id, 'type' => 'staff_attendance_request', 'title' => 'Thu hồi đơn Xin đi muộn / về sớm ngày 05/10/2026']);
 
         // Đơn đã thu hồi không thu hồi lại được.
-        $this->actingAs($this->manager)->post(route('staff-attendance.requests.revoke', $request->id), ['reason' => 'Lần 2'])->assertSessionHasErrors('request');
+        $this->actingAs($this->admin)->post(route('staff-attendance.requests.revoke', $request->id), ['reason' => 'Lần 2'])->assertSessionHasErrors('request');
     }
 
     public function test_personal_schedule_overrides_branch_hours_and_weekly_day_off_blocks_punch(): void
@@ -709,7 +709,7 @@ class MyAttendanceTest extends TestCase
         $this->assertSame('2026-10-06 00:40', $row->check_out_at->format('Y-m-d H:i'));
     }
 
-    public function test_teacher_request_without_branch_reaches_manager_of_teaching_branch(): void
+    public function test_teacher_request_without_branch_is_filed_under_teaching_branch(): void
     {
         $teacher = $this->user('teacher', null);
         $this->sessionFor('2026-10-07', ['teacher_id' => $teacher->id]);
@@ -719,7 +719,7 @@ class MyAttendanceTest extends TestCase
         $request = StaffAttendanceRequest::sole();
         $this->assertSame($this->branch->id, (int) $request->branch_id);
 
-        $this->actingAs($this->manager)->post(route('approvals.bulk'), ['action' => 'approve', 'items' => ['staff_attendance_request:'.$request->id]]);
+        $this->actingAs($this->admin)->post(route('approvals.bulk'), ['action' => 'approve', 'items' => ['staff_attendance_request:'.$request->id]]);
         $this->assertSame(StaffAttendanceRequest::STATUS_APPROVED, $request->fresh()->status);
     }
 

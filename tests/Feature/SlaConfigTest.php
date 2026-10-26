@@ -96,8 +96,11 @@ class SlaConfigTest extends TestCase
         $this->saveSla('penalty.payment_due', ['value' => 5])->assertSessionHasNoErrors();
 
         $this->assertSame('2026-10-11 00:00', $session->checkinDeadline()->format('Y-m-d H:i'));
-        $this->assertTrue($session->withinTeacherAttendanceWindow(Carbon::parse('2026-10-10 16:30')));
-        $this->assertFalse($session->withinTeacherAttendanceWindow(Carbon::parse('2026-10-10 15:30')));
+        // Mở từ 15 phút trước giờ học tới N giờ sau giờ bắt đầu.
+        $this->assertFalse($session->withinTeacherAttendanceWindow(Carbon::parse('2026-10-10 17:40')));
+        $this->assertTrue($session->withinTeacherAttendanceWindow(Carbon::parse('2026-10-10 17:50')));
+        $this->assertTrue($session->withinTeacherAttendanceWindow(Carbon::parse('2026-10-10 20:00')));
+        $this->assertFalse($session->withinTeacherAttendanceWindow(Carbon::parse('2026-10-10 20:01')));
         $this->assertSame(5, Penalty::paymentDueDays());
     }
 

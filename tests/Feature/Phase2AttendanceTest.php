@@ -251,6 +251,7 @@ class Phase2AttendanceTest extends TestCase
         $this->assertSame(2, $this->classModel->occupiedSeats());
 
         $session = $this->makeSession('2026-10-07');
+        Carbon::setTestNow('2026-10-07 18:05:00'); // điểm danh mở từ 15 phút trước giờ học
         $this->actingAs($this->teacher)->get(route('teacher.attendance', ['classId' => $this->classModel->id, 'session' => $session->id]))
             ->assertSee('Học viên Liên Kết')->assertDontSee('Học viên Bảo Lưu')->assertDontSee('Học viên Thôi Học');
         $this->actingAs($this->teacher)->post(route('teacher.attendance.store', $this->classModel->id), [
@@ -268,6 +269,7 @@ class Phase2AttendanceTest extends TestCase
     public function test_absence_and_low_scores_feed_the_support_list_idempotently(): void
     {
         $session = $this->makeSession('2026-10-07');
+        Carbon::setTestNow('2026-10-07 18:05:00');
         $post = fn (string $status) => $this->actingAs($this->teacher)->post(route('teacher.attendance.store', $this->classModel->id), [
             'class_session_id' => $session->id, 'status' => [$this->student->id => $status], 'note' => [$this->student->id => 'Lý do vắng'],
         ]);

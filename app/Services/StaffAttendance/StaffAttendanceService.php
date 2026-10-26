@@ -443,11 +443,11 @@ class StaffAttendanceService
     private function requestBranchId(User $user, CarbonInterface $from, CarbonInterface $to): ?int
     {
         $punched = StaffAttendance::query()->where('user_id', $user->id)->whereNotNull('branch_id')
-            ->whereBetween('work_date', [$from->toDateString(), $to->toDateString()])
+            ->whereDate('work_date', '>=', $from->toDateString())->whereDate('work_date', '<=', $to->toDateString())
             ->orderBy('work_date')->value('branch_id');
         $taught = $punched ? null : ClassSession::query()->forStaff($user->id)->whereNotNull('branch_id')
             ->where('status', '!=', 'cancelled')
-            ->whereBetween('date', [$from->toDateString(), $to->toDateString()])
+            ->whereDate('date', '>=', $from->toDateString())->whereDate('date', '<=', $to->toDateString())
             ->orderBy('date')->orderBy('start_time')->value('branch_id');
         $id = $punched ?? $taught ?? $user->branch_id;
 

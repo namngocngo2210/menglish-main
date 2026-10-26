@@ -372,7 +372,7 @@ class Phase2MockupClassesTest extends TestCase
         $this->actingAs($this->teacher)->get(route('teacher.attendance', ['classId' => $this->classModel->id, 'session' => $session->id]))->assertOk()
             ->assertSee('Điểm danh — Kids Explorer MK2, 07/10/2026')
             ->assertSee('Khung giờ: 07:30 – 08:45')->assertSee('Phòng 204 · Cầu Giấy')->assertSee('Sĩ số lớp:')
-            ->assertSee('Đang trong cửa sổ điểm danh')->assertSee('Quy định: Buổi học ±24 giờ')
+            ->assertSee('Đang trong cửa sổ điểm danh')->assertSee('Quy định: từ 15 phút trước giờ học tới 24 giờ sau')
             ->assertSee('Đúng giờ')->assertSee('Đi muộn')->assertSee('Nghỉ có phép')->assertSee('Nghỉ không phép')
             ->assertSee('Quy tắc nghiệp vụ điểm danh dành cho Giáo viên:')
             ->assertSee('Danh sách học sinh trong lớp (Roster)')

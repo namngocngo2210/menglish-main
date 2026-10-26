@@ -301,9 +301,10 @@ class StudentTuition extends Model
     }
 
     /**
-     * Số buổi của khoản học phí theo sổ buổi (SessionLedger): tổng = số buổi của khoản, đã học = buổi lớp đã diễn ra
-     * trong thời gian học viên thuộc lớp (vắng vẫn trừ, bảo lưu không trừ; chia theo thứ tự các khoản của học viên),
-     * còn lại = tổng − đã học. Cùng con số với hồ sơ học viên / lập phiếu thu, dùng cho hoàn phí, bảo lưu, công nợ.
+     * Số buổi của khoản học phí: tổng = số buổi khóa của lớp (khóa chưa khai báo thì đếm lịch lớp), đã học = số buổi
+     * đã trừ theo sổ buổi (SessionLedger: buổi lớp đã diễn ra trong thời gian học viên thuộc lớp — vắng vẫn trừ, bảo lưu
+     * không trừ; chia theo thứ tự các khoản của học viên). Lớp chưa có lịch trong sổ buổi thì đếm phiếu điểm danh
+     * (có mặt, đi muộn và cả vắng). Cùng con số với hồ sơ học viên / lập phiếu thu, dùng cho hoàn phí, bảo lưu, công nợ.
      *
      * @return array{total: int, attended: int, remaining: int, source: string}|null
      */
@@ -312,15 +313,20 @@ class StudentTuition extends Model
         if ($this->preloadedSessionStats !== false) {
             return $this->preloadedSessionStats;
         }
-        if (! $this->exists || ! $this->student_id) {
-            return null;
-        }
 
-        return $this->buildSessionStats(app(SessionLedger::class)->tuitionUsage([(int) $this->student_id]));
+        return $this->computeSessionStats(
+            fn (int $classId) => ClassSession::query()->where('class_id', $classId)->where('status', '!=', 'cancelled')->count(),
+            fn () => $this->exists && $this->student_id ? app(SessionLedger::class)->tuitionUsage([(int) $this->student_id]) : [],
+            fn (?int $classId) => StudentAttendance::query()->counted()
+                ->where('student_id', $this->student_id)
+                ->when($classId, fn ($q) => $q->where('class_id', $classId))
+                ->count(),
+        );
     }
 
     /**
-     * Tính sẵn sessionStats() cho cả danh sách bằng các truy vấn gộp theo học viên (thay vì từng khoản).
+     * Tính sẵn sessionStats() cho cả danh sách bằng các truy vấn gộp (thay vì từng khoản).
+     * Nên nạp sẵn classModel.course và student.currentClass.course trước khi gọi.
      *
      * @param  iterable<StudentTuition|null>  $tuitions
      */
@@ -331,29 +337,72 @@ class StudentTuition extends Model
             return;
         }
 
-        $usage = app(SessionLedger::class)->tuitionUsage($tuitions->pluck('student_id')->filter()->unique()->values());
+        $scheduleClassIds = $tuitions
+            ->map(fn (self $t) => $t->classModel ?? $t->student?->currentClass)
+            ->filter(fn ($class) => $class && (int) ($class->course?->total_lessons ?? 0) <= 0)
+            ->pluck('id')->unique()->values();
+        $scheduled = $scheduleClassIds->isEmpty() ? collect() : ClassSession::query()
+            ->whereIn('class_id', $scheduleClassIds)
+            ->where('status', '!=', 'cancelled')
+            ->groupBy('class_id')
+            ->selectRaw('class_id, count(*) as aggregate')
+            ->pluck('aggregate', 'class_id');
+
+        $studentIds = $tuitions->pluck('student_id')->filter()->unique()->values();
+        $usage = app(SessionLedger::class)->tuitionUsage($studentIds);
+        $attendance = StudentAttendance::query()->counted()
+            ->whereIn('student_id', $studentIds)
+            ->groupBy('student_id', 'class_id')
+            ->selectRaw('student_id, class_id, count(*) as aggregate')
+            ->get()
+            ->groupBy('student_id');
+
         foreach ($tuitions as $tuition) {
-            $tuition->preloadedSessionStats = $tuition->exists ? $tuition->buildSessionStats($usage) : null;
+            $rows = $attendance->get($tuition->student_id, collect());
+            $tuition->preloadedSessionStats = $tuition->computeSessionStats(
+                fn (int $classId) => (int) ($scheduled[$classId] ?? 0),
+                fn () => $usage,
+                fn (?int $classId) => (int) ($classId
+                    ? $rows->where('class_id', $classId)->sum('aggregate')
+                    : $rows->sum('aggregate')),
+            );
         }
     }
 
     /** Kết quả sessionStats() đã tính sẵn (false = chưa tính). */
     protected array|null|false $preloadedSessionStats = false;
 
-    /** @param  array<int, int>  $usage  id khoản => số buổi đã trừ (SessionLedger::tuitionUsage) */
-    private function buildSessionStats(array $usage): ?array
+    /**
+     * @param  \Closure(int): int  $scheduledCount  số buổi (không huỷ) của lớp
+     * @param  \Closure(): array<int, int>  $usage  id khoản => số buổi đã trừ theo sổ buổi (SessionLedger::tuitionUsage)
+     * @param  \Closure(?int): int  $recordedCount  số phiếu điểm danh được tính của học viên (trong lớp, hoặc mọi lớp khi null)
+     */
+    private function computeSessionStats(\Closure $scheduledCount, \Closure $usage, \Closure $recordedCount): ?array
     {
-        $total = $this->sessionSize();
+        $class = $this->classModel ?? $this->student?->currentClass;
+        $total = (int) ($class?->course?->total_lessons ?? 0);
+        $source = 'course';
+
+        if ($total <= 0 && $class) {
+            $total = $scheduledCount((int) $class->id);
+            $source = 'schedule';
+        }
+
         if ($total <= 0) {
             return null;
         }
-        $attended = min($total, (int) ($usage[(int) $this->id] ?? 0));
+
+        $attended = (int) ($usage()[(int) $this->id] ?? 0);
+        if ($attended <= 0) {
+            $attended = $recordedCount($class ? (int) $class->id : null);
+        }
+        $attended = min($total, $attended);
 
         return [
             'total' => $total,
             'attended' => $attended,
             'remaining' => max(0, $total - $attended),
-            'source' => 'ledger',
+            'source' => $source,
         ];
     }
 

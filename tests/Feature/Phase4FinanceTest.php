@@ -351,7 +351,8 @@ class Phase4FinanceTest extends TestCase
             'account_holder' => 'MENGLISH CAU GIAY', 'is_active' => true,
         ])->branches()->attach($this->branch->id);
 
-        $this->assertSame(['total' => 24, 'attended' => 2, 'remaining' => 22, 'source' => 'course'], $this->tuition->fresh()->sessionStats());
+        // Buổi vắng vẫn trừ (sổ buổi): có mặt + đi muộn + vắng = 3.
+        $this->assertSame(['total' => 24, 'attended' => 3, 'remaining' => 21, 'source' => 'course'], $this->tuition->fresh()->sessionStats());
         $this->assertSame('9999888877', $this->tuition->fresh()->resolveBankAccount()->account_number);
 
         $response = $this->actingAs($this->staff)->get(route('tuition.receipts.create', ['tuition_id' => $this->tuition->id]));
@@ -359,7 +360,7 @@ class Phase4FinanceTest extends TestCase
             ->where('tuitions', function ($tuitions) {
                 $meta = $tuitions->firstWhere('id', $this->tuition->id);
 
-                return $meta['total_sessions'] === 24 && $meta['attended_sessions'] === 2 && $meta['bank']['account_number'] === '9999888877';
+                return $meta['total_sessions'] === 24 && $meta['attended_sessions'] === 3 && $meta['bank']['account_number'] === '9999888877';
             })
             ->where('defaultBank.account_number', '9999888877'));
 

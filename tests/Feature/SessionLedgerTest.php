@@ -356,7 +356,7 @@ class SessionLedgerTest extends TestCase
             ]);
         }
 
-        $this->assertSame(['total' => 24, 'attended' => 3, 'remaining' => 21, 'source' => 'ledger'], $tuition->fresh()->sessionStats());
+        $this->assertSame(['total' => 24, 'attended' => 3, 'remaining' => 21, 'source' => 'course'], $tuition->fresh()->sessionStats());
 
         StudentTuition::preloadSessionStats([$fresh = $tuition->fresh()]);
         $this->assertSame(3, $fresh->sessionStats()['attended']);
