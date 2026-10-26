@@ -240,6 +240,10 @@ Không sao chép syllabus: buổi hiệu lực = gốc + `data` của bản đè
    bắt đầu dd/mm." nút **XÁC NHẬN**.
 2. **XÁC NHẬN** (`POST syllabus.assignments.confirm`): chỉ GV được giao (hoặc GV chính / GVNN của lớp); ghi `confirmed_at`.
    Màn Giao chặng, tab Syllabus của lớp hiện "Chờ GV xác nhận / Đã xác nhận lúc …".
+   **Bắt buộc trước "Đã dạy"** (chủ dự án 26/10/2026, `docs/luong-giao-vien.md`): chặng chưa xác nhận thì không đánh dấu Đã
+   dạy được. **Hạn = 1 giờ trước buổi học đầu tiên của chặng** (giao sát giờ → buổi kế tiếp); quá hạn → SLA
+   `gv.syllabus_confirm` lập biên bản cho GV (bậc tái phạm như nhận xét trễ, Học thuật chốt), báo Học thuật nút NHẮC LẠI.
+   GV xác nhận ở thẻ "Chặng đang dạy", màn "Bài giảng hôm nay" hoặc "Syllabus & tài liệu" (Cổng GV).
 3. **Nhắc 24h** (lệnh `syllabus:remind-unconfirmed`, chạy mỗi giờ, idempotent theo `confirm_reminded_at`): chặng mở chưa
    xác nhận quá 24h → nhắc GV (nút XÁC NHẬN) + báo Học thuật + Quản lý chi nhánh lớp: "Lớp ABC chưa xác nhận syllabus
    chặng X." nút **NHẮC LẠI** (gửi lại thông báo cho GV). Chỉ nhắc 1 lần.

@@ -19,8 +19,8 @@ use App\Models\SyllabusAssignment;
 use App\Models\User;
 use App\Models\WorkTask;
 use App\Services\ClassDashboardService;
-use App\Services\SessionScheduleService;
 use App\Services\Homework\HomeworkStats;
+use App\Services\SessionScheduleService;
 use App\Services\Syllabus\ClassSyllabusTab;
 use App\Support\ClassLifecycle;
 use App\Support\DataScope;
@@ -471,9 +471,12 @@ class ClassManagementController extends Controller
         $statusFilter = array_key_exists((string) $request->query('status'), ClassLifecycle::STATUSES) ? $request->query('status') : null;
         $programFilter = $request->query('program');
         $levelFilter = $request->query('level');
+        // "Lớp của tôi" (Cổng GV): chỉ lớp người xem dạy — người quản lý kiêm dạy cũng lọc được lớp của riêng mình.
+        $mine = $request->boolean('mine');
 
         // Phạm vi gốc (người xem + chi nhánh + tìm kiếm) — chip đếm tính trên phạm vi này.
         $scope = ClassModel::query()->visibleTo($viewer)
+            ->when($mine, fn ($q) => $q->taughtBy($viewer))
             ->when($branchFilter, fn ($q) => $q->where('branch_id', $branchFilter))
             // Phải bọc closure: orWhere viết thẳng sẽ thoát cả filter status lẫn chi nhánh.
             ->when($search !== '', fn ($q) => $q->where(fn ($q) => $q->where('name', 'LIKE', "%{$search}%")->orWhere('code', 'LIKE', "%{$search}%")));
@@ -569,6 +572,7 @@ class ClassManagementController extends Controller
                 'status' => $statusFilter,
                 'program' => $programFilter,
                 'level' => $levelFilter,
+                'mine' => $mine ? 1 : null,
             ],
             'stats' => $stats,
         ]);

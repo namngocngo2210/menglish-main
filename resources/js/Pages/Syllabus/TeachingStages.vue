@@ -1,7 +1,8 @@
 <script setup>
 /**
  * Mockup 03_Cong_Giao_Vien/07 (Chặng đang dạy & Order Test) + 10/11 (Lịch dự kiến Big Test): mỗi lớp đang mở chặng là một thẻ.
- * GV chính đặt ngày dự kiến Big Test cuối chặng và order đề cho đúng chặng đang mở; trợ giảng chỉ xem.
+ * GV chính đặt ngày dự kiến Big Test cuối chặng và order đề cho đúng chặng đang mở; trợ giảng chỉ xem. Thẻ đi theo luồng GV
+ * (docs/luong-giao-vien.md): XÁC NHẬN chặng (trước hạn) → Bài giảng hôm nay → Trang lớp.
  */
 defineOptions({ layout: { title: 'Chặng đang dạy & Order Test' } });
 
@@ -40,6 +41,17 @@ defineProps({
                 <p class="flex items-center gap-xs text-on-surface-variant"><span class="material-symbols-outlined text-[18px]">{{ as.is_assistant ? 'supervisor_account' : 'person' }}</span>{{ as.role_label }}</p>
             </div>
 
+            <!-- Xác nhận chặng: bắt buộc trước khi bấm "Đã dạy"; quá hạn bị lập biên bản. -->
+            <div v-if="!as.confirmed" class="flex flex-wrap items-center justify-between gap-sm rounded-lg bg-error/10 px-md py-sm font-body-small text-body-small text-error">
+                <span class="flex items-center gap-xs font-medium">
+                    <span class="material-symbols-outlined text-[18px]">pending_actions</span>Chờ GV xác nhận<template v-if="as.confirm_due"> · hạn {{ as.confirm_due }}</template>
+                </span>
+                <UiForm v-if="as.confirm_url" :action="as.confirm_url" method="post" class="inline">
+                    <UiButton type="submit" size="sm" icon="task_alt">XÁC NHẬN</UiButton>
+                </UiForm>
+            </div>
+            <div v-else class="flex items-center gap-xs font-body-small text-body-small text-tertiary"><span class="material-symbols-outlined text-[18px]">verified</span>Đã xác nhận syllabus</div>
+
             <!-- Trạng thái đề -->
             <div v-if="as.exam === 'approved'" class="flex items-center gap-xs rounded-lg bg-tertiary/10 px-md py-sm font-body-small text-body-small font-medium text-tertiary"><span class="material-symbols-outlined text-[18px]">check_circle</span>Đã có đề</div>
             <div v-else-if="as.exam === 'pending'" class="flex items-center gap-xs rounded-lg bg-warning/10 px-md py-sm font-body-small text-body-small font-medium text-on-warning-container"><span class="material-symbols-outlined text-[18px]">pending</span>Đã order - Chờ HT duyệt</div>
@@ -59,7 +71,11 @@ defineProps({
                 </UiForm>
             </div>
 
-            <div class="mt-auto">
+            <div class="mt-auto space-y-sm">
+                <div class="grid grid-cols-2 gap-sm">
+                    <UiButton variant="secondary" size="sm" icon="co_present" :href="as.lesson_url">Bài giảng</UiButton>
+                    <UiButton variant="secondary" size="sm" icon="open_in_new" :href="as.class_url">Trang lớp</UiButton>
+                </div>
                 <UiButton v-if="['pending', 'approved'].includes(as.order_status)" variant="secondary" class="w-full" :href="route('teacher.order-test', as.class_id)">Chi tiết</UiButton>
                 <template v-else-if="as.can_order">
                     <p v-if="as.order_status === 'rejected'" class="mb-sm font-caption text-caption text-error">Order trước bị từ chối: {{ as.order_rejection }}</p>

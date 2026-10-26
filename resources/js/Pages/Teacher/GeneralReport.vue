@@ -2,7 +2,7 @@
 /**
  * Báo cáo giảng dạy của GV theo tháng: giờ dạy đã duyệt, điểm danh đã chấm, điểm đã nhập, lớp phụ trách, chi tiết chấm công.
  */
-import { router } from '@inertiajs/vue3';
+import { Link, router } from '@inertiajs/vue3';
 import TeacherBottomNav from '@/Components/Teacher/TeacherBottomNav.vue';
 import { route } from '@/lib/route';
 
@@ -62,7 +62,7 @@ function changePeriod(event) {
                 </thead>
                 <tbody>
                     <tr v-for="cls in myClasses" :key="cls.id">
-                        <td class="font-bold">{{ cls.name }} <span class="font-mono text-xs text-on-surface-subtle">{{ cls.code }}</span></td>
+                        <td class="font-bold"><Link :href="cls.url" class="text-primary hover:underline">{{ cls.name }}</Link> <span class="font-mono text-xs text-on-surface-subtle">{{ cls.code }}</span></td>
                         <td>{{ cls.course ?? '—' }}</td>
                         <td>
                             <UiBadge v-if="cls.is_main" color="primary" pill>GV chính</UiBadge>

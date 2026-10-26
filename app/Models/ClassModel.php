@@ -92,12 +92,7 @@ class ClassModel extends Model
         }
 
         return $query->where(function (Builder $query) use ($user, $managedBranchIds, $grantedBranchIds, $grantedClassIds) {
-            $query->where('teacher_id', $user->id)
-                ->orWhere('assistant_id', $user->id)
-                ->orWhere('foreign_teacher_id', $user->id)
-                ->orWhereHas('sessions', function (Builder $sessions) use ($user) {
-                    $sessions->forStaff($user->id);
-                });
+            $query->taughtBy($user);
 
             if (! empty($managedBranchIds)) {
                 $query->orWhereIn('branch_id', $managedBranchIds);
@@ -109,6 +104,15 @@ class ClassModel extends Model
                 $query->orWhereIn('id', array_values(array_unique($grantedClassIds)));
             }
         });
+    }
+
+    /** Lớp người này dạy: GV chính / trợ giảng / GVNN của lớp, hoặc dạy / trợ giảng / dạy thay theo buổi ("Lớp của tôi"). */
+    public function scopeTaughtBy(Builder $query, User $user): Builder
+    {
+        return $query->where(fn (Builder $q) => $q->where('teacher_id', $user->id)
+            ->orWhere('assistant_id', $user->id)
+            ->orWhere('foreign_teacher_id', $user->id)
+            ->orWhereHas('sessions', fn (Builder $sessions) => $sessions->forStaff($user->id)));
     }
 
     /**

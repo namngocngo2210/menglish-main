@@ -47,6 +47,16 @@ class SyllabusNotifier
         $this->send($managers, $title, 'GV chưa xác nhận sau 24 giờ kể từ khi được giao — Học thuật đã được báo để nhắc lại.', $this->readAction());
     }
 
+    /** Quá hạn XÁC NHẬN (SLA gv.syllabus_confirm, đã lập biên bản cho GV) → Học thuật, nút NHẮC LẠI. */
+    public function confirmLate(SyllabusAssignment $assignment): void
+    {
+        $assignment->loadMissing('classModel');
+        $this->send(NotificationService::userIdsWithPermission('syllabus.assign')->diff($this->teacherIds($assignment)),
+            "Lớp {$assignment->classModel?->name}: GV chưa xác nhận syllabus {$assignment->stage_name} trước giờ học.",
+            'Đã quá hạn xác nhận (trước buổi đầu tiên của chặng) — hệ thống đã lập biên bản cho GV, GV chưa bấm "Đã dạy" được tới khi xác nhận.',
+            ['label' => 'NHẮC LẠI', 'url' => route('syllabus.assignments.remind', $assignment->id), 'method' => 'post']);
+    }
+
     /** Học thuật sửa syllabus riêng của lớp → GV của lớp, nút ĐÃ XEM. */
     public function classSyllabusUpdated(ClassModel $class, Collection $lessonNumbers): void
     {

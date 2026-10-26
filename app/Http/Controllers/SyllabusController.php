@@ -23,10 +23,12 @@ use App\Models\SyllabusStage;
 use App\Models\SyllabusUnit;
 use App\Models\User;
 use App\Services\AdjustmentSlaService;
+use App\Services\BigTestSlaService;
 use App\Services\DocumentCodeGenerator;
 use App\Services\NotificationService;
 use App\Services\SafeUploadService;
 use App\Services\ScheduleExtensionService;
+use App\Services\Syllabus\ConfirmDeadline;
 use App\Services\Syllabus\StageSchedule;
 use App\Services\Syllabus\SyllabusNotifier;
 use App\Services\SyllabusProgressionService;
@@ -1610,9 +1612,10 @@ class SyllabusController extends Controller
 
         $isAcademic = $user->can('syllabus.approve_adjustment');
         $canRecordAny = $user->can('attendance_student.record_any');
+        $deadline = app(ConfirmDeadline::class);
 
         return Inertia::render('Syllabus/TeachingStages', [
-            'assignments' => $assignments->map(function (SyllabusAssignment $as) use ($plans, $user, $isAcademic, $canRecordAny) {
+            'assignments' => $assignments->map(function (SyllabusAssignment $as) use ($plans, $user, $isAcademic, $canRecordAny, $deadline) {
                 $class = $as->classModel;
                 $plan = $plans[$as->id];
                 $order = $plan['order'];
@@ -1635,6 +1638,12 @@ class SyllabusController extends Controller
                     'can_order' => $isMainTeacher || $canRecordAny,
                     'order_status' => $order?->status,
                     'order_rejection' => $order?->rejection_reason,
+                    // Luồng GV (docs/luong-giao-vien.md): XÁC NHẬN chặng → Bài giảng hôm nay → Trang lớp (báo cáo, thống kê).
+                    'confirmed' => $as->isConfirmed(),
+                    'confirm_url' => ! $as->isConfirmed() && $as->canConfirm($user) ? route('syllabus.assignments.confirm', $as->id) : null,
+                    'confirm_due' => $as->isConfirmed() ? null : $deadline->dueAt($as)?->format('H:i d/m/Y'),
+                    'lesson_url' => route('teacher.lesson-today', ['class' => $as->class_id]),
+                    'class_url' => route('classes.show', $as->class_id),
                 ];
             })->values(),
             'today' => now()->toDateString(),
@@ -1785,7 +1794,7 @@ class SyllabusController extends Controller
         if ($bt->is_distributed || ! $bt->scheduled_at || ! $bt->scheduled_at->isFuture()) {
             return null;
         }
-        $sla = app(\App\Services\BigTestSlaService::class);
+        $sla = app(BigTestSlaService::class);
         $days = $sla->daysUntil($bt);
         if ($days > $sla->warnDays()) {
             return null;
@@ -1955,7 +1964,7 @@ class SyllabusController extends Controller
                     'approved_at' => now(),
                     'distributed_at' => now(),
                 ]);
-                app(\App\Services\BigTestSlaService::class)->closeApprovalTasks(BigTest::find($order->big_test_id));
+                app(BigTestSlaService::class)->closeApprovalTasks(BigTest::find($order->big_test_id));
             }
         });
 
@@ -2050,7 +2059,7 @@ class SyllabusController extends Controller
             'distributed_at' => now(),
         ]);
         // Đề đã phân phối → tự đóng việc duyệt đề của Học thuật.
-        app(\App\Services\BigTestSlaService::class)->closeApprovalTasks($test);
+        app(BigTestSlaService::class)->closeApprovalTasks($test);
 
         return redirect()->back()->with('status', "Đã duyệt và phân phối đề {$test->code}.");
     }
@@ -2068,7 +2077,7 @@ class SyllabusController extends Controller
         $upcoming = $openAssignments
             ->map(fn ($as) => ['assignment' => $as] + $plans[$as->id])
             ->filter(fn ($row) => $row['date'] && $row['exam'] !== 'approved'
-                && $row['date']->copy()->startOfDay()->betweenIncluded(today(), today()->addDays(app(\App\Services\BigTestSlaService::class)->warnDays())))
+                && $row['date']->copy()->startOfDay()->betweenIncluded(today(), today()->addDays(app(BigTestSlaService::class)->warnDays())))
             ->map(fn ($row) => $row + ['days_left' => (int) today()->diffInDays($row['date']->copy()->startOfDay())])
             ->sortBy('days_left')
             ->values();

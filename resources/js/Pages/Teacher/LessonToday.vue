@@ -23,6 +23,9 @@ const props = defineProps({
     can_mark: { type: Boolean, default: false },
     can_mark_past: { type: Boolean, default: false },
     mark_url: { type: String, default: null },
+    confirmed: { type: Boolean, default: true },
+    confirm_url: { type: String, default: null },
+    confirm_due: { type: String, default: null },
 });
 
 const textFields = [
@@ -59,6 +62,19 @@ const hasLinks = computed(() => props.lesson && links.some(([f]) => props.lesson
 
     <div class="space-y-md pb-24 md:pb-0">
         <UiEmptyState v-if="!classes.length" icon="event_busy" title="Bạn không có lớp nào đang học chặng" description="Học thuật giao chặng cho lớp; bài giảng của buổi học hôm nay sẽ hiện ở đây." />
+
+        <!-- Chặng chưa XÁC NHẬN: chưa bấm "Đã dạy" được; quá hạn (1 giờ trước buổi đầu chặng) bị lập biên bản. -->
+        <UiAlert v-if="assignment && !confirmed" type="error">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <span>
+                    Chặng {{ assignment.stage_label }} chưa được XÁC NHẬN — chưa đánh dấu Đã dạy được.
+                    <template v-if="confirm_due"> Hạn xác nhận: <strong>{{ confirm_due }}</strong> (quá hạn bị lập biên bản).</template>
+                </span>
+                <UiForm v-if="confirm_url" :action="confirm_url" method="post" class="inline">
+                    <UiButton type="submit" size="sm" icon="task_alt">XÁC NHẬN</UiButton>
+                </UiForm>
+            </div>
+        </UiAlert>
 
         <UiAlert v-for="s in unmarked" :key="s.id" type="warning">
             <div class="flex flex-wrap items-center justify-between gap-2">

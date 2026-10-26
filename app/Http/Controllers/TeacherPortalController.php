@@ -1668,6 +1668,8 @@ class TeacherPortalController extends Controller
                 'is_main' => (int) $cls->teacher_id === (int) $teacherId,
                 'is_foreign' => (int) $cls->foreign_teacher_id === (int) $teacherId,
                 'status' => $cls->status,
+                // Trang lớp: báo cáo buổi, điểm danh, học thuật, thống kê của lớp.
+                'url' => route('classes.show', $cls->id),
             ])->values()->all(),
             'timesheets' => $timesheets->sortByDesc('teaching_date')->map(fn (TeacherTimesheet $ts) => [
                 'id' => $ts->id,

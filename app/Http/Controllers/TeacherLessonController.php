@@ -10,6 +10,7 @@ use App\Models\SyllabusDocument;
 use App\Models\SyllabusLesson;
 use App\Models\User;
 use App\Services\Syllabus\ClassSyllabus;
+use App\Services\Syllabus\ConfirmDeadline;
 use App\Services\Syllabus\SyllabusOrders;
 use App\Support\Ui;
 use Illuminate\Database\QueryException;
@@ -41,7 +42,9 @@ class TeacherLessonController extends Controller
         $taughtRow = $today ? $timeline['rows']->firstWhere('taught_session_id', $today->id) : null;
         $todayMarked = $today && ClassLessonProgress::where('class_session_id', $today->id)->where('syllabus_assignment_id', $assignment?->id)->exists();
         $row = $today ? ($taughtRow ?? ($todayMarked ? null : $timeline['current'])) : null;
-        $canMark = $assignment && $this->canMark($user, $class, $assignment, $today);
+        // Chặng chưa XÁC NHẬN thì chưa được bấm "Đã dạy" (docs/luong-giao-vien.md); người xác nhận được thấy nút ngay tại đây.
+        $confirmed = $assignment?->isConfirmed() ?? false;
+        $canMark = $assignment && $confirmed && $this->canMark($user, $class, $assignment, $today);
 
         return Inertia::render('Teacher/LessonToday', [
             'classes' => Ui::options($classes, fn (ClassModel $c) => $c->name.' ('.$c->code.')'),
@@ -60,8 +63,11 @@ class TeacherLessonController extends Controller
             'unmarked' => $timeline ? $timeline['unmarked_sessions']->map(fn (ClassSession $s) => ['id' => $s->id, 'date' => $s->date->toDateString()])->values() : [],
             // Dạy hết buổi của chặng: buổi còn lại ghi là buổi ôn / Big Test (không cần buổi giãn).
             'can_mark' => $canMark && $today !== null && ! $todayMarked,
-            'can_mark_past' => $assignment && $this->canMark($user, $class, $assignment, null),
+            'can_mark_past' => $assignment && $confirmed && $this->canMark($user, $class, $assignment, null),
             'mark_url' => $class ? route('teacher.lesson-today.taught', $class->id) : null,
+            'confirmed' => $confirmed,
+            'confirm_url' => $assignment && ! $confirmed && $assignment->canConfirm($user) ? route('syllabus.assignments.confirm', $assignment->id) : null,
+            'confirm_due' => $assignment && ! $confirmed ? app(ConfirmDeadline::class)->dueAt($assignment)?->format('H:i d/m/Y') : null,
         ]);
     }
 
@@ -82,6 +88,9 @@ class TeacherLessonController extends Controller
             throw ValidationException::withMessages(['class_session_id' => 'Chỉ đánh dấu được buổi học đã / đang diễn ra của chặng lớp đang học.']);
         }
         abort_unless($this->canMark($user, $classModel, $assignment, $session), 403, 'Chỉ GV / GVNN của lớp đánh dấu Đã dạy.');
+        if (! $assignment->isConfirmed()) {
+            throw ValidationException::withMessages(['class_session_id' => 'Chặng chưa được XÁC NHẬN — GV bấm XÁC NHẬN nhận syllabus trước khi đánh dấu Đã dạy.']);
+        }
 
         try {
             $label = DB::transaction(function () use ($assignment, $session, $validated, $user) {
