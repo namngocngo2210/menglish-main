@@ -44,4 +44,4 @@
 | 2 | Menu Cổng GV + `mine=1` + workspace + liên kết các màn | Xong |
 | 3 | Chặn "Đã dạy" + SLA `gv.syllabus_confirm` | Xong |
 | 4 | Test xanh, guard-rail (Navigation*, Ziggy, AllRoutesSmoke), cập nhật `docs/kho-syllabus.md` | Xong |
-| 5 | Deploy staging, kiểm tra bằng tài khoản GV (`gv.cohuu2`) | Chưa xong |
+| 5 | Deploy staging, kiểm tra bằng tài khoản GV (`gv.cohuu2`): `?mine=1` đúng 3 lớp, tab Cổng GV theo thứ tự, thẻ chặng có XÁC NHẬN + hạn | Xong (26/10/2026) |
