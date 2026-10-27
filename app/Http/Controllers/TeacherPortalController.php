@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\AcademicRecord;
-use App\Models\AdminNotification;
 use App\Models\BigTestOrder;
 use App\Models\BigTestResult;
 use App\Models\ClassEnrollment;
@@ -20,7 +19,6 @@ use App\Models\SupportSession;
 use App\Models\SyllabusAssignment;
 use App\Models\TeacherTimesheet;
 use App\Models\User;
-use App\Services\BigTestSlaService;
 use App\Services\Syllabus\ClassSyllabus;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -28,7 +26,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 /**
@@ -693,7 +690,7 @@ class TeacherPortalController extends Controller
     }
 
     /** Khách học thử của buổi (khối "Khách học thử buổi này" trên trang điểm danh / nhận xét). */
-    private function trialGuestsProps(Collection $guests): array
+    public static function trialGuestsProps(Collection $guests): array
     {
         return [
             'scope' => $guests->first()?->session?->date?->isBefore(today()) ? 'past' : 'upcoming',
@@ -1374,10 +1371,14 @@ class TeacherPortalController extends Controller
      * Nhận xét buổi học cho từng học sinh — theo BUỔI HỌC (?session= hoặc ?date=, mặc định buổi hôm nay),
      * có "Lưu nháp" (chưa hiện cho học viên) và "Lưu nhận xét".
      */
+    /**
+     * Màn "Nhận xét buổi học" cũ đã bỏ (chủ dự án 27/10/2026): nhận xét từng học sinh nhập trong Báo cáo buổi học
+     * của GV. Liên kết cũ (?session=) chuyển về báo cáo của buổi đó.
+     */
     public function remarks(Request $request, int $classId)
     {
         $this->guardTeacher();
-        $class = ClassModel::with('branch')->findOrFail($classId);
+        $class = ClassModel::findOrFail($classId);
         $user = Auth::user();
         $recentSessions = ClassSession::where('class_id', $class->id)
             ->where('type', '!=', ClassSession::TYPE_SUPPORT)
@@ -1388,60 +1389,53 @@ class TeacherPortalController extends Controller
         $session = $this->resolveSession($request, $class, $user) ?? $this->fallbackSession($request, $recentSessions);
         $this->authorizeTeaching($class, $session);
 
-        $students = collect();
-        $attendance = collect();
-        $existing = collect();
-        $record = null;
-        $sessionNo = null;
-        $blockReason = null;
-        if ($session) {
-            $blockReason = $this->attendanceBlockReason($session);
-            $students = $this->sessionRoster($class, $session, StudentAttendance::where('class_session_id', $session->id)->get()->keyBy('student_id'));
-            $attendance = StudentAttendance::where('class_id', $class->id)
-                ->where(fn ($q) => $q->where('class_session_id', $session->id)
-                    ->orWhere(fn ($q) => $q->whereNull('class_session_id')->whereDate('session_date', $session->date->toDateString())))
-                ->get()
-                ->keyBy('student_id');
-            $record = $this->remarkRecord($class, $session);
-            $existing = self::remarkData($record);
-            $sessionNo = app(\App\Services\SessionLessonService::class)->sessionNumbers([(int) $class->id])[$session->id] ?? null;
-        }
-        // Buổi đang xem cũ hơn cửa sổ vẫn phải có trong ô chọn, nếu không ô chọn hiện nhầm buổi khác.
-        if ($session && ! $recentSessions->contains('id', $session->id)) {
-            $recentSessions->push($session);
+        if (! $session || $session->status === 'cancelled' || $session->date->isAfter(today())) {
+            return redirect()->route('teacher.home')->with('error', 'Buổi học chưa diễn ra — nhận xét học sinh nhập trong Báo cáo buổi học sau buổi dạy.');
         }
 
-        return Inertia::render('Teacher/Remarks', [
-            'classroom' => ['id' => $class->id, 'name' => $class->name],
-            'session' => $session ? [
-                'id' => $session->id,
-                'label' => ($sessionNo ? 'Buổi '.$sessionNo.': ' : '').$session->date->format('d/m/Y').' · '.$session->start_time?->format('H:i').'-'.$session->end_time?->format('H:i'),
-            ] : null,
-            'recordState' => $record ? ($record->status === 'draft' ? 'draft' : 'saved') : null,
-            'blockReason' => $blockReason,
-            'students' => $students->map(function (Student $student) use ($attendance, $existing) {
-                $attStatus = $attendance->get($student->id)?->status ?? 'none';
-                $remark = (array) ($existing->get($student->id) ?? $existing->get((string) $student->id) ?? []);
-
-                return [
-                    'id' => $student->id,
-                    'name' => $student->name,
-                    'att_status' => $attStatus,
-                    'absent' => in_array($attStatus, ['absent', 'excused'], true),
-                    'remark' => collect(self::REMARK_FIELDS)->mapWithKeys(fn ($f) => [$f => $remark[$f] ?? ''])->all(),
-                ];
-            })->values()->all(),
-            'recentSessions' => $this->sessionOptions($recentSessions),
-            'remarkOptions' => self::REMARK_OPTIONS,
-            'trialGuests' => $this->trialGuestsProps($this->sessionTrialGuests($session)),
-        ]);
+        return redirect()->route('classes.session-report', ['id' => $class->id, 'session' => $session->id]);
     }
 
-    /** Bản ghi nhận xét của buổi; nhận xét cũ lưu theo lớp + ngày được điền sẵn để GV lưu lại vào đúng buổi. */
-    private function remarkRecord(ClassModel $class, ClassSession $session): ?AcademicRecord
+    /**
+     * Lưu nhận xét của buổi (nhập trong Báo cáo buổi học của GV): chỉ học viên trong danh sách buổi,
+     * chỉ các cột REMARK_FIELDS, cột chọn phải đúng danh sách (hoặc giữ giá trị cũ).
+     *
+     * @param  array<int|string, mixed>  $input  remarks[student_id][field]
+     * @param  Collection<int, int|string>  $rosterIds
+     */
+    public static function saveSessionRemarks(ClassModel $class, ClassSession $session, int $userId, array $input, Collection $rosterIds, bool $draft): void
     {
-        return AcademicRecord::where('module', 'teacher_remarks')->where('record_code', self::remarkRecordCode($session))->first()
-            ?? AcademicRecord::where('module', 'teacher_remarks')->where('record_code', $class->id.'-'.$session->date->toDateString())->first();
+        $rosterIds = $rosterIds->map(fn ($id) => (string) $id);
+        $remarks = collect($input)
+            ->filter(fn ($remark, $studentId) => $rosterIds->contains((string) $studentId))
+            ->map(fn ($remark) => array_intersect_key((array) $remark, array_flip(self::REMARK_FIELDS)))
+            ->all();
+        self::ensureRemarkOptions($remarks, self::sessionRemarks($class, $session));
+
+        AcademicRecord::updateOrCreate(
+            ['module' => 'teacher_remarks', 'record_code' => self::remarkRecordCode($session)],
+            [
+                // screen_key bắt buộc (NOT NULL) — trước đây thiếu nên lưu nhận xét luôn lỗi 500.
+                'screen_key' => self::REMARKS_SCREEN_KEY,
+                'title' => 'Nhận xét lớp '.$class->name.' buổi '.$session->date->format('d/m/Y').' '.$session->start_time?->format('H:i'),
+                'status' => $draft ? 'draft' : 'completed',
+                'user_id' => $userId,
+                'data' => $remarks,
+            ]
+        );
+    }
+
+    /** @return Collection<int|string, array<string, mixed>> nhận xét đã lưu của buổi theo mã học sinh */
+    public static function sessionRemarks(ClassModel $class, ClassSession $session): Collection
+    {
+        return self::remarkData(AcademicRecord::where('module', 'teacher_remarks')->where('record_code', self::remarkRecordCode($session))->first()
+            ?? AcademicRecord::where('module', 'teacher_remarks')->where('record_code', $class->id.'-'.$session->date->toDateString())->first());
+    }
+
+    /** Các cột nhận xét của một học sinh (thiếu cột → chuỗi rỗng). */
+    public static function remarkFields(array $remark): array
+    {
+        return collect(self::REMARK_FIELDS)->mapWithKeys(fn ($f) => [$f => $remark[$f] ?? ''])->all();
     }
 
     /** @return Collection<int|string, array<string, mixed>> nhận xét đã lưu theo mã học sinh */
@@ -1481,7 +1475,7 @@ class TeacherPortalController extends Controller
     }
 
     /** Khách học thử được xếp vào đúng buổi này (không thuộc danh sách lớp, không ghi danh). */
-    private function sessionTrialGuests(?ClassSession $session): Collection
+    public static function sessionTrialGuests(?ClassSession $session): Collection
     {
         if (! $session) {
             return collect();
@@ -1495,58 +1489,13 @@ class TeacherPortalController extends Controller
             ->get();
     }
 
-    public function remarksStore(Request $request, int $classId)
-    {
-        $this->guardTeacher();
-        $class = ClassModel::findOrFail($classId);
-        $user = Auth::user();
-        $validated = $request->validate([
-            'class_session_id' => 'nullable|integer',
-            'action' => 'nullable|in:draft,final',
-            'remarks' => 'nullable|array',
-            'remarks.*' => 'array',
-            'remarks.*.*' => 'nullable|string|max:2000',
-        ]);
-
-        $session = $this->resolveSession($request, $class, $user);
-        $this->authorizeTeaching($class, $session);
-        if (! $session) {
-            return back()->withErrors(['session' => 'Lớp không có buổi học trong ngày này. Hãy chọn buổi cần nhận xét.']);
-        }
-        if ($reason = $this->attendanceBlockReason($session)) {
-            return back()->withErrors(['session' => $reason]);
-        }
-
-        $rosterIds = $this->sessionRoster($class, $session, collect())->pluck('id')->map(fn ($id) => (string) $id);
-        $remarks = collect($validated['remarks'] ?? [])
-            ->filter(fn ($remark, $studentId) => $rosterIds->contains((string) $studentId))
-            ->map(fn ($remark) => array_intersect_key((array) $remark, array_flip(self::REMARK_FIELDS)))
-            ->all();
-        self::ensureRemarkOptions($remarks, self::remarkData($this->remarkRecord($class, $session)));
-        $isDraft = ($validated['action'] ?? 'final') === 'draft';
-
-        AcademicRecord::updateOrCreate(
-            ['module' => 'teacher_remarks', 'record_code' => self::remarkRecordCode($session)],
-            [
-                // screen_key bắt buộc (NOT NULL) — trước đây thiếu nên lưu nhận xét luôn lỗi 500.
-                'screen_key' => self::REMARKS_SCREEN_KEY,
-                'title' => 'Nhận xét lớp '.$class->name.' buổi '.$session->date->format('d/m/Y').' '.$session->start_time?->format('H:i'),
-                'status' => $isDraft ? 'draft' : 'completed',
-                'user_id' => $user->id,
-                'data' => $remarks,
-            ]
-        );
-
-        return redirect()->route('teacher.remarks', ['classId' => $class->id, 'session' => $session->id])
-            ->with('success', $isDraft ? 'Đã lưu nháp nhận xét (chưa hiển thị cho học viên).' : 'Đã lưu nhận xét buổi học!');
-    }
-
     // ─────────────────────────────────────────────
     // Các màn hình bổ sung của Cổng GV (dữ liệu thật)
     // ─────────────────────────────────────────────
 
     /**
-     * GV xem các chặng đang dạy và gửi yêu cầu cấp đề test về cho học vụ.
+     * GV xem chặng đang dạy và lịch sử order đề của lớp. Order đề chỉ gửi ở nút ORDER theo mốc syllabus (teacher.orders) —
+     * bỏ form order riêng ở màn này để không order trùng (chủ dự án 27/10/2026).
      */
     public function orderTest(Request $request, int $classId)
     {
@@ -1581,8 +1530,7 @@ class TeacherPortalController extends Controller
                 'label' => $asg->stage?->label ?? $asg->stage_name,
                 'closed_at' => $asg->closed_at?->format('d/m/Y'),
             ])->values()->all(),
-            'leadDays' => BigTestOrder::leadDays(),
-            'today' => now()->toDateString(),
+            'orderUrl' => route('teacher.orders', ['class' => $class->id]),
             'requests' => $requests->map(fn (BigTestOrder $req) => [
                 'id' => $req->id,
                 'created_at' => $req->created_at->format('d/m/Y H:i'),
@@ -1600,62 +1548,6 @@ class TeacherPortalController extends Controller
                 'rejection_reason' => $req->status === 'rejected' ? $req->rejection_reason : null,
             ])->values()->all(),
         ]);
-    }
-
-    public function submitOrderTest(Request $request, int $classId)
-    {
-        $this->guardTeacher();
-        $class = ClassModel::findOrFail($classId);
-        $this->authorizeTeaching($class);
-
-        $validated = $request->validate([
-            'test_type' => 'required|in:mini,big',
-            'exam_date' => 'nullable|date|after_or_equal:today',
-            'note' => 'nullable|string|max:1000',
-        ]);
-
-        // Q4: đề gắn chặng đang mở của lớp; lớp chưa mở chặng thì chưa order được.
-        $assignment = \App\Models\SyllabusAssignment::open()->with('stage')->where('class_id', $class->id)->first();
-        if (! $assignment) {
-            throw \Illuminate\Validation\ValidationException::withMessages(['stage' => 'Lớp chưa được giao chặng nào đang mở — liên hệ Học thuật mở chặng trước khi order đề.']);
-        }
-        $stageLabel = $assignment->stage?->label ?? $assignment->stage_name;
-        $duplicate = BigTestOrder::where('class_id', $class->id)->where('status', 'pending')->where('test_type', $validated['test_type'])
-            ->when($assignment->stage_id, fn ($q) => $q->where('syllabus_stage_id', $assignment->stage_id), fn ($q) => $q->where('stage_name', $stageLabel))
-            ->exists();
-        if ($duplicate) {
-            throw \Illuminate\Validation\ValidationException::withMessages(['stage' => "Đã có order đề cho {$stageLabel} đang chờ Học thuật duyệt."]);
-        }
-
-        $examDate = isset($validated['exam_date']) ? Carbon::parse($validated['exam_date']) : null;
-        $order = BigTestOrder::create([
-            'code' => 'ORDTEST-'.strtoupper(Str::random(6)),
-            'class_id' => $class->id,
-            'syllabus_stage_id' => $assignment->stage_id,
-            'teacher_id' => Auth::id(),
-            'stage_name' => $stageLabel,
-            'test_type' => $validated['test_type'],
-            'exam_date' => $examDate,
-            // Hạn xử lý: đề phải phân phối trước ngày thi N ngày; không có ngày thi thì trong 3 ngày làm việc.
-            'due_date' => $examDate
-                ? $examDate->copy()->subDays(BigTestOrder::leadDays())->max(today())
-                : today()->addDays(BigTestOrder::leadDays()),
-            'note' => $validated['note'] ?? null,
-            'status' => 'pending',
-        ]);
-
-        // Báo riêng người duyệt Big Test (chỉ Admin, 06/10/2026), không phát thông báo chung cho mọi người xem hệ thống.
-        AdminNotification::notifyUsers(
-            app(BigTestSlaService::class)->approverIdsOrAdmins(),
-            'big_test_order',
-            'GV yêu cầu đề test: '.Auth::user()->name,
-            'Giáo viên '.Auth::user()->name.' yêu cầu đề '.$order->type_label." cho chặng \"{$stageLabel}\" của lớp {$class->name}".(filled($validated['note'] ?? null) ? " — Ghi chú: {$validated['note']}" : ''),
-            route('syllabus.big-tests.distribution', ['order' => $order->id]),
-            ['big_test_order_id' => $order->id],
-            Auth::id(),
-        );
-
-        return redirect()->back()->with('success', 'Đã gửi yêu cầu đề test tới Ban Học thuật.');
     }
 
     /**

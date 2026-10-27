@@ -135,10 +135,17 @@ class SyllabusOrders
                 ])->code;
             }
 
+            // Chặn order trùng: lớp đã có order cùng loại đề cho chặng này đang chờ duyệt.
+            $testType = $milestone['kind'] === 'order_big_test' ? 'big' : 'mini';
+            if (BigTestOrder::where('class_id', $class->id)->where('status', 'pending')->where('test_type', $testType)
+                ->when($assignment->stage_id, fn ($q) => $q->where('syllabus_stage_id', $assignment->stage_id), fn ($q) => $q->where('stage_name', $stage))
+                ->exists()) {
+                throw ValidationException::withMessages(['lesson_id' => "Đã có order đề cho {$stage} đang chờ duyệt."]);
+            }
             $order = BigTestOrder::create([
                 'code' => 'ORDTEST-'.strtoupper(Str::random(6)),
                 'class_id' => $class->id, 'syllabus_stage_id' => $assignment->stage_id, 'teacher_id' => $user->id, 'stage_name' => $stage,
-                'test_type' => $milestone['kind'] === 'order_big_test' ? 'big' : 'mini',
+                'test_type' => $testType,
                 'exam_date' => $milestone['exam_date'],
                 'due_date' => ($milestone['due_date'] ?? today()->addDays(BigTestOrder::leadDays()))->max(today()),
                 'note' => $input['note'] ?? null, 'status' => 'pending',

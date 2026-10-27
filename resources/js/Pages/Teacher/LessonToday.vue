@@ -1,8 +1,8 @@
 <script setup>
 /**
  * Cổng GV — Bài giảng hôm nay (docs/kho-syllabus.md §8.3): chỉ buổi syllabus hiện tại của lớp có buổi học hôm nay (content,
- * quy trình, hoạt động, homework 3 giỏ, link, PPT trình chiếu trong app, tài liệu buổi). Bấm "Đã dạy" thì tiến độ chặng mới chạy; buổi đã qua chưa
- * đánh dấu hiện nhắc để đánh dấu bù.
+ * quy trình, hoạt động, homework 3 giỏ, link, PPT trình chiếu trong app, tài liệu buổi). Nộp Báo cáo buổi học là ghi nhận "Đã dạy"
+ * (chủ dự án 27/10/2026) — tiến độ chặng mới chạy; buổi đã qua chưa ghi nhận hiện nhắc kèm link báo cáo buổi đó.
  */
 import { computed } from 'vue';
 import TeacherBottomNav from '@/Components/Teacher/TeacherBottomNav.vue';
@@ -22,7 +22,7 @@ const props = defineProps({
     unmarked: { type: Array, default: () => [] },
     can_mark: { type: Boolean, default: false },
     can_mark_past: { type: Boolean, default: false },
-    mark_url: { type: String, default: null },
+    report_url: { type: String, default: null },
     confirmed: { type: Boolean, default: true },
     confirm_url: { type: String, default: null },
     confirm_due: { type: String, default: null },
@@ -78,11 +78,8 @@ const hasLinks = computed(() => props.lesson && links.some(linkUrl));
 
         <UiAlert v-for="s in unmarked" :key="s.id" type="warning">
             <div class="flex flex-wrap items-center justify-between gap-2">
-                <span>Buổi {{ formatDate(s.date) }} chưa đánh dấu Đã dạy — tiến độ chặng chưa chạy.</span>
-                <UiForm v-if="can_mark_past && mark_url" :action="mark_url" method="post" class="inline">
-                    <input type="hidden" name="class_session_id" :value="s.id" />
-                    <UiButton type="submit" size="sm" variant="secondary" icon="task_alt">Đánh dấu Đã dạy</UiButton>
-                </UiForm>
+                <span>Buổi {{ formatDate(s.date) }} chưa ghi nhận Đã dạy (chưa nộp báo cáo buổi) — tiến độ chặng chưa chạy.</span>
+                <UiButton v-if="can_mark_past" size="sm" variant="secondary" icon="summarize" :href="s.report_url">Nộp báo cáo buổi</UiButton>
             </div>
         </UiAlert>
 
@@ -91,13 +88,10 @@ const hasLinks = computed(() => props.lesson && links.some(linkUrl));
             <UiAlert v-else-if="finished && !lesson" type="success">
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <span>Lớp đã dạy hết các buổi của chặng — ôn tập và tổ chức Big Test cuối chặng.</span>
-                    <UiForm v-if="can_mark" :action="mark_url" method="post" class="inline">
-                        <input type="hidden" name="class_session_id" :value="session.id" />
-                        <UiButton type="submit" size="sm" icon="task_alt">Đã dạy (buổi ôn / Big Test)</UiButton>
-                    </UiForm>
+                    <UiButton v-if="can_mark" size="sm" icon="summarize" :href="report_url">Nộp báo cáo buổi (buổi ôn / Big Test)</UiButton>
                 </div>
             </UiAlert>
-            <UiAlert v-else-if="taught_today && !lesson" type="success">Đã đánh dấu Đã dạy (buổi giãn tiến độ) cho buổi hôm nay.</UiAlert>
+            <UiAlert v-else-if="taught_today && !lesson" type="success">Đã ghi nhận Đã dạy (buổi giãn tiến độ) cho buổi hôm nay.</UiAlert>
 
             <section v-if="lesson" class="space-y-4 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-5 shadow-sm">
                 <div class="flex flex-wrap items-start justify-between gap-3 border-b border-surface-container-highest pb-3">
@@ -144,17 +138,10 @@ const hasLinks = computed(() => props.lesson && links.some(linkUrl));
                     </a>
                 </div>
 
-                <UiForm v-if="can_mark" :action="mark_url" method="post" class="space-y-3 border-t border-surface-container-highest pt-4">
-                    <input type="hidden" name="class_session_id" :value="session.id" />
-                    <UiTextarea name="pace_note" label="Ghi chú tiến độ (nếu dạy chậm / nhanh)" :rows="2" placeholder="VD: Lớp chậm, chưa xong phần Speaking — cần thêm 15 phút buổi sau." />
-                    <label v-if="assignment.extra_left > 0" class="flex items-center gap-2 text-sm text-on-surface">
-                        <input type="checkbox" name="use_extra" value="1" class="rounded border-outline-variant text-primary focus:ring-primary-container" />
-                        Dạy chưa xong — dùng 1 buổi giãn đã duyệt (còn {{ assignment.extra_left }} buổi), buổi syllabus giữ nguyên
-                    </label>
-                    <div class="flex justify-end">
-                        <UiButton type="submit" icon="task_alt">Đã dạy</UiButton>
-                    </div>
-                </UiForm>
+                <div v-if="can_mark" class="flex flex-wrap items-center justify-between gap-3 border-t border-surface-container-highest pt-4" data-report-to-mark>
+                    <p class="text-sm text-on-surface-variant">Dạy xong: nộp Báo cáo buổi học là ghi nhận Đã dạy (dạy chưa xong bài thì chọn dùng buổi giãn trong báo cáo).</p>
+                    <UiButton icon="summarize" :href="report_url">Nộp báo cáo buổi</UiButton>
+                </div>
             </section>
         </template>
     </div>

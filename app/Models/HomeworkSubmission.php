@@ -21,7 +21,7 @@ class HomeworkSubmission extends Model
     public const STATUS_REVIEWED = 'reviewed';
 
     protected $fillable = [
-        'homework_id', 'student_id', 'basket', 'file_path', 'original_name', 'note', 'status', 'submitted_at', 'reviewed_by', 'reviewed_at',
+        'homework_id', 'student_id', 'basket', 'file_path', 'original_name', 'note', 'status', 'score', 'feedback', 'submitted_at', 'reviewed_by', 'reviewed_at',
     ];
 
     protected $casts = [

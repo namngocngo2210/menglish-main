@@ -204,7 +204,7 @@ class Flow1AndHomeworkScreensTest extends TestCase
     public function test_teacher_submissions_portal_renders_successfully()
     {
         $class = ClassModel::first();
-        $response = $this->actingAs($this->admin)->get(route('portal.teacher.submissions', ['classId' => $class?->id]));
+        $response = $this->actingAs($this->admin)->get(route('portal.teacher.submissions', ['classId' => $class?->id, 'type' => 'video']));
         $response->assertStatus(200);
         $response->assertSee('Bài nộp của lớp');
         $response->assertSee('Quay video');

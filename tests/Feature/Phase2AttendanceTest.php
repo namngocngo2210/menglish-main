@@ -145,9 +145,9 @@ class Phase2AttendanceTest extends TestCase
         $this->actingAs($this->teacher)->get(route('teacher.attendance', $this->classModel->id))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->component('Teacher/Attendance')->where('session.id', $older->id))
             ->assertDontSee('Lớp không có buổi học trong ngày này')->assertSee($this->student->name);
-        $this->actingAs($this->teacher)->get(route('teacher.remarks', $this->classModel->id))->assertOk()
-            ->assertInertia(fn (AssertableInertia $page) => $page->component('Teacher/Remarks')->where('session.id', $done->id))
-            ->assertDontSee('Lớp không có buổi học trong ngày này');
+        // Màn Nhận xét cũ đã bỏ: chuyển về Báo cáo buổi học của buổi gần nhất.
+        $this->actingAs($this->teacher)->get(route('teacher.remarks', $this->classModel->id))
+            ->assertRedirect(route('classes.session-report', ['id' => $this->classModel->id, 'session' => $done->id]));
 
         // Chọn một ngày không có buổi: vẫn báo trống và ô chọn hiện "— Chọn buổi —".
         $this->actingAs($this->teacher)->get(route('teacher.attendance', ['classId' => $this->classModel->id, 'date' => '2026-10-04']))->assertOk()
@@ -420,7 +420,7 @@ class Phase2AttendanceTest extends TestCase
                 'data' => ['student_id' => (string) $student->id, 'student_name' => $student->name, 'homework_type' => 'video', 'notes' => $note]]);
         }
 
-        $this->actingAs($this->teacher)->get(route('portal.teacher.submissions', ['classId' => $this->classModel->id]))
+        $this->actingAs($this->teacher)->get(route('portal.teacher.submissions', ['classId' => $this->classModel->id, 'type' => 'video']))
             ->assertOk()->assertSee('Bài của lớp')->assertDontSee('Bài lớp khác')
             ->assertDontSee('Nguyễn Văn An')->assertDontSee('Vũ Thị Minh Hằng')->assertDontSee('Trần Hồng Sơn')
             ->assertSee('Danh sách đã nộp bài (1)');

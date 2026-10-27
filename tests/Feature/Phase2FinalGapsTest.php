@@ -158,10 +158,12 @@ class Phase2FinalGapsTest extends TestCase
     {
         $assignment = $this->openStage();
         $examDate = today()->addDays(8);
-        $this->actingAs($this->teacher)->post(route('teacher.order-test.submit', $this->class->id), [
-            'test_type' => 'big', 'exam_date' => $examDate->toDateString(), 'note' => 'Đề cuối chặng',
-        ])->assertSessionHasNoErrors();
-        $order = BigTestOrder::firstOrFail();
+        // Order đề gửi ở nút ORDER theo mốc syllabus (SyllabusOrderTest); ở đây tạo sẵn order chờ duyệt.
+        $order = BigTestOrder::create([
+            'code' => 'ORDTEST-P2F1', 'class_id' => $this->class->id, 'syllabus_stage_id' => $assignment->stage_id, 'teacher_id' => $this->teacher->id,
+            'stage_name' => $assignment->stage->label, 'test_type' => 'big', 'exam_date' => $examDate, 'due_date' => $examDate->copy()->subDays(BigTestOrder::leadDays()),
+            'note' => 'Đề cuối chặng', 'status' => 'pending', 'syllabus_assignment_id' => $assignment->id,
+        ]);
 
         $this->actingAs($this->lead)->get(route('syllabus.big-tests.distribution', ['order' => $order->id]))->assertOk()
             ->assertSee('Đề cuối chặng')->assertDontSee('Tạo đợt thi mới'); // form duyệt chỉ cho Admin

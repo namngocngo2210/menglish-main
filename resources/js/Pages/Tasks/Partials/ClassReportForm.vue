@@ -9,6 +9,8 @@
  * danh sách bổ trợ gợi ý sẵn học sinh vắng buổi này + mini test gần nhất dưới 7 (người nộp xóa / sửa được, chỉ "Kế hoạch xử lý" là nhập tay).
  * Thiết kế lại theo khối (chủ dự án 17/10/2026): khối 2 hiện số liệu tự động của buổi (sĩ số, đi muộn, BTVN đã nộp, nhận xét GV)
  * cạnh ô ghi chú; khối 5 là task follow-up giao thẳng cho người xử lý — việc chưa xong của lớp hiện lại ở báo cáo sau ("Từ dd/mm").
+ * Không nhập trùng với GV (chủ dự án 27/10/2026): chọn buổi học thì "Hôm nay học gì" lấy từ báo cáo buổi của GV (chỉ đọc);
+ * "Học sinh cần bổ trợ" là danh sách chung của buổi — học sinh đã có (vắng / GV báo) hiện chỉ đọc, TA chỉ thêm học sinh khác.
  */
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
@@ -176,14 +178,21 @@ const labelCls = 'mb-xs block font-label text-label uppercase text-on-surface-va
             <!-- 2. Nội dung & diễn biến buổi học -->
             <section class="space-y-md rounded-2xl border border-outline-variant bg-surface-container-lowest p-md shadow-sm" data-report-section="content">
                 <h2 class="flex items-center gap-sm border-b border-surface-container pb-sm font-h3 text-h3 text-on-surface"><span class="h-2 w-2 rounded-full bg-primary-container" aria-hidden="true"></span>2. Nội dung & Diễn biến buổi học</h2>
+                <div v-if="session" data-teacher-content>
+                    <p class="mb-xs font-label text-label uppercase text-on-surface-variant">Hôm nay học gì (GV nhập trong báo cáo buổi)</p>
+                    <p v-if="session.teacher_report" class="whitespace-pre-line rounded-xl border border-outline-variant bg-surface-container-low p-sm font-body-medium text-body-medium text-on-surface">{{ session.teacher_report.content }}</p>
+                    <p v-else class="rounded-xl border border-outline-variant bg-surface-container-low p-sm font-body-small text-body-small italic text-on-surface-variant">
+                        GV chưa nộp báo cáo buổi. Nội dung bài sẽ tự lấy khi GV nộp<template v-if="session.lesson_text"> (tạm theo giáo trình: {{ session.lesson_text }})</template>.
+                    </p>
+                </div>
                 <UiTextarea
+                    v-else
                     :id="p + 'hom_nay_hoc_gi'"
                     v-model="lessonText"
                     name="hom_nay_hoc_gi"
                     label="Hôm nay học gì"
                     required
                     :rows="3"
-                    :hint="session?.lesson_text ? 'Điền sẵn theo giáo trình của buổi. Sửa lại nếu buổi thực tế dạy khác.' : null"
                     placeholder="VD: Tên bài học, dạng bài, kiến thức ngữ pháp / từ vựng cốt lõi đã dạy trên lớp..."
                 />
                 <div data-report-metrics>
@@ -233,7 +242,13 @@ const labelCls = 'mb-xs block font-label text-label uppercase text-on-surface-va
                     <UiButton variant="secondary" size="sm" icon="add_circle" @click="addSupport()">Thêm học sinh cần bổ trợ</UiButton>
                 </div>
                 <UiErrors :messages="pick(errors, 'supports')" />
-                <p v-if="!supports.length" class="text-center font-body-small text-body-small italic text-on-surface-variant">Chưa có học sinh cần bổ trợ.</p>
+                <ul v-if="session?.listed?.length" class="space-y-xs" data-listed-supports>
+                    <li v-for="(r, i) in session.listed" :key="i" class="rounded-lg bg-surface-container-low px-sm py-xs font-body-small text-body-small text-on-surface">
+                        <UiBadge color="neutral" :dot="false" class="mr-xs">{{ r.source }}</UiBadge>
+                        <strong>{{ r.student ?? 'Học sinh' }}</strong><span v-if="r.reason">: {{ r.reason }}</span><span v-if="r.action" class="text-on-surface-variant"> → {{ r.action }}</span>
+                    </li>
+                </ul>
+                <p v-if="!supports.length && !session?.listed?.length" class="text-center font-body-small text-body-small italic text-on-surface-variant">Chưa có học sinh cần bổ trợ.</p>
                 <div v-for="(sup, idx) in supports" :key="sup.id" class="space-y-sm rounded-xl border border-outline-variant bg-surface-container-low p-sm">
                     <div class="flex items-center justify-between">
                         <span class="inline-flex items-center gap-xs">

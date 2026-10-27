@@ -112,14 +112,17 @@ class TeacherMonthlyMetrics
                     'Buổi đã dạy tới hôm nay / tổng buổi của bạn ở lớp này trong tháng (không tính buổi nghỉ / hủy).', [], $taught->count()),
                 $this->item('attendance', 'Chuyên cần', $percent($row['attendance'] ?? null), 'Lượt có mặt / đi muộn trên tổng lượt điểm danh của lớp trong tháng.'),
                 $this->item('homework', 'BTVN', $percent($row['homework'] ?? null), 'Tỷ lệ học sinh nộp bài về nhà giao trong tháng, trong hạn nộp.'),
-                $this->item('score', 'Điểm TB', isset($row['score']) ? self::num((float) $row['score']) : '—', 'Điểm mini test trung bình trong tháng, quy về thang 10.'),
+                // Thay mục tự tích "Có tổ chức mini/big test" / "Kết quả test" của báo cáo tháng (chủ dự án 27/10/2026).
+                $this->item('score', 'Điểm TB', isset($row['score']) ? self::num((float) $row['score']) : '—', 'Điểm mini test trung bình trong tháng, quy về thang 10.',
+                    ($tests = $scores->where('class_id', $class->id)->unique(fn (MiniTestScore $s) => $s->name.'|'.$s->test_date?->toDateString())->count())
+                        ? [['text' => "{$tests} bài mini test trong tháng"]] : [['text' => 'Chưa có mini test trong tháng', 'tag' => 'Chưa test', 'tone' => 'warning']]),
                 $this->item('remarks', 'Nhận xét buổi', ($taught->count() - $missing->count()).' / '.$taught->count(),
                     'Buổi đã dạy có nhận xét học sinh (bản đã gửi). Trễ hạn: biên bản SLA "Nhận xét sau buổi học".',
                     [
                         ...($lateHere ? [['text' => "{$lateHere} buổi gửi trễ hạn", 'tag' => 'Trễ hạn', 'tone' => 'error']] : []),
                         ...$missing->take(10)->map(fn (ClassSession $s) => [
                             'text' => 'Buổi '.$s->date->format('d/m').' chưa có nhận xét', 'tag' => 'Thiếu', 'tone' => 'warning',
-                            'url' => $this->link('teacher.remarks', ['classId' => $s->class_id, 'session' => $s->id]),
+                            'url' => $this->link('classes.session-report', ['id' => $s->class_id, 'session' => $s->id]),
                         ])->values()->all(),
                     ], $taught->count() - $missing->count()),
             ]);

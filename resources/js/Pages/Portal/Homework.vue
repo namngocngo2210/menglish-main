@@ -161,11 +161,12 @@ function switchStudent(event) {
                         <div v-for="b in hw.baskets" :key="b.key" class="rounded-xl border border-surface-container-highest bg-surface-container-low p-2.5 text-xs">
                             <div class="flex items-center justify-between gap-2">
                                 <span class="flex items-center gap-1 font-bold text-on-surface"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">{{ b.icon }}</span>{{ b.label }}</span>
-                                <UiBadge v-if="b.submission?.status === 'reviewed'" color="success" pill>GV đã xem</UiBadge>
+                                <UiBadge v-if="b.submission?.status === 'reviewed'" color="success" pill>{{ b.submission.score ? 'Điểm: ' + b.submission.score : 'GV đã xem' }}</UiBadge>
                                 <UiBadge v-else-if="b.submission" color="info" pill>{{ b.upload ? 'Đã nộp' : 'Đã làm' }}</UiBadge>
                                 <UiBadge v-else color="error" pill>Chưa nộp</UiBadge>
                             </div>
                             <p v-if="b.text" class="mt-1 whitespace-pre-line text-on-surface-variant">{{ b.text }}</p>
+                            <p v-if="b.submission?.feedback" class="mt-1 rounded-lg border border-outline-variant bg-surface-container-lowest px-2 py-1 text-on-surface"><strong>GV nhận xét:</strong> {{ b.submission.feedback }}</p>
                             <div class="mt-2 flex flex-wrap items-center gap-2">
                                 <a v-if="b.link" :href="b.link" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 font-bold text-secondary hover:underline">Mở Quizizz <span class="material-symbols-outlined text-[14px]" aria-hidden="true">open_in_new</span></a>
                                 <a v-if="b.submission?.file_url" :href="b.submission.file_url" target="_blank" rel="noopener" class="inline-flex items-center gap-1 font-bold text-primary hover:underline"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">attachment</span>{{ b.submission.original_name ?? 'Bài đã nộp' }}</a>

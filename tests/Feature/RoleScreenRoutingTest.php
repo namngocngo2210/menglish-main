@@ -133,8 +133,11 @@ class RoleScreenRoutingTest extends TestCase
         ]);
 
         $this->actingAs($assistant)->get(route('teacher.attendance', ['classId' => $class->id, 'session' => $session->id]))->assertOk();
+        // Nhận xét: màn cũ chuyển về Báo cáo buổi học; trợ giảng vẫn bị chặn.
+        $this->actingAs($assistant)->get(route('teacher.remarks', ['classId' => $class->id, 'session' => $session->id]))->assertForbidden();
+        $this->actingAs($teacher)->get(route('teacher.remarks', ['classId' => $class->id, 'session' => $session->id]))
+            ->assertRedirect(route('classes.session-report', ['id' => $class->id, 'session' => $session->id]));
         foreach ([
-            route('teacher.remarks', ['classId' => $class->id, 'session' => $session->id]),
             route('teacher.homework', ['classId' => $class->id]),
             route('teacher.scores', $class->id),
             route('teacher.order-test', $class->id),

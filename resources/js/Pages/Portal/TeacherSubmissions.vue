@@ -1,21 +1,24 @@
 <script setup>
 /**
- * Bài nộp của lớp (góc nhìn giáo viên): chọn lớp dạy, lọc theo loại bài, chấm bài phát âm / đánh dấu đã xem.
+ * Bài nộp của lớp (góc nhìn giáo viên) — màn chấm bài duy nhất: chọn lớp dạy, lọc theo loại bài, chấm điểm + nhận xét.
+ * Tab "Bài tập theo syllabus": bài nộp 3 giỏ + tỉ lệ nộp (gộp màn "Bài nộp & tỉ lệ nộp" cũ, 27/10/2026).
  */
 import { Link, router } from '@inertiajs/vue3';
+import HomeworkBasketMatrix from '@/Components/Homework/HomeworkBasketMatrix.vue';
 import { route } from '@/lib/route';
 
 defineOptions({ layout: { title: 'Bài nộp của lớp' } });
 
 const props = defineProps({
     currentClass: { type: Object, default: null },
-    basketUrl: { type: String, default: null },
+    basket: { type: Object, default: null },
     classes: { type: Array, default: () => [] },
-    activeTab: { type: String, default: 'video' },
+    activeTab: { type: String, default: 'basket' },
     submissions: { type: Array, default: () => [] },
 });
 
 const TYPES = {
+    basket: { label: 'Bài tập theo syllabus', icon: 'assignment_turned_in' },
     video: { label: 'Quay video', icon: 'videocam' },
     vocabulary: { label: 'Viết từ vựng', icon: 'edit_document' },
     workbook: { label: 'Workbook', icon: 'menu_book' },
@@ -44,13 +47,6 @@ const filled = (v) => v !== null && v !== undefined && String(v).trim() !== '';
         </template>
     </UiPageHeader>
 
-    <UiAlert v-if="basketUrl" type="info" class="mb-md">
-        <div class="flex flex-wrap items-center justify-between gap-2">
-            <span>Bài tập giao theo syllabus học viên nộp theo 3 giỏ (giấy / Quizizz / video) — xem và đánh dấu đã xem ở màn Bài nộp homework.</span>
-            <UiButton size="sm" variant="secondary" icon="assignment_turned_in" :href="basketUrl">Bài nộp homework</UiButton>
-        </div>
-    </UiAlert>
-
     <div class="mx-auto max-w-5xl space-y-6">
         <!-- Chọn lớp -->
         <div class="flex flex-col justify-between gap-4 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-5 shadow-sm sm:flex-row sm:items-center">
@@ -77,8 +73,11 @@ const filled = (v) => v !== null && v !== undefined && String(v).trim() !== '';
             </Link>
         </div>
 
+        <HomeworkBasketMatrix v-if="activeTab === 'basket' && basket" :class-id="props.currentClass.id" v-bind="basket" />
+        <UiEmptyState v-else-if="activeTab === 'basket'" icon="inbox" title="Bạn chưa được phân công lớp nào." />
+
         <!-- Danh sách đã nộp -->
-        <div class="overflow-hidden rounded-2xl border border-surface-container-highest bg-surface-container-lowest shadow-sm">
+        <div v-else class="overflow-hidden rounded-2xl border border-surface-container-highest bg-surface-container-lowest shadow-sm">
             <div class="flex items-center justify-between border-b border-surface-container-highest bg-surface-container-low px-5 py-4">
                 <h3 class="flex items-center gap-2 text-sm font-bold text-on-surface">
                     <span class="material-symbols-outlined text-[20px] text-primary">check_circle</span>

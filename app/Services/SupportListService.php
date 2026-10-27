@@ -7,6 +7,8 @@ use App\Models\ClassReportStudentSupport;
 use App\Models\ClassSession;
 use App\Models\MiniTestScore;
 use App\Models\StudentAttendance;
+use App\Models\TeacherSessionReport;
+use Illuminate\Support\Collection;
 
 /**
  * Danh sách bổ trợ (BPMN bước 11–12): học viên vắng học, điểm mini test hoặc Big Test dưới 7
@@ -24,8 +26,12 @@ class SupportListService
 
     public const SOURCE_BIG_TEST = 'big_test';
 
+    /** "Học sinh cần chú ý" trong Báo cáo buổi học của GV (source_id = teacher_session_reports.id). */
+    public const SOURCE_TEACHER_REPORT = 'teacher_report';
+
     public const SOURCE_LABELS = [
         self::SOURCE_CLASS_REPORT => 'Báo cáo trực lớp',
+        self::SOURCE_TEACHER_REPORT => 'Báo cáo buổi GV',
         self::SOURCE_ATTENDANCE => 'Vắng học',
         self::SOURCE_MINI_TEST => 'Mini test < 7',
         self::SOURCE_BIG_TEST => 'Big Test < 7',
@@ -92,6 +98,63 @@ class SupportListService
             'reason' => 'Big Test "'.($result->bigTest?->title ?? '#'.$result->big_test_id).'": '.$overall.'/10',
             'score' => (float) $overall,
         ]);
+    }
+
+    /**
+     * "Học sinh cần chú ý" của một buổi — một danh sách chung cho GV (báo cáo buổi) và TA (báo cáo trực lớp), chủ dự án
+     * 27/10/2026: dòng do vắng buổi này, dòng TA báo trong báo cáo trực lớp của buổi, dòng GV báo trong báo cáo buổi.
+     *
+     * @return Collection<int, ClassReportStudentSupport>
+     */
+    public function sessionRows(ClassSession $session): Collection
+    {
+        $attendanceIds = StudentAttendance::where('class_session_id', $session->id)->pluck('id');
+        $reportId = TeacherSessionReport::where('class_session_id', $session->id)->value('id');
+
+        return ClassReportStudentSupport::with('student:id,name')
+            ->where('class_id', $session->class_id)
+            ->where(fn ($q) => $q->where(fn ($q) => $q->where('source', self::SOURCE_ATTENDANCE)->whereIn('source_id', $attendanceIds))
+                ->orWhere(fn ($q) => $q->where('source', self::SOURCE_CLASS_REPORT)->whereHas('classReport', fn ($r) => $r->where('class_session_id', $session->id)))
+                ->orWhere(fn ($q) => $q->where('source', self::SOURCE_TEACHER_REPORT)->where('source_id', $reportId ?? 0)))
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
+     * Ghi "Học sinh cần chú ý" của báo cáo buổi GV vào danh sách chung. Học sinh đã có dòng của buổi (vắng / TA báo) thì
+     * không tạo dòng mới — GV ghi hướng xử lý vào dòng đó nếu dòng chưa có. Học sinh GV bỏ khỏi báo cáo thì gỡ dòng
+     * (nếu chưa xếp buổi bổ trợ).
+     */
+    public function syncTeacherReport(TeacherSessionReport $report, ClassSession $session): void
+    {
+        $others = $this->sessionRows($session)->where('source', '!=', self::SOURCE_TEACHER_REPORT)->groupBy('student_id');
+        $keep = [];
+        foreach ((array) ($report->attention ?? []) as $row) {
+            $studentId = (int) ($row['student_id'] ?? 0);
+            if (! $studentId) {
+                continue;
+            }
+            $action = filled($row['action'] ?? null) ? $row['action'] : null;
+            if ($existing = $others->get($studentId)?->first()) {
+                if ($action && blank($existing->action_plan)) {
+                    $existing->update(['action_plan' => $action]);
+                }
+
+                continue;
+            }
+            $keep[] = $studentId;
+            $this->put(self::SOURCE_TEACHER_REPORT, (int) $report->id, $studentId, (int) $report->class_id, [
+                'absence_session' => null,
+                'reason' => filled($row['reason'] ?? null) ? $row['reason'] : 'GV ghi nhận cần chú ý buổi '.$session->date->format('d/m'),
+                'action_plan' => $action,
+                'score' => null,
+            ]);
+        }
+
+        ClassReportStudentSupport::where('source', self::SOURCE_TEACHER_REPORT)->where('source_id', $report->id)
+            ->whereNotIn('student_id', $keep ?: [0])
+            ->whereDoesntHave('supportSession')
+            ->delete();
     }
 
     /** Gỡ dòng bổ trợ của bản ghi nguồn nếu chưa xếp buổi (đã xếp thì giữ lịch sử). */

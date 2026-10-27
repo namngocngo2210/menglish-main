@@ -77,7 +77,7 @@ defineProps({
                 <UiButton v-if="as.can_view_order && ['pending', 'approved'].includes(as.order_status)" variant="secondary" class="w-full" :href="route('teacher.order-test', as.class_id)">Chi tiết</UiButton>
                 <template v-else-if="as.can_order">
                     <p v-if="as.order_status === 'rejected'" class="mb-sm font-caption text-caption text-error">Order trước bị từ chối: {{ as.order_rejection }}</p>
-                    <UiButton icon="assignment_add" class="w-full" :href="route('teacher.order-test', as.class_id)">Order đề Big Test</UiButton>
+                    <UiButton icon="assignment_add" class="w-full" :href="route('teacher.orders', { class: as.class_id })">Order đề Big Test</UiButton>
                 </template>
             </div>
         </article>

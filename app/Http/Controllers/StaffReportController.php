@@ -135,7 +135,8 @@ class StaffReportController extends Controller
 
     /**
      * Báo cáo giảng dạy tháng theo lớp (mockup 03/17 "Báo cáo chung của giáo viên"): A. Học thuật, B. Vận hành lớp, C. Chất lượng lớp.
-     * Mục tích (checks) có ô ghi chú `{key}_note` khi `note` khác null.
+     * Mục tích (checks) có ô ghi chú `{key}_note` khi `note` khác null. Số buổi, chuyên cần, BTVN, test, report đúng giờ, học sinh
+     * cần lưu ý không còn nhập tay — lấy ở số liệu tự động TeacherMonthlyMetrics (chủ dự án 27/10/2026).
      */
     public const TEACHER_ACADEMIC_CHECKS = [
         'syllabus_provided' => ['label' => 'Syllabus đã cung cấp', 'note' => null],
@@ -150,14 +151,12 @@ class StaffReportController extends Controller
         'ops_support' => ['label' => 'Hỗ trợ từ bộ phận vận hành', 'note' => 'Ghi chú chi tiết...'],
         'facilities' => ['label' => 'Thiết bị/CSVC (order trước 17h)', 'note' => 'Ghi chú tình trạng thiết bị...'],
         'punctuality' => ['label' => 'Giờ giấc (đúng giờ 100%)', 'note' => 'Ghi chú lý do đi trễ (nếu có)...'],
-        'report_on_time' => ['label' => 'Nộp report lớp đúng giờ', 'note' => 'Ghi chú...'],
         'parent_contact' => ['label' => 'Báo cáo/Tương tác phụ huynh', 'note' => 'Ghi chú...'],
     ];
 
     public const TEACHER_QUALITY_CHECKS = [
         'grading' => ['label' => 'GV chấm chữa bài đầy đủ', 'note' => 'Ghi chú...'],
         'voice_feedback' => ['label' => 'GV nhận xét voice', 'note' => 'Ghi chú...'],
-        'test_held' => ['label' => 'Có tổ chức mini/big test', 'note' => 'Tên bài test...'],
     ];
 
     /** Ô chữ của từng lớp: tên khóa giữ như bản 04/10 (situation / attention / solution / support_note) để Tổng quan đọc được. */
@@ -165,9 +164,7 @@ class StaffReportController extends Controller
         'foreign_feedback' => 'Phản hồi của giáo viên nước ngoài',
         'academic_note' => 'Ghi chú học thuật khác',
         'operations_note' => 'Ghi chú vận hành khác',
-        'test_result' => 'Kết quả test (tỉ lệ đạt)',
         'attitude' => 'Thái độ học viên chung',
-        'attention' => 'Học sinh cần lưu ý',
         'situation' => 'Vấn đề phát sinh trong lớp',
         'solution' => 'Giải pháp đã thực hiện',
         'support_note' => 'Đề xuất hỗ trợ từ quản lý',
@@ -176,8 +173,6 @@ class StaffReportController extends Controller
     /** Lựa chọn 2 mức của khối A / C (giá trị lưu => nhãn). */
     public const TEACHER_CHOICES = [
         'program_progress' => ['label' => 'Tiến độ chương trình', 'options' => ['on_track' => 'Đúng tiến độ', 'behind' => 'Chậm tiến độ']],
-        'attendance_level' => ['label' => 'Chuyên cần học sinh', 'options' => ['high' => '95%-100%', 'low' => '< 95%']],
-        'homework_level' => ['label' => 'Tỉ lệ hoàn thành bài tập', 'options' => ['high' => 'Cao (>80%)', 'low' => 'Thấp']],
     ];
 
     /** Khối của báo cáo tuần Học vụ có task follow-up: bảng KPI, chỉ số theo dõi, ghi chú tuần. */
@@ -1265,11 +1260,7 @@ class StaffReportController extends Controller
         $report = $this->structuredReport('teacher_monthly', $month);
         $attendance = $this->structuredReport('teacher_attendance', $month);
         $quality = new TeachingQuality($month);
-        $sessions = ClassSession::query()->forStaff(Auth::id())
-            ->whereBetween('date', [$quality->from->toDateString(), min($quality->to->toDateString(), now()->toDateString())])
-            ->selectRaw('class_id, count(*) as total')->groupBy('class_id')->pluck('total', 'class_id');
-        $classes = collect($quality->classMetrics($quality->classesOf(Auth::user())))
-            ->map(fn (array $c) => [...$c, 'sessions_done' => (int) ($sessions[$c['id']] ?? 0)])->all();
+        $classes = $quality->classMetrics($quality->classesOf(Auth::user()));
         $kept = $report?->data['auto'] ?? null;
         $live = ! $kept || $request->boolean('refresh');
 
@@ -1317,7 +1308,6 @@ class StaffReportController extends Controller
             'general' => ['nullable', 'array'],
             ...collect(self::TEACHER_GENERAL_FIELDS)->keys()->mapWithKeys(fn ($f) => ["general.{$f}" => ['nullable', 'string', 'max:10000']])->all(),
             'classes' => ['nullable', 'array'],
-            'classes.*.sessions' => ['nullable', 'integer', 'min:0', 'max:500'],
             ...collect(self::TEACHER_CHOICES)->mapWithKeys(fn ($c, $f) => ["classes.*.{$f}" => ['nullable', 'in:'.implode(',', array_keys($c['options']))]])->all(),
             'classes.*.checks' => ['nullable', 'array'],
             'classes.*.checks.*' => ['nullable', 'boolean'],
@@ -1326,7 +1316,7 @@ class StaffReportController extends Controller
             ...collect(self::TEACHER_CLASS_TEXTS)->keys()->mapWithKeys(fn ($f) => ["classes.*.{$f}" => ['nullable', 'string', 'max:5000']])->all(),
             'refresh' => ['nullable', 'boolean'],
             ...self::TASK_RULES,
-        ], ['classes.*.sessions.min' => 'Số buổi không âm.', 'tasks.*.due_date.after_or_equal' => 'Hạn xử lý phải từ hôm nay trở đi.']);
+        ], ['tasks.*.due_date.after_or_equal' => 'Hạn xử lý phải từ hôm nay trở đi.']);
 
         // Chỉ nhận lớp giáo viên đang giữ trong tháng báo cáo.
         $quality = new TeachingQuality($data['month']);
@@ -1342,7 +1332,6 @@ class StaffReportController extends Controller
             ->filter(fn ($row, $id) => $classes->has((int) $id))
             ->map(function (array $row, $id) use ($checks, $existing) {
                 $clean = [
-                    'sessions' => is_numeric($row['sessions'] ?? null) ? (int) $row['sessions'] : null,
                     ...collect(self::TEACHER_CHOICES)->keys()->mapWithKeys(fn ($f) => [$f => filled($row[$f] ?? null) ? $row[$f] : null])->all(),
                     'checks' => collect($checks)->keys()->mapWithKeys(fn ($k) => [$k => (bool) ($row['checks'][$k] ?? false)])->all(),
                     'notes' => collect($checks)->filter(fn ($c) => $c['note'] !== null)->keys()
@@ -1418,9 +1407,6 @@ class StaffReportController extends Controller
     private function teacherClassText(array $row, array $checks): string
     {
         $lines = collect();
-        if ($row['sessions'] !== null) {
-            $lines->push('- Số buổi đã dạy: '.$row['sessions']);
-        }
         foreach (self::TEACHER_CHOICES as $field => $choice) {
             if ($row[$field] !== null) {
                 $lines->push('- '.$choice['label'].': '.$choice['options'][$row[$field]]);

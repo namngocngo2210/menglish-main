@@ -2,9 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\TeacherPortalController;
+use App\Models\AcademicRecord;
 use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\ClassReport;
+use App\Models\ClassReportStudentSupport;
 use App\Models\ClassSession;
 use App\Models\Course;
 use App\Models\Student;
@@ -98,7 +101,8 @@ class ClassSessionReportTest extends TestCase
                 ->where('canSubmit', true)
                 ->where('attendanceDone', false)
                 ->where('sessionInfo.id', $session->id)
-                ->where('checklist', fn ($items) => collect($items)->pluck('key')->all() === ['attendance', 'taught', 'remarks', 'homework']))
+                ->where('checklist', fn ($items) => collect($items)->pluck('key')->all() === ['attendance', 'taught', 'homework'])
+                ->where('remarkStudents.0.name', 'Lê Chi')->where('remarkOptions.result', ['Đạt', 'Không đạt']))
             ->getContent();
         // Sidebar: mục Lớp học sáng, không phải Công việc.
         $this->assertMatchesRegularExpression('/<a(?=[^>]*data-menu-item="classes")[^>]*aria-current="page"/', $html);
@@ -115,9 +119,9 @@ class ClassSessionReportTest extends TestCase
         $this->actingAs($this->foreign)->post($this->url($session, 'classes.session-report.store'), $payload)->assertForbidden();
         $this->actingAs($this->teacher)->post($this->url($session, 'classes.session-report.store'), ['content' => ''])->assertSessionHasErrors('content');
 
-        // Gợi ý học sinh vắng buổi này.
+        // Học sinh vắng đã tự vào danh sách cần chú ý chung của buổi → hiện chỉ đọc, không gợi ý nhập lại.
         $this->actingAs($this->teacher)->get($this->url($session))
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('suggestions.0.student_id', (string) $this->student->id)->where('suggestions.0.reason', 'Vắng'));
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('sharedAttention.0.student', 'Lê Chi')->where('sharedAttention.0.source', 'Vắng học')->where('suggestions', []));
 
         $this->actingAs($this->teacher)->post($this->url($session, 'classes.session-report.store'), $payload)
             ->assertSessionHasNoErrors()->assertRedirect(route('classes.show', ['id' => $this->class->id, 'tab' => 'attendance']));
@@ -127,6 +131,8 @@ class ClassSessionReportTest extends TestCase
         $this->assertSame([['student_id' => $this->student->id, 'reason' => 'Vắng', 'action' => 'Gửi bài']], $report->attention);
         $this->assertFalse($report->isLate());
         $this->assertSame(0, ClassReport::count(), 'Không tạo báo cáo trực lớp của trợ giảng.');
+        // Danh sách chung: không tạo dòng trùng cho học sinh vắng, hướng xử lý của GV ghi vào dòng đã có.
+        $this->assertSame(['Gửi bài'], ClassReportStudentSupport::pluck('action_plan')->all());
 
         // Sửa lại: giữ giờ nộp đầu.
         $first = $report->submitted_at->toDateTimeString();
@@ -140,6 +146,73 @@ class ClassSessionReportTest extends TestCase
         // Người khác xem được, chỉ đọc.
         $this->actingAs($this->admin)->get($this->url($session))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->where('canSubmit', false)->where('report.content', 'Unit 3 + 4')->where('report.attention.0.student', 'Lê Chi'));
+    }
+
+    public function test_student_remarks_are_entered_in_the_report_and_shared_with_remarks_screen(): void
+    {
+        $session = $this->makeSession(0);
+        $this->attend($session, 'present');
+        $url = $this->url($session, 'classes.session-report.store');
+
+        $this->actingAs($this->teacher)->post($url, ['content' => 'Unit 3', 'remarks' => [$this->student->id => ['result' => 'Sai giá trị']]])
+            ->assertSessionHasErrors("remarks.{$this->student->id}.result");
+        $this->assertSame(0, TeacherSessionReport::count());
+
+        $this->actingAs($this->teacher)->post($url, [
+            'content' => 'Unit 3',
+            'remarks' => [$this->student->id => ['grammar' => 'Khá', 'attitude' => 'Tốt', 'result' => 'Đạt', 'comment' => 'Con phát biểu tốt']],
+        ])->assertSessionHasNoErrors();
+
+        $record = AcademicRecord::where('module', 'teacher_remarks')->where('record_code', TeacherPortalController::remarkRecordCode($session))->sole();
+        $this->assertSame('completed', $record->status);
+        $this->assertSame('Con phát biểu tốt', $record->data[$this->student->id]['comment'] ?? $record->data[(string) $this->student->id]['comment']);
+
+        // Màn Nhận xét của Cổng GV đọc đúng nhận xét đã nhập trong báo cáo; mở lại báo cáo cũng thấy.
+        $this->actingAs($this->teacher)->get(route('teacher.remarks', ['classId' => $this->class->id, 'session' => $session->id]))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('students.0.remark.grammar', 'Khá'));
+        $this->actingAs($this->admin)->get($this->url($session))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('remarkStudents.0.remark.comment', 'Con phát biểu tốt'));
+    }
+
+    public function test_teacher_and_assistant_share_lesson_content_and_attention_list(): void
+    {
+        $assistant = $this->makeUser('assistant', 'TA Bình');
+        $this->class->update(['assistant_id' => $assistant->id]);
+        $session = $this->makeSession(0);
+        $session->update(['assistant_id' => $assistant->id]);
+        $this->attend($session, 'present');
+        $other = Student::create(['code' => 'HV-2', 'name' => 'Phạm Dung', 'phone' => '0900000002', 'branch_id' => $this->branch->id,
+            'status' => 'studying', 'current_class_id' => $this->class->id]);
+
+        // TA nộp trước GV: chọn buổi thì không nhập "Hôm nay học gì"; báo Phạm Dung cần bổ trợ.
+        $this->actingAs($assistant)->post(route('tasks.class-reports.store'), [
+            'class_id' => $this->class->id, 'class_session_id' => $session->id, 'hom_nay_hoc_gi' => 'Bị bỏ qua', 'board_image_url' => 'https://example.com/a.jpg',
+            'supports' => [['student_id' => $other->id, 'reason' => 'Chưa theo kịp', 'action_plan' => 'Kèm 15 phút']],
+        ])->assertSessionHasNoErrors();
+        $this->assertNotSame('Bị bỏ qua', ClassReport::sole()->topics_learned);
+
+        // GV thấy dòng TA báo (chỉ đọc), báo thêm Lê Chi; Phạm Dung GV ghi lại không tạo dòng trùng.
+        $this->actingAs($this->teacher)->get($this->url($session))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('sharedAttention.0.student', 'Phạm Dung')->where('sharedAttention.0.source', 'Báo cáo trực lớp'));
+        $this->actingAs($this->teacher)->post($this->url($session, 'classes.session-report.store'), ['content' => 'Unit 5: food', 'attention' => [
+            ['student_id' => $this->student->id, 'reason' => 'Mất tập trung', 'action' => 'Báo phụ huynh'],
+            ['student_id' => $other->id, 'reason' => 'Chưa theo kịp', 'action' => 'Khác'],
+        ]])->assertSessionHasNoErrors();
+
+        $this->assertSame('Unit 5: food', ClassReport::sole()->topics_learned, 'Nội dung bài của TA lấy từ báo cáo buổi GV.');
+        $rows = ClassReportStudentSupport::orderBy('id')->get();
+        $this->assertSame([[$other->id, 'class_report', 'Kèm 15 phút'], [$this->student->id, 'teacher_report', 'Báo phụ huynh']],
+            $rows->map(fn ($r) => [(int) $r->student_id, $r->source, $r->action_plan])->all());
+
+        // Form TA của buổi: hiện nội dung GV + cả danh sách chung.
+        $this->actingAs($assistant)->get(route('tasks.class-reports.create', ['class_id' => $this->class->id]))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where("sessionDetails.{$session->id}.teacher_report.content", 'Unit 5: food')
+                ->where("sessionDetails.{$session->id}.listed", fn ($listed) => collect($listed)->pluck('student')->sort()->values()->all() === ['Lê Chi', 'Phạm Dung']));
+
+        // GV bỏ Lê Chi khỏi báo cáo → gỡ dòng của GV (chưa xếp bổ trợ).
+        $this->actingAs($this->teacher)->post($this->url($session, 'classes.session-report.store'), ['content' => 'Unit 5: food'])->assertSessionHasNoErrors();
+        $this->assertSame(['class_report'], ClassReportStudentSupport::pluck('source')->all());
     }
 
     public function test_report_after_deadline_is_late(): void

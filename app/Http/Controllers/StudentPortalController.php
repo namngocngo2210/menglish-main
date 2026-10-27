@@ -15,6 +15,7 @@ use App\Models\Student;
 use App\Models\StudentAttendance;
 use App\Models\Survey;
 use App\Models\SyllabusAssignment;
+use App\Services\Homework\HomeworkStats;
 use App\Services\SafeUploadService;
 use App\Services\SessionLessonService;
 use App\Services\Tuition\PaymentReportService;
@@ -24,6 +25,7 @@ use App\Support\Portal\PortalNotifications;
 use App\Support\TuitionPaymentHistory;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -695,6 +697,8 @@ class StudentPortalController extends Controller
                             'submitted_at' => $sub->submitted_at->toIso8601String(),
                             'original_name' => $sub->original_name,
                             'note' => $sub->note,
+                            'score' => $sub->score,
+                            'feedback' => $sub->feedback,
                             'file_url' => $sub->file_path ? route('portal.student.homework-file', $sub->id) : null,
                         ] : null,
                     ];
@@ -1176,8 +1180,15 @@ class StudentPortalController extends Controller
         $class = $classId ? $classes->firstWhere('id', (int) $classId) : $classes->first();
         abort_if($classId && ! $class, 403, 'Bạn không phụ trách lớp này.');
 
-        $types = ['video', 'vocabulary', 'workbook', 'extra_book', 'bgd_book', 'quiz', 'pronunciation'];
-        $activeTab = in_array($request->query('type'), $types, true) ? $request->query('type') : 'video';
+        // Tab "basket": bài tập GV giao theo syllabus, nộp theo 3 giỏ (gộp màn "Bài nộp & tỉ lệ nộp" cũ, 27/10/2026).
+        $types = ['basket', 'video', 'vocabulary', 'workbook', 'extra_book', 'bgd_book', 'quiz', 'pronunciation'];
+        $activeTab = in_array($request->query('type'), $types, true) ? $request->query('type') : 'basket';
+
+        if ($activeTab === 'basket') {
+            $range = $request->validate(['from' => ['nullable', 'date'], 'to' => ['nullable', 'date', 'after_or_equal:from']]);
+            $to = isset($range['to']) ? Carbon::parse($range['to']) : today();
+            $from = isset($range['from']) ? Carbon::parse($range['from']) : $to->copy()->subDays(30);
+        }
 
         // Chỉ bài nộp thật của học viên thuộc lớp đang chọn (danh sách lớp gồm cả học viên liên kết).
         $studentIds = $class ? $class->roster()->pluck('id') : collect();
@@ -1186,7 +1197,7 @@ class StudentPortalController extends Controller
         $screenKey = $activeTab === 'pronunciation'
             ? '04_Cong_Phu_Huynh_Hoc_Sinh/04_luyen_phat_am'
             : '04_Cong_Phu_Huynh_Hoc_Sinh/03_hoc_tap_cua_toi_nop_bai_tap';
-        $submissions = $studentIds->isEmpty()
+        $submissions = $studentIds->isEmpty() || $activeTab === 'basket'
             ? collect()
             : AcademicRecord::where('screen_key', $screenKey)
                 ->whereIn('data->student_id', $studentIds->map(fn ($id) => (string) $id))
@@ -1196,8 +1207,7 @@ class StudentPortalController extends Controller
 
         return Inertia::render('Portal/TeacherSubmissions', [
             'currentClass' => $class ? ['id' => $class->id, 'name' => $class->name] : null,
-            // Bài tập GV giao nộp theo giỏ (giai đoạn 5 syllabus) xem ở màn "Bài nộp homework".
-            'basketUrl' => $class ? route('teacher.homework-submissions', $class->id) : null,
+            'basket' => $activeTab === 'basket' && $class ? app(HomeworkStats::class)->matrix($class, $from, $to) : null,
             'classes' => $classes->map(fn (ClassModel $c) => ['id' => $c->id, 'name' => $c->name, 'code' => $c->code])->values()->all(),
             'activeTab' => $activeTab,
             'submissions' => $submissions->map(fn (AcademicRecord $sub) => [
@@ -1212,6 +1222,7 @@ class StudentPortalController extends Controller
                 'attachment_name' => $sub->data['attachment_name'] ?? null,
                 'homework_label' => $sub->data['homework_label'] ?? null,
                 'score' => $sub->data['score'] ?? null,
+                'feedback' => $sub->data['feedback'] ?? null,
             ])->values()->all(),
         ]);
     }

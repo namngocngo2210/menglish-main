@@ -359,7 +359,7 @@ class Phase2MockupClassesTest extends TestCase
             ->assertSee('Học sinh cần chú ý')->assertSee('Học sinh Cần Chú Ý')->assertSee('4.5/10')
             ->assertSee('Lương tạm tính tháng 10')->assertSee('300.000 đ')
             ->assertSee('Báo cáo chấm công')->assertSee('Vi phạm &amp; Khoản trừ', false)
-            ->assertSee(route('teacher.remarks', ['classId' => $this->classModel->id, 'session' => $session->id], false), false)
+            ->assertSee(route('classes.session-report', ['id' => $this->classModel->id, 'session' => $session->id], false), false)
             ->assertSee('data-testid="teacher-bottom-nav"', false)->assertSee('Bảng công')->assertSee('Cá nhân')
             ->assertDontSee('12.500.000')->assertDontSee('Nguyễn Văn A');
     }
@@ -398,50 +398,54 @@ class Phase2MockupClassesTest extends TestCase
             ->assertOk()->assertInertia(fn ($page) => $page->where('windowReason', null));
     }
 
-    public function test_teacher_remarks_are_saved_per_session_with_draft_and_monsters_columns(): void
+    public function test_teacher_remarks_are_entered_in_the_session_report_per_session_with_monsters_columns(): void
     {
         $morning = $this->makeSession('2026-10-07', '07:00', '08:00');
         $afternoon = $this->makeSession('2026-10-07', '14:00', '15:00', ['type' => ClassSession::TYPE_MAKEUP]);
         $present = $this->student('Trần Thị B');
         $absent = $this->student('Lê Văn C');
-        foreach ([[$present, 'present', null], [$absent, 'absent', 'Ốm']] as [$st, $status, $note]) {
-            StudentAttendance::create(['class_id' => $this->classModel->id, 'class_session_id' => $morning->id, 'student_id' => $st->id,
-                'user_id' => $this->teacher->id, 'session_date' => '2026-10-07', 'status' => $status, 'note' => $note]);
+        foreach ([$morning, $afternoon] as $session) {
+            foreach ([[$present, 'present', null], [$absent, 'absent', 'Ốm']] as [$st, $status, $note]) {
+                StudentAttendance::create(['class_id' => $this->classModel->id, 'class_session_id' => $session->id, 'student_id' => $st->id,
+                    'user_id' => $this->teacher->id, 'session_date' => '2026-10-07', 'status' => $status, 'note' => $note]);
+            }
         }
 
-        $this->actingAs($this->teacher)->get(route('teacher.remarks', ['classId' => $this->classModel->id, 'session' => $morning->id]))->assertOk()
-            ->assertSee('Nhận xét buổi học cho từng học sinh')->assertSee('Lớp Kids Explorer MK2')->assertSee('Buổi 1: 07/10/2026')
-            ->assertSee('Monsters (Nhóm)')->assertSee('Monsters (Thưởng)')->assertSee('Thực hành ngữ pháp')->assertSee('Tinh thần học tập')
-            ->assertSee('Kết quả')->assertSee('Nhận xét chi tiết')->assertSee('Có mặt')->assertSee('Vắng mặt')
-            ->assertSee('Học sinh vắng mặt...')->assertSee('Lưu nháp')->assertSee('Lưu nhận xét');
+        // Màn Nhận xét cũ đã bỏ (chủ dự án 27/10/2026): liên kết cũ chuyển về Báo cáo buổi học của đúng buổi.
+        $this->actingAs($this->teacher)->get(route('teacher.remarks', ['classId' => $this->classModel->id, 'session' => $morning->id]))
+            ->assertRedirect(route('classes.session-report', ['id' => $this->classModel->id, 'session' => $morning->id]));
+        $this->actingAs($this->teacher)->get(route('classes.session-report', ['id' => $this->classModel->id, 'session' => $morning->id]))->assertOk()
+            ->assertInertia(fn (Assert $p) => $p->component('Classes/SessionReport')
+                ->where('remarkStudents', fn ($rows) => collect($rows)->pluck('absent', 'name')->all() === ['Lê Văn C' => true, 'Trần Thị B' => false]));
 
-        // Lưu nháp buổi sáng, lưu chính thức buổi chiều — hai bản ghi riêng theo buổi.
-        $this->actingAs($this->teacher)->post(route('teacher.remarks.store', $this->classModel->id), [
-            'class_session_id' => $morning->id, 'action' => 'draft',
+        // Hai buổi cùng ngày → hai bản ghi nhận xét riêng theo buổi.
+        $this->actingAs($this->teacher)->post(route('classes.session-report.store', ['id' => $this->classModel->id, 'session' => $morning->id]), [
+            'content' => 'Unit 1',
             'remarks' => [$present->id => ['monsters_group' => '+5', 'monsters_bonus' => '+2', 'grammar' => 'Khá', 'comment' => 'Tiến bộ']],
-        ])->assertRedirect(route('teacher.remarks', ['classId' => $this->classModel->id, 'session' => $morning->id]));
-        $this->actingAs($this->teacher)->post(route('teacher.remarks.store', $this->classModel->id), [
-            'class_session_id' => $afternoon->id, 'action' => 'final',
+        ])->assertSessionHasNoErrors();
+        $this->actingAs($this->teacher)->post(route('classes.session-report.store', ['id' => $this->classModel->id, 'session' => $afternoon->id]), [
+            'content' => 'Học bù Unit 1',
             'remarks' => [$present->id => ['result' => 'Đạt']],
         ])->assertSessionHasNoErrors();
 
         $records = AcademicRecord::where('module', 'teacher_remarks')->orderBy('id')->get();
         $this->assertCount(2, $records);
         $this->assertSame($this->classModel->id.'-2026-10-07-s'.$morning->id, $records[0]->record_code);
-        $this->assertSame('draft', $records[0]->status);
+        $this->assertSame(['completed', 'completed'], $records->pluck('status')->all());
         $this->assertSame('+2', $records[0]->data[$present->id]['monsters_bonus']);
-        $this->assertSame('completed', $records[1]->status);
 
-        $this->actingAs($this->teacher)->get(route('teacher.remarks', ['classId' => $this->classModel->id, 'session' => $morning->id]))
-            ->assertSee('Bản nháp')->assertSee('value="+5"', false)->assertSee('Tiến bộ');
+        $this->actingAs($this->teacher)->get(route('classes.session-report', ['id' => $this->classModel->id, 'session' => $morning->id]))
+            ->assertInertia(fn (Assert $p) => $p->where('remarkStudents', fn ($rows) => collect($rows)->firstWhere('name', 'Trần Thị B')['remark']['monsters_group'] === '+5'));
     }
 
     public function test_teacher_remark_ratings_are_chosen_from_options_and_keep_legacy_free_text(): void
     {
         $session = $this->makeSession('2026-10-07', '07:00', '08:00');
         $student = $this->student('Trần Thị B');
-        $page = route('teacher.remarks', ['classId' => $this->classModel->id, 'session' => $session->id]);
-        $store = route('teacher.remarks.store', $this->classModel->id);
+        StudentAttendance::create(['class_id' => $this->classModel->id, 'class_session_id' => $session->id, 'student_id' => $student->id,
+            'user_id' => $this->teacher->id, 'session_date' => '2026-10-07', 'status' => 'present']);
+        $page = route('classes.session-report', ['id' => $this->classModel->id, 'session' => $session->id]);
+        $store = route('classes.session-report.store', ['id' => $this->classModel->id, 'session' => $session->id]);
 
         $this->actingAs($this->teacher)->get($page)->assertOk()->assertInertia(fn (Assert $p) => $p
             ->where('remarkOptions.grammar', ['Tốt', 'Khá', 'Cần cố gắng'])
@@ -450,13 +454,13 @@ class Phase2MockupClassesTest extends TestCase
 
         // Giá trị ngoài danh sách bị từ chối, không lưu gì.
         $this->actingAs($this->teacher)->post($store, [
-            'class_session_id' => $session->id,
+            'content' => 'Unit 1',
             'remarks' => [$student->id => ['grammar' => 'Xuất sắc', 'result' => 'Đạt mục tiêu bài học']],
         ])->assertSessionHasErrors(["remarks.{$student->id}.grammar", "remarks.{$student->id}.result"]);
         $this->assertSame(0, AcademicRecord::where('module', 'teacher_remarks')->count());
 
         $this->actingAs($this->teacher)->post($store, [
-            'class_session_id' => $session->id,
+            'content' => 'Unit 1',
             'remarks' => [$student->id => ['grammar' => 'Tốt', 'attitude' => 'Cần cố gắng', 'result' => 'Không đạt', 'comment' => 'Cần ôn từ vựng.']],
         ])->assertSessionHasNoErrors();
         $record = AcademicRecord::where('module', 'teacher_remarks')->sole();
@@ -465,11 +469,11 @@ class Phase2MockupClassesTest extends TestCase
         // Nhận xét gõ tay trước đây: lưu lại nguyên giá trị cũ được, đổi sang chữ tự do khác thì không.
         $record->update(['data' => [$student->id => ['attitude' => 'Hăng hái', 'result' => 'Đạt']]]);
         $this->actingAs($this->teacher)->post($store, [
-            'class_session_id' => $session->id,
+            'content' => 'Unit 1',
             'remarks' => [$student->id => ['attitude' => 'Hăng hái', 'result' => 'Đạt']],
         ])->assertSessionHasNoErrors();
         $this->actingAs($this->teacher)->post($store, [
-            'class_session_id' => $session->id,
+            'content' => 'Unit 1',
             'remarks' => [$student->id => ['attitude' => 'Rất hăng hái']],
         ])->assertSessionHasErrors("remarks.{$student->id}.attitude");
         $this->assertSame('Hăng hái', $record->fresh()->data[$student->id]['attitude']);

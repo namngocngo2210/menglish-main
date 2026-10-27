@@ -126,7 +126,8 @@ const hasUnchecked = computed(() => props.shifts.some((s) => !s.checked_in && !c
                             <UiButton size="sm" :variant="shift.attendance_done ? 'ghost' : 'secondary'" icon="fact_check" :href="route('teacher.attendance', { classId: shift.class_id, session: shift.session_id })">{{ shift.attendance_done ? 'Đã điểm danh' : 'Điểm danh' }}</UiButton>
                             <UiButton v-if="shift.syllabus_url" size="sm" variant="secondary" icon="menu_book" :href="shift.syllabus_url">Mở giáo trình</UiButton>
                             <template v-if="!shift.is_support">
-                                <UiButton v-if="shift.can_teach" size="sm" variant="secondary" icon="rate_review" :href="route('teacher.remarks', { classId: shift.class_id, session: shift.session_id })">Nhận xét</UiButton>
+                                <!-- Nhận xét từng học sinh nhập trong Báo cáo buổi học (bỏ màn Nhận xét riêng, chủ dự án 27/10/2026). -->
+                                <UiButton v-if="shift.can_teach" size="sm" variant="secondary" icon="rate_review" :href="route('classes.session-report', { id: shift.class_id, session: shift.session_id })">Báo cáo buổi</UiButton>
                                 <UiButton size="sm" variant="secondary" icon="co_present" :href="route('teacher.lesson-today', { class: shift.class_id })">Bài giảng</UiButton>
                                 <!-- Trợ giảng của ca chỉ điểm danh (chủ dự án 26/10/2026). -->
                                 <template v-if="shift.can_teach">
