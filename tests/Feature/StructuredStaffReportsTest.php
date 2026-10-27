@@ -169,14 +169,16 @@ class StructuredStaffReportsTest extends TestCase
         ]);
         $month = ReportPeriod::currentMonth();
         $payload = ['month' => $month, 'classes' => [$class->id => [
-            'sessions' => 8, 'program_progress' => 'on_track', 'checks' => ['syllabus_provided' => '1'], 'situation' => '2 bạn hay đi muộn', 'support_note' => 'Cần TA kèm',
+            'program_progress' => 'on_track', 'checks' => ['syllabus_provided' => '1'], 'situation' => '2 bạn hay đi muộn', 'support_note' => 'Cần TA kèm',
         ]]];
 
         $this->actingAs($teacher)->post(route('reports.periodic.teacher-monthly.store'), [...$payload, 'intent' => 'draft'])->assertSessionHasNoErrors();
         $report = StaffReport::sole();
         $this->assertSame(['teacher_monthly', 'draft'], [$report->kind, $report->status]);
         $row = $report->data['classes'][$class->id];
-        $this->assertSame([8, 'on_track', '2 bạn hay đi muộn', true], [$row['sessions'], $row['program_progress'], $row['situation'], $row['need_support']]);
+        // Số buổi đã dạy lấy tự động (không nhập tay, chủ dự án 27/10/2026).
+        $this->assertArrayNotHasKey('sessions', $row);
+        $this->assertSame(['on_track', '2 bạn hay đi muộn', true], [$row['program_progress'], $row['situation'], $row['need_support']]);
         $this->assertTrue($row['checks']['syllabus_provided']);
 
         $admin = $this->makeUser('admin');

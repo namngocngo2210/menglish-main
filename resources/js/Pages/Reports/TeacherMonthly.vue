@@ -55,24 +55,20 @@ const saved = (classId) => props.classValues?.[classId] ?? {};
 const value = (classId, field) => saved(classId)[field] ?? null;
 const checked = (classId, key) => !!saved(classId).checks?.[key];
 const note = (classId, key) => saved(classId).notes?.[key] ?? null;
-// Gợi ý chuyên cần / bài tập từ số liệu tháng khi chưa chọn.
-const suggest = (c) => ({
-    program_progress: value(c.id, 'program_progress'),
-    attendance_level: value(c.id, 'attendance_level') ?? (c.attendance === null ? null : c.attendance >= 95 ? 'high' : 'low'),
-    homework_level: value(c.id, 'homework_level') ?? (c.homework === null ? null : c.homework > 80 ? 'high' : 'low'),
-});
+// Số buổi, chuyên cần, BTVN, test, nhận xét / báo cáo buổi lấy tự động ở "Số liệu lớp trong tháng" (chủ dự án 27/10/2026) —
+// GV chỉ nhập nhận định.
+const suggest = (c) => ({ program_progress: value(c.id, 'program_progress') });
 const picks = reactive(Object.fromEntries(props.classes.map((c) => [c.id, suggest(c)])));
 const selected = ref(props.classes[0]?.id ?? null);
 const intent = ref('submit');
 const classOptions = props.classes.map((c) => ({ value: c.id, label: c.name }));
 const pickMonth = (v) => v && v !== props.month && router.get(route('reports.periodic.teacher-monthly'), { month: v });
-// Tô màu lựa chọn theo ý nghĩa: đạt → xanh, chậm / thấp → đỏ, chuyên cần < 95% → xanh dương (mockup 03/17).
+// Tô màu lựa chọn theo ý nghĩa: đúng tiến độ → xanh, chậm → đỏ (mockup 03/17).
 const tones = {
     success: 'border-tertiary-container bg-tertiary-container/10 text-tertiary',
     error: 'border-error bg-error-container/20 text-error',
-    secondary: 'border-secondary-container bg-secondary-container/10 text-secondary',
 };
-const toneOf = (field, opt) => (opt === 'on_track' || opt === 'high' ? 'success' : field === 'attendance_level' ? 'secondary' : 'error');
+const toneOf = (field, opt) => (opt === 'on_track' ? 'success' : 'error');
 const pill = (on, field, opt, shape = 'rounded-full px-md') =>
     ['inline-block cursor-pointer border py-xs font-body-small text-body-small font-medium transition-colors', shape, on ? tones[toneOf(field, opt)] : 'border-surface-variant bg-surface text-on-surface hover:bg-surface-container-low'].join(' ');
 const statusPill = {
@@ -168,9 +164,6 @@ const boxTitle = 'mb-md flex items-center gap-sm border-b border-surface-variant
                 <div class="mt-lg grid grid-cols-1 gap-md rounded-lg border border-surface-variant bg-surface p-md md:grid-cols-3">
                     <UiSelect v-model="selected" label="Chọn lớp học" :options="classOptions" placeholder="-- Chọn lớp học --" :searchable="false" />
                     <UiInput label="Kỳ báo cáo" :model-value="monthLabel" disabled />
-                    <template v-for="c in classes" :key="c.id">
-                        <UiInput v-show="selected === c.id" :name="`classes[${c.id}][sessions]`" label="Số buổi đã dạy" type="number" min="0" placeholder="Nhập số buổi..." :value="value(c.id, 'sessions') ?? c.sessions_done" />
-                    </template>
                 </div>
                 <p v-if="!classes.length" class="mt-sm font-body-small text-body-small italic text-on-surface-variant">Không có lớp nào bạn dạy trong tháng này.</p>
             </div>
@@ -242,16 +235,6 @@ const boxTitle = 'mb-md flex items-center gap-sm border-b border-surface-variant
                     <section :class="[box, 'flex flex-col lg:p-lg xl:col-span-7']">
                         <h3 :class="boxTitle"><span class="material-symbols-outlined text-primary-container" aria-hidden="true">star</span>C. Chất lượng lớp học</h3>
                         <div class="flex-1 space-y-md">
-                            <div class="grid grid-cols-1 gap-md rounded-lg border border-surface-variant bg-surface-container-low p-md sm:grid-cols-2">
-                                <div v-for="field in ['attendance_level', 'homework_level']" :key="field">
-                                    <span class="mb-xs block font-label text-label uppercase text-on-surface-variant">{{ choices[field].label }}</span>
-                                    <div class="flex flex-wrap gap-sm">
-                                        <label v-for="(label, opt) in choices[field].options" :key="opt" :class="pill(picks[c.id][field] === opt, field, opt)">
-                                            <input v-model="picks[c.id][field]" type="radio" class="sr-only" :name="`classes[${c.id}][${field}]`" :value="opt" />{{ label }}
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
                             <div class="grid grid-cols-1 gap-x-md gap-y-sm sm:grid-cols-2">
                                 <div v-for="(check, key) in qualityChecks" :key="key" class="flex flex-col gap-xs rounded-md border border-surface-variant bg-surface-container-lowest p-sm">
                                     <input type="hidden" :name="`classes[${c.id}][checks][${key}]`" value="0" />
@@ -259,12 +242,10 @@ const boxTitle = 'mb-md flex items-center gap-sm border-b border-surface-variant
                                     <UiInput :name="`classes[${c.id}][notes][${key}]`" :placeholder="check.note" :value="note(c.id, key)" :aria-label="`${check.label}: ghi chú`" />
                                 </div>
                             </div>
-                            <div class="grid grid-cols-1 gap-md border-t border-surface-variant pt-md sm:grid-cols-2">
-                                <UiInput :name="`classes[${c.id}][test_result]`" :label="classTexts.test_result" placeholder="VD: 85% học viên pass" :value="value(c.id, 'test_result')" />
+                            <div class="border-t border-surface-variant pt-md">
                                 <UiInput :name="`classes[${c.id}][attitude]`" :label="classTexts.attitude" placeholder="VD: Tích cực, hăng hái..." :value="value(c.id, 'attitude')" />
                             </div>
                             <div class="space-y-md border-t border-surface-variant pt-md">
-                                <UiTextarea :name="`classes[${c.id}][attention]`" :label="classTexts.attention" :rows="3" placeholder="- Nguyễn Văn A: Thường xuyên không làm bài tập về nhà..." :value="value(c.id, 'attention')" />
                                 <div class="grid grid-cols-1 gap-md md:grid-cols-2">
                                     <UiTextarea :name="`classes[${c.id}][situation]`" :label="classTexts.situation" :rows="3" placeholder="Mô tả vấn đề..." :value="value(c.id, 'situation')" />
                                     <UiTextarea :name="`classes[${c.id}][solution]`" :label="classTexts.solution" :rows="3" placeholder="Cách xử lý của GV..." :value="value(c.id, 'solution')" />
