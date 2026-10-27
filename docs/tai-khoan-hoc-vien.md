@@ -23,6 +23,7 @@ Yêu cầu: có màn quản lý và cấp tài khoản đăng nhập cho học v
 3. **Hai thao tác theo lô** trên các dòng được chọn:
    - "Tạo tài khoản" cho học viên chưa có.
    - "Cấp lại mật khẩu tạm" cho học viên đã có tài khoản thuần học viên.
+   - Không chọn dòng nào mà bấm "Tạo tài khoản" (nhãn "Tạo tài khoản tất cả (N)") → tạo cho **mọi** học viên chưa có tài khoản khớp bộ lọc hiện tại, ở tất cả các trang (`scope=all` + tham số bộ lọc), có hộp xác nhận. Mỗi lần bấm tối đa 200 em; còn dư thì thông báo số còn lại để bấm tiếp, file đăng nhập gộp các lần.
    - Sau mỗi lô hiện nút "Tải file đăng nhập (.xlsx)".
    - Mật khẩu tạm nằm trong session đã mã hoá và **chỉ tải được một lần**. Tải xong thì xoá; rời trang mà chưa tải thì phải cấp lại.
 4. **Quyền mới** `student.manage_account`.
