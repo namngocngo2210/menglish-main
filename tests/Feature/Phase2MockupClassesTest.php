@@ -260,19 +260,18 @@ class Phase2MockupClassesTest extends TestCase
         $staff = $this->user('academic_staff', 'Học vụ MK2');
 
         $response = $this->actingAs($staff)->get(route('students.index'))->assertOk()
-            ->assertSee('Hồ sơ học sinh')->assertSee('Quản lý và tra cứu thông tin học sinh toàn hệ thống.')
-            ->assertSee('Tổng số học sinh')->assertSee('Tìm học sinh hoặc SĐT...')->assertSee('role="search"', false)
-            ->assertSee('Họ tên &amp; Ngày sinh', false)->assertSee('Thông tin liên hệ')->assertSee('Lớp hiện tại')
-            ->assertSee('12/05/2008')->assertSee('namanh@example.com')->assertSee('MK2-01')->assertSee('Chưa có lớp')
-            ->assertSee('Chi tiết')->assertSee('Liên kết lớp khác')
+            ->assertSee('Học viên')->assertSee('Tìm tên, SĐT, mã học viên...')->assertSee('role="search"', false)
+            ->assertSee('SĐT liên hệ')->assertSee('Học từ')->assertSee('Chưa xếp lớp')
+            ->assertSee('Xem hồ sơ')->assertSee('Liên kết lớp khác')
             // Form liên kết lớp nằm trong modal Vue (chỉ render khi mở) → kiểm tra dữ liệu lớp liên kết được gửi xuống trang.
-            ->assertInertia(fn (Assert $page) => $page->component('Students/Index')->has('linkableClasses'))
+            ->assertInertia(fn (Assert $page) => $page->component('Students/Index')->has('linkableClasses')
+                ->where('statusTabs', fn ($tabs) => collect($tabs)->pluck('value')->all() === array_keys(Student::STATUSES)))
             ->assertDontSee('Học thử')->assertDontSee('Blacklist');
-        foreach (Student::STATUSES as $key => $label) {
-            $response->assertSee('name="statuses[]" value="'.$key.'"', false)->assertSee($label);
+        foreach (Student::STATUSES as $label) {
+            $response->assertSee($label);
         }
 
-        // Chip trạng thái chọn nhiều.
+        // Tab trạng thái; link cũ statuses[] (chọn nhiều) vẫn lọc được.
         $this->actingAs($staff)->get(route('students.index', ['statuses' => ['deferred', 'waiting_start']]))
             ->assertSee('Lê Hồng Minh')->assertSee('Trần Hoàng Long')->assertDontSee('Nguyễn Nam Anh');
 
@@ -299,14 +298,13 @@ class Phase2MockupClassesTest extends TestCase
 
         $this->actingAs($staff)->get(route('students.show', $student->id))->assertOk()
             ->assertSee('Chi tiết hồ sơ học sinh')->assertSee('15/08/2012 (14 tuổi)')
-            ->assertSee('Mã học sinh')->assertSee('Ngày bắt đầu học')
-            ->assertSee('Chỉnh sửa thông tin')->assertSee('Trường học')->assertSee('Ghi chú đặc biệt')
-            ->assertSee('Trạng thái hiện tại')->assertSee('Đổi trạng thái')->assertSee('Thời gian cập nhật')
-            ->assertSee('Lộ trình học tập &amp; Danh sách buổi học', false)
+            ->assertSee('Bắt đầu học')->assertSee('Sửa thông tin')->assertSee('Sửa thông tin học viên')
+            ->assertSee('Trường học')->assertSee('Ghi chú đặc biệt')->assertSee('Đổi trạng thái')
+            ->assertSee('Buổi học &amp; điểm danh', false)
             ->assertSee('Thứ 2, 05/10/2026')->assertSee('Unit 4: Future Tech &amp; AI', false)->assertSee('Grammar: Will vs Be going to')
-            ->assertSee('Đã hoàn thành')->assertSee('Sắp diễn ra')->assertSee('Chưa bắt đầu')
-            ->assertSee('Lớp học hiện tại')->assertSee('Chi tiết lộ trình')->assertSee('Chuyên cần')->assertSee('Số buổi vắng:')
-            ->assertSee('Thông tin học phí')
+            ->assertSee('Sắp diễn ra')->assertSee('Sắp tới')
+            ->assertSee('Lớp chính')->assertSee('Lớp đang học')->assertSee('Chuyên cần')
+            ->assertSee('Học phí')
             ->assertDontSee('>Học thử<', false);
 
         $this->actingAs($staff)->put(route('students.update', $student->id), [
@@ -325,8 +323,8 @@ class Phase2MockupClassesTest extends TestCase
         // Học thuật: xem được lớp/điểm danh, không sửa, không đổi trạng thái, không học phí/liên hệ.
         $this->actingAs($this->user('academic_lead', 'Học thuật MK2'))->get(route('students.scoped', $student->id))->assertOk()
             ->assertSee('Chi tiết hồ sơ học sinh')
-            ->assertSee('Bạn không có quyền sửa thông tin này')
-            ->assertSee('Quyền xem duy nhất')
+            ->assertDontSee('Sửa thông tin')
+            ->assertDontSee('Đổi trạng thái')
             ->assertSee('data-section="academic"', false)
             ->assertDontSee('data-section="tuition"', false)
             ->assertDontSee('data-section="contact"', false)
@@ -336,7 +334,7 @@ class Phase2MockupClassesTest extends TestCase
         $staff = $this->user('academic_staff', 'Học vụ MK2');
         $this->actingAs($staff)->get(route('students.scoped', $student->id))->assertOk()
             ->assertSee('data-testid="student-edit-form"', false)
-            ->assertDontSee('Quyền xem duy nhất');
+            ->assertSee('Đổi trạng thái');
     }
 
     // ── 7. Cổng giáo viên ─────────────────────────────────────────────────
