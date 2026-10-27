@@ -185,7 +185,7 @@ class TeacherLessonTodayTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page->where('lesson.score_url', fn ($url) => str_contains((string) $url, '/teacher/scores/'.$this->class->id))->etc());
 
         $this->actingAs($this->teacher)->post(route('teacher.lesson-today.taught', $this->class->id), ['class_session_id' => $this->today->id]);
-        $tab = fn () => $this->actingAs($this->staff)->get(route('classes.show', ['id' => $this->class->id, 'tab' => 'syllabus']));
+        $tab = fn () => $this->actingAs($this->staff)->get(route('classes.show', ['id' => $this->class->id, 'tab' => 'academic']));
         $tab()->assertInertia(fn (AssertableInertia $page) => $page
             ->where('syllabus.lessons.0.taught_at', fn ($v) => $v !== null)
             ->where('syllabus.lessons.0.missing_score', true)

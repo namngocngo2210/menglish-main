@@ -794,9 +794,14 @@ class TeacherPortalController extends Controller
         });
 
         $when = $session->date->isToday() ? 'hôm nay' : 'ngày '.$session->date->format('d/m/Y').' (điểm danh bù)';
+        $message = "Đã lưu điểm danh {$count} học viên lớp {$class->name} buổi {$when}.";
 
-        return redirect()->route('teacher.attendance', ['classId' => $class->id, 'session' => $session->id])
-            ->with('success', "Đã lưu điểm danh {$count} học viên lớp {$class->name} buổi {$when}.");
+        // Ngăn điểm danh mở từ Trang lớp: về lại trang lớp (ngăn đóng, bảng buổi học tải lại).
+        if ($request->hasHeader('X-Remote-Modal')) {
+            return back()->with('success', $message);
+        }
+
+        return redirect()->route('teacher.attendance', ['classId' => $class->id, 'session' => $session->id])->with('success', $message);
     }
 
     /**
@@ -965,6 +970,12 @@ class TeacherPortalController extends Controller
 
         $categoryLabel = fn (string $key) => Homework::CATEGORIES[$key][0] ?? $key;
 
+        // Ngăn kéo "Giao bài" mở từ Báo cáo buổi / Trang lớp (header X-Remote-Modal): form gọn cho đúng một buổi,
+        // hạn nộp mặc định = giờ vào buổi kế tiếp. Lưu xong (homeworkStore → back) ngăn đóng, trang nền tải lại.
+        if ($request->hasHeader('X-Remote-Modal') && ! $editing) {
+            return $this->homeworkDrawer($class, $request->integer('session') ?: null);
+        }
+
         return Inertia::render('Teacher/Homework', [
             'classroom' => ['id' => $class->id, 'name' => $class->name, 'code' => $class->code],
             'categories' => collect(Homework::CATEGORIES)->map(fn (array $c, string $key) => [
@@ -1035,6 +1046,50 @@ class TeacherPortalController extends Controller
             'items' => array_filter(['workbook' => $data['homework_guide'] ?? null, 'quiz' => $data['homework_quizizz'] ?? null, 'video' => $data['homework_video'] ?? null], fn ($v) => filled($v)),
             'quizizz_url' => $data['quizizz_url'] ?? null,
         ];
+    }
+
+    private function homeworkDrawer(ClassModel $class, ?int $sessionId)
+    {
+        $session = $sessionId ? ClassSession::where('class_id', $class->id)->whereKey($sessionId)->first() : null;
+        abort_unless($session, 404);
+        $lesson = app(\App\Services\SessionLessonService::class)->lessonsFor(collect([$session]))[$session->id] ?? null;
+        $next = ClassSession::where('class_id', $class->id)->whereKeyNot($session->id)
+            ->whereIn('type', [ClassSession::TYPE_REGULAR, ClassSession::TYPE_MAKEUP])->where('status', '!=', 'cancelled')
+            ->where(fn ($q) => $q->whereDate('date', '>', $session->date->toDateString())
+                ->orWhere(fn ($q) => $q->whereDate('date', $session->date->toDateString())->where('start_time', '>', $session->start_time?->format('H:i:s') ?? '23:59:59')))
+            ->orderBy('date')->orderBy('start_time')->first();
+        $existing = Homework::where('class_id', $class->id)->where('class_session_id', $session->id)->latest('id')->first();
+        $lessonId = $lesson && ($lesson['no'] ?? null) ? $this->syllabusLessonIdFor($class, (int) $lesson['no']) : 0;
+
+        return Inertia::render('Classes/HomeworkDrawer', [
+            'classroom' => ['id' => $class->id, 'name' => $class->name],
+            'session' => [
+                'id' => $session->id,
+                'label' => trim(($lesson['no'] ?? null ? 'Buổi '.$lesson['no'].' · ' : '').$session->date->format('d/m').(($lesson['title'] ?? null) ? ' · '.$lesson['title'] : '')),
+            ],
+            'categories' => collect(Homework::CATEGORIES)->map(fn (array $c, string $key) => [
+                'key' => $key, 'label' => $c[0], 'icon' => $c[1], 'placeholder' => $c[2],
+            ])->values()->all(),
+            'dueDefault' => $next
+                ? $next->date->format('Y-m-d').'T'.($next->start_time?->format('H:i') ?? '08:00')
+                : $session->date->copy()->addDays(3)->format('Y-m-d').'T20:00',
+            'dueHint' => $next ? 'Mặc định: giờ vào buổi kế tiếp ('.$next->date->format('d/m').')' : null,
+            'prefill' => $this->homeworkPrefill($class, $lessonId),
+            'existing' => $existing ? [
+                'title' => $existing->title,
+                'items' => collect($existing->items ?? [])->filter(fn ($t) => filled($t))->keys()->map(fn ($k) => Homework::CATEGORIES[$k][0] ?? $k)->values()->all(),
+                'url' => route('teacher.homework', ['classId' => $class->id, 'edit' => $existing->id]),
+            ] : null,
+        ]);
+    }
+
+    /** Bài syllabus số $sessionNo của chặng lớp đang học (để điền sẵn ngăn kéo giao bài); 0 = không có. */
+    private function syllabusLessonIdFor(ClassModel $class, int $sessionNo): int
+    {
+        $assignment = SyllabusAssignment::open()->where('class_id', $class->id)->first();
+        $row = $assignment ? app(ClassSyllabus::class)->lessons($assignment)->first(fn (array $r) => (int) $r['lesson']->session_no === $sessionNo) : null;
+
+        return (int) ($row['lesson']->id ?? 0);
     }
 
     public function homeworkStore(Request $request, int $classId)
@@ -1352,7 +1407,12 @@ class TeacherPortalController extends Controller
     // ───────────────────────── NHẬN XÉT BUỔI HỌC ─────────────────────────
 
     /** Trường nhận xét từng học sinh (mockup 05_nhan_xet_buoi_hoc_cho_tung_hoc_sinh). */
-    private const REMARK_FIELDS = ['monsters_group', 'monsters_bonus', 'grammar', 'attitude', 'result', 'comment'];
+    /**
+     * Cột nhận xét buổi của mỗi học sinh. Bảng mới của báo cáo buổi (chủ dự án 27/10/2026): Điểm thưởng (bonus), Điểm BTVN
+     * (hw_score), Thực hành trên lớp (practice: tên cột GV tự đặt => nội dung), Tinh thần, Kết quả, Nhận xét.
+     * monsters_* / grammar là cột của bảng cũ — vẫn đọc được ở bản ghi cũ.
+     */
+    private const REMARK_FIELDS = ['monsters_group', 'monsters_bonus', 'grammar', 'bonus', 'hw_score', 'practice', 'attitude', 'result', 'comment'];
 
     /** Cột nhận xét chọn từ danh sách (không gõ tự do). Giá trị gõ tay trước đây vẫn giữ được khi lưu lại. */
     public const REMARK_OPTIONS = [
@@ -1435,7 +1495,7 @@ class TeacherPortalController extends Controller
     /** Các cột nhận xét của một học sinh (thiếu cột → chuỗi rỗng). */
     public static function remarkFields(array $remark): array
     {
-        return collect(self::REMARK_FIELDS)->mapWithKeys(fn ($f) => [$f => $remark[$f] ?? ''])->all();
+        return collect(self::REMARK_FIELDS)->mapWithKeys(fn ($f) => [$f => $f === 'practice' ? (array) ($remark[$f] ?? []) : ($remark[$f] ?? '')])->all();
     }
 
     /** @return Collection<int|string, array<string, mixed>> nhận xét đã lưu theo mã học sinh */

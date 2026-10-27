@@ -1,13 +1,15 @@
 <script setup>
 /**
- * Báo cáo buổi học của giáo viên chính (chủ dự án 27/10/2026), mở từ nút trên từng buổi ở Trang lớp.
- * 1. Thông tin buổi (chỉ đọc) · 2. Việc của buổi (lấy từ màn điểm danh / bài giảng / bài tập) · 3. Nhận xét từng học sinh · 4. GV ghi nhận.
- * Chỉ để xem (không duyệt), không ảnh; bắt buộc đã điểm danh. Người khác (Admin, Học vụ…) mở → chỉ đọc.
+ * Báo cáo buổi học của giáo viên chính, mở từ bảng Buổi học ở Trang lớp. Một cột, từ trên xuống:
+ *   Việc của buổi (điểm danh · đã dạy · BTVN, mở ngăn để làm ngay) → Nhận xét học sinh (điểm thưởng, BTVN buổi trước,
+ *   cột Thực hành do GV đặt tên, tinh thần, kết quả, nhận xét) → Nội dung buổi học → Học sinh cần chú ý → Sự vụ trong buổi
+ *   → thanh nộp (hạn nộp, ghi nhận Đã dạy). Người khác GV chính mở → cùng bố cục, chỉ đọc.
  */
-import { reactive, ref } from 'vue';
-import { Link } from '@inertiajs/vue3';
+import { computed, reactive, ref } from 'vue';
+import { Link, usePage } from '@inertiajs/vue3';
 import SessionTrialGuests from '@/Components/Teacher/SessionTrialGuests.vue';
-import { useBackLink } from '@/lib/backLink';
+import { openRemoteModal } from '@/lib/remoteModal';
+import { route } from '@/lib/route';
 
 defineOptions({ layout: { title: 'Báo cáo buổi học' } });
 
@@ -28,209 +30,262 @@ const props = defineProps({
     remarkStudents: { type: Array, default: () => [] },
     remarkOptions: { type: Object, default: () => ({}) },
     trialGuests: { type: Object, default: () => ({ scope: 'upcoming', items: [] }) },
+    homeworkColumns: { type: Array, default: () => [] },
+    homeworkTitle: { type: String, default: null },
+    practiceColumns: { type: Array, default: () => [] },
+    incidents: { type: Array, default: () => [] },
+    severities: { type: Object, default: () => ({}) },
 });
-const back = useBackLink(() => props.classInfo.url);
 
-const content = ref(props.report?.content ?? props.lessonText ?? '');
+const page = usePage();
+const errors = computed(() => page.props.errors ?? {});
+const errorList = computed(() => Object.values(errors.value).filter((v) => typeof v === 'string'));
+const edit = computed(() => props.canSubmit);
 
-// Học sinh cần chú ý: danh sách chung với TA. Đã có sẵn (vắng buổi này / TA báo) hiện chỉ đọc; GV thêm học sinh khác
-// (gợi ý nhận xét "Cần cố gắng", "Không đạt").
+const WEEKDAYS = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+const title = computed(() => {
+    const day = props.sessionInfo.weekday !== undefined && props.sessionInfo.weekday !== null ? `${WEEKDAYS[props.sessionInfo.weekday]}, ` : '';
+    return `Báo cáo buổi${props.sessionInfo.no ? ` ${props.sessionInfo.no}` : ''} · ${day}${props.sessionInfo.date.slice(0, 5)}`;
+});
+const meta = computed(() =>
+    [props.sessionInfo.time, props.sessionInfo.room ? `Phòng ${props.sessionInfo.room}` : null, props.sessionInfo.lesson, props.sessionInfo.teacher ? `GV ${props.sessionInfo.teacher}` : null]
+        .filter(Boolean)
+        .join(' · '),
+);
+
+// ── Việc của buổi: điểm danh / BTVN mở ngăn bên phải ngay trên báo cáo.
+function openItem(item) {
+    if (item.drawer) openRemoteModal(item.link.url, { size: 'drawer' });
+}
+
+// ── Nhận xét học sinh
 let seq = 1;
-const row = (r = {}, suggested = false) => ({ id: seq++, student_id: r.student_id ? String(r.student_id) : '', reason: r.reason ?? '', action: r.action ?? '', suggested });
-const attention = ref(props.report ? props.report.attention.map((r) => row(r)) : props.suggestions.map((r) => row(r, true)));
-const addRow = () => attention.value.push(row());
-const removeRow = (index) => attention.value.splice(index, 1);
+const present = computed(() => props.remarkStudents.filter((s) => !s.absent));
+const absent = computed(() => props.remarkStudents.filter((s) => s.absent));
+const showAbsent = ref(false);
+// Cột Thực hành: GV đặt tên ngay trên tiêu đề, thêm / bỏ cột tại chỗ. Giá trị từng học sinh giữ theo id cột.
+const columns = ref(props.practiceColumns.map((label) => ({ id: seq++, label })));
+const remarks = reactive(
+    Object.fromEntries(
+        props.remarkStudents.map((s) => {
+            const r = s.remark ?? {};
+            const practice = r.practice && typeof r.practice === 'object' ? r.practice : {};
+            return [
+                s.id,
+                {
+                    bonus: r.bonus ?? '',
+                    hw_score: r.hw_score ?? '',
+                    attitude: r.attitude ?? '',
+                    result: r.result ?? '',
+                    comment: r.comment ?? '',
+                    practice: Object.fromEntries(columns.value.map((c) => [c.id, practice[c.label] ?? ''])),
+                },
+            ];
+        }),
+    ),
+);
+const editingColumn = ref(null);
+function addColumn() {
+    if (columns.value.length >= 6) return;
+    const col = { id: seq++, label: '' };
+    columns.value.push(col);
+    editingColumn.value = col.id;
+}
+const removeColumn = (idx) => columns.value.splice(idx, 1);
+const vFocus = { mounted: (el) => el.focus() };
 
-// Nhận xét từng học sinh (nơi nhập duy nhất). Chọn "Cần cố gắng" / "Không đạt" → thêm vào "Học sinh cần chú ý".
-const REMARK_FIELDS = [
-    ['monsters_group', 'Monsters (Nhóm)', 'VD: +5'],
-    ['monsters_bonus', 'Monsters (Thưởng)', 'VD: +2'],
-    ['grammar', 'Thực hành ngữ pháp'],
-    ['attitude', 'Tinh thần học tập'],
-    ['result', 'Kết quả'],
-];
-const WEAK = { grammar: 'Cần cố gắng', attitude: 'Cần cố gắng', result: 'Không đạt' };
-const remarkLabels = Object.fromEntries(REMARK_FIELDS.map(([key, label]) => [key, label]));
+const HW_ICON = { done: ['check_circle', 'text-tertiary', 'Đã nộp đúng hạn'], late: ['schedule', 'text-warning', 'Nộp trễ'], missing: ['cancel', 'text-error', 'Chưa nộp'] };
 const choicesFor = (key, current) => {
     const options = props.remarkOptions[key] ?? [];
     return current && !options.includes(current) ? [...options, current] : options;
 };
-function onRemarkPick(student, key, value) {
+const WEAK = { attitude: 'Cần cố gắng', result: 'Không đạt' };
+const FIELD_LABEL = { attitude: 'Tinh thần', result: 'Kết quả' };
+function onPick(student, key, value) {
     if (WEAK[key] !== value || attention.value.some((r) => r.student_id === String(student.id))) return;
-    attention.value.push(row({ student_id: student.id, reason: `Nhận xét: ${remarkLabels[key]} ${value.toLowerCase()}` }, true));
+    attention.value.push(row({ student_id: student.id, reason: `Nhận xét: ${FIELD_LABEL[key]} ${value.toLowerCase()}` }, true));
 }
-// Giữ giá trị đang gõ trong state: chọn "Cần cố gắng"/"Không đạt" thêm dòng cần chú ý → trang vẽ lại, ô chỉ gắn :value sẽ bị xóa trắng.
-const remarks = reactive(
-    Object.fromEntries(props.remarkStudents.map((student) => [student.id, { comment: '', ...Object.fromEntries(Object.entries(student.remark).map(([key, value]) => [key, value ?? ''])) }])),
-);
-const hasRemark = (student) => Object.values(student.remark).some((v) => v);
-const attColor = (student) => (student.absent ? 'error' : student.att_status === 'late' ? 'warning' : student.att_status === 'present' ? 'success' : 'neutral');
-const attLabel = { present: 'Có mặt', late: 'Đi muộn', absent: 'Vắng', excused: 'Vắng có phép', none: 'Chưa điểm danh' };
 
-const fieldCls = 'w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-sm py-xs font-body-small text-body-small';
-const labelCls = 'mb-xs block font-label text-label uppercase text-on-surface-variant';
-const sectionCls = 'space-y-md rounded-2xl border border-outline-variant bg-surface-container-lowest p-md shadow-sm';
-// Bảng nhận xét: tiêu đề cột được xuống dòng, ô sát hơn để thấy đủ cột Nhận xét mà không phải cuộn ngang trên màn rộng.
-const tableCls = '[&_th]:!whitespace-normal [&_th]:!px-sm [&_td]:!px-sm [&_td]:align-top [&_tr>*:first-child]:!min-w-[11rem]';
-const narrowCls = 'mx-auto w-full max-w-4xl';
-const headingCls = 'flex items-center gap-sm font-h3 text-h3 text-on-surface';
+// ── Học sinh cần chú ý (danh sách chung của buổi với TA / Học vụ)
+const row = (r = {}, suggested = false) => ({ id: seq++, student_id: r.student_id ? String(r.student_id) : '', reason: r.reason ?? '', action: r.action ?? '', student: r.student ?? null, suggested });
+const attention = ref(props.report ? props.report.attention.map((r) => row(r)) : props.canSubmit ? props.suggestions.map((r) => row(r, true)) : []);
+const addAttention = () => attention.value.push(row());
+
+// ── Sự vụ trong buổi (ghi vào Nhật ký sự vụ của lớp)
+const incidents = ref(props.incidents.map((i) => ({ key: seq++, ...i })));
+const addIncident = () => incidents.value.push({ key: seq++, id: null, title: '', content: '', severity: 'normal' });
+const SEVERITY_TONE = { normal: 'neutral', important: 'warning', urgent: 'error' };
+
+const content = ref(props.report?.content ?? props.lessonText ?? '');
+
+const card = 'rounded-xl border border-surface-container-highest bg-surface-container-lowest p-lg';
+const h2 = 'font-h3 text-h3 text-on-surface';
+const field = 'w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-sm py-xs font-body-small text-body-small text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/50';
+const th = 'border-b border-surface-container px-sm py-xs text-left text-xs font-semibold text-on-surface-variant';
+const td = 'border-b border-surface-container px-sm py-xs align-top';
+const sticky = 'sticky left-0 z-[1] bg-surface-container-lowest';
+const attLabel = { present: 'Có mặt', late: 'Đi muộn', absent: 'Vắng', excused: 'Vắng có phép', none: 'Chưa điểm danh' };
 </script>
 
 <template>
-    <!-- Bảng "Nhận xét học sinh" trải hết chiều rộng; các khối còn lại giữ khổ đọc max-w-4xl. -->
-    <div class="space-y-md pb-24 md:pb-0">
-        <header :class="narrowCls" class="flex items-center gap-sm rounded-2xl border border-outline-variant bg-surface-container-lowest p-md shadow-sm">
-            <UiButton variant="ghost" icon="arrow_back" :href="back.href" data-back-link aria-label="Quay lại" title="Quay lại" />
-            <div class="min-w-0 flex-1">
-                <h1 class="flex flex-wrap items-center gap-sm font-h2 text-h2 text-on-surface">
-                    Báo cáo buổi học
-                    <UiBadge v-if="report" :color="report.late ? 'warning' : 'success'">{{ report.late ? 'Đã nộp · trễ hạn' : 'Đã nộp' }}</UiBadge>
-                    <UiBadge v-else-if="overdue" color="error">Quá hạn nộp</UiBadge>
-                </h1>
-                <p class="font-body-small text-body-small text-on-surface-variant">
-                    {{ classInfo.name }} · {{ sessionInfo.no ? `Buổi ${sessionInfo.no} · ` : '' }}{{ sessionInfo.date }}
-                    <template v-if="!report"> · Hạn nộp {{ deadline }}</template>
-                </p>
+    <UiForm :action="route('classes.session-report.store', { id: classInfo.id, session: sessionInfo.id })" method="post" class="mx-auto max-w-6xl space-y-md pb-28" #default="{ processing }">
+        <!-- Đầu trang -->
+        <header class="space-y-1">
+            <nav aria-label="Đường dẫn" class="flex flex-wrap items-center gap-xs font-body-small text-body-small text-on-surface-variant">
+                <Link :href="route('classes.index')" class="font-semibold text-primary hover:underline">Danh sách lớp</Link>
+                <span aria-hidden="true">/</span>
+                <Link :href="classInfo.url" class="font-semibold text-primary hover:underline">{{ classInfo.name }}</Link>
+                <span aria-hidden="true">/</span>
+                <span>Báo cáo buổi</span>
+            </nav>
+            <div class="flex flex-wrap items-center gap-sm">
+                <h1 class="font-h2 text-h2 text-on-surface">{{ title }}</h1>
+                <UiBadge v-if="report" :color="report.late ? 'warning' : 'success'" pill>{{ report.late ? 'Đã nộp · trễ hạn' : 'Đã nộp' }}</UiBadge>
+                <UiBadge v-else-if="overdue" color="error" pill>Quá hạn nộp</UiBadge>
+                <UiBadge v-else color="neutral" pill>Chưa nộp</UiBadge>
             </div>
+            <p v-if="meta" class="font-body-base text-body-base text-on-surface-variant">{{ meta }}</p>
         </header>
 
-        <div :class="narrowCls"><SessionTrialGuests :guests="trialGuests" /></div>
+        <UiAlert v-if="!canSubmit" type="info">Bạn đang xem báo cáo của giáo viên chính (chỉ đọc).</UiAlert>
+        <UiErrors v-if="errorList.length" :messages="errorList" />
+        <SessionTrialGuests :guests="trialGuests" />
 
-        <!-- 1. Thông tin buổi -->
-        <section :class="[sectionCls, narrowCls]" data-report-section="session">
-            <h2 :class="headingCls" class="border-b border-surface-container pb-sm"><span class="h-2 w-2 rounded-full bg-primary-container" aria-hidden="true"></span>1. Thông tin buổi</h2>
-            <dl class="grid grid-cols-1 gap-sm sm:grid-cols-2 lg:grid-cols-4">
-                <div class="rounded-xl border border-outline-variant bg-surface-container-low p-sm">
-                    <dt class="font-label text-label uppercase text-on-surface-variant">Lớp học</dt>
-                    <dd class="mt-xs font-body-medium text-body-medium font-semibold text-on-surface">{{ classInfo.name }}</dd>
-                    <dd class="font-caption text-caption text-on-surface-variant">Mã: {{ classInfo.code }}</dd>
-                </div>
-                <div class="rounded-xl border border-outline-variant bg-surface-container-low p-sm">
-                    <dt class="font-label text-label uppercase text-on-surface-variant">Buổi học</dt>
-                    <dd class="mt-xs font-body-medium text-body-medium font-semibold text-on-surface">{{ sessionInfo.no ? `Buổi ${sessionInfo.no}` : sessionInfo.date }}</dd>
-                    <dd v-if="sessionInfo.lesson" class="font-caption text-caption text-on-surface-variant">{{ sessionInfo.lesson }}</dd>
-                </div>
-                <div class="rounded-xl border border-outline-variant bg-surface-container-low p-sm">
-                    <dt class="font-label text-label uppercase text-on-surface-variant">Ngày giờ & phòng</dt>
-                    <dd class="mt-xs font-body-medium text-body-medium font-semibold text-on-surface">{{ sessionInfo.date }}{{ sessionInfo.time ? ` · ${sessionInfo.time}` : '' }}</dd>
-                    <dd v-if="sessionInfo.room" class="font-caption text-caption text-on-surface-variant">Phòng {{ sessionInfo.room }}</dd>
-                </div>
-                <div class="rounded-xl border border-outline-variant bg-surface-container-low p-sm">
-                    <dt class="font-label text-label uppercase text-on-surface-variant">Giáo viên chính</dt>
-                    <dd class="mt-xs font-body-medium text-body-medium font-semibold text-on-surface">{{ sessionInfo.teacher ?? '—' }}</dd>
-                </div>
-            </dl>
-        </section>
-
-        <!-- 2. Việc của buổi -->
-        <section :class="[sectionCls, narrowCls]" data-report-section="checklist">
-            <div class="border-b border-surface-container pb-sm">
-                <h2 :class="headingCls"><span class="h-2 w-2 rounded-full bg-primary-container" aria-hidden="true"></span>2. Việc của buổi</h2>
-                <p class="font-caption text-caption text-on-surface-variant">Lấy tự động từ các màn giáo viên đã làm. Bắt buộc điểm danh trước khi nộp; mục khác chưa xong chỉ nhắc.</p>
-            </div>
-            <ul class="divide-y divide-surface-container">
-                <li v-for="item in checklist" :key="item.key" class="flex flex-wrap items-start justify-between gap-sm py-sm" :data-check="item.key">
-                    <div class="flex min-w-0 items-start gap-sm">
+        <!-- Việc của buổi -->
+        <section :class="card" data-report-section="checklist">
+            <h2 :class="h2" class="mb-sm">Việc của buổi</h2>
+            <ul class="grid grid-cols-1 gap-sm md:grid-cols-3">
+                <li v-for="item in checklist" :key="item.key" class="flex flex-col gap-xs rounded-lg border border-surface-container p-sm" :data-check="item.key">
+                    <div class="flex items-center gap-xs">
                         <span class="material-symbols-outlined text-[20px]" :class="item.done ? 'text-tertiary' : item.required ? 'text-error' : 'text-warning'" aria-hidden="true">{{
                             item.done ? 'check_circle' : item.required ? 'error' : 'radio_button_unchecked'
                         }}</span>
-                        <div class="min-w-0">
-                            <p class="font-body-medium text-body-medium font-semibold text-on-surface">
-                                {{ item.label }}<span v-if="item.required" class="ml-xs font-caption text-caption font-normal text-error">(bắt buộc)</span>
-                            </p>
-                            <p class="font-body-small text-body-small text-on-surface-variant">{{ item.value }}</p>
-                            <ul v-if="item.details?.length" class="mt-xs flex flex-wrap gap-xs">
-                                <li v-for="(d, i) in item.details" :key="i" class="rounded-md bg-surface-container-low px-xs py-[1px] font-caption text-caption text-on-surface-variant">
-                                    {{ d.text }}<span v-if="d.tag" class="ml-xs font-semibold" :class="d.tone === 'error' ? 'text-error' : 'text-warning'">{{ d.tag }}</span>
-                                </li>
-                            </ul>
-                        </div>
+                        <span class="font-semibold text-on-surface">{{ item.label }}</span>
+                        <span v-if="item.required && !item.done" class="text-xs text-error">bắt buộc</span>
                     </div>
-                    <Link v-if="item.link" :href="item.link.url" class="shrink-0 font-caption text-caption font-semibold text-primary hover:underline">{{ item.link.label }} →</Link>
+                    <p class="font-body-small text-body-small text-on-surface-variant">{{ item.value }}</p>
+                    <ul v-if="item.details?.length" class="flex flex-wrap gap-xs">
+                        <li v-for="(d, i) in item.details" :key="i" class="rounded bg-surface-container-low px-xs text-xs text-on-surface-variant">
+                            {{ d.text }}<span v-if="d.tag" class="ml-xs font-semibold" :class="d.tone === 'error' ? 'text-error' : 'text-warning'">{{ d.tag }}</span>
+                        </li>
+                    </ul>
+                    <template v-if="item.link">
+                        <UiButton v-if="item.drawer" variant="secondary" size="sm" class="mt-auto self-start" @click="openItem(item)">{{ item.link.label }}</UiButton>
+                        <Link v-else :href="item.link.url" class="mt-auto font-body-small text-body-small font-semibold text-primary hover:underline">{{ item.link.label }} →</Link>
+                    </template>
                 </li>
             </ul>
         </section>
 
-        <!-- 3–4. Nhận xét học sinh + GV ghi nhận -->
-        <UiForm v-if="canSubmit" :action="route('classes.session-report.store', { id: classInfo.id, session: sessionInfo.id })" method="post" class="space-y-md" #default="{ errors, processing }">
-            <!-- 3. Nhận xét học sinh -->
-            <section :class="sectionCls" data-report-section="remarks">
-                <div class="border-b border-surface-container pb-sm">
-                    <h2 :class="headingCls"><span class="h-2 w-2 rounded-full bg-primary-container" aria-hidden="true"></span>3. Nhận xét học sinh</h2>
-                    <p class="font-caption text-caption text-on-surface-variant">Nộp báo cáo là gửi luôn nhận xét cho học viên. Học sinh vắng không cần nhận xét.</p>
-                </div>
-                <UiErrors :messages="Object.entries(errors).filter(([k]) => k.startsWith('remarks')).map(([, m]) => m)" />
-                <p v-if="!remarkStudents.length" class="text-center font-body-small text-body-small italic text-on-surface-variant">Lớp chưa có học viên.</p>
-                <!-- Mỗi hàng một học sinh; bảng rộng thì cuộn ngang, cột tên cố định. -->
-                <UiDataTable v-else min-width="960px" sticky="first" :class="tableCls">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Học sinh</th>
-                                <th v-for="[key, label] in REMARK_FIELDS" :key="key">{{ label }}</th>
-                                <th class="w-full">Nhận xét</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="student in remarkStudents" :key="student.id" :class="student.absent && 'bg-surface-container-low/60'" data-remark-row>
-                                <td>
-                                    <p class="font-semibold">{{ student.name }}</p>
-                                    <UiBadge :color="attColor(student)" class="mt-xs">{{ attLabel[student.att_status] ?? student.att_status }}</UiBadge>
-                                </td>
-                                <td v-if="student.absent" :colspan="REMARK_FIELDS.length + 1" class="align-middle font-body-small text-body-small italic text-on-surface-variant">Vắng, không cần nhận xét.</td>
-                                <template v-else>
-                                    <td v-for="[key, label, placeholder] in REMARK_FIELDS" :key="key">
-                                        <select
-                                            v-if="remarkOptions[key]"
-                                            v-model="remarks[student.id][key]"
-                                            :name="`remarks[${student.id}][${key}]`"
-                                            :aria-label="`${label} — ${student.name}`"
-                                            :class="[fieldCls, 'min-w-[8.5rem]']"
-                                            @change="onRemarkPick(student, key, $event.target.value)"
-                                        >
-                                            <option value="">— Chọn —</option>
-                                            <option v-for="choice in choicesFor(key, student.remark[key])" :key="choice" :value="choice">{{ choice }}</option>
-                                        </select>
-                                        <input
-                                            v-else
-                                            v-model="remarks[student.id][key]"
-                                            type="text"
-                                            :name="`remarks[${student.id}][${key}]`"
-                                            :placeholder="placeholder"
-                                            :aria-label="`${label} — ${student.name}`"
-                                            :class="[fieldCls, 'w-20']"
-                                        />
-                                    </td>
-                                    <td>
-                                        <textarea
-                                            v-model="remarks[student.id].comment"
-                                            :name="`remarks[${student.id}][comment]`"
-                                            rows="2"
-                                            :aria-label="`Nhận xét chi tiết — ${student.name}`"
-                                            placeholder="Nhận xét chi tiết về quá trình học trong buổi..."
-                                            :class="[fieldCls, 'min-w-[14rem]']"
-                                        ></textarea>
-                                    </td>
-                                </template>
-                            </tr>
-                        </tbody>
-                    </table>
-                </UiDataTable>
-            </section>
+        <!-- Nhận xét học sinh -->
+        <section :class="card" data-report-section="remarks">
+            <div class="mb-sm flex flex-wrap items-baseline justify-between gap-sm">
+                <h2 :class="h2">Nhận xét học sinh</h2>
+                <p class="text-xs text-on-surface-variant">Nộp báo cáo là gửi nhận xét cho phụ huynh.{{ homeworkTitle ? ` Cột BTVN: ${homeworkTitle}.` : '' }}</p>
+            </div>
+            <p v-if="!remarkStudents.length" class="text-on-surface-variant">Lớp chưa có học viên.</p>
+            <div v-else class="overflow-x-auto">
+                <table class="w-full min-w-[960px] border-separate border-spacing-0 text-sm">
+                    <thead>
+                        <tr>
+                            <th rowspan="2" :class="[th, sticky, 'min-w-[11rem]']">Học sinh</th>
+                            <th rowspan="2" :class="[th, 'w-20']">Điểm thưởng</th>
+                            <th :colspan="homeworkColumns.length + 1" :class="[th, 'border-l text-center']">BTVN</th>
+                            <th :colspan="columns.length + (edit ? 1 : 0) || 1" :class="[th, 'border-l text-center']">Thực hành</th>
+                            <th rowspan="2" :class="[th, 'border-l']">Tinh thần</th>
+                            <th rowspan="2" :class="th">Kết quả</th>
+                            <th rowspan="2" :class="[th, 'w-full min-w-[14rem]']">Nhận xét</th>
+                        </tr>
+                        <tr>
+                            <th v-for="(c, i) in homeworkColumns" :key="c.key" :class="[th, 'text-center', i === 0 && 'border-l']" :title="c.label">
+                                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">{{ c.icon }}</span><span class="sr-only">{{ c.label }}</span>
+                            </th>
+                            <th :class="[th, !homeworkColumns.length && 'border-l', 'w-20']">Điểm</th>
+                            <th v-for="(c, idx) in columns" :key="c.id" :class="[th, idx === 0 && 'border-l', 'min-w-[8rem]']">
+                                <input v-if="edit" type="hidden" :name="`practice_columns[${idx}]`" :value="c.label" />
+                                <div v-if="edit && editingColumn === c.id" class="flex items-center gap-0.5">
+                                    <input v-model="c.label" v-focus type="text" maxlength="60" placeholder="Tên cột" :class="[field, 'h-7']" :aria-label="`Tên cột thực hành ${idx + 1}`" @keydown.enter.prevent="editingColumn = null" @blur="editingColumn = null" />
+                                </div>
+                                <div v-else class="flex items-center gap-0.5">
+                                    <span :class="!c.label && 'italic'">{{ c.label || 'Chưa đặt tên' }}</span>
+                                    <template v-if="edit">
+                                        <button type="button" class="rounded p-0.5 hover:bg-surface-container" :aria-label="`Đổi tên cột ${c.label}`" @click="editingColumn = c.id">
+                                            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">edit</span>
+                                        </button>
+                                        <button type="button" class="rounded p-0.5 hover:bg-surface-container" :aria-label="`Bỏ cột ${c.label}`" @click="removeColumn(idx)">
+                                            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">close</span>
+                                        </button>
+                                    </template>
+                                </div>
+                            </th>
+                            <th v-if="edit" :class="[th, !columns.length && 'border-l', 'whitespace-nowrap']">
+                                <button v-if="columns.length < 6" type="button" class="font-semibold text-primary hover:underline" data-add-practice @click="addColumn">+ Thêm cột</button>
+                            </th>
+                            <th v-else-if="!columns.length" :class="[th, 'border-l']">—</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="s in present" :key="s.id" data-remark-row>
+                            <td :class="[td, sticky]">
+                                <p class="font-semibold text-on-surface">{{ s.name }}</p>
+                                <p v-if="s.att_status !== 'present'" class="text-xs" :class="s.att_status === 'late' ? 'text-warning' : 'text-on-surface-variant'">{{ attLabel[s.att_status] ?? s.att_status }}</p>
+                            </td>
+                            <td :class="td">
+                                <input v-if="edit" v-model="remarks[s.id].bonus" type="number" min="0" max="999" step="1" placeholder="0" :name="`remarks[${s.id}][bonus]`" :aria-label="`Điểm thưởng — ${s.name}`" :class="[field, 'w-16']" />
+                                <span v-else>{{ remarks[s.id].bonus || '0' }}</span>
+                            </td>
+                            <td v-for="(c, i) in homeworkColumns" :key="c.key" :class="[td, 'text-center', i === 0 && 'border-l']">
+                                <span
+                                    v-if="s.homework[c.key]"
+                                    class="material-symbols-outlined text-[20px]"
+                                    :class="HW_ICON[s.homework[c.key]][1]"
+                                    :title="`${c.label}: ${HW_ICON[s.homework[c.key]][2]}`"
+                                    :aria-label="`${c.label}: ${HW_ICON[s.homework[c.key]][2]}`"
+                                    role="img"
+                                    >{{ HW_ICON[s.homework[c.key]][0] }}</span
+                                >
+                            </td>
+                            <td :class="[td, !homeworkColumns.length && 'border-l']">
+                                <input v-if="edit" v-model="remarks[s.id].hw_score" type="number" min="0" max="100" step="0.5" :name="`remarks[${s.id}][hw_score]`" :aria-label="`Điểm BTVN — ${s.name}`" :class="[field, 'w-16']" />
+                                <span v-else>{{ remarks[s.id].hw_score || '—' }}</span>
+                            </td>
+                            <td v-for="(c, idx) in columns" :key="c.id" :class="[td, idx === 0 && 'border-l']">
+                                <input v-if="edit" v-model="remarks[s.id].practice[c.id]" type="text" maxlength="255" :name="`remarks[${s.id}][practice][${idx}]`" :aria-label="`${c.label || 'Thực hành'} — ${s.name}`" :class="field" />
+                                <span v-else>{{ remarks[s.id].practice[c.id] || '—' }}</span>
+                            </td>
+                            <td v-if="edit" :class="[td, !columns.length && 'border-l']"></td>
+                            <td v-else-if="!columns.length" :class="[td, 'border-l']"></td>
+                            <td v-for="key in ['attitude', 'result']" :key="key" :class="[td, key === 'attitude' && 'border-l']">
+                                <select v-if="edit" v-model="remarks[s.id][key]" :name="`remarks[${s.id}][${key}]`" :aria-label="`${FIELD_LABEL[key]} — ${s.name}`" :class="[field, 'min-w-[7.5rem]']" @change="onPick(s, key, $event.target.value)">
+                                    <option value="">— Chọn —</option>
+                                    <option v-for="choice in choicesFor(key, s.remark[key])" :key="choice" :value="choice">{{ choice }}</option>
+                                </select>
+                                <span v-else>{{ remarks[s.id][key] || '—' }}</span>
+                            </td>
+                            <td :class="td">
+                                <textarea v-if="edit" v-model="remarks[s.id].comment" :name="`remarks[${s.id}][comment]`" rows="2" :aria-label="`Nhận xét — ${s.name}`" placeholder="Nhận xét về buổi học..." :class="field"></textarea>
+                                <span v-else class="whitespace-pre-line">{{ remarks[s.id].comment || '—' }}</span>
+                            </td>
+                        </tr>
+                        <!-- Học sinh vắng: gom một dòng, không cần nhận xét. -->
+                        <tr v-if="absent.length">
+                            <td :colspan="99" :class="[td, 'bg-surface-container-low/60']">
+                                <button type="button" class="flex items-center gap-xs text-on-surface-variant" :aria-expanded="showAbsent ? 'true' : 'false'" @click="showAbsent = !showAbsent">
+                                    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">{{ showAbsent ? 'expand_less' : 'expand_more' }}</span>
+                                    {{ absent.length }} học sinh vắng, không cần nhận xét
+                                </button>
+                                <p v-if="showAbsent" class="mt-xs text-on-surface-variant">{{ absent.map((s) => `${s.name} (${attLabel[s.att_status]})`).join(', ') }}</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
 
-            <section :class="[sectionCls, narrowCls]" data-report-section="notes">
-                <h2 :class="headingCls" class="border-b border-surface-container pb-sm"><span class="h-2 w-2 rounded-full bg-primary-container" aria-hidden="true"></span>4. Giáo viên ghi nhận</h2>
-                <UiAlert v-if="!attendanceDone" type="error">Buổi này chưa điểm danh. Điểm danh xong mới nộp được báo cáo buổi.</UiAlert>
-                <UiErrors :messages="[errors.attendance]" />
-                <!-- Nộp báo cáo = ghi nhận "Đã dạy" vào tiến độ chặng (thay nút "Đã dạy" ở Bài giảng hôm nay). -->
-                <div v-if="syllabus && !syllabus.marked" class="rounded-xl border border-outline-variant bg-surface-container-low p-sm font-body-small text-body-small text-on-surface" data-taught-on-submit>
-                    <p class="flex items-center gap-xs"><span class="material-symbols-outlined text-[18px] text-primary" aria-hidden="true">task_alt</span>Nộp báo cáo là ghi nhận buổi này Đã dạy — tiến độ chặng chạy sang bài tiếp theo.</p>
-                    <p v-if="!syllabus.confirmed" class="mt-xs text-error">Chặng chưa được XÁC NHẬN: báo cáo vẫn nộp được nhưng chưa ghi nhận Đã dạy cho tới khi GV xác nhận chặng.</p>
-                    <label v-else-if="syllabus.extra_left > 0" class="mt-xs flex items-center gap-2">
-                        <input type="checkbox" name="use_extra" value="1" class="rounded border-outline-variant text-primary focus:ring-primary-container" />
-                        Dạy chưa xong bài — dùng 1 buổi giãn đã duyệt (còn {{ syllabus.extra_left }} buổi), bài syllabus giữ nguyên
-                    </label>
-                </div>
+        <!-- Nội dung buổi học -->
+        <section :class="card" class="space-y-md" data-report-section="notes">
+            <h2 :class="h2">Nội dung buổi học</h2>
+            <template v-if="edit">
                 <UiTextarea
                     id="content"
                     v-model="content"
@@ -241,115 +296,131 @@ const headingCls = 'flex items-center gap-sm font-h3 text-h3 text-on-surface';
                     :hint="lessonText && !report ? 'Điền sẵn theo giáo trình của buổi. Sửa lại nếu thực tế dạy khác.' : null"
                     placeholder="Bài, kiến thức ngữ pháp / từ vựng, hoạt động chính đã dạy..."
                 />
-                <UiTextarea id="class_situation" name="class_situation" label="Tình hình lớp (tùy chọn)" :rows="3" :value="report?.class_situation" placeholder="Không khí lớp, nề nếp, mức độ tiếp thu, sự cố trong buổi..." />
-
-                <div class="space-y-sm" data-attention>
-                    <div class="flex flex-wrap items-center justify-between gap-sm">
-                        <div>
-                            <p class="font-body-medium text-body-medium font-semibold text-on-surface">Học sinh cần chú ý (tùy chọn)</p>
-                            <p class="font-caption text-caption text-on-surface-variant">Danh sách chung của buổi với trợ giảng và Học vụ. Gợi ý sẵn học sinh được nhận xét "Cần cố gắng" / "Không đạt".</p>
-                        </div>
-                        <UiButton variant="secondary" size="sm" icon="add_circle" @click="addRow()">Thêm học sinh</UiButton>
-                    </div>
-                    <ul v-if="sharedAttention.length" class="space-y-xs" data-shared-attention>
-                        <li v-for="(r, i) in sharedAttention" :key="i" class="rounded-lg bg-surface-container-low px-sm py-xs font-body-small text-body-small text-on-surface">
-                            <UiBadge color="neutral" :dot="false" class="mr-xs">{{ r.source }}</UiBadge>
-                            <strong>{{ r.student ?? 'Học sinh' }}</strong><span v-if="r.reason">: {{ r.reason }}</span><span v-if="r.action" class="text-on-surface-variant"> → {{ r.action }}</span>
-                        </li>
-                    </ul>
-                    <p v-if="!attention.length && !sharedAttention.length" class="text-center font-body-small text-body-small italic text-on-surface-variant">Không có học sinh cần chú ý.</p>
-                    <div v-for="(r, idx) in attention" :key="r.id" class="space-y-sm rounded-xl border border-outline-variant bg-surface-container-low p-sm">
-                        <div class="flex items-center justify-between">
-                            <UiBadge v-if="r.suggested" color="info" :dot="false">Gợi ý</UiBadge>
-                            <span v-else></span>
-                            <button type="button" class="inline-flex items-center gap-xs font-caption text-caption font-semibold text-error hover:underline" @click="removeRow(idx)">
-                                <span class="material-symbols-outlined text-[16px]" aria-hidden="true">delete</span>Xóa dòng
-                            </button>
-                        </div>
-                        <div class="grid grid-cols-1 gap-sm md:grid-cols-3">
-                            <label>
-                                <span :class="labelCls">Học sinh</span>
-                                <select v-model="r.student_id" :name="`attention[${idx}][student_id]`" :class="fieldCls">
-                                    <option value="">-- Chọn học sinh --</option>
-                                    <option v-for="st in students" :key="st.value" :value="String(st.value)">{{ st.label }}</option>
-                                </select>
-                            </label>
-                            <label>
-                                <span :class="labelCls">Lý do</span>
-                                <textarea v-model="r.reason" :name="`attention[${idx}][reason]`" rows="2" :class="fieldCls" placeholder="Vắng, chưa theo kịp, thái độ..."></textarea>
-                            </label>
-                            <label>
-                                <span :class="labelCls">Hướng xử lý</span>
-                                <textarea v-model="r.action" :name="`attention[${idx}][action]`" rows="2" :class="fieldCls" placeholder="Kèm thêm, báo phụ huynh, bù bài..."></textarea>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-
-                <UiTextarea id="proposal" name="proposal" label="Đề xuất / cần hỗ trợ (tùy chọn)" :rows="2" :value="report?.proposal" placeholder="Cần Học vụ / trợ giảng hỗ trợ gì, học liệu, phòng học..." />
-            </section>
-            <div :class="narrowCls" class="flex flex-wrap items-center justify-end gap-sm">
-                <span v-if="report" class="font-caption text-caption text-on-surface-variant">Nộp lúc {{ report.submitted_at }}</span>
-                <UiButton type="submit" icon="send" :disabled="processing || !attendanceDone">{{ report ? 'Cập nhật báo cáo' : 'Nộp báo cáo buổi' }}</UiButton>
-            </div>
-        </UiForm>
-
-        <!-- Người xem (không phải GV chính): chỉ đọc -->
-        <section v-if="!canSubmit" :class="sectionCls" data-report-section="remarks-readonly">
-            <h2 :class="headingCls" class="border-b border-surface-container pb-sm"><span class="h-2 w-2 rounded-full bg-primary-container" aria-hidden="true"></span>3. Nhận xét học sinh</h2>
-            <p v-if="!remarkStudents.some(hasRemark)" class="font-body-small text-body-small italic text-on-surface-variant">Chưa có nhận xét.</p>
-            <UiDataTable v-else min-width="860px" sticky="first" :class="tableCls">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Học sinh</th>
-                            <th v-for="[key, label] in REMARK_FIELDS" :key="key">{{ label }}</th>
-                            <th class="w-full">Nhận xét</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="student in remarkStudents.filter(hasRemark)" :key="student.id" data-remark-row>
-                            <td>
-                                <p class="font-semibold">{{ student.name }}</p>
-                                <UiBadge :color="attColor(student)" class="mt-xs">{{ attLabel[student.att_status] ?? student.att_status }}</UiBadge>
-                            </td>
-                            <td v-for="[key] in REMARK_FIELDS" :key="key" class="min-w-[6.5rem] whitespace-nowrap">{{ student.remark[key] || '—' }}</td>
-                            <td class="min-w-[14rem] whitespace-pre-line">{{ student.remark.comment || '—' }}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </UiDataTable>
-        </section>
-        <section v-if="!canSubmit" :class="[sectionCls, narrowCls]" data-report-section="readonly">
-            <h2 :class="headingCls" class="border-b border-surface-container pb-sm"><span class="h-2 w-2 rounded-full bg-primary-container" aria-hidden="true"></span>4. Giáo viên ghi nhận</h2>
-            <UiEmptyState v-if="!report" icon="pending_actions" title="Giáo viên chính chưa nộp báo cáo buổi này." :description="`Hạn nộp ${deadline}.`" />
-            <template v-else>
-                <p class="font-caption text-caption text-on-surface-variant">{{ report.teacher }} nộp lúc {{ report.submitted_at }}<template v-if="report.updated_at !== report.submitted_at"> · sửa lần cuối {{ report.updated_at }}</template></p>
-                <div>
-                    <p :class="labelCls">Nội dung đã dạy</p>
-                    <p class="whitespace-pre-line font-body-medium text-body-medium text-on-surface">{{ report.content }}</p>
-                </div>
-                <div v-if="report.class_situation">
-                    <p :class="labelCls">Tình hình lớp</p>
-                    <p class="whitespace-pre-line font-body-medium text-body-medium text-on-surface">{{ report.class_situation }}</p>
-                </div>
-                <div v-if="report.attention.length || sharedAttention.length">
-                    <p :class="labelCls">Học sinh cần chú ý</p>
-                    <ul class="space-y-xs">
-                        <li v-for="(r, i) in sharedAttention" :key="`s${i}`" class="rounded-lg bg-surface-container-low px-sm py-xs font-body-small text-body-small text-on-surface">
-                            <UiBadge color="neutral" :dot="false" class="mr-xs">{{ r.source }}</UiBadge>
-                            <strong>{{ r.student ?? 'Học sinh' }}</strong><span v-if="r.reason">: {{ r.reason }}</span><span v-if="r.action" class="text-on-surface-variant"> → {{ r.action }}</span>
-                        </li>
-                        <li v-for="(r, i) in report.attention" :key="i" class="rounded-lg bg-surface-container-low px-sm py-xs font-body-small text-body-small text-on-surface">
-                            <strong>{{ r.student ?? 'Học sinh' }}</strong><span v-if="r.reason">: {{ r.reason }}</span><span v-if="r.action" class="text-on-surface-variant"> → {{ r.action }}</span>
-                        </li>
-                    </ul>
-                </div>
-                <div v-if="report.proposal">
-                    <p :class="labelCls">Đề xuất / cần hỗ trợ</p>
-                    <p class="whitespace-pre-line font-body-medium text-body-medium text-on-surface">{{ report.proposal }}</p>
+                <div class="grid grid-cols-1 gap-md md:grid-cols-2">
+                    <UiTextarea id="class_situation" name="class_situation" label="Tình hình lớp (tùy chọn)" :rows="3" :value="report?.class_situation" placeholder="Không khí lớp, nề nếp, mức độ tiếp thu..." />
+                    <UiTextarea id="proposal" name="proposal" label="Đề xuất / cần hỗ trợ (tùy chọn)" :rows="3" :value="report?.proposal" placeholder="Cần Học vụ / trợ giảng hỗ trợ gì, học liệu, phòng học..." />
                 </div>
             </template>
+            <UiEmptyState v-else-if="!report" icon="pending_actions" title="Giáo viên chính chưa nộp báo cáo buổi này." :description="`Hạn nộp ${deadline}.`" />
+            <dl v-else class="space-y-sm">
+                <div>
+                    <dt class="text-xs font-semibold text-on-surface-variant">Nội dung đã dạy</dt>
+                    <dd class="whitespace-pre-line text-on-surface">{{ report.content }}</dd>
+                </div>
+                <div class="grid grid-cols-1 gap-md md:grid-cols-2">
+                    <div>
+                        <dt class="text-xs font-semibold text-on-surface-variant">Tình hình lớp</dt>
+                        <dd class="whitespace-pre-line text-on-surface">{{ report.class_situation || '—' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs font-semibold text-on-surface-variant">Đề xuất / cần hỗ trợ</dt>
+                        <dd class="whitespace-pre-line text-on-surface">{{ report.proposal || '—' }}</dd>
+                    </div>
+                </div>
+                <p class="text-xs text-on-surface-variant">{{ report.teacher }} nộp lúc {{ report.submitted_at }}<template v-if="report.updated_at !== report.submitted_at"> · sửa lần cuối {{ report.updated_at }}</template></p>
+            </dl>
         </section>
-    </div>
+
+        <!-- Học sinh cần chú ý -->
+        <section :class="card" class="space-y-sm" data-attention>
+            <div class="flex flex-wrap items-center justify-between gap-sm">
+                <div>
+                    <h2 :class="h2">Học sinh cần chú ý</h2>
+                    <p class="text-xs text-on-surface-variant">Danh sách chung của buổi với trợ giảng và Học vụ.</p>
+                </div>
+                <UiButton v-if="edit" variant="secondary" size="sm" icon="add" @click="addAttention">Thêm học sinh</UiButton>
+            </div>
+            <ul v-if="sharedAttention.length" class="space-y-xs" data-shared-attention>
+                <li v-for="(r, i) in sharedAttention" :key="i" class="rounded-lg bg-surface-container-low px-sm py-xs text-sm text-on-surface">
+                    <UiBadge color="neutral" :dot="false" class="mr-xs">{{ r.source }}</UiBadge>
+                    <strong>{{ r.student ?? 'Học sinh' }}</strong><span v-if="r.reason">: {{ r.reason }}</span><span v-if="r.action" class="text-on-surface-variant"> → {{ r.action }}</span>
+                </li>
+            </ul>
+            <p v-if="!attention.length && !sharedAttention.length" class="text-sm text-on-surface-variant">Không có học sinh cần chú ý.</p>
+            <template v-if="edit">
+                <div v-for="(r, idx) in attention" :key="r.id" class="grid grid-cols-1 items-start gap-sm rounded-lg border border-surface-container p-sm md:grid-cols-[14rem_1fr_1fr_auto]">
+                    <select v-model="r.student_id" :name="`attention[${idx}][student_id]`" aria-label="Học sinh" :class="[field, 'h-9']">
+                        <option value="">— Chọn học sinh —</option>
+                        <option v-for="st in students" :key="st.value" :value="String(st.value)">{{ st.label }}</option>
+                    </select>
+                    <input v-model="r.reason" type="text" :name="`attention[${idx}][reason]`" aria-label="Lý do" placeholder="Lý do" :class="[field, 'h-9']" />
+                    <input v-model="r.action" type="text" :name="`attention[${idx}][action]`" aria-label="Hướng xử lý" placeholder="Hướng xử lý" :class="[field, 'h-9']" />
+                    <div class="flex items-center gap-xs">
+                        <UiBadge v-if="r.suggested" color="info" :dot="false">Gợi ý</UiBadge>
+                        <button type="button" class="rounded p-xs text-on-surface-variant hover:bg-surface-container hover:text-error" aria-label="Bỏ dòng" @click="attention.splice(idx, 1)">
+                            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">delete</span>
+                        </button>
+                    </div>
+                </div>
+            </template>
+            <ul v-else class="space-y-xs">
+                <li v-for="r in attention" :key="r.id" class="rounded-lg bg-surface-container-low px-sm py-xs text-sm text-on-surface">
+                    <strong>{{ r.student ?? 'Học sinh' }}</strong><span v-if="r.reason">: {{ r.reason }}</span><span v-if="r.action" class="text-on-surface-variant"> → {{ r.action }}</span>
+                </li>
+            </ul>
+        </section>
+
+        <!-- Sự vụ trong buổi -->
+        <section :class="card" class="space-y-sm" data-report-section="incidents">
+            <div class="flex flex-wrap items-center justify-between gap-sm">
+                <div>
+                    <h2 :class="h2">Sự vụ trong buổi</h2>
+                    <p class="text-xs text-on-surface-variant">Ghi vào Nhật ký sự vụ của lớp. Mức Khẩn báo ngay Admin và Quản lý cơ sở.</p>
+                </div>
+                <UiButton v-if="edit" variant="secondary" size="sm" icon="add" data-add-incident @click="addIncident">Thêm sự vụ</UiButton>
+            </div>
+            <p v-if="!incidents.length" class="text-sm text-on-surface-variant">Không có sự vụ.</p>
+            <template v-if="edit">
+                <div v-for="(inc, idx) in incidents" :key="inc.key" class="space-y-sm rounded-lg border border-surface-container p-sm" data-incident>
+                    <input type="hidden" :name="`incidents[${idx}][id]`" :value="inc.id ?? ''" />
+                    <input type="hidden" :name="`incidents[${idx}][severity]`" :value="inc.severity" />
+                    <div class="flex flex-wrap items-center gap-sm">
+                        <input v-model="inc.title" type="text" maxlength="255" required :name="`incidents[${idx}][title]`" aria-label="Tiêu đề sự vụ" placeholder="Tiêu đề, vd. HS bị ngã trong giờ ra chơi" :class="[field, 'h-9 min-w-[14rem] flex-1']" />
+                        <div role="radiogroup" aria-label="Mức độ" class="inline-flex gap-0.5 rounded-lg bg-surface-container-low p-[3px]">
+                            <button
+                                v-for="(label, value) in severities"
+                                :key="value"
+                                type="button"
+                                role="radio"
+                                :aria-checked="inc.severity === value ? 'true' : 'false'"
+                                :class="['h-8 rounded-md px-sm text-xs font-semibold', inc.severity === value ? ['bg-surface-container-lowest shadow-sm', value === 'urgent' ? 'text-error' : value === 'important' ? 'text-warning' : 'text-on-surface'] : 'text-on-surface-variant']"
+                                @click="inc.severity = value"
+                            >
+                                {{ label }}
+                            </button>
+                        </div>
+                        <button type="button" class="rounded p-xs text-on-surface-variant hover:bg-surface-container hover:text-error" aria-label="Bỏ sự vụ" @click="incidents.splice(idx, 1)">
+                            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">delete</span>
+                        </button>
+                    </div>
+                    <textarea v-model="inc.content" :name="`incidents[${idx}][content]`" rows="2" aria-label="Mô tả sự vụ" placeholder="Diễn biến, đã xử lý thế nào..." :class="field"></textarea>
+                </div>
+            </template>
+            <ul v-else class="space-y-xs">
+                <li v-for="inc in incidents" :key="inc.key" class="rounded-lg bg-surface-container-low px-sm py-xs text-sm">
+                    <UiBadge :color="SEVERITY_TONE[inc.severity]" class="mr-xs">{{ severities[inc.severity] }}</UiBadge>
+                    <strong>{{ inc.title }}</strong><span v-if="inc.content" class="text-on-surface-variant">: {{ inc.content }}</span>
+                </li>
+            </ul>
+        </section>
+
+        <!-- Thanh nộp -->
+        <div v-if="edit" class="sticky bottom-0 z-10 -mx-xs flex flex-wrap items-center justify-between gap-sm rounded-xl border border-surface-container-highest bg-surface-container-lowest px-lg py-sm shadow-lg">
+            <div class="min-w-0 space-y-0.5 text-sm">
+                <p :class="overdue ? 'font-semibold text-error' : 'text-on-surface-variant'">
+                    <template v-if="report">Nộp lúc {{ report.submitted_at }}</template>
+                    <template v-else>Hạn nộp {{ deadline }}{{ overdue ? ' · đã quá hạn' : '' }}</template>
+                </p>
+                <p v-if="!attendanceDone" class="font-semibold text-error">Cần điểm danh trước khi nộp.</p>
+                <template v-else-if="syllabus && !syllabus.marked">
+                    <p class="text-on-surface-variant" data-taught-on-submit>Nộp báo cáo là ghi nhận buổi này Đã dạy.{{ !syllabus.confirmed ? ' Chặng chưa xác nhận nên chưa ghi nhận được.' : '' }}</p>
+                    <label v-if="syllabus.confirmed && syllabus.extra_left > 0" class="flex items-center gap-xs text-on-surface">
+                        <input type="checkbox" name="use_extra" value="1" class="rounded border-outline-variant text-primary" />
+                        Dạy chưa xong bài, dùng 1 buổi giãn (còn {{ syllabus.extra_left }})
+                    </label>
+                </template>
+            </div>
+            <UiButton type="submit" icon="send" :disabled="processing || !attendanceDone">{{ report ? 'Cập nhật báo cáo' : 'Nộp báo cáo buổi' }}</UiButton>
+        </div>
+    </UiForm>
 </template>

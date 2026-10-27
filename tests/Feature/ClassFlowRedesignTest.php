@@ -9,15 +9,13 @@ use App\Models\Course;
 use App\Models\StaffReport;
 use App\Models\Student;
 use App\Models\User;
-use App\Support\ClassLifecycle;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Luồng Lớp học mới: menu 3 mục (Danh sách lớp · Lịch học các lớp · Báo cáo & sự vụ), Trang lớp với vòng đời +
- * tab con, sự vụ gắn lớp. Các màn cũ (Hồ sơ lớp, Sơ đồ khối, Danh sách chi tiết, Chi tiết học thuật) chuyển hướng.
+ * Luồng Lớp học mới: menu 3 mục (Danh sách lớp · Lịch học các lớp · Báo cáo & sự vụ), Trang lớp 4 tab, sự vụ gắn lớp. Các màn cũ (Hồ sơ lớp, Sơ đồ khối, Danh sách chi tiết, Chi tiết học thuật) chuyển hướng.
  */
 class ClassFlowRedesignTest extends TestCase
 {
@@ -91,7 +89,7 @@ class ClassFlowRedesignTest extends TestCase
             ->assertRedirect(route('classes.index', ['search' => 'LL', 'level' => 'B1']));
     }
 
-    public function test_class_list_filters_by_status_chip_and_shows_next_action(): void
+    public function test_class_list_filters_by_status_chip(): void
     {
         $this->makeClass(['name' => 'Lớp Đang Chạy', 'program' => 'Kids']);
         $this->makeClass(['name' => 'Lớp Chờ Lịch', 'status' => 'pending_schedule', 'program' => 'Kids']);
@@ -100,8 +98,7 @@ class ClassFlowRedesignTest extends TestCase
         $this->actingAs($this->admin)->get(route('classes.index'))
             ->assertOk()
             ->assertSee('Lớp Đang Chạy')->assertSee('Lớp Chờ Lịch')->assertDontSee('Lớp Đã Hủy')
-            ->assertSee('Cấu hình lịch')          // việc tiếp theo của lớp chờ lịch
-            ->assertSee('Lọc theo chương trình', false);
+            ->assertSee('Tìm tên lớp, mã lớp hoặc giáo viên', false);
 
         $this->actingAs($this->admin)->get(route('classes.index', ['status' => 'pending_schedule']))
             ->assertOk()->assertSee('Lớp Chờ Lịch')->assertDontSee('Lớp Đang Chạy');
@@ -110,22 +107,24 @@ class ClassFlowRedesignTest extends TestCase
             ->assertOk()->assertSee('Lớp Đã Hủy');
     }
 
-    public function test_lifecycle_marks_current_step_from_status_and_seats(): void
+    public function test_my_classes_show_viewer_role_in_each_class(): void
     {
-        $pending = $this->makeClass(['status' => 'pending_schedule']);
-        $steps = collect(ClassLifecycle::steps($pending, $pending->seatSummary()))->pluck('state', 'key');
-        $this->assertSame('done', $steps['created']);
-        $this->assertSame('current', $steps['schedule']);
-        $this->assertSame('todo', $steps['launch']);
+        $teacher = $this->makeUser('teacher');
+        $this->makeClass(['name' => 'Lớp Dạy Chính', 'teacher_id' => $teacher->id]);
+        $this->makeClass(['name' => 'Lớp Trợ Giảng', 'assistant_id' => $teacher->id]);
 
-        $upcoming = $this->makeClass(['status' => 'upcoming', 'start_date' => now()->addWeek()]);
-        $steps = collect(ClassLifecycle::steps($upcoming, $upcoming->seatSummary()))->pluck('state', 'key');
-        $this->assertSame('current', $steps['students']); // 0/3 ngưỡng
+        $this->actingAs($teacher)->get(route('classes.index', ['mine' => 1]))->assertOk()
+            ->assertInertia(fn ($page) => $page->where('classes.data', fn ($rows) => collect($rows)->pluck('my_role', 'name')->all() === ['Lớp Dạy Chính' => 'GV chính', 'Lớp Trợ Giảng' => 'Trợ giảng']));
+    }
 
-        $active = $this->makeClass();
-        $steps = collect(ClassLifecycle::steps($active, $active->seatSummary()))->pluck('state', 'key');
-        $this->assertSame('done', $steps['launch']);
-        $this->assertSame('current', $steps['running']);
+    public function test_old_class_tabs_redirect_to_merged_tabs(): void
+    {
+        $class = $this->makeClass();
+
+        foreach (['schedule' => 'sessions', 'attendance' => 'sessions', 'syllabus' => 'academic', 'homework' => 'academic', 'incidents' => 'overview'] as $old => $new) {
+            $this->actingAs($this->admin)->get(route('classes.show', ['id' => $class->id, 'tab' => $old]))
+                ->assertRedirect(route('classes.show', ['id' => $class->id, 'tab' => $new]));
+        }
     }
 
     public function test_schedule_is_configured_only_on_the_tkb_screen(): void
@@ -134,13 +133,11 @@ class ClassFlowRedesignTest extends TestCase
         $this->actingAs($this->admin)->get(route('classes.create'))
             ->assertOk()->assertDontSee('Lên lịch học tự động')->assertDontSee('schedule_sessions_json');
 
-        // Lớp chờ lịch: nút chính mở thẳng màn TKB lọc sẵn lớp; tab Lịch & buổi học chỉ còn một nút Cấu hình lịch.
+        // Lớp chờ lịch: tab Buổi học có đúng một nút Cấu hình lịch mở thẳng màn TKB lọc sẵn lớp.
         $pending = $this->makeClass(['status' => 'pending_schedule']);
         $tkbUrl = e(route('tasks.schedule-config', ['class_id' => $pending->id], false));
-        $overview = $this->actingAs($this->admin)->get(route('classes.show', $pending->id))->assertOk()->getContent();
-        $this->assertStringContainsString($tkbUrl, $overview);
-        $schedule = $this->actingAs($this->admin)->get(route('classes.show', ['id' => $pending->id, 'tab' => 'schedule']))->assertOk()->getContent();
-        $this->assertSame(1, substr_count($schedule, $tkbUrl));
+        $sessions = $this->actingAs($this->admin)->get(route('classes.show', ['id' => $pending->id, 'tab' => 'sessions']))->assertOk()->getContent();
+        $this->assertSame(1, substr_count($sessions, $tkbUrl));
     }
 
     public function test_class_page_tabs_render_real_data(): void
@@ -151,18 +148,16 @@ class ClassFlowRedesignTest extends TestCase
         ClassSession::create(['class_id' => $class->id, 'branch_id' => $this->branch->id, 'date' => today()->addDays(2), 'start_time' => '18:00', 'end_time' => '19:30', 'status' => 'scheduled']);
 
         $this->actingAs($this->admin)->get(route('classes.show', $class->id))
-            ->assertOk()->assertSee('Lớp Trang Lớp')->assertSee('Vòng đời lớp')->assertSee('Buổi kế tiếp')
-            ->assertSee(today()->addDays(2)->format('d/m/Y'));
+            ->assertOk()->assertSee('Lớp Trang Lớp')->assertSee('Buổi học sắp tới')->assertDontSee('Vòng đời lớp')
+            ->assertSee(today()->addDays(2)->format('d/m'));
 
         $this->actingAs($this->admin)->get(route('classes.show', ['id' => $class->id, 'tab' => 'students']))
             ->assertOk()->assertSee('Học viên Trang Lớp');
 
-        $this->actingAs($this->admin)->get(route('classes.show', ['id' => $class->id, 'tab' => 'schedule']))
-            ->assertOk()->assertSee('Sắp diễn ra')->assertSee('Đã diễn ra')
+        // Lịch + điểm danh gộp một tab: buổi đã qua chưa điểm danh, buổi sắp tới, nút cấu hình lịch.
+        $this->actingAs($this->admin)->get(route('classes.show', ['id' => $class->id, 'tab' => 'sessions']))
+            ->assertOk()->assertSee('Sắp tới')->assertSee('Đã diễn ra')->assertSee('Cần xử lý')
             ->assertSee(route('tasks.schedule-config', ['class_id' => $class->id], false), false);
-
-        $this->actingAs($this->admin)->get(route('classes.show', ['id' => $class->id, 'tab' => 'attendance']))
-            ->assertOk()->assertSee('Chưa điểm danh')->assertSee(today()->subDay()->format('d/m/Y'));
     }
 
     public function test_incident_logged_on_class_page_shows_in_class_tab_and_dashboard(): void
@@ -177,8 +172,9 @@ class ClassFlowRedesignTest extends TestCase
 
         $this->assertSame($class->id, StaffReport::where('title', 'Phụ huynh phản ánh phòng nóng')->value('class_id'));
 
-        $this->actingAs($this->admin)->get(route('classes.show', ['id' => $class->id, 'tab' => 'incidents']))
-            ->assertOk()->assertSee('Phụ huynh phản ánh phòng nóng')->assertDontSee('Sự vụ lớp khác');
+        // Trang lớp không còn tab Sự vụ: Tổng quan đếm sự vụ đang mở của lớp.
+        $this->actingAs($this->admin)->get(route('classes.show', $class->id))
+            ->assertInertia(fn ($page) => $page->where('openIncidents', 1));
 
         $this->actingAs($this->admin)->get(route('academic.dashboards.incidents'))
             ->assertOk()->assertSee('Phụ huynh phản ánh phòng nóng')->assertSee('Sự vụ lớp khác');

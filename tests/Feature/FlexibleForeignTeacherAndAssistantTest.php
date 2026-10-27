@@ -103,7 +103,7 @@ class FlexibleForeignTeacherAndAssistantTest extends TestCase
 
         $this->actingAs($this->admin)->post(route('classes.foreign-teacher', $this->classModel->id), [
             'giao_vien_nn' => $this->gvnnA->id, 'session_ids' => [$s1->id, $s3->id],
-        ])->assertRedirect(route('classes.show', ['id' => $this->classModel->id, 'tab' => 'schedule']))->assertSessionHasNoErrors();
+        ])->assertRedirect(route('classes.show', ['id' => $this->classModel->id, 'tab' => 'sessions']))->assertSessionHasNoErrors();
         $this->actingAs($this->admin)->post(route('classes.foreign-teacher', $this->classModel->id), [
             'giao_vien_nn' => $this->gvnnB->id, 'session_ids' => [$s2->id],
         ])->assertSessionHasNoErrors();
@@ -235,7 +235,7 @@ class FlexibleForeignTeacherAndAssistantTest extends TestCase
             'task_type' => 'one_time', 'due_date' => '2026-10-05', 'due_time' => '17:30', 'status' => 'new',
         ]);
 
-        $this->actingAs($this->admin)->get(route('classes.show', ['id' => $this->classModel->id, 'tab' => 'schedule']))
+        $this->actingAs($this->admin)->get(route('classes.show', ['id' => $this->classModel->id, 'tab' => 'sessions']))
             ->assertOk()
             ->assertSee($this->assistant->name)
             ->assertSee('Gán GVNN');

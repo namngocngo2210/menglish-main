@@ -8,6 +8,8 @@ use App\Models\ClassReport;
 use App\Models\ClassModel;
 use App\Models\ClassSession;
 use App\Models\Homework;
+use App\Models\HomeworkSubmission;
+use App\Models\StaffReport;
 use App\Models\Student;
 use App\Models\StudentAttendance;
 use App\Models\TeacherSessionReport;
@@ -38,6 +40,16 @@ class TeacherSessionReportController extends Controller
     /** Nhận xét GV coi là "cần chú ý" khi gợi ý danh sách học sinh. */
     private const WEAK_REMARKS = ['grammar' => 'Cần cố gắng', 'attitude' => 'Cần cố gắng', 'result' => 'Không đạt'];
 
+    /** Cột "Thực hành" mặc định khi lớp chưa có báo cáo nào (thay cột "Thực hành ngữ pháp" cũ). */
+    private const DEFAULT_PRACTICE_COLUMNS = ['Ngữ pháp'];
+
+    private const MAX_PRACTICE_COLUMNS = 6;
+
+    /** Sự vụ trong buổi ghi vào Nhật ký sự vụ (StaffReport journal), đánh dấu nguồn để báo cáo buổi sửa / xóa lại được. */
+    public const INCIDENT_SOURCE = 'session_report';
+
+    public const SEVERITIES = ['normal' => 'Bình thường', 'important' => 'Quan trọng', 'urgent' => 'Khẩn'];
+
     public function show(Request $request, int $id, int $session): Response
     {
         [$class, $classSession] = $this->resolve($request, $id, $session);
@@ -49,18 +61,20 @@ class TeacherSessionReportController extends Controller
         $lesson = app(SessionLessonService::class)->lessonsFor(collect([$classSession]))[$classSession->id] ?? null;
         $deadline = TeacherSessionReport::deadline($classSession);
         $shared = app(SupportListService::class)->sessionRows($classSession)->where('source', '!=', SupportListService::SOURCE_TEACHER_REPORT)->values();
+        $homework = $this->previousHomework($class, $classSession, $roster);
 
         return Inertia::render('Classes/SessionReport', [
             'classInfo' => [
                 'id' => $class->id,
                 'name' => $class->name,
                 'code' => $class->code,
-                'url' => route('classes.show', ['id' => $class->id, 'tab' => 'attendance']),
+                'url' => route('classes.show', ['id' => $class->id, 'tab' => 'sessions']),
             ],
             'sessionInfo' => [
                 'id' => $classSession->id,
                 'no' => $lesson['no'] ?? null,
                 'date' => $classSession->date->format('d/m/Y'),
+                'weekday' => $classSession->date->dayOfWeek,
                 'time' => $classSession->start_time && $classSession->end_time
                     ? $classSession->start_time->format('H:i').' - '.$classSession->end_time->format('H:i') : null,
                 'room' => $classSession->room ?: ($class->room ?: null),
@@ -71,7 +85,20 @@ class TeacherSessionReportController extends Controller
             'attendanceDone' => StudentAttendance::where('class_session_id', $classSession->id)->exists(),
             'students' => Ui::options($roster, fn (Student $st) => "{$st->name} ({$st->code})"),
             // Nhận xét từng học sinh chỉ nhập ở đây (màn Nhận xét riêng của Cổng GV đã bỏ); HS vắng bị khóa.
-            'remarkStudents' => $this->remarkStudents($class, $classSession, $roster),
+            'remarkStudents' => $this->remarkStudents($class, $classSession, $roster, $homework['status']),
+            // BTVN của buổi trước: mỗi hạng mục đã giao một cột (✓ đúng hạn · đồng hồ nộp trễ · ✗ chưa nộp).
+            'homeworkColumns' => $homework['columns'],
+            'homeworkTitle' => $homework['title'],
+            // Cột "Thực hành" do GV đặt tên; buổi chưa có báo cáo lấy theo báo cáo gần nhất của lớp.
+            'practiceColumns' => $this->practiceColumns($class, $report),
+            'incidents' => $this->sessionIncidents($classSession)->map(fn (StaffReport $r) => [
+                'id' => $r->id,
+                'title' => $r->title,
+                'content' => $r->content,
+                'severity' => $r->severity ?: 'normal',
+                'status' => $r->status,
+            ])->values()->all(),
+            'severities' => self::SEVERITIES,
             'remarkOptions' => TeacherPortalController::REMARK_OPTIONS,
             'trialGuests' => TeacherPortalController::trialGuestsProps(TeacherPortalController::sessionTrialGuests($classSession)),
             // Học sinh đã có trong danh sách cần chú ý chung của buổi (vắng buổi này / TA báo) — GV không phải nhập lại.
@@ -139,11 +166,35 @@ class TeacherSessionReportController extends Controller
             'attention.*.action' => 'nullable|string|max:1000',
             'remarks' => 'nullable|array',
             'remarks.*' => 'array',
-            'remarks.*.*' => 'nullable|string|max:2000',
+            'remarks.*.bonus' => 'nullable|numeric|min:0|max:999',
+            'remarks.*.hw_score' => 'nullable|numeric|min:0|max:100',
+            'remarks.*.practice' => 'nullable|array|max:'.self::MAX_PRACTICE_COLUMNS,
+            'remarks.*.practice.*' => 'nullable|string|max:255',
+            'remarks.*.grammar' => 'nullable|string|max:255',
+            // Cột Monsters của bản báo cáo cũ (thay bằng Điểm thưởng) — vẫn nhận để không mất dữ liệu cũ khi gửi lại.
+            'remarks.*.monsters_group' => 'nullable|string|max:255',
+            'remarks.*.monsters_bonus' => 'nullable|string|max:255',
+            'remarks.*.attitude' => 'nullable|string|max:255',
+            'remarks.*.result' => 'nullable|string|max:255',
+            'remarks.*.comment' => 'nullable|string|max:2000',
+            'practice_columns' => 'nullable|array|max:'.self::MAX_PRACTICE_COLUMNS,
+            'practice_columns.*' => 'nullable|string|max:60',
+            'incidents' => 'nullable|array|max:20',
+            'incidents.*.id' => 'nullable|integer',
+            'incidents.*.title' => 'nullable|string|max:255',
+            'incidents.*.content' => 'nullable|string|max:5000',
+            'incidents.*.severity' => 'nullable|in:'.implode(',', array_keys(self::SEVERITIES)),
             'use_extra' => 'nullable|boolean',
         ], [
             'content.required' => 'Vui lòng nhập "Nội dung đã dạy".',
+            'remarks.*.bonus.*' => 'Điểm thưởng là số từ 0 đến 999.',
+            'remarks.*.hw_score.*' => 'Điểm BTVN là số từ 0 đến 100.',
         ]);
+        foreach ($validated['incidents'] ?? [] as $i => $row) {
+            if (blank($row['title'] ?? null) && filled($row['content'] ?? null)) {
+                throw ValidationException::withMessages(["incidents.{$i}.title" => 'Nhập tiêu đề sự vụ.']);
+            }
+        }
         if (! StudentAttendance::where('class_session_id', $classSession->id)->exists()) {
             throw ValidationException::withMessages(['attendance' => 'Cần điểm danh buổi này trước khi nộp báo cáo buổi.']);
         }
@@ -157,6 +208,19 @@ class TeacherSessionReportController extends Controller
                 'action' => trim((string) ($row['action'] ?? '')),
             ])->unique('student_id')->values()->all();
 
+        // Cột thực hành gửi theo vị trí (practice_columns[i]); nhận xét gửi practice[i] → lưu theo tên cột. Cột trống tên bị bỏ.
+        $practiceColumns = collect($validated['practice_columns'] ?? [])->map(fn ($label) => trim((string) $label));
+        $remarks = collect($validated['remarks'] ?? [])->map(function (array $remark) use ($practiceColumns) {
+            $remark['practice'] = $practiceColumns->mapWithKeys(fn (string $label, $idx) => $label === '' ? [] : [$label => trim((string) ($remark['practice'][$idx] ?? ''))])
+                ->filter(fn ($v) => $v !== '')->all();
+            if (! $remark['practice']) {
+                unset($remark['practice']);
+            }
+
+            return collect($remark)->map(fn ($v) => is_string($v) ? trim($v) : $v)->all();
+        })->all();
+        $practiceColumns = $practiceColumns->filter()->unique()->values()->all();
+
         $report = TeacherSessionReport::firstOrNew(['class_session_id' => $classSession->id]);
         $report->fill([
             'class_id' => $class->id,
@@ -165,14 +229,14 @@ class TeacherSessionReportController extends Controller
             'class_situation' => filled($validated['class_situation'] ?? null) ? trim($validated['class_situation']) : null,
             'proposal' => filled($validated['proposal'] ?? null) ? trim($validated['proposal']) : null,
             'attention' => $attention ?: null,
+            'practice_columns' => $practiceColumns,
         ]);
         $report->submitted_at ??= now();
         $created = ! $report->exists;
-        DB::transaction(function () use ($report, $class, $classSession, $user, $validated, $rosterIds) {
+        $urgent = DB::transaction(function () use ($report, $class, $classSession, $user, $validated, $remarks, $rosterIds) {
             $report->save();
             // Nhận xét học sinh gửi kèm báo cáo = "Lưu nhận xét" (bản chính thức) ở màn Nhận xét. Không gõ gì và chưa có bản
             // nhận xét nào → không tạo bản trống (bản trống vẫn tính là "đã gửi nhận xét").
-            $remarks = $validated['remarks'] ?? [];
             $typed = collect($remarks)->flatten()->filter(fn ($v) => filled($v))->isNotEmpty();
             if ($typed || TeacherPortalController::sessionRemarks($class, $classSession)->isNotEmpty()) {
                 TeacherPortalController::saveSessionRemarks($class, $classSession, (int) $user->id, $remarks, $rosterIds, false);
@@ -180,14 +244,19 @@ class TeacherSessionReportController extends Controller
             // Một danh sách "Học sinh cần chú ý" chung với TA; "Nội dung đã dạy" chỉ GV nhập — báo cáo trực lớp của buổi lấy lại.
             app(SupportListService::class)->syncTeacherReport($report, $classSession);
             ClassReport::where('class_session_id', $classSession->id)->update(['topics_learned' => $report->content]);
+
+            return $this->syncIncidents($class, $classSession, $user, $validated['incidents'] ?? []);
         });
+        foreach ($urgent as $entry) {
+            StaffReportController::notifyUrgent($entry, $user);
+        }
 
         $message = $created
             ? ($report->setRelation('session', $classSession)->isLate() ? 'Đã nộp báo cáo buổi (nộp trễ hạn).' : 'Đã nộp báo cáo buổi.')
             : 'Đã cập nhật báo cáo buổi.';
         $message .= $this->markTaught($class, $classSession, $user, ! empty($validated['use_extra']));
 
-        return redirect()->route('classes.show', ['id' => $class->id, 'tab' => 'attendance'])->with('success', $message);
+        return redirect()->route('classes.show', ['id' => $class->id, 'tab' => 'sessions'])->with('success', $message);
     }
 
     /**
@@ -208,6 +277,121 @@ class TeacherSessionReportController extends Controller
         } catch (ValidationException $e) {
             return ' Chưa ghi nhận Đã dạy: '.collect($e->errors())->flatten()->first();
         }
+    }
+
+    /**
+     * Sự vụ trong buổi (chủ dự án: "sự vụ đưa luôn vào báo cáo buổi"): mỗi dòng là một mục Nhật ký sự vụ của lớp, gắn buổi qua
+     * data.class_session_id. Dòng bỏ khỏi form → xóa mục đó (chỉ mục do báo cáo buổi tạo, chưa xử lý xong).
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return list<StaffReport> sự vụ Khẩn mới (hoặc vừa nâng lên Khẩn) cần báo ngay
+     */
+    private function syncIncidents(ClassModel $class, ClassSession $session, User $user, array $rows): array
+    {
+        $existing = $this->sessionIncidents($session)->keyBy('id');
+        $kept = [];
+        $urgent = [];
+        foreach ($rows as $row) {
+            $title = trim((string) ($row['title'] ?? ''));
+            if ($title === '') {
+                continue;
+            }
+            $attrs = [
+                'title' => $title,
+                'content' => filled($row['content'] ?? null) ? trim($row['content']) : null,
+                'severity' => $row['severity'] ?? 'normal',
+            ];
+            $entry = filled($row['id'] ?? null) ? $existing->get((int) $row['id']) : null;
+            if ($entry) {
+                $wasUrgent = $entry->severity === 'urgent';
+                $entry->update($attrs);
+            } else {
+                $wasUrgent = false;
+                $entry = StaffReport::create($attrs + [
+                    'user_id' => $user->id,
+                    'class_id' => $class->id,
+                    'type' => 'journal',
+                    'report_date' => $session->date->toDateString(),
+                    'status' => 'open',
+                    'data' => ['class_session_id' => $session->id, 'source' => self::INCIDENT_SOURCE],
+                ]);
+            }
+            $kept[] = $entry->id;
+            if ($entry->severity === 'urgent' && ! $wasUrgent) {
+                $urgent[] = $entry;
+            }
+        }
+        $existing->except($kept)->filter(fn (StaffReport $r) => $r->status === 'open')->each->delete();
+
+        return $urgent;
+    }
+
+    /** @return Collection<int, StaffReport> sự vụ báo cáo buổi đã ghi cho buổi này */
+    private function sessionIncidents(ClassSession $session): Collection
+    {
+        return StaffReport::where('type', 'journal')->where('class_id', $session->class_id)
+            ->where('data->class_session_id', $session->id)->where('data->source', self::INCIDENT_SOURCE)
+            ->orderBy('id')->get();
+    }
+
+    /** @return list<string> */
+    private function practiceColumns(ClassModel $class, ?TeacherSessionReport $report): array
+    {
+        if ($report?->practice_columns) {
+            return array_values($report->practice_columns);
+        }
+        $last = TeacherSessionReport::where('class_id', $class->id)->whereNotNull('practice_columns')->latest('submitted_at')->latest('id')->value('practice_columns');
+        $last = is_string($last) ? json_decode($last, true) : $last;
+
+        return $last ? array_values((array) $last) : self::DEFAULT_PRACTICE_COLUMNS;
+    }
+
+    /**
+     * BTVN giao ở buổi trước (buổi thường / học bù gần nhất trước buổi này): cột = hạng mục đã giao, trạng thái từng học sinh
+     * theo giỏ nộp của hạng mục — done (đúng hạn) · late (nộp sau hạn) · missing (chưa nộp).
+     *
+     * @return array{title: ?string, columns: list<array{key: string, label: string, icon: string}>, status: array<int, array<string, string>>}
+     */
+    private function previousHomework(ClassModel $class, ClassSession $session, Collection $roster): array
+    {
+        $empty = ['title' => null, 'columns' => [], 'status' => []];
+        $previous = ClassSession::where('class_id', $class->id)->whereKeyNot($session->id)
+            ->whereIn('type', [ClassSession::TYPE_REGULAR, ClassSession::TYPE_MAKEUP])->where('status', '!=', 'cancelled')
+            ->where(fn ($q) => $q->whereDate('date', '<', $session->date->toDateString())
+                ->orWhere(fn ($q) => $q->whereDate('date', $session->date->toDateString())->where('start_time', '<', $session->start_time?->format('H:i:s') ?? '00:00:00')))
+            ->orderByDesc('date')->orderByDesc('start_time')->first();
+        if (! $previous) {
+            return $empty;
+        }
+        $homework = Homework::where('class_id', $class->id)
+            ->where(fn ($q) => $q->where('class_session_id', $previous->id)
+                ->orWhere(fn ($q) => $q->whereNull('class_session_id')->whereDate('created_at', $previous->date->toDateString())))
+            ->latest('id')->first();
+        $categories = collect($homework?->items ?? [])->filter(fn ($text) => filled($text))->keys();
+        if (! $homework || $categories->isEmpty()) {
+            return $empty;
+        }
+        $due = $homework->due_at ?? $homework->due_date?->copy()->endOfDay();
+        $submissions = HomeworkSubmission::where('homework_id', $homework->id)->get()->groupBy('student_id');
+        $status = [];
+        foreach ($roster as $student) {
+            $mine = $submissions->get($student->id, collect())->keyBy('basket');
+            foreach ($categories as $cat) {
+                $sub = $mine->get(Homework::basketOf($cat));
+                $status[$student->id][$cat] = ! $sub ? 'missing'
+                    : ($due && $sub->submitted_at && $sub->submitted_at->gt($due) ? 'late' : 'done');
+            }
+        }
+
+        return [
+            'title' => 'BTVN buổi '.$previous->date->format('d/m'),
+            'columns' => $categories->map(fn ($cat) => [
+                'key' => $cat,
+                'label' => Homework::CATEGORIES[$cat][0] ?? $cat,
+                'icon' => Homework::CATEGORIES[$cat][1] ?? 'assignment',
+            ])->values()->all(),
+            'status' => $status,
+        ];
     }
 
     /** @return array{0: ClassModel, 1: ClassSession} */
@@ -235,7 +419,10 @@ class TeacherSessionReportController extends Controller
         $attendance = $metrics->get('attendance');
         $homework = $metrics->get('homework');
         $attended = StudentAttendance::where('class_session_id', $session->id)->exists();
-        $assigned = Homework::where('class_id', $class->id)->whereDate('created_at', $session->date->toDateString())->latest('id')->first(['id', 'title']);
+        $assigned = Homework::where('class_id', $class->id)
+            ->where(fn ($q) => $q->where('class_session_id', $session->id)
+                ->orWhere(fn ($q) => $q->whereNull('class_session_id')->whereDate('created_at', $session->date->toDateString())))
+            ->latest('id')->first(['id', 'title']);
         $link = fn (string $label, string $url) => $withLinks ? ['label' => $label, 'url' => $url] : null;
 
         return array_values(array_filter([
@@ -246,7 +433,8 @@ class TeacherSessionReportController extends Controller
                 'done' => $attended,
                 'value' => $attended ? 'Có mặt '.($attendance['value'] ?? '—').' · Đi muộn '.($metrics->get('late')['value'] ?? '0') : 'Chưa điểm danh',
                 'details' => $attended ? ($attendance['details'] ?? []) : [],
-                'link' => $link($attended ? 'Xem điểm danh' : 'Điểm danh', route('teacher.attendance', ['classId' => $class->id, 'session' => $session->id])),
+                'link' => $link($attended ? 'Sửa điểm danh' : 'Điểm danh', route('teacher.attendance', ['classId' => $class->id, 'session' => $session->id])),
+                'drawer' => true,
             ],
             [
                 'key' => 'taught',
@@ -264,7 +452,9 @@ class TeacherSessionReportController extends Controller
                 'done' => (bool) $assigned,
                 'value' => $assigned ? 'Đã giao: '.$assigned->title : 'Chưa giao trong buổi',
                 'details' => $homework && ($homework['value'] ?? '—') !== '—' ? [['text' => 'Bài giao trước buổi: đã nộp '.$homework['value']]] : [],
-                'link' => $link('Bài tập', route('teacher.homework', ['classId' => $class->id])),
+                // Mở ngăn kéo "Giao bài" ngay trên báo cáo (cùng route màn Bài tập, gửi kèm header remote modal).
+                'link' => $link($assigned ? 'Sửa / giao thêm' : 'Giao bài', route('teacher.homework', ['classId' => $class->id, 'session' => $session->id])),
+                'drawer' => true,
             ],
         ]));
     }
@@ -274,12 +464,12 @@ class TeacherSessionReportController extends Controller
      *
      * @return list<array<string, mixed>>
      */
-    private function remarkStudents(ClassModel $class, ClassSession $session, Collection $roster): array
+    private function remarkStudents(ClassModel $class, ClassSession $session, Collection $roster, array $homework = []): array
     {
         $attendance = StudentAttendance::where('class_session_id', $session->id)->pluck('status', 'student_id');
         $saved = TeacherPortalController::sessionRemarks($class, $session);
 
-        return $roster->map(function (Student $student) use ($attendance, $saved) {
+        return $roster->map(function (Student $student) use ($attendance, $saved, $homework) {
             $status = $attendance->get($student->id) ?? 'none';
 
             return [
@@ -288,6 +478,7 @@ class TeacherSessionReportController extends Controller
                 'att_status' => $status,
                 'absent' => in_array($status, ['absent', 'excused'], true),
                 'remark' => TeacherPortalController::remarkFields((array) ($saved->get($student->id) ?? $saved->get((string) $student->id) ?? [])),
+                'homework' => (object) ($homework[$student->id] ?? []),
             ];
         })->values()->all();
     }

@@ -40,7 +40,8 @@ const CATEGORIES = {
 };
 const REMARK_FIELDS = {
     monsters: ['Monsters', 'hotel_class', 'text-warning'],
-    grammar: ['Ngữ pháp', 'psychology', 'text-secondary'],
+    grammar: ['Thực hành', 'psychology', 'text-secondary'],
+    hw_score: ['Điểm BTVN', 'assignment_turned_in', 'text-primary'],
     attitude: ['Tinh thần', 'mood', 'text-tertiary'],
     result: ['Kết quả', 'checklist', 'text-accent'],
 };

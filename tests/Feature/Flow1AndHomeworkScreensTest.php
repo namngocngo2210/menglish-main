@@ -116,7 +116,7 @@ class Flow1AndHomeworkScreensTest extends TestCase
         $this->assertNotNull($created);
         $this->assertEquals('IELTS Test K99', $created->name);
         // Lớp chưa có lịch → mở Trang lớp ở tab Lịch & buổi học (bước tiếp theo của vòng đời).
-        $response->assertRedirect(route('classes.show', ['id' => $created->id, 'tab' => 'schedule']));
+        $response->assertRedirect(route('classes.show', ['id' => $created->id, 'tab' => 'sessions']));
     }
 
     /**
@@ -131,8 +131,8 @@ class Flow1AndHomeworkScreensTest extends TestCase
         $response = $this->actingAs($this->admin)->get(route('classes.show', $class->id));
         $response->assertStatus(200);
         $response->assertSee($class->name);
-        $response->assertSee('Thông tin chung');
-        $response->assertSee('Vòng đời lớp');
+        $response->assertSee('Thông tin lớp');
+        $response->assertDontSee('Vòng đời lớp');
 
         $this->actingAs($this->admin)->get(route('classes.show', ['id' => $class->id, 'tab' => 'students']))
             ->assertOk()->assertSee('Danh sách học sinh');
@@ -162,8 +162,7 @@ class Flow1AndHomeworkScreensTest extends TestCase
         $response = $this->actingAs($this->admin)->get(route('classes.index'));
         $response->assertStatus(200);
         $response->assertSee('Danh sách lớp');
-        $response->assertSee('Big Test');
-        $response->assertSee('Việc tiếp theo');
+        $response->assertSee('Sĩ số');
     }
 
     /**
@@ -177,8 +176,9 @@ class Flow1AndHomeworkScreensTest extends TestCase
 
         $response = $this->actingAs($this->admin)->get(route('classes.show', ['id' => $class->id, 'tab' => 'academic']));
         $response->assertStatus(200);
-        $response->assertSee('Chương trình &amp; Tiến độ', false);
-        $response->assertSee('Lịch Big Test');
+        $response->assertSee('Chưa giao chặng cho lớp');
+        $response->assertSee('Big Test');
+        $response->assertSee('Yêu cầu giãn / dời buổi');
     }
 
     /**

@@ -107,7 +107,7 @@ function submit(event) {
                         <td>
                             <span class="font-code font-bold">Sự vụ #{{ journal.id }}</span>
                             <span class="block text-xs text-on-surface-variant">{{ journal.branch ?? 'Chưa cập nhật' }}</span>
-                            <Link v-if="journal.class_id" :href="route('classes.show', { id: journal.class_id, tab: 'incidents' })" class="block text-xs font-semibold text-primary hover:underline">Lớp {{ journal.class_code }}</Link>
+                            <Link v-if="journal.class_id" :href="route('classes.show', journal.class_id)" class="block text-xs font-semibold text-primary hover:underline">Lớp {{ journal.class_code }}</Link>
                         </td>
                         <td><UiBadge color="warning" pill :dot="false">Nhật ký sự vụ</UiBadge></td>
                         <td class="max-w-sm">
