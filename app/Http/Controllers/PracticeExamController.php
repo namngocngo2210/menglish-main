@@ -109,9 +109,14 @@ class PracticeExamController extends Controller
             $file->storeAs($import->directory(), (string) $i, 'local');
         }
 
-        ImportPracticeExams::dispatch($import);
+        // Không có hàng đợi thật (QUEUE_CONNECTION=sync): chạy sau khi trả trang, người dùng không phải chờ
+        if (config('queue.default') === 'sync') {
+            ImportPracticeExams::dispatchAfterResponse($import);
+        } else {
+            ImportPracticeExams::dispatch($import);
+        }
 
-        return back()->with('status', 'Đã nhận file, đang import ở nền. Có thể rời trang, kết quả hiện ở đây khi xong.');
+        return back()->with('status', 'Đã nhận file, đang xử lý ở nền. Tiến độ hiện ở danh sách đề.');
     }
 
     public function update(Request $request, PracticeExam $exam): RedirectResponse
