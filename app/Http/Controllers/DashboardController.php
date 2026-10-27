@@ -79,7 +79,9 @@ class DashboardController extends Controller
                 'roles' => $user->getRoleNames()->map(fn ($r) => AclHelper::shortRoleLabel($r))->implode(', ') ?: 'Nhân viên',
                 'branch' => $user->branch?->name ?? 'Trung tâm',
                 'salaryUrl' => $user->can('payroll.view') || $user->can('payroll.view_own') ? route('portal.my-salary') : null,
-                'tasksUrl' => $user->can('work_task.view') ? route('portal.ta-tasks') : null,
+                // Trợ giảng → "Nhiệm vụ hôm nay" (ca trực); vai trò khác → Danh sách đầu việc "Của tôi" (chủ dự án 26/10/2026).
+                'tasksUrl' => $user->can('work_task.view') ? ProfileController::myTasksUrl($user) : null,
+                'tasksLabel' => ProfileController::isAssistantOnly($user) ? 'Nhiệm vụ hôm nay' : 'Việc của tôi',
             ],
             'roleDashboard' => $roleDashboard,
             'dailyReport' => $this->dailyReport($user),

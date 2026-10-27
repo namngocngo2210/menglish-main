@@ -9,8 +9,11 @@ import { can } from '@/lib/can';
 import { route, routeIs } from '@/lib/route';
 
 const items = computed(() => {
+    // Trợ giảng (không dạy chính): mục đầu là "Nhiệm vụ hôm nay" của mình, "Lịch dạy" đổi thành "Lịch trực".
+    const isAssistant = can('portal.assistant') && !can('portal.teacher');
     const list = [
-        { route: 'teacher.home', icon: 'calendar_month', label: 'Lịch dạy', active: routeIs('teacher.home', 'teacher.attendance', 'teacher.remarks', 'teacher.homework', 'teacher.scores') },
+        ...(isAssistant ? [{ route: 'portal.ta-tasks', icon: 'checklist', label: 'Nhiệm vụ', active: routeIs('portal.ta-tasks') }] : []),
+        { route: 'teacher.home', icon: 'calendar_month', label: isAssistant ? 'Lịch trực' : 'Lịch dạy', active: routeIs('teacher.home', 'teacher.attendance', 'teacher.remarks', 'teacher.homework', 'teacher.scores') },
         { route: 'teacher.general-report', icon: 'history_edu', label: 'Bảng công', active: routeIs('teacher.general-report') },
     ];
     if (can('notification.view')) {

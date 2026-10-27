@@ -32,8 +32,9 @@ const completing = ref(null);
 </script>
 
 <template>
+    <!-- Người được giao (giáo viên / trợ giảng, hoặc mở từ "Buổi bổ trợ của tôi") xem danh sách của mình. -->
     <UiPageHeader
-        title="Học bù & bổ trợ"
+        :title="canAssign && !mine ? 'Học bù & bổ trợ' : 'Buổi bổ trợ của tôi'"
         :description="canAssign
             ? 'Học sinh nghỉ học, điểm mini test / Big Test dưới 7 tự vào danh sách. Học vụ xếp buổi bổ trợ kèm nội dung buổi đã dạy và chuyển trợ giảng; trợ giảng bổ trợ xong thì tick hoàn thành và nhận xét.'
             : 'Buổi bổ trợ được giao cho bạn: xem nội dung cần dạy lại, bổ trợ xong thì tick hoàn thành và nhận xét buổi.'"

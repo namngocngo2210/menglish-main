@@ -148,7 +148,7 @@ const ticketColor = (s) => (s === 'resolved' ? 'success' : s === 'in_progress' ?
                 <div class="scrollbar-none mt-6 flex items-center gap-2 overflow-x-auto border-b border-surface-container-highest pt-2 sm:gap-4">
                     <button v-if="showOperations" type="button" :class="tabClass('operations')" @click="activeTab = 'operations'">
                         <span class="material-symbols-outlined text-[18px]">dashboard</span>
-                        <span>{{ ['teacher', 'assistant'].includes(portal) ? 'Giảng dạy & Nhiệm vụ' : 'Công việc của tôi' }}</span>
+                        <span>{{ portal === 'teacher' ? 'Giảng dạy & Nhiệm vụ' : portal === 'assistant' ? 'Trực lớp & Nhiệm vụ' : 'Công việc của tôi' }}</span>
                     </button>
                     <button v-if="showPayroll" type="button" :class="tabClass('payroll')" @click="activeTab = 'payroll'">
                         <span class="material-symbols-outlined text-[18px]">payments</span>
@@ -402,7 +402,8 @@ const ticketColor = (s) => (s === 'resolved' ? 'success' : s === 'in_progress' ?
                                 <span class="material-symbols-outlined text-[20px] text-secondary">school</span>
                                 Lớp học đang phụ trách
                             </h2>
-                            <Link v-if="can('attendance_student.record')" :href="route('teacher.home')" class="text-xs font-bold text-primary hover:underline">Mở Cổng Giáo viên &rarr;</Link>
+                            <Link v-if="portal === 'assistant'" :href="route('portal.ta-tasks')" class="text-xs font-bold text-primary hover:underline">Mở Cổng Trợ giảng &rarr;</Link>
+                            <Link v-else-if="can('attendance_student.record')" :href="route('teacher.home')" class="text-xs font-bold text-primary hover:underline">Mở Cổng Giáo viên &rarr;</Link>
                         </div>
 
                         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">

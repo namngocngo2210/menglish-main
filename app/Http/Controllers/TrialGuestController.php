@@ -136,15 +136,14 @@ class TrialGuestController extends Controller
             ->exists();
     }
 
-    /** Buổi do user dạy / trợ giảng, hoặc lớp user phụ trách. */
+    /** Buổi do user dạy, hoặc lớp user là GV / GVNN. Trợ giảng không nhận xét học thử (chủ dự án 26/10/2026). */
     private function teachingScope(Builder $query, User $user): Builder
     {
         return $query
             ->whereHas('session', fn (Builder $session) => $session
-                ->where('teacher_id', $user->id)->orWhere('assistant_id', $user->id))
+                ->where('teacher_id', $user->id)->orWhere('foreign_teacher_id', $user->id))
             ->orWhereHas('classModel', fn (Builder $class) => $class
                 ->where('teacher_id', $user->id)
-                ->orWhere('assistant_id', $user->id)
                 ->orWhere('foreign_teacher_id', $user->id));
     }
 }

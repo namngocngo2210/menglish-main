@@ -79,6 +79,13 @@ class UserGuideTest extends TestCase
     {
         foreach (Roles::ALL as $role) {
             $routes = collect(app(SidebarMenu::class)->groupsFor($this->makeUser($role)))->flatMap(fn (array $g) => collect($g['items'])->pluck('route'));
+            // Học viên / phụ huynh mở hướng dẫn từ đầu trang cổng học viên (PortalTopHeader), menu chỉ còn cổng học viên.
+            if ($role === Roles::STUDENT) {
+                $this->assertNotContains('guide.index', $routes);
+                $this->actingAs($this->makeUser($role))->get(route('guide.index'))->assertOk();
+
+                continue;
+            }
             $this->assertContains('guide.index', $routes, $role);
         }
     }

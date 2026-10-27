@@ -23,13 +23,28 @@ use WeakMap;
  *  3. `anchor` (item) / `can` (workspace) — quyền "neo" của khu nghiệp vụ, thỏa MỘT trong số đó (vd. tab Học phí cho
  *     người xử lý nghiệp vụ kế toán, Cổng giáo viên cho portal.teacher / portal.assistant). Workspace không còn tab
  *     nào sẽ bị ẩn. Không kiểm tra tên vai trò — Admin đổi quyền là menu đổi theo.
- *  4. Kết quả `can()` được nhớ theo request (WeakMap theo Request) nên sidebar + tab + Cài đặt chỉ hỏi Gate
+ *  4. `except` (item) — ẩn với người có MỘT trong các ability này (vd. học viên dùng hộp thư của cổng học viên thay cho
+ *     Trung tâm thông báo). `alt_label` (item / workspace) — ['label' => …, 'unless' => [...]]: đổi tên hiển thị khi user
+ *     không có ability nào trong `unless` (vd. trợ giảng thấy "Cổng Trợ giảng" thay cho "Cổng Giáo viên").
+ *  5. Kết quả `can()` được nhớ theo request (WeakMap theo Request) nên sidebar + tab + Cài đặt chỉ hỏi Gate
  *     một lần cho mỗi ability.
  */
 final class SidebarMenu
 {
     /** Quyền đối tượng của cổng giáo viên / trợ giảng. */
     private const TEACHING_PORTAL = ['portal.teacher', 'portal.assistant'];
+
+    /**
+     * Màn "phía giáo viên" (gửi đề xuất giáo trình, chặng đang dạy, order đề): chỉ giáo viên; Admin vẫn thấy để hỗ trợ.
+     * Trợ giảng, Quản lý cơ sở, Học thuật, Học vụ không thấy (chủ dự án 26/10/2026) — Học thuật duyệt ở "Cần duyệt".
+     */
+    private const TEACHER_SIDE = ['portal.teacher', AdminOnlyApprovals::ABILITY];
+
+    /** Tên hiển thị cho trợ giảng (không có quyền cổng giáo viên). */
+    private static function forAssistant(string $label): array
+    {
+        return ['label' => $label, 'unless' => ['portal.teacher', 'attendance_staff.view']];
+    }
 
     /** Quyền "neo" của từng khu nghiệp vụ (xem nguyên tắc 3). */
     private const CRM = ['lead.create', 'lead.update']; // BA 26/09/2026: Học vụ là actor chính bên CRM.
@@ -117,8 +132,8 @@ final class SidebarMenu
                 'items' => [
                     // Mọi nhân sự: bổ sung công, xin đi muộn / về sớm, xin nghỉ (cũng mở từ trang Chấm công của tôi).
                     ['label' => 'Đơn chấm công & nghỉ', 'route' => 'my-attendance.requests'],
-                    ['label' => 'Đề xuất sửa giáo trình', 'route' => 'syllabus.teacher-propose'],
-                    ['label' => 'Customize syllabus', 'route' => 'syllabus.teacher-adjust'],
+                    ['label' => 'Đề xuất sửa giáo trình', 'route' => 'syllabus.teacher-propose', 'can' => self::TEACHER_SIDE],
+                    ['label' => 'Customize syllabus', 'route' => 'syllabus.teacher-adjust', 'can' => self::TEACHER_SIDE],
                 ],
             ],
             [
@@ -147,7 +162,9 @@ final class SidebarMenu
                 ],
                 'actions' => self::anchored(self::TASK_ASSIGNER, [
                     ['label' => 'Giao việc cho Trợ giảng', 'route' => 'tasks.ta-assign', 'icon' => 'support_agent', 'variant' => 'secondary', 'modal' => '4xl'],
-                    ['label' => 'Báo cáo trực lớp', 'route' => 'tasks.class-reports.create', 'icon' => 'rate_review', 'variant' => 'secondary', 'modal' => '2xl'],
+                    // Form trợ giảng tự nộp: người giao việc (Quản lý / Học thuật / Học vụ) xem báo cáo ở chi tiết việc, không nộp thay
+                    // (chủ dự án 26/10/2026); Admin giữ để hỗ trợ.
+                    ['label' => 'Báo cáo trực lớp', 'route' => 'tasks.class-reports.create', 'icon' => 'rate_review', 'variant' => 'secondary', 'modal' => '2xl', 'can' => [AdminOnlyApprovals::ABILITY]],
                 ]),
             ],
             [
@@ -213,7 +230,7 @@ final class SidebarMenu
                     ...self::anchored(self::CLASS_MANAGER, [
                         // Danh sách lớp → Trang lớp (tab con). Hồ sơ lớp / Sơ đồ khối / Danh sách chi tiết / Chi tiết học thuật
                         // cũ chuyển hướng về đây (chip lọc + tab con thay cho màn riêng).
-                        ['label' => 'Danh sách lớp', 'route' => 'classes.index', 'active' => ['classes.index', 'classes.show', 'classes.create', 'classes.edit', 'classes.profile', 'classes.academic-*']],
+                        ['label' => 'Danh sách lớp', 'route' => 'classes.index', 'active' => ['classes.index', 'classes.show', 'classes.session-report', 'classes.create', 'classes.edit', 'classes.profile', 'classes.academic-*']],
                         // Tên tab = tiêu đề trang; tránh trùng với tab "Lịch & buổi học" / "Điểm danh" bên trong Trang lớp.
                         ['label' => 'Lịch học các lớp', 'route' => 'tasks.classes-dashboard'],
                         // Học bù (chủ dự án 18/10/2026): học sinh nghỉ hiện ở đây để Học vụ xếp buổi bổ trợ, chuyển trợ giảng.
@@ -222,13 +239,13 @@ final class SidebarMenu
                     // Giáo viên / trợ giảng (docs/luong-giao-vien.md): Danh sách lớp lọc lớp mình dạy, để GV cũng thấy mục Lớp học ở
                     // khu Đào tạo. Đặt sau tab của người quản lý để link sidebar của họ vẫn là Danh sách lớp.
                     ...self::anchored(self::TEACHING_PORTAL, [
-                        ['label' => 'Lớp của tôi', 'route' => 'classes.index', 'query' => ['mine' => 1], 'active' => ['classes.index', 'classes.show']],
+                        ['label' => 'Lớp của tôi', 'route' => 'classes.index', 'query' => ['mine' => 1], 'active' => ['classes.index', 'classes.show', 'classes.session-report']],
                     ]),
                 ],
                 // Nút chung mọi tab Lớp học (trước nằm ở menu "Tạo mới" trên topbar); quyền theo middleware can:class.create.
                 'actions' => [
                     // Ẩn trên trang một lớp cụ thể: ở đó nút chính là bước tiếp theo của lớp (`hide_on` = routeIs).
-                    ['label' => 'Tạo lớp mới', 'route' => 'classes.create', 'icon' => 'add', 'hide_on' => ['classes.show', 'classes.edit']],
+                    ['label' => 'Tạo lớp mới', 'route' => 'classes.create', 'icon' => 'add', 'hide_on' => ['classes.show', 'classes.edit', 'classes.session-report']],
                 ],
             ],
             [
@@ -246,7 +263,7 @@ final class SidebarMenu
                         ['label' => 'Giao chặng', 'route' => 'syllabus.assignments'],
                     ]),
                     // Phía giáo viên (mockup 03_Cong_Giao_Vien/07–11, 14): ai xem được giáo trình đều thấy.
-                    ['label' => 'Chặng đang dạy & Order Test', 'route' => 'syllabus.teaching-stages', 'active' => ['syllabus.teaching-stages', 'teacher.order-test*']],
+                    ['label' => 'Chặng đang dạy & Order Test', 'route' => 'syllabus.teaching-stages', 'active' => ['syllabus.teaching-stages', 'teacher.order-test*'], 'can' => self::TEACHER_SIDE],
                     // Dự án soạn sách / xây chương trình của Học thuật (04/10/2026); quyền academic_project.* đọc từ middleware route.
                     ['label' => 'Dự án soạn sách & chương trình', 'route' => 'academic-projects.index', 'active' => ['academic-projects.index', 'academic-projects.show', 'academic-projects.create', 'academic-projects.edit']],
                 ],
@@ -358,7 +375,7 @@ final class SidebarMenu
                     ['label' => 'Chấm công của tôi', 'route' => 'my-attendance.home'],
                     ['label' => 'Lịch sử công của tôi', 'route' => 'my-attendance.history'],
                     ['label' => 'Chấm công hằng ngày', 'route' => 'staff-attendance.index', 'active' => ['staff-attendance.*']],
-                    ['label' => 'Giờ dạy giáo viên', 'route' => 'payroll.timesheets.teachers', 'can' => ['attendance_staff.view', ...self::TEACHING_PORTAL]],
+                    ['label' => 'Giờ dạy giáo viên', 'route' => 'payroll.timesheets.teachers', 'can' => ['attendance_staff.view', ...self::TEACHING_PORTAL], 'alt_label' => self::forAssistant('Giờ trợ giảng của tôi')],
                     ['label' => 'Chấm công đơn lẻ', 'route' => 'payroll.timesheets.manual'],
                     ['label' => 'AppSheet', 'route' => 'payroll.timesheets.appsheet'],
                     ['label' => 'Lịch sử đồng bộ', 'route' => 'payroll.timesheets.sync-history'],
@@ -433,7 +450,7 @@ final class SidebarMenu
                     ['label' => 'Báo cáo định kỳ', 'route' => 'reports.my', 'active' => ['reports.my', 'reports.periodic.*']],
                     // Bảng công / báo cáo giảng dạy tháng của giáo viên (cũng mở từ thanh dưới Cổng giáo viên).
                     ...self::anchored(self::TEACHING_PORTAL, [
-                        ['label' => 'Báo cáo giảng dạy', 'route' => 'teacher.general-report', 'can' => ['attendance_student.record']],
+                        ['label' => 'Báo cáo giảng dạy', 'route' => 'teacher.general-report', 'can' => ['attendance_student.record'], 'alt_label' => self::forAssistant('Bảng công trợ giảng')],
                     ]),
                 ],
             ],
@@ -444,31 +461,37 @@ final class SidebarMenu
                 'icon' => 'person',
                 'items' => [
                     // Trung tâm thông báo (cũng mở từ chuông trên topbar).
-                    ['label' => 'Thông báo', 'route' => 'notifications.index', 'active' => ['notifications.*']],
+                    // Học viên / phụ huynh dùng "Hộp thư thông báo" và hướng dẫn trong cổng học viên (chủ dự án 26/10/2026).
+                    ['label' => 'Thông báo', 'route' => 'notifications.index', 'active' => ['notifications.*'], 'except' => ['portal.student']],
                     ['label' => 'Lương của tôi', 'route' => 'portal.my-salary', 'can' => ['payroll.view_own']],
                     // Phiếu KPI tháng của chính mình (mọi nhân sự có tiêu chí KPI theo vai trò).
                     ['label' => 'KPI của tôi', 'route' => 'kpi.mine', 'can' => [\App\Models\KpiCriterion::OWN_ABILITY]],
                     // Hướng dẫn sử dụng theo vai trò: mọi người dùng (route chỉ cần đăng nhập), xem App\Support\Guide\UserGuide.
                     // Nằm trong "Của tôi" thay vì nhóm riêng để sidebar Admin không quá 26 mục (WorkspaceNavigationTest).
-                    ['label' => 'Hướng dẫn sử dụng', 'route' => 'guide.index'],
+                    ['label' => 'Hướng dẫn sử dụng', 'route' => 'guide.index', 'except' => ['portal.student']],
                 ],
             ],
             [
                 'id' => 'teacher_portal',
                 'section' => 'Cá nhân',
                 'label' => 'Cổng Giáo viên',
+                'alt_label' => self::forAssistant('Cổng Trợ giảng'),
                 'icon' => 'cast_for_education',
                 // Theo thứ tự luồng GV (docs/luong-giao-vien.md): bài giảng hôm nay → syllabus & XÁC NHẬN chặng → điểm danh →
                 // chấm bài. "Lớp của tôi" nằm ở nhóm Lớp học (khu Đào tạo).
                 'items' => self::anchored(self::TEACHING_PORTAL, [
+                    // Trợ giảng: mục đầu (link sidebar) là việc trong ngày của mình. Giáo viên xem việc của mình ở Danh sách đầu việc
+                    // → "Của tôi" (màn này chia ca Trước / Trong / Sau giờ học của trợ giảng — chủ dự án 26/10/2026).
+                    ['label' => 'Nhiệm vụ hôm nay', 'route' => 'portal.ta-tasks', 'can' => ['portal.assistant']],
+                    // Trợ giảng chỉ xem bài giảng (nút "Đã dạy" chỉ GV / GVNN của lớp).
                     ['label' => 'Bài giảng hôm nay', 'route' => 'teacher.lesson-today', 'active' => ['teacher.lesson-today*']],
                     ['label' => 'Syllabus & tài liệu', 'route' => 'syllabus.teacher-view'],
                     ['label' => 'Check-in & Điểm danh hôm nay', 'route' => 'teacher.home', 'active' => ['teacher.home', 'teacher.attendance*'], 'can' => ['attendance_student.record']],
                     ['label' => 'Chấm bài nộp của lớp', 'route' => 'portal.teacher.submissions', 'active' => ['portal.teacher.submissions*']],
-                    ['label' => 'Khách học thử', 'route' => 'teacher.trial-guests', 'active' => ['teacher.trial-guests*']],
+                    // Trợ giảng không nhận xét học thử (chủ dự án 26/10/2026).
+                    ['label' => 'Khách học thử', 'route' => 'teacher.trial-guests', 'active' => ['teacher.trial-guests*'], 'can' => ['portal.teacher']],
                     // Cùng màn với tab E-learning, lọc sẵn học viên lớp mình dạy (quyền practice.view_results đọc từ middleware route).
                     ['label' => 'Kết quả luyện tập', 'route' => 'practice-results.index', 'query' => ['mine' => 1]],
-                    ['label' => 'Nhiệm vụ hôm nay của TA', 'route' => 'portal.ta-tasks', 'can' => ['work_task.view']],
                     // Trợ giảng / GV được giao buổi bổ trợ: tick hoàn thành và nhận xét buổi.
                     ['label' => 'Buổi bổ trợ của tôi', 'route' => 'tasks.support-sessions', 'query' => ['mine' => 1]],
                 ]),
@@ -607,6 +630,7 @@ final class SidebarMenu
 
             // Active theo mọi tab của workspace (kể cả tab user không thấy) để sidebar luôn đánh dấu đúng khu.
             $group['is_active'] = $request !== null && $this->matchesAny($request, $group['items']);
+            $group['label'] = $this->labelFor($user, $group, $request);
             $group['items'] = $items;
             $group['actions'] = $this->visibleItems($user, $group['actions'] ?? [], $request);
             $group['url'] = $items[0]['url'];
@@ -658,6 +682,7 @@ final class SidebarMenu
         // Nút hành động hiện cả khi user không thấy tab nào (vd. Học vụ được lập phiếu thu nhưng không xử lý kế toán).
         $workspace = [
             ...$definition,
+            'label' => $this->labelFor($user, $definition, $request),
             'items' => $this->visibleItems($user, $definition['items'], $request),
             'actions' => $this->visibleItems($user, $definition['actions'] ?? [], $request),
         ];
@@ -802,7 +827,7 @@ final class SidebarMenu
             }
         }
 
-        return true;
+        return empty($item['except']) || ! $this->allowsAny($user, $item['except'], $request);
     }
 
     /**
@@ -815,6 +840,14 @@ final class SidebarMenu
     private static function anchored(array $anchor, array $items): array
     {
         return array_map(fn (array $item) => [...$item, 'anchor' => $anchor], $items);
+    }
+
+    /** Tên hiển thị theo người xem (`alt_label`, nguyên tắc 4). */
+    private function labelFor(User $user, array $entry, ?Request $request): string
+    {
+        $alt = $entry['alt_label'] ?? null;
+
+        return $alt && ! $this->allowsAny($user, $alt['unless'], $request) ? $alt['label'] : $entry['label'];
     }
 
     private static function normalize(string $text): string
@@ -879,6 +912,7 @@ final class SidebarMenu
                 continue;
             }
 
+            $item['label'] = $this->labelFor($user, $item, $request);
             $item['url'] = route($item['route'], $item['query'] ?? []);
             $item['active'] = $request !== null && $request->routeIs(...($item['active'] ?? [$item['route']]))
                 && collect($item['query'] ?? [])->every(fn ($value, $key) => (string) $request->query($key) === (string) $value);

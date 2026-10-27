@@ -48,7 +48,8 @@ class ProfileController extends Controller
         'teacher' => [
             ['label' => 'Chấm công & xin duyệt', 'route' => 'my-attendance.home', 'icon' => 'fingerprint'],
             ['label' => 'Check-in & Điểm danh hôm nay', 'route' => 'teacher.home', 'icon' => 'how_to_reg', 'can' => ['attendance_student.record']],
-            ['label' => 'Nhiệm vụ hôm nay', 'route' => 'portal.ta-tasks', 'icon' => 'checklist'],
+            // "Nhiệm vụ hôm nay" (portal.ta-tasks) là màn ca trực của trợ giảng; GV xem việc của mình ở Danh sách đầu việc.
+            ['label' => 'Việc của tôi', 'route' => 'tasks.index', 'query' => ['tab' => 'mine'], 'icon' => 'checklist'],
             ['label' => 'Chấm bài nộp của lớp', 'route' => 'portal.teacher.submissions', 'icon' => 'grading'],
             ['label' => 'Chặng đang dạy & Order Test', 'route' => 'syllabus.teaching-stages', 'icon' => 'menu_book'],
             ['label' => 'Khách học thử', 'route' => 'teacher.trial-guests', 'icon' => 'person_search'],
@@ -274,9 +275,10 @@ class ProfileController extends Controller
         };
         $statCards = collect($order)->map(fn ($key) => $cards[$key])->filter()->take(4)->values()->all();
 
-        // GV / TA xem hết việc ở "Nhiệm vụ hôm nay" (cổng GV); người giao việc dùng danh sách Công việc.
-        $tasksRoute = $user->can('work_task.create') ? 'tasks.index' : 'portal.ta-tasks';
+        // Trợ giảng xem hết việc ở "Nhiệm vụ hôm nay" (ca trực của mình); mọi vai trò khác ở Danh sách đầu việc → "Của tôi"
+        // (chủ dự án 26/10/2026: GV / Sale trước bị đưa sang màn của trợ giảng). "Chi tiết" một việc luôn mở chính việc đó.
         $canViewTasks = $user->can('work_task.view');
+        $tasksUrl = $canViewTasks ? self::myTasksUrl($user) : null;
 
         return Inertia::render('Profile/Edit', [
             ...$this->accountProps($request, $user, showOperations: true),
@@ -326,9 +328,9 @@ class ProfileController extends Controller
                 'status' => $task->status,
                 'due_date' => $task->due_date?->format('d/m/Y'),
                 'time_slot_category' => $task->time_slot_category,
-                'url' => $canViewTasks ? ($tasksRoute === 'tasks.index' ? route('tasks.show', $task->id) : route($tasksRoute)) : null,
+                'url' => $canViewTasks ? route('tasks.show', $task->id) : null,
             ])->values()->all(),
-            'tasksUrl' => $canViewTasks ? route($tasksRoute) : null,
+            'tasksUrl' => $tasksUrl,
             'assignedClasses' => $assignedClasses->map(fn (ClassModel $cls) => [
                 'id' => $cls->id,
                 'code' => $cls->code,
@@ -408,6 +410,21 @@ class ProfileController extends Controller
         return $user->getRoleNames()->map(fn (string $role) => AclHelper::shortRoleLabel($role))->values()->all();
     }
 
+    /**
+     * "Việc của tôi" theo vai trò: trợ giảng (cổng trợ giảng, không dạy chính, không giao việc) → "Nhiệm vụ hôm nay";
+     * còn lại → Danh sách đầu việc, tab "Của tôi". Dùng chung cho Tổng quan và Trang cá nhân.
+     */
+    public static function myTasksUrl(User $user): string
+    {
+        return self::isAssistantOnly($user) ? route('portal.ta-tasks') : route('tasks.index', ['tab' => 'mine']);
+    }
+
+    /** Trợ giảng thuần: có cổng trợ giảng, không có cổng giáo viên và không giao việc cho người khác. */
+    public static function isAssistantOnly(User $user): bool
+    {
+        return $user->can('portal.assistant') && ! $user->can('portal.teacher') && ! $user->can('work_task.create');
+    }
+
     /** @return list<array{label: string, icon: string, url: string}> */
     private function quickLinks(User $user, string $portal, Request $request): array
     {
@@ -415,7 +432,7 @@ class ProfileController extends Controller
 
         return collect(self::QUICK_LINKS[$portal] ?? self::QUICK_LINKS['staff'])
             ->filter(fn (array $link) => $menu->canSee($user, $link, $request))
-            ->map(fn (array $link) => ['label' => $link['label'], 'icon' => $link['icon'], 'url' => route($link['route'])])
+            ->map(fn (array $link) => ['label' => $link['label'], 'icon' => $link['icon'], 'url' => route($link['route'], $link['query'] ?? [])])
             ->values()
             ->all();
     }

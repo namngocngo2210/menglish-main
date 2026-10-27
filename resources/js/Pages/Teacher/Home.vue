@@ -52,8 +52,10 @@ const hasUnchecked = computed(() => props.shifts.some((s) => !s.checked_in && !c
     <div class="mx-auto max-w-6xl space-y-lg pb-24 md:pb-0">
         <UiPageHeader title="Tổng quan hôm nay">
             <template #meta>
-                Xin chào <span class="font-semibold text-on-surface">{{ teacherName }}</span> · Cổng Giáo viên ·
-                <Link :href="route('teacher.trial-guests')" class="font-semibold text-primary hover:underline">Khách học thử</Link>
+                Xin chào <span class="font-semibold text-on-surface">{{ teacherName }}</span> · {{ can('portal.teacher') ? 'Cổng Giáo viên' : 'Cổng Trợ giảng' }}
+                <template v-if="can('portal.teacher')">
+                    · <Link :href="route('teacher.trial-guests')" class="font-semibold text-primary hover:underline">Khách học thử</Link>
+                </template>
             </template>
             <template #actions>
                 <UiAvatar :name="teacherName" />
@@ -124,10 +126,13 @@ const hasUnchecked = computed(() => props.shifts.some((s) => !s.checked_in && !c
                             <UiButton size="sm" :variant="shift.attendance_done ? 'ghost' : 'secondary'" icon="fact_check" :href="route('teacher.attendance', { classId: shift.class_id, session: shift.session_id })">{{ shift.attendance_done ? 'Đã điểm danh' : 'Điểm danh' }}</UiButton>
                             <UiButton v-if="shift.syllabus_url" size="sm" variant="secondary" icon="menu_book" :href="shift.syllabus_url">Mở giáo trình</UiButton>
                             <template v-if="!shift.is_support">
-                                <UiButton size="sm" variant="secondary" icon="rate_review" :href="route('teacher.remarks', { classId: shift.class_id, session: shift.session_id })">Nhận xét</UiButton>
+                                <UiButton v-if="shift.can_teach" size="sm" variant="secondary" icon="rate_review" :href="route('teacher.remarks', { classId: shift.class_id, session: shift.session_id })">Nhận xét</UiButton>
                                 <UiButton size="sm" variant="secondary" icon="co_present" :href="route('teacher.lesson-today', { class: shift.class_id })">Bài giảng</UiButton>
-                                <UiButton size="sm" variant="secondary" icon="assignment" :href="route('teacher.homework', { classId: shift.class_id, session: shift.session_id })">Giao bài</UiButton>
-                                <UiButton size="sm" variant="secondary" icon="grading" :href="route('teacher.scores', shift.class_id)">Nhập điểm</UiButton>
+                                <!-- Trợ giảng của ca chỉ điểm danh (chủ dự án 26/10/2026). -->
+                                <template v-if="shift.can_teach">
+                                    <UiButton size="sm" variant="secondary" icon="assignment" :href="route('teacher.homework', { classId: shift.class_id, session: shift.session_id })">Giao bài</UiButton>
+                                    <UiButton size="sm" variant="secondary" icon="grading" :href="route('teacher.scores', shift.class_id)">Nhập điểm</UiButton>
+                                </template>
                             </template>
                         </div>
                     </div>

@@ -33,7 +33,7 @@ defineProps({
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 <UiButton v-if="welcome.salaryUrl" variant="secondary" size="sm" icon="payments" :href="welcome.salaryUrl">Lương của tôi</UiButton>
-                <UiButton v-if="welcome.tasksUrl" variant="secondary" size="sm" icon="checklist" :href="welcome.tasksUrl">Nhiệm vụ hôm nay</UiButton>
+                <UiButton v-if="welcome.tasksUrl" variant="secondary" size="sm" icon="checklist" :href="welcome.tasksUrl">{{ welcome.tasksLabel ?? 'Việc của tôi' }}</UiButton>
             </div>
         </div>
 

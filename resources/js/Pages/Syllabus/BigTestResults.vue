@@ -148,7 +148,7 @@ watch(() => props.selectedResult?.id, (id) => (detailOpen.value = !!id));
                             <td class="whitespace-nowrap">
                                 <UiBadge :color="statusColor[row.result?.status] ?? 'neutral'">{{ row.result?.status === 'draft' ? 'Nháp (GV chưa gửi duyệt)' : (row.result?.status_label ?? 'Chưa nhập') }}</UiBadge>
                                 <Link v-if="row.result && row.result.status !== 'draft'" :href="route('syllabus.big-tests.results', { id: test.id, result: row.result.id })" class="mt-1 flex items-center gap-0.5 text-xs font-semibold text-primary hover:underline">
-                                    <span class="material-symbols-outlined text-[14px]">rate_review</span>Xem &amp; duyệt
+                                    <span class="material-symbols-outlined text-[14px]">rate_review</span>{{ canApprove ? 'Xem & duyệt' : 'Xem kết quả' }}
                                 </Link>
                             </td>
                             <td class="!px-xs text-center">
