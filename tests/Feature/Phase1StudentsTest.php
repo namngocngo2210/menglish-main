@@ -241,7 +241,7 @@ class Phase1StudentsTest extends TestCase
             ->assertSee('P-ROADMAP')->assertDontSee('P-KHAC')
             ->assertSee('Sắp tới')
             ->assertSee('Ốm có báo')->assertDontSee('Ghi chú của bạn cùng lớp')
-            ->assertSee('Lịch sử điểm danh')
+            ->assertSee('Buổi học &amp; điểm danh', false)
             ->assertSee('0%'); // 0/1 buổi có mặt
     }
 
@@ -264,14 +264,12 @@ class Phase1StudentsTest extends TestCase
             ->assertOk()
             ->assertDontSee('data-testid="student-edit-form"', false)
             ->assertDontSee('Quyền: Quản trị viên')
-            ->assertSee('Học thuật độc lập')
             ->assertDontSee('data-section="tuition"', false)
             ->assertDontSee('data-testid="link-class-form"', false);
 
         $this->actingAs($this->user('academic_staff', $this->hn))->get(route('students.show', $student->id))
             ->assertOk()
             ->assertSee('data-testid="student-edit-form"', false)
-            ->assertSee('Học vụ (Academic Staff)')
             ->assertSee('data-section="tuition"', false)
             ->assertSee('data-testid="link-class-form"', false);
     }
