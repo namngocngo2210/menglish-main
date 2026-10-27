@@ -99,7 +99,8 @@ class HomeworkReviewFixesTest extends TestCase
     public function test_date_filter_has_submit_button_and_invalid_date_is_rejected(): void
     {
         $this->actingAs($this->teacher)->get(route('teacher.homework-submissions', [$this->class->id, 'to' => 'abc']))->assertSessionHasErrors('to');
-        $this->actingAs($this->teacher)->get(route('teacher.homework-submissions', $this->class->id))->assertOk()->assertSee('data-testid="homework-filter-submit"', false);
+        $this->actingAs($this->teacher)->get(route('portal.teacher.submissions', [$this->class->id, 'type' => 'basket', 'to' => 'abc']))->assertSessionHasErrors('to');
+        $this->actingAs($this->teacher)->get(route('portal.teacher.submissions', $this->class->id))->assertOk()->assertSee('data-testid="homework-filter-submit"', false);
     }
 
     public function test_file_is_served_with_range_support_and_missing_file_is_404(): void
@@ -116,10 +117,12 @@ class HomeworkReviewFixesTest extends TestCase
         $this->actingAs($this->teacher)->get(route('portal.student.homework-file', $row->id))->assertNotFound();
     }
 
-    public function test_legacy_submissions_screen_links_basket_screen(): void
+    public function test_basket_submissions_open_in_merged_submissions_screen(): void
     {
+        $this->actingAs($this->teacher)->get(route('teacher.homework-submissions', [$this->class->id, 'from' => '2026-01-01']))
+            ->assertRedirect(route('portal.teacher.submissions', ['classId' => $this->class->id, 'type' => 'basket', 'from' => '2026-01-01']));
         $this->actingAs($this->teacher)->get(route('portal.teacher.submissions', $this->class->id))
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('basketUrl', route('teacher.homework-submissions', $this->class->id))->etc());
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Portal/TeacherSubmissions')->where('activeTab', 'basket')->where('basket.from', today()->subDays(30)->toDateString())->etc());
     }
 
     public function test_portal_lists_every_assigned_homework_in_window(): void

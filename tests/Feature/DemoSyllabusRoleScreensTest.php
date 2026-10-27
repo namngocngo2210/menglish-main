@@ -42,7 +42,7 @@ class DemoSyllabusRoleScreensTest extends TestCase
             ],
             'nguyenvanan@menglish.edu.vn' => [
                 route('teacher.lesson-today', ['class' => $class('DEMO-CG-FAM0')]), route('teacher.lesson-today', ['class' => $class('DEMO-CG-FAM1')]),
-                route('teacher.orders'), route('teacher.homework', $class('DEMO-CG-FAM1')), route('teacher.homework-submissions', $class('DEMO-CG-FAM1')),
+                route('teacher.orders'), route('teacher.homework', $class('DEMO-CG-FAM1')), route('portal.teacher.submissions', ['classId' => $class('DEMO-CG-FAM1'), 'type' => 'basket']),
                 route('syllabus.teacher-adjust'), route('syllabus.teacher-view'), route('notifications.index'),
             ],
             'gv.cohuu2@menglish.edu.vn' => [route('teacher.lesson-today', ['class' => $class('DEMO-BD-FAM0')]), route('teacher.orders'), route('notifications.index')],

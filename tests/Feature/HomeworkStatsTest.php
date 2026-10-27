@@ -55,12 +55,19 @@ class HomeworkStatsTest extends TestCase
     {
         $submission = $this->submit($this->homework(['workbook' => 'x']), $this->a, 'paper');
 
+        // Màn cũ chuyển về màn chấm bài nộp chung, tab Bài tập theo syllabus.
         $this->actingAs($this->teacher)->get(route('teacher.homework-submissions', $this->class->id))
+            ->assertRedirect(route('portal.teacher.submissions', ['classId' => $this->class->id, 'type' => 'basket']));
+        $this->actingAs($this->teacher)->get(route('portal.teacher.submissions', $this->class->id))
             ->assertOk()
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('homeworks.0.rows.0.student', 'An')->where('homeworks.0.rows.0.baskets.paper.status', 'submitted')->etc());
-        $this->actingAs($this->teacher)->post(route('teacher.homework-submissions.review', $submission->id))->assertSessionHasNoErrors();
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('activeTab', 'basket')
+                ->where('basket.homeworks.0.rows.0.student', 'An')->where('basket.homeworks.0.rows.0.baskets.paper.status', 'submitted')->etc());
+        $this->actingAs($this->teacher)->post(route('teacher.homework-submissions.review', $submission->id), ['score' => ' 9 ', 'feedback' => 'Chữ đẹp'])
+            ->assertSessionHasNoErrors();
 
-        $this->assertSame(['reviewed', $this->teacher->id], [$submission->fresh()->status, $submission->fresh()->reviewed_by]);
+        $this->assertSame(['reviewed', $this->teacher->id, '9', 'Chữ đẹp'], [$submission->fresh()->status, $submission->fresh()->reviewed_by, $submission->fresh()->score, $submission->fresh()->feedback]);
+        $this->actingAs($this->teacher)->get(route('portal.teacher.submissions', $this->class->id))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('basket.homeworks.0.rows.0.baskets.paper.score', '9')->etc());
         $outsider = $this->userWithRole(Roles::TEACHER_FULLTIME, 'GV lớp khác');
         $this->actingAs($outsider)->post(route('teacher.homework-submissions.review', $submission->id))->assertNotFound();
         $this->actingAs($outsider)->get(route('teacher.homework-submissions', $this->class->id))->assertNotFound();

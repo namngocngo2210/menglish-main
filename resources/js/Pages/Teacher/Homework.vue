@@ -64,7 +64,7 @@ function onSaved() {
                 </span>
             </template>
             <template #actions>
-                <UiButton variant="secondary" icon="assignment_turned_in" :href="route('teacher.homework-submissions', classroom.id)">Bài nộp &amp; tỉ lệ nộp</UiButton>
+                <UiButton variant="secondary" icon="assignment_turned_in" :href="route('portal.teacher.submissions', { classId: classroom.id, type: 'basket' })">Bài nộp &amp; chấm bài</UiButton>
             </template>
         </UiPageHeader>
 

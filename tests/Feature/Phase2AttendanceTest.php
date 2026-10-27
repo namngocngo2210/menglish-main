@@ -420,7 +420,7 @@ class Phase2AttendanceTest extends TestCase
                 'data' => ['student_id' => (string) $student->id, 'student_name' => $student->name, 'homework_type' => 'video', 'notes' => $note]]);
         }
 
-        $this->actingAs($this->teacher)->get(route('portal.teacher.submissions', ['classId' => $this->classModel->id]))
+        $this->actingAs($this->teacher)->get(route('portal.teacher.submissions', ['classId' => $this->classModel->id, 'type' => 'video']))
             ->assertOk()->assertSee('Bài của lớp')->assertDontSee('Bài lớp khác')
             ->assertDontSee('Nguyễn Văn An')->assertDontSee('Vũ Thị Minh Hằng')->assertDontSee('Trần Hồng Sơn')
             ->assertSee('Danh sách đã nộp bài (1)');

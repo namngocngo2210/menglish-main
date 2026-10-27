@@ -49,6 +49,49 @@ class HomeworkStats
         ];
     }
 
+    /**
+     * Dữ liệu tab "Bài tập theo syllabus" ở màn chấm bài nộp của lớp: tỉ lệ nộp + bài nộp theo bài tập × học sinh × giỏ.
+     *
+     * @return array<string, mixed>
+     */
+    public function matrix(ClassModel $class, Carbon $from, Carbon $to): array
+    {
+        $homeworks = $this->homeworks($class, $from, $to)->load('submissions');
+        $students = $class->rosterStudents();
+
+        return [
+            'from' => $from->toDateString(),
+            'to' => $to->toDateString(),
+            'baskets' => collect(HomeworkSubmission::BASKETS)->map(fn (array $b, string $key) => ['key' => $key, 'label' => $b[0], 'icon' => $b[1]])->values()->all(),
+            'stats' => $this->forClass($class, $from, $to),
+            'homeworks' => $homeworks->map(fn (Homework $hw) => [
+                'id' => $hw->id,
+                'title' => $hw->title,
+                'created_at' => $hw->created_at->toDateString(),
+                'due_date' => $hw->due_date?->toDateString(),
+                'baskets' => $hw->baskets(),
+                'rows' => $students->map(fn ($student) => [
+                    'id' => $student->id,
+                    'student' => $student->name,
+                    'baskets' => collect($hw->baskets())->mapWithKeys(function (string $basket) use ($hw, $student) {
+                        $sub = $hw->submissions->firstWhere(fn (HomeworkSubmission $s) => $s->student_id === $student->id && $s->basket === $basket);
+
+                        return [$basket => $sub ? [
+                            'id' => $sub->id,
+                            'status' => $sub->status,
+                            'score' => $sub->score,
+                            'feedback' => $sub->feedback,
+                            'submitted_at' => $sub->submitted_at->toIso8601String(),
+                            'original_name' => $sub->original_name,
+                            'note' => $sub->note,
+                            'file_url' => $sub->file_path ? route('portal.student.homework-file', $sub->id) : null,
+                        ] : null];
+                    })->all(),
+                ])->values()->all(),
+            ])->values()->all(),
+        ];
+    }
+
     /** @return Collection<int, Homework> bài tập có giỏ, giao trong khoảng ngày */
     public function homeworks(ClassModel $class, Carbon $from, Carbon $to): Collection
     {
