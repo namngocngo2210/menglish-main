@@ -1,7 +1,8 @@
 <script setup>
 /**
  * Tài khoản học viên (docs/tai-khoan-hoc-vien.md): học viên trong phạm vi (mặc định đang học), lọc cơ sở / lớp / có tài khoản
- * hay chưa; chọn nhiều dòng → "Tạo tài khoản" (chưa có) hoặc "Cấp lại mật khẩu tạm" (đã có). Sau mỗi lô có nút tải file
+ * hay chưa; chọn nhiều dòng → "Tạo tài khoản" (chưa có) hoặc "Cấp lại mật khẩu tạm" (đã có). Không chọn dòng nào → "Tạo tài khoản"
+ * tạo cho mọi học viên chưa có tài khoản khớp bộ lọc (mọi trang, tối đa 200 mỗi lần bấm). Sau mỗi lô có nút tải file
  * đăng nhập (.xlsx) — chỉ tải được một lần, mật khẩu tạm không hiện trên màn hình.
  */
 import { computed, ref } from 'vue';
@@ -15,6 +16,7 @@ const props = defineProps({
     branchOptions: { type: Array, default: () => [] },
     classOptions: { type: Array, default: () => [] },
     download: { type: Object, default: null },
+    creatableTotal: { type: Number, default: 0 },
 });
 
 const accountOptions = [
@@ -30,6 +32,10 @@ const allSelected = computed(() => props.students.data.length > 0 && selected.va
 function toggleAll(event) {
     selected.value = event.target.checked ? props.students.data.map((s) => s.id) : [];
 }
+// Chưa chọn dòng nào → tạo cho tất cả học viên chưa có tài khoản khớp bộ lọc.
+const createAll = computed(() => selected.value.length === 0);
+const createLabelCount = computed(() => (createAll.value ? props.creatableTotal : createCount.value));
+const filterFields = computed(() => Object.entries(props.filters).filter(([, v]) => v !== null && v !== undefined && v !== ''));
 const idsFor = (withAccount) => selectedRows.value.filter((s) => !!s.login === withAccount).map((s) => s.id);
 </script>
 
@@ -54,11 +60,23 @@ const idsFor = (withAccount) => selectedRows.value.filter((s) => !!s.login === w
         <template #header>
             <h3 class="font-h3 text-h3 text-on-surface">Học viên <span class="font-body-small text-body-small text-on-surface-variant">({{ students.total }})</span></h3>
             <div class="flex flex-wrap items-center gap-sm">
-                <UiForm :action="route('students.accounts.store')" method="post" @success="selected = []">
+                <UiForm
+                    :action="route('students.accounts.store')"
+                    method="post"
+                    :confirm="createAll ? `Tạo tài khoản cho tất cả ${creatableTotal} học viên chưa có tài khoản theo bộ lọc hiện tại (mọi trang)?${creatableTotal > 200 ? ' Mỗi lần bấm tạo tối đa 200 học viên.' : ''}` : null"
+                    confirm-label="Tạo tài khoản"
+                    @success="selected = []"
+                >
                     <input type="hidden" name="action" value="create" />
-                    <input v-for="id in idsFor(false)" :key="id" type="hidden" name="student_ids[]" :value="id" />
-                    <UiButton type="submit" icon="person_add" data-account-create v-bind="createCount === 0 ? { disabled: true } : {}">
-                        Tạo tài khoản<span v-show="createCount > 0">&nbsp;({{ createCount }})</span>
+                    <template v-if="createAll">
+                        <input type="hidden" name="scope" value="all" />
+                        <input v-for="[key, value] in filterFields" :key="key" type="hidden" :name="key" :value="value" />
+                    </template>
+                    <template v-else>
+                        <input v-for="id in idsFor(false)" :key="id" type="hidden" name="student_ids[]" :value="id" />
+                    </template>
+                    <UiButton type="submit" icon="person_add" data-account-create v-bind="createLabelCount === 0 ? { disabled: true } : {}">
+                        {{ createAll ? 'Tạo tài khoản tất cả' : 'Tạo tài khoản' }}<span v-show="createLabelCount > 0">&nbsp;({{ createLabelCount }})</span>
                     </UiButton>
                 </UiForm>
                 <UiForm :action="route('students.accounts.store')" method="post" @success="selected = []">

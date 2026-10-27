@@ -36,19 +36,9 @@ class StudentAccountController extends Controller
     public function index(Request $request): Response
     {
         $user = $request->user();
-        $status = array_key_exists((string) $request->input('status'), Student::STATUSES) ? $request->input('status') : 'studying';
-        $account = in_array($request->input('account'), ['none', 'has'], true) ? $request->input('account') : null;
-        $branchId = $request->integer('branch_id') ?: null;
-        $classId = $request->integer('class_id') ?: null;
-
-        $students = Student::visibleTo($user)
+        $filters = $this->filters($request);
+        $students = $this->filteredStudents($user, $filters)
             ->with(['user:id,employee_code,email', 'currentClass:id,name', 'branch:id,name'])
-            ->where('status', $status)
-            ->when($account === 'none', fn ($q) => $q->whereNull('user_id'))
-            ->when($account === 'has', fn ($q) => $q->whereNotNull('user_id'))
-            ->when($branchId, fn ($q) => $q->where('branch_id', $branchId))
-            ->when($classId, fn ($q) => $q->inClasses($classId))
-            ->when($request->input('search'), fn ($q, $search) => $q->where(fn ($q) => $q->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%")))
             ->orderBy('name')
             ->paginate($request->perPage(50))->withQueryString();
         $pending = $this->pendingCredentials();
@@ -62,7 +52,9 @@ class StudentAccountController extends Controller
                 'branch' => $s->branch?->name,
                 'login' => $s->user?->loginIdentifier(),
             ]),
-            'filters' => ['status' => $status, 'account' => $account, 'branch_id' => $branchId, 'class_id' => $classId, 'search' => $request->input('search')],
+            'filters' => $filters,
+            // Số học viên chưa có tài khoản khớp bộ lọc (mọi trang) — nút "Tạo tài khoản" khi chưa chọn dòng nào.
+            'creatableTotal' => $this->filteredStudents($user, $filters)->whereNull('user_id')->count(),
             'statusOptions' => Ui::options(Student::STATUSES),
             'branchOptions' => Ui::options($this->visibleBranches($user), 'name'),
             'classOptions' => Ui::options($this->visibleClasses($user), 'name'),
@@ -74,12 +66,25 @@ class StudentAccountController extends Controller
     {
         $validated = $request->validate([
             'action' => ['required', Rule::in(['create', 'reset'])],
-            'student_ids' => 'required|array|min:1|max:'.self::MAX_BATCH,
+            // all = tạo cho mọi học viên chưa có tài khoản khớp bộ lọc (không cần chọn dòng), tối đa MAX_BATCH mỗi lần bấm.
+            'scope' => ['nullable', Rule::in(['all'])],
+            'student_ids' => 'required_unless:scope,all|array|min:1|max:'.self::MAX_BATCH,
             'student_ids.*' => 'integer|distinct',
-        ], ['student_ids.required' => 'Chọn ít nhất 1 học viên.']);
-        $students = Student::visibleTo($request->user())->with(['user', 'currentClass:id,name'])
-            ->whereIn('id', $validated['student_ids'])->orderBy('name')->get();
-        abort_if($students->count() !== count($validated['student_ids']), 404);
+        ], ['student_ids.required_unless' => 'Chọn ít nhất 1 học viên.']);
+        $all = ($validated['scope'] ?? null) === 'all';
+        abort_if($all && $validated['action'] !== 'create', 422);
+
+        $remaining = 0;
+        if ($all) {
+            $query = $this->filteredStudents($request->user(), $this->filters($request))->whereNull('user_id');
+            $total = (clone $query)->count();
+            $students = $query->with(['user', 'currentClass:id,name'])->orderBy('name')->limit(self::MAX_BATCH)->get();
+            $remaining = $total - $students->count();
+        } else {
+            $students = Student::visibleTo($request->user())->with(['user', 'currentClass:id,name'])
+                ->whereIn('id', $validated['student_ids'])->orderBy('name')->get();
+            abort_if($students->count() !== count($validated['student_ids']), 404);
+        }
 
         $credentials = [];
         $skipped = [];
@@ -104,13 +109,14 @@ class StudentAccountController extends Controller
         }
         // Nhật ký không chứa mật khẩu tạm.
         activity('Người dùng & Phân quyền')->causedBy($request->user())
-            ->withProperties(['action' => $validated['action'], 'student_ids' => $students->pluck('id')->all(), 'done' => $done])
+            ->withProperties(['action' => $validated['action'], 'scope' => $all ? 'all' : 'selected', 'student_ids' => $students->pluck('id')->all(), 'done' => $done])
             ->log($validated['action'] === 'create' ? 'Tạo tài khoản học viên theo lô' : 'Cấp lại mật khẩu tạm học viên theo lô');
 
         $verb = $validated['action'] === 'create' ? 'Đã tạo tài khoản cho' : 'Đã cấp lại mật khẩu tạm cho';
-        $message = "{$verb} {$done} học viên.".($skipped ? ' Bỏ qua: '.implode('; ', $skipped).'.' : '');
+        $message = "{$verb} {$done} học viên.".($skipped ? ' Bỏ qua: '.implode('; ', $skipped).'.' : '')
+            .($remaining > 0 ? " Còn {$remaining} học viên chưa có tài khoản, bấm \"Tạo tài khoản\" lần nữa để tạo tiếp." : '');
 
-        return redirect()->route('students.accounts.index')
+        return redirect()->route('students.accounts.index', $all ? array_filter($this->filters($request)) : [])
             ->with($done > 0 ? 'status' : 'error', $done > 0 ? $message.' Tải file đăng nhập để gửi phụ huynh.' : $message);
     }
 
@@ -130,6 +136,30 @@ class StudentAccountController extends Controller
             ->update(['account_sent' => true]);
 
         return ArrayExport::download('tai-khoan-hoc-vien', ['Mã học viên', 'Họ tên', 'Lớp', 'Tên đăng nhập', 'Mật khẩu tạm'], $credentials);
+    }
+
+    /** @return array{status: string, account: ?string, branch_id: ?int, class_id: ?int, search: ?string} */
+    private function filters(Request $request): array
+    {
+        return [
+            'status' => array_key_exists((string) $request->input('status'), Student::STATUSES) ? $request->input('status') : 'studying',
+            'account' => in_array($request->input('account'), ['none', 'has'], true) ? $request->input('account') : null,
+            'branch_id' => $request->integer('branch_id') ?: null,
+            'class_id' => $request->integer('class_id') ?: null,
+            'search' => $request->input('search') ?: null,
+        ];
+    }
+
+    /** Học viên trong phạm vi người xem khớp bộ lọc màn hình. */
+    private function filteredStudents(User $user, array $filters)
+    {
+        return Student::visibleTo($user)
+            ->where('status', $filters['status'])
+            ->when($filters['account'] === 'none', fn ($q) => $q->whereNull('user_id'))
+            ->when($filters['account'] === 'has', fn ($q) => $q->whereNotNull('user_id'))
+            ->when($filters['branch_id'], fn ($q, $id) => $q->where('branch_id', $id))
+            ->when($filters['class_id'], fn ($q, $id) => $q->inClasses($id))
+            ->when($filters['search'], fn ($q, $search) => $q->where(fn ($q) => $q->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%")));
     }
 
     private function createFor(Student $student): string
