@@ -10,7 +10,6 @@ use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\ClassReport;
 use App\Models\ClassReportStudentSupport;
-use App\Models\ClassScheduleConfig;
 use App\Models\ClassSession;
 use App\Models\HrDailyDemand;
 use App\Models\MiniTestScore;
@@ -25,13 +24,13 @@ use App\Models\User;
 use App\Models\WorkTask;
 use App\Services\BranchStaff;
 use App\Services\ClassDashboardService;
+use App\Services\ClassRescheduleService;
 use App\Services\KpiBoardService;
 use App\Services\MissedLessonService;
 use App\Services\Reports\ClassReportSessionMetrics;
 use App\Services\RoomService;
 use App\Services\SafeUploadService;
 use App\Services\SessionLessonService;
-use App\Services\SessionScheduleService;
 use App\Services\SupportListService;
 use App\Services\TeachingShifts\TeachingShiftRules;
 use App\Support\Approvals\AdminOnlyApprovals;
@@ -2063,7 +2062,7 @@ class WorkTaskController extends Controller
         ]);
     }
 
-    public function updateScheduleConfig(Request $request, SessionScheduleService $schedule, RoomService $rooms, TeachingShiftRules $shiftRules)
+    public function updateScheduleConfig(Request $request, ClassRescheduleService $reschedule, RoomService $rooms)
     {
         // Toggle class status or update schedule
         if ($request->has('toggle_class_id')) {
@@ -2100,12 +2099,7 @@ class WorkTaskController extends Controller
             'academic_year' => ['nullable', 'string', 'max:30'],
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
-            'slot1_day' => ['nullable', 'in:Thứ 2,Thứ 3,Thứ 4,Thứ 5,Thứ 6,Thứ 7,Chủ nhật'],
-            'slot1_start' => ['nullable', 'date_format:H:i'],
-            'slot1_end' => ['nullable', 'date_format:H:i', 'after:slot1_start'],
-            'slot2_day' => ['nullable', 'in:Thứ 2,Thứ 3,Thứ 4,Thứ 5,Thứ 6,Thứ 7,Chủ nhật'],
-            'slot2_start' => ['nullable', 'date_format:H:i'],
-            'slot2_end' => ['nullable', 'date_format:H:i', 'after:slot2_start'],
+            ...ClassRescheduleService::rules(),
             'activate' => ['nullable', 'boolean'],
             'room_id' => ['nullable', 'integer'],
             'transfer_room' => ['nullable', 'boolean'],
@@ -2116,67 +2110,9 @@ class WorkTaskController extends Controller
         $startDate = Carbon::parse($payload['start_date'] ?? $class->start_date ?? now())->startOfDay();
         $endDate = Carbon::parse($payload['end_date'] ?? $class->end_date ?? $startDate->copy()->addMonths(3))->startOfDay();
 
-        // Ca không chọn ngày học được coi là không có (trước đây Slot 2 trống bị gán mặc định "Thứ 7 18:00-19:30").
-        $slots = [];
-        foreach ([1, 2] as $n) {
-            if (filled($payload["slot{$n}_day"] ?? null)) {
-                $slots[] = [
-                    'day' => $payload["slot{$n}_day"],
-                    'start' => $payload["slot{$n}_start"] ?? '18:00',
-                    'end' => $payload["slot{$n}_end"] ?? '19:30',
-                    'name' => "Slot {$n}",
-                ];
-            }
-        }
-        if (empty($slots)) {
-            throw ValidationException::withMessages(['slot1_day' => 'Cần chọn ít nhất một ca học (ngày trong tuần).']);
-        }
-        // Khung giờ ca dạy: Thứ 2–6 chỉ Ca 1 / Ca 2 (giờ chuẩn hoặc giờ lệch), cuối tuần theo giờ lớp; mỗi ca 90 phút.
-        // Tên ca (Ca 1, Ca 2, Ca chiều…) đặt theo khung để chấm công GV hiển thị đúng ca được phân công.
-        $slots = $shiftRules->apply($slots);
-
-        // Hai ca trùng ngày và chồng giờ là cấu hình vô nghĩa — chặn trước khi tạo buổi học
-        if (count($slots) === 2
-            && $slots[0]['day'] === $slots[1]['day']
-            && strcmp($slots[0]['start'], $slots[1]['end']) < 0
-            && strcmp($slots[1]['start'], $slots[0]['end']) < 0) {
-            throw ValidationException::withMessages([
-                'slot2_start' => "Hai ca học trùng ngày {$slots[0]['day']} và chồng giờ ({$slots[0]['start']}-{$slots[0]['end']} và {$slots[1]['start']}-{$slots[1]['end']}).",
-            ]);
-        }
-
-        // Không bao giờ sinh lại buổi quá khứ: chỉ xếp từ hôm nay trở đi. Buổi đã có dữ liệu
-        // thực tế (điểm danh/check-in/đã dạy) được giữ nguyên và không bị sinh trùng.
-        $generateFrom = $startDate->copy()->max(now()->startOfDay());
-        $replaceableIds = ClassSession::where('class_id', $class->id)->replaceable()->pluck('id');
-        $keptSessions = ClassSession::where('class_id', $class->id)
-            ->where('type', '!=', ClassSession::TYPE_SUPPORT)
-            ->where('status', '!=', 'cancelled')
-            ->whereDate('date', '>=', $generateFrom->toDateString())
-            ->whereKeyNot($replaceableIds)
-            ->get()
-            ->groupBy(fn (ClassSession $session) => $session->date->toDateString());
-
-        $sessions = array_values(array_filter(
-            $schedule->generate($slots, $generateFrom, $endDate, $class->branch_id),
-            fn (array $session) => ! $keptSessions->get($session['date'], collect())->contains(
-                fn (ClassSession $kept) => $kept->shift_name === $session['name']
-                    || (strcmp(substr((string) $kept->getRawOriginal('start_time'), 0, 5), $session['end']) < 0
-                        && strcmp(substr((string) $kept->getRawOriginal('end_time'), 0, 5), $session['start']) > 0)
-            )
-        ));
-
-        if (count($sessions) > 300) {
-            throw ValidationException::withMessages([
-                'end_date' => 'Thời khóa biểu quá dài ('.count($sessions).' buổi). Giới hạn tối đa 300 buổi mỗi lần xếp lịch.',
-            ]);
-        }
-
-        if (empty($sessions) && $keptSessions->isEmpty()) {
-            throw ValidationException::withMessages([
-                'start_date' => 'Không tạo được buổi học nào. Kiểm tra lại khoảng thời gian (chỉ xếp được từ hôm nay trở đi), ngày học trong tuần và lịch nghỉ lễ.',
-            ]);
-        }
+        $slots = $reschedule->slots($payload);
+        $plan = $reschedule->plan($class, $slots, $startDate, $endDate);
+        $sessions = $plan['sessions'];
 
         // Phòng học: form gửi room_id (rỗng = bỏ phòng) thì đổi phòng của lớp; không gửi thì giữ phòng hiện tại.
         $changeRoom = $request->has('room_id');
@@ -2217,40 +2153,13 @@ class WorkTaskController extends Controller
             default => $class->status,
         };
 
-        DB::transaction(function () use ($class, $payload, $startDate, $endDate, $slots, $sessions, $replaceableIds, $status, $schedule, $rooms, $room, $transfer, $roomId, $roomName, $previousRoom) {
+        DB::transaction(function () use ($class, $payload, $startDate, $endDate, $slots, $plan, $status, $reschedule, $rooms, $room, $transfer, $roomId, $roomName, $previousRoom) {
             // Chuyển phòng đã xác nhận: gỡ phòng khỏi lớp chưa bắt đầu học trước khi kiểm tra trùng buổi.
             if ($room && $transfer->isNotEmpty()) {
                 $rooms->detach($room, $transfer);
             }
 
-            $conflict = $schedule->findConflict(
-                array_map(fn (array $session) => $session + ['room' => $roomName], $sessions),
-                $class->branch_id,
-                [$class->teacher_id, $class->assistant_id, $class->foreign_teacher_id],
-                $roomName,
-                $class->id,
-            );
-            if ($conflict) {
-                [$session, $existing] = $conflict;
-                throw ValidationException::withMessages([
-                    'class_id' => "Xung đột {$session['date']} {$session['start']}-{$session['end']} với lớp {$existing->classModel?->name} ({$existing->classModel?->code}).",
-                ]);
-            }
-
-            ClassScheduleConfig::updateOrCreate(
-                ['class_id' => $class->id],
-                [
-                    'academic_year' => $payload['academic_year'] ?? $startDate->format('Y').' - '.$endDate->format('Y'),
-                    'slot1_day' => $slots[0]['day'],
-                    'slot1_start' => $slots[0]['start'],
-                    'slot1_end' => $slots[0]['end'],
-                    'slot2_day' => $slots[1]['day'] ?? null,
-                    'slot2_start' => $slots[1]['start'] ?? null,
-                    'slot2_end' => $slots[1]['end'] ?? null,
-                ]
-            );
-
-            ClassSession::whereKey($replaceableIds)->delete();
+            $reschedule->apply($class, $slots, $plan, $roomName, $payload['academic_year'] ?? $startDate->format('Y').' - '.$endDate->format('Y'));
 
             // Buổi sắp tới được giữ lại (học bù…) đang dùng phòng cũ của lớp cũng chuyển sang phòng mới.
             if ($roomName !== $previousRoom) {
@@ -2259,27 +2168,9 @@ class WorkTaskController extends Controller
                     ->update(['room' => $roomName]);
             }
 
-            foreach ($sessions as $session) {
-                ClassSession::create([
-                    'class_id' => $class->id,
-                    'branch_id' => $class->branch_id,
-                    'date' => $session['date'],
-                    'shift_name' => $session['name'],
-                    'type' => ClassSession::TYPE_REGULAR,
-                    'start_time' => $session['start'],
-                    'end_time' => $session['end'],
-                    'room' => $roomName,
-                    'teacher_id' => $class->teacher_id ?? $class->foreign_teacher_id,
-                    'foreign_teacher_id' => $class->foreign_teacher_id,
-                    'assistant_id' => $class->assistant_id,
-                    'status' => 'scheduled',
-                ]);
-            }
-
             $class->update([
                 'start_date' => $startDate,
                 'end_date' => $endDate,
-                'schedule_text' => collect($slots)->map(fn ($slot) => "{$slot['day']} {$slot['name']} {$slot['start']}-{$slot['end']}")->implode('; '),
                 'status' => $status,
                 'room_id' => $roomId,
                 'room' => $roomName,

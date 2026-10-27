@@ -8,6 +8,7 @@ import { computed, reactive, ref, watch } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import { urlWith } from '@/lib/url';
 import { can } from '@/lib/can';
+import ScheduleSlotPicker from '@/Components/Classes/ScheduleSlotPicker.vue';
 
 defineOptions({ layout: (props) => ({ title: props.view === 'report' ? 'Báo cáo phòng / nhân sự' : 'Lịch & TKB lớp' }) });
 
@@ -34,7 +35,6 @@ const props = defineProps({
     offScheduleClasses: { type: Array, default: () => [] },
 });
 
-const days = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'].map((d) => ({ value: d, label: d }));
 const statusBadges = {
     active: ['success', 'Đang học'],
     upcoming: ['info', 'Sắp khai giảng'],
@@ -47,62 +47,9 @@ const selectedData = computed(() => props.scheduleData[form.class_id] ?? null);
 const hasSchedule = computed(() => !!(form.class_id && selectedData.value?.slot1_day));
 const status = computed(() => selectedData.value?.status ?? null);
 
-// ─── Khung giờ ca dạy: Thứ 2–6 chọn Ca 1 / Ca 2 (giờ chuẩn hoặc giờ lệch); cuối tuần chọn khung hoặc "Giờ khác theo lớp"; mỗi ca 90 phút.
-const dayTypeOf = (day) => (day === 'Thứ 7' ? 'saturday' : day === 'Chủ nhật' ? 'sunday' : 'weekday');
-const plus = (time, minutes) => {
-    if (!/^\d{2}:\d{2}$/.test(time ?? '')) return '';
-    const [h, m] = time.split(':').map(Number);
-    const total = Math.min(23 * 60 + 59, h * 60 + m + minutes);
-    return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
-};
-/** Giờ khác (không theo khung) chỉ cho cuối tuần, hoặc loại ngày chưa có khung nào. */
-function shiftChoices(n) {
-    const day = form[`slot${n}_day`];
-    if (!day) return [];
-    const type = dayTypeOf(day);
-    const choices = (props.shiftOptions[type] ?? []).map((o) => ({ value: o.value, label: o.label }));
-    if (type !== 'weekday' || !choices.length) choices.push({ value: 'custom', label: type === 'weekday' ? 'Giờ khác' : 'Giờ khác theo lớp' });
-    return choices;
-}
-const slotRange = (n) => `${form[`slot${n}_start`]}-${form[`slot${n}_end`]}`;
-const matchesFrame = (n) => shiftChoices(n).some((c) => c.value === slotRange(n));
-const allowsCustom = (n) => shiftChoices(n).some((c) => c.value === 'custom');
-const custom = reactive({ 1: false, 2: false });
-const syncCustom = () => [1, 2].forEach((n) => (custom[n] = !!form[`slot${n}_day`] && allowsCustom(n) && !matchesFrame(n)));
-syncCustom();
-const shiftValue = (n) => (custom[n] ? 'custom' : matchesFrame(n) ? slotRange(n) : '');
-/** Ngày thường đang mang giờ cũ lệch khung (TKB xếp trước khi có khung giờ) → nhắc chọn lại ca. */
-const offFrame = (n) => !!form[`slot${n}_day`] && !custom[n] && !matchesFrame(n);
-function pickShift(n, value) {
-    if (value === 'custom') {
-        custom[n] = true;
-        form[`slot${n}_end`] = plus(form[`slot${n}_start`], props.shiftDuration);
-        return;
-    }
-    custom[n] = false;
-    if (!value) return;
-    const [start, end] = value.split('-');
-    form[`slot${n}_start`] = start;
-    form[`slot${n}_end`] = end;
-}
-function setCustomStart(n, value) {
-    form[`slot${n}_start`] = value;
-    form[`slot${n}_end`] = plus(value, props.shiftDuration);
-}
-/** Đổi ngày: giờ đang chọn không còn hợp lệ với loại ngày mới → ngày thường về khung đầu tiên, cuối tuần giữ giờ (Giờ khác). */
-function pickDay(n, day) {
-    form[`slot${n}_day`] = day;
-    if (!day || matchesFrame(n)) {
-        custom[n] = false;
-        return;
-    }
-    if (allowsCustom(n)) {
-        custom[n] = true;
-        form[`slot${n}_end`] = plus(form[`slot${n}_start`], props.shiftDuration);
-        return;
-    }
-    pickShift(n, shiftChoices(n)[0]?.value ?? '');
-}
+// Ô chọn 2 ca học (thứ + khung giờ ca dạy) ở ScheduleSlotPicker; đổi lịch từ ngoài thì gọi sync().
+const slotPicker = ref(null);
+const syncCustom = () => slotPicker.value?.sync();
 
 /** Chọn lớp đã có TKB → điền sẵn lịch hiện tại của lớp; phòng học điền theo phòng hiện tại của lớp. */
 function pick(value) {
@@ -216,53 +163,7 @@ function searchClasses(event) {
                         <UiInput id="tkb_end" v-model="form.end_date" type="date" label="Kết thúc" name="end_date" required />
                     </div>
 
-                    <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
-                        <div v-for="n in [1, 2]" :key="n" class="space-y-sm rounded-xl border border-outline-variant bg-surface-container-low p-md">
-                            <h3 class="flex items-center gap-xs font-body-medium text-body-medium font-semibold text-on-surface">
-                                <span class="material-symbols-outlined text-[18px] text-tertiary" aria-hidden="true">{{ n === 1 ? 'looks_one' : 'looks_two' }}</span>
-                                Slot {{ n }}
-                            </h3>
-                            <UiSelect
-                                :id="`tkb_slot${n}_day`"
-                                :model-value="form[`slot${n}_day`]"
-                                label="Ngày trong tuần"
-                                :name="`slot${n}_day`"
-                                :placeholder="n === 2 ? '-- Không học ca 2 --' : null"
-                                :options="days"
-                                @update:model-value="(v) => pickDay(n, v)"
-                            />
-                            <template v-if="form[`slot${n}_day`]">
-                                <UiSelect
-                                    :id="`tkb_slot${n}_shift`"
-                                    :model-value="shiftValue(n)"
-                                    label="Ca dạy"
-                                    placeholder="-- Chọn ca --"
-                                    :options="shiftChoices(n)"
-                                    :hint="dayTypeOf(form[`slot${n}_day`]) === 'weekday' ? `Thứ 2 – Thứ 6 chỉ có ${weekdayRule}.` : 'Cuối tuần lấy giờ thực tế của lớp: chọn khung thường dùng hoặc Giờ khác theo lớp.'"
-                                    @update:model-value="(v) => pickShift(n, v)"
-                                />
-                                <UiInput
-                                    v-if="custom[n]"
-                                    :id="`tkb_slot${n}_start`"
-                                    :model-value="form[`slot${n}_start`]"
-                                    type="time"
-                                    label="Giờ bắt đầu"
-                                    class="font-code"
-                                    :hint="`Kết thúc ${form[`slot${n}_end`] || '—'} (ca ${shiftDuration} phút)`"
-                                    @update:model-value="(v) => setCustomStart(n, v)"
-                                />
-                                <p v-else-if="matchesFrame(n)" class="flex items-center gap-xs font-body-small text-body-small text-on-surface-variant" :data-testid="`slot${n}-time`">
-                                    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">schedule</span>
-                                    Giờ học <span class="font-code text-on-surface">{{ form[`slot${n}_start`] }} – {{ form[`slot${n}_end`] }}</span> ({{ shiftDuration }} phút)
-                                </p>
-                                <p v-if="offFrame(n)" class="font-body-small text-body-small text-error" :data-testid="`slot${n}-off-frame`">
-                                    Lịch hiện tại {{ form[`slot${n}_start`] }} – {{ form[`slot${n}_end`] }} lệch khung giờ ca dạy, hãy chọn lại ca.
-                                </p>
-                            </template>
-                            <input type="hidden" :name="`slot${n}_start`" :value="form[`slot${n}_start`]" />
-                            <input type="hidden" :name="`slot${n}_end`" :value="form[`slot${n}_end`]" />
-                        </div>
-                    </div>
+                    <ScheduleSlotPicker ref="slotPicker" :form="form" :shift-options="shiftOptions" :shift-duration="shiftDuration" :weekday-rule="weekdayRule" />
 
                     <div class="grid grid-cols-1 gap-sm sm:grid-cols-2">
                         <UiSelect

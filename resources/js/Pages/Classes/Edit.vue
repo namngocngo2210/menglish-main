@@ -1,9 +1,11 @@
 <script setup>
 /**
- * Sửa thông tin lớp: cùng 3 khối như form tạo lớp + trạng thái, ngày khai giảng / kết thúc, lịch học mô tả ngắn.
+ * Sửa thông tin lớp: cùng 3 khối như form tạo lớp + trạng thái, ngày khai giảng / kết thúc, lịch học (thứ + ca giờ, tối đa 2 ca/tuần).
+ * Đổi lịch học thì các buổi sắp tới chưa có dữ liệu được xếp lại (giống Lịch & TKB lớp); cần quyền xếp lịch (work_task.assign).
  * Trợ giảng cố định chỉ còn ở lớp cũ (dữ liệu cũ) → hiện ô để gỡ; lớp mới nhận trợ giảng theo ca qua "Giao việc trợ giảng".
  */
-import { computed, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
+import ScheduleSlotPicker from '@/Components/Classes/ScheduleSlotPicker.vue';
 
 defineOptions({ layout: { title: 'Chỉnh sửa lớp học' } });
 
@@ -16,6 +18,10 @@ const props = defineProps({
     teachers: { type: Array, default: () => [] },
     foreignTeachers: { type: Array, default: () => [] },
     assistants: { type: Array, default: () => [] },
+    canSchedule: { type: Boolean, default: false },
+    shiftOptions: { type: Object, default: () => ({}) },
+    shiftDuration: { type: Number, default: 90 },
+    weekdayRule: { type: String, default: '' },
 });
 
 const statuses = [
@@ -36,6 +42,15 @@ function onBranchChange(value) {
     if (!room.value) roomId.value = '';
 }
 
+// Lịch học: form gửi lại cả lịch hiện tại; server chỉ xếp lại buổi khi thứ/giờ khác lịch đang lưu.
+const slots = reactive(Object.fromEntries([1, 2].flatMap((n) => ['day', 'start', 'end'].map((k) => [`slot${n}_${k}`, props.klass[`slot${n}_${k}`] ?? (k === 'day' ? '' : null)]))));
+const slotSummary = computed(() =>
+    [1, 2]
+        .filter((n) => props.klass[`slot${n}_day`])
+        .map((n) => `${props.klass[`slot${n}_day`]} ${props.klass[`slot${n}_start`]}–${props.klass[`slot${n}_end`]}`)
+        .join(' · '),
+);
+
 const section = 'space-y-6 p-6 md:p-8';
 const dot = 'h-2.5 w-2.5 rounded-full';
 const heading = 'text-base font-bold uppercase tracking-wide text-on-surface';
@@ -52,7 +67,7 @@ const heading = 'text-base font-bold uppercase tracking-wide text-on-surface';
     </UiPageHeader>
 
     <div class="space-y-6">
-        <UiForm :action="route('classes.update', klass.id)" method="put" class="divide-y divide-surface-container-highest overflow-hidden rounded-2xl border border-surface-container-highest bg-surface-container-lowest shadow-sm">
+        <UiForm v-slot="{ errors }" :action="route('classes.update', klass.id)" method="put" class="divide-y divide-surface-container-highest overflow-hidden rounded-2xl border border-surface-container-highest bg-surface-container-lowest shadow-sm">
             <!-- Khối 1: Thông tin cơ bản & Phân loại lớp -->
             <div :class="section">
                 <div class="flex items-center justify-between">
@@ -94,8 +109,25 @@ const heading = 'text-base font-bold uppercase tracking-wide text-on-surface';
                     <div class="md:col-span-4">
                         <UiDate id="end_date" name="end_date" label="Ngày kết thúc" :value="klass.end_date" class="text-xs" />
                     </div>
-                    <div class="md:col-span-12">
-                        <UiInput id="schedule_text" name="schedule_text" label="Lịch học (mô tả ngắn)" :value="klass.schedule_text" placeholder="VD: T2-T4-T6 18:00-20:00" class="text-xs" hint="Dùng để hiển thị trên danh sách lớp và đặt lịch học thử." />
+                    <div class="space-y-sm md:col-span-12" data-testid="class-schedule-slots">
+                        <p class="text-sm font-semibold text-on-surface">Lịch học trong tuần</p>
+                        <template v-if="canSchedule">
+                            <!-- Lỗi xếp lịch không gắn với ô hiển thị: trùng GV/phòng (class_id), ca lệch khung giờ (ô giờ ẩn). -->
+                            <UiAlert v-if="errors.class_id || errors.slot1_start || errors.slot2_start" type="error" title="Không lưu được lịch học" data-testid="class-schedule-error">
+                                {{ errors.class_id || errors.slot1_start || errors.slot2_start }}
+                            </UiAlert>
+                            <p v-if="klass.legacy_schedule_text" class="font-body-small text-body-small text-on-surface-variant">
+                                Lịch cũ (dạng mô tả, chưa có thứ/giờ): <strong class="text-on-surface">{{ klass.legacy_schedule_text }}</strong> — chọn lại thứ và ca học bên dưới.
+                            </p>
+                            <ScheduleSlotPicker :form="slots" id-prefix="edit" :shift-options="shiftOptions" :shift-duration="shiftDuration" :weekday-rule="weekdayRule" />
+                            <p class="flex items-start gap-xs font-body-small text-body-small text-on-surface-variant">
+                                <span class="material-symbols-outlined text-[16px]" aria-hidden="true">info</span>
+                                <span>Đổi thứ/giờ sẽ xếp lại các buổi <strong>từ hôm nay đến ngày kết thúc</strong>; buổi đã qua, đã điểm danh hoặc đã chấm công được giữ nguyên.</span>
+                            </p>
+                        </template>
+                        <p v-else class="font-body-small text-body-small text-on-surface-variant">
+                            {{ slotSummary || klass.legacy_schedule_text || 'Chưa xếp lịch' }} · Bạn không có quyền đổi lịch học, liên hệ Học vụ.
+                        </p>
                     </div>
                 </div>
             </div>
