@@ -89,6 +89,24 @@ class SyllabusOrderTest extends TestCase
         $this->actingAs($this->staff)->post($url, ['lesson_id' => $this->lesson(1)->id])->assertNotFound();
     }
 
+    public function test_test_order_blocked_while_same_stage_order_is_pending_and_admin_is_notified(): void
+    {
+        $this->markLessons(3);
+        $url = route('teacher.orders.store', $this->class->id);
+        // Order Big Test cùng chặng đang chờ duyệt (vd. tạo trước khi bỏ màn Order Test cũ) → không order trùng.
+        $pending = BigTestOrder::create(['code' => 'ORDTEST-OLD', 'class_id' => $this->class->id, 'syllabus_stage_id' => $this->assignment->stage_id,
+            'teacher_id' => $this->teacher->id, 'stage_name' => 'Chặng 1', 'test_type' => 'big', 'status' => 'pending']);
+        $this->actingAs($this->teacher)->post($url, ['lesson_id' => $this->lesson(4)->id])->assertSessionHasErrors('lesson_id');
+        $this->assertSame(1, BigTestOrder::count());
+
+        $pending->update(['status' => 'rejected']);
+        $this->actingAs($this->teacher)->post($url, ['lesson_id' => $this->lesson(4)->id])->assertSessionHasNoErrors();
+        $this->assertSame(2, BigTestOrder::count());
+        // Báo riêng người duyệt, không phát thông báo chung.
+        $this->assertTrue(AdminNotification::where('type', 'big_test_order')->whereNotNull('user_id')->exists());
+        $this->assertSame(0, AdminNotification::where('type', 'big_test_order')->whereNull('user_id')->count());
+    }
+
     public function test_due_alert_sent_once_per_milestone(): void
     {
         $this->artisan('syllabus:order-due-alerts')->assertSuccessful();

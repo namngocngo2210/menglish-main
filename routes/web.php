@@ -857,7 +857,6 @@ Route::middleware('auth')->group(function () {
         Route::post('/scores/{classId}', 'scoresStore')->name('scores.store');
         Route::get('/remarks/{classId}', 'remarks')->name('remarks');
         Route::get('/order-test/{classId}', 'orderTest')->name('order-test');
-        Route::post('/order-test/{classId}', 'submitOrderTest')->name('order-test.submit');
         Route::get('/big-test-report', 'bigTestReport')->name('big-test-report');
         Route::get('/general-report', 'generalReport')->name('general-report');
     });

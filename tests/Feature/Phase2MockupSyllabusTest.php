@@ -422,16 +422,15 @@ class Phase2MockupSyllabusTest extends TestCase
             ->assertSee('Trợ giảng (Chỉ xem)')->assertDontSee('Order đề Big Test');
 
         // Order gắn chặng đang mở; chặng hiển thị chỉ đọc, không còn ô nhập tên chặng
+        // Màn chặng + lịch sử order: không còn form order riêng, order đề ở nút ORDER theo mốc syllabus (chủ dự án 27/10/2026).
         $this->actingAs($this->teacher)->get(route('teacher.order-test', $this->class->id))->assertOk()
-            ->assertSee('Chặng đang dạy')->assertSee('Chặng 1: Nền tảng')->assertDontSee('name="stage_name"', false);
-        $this->actingAs($this->teacher)->post(route('teacher.order-test.submit', $this->class->id), [
-            'test_type' => 'big', 'exam_date' => now()->addDays(4)->toDateString(), 'note' => 'Nhờ chuẩn bị đề tập trung Speaking',
-        ])->assertSessionHasNoErrors();
-        $order = BigTestOrder::firstOrFail();
-        $this->assertSame($assignment->stage_id, $order->syllabus_stage_id);
-        $this->assertSame('Chặng 1: Nền tảng', $order->stage_name);
-        // Không order trùng khi order trước còn chờ duyệt
-        $this->actingAs($this->teacher)->post(route('teacher.order-test.submit', $this->class->id), ['test_type' => 'big'])->assertSessionHasErrors('stage');
+            ->assertSee('Chặng đang dạy')->assertSee('Chặng 1: Nền tảng')->assertSee('Mở ORDER theo syllabus')
+            ->assertDontSee('name="stage_name"', false)->assertDontSee('name="test_type"', false);
+        $order = BigTestOrder::create([
+            'code' => 'ORDTEST-MK01', 'class_id' => $this->class->id, 'syllabus_stage_id' => $assignment->stage_id, 'teacher_id' => $this->teacher->id,
+            'stage_name' => 'Chặng 1: Nền tảng', 'test_type' => 'big', 'exam_date' => today()->addDays(4),
+            'due_date' => today()->addDays(4)->subDays(BigTestOrder::leadDays()), 'note' => 'Nhờ chuẩn bị đề tập trung Speaking', 'status' => 'pending',
+        ]);
 
         $this->actingAs($this->teacher)->get(route('syllabus.teaching-stages'))->assertOk()->assertSee('Đã order - Chờ HT duyệt');
 

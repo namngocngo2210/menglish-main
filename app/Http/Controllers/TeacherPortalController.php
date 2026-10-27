@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\AcademicRecord;
-use App\Models\AdminNotification;
 use App\Models\BigTestOrder;
 use App\Models\BigTestResult;
 use App\Models\ClassEnrollment;
@@ -20,7 +19,6 @@ use App\Models\SupportSession;
 use App\Models\SyllabusAssignment;
 use App\Models\TeacherTimesheet;
 use App\Models\User;
-use App\Services\BigTestSlaService;
 use App\Services\Syllabus\ClassSyllabus;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -28,7 +26,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 /**
@@ -1497,7 +1494,8 @@ class TeacherPortalController extends Controller
     // ─────────────────────────────────────────────
 
     /**
-     * GV xem các chặng đang dạy và gửi yêu cầu cấp đề test về cho học vụ.
+     * GV xem chặng đang dạy và lịch sử order đề của lớp. Order đề chỉ gửi ở nút ORDER theo mốc syllabus (teacher.orders) —
+     * bỏ form order riêng ở màn này để không order trùng (chủ dự án 27/10/2026).
      */
     public function orderTest(Request $request, int $classId)
     {
@@ -1532,8 +1530,7 @@ class TeacherPortalController extends Controller
                 'label' => $asg->stage?->label ?? $asg->stage_name,
                 'closed_at' => $asg->closed_at?->format('d/m/Y'),
             ])->values()->all(),
-            'leadDays' => BigTestOrder::leadDays(),
-            'today' => now()->toDateString(),
+            'orderUrl' => route('teacher.orders', ['class' => $class->id]),
             'requests' => $requests->map(fn (BigTestOrder $req) => [
                 'id' => $req->id,
                 'created_at' => $req->created_at->format('d/m/Y H:i'),
@@ -1551,62 +1548,6 @@ class TeacherPortalController extends Controller
                 'rejection_reason' => $req->status === 'rejected' ? $req->rejection_reason : null,
             ])->values()->all(),
         ]);
-    }
-
-    public function submitOrderTest(Request $request, int $classId)
-    {
-        $this->guardTeacher();
-        $class = ClassModel::findOrFail($classId);
-        $this->authorizeTeaching($class);
-
-        $validated = $request->validate([
-            'test_type' => 'required|in:mini,big',
-            'exam_date' => 'nullable|date|after_or_equal:today',
-            'note' => 'nullable|string|max:1000',
-        ]);
-
-        // Q4: đề gắn chặng đang mở của lớp; lớp chưa mở chặng thì chưa order được.
-        $assignment = \App\Models\SyllabusAssignment::open()->with('stage')->where('class_id', $class->id)->first();
-        if (! $assignment) {
-            throw \Illuminate\Validation\ValidationException::withMessages(['stage' => 'Lớp chưa được giao chặng nào đang mở — liên hệ Học thuật mở chặng trước khi order đề.']);
-        }
-        $stageLabel = $assignment->stage?->label ?? $assignment->stage_name;
-        $duplicate = BigTestOrder::where('class_id', $class->id)->where('status', 'pending')->where('test_type', $validated['test_type'])
-            ->when($assignment->stage_id, fn ($q) => $q->where('syllabus_stage_id', $assignment->stage_id), fn ($q) => $q->where('stage_name', $stageLabel))
-            ->exists();
-        if ($duplicate) {
-            throw \Illuminate\Validation\ValidationException::withMessages(['stage' => "Đã có order đề cho {$stageLabel} đang chờ Học thuật duyệt."]);
-        }
-
-        $examDate = isset($validated['exam_date']) ? Carbon::parse($validated['exam_date']) : null;
-        $order = BigTestOrder::create([
-            'code' => 'ORDTEST-'.strtoupper(Str::random(6)),
-            'class_id' => $class->id,
-            'syllabus_stage_id' => $assignment->stage_id,
-            'teacher_id' => Auth::id(),
-            'stage_name' => $stageLabel,
-            'test_type' => $validated['test_type'],
-            'exam_date' => $examDate,
-            // Hạn xử lý: đề phải phân phối trước ngày thi N ngày; không có ngày thi thì trong 3 ngày làm việc.
-            'due_date' => $examDate
-                ? $examDate->copy()->subDays(BigTestOrder::leadDays())->max(today())
-                : today()->addDays(BigTestOrder::leadDays()),
-            'note' => $validated['note'] ?? null,
-            'status' => 'pending',
-        ]);
-
-        // Báo riêng người duyệt Big Test (chỉ Admin, 06/10/2026), không phát thông báo chung cho mọi người xem hệ thống.
-        AdminNotification::notifyUsers(
-            app(BigTestSlaService::class)->approverIdsOrAdmins(),
-            'big_test_order',
-            'GV yêu cầu đề test: '.Auth::user()->name,
-            'Giáo viên '.Auth::user()->name.' yêu cầu đề '.$order->type_label." cho chặng \"{$stageLabel}\" của lớp {$class->name}".(filled($validated['note'] ?? null) ? " — Ghi chú: {$validated['note']}" : ''),
-            route('syllabus.big-tests.distribution', ['order' => $order->id]),
-            ['big_test_order_id' => $order->id],
-            Auth::id(),
-        );
-
-        return redirect()->back()->with('success', 'Đã gửi yêu cầu đề test tới Ban Học thuật.');
     }
 
     /**

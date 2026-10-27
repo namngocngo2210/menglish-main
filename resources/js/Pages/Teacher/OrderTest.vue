@@ -1,7 +1,7 @@
 <script setup>
 /**
- * Order đề test (mockup 03_Cong_Giao_Vien/07): order đề gắn chặng đang mở của lớp (A6 Q4), không nhập tên chặng tự do;
- * bên dưới là lịch sử yêu cầu của lớp.
+ * Chặng đang dạy + lịch sử order đề của lớp (mockup 03_Cong_Giao_Vien/07). Order đề gửi ở nút ORDER theo mốc syllabus
+ * (teacher.orders), không còn form riêng ở đây.
  */
 import TeacherBottomNav from '@/Components/Teacher/TeacherBottomNav.vue';
 
@@ -11,8 +11,7 @@ defineProps({
     classroom: { type: Object, required: true },
     openAssignment: { type: Object, default: null },
     closedAssignments: { type: Array, default: () => [] },
-    leadDays: { type: Number, default: 3 },
-    today: { type: String, required: true },
+    orderUrl: { type: String, required: true },
     requests: { type: Array, default: () => [] },
 });
 </script>
@@ -48,40 +47,17 @@ defineProps({
                 </div>
             </section>
 
-            <!-- Form yêu cầu đề -->
-            <UiForm :action="route('teacher.order-test.submit', classroom.id)" method="post" class="space-y-md rounded-xl border border-outline-variant bg-surface-container-lowest p-lg shadow-sm" reset-on-success>
+            <!-- Order đề: chỉ ở nút ORDER theo mốc syllabus (bỏ form riêng để không order trùng, chủ dự án 27/10/2026). -->
+            <section class="space-y-md rounded-xl border border-outline-variant bg-surface-container-lowest p-lg shadow-sm">
                 <h2 class="flex items-center gap-2 font-h3 text-h3 text-on-surface">
                     <span class="material-symbols-outlined text-[20px] text-primary">assignment_add</span>
-                    Order đề Big Test
+                    Order đề test
                 </h2>
-                <UiField label="Chặng" name="stage">
-                    <div class="rounded-lg border border-outline-variant bg-surface-container-low px-md py-sm font-body-base text-body-base font-semibold text-on-surface">{{ openAssignment ? openAssignment.label : 'Lớp chưa mở chặng' }}</div>
-                </UiField>
-                <div>
-                    <label class="mb-1 block font-label text-label text-on-surface-variant">Loại đề <span class="text-error">*</span></label>
-                    <div class="grid grid-cols-2 gap-2">
-                        <label class="flex cursor-pointer items-center gap-2 rounded-lg border border-outline-variant px-3 py-2 hover:bg-surface-container-low">
-                            <input type="radio" name="test_type" value="big" checked class="text-primary focus:ring-primary-container" />
-                            <span class="font-body-small text-body-small font-semibold">Big Test (cuối chặng)</span>
-                        </label>
-                        <label class="flex cursor-pointer items-center gap-2 rounded-lg border border-outline-variant px-3 py-2 hover:bg-surface-container-low">
-                            <input type="radio" name="test_type" value="mini" class="text-primary focus:ring-primary-container" />
-                            <span class="font-body-small text-body-small font-semibold">Mini Test</span>
-                        </label>
-                    </div>
-                </div>
-                <div>
-                    <UiDate
-                        name="exam_date"
-                        label="Ngày thi dự kiến"
-                        :value="openAssignment?.expected_big_test_date"
-                        :min="today"
-                        :hint="`Hạn xử lý của Học thuật = ngày thi − ${leadDays} ngày (để trống: trong ${leadDays} ngày).`"
-                    />
-                </div>
-                <UiTextarea name="note" label="Ghi chú cho Học thuật" :rows="3" placeholder="VD: đề trọng tâm Listening Part 1-2, độ khó vừa phải..." />
-                <UiButton type="submit" icon="send" class="w-full" :disabled="!openAssignment">Gửi yêu cầu tới Ban Học thuật</UiButton>
-            </UiForm>
+                <p class="font-body-small text-body-small text-on-surface-variant">
+                    Đề Mini / Big Test order theo mốc của syllabus: đến mốc, nút ORDER báo đỏ và hệ thống tự tính ngày thi, hạn xử lý của Học thuật.
+                </p>
+                <UiButton icon="send" class="w-full" :href="orderUrl">Mở ORDER theo syllabus</UiButton>
+            </section>
         </div>
 
         <!-- Lịch sử yêu cầu -->

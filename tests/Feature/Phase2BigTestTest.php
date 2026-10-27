@@ -74,28 +74,17 @@ class Phase2BigTestTest extends TestCase
     public function test_teacher_order_reaches_approval_screen_with_deadline(): void
     {
         $examDate = now()->addDays(10)->toDateString();
-        // Q4: lớp chưa mở chặng thì chưa order được; order luôn gắn chặng đang mở (không nhập tên chặng tự do).
-        $this->actingAs($this->teacherA)->post(route('teacher.order-test.submit', $this->classA->id), [
-            'test_type' => 'big', 'exam_date' => $examDate,
-        ])->assertSessionHasErrors('stage');
+        // Order đề gửi ở nút ORDER theo mốc syllabus (SyllabusOrderTest kiểm tra chặng, hạn, chặn trùng, thông báo Admin);
+        // ở đây tạo sẵn order chờ duyệt của chặng đang mở.
         $curriculum = SyllabusCurriculum::create(['code' => 'CUR-BT2', 'title' => 'GT BT2', 'version' => 'v1', 'stage_name' => 'Present Simple']);
         app(SyllabusProgressionService::class)->open($this->classA, $curriculum->stages()->firstOrFail(), $this->teacherA->id, $this->academic);
-
-        $this->actingAs($this->teacherA)->post(route('teacher.order-test.submit', $this->classA->id), [
-            'stage_name' => 'Tên tự do bị bỏ qua', 'test_type' => 'big', 'exam_date' => $examDate, 'note' => 'Tập trung Speaking',
-        ])->assertRedirect()->assertSessionHasNoErrors();
+        BigTestOrder::create([
+            'code' => 'ORDTEST-BT21', 'class_id' => $this->classA->id, 'syllabus_stage_id' => $curriculum->stages()->first()->id, 'teacher_id' => $this->teacherA->id,
+            'stage_name' => 'Chặng 1: Present Simple', 'test_type' => 'big', 'exam_date' => $examDate, 'due_date' => now()->addDays(7)->toDateString(),
+            'note' => 'Tập trung Speaking', 'status' => 'pending',
+        ]);
 
         $order = BigTestOrder::firstOrFail();
-        $this->assertSame('Chặng 1: Present Simple', $order->stage_name);
-        $this->assertSame($curriculum->stages()->first()->id, $order->syllabus_stage_id);
-        $this->assertSame('pending', $order->status);
-        $this->assertSame($this->teacherA->id, $order->teacher_id);
-        $this->assertSame(now()->addDays(7)->toDateString(), $order->due_date->toDateString());
-        $this->assertStringStartsWith('ORDTEST-', $order->code);
-        // Báo riêng người duyệt (chỉ Admin, 06/10/2026), không phát thông báo chung cho mọi người xem hệ thống.
-        $this->assertDatabaseHas('admin_notifications', ['user_id' => $this->admin->id, 'type' => 'big_test_order']);
-        $this->assertDatabaseMissing('admin_notifications', ['user_id' => $this->academic->id, 'type' => 'big_test_order']);
-        $this->assertSame(0, AdminNotification::whereNull('user_id')->count());
 
         // Học thuật vẫn xem order đề nhưng không còn nút duyệt / từ chối (chỉ Admin duyệt, 06/10/2026).
         $this->actingAs($this->academic)->get(route('syllabus.big-tests.distribution', ['order' => $order->id]))

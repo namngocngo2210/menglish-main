@@ -306,12 +306,12 @@ class Phase2AcceptanceTest extends TestCase
 
         // ── 5. Big Test: GV order đề → Học thuật tạo đợt thi + duyệt order kèm link → nhắc lịch 7 ngày ─
         $examAt = today()->addDays(5)->setTime(17, 30);
-        $this->actingAs($this->teacher)->post(route('teacher.order-test.submit', $class->id), [
-            'stage_name' => $stage1->label, 'test_type' => 'big', 'exam_date' => $examAt->toDateString(), 'note' => 'Đề cuối chặng 1',
-        ])->assertSessionHasNoErrors();
-        $order = BigTestOrder::where('class_id', $class->id)->firstOrFail();
-        $this->assertSame('pending', $order->status);
-        $this->assertSame($examAt->copy()->subDays(BigTestOrder::leadDays())->toDateString(), $order->due_date->toDateString());
+        // Order đề gửi ở nút ORDER theo mốc syllabus (SyllabusOrderTest); ở đây tạo sẵn order chờ duyệt của chặng 1.
+        $order = BigTestOrder::create([
+            'code' => 'ORDTEST-ACC1', 'class_id' => $class->id, 'syllabus_stage_id' => $stage1->id, 'teacher_id' => $this->teacher->id,
+            'stage_name' => $stage1->label, 'test_type' => 'big', 'exam_date' => $examAt->copy()->startOfDay(),
+            'due_date' => $examAt->copy()->subDays(BigTestOrder::leadDays())->startOfDay(), 'note' => 'Đề cuối chặng 1', 'status' => 'pending',
+        ]);
         $this->actingAs($this->teacher)->post(route('syllabus.big-tests.orders.approve', $order->id), ['test_link' => 'https://drive.test/de'])->assertForbidden();
         // Chỉ Admin duyệt order đề (06/10/2026): Học vụ (không có big_test.approve) và Học thuật đều bị chặn.
         $this->actingAs($this->academic)->post(route('syllabus.big-tests.orders.approve', $order->id), ['test_link' => 'https://drive.test/de'])->assertForbidden();
