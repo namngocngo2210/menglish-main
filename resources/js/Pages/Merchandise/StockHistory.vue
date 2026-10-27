@@ -2,7 +2,7 @@
 /** Nhật ký xuất nhập của một mặt hàng tại một chi nhánh (modal từ trang Tồn kho; mở thẳng URL → trang đầy đủ). */
 import StockMovements from './StockMovements.vue';
 
-defineOptions({ layout: { title: 'Tồn kho theo chi nhánh' } });
+defineOptions({ layout: { title: 'Hàng hóa & tồn kho' } });
 
 defineProps({
     asModal: { type: Boolean, default: false },

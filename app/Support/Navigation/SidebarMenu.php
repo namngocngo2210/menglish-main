@@ -358,8 +358,8 @@ final class SidebarMenu
                 'label' => 'Kho vật phẩm',
                 'icon' => 'inventory_2',
                 'items' => [
-                    ['label' => 'Hàng hóa & Vật phẩm', 'route' => 'merchandise.index', 'active' => ['merchandise.index', 'merchandise.create', 'merchandise.edit']],
-                    ['label' => 'Tồn kho theo chi nhánh', 'route' => 'merchandise.stock.index', 'active' => ['merchandise.stock.*']],
+                    // Danh mục + tồn kho theo chi nhánh gộp một trang (27/10/2026); route không có can: nên quyền ghi ở đây.
+                    ['label' => 'Hàng hóa & tồn kho', 'route' => 'merchandise.index', 'active' => ['merchandise.index', 'merchandise.create', 'merchandise.edit', 'merchandise.stock.*'], 'can' => ['system_category.manage', 'merchandise_stock.view']],
                 ],
             ],
             [

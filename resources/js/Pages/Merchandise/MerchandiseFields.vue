@@ -1,7 +1,7 @@
 <script setup>
 /**
  * Trường form Thêm/Sửa hàng hóa — dùng chung cho modal và trang đầy đủ (Form.vue).
- * Tồn kho theo chi nhánh: thêm mới nhập tồn ban đầu cho một chi nhánh; sửa không đổi số tồn (dùng trang Tồn kho).
+ * Tồn kho theo chi nhánh: thêm mới nhập tồn ban đầu cho một chi nhánh; sửa không đổi số tồn (nút Nhập kho / Kiểm kê trên danh sách).
  */
 defineProps({
     item: { type: Object, required: true },
@@ -29,7 +29,7 @@ defineProps({
         <UiInput type="number" name="stock_quantity" label="Số lượng tồn ban đầu" min="0" :value="0" class="font-code" />
         <UiSelect name="stock_branch_id" label="Nhập vào kho chi nhánh" :options="branches" placeholder="-- Chọn chi nhánh --" hint="Tồn kho tính riêng cho từng chi nhánh." />
     </div>
-    <UiAlert v-else type="info">Số tồn được quản lý theo từng chi nhánh ở trang <strong>Tồn kho theo chi nhánh</strong> (nhập kho, kiểm kê).</UiAlert>
+    <UiAlert v-else type="info">Số tồn được quản lý theo từng chi nhánh bằng nút <strong>Nhập kho</strong> / <strong>Kiểm kê</strong> trên danh sách hàng hóa.</UiAlert>
 
     <UiCheckbox name="is_active" value="1" :checked="item.is_active ?? true" label="Kích hoạt kinh doanh (cho phép chọn khi tạo Hóa đơn / Phiếu thu)" />
 

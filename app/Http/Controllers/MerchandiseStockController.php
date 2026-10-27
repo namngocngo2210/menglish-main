@@ -3,80 +3,35 @@
 namespace App\Http\Controllers;
 
 use App\Http\Concerns\RendersModals;
+use App\Http\Concerns\ScopesMerchandiseBranches;
 use App\Models\Branch;
 use App\Models\MerchandiseItem;
-use App\Models\MerchandiseStock;
 use App\Models\MerchandiseStockMovement;
 use App\Services\Merchandise\StockService;
-use App\Support\DataScope;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
-use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 
 /**
- * Tồn kho sách / hàng hóa theo chi nhánh (trang Vue Merchandise/Stock*).
+ * Tồn kho sách / hàng hóa theo chi nhánh: bảng tồn nằm ở trang Hàng hóa & tồn kho (MerchandiseItemController::index),
+ * controller này giữ modal Nhập kho / Kiểm kê / Nhật ký (trang Vue Merchandise/Stock*).
  * - Xuất kho tự động khi phiếu thu được duyệt, hoàn kho khi hủy hóa đơn (App\Services\Merchandise\StockService).
  * - Nhập kho / kiểm kê: modal, chỉ chi nhánh trong phạm vi dữ liệu `merchandise_stock`.
  * - "Tồn cũ chưa phân chi nhánh": số tồn chung trước khi có kho theo chi nhánh, phân bổ dần khi nhập kho.
  */
 class MerchandiseStockController extends Controller
 {
-    use RendersModals;
-
-    private const LEVEL_FILTERS = ['negative', 'out', 'low'];
+    use RendersModals, ScopesMerchandiseBranches;
 
     public function __construct(private readonly StockService $stock) {}
 
-    public function index(Request $request): InertiaResponse
+    /** Trang cũ "Tồn kho theo chi nhánh" đã gộp vào trang Hàng hóa & tồn kho: giữ link cũ (thông báo, bookmark). */
+    public function index(Request $request): RedirectResponse
     {
-        $branches = $this->branches($request);
-        $branch = $this->pickBranch($request, $branches);
-        $level = in_array($request->query('level'), self::LEVEL_FILTERS, true) ? $request->query('level') : null;
-        $search = trim((string) $request->query('q', ''));
-        $category = $request->query('category');
-
-        $items = MerchandiseItem::query()->search($search)->category($category)->orderBy('category')->orderBy('name')->get();
-        $quantities = $branch ? $this->stock->quantities($items->pluck('id'), $branch->id) : [];
-
-        // Mặt hàng ngừng bán chỉ hiện khi chi nhánh còn tồn (khác 0) để không mất dấu số tồn.
-        $rows = $items
-            ->filter(fn (MerchandiseItem $item) => $item->is_active || ($quantities[$item->id] ?? 0) !== 0)
-            ->map(fn (MerchandiseItem $item) => [
-                'id' => $item->id,
-                'code' => $item->code,
-                'name' => $item->name,
-                'unit' => $item->unit,
-                'category_label' => $item->category_label,
-                'category_icon' => $item->category_meta['icon'],
-                'is_active' => (bool) $item->is_active,
-                'quantity' => $quantities[$item->id] ?? 0,
-                'level' => MerchandiseStock::level($quantities[$item->id] ?? 0),
-                'legacy' => max(0, (int) $item->stock_quantity),
-            ])
-            ->values();
-
-        $counts = collect(self::LEVEL_FILTERS)->mapWithKeys(fn (string $l) => [$l => $rows->where('level', $l)->count()])->all();
-
-        $movements = $branch
-            ? MerchandiseStockMovement::with(['item', 'receipt', 'user'])->where('branch_id', $branch->id)->latest('id')->limit(15)->get()
-            : collect();
-
-        return Inertia::render('Merchandise/Stock', [
-            'branches' => $branches->map(fn (Branch $b) => ['value' => (string) $b->id, 'label' => $b->name])->values()->all(),
-            'branch' => $branch ? ['id' => $branch->id, 'name' => $branch->name] : null,
-            'rows' => $level ? $rows->where('level', $level)->values()->all() : $rows->all(),
-            'counts' => $counts,
-            'legacyTotal' => (int) $rows->sum('legacy'),
-            'movements' => $this->movementRows($movements),
-            'categories' => collect(MerchandiseItem::CATEGORIES)->map(fn (array $c, string $key) => ['value' => $key, 'label' => $c['label']])->values()->all(),
-            'filters' => ['level' => $level, 'q' => $search, 'category' => $category],
-            'lowThreshold' => MerchandiseStock::LOW_THRESHOLD,
-            'canManage' => (bool) $request->user()->can('merchandise_stock.manage'),
-        ]);
+        return redirect()->route('merchandise.index', $request->only(['branch_id', 'q', 'category', 'level']));
     }
 
     /** Modal Nhập kho / Kiểm kê (type=import|count), chọn sẵn mặt hàng + chi nhánh từ dòng đang bấm. */
@@ -130,7 +85,7 @@ class MerchandiseStockController extends Controller
             return $this->modalSaved($movement
                 ? "Đã kiểm kê {$item->name} tại {$branchName}: tồn {$quantity} (".($movement->quantity_change > 0 ? '+' : '').$movement->quantity_change.').'
                 : "Số tồn {$item->name} tại {$branchName} đã khớp ({$quantity}), không cần điều chỉnh.",
-                route('merchandise.stock.index', ['branch_id' => $branchId]));
+                route('merchandise.index', ['branch_id' => $branchId]));
         }
 
         if ($quantity < 1) {
@@ -154,10 +109,10 @@ class MerchandiseStockController extends Controller
             return $item;
         });
 
-        return $this->modalSaved("Đã nhập {$quantity} {$item->unit} {$item->name} vào kho {$branchName}.", route('merchandise.stock.index', ['branch_id' => $branchId]));
+        return $this->modalSaved("Đã nhập {$quantity} {$item->unit} {$item->name} vào kho {$branchName}.", route('merchandise.index', ['branch_id' => $branchId]));
     }
 
-    /** Modal nhật ký xuất nhập của một mặt hàng tại chi nhánh (bấm dòng ở trang tồn kho). */
+    /** Modal nhật ký xuất nhập của một mặt hàng tại chi nhánh (bấm dòng ở trang Hàng hóa & tồn kho). */
     public function history(Request $request, int $item): InertiaResponse
     {
         $branches = $this->branches($request);
@@ -176,29 +131,12 @@ class MerchandiseStockController extends Controller
             'item' => ['id' => $merchandise->id, 'code' => $merchandise->code, 'name' => $merchandise->name, 'unit' => $merchandise->unit],
             'branch' => ['id' => $branch->id, 'name' => $branch->name],
             'quantity' => $this->stock->quantities([$merchandise->id], $branch->id)[$merchandise->id],
-            'movements' => $this->movementRows($movements),
+            'movements' => self::movementRows($movements),
         ]);
     }
 
-    /** Chi nhánh trong phạm vi tồn kho của người dùng. */
-    private function branches(Request $request): Collection
-    {
-        $ids = DataScope::branchIds($request->user(), 'merchandise_stock');
-
-        return Branch::query()->when($ids !== null, fn ($q) => $q->whereIn('id', $ids))->orderBy('name')->get(['id', 'name']);
-    }
-
-    /** Chi nhánh đang xem: theo ?branch_id (nếu trong phạm vi), mặc định chi nhánh chính của người dùng. */
-    private function pickBranch(Request $request, Collection $branches): ?Branch
-    {
-        $requested = $request->integer('branch_id') ?: $request->integer('branch');
-
-        return $branches->firstWhere('id', $requested)
-            ?? $branches->firstWhere('id', (int) $request->user()->branch_id)
-            ?? $branches->first();
-    }
-
-    private function movementRows(Collection $movements): array
+    /** Dòng nhật ký xuất nhập cho bảng (dùng chung trang Hàng hóa & tồn kho). */
+    public static function movementRows(Collection $movements): array
     {
         return $movements->map(fn (MerchandiseStockMovement $m) => [
             'id' => $m->id,

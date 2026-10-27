@@ -6,7 +6,7 @@
  */
 import { computed, ref } from 'vue';
 
-defineOptions({ layout: { title: 'Tồn kho theo chi nhánh' } });
+defineOptions({ layout: { title: 'Hàng hóa & tồn kho' } });
 
 const props = defineProps({
     asModal: { type: Boolean, default: false },

@@ -333,10 +333,16 @@ class MerchandiseStockAndPaperInvoiceTest extends TestCase
 
     public function test_stock_page_import_count_and_branch_scope(): void
     {
-        $this->actingAs($this->staff)->get(route('merchandise.stock.index'))
+        // Trang tồn kho cũ chuyển về trang Hàng hóa & tồn kho; Học vụ xem được bảng nhưng không có nút sửa danh mục.
+        $this->actingAs($this->staff)->get(route('merchandise.stock.index', ['branch_id' => $this->branch->id]))
+            ->assertRedirect(route('merchandise.index', ['branch_id' => $this->branch->id]));
+        $this->actingAs($this->staff)->get(route('merchandise.index'))
             ->assertOk()
-            ->assertSee('Tồn kho theo chi nhánh')
-            ->assertSee('Sách Kids Box 1');
+            ->assertSee('Hàng hóa &amp; tồn kho', false)
+            ->assertSee('Sách Kids Box 1')
+            ->assertDontSee('href="'.route('merchandise.create', absolute: false).'"', false)
+            ->assertDontSee('href="'.route('merchandise.edit', $this->book, absolute: false).'"', false);
+        $this->actingAs($this->staff)->get(route('merchandise.edit', $this->book))->assertForbidden();
 
         $this->actingAs($this->staff)->post(route('merchandise.stock.store'), [
             'type' => 'import', 'merchandise_item_id' => $this->book->id, 'branch_id' => $this->branch->id, 'quantity' => 20,
@@ -360,6 +366,7 @@ class MerchandiseStockAndPaperInvoiceTest extends TestCase
 
         // Giáo viên không có quyền xem kho.
         $this->actingAs($this->makeUser('teacher'))->get(route('merchandise.stock.index'))->assertForbidden();
+        $this->actingAs($this->makeUser('teacher'))->get(route('merchandise.index'))->assertForbidden();
     }
 
     public function test_legacy_unallocated_stock_is_moved_to_branch_on_import(): void

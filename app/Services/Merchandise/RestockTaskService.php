@@ -89,7 +89,7 @@ class RestockTaskService
                 'type' => 'task_assigned',
                 'title' => 'Việc mới: '.$title,
                 'message' => ($balance < 0 ? 'Kho âm '.abs($balance) : 'Kho hết')." {$item->unit} tại {$branch->name}. Hạn ".$task->dueAt()?->format('H:i d/m/Y').'.',
-                'data' => ['task_id' => $task->id, 'link' => route('merchandise.stock.index', ['branch_id' => $branch->id])],
+                'data' => ['task_id' => $task->id, 'link' => route('merchandise.index', ['branch_id' => $branch->id])],
                 'is_read' => false,
             ]);
         }
@@ -113,6 +113,6 @@ class RestockTaskService
         $source = $movement->receipt?->receipt_number ? " sau khi duyệt phiếu thu {$movement->receipt->receipt_number}" : '';
 
         return "Tồn kho [{$item->code}] {$item->name} tại {$branch->name} {$state}{$source}. "
-            .'Nhập sách bù cho chi nhánh ở Tồn kho theo chi nhánh → Nhập kho; việc tự hoàn thành khi tồn lên trên 0.';
+            .'Nhập sách bù cho chi nhánh ở Kho vật phẩm → Hàng hóa & tồn kho → Nhập kho; việc tự hoàn thành khi tồn lên trên 0.';
     }
 }
