@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Concerns\RendersModals;
+use App\Http\Concerns\ScopesMerchandiseBranches;
 use App\Models\Branch;
 use App\Models\MerchandiseItem;
 use App\Models\MerchandiseStock;
@@ -11,6 +12,7 @@ use App\Services\Merchandise\StockService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 
@@ -22,64 +24,103 @@ use Inertia\Response as InertiaResponse;
  */
 class MerchandiseItemController extends Controller
 {
-    use RendersModals;
+    use RendersModals, ScopesMerchandiseBranches;
 
+    private const LEVEL_FILTERS = ['negative', 'out', 'low'];
+
+    private const PER_PAGE = 15;
+
+    public function __construct(private readonly StockService $stock) {}
+
+    /**
+     * Trang Hàng hóa & tồn kho (gộp danh mục + tồn kho theo chi nhánh, 27/10/2026).
+     * - Admin (system_category.manage): thêm / sửa / xóa / bật tắt mặt hàng, thấy cả tổng tồn mọi chi nhánh.
+     * - Học vụ / Quản lý cơ sở / Kế toán (merchandise_stock.view): xem giá, tồn chi nhánh mình, nhập kho / kiểm kê.
+     */
     public function index(Request $request): InertiaResponse
     {
-        $search = $request->query('q');
+        $user = $request->user();
+        $canCatalog = $user->can('system_category.manage');
+        $canViewStock = $user->can('merchandise_stock.view');
+        abort_unless($canCatalog || $canViewStock, 403);
+
+        $search = trim((string) $request->query('q', ''));
         $category = $request->query('category');
-        $status = $request->query('status');
+        $status = $canCatalog && in_array($request->query('status'), ['active', 'inactive'], true) ? $request->query('status') : null;
+        $level = in_array($request->query('level'), self::LEVEL_FILTERS, true) ? $request->query('level') : null;
 
-        $query = MerchandiseItem::query()
+        $branches = $canViewStock ? $this->branches($request) : collect();
+        $branch = $this->pickBranch($request, $branches);
+
+        $items = MerchandiseItem::query()
             ->search($search)
-            ->category($category);
+            ->category($category)
+            ->when($status, fn ($q) => $q->where('is_active', $status === 'active'))
+            ->orderBy('category')
+            ->orderBy('name')
+            ->get();
+        $quantities = $branch ? $this->stock->quantities($items->pluck('id'), $branch->id) : [];
+        $branchStock = $canCatalog
+            ? MerchandiseStock::query()->selectRaw('merchandise_item_id, SUM(quantity) as total')->groupBy('merchandise_item_id')->pluck('total', 'merchandise_item_id')
+            : collect();
 
-        if ($status === 'active') {
-            $query->where('is_active', true);
-        } elseif ($status === 'inactive') {
-            $query->where('is_active', false);
-        }
+        $rows = $items
+            // Người không quản lý danh mục: mặt hàng ngừng bán chỉ hiện khi chi nhánh còn tồn (khác 0) để không mất dấu số tồn.
+            ->filter(fn (MerchandiseItem $item) => $canCatalog || $item->is_active || ($quantities[$item->id] ?? 0) !== 0)
+            ->map(function (MerchandiseItem $item) use ($quantities, $branch, $branchStock) {
+                $quantity = $quantities[$item->id] ?? 0;
 
-        $items = $query->orderBy('category')->orderBy('name')->paginate(15)->withQueryString();
-        $branchStock = MerchandiseStock::query()
-            ->whereIn('merchandise_item_id', $items->getCollection()->pluck('id'))
-            ->selectRaw('merchandise_item_id, SUM(quantity) as total')
-            ->groupBy('merchandise_item_id')
-            ->pluck('total', 'merchandise_item_id');
+                return [
+                    'id' => $item->id,
+                    'code' => $item->code,
+                    'name' => $item->name,
+                    'description' => $item->description,
+                    'category_label' => $item->category_meta['label'],
+                    'category_icon' => $item->category_meta['icon'],
+                    'unit' => $item->unit,
+                    'price' => (float) $item->price,
+                    'quantity' => $quantity,
+                    'level' => $branch ? MerchandiseStock::level($quantity) : null,
+                    'legacy' => max(0, (int) $item->stock_quantity),
+                    // Tổng tồn các chi nhánh + tồn cũ chưa phân chi nhánh (chỉ Admin).
+                    'total_stock' => (int) ($branchStock[$item->id] ?? 0) + max(0, (int) $item->stock_quantity),
+                    'is_active' => (bool) $item->is_active,
+                ];
+            })
+            ->values();
 
-        $metrics = [
-            'total' => MerchandiseItem::count(),
-            'active' => MerchandiseItem::where('is_active', true)->count(),
-            'total_stock' => (int) MerchandiseStock::sum('quantity') + (int) MerchandiseItem::where('stock_quantity', '>', 0)->sum('stock_quantity'),
-            'books' => MerchandiseItem::whereIn('category', [MerchandiseItem::CATEGORY_BOOK, MerchandiseItem::CATEGORY_WORKBOOK])->count(),
-            'uniforms' => MerchandiseItem::whereIn('category', [MerchandiseItem::CATEGORY_UNIFORM, MerchandiseItem::CATEGORY_BACKPACK])->count(),
-        ];
+        $counts = collect(self::LEVEL_FILTERS)->mapWithKeys(fn (string $l) => [$l => $rows->where('level', $l)->count()])->all();
+        $filtered = $level ? $rows->where('level', $level)->values() : $rows;
+        $page = max(1, $request->integer('page', 1));
+        $paginator = new LengthAwarePaginator($filtered->forPage($page, self::PER_PAGE)->values(), $filtered->count(), self::PER_PAGE, $page, [
+            'path' => $request->url(),
+            'query' => $request->query(),
+        ]);
+
+        $movements = $branch
+            ? MerchandiseStockMovement::with(['item', 'receipt', 'user'])->where('branch_id', $branch->id)->latest('id')->limit(15)->get()
+            : collect();
 
         return Inertia::render('Merchandise/Index', [
-            'items' => $items->through(fn (MerchandiseItem $item) => [
-                'id' => $item->id,
-                'code' => $item->code,
-                'name' => $item->name,
-                'description' => $item->description,
-                'category_label' => $item->category_meta['label'],
-                'category_icon' => $item->category_meta['icon'],
-                'unit' => $item->unit,
-                'price' => (float) $item->price,
-                // Tổng tồn các chi nhánh + tồn cũ chưa phân chi nhánh.
-                'stock_quantity' => (int) ($branchStock[$item->id] ?? 0) + max(0, (int) $item->stock_quantity),
-                'is_active' => (bool) $item->is_active,
-            ]),
+            'items' => $paginator,
             'metrics' => [
-                'total' => (int) $metrics['total'],
-                'active' => (int) $metrics['active'],
-                'total_stock' => (int) $metrics['total_stock'],
-                'books' => (int) $metrics['books'],
-                'uniforms' => (int) $metrics['uniforms'],
+                'total' => MerchandiseItem::count(),
+                'active' => MerchandiseItem::where('is_active', true)->count(),
+                'books' => MerchandiseItem::whereIn('category', [MerchandiseItem::CATEGORY_BOOK, MerchandiseItem::CATEGORY_WORKBOOK])->count(),
+                'uniforms' => MerchandiseItem::whereIn('category', [MerchandiseItem::CATEGORY_UNIFORM, MerchandiseItem::CATEGORY_BACKPACK])->count(),
+                'branch_stock' => (int) $rows->sum('quantity'),
+                'need_restock' => array_sum($counts),
             ],
+            'counts' => $counts,
+            'legacyTotal' => (int) $rows->sum('legacy'),
+            'branches' => $branches->map(fn (Branch $b) => ['value' => (string) $b->id, 'label' => $b->name])->values()->all(),
+            'branch' => $branch ? ['id' => $branch->id, 'name' => $branch->name] : null,
+            'movements' => MerchandiseStockController::movementRows($movements),
             'categories' => $this->categoryOptions(),
-            'selectedCategory' => $category,
-            'selectedStatus' => $status,
-            'search' => $search,
+            'filters' => ['q' => $search, 'category' => $category, 'status' => $status, 'level' => $level],
+            'lowThreshold' => MerchandiseStock::LOW_THRESHOLD,
+            'canCatalog' => $canCatalog,
+            'canManageStock' => $canViewStock && $user->can('merchandise_stock.manage'),
         ]);
     }
 
@@ -123,7 +164,7 @@ class MerchandiseItemController extends Controller
 
         $item = MerchandiseItem::create($validated);
         if ($stockBranchId && $initialStock > 0) {
-            app(StockService::class)->adjust($item->id, $stockBranchId, $initialStock, MerchandiseStockMovement::TYPE_OPENING, ['note' => 'Tồn ban đầu khi thêm mặt hàng']);
+            $this->stock->adjust($item->id, $stockBranchId, $initialStock, MerchandiseStockMovement::TYPE_OPENING, ['note' => 'Tồn ban đầu khi thêm mặt hàng']);
         }
 
         if (function_exists('activity')) {
@@ -189,7 +230,7 @@ class MerchandiseItemController extends Controller
             'price.required' => 'Đơn giá niêm yết là bắt buộc.',
         ]);
 
-        // Số tồn đổi qua trang Tồn kho theo chi nhánh (nhập kho / kiểm kê), không sửa ở đây.
+        // Số tồn đổi qua nút Nhập kho / Kiểm kê của trang Hàng hóa & tồn kho, không sửa ở đây.
         $validated['is_active'] = $request->boolean('is_active', true);
 
         $merchandise->update($validated);

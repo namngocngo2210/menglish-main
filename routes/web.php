@@ -742,10 +742,11 @@ Route::middleware('auth')->group(function () {
     });
 
     // ─────────────────────────────────────────────
-    // Quản lý Danh mục Hàng hóa, Sách & Vật phẩm
+    // Hàng hóa & tồn kho: danh mục Hàng hóa, Sách & Vật phẩm + tồn theo chi nhánh trên cùng một bảng.
     // ─────────────────────────────────────────────
+    // Trang danh sách: Admin (system_category.manage) hoặc người xem tồn kho (merchandise_stock.view) — controller tự kiểm tra.
+    Route::get('/merchandise', [MerchandiseItemController::class, 'index'])->name('merchandise.index');
     Route::prefix('merchandise')->name('merchandise.')->middleware('can:system_category.manage')->group(function () {
-        Route::get('/', [MerchandiseItemController::class, 'index'])->name('index');
         Route::get('/create', [MerchandiseItemController::class, 'create'])->name('create');
         Route::post('/', [MerchandiseItemController::class, 'store'])->name('store');
         Route::get('/{merchandise}/edit', [MerchandiseItemController::class, 'edit'])->name('edit');
@@ -756,6 +757,7 @@ Route::middleware('auth')->group(function () {
     });
 
     // Tồn kho hàng hóa theo chi nhánh (Học vụ / Quản lý cơ sở / Kế toán xem & nhập kho chi nhánh mình).
+    // Bảng tồn nằm ở trang Hàng hóa & tồn kho; /merchandise-stock chuyển hướng về đó.
     Route::prefix('merchandise-stock')->name('merchandise.stock.')->middleware('can:merchandise_stock.view')->group(function () {
         Route::get('/', [MerchandiseStockController::class, 'index'])->name('index');
         Route::get('/{item}/history', [MerchandiseStockController::class, 'history'])->whereNumber('item')->name('history');

@@ -44,7 +44,7 @@ class MerchandiseManagementTest extends TestCase
         $response = $this->actingAs($this->adminUser)->get(route('merchandise.index'));
 
         $response->assertOk();
-        $response->assertSee('Danh mục Hàng hóa &amp; Vật phẩm', false);
+        $response->assertSee('Hàng hóa &amp; tồn kho', false);
         $response->assertSee('BOOK-TEST-01');
         $response->assertSee('Sách Test Tiếng Anh');
         $response->assertSee('200.000 đ');
