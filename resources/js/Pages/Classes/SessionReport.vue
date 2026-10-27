@@ -4,7 +4,7 @@
  * 1. Thông tin buổi (chỉ đọc) · 2. Việc của buổi (lấy từ màn điểm danh / bài giảng / bài tập) · 3. Nhận xét từng học sinh · 4. GV ghi nhận.
  * Chỉ để xem (không duyệt), không ảnh; bắt buộc đã điểm danh. Người khác (Admin, Học vụ…) mở → chỉ đọc.
  */
-import { ref } from 'vue';
+import { reactive, ref } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import SessionTrialGuests from '@/Components/Teacher/SessionTrialGuests.vue';
 import { useBackLink } from '@/lib/backLink';
@@ -59,18 +59,27 @@ function onRemarkPick(student, key, value) {
     if (WEAK[key] !== value || attention.value.some((r) => r.student_id === String(student.id))) return;
     attention.value.push(row({ student_id: student.id, reason: `Nhận xét: ${remarkLabels[key]} ${value.toLowerCase()}` }, true));
 }
+// Giữ giá trị đang gõ trong state: chọn "Cần cố gắng"/"Không đạt" thêm dòng cần chú ý → trang vẽ lại, ô chỉ gắn :value sẽ bị xóa trắng.
+const remarks = reactive(
+    Object.fromEntries(props.remarkStudents.map((student) => [student.id, { comment: '', ...Object.fromEntries(Object.entries(student.remark).map(([key, value]) => [key, value ?? ''])) }])),
+);
 const hasRemark = (student) => Object.values(student.remark).some((v) => v);
+const attColor = (student) => (student.absent ? 'error' : student.att_status === 'late' ? 'warning' : student.att_status === 'present' ? 'success' : 'neutral');
 const attLabel = { present: 'Có mặt', late: 'Đi muộn', absent: 'Vắng', excused: 'Vắng có phép', none: 'Chưa điểm danh' };
 
 const fieldCls = 'w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-sm py-xs font-body-small text-body-small';
 const labelCls = 'mb-xs block font-label text-label uppercase text-on-surface-variant';
 const sectionCls = 'space-y-md rounded-2xl border border-outline-variant bg-surface-container-lowest p-md shadow-sm';
+// Bảng nhận xét: tiêu đề cột được xuống dòng, ô sát hơn để thấy đủ cột Nhận xét mà không phải cuộn ngang trên màn rộng.
+const tableCls = '[&_th]:!whitespace-normal [&_th]:!px-sm [&_td]:!px-sm [&_td]:align-top [&_tr>*:first-child]:!min-w-[11rem]';
+const narrowCls = 'mx-auto w-full max-w-4xl';
 const headingCls = 'flex items-center gap-sm font-h3 text-h3 text-on-surface';
 </script>
 
 <template>
-    <div class="mx-auto max-w-4xl space-y-md pb-24 md:pb-0">
-        <header class="flex items-center gap-sm rounded-2xl border border-outline-variant bg-surface-container-lowest p-md shadow-sm">
+    <!-- Bảng "Nhận xét học sinh" trải hết chiều rộng; các khối còn lại giữ khổ đọc max-w-4xl. -->
+    <div class="space-y-md pb-24 md:pb-0">
+        <header :class="narrowCls" class="flex items-center gap-sm rounded-2xl border border-outline-variant bg-surface-container-lowest p-md shadow-sm">
             <UiButton variant="ghost" icon="arrow_back" :href="back.href" data-back-link aria-label="Quay lại" title="Quay lại" />
             <div class="min-w-0 flex-1">
                 <h1 class="flex flex-wrap items-center gap-sm font-h2 text-h2 text-on-surface">
@@ -85,10 +94,10 @@ const headingCls = 'flex items-center gap-sm font-h3 text-h3 text-on-surface';
             </div>
         </header>
 
-        <SessionTrialGuests :guests="trialGuests" />
+        <div :class="narrowCls"><SessionTrialGuests :guests="trialGuests" /></div>
 
         <!-- 1. Thông tin buổi -->
-        <section :class="sectionCls" data-report-section="session">
+        <section :class="[sectionCls, narrowCls]" data-report-section="session">
             <h2 :class="headingCls" class="border-b border-surface-container pb-sm"><span class="h-2 w-2 rounded-full bg-primary-container" aria-hidden="true"></span>1. Thông tin buổi</h2>
             <dl class="grid grid-cols-1 gap-sm sm:grid-cols-2 lg:grid-cols-4">
                 <div class="rounded-xl border border-outline-variant bg-surface-container-low p-sm">
@@ -114,7 +123,7 @@ const headingCls = 'flex items-center gap-sm font-h3 text-h3 text-on-surface';
         </section>
 
         <!-- 2. Việc của buổi -->
-        <section :class="sectionCls" data-report-section="checklist">
+        <section :class="[sectionCls, narrowCls]" data-report-section="checklist">
             <div class="border-b border-surface-container pb-sm">
                 <h2 :class="headingCls"><span class="h-2 w-2 rounded-full bg-primary-container" aria-hidden="true"></span>2. Việc của buổi</h2>
                 <p class="font-caption text-caption text-on-surface-variant">Lấy tự động từ các màn giáo viên đã làm. Bắt buộc điểm danh trước khi nộp; mục khác chưa xong chỉ nhắc.</p>
@@ -152,34 +161,64 @@ const headingCls = 'flex items-center gap-sm font-h3 text-h3 text-on-surface';
                 </div>
                 <UiErrors :messages="Object.entries(errors).filter(([k]) => k.startsWith('remarks')).map(([, m]) => m)" />
                 <p v-if="!remarkStudents.length" class="text-center font-body-small text-body-small italic text-on-surface-variant">Lớp chưa có học viên.</p>
-                <div v-for="student in remarkStudents" :key="student.id" class="space-y-sm rounded-xl border border-outline-variant p-sm" :class="student.absent ? 'bg-surface-container-low/60' : 'bg-surface-container-lowest'" data-remark-row>
-                    <div class="flex flex-wrap items-center justify-between gap-sm">
-                        <span class="font-body-medium text-body-medium font-semibold text-on-surface">{{ student.name }}</span>
-                        <UiBadge :color="student.absent ? 'error' : student.att_status === 'late' ? 'warning' : student.att_status === 'present' ? 'success' : 'neutral'">{{ attLabel[student.att_status] ?? student.att_status }}</UiBadge>
-                    </div>
-                    <div v-if="!student.absent" class="grid grid-cols-2 gap-sm md:grid-cols-5">
-                        <label v-for="[key, label, placeholder] in REMARK_FIELDS" :key="key" class="block">
-                            <span :class="labelCls">{{ label }}</span>
-                            <select v-if="remarkOptions[key]" :name="`remarks[${student.id}][${key}]`" :class="fieldCls" @change="onRemarkPick(student, key, $event.target.value)">
-                                <option value="" :selected="!student.remark[key]">— Chọn —</option>
-                                <option v-for="choice in choicesFor(key, student.remark[key])" :key="choice" :value="choice" :selected="student.remark[key] === choice">{{ choice }}</option>
-                            </select>
-                            <input v-else type="text" :name="`remarks[${student.id}][${key}]`" :value="student.remark[key]" :placeholder="placeholder" :class="fieldCls" />
-                        </label>
-                    </div>
-                    <textarea
-                        v-if="!student.absent"
-                        :name="`remarks[${student.id}][comment]`"
-                        rows="2"
-                        :value="student.remark.comment"
-                        :aria-label="`Nhận xét chi tiết — ${student.name}`"
-                        placeholder="Nhận xét chi tiết về quá trình học trong buổi..."
-                        :class="fieldCls"
-                    ></textarea>
-                </div>
+                <!-- Mỗi hàng một học sinh; bảng rộng thì cuộn ngang, cột tên cố định. -->
+                <UiDataTable v-else min-width="960px" sticky="first" :class="tableCls">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Học sinh</th>
+                                <th v-for="[key, label] in REMARK_FIELDS" :key="key">{{ label }}</th>
+                                <th class="w-full">Nhận xét</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="student in remarkStudents" :key="student.id" :class="student.absent && 'bg-surface-container-low/60'" data-remark-row>
+                                <td>
+                                    <p class="font-semibold">{{ student.name }}</p>
+                                    <UiBadge :color="attColor(student)" class="mt-xs">{{ attLabel[student.att_status] ?? student.att_status }}</UiBadge>
+                                </td>
+                                <td v-if="student.absent" :colspan="REMARK_FIELDS.length + 1" class="align-middle font-body-small text-body-small italic text-on-surface-variant">Vắng, không cần nhận xét.</td>
+                                <template v-else>
+                                    <td v-for="[key, label, placeholder] in REMARK_FIELDS" :key="key">
+                                        <select
+                                            v-if="remarkOptions[key]"
+                                            v-model="remarks[student.id][key]"
+                                            :name="`remarks[${student.id}][${key}]`"
+                                            :aria-label="`${label} — ${student.name}`"
+                                            :class="[fieldCls, 'min-w-[8.5rem]']"
+                                            @change="onRemarkPick(student, key, $event.target.value)"
+                                        >
+                                            <option value="">— Chọn —</option>
+                                            <option v-for="choice in choicesFor(key, student.remark[key])" :key="choice" :value="choice">{{ choice }}</option>
+                                        </select>
+                                        <input
+                                            v-else
+                                            v-model="remarks[student.id][key]"
+                                            type="text"
+                                            :name="`remarks[${student.id}][${key}]`"
+                                            :placeholder="placeholder"
+                                            :aria-label="`${label} — ${student.name}`"
+                                            :class="[fieldCls, 'w-20']"
+                                        />
+                                    </td>
+                                    <td>
+                                        <textarea
+                                            v-model="remarks[student.id].comment"
+                                            :name="`remarks[${student.id}][comment]`"
+                                            rows="2"
+                                            :aria-label="`Nhận xét chi tiết — ${student.name}`"
+                                            placeholder="Nhận xét chi tiết về quá trình học trong buổi..."
+                                            :class="[fieldCls, 'min-w-[14rem]']"
+                                        ></textarea>
+                                    </td>
+                                </template>
+                            </tr>
+                        </tbody>
+                    </table>
+                </UiDataTable>
             </section>
 
-            <section :class="sectionCls" data-report-section="notes">
+            <section :class="[sectionCls, narrowCls]" data-report-section="notes">
                 <h2 :class="headingCls" class="border-b border-surface-container pb-sm"><span class="h-2 w-2 rounded-full bg-primary-container" aria-hidden="true"></span>4. Giáo viên ghi nhận</h2>
                 <UiAlert v-if="!attendanceDone" type="error">Buổi này chưa điểm danh. Điểm danh xong mới nộp được báo cáo buổi.</UiAlert>
                 <UiErrors :messages="[errors.attendance]" />
@@ -249,7 +288,7 @@ const headingCls = 'flex items-center gap-sm font-h3 text-h3 text-on-surface';
 
                 <UiTextarea id="proposal" name="proposal" label="Đề xuất / cần hỗ trợ (tùy chọn)" :rows="2" :value="report?.proposal" placeholder="Cần Học vụ / trợ giảng hỗ trợ gì, học liệu, phòng học..." />
             </section>
-            <div class="flex flex-wrap items-center justify-end gap-sm">
+            <div :class="narrowCls" class="flex flex-wrap items-center justify-end gap-sm">
                 <span v-if="report" class="font-caption text-caption text-on-surface-variant">Nộp lúc {{ report.submitted_at }}</span>
                 <UiButton type="submit" icon="send" :disabled="processing || !attendanceDone">{{ report ? 'Cập nhật báo cáo' : 'Nộp báo cáo buổi' }}</UiButton>
             </div>
@@ -259,15 +298,29 @@ const headingCls = 'flex items-center gap-sm font-h3 text-h3 text-on-surface';
         <section v-if="!canSubmit" :class="sectionCls" data-report-section="remarks-readonly">
             <h2 :class="headingCls" class="border-b border-surface-container pb-sm"><span class="h-2 w-2 rounded-full bg-primary-container" aria-hidden="true"></span>3. Nhận xét học sinh</h2>
             <p v-if="!remarkStudents.some(hasRemark)" class="font-body-small text-body-small italic text-on-surface-variant">Chưa có nhận xét.</p>
-            <ul v-else class="divide-y divide-surface-container">
-                <li v-for="student in remarkStudents.filter(hasRemark)" :key="student.id" class="py-sm font-body-small text-body-small text-on-surface">
-                    <strong>{{ student.name }}</strong>
-                    <span v-for="[key, label] in REMARK_FIELDS" :key="key"><template v-if="student.remark[key]"> · {{ label }}: {{ student.remark[key] }}</template></span>
-                    <p v-if="student.remark.comment" class="mt-xs whitespace-pre-line text-on-surface-variant">{{ student.remark.comment }}</p>
-                </li>
-            </ul>
+            <UiDataTable v-else min-width="860px" sticky="first" :class="tableCls">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Học sinh</th>
+                            <th v-for="[key, label] in REMARK_FIELDS" :key="key">{{ label }}</th>
+                            <th class="w-full">Nhận xét</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="student in remarkStudents.filter(hasRemark)" :key="student.id" data-remark-row>
+                            <td>
+                                <p class="font-semibold">{{ student.name }}</p>
+                                <UiBadge :color="attColor(student)" class="mt-xs">{{ attLabel[student.att_status] ?? student.att_status }}</UiBadge>
+                            </td>
+                            <td v-for="[key] in REMARK_FIELDS" :key="key" class="min-w-[6.5rem] whitespace-nowrap">{{ student.remark[key] || '—' }}</td>
+                            <td class="min-w-[14rem] whitespace-pre-line">{{ student.remark.comment || '—' }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </UiDataTable>
         </section>
-        <section v-if="!canSubmit" :class="sectionCls" data-report-section="readonly">
+        <section v-if="!canSubmit" :class="[sectionCls, narrowCls]" data-report-section="readonly">
             <h2 :class="headingCls" class="border-b border-surface-container pb-sm"><span class="h-2 w-2 rounded-full bg-primary-container" aria-hidden="true"></span>4. Giáo viên ghi nhận</h2>
             <UiEmptyState v-if="!report" icon="pending_actions" title="Giáo viên chính chưa nộp báo cáo buổi này." :description="`Hạn nộp ${deadline}.`" />
             <template v-else>
