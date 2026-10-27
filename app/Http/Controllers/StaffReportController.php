@@ -611,6 +611,8 @@ class StaffReportController extends Controller
             'dateLabel' => Str::ucfirst(Carbon::parse($date)->locale('vi')->isoFormat('dddd, D [tháng] M, YYYY')),
             'today' => now()->toDateString(),
             'deadline' => DailyReportDue::deadline(Carbon::parse($date))->format('H:i d/m'),
+            'deadlineAt' => DailyReportDue::deadline(Carbon::parse($date))->toIso8601String(),
+            'week' => $this->dailyWeek($user),
             'sections' => $metrics['sections'],
             'computedAt' => $metrics['computed_at'] ?? null,
             'live' => $live,
@@ -635,6 +637,41 @@ class StaffReportController extends Controller
             'history' => $history,
             'legacy' => $this->legacyReports('daily'),
         ]);
+    }
+
+    /**
+     * Dãy 7 ngày gần nhất (tới hôm nay) trên đầu màn báo cáo ngày (thiết kế 27/10/2026): mỗi ngày một trạng thái
+     * đã nộp / nộp trễ / chưa nộp (ngày phải nộp) / nghỉ (Chủ nhật, lễ, phép) / hôm nay đang mở.
+     *
+     * @return list<array{date: string, weekday: string, day: string, status: string, href: string}>
+     */
+    private function dailyWeek(User $user): array
+    {
+        $from = today()->subDays(6);
+        $required = DailyReportDue::requiredDays($user, $from, today())->mapWithKeys(fn (Carbon $d) => [$d->toDateString() => true]);
+        $reports = StaffReport::where('user_id', $user->id)->where('type', 'daily')->where('status', '!=', 'draft')
+            ->whereDate('report_date', '>=', $from->toDateString())->whereDate('report_date', '<=', today()->toDateString())
+            ->get(['id', 'type', 'report_date', 'created_at'])
+            ->keyBy(fn (StaffReport $r) => $r->report_date->toDateString());
+
+        return collect(range(0, 6))->map(function (int $i) use ($from, $required, $reports) {
+            $d = $from->copy()->addDays($i);
+            $key = $d->toDateString();
+            $report = $reports->get($key);
+
+            return [
+                'date' => $key,
+                'weekday' => $d->isSunday() ? 'CN' : 'T'.($d->dayOfWeek + 1),
+                'day' => $d->format('d/m'),
+                'status' => match (true) {
+                    $report !== null => DailyReportDue::isLate($report) ? 'late' : 'submitted',
+                    $d->isToday() => 'open',
+                    $required->has($key) => 'missing',
+                    default => 'off',
+                },
+                'href' => route('reports.periodic.daily', ['date' => $key]),
+            ];
+        })->all();
     }
 
     public function dailyStore(Request $request): RedirectResponse
