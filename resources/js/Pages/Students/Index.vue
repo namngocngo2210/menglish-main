@@ -1,25 +1,33 @@
 <script setup>
 /**
- * Hồ sơ học sinh — danh sách (mockup epic-6/ho-so-hoc-sinh-danh-sach-lien-ket-lop): lọc chi nhánh / lớp / chip 6 trạng thái (A6 Q5),
- * cột Họ tên & Ngày sinh, Thông tin liên hệ, Lớp hiện tại, Ngày bắt đầu học (thâm niên), Trạng thái, thao tác Chi tiết + Liên kết lớp khác (popup, học song song).
+ * Danh sách học viên (thiết kế lại 27/10/2026 — bớt thông tin): tab trạng thái có số đếm, lọc một hàng (chi nhánh / lớp / thâm niên),
+ * mỗi dòng: học viên (tuổi) · lớp (+N lớp liên kết) · SĐT (học viên, không có thì phụ huynh) · học từ · trạng thái · menu ⋯.
+ * Bấm dòng mở hồ sơ; menu ⋯: Xem hồ sơ, Liên kết lớp khác (popup, học song song), Thêm phiếu thu.
  */
 import { computed, ref } from 'vue';
 import { Link } from '@inertiajs/vue3';
+import { openRemoteModal } from '@/lib/remoteModal';
+import { route } from '@/lib/route';
+import { urlWith } from '@/lib/url';
 
-defineOptions({ layout: { title: 'Hồ sơ học sinh' } });
+defineOptions({ layout: { title: 'Học viên' } });
 
 const props = defineProps({
     students: { type: Object, required: true },
     branches: { type: Array, default: () => [] },
     classes: { type: Array, default: () => [] },
-    statuses: { type: Array, default: () => [] },
-    statusOptions: { type: Object, default: () => ({}) },
+    status: { type: String, default: null },
+    statusTabs: { type: Array, default: () => [] },
     tenureOptions: { type: Array, default: () => [] },
-    sortOptions: { type: Array, default: () => [] },
+    sort: { type: String, default: null },
     totalStudents: { type: Number, default: 0 },
     hasFilters: { type: Boolean, default: false },
     linkableClasses: { type: Array, default: () => [] },
 });
+
+/** Link tab trạng thái: giữ các bộ lọc khác, về trang 1. */
+const tabUrl = (status) => urlWith({ status, 'statuses[]': null, statuses: null, page: null });
+const sortUrl = computed(() => urlWith({ sort: props.sort === 'tenure' ? null : 'tenure', page: null }));
 
 const linkStudent = ref(null);
 const linkOpen = ref(false);
@@ -36,72 +44,91 @@ const linkOptions = computed(() => {
         .filter((c) => !st.class_ids.includes(c.id))
         .map((c) => ({ value: c.id, label: `${c.label} — ${c.seats}${c.full ? ' (Đã đủ sĩ số)' : ''}`, disabled: c.full }));
 });
-const submitFilters = (event) => event.target.form?.requestSubmit();
+const openReceipt = (st) => openRemoteModal(route('tuition.receipts.create', { student_id: st.id }), { size: '4xl' });
+const menuItem = 'flex w-full items-center gap-sm px-md py-sm text-left font-body-small text-body-small text-on-surface hover:bg-surface-container-low';
 </script>
 
 <template>
-    <UiPageHeader title="Hồ sơ học sinh" description="Quản lý và tra cứu thông tin học sinh toàn hệ thống.">
+    <UiPageHeader title="Học viên" :description="`${formatNumber(totalStudents)} học viên`">
         <template #actions>
-            <div class="flex items-center gap-sm rounded-xl border border-outline-variant bg-surface-container-lowest px-md py-sm">
-                <span class="font-body-small text-body-small text-on-surface-variant">Tổng số học sinh</span>
-                <span class="font-h3 text-h3 text-primary" data-testid="student-total">{{ formatNumber(totalStudents) }}</span>
-            </div>
-            <UiButton variant="secondary" icon="how_to_reg" :href="route('students.enrollments')">Tiếp nhận &amp; Xếp lớp</UiButton>
+            <UiButton icon="how_to_reg" :href="route('students.enrollments')">Tiếp nhận &amp; Xếp lớp</UiButton>
         </template>
     </UiPageHeader>
 
-    <UiFilterBar :action="route('students.index')" search="search" placeholder="Tìm học sinh hoặc SĐT...">
-        <!-- Lọc nhanh theo 6 trạng thái (chọn là lọc ngay) -->
-        <template #quick>
-            <div class="flex flex-wrap items-center gap-sm">
-                <span class="font-label-caps text-label-caps uppercase text-on-surface-variant">Trạng thái</span>
-                <label v-for="(statusLabel, statusKey) in statusOptions" :key="statusKey" class="cursor-pointer">
-                    <input type="checkbox" name="statuses[]" :value="statusKey" :checked="statuses.includes(statusKey)" class="peer sr-only" @change="submitFilters" />
-                    <span class="inline-flex items-center gap-xs rounded-full border border-outline-variant px-md py-xs font-body-small text-body-small text-on-surface-variant transition peer-checked:border-primary-container peer-checked:bg-primary-container/10 peer-checked:font-semibold peer-checked:text-primary peer-focus-visible:ring-2 peer-focus-visible:ring-primary-container/40">
-                        {{ statusLabel }}
-                    </span>
-                </label>
-            </div>
-        </template>
+    <!-- Tab trạng thái (bấm là lọc), số đếm theo các bộ lọc còn lại -->
+    <UiTabs class="mb-md" data-testid="student-status-tabs">
+        <UiTab :href="tabUrl(null)" :active="!status" :count="formatNumber(totalStudents)" preserve-scroll>Tất cả</UiTab>
+        <UiTab v-for="tab in statusTabs" :key="tab.value" :href="tabUrl(tab.value)" :active="status === tab.value" :count="formatNumber(tab.count)" preserve-scroll>
+            {{ tab.label }}
+        </UiTab>
+    </UiTabs>
+
+    <UiFilterBar :action="route('students.index')" search="search" placeholder="Tìm tên, SĐT, mã học viên..." :keep="['status', 'sort']">
         <UiSelect name="branch_id" label="Chi nhánh" :options="branches" placeholder="Tất cả chi nhánh" />
-        <UiSelect name="class_id" label="Lớp học" :options="classes" placeholder="Tất cả các lớp" />
+        <UiSelect name="class_id" label="Lớp học" :options="classes" placeholder="Tất cả lớp" />
         <UiSelect name="tenure" label="Thâm niên" :options="tenureOptions" placeholder="Mọi thâm niên" />
-        <UiSelect name="sort" label="Sắp xếp" :options="sortOptions" placeholder="Hồ sơ mới nhất" />
     </UiFilterBar>
 
-    <UiDataTable min-width="1020px">
-        <table>
+    <UiDataTable min-width="860px">
+        <!-- Điện thoại: mỗi học viên một thẻ, bấm là mở hồ sơ -->
+        <ul class="divide-y divide-surface-container md:hidden" data-testid="student-cards">
+            <li v-for="st in students.data" :key="st.id">
+                <Link :href="route('students.show', st.id)" class="flex items-center gap-sm px-md py-sm hover:bg-surface-container-low">
+                    <UiAvatar :name="st.name" />
+                    <span class="min-w-0 flex-1">
+                        <span class="flex items-start justify-between gap-sm">
+                            <span class="font-body-medium text-body-medium font-semibold text-on-surface">{{ st.name }}</span>
+                            <UiBadge :color="st.status_color" pill class="shrink-0">{{ st.status_label }}</UiBadge>
+                        </span>
+                        <span class="block truncate font-caption text-caption text-on-surface-variant">
+                            {{ st.current_class?.name ?? 'Chưa xếp lớp' }}<template v-if="st.extra_classes"> +{{ st.extra_classes }}</template>
+                            · {{ st.phone || st.parent_phone || '—' }}
+                        </span>
+                    </span>
+                </Link>
+            </li>
+            <li v-if="!students.data.length" class="p-md text-center font-body-small text-body-small text-on-surface-variant">
+                {{ hasFilters ? 'Không tìm thấy học viên — thử đổi từ khóa hoặc bỏ bớt bộ lọc.' : 'Chưa có học viên nào.' }}
+            </li>
+        </ul>
+        <table class="hidden md:table">
             <thead>
                 <tr>
-                    <th>Họ tên &amp; Ngày sinh</th>
-                    <th>Thông tin liên hệ</th>
-                    <th>Lớp hiện tại</th>
-                    <th>Ngày bắt đầu học</th>
+                    <th>Học viên</th>
+                    <th>Lớp</th>
+                    <th>SĐT liên hệ</th>
+                    <th>
+                        <Link :href="sortUrl" preserve-scroll class="inline-flex items-center gap-xs hover:text-primary" :title="sort === 'tenure' ? 'Đang xếp học lâu nhất trước — bấm để về hồ sơ mới nhất' : 'Xếp học lâu nhất trước'">
+                            Học từ
+                            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">{{ sort === 'tenure' ? 'arrow_upward' : 'swap_vert' }}</span>
+                        </Link>
+                    </th>
                     <th>Trạng thái</th>
-                    <th class="text-right">Thao tác</th>
+                    <th class="w-12"><span class="sr-only">Thao tác</span></th>
                 </tr>
             </thead>
             <tbody>
-                <tr v-for="st in students.data" :key="st.id">
+                <tr v-for="st in students.data" :key="st.id" :data-href="route('students.show', st.id)" class="cursor-pointer">
                     <td>
-                        <Link :href="route('students.show', st.id)" class="flex items-center gap-sm">
+                        <div class="flex items-center gap-sm">
                             <UiAvatar :name="st.name" />
                             <span class="min-w-0">
-                                <span class="block font-body-medium text-body-medium font-semibold text-on-surface hover:text-primary">{{ st.name }}</span>
-                                <span class="block font-caption text-caption text-on-surface-variant">{{ st.dob ?? 'Chưa có ngày sinh' }} · <UiCode :value="st.code" class="font-code" /></span>
+                                <Link :href="route('students.show', st.id)" class="block font-body-medium text-body-medium font-semibold text-on-surface hover:text-primary">{{ st.name }}</Link>
+                                <span v-if="st.age" class="block font-caption text-caption text-on-surface-variant">{{ st.age }}</span>
                             </span>
-                        </Link>
-                    </td>
-                    <td>
-                        <p class="font-code text-code text-on-surface">{{ st.phone || '—' }}</p>
-                        <p class="font-caption text-caption text-on-surface-variant">{{ st.email ?? 'Chưa có email' }}</p>
+                        </div>
                     </td>
                     <td>
                         <template v-if="st.current_class">
-                            <span class="inline-flex rounded bg-secondary-fixed px-sm py-[2px] font-code text-caption font-semibold text-on-secondary-fixed" :title="st.current_class.name">{{ st.current_class.code || st.current_class.name }}</span>
-                            <span class="mt-xs block max-w-[200px] truncate font-caption text-caption text-on-surface-variant">{{ st.current_class.name }}</span>
+                            <span class="block max-w-[220px] truncate font-body-small text-body-small font-medium text-on-surface" :title="st.current_class.name">{{ st.current_class.name }}</span>
+                            <span v-if="st.extra_classes" class="font-caption text-caption text-on-surface-variant">+{{ st.extra_classes }} lớp liên kết</span>
                         </template>
-                        <span v-else class="inline-flex rounded bg-surface-container-high px-sm py-[2px] font-caption text-caption text-on-surface-variant">Chưa có lớp</span>
+                        <span v-else class="font-body-small text-body-small text-on-surface-variant">Chưa xếp lớp</span>
+                    </td>
+                    <td class="whitespace-nowrap font-code text-code text-on-surface">
+                        <template v-if="st.phone">{{ st.phone }}</template>
+                        <template v-else-if="st.parent_phone">{{ st.parent_phone }} <span class="font-body text-caption text-on-surface-variant">(PH)</span></template>
+                        <span v-else class="text-on-surface-variant">—</span>
                     </td>
                     <td data-col="study-started">
                         <template v-if="st.study_started_on">
@@ -110,14 +137,26 @@ const submitFilters = (event) => event.target.form?.requestSubmit();
                                 <span v-if="st.long_term" class="material-symbols-outlined text-[16px]" aria-hidden="true">workspace_premium</span>{{ st.tenure_label }}
                             </p>
                         </template>
-                        <span v-else class="font-caption text-caption text-on-surface-variant">Chưa vào học</span>
+                        <span v-else class="font-body-small text-body-small text-on-surface-variant">—</span>
                     </td>
                     <td><UiBadge :color="st.status_color" pill>{{ st.status_label }}</UiBadge></td>
-                    <td class="whitespace-nowrap text-right">
-                        <div class="inline-flex items-center gap-sm">
-                            <UiButton variant="ghost" size="sm" icon="visibility" :href="route('students.show', st.id)">Chi tiết</UiButton>
-                            <UiButton v-if="can('student.assign_class') && st.status !== 'dropped'" variant="secondary" size="sm" @click="openLink(st)">Liên kết lớp khác</UiButton>
-                        </div>
+                    <td class="text-right">
+                        <UiDropdown width="56">
+                            <template #trigger="{ open }">
+                                <UiButton variant="ghost" size="sm" icon="more_horiz" :aria-label="`Thao tác với ${st.name}`" :aria-expanded="open ? 'true' : 'false'" />
+                            </template>
+                            <template #content>
+                                <Link :href="route('students.show', st.id)" :class="menuItem" role="menuitem">
+                                    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">visibility</span>Xem hồ sơ
+                                </Link>
+                                <button v-if="can('student.assign_class') && st.status !== 'dropped'" type="button" :class="menuItem" role="menuitem" @click="openLink(st)">
+                                    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">add_link</span>Liên kết lớp khác
+                                </button>
+                                <button v-if="can('tuition.create')" type="button" :class="menuItem" role="menuitem" @click="openReceipt(st)">
+                                    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">receipt_long</span>Thêm phiếu thu
+                                </button>
+                            </template>
+                        </UiDropdown>
                     </td>
                 </tr>
                 <tr v-if="!students.data.length">
@@ -130,7 +169,7 @@ const submitFilters = (event) => event.target.form?.requestSubmit();
                 </tr>
             </tbody>
         </table>
-        <template #footer><UiPagination :paginator="students" :options="[10, 20, 50]" unit="học sinh" /></template>
+        <template #footer><UiPagination :paginator="students" :options="[10, 20, 50]" unit="học viên" /></template>
     </UiDataTable>
 
     <!-- Popup "Liên kết lớp khác" (học song song, không đổi lớp chính) -->

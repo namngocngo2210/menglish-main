@@ -1,5 +1,5 @@
 <script setup>
-/** Chi tiết hồ sơ học sinh (mockup epic-6/chi-tiet-ho-so-hoc-sinh-desktop). Nội dung: Components/Students/StudentProfile. */
+/** Chi tiết hồ sơ học sinh. Nội dung (đầu trang, số chính, tab): Components/Students/StudentProfile. */
 import { Link } from '@inertiajs/vue3';
 import StudentProfile from '@/Components/Students/StudentProfile.vue';
 import { useBackLink } from '@/lib/backLink';
@@ -14,19 +14,18 @@ const back = useBackLink(() => route('students.index'), 'Danh sách học sinh')
 </script>
 
 <template>
-    <UiPageHeader title="Chi tiết hồ sơ học sinh" :description="`${student.name} · ${student.code}`">
-        <template #breadcrumbs>
-            <Link :href="route('dashboard')" class="hover:text-primary">Trang chủ</Link>
+    <!-- Tên, trạng thái, thao tác nằm ở đầu hồ sơ (StudentProfile) — ở đây chỉ còn đường dẫn + quay lại. -->
+    <div class="mb-md flex flex-wrap items-center justify-between gap-sm">
+        <nav aria-label="Đường dẫn" class="flex items-center gap-xs font-body-small text-body-small text-on-surface-variant">
+            <Link :href="route('students.index')" class="hover:text-primary">Học viên</Link>
             <span class="material-symbols-outlined text-[14px]" aria-hidden="true">chevron_right</span>
-            <Link :href="route('students.index')" class="hover:text-primary">Hồ sơ học sinh</Link>
-            <span class="material-symbols-outlined text-[14px]" aria-hidden="true">chevron_right</span>
-            <span class="font-semibold text-primary">Chi tiết</span>
-        </template>
-        <template #actions>
-            <UiButton variant="secondary" icon="admin_panel_settings" :href="route('students.scoped', student.id)">Xem theo phân quyền</UiButton>
-            <UiButton variant="secondary" icon="arrow_back" :href="back.href" data-back-link>{{ back.label }}</UiButton>
-        </template>
-    </UiPageHeader>
+            <span class="font-semibold text-on-surface">{{ student.name }}</span>
+        </nav>
+        <div class="flex flex-wrap items-center gap-sm">
+            <UiButton variant="ghost" size="sm" icon="admin_panel_settings" :href="route('students.scoped', student.id)">Xem theo phân quyền</UiButton>
+            <UiButton variant="ghost" size="sm" icon="arrow_back" :href="back.href" data-back-link>{{ back.label }}</UiButton>
+        </div>
+    </div>
 
     <StudentProfile v-bind="$attrs" :student="student" />
 </template>
