@@ -62,7 +62,7 @@ return [
                 'Bấm **Tạo đợt Big Test mới**, nhập **Tên đợt thi**, **Lớp thi**, **Loại kỳ thi**, **Thời gian thi**, **Phòng thi**, rồi bấm **Lưu bản nháp**.',
                 'Ở bảng **Đợt thi Big Test**, bấm **Gắn chặng** để nối đợt thi với chặng của lớp, chọn chặng rồi bấm **Lưu**.',
                 'Mở tab **Bảng điểm & Kết quả**, chọn kỳ thi ở ô **Chọn Kỳ Thi Big Test**. Bảng hiện điểm 4 kỹ năng, nhận xét, trạng thái từng học viên và ngày đã gửi phụ huynh.',
-                'Khi kết quả đã được duyệt, bấm **Gửi phụ huynh** để gửi kết quả qua Zalo cho cả lớp, hoặc bấm **Gửi PH** ở từng dòng.',
+                'Kết quả đã duyệt hiện ở Cổng Học viên. Báo phụ huynh xong thì bấm **Đã báo phụ huynh** để ghi nhận cho cả lớp, hoặc bấm **Đã báo PH** ở từng dòng.',
                 'Bấm **In bảng điểm** để in hoặc lưu PDF bảng điểm của lớp.',
             ],
             'tips' => [

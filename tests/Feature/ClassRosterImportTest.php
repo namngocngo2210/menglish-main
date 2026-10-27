@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\BackgroundTask;
 use App\Models\Branch;
 use App\Models\ClassEnrollment;
 use App\Models\ClassModel;
@@ -119,7 +120,7 @@ class ClassRosterImportTest extends TestCase
                 ->where('preview.students.3.errors.0', 'Không có lớp XYZ9: thêm lớp vào sheet Lớp hoặc tạo lớp trước.')
                 ->has('preview.students', 5)); // dòng chỉ có ghi chú bị bỏ
 
-        $this->actingAs($this->admin)->post(route('classes.import.confirm'), ['token' => $token])->assertRedirect(route('classes.import'));
+        $this->actingAs($this->admin)->post(route('classes.import.confirm'), ['token' => $token])->assertRedirect(route('classes.import', ['task' => BackgroundTask::query()->max('id')]));
 
         $cam = ClassModel::where('code', 'CAM37')->firstOrFail();
         $this->assertSame($this->branch->id, $cam->branch_id);
@@ -127,7 +128,7 @@ class ClassRosterImportTest extends TestCase
         $this->assertSame('active', $cam->status);
         $this->assertSame('p201', $cam->room);
         $this->assertSame($p201->id, $cam->room_id);
-        $this->assertSame(1, session('class_roster_import_result')['rooms']);
+        $this->assertSame(1, $this->importReport()['rooms']);
         $p401 = Room::where('branch_id', $this->branch->id)->where('name', 'P401')->firstOrFail();
         $this->assertSame('Phòng tiêu chuẩn', $p401->type->name);
         $config = ClassScheduleConfig::where('class_id', $cam->id)->firstOrFail();
@@ -181,7 +182,7 @@ class ClassRosterImportTest extends TestCase
         $this->assertSame(2, Room::count());
         $this->assertSame($p201->id, $cam->fresh()->room_id);
         $this->assertSame($this->teacher->id, $cam->fresh()->teacher_id);
-        $this->assertSame(1, session('class_roster_import_result')['teachers']);
+        $this->assertSame(1, $this->importReport()['teachers']);
         $this->assertFalse(ClassSession::where('class_id', $cam->id)->whereNull('teacher_id')->exists());
     }
 
@@ -282,5 +283,14 @@ class ClassRosterImportTest extends TestCase
 
         $this->actingAs($this->admin)->get(route('students.show', $student->id))
             ->assertInertia(fn (AssertableInertia $page) => $page->where('student.parent2_name', 'Bố Học Viên')->where('student.id_card_number', '001192008455'));
+    }
+
+    /** Báo cáo của lần nhập chạy nền gần nhất (queue sync trong test: chạy xong ngay khi xác nhận). */
+    private function importReport(): array
+    {
+        $task = BackgroundTask::query()->where('type', BackgroundTask::CLASS_ROSTER_IMPORT)->latest('id')->firstOrFail();
+        $this->assertSame(BackgroundTask::DONE, $task->status, (string) $task->message);
+
+        return $task->report;
     }
 }

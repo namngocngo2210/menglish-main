@@ -7,6 +7,7 @@ use App\Exceptions\InvoiceRangeExhaustedException;
 use App\Exceptions\PaperInvoiceNumberChangedException;
 use App\Exports\ArrayExport;
 use App\Http\Concerns\RendersModals;
+use App\Models\BackgroundTask;
 use App\Models\BankAccount;
 use App\Models\Branch;
 use App\Models\ClassEnrollment;
@@ -416,7 +417,9 @@ class CrmController extends Controller
         return Inertia::render('Crm/Customers/Index', [
             'customers' => $dbCustomers,
             'stageOptions' => Ui::options(CrmCustomer::PIPELINE_STAGES + ['lost' => CrmCustomer::stageLabel('lost')]),
-            'importSkipped' => session('import_skipped'),
+            // Lần nhập Excel gần nhất của người xem trong 1 ngày (chạy nền): trạng thái + các dòng bị bỏ qua.
+            'importTasks' => BackgroundTask::recentFor(BackgroundTask::CRM_IMPORT, $request->user()->id, 1,
+                fn ($q) => $q->where('created_at', '>=', now()->subDay())),
             'chipCounts' => $this->chipCounts(),
             // Phân công lại hàng loạt: người nhận khác cơ sở của khách → tạo yêu cầu chuyển cơ sở như phân công lẻ.
             'bulkOwners' => $request->user()->can('lead.assign')
@@ -1004,7 +1007,7 @@ class CrmController extends Controller
                 ->map(fn (array $row) => ['value' => $row['key'], 'label' => "{$row['label']} ({$row['count']})"])
                 ->values()->all(),
             'tab' => request('tab') === 'info' ? 'info' : 'ops',
-            // Vừa xác nhận lịch hẹn mà chưa gửi được email: popup nội dung xác nhận để sao chép gửi Zalo.
+            // Vừa xác nhận lịch hẹn mà chưa gửi được email: popup nội dung xác nhận để sao chép gửi tin nhắn.
             'appointmentConfirmation' => (fn ($c) => is_array($c) && empty($c['emailed']) ? [
                 'text' => $c['text'],
                 'phone' => $c['phone'] ?? null,
@@ -1992,7 +1995,7 @@ class CrmController extends Controller
 
     /**
      * "Khách chốt — Xác nhận chính thức": ghi danh (từ CRM) chờ Học vụ / Quản lý xác nhận hồ sơ nhập học
-     * (đã gửi tài khoản, đã vào nhóm Zalo, đã nhận giáo trình).
+     * (đã gửi tài khoản, đã nhận giáo trình).
      */
     public function confirmations(Request $request)
     {
@@ -2070,7 +2073,6 @@ class CrmController extends Controller
         abort_unless($enrollment->customer_id && $this->scopeCustomerQuery()->whereKey($enrollment->customer_id)->exists(), 404);
         $validated = $request->validate([
             'account_sent' => 'nullable|boolean',
-            'zalo_group_added' => 'nullable|boolean',
             'curriculum_delivered' => 'nullable|boolean',
             'action' => 'required|in:save,confirm',
         ]);
@@ -2099,7 +2101,7 @@ class CrmController extends Controller
                     'user_id' => $request->user()->id,
                     'type' => 'system',
                     'content' => 'Xác nhận chính thức nhập học lớp '.($class?->name ?? '#'.$enrollment->class_id)
-                        .': đã gửi tài khoản, đã vào nhóm Zalo, đã nhận giáo trình.',
+                        .': đã gửi tài khoản, đã nhận giáo trình.',
                 ]);
             }
             $enrollment->save();
@@ -2666,7 +2668,7 @@ class CrmController extends Controller
                 'user_id' => $studentUser?->id,
                 'name' => $customer->name,
                 'phone' => $customer->phone,
-                // Liên hệ phụ huynh chép sang hồ sơ học viên (gửi kết quả Big Test qua Zalo).
+                // Liên hệ phụ huynh chép sang hồ sơ học viên.
                 'parent_name' => $customer->parent_name,
                 'parent_phone' => $customer->parent_phone,
                 'email' => $studentEmail,
@@ -2846,7 +2848,6 @@ class CrmController extends Controller
             'customer_id' => $customer->id,
             'enrolled_at' => now(),
             'curriculum_delivered' => false,
-            'zalo_group_added' => false,
             'status' => 'pending',
         ]);
         $student->forceFill(['current_class_id' => $class->id])->save();

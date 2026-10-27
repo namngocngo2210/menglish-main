@@ -14,10 +14,10 @@ Schedule::command('students:schedule-first-month-care')->hourlyAt(40);
 
 Schedule::command('crm:scan-stale-leads')->hourly();
 // Công việc / nhiệm vụ trợ giảng qua hạn (ngày + giờ hạn) → "Quá hạn"; việc chăm sóc tháng đầu quá SLA → biên bản vi phạm (idempotent).
-Schedule::command('tasks:mark-overdue')->everyFifteenMinutes();
+Schedule::command('tasks:mark-overdue')->everyFifteenMinutes()->withoutOverlapping();
 
 // Order học liệu qua hạn xử lý (due_at) mà chưa xong → "Quá hạn" + báo người xử lý (idempotent).
-Schedule::command('material-orders:mark-overdue')->everyFifteenMinutes();
+Schedule::command('material-orders:mark-overdue')->everyFifteenMinutes()->withoutOverlapping();
 
 Schedule::command('tuition:send-debt-reminders')->dailyAt('08:30');
 
@@ -46,7 +46,7 @@ Schedule::command('students:start-deferrals')->dailyAt('06:45');
 // Lớp tới ngày khai giảng → học viên Chờ khai giảng đã hoàn tất nhập học sang Đang học (idempotent). Chạy trước chăm sóc tháng đầu 07:40.
 Schedule::command('students:start-studying')->dailyAt('06:55');
 // SLA học phí: tiền mặt thu trong ngày phải nộp về TK công ty trước giờ chốt (Cấu hình SLA, mặc định 19:00) → quét mỗi 15 phút, nhắc phiếu quá giờ chưa nộp (idempotent theo phiếu, không tự phạt).
-Schedule::command('tuition:check-cash-deposits')->everyFifteenMinutes();
+Schedule::command('tuition:check-cash-deposits')->everyFifteenMinutes()->withoutOverlapping();
 // Hoàn phí / chuyển nhượng phải xử lý trong N ngày (Cấu hình SLA, mặc định 7), cùng tháng → nhắc người duyệt khi còn ≤ 1 ngày hoặc quá hạn (idempotent theo ngày).
 Schedule::command('tuition:notify-refund-deadlines')->dailyAt('08:40');
 
@@ -65,10 +65,10 @@ Schedule::command('payroll:remind-calendar')->dailyAt('08:35');
 Schedule::command('kpi:create-sheets')->dailyAt('00:20');
 
 // SLA CRM tự động (liên hệ 24h, chuyển trạng thái 36h, trả KQ test, phản hồi học thử, học phí tuần đầu): giao việc + biên bản phạt khi quá hạn (idempotent).
-Schedule::command('sla:enforce')->everyFifteenMinutes();
+Schedule::command('sla:enforce')->everyFifteenMinutes()->withoutOverlapping();
 
 // Dọn file tạm import giáo trình (gói upload bỏ dở, thư mục giải nén, zip mẫu) quá 1 ngày (idempotent).
 Schedule::command('syllabus:prune-imports')->dailyAt('03:10');
 
 // Luyện tập: lượt đang làm đã quá giờ (+30 giây ân hạn lưu đáp án) → tự nộp, submit_reason = timeout (idempotent).
-Schedule::command('practice:close-expired')->everyFiveMinutes();
+Schedule::command('practice:close-expired')->everyFiveMinutes()->withoutOverlapping();

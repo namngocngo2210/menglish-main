@@ -8,6 +8,8 @@ use App\Exports\TuitionImportTemplateExport;
 use App\Http\Concerns\RendersModals;
 use App\Models\AcademicRecord;
 use App\Models\AdminNotification;
+use App\Jobs\ImportTuitions;
+use App\Models\BackgroundTask;
 use App\Models\BankAccount;
 use App\Models\Branch;
 use App\Models\ClassModel;
@@ -238,7 +240,8 @@ class TuitionController extends Controller
                 $preview['branch_name'] = Branch::find($preview['branch_id'])?->name;
             }
         }
-        $result = $request->session()->get('tuition_import_result');
+        // Lần nhập chạy nền (?task=): đang chạy → trạng thái (tự tải lại); xong → bước 3 Kết quả.
+        ['result' => $result, 'backgroundTasks' => $backgroundTasks] = BackgroundTask::importResult(BackgroundTask::TUITION_IMPORT, $request->input('task'), $request->user()->id);
 
         return $this->modalPage('Tuition/Import', [
             'branches' => $branches->map(fn (Branch $b) => ['value' => $b->id, 'label' => $b->name])->values(),
@@ -268,6 +271,7 @@ class TuitionController extends Controller
                 'failed' => array_values($result['failed'] ?? []),
             ] : null,
             'templateHeadings' => implode(', ', TuitionImportService::TEMPLATE_HEADINGS),
+            'backgroundTasks' => $backgroundTasks,
         ]);
     }
 
@@ -312,7 +316,7 @@ class TuitionController extends Controller
         return redirect()->route('tuition.import', ['token' => $token]);
     }
 
-    public function confirmImport(Request $request, TuitionImportService $importer)
+    public function confirmImport(Request $request)
     {
         $validated = $request->validate(['token' => 'required|string']);
         $preview = $request->session()->pull('tuition_import.'.$validated['token']);
@@ -327,13 +331,23 @@ class TuitionController extends Controller
             return redirect()->route('tuition.import')->withErrors(['excel_file' => 'Không có dòng hợp lệ nào để nhập.']);
         }
 
-        $result = $importer->import($valid, (int) $preview['branch_id'], $request->user());
-        $result['skipped'] = count($preview['rows']) - count($valid);
-        $result['file_name'] = $preview['file_name'];
+        // Ghi hồ sơ học phí + phiếu thu chạy nền (job ImportTuitions); trang kết quả tự cập nhật khi xong.
+        $task = BackgroundTask::query()->create([
+            'type' => BackgroundTask::TUITION_IMPORT,
+            'user_id' => $request->user()->id,
+            'status' => BackgroundTask::QUEUED,
+            'title' => 'Nhập học phí: '.$preview['file_name'],
+            'payload' => [
+                'branch_id' => (int) $preview['branch_id'],
+                'file_name' => $preview['file_name'],
+                'rows' => $valid,
+                'skipped' => count($preview['rows']) - count($valid),
+            ],
+        ]);
+        ImportTuitions::dispatch($task);
 
-        return redirect()->route('tuition.import')
-            ->with('tuition_import_result', $result)
-            ->with('status', "Đã nhập {$result['tuitions']} hồ sơ học phí và {$result['receipts']} phiếu thu chờ duyệt.");
+        return redirect()->route('tuition.import', ['task' => $task->id])
+            ->with('status', 'Đang nhập học phí ở nền. Có thể rời trang, kết quả hiện ở đây và trong thông báo khi xong.');
     }
 
     public function downloadImportTemplate()

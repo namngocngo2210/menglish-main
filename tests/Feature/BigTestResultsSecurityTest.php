@@ -7,14 +7,12 @@ use App\Models\BigTestResult;
 use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\Course;
-use App\Models\CrmCustomer;
 use App\Models\Student;
 use App\Models\User;
 use App\Support\Roles;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class BigTestResultsSecurityTest extends TestCase
@@ -23,7 +21,7 @@ class BigTestResultsSecurityTest extends TestCase
 
     private User $manager;
 
-    /** Học thuật: xem / gửi phụ huynh kết quả đã duyệt (big_test.approve); duyệt kết quả chỉ Admin (06/10/2026). */
+    /** Học thuật: xem / ghi nhận đã báo phụ huynh kết quả đã duyệt (big_test.approve); duyệt kết quả chỉ Admin (06/10/2026). */
     private User $lead;
 
     private User $teacherA;
@@ -47,7 +45,6 @@ class BigTestResultsSecurityTest extends TestCase
         parent::setUp();
         $this->seed(PermissionSeeder::class);
         $this->seed(RoleSeeder::class);
-        config(['services.zalo.mode' => 'sandbox']);
 
         $branch = Branch::create(['name' => 'Cầu Giấy', 'code' => 'CG-BTS', 'is_active' => true]);
         $this->manager = User::factory()->create(['is_active' => true, 'branch_id' => $branch->id]);
@@ -155,105 +152,46 @@ class BigTestResultsSecurityTest extends TestCase
             ->assertOk()->assertSee('[BT-A]', false)->assertSee('[BT-B]', false);
     }
 
-    // ---- 2 & 3. Zalo send: no fake phone, idempotent, failure-aware ----
+    // ---- 2 & 3. Ghi nhận đã báo phụ huynh: chỉ kết quả chưa báo, không phụ thuộc SĐT ----
 
-    public function test_send_zalo_skips_students_without_phone_and_never_uses_fallback_number(): void
-    {
-        // Không có SĐT phụ huynh (hồ sơ HV + khách CRM) → bỏ qua, KHÔNG gửi vào SĐT của chính học viên.
-        $this->studentA->update(['parent_phone' => null]);
-        $result = $this->makeResult($this->testA, $this->studentA, 'approved');
-
-        $response = $this->actingAs($this->lead)->post(route('syllabus.big-tests.send-zalo', $this->testA->id));
-        $response->assertRedirect();
-        $response->assertSessionHas('warning', fn ($msg) => str_contains($msg, 'HV Lớp A') && str_contains($msg, 'Thiếu SĐT phụ huynh'));
-        $this->actingAs($this->lead)->get(route('syllabus.big-tests.results', $this->testA->id))->assertOk()->assertSee('Thiếu SĐT phụ huynh');
-
-        $result->refresh();
-        $this->assertFalse($result->parent_notified);
-        $this->assertSame('approved', $result->status);
-    }
-
-    public function test_send_zalo_only_sends_unsent_results_and_marks_them_sent(): void
+    public function test_mark_notified_only_marks_unnotified_results(): void
     {
         $other = Student::create([
-            'name' => 'HV Đã gửi', 'code' => 'HV-BTS-C', 'phone' => '0901000003', 'parent_phone' => '0911000003',
+            'name' => 'HV Đã báo', 'code' => 'HV-BTS-C', 'phone' => '0901000003', 'parent_phone' => '0911000003',
             'current_class_id' => $this->classA->id, 'status' => 'studying',
         ]);
         $sentAt = now()->subDay()->startOfSecond();
         $alreadySent = $this->makeResult($this->testA, $other, 'sent', true);
         $alreadySent->update(['notified_at' => $sentAt]);
+        // Không có SĐT phụ huynh vẫn ghi nhận được: Học thuật tự báo phụ huynh.
+        $this->studentA->update(['parent_phone' => null]);
         $pending = $this->makeResult($this->testA, $this->studentA, 'approved');
 
-        $this->actingAs($this->lead)->post(route('syllabus.big-tests.send-zalo', $this->testA->id))
+        $this->actingAs($this->lead)->post(route('syllabus.big-tests.mark-notified', $this->testA->id))
             ->assertRedirect()
-            ->assertSessionHas('status', fn ($msg) => str_contains($msg, '1'));
+            ->assertSessionHas('status', fn ($msg) => str_contains($msg, '1 phụ huynh'));
 
         $pending->refresh();
         $this->assertTrue($pending->parent_notified);
         $this->assertSame('sent', $pending->status);
         $this->assertNotNull($pending->notified_at);
         $this->assertTrue($alreadySent->fresh()->notified_at->equalTo($sentAt));
+
+        $this->actingAs($this->lead)->post(route('syllabus.big-tests.mark-notified', $this->testA->id))
+            ->assertRedirect()->assertSessionHas('error');
     }
 
-    public function test_send_zalo_does_not_mark_notified_when_provider_fails(): void
-    {
-        config(['services.zalo.mode' => 'live', 'services.zalo.access_token' => 'test-token']);
-        Http::fake(['*' => Http::response(['error' => -124, 'message' => 'Invalid'], 200)]);
-        $result = $this->makeResult($this->testA, $this->studentA, 'approved');
-
-        $this->actingAs($this->lead)->post(route('syllabus.big-tests.send-zalo', $this->testA->id))
-            ->assertRedirect()
-            ->assertSessionHas('warning');
-
-        $result->refresh();
-        $this->assertFalse($result->parent_notified);
-        $this->assertSame('approved', $result->status);
-        $this->assertNull($result->notified_at);
-    }
-
-    public function test_single_send_is_idempotent_and_failure_aware(): void
+    public function test_single_mark_is_idempotent(): void
     {
         $sent = $this->makeResult($this->testA, $this->studentA, 'sent', true);
-        $this->actingAs($this->lead)->post(route('syllabus.big-tests.send-single-zalo', $sent->id))
+        $this->actingAs($this->lead)->post(route('syllabus.big-tests.mark-single-notified', $sent->id))
             ->assertRedirect()->assertSessionHas('error');
 
-        $noPhone = $this->makeResult($this->testB, $this->studentB, 'approved');
-        $this->studentB->update(['parent_phone' => ' ']);
-        $this->actingAs($this->lead)->post(route('syllabus.big-tests.send-single-zalo', $noPhone->id))
-            ->assertRedirect()->assertSessionHas('error');
-        $this->assertFalse($noPhone->fresh()->parent_notified);
-
-        $this->studentB->update(['parent_phone' => '0911000002']);
-        config(['services.zalo.mode' => 'live', 'services.zalo.access_token' => 'test-token']);
-        Http::fake(['*' => Http::response(['error' => -1], 200)]);
-        $this->actingAs($this->lead)->post(route('syllabus.big-tests.send-single-zalo', $noPhone->id))
-            ->assertRedirect()->assertSessionHas('error');
-        $this->assertFalse($noPhone->fresh()->parent_notified);
-
-        Http::fake(['*' => Http::response(['error' => 0], 200)]);
-        config(['services.zalo.mode' => 'sandbox']);
-        $this->actingAs($this->lead)->post(route('syllabus.big-tests.send-single-zalo', $noPhone->id))
+        $pending = $this->makeResult($this->testB, $this->studentB, 'approved');
+        $this->actingAs($this->lead)->post(route('syllabus.big-tests.mark-single-notified', $pending->id))
             ->assertRedirect()->assertSessionHas('status');
-        $this->assertSame('sent', $noPhone->fresh()->status);
-        $this->assertTrue($noPhone->fresh()->parent_notified);
-    }
-
-    public function test_parent_phone_falls_back_to_crm_customer_parent_phone(): void
-    {
-        $this->studentA->update(['parent_phone' => null]);
-        CrmCustomer::create(['code' => 'KH-BTS-1', 'name' => 'HV Lớp A', 'phone' => '0901000001', 'phone_normalized' => '0901000001',
-            'parent_phone' => '0987654321', 'stage' => 'won', 'converted_student_id' => $this->studentA->id]);
-        config(['services.zalo.mode' => 'live', 'services.zalo.access_token' => 'test-token']);
-        Http::fake(['*' => Http::response(['error' => 0], 200)]);
-        $result = $this->makeResult($this->testA, $this->studentA, 'approved');
-
-        $this->actingAs($this->lead)->post(route('syllabus.big-tests.send-single-zalo', $result->id))->assertSessionHas('status');
-        Http::assertSent(fn ($request) => $request['phone'] === '84987654321');
-        $this->assertTrue($result->fresh()->parent_notified);
-
-        // SĐT phụ huynh trên hồ sơ học viên được ưu tiên hơn khách CRM.
-        $this->studentA->update(['parent_phone' => '0911222333']);
-        $this->assertSame('0911222333', $this->studentA->fresh()->parentContactPhone());
+        $this->assertSame('sent', $pending->fresh()->status);
+        $this->assertTrue($pending->fresh()->parent_notified);
     }
 
     public function test_only_admin_approves_results_and_academic_lead_only_sends(): void
@@ -267,7 +205,7 @@ class BigTestResultsSecurityTest extends TestCase
             $this->assertFalse($user->can('big_test.approve'));
             $this->assertFalse($user->can('syllabus.approve_adjustment'));
             $this->actingAs($user)->post(route('syllabus.big-tests.results.approve', $this->testA->id))->assertForbidden();
-            $this->actingAs($user)->post(route('syllabus.big-tests.send-zalo', $this->testA->id))->assertForbidden();
+            $this->actingAs($user)->post(route('syllabus.big-tests.mark-notified', $this->testA->id))->assertForbidden();
             $this->actingAs($user)->post(route('syllabus.big-tests.results.approve-send', $result->id))->assertForbidden();
             $this->actingAs($user)->get(route('syllabus.big-tests.results', $this->testA->id))->assertOk()
                 ->assertDontSee(route('syllabus.big-tests.results.approve', $this->testA->id, absolute: false));
@@ -360,21 +298,21 @@ class BigTestResultsSecurityTest extends TestCase
             ->assertSee('Chờ duyệt')
             ->assertDontSee('>pending_review<', false)
             ->assertDontSee(route('syllabus.big-tests.results.approve', $this->testA->id, absolute: false))
-            ->assertDontSee(route('syllabus.big-tests.send-zalo', $this->testA->id, absolute: false))
+            ->assertDontSee(route('syllabus.big-tests.mark-notified', $this->testA->id, absolute: false))
             ->assertDontSee('/ 9.0');
 
         // Học thuật: còn nút gửi phụ huynh, không còn nút duyệt (chỉ Admin duyệt, 06/10/2026).
         $this->actingAs($this->lead)->get(route('syllabus.big-tests.results', $this->testA->id))
             ->assertOk()
             ->assertDontSee(route('syllabus.big-tests.results.approve', $this->testA->id, absolute: false))
-            ->assertSee(route('syllabus.big-tests.send-zalo', $this->testA->id, absolute: false));
+            ->assertSee(route('syllabus.big-tests.mark-notified', $this->testA->id, absolute: false));
 
         $admin = User::factory()->create(['is_active' => true]);
         $admin->assignRole(Roles::ADMIN);
         $this->actingAs($admin)->get(route('syllabus.big-tests.results', $this->testA->id))
             ->assertOk()
             ->assertSee(route('syllabus.big-tests.results.approve', $this->testA->id, absolute: false))
-            ->assertSee(route('syllabus.big-tests.send-zalo', $this->testA->id, absolute: false));
+            ->assertSee(route('syllabus.big-tests.mark-notified', $this->testA->id, absolute: false));
     }
 
     public function test_results_page_without_tests_has_no_grade_form(): void

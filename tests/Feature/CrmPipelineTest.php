@@ -630,11 +630,11 @@ class CrmPipelineTest extends TestCase
 
         Mail::assertNothingSent();
         $notification = AdminNotification::where('type', AppointmentConfirmation::NOTIFICATION_TYPE)->sole();
-        $this->assertSame($this->sales->id, $notification->user_id, 'Người phụ trách khách nhận thông báo gửi Zalo');
+        $this->assertSame($this->sales->id, $notification->user_id, 'Người phụ trách khách nhận thông báo gửi tin nhắn');
         $this->assertStringContainsString('Khách chưa có email', $notification->message);
         $this->assertStringContainsString('Làm bài tại cơ sở Cơ sở A', $notification->data['copy_text']);
 
-        // Trang khách (sau redirect) hiện popup nội dung để sao chép gửi Zalo.
+        // Trang khách (sau redirect) hiện popup nội dung để sao chép gửi tin nhắn.
         $this->actingAs($this->academic)->get(route('crm.customers.show', $lead))->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('appointmentConfirmation.phone', '0988000111')
@@ -659,7 +659,7 @@ class CrmPipelineTest extends TestCase
             && str_contains($mail->body, '18:00–19:30')
             && str_contains($mail->body, 'Lớp: '.$class->name));
 
-        // Email đăng nhập tự sinh (student…@student.menglish.edu.vn) không phải email thật: không gửi, chuyển sang Zalo.
+        // Email đăng nhập tự sinh (student…@student.menglish.edu.vn) không phải email thật: không gửi, chuyển sang tin nhắn.
         $other = $this->lead('consulting');
         $other->update(['email' => User::generatedStudentEmail(999)]);
         $this->actingAs($this->academic)->post(route('crm.customers.trial-bookings.store', $other), [

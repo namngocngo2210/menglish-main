@@ -2,6 +2,7 @@
 
 namespace App\Services\Tuition;
 
+use App\Jobs\SendParentNotice;
 use App\Models\AcademicRecord;
 use App\Models\AdminNotification;
 use App\Models\CrmCustomer;
@@ -14,16 +15,14 @@ use Carbon\Carbon;
 /**
  * Báo phụ huynh "đã nhận tiền" khi một khoản học phí được ghi nhận (SePay khớp lệnh):
  * - Luôn tạo thông báo ở Cổng Học viên tương ứng.
- * - Có email thật (email học viên, không thì email khách CRM đã chốt) → gửi email xác nhận.
- * - Không có email / gửi lỗi → thông báo cho người phụ trách khách kèm nội dung để sao chép gửi Zalo khi cần.
+ * - Có email thật (email học viên, không thì email khách CRM đã chốt) → gửi email xác nhận qua queue (SendParentNotice).
+ * - Không có email / gửi lỗi hẳn → thông báo cho người phụ trách khách kèm nội dung để sao chép gửi tin nhắn khi cần.
  * Nội dung chỉ nêu số tiền đã nhận và số còn phải đóng, không liệt kê các khoản "Thu khác".
  * Mỗi phiếu thu chỉ báo một lần (record_code PAYCONFIRM-{id}).
  */
 class PaymentConfirmation
 {
     public const NOTIFICATION_TYPE = 'payment_confirm_manual';
-
-    public function __construct(private readonly ParentMessenger $messenger) {}
 
     /**
      * @return array{sent: bool, emailed: string|null, email_failed: bool, text: string}
@@ -64,30 +63,34 @@ class PaymentConfirmation
 
         $customer = CrmCustomer::query()->where('converted_student_id', $student->id)->latest('id')->first();
         $email = ParentMessenger::recipient($student->email, $customer?->email);
-        $subject = 'Xác nhận đã nhận học phí — '.$student->name;
-        if ($email && $this->messenger->send($email, $subject, $text)) {
+        $ownerNotice = fn (string $reason) => ($ownerId = $customer?->assigned_user_id) ? [
+            'user_id' => $ownerId,
+            'type' => self::NOTIFICATION_TYPE,
+            'title' => 'Đã nhận học phí của '.$student->name.' ('.Money::format((float) $receipt->amount).')',
+            'message' => $reason.'; đã báo ở Cổng Học viên. Nếu cần, sao chép nội dung và nhắn xác nhận cho phụ huynh'
+                .(($phone = $student->parent_phone ?: $student->phone) ? " ({$phone})" : '').'.',
+            'data' => [
+                'copy_text' => $text,
+                'student_id' => $student->id,
+                'receipt_id' => $receipt->id,
+                'link' => route('tuition.history'),
+            ],
+            'is_read' => false,
+        ] : null;
+
+        if ($email) {
+            // Email đi qua queue (không giữ webhook SePay chờ SMTP); gửi lỗi hẳn → người phụ trách nhận thông báo sao chép.
+            SendParentNotice::dispatch($email, 'Xác nhận đã nhận học phí — '.$student->name, $text,
+                fallback: $ownerNotice("Gửi email tới {$email} không thành công"));
+
             return ['sent' => true, 'emailed' => $email, 'email_failed' => false, 'text' => $text];
         }
 
-        if ($ownerId = $customer?->assigned_user_id) {
-            $phone = $student->parent_phone ?: $student->phone;
-            AdminNotification::create([
-                'user_id' => $ownerId,
-                'type' => self::NOTIFICATION_TYPE,
-                'title' => 'Đã nhận học phí của '.$student->name.' ('.Money::format((float) $receipt->amount).')',
-                'message' => ($email ? "Gửi email tới {$email} không thành công" : 'Học viên chưa có email')
-                    .'; đã báo ở Cổng Học viên. Nếu cần, sao chép nội dung và xác nhận với phụ huynh qua Zalo'.($phone ? " ({$phone})" : '').'.',
-                'data' => [
-                    'copy_text' => $text,
-                    'student_id' => $student->id,
-                    'receipt_id' => $receipt->id,
-                    'link' => route('tuition.history'),
-                ],
-                'is_read' => false,
-            ]);
+        if ($notice = $ownerNotice('Học viên chưa có email')) {
+            AdminNotification::create($notice);
         }
 
-        return ['sent' => true, 'emailed' => null, 'email_failed' => (bool) $email, 'text' => $text];
+        return ['sent' => true, 'emailed' => null, 'email_failed' => false, 'text' => $text];
     }
 
     public function text(TuitionReceipt $receipt): string

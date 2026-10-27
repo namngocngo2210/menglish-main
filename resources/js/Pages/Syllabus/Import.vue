@@ -6,12 +6,14 @@
 import { computed, ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { route } from '@/lib/route';
+import BackgroundTasks from '@/Components/BackgroundTasks/BackgroundTasks.vue';
 
 defineOptions({ layout: { title: 'Import syllabus từ file' } });
 
 const props = defineProps({
     canUpload: { type: Boolean, default: false },
     preview: { type: Object, default: null },
+    backgroundTasks: { type: Array, default: () => [] },
     errors: { type: Object, default: () => ({}) },
 });
 
@@ -52,6 +54,8 @@ function formatSize(bytes) {
                 <UiButton variant="secondary" icon="download" :href="route('syllabus.import.template')" native>Tải file mẫu (.zip)</UiButton>
             </template>
         </UiPageHeader>
+
+        <BackgroundTasks :tasks="backgroundTasks" />
 
         <div class="space-y-lg">
             <ol class="flex items-center justify-center gap-md rounded-xl bg-surface-container-low p-md">

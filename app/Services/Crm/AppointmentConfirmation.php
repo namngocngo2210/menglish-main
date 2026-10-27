@@ -14,7 +14,7 @@ use App\Services\PlacementPortalLinkService;
 /**
  * Xác nhận lịch hẹn (test đầu vào / học thử) cho phụ huynh ngay khi Học vụ xác nhận lịch:
  * - Khách đã có email tại thời điểm xác nhận → gửi email xác nhận.
- * - Chưa có email (hoặc gửi lỗi) → thông báo cho người phụ trách khách kèm nội dung xác nhận để sao chép gửi Zalo;
+ * - Chưa có email (hoặc gửi lỗi) → thông báo cho người phụ trách khách kèm nội dung xác nhận để sao chép gửi tin nhắn;
  *   controller trả nội dung này về trang khách để hiện popup ngay cho người vừa xác nhận.
  */
 class AppointmentConfirmation
@@ -74,7 +74,7 @@ class AppointmentConfirmation
     }
 
     /**
-     * Gửi xác nhận cho khách. Trả về email đã gửi (null nếu chưa gửi được) và nội dung để sao chép gửi Zalo.
+     * Gửi xác nhận cho khách. Trả về email đã gửi (null nếu chưa gửi được) và nội dung để sao chép gửi tin nhắn.
      *
      * @param  array{subject: string, text: string, link: string|null}  $message
      * @return array{emailed: string|null, email_failed: bool, text: string, phone: string|null}
@@ -99,8 +99,8 @@ class AppointmentConfirmation
         AdminNotification::create([
             'user_id' => $customer->assigned_user_id ?: $actor->id,
             'type' => self::NOTIFICATION_TYPE,
-            'title' => 'Gửi xác nhận lịch hẹn qua Zalo: '.$customer->name,
-            'message' => $reason.'. Sao chép nội dung xác nhận và gửi phụ huynh qua Zalo'.($phone ? " ({$phone})" : '').'.',
+            'title' => 'Gửi xác nhận lịch hẹn qua tin nhắn: '.$customer->name,
+            'message' => $reason.'. Sao chép nội dung xác nhận và nhắn cho phụ huynh'.($phone ? " ({$phone})" : '').'.',
             'data' => [
                 'copy_text' => $message['text'],
                 'crm_customer_id' => $customer->id,
@@ -112,7 +112,7 @@ class AppointmentConfirmation
             'customer_id' => $customer->id,
             'user_id' => $actor->id,
             'type' => $historyType,
-            'content' => $reason.': đã nhắc người phụ trách gửi xác nhận lịch hẹn cho phụ huynh qua Zalo.',
+            'content' => $reason.': đã nhắc người phụ trách gửi xác nhận lịch hẹn cho phụ huynh qua tin nhắn.',
         ]);
 
         return ['emailed' => null, 'email_failed' => (bool) $email, 'text' => $message['text'], 'phone' => $phone];

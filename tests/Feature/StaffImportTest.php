@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\BackgroundTask;
 use App\Models\Branch;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
@@ -97,8 +98,8 @@ class StaffImportTest extends TestCase
                 ->where('preview.rows.5.action', 'update')
                 ->where('preview.rows.5.employee_code', $existing->employee_code));
 
-        $this->actingAs($this->admin)->post(route('users.import.confirm'), ['token' => $token])->assertRedirect(route('users.import'));
-        $result = session('staff_import_result');
+        $this->actingAs($this->admin)->post(route('users.import.confirm'), ['token' => $token])->assertRedirect(route('users.import', ['task' => BackgroundTask::query()->max('id')]));
+        $result = $this->importReport();
         $this->assertSame(2, $result['created']);
         $this->assertSame(1, $result['updated']);
         $this->assertSame(3, $result['skipped']);
@@ -144,8 +145,8 @@ class StaffImportTest extends TestCase
         $this->actingAs($this->admin)->post(route('users.import.store'), ['role' => 'assistant', 'password' => 'staff@123', 'excel_file' => $this->normalizedFile()]);
         $token = collect(array_keys(session('staff_import')))->last();
         $this->actingAs($this->admin)->post(route('users.import.confirm'), ['token' => $token]);
-        $this->assertSame(0, session('staff_import_result')['created']);
-        $this->assertSame(0, session('staff_import_result')['updated']);
+        $this->assertSame(0, $this->importReport()['created']);
+        $this->assertSame(0, $this->importReport()['updated']);
         $this->assertSame($count, User::count());
     }
 
@@ -200,7 +201,7 @@ class StaffImportTest extends TestCase
                 ->where('preview.rows.1.branch', null)
                 ->where('preview.rows.2.errors', ['Chưa có cơ sở: ghi cột Cơ sở hoặc chọn cơ sở mặc định.']));
 
-        $this->actingAs($this->admin)->post(route('users.import.confirm'), ['token' => $token])->assertRedirect(route('users.import'));
+        $this->actingAs($this->admin)->post(route('users.import.confirm'), ['token' => $token])->assertRedirect(route('users.import', ['task' => BackgroundTask::query()->max('id')]));
 
         $assistant = User::where('email', 'trogiang@gmail.com')->firstOrFail();
         $this->assertTrue($assistant->hasRole('assistant'));
@@ -257,5 +258,14 @@ class StaffImportTest extends TestCase
 
         $this->actingAs($this->admin)->get(route('users.show', $user))->assertOk()
             ->assertSee('canhan@gmail.com')->assertSee('30/10/2000')->assertSee('123 - MB');
+    }
+
+    /** Báo cáo của lần nhập chạy nền gần nhất (queue sync trong test: chạy xong ngay khi xác nhận). */
+    private function importReport(): array
+    {
+        $task = BackgroundTask::query()->where('type', BackgroundTask::STAFF_IMPORT)->latest('id')->firstOrFail();
+        $this->assertSame(BackgroundTask::DONE, $task->status, (string) $task->message);
+
+        return $task->report;
     }
 }

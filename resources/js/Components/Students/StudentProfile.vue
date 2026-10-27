@@ -137,7 +137,7 @@ const transferOpen = ref(false);
                         <UiInput name="email" type="email" label="Email liên hệ" :value="student.email" placeholder="hocvien@menglish.edu.vn" />
                         <UiInput name="target" label="Mục tiêu học tập" :value="student.target" placeholder="VD: IELTS 6.5, Cambridge Starters..." />
                         <UiInput name="parent_name" label="Họ tên phụ huynh" :value="student.parent_name" placeholder="VD: Nguyễn Thị Hoa" />
-                        <UiInput name="parent_phone" type="tel" label="SĐT phụ huynh (nhận kết quả Zalo)" :value="student.parent_phone" placeholder="VD: 0987 654 321" />
+                        <UiInput name="parent_phone" type="tel" label="SĐT phụ huynh" :value="student.parent_phone" placeholder="VD: 0987 654 321" />
                         <UiInput name="parent_email" type="email" label="Email phụ huynh" :value="student.parent_email" />
                         <UiInput name="parent_facebook" label="Facebook phụ huynh" :value="student.parent_facebook" placeholder="Link hoặc tên Facebook" />
                         <UiInput name="parent2_name" label="Họ tên phụ huynh 2" :value="student.parent2_name" />

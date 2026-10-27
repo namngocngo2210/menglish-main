@@ -2,8 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\Syllabus\Import\SyllabusImporter;
-use App\Services\Syllabus\Import\SyllabusImportException;
+use App\Jobs\ImportSyllabus;
+use App\Models\BackgroundTask;
+use App\Models\SyllabusCurriculum;
 use App\Services\Syllabus\Import\SyllabusImportPlan;
 use App\Services\Syllabus\Import\SyllabusImportStore;
 use App\Services\Syllabus\Import\SyllabusImportTemplate;
@@ -15,7 +16,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 /**
- * Import syllabus từ file mẫu (.zip / .xlsx): ① Tải file → ② Xem trước (không ghi DB) → ③ Xác nhận (ghi DB).
+ * Import syllabus từ file mẫu (.zip / .xlsx): ① Tải file → ② Xem trước (không ghi DB) → ③ Xác nhận (ghi DB, chạy nền).
  * Quyền: middleware `can:syllabus.library` (Kho syllabus) của nhóm route; người có quyền này cũng được nhập tài liệu (validator).
  */
 class SyllabusImportController extends Controller
@@ -26,7 +27,6 @@ class SyllabusImportController extends Controller
         private readonly SyllabusImportStore $store,
         private readonly SyllabusPackageReader $reader,
         private readonly SyllabusPackageValidator $validator,
-        private readonly SyllabusImporter $importer,
     ) {}
 
     public function index(Request $request)
@@ -73,6 +73,7 @@ class SyllabusImportController extends Controller
         return Inertia::render('Syllabus/Import', [
             'canUpload' => $canUpload,
             'preview' => $preview,
+            'backgroundTasks' => BackgroundTask::recentFor(BackgroundTask::SYLLABUS_IMPORT, $request->user()->id),
         ]);
     }
 
@@ -134,19 +135,23 @@ class SyllabusImportController extends Controller
             return $back('File còn lỗi, hãy sửa file rồi tải lên lại.');
         }
 
-        try {
-            $curriculum = $this->importer->import($plan, $request->user(), $meta['visibility']);
-        } catch (SyllabusImportException $e) {
-            return $back($e->getMessage());
+        // Kiểm tra nhanh trước khi xếp hàng (job vẫn kiểm lại trong transaction).
+        if (SyllabusCurriculum::withTrashed()->where('code', $plan->curriculum['code'])->exists()) {
+            return $back("Mã {$plan->curriculum['code']} đã tồn tại — đổi mã khác.");
         }
 
-        $this->store->forget($token);
-        $s = $plan->summary();
+        // Ghi giáo trình + đẩy tài liệu lên kho file chạy nền (job ImportSyllabus); phiên khoá lại để không xác nhận hai lần.
+        $task = BackgroundTask::query()->create([
+            'type' => BackgroundTask::SYLLABUS_IMPORT,
+            'user_id' => $request->user()->id,
+            'status' => BackgroundTask::QUEUED,
+            'title' => "Import giáo trình {$plan->curriculum['code']} ({$meta['file_name']})",
+            'payload' => ['token' => $token, 'path' => $meta['path'], 'work_dir' => $meta['work_dir'], 'visibility' => $meta['visibility']],
+        ]);
+        $this->store->release($token);
+        ImportSyllabus::dispatch($task);
 
-        return redirect()->route('syllabus.curriculums.show', $curriculum->id)->with(
-            'status',
-            "Đã import giáo trình {$plan->curriculum['code']}: {$s['stages']} chặng, {$s['lessons']} buổi, {$s['documents']} tài liệu. Gán cấp độ khoá học để lớp dùng được giáo trình."
-        );
+        return redirect()->route('syllabus.import')->with('status', "Đang import giáo trình {$plan->curriculum['code']} ở nền. Có thể rời trang, kết quả hiện ở đây và trong thông báo khi xong.");
     }
 
     /**

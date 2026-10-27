@@ -174,7 +174,6 @@ class StudentBusinessTest extends TestCase
             'student_id' => $student->id,
             'class_id' => $this->classHanoi->id,
             'curriculum_delivered' => false,
-            'zalo_group_added' => false,
             'status' => 'pending',
         ]);
 

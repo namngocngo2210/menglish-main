@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * Xác nhận nhập học — lượt xếp lớp chưa hoàn tất bàn giao (màn students.enrollments). Hoàn tất cần tick checklist
- * thật (giáo trình, nhóm Zalo) nên chỉ link sang màn gốc. Học viên chốt từ CRM (có customer_id) đã nằm ở nguồn
+ * thật (giáo trình) nên chỉ link sang màn gốc. Học viên chốt từ CRM (có customer_id) đã nằm ở nguồn
  * "Xác nhận chính thức (CRM)" khi user thấy được CRM → không lặp.
  */
 class EnrollmentApprovalSource extends QueryApprovalSource
@@ -64,7 +64,7 @@ class EnrollmentApprovalSource extends QueryApprovalSource
             source: $this->key(),
             id: $model->id,
             title: ($model->student?->name ?? 'Học viên #'.$model->student_id).' → '.($model->classModel?->name ?? 'Lớp #'.$model->class_id),
-            subtitle: $check((bool) $model->curriculum_delivered, 'Giáo trình').' · '.$check((bool) $model->zalo_group_added, 'Nhóm Zalo'),
+            subtitle: $check((bool) $model->curriculum_delivered, 'Giáo trình'),
             url: route('students.enrollments'),
             createdAt: $model->created_at,
             meta: array_filter([
@@ -72,7 +72,6 @@ class EnrollmentApprovalSource extends QueryApprovalSource
                 'Lớp' => $model->classModel?->name,
                 'Ngày xếp lớp' => $model->enrolled_at?->format('d/m/Y'),
                 'Đã nhận giáo trình' => $model->curriculum_delivered ? 'Rồi' : 'Chưa',
-                'Đã vào nhóm Zalo' => $model->zalo_group_added ? 'Rồi' : 'Chưa',
             ]),
         );
     }

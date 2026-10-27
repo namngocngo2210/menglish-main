@@ -252,8 +252,9 @@ class AdminNotification extends Model
             'penalty_fined' => 'Quyết phạt',
             'penalty_due_reminder' => 'Nhắc hạn nộp phạt',
             'payroll_calendar' => 'Lịch chốt lương',
-            'appointment_confirm_manual' => 'Xác nhận lịch hẹn qua Zalo',
-            'payment_confirm_manual' => 'Báo đã nhận học phí qua Zalo',
+            'appointment_confirm_manual' => 'Xác nhận lịch hẹn qua tin nhắn',
+            'payment_confirm_manual' => 'Báo đã nhận học phí qua tin nhắn',
+            'background_task' => 'Việc chạy nền',
             default => 'Thông báo hệ thống',
         };
     }

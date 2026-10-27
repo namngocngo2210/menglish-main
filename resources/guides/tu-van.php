@@ -93,7 +93,7 @@ return [
             'icon' => 'call',
             'menu' => 'Khách hàng (CRM) → bấm vào khách → Lịch sử hoạt động',
             'route' => 'crm.customers.index',
-            'intro' => 'Sau mỗi lần gọi, nhắn Zalo hay gặp khách, hãy ghi lại trong hồ sơ. Ghi chú này cập nhật "Liên hệ gần nhất" và giúp người khác nắm được tình hình khách.',
+            'intro' => 'Sau mỗi lần gọi, nhắn tin hay gặp khách, hãy ghi lại trong hồ sơ. Ghi chú này cập nhật "Liên hệ gần nhất" và giúp người khác nắm được tình hình khách.',
             'images' => [
                 ['src' => 'tu-van/ho-so-khach.webp', 'caption' => 'Hồ sơ khách: nút Chốt & Xếp lớp và menu ⋯ ở góc phải'],
                 ['src' => 'tu-van/ghi-chu.webp', 'caption' => 'Ghi chú liên hệ mới trong Lịch sử hoạt động'],
@@ -102,7 +102,7 @@ return [
             'steps' => [
                 'Mở hồ sơ khách từ Kanban hoặc Danh sách. Khối **Trạng thái & Hạn xử lý** cho biết giai đoạn hiện tại, lần liên hệ gần nhất và hạn chăm sóc tiếp theo.',
                 'Kéo xuống khối **Lịch sử hoạt động**, gõ nội dung vào ô **Ghi chú nội dung liên hệ mới...**.',
-                'Chọn **Hình thức**: **Gọi điện**, **Zalo/SMS**, **Trực tiếp**, **Test đầu vào** hoặc **Ghi chú**. Với gọi, nhắn, gặp, chọn thêm **Kết quả**: **Liên hệ được** hoặc **Không liên hệ được**.',
+                'Chọn **Hình thức**: **Gọi điện**, **Nhắn tin**, **Trực tiếp**, **Test đầu vào** hoặc **Ghi chú**. Với gọi, nhắn, gặp, chọn thêm **Kết quả**: **Liên hệ được** hoặc **Không liên hệ được**.',
                 'Bấm **Lưu ghi chú**. Ghi chú hiện ngay trong lịch sử, có tên bạn và giờ ghi.',
                 'Hẹn khách gọi lại: bấm **Đặt hạn liên hệ** (hoặc mở tab **Thông tin khách hàng**), chọn **Hạn liên hệ tiếp theo** rồi bấm **Lưu thay đổi**. Cũng ở tab này bạn sửa số điện thoại, phụ huynh, khóa quan tâm, ghi chú nhu cầu.',
             ],
@@ -125,8 +125,8 @@ return [
                 'Mở hồ sơ khách, ở tab **Đặt lịch & Kết quả** tìm khối **Lịch hẹn Test** (nhãn **Chưa gửi đề**).',
                 'Chọn **Chọn cấp độ** (ví dụ Lớp 2), rồi chọn đề trong **Danh sách đề tương ứng**.',
                 'Chọn **Ngày hẹn làm test** và **Giờ hẹn**, bấm **Gửi link test online**.',
-                'Nếu khách có email, hệ thống gửi email xác nhận lịch hẹn. Nếu không, một hộp thoại hiện nội dung xác nhận: bấm **Sao chép nội dung** rồi dán gửi phụ huynh qua Zalo.',
-                'Sau khi gửi, khối hiện **Đã gửi link, chờ khách làm bài**. Dùng **Sao chép link test** hoặc **Gửi lại link** (link mới) để gửi lại cho khách qua Zalo/SMS.',
+                'Nếu khách có email, hệ thống gửi email xác nhận lịch hẹn. Nếu không, một hộp thoại hiện nội dung xác nhận: bấm **Sao chép nội dung** rồi dán vào tin nhắn gửi phụ huynh.',
+                'Sau khi gửi, khối hiện **Đã gửi link, chờ khách làm bài**. Dùng **Sao chép link test** hoặc **Gửi lại link** (link mới) để gửi lại cho khách qua tin nhắn.',
             ],
             'tips' => [
                 'Khách ở bước Mới chưa hẹn test được: nhờ Học vụ / Quản lý cơ sở chuyển sang Đang tư vấn trước.',

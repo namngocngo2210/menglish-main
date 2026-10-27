@@ -9,6 +9,7 @@ import { route } from '@/lib/route';
 import { confirmDialog } from '@/lib/confirm';
 import { compactQuery, urlWith } from '@/lib/url';
 import UnderlinedText from '@/Components/Practice/UnderlinedText.vue';
+import BackgroundTasks from '@/Components/BackgroundTasks/BackgroundTasks.vue';
 
 defineOptions({ layout: { title: 'Ngân hàng câu hỏi' } });
 
@@ -18,7 +19,7 @@ const props = defineProps({
     filterOptions: { type: Object, required: true },
     statusCounts: { type: Object, required: true },
     canManage: { type: Boolean, default: false },
-    importErrors: { type: Array, default: () => [] },
+    backgroundTasks: { type: Array, default: () => [] },
 });
 
 const STATUS_COLORS = { draft: 'warning', approved: 'success', hidden: 'neutral' };
@@ -82,11 +83,7 @@ function onImported() {
         <UiTab :href="route('question-bank.analysis')">Phân tích câu hỏi</UiTab>
     </UiTabs>
 
-    <UiAlert v-if="importErrors.length" type="warning" title="Một số câu / file chưa import được" class="mb-lg">
-        <ul class="list-disc space-y-0.5 pl-md" data-import-errors>
-            <li v-for="(line, i) in importErrors" :key="i">{{ line }}</li>
-        </ul>
-    </UiAlert>
+    <BackgroundTasks :tasks="backgroundTasks" :reload-only="['questions', 'statusCounts', 'filterOptions']" />
 
     <UiFilterBar search="q" placeholder="Tìm nội dung câu hỏi, phương án, ngữ liệu, mã câu…">
         <template #quick>
@@ -217,7 +214,7 @@ function onImported() {
                 </UiAlert>
                 <div class="flex justify-end gap-sm">
                     <UiButton variant="secondary" :disabled="processing" @click="importOpen = false">Hủy</UiButton>
-                    <UiButton type="submit" icon="upload_file" :disabled="processing">{{ processing ? 'Đang import…' : 'Import' }}</UiButton>
+                    <UiButton type="submit" icon="upload_file" :disabled="processing">{{ processing ? 'Đang tải lên…' : 'Import' }}</UiButton>
                 </div>
             </template>
         </UiForm>

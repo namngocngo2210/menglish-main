@@ -147,7 +147,7 @@ class LeadToStudentFlowTest extends TestCase
         $enrollment = ClassEnrollment::where('customer_id', $lead->id)->firstOrFail();
 
         $this->actingAs($this->academic)->post(route('crm.enrollments.confirm', $enrollment), [
-            'account_sent' => 1, 'zalo_group_added' => 1, 'curriculum_delivered' => 1, 'action' => 'confirm',
+            'account_sent' => 1, 'curriculum_delivered' => 1, 'action' => 'confirm',
         ])->assertSessionHasNoErrors();
         $this->assertSame('waiting_start', $enrollment->student->fresh()->status);
 
@@ -175,7 +175,7 @@ class LeadToStudentFlowTest extends TestCase
         $student = Student::create(['code' => 'HV-H1', 'name' => 'HV bàn giao', 'branch_id' => $this->branch->id, 'status' => 'waiting_start', 'phone' => '0900000001']);
         $enrollment = ClassEnrollment::create(['student_id' => $student->id, 'class_id' => $class->id, 'status' => 'pending']);
 
-        $this->actingAs($this->academic)->put(route('students.enrollments.update', $enrollment->id), ['curriculum_delivered' => 1, 'zalo_group_added' => 1])
+        $this->actingAs($this->academic)->put(route('students.enrollments.update', $enrollment->id), ['curriculum_delivered' => 1])
             ->assertSessionHasNoErrors();
 
         $this->assertSame('studying', $student->fresh()->status);

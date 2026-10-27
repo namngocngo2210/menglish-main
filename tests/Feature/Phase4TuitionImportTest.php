@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Exports\TuitionImportTemplateExport;
+use App\Models\BackgroundTask;
 use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\Course;
@@ -105,8 +106,16 @@ class Phase4TuitionImportTest extends TestCase
 
         parse_str(parse_url($location, PHP_URL_QUERY), $query);
         $this->actingAs($this->accountant)->post(route('tuition.import.confirm'), ['token' => $query['token']])
-            ->assertRedirect(route('tuition.import'))
-            ->assertSessionHas('tuition_import_result', fn ($r) => $r['tuitions'] === 1 && $r['receipts'] === 2 && $r['skipped'] === 5);
+            ->assertRedirect();
+
+        // Ghi chạy nền (queue sync trong test): việc nền xong, trang kết quả đọc báo cáo của việc đó.
+        $task = BackgroundTask::query()->where('type', BackgroundTask::TUITION_IMPORT)->latest('id')->firstOrFail();
+        $this->assertSame(BackgroundTask::DONE, $task->status);
+        $this->assertSame([1, 2, 5], [$task->report['tuitions'], $task->report['receipts'], $task->report['skipped']]);
+        $this->actingAs($this->accountant)->get(route('tuition.import', ['task' => $task->id]))
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Tuition/Import')
+                ->where('result.tuitions', 1)->where('result.receipts', 2)->where('result.skipped', 5)
+                ->where('backgroundTasks', []));
 
         $newStudent = Student::where('code', 'HV-IMP-1')->first();
         $tuition = StudentTuition::where('student_id', $newStudent->id)->firstOrFail();

@@ -210,7 +210,7 @@ class MasterEntitySeeder extends Seeder
             if ($student->current_class_id) {
                 ClassEnrollment::query()->firstOrCreate(
                     ['student_id' => $student->id, 'class_id' => $student->current_class_id],
-                    ['enrolled_at' => now(), 'curriculum_delivered' => true, 'zalo_group_added' => true, 'status' => 'completed']
+                    ['enrolled_at' => now(), 'curriculum_delivered' => true, 'status' => 'completed']
                 );
             }
 

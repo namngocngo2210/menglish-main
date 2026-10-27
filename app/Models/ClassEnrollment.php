@@ -19,7 +19,6 @@ class ClassEnrollment extends Model
         'enrolled_at',
         'left_at',
         'curriculum_delivered',
-        'zalo_group_added',
         'account_sent',
         'status',
         'confirmed_at',
@@ -29,7 +28,6 @@ class ClassEnrollment extends Model
     /** Checklist "Xác nhận chính thức" sau khi chốt: cột => nhãn. */
     public const CONFIRMATION_CHECKLIST = [
         'account_sent' => 'Đã gửi tài khoản học viên',
-        'zalo_group_added' => 'Đã vào nhóm Zalo lớp',
         'curriculum_delivered' => 'Đã nhận giáo trình',
     ];
 
@@ -38,7 +36,6 @@ class ClassEnrollment extends Model
         // Ngày rời lớp (chuyển lớp / thôi học): từ ngày này không trừ buổi của lớp vào sổ buổi.
         'left_at' => 'date',
         'curriculum_delivered' => 'boolean',
-        'zalo_group_added' => 'boolean',
         'account_sent' => 'boolean',
         'confirmed_at' => 'datetime',
     ];
