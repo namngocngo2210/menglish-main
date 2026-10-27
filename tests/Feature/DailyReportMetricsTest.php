@@ -254,8 +254,10 @@ class DailyReportMetricsTest extends TestCase
         $this->actingAs($this->assistant)->get(route('tasks.class-reports.create', ['class_id' => $this->class->id]))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->component('Tasks/ClassReportCreate')
                 ->where("sessionDetails.{$session->id}.attendance.text", 'Sĩ số (theo điểm danh): 1/2 · Vắng: Trần Bình')
-                ->where("sessionDetails.{$session->id}.suggested.0.student_id", $binh->id)
-                ->where("sessionDetails.{$session->id}.suggested.0.reason", 'Vắng buổi '.today()->format('d/m'))
+                // Học sinh vắng đã tự vào danh sách cần chú ý chung của buổi → hiện chỉ đọc, không gợi ý nhập lại.
+                ->where("sessionDetails.{$session->id}.listed.0.student_id", $binh->id)
+                ->where("sessionDetails.{$session->id}.listed.0.source", 'Vắng học')
+                ->where("sessionDetails.{$session->id}.suggested", [])
                 ->where('testSuggestions.0.student_id', $an->id)
                 ->where('testSuggestions.0.reason', 'Mini test Unit 2: 6/10 ('.today()->subDays(3)->format('d/m').')'));
 

@@ -18,6 +18,7 @@ use App\Models\PayrollPeriod;
 use App\Models\Room;
 use App\Models\StudentAttendance;
 use App\Models\SupportSession;
+use App\Models\TeacherSessionReport;
 use App\Models\TeacherTimesheet;
 use App\Models\TeachingShift;
 use App\Models\User;
@@ -997,6 +998,10 @@ class WorkTaskController extends Controller
         $attendance = $sessions->isEmpty() ? collect() : StudentAttendance::with('student:id,name')
             ->whereIn('class_session_id', $sessions->pluck('id'))->get()->groupBy('class_session_id');
         $metrics = ClassReportSessionMetrics::forSessions($sessions, $students);
+        // GV chính nhập "Nội dung đã dạy" + danh sách "Học sinh cần chú ý" chung của buổi (chủ dự án 27/10/2026): TA xem lại, không nhập lại.
+        $teacherReports = $sessions->isEmpty() ? collect() : TeacherSessionReport::with('teacher:id,name')
+            ->whereIn('class_session_id', $sessions->pluck('id'))->get()->keyBy('class_session_id');
+        $listed = $sessions->mapWithKeys(fn (ClassSession $s) => [$s->id => app(SupportListService::class)->sessionRows($s)]);
 
         return $this->modalPage('Tasks/ClassReportCreate', [
             'classes' => Ui::options($classes, fn (ClassModel $c) => "{$c->name} ({$c->code})".($c->schedule_text ? ' - '.$c->schedule_text : '')),
@@ -1030,8 +1035,17 @@ class WorkTaskController extends Controller
                 'attendance' => self::attendanceSummary($attendance->get($s->id, collect())),
                 // Khối "Sĩ số & nề nếp" (17/10/2026): sĩ số, đi muộn, BTVN đã nộp, nhận xét GV của buổi.
                 'metrics' => $metrics[$s->id] ?? [],
+                'teacher_report' => ($tr = $teacherReports->get($s->id)) ? ['content' => $tr->content, 'teacher' => $tr->teacher?->name] : null,
+                'listed' => $listed[$s->id]->map(fn (ClassReportStudentSupport $row) => [
+                    'student_id' => (int) $row->student_id,
+                    'student' => $row->student?->name,
+                    'reason' => $row->reason,
+                    'action' => $row->action_plan,
+                    'source' => $row->source_label,
+                ])->values()->all(),
                 'suggested' => $attendance->get($s->id, collect())
-                    ->filter(fn (StudentAttendance $a) => in_array($a->status, ['absent', 'excused'], true) && $students->contains('id', $a->student_id))
+                    ->filter(fn (StudentAttendance $a) => in_array($a->status, ['absent', 'excused'], true) && $students->contains('id', $a->student_id)
+                        && ! $listed[$s->id]->contains('student_id', $a->student_id))
                     ->map(fn (StudentAttendance $a) => [
                         'student_id' => (int) $a->student_id,
                         'absence_session' => $sessionOptions[$s->id] ?? null,
@@ -1183,7 +1197,8 @@ class WorkTaskController extends Controller
             'class_id' => 'required|exists:classes,id',
             'class_session_id' => 'nullable|integer|exists:class_sessions,id',
             'session_name' => 'required_without:class_session_id|nullable|string|max:255',
-            'hom_nay_hoc_gi' => 'required|string',
+            // Có buổi học: nội dung bài lấy từ báo cáo buổi của GV (chỉ GV nhập); buổi gõ tay thì TA nhập.
+            'hom_nay_hoc_gi' => 'required_without:class_session_id|nullable|string',
             'nhat_ky_day' => 'nullable|string',
             'task_id' => 'nullable|exists:work_tasks,id',
             'supports' => 'nullable|array',
@@ -1203,7 +1218,7 @@ class WorkTaskController extends Controller
             'tasks.*.assignee_id' => 'nullable|integer',
         ], [
             'session_name.required_without' => 'Vui lòng chọn hoặc nhập buổi học.',
-            'hom_nay_hoc_gi.required' => 'Vui lòng nhập "Hôm nay học gì".',
+            'hom_nay_hoc_gi.required_without' => 'Vui lòng nhập "Hôm nay học gì".',
             'tasks.*.action.required' => 'Chọn hành động cần làm.',
             'tasks.*.title.required_if' => 'Hành động "Khác": nhập tiêu đề task.',
             'tasks.*.due_date.after_or_equal' => 'Hạn xử lý phải từ hôm nay trở đi.',
@@ -1285,7 +1300,10 @@ class WorkTaskController extends Controller
                 'confirmer_id' => $hasImage ? null : $confirmerId,
                 'session_name' => $sessionName,
                 'session_date' => ($session?->date ?? today())->toDateString(),
-                'topics_learned' => $validated['hom_nay_hoc_gi'],
+                'topics_learned' => $session
+                    ? (TeacherSessionReport::where('class_session_id', $session->id)->value('content')
+                        ?? app(SessionLessonService::class)->lessonsFor(collect([$session]))[$session->id]['summary'] ?? '')
+                    : $validated['hom_nay_hoc_gi'],
                 // Dòng sĩ số lấy từ điểm danh của buổi (nếu GV đã điểm danh), phần còn lại là ghi chú tay của người nộp.
                 'teaching_log' => collect([
                     $session ? self::attendanceSummary(StudentAttendance::with('student:id,name')->where('class_session_id', $session->id)->get())['text'] ?? null : null,
@@ -1300,8 +1318,10 @@ class WorkTaskController extends Controller
                 'approved_by' => null,
             ]);
 
+            // Học sinh đã có trong danh sách cần chú ý chung của buổi (vắng / GV / TA khác báo) → không tạo dòng trùng.
+            $listed = $session ? app(SupportListService::class)->sessionRows($session)->pluck('student_id')->map(fn ($id) => (int) $id) : collect();
             foreach ($validated['supports'] ?? [] as $supp) {
-                if (! empty($supp['student_id']) && ! empty($supp['reason'])) {
+                if (! empty($supp['student_id']) && ! empty($supp['reason']) && ! $listed->contains((int) $supp['student_id'])) {
                     ClassReportStudentSupport::create([
                         'class_report_id' => $report->id,
                         'class_id' => $report->class_id,

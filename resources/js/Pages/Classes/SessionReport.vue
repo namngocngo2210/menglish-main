@@ -18,6 +18,7 @@ const props = defineProps({
     attendanceDone: { type: Boolean, default: false },
     students: { type: Array, default: () => [] },
     suggestions: { type: Array, default: () => [] },
+    sharedAttention: { type: Array, default: () => [] },
     report: { type: Object, default: null },
     lessonText: { type: String, default: null },
     deadline: { type: String, default: null },
@@ -31,7 +32,8 @@ const back = useBackLink(() => props.classInfo.url);
 
 const content = ref(props.report?.content ?? props.lessonText ?? '');
 
-// Học sinh cần chú ý: bản đã nộp, hoặc gợi ý (vắng buổi này / nhận xét "Cần cố gắng", "Không đạt") + dòng thêm tay.
+// Học sinh cần chú ý: danh sách chung với TA. Đã có sẵn (vắng buổi này / TA báo) hiện chỉ đọc; GV thêm học sinh khác
+// (gợi ý nhận xét "Cần cố gắng", "Không đạt").
 let seq = 1;
 const row = (r = {}, suggested = false) => ({ id: seq++, student_id: r.student_id ? String(r.student_id) : '', reason: r.reason ?? '', action: r.action ?? '', suggested });
 const attention = ref(props.report ? props.report.attention.map((r) => row(r)) : props.suggestions.map((r) => row(r, true)));
@@ -196,11 +198,17 @@ const headingCls = 'flex items-center gap-sm font-h3 text-h3 text-on-surface';
                     <div class="flex flex-wrap items-center justify-between gap-sm">
                         <div>
                             <p class="font-body-medium text-body-medium font-semibold text-on-surface">Học sinh cần chú ý (tùy chọn)</p>
-                            <p class="font-caption text-caption text-on-surface-variant">Gợi ý sẵn học sinh vắng buổi này hoặc được nhận xét "Cần cố gắng" / "Không đạt".</p>
+                            <p class="font-caption text-caption text-on-surface-variant">Danh sách chung của buổi với trợ giảng và Học vụ. Gợi ý sẵn học sinh được nhận xét "Cần cố gắng" / "Không đạt".</p>
                         </div>
                         <UiButton variant="secondary" size="sm" icon="add_circle" @click="addRow()">Thêm học sinh</UiButton>
                     </div>
-                    <p v-if="!attention.length" class="text-center font-body-small text-body-small italic text-on-surface-variant">Không có học sinh cần chú ý.</p>
+                    <ul v-if="sharedAttention.length" class="space-y-xs" data-shared-attention>
+                        <li v-for="(r, i) in sharedAttention" :key="i" class="rounded-lg bg-surface-container-low px-sm py-xs font-body-small text-body-small text-on-surface">
+                            <UiBadge color="neutral" :dot="false" class="mr-xs">{{ r.source }}</UiBadge>
+                            <strong>{{ r.student ?? 'Học sinh' }}</strong><span v-if="r.reason">: {{ r.reason }}</span><span v-if="r.action" class="text-on-surface-variant"> → {{ r.action }}</span>
+                        </li>
+                    </ul>
+                    <p v-if="!attention.length && !sharedAttention.length" class="text-center font-body-small text-body-small italic text-on-surface-variant">Không có học sinh cần chú ý.</p>
                     <div v-for="(r, idx) in attention" :key="r.id" class="space-y-sm rounded-xl border border-outline-variant bg-surface-container-low p-sm">
                         <div class="flex items-center justify-between">
                             <UiBadge v-if="r.suggested" color="info" :dot="false">Gợi ý</UiBadge>
@@ -262,9 +270,13 @@ const headingCls = 'flex items-center gap-sm font-h3 text-h3 text-on-surface';
                     <p :class="labelCls">Tình hình lớp</p>
                     <p class="whitespace-pre-line font-body-medium text-body-medium text-on-surface">{{ report.class_situation }}</p>
                 </div>
-                <div v-if="report.attention.length">
+                <div v-if="report.attention.length || sharedAttention.length">
                     <p :class="labelCls">Học sinh cần chú ý</p>
                     <ul class="space-y-xs">
+                        <li v-for="(r, i) in sharedAttention" :key="`s${i}`" class="rounded-lg bg-surface-container-low px-sm py-xs font-body-small text-body-small text-on-surface">
+                            <UiBadge color="neutral" :dot="false" class="mr-xs">{{ r.source }}</UiBadge>
+                            <strong>{{ r.student ?? 'Học sinh' }}</strong><span v-if="r.reason">: {{ r.reason }}</span><span v-if="r.action" class="text-on-surface-variant"> → {{ r.action }}</span>
+                        </li>
                         <li v-for="(r, i) in report.attention" :key="i" class="rounded-lg bg-surface-container-low px-sm py-xs font-body-small text-body-small text-on-surface">
                             <strong>{{ r.student ?? 'Học sinh' }}</strong><span v-if="r.reason">: {{ r.reason }}</span><span v-if="r.action" class="text-on-surface-variant"> → {{ r.action }}</span>
                         </li>

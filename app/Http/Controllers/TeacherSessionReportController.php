@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AcademicRecord;
 use App\Models\ClassLessonProgress;
+use App\Models\ClassReport;
 use App\Models\ClassModel;
 use App\Models\ClassSession;
 use App\Models\Homework;
@@ -13,6 +14,7 @@ use App\Models\TeacherSessionReport;
 use App\Models\User;
 use App\Services\Reports\ClassReportSessionMetrics;
 use App\Services\SessionLessonService;
+use App\Services\SupportListService;
 use App\Support\Ui;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -44,6 +46,7 @@ class TeacherSessionReportController extends Controller
         $roster = $class->rosterStudents();
         $lesson = app(SessionLessonService::class)->lessonsFor(collect([$classSession]))[$classSession->id] ?? null;
         $deadline = TeacherSessionReport::deadline($classSession);
+        $shared = app(SupportListService::class)->sessionRows($classSession)->where('source', '!=', SupportListService::SOURCE_TEACHER_REPORT)->values();
 
         return Inertia::render('Classes/SessionReport', [
             'classInfo' => [
@@ -69,7 +72,14 @@ class TeacherSessionReportController extends Controller
             'remarkStudents' => $this->remarkStudents($class, $classSession, $roster),
             'remarkOptions' => TeacherPortalController::REMARK_OPTIONS,
             'trialGuests' => TeacherPortalController::trialGuestsProps(TeacherPortalController::sessionTrialGuests($classSession)),
-            'suggestions' => $report ? [] : $this->suggestions($class, $classSession, $roster),
+            // Học sinh đã có trong danh sách cần chú ý chung của buổi (vắng buổi này / TA báo) — GV không phải nhập lại.
+            'sharedAttention' => $shared->map(fn ($row) => [
+                'student' => $row->student?->name,
+                'reason' => $row->reason,
+                'action' => $row->action_plan,
+                'source' => $row->source_label,
+            ])->values()->all(),
+            'suggestions' => $report ? [] : $this->suggestions($class, $classSession, $roster, $shared->pluck('student_id')),
             'report' => $report ? [
                 'content' => $report->content,
                 'class_situation' => $report->class_situation,
@@ -146,6 +156,9 @@ class TeacherSessionReportController extends Controller
             if ($typed || TeacherPortalController::sessionRemarks($class, $classSession)->isNotEmpty()) {
                 TeacherPortalController::saveSessionRemarks($class, $classSession, (int) $user->id, $remarks, $rosterIds, false);
             }
+            // Một danh sách "Học sinh cần chú ý" chung với TA; "Nội dung đã dạy" chỉ GV nhập — báo cáo trực lớp của buổi lấy lại.
+            app(SupportListService::class)->syncTeacherReport($report, $classSession);
+            ClassReport::where('class_session_id', $classSession->id)->update(['topics_learned' => $report->content]);
         });
 
         $message = $created
@@ -238,20 +251,16 @@ class TeacherSessionReportController extends Controller
     }
 
     /**
-     * Gợi ý "Học sinh cần chú ý": vắng buổi này hoặc được GV nhận xét "Cần cố gắng" / "Không đạt".
+     * Gợi ý "Học sinh cần chú ý": được GV nhận xét "Cần cố gắng" / "Không đạt" mà chưa có trong danh sách chung của buổi
+     * (học sinh vắng đã tự vào danh sách chung).
      *
+     * @param  Collection<int, int|string>  $listed
      * @return list<array{student_id: string, reason: string, action: string}>
      */
-    private function suggestions(ClassModel $class, ClassSession $session, Collection $roster): array
+    private function suggestions(ClassModel $class, ClassSession $session, Collection $roster, Collection $listed): array
     {
-        $ids = $roster->pluck('id')->map(fn ($sid) => (int) $sid);
+        $ids = $roster->pluck('id')->map(fn ($sid) => (int) $sid)->diff($listed->map(fn ($sid) => (int) $sid));
         $rows = collect();
-        StudentAttendance::where('class_session_id', $session->id)->whereIn('status', ['absent', 'excused'])->get(['student_id', 'status'])
-            ->each(function (StudentAttendance $a) use ($rows, $ids) {
-                if ($ids->contains((int) $a->student_id)) {
-                    $rows->put((int) $a->student_id, $a->status === 'excused' ? 'Vắng có phép' : 'Vắng');
-                }
-            });
         $record = AcademicRecord::where('module', 'teacher_remarks')->where('record_code', TeacherPortalController::remarkRecordCode($session))->first();
         foreach ((array) ($record?->data ?? []) as $studentId => $remark) {
             $remark = (array) $remark;
