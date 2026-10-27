@@ -86,7 +86,7 @@ const STATE = { submitted: 'Đã nộp', late: 'Nộp trễ', missing: 'Chưa n�
                 </li>
             </ol>
             <p v-if="missing.length" class="font-body-small text-body-small text-error" data-daily-missing>
-                <strong>Còn thiếu</strong>
+                <strong>Còn thiếu</strong>{{ ' ' }}
                 <template v-for="(d, i) in missing.slice(0, 6)" :key="d.date">
                     <Link :href="d.href" class="font-semibold underline">{{ d.label }}</Link><template v-if="i < Math.min(missing.length, 6) - 1">, </template>
                 </template><template v-if="missing.length > 6"> và {{ missing.length - 6 }} ngày khác</template>. Ngày không nộp tính là nộp trễ.

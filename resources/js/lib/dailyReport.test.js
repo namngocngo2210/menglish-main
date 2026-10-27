@@ -55,10 +55,11 @@ test('báo cáo cũ không có ref thì không dựng bảng', () => {
 });
 
 test('khối toàn số 0 thì thu gọn, tóm tắt một dòng', () => {
-    const enrollment = { items: [{ label: 'Bổ trợ', value: '0', details: [] }, { label: 'Test', value: '0/0', details: [] }, { label: 'Ghi chú', value: null, details: [] }] };
+    const enrollment = { items: [{ label: 'Bổ trợ', value: '0', details: [] }, { label: 'Test', value: '0 / 0 hẹn', details: [] }, { label: 'Ghi chú', value: null, details: [] }] };
     assert.equal(isQuiet(enrollment), true);
-    assert.equal(quietSummary(enrollment), 'Bổ trợ 0 · Test 0/0');
+    assert.equal(quietSummary(enrollment), 'Bổ trợ 0 · Test 0 / 0 hẹn');
     assert.equal(isQuiet(operations), false);
+    assert.equal(isQuiet({ items: [{ label: 'Test', value: '1 / 0 hẹn', details: [] }] }), false);
 });
 
 test('trạng thái nộp', () => {

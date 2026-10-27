@@ -54,7 +54,8 @@ export function classTable(section) {
 /** Chi tiết còn lại của một mục sau khi các dòng đã vào bảng lớp (dòng có `ref`) được bỏ ra. */
 export const leftoverDetails = (item, tabled) => (tabled && ['classes_list', 'teachers', 'assistants'].includes(item.key) ? (item.details ?? []).filter((d) => !d.ref) : item.details ?? []);
 
-const ZERO = /^0(\s*\/\s*0)?$/;
+// "0", "0/0", "0 / 0 hẹn", "0 đ": số bằng 0, có thể kèm đơn vị phía sau.
+const ZERO = /^0(\s*\/\s*0)?(\s+\D.*)?$/;
 export const hasValue = (item) => item.value !== null && item.value !== undefined;
 const isZero = (item) => !hasValue(item) || ZERO.test(String(item.value).trim());
 

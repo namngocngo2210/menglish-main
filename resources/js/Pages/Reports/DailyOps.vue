@@ -242,16 +242,11 @@ const jump = (key) => {
                     :data-daily-section="key"
                     :data-open="open[key] ? 1 : 0"
                 >
-                    <div :class="['flex flex-wrap items-center gap-sm px-lg py-md', open[key] ? 'border-b border-surface-container-high' : '']">
+                    <div :class="['flex flex-wrap items-center gap-sm px-md py-md sm:px-lg', open[key] ? 'border-b border-surface-container-high' : '']">
                         <span :class="['flex h-7 w-7 shrink-0 items-center justify-center rounded-lg font-body-semibold text-body-semibold', open[key] ? 'bg-primary-container/10 text-primary' : 'bg-surface-container-low text-on-surface-variant']">{{ n + 1 }}</span>
-                        <div class="min-w-0 flex-1">
-                            <h2 class="font-h3 text-h3 text-on-surface">{{ section.title }}</h2>
-                            <p v-if="!open[key]" class="font-body-small text-body-small text-on-surface-variant" data-daily-quiet>
-                                {{ section.empty || 'Không phát sinh hôm nay' }}<template v-if="quietSummary(section)"> · {{ quietSummary(section) }}</template>
-                            </p>
-                        </div>
+                        <h2 class="min-w-0 flex-1 font-h3 text-h3 text-on-surface">{{ section.title }}</h2>
                         <UiBadge v-if="open[key]" :color="sectionState(key).color">{{ sectionState(key).label }}</UiBadge>
-                        <UiButton v-else type="button" variant="ghost" size="sm" icon="edit_note" @click="open[key] = true">Thêm ghi chú</UiButton>
+                        <UiButton v-else type="button" variant="ghost" size="sm" icon="edit_note" class="max-sm:hidden" @click="open[key] = true">Thêm ghi chú</UiButton>
                         <button
                             type="button"
                             class="flex h-9 w-9 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-primary"
@@ -262,11 +257,14 @@ const jump = (key) => {
                         >
                             <span class="material-symbols-outlined text-[20px]" aria-hidden="true">{{ open[key] ? 'expand_less' : 'expand_more' }}</span>
                         </button>
+                        <p v-if="!open[key]" class="-mt-xs basis-full pl-9 font-body-small text-body-small text-on-surface-variant" data-daily-quiet>
+                            {{ section.empty || 'Không phát sinh hôm nay' }}<template v-if="quietSummary(section)"> · {{ quietSummary(section) }}</template>
+                        </p>
                     </div>
 
-                    <div v-show="open[key]" :id="`${anchor(key)}-body`" class="space-y-md px-lg pb-lg pt-md">
+                    <div v-show="open[key]" :id="`${anchor(key)}-body`" class="space-y-md px-md pb-lg pt-md sm:px-lg">
                         <p v-if="!section.items.length && section.empty" class="font-body-small text-body-small text-on-surface-variant">{{ section.empty }}</p>
-                        <div v-if="blocks(key).stats.length" class="grid grid-cols-1 gap-sm sm:grid-cols-2 xl:grid-cols-4">
+                        <div v-if="blocks(key).stats.length" class="grid grid-cols-2 gap-sm xl:grid-cols-4">
                             <DailyMetric v-for="item in blocks(key).stats" :key="item.key" :item="item" />
                         </div>
                         <DailyClassTable v-if="tables[key]" :rows="tables[key]" />
