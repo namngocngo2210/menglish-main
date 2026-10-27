@@ -29,16 +29,15 @@ class TeacherClassFlowTest extends TestCase
     {
         $groups = collect(app(SidebarMenu::class)->groupsFor($this->teacher));
 
-        // "Lớp của tôi" nằm ở nhóm Lớp học (khu Đào tạo), cạnh Giáo trình / E-learning / Big Test.
+        // Việc dạy hằng ngày nằm ở nhóm Lớp học (khu Đào tạo), không còn nhóm "Cổng Giáo viên" riêng; link sidebar mở Lịch dạy hôm nay.
         $classes = $groups->firstWhere('id', 'classes');
         $this->assertSame('Đào tạo', $classes['section']);
-        $this->assertSame(['Lớp của tôi'], collect($classes['items'])->pluck('label')->all());
-        $this->assertSame(route('classes.index', ['mine' => 1]), $classes['url']);
-
-        $portal = $groups->firstWhere('id', 'teacher_portal');
-        $labels = collect($portal['items'])->pluck('label')->all();
-        $this->assertSame(['Bài giảng hôm nay', 'Syllabus & tài liệu', 'Check-in & Điểm danh hôm nay'], array_slice($labels, 0, 3));
-        $this->assertNotContains('Lớp của tôi', $labels);
+        $this->assertSame(
+            ['Lịch dạy hôm nay', 'Lớp của tôi', 'Bài giảng hôm nay', 'Chấm bài nộp', 'Khách học thử', 'Buổi bổ trợ của tôi'],
+            collect($classes['items'])->pluck('label')->all(),
+        );
+        $this->assertSame(route('teacher.home'), $classes['url']);
+        $this->assertNull($groups->firstWhere('id', 'teacher_portal'));
     }
 
     public function test_class_manager_menu_still_opens_the_full_class_list(): void

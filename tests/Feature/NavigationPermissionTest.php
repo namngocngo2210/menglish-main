@@ -63,7 +63,8 @@ class NavigationPermissionTest extends TestCase
 
         $response->assertStatus(200);
         // Teacher MUST see permitted items (lưới phím tắt cuối Tổng quan đã bỏ 04/10/2026 — kiểm tra trên menu trái).
-        $response->assertSee('data-menu-item="teacher_portal"', false);
+        $response->assertSee('data-menu-item="classes"', false);
+        $response->assertSee('Lịch dạy hôm nay');
         $response->assertSee('Chất lượng giảng dạy');
         $response->assertSee('Lương');
         $response->assertSee('Ticket');

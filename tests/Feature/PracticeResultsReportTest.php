@@ -478,10 +478,7 @@ class PracticeResultsReportTest extends TestCase
         $this->assertContains('practice-results.index', $routes($this->staff(Roles::ADMIN)));
         $this->assertNotContains('practice-results.index', $routes($this->staff(Roles::ACADEMIC_STAFF)));
 
-        // Giáo viên có mục ở Cổng Giáo viên; trang báo cáo hiện trong workspace E-learning
-        $teacherPortal = collect($menu->groupsFor($this->teacherA->fresh()))->firstWhere('id', 'teacher_portal');
-        $item = collect($teacherPortal['items'])->firstWhere('route', 'practice-results.index');
-        $this->assertSame(route('practice-results.index', ['mine' => 1]), $item['url']);
+        // Giáo viên mở báo cáo từ nhóm E-learning (không còn mục trùng ở nhóm "Cổng Giáo viên").
         $this->actingAs($this->teacherA)
             ->get(route('practice-results.index'))
             ->assertOk()

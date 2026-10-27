@@ -372,16 +372,18 @@ class RbacFlexibleTest extends TestCase
     public function test_portal_menus_follow_audience_permissions(): void
     {
         $groups = fn (User $u) => collect(app(SidebarMenu::class)->groupsFor($u->fresh()))->pluck('id')->all();
+        // Màn dạy hằng ngày của giáo viên / trợ giảng nằm trong nhóm Lớp học.
+        $routes = fn (User $u) => collect(app(SidebarMenu::class)->groupsFor($u->fresh()))->flatMap(fn (array $g) => collect($g['items'])->pluck('route'))->all();
 
         $this->assertNotContains('student_portal', $groups($this->admin));
-        $this->assertNotContains('teacher_portal', $groups($this->admin));
-        $this->assertContains('teacher_portal', $groups($this->makeUser('teacher')));
-        $this->assertContains('teacher_portal', $groups($this->makeUser('assistant')));
+        $this->assertNotContains('teacher.lesson-today', $routes($this->admin));
+        $this->assertContains('teacher.lesson-today', $routes($this->makeUser('teacher')));
+        $this->assertContains('teacher.lesson-today', $routes($this->makeUser('assistant')));
 
         $staff = $this->makeUser('academic_staff');
-        $this->assertNotContains('teacher_portal', $groups($staff));
+        $this->assertNotContains('teacher.lesson-today', $routes($staff));
         $this->actingAs($this->admin)->put(route('users.permissions.update', $staff), ['overrides' => ['portal' => ['teacher' => 'allow']]])->assertSessionHasNoErrors();
-        $this->assertContains('teacher_portal', $groups($staff));
+        $this->assertContains('teacher.lesson-today', $routes($staff));
     }
 
     // ── Seed chỉ thêm, không ghi đè cấu hình Admin ────────────────────────────────────────────

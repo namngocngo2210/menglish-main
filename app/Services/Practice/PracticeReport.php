@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\DB;
  * người xem (`Student::visibleTo`); tổng hợp bằng GROUP BY, số câu truy vấn không phụ thuộc số dòng.
  *
  * Bộ lọc (đã chuẩn hoá bằng `filters()`): grade, term, exam ('mixed' = đề trộn | id đề cố định), class_id, student_id, from, to (Y-m-d, tính cả ngày, theo submitted_at),
- * q (tìm theo tên / mã học viên, trong phạm vi người xem), mine (chỉ học viên các lớp người xem là giáo viên / trợ giảng / GVNN — mục "Kết quả luyện tập" ở Cổng Giáo viên).
+ * q (tìm theo tên / mã học viên, trong phạm vi người xem), mine (chỉ học viên các lớp người xem là giáo viên / trợ giảng / GVNN).
  */
 class PracticeReport
 {

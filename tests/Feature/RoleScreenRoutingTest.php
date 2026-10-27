@@ -56,10 +56,12 @@ class RoleScreenRoutingTest extends TestCase
     {
         $menu = $this->sidebar($this->user(Roles::TEACHER_PARTTIME));
 
-        $this->assertArrayHasKey('Cổng Giáo viên', $menu);
-        $this->assertNotContains('Nhiệm vụ hôm nay', $menu['Cổng Giáo viên']);
-        $this->assertNotContains('Nhiệm vụ hôm nay của TA', $menu['Cổng Giáo viên']);
-        $this->assertContains('Khách học thử', $menu['Cổng Giáo viên']);
+        // Việc dạy hằng ngày nằm trong Lớp học (không còn nhóm "Cổng Giáo viên" riêng).
+        $this->assertArrayNotHasKey('Cổng Giáo viên', $menu);
+        $this->assertSame('Lịch dạy hôm nay', $menu['Lớp học'][0]);
+        $this->assertNotContains('Nhiệm vụ hôm nay', $menu['Lớp học']);
+        $this->assertContains('Khách học thử', $menu['Lớp học']);
+        $this->assertContains('Syllabus & tài liệu', $menu['Giáo trình']);
         $this->assertContains('Chặng đang dạy & Order Test', $menu['Giáo trình']);
     }
 
@@ -67,9 +69,9 @@ class RoleScreenRoutingTest extends TestCase
     {
         $menu = $this->sidebar($this->user(Roles::ASSISTANT));
 
-        $this->assertArrayNotHasKey('Cổng Giáo viên', $menu);
-        $this->assertSame('Nhiệm vụ hôm nay', $menu['Cổng Trợ giảng'][0]);
-        $this->assertNotContains('Khách học thử', $menu['Cổng Trợ giảng']);
+        $this->assertArrayNotHasKey('Cổng Trợ giảng', $menu);
+        $this->assertSame('Nhiệm vụ hôm nay', $menu['Lớp học'][0]);
+        $this->assertNotContains('Khách học thử', $menu['Lớp học']);
         $this->assertNotContains('Chặng đang dạy & Order Test', $menu['Giáo trình'] ?? []);
         $this->assertSame(['Đơn chấm công & nghỉ'], $menu['Xin duyệt']);
         $this->assertContains('Giờ trợ giảng của tôi', $menu['Chấm công']);
@@ -93,7 +95,11 @@ class RoleScreenRoutingTest extends TestCase
 
     public function test_student_sidebar_has_only_student_portal(): void
     {
-        $this->assertSame(['Cổng Phụ huynh & Học sinh'], array_keys($this->sidebar($this->user(Roles::STUDENT))));
+        $menu = $this->sidebar($this->user(Roles::STUDENT));
+
+        $this->assertSame(['Học tập'], array_keys($menu));
+        $this->assertSame('Trang chủ', $menu['Học tập'][0]);
+        $this->assertNotContains('Ứng dụng di động', $menu['Học tập']);
     }
 
     public function test_my_tasks_links_open_own_task_list_except_for_assistant(): void

@@ -50,7 +50,8 @@ class WorkspaceNavigationTest extends TestCase
         'reports.my', 'portal.my-salary',
         'teacher.home', 'portal.teacher.submissions', 'teacher.trial-guests', 'portal.ta-tasks',
         'portal.student.home', 'portal.student.homework', 'portal.student.pronunciation', 'portal.student.notifications',
-        'portal.student.survey', 'portal.student.feedback', 'portal.app-shell',
+        // portal.app-shell (lưới nút trùng menu "Học tập") bỏ khỏi menu 27/10/2026: mở từ avatar trên đầu trang học viên.
+        'portal.student.survey', 'portal.student.feedback',
         'crm.customers.create', 'classes.create', 'tasks.create', 'tickets.create',
     ];
 
@@ -58,7 +59,7 @@ class WorkspaceNavigationTest extends TestCase
     private const AUDIENCE_ROUTES = [
         'teacher.home', 'portal.teacher.submissions', 'teacher.trial-guests', 'portal.ta-tasks',
         'portal.student.home', 'portal.student.homework', 'portal.student.pronunciation', 'portal.student.notifications',
-        'portal.student.survey', 'portal.student.feedback', 'portal.app-shell', 'payroll.timesheets.teachers',
+        'portal.student.survey', 'portal.student.feedback', 'payroll.timesheets.teachers',
     ];
 
     private Branch $branch;
