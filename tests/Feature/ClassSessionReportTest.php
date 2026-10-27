@@ -104,6 +104,8 @@ class ClassSessionReportTest extends TestCase
                 ->where('checklist', fn ($items) => collect($items)->pluck('key')->all() === ['attendance', 'taught', 'homework'])
                 ->where('remarkStudents.0.name', 'Lê Chi')->where('remarkOptions.result', ['Đạt', 'Không đạt']))
             ->getContent();
+        // Nhận xét học sinh dạng bảng: mỗi học sinh một hàng.
+        $this->assertMatchesRegularExpression('/data-report-section="remarks".*?<table.*?<tr[^>]*data-remark-row.*?Lê Chi/s', $html);
         // Sidebar: mục Lớp học sáng, không phải Công việc.
         $this->assertMatchesRegularExpression('/<a(?=[^>]*data-menu-item="classes")[^>]*aria-current="page"/', $html);
         $this->assertDoesNotMatchRegularExpression('/<a(?=[^>]*data-menu-item="tasks")[^>]*aria-current="page"/', $html);
