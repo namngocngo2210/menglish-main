@@ -7,7 +7,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import TeacherBottomNav from '@/Components/Teacher/TeacherBottomNav.vue';
 
-defineOptions({ layout: { title: 'Cổng Giáo viên' } });
+defineOptions({ layout: { title: 'Lịch dạy hôm nay' } });
 
 const props = defineProps({
     teacherName: { type: String, default: '' },
@@ -52,7 +52,7 @@ const hasUnchecked = computed(() => props.shifts.some((s) => !s.checked_in && !c
     <div class="mx-auto max-w-6xl space-y-lg pb-24 md:pb-0">
         <UiPageHeader title="Tổng quan hôm nay">
             <template #meta>
-                Xin chào <span class="font-semibold text-on-surface">{{ teacherName }}</span> · {{ can('portal.teacher') ? 'Cổng Giáo viên' : 'Cổng Trợ giảng' }}
+                Xin chào <span class="font-semibold text-on-surface">{{ teacherName }}</span> · {{ can('portal.teacher') ? 'Giáo viên' : 'Trợ giảng' }}
                 <template v-if="can('portal.teacher')">
                     · <Link :href="route('teacher.trial-guests')" class="font-semibold text-primary hover:underline">Khách học thử</Link>
                 </template>

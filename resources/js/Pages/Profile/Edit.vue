@@ -402,8 +402,8 @@ const ticketColor = (s) => (s === 'resolved' ? 'success' : s === 'in_progress' ?
                                 <span class="material-symbols-outlined text-[20px] text-secondary">school</span>
                                 Lớp học đang phụ trách
                             </h2>
-                            <Link v-if="portal === 'assistant'" :href="route('portal.ta-tasks')" class="text-xs font-bold text-primary hover:underline">Mở Cổng Trợ giảng &rarr;</Link>
-                            <Link v-else-if="can('attendance_student.record')" :href="route('teacher.home')" class="text-xs font-bold text-primary hover:underline">Mở Cổng Giáo viên &rarr;</Link>
+                            <Link v-if="portal === 'assistant'" :href="route('portal.ta-tasks')" class="text-xs font-bold text-primary hover:underline">Mở Nhiệm vụ hôm nay &rarr;</Link>
+                            <Link v-else-if="can('attendance_student.record')" :href="route('teacher.home')" class="text-xs font-bold text-primary hover:underline">Mở Lịch dạy hôm nay &rarr;</Link>
                         </div>
 
                         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
