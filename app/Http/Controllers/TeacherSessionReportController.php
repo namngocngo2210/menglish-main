@@ -17,6 +17,7 @@ use App\Support\Ui;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -24,7 +25,8 @@ use Inertia\Response;
 /**
  * Báo cáo buổi học của giáo viên (chủ dự án 27/10/2026), mở từ nút trên từng buổi ở Trang lớp → tab Điểm danh & báo cáo buổi.
  *   - Chỉ GV chính của buổi nộp (GVNN không nộp); người khác xem được lớp thì xem (chỉ đọc, không duyệt).
- *   - Khối "Việc của buổi" đọc dữ liệu GV đã làm ở màn khác: điểm danh (bắt buộc trước khi nộp), đã dạy bài, nhận xét, BTVN.
+ *   - Khối "Việc của buổi" đọc dữ liệu GV đã làm ở màn khác: điểm danh (bắt buộc trước khi nộp), đã dạy bài, BTVN.
+ *   - Nhận xét từng học sinh nhập ngay trong báo cáo (lưu chung bản ghi với màn Nhận xét của Cổng GV).
  *   - Không ảnh. Hạn nộp: TeacherSessionReport::deadline (SLA gv.session_report); nộp sau hạn → "Nộp trễ".
  */
 class TeacherSessionReportController extends Controller
@@ -63,6 +65,9 @@ class TeacherSessionReportController extends Controller
             'checklist' => $this->checklist($class, $classSession, $roster, $canSubmit),
             'attendanceDone' => StudentAttendance::where('class_session_id', $classSession->id)->exists(),
             'students' => Ui::options($roster, fn (Student $st) => "{$st->name} ({$st->code})"),
+            // Nhận xét từng học sinh nhập ngay trong báo cáo (cùng dữ liệu với màn Nhận xét của Cổng GV); HS vắng bị khóa.
+            'remarkStudents' => $this->remarkStudents($class, $classSession, $roster),
+            'remarkOptions' => TeacherPortalController::REMARK_OPTIONS,
             'suggestions' => $report ? [] : $this->suggestions($class, $classSession, $roster),
             'report' => $report ? [
                 'content' => $report->content,
@@ -101,6 +106,9 @@ class TeacherSessionReportController extends Controller
             'attention.*.student_id' => 'nullable|integer',
             'attention.*.reason' => 'nullable|string|max:1000',
             'attention.*.action' => 'nullable|string|max:1000',
+            'remarks' => 'nullable|array',
+            'remarks.*' => 'array',
+            'remarks.*.*' => 'nullable|string|max:2000',
         ], [
             'content.required' => 'Vui lòng nhập "Nội dung đã dạy".',
         ]);
@@ -128,7 +136,16 @@ class TeacherSessionReportController extends Controller
         ]);
         $report->submitted_at ??= now();
         $created = ! $report->exists;
-        $report->save();
+        DB::transaction(function () use ($report, $class, $classSession, $user, $validated, $rosterIds) {
+            $report->save();
+            // Nhận xét học sinh gửi kèm báo cáo = "Lưu nhận xét" (bản chính thức) ở màn Nhận xét. Không gõ gì và chưa có bản
+            // nhận xét nào → không tạo bản trống (bản trống vẫn tính là "đã gửi nhận xét").
+            $remarks = $validated['remarks'] ?? [];
+            $typed = collect($remarks)->flatten()->filter(fn ($v) => filled($v))->isNotEmpty();
+            if ($typed || TeacherPortalController::sessionRemarks($class, $classSession)->isNotEmpty()) {
+                TeacherPortalController::saveSessionRemarks($class, $classSession, (int) $user->id, $remarks, $rosterIds, false);
+            }
+        });
 
         $message = $created
             ? ($report->setRelation('session', $classSession)->isLate() ? 'Đã nộp báo cáo buổi (nộp trễ hạn).' : 'Đã nộp báo cáo buổi.')
@@ -160,7 +177,6 @@ class TeacherSessionReportController extends Controller
         $metrics = collect(ClassReportSessionMetrics::forSessions(collect([$session]), $roster)[$session->id] ?? [])->keyBy('key');
         $progress = ClassLessonProgress::with('lesson:id,title,session_no')->where('class_session_id', $session->id)->latest('taught_at')->first();
         $attendance = $metrics->get('attendance');
-        $remarks = $metrics->get('remarks');
         $homework = $metrics->get('homework');
         $attended = StudentAttendance::where('class_session_id', $session->id)->exists();
         $assigned = Homework::where('class_id', $class->id)->whereDate('created_at', $session->date->toDateString())->latest('id')->first(['id', 'title']);
@@ -187,14 +203,6 @@ class TeacherSessionReportController extends Controller
                 'link' => $link($progress ? 'Xem bài giảng' : 'Đánh dấu đã dạy', route('teacher.lesson-today', ['class' => $class->id])),
             ],
             [
-                'key' => 'remarks',
-                'label' => 'Nhận xét học sinh',
-                'done' => ($remarks['value'] ?? null) === 'Đã gửi',
-                'value' => $remarks['value'] ?? 'Chưa gửi',
-                'details' => $remarks['details'] ?? [],
-                'link' => $link('Nhận xét', route('teacher.remarks', ['classId' => $class->id, 'session' => $session->id])),
-            ],
-            [
                 'key' => 'homework',
                 'label' => 'Bài tập về nhà',
                 'done' => (bool) $assigned,
@@ -203,6 +211,29 @@ class TeacherSessionReportController extends Controller
                 'link' => $link('Bài tập', route('teacher.homework', ['classId' => $class->id])),
             ],
         ]));
+    }
+
+    /**
+     * Danh sách học sinh để nhận xét: trạng thái điểm danh của buổi + nhận xét đã lưu.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function remarkStudents(ClassModel $class, ClassSession $session, Collection $roster): array
+    {
+        $attendance = StudentAttendance::where('class_session_id', $session->id)->pluck('status', 'student_id');
+        $saved = TeacherPortalController::sessionRemarks($class, $session);
+
+        return $roster->map(function (Student $student) use ($attendance, $saved) {
+            $status = $attendance->get($student->id) ?? 'none';
+
+            return [
+                'id' => $student->id,
+                'name' => $student->name,
+                'att_status' => $status,
+                'absent' => in_array($status, ['absent', 'excused'], true),
+                'remark' => TeacherPortalController::remarkFields((array) ($saved->get($student->id) ?? $saved->get((string) $student->id) ?? [])),
+            ];
+        })->values()->all();
     }
 
     /**

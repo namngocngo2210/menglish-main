@@ -1438,6 +1438,48 @@ class TeacherPortalController extends Controller
     }
 
     /** Bản ghi nhận xét của buổi; nhận xét cũ lưu theo lớp + ngày được điền sẵn để GV lưu lại vào đúng buổi. */
+    /**
+     * Lưu nhận xét của buổi (màn Nhận xét và báo cáo buổi học của GV dùng chung): chỉ học viên trong danh sách buổi,
+     * chỉ các cột REMARK_FIELDS, cột chọn phải đúng danh sách (hoặc giữ giá trị cũ).
+     *
+     * @param  array<int|string, mixed>  $input  remarks[student_id][field]
+     * @param  Collection<int, int|string>  $rosterIds
+     */
+    public static function saveSessionRemarks(ClassModel $class, ClassSession $session, int $userId, array $input, Collection $rosterIds, bool $draft): void
+    {
+        $rosterIds = $rosterIds->map(fn ($id) => (string) $id);
+        $remarks = collect($input)
+            ->filter(fn ($remark, $studentId) => $rosterIds->contains((string) $studentId))
+            ->map(fn ($remark) => array_intersect_key((array) $remark, array_flip(self::REMARK_FIELDS)))
+            ->all();
+        self::ensureRemarkOptions($remarks, self::sessionRemarks($class, $session));
+
+        AcademicRecord::updateOrCreate(
+            ['module' => 'teacher_remarks', 'record_code' => self::remarkRecordCode($session)],
+            [
+                // screen_key bắt buộc (NOT NULL) — trước đây thiếu nên lưu nhận xét luôn lỗi 500.
+                'screen_key' => self::REMARKS_SCREEN_KEY,
+                'title' => 'Nhận xét lớp '.$class->name.' buổi '.$session->date->format('d/m/Y').' '.$session->start_time?->format('H:i'),
+                'status' => $draft ? 'draft' : 'completed',
+                'user_id' => $userId,
+                'data' => $remarks,
+            ]
+        );
+    }
+
+    /** @return Collection<int|string, array<string, mixed>> nhận xét đã lưu của buổi theo mã học sinh */
+    public static function sessionRemarks(ClassModel $class, ClassSession $session): Collection
+    {
+        return self::remarkData(AcademicRecord::where('module', 'teacher_remarks')->where('record_code', self::remarkRecordCode($session))->first()
+            ?? AcademicRecord::where('module', 'teacher_remarks')->where('record_code', $class->id.'-'.$session->date->toDateString())->first());
+    }
+
+    /** Các cột nhận xét của một học sinh (thiếu cột → chuỗi rỗng). */
+    public static function remarkFields(array $remark): array
+    {
+        return collect(self::REMARK_FIELDS)->mapWithKeys(fn ($f) => [$f => $remark[$f] ?? ''])->all();
+    }
+
     private function remarkRecord(ClassModel $class, ClassSession $session): ?AcademicRecord
     {
         return AcademicRecord::where('module', 'teacher_remarks')->where('record_code', self::remarkRecordCode($session))->first()
@@ -1517,25 +1559,9 @@ class TeacherPortalController extends Controller
             return back()->withErrors(['session' => $reason]);
         }
 
-        $rosterIds = $this->sessionRoster($class, $session, collect())->pluck('id')->map(fn ($id) => (string) $id);
-        $remarks = collect($validated['remarks'] ?? [])
-            ->filter(fn ($remark, $studentId) => $rosterIds->contains((string) $studentId))
-            ->map(fn ($remark) => array_intersect_key((array) $remark, array_flip(self::REMARK_FIELDS)))
-            ->all();
-        self::ensureRemarkOptions($remarks, self::remarkData($this->remarkRecord($class, $session)));
+        $rosterIds = $this->sessionRoster($class, $session, collect())->pluck('id');
         $isDraft = ($validated['action'] ?? 'final') === 'draft';
-
-        AcademicRecord::updateOrCreate(
-            ['module' => 'teacher_remarks', 'record_code' => self::remarkRecordCode($session)],
-            [
-                // screen_key bắt buộc (NOT NULL) — trước đây thiếu nên lưu nhận xét luôn lỗi 500.
-                'screen_key' => self::REMARKS_SCREEN_KEY,
-                'title' => 'Nhận xét lớp '.$class->name.' buổi '.$session->date->format('d/m/Y').' '.$session->start_time?->format('H:i'),
-                'status' => $isDraft ? 'draft' : 'completed',
-                'user_id' => $user->id,
-                'data' => $remarks,
-            ]
-        );
+        self::saveSessionRemarks($class, $session, (int) $user->id, $validated['remarks'] ?? [], $rosterIds, $isDraft);
 
         return redirect()->route('teacher.remarks', ['classId' => $class->id, 'session' => $session->id])
             ->with('success', $isDraft ? 'Đã lưu nháp nhận xét (chưa hiển thị cho học viên).' : 'Đã lưu nhận xét buổi học!');

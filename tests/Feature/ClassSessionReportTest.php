@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\TeacherPortalController;
+use App\Models\AcademicRecord;
 use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\ClassReport;
@@ -98,7 +100,8 @@ class ClassSessionReportTest extends TestCase
                 ->where('canSubmit', true)
                 ->where('attendanceDone', false)
                 ->where('sessionInfo.id', $session->id)
-                ->where('checklist', fn ($items) => collect($items)->pluck('key')->all() === ['attendance', 'taught', 'remarks', 'homework']))
+                ->where('checklist', fn ($items) => collect($items)->pluck('key')->all() === ['attendance', 'taught', 'homework'])
+                ->where('remarkStudents.0.name', 'Lê Chi')->where('remarkOptions.result', ['Đạt', 'Không đạt']))
             ->getContent();
         // Sidebar: mục Lớp học sáng, không phải Công việc.
         $this->assertMatchesRegularExpression('/<a(?=[^>]*data-menu-item="classes")[^>]*aria-current="page"/', $html);
@@ -140,6 +143,32 @@ class ClassSessionReportTest extends TestCase
         // Người khác xem được, chỉ đọc.
         $this->actingAs($this->admin)->get($this->url($session))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->where('canSubmit', false)->where('report.content', 'Unit 3 + 4')->where('report.attention.0.student', 'Lê Chi'));
+    }
+
+    public function test_student_remarks_are_entered_in_the_report_and_shared_with_remarks_screen(): void
+    {
+        $session = $this->makeSession(0);
+        $this->attend($session, 'present');
+        $url = $this->url($session, 'classes.session-report.store');
+
+        $this->actingAs($this->teacher)->post($url, ['content' => 'Unit 3', 'remarks' => [$this->student->id => ['result' => 'Sai giá trị']]])
+            ->assertSessionHasErrors("remarks.{$this->student->id}.result");
+        $this->assertSame(0, TeacherSessionReport::count());
+
+        $this->actingAs($this->teacher)->post($url, [
+            'content' => 'Unit 3',
+            'remarks' => [$this->student->id => ['grammar' => 'Khá', 'attitude' => 'Tốt', 'result' => 'Đạt', 'comment' => 'Con phát biểu tốt']],
+        ])->assertSessionHasNoErrors();
+
+        $record = AcademicRecord::where('module', 'teacher_remarks')->where('record_code', TeacherPortalController::remarkRecordCode($session))->sole();
+        $this->assertSame('completed', $record->status);
+        $this->assertSame('Con phát biểu tốt', $record->data[$this->student->id]['comment'] ?? $record->data[(string) $this->student->id]['comment']);
+
+        // Màn Nhận xét của Cổng GV đọc đúng nhận xét đã nhập trong báo cáo; mở lại báo cáo cũng thấy.
+        $this->actingAs($this->teacher)->get(route('teacher.remarks', ['classId' => $this->class->id, 'session' => $session->id]))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('students.0.remark.grammar', 'Khá'));
+        $this->actingAs($this->admin)->get($this->url($session))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('remarkStudents.0.remark.comment', 'Con phát biểu tốt'));
     }
 
     public function test_report_after_deadline_is_late(): void
