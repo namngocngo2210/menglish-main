@@ -545,7 +545,7 @@ class CrmPipelineTest extends TestCase
 
         $this->actingAs($teacher)->get(route('teacher.attendance', ['classId' => $class->id, 'session' => $sessions[0]->id]))->assertOk()
             ->assertSee('Khách học thử buổi này')->assertSee($lead->name)->assertSee('Bé nhút nhát');
-        $this->actingAs($teacher)->get(route('teacher.remarks', ['classId' => $class->id, 'session' => $sessions[0]->id]))->assertOk()
+        $this->actingAs($teacher)->get(route('classes.session-report', ['id' => $class->id, 'session' => $sessions[0]->id]))->assertOk()
             ->assertSee($lead->name);
         // Buổi khác của lớp: khách không còn trong lớp.
         $this->actingAs($teacher)->get(route('teacher.attendance', ['classId' => $class->id, 'session' => $sessions[1]->id]))->assertOk()

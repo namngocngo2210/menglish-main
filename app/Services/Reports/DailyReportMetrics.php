@@ -249,7 +249,7 @@ class DailyReportMetrics
                     'text' => $label($s).' · GV '.($s->teacher?->name ?? '—'),
                     'tag' => 'Chưa nhận xét',
                     'tone' => 'warning',
-                    'url' => $this->link('teacher.remarks', ['classId' => $s->class_id, 'session' => $s->id]),
+                    'url' => $this->link('classes.session-report', ['id' => $s->class_id, 'session' => $s->id]),
                 ])->values()->all(), $remarked->count()),
             $this->item('remarks_late', 'Nhận xét trễ hạn', $late->count(),
                 'Buổi giáo viên gửi nhận xét quá hạn SLA "Nhận xét sau buổi học" (hệ thống tự lập biên bản).',

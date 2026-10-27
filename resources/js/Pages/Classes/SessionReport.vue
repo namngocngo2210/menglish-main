@@ -6,6 +6,7 @@
  */
 import { ref } from 'vue';
 import { Link } from '@inertiajs/vue3';
+import SessionTrialGuests from '@/Components/Teacher/SessionTrialGuests.vue';
 import { useBackLink } from '@/lib/backLink';
 
 defineOptions({ layout: { title: 'Báo cáo buổi học' } });
@@ -24,6 +25,7 @@ const props = defineProps({
     canSubmit: { type: Boolean, default: false },
     remarkStudents: { type: Array, default: () => [] },
     remarkOptions: { type: Object, default: () => ({}) },
+    trialGuests: { type: Object, default: () => ({ scope: 'upcoming', items: [] }) },
 });
 const back = useBackLink(() => props.classInfo.url);
 
@@ -36,7 +38,7 @@ const attention = ref(props.report ? props.report.attention.map((r) => row(r)) :
 const addRow = () => attention.value.push(row());
 const removeRow = (index) => attention.value.splice(index, 1);
 
-// Nhận xét từng học sinh (cùng cột với màn Nhận xét của Cổng GV). Chọn "Cần cố gắng" / "Không đạt" → thêm vào "Học sinh cần chú ý".
+// Nhận xét từng học sinh (nơi nhập duy nhất). Chọn "Cần cố gắng" / "Không đạt" → thêm vào "Học sinh cần chú ý".
 const REMARK_FIELDS = [
     ['monsters_group', 'Monsters (Nhóm)', 'VD: +5'],
     ['monsters_bonus', 'Monsters (Thưởng)', 'VD: +2'],
@@ -79,6 +81,8 @@ const headingCls = 'flex items-center gap-sm font-h3 text-h3 text-on-surface';
                 </p>
             </div>
         </header>
+
+        <SessionTrialGuests :guests="trialGuests" />
 
         <!-- 1. Thông tin buổi -->
         <section :class="sectionCls" data-report-section="session">
@@ -141,7 +145,7 @@ const headingCls = 'flex items-center gap-sm font-h3 text-h3 text-on-surface';
             <section :class="sectionCls" data-report-section="remarks">
                 <div class="border-b border-surface-container pb-sm">
                     <h2 :class="headingCls"><span class="h-2 w-2 rounded-full bg-primary-container" aria-hidden="true"></span>3. Nhận xét học sinh</h2>
-                    <p class="font-caption text-caption text-on-surface-variant">Nộp báo cáo là gửi luôn nhận xét cho học viên (cùng dữ liệu với màn Nhận xét). Học sinh vắng không cần nhận xét.</p>
+                    <p class="font-caption text-caption text-on-surface-variant">Nộp báo cáo là gửi luôn nhận xét cho học viên. Học sinh vắng không cần nhận xét.</p>
                 </div>
                 <UiErrors :messages="Object.entries(errors).filter(([k]) => k.startsWith('remarks')).map(([, m]) => m)" />
                 <p v-if="!remarkStudents.length" class="text-center font-body-small text-body-small italic text-on-surface-variant">Lớp chưa có học viên.</p>

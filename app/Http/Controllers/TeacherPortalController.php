@@ -693,7 +693,7 @@ class TeacherPortalController extends Controller
     }
 
     /** Khách học thử của buổi (khối "Khách học thử buổi này" trên trang điểm danh / nhận xét). */
-    private function trialGuestsProps(Collection $guests): array
+    public static function trialGuestsProps(Collection $guests): array
     {
         return [
             'scope' => $guests->first()?->session?->date?->isBefore(today()) ? 'past' : 'upcoming',
@@ -1374,10 +1374,14 @@ class TeacherPortalController extends Controller
      * Nhận xét buổi học cho từng học sinh — theo BUỔI HỌC (?session= hoặc ?date=, mặc định buổi hôm nay),
      * có "Lưu nháp" (chưa hiện cho học viên) và "Lưu nhận xét".
      */
+    /**
+     * Màn "Nhận xét buổi học" cũ đã bỏ (chủ dự án 27/10/2026): nhận xét từng học sinh nhập trong Báo cáo buổi học
+     * của GV. Liên kết cũ (?session=) chuyển về báo cáo của buổi đó.
+     */
     public function remarks(Request $request, int $classId)
     {
         $this->guardTeacher();
-        $class = ClassModel::with('branch')->findOrFail($classId);
+        $class = ClassModel::findOrFail($classId);
         $user = Auth::user();
         $recentSessions = ClassSession::where('class_id', $class->id)
             ->where('type', '!=', ClassSession::TYPE_SUPPORT)
@@ -1388,58 +1392,15 @@ class TeacherPortalController extends Controller
         $session = $this->resolveSession($request, $class, $user) ?? $this->fallbackSession($request, $recentSessions);
         $this->authorizeTeaching($class, $session);
 
-        $students = collect();
-        $attendance = collect();
-        $existing = collect();
-        $record = null;
-        $sessionNo = null;
-        $blockReason = null;
-        if ($session) {
-            $blockReason = $this->attendanceBlockReason($session);
-            $students = $this->sessionRoster($class, $session, StudentAttendance::where('class_session_id', $session->id)->get()->keyBy('student_id'));
-            $attendance = StudentAttendance::where('class_id', $class->id)
-                ->where(fn ($q) => $q->where('class_session_id', $session->id)
-                    ->orWhere(fn ($q) => $q->whereNull('class_session_id')->whereDate('session_date', $session->date->toDateString())))
-                ->get()
-                ->keyBy('student_id');
-            $record = $this->remarkRecord($class, $session);
-            $existing = self::remarkData($record);
-            $sessionNo = app(\App\Services\SessionLessonService::class)->sessionNumbers([(int) $class->id])[$session->id] ?? null;
-        }
-        // Buổi đang xem cũ hơn cửa sổ vẫn phải có trong ô chọn, nếu không ô chọn hiện nhầm buổi khác.
-        if ($session && ! $recentSessions->contains('id', $session->id)) {
-            $recentSessions->push($session);
+        if (! $session || $session->status === 'cancelled' || $session->date->isAfter(today())) {
+            return redirect()->route('teacher.home')->with('error', 'Buổi học chưa diễn ra — nhận xét học sinh nhập trong Báo cáo buổi học sau buổi dạy.');
         }
 
-        return Inertia::render('Teacher/Remarks', [
-            'classroom' => ['id' => $class->id, 'name' => $class->name],
-            'session' => $session ? [
-                'id' => $session->id,
-                'label' => ($sessionNo ? 'Buổi '.$sessionNo.': ' : '').$session->date->format('d/m/Y').' · '.$session->start_time?->format('H:i').'-'.$session->end_time?->format('H:i'),
-            ] : null,
-            'recordState' => $record ? ($record->status === 'draft' ? 'draft' : 'saved') : null,
-            'blockReason' => $blockReason,
-            'students' => $students->map(function (Student $student) use ($attendance, $existing) {
-                $attStatus = $attendance->get($student->id)?->status ?? 'none';
-                $remark = (array) ($existing->get($student->id) ?? $existing->get((string) $student->id) ?? []);
-
-                return [
-                    'id' => $student->id,
-                    'name' => $student->name,
-                    'att_status' => $attStatus,
-                    'absent' => in_array($attStatus, ['absent', 'excused'], true),
-                    'remark' => collect(self::REMARK_FIELDS)->mapWithKeys(fn ($f) => [$f => $remark[$f] ?? ''])->all(),
-                ];
-            })->values()->all(),
-            'recentSessions' => $this->sessionOptions($recentSessions),
-            'remarkOptions' => self::REMARK_OPTIONS,
-            'trialGuests' => $this->trialGuestsProps($this->sessionTrialGuests($session)),
-        ]);
+        return redirect()->route('classes.session-report', ['id' => $class->id, 'session' => $session->id]);
     }
 
-    /** Bản ghi nhận xét của buổi; nhận xét cũ lưu theo lớp + ngày được điền sẵn để GV lưu lại vào đúng buổi. */
     /**
-     * Lưu nhận xét của buổi (màn Nhận xét và báo cáo buổi học của GV dùng chung): chỉ học viên trong danh sách buổi,
+     * Lưu nhận xét của buổi (nhập trong Báo cáo buổi học của GV): chỉ học viên trong danh sách buổi,
      * chỉ các cột REMARK_FIELDS, cột chọn phải đúng danh sách (hoặc giữ giá trị cũ).
      *
      * @param  array<int|string, mixed>  $input  remarks[student_id][field]
@@ -1480,12 +1441,6 @@ class TeacherPortalController extends Controller
         return collect(self::REMARK_FIELDS)->mapWithKeys(fn ($f) => [$f => $remark[$f] ?? ''])->all();
     }
 
-    private function remarkRecord(ClassModel $class, ClassSession $session): ?AcademicRecord
-    {
-        return AcademicRecord::where('module', 'teacher_remarks')->where('record_code', self::remarkRecordCode($session))->first()
-            ?? AcademicRecord::where('module', 'teacher_remarks')->where('record_code', $class->id.'-'.$session->date->toDateString())->first();
-    }
-
     /** @return Collection<int|string, array<string, mixed>> nhận xét đã lưu theo mã học sinh */
     private static function remarkData(?AcademicRecord $record): Collection
     {
@@ -1523,7 +1478,7 @@ class TeacherPortalController extends Controller
     }
 
     /** Khách học thử được xếp vào đúng buổi này (không thuộc danh sách lớp, không ghi danh). */
-    private function sessionTrialGuests(?ClassSession $session): Collection
+    public static function sessionTrialGuests(?ClassSession $session): Collection
     {
         if (! $session) {
             return collect();
@@ -1535,36 +1490,6 @@ class TeacherPortalController extends Controller
             ->where('status', '!=', 'cancelled')
             ->whereHas('customer')
             ->get();
-    }
-
-    public function remarksStore(Request $request, int $classId)
-    {
-        $this->guardTeacher();
-        $class = ClassModel::findOrFail($classId);
-        $user = Auth::user();
-        $validated = $request->validate([
-            'class_session_id' => 'nullable|integer',
-            'action' => 'nullable|in:draft,final',
-            'remarks' => 'nullable|array',
-            'remarks.*' => 'array',
-            'remarks.*.*' => 'nullable|string|max:2000',
-        ]);
-
-        $session = $this->resolveSession($request, $class, $user);
-        $this->authorizeTeaching($class, $session);
-        if (! $session) {
-            return back()->withErrors(['session' => 'Lớp không có buổi học trong ngày này. Hãy chọn buổi cần nhận xét.']);
-        }
-        if ($reason = $this->attendanceBlockReason($session)) {
-            return back()->withErrors(['session' => $reason]);
-        }
-
-        $rosterIds = $this->sessionRoster($class, $session, collect())->pluck('id');
-        $isDraft = ($validated['action'] ?? 'final') === 'draft';
-        self::saveSessionRemarks($class, $session, (int) $user->id, $validated['remarks'] ?? [], $rosterIds, $isDraft);
-
-        return redirect()->route('teacher.remarks', ['classId' => $class->id, 'session' => $session->id])
-            ->with('success', $isDraft ? 'Đã lưu nháp nhận xét (chưa hiển thị cho học viên).' : 'Đã lưu nhận xét buổi học!');
     }
 
     // ─────────────────────────────────────────────

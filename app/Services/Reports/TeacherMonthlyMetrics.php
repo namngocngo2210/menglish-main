@@ -119,7 +119,7 @@ class TeacherMonthlyMetrics
                         ...($lateHere ? [['text' => "{$lateHere} buổi gửi trễ hạn", 'tag' => 'Trễ hạn', 'tone' => 'error']] : []),
                         ...$missing->take(10)->map(fn (ClassSession $s) => [
                             'text' => 'Buổi '.$s->date->format('d/m').' chưa có nhận xét', 'tag' => 'Thiếu', 'tone' => 'warning',
-                            'url' => $this->link('teacher.remarks', ['classId' => $s->class_id, 'session' => $s->id]),
+                            'url' => $this->link('classes.session-report', ['id' => $s->class_id, 'session' => $s->id]),
                         ])->values()->all(),
                     ], $taught->count() - $missing->count()),
             ]);

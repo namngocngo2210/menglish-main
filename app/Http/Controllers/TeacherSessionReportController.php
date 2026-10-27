@@ -65,9 +65,10 @@ class TeacherSessionReportController extends Controller
             'checklist' => $this->checklist($class, $classSession, $roster, $canSubmit),
             'attendanceDone' => StudentAttendance::where('class_session_id', $classSession->id)->exists(),
             'students' => Ui::options($roster, fn (Student $st) => "{$st->name} ({$st->code})"),
-            // Nhận xét từng học sinh nhập ngay trong báo cáo (cùng dữ liệu với màn Nhận xét của Cổng GV); HS vắng bị khóa.
+            // Nhận xét từng học sinh chỉ nhập ở đây (màn Nhận xét riêng của Cổng GV đã bỏ); HS vắng bị khóa.
             'remarkStudents' => $this->remarkStudents($class, $classSession, $roster),
             'remarkOptions' => TeacherPortalController::REMARK_OPTIONS,
+            'trialGuests' => TeacherPortalController::trialGuestsProps(TeacherPortalController::sessionTrialGuests($classSession)),
             'suggestions' => $report ? [] : $this->suggestions($class, $classSession, $roster),
             'report' => $report ? [
                 'content' => $report->content,

@@ -271,9 +271,11 @@ class Phase2AcceptanceTest extends TestCase
             'class_session_id' => $future->id, 'status' => [$s1->id => 'present'],
         ])->assertSessionHasErrors('session');
 
-        $this->actingAs($this->teacher)->post(route('teacher.remarks.store', $class->id), [
+        // Nhận xét từng học sinh nhập trong Báo cáo buổi học.
+        $this->actingAs($this->teacher)->post(route('classes.session-report.store', ['id' => $class->id, 'session' => $today->id]), [
+            'content' => 'Unit 1',
             'remarks' => [$s1->id => ['grammar' => 'Tốt', 'attitude' => 'Khá', 'result' => 'Đạt', 'comment' => 'Phát âm rõ.']],
-        ])->assertSessionHasNoErrors()->assertRedirect(route('teacher.remarks', ['classId' => $class->id, 'session' => $today->id]));
+        ])->assertSessionHasNoErrors()->assertRedirect(route('classes.show', ['id' => $class->id, 'tab' => 'attendance']));
 
         $this->actingAs($this->teacher)->post(route('teacher.scores.store', $class->id), [
             'name' => 'Mini Test Unit 1', 'test_date' => today()->toDateString(), 'max_score' => 20,

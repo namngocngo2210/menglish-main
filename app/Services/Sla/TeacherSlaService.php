@@ -77,7 +77,7 @@ class TeacherSlaService
                     'Giáo viên' => (string) $session->teacher?->name,
                     'Buổi học kết thúc lúc' => $ends->format('H:i d/m/Y'),
                     'Nhận xét đã gửi' => $record ? $record->updated_at->format('H:i d/m/Y').' (trễ hạn)' : 'Chưa gửi',
-                ], route('teacher.remarks', ['classId' => $session->class_id, 'session' => $session->id]), $now);
+                ], route('classes.session-report', ['id' => $session->class_id, 'session' => $session->id]), $now);
                 if ($record) {
                     $this->breaches->resolve($event, $record->updated_at);
                 }
