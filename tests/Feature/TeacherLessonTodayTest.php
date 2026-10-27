@@ -6,6 +6,7 @@ use App\Models\ClassLessonProgress;
 use App\Models\ClassSession;
 use App\Models\MiniTestScore;
 use App\Models\Student;
+use App\Models\StudentAttendance;
 use App\Models\SyllabusAssignment;
 use App\Models\SyllabusLesson;
 use App\Models\User;
@@ -107,12 +108,45 @@ class TeacherLessonTodayTest extends TestCase
 
         $this->actingAs($this->teacher)->get(route('teacher.lesson-today', ['class' => $this->class->id]))
             ->assertInertia(fn (AssertableInertia $page) => $page->where('unmarked.0.id', $past->id)->etc())
-            ->assertSee('chưa đánh dấu Đã dạy');
+            ->assertSee('chưa ghi nhận Đã dạy');
         $this->actingAs($this->teacher)->post(route('teacher.lesson-today.taught', $this->class->id), ['class_session_id' => $past->id])->assertSessionHasNoErrors();
 
         $this->assertSame($past->id, ClassLessonProgress::sole()->class_session_id);
         $this->actingAs($this->teacher)->post(route('teacher.lesson-today.taught', $this->class->id), ['class_session_id' => $this->addSession(3)->id])
             ->assertSessionHasErrors('class_session_id');
+    }
+
+    public function test_submitting_session_report_records_taught_in_session_order(): void
+    {
+        $student = Student::create(['code' => 'HV-LT1', 'name' => 'Học viên LT', 'phone' => '0900000111', 'branch_id' => $this->branch->id,
+            'status' => 'studying', 'current_class_id' => $this->class->id]);
+        $past = $this->addSession(-2);
+        foreach ([$past, $this->today] as $session) {
+            StudentAttendance::create(['class_id' => $this->class->id, 'class_session_id' => $session->id, 'student_id' => $student->id,
+                'user_id' => $this->teacher->id, 'session_date' => $session->date->toDateString(), 'status' => 'present']);
+        }
+        $report = fn (ClassSession $s) => route('classes.session-report.store', ['id' => $this->class->id, 'session' => $s->id]);
+
+        // Bài giảng hôm nay không còn nút "Đã dạy": dẫn tới báo cáo buổi.
+        $this->actingAs($this->teacher)->get(route('teacher.lesson-today', ['class' => $this->class->id]))
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('report_url', route('classes.session-report', ['id' => $this->class->id, 'session' => $this->today->id]))
+                ->where('unmarked.0.report_url', route('classes.session-report', ['id' => $this->class->id, 'session' => $past->id]))->etc());
+
+        // Buổi trước chưa có báo cáo: báo cáo hôm nay vẫn lưu, chưa ghi nhận Đã dạy.
+        $this->actingAs($this->teacher)->post($report($this->today), ['content' => 'Unit 1'])->assertSessionHasNoErrors()
+            ->assertSessionHas('success', fn ($m) => str_contains($m, 'Chưa ghi nhận Đã dạy'));
+        $this->assertSame(0, ClassLessonProgress::count());
+
+        // Nộp báo cáo buổi trước rồi sửa lại báo cáo hôm nay → ghi nhận theo thứ tự buổi.
+        $this->actingAs($this->teacher)->post($report($past), ['content' => 'Unit 1'])->assertSessionHasNoErrors();
+        $this->actingAs($this->teacher)->post($report($this->today), ['content' => 'Unit 2'])->assertSessionHasNoErrors();
+        $this->assertSame([[$past->id, 1], [$this->today->id, 2]], ClassLessonProgress::orderBy('id')->get()
+            ->map(fn ($m) => [(int) $m->class_session_id, $m->lesson?->session_no])->all());
+
+        // Nộp lại không ghi nhận lần nữa.
+        $this->actingAs($this->teacher)->post($report($this->today), ['content' => 'Unit 2'])->assertSessionHasNoErrors();
+        $this->assertSame(2, ClassLessonProgress::count());
     }
 
     public function test_assistant_cannot_mark_and_other_teacher_cannot_open(): void

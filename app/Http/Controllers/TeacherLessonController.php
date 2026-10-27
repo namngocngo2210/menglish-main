@@ -12,11 +12,9 @@ use App\Models\SyllabusLessonSlide;
 use App\Models\User;
 use App\Services\Syllabus\ClassSyllabus;
 use App\Services\Syllabus\ConfirmDeadline;
-use App\Services\Syllabus\SyllabusOrders;
+use App\Services\Syllabus\LessonTaught;
 use App\Support\Ui;
-use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
@@ -61,11 +59,13 @@ class TeacherLessonController extends Controller
             'lesson' => $row ? $this->lessonPayload($row, $class, $user) : null,
             'taught_today' => $todayMarked,
             'finished' => $timeline && $timeline['current'] === null,
-            'unmarked' => $timeline ? $timeline['unmarked_sessions']->map(fn (ClassSession $s) => ['id' => $s->id, 'date' => $s->date->toDateString()])->values() : [],
+            // Nộp báo cáo buổi = ghi nhận "Đã dạy" (chủ dự án 27/10/2026): mỗi buổi chưa ghi nhận dẫn tới báo cáo buổi đó.
+            'unmarked' => $timeline ? $timeline['unmarked_sessions']->map(fn (ClassSession $s) => ['id' => $s->id, 'date' => $s->date->toDateString(),
+                'report_url' => route('classes.session-report', ['id' => $class->id, 'session' => $s->id])])->values() : [],
             // Dạy hết buổi của chặng: buổi còn lại ghi là buổi ôn / Big Test (không cần buổi giãn).
             'can_mark' => $canMark && $today !== null && ! $todayMarked,
             'can_mark_past' => $assignment && $confirmed && $this->canMark($user, $class, $assignment, null),
-            'mark_url' => $class ? route('teacher.lesson-today.taught', $class->id) : null,
+            'report_url' => $today ? route('classes.session-report', ['id' => $class->id, 'session' => $today->id]) : null,
             'confirmed' => $confirmed,
             'confirm_url' => $assignment && ! $confirmed && $assignment->canConfirm($user) ? route('syllabus.assignments.read', $assignment->id) : null,
             'confirm_due' => $assignment && ! $confirmed ? app(ConfirmDeadline::class)->dueAt($assignment)?->format('H:i d/m/Y') : null,
@@ -89,54 +89,7 @@ class TeacherLessonController extends Controller
             throw ValidationException::withMessages(['class_session_id' => 'Chỉ đánh dấu được buổi học đã / đang diễn ra của chặng lớp đang học.']);
         }
         abort_unless($this->canMark($user, $classModel, $assignment, $session), 403, 'Chỉ GV / GVNN của lớp đánh dấu Đã dạy.');
-        if (! $assignment->isConfirmed()) {
-            throw ValidationException::withMessages(['class_session_id' => 'Chặng chưa được XÁC NHẬN — GV bấm ĐỌC & XÁC NHẬN nhận syllabus trước khi đánh dấu Đã dạy.']);
-        }
-
-        try {
-            $label = DB::transaction(function () use ($assignment, $session, $validated, $user) {
-                $assignment = SyllabusAssignment::whereKey($assignment->id)->lockForUpdate()->firstOrFail();
-                if (ClassLessonProgress::where('syllabus_assignment_id', $assignment->id)->where('class_session_id', $session->id)->exists()) {
-                    throw ValidationException::withMessages(['class_session_id' => 'Buổi này đã được đánh dấu Đã dạy.']);
-                }
-                $timeline = $this->syllabus->timeline($assignment);
-                // Đánh dấu theo thứ tự buổi học: buổi cũ chưa đánh dấu phải làm trước (lịch sử buổi ↔ bài không bị đảo).
-                $older = $timeline['unmarked_sessions']->first(fn (ClassSession $s) => $s->id !== $session->id
-                    && ($s->date->lt($session->date) || ($s->date->eq($session->date) && $s->start_time < $session->start_time)));
-                if ($older) {
-                    throw ValidationException::withMessages(['class_session_id' => 'Đánh dấu buổi '.$older->date->format('d/m').' trước (theo thứ tự buổi học).']);
-                }
-                $base = ['syllabus_assignment_id' => $assignment->id, 'class_id' => $assignment->class_id, 'class_session_id' => $session->id,
-                    'pace_note' => $validated['pace_note'] ?? null, 'taught_by' => $user->id,
-                    // Ngày Đã dạy = ngày buổi học (bấm bù cho buổi đã qua vẫn đúng ngày).
-                    'taught_at' => $session->date->copy()->setTimeFromTimeString($session->start_time?->format('H:i:s') ?? '12:00:00')];
-                if ($timeline['current'] === null) {
-                    ClassLessonProgress::create($base + ['kind' => ClassLessonProgress::KIND_EXTRA]);
-
-                    return 'buổi ôn / Big Test (đã dạy hết buổi của chặng)';
-                }
-                if (! empty($validated['use_extra'])) {
-                    if ($timeline['extra_left'] < 1) {
-                        throw ValidationException::withMessages(['use_extra' => 'Lớp chưa có buổi giãn được duyệt — gửi "Customize syllabus" để Học thuật duyệt.']);
-                    }
-                    ClassLessonProgress::create($base + ['kind' => ClassLessonProgress::KIND_EXTRA]);
-
-                    return 'buổi giãn tiến độ';
-                }
-                $current = $timeline['current'];
-                ClassLessonProgress::create($base + ['kind' => ClassLessonProgress::KIND_LESSON, 'syllabus_lesson_id' => $current['lesson']->id]);
-
-                return 'Buổi '.$current['lesson']->session_no.': '.$current['data']['title'];
-            });
-        } catch (QueryException $e) {
-            // Chỉ lỗi trùng khóa (bấm đúp / 2 tab) là "đã đánh dấu"; lỗi khác báo đúng.
-            if (($e->errorInfo[0] ?? null) !== '23000') {
-                throw $e;
-            }
-            throw ValidationException::withMessages(['class_session_id' => 'Buổi này đã được đánh dấu Đã dạy.']);
-        }
-        // Tiến độ chạy → mốc ORDER có thể vừa đến hạn: nút ORDER của GV lớp đếm lại ngay.
-        SyllabusOrders::forget([$assignment->user_id, $classModel->teacher_id, $classModel->foreign_teacher_id]);
+        $label = app(LessonTaught::class)->mark($classModel, $assignment, $session, $user, $validated['pace_note'] ?? null, ! empty($validated['use_extra']));
 
         return redirect()->back()->with('status', "Đã đánh dấu Đã dạy {$label} ({$session->date->format('d/m')}).");
     }

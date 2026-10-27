@@ -19,6 +19,7 @@ const props = defineProps({
     students: { type: Array, default: () => [] },
     suggestions: { type: Array, default: () => [] },
     sharedAttention: { type: Array, default: () => [] },
+    syllabus: { type: Object, default: null },
     report: { type: Object, default: null },
     lessonText: { type: String, default: null },
     deadline: { type: String, default: null },
@@ -182,6 +183,15 @@ const headingCls = 'flex items-center gap-sm font-h3 text-h3 text-on-surface';
                 <h2 :class="headingCls" class="border-b border-surface-container pb-sm"><span class="h-2 w-2 rounded-full bg-primary-container" aria-hidden="true"></span>4. Giáo viên ghi nhận</h2>
                 <UiAlert v-if="!attendanceDone" type="error">Buổi này chưa điểm danh. Điểm danh xong mới nộp được báo cáo buổi.</UiAlert>
                 <UiErrors :messages="[errors.attendance]" />
+                <!-- Nộp báo cáo = ghi nhận "Đã dạy" vào tiến độ chặng (thay nút "Đã dạy" ở Bài giảng hôm nay). -->
+                <div v-if="syllabus && !syllabus.marked" class="rounded-xl border border-outline-variant bg-surface-container-low p-sm font-body-small text-body-small text-on-surface" data-taught-on-submit>
+                    <p class="flex items-center gap-xs"><span class="material-symbols-outlined text-[18px] text-primary" aria-hidden="true">task_alt</span>Nộp báo cáo là ghi nhận buổi này Đã dạy — tiến độ chặng chạy sang bài tiếp theo.</p>
+                    <p v-if="!syllabus.confirmed" class="mt-xs text-error">Chặng chưa được XÁC NHẬN: báo cáo vẫn nộp được nhưng chưa ghi nhận Đã dạy cho tới khi GV xác nhận chặng.</p>
+                    <label v-else-if="syllabus.extra_left > 0" class="mt-xs flex items-center gap-2">
+                        <input type="checkbox" name="use_extra" value="1" class="rounded border-outline-variant text-primary focus:ring-primary-container" />
+                        Dạy chưa xong bài — dùng 1 buổi giãn đã duyệt (còn {{ syllabus.extra_left }} buổi), bài syllabus giữ nguyên
+                    </label>
+                </div>
                 <UiTextarea
                     id="content"
                     v-model="content"

@@ -15,6 +15,8 @@ use App\Models\User;
 use App\Services\Reports\ClassReportSessionMetrics;
 use App\Services\SessionLessonService;
 use App\Services\SupportListService;
+use App\Services\Syllabus\ClassSyllabus;
+use App\Services\Syllabus\LessonTaught;
 use App\Support\Ui;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -100,7 +102,25 @@ class TeacherSessionReportController extends Controller
             'deadline' => $deadline->format('H:i d/m/Y'),
             'overdue' => ! $report && $deadline->isPast(),
             'canSubmit' => $canSubmit,
+            // Nộp báo cáo = ghi nhận "Đã dạy" (chủ dự án 27/10/2026): GV chọn dùng buổi giãn đã duyệt nếu dạy chưa xong bài.
+            'syllabus' => $this->syllabusState($class, $classSession),
         ]);
+    }
+
+    /** @return array{marked: bool, confirmed: bool, extra_left: int}|null null = lớp không học theo syllabus */
+    private function syllabusState(ClassModel $class, ClassSession $session): ?array
+    {
+        $taught = app(LessonTaught::class);
+        $assignment = $taught->openAssignment($class);
+        if (! $assignment) {
+            return null;
+        }
+
+        return [
+            'marked' => $taught->isMarked($assignment, $session),
+            'confirmed' => $assignment->isConfirmed(),
+            'extra_left' => (int) app(ClassSyllabus::class)->timeline($assignment)['extra_left'],
+        ];
     }
 
     public function store(Request $request, int $id, int $session): RedirectResponse
@@ -120,6 +140,7 @@ class TeacherSessionReportController extends Controller
             'remarks' => 'nullable|array',
             'remarks.*' => 'array',
             'remarks.*.*' => 'nullable|string|max:2000',
+            'use_extra' => 'nullable|boolean',
         ], [
             'content.required' => 'Vui lòng nhập "Nội dung đã dạy".',
         ]);
@@ -164,8 +185,29 @@ class TeacherSessionReportController extends Controller
         $message = $created
             ? ($report->setRelation('session', $classSession)->isLate() ? 'Đã nộp báo cáo buổi (nộp trễ hạn).' : 'Đã nộp báo cáo buổi.')
             : 'Đã cập nhật báo cáo buổi.';
+        $message .= $this->markTaught($class, $classSession, $user, ! empty($validated['use_extra']));
 
         return redirect()->route('classes.show', ['id' => $class->id, 'tab' => 'attendance'])->with('success', $message);
+    }
+
+    /**
+     * Nộp báo cáo buổi = ghi nhận "Đã dạy" vào tiến độ chặng (thay nút "Đã dạy" ở Bài giảng hôm nay, chủ dự án 27/10/2026).
+     * Không ghi nhận được (chặng chưa xác nhận, buổi trước chưa có báo cáo…) thì báo cáo vẫn lưu, kèm lời nhắc.
+     */
+    private function markTaught(ClassModel $class, ClassSession $session, User $user, bool $useExtra): string
+    {
+        $taught = app(LessonTaught::class);
+        $assignment = $taught->openAssignment($class);
+        if (! $assignment || $taught->isMarked($assignment, $session)
+            || ! in_array($session->type, [ClassSession::TYPE_REGULAR, ClassSession::TYPE_MAKEUP], true)
+            || $session->date->lt(($assignment->start_date ?? $assignment->opened_at)->copy()->startOfDay())) {
+            return '';
+        }
+        try {
+            return ' Đã ghi nhận Đã dạy '.$taught->mark($class, $assignment, $session, $user, null, $useExtra).'.';
+        } catch (ValidationException $e) {
+            return ' Chưa ghi nhận Đã dạy: '.collect($e->errors())->flatten()->first();
+        }
     }
 
     /** @return array{0: ClassModel, 1: ClassSession} */
@@ -212,9 +254,9 @@ class TeacherSessionReportController extends Controller
                 'done' => (bool) $progress,
                 'value' => $progress
                     ? 'Đã đánh dấu'.($progress->kind === ClassLessonProgress::KIND_EXTRA ? ' · buổi giãn' : ($progress->lesson?->title ? ' · '.$progress->lesson->title : ''))
-                    : 'Chưa đánh dấu',
+                    : 'Nộp báo cáo buổi là ghi nhận Đã dạy',
                 'details' => $progress?->pace_note ? [['text' => 'Ghi chú tiến độ: '.$progress->pace_note]] : [],
-                'link' => $link($progress ? 'Xem bài giảng' : 'Đánh dấu đã dạy', route('teacher.lesson-today', ['class' => $class->id])),
+                'link' => $link('Xem bài giảng', route('teacher.lesson-today', ['class' => $class->id])),
             ],
             [
                 'key' => 'homework',
