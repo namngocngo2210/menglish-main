@@ -124,6 +124,36 @@ class StudentAccountManagementTest extends TestCase
             ->assertRedirect(route('students.accounts.index'))->assertSessionHasErrors('download');
     }
 
+    public function test_create_without_selection_covers_all_filtered_students_across_pages(): void
+    {
+        $a = $this->student('SA0021');
+        $b = $this->student('SA0022');
+        $linked = $this->student('SA0023');
+        app(StudentAccountService::class)->create($linked);
+        $outside = $this->student('SA0024', $this->otherBranch);
+        $dropped = $this->student('SA0025', status: 'dropped');
+
+        $this->actingAs($this->academic)->get(route('students.accounts.index', ['per_page' => 10, 'page' => 2]))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('creatableTotal', 2)->where('students.total', 3));
+
+        $this->actingAs($this->academic)->post(route('students.accounts.store'), ['action' => 'create', 'scope' => 'all', 'status' => 'studying'])
+            ->assertRedirect(route('students.accounts.index', ['status' => 'studying']))
+            ->assertSessionHas('status', fn (string $m) => str_contains($m, 'Đã tạo tài khoản cho 2 học viên'));
+        $this->assertNotNull($a->fresh()->user_id);
+        $this->assertNotNull($b->fresh()->user_id);
+        $this->assertNull($outside->fresh()->user_id);
+        $this->assertNull($dropped->fresh()->user_id);
+
+        // Bộ lọc tìm kiếm được tôn trọng; "tất cả" chỉ áp dụng cho tạo tài khoản.
+        $c = $this->student('SA0026');
+        $d = $this->student('SA0027');
+        $this->actingAs($this->academic)->post(route('students.accounts.store'), ['action' => 'create', 'scope' => 'all', 'search' => 'SA0026']);
+        $this->assertNotNull($c->fresh()->user_id);
+        $this->assertNull($d->fresh()->user_id);
+        $this->actingAs($this->academic)->post(route('students.accounts.store'), ['action' => 'reset', 'scope' => 'all'])->assertStatus(422);
+        $this->actingAs($this->academic)->post(route('students.accounts.store'), ['action' => 'create'])->assertSessionHasErrors('student_ids');
+    }
+
     public function test_batch_reset_issues_new_temporary_passwords(): void
     {
         Excel::fake();

@@ -30,7 +30,7 @@ docker/menglish.sh production backup              # DB + file upload (public/upl
 
 `queue` chạy job hàng đợi (`php artisan queue:work`, driver `database`, bảng `jobs`), hiện dùng cho import đề cố định.
 `deploy` tự restart `queue` sau migrate. Job lỗi xem bằng `docker/menglish.sh <env> artisan queue:failed`,
-log bằng `docker/menglish.sh <env> logs -f queue`. Nếu `queue` không chạy, import đề cứ ở trạng thái "Đang chờ".
+log bằng `docker/menglish.sh <env> logs -f queue`. Nếu `queue` không chạy, import đề cứ ở trạng thái "Chờ xử lý".
 
 ## Deploy bằng GitHub Actions (chạy tay)
 

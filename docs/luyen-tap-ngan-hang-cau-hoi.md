@@ -303,10 +303,12 @@ trống đề bài). `position` = số câu trong đề.
 - Đề mới / đề còn Nháp → ghi (thay toàn bộ câu); đề đã mở / đã ẩn → giữ nguyên. Bảo mật ZIP: chặn `..` / đường dẫn
   tuyệt đối, chỉ lấy `.xlsx` / `.docx`, tối đa 300 mục, 50 MB.
 - Import chạy nền (hàng đợi Laravel, service `queue` trong `docker-compose.yml`): màn lưu file vào
-  `storage/app/private/exam-imports/{id}`, tạo bản ghi `practice_exam_imports` (Đang chờ → Đang import → Xong / Lỗi) và
+  `storage/app/private/exam-imports/{id}`, tạo bản ghi `practice_exam_imports` (Chờ xử lý → Đang xử lý → Hoàn thành / Thất bại) và
   đưa job `ImportPracticeExams` vào hàng đợi; job chạy importer, lưu kết quả từng đề, ghi một dòng nhật ký, xoá file.
   Màn Đề cố định hiện 5 lần import gần nhất (lần mới nhất kèm kết quả chi tiết), tự tải lại mỗi 3 giây khi còn lần đang
-  chờ / đang chạy; chờ quá 2 phút → nhắc kiểm tra queue. Job chạy một lần, tối đa 900 giây.
+  chờ / đang chạy; chờ quá 2 phút → nhắc kiểm tra queue. Bấm Import là đóng modal: file tải lên ở nền (dòng "Đang
+  tải lên n%" trên danh sách), lỗi tải lên hiện ở cùng dòng. `QUEUE_CONNECTION=sync` (không có worker) thì job chạy sau
+  khi trả trang (`dispatchAfterResponse`), người dùng vẫn không phải chờ. Job chạy một lần, tối đa 900 giây.
 - Danh sách theo khối: kỳ, số câu / phút, trạng thái, số lượt / học viên, điểm TB (so giữa các mã đề). Tick chọn
   nhiều đề (hoặc cả khối) rồi **Mở cho học viên** / **Ẩn đề** một lần (`POST question-bank/exams/bulk`; mở thì bỏ qua đề
   chưa có câu). Trang một đề: mọi
