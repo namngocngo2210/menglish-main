@@ -16,6 +16,7 @@ use App\Models\CrmTrialBooking;
 use App\Models\Room;
 use App\Models\StaffReport;
 use App\Models\SyllabusAssignment;
+use App\Models\TeacherSessionReport;
 use App\Models\User;
 use App\Models\WorkTask;
 use App\Services\ClassDashboardService;
@@ -717,22 +718,21 @@ class ClassManagementController extends Controller
                 $data['foreignTeacherOptions'] = $canManage && $foreignEditableIds
                     ? Ui::options($this->teachingStaffOptions($sessions->pluck('foreign_teacher_id')->all())[0], 'name') : [];
             } else {
-                $allReports = ClassReport::with('reporter:id,name')->where('class_id', $class->id)
-                    ->latest('session_date')->latest('id')->get();
-                // Báo cáo mới nhất của mỗi buổi (keyBy giữ bản cuối cùng = bản cũ nhất); báo cáo không gắn buổi giữ riêng.
-                $classReports = $allReports->groupBy(fn ($report) => $report->class_session_id ?? 'none-'.$report->id)->map->first();
-                // Báo cáo buổi của chính người xem (nút "Nộp báo cáo buổi" / "Đã nộp" trên từng dòng); bị trả về thì nộp lại.
-                $myReports = $allReports->where('reporter_id', $viewer->id)->whereNotNull('class_session_id')
-                    ->groupBy('class_session_id')->map->first();
+                $classReports = ClassReport::with('reporter:id,name')->where('class_id', $class->id)
+                    // Báo cáo mới nhất của mỗi buổi (keyBy giữ bản cuối cùng = bản cũ nhất); báo cáo không gắn buổi giữ riêng.
+                    ->latest('session_date')->latest('id')->get()
+                    ->groupBy(fn ($report) => $report->class_session_id ?? 'none-'.$report->id)->map->first();
+                // Báo cáo buổi học của GV chính (chỉ GV chính của buổi nộp; người khác xem).
+                $teacherReports = TeacherSessionReport::where('class_id', $class->id)->get()->keyBy('class_session_id');
                 $reportColors = ['pending_approval' => 'warning', 'approved' => 'success', 'rejected' => 'error'];
                 $reportLabels = ['pending_approval' => 'Chờ duyệt', 'approved' => 'Đã duyệt', 'rejected' => 'Bị trả về'];
                 $past = $sessions->filter(fn ($s) => $s->date->lte($today))
                     ->sortByDesc(fn ($s) => $s->date->format('Ymd').$s->start_time?->format('Hi'))->values();
                 $states = $past->mapWithKeys(fn (ClassSession $s) => [$s->id => $dashboard->attendanceState($s, $today)]);
 
-                $data['attendanceRows'] = $past->map(function (ClassSession $s) use ($states, $classReports, $myReports, $reportColors, $reportLabels) {
+                $data['attendanceRows'] = $past->map(function (ClassSession $s) use ($class, $viewer, $states, $classReports, $teacherReports, $reportColors, $reportLabels) {
                     $report = $classReports->get($s->id);
-                    $mine = $myReports->get($s->id);
+                    $teacherReport = $teacherReports->get($s->id)?->setRelation('session', $s);
 
                     return [
                         'id' => $s->id,
@@ -747,14 +747,15 @@ class ClassManagementController extends Controller
                             'label' => $reportLabels[$report->status] ?? StatusLabel::for($report->status),
                             'reporter' => $report->reporter?->name,
                         ] : null,
-                        'my_report' => $mine ? ['status' => $mine->status, 'rejected' => $mine->status === ClassReport::STATUS_REJECTED] : null,
+                        'teacher_report' => $teacherReport ? ['late' => $teacherReport->isLate()] : null,
+                        'can_submit_report' => TeacherSessionReport::responsibleTeacherId($s, $class) === (int) $viewer->id,
                     ];
                 })->all();
                 $data['attendanceStats'] = [
                     'past' => $past->where('status', '!=', 'cancelled')->count(),
                     'done' => $states->filter(fn ($state) => $state['key'] === 'done')->count(),
                     'missing' => $states->filter(fn ($state) => $state['key'] === 'missing')->count(),
-                    'reports' => $classReports->count(),
+                    'reports' => $teacherReports->count(),
                 ];
                 $data['canRecordAttendance'] = $viewer->can('attendance_student.record') || $viewer->can('attendance_student.record_any');
             }
