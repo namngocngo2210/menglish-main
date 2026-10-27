@@ -493,10 +493,10 @@ class AcademicSystemTest extends TestCase
     }
 
     // =========================================================================
-    // d. Big test distribution and parent Zalo notification
+    // d. Big test distribution and marking parents notified
     // =========================================================================
 
-    public function test_big_test_distribution_and_parent_zalo_notification(): void
+    public function test_big_test_distribution_and_parent_notification(): void
     {
         // 1. Distribute big test
         $bigTestPayload = [
@@ -548,9 +548,9 @@ class AcademicSystemTest extends TestCase
             'status' => 'approved',
         ]);
 
-        // 3. Send Zalo results notification to parents
-        $responseZalo = $this->actingAs($this->academicHead)->post(route('syllabus.big-tests.send-zalo', $bigTest->id));
-        $responseZalo->assertRedirect();
+        // 3. Mark results as reported to parents
+        $responseNotified = $this->actingAs($this->academicHead)->post(route('syllabus.big-tests.mark-notified', $bigTest->id));
+        $responseNotified->assertRedirect();
 
         $result->refresh();
         $this->assertTrue($result->parent_notified);

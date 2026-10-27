@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * "Khách chốt — Xác nhận chính thức" (màn crm.confirmations): ghi danh từ CRM chờ Học vụ / Quản lý xác nhận hồ sơ
- * (gửi tài khoản, vào nhóm Zalo, nhận giáo trình). Cần tick đủ checklist thật → chỉ link sang màn gốc.
+ * (gửi tài khoản, nhận giáo trình). Cần tick đủ checklist thật → chỉ link sang màn gốc.
  */
 class EnrollmentConfirmationApprovalSource extends QueryApprovalSource
 {

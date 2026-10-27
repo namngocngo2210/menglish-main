@@ -45,7 +45,7 @@ class ClassSessionReportTest extends TestCase
         ]);
     }
 
-    private function session(int $daysAgo): ClassSession
+    private function makeSession(int $daysAgo): ClassSession
     {
         return ClassSession::create(['class_id' => $this->class->id, 'branch_id' => $this->branch->id, 'date' => today()->subDays($daysAgo)->toDateString(),
             'start_time' => '08:00', 'end_time' => '09:30', 'type' => ClassSession::TYPE_REGULAR, 'status' => 'completed', 'teacher_id' => $this->teacher->id]);
@@ -53,9 +53,9 @@ class ClassSessionReportTest extends TestCase
 
     public function test_teacher_submits_report_per_session_from_class_page(): void
     {
-        $recent = $this->session(2);
+        $recent = $this->makeSession(2);
         // Buổi cũ hơn 30 ngày: form thường không liệt kê, mở từ Trang lớp vẫn chọn sẵn được.
-        $old = $this->session(45);
+        $old = $this->makeSession(45);
 
         $this->actingAs($this->teacher)->get(route('classes.show', ['id' => $this->class->id, 'tab' => 'attendance']))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->where('attendanceRows', fn ($rows) => collect($rows)->every(fn ($row) => $row['my_report'] === null)));
@@ -92,7 +92,7 @@ class ClassSessionReportTest extends TestCase
             'name' => 'Lớp khác', 'code' => 'KH1', 'course_id' => $this->class->course_id, 'branch_id' => $this->branch->id,
             'start_date' => now()->subMonth(), 'end_date' => now()->addMonths(2), 'max_capacity' => 12, 'status' => 'active',
         ]);
-        $session = $this->session(1);
+        $session = $this->makeSession(1);
 
         $this->actingAs($this->teacher)->get(route('classes.session-report', ['id' => $other->id, 'session' => $session->id]))->assertNotFound();
     }

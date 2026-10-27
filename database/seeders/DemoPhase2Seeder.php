@@ -51,7 +51,7 @@ use Illuminate\Support\Facades\DB;
  * - Idempotent: giáo trình theo mã DEMO-SYL-*, luồng mỗi lớp chỉ chạy khi lớp chưa từng được mở chặng, ngày nghỉ theo
  *   mã HOL-DEMO2-*, việc TA theo mô tả đánh dấu, chăm sóc tháng đầu / sinh nhật / nhắc Big Test vốn idempotent.
  * - Đi qua controller / service thật: SyllabusController (mở chặng, tạo & duyệt Big Test, duyệt order, nhập / duyệt
- *   kết quả, gửi Zalo — ép chế độ sandbox), TeacherPortalController (điểm danh, nhận xét, mini test, bài tập, order đề),
+ *   kết quả, ghi nhận đã báo phụ huynh), TeacherPortalController (điểm danh, nhận xét, mini test, bài tập, order đề),
  *   StudentPortalController (nộp / chấm bài), WorkTaskController (xếp & hoàn thành buổi bổ trợ, giao việc TA),
  *   HolidayController (thêm ngày nghỉ → hủy + xếp bù), FirstMonthCareService, lệnh sinh nhật / nhắc Big Test.
  */
@@ -127,9 +127,6 @@ class DemoPhase2Seeder extends Seeder
         $this->lead = User::where('email', 'academiclead@menglish.edu.vn')->firstOrFail();
 
         $originalRequest = app('request');
-        $originalZaloMode = config('services.zalo.mode');
-        // Demo không bao giờ gửi Zalo thật: ZaloZnsService ở chế độ sandbox chỉ ghi log và trả về thành công.
-        config(['services.zalo.mode' => 'sandbox']);
         try {
             $this->seedCurricula();
             foreach (self::BRANCH_STAFF as $code => $emails) {
@@ -143,7 +140,6 @@ class DemoPhase2Seeder extends Seeder
             $this->seedBirthdays();
             Artisan::call('bigtests:remind-upcoming');
         } finally {
-            config(['services.zalo.mode' => $originalZaloMode]);
             app()->instance('request', $originalRequest);
             Auth::forgetUser();
         }
@@ -361,7 +357,7 @@ class DemoPhase2Seeder extends Seeder
         $test = $this->scheduleBigTest($class, $examSession->date->copy()->setTime(17, 30), 'approved');
         $this->enterResults($test, $class, absentIndex: 2);
         $this->asUser($this->admin, SyllabusController::class, 'approveBigTestResults', [], ['id' => $test->id]);
-        $this->asUser($this->lead, SyllabusController::class, 'sendZaloResults', [], ['id' => $test->id]);
+        $this->asUser($this->lead, SyllabusController::class, 'markResultsNotified', [], ['id' => $test->id]);
 
         // Chặng không tự mở chặng kế (quy trình syllabus Bước 11): Học thuật giao chặng 2 từ ngày sau buổi thi.
         $switchAt = $examSession->date->copy()->addDay()->setTime(9, 0);

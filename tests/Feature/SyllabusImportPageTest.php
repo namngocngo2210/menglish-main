@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\AdminNotification;
+use App\Models\BackgroundTask;
 use App\Models\SyllabusCurriculum;
 use App\Models\SyllabusDocument;
 use App\Models\User;
@@ -186,12 +188,15 @@ class SyllabusImportPageTest extends TestCase
 
         $response = $this->actingAs($this->academic)->post(route('syllabus.import.confirm'), ['token' => $token]);
 
+        // Ghi giáo trình chạy nền (queue sync trong test: đã xong khi request trả về).
+        $response->assertRedirect(route('syllabus.import'));
+        $this->assertStringContainsString('Đang import giáo trình KIDS-Q4 ở nền', session('status'));
         $curriculum = SyllabusCurriculum::where('code', 'KIDS-Q4')->firstOrFail();
-        $response->assertRedirect(route('syllabus.curriculums.show', ['id' => $curriculum->id]));
-        $this->assertStringContainsString(
-            'Đã import giáo trình KIDS-Q4: 2 chặng, 4 buổi, 0 tài liệu.',
-            session('status')
-        );
+        $task = BackgroundTask::query()->where('type', BackgroundTask::SYLLABUS_IMPORT)->firstOrFail();
+        $this->assertSame(BackgroundTask::DONE, $task->status);
+        $this->assertStringContainsString('Đã import giáo trình KIDS-Q4: 2 chặng, 4 buổi, 0 tài liệu.', $task->message);
+        $this->assertSame(route('syllabus.curriculums.show', ['id' => $curriculum->id]),
+            AdminNotification::query()->where('user_id', $this->academic->id)->where('type', 'background_task')->firstOrFail()->data['link']);
         $this->assertSame([], File::glob(SyllabusImportStore::root()."/{$token}*"));
     }
 

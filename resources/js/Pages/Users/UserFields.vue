@@ -165,7 +165,7 @@ onMounted(() => {
                 <UiDate name="date_of_birth" :id="fid('date_of_birth')" label="Ngày sinh" :value="user?.date_of_birth" />
                 <UiInput name="personal_email" :id="fid('personal_email')" type="email" label="Email cá nhân" :value="user?.personal_email" placeholder="Email riêng, khác email công việc" />
                 <UiInput name="facebook" :id="fid('facebook')" label="Facebook" :value="user?.facebook" placeholder="Link trang cá nhân" />
-                <UiInput name="contact_channel" :id="fid('contact_channel')" label="Kênh liên lạc với quản lý nhân sự" :value="user?.contact_channel" placeholder="VD: Zalo" />
+                <UiInput name="contact_channel" :id="fid('contact_channel')" label="Kênh liên lạc với quản lý nhân sự" :value="user?.contact_channel" placeholder="VD: Điện thoại" />
                 <UiInput v-if="canEditSensitive" name="id_card_number" :id="fid('id_card_number')" label="Số CCCD (12 số)" :value="user?.id_card_number" placeholder="VD: 001201004567" class="font-code" />
                 <UiDate v-if="canEditSensitive" name="id_card_issued_on" :id="fid('id_card_issued_on')" label="Ngày cấp CCCD" :value="user?.id_card_issued_on" />
                 <UiInput name="emergency_contact" :id="fid('emergency_contact')" label="Liên lạc khẩn cấp (Tên & SĐT)" :value="user?.emergency_contact" placeholder="Tên người thân - SĐT" />

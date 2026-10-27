@@ -474,7 +474,7 @@ class PlacementTestController extends Controller
 
     /**
      * Phát hành đề: kích hoạt đề và sinh link làm bài công khai theo mã đề
-     * để học vụ gửi cho lead/học viên (dán vào CRM hoặc Zalo).
+     * để học vụ gửi cho lead/học viên (dán vào CRM hoặc tin nhắn).
      */
     public function distributeTest($id)
     {

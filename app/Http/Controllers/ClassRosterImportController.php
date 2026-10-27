@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Exports\ClassRosterTemplateExport;
+use App\Jobs\ImportClassRoster;
+use App\Models\BackgroundTask;
 use App\Models\Branch;
 use App\Services\ClassRosterImportService;
 use App\Support\DataScope;
@@ -23,7 +25,7 @@ class ClassRosterImportController extends Controller
     {
         $this->authorizeImport($request);
         $preview = $request->filled('token') ? $request->session()->get('class_roster_import.'.$request->input('token')) : null;
-        $result = $request->session()->get('class_roster_import_result');
+        $done = BackgroundTask::importResult(BackgroundTask::CLASS_ROSTER_IMPORT, $request->input('task'), $request->user()->id);
 
         return Inertia::render('Classes/Import', [
             'branches' => $this->branches($request)->map(fn (Branch $b) => ['value' => $b->id, 'label' => $b->name])->values(),
@@ -60,7 +62,8 @@ class ClassRosterImportController extends Controller
                     'warnings' => $s['warnings'],
                 ])->values(),
             ] : null,
-            'result' => $result,
+            'result' => $done['result'],
+            'backgroundTasks' => $done['backgroundTasks'],
             'classHeadings' => implode(', ', ClassRosterImportService::CLASS_HEADINGS),
             'studentHeadings' => implode(', ', ClassRosterImportService::STUDENT_HEADINGS),
         ]);
@@ -105,7 +108,7 @@ class ClassRosterImportController extends Controller
         return redirect()->route('classes.import', ['token' => $token]);
     }
 
-    public function confirm(Request $request, ClassRosterImportService $importer)
+    public function confirm(Request $request)
     {
         $this->authorizeImport($request);
         $validated = $request->validate(['token' => 'required|string']);
@@ -119,13 +122,18 @@ class ClassRosterImportController extends Controller
             abort_if($row['branch_id'] && ! DataScope::coversBranch($request->user(), 'class', (int) $row['branch_id']), 403, 'Bạn chỉ được nhập lớp cho cơ sở mình quản lý.');
         }
 
-        $result = $importer->import($preview, $request->user(), Carbon::parse($preview['sessions_from']), Carbon::parse($preview['sessions_to']));
-        $result['file_name'] = $preview['file_name'];
-        $result['skipped'] = collect($preview['students'])->filter(fn ($s) => $s['errors'] !== [] || $s['action'] === 'skip')->count();
+        // Ghi lớp / học viên / buổi học chạy nền (job ImportClassRoster); trang kết quả tự cập nhật khi xong.
+        $task = BackgroundTask::query()->create([
+            'type' => BackgroundTask::CLASS_ROSTER_IMPORT,
+            'user_id' => $request->user()->id,
+            'status' => BackgroundTask::QUEUED,
+            'title' => 'Nhập danh sách lớp: '.$preview['file_name'],
+            'payload' => ['preview' => $preview],
+        ]);
+        ImportClassRoster::dispatch($task);
 
-        return redirect()->route('classes.import')
-            ->with('class_roster_import_result', $result)
-            ->with('status', "Đã tạo {$result['classes']} lớp, {$result['rooms']} phòng học, gán giáo viên cho {$result['teachers']} lớp, {$result['students']} học viên và xếp {$result['enrollments']} lượt vào lớp.");
+        return redirect()->route('classes.import', ['task' => $task->id])
+            ->with('status', 'Đang nhập danh sách lớp ở nền. Có thể rời trang, kết quả hiện ở đây và trong thông báo khi xong.');
     }
 
     public function template()

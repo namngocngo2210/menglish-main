@@ -4,9 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Exports\StaffImportTemplateExport;
 use App\Helpers\AclHelper;
+use App\Jobs\ImportStaff;
+use App\Models\BackgroundTask;
 use App\Models\Branch;
 use App\Services\StaffImportService;
-use App\Support\Audit;
 use App\Support\DataScope;
 use App\Support\Rbac;
 use App\Support\Roles;
@@ -29,6 +30,7 @@ class StaffImportController extends Controller
     public function index(Request $request)
     {
         $preview = $request->filled('token') ? $request->session()->get('staff_import.'.$request->input('token')) : null;
+        $done = BackgroundTask::importResult(BackgroundTask::STAFF_IMPORT, $request->input('task'), $request->user()->id);
 
         return Inertia::render('Users/Import', [
             'branches' => $this->branches($request)->map(fn (Branch $b) => ['value' => $b->id, 'label' => $b->name])->values(),
@@ -53,7 +55,8 @@ class StaffImportController extends Controller
                     'warnings' => $r['warnings'],
                 ])->values(),
             ] : null,
-            'result' => $request->session()->get('staff_import_result'),
+            'result' => $done['result'],
+            'backgroundTasks' => $done['backgroundTasks'],
             'headings' => implode(', ', StaffImportService::HEADINGS),
             'defaultPassword' => self::DEFAULT_PASSWORD,
         ]);
@@ -103,7 +106,7 @@ class StaffImportController extends Controller
         return redirect()->route('users.import', ['token' => $token]);
     }
 
-    public function confirm(Request $request, StaffImportService $importer)
+    public function confirm(Request $request)
     {
         $validated = $request->validate(['token' => 'required|string']);
         $preview = $request->session()->pull('staff_import.'.$validated['token']);
@@ -121,14 +124,18 @@ class StaffImportController extends Controller
             abort_if($managed !== null && ! in_array((int) $row['branch_id'], $managed, true), 403, 'Bạn chỉ được tạo nhân sự cho cơ sở mình quản lý.');
         }
 
-        Audit::describe('Nhập nhân sự từ file '.$preview['file_name']);
-        $result = $importer->import($preview, $preview['password_hash'], $request->user());
-        $result['file_name'] = $preview['file_name'];
-        $result['skipped'] = collect($preview['rows'])->filter(fn ($r) => $r['errors'] !== [])->count();
+        // Tạo tài khoản chạy nền (job ImportStaff); trang kết quả tự cập nhật khi xong.
+        $task = BackgroundTask::query()->create([
+            'type' => BackgroundTask::STAFF_IMPORT,
+            'user_id' => $request->user()->id,
+            'status' => BackgroundTask::QUEUED,
+            'title' => 'Nhập nhân sự: '.$preview['file_name'],
+            'payload' => ['preview' => $preview],
+        ]);
+        ImportStaff::dispatch($task);
 
-        return redirect()->route('users.import')
-            ->with('staff_import_result', $result)
-            ->with('status', "Đã tạo {$result['created']} tài khoản, bổ sung hồ sơ {$result['updated']} tài khoản.");
+        return redirect()->route('users.import', ['task' => $task->id])
+            ->with('status', 'Đang tạo tài khoản ở nền. Có thể rời trang, kết quả hiện ở đây và trong thông báo khi xong.');
     }
 
     public function template()

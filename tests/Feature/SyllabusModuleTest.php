@@ -79,7 +79,7 @@ class SyllabusModuleTest extends TestCase
         $this->assertDatabaseHas('big_tests', ['id' => $testId, 'is_distributed' => true, 'status' => 'distributed']);
     }
 
-    public function test_can_view_big_test_results_and_send_zalo_notifications(): void
+    public function test_can_view_big_test_results_and_mark_parents_notified(): void
     {
         $user = User::factory()->create();
         $user->assignRole('admin');
@@ -95,7 +95,7 @@ class SyllabusModuleTest extends TestCase
 
         $bigTest = BigTest::create([
             'code' => 'BT-TEST-01',
-            'title' => 'Kỳ Thi Test Zalo ZNS',
+            'title' => 'Kỳ Thi Test Báo PH',
             'class_id' => $class->id,
             'test_type' => 'final',
             'scheduled_at' => '2026-08-30 19:30:00',
@@ -121,17 +121,17 @@ class SyllabusModuleTest extends TestCase
         $viewResp = $this->actingAs($user)->get(route('syllabus.big-tests.results', $bigTest->id));
         $viewResp->assertOk();
         $viewResp->assertSee('Lê Bảo Nam');
-        $viewResp->assertSee('Duyệt kết quả Big Test &amp; gửi phụ huynh', false);
+        $viewResp->assertSee('Duyệt kết quả Big Test &amp; báo phụ huynh', false);
 
-        // 2. Send single Zalo notification
-        $singleSendResp = $this->actingAs($user)->post(route('syllabus.big-tests.send-single-zalo', $result->id));
+        // 2. Mark single result notified
+        $singleSendResp = $this->actingAs($user)->post(route('syllabus.big-tests.mark-single-notified', $result->id));
         $singleSendResp->assertRedirect();
         $result->refresh();
         $this->assertTrue($result->parent_notified);
         $this->assertNotNull($result->notified_at);
 
-        // 3. Batch send all Zalo notifications
-        $batchSendResp = $this->actingAs($user)->post(route('syllabus.big-tests.send-zalo', $bigTest->id));
+        // 3. Mark all results notified
+        $batchSendResp = $this->actingAs($user)->post(route('syllabus.big-tests.mark-notified', $bigTest->id));
         $batchSendResp->assertRedirect();
     }
 }

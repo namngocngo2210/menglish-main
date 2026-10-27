@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Mail;
 /**
  * Tin gửi phụ huynh / khách (xác nhận lịch hẹn, xác nhận đã nhận học phí): chọn email thật để gửi và gửi qua SMTP
  * đã cấu hình. Không có email (hoặc gửi lỗi) thì nơi gọi chuyển sang kênh thủ công: người phụ trách sao chép nội dung
- * gửi qua Zalo.
+ * gửi tin nhắn.
  */
 class ParentMessenger
 {

@@ -282,10 +282,10 @@ class Phase1AcceptanceTest extends TestCase
         // Xác nhận chính thức: thiếu hồ sơ không xác nhận được; đủ → "Đang học" (lớp đã khai giảng).
         $this->actingAs($this->academic)->get(route('crm.confirmations'))->assertOk()->assertSee($student->name);
         $this->actingAs($this->academic)->post(route('crm.enrollments.confirm', $enrollment), [
-            'account_sent' => 1, 'zalo_group_added' => 1, 'curriculum_delivered' => 0, 'action' => 'confirm',
+            'account_sent' => 1, 'curriculum_delivered' => 0, 'action' => 'confirm',
         ])->assertSessionHasErrors('enrollment');
         $this->actingAs($this->academic)->post(route('crm.enrollments.confirm', $enrollment), [
-            'account_sent' => 1, 'zalo_group_added' => 1, 'curriculum_delivered' => 1, 'action' => 'confirm',
+            'account_sent' => 1, 'curriculum_delivered' => 1, 'action' => 'confirm',
         ])->assertSessionHasNoErrors();
         $this->assertNotNull($enrollment->fresh()->confirmed_at);
         $this->assertSame('studying', $student->fresh()->status);
@@ -352,7 +352,7 @@ class Phase1AcceptanceTest extends TestCase
         // Checklist xác nhận chính thức: lớp chưa khai giảng → vẫn "Chờ khai giảng".
         $this->actingAs($this->academic)->get(route('crm.confirmations'))->assertOk()->assertSee('Trần Minh Khoa');
         $this->actingAs($this->academic)->post(route('crm.enrollments.confirm', $waitingEnrollment), [
-            'account_sent' => 1, 'zalo_group_added' => 1, 'curriculum_delivered' => 1, 'action' => 'confirm',
+            'account_sent' => 1, 'curriculum_delivered' => 1, 'action' => 'confirm',
         ])->assertSessionHasNoErrors();
         $this->assertNotNull($waitingEnrollment->fresh()->confirmed_at);
         $this->assertSame('waiting_start', $waitingStudent->fresh()->status);

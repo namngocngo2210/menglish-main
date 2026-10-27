@@ -80,7 +80,7 @@ defineProps({
                     <div class="flex shrink-0 flex-wrap items-center justify-end gap-2 self-end sm:self-center">
                         <NotificationAction v-if="notif.action" :action="notif.action" :notification-id="notif.id" :is-read="notif.is_read" />
                         <UiButton v-if="notif.lead" variant="info" size="sm" icon="call" :href="route('crm.customers.show', notif.lead.customer_id)">Xử lý Lead ngay</UiButton>
-                        <UiButton v-if="notif.copy_text" size="sm" icon="content_copy" @click="copyText(notif.copy_text, 'Đã sao chép nội dung — dán vào Zalo để gửi phụ huynh.')">Sao chép nội dung</UiButton>
+                        <UiButton v-if="notif.copy_text" size="sm" icon="content_copy" @click="copyText(notif.copy_text, 'Đã sao chép nội dung — dán vào tin nhắn để gửi phụ huynh.')">Sao chép nội dung</UiButton>
                         <UiButton v-if="notif.copy_text && notif.link && !notif.lead" variant="secondary" size="sm" icon="open_in_new" :href="notif.link">Mở hồ sơ</UiButton>
                         <UiForm v-if="!notif.is_read" :action="route('notifications.read', notif.id)" method="post" class="inline">
                             <UiButton type="submit" variant="secondary" size="sm" icon="check" title="Đánh dấu đã đọc" aria-label="Đánh dấu đã đọc" />

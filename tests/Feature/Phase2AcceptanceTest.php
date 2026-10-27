@@ -29,14 +29,12 @@ use App\Services\SupportListService;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\Client\Request as HttpRequest;
-use Illuminate\Support\Facades\Http;
 use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 /**
  * Nghiệm thu Phase 2 (docs/audit-report-and-roadmap.md — Phần C, "Kết quả đạt được"):
- * mở lớp → sinh lịch → giao chặng → dạy và điểm danh → Big Test → phụ huynh nhận Zalo kết quả,
+ * mở lớp → sinh lịch → giao chặng → dạy và điểm danh → Big Test → ghi nhận đã báo kết quả cho phụ huynh,
  * qua HTTP bằng đúng vai trò thật, theo A6 (Q4: Giáo trình → Chặng → Unit → Buổi, mỗi lớp 1 chặng mở,
  * chặng đóng khi Big Test duyệt & gửi PH rồi tự mở chặng kế).
  */
@@ -373,30 +371,16 @@ class Phase2AcceptanceTest extends TestCase
         ]])->assertSessionHas('error');
         $this->assertSame('8.0', (string) BigTestResult::where('big_test_id', $bigTest->id)->where('student_id', $s1->id)->value('listening_score'));
 
-        // ── 7. Gửi Zalo ZNS cho phụ huynh (chế độ live, Zalo API giả lập bằng Http::fake) ─────────
-        config(['services.zalo.mode' => 'live', 'services.zalo.access_token' => 'test-token']);
-        $failPhone = '84911000004';
-        Http::fake(['business.openapi.zalo.me/*' => function (HttpRequest $request) use (&$failPhone) {
-            return $request['phone'] === $failPhone
-                ? Http::response(['error' => -124, 'message' => 'Số điện thoại không hợp lệ'])
-                : Http::response(['error' => 0, 'message' => 'Success', 'data' => ['msg_id' => 'm-'.$request['phone']]]);
-        }]);
-
-        $this->actingAs($this->lead)->post(route('syllabus.big-tests.send-zalo', $bigTest->id))->assertSessionHas('warning');
-        Http::assertSentCount(3);
-        Http::assertSent(fn (HttpRequest $r) => $r['phone'] === '84987000111' && $r->hasHeader('access_token', 'test-token')
-            && $r['template_data']['overall_score'] === '8.0');
-        Http::assertNotSent(fn (HttpRequest $r) => $r['phone'] === '84911000002');
-        $this->assertTrue(BigTestResult::where('big_test_id', $bigTest->id)->where('student_id', $s1->id)->where('status', 'sent')->where('parent_notified', true)->exists());
-        $this->assertSame('approved', BigTestResult::where('big_test_id', $bigTest->id)->where('student_id', $s4->id)->value('status'), 'Gửi lỗi không đánh dấu đã gửi.');
+        // ── 7. Ghi nhận đã báo phụ huynh: từng học viên trước, chặng chưa đóng khi còn kết quả chưa báo ─────────
+        $r4 = BigTestResult::where('big_test_id', $bigTest->id)->where('student_id', $s4->id)->firstOrFail();
+        $this->actingAs($this->lead)->post(route('syllabus.big-tests.mark-single-notified', $r4->id))->assertSessionHas('status');
+        $this->assertTrue($r4->fresh()->parent_notified);
         $this->assertTrue(SyllabusAssignment::open()->where('class_id', $class->id)->where('stage_id', $stage1->id)->exists());
 
-        // Gửi lại: chỉ gửi kết quả còn thiếu (không gửi lại cả lớp) → chặng 1 đóng, chặng 2 tự mở.
-        $failPhone = null;
-        $this->actingAs($this->lead)->post(route('syllabus.big-tests.send-zalo', $bigTest->id))->assertSessionHas('status');
-        Http::assertSentCount(4);
-        $this->actingAs($this->lead)->post(route('syllabus.big-tests.send-zalo', $bigTest->id))->assertSessionHas('error');
-        Http::assertSentCount(4);
+        // Cả lớp: chỉ ghi nhận kết quả còn thiếu → chặng 1 đóng, chặng 2 tự mở.
+        $this->actingAs($this->lead)->post(route('syllabus.big-tests.mark-notified', $bigTest->id))->assertSessionHas('status');
+        $this->assertTrue(BigTestResult::where('big_test_id', $bigTest->id)->where('student_id', $s1->id)->where('status', 'sent')->where('parent_notified', true)->exists());
+        $this->actingAs($this->lead)->post(route('syllabus.big-tests.mark-notified', $bigTest->id))->assertSessionHas('error');
 
         $closed = SyllabusAssignment::where('class_id', $class->id)->where('stage_id', $stage1->id)->firstOrFail();
         $this->assertSame(SyllabusAssignment::STATUS_CLOSED, $closed->status);

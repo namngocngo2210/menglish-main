@@ -202,7 +202,7 @@ return [
                 'Với mỗi học viên, nhập điểm **Listening**, **Reading**, **Writing**, **Speaking**. Cột **Overall** tự tính.',
                 'Ghi nhận xét tiến độ và link video bài thi ở cột **Nhận xét & Video**. Học viên vắng thì tích **Vắng thi** và không cần nhập điểm.',
                 'Bấm **Lưu nháp** nếu chưa xong (Học thuật chưa thấy). Xong thì bấm **Gửi duyệt**.',
-                'Theo dõi cột **Trạng thái** và **Đã gửi PH** để biết bài nào đã được duyệt, đã gửi phụ huynh. Bấm **In bảng điểm** khi cần bản in.',
+                'Theo dõi cột **Trạng thái** và **Đã báo PH** để biết bài nào đã được duyệt, đã gửi phụ huynh. Bấm **In bảng điểm** khi cần bản in.',
             ],
             'tips' => [
                 'Gửi duyệt cần đủ 4 kỹ năng. Dòng để trống sẽ được bỏ qua.',

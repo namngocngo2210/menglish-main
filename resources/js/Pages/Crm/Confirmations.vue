@@ -2,7 +2,7 @@
 /**
  * Xác nhận chính thức (mockup epic-6/khach-hang-chot-thanh-cong-xac-nhan): tiêu đề + số học viên, băng nhắc "Chờ xếp lớp",
  * lọc Chi nhánh / Lớp học / Tìm kiếm, bảng Khách đã có lớp (checklist hồ sơ nhập học, Lưu tiến độ / Xác nhận chính thức) + popup xác nhận.
- * A6 Q5: không có trạng thái "Học thử" trên hồ sơ học viên. Checklist hồ sơ nhập học: tài khoản, Zalo, giáo trình.
+ * A6 Q5: không có trạng thái "Học thử" trên hồ sơ học viên. Checklist hồ sơ nhập học: tài khoản, giáo trình.
  */
 import { ref } from 'vue';
 import { Link } from '@inertiajs/vue3';
@@ -152,7 +152,7 @@ function askConfirm(enrollment) {
         <UiModal :show="confirmOpen" title="Xác nhận học viên" max-width="md" @close="confirmOpen = false">
             <div class="flex items-start gap-md">
                 <span class="material-symbols-outlined rounded-full bg-secondary-fixed p-sm text-secondary">info</span>
-                <p class="font-body-base text-body-base text-on-surface-variant">Xác nhận học viên <strong class="text-on-surface">{{ confirmName }}</strong> đã chính thức bắt đầu học? Cần tick đủ hồ sơ nhập học (tài khoản, nhóm Zalo, giáo trình).</p>
+                <p class="font-body-base text-body-base text-on-surface-variant">Xác nhận học viên <strong class="text-on-surface">{{ confirmName }}</strong> đã chính thức bắt đầu học? Cần tick đủ hồ sơ nhập học (tài khoản, giáo trình).</p>
             </div>
             <template #footer>
                 <UiButton variant="secondary" @click="confirmOpen = false">Hủy</UiButton>

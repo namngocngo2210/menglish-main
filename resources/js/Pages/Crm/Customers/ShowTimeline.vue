@@ -1,6 +1,6 @@
 <script setup>
 /**
- * Lịch sử hoạt động trên hồ sơ khách: lọc theo loại (server, ?log_type=), form ghi chú liên hệ mới (hình thức: gọi / Zalo / gặp…),
+ * Lịch sử hoạt động trên hồ sơ khách: lọc theo loại (server, ?log_type=), form ghi chú liên hệ mới (hình thức: gọi / nhắn tin / gặp…),
  * dòng thời gian (khách Thất bại hiện khung lý do).
  */
 import { computed, ref } from 'vue';
@@ -17,7 +17,7 @@ const props = defineProps({
 });
 const noteTypes = [
     ['call', 'Gọi điện'],
-    ['message', 'Zalo/SMS'],
+    ['message', 'Nhắn tin'],
     ['meet', 'Trực tiếp'],
     ['test', 'Test đầu vào'],
     ['note', 'Ghi chú'],

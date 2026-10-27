@@ -3,10 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Http\Concerns\RendersModals;
+use App\Jobs\ImportQuestionBank;
+use App\Models\BackgroundTask;
 use App\Models\QuestionBankPassage;
 use App\Models\QuestionBankQuestion;
 use App\Services\Practice\PracticeReport;
-use App\Services\QuestionBank\QuestionBankImporter;
 use App\Support\Audit;
 use App\Support\Practice\PracticeCatalog;
 use Illuminate\Database\Eloquent\Builder;
@@ -17,7 +18,6 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
-use InvalidArgumentException;
 
 /**
  * Ngân hàng câu hỏi (docs/luyen-tap-ngan-hang-cau-hoi.md §5.2): danh sách / lọc, duyệt – ẩn hàng loạt, sửa câu / ngữ liệu
@@ -37,8 +37,6 @@ class QuestionBankController extends Controller
     ];
 
     /** Số dòng lỗi import tối đa hiện trên trang. */
-    private const IMPORT_ERROR_LINES = 20;
-
     public function index(Request $request): InertiaResponse
     {
         $filters = $this->filters($request);
@@ -57,7 +55,7 @@ class QuestionBankController extends Controller
             'filterOptions' => $this->filterOptions(),
             'statusCounts' => collect(QuestionBankQuestion::STATUSES)->map(fn ($label, string $status) => (int) ($counts[$status] ?? 0)),
             'canManage' => $request->user()->can('question_bank.manage'),
-            'importErrors' => session('import_errors', []),
+            'backgroundTasks' => BackgroundTask::recentFor(BackgroundTask::QUESTION_BANK_IMPORT),
         ]);
     }
 
@@ -227,43 +225,25 @@ class QuestionBankController extends Controller
         return $this->modalSaved('Đã lưu ngữ liệu.', $this->safeReturnUrl($request->input('return')) ?? route('question-bank.index'));
     }
 
-    /** Import file ZIP (data/*.json + hinh/*) chạy đồng bộ; một dòng nhật ký tổng thay cho từng câu. */
-    public function import(Request $request, QuestionBankImporter $importer): RedirectResponse
+    /** Import file ZIP (data/*.json + hinh/*) chạy nền (job ImportQuestionBank): lưu file, kết quả hiện ở đầu trang khi xong. */
+    public function import(Request $request): RedirectResponse
     {
         $request->validate([
             'file' => ['required', 'file', 'mimes:zip', 'max:102400'],
         ], [], ['file' => 'file ZIP']);
 
-        // Vài nghìn câu + ảnh. Chỉ đặt khi chạy qua web: set_time_limit() trong CLI (test) giết cả tiến trình PHPUnit
-        // 300 giây sau lần gọi cuối (như CrmImportController).
-        if (! app()->runningInConsole()) {
-            @set_time_limit(300);
-        }
+        $file = $request->file('file');
+        $task = BackgroundTask::query()->create([
+            'type' => BackgroundTask::QUESTION_BANK_IMPORT,
+            'user_id' => $request->user()->id,
+            'status' => BackgroundTask::QUEUED,
+            'title' => 'Import ngân hàng câu hỏi: '.$file->getClientOriginalName(),
+            'payload' => ['file_name' => $file->getClientOriginalName()],
+        ]);
+        $file->storeAs($task->directory(), '0', 'local');
+        ImportQuestionBank::dispatch($task);
 
-        try {
-            $summary = activity()->withoutLogs(fn () => $importer->importZip($request->file('file')->getRealPath()));
-        } catch (InvalidArgumentException $e) {
-            return back()->withErrors(['file' => $e->getMessage()]);
-        }
-
-        activity(Audit::logNameFor(QuestionBankQuestion::class))
-            ->causedBy($request->user())
-            ->withProperties([
-                'file' => $request->file('file')->getClientOriginalName(),
-                'created' => $summary->created,
-                'updated' => $summary->updated,
-                'kept' => $summary->kept,
-                'skipped' => $summary->skipped,
-                'errors' => count($summary->errors),
-            ])
-            ->log('Import ngân hàng câu hỏi: '.$summary->message());
-
-        $errors = array_slice($summary->errors, 0, self::IMPORT_ERROR_LINES);
-        if (count($summary->errors) > self::IMPORT_ERROR_LINES) {
-            $errors[] = '… và '.(count($summary->errors) - self::IMPORT_ERROR_LINES).' lỗi khác.';
-        }
-
-        return back()->with('status', $summary->message())->with('import_errors', $errors);
+        return back()->with('status', 'Đã nhận file, đang import ở nền. Có thể rời trang, kết quả hiện ở đây và trong thông báo khi xong.');
     }
 
     /**

@@ -604,8 +604,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/big-tests/results/{id?}', [SyllabusController::class, 'bigTestResults'])->name('big-tests.results');
         Route::post('/big-tests/{id}/results', [SyllabusController::class, 'storeBigTestResults'])->middleware('can:syllabus.update')->name('big-tests.results.store');
         Route::post('/big-tests/{id}/results/approve', [SyllabusController::class, 'approveBigTestResults'])->middleware('can:big_test.approve')->middleware('can:'.AdminOnlyApprovals::ABILITY)->name('big-tests.results.approve');
-        Route::post('/big-tests/{id}/send-zalo', [SyllabusController::class, 'sendZaloResults'])->middleware('can:big_test.approve')->name('big-tests.send-zalo');
-        Route::post('/big-tests/results/{resultId}/send-single-zalo', [SyllabusController::class, 'sendSingleZaloResult'])->middleware('can:big_test.approve')->name('big-tests.send-single-zalo');
+        Route::post('/big-tests/{id}/mark-notified', [SyllabusController::class, 'markResultsNotified'])->middleware('can:big_test.approve')->name('big-tests.mark-notified');
+        Route::post('/big-tests/results/{resultId}/mark-notified', [SyllabusController::class, 'markResultNotified'])->middleware('can:big_test.approve')->name('big-tests.mark-single-notified');
         Route::post('/big-tests/results/{resultId}/approve-send', [SyllabusController::class, 'approveAndSendResult'])->whereNumber('resultId')->middleware('can:big_test.approve')->middleware('can:'.AdminOnlyApprovals::ABILITY)->name('big-tests.results.approve-send');
     });
 

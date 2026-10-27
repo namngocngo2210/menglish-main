@@ -58,13 +58,13 @@ return [
             'icon' => 'assignment_turned_in',
             'menu' => 'Học viên → Tiếp nhận & Xếp lớp',
             'route' => 'students.enrollments',
-            'intro' => 'Sau khi học viên được xếp lớp, Học vụ hoàn tất bàn giao: phát giáo trình và thêm vào nhóm Zalo lớp.',
+            'intro' => 'Sau khi học viên được xếp lớp, Học vụ hoàn tất bàn giao: phát giáo trình.',
             'images' => [
                 ['src' => 'hoc-vu/xac-nhan-nhap-hoc.webp', 'caption' => 'Màn Xác nhận nhập học'],
             ],
             'steps' => [
                 'Vào **Học viên**, bấm **Tiếp nhận & Xếp lớp** ở góc trên phải.',
-                'Ở **Danh sách bàn giao học viên gần đây**, xem cột **Phát giáo trình** và **Nhóm Zalo lớp**. Làm xong việc nào thì tích vào ô đó rồi bấm **Lưu**; trạng thái chuyển sang **Hoàn tất** khi đủ.',
+                'Ở **Danh sách bàn giao học viên gần đây**, xem cột **Phát giáo trình**. Phát xong thì tích vào ô rồi bấm **Lưu**; trạng thái chuyển sang **Hoàn tất**.',
                 'Dòng của học viên chốt từ CRM có link **Sửa ở Xác nhận chính thức**: bấm vào để cập nhật bàn giao ở màn đó.',
                 'Cần xếp một học viên đã có hồ sơ vào lớp: bấm **Xếp lớp cho học viên**, chọn **Chọn Học viên** và **Chọn Lớp học mục tiêu**, rồi bấm **Xếp lớp**.',
                 'Dòng báo đỏ "khách chốt từ CRM đang chờ xếp lớp" cho biết số khách còn chờ. Bấm **Xếp lớp** ở dòng đó để mở danh sách chờ.',
@@ -84,7 +84,7 @@ return [
             'steps' => [
                 'Bấm **Học viên** ở menu trái. Bấm các nút **Trạng thái** (Chờ khai giảng, Đang học, Bảo lưu, Nghỉ hè, Hoàn thành khóa học, Thôi học) để lọc nhanh.',
                 'Gõ tên hoặc số điện thoại, chọn chi nhánh, lớp, thâm niên rồi bấm **Lọc**.',
-                'Bấm **Chi tiết** để mở hồ sơ. Sửa họ tên, số điện thoại, phụ huynh, SĐT phụ huynh (dùng để gửi kết quả qua Zalo), trường học, ghi chú, rồi bấm **Lưu thay đổi**.',
+                'Bấm **Chi tiết** để mở hồ sơ. Sửa họ tên, số điện thoại, phụ huynh, SĐT phụ huynh, trường học, ghi chú, rồi bấm **Lưu thay đổi**.',
                 'Học viên học song song thêm một lớp: bấm **Liên kết lớp khác** ở dòng học viên. Lớp chính không đổi.',
             ],
             'tips' => [

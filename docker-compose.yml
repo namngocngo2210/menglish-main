@@ -46,7 +46,7 @@ services:
       test: ["CMD", "healthcheck-schedule"]
       start_period: 10s
 
-  # Xử lý job hàng đợi (import đề cố định...). Code mới chỉ có hiệu lực sau khi restart (deploy tự làm).
+  # Xử lý job hàng đợi việc nặng (import, tính lương...) ở queue default. Code mới chỉ có hiệu lực sau khi restart (deploy tự làm).
   queue:
     <<: *app
     pull_policy: never
@@ -55,6 +55,17 @@ services:
     environment:
       <<: *app-env
       PHP_MEMORY_LIMIT: 1G
+    healthcheck:
+      test: ["CMD", "healthcheck-queue"]
+      start_period: 10s
+
+  # Email thông báo (queue notifications) chạy worker riêng: một lần import dài ở queue default không làm email chờ theo.
+  # Số lần thử lại đặt trong từng job (SendHtmlMail, SendParentNotice), --tries chỉ là mặc định.
+  queue-notifications:
+    <<: *app
+    pull_policy: never
+    command: ["php", "/var/www/html/artisan", "queue:work", "--queue=notifications", "--tries=1", "--timeout=120", "--memory=256", "--max-time=3600"]
+    stop_signal: SIGTERM
     healthcheck:
       test: ["CMD", "healthcheck-queue"]
       start_period: 10s

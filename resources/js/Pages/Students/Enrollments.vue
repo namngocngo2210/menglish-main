@@ -1,8 +1,8 @@
 <script setup>
 /**
- * Xác nhận nhập học: tiếp nhận học viên và bàn giao lớp học (checklist giáo trình / nhóm Zalo).
+ * Xác nhận nhập học: tiếp nhận học viên và bàn giao lớp học (checklist phát giáo trình).
  * Checklist bàn giao chỉ sửa ở MỘT nơi: lượt xếp lớp từ CRM → màn Xác nhận chính thức (ở đây chỉ xem + link);
- * lượt xếp lớp trực tiếp → sửa ngay tại cột Giáo trình / Zalo.
+ * lượt xếp lớp trực tiếp → sửa ngay tại cột Giáo trình.
  * Popup "Xếp lớp cho học viên": lớp chọn được theo học viên (cùng chi nhánh, đúng khóa hoặc cùng cấp độ đã chốt nếu đang Chờ xếp lớp — placementRules);
  * mở sẵn khi đến từ bảng Chờ xếp lớp (?student_id=) hoặc khi lỗi validate.
  */
@@ -47,7 +47,6 @@ watch(
 
 const checklist = [
     { field: 'curriculum_delivered', done: 'Đã phát', pending: 'Chờ phát', short: 'Giáo trình' },
-    { field: 'zalo_group_added', done: 'Đã thêm', pending: 'Chờ thêm', short: 'Zalo' },
 ];
 const editable = (en) => canHandoff.value && !en.dropped && !en.transferred && !en.from_crm;
 </script>
@@ -79,7 +78,6 @@ const editable = (en) => canHandoff.value && !en.dropped && !en.transferred && !
                         <th>Lớp học tiếp nhận</th>
                         <th>Giáo viên chủ nhiệm</th>
                         <th>Phát giáo trình</th>
-                        <th>Nhóm Zalo lớp</th>
                         <th>Ngày vào lớp</th>
                         <th class="text-right">Trạng thái</th>
                     </tr>
@@ -120,7 +118,7 @@ const editable = (en) => canHandoff.value && !en.dropped && !en.transferred && !
                         </td>
                     </tr>
                     <tr v-if="!enrollments.data.length">
-                        <td colspan="7"><UiEmptyState title="Chưa có lịch sử bàn giao nào." /></td>
+                        <td colspan="6"><UiEmptyState title="Chưa có lịch sử bàn giao nào." /></td>
                     </tr>
                 </tbody>
             </table>

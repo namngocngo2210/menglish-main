@@ -134,9 +134,6 @@ function onNewSaved() {
                                 <input type="checkbox" name="channels[]" :value="channel.value" :checked="rule.channels.includes(channel.value)" class="rounded text-primary focus:ring-primary-container" />
                                 {{ channel.label }}
                             </label>
-                            <span class="flex items-center gap-xs font-body-small text-body-small text-on-surface-variant" title="Chưa tích hợp Zalo ZNS / SMS cho nhắc nợ">
-                                <input type="checkbox" disabled class="rounded" aria-label="Zalo ZNS / SMS (chưa tích hợp)" /> Zalo ZNS / SMS (chưa tích hợp)
-                            </span>
                         </div>
                     </UiField>
 

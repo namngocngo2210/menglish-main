@@ -124,18 +124,18 @@ class Phase1EnrollmentTest extends TestCase
 
         // Thiếu hồ sơ → không xác nhận được, nhưng lưu được tiến độ.
         $this->actingAs($this->academic)->post(route('crm.enrollments.confirm', $enrollment), [
-            'account_sent' => 1, 'zalo_group_added' => 0, 'curriculum_delivered' => 1, 'action' => 'confirm',
+            'account_sent' => 1, 'curriculum_delivered' => 0, 'action' => 'confirm',
         ])->assertSessionHasErrors('enrollment');
         $this->assertNull($enrollment->fresh()->confirmed_at);
 
         $this->actingAs($this->academic)->post(route('crm.enrollments.confirm', $enrollment), [
-            'account_sent' => 1, 'zalo_group_added' => 0, 'curriculum_delivered' => 1, 'action' => 'save',
+            'account_sent' => 1, 'curriculum_delivered' => 0, 'action' => 'save',
         ])->assertSessionHasNoErrors();
         $this->assertTrue($enrollment->fresh()->account_sent);
         $this->assertNull($enrollment->fresh()->confirmed_at);
 
         $this->actingAs($this->academic)->post(route('crm.enrollments.confirm', $enrollment), [
-            'account_sent' => 1, 'zalo_group_added' => 1, 'curriculum_delivered' => 1, 'action' => 'confirm',
+            'account_sent' => 1, 'curriculum_delivered' => 1, 'action' => 'confirm',
         ])->assertSessionHasNoErrors();
         $enrollment->refresh();
         $this->assertNotNull($enrollment->confirmed_at);
@@ -150,7 +150,7 @@ class Phase1EnrollmentTest extends TestCase
 
         // Đã xác nhận thì không xác nhận lại.
         $this->actingAs($this->academic)->post(route('crm.enrollments.confirm', $enrollment), [
-            'account_sent' => 1, 'zalo_group_added' => 1, 'curriculum_delivered' => 1, 'action' => 'confirm',
+            'account_sent' => 1, 'curriculum_delivered' => 1, 'action' => 'confirm',
         ])->assertSessionHasErrors('enrollment');
     }
 
@@ -164,11 +164,11 @@ class Phase1EnrollmentTest extends TestCase
         $foreignAcademic = $this->userWithRole('academic_staff', $this->otherBranch);
         $this->actingAs($foreignAcademic)->get(route('crm.confirmations'))->assertOk()->assertDontSee($lead->name);
         $this->actingAs($foreignAcademic)->post(route('crm.enrollments.confirm', $enrollment), [
-            'account_sent' => 1, 'zalo_group_added' => 1, 'curriculum_delivered' => 1, 'action' => 'confirm',
+            'account_sent' => 1, 'curriculum_delivered' => 1, 'action' => 'confirm',
         ])->assertNotFound();
 
         $this->actingAs($this->manager)->post(route('crm.enrollments.confirm', $enrollment), [
-            'account_sent' => 1, 'zalo_group_added' => 1, 'curriculum_delivered' => 1, 'action' => 'confirm',
+            'account_sent' => 1, 'curriculum_delivered' => 1, 'action' => 'confirm',
         ])->assertSessionHasNoErrors();
         $this->assertNotNull($enrollment->fresh()->confirmed_at);
         $this->assertSame(Student::INITIAL_STATUS, Student::find($lead->fresh()->converted_student_id)->status);

@@ -80,6 +80,19 @@ class SyllabusImportStore
     /** Xoá file, thư mục giải nén và khoá phiên của token. */
     public function forget(string $token): void
     {
+        $this->deleteFiles($token);
+        $this->release($token);
+    }
+
+    /** Bỏ khoá phiên (không xác nhận lại được nữa) nhưng giữ file: job import chạy nền còn đọc, xong tự xoá (deleteFiles). */
+    public function release(string $token): void
+    {
+        session()->forget(self::key($token));
+    }
+
+    /** Xoá file và thư mục giải nén của token (không cần phiên — dùng được trong job). */
+    public function deleteFiles(string $token): void
+    {
         if (! Str::isUuid($token)) {
             return;
         }
@@ -87,7 +100,6 @@ class SyllabusImportStore
             File::delete(self::root()."/{$token}.{$extension}");
         }
         File::deleteDirectory(self::root()."/{$token}");
-        session()->forget(self::key($token));
     }
 
     /** Xoá mọi file / thư mục trong root có mtime < $before (gồm cả zip mẫu mồ côi). Trả số mục đã xoá. */

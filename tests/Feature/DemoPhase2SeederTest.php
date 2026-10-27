@@ -26,19 +26,16 @@ use Illuminate\Support\Facades\Http;
 use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
-/** Dữ liệu demo Phase 2: đủ trạng thái vận hành lớp, đúng quy tắc nghiệp vụ, chạy lại không nhân bản, không gửi Zalo thật. */
+/** Dữ liệu demo Phase 2: đủ trạng thái vận hành lớp, đúng quy tắc nghiệp vụ, chạy lại không nhân bản, không gọi dịch vụ ngoài. */
 class DemoPhase2SeederTest extends TestCase
 {
     use RefreshDatabase;
 
     public function test_demo_seed_builds_a_coherent_phase2_dataset_and_is_idempotent(): void
     {
-        // Kể cả khi môi trường có cấu hình Zalo live, seeder demo chỉ dùng sandbox.
-        config(['services.zalo.mode' => 'live', 'services.zalo.access_token' => 'real-token']);
         Http::fake();
         $this->seed(DatabaseSeeder::class);
         Http::assertNothingSent();
-        $this->assertSame('live', config('services.zalo.mode'));
 
         // Giáo trình → Chặng → Unit → Buổi gắn trình độ.
         $starters = SyllabusCurriculum::where('code', 'DEMO-SYL-STARTERS')->firstOrFail();

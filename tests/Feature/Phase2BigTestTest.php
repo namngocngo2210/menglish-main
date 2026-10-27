@@ -45,7 +45,6 @@ class Phase2BigTestTest extends TestCase
         parent::setUp();
         $this->seed(PermissionSeeder::class);
         $this->seed(RoleSeeder::class);
-        config(['services.zalo.mode' => 'sandbox']);
 
         $branch = Branch::create(['name' => 'Cơ sở BT', 'code' => 'BT2', 'is_active' => true]);
         $this->academic = User::factory()->create(['is_active' => true]);
@@ -273,15 +272,15 @@ class Phase2BigTestTest extends TestCase
 
         $page = $this->actingAs($this->academic)->get(route('syllabus.big-tests.results', $test->id));
         $page->assertOk()
-            ->assertSee('Đã gửi PH')
-            ->assertSee(route('syllabus.big-tests.send-single-zalo', $pending->id, absolute: false))
-            ->assertSee('Gửi PH');
+            ->assertSee('Đã báo PH')
+            ->assertSee(route('syllabus.big-tests.mark-single-notified', $pending->id, absolute: false))
+            ->assertSee('Đánh dấu đã báo phụ huynh');
 
         // Giáo viên không có nút gửi
         $this->actingAs($this->teacherA)->get(route('syllabus.big-tests.results', $test->id))
-            ->assertOk()->assertDontSee(route('syllabus.big-tests.send-single-zalo', $pending->id, absolute: false));
+            ->assertOk()->assertDontSee(route('syllabus.big-tests.mark-single-notified', $pending->id, absolute: false));
 
-        $this->actingAs($this->academic)->post(route('syllabus.big-tests.send-single-zalo', $pending->id))->assertRedirect()->assertSessionHas('status');
+        $this->actingAs($this->academic)->post(route('syllabus.big-tests.mark-single-notified', $pending->id))->assertRedirect()->assertSessionHas('status');
         $this->assertTrue($pending->fresh()->parent_notified);
         $this->assertSame('sent', $pending->fresh()->status);
     }
@@ -292,8 +291,8 @@ class Phase2BigTestTest extends TestCase
         $s = Student::create(['code' => 'HV-A1', 'name' => 'HV Vắng', 'phone' => '0905', 'current_class_id' => $this->classA->id, 'status' => 'studying']);
         $res = BigTestResult::create(['big_test_id' => $test->id, 'student_id' => $s->id, 'is_absent' => true, 'status' => 'approved']);
 
-        $this->actingAs($this->academic)->post(route('syllabus.big-tests.send-single-zalo', $res->id))->assertSessionHas('error');
-        $this->actingAs($this->academic)->post(route('syllabus.big-tests.send-zalo', $test->id))->assertSessionHas('error');
+        $this->actingAs($this->academic)->post(route('syllabus.big-tests.mark-single-notified', $res->id))->assertSessionHas('error');
+        $this->actingAs($this->academic)->post(route('syllabus.big-tests.mark-notified', $test->id))->assertSessionHas('error');
         $this->assertFalse($res->fresh()->parent_notified);
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SendHtmlMail;
 use App\Models\AdminNotification;
 use App\Models\BankAccount;
 use App\Models\CrmCustomer;
@@ -22,7 +23,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 
 class SepayWebhookController extends Controller
 {
@@ -378,7 +378,7 @@ class SepayWebhookController extends Controller
                 'response_message' => 'Đã gạch nợ thành công '.Money::format($appliedAmount)." cho học viên {$matchedStudent?->name} ({$matchedStudent?->code}). Xuất HĐĐT số {$invoiceNumber}.{$overNote}",
             ]);
 
-            // Báo phụ huynh đã nhận tiền: thông báo Cổng Học viên + email (không có email → người phụ trách gửi Zalo).
+            // Báo phụ huynh đã nhận tiền: thông báo Cổng Học viên + email (không có email → người phụ trách nhắn tin).
             try {
                 $parentNotice = app(PaymentConfirmation::class)->notify($receipt);
             } catch (\Throwable $e) {
@@ -390,9 +390,9 @@ class SepayWebhookController extends Controller
             $this->notifyReconcilers($matchedTuition->branch_id, [
                 'title' => 'SePay: Khớp thanh toán '.Money::format($appliedAmount),
                 'message' => "Học viên {$matchedStudent?->name} ({$matchedStudent?->code}) đã thanh toán thành công qua SePay. Phiếu thu: {$receipt->receipt_number}. HĐĐT: {$invoiceNumber}."
-                    .($parentNotice['emailed'] ? " Đã gửi email xác nhận tới {$parentNotice['emailed']} và báo ở Cổng Học viên."
+                    .($parentNotice['emailed'] ? " Đang gửi email xác nhận tới {$parentNotice['emailed']}, đã báo ở Cổng Học viên."
                         : ($parentNotice['sent'] ? ($parentNotice['email_failed'] ? ' Gửi email phụ huynh không thành công' : ' Phụ huynh chưa có email')
-                            .': đã báo ở Cổng Học viên, sao chép nội dung để xác nhận qua Zalo nếu cần.' : '')),
+                            .': đã báo ở Cổng Học viên, sao chép nội dung để nhắn xác nhận nếu cần.' : '')),
                 'type' => 'success',
                 'data' => $parentNotice['text'] !== '' ? ['copy_text' => $parentNotice['text'], 'student_id' => $matchedStudent?->id] : null,
                 'is_read' => false,
@@ -407,11 +407,9 @@ class SepayWebhookController extends Controller
                 ]);
             }
 
+            // Email cảnh báo giao dịch (notifyTransactionReceipt) do hook TuitionReceipt::created gửi sau commit — không gọi lại ở đây.
             try {
-                // 1. Dispatch operational transaction alert
-                app(NotificationService::class)->notifyTransactionReceipt($receipt);
-
-                // 2. Dispatch verification email to both Academic Staff (branch) and Super Admin to immediately issue electronic invoice
+                // Email đề nghị xuất hoá đơn cho Super Admin + Học vụ / Kế toán cơ sở: mỗi người nhận một job ở queue notifications.
                 $recipients = collect();
                 $adminEmails = User::query()->whereHas('roles', fn ($q) => $q->where('name', \App\Support\Rbac::SUPER_ADMIN))->pluck('email')->filter();
                 $recipients = $recipients->merge($adminEmails);
@@ -446,13 +444,7 @@ class SepayWebhookController extends Controller
                         .'</div>';
 
                     foreach ($recipients as $email) {
-                        try {
-                            Mail::html($htmlContent, function ($msg) use ($email, $subject) {
-                                $msg->to($email)->subject($subject);
-                            });
-                        } catch (\Throwable $me) {
-                            Log::warning("Lỗi gửi email SePay cho {$email}: ".$me->getMessage());
-                        }
+                        SendHtmlMail::dispatch($email, $subject, $htmlContent);
                     }
                 }
             } catch (\Throwable $e) {
