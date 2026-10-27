@@ -26,7 +26,7 @@ function changePeriod(event) {
 </script>
 
 <template>
-    <UiPageHeader :title="'Báo cáo giảng dạy của tôi — T' + month + '/' + year" icon="monitoring" :back="route('teacher.home')">
+    <UiPageHeader :title="(can('portal.teacher') ? 'Báo cáo giảng dạy của tôi' : 'Bảng công trợ giảng của tôi') + ' — T' + month + '/' + year" icon="monitoring" :back="route('teacher.home')">
         <template #actions>
             <form method="GET" class="flex items-center gap-2" @submit.prevent>
                 <UiInput type="month" name="period" :value="period" aria-label="Tháng báo cáo" @change="changePeriod" />
