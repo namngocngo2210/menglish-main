@@ -960,25 +960,8 @@ class WorkTaskController extends Controller
      */
     public function createClassReport(Request $request)
     {
-        return $this->classReportPage($request);
-    }
-
-    /**
-     * Nộp báo cáo của một buổi từ Trang lớp (tab Điểm danh & báo cáo buổi): lớp khóa, buổi chọn sẵn, sidebar giữ ở Lớp học,
-     * nộp xong quay về Trang lớp.
-     */
-    public function createSessionReport(Request $request, int $id, int $session)
-    {
-        $classSession = ClassSession::where('class_id', $id)->whereKey($session)->firstOrFail();
-        abort_unless(ClassModel::query()->visibleTo($request->user())->whereKey($id)->exists(), 403);
-
-        return $this->classReportPage($request, $classSession);
-    }
-
-    private function classReportPage(Request $request, ?ClassSession $pinned = null)
-    {
         $user = $request->user();
-        $task = $pinned ? null : $this->reportableTask($request->integer('task_id') ?: null, $user);
+        $task = $this->reportableTask($request->integer('task_id') ?: null, $user);
 
         // Chỉ lớp người nộp phụ trách (GV / GVNN / TA, hoặc trong phạm vi quản lý).
         $classes = ClassModel::query()->visibleTo($user)
@@ -989,11 +972,7 @@ class WorkTaskController extends Controller
             $classes->push($task->classModel);
         }
 
-        if ($pinned && ! $classes->contains('id', $pinned->class_id)) {
-            $classes->push($pinned->classModel);
-        }
-
-        $classId = $pinned?->class_id ?: ($request->integer('class_id') ?: ($task?->class_id ?: $classes->first()?->id));
+        $classId = $request->integer('class_id') ?: ($task?->class_id ?: $classes->first()?->id);
         $selectedClass = $classes->firstWhere('id', $classId) ?? $classes->first();
         $students = $selectedClass ? $selectedClass->rosterStudents() : collect();
 
@@ -1008,13 +987,9 @@ class WorkTaskController extends Controller
                 ->limit(20)
                 ->get()
             : collect();
-        // Buổi mở từ Trang lớp có thể cũ hơn 30 ngày → vẫn đưa vào danh sách để chọn sẵn.
-        if ($pinned && ! $sessions->contains('id', $pinned->id)) {
-            $sessions->push($pinned->loadMissing('branch:id,name'));
-        }
         $lessons = $sessions->isNotEmpty() ? app(SessionLessonService::class)->lessonsFor($sessions) : [];
         $sessionOptions = $sessions->mapWithKeys(fn (ClassSession $s) => [$s->id => self::sessionLabel($s, $lessons[$s->id] ?? null)]);
-        $defaultSessionId = $pinned?->id ?? $sessions->first(fn (ClassSession $s) => $s->date->isToday())?->id;
+        $defaultSessionId = $sessions->first(fn (ClassSession $s) => $s->date->isToday())?->id;
 
         $confirmerId = ClassReport::resolveConfirmerId($selectedClass, $task, (int) $user->id);
         $confirmer = $confirmerId ? User::find($confirmerId, ['id', 'name']) : null;
@@ -1068,10 +1043,8 @@ class WorkTaskController extends Controller
                 'branch' => $s->branch?->name,
             ]])->all(),
             'reporter' => $user->name.(($role = $user->roles->first()?->name) ? ' ('.AclHelper::shortRoleLabel($role).')' : ''),
-            // Nhãn vai trò cạnh tiêu đề (trước gắn cứng "Trợ giảng" kể cả khi giáo viên nộp).
+            // Nhãn vai trò cạnh tiêu đề (trước gắn cứng "Trợ giảng" kể cả khi người khác nộp).
             'reporterRole' => $role ? AclHelper::shortRoleLabel($role) : null,
-            // Mở từ Trang lớp: khóa lớp, Quay lại / nộp xong về tab Điểm danh & báo cáo buổi.
-            'classUrl' => $pinned ? route('classes.show', ['id' => $pinned->class_id, 'tab' => 'attendance']) : null,
             // Gợi ý danh sách bổ trợ theo lớp: mini test gần nhất (30 ngày) dưới 7 điểm thang 10 — cùng ngưỡng danh sách bổ trợ.
             'testSuggestions' => $selectedClass ? self::lowMiniTestSuggestions($selectedClass, $students) : [],
             // Task follow-up (17/10/2026): việc chưa xong tạo từ báo cáo trực lớp trước của lớp này + người nhận việc.
@@ -1388,9 +1361,7 @@ class WorkTaskController extends Controller
             ? 'Đã nộp báo cáo trực lớp kèm '.count($paths).' ảnh — đầu việc "Trực lớp" đã tự hoàn thành.'
             : 'Đã nộp báo cáo trực lớp (không có ảnh) — chờ Admin xác nhận.';
 
-        $fallback = $request->boolean('from_class') ? route('classes.show', ['id' => $class->id, 'tab' => 'attendance']) : route('portal.ta-tasks');
-
-        return $this->modalSaved($msg, $fallback, 'success');
+        return $this->modalSaved($msg, route('portal.ta-tasks'), 'success');
     }
 
     /**

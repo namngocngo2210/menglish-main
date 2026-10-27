@@ -1,5 +1,6 @@
 <script setup>
-/** Trang lớp · Điểm danh & báo cáo buổi: các buổi đã tới ngày (mới nhất trước), trạng thái điểm danh và báo cáo trực lớp. */
+/** Trang lớp · Điểm danh & báo cáo buổi: các buổi đã tới ngày (mới nhất trước), trạng thái điểm danh, báo cáo buổi của GV và báo cáo trực lớp. */
+import { Link } from '@inertiajs/vue3';
 import { formatDate } from '@/lib/format';
 
 defineProps({
@@ -16,7 +17,7 @@ defineProps({
             <UiStatCard label="Buổi đã tới ngày" :value="stats.past" icon="event_available" />
             <UiStatCard label="Đã điểm danh" :value="stats.done" tone="success" icon="how_to_reg" />
             <UiStatCard label="Chưa điểm danh" :value="stats.missing" :tone="stats.missing ? 'error' : 'default'" icon="pending_actions" />
-            <UiStatCard label="Báo cáo buổi đã nộp" :value="stats.reports" tone="secondary" icon="assignment_turned_in" />
+            <UiStatCard label="Báo cáo buổi GV đã nộp" :value="stats.reports" tone="secondary" icon="assignment_turned_in" />
         </div>
 
         <UiDataTable min-width="760px">
@@ -28,6 +29,7 @@ defineProps({
                     <tr>
                         <th>Buổi</th>
                         <th>Điểm danh</th>
+                        <th>Báo cáo buổi (GV)</th>
                         <th>Báo cáo trực lớp</th>
                         <th class="text-right" aria-label="Thao tác"></th>
                     </tr>
@@ -43,6 +45,14 @@ defineProps({
                             <span v-if="s.attendances_count > 0" class="ml-1 text-xs text-on-surface-variant">{{ s.attendances_count }} HV</span>
                         </td>
                         <td>
+                            <!-- Đã nộp → nhãn bấm được để xem; GV chính chưa nộp → nút ở cột thao tác. -->
+                            <Link v-if="s.teacher_report" :href="route('classes.session-report', { id: klass.id, session: s.id })" class="inline-flex items-center gap-1 hover:underline">
+                                <UiBadge :color="s.teacher_report.late ? 'warning' : 'success'">{{ s.teacher_report.late ? 'Đã nộp · trễ' : 'Đã nộp' }}</UiBadge>
+                            </Link>
+                            <span v-else-if="!s.cancelled" class="text-xs text-on-surface-subtle">Chưa nộp</span>
+                            <span v-else class="text-xs text-on-surface-subtle">—</span>
+                        </td>
+                        <td>
                             <template v-if="s.report">
                                 <UiBadge :color="s.report.color">{{ s.report.label }}</UiBadge>
                                 <span class="ml-1 text-xs text-on-surface-variant">{{ s.report.reporter }}</span>
@@ -55,18 +65,14 @@ defineProps({
                                 <UiButton v-if="canRecordAttendance && !s.cancelled" variant="ghost" size="sm" icon="fact_check" :href="route('teacher.attendance', { classId: klass.id, session: s.id })">{{
                                     s.attendances_count > 0 ? 'Xem điểm danh' : 'Điểm danh'
                                 }}</UiButton>
-                                <!-- Báo cáo buổi của chính người xem: đã nộp → nhãn; chưa nộp / bị trả về → nút mở form với buổi chọn sẵn. -->
-                                <template v-if="can('work_task.view') && !s.cancelled">
-                                    <UiBadge v-if="s.my_report && !s.my_report.rejected" color="success">Đã nộp</UiBadge>
-                                    <UiButton v-else variant="secondary" size="sm" icon="post_add" :href="route('classes.session-report', { id: klass.id, session: s.id })">{{
-                                        s.my_report ? 'Nộp lại báo cáo' : 'Nộp báo cáo buổi'
-                                    }}</UiButton>
-                                </template>
+                                <UiButton v-if="s.can_submit_report && !s.teacher_report && !s.cancelled" variant="secondary" size="sm" icon="post_add" :href="route('classes.session-report', { id: klass.id, session: s.id })"
+                                    >Nộp báo cáo buổi</UiButton
+                                >
                             </div>
                         </td>
                     </tr>
                     <tr v-if="!rows.length">
-                        <td colspan="4"><UiEmptyState icon="event_busy" title="Chưa có buổi học nào tới ngày." /></td>
+                        <td colspan="5"><UiEmptyState icon="event_busy" title="Chưa có buổi học nào tới ngày." /></td>
                     </tr>
                 </tbody>
             </table>

@@ -116,6 +116,19 @@ return [
             'violation' => 'Gửi nhận xét sau buổi học trễ',
         ],
 
+        'gv.session_report' => [
+            'group' => 'teacher',
+            'label' => 'Báo cáo buổi học (GV)',
+            'description' => 'GV chính nộp báo cáo buổi học (Trang lớp → Điểm danh & báo cáo buổi) trong số giờ này sau khi buổi kết thúc. Nộp sau hạn vẫn được, báo cáo hiện "Nộp trễ".',
+            'value' => 24,
+            'unit' => 'hours',
+            'penalty' => null,
+            'amount' => 0,
+            'task' => false,
+            'switchable' => false,
+            'violation' => 'Nộp báo cáo buổi học trễ',
+        ],
+
         'gv.syllabus_confirm' => [
             'group' => 'teacher',
             'label' => 'Xác nhận syllabus chặng (GV)',

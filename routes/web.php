@@ -63,6 +63,7 @@ use App\Http\Controllers\TeacherMeetingReportController;
 use App\Http\Controllers\TeacherLessonController;
 use App\Http\Controllers\TeacherOrderController;
 use App\Http\Controllers\TeacherPortalController;
+use App\Http\Controllers\TeacherSessionReportController;
 use App\Http\Controllers\TeachingShiftController;
 use App\Http\Controllers\TrialGuestController;
 use App\Http\Controllers\TuitionController;
@@ -354,8 +355,9 @@ Route::middleware('auth')->group(function () {
         // Syllabus của lớp: Học thuật chỉnh sửa thủ công từng buổi (bản đè, docs/kho-syllabus.md §7.3).
         Route::put('/{class}/syllabus/lessons/{lesson}', [SyllabusClassController::class, 'override'])->whereNumber(['class', 'lesson'])->middleware('can:syllabus.class_edit')->name('syllabus.override');
         Route::delete('/{class}/syllabus/lessons/{lesson}', [SyllabusClassController::class, 'destroyOverride'])->whereNumber(['class', 'lesson'])->middleware('can:syllabus.class_edit')->name('syllabus.override.destroy');
-        // Nộp báo cáo của một buổi từ Trang lớp (form báo cáo trực lớp, buổi chọn sẵn, sidebar giữ ở Lớp học).
-        Route::get('/{id}/sessions/{session}/report', [WorkTaskController::class, 'createSessionReport'])->whereNumber(['id', 'session'])->middleware('can:work_task.view')->name('session-report');
+        // Báo cáo buổi học của GV chính (nút trên từng buổi ở tab Điểm danh & báo cáo buổi); người khác xem chỉ đọc.
+        Route::get('/{id}/sessions/{session}/report', [TeacherSessionReportController::class, 'show'])->whereNumber(['id', 'session'])->name('session-report');
+        Route::post('/{id}/sessions/{session}/report', [TeacherSessionReportController::class, 'store'])->whereNumber(['id', 'session'])->name('session-report.store');
         // Trang lớp (tab con qua ?tab=): đặt cuối nhóm để không nuốt các đường dẫn cố định phía trên.
         Route::get('/{id}', [ClassManagementController::class, 'show'])->whereNumber('id')->name('show');
     });
